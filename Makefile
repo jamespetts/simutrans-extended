@@ -64,6 +64,10 @@ ifeq ($(OSTYPE),mac)
   LDFLAGS += -stdlib=libstdc++
 endif
 
+ifeq ($(OSTYPE),linux)
+  CFLAGS +=  -std=c++1
+endif
+
 ifeq ($(OSTYPE),mingw)
   SOURCES += clipboard_w32.cc
 else
