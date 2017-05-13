@@ -1595,7 +1595,15 @@ sint32 fabrik_t::liefere_an(const goods_desc_t *typ, sint32 menge)
 			if(  ware.get_typ() == typ  ) {
 				// Can't use update_transit for interface reasons; we don't take a ware argument.
 				// We should, however.
-				ware.book_stat( -menge, FAB_GOODS_TRANSIT );
+
+				// A.Badger: Avoid negative in_transit (and underflow if this
+				// changes to unsigned)
+				const sint32 current_in_transit_amt = ware.get_stat(0, FAB_GOODS_TRANSIT);
+				if (current_in_transit_amt < menge) {
+					ware.book_stat( -current_in_transit_amt, FAB_GOODS_TRANSIT );
+				} else {
+					ware.book_stat( -menge, FAB_GOODS_TRANSIT );
+				}
 				// Hajo: avoid overflow
 				if(  ware.menge < (FAB_MAX_INPUT - menge) << precision_bits  ) {
 					ware.menge += menge << precision_bits;
