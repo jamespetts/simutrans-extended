@@ -1,1 +1,38 @@
-
+# Simutranslator settings for Simutrans-Extended texts
+# Addendum for version 14
+#
+# Author: jamespetts
+# Created: September 2018
+#
+=program_text
+name=%s has withdrawn access rights from %s
+note=Message window
+-
+=program_text
+name=%s has allowed access rights to %s
+note=Message window
+-
+obj=program_text
+name=Vehicle running costs per km
+note=Tooltip for the finances window
+-
+obj=program_text
+name=Vehicle maintenance costs per month
+note=Tooltip for the finances window
+-
+obj=program_text
+name=The convoy has been sent\nto its home depot.\n%s\n
+note=Used for when the home depot is specified when sending a vehicle to a depot.(change from 8.0)
+-
+obj=program_text
+name=Convoi has been sent\nto the nearest depot\nof appropriate type.\n%s\n
+note=Used for when the home depot is specified when sending a vehicle to a depot.
+-
+obj=program_text
+name=No suitable depot found!\nYou need to send the\nconvoi to the depot\nmanually.\n%s\n
+note=Used for when the home depot is not found.
+-
+obj=program_text
+name=Depot found but could not be inserted in schedule.  This is a bug!%s\n
+note=
+-
