@@ -3343,11 +3343,11 @@ int karte_t::terraformer_t::raise_all()
 	return n;
 }
 
-int karte_t::terraformer_t::lower_all()
+int karte_t::terraformer_t::lower_all(bool allow_flooding)
 {
 	int n=0;
 	FOR(vector_tpl<node_t>, &i, list) {
-		n += welt->lower_to(i.x, i.y, i.h[0], i.h[1], i.h[2], i.h[3]);
+		n += welt->lower_to(i.x, i.y, i.h[0], i.h[1], i.h[2], i.h[3], allow_flooding);
 	}
 	return n;
 }
@@ -3680,7 +3680,7 @@ const char* karte_t::can_lower_to(const player_t* player, sint16 x, sint16 y, si
 }
 
 
-int karte_t::lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw)
+int karte_t::lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw, bool allow_flooding)
 {
 	int n=0;
 	assert(is_within_limits(x,y));
@@ -3715,7 +3715,7 @@ int karte_t::lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8
 	const sint8 hmaxneu = max( max( hn_sw, hn_se ), max( hn_ne, hn_nw ) );
 
 	// only slope could have been shores
-	if(  old_slope  ) {
+	if(  old_slope && allow_flooding  ) {
 		// if there are any shore corners, then the new tile must be all water since it is lowered
 		const bool make_water =
 			get_water_hgt_nocheck(x,y) <= lookup_hgt_nocheck(x,y)  ||
@@ -3728,7 +3728,7 @@ int karte_t::lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8
 		}
 	}
 
-	if(  hneu >= water_hgt  ) {
+	if(  hneu >= water_hgt && allow_flooding  ) {
 		// calculate water table from surrounding tiles - start off with height on this tile
 		sint8 water_table = water_hgt >= h0 ? water_hgt : groundwater - 4;
 
@@ -3935,7 +3935,7 @@ bool karte_t::can_flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_w
 
 
 // make a flat level at this position 
-bool karte_t::flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water, bool make_underwater_hill, bool justcheck)
+bool karte_t::flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water, bool make_underwater_hill, bool justcheck, bool allow_flooding)
 {
 	int n = 0;
 	bool ok = true;
@@ -3952,7 +3952,7 @@ bool karte_t::flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water
 		ok = digger.can_lower_all(player, player ? player->is_public_service() : true) == NULL;
 
 		if (ok  &&  !justcheck) {
-			n += digger.lower_all();
+			n += digger.lower_all(allow_flooding);
 		}
 	}
 	if(  ok  &&  old_hgt < hgt  ) {

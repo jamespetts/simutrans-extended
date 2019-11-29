@@ -2866,7 +2866,7 @@ void way_builder_t::build_river()
 		}
 		// now lower all tiles that have the same height as tile i
 		for(uint32 k=i; k<j; k++) {
-			welt->flatten_tile(NULL, route[k].get_2d(), max(route[k].z-1, start_h));
+			welt->flatten_tile(NULL, route[k].get_2d(), max(route[k].z-1, start_h), false, false, false, false);
 		}
 		if (!ok) {
 			end_n = j;

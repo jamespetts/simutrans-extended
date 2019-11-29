@@ -506,7 +506,7 @@ private:
 	 * @returns count of full lower operations (4 corners lowered one level)
 	 * @note Clear tile, reset water/land type, calc reliefkarte (relief map) pixel.
 	 */
-	int  lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
+	int  lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw, bool allow_flooding=true);
 
 	/**
 	 * Raise grid point (@p x,@p y). Changes grid_hgts only, used during map creation/enlargement.
@@ -2216,7 +2216,7 @@ public:
 
 	// mostly used by AI: Ask to flatten a tile
 	bool can_flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false);
-	bool flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false, bool justcheck=false);
+	bool flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false, bool justcheck=false, bool allow_flooding=true);
 
 	/**
 	 * Class to manage terraform operations.
@@ -2276,7 +2276,7 @@ public:
 		/// Do the raise operations
 		int raise_all();
 		/// Do the lower operations
-		int lower_all();
+		int lower_all(bool allow_flooding=true);
 	};
 
 private:
