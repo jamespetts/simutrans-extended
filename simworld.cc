@@ -8545,7 +8545,7 @@ DBG_MESSAGE("karte_t::load()","Savegame version is %d", file.get_version());
 		set_dirty();
 
 		reset_timer();
-		recalc_average_speed();
+		//recalc_average_speed();
 		mute_sound(false);
 
 		tool_t::update_toolbars();
