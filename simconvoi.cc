@@ -3430,23 +3430,10 @@ void convoi_t::vorfahren()
 
 						if (front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
 						{
-							const rail_vehicle_t* rv = (rail_vehicle_t*)front();
-							if (rv->get_working_method() == drive_by_sight || rv->get_working_method() == time_interval || rv->get_working_method() == time_interval_with_telegraph)
-							{
-								reserve_own_tiles(true); // Unreserve now in case reversing alters the tiles occupied by this convoy.
-							}
+							reserve_own_tiles(true); // Unreserve now in case reversing alters the tiles occupied by this convoy.
 						}
 
 						reverse_order(reversable);
-
-						if (front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
-						{
-							const rail_vehicle_t* rv = (rail_vehicle_t*)front();
-							if (rv->get_working_method() == drive_by_sight || rv->get_working_method() == time_interval || rv->get_working_method() == time_interval_with_telegraph)
-							{
-								reserve_own_tiles(false); // Re-reserve
-							}
-						}
 				}
 			}
 
