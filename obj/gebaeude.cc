@@ -1918,15 +1918,6 @@ void gebaeude_t::rdwr(loadsave_t *file)
 }
 
 
-/**
-* Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
-* um das Aussehen des Dings an Boden und Umgebung anzupassen
-*
-* "After loading is called adapting to the world - normally used to the
-* look of the thing in the ground and surrounding area" (Google)
-*
-* @author Hj. Malthaner
-*/
 void gebaeude_t::finish_rd()
 {
 	calc_image();

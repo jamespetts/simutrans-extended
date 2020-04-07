@@ -115,11 +115,7 @@ public:
 	// since traffic lights need their own window
 	void show_info();
 
-	/**
-	 * @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
-	 * Beobachtungsfenster angezeigt wird.
-	 * @author Hj. Malthaner
-	 */
+	/// @copydoc obj_t::info
 	virtual void info(cbuffer_t & buf, bool dummy = false) const;
 
 	/**

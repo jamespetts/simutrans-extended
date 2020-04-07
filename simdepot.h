@@ -202,17 +202,16 @@ public:
 	void convoi_arrived(convoihandle_t cnv, bool fpl_adjust);
 
 	/**
-	 * Öffnet ein neues Beobachtungsfenster für das Objekt.
-	 * @author Hj. Malthaner
+	 * Opens a new info window for that object.
 	 */
-	void show_info();
+	void show_info() OVERRIDE;
 
 	/**
 	 * Can object be removed?
 	 * @return NULL when OK, otherwise an error message
 	 * @author Hj. Malthaner
 	 */
-	virtual const char *  is_deletable(const player_t *player);
+	virtual const char *is_deletable(const player_t *player);
 
 	/**
 	 * identifies the oldest vehicle of a certain type

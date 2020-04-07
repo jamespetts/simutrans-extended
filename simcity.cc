@@ -3390,10 +3390,6 @@ void stadt_t::set_private_car_trip(int passengers, stadt_t* destination_town)
 }
 
 
-/**
- * returns a random and uniformly distributed point within city borders
- * @author Hj. Malthaner
- */
 koord stadt_t::get_zufallspunkt(uint32 min_distance, uint32 max_distance, koord origin) const
 {
 	if(!buildings.empty())

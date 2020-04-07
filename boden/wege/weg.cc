@@ -547,10 +547,6 @@ bool weg_t::is_height_restricted() const
 }
 
 
-/**
- * Info-text for this way
- * @author Hj. Malthaner
- */
 void weg_t::info(cbuffer_t & buf, bool is_bridge) const
 {
 	obj_t::info(buf);

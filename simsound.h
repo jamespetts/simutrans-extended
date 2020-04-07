@@ -9,21 +9,14 @@
 
 #include "simtypes.h"
 
-// when muted, sound is not played (and also volume is not touched)
+/// sound can be selectively muted (but volume is not touched)
 void sound_set_mute(bool on);
 bool sound_get_mute();
 
-/**
- * setzt Lautstärke für all effekte
- * @author Hj. Malthaner
- */
+/// @param volume in range 0..255
 void sound_set_global_volume(int volume);
 
-
-/**
- * ermittelt Lautstärke für all effekte
- * @author Hj. Malthaner
- */
+/// @returns volume in range 0..255
 int sound_get_global_volume();
 
 
@@ -31,36 +24,22 @@ int sound_get_global_volume();
  * Play a sound.
  *
  * @param idx    Index of the sound
- * @param volume Volume of the sound, 0 = silence, 255 = max
+ * @param volume in range 0..255
  */
 void sound_play(uint16 idx, uint8 volume = 255);
 
 
-// shuffle enable/disable for midis
+/// shuffle enable/disable for midis
 bool sound_get_shuffle_midi();
 void sound_set_shuffle_midi( bool shuffle );
 
-
-/**
- * setzt Lautstärke für MIDI playback
- * @param volume volume in range 0..255
- * @author Hj. Malthaner
- */
+/// @param volume in range 0..255
 void sound_set_midi_volume(int volume);
 
-
-/**
- * ermittelt Lautstärke für MIDI playback
- * @return volume in range 0..255
- * @author Hj. Malthaner
- */
+/// @returns volume in range 0..255
 int sound_get_midi_volume();
 
-
-/**
- * gets midi title
- * @author Hj. Malthaner
- */
+/// gets midi title
 const char *sound_get_midi_title(int index);
 
 

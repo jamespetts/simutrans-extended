@@ -273,7 +273,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 			}
 			if(  !ribi  ) {
 				// End of the slope - Missing end rail or has no ribis
-				// we still consider if we interfere with a way (original: prüfen noch, ob uns dort ein anderer Weg stört)
+				// we still consider if we interfere with a way
 				if(waytyp != powerline_wt) {
 					if(  !gr->hat_wege()  ||  gr->hat_weg(waytyp)  ) {
 						return pos;
@@ -726,8 +726,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 	slist_tpl<koord3d>  tmp_list;
 	koord3d   pos = start;
 
-	// Erstmal das ganze Außmaß des Tunnels bestimmen und sehen,
-	// ob uns was im Weg ist.
+	// First check if all tunnel parts can be removed
 	tmp_list.insert(pos);
 	grund_t *from = welt->lookup(pos);
 	marker.mark(from);
@@ -750,7 +749,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		else {
 			part_list.insert(pos);
 		}
-		// Alle Tunnelteile auf Entfernbarkeit prüfen!
+
 		if(  from->kann_alle_obj_entfernen(player)  ) {
 			return "Der Tunnel ist nicht frei!\n";
 		}
@@ -779,7 +778,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		}
 	} while (!tmp_list.empty());
 
-	// Jetzt geht es ans löschen der Tunnel
+	// Now we can delete the tunnel grounds
 	while (!part_list.empty()) {
 		pos = part_list.remove_first();
 		grund_t *gr = welt->lookup(pos);
@@ -797,7 +796,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		reliefkarte_t::get_karte()->calc_map_pixel( pos.get_2d() );
 	}
 
-	// Und die Tunnelenden am Schluß
+	// And now we can delete the tunnel ends
 	while (!end_list.empty()) {
 		pos = end_list.remove_first();
 

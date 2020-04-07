@@ -99,11 +99,7 @@ public:
 	enum stationtyp {invalid=0, loadingbay=1, railstation = 2, dock = 4, busstop = 8, airstop = 16, monorailstop = 32, tramstop = 64, maglevstop=128, narrowgaugestop=256 }; //could be combined with or!
 
 private:
-	/**
-	 * Manche Methoden müssen auf all Haltestellen angewandt werden
-	 * deshalb verwaltet die Klasse eine Liste aller Haltestellen
-	 * @author Hj. Malthaner
-	 */
+	/// List of all halts in the game.
 	static vector_tpl<halthandle_t> alle_haltestellen;
 
 	/**
@@ -277,7 +273,7 @@ public:
 	static uint8 pedestrian_limit;
 
 	/**
-	 * Liste aller felder (Grund-Objekte) die zu dieser Haltestelle gehören
+	 * List of all tiles (grund_t) that belong to this halt.
 	 * @author Hj. Malthaner
 	 */
 	struct tile_t
@@ -708,10 +704,7 @@ public:
 	// true, if this station is overcrowded for this category
 	bool is_overcrowded( const uint8 idx ) const { return (overcrowded[idx/8] & (1<<(idx%8)))!=0; }
 
-	/**
-	 * gibt Gesamtmenge derware vom typ typ zurück
-	 * @author Hj. Malthaner
-	 */
+	/// @returns total amount of the good waiting at this halt.
 	uint32 get_ware_summe(const goods_desc_t *warentyp) const;
 
 	/**
@@ -742,21 +735,24 @@ public:
 	 */
 	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction);
 
-	/* liefert ware an. Falls die Ware zu wartender Ware dazugenommen
-	 * werden kann, kann ware_t gelöscht werden! D.h. man darf ware nach
-	 * aufruf dieser Methode nicht mehr referenzieren!
-	 *
+	/**
+	 * Delivers goods (ware_t) to this halt.
+	 * if no route is found, the good will be removed.
+	 * @returns amount of goods
 	 * Ware to deliver. If the goods to waiting to be taken product
 	 * can be ware_t may be deleted! I.e. we must, after calling this
 	 * method no longer refer! (Google)
 	 *
-	 * The second version is like the first, but will not recalculate the route
-	 * This is used for inital passenger, since they already know a route
-	 *
-	 * @return angenommene menge
 	 * @author Hj. Malthaner/prissi
 	 */
 	void liefere_an(ware_t ware, uint8 walked_between_stations = 0);
+
+	/**
+	 * Delivers goods (ware_t) to this halt.
+	 * Will not recalculate the route
+	 * This is used for inital passenger, since they already know a route
+	 * @returns amount of goods
+	 */
 	void starte_mit_route(ware_t ware, koord origin_pos);
 
 	const grund_t *find_matching_position(waytype_t wt) const;

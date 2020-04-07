@@ -194,13 +194,6 @@ public:
 	void set_fab(fabrik_t *fd);
 	void set_stadt(stadt_t *s);
 
-	/**
-	 * A building can belong to a factory.
-	 * @return a pointer of the factory to which the object belongs; or NULL,
-	 * if the object does not belong to a factory.
-	 *
-	 * @author Hj. Malthaner
-	 */
 	fabrik_t* get_fabrik() const { return is_factory ? ptr.fab : NULL; }
 	stadt_t* get_stadt() const;
 
@@ -253,10 +246,7 @@ public:
 
 	bool is_signalbox() const;
 
-	/**
-	 * @return A description string, as might be displayed in an infobox
-	 * @author Hj. Malthaner
-	 */
+    /// @copydoc obj_t::info
 	void info(cbuffer_t & buf, bool dummy = false) const;
 
 	void get_class_percentage(cbuffer_t & buf) const;
@@ -279,7 +269,8 @@ public:
 
 	void cleanup(player_t *player);
 
-	void finish_rd();
+	/// @copydoc obj_t::finish_rd
+	void finish_rd() OVERRIDE;
 
 	// currently animated
 	bool is_sync() const { return sync; }

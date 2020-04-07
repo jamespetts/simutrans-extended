@@ -147,9 +147,7 @@ public:
 
 
 /**
- * Eine Klasse für Fabriken in Simutrans. Fabriken produzieren und
- * verbrauchen Waren und beliefern nahe Haltestellen.
- *
+ * Factories produce and consume goods (ware_t) and supply nearby halts.
  * Die Abfragefunktionen liefern -1 wenn eine Ware niemals
  * hergestellt oder verbraucht wird, 0 wenn gerade none
  * hergestellt oder verbraucht wird und > 0 sonst
@@ -195,12 +193,7 @@ private:
 	// Knightly : For accumulating weighted sums for average statistics
 	void book_weighted_sums(sint64 delta_time);
 
-	/**
-	 * Die möglichen Lieferziele
-	 *
-	 * The possible delivery targets
-	 * @author Hj. Malthaner
-	 */
+	/// Possible destinations for produced goods
 	vector_tpl <koord> lieferziele;
 	uint32 lieferziele_active_last_month;
 
@@ -286,11 +279,7 @@ private:
 	// indexed against the catg of each "input" (the input goods).
 	inthashtable_tpl<uint8, uint16> max_intransit_percentages;
 
-	/**
-	 * Zeitakkumulator für Produktion
-	 * Time accumulator for production
-	 * @author Hj. Malthaner
-	 */
+	/// Accumulated time since last production
 	sint32 delta_sum;
 	uint32 delta_menge;
 
@@ -526,11 +515,6 @@ public:
 	void clear_target_cities();
 	const vector_tpl<stadt_t *>& get_target_cities() const { return target_cities; }*/
 
-	/**
-	 * Fügt ein neues Lieferziel hinzu
-	 * Adds a new delivery goal
-	 * @author Hj. Malthaner
-	 */
 	void add_lieferziel(koord ziel);
 	void rem_lieferziel(koord pos);
 
@@ -646,12 +630,7 @@ public:
 	 */
 	void get_tile_list( vector_tpl<koord> &tile_list ) const;
 
-	/**
-	 * gibt eine NULL-Terminierte Liste von Fabrikpointern zurück
-	 *
-	 * a zero-scheduled list of factory pointers returns
-	 * @author Hj. Malthaner
-	 */
+	/// @returns a vector of factories within a rectangle
 	static vector_tpl<fabrik_t *> & sind_da_welche(koord min, koord max);
 
 	/**
@@ -667,13 +646,7 @@ public:
 	// hier die methoden zum parametrisieren der Fabrik
 	// "here the methods to parameterize the factory"
 
-	/**
-	 * Baut die Gebäude for the Fabrik
-	 *
-	 * "Build the buildings for the factory"
-	 *
-	 * @author Hj. Malthaner, V. Meyer
-	 */
+	/// Builds buildings (gebaeude_t) for the factory.
 	void build(sint32 rotate, bool build_fields, bool force_initial_prodbase, bool from_saved = false);
 
 	sint16 get_rotate() const { return rotate; }

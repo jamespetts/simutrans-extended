@@ -337,21 +337,6 @@ void player_t::set_player_color_no_message(uint8 col1, uint8 col2)
 
 void player_t::step()
 {
-	/*
-	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen müssen die Fahrpläne rgelmaessig pruefen
-	uint8 i = (uint8)(welt->get_steps()+player_nr);
-	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
-	//while(iter.next()) {
-	for(sint16 j = halt_list.get_count() - 1; j >= 0; j --)
-	{
-		if( (i & 31) == 0 ) {
-			//iter.get_current().halt->step();
-			halt_list[j].halt->step();
-			INT_CHECK("simplay 280");
-		}
-	}
-	*/
 }
 
 

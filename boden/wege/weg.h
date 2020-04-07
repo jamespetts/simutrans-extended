@@ -49,7 +49,7 @@ enum way_statistics {
 #if 0
 // This was used to test the performance of the std unordered map as against the
 // built-in Simutrans hashtable, but the latter performed far better.
-namespace std 
+namespace std
 {
 	template <>
 	struct hash<koord>
@@ -65,16 +65,12 @@ namespace std
 
 
 /**
- * <p>Der Weg ist die Basisklasse fuer all Verkehrswege in Simutrans.
- * Wege "gehören" immer zu einem Grund. Sie besitzen Richtungsbits sowie
- * eine Maske fuer Richtungsbits.</p>
+ * weg_t is the base class for all traffic routes. (roads, track, runway etc.)
+ * Ways always "belong" to a ground. They have direction bits (ribis) as well as
+ * a mask for ribis.
  *
- * <p>Ein Weg gehört immer zu genau einer Wegsorte</p>
- *
- * <p>Kreuzungen werden dadurch unterstützt, daß ein Grund zwei Wege
- * enthalten kann (prinzipiell auch mehrere möglich.</p>
- *
- * <p>Wetype -1 ist reserviert und kann nicht für Wege benutzt werden<p>
+ * A way always is of a single type (waytype_t).
+ * Crossings are supported by the fact that a ground can have more than one way.
  *
  * @author Hj. Malthaner
  */
@@ -128,8 +124,8 @@ private:
 	const way_desc_t * desc;
 
 	/**
-	* Richtungsbits für den Weg. Norden ist oben rechts auf dem Monitor.
-	* 1=Nord, 2=Ost, 4=Sued, 8=West
+	* Direction bits (ribis) for the way. North is in the upper right corner of the monitor.
+	* 1=North, 2=East, 4=South, 8=West
 	* @author Hj. Malthaner
 	*/
 	uint8 ribi:4;
@@ -249,17 +245,17 @@ public:
 	static uint32 private_car_routes_currently_reading_element;
 	static uint32 get_private_car_routes_currently_writing_element() { return private_car_routes_currently_reading_element == 1 ? 0 : 1; }
 
-	void add_private_car_route(koord dest, koord3d next_tile); 
+	void add_private_car_route(koord dest, koord3d next_tile);
 private:
 	/// Set the boolean value to true to modify the set currently used for reading (this must ONLY be done when this is called from a single threaded part of the code).
-	void remove_private_car_route(koord dest, bool reading_set = false); 
+	void remove_private_car_route(koord dest, bool reading_set = false);
 public:
 	static void swap_private_car_routes_currently_reading_element() { private_car_routes_currently_reading_element = private_car_routes_currently_reading_element == 0 ? 1 : 0; }
 
 	/// Delete all private car routes originating from or passing through this tile.
 	/// Set the boolean value to true to modify the set currently used for reading (this must ONLY be done when this is called from a single threaded part of the code).
-	void delete_all_routes_from_here(bool reading_set = false); 
-	void delete_route_to(koord destination, bool reading_set = false); 
+	void delete_all_routes_from_here(bool reading_set = false);
+	void delete_route_to(koord destination, bool reading_set = false);
 
 
 
@@ -281,12 +277,7 @@ public:
 	 */
 	bool check_season(const bool calc_only_season_change);
 
-	/**
-	* Setzt die erlaubte Höchstgeschwindigkeit
-	* @author Hj. Malthaner
-	*/
 	void set_max_speed(sint32 s) { max_speed = s; }
-
 	void set_max_axle_load(uint32 w) { max_axle_load = w; }
 	void set_bridge_weight_limit(uint32 value) { bridge_weight_limit = value; }
 
@@ -307,19 +298,12 @@ public:
 	void add_way_constraints(const way_constraints_of_way_t& value) { way_constraints.add(value); }
 	void remove_way_constraints(const way_constraints_of_way_t& value) { way_constraints.remove(value); }
 
-	/**
-	* Ermittelt die erlaubte Höchstgeschwindigkeit
-	* @author Hj. Malthaner
-	*/
 	sint32 get_max_speed() const { return max_speed; }
 
 	uint32 get_max_axle_load() const { return max_axle_load; }
 	uint32 get_bridge_weight_limit() const { return bridge_weight_limit; }
 
-	/**
-	* Setzt neue Description. Ersetzt alte Höchstgeschwindigkeit
-	* mit wert aus Description.
-	*
+	/*
 	* Sets a new description. Replaces old with maximum speed
 	* worth of description and updates the maintenance cost.
 	* @author Hj. Malthaner
@@ -347,18 +331,11 @@ public:
 	 */
 	virtual const char * is_deletable(const player_t *player, bool allow_public = false);
 
-	/**
-	* Wetype zurückliefern
-	*/
 	waytype_t get_waytype() const { return wtyp; }
 
 	inline bool is_rail_type() const { return wtyp == track_wt || wtyp == maglev_wt || wtyp == tram_wt || wtyp == narrowgauge_wt || wtyp == monorail_wt;  }
 
-	/**
-	* 'Jedes Ding braucht einen Typ.'
-	* @return the object type.
-	* @author Hj. Malthaner
-	*/
+	/// @copydoc obj_t::get_typ
 	//typ get_typ() const { return obj_t::way; }
 
 	/**
@@ -370,30 +347,24 @@ public:
 	/**
 	* Add direction bits (ribi) for a way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
-	* @param ribi Richtungsbits
+	* @note After changing of ribi the image of the way is wrong. To correct this,
+	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
 	void ribi_add(ribi_t::ribi ribi) { this->ribi |= (uint8)ribi;}
 
 	/**
-	* Remove direction bits (ribi) on a way.
+	* Remove direction bits (ribi) for a way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
-	* @param ribi Richtungsbits
+	* @note After changing of ribi the image of the way is wrong. To correct this,
+	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
 	void ribi_rem(ribi_t::ribi ribi) { this->ribi &= (uint8)~ribi;}
 
 	/**
 	* Set direction bits (ribi) for the way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
-	* @param ribi Richtungsbits
+	* @note After changing of ribi the image of the way is wrong. To correct this,
+	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
 	void set_ribi(ribi_t::ribi ribi) { this->ribi = (uint8)ribi;}
 
@@ -408,9 +379,8 @@ public:
 	virtual ribi_t::ribi get_ribi() const { return (ribi_t::ribi)(ribi & ~ribi_maske); }
 
 	/**
-	* für Signale ist es notwendig, bestimmte Richtungsbits auszumaskieren
-	* damit Fahrzeuge nicht "von hinten" über Ampeln fahren können.
-	* @param ribi Richtungsbits
+	* For signals it is necessary to mask out certain ribi to prevent vehicles
+	* from driving the wrong way (e.g. oneway roads)
 	*/
 	void set_ribi_maske(ribi_t::ribi ribi) { ribi_maske = (uint8)ribi; }
 	ribi_t::ribi get_ribi_maske() const { return (ribi_t::ribi)ribi_maske; }

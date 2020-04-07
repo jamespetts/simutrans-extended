@@ -2819,58 +2819,6 @@ uint32 haltestelle_t::get_ware_fuer_zielpos(const goods_desc_t *wtyp, const koor
 	return 0;
 }
 
-#ifdef CHECK_WARE_MERGE
-bool haltestelle_t::vereinige_waren(const ware_t &ware) //"unite were" (Google)
-{
-	// pruefen ob die ware mit bereits wartender ware vereinigt werden kann
-	// "examine whether the ware with software already waiting to be united" (Google)
-	vector_tpl<ware_t> * warray = cargo[ware.get_desc()->get_catg_index()];
-	if(warray != NULL)
-	{
-		FOR(vector_tpl<ware_t>, & tmp, *warray)
-		{
-
-			/*
-			* OLD SYSTEM - did not take account of origins and timings when merging.
-			*
-			* // es wird auf basis von Haltestellen vereinigt
-			* // prissi: das ist aber ein Fehler für all anderen Güter, daher Zielkoordinaten für alles, was kein passagier ist ...
-			*
-			* //it is based on uniting stops.
-			* //prissi: but that is a mistake for all other goods, therefore, target coordinates for everything that is not a passenger ...
-			* // (Google)
-			*
-			* if(ware.same_destination(tmp)) {
-			*/
-
-			// NEW SYSTEM
-			// Adds more checks.
-			// @author: jamespetts
-			if(ware.can_merge_with(tmp))
-			{
-				if(  ware.get_zwischenziel().is_bound()  &&  ware.get_zwischenziel()!=self  )
-				{
-					// update route if there is newer route
-					tmp.set_zwischenziel( ware.get_zwischenziel() );
-				}
-
-				// Merge waiting times.
-				if(ware.menge > 0)
-				{
-					//The waiting time for ware will always be zero.
-					tmp.arrival_time = welt->get_ticks() - ((welt->get_ticks() - tmp.arrival_time) * tmp.menge) / (tmp.menge + ware.menge);
-				}
-
-				tmp.menge += ware.menge;
-				resort_freight_info = true;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-#endif
-
 
 // put the ware into the internal storage
 // take care of all allocation necessary
@@ -3015,13 +2963,12 @@ void haltestelle_t::starte_mit_route(ware_t ware, koord origin_pos)
 
 
 
-/* Receives ware and tries to route it further on
+/**
+ * Receives ware and tries to route it further on
  * if no route is found, it will be removed
  *
  * walked_between_stations defaults to 0; it should be set to 1 when walking here from another station
  * and incremented if this happens repeatedly
- *
- * @author prissi
  */
 void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 {

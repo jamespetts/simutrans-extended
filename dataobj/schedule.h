@@ -24,9 +24,7 @@ class karte_t;
 
 
 /**
- * Eine Klasse zur Speicherung von Fahrplänen in Simutrans.
- *
- * @author Hj. Malthaner
+ * Class to hold schedule of vehicles in Simutrans.
  */
 class schedule_t
 {
@@ -42,16 +40,14 @@ public:
 	minivec_tpl<schedule_entry_t> entries;
 
 	/**
-	* sollte eine Fehlermeldung ausgeben, wenn halt nicht erlaubt ist
-	* @author Hj. Malthaner
-	*/
+	 * Returns error message if stops are not allowed
+	 */
 	virtual char const* get_error_msg() const = 0;
 
 	/**
-	* der allgemeine Fahrplan erlaubt haltestellen überall.
-	* diese Methode sollte in den unterklassen redefiniert werden.
-	* @author Hj. Malthaner
-	*/
+	 * Returns true if this schedule allows stop at the
+	 * given tile.
+	 */
 	virtual bool is_stop_allowed(const grund_t *gr) const;
 
 	bool empty() const { return entries.empty(); }
@@ -159,12 +155,12 @@ public:
 	halthandle_t get_prev_halt( player_t *player ) const;
 
 	/**
-	 * fügt eine koordinate an stelle current_stop in den Fahrplan ein
-	 * all folgenden Koordinaten verschieben sich dadurch
+	 * Inserts a coordinate at current_stop into the schedule.
 	 */
 	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false, bool show_failure = false);
+
 	/**
-	 * hängt eine koordinate an den schedule an
+	 * Appends a coordinate to the schedule.
 	 */
 	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false);
 

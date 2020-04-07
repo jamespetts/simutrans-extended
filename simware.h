@@ -103,11 +103,7 @@ public:
 	ware_t(const goods_desc_t *typ, halthandle_t o);
 	ware_t(loadsave_t *file);
 
-	/**
-	 * gibt den nicht-uebersetzten warennamen zurück
-	 * @author Hj. Malthaner
-	 * "There the non-translated names were back"
-	 */
+	/// @returns the non-translated name of the ware.
 	inline const char *get_name() const { return get_desc()->get_name(); }
 	inline const char *get_mass() const { return get_desc()->get_mass(); }
 	inline uint8 get_catg() const { return get_desc()->get_catg(); }
