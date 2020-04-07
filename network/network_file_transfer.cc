@@ -235,7 +235,7 @@ const char *network_connect(const char *cp, karte_t *world)
 		if(  err = network_receive_file( my_client_socket, filename, len )  ) {
 			goto end;
 		}
-		// Knightly : update iteration limits
+		//  update iteration limits
 		// wait for routesearch command (tolerate some wrong commands)
 		for(  uint8 i=0;  i<5;  ++i  ) {
 			nwc = network_check_activity( NULL, 10000 );

@@ -501,7 +501,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 				if(enforce_weight_limits > 1 && w != NULL)
 				{
-					// Bernd Gabriel, Mar 10, 2010: way limit info
+					// way limit info
 					const uint32 way_max_axle_load = w->get_max_axle_load();
 					const uint32 bridge_weight_limit = w->get_bridge_weight_limit();
 
@@ -733,7 +733,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 #ifndef MULTI_THREAD
 		// If this is multi-threaded, we cannot have random
 		// threads calling INT_CHECK.
-		// Hajo: this is too expensive to be called each step
+		// this is too expensive to be called each step
 		if((beat++ & 1023) == 0)
 		{
 			INT_CHECK("route 161");
@@ -829,7 +829,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 				sint32 is_overweight = not_overweight;
 				if (enforce_weight_limits > 0 && w != NULL)
 				{
-					// Bernd Gabriel, Mar 10, 2010: way limit info
+					// way limit info
 					if (to->ist_bruecke() || w->get_desc()->get_styp() == type_elevated || w->get_waytype() == air_wt || w->get_waytype() == water_wt)
 					{
 						// Bridges care about convoy weight, whereas other types of way
@@ -1177,7 +1177,6 @@ void route_t::postprocess_water_route(karte_t *welt)
 /**
  * searches route, uses intern_calc_route() for distance between stations
  * handles only driving in stations by itself
- * corrected 12/2005 for station search
  */
 route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 max_len, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction)
 {

@@ -245,7 +245,6 @@ public:
 
 	//
 	// Inserts a new value - failure, if key exists in table
-	// V. Meyer
 	//
 	bool put(const key_t key, value_t object)
 	{
@@ -332,7 +331,6 @@ public:
 	// Insert or replace a value - if a value is replaced, the old value is
 	// returned, otherwise a nullvalue. This may be useful, if you need to delete it
 	// afterwards.
-	// V. Meyer
 	//
 	value_t set(const key_t key, value_t object)
 	{

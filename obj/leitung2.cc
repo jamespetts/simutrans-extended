@@ -287,7 +287,6 @@ void leitung_t::verbinde()
 }
 
 
-/* extended by prissi */
 void leitung_t::calc_image()
 {
 	is_crossing = false;
@@ -992,6 +991,7 @@ void senke_t::step(uint32 delta_t)
 
 	last_power_demand = shared_power_demand;
 }
+
 
 uint32 senke_t::get_power_load() const
 {

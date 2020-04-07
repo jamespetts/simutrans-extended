@@ -13,7 +13,7 @@
 
 
 /*
- * Hajo: flag if sound module should be used
+ * flag if sound module should be used
  */
 static int use_sound = 0;
 

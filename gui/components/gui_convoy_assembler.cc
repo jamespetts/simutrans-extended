@@ -614,7 +614,7 @@ void gui_convoy_assembler_t::layout()
 	bt_obsolete.pressed = show_retired_vehicles;
 	y += 4 + D_BUTTON_HEIGHT;
 
-	// Class entries location on the window is specified together with their object specification // Ves
+	// Class entries location on the window is specified together with their object specification
 
 
 
@@ -1381,10 +1381,6 @@ void gui_convoy_assembler_t::add_to_vehicle_list(const vehicle_desc_t *info)
 			}
 		}
 	}
-
-	// prissi: ist a non-electric track?
-	// Hajo: check for timeline
-	// prissi: and retirement date
 
 	if(livery_scheme_index >= welt->get_settings().get_livery_schemes()->get_count())
 	{
@@ -3026,7 +3022,7 @@ void depot_convoi_capacity_t::draw(scr_coord offset)
 	{
 		if (total_pax == 0 && total_mail == 0)
 		{
-			y = -LINESPACE - 1; // To make the text appear in line with the other text //Ves
+			y = -LINESPACE - 1; // To make the text appear in line with the other text
 		}
 		if ((total_pax > 0 && total_mail > 0) && good_type_2 > 0)
 		{
@@ -3110,7 +3106,7 @@ void depot_convoi_capacity_t::draw(scr_coord offset)
 	}
 	if (total_pax == 0 && total_standing_pax == 0 && total_mail == 0 && total_goods == 0)
 	{
-		y = -LINESPACE - 1; // To make the text appear in line with the other text //Ves
+		y = -LINESPACE - 1; // To make the text appear in line with the other text
 		cbuf.clear();
 		cbuf.printf(translator::translate("no_cargo_capacity"));
 		display_proportional_clip(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);

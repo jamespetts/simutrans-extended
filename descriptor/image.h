@@ -19,11 +19,7 @@
 #define SPECIAL_TRANSPARENT (0x00E7FFFF)
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Description eines Bildes.
+ * Description eines Bildes.
  *
  *  Child nodes:
  *	(none)

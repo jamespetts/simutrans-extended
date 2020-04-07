@@ -21,7 +21,7 @@
 #include "scenario_frame.h"
 #include "server_frame.h"
 
-/* Max Kielland
+/*
  * Parameters to tweak GUI layout in this dialog
  * The original values LINESPACE+2, LINESPACE+5 and LINESPACE+7 has
  * been replaced with these defines. These are not standard values
@@ -156,10 +156,10 @@ void banner_t::draw(scr_coord pos, scr_size size )
 	scr_coord cursor = pos + scr_coord( D_MARGIN_LEFT, D_TITLEBAR_HEIGHT + D_MARGIN_TOP);
 	gui_frame_t::draw( pos, size );
 
-	// Hajo: add white line on top since this frame has no title bar.
+	// add white line on top since this frame has no title bar.
 	display_fillbox_wh(pos.x, pos.y + D_TITLEBAR_HEIGHT, size.w, 1, COL_GREY6, false);
 
-	// Max Kielland: Add shadow as property to label_t so we can use the label_t class instead...
+	// Add shadow as property to label_t so we can use the label_t class instead...
 	display_shadow_proportional( cursor.x, cursor.y, SYSCOL_TEXT_TITLE, SYSCOL_TEXT_SHADOW, "This is an extended version of Simutrans", true );
 	cursor.y += L_LINESPACE_EXTRA_5;
 #ifdef REVISION
@@ -191,9 +191,9 @@ void banner_t::draw(scr_coord pos, scr_size size )
 	cursor.y += L_LINESPACE_EXTRA_7;
 
 	// now the scrolling
-	// Max Kielland TODO: Convert this to a gui component
-	//                    BANNER_ROWS defines size and how many rows of text are shown in banner
-	//                    BANNER_TEXT_INDENT defines left and right padding inside banner area
+	// TODO: Convert this to a gui component
+	//       BANNER_ROWS defines size and how many rows of text are shown in banner
+	//       BANNER_TEXT_INDENT defines left and right padding inside banner area
 
 	static const char* const scrolltext[] = {
 		#include "../scrolltext.h"

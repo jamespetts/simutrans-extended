@@ -16,17 +16,13 @@ class plainstring;
 struct file_descriptors_t;
 
 /**
-* loadsave_t:
-*
-* This class replaces the FILE when loading and saving games.
-* <p>
-* Hj. Malthaner, 16-Feb-2002, added zlib compression support
-* </p>
+ * This class replaces the FILE when loading and saving games.
+ *
 * Can now read and write 3 formats: text, binary and zipped
-* Input format is automatically detected.
-* Output format has a default, changeable with set_savemode, but can be
-* overwritten in wr_open.
-*/
+ * Input format is automatically detected.
+ * Output format has a default, changeable with set_savemode, but can be
+ * overwritten in wr_open.
+ */
 class loadsave_t
 {
 public:

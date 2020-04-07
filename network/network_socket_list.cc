@@ -159,7 +159,7 @@ void socket_list_t::reset()
 	playing_clients = 0;
 	server_sockets = 0;
 #ifndef NETTOOL
-	// Knightly : clear the limit sets
+	//  clear the limit sets
 	nwc_routesearch_t::reset();
 #endif
 }
@@ -173,7 +173,7 @@ void socket_list_t::reset_clients()
 	connected_clients = 0;
 	playing_clients = 0;
 #ifndef NETTOOL
-	// Knightly : clear the limit sets
+	//  clear the limit sets
 	nwc_routesearch_t::reset();
 #endif
 }
@@ -258,7 +258,7 @@ bool socket_list_t::remove_client( SOCKET sock )
 			}
 			list[j]->reset();
 #ifndef NETTOOL
-			// Knightly : remove the corresponding limit set
+			//  remove the corresponding limit set
 			nwc_routesearch_t::remove_client_entry(j);
 #endif
 			network_close_socket(sock);

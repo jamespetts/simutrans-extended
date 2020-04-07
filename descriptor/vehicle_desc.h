@@ -147,8 +147,8 @@ private:
 	uint8 catering_level;			// The level of catering. 0 for no catering. Higher numbers for better catering.
 
 	bool bidirectional = false;		// Whether must always travel in one direction
-	bool can_lead_from_rear = false;	// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
-	bool can_be_at_rear = true;		// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
+	bool can_lead_from_rear = false;	// Whether vehicle can lead a convoy when it is at the rear. This parameter is obsolete and is now included in basic_constraint_next.
+	bool can_be_at_rear = true;		// Whether the vehicle may be at the rear of a convoy (default = true). It is used to read the old pak, and the flag takes over to the basic_constraint_next.
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
@@ -220,7 +220,7 @@ private:
 	//@jamespetts January 2017
 	bool is_tall;
 
-	// if true, can not mix another goods in the same car.  @Ranran, July 2019(v14.6)
+	// if true, can not mix another goods in the same car.
 	bool mixed_load_prohibition;
 
 	void loaded();
@@ -235,7 +235,7 @@ private:
 		return livery_image_type > 0 ? 5 + i : 6;
 	}
 
-	// set basic constraint to the old version data. v14.8, 2020 @Ranran
+	// set basic constraint to the old version data.
 	void fix_basic_constraint();
 
 public:
@@ -618,7 +618,7 @@ public:
 
 	int get_upgrades_count() const { return upgrades; }
 	// returns this vehicle has available upgrades
-	// 1 = near future, 2 = already available          @Ranran
+	// 1 = near future, 2 = already available
 	uint8 has_available_upgrade(const uint16 month_now, bool show_future = true) const;
 
 	bool can_follow_any() const { return trailer_count==0; }
@@ -687,7 +687,7 @@ public:
 		return min(255, modified_comfort);
 	}
 
-	// BG, 15.06.2009: the formula for obsolescence formerly implemented twice in get_running_cost() and get_fixed_cost()
+	// the formula for obsolescence formerly implemented twice in get_running_cost() and get_fixed_cost()
 	uint32 calc_running_cost(const class karte_t *welt, uint32 base_cost) const;
 
 	float32e8_t get_power_force_ratio() const;
@@ -783,7 +783,7 @@ public:
 	bool get_tilting() const { return is_tilting;	}
 
 	// Returns whether one side of the vehicle can be "head".
-	// Note: Normally the front side is checked, but it is necessary to check the rear side when vehicle is reversed or before reversing convoy. (Ranran)
+	// Note: Normally the front side is checked, but it is necessary to check the rear side when vehicle is reversed or before reversing convoy.
 	bool get_can_be_at_front(bool chk_rear_end) const {
 		if (chk_rear_end ? basic_constraint_next & can_be_head : basic_constraint_prev & can_be_head) {
 			return true;
@@ -791,7 +791,7 @@ public:
 		return false;
 	}
 	// Returns whether one side of the vehicle can be "tail end".
-	// Note: Normally the rear side is checked, but it is necessary to check the front side when vehicle is reversed or before reversing convoy. (Ranran)
+	// Note: Normally the rear side is checked, but it is necessary to check the front side when vehicle is reversed or before reversing convoy.
 	bool get_can_be_at_rear(bool chk_front_end) const {
 		if (chk_front_end ? basic_constraint_prev & can_be_head || basic_constraint_prev & can_be_tail
 			: basic_constraint_next & can_be_head || basic_constraint_next & can_be_tail)

@@ -44,7 +44,8 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 	// Current month is within the months_of_increasing_costs --> proportionally increased obsolescence cost.
 	return ((max_cost - base_cost) * months_of_obsolescence) / months_of_increasing_costs + base_cost;
 
-	// BG, 22.05.2011: improper de-floating of:	return (uint32)((max_cost - base_cost) * (float)months_of_obsolescence / (float)months_of_increasing_costs) + base_cost;
+	// improper de-floating of:
+	//   return (uint32)((max_cost - base_cost) * (float)months_of_obsolescence / (float)months_of_increasing_costs) + base_cost;
 	//const uint32 percentage = ((months_of_obsolescence * 100) / months_of_increasing_costs) + (base_cost * 100);
 	//return (max_cost - base_cost) * (percentage / 100);
 }

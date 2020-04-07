@@ -13,7 +13,6 @@
 
 /**
  * A character buffer. Main operation is 'append'
-
  */
 class cbuffer_t
 {

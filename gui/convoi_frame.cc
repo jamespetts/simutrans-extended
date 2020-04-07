@@ -274,7 +274,7 @@ bool convoi_frame_t::infowin_event(const event_t *ev)
 /**
  * This method is called if an action is triggered
  */
-bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */ )           // 28-Dec-01    Markus Weber    Added
+bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */ )
 {
 	if(  comp == &filter_on  ) {
 		filter_is_on = !filter_is_on;
@@ -298,7 +298,7 @@ bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */
 }
 
 
-void convoi_frame_t::resize(const scr_coord size_change)                          // 28-Dec-01    Markus Weber    Added
+void convoi_frame_t::resize(const scr_coord size_change)
 {
 	gui_frame_t::resize(size_change);
 	scr_size size = get_windowsize()-scr_size(0,47);

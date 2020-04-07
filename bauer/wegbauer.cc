@@ -1064,7 +1064,7 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 			}
 			break;
 
-		case luft: // hsiegeln: runway
+		case luft:
 			{
 				const weg_t *w = to->get_weg(air_wt);
 				if(  w  &&  w->get_desc()->get_styp()==type_runway  &&  desc->get_styp()!=type_runway &&  ribi_t::is_single(w->get_ribi_unmasked())  ) {
@@ -2168,7 +2168,6 @@ void way_builder_t::build_tunnel_and_bridges()
 
 /*
  * returns the amount needed to built this way
- * author prissi
  */
 sint64 way_builder_t::calc_costs()
 {
@@ -2543,7 +2542,7 @@ void way_builder_t::build_elevated()
 // TODO: not edited since it's quite different from that of standard...
 void way_builder_t::build_road()
 {
-	// This is somewhat strange logic --neroden
+	// This is somewhat strange logic
 	if ( player_builder != NULL && build_sidewalk && player_builder->is_public_service() ) {
 		player_builder = NULL;
 	}
@@ -2668,7 +2667,7 @@ void way_builder_t::build_road()
 				cost += gr->neuen_weg_bauen(str, route.get_short_ribi(i), player_builder, &route) - desc->get_value();
 				// respect speed limit of crossing
 				str->count_sign();
-				// prissi: into UNDO-list, so we can remove it later
+				// into UNDO-list, so we can remove it later
 				if(player_builder!=NULL)
 				{
 					// intercity roads have no owner, so we must check for an owner
@@ -2841,7 +2840,7 @@ void way_builder_t::build_track()
 							}
 						}
 					}
-					// prissi: into UNDO-list, so we can remove it later
+					// into UNDO-list, so we can remove it later
 					player_builder->add_undo( route[i] );
 				}
 
@@ -2885,7 +2884,7 @@ void way_builder_t::build_powerline()
 			lt = new leitung_t(route[i], player_builder );
 			gr->obj_add(lt);
 
-			// prissi: into UNDO-list, so we can remove it later
+			// into UNDO-list, so we can remove it later
 			player_builder->add_undo( route[i] );
 			build_powerline = true;
 		}

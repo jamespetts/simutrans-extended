@@ -14,7 +14,7 @@ typedef uint8 way_constraints_mask;
 
 
 /*
- * way_constraints_t: a hood for James Petts' permissive and prohibitive way constraints.
+ * a hood for permissive and prohibitive way constraints.
  */
 class way_constraints_t
 {

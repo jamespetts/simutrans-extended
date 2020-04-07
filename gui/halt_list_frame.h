@@ -113,7 +113,7 @@ public:
 	/**
 	 * This function refreshes the station-list
 	 */
-	void display_list();  //13-Feb-02  Added
+	void display_list();
 
 	/**
 	 * Set the window associated helptext

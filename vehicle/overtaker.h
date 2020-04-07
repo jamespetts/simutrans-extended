@@ -7,14 +7,8 @@
 #define VEHICLE_OVERTAKER_H
 
 
-/**
- * All vehicles that can overtake must include this class
- * These are convois and city cars
- *
- * Oct 2008
- */
-
 #include "../simtypes.h"
+
 
 /**
  * Class dealing with overtaking

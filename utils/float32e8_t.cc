@@ -1,14 +1,14 @@
 /*
- * float32e8_t.cc
- *
- *  Created on: 22.05.2011
- *      Author: Bernd Gabriel
+ * This file is part of the Simutrans-Extended project under the Artistic License.
+ * (see LICENSE.txt)
  */
 
-#include <stdlib.h>
 #include "float32e8_t.h"
 #include "../simdebug.h"
 #include "../dataobj/loadsave.h"
+
+#include <stdlib.h>
+
 
 ostream & operator << (ostream &out, const float32e8_t &x)
 {

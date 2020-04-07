@@ -12,10 +12,7 @@
 #include "pedestrian_reader.h"
 #include "../../network/pakset_info.h"
 
-/*
- *  Autor:
- *      Volker Meyer
- */
+
 void pedestrian_reader_t::register_obj(obj_desc_t *&data)
 {
 	pedestrian_desc_t *desc = static_cast<pedestrian_desc_t  *>(data);
@@ -46,11 +43,11 @@ obj_desc_t * pedestrian_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	pedestrian_desc_t *desc = new pedestrian_desc_t();
 
-	// Hajo: Read data
+	// Read data
 	fread(desc_buf, node.size, 1, fp);
 	char * p = desc_buf;
 
-	// Hajo: old versions of PAK files have no version stamp.
+	// old versions of PAK files have no version stamp.
 	// But we know, the higher most bit was always cleared.
 
 	const uint16 v = decode_uint16(p);

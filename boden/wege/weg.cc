@@ -3,16 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/* Base class for Ways in Simutrans.
- *
- * 14.06.00 derived from simgrund.cc
- * Revised January 2001
- *
- * derived from simobj.h in 2007
- *
- * Hj. Malthaner
- */
-
 #include <stdio.h>
 
 #include "../../tpl/slist_tpl.h"

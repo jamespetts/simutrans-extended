@@ -7,7 +7,7 @@
 #define SCROLLTEXT_H
 
 
-/* prissi: first part is left, second part right side */
+/* first part is left, second part right side */
 
 "","",
 "","",

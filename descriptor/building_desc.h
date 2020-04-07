@@ -22,11 +22,7 @@ class checksum_t;
 
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Data for one tile of a potentially multi-tile building.
+ * Data for one tile of a potentially multi-tile building.
  *
  *  Child nodes:
  *   0   Imagelist2D season 0 back
@@ -107,11 +103,7 @@ public:
 };
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *       Data for one building, consists of potentially more than one tile.
+ * Data for one building, consists of potentially more than one tile.
  *
  *  Child nodes:
  *	0   Name
@@ -198,7 +190,7 @@ class building_desc_t : public obj_desc_timelined_t {
 	uint16 level;			// or passengers;
 	uint8  layouts;			// 1 2, 4, 8  or 16
 	uint16 enables;			// if it is a stop, what is enabled; if it is a signal box, the signal group that can be linked to this box.
-	uint8  distribution_weight;			// Hajo:chance to build, special buildings, only other is weight factor
+	uint8  distribution_weight; // chance to build, special buildings, only other is weight factor
 
 	/**
 	 * Additional fields for separate capacity/maintenance
@@ -399,7 +391,6 @@ public:
 
 	void set_scale(uint16 scale_factor)
 	{
-		// BG: 29.08.2009: explicit typecasts avoid warnings
 		const sint32 scaled_price_x = price == PRICE_MAGIC ? price : (sint32) set_scale_generic<sint64>((sint64)price, scale_factor);
 		const sint32 scaled_maintenance_x = maintenance == PRICE_MAGIC ? maintenance : (sint32) set_scale_generic<sint64>((sint64)maintenance, scale_factor);
 		scaled_price = (scaled_price_x < (price > 0 ? 1 : 0) ? 1: scaled_price_x);

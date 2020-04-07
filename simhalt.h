@@ -92,10 +92,27 @@ struct lines_loaded_t
 class haltestelle_t
 {
 public:
-	enum station_flags { NOT_ENABLED=0, PAX=1, POST=2, WARE=4, CROWDED=8 };
+	enum station_flags {
+		NOT_ENABLED = 0,
+		PAX         = (1<<0),
+		POST        = (1<<1),
+		WARE        = (1<<2),
+		CROWDED     = (1<<3)
+	};
 
-	//13-Jan-02     Markus Weber    Added
-	enum stationtyp {invalid=0, loadingbay=1, railstation = 2, dock = 4, busstop = 8, airstop = 16, monorailstop = 32, tramstop = 64, maglevstop=128, narrowgaugestop=256 }; //could be combined with or!
+	// could be combined with bitwise or!
+	enum stationtyp {
+		invalid         = 0,
+		loadingbay      = (1<<0),
+		railstation     = (1<<1),
+		dock            = (1<<2),
+		busstop         = (1<<3),
+		airstop         = (1<<4),
+		monorailstop    = (1<<5),
+		tramstop        = (1<<6),
+		maglevstop      = (1<<7),
+		narrowgaugestop = (1<<8)
+	};
 
 private:
 	/// List of all halts in the game.
@@ -463,10 +480,9 @@ private:
 
 	uint8 check_waiting;
 
-	// Added by : Knightly
-	// Purpose	: To store the time at which this halt is created
-	//			  This is *not* saved in save games.
-	//			  When loading halts from save game, this is set to 0
+	// Store the time at which this halt is created
+	// This is *not* saved in save games.
+	// When loading halts from save game, this is set to 0
 	sint64 inauguration_time;
 
 	/**
@@ -490,7 +506,6 @@ private:
 	void check_transferring_cargoes();
 
 public:
-	// Added by : Knightly
 	void swap_connexions(const uint8 category, const uint8 g_class, uint8 max_classes, quickstone_hashtable_tpl<haltestelle_t, haltestelle_t::connexion*>* &cxns)
 	{
 		// swap the connexion hashtables
@@ -502,7 +517,6 @@ public:
 		resort_freight_info = true;
 	}
 
-	// Added by : Knightly
 	uint8 get_schedule_count(const uint8 category, uint8 g_class, uint8 max_classes) const { return non_identical_schedules[(category * max_classes) + g_class]; }
 	void set_schedule_count(const uint8 category, uint8 g_class, uint8 max_classes, const uint8 schedule_count) { non_identical_schedules[(category * max_classes) + g_class] = schedule_count; }
 
@@ -514,8 +528,7 @@ public:
 	*/
 	//uint32 reroute_goods();
 
-	// Added by : Knightly
-	// Purpose	: Re-routing goods of a single ware category
+	// Re-routing goods of a single ware category
 	uint32 reroute_goods(uint8 catg);
 
 
@@ -634,7 +647,7 @@ public:
 	// route exceeds their time tolerance.
 	void add_pax_too_slow(int n);
 
-	// Waiting so long at the station. added 01/2019(EX14.3)
+	// Waiting so long at the station.
 	void add_pax_too_waiting(int n);
 
 	int get_pax_happy()    const { return (int)financial_history[0][HALT_HAPPY]; }
@@ -881,16 +894,10 @@ public:
 	linehandle_t get_preferred_line(halthandle_t transfer, uint8 category, uint8 g_class) const;
 	convoihandle_t get_preferred_convoy(halthandle_t transfer, uint8 category, uint8 g_class) const;
 
-	// Added by		: Knightly
-	// Adapted from : Jamespetts' code
-	// Purpose		: To notify relevant halts to rebuild connexions and to notify all halts to recalculate paths
-	// @jamespetts: modified the code to combine with previous method and provide options about partially delayed refreshes for performance.
-
+	// Notify relevant halts to rebuild connexions and to notify all halts to recalculate paths
 	static void refresh_routing(const schedule_t *const sched, const minivec_tpl<uint8> &categories, const minivec_tpl<uint8> *passenger_classes, const minivec_tpl<uint8> *mail_classes, const player_t *const player);
 
-	// Added by		: Knightly
-	// Adapted from : haltestelle_t::add_connexion()
-	// Purpose		: Create goods list of specified goods category if it is not already present
+	// Create goods list of specified goods category if it is not already present
 	void prepare_goods_list(uint8 category)
 	{
 		if (cargo[category] == NULL )
@@ -900,8 +907,7 @@ public:
 		}
 	}
 
-	// Addedy by : Knightly
-	// Purpose	 : Return the time at which the halt was first created
+	// Return the time at which the halt was first created
 	sint64 get_inauguration_time() { return inauguration_time; }
 
 	/*

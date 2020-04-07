@@ -140,7 +140,6 @@ void road_user_t::show_info()
 
 grund_t* road_user_t::hop()
 {
-	// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
 	grund_t *from = welt->lookup(pos_next);
 
 	if(!from) {
@@ -314,7 +313,7 @@ void road_user_t::rdwr(loadsave_t *file)
 		time_to_life = 1;
 	}
 
-	// Hajo: avoid endless growth of the values
+	// avoid endless growth of the values
 	// this causes lockups near 2**32
 	weg_next &= 65535;
 }
@@ -962,7 +961,6 @@ grund_t* private_car_t::hop_check()
 	// worthwhile. This takes circa 5-9% of all CPU time on a large
 	// game (768 towns) in the modern era (2004) of Pak128.Britain-Ex.
 
-	// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
 	grund_t *const from = welt->lookup(pos_next);
 	if(from==NULL) {
 		// nothing to go? => destroy ...
@@ -1274,7 +1272,6 @@ void private_car_t::hop(grund_t* to)
 		}
 	}
 
-	// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
 	if(to==NULL) {
 		time_to_life = 0;
 		return;

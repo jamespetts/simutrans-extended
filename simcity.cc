@@ -713,7 +713,7 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 
 /**
  * Check rule in all transformations at given position
- * prissi: but the rules should explicitly forbid building then?!?
+ * but the rules should explicitly forbid building then?!?
  */
 sint32 stadt_t::bewerte_pos(const koord pos, const rule_t &regel)
 
@@ -1064,13 +1064,10 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
 }
 
 /**
- * monument_placefinder_t:
- *
  * Search a free place for a building
  * Im Gegensatz zum building_placefinder_t werden Strassen auf den Raendern
  * toleriert.
  * Search a free place for a monument building
- * 22-Dec-02: Hajo: added safety checks for gr != 0 and plan != 0
  */
 class monument_placefinder_t : public placefinder_t {
 	public:
@@ -1080,7 +1077,7 @@ class monument_placefinder_t : public placefinder_t {
 		{
 			const planquadrat_t* plan = welt->access(pos + d);
 
-			// Hajo: can't build here
+			// can't build here
 			if (plan == NULL) return false;
 
 			const grund_t* gr = plan->get_kartenboden();
@@ -1146,11 +1143,6 @@ class monument_placefinder_t : public placefinder_t {
 };
 
 
-/**
- * townhall_placefinder_t:
- *
- * 22-Dec-02: Hajo: added safety checks for gr != 0 and plan != 0
- */
 class townhall_placefinder_t : public placefinder_t {
 	public:
 		townhall_placefinder_t(karte_t* welt, uint8 dir_) : placefinder_t(welt), dir(dir_) {}
@@ -5013,7 +5005,6 @@ bool stadt_t::build_bridge(grund_t* bd, ribi_t::ribi direction, bool map_generat
 	 * We want to discourage city construction of bridges.
 	 * Make a simrand call and refuse to construct a bridge some of the time.
 	 * "bridge_success_percentage" is the percent of the time when bridges should *succeed*.
-	 * --neroden
 	 */
 	if(  simrand(100, "stadt_t::build_road() (bridge check)") >= bridge_success_percentage  ) {
 		return false;
@@ -5161,7 +5152,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		return false;
 	}
 
-	// dwachs: If not able to built here, try to make artificial slope
+	// If not able to built here, try to make artificial slope
 	slope_t::type slope = bd->get_grund_hang();
 	if (!slope_t::is_way(slope)) {
 		climate c = welt->get_climate(k);
@@ -5353,7 +5344,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		} else {
 			weg_t *weg = new strasse_t();
 			welt->set_recheck_road_connexions();
-			// Hajo: city roads should not belong to any player => so we can ignore any construction costs ...
+			// city roads should not belong to any player => so we can ignore any construction costs ...
 			weg->set_desc(welt->get_city_road());
 			strasse_t *str = static_cast<strasse_t *>(weg);
 			str->set_gehweg(true);

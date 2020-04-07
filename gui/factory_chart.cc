@@ -107,7 +107,7 @@ static const char *const label_text[MAX_PROD_LABEL+1] =
 	"(KW)" // put this at the end
 };
 
-// Max Kielland
+
 // we can't initialise global statics with #defines
 // of variables because these variables aren't initialized yet.
 // This table is referring to grid positions instead of pixel positions.

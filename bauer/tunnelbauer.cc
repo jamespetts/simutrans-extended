@@ -425,7 +425,6 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 	// The tunnel ways are no longer properly encoded, with the result that way_desc is garbled
 	// when fetched here and crashes the game. Since tunnel ways are deprecated in Extended,
 	// and this bug is likely to be hard to fix, disalbe this for time time being.
-	//@jamespetts January 2017
 	/*if(way_desc == NULL)
 	{
 		way_desc = desc->get_way_desc();
@@ -733,7 +732,6 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 	do {
 		pos = tmp_list.remove_first();
 
-		// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
 		grund_t *from = welt->lookup(pos);
 		grund_t *to;
 		koord zv = koord::invalid;

@@ -10,12 +10,9 @@
 #include "image_list.h"
 #include "image_array.h"
 
+
 /*
- *  Autors:
- *      Volker Meyer & jamespetts
- *
- *  Description:
- *      3-dimentional image array
+ * 3-dimentional image array
  *
  *  Child nodes:
  *	0   1. Image list

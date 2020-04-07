@@ -518,14 +518,14 @@ bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t
 			}
 		}
 		ok_action(buf);
-		destroy_win(this);      //29-Oct-2001         Markus Weber    Close window
+		destroy_win(this);
 
 	}
 	else if(component == &cancelbutton) {
 		// Cancel-button pressed
 		//----------------------------
 		cancel_action(buf);
-		destroy_win(this);      //29-Oct-2001         Markus Weber    Added   savebutton case
+		destroy_win(this);
 	}
 	else if (component == &file_table) {
 		gui_table_event_t *event = (gui_table_event_t *) p.p;
@@ -801,7 +801,6 @@ void savegame_frame_t::release_file_table_button()
 }
 
 
-// BG, 26.03.2010
 void gui_file_table_button_column_t::paint_cell(const scr_coord& offset, coordinate_t /*x*/, coordinate_t /*y*/, const gui_table_row_t &row)
 {
  	gui_file_table_row_t &file_row = (gui_file_table_row_t&)row;
@@ -821,7 +820,6 @@ void gui_file_table_button_column_t::paint_cell(const scr_coord& offset, coordin
 }
 
 
-// BG, 06.04.2010
 void gui_file_table_delete_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row)
 {
  	gui_file_table_row_t &file_row = (gui_file_table_row_t&)row;
@@ -832,7 +830,6 @@ void gui_file_table_delete_column_t::paint_cell(const scr_coord& offset, coordin
 }
 
 
-// BG, 26.03.2010
 void gui_file_table_label_column_t::paint_cell(const scr_coord& offset, coordinate_t /*x*/, coordinate_t /*y*/, const gui_table_row_t &row)
 {
 	lbl.set_pos(scr_coord(2, 2));
@@ -841,7 +838,6 @@ void gui_file_table_label_column_t::paint_cell(const scr_coord& offset, coordina
 }
 
 
-// BG, 26.03.2010
 const char *gui_file_table_action_column_t::get_text(const gui_table_row_t &row) const
 {
  	gui_file_table_row_t &file_row = (gui_file_table_row_t&)row;
@@ -849,14 +845,12 @@ const char *gui_file_table_action_column_t::get_text(const gui_table_row_t &row)
 }
 
 
-// BG, 26.03.2010
 void gui_file_table_action_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
 	btn.set_text(get_text(row));
 	gui_file_table_button_column_t::paint_cell(offset, x, y, row);
 }
 
 
-// BG, 26.03.2010
 time_t gui_file_table_time_column_t::get_time(const gui_table_row_t &row) const
 {
  	gui_file_table_row_t &file_row = (gui_file_table_row_t&)row;
@@ -864,7 +858,6 @@ time_t gui_file_table_time_column_t::get_time(const gui_table_row_t &row) const
 }
 
 
-// BG, 26.03.2010
 void gui_file_table_time_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
 	time_t time = get_time(row);
 	struct tm *tm = localtime(&time);
@@ -880,7 +873,6 @@ void gui_file_table_time_column_t::paint_cell(const scr_coord& offset, coordinat
 }
 
 
-// BG, 26.03.2010
 gui_file_table_row_t::gui_file_table_row_t(const char *pathname, const char *buttontext, bool delete_enabled) : gui_table_row_t()
 {
 	this->pressed = false;
@@ -895,7 +887,6 @@ gui_file_table_row_t::gui_file_table_row_t(const char *pathname, const char *but
 }
 
 
-// BG, 26.03.2010
 void gui_file_table_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y)
 {
 	gui_file_table_column_t *column_def = (gui_file_table_column_t *)get_column(x);

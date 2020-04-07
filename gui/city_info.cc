@@ -295,7 +295,7 @@ void city_info_t::draw(scr_coord pos, scr_size size)
 {
 	stadt_t* const c = stadt;
 
-	// Hajo: update chart seed
+	// update chart seed
 	chart.set_seed(welt->get_last_year());
 
 	gui_frame_t::draw(pos, size);

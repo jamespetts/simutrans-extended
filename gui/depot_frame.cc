@@ -187,7 +187,7 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	}
 	convoy_assembler.set_traction_types(txt_traction_types.get_str());
 
-	// Hajo: Trigger layouting
+	// Trigger layouting
 	set_resizemode(diagonal_resize);
 
 	depot->clear_command_pending();
@@ -753,7 +753,6 @@ bool depot_frame_t::infowin_event(const event_t *ev)
 		if(next_dep  &&  next_dep!=this->depot) {
 			/**
 			 * Replace our depot_frame_t with a new at the same position.
-			 * Volker Meyer
 			 */
 			scr_coord const pos = win_get_pos(this);
 			destroy_win( this );

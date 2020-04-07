@@ -218,7 +218,7 @@ uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 				row_px_count++;
 			}
 
-			/* Knightly:
+			/* 
 			 *		If it is not the first clear-colored-run pair and its colored run is empty
 			 *		--> it is superfluous and can be removed by rolling back the pointer
 			 */
@@ -271,7 +271,7 @@ void image_writer_t::write_obj(FILE* outfp, obj_node_t& parent, std::string an_i
 
 	MEMZERO(image);
 
-	// Hajo: if first char is a '>' then this image is not zoomable
+	// if first char is a '>' then this image is not zoomable
 	if(  an_imagekey[0] == '>'  ) {
 		an_imagekey = an_imagekey.substr(1);
 		image.zoomable = false;

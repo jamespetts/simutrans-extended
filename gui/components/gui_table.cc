@@ -11,7 +11,6 @@
 #include "../simwin.h"
 
 
-// BG, 18.03.2010
 gui_table_t::gui_table_t() : default_cell_size(99,14)
 {
 	columns.set_owner(this);
@@ -27,14 +26,12 @@ gui_table_t::gui_table_t() : default_cell_size(99,14)
 }
 
 
-// BG, 18.03.2010
 gui_table_t::~gui_table_t()
 {
 	set_size(scr_size(0, 0));
 }
 
 
-// BG, 22.03.2010
 coordinate_t gui_table_t::add_column(gui_table_column_t *column)
 {
 	coordinate_t x = columns.add(column);
@@ -42,7 +39,6 @@ coordinate_t gui_table_t::add_column(gui_table_column_t *column)
 }
 
 
-// BG, 22.03.2010
 coordinate_t gui_table_t::add_row(gui_table_row_t *row)
 {
 	coordinate_t y = rows.add(row);
@@ -50,7 +46,6 @@ coordinate_t gui_table_t::add_row(gui_table_row_t *row)
 }
 
 
-// BG, 18.03.2010
 void gui_table_t::change_size(const coordinates_t & /*old_size*/, const coordinates_t &new_size)
 {
 	// change size of arrays
@@ -61,7 +56,6 @@ void gui_table_t::change_size(const coordinates_t & /*old_size*/, const coordina
 }
 
 
-// BG, 26.03.2010
 bool gui_table_t::get_column_at(scr_coord_val x, coordinate_t &column, scr_coord_val &offset) const
 {
 	coordinate_t n = columns.get_count();
@@ -83,7 +77,6 @@ bool gui_table_t::get_column_at(scr_coord_val x, coordinate_t &column, scr_coord
 }
 
 
-// BG, 26.03.2010
 bool gui_table_t::get_row_at(scr_coord_val y, coordinate_t &row, scr_coord_val &offset) const
 {
 	coordinate_t n = rows.get_count();
@@ -105,7 +98,6 @@ bool gui_table_t::get_row_at(scr_coord_val y, coordinate_t &row, scr_coord_val &
 }
 
 
-// BG, 26.03.2010
 bool gui_table_t::get_cell_at(scr_coord_val x, scr_coord_val y, coordinates_t &cell, scr_coord &offset) const
 {
 	coordinate_t cx, cy;
@@ -118,7 +110,6 @@ bool gui_table_t::get_cell_at(scr_coord_val x, scr_coord_val y, coordinates_t &c
 }
 
 
-// BG, 18.03.2010
 scr_coord_val gui_table_t::get_table_width() const
 {
 	coordinate_t i = columns.get_count();
@@ -130,7 +121,6 @@ scr_coord_val gui_table_t::get_table_width() const
 }
 
 
-// BG, 18.03.2010
 scr_coord_val gui_table_t::get_table_height() const
 {
 	coordinate_t i = rows.get_count();
@@ -142,7 +132,6 @@ scr_coord_val gui_table_t::get_table_height() const
 }
 
 
-// BG, 26.03.2010
 bool gui_table_t::infowin_event(const event_t *ev)
 {
 	gui_table_event_t table_event(this, ev);
@@ -152,13 +141,11 @@ bool gui_table_t::infowin_event(const event_t *ev)
 }
 
 
-// BG, 18.03.2010
 void gui_table_t::paint_cell(const scr_coord& /*offset*/, coordinate_t /*x*/, coordinate_t /*y*/)
 {
 }
 
 
-// BG, 18.03.2010
 void gui_table_t::paint_cells(const scr_coord& offset)
 {
 	coordinates_t size = get_grid_size();
@@ -178,7 +165,6 @@ void gui_table_t::paint_cells(const scr_coord& offset)
 }
 
 
-// BG, 18.03.2010
 void gui_table_t::paint_grid(const scr_coord& offset)
 {
 	coordinates_t size = get_grid_size();
@@ -208,21 +194,18 @@ void gui_table_t::paint_grid(const scr_coord& offset)
 }
 
 
-// BG, 27.03.2010
 void gui_table_t::remove_column(coordinate_t x)
 {
 	columns.remove(x);
 }
 
 
-// BG, 27.03.2010
 void gui_table_t::remove_row(coordinate_t y)
 {
 	rows.remove(y);
 }
 
 
-// BG, 04.04.2010
 void gui_table_t::set_column_sort_row_prio(coordinate_t y, int prio)
 {
 	assert(y >= 0 && (uint32) y < rows.get_count());
@@ -242,7 +225,6 @@ void gui_table_t::set_column_sort_row_prio(coordinate_t y, int prio)
 }
 
 
-// BG, 04.04.2010
 void gui_table_t::sort_columns()
 {
 	if (column_sort_row_order.get_count() > 0) {
@@ -251,7 +233,6 @@ void gui_table_t::sort_columns()
 }
 
 
-// BG, 04.04.2010
 void gui_table_t::set_row_sort_column_prio(coordinate_t x, int prio)
 {
 	gui_table_column_t *column = columns.get(x);
@@ -270,7 +251,6 @@ void gui_table_t::set_row_sort_column_prio(coordinate_t x, int prio)
 }
 
 
-// BG, 04.04.2010
 void gui_table_t::sort_rows()
 {
 	if (row_sort_column_order.get_count() > 0) {
@@ -279,7 +259,6 @@ void gui_table_t::sort_rows()
 }
 
 
-// BG, 04.04.2010
 int gui_table_column_list_t::compare_items(const gui_table_column_t *item1, const gui_table_column_t *item2) const
 {
 	gui_table_t *table = get_owner();
@@ -301,7 +280,6 @@ int gui_table_column_list_t::compare_items(const gui_table_column_t *item1, cons
 }
 
 
-// BG, 11.02.2010
 gui_table_column_t *gui_table_column_list_t::create_item() const
 {
 	scr_coord_val width = 99;
@@ -313,7 +291,6 @@ gui_table_column_t *gui_table_column_list_t::create_item() const
 }
 
 
-// BG, 04.04.2010
 int gui_table_row_list_t::compare_items(const gui_table_row_t *item1, const gui_table_row_t *item2) const
 {
 	gui_table_t *table = get_owner();
@@ -335,7 +312,6 @@ int gui_table_row_list_t::compare_items(const gui_table_row_t *item1, const gui_
 }
 
 
-// BG, 11.02.2010
 gui_table_row_t *gui_table_row_list_t::create_item() const
 {
 	scr_coord_val height = 14;
@@ -347,7 +323,6 @@ gui_table_row_t *gui_table_row_list_t::create_item() const
 }
 
 
-// BG, 18.03.2010
 void gui_table_t::draw(scr_coord offset)
 {
 	coordinates_t size = get_grid_size();

@@ -29,7 +29,7 @@ private:
 	char ibuf[256];
 	message_stats_t	stats;
 	gui_scrollpane_t scrolly;
-	gui_tab_panel_t tabs;		// Knightly : tab panel for filtering messages
+	gui_tab_panel_t tabs;		//  tab panel for filtering messages
 	gui_textinput_t input;
 	button_t option_bt, send_bt;
 	vector_tpl<sint32> tab_categories;

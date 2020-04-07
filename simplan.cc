@@ -273,7 +273,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				case grund_t::brueckenboden:    gr = new brueckenboden_t(file, pos);     break;
 				case grund_t::monorailboden:	    gr = new monorailboden_t(file, pos); break;
 				default:
-					gr = 0; // Hajo: keep compiler happy, fatal() never returns
+					gr = 0; // keep compiler happy, fatal() never returns
 					dbg->fatal("planquadrat_t::rdwr()","Error while loading game: Unknown ground type '%d'",gtyp);
 			}
 			// check if we have a matching building here, otherwise set to nothing

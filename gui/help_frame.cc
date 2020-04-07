@@ -202,7 +202,7 @@ static const char *load_text(char const* const filename )
 		file = fopen((file_prefix + translator::get_lang()->iso_base + "/" + filename).c_str(), "rb");
 	}
 	if (!file) {
-		// Hajo: check fallback english
+		// check fallback english
 		file = fopen((file_prefix + "/en/" + filename).c_str(), "rb");
 	}
 	// go back to load/save dir
@@ -397,7 +397,7 @@ FILE *help_frame_t::has_helpfile( char const* const filename, int &mode )
 		file = fopen(  (file_prefix + translator::get_lang()->iso_base + "/" + filename).c_str(), "rb"  );
 	}
 	if(  !file  ) {
-		// Hajo: check fallback english
+		// check fallback english
 		file = fopen((file_prefix + "en/" + filename).c_str(), "rb");
 		mode = english;
 	}

@@ -53,7 +53,7 @@ protected:
 
 	/**
 	  * offset for controlling horizontal text scroll
-	  * Dwachs: made private to check for mouse induced cursor moves
+	  * made private to check for mouse induced cursor moves
 	  */
 	scr_coord_val scroll_offset;
 

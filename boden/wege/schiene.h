@@ -10,7 +10,9 @@
 #include "weg.h"
 #include "../../convoihandle_t.h"
 
+
 class vehicle_t;
+
 
 /**
  * Class for Rails in Simutrans.

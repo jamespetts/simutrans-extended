@@ -553,7 +553,6 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 	sprintf( buf, "%d%c%d", loops/10, get_fraction_sep(), loops%10 );
 	display_proportional_clip(x+len, y+LOOP_DATA, buf, ALIGN_LEFT, farbe, true);
 
-	// Added by : Knightly
 	PLAYER_COLOR_VAL text_colour, figure_colour;
 
 	text_colour = SYSCOL_TEXT;

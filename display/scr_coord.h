@@ -345,7 +345,7 @@ public:
 
 	/* reduces the current rect to the overlapping area of two rect
 	 * in case of no overlap the new size is negative
-	 * (prissi: in my humble opinion this could rather return a new rect)
+	 * (in my humble opinion this could rather return a new rect)
 	 */
 	void clip( const scr_rect clip_rect ) {
 		x = max(x, clip_rect.x);

@@ -677,7 +677,6 @@ public:
 	bool get_private_car_route_finding_in_progress() const { return private_car_route_finding_in_progress; }
 	void set_private_car_route_finding_in_progress(bool value) { private_car_route_finding_in_progress = value; }
 
-	// September 2010
 	uint16 get_max_dimension();
 };
 

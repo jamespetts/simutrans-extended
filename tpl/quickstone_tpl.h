@@ -284,8 +284,7 @@ public:
 
 	bool operator!= (const quickstone_tpl<T> &other) const { return entry != other.entry; }
 
-	// Added by : Knightly
-	// Purpose  : For sorting of handles according to internal value of entry
+	// For sorting of handles according to internal value of entry
 	bool operator<= (const quickstone_tpl<T> &other) const
 	{
 		return entry <= other.entry;

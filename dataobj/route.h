@@ -40,7 +40,7 @@ private:
 protected:
 	koord3d_vector_t route;           // The coordinates for the vehicle route
 
-	// Bernd Gabriel, Mar 10, 2010: weight limit info
+	// weight limit info
 	uint32 max_axle_load;
 	uint32 max_convoy_weight;
 

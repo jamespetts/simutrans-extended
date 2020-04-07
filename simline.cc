@@ -184,7 +184,6 @@ void simline_t::add_convoy(convoihandle_t cnv, bool from_loading)
 		}
 		*/
 
-		// Added by : Knightly
 		const minivec_tpl<uint8> &categories = cnv->get_goods_catg_index();
 		const uint8 catg_count = categories.get_count();
 		for (uint8 i = 0; i < catg_count; i++)
@@ -206,7 +205,6 @@ void simline_t::add_convoy(convoihandle_t cnv, bool from_loading)
 	// do we need to tell the world about our new schedule?
 	if(  update_schedules  )
 	{
-		// Added by : Knightly
 		haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, player);
 	}
 
@@ -572,7 +570,6 @@ void simline_t::renew_stops()
 	{
 		register_stops( schedule );
 
-		// Added by Knightly
 		haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, player);
 
 		DBG_DEBUG("simline_t::renew_stops()", "Line id=%d, name='%s'", self.get_id(), name.c_str());
@@ -849,9 +846,8 @@ void simline_t::recalc_catg_index()
 
 	calc_classes_carried();
 
-	// Modified by	: Knightly
-	// Purpose		: Determine removed and added categories and refresh only those categories.
-	//				  Avoids refreshing unchanged categories
+	// Determine removed and added categories and refresh only those categories.
+	// Avoids refreshing unchanged categories
 	minivec_tpl<uint8> catg_differences(goods_catg_index.get_count() + old_goods_catg_index.get_count());
 	minivec_tpl<uint8> passenger_class_differences;
 	minivec_tpl<uint8> mail_class_differences;

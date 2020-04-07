@@ -177,7 +177,7 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
 	update_data();
 	gui_frame_t::set_windowsize(gr);
 
-	// Hajo: Trigger layouting
+	// Trigger layouting
 	set_resizemode(diagonal_resize);
 
 	convoy_assembler.set_replace_frame(this);

@@ -528,7 +528,7 @@ money_frame_t::money_frame_t(player_t *player)
 
 void money_frame_t::draw(scr_coord pos, scr_size size)
 {
-	// Hajo: each label needs its own buffer
+	// each label needs its own buffer
 	static char str_buf[37][256];
 
 	player->get_finance()->calc_finance_history();
@@ -678,7 +678,7 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 		}
 	}
 
-	// Hajo: Money is counted in credit cents (100 cents = 1 Cr)
+	// Money is counted in credit cents (100 cents = 1 Cr)
 	sint64 maintenance = player->get_finance()->get_maintenance_with_bits((transport_type)transport_type_option);
 	money_to_string(str_buf[18],
 		(double)(maintenance)/100.0
@@ -691,7 +691,7 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 		// year_month_toggle.pressed = mchart.is_visible();
 	}
 
-	// Hajo: update chart seed
+	// update chart seed
 	chart.set_seed(welt->get_last_year());
 
 	gui_frame_t::draw(pos, size);

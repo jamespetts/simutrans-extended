@@ -433,7 +433,7 @@ bool ai_goods_t::create_ship_transport_vehicle(fabrik_t *qfab, int vehicle_count
 		}
 		vehicle_t* v = vehicle_builder_t::build( qfab->get_pos(), this, NULL, ship_vehicle);
 		convoi_t* cnv = new convoi_t(this);
-		// V.Meyer: give the new convoi name from first vehicle
+		// give the new convoi name from first vehicle
 		cnv->set_name(v->get_desc()->get_name());
 		cnv->add_vehicle( v );
 
@@ -495,7 +495,7 @@ void ai_goods_t::create_road_transport_vehicle(fabrik_t *qfab, int vehicle_count
 			}
 			vehicle_t* v = vehicle_builder_t::build(startpos, this, NULL, road_vehicle);
 			convoi_t* cnv = new convoi_t(this);
-			// V.Meyer: give the new convoi name from first vehicle
+			// give the new convoi name from first vehicle
 			cnv->set_name(v->get_desc()->get_name());
 			cnv->add_vehicle( v );
 
@@ -535,7 +535,7 @@ void ai_goods_t::create_rail_transport_vehicle(const koord platz1, const koord p
 	koord3d start_pos = welt->lookup_kartenboden(pos1.get_2d() + (abs(size1.x)>abs(size1.y) ? koord(size1.x,0) : koord(0,size1.y)))->get_pos();
 	vehicle_t* v = vehicle_builder_t::build( start_pos, this, NULL, rail_engine);
 
-	// V.Meyer: give the new convoi name from first vehicle
+	// give the new convoi name from first vehicle
 	cnv->set_name(rail_engine->get_name());
 	cnv->add_vehicle( v );
 
@@ -979,7 +979,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 			// The logic above here is hopelessly broken for Extended for multiple reasons
 			// (meters_per_tile, bits_per_month, and pay by average speed)
 			// and appears to have been wrong even in standard.
-			// Maybe try to clean it up sometime. --neroden
+			// Maybe try to clean it up sometime.
 
 			// find the cheapest transport ...
 			// assume maximum cost

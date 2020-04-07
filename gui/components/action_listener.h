@@ -9,7 +9,9 @@
 
 #include "../../simtypes.h"
 
+
 class gui_action_creator_t;
+
 
 /**
  * This interface must be implemented by all classes which want to
@@ -25,7 +27,6 @@ public:
 	 *
 	 * Returns true, if action is done and no more
 	 * components should be triggered.
-	 * V.Meyer
 	 */
 	virtual bool action_triggered(gui_action_creator_t *comp, value_t extra) = 0;
 };

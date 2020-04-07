@@ -17,9 +17,6 @@
 class checksum_t;
 
 /*
- *  Autor:
- *      Volker Meyer
- *
  *  Child nodes:
  *	0   Name
  *	1   Copyright

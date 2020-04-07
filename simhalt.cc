@@ -368,7 +368,7 @@ void haltestelle_t::destroy(halthandle_t const halt)
 /**
  * Station destruction method.
  * Da destroy() alle_haltestellen modifiziert kann kein Iterator benutzt
- * werden! V. Meyer
+ * werden!
  */
 void haltestelle_t::destroy_all()
 {
@@ -440,7 +440,6 @@ haltestelle_t::haltestelle_t(loadsave_t* file)
 	alle_haltestellen.append(self);
 	restart_halt_iterator = true;
 
-	// Added by : Knightly
 	inauguration_time = 0;
 }
 
@@ -508,8 +507,6 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 
 	check_nearby_halts();
 
-	// Added by : Knightly
-	//inauguration_time = dr_time();
 	inauguration_time = welt->get_ticks(); // Possibly more network safe than the original (commented out above)
 
 	control_towers = 0;
@@ -795,7 +792,7 @@ void haltestelle_t::set_name(const char *new_name)
  				DBG_MESSAGE("haltestelle_t::set_name()","name %s already used!",new_name);
 			}
 		}
-		// Knightly : need to update the title text of the associated halt detail and info dialogs, if present
+		//  need to update the title text of the associated halt detail and info dialogs, if present
 		halt_detail_t *const details_frame = dynamic_cast<halt_detail_t *>( win_get_magic( magic_halt_detail + self.get_id() ) );
 		if(  details_frame  ) {
 			details_frame->set_name( get_name() );
@@ -897,7 +894,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 
 		// standard names:
 		// order: factory, attraction, direction, normal name
-		// prissi: first we try a factory name
+		// first we try a factory name
 		// is there a translation for factory defined?
 		const char *fab_base_text = "%s factory %s %s";
 		const char *fab_base = translator::translate(fab_base_text,lang);
@@ -1253,7 +1250,7 @@ void haltestelle_t::check_transferring_cargoes()
 
 void haltestelle_t::step()
 {
-	// Knightly : update status
+	//  update status
 	//   There is no idle state in Extended
 	//   as rerouting requests may be sent via
 	//   refresh_routing() instead of
@@ -1483,7 +1480,7 @@ void haltestelle_t::new_month()
 
 	check_nearby_halts();
 
-	// hsiegeln: roll financial history
+	// roll financial history
 	for (int j = 0; j<MAX_HALT_COST; j++) {
 		for (int k = MAX_MONTHS-1; k>0; k--) {
 			financial_history[k][j] = financial_history[k-1][j];
@@ -1495,9 +1492,6 @@ void haltestelle_t::new_month()
 }
 
 
-// Added by		: Knightly
-// Adapted from : reroute_goods()
-// Purpose		: re-route goods of a single ware category
 uint32 haltestelle_t::reroute_goods(const uint8 catg)
 {
 	if(cargo[catg])
@@ -1506,10 +1500,8 @@ uint32 haltestelle_t::reroute_goods(const uint8 catg)
 		const uint32 packet_count = warray->get_count();
 		vector_tpl<ware_t> * new_warray = new vector_tpl<ware_t>(packet_count);
 
-		// Hajo:
 		// Step 1: re-route goods now and then to adapt to changes in
 		// world layout, remove all goods which destination was removed from the map
-		// prissi;
 		// also the empty entries of the array are cleared
 		for(int j = packet_count - 1; j  >= 0; j--)
 		{
@@ -1972,10 +1964,7 @@ void haltestelle_t::reset_connexions(uint8 category, uint8 g_class)
 	connexions[category][g_class]->clear();
 }
 
-// Added by		: Knightly
-// Adapted from : Jamespetts' code
-// Purpose		: To notify relevant halts to rebuild connexions
-// @jamespetts: modified the code to combine with previous method and provide options about partially delayed refreshes for performance.
+
 void haltestelle_t::refresh_routing(const schedule_t *const sched, const minivec_tpl<uint8> &categories, const minivec_tpl<uint8> *passenger_classes, const minivec_tpl<uint8> *mail_classes, const player_t *const player)
 {
 	halthandle_t tmp_halt;
@@ -2116,8 +2105,6 @@ uint32 haltestelle_t::find_route(const vector_tpl<halthandle_t>& destination_hal
 	// in order to reroute the packet.
 	//
 	// If there are no potential destination halts, make this the final destination halt.
-	//
-	// Authors: Knightly, James Petts, Nathanael Nerode (neroden)
 
 	uint32 best_journey_time = previous_journey_time;
 	halthandle_t best_destination_halt;
@@ -2282,8 +2269,7 @@ void haltestelle_t::add_pax_too_slow(int n)
 	book(n, HALT_TOO_SLOW);
 }
 
-// Waiting so long at the station. added 01/2019(EX14.3)
-
+// Waiting so long at the station.
 void haltestelle_t::add_pax_too_waiting(int n)
 {
 	book(n, HALT_TOO_WAITING);
@@ -3740,7 +3726,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			if(gr && gr->get_halt().is_bound()) {
 				dbg->warning( "haltestelle_t::rdwr()", "bound to ground twice at (%i,%i)!", k.x, k.y );
 			}
-			// prissi: now check, if there is a building -> we allow no longer ground without building!
+			// now check, if there is a building -> we allow no longer ground without building!
 			const gebaeude_t* gb = gr ? gr->find<gebaeude_t>() : NULL;
 			const building_desc_t *desc=gb ? gb->get_tile()->get_desc():NULL;
 			if(desc)
@@ -3763,7 +3749,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		k.rdwr( file );
 	}
 
-	// BG, 07-MAR-2010: the number of goods categories has to be read from the savegame,
+	// the number of goods categories has to be read from the savegame,
 	// as goods and categories can be added by the user and thus do not depend on file
 	// version and therefore not predicatable by simutrans.
 
@@ -4876,7 +4862,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 			display_fillbox_wh_clip( xpos + 1, ypos - v - 1, 2, v, wtyp->get_color(), false);
 			display_fillbox_wh_clip( xpos + 3, ypos - v - 1, 1, v, COL_GREY1, false);
 
-			// Hajo: show up arrow for capped values
+			// show up arrow for capped values
 			if(  sum > max_capacity  ) {
 				display_fillbox_wh_clip( xpos + 1, ypos - v - 6, 2, 4, COL_WHITE, false);
 				display_fillbox_wh_clip( xpos, ypos - v - 5, 4, 1, COL_WHITE, false);
@@ -5009,7 +4995,7 @@ bool haltestelle_t::add_grund(grund_t *gr, bool relink_factories, bool recalc_ne
 			}
 		}
 	}
-	// Knightly : iterate over all convoys
+	//  iterate over all convoys
 	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
 		// only check lineless convoys which have matching ownership and which are not yet registered
 		if(  !cnv->get_line().is_bound()  &&  (public_halt  ||  cnv->get_owner()==get_owner())  &&  !registered_convoys.is_contained(cnv)  ) {
@@ -5172,7 +5158,7 @@ bool haltestelle_t::rem_grund(grund_t *gr)
 		}
 	}
 
-	// Knightly : remove registered lineless convoys as well
+	//  remove registered lineless convoys as well
 	for(  size_t j = registered_convoys.get_count();  j-- != 0;  ) {
 		bool ok = false;
 		FOR(  minivec_tpl<schedule_entry_t>, const& k, registered_convoys[j]->get_schedule()->entries  ) {

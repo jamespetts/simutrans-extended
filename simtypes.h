@@ -142,7 +142,7 @@ enum working_method_t { drive_by_sight, time_interval, absolute_block, token_blo
 
 #define CLIP(wert,mini,maxi)  min(max((wert),(mini)),(maxi))
 
-// Hajo: define machine independent types
+// define machine independent types
 typedef unsigned int        uint;
 typedef   signed char       sint8;
 typedef unsigned char       uint8;

@@ -164,7 +164,7 @@ private:
 	 */
 	way_constraints_of_way_t way_constraints;
 
-	// BG, 24.02.2012 performance enhancement avoid virtual method call, use inlined get_waytype()
+	// performance enhancement avoid virtual method call, use inlined get_waytype()
 	waytype_t    wtyp;
 
 

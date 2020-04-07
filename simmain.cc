@@ -1044,7 +1044,7 @@ int simu_main(int argc, char** argv)
 		translator::set_language( env_t::language_iso );
 	}
 
-	// Hajo: simgraph init loads default fonts, now we need to load
+	// simgraph_init loads default fonts, now we need to load
 	// the real fonts for the current language
 	sprachengui_t::init_font_from_lang();
 	chdir(env_t::program_dir);
@@ -1329,7 +1329,7 @@ DBG_MESSAGE("simmain","demo file not found at %s",buf.get_str() );
 
 
 #ifdef USE_SOFTPOINTER
-	// Hajo: give user a mouse to work with
+	// give user a mouse to work with
 	if (skinverwaltung_t::mouse_cursor != NULL) {
 		// we must use our softpointer (only Allegro!)
 		display_set_pointer(skinverwaltung_t::mouse_cursor->get_image_id(0));
@@ -1341,7 +1341,7 @@ DBG_MESSAGE("simmain","demo file not found at %s",buf.get_str() );
 
 	welt->set_dirty();
 
-	// Hajo: simgraph init loads default fonts, now we need to load
+	// simgraph_init loads default fonts, now we need to load
 	// the real fonts for the current language
 	sprachengui_t::init_font_from_lang();
 

@@ -3,8 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/* completely overhauled by prissi Oct-2005 */
-
 #include <stdio.h>
 #include <ctype.h>
 

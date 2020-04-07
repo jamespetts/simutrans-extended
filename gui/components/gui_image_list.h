@@ -88,7 +88,7 @@ public:
 
 	void set_player_nr(sint8 player_nr) { this->player_nr = player_nr; }
 
-	// Do not use for the lower panel because it does not support matrices - Ranran
+	// Do not use for the lower panel because it does not support matrices
 	void set_focus(sint8 index) { this->focus = index; }
 
 	bool infowin_event(event_t const*) OVERRIDE;

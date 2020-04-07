@@ -15,8 +15,8 @@
 #define EVENT_KEYBOARD                1
 #define EVENT_STRING                  2 // instead of a single character a ev_ptr points to an utf8 string
 #define EVENT_CLICK                   3
-#define EVENT_DOUBLE_CLICK            4  // Knightly: 2 consecutive sequences of click-release
-#define EVENT_TRIPLE_CLICK            5  // Knightly: 3 consecutive sequences of click-release
+#define EVENT_DOUBLE_CLICK            4  //  2 consecutive sequences of click-release
+#define EVENT_TRIPLE_CLICK            5  //  3 consecutive sequences of click-release
 #define EVENT_RELEASE                 6
 #define EVENT_MOVE                    7
 #define EVENT_DRAG                    8
@@ -35,8 +35,8 @@
 #define MOUSE_LEFTBUTTON              1
 #define MOUSE_RIGHTBUTTON             2
 #define MOUSE_MIDBUTTON               4
-#define MOUSE_WHEELUP                 8  // hsiegeln 2003-11-04 added
-#define MOUSE_WHEELDOWN              16  // hsiegeln 2003-11-04 added
+#define MOUSE_WHEELUP                 8
+#define MOUSE_WHEELDOWN              16
 
 #define WIN_OPEN                      1
 #define WIN_CLOSE                     2
@@ -106,15 +106,15 @@
 #define IS_RIGHTDBLCLK(ev) ((ev)->ev_class == EVENT_DOUBLE_CLICK && (ev)->ev_code == MOUSE_RIGHTBUTTON)
 #define IS_RIGHTTPLCLK(ev) ((ev)->ev_class == EVENT_TRIPLE_CLICK && (ev)->ev_code == MOUSE_RIGHTBUTTON)
 
-#define IS_WINDOW_RESIZE(ev) ((ev)->ev_class == WINDOW_RESIZE) //19-may-02	markus weber	added
-#define IS_WINDOW_MAKE_MIN_SIZE(ev) ((ev)->ev_class == WINDOW_MAKE_MIN_SIZE) // 11-Mar-03 (Mathew Hounsell) Added
-#define IS_WINDOW_CHOOSE_NEXT(ev) ((ev)->ev_class == WINDOW_CHOOSE_NEXT) // 11-Mar-03 (Mathew Hounsell) Added
+#define IS_WINDOW_RESIZE(ev) ((ev)->ev_class == WINDOW_RESIZE)
+#define IS_WINDOW_MAKE_MIN_SIZE(ev) ((ev)->ev_class == WINDOW_MAKE_MIN_SIZE)
+#define IS_WINDOW_CHOOSE_NEXT(ev) ((ev)->ev_class == WINDOW_CHOOSE_NEXT)
 
 #define IS_WHEELUP(ev) ((ev)->ev_class == EVENT_CLICK && (ev)->ev_code == MOUSE_WHEELUP)
 #define IS_WHEELDOWN(ev) ((ev)->ev_class == EVENT_CLICK && (ev)->ev_code == MOUSE_WHEELDOWN)
 
 // This macro is to determine if the event should be also handled by children of containers.
-#define DOES_WINDOW_CHILDREN_NEED(ev) ((ev)->ev_class == INFOWIN || (ev)->ev_class == WINDOW_RESIZE || (ev)->ev_class == WINDOW_MAKE_MIN_SIZE ) // 11-Mar-03 (Mathew Hounsell) Added
+#define DOES_WINDOW_CHILDREN_NEED(ev) ((ev)->ev_class == INFOWIN || (ev)->ev_class == WINDOW_RESIZE || (ev)->ev_class == WINDOW_MAKE_MIN_SIZE )
 
 #define IS_WINDOW_TOP(ev) ((ev)->ev_class == INFOWIN || (ev)->ev_code == WIN_TOP)
 

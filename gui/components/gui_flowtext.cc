@@ -31,8 +31,7 @@ void gui_flowtext_t::set_text(const char *text)
 	nodes.clear();
 	links.clear();
 
-	// Hajo: danger here, longest word in text
-	// must not exceed 511 chars!
+	// danger here, longest word in text must not exceed 511 chars!
 	char word[512];
 	attributes att = ATT_NONE;
 

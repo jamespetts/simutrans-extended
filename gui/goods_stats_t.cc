@@ -66,7 +66,6 @@ void goods_stats_t::draw(scr_coord offset)
 		buf.printf("%s", translator::translate(wtyp->get_name()));
 		display_proportional_clip(offset.x + 14, yoff,	buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 
-		// Massively cleaned up by neroden, June 2013
 		// Roundoff is deliberate here (get two-digit speed)... question this
 		if (vehicle_speed <= 0) {
 			// Negative and zero speeds will be due to roundoff errors

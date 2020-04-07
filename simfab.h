@@ -88,7 +88,7 @@ class ware_production_t
 {
 private:
 	const goods_desc_t *type;
-	// Knightly : statistics for each goods
+	//  statistics for each goods
 	sint64 statistics[MAX_MONTH][MAX_FAB_GOODS_STAT];
 	sint64 weighted_sum_storage;
 
@@ -103,7 +103,7 @@ public:
 	const goods_desc_t* get_typ() const { return type; }
 	void set_typ(const goods_desc_t *t) { type=t; }
 
-	// Knightly : functions for manipulating goods statistics
+	//  functions for manipulating goods statistics
 	void roll_stats(uint32 factor, sint64 aggregate_weight);
 	void rdwr(loadsave_t *file);
 	const sint64* get_stats() const { return *statistics; }
@@ -182,11 +182,11 @@ private:
 	sint64 weighted_sum_power;
 	sint64 aggregate_weight;
 
-	// Knightly : Functions for manipulating factory statistics
+	//  Functions for manipulating factory statistics
 	void init_stats();
 	void set_stat(sint64 value, int stat_type) { assert(stat_type<MAX_FAB_STAT); statistics[0][stat_type] = value; }
 
-	// Knightly : For accumulating weighted sums for average statistics
+	//  For accumulating weighted sums for average statistics
 	void book_weighted_sums(sint64 delta_time);
 
 	/// Possible destinations for produced goods
@@ -276,7 +276,7 @@ private:
 	// production remainder when scaled to PRODUCTION_DELTA_T. added back next step to eliminate cumulative error
 	uint32 menge_remainder;
 
-	// Knightly : number of rounds where there is active production or consumption
+	//  number of rounds where there is active production or consumption
 	uint8 activity_count;
 
 	// true if the factory has a transformer adjacent
@@ -654,7 +654,7 @@ public:
 	// This is done this way rather than reusing get_prodfactor() because the latter causes a lack of precision (everything being rounded to the nearest 16).
 	sint32 get_current_production() const { return (sint32)(welt->calc_adjusted_monthly_figure(((sint64)prodbase * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + (get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_pax + prodfactor_mail))))) >> 8l; }
 
-	/* prissi: returns the status of the current factory */
+	/* returns the status of the current factory */
 	enum { nothing, good, water_resource, medium, water_resource_full, storage_full, inactive, shipment_stuck, material_shortage, no_material, bad, mat_overstocked, stuck, staff_shortage, MAX_FAB_STATUS };
 	static unsigned status_to_color[MAX_FAB_STATUS];
 

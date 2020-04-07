@@ -12,7 +12,7 @@
 
 
 /*
- * Hajo: flag if sound module should be used
+ * flag if sound module should be used
  * with Win32 the number+1 of the device used
  */
 static int use_sound = 0;

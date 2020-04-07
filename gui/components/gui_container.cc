@@ -92,7 +92,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 			swallowed = comp_focus->infowin_event(&ev2);
 		}
 
-		// Knightly : either event not swallowed, or inner container has no focused child component after TAB event
+		//  either event not swallowed, or inner container has no focused child component after TAB event
 		if(  !swallowed  ||  (ev->ev_code==SIM_KEY_TAB  &&  comp_focus  &&  comp_focus->get_focus()==NULL)  ) {
 			if(  ev->ev_code==SIM_KEY_TAB  ) {
 				// TAB: find new focus
@@ -120,7 +120,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 					}
 				}
 
-				// Knightly :	inner containers with focusable components may not have a focused component yet
+				// 	inner containers with focusable components may not have a focused component yet
 				//				==> give the inner container a distribution_weight to activate the first focusable component
 				if(  new_focus  &&  new_focus->get_focus()==NULL  ) {
 					event_t ev2 = *ev;
@@ -151,12 +151,12 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				break;
 			}
 
-			// Hajo: deliver events if
+			// deliver events if
 			// a) The mouse or click coordinates are inside the component
 			// b) The event affects all components, this are WINDOW events
 			if(  comp  ) {
-				if(  DOES_WINDOW_CHILDREN_NEED( ev )  ) { // (Mathew Hounsell)
-					// Hajo: no need to translate the event, it has no valid coordinates either
+				if(  DOES_WINDOW_CHILDREN_NEED( ev )  ) {
+					// no need to translate the event, it has no valid coordinates either
 					comp->infowin_event(ev);
 				}
 				else if(  comp->is_visible()  ) {
@@ -176,7 +176,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				break;
 			}
 
-			// Hajo: if component hit, translate coordinates and deliver event
+			// if component hit, translate coordinates and deliver event
 			event_t ev2 = *ev;
 			translate_event(&ev2, -comp->get_pos().x, -comp->get_pos().y);
 

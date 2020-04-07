@@ -16,11 +16,7 @@
 
 
 /*
- *  Autor:
- *      prissi
- *
- *  Description:
- *	Road signs
+ * Road signs
  *
  *  Child nodes:
  *	0   Name

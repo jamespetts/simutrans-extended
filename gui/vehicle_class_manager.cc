@@ -1024,9 +1024,9 @@ void gui_class_vehicleinfo_t::draw(scr_coord offset)
 				// Revenue
 				int len = 5 + display_proportional_clip(pos.x + w + offset.x, pos.y + offset.y + total_height + extra_y, translator::translate("Base profit per km (when full):"), ALIGN_LEFT, SYSCOL_TEXT, true);
 				// Revenue for moving 1 unit 1000 meters -- comes in 1/4096 of simcent, convert to simcents
-				// Excludes TPO/catering revenue, class and comfort effects.  FIXME --neroden
-				sint64 overcrowded_fare = v->get_cargo_type()->get_total_fare(1000); // Class needs to be added here (Ves?)
-																		 // Multiply by capacity, convert to simcents, subtract running costs
+				// Excludes TPO/catering revenue, class and comfort effects.  FIXME
+
+				// Multiply by capacity, convert to simcents, subtract running costs
 				sint64 profit = (v->get_cargo_max()*total_income + 2048ll) / 4096ll - v->get_running_cost(welt);
 				money_to_string(number, profit / 100.0);
 				display_proportional_clip(pos.x + w + offset.x + len, pos.y + offset.y + total_height + extra_y, number, ALIGN_LEFT, profit>0 ? MONEY_PLUS : MONEY_MINUS, true);

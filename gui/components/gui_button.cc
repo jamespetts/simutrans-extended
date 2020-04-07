@@ -195,23 +195,23 @@ bool button_t::infowin_event(const event_t *ev)
 		return false;
 	}
 
-	// Hajo: we ignore resize events, they shouldn't make us
+	// we ignore resize events, they shouldn't make us
 	// pressed or unpressed
 	if(!b_enabled  ||  IS_WINDOW_RESIZE(ev)) {
 		return false;
 	}
 
-	// Knightly : check if the initial click and the current mouse positions are within the button's boundary
+	//  check if the initial click and the current mouse positions are within the button's boundary
 	bool const cxy_within_boundary = 0 <= ev->cx && ev->cx < get_size().w && 0 <= ev->cy && ev->cy < get_size().h;
 	bool const mxy_within_boundary = 0 <= ev->mx && ev->mx < get_size().w && 0 <= ev->my && ev->my < get_size().h;
 
-	// Knightly : update the button pressed state only when mouse positions are within boundary or when it is mouse release
+	//  update the button pressed state only when mouse positions are within boundary or when it is mouse release
 	if(  type<=STATE_MASK  &&  cxy_within_boundary  &&  (  mxy_within_boundary  ||  IS_LEFTRELEASE(ev)  )  ) {
-		// Hajo: check button state, if we should look depressed
+		// check button state, if we should look depressed
 		pressed = (ev->button_state==1);
 	}
 
-	// Knightly : make sure that the button will take effect only when the mouse positions are within the component's boundary
+	//  make sure that the button will take effect only when the mouse positions are within the component's boundary
 	if(  !cxy_within_boundary  ||  !mxy_within_boundary  ) {
 		return false;
 	}

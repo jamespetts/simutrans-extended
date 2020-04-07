@@ -196,7 +196,7 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 /**
  * This method is called if an action is triggered
  */
-bool convoi_detail_t::action_triggered(gui_action_creator_t *comp,value_t v/* */)           // 28-Dec-01    Markus Weber    Added
+bool convoi_detail_t::action_triggered(gui_action_creator_t *comp,value_t v/* */)
 {
 	if(cnv.is_bound()) {
 		if(comp==&sale_button) {
@@ -344,6 +344,7 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			buf.clear();
 			// NOTE: These value needs to be modified because these are multiplied by "gear"
 			buf.printf(translator::translate("%s %4d kW, %d kN"), translator::translate("Power:"), cnv->get_sum_power() / 1000, cnv->get_starting_force().to_sint32() / 1000);
+			// TODO: Add the acceleration info here
 			display_proportional_clip(pos.x + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 			total_height += LINESPACE;
 
@@ -927,11 +928,11 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			total_height += LINESPACE;
 		}
 
-		// Bernd Gabriel, 16.06.2009: current average obsolescence increase percentage
+		// current average obsolescence increase percentage
 		if (vehicle_count > 0)
 		{
 			any_obsoletes = false;
-			/* Bernd Gabriel, 17.06.2009:
+			/*
 			The average percentage tells nothing about the real cost increase: If a cost-intensive
 			loco is very old and at max increase (1 * 400% * 1000 cr/month, but 15 low-cost cars are
 			brand new (15 * 100% * 100 cr/month), an average percentage of
@@ -1110,7 +1111,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			display_proportional_clip(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 			extra_y += LINESPACE;
 
-			// Bernd Gabriel, 16.06.2009: current average obsolescence increase percentage
+			// current average obsolescence increase percentage
 			uint32 percentage = v->get_desc()->calc_running_cost(welt, 100) - 100;
 			if (percentage > 0)
 			{
@@ -1136,9 +1137,10 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			// Revenue
 			int len = 5 + display_proportional_clip(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, translator::translate("Base profit per km (when full):"), ALIGN_LEFT, SYSCOL_TEXT, true);
 			// Revenue for moving 1 unit 1000 meters -- comes in 1/4096 of simcent, convert to simcents
-			// Excludes TPO/catering revenue, class and comfort effects.  FIXME --neroden
-			sint64 fare = v->get_cargo_type()->get_total_fare(1000); // Class needs to be added here (Ves?)
-																	 // Multiply by capacity, convert to simcents, subtract running costs
+			// Excludes TPO/catering revenue, class and comfort effects.  FIXME
+			sint64 fare = v->get_cargo_type()->get_total_fare(1000); // Class needs to be added here
+
+			// Multiply by capacity, convert to simcents, subtract running costs
 			sint64 profit = (v->get_cargo_max()*fare + 2048ll) / 4096ll/* - v->get_running_cost(welt)*/;
 			money_to_string(number, profit / 100.0);
 			display_proportional_clip(pos.x + extra_w + offset.x + len, pos.y + offset.y + total_height + extra_y, number, ALIGN_LEFT, SYSCOL_TEXT, true);

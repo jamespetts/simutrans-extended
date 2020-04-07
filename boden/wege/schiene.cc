@@ -3,13 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Rails for Simutrans
- *
- * Revised January 2001
- * Hj. Malthaner
- */
-
 #include <stdio.h>
 
 #include "../../gui/simwin.h"

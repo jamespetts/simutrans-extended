@@ -14,7 +14,8 @@
 
 
 /*
- * The function implements a WindowManager 'Object'
+ * These functions implement a WindowManager 'Object'
+ * There's only one WindowManager
  */
 
 
@@ -135,7 +136,7 @@ void win_set_pos(gui_frame_t *ig, int x, int y);
 
 gui_frame_t *win_get_top();
 
-// Knightly : returns the focused component of the top window
+//  returns the focused component of the top window
 gui_component_t *win_get_focus();
 
 int win_get_open_count();

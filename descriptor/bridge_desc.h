@@ -25,7 +25,7 @@ class checksum_t;
  *  BEWARE: non-standard node structure!
  *  0   Foreground-images
  *  1   Background-images
- *  2   Cursor/Icon (Hajo: 14-Feb-02: now also icon image)
+ *  2   Cursor/Icon
  *  3   Foreground-images - snow
  *  4   Background-images - snow
  */

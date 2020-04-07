@@ -12,20 +12,6 @@
 #include "../simwin.h"
 
 
-//// BG, 11.04.2010
-//gui_component_table_t::gui_component_table_t()
-//{
-//
-//}
-//
-//
-//// BG, 11.04.2010
-//gui_component_table_t::~gui_component_table_t()
-//{
-//}
-
-
-// BG, 22.03.2010
 coordinate_t gui_component_table_t::add_column(gui_table_column_t *column) {
 	coordinate_t x = gui_table_t::add_column(column);
 	coordinate_t h = get_grid_size().get_y();
@@ -35,7 +21,7 @@ coordinate_t gui_component_table_t::add_column(gui_table_column_t *column) {
 	return x;
 }
 
-// BG, 22.03.2010
+
 coordinate_t gui_component_table_t::add_row(gui_table_row_t *row) {
 	coordinate_t y = gui_table_t::add_row(row);
 	coordinate_t w = get_grid_size().get_x();
@@ -46,7 +32,6 @@ coordinate_t gui_component_table_t::add_row(gui_table_row_t *row) {
 }
 
 
-// BG, 18.03.2010
 void gui_component_table_t::change_size(const coordinates_t &old_size, const coordinates_t &new_size) {
 
 	// remove no longer needed cells
@@ -85,7 +70,6 @@ void gui_component_table_t::change_size(const coordinates_t &old_size, const coo
 }
 
 
-// BG, 11.04.2010
 gui_component_t *gui_component_table_t::get_cell_component(coordinate_t x, coordinate_t y)
 {
 
@@ -97,13 +81,12 @@ gui_component_t *gui_component_table_t::get_cell_component(coordinate_t x, coord
 }
 
 
-// BG, 11.04.2010
 void gui_component_table_t::set_cell_component(coordinate_t x, coordinate_t y, gui_component_t *component)
 {
 	gui_cells[x].set(y, component);
 }
 
-// BG, 11.04.2010
+
 bool gui_component_table_t::infowin_event(const event_t *ev)
 {
 	gui_table_event_t table_event(this, ev);
@@ -122,12 +105,10 @@ bool gui_component_table_t::infowin_event(const event_t *ev)
 }
 
 
-// BG, 18.03.2010
 void gui_component_table_t::init_cell(coordinate_t /*x*/, coordinate_t /*y*/) {
 }
 
 
-// BG, 18.03.2010
 void gui_component_table_t::paint_cell(const scr_coord &offset, coordinate_t x, coordinate_t y) {
 	gui_component_t *component = get_cell_component(x, y);
 	if (component)
@@ -136,7 +117,7 @@ void gui_component_table_t::paint_cell(const scr_coord &offset, coordinate_t x, 
 	}
 }
 
-// BG, 18.03.2010
+
 void gui_component_table_t::remove_cell(coordinate_t x, coordinate_t y) {
 	if (owns_cell_components)
 	{
@@ -148,7 +129,7 @@ void gui_component_table_t::remove_cell(coordinate_t x, coordinate_t y) {
 	}
 }
 
-// BG, 27.03.2010
+
 void gui_component_table_t::remove_column(coordinate_t x)
 {
 	// remove cells
@@ -163,7 +144,7 @@ void gui_component_table_t::remove_column(coordinate_t x)
 	}
 }
 
-// BG, 27.03.2010
+
 void gui_component_table_t::remove_row(coordinate_t y)
 {
 	// remove cells and change size of arrays

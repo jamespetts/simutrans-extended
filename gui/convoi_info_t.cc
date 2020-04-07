@@ -209,7 +209,7 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv)
 
 
 #ifdef ACCELERATION_BUTTON
-	//Bernd Gabriel, Sep, 24 2009: acceleration curve:
+	// acceleration curve:
 
 	for (int i = 0; i < MAX_MONTHS; i++)
 	{
@@ -320,11 +320,11 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		destroy_win(this);
 	}
 	else {
-		//Bernd Gabriel, Dec, 02 2009: common existing_convoy_t for acceleration curve and weight/speed info.
+		// common existing_convoy_t for acceleration curve and weight/speed info.
 		convoi_t &convoy = *cnv.get_rep();
 
 #ifdef ACCELERATION_BUTTON
-		//Bernd Gabriel, Sep, 24 2009: acceleration curve:
+		// acceleration curve:
 		if (filterButtons[ACCELERATION_BUTTON].is_visible() && filterButtons[ACCELERATION_BUTTON].pressed)
 		{
 			const int akt_speed_soll = kmh_to_speed(convoy.calc_max_speed(convoy.get_weight_summary()));
@@ -341,7 +341,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		}
 #endif
 
-		// Bernd Gabriel, 01.07.2009: show some colored texts and indicator
+		// show some colored texts and indicator
 		input.set_color(cnv->has_obsolete_vehicles() ? COL_OBSOLETE : SYSCOL_TEXT);
 
 		// make titlebar dirty to display the correct coordinates
@@ -618,12 +618,12 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		{
 			const int pos_y = pos_y0 + LINESPACE; // line 2
 			char tmp[256];
-			// Bernd Gabriel, 01.07.2009: inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
+			// inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
 			sprintf(tmp, caption, translator::translate("Profit"));
 			int len = display_proportional(pos_x, pos_y, tmp, ALIGN_LEFT, SYSCOL_TEXT, true) + 5;
 			money_to_string(tmp, cnv->get_jahresgewinn() / 100.0);
 			len += display_proportional(pos_x + len, pos_y, tmp, ALIGN_LEFT, cnv->get_jahresgewinn() > 0 ? MONEY_PLUS : MONEY_MINUS, true) + 5;
-			// Bernd Gabriel, 17.06.2009: add fixed maintenance info
+			// add fixed maintenance info
 			uint32 fixed_monthly = welt->calc_adjusted_monthly_figure(cnv->get_fixed_cost());
 			if (fixed_monthly)
 			{
@@ -661,7 +661,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		{
 			const int pos_y = pos_y0 + 3 * LINESPACE; // line 4
 			char tmp[256];
-			// Bernd Gabriel, 01.07.2009: inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
+			// inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
 			sprintf(tmp, caption, translator::translate("Gewicht"));
 			const int len = display_proportional(pos_x, pos_y, tmp, ALIGN_LEFT, SYSCOL_TEXT, true) + 5;
 			const int freight_weight = gross_weight - empty_weight; // cnv->get_sum_gesamtweight() - cnv->get_sum_weight();
@@ -676,7 +676,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			int pos_y = pos_y0 + 4 * LINESPACE; // line 5 (and later 6)
 			// next stop
 			char tmp[256];
-			// Bernd Gabriel, 01.07.2009: inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
+			// inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
 			sprintf(tmp, caption, translator::translate("Fahrtziel")); // "Destination"
 			int len = display_proportional(pos_x, pos_y, tmp, ALIGN_LEFT, SYSCOL_TEXT, true) + 5;
 			info_buf.clear();
@@ -721,7 +721,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			const int pos_y = pos_y0 + 6 * LINESPACE; // line 7
 			const int line_x = pos_x + line_bound * 12;
 			char tmp[256];
-			// Bernd Gabriel, 01.07.2009: inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
+			// inconsistent adding of ':'. Sometimes in code, sometimes in translation. Consistently moved to code.
 			sprintf(tmp, caption, translator::translate("Serves Line"));
 			int len = display_proportional(line_x + 1, pos_y, tmp, ALIGN_LEFT, SYSCOL_TEXT, true) + 5;
 

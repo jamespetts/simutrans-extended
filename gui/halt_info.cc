@@ -184,9 +184,6 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 	add_component(&sort_label);
 	cursor.y += D_LABEL_HEIGHT + D_V_SPACE;
 
-	// hsiegeln: added sort_button
-	// Ves: Made the sort button into a combobox
-
 	freight_sort_selector.clear_elements();
 	for (int i = 0; i < SORT_MODES; i++)
 	{
@@ -233,7 +230,7 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 	set_windowsize(scr_size(total_width, cursor.y + D_MARGIN_BOTTOM));
 	set_min_windowsize(scr_size(total_width, cursor.y - 5 * D_LABEL_HEIGHT + D_MARGIN_BOTTOM));
 
-	set_resizemode(diagonal_resize);     // 31-May-02	markus weber	added
+	set_resizemode(diagonal_resize);
 	resize(scr_coord(0,0));
 }
 
@@ -390,7 +387,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 			}
 		}
 
-		// Hajo: Reuse of info_buf buffer to get and display
+		// Reuse of info_buf buffer to get and display
 		// information about the passengers happiness
 		info_buf.clear();
 
@@ -627,7 +624,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 
 
 		// TODO: Display the status of the halt in written text and color
-		// There exists currently no fixed states for stations, so those will have to be invented // Ves
+		// There exists currently no fixed states for stations, so those will have to be invented
 		// Suggestions for states:
 		// - No convoys serviced last month
 		// - No goods where waiting last month

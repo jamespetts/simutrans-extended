@@ -214,7 +214,6 @@ public:
 		}
 	};
 
-// BG, 31.12.2012: virtual methods of lazy_convoy_t:
 private:
 	weight_summary_t weight;
 	static const sint32 timings_reduction_point = 6;
@@ -258,8 +257,6 @@ public:
 		convoy_t::calc_move(settings, delta_t, weight, akt_speed_soll, next_speed_limit, steps_til_limit, steps_til_brake, akt_speed, sp_soll, akt_v);
 	}
 
-// BG, 31.12.2012: end of virtual methods of lazy_convoy_t.
-
 private:
 	/**
 	* Route of this convoi - a sequence of coordinates. Actually
@@ -290,8 +287,7 @@ private:
 	*/
 	schedule_t *schedule;
 
-	// Added by : Knightly
-	// Purpose  : To hold the original schedule before opening schedule window
+	// hold the original schedule before opening schedule window
 	schedule_t *old_schedule;
 	koord3d schedule_target;
 
@@ -584,7 +580,6 @@ private:
 	 * stop, indexed here by timetable entry.
 	 *
 	 * Replaces the original "last_departure_time" member.
-	 * Modified October 2011 to include accumulated distance.
 	 */
 	typedef koordhashtable_tpl<departure_point_t, departure_data_t> departure_map;
 	departure_map departures;
@@ -735,7 +730,7 @@ public:
 
 	class route_infos_t : public vector_tpl<route_info_t>
 	{
-		// BG, 05.08.2012: pay attention to the aircrafts' holding pattern!
+		// pay attention to the aircrafts' holding pattern!
 		// It starts at route_index = touchdown - HOLDING_PATTERN_LENGTH - HOLDING_PATTERN_OFFSET
 		// and has a length of HOLDING_PATTERN_LENGTH.
 		sint32 hp_start_index; // -1: not an aircraft or aircraft has passed the start of the holding pattern.
@@ -750,7 +745,7 @@ public:
 		inline sint32 get_holding_pattern_start_step()  const { return hp_start_step; }
 		inline sint32 get_holding_pattern_end_step()    const { return hp_end_step; }
 
-		// BG 05.08.2012: calc number of steps. Ignores the holding pattern, if start_step starts before it and end_step ends after it.
+		// calc number of steps. Ignores the holding pattern, if start_step starts before it and end_step ends after it.
 		// In any other case the holding pattern is part off the route or is irrelevant.
 		inline sint32 calc_steps(sint32 start_step, sint32 end_step)
 		{
@@ -762,7 +757,7 @@ public:
 			return end_step - start_step;
 		}
 
-		// BG 05.08.2012: calc number of tiles. Ignores the holding pattern, if start_index starts before it and end_index ends after it.
+		// calc number of tiles. Ignores the holding pattern, if start_index starts before it and end_index ends after it.
 		// In any other case the holding pattern is part off the route or is irrelevant.
 		inline sint32 calc_tiles(sint32 start_index, sint32 end_index)
 		{
@@ -1491,21 +1486,19 @@ public:
 		}
 	}
 
-	// Returns this convoy's reversing method. (v14.8 - Jan, 2020 @Ranran)
+	// Returns this convoy's reversing method.
 	uint8 get_terminal_shunt_mode() const;
 
 	// return a number numbered by position in convoy. This is affected by the number of locomotives and reversals.
 	// The locomotive on the front side is returned a negative value.
 	sint16 get_car_numbering(uint8 car_no) const;
 
-	// @returns vehicle length removed at the same time from the convoy. Feb, 2020 @Ranran
+	// @returns vehicle length removed at the same time from the convoy.
 	uint8 calc_auto_removal_length(uint8 car_no) const;
 	uint8 get_auto_removal_vehicle_count(uint8 car_no) const;
 
 private:
-	/** Train formation checks
-	 *  v14.8 - Jan, 2020 @Ranran
-	 */
+	/** Train formation checks */
 	uint8 get_front_loco_count() const;
 	uint8 check_new_tail(uint8 start) const;
 	uint8 check_need_turntable() const;

@@ -37,7 +37,7 @@ gui_chart_t::gui_chart_t() : gui_component_t()
 	ltr = false;
 	x_elements = 0;
 
-	// Hajo: transparent by default
+	// transparent by default
 	background = -1;
 }
 
@@ -123,7 +123,7 @@ void gui_chart_t::draw(scr_coord offset)
 	// calc baseline and scale
 	calc_gui_chart_values(pbaseline, pscale, cmin, cmax);
 
-	// Hajo: draw background if desired
+	// draw background if desired
 	if(background != -1) {
 		display_fillbox_wh_clip(offset.x, offset.y, size.w, size.h, background, false);
 	}
@@ -192,7 +192,7 @@ void gui_chart_t::draw(scr_coord offset)
 			for (int i=0;i<c.elements;i++) {
 				//tmp=c.values[year*c.size+c.offset];
 				tmp = c.values[i*c.size+c.offset];
-				// Knightly : convert value where necessary
+				//  convert value where necessary
 				if(  c.convert  ) {
 					tmp = c.convert(tmp);
 					display_tmp = tmp;
@@ -289,7 +289,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, float *scale, char *cm
 		if(  c.show  ) {
 			for(  int i=0;  i<c.elements;  i++  ) {
 				tmp = c.values[i*c.size+c.offset];
-				// Knightly : convert value where necessary
+				//  convert value where necessary
 				if(  c.convert  ) {
 					tmp = c.convert(tmp);
 				}

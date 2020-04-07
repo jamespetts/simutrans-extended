@@ -54,7 +54,6 @@ COLOR_VAL gui_theme_t::gui_highlight_color;
 COLOR_VAL gui_theme_t::gui_shadow_color;
 
 /**
- * Max Kielland
  * These are the built in default theme element sizes and
  * are overridden by the PAK file if a new image is defined.
  */

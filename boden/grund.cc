@@ -3,11 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Base class for grounds in simutrans.
- * by Hj. Malthaner
- */
-
 #include <string.h>
 
 #include "../simcolor.h"

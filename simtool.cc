@@ -473,7 +473,7 @@ DBG_MESSAGE("tool_remover_intern()","at (%s)", pos.get_str());
 	}
 	koord k(pos.get_2d());
 
-	// prissi: check powerline (can cross ground of another player)
+	// check powerline (can cross ground of another player)
 	leitung_t* lt = gr->get_leitung();
 	// check whether powerline related stuff should be removed, and if there is any to remove
 	if (  (type == obj_t::leitung  ||  type == obj_t::pumpe  ||  type == obj_t::senke  ||  type == obj_t::undefined)
@@ -926,7 +926,6 @@ const char *tool_remover_t::work( player_t *player, koord3d pos )
 const char *tool_raise_lower_base_t::move( player_t *player, uint16 buttonstate, koord3d pos )
 {
 	// This is rough and ready: if you can afford something costing 1, we decide you can afford this
-	// --neroden
 	if (! player_t::can_afford( player, 1 ) ) {
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
@@ -1036,7 +1035,6 @@ const char *tool_raise_t::work(player_t* player, koord3d pos )
 	koord k = pos.get_2d();
 
 	// This is rough and ready: if you can afford something costing 1, we decide you can afford this
-	// --neroden
 	if (! player_t::can_afford( player, 1 ) ) {
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
@@ -1130,7 +1128,6 @@ const char *tool_lower_t::work( player_t *player, koord3d pos )
 	koord k = pos.get_2d();
 
 	// This is rough and ready: if you can afford something costing 1, we decide you can afford this
-	// --neroden
 	if (! player_t::can_afford( player, 1 ) ) {
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
@@ -1334,7 +1331,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 
 		if(  new_slope == ALL_DOWN_SLOPE  ||  new_slope == RESTORE_SLOPE  ) {
 			if(  new_slope == RESTORE_SLOPE  ) {
-				// prissi: special action: set to natural slope
+				// special action: set to natural slope
 				sint8 min_hgt;
 				new_slope = welt->recalc_natural_slope( k, min_hgt );
 				new_pos = koord3d( k, min_hgt );
@@ -1848,7 +1845,7 @@ const char *tool_add_city_t::work( player_t *player, koord3d pos )
 			}
 			else {
 
-				// Hajo: if city is owned by player and player removes special
+				// if city is owned by player and player removes special
 				// buildings the game crashes. To avoid this problem cities
 				// always belong to player 1
 
@@ -5471,7 +5468,6 @@ const char *tool_build_station_t::move( player_t *player, uint16 buttonstate, ko
 	// This is rough and ready: if you can afford something costing 1, we decide you can afford this
 	// This is a backup check; it gets checked against in ::work.
 	// In network mode the check in ::work may go off too late, however.
-	// --neroden
 	if (! player_t::can_afford( player, 1 ) ) {
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
@@ -7565,11 +7561,11 @@ const char *tool_stop_mover_t::do_work( player_t *player, const koord3d &last_po
 						}
 						if(updated) {
 							schedule->cleanup();
-							// Knightly : remove lineless convoy from old stop
+							//  remove lineless convoy from old stop
 							if(  last_halt.is_bound()  ) {
 								last_halt->remove_convoy(cnv);
 							}
-							// Knightly : register lineless convoy at new stop
+							//  register lineless convoy at new stop
 							if(  new_halt.is_bound()  ) {
 								new_halt->add_convoy(cnv);
 							}
@@ -7613,7 +7609,6 @@ const char *tool_stop_mover_t::do_work( player_t *player, const koord3d &last_po
 		}
 		// since factory connections may have changed
 
-		// Modified by : Knightly
 #ifdef MULTI_THREAD
 		world()->await_path_explorer();
 #endif

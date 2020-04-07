@@ -71,10 +71,6 @@ public:
 
 /**
  * This class allows the player to assemble a convoy from vehicles.
- * The code was extracted from depot_frame_t and adapted by isidoro
- *   in order to be used elsewhere if needed (Jan-09).
- * The author markers of the original code have been preserved when
- *   possible.
  */
 class gui_convoy_assembler_t :
 	public gui_container_t,
@@ -289,7 +285,6 @@ public:
 	 *
 	 * Returns true, if action is done and no more
 	 * components should be triggered.
-	 * V.Meyer
 	 */
 	bool action_triggered( gui_action_creator_t *comp, value_t extra);
 

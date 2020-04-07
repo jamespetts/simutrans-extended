@@ -41,8 +41,8 @@
 #define SIM_MOUSE_RIGHTBUTTON       5
 #define SIM_MOUSE_MIDBUTTON         6
 #define SIM_MOUSE_MOVED             7
-#define SIM_MOUSE_WHEELUP           8 //2003-11-04 hsiegeln added
-#define SIM_MOUSE_WHEELDOWN         9 //2003-11-04 hsiegeln added
+#define SIM_MOUSE_WHEELUP           8
+#define SIM_MOUSE_WHEELDOWN         9
 
 /* Global Variable for message processing */
 

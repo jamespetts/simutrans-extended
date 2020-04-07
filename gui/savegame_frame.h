@@ -134,8 +134,7 @@ protected:
 
 /**
  * Base class from which all GUI dialogs to load/save generics can inherit from
- *
- * @note Based on previous original work from the Simutrans team and Hansjoerg Malthaner
+
  * @note When I refer to a "qualified" path I mean it can contain sub-directories or even fully qualified path. i.e. : "save/a.sve" or "c:\simutrans\scenario\file.nut"
  */
 class savegame_frame_t : public gui_frame_t, action_listener_t
@@ -167,7 +166,7 @@ protected:
 
 	/**
 	 * A list item.
-	 * Max Kielland: Shouldn't this be an ADT and then have
+	 * Shouldn't this be an ADT and then have
 	 * each derivate to define their own item class? This would also
 	 * take care of differences, sorting and freeing resources.
 	 */
@@ -202,10 +201,10 @@ protected:
 
 	// Standard GUI controls in dialogue
 	gui_textinput_t  input;         //@< Filename input field
-	gui_divider_t    divider1;      //@< Filename input field   (Added 30-Oct-2001 Markus Weber)
-	button_t         savebutton;    //@< Save button            (Added 29-Oct-2001 Markus Weber)
-	button_t         cancelbutton;  //@< Cancel button          (Added 29-Oct-2001 Markus Weber)
-	gui_label_t      fnlabel;       //@< Static file name label (Added 31-Oct-2001 Markus Weber)
+	gui_divider_t    divider1;      //@< Filename input field
+	button_t         savebutton;    //@< Save button
+	button_t         cancelbutton;  //@< Cancel button
+	gui_label_t      fnlabel;       //@< Static file name label
 	gui_file_table_t file_table;
 	gui_container_t  button_frame;  //@< Gui container for all items
 	gui_scrollpane_t scrolly;       //@< Scroll panel for the GUI container

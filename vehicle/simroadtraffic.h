@@ -7,17 +7,6 @@
 #define VEHICLE_SIMROADTRAFFIC_H
 
 
-/**
- * Moving objects for Simutrans.
- * Transport vehicles are defined in simvehicle.h, because they greatly
- * differ from the vehicles defined herein for the individual traffic
- * (pedestrians, citycars, movingobj aka flock of sheep).
- *
- * Hj. Malthaner
- *
- * April 2000
- */
-
 #include "simvehicle.h"
 #include "overtaker.h"
 
@@ -25,12 +14,13 @@
 #include "../tpl/stringhashtable_tpl.h"
 #include "../ifc/sync_steppable.h"
 
+
 class citycar_desc_t;
 class karte_t;
 
+
 /**
  * Base class for traffic participants with random movement
- * "verkehrsteilnehmer" = road user (Babelfish)
  */
 class road_user_t : public vehicle_base_t, public sync_steppable
 {
@@ -108,7 +98,7 @@ private:
 
 	const citycar_desc_t *desc;
 
-	// prissi: time to life in blocks
+	// time to life in blocks
 	koord target;
 	koord3d pos_next_next;
 

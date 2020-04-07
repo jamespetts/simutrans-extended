@@ -82,7 +82,7 @@ private:
 	 */
 	scr_size min_windowsize;
 
-	resize_modes resize_mode; // 25-may-02  markus weber added
+	resize_modes resize_mode;
 	const player_t *owner;
 
 	// set true for total redraw
@@ -173,9 +173,9 @@ public:
 	scr_size get_min_windowsize() { return min_windowsize; }
 
 	/**
-	 * Max Kielland 2013: Client size auto calculation with title bar and margins.
+	 * Client size auto calculation with title bar and margins.
 	 * @return the usable width and height of the window
- 	*/
+	 */
 	scr_size get_client_windowsize() const {
 		return size - scr_size(0, ( has_title()*D_TITLEBAR_HEIGHT ) );
 	}

@@ -231,7 +231,6 @@ convoi_t::convoi_t(loadsave_t* file) : vehicle(max_vehicle, NULL)
 	rdwr(file);
 	current_stop = schedule == NULL ? 255 : schedule->get_current_stop() - 1;
 
-	// Added by : Knightly
 	old_schedule = NULL;
 	free_seats = 0;
 	recalc_catg_index();
@@ -260,7 +259,6 @@ convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 	last_stop_was_depot = true;
 	max_signal_speed = SPEED_UNLIMITED;
 
-	// Added by : Knightly
 	old_schedule = NULL;
 	free_seats = 0;
 
@@ -292,7 +290,7 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 	{
 		clear_estimated_times();
 
-		// Knightly : if lineless convoy -> unregister from stops
+		//  if lineless convoy -> unregister from stops
 		if (!line.is_bound()) {
 			unregister_stops();
 		}
@@ -307,8 +305,6 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 		if (!schedule->empty() && !line.is_bound())
 		{
 			// New method - recalculate as necessary
-
-			// Added by : Knightly
 
 			haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, owner); // NULL because if we are refreshing all goods categories, there is no need to refresh the classes, too, as these are subsets.
 		}
@@ -494,7 +490,6 @@ void convoi_t::finish_rd()
 			// This call used to update the fixed monthly maintenance costs; this was deleted due to
 			// the fact that these change each month due to depreciation, so this doesn't work.
 			// It would be good to restore it.
-			// --neroden
 			// vehicle[i]->finish_rd();
 		}
 		return;
@@ -685,7 +680,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 	if(  state<DRIVING  ||  state==LOADING  ) {
 		alte_direction = front()->get_direction();
 	}
-	// Knightly : if lineless convoy -> register itself with stops
+	//  if lineless convoy -> register itself with stops
 	if (state > INITIAL)
 	{
 		if (!line.is_bound()) {
@@ -949,7 +944,7 @@ bool convoi_t::has_tall_vehicles()
 	return is_tall;
 }
 
-// BG, 06.11.2011
+
 route_t::route_result_t convoi_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed)
 {
 	route_infos.clear();
@@ -999,11 +994,11 @@ void convoi_t::replace_route(const route_t &replacement)
 }
 
 
-// BG, 06.11.2011
 inline weg_t *get_weg_on_grund(const grund_t *grund, const waytype_t waytype)
 {
 	return grund != NULL ? grund->get_weg(waytype) : NULL;
 }
+
 
 /* Calculates (and sets) new akt_speed and sp_soll
  * needed for driving, entering and leaving a depot)
@@ -1025,8 +1020,8 @@ void convoi_t::calc_acceleration(uint32 delta_t)
 #endif
 	next_speed_limit = 0; // 'limit' for next stop is 0, of course.
 	uint32 next_stop_index = get_next_stop_index(); // actually this is next stop index + 1!!!
-	if(next_stop_index >= 65000u) // BG, 07.10.2011: currently only rail_vehicle_t sets next_stop_index.
-	// BG, 09.08.2012: use ">= 65000u" as INVALID_INDEX (65530u) sometimes is incermented or decremented.
+	if(next_stop_index >= 65000u) // currently only rail_vehicle_t sets next_stop_index.
+	// use ">= 65000u" as INVALID_INDEX (65530u) sometimes is incermented or decremented.
 	{
 		next_stop_index = route_count;
 	}
@@ -1056,7 +1051,7 @@ void convoi_t::calc_acceleration(uint32 delta_t)
 		{
 			case ribi_t::north:
 			case ribi_t::west:
-				// BG, 10-11-2011: vehicle_t::hop() reduces the length of the tile, if convoy is going to stop on the tile.
+				// vehicle_t::hop() reduces the length of the tile, if convoy is going to stop on the tile.
 				// Most probably for eye candy reasons vehicles do not exactly move on their tiles.
 				// We must do the same here to avoid abrupt stopping.
 				sint32 	delta_tile_len = current_info.steps_from_start;
@@ -1262,7 +1257,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case CAN_START_ONE_MONTH:
 		case CAN_START_TWO_MONTHS:
 		case REVERSING:
-			// Hajo: this is an async task, see step() or threaded_step()
+			// this is an async task, see step() or threaded_step()
 			break;
 
 		case ENTERING_DEPOT:
@@ -1361,14 +1356,14 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 			break;	// DRIVING
 
 		case LOADING:
-			// Hajo: loading is an async task, see laden()
+			// loading is an async task, see laden()
 			break;
 
 		case WAITING_FOR_CLEARANCE:
 		case WAITING_FOR_CLEARANCE_ONE_MONTH:
 		case WAITING_FOR_CLEARANCE_TWO_MONTHS:
 		case EMERGENCY_STOP:
-			// Hajo: waiting is asynchronous => fixed waiting order and route search
+			// waiting is asynchronous => fixed waiting order and route search
 			break;
 
 		case SELF_DESTRUCT:
@@ -1768,7 +1763,7 @@ void convoi_t::step()
 			{
 				autostart = replace->get_autostart();
 
-				// Knightly : before replacing, copy the existing set of goods category indices
+				//  before replacing, copy the existing set of goods category indices
 				minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
 				vector_tpl<uint8> old_passenger_classes_carried;
 				vector_tpl<uint8> old_mail_classes_carried;
@@ -1909,7 +1904,7 @@ end_loop:
 
 					}
 
-					// Knightly : recalculate goods category index and determine if refresh is needed
+					//  recalculate goods category index and determine if refresh is needed
 					recalc_catg_index();
 					// Also recalculate classes carried
 					calc_classes_carried();
@@ -2360,7 +2355,7 @@ end_loop:
 		case CAN_START:
 		case WAITING_FOR_CLEARANCE:
 			//wait_lock = 500;
-			// Bernd Gabriel: simutrans extended may have presets the wait_lock before. Don't overwrite it here, if it ought to wait longer.
+			// Simutrans Extended may have presets the wait_lock before. Don't overwrite it here, if it ought to wait longer.
 			wait_lock = max(wait_lock, 250);
 			break;
 
@@ -2597,7 +2592,7 @@ void convoi_t::enter_depot(depot_t *dep)
 	// (Will be done again in convoi_arrived, but make sure to do it early in case of crashes)
 	home_depot=dep->get_pos();
 
-	// Hajo: remove vehicles from world data structure
+	// remove vehicles from world data structure
 	for(unsigned i=0; i<vehicle_count; i++) {
 		vehicle_t* v = vehicle[i];
 
@@ -2686,7 +2681,6 @@ void convoi_t::start()
 		{
 			// New method - recalculate as necessary
 
-			// Added by : Knightly
 			haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, owner);
 		}
 		wait_lock = 0;
@@ -2890,9 +2884,7 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 		}
 	}
 
-	// Added by		: Knightly
-	// Adapted from : simline_t
-	// Purpose		: Try to update supported goods category of this convoy
+	// Try to update supported goods category of this convoy
 	if (v->get_cargo_max() > 0 || (v->get_cargo_type() == goods_manager_t::passengers && v->get_desc()->get_overcrowded_capacity() > 0))
 	{
 		const goods_desc_t *ware_type = v->get_cargo_type();
@@ -2970,8 +2962,7 @@ vehicle_t *convoi_t::remove_vehicle_bei(uint16 i)
 			--vehicle_count;
 			vehicle[vehicle_count] = NULL;
 
-			// Added by		: Knightly
-			// Purpose		: To recalculate the list of supported goods category
+			// recalculate the list of supported goods category
 			recalc_catg_index();
 			calc_classes_carried();
 
@@ -2992,7 +2983,7 @@ vehicle_t *convoi_t::remove_vehicle_bei(uint16 i)
 			set_erstes_letztes();
 		}
 
-		// Hajo: calculate new minimum top speed
+		// calculate new minimum top speed
 		//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
 
 		// check for obsolete
@@ -3093,7 +3084,6 @@ bool convoi_t::set_schedule(schedule_t * sch)
 	{
 		// New method - recalculate as necessary
 
-		// Added by : Knightly
 		if ( schedule == sch && old_schedule )	// Case : Schedule window of operating convoy
 		{
 			if ( !old_schedule->matches(welt, schedule) )
@@ -3133,7 +3123,7 @@ bool convoi_t::set_schedule(schedule_t * sch)
 		}
 		else {
 			if(  !sch->matches( welt, schedule )  ) {
-				// Knightly : merely change schedule and do not involve line
+				//  merely change schedule and do not involve line
 				//				-> unregister stops from old schedule now and register stops from new schedule later
 				changed = true;
 				unregister_stops();
@@ -3148,7 +3138,7 @@ bool convoi_t::set_schedule(schedule_t * sch)
 		schedule = sch;
 		if(  changed  )
 		{
-			// Knightly : if line is unset or schedule is changed
+			//  if line is unset or schedule is changed
 			//				-> register stops from new schedule
 			if(!line.is_bound())
 			{
@@ -3329,7 +3319,7 @@ bool convoi_t::can_go_alte_direction()
 // put the convoi on its way
 void convoi_t::vorfahren()
 {
-	// Hajo: init speed settings
+	// init speed settings
 	sp_soll = 0;
 	if(  get_tiles_overtaking()<=0  ) {
 		set_tiles_overtaking(0);
@@ -3900,7 +3890,7 @@ void convoi_t::rdwr(loadsave_t *file)
 		}
 		owner = welt->get_player( owner_n );
 
-		// Hajo: sanity check for values ... plus correction
+		// sanity check for values ... plus correction
 		if(sp_soll < 0) {
 			sp_soll = 0;
 		}
@@ -3978,7 +3968,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			const vehicle_desc_t *info = v->get_desc();
 			assert(info);
 
-			// Hajo: if we load a game from a file which was saved from a
+			// if we load a game from a file which was saved from a
 			// game with a different vehicle.tab, there might be no vehicle
 			// info
 			if(info) {
@@ -4044,7 +4034,7 @@ void convoi_t::rdwr(loadsave_t *file)
 		if(file->is_loading() && v) {
 			schedule = v->generate_new_schedule();
 		}
-		// Hajo: hack to load corrupted games -> there is a schedule
+		// hack to load corrupted games -> there is a schedule
 		// but no vehicle so we can't determine the exact type of
 		// schedule needed. This hack is safe because convois
 		// without vehicles get deleted right after loading.
@@ -4053,7 +4043,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			schedule = new train_schedule_t();
 		}
 
-		// Hajo: now read the schedule, we have one for sure here
+		// now read the schedule, we have one for sure here
 		schedule->rdwr( file );
 	}
 
@@ -4064,10 +4054,7 @@ void convoi_t::rdwr(loadsave_t *file)
 		invalidate_vehicle_summary();
 	}
 
-	// Hajo: calculate new minimum top speed
-	//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
-
-	// Hajo: since sp_ist became obsolete, sp_soll is used modulo 65536
+	// since sp_ist became obsolete, sp_soll is used modulo 65536
 	sp_soll &= 65535;
 
 	if(file->get_version()<=88003)
@@ -4434,7 +4421,7 @@ void convoi_t::rdwr(loadsave_t *file)
 		}
 
 		//Replacing settings
-		// BG, 31-MAR-2010: new replacing code starts with exp version 8:
+		// new replacing code starts with exp version 8:
 		bool is_replacing = replace && (file->get_extended_version() >= 8);
 		file->rdwr_bool(is_replacing);
 
@@ -4466,8 +4453,8 @@ void convoi_t::rdwr(loadsave_t *file)
 
 			if(file->is_saving())
 			{
-				// BG, 31-MAR-2010: new replacing code starts with exp version 8.
-				// BG, 31-MAR-2010: to keep compatibility with exp versions < 8
+				// new replacing code starts with exp version 8.
+				// to keep compatibility with exp versions < 8
 				//  at least the number of replacing vehicles (always 0) must be written.
 				//replacing_vehicles = replace->get_replacing_vehicles();
 				//replacing_vehicles_count = replacing_vehicles->get_count();
@@ -4478,8 +4465,8 @@ void convoi_t::rdwr(loadsave_t *file)
 				file->rdwr_short(replacing_vehicles_count);
 				if (replacing_vehicles_count > 0)
 				{
-					// BG, 31-MAR-2010: new replacing code starts with exp version 8.
-					// BG, 31-MAR-2010: but we must read all related data from file.
+					// new replacing code starts with exp version 8.
+					// but we must read all related data from file.
 					replacing_vehicles = new vector_tpl<const vehicle_desc_t *>;
 					for(uint16 i = 0; i < replacing_vehicles_count; i ++)
 					{
@@ -4499,8 +4486,8 @@ void convoi_t::rdwr(loadsave_t *file)
 							replacing_vehicles->append(desc);
 						}
 					}
-					// BG, 31-MAR-2010: new replacing code starts with exp version 8.
-					// BG, 31-MAR-2010: we must not create 'replace'. I does not work correct.
+					// new replacing code starts with exp version 8.
+					// we must not create 'replace'. I does not work correct.
 					delete replacing_vehicles;
 				}
 			}
@@ -4981,7 +4968,7 @@ void convoi_t::rdwr(loadsave_t *file)
 void convoi_t::show_info()
 {
 	if(  in_depot()  ) {
-		// Knightly : if ownership matches, we can try to open the depot dialog
+		//  if ownership matches, we can try to open the depot dialog
 		if(  get_owner()==welt->get_active_player()  ) {
 			grund_t *const ground = welt->lookup( get_home_depot() );
 			if(  ground  ) {
@@ -5201,14 +5188,14 @@ void convoi_t::open_schedule_window( bool show )
 	wait_lock = 25000;
 	alte_direction = front()->get_direction();
 
-	// Added by : Knightly
-	// Purpose  : To keep a copy of the original schedule before opening schedule window
+	// keep a copy of the original schedule before opening schedule window
 	if (schedule)
 	{
 		old_schedule = schedule->copy();
 	} else {
 		schedule = create_schedule();
 	}
+
 	if(  show  ) {
 		// Open schedule dialog
 		create_win( new schedule_gui_t(schedule,get_owner(),self), w_info, (ptrdiff_t)schedule );
@@ -5244,7 +5231,7 @@ bool convoi_t::pruefe_alle() //"examine all" (Babelfish)
 /**
  * Kontrolliert Be- und Entladen
  *
- * V.Meyer: minimum_loading is now stored in the object (not returned)
+ * minimum_loading is now stored in the object (not returned)
  */
 void convoi_t::laden() //"load" (Babelfish)
 {
@@ -5385,7 +5372,7 @@ void convoi_t::laden() //"load" (Babelfish)
 		// For some odd reason, in some cases, laden() is called when the journey time is
 		// excessively low, resulting in perverse average speeds and journey times.
 		// Testing shows that this still recurs even after the enhanced point to point
-		// system (April 2014).
+		// system.
 		if(average_speed <= get_vehicle_summary().max_speed)
 		{
 			book(average_speed, CONVOI_AVERAGE_SPEED);
@@ -5550,11 +5537,10 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 	const uint32 travel_distance_meters = travel_distance * welt->get_settings().get_meters_per_tile();
 
 	const uint32 revenue_distance = min(travel_distance, max_distance);
+
 	// First try to get the journey minutes and average speed
 	// for the point to point trip.  If that fails use line average.
-	// (neroden really believes we should use the minutes and speed for THIS trip.)
-	// (It saves vast amounts of computational effort,
-	//  and gives the player a quicker response to improved service.)
+	// (It saves vast amounts of computational effort, and gives the player a quicker response to improved service.)
 	sint64 journey_tenths = 0;
 	sint64 average_speed;
 	bool valid_journey_time = false;
@@ -5799,9 +5785,7 @@ station_tile_search_ready: ;
 	// older passenger carriages without gangways, mail carriages and goods
 	// trucks, where passing through the train is not possible?
 	//
-	//
 	// This will require tracking platform length in the schedule object.
-	// --neroden
 
 	// First, unload vehicles.
 
@@ -5926,7 +5910,8 @@ station_tile_search_ready: ;
 	calc_loading();
 	loading_limit = schedule->get_current_entry().minimum_loading; // minimum_loading = max. load.
 	const bool wait_for_time = schedule->get_current_entry().wait_for_time;
-	highest_axle_load = calc_highest_axle_load(); // Bernd Gabriel, Mar 10, 2010: was missing.
+	highest_axle_load = calc_highest_axle_load();
+
 	if(  old_last_stop_pos != front()->get_pos()  )
 	{
 		// Only calculate the loading time once, on arriving at the stop:
@@ -6068,14 +6053,13 @@ station_tile_search_ready: ;
 	bool can_go = false;
 
 	can_go = loading_level >= loading_limit && (now >= go_on_ticks || !wait_for_time);
-	//can_go = can_go || (now >= go_on_ticks_waiting && !wait_for_time); // This is pre-14 August 2016 code
-	can_go = can_go || (now >= go_on_ticks && !wait_for_time);
-	can_go = can_go || running_late;
-	can_go = can_go || no_load;
-	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
-	can_go = can_go && now > earliest_departure_time;
-	if(can_go) {
+	can_go |= (now >= go_on_ticks && !wait_for_time);
+	can_go |= running_late;
+	can_go |= no_load;
+	can_go &= state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
+	can_go &= now > earliest_departure_time;
 
+	if(can_go) {
 		if(withdraw  &&  (loading_level==0  ||  goods_catg_index.empty())) {
 			// destroy when empty
 			self_destruct();
@@ -6396,7 +6380,7 @@ void convoi_t::set_line(linehandle_t org_line)
 	{
 		need_to_reset_average_speed = !schedule || !schedule->matches(welt, org_line->get_schedule());
 
-		// Knightly : originally a lineless convoy -> unregister itself from stops as it now belongs to a line
+		//  originally a lineless convoy -> unregister itself from stops as it now belongs to a line
 		unregister_stops();
 	}
 
@@ -7601,7 +7585,7 @@ void convoi_t::calc_direction_steps()
 	}
 }
 
-// Bernd Gabriel, 18.06.2009: extracted from new_month()
+// extracted from new_month()
 bool convoi_t::calc_obsolescence(uint16 timeline_year_month)
 {
 	// convoi has obsolete vehicles?
@@ -7913,7 +7897,7 @@ uint32 convoi_t::calc_reverse_delay() const
 
 	//return (welt->get_settings().get_meters_per_tile() * waiting_ticks) / (409600L/2);
 
-	// Feb 2012: Waiting times no longer reduced by 1/3, since connections can now be optimised by players in ways not previously possible,
+	// Waiting times no longer reduced by 1/3, since connections can now be optimised by players in ways not previously possible,
 	// and since many players run very high frequency networks so waiting times rarely need reducing. (Carl Baker)
 	return (welt->get_settings().get_meters_per_tile() * waiting_ticks) / (409600L/3);
 
@@ -8069,12 +8053,12 @@ sint64 convoi_t::get_stat_converted(int month, convoi_cost_t cost_type) const
 	return value;
 }
 
-// BG, 31.12.2012: virtual methods of lazy_convoy_t:
-// Bernd Gabriel, Dec, 25 2009
+
 sint16 convoi_t::get_current_friction()
 {
 	return get_vehicle_count() > 0 ? get_friction_of_waytype(front()->get_waytype()) : 0;
 }
+
 
 void convoi_t::update_vehicle_summary(vehicle_summary_t &vehicle)
 {
@@ -8181,7 +8165,7 @@ float32e8_t convoi_t::get_power_summary(const float32e8_t &speed /* in m/s */)
 	}
 	return power_index_to_power(power, welt->get_settings().get_global_power_factor_percent());
 }
-// BG, 31.12.2012: end of virtual methods of lazy_convoy_t
+
 
 void convoi_t::clear_estimated_times()
 {
@@ -8438,7 +8422,7 @@ uint8 convoi_t::get_terminal_shunt_mode() const
 
 // Find the next "tail" vehicle other than the locomotive, and return that car's current position(number from front).
 // Pass the number of locomotives in the argument.
-// If it returns 0, it indicates that there is no existence. @Ranran
+// If it returns 0, it indicates that there is no existence.
 uint8 convoi_t::check_new_tail(uint8 start = 1) const
 {
 	for (uint32 i = start; i < vehicle_count; ++i)
@@ -8576,7 +8560,7 @@ uint8 convoi_t::check_need_turntable() const
 sint16 convoi_t::get_car_numbering(uint8 car_no) const
 {
 	// Currently does not distinguish the last (pushing) locomotive or brake van.
-	// memo: If want to mark the brake van, check the rear group if shunt_mode = rearrange. @Ranran
+	// memo: If want to mark the brake van, check the rear group if shunt_mode = rearrange.
 	car_no++;
 	if (car_no > vehicle_count) {
 		return 0;

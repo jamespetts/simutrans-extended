@@ -801,7 +801,7 @@ DBG_MESSAGE("ai_passenger_t::create_bus_transport_vehicle()","bus at (%i,%i)",st
 			return;
 		}
 		convoi_t* cnv = new convoi_t(this);
-		// V.Meyer: give the new convoi name from first vehicle
+		// give the new convoi name from first vehicle
 		cnv->set_name(v->get_desc()->get_name());
 		cnv->add_vehicle( v );
 

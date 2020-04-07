@@ -9,15 +9,14 @@
 
 #include "../simobj.h"
 
-/**
- * Brueckenteile (sichtbar)
- *
- * Hj. Malthaner
- */
 class bridge_desc_t;
 class loadsave_t;
 class karte_t;
 
+
+/**
+ * Brueckenteile (sichtbar)
+ */
 class pillar_t : public obj_t
 {
 	const bridge_desc_t *desc;

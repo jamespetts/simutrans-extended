@@ -114,7 +114,7 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		// hand event to component
 		swallow = comp->infowin_event(&ev2);
 
-		// Knightly : check if we need to scroll to the focused component
+		//  check if we need to scroll to the focused component
 		if(  IS_LEFTCLICK(ev)  ||  (ev->ev_class==EVENT_KEYBOARD  &&  ev->ev_code==9)  ) {
 			const gui_component_t *const focused_comp = comp->get_focus();
 			if(  focused_comp  ) {
@@ -143,7 +143,7 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 			}
 		}
 
-		// Hajo: hack: component could have changed size
+		// hack: component could have changed size
 		// this recalculates the scrollbars
 		if(  old_comp_size!=comp->get_size()  ) {
 			recalc_sliders(get_size());

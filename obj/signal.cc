@@ -259,7 +259,7 @@ void signal_t::info(cbuffer_t & buf, bool dummy) const
 	}
 	buf.append("\n");
 
-	// Show the signal state in the info window // Ves
+	// Show the signal state in the info window
 	// Does this signal have any aspects to show?
 	if (desc->get_working_method() == drive_by_sight || desc->get_aspects() <= 1)
 	{

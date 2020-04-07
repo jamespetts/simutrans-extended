@@ -9,13 +9,13 @@
 
 class karte_t;
 
+
 #include "../descriptor/bridge_desc.h"
 #include "../simobj.h"
 
+
 /**
  * Brueckenteile (sichtbar)
- *
- * Hj. Malthaner
  */
 class bruecke_t : public obj_no_info_t
 {

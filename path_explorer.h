@@ -354,7 +354,6 @@ private:
 
 		// absolute time limits
 		// The higher this number, the more processing will be done per step and the more quickly that a refresh will complete, but the more computationally intensive that it will be.
-		// Knightly's original setting was 24. The revised setting was 64.
 		// Now set by simuconf.tab.
 		static uint32 time_midpoint;
 		static const uint32 time_deviation = 2;

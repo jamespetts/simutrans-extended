@@ -3,19 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Sub-window for Sim
- * keine Klasse, da die funktionen von C-Code aus aufgerufen werden koennen
- *
- * The function implements a WindowManager 'Object'
- * There's only one WindowManager
- *
- * 17.11.97, Hj. Malthaner
- *
- * Window now typified
- * 21.06.98, Hj. Malthaner
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -78,7 +65,7 @@ class inthashtable_tpl<ptrdiff_t,scr_coord> old_win_pos;
 
 #define dragger_size 12
 
-// (Mathew Hounsell)
+
 // I added a button to the map window to fix it's size to the best one.
 // This struct is the flow back to the object of the refactoring.
 class simwin_gadget_flags_t
@@ -99,7 +86,7 @@ public:
 class simwin_t
 {
 public:
-	scr_coord pos;              // Window position
+	scr_coord pos;          // Window position
 	uint32 dauer;           // How long should the window stay open?
 	uint8 wt;               // the flags for the window type
 	ptrdiff_t magic_number; // either magic number or this pointer (which is unique too)
@@ -109,7 +96,7 @@ public:
 	bool rollup;
 	bool dirty;
 
-	simwin_gadget_flags_t flags; // (Mathew Hounsell) See Above.
+	simwin_gadget_flags_t flags; // See Above.
 
 	simwin_t() : flags() {}
 
@@ -129,12 +116,12 @@ static int top_win(int win, bool keep_state );
 static void display_win(int win);
 
 
-// Hajo: tooltip data
+// tooltip data
 static int tooltip_xpos = 0;
 static int tooltip_ypos = 0;
 static const char * tooltip_text = 0;
 static const char * static_tooltip_text = 0;
-// Knightly :	For timed tooltip with initial delay and finite visible duration.
+// 	For timed tooltip with initial delay and finite visible duration.
 //				Valid owners are required for timing. Invalid (NULL) owners disable timing.
 static const void * tooltip_owner = 0;	// owner of the registered tooltip
 static const void * tooltip_group = 0;	// group to which the owner belongs
@@ -142,7 +129,7 @@ static uint32 tooltip_register_time = 0;	// time at which a tooltip is initially
 
 static bool show_ticker=0;
 
-/* Hajo: if we are inside the event handler,
+/* if we are inside the event handler,
  * the window handler has gui pointer as value,
  * to defer destruction if this window
  */
@@ -180,10 +167,8 @@ static int display_gadget_box(sint8 code,
 
 	// Do we have a gadget image?
 	if(  img != NULL  ) {
-
-		// Max Kielland: This center the gadget image and compensates for any left/top margins within the image to be backward compatible with older PAK sets.
+		// This center the gadget image and compensates for any left/top margins within the image to be backward compatible with older PAK sets.
 		display_color_img(img->imageid, x-img->x + D_GET_CENTER_ALIGN_OFFSET(img->w,D_GADGET_WIDTH), y, 0, false, false);
-
 	}
 	else {
 		const char *gadget_text = "#";
@@ -208,13 +193,11 @@ static int display_gadget_box(sint8 code,
 	display_vline_wh_clip(x+D_GADGET_WIDTH-1, y+1, D_TITLEBAR_HEIGHT-2, COL_BLACK, false);
 	display_vline_wh_clip(x+D_GADGET_WIDTH,   y+1, D_TITLEBAR_HEIGHT-2, color+1,   false);
 
-	// Hajo: return width of gadget
+	// return width of gadget
 	return D_GADGET_WIDTH;
 }
 
 
-//-------------------------------------------------------------------------
-// (Mathew Hounsell) Created
 static int display_gadget_boxes(
 	simwin_gadget_flags_t* flags,
 	int x, int y,
@@ -312,8 +295,7 @@ static sint8 decode_gadget_boxes(
 	return SKIN_GADGET_COUNT;
 }
 
-//-------------------------------------------------------------------------
-// (Mathew Hounsell) Re-factored
+
 static void win_draw_window_title(const scr_coord pos, const scr_size size,
 		const PLAYER_COLOR_VAL titel_farbe,
 		const char * const text,
@@ -340,8 +322,6 @@ static void win_draw_window_title(const scr_coord pos, const scr_size size,
 	POP_CLIP();
 }
 
-
-//-------------------------------------------------------------------------
 
 /**
  * Draw dragger widget
@@ -610,7 +590,7 @@ int create_win(int x, int y, gui_frame_t* const gui, wintype const wt, ptrdiff_t
 
 		sint16 const menu_height = env_t::iconsize.h;
 
-		// (Mathew Hounsell) Make Sure Closes Aren't Forgotten.
+		// Make Sure Closes Aren't Forgotten.
 		// Must Reset as the entries and thus flags are reused
 		win.flags.close = true;
 		win.flags.title = gui->has_title();
@@ -630,7 +610,7 @@ int create_win(int x, int y, gui_frame_t* const gui, wintype const wt, ptrdiff_t
 		win.sticky = false;
 		win.dirty = true;
 
-		// Hajo: Notify window to be shown
+		// Notify window to be shown
 		assert(gui);
 		event_t ev;
 
@@ -715,7 +695,10 @@ static bool destroy_framed_win(simwin_t *wins)
 	const scr_size size = wins->gui->get_windowsize();
 	mark_rect_dirty_wc( wins->pos.x - 1, wins->pos.y - 1, wins->pos.x + size.w + 2, wins->pos.y + size.h + 2 ); // -1, +2 for env_t::window_frame_active
 
-	gui_frame_t* gui = wins->gui; // save pointer to gui window: might be modified in event handling, or could be modified if wins points to value in kill_list and kill_list is modified! nasty surprise
+	// save pointer to gui window: might be modified in event handling,
+	// or could be modified if wins points to value in kill_list and kill_list is modified!
+	// nasty surprise
+	gui_frame_t* gui = wins->gui;
 	if(  gui  ) {
 		event_t ev;
 
@@ -883,7 +866,7 @@ void display_win(int win)
 	}
 	bool need_dragger = comp->get_resizemode() != gui_frame_t::no_resize;
 
-	// %HACK (Mathew Hounsell) So draw will know if gadget is needed.
+	// %HACK So draw will know if gadget is needed.
 	wins[win].flags.help = ( comp->get_help_filename() != NULL );
 	if(  wins[win].flags.title  ) {
 		win_draw_window_title(wins[win].pos,
@@ -1206,9 +1189,8 @@ void win_set_pos(gui_frame_t *gui, int x, int y)
 }
 
 
-/* main window event handler
- * renovated may 2005 by prissi to take care of irregularly shaped windows
- * also remove some unnecessary calls
+/**
+ * main window event handler
  */
 bool check_pos_win(event_t *ev)
 {
@@ -1231,13 +1213,13 @@ bool check_pos_win(event_t *ev)
 		is_resizing = -1;
 		is_moving = -1;
 		if(  IS_LEFTRELEASE(ev)  ) {
-			// Knightly :	should not proceed, otherwise the left release event will be fed to other components;
+			// 	should not proceed, otherwise the left release event will be fed to other components;
 			//				return true (i.e. event swallowed) to prevent propagation back to the main view
 			return true;
 		}
 	}
 
-	// Knightly : disable any active tooltip upon mouse click by forcing expiration of tooltip duration
+	//  disable any active tooltip upon mouse click by forcing expiration of tooltip duration
 	if(  ev->ev_class==EVENT_CLICK  ) {
 		tooltip_register_time = 0;
 	}
@@ -1313,14 +1295,14 @@ bool check_pos_win(event_t *ev)
 				i = top_win(i,false);
 			}
 
-			// Hajo: if within title bar && window needs decoration
-			// Max Kielland: Use title height
+			// if within title bar && window needs decoration
+			// Use title height
 			if(  y<wins[i].pos.y+D_TITLEBAR_HEIGHT  &&  wins[i].flags.title  ) {
 				// no more moving
 				is_moving = -1;
 				wins[i].dirty = true;
 
-				// %HACK (Mathew Hounsell) So decode will know if gadget is needed.
+				// %HACK So decode will know if gadget is needed.
 				wins[i].flags.help = ( wins[i].gui->get_help_filename() != NULL );
 
 				// Where Was It ?
@@ -1338,7 +1320,7 @@ bool check_pos_win(event_t *ev)
 								case SKIN_GADGET_CLOSE :
 									destroy_win(wins[i].gui);
 									break;
-								case SKIN_GADGET_MINIMIZE: // (Mathew Hounsell)
+								case SKIN_GADGET_MINIMIZE:
 									ev->ev_class = WINDOW_MAKE_MIN_SIZE;
 									ev->ev_code = 0;
 									wins[i].gui->infowin_event( ev );
@@ -1396,7 +1378,6 @@ bool check_pos_win(event_t *ev)
 			else {
 				if(!wins[i].rollup) {
 					// click in Window / Resize?
-					//11-May-02   markus weber added
 
 					scr_size size = wins[i].gui->get_windowsize();
 
@@ -1540,9 +1521,9 @@ void win_display_flush(double konto)
 		remove_old_win();
 
 		if(env_t::show_tooltips) {
-			// Hajo: check if there is a tooltip to display
+			// check if there is a tooltip to display
 			if(  tooltip_text  &&  *tooltip_text  ) {
-				// Knightly : display tooltip when current owner is invalid or when it is within visible duration
+				//  display tooltip when current owner is invalid or when it is within visible duration
 				uint32 elapsed_time;
 				if(  !tooltip_owner  ||  ((elapsed_time=dr_time()-tooltip_register_time)>env_t::tooltip_delay  &&  elapsed_time<=env_t::tooltip_delay+env_t::tooltip_duration)  ) {
 					const sint16 width = proportional_string_width(tooltip_text)+7;
@@ -1559,12 +1540,12 @@ void win_display_flush(double konto)
 					wl->set_background_dirty();
 				}
 			}
-			// Knightly : reset owner and group if no tooltip has been registered
+			//  reset owner and group if no tooltip has been registered
 			if(  !tooltip_text  ) {
 				tooltip_owner = 0;
 				tooltip_group = 0;
 			}
-			// Hajo : clear tooltip text to avoid sticky tooltips
+			// clear tooltip text to avoid sticky tooltips
 			tooltip_text = 0;
 		}
 

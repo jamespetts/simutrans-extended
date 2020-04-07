@@ -587,15 +587,12 @@ float32e8_t potential_convoy_t::get_power_summary(const float32e8_t &speed /* in
 	return power_index_to_power(power, welt->get_settings().get_global_power_factor_percent());
 }
 
-// Bernd Gabriel, Dec, 25 2009
 sint16 potential_convoy_t::get_current_friction()
 {
 	return vehicles.get_count() > 0 ? get_friction_of_waytype(vehicles[0]->get_waytype()) : 0;
 }
 
-/******************************************************************************/
 
-// Bernd Gabriel, Dec, 25 2009
 sint16 existing_convoy_t::get_current_friction()
 {
 	return convoy.get_vehicle_count() > 0 ? get_friction_of_waytype(convoy.get_vehicle(0)->get_waytype()) : 0;

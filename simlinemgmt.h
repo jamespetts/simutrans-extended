@@ -82,8 +82,7 @@ public:
 	 */
 	void get_lines(int type, vector_tpl<linehandle_t>* lines) const;
 
-	// Added by : Knightly
-	// Purpose	: Return all managed lines
+	// Return all managed lines
 	const vector_tpl<linehandle_t> &get_all_lines() const { return all_managed_lines; }
 
 	uint32 get_line_count() const { return all_managed_lines.get_count(); }

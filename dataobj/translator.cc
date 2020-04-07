@@ -271,7 +271,7 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
  */
 void translator::init_custom_names(int lang)
 {
-	// Hajo: init names. There are two options:
+	// init names. There are two options:
 	//
 	// 1.) read list from file
 	// 2.) create random names (only for cities)
@@ -282,7 +282,7 @@ void translator::init_custom_names(int lang)
 
 	if (city_name_list.empty()) {
 		DBG_MESSAGE("translator::init_city_names", "reading failed, creating random names.");
-		// Hajo: try to read list failed, create random names
+		// try to read list failed, create random names
 		for(  uint i = 0;  i < 2048;  i++  ) {
 			char name[64];
 			sprintf( name, "%%%X_CITY_SYLL", i );

@@ -113,7 +113,7 @@ private:
 		bool show_value; // show first value of curve as number on chart?
 		int type; // 0 = standard, 1 = money
 		int precision;	// how many numbers ...
-		convert_proc convert;	// Knightly : procedure for converting supplied values before use
+		convert_proc convert;	//  procedure for converting supplied values before use
 	};
 
 	/**
@@ -126,7 +126,7 @@ private:
 		bool show;
 		bool show_value;			// whether to show the value as number on the chart
 		int precision;
-		convert_proc convert;	// Knightly : procedure for converting supplied value before use
+		convert_proc convert;	//  procedure for converting supplied value before use
 	};
 
 	slist_tpl <curve_t> curves;

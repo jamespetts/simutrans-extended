@@ -3,10 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * High-Level soundschnittstelle
- * von Hj. Maltahner, 1998, 2000
- */
 
 #include <stdio.h>
 #include <string.h>
@@ -119,7 +115,6 @@ int get_current_midi()
 
 /**
  * Load MIDI files
- * By Owen Rudge
  */
 int midi_init(const char *directory)
 {
@@ -220,9 +215,7 @@ bool midi_get_mute()
 
 /*
  * Check if need to play new MIDI
- * Max Kielland:
- * Made it possible to get next song
- * even if we are muted.
+ * This works also when muted.
  */
 void check_midi()
 {

@@ -1890,7 +1890,7 @@ void gebaeude_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		// Hajo: rebuild tourist attraction list
+		// rebuild tourist attraction list
 		if (tile && building_type->is_attraction())
 		{
 			welt->add_attraction(this);
@@ -2318,7 +2318,7 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 		way_desc_t const* desc = welt->get_settings().get_intercity_road_type(welt->get_timeline_year_month());
 		if (desc == NULL || !welt->get_settings().get_use_timeline())
 		{
-			// Hajo: try some default (might happen with timeline ... )
+			// try some default (might happen with timeline ... )
 			desc = way_builder_t::weg_search(road_wt, 80, welt->get_timeline_year_month(), type_flat);
 		}
 

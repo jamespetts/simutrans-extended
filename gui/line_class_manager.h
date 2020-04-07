@@ -14,7 +14,7 @@
 #include "components/gui_textinput.h"
 #include "components/gui_speedbar.h"
 #include "components/gui_button.h"
-#include "components/gui_label.h"                  // 09-Dec-2001      Markus Weber    Added
+#include "components/gui_label.h"
 #include "components/gui_combobox.h"
 #include "components/action_listener.h"
 #include "../linehandle_t.h"

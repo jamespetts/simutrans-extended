@@ -125,7 +125,7 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 		if (gb1 && gb2)
 		{
 			const fabrik_t *fab = NULL;
-			// TODO -oBG, 29.12.2013: optimize:
+			// TODO optimize:
 			const char *const name1 = (fabrik_t::get_fab(w1.get_zielpos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w1.get_zielpos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb1->get_tile()->get_desc()->get_name()));
 			const char *const name2 = (fabrik_t::get_fab(w2.get_zielpos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w2.get_zielpos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb2->get_tile()->get_desc()->get_name()));
 			return strcmp(name1, name2) < 0;
@@ -250,7 +250,6 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 {
 	sortby = sort_mode;
 
-	// hsiegeln
 	// added sorting to ware's destination list
 	int pos = 0;
 	ware_t* wlist;

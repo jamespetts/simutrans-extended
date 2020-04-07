@@ -180,9 +180,6 @@ public:
 	* accommodation in which it/they travelled on its/their journey.
 	*
 	* In units of 1/4096 of a simcent, for computational precision
-	*
-	* This code is adapted from earlier code written by Neroden, which used the old speed
-	* bonus system.
 	*/
 	sint64 get_total_fare(uint32 distance_meters, uint32 starting_distance = 0u, uint8 comfort = 0u, uint8 catering_level = 0u, uint8 g_class = 0u, sint64 journey_tenths = 0u) const;
 

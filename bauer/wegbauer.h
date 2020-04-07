@@ -140,7 +140,7 @@ private:
 
 	/**
 	 * This is overloaded in meaning.  It will keep not only faster ways but also ways
-	 * with higher axle loads or better way constraints. --neroden
+	 * with higher axle loads or better way constraints.
 	 */
 	bool keep_existing_faster_ways;
 	bool keep_existing_city_roads;
@@ -238,9 +238,7 @@ public:
 	void calc_route(const koord3d &start3d, const koord3d &ziel);
 	void calc_route(const vector_tpl<koord3d> &start3d, const vector_tpl<koord3d> &ziel);
 
-	/* returns the amount needed to built this way
-	* author prissi
-	*/
+	/* returns the amount needed to built this way */
 	sint64 calc_costs();
 
 	bool check_crossing(const koord zv, const grund_t *bd,waytype_t wtyp, const player_t *player) const;

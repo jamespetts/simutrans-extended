@@ -17,11 +17,11 @@ KOORD_VAL tile_raster_width = 16; // zoomed
 KOORD_VAL base_tile_raster_width = 16; // original
 
 
-									   /*
-									   * Hajo: mapping table for special-colors (AI player colors)
-									   * to actual output format - all day mode
-									   * 16 sets of 16 colors
-									   */
+/*
+ * mapping table for special-colors (AI player colors)
+ * to actual output format - all day mode
+ * 16 sets of 16 colors
+ */
 PIXVAL specialcolormap_all_day[256];
 
 KOORD_VAL display_set_base_raster_width(KOORD_VAL)
@@ -226,7 +226,7 @@ void display_base_img_alpha(const image_id, const image_id, const unsigned, KOOR
 {
 }
 
-// Knightly : variables for storing currently used image procedure set and tile raster width
+//  variables for storing currently used image procedure set and tile raster width
 display_image_proc display_normal = display_base_img;
 display_image_proc display_color = display_base_img;
 display_blend_proc display_blend = display_base_img_blend;

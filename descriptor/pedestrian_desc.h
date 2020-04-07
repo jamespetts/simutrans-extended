@@ -14,10 +14,6 @@
 #include "../network/checksum.h"
 
 /*
-*  Autor:
-*      Volker Meyer
-*
-*  Description:
 *	Pedestrians
 *
 *  Child nodes:

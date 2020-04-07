@@ -76,9 +76,8 @@ void pedestrian_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& 
 	uint16 retire_date = obj.get_int("retire_year", DEFAULT_RETIRE_DATE) * 12;
 	retire_date += obj.get_int("retire_month", 1) - 1;
 
-
-	// Hajo: Version needs high bit set as trigger -> this is required
-	//       as marker because formerly nodes were unversionend
+	// Version needs high bit set as trigger -> this is required
+	// as marker because formerly nodes were unversionend
 	uint16 version = 0x8001;
 
 	// This is the overlay flag for Simutrans-Extended

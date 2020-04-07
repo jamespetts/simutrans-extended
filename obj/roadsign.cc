@@ -342,7 +342,7 @@ void roadsign_t::info(cbuffer_t & buf, bool dummy) const
 			buf.printf("%s:(%d,%d,%d)\n", translator::translate("intersection"), intersection_pos.x,intersection_pos.y,intersection_pos.z);
 		}
 
-	// Did not figure out how to make the sign registrate a passing train // Ves
+	// Did not figure out how to make the sign registrate a passing train
 	/*
 	buf.append(translator::translate("Time since a train last passed"));
 	buf.append(": ");
@@ -361,7 +361,7 @@ void roadsign_t::info(cbuffer_t & buf, bool dummy) const
 		buf.append(translator::translate("\nSet phases:"));
 		buf.append("\n\n\n\n\n\n");
 	}
-	if (desc->is_private_way()) // Must be last, as the \n\n\n... section is the free height for the buttons // Ves
+	if (desc->is_private_way()) // Must be last, as the \n\n\n... section is the free height for the buttons
 	{
 		buf.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 	}

@@ -138,7 +138,7 @@ public:
 
 	bool enabled() { return b_enabled; }
 
-	// Knightly : a button can only be focusable when it is enabled
+	//  a button can only be focusable when it is enabled
 	virtual bool is_focusable() { return b_enabled && gui_component_t::is_focusable(); }
 
 	void update_focusability();

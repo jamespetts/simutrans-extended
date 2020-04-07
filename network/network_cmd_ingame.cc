@@ -749,7 +749,7 @@ void nwc_sync_t::do_command(karte_t *welt)
 		}
 
 		else {
-			// Knightly : synchronise the iteration limits
+			//  synchronise the iteration limits
 			SOCKET sock = socket_list_t::get_socket(client_id);
 			if(  sock==INVALID_SOCKET  ||  !nwc_routesearch_t::transmit_active_limit_set(sock, welt->get_sync_steps(), new_map_counter)  ) {
 				dbg->warning("nwc_sync_t::do_command", "send of NWC_ROUTESEARCH failed");

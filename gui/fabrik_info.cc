@@ -84,7 +84,7 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 	chart_button.add_listener(this);
 	add_component(&chart_button);
 
-	// Hajo: "About" button only if translation is available
+	// "About" button only if translation is available
 	char key[256];
 	sprintf(key, "factory_%s_details", fab->get_desc()->get_name());
 	const char * value = translator::translate(key);
@@ -293,7 +293,6 @@ bool fabrik_info_t::is_weltpos()
  *
  * Returns true, if action is done and no more
  * components should be triggered.
- * V.Meyer
  */
 bool fabrik_info_t::action_triggered( gui_action_creator_t *comp, value_t v)
 {
@@ -503,7 +502,7 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 		scrolly.set_pos( scrollypos );
 		set_min_windowsize(scr_size(get_min_windowsize().w, D_TITLEBAR_HEIGHT+scrollypos.y+LINESPACE*5+D_MARGIN_BOTTOM));
 
-		// Hajo: "About" button only if translation is available
+		// "About" button only if translation is available
 		char key[256];
 		sprintf(key, "factory_%s_details", fab->get_desc()->get_name());
 		const char * value = translator::translate(key);

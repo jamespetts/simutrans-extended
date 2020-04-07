@@ -22,7 +22,7 @@
 #include "password_frame.h" // for the password
 #include "player_frame_t.h"
 
-/* Max Kielland
+/*
  * Until gui_label_t has been modified we don't know the size
  * of the fraction part in a localised currency.
  * This is for now hard coded.

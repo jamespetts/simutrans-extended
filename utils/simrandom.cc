@@ -43,7 +43,6 @@ static void init_genrand(uint32 s)
 		/* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
 		/* In the previous versions, MSBs of the seed affect   */
 		/* only MSBs of the array mersenne_twister[].          */
-		/* 2002/01/09 modified by Makoto Matsumoto             */
 		mersenne_twister[mersenne_twister_index] &= 0xffffffffUL;
 		/* for >32 bit machines */
 	}
@@ -398,7 +397,7 @@ static double interpolated_noise(const double x, const double y)
 // but we need integer_x be the biggest integer not bigger than x.
 // So  (int)      -1.5  = -1.0
 // But (int)floor(-1.5) = -2.0
-// Modified 2008/10/17 by Gerd Wachsmuth
+
 	const int    integer_X    = (int)floor(x);
 	const int    integer_Y    = (int)floor(y);
 

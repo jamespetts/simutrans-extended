@@ -25,7 +25,7 @@
 
 #include "../utils/cbuffer_t.h"
 
-//Bernd Gabriel, Dec, 03 2009: acceleration curve.
+//acceleration curve.
 // define ACCELERATION_BUTTON to show it and the graph.
 // do not define it and there are neither button nor graph.
 #define ACCELERATION_BUTTON convoi_t::MAX_CONVOI_COST
@@ -101,7 +101,7 @@ private:
 	sint32 cnv_route_index;
 
 #ifdef ACCELERATION_BUTTON
-	//Bernd Gabriel, Sep, 24 2009: acceleration curve:
+	//acceleration curve:
 	sint64 physics_curves[MAX_MONTHS][1];
 #endif
 

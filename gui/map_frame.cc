@@ -44,7 +44,7 @@ bool  map_frame_t::filter_factory_list=true;
 // Caches list of factories in current game world
 stringhashtable_tpl<const factory_desc_t *> map_frame_t::factory_list;
 
-// Hajo: we track our position onscreen
+// we track our position onscreen
 scr_coord map_frame_t::screenpos;
 
 #define L_BUTTON_WIDTH (button_size.w)
@@ -227,7 +227,7 @@ map_frame_t::map_frame_t() :
 	add_component(&b_show_buildings);
 
 	// align second row
-	// Max Kielland: This will be done automatically (and properly) by the new gui_layout_t control in the near future.
+	// This will be done automatically (and properly) by the new gui_layout_t control in the near future.
 	zoom_value_label.align_to(&zoom_buttons[0],ALIGN_CENTER_V);
 	zoom_buttons[1].align_to(&zoom_buttons[0],ALIGN_CENTER_V);
 	zoom_label.align_to(&zoom_buttons[0],ALIGN_CENTER_V);
@@ -604,7 +604,7 @@ bool map_frame_t::infowin_event(const event_t *ev)
 		return true;
 	}
 
-	// Hajo: hack: relief map can resize upon right click
+	// hack: relief map can resize upon right click
 	// we track this here, and adjust size.
 	if(  IS_RIGHTCLICK(ev)  ) {
 		is_dragging = false;

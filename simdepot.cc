@@ -199,7 +199,7 @@ void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
 	for(unsigned i=0; i<acnv->get_vehicle_count(); i++) {
 		vehicle_t *v = acnv->get_vehicle(i);
-		// Hajo: reset vehicle data
+		// reset vehicle data
 		v->discard_cargo();
 		v->set_pos( koord3d::invalid );
 		v->set_leading( i==0 );

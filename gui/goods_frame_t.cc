@@ -26,7 +26,7 @@
 /**
  * This variable defines the current speed for the purposes of calculating
  * journey time, which in turn affects comfort. Adaopted from the old speed
- * bonus code, which was put into its present form by Neroden circa 2013.
+ * bonus code.
  */
 uint32 goods_frame_t::vehicle_speed = 50;
 

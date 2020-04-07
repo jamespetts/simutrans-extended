@@ -349,7 +349,7 @@ public:
 	/** 
 	 * Calculate the movement within delta_t
 	 *
-	 * @param simtime_factor the factor for translating simutrans time. Currently (Oct, 23th 2011) this is the length of a tile in meters divided by the standard tile length (1000 meters).
+	 * @param simtime_factor the factor for translating simutrans time. Currently, this is the length of a tile in meters divided by the standard tile length (1000 meters).
 	 * @param weight the current weight summary of the convoy.
 	 * @param akt_speed_soll the desired end speed in simutrans speed.
 	 * @param next_speed_limit the next speed limit in simutrans speed.

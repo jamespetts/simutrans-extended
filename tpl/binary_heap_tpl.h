@@ -45,7 +45,6 @@ public:
 		free( nodes );
 	}
 
-	// Added by : Knightly
 	void delete_all_node_objects()
 	{
 		// Note : nodes[0] is unused and the lowest item is in nodes[1]

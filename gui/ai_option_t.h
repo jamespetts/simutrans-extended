@@ -21,7 +21,6 @@ class ai_t;
 
 /*
  * AI behavior options from AI finance window
- * 2006 prissi
  */
 class ai_option_t : public gui_frame_t, private action_listener_t
 {

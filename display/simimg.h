@@ -12,9 +12,7 @@
 
 /*
  * Defines to handle images
- * Hj. Malthaner, 13.07.98
  */
-
 typedef uint32 image_id;
 
 #define IMG_EMPTY ((image_id)0xFFFFFFFFu)

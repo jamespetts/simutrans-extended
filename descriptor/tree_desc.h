@@ -12,23 +12,18 @@
 #include "image_array.h"
 
 #include "../network/checksum.h"
+
+
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Tree type description in Simutrans
- *
  *  Child nodes:
  *	0   Name
  *	1   Copyright
  *	2   Image-list 2d
+ *
+ * season 0 is always summer
+ * season 1 is winter for two seasons
+ * otherwise 0 summer, next seasons (autumn, winter, spring) ....
  */
-
- // season 0 is always summer
- // season 1 is winter for two seasons
- // otherwise 0 summer, next seasons (autumn, winter, spring) ....
-
 class tree_desc_t : public obj_named_desc_t {
 	friend class tree_reader_t;
 

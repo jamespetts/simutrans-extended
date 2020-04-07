@@ -13,7 +13,7 @@
 #include "components/gui_scrollbar.h"
 #include "components/gui_speedbar.h"
 #include "components/gui_label.h"
-#include "components/action_listener.h"  // 28-Dec-2001  Markus Weber    Added
+#include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "../convoihandle_t.h"
 

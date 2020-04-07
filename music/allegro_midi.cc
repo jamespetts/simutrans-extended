@@ -69,7 +69,6 @@ void dr_play_midi(int key)
 
 /**
  * Stops playing MIDI file
- * By Owen Rudge
  */
 void dr_stop_midi(void)
 {
@@ -79,7 +78,6 @@ void dr_stop_midi(void)
 
 /**
  * Returns the midi_pos variable
- * By Owen Rudge
  */
 sint32 dr_midi_pos(void)
 {
@@ -89,7 +87,6 @@ sint32 dr_midi_pos(void)
 
 /**
  * Midi shutdown/cleanup
- * By Owen Rudge
  */
 void dr_destroy_midi(void)
 {

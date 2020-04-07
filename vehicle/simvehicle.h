@@ -43,7 +43,7 @@ class strasse_t;
  */
 class vehicle_base_t : public obj_t
 {
-	// BG, 15.02.2014: gr and weg are cached in enter_tile() and reset to NULL in leave_tile().
+	// gr and weg are cached in enter_tile() and reset to NULL in leave_tile().
 	grund_t* gr;
 	weg_t* weg;
 public:
@@ -649,7 +649,7 @@ public:
 	uint16 get_accommodation_capacity(uint8 g_class, bool include_lower_classes = false) const;
 	uint16 get_fare_capacity(uint8 g_class, bool include_lower_classes = false) const;
 
-	// BG, 06.06.2009: update player's fixed maintenance
+	// update player's fixed maintenance
 	void finish_rd();
 	void before_delete();
 
@@ -966,7 +966,7 @@ private:
 		altitude_level = min(altitude_level, 30);
 		landing_distance = altitude_level - 1;
 	}
-	// BG, 07.08.2012: extracted from calc_route()
+	// extracted from calc_route()
 	route_t::route_result_t calc_route_internal(
 		karte_t *welt,
 		const koord3d &start,
@@ -1026,7 +1026,7 @@ public:
 
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route);
 
-	// BG, 08.08.2012: extracted from can_enter_tile()
+	// extracted from can_enter_tile()
 	route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel);
 
 #ifdef INLINE_OBJ_TYPE

@@ -13,10 +13,11 @@
 #include "../tpl/stringhashtable_tpl.h"
 
 class karte_ptr_t;
-class player_t;               // Hajo: 22-Nov-01: Added forward declaration
+class player_t;
 class tunnel_desc_t;
 class way_desc_t;
 class tool_selector_t;
+
 
 /**
  * Baut Tunnel. Tunnel sollten nicht direkt instanziiert werden

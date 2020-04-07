@@ -1643,8 +1643,6 @@ void vehicle_t::leave_tile()
 }
 
 
-
-
 /* this routine add a vehicle to a tile and will insert it in the correct sort order to prevent overlaps
  */
 void vehicle_t::enter_tile(grund_t* gr)
@@ -1692,7 +1690,6 @@ void vehicle_t::hop(grund_t* gr)
 	}
 
 	// this is a required hack for aircrafts! Aircrafts can turn on a single square, and this confuses the previous calculation!
-	// author: hsiegeln
 	if(!check_for_finish  &&  pos_prev==pos_next) {
 		direction = calc_set_direction( get_pos(), pos_next);
 		steps_next = 0;
@@ -2025,7 +2022,7 @@ void vehicle_t::calc_drag_coefficient(const grund_t *gr) //,const int h_alt, con
 	const slope_t::type hang = gr->get_weg_hang();
 	if(hang != slope_t::flat)
 	{
-		// Bernd Gabriel, Nov, 30 2009: at least 1 partial direction must match for uphill (op '&'), but not the
+		// at least 1 partial direction must match for uphill (op '&'), but not the
 		// complete direction. The hill might begin in a curve and then '==' accidently accelerates the vehicle.
 		const uint slope_height = (hang & 7) ? 1 : 2;
 		if(ribi_type(hang) & direction)
@@ -2089,7 +2086,7 @@ void vehicle_t::make_smoke() const
 {
 	// does it smoke at all?
 	if(  smoke  &&  desc->get_smoke()  ) {
-		// Hajo: only produce smoke when heavily accelerating or steam engine
+		// only produce smoke when heavily accelerating or steam engine
 		if(  (cnv->get_akt_speed() < (sint32)((cnv->get_vehicle_summary().max_sim_speed * 7u) >> 3) && (route_index < cnv->get_route_infos().get_count() - 4)) ||  desc->get_engine_type() == vehicle_desc_t::steam  ) {
 			grund_t* const gr = welt->lookup( get_pos() );
 			if(  gr  ) {
@@ -2570,7 +2567,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12)+1,purchase_time/12);
 	}
 	else {
-		// prissi: changed several data types to save runtime memory
+		// changed several data types to save runtime memory
 		file->rdwr_long(purchase_time);
 		if(file->get_version()<99018) {
 			file->rdwr_byte(dx);
@@ -3238,12 +3235,12 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_gobal) const
 	}
 }
 
-// BG, 06.06.2009: added
+
 void vehicle_t::finish_rd()
 {
 }
 
-// BG, 06.06.2009: added
+
 void vehicle_t::before_delete()
 {
 }
@@ -3415,7 +3412,6 @@ bool road_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-// author prissi
 int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
 {
 	// first favor faster ways
@@ -3439,7 +3435,7 @@ int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
-		// Knightly : check if the slope is upwards, relative to the previous tile
+		//  check if the slope is upwards, relative to the previous tile
 		from_pos -= gr->get_pos().get_2d();
 		// 75 hardcoded, see get_cost_upslope()
 		costs += 75 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
@@ -4611,7 +4607,7 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 		return false;
 	}
 
-	// Hajo: diesel and steam engines can use electrified track as well.
+	// diesel and steam engines can use electrified track as well.
 	// also allow driving on foreign tracks ...
 	const bool needs_no_electric = !(cnv!=NULL ? cnv->needs_electrification() : desc->get_engine_type() == vehicle_desc_t::electric);
 
@@ -4668,7 +4664,6 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-// author prissi
 int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
 {
 	// first favor faster ways
@@ -4684,7 +4679,7 @@ int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
-		// Knightly : check if the slope is upwards, relative to the previous tile
+		//  check if the slope is upwards, relative to the previous tile
 		from_pos -= gr->get_pos().get_2d();
 		// 125 hardcoded, see get_cost_upslope()
 		costs += 125 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
@@ -8325,7 +8320,6 @@ air_vehicle_t::get_ribi(const grund_t *gr) const
 
 
 // how expensive to go here (for way search)
-// author prissi
 int air_vehicle_t::get_cost(const grund_t *gr, const sint32, koord)
 {
 	// first favor faster ways
@@ -8376,7 +8370,7 @@ air_vehicle_t::check_next_tile(const grund_t *bd) const
 		case circling:
 		{
 //DBG_MESSAGE("air_vehicle_t::check_next_tile()","(cnv %i) in idx %i",cnv->self.get_id(),route_index );
-			// prissi: here a height check could avoid too high mountains
+			// here a height check could avoid too high mountains
 			return true;
 		}
 	}
@@ -8478,7 +8472,7 @@ route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, s
 }
 
 
-// BG, 07.08.2012: calculates a potential route without modifying any aircraft data.
+// calculates a potential route without modifying any aircraft data.
 /*
 Allows partial routing for route extending or re-routing e.g. if runway not available
 as well as calculating a complete route from gate to gate.
@@ -8766,7 +8760,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 }
 
 
-// BG, 08.08.2012: extracted from can_enter_tile()
+// extracted from can_enter_tile()
 route_t::route_result_t air_vehicle_t::reroute(const uint16 reroute_index, const koord3d &ziel)
 {
 	// new aircraft state after successful routing:

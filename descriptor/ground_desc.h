@@ -13,11 +13,7 @@
 #include "../dataobj/ribi.h"
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *    Images of all possible surface tiles: slopes, climates, transitions,
+ * Images of all possible surface tiles: slopes, climates, transitions,
  *
  *  Child nodes:
  *	0   Name

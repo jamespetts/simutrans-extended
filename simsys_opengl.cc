@@ -463,8 +463,7 @@ int dr_os_open(int w, int const h, int const fullscreen)
 void dr_os_close()
 {
 	SDL_FreeCursor(hourglass);
-	// Hajo: SDL doc says, screen is freed by SDL_Quit and should not be
-	// freed by the user
+	// SDL doc says, screen is freed by SDL_Quit and should not be freed by the user
 	// SDL_FreeSurface(screen);
 }
 

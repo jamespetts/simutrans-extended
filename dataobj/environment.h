@@ -236,7 +236,7 @@ public:
 	/// show station coverage indicators
 	static uint8 station_coverage_show;
 
-	/// show signalbox coverage indicators // Author: Ves
+	/// show signalbox coverage indicators
 	static uint8 signalbox_coverage_show;
 
 	/// display station coverage by transparent overlay

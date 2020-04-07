@@ -14,11 +14,7 @@
 
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Calculate which layout the tile belongs to from the index.
+ * Calculate which layout the tile belongs to from the index.
  */
 uint8 building_tile_desc_t::get_layout() const
 {
@@ -28,11 +24,7 @@ uint8 building_tile_desc_t::get_layout() const
 
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Return the relative position of an image in the whole building image
+ * Return the relative position of an image in the whole building image
  */
 koord building_tile_desc_t::get_offset() const
 {
@@ -95,11 +87,7 @@ bool building_desc_t::is_connected_with_town() const
 
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Returns the correct tile image on that position depending on the layout
+ * Returns the correct tile image on that position depending on the layout
  */
 const building_tile_desc_t *building_desc_t::get_tile(int layout, int x, int y) const
 {
@@ -115,13 +103,8 @@ const building_tile_desc_t *building_desc_t::get_tile(int layout, int x, int y) 
 }
 
 
-
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Layout normalisation. Returns number of different layouts
+ * Layout normalisation. Returns number of different layouts
  */
 int building_desc_t::adjust_layout(int layout) const
 {

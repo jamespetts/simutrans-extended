@@ -77,7 +77,7 @@ gui_frame_t::gui_frame_t(char const* const name, player_t const* const player)
 	min_windowsize = scr_size(0,0);
 	owner = player;
 	container.set_pos(scr_coord(0,D_TITLEBAR_HEIGHT));
-	set_resizemode(no_resize);  //25-may-02  markus weber  added
+	set_resizemode(no_resize);
 	opaque = true;
 	dirty = true;
 }
@@ -93,7 +93,7 @@ void gui_frame_t::set_windowsize(scr_size size)
 		scr_coord const& pos = win_get_pos(this);
 		mark_rect_dirty_wc( pos.x, pos.y, pos.x+this->size.w, pos.y+this->size.h );
 
-		// minimum size //25-may-02  markus weber  added
+		// minimum size
 		size.clip_lefttop(min_windowsize);
 
 		this->size = size;

@@ -110,12 +110,12 @@ void money_to_string(char * p, double f, const bool show_decimal)
 		sprintf( tp, "%.2f", f );
 	}
 
-	// Hajo: skip sign
+	// skip sign
 	if(*tp == '-') {
 		*p ++ = *tp++;
 	}
 
-	// Hajo: format string
+	// format string
 	l = (long)(size_t)(strchr(tp,'.') - tp);
 
 	i = l % thousand_sep_exponent;
@@ -171,12 +171,12 @@ int number_to_string(char * p, double f, int decimals  )
 		has_decimals = strchr(tp,'.')!=NULL;
 	}
 
-	// Hajo: skip sign
+	// skip sign
 	if(*tp == '-') {
 		*p ++ = *tp++;
 	}
 
-	// Hajo: format string
+	// format string
 	l = has_decimals ? (long)(size_t)(strchr(tp,'.') - tp) : strlen(tp);
 
 	i = l % thousand_sep_exponent;

@@ -58,7 +58,7 @@ message_frame_t::message_frame_t() :
 	scrolly.set_show_scroll_x(true);
 	scrolly.set_scroll_amount_y(LINESPACE+1);
 
-	// Knightly : add tabs for classifying messages
+	//  add tabs for classifying messages
 	tabs.set_pos( scr_coord(0, D_BUTTON_HEIGHT) );
 	tabs.add_tab( &scrolly, translator::translate("All") );
 	tab_categories.append( -1 );
@@ -128,7 +128,7 @@ bool message_frame_t::action_triggered( gui_action_creator_t *comp, value_t v )
 		ibuf[0] = 0;
 	}
 	else if(  comp==&tabs  ) {
-		// Knightly : filter messages by type where necessary
+		//  filter messages by type where necessary
 		if(  stats.filter_messages( tab_categories[v.i] )  ) {
 			scrolly.set_scroll_position(0, 0);
 		}

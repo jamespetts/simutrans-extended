@@ -249,7 +249,7 @@ void halt_detail_t::halt_detail_info()
 		offset_y += LINESPACE;
 	}
 
-	// Knightly : add lineless convoys which serve this stop
+	//  add lineless convoys which serve this stop
 	buf.append("\n");
 	offset_y += LINESPACE;
 
@@ -416,7 +416,7 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *, value_t extra)
 			}
 		}
 		else if(  k.x==-2  ) {
-			// Knightly : lineless convoy button pressed
+			//  lineless convoy button pressed
 			uint16 j = k.y;
 			if(  j<halt->registered_convoys.get_count()  ) {
 				convoihandle_t convoy = halt->registered_convoys[j];

@@ -3,9 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
-* signal infowindow buttons //Ves
- */
 
 #include "signal_info.h"
 #include "../obj/signal.h" // The rest of the dialog
@@ -58,7 +55,6 @@ signal_info_t::signal_info_t(signal_t* const s) :
  *
  * Returns true, if action is done and no more
  * components should be triggered.
- * V.Meyer
  */
 bool signal_info_t::action_triggered(gui_action_creator_t *comp, value_t)
 {

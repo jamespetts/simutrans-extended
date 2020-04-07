@@ -746,7 +746,7 @@ public:
 	bool init( player_t * );
 };
 
-/* prissi: undo building */
+/* undo building */
 class tool_undo_t : public tool_t {
 public:
 	tool_undo_t() : tool_t(TOOL_UNDO | SIMPLE_TOOL) {}

@@ -40,7 +40,7 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 	sint8 max_altitude				= obj.get_int("max_altitude", 0);
 	uint8 max_vehicles_on_tile		= obj.get_int("max_vehicles_on_tile", 251);
 
-	// BG, 11.02.2014: max_weight was missused as axle_load
+	// max_weight was missused as axle_load
 	// in experimetal before standard introduced axle_load.
 	//
 	// Therefore set new standard axle_load with old extended
@@ -52,7 +52,7 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 			axle_load = max_weight;
 	}
 
-	// prissi: timeline
+	// timeline
 	uint16 intro_date = obj.get_int("intro_year", DEFAULT_INTRO_DATE) * 12;
 	intro_date += obj.get_int("intro_month", 1) - 1;
 

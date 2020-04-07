@@ -15,15 +15,6 @@
 #include "scr_coord.h"
 
 
-/*
- * Attempt of graphics for the Simulation game
- * Hj. Malthaner, Aug. 1997
- *
- *
- * 3D, isometric representation
- */
-
-
 extern int large_font_ascent;
 extern int large_font_total_height;
 
@@ -91,7 +82,7 @@ display_set_clip_wh(p_cr.x, p_cr.y, p_cr.w, p_cr.h); \
 typedef uint16 PIXVAL;
 
 /*
-* Hajo: mapping table for special-colors (AI player colors)
+* mapping table for special-colors (AI player colors)
 * to actual output format - all day mode
 * 16 sets of 16 colors
 */
@@ -120,7 +111,7 @@ extern KOORD_VAL base_tile_raster_width;
 KOORD_VAL display_set_base_raster_width(KOORD_VAL new_raster);
 
 /*
-* Hajo: Zoom factor
+* Zoom factor
 */
 #define MAX_ZOOM_FACTOR (9)
 #define ZOOM_NEUTRAL (3)
@@ -219,26 +210,26 @@ void display_img_stretch(const stretch_map_t &imag, scr_rect area);
 // this displays a 3x3 array of images to fit the scr_rect like above, but blend the color
 void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, PLAYER_COLOR_VAL color);
 
-// Knightly : display unzoomed image with alpha, either blended or as outline
+//  display unzoomed image with alpha, either blended or as outline
 void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF);
 void display_base_img_alpha(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF);
 
-// Knightly : pointer to image display procedures
+//  pointer to image display procedures
 typedef void(*display_image_proc)(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const int daynight, const int dirty  CLIP_NUM_DEF);
 typedef void(*display_blend_proc)(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF);
 typedef void(*display_alpha_proc)(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF);
 
-// Knightly : variables for storing currently used image procedure set and tile raster width
+//  variables for storing currently used image procedure set and tile raster width
 extern display_image_proc display_normal;
 extern display_image_proc display_color;
 extern display_blend_proc display_blend;
 extern display_alpha_proc display_alpha;
 extern signed short current_tile_raster_width;
 
-// Knightly : call this instead of referring to current_tile_raster_width directly
+//  call this instead of referring to current_tile_raster_width directly
 #define get_current_tile_raster_width() (current_tile_raster_width)
 
-// Knightly : for switching between image procedure sets and setting current tile raster width
+//  for switching between image procedure sets and setting current tile raster width
 inline void display_set_image_proc(bool is_global)
 {
 	if (is_global) {

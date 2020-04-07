@@ -426,8 +426,7 @@ void karte_t::perlin_hoehe_loop( sint16 x_min, sint16 x_max, sint16 y_min, sint1
  */
 sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max)
 {
-	// Hajo: to Markus: replace the fixed values with your
-	// settings. Amplitude is the top highness of the
+	// Amplitude is the top highness of the
 	// mountains, frequency is something like landscape 'roughness'
 	// amplitude may not be greater than 160.0 !!!
 	// please don't allow frequencies higher than 0.8 it'll
@@ -678,10 +677,8 @@ void karte_t::destroy()
 
 	DBG_MESSAGE("karte_t::destroy()", "world destroyed");
 
-	// Added by : B.Gabriel
 	route_t::TERM_NODES();
 
-	// Added by : Knightly
 	path_explorer_t::finalise();
 
 	dbg->important("World destroyed.");
@@ -984,7 +981,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 	}
 	dbg->important("Creating cities: %d", new_city_count);
 
-	// prissi if we could not generate enough positions ...
+	// if we could not generate enough positions ...
 	settings.set_city_count(old_city_count);
 	int old_progress = 16;
 
@@ -1030,7 +1027,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		settings.set_industry_increase_every(0);
 
 		for (uint32 i = old_city_count; i < stadt.get_count(); i++) {
-			// Hajo: do final init after world was loaded/created
+			// do final init after world was loaded/created
 			stadt[i]->finish_rd();
 
 			const uint32 citizens = city_population.get_count() > i ? city_population[i] : city_population.get_element(simrand(city_population.get_count() - 1, "void karte_t::distribute_groundobjs_cities"));
@@ -1088,11 +1085,11 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 
 
 
-	// Hajo: connect some cities with roads
+	// connect some cities with roads
 	ls.set_what(translator::translate("Connecting cities ..."));
 	way_desc_t const* desc = settings.get_intercity_road_type(get_timeline_year_month());
 	if (desc == NULL || !settings.get_use_timeline()) {
-		// Hajo: try some default (might happen with timeline ... )
+		// try some default (might happen with timeline ... )
 		desc = way_builder_t::weg_search(road_wt, 80, get_timeline_year_month(), type_flat);
 	}
 
@@ -1411,7 +1408,6 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	if(plan) {
 		destroy();
 
-		// Added by : Knightly
 		path_explorer_t::initialise(this);
 	}
 
@@ -1448,7 +1444,7 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 #endif
 	recalc_average_speed(true);	// resets timeline - but passing "true" prevents it from generating message spam on reloading or starting a new game
 
-	groundwater = (sint8)sets->get_groundwater();      //29-Nov-01     Markus Weber    Changed
+	groundwater = (sint8)sets->get_groundwater();
 
 	init_height_to_climate();
 	snowline = sets->get_winter_snowline() + groundwater;
@@ -1553,7 +1549,6 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	}
 	mute_sound(false);
 
-	// Added by : Knightly
 	path_explorer_t::full_instant_refresh();
 
 	// Set the actual industry density and industry density proportion
@@ -2899,7 +2894,6 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 #ifdef MULTI_THREAD
 	await_path_explorer();
 #endif
-	// Modified by : Knightly
 	path_explorer_t::refresh_all_categories(false);
 
 	set_schedule_counter();
@@ -3070,7 +3064,6 @@ karte_t::karte_t() :
 
 	set_scale();
 
-	// Added by : Knightly
 	path_explorer_t::initialise(this);
 
 	// generate ground textures once
@@ -4523,7 +4516,6 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	get_scenario()->rotate90( cached_size.x );
 
 	// finally recalculate schedules for goods in transit ...
-	// Modified by : Knightly
 	path_explorer_t::refresh_all_categories(false);
 
 	set_dirty();
@@ -4558,7 +4550,7 @@ bool karte_t::rem_fab(fabrik_t *fab)
 	goods_in_game.clear();
 
 	// now all the interwoven connections must be cleared
-	// This is hairy; a cleaner method would be desirable --neroden
+	// This is hairy; a cleaner method would be desirable
 	vector_tpl<koord> tile_list;
 	fab->get_tile_list(tile_list);
 	FOR (vector_tpl<koord>, const k, tile_list) {
@@ -5046,7 +5038,6 @@ void karte_t::new_month()
 	INT_CHECK("simworld 3175");
 
 //	DBG_MESSAGE("karte_t::new_month()","convois");
-	// hsiegeln - call new month for convois
 	FOR(vector_tpl<convoihandle_t>, const cnv, convoi_array) {
 		cnv->new_month();
 	}
@@ -5217,8 +5208,7 @@ void karte_t::new_month()
 	await_path_explorer();
 #endif
 
-	// Added by : Knightly
-	// Note		: This should be done after all lines and convoys have rolled their statistics
+	// Note: This should be done after all lines and convoys have rolled their statistics
 	path_explorer_t::refresh_all_categories(false);
 }
 
@@ -5540,7 +5530,7 @@ void karte_t::step()
 	// Stop the path explorer before we use its results.
 	await_path_explorer();
 #else
-	// Knightly : calling global path explorer
+	//  calling global path explorer
 	path_explorer_t::step();
 #endif
 	rands[12] = get_random_seed();
@@ -6278,7 +6268,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			// Regenerate the start halts information for this new onward trip.
 			// We cannot reuse "destination_list" as this is a list of halthandles,
 			// not nearby_halt_t objects.
-			// TODO BG, 15.02.2014: first build a nearby_destination_list and then a destination_list from it.
+			// TODO first build a nearby_destination_list and then a destination_list from it.
 			//  Should be faster than finding all nearby halts again.
 
 			minivec_tpl<const planquadrat_t*> const &tile_list_2 = first_origin->get_tiles();
@@ -7906,7 +7896,7 @@ DBG_DEBUG("karte_t::finde_plaetze()","for size (%i,%i) in map (%i,%i)",w,h,get_s
 			else {
 				// Optimiert fuer groessere Felder, hehe!
 				// Die Idee: wenn bei 2x2 die untere Reihe nicht geht, koennen
-				// wir gleich 2 tiefer weitermachen! V. Meyer
+				// wir gleich 2 tiefer weitermachen!
 				start.y = last_y;
 			}
 		}
@@ -8751,7 +8741,6 @@ void karte_t::load(loadsave_t *file)
 	clear_random_mode(~LOAD_RANDOM);
 	set_random_mode(LOAD_RANDOM);
 
-	// Added by : Knightly
 	path_explorer_t::initialise(this);
 
 #ifdef MULTI_THREAD
@@ -9057,7 +9046,7 @@ DBG_MESSAGE("karte_t::load()", "init player");
 
 	if(file->get_version()<88009) {
 		DBG_MESSAGE("karte_t::load()","loading slopes from older version");
-		// Hajo: load slopes for older versions
+		// load slopes for older versions
 		// now part of the grund_t structure
 		for (int y = 0; y < get_size().y; y++) {
 			for (int x = 0; x < get_size().x; x++) {
@@ -10869,16 +10858,17 @@ void karte_t::set_citycar_speed_average()
 	citycar_speed_average = vehicle_speed_sum / count;
 }
 
+
 void karte_t::calc_generic_road_time_per_tile_intercity()
 {
 	// This method is used only when private car connexion
 	// checking is turned off.
 
-	// Adapted from the method used to build city roads in the first place, written by Hajo.
+	// Adapted from the method used to build city roads in the first place.
 	const way_desc_t* desc = settings.get_intercity_road_type(get_timeline_year_month());
 	if(desc == NULL)
 	{
-		// Hajo: try some default (might happen with timeline ... )
+		// try some default (might happen with timeline ... )
 		desc = way_builder_t::weg_search(road_wt, get_timeline_year_month(), 5, get_timeline_year_month(),type_flat, 25000000);
 	}
 	generic_road_time_per_tile_intercity = (uint16)calc_generic_road_time_per_tile(desc);

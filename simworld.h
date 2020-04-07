@@ -86,7 +86,7 @@ class viewport_t;
 //#define FORBID_PUBLIC_TRANSPORT
 //#define FORBID_RETURN_TRIPS
 //#define DISABLE_GLOBAL_WAITING_LIST
-//#define FORBID_PARALLELL_PASSENGER_GENERATION_IN_NETWORK_MODE // Revised to work only in network mode for testing VS/GCC desync (May 2017)
+//#define FORBID_PARALLELL_PASSENGER_GENERATION_IN_NETWORK_MODE // Revised to work only in network mode for testing VS/GCC desync
 //#define FORBID_SWITCHING_TO_RETURN_ON_FOOT
 //#define FORBID_SET_GENERATED_PASSENGERS
 //#define FORBID_RECORDING_RETURN_FACTORY_PASSENGERS
@@ -1353,8 +1353,6 @@ public:
 	 * calculated monthly have to be adjusted to take account of the ticks per month setting in order
 	 * to counteract its effect.
 	 *
-	 * James E. Petts
-	 *
 	 * same adjustment applies to production rates.
 	 */
 
@@ -1715,7 +1713,7 @@ public:
 	int get_yearsteps() { return (int) ((current_month % 12) * 8 + ((ticks >> (ticks_per_world_month_shift-3)) & 7)); }
 
 	/**
-	 * prissi: current city road.
+	 * current city road.
 	 * @note May change due to timeline.
 	 */
 	const way_desc_t* get_city_road() const { return city_road; }
@@ -1913,7 +1911,7 @@ public:
 	 * @note Inline because called very frequently!
 	 */
 	inline bool is_within_limits(sint16 x, sint16 y) const {
-	// prissi: since negative values will make the whole result negative, we can use bitwise or
+	// since negative values will make the whole result negative, we can use bitwise or
 	// faster, since pentiums and other long pipeline processors do not like jumps
 		return (x|y|(cached_size.x-x)|(cached_size.y-y))>=0;
 //		return x>=0 &&  y>=0  &&  cached_size_x_karte_x>=x  &&  cached_size_x_karte_y>=y;
@@ -1933,7 +1931,7 @@ public:
 	 * @note Inline because called very frequently!
 	 */
 	inline bool is_within_grid_limits(sint16 x, sint16 y) const {
-	// prissi: since negative values will make the whole result negative, we can use bitwise or
+	// since negative values will make the whole result negative, we can use bitwise or
 	// faster, since pentiums and other long pipeline processors do not like jumps
 		return (x|y|(cached_grid_size.x-x)|(cached_grid_size.y-y))>=0;
 //		return x>=0 &&  y>=0  &&  cached_size_x_gitter_x>=x  &&  cached_size_x_gitter_y>=y;

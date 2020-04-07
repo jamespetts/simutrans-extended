@@ -177,7 +177,7 @@ static bool passes_filter_out(haltestelle_t const& s)
 	 * - es existiert eine Zugverbindung mit dieser Ware (!ziele[...].empty())
 	 */
 
-	// Hajo: todo: check if there is a destination for the good (?)
+	// todo: check if there is a destination for the good (?)
 
 	for (uint32 i = 0; i != goods_manager_t::get_count(); ++i) {
 		goods_desc_t const* const ware = goods_manager_t::get_info(i);
@@ -212,7 +212,7 @@ static bool passes_filter_in(haltestelle_t const& s)
 	 * - es existiert eine Zugverbindung mit dieser Ware (!ziele[...].empty())
 	 */
 
-	// Hajo: todo: check if there is a destination for the good (?)
+	// todo: check if there is a destination for the good (?)
 
 	for (uint32 i = 0; i != goods_manager_t::get_count(); ++i) {
 		goods_desc_t const* const ware = goods_manager_t::get_info(i);

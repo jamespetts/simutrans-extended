@@ -15,12 +15,6 @@
 
 
 /*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *	Pedestrians
- *
  *  Child nodes:
  *	0   Name
  *	1   Copyright

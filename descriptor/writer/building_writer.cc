@@ -80,7 +80,7 @@ void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seaso
 		imagelist2d_writer_t::instance()->write_obj(fp, node, frontkeys.at(i));
 	}
 
-	// Hajo: temp vars of appropriate size
+	// temp vars of appropriate size
 	uint16 v16;
 
 	// Set version data
@@ -236,10 +236,10 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 		++level;
 	}
 
-	// Hajo: read dist_weight - default is 100% dist_weight to be built
+	// read dist_weight - default is 100% dist_weight to be built
 	uint8 const dist_weight = obj.get_int("chance", 100);
 
-	// prissi: timeline for buildings
+	// timeline for buildings
 	uint16 const intro_date =
 		obj.get_int("intro_year", DEFAULT_INTRO_DATE) * 12 +
 		obj.get_int("intro_month", 1) - 1;
@@ -384,7 +384,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint8 number_of_classes_jobs = min(255, class_proportions_jobs.get_count());
 	total_len += 1;
 
-	// Hajo: take care, hardcoded size of node on disc here!
+	// take care, hardcoded size of node on disc here!
 	obj_node_t node(this, total_len, &parent);
 	write_head(fp, node, obj);
 
@@ -487,11 +487,11 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	int pos = 0;
 
-	// Hajo: write version data
+	// write version data
 	node.write_uint16(fp, version, pos);
 	pos += sizeof(uint16);
 
-	// Hajo: write desc data
+	// write desc data
 	node.write_uint8(fp, 0, pos); // was gtyp
 	pos += sizeof(uint8);
 
