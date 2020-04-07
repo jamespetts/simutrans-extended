@@ -205,7 +205,7 @@ void planquadrat_t::kartenboden_setzen(grund_t *bd)
 
 /**
  * replaces the map solid ground (or water) and deletes the old one
- * @author Hansjörg Malthaner
+ * @author HansjÃ¶rg Malthaner
  */
 void planquadrat_t::boden_ersetzen(grund_t *alt, grund_t *neu)
 {

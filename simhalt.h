@@ -100,7 +100,7 @@ public:
 
 private:
 	/**
-	 * Manche Methoden müssen auf all Haltestellen angewandt werden
+	 * Manche Methoden mÃ¼ssen auf all Haltestellen angewandt werden
 	 * deshalb verwaltet die Klasse eine Liste aller Haltestellen
 	 * @author Hj. Malthaner
 	 */
@@ -277,7 +277,7 @@ public:
 	static uint8 pedestrian_limit;
 
 	/**
-	 * Liste aller felder (Grund-Objekte) die zu dieser Haltestelle gehören
+	 * Liste aller felder (Grund-Objekte) die zu dieser Haltestelle gehÃ¶ren
 	 * @author Hj. Malthaner
 	 */
 	struct tile_t
@@ -709,7 +709,7 @@ public:
 	bool is_overcrowded( const uint8 idx ) const { return (overcrowded[idx/8] & (1<<(idx%8)))!=0; }
 
 	/**
-	 * gibt Gesamtmenge derware vom typ typ zurück
+	 * gibt Gesamtmenge derware vom typ typ zurÃ¼ck
 	 * @author Hj. Malthaner
 	 */
 	uint32 get_ware_summe(const goods_desc_t *warentyp) const;
@@ -743,7 +743,7 @@ public:
 	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction);
 
 	/* liefert ware an. Falls die Ware zu wartender Ware dazugenommen
-	 * werden kann, kann ware_t gelöscht werden! D.h. man darf ware nach
+	 * werden kann, kann ware_t gelÃ¶scht werden! D.h. man darf ware nach
 	 * aufruf dieser Methode nicht mehr referenzieren!
 	 *
 	 * Ware to deliver. If the goods to waiting to be taken product

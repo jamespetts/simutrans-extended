@@ -104,7 +104,7 @@ public:
 	ware_t(loadsave_t *file);
 
 	/**
-	 * gibt den nicht-uebersetzten warennamen zurück
+	 * gibt den nicht-uebersetzten warennamen zurÃ¼ck
 	 * @author Hj. Malthaner
 	 * "There the non-translated names were back"
 	 */

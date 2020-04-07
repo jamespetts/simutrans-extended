@@ -104,7 +104,7 @@ public:
 	waytype_t get_waytype() const { return powerline_wt; }
 
 	/**
-	* @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
+	* @return Einen Beschreibungsstring fÃ¼r das Objekt, der z.B. in einem
 	* Beobachtungsfenster angezeigt wird.
 	* @author Hj. Malthaner
 	*/
@@ -125,7 +125,7 @@ public:
 	void calc_neighbourhood();
 
 	/**
-	* Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
+	* Wird nach dem Laden der Welt aufgerufen - Ã¼blicherweise benutzt
 	* um das Aussehen des Dings an Boden und Umgebung anzupassen
 	*
 	* @author Hj. Malthaner

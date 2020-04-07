@@ -15,7 +15,7 @@
  *      Volker Meyer
  *
  *  Description:
- *      Richtigen Index für singlees Brückenstück bestimmen
+ *      Richtigen Index fÃ¼r singlees BrÃ¼ckenstÃ¼ck bestimmen
  */
 bridge_desc_t::img_t bridge_desc_t::get_straight(ribi_t::ribi ribi, uint8 height) const
 {
@@ -74,7 +74,7 @@ bridge_desc_t::img_t bridge_desc_t::get_start(slope_t::type slope) const
  *      Volker Meyer
  *
  *  Description:
- *      Richtigen Index für Rampenstart ück bestimmen
+ *      Richtigen Index fÃ¼r Rampenstart Ã¼ck bestimmen
  */
 bridge_desc_t::img_t bridge_desc_t::get_ramp(slope_t::type slope) const
 {

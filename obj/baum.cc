@@ -243,8 +243,8 @@ DBG_MESSAGE("verteile_baeume()","distributing single trees");
 
 static bool compare_tree_desc(const tree_desc_t* a, const tree_desc_t* b)
 {
-	/* Gleiches Level - wir führen eine künstliche, aber eindeutige Sortierung
-	 * über den Namen herbei. */
+	/* Gleiches Level - wir fÃ¼hren eine kÃ¼nstliche, aber eindeutige Sortierung
+	 * Ã¼ber den Namen herbei. */
 	return strcmp(a->get_name(), b->get_name())<0;
 }
 
@@ -606,7 +606,7 @@ void baum_t::finish_rd()
 
 
 /**
- * Öffnet ein neues Beobachtungsfenster für das Objekt.
+ * Ã–ffnet ein neues Beobachtungsfenster fÃ¼r das Objekt.
  * @author Hj. Malthaner
  */
 void baum_t::show_info()
@@ -618,7 +618,7 @@ void baum_t::show_info()
 
 
 /**
- * @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
+ * @return Einen Beschreibungsstring fÃ¼r das Objekt, der z.B. in einem
  * Beobachtungsfenster angezeigt wird.
  * @author Hj. Malthaner
  */

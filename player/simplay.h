@@ -400,7 +400,7 @@ public:
 
 	/**
 	 * Report the player one of his vehicles has a problem
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 * @date 26-Nov-2001
 	 */
 	virtual void report_vehicle_problem(convoihandle_t cnv,const koord3d ziel);

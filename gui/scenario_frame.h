@@ -20,7 +20,7 @@ private:
 protected:
 	/**
 	 * Action that's started by the press of a button.
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	virtual bool item_action(const char *fullpath);
 

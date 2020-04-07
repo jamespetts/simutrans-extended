@@ -268,9 +268,9 @@ static const float32e8_t fl_max_seconds_til_vsoll(1800);
 
 float32e8_t convoy_t::calc_min_braking_distance(const weight_summary_t &weight, const float32e8_t &v)
 {
-	// breaking distance: x = 1/2 at².
-	// with a = v/t, v = at, and v² = a²t² --> x = 1/2 v²/a.
-	// with F = ma, a = F/m --> x = 1/2 v²m/F.
+	// breaking distance: x = 1/2 atÂ².
+	// with a = v/t, v = at, and vÂ² = aÂ²tÂ² --> x = 1/2 vÂ²/a.
+	// with F = ma, a = F/m --> x = 1/2 vÂ²m/F.
 	// This equation is a rough estimation:
 	// - it does not take into account, that Ff depends on v (getting a differential equation).
 	// - Frs depends on the inclination of the way. The above Frs is asnapshot of the current position only.
@@ -545,7 +545,7 @@ float32e8_t potential_convoy_t::get_brake_summary(/*const float32e8_t &speed*/ /
 		}
 		else
 		{
-			// Usual brake deceleration is about -0.5 .. -1.5 m/s² depending on vehicle and ground.
+			// Usual brake deceleration is about -0.5 .. -1.5 m/sÂ² depending on vehicle and ground.
 			// With F=ma, a = F/m follows that brake force in N is ~= 1/2 weight in kg
 			force += get_adverse_summary().br * b.get_weight();
 		}
@@ -667,7 +667,7 @@ float32e8_t existing_convoy_t::get_brake_summary(/*const float32e8_t &speed*/ /*
 		}
 		else
 		{
-			// Usual brake deceleration is about -0.5 .. -1.5 m/s² depending on vehicle and ground.
+			// Usual brake deceleration is about -0.5 .. -1.5 m/sÂ² depending on vehicle and ground.
 			// With F=ma, a = F/m follows that brake force in N is ~= 1/2 weight in kg
 			force += get_adverse_summary().br * v.get_total_weight();
 		}

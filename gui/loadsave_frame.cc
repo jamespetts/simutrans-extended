@@ -88,7 +88,7 @@ void sve_info_t::rdwr(loadsave_t *file)
 
 /**
  * Action that's started with a button click
- * @author Hansjörg Malthaner
+ * @author HansjÃ¶rg Malthaner
  */
 bool loadsave_frame_t::item_action(const char *filename)
 {

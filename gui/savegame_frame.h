@@ -258,7 +258,7 @@ protected:
 
 	/**
 	 * Callback function that will be executed when the user clicks one of the entries in list
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 
 	 // Virtual callback function that will be executed when the user clicks ok,

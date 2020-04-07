@@ -190,7 +190,7 @@ static bool passes_filter_out(haltestelle_t const& s)
 			if (s.get_mail_enabled()) return true;
 		} else if (ware != goods_manager_t::none) {
 			// Oh Mann - eine doublese Schleife und das noch pro Haltestelle
-			// Zum Glück ist die Anzahl der Fabriken und die ihrer Ausgänge
+			// Zum GlÃ¼ck ist die Anzahl der Fabriken und die ihrer AusgÃ¤nge
 			// begrenzt (Normal 1-2 Fabriken mit je 0-1 Ausgang) -  V. Meyer
 			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
 				FOR(array_tpl<ware_production_t>, const& j, f->get_output()) {
@@ -225,7 +225,7 @@ static bool passes_filter_in(haltestelle_t const& s)
 			if (s.get_mail_enabled()) return true;
 		} else if (ware != goods_manager_t::none) {
 			// Oh Mann - eine doublese Schleife und das noch pro Haltestelle
-			// Zum Glück ist die Anzahl der Fabriken und die ihrer Ausgänge
+			// Zum GlÃ¼ck ist die Anzahl der Fabriken und die ihrer AusgÃ¤nge
 			// begrenzt (Normal 1-2 Fabriken mit je 0-1 Ausgang) -  V. Meyer
 			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
 				FOR(array_tpl<ware_production_t>, const& j, f->get_input()) {

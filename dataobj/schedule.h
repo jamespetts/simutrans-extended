@@ -24,7 +24,7 @@ class karte_t;
 
 
 /**
- * Eine Klasse zur Speicherung von Fahrplänen in Simutrans.
+ * Eine Klasse zur Speicherung von FahrplÃ¤nen in Simutrans.
  *
  * @author Hj. Malthaner
  */
@@ -48,7 +48,7 @@ public:
 	virtual char const* get_error_msg() const = 0;
 
 	/**
-	* der allgemeine Fahrplan erlaubt haltestellen überall.
+	* der allgemeine Fahrplan erlaubt haltestellen Ã¼berall.
 	* diese Methode sollte in den unterklassen redefiniert werden.
 	* @author Hj. Malthaner
 	*/
@@ -159,12 +159,12 @@ public:
 	halthandle_t get_prev_halt( player_t *player ) const;
 
 	/**
-	 * fügt eine koordinate an stelle current_stop in den Fahrplan ein
+	 * fÃ¼gt eine koordinate an stelle current_stop in den Fahrplan ein
 	 * all folgenden Koordinaten verschieben sich dadurch
 	 */
 	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false, bool show_failure = false);
 	/**
-	 * hängt eine koordinate an den schedule an
+	 * hÃ¤ngt eine koordinate an den schedule an
 	 */
 	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false);
 

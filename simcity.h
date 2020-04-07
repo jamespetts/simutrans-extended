@@ -546,26 +546,26 @@ public:
 	const char *get_name() const { return name; }
 
 	/**
-	 * Ermöglicht Zugriff auf Namesnarray
+	 * ErmÃ¶glicht Zugriff auf Namesnarray
 	 * @author Hj. Malthaner
 	 */
 	void set_name( const char *name );
 
 	/**
-	 * gibt einen zufällingen gleichverteilten Punkt innerhalb der
-	 * Citygrenzen zurück
+	 * gibt einen zufÃ¤llingen gleichverteilten Punkt innerhalb der
+	 * Citygrenzen zurÃ¼ck
 	 * @author Hj. Malthaner
 	 */
 	koord get_zufallspunkt(uint32 min_distance = 0, uint32 max_distance = 16384, koord origin = koord::invalid) const;
 
 	/**
-	 * gibt das pax-statistik-array für letzten monat zurück
+	 * gibt das pax-statistik-array fÃ¼r letzten monat zurÃ¼ck
 	 * @author Hj. Malthaner
 	 */
 	const sparse_tpl<unsigned char>* get_pax_destinations_old() const { return &pax_destinations_old; }
 
 	/**
-	 * gibt das pax-statistik-array für den aktuellen monat zurück
+	 * gibt das pax-statistik-array fÃ¼r den aktuellen monat zurÃ¼ck
 	 * @author Hj. Malthaner
 	 */
 	const sparse_tpl<unsigned char>* get_pax_destinations_new() const { return &pax_destinations_new; }
@@ -612,7 +612,7 @@ public:
 
 	/**
 	 * Wird am Ende der LAderoutine aufgerufen, wenn die Welt geladen ist
-	 * und nur noch die Datenstrukturenneu verknüpft werden müssen.
+	 * und nur noch die Datenstrukturenneu verknÃ¼pft werden mÃ¼ssen.
 	 * @author Hj. Malthaner
 	 */
 	void finish_rd();

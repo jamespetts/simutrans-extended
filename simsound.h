@@ -14,14 +14,14 @@ void sound_set_mute(bool on);
 bool sound_get_mute();
 
 /**
- * setzt Lautstärke für all effekte
+ * setzt LautstÃ¤rke fÃ¼r all effekte
  * @author Hj. Malthaner
  */
 void sound_set_global_volume(int volume);
 
 
 /**
- * ermittelt Lautstärke für all effekte
+ * ermittelt LautstÃ¤rke fÃ¼r all effekte
  * @author Hj. Malthaner
  */
 int sound_get_global_volume();
@@ -42,7 +42,7 @@ void sound_set_shuffle_midi( bool shuffle );
 
 
 /**
- * setzt Lautstärke für MIDI playback
+ * setzt LautstÃ¤rke fÃ¼r MIDI playback
  * @param volume volume in range 0..255
  * @author Hj. Malthaner
  */
@@ -50,7 +50,7 @@ void sound_set_midi_volume(int volume);
 
 
 /**
- * ermittelt Lautstärke für MIDI playback
+ * ermittelt LautstÃ¤rke fÃ¼r MIDI playback
  * @return volume in range 0..255
  * @author Hj. Malthaner
  */

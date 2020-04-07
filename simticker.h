@@ -27,7 +27,7 @@ namespace ticker
 	/**
 	 * Add a message to the message list
 	 * @param pos    position of the event
-	 * @param color  message color 
+	 * @param color  message colorÂ 
 	 */
 	void add_msg(const char*, koord pos, int color = COL_BLACK);
 

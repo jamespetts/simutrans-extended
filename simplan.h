@@ -28,7 +28,7 @@ struct nearby_halt_t
 
 /**
  * Die Karte ist aus Planquadraten zusammengesetzt.
- * Planquadrate speichern Untergründe (Böden) der Karte.
+ * Planquadrate speichern UntergrÃ¼nde (BÃ¶den) der Karte.
  * @author Hj. Malthaner
  */
 class planquadrat_t
@@ -57,7 +57,7 @@ private:
 public:
 	/**
 	 * Constructs a planquadrat (tile) with initial capacity of one ground
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	planquadrat_t() { ground_size = 0; climate_data = 0; data.one = NULL; halt_list_count = 0;  halt_list = NULL; city = NULL; }
 
@@ -76,19 +76,19 @@ public:
 	void kartenboden_setzen(grund_t *bd);
 
 	/**
-	* Ersetzt Boden alt durch neu, löscht Boden alt.
-	* @author Hansjörg Malthaner
+	* Ersetzt Boden alt durch neu, lÃ¶scht Boden alt.
+	* @author HansjÃ¶rg Malthaner
 	*/
 	void boden_ersetzen(grund_t *alt, grund_t *neu);
 
 	/**
-	* Setzen einen Brücken- oder Tunnelbodens
+	* Setzen einen BrÃ¼cken- oder Tunnelbodens
 	* @author V. Meyer
 	*/
 	void boden_hinzufuegen(grund_t *bd);
 
 	/**
-	* Löschen eines Brücken- oder Tunnelbodens
+	* LÃ¶schen eines BrÃ¼cken- oder Tunnelbodens
 	* @author V. Meyer
 	*/
 	bool boden_entfernen(grund_t *bd);
@@ -116,7 +116,7 @@ public:
 	/**
 	* returns normal ground (always first index)
 	* @return not defined if no ground (must not happen!)
-	* @author Hansjörg Malthaner
+	* @author HansjÃ¶rg Malthaner
 	*/
 	inline grund_t *get_kartenboden() const { return (ground_size<=1) ? data.one : data.some[0]; }
 
@@ -137,7 +137,7 @@ public:
 	inline grund_t *get_boden_bei(const unsigned idx) const { return (ground_size<=1 ? data.one : data.some[idx]); }
 
 	/**
-	* @return Anzahl der Böden dieses Planquadrats
+	* @return Anzahl der BÃ¶den dieses Planquadrats
 	* @author Hj. Malthaner
 	*/
 	unsigned int get_boden_count() const { return ground_size; }

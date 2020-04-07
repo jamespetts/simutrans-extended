@@ -147,7 +147,7 @@ public:
 
 
 /**
- * Eine Klasse für Fabriken in Simutrans. Fabriken produzieren und
+ * Eine Klasse fÃ¼r Fabriken in Simutrans. Fabriken produzieren und
  * verbrauchen Waren und beliefern nahe Haltestellen.
  *
  * Die Abfragefunktionen liefern -1 wenn eine Ware niemals
@@ -196,7 +196,7 @@ private:
 	void book_weighted_sums(sint64 delta_time);
 
 	/**
-	 * Die möglichen Lieferziele
+	 * Die mÃ¶glichen Lieferziele
 	 *
 	 * The possible delivery targets
 	 * @author Hj. Malthaner
@@ -287,7 +287,7 @@ private:
 	inthashtable_tpl<uint8, uint16> max_intransit_percentages;
 
 	/**
-	 * Zeitakkumulator für Produktion
+	 * Zeitakkumulator fÃ¼r Produktion
 	 * Time accumulator for production
 	 * @author Hj. Malthaner
 	 */
@@ -527,7 +527,7 @@ public:
 	const vector_tpl<stadt_t *>& get_target_cities() const { return target_cities; }*/
 
 	/**
-	 * Fügt ein neues Lieferziel hinzu
+	 * FÃ¼gt ein neues Lieferziel hinzu
 	 * Adds a new delivery goal
 	 * @author Hj. Malthaner
 	 */
@@ -647,7 +647,7 @@ public:
 	void get_tile_list( vector_tpl<koord> &tile_list ) const;
 
 	/**
-	 * gibt eine NULL-Terminierte Liste von Fabrikpointern zurück
+	 * gibt eine NULL-Terminierte Liste von Fabrikpointern zurÃ¼ck
 	 *
 	 * a zero-scheduled list of factory pointers returns
 	 * @author Hj. Malthaner
@@ -668,7 +668,7 @@ public:
 	// "here the methods to parameterize the factory"
 
 	/**
-	 * Baut die Gebäude for the Fabrik
+	 * Baut die GebÃ¤ude for the Fabrik
 	 *
 	 * "Build the buildings for the factory"
 	 *

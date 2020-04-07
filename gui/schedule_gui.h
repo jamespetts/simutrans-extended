@@ -147,7 +147,7 @@ public:
 
 	/**
 	 * Draw the Frame
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 

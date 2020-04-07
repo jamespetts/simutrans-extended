@@ -96,7 +96,7 @@ class grund_t
 {
 public:
 	/**
-	 * Flag-Werte für das neuzeichnen geänderter Untergründe
+	 * Flag-Werte fÃ¼r das neuzeichnen geÃ¤nderter UntergrÃ¼nde
 	 * @author Hj. Malthaner
 	 */
 	enum flag_values {
@@ -378,13 +378,13 @@ public:
 	void set_grund_hang(slope_t::type sl) { slope = sl; }
 
 	/**
-	 * Manche Böden können zu Haltestellen gehören.
+	 * Manche BÃ¶den kÃ¶nnen zu Haltestellen gehÃ¶ren.
 	 * @author Hj. Malthaner
 	 */
 	void set_halt(halthandle_t halt);
 
 	/**
-	 * Ermittelt, ob dieser Boden zu einer Haltestelle gehört.
+	 * Ermittelt, ob dieser Boden zu einer Haltestelle gehÃ¶rt.
 	 * @return NULL wenn keine Haltestelle, sonst Zeiger auf Haltestelle
 	 * @author Hj. Malthaner
 	 */
@@ -663,7 +663,7 @@ void display_obj_fg(const sint16 xpos, const sint16 ypos, const bool is_global, 
 
 	/**
 	* Ermittelt die Richtungsbits furr den weg vom Typ 'typ' unmaskiert.
-	* Dies wird beim Bauen ben÷tigt. Furr die Routenfindung werden die
+	* Dies wird beim Bauen benÃ·tigt. Furr die Routenfindung werden die
 	* maskierten ribis benutzt.
 	* @author Hj. Malthaner/V. Meyer
 	*
@@ -684,7 +684,7 @@ void display_obj_fg(const sint16 xpos, const sint16 ypos, const bool is_global, 
 	virtual sint8 get_weg_yoff() const { return 0; }
 
 	/**
-	* Hat der Boden mindestens ein weg_t-Objekt? Liefert false für Water!
+	* Hat der Boden mindestens ein weg_t-Objekt? Liefert false fÃ¼r Water!
 	* @author V. Meyer
 	*/
 	inline bool hat_wege() const { return (flags&(has_way1|has_way2))!=0;}

@@ -11,9 +11,9 @@
 
 
 /**
- * Klasse für Schienen in Simutrans.
- * Auf den Schienen koennen Züge fahren.
- * Jede Schiene gehört zu einer Blockstrecke
+ * Klasse fÃ¼r Schienen in Simutrans.
+ * Auf den Schienen koennen ZÃ¼ge fahren.
+ * Jede Schiene gehÃ¶rt zu einer Blockstrecke
  *
  * @author Hj. Malthaner
  */

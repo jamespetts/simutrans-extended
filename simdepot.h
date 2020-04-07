@@ -202,7 +202,7 @@ public:
 	void convoi_arrived(convoihandle_t cnv, bool fpl_adjust);
 
 	/**
-	 * Öffnet ein neues Beobachtungsfenster für das Objekt.
+	 * Ã–ffnet ein neues Beobachtungsfenster fÃ¼r das Objekt.
 	 * @author Hj. Malthaner
 	 */
 	void show_info();

@@ -66,15 +66,15 @@ namespace std
 
 /**
  * <p>Der Weg ist die Basisklasse fuer all Verkehrswege in Simutrans.
- * Wege "gehören" immer zu einem Grund. Sie besitzen Richtungsbits sowie
+ * Wege "gehÃ¶ren" immer zu einem Grund. Sie besitzen Richtungsbits sowie
  * eine Maske fuer Richtungsbits.</p>
  *
- * <p>Ein Weg gehört immer zu genau einer Wegsorte</p>
+ * <p>Ein Weg gehÃ¶rt immer zu genau einer Wegsorte</p>
  *
- * <p>Kreuzungen werden dadurch unterstützt, daß ein Grund zwei Wege
- * enthalten kann (prinzipiell auch mehrere möglich.</p>
+ * <p>Kreuzungen werden dadurch unterstÃ¼tzt, daÃŸ ein Grund zwei Wege
+ * enthalten kann (prinzipiell auch mehrere mÃ¶glich.</p>
  *
- * <p>Wetype -1 ist reserviert und kann nicht für Wege benutzt werden<p>
+ * <p>Wetype -1 ist reserviert und kann nicht fÃ¼r Wege benutzt werden<p>
  *
  * @author Hj. Malthaner
  */
@@ -128,7 +128,7 @@ private:
 	const way_desc_t * desc;
 
 	/**
-	* Richtungsbits für den Weg. Norden ist oben rechts auf dem Monitor.
+	* Richtungsbits fÃ¼r den Weg. Norden ist oben rechts auf dem Monitor.
 	* 1=Nord, 2=Ost, 4=Sued, 8=West
 	* @author Hj. Malthaner
 	*/
@@ -282,7 +282,7 @@ public:
 	bool check_season(const bool calc_only_season_change);
 
 	/**
-	* Setzt die erlaubte Höchstgeschwindigkeit
+	* Setzt die erlaubte HÃ¶chstgeschwindigkeit
 	* @author Hj. Malthaner
 	*/
 	void set_max_speed(sint32 s) { max_speed = s; }
@@ -308,7 +308,7 @@ public:
 	void remove_way_constraints(const way_constraints_of_way_t& value) { way_constraints.remove(value); }
 
 	/**
-	* Ermittelt die erlaubte Höchstgeschwindigkeit
+	* Ermittelt die erlaubte HÃ¶chstgeschwindigkeit
 	* @author Hj. Malthaner
 	*/
 	sint32 get_max_speed() const { return max_speed; }
@@ -317,7 +317,7 @@ public:
 	uint32 get_bridge_weight_limit() const { return bridge_weight_limit; }
 
 	/**
-	* Setzt neue Description. Ersetzt alte Höchstgeschwindigkeit
+	* Setzt neue Description. Ersetzt alte HÃ¶chstgeschwindigkeit
 	* mit wert aus Description.
 	*
 	* Sets a new description. Replaces old with maximum speed
@@ -348,7 +348,7 @@ public:
 	virtual const char * is_deletable(const player_t *player, bool allow_public = false);
 
 	/**
-	* Wetype zurückliefern
+	* Wetype zurÃ¼ckliefern
 	*/
 	waytype_t get_waytype() const { return wtyp; }
 
@@ -370,9 +370,9 @@ public:
 	/**
 	* Add direction bits (ribi) for a way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
+	* Nachdem die ribis geÃ¤ndert werden, ist das weg_image des
+	* zugehÃ¶rigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
+	* zur Reparatur muÃŸ folgen).
 	* @param ribi Richtungsbits
 	*/
 	void ribi_add(ribi_t::ribi ribi) { this->ribi |= (uint8)ribi;}
@@ -380,9 +380,9 @@ public:
 	/**
 	* Remove direction bits (ribi) on a way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
+	* Nachdem die ribis geÃ¤ndert werden, ist das weg_image des
+	* zugehÃ¶rigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
+	* zur Reparatur muÃŸ folgen).
 	* @param ribi Richtungsbits
 	*/
 	void ribi_rem(ribi_t::ribi ribi) { this->ribi &= (uint8)~ribi;}
@@ -390,9 +390,9 @@ public:
 	/**
 	* Set direction bits (ribi) for the way.
 	*
-	* Nachdem die ribis geändert werden, ist das weg_image des
-	* zugehörigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
-	* zur Reparatur muß folgen).
+	* Nachdem die ribis geÃ¤ndert werden, ist das weg_image des
+	* zugehÃ¶rigen Grundes falsch (Ein Aufruf von grund_t::calc_image()
+	* zur Reparatur muÃŸ folgen).
 	* @param ribi Richtungsbits
 	*/
 	void set_ribi(ribi_t::ribi ribi) { this->ribi = (uint8)ribi;}
@@ -408,8 +408,8 @@ public:
 	virtual ribi_t::ribi get_ribi() const { return (ribi_t::ribi)(ribi & ~ribi_maske); }
 
 	/**
-	* für Signale ist es notwendig, bestimmte Richtungsbits auszumaskieren
-	* damit Fahrzeuge nicht "von hinten" über Ampeln fahren können.
+	* fÃ¼r Signale ist es notwendig, bestimmte Richtungsbits auszumaskieren
+	* damit Fahrzeuge nicht "von hinten" Ã¼ber Ampeln fahren kÃ¶nnen.
 	* @param ribi Richtungsbits
 	*/
 	void set_ribi_maske(ribi_t::ribi ribi) { ribi_maske = (uint8)ribi; }

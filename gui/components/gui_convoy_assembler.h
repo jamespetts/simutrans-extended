@@ -76,7 +76,7 @@ public:
  * The author markers of the original code have been preserved when
  *   possible.
  *
- * @author Hansjörg Malthaner
+ * @author HansjÃ¶rg Malthaner
  * @date 22-Nov-01
  */
 class gui_convoy_assembler_t :

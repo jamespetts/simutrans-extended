@@ -427,7 +427,7 @@ int simu_main(int argc, char** argv)
 		    "  http://forum.simutrans.com"
 			"\n"
 			"  Based on Simutrans 0.84.21.2\n"
-			"  by Hansjörg Malthaner et. al.\n"
+			"  by HansjÃ¶rg Malthaner et. al.\n"
 			"---------------------------------------\n"
 			"command line parameters available: \n"
 			" -addons             loads also addons (with -objects)\n"

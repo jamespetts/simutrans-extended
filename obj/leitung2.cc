@@ -386,7 +386,7 @@ void print_power(cbuffer_t & buf, uint64 power_in_internal_units, const char *fm
 
 
 /**
- * @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
+ * @return Einen Beschreibungsstring fÃ¼r das Objekt, der z.B. in einem
  * Beobachtungsfenster angezeigt wird.
  * @author Hj. Malthaner
  */
@@ -408,7 +408,7 @@ void leitung_t::info(cbuffer_t & buf, bool dummy) const
 
 
 /**
- * Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
+ * Wird nach dem Laden der Welt aufgerufen - Ã¼blicherweise benutzt
  * um das Aussehen des Dings an Boden und Umgebung anzupassen
  *
  * @author Hj. Malthaner

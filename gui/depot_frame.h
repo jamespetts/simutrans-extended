@@ -26,7 +26,7 @@ class vehicle_desc_t;
 /**
  * Depot frame, handles all interaction with a vehicle depot.
  *
- * @author Hansjörg Malthaner
+ * @author HansjÃ¶rg Malthaner
  * @date 22-Nov-01
  */
 class depot_frame_t : public gui_frame_t,
@@ -37,7 +37,7 @@ class depot_frame_t : public gui_frame_t,
 private:
 	/**
 	 * The depot to display
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	depot_t *depot;
 
@@ -202,7 +202,7 @@ public:
 
 	/**
 	 * Draw the Frame
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 

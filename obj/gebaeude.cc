@@ -1919,7 +1919,7 @@ void gebaeude_t::rdwr(loadsave_t *file)
 
 
 /**
-* Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
+* Wird nach dem Laden der Welt aufgerufen - Ã¼blicherweise benutzt
 * um das Aussehen des Dings an Boden und Umgebung anzupassen
 *
 * "After loading is called adapting to the world - normally used to the

@@ -46,8 +46,8 @@ public:
 /**
  * pos_list_wh_t:
  *
- * Erweiterte Version von pos_list_t. Liefert die umliegenden Positionen für
- * einen Bereich der Größe h mal w.
+ * Erweiterte Version von pos_list_t. Liefert die umliegenden Positionen fÃ¼r
+ * einen Bereich der GrÃ¶ÃŸe h mal w.
  * (0, 0) wird wieder als Endekenzeichen verwendet.
  *
  * @author V. Meyer

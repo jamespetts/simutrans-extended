@@ -85,7 +85,7 @@ protected:
 
 	/**
 	 * Action that's started with a button click
-	 * @author Hansjörg Malthaner
+	 * @author HansjÃ¶rg Malthaner
 	 */
 	virtual bool item_action (const char *filename);
 	virtual bool ok_action   (const char *fullpath);
