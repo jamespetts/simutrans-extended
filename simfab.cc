@@ -2415,7 +2415,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 	{
 		nearby_halt_t nearby_halt = nearby_freight_halts[(i + output[product].index_offset) % count];
 
-		// Über all Ziele iterieren ("Iterate over all targets" - Google)
+		// Iterate over all targets
 		for(uint32 n = 0; n < lieferziele.get_count(); n ++)
 		{
 			// this way, the halt that is tried first will change. As a result, if all destinations are empty, it will be spread evenly

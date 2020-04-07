@@ -8129,7 +8129,7 @@ float32e8_t convoi_t::get_brake_summary(/*const float32e8_t &speed*/ /* in m/s *
 		}
 		else
 		{
-			// Usual brake deceleration is about -0.5 .. -1.5 m/s² depending on vehicle and ground.
+			// Usual brake deceleration is about -0.5 .. -1.5 m/s^2 depending on vehicle and ground.
 			// With F=ma, a = F/m follows that brake force in N is ~= 1/2 weight in kg
 			force += br * v.get_total_weight();
 		}

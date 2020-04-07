@@ -53,8 +53,6 @@ public:
 	 */
 	gui_class_vehicleinfo_t(convoihandle_t cnv);
 
-
-
 	//bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void set_cnv( convoihandle_t c ) { cnv = c; }
