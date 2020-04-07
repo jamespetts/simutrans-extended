@@ -57,7 +57,6 @@ road_user_t::road_user_t() :
 /**
  * Ensures that this object is removed correctly from the list
  * of sync step-able things!
- * @author Hj. Malthaner
  */
 road_user_t::~road_user_t()
 {
@@ -130,7 +129,6 @@ road_user_t::road_user_t(grund_t* bd, uint16 random) :
 
 /**
  * Open a new observation window for the object.
- * @author Hj. Malthaner
  */
 void road_user_t::show_info()
 {
@@ -1405,7 +1403,6 @@ void private_car_t::rotate90()
 /**
  * conditions for a city car to overtake another overtaker.
  * The city car is not overtaking/being overtaken.
- * @author isidoro
  */
 bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other)
 {

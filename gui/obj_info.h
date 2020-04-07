@@ -14,9 +14,6 @@
 
 /**
  * An adapter class to display info windows for things (objects)
- *
- * @author Hj. Malthaner
- * @date 22-Nov-2001
  */
 class obj_infowin_t : public base_infowin_t
 {
@@ -34,8 +31,6 @@ public:
 
 	/**
 	 * @return the text to display in the info window
-	 *
-	 * @author Hj. Malthaner
 	 * @see simwin
 	 */
 	virtual void info(cbuffer_t& buf) const { get_obj()->info(buf); }

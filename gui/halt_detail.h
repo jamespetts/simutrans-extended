@@ -22,9 +22,7 @@ class player_t;
 
 /**
  * Window with destination information for a stop
- * @author Hj. Malthaner
  */
-
 class halt_detail_t : public gui_frame_t, action_listener_t
 {
 private:
@@ -57,7 +55,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char * get_help_filename() const { return "station_details.txt"; }
 

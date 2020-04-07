@@ -22,7 +22,6 @@ class planquadrat_t;
 
 /**
  * Asynchronous or synchronous animations for buildings.
- * @author Hj. Malthaner
  */
 class gebaeude_t : public obj_t, sync_steppable
 {
@@ -33,33 +32,28 @@ private:
 
 	/**
 	 * Time control for animation progress.
-	 * @author Hj. Malthaner
 	 */
 	uint16 anim_time;
 
 	/**
 	 * Current anim frame
-	 * @author Hj. Malthaner
 	 */
 	uint8 count;
 
 	/**
 	 * Is this a sync animated object?
-	 * @author Hj. Malthaner
 	 */
 	uint8 sync:1;
 
 	/**
 	 * Boolean flag if a construction site or buildings image
 	 * shall be displayed.
-	 * @author Hj. Malthaner
 	 */
 	uint8 show_construction:1;
 
 	/**
 	 * if true, this ptr union contains a factory pointer
 	 * ? Surely, this cannot be right with an 8 bit integer? Out of date comment?
-	 * @author Hj. Malthaner
 	 */
 	uint8 is_factory:1;
 
@@ -71,14 +65,12 @@ private:
 	uint8 anim_frame;
 
 	/**
-	 * Construction began at this tick. "Pit" under-construction graphics handled by sync_step() 
-	 * @author Hj. Malthaner
+	 * Construction began at this tick. "Pit" under-construction graphics handled by sync_step()
 	 */
 	sint64 purchase_time;
 
 	/**
 	* either point to a factory or a city
-	* @author Hj. Malthaner
 	*/
 	union {
 		fabrik_t  *fab;
@@ -87,7 +79,6 @@ private:
 
 	/**
 	 * Initializes all variables with safe, usable values
-	 * @author Hj. Malthaner
 	 */
 	void init();
 
@@ -156,7 +147,6 @@ private:
 	* the current time. This is intended to prevent more
 	* commuters going to this building each month than there
 	* are jobs available for them.
-	* @author: jamespetts
 	*/
 	sint64 available_jobs_by_time;
 
@@ -227,7 +217,6 @@ public:
 	/**
 	 * @return Building's own name, or factory name (if building
 	 * belongs to a factory)
-	 * @author Hj. Malthaner
 	 */
 	virtual const char *get_name() const;
 	const char* get_individual_name() const;
@@ -329,7 +318,6 @@ public:
 	/**
 	* Call this method when commuting passengers are sent to this building.
 	* Pass the number of passengers being sent.
-	* @author: jamespetts, August 2013
 	*/
 	void set_commute_trip(uint16 number);
 

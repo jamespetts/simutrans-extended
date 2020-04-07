@@ -84,7 +84,6 @@ private:
 
 	/*
 	 * The current convoi to follow.
-	 * @author prissi
 	 */
 	convoihandle_t follow_convoi;
 
@@ -157,7 +156,6 @@ public:
 
 	/**
 	 * Set center viewport position.
-	 * @author prissi
 	 */
 	void change_world_position( koord ij, sint16 x=0, sint16 y=0 );
 

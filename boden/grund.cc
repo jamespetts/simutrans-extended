@@ -75,7 +75,6 @@
 /**
  * Pointer to the world of this ground. Static to conserve space.
  * Change to instance variable once more than one world is available.
- * @author Hj. Malthaner
  */
 karte_ptr_t grund_t::welt;
 volatile bool grund_t::show_grid = false;
@@ -91,7 +90,6 @@ uint8 grund_t::underground_mode = ugm_none;
 
 /**
  * Table of ground texts
- * @author Hj. Malthaner
  */
 static inthashtable_tpl<uint64, char*> ground_texts;
 
@@ -1756,7 +1754,6 @@ ribi_t::ribi grund_t::get_weg_ribi_unmasked(waytype_t typ) const
 
 /**
 * If there's a depot here, return this
-* @author Volker Meyer
 */
 depot_t* grund_t::get_depot() const
 {
@@ -1954,7 +1951,6 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 			weg->set_owner(player);
 			// Must call this here to ensure that the diagonal cost is
 			// set as appropriate.
-			// @author: jamespetts, Februrary 2010
 			weg->finish_rd();
 		}
 

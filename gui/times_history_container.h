@@ -12,7 +12,7 @@
 #include "components/gui_label.h"
 #include "times_history_entry.h"
 
-// @author: suitougreentea
+
 class times_history_container_t :
 	public gui_container_t,
 	public action_listener_t

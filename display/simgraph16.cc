@@ -761,7 +761,6 @@ void display_set_height(KOORD_VAL const h)
 /**
 * this sets width < 0 if the range is out of bounds
 * so check the value after calling and before displaying
-* @author Hj. Malthaner
 */
 static int clip_wh(KOORD_VAL *x, KOORD_VAL *width, const KOORD_VAL min_width, const KOORD_VAL max_width)
 {
@@ -787,7 +786,6 @@ static int clip_wh(KOORD_VAL *x, KOORD_VAL *width, const KOORD_VAL min_width, co
 /**
 * places x and w within bounds left and right
 * if nothing to show, returns false
-* @author Niels Roest
 */
 static bool clip_lr(KOORD_VAL *x, KOORD_VAL *w, const KOORD_VAL left, const KOORD_VAL right)
 {
@@ -813,7 +811,6 @@ static bool clip_lr(KOORD_VAL *x, KOORD_VAL *w, const KOORD_VAL left, const KOOR
 
 /**
 * Get the clipping rectangle dimensions
-* @author Hj. Malthaner
 */
 clip_dimension display_get_clip_wh(CLIP_NUM_DEF0)
 {
@@ -823,7 +820,6 @@ clip_dimension display_get_clip_wh(CLIP_NUM_DEF0)
 
 /**
 * Set the clipping rectangle dimensions
-* @author Hj. Malthaner
 *
 * here, a pixel at coordinate xp is displayed if
 *  clip. x <= xp < clip.xx
@@ -956,7 +952,6 @@ static inline void mark_tile_dirty(const int x, const int y)
 
 /**
 * Mark tile as dirty, with _NO_ clipping
-* @author Hj. Malthaner
 */
 static void mark_rect_dirty_nc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2)
 {
@@ -989,7 +984,6 @@ static void mark_rect_dirty_nc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_V
 
 /**
 * Mark tile as dirty, with clipping
-* @author Hj. Malthaner
 */
 void mark_rect_dirty_wc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2)
 {
@@ -1045,7 +1039,6 @@ void mark_screen_dirty()
 
 /**
 * the area of this image need update
-* @author Hj. Malthaner
 */
 void display_mark_img_dirty(image_id image, KOORD_VAL xp, KOORD_VAL yp)
 {
@@ -1069,7 +1062,6 @@ void display_mark_img_dirty(image_id image, KOORD_VAL xp, KOORD_VAL yp)
 
 /**
 * Flag all images for rezoom on next draw
-* @author Hj. Malthaner
 */
 static void rezoom()
 {
@@ -1174,7 +1166,6 @@ static void activate_player_color(sint8 player_nr, bool daynight)
 
 /**
 * Flag all images to recode colors on next draw
-* @author Hj. Malthaner
 */
 static void recode()
 {
@@ -1186,7 +1177,6 @@ static void recode()
 
 /**
 * Convert a certain image data to actual output data
-* @author prissi
 */
 static void recode_img_src_target(KOORD_VAL h, PIXVAL *src, PIXVAL *target)
 {
@@ -1234,7 +1224,6 @@ image_id get_image_count()
 
 /**
 * Handles the conversion of an image to the output color
-* @author prissi
 */
 static void recode_img(const image_id n, const sint8 player_nr)
 {
@@ -1320,7 +1309,6 @@ PIXVAL inline zoomin_pixel(uint8 *p, uint8* pab, uint8 *prl, uint8* pdia)
 * Convert base image data to actual image size
 * Uses averages of all sampled points to get the "real" value
 * Blurs a bit
-* @author prissi
 */
 static void rezoom_img(const image_id n)
 {
@@ -1827,7 +1815,6 @@ void display_fit_img_to_width(const image_id n, sint16 new_w)
 
 /**
 * Retrieve brightness setting
-* @author Hj. Malthaner
 */
 int display_get_light()
 {
@@ -1951,7 +1938,6 @@ static void calc_base_pal_from_night_shift(const int night)
 
 /**
 * Set brightness setting
-* @author Hj. Malthaner
 */
 void display_set_light(int new_light_level)
 {
@@ -2153,7 +2139,6 @@ images[image].base_y += yoff;
 
 /**
 * Copy Pixel from src to dest
-* @author Hj. Malthaner
 */
 static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const end)
 {
@@ -2166,7 +2151,6 @@ static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const
 
 /**
 * Copy pixel, replace player color
-* @author Hj. Malthaner
 */
 static inline void colorpixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL* const end)
 {
@@ -2237,7 +2221,6 @@ template<> void templated_pixcopy<colored>(PIXVAL *dest, const PIXVAL *src, cons
 
 /**
 * draws image with clipping along arbitrary lines
-* @author Dwachs
 */
 template<pixcopy_routines copyroutine>
 static void display_img_pc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, const PIXVAL *sp  CLIP_NUM_DEF)
@@ -2290,7 +2273,6 @@ static void display_img_pc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, 
 
 /**
 * Draw image with horizontal clipping
-* @author Hj. Malthaner
 */
 static void display_img_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, const PIXVAL *sp  CLIP_NUM_DEF)
 {
@@ -2443,7 +2425,6 @@ void display_img_aligned(const image_id n, scr_rect area, int align, const int d
 
 /**
 * Draw image with vertical clipping (quickly) and horizontal (slowly)
-* @author prissi
 */
 void display_img_aux(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const sint8 player_nr_raw, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
 {
@@ -2727,7 +2708,6 @@ void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, PLAYER_
 * Draw Image, replace player color,
 * assumes height is ok and valid data are calculated.
 * color replacement needs the original data => sp points to non-cached data
-* @author hajo/prissi
 */
 static void display_color_img_wc(const PIXVAL *sp, KOORD_VAL x, KOORD_VAL y, KOORD_VAL h  CLIP_NUM_DEF)
 {
@@ -2766,7 +2746,6 @@ static void display_color_img_wc(const PIXVAL *sp, KOORD_VAL x, KOORD_VAL y, KOO
 
 /**
 * Draw Image, replaced player color
-* @author Hj. Malthaner
 */
 void display_color_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 player_nr_raw, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
@@ -2838,7 +2817,6 @@ void display_color_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 playe
 
 /**
 * draw unscaled images, replaces base color
-* @author prissi
 */
 void display_base_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const sint8 player_nr, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
@@ -3424,7 +3402,6 @@ static void display_img_alpha_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VA
 
 /**
 * draws the transparent outline of an image
-* @author kierongreen
 */
 void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char /*player_nr*/, const PLAYER_COLOR_VAL color_index, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
 {
@@ -3778,7 +3755,6 @@ void display_scroll_band(const KOORD_VAL start_y, const KOORD_VAL x_offset, cons
 
 /**
 * Draw one Pixel
-* @author Hj. Malthaner
 */
 #ifdef DEBUG_FLUSH_BUFFER
 static void display_pixel(KOORD_VAL x, KOORD_VAL y, PIXVAL color, bool mark_dirty = true)
@@ -3884,7 +3860,6 @@ void display_fillbox_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_
 
 /**
 * Draw vertical line
-* @author Hj. Malthaner
 */
 static void display_vl_internal(const KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL h, const PIXVAL colval, int dirty, KOORD_VAL cL, KOORD_VAL cR, KOORD_VAL cT, KOORD_VAL cB)
 {
@@ -4159,7 +4134,6 @@ KOORD_VAL display_get_char_max_width(const char* text, size_t len) {
 * For the next logical character in the text, returns the character code
 * as well as retrieves the char byte count and the screen pixel width
 * CAUTION : The text pointer advances to point to the next logical character
-* @author Knightly
 */
 unsigned short get_next_char_with_metrics(const char* &text, unsigned char &byte_length, unsigned char &pixel_width)
 {
@@ -4240,7 +4214,6 @@ size_t display_fit_proportional(const char *text, scr_coord_val max_width, scr_c
 * For the previous logical character in the text, returns the character code
 * as well as retrieves the char byte count and the screen pixel width
 * CAUTION : The text pointer recedes to point to the previous logical character
-* @author Knightly
 */
 unsigned short get_prev_char_with_metrics(const char* &text, const char *const text_start, unsigned char &byte_length, unsigned char &pixel_width)
 {
@@ -4271,10 +4244,6 @@ unsigned short get_prev_char_with_metrics(const char* &text, const char *const t
 
 /* proportional_string_width with a text of a given length
 * extended for universal font routines with unicode support
-* @author Volker Meyer
-* @date  15.06.2003
-* @author prissi
-* @date 29.11.04
 */
 int display_calc_proportional_string_len_width(const char* text, size_t len)
 {
@@ -4307,8 +4276,6 @@ static const unsigned char byte_to_mask_array[9] = { 0xFF, 0x7F, 0x3F, 0x1F, 0x0
 
 /* Helper: calculates mask for clipping *
 * Attention: xL-xR must be <=8 !!!
-* @author priss
-* @date  29.11.04
 */
 static unsigned char get_h_mask(const int xL, const int xR, const int cL, const int cR)
 {
@@ -4334,8 +4301,6 @@ static unsigned char get_h_mask(const int xL, const int xR, const int cL, const 
 /*
 * len parameter added - use -1 for previous behaviour.
 * completely renovated for unicode and 10 bit width and variable height
-* @author Volker Meyer, prissi
-* @date  15.06.2003, 2.1.2005
 */
 int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char* txt, control_alignment_t flags, const PIXVAL color, bool dirty, sint32 len  CLIP_NUM_DEF)
 {
@@ -4612,7 +4577,6 @@ void display_ddd_proportional(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, K
 
 /**
 * display text in 3d box with clipping
-* @author: hsiegeln
 */
 void display_ddd_proportional_clip(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, KOORD_VAL hgt, PLAYER_COLOR_VAL ddd_farbe, PLAYER_COLOR_VAL text_farbe, const char *text, int dirty  CLIP_NUM_DEF)
 {
@@ -4630,16 +4594,7 @@ void display_ddd_proportional_clip(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL wid
 
 
 /**
-* Draw multiline text
-* @author Hj. Malthaner
-*
-* Better performance without copying text!
-* @author Volker Meyer
-* @date  15.06.2003
-*
-* Allow arbitrary colors.
-* @author Tor Egil R. Strand
-* @date 06.10.2013
+* Draw multiline colored text
 */
 int display_multiline_text_rgb(KOORD_VAL x, KOORD_VAL y, const char *buf, PIXVAL color)
 {
@@ -4828,8 +4783,7 @@ void display_filled_circle_rgb(KOORD_VAL x0, KOORD_VAL  y0, int radius, const PI
 
 /**
 * Print a bezier curve between points A and B
-* @author yorkeiser
-* @date  08.04.2012
+*
 * @Ax,Ay=start coordinate of Bezier curve
 * @Bx,By=end coordinate of Bezier curve
 * @ADx,ADy=vector for start direction of curve
@@ -5027,7 +4981,6 @@ void display_flush_buffer()
 
 /**
 * Turn mouse pointer visible/invisible
-* @author Hj. Malthaner
 */
 void display_show_pointer(int yesno)
 {
@@ -5041,7 +4994,6 @@ void display_show_pointer(int yesno)
 
 /**
 * mouse pointer image
-* @author prissi
 */
 void display_set_pointer(int pointer)
 {
@@ -5051,7 +5003,6 @@ void display_set_pointer(int pointer)
 
 /**
 * mouse pointer image
-* @author prissi
 */
 void display_show_load_pointer(int loading)
 {
@@ -5065,7 +5016,6 @@ void display_show_load_pointer(int loading)
 
 /**
 * Initialises the graphics module
-* @author Hj. Malthaner
 */
 void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 {
@@ -5175,7 +5125,6 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 
 /**
 * Check if the graphic module already was initialized.
-* @author Hj. Malthaner
 */
 int is_display_init()
 {
@@ -5185,7 +5134,6 @@ int is_display_init()
 
 /**
 * Close the Graphic module
-* @author Hj. Malthaner
 */
 void simgraph_exit()
 {
@@ -5208,7 +5156,6 @@ void simgraph_exit()
 
 
 /* changes display size
-* @author prissi
 */
 void simgraph_resize(KOORD_VAL w, KOORD_VAL h)
 {
@@ -5255,7 +5202,6 @@ void reset_textur(void *new_textur)
 
 /**
 * Take Screenshot
-* @author Hj. Malthaner
 */
 void display_snapshot(int x, int y, int w, int h)
 {

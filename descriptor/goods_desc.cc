@@ -51,7 +51,6 @@ static const char * catg_names[32] = {
 
 /**
  * @return Name of the category of the good
- * @author Hj. Malthaner
  */
 const char * goods_desc_t::get_catg_name() const
 {
@@ -122,7 +121,6 @@ void goods_desc_t::set_scale(uint16 scale_factor)
  * which is roughly 2^48.... running up against the limits of 64-bit math...
  *
  * This is very different from the similarly-named routine in standard
- * @author: jamespetts, neroden
  */
 sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_distance) const
 {

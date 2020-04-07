@@ -40,7 +40,6 @@ public:
 
 	/*
 	* return direction or the state of the traffic light
-	* @author Hj. Malthaner
 	*/
 	ribi_t::ribi get_dir() const 	{ return dir; }
 

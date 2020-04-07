@@ -34,7 +34,6 @@ static uint32 bFilterStates[MAX_PLAYER_COUNT];
 
 #define COLUMN_TWO_START 11
 
-// @author hsiegeln
 const char *money_frame_t::cost_type_name[MAX_PLAYER_COST_BUTTON] =
 {
 	"Revenue",

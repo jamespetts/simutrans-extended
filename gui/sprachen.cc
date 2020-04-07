@@ -34,7 +34,6 @@ int sprachengui_t::cmp_language_button(sprachengui_t::language_button_t a, sprac
 /**
  * Causes the required fonts for currently selected
  * language to be loaded
- * @author Hj. Malthaner
  */
 void sprachengui_t::init_font_from_lang()
 {

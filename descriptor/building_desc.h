@@ -200,7 +200,7 @@ class building_desc_t : public obj_desc_timelined_t {
 	uint16 enables;			// if it is a stop, what is enabled; if it is a signal box, the signal group that can be linked to this box.
 	uint8  distribution_weight;			// Hajo:chance to build, special buildings, only other is weight factor
 
-	/** @author: jamespetts.
+	/**
 	 * Additional fields for separate capacity/maintenance
 	 * If these are not specified in the .dat file, they are set to
 	 * PRICE_MAGIC then calculated from the "level" in the old way.
@@ -307,13 +307,11 @@ public:
 
 	/**
 	* the level is used in many places: for price, for capacity, ...
-	* @author Hj. Malthaner
 	*/
 	uint16 get_level() const { return level; }
 
 	/**
 	 * Mail generation level
-	 * @author Hj. Malthaner
 	 */
 	uint16 get_mail_level() const;
 
@@ -348,7 +346,6 @@ public:
 
 	/**
 	* Skin: cursor (index 0) and icon (index 1)
-	* @author Hj. Malthaner
 	*/
 	const skin_desc_t * get_cursor() const {
 		return flags & FLAG_HAS_CURSOR ? get_child<skin_desc_t>(2 + size.x * size.y * layouts) : 0;
@@ -365,13 +362,11 @@ public:
 
 	/**
 	* @return station flags (only used for station buildings, oil rigs and traction types in depots)
-	* @author prissi
 	*/
 	uint16 get_enabled() const { return enables; }
 
 	/**
 	* @return time for doing one step
-	* @author prissi
 	*/
 	uint16 get_animation_time() const { return animation_time; }
 

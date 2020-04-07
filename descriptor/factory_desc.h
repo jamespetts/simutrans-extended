@@ -173,7 +173,6 @@ private:
     /**
      * How much of this product is derived from one unit of factory
      * production? 256 means 1.0
-     * @author Hj. Malthaner
      */
     uint16 factor;
 

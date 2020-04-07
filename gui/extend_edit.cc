@@ -136,8 +136,6 @@ bool extend_edit_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void extend_edit_gui_t::resize(const scr_coord delta)
 {

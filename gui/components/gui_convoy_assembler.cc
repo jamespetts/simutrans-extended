@@ -1805,7 +1805,6 @@ void gui_convoy_assembler_t::update_data()
 		if (veh_action != va_sell)
 		{
 			// Check whether too expensive
-			// @author: jamespetts
 			if(img.lcolor == ok_color || img.lcolor == COL_YELLOW)
 			{
 				// Only flag as too expensive that which could be purchased but for its price.
@@ -2676,7 +2675,6 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 
 		// Permissive way constraints
 		// (If vehicle has, way must have)
-		// @author: jamespetts
 		const way_constraints_t &way_constraints = veh_type->get_way_constraints();
 		for (uint8 i = 0; i < way_constraints.get_count(); i++)
 		{
@@ -2699,7 +2697,6 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 
 		// Prohibitibve way constraints
 		// (If way has, vehicle must have)
-		// @author: jamespetts
 		for (uint8 i = 0; i < way_constraints.get_count(); i++)
 		{
 			if (way_constraints.get_prohibitive(i))

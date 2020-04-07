@@ -862,7 +862,6 @@ bool roadsign_t::register_desc(roadsign_desc_t *desc)
 
 /**
  * Fill menu with icons of given signals/roadsings from the list
- * @author Hj. Malthaner
  */
 void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 /*sound_ok*/)
 {
@@ -931,7 +930,6 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 
 /**
  * Finds a matching roadsign
- * @author prissi
  */
 const roadsign_desc_t *roadsign_t::roadsign_search(roadsign_desc_t::types const flag, waytype_t const wt, uint16 const time)
 {

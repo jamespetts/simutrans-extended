@@ -415,7 +415,6 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 /**
  * Calculates preview from height map
  * @param filename name of heightfield file
- * @author Hajo/prissi
  */
 bool welt_gui_t::update_from_heightfield(const char *filename)
 {
@@ -474,7 +473,6 @@ void welt_gui_t::update_densities()
 
 /**
  * Calculate the new Map-Preview. Initialize the new RNG!
- * @author Hj. Malthaner
  */
 void welt_gui_t::update_preview(bool load_heightfield)
 {
@@ -520,7 +518,6 @@ void welt_gui_t::resize_preview()
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 {

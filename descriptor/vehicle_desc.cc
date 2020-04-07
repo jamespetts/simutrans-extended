@@ -50,7 +50,6 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 }
 
 // Get running costs. Running costs increased if the vehicle is obsolete.
-// @author: jamespetts
 uint16 vehicle_desc_t::get_running_cost(const karte_t* welt) const
 {
 	return calc_running_cost(welt, get_running_cost());
@@ -130,7 +129,6 @@ float32e8_t vehicle_desc_t::get_power_force_ratio() const
 
 /**
  * calculate unloaded values after loading.
- * @author Bernd Gabriel, Dec 12, 2009
  */
 void vehicle_desc_t::loaded()
 {
@@ -198,7 +196,6 @@ void vehicle_desc_t::loaded()
 
 /**
  * Get effective force in N at given speed in m/s: effective_force_index *welt->get_settings().get_global_power_factor() / GEAR_FACTOR
- * @author Bernd Gabriel, Dec 14, 2009
  */
 uint32 vehicle_desc_t::get_effective_force_index(sint32 speed /* in m/s */ ) const
 {
@@ -213,7 +210,6 @@ uint32 vehicle_desc_t::get_effective_force_index(sint32 speed /* in m/s */ ) con
 
 /**
  * Get effective power in W at given speed in m/s: effective_power_index *welt->get_settings().get_global_power_factor() / GEAR_FACTOR
- * @author Bernd Gabriel, Dec 14, 2009
  */
 uint32 vehicle_desc_t::get_effective_power_index(sint32 speed /* in m/s */ ) const
 {

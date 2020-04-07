@@ -13,7 +13,6 @@
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool curiositylist_frame_t::sortreverse = false;
 
@@ -23,7 +22,6 @@ bool curiositylist_frame_t::sortreverse = false;
  *         1 = Station name
  *         2 = Waiting goods
  *         3 = Station type
- * @author Markus Weber
  */
 curiositylist::sort_mode_t curiositylist_frame_t::sortby = curiositylist::by_name;
 
@@ -85,7 +83,6 @@ curiositylist_frame_t::curiositylist_frame_t() :
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber/Volker Meyer
  */
 bool curiositylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -109,8 +106,6 @@ bool curiositylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void curiositylist_frame_t::resize(const scr_coord delta)
 {
@@ -124,7 +119,6 @@ void curiositylist_frame_t::resize(const scr_coord delta)
 
 /**
 * This function refreshes the station-list
-* @author Markus Weber/Volker Meyer
 */
 void curiositylist_frame_t::display_list()
 {

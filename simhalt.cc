@@ -264,7 +264,6 @@ koord3d haltestelle_t::get_basis_pos3d() const
 
 /**
  * Station factory method. Returns handles instead of pointers.
- * @author Hj. Malthaner
  */
 halthandle_t haltestelle_t::create(koord pos, player_t *player)
 {
@@ -275,7 +274,6 @@ halthandle_t haltestelle_t::create(koord pos, player_t *player)
 
 /*
  * removes a ground tile from a station
- * @author prissi
  */
 bool haltestelle_t::remove(player_t *player, koord3d pos)
 {
@@ -347,7 +345,6 @@ DBG_DEBUG("haltestelle_t::remove()","not last");
 
 /**
  * Station factory method. Returns handles instead of pointers.
- * @author Hj. Malthaner
  */
 halthandle_t haltestelle_t::create(loadsave_t *file)
 {
@@ -358,7 +355,6 @@ halthandle_t haltestelle_t::create(loadsave_t *file)
 
 /**
  * Station destruction method.
- * @author Hj. Malthaner
  */
 void haltestelle_t::destroy(halthandle_t const halt)
 {
@@ -373,7 +369,6 @@ void haltestelle_t::destroy(halthandle_t const halt)
  * Station destruction method.
  * Da destroy() alle_haltestellen modifiziert kann kein Iterator benutzt
  * werden! V. Meyer
- * @author Hj. Malthaner
  */
 void haltestelle_t::destroy_all()
 {
@@ -436,7 +431,6 @@ haltestelle_t::haltestelle_t(loadsave_t* file)
 
 	enables = NOT_ENABLED;
 
-	// @author hsiegeln
 	sortierung = freight_list_sorter_t::by_name;
 	resort_freight_info = true;
 
@@ -784,7 +778,6 @@ const char* haltestelle_t::get_name() const
 
 /**
  * Sets the name. Creates a copy of name.
- * @author Hj. Malthaner
  */
 void haltestelle_t::set_name(const char *new_name)
 {
@@ -1434,7 +1427,6 @@ void haltestelle_t::step()
 
 /**
  * Called every month
- * @author Hj. Malthaner
  */
 void haltestelle_t::new_month()
 {
@@ -2256,7 +2248,6 @@ uint32 haltestelle_t::find_route(ware_t &ware, const uint32 previous_journey_tim
 
 /**
  * Found route and station uncrowded
- * @author Hj. Malthaner
  * As of Simutrans-Extended 7.2,
  * this method is called instead when
  * passengers *arrive* at their destination.
@@ -2273,7 +2264,6 @@ void haltestelle_t::add_pax_happy(int n)
 
 /**
  * Station crowded
- * @author Hj. Malthaner
  */
 void haltestelle_t::add_pax_unhappy(int n)
 {
@@ -2286,7 +2276,6 @@ void haltestelle_t::add_pax_unhappy(int n)
 }
 
 // Found a route, but too slow.
-// @author: jamespetts
 
 void haltestelle_t::add_pax_too_slow(int n)
 {
@@ -2302,7 +2291,6 @@ void haltestelle_t::add_pax_too_waiting(int n)
 
 /**
  * Found no route
- * @author Hj. Malthaner
  */
 void haltestelle_t::add_pax_no_route(int n)
 {
@@ -2718,7 +2706,6 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 
 /**
  * It will calculate number of free seats in all other (not cnv) convoys at stop
- * @author Inkelyad, adapted from fetch_goods
  */
 void haltestelle_t::update_alternative_seats(convoihandle_t cnv)
 {
@@ -2824,7 +2811,6 @@ uint32 haltestelle_t::get_ware_fuer_zielpos(const goods_desc_t *wtyp, const koor
 // take care of all allocation necessary
 void haltestelle_t::add_ware_to_halt(ware_t ware, bool from_saved)
 {
-	// @author: jamespetts
 	if(!from_saved)
 	{
 		ware.arrival_time = welt->get_ticks();
@@ -2913,7 +2899,6 @@ sint64 haltestelle_t::calc_ready_time(ware_t ware, bool arriving_from_vehicle, k
 /* same as liefere an, but there will be no route calculated,
  * since it hase be calculated just before
  * (execption: route contains us as intermediate stop)
- * @author prissi
  */
 void haltestelle_t::starte_mit_route(ware_t ware, koord origin_pos)
 {
@@ -3212,7 +3197,6 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 /**
  * @param buf the buffer to fill
  * @return Goods description text (buf)
- * @author Hj. Malthaner
  */
 void haltestelle_t::get_freight_info(cbuffer_t & buf)
 {
@@ -3639,7 +3623,6 @@ void haltestelle_t::add_to_station_type( grund_t *gr )
  * since it iterates over all ground, this is better not done too often, because line management and station list
  * queries this information regularly; Thus, we do this, when adding new ground
  * This recalculates also the capacity from the building levels ...
- * @author Weber/prissi
  */
 void haltestelle_t::recalc_station_type()
 {
@@ -4741,7 +4724,6 @@ void haltestelle_t::init_financial_history()
 
 /**
  * Calculates a status color for status bars
- * @author Hj. Malthaner
  */
 void haltestelle_t::recalc_status()
 {
@@ -4830,7 +4812,6 @@ void haltestelle_t::recalc_status()
 
 /**
  * Draws some nice colored bars giving some status information
- * @author Hj. Malthaner
  */
 void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 {
@@ -5226,7 +5207,6 @@ bool haltestelle_t::existiert_in_welt() const
 
 
 /* return the closest square that belongs to this halt
- * @author prissi
  */
 koord haltestelle_t::get_next_pos( koord start, bool square ) const
 {
@@ -5259,7 +5239,6 @@ koord haltestelle_t::get_next_pos( koord start, bool square ) const
 
 
 /* marks a coverage area
- * @author prissi
  */
 void haltestelle_t::mark_unmark_coverage(const bool mark, const bool factories) const
 {
@@ -5274,7 +5253,6 @@ void haltestelle_t::mark_unmark_coverage(const bool mark, const bool factories) 
 
 
 /* Find a tile where this type of vehicle could stop
- * @author prissi
  */
 const grund_t *haltestelle_t::find_matching_position(const waytype_t w) const
 {
@@ -5290,7 +5268,6 @@ const grund_t *haltestelle_t::find_matching_position(const waytype_t w) const
 
 
 /* Checks whether there is an unoccupied loading bay for this kind of thing
- * @author prissi
  */
 bool haltestelle_t::find_free_position(const waytype_t w,convoihandle_t cnv,const obj_t::typ d) const
 {
@@ -5328,7 +5305,6 @@ bool haltestelle_t::find_free_position(const waytype_t w,convoihandle_t cnv,cons
 
 
 /* reserves a position (caution: rail blocks work differently!)
- * @author prissi
  */
 bool haltestelle_t::reserve_position(grund_t *gr,convoihandle_t cnv)
 {
@@ -5373,7 +5349,6 @@ bool haltestelle_t::reserve_position(grund_t *gr,convoihandle_t cnv)
 
 
 /* frees a reserved position (caution: rail blocks work differently!)
- * @author prissi
  */
 bool haltestelle_t::unreserve_position(grund_t *gr, convoihandle_t cnv)
 {
@@ -5392,7 +5367,6 @@ DBG_MESSAGE("haltestelle_t::unreserve_position()","failed for gr=%p",gr);
 
 
 /* can a convoi reserve this position?
- * @author prissi
  */
 bool haltestelle_t::is_reservable(const grund_t *gr, convoihandle_t cnv) const
 {
@@ -5424,7 +5398,6 @@ DBG_MESSAGE("haltestelle_t::reserve_position()","failed for gr=%i,%i, cnv=%d",gr
  * 1 represents that the traffic lane is empty.
  * 2 represents that the passing lane is empty.
  * 3 represents that the both lane is empty.
- * @author THLeaderH
  */
 uint8 haltestelle_t::get_empty_lane(const grund_t *gr, convoihandle_t cnv) const {
 	FOR(slist_tpl<tile_t>, const& i, tiles) {
@@ -5488,7 +5461,6 @@ void haltestelle_t::release_factory_links()
 
 /**
  * Get queue position for spacing calculation.
- * @author Inkelyad
  */
 int haltestelle_t::get_queue_pos(convoihandle_t cnv) const
 {

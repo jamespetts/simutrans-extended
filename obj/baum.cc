@@ -418,7 +418,6 @@ uint32 baum_t::get_age() const
 
 
 /* also checks for distribution values
- * @author prissi
  */
 uint16 baum_t::random_tree_for_climate_intern(climate cl)
 {

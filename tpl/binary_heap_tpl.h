@@ -8,6 +8,7 @@
 
 
 #include "../simmem.h"
+#include "../simtypes.h"
 
 
 /**
@@ -17,13 +18,7 @@
  *
  * For information about Binary Heap algorithm,
  *   see: http://www.policyalmanac.org/games/binaryHeaps.htm *
- *
- * @date September 2006
- * @author prissi
  */
-
-#include "../simtypes.h"
-
 template <class T>
 class binary_heap_tpl
 {
@@ -140,7 +135,6 @@ public:
 	/**
 	* Recycles all nodes. Doesn't delete the objects.
 	* Leaves the list empty.
-	* @author Hj. Malthaner
 	*/
 	void clear()
 	{

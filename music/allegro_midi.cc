@@ -23,7 +23,6 @@ bool dr_init_midi(void)
 
 /**
  * sets midi playback volume
- * @author Hj. Malthaner
  */
 void dr_set_midi_volume(int vol)
 {
@@ -33,7 +32,6 @@ void dr_set_midi_volume(int vol)
 
 /**
  * Loads a MIDI file
- * @author Owen Rudge, changes by Hj. Malthaner
  */
 int dr_load_midi(const char *filename)
 {
@@ -55,7 +53,6 @@ int dr_load_midi(const char *filename)
 /**
  * Plays a MIDI file
  * Key: The index of the MIDI file to be played
- * By Owen Rudge
  */
 void dr_play_midi(int key)
 {

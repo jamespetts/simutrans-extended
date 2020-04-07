@@ -74,7 +74,6 @@ bool movingobj_t::register_desc(groundobj_desc_t *desc)
 
 
 /* also checks for distribution values
- * @author prissi
  */
 const groundobj_desc_t *movingobj_t::random_movingobj_for_climate(climate cl)
 {

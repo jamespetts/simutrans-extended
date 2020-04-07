@@ -60,7 +60,6 @@ public:
 
 	/**
 	* get current stop of the schedule (schedule)
-	* @author hsiegeln
 	*/
 	uint8 get_current_stop() const { return current_stop; }
 
@@ -70,7 +69,6 @@ public:
 private:
 	/**
 	 * Fix up current_stop value, which we may have made out of range
-	 * @author neroden
 	 */
 	void make_current_stop_valid() {
 		uint8 count = entries.get_count();
@@ -86,7 +84,6 @@ public:
 	/**
 	 * set the current stop of the schedule (schedule)
 	 * if new value is bigger than stops available, the max stop will be used
-	 * @author hsiegeln
 	 */
 	void set_current_stop(uint8 new_current_stop) {
 		current_stop = new_current_stop;
@@ -121,13 +118,11 @@ public:
 	/**
 	 * Increment or decrement the given index according to the given direction.
 	 * Also switches the direction if necessary.
-	 * @author yobbobandana
 	 */
 	void increment_index(uint8 *index, bool *reversed) const;
 
 	/**
 	 * Same as increment_index(), but skips waypoints.
-	 * @author suitougreentea
 	 */
 	void increment_index_until_next_halt(player_t* player, uint8 *index, bool *reversed) const;
 
@@ -179,7 +174,6 @@ public:
 
 	/**
 	 * if the passed in schedule matches "this", then return true
-	 * @author hsiegeln
 	 */
 	bool matches(karte_t *welt, const schedule_t *schedule);
 
@@ -192,14 +186,12 @@ public:
 
 	/*
 	 * compare this schedule with another, ignoring order and exact positions and waypoints
-	 * @author prissi
 	 */
 	bool similar( const schedule_t *schedule, const player_t *player );
 
 	/**
 	 * calculates a return way for this schedule
 	 * will add elements 1 to maxi-1 in reverse order to schedule
-	 * @author hsiegeln
 	 */
 	void add_return_way();
 
@@ -215,7 +207,6 @@ public:
 	bool sscanf_schedule( const char * );
 
 	/** Checks whetehr the given stop is contained in the schedule
-	 * @author: jamespetts, September 2011
 	 */
 	bool is_contained (koord3d pos);
 
@@ -232,8 +223,6 @@ private:
 
 /**
 * Schedules with stops on tracks.
-*
-* @author Hj. Malthaner
 */
 class train_schedule_t : public schedule_t
 {
@@ -248,8 +237,7 @@ public:
 	waytype_t get_waytype() const { return track_wt; }
 };
 
-/* the schedule for monorail ...
- * @author Hj. Malthaner
+/* the schedule for monorail
  */
 class tram_schedule_t : public train_schedule_t
 {
@@ -266,8 +254,6 @@ public:
 
 /**
 * Schedules with stops on roads.
-*
-* @author Hj. Malthaner
 */
 class truck_schedule_t : public schedule_t
 {
@@ -285,8 +271,6 @@ public:
 
 /**
 * Schedules with stops on water.
-*
-* @author Hj. Malthaner
 */
 class ship_schedule_t : public schedule_t
 {
@@ -304,8 +288,6 @@ public:
 
 /**
 * Schedules for airplanes.
-*
-* @author Hj. Malthaner
 */
 class airplane_schedule_ : public schedule_t
 {
@@ -322,7 +304,6 @@ public:
 
 /**
 * Schedules with stops on mono-rails.
-* @author Hj. Malthaner
 */
 class monorail_schedule_t : public schedule_t
 {
@@ -339,7 +320,6 @@ public:
 
 /**
 * Schedules with stops on maglev tracks.
-* @author Hj. Malthaner
 */
 class maglev_schedule_t : public schedule_t
 {
@@ -356,8 +336,6 @@ public:
 
 /**
 * Schedules with stops on narrowgauge tracks.
-*
-* @author Hj. Malthaner
 */
 class narrowgauge_schedule_t : public schedule_t
 {

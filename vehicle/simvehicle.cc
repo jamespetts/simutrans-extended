@@ -173,7 +173,6 @@ void vehicle_base_t::set_overtaking_offsets( bool driving_on_the_left )
 /**
  * Checks if this vehicle must change the square upon next move
  * THIS IS ONLY THERE FOR LOADING OLD SAVES!
- * @author Hj. Malthaner
  */
 bool vehicle_base_t::is_about_to_hop( const sint8 neu_xoff, const sint8 neu_yoff ) const
 {
@@ -854,7 +853,6 @@ void vehicle_t::set_convoi(convoi_t *c)
 /**
  * Unload freight to halt
  * @return sum of unloaded goods
- * @author Hj. Malthaner
  */
 uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> & apportioned_revenues)
 {
@@ -1063,7 +1061,6 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 /**
  * Load freight from halt
  * @return true if still space for more cargo
- * @author Hj. Malthaner
  */
 bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes)
 {
@@ -1140,7 +1137,6 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 						FOR(slist_tpl<ware_t>, &tmp, fracht[i])
 						{
 							// New system: only merges if origins are alike.
-							// @author: jamespetts
 							if (ware.can_merge_with(tmp))
 							{
 								tmp.menge += ware.menge;
@@ -1247,7 +1243,6 @@ void vehicle_t::fix_class_accommodations()
 /**
  * Remove freight that no longer can reach its destination
  * e.g. because of a changed schedule
- * @author Hj. Malthaner
  */
 void vehicle_t::remove_stale_cargo()
 {
@@ -1338,7 +1333,6 @@ void vehicle_t::play_sound() const
  * Prepare vehicle for new ride.
  * Sets route_index, pos_next, steps_next.
  * If @p recalc is true this sets position and recalculates/resets movement parameters.
- * @author Hj. Malthaner
  */
 void vehicle_t::initialise_journey(uint16 start_route_index, bool recalc)
 {
@@ -1429,7 +1423,6 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	previous_direction = direction = ribi_t::none;
 	target_halt = halthandle_t();
 
-	//@author: jamespetts
 	direction_steps = 16;
 	is_overweight = false;
 	reversed = false;
@@ -1477,7 +1470,6 @@ vehicle_t::vehicle_t() :
 
 	previous_direction = direction = ribi_t::none;
 
-	//@author: jamespetts
 	direction_steps = 16;
 	is_overweight = false;
 	reversed = false;
@@ -1654,7 +1646,6 @@ void vehicle_t::leave_tile()
 
 
 /* this routine add a vehicle to a tile and will insert it in the correct sort order to prevent overlaps
- * @author prissi
  */
 void vehicle_t::enter_tile(grund_t* gr)
 {
@@ -1792,7 +1783,6 @@ void vehicle_t::hop(grund_t* gr)
 
 /* Calculates the modified speed limit of the current way,
  * taking into account the curve and weight limit.
- * @author: jamespetts/Bernd Gabriel
  */
 sint32 vehicle_t::calc_speed_limit(const weg_t *w, const weg_t *weg_previous, fixed_list_tpl<sint16, 192>* cornering_data, uint32 bridge_tiles, ribi_t::ribi current_direction, ribi_t::ribi previous_direction)
 {
@@ -1991,7 +1981,6 @@ sint32 vehicle_t::calc_speed_limit(const weg_t *w, const weg_t *weg_previous, fi
 
 /** gets the waytype specific friction on straight flat way.
  * extracted from vehicle_t::calc_drag_coefficient()
- * @author Bernd Gabriel, Nov, 05 2009
  */
 sint16 get_friction_of_waytype(waytype_t waytype)
 {
@@ -2006,8 +1995,7 @@ sint16 get_friction_of_waytype(waytype_t waytype)
 
 
 /* calculates the current friction coefficient based on the current track
- * flat, slope, (curve)...
- * @author prissi, HJ, Dwachs
+ * flat, slope, (curve)
  */
 void vehicle_t::calc_drag_coefficient(const grund_t *gr) //,const int h_alt, const int h_neu)
 {
@@ -2031,7 +2019,7 @@ void vehicle_t::calc_drag_coefficient(const grund_t *gr) //,const int h_alt, con
 	}
 
 	// or a hill?
-	// Cumulative drag for hills: @author: jamespetts
+	// Cumulative drag for hills
 	// See here for an explanation of the additional resistance
 	// from hills: https://en.wikibooks.org/wiki/Fundamentals_of_Transportation/Grade
 	const slope_t::type hang = gr->get_weg_hang();
@@ -2127,7 +2115,6 @@ const char *vehicle_t::get_cargo_mass() const
 
 /**
  * Calculate transported cargo total weight in KG
- * @author Hj. Malthaner
  */
 uint32 vehicle_t::get_cargo_weight() const
 {
@@ -2191,7 +2178,6 @@ void vehicle_t::get_cargo_info(cbuffer_t & buf) const
 
 /**
  * Delete all vehicle load
- * @author Hj. Malthaner
  */
 void vehicle_t::discard_cargo()
 {
@@ -4704,7 +4690,6 @@ int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 		costs += 125 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
 	}
 
-	//@author: jamespetts
 	// Strongly prefer routes for which the vehicle is not overweight.
 	uint32 max_axle_load = w->get_max_axle_load();
 	uint32 bridge_weight_limit = w->get_bridge_weight_limit();
@@ -5778,7 +5763,6 @@ void rail_vehicle_t::find_next_signal(route_t* route, uint16 start_index, uint16
  * if count is larger than 1, (and defined) maximum welt->get_settings().get_max_choose_route_steps() tiles will be checked
  * (freeing or reserving a choose signal path)
  * if (!reserve && force_unreserve) then un-reserve everything till the end of the route
- * @author prissi
  */
 sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16 modified_sighting_distance_tiles, uint16 &next_signal_index, int count, bool reserve, bool force_unreserve, bool is_choosing, bool is_from_token, bool is_from_starter, bool is_from_directional, uint32 brake_steps, uint16 first_one_train_staff_index, bool from_call_on, bool *break_loop)
 {
@@ -8112,7 +8096,6 @@ bool water_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 /* Since slopes are handled different for ships
- * @author prissi
  */
 void water_vehicle_t::calc_drag_coefficient(const grund_t *gr)
 {

@@ -212,7 +212,6 @@ void leitung_t::cleanup(player_t *player) //"remove".
 
 /**
  * called during map rotation
- * @author prissi
  */
 void leitung_t::rotate90()
 {
@@ -223,7 +222,6 @@ void leitung_t::rotate90()
 
 /* replace networks connection
  * non-trivial to handle transformers correctly
- * @author prissi
  */
 void leitung_t::replace(powernet_t* new_net)
 {
@@ -247,7 +245,6 @@ void leitung_t::replace(powernet_t* new_net)
 /**
  * Connect this piece of powerline to its neighbours
  * -> this can merge power networks
- * @author Hj. Malthaner
  */
 void leitung_t::verbinde()
 {
@@ -349,8 +346,6 @@ void leitung_t::calc_image()
 /**
  * Recalculates the images of all neighbouring
  * powerlines and the powerline itself
- *
- * @author Hj. Malthaner
  */
 void leitung_t::calc_neighbourhood()
 {
@@ -428,7 +423,6 @@ void leitung_t::finish_rd()
  *
  * @param file Zeigt auf die Datei, in die das Objekt geschrieben werden
  * soll.
- * @author Hj. Malthaner
  */
 void leitung_t::rdwr(loadsave_t *file)
 {

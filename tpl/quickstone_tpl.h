@@ -19,8 +19,6 @@
  * detect most of the dangling pointers.
  *
  * This templates goal is to be efficient and fairly safe.
- *
- * @author Hj. Malthaner
  */
 template <class T> class quickstone_tpl
 {
@@ -113,7 +111,6 @@ public:
 	 * quickstones invalid.
 	 *
 	 * @param n number of elements
-	 * @author Hj. Malthaner
 	 */
 	static void init(const uint16 n)
 	{
@@ -231,7 +228,6 @@ public:
 	/**
 	 * Removes the object from the tombstone table - this affects all
 	 * handles to the object!
-	 * @author Hj. Malthaner
 	 */
 	T* detach()
 	{
@@ -246,8 +242,6 @@ public:
 	 * that don't know about quickstones - but take care that such pointers
 	 * are never ever deleted or that by some means detach() is called
 	 * upon deletion, i.e. from the ~T() destructor!!!
-	 *
-	 * @author Hj. Malthaner
 	 */
 	T* get_rep() const { return data[entry]; }
 
@@ -259,7 +253,6 @@ public:
 
 	/**
 	 * For read/write from/to any storage (file or memory) with the appropriate interface
-	 * @author Knightly
 	 */
 	template <class STORAGE>
 	void rdwr(STORAGE *store)
@@ -282,8 +275,6 @@ public:
 	/**
 	 * Overloaded dereference operator. With this, quickstones can
 	 * be used as if they were pointers.
-	 *
-	 * @author Hj. Malthaner
 	 */
 	T* operator->() const { return data[entry]; }
 
@@ -305,7 +296,6 @@ public:
 	/**
 	 * For checking the consistency of handle allocation
 	 * among the server and the clients in network mode
-	 * @author Knightly
 	 */
 	static uint16 get_next_check() { return next; }
 };

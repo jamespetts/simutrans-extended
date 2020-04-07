@@ -87,7 +87,6 @@ void route_t::remove_koord_to(uint32 i)
 /**
  * Appends a straight line from the last koord3d in route to the desired target.
  * Will return false if failed
- * @author prissi
  */
 bool route_t::append_straight_route(karte_t *welt, koord3d dest )
 {
@@ -179,7 +178,6 @@ void route_t::RELEASE_NODES(uint8 nodes_index)
 }
 
 /* find the route to an unknown location
- * @author prissi
  */
 bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdriver, const uint32 max_khm, uint8 start_dir, uint32 axle_load, sint32 max_tile_len, uint32 total_weight, uint32 max_depth, bool is_tall, find_route_flags flags)
 {

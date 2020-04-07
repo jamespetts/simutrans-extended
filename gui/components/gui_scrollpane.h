@@ -18,14 +18,12 @@ class gui_scrollpane_t : public gui_component_t
 private:
 	/**
 	 * The scrolling component
-	 * @author Hj. Malthaner
 	 */
 	gui_component_t *comp;
 	scr_size old_comp_size;
 
 	/**
 	 * Scrollbar X/Y
-	 * @author Hj. Malthaner
 	 */
 	scrollbar_t scroll_x, scroll_y;
 
@@ -38,19 +36,16 @@ private:
 public:
 	/**
 	 * @param comp, the scrolling component
-	 * @author Hj. Malthaner
 	 */
 	gui_scrollpane_t(gui_component_t *comp);
 
 	/**
 	 * This method MUST be used to set the size of scrollpanes.
-	 * @author Hj. Malthaner
 	 */
 	void set_size(scr_size size) OVERRIDE;
 
 	/**
 	 * Set the position of the Scrollbars
-	 * @author Hj. Malthaner
 	 */
 	void set_scroll_position(int x, int y);
 
@@ -69,7 +64,6 @@ public:
 
 	/**
 	 * Draw the component
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord offset);
 
@@ -83,7 +77,6 @@ public:
 
 	/**
 	 * Returns true if the hosted component is focusable
-	 * @author Knightly
 	 */
 	virtual bool is_focusable() { return comp->is_focusable(); }
 
@@ -95,7 +88,6 @@ public:
 	/**
 	 * Get the relative position of the focused component.
 	 * Used for auto-scrolling inside a scroll pane.
-	 * @author Knightly
 	 */
 	virtual scr_coord get_focus_pos() { return pos + ( comp->get_focus_pos() - scr_coord( scroll_x.get_knob_offset(), scroll_y.get_knob_offset() ) ); }
 };

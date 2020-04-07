@@ -75,8 +75,6 @@ scenario_info_t::scenario_info_t() :
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void scenario_info_t::resize(const scr_coord delta)
 {

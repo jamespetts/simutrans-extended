@@ -333,7 +333,6 @@ void depot_t::sell_vehicle(vehicle_t* veh)
 
 
 // returns the indest of the old/newest vehicle in a list
-//@author: isidoro
 vehicle_t* depot_t::find_oldest_newest(const vehicle_desc_t* desc, bool old, vector_tpl<vehicle_t*> *avoid)
 {
 	vehicle_t* found_veh = NULL;
@@ -738,7 +737,6 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 
 /**
  * @return NULL when OK, otherwise an error message
- * @author Hj. Malthaner
  */
 const char * depot_t:: is_deletable(const player_t *player)
 {
@@ -801,8 +799,6 @@ void depot_t::update_win()
 /**
  * The player must pay monthly fixed maintenance costs for the vehicles in the depot.
  * This method is called by the world (karte_t) once per month.
- * @author Bernd Gabriel
- * @date 27.06.2009
  */
 void depot_t::new_month()
 {

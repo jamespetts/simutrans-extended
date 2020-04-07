@@ -95,7 +95,6 @@ int sound_get_midi_volume()
 
 /**
  * gets midi title
- * @author Hj. Malthaner
  */
 const char *sound_get_midi_title(int index)
 {
@@ -110,7 +109,6 @@ const char *sound_get_midi_title(int index)
 
 /**
  * gets current midi number
- * @author Hj. Malthaner
  */
 int get_current_midi()
 {
@@ -260,7 +258,6 @@ void check_midi()
 
 /**
  * shuts down midi playing
- * @author Owen Rudge
  */
 void close_midi()
 {

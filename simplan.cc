@@ -205,7 +205,6 @@ void planquadrat_t::kartenboden_setzen(grund_t *bd)
 
 /**
  * replaces the map solid ground (or water) and deletes the old one
- * @author Hansjörg Malthaner
  */
 void planquadrat_t::boden_ersetzen(grund_t *alt, grund_t *neu)
 {
@@ -763,9 +762,8 @@ void planquadrat_t::halt_list_insert_at(halthandle_t halt, uint8 pos, uint8 dist
 }
 
 
-/* The following functions takes at least 9 bytes of memory per tile but speed up passenger generation *
- * @author prissi
- * Modified: jamespetts, May 2013
+/*
+ * The following functions takes at least 9 bytes of memory per tile but speed up passenger generation *
  */
 void planquadrat_t::add_to_haltlist(halthandle_t halt)
 {
@@ -800,7 +798,6 @@ void planquadrat_t::add_to_haltlist(halthandle_t halt)
 /**
  * removes the halt from a ground
  * however this function check, whether there is really no other part still reachable
- * @author prissi, neroden
  */
 void planquadrat_t::remove_from_haltlist(halthandle_t halt)
 {
@@ -840,7 +837,6 @@ void planquadrat_t::remove_from_haltlist(halthandle_t halt)
 
 /**
  * true, if this halt is reachable from here
- * @author prissi
  */
 uint8 planquadrat_t::get_connected(halthandle_t halt) const
 {

@@ -19,7 +19,6 @@ static char tooltip[64];
 
 /**
  * Set background color. -1 means no background
- * @author Hj. Malthaner
  */
 void gui_chart_t::set_background(int i)
 {
@@ -347,7 +346,6 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, float *scale, char *cm
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_chart_t::infowin_event(const event_t *ev)
 {

@@ -561,7 +561,6 @@ void map_frame_t::zoom(bool magnify)
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool map_frame_t::infowin_event(const event_t *ev)
 {
@@ -683,8 +682,6 @@ bool map_frame_t::infowin_event(const event_t *ev)
 
 /**
  * size window in response and save it in static size
- * @author (Mathew Hounsell)
- * @date   11-Mar-2003
  */
 void map_frame_t::set_windowsize(scr_size size)
 {
@@ -696,10 +693,7 @@ void map_frame_t::set_windowsize(scr_size size)
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   01-Jun-2002
  */
-
 void map_frame_t::resize(const scr_coord delta)
 {
 	scr_coord_val offset_y = filter_container.get_pos().y;
@@ -774,7 +768,6 @@ void map_frame_t::resize(const scr_coord delta)
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void map_frame_t::draw(scr_coord pos, scr_size size)
 {

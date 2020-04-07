@@ -80,7 +80,6 @@ static vehicle_desc_t::engine_t get_engine_type(char const* const engine_type)
  * to observe these rules will result in data
  * corruption and errors when the pak file is read
  * by the main program.
- * @author of note: jamespetts
  */
 void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 {
@@ -735,7 +734,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 	// Upgrades: these are the vehicle types to which this vehicle
 	// can be upgraded. "None" means that it cannot be upgraded.
-	// @author: jamespetts
 	uint8 upgrades = 0;
 	do
 	{
@@ -830,8 +828,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(uint8);
 
 	// Whether this is a tilting train
-	// int
-	//@author: jamespetts
 	uint8 tilting = (obj.get_int("is_tilting", 0));
 	node.write_uint8(fp, tilting, pos);
 	pos += sizeof(uint8);
@@ -844,7 +840,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// without that constraint also allowed on the way.
 	// Prohibitive: way allows only vehicles with matching constraint:
 	// vehicles with matching constraint allowed on other sorts of way.
-	// @author: jamespetts
 
 	uint8 permissive_way_constraints = 0;
 	uint8 prohibitive_way_constraints = 0;
@@ -876,13 +871,11 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Catering level. 0 = no catering.
 	// Higher numbers, better catering.
 	// Catering boosts passenger revenue.
-	// @author: jamespetts
 	uint8 catering_level = (obj.get_int("catering_level", 0));
 	node.write_uint8(fp, catering_level, pos);
 	pos += sizeof(uint8);
 
 	//Reverseing settings.
-	//@author: jamespetts
 
 	// Bidirectional: vehicle can travel backwards without turning around.
 	// Function is disabled for road and air vehicles.
@@ -896,7 +889,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 	// Passenger comfort rating - affects revenue on longer journies.
 	// Now segregated by class of passenger.
-	//@author: jamespetts
 	uint32 current_class_comfort;
 	uint8 last_comfort = 100;
 	for (uint32 i = 0; i < number_of_classes; i++)
@@ -939,7 +931,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// as it is not necessary to have different classes of, in effect, standing
 	// passengers.
 
-	//@author: jamespetts
 	uint16 overcrowded_capacity = (obj.get_int("overcrowded_capacity", 0));
 	node.write_uint16(fp, overcrowded_capacity, pos);
 	pos += sizeof(uint16);
@@ -948,7 +939,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// the dwell time). The default is 2,000 because that is the value used in
 	// Simutrans-Standard. This is the old system, and is superceded by a min/max
 	// loading time now.
-	//@author: jamespetts
 
 	uint16 default_loading_time;
 
@@ -982,14 +972,12 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	 * times are now (10.0 and higher)
 	 * stored as seconds, and converted to
 	 * ticks when set_scale() is called.
-	 * @author: jamespetts
 	 */
 	uint16 loading_time = (obj.get_int("loading_time", default_loading_time));
 	node.write_uint16(fp, loading_time, pos);
 	pos += sizeof(uint16);
 
 	// Upgrading settings
-	//@author: jamespetts
 	node.write_sint8(fp, upgrades, pos);
 	pos += sizeof(sint8);
 
@@ -1007,7 +995,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(uint8);
 
 	// Fixed monthly maintenance costs
-	// @author: jamespetts
 	// (The original Extended name was "fixed_maintenance".
 	// The new Standard name is "fixed_cost". It is necessary
 	// to accommodate both.)
@@ -1017,13 +1004,11 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(uint32);
 
 	// Tractive effort
-	// @author: jamespetts
 	uint16 tractive_effort = obj.get_int("tractive_effort", 0);
 	node.write_uint16(fp, tractive_effort, pos);
 	pos += sizeof(uint16);
 
 	// Air resistance
-	// @author: jamespetts & Bernd Gabriel
 	uint16 air_default = vehicle_desc_t::get_air_default(waytype);
 
 	uint16 air_resistance_hundreds = obj.get_int("air_resistance", air_default);
@@ -1035,7 +1020,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(uint8);
 
 	// Obsolescence. Zeros indicate that simuconf.tab values should be used.
-	// @author: jamespetts
 	uint16 increase_maintenance_after_years = obj.get_int("increase_maintenance_after_years", 0);
 	node.write_uint16(fp, increase_maintenance_after_years, pos);
 	pos += sizeof(uint16);
@@ -1062,7 +1046,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	 * has not been set manually, and reverts to the
 	 * default loading_time. This retains backwards
 	 * compatibility with previous versions of paksets.
-	 * @author: jamespetts, August 2011
 	 */
 	uint16 min_loading_time = obj.get_int("min_loading_time", 65535);
 	node.write_uint16(fp, min_loading_time, pos);

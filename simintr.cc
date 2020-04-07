@@ -126,7 +126,6 @@ void intr_set(karte_t *welt, main_view_t *view)
 
 /**
  * currently only used by the pause tool. Use with care!
- * @author Hj. Malthaner
  */
 void intr_set_last_time(long time)
 {
@@ -195,8 +194,6 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 	if(  show_full  ||  env_t::show_month == env_t::DATE_FMT_SEASON  ) {
 
 		//DBG_MESSAGE("env_t::show_month","%d",env_t::show_month);
-		// @author hsiegeln - updated to show month
-		// @author prissi - also show date if desired
 		// since seasons 0 is always summer for backward compatibility
 		char const* const date = translator::get_date(year, month, tage, translator::translate(seasons[welt_modell->get_season()]));
 		switch(env_t::show_month) {

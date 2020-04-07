@@ -20,8 +20,6 @@ class goods_desc_t;
 
 /*
  * Displays a filter settings dialog for the convoi list
- *
- * @author V. Meyer
  */
 class convoi_filter_frame_t : public gui_frame_t , private action_listener_t
 {
@@ -121,7 +119,6 @@ public:
 
 	/**
 	 * Constructor. Generates all necessary Subcomponents.
-	 * @author V. Meyer
 	 */
 	convoi_filter_frame_t(player_t *player, convoi_frame_t *parent, uint32 initial_filters );
 
@@ -139,7 +136,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
 	 */
 	const char *get_help_filename() const {return "convoi_filter.txt"; }
 

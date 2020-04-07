@@ -15,7 +15,6 @@
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool citylist_frame_t::sortreverse = false;
 
@@ -25,7 +24,6 @@ bool citylist_frame_t::sortreverse = false;
  *         1 = Station name
  *         2 = Waiting goods
  *         3 = Station type
- * @author Markus Weber
  */
 citylist::sort_mode_t citylist_frame_t::sortby = citylist::by_name;
 

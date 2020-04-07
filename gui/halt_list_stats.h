@@ -11,9 +11,6 @@
 #include "../halthandle_t.h"
 
 
-/**
- * @author Hj. Malthaner
- */
 class halt_list_stats_t : public gui_world_component_t
 {
 private:

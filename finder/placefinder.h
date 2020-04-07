@@ -28,8 +28,6 @@ class pos_list_t {
 public:
 	/**
 	* @param max_xy (Maximum value for x and y position)
-	*
-	* @author V. Meyer
 	*/
 	pos_list_t(sint16 max_xy);
 	virtual ~pos_list_t();

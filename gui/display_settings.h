@@ -19,7 +19,6 @@
 
 /**
  * Display settings dialog
- * @author Hj. Malthaner
  */
 class color_gui_t : public gui_frame_t, private action_listener_t
 {
@@ -71,7 +70,6 @@ public:
 	/**
 	 * Some windows have associated help text.
 	 * @return The help file name or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char * get_help_filename() const { return "display.txt"; }
 

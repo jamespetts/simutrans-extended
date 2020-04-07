@@ -980,7 +980,6 @@ fabrik_t::~fabrik_t()
 		}
 
 		// Disconnect this factory from all chains.
-		// @author: jamespetts
 		uint32 number_of_customers = lieferziele.get_count();
 		uint32 number_of_suppliers = suppliers.get_count();
 		const weighted_vector_tpl<stadt_t*>& staedte = welt->get_cities();
@@ -1121,7 +1120,6 @@ void fabrik_t::build(sint32 rotate, bool build_fields, bool force_initial_prodba
 
 
 /* field generation code
- * @author Kieron Green
  */
 bool fabrik_t::add_random_field(uint16 probability)
 {
@@ -1691,7 +1689,6 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 /**
  * let the chimney smoke, if there is something to produce
- * @author Hj. Malthaner
  */
 void fabrik_t::smoke() const
 {
@@ -2319,7 +2316,6 @@ public:
 
 /**
  * distribute stuff to all best destination
- * @author Hj. Malthaner
  */
 void fabrik_t::verteile_waren(const uint32 product)
 {
@@ -2677,7 +2673,6 @@ void fabrik_t::new_month()
 
 	// Check to see whether factory is obsolete.
 	// If it is, give it a distribution_weight of being closed down.
-	// @author: jamespetts
 
 	if(welt->use_timeline() && desc->get_building()->get_retire_year_month() < welt->get_timeline_year_month())
 	{
@@ -3167,7 +3162,7 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 	if (building)
 	{
 		buf.append("\n");
-                buf.printf("%s: %s\n", translator::translate("Built in"), 
+                buf.printf("%s: %s\n", translator::translate("Built in"),
                            translator::get_year_month(((building->get_purchase_time() / welt->ticks_per_world_month)+welt->get_settings().get_starting_month())+
                                                       welt->get_settings().get_starting_year()*12));
 		buf.printf("%s: %d\n", translator::translate("Visitor demand"), building->get_adjusted_visitor_demand());
@@ -3309,7 +3304,6 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 /**
  * Recalculate the nearby_freight_halts and nearby_passenger_halts lists.
  * This is a subroutine in order to avoid code duplication.
- * @author neroden
  */
 void fabrik_t::recalc_nearby_halts()
 {

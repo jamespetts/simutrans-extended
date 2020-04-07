@@ -44,7 +44,6 @@ void goods_stats_t::update_goodslist( uint16 *g, uint32 b, int l, uint32 d, uint
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void goods_stats_t::draw(scr_coord offset)
 {

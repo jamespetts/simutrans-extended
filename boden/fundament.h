@@ -12,15 +12,12 @@
 
 /**
  * The foundation serves as base ground for all buildings in Simutrans.
- *
- * @author Hj. Malthaner
  */
 class fundament_t : public grund_t
 {
 protected:
 	/**
 	* Das Fundament hat immer das gleiche Bild.
-	* @author Hj. Malthaner
 	*/
 	void calc_image_internal(const bool calc_only_snowline_change);
 
@@ -31,7 +28,6 @@ public:
 	/**
 	* The foundation is called 'Fundament'.
 	* @return 'Fundament'.
-	* @author Hj. Malthaner
 	*/
 	const char *get_name() const {return "Fundament";}
 

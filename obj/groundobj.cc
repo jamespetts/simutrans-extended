@@ -70,7 +70,6 @@ bool groundobj_t::register_desc(groundobj_desc_t *desc)
 
 
 /* also checks for distribution values
- * @author prissi
  */
 const groundobj_desc_t *groundobj_t::random_groundobj_for_climate(climate_bits cl, slope_t::type slope  )
 {

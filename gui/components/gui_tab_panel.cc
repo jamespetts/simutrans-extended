@@ -5,7 +5,6 @@
 
 /*
  * A class for distribution of tabs through the gui_component_t component.
- * @author Hj. Malthaner
  */
 
 #include "gui_tab_panel.h"

@@ -31,8 +31,6 @@
 
 /**
  * SAVE GAME FRAME CONSTRUCTOR
- * @author Hj. Malthaner
- * @author Max Kielland
  *
  * @param suffix            Optional file pattern to populate the file list.
  *                          Example ".sve" or "sve"
@@ -129,7 +127,6 @@ void savegame_frame_t::init(const char *suffix, const char *path)
 /**
  * SAVE GAME FRAME DESTRUCTOR
  * Free all list items.
- * @author Hj. Malthaner
  */
 savegame_frame_t::~savegame_frame_t()
 {
@@ -291,8 +288,6 @@ void savegame_frame_t::fill_list( void )
  * On return resize() is called and all item's GYU members are positioned and resized.
  * Therefore it is no use to set the button's and label's width or any items y position.
  * The only control keeping its size is the delete button.
- * @author Unknown
- * @author Max Kielland
  */
 void savegame_frame_t::list_filled( void )
 {
@@ -494,8 +489,6 @@ bool savegame_frame_t::check_file(const char *filename, const char *suffix)
  * Click event handler and dispatcher. This function is called
  * every time a button is clicked and the corresponding handler
  * is called from here.
- * @author Hj. Malthaner
- * @author Max Kielland
  *
  * @param component  The component that was clicked.
  *
@@ -633,7 +626,6 @@ bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t
  * item from the storage media. If the system supports a
  * trash bin, the file is moved over there instead of being deleted.
  * A shift + Delete always deletes the file imediatly
- * @author Hansjörg Malthaner
  *
  * @param fullpath  Full path to the file being deleted.
  *
@@ -669,9 +661,6 @@ bool savegame_frame_t::del_action(const char * fullpath)
  * occupies BUTTON_COL_PERCENT % of the space.
  * If the delete button is hidden, the button and label shares the full width
  * and if the label is hidden the button occpies the 100% of the shared space.
- * @author Hj. Malthaner
- * @author Mathew Hounsell
- * @author Max Kielland
  *
  * @param size  The new dialogue size.
  */

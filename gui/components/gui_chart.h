@@ -17,14 +17,12 @@
 
 /**
  * Draws a group of curves.
- * @author Hendrik Siegeln
  */
 class gui_chart_t : public gui_component_t
 {
 public:
 	/**
 	 * Set background color. -1 means no background
-	 * @author Hj. Malthaner
 	 */
 	void set_background(int color);
 
@@ -32,7 +30,6 @@ public:
 
 	/*
 	 * paint chart
-	 * @author hsiegeln
 	 */
 	void draw(scr_coord offset);
 
@@ -40,7 +37,6 @@ public:
 
 	/*
 	 * set dimension
-	 * @author hsiegeln
 	 */
 	void set_dimension(int x, int y) {
 		x_elements = x;
@@ -49,7 +45,6 @@ public:
 
 	/**
 	 * Pointer to function which converts supplied values before use
-	 * @author Knightly
 	 */
 	typedef sint64 (*convert_proc) (const sint64);
 
@@ -62,7 +57,6 @@ public:
 	 * @param elements elements in values
 	 * @param proc     conversion procedure to be applied to supplied values
 	 * @returns curve's id
-	 * @author hsiegeln
 	 */
 	int add_curve(int color, const sint64 *values, int size, int offset, int elements, int type, bool show, bool show_value, int precision, convert_proc proc=NULL);
 
@@ -84,7 +78,6 @@ public:
 
 	/**
 	 * Show/hide a line of the set
-	 * @author Knightly
 	 */
 	void show_line(uint32 id);
 	void hide_line(uint32 id);
@@ -92,7 +85,6 @@ public:
 	/*
 	 * set starting value for x-axis of chart
 	 * example: set_seed(1930) will make a graph starting in year 1930; use set_seed(-1) to display nothing
-	 * @author hsiegeln
 	 */
 	void set_seed(int seed) { this->seed = seed; }
 
@@ -110,7 +102,6 @@ private:
 
 	/*
 	 * curve struct
-	 * @author hsiegeln
 	 */
 	struct curve_t {
 		int color;
@@ -127,7 +118,6 @@ private:
 
 	/**
 	 * line struct
-	 * @author Knightly
 	 */
 	struct line_t {
 		int color;
@@ -152,7 +142,6 @@ private:
 
 	/**
 	 * Background color, -1 for transparent background
-	 * @author Hj. Malthaner
 	 */
 	int background;
 };

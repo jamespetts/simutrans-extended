@@ -29,7 +29,6 @@ private:
 
 	/**
 	* Buffer for freight info text string.
-	* @author Hj. Malthaner
 	*/
 	cbuffer_t freight_info;
 	cbuffer_t info_buf, joined_buf, tooltip_buf;
@@ -42,7 +41,7 @@ private:
 	gui_label_t sort_label;
 	location_view_t view;
 	button_t button;
-	// button_t sort_button;     // @author hsiegeln
+
 	button_t filterButtons[MAX_HALT_COST];
 	button_t toggler, toggler_departures;
 	sint16 chart_total_size;
@@ -91,7 +90,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char * get_help_filename() const {return "station.txt";}
 
@@ -99,13 +97,11 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 
 	/**
 	 * Set window size and adjust component sizes and/or positions accordingly
-	 * @author Hj. Malthaner
 	 */
 	virtual void set_windowsize(scr_size size);
 

@@ -15,8 +15,6 @@ class fabrik_t;
 
 /**
  * Cars are able to drive on roads.
- *
- * @author Hj. Malthaner
  */
 class strasse_t : public weg_t
 {
@@ -25,13 +23,11 @@ public:
 
 private:
 	/**
-	* @author THLeaderH
 	*/
 	overtaking_mode_t overtaking_mode;
 
 	/**
 	* Mask used by oneway_mode road
-	* @author THLeaderH
 	*/
 	uint8 ribi_mask_oneway:4;
 
@@ -58,7 +54,6 @@ public:
 	* loading_only_mode = overtaking a loading convoy only
 	* prohibited_mode = overtaking is completely forbidden
 	* inverted_mode = vehicles can go only on passing lane
-	* @author teamhimeH
 	*/
 	overtaking_mode_t get_overtaking_mode() const { return overtaking_mode; };
 	void set_overtaking_mode(overtaking_mode_t o) { overtaking_mode = o; };

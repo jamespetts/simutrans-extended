@@ -20,9 +20,6 @@
  *
  * It hold pointers to objects of the common base class item_t and any classes derived from item_t.
  * It may be the owner of these objects, which causes, that the objects are deleted, when they are removed from the list.
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
  */
 template<class item_t> class list_tpl {
 

@@ -18,7 +18,6 @@ namespace labellist {
 
 /**
  * Curiosity list stats display
- * @author Hj. Malthaner
  */
 class labellist_stats_t : public gui_world_component_t
 {
@@ -44,7 +43,6 @@ public:
 
 	/**
 	* Draw the component
-	* @author Hj. Malthaner
 	*/
 	void draw(scr_coord offset);
 };

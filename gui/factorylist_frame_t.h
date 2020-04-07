@@ -16,7 +16,6 @@
 
 /*
  * Factory list window
- * @author Hj. Malthaner
  */
 class factorylist_frame_t : public gui_frame_t, private action_listener_t
 {
@@ -43,14 +42,12 @@ public:
 
 	/**
 	 * resize window in response to a resize event
-	 * @author Hj. Malthaner
 	 */
 	void resize(const scr_coord delta);
 
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
 	 */
 	const char * get_help_filename() const {return "factorylist_filter.txt"; }
 

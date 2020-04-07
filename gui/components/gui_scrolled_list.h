@@ -23,7 +23,6 @@
  * two possible types:
  * -list.      simply lists some items.
  * -selection. is a list, but additionally, one item can be selected.
- * @author Niels Roest, additions by Hj. Malthaner
  */
 class gui_scrolled_list_t :
 	public gui_action_creator_t,
@@ -92,7 +91,6 @@ private:
 
 	/**
 	 * color of selected entry
-	 * @author Hj. Malthaner
 	 */
 	int highlight_color;
 
@@ -109,7 +107,6 @@ public:
 
 	/**
 	* Sets the color of selected entry
-	* @author Hj. Malthaner
 	*/
 	void set_highlight_color(int c) { highlight_color = c; }
 

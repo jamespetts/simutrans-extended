@@ -98,7 +98,6 @@ private:
 	sint32 map_number;
 
 	/* new setting since version 0.85.01
-	 * @author prissi
 	 */
 	sint32 factory_count;
 	sint32 electric_promille;
@@ -204,8 +203,6 @@ private:
 
 	/**
 	* Generate random pedestrians in the cities?
-	*
-	* @author Hj. Malthaner
 	*/
 	bool random_pedestrians;
 
@@ -231,8 +228,6 @@ private:
 
 	/**
 	 * Use numbering for stations?
-	 *
-	 * @author Hj. Malthaner
 	 */
 	bool numbered_stations;
 
@@ -264,7 +259,6 @@ private:
 	vector_with_ptr_ownership_tpl<class livery_scheme_t> livery_schemes;
 
 	// Whether passengers might walk between stops en route.
-	// @author: jamespetts, August 2011
 	bool allow_routing_on_foot;
 
 	/**
@@ -272,7 +266,6 @@ private:
 	 * for using roads owned by the public
 	 * service player. Other way types are
 	 * not affected.
-	 * @author: jamespetts, October 2011
 	 */
 	bool toll_free_public_roads;
 
@@ -337,7 +330,6 @@ private:
 
 public:
 	//Cornering settings
-	//@author: jamespetts
 
 	//The array index corresponds
 	//to the waytype index.
@@ -356,7 +348,6 @@ public:
 
 	// The longest time that a passenger is
 	// prepared to wait for transport.
-	// @author: jamespetts
 	uint32 passenger_max_wait;
 
 	uint8 max_rerouting_interval_months;
@@ -423,7 +414,6 @@ private:
 	sint64 job_replenishment_ticks;
 
 public:
-	// @author: neroden
 	// Linear interpolation tables for various things
 	// First argument is "in" type, second is "out" type
 	// Third argument is intermediate computation type
@@ -437,7 +427,6 @@ public:
 	// The comfort derating table (tenths of minutes to percentage)
 	piecewise_linear_tpl<uint16, uint8> comfort_derating;
 
-	// @author: neroden
 	// Tables 0 through 5 for catering revenue.
 	// One for each level -- so there are 6 of them total.
 	// Dontcha hate C array declaration style?
@@ -446,18 +435,14 @@ public:
 	// Single table for TPO revenues.
 	piecewise_linear_tpl<uint16, sint64> tpo_revenues;
 
-
-	//@author: jamespetts
 	// Obsolete vehicle maintenance cost increases
 	uint16 obsolete_running_cost_increase_percent;
 	uint16 obsolete_running_cost_increase_phase_years;
 
-	// @author: jamespetts
 	// Private car settings
 	uint8 always_prefer_car_percent;
 	uint8 congestion_density_factor;
 
-	//@author: jamespetts
 	// Passenger routing settings
 	uint8 passenger_routing_packet_size;
 
@@ -473,18 +458,15 @@ public:
 	uint32 min_alternative_destinations_per_visitor_demand_millionths;
 	uint32 min_alternative_destinations_per_job_millionths;
 
-	//@author: jamespetts
 	// Factory retirement settings
 	uint16 factory_max_years_obsolete;
 
-	//@author: jamespetts
 	// Insolvency and debt settings
 	uint8 interest_rate_percent;
 	bool allow_bankruptcy;
 	bool allow_purchases_when_insolvent;
 
 	// Reversing settings
-	//@author: jamespetts
 	uint32 unit_reverse_time;
 	uint32 hauled_reverse_time;
 	uint32 turntable_reverse_time;
@@ -495,12 +477,10 @@ public:
 	uint16 turntable_reverse_time_seconds;
 	uint16 road_reverse_time_seconds;
 
-	//@author: jamespetts
 	uint16 global_power_factor_percent;
 	uint16 global_force_factor_percent;
 
 	// Whether and how weight limits are enforced
-	// @author: jamespetts
 	uint8 enforce_weight_limits;
 
 	bool allow_airports_without_control_towers;
@@ -511,7 +491,6 @@ public:
 	 * Waiting times are higher at airports because of
 	 * the need to check-in, undergo security checks,
 	 * etc.
-	 * @author: jamespetts, August 2011
 	 */
 	uint16 min_wait_airport;
 
@@ -523,7 +502,6 @@ private:
 public:
 
 	// The ranges for the journey time tolerance for passengers.
-	// @author: jamespetts
 	uint32 range_commuting_tolerance;
 	uint32 min_commuting_tolerance;
 	uint32 min_visiting_tolerance;
@@ -639,7 +617,6 @@ public:
 
 	// The factor percentage of power revenue
 	// default: 100
-	// @author: Phystam
 	uint32 power_revenue_factor_percentage;
 
 	// how fast new AI will built something
@@ -722,7 +699,6 @@ public:
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
 	 * Set to empty string in order to avoid loading.
-	 * @author Hj. Malthaner
 	 */
 	std::string heightfield;
 
@@ -994,7 +970,6 @@ public:
 	void set_with_private_paks(bool b ) {with_private_paks = b;}
 	bool get_with_private_paks() const { return with_private_paks; }
 
-	// @author: jamespetts
 	uint32 get_min_visiting_tolerance() const { return min_visiting_tolerance; }
 	void set_min_visiting_tolerance(uint16 value) { min_visiting_tolerance = value; }
 	uint32 get_range_commuting_tolerance() const { return range_commuting_tolerance; }

@@ -120,7 +120,6 @@ void dr_flush();	// copy to screen (eventually multithreaded)
 /**
  * Transform a 24 bit RGB color into the system format.
  * @return converted color value
- * @author Hj. Malthaner
  */
 unsigned int get_system_color(unsigned int r, unsigned int g, unsigned int b);
 
@@ -148,7 +147,6 @@ void dr_fatal_notify(char const* msg);
  * Some wrappers can save screenshots.
  * @return 1 on success, 0 if not implemented for a particular wrapper and -1
  *         in case of error.
- * @author Hj. Malthaner
  */
 int dr_screenshot(const char *filename, int x, int y, int w, int h);
 
@@ -156,7 +154,6 @@ int dr_screenshot(const char *filename, int x, int y, int w, int h);
  * Copy text to the clipboard
  * @param source : pointer to the start of the source text
  * @param length : number of character bytes to copy
- * @author Knightly
  */
 void dr_copy(const char *source, size_t length);
 
@@ -165,7 +162,6 @@ void dr_copy(const char *source, size_t length);
  * @param target : pointer to the insertion position in the target text
  * @param max_length : maximum number of character bytes which could be inserted
  * @return number of character bytes actually inserted -> for cursor advancing
- * @author Knightly
  */
 size_t dr_paste(char *target, size_t max_length);
 

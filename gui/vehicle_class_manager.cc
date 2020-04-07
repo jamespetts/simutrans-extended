@@ -22,7 +22,6 @@
 #include "../dataobj/schedule.h"
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
-// @author hsiegeln
 #include "../simline.h"
 #include "../simmenu.h"
 #include "messagebox.h"
@@ -528,7 +527,6 @@ void vehicle_class_manager_t::draw(scr_coord pos, scr_size size)
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber
  */
 bool vehicle_class_manager_t::action_triggered(gui_action_creator_t *comp, value_t p)
 {
@@ -634,7 +632,6 @@ bool vehicle_class_manager_t::action_triggered(gui_action_creator_t *comp, value
 
 /**
  * Set window size and adjust component sizes and/or positions accordingly
- * @author Markus Weber
  */
 void vehicle_class_manager_t::set_windowsize(scr_size size)
 {
@@ -815,7 +812,6 @@ gui_class_vehicleinfo_t::gui_class_vehicleinfo_t(convoihandle_t cnv)
 
 /*
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_class_vehicleinfo_t::draw(scr_coord offset)
 {
@@ -1074,7 +1070,6 @@ void gui_class_vehicleinfo_t::draw(scr_coord offset)
 }
 /**
 * This method is called if an action is triggered
-* @author Markus Weber
 */
 //bool gui_class_vehicleinfo_t::action_triggered(gui_action_creator_t *comp, value_t p)
 //{

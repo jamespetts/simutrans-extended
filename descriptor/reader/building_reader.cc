@@ -20,7 +20,6 @@ struct old_btyp
 {
 	/**
 	* From type "unknown" also come special buildings e.q. Townhall
-	* @author Hj. Malthaner
 	*/
 	enum typ { wohnung, gewerbe, industrie, unknown };
 };
@@ -225,8 +224,6 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	int version = (v & 0x8000)!=0 ? v&0x7FFF : 0;
 
 	// Whether the read file is from Simutrans-Extended
-	// @author: jamespetts
-
 	uint16 extended_version = 0;
 	const bool extended = version > 0 ? v & EX_VER : false;
 	if(version > 0)

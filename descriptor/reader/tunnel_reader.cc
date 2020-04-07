@@ -72,7 +72,6 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		int version = v & 0x8000 ? v & 0x7FFF : 0;
 
 		// Whether the read file is from Simutrans-Extended
-		//@author: jamespetts
 		way_constraints_of_way_t way_constraints;
 		const bool extended = version > 0 ? v & EX_VER : false;
 		uint16 extended_version = 0;

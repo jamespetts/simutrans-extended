@@ -173,7 +173,6 @@ const vector_tpl<const way_desc_t *>&  way_builder_t::get_way_list(const waytype
  *  - the slowest way, as fast as speed limit
  *  - if no way faster than speed limit, the fastest way.
  * The timeline is also respected.
- * @author prissi, gerw
  */
 const way_desc_t* way_builder_t::weg_search(const waytype_t wtyp, const sint32 speed_limit, const uint16 time, const systemtype_t system_type)
 {
@@ -205,7 +204,6 @@ const way_desc_t* way_builder_t::weg_search(const waytype_t wtyp, const sint32 s
 
 // Finds a way with a given speed *and* weight limit
 // for a given way type.
-// @author: jamespetts (slightly adapted from the standard version with just speed limit)
 const way_desc_t* way_builder_t::weg_search(const waytype_t wtyp, const sint32 speed_limit, const uint32 weight_limit, const uint16 time, const systemtype_t system_type, const uint32 wear_capacity_limit, way_constraints_of_vehicle_t way_constraints)
 {
 	const way_desc_t* best = NULL;
@@ -372,7 +370,6 @@ static bool compare_ways(const way_desc_t* a, const way_desc_t* b)
 
 /**
  * Fill menu with icons of given waytype, return number of added entries
- * @author Hj. Malthaner/prissi/dariok
  */
 void way_builder_t::fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, const systemtype_t styp, sint16 /*ok_sound*/)
 {
@@ -403,7 +400,6 @@ void way_builder_t::fill_menu(tool_selector_t *tool_selector, const waytype_t wt
 
 
 /* allow for railroad crossing
- * @author prissi
  */
 bool way_builder_t::check_crossing(const koord zv, const grund_t *bd, waytype_t wtyp0, const player_t *player) const
 {
@@ -475,7 +471,6 @@ bool way_builder_t::check_crossing(const koord zv, const grund_t *bd, waytype_t 
 
 
 /* crossing of powerlines, or no powerline
- * @author prissi
  */
 bool way_builder_t::check_powerline(const koord zv, const grund_t *bd) const
 {
@@ -594,7 +589,6 @@ bool way_builder_t::check_building( const grund_t *to, const koord dir ) const
  * it will check
  * A) allowed step
  * B) if allowed, calculate the cost for the step from from to to
- * @author prissi
  */
 bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sint32 *costs )
 {
@@ -1399,7 +1393,6 @@ way_builder_t::way_builder_t(player_t* player) : next_gr(32)
 /**
  * If a way is built on top of another way, should the type
  * of the former way be kept or replaced (true == keep)
- * @author Hj. Malthaner
  */
 void way_builder_t::set_keep_existing_ways(bool yesno)
 {
@@ -2574,7 +2567,7 @@ void way_builder_t::build_road()
 		{
 			// Only mark the way for upgrading when it needs renewing: do not build anything now.
 			weg_t* const way = gr->get_weg(desc->get_wtyp());
-			// keep faster ways or if it is the same way ... (@author prissi)
+			// keep faster ways or if it is the same way
 			if(  way->get_replacement_way() == desc ||  keep_existing_ways
 				||  (  keep_existing_city_roads  &&  way->hat_gehweg()  )
 				||  (  ( keep_existing_faster_ways || ((player_builder && !player_builder->is_public_service()) && way->is_public_right_of_way())) &&  ! ( desc->is_at_least_as_good_as(way->get_desc()) )  )
@@ -2605,7 +2598,7 @@ void way_builder_t::build_road()
 					str->set_overtaking_mode(overtaking_mode);
 					update_ribi_mask_oneway(str,i);
 				}
-				// keep faster ways or if it is the same way ... (@author prissi)
+				// keep faster ways or if it is the same way
 				else if(  str->get_desc()==desc  ||  keep_existing_ways
 					||  (  keep_existing_city_roads  &&  str->hat_gehweg()  )
 					||  (  ( keep_existing_faster_ways || ((player_builder && !player_builder->is_public_service()) && str->is_public_right_of_way())) &&  ! ( desc->is_at_least_as_good_as(str->get_desc()) )  )
@@ -2723,7 +2716,7 @@ void way_builder_t::build_track()
 			{
 				// Only mark the way for upgrading when it needs renewing: do not build anything now.
 				weg_t* const way = gr->get_weg(desc->get_wtyp());
-				// keep faster ways or if it is the same way ... (@author prissi)
+				// keep faster ways or if it is the same way
 				if(  way->get_replacement_way() == desc ||  keep_existing_ways
 					||  (  ( keep_existing_faster_ways || ((player_builder && !player_builder->is_public_service()) && way->is_public_right_of_way())) &&  ! ( desc->is_at_least_as_good_as(way->get_desc()) )  )
 					||  (  player_builder!=NULL  &&  way-> is_deletable(player_builder)!=NULL  )
@@ -2746,7 +2739,7 @@ void way_builder_t::build_track()
 					bool change_desc = true;
 
 					// do not touch fences, tram way etc. if there is already same way with different type
-					// keep faster ways or if it is the same way ... (@author prissi)
+					// keep faster ways or if it is the same way
 					if (weg->get_desc() == desc																	||
 							(desc->get_styp() == 0 && weg->get_desc()->get_styp() == type_tram && gr->has_two_ways())     ||
 							keep_existing_ways                                                                      ||

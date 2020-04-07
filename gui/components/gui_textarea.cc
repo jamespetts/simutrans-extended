@@ -79,7 +79,6 @@ DBG_MESSAGE("gui_textarea_t::recalc_size()","reset size to %i,%i",x_size+L_PADDI
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_textarea_t::draw(scr_coord offset)
 {

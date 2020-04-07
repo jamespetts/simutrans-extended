@@ -6,13 +6,6 @@
 /**
  * A container for other gui_components. Is itself
  * a gui_component, and can therefor be nested.
- *
- * @author Hj. Malthaner
- * @date 03-Mar-01
- */
-
-/*
- * [Mathew Hounsell] Min Size Button On Map Window 20030313
  */
 
 #include "gui_container.h"
@@ -26,7 +19,6 @@ gui_container_t::gui_container_t() : gui_component_t(), comp_focus(NULL)
 
 /**
  * Returns the minimum rectangle which encloses all children
- * @author Max Kielland
  */
 scr_rect gui_container_t::get_min_boundaries() const
 {
@@ -41,7 +33,6 @@ scr_rect gui_container_t::get_min_boundaries() const
 
 /**
  * Add component to the container
- * @author Hj. Malthaner
  */
 void gui_container_t::add_component(gui_component_t *comp)
 {
@@ -55,7 +46,6 @@ void gui_container_t::add_component(gui_component_t *comp)
 
 /**
  * Remove/destroy component from container
- * @author Hj. Malthaner
  */
 void gui_container_t::remove_component(gui_component_t *comp)
 {
@@ -72,7 +62,6 @@ void gui_container_t::remove_component(gui_component_t *comp)
 
 /**
  * Remove all components from container
- * @author Markus Weber
  */
 void gui_container_t::remove_all()
 {
@@ -86,7 +75,6 @@ void gui_container_t::remove_all()
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_container_t::infowin_event(const event_t *ev)
 {
@@ -235,7 +223,6 @@ bool gui_container_t::infowin_event(const event_t *ev)
 
 
 /* Draw the component
- * @author Hj. Malthaner
  */
 void gui_container_t::draw(scr_coord offset)
 {
@@ -246,7 +233,6 @@ void gui_container_t::draw(scr_coord offset)
 
 	FOR(slist_tpl<gui_component_t*>, const c, components) {
 		if (c->is_visible()) {
-			// @author hsiegeln; check if component is hidden or displayed
 			c->draw(screen_pos);
 		}
 	}

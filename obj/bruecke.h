@@ -70,7 +70,6 @@ public:
 	void rotate90();
 	/**
 	 * @return NULL when OK, otherwise an error message
-	 * @author Hj. Malthaner
 	 */
 	virtual const char * is_deletable(const player_t *player, bool allow_public = false);
 };

@@ -30,7 +30,6 @@ class karte_t;
 
 /**
  * Base class for traffic participants with random movement
- * @author Hj. Malthaner
  * "verkehrsteilnehmer" = road user (Babelfish)
  */
 class road_user_t : public vehicle_base_t, public sync_steppable
@@ -38,7 +37,6 @@ class road_user_t : public vehicle_base_t, public sync_steppable
 protected:
 	/**
 	 * Distance count
-	 * @author Hj. Malthaner
 	 */
 	uint32 weg_next;
 
@@ -87,7 +85,6 @@ public:
 
 	/**
 	 * Open a new observation window for the object.
-	 * @author Hj. Malthaner
 	 */
 	virtual void show_info();
 
@@ -117,7 +114,6 @@ private:
 
 	/**
 	 * Actual speed
-	 * @author Hj. Malthaner
 	 */
 	uint16 current_speed;
 
@@ -167,7 +163,6 @@ public:
 	/**
 	 * @return a description string for the object
 	 * e.g. for the observation window/dialog
-	 * @author Hj. Malthaner
 	 * @see simwin
 	 */
 	virtual void info(cbuffer_t & buf, bool dummy = false) const;
@@ -177,7 +172,6 @@ public:
 
 	/* this function builds the list of the allowed citycars
 	 * it should be called every month and in the beginning of a new game
-	 * @author prissi
 	 */
 	static void build_timeline_list(karte_t *welt);
 	static bool list_empty();

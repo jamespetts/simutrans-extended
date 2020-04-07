@@ -15,7 +15,6 @@
 
 /**
  * City list stats display
- * @author Hj. Malthaner
  */
 class message_stats_t : public gui_world_component_t
 {
@@ -34,7 +33,6 @@ public:
 	/**
 	 * Filter messages by type
 	 * @return whether there is a change in message filtering
-	 * @author Knightly
 	 */
 	bool filter_messages(const sint32 msg_type);
 
@@ -47,7 +45,6 @@ public:
 
 	/**
 	 * Draw the component
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord offset);
 };

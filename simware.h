@@ -47,26 +47,22 @@ public:
 private:
 	/**
 	 * Handle of target station.
-	 * @author Hj. Malthaner
 	 */
 	halthandle_t ziel;
 
 	/**
 	 * Handle of station, where the packet has to leave convoy.
-	 * @author Hj. Malthaner
 	 */
 	halthandle_t zwischenziel;
 
 	/**
 	 * A handle to the ultimate origin.
-	 * @author: jamespetts
 	 */
 	halthandle_t origin;
 
 	/**
 	 * A handle to the previous transfer
 	 * for the purposes of distance calculation
-	 * @author: jamespetts, November 2011
 	 */
 	halthandle_t last_transfer;
 
@@ -75,8 +71,6 @@ private:
 	 *
 	 * "the final target position, which is on behalf
 	 * not the goal stop position"
-	 *
-	 * @author Hj. Malthaner
 	 */
 	koord zielpos;
 
@@ -111,7 +105,6 @@ public:
 	inline uint8 get_class() const { return g_class; }
 	inline void set_class(uint8 value) { g_class = value; }
 
-	//@author: jamespetts
 	inline halthandle_t get_origin() const { return origin; }
 	void set_origin(halthandle_t value) { origin = value; }
 	inline halthandle_t get_last_transfer() const { return last_transfer; }
@@ -130,7 +123,6 @@ public:
 	inline bool is_freight() const { return index > 2; }
 
 	// The time at which this packet arrived at the current station
-	// @author: jamespetts
 	sint64 arrival_time;
 
 	int operator==(const ware_t &w) {

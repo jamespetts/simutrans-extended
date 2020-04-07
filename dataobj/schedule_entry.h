@@ -11,7 +11,6 @@
 
 /**
  * A schedule entry.
- * @author Hj. Malthaner
  */
 struct schedule_entry_t
 {
@@ -29,41 +28,35 @@ public:
 
 	/**
 	 * target position
-	 * @author Hj. Malthaner
 	 */
 	koord3d pos;
 
 	/**
 	 * Wait for % load at this stops
 	 * (ignored on waypoints)
-	 * @author Hj. Malthaner
 	 */
 	uint16 minimum_loading;
 
 	/**
 	 * spacing shift
-	 * @author Inkelyad
 	 */
 	sint16 spacing_shift;
 
 	/**
 	* maximum waiting time in 1/2^(16-n) parts of a month
 	* (only active if minimum_loading!=0)
-	* @author prissi
 	*/
 	sint8 waiting_time_shift;
 
 	/**
 	 * Whether a convoy needs to reverse after this entry.
 	 * 0 = no; 1 = yes; -1 = undefined
-	 * @author: jamespetts
 	 */
 	sint8 reverse;
 
 	/**
 	 * Whether a convoy must wait for a
 	 * time slot at this entry.
-	 * @author: jamespetts
 	 */
 	bool wait_for_time;
 };

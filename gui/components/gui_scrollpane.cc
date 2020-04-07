@@ -16,7 +16,6 @@
 
 /**
  * @param comp, the scrolling component
- * @author Hj. Malthaner
  */
 gui_scrollpane_t::gui_scrollpane_t(gui_component_t *comp) :
 	scroll_x(scrollbar_t::horizontal),
@@ -35,7 +34,6 @@ gui_scrollpane_t::gui_scrollpane_t(gui_component_t *comp) :
 
 /**
  * recalc the scroll bar sizes
- * @author Hj. Malthaner
  */
 void gui_scrollpane_t::recalc_sliders(scr_size size)
 {
@@ -73,7 +71,6 @@ void gui_scrollpane_t::recalc_sliders(scr_size size)
 
 /**
  * Scrollpanes _must_ be used in this method to set the size
- * @author Hj. Malthaner
  */
 void gui_scrollpane_t::set_size(scr_size size)
 {
@@ -90,7 +87,6 @@ void gui_scrollpane_t::set_size(scr_size size)
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_scrollpane_t::infowin_event(const event_t *ev)
 {
@@ -160,7 +156,6 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 
 /**
  * Set the position of the Scrollbars
- * @author Hj. Malthaner
  */
 void gui_scrollpane_t::set_scroll_position(int x, int y)
 {
@@ -196,7 +191,6 @@ scr_rect gui_scrollpane_t::get_client( void )
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_scrollpane_t::draw(scr_coord pos)
 {

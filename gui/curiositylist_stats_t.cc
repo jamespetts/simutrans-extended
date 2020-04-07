@@ -106,7 +106,6 @@ void curiositylist_stats_t::get_unique_attractions(curiositylist::sort_mode_t sb
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool curiositylist_stats_t::infowin_event(const event_t * ev)
 {
@@ -151,7 +150,6 @@ void curiositylist_stats_t::recalc_size()
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void curiositylist_stats_t::draw(scr_coord offset)
 {

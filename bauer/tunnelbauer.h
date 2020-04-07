@@ -23,8 +23,6 @@ class tool_selector_t;
  * sondern immer vom tunnel_builder_t erzeugt werden.
  *
  * Es gibt keine Instanz - nur statische Methoden.
- *
- * @author V. Meyer
  */
 class tunnel_builder_t {
 private:

@@ -36,7 +36,6 @@ public:
 
 	/**
 	 * @return NULL when OK, otherwise an error message
-	 * @author Hj. Malthaner
 	 */
 	const char *  is_deletable(const player_t *);
 

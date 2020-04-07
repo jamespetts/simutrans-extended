@@ -26,12 +26,9 @@ struct file_descriptors_t;
 * Input format is automatically detected.
 * Output format has a default, changeable with set_savemode, but can be
 * overwritten in wr_open.
-*
-* @author V. Meyer, Hj. Malthaner
 */
-
-
-class loadsave_t {
+class loadsave_t
+{
 public:
 	enum mode_t { text = 1, xml = 2, binary = 0, zipped = 4, xml_zipped = 6, bzip2 = 8, xml_bzip2 = 10 };
 
@@ -96,7 +93,6 @@ public:
 
 	/**
 	* Checks end-of-file
-	* @author Hj. Malthaner
 	*/
 	bool is_eof();
 

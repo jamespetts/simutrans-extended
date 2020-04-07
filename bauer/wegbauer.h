@@ -26,7 +26,6 @@ class strasse_t;
 
 /**
  * way building class with its own route finding
- * @author Hj. Malthaner
  */
 class way_builder_t
 {
@@ -42,7 +41,6 @@ public:
 
 	/**
 	 * Finds a way with a given speed limit for a given waytype
-	 * @author prissi
 	 */
 	static const way_desc_t * weg_search(const waytype_t wtyp, const sint32 speed_limit, const uint32 weight_limit, const uint16 time, const systemtype_t system_type, const uint32 wear_capacity_limit, way_constraints_of_vehicle_t way_constraints = way_constraints_of_vehicle_t());
 	static const way_desc_t * weg_search(const waytype_t wtyp, const sint32 speed_limit, const uint16 time, const systemtype_t system_type);
@@ -50,7 +48,6 @@ public:
 	/**
 	 * Finds a mothballed way for a given waytype.
 	 * Returns NULL if there is no mothballed way for such a type.
-	 * @author jamespetts
 	 */
 	static const way_desc_t * way_search_mothballed(const waytype_t wtyp, const systemtype_t system_type);
 
@@ -68,7 +65,6 @@ public:
 
 	/**
 	 * Fill menu with icons of given waytype
-	 * @author Hj. Malthaner
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, const systemtype_t styp, sint16 ok_sound);
 
@@ -113,38 +109,32 @@ private:
 
 	/**
 	 * Type of building operation
-	 * @author Hj. Malthaner
 	 */
 	bautyp_t bautyp;
 
 	/**
 	 * Type of way to build
-	 * @author Hj. Malthaner
 	 */
 	const way_desc_t * desc;
 
 	/**
 	 * Type of bridges to build (zero=>no bridges)
-	 * @author Hj. Malthaner
 	 */
 	const bridge_desc_t * bridge_desc;
 
 	/**
 	 * Type of bridges to build (zero=>no bridges)
-	 * @author Hj. Malthaner
 	 */
 	const tunnel_desc_t * tunnel_desc;
 
 	/**
 	 * Only for road
-	 * @author THLeaderH
 	 */
-	 overtaking_mode_t overtaking_mode;
+	overtaking_mode_t overtaking_mode;
 
 	/**
 	 * If a way is built on top of another way, should the type
 	 * of the former way be kept or replaced (true == keep)
-	 * @author Hj. Malthaner
 	 */
 	bool keep_existing_ways;
 
@@ -176,7 +166,6 @@ public:
 	* it will check
 	* A) allowed step
 	* B) if allowed, calculate the cost for the step from from to to
-	* @author prissi
 	*/
 	bool is_allowed_step( const grund_t *from, const grund_t *to, sint32 *costs );
 
@@ -219,18 +208,15 @@ public:
 	/**
 	 * If a way is built on top of another way, should the type
 	 * of the former way be kept or replaced (true == keep)
-	 * @author Hj. Malthaner
 	 */
 	void set_keep_existing_ways(bool yesno);
 
 	/* If a way is built on top of another way, should the type
 	 * of the former way be kept or replaced, if the current way is faster (true == keep)
-	 * @author Hj. Malthaner
 	 */
 	void set_keep_existing_faster_ways(bool yesno);
 
 	/* Always keep city roads (for AI)
-	 * @author prissi
 	 */
 	void set_keep_city_roads(bool yesno) { keep_existing_city_roads = yesno; }
 

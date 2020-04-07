@@ -14,9 +14,6 @@
 
 /**
  * A label with a convoy image underneath
- *
- * @author isidoro
- * @date 06-Feb-09
  */
 class gui_convoy_label_t:public gui_label_t
 {

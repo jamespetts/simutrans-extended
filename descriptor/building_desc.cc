@@ -61,7 +61,6 @@ waytype_t building_desc_t::get_finance_waytype() const
 
 /**
  * Mail generation level
- * @author Hj. Malthaner
  */
 uint16 building_desc_t::get_mail_level() const
 {
@@ -77,7 +76,6 @@ uint16 building_desc_t::get_mail_level() const
 
 /**
  * true, if this building needs a connection with a town
- * @author prissi
  */
 bool building_desc_t::is_connected_with_town() const
 {

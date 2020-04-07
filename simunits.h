@@ -124,20 +124,17 @@
 /*
  * Global vehicle speed conversion factor between Simutrans speed
  * and km/h
- * @author Hj. Malthaner
  */
 #define VEHICLE_SPEED_FACTOR  (5)
 
 /**
  * Converts speed value to km/h
- * @author Hj. Matthaner
  * this is speed * 80 / 1024 rounded to nearest
  */
 #define speed_to_kmh(speed) (((speed)*VEHICLE_SPEED_FACTOR+31) >> 6)
 
 /**
  * Converts km/h value to speed
- * @author Hj. Matthaner
  * this is speed * 1024 / 80 = speed * 64 / 5
  */
 #define kmh_to_speed(kmh) (((kmh) << 6) / VEHICLE_SPEED_FACTOR)

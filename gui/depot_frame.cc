@@ -332,7 +332,6 @@ void depot_frame_t::layout(scr_size *size)
 
 	/*
 	 * [SELECT ROUTE]:
-	 * @author hsiegeln
 	 */
 	line_button.set_pos(scr_coord(D_MARGIN_LEFT + selector_x, SELECT_VSTART + D_BUTTON_HEIGHT + 3));
 	lb_convoi_line.set_pos(scr_coord(D_MARGIN_LEFT + selector_x + line_button.get_size().w + 2, SELECT_VSTART + D_BUTTON_HEIGHT + 3));

@@ -13,7 +13,6 @@
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool labellist_frame_t::sortreverse = false;
 bool labellist_frame_t::filter_state = true;
@@ -23,7 +22,6 @@ bool labellist_frame_t::filter_state = true;
  * Values: 0 = label name
  *         1 = label koord
  *         2 = label owner
- * @author Markus Weber
  */
 labellist::sort_mode_t labellist_frame_t::sortby = labellist::by_name;
 
@@ -73,7 +71,6 @@ labellist_frame_t::labellist_frame_t() :
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber/Volker Meyer
  */
 bool labellist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -97,8 +94,6 @@ bool labellist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void labellist_frame_t::resize(const scr_coord delta)
 {
@@ -111,7 +106,6 @@ void labellist_frame_t::resize(const scr_coord delta)
 
 /**
 * This function refreshes the label list
-* @author Markus Weber/Volker Meyer
 */
 void labellist_frame_t::display_list()
 {

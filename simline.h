@@ -64,7 +64,6 @@ private:
 	/**
 	 * Handle for ourselves. Can be used like the 'this' pointer
 	 * Initialized by constructors
-	 * @author Hj. Malthaner
 	 */
 	linehandle_t self;
 
@@ -76,12 +75,10 @@ private:
 
 	/*
 	 * a list of all convoys assigned to this line
-	 * @author hsiegeln
 	 */
 	vector_tpl<convoihandle_t> line_managed_convoys;
 
 	/*
-	 * @author hsiegeln
 	 * a list of all catg_index, which can be transported by this line.
 	 */
 	minivec_tpl<uint8> goods_catg_index;
@@ -94,7 +91,6 @@ private:
 
 	/*
 	 * struct holds new financial history for line
-	 * @author hsiegeln
 	 */
 	sint64 financial_history[MAX_MONTHS][MAX_LINE_COST];
 
@@ -108,7 +104,6 @@ private:
 	/*
 	 * whether the next convoy applied to this line should have its
 	 * reverse_schedule flag set. Only applies to bidirectional schedules.
-	 * @author yobbobandana
 	 */
 	bool start_reversed;
 
@@ -116,11 +111,9 @@ private:
 
 	/**
 	* The table of point-to-point average speeds.
-	* @author jamespetts
 	*/
 	journey_times_map average_journey_times;
 
-	// @author: suitougreentea
 	times_history_map journey_times_history;
 
 	states state;
@@ -135,25 +128,21 @@ public:
 
 	/*
 	 * add convoy to route
-	 * @author hsiegeln
 	 */
 	void add_convoy(convoihandle_t cnv, bool from_loading = false);
 
 	/*
 	 * remove convoy from route
-	 * @author hsiegeln
 	 */
 	void remove_convoy(convoihandle_t cnv);
 
 	/*
 	 * get convoy
-	 * @author hsiegeln
 	 */
 	convoihandle_t get_convoy(int i) const { return line_managed_convoys[i]; }
 
 	/*
 	 * return number of manages convoys in this line
-	 * @author hsiegeln
 	 */
 	uint32 count_convoys() const { return line_managed_convoys.get_count(); }
 
@@ -161,7 +150,6 @@ public:
 
 	/*
 	 * returns the state of the line
-	 * @author prissi
 	 */
 	uint8 get_state_color() const { return state_color; }
 
@@ -169,7 +157,6 @@ public:
 
 	/*
 	 * return schedule of line
-	 * @author hsiegeln
 	 */
 	schedule_t * get_schedule() const { return schedule; }
 
@@ -177,7 +164,6 @@ public:
 
 	/*
 	 * get name of line
-	 * @author hsiegeln
 	 */
 	char const* get_name() const { return name; }
 	void set_name(const char *str) { name = str; }
@@ -257,11 +243,9 @@ public:
 
 	int get_replacing_convoys_count() const;
 
-	// @author: jamespetts
 	uint32 rolling_average[MAX_LINE_COST];
 	uint16 rolling_average_count[MAX_LINE_COST];
 
-	//@author: jamespetts
 	bool has_overcrowded() const;
 
 	void set_withdraw( bool yes_no );

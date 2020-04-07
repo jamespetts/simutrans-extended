@@ -10,7 +10,6 @@
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool factorylist_frame_t::sortreverse = false;
 
@@ -20,7 +19,6 @@ bool factorylist_frame_t::sortreverse = false;
  *         1 = Station name
  *         2 = Waiting goods
  *         3 = Station type
- * @author Markus Weber
  */
 factorylist::sort_mode_t factorylist_frame_t::sortby = factorylist::by_name;
 
@@ -87,7 +85,6 @@ factorylist_frame_t::factorylist_frame_t() :
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber/Volker Meyer
  */
 bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -114,8 +111,6 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void factorylist_frame_t::resize(const scr_coord delta)
 {

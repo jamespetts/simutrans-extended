@@ -56,7 +56,6 @@ settings_t::settings_t() :
 	map_number = sim_async_rand(SINT32_MAX_VALUE);
 
 	/* new setting since version 0.85.01
-	 * @author prissi
 	 */
 	factory_count = 12;
 	tourist_attractions = 8;
@@ -186,7 +185,6 @@ settings_t::settings_t() :
 
 	// 4 is faster; 2 is more accurate.
 	// Not recommended to use anything other than 2 or 4
-	// @author: jamespetts
 	max_rerouting_interval_months = 2;
 
 	/* multiplier for steps on diagonal:
@@ -296,7 +294,6 @@ settings_t::settings_t() :
 	separate_halt_capacities = false;
 
 	// Cornering settings
-	// @author: jamespetts
 	corner_force_divider[waytype_t(road_wt)] = 5;
 	corner_force_divider[waytype_t(track_wt)] = 10;
 	corner_force_divider[waytype_t(tram_wt)] = 10;
@@ -374,22 +371,18 @@ settings_t::settings_t() :
 	always_prefer_car_percent = 10;
 	congestion_density_factor = 12;
 
-	//@author: jamespetts
 	// Passenger routing settings
 	passenger_routing_packet_size = 7;
 
-	//@author: jamespetts
 	// Factory retirement settings
 	factory_max_years_obsolete = 30;
 
-	//@author: jamespetts
 	// Insolvency and debt settings
 	interest_rate_percent = 10;
 	allow_bankruptcy  = 0;
 	allow_purchases_when_insolvent  = 0;
 
 	// Reversing settings
-	// @author: jamespetts
 	unit_reverse_time = 0;
 	hauled_reverse_time = 0;
 	turntable_reverse_time = 0;
@@ -401,14 +394,12 @@ settings_t::settings_t() :
 	road_reverse_time_seconds = 65535;
 
 	// Global power factor
-	// @author: jamespetts
 	global_power_factor_percent = 100;
 	global_force_factor_percent = 100;
 
 	avoid_overcrowding = false;
 
 	// How and whether weight limits are enforced.
-	// @author: jamespetts
 	enforce_weight_limits = 1;
 
 	allow_airports_without_control_towers = true;
@@ -420,7 +411,6 @@ settings_t::settings_t() :
 
 	// The defaults for journey time tolerance.
 	// Applies to passengers (and hand delivery of mail) only.
-	// @author: jamespetts
 
 	min_visiting_tolerance = 10 * 10; // 10 minutes
 	range_visiting_tolerance = 360 * 10; //: Six hours
@@ -472,7 +462,7 @@ settings_t::settings_t() :
 	random_mode_commuting = random_mode_visiting = 2;
 
 	max_route_tiles_to_process_in_a_step = 2048;
-	
+
 	for(uint8 i = 0; i < 17; i ++)
 	{
 		if(i != road_wt)
@@ -1855,13 +1845,11 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	// Only the version in default_einstellungen is meaningful.  These determine whether savegames
 	// are updated to the newest local settings.  They are ignored for clients in network games.
 	// This is read many many times so always use the older version...
-	// @author: neroden.
 	progdir_overrides_savegame_settings = (contents.get_int("progdir_overrides_savegame_settings", progdir_overrides_savegame_settings) != 0);
 	pak_overrides_savegame_settings = (contents.get_int("pak_overrides_savegame_settings", pak_overrides_savegame_settings) != 0);
 	userdir_overrides_savegame_settings = (contents.get_int("userdir_overrides_savegame_settings", userdir_overrides_savegame_settings) != 0);
 
 	// This needs to be first as other settings are based on this.
-	// @author: jamespetts, neroden
 
 	// This compatibility code is more complicated than it appears due to (a) roundoff error,
 	// and (b) the fact that simuconf tabfiles are read *multiple times*.
@@ -2429,7 +2417,6 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	way_count_leaving_road = contents.get_int("way_leaving_road", way_count_leaving_road );
 
 	// Revenue calibration settings
-	// @author: jamespetts
 	tolerable_comfort_short = contents.get_int("tolerable_comfort_short", tolerable_comfort_short);
 	tolerable_comfort_long = contents.get_int("tolerable_comfort_long", tolerable_comfort_long);
 	tolerable_comfort_short_minutes = contents.get_int("tolerable_comfort_short_minutes", tolerable_comfort_short_minutes);
@@ -2510,7 +2497,6 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	// Factory settings
 	factory_max_years_obsolete = contents.get_int("max_years_obsolete", factory_max_years_obsolete);
 
-	// @author: jamespetts
 	// Insolvency and debt settings
 	interest_rate_percent = contents.get_int("interest_rate_percent", interest_rate_percent);
 	// Check for misspelled version
@@ -2521,7 +2507,6 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	allow_purchases_when_insolvent = contents.get_int("allow_purchases_when_insolvent", allow_purchases_when_insolvent);
 
 	// Reversing settings
-	// @author: jamespetts
 	unit_reverse_time = contents.get_int("unit_reverse_time", unit_reverse_time);
 	hauled_reverse_time = contents.get_int("hauled_reverse_time", hauled_reverse_time);
 	turntable_reverse_time = contents.get_int("turntable_reverse_time", turntable_reverse_time);
@@ -2533,18 +2518,15 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	road_reverse_time_seconds = contents.get_int("road_reverse_time_seconds", road_reverse_time_seconds);
 
 	// Global power factor
-	// @author: jamespetts
 	global_power_factor_percent = contents.get_int("global_power_factor_percent", global_power_factor_percent);
 	global_force_factor_percent = contents.get_int("global_force_factor_percent", global_force_factor_percent);
 
 	// How and whether weight limits are enforced.
-	// @author: jamespetts
 	enforce_weight_limits = contents.get_int("enforce_weight_limits", enforce_weight_limits);
 
 	allow_airports_without_control_towers = contents.get_int("allow_airports_without_control_towers", allow_airports_without_control_towers);
 
 	// Multiply by 10 because journey times are measured in tenths of minutes.
-	//@author: jamespetts
 	const uint32 min_visiting_tolerance_minutes = contents.get_int("min_visiting_tolerance", (min_visiting_tolerance / 10u));
 	min_visiting_tolerance = min_visiting_tolerance_minutes * 10u;
 	const uint32 range_commuting_tolerance_minutes = contents.get_int("range_commuting_tolerance", (range_commuting_tolerance / 10u));
@@ -3049,7 +3031,6 @@ void settings_t::set_scale()
 
 /**
  * Reload the linear interpolation tables for catering from the settings.
- * @author neroden
  */
 void settings_t::cache_catering_revenues() {
 	// There is one catering revenue table for each catering level.
@@ -3100,7 +3081,6 @@ void settings_t::cache_catering_revenues() {
 
 /**
  * Reload the linear interpolation tables for comfort from the settings.
- * @author neroden
  */
 void settings_t::cache_comfort_tables() {
 	// Tolerable comfort table is indexed in TENTHS of minutes

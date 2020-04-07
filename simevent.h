@@ -22,10 +22,10 @@
 #define EVENT_DRAG                    8
 #define EVENT_REPEAT                  9
 
-#define INFOWIN                      10  // Hajo: window event, i.e. WIN_OPEN, WIN_CLOSE
-#define WINDOW_RESIZE                11  // 19-may-02	markus weber   added
-#define WINDOW_MAKE_MIN_SIZE         12  // 11-mar-03	(Mathew Hounsell) Added
-#define WINDOW_CHOOSE_NEXT           13	 // @author Volker Meyer @date  11.06.2003
+#define INFOWIN                      10  // window event, i.e. WIN_OPEN, WIN_CLOSE
+#define WINDOW_RESIZE                11
+#define WINDOW_MAKE_MIN_SIZE         12
+#define WINDOW_CHOOSE_NEXT           13
 
 #define EVENT_SYSTEM                254
 #define IGNORE_EVENT                255
@@ -139,8 +139,6 @@
  * ev_class = EVENT_DRAG:      cx/cy is last click place, mx/my is to,
  *                             code = mouse button
  * ev_class = EVENT_REPEAT:    code = button pressed
- *
- * @author Hj. Malthaner, Niels Roest
  */
 struct event_t {
 	unsigned int ev_class;
@@ -163,7 +161,6 @@ struct event_t {
 
 	/**
 	 * mod key (SHIFT; ALT; CTRL; etc) pressed while event as triggered
-	 * @author hsiegeln
 	 */
 	unsigned int ev_key_mod;
 
@@ -176,7 +173,6 @@ struct event_t {
 
 /**
  * Translate event origin. Useful when transferring events to sub-components.
- * @author Hj. Malthaner
  */
 static inline void translate_event(event_t* const ev, int x, int y)
 {
@@ -188,13 +184,11 @@ static inline void translate_event(event_t* const ev, int x, int y)
 
 /**
  * Return one event. Does *not* wait.
- * @author Hj. Malthaner
  */
 void display_poll_event(event_t*);
 
 /**
  * Wait for one event, and return it.
- * @author Hj. Malthaner
  */
 void display_get_event(event_t*);
 void change_drag_start(int x, int y);

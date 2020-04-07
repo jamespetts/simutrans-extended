@@ -38,7 +38,6 @@ void guarded_free(void *p)
  * Define this to use a key-lock mechanism for sanity checks.
  * This can detect some kinds of overruns, underruns and double free's of
  * the same memory area.
- * @author Hj. Malthaner
  */
 //#define USE_KEYLOCK
 

@@ -6,9 +6,6 @@
 /*
  * A simple text input field. It has no Text Buffer,
  * only a pointer to a buffer created by someone else.
- *
- * @date 19-Apr-01
- * @author Hj. Malthaner
  */
 
 #include <string.h>
@@ -40,7 +37,6 @@ gui_textinput_t::gui_textinput_t() :
 
 /**
  * determine new cursor position from event coordinates
- * @author Knightly
  */
 size_t gui_textinput_t::calc_cursor_pos(const int x)
 {
@@ -64,7 +60,6 @@ size_t gui_textinput_t::calc_cursor_pos(const int x)
 /**
  * Remove selected text portion, if any.
  * Returns true if some selected text is actually deleted.
- * @author Knightly
  */
 bool gui_textinput_t::remove_selection()
 {
@@ -108,7 +103,6 @@ void gui_textinput_t::set_composition_status( char *c, int start, int length )
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_textinput_t::infowin_event(const event_t *ev)
 {
@@ -455,7 +449,6 @@ bool gui_textinput_t::infowin_event(const event_t *ev)
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_textinput_t::draw(scr_coord offset)
 {
@@ -466,7 +459,6 @@ void gui_textinput_t::draw(scr_coord offset)
 /**
  * Detect change of focus state and determine whether cursor should be displayed,
  * and call the function that performs the actual display
- * @author Knightly
  */
 void gui_textinput_t::display_with_focus(scr_coord offset, bool has_focus)
 {

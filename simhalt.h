@@ -85,7 +85,6 @@ struct lines_loaded_t
  * Haltestellen in Simutrans. Diese Klasse managed das Routing und Verladen
  * von Waren. Eine Haltestelle ist somit auch ein Warenumschlagplatz.
  *
- * @author Hj. Malthaner
  * @see stadt_t
  * @see fabrik_t
  * @see convoi_t
@@ -104,14 +103,12 @@ private:
 
 	/**
 	 * finds a stop by its name
-	 * @author prissi
 	 */
 	static stringhashtable_tpl<halthandle_t> all_names;
 
 	/**
 	 * Finds a stop by coordinate.
 	 * only used during loading.
-	 * @author prissi
 	 */
 	static inthashtable_tpl<sint32,halthandle_t> *all_koords;
 
@@ -123,13 +120,11 @@ private:
 
 	/*
 	 * struct holds new financial history for line
-	 * @author hsiegeln
 	 */
 	sint64 financial_history[MAX_MONTHS][MAX_HALT_COST];
 
 	/**
 	 * initialize the financial history
-	 * @author hsiegeln
 	 */
 	void init_financial_history();
 
@@ -143,7 +138,6 @@ private:
 	sint32 last_loading_step;
 
 	// A list of halts within walking distance
-	// @author: jamespetts, July 2011
 	vector_tpl<halthandle_t> halts_within_walking_distance;
 
 	void add_halt_within_walking_distance(halthandle_t halt);
@@ -156,7 +150,6 @@ private:
 
 	/**
 	 * Handle for ourselves. Can be used like the 'this' pointer
-	 * @author Hj. Malthaner
 	 */
 	halthandle_t self;
 
@@ -238,31 +231,26 @@ public:
 
 	/**
 	 * Station factory method. Returns handles instead of pointers.
-	 * @author Hj. Malthaner
 	 */
 	static halthandle_t create(koord pos, player_t *player);
 
 	/**
 	 * Station factory method. Returns handles instead of pointers.
-	 * @author Hj. Malthaner
 	 */
 	static halthandle_t create(loadsave_t *file);
 
 	/*
 	* removes a ground tile from a station, deletes the building and, if last tile, also the halthandle
-	* @author prissi
 	*/
 	static bool remove(player_t *player, koord3d pos);
 
 	/**
 	 * Station destruction method.
-	 * @author Hj. Malthaner
 	 */
 	static void destroy(halthandle_t);
 
 	/**
 	 * destroys all stations
-	 * @author Hj. Malthaner
 	 */
 	static void destroy_all();
 
@@ -274,7 +262,6 @@ public:
 
 	/**
 	 * List of all tiles (grund_t) that belong to this halt.
-	 * @author Hj. Malthaner
 	 */
 	struct tile_t
 	{
@@ -289,7 +276,6 @@ public:
 	};
 
 	// Data on direct connexions from one station to the next.
-	// @author: jamespetts
 	struct connexion
 	{
 		// Times in tenths of minutes
@@ -375,8 +361,6 @@ private:
 	 * For each line/lineless convoy which serves the current halt, this
 	 * counter is incremented. Each ware category and class needs a separate counter.
 	 * If this counter is more than 1, this halt is a transfer halt.
-
-	 * @author Knightly
 	 */
 	 //uint8 *non_identical_schedules;
 
@@ -392,7 +376,6 @@ private:
 
 	/**
 	 * Liste der angeschlossenen Fabriken
-	 * @author Hj. Malthaner
 	 */
 	slist_tpl<fabrik_t *> fab_list;
 
@@ -401,7 +384,6 @@ private:
 
 	/**
 	 * What is that for a station (for the image)
-	 * @author prissi
 	 */
 	stationtyp station_type;
 
@@ -453,15 +435,12 @@ private:
 
 	/*
 	 * transfers all goods to given station
-	 *
-	 * @author Dwachs
 	 */
 	void transfer_goods(halthandle_t halt);
 
 	/*
 	* parameter to ease sorting
 	* sortierung is local and stores the sort order for the individual station
-	* @author hsiegeln
 	*/
 	uint8 sortierung;
 	bool resort_freight_info;
@@ -472,8 +451,6 @@ private:
 
 	// Record of waiting times. Takes a list of the last 16 waiting times per type of goods.
 	// Getter method will need to average the waiting times.
-	// @author: jamespetts
-
 	vector_tpl<vector_tpl<waiting_time_map*>> waiting_times;
 
 	// Store the service frequencies to all other halts so that this does not need to be
@@ -534,7 +511,6 @@ public:
 	/**
 	* Called every 255 steps
 	* will distribute the goods to changed routes (if there are any)
-	* @author Hj. Malthaner
 	*/
 	//uint32 reroute_goods();
 
@@ -545,7 +521,6 @@ public:
 
 	/**
 	 * getter/setter for sortby
-	 * @author hsiegeln
 	 */
 	uint8 get_sortby() { return sortierung; }
 	void set_sortby(uint8 sm) { resort_freight_info =true; sortierung = sm; }
@@ -555,13 +530,11 @@ public:
 
 	/**
 	 * Calculates a status color for status bars
-	 * @author Hj. Malthaner
 	 */
 	COLOR_VAL get_status_farbe() const { return status_color; }
 
 	/**
 	 * Draws some nice colored bars giving some status information
-	 * @author Hj. Malthaner
 	 */
 	void display_status(KOORD_VAL xpos, KOORD_VAL ypos);
 
@@ -570,7 +543,6 @@ public:
 	 * Fabrikliste auf.
 	 * "Surrounding searches, achievable factories and builds the
 	 * factory list." (Google)
-	 * @author Hj. Malthaner
 	 */
 	void verbinde_fabriken();
 	void add_factory(fabrik_t* fab);
@@ -598,18 +570,15 @@ public:
 
 	/**
 	 * called regularly to update status and reroute stuff
-	 * @author Hj. Malthaner
 	 */
 
 	void step();
 
 	/**
 	 * Called every month/every 24 game hours
-	 * @author Hj. Malthaner
 	 */
 	void new_month();
 
-	// @author: jamespetts, although much is borrowed from suche_route
 	// Returns the journey time of the best possible route from this halt. Time == UINT32_MAX_VALUE when there is no route.
 	uint32 find_route(ware_t &ware, const uint32 journey_time = UINT32_MAX_VALUE) const;
 	void get_destination_halts_of_ware(ware_t &ware, vector_tpl<halthandle_t>& destination_halts_list) const;
@@ -639,19 +608,16 @@ public:
 
 	/**
 	 * Found route and station uncrowded
-	 * @author Hj. Malthaner
 	 */
 	void add_pax_happy(int n);
 
 	/**
 	 * Station in walking distance
-	 * @author prissi
 	 */
 	void add_pax_walked(int n);
 
 	/**
 	 * Found no route
-	 * @author Hj. Malthaner
 	 */
 	void add_pax_no_route(int n);
 
@@ -661,13 +627,11 @@ public:
 
 	/**
 	 * Station crowded
-	 * @author Hj. Malthaner
 	 */
 	void add_pax_unhappy(int n);
 
 	// The number of passengers for whom the shortest
 	// route exceeds their time tolerance.
-	// @author: jamespetts
 	void add_pax_too_slow(int n);
 
 	// Waiting so long at the station. added 01/2019(EX14.3)
@@ -697,7 +661,6 @@ public:
 	koord3d get_basis_pos3d() const;
 
 	/* return the closest square that belongs to this halt
-	 * @author prissi
 	 */
 	koord get_next_pos( koord start, bool square = false ) const;
 
@@ -709,7 +672,6 @@ public:
 
 	/**
 	 * returns total number for a certain position (since more than one factory might connect to a stop)
-	 * @author Hj. Malthaner
 	 */
 	uint32 get_ware_fuer_zielpos(const goods_desc_t *warentyp, const koord zielpos) const;
 
@@ -731,7 +693,6 @@ public:
 	 * @param amount How many units of the cargo we can fetch.
 	 * @param schedule Schedule of the vehicle requesting the fetch.
 	 * @param player Company that's requesting the fetch.
-	 * @author Dwachs
 	 */
 	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction);
 
@@ -742,8 +703,6 @@ public:
 	 * Ware to deliver. If the goods to waiting to be taken product
 	 * can be ware_t may be deleted! I.e. we must, after calling this
 	 * method no longer refer! (Google)
-	 *
-	 * @author Hj. Malthaner/prissi
 	 */
 	void liefere_an(ware_t ware, uint8 walked_between_stations = 0);
 
@@ -758,22 +717,18 @@ public:
 	const grund_t *find_matching_position(waytype_t wt) const;
 
 	/* checks, if there is an unoccupied loading bay for this kind of thing
-	* @author prissi
 	*/
 	bool find_free_position(const waytype_t w ,convoihandle_t cnv,const obj_t::typ d) const;
 
 	/* reserves a position (caution: railblocks work differently!
-	* @author prissi
 	*/
 	bool reserve_position(grund_t *gr,convoihandle_t cnv);
 
 	/* frees a reserved  position (caution: railblocks work differently!
-	* @author prissi
 	*/
 	bool unreserve_position(grund_t *gr, convoihandle_t cnv);
 
 	/* true, if this can be reserved
-	* @author prissi
 	*/
 	bool is_reservable(const grund_t *gr, convoihandle_t cnv) const;
 	uint8 get_empty_lane(const grund_t *gr, convoihandle_t cnv) const;
@@ -783,27 +738,23 @@ public:
 	/**
 	 * @param buf the buffer to fill
 	 * @return Goods description text (buf)
-	 * @author Hj. Malthaner
 	 */
 	void get_freight_info(cbuffer_t & buf);
 
 	/**
 	 * @param buf the buffer to fill
 	 * @return short list of the waiting goods (i.e. 110 Wood, 15 Coal)
-	 * @author Hj. Malthaner
 	 */
 	void get_short_freight_info(cbuffer_t & buf) const;
 
 	/**
 	 * Opens an information window for this station.
-	 * @author Hj. Malthaner
 	 */
 	void show_info();
 
 	/**
 	 * @return the type of a station
 	 * (combination of: railstation, loading bay, dock)
-	 * @author Markus Weber
 	 */
 	stationtyp get_station_type() const { return station_type; }
 	void recalc_station_type();
@@ -812,7 +763,6 @@ public:
 	 * fragt den namen der Haltestelle ab.
 	 * Der Name ist der text des ersten Untergrundes der Haltestelle
 	 * @return der Name der Haltestelle.
-	 * @author Hj. Malthaner
 	 */
 	const char *get_name() const;
 
@@ -841,37 +791,31 @@ public:
 
 	/*
 	 * called, if a line serves this stop
-	 * @author hsiegeln
 	 */
 	void add_line(linehandle_t line);
 
 	/*
 	 * called, if a line removes this stop from it's schedule
-	 * @author hsiegeln
 	 */
 	void remove_line(linehandle_t line);
 
 	/*
 	 * list of line ids that serve this stop
-	 * @author hsiegeln
 	 */
 	vector_tpl<linehandle_t> registered_lines;
 
 	/**
 	 * Register a lineless convoy which serves this stop
-	 * @author Knightly
 	 */
 	void add_convoy(convoihandle_t convoy);
 
 	/**
 	 * Unregister a lineless convoy
-	 * @author Knightly
 	 */
 	void remove_convoy(convoihandle_t convoy);
 
 	/**
 	 * A list of lineless convoys serving this stop
-	 * @author Knightly
 	 */
 	vector_tpl<convoihandle_t> registered_convoys;
 
@@ -888,25 +832,21 @@ public:
 
 	/**
 	 * It will calculate number of free seats in all other (not cnv) convoys at stop
-	 * @author Inkelyad
 	 */
 	void update_alternative_seats(convoihandle_t cnv);
 
 	/**
 	 * book a certain amount into the halt's financial history
-	 * @author hsiegeln
 	 */
 	void book(sint64 amount, int cost_type);
 
 	/**
 	 * return a pointer to the financial history
-	 * @author hsiegeln
 	 */
 	sint64* get_finance_history() { return *financial_history; }
 
 	/**
 	 * return a specified element from the financial history
-	 * @author hsiegeln
 	 */
 	sint64 get_finance_history(int month, int cost_type) const { return financial_history[month][cost_type]; }
 
@@ -914,11 +854,9 @@ public:
 //	void desceid_station_voll() { enables |= CROWDED; status_color = COL_RED; }
 
 	/* marks a coverage area
-	* @author prissi
 	*/
 	void mark_unmark_coverage(const bool mark, const bool factories = false) const;
 
-	// @author: jamespetts
 	// Returns the percentage of unhappy people
 	// out of the total of happy and unhappy people.
 	uint16 get_unhappy_percentage(uint8 month) const
@@ -934,7 +872,6 @@ public:
 	}
 
 	// Getting and setting average waiting times in minutes
-	// @author: jamespetts
 	uint32 get_average_waiting_time(halthandle_t halt, uint8 category, uint8 g_class);
 
 	void add_waiting_time(uint32 time, halthandle_t halt, uint8 category, uint8 g_class, bool do_not_reset_month = false);
@@ -974,7 +911,6 @@ public:
 
 	/**
 	 * Get queue position for spacing. It is *not* same as index in 'loading_here'.
-	 * @author Inkelyad
 	 */
 	int get_queue_pos(convoihandle_t cnv) const;
 

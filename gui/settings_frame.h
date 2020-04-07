@@ -20,7 +20,6 @@ class settings_t;
 
 /**
  * All messages since the start of the program
- * @author prissi
  */
 class settings_frame_t : public gui_frame_t, action_listener_t
 {
@@ -55,13 +54,11 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char *get_help_filename() const {return "settings.txt";}
 
 	/**
 	* resize window in response to a resize event
-	* @author Hj. Malthaner
 	*/
 	void resize(const scr_coord delta);
 

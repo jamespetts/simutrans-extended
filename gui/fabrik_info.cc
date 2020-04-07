@@ -150,7 +150,6 @@ void fabrik_info_t::rename_factory()
 
 /**
  * Set window size and adjust component sizes and/or positions accordingly
- * @author Markus Weber
  */
 void fabrik_info_t::set_windowsize(scr_size size)
 {
@@ -174,7 +173,6 @@ void fabrik_info_t::set_windowsize(scr_size size)
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void fabrik_info_t::draw(scr_coord pos, scr_size size)
 {
@@ -292,7 +290,6 @@ bool fabrik_info_t::is_weltpos()
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  *
  * Returns true, if action is done and no more
  * components should be triggered.

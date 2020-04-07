@@ -55,12 +55,11 @@ signal_info_t::signal_info_t(signal_t* const s) :
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  *
  * Returns true, if action is done and no more
  * components should be triggered.
  * V.Meyer
-   */
+ */
 bool signal_info_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
 	if (comp == &bt_goto_signalbox)

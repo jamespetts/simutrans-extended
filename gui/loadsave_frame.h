@@ -85,7 +85,6 @@ protected:
 
 	/**
 	 * Action that's started with a button click
-	 * @author Hansjörg Malthaner
 	 */
 	virtual bool item_action (const char *filename);
 	virtual bool ok_action   (const char *fullpath);
@@ -98,7 +97,6 @@ public:
 	/**
 	* Set the window associated helptext
 	* @return the filename for the helptext, or NULL
-	* @author Hj. Malthaner
 	*/
 	virtual const char *get_help_filename() const;
 

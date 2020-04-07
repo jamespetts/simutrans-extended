@@ -35,14 +35,12 @@ uint32 goods_frame_t::vehicle_speed = 50;
  * Values: 0 = Unsorted (passengers and mail first)
  *         1 = Alphabetical
  *         2 = Revenue
- * @author prissi
  */
 goods_frame_t::sort_mode_t goods_frame_t::sortby = unsortiert;
 
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool goods_frame_t::sortreverse = false;
 
@@ -64,7 +62,6 @@ const char *goods_frame_t::sort_text[SORT_MODES] = {
  * This variable controls whether all goods are displayed, or
  * just the ones relevant to the current game
  * Values: false = all goods shown, true = relevant goods shown
- * @author falconne
  */
 bool goods_frame_t::filter_goods = false;
 
@@ -246,8 +243,6 @@ void goods_frame_t::sort_list()
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void goods_frame_t::resize(const scr_coord delta)
 {
@@ -259,7 +254,6 @@ void goods_frame_t::resize(const scr_coord delta)
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 {
@@ -306,7 +300,6 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void goods_frame_t::draw(scr_coord pos, scr_size size)
 {

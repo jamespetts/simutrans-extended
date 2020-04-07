@@ -17,8 +17,6 @@
 
 /**
  * Simulated trees for Simutrans.
- *
- * @author Hj. Malthaner
  */
 class baum_t : public obj_t
 {
@@ -80,7 +78,6 @@ public:
 
 	/**
 	 * Calculates tree image dependent on tree age
-	 * @author Hj. Malthaner
 	 */
 	void calc_image();
 

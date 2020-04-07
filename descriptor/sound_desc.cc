@@ -22,7 +22,6 @@
 #include "ground_desc.h"
 
 /* sound of the program *
- * @author prissi
  */
 
 class sound_ids {

@@ -26,7 +26,6 @@
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool halt_list_stats_t::infowin_event(const event_t *ev)
 {
@@ -48,7 +47,6 @@ bool halt_list_stats_t::infowin_event(const event_t *ev)
 
 /**
  * Draw the component
- * @author Markus Weber
  */
 void halt_list_stats_t::draw(scr_coord offset)
 {

@@ -45,7 +45,6 @@ const char *sound_get_midi_title(int index);
 
 /**
  * gets current midi number
- * @author Hj. Malthaner
  */
 int get_current_midi();
 
@@ -61,7 +60,6 @@ extern void check_midi();
 
 /**
  * shuts down midi playing
- * @author Owen Rudge
  */
 extern void close_midi();
 

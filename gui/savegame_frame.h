@@ -134,9 +134,7 @@ protected:
 
 /**
  * Base class from which all GUI dialogs to load/save generics can inherit from
- * @author Hansjoerg Malthaner
- * @author Markohs
- * @author Max Kielland
+ *
  * @note Based on previous original work from the Simutrans team and Hansjoerg Malthaner
  * @note When I refer to a "qualified" path I mean it can contain sub-directories or even fully qualified path. i.e. : "save/a.sve" or "c:\simutrans\scenario\file.nut"
  */
@@ -258,7 +256,6 @@ protected:
 
 	/**
 	 * Callback function that will be executed when the user clicks one of the entries in list
-	 * @author Hansjörg Malthaner
 	 */
 
 	 // Virtual callback function that will be executed when the user clicks ok,
@@ -305,8 +302,6 @@ public:
 
 	/**
 	 * Sets the gui components widths and coordinates
-	 * @author Mathew Hounsell
-	 * \date   11-Mar-2003
 	 */
 	void set_windowsize(scr_size size) OVERRIDE;
 
@@ -315,7 +310,6 @@ public:
 	 * @param only_directories will just process directory entries, not files.
 	 * @param path Default path to search at. If NULL, next call to add_path will define the default path.
 	 * @param delete_enabled Determins if we'll add delete buttons to the frame.
-	 * @author Hj. Malthaner
 	 */
 	savegame_frame_t(const char *suffix = NULL, bool only_directories = false, const char *path = NULL, const bool delete_enabled = true, bool use_table = false );
 

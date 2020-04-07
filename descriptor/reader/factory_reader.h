@@ -88,7 +88,6 @@ public:
 	/**
 	 * Read a factory product node. Does version check and
 	 * compatibility transformations.
-	 * @author Hj. Malthaner
 	 */
 	obj_desc_t* read_node(FILE*, obj_node_info_t&) OVERRIDE;
 

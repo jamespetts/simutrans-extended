@@ -18,7 +18,6 @@
 
 /**
  * moving stuff like sheeps or birds
- * @author prissi
  */
 class movingobj_t : public vehicle_base_t, public sync_steppable
 {

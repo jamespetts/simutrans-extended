@@ -281,7 +281,6 @@ public:
 	//
 	// Checks whether the specified key is already
 	// contained in the hashtable.
-	// @author: jamespetts
 	//
 	bool is_contained(const key_t key) const
 	{

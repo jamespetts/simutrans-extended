@@ -16,7 +16,6 @@
  *
  * @see blockstrecke_t
  * @see blockmanager
- * @author Hj. Malthaner
  */
 class signal_t : public roadsign_t
 {

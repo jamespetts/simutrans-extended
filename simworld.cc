@@ -423,7 +423,6 @@ void karte_t::perlin_hoehe_loop( sint16 x_min, sint16 x_max, sint16 y_min, sint1
  *
  * @param frequency in 0..1.0 roughness, the higher the rougher
  * @param amplitude in 0..160.0 top height of mountains, may not exceed 160.0!!!
- * @author Hj. Malthaner
  */
 sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max)
 {
@@ -1530,7 +1529,6 @@ DBG_DEBUG("karte_t::init()","built timeline");
 
 	recalc_average_speed(true);
 
-	// @author: jamespetts
 	calc_generic_road_time_per_tile_city();
 	calc_generic_road_time_per_tile_intercity();
 	calc_max_road_check_depth();
@@ -1639,7 +1637,7 @@ void *check_road_connexions_threaded(void *args)
 			{
 				continue;
 			}
-			
+
 			city->check_all_private_car_routes();
 
 			simthread_barrier_wait(&karte_t::private_car_barrier);
@@ -1653,7 +1651,7 @@ void *check_road_connexions_threaded(void *args)
 				simthread_barrier_wait(&karte_t::private_car_barrier);
 			}
 		}
-		
+
 		// Having two barrier waits here is intentional.
 		simthread_barrier_wait(&karte_t::private_car_barrier);
 	} while (!world()->is_terminating_threads());
@@ -1665,7 +1663,7 @@ void *check_road_connexions_threaded(void *args)
 	pthread_exit(NULL);
 	return args;
 }
- 
+
 void *step_passengers_and_mail_threaded(void* args)
 {
 	const uint32* thread_number_ptr = (const uint32*)args;
@@ -2104,7 +2102,7 @@ void karte_t::init_threads()
 
 	private_car_route_mutex_initialised = true;
 	pthread_mutex_init(&private_car_route_mutex, &mutex_attributes);
-	
+
 	pthread_mutex_init(&step_passengers_and_mail_mutex, &mutex_attributes);
 	pthread_mutex_init(&path_explorer_await_mutex, &mutex_attributes);
 	pthread_mutex_init(&unreserve_route_mutex, &mutex_attributes);
@@ -3070,7 +3068,6 @@ karte_t::karte_t() :
 
 	city_road = NULL;
 
-	// @author: jamespetts
 	set_scale();
 
 	// Added by : Knightly
@@ -5099,7 +5096,6 @@ void karte_t::new_month()
 
 	// Check to see whether more factories need to be added
 	// to replace ones that have closed.
-	// @author: jamespetts
 
 	if(industry_density_proportion == 0 && finance_history_month[0][WORLD_CITICENS] > 0)
 	{
@@ -5399,7 +5395,6 @@ void karte_t::step()
 
 		// avoid overflow here ...
 		// Should not overflow: now using 64-bit values.
-		// @author: jamespetts
 /*
 		if(  next_month_ticks > next_month_ticks+karte_t::ticks_per_world_month  ) {
 			// avoid overflow here ...
@@ -5486,10 +5481,10 @@ void karte_t::step()
 			weg_t::swap_private_car_routes_currently_reading_element();
 			FOR(weighted_vector_tpl<stadt_t*>, const i, stadt)
 			{
-				cities_awaiting_private_car_route_check.append(i); 
+				cities_awaiting_private_car_route_check.append(i);
 			}
 		}
-		
+
 #ifdef MULTI_THREAD
 		// This cannot be started at the end of the step, as we will not know at that point whether we need to call this at all.
 		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
@@ -5497,7 +5492,7 @@ void karte_t::step()
 		//cities_to_process = 1;
 		cities_to_process = env_t::networkmode ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		start_private_car_threads();
-#else			
+#else
 		const sint32 cities_to_process = env_t::networkmode ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		for (sint32 j = 0; j < cities_to_process; j++)
 		{
@@ -7923,8 +7918,6 @@ DBG_DEBUG("karte_t::finde_plaetze()","for size (%i,%i) in map (%i,%i)",w,h,get_s
 /**
  * Play a sound, but only if near enough.
  * Sounds are muted by distance and clipped completely if too far away.
- *
- * @author Hj. Malthaner
  */
 bool karte_t::play_sound_area_clipped(koord const k, uint16 const idx, waytype_t cooldown_type)
 {
@@ -9129,7 +9122,6 @@ DBG_MESSAGE("karte_t::load()", "init player");
 	}
 
 	// load linemanagement status (and lines)
-	// @author hsiegeln
 	if (file->get_version() > 82003  &&  file->get_version()<88003) {
 		DBG_MESSAGE("karte_t::load()", "load linemanagement");
 		get_player(0)->simlinemgmt.rdwr(file, get_player(0));
@@ -9402,7 +9394,6 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	else if(file->is_loading())
 	{
 		// Reconstruct the actual industry density.
-		// @author: jamespetts
 		// Loading a game - must set this to zero here and recalculate.
 		actual_industry_density = 0;
 		uint32 weight;
@@ -11354,7 +11345,6 @@ void karte_t::privatecar_init(const std::string &objfilename)
 * Reads/writes private car ownership data from/to a savegame
 * called from karte_t::save and karte_t::load
 * only written for networkgames
-* @author jamespetts
 */
 void karte_t::privatecar_rdwr(loadsave_t *file)
 {

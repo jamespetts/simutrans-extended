@@ -134,7 +134,6 @@ void bridge_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& o
 	// without that constraint also allowed on the way.
 	// Prohibitive: way allows only vehicles with matching constraint:
 	// vehicles with matching constraint allowed on other sorts of way.
-	// @author: jamespetts
 
 	uint8 permissive_way_constraints = 0;
 	uint8 prohibitive_way_constraints = 0;
@@ -164,7 +163,7 @@ void bridge_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& o
 	uint16 version = 0x8009;
 
 	// This is the overlay flag for Simutrans-Extended
-	// This sets the *second* highest bit to 1. 
+	// This sets the *second* highest bit to 1.
 	version |= EX_VER;
 
 	// Finally, this is the extended version number. This is *added*

@@ -5,7 +5,6 @@
 
 /*
  * Menu with display settings
- * @author Hj. Malthaner
  */
 
 #include "display_settings.h"

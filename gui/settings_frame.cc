@@ -79,8 +79,6 @@ settings_frame_t::settings_frame_t(settings_t* const s) :
 
 /**
  * resize window in response to a resize event
- * @author Hj. Malthaner
- * @date   16-Oct-2003
  */
 void settings_frame_t::resize(const scr_coord delta)
 {

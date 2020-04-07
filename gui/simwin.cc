@@ -160,7 +160,6 @@ static bool destroy_framed_win(simwin_t *win);
 
 /**
  * Display a window gadget
- * @author Hj. Malthaner
  */
 static int display_gadget_box(sint8 code,
 			      int const x, int const y,
@@ -346,7 +345,6 @@ static void win_draw_window_title(const scr_coord pos, const scr_size size,
 
 /**
  * Draw dragger widget
- * @author Hj. Malthaner
  */
 static void win_draw_window_dragger(scr_coord pos, scr_size size)
 {
@@ -413,7 +411,6 @@ gui_frame_t *win_get_oncoord( const scr_coord pt )
 
 /**
  * Returns top window
- * @author prissi
  */
 gui_frame_t *win_get_top()
 {
@@ -423,7 +420,6 @@ gui_frame_t *win_get_top()
 
 /**
  * returns the focused component of the top window
- * @author Knightly
  */
 gui_component_t *win_get_focus()
 {
@@ -453,7 +449,6 @@ bool top_win( const gui_frame_t *gui, bool keep_rollup )
 
 /**
  * Checks if a window is a top level window
- * @author Hj. Malthaner
  */
 bool win_is_top(const gui_frame_t *ig)
 {
@@ -711,7 +706,6 @@ static void process_kill_list()
 
 /**
  * Destroy a framed window
- * @author Hj. Malthaner
  */
 static bool destroy_framed_win(simwin_t *wins)
 {
@@ -1729,7 +1723,6 @@ bool win_change_zoom_factor(bool magnify)
  * Sets the tooltip to display.
  * Has to be called from within gui_frame_t::draw
  * @param owner : owner==NULL disables timing (initial delay and visible duration)
- * @author Hj. Malthaner, Knightly
  */
 void win_set_tooltip(int xpos, int ypos, const char *text, const void *const owner, const void *const group)
 {
@@ -1778,7 +1771,6 @@ void win_set_tooltip(int xpos, int ypos, const char *text, const void *const own
 
 /**
  * Sets the tooltip to display.
- * @author Hj. Malthaner
  */
 void win_set_static_tooltip(const char *text)
 {

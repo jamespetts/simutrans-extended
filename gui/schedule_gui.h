@@ -58,8 +58,6 @@ public:
 
 /**
  * GUI for Schedule dialog
- *
- * @author Hj. Malthaner
  */
 class schedule_gui_t :	public gui_frame_t,
 						public action_listener_t
@@ -67,8 +65,6 @@ class schedule_gui_t :	public gui_frame_t,
  public:
 	/**
      * Fills buf with description of schedule's i'th entry.
-	 *
-	 * @author Hj. Malthaner
 	 */
 	static void gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower = false );
 
@@ -147,19 +143,16 @@ public:
 
 	/**
 	 * Draw the Frame
-	 * @author Hansjörg Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 
 	/**
 	 * Set window size and adjust component sizes and/or positions accordingly
-	 * @author Hj. Malthaner
 	 */
 	virtual void set_windowsize(scr_size size);
 
 	/**
 	 * show or hide the line selector combobox and its associated label
-	 * @author hsiegeln
 	 */
 	void show_line_selector(bool yesno) {
 		line_selector.set_visible(yesno);

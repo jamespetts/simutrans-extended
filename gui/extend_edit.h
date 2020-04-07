@@ -35,12 +35,7 @@ class player_t;
  * Will display list of schedules.
  * Contains buttons: edit new remove
  * Resizable.
- *
- * @author Niels Roest
- * @author hsiegeln: major redesign
  */
-
-
 class extend_edit_gui_t :
 	public gui_frame_t,
 	public action_listener_t
@@ -83,7 +78,6 @@ public:
 	/**
 	* Does this window need a min size button in the title bar?
 	* @return true if such a button is needed
-	* @author Hj. Malthaner
 	*/
 	bool has_min_sizer() const {return true;}
 

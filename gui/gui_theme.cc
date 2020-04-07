@@ -119,7 +119,6 @@ uint8 gui_theme_t::request_linespace = 11;
 
 /**
  * Initializes theme related parameters to hard coded default values.
- * @author  Max Kielland
  */
 void gui_theme_t::init_gui_defaults()
 {
@@ -338,9 +337,7 @@ void gui_theme_t::init_gui_from_images()
 
 /**
  * Reads theme configuration data, still not final
- * @author prissi
  *
- * Max Kielland:
  * Note, there will be a theme manager later on and
  * each gui object will find their own parameters by
  * themselves after registering its class to the theme

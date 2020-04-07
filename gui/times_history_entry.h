@@ -17,7 +17,6 @@
 #define TIME_TEXT_MARGIN 10
 #define TIMES_HISTORY_ENTRY_WIDTH (TIME_TEXT_WIDTH * TIMES_HISTORY_SIZE + TIME_TEXT_MARGIN + TIME_TEXT_WIDTH)
 
-// @author: suitougreentea
 class times_history_entry_t : public gui_world_component_t
 {
 private:

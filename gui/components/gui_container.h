@@ -16,9 +16,6 @@
 /**
  * A container for other gui_components. Is itself
  * a gui_component, and can therefore be nested.
- *
- * @author Hj. Malthaner
- * @date 03-Mar-01
  */
 class gui_container_t : public gui_component_t
 {
@@ -41,19 +38,16 @@ public:
 
 	/**
 	 * Returns the minimum rectangle which encloses all children
-	 * @author Max Kielland
 	 */
 	scr_rect get_min_boundaries() const;
 
 	/**
 	* Adds a Component to the Container.
-	* @author Hj. Malthaner
 	*/
 	void add_component(gui_component_t *comp);
 
 	/**
 	* Removes a Component in the Container.
-	* @author Hj. Malthaner
 	*/
 	void remove_component(gui_component_t *comp);
 
@@ -61,19 +55,16 @@ public:
 
 	/**
 	* Draw the component
-	* @author Hj. Malthaner
 	*/
 	virtual void draw(scr_coord offset);
 
 	/**
 	* Removes all Components in the Container.
-	* @author Markus Weber
 	*/
 	void remove_all();
 
 	/**
 	 * Returns true if any child component is focusable
-	 * @author Knightly
 	 */
 	virtual bool is_focusable();
 
@@ -95,7 +86,6 @@ public:
 	/**
 	 * Get the relative position of the focused component.
 	 * Used for auto-scrolling inside a scroll pane.
-	 * @author Knightly
 	 */
 	virtual scr_coord get_focus_pos() { return comp_focus ? pos+comp_focus->get_focus_pos() : scr_coord::invalid; }
 };

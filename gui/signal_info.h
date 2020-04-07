@@ -17,7 +17,6 @@
 
 /**
  * Info window for signals
- * @author Hj. Malthaner
  */
 class signal_info_t : public obj_infowin_t, public action_listener_t
 {
@@ -32,7 +31,6 @@ class signal_info_t : public obj_infowin_t, public action_listener_t
 	/*
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char *get_help_filename() const { return "signals_overview.txt"; }
 

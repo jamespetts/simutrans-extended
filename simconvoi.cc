@@ -82,7 +82,6 @@ uint16 convoi_t::current_unreserver = 0;
 
 /*
  * Waiting time for loading (ms)
- * @author Hj- Malthaner
  */
 #define WTT_LOADING 500
 
@@ -90,7 +89,6 @@ karte_ptr_t convoi_t::welt;
 
 /*
  * Debugging helper - translate state value to human readable name
- * @author Hj- Malthaner
  */
 static const char * state_names[convoi_t::MAX_STATES] =
 {
@@ -319,7 +317,6 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 
 	clear_replace();
 
-	// @author hsiegeln - deregister from line (again) ...
 	unset_line();
 
 	self.detach();
@@ -747,7 +744,6 @@ void convoi_t::rotate90( const sint16 y_size )
 /**
  * Return the convoi position.
  * @return Convoi position
- * @author Hj. Malthaner
  */
 koord3d convoi_t::get_pos() const
 {
@@ -762,7 +758,6 @@ koord3d convoi_t::get_pos() const
 
 /**
  * Sets the name. Creates a copy of name.
- * @author Hj. Malthaner
  */
 void convoi_t::set_name(const char *name, bool with_new_id)
 {
@@ -819,7 +814,6 @@ uint32 convoi_t::get_length() const
 
 /**
  * convoi add their running cost for travelling one tile
- * @author Hj. Malthaner
  */
 void convoi_t::add_running_cost(sint64 cost, const weg_t *weg)
 {
@@ -1282,7 +1276,6 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 				// Make sure that the last_stop_pos is set here so as not
 				// to skew average speed readings from vehicles emerging
 				// from depots.
-				// @author: jamespetts
 				front()->last_stop_pos = front()->get_pos();
 				last_stop_id = 0;
 
@@ -1491,7 +1484,6 @@ bool convoi_t::prepare_for_routing()
 /**
  * Berechne route von Start- zu Zielkoordinate
  * "Compute route from starting to goal coordinate" (Babelfish)
- * @author Hanjsörg Malthaner
  */
 bool convoi_t::drive_to()
 {
@@ -1712,7 +1704,6 @@ bool convoi_t::drive_to()
  * Berechnung einer neuen Route
  *
  * "A vehicle recognized and forces a problem the computation of a new route" (Babelfish)
- * @author Hanjsörg Malthaner
  */
 void convoi_t::suche_neue_route()
 {
@@ -1740,7 +1731,6 @@ void convoi_t::threaded_step()
 
 /**
  * Asynchroneous single-threaded stepping of convoys
- * @author Hj. Malthaner
  */
 void convoi_t::step()
 {
@@ -2483,7 +2473,6 @@ void convoi_t::new_month()
 	}
 
 	// Deduct monthly fixed maintenance costs.
-	// @author: jamespetts
 	sint64 monthly_cost = 0;
 	for(unsigned j=0;  j<get_vehicle_count();  j++ )
 	{
@@ -2776,7 +2765,6 @@ void convoi_t::ziel_erreicht()
 
 /**
  * Wait until vehicle 0 returns go-ahead
- * @author Hj. Malthaner
  */
 void convoi_t::warten_bis_weg_frei(sint32 restart_speed)
 {
@@ -2874,7 +2862,6 @@ DBG_MESSAGE("convoi_t::add_vehicle()","now %i of %i total vehicles.",vehicle_cou
 void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 {
 	// Adapted from the add/remove vehicle functions
-	// @author: jamespetts, February 2010
 
 	DBG_MESSAGE("convoi_t::upgrade_vehicle()","at pos %i of %i totals.",i,max_vehicle);
 
@@ -3400,7 +3387,6 @@ void convoi_t::vorfahren()
 		if(steps_driven > 0 || must_change_direction)
 		{
 			//Convoy needs to reverse
-			//@author: jamespetts
 			if(must_change_direction)
 			{
 				halthandle_t check_halt = haltestelle_t::get_halt(get_pos(), get_owner());
@@ -5257,14 +5243,12 @@ bool convoi_t::pruefe_alle() //"examine all" (Babelfish)
 
 /**
  * Kontrolliert Be- und Entladen
- * @author Hj. Malthaner
  *
  * V.Meyer: minimum_loading is now stored in the object (not returned)
  */
 void convoi_t::laden() //"load" (Babelfish)
 {
 	// Calculate average speed and journey time
-	// @author: jamespetts
 
 	halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
 	halthandle_t this_halt = haltestelle_t::get_halt(get_pos(), owner);
@@ -5734,9 +5718,6 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 /**
  * convoi an haltestelle anhalten
  * "Convoi stop at stop" (Google translations)
- * @author Hj. Malthaner
- *
- * V.Meyer: minimum_loading is now stored in the object (not returned)
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
@@ -6159,8 +6140,6 @@ sint64 convoi_t::calc_sale_value() const
 
 /**
  * Calculate loading_level and loading_limit. This depends on current state (loading or not).
- * @author Volker Meyer
- * @date  20.06.2003
  */
 void convoi_t::calc_loading()
 {
@@ -6207,7 +6186,6 @@ uint32 convoi_t::get_average_kmh()
 /**
  * Schedule convoi for self destruction. Will be executed
  * upon next sync step
- * @author Hj. Malthaner
  */
 void convoi_t::self_destruct()
 {
@@ -6227,8 +6205,6 @@ void convoi_t::self_destruct()
  * Helper method to remove convois from the map that cannot
  * removed normally (i.e. by sending to a depot) anymore.
  * This is a workaround for bugs in the game.
- * @author Hj. Malthaner
- * @date  12-Jul-03
  */
 void convoi_t::destroy()
 {
@@ -6285,8 +6261,6 @@ void convoi_t::destroy()
 
 /**
  * Debug info nach stderr
- * @author Hj. Malthaner
- * @date 04-Sep-03
  */
 void convoi_t::dump() const
 {
@@ -6404,7 +6378,6 @@ void convoi_t::clear_average_speed()
 /**
 * set line
 * since convoys must operate on a copy of the route's schedule, we apply a fresh copy
-* @author hsiegeln
 */
 void convoi_t::set_line(linehandle_t org_line)
 {
@@ -6441,7 +6414,6 @@ void convoi_t::set_line(linehandle_t org_line)
 * unset line
 * removes convoy from route without destroying its schedule
 * => no need to recalculate connetions!
-* @author hsiegeln
 */
 void convoi_t::unset_line()
 {
@@ -6613,7 +6585,6 @@ end_check:
 
 /**
  * Register the convoy with the stops in the schedule
- * @author Knightly
  */
 void convoi_t::register_stops()
 {
@@ -6633,7 +6604,6 @@ void convoi_t::register_stops()
 
 /**
  * Unregister the convoy from the stops in the schedule
- * @author Knightly
  */
 void convoi_t::unregister_stops()
 {
@@ -6820,10 +6790,8 @@ convoi_t::get_catering_level(uint8 type) const
 }
 
 
- /**
+/**
  * True if this convoy has the same vehicles as the other
- * @author isidoro
- * @author neroden (fixed)
  */
 bool convoi_t::has_same_vehicles(convoihandle_t other) const
 {
@@ -7183,7 +7151,6 @@ void convoi_t::set_withdraw(bool new_withdraw)
 /**
  * conditions for a city car to overtake another overtaker.
  * The city car is not overtaking/being overtaken.
- * @author isidoro
  */
 bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other)
 {
@@ -8309,7 +8276,6 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 /*
  * Functions to yield lane space to vehicles on passing lane.
  * More natural movement controll is desired!
- * @author THLeaderH
  */
 void convoi_t::yield_lane_space()
 {

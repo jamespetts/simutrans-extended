@@ -24,8 +24,6 @@ class tool_selector_t;
 
 /**
  * Overhead powelines for electrified tracks.
- *
- * @author Hj. Malthaner
  */
 class wayobj_t : public obj_no_info_t
 {
@@ -54,7 +52,6 @@ public:
 
 	/**
 	* the front image, drawn before vehicles
-	* @author V. Meyer
 	*/
 	image_id get_image() const {
 		return hang ? desc->get_back_slope_image_id(hang) :
@@ -63,7 +60,6 @@ public:
 
 	/**
 	* the front image, drawn after everything else
-	* @author V. Meyer
 	*/
 	image_id get_front_image() const {
 		return hang ? desc->get_front_slope_image_id(hang) :
@@ -73,7 +69,6 @@ public:
 	/**
 	* 'Jedes Ding braucht einen Typ.'
 	* @return the object type.
-	* @author Hj. Malthaner
 	*/
 
 #ifdef INLINE_OBJ_TYPE
@@ -93,7 +88,6 @@ public:
 	*
 	* @param file Zeigt auf die Datei, in die das Objekt geschrieben werden
 	* soll.
-	* @author Hj. Malthaner
 	*/
 	void rdwr(loadsave_t *file);
 
@@ -107,7 +101,6 @@ public:
 
 	/**
 	* calculate image after loading
-	* @author prissi
 	*/
 	void finish_rd();
 
@@ -135,7 +128,6 @@ public:
 
 	/**
 	 * Fill menu with icons of given stops from the list
-	 * @author Hj. Malthaner
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 sound_ok);
 

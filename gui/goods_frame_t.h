@@ -23,7 +23,6 @@
 
 /**
  * Shows statistics. Only goods so far.
- * @author Hj. Malthaner
  */
 class goods_frame_t : public gui_frame_t, private action_listener_t
 {
@@ -74,7 +73,6 @@ private:
 	*/
 
 	// replace button list with numberinput components for faster navigation
-	// @author: HeinBloed, April 2012
 	gui_numberinput_t distance_input, comfort_input, catering_input, speed_input, class_input;
 
 	button_t		filter_goods_toggle;
@@ -91,8 +89,6 @@ public:
 
 	/**
 	* resize window in response to a resize event
-	* @author Hj. Malthaner
-	* @date   16-Oct-2003
 	*/
 	void resize(const scr_coord delta);
 
@@ -101,7 +97,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
 	 */
 	const char * get_help_filename() const {return "goods_filter.txt"; }
 
@@ -109,7 +104,6 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 

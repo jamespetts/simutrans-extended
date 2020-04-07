@@ -57,7 +57,6 @@ static pthread_mutex_t add_to_city_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
 * Initializes all variables with safe, usable values
-* @author Hj. Malthaner
 */
 void gebaeude_t::init()
 {
@@ -232,8 +231,6 @@ stadt_t* gebaeude_t::get_stadt() const
 
 /**
 * Destructor. Removes this from the list of sync objects if necessary.
-*
-* @author Hj. Malthaner
 */
 gebaeude_t::~gebaeude_t()
 {
@@ -445,7 +442,6 @@ void gebaeude_t::rotate90()
 
 
 /* sets the corresponding pointer to a factory
-* @author prissi
 */
 void gebaeude_t::set_fab(fabrik_t *fd)
 {
@@ -479,7 +475,6 @@ void gebaeude_t::set_fab(fabrik_t *fd)
 
 
 /* sets the corresponding city
-* @author prissi
 */
 void gebaeude_t::set_stadt(stadt_t *s)
 {
@@ -720,7 +715,6 @@ image_id gebaeude_t::get_front_image() const
 }
 /**
 * @return eigener Name oder Name der Fabrik falls Teil einer Fabrik
-* @author Hj. Malthaner
 */
 const char *gebaeude_t::get_name() const
 {
@@ -1075,7 +1069,7 @@ void gebaeude_t::info(cbuffer_t & buf, bool dummy) const
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
-                buf.printf("%s: %s (%d)\n", translator::translate("Built in"), 
+                buf.printf("%s: %s (%d)\n", translator::translate("Built in"),
                            translator::get_year_month(((purchase_time / welt->ticks_per_world_month)+welt->get_settings().get_starting_month())+
                                                       welt->get_settings().get_starting_year()*12),
                            (purchase_time / welt->ticks_per_world_month));

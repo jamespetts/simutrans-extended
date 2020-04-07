@@ -20,7 +20,7 @@
 
 class player_t;
 
-// @author: suitougreentea
+
 class times_history_t : public gui_frame_t, action_listener_t
 {
 private:

@@ -37,8 +37,6 @@
  * It is used to implement various economic game logic functions configured by paks.
  * As such it is instantiated with small, constant numbers of elements; although these are not
  * known at compile time, they are known early in runtime during settings loading.
- *
- * @author neroden (Nathanael Nerode)
  */
 
 #ifndef TPL_PIECEWISE_LINEAR_TPL_H

@@ -86,7 +86,6 @@ void crossing_t::state_changed()
 
 /**
  * Dient zur Neuberechnung des Bildes
- * @author Hj. Malthaner
  */
 void crossing_t::calc_image()
 {

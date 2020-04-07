@@ -34,8 +34,6 @@ class checksum_t;
  *	6-8  winter images of image lists 2-4
  *	9-11 front images of image lists 2-4
  *	12-14 front winter images of image lists 2-4
- *
- * @author  Volker Meyer, Hj. Malthaner
  */
 class way_desc_t : public obj_desc_transport_infrastructure_t {
 	friend class way_reader_t;
@@ -45,7 +43,6 @@ private:
 	/**
 	 * Way system type: i.e. for wtyp == track this
 	 * can be used to select track system type (tramlike=7, elevated=1, ignore=255)
-	 * @author Hj. Malthaner
 	 */
 	uint8 styp;
 
@@ -57,8 +54,7 @@ private:
 	*/
 	sint8 number_of_seasons;
 
-	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
-	* @author: jamespetts*/
+	/* Way constraints for, e.g., loading gauges, types of electrification, etc.*/
 	way_constraints_of_way_t way_constraints;
 
 	// this is the defualt tools for building this way ...
@@ -103,7 +99,6 @@ public:
 	/**
 	* returns the system type of this way (mostly used with rails)
 	* @see systemtype_t
-	* @author DarioK
 	*/
 	uint8 get_styp() const { return styp; }
 
@@ -213,7 +208,6 @@ public:
 
 	/**
 	* Skin: cursor (index 0) and icon (index 1)
-	* @author Hj. Malthaner
 	*/
 	const skin_desc_t * get_cursor() const
 	{

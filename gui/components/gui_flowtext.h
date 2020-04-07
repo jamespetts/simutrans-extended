@@ -16,7 +16,6 @@
 
 /**
  * A component for floating text.
- * @author Hj. Malthaner
  */
 class gui_flowtext_t :
 	public gui_action_creator_t,
@@ -27,7 +26,6 @@ public:
 
 	/**
 	 * Sets the text to display.
-	 * @author Hj. Malthaner
 	 */
 	void set_text(const char* text);
 
@@ -39,7 +37,6 @@ public:
 
 	/**
 	 * Paints the component
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord offset);
 
@@ -74,7 +71,6 @@ private:
 
 	/**
 	 * Hyperlink position container
-	 * @author Hj. Malthaner
 	 */
 	struct hyperlink_t
 	{

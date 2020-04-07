@@ -106,7 +106,6 @@
 
 /**
  * Creates a tooltip from tip text and money value
- * @author Hj. Malthaner
  */
 char *tooltip_with_price(const char * tip, sint64 price)
 {
@@ -133,7 +132,6 @@ static int const building_layout[] = { 0, 0, 1, 4, 2, 0, 5, 1, 3, 7, 1, 0, 6, 3,
 
 /**
  * Creates a tooltip from tip text and money value
- * @author Hj. Malthaner
  */
 char *tooltip_with_price_maintenance(karte_t *welt, const char *tip, sint64 price, sint64 maintenance)
 {
@@ -185,7 +183,6 @@ char *tooltip_with_price_maintenance_level(karte_t *welt, const char *tip, sint6
 /**
  * sucht Haltestelle um Umkreis +1/-1 um (pos, b, h)
  * extended to search first in our direction
- * @author Hj. Malthaner, V.Meyer, prissi
  */
 static halthandle_t suche_nahe_haltestelle(player_t *player, karte_t *welt, koord3d pos, sint16 b=1, sint16 h=1)
 {
@@ -524,7 +521,6 @@ DBG_MESSAGE("tool_remover_intern()","at (%s)", pos.get_str());
 				// This is an awful fudge, but there does not seem to be any other
 				// way of stopping crashes, since, inexplicably, the destructor
 				// is not properly called when "lt" is a substation in a city.
-				// @author: jamespetts. May 2009
 				senke_t* sn = (senke_t*)lt;
 				if(sn->city != NULL)
 				{
@@ -1741,7 +1737,6 @@ const char *tool_transformer_t::work( player_t *player, koord3d pos )
 	}
 
 	// Check whether the transformer (substation) is within city limits.
-	// @author: jamespetts
 	stadt_t* city = welt->get_city(pos.get_2d());
 
 	if(fab != NULL)
@@ -1828,7 +1823,6 @@ const char *tool_transformer_t::work( player_t *player, koord3d pos )
 
 /**
  * found a new city
- * @author Hj. Malthaner
  */
 const char *tool_add_city_t::work( player_t *player, koord3d pos )
 {
@@ -1936,7 +1930,6 @@ const char *tool_buy_house_t::work( player_t *player, koord3d pos)
 }
 
 /* change city size
- * @author prissi
  */
 bool tool_change_city_size_t::init( player_t * )
 {
@@ -1956,7 +1949,6 @@ const char *tool_change_city_size_t::work( player_t *, koord3d pos )
 
 
 /* change climate
- * @author kieron
  */
 const char *tool_set_climate_t::get_tooltip(player_t const*) const
 {
@@ -2073,7 +2065,6 @@ const char *tool_set_climate_t::do_work( player_t *player, const koord3d &start,
 
 
 /* change water height
- * @author kieron
  */
 bool tool_change_water_height_t::init( player_t *player )
 {
@@ -2342,7 +2333,6 @@ const char *tool_plant_tree_t::work( player_t *player, koord3d pos )
 
 /* the following routines add waypoints/halts to a schedule
  * Players' vehicles can stop at other players' stops when they are allowed access rights.
- * @author prissi
  */
 static const char *tool_schedule_insert_aux(karte_t *welt, player_t *player, koord3d pos, schedule_t *schedule, bool append)
 {
@@ -6701,7 +6691,6 @@ const char *tool_build_depot_t::work( player_t *player, koord3d pos )
  * first letter: ignore climates
  * second letter: rotation (0,1,2,3,#=random)
  * finally building name
- * @author prissi
  */
 bool tool_build_house_t::init( player_t * )
 {
@@ -7145,7 +7134,6 @@ const char *tool_link_factory_t::do_work( player_t *, const koord3d &start, cons
 
 
 /* builds company headquarters
- * @author prissi
  */
 const building_desc_t *tool_headquarter_t::next_level( const player_t *player ) const
 {

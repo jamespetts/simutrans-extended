@@ -26,7 +26,6 @@ void intr_set(karte_t *welt, main_view_t *view);
 
 /**
  * currently only used by the pause tool. Use with care!
- * @author Hj. Malthaner
  */
 void intr_set_last_time(long time);
 long intr_get_last_time();

@@ -77,7 +77,6 @@ void log_t::important(const char* format, ...)
 
 /**
  * writes a debug message into the log.
- * @author Hj. Malthaner
  */
 void log_t::debug(const char *who, const char *format, ...)
 {
@@ -120,7 +119,6 @@ void log_t::debug(const char *who, const char *format, ...)
 
 /**
  * writes a message into the log.
- * @author Hj. Malthaner
  */
 void log_t::message(const char *who, const char *format, ...)
 {
@@ -163,7 +161,6 @@ void log_t::message(const char *who, const char *format, ...)
 
 /**
  * writes a warning into the log.
- * @author Hj. Malthaner
  */
 void log_t::warning(const char *who, const char *format, ...)
 {
@@ -206,7 +203,6 @@ void log_t::warning(const char *who, const char *format, ...)
 
 /**
  * writes an error into the log.
- * @author Hj. Malthaner
  */
 void log_t::error(const char *who, const char *format, ...)
 {
@@ -256,7 +252,6 @@ void log_t::error(const char *who, const char *format, ...)
 
 /**
  * writes an error into the log, aborts the program.
- * @author Hj. Malthaner
  */
 void log_t::fatal(const char *who, const char *format, ...)
 {

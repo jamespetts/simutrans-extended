@@ -61,8 +61,6 @@ uint32 image_writer_t::block_getpix(int x, int y)
 /**
  * Encodes image data into the internal representation,
  * considers special colors.
- *
- * @author Hj. Malthaner
  */
 static uint16 pixrgb_to_pixval(uint32 rgb)
 {
@@ -147,8 +145,6 @@ static void init_dim(uint32 *image, dimension *dim, int img_size)
 /**
  * Encodes an image into a sprite data structure, considers
  * special colors.
- *
- * @author Hj. Malthaner
  */
 uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 {

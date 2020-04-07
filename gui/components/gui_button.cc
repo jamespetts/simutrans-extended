@@ -134,7 +134,6 @@ void button_t::set_typ(enum type t)
 
 /**
  * Sets the text displayed in the button
- * @author Hj. Malthaner
  */
 void button_t::set_text(const char * text)
 {
@@ -149,7 +148,6 @@ void button_t::set_text(const char * text)
 
 /**
  * Sets the tooltip of this button
- * @author Hj. Malthaner
  */
 void button_t::set_tooltip(const char * t)
 {
@@ -176,7 +174,6 @@ bool button_t::getroffen(int x,int y)
 
 /**
  * Event responder
- * @author Hj. Malthaner
  */
 bool button_t::infowin_event(const event_t *ev)
 {

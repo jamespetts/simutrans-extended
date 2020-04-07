@@ -17,9 +17,6 @@
 /*
  * A simple text input field. It has no Text Buffer,
  * only a pointer to a buffer created by someone else.
- *
- * @date 19-Apr-01
- * @author Hj. Malthaner
  */
 class gui_textinput_t :
 	public gui_action_creator_t,
@@ -29,7 +26,6 @@ protected:
 
 	/**
 	 * The string buffer
-	 * @author Hj. Malthaner
 	 */
 	char *text;
 
@@ -40,21 +36,18 @@ protected:
 
 	/**
 	 * Maximum length of the string buffer
-	 * @author Hj. Malthaner
 	 */
 	size_t max;
 
 	/**
 	 * position of head cursor to the text
 	 * represents front end of the selected text portion
-	 * @author hsiegeln
 	 */
 	size_t head_cursor_pos;
 
 	/**
 	 * position of tail cursor to the text
 	 * represent rear end of the selected text portion
-	 * @author Knightly
 	 */
 	size_t tail_cursor_pos;
 
@@ -66,7 +59,6 @@ protected:
 
 	/**
 	 * text alignment
-	 * @author: Dwachs
 	 */
 	uint8 align;
 
@@ -77,26 +69,22 @@ protected:
 
 	/**
 	 * reference time for regulating cursor blinking
-	 * @author Knightly
 	 */
 	uint32 cursor_reference_time;
 
 	/**
 	 * whether focus has been received
-	 * @author Knightly
 	 */
 	bool focus_recieved;
 
 	/**
 	 * determine new cursor position from event coordinates
-	 * @author Knightly
 	 */
 	size_t calc_cursor_pos(const int x);
 
 	/**
 	 * Remove selected text portion, if any.
 	 * Returns true if some selected text is actually deleted.
-	 * @author Knightly
 	 */
 	bool remove_selection();
 
@@ -106,7 +94,6 @@ public:
 	/**
 	 * Sets the Text buffer
 	 *
-	 * @author Hj. Malthaner
 	 */
 	void set_text(char *text, size_t max);
 
@@ -116,7 +103,6 @@ public:
 	/**
 	 * Return the Text buffer
 	 *
-	 * @author Hj. Malthaner
 	 */
 	char *get_text() const { return text; }
 	const char *get_composition() const { return composition.get_str(); }
@@ -125,7 +111,6 @@ public:
 
 	/**
 	 * Draw the component
-	 * @author Hj. Malthaner
 	 */
 	virtual void draw(scr_coord offset);
 
@@ -135,7 +120,6 @@ public:
 	/**
 	 * Detect change of focus state and determine whether cursor should be displayed,
 	 * and call the function that performs the actual display
-	 * @author Knightly
 	 */
 	void display_with_focus(scr_coord offset, bool has_focus);
 

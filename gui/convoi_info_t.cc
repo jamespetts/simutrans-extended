@@ -25,7 +25,6 @@
 #include "../dataobj/loadsave.h"
 #include "schedule_gui.h"
 #include "times_history.h"
-// @author hsiegeln
 #include "../simlinemgmt.h"
 #include "../simline.h"
 #include "messagebox.h"
@@ -103,7 +102,6 @@ static const bool cost_type_money[BUTTON_COUNT] =
  *					4 = origin
  *					5 = origin_amount
  *					6 = destination (detail)
- * @author prissi - amended by jamespetts (origins)
  */
 const char *convoi_info_t::sort_text[SORT_MODES] =
 {
@@ -314,7 +312,6 @@ convoi_info_t::~convoi_info_t()
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void convoi_info_t::draw(scr_coord pos, scr_size size)
 {
@@ -719,7 +716,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 
 		/*
 		 * only show assigned line, if there is one!
-		 * @author hsiegeln
 		 */
 		if (cnv->get_line().is_bound()) {
 			const int pos_y = pos_y0 + 6 * LINESPACE; // line 7
@@ -949,7 +945,6 @@ void convoi_info_t::show_hide_statistics( bool show )
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -1098,7 +1093,6 @@ void convoi_info_t::rename_cnv()
 
 /**
  * Set window size and adjust component sizes and/or positions accordingly
- * @author Markus Weber
  */
 void convoi_info_t::set_windowsize(scr_size size)
 {

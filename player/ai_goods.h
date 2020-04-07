@@ -33,7 +33,6 @@ private:
 
 	/* test more than one supplier and more than one good *
 	 * save last factory for building next supplier/consumer *
-	 * @author prissi
 	 */
 	fabrik_t *root;
 
@@ -131,7 +130,6 @@ public:
 	/**
 	 * Tells the player that a fabrik_t is going to be deleted.
 	 * It could also tell, that a fab has been created, but by now the factory_builder_t does not.
-	 * @author Bernd Gabriel, Jan 01, 2010
 	 */
 	virtual void notify_factory(notification_factory_t flag, const fabrik_t*);
 };

@@ -40,8 +40,6 @@ class strasse_t;
 
 /**
  * Base class for all vehicles
- *
- * @author Hj. Malthaner
  */
 class vehicle_base_t : public obj_t
 {
@@ -86,7 +84,6 @@ protected:
 
 	/**
 	 * Actual travel direction in screen coordinates
-	 * @author Hj. Malthaner
 	 */
 	ribi_t::ribi direction;
 
@@ -116,7 +113,6 @@ protected:
 
 	/**
 	 * Next position on our path
-	 * @author Hj. Malthaner
 	 */
 	koord3d pos_next;
 
@@ -131,14 +127,12 @@ protected:
 	image_id image;
 
 	// The current livery of this vehicle.
-	// @author: jamespetts, April 2011
 	std::string current_livery;
 
 	/**
 	 * this vehicle will enter passing lane in the next tile -> 1
 	 * this vehicle will enter traffic lane in the next tile -> -1
 	 * Unclear -> 0
-	 * @author THLeaderH
 	 */
 	sint8 next_lane;
 
@@ -265,24 +259,19 @@ template<> inline vehicle_base_t* obj_cast<vehicle_base_t>(obj_t* const d)
 
 /**
  * Class for all vehicles with route
- *
- * @author Hj. Malthaner
  */
-
 class vehicle_t : public vehicle_base_t, public test_driver_t
 {
 private:
 	/**
 	* Date of purchase in months
-	* @author Hj. Malthaner
 	*/
 	sint32 purchase_time;
 
 	/* For the more physical acceleration model friction is introduced
 	* frictionforce = gamma*speed*weight
 	* since the total weight is needed a lot of times, we save it
-	* @author prissi
-	* BG, 18.10.2011: in tons in simutrans standard, in kg in simutrans extended
+	* @note in tons in simutrans standard, in kg in simutrans extended
 	*/
 	uint32 sum_weight;
 
@@ -297,7 +286,6 @@ private:
 
 	bool load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes);
 
-	// @author: jamespetts
 	// Cornering settings.
 
 	fixed_list_tpl<sint16, 192> pre_corner_direction;
@@ -309,10 +297,8 @@ private:
 	bool is_overweight;
 
 	// Whether this individual vehicle is reversed.
-	// @author: jamespetts
 	bool reversed;
 
-	//@author: jamespetts
 	uint16 diagonal_costs;
 	uint16 base_costs;
 
@@ -338,13 +324,11 @@ protected:
 	halthandle_t target_halt;
 
 	/* The friction is calculated new every step, so we save it too
-	* @author prissi
 	*/
 	sint16 current_friction;
 
 	/**
 	* Current index on the route
-	* @author Hj. Malthaner
 	*/
 	uint16 route_index;
 
@@ -357,7 +341,6 @@ protected:
 
 	/**
 	* Previous position on our path
-	* @author Hj. Malthaner
 	*/
 	koord3d pos_prev;
 
@@ -415,8 +398,6 @@ public:
 
 	/**
 	* Determine the direction bits for this kind of vehicle.
-	*
-	* @author Hj. Malthaner, 04.01.01
 	*/
 	virtual ribi_t::ribi get_ribi(const grund_t* gr) const { return gr->get_weg_ribi(get_waytype()); }
 
@@ -433,7 +414,6 @@ public:
 
 	/**
 	* Get the base image.
-	* @author Hj. Malthaner
 	*/
 	image_id get_base_image() const { return desc->get_base_image(current_livery.c_str()); }
 
@@ -444,28 +424,24 @@ public:
 
 	/**
 	* @return vehicle description object
-	* @author Hj. Malthaner
 	*/
 	const vehicle_desc_t *get_desc() const {return desc; }
 	void set_desc(const vehicle_desc_t* value);
 
 	/**
 	* @return die running_cost in Cr/100Km
-	* @author Hj. Malthaner
 	*/
 	int get_running_cost() const { return desc->get_running_cost(); }
 	int get_running_cost(const karte_t* welt) const { return desc->get_running_cost(welt); }
 
 	/**
 	* @return fixed maintenance costs in Cr/100months
-	* @author Bernd Gabriel
 	*/
 	uint32 get_fixed_cost() const { return desc->get_fixed_cost(); }
 	uint32 get_fixed_cost(karte_t* welt) const { return desc->get_fixed_cost(welt); }
 
 	/**
 	* Play sound, when the vehicle is visible on screen
-	* @author Hj. Malthaner
 	*/
 	void play_sound() const;
 
@@ -473,7 +449,6 @@ public:
 	 * Prepare vehicle for new ride.
 	 * Sets route_index, pos_next, steps_next.
 	 * If @p recalc is true this sets position and recalculates/resets movement parameters.
-	 * @author Hj. Malthaner
 	 */
 	void initialise_journey( uint16 start_route_index, bool recalc );
 
@@ -506,7 +481,6 @@ public:
 private:
 	/**
 	* der normale Infotext
-	* @author Hj. Malthaner
 	*/
 	void info(cbuffer_t & buf, bool dummy = false) const;
 public:
@@ -514,12 +488,10 @@ public:
 
 
 	/* return friction constant: changes in hill and curves; may even negative downhill *
-	* @author prissi
 	*/
 	inline sint16 get_frictionfactor() const { return current_friction; }
 
 	/* Return total weight including freight (in kg!)
-	* @author prissi
 	*/
 	inline uint32 get_total_weight() const { return sum_weight; }
 
@@ -552,7 +524,6 @@ public:
 
 	/**
 	* Calculate transported cargo total weight in KG
-	* @author Hj. Malthaner
 	*/
 	uint32 get_cargo_weight() const;
 
@@ -575,13 +546,10 @@ public:
 	/**
 	* create an info text for the freight
 	* e.g. to display in a info window
-	* @author Hj. Malthaner
 	*/
 	void get_cargo_info(cbuffer_t & buf) const;
 
 	// Check for straightness of way.
-	//@author jamespetts
-
 	enum direction_degrees {
 		North = 360,
 		Northeast = 45,
@@ -599,7 +567,6 @@ public:
 
 	/**
 	* Delete all vehicle load
-	* @author Hj. Malthaner
 	*/
 	void discard_cargo();
 
@@ -608,7 +575,6 @@ public:
 	* the income for the last hop. This method must be called upon
 	* every stop.
 	* @return income total for last hop
-	* @author Hj. Malthaner
 	*/
 	//sint64  calc_gewinn(koord start, koord end, convoi_t* cnv) const;
 
@@ -641,13 +607,11 @@ public:
 	/**
 	* Remove freight that no longer can reach it's destination
 	* i.e. because of a changed schedule
-	* @author Hj. Malthaner
 	*/
 	void remove_stale_cargo();
 
 	/**
 	* Generate a matching schedule for the vehicle type
-	* @author Hj. Malthaner
 	*/
 	virtual schedule_t *generate_new_schedule() const = 0;
 
@@ -678,10 +642,8 @@ public:
 	uint32 get_sum_weight() const { return sum_weight; }
 
 	uint16 get_overcrowded_capacity(uint8 g_class) const;
-	// @author: jamespetts
 	uint16 get_overcrowding(uint8 g_class) const;
 
-	// @author: jamespetts
 	uint8 get_comfort(uint8 catering_level = 0, uint8 g_class = 0) const;
 
 	uint16 get_accommodation_capacity(uint8 g_class, bool include_lower_classes = false) const;
@@ -708,8 +670,6 @@ template<> inline vehicle_t* obj_cast<vehicle_t>(obj_t* const d)
 /**
  * A class for road vehicles. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
 class road_vehicle_t : public vehicle_t
@@ -772,8 +732,6 @@ public:
 /**
  * A class for rail vehicles (trains). Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
 class rail_vehicle_t : public vehicle_t
@@ -851,7 +809,6 @@ public:
 
 /**
  * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
  * @see vehicle_t
  */
 class monorail_rail_vehicle_t : public rail_vehicle_t
@@ -878,7 +835,6 @@ public:
 
 /**
  * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
  * @see vehicle_t
  */
 class maglev_rail_vehicle_t : public rail_vehicle_t
@@ -905,7 +861,6 @@ public:
 
 /**
  * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
  * @see vehicle_t
  */
 class narrowgauge_rail_vehicle_t : public rail_vehicle_t
@@ -933,8 +888,6 @@ public:
 /**
  * A class for naval vehicles. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
 class water_vehicle_t : public vehicle_t
@@ -975,8 +928,6 @@ public:
 /**
  * A class for aircrafts. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author hsiegeln
  * @see vehicle_t
  */
 class air_vehicle_t : public vehicle_t

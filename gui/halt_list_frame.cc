@@ -30,14 +30,13 @@
 
 /**
  * This variable defines by which column the table is sorted
- * @author Markus Weber
  */
 halt_list_frame_t::sort_mode_t halt_list_frame_t::sortby = nach_name;
+
 
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool halt_list_frame_t::sortreverse = false;
 
@@ -243,7 +242,6 @@ static bool passes_filter_in(haltestelle_t const& s)
 /**
  * Check all filters for one halt.
  * returns true, if it is not filtered away.
- * @author V. Meyer
  */
 static bool passes_filter(haltestelle_t & s)
 {
@@ -308,7 +306,6 @@ halt_list_frame_t::~halt_list_frame_t()
 
 /**
 * This function refreshes the station-list
-* @author Markus Weber/Volker Meyer
 */
 void halt_list_frame_t::display_list()
 {
@@ -389,7 +386,6 @@ bool halt_list_frame_t::infowin_event(const event_t *ev)
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber/Volker Meyer
  */
 bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -421,7 +417,6 @@ bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 
 /**
  * Resize the window
- * @author Markus Weber
  */
 void halt_list_frame_t::resize(const scr_coord size_change)
 {

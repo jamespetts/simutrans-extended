@@ -40,15 +40,13 @@ private:
 	bool has_own_way_graphics; // Whether the way graphics are built into the bridge itself (do not allow display of other way graphics if this is set). This was traditional in Simutrans for a long time, so this is on by default.
 	bool has_way;
 
-	uint8 max_length;	// =0 off, else maximum length
-	uint8 max_height;	// =0 off, else maximum length
-	uint32 max_weight; //@author: jamespetts. Weight limit for convoys.
+	uint8 max_length;  // =0 off, else maximum length
+	uint8 max_height;  // =0 off, else maximum length
+	uint32 max_weight; // Weight limit for convoys.
 
-	/* number of seasons (0 = none, 1 = no snow/snow
-	*/
+	// number of seasons (0 = none, 1 = no snow/snow
 
-	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
-	* @author: jamespetts*/
+	/*Way constraints for, e.g., loading gauges, types of electrification, etc.*/
 	way_constraints_of_way_t way_constraints;
 
 	sint8 number_of_seasons;
@@ -117,31 +115,26 @@ public:
 
 	/**
 	 * Determines max weight in tonnes for vehicles allowed on this bridge
-	 * @author jamespetts
 	 */
 	uint32 get_max_weight() const { return max_weight; }
 
 	/**
 	 * Distance of pillars (=0 for no pillars)
-	 * @author prissi
 	 */
 	int  get_pillar() const { return pillars_every; }
 
 	/**
 	 * skips lowest pillar on south/west slopes?
-	 * @author prissi
 	 */
 	bool  has_pillar_asymmetric() const { return pillars_asymmetric; }
 
 	/**
 	 * maximum bridge span (=0 for infinite)
-	 * @author prissi
 	 */
 	int  get_max_length() const { return max_length; }
 
 	/**
 	 * maximum bridge height (=0 for infinite)
-	 * @author prissi
 	 */
 	int  get_max_height() const { return max_height; }
 
@@ -150,7 +143,6 @@ public:
 	 * the byte into bool values. See here for
 	 * information on bitwise operations:
 	 * http://www.cprogramming.com/tutorial/bitwise_operators.html
-	 * @author: jamespetts
 	 * */
 	const way_constraints_of_way_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_way_t& way_constraints) { this->way_constraints = way_constraints; }

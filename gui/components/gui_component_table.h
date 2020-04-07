@@ -10,12 +10,6 @@
 #include "gui_table.h"
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
 class gui_table_cell_list_t : public list_tpl<gui_component_t> {
 protected:
 	virtual gui_component_t *create_item() const {
@@ -24,12 +18,7 @@ protected:
 	}
 };
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
+
 class gui_table_cell_matrix_t : public list_tpl<gui_table_cell_list_t> {
 protected:
 	virtual gui_table_cell_list_t *create_item() const { return new gui_table_cell_list_t(); }
@@ -43,9 +32,6 @@ public:
 
 /**
  * a table component
- *
- * @since 14-MAR-2010
- * @author Bernd Gabriel
  */
 class gui_component_table_t : public gui_table_t
 {

@@ -37,7 +37,6 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv)
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_convoiinfo_t::infowin_event(const event_t *ev)
 {
@@ -57,7 +56,6 @@ bool gui_convoiinfo_t::infowin_event(const event_t *ev)
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_convoiinfo_t::draw(scr_coord offset)
 {

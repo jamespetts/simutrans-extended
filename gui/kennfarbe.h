@@ -38,7 +38,6 @@ class farbengui_t : public gui_frame_t, action_listener_t
 		/**
 		 * Set the window associated helptext
 		 * @return the filename for the helptext, or NULL
-		 * @author Hj. Malthaner
 		 */
 		const char * get_help_filename() const { return "color.txt"; }
 

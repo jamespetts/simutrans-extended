@@ -19,7 +19,6 @@ namespace curiositylist {
 
 /**
  * Where curiosity (attractions) stats are calculated for list dialog
- * @author Hj. Malthaner
  */
 class curiositylist_stats_t : public gui_world_component_t
 {
@@ -46,7 +45,6 @@ public:
 
 	/**
 	* Draw the component
-	* @author Hj. Malthaner
 	*/
 	void draw(scr_coord offset);
 };

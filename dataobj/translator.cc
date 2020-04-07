@@ -214,7 +214,7 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 	}
 	name_list.clear();
 
-	// @author prissi: first try in pakset
+	// first try in pakset
 	{
 		string local_file_name(env_t::user_dir);
 		local_file_name = local_file_name + "addons/" + pakset_path + "text/" + fileprefix + langs[lang].iso_base + ".txt";
@@ -268,7 +268,6 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 
 /* the city list is now reloaded after the language is changed
  * new cities will get their appropriate names
- * @author hajo, prissi
  */
 void translator::init_custom_names(int lang)
 {

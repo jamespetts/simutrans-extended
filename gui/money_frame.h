@@ -23,10 +23,6 @@
 
 /**
  * Finances dialog
- *
- * @author Hj. Malthaner, Owen Rudge
- * @date 09-Jun-01
- * @update 29-Jun-02
  */
 class money_frame_t : public gui_frame_t, private action_listener_t
 {
@@ -54,7 +50,6 @@ private:
 	gui_label_t old_mmoney;
 	gui_label_t old_omoney;
 
-	//@author: jamespetts, neroden
 	gui_label_t soft_credit_limit;
 	gui_label_t hard_credit_limit;
 
@@ -89,7 +84,6 @@ private:
 
 	player_t *player;
 
-	//@author hsiegeln
 	sint64 money_tmp, money_min, money_max;
 	sint64 baseline, scale;
 	char cmoney_min[128], cmoney_max[128];
@@ -126,13 +120,11 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char * get_help_filename() const {return "finances.txt";}
 
 	/**
 	 * Constructor. Adds all necessary Subcomponents.
-	 * @author Hj. Malthaner, Owen Rudge
 	 */
 	money_frame_t(player_t *player);
 
@@ -140,7 +132,6 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 

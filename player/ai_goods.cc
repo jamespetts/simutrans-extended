@@ -71,7 +71,6 @@ ai_goods_t::ai_goods_t(karte_t *wl, uint8 nr) : ai_t(wl,nr)
 
 /**
  * Methode fuer jaehrliche Aktionen
- * @author Hj. Malthaner, Owen Rudge, hsiegeln
  */
 void ai_goods_t::new_year()
 {
@@ -101,7 +100,6 @@ void ai_goods_t::rotate90( const sint16 y_size )
 
 
 /* Activates/deactivates a player
- * @author prissi
  */
 bool ai_goods_t::set_active(bool new_state)
 {
@@ -358,7 +356,6 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 
 
 /* build docks and ships
- * @author prissi
  */
 bool ai_goods_t::create_ship_transport_vehicle(fabrik_t *qfab, int vehicle_count)
 {
@@ -458,7 +455,6 @@ bool ai_goods_t::create_ship_transport_vehicle(fabrik_t *qfab, int vehicle_count
 
 
 /* changed to use vehicles searched before
- * @author prissi
  */
 void ai_goods_t::create_road_transport_vehicle(fabrik_t *qfab, int vehicle_count)
 {
@@ -512,7 +508,6 @@ void ai_goods_t::create_road_transport_vehicle(fabrik_t *qfab, int vehicle_count
 
 
 /* now obeys timeline and use "more clever" scheme for vehicle selection *
- * @author prissi
  */
 void ai_goods_t::create_rail_transport_vehicle(const koord platz1, const koord platz2, int vehicle_count, int minimum_loading)
 {
@@ -570,7 +565,6 @@ void ai_goods_t::create_rail_transport_vehicle(const koord platz1, const koord p
 
 /* built a station
  * Can fail even though check has been done before
- * @author prissi
  */
 int ai_goods_t::baue_bahnhof(const koord* p, int vehicle_count)
 {
@@ -636,7 +630,6 @@ int ai_goods_t::baue_bahnhof(const koord* p, int vehicle_count)
 
 /* built a very simple track with just the minimum effort
  * usually good enough, since it can use road crossings
- * @author prissi
  */
 bool ai_goods_t::create_simple_rail_transport()
 {
@@ -832,7 +825,7 @@ void ai_goods_t::step()
 		* last target also new target ...
 		*/
 		case NR_SAMMLE_ROUTEN:
-			// @author Bernd Gabriel: root may have been deleted and thus set to NULL.
+			// root may have been deleted and thus set to NULL.
 			if (root == NULL)
 			{
 				state = CHECK_CONVOI;
@@ -860,7 +853,7 @@ void ai_goods_t::step()
 		// now we need so select the cheapest mean to get maximum profit
 		case NR_BAUE_ROUTE1:
 		{
-			// @author Bernd Gabriel: start or ziel may have been deleted and thus set to NULL.
+			// start or ziel may have been deleted and thus set to NULL.
 			if (start == NULL || ziel == NULL)
 			{
 				state = CHECK_CONVOI;
@@ -871,7 +864,6 @@ void ai_goods_t::step()
 			 * the KI just chooses the way to run the operation at maximum profit (minimum loss).
 			 * The KI will built also a loosing route; this might be required by future versions to
 			 * be able to built a network!
-			 * @author prissi
 			 */
 
 			/* for the calculation we need:
@@ -1067,7 +1059,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 
 		// built a simple ship route
 		case NR_BAUE_WATER_ROUTE:
-			// @author Bernd Gabriel: start or ziel may have been deleted and thus set to NULL.
+			// start or ziel may have been deleted and thus set to NULL.
 			if (start == NULL || ziel == NULL)
 			{
 				state = CHECK_CONVOI;
@@ -1121,7 +1113,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 
 		// built a simple railroad
 		case NR_BAUE_SIMPLE_SCHIENEN_ROUTE:
-			// @author Bernd Gabriel: start or ziel may have been deleted and thus set to NULL.
+			// start or ziel may have been deleted and thus set to NULL.
 			if (start == NULL || ziel == NULL)
 			{
 				state = ship_vehicle ? NR_BAUE_CLEAN_UP : CHECK_CONVOI;
@@ -1182,7 +1174,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 
 		// built a simple road (no bridges, no tunnels)
 		case NR_BAUE_STRASSEN_ROUTE:
-			// @author Bernd Gabriel: start or ziel may have been deleted and thus set to NULL.
+			// start or ziel may have been deleted and thus set to NULL.
 			if (start == NULL || ziel == NULL)
 			{
 				state = ship_vehicle ? NR_BAUE_CLEAN_UP : CHECK_CONVOI;
@@ -1517,7 +1509,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 		while(  cnt-->0  ) {
 			fabconnection_t *fc = new fabconnection_t(0,0,0);
 			fc->rdwr(file);
-			// @author Bernd Gabriel, Jan 01, 2010: Don't add, if fab or ware no longer in the game.
+			// Don't add, if fab or ware no longer in the game.
 			if(  fc->fab1  &&  fc->fab2  &&  fc->ware  ) {
 				forbidden_connections.append(fc);
 			}
@@ -1572,8 +1564,6 @@ void ai_goods_t::fabconnection_t::rdwr(loadsave_t *file)
  * Dealing with stucked  or lost vehicles:
  * - delete lost ones
  * - ignore stuck ones
- * @author prissi
- * @date 30-Dec-2008
  */
 void ai_goods_t::report_vehicle_problem(convoihandle_t cnv,const koord3d ziel)
 {
@@ -1589,7 +1579,6 @@ void ai_goods_t::report_vehicle_problem(convoihandle_t cnv,const koord3d ziel)
 /**
  * Tells the player that a fabrik_t is going to be deleted.
  * It could also tell, that a fab has been created, but by now the factory_builder_t does not.
- * @author Bernd Gabriel, Jan 01, 2010
  */
 void ai_goods_t::notify_factory(notification_factory_t flag, const fabrik_t* fab)
 {

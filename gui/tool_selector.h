@@ -33,7 +33,6 @@ private:
 
 	/**
 	 * window width in toolboxes
-	 * @author Hj. Malthaner
 	 */
 	uint16 tool_icon_width;
 	uint16 tool_icon_height;
@@ -45,13 +44,11 @@ private:
 
 	/**
 	 * Window title
-	 * @author Hj. Malthaner
 	 */
 	const char *title;
 
 	/**
 	 * Name of the help file
-	 * @author Hj. Malthaner
 	 */
 	const char *help_file;
 
@@ -65,7 +62,6 @@ public:
 
 	/**
 	 * Add a new tool with values and tooltip text.
-	 * @author Hj. Malthaner
 	 */
 	void add_tool_selector(tool_t *tool_in);
 
@@ -78,7 +74,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char *get_help_filename() const {return help_file;}
 
@@ -89,7 +84,6 @@ public:
 	/**
 	 * Does this window need a next button in the title bar?
 	 * @return true if such a button is needed
-	 * @author Volker Meyer
 	 */
 	bool has_next() const {return has_prev_next;}
 
@@ -99,7 +93,6 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 

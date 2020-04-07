@@ -30,7 +30,7 @@
 #define PAX_DEST_MIN_SIZE (16)		// minimum width/height of the minimap
 #define PAX_DEST_VERTICAL (4.0/3.0) // aspect factor where minimaps change to over/under instead of left/right
 
-// @author hsiegeln
+
 const char *hist_type[MAX_CITY_HISTORY] =
 {
 	"citicens",

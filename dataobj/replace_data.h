@@ -29,7 +29,6 @@ private:
 
 	/**
 	 * if marked for replacing, once in depot, auto restart the vehicle
-	 * @author isidoro
 	 */
 	bool autostart;
 
@@ -38,7 +37,6 @@ private:
 	 * when replaced (if they are not used in the new convoy);
 	 * otherwise, they are either upgraded (if possible), or
 	 * otherwise sold.
-	 * @author: jamespetts, March 2010
 	 */
 	bool retain_in_depot;
 
@@ -46,7 +44,6 @@ private:
 	 * If this is true, the convoy will go, if it can, to its
 	 * home depot for the replacement, even if that is not the
 	 * closest depot.
-	 * @author: jamespetts, March 2010
 	 */
 	bool use_home_depot;
 
@@ -54,13 +51,11 @@ private:
 	 * If this is true, when the convoy is replaced, vehicles
 	 * already in the depot will be used where available in
 	 * preference to buying new or upgrading.
-	 * @author: jamespetts, March 2010
 	 */
 	bool allow_using_existing_vehicles;
 
 	/* The number of (identical) convoys that use this set of
 	 * replace data
-	 * @author: jamespetts, March 2010
 	 */
 	sint16 number_of_convoys;
 

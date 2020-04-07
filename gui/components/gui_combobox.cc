@@ -47,7 +47,6 @@ gui_combobox_t::gui_combobox_t() :
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool gui_combobox_t::infowin_event(const event_t *ev)
 {
@@ -189,7 +188,6 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()","scroll selected %i",p.i);
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_combobox_t::draw(scr_coord offset)
 {
@@ -214,7 +212,6 @@ void gui_combobox_t::draw(scr_coord offset)
 
 /**
  * sets the selection
- * @author hsiegeln
  */
 void gui_combobox_t::set_selection(int s)
 {
@@ -307,7 +304,6 @@ void gui_combobox_t::set_size(scr_size size)
 
 /**
 * set maximum size for control
-* @author hsiegeln, Dwachs
 */
 void gui_combobox_t::set_max_size(scr_size max)
 {

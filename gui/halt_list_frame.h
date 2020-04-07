@@ -19,11 +19,8 @@
 class player_t;
 class goods_desc_t;
 
-/*
+/**
  * Displays a scrollable list of all stations of a player
- *
- * @author Markus Weber
- * @date 02-Jan-02
  */
 class halt_list_frame_t : public gui_frame_t , private action_listener_t
 {
@@ -95,7 +92,6 @@ public:
 
 	/**
 	 * The filter frame tells us when it is closed.
-	 * @author V. Meyer
 	 */
 	void filter_frame_closed() { filter_frame = NULL; }
 
@@ -104,7 +100,6 @@ public:
 
 	/**
 	 * This method is called if the size of the window should be changed
-	 * @author Markus Weber
 	 */
 	void resize(const scr_coord size_change);
 
@@ -112,20 +107,17 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 
 	/**
 	 * This function refreshes the station-list
-	 * @author Markus Weber
 	 */
 	void display_list();  //13-Feb-02  Added
 
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
 	 */
 	const char *get_help_filename() const {return "haltlist.txt"; }
 

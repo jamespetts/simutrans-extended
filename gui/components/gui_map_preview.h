@@ -17,10 +17,6 @@
 
 /**
  * A map preview component
- *
- * @author Max Kielland
- * @date 2013-06-02
- *
  */
 class gui_map_preview_t : public gui_component_t
 {
@@ -44,7 +40,6 @@ class gui_map_preview_t : public gui_component_t
 
 		/**
 		 * Draws the component.
-		 * @author Max Kielland, (Hj. Malthaner)
 		 */
 		virtual void draw(scr_coord offset) {
 			display_ddd_box_clip(pos.x + offset.x, pos.y + offset.y, size.w, size.h, MN_GREY0, MN_GREY4);

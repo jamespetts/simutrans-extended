@@ -269,7 +269,6 @@ bool halt_info_t::is_weltpos()
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void halt_info_t::draw(scr_coord pos, scr_size size)
 {
@@ -790,13 +789,12 @@ void halt_info_t::update_departures()
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	if (comp == &button) { 			// details button pressed
 		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
-	} else if (comp == &freight_sort_selector) { 	// @author hsiegeln sort button pressed // @author Ves: changed button to combobox
+	} else if (comp == &freight_sort_selector) {
 
 		sint32 sort_mode = freight_sort_selector.get_selection();
 		if (sort_mode < 0)
@@ -845,7 +843,6 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 
 /**
  * Set window size and adjust component sizes and/or positions accordingly
- * @author Markus Weber
  */
 void halt_info_t::set_windowsize(scr_size size)
 {

@@ -810,7 +810,6 @@ void path_explorer_t::compartment_t::step()
 				++halt_iter;
 
 				// Connect halts within walking distance of each other (for passengers only)
-				// @author: jamespetts, July 2011
 
 				if ( no_walking_connexions || !all_halts_list[i]->is_enabled(goods_manager_t::passengers) )
 				{

@@ -22,12 +22,7 @@ typedef KOORD_VAL coordinate_t;
 typedef PLAYER_COLOR_VAL color_t;
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
+
 class coordinates_t
 {
 private:
@@ -51,12 +46,6 @@ class gui_table_row_t;
 class gui_table_column_t;
 
 
-/**
- *
- *
- * @since 05-APR-2010
- * @author Bernd Gabriel
- */
 class gui_table_intercept_t
 {
 private:
@@ -76,12 +65,6 @@ public:
 };
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
 class gui_table_column_t : public gui_table_intercept_t
 {
 public:
@@ -93,12 +76,6 @@ public:
 };
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
 class gui_table_row_t : public gui_table_intercept_t
 {
 public:
@@ -121,12 +98,7 @@ public:
 };
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
+
 class gui_table_column_list_t : public list_tpl<gui_table_column_t>, public gui_table_property_t {
 protected:
 	virtual int compare_items(const gui_table_column_t *item1, const gui_table_column_t *item2) const;
@@ -134,12 +106,7 @@ protected:
 };
 
 
-/**
- *
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
- */
+
 class gui_table_row_list_t : public list_tpl<gui_table_row_t>, public gui_table_property_t {
 protected:
 	virtual int compare_items(const gui_table_row_t *item1, const gui_table_row_t *item2) const;
@@ -151,9 +118,6 @@ protected:
  * A table component.
  * - allows any number of columns and rows with individual widths and heights.
  * - allows a grid of any width.
- *
- * @since 14-MAR-2010
- * @author Bernd Gabriel
  */
 class gui_table_t : public gui_component_t, public gui_action_creator_t
 {
@@ -303,9 +267,6 @@ public:
 
 /**
  * gui_table_t::infowin_event() notifies each event to all listeners sending a pointer to an instance of this class.
- *
- * @since 22-MAR-2010
- * @author Bernd Gabriel
  */
 class gui_table_event_t
 {

@@ -29,7 +29,6 @@ message_stats_t::message_stats_t() :
 /**
  * Filter messages by type
  * @return whether there is a change in message filtering
- * @author Knightly
  */
 bool message_stats_t::filter_messages(const sint32 msg_type)
 {
@@ -62,7 +61,6 @@ bool message_stats_t::filter_messages(const sint32 msg_type)
 
 /**
  * Click on message => go to position
- * @author Hj. Malthaner
  */
 bool message_stats_t::infowin_event(const event_t * ev)
 {
@@ -169,7 +167,6 @@ void message_stats_t::recalc_size()
 
 /**
  * Now draw the list
- * @author prissi
  */
 void message_stats_t::draw(scr_coord offset)
 {

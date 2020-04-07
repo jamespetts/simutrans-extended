@@ -14,7 +14,6 @@ class gui_action_creator_t;
 /**
  * This interface must be implemented by all classes which want to
  * listen actions, i.e. button presses
- * @author Hj. Malthaner
  */
 class action_listener_t
 {
@@ -23,7 +22,6 @@ public:
 
 	/**
 	 * This method is called if an action is triggered
-	 * @author Hj. Malthaner
 	 *
 	 * Returns true, if action is done and no more
 	 * components should be triggered.

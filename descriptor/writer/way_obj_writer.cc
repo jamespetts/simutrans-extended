@@ -65,7 +65,6 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	// without that constraint also allowed on the way.
 	// Prohibitive: way allows only vehicles with matching constraint:
 	// vehicles with matching constraint allowed on other sorts of way.
-	// @author: jamespetts
 
 	uint8 permissive_way_constraints = 0;
 	uint8 prohibitive_way_constraints = 0;

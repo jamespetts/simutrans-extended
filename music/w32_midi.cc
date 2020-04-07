@@ -33,7 +33,6 @@ void __win32_set_midi_volume(int type, int left, int right);
 
 /**
  * sets midi playback volume
- * @author Owen Rudge
  */
 void dr_set_midi_volume(int vol)
 {
@@ -43,7 +42,6 @@ void dr_set_midi_volume(int vol)
 
 /**
  * Loads a MIDI file
- * @author Owen Rudge, changes by Hj. Malthaner
  */
 
 int dr_load_midi(const char *filename)
@@ -159,7 +157,6 @@ void dr_destroy_midi()
 
 /**
  * MIDI initialisation routines
- * @author Owen Rudge
  */
 bool dr_init_midi()
 {

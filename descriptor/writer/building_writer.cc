@@ -248,7 +248,6 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 		obj.get_int("retire_year", DEFAULT_RETIRE_DATE) * 12 +
 		obj.get_int("retire_month", 1) - 1;
 
-	// @author: Kieron Green (ideas from extended code by jamespetts)
 	// capacity and price information.
 	// Stands in place of the "level" setting, but uses "level" data by default.
 

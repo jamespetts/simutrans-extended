@@ -36,8 +36,6 @@ extern int large_font_total_height;
 * Alignment enum to align controls against each other
 * Vertical and horizontal alignment can be masked together
 * Unused bits are reserved for future use, set to 0.
-*
-* @author Max Kielland
 */
 enum control_alignments_t {
 
@@ -89,7 +87,6 @@ display_set_clip_wh(p_cr.x, p_cr.y, p_cr.w, p_cr.h); \
 
 /*
 * pixels stored as RGB 1555
-* @author Hajo
 */
 typedef uint16 PIXVAL;
 
@@ -105,7 +102,6 @@ extern PIXVAL specialcolormap_all_day[256];
 
 /**
 * Helper functions for clipping along tile borders.
-* @author Dwachs
 */
 void add_poly_clip(int x0_, int y0_, int x1, int y1, int ribi  CLIP_NUM_DEF);
 void clear_all_poly_clip(CLIP_NUM_DEF0);
@@ -113,7 +109,6 @@ void activate_ribi_clip(int ribi  CLIP_NUM_DEF);
 
 /* Do no access directly, use the get_tile_raster_width()
 * macro instead.
-* @author Hj. Malthaner
 */
 #define get_tile_raster_width()    (tile_raster_width)
 extern KOORD_VAL tile_raster_width;
@@ -139,7 +134,6 @@ int get_zoom_factor();
 
 /**
 * Initialises the graphics module
-* @author Hj. Malthaner
 */
 void simgraph_init(KOORD_VAL width, KOORD_VAL height, int fullscreen);
 int is_display_init();
@@ -148,7 +142,6 @@ void simgraph_resize(KOORD_VAL w, KOORD_VAL h);
 void reset_textur(void *new_textur);
 
 /* Loads the font, returns the number of characters in it
-* @author prissi
 */
 uint16 display_load_font(const char* fname);
 
@@ -201,7 +194,6 @@ void display_img_aux(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed 
 
 /**
 * draws the images with alpha, either blended or as outline
-* @author kierongreen
 */
 void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF);
 #define display_img_blend( n, x, y, c, dn, d ) display_rezoomed_img_blend( (n), (x), (y), 0, (c), (dn), (d)  CLIP_NUM_DEFAULT)
@@ -326,7 +318,6 @@ bool has_character( utf16 char_code );
 * @param text  pointer to a string of characters to evaluate.
 * @param len   length of text buffer to evaluate. If set to 0,
 *              evaluate until null termination.
-* @author      Max Kielland
 */
 KOORD_VAL display_get_char_max_width(const char* text, size_t len = 0);
 
@@ -334,7 +325,6 @@ KOORD_VAL display_get_char_max_width(const char* text, size_t len = 0);
 * For the next logical character in the text, returns the character code
 * as well as retrieves the char byte count and the screen pixel width
 * CAUTION : The text pointer advances to point to the next logical character
-* @author Knightly
 */
 unsigned short get_next_char_with_metrics(const char* &text, unsigned char &byte_length, unsigned char &pixel_width);
 
@@ -342,7 +332,6 @@ unsigned short get_next_char_with_metrics(const char* &text, unsigned char &byte
 * For the previous logical character in the text, returns the character code
 * as well as retrieves the char byte count and the screen pixel width
 * CAUTION : The text pointer recedes to point to the previous logical character
-* @author Knightly
 */
 unsigned short get_prev_char_with_metrics(const char* &text, const char *const text_start, unsigned char &byte_length, unsigned char &pixel_width);
 
@@ -362,8 +351,6 @@ int display_calc_proportional_string_len_width(const char* text, size_t len);
 /*
 * len parameter added - use -1 for previous behaviour.
 * completely renovated for unicode and 10 bit width and variable height
-* @author Volker Meyer, prissi
-* @date  15.06.2003, 2.1.2005
 */
 
 // #ifdef MULTI_THREAD

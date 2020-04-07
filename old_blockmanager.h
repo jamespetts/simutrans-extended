@@ -14,7 +14,6 @@ class karte_t;
  * Der Blockmanager verwaltet die Blockstrecken.
  * Als singleton implementiert.
  * @see blockstrecke_t
- * @author Hj. Malthaner
  */
 class old_blockmanager_t
 {

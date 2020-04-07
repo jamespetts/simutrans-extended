@@ -1046,7 +1046,6 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 
 
 /* Dumps a short info about the things on this tile
- *  @author prissi
  */
 void objlist_t::dump() const
 {
@@ -1067,7 +1066,6 @@ void objlist_t::dump() const
 
 
 /** display all things, faster, but will lead to clipping errors
- *  @author prissi
  */
 #ifdef MULTI_THREAD
 void objlist_t::display_obj_quick_and_dirty( const sint16 xpos, const sint16 ypos, const uint8 start_offset, const sint8 clip_num ) const
@@ -1120,7 +1118,6 @@ void objlist_t::display_obj_quick_and_dirty( const sint16 xpos, const sint16 ypo
  *
  * objlist_t::display_obj_bg() .. called by the methods in grund_t
  * local_display_obj_bg()        .. local function to avoid code duplication, returns false if the first non-valid obj is reached
- * @author Dwachs
  */
 inline bool local_display_obj_bg(const obj_t *obj, const sint16 xpos, const sint16 ypos  CLIP_NUM_DEF)
 {
@@ -1159,7 +1156,6 @@ uint8 objlist_t::display_obj_bg( const sint16 xpos, const sint16 ypos, const uin
  *
  * objlist_t::display_obj_vh() .. called by the methods in grund_t
  * local_display_obj_vh()        .. local function to avoid code duplication, returns false if the first non-valid obj is reached
- * @author Dwachs
  */
 inline bool local_display_obj_vh(const obj_t *draw_obj, const sint16 xpos, const sint16 ypos, const ribi_t::ribi ribi, const bool ontile  CLIP_NUM_DEF)
 {

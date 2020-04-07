@@ -128,7 +128,6 @@ public:
 	* @param player the player doing the task
 	* @param pos position where the slope will be generated
 	* @param slope the slope type
-	* @author Hj. Malthaner
 	*/
 	static const char *tool_set_slope_work( player_t *player, koord3d pos, int slope );
 	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Built artifical slopes", welt->get_settings().cst_set_slope); }
@@ -522,7 +521,6 @@ public:
  * first letter: ignore climates
  * second letter: rotation (0,1,2,3,#=random)
  * finally building name
- * @author prissi
  */
 class tool_build_house_t : public kartenboden_tool_t {
 public:
@@ -757,7 +755,6 @@ public:
 };
 
 /* switch to next player
- * @author prissi
  */
 class tool_switch_player_t : public tool_t {
 public:

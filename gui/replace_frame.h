@@ -23,9 +23,6 @@
 
 /**
  * Replace frame, makes convoys be marked for replacing.
- *
- * @author isidoro
- * @date Jan-09
  */
 class replace_frame_t : public gui_frame_t,
                         public action_listener_t
@@ -97,8 +94,6 @@ public:
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void update_data();
 
@@ -106,15 +101,12 @@ public:
 
 	/**
 	 * Setzt die Fenstergroesse
-	 * @author (Mathew Hounsell)
-	 * @date   11-Mar-2003
 	 */
 	void set_windowsize(scr_size size);
 
 	/**
 	 * Manche Fenster haben einen Hilfetext assoziiert.
 	 * @return den Dateinamen for the Hilfe, oder NULL
-	 * @author Hj. Malthaner
 	 */
 	const char * get_help_filename() const {return "replace.txt";}
 
@@ -122,13 +114,11 @@ public:
 
 	/**
 	 * Zeichnet das Frame
-	 * @author Hansjörg Malthaner
 	 */
 	void draw(scr_coord pos, scr_size gr);
 
 	/**
 	 * This method is called if an action is triggered
-	 * @author Hj. Malthaner
 	 *
 	 * Returns true, if action is done and no more
 	 * components should be triggered.

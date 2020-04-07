@@ -28,8 +28,6 @@ class checksum_t;
  *	3	Image on sloped ways
  *	4	Image on diagonal ways
  *	5	Skin (cursor and icon)
- *
- * @author  Volker Meyer, Hj. Malthaner
  */
 class way_obj_desc_t : public obj_desc_transport_infrastructure_t {
     friend class way_obj_reader_t;
@@ -41,8 +39,7 @@ private:
 	 */
 	uint8 own_wtyp;
 
-	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
-	* @author: jamespetts*/
+	/// Way constraints for, e.g., loading gauges, types of electrification, etc.
 	way_constraints_of_way_t way_constraints;
 
 
@@ -167,7 +164,6 @@ public:
 
 	/**
 	* Skin: cursor (index 0) and icon (index 1)
-	* @author Hj. Malthaner
 	*/
 	skin_desc_t const* get_cursor() const { return get_child<skin_desc_t>(8); }
 
@@ -176,7 +172,6 @@ public:
 	 * the byte into bool values. See here for
 	 * information on bitwise operations:
 	 * http://www.cprogramming.com/tutorial/bitwise_operators.html
-	 * @author: jamespetts
 	 * */
 	const way_constraints_of_way_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_way_t& value) { way_constraints = value; }

@@ -16,7 +16,6 @@
  * This is kept as simple as possible. Does not use exceptions
  * for error handling.
  *
- * @author Hj. Malthaner
  * @see array_tpl
  */
 template <class T>

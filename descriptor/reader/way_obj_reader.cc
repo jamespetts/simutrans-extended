@@ -49,7 +49,6 @@ obj_desc_t * way_obj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	uint16 version = v & 0x7FFF;
 
 	// Whether the read file is from Simutrans-Extended
-	//@author: jamespetts
 
 	way_constraints_of_way_t way_constraints;
 	const bool extended = version > 0 ? v & EX_VER : false;

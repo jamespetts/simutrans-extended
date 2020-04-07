@@ -41,14 +41,12 @@ public:
 
 	/**
 	* Window Title
-	* @author Hj. Malthaner
 	*/
 	const char *get_name() const {return ""; }
 
 	/**
 	* get color information for the window title
 	* -borders and -body background
-	* @author Hj. Malthaner
 	*/
 	PLAYER_COLOR_VAL get_titlecolor() const {return WIN_TITLE; }
 
@@ -60,7 +58,6 @@ public:
 	* Draw new component. The values to be passed refer to the window
 	* i.e. It's the screen coordinates of the window where the
 	* component is displayed.
-	* @author Hj. Malthaner
 	*/
 	void draw(scr_coord pos, scr_size size);
 

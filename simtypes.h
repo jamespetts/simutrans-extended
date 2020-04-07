@@ -92,7 +92,6 @@ enum climate_bits
 
 /**
  * Vordefinierte Wetypeen.
- * @author Hj. Malthaner
  */
 enum waytype_t {
 	invalid_wt       =  -1,
@@ -125,7 +124,6 @@ enum systemtype_t {
 
 /**
  * conditions for overtaking on roads
- * @author teamhimeH
  */
  enum overtaking_mode_t {
 	 halt_mode         = -1, // vehicles can stop on passing lane
@@ -212,8 +210,9 @@ static inline int max(const int a, const int b)
 }
 #endif
 
-// @author: jamespetts, April 2011
+
 template<class T> static T set_scale_generic(T value, uint16 scale_factor) { return (value * (T)scale_factor) / (T)1000; }
+
 
 template<class T> class average_tpl
 {
@@ -380,7 +379,6 @@ static inline sint64 endian(sint64 const v) { return sint64(endian(uint64(v))); 
  * a helper type to avoid cast operations.  This isn't very clean, but if used
  * with care it seems better than using "long" and casting to a pointer type.
  * In all cases it ensures that no bits are lost.
- * @author Hj. Malthaner
  */
 union value_t
 {

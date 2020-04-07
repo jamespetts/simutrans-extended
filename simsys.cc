@@ -47,9 +47,8 @@
 struct sys_event sys_event;
 
 /**
- + * Get Mouse X-Position
- + * @author Hj. Malthaner
- + */
+ * Get Mouse X-Position
+ */
 int get_mouse_x()
 {
 	return sys_event.mx;
@@ -58,7 +57,6 @@ int get_mouse_x()
 
 /**
   * Get Mouse y-Position
-  * @author Hj. Malthaner
   */
 int get_mouse_y()
 {

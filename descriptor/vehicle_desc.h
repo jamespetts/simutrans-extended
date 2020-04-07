@@ -50,8 +50,6 @@ class checksum_t;
  *	... ...
  *	n+m+5 allowed trailing vehicle m
  *  n+m+6 freight for which special images are defined
- *
- * @author Volker Meyer, Hj. Malthaner, kierongreen
  */
 class vehicle_desc_t : public obj_desc_transport_related_t {
     friend class vehicle_reader_t;
@@ -60,7 +58,6 @@ class vehicle_desc_t : public obj_desc_transport_related_t {
 public:
 	/**
 	 * Engine type
-	 * @author Hj. Malthaner
 	 */
 	enum engine_t {
 		 unknown=-1,
@@ -126,7 +123,7 @@ private:
 	uint32 weight;					// Weight in kg
 	uint32 power;					// Power in kW
 	uint16 running_cost;			// Per kilometre cost
-	uint32 fixed_cost;				// Monthly cost @author: jamespetts, April 2009
+	uint32 fixed_cost;				// Monthly cost
 	uint32 base_fixed_cost;			// Monthly cost (without scale factor)
 
 	uint16 gear;					// engine gear (power multiplier), 64=100
@@ -141,7 +138,7 @@ private:
 	uint8 engine_type;				// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 
 	uint8 freight_image_type;		// number of freight images (displayed for different goods)
-	uint8 livery_image_type;		// Number of different liveries (@author: jamespetts, April 2011)
+	uint8 livery_image_type;		// Number of different liveries
 
 	bool is_tilting;				// Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
 
@@ -165,7 +162,6 @@ private:
 	   * board/alight at once. Scaled linear
 	  * beween the two. Was just "loading_time"
 	  * before 10.0.
-	  * @author: jamespetts
 	  */
 	uint32 max_loading_time;
 	uint32 min_loading_time;
@@ -178,7 +174,6 @@ private:
 	 * so they are stored here for
 	 * use in the set_scale() method
 	 * in simworld.cc
-	 * @author: jamespetts
 	 */
 	uint16 max_loading_time_seconds;
 	uint16 min_loading_time_seconds;
@@ -196,24 +191,21 @@ private:
 
 	// these values are not stored and therefore calculated in loaded():
 	// they are arrays having one element per speed in m/s:
-	uint32 max_speed;     // @author: Bernd Gabriel, May 27, 2012: length of the geared_* arrays (== maximum speed in m/s)
-	uint32 *geared_power; // @author: Bernd Gabriel, Nov  4, 2009: == power * gear in W
-	uint32 *geared_force; // @author: Bernd Gabriel, Dec 12, 2009: == tractive_effort * gear in N
+	uint32 max_speed;     // length of the geared_* arrays (== maximum speed in m/s)
+	uint32 *geared_power; // == power * gear in W
+	uint32 *geared_force; // == tractive_effort * gear in N
 	/**
 	 * force threshold speed in km/h.
 	 * Below this threshold the engine works as constant force engine.
 	 * Above this threshold the engine works as constant power engine.
-	 * @author Bernd Gabriel, Nov 4, 2009
 	 */
-	uint32 force_threshold_speed; // @author: Bernd Gabriel, Nov 4, 2009: in m/s
+	uint32 force_threshold_speed; // in m/s
 
 	// Obsolescence settings
-	// @author: jamespetts
 	uint16 increase_maintenance_after_years;
 	uint16 increase_maintenance_by_percent;
 	uint8 years_before_maintenance_max_reached;
 
-	//@author: jamespetts; 28th of July 2012
 	uint16 minimum_runway_length;
 
 	// The maximum number of km between stops (not waypoints)
@@ -231,7 +223,6 @@ private:
 	// if true, can not mix another goods in the same car.  @Ranran, July 2019(v14.6)
 	bool mixed_load_prohibition;
 
-	// @author: Bernd Gabriel, Dec 12, 2009: called as last action in read_node()
 	void loaded();
 
 	int get_add_to_node() const
@@ -724,19 +715,16 @@ public:
 
 	/**
 	* @return introduction year
-	* @author Hj. Malthaner
 	*/
 	uint16 get_intro_year_month() const { return intro_date; }
 
 	/**
 	* @return time when no longer in production
-	* @author prissi
 	*/
 	uint16 get_retire_year_month() const { return retire_date; }
 
 	/**
 	* @return time when the vehicle is obsolete
-	* @author: jamespetts
 	*/
 	uint16 get_obsolete_year_month(const class karte_t *welt) const;
 
@@ -754,7 +742,6 @@ public:
 
 	/**
 	* @ Returns true if the vehicle is no longer in production
-	* @author: prissi
 	*/
 	bool is_retired (const uint16 month_now) const
 	{
@@ -763,7 +750,6 @@ public:
 
 	/**
 	* @ Returns true if the vehicle is obsolete
-	* @author:
 	*/
 	bool is_obsolete (const uint16 month_now, const class karte_t* welt) const
 	{
@@ -773,19 +759,16 @@ public:
 	/**
 	* 64 = 1.00
 	* @return gear value
-	* @author Hj. Malthaner
 	*/
 	uint16 get_gear() const { return gear; }
 
 	/**
 	* @return engine type
 	* eletric engines require an electrified way to run
-	* @author Hj. Malthaner
 	*/
 	uint16 get_engine_type() const { return engine_type; }
 
 	/* @return the vehicles length in 1/8 of the normal len
-	* @author prissi
 	*/
 	uint8 get_length() const { return len; }
 
@@ -796,8 +779,7 @@ public:
 
 	uint32 get_length_in_steps() const { return get_length() * VEHICLE_STEPS_PER_CARUNIT; }
 
-	/*Whether this is a tilting train (and can take coerners faster
-	*@author: jamespetts*/
+	/*Whether this is a tilting train (and can take coerners faster */
 	bool get_tilting() const { return is_tilting;	}
 
 	// Returns whether one side of the vehicle can be "head".
@@ -828,8 +810,7 @@ public:
 	const way_constraints_of_vehicle_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_vehicle_t& value) { way_constraints = value; }
 
-	/*The level of catering provided by this vehicle (0 if none)
-	*@author: jamespetts*/
+	/*The level of catering provided by this vehicle (0 if none) */
 	uint8 get_catering_level() const { return catering_level; }
 
 	uint32 get_way_wear_factor() const { return way_wear_factor; }
@@ -937,7 +918,6 @@ public:
 	 * Get effective force index.
 	 * Steam engine's force depend on its speed.
 	 * Effective force in N: force_index *welt->get_settings().get_global_power_factor() / GEAR_FACTOR
-	 * @author Bernd Gabriel
 	 */
 	uint32 get_effective_force_index(sint32 speed /* in m/s */ ) const;
 
@@ -945,7 +925,6 @@ public:
 	 * Get effective power index.
 	 * Steam engine's power depend on its speed.
 	 * Effective power in W: power_index *welt->get_settings().get_global_power_factor() / GEAR_FACTOR
-	 * @author Bernd Gabriel
 	 */
 	uint32 get_effective_power_index(sint32 speed /* in m/s */ ) const;
 

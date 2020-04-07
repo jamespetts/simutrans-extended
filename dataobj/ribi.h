@@ -127,7 +127,6 @@ struct slope4_t {
 /**
 * Directions in simutrans.
 * ribi_t = Richtungs-Bit = Directions-Bitfield
-* @author Hj. Malthaner
 */
 class ribi_t {
 	/// Static lookup table

@@ -21,8 +21,6 @@ class goods_desc_t;
  * building_place_with_road_finder:
  *
  * Search for a free location using the function find_place().
- *
- * @author V. Meyer
  */
 class ai_building_place_with_road_finder : public building_placefinder_t  {
 public:
@@ -78,7 +76,6 @@ public:
 	 * Tells the player the result of tool-work commands
 	 * If player is active then play sound, popup error msg etc
 	 * AI players react upon this call and proceed
-	 * @author Dwachs
 	 */
 	virtual void tell_tool_result(tool_t *tool, koord3d pos, const char *err, bool local);
 

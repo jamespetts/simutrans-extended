@@ -52,7 +52,6 @@ public:
 	/**
 	 * @return Einen Beschreibungsstring fuer das Objekt, der z.B. in einem
 	 * Beobachtungsfenster angezeigt wird.
-	 * @author Hj. Malthaner
 	 */
 	void show_info();
 

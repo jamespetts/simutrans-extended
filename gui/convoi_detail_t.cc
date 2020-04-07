@@ -18,7 +18,6 @@
 #include "../dataobj/schedule.h"
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
-// @author hsiegeln
 #include "../simline.h"
 #include "messagebox.h"
 
@@ -196,7 +195,6 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber
  */
 bool convoi_detail_t::action_triggered(gui_action_creator_t *comp,value_t v/* */)           // 28-Dec-01    Markus Weber    Added
 {
@@ -230,7 +228,6 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp,value_t v/* */
 
 /**
  * Set window size and adjust component sizes and/or positions accordingly
- * @author Markus Weber
  */
 void convoi_detail_t::set_windowsize(scr_size size)
 {
@@ -313,7 +310,6 @@ gui_vehicleinfo_t::gui_vehicleinfo_t(convoihandle_t cnv)
 
 /*
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_vehicleinfo_t::draw(scr_coord offset)
 {
@@ -507,7 +503,6 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			const way_constraints_t &way_constraints = v->get_desc()->get_way_constraints();
 			// Permissive way constraints
 			// (If vehicle has, way must have)
-			// @author: jamespetts
 			//for(uint8 i = 0; i < 8; i++)
 			for (uint8 i = 0; i < way_constraints.get_count(); i++)
 			{
@@ -538,7 +533,6 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 
 			// Prohibitive way constraints
 			// (If way has, vehicle must have)
-			// @author: jamespetts
 			for (uint8 i = 0; i < way_constraints.get_count(); i++)
 			{
 				if (way_constraints.get_prohibitive(i))

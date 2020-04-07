@@ -20,13 +20,11 @@ private:
 protected:
 	/**
 	 * Action that's started by the press of a button.
-	 * @author Hansjörg Malthaner
 	 */
 	virtual bool item_action(const char *fullpath);
 
 	/**
 	 * Action, started after X-Button pressing
-	 * @author V. Meyer
 	 */
 	virtual bool del_action(const char *f) { return item_action(f); }
 
@@ -39,7 +37,6 @@ public:
 	/**
 	* Set the window associated helptext
 	* @return the filename for the helptext, or NULL
-	* @author Hj. Malthaner
 	*/
 	virtual const char * get_help_filename() const { return "scenario.txt"; }
 

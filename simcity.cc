@@ -76,8 +76,6 @@ uint32 weg_t::private_car_routes_currently_reading_element;
 karte_ptr_t stadt_t::welt; // one is enough ...
 
 // Electricity demand information.
-// @author: jamespetts
-// @author: neroden
 // (But much of this code is adapted from the speed bonus code,
 // written by Prissi).
 
@@ -131,7 +129,6 @@ void stadt_t::electricity_consumption_init(const std::string &objfilename)
 * Reads/writes electricity consumption data from/to a savegame
 * called from karte_t::save and karte_t::load
 * only written for network games
-* @author jamespetts
 */
 void stadt_t::electricity_consumption_rdwr(loadsave_t *file)
 {
@@ -232,13 +229,11 @@ uint32 stadt_t::cluster_factor = 100;
  * distribution_weight of success when a city tries to extend a road along a bridge
  * The rest of the time it will fail and build somewhere else instead
  * (This avoids overbuilding of free bridges)
- * @author neroden
  */
 static uint32 bridge_success_percentage = 25;
 
 /*
  * distribution_weight to do renovation instead new building (in percent)
- * @author prissi
  *
  * Don't set this to 100 or cities wont build outward until renovation fails leading to ugly solid
  * blocks of highest density buildings in the centre of the city
@@ -260,7 +255,6 @@ static uint32 renovations_try = 3;
 * hard cap on how far from the centre of the city can buildings be renovated
 * previous hard-coded default was 10 previously, this is ignored if
 * proportional_renovation_radius is equal to 1
-* @author catasteroid
 */
 static uint32 renovation_range = 3;
 
@@ -269,7 +263,6 @@ static uint32 renovation_range = 3;
 * renovation_count being set to renovation_city_size_count when this value is 1
 * when this value is 2 renovation_count_increase_every is used and the citys population
 * is divided by this number to provide the renovation_count
-* @author catasteroid
 */
 static uint32 renovation_influence_type = 0;
 
@@ -295,7 +288,6 @@ static uint32 renovation_count_maximum = 25;
 * overrides default behaviour allowing very large cities to renovate buildings
 * beyond the static renovation_range radius from their centre instead using a percentage
 * value based on the city's population status
-* @author catasteroid
 */
 static uint32 proportional_renovation_radius = 0;
 
@@ -328,20 +320,17 @@ static uint16 renovation_ranges_by_type[] = { 100,150,200 };
 * value of renovation_range being less likely to be successfully renovated
 * value should be 1 for default behaviour, changing it to 0 would make buildings
 * equally likely to be renovated regardless of the distance from the city centre
-* @author catasteroid
 */
 static uint32 renovation_distance_chance = 1;
 
 /**
  * try to built cities at least this distance apart
- * @author prissi
  */
 static uint32 minimum_city_distance = 16;
 
 /*
  * minimum ratio of city area to building area to allow expansion
  * the higher this value, the slower the city expansion if there are still "holes"
- * @author prissi
  */
 static uint32 min_building_density = 25;
 
@@ -358,7 +347,6 @@ static sint16 res_neighbour_score[] = {  8, 0, -8 };
 /**
  * Rule data structure
  * maximum 7x7 rules
- * @author Hj. Malthaner
  */
 class rule_entry_t {
 public:
@@ -538,7 +526,6 @@ static char const* const allowed_chars_in_rule = "SsnHhTtUu";
  * @param pos position to check
  * @param regel the rule to evaluate
  * @return true on match, false otherwise
- * @author Hj. Malthaner
  */
 
 //bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, uint16 rotation)
@@ -651,7 +638,6 @@ bool stadt_t::bewerte_loc_has_public_road(const koord pos)
 * @param pos position to check
 * @param regel the rule to evaluate
 * @return true on match, false otherwise
-* @author Hj. Malthaner
 */
 
 bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
@@ -728,7 +714,6 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 /**
  * Check rule in all transformations at given position
  * prissi: but the rules should explicitly forbid building then?!?
- * @author Hj. Malthaner
  */
 sint32 stadt_t::bewerte_pos(const koord pos, const rule_t &regel)
 
@@ -793,7 +778,6 @@ void stadt_t::set_minimum_city_distance(uint32 s)
 
 /**
  * Reads city configuration data
- * @author Hj. Malthaner
  */
 bool stadt_t::cityrules_init(const std::string &objfilename)
 {
@@ -983,7 +967,6 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 * Reads/writes city configuration data from/to a savegame
 * called from karte_t::save and karte_t::load
 * only written for networkgames
-* @author Dwachs
 */
 void stadt_t::cityrules_rdwr(loadsave_t *file)
 {
@@ -1088,8 +1071,6 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
  * toleriert.
  * Search a free place for a monument building
  * 22-Dec-02: Hajo: added safety checks for gr != 0 and plan != 0
- *
- * @author V. Meyer
  */
 class monument_placefinder_t : public placefinder_t {
 	public:
@@ -1169,8 +1150,6 @@ class monument_placefinder_t : public placefinder_t {
  * townhall_placefinder_t:
  *
  * 22-Dec-02: Hajo: added safety checks for gr != 0 and plan != 0
- *
- * @author V. Meyer
  */
 class townhall_placefinder_t : public placefinder_t {
 	public:
@@ -1299,7 +1278,6 @@ void stadt_t::remove_gebaeude_from_stadt(gebaeude_t* gb, bool map_generation, bo
  * This function transfers a house from another city to this one
  * It currently only works on 1-tile buildings
  * It is also currently unused
- * @author neroden
  */
 #if 0
 bool stadt_t::take_citybuilding_from(stadt_t* old_city, gebaeude_t* gb)
@@ -2444,7 +2422,6 @@ void stadt_t::rdwr(loadsave_t* file)
 /**
  * Wird am Ende der Laderoutine aufgerufen, wenn die Welt geladen ist
  * und nur noch die Datenstrukturenneu verknuepft werden muessen.
- * @author Hj. Malthaner
  */
 void stadt_t::finish_rd()
 {
@@ -2608,15 +2585,13 @@ void stadt_t::set_name(const char *new_name)
 
 
 /* show city info dialogue
- * @author prissi
  */
 void stadt_t::show_info()
 {
 	create_win( new city_info_t(this), w_info, (ptrdiff_t)this );
 }
 
-/* change size of city
- * @author prissi */
+
 void stadt_t::change_size( sint64 delta_citizen, bool new_town, bool map_generation)
 {
 	DBG_MESSAGE("stadt_t::change_size()", "%i + %i", bev, delta_citizen);
@@ -2671,7 +2646,6 @@ void stadt_t::step(uint32 delta_t)
 }
 
 /* updates the city history
- * @author prissi
  */
 void stadt_t::roll_history()
 {
@@ -2863,8 +2837,6 @@ void stadt_t::new_month()
 	// From observations in game: anything < 2, not very congested.
 	// Anything > 4, very congested.
 	// For new system, see http://www.tomtom.com/lib/doc/congestionindex/2013-0322-TomTom-CongestionIndex-2012-Annual-EUR-mi.pdf
-	// @author: jamespetts
-
 	settings_t const& s = welt->get_settings();
 
 	uint16 congestion_density_factor = s.get_congestion_density_factor();
@@ -3201,8 +3173,7 @@ void stadt_t::step_grow_city(bool new_town, bool map_generation)
 		unsupplied_city_growth %= CITYGROWTH_PER_CITICEN;
 	}
 
-	// Hajo: let city grow in steps of 1
-	// @author prissi: No growth without development
+	// let city grow in steps of 1
 	for(  sint64 n = 0;  n < growth_steps;  n++  ) {
 		bev++;
 
@@ -3505,7 +3476,6 @@ void stadt_t::merke_passagier_ziel(koord k, uint8 color)
  * building_place_with_road_finder:
  * Search for a free location using the function find_place().
  * added: Minimum distance between monuments
- * @author V. Meyer/prissi
  */
 class building_place_with_road_finder: public building_placefinder_t
 {
@@ -3946,8 +3916,6 @@ void stadt_t::check_bau_townhall(bool new_town)
 
 /* eventually adds a new industry
  * so with growing number of inhabitants the industry grows
- * @date 12.1.05
- * @author prissi
  */
 void stadt_t::check_bau_factory(bool new_town)
 {
@@ -3960,7 +3928,6 @@ void stadt_t::check_bau_factory(bool new_town)
 			if (div == (1u<<i) && welt->get_actual_industry_density() < welt->get_target_industry_density())
 			{
 				// Only add an industry if there is a need for it: if the actual industry density is less than the target density.
-				// @author: jamespetts
 				DBG_MESSAGE("stadt_t::check_bau_factory", "adding new industry at %i inhabitants.", get_einwohner());
 				factory_builder_t::increase_industry_density( true, true, false, 2 );
 			}
@@ -5174,8 +5141,6 @@ bool stadt_t::build_bridge(grund_t* bd, ribi_t::ribi direction, bool map_generat
  * baut ein Stueck Strasse
  *
  * @param k         Bauposition
- *
- * @author Hj. Malthaner, V. Meyer
  */
 bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map_generation)
 {

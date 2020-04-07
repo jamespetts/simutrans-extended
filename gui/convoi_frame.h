@@ -22,13 +22,10 @@ class goods_desc_t;
 
 /*
  * Displays a scrollable list of all convois of a player
- *
- * @author Hj. Malthaner, Sort/Filtering by V. Meyer
- * @date 15-Jun-01
  */
 class convoi_frame_t :
 	public gui_frame_t,
-	private action_listener_t  //28-Dec-01     Markus Weber    Added , private action_listener_t
+	private action_listener_t
 {
 public:
 	enum sort_mode_t { nach_name=0, nach_gewinn=1, nach_typ=2, nach_id=3, SORT_MODES=4 };
@@ -40,7 +37,6 @@ private:
 
 	/**
 	* Handle the convoi to be displayed.
-	* @author Hj. Malthaner
 	*/
 	vector_tpl<convoihandle_t> convois;
 	uint32 last_world_convois;
@@ -77,7 +73,6 @@ private:
 	/**
 	 * Check all filters for one convoi.
 	 * returns true, if it is not filtered away.
-	 * @author V. Meyer
 	 */
 	bool passes_filter(convoihandle_t cnv);
 
@@ -96,28 +91,24 @@ public:
 	/**
 	 * Events werden hiermit an die GUI-components
 	 * gemeldet
-	 * @author V. Meyer
 	 */
 	bool infowin_event(const event_t *ev);
 
 	/**
 	 * This method is called if the size of the window should be changed
-	 * @author Markus Weber
 	 */
-	void resize(const scr_coord size_change);                       // 28-Dec-01        Markus Weber Added
+	void resize(const scr_coord size_change);
 
 	/**
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
 	void draw(scr_coord pos, scr_size size);
 
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
 	 */
 	const char * get_help_filename() const {return "convoi.txt"; }
 

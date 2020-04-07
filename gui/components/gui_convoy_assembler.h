@@ -75,9 +75,6 @@ public:
  *   in order to be used elsewhere if needed (Jan-09).
  * The author markers of the original code have been preserved when
  *   possible.
- *
- * @author Hansjörg Malthaner
- * @date 22-Nov-01
  */
 class gui_convoy_assembler_t :
 	public gui_container_t,
@@ -85,12 +82,10 @@ class gui_convoy_assembler_t :
 	public action_listener_t
 {
 	/* show retired vehicles (same for all depot)
-	* @author prissi
 	*/
 	static bool show_retired_vehicles;
 
 	/* show retired vehicles (same for all depot)
-	* @author prissi
 	*/
 	static bool show_all;
 
@@ -102,8 +97,6 @@ class gui_convoy_assembler_t :
 	/**
 	 * Parameters to determine layout and behaviour of convoy images.
 	 * Originally in simdepot.h.  Based in the code of:
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	static scr_coord get_placement(waytype_t wt);
 	static scr_coord get_grid(waytype_t wt);
@@ -147,7 +140,6 @@ class gui_convoy_assembler_t :
 	gui_label_t lb_convoi_line;
 	// Specifies the traction types handled by
 	// this depot.
-	// @author: jamespetts, April 2010
 	gui_label_t lb_traction_types;
 	gui_label_t lb_vehicle_count;
 	// Display the load
@@ -240,17 +232,12 @@ class gui_convoy_assembler_t :
 	/**
 	 * A helper map to update loks_vec and waggons_Vec. All entries from
 	 * loks_vec and waggons_vec are referenced here.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	typedef ptrhashtable_tpl<vehicle_desc_t const*, gui_image_list_t::image_data_t*> vehicle_image_map;
 	vehicle_image_map vehicle_map;
 
 	/**
 	 * Draw the info text for the vehicle the mouse is over - if any.
-	 * @author Volker Meyer, Hj. Malthaner
-	 * @date  09.06.2003
-	 * @update 09-Jan-04
 	 */
 	void draw_vehicle_info_text(const scr_coord& pos);
 
@@ -286,23 +273,19 @@ public:
 	gui_convoy_assembler_t(waytype_t wt, signed char player_nr, bool electrified = true);
 	void clear_vectors();
 	virtual ~gui_convoy_assembler_t();
+
 	/**
 	 * Create and fill loks_vec and waggons_vec.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void build_vehicle_lists();
 
 	/**
 	 * Do the dynamic component layout
-	 * @author Volker Meyer
-	 * @date  18.06.2003
 	 */
 	void layout();
 
 	/**
 	 * This method is called if an action is triggered
-	 * @author Hj. Malthaner
 	 *
 	 * Returns true, if action is done and no more
 	 * components should be triggered.
@@ -312,8 +295,6 @@ public:
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void update_data();
 	void update_tabs();

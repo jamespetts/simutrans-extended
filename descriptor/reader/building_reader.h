@@ -21,7 +21,6 @@ public:
 	char const* get_type_name() const OVERRIDE { return "tile"; }
 
 	/* Read a node. Does version check and compatibility transformations.
-	 * @author Hj. Malthaner
 	 */
 	obj_desc_t* read_node(FILE*, obj_node_info_t&) OVERRIDE;
 };
@@ -42,7 +41,6 @@ public:
 	char const* get_type_name() const OVERRIDE { return "building"; }
 
 	/* Read a node. Does version check and compatibility transformations.
-	 * @author Hj. Malthaner
 	 */
 	obj_desc_t* read_node(FILE*, obj_node_info_t&) OVERRIDE;
 

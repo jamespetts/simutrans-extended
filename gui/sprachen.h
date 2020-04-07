@@ -19,7 +19,6 @@
 
 /*
  * Dialog for language change
- * @author Hj. Maltahner, Niels Roest, prissi
  */
 class sprachengui_t : public gui_frame_t, private action_listener_t
 {
@@ -41,7 +40,6 @@ public:
 	/**
 	 * Causes the required fonts for currently selected
 	 * language to be loaded
-	 * @author Hj. Malthaner
 	 */
 	static void init_font_from_lang();
 
@@ -52,7 +50,6 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
 	const char *get_help_filename() const {return "language.txt";}
 

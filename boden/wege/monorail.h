@@ -14,8 +14,6 @@
  * Klasse für Schienen in Simutrans.
  * Auf den Schienen koennen Züge fahren.
  * Jede Schiene gehört zu einer Blockstrecke
- *
- * @author Hj. Malthaner
  */
 class monorail_t : public schiene_t
 {
@@ -26,7 +24,6 @@ public:
 
 	/**
 	 * File loading constructor.
-	 * @author prissi
 	 */
 	monorail_t(loadsave_t *file);
 

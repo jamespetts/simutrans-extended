@@ -37,8 +37,7 @@ private:
 	*/
 	sint8 number_of_seasons;
 
-	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
-	* @author: jamespetts*/
+	/*Way constraints for, e.g., loading gauges, types of electrification, etc. */
 	way_constraints_of_way_t way_constraints;
 
 	/* has underground way image ? (0 = no, 1 = old type way, 2 = underground tunnel images, 3 = both)  [way parameter]
@@ -178,7 +177,6 @@ public:
 	 * the byte into bool values. See here for
 	 * information on bitwise operations:
 	 * http://www.cprogramming.com/tutorial/bitwise_operators.html
-	 * @author: jamespetts
 	 * */
 	const way_constraints_of_way_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_way_t& value) { way_constraints = value; }

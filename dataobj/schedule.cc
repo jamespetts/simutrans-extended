@@ -405,7 +405,6 @@ void schedule_t::rotate90( sint16 y_size )
 
 /*
  * compare this schedule (schedule) with another, passed in schedule
- * @author hsiegeln
  */
 bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 {
@@ -480,7 +479,6 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 /*
  * Increment or decrement the given index according to the given direction.
  * Also switches the direction if necessary.
- * @author yobbobandana
  */
 void schedule_t::increment_index(uint8 *index, bool *reversed) const {
 	if( !get_count() )
@@ -523,7 +521,6 @@ void schedule_t::increment_index(uint8 *index, bool *reversed) const {
 
 /**
  * Same as increment_index(), but skips waypoints.
- * @author suitougreentea
  */
 void schedule_t::increment_index_until_next_halt(player_t *player, uint8 *index, bool *reversed) const {
 	uint32 counter = get_count();
@@ -548,7 +545,6 @@ public:
 
 /*
  * compare this schedule (schedule) with another, ignoring order and exact positions and waypoints
- * @author prissi
  */
 bool schedule_t::similar( const schedule_t *schedule, const player_t *player )
 {
