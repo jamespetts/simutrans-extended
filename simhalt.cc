@@ -2831,7 +2831,7 @@ bool haltestelle_t::vereinige_waren(const ware_t &ware) //"unite were" (Google)
 			* OLD SYSTEM - did not take account of origins and timings when merging.
 			*
 			* // es wird auf basis von Haltestellen vereinigt
-			* // prissi: das ist aber ein Fehler für all anderen Güter, daher Zielkoordinaten für alles, was kein passagier ist ...
+			* // prissi: das ist aber ein Fehler fÃ¼r all anderen GÃ¼ter, daher Zielkoordinaten fÃ¼r alles, was kein passagier ist ...
 			*
 			* //it is based on uniting stops.
 			* //prissi: but that is a mistake for all other goods, therefore, target coordinates for everything that is not a passenger ...
@@ -5715,11 +5715,11 @@ void haltestelle_t::calc_transfer_time()
 	const uint32 walking_around = welt->walking_time_tenths_from_distance(length_around);
 	// Guess that someone has to walk roughly from the middle to one end, so divide by *4*.
 	// Finally, round down to a uint16 (just in case).
-	transfer_time = min(walking_around / 4u, UINT32_MAX_VALUE);
+	transfer_time = walking_around / 4u;
 
 	// Repeat the process for the transshipment time.  (This is all inlined.)
 	const uint32 hauling_around = welt->walk_haulage_time_tenths_from_distance(length_around);
-	transshipment_time = min(hauling_around / 4u, UINT32_MAX_VALUE);
+	transshipment_time = hauling_around / 4u;
 
 	// Adjust for overcrowding - transfer time increases with a more crowded stop.
 	// TODO: Better separate waiting times for different types of goods.
