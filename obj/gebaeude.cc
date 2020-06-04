@@ -1076,7 +1076,7 @@ void gebaeude_t::info(cbuffer_t & buf) const
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
-                buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
+        buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
 
 		building_desc_t const& h = *tile->get_desc();
 
@@ -1619,9 +1619,9 @@ void gebaeude_t::rdwr(loadsave_t *file)
 	}
 	else
 	{
-		sint64 month_start = (purchase_time - welt->get_settings().get_starting_month() - welt->get_settings().get_starting_year()*12) *
+        	sint64 month_start = (purchase_time - welt->get_settings().get_starting_month() - welt->get_settings().get_starting_year()*12) *
         		welt->ticks_per_world_month;
-		file->rdwr_longlong(file->is_saving() ? month_start : construction_start);
+        	file->rdwr_longlong(file->is_saving() ? month_start : construction_start);
 	}
         if (!file->is_saving()) { // stepping year in game results in mismatch of Ticks vs. Year/Month; avoid updating here
         	purchase_time = (construction_start / welt->ticks_per_world_month)+welt->get_settings().get_starting_month()+
