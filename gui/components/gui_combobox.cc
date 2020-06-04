@@ -119,15 +119,17 @@ DBG_MESSAGE("event","HOWDY!");
 				first_call = false;
 			}
 
-			droplist.set_visible(true);
-			droplist.set_pos(scr_coord(this->pos.x, this->pos.y + D_EDIT_HEIGHT + D_V_SPACE / 2));
-			droplist.request_size(scr_size(this->size.w, max_size.h - D_EDIT_HEIGHT - D_V_SPACE / 2));
-			set_size(droplist.get_size() + scr_size(0, D_EDIT_HEIGHT + D_V_SPACE / 2));
-			int sel = droplist.get_selection();
-			if((uint32)sel>=(uint32)droplist.get_count()  ||  !droplist.get_element(sel)->is_valid()) {
-				sel = 0;
+			if(count_elements() > 1) {
+				droplist.set_visible(true);
+				droplist.set_pos(scr_coord(this->pos.x, this->pos.y + D_EDIT_HEIGHT + D_V_SPACE / 2));
+				droplist.request_size(scr_size(this->size.w, max_size.h - D_EDIT_HEIGHT - D_V_SPACE / 2));
+				set_size(droplist.get_size() + scr_size(0, D_EDIT_HEIGHT + D_V_SPACE / 2));
+				int sel = droplist.get_selection();
+				if((uint32)sel>=(uint32)droplist.get_count()  ||  !droplist.get_element(sel)->is_valid()) {
+					sel = 0;
+				}
+				droplist.show_selection(sel);
 			}
-			droplist.show_selection(sel);
 		}
 		else if (droplist.is_visible()) {
 			event_t ev2 = *ev;
@@ -193,6 +195,14 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()","scroll selected %i",p.i);
  */
 void gui_combobox_t::draw(scr_coord offset)
 {
+	if(count_elements() > 1) {
+		bt_next.enable(true);
+		bt_prev.enable(true);
+	} else {
+		bt_next.disable();
+		bt_prev.disable();
+	}
+
 	// text changed? Then update it
 	gui_scrolled_list_t::scrollitem_t *item = droplist.get_element( droplist.get_selection() );
 	if(  item  &&  item->is_valid()  &&  item->is_editable()  &&  strncmp( item->get_text(), old_editstr, 127 )  ) {

@@ -303,6 +303,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	// Select livery
 	livery_selector.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH, offset_y));
 	livery_selector.set_focusable(false);
+	livery_selector.set_visible(false);
 	livery_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_BUTTON_HEIGHT));
 	livery_selector.set_max_size(scr_size(D_BUTTON_WIDTH - 8, LINESPACE * 8 + 2 + 16));
 	livery_selector.set_highlight_color(1);
@@ -738,14 +739,16 @@ void schedule_list_gui_t::display(scr_coord pos)
 	len2 += display_proportional_clip(pos.x+LINE_NAME_COLUMN_WIDTH+len2+5, pos.y+top+LINESPACE, ctmp, ALIGN_LEFT, profit>=0?MONEY_PLUS:MONEY_MINUS, true );
 
 
-	if (capacity > 0) {
-		int rest_width = max( (get_windowsize().w-LINE_NAME_COLUMN_WIDTH)/2, max(len2,len) );
-		filled_bar.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH + rest_width + 24, top - LINESPACE - D_BUTTON_HEIGHT));
+	int rest_width = max( (get_windowsize().w-LINE_NAME_COLUMN_WIDTH)/2, max(len2,len) );
+	filled_bar.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH + rest_width + 24, top - LINESPACE - D_BUTTON_HEIGHT));
+	filled_bar.set_visible(true);
+	if(capacity > 0){
 		number_to_string(ctmp, capacity, 0);
 		buf.clear();
 		buf.printf( translator::translate("Capacity: %s\nLoad: %d (%d%%)"), ctmp, load, loadfactor );
 		display_multiline_text(pos.x + LINE_NAME_COLUMN_WIDTH + rest_width + 24, pos.y+top, buf, SYSCOL_TEXT);
 	}
+
 	bt_line_class_manager.disable();
 	for (unsigned convoy = 0; convoy < line->count_convoys(); convoy++)
 	{
@@ -882,7 +885,6 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		scrolly_convois.set_visible(true);
 		scrolly_haltestellen.set_visible(true);
 		inp_name.set_visible(true);
-		filled_bar.set_visible(true);
 
 		// fill container with info of line's convoys
 		// we do it here, since this list needs only to be
@@ -937,17 +939,16 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 
 		bt_withdraw_line.pressed = new_line->get_withdraw();
 
-		livery_selector.set_focusable(false);
+		livery_selector.set_focusable(true);
+		livery_selector.clear_elements();
+		livery_scheme_indices.clear();
+		livery_selector.set_selection(0);
 		if(icnv > 0)
 		{
-			livery_selector.set_focusable(true);
 			// build available livery schemes list for this line
 			if (new_line->count_convoys()) {
-				livery_selector.clear_elements();
-				livery_scheme_indices.clear();
 				const uint16 month_now = welt->get_timeline_year_month();
 				vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
-
 				ITERATE_PTR(schemes, i)
 				{
 					bool found = false;
@@ -972,7 +973,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 								}
 							}
 							if (found) {
-								livery_selector.set_selection(i);
+								livery_selector.set_selection(livery_scheme_indices.index_of(i));
 								break;
 							}
 						}
@@ -980,13 +981,12 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 				}
 			}
 		}
-		if(!livery_scheme_indices.empty())
+		if(livery_scheme_indices.empty() || livery_selector.count_elements() < 1)
 		{
-
-			uint16 idx = new_line->get_livery_scheme_index();
-			livery_selector.set_selection(livery_scheme_indices.index_of(idx));
-		}
-
+			livery_selector.clear_elements();
+			livery_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate("No livery"), SYSCOL_TEXT));
+			livery_selector.set_selection(0);
+		} 
 
 		// fill haltestellen container with info of line's haltestellen
 		cont_haltestellen.remove_all();
