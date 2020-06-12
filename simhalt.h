@@ -714,6 +714,7 @@ public:
 	 * @author Hj. Malthaner
 	 */
 	uint32 get_ware_summe(const goods_desc_t *warentyp) const;
+	uint32 get_ware_summe(const goods_desc_t *warentyp, uint8 g_class) const;
 
 	/**
 	 * returns total number for a certain position (since more than one factory might connect to a stop)
