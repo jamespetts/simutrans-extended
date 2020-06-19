@@ -337,7 +337,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 				weg_t* way = gr->get_weg(road_wt);
 
-				if(way && way->connected_buildings.get_count() > 0)
+				if(origin_city && way && way->connected_buildings.get_count() > 0)
 				{
 					FOR(minivec_tpl<gebaeude_t*>, const gb, way->connected_buildings)
 					{
@@ -359,7 +359,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							journey_time_per_tile = tmp->g / straight_line_distance;
 						}
 						destination_industry = gb->get_fabrik();
-						if(destination_industry && origin_city)
+						if(destination_industry)
 						{
 							// This is an industry
 #ifdef MULTI_THREAD
@@ -379,7 +379,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							}
 #endif
 						}
-						else if (origin_city && gb->is_attraction())
+						else if (gb->is_attraction())
 						{
 #ifdef MULTI_THREAD
 							int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
@@ -571,7 +571,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 						}
 						else if(tmp->parent->dir!=tmp->dir  &&  tmp->parent->parent!=NULL)
 						{
-							// discourage 90° turns
+							// discourage 90Â° turns
 							k->g += 10;
 						}
 					}
@@ -940,7 +940,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 					if (tmp->dir != current_dir) {
 						new_g += 30;
 						if (tmp->parent->dir != tmp->dir  &&  tmp->parent->parent != NULL) {
-							// discourage 90° turns
+							// discourage 90Â° turns
 							new_g += 10;
 						}
 						else if (ribi_t::is_perpendicular(tmp->dir, current_dir))
@@ -1183,7 +1183,7 @@ void route_t::postprocess_water_route(karte_t *welt)
 /* searches route, uses intern_calc_route() for distance between stations
  * handles only driving in stations by itself
  * corrected 12/2005 for station search
- * @author Hansjörg Malthaner, prissi
+ * @author HansjÃ¶rg Malthaner, prissi
  */
  route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 max_len, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction)
 {
