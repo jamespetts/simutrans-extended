@@ -4989,7 +4989,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 				display_fillbox_wh_clip(xpos + 3, ypos - v - 1, 1, v, COL_GREY1, false);
 
 				// Hajo: show up arrow for capped values
-				if (catg_sum > max_capacity) {
+				if (sum > max_capacity) {
 					display_fillbox_wh_clip(xpos + 1, ypos - v - 6, 2, 4, COL_WHITE, false);
 					display_fillbox_wh_clip(xpos, ypos - v - 5, 4, 1, COL_WHITE, false);
 				}
