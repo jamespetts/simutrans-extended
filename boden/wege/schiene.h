@@ -22,7 +22,7 @@ class vehicle_t;
 class schiene_t : public weg_t
 {
 public:
-	enum reservation_type : uint8 	{ block = 0, directional, priority, stale_block, end };
+	enum class reservation_type : uint8 { block, directional, priority, stale_block, end };
 
 protected:
 	/**
@@ -63,37 +63,46 @@ public:
 	* true, if this rail can be reserved
 	* @author prissi
 	*/
-	bool can_reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t = block, bool check_directions_at_junctions = false) const
+	bool can_reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t = reservation_type::block, bool check_directions_at_junctions = false) const
 	{
-		if(t == block)
-		{
-			return !reserved.is_bound() || c == reserved || (type == directional && (dir == direction || dir == ribi_t::all || ((is_diagonal() || ribi_t::is_bend(direction)) && (dir & direction)) || (is_junction() && (dir & direction)))) || (type == priority && true /*Insert real logic here*/);
-		}
-		if(t == directional)
-		{
-			return !reserved.is_bound() || c == reserved || type == priority || (dir == direction || dir == ribi_t::all) || (!check_directions_at_junctions && is_junction());
-		}
-		if(t == priority)
-		{
-			return !reserved.is_bound() || c == reserved; // TODO: Obtain the priority data from the convoy here and comapre it.
-		}
+        switch (t) {
+            case reservation_type::block:
+                return !reserved.is_bound()
+                || c == reserved
+                || (type == reservation_type::directional && (dir == direction || dir == ribi_t::all || ((is_diagonal() || ribi_t::is_bend(direction)) && (dir & direction)) || (is_junction() && (dir & direction))))
+                || (type == reservation_type::priority && true /*Insert real logic here*/);
+                break;
 
-		// Fail with non-standard reservation type
-		return false;
+            case reservation_type::directional:
+                return !reserved.is_bound()
+                || c == reserved
+                || type == reservation_type::priority
+                || (dir == direction || dir == ribi_t::all)
+                || (!check_directions_at_junctions && is_junction());
+                break;
+
+            case reservation_type::priority:
+                return !reserved.is_bound()
+                || c == reserved; // TODO: Obtain the priority data from the convoy here and comapre it.
+                break;
+            default:
+                return false;
+                break;
+        }
 	}
 
 	/**
 	* true, if this rail can be reserved
 	* @author prissi
 	*/
-	bool is_reserved(reservation_type t = block) const { return reserved.is_bound() && (t == type || (t == block && type == stale_block) || type >= end); }
-	bool is_reserved_directional(reservation_type t = directional) const { return reserved.is_bound() && t == type; }
-	bool is_reserved_priority(reservation_type t = priority) const { return reserved.is_bound() && t == type; }
+	bool is_reserved(reservation_type t = reservation_type::block) const { return reserved.is_bound() && (t == type || (t == reservation_type::block && type == reservation_type::stale_block) || type >= reservation_type::end); }
+	bool is_reserved_directional(reservation_type t = reservation_type::directional) const { return reserved.is_bound() && t == type; }
+	bool is_reserved_priority(reservation_type t = reservation_type::priority) const { return reserved.is_bound() && t == type; }
 
-	void set_stale() { if (type == block) { type = stale_block; } }
-	bool is_stale() { return type == stale_block; }
+	void set_stale() { if (type == reservation_type::block) { type = reservation_type::stale_block; } }
+	bool is_stale() { return type == reservation_type::stale_block; }
 
-	reservation_type get_reservation_type() const { return type != stale_block ? type : block; }
+	reservation_type get_reservation_type() const { return type != reservation_type::stale_block ? type : reservation_type::block; }
 
 	ribi_t::ribi get_reserved_direction() const { return direction; }
 
@@ -101,7 +110,7 @@ public:
 	* true, then this rail was reserved
 	* @author prissi
 	*/
-	bool reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t = block, bool check_directions_at_junctions = false);
+	bool reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t = reservation_type::block, bool check_directions_at_junctions = false);
 
 	/**
 	* releases previous reservation
@@ -142,20 +151,20 @@ public:
 		uint8 reservation_colour;
 		switch(type)
 		{
-		case block:
+		case reservation_type::block:
 		default:
 			reservation_colour = COL_RED;
 			break;
 
-		case directional:
+		case reservation_type::directional:
 			reservation_colour = COL_BLUE;
 			break;
 
-		case priority:
+		case reservation_type::priority:
 			reservation_colour = COL_YELLOW;
 			break;
 #ifdef DEBUG
-		case stale_block:
+		case reservation_type::stale_block:
 			reservation_colour = COL_DARK_RED;
 			break;
 #endif
@@ -201,12 +210,12 @@ public:
 	{
 		switch (rt)
 		{
-		case 0:
+		case reservation_type::block:
 		default:
 			return "block_reservation";
-		case 1:
+		case reservation_type::directional:
 			return "directional_reservation";
-		case 2:
+		case reservation_type::priority:
 			return "priority_reservation";
 		};
 	}

@@ -45,16 +45,16 @@ signal_t::signal_t(player_t *player, koord3d pos, ribi_t::ribi dir,const roadsig
 {
 	if((desc->get_working_method() == time_interval || desc->get_working_method() == time_interval_with_telegraph) && !desc->is_choose_sign() && !desc->is_longblock_signal())
 	{
-		state = clear;
+		set_state(signal_aspects::clear);
 	}
 	else if(desc->is_pre_signal())
 	{
 		// Distant signals do not display a danger aspect.
-		state = caution;
+		set_state(signal_aspects::caution);
 	}
 	else
 	{
-		state = danger;
+	    set_state(signal_aspects::danger);
 	}
 
 	train_last_passed = 0;
@@ -309,7 +309,7 @@ void signal_t::info(cbuffer_t & buf) const
 
 		buf.append(translator::translate("current_state"));
 		buf.append(": ");
-		if (get_state() != danger)
+		if (get_state() != signal_aspects::danger)
 		{
 			// Is this signal a presignal?
 			if (desc->is_pre_signal())
@@ -327,25 +327,25 @@ void signal_t::info(cbuffer_t & buf) const
 						switch (get_dir())
 						{
 						case 1:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("south"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("north"));
 							break;
 						case 2:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("west"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("east"));
 							break;
 						case 4:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("north"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("south"));
 							break;
 						case 8:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("east"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_3_signal_aspects_name(get_state())), translator::translate("west"));
@@ -358,25 +358,25 @@ void signal_t::info(cbuffer_t & buf) const
 						switch (get_dir())
 						{
 						case 1:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("south"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("north"));
 							break;
 						case 2:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("west"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("east"));
 							break;
 						case 4:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("north"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("south"));
 							break;
 						case 8:
-							if (get_state() == clear_no_choose || get_state() == caution_no_choose)
+							if (get_state() == signal_aspects::clear_no_choose || get_state() == signal_aspects::caution_no_choose)
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("east"));
 							else
 								buf.printf("%s (%s)", translator::translate(get_time_signal_aspects_name(get_state())), translator::translate("west"));
@@ -438,7 +438,7 @@ void signal_t::info(cbuffer_t & buf) const
 		}
 	}
 	buf.append(translator::translate("\n"));
-	if (get_state() == danger)
+	if (get_state() == signal_aspects::danger)
 	{
 	}
 	else
@@ -1064,7 +1064,7 @@ void signal_t::calc_image()
 				{
 					if(desc->get_aspects() < 5)
 					{
-						if(state > advance_caution)
+						if(get_state() > signal_aspects::advance_caution)
 						{
 							modified_state = state - diff;
 						}
@@ -1072,19 +1072,19 @@ void signal_t::calc_image()
 				}
 				else
 				{
-					if(state > advance_caution)
+					if(get_state() > signal_aspects::advance_caution)
 					{
 						modified_state -= (desc->get_aspects() - 1) + diff;
 					}
 				}
 			}
 
-			if(state == call_on && !desc->get_has_call_on())
+			if(get_state() == signal_aspects::call_on && !desc->get_has_call_on())
 			{
-				modified_state = danger;
+				modified_state = static_cast<uint8>(signal_aspects::danger);
 			}
 
-			if (state == call_on && desc->get_has_call_on())
+			if (get_state() == signal_aspects::call_on && desc->get_has_call_on())
 			{
 				if (desc->get_has_selective_choose())
 				{
@@ -1096,42 +1096,42 @@ void signal_t::calc_image()
 				}
 			}
 
-			if(state == clear_no_choose && !desc->get_has_selective_choose())
+			if(get_state() == signal_aspects::clear_no_choose && !desc->get_has_selective_choose())
 			{
-				modified_state = clear;
+				modified_state = static_cast<uint8>(signal_aspects::clear);
 			}
 
-			if(state == caution_no_choose && !desc->get_has_selective_choose())
+			if(get_state() == signal_aspects::caution_no_choose && !desc->get_has_selective_choose())
 			{
-				modified_state = caution;
+				modified_state = static_cast<uint8>(signal_aspects::caution);
 			}
 
-			if(state == preliminary_caution_no_choose && !desc->get_has_selective_choose())
+			if(get_state() == signal_aspects::preliminary_caution_no_choose && !desc->get_has_selective_choose())
 			{
-				modified_state = preliminary_caution;
+				modified_state = static_cast<uint8>(signal_aspects::preliminary_caution);
 			}
 
-			if(state == advance_caution_no_choose && !desc->get_has_selective_choose())
+			if(get_state() == signal_aspects::advance_caution_no_choose && !desc->get_has_selective_choose())
 			{
-				modified_state = advance_caution;
+				modified_state = static_cast<uint8>(signal_aspects::advance_caution);
 			}
 
-			if(desc->is_pre_signal() && desc->get_aspects() == 2 && state == caution)
+			if(desc->is_pre_signal() && desc->get_aspects() == 2 && get_state() == signal_aspects::caution)
 			{
-				modified_state = danger;
+				modified_state = static_cast<uint8>(signal_aspects::danger);
 			}
 
 			if(desc->get_aspects() == 1)
 			{
-				modified_state = danger;
+				modified_state = static_cast<uint8>(signal_aspects::danger);
 			}
 
-			if(desc->get_aspects() == 2 && !desc->is_pre_signal() && !desc->is_choose_sign() && state > clear && !desc->get_has_call_on())
+			if(desc->get_aspects() == 2 && !desc->is_pre_signal() && !desc->is_choose_sign() && get_state() > signal_aspects::clear && !desc->get_has_call_on())
 			{
-				modified_state = clear;
+				modified_state = static_cast<uint8>(signal_aspects::clear);
 			}
 
-			if(desc->get_has_selective_choose() && desc->get_aspects() < 5 && state >= clear_no_choose)
+			if(desc->get_has_selective_choose() && desc->get_aspects() < 5 && get_state() >= signal_aspects::clear_no_choose)
 			{
 				modified_state -= diff;
 			}
@@ -1265,7 +1265,7 @@ void signal_t::rdwr_signal(loadsave_t *file)
 #endif
 	}
 
-	if(no_junctions_to_next_signal && desc && (desc->get_working_method() == time_interval || desc->get_working_method() == time_interval_with_telegraph) && (state == caution || state == caution_no_choose || state == danger))
+	if(no_junctions_to_next_signal && desc && (desc->get_working_method() == time_interval || desc->get_working_method() == time_interval_with_telegraph) && (get_state() == signal_aspects::caution || get_state() == signal_aspects::caution_no_choose || get_state() == signal_aspects::danger))
 	{
 		welt->add_time_interval_signal_to_check(this);
 	}

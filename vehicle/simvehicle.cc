@@ -5099,7 +5099,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			const koord3d first_pos = cnv->get_last_signal_pos();
 			if (shortest_distance(get_pos().get_2d(), first_pos.get_2d()) < 3)
 			{
-				signal->set_state(roadsign_t::call_on); // Do not use the same cabinet to switch back to drive by sight immediately after releasing.
+				signal->set_state(roadsign_t::signal_aspects::call_on); // Do not use the same cabinet to switch back to drive by sight immediately after releasing.
 				clear_token_reservation(signal, this, w);
 				set_working_method(drive_by_sight);
 				exiting_one_train_staff = true;
@@ -5193,13 +5193,13 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		}
 	}
 
-	if(signal_current && (signal_current->get_desc()->get_working_method() == time_interval || signal_current->get_desc()->get_working_method() == time_interval_with_telegraph) && signal_current->get_state() == roadsign_t::danger && !signal_current->get_desc()->is_choose_sign() && signal_current->get_no_junctions_to_next_signal() && (signal_current->get_desc()->get_working_method() != one_train_staff || !starting_from_stand))
+	if(signal_current && (signal_current->get_desc()->get_working_method() == time_interval || signal_current->get_desc()->get_working_method() == time_interval_with_telegraph) && signal_current->get_state() == roadsign_t::signal_aspects::danger && !signal_current->get_desc()->is_choose_sign() && signal_current->get_no_junctions_to_next_signal() && (signal_current->get_desc()->get_working_method() != one_train_staff || !starting_from_stand))
 	{
 		restart_speed = 0;
 		return false;
 	}
 
-	if (signal_current && signal_current->get_desc()->get_working_method() == one_train_staff && cnv->get_state() == convoi_t::DRIVING && signal_current->get_state() != signal_t::call_on)
+	if (signal_current && signal_current->get_desc()->get_working_method() == one_train_staff && cnv->get_state() == convoi_t::DRIVING && signal_current->get_state() != signal_t::signal_aspects::call_on)
 	{
 		// This should only be encountered when a train comes upon a one train staff cabinet having previously stopped at a double block signal or having started from a station.
 		if (working_method == drive_by_sight)
@@ -5269,7 +5269,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					if(last_passed + caution_interval_ticks > ticks)
 					{
 						// Danger
-						sig->set_state(signal_t::danger);
+						sig->set_state(signal_t::signal_aspects::danger);
 						restart_speed = 0;
 						return false;
 					}
@@ -5277,7 +5277,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					{
 						// Caution
 						cnv->set_maximum_signal_speed(min(kmh_to_speed(w_current->get_max_speed()) / 2, sig->get_desc()->get_max_speed() / 2));
-						sig->set_state(station_signal == station_signal_status::inverse ? roadsign_t::caution : roadsign_t::caution_no_choose);
+						sig->set_state(station_signal == station_signal_status::inverse ? roadsign_t::signal_aspects::caution : roadsign_t::signal_aspects::caution_no_choose);
 						find_next_signal(cnv->get_route(),  max(route_index, 1) - 1, next_signal);
 						if (next_signal <= route_index)
 						{
@@ -5288,7 +5288,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					{
 						// Clear
 						cnv->set_maximum_signal_speed(kmh_to_speed(sig->get_desc()->get_max_speed()));
-						sig->set_state(station_signal == station_signal_status::inverse ? roadsign_t::clear : roadsign_t::clear_no_choose);
+						sig->set_state(station_signal == station_signal_status::inverse ? roadsign_t::signal_aspects::clear : roadsign_t::signal_aspects::clear_no_choose);
 						find_next_signal(cnv->get_route(),  max(route_index, 1) - 1, next_signal);
 						if (next_signal <= route_index)
 						{
@@ -5371,7 +5371,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 	if(!w->can_reserve(cnv->self, ribi))
 	{
 		restart_speed = 0;
-		if(((working_method == time_interval || working_method == time_interval_with_telegraph) && cnv->get_state() == convoi_t::DRIVING && !(signal_current && signal_current->get_state() == roadsign_t::danger)))
+		if(((working_method == time_interval || working_method == time_interval_with_telegraph) && cnv->get_state() == convoi_t::DRIVING && !(signal_current && signal_current->get_state() == roadsign_t::signal_aspects::danger)))
 		{
 			const sint32 emergency_stop_duration = welt->get_seconds_to_ticks(welt->get_settings().get_time_interval_seconds_to_caution() / 2);
 			convoihandle_t c = w->get_reserved_convoi();
@@ -5618,15 +5618,15 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				}
 			}
 
-			if(signal && (signal->get_state() == signal_t::caution
-				|| signal->get_state() == signal_t::preliminary_caution
-				|| signal->get_state() == signal_t::advance_caution
-				|| ((working_method == time_interval || working_method == time_interval_with_telegraph || working_method == track_circuit_block) && signal->get_state() == signal_t::clear)
-				|| ((working_method == time_interval || working_method == time_interval_with_telegraph || working_method == track_circuit_block) && signal->get_state() == signal_t::clear_no_choose)
-				|| signal->get_state() == signal_t::caution_no_choose
-				|| signal->get_state() == signal_t::preliminary_caution_no_choose
-				|| signal->get_state() == signal_t::advance_caution_no_choose
-				|| (working_method == token_block && signal->get_state() == signal_t::danger)))
+			if(signal && (signal->get_state() == signal_t::signal_aspects::caution
+            || signal->get_state() == signal_t::signal_aspects::preliminary_caution
+            || signal->get_state() == signal_t::signal_aspects::advance_caution
+            || ((working_method == time_interval || working_method == time_interval_with_telegraph || working_method == track_circuit_block) && signal->get_state() == signal_t::signal_aspects::clear)
+            || ((working_method == time_interval || working_method == time_interval_with_telegraph || working_method == track_circuit_block) && signal->get_state() == signal_t::signal_aspects::clear_no_choose)
+            || signal->get_state() == signal_t::signal_aspects::caution_no_choose
+            || signal->get_state() == signal_t::signal_aspects::preliminary_caution_no_choose
+            || signal->get_state() == signal_t::signal_aspects::advance_caution_no_choose
+            || (working_method == token_block && signal->get_state() == signal_t::signal_aspects::danger)))
 			{
 				if (!starting_from_stand && (signal->get_desc()->get_working_method() == token_block || signal->get_desc()->get_working_method() == one_train_staff))
 				{
@@ -5728,7 +5728,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				working_method_t old_working_method = working_method;
 				if(working_method != token_block)
 				{
-					if(signal->get_desc()->get_working_method() != one_train_staff || (!do_not_set_one_train_staff && (signal->get_pos() == get_pos()) && (signal->get_state() != roadsign_t::call_on)))
+					if(signal->get_desc()->get_working_method() != one_train_staff || (!do_not_set_one_train_staff && (signal->get_pos() == get_pos()) && (signal->get_state() != roadsign_t::signal_aspects::call_on)))
 					{
 						set_working_method(signal->get_desc()->get_working_method());
 						if (signal->get_desc()->get_working_method() == one_train_staff)
@@ -5748,11 +5748,11 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					|| (working_method == one_train_staff && shortest_distance(get_pos().get_2d(), signal->get_pos().get_2d()) < 2))
  				{
 					// Brake for the signal unless we can see it somehow. -1 because this is checked on entering the tile.
-					const bool allow_block_reserver = ((working_method != time_interval && working_method != time_interval_with_telegraph) || !signal->get_no_junctions_to_next_signal() || signal->get_desc()->is_choose_sign() || signal->get_state() != roadsign_t::danger) && ((signal->get_desc()->get_working_method() != one_train_staff && signal->get_desc()->get_working_method() != token_block) || route_index == next_block);
+					const bool allow_block_reserver = ((working_method != time_interval && working_method != time_interval_with_telegraph) || !signal->get_no_junctions_to_next_signal() || signal->get_desc()->is_choose_sign() || signal->get_state() != roadsign_t::signal_aspects::danger) && ((signal->get_desc()->get_working_method() != one_train_staff && signal->get_desc()->get_working_method() != token_block) || route_index == next_block);
 					if(allow_block_reserver && !block_reserver(cnv->get_route(), next_block, modified_sighting_distance_tiles, next_signal, 0, true, false, cnv->get_is_choosing()))
 					{
 						restart_speed = 0;
-						signal->set_state(roadsign_t::danger);
+						signal->set_state(roadsign_t::signal_aspects::danger);
 						if (old_working_method == drive_by_sight)
 						{
 							set_working_method(old_working_method);
@@ -5763,13 +5763,13 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							if(signal->get_desc()->get_permissive() && signal->get_no_junctions_to_next_signal())
 							{
 								// Permissive working allowed: call on.
-								signal->set_state(roadsign_t::call_on);
+								signal->set_state(roadsign_t::signal_aspects::call_on);
 								set_working_method(drive_by_sight);
 								call_on = true;
 							}
 						}
 						cnv->set_next_stop_index(next_signal == INVALID_INDEX ? next_block : next_signal);
-						if(signal->get_state() != roadsign_t::call_on)
+						if(signal->get_state() != roadsign_t::signal_aspects::call_on)
 						{
 							cnv->set_is_choosing(false);
 							return cnv->get_next_stop_index() > route_index;
@@ -6021,8 +6021,8 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 	enum station_signal_status { none, forward, inverse };
 	station_signal_status station_signal = station_signal_status::none;
 	uint32 steps_so_far = 0;
-	roadsign_t::signal_aspects next_time_interval_state = roadsign_t::danger;
-	roadsign_t::signal_aspects first_time_interval_state = roadsign_t::advance_caution; // A time interval signal will never be in advance caution, so this is a placeholder to indicate that this value has not been set.
+	roadsign_t::signal_aspects next_time_interval_state = roadsign_t::signal_aspects::danger;
+	roadsign_t::signal_aspects first_time_interval_state = roadsign_t::signal_aspects::advance_caution; // A time interval signal will never be in advance caution, so this is a placeholder to indicate that this value has not been set.
 	signal_t* station_signal_to_clear_for_entry = NULL;
 
 	if(working_method == drive_by_sight)
@@ -6389,18 +6389,18 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 
 							if(last_passed + caution_interval_ticks > ticks)
 							{
-								next_time_interval_state = roadsign_t::danger;
+								next_time_interval_state = roadsign_t::signal_aspects::danger;
 							}
 							else if(last_passed + clear_interval_ticks > ticks)
 							{
-								next_time_interval_state = station_signal == inverse ? roadsign_t::caution : roadsign_t::caution_no_choose;
+								next_time_interval_state = station_signal == inverse ? roadsign_t::signal_aspects::caution : roadsign_t::signal_aspects::caution_no_choose;
 							}
 							else
 							{
-								next_time_interval_state = station_signal == inverse ? roadsign_t::clear : roadsign_t::clear_no_choose;
+								next_time_interval_state = station_signal == inverse ? roadsign_t::signal_aspects::clear : roadsign_t::signal_aspects::clear_no_choose;
 							}
 
-							if(first_time_interval_state == roadsign_t::advance_caution)
+							if(first_time_interval_state == roadsign_t::signal_aspects::advance_caution)
 							{
 								first_time_interval_state = next_time_interval_state;
 							}
@@ -6416,7 +6416,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 							if (first_double_block_signal_index < INVALID_INDEX && first_double_block_signal_index == last_stop_signal_index)
 							{
 								// We are checking here whether to clear the double block stop signal before a time interval signal.
-								if (next_time_interval_state == roadsign_t::danger)
+								if (next_time_interval_state == roadsign_t::signal_aspects::danger)
 								{
 									next_signal_index = first_double_block_signal_index;
 									count--;
@@ -6604,16 +6604,16 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 							{
 								if(next_signal_protects_no_junctions)
 								{
-									if(signal->get_state() == roadsign_t::danger)
+									if(signal->get_state() == roadsign_t::signal_aspects::danger)
 									{
 										count --;
 									}
-									else if(signal->get_state() == roadsign_t::caution || signal->get_state() == roadsign_t::caution_no_choose)
+									else if(signal->get_state() == roadsign_t::signal_aspects::caution || signal->get_state() == roadsign_t::signal_aspects::caution_no_choose)
 									{
 										// Half line speed allowed for caution indications on time interval stop signals on straight track
 										cnv->set_maximum_signal_speed(min(kmh_to_speed(sch1->get_max_speed()) / 2, signal->get_desc()->get_max_speed() / 2));
 									}
-									else if(signal->get_state() == roadsign_t::clear || signal->get_state() == roadsign_t::clear_no_choose)
+									else if(signal->get_state() == roadsign_t::signal_aspects::clear || signal->get_state() == roadsign_t::signal_aspects::clear_no_choose)
 									{
 										cnv->set_maximum_signal_speed(signal->get_desc()->get_max_speed());
 									}
@@ -6623,16 +6623,16 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 									// Must proceed with great caution in basic time interval and some caution even with a telegraph (see LT&S Signalling, p. 5)
 									if(signal->get_desc()->is_longblock_signal() && (station_signal || next_signal_working_method == time_interval_with_telegraph))
 									{
-										if(next_time_interval_state == roadsign_t::danger || (last_longblock_signal_index < INVALID_INDEX && i > first_stop_signal_index))
+										if(next_time_interval_state == roadsign_t::signal_aspects::danger || (last_longblock_signal_index < INVALID_INDEX && i > first_stop_signal_index))
 										{
 											next_signal_index = i;
 											count --;
 										}
-										else if(next_time_interval_state == roadsign_t::caution || next_time_interval_state == roadsign_t::caution_no_choose)
+										else if(next_time_interval_state == roadsign_t::signal_aspects::caution || next_time_interval_state == roadsign_t::signal_aspects::caution_no_choose)
 										{
 											cnv->set_maximum_signal_speed(min(kmh_to_speed(sch1->get_max_speed()) / 2, signal->get_desc()->get_max_speed() / 2));
 										}
-										else if(next_time_interval_state == roadsign_t::clear || next_time_interval_state == roadsign_t::clear_no_choose)
+										else if(next_time_interval_state == roadsign_t::signal_aspects::clear || next_time_interval_state == roadsign_t::signal_aspects::clear_no_choose)
 										{
 											cnv->set_maximum_signal_speed(signal->get_desc()->get_max_speed());
 										}
@@ -6671,7 +6671,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 							// No distant signals: just reserve one block beyond the first stop signal and no more (unless the last signal is a double block signal).
 							count --;
 						}
-						else if(next_signal_working_method == time_interval && (last_longblock_signal_index >= INVALID_INDEX || !next_signal_protects_no_junctions) && signal->get_state() == roadsign_t::danger && next_signal_protects_no_junctions && pre_signals.empty())
+						else if(next_signal_working_method == time_interval && (last_longblock_signal_index >= INVALID_INDEX || !next_signal_protects_no_junctions) && signal->get_state() == roadsign_t::signal_aspects::danger && next_signal_protects_no_junctions && pre_signals.empty())
 						{
 							next_time_interval_state = signal->get_state();
 							if(station_signal)
@@ -6689,7 +6689,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 							if(signal->get_desc()->is_longblock_signal() && (last_longblock_signal_index < INVALID_INDEX || working_method == time_interval_with_telegraph))
 							{
 
-								if(next_time_interval_state == roadsign_t::danger || (last_longblock_signal_index < INVALID_INDEX && i > first_stop_signal_index))
+								if(next_time_interval_state == roadsign_t::signal_aspects::danger || (last_longblock_signal_index < INVALID_INDEX && i > first_stop_signal_index))
 								{
 									if(station_signal)
 									{
@@ -6834,7 +6834,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			}
 
 			const bool telegraph_directional = (time_interval_reservation && previous_telegraph_directional) || (next_signal_working_method == time_interval_with_telegraph && (((last_longblock_signal_index == last_stop_signal_index && first_stop_signal_index == last_longblock_signal_index) && last_longblock_signal_index < INVALID_INDEX) || (first_double_block_signal_index < INVALID_INDEX && next_signal_protects_no_junctions)));
-			const schiene_t::reservation_type rt = directional_only || (telegraph_directional && i > modified_sighting_distance_tiles) ? schiene_t::directional : schiene_t::block;
+			const schiene_t::reservation_type rt = directional_only || (telegraph_directional && i > modified_sighting_distance_tiles) ? schiene_t::reservation_type::directional : schiene_t::reservation_type::block;
 			bool transitioning_from_time_interval = (working_method == time_interval || working_method == time_interval_with_telegraph) && (next_signal_working_method == absolute_block || next_signal_working_method == track_circuit_block || next_signal_working_method == token_block);
 			bool attempt_reservation = directional_only || time_interval_reservation || previous_telegraph_directional || ((next_signal_working_method != time_interval && next_signal_working_method != time_interval_with_telegraph && ((next_signal_working_method != drive_by_sight && !transitioning_from_time_interval) || i < start_index + modified_sighting_distance_tiles + 1)) && (!stop_at_station_signal.is_bound() || stop_at_station_signal == check_halt));
 			previous_telegraph_directional = telegraph_directional;
@@ -6901,7 +6901,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 					&& !directional_only
 					&& ((next_signal_index <= last_stop_signal_before_first_bidirectional_signal_index
 					&& last_stop_signal_before_first_bidirectional_signal_index < INVALID_INDEX)
-					|| sch1->can_reserve(cnv->self, ribi_type(route->at(max(1u,i)-1u), route->at(min(route->get_count()-1u,i+1u))), schiene_t::directional)))
+					|| sch1->can_reserve(cnv->self, ribi_type(route->at(max(1u,i)-1u), route->at(min(route->get_count()-1u,i+1u))), schiene_t::reservation_type::directional)))
 				{
 					next_signal_index = last_stop_signal_index;
 					break;
@@ -6954,7 +6954,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			last_step_halt = check_halt;
 
 			// Do not attempt to reserve beyond a train ahead.
-			if(reserving_beyond_a_train || ((next_signal_working_method != time_interval_with_telegraph || next_time_interval_state == roadsign_t::danger || attempt_reservation) && !directional_only && sch1->get_reserved_convoi().is_bound() && sch1->get_reserved_convoi() != cnv->self && sch1->get_reserved_convoi()->get_pos() == pos))
+			if(reserving_beyond_a_train || ((next_signal_working_method != time_interval_with_telegraph || next_time_interval_state == roadsign_t::signal_aspects::danger || attempt_reservation) && !directional_only && sch1->get_reserved_convoi().is_bound() && sch1->get_reserved_convoi() != cnv->self && sch1->get_reserved_convoi()->get_pos() == pos))
 			{
 				if (attempt_reservation)
 				{
@@ -7070,11 +7070,11 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 				{
 					if(signal->get_desc()->is_pre_signal())
 					{
-						signal->set_state(roadsign_t::caution);
+						signal->set_state(roadsign_t::signal_aspects::caution);
 					}
 					else
 					{
-						signal->set_state(roadsign_t::danger);
+						signal->set_state(roadsign_t::signal_aspects::danger);
 					}
 				}
 			}
@@ -7307,9 +7307,9 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 				grund_t* gr_this = welt->lookup(route->at(j));
 				schiene_t * sch1 = gr_this ? (schiene_t *)gr_this->get_weg(get_waytype()) : NULL;
 				const halthandle_t halt_this = haltestelle_t::get_halt(route->at(j), get_owner());
-				if(sch1 && (sch1->is_reserved(schiene_t::block)
+				if(sch1 && (sch1->is_reserved(schiene_t::reservation_type::block)
 					|| (!directional_reservation_succeeded
-					&& sch1->is_reserved(schiene_t::directional)))
+					&& sch1->is_reserved(schiene_t::reservation_type::directional)))
 					&& sch1->get_reserved_convoi() == cnv->self
 					&& sch1->get_pos() != get_pos()
 					&& (!halt_current.is_bound() || halt_current != halt_this))
@@ -7400,7 +7400,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		{
 			if(first_station_signal->get_desc()->get_working_method() == absolute_block && success)
 			{
-				first_station_signal->set_state(station_signal == inverse ? roadsign_t::clear : roadsign_t::clear_no_choose);
+				first_station_signal->set_state(station_signal == inverse ? roadsign_t::signal_aspects::clear : roadsign_t::signal_aspects::clear_no_choose);
 			}
 			else
 			{
@@ -7413,11 +7413,11 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			// TODO: Consider whether to make this optional on a setting in the signal's .dat file
 			if (station_signal_to_clear_for_entry->get_desc()->get_working_method() != absolute_block && station_signal_to_clear_for_entry->get_desc()->get_aspects() > 2)
 			{
-				station_signal_to_clear_for_entry->set_state(station_signal == inverse ? roadsign_t::caution : roadsign_t::caution_no_choose);
+				station_signal_to_clear_for_entry->set_state(station_signal == inverse ? roadsign_t::signal_aspects::caution : roadsign_t::signal_aspects::caution_no_choose);
 			}
 			else
 			{
-				station_signal_to_clear_for_entry->set_state(station_signal == inverse ? roadsign_t::clear : roadsign_t::clear_no_choose);
+				station_signal_to_clear_for_entry->set_state(station_signal == inverse ? roadsign_t::signal_aspects::clear : roadsign_t::signal_aspects::clear_no_choose);
 			}
 		}
 
@@ -7445,7 +7445,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 						// There is no need to set a combined signal to clear here, as this is set below in the pre-signals clearing loop.
 						if (!last_signal_was_track_circuit_block || count >= 0 || next_signal_index > route->get_count() - 1 || signal->get_pos() != route->at(next_signal_index))
 						{
-							signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::clear ? roadsign_t::clear_no_choose : signal->get_desc()->is_combined_signal() ? roadsign_t::caution : roadsign_t::clear);
+							signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::clear ? roadsign_t::signal_aspects::clear_no_choose : signal->get_desc()->is_combined_signal() ? roadsign_t::signal_aspects::caution : roadsign_t::signal_aspects::clear);
 						}
 					}
 
@@ -7459,7 +7459,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 						}
 						else
 						{
-							signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::caution ? roadsign_t::caution_no_choose : roadsign_t::caution);
+							signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::caution ? roadsign_t::signal_aspects::caution_no_choose : roadsign_t::signal_aspects::caution);
 						}
 					}
 
@@ -7485,66 +7485,66 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 							default:
 								if(next_signal_index > route->get_count() - 1 || signal->get_pos() != route->at(next_signal_index))
 								{
-									signal->set_state(use_no_choose_aspect ? roadsign_t::clear_no_choose : roadsign_t::clear);
+									signal->set_state(use_no_choose_aspect ? roadsign_t::signal_aspects::clear_no_choose : roadsign_t::signal_aspects::clear);
 								}
 								break;
 							case 3:
 								if(counter + add_value >= 1)
 								{
-									signal->set_state((use_no_choose_aspect && signal->get_state() != roadsign_t::clear) || signal->get_state() == roadsign_t::caution ? roadsign_t::clear_no_choose : roadsign_t::clear);
+									signal->set_state((use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::clear) || signal->get_state() == roadsign_t::signal_aspects::caution ? roadsign_t::signal_aspects::clear_no_choose : roadsign_t::signal_aspects::clear);
 								}
 								else if(next_signal_index > route->get_count() - 1 || signal->get_pos() != route->at(next_signal_index))
 								{
-									if (signal->get_state() == roadsign_t::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::caution))
+									if (signal->get_state() == roadsign_t::signal_aspects::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::caution))
 									{
-										signal->set_state(use_no_choose_aspect ? roadsign_t::caution_no_choose : roadsign_t::caution);
+										signal->set_state(use_no_choose_aspect ? roadsign_t::signal_aspects::caution_no_choose : roadsign_t::signal_aspects::caution);
 									}
 								}
 								break;
 							case 4:
 								if(counter + add_value >= 2)
 								{
-									signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::clear && signal->get_state() != roadsign_t::caution && signal->get_state() != roadsign_t::preliminary_caution ? roadsign_t::clear_no_choose : roadsign_t::clear);
+									signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::clear && signal->get_state() != roadsign_t::signal_aspects::caution && signal->get_state() != roadsign_t::signal_aspects::preliminary_caution ? roadsign_t::signal_aspects::clear_no_choose : roadsign_t::signal_aspects::clear);
 								}
 								else if(counter + add_value >= 1)
 								{
-									if(signal->get_state() == roadsign_t::danger || signal->get_state() == roadsign_t::caution || signal->get_state() == roadsign_t::caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::preliminary_caution))
+									if(signal->get_state() == roadsign_t::signal_aspects::danger || signal->get_state() == roadsign_t::signal_aspects::caution || signal->get_state() == roadsign_t::signal_aspects::caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::preliminary_caution))
 									{
-										signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::caution && signal->get_state() != roadsign_t::preliminary_caution ? roadsign_t::preliminary_caution_no_choose : roadsign_t::preliminary_caution);
+										signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::caution && signal->get_state() != roadsign_t::signal_aspects::preliminary_caution ? roadsign_t::signal_aspects::preliminary_caution_no_choose : roadsign_t::signal_aspects::preliminary_caution);
 									}
 								}
 								else if(next_signal_index > route->get_count() - 1 || signal->get_pos() != route->at(next_signal_index))
 								{
-									if (signal->get_state() == roadsign_t::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::caution))
+									if (signal->get_state() == roadsign_t::signal_aspects::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::caution))
 									{
-										signal->set_state(use_no_choose_aspect ? roadsign_t::caution_no_choose : roadsign_t::caution);
+										signal->set_state(use_no_choose_aspect ? roadsign_t::signal_aspects::caution_no_choose : roadsign_t::signal_aspects::caution);
 									}
 								}
 								break;
 							case 5:
 								if(counter + add_value >= 3)
 								{
-									signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::caution && signal->get_state() != roadsign_t::clear && signal->get_state() != roadsign_t::preliminary_caution && signal->get_state() != roadsign_t::advance_caution ? roadsign_t::clear_no_choose : roadsign_t::clear);
+									signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::caution && signal->get_state() != roadsign_t::signal_aspects::clear && signal->get_state() != roadsign_t::signal_aspects::preliminary_caution && signal->get_state() != roadsign_t::signal_aspects::advance_caution ? roadsign_t::signal_aspects::clear_no_choose : roadsign_t::signal_aspects::clear);
 								}
 								else if(counter + add_value >= 2)
 								{
-									if(signal->get_state() == roadsign_t::danger || signal->get_state() == roadsign_t::caution || signal->get_state() == roadsign_t::preliminary_caution || signal->get_state() == roadsign_t::caution_no_choose || signal->get_state() == roadsign_t::preliminary_caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::advance_caution))
+									if(signal->get_state() == roadsign_t::signal_aspects::danger || signal->get_state() == roadsign_t::signal_aspects::caution || signal->get_state() == roadsign_t::signal_aspects::preliminary_caution || signal->get_state() == roadsign_t::signal_aspects::caution_no_choose || signal->get_state() == roadsign_t::signal_aspects::preliminary_caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::advance_caution))
 									{
-										signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::caution && signal->get_state() != roadsign_t::clear && signal->get_state() != roadsign_t::preliminary_caution && signal->get_state() != roadsign_t::advance_caution  ? roadsign_t::advance_caution_no_choose : roadsign_t::advance_caution);
+										signal->set_state(use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::caution && signal->get_state() != roadsign_t::signal_aspects::clear && signal->get_state() != roadsign_t::signal_aspects::preliminary_caution && signal->get_state() != roadsign_t::signal_aspects::advance_caution  ? roadsign_t::signal_aspects::advance_caution_no_choose : roadsign_t::signal_aspects::advance_caution);
 									}
 								}
 								else if(counter + add_value >= 1)
 								{
-									if (signal->get_state() == roadsign_t::danger || signal->get_state() == roadsign_t::caution || signal->get_state() == roadsign_t::caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::preliminary_caution))
+									if (signal->get_state() == roadsign_t::signal_aspects::danger || signal->get_state() == roadsign_t::signal_aspects::caution || signal->get_state() == roadsign_t::signal_aspects::caution_no_choose || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::preliminary_caution))
 									{
-										signal->set_state((use_no_choose_aspect && signal->get_state() != roadsign_t::caution && signal->get_state() != roadsign_t::clear && signal->get_state() != roadsign_t::preliminary_caution && signal->get_state() != roadsign_t::advance_caution)  || signal->get_state() == roadsign_t::caution ? roadsign_t::preliminary_caution_no_choose : roadsign_t::preliminary_caution);
+										signal->set_state((use_no_choose_aspect && signal->get_state() != roadsign_t::signal_aspects::caution && signal->get_state() != roadsign_t::signal_aspects::clear && signal->get_state() != roadsign_t::signal_aspects::preliminary_caution && signal->get_state() != roadsign_t::signal_aspects::advance_caution)  || signal->get_state() == roadsign_t::signal_aspects::caution ? roadsign_t::signal_aspects::preliminary_caution_no_choose : roadsign_t::signal_aspects::preliminary_caution);
 									}
 								}
 								else if(next_signal_index > route->get_count() - 1 || signal->get_pos() != route->at(next_signal_index))
 								{
-									if (signal->get_state() == roadsign_t::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::caution))
+									if (signal->get_state() == roadsign_t::signal_aspects::danger || (choose_route_identical_to_main_route && choose_return && signal->get_state() == roadsign_t::signal_aspects::caution))
 									{
-										signal->set_state(use_no_choose_aspect ? roadsign_t::caution_no_choose : roadsign_t::caution);
+										signal->set_state(use_no_choose_aspect ? roadsign_t::signal_aspects::caution_no_choose : roadsign_t::signal_aspects::caution);
 									}
 								}
 								break;
@@ -7564,7 +7564,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		{
 			if(!do_not_clear_distant && !(not_entirely_free && next_signal_index == first_stop_signal_index))
 			{
-				signal->set_state(roadsign_t::clear);
+				signal->set_state(roadsign_t::signal_aspects::clear);
 			}
 		}
 	}
@@ -7578,7 +7578,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			const ribi_t::ribi direction_of_travel = ribi_type(signal_dir);
 			const signal_t* sig = welt->lookup(signal_pos)->get_weg(get_waytype())->get_signal(direction_of_travel); */
 			signal_t* sig = welt->lookup(signal_pos)->find<signal_t>();
-			if(sig && sig->get_state() == signal_t::danger)
+			if(sig && sig->get_state() == signal_t::signal_aspects::danger)
 			{
 				sint32 success_2 = block_reserver(cnv->get_route(), modified_sighting_distance_tiles, next_signal_index, next_signal_index, 0, true, false, false, false, true);
 				next_signal_index = cnv->get_next_stop_index() - 1;
@@ -7833,11 +7833,11 @@ void rail_vehicle_t::leave_tile()
 						{
 							if(sig->get_desc()->is_pre_signal())
 							{
-								sig->set_state(roadsign_t::caution);
+								sig->set_state(roadsign_t::signal_aspects::caution);
 							}
 							else
 							{
-								sig->set_state(roadsign_t::danger);
+								sig->set_state(roadsign_t::signal_aspects::danger);
 							}
 							return;
 						}
@@ -7905,35 +7905,35 @@ void rail_vehicle_t::leave_tile()
 									case 0:
 										if(signal_route->get_desc()->get_aspects() > 2 || signal_route->get_desc()->is_pre_signal())
 										{
-											signal_route->set_state(roadsign_t::caution);
+											signal_route->set_state(roadsign_t::signal_aspects::caution);
 										}
 										else
 										{
-											signal_route->set_state(roadsign_t::clear);
+											signal_route->set_state(roadsign_t::signal_aspects::clear);
 										}
 										break;
 									case 1:
 										if(signal_route->get_desc()->get_aspects() > 3)
 										{
-											signal_route->set_state(roadsign_t::preliminary_caution);
+											signal_route->set_state(roadsign_t::signal_aspects::preliminary_caution);
 										}
 										else
 										{
-											signal_route->set_state(roadsign_t::clear);
+											signal_route->set_state(roadsign_t::signal_aspects::clear);
 										}
 									break;
 									case 2:
 										if(signal_route->get_desc()->get_aspects() > 4)
 										{
-											signal_route->set_state(roadsign_t::advance_caution);
+											signal_route->set_state(roadsign_t::signal_aspects::advance_caution);
 										}
 										else
 										{
-											signal_route->set_state(roadsign_t::clear);
+											signal_route->set_state(roadsign_t::signal_aspects::clear);
 										}
 										break;
 									default:
-										signal_route->set_state(roadsign_t::clear);
+										signal_route->set_state(roadsign_t::signal_aspects::clear);
 									};
 									signals_count++;
 								}
@@ -7942,7 +7942,7 @@ void rail_vehicle_t::leave_tile()
 
 						if(!sig->get_desc()->is_pre_signal())
 						{
-							sig->set_state(roadsign_t::danger);
+							sig->set_state(roadsign_t::signal_aspects::danger);
 						}
 
 						if(route && !sig->get_desc()->is_pre_signal() && (w && (w->get_working_method() == absolute_block || w->get_working_method() == token_block || w->get_working_method() == time_interval || w->get_working_method() == time_interval_with_telegraph)))
@@ -7971,7 +7971,7 @@ void rail_vehicle_t::leave_tile()
 								}
 								if(sig_route && sig_route->get_desc()->is_pre_signal())
 								{
-									sig_route->set_state(roadsign_t::caution);
+									sig_route->set_state(roadsign_t::signal_aspects::caution);
 									if(sig_route->get_desc()->get_working_method() == time_interval || sig_route->get_desc()->get_working_method() == time_interval_with_telegraph)
 									{
 										sig_route->set_train_last_passed(welt->get_ticks());
@@ -8018,7 +8018,7 @@ void rail_vehicle_t::leave_tile()
 								}
 								if(station_signal)
 								{
-									station_signal->set_state(roadsign_t::danger);
+									station_signal->set_state(roadsign_t::signal_aspects::danger);
 								}
 							}
 						}

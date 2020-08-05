@@ -37,7 +37,7 @@ uint32 goods_frame_t::vehicle_speed = 50;
  *         2 = Revenue
  * @author prissi
  */
-goods_frame_t::sort_mode_t goods_frame_t::sortby = unsortiert;
+goods_frame_t::sort_mode_t goods_frame_t::sortby = sort_mode_t::by_number;
 static uint8 default_sortmode = 0;
 
 /**
@@ -53,7 +53,7 @@ uint8 goods_frame_t::comfort = 50;
 uint8 goods_frame_t::catering_level = 0;
 uint8 goods_frame_t::g_class = 0;
 
-const char *goods_frame_t::sort_text[SORT_MODES] = {
+const char *goods_frame_t::sort_text[num_sort_modes] = {
 	"gl_btn_unsort",
 	"gl_btn_sort_name",
 	"gl_btn_sort_revenue",
@@ -145,7 +145,7 @@ goods_frame_t::goods_frame_t() :
 	sortedby.set_pos(scr_coord(BUTTON1_X, y));
 	sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_BUTTON_HEIGHT));
 	sortedby.set_max_size(scr_size(D_BUTTON_WIDTH*1.5, LINESPACE * 4));
-	for (int i = 0; i < SORT_MODES; i++) {
+	for (int i = 0; i < num_sort_modes; i++) {
 		sortedby.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(sort_text[i]), SYSCOL_TEXT));
 	}
 	sortedby.set_selection(default_sortmode);
@@ -202,10 +202,10 @@ bool goods_frame_t::compare_goods(uint16 const a, uint16 const b)
 
 	switch (sortby)
 	{
-		case 0: // sort by number
+		case sort_mode_t::by_number:
 			order = a - b;
 			break;
-		case 2: // sort by revenue
+		case sort_mode_t::by_revenue:
 			{
 				sint64 price[2];
 				for(uint8 i = 0; i < 2; i ++)
@@ -218,10 +218,10 @@ bool goods_frame_t::compare_goods(uint16 const a, uint16 const b)
 				order = price[0] - price[1];
 			}
 			break;
-		case 3: // sort by catg_index
+		case sort_mode_t::by_category: // sort by catg_index
 			order = w[1]->get_catg()-w[0]->get_catg();
 			break;
-		case 4: // sort by weight
+		case sort_mode_t::by_weight: // sort by weight
 			order = w[0]->get_weight_per_unit() - w[1]->get_weight_per_unit();
 		default: ; // make compiler happy, order will be determined below anyway
 	}
@@ -287,7 +287,7 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		}
 		else {
 			sortedby.set_selection(0);
-			sortby = goods_frame_t::unsortiert;
+			sortby = sort_mode_t::by_number;
 		}
 		default_sortmode = (uint8)tmp;
 		sort_list();

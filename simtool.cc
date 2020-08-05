@@ -1641,7 +1641,9 @@ const char *tool_clear_reservation_t::work( player_t *player, koord3d pos )
 			}
 
 			// is this a reserved track?
-			if(w->is_reserved(schiene_t::block) || w->is_reserved(schiene_t::directional) || w->is_reserved(schiene_t::priority))
+			if(w->is_reserved(schiene_t::reservation_type::block)
+			|| w->is_reserved(schiene_t::reservation_type::directional)
+			|| w->is_reserved(schiene_t::reservation_type::priority))
 			{
 				/* now we do a very crude procedure:
 				 * - we search all ways for reservations of this convoi and remove them
@@ -1656,7 +1658,11 @@ const char *tool_clear_reservation_t::work( player_t *player, koord3d pos )
 						cnv->suche_neue_route();
 					}
 					vehicle_t* veh = cnv->front();
-					if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == narrowgauge_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt)
+					if (veh->get_waytype() == track_wt
+					|| veh->get_waytype() == tram_wt
+					|| veh->get_waytype() == narrowgauge_wt
+					|| veh->get_waytype() == maglev_wt
+					|| veh->get_waytype() == monorail_wt)
 					{
 						rail_vehicle_t* rv = (rail_vehicle_t*)veh;
 						rv->set_working_method(drive_by_sight);

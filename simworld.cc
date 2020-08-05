@@ -5942,17 +5942,17 @@ void karte_t::step_time_interval_signals()
 			if (((sig->get_train_last_passed() + clear_interval_ticks) < ticks) && sig->get_no_junctions_to_next_signal())
 			{
 				iter = time_interval_signals_to_check.swap_erase(iter);
-				sig->set_state(roadsign_t::clear_no_choose);
+				sig->set_state(roadsign_t::signal_aspects::clear_no_choose);
 			}
-			else if (sig->get_state() == roadsign_t::danger && ((sig->get_train_last_passed() + caution_interval_ticks) < ticks) && sig->get_no_junctions_to_next_signal())
+			else if (sig->get_state() == roadsign_t::signal_aspects::danger && ((sig->get_train_last_passed() + caution_interval_ticks) < ticks) && sig->get_no_junctions_to_next_signal())
 			{
 				if (sig->get_desc()->is_pre_signal())
 				{
-					sig->set_state(roadsign_t::clear_no_choose);
+					sig->set_state(roadsign_t::signal_aspects::clear_no_choose);
 				}
 				else
 				{
-					sig->set_state(roadsign_t::caution_no_choose);
+					sig->set_state(roadsign_t::signal_aspects::caution_no_choose);
 				}
 
 				++iter;

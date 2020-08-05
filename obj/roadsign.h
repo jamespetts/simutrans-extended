@@ -27,8 +27,6 @@ protected:
 	image_id image;
 	image_id foreground_image;
 
-	enum { SHOW_FONT=1, SHOW_BACK=2, SWITCH_AUTOMATIC=16 };
-
 	uint8 state:4;	// counter for steps ...
 	uint8 dir:4;
 	bool ignore_choose:1;
@@ -51,18 +49,18 @@ protected:
 
 public:
 	// Max. 16 (15 incl. 0)
-	enum signal_aspects
+	enum class signal_aspects
 	{
-		danger = 0,
-		clear = 1,
-		caution = 2,
-		preliminary_caution = 3,
-		advance_caution = 4,
-		clear_no_choose = 5,
-		caution_no_choose = 6,
-		preliminary_caution_no_choose = 7,
-		advance_caution_no_choose = 8,
-		call_on = 9
+		danger,
+		clear,
+		caution,
+		preliminary_caution,
+		advance_caution,
+		clear_no_choose,
+		caution_no_choose,
+		preliminary_caution_no_choose,
+		advance_caution_no_choose,
+		call_on,
 	};
 
 	/*
@@ -77,7 +75,7 @@ public:
 	*/
 	void set_dir(ribi_t::ribi dir);
 
-	void set_state(signal_aspects s) { state = s; calc_image(); }
+	void set_state(signal_aspects s) { state = static_cast<uint8>(s); calc_image(); }
 	signal_aspects get_state() const { return (signal_aspects)state; }
 
 #ifdef INLINE_OBJ_TYPE
@@ -262,101 +260,101 @@ public:
 	*/
 
 	// Presignals:
-	static const char* get_pre_signal_aspects_name(signal_aspects wm)
+	static const char* get_pre_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clearpre";
-		case 2:
+		case signal_aspects::caution:
 			return "cautionpre";
 		default:
 			return "unknown";
 		};
 	}
 	// Two aspect signals. This also holds the station signals:
-	static const char* get_2_signal_aspects_name(signal_aspects wm)
+	static const char* get_2_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear2";
-		case 2:
+		case signal_aspects::caution:
 			return "caution2";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear2";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution2";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Three aspect signals:
-	static const char* get_3_signal_aspects_name(signal_aspects wm)
+	static const char* get_3_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear3";
-		case 2:
+		case signal_aspects::caution:
 			return "caution3";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear3";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution3";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Four aspect signals:
-	static const char* get_4_signal_aspects_name(signal_aspects wm)
+	static const char* get_4_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear4";
-		case 2:
+		case signal_aspects::caution:
 			return "caution4";
-		case 3:
+		case signal_aspects::preliminary_caution:
 			return "preliminary_caution4";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear4";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution4";
-		case 7:
+		case signal_aspects::preliminary_caution_no_choose:
 			return "preliminary_caution4";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Five aspect signals:
-	static const char* get_5_signal_aspects_name(signal_aspects wm)
+	static const char* get_5_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear5";
-		case 2:
+		case signal_aspects::caution:
 			return "caution5";
-		case 3:
+		case signal_aspects::preliminary_caution:
 			return "preliminary_caution5";
-		case 4:
+		case signal_aspects::advance_caution:
 			return "advanced_caution5";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear5";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution5";
-		case 7:
+		case signal_aspects::preliminary_caution_no_choose:
 			return "preliminary_caution5";
-		case 8:
+		case signal_aspects::advance_caution_no_choose:
 			return "advanced_caution5";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on";
 		default:
 			return "unknown";
@@ -364,84 +362,84 @@ public:
 	}
 	// Now the same for Choose signals!
 	// Two aspect choose signals:
-	static const char* get_2_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_2_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear2_alternate";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear2_main";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Three aspect choose signals:
-	static const char* get_3_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_3_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear3_alternate";
-		case 2:
+		case signal_aspects::caution:
 			return "caution3_alternate";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear3_main";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution3_main";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Four aspect choose signals:
-	static const char* get_4_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_4_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear4_alternate";
-		case 2:
+		case signal_aspects::caution:
 			return "caution4_alternate";
-		case 3:
+		case signal_aspects::preliminary_caution:
 			return "preliminary_caution4_alternate";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear4_main";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution4_main";
-		case 7:
+		case signal_aspects::preliminary_caution_no_choose:
 			return "preliminary_caution4_main";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Five aspect choose signals:
-	static const char* get_5_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_5_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "clear5_alternate";
-		case 2:
+		case signal_aspects::caution:
 			return "caution5_alternate";
-		case 3:
+		case signal_aspects::preliminary_caution:
 			return "preliminary_caution5_alternate";
-		case 4:
+		case signal_aspects::advance_caution:
 			return "advanced_caution5_alternate";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "clear5_main";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "caution5_main";
-		case 7:
+		case signal_aspects::preliminary_caution_no_choose:
 			return "preliminary_caution5_main";
-		case 8:
+		case signal_aspects::advance_caution_no_choose:
 			return "advanced_caution5_main";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
@@ -449,67 +447,67 @@ public:
 	}
 	// Now some time interval signals.
 	// Time interval three aspect signals (There is no two aspect signal). Presignal use the standard presignal:
-	static const char* get_time_signal_aspects_name(signal_aspects wm)
+	static const char* get_time_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "cleartime";
-		case 2:
+		case signal_aspects::caution:
 			return "cautiontime";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "cleartime";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "cautiontime";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_ontime";
 		default:
 			return "unknown";
 		};
 	}
 	// Time interval choose signals:
-	static const char* get_time_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_time_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case signal_aspects::clear:
 			return "cleartime_alternate";
-		case 2:
+		case signal_aspects::caution:
 			return "cautiontime_alternate";
-		case 5:
+		case signal_aspects::clear_no_choose:
 			return "cleartime_main";
-		case 6:
+		case signal_aspects::caution_no_choose:
 			return "cautiontime_main";
-		case 9:
+		case signal_aspects::call_on:
 			return "call_ontime_choose";
 		default:
 			return "unknown";
 		};
 	}
-	static const char* get_directions_name(ribi_t::ribi wm)
+	static const char* get_directions_name(ribi_t::ribi facing_dir)
 	{
-		switch (wm)
+		switch (facing_dir)
 		{
-		case 1:
-			return "south";
-		case 2:
-			return "west";
-		case 3:
-			return "north_and_east";
-		case 4:
-			return "north";
-		case 5:
-			return "north_and_south";
-		case 6:
-			return "south_and_east";
-		case 8:
-			return "east";
-		case 9:
-			return "north_and_west";
-		case 10:
-			return "east_and_west";
-		case 12:
-			return "south_and_west";
+		case ribi_t::north:
+		    return "south";
+		case ribi_t::east:
+		    return "west";
+		case ribi_t::northeast:
+		    return "north_and_east";
+		case ribi_t::south:
+		    return "north";
+		case ribi_t::northsouth:
+		    return "north_and_south";
+		case ribi_t::southeast:
+		    return "south_and_east";
+		case ribi_t::west:
+		    return "east";
+		case ribi_t::northwest:
+		    return "north_and_west";
+		case ribi_t::eastwest:
+		    return "east_and_west";
+		case ribi_t::southwest:
+		    return "south_and_west";
 		default:
 			return "unknown";
 		};

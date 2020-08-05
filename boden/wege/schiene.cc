@@ -46,7 +46,7 @@ schiene_t::schiene_t(waytype_t waytype) : weg_t (waytype)
 schiene_t::schiene_t() : weg_t(track_wt)
 {
 	reserved = convoihandle_t();
-	type = block;
+	type = reservation_type::block;
 	set_desc(schiene_t::default_schiene);
 }
 
@@ -54,7 +54,7 @@ schiene_t::schiene_t() : weg_t(track_wt)
 schiene_t::schiene_t(loadsave_t *file) : weg_t(track_wt)
 {
 	reserved = convoihandle_t();
-	type = block;
+	type = reservation_type::block;
 	rdwr(file);
 }
 
@@ -122,9 +122,9 @@ void schiene_t::info(cbuffer_t & buf) const
 			buf.append("\n   ");
 
 			// We do not need to specify if the reservation is a "block" type. Only show the two other more interresting reservation types
-			if (get_reservation_type() != block) {
+			if (get_reservation_type() != reservation_type::block) {
 				buf.append(translator::translate(get_reservation_type_name(get_reservation_type())));
-				if (get_reservation_type() == directional)
+				if (get_reservation_type() == reservation_type::directional)
 				{
 					buf.append(", ");
 					buf.append(translator::translate("reservation_heading"));
@@ -215,7 +215,7 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, 
 	if (can_reserve(c, dir, t, check_directions_at_junctions))
 	{
 		ribi_t::ribi old_direction = direction;
-		if ((type == block || type == stale_block) && t == directional && reserved.is_bound())
+		if ((type == reservation_type::block || type == reservation_type::stale_block) && t == reservation_type::directional && reserved.is_bound())
 		{
 			// Do not actually reserve here, as the directional reservation
 			// is already done, but show that this is reservable.
@@ -229,7 +229,7 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, 
 			* direction is a diagonal (i.e. on the switching part)
 			* and there are switching graphics
 			*/
-		if (t == block && ribi_t::is_threeway(get_ribi_unmasked()) && ribi_t::is_bend(dir) && get_desc()->has_switch_image()) {
+		if (t == reservation_type::block && ribi_t::is_threeway(get_ribi_unmasked()) && ribi_t::is_bend(dir) && get_desc()->has_switch_image()) {
 			mark_image_dirty(get_image(), 0);
 			mark_image_dirty(get_front_image(), 0);
 			set_images(image_switch, get_ribi_unmasked(), is_snow(), (dir == ribi_t::northeast || dir == ribi_t::southwest));
@@ -247,7 +247,7 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, 
 					// A suitable state for facing in the opposite direction
 					// will not be a suitable state for facing in this new
 					// direction.
-					sig->set_state(roadsign_t::danger);
+					sig->set_state(roadsign_t::signal_aspects::danger);
 				}
 				sig->calc_image();
 			}
