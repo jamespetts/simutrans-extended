@@ -168,7 +168,7 @@ void gui_chart_t::draw(scr_coord offset)
 		const COLOR_VAL line_color = (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
 			// display x-axis
-			int val = (abort_display_x && env_t::left_to_right_graphs) ? (abort_display_x-j) * x_axis_span : seed - (j*x_axis_span);
+			int val = (abort_display_x && env_t::left_to_right_graphs) ? (abort_display_x-j-1) * x_axis_span : seed - (j*x_axis_span);
 			sprintf(digit, j % x_label_span == 0 ? "%i" : "", abs(val));
 			scr_coord_val x =  x0 - (seed != j ? (int)(2 * log( (double)abs(seed - j) )) : 0);
 			if(  x > x_last  ) {
