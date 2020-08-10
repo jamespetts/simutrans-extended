@@ -15,7 +15,7 @@
 #include "../../display/simgraph.h"
 #include "../gui_theme.h"
 
-static char tooltip[64];
+static char tooltip[128];
 
 /**
  * Set background color. -1 means no background
