@@ -283,13 +283,38 @@ void strasse_t::set_overtaking_mode(overtaking_mode_t o, player_t* calling_playe
 {
 	if (o == invalid_mode) { return; }
 	grund_t* gr = welt->lookup(get_pos());
-	if ((!calling_player || !calling_player->is_public_service()) && is_public_right_of_way() && gr && gr->removing_way_would_disrupt_public_right_of_way(road_wt))
+	if((!calling_player || !calling_player->is_public_service()) // No calling player indicates a city.
+		&& is_public_right_of_way()
+		&& overtaking_mode_order(o) < overtaking_mode_order(overtaking_mode)
+		&& gr && gr->removing_way_would_disrupt_public_right_of_way(road_wt))
 	{
 		return;
 	}
 	if (is_deletable(calling_player) == NULL)
 	{
 		overtaking_mode = o;
+	}
+}
+
+/* Ranks overtaking modes in order of most disruptive to least disruptive. */
+sint8 strasse_t::overtaking_mode_order(overtaking_mode_t o)
+{
+	switch (o)
+	{
+		case invalid_mode:
+			return -1;
+		case halt_mode:
+			/* Halt (parallel stop) mode is more disruptive than oneway mode as it allows
+			 * stopped vehicles to occupy both lanes of a road tile in one direction. */
+			return 1;
+		case oneway_mode:
+			return 2;
+		case prohibited_mode:
+			return 3;
+		case twoway_mode:
+			return 4;
+		default:
+			return 0;
 	}
 }
 

@@ -60,6 +60,7 @@ public:
 	*/
 	overtaking_mode_t get_overtaking_mode() const { return overtaking_mode; };
 	void set_overtaking_mode(overtaking_mode_t o, player_t* calling_player);
+	static sint8 overtaking_mode_order(overtaking_mode_t o);
 
 	void set_ribi_mask_oneway(ribi_t::ribi ribi) { ribi_mask_oneway = (uint8)ribi; }
 	// used in wegbauer. param @allow is ribi in which vehicles can go. without this, ribi cannot be updated correctly at intersections.
