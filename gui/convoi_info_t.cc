@@ -92,7 +92,7 @@ static const bool cost_type_money[BUTTON_COUNT] =
 #endif
 };
 
-static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
+static uint8 statistic[BUTTON_COUNT] = {
 	convoi_t::CONVOI_CAPACITY, convoi_t::CONVOI_TRANSPORTED_GOODS, convoi_t::CONVOI_DISTANCE, convoi_t::CONVOI_AVERAGE_SPEED, convoi_t::CONVOI_COMFORT,
 	convoi_t::CONVOI_REVENUE, convoi_t::CONVOI_OPERATIONS, convoi_t::CONVOI_REFUNDS, convoi_t::CONVOI_WAYTOLL, convoi_t::CONVOI_PROFIT
 };
