@@ -2740,7 +2740,7 @@ const char *tool_build_way_t::do_work( player_t *player, const koord3d &start, c
 		// look toolbar variable indicates this tool is called from a shortcut key. When a tool is called from a shortcut key, we have to use overtaking_mode of the tool in a toolbar.
 		mode = toolbar_tool->get_overtaking_mode();
 	}
-	
+
 	bauigel.set_overtaking_mode(mode);
 	if(  bauigel.get_route().get_count()>1  ) {
 		sint64 cost = bauigel.calc_costs();
@@ -2837,7 +2837,7 @@ void tool_build_way_t::mark_tiles(  player_t *player, const koord3d &start, cons
 			way->set_yoff(-gr->get_weg_yoff() );
 			marked.insert( way );
 			way->mark_image_dirty( way->get_image(), 0 );
-			if (desc->get_wtyp() == road_wt && (j < bauigel.get_count() - 1)
+			if (desc->get_wtyp() == road_wt && (j < bauigel.get_count() - 1) && skinverwaltung_t::ribi_arrow
 				&& (get_overtaking_mode() <= oneway_mode || get_build_way_tool_from_toolbar(desc)->get_overtaking_mode() <= oneway_mode)) {
 				uint8 dir = 0;
 				if (route_reversed && (j > 1)) {
@@ -8246,7 +8246,7 @@ bool tool_show_underground_t::init( player_t * )
 		tool_t::update_toolbars();
 
 		// recalc all images on map
-		welt->update_map();
+		welt->update_underground();
 	}
 	return needs_click;
 }
@@ -8267,7 +8267,7 @@ const char *tool_show_underground_t::work( player_t *player, koord3d pos)
 	tool_t::update_toolbars();
 
 	// recalc all images on map
-	welt->update_map();
+	welt->update_underground();
 
 	if(player == welt->get_active_player()) {
 		welt->set_tool( general_tool[TOOL_QUERY], player );

@@ -90,6 +90,13 @@
 // Local params
 #define L_DIALOG_WIDTH (220)
 
+const char *color_gui_t::cnv_tooltip_setting_texts[MAX_CONVOY_TOOLTIP_OPTIONS] = {
+	"convoi mouseover tooltips",
+	"convoi error tooltips",
+	"own convoi tooltips",
+	"all convoi tooltips"
+};
+
 const char *color_gui_t::nameplate_setting_texts[MAX_NAMEPLATE_OPTIONS] = {
 	"no convoy nameplate",
 	"mouseover convoy name",
@@ -388,9 +395,9 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t v)
 	} else if (&cursor_hide_range==comp) {
 		env_t::cursor_hide_range = cursor_hide_range.get_value();
 	} else if((buttons+0)==comp) {
-		env_t::show_vehicle_states = (env_t::show_vehicle_states+2)%3;
+		env_t::show_vehicle_states = (env_t::show_vehicle_states+(MAX_CONVOY_TOOLTIP_OPTIONS-1))% MAX_CONVOY_TOOLTIP_OPTIONS;
 	} else if((buttons+1)==comp) {
-		env_t::show_vehicle_states = (env_t::show_vehicle_states+1)%3;
+		env_t::show_vehicle_states = (env_t::show_vehicle_states+1)% MAX_CONVOY_TOOLTIP_OPTIONS;
 	} else if((buttons+6)==comp) {
 		buttons[6].pressed ^= 1;
 		env_t::scroll_multi = -env_t::scroll_multi;
@@ -431,7 +438,8 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t v)
 		grund_t::set_underground_mode(buttons[17].pressed ? grund_t::ugm_none : grund_t::ugm_all, inp_underground_level.get_value());
 		buttons[17].pressed = grund_t::underground_mode == grund_t::ugm_all;
 		// calc new images
-		welt->update_map();
+		welt->update_underground();
+
 		// renew toolbar
 		tool_t::update_toolbars();
 	}
@@ -460,7 +468,8 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t v)
 		grund_t::set_underground_mode(buttons[21].pressed ? grund_t::ugm_none : grund_t::ugm_level, inp_underground_level.get_value());
 		buttons[21].pressed = grund_t::underground_mode == grund_t::ugm_level;
 		// calc new images
-		welt->update_map();
+		welt->update_underground();
+
 		// renew toolbar
 		tool_t::update_toolbars();
 	}
@@ -479,7 +488,7 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t v)
 		if (grund_t::underground_mode == grund_t::ugm_level) {
 			grund_t::underground_level = inp_underground_level.get_value();
 			// calc new images
-			welt->update_map();
+			welt->update_underground();
 		}
 	}
 	else if ((buttons + 22) == comp) {
@@ -561,8 +570,7 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 	const char *hhc = translator::translate( env_t::hide_buildings==0 ? "no buildings hidden" : (env_t::hide_buildings==1 ? "hide city building" : "hide all building") );
 	display_proportional_clip(x+10+16, y+HIDE_CITY_HOUSES+1, hhc, ALIGN_LEFT, SYSCOL_TEXT, true);
 
-	const char *ctc = translator::translate( env_t::show_vehicle_states==0 ? "convoi error tooltips" : (env_t::show_vehicle_states==1 ? "convoi mouseover tooltips" : "all convoi tooltips") );
-	display_proportional_clip(x+10+16, y+CONVOI_TOOLTIPS+1, ctc, ALIGN_LEFT, SYSCOL_TEXT, true);
+	display_proportional_clip(x+10+16, y+CONVOI_TOOLTIPS+1, translator::translate(cnv_tooltip_setting_texts[env_t::show_vehicle_states]), ALIGN_LEFT, SYSCOL_TEXT, true);
 
 	display_proportional_clip(x+10+16, y+CONVOI_NAMEPLATES+1, translator::translate(nameplate_setting_texts[env_t::show_cnv_nameplates]), ALIGN_LEFT, SYSCOL_TEXT, true);
 

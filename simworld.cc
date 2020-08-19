@@ -34,7 +34,7 @@
 #include "simmesg.h"
 #include "simskin.h"
 #include "simsound.h"
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "simticker.h"
 #include "simunits.h"
 #include "simversion.h"
@@ -5152,10 +5152,18 @@ void karte_t::new_month()
 	// to replace ones that have closed.
 	// @author: jamespetts
 
-	if(industry_density_proportion == 0 && finance_history_month[0][WORLD_CITICENS] > 0)
+	if (settings.get_industry_density_proportion_override() > 0)
 	{
-		// Set the industry density proportion for the first time when the number of citizens is populated.
-		industry_density_proportion = (uint32)((sint64)actual_industry_density * 1000000ll) / finance_history_month[0][WORLD_CITICENS];
+		dbg->message("karte_t::new_month()", "Industry density proportion of %i being overriden with a value of %i", industry_density_proportion, settings.get_industry_density_proportion_override());
+		industry_density_proportion = settings.get_industry_density_proportion_override();
+	}
+	else
+	{
+		if (industry_density_proportion == 0 && finance_history_month[0][WORLD_CITICENS] > 0)
+		{
+			// Set the industry density proportion for the first time when the number of citizens is populated.
+			industry_density_proportion = (uint32)(((sint64)actual_industry_density * 1000000ll) / finance_history_month[0][WORLD_CITICENS]);
+		}
 	}
 	const uint32 target_industry_density = get_target_industry_density();
 	if(actual_industry_density < target_industry_density)
@@ -8956,9 +8964,41 @@ void karte_t::plans_finish_rd( sint16 x_min, sint16 x_max, sint16 y_min, sint16 
 #endif
 }
 
+void karte_t::clear_checklist_history()
+{
+	// TODO: either explain or remove the use of pre-increment (++i)
+	for(  int i=0;  i<LAST_CHECKLISTS_COUNT;  ++i  ) {
+		last_checklists[i] = checklist_t();
+	}
+}
+
+void karte_t::clear_checklist_rands()
+{
+	for(  int i = 0;  i < CHK_RANDS  ;  i++  ) {
+		rands[i] = 0;
+	}
+}
+
+void karte_t::clear_checklist_debug_sums()
+{
+	for(  int i = 0;  i < CHK_DEBUG_SUMS  ;  i++  ) {
+		debug_sums[i] = 0;
+	}
+}
+
+void karte_t::clear_all_checklists()
+{
+	clear_checklist_history();
+	clear_checklist_rands();
+	clear_checklist_debug_sums();
+}
 
 void karte_t::load(loadsave_t *file)
 {
+	if(  env_t::networkmode  ) {
+		clear_all_checklists();
+	}
+
 	char buf[80];
 
 	intr_disable();
@@ -9055,18 +9095,7 @@ void karte_t::load(loadsave_t *file)
 	load_version.extended_version = file->get_extended_version();
 	load_version.extended_revision = file->get_extended_revision();
 
-	if(  env_t::networkmode  ) {
-		// clear the checklist history
-		for(  int i=0;  i<LAST_CHECKLISTS_COUNT;  ++i  ) {
-			last_checklists[i] = checklist_t();
-		}
-		for(  int i = 0;  i < CHK_RANDS  ;  i++  ) {
-			rands[i] = 0;
-		}
-		for(  int i = 0;  i < CHK_DEBUG_SUMS  ;  i++  ) {
-			debug_sums[i] = 0;
-		}
-	}
+
 
 
 	if(  env_t::networkmode  ) {
@@ -9908,6 +9937,52 @@ halthandle_t karte_t::get_halt_koord_index(koord k, player_t *, bool create_halt
 	return create_halt ? haltestelle_t::create( k, NULL ) : halthandle_t();
 }
 
+
+void karte_t::update_underground()
+{
+	DBG_MESSAGE( "karte_t::update_underground_map()", "" );
+	get_view()->clear_prepared();
+	world_view_t::invalidate_all();
+	set_dirty();
+}
+
+void karte_t::prepare_tiles(rect_t const &new_area, rect_t const &old_area) {
+	if (new_area == old_area) {
+		// area already prepared
+		return;
+	}
+
+	size_t const prepare_rects_capacity = rect_t::MAX_FRAGMENT_DIFFERENCE_COUNT;
+	rect_t prepare_rects[prepare_rects_capacity];
+	size_t const prepare_rects_length = new_area.fragment_difference(old_area, prepare_rects, prepare_rects_capacity);
+
+	// additional tiles to prepare for correct hiding behaviour
+	sint16 const prefix_tiles_x = min(grund_t::MAXIMUM_HIDE_TEST_DISTANCE, new_area.origin.x);
+	sint16 const prefix_tiles_y = min(grund_t::MAXIMUM_HIDE_TEST_DISTANCE, new_area.origin.y);
+
+	for (size_t rect_index = 0 ; rect_index < prepare_rects_length ; rect_index++) {
+		rect_t const &prepare_rect = prepare_rects[rect_index];
+
+		sint16 x_start = prepare_rect.origin.x;
+		sint16 const x_end = x_start + prepare_rect.size.x;
+		if (x_start == new_area.origin.x) {
+			x_start-= prefix_tiles_x;
+		}
+
+		sint16 y_start = prepare_rect.origin.y;
+		sint16 const y_end = y_start + prepare_rect.size.y;
+		if (y_start == new_area.origin.y) {
+			y_start-= prefix_tiles_y;
+		}
+
+		for (sint16 y = y_start ; y < y_end ; y++) {
+			for (sint16 x = x_start ; x < x_end ; x++) {
+				const planquadrat_t &tile = plan[y * cached_grid_size.x + x];
+				tile.update_underground();
+			}
+		}
+	}
+}
 
 void karte_t::calc_climate(koord k, bool recalc)
 {
@@ -10762,10 +10837,7 @@ bool karte_t::interactive(uint32 quit_month)
 	}
 	// only needed for network
 	if(  env_t::networkmode  ) {
-		// clear the checklist history
-		for(  int i=0;  i<LAST_CHECKLISTS_COUNT;  ++i  ) {
-			last_checklists[i] = checklist_t();
-		}
+		clear_checklist_history();
 	}
 	sint32 ms_difference = 0;
 	reset_timer();

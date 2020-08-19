@@ -3,10 +3,11 @@
  * (see LICENSE.txt)
  */
 
-#include "SDL.h"
-
 #ifdef _WIN32
 #include <windows.h>
+#include "SDL.h"
+#else
+#include <SDL2/SDL.h>
 #endif
 
 #include <stdio.h>
@@ -16,17 +17,17 @@ extern int __argc;
 extern char **__argv;
 #endif
 
-#include "macros.h"
+#include "../macros.h"
 #include "simsys_w32_png.h"
-#include "simversion.h"
 #include "simsys.h"
-#include "simevent.h"
-#include "display/simgraph.h"
-#include "simdebug.h"
-#include "dataobj/environment.h"
-#include "gui/simwin.h"
-#include "gui/components/gui_component.h"
-#include "gui/components/gui_textinput.h"
+#include "../simversion.h"
+#include "../simevent.h"
+#include "../display/simgraph.h"
+#include "../simdebug.h"
+#include "../dataobj/environment.h"
+#include "../gui/simwin.h"
+#include "../gui/components/gui_component.h"
+#include "../gui/components/gui_textinput.h"
 
 // Maybe Linux is not fine too, had critical bugs...
 #if !defined(__linux__)

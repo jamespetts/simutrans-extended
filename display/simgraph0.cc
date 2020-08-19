@@ -4,7 +4,7 @@
  */
 
 #include "../simconst.h"
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #include "../descriptor/image.h"
 
 #include "simgraph.h"
@@ -231,6 +231,10 @@ void display_blend_wh_rgb(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, PIXVAL, in
 {
 }
 
+void display_vlinear_gradient_wh_rgb(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, PIXVAL, int, int)
+{
+}
+
 void display_color_img_with_tooltip(const image_id, KOORD_VAL, KOORD_VAL, sint8, const int, const int, const char* CLIP_NUM_DEF_NOUSE)
 {
 }
@@ -261,6 +265,10 @@ void display_vline_wh_clip_rgb(KOORD_VAL, KOORD_VAL, KOORD_VAL, PLAYER_COLOR_VAL
 }
 
 void display_array_wh(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, const COLOR_VAL *)
+{
+}
+
+void display_filled_roundbox_clip(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, PIXVAL, bool)
 {
 }
 
