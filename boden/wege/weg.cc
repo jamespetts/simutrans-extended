@@ -410,7 +410,7 @@ void weg_t::rdwr(loadsave_t *file)
 	file->rdwr_byte(dummy8);
 	if(  file->is_loading()  ) {
 		ribi = dummy8 & 15;	// before: high bits was maske
-		ribi_maske = 0;	// maske will be restored by signal/roadsing
+		ribi_maske = 0;	// maske will be restored by signal/roadsign
 	}
 
 	sint16 dummy16=max_speed;
@@ -708,17 +708,15 @@ void weg_t::info(cbuffer_t & buf) const
 					buf.append(translator::translate(building->get_individual_name()));
 #endif
 				}
-				else
+
+				const stadt_t* city = welt->get_city(route.key);
+				if (city && route.key == city->get_townhall_road())
 				{
-					const stadt_t* city = welt->get_city(route.key);
-					if (city)
-					{
-						cities_count++;
+					cities_count++;
 #ifdef DEBUG
-						buf.append("\n");
-						buf.append(city->get_name());
+					buf.append("\n");
+					buf.append(city->get_name());
 #endif
-					}
 				}
 			}
 #ifdef DEBUG
