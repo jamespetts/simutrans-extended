@@ -342,7 +342,9 @@ public:
 
 	inline void set_convoy_tabs_skip(sint32 skip) {convoy_tabs_skip=skip;}
 
-	inline sint16 get_convoy_clist_width() const {return (vehicles.get_count() < 24 ? 24 : vehicles.get_count()) * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER;}
+	// 680 pixels is the width of convoy with 24 vehicles in pak128. This width is needed for good display of all needed information.
+	// It may need some adjustment if bigger font is used, but that should be solved by backporting the new GUI from standard
+	inline sint16 get_convoy_clist_width() const {return max(680, vehicles.get_count() * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER);}
 
 	inline sint16 get_convoy_image_width() const {return get_convoy_clist_width() + placement_dx;}
 

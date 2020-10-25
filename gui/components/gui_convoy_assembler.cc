@@ -983,28 +983,30 @@ void gui_convoy_assembler_t::draw(scr_coord parent_pos)
 			tooltip_convoi_acceleration.append(translator::translate("no power at all"));
 		}
 		else{
-			const uint32 starting_acceleration_max = convoy.calc_acceleration(weight_summary_t(min_weight, friction), 0);
-			const uint32 starting_acceleration_min = convoy.calc_acceleration(weight_summary_t(max_weight, friction), 0);
+			float32e8_t min_acceleration_time;
+			float32e8_t max_acceleration_time;
+			float32e8_t min_acceleration_distance;
+			float32e8_t max_acceleration_distance;
+			float32e8_t starting_acceleration_max;
+			float32e8_t starting_acceleration_min;
+			convoy.calc_acceleration_info(weight_summary_t(min_weight, friction), max_speed, min_acceleration_distance, min_acceleration_time, starting_acceleration_max);
+			convoy.calc_acceleration_info(weight_summary_t(max_weight, friction), min_speed, max_acceleration_distance, max_acceleration_time, starting_acceleration_min);
 			tooltip_convoi_acceleration.append(translator::translate("Starting acceleration:"));
 			tooltip_convoi_acceleration.printf(
 				starting_acceleration_min == starting_acceleration_max ? " %.2f km/h/s" : " %.2f - %.2f km/h/s",
-				(double)starting_acceleration_min / 100.0, (double)starting_acceleration_max / 100.0);
+				starting_acceleration_min.to_double(), starting_acceleration_max.to_double());
 			// acceleration time
-			const double min_acceleration_time = convoy.calc_acceleration_time(weight_summary_t(min_weight, friction), max_speed);
-			const double max_acceleration_time = convoy.calc_acceleration_time(weight_summary_t(max_weight, friction), min_speed);
 			if (min_speed == max_speed) {
 				tooltip_convoi_acceleration.printf(min_weight == max_weight ? translator::translate("; %i km/h @ %.2f sec") : translator::translate("; %i km/h @ %.2f - %.2f sec"),
-					max_speed, min_acceleration_time, max_acceleration_time);
+					max_speed, min_acceleration_time.to_double(), max_acceleration_time.to_double());
 			}
 			else {
 				tooltip_convoi_acceleration.printf(translator::translate("; %i km/h @ %.2f sec - %i km/h @ %.2f sec"),
-					max_speed, min_acceleration_time, min_speed, max_acceleration_time);
+					max_speed, min_acceleration_time.to_double(), min_speed, max_acceleration_time.to_double());
 			}
 			// acceleration distance
-			const uint32 min_acceleration_distance = convoy.calc_acceleration_distance(weight_summary_t(min_weight, friction), max_speed);
-			const uint32 max_acceleration_distance = convoy.calc_acceleration_distance(weight_summary_t(max_weight, friction), min_speed);
 			tooltip_convoi_acceleration.printf(min_weight == max_weight ? translator::translate("; %i m") : translator::translate("; %i m - %i m"),
-				min_acceleration_distance, max_acceleration_distance);
+				min_acceleration_distance.to_sint32(), max_acceleration_distance.to_sint32());
 		}
 
 		{

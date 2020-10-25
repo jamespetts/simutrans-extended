@@ -339,12 +339,12 @@ public:
 	 */
 	sint32 calc_min_braking_distance(const class settings_t &settings, const weight_summary_t &weight, sint32 speed);
 
-	// acceleration
-	// starting acceleration sets speed to 0
-	uint32 calc_acceleration(const weight_summary_t &weight, sint32 speed);
-
-	double calc_acceleration_time(const weight_summary_t &weight, sint32 speed);
-	uint32 calc_acceleration_distance(const weight_summary_t &weight, sint32 speed);
+	/** speed in m/s; accel in m/s/s */
+	float32e8_t calc_acceleration_ms(const weight_summary_t &weight, float32e8_t speed);
+	/** speed in km/h; accel in km/h/s */
+	float32e8_t calc_acceleration_kmh(const weight_summary_t &weight, sint32 speed);
+	/** Calculate starting acceleration in km/h/s, and time (seconds) and distance (meters) to reach given speed (km/h) */
+	void calc_acceleration_info(const weight_summary_t &weight, sint32 speed, float32e8_t &travel_distance, float32e8_t &total_sec, float32e8_t &start_accel);
 
 	/**
 	 * Calculate the movement within delta_t

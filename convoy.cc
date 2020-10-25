@@ -160,8 +160,10 @@ void weight_summary_t::add_weight(sint32 kgs, sint32 sin_alpha)
 {
 	weight += kgs;
 	// sin_alpha <-- v.get_frictionfactor() between about -14 (downhill) and 50 (uphill).
-	// Including the factor 1000 for tons to kg conversion, 50 corresponds to an inclination of 28 per mille.
+	// Including the factor 1000 for tons to kg conversion, 50 corresponds to an inclination of 2.8 degrees.
 	// sin_alpha == 1000 would be 90 degrees == vertically up, -1000 vertically down.
+	// For small angles sin_alpha ~ tan_alpha ~ alpha (in radians). Inclination = tan_alpha.
+	// If alpha = 0.2 rad (11.46 deg), then sin_alpha = 199, tan_alpha = 203, cos_alpha = 980
 	if (sin_alpha != 0)
 	{
 		weight_sin += (kgs * sin_alpha + 500) / 1000;
@@ -181,7 +183,7 @@ void weight_summary_t::add_weight(sint32 kgs, sint32 sin_alpha)
 void weight_summary_t::add_vehicle(const vehicle_t &v)
 {
 	// v.get_frictionfactor() between about -14 (downhill) and 50 (uphill).
-	// Including the factor 1000 for tons to kg conversion, 50 corresponds to an inclination of 28 per mille.
+	// Including the factor 1000 for tons to kg conversion, 50 corresponds to an inclination of 2.8 degrees.
 	add_weight(v.get_total_weight(), v.get_frictionfactor());
 }
 
@@ -289,35 +291,37 @@ sint32 convoy_t::calc_min_braking_distance(const settings_t &settings, const wei
 	return settings.meters_to_steps(x);
 }
 
-
-uint32 convoy_t::calc_acceleration(const weight_summary_t &weight, sint32 speed)
+float32e8_t convoy_t::calc_acceleration_ms(const weight_summary_t &weight, float32e8_t speed)
 {
-	return ((get_force_summary(speed * kmh2ms) - calc_speed_holding_force(speed * kmh2ms, get_adverse_summary().fr))/g_accel).to_sint32() * 1000 / 28.35 / weight.weight * 100;
+	return ((get_force_summary(speed) - calc_speed_holding_force(speed, g_accel * (adverse.fr * weight.weight_cos + weight.weight_sin))) / weight.weight);
 }
 
-double convoy_t::calc_acceleration_time(const weight_summary_t &weight, sint32 speed)
+float32e8_t convoy_t::calc_acceleration_kmh(const weight_summary_t &weight, sint32 speed)
 {
-	if (!weight.weight || !speed) { return 0.0; }
-	double total_sec = 0;
-	for (int i = 1; i < speed; i++) {
-		if (!calc_acceleration(weight, i)) { return 0.0; /* given speed error */ }
-		const double delta_t = (double)100.0 / calc_acceleration(weight, i);
+	const float32e8_t speedms = speed * kmh2ms;
+    return calc_acceleration_ms(weight, speedms) * ms2kmh;
+}
+
+void convoy_t::calc_acceleration_info(const weight_summary_t &weight, sint32 speed, float32e8_t &travel_distance, float32e8_t &total_sec, float32e8_t &start_accel)
+{
+	total_sec = float32e8_t::zero;
+	travel_distance = float32e8_t::zero;
+	start_accel = float32e8_t::zero;
+	if (weight.weight == 0 || speed == 0) { return; }
+	for (sint32 i = 0; i < speed; i++) {
+		float32e8_t accel = calc_acceleration_kmh(weight, i);
+		if (accel.is_zero()) { return; /* given speed unreachable */ }
+		if (i == 0) { start_accel = accel; }
+		float32e8_t delta_t = 1 / accel;
 		total_sec += delta_t;
+		travel_distance += delta_t * kmh2ms * (i + float32e8_t::half);
+		// Physics: delta_s = delta_t * speed + delta_t^2 * accel/2
+		// ........ delta_s = delta_t * (speed + delta_t * accel/2 )   ... but delta_t = 1 / accel
+		// ........ delta_s = delta_t * (speed + 1/2)
 	}
-	return total_sec;
+	return;
 }
 
-uint32 convoy_t::calc_acceleration_distance(const weight_summary_t &weight, sint32 speed)
-{
-	if (!weight.weight || !speed) { return 0.0; }
-	uint64 travel_distance = 0;
-	for (int i = 1; i < speed; i++) {
-		if (!calc_acceleration(weight, i)) { return 0; /* given speed error */ }
-		const double delta_t = (double)100.0 / calc_acceleration(weight, i);
-		travel_distance += delta_t * (i - 0.5) * 1000 / 3600 * 100; // [cm]
-	}
-	return travel_distance/100; // in meter
-}
 
 inline float32e8_t _calc_move(const float32e8_t &a, const float32e8_t &t, const float32e8_t &v0)
 {
