@@ -78,7 +78,7 @@ void runway_t::rdwr(loadsave_t *file)
 				desc = default_runway;
 				welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 			}
-			dbg->warning("runway_t::rdwr()", "Unknown runway %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
+			dbg->warning("runway_t::rdwr", "Unknown runway %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
 		}
 		if(old_max_speed>0) {
 			set_max_speed(old_max_speed);

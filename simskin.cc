@@ -228,10 +228,10 @@ bool skinverwaltung_t::register_desc(skintyp_t type, const skin_desc_t* desc)
 		if(  !(type==cursor  ||  type==symbol)  ) {
 			if(  type==menu  ) {
 				extra_obj.insert( desc );
-				dbg->message( "skinverwaltung_t::register_desc()","Extra object %s added.", desc->get_name() );
+				dbg->message( "skinverwaltung_t::register_desc","Extra object %s added.", desc->get_name() );
 			}
 			else {
-				dbg->warning("skinverwaltung_t::register_desc()","Spurious object '%s' loaded (will not be referenced anyway)!", desc->get_name() );
+				dbg->warning("skinverwaltung_t::register_desc","Spurious object '%s' loaded (will not be referenced anyway)!", desc->get_name() );
 			}
 		}
 		else {

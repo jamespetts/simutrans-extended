@@ -112,7 +112,7 @@ void planquadrat_t::boden_hinzufuegen(grund_t *bd)
 		// needs to convert to array
 //	assert(data.one->get_hoehe()!=bd->get_hoehe());
 		if(data.one->get_hoehe()==bd->get_hoehe()) {
-DBG_MESSAGE("planquadrat_t::boden_hinzufuegen()","addition ground %s at (%i,%i,%i) will be ignored!",bd->get_name(),bd->get_pos().x,bd->get_pos().y,bd->get_pos().z);
+DBG_MESSAGE("planquadrat_t::boden_hinzufuegen","addition ground %s at (%i,%i,%i) will be ignored!",bd->get_name(),bd->get_pos().x,bd->get_pos().y,bd->get_pos().z);
 			return;
 		}
 		grund_t **tmp = new grund_t *[2];
@@ -132,7 +132,7 @@ DBG_MESSAGE("planquadrat_t::boden_hinzufuegen()","addition ground %s at (%i,%i,%
 			}
 		}
 		if(i<ground_size  &&  data.some[i]->get_hoehe()==bd->get_hoehe()) {
-DBG_MESSAGE("planquadrat_t::boden_hinzufuegen()","addition ground %s at (%i,%i,%i) will be ignored!",bd->get_name(),bd->get_pos().x,bd->get_pos().y,bd->get_pos().z);
+DBG_MESSAGE("planquadrat_t::boden_hinzufuegen","addition ground %s at (%i,%i,%i) will be ignored!",bd->get_name(),bd->get_pos().x,bd->get_pos().y,bd->get_pos().z);
 			return;
 		}
 		bd->set_kartenboden(false);
@@ -275,7 +275,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				case grund_t::monorailboden:	    gr = new monorailboden_t(file, pos); break;
 				default:
 					gr = 0; // Hajo: keep compiler happy, fatal() never returns
-					dbg->fatal("planquadrat_t::rdwr()","Error while loading game: Unknown ground type '%d'",gtyp);
+					dbg->fatal("planquadrat_t::rdwr","Error while loading game: Unknown ground type '%d'",gtyp);
 			}
 			// check if we have a matching building here, otherwise set to nothing
 			if (gr  &&  gtyp == grund_t::fundament  &&  gr->find<gebaeude_t>() == NULL) {

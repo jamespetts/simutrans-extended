@@ -34,7 +34,7 @@ static bool compare_fussgaenger_desc(const pedestrian_desc_t* a, const pedestria
 bool pedestrian_t::register_desc(const pedestrian_desc_t *desc)
 {
 	if(  table.remove(desc->get_name())  ) {
-		dbg->warning( "pedestrian_desc_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "pedestrian_desc_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 	}
 	table.put(desc->get_name(), desc);
 	return true;
@@ -89,7 +89,7 @@ pedestrian_t::pedestrian_t(grund_t *gr, uint32 time_to_live) :
 	desc(pick_any_weighted(current_pedestrians))
 {
 	animation_steps = 0;
-	on_left = simrand(2, "pedestrian_t::pedestrian_t(grund_t *gr, uint32 time_to_live)") > 0;
+	on_left = simrand(2, "pedestrian_t::pedestrian_t") > 0;
 	steps_offset = 0;
 	time_to_life = time_to_live;
 	ped_offset = desc->get_offset();
@@ -299,7 +299,7 @@ void pedestrian_t::hop(grund_t *gr)
 	// all possible directions
 	ribi_t::ribi ribi = weg->get_ribi_unmasked() & (~reverse_direction);
 	// randomized offset
-	const uint8 offset = (ribi > 0 && ribi_t::is_single(ribi)) ? 0 : simrand(4, "void pedestrian_t::hop(grund_t *gr)");
+	const uint8 offset = (ribi > 0 && ribi_t::is_single(ribi)) ? 0 : simrand(4, "pedestrian_t::hop");
 
 	ribi_t::ribi new_direction;
 	for (uint r = 0; r < 4; r++) {

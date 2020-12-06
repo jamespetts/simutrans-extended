@@ -274,7 +274,7 @@ namespace script_api {
 					return r + "("+ get_param_squirrel_type(nparams - freevars - 1) + ")";
 				}
 			}
-			return r + "()";
+			return r + "";
 		}
 		/// @returns type list of arguments (without parentheses and return type)
 		static std::string get_param_squirrel_type(uint16 nparams)

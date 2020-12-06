@@ -139,7 +139,7 @@ const float32e8_t float32e8_t::log2() const
 {
 	if (ms || m == 0L)
 	{
-		dbg->error("float32e8_t float32e8_t::log2()", "Illegal argument of log2(%.9G): must be > 0.", to_double());
+		dbg->error("float32e8_t::log2", "Illegal argument of log2(%.9G): must be > 0.", to_double());
 		return zero;
 	}
 	float32e8_t r((sint32)(e - 1L));
@@ -162,7 +162,7 @@ const float32e8_t float32e8_t::exp2() const
 
 	if (e > EXPONENT_BITS)
 	{
-		dbg->error(" float32e8_t::exp2()", "Illegal argument of exp2(%.9G): must be between about %d and %d.", to_double(), MIN_EXPONENT, MAX_EXPONENT);
+		dbg->error(" float32e8_t::exp2", "Illegal argument of exp2(%.9G): must be between about %d and %d.", to_double(), MIN_EXPONENT, MAX_EXPONENT);
 	}
 	sint16 e1 = e > 0 ? m >> (32 - e) : 0;
 	e1 = ms ? - 1 - e1 : e1;
@@ -297,7 +297,7 @@ void float32e8_t::set_value(const double value)
 	if (e > MAX_EXPONENT)
 	{
 		char val_str[200];
-		dbg->error("float32e8_t::set_value(const double value)", "Overflow in converting %G to float32e8_t: exponent %d > %d", value, e, MIN_EXPONENT);
+		dbg->error("float32e8_t::set_value", "Overflow in converting %G to float32e8_t: exponent %d > %d", value, e, MIN_EXPONENT);
 	}
 	v = v * pow(2, (32 - e)) + 0.5;
 	m = (uint32) v;
@@ -356,7 +356,7 @@ const float32e8_t float32e8_t::operator + (const float32e8_t & x) const
 
 		if (r.e > MAX_EXPONENT)
 		{
-			dbg->error("float32e8_t::operator + (const float32e8_t & x) const", "Overflow in: %.9G + %.9G", this->to_double(), x.to_double());
+			dbg->error("float32e8_t::operator + ", "Overflow in: %.9G + %.9G", this->to_double(), x.to_double());
 			r.e = MAX_EXPONENT;
 			r.m = 0xffffffffL;
 		}
@@ -436,7 +436,7 @@ const float32e8_t float32e8_t::operator - (const float32e8_t & x) const
 
 		if (r.e > MAX_EXPONENT)
 		{
-			dbg->error("float32e8_t::operator - (const float32e8_t & x) const", "Overflow in: %.9G - %.9G", this->to_double(), x.to_double());
+			dbg->error("float32e8_t::operator - ", "Overflow in: %.9G - %.9G", this->to_double(), x.to_double());
 			r.e = MAX_EXPONENT;
 			r.m = 0xffffffffL;
 		}
@@ -486,7 +486,7 @@ const float32e8_t float32e8_t::operator * (const float32e8_t & x) const
 	}
 	if (r.e > MAX_EXPONENT)
 	{
-		dbg->error("float32e8_t::operator * (const float32e8_t & x) const", "Overflow in: %.9G * %.9G", this->to_double(), x.to_double());
+		dbg->error("float32e8_t::operator * ", "Overflow in: %.9G * %.9G", this->to_double(), x.to_double());
 		r.e = MAX_EXPONENT;
 		r.m = 0xffffffffL;
 	}
@@ -498,7 +498,7 @@ const float32e8_t float32e8_t::operator / (const float32e8_t & x) const
 {
 	if (x.m == 0)
 	{
-		dbg->error("float32e8_t::operator / (const float32e8_t & x) const", "Division by zero in: %.9G / %.9G", this->to_double(), x.to_double());
+		dbg->error("float32e8_t::operator / ", "Division by zero in: %.9G / %.9G", this->to_double(), x.to_double());
 		return *this; // Catch the error
 	}
 
@@ -520,7 +520,7 @@ const float32e8_t float32e8_t::operator / (const float32e8_t & x) const
 	}
 	if (r.e > MAX_EXPONENT)
 	{
-		dbg->error("float32e8_t::operator / (const float32e8_t & x) const", "Overflow in: %.9G / %.9G", this->to_double(), x.to_double());
+		dbg->error("float32e8_t::operator / ", "Overflow in: %.9G / %.9G", this->to_double(), x.to_double());
 		r.e = MAX_EXPONENT;
 		r.m = 0xffffffffL;
 	}
@@ -542,7 +542,7 @@ sint32 float32e8_t::to_sint32() const
 		return 0; // abs(*this) < 1
 	if (e > 32)
 	{
-		dbg->error("float32e8_t::to_sint32() const", "Cannot convert float32e8_t value %G to sint32: exponent %d >= 32 exceed sint32 range", to_double(), e);
+		dbg->error("float32e8_t::to_sint32", "Cannot convert float32e8_t value %G to sint32: exponent %d >= 32 exceed sint32 range", to_double(), e);
 		return ms ? -(sint32) SINT32_MAX_VALUE : (sint32) SINT32_MAX_VALUE;
 	}
 	uint32 rm = m >> (32 - e);

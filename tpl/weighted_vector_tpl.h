@@ -147,7 +147,7 @@ template<class T> class weighted_vector_tpl
 			for (uint32 i = 0; i < count; i++) {
 				if (nodes[i].data == elem) return i;
 			}
-			dbg->fatal("weighted_vector_tpl<T>::index_of()", "not contained" );
+			dbg->fatal("weighted_vector_tpl<T>::index_of", "not contained" );
 		}
 
 		/**
@@ -365,13 +365,13 @@ template<class T> class weighted_vector_tpl
 
 		T& operator [](uint32 i)
 		{
-			if (i >= count) dbg->fatal("weighted_vector_tpl<T>::get()", "index out of bounds: %i not in 0..%d", i, count - 1);
+			if (i >= count) dbg->fatal("weighted_vector_tpl<T>::get", "index out of bounds: %i not in 0..%d", i, count - 1);
 			return nodes[i].data;
 		}
 
 		const T& operator [](uint32 i) const
 		{
-			if (i >= count) dbg->fatal("weighted_vector_tpl<T>::get()", "index out of bounds: %i not in 0..%d", i, count - 1);
+			if (i >= count) dbg->fatal("weighted_vector_tpl<T>::get", "index out of bounds: %i not in 0..%d", i, count - 1);
 			return nodes[i].data;
 		}
 
@@ -387,7 +387,7 @@ template<class T> class weighted_vector_tpl
 		T& at_weight(const uint32 target_weight) const
 		{
 			if (target_weight > total_weight) {
-				dbg->fatal("weighted_vector_tpl<T>::at_weight()", "weight out of bounds: %i not in 0..%d", target_weight, total_weight);
+				dbg->fatal("weighted_vector_tpl<T>::at_weight", "weight out of bounds: %i not in 0..%d", target_weight, total_weight);
 			}
 #if 0
 			// that is the main idea (but slower, the more entries are in the list)

@@ -206,7 +206,7 @@ bool internal_create_surfaces(const bool, int w, int h)
 			strcat(str, ", ");
 			strcat(str, SDL_GetPixelFormatName(ri.texture_formats[j]));
 		}
-		DBG_DEBUG("internal_create_surfaces()", "Renderer: %s, Max_w: %d, Max_h: %d, Flags: %d, Formats: %d%s", ri.name, ri.max_texture_width, ri.max_texture_height, ri.flags, ri.num_texture_formats, str);
+		DBG_DEBUG("internal_create_surfaces", "Renderer: %s, Max_w: %d, Max_h: %d, Flags: %d, Formats: %d%s", ri.name, ri.max_texture_width, ri.max_texture_height, ri.flags, ri.num_texture_formats, str);
 		if (strcmp("opengl", ri.name) == 0) {
 			rend_index = i;
 		}
@@ -218,7 +218,7 @@ bool internal_create_surfaces(const bool, int w, int h)
 	}
 	renderer = SDL_CreateRenderer(window, rend_index, flags);
 	if (renderer == NULL) {
-		dbg->warning("internal_create_surfaces()", "Couldn't create opengl renderer: %s", SDL_GetError());
+		dbg->warning("internal_create_surfaces", "Couldn't create opengl renderer: %s", SDL_GetError());
 		// try all other renderer until success
 		// (however, on my windows machines opengles crashed, so the software renderer is never ever called)
 		for (int i = 0; i < num_rend && renderer == NULL; i++) {
@@ -227,17 +227,17 @@ bool internal_create_surfaces(const bool, int w, int h)
 			}
 		}
 		if (renderer == NULL) {
-			dbg->fatal("internal_create_surfaces()", "No SDL2 renderer found!");
+			dbg->fatal("internal_create_surfaces", "No SDL2 renderer found!");
 		}
-		dbg->warning("internal_create_surfaces()", "Using fallback render %s instead of opengl: Performance may be low!", ri.name);
+		dbg->warning("internal_create_surfaces", "Using fallback render %s instead of opengl: Performance may be low!", ri.name);
 	}
 
 	SDL_GetRendererInfo(renderer, &ri);
-	DBG_DEBUG("internal_create_surfaces()", "Using: Renderer: %s, Max_w: %d, Max_h: %d, Flags: %d, Formats: %d, %s", ri.name, ri.max_texture_width, ri.max_texture_height, ri.flags, ri.num_texture_formats, SDL_GetPixelFormatName(SDL_PIXELFORMAT_RGB565));
+	DBG_DEBUG("internal_create_surfaces", "Using: Renderer: %s, Max_w: %d, Max_h: %d, Flags: %d, Formats: %d, %s", ri.name, ri.max_texture_width, ri.max_texture_height, ri.flags, ri.num_texture_formats, SDL_GetPixelFormatName(SDL_PIXELFORMAT_RGB565));
 
 	screen_tx = SDL_CreateTexture(renderer, pixel_format, SDL_TEXTUREACCESS_STREAMING, w, h);
 	if (screen_tx == NULL) {
-		dbg->error("internal_create_surfaces()", "Couldn't create texture: %s", SDL_GetError());
+		dbg->error("internal_create_surfaces", "Couldn't create texture: %s", SDL_GetError());
 		return false;
 	}
 
@@ -246,13 +246,13 @@ bool internal_create_surfaces(const bool, int w, int h)
 	Uint32 rmask, gmask, bmask, amask;
 	SDL_PixelFormatEnumToMasks(pixel_format, &bpp, &rmask, &gmask, &bmask, &amask);
 	if (bpp != COLOUR_DEPTH || amask != 0) {
-		dbg->error("internal_create_surfaces()", "Pixel format error. %d != %d, %d != 0", bpp, COLOUR_DEPTH, amask);
+		dbg->error("internal_create_surfaces", "Pixel format error. %d != %d, %d != 0", bpp, COLOUR_DEPTH, amask);
 		return false;
 	}
 
 	screen = SDL_CreateRGBSurface(0, w, h, bpp, rmask, gmask, bmask, amask);
 	if (screen == NULL) {
-		dbg->error("internal_create_surfaces()", "Couldn't get the window surface: %s", SDL_GetError());
+		dbg->error("internal_create_surfaces", "Couldn't get the window surface: %s", SDL_GetError());
 		return false;
 	}
 

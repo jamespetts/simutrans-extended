@@ -344,7 +344,7 @@ void grund_t::rdwr(loadsave_t *file)
 					default:
 #if MSG_LEVEL
 						if(  wtyp != invalid_wt  ) {
-							dbg->error( "grund_t::rdwr()", "invalid waytype %i!", (int)wtyp );
+							dbg->error( "grund_t::rdwr", "invalid waytype %i!", (int)wtyp );
 							wtyp = invalid_wt;
 						}
 #endif
@@ -369,7 +369,7 @@ void grund_t::rdwr(loadsave_t *file)
 					case track_wt: {
 						schiene_t *sch = new schiene_t(file);
 						if(sch->get_desc()->get_wtyp()==monorail_wt) {
-							dbg->warning("grund_t::rdwr()", "converting railroad to monorail at (%i,%i)",get_pos().x, get_pos().y);
+							dbg->warning("grund_t::rdwr", "converting railroad to monorail at (%i,%i)",get_pos().x, get_pos().y);
 							// compatibility code: Convert to monorail
 							monorail_t *w= new monorail_t();
 							w->set_desc(sch->get_desc(), true);
@@ -409,7 +409,7 @@ void grund_t::rdwr(loadsave_t *file)
 							file->rdwr_long(d32);
 							file->rdwr_long(d32);
 							file->rdwr_long(d32);
-							DBG_MESSAGE("grund_t::rdwr()","at (%i,%i) dock ignored",get_pos().x, get_pos().y);
+							DBG_MESSAGE("grund_t::rdwr","at (%i,%i) dock ignored",get_pos().x, get_pos().y);
 						}
 						break;
 
@@ -421,7 +421,7 @@ void grund_t::rdwr(loadsave_t *file)
 				if(weg) {
 					if(get_typ()==fundament) {
 						// remove this (but we can not correct the other ways, since possibly not yet loaded)
-						dbg->error("grund_t::rdwr()","removing way from foundation at %i,%i",pos.x,pos.y);
+						dbg->error("grund_t::rdwr","removing way from foundation at %i,%i",pos.x,pos.y);
 						// we do not delete them, to keep maintenance costs correct
 					}
 					else {
@@ -462,7 +462,7 @@ void grund_t::rdwr(loadsave_t *file)
 	if (file->is_loading()  &&  ist_uebergang()  &&  !find<crossing_t>(2)) {
 		const crossing_desc_t *cr_desc = crossing_logic_t::get_crossing( ((weg_t *)obj_bei(0))->get_waytype(), ((weg_t *)obj_bei(1))->get_waytype(), ((weg_t *)obj_bei(0))->get_max_speed(), ((weg_t *)obj_bei(1))->get_max_speed(), 0 );
 		if(cr_desc==0) {
-			dbg->fatal("crossing_t::crossing_t()","requested for waytypes %i and %i but nothing defined!", ((weg_t *)obj_bei(0))->get_waytype(), ((weg_t *)obj_bei(1))->get_waytype() );
+			dbg->fatal("crossing_t::crossing_t","requested for waytypes %i and %i but nothing defined!", ((weg_t *)obj_bei(0))->get_waytype(), ((weg_t *)obj_bei(1))->get_waytype() );
 		}
 		crossing_t *cr = new crossing_t(obj_bei(0)->get_owner(), pos, cr_desc, ribi_t::is_straight_ns(get_weg(cr_desc->get_waytype(1))->get_ribi_unmasked()) );
 		objlist.add( cr );
@@ -518,7 +518,7 @@ void grund_t::rotate90()
 	// then rotate the things on this tile
 	uint8 trees = 0, offset = 0;
 	if(  get_top()==254  ) {
-		dbg->warning( "grund_t::rotate90()", "Too many stuff on (%s)", pos.get_str() );
+		dbg->warning( "grund_t::rotate90", "Too many stuff on (%s)", pos.get_str() );
 	}
 	for(  uint8 i=0;  i<objlist.get_top();  i++  ) {
 		obj_bei(i)->rotate90();
@@ -1939,7 +1939,7 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 			// another way will be added
 			if(flags&has_way2)
 			{
-				dbg->error("grund_t::neuen_weg_bauen()","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
+				dbg->error("grund_t::neuen_weg_bauen","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
 				return 0;
 			}
 			// add the way
@@ -1954,7 +1954,7 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 				const crossing_desc_t *cr_desc = crossing_logic_t::get_crossing( weg->get_waytype(), w2, weg->get_max_speed(), other->get_desc()->get_topspeed(), welt->get_timeline_year_month() );
 				if(cr_desc == nullptr)
 				{
-					dbg->error("crossing_t::crossing_t()", "requested for waytypes %i and %i but nothing defined!", weg->get_waytype(), w2);
+					dbg->error("crossing_t::crossing_t", "requested for waytypes %i and %i but nothing defined!", weg->get_waytype(), w2);
 				}
 				else
 				{
@@ -2711,7 +2711,7 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 			}
 		}
 		else {
-DBG_MESSAGE("tool_wayremover()","change remaining way to ribi %d",add);
+DBG_MESSAGE("tool_wayremover","change remaining way to ribi %d",add);
 			// something will remain, we just change ribis
 			weg->set_ribi(add);
 			calc_image();

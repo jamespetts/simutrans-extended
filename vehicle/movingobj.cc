@@ -64,7 +64,7 @@ bool movingobj_t::register_desc(groundobj_desc_t *desc)
 {
 	// remove duplicates
 	if(  desc_names.remove( desc->get_name() )  ) {
-		dbg->warning( "movingobj_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "movingobj_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 	}
 	desc_names.put(desc->get_name(), desc );
 	return true;
@@ -93,7 +93,7 @@ const groundobj_desc_t *movingobj_t::random_movingobj_for_climate(climate cl)
 
 	// now weight their distribution
 	if (weight > 0) {
-		const int w=simrand(weight, "const groundobj_desc_t *movingobj_t::random_movingobj_for_climate");
+		const int w=simrand(weight, "groundobj_desc_t *movingobj_t::random_movingobj_for_climate");
 		weight = 0;
 		FOR(vector_tpl<groundobj_desc_t const*>, const i, movingobj_typen) {
 			if (i->is_allowed_climate(cl)) {
@@ -231,7 +231,7 @@ void movingobj_t::rdwr(loadsave_t *file)
 		file->rdwr_str(bname, lengthof(bname));
 		groundobj_desc_t *desc = desc_names.get(bname);
 		if(  desc_names.empty()  ||  desc==NULL  ) {
-			movingobjtype = simrand(movingobj_typen.get_count(), "void movingobj_t::rdwr");
+			movingobjtype = simrand(movingobj_typen.get_count(), "movingobj_t::rdwr");
 		}
 		else {
 			movingobjtype = (uint8)desc->get_index();
@@ -380,7 +380,7 @@ grund_t* movingobj_t::hop_check()
 
 	if(timetochange==0) {
 		// direction change needed
-		timetochange = simrand(speed_to_kmh(get_desc()->get_speed())/3, "bool movingobj_t::hop_check()");
+		timetochange = simrand(speed_to_kmh(get_desc()->get_speed())/3, "movingobj_t::hop_check");
 		const koord pos=pos_next.get_2d();
 		const grund_t *to[4];
 		uint8 until=0;
@@ -398,7 +398,7 @@ grund_t* movingobj_t::hop_check()
 		}
 		else {
 			// else prepare for direction change
-			const grund_t *next = to[simrand(until, "bool movingobj_t::hop_check()")];
+			const grund_t *next = to[simrand(until, "movingobj_t::hop_check")];
 			pos_next_next = next->get_pos();
 		}
 	}

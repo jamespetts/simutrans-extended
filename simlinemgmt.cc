@@ -120,7 +120,7 @@ void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 		}
 		sint32 totalLines = 0;
 		file->rdwr_long(totalLines);
-DBG_MESSAGE("simlinemgmt_t::rdwr()","number of lines=%i",totalLines);
+DBG_MESSAGE("simlinemgmt_t::rdwr","number of lines=%i",totalLines);
 
 		simline_t *unbound_line = NULL;
 
@@ -129,13 +129,13 @@ DBG_MESSAGE("simlinemgmt_t::rdwr()","number of lines=%i",totalLines);
 			file->rdwr_enum(lt);
 
 			if(lt < simline_t::truckline  ||  lt > simline_t::narrowgaugeline) {
-					dbg->fatal( "simlinemgmt_t::rdwr()", "Cannot create default line!" );
+					dbg->fatal( "simlinemgmt_t::rdwr", "Cannot create default line!" );
 			}
 			simline_t *line = new simline_t(player, lt, file);
 			if (!line->get_handle().is_bound()) {
 				// line id was saved as zero ...
 				if (unbound_line) {
-					dbg->fatal( "simlinemgmt_t::rdwr()", "More than one line with unbound id read" );
+					dbg->fatal( "simlinemgmt_t::rdwr", "More than one line with unbound id read" );
 				}
 				else {
 					unbound_line = line;
@@ -209,7 +209,7 @@ void simlinemgmt_t::new_month()
 linehandle_t simlinemgmt_t::create_line(int ltype, player_t * player)
 {
 	if(ltype < simline_t::truckline  ||  ltype > simline_t::narrowgaugeline) {
-			dbg->fatal( "simlinemgmt_t::create_line()", "Cannot create default line!" );
+			dbg->fatal( "simlinemgmt_t::create_line", "Cannot create default line!" );
 	}
 
 	simline_t * line = new simline_t(player, (simline_t::linetype)ltype);

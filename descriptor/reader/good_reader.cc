@@ -18,7 +18,7 @@ void goods_reader_t::register_obj(obj_desc_t *&data)
 	goods_desc_t *desc = static_cast<goods_desc_t *>(data);
 
 	goods_manager_t::register_desc(desc);
-	DBG_DEBUG("goods_reader_t::register_obj()","loaded good '%s'", desc->get_name());
+	DBG_DEBUG("goods_reader_t::register_obj","loaded good '%s'", desc->get_name());
 
 	obj_for_xref(get_type(), desc->get_name(), data);
 
@@ -142,7 +142,7 @@ obj_desc_t * goods_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->class_revenue_percentages.append(100);
 	}
 
-	DBG_DEBUG("goods_reader_t::read_node()", "version=%d, value=%d, catg=%d, bonus=%d, weight=%i, color=%i",
+	DBG_DEBUG("goods_reader_t::read_node", "version=%d, value=%d, catg=%d, bonus=%d, weight=%i, color=%i",
 		version,
 		desc->base_values.get_count() > 0 ? desc->base_values[0].price : 0,
 		desc->catg,

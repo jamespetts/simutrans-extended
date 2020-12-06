@@ -815,7 +815,7 @@ void line_class_manager_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		// convoy vanished
 		if(  !line.is_bound()  ) {
-			dbg->error( "line_class_manager_t::rdwr()", "Could not restore line class manager window of (%d)", line.get_id() );
+			dbg->error( "line_class_manager_t::rdwr", "Could not restore line class manager window of (%d)", line.get_id() );
 			destroy_win( this );
 			return;
 		}

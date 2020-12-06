@@ -145,12 +145,12 @@ bool dr_init_sound()
 
 		}
 		else {
-			dbg->error("dr_init_sound()", "Could not open required audio channel. Muting");
+			dbg->error("dr_init_sound", "Could not open required audio channel. Muting");
 			SDL_QuitSubSystem(SDL_INIT_AUDIO);
 		}
 	}
 	else {
-		dbg->error("dr_init_sound()", "Could not initialize sound system. Muting");
+		dbg->error("dr_init_sound", "Could not initialize sound system. Muting");
 	}
 
 	use_sound = sound_ok ? 1: -1;

@@ -47,7 +47,7 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 
 	switch (sortby) {
 	default:
-		dbg->error("freight_list_sorter::compare_ware()", "illegal sort mode!");
+		dbg->error("freight_list_sorter::compare_ware", "illegal sort mode!");
 		break;
 
 	case by_via_sum:

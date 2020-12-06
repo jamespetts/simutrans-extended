@@ -419,7 +419,7 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
  */
 bool welt_gui_t::update_from_heightfield(const char *filename)
 {
-	DBG_MESSAGE("welt_gui_t::update_from_heightfield()", "%s", filename);
+	DBG_MESSAGE("welt_gui_t::update_from_heightfield", "%s", filename);
 
 	sint16 w, h;
 	sint8 *h_field=NULL;
@@ -604,7 +604,7 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		sets->set_starting_year( (sint16)(v.i) );
 	}
 	else if(comp==&random_map) {
-		knr = simrand(2147483647, "bool welt_gui_t::action_triggered");
+		knr = simrand(2147483647, "welt_gui_t::action_triggered");
 		inp_map_number.set_value(knr);
 		sets->heightfield = "";
 		loaded_heightfield = false;

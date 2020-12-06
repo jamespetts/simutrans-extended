@@ -66,9 +66,9 @@ obj_desc_t * groundobj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	}
 	else {
 		// old node, version 0, never existed
-		dbg->fatal( "groundobj_reader_t::read_node()", "version %i not supported!", version );
+		dbg->fatal( "groundobj_reader_t::read_node", "version %i not supported!", version );
 	}
-	DBG_DEBUG("groundobj_reader_t::read_node()", "version=%i, climates=$%X, seasons=%i, chance=%i, speed=%i, ways=%i, cost=%d, trees_on_top=%i",
+	DBG_DEBUG("groundobj_reader_t::read_node", "version=%i, climates=$%X, seasons=%i, chance=%i, speed=%i, ways=%i, cost=%d, trees_on_top=%i",
 		version,
 		desc->allowed_climates,
 		desc->number_of_seasons,

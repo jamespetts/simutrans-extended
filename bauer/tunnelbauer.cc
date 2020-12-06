@@ -46,7 +46,7 @@ void tunnel_builder_t::register_desc(tunnel_desc_t *desc)
 {
 	// avoid duplicates with same name
 	if( const tunnel_desc_t *old_desc = tunnel_by_name.get(desc->get_name()) ) {
-		dbg->warning( "tunnel_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "tunnel_builder_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		tunnel_by_name.remove(desc->get_name());
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
@@ -431,7 +431,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 	sint64 cost = 0;
 	waytype_t waytyp = desc->get_waytype();
 
-	DBG_MESSAGE("tunnel_builder_t::build()","build from (%d,%d,%d) to (%d,%d,%d) ", pos.x, pos.y, pos.z, end.x, end.y, end.z );
+	DBG_MESSAGE("tunnel_builder_t::build","build from (%d,%d,%d) to (%d,%d,%d) ", pos.x, pos.y, pos.z, end.x, end.y, end.z );
 
 	// now we search for a matching way for the tunnel's top speed
 	// The tunnel ways are no longer properly encoded, with the result that way_desc is garbled

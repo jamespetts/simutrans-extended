@@ -81,7 +81,7 @@ void brueckenboden_t::rdwr(loadsave_t *file)
 	}
 
 	if(!find<bruecke_t>()) {
-		dbg->error( "brueckenboden_t::rdwr()","no bridge on bridge ground at (%s); try replacement", pos.get_str() );
+		dbg->error( "brueckenboden_t::rdwr","no bridge on bridge ground at (%s); try replacement", pos.get_str() );
 		weg_t *w = get_weg_nr(0);
 		if(w) {
 			const bridge_desc_t *br_desc = bridge_builder_t::find_bridge( w->get_waytype(), w->get_max_speed(), 0 );

@@ -452,7 +452,7 @@ void gebaeude_t::set_fab(fabrik_t *fd)
 	// sets the pointer in non-zero
 	if (fd) {
 		if (!is_factory  &&  ptr.stadt != NULL) {
-			dbg->fatal("gebaeude_t::set_fab()", "building already bound to city!");
+			dbg->fatal("gebaeude_t::set_fab", "building already bound to city!");
 		}
 		is_factory = true;
 		ptr.fab = fd;
@@ -489,7 +489,7 @@ void gebaeude_t::set_stadt(stadt_t *s)
 		{
 			return;
 		}
-		dbg->fatal("gebaeude_t::set_stadt()", "building at (%s) already bound to factory!", get_pos().get_str());
+		dbg->fatal("gebaeude_t::set_stadt", "building at (%s) already bound to factory!", get_pos().get_str());
 	}
 	// sets the pointer in non-zero
 	is_factory = false;
@@ -1638,10 +1638,10 @@ void gebaeude_t::rdwr(loadsave_t *file)
 			// try with compatibility list first
 			tile = hausbauer_t::find_tile(translator::compatibility_name(buf), idx);
 			if (tile == NULL) {
-				DBG_MESSAGE("gebaeude_t::rdwr()", "neither %s nor %s, tile %i not found, try other replacement", translator::compatibility_name(buf), buf, idx);
+				DBG_MESSAGE("gebaeude_t::rdwr", "neither %s nor %s, tile %i not found, try other replacement", translator::compatibility_name(buf), buf, idx);
 			}
 			else {
-				DBG_MESSAGE("gebaeude_t::rdwr()", "%s replaced by %s, tile %i", buf, translator::compatibility_name(buf), idx);
+				DBG_MESSAGE("gebaeude_t::rdwr", "%s replaced by %s, tile %i", buf, translator::compatibility_name(buf), idx);
 			}
 		}
 		if (tile == NULL) {
@@ -2219,10 +2219,10 @@ uint8 gebaeude_t::get_random_class(const goods_desc_t * wtyp)
 		// If the building has a zero sum of class proportions, as is the default, assume
 		// an equal chance of any given class being generated from here.
 		// Also, we don't have sensible figures to use for mail.
-		return (uint8)simrand(wtyp->get_number_of_classes(), "uint8 gebaeude_t::get_random_class() const (fixed)");
+		return (uint8)simrand(wtyp->get_number_of_classes(), "uintgebaeude_t::get_random_class (fixed)");
 	}
 
-	const uint16 random = simrand(sum, "uint8 gebaeude_t::get_random_class() const (multiple classes)");
+	const uint16 random = simrand(sum, "uintgebaeude_t::get_random_class (multiple classes)");
 
 	uint8 g_class = 0;
 

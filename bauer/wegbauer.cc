@@ -125,7 +125,7 @@ bool way_builder_t::successfully_loaded()
 	// some defaults to avoid hardcoded values
 	set_default(strasse_t::default_strasse,         road_wt,        type_flat, 50);
 	if(  strasse_t::default_strasse == NULL ) {
-		dbg->fatal( "way_builder_t::successfully_loaded()", "No road found at all!" );
+		dbg->fatal( "way_builder_t::successfully_loaded", "No road found at all!" );
 		return false;
 	}
 
@@ -143,11 +143,11 @@ bool way_builder_t::successfully_loaded()
 
 bool way_builder_t::register_desc(way_desc_t *desc)
 {
-	DBG_DEBUG("way_builder_t::register_desc()", desc->get_name());
+	DBG_DEBUG("way_builder_t::register_desc", desc->get_name());
 	const way_desc_t *old_desc = desc_table.get(desc->get_name());
 	if(  old_desc  ) {
 		desc_table.remove(desc->get_name());
-		dbg->warning( "way_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "way_builder_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
 		delete old_desc;
@@ -1066,7 +1066,7 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 				// calculate costs
 				if(ok) {
 					// prefer existing rivers:
-					*costs = to->hat_weg(water_wt) ? 10 : 10+simrand(s.way_count_90_curve, "bool way_builder_t::is_allowed_step");
+					*costs = to->hat_weg(water_wt) ? 10 : 10+simrand(s.way_count_90_curve, "way_builder_t::is_allowed_step");
 					if(to->get_weg_hang()!=0  &&  !to_flat) {
 						*costs += s.way_count_slope * 10;
 					}
@@ -1427,7 +1427,7 @@ void way_builder_t::init_builder(bautyp_t wt, const way_desc_t *b, const tunnel_
 	bridge_desc = br;
 	tunnel_desc = tunnel;
 	if(wt&tunnel_flag  &&  tunnel==NULL) {
-		dbg->fatal("way_builder_t::init_builder()","needs a tunnel description for an underground route!");
+		dbg->fatal("way_builder_t::init_builder","needs a tunnel description for an underground route!");
 	}
 	if((wt&bautyp_mask)==luft) {
 		wt &= bautyp_mask | bot_flag;
@@ -1445,7 +1445,7 @@ void way_builder_t::init_builder(bautyp_t wt, const way_desc_t *b, const tunnel_
 		}
 #endif
 	}
-  DBG_MESSAGE("way_builder_t::init_builder()",
+  DBG_MESSAGE("way_builder_t::init_builder",
          "setting way type to %d, desc=%s, bridge_desc=%s, tunnel_desc=%s",
          bautyp,
          desc ? desc->get_name() : "NULL",
@@ -1747,7 +1747,7 @@ DBG_DEBUG("insert to open","(%i,%i,%i)  f=%i",to->get_pos().x,to->get_pos().y,to
 	} while (!queue.empty() && step < route_t::MAX_STEP);
 
 #ifdef DEBUG_ROUTES
-DBG_DEBUG("way_builder_t::intern_calc_route()","steps=%i  (max %i) in route, open %i, cost %u",step,route_t::MAX_STEP,queue.get_count(),tmp->g);
+DBG_DEBUG("way_builder_t::intern_calc_route","steps=%i  (max %i) in route, open %i, cost %u",step,route_t::MAX_STEP,queue.get_count(),tmp->g);
 #endif
 	INT_CHECK("wegbauer 194");
 
@@ -1757,7 +1757,7 @@ DBG_DEBUG("way_builder_t::intern_calc_route()","steps=%i  (max %i) in route, ope
 	if(  !ziel.is_contained(gr->get_pos())  ||  tmp->parent==NULL  ||  tmp->g > maximum  ) {
 	}
 	else if(  step>=route_t::MAX_STEP  ) {
-		dbg->warning("way_builder_t::intern_calc_route()","Too many steps (%i>=max %i) in route (too long/complex)",step,route_t::MAX_STEP);
+		dbg->warning("way_builder_t::intern_calc_route","Too many steps (%i>=max %i) in route (too long/complex)",step,route_t::MAX_STEP);
 	}
 	else {
 		cost = tmp->g;
@@ -1909,13 +1909,13 @@ void way_builder_t::intern_calc_straight_route(const koord3d start, const koord3
 		if (do_terraform) {
 			terraform_index.append(route.get_count()-2);
 		}
-		DBG_MESSAGE("way_builder_t::calc_straight_route()","step %s = %i",koord(diff).get_str(),ok);
+		DBG_MESSAGE("way_builder_t::calc_straight_route","step %s = %i",koord(diff).get_str(),ok);
 	}
 	ok = ok && ( target_3d ? pos==ziel : pos.get_2d()==ziel.get_2d() );
 
 	// we can built a straight route?
 	if(ok) {
-DBG_MESSAGE("way_builder_t::intern_calc_straight_route()","found straight route max_n=%i",get_count()-1);
+DBG_MESSAGE("way_builder_t::intern_calc_straight_route","found straight route max_n=%i",get_count()-1);
 	}
 	else {
 		route.clear();
@@ -2011,7 +2011,7 @@ bool way_builder_t::intern_calc_route_runways(koord3d start3d, const koord3d zie
  */
 void way_builder_t::calc_straight_route(koord3d start, const koord3d ziel)
 {
-	DBG_MESSAGE("way_builder_t::calc_straight_route()","from %d,%d,%d to %d,%d,%d",start.x,start.y,start.z, ziel.x,ziel.y,ziel.z );
+	DBG_MESSAGE("way_builder_t::calc_straight_route","from %d,%d,%d to %d,%d,%d",start.x,start.y,start.z, ziel.x,ziel.y,ziel.z );
 	if(bautyp==luft  &&  desc->get_styp()==type_runway) {
 		// these are straight anyway ...
 		intern_calc_route_runways(start, ziel);
@@ -2112,7 +2112,7 @@ void way_builder_t::build_tunnel_and_bridges()
 		if(d.x > 1 || d.y > 1 || d.x < -1 || d.y < -1) {
 
 			if(d.x*d.y!=0) {
-				dbg->error("way_builder_t::build_tunnel_and_bridges()","cannot built a bridge between %s (n=%i, max_n=%i) and %s", route[i].get_str(),i,get_count()-1,route[i+1].get_str());
+				dbg->error("way_builder_t::build_tunnel_and_bridges","cannot built a bridge between %s (n=%i, max_n=%i) and %s", route[i].get_str(),i,get_count()-1,route[i+1].get_str());
 				continue;
 			}
 
@@ -2357,7 +2357,7 @@ sint64 way_builder_t::calc_costs()
 		}
 	}
 
-	DBG_MESSAGE("way_builder_t::calc_costs()","construction estimate: %f",costs/100.0);
+	DBG_MESSAGE("way_builder_t::calc_costs","construction estimate: %f",costs/100.0);
 	return costs;
 }
 
@@ -3035,11 +3035,11 @@ void way_builder_t::build_river()
 void way_builder_t::build()
 {
 	if(get_count()<2  ||  get_count() > maximum) {
-DBG_MESSAGE("way_builder_t::build()","called, but no valid route.");
+DBG_MESSAGE("way_builder_t::build","called, but no valid route.");
 		// no valid route here ...
 		return;
 	}
-	DBG_MESSAGE("way_builder_t::build()", "type=%d max_n=%d start=%d,%d end=%d,%d", bautyp, get_count() - 1, route.front().x, route.front().y, route.back().x, route.back().y);
+	DBG_MESSAGE("way_builder_t::build", "type=%d max_n=%d start=%d,%d end=%d,%d", bautyp, get_count() - 1, route.front().x, route.front().y, route.back().x, route.back().y);
 
 #ifdef DEBUG_ROUTES
 long ms=dr_time();

@@ -226,7 +226,7 @@ private:
 			{
 				if ( element_id >= usage_level )
 				{
-					dbg->fatal("connection_t::operator[]()", "Index out of bounds: %i not in 0..%i", element_id, (sint32)usage_level - 1);
+					dbg->fatal("connection_t::operator[]", "Index out of bounds: %i not in 0..%i", element_id, (sint32)usage_level - 1);
 				}
 				return *(connection_clusters[element_id]);
 			}

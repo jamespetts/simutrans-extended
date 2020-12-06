@@ -522,7 +522,7 @@ void rdwr_all_win(loadsave_t *file)
 							w = tool_t::toolbar_tool[id-magic_toolbar]->get_tool_selector();
 						}
 						else {
-							dbg->error( "rdwr_all_win()", "No idea how to restore magic 0x%X", id );
+							dbg->error( "rdwr_all_win", "No idea how to restore magic 0x%X", id );
 							return;
 						}
 				}

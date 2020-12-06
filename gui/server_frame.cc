@@ -401,7 +401,7 @@ bool server_frame_t::action_triggered (gui_action_creator_t *comp, value_t p)
 		if (  newserver_name[0] != '\0'  ) {
 			join.disable();
 
-			dbg->warning("action_triggered()", "newserver_name: %s", newserver_name);
+			dbg->warning("action_triggered", "newserver_name: %s", newserver_name);
 
 			const char *err = network_gameinfo( newserver_name, &gi );
 			if (  err == NULL  ) {
@@ -461,7 +461,7 @@ bool server_frame_t::action_triggered (gui_action_creator_t *comp, value_t p)
 			welt->load( filename.c_str() );
 		}
 		else {
-			dbg->error( "server_frame_t::action_triggered()", "join pressed without valid selection or custom server entry" );
+			dbg->error( "server_frame_t::action_triggered", "join pressed without valid selection or custom server entry" );
 			join.disable();
 		}
 	}
@@ -478,7 +478,7 @@ bool server_frame_t::action_triggered (gui_action_creator_t *comp, value_t p)
 				network_compare_pakset_with_server( newserver_name, msg );
 			}
 			else {
-				dbg->error( "server_frame_t::action_triggered()", "find_mismatch pressed without valid selection or custom server entry" );
+				dbg->error( "server_frame_t::action_triggered", "find_mismatch pressed without valid selection or custom server entry" );
 				find_mismatch.disable();
 			}
 			if (  !msg.empty()  ) {

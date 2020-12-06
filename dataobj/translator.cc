@@ -105,7 +105,7 @@ static bool is_unicode_file(FILE* f)
 //	fflush(NULL);
 	if (str[0] == 0xC2 && str[1] == 0xA7) {
 		// the first line must contain an UTF8 coded paragraph (Latin A7, UTF8 C2 A7), then it is unicode
-		DBG_DEBUG("is_unicode_file()", "file is UTF-8");
+		DBG_DEBUG("is_unicode_file", "file is UTF-8");
 		return true;
 	}
 	if(  str[0]==0xEF  &&  str[1]==0xBB   &&  fgetc(f)==0xBF  ) {
@@ -114,9 +114,9 @@ static bool is_unicode_file(FILE* f)
 		fread( str, 1, 2,  f );
 		if(  str[0] != 0xC2  ||  str[1] == 0xA7  ) {
 			fseek(f, pos, SEEK_SET);
-			dbg->error( "is_unicode_file()", "file is UTF-8 but has no paragraph" );
+			dbg->error( "is_unicode_file", "file is UTF-8 but has no paragraph" );
 		}
-		DBG_DEBUG("is_unicode_file()", "file is UTF-8");
+		DBG_DEBUG("is_unicode_file", "file is UTF-8");
 		return true;
 	}
 	fseek(f, pos, SEEK_SET);
@@ -228,7 +228,7 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 	{
 		string local_file_name(env_t::user_dir);
 		local_file_name = local_file_name + "addons/" + pakset_path + "text/" + fileprefix + langs[lang].iso_base + ".txt";
-		DBG_DEBUG("translator::load_custom_list()", "try to read city name list from '%s'", local_file_name.c_str());
+		DBG_DEBUG("translator::load_custom_list", "try to read city name list from '%s'", local_file_name.c_str());
 		file = fopen(local_file_name.c_str(), "rb");
 	}
 	// not found => try user location
@@ -236,20 +236,20 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 		string local_file_name(env_t::user_dir);
 		local_file_name = local_file_name + fileprefix + langs[lang].iso_base + ".txt";
 		file = fopen(local_file_name.c_str(), "rb");
-		DBG_DEBUG("translator::load_custom_list()", "try to read city name list from '%s'", local_file_name.c_str());
+		DBG_DEBUG("translator::load_custom_list", "try to read city name list from '%s'", local_file_name.c_str());
 	}
 	// not found => try pak location
 	if(  file==NULL  ) {
 		string local_file_name(env_t::program_dir);
 		local_file_name = local_file_name + pakset_path + "text/" + fileprefix + langs[lang].iso_base + ".txt";
-		DBG_DEBUG("translator::load_custom_list()", "try to read city name list from '%s'", local_file_name.c_str());
+		DBG_DEBUG("translator::load_custom_list", "try to read city name list from '%s'", local_file_name.c_str());
 		file = fopen(local_file_name.c_str(), "rb");
 	}
 	// not found => try global translations
 	if(  file==NULL  ) {
 		string local_file_name(env_t::program_dir);
 		local_file_name = local_file_name + "text/" + fileprefix + langs[lang].iso_base + ".txt";
-		DBG_DEBUG("translator::load_custom_list()", "try to read city name list from '%s'", local_file_name.c_str());
+		DBG_DEBUG("translator::load_custom_list", "try to read city name list from '%s'", local_file_name.c_str());
 		file = fopen(local_file_name.c_str(), "rb");
 	}
 	fflush(NULL);
@@ -268,10 +268,10 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 			}
 		}
 		fclose(file);
-		DBG_DEBUG("translator::load_custom_list()","Loaded list %s_%s.txt.", fileprefix, langs[lang].iso_base );
+		DBG_DEBUG("translator::load_custom_list","Loaded list %s_%s.txt.", fileprefix, langs[lang].iso_base );
 	}
 	else {
-		DBG_DEBUG("translator::load_custom_list()","No list %s_%s.txt found, using defaults.", fileprefix, langs[lang].iso_base );
+		DBG_DEBUG("translator::load_custom_list","No list %s_%s.txt found, using defaults.", fileprefix, langs[lang].iso_base );
 	}
 }
 
@@ -612,7 +612,7 @@ void translator::load_files_from_folder(const char *folder_name, const char *wha
 {
 	searchfolder_t folder;
 	int num_pak_lang_dat = folder.search(folder_name, "tab");
-	DBG_MESSAGE("translator::load_files_from_folder()", "search folder \"%s\" and found %i files", folder_name, num_pak_lang_dat); (void)num_pak_lang_dat;
+	DBG_MESSAGE("translator::load_files_from_folder", "search folder \"%s\" and found %i files", folder_name, num_pak_lang_dat); (void)num_pak_lang_dat;
 	//read now the basic language infos
 	FOR(searchfolder_t, const& i, folder) {
 		string const fileName(i);
@@ -621,18 +621,18 @@ void translator::load_files_from_folder(const char *folder_name, const char *wha
 
 		lang_info* lang = get_lang_by_iso(iso.c_str());
 		if (lang != NULL) {
-			DBG_MESSAGE("translator::load_files_from_folder()", "loading %s translations from %s for language %s", what, fileName.c_str(), lang->iso_base);
+			DBG_MESSAGE("translator::load_files_from_folder", "loading %s translations from %s for language %s", what, fileName.c_str(), lang->iso_base);
 			if (FILE* const file = fopen(fileName.c_str(), "rb")) {
 				bool file_is_utf = is_unicode_file(file);
 				load_language_file_body(file, &lang->texts, true, file_is_utf, lang->is_latin2_based );
 				fclose(file);
 			}
 			else {
-				dbg->warning("translator::load_files_from_folder()", "cannot open '%s'", fileName.c_str());
+				dbg->warning("translator::load_files_from_folder", "cannot open '%s'", fileName.c_str());
 			}
 		}
 		else {
-			dbg->warning("translator::load_files_from_folder()", "no %s texts for language '%s'", what, iso.c_str());
+			dbg->warning("translator::load_files_from_folder", "no %s texts for language '%s'", what, iso.c_str());
 		}
 	}
 }
@@ -647,7 +647,7 @@ bool translator::load(const string &path_to_pakset)
 	single_instance.current_lang = -1;
 	single_instance.lang_count = 0;
 
-	DBG_MESSAGE("translator::load()", "Loading languages...");
+	DBG_MESSAGE("translator::load", "Loading languages...");
 	searchfolder_t folder;
 	folder.search("text/", "tab");
 
@@ -658,7 +658,7 @@ bool translator::load(const string &path_to_pakset)
 		const string iso = fileName.substr(pstart, fileName.size() - pstart - 4);
 
 		if (FILE* const file = fopen(fileName.c_str(), "rb")) {
-			DBG_MESSAGE("translator::load()", "base file \"%s\" - iso: \"%s\"", fileName.c_str(), iso.c_str());
+			DBG_MESSAGE("translator::load", "base file \"%s\" - iso: \"%s\"", fileName.c_str(), iso.c_str());
 			load_language_iso(iso);
 			load_language_file(file);
 			fclose(file);
@@ -666,9 +666,9 @@ bool translator::load(const string &path_to_pakset)
 			if (single_instance.lang_count == lengthof(langs)) {
 				if (++i != end) {
 					// some languages were not loaded, let the user know what happened
-					dbg->warning("translator::load()", "some languages were not loaded, limit reached");
+					dbg->warning("translator::load", "some languages were not loaded, limit reached");
 					for (; i != end; ++i) {
-						dbg->warning("translator::load()", " %s not loaded", *i);
+						dbg->warning("translator::load", " %s not loaded", *i);
 					}
 				}
 				break;
@@ -698,11 +698,11 @@ bool translator::load(const string &path_to_pakset)
 	// now we try to read the compatibility stuff
 	if (FILE* const file = fopen((path_to_pakset + "compat.tab").c_str(), "rb")) {
 		load_language_file_body(file, &compatibility, false, false, false );
-		DBG_MESSAGE("translator::load()", "pakset compatibility texts loaded.");
+		DBG_MESSAGE("translator::load", "pakset compatibility texts loaded.");
 		fclose(file);
 	}
 	else {
-		DBG_MESSAGE("translator::load()", "no pakset compatibility texts");
+		DBG_MESSAGE("translator::load", "no pakset compatibility texts");
 	}
 
 	// also addon compatibility ...
@@ -710,7 +710,7 @@ bool translator::load(const string &path_to_pakset)
 		chdir( env_t::user_dir );
 		if (FILE* const file = fopen(string("addons/"+path_to_pakset + "compat.tab").c_str(), "rb")) {
 			load_language_file_body(file, &compatibility, false, false, false );
-			DBG_MESSAGE("translator::load()", "pakset addon compatibility texts loaded.");
+			DBG_MESSAGE("translator::load", "pakset addon compatibility texts loaded.");
 			fclose(file);
 		}
 		chdir( env_t::program_dir );
@@ -751,10 +751,10 @@ void translator::set_language(int lang)
 		env_t::default_settings.set_name_language_iso( langs[lang].iso );
 		init_custom_names(lang);
 		current_langinfo->eclipse_width = proportional_string_width( translate("...") );
-		DBG_MESSAGE("translator::set_language()", "%s, unicode %d", langs[lang].name, true);
+		DBG_MESSAGE("translator::set_language", "%s, unicode %d", langs[lang].name, true);
 	}
 	else {
-		dbg->warning("translator::set_language()", "Out of bounds : %d", lang);
+		dbg->warning("translator::set_language", "Out of bounds : %d", lang);
 	}
 }
 

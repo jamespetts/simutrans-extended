@@ -62,7 +62,7 @@ obj_desc_t * crossing_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	}
 
 	if(version == 0) {
-		dbg->error("crossing_reader_t::read_node()","Old version of crossings cannot be used!");
+		dbg->error("crossing_reader_t::read_node","Old version of crossings cannot be used!");
 
 		desc->waytype1 = (waytype_t)v;
 		desc->waytype2 = (waytype_t)decode_uint16(p);
@@ -107,10 +107,10 @@ obj_desc_t * crossing_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 	}
 	else {
-		dbg->fatal( "crossing_reader_t::read_node()","Invalid version %d", version);
+		dbg->fatal( "crossing_reader_t::read_node","Invalid version %d", version);
 	}
 
-	DBG_DEBUG("crossing_reader_t::read_node()",
+	DBG_DEBUG("crossing_reader_t::read_node",
 		"version=%i, waytype1=%d, waytype2=%d, topspeed1=%i, topspeed2=%i, open_time=%i, close_time=%i, sound=%i",
 		version,
 		desc->waytype1,

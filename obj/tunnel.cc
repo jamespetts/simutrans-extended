@@ -84,7 +84,7 @@ void tunnel_t::calc_image()
 			if(  desc->has_broad_portals()  ) {
 				ribi_t::ribi dir = ribi_t::rotate90( ribi_type( hang ) );
 				if(  dir==0  ) {
-					dbg->error( "tunnel_t::calc_image()", "pos=%s, dir=%i, hang=%i", get_pos().get_str(), dir, hang );
+					dbg->error( "tunnel_t::calc_image", "pos=%s, dir=%i, hang=%i", get_pos().get_str(), dir, hang );
 				}
 				else {
 					const grund_t *gr_l = welt->lookup(get_pos() + dir);
@@ -179,7 +179,7 @@ void tunnel_t::finish_rd()
 		else {
 			desc = tunnel_builder_t::get_tunnel_desc(gr->get_weg_nr(0)->get_desc()->get_wtyp(), 450, 0);
 			if(  desc == NULL  ) {
-				dbg->error( "tunnel_t::finish_rd()", "Completely unknown tunnel for this waytype: Lets use a rail tunnel!" );
+				dbg->error( "tunnel_t::finish_rd", "Completely unknown tunnel for this waytype: Lets use a rail tunnel!" );
 				desc = tunnel_builder_t::get_tunnel_desc(track_wt, 1, 0);
 			}
 		}

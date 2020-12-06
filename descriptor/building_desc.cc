@@ -109,7 +109,7 @@ const building_tile_desc_t *building_desc_t::get_tile(int layout, int x, int y) 
 	koord dims = get_size(layout);
 
 	if(layout < 0  ||  x < 0  ||  y < 0  ||  layout >= layouts  ||  x >= get_x(layout)  ||  y >= get_y(layout)) {
-	dbg->fatal("building_tile_desc_t::get_tile()",
+	dbg->fatal("building_tile_desc_t::get_tile",
 			   "invalid request for l=%d, x=%d, y=%d on building %s (l=%d, x=%d, y=%d)",
 		   layout, x, y, get_name(), layouts, size.x, size.y);
 	}

@@ -118,7 +118,7 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_SET_CLIMATE:      tool = new tool_set_climate_t(); break;
 		case TOOL_REASSIGN_SIGNAL_DEPRECATED:
 		case TOOL_REASSIGN_SIGNAL:      tool = new tool_reassign_signal_t(); break;
-		default:                   dbg->error("create_general_tool()","cannot satisfy request for general_tool[%i]!",toolnr);
+		default:                   dbg->error("create_general_tool","cannot satisfy request for general_tool[%i]!",toolnr);
 		                           return NULL;
 	}
 	// check for right id (exception: TOOL_SLICED_AND_UNDERGROUND_VIEW)
@@ -160,7 +160,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_CHANGE_CONVOI:       tool = new tool_change_convoi_t(); break;
 		case TOOL_CHANGE_LINE:         tool = new tool_change_line_t(); break;
 		case TOOL_CHANGE_DEPOT:        tool = new tool_change_depot_t(); break;
-		case UNUSED_WKZ_PWDHASH_TOOL: dbg->warning("create_simple_tool()","deprecated tool [%i] requested", toolnr); return NULL;
+		case UNUSED_WKZ_PWDHASH_TOOL: dbg->warning("create_simple_tool","deprecated tool [%i] requested", toolnr); return NULL;
 		case TOOL_CHANGE_PLAYER:   tool = new tool_change_player_t(); break;
 		case TOOL_CHANGE_TRAFFIC_LIGHT:tool = new tool_change_traffic_light_t(); break;
 		case TOOL_CHANGE_CITY:  tool = new tool_change_city_t(); break;
@@ -177,7 +177,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_RECOLOUR_TOOL:		tool = new tool_recolour_t(); break;
 		case TOOL_ACCESS_TOOL_DEPRECATED:
 		case TOOL_ACCESS_TOOL:		tool = new tool_access_t(); break;
-		default:                    dbg->error("create_simple_tool()","cannot satisfy request for simple_tool[%i]!",toolnr);
+		default:                    dbg->error("create_simple_tool","cannot satisfy request for simple_tool[%i]!",toolnr);
 		                            return NULL;
 	}
 	assert(tool->get_id()  ==  (toolnr | SIMPLE_TOOL)  ||  (toolnr >= TOOL_CHANGE_ROADSIGN_DEPRECATED  &&  toolnr <= TOOL_ACCESS_TOOL_DEPRECATED));
@@ -219,7 +219,7 @@ tool_t *create_dialog_tool(int toolnr)
 		case DIALOG_SETTINGS:       tool = new dialog_settings_t(); break;
 		case DIALOG_GAMEINFO:       tool = new dialog_gameinfo_t(); break;
 		case DIALOG_THEMES:         tool = new dialog_themes_t(); break;
-		default:                 dbg->error("create_dialog_tool()","cannot satisfy request for dialog_tool[%i]!",toolnr);
+		default:                 dbg->error("create_dialog_tool","cannot satisfy request for dialog_tool[%i]!",toolnr);
 		                         return NULL;
 	}
 	assert(tool->get_id() == (toolnr | DIALOG_TOOL));
@@ -239,7 +239,7 @@ tool_t *create_tool(int toolnr)
 		tool = create_dialog_tool(toolnr & 0xFFF);
 	}
 	if (tool == NULL) {
-		dbg->error("create_tool()","cannot satisfy request for tool with id %i!",toolnr);
+		dbg->error("create_tool","cannot satisfy request for tool with id %i!",toolnr);
 	}
 	return tool;
 }
@@ -352,7 +352,7 @@ void tool_t::read_menu(const std::string &objfilename)
 	tabfile_t menuconf;
 	// only use pak specific menus, since otherwise  images may be missing
 	if (!menuconf.open((objfilename+"config/menuconf.tab").c_str())) {
-		dbg->fatal("tool_t::init_menu()", "Can't read %sconfig/menuconf.tab", objfilename.c_str() );
+		dbg->fatal("tool_t::init_menu", "Can't read %sconfig/menuconf.tab", objfilename.c_str() );
 	}
 
 	tabfileobj_t contents;
@@ -376,7 +376,7 @@ void tool_t::read_menu(const std::string &objfilename)
 	};
 
 	// first init all tools
-	DBG_MESSAGE( "tool_t::init_menu()", "Reading general menu" );
+	DBG_MESSAGE( "tool_t::init_menu", "Reading general menu" );
 	for(  uint16 t=0; t<3; t++) {
 		for(  uint16 i=0;  i<info[t].count;  i++  ) {
 			if(  i>=info[t].standard_count  &&  i<0x80  ) {
@@ -402,7 +402,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					sprintf( new_id, "%s[%i]", info[t].type, tool->get_id()&0xFFF );
 					const char *new_str = contents.get( new_id );
 					if(! *new_str) {
-						dbg->warning( "tool_t::read_menu()", "deprecated tool number used in %s; menuconf.tab will need updating", id);
+						dbg->warning( "tool_t::read_menu", "deprecated tool number used in %s; menuconf.tab will need updating", id);
 					}
 				}
 			}
@@ -423,7 +423,7 @@ void tool_t::read_menu(const std::string &objfilename)
 				}
 				else {
 					if(  icon>=info[t].icons->get_count()  ) {
-						dbg->warning( "tool_t::init_menu()", "wrong icon (%i) given for %s[%i]", icon, info[t].type, i );
+						dbg->warning( "tool_t::init_menu", "wrong icon (%i) given for %s[%i]", icon, info[t].type, i );
 					}
 					tool->icon = info[t].icons->get_image_id(icon);
 				}
@@ -438,7 +438,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					if(*str!=',') {
 						uint16 cursor = (uint16)atoi(str);
 						if(  cursor>=info[t].cursor->get_count()  ) {
-							dbg->warning( "tool_t::init_menu()", "wrong cursor (%i) given for %s[%i]", cursor, info[t].type, i );
+							dbg->warning( "tool_t::init_menu", "wrong cursor (%i) given for %s[%i]", cursor, info[t].type, i );
 						}
 						tool->cursor = info[t].cursor->get_image_id(cursor);
 						do {
@@ -476,7 +476,7 @@ void tool_t::read_menu(const std::string &objfilename)
 		}
 	}
 	// now the toolbar tools
-	DBG_MESSAGE( "tool_t::read_menu()", "Reading toolbars" );
+	DBG_MESSAGE( "tool_t::read_menu", "Reading toolbars" );
 	// default size
 //	env_t::iconsize = scr_size( contents.get_int("icon_width",env_t::iconsize.w), contents.get_int("icon_height",env_t::iconsize.h) );
 	// first: add main menu
@@ -540,7 +540,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 					else {
 						if(  icon>=skinverwaltung_t::tool_icons_toolbars->get_count()  ) {
-							dbg->warning( "tool_t::read_menu()", "wrong icon (%i) given for toolbar_tool[%i][%i]", icon, i, j );
+							dbg->warning( "tool_t::read_menu", "wrong icon (%i) given for toolbar_tool[%i][%i]", icon, i, j );
 							icon = 0;
 						}
 						icon = skinverwaltung_t::tool_icons_toolbars->get_image_id(icon);
@@ -579,7 +579,7 @@ void tool_t::read_menu(const std::string &objfilename)
 						// compatibility mode: tool_cityroad is used for tool_wegebau with defaultparam 'cityroad'
 						if(  toolnr==TOOL_BUILD_WAY  &&  param_str  &&  strcmp(param_str,"city_road")==0) {
 							toolnr = TOOL_BUILD_CITYROAD;
-							dbg->warning("tool_t::read_menu()", "toolbar[%i][%i]: replaced way-builder(id=14) with default param=cityroad by cityroad builder(id=36)", i,j);
+							dbg->warning("tool_t::read_menu", "toolbar[%i][%i]: replaced way-builder(id=14) with default param=cityroad by cityroad builder(id=36)", i,j);
 						}
 						// now create tool
 						addtool = create_general_tool( toolnr );
@@ -598,7 +598,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No general tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? GENERAL_TOOL_STANDARD_COUNT : GENERAL_TOOL_COUNT );
+					dbg->error( "tool_t::read_menu", "When parsing menuconf.tab: No general tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? GENERAL_TOOL_STANDARD_COUNT : GENERAL_TOOL_COUNT );
 				}
 			}
 			else if (char const* const c = strstart(toolname, "simple_tool[")) {
@@ -614,7 +614,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No simple tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? SIMPLE_TOOL_STANDARD_COUNT : SIMPLE_TOOL_COUNT );
+					dbg->error( "tool_t::read_menu", "When parsing menuconf.tab: No simple tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? SIMPLE_TOOL_STANDARD_COUNT : SIMPLE_TOOL_COUNT );
 				}
 			} else if (char const* const c = strstart(toolname, "dialog_tool[")) {
 				uint8 const toolnr = atoi(c);
@@ -629,7 +629,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No dialog tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? DIALOG_TOOL_STANDARD_COUNT : DIALOG_TOOL_COUNT );
+					dbg->error( "tool_t::read_menu", "When parsing menuconf.tab: No dialog tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? DIALOG_TOOL_STANDARD_COUNT : DIALOG_TOOL_COUNT );
 				}
 			} else if (char const* const c = strstart(toolname, "toolbar[")) {
 				uint8 const toolnr = atoi(c);
@@ -637,7 +637,7 @@ void tool_t::read_menu(const std::string &objfilename)
 				if(toolbar_tool.get_count()==toolnr) {
 					if(param_str==NULL) {
 						param_str = "Unnamed toolbar";
-						dbg->warning( "tool_t::read_menu()", "Missing title for toolbar[%d]", toolnr);
+						dbg->warning( "tool_t::read_menu", "Missing title for toolbar[%d]", toolnr);
 					}
 					char *c = strdup(param_str);
 					const char *title = c;
@@ -782,11 +782,11 @@ void toolbar_t::update(player_t *player)
 {
 	const bool create = (tool_selector == NULL);
 	if(create) {
-		DBG_MESSAGE("toolbar_t::update()","create toolbar %s",default_param);
+		DBG_MESSAGE("toolbar_t::update","create toolbar %s",default_param);
 		tool_selector = new tool_selector_t( default_param, helpfile, toolbar_tool.index_of(this), this!=tool_t::toolbar_tool[0] );
 	}
 	else {
-		DBG_MESSAGE("toolbar_t::update()","update toolbar %s",default_param);
+		DBG_MESSAGE("toolbar_t::update","update toolbar %s",default_param);
 	}
 
 	tool_selector->reset_tools();
@@ -797,7 +797,7 @@ void toolbar_t::update(player_t *player)
 
 			if (char const* const param = w->get_default_param(player)) {
 				if(  create  ) {
-					DBG_DEBUG("toolbar_t::update()", "add metatool (param=%s)", param);
+					DBG_DEBUG("toolbar_t::update", "add metatool (param=%s)", param);
 				}
 				if (char const* c = strstart(param, "ways(")) {
 					waytype_t way = (waytype_t)atoi(c);
@@ -838,7 +838,7 @@ void toolbar_t::update(player_t *player)
 				w->init(player);
 			}
 			if(  create  ) {
-				DBG_DEBUG( "toolbar_t::update()", "add tool %i (param=%s)", w->get_id(), w->get_default_param() );
+				DBG_DEBUG( "toolbar_t::update", "add tool %i (param=%s)", w->get_id(), w->get_default_param() );
 			}
 			scenario_t *scen = welt->get_scenario();
 			if(  scen->is_scripted()  &&  !scen->is_tool_allowed(player, w->get_id(), w->get_waytype())) {
@@ -872,7 +872,7 @@ bool toolbar_t::init(player_t *player)
 	if(  this != tool_t::toolbar_tool[0]  ) {
 		// not main menu
 		create_win( tool_selector, w_info|w_do_not_delete|w_no_overlap, magic_toolbar+toolbar_tool.index_of(this) );
-		DBG_MESSAGE("toolbar_t::init()", "ID=%id", get_id());
+		DBG_MESSAGE("toolbar_t::init", "ID=%id", get_id());
 	}
 	return false;
 }

@@ -634,7 +634,7 @@ void player_t::begin_liquidation()
 
 void player_t::complete_liquidation()
 {
-	DBG_MESSAGE("player_t::complete_liquidation()","Removing convois");
+	DBG_MESSAGE("player_t::complete_liquidation","Removing convois");
 
 	for (size_t i = welt->convoys().get_count(); i-- != 0;) {
 		convoihandle_t const cnv = welt->convoys()[i];
@@ -885,7 +885,7 @@ void player_t::rdwr(loadsave_t *file)
 	if(file->is_loading()) {
 
 		// halt_count will be zero for newer savegames
-DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this ),halt_count);
+DBG_DEBUG("player_t::rdwr","player %i: loading %i halts.",welt->sp2num( this ),halt_count);
 		for(int i=0; i<halt_count; i++) {
 			haltestelle_t::create( file );
 		}
@@ -1085,7 +1085,7 @@ void player_t::init_undo( waytype_t wtype, unsigned short max )
 {
 	// only human player
 	// prissi: allow for UNDO for real player
-DBG_MESSAGE("player_t::int_undo()","undo tiles %i",max);
+DBG_MESSAGE("player_t::int_undo","undo tiles %i",max);
 	last_built.clear();
 	last_built.resize(max+1);
 	if(max>0) {

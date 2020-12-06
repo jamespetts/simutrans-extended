@@ -51,7 +51,7 @@ void bridge_builder_t::register_desc(bridge_desc_t *desc)
 {
 	// avoid duplicates with same name
 	if( const bridge_desc_t *old_desc = desc_table.get(desc->get_name()) ) {
-		dbg->warning( "bridge_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "bridge_builder_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		desc_table.remove(desc->get_name());
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
@@ -687,7 +687,7 @@ const char *bridge_builder_t::build( player_t *player, const koord3d pos, const 
 		return "";
 	}
 
-	DBG_MESSAGE("bridge_builder_t::build()", "called on %d,%d for bridge type '%s'", pos.x, pos.y, desc->get_name());
+	DBG_MESSAGE("bridge_builder_t::build", "called on %d,%d for bridge type '%s'", pos.x, pos.y, desc->get_name());
 
 	koord zv;
 	ribi_t::ribi ribi = ribi_t::none;
@@ -712,7 +712,7 @@ const char *bridge_builder_t::build( player_t *player, const koord3d pos, const 
 	}
 
 	if(  !can_place_ramp(player, gr,desc->get_waytype(),ribi)  ) {
-		DBG_MESSAGE( "bridge_builder_t::build()", "no way %x found", desc->get_waytype() );
+		DBG_MESSAGE( "bridge_builder_t::build", "no way %x found", desc->get_waytype() );
 		return "A bridge must start on a way!";
 	}
 
@@ -748,7 +748,7 @@ const char *bridge_builder_t::build( player_t *player, const koord3d pos, const 
 
 	// found something?
 	if(  koord3d::invalid == end  ) {
-DBG_MESSAGE("bridge_builder_t::build()", "end not ok");
+DBG_MESSAGE("bridge_builder_t::build", "end not ok");
 		return msg;
 	}
 
@@ -794,7 +794,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 {
 	ribi_t::ribi ribi = ribi_type(zv);
 
-	DBG_MESSAGE("bridge_builder_t::build()", "build from %s", start.get_str());
+	DBG_MESSAGE("bridge_builder_t::build", "build from %s", start.get_str());
 
 	grund_t* const start_gr = welt->lookup( start );
 	const slope_t::type slope = start_gr->get_weg_hang();
@@ -806,7 +806,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 	grund_t* end_gr = welt->lookup(end);
 	if (!end_gr)
 	{
-		dbg->error("void bridge_builder_t::build_bridge()", "Cannot find the end of a bridge at %u,%u)", end.x, end.y);
+		dbg->error("bridge_builder_t::build_bridge", "Cannot find the end of a bridge at %u,%u)", end.x, end.y);
 		return;
 	}
 

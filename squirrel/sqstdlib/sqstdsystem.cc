@@ -62,7 +62,7 @@ static SQInteger _system_remove(HSQUIRRELVM v)
 	const SQChar *s;
 	sq_getstring(v,2,&s);
 	if(scremove(s)==-1)
-		return sq_throwerror(v,_SC("remove() failed"));
+		return sq_throwerror(v,_SC("remove failed"));
 	return 0;
 }
 
@@ -72,7 +72,7 @@ static SQInteger _system_rename(HSQUIRRELVM v)
 	sq_getstring(v,2,&oldn);
 	sq_getstring(v,3,&newn);
 	if(screname(oldn,newn)==-1)
-		return sq_throwerror(v,_SC("rename() failed"));
+		return sq_throwerror(v,_SC("rename failed"));
 	return 0;
 }
 

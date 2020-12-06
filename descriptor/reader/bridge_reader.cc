@@ -179,7 +179,7 @@ obj_desc_t * bridge_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			if(extended_version > 1)
 			{
-				dbg->fatal("bridge_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
+				dbg->fatal("bridge_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
 			}
 		}
 
@@ -213,7 +213,7 @@ obj_desc_t * bridge_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			if(extended_version > 1)
 			{
-				dbg->fatal("bridge_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
+				dbg->fatal("bridge_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
 			}
 		}
 		desc->number_of_seasons = decode_uint8(p);
@@ -253,7 +253,7 @@ obj_desc_t * bridge_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->axle_load = 9999;
 	}
 
-	DBG_DEBUG("bridge_reader_t::read_node()",
+	DBG_DEBUG("bridge_reader_t::read_node",
 		"version=%d, waytype=%d, price=%d, topspeed=%d, pillars=%i, max_length=%i, max_weight%d, axle_load=%i",
 		version,
 		desc->wtyp,

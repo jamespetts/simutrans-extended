@@ -116,7 +116,7 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				if(extended_version > 1)
 				{
-					dbg->fatal( "way_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
+					dbg->fatal( "way_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 				}
 			}
 		}
@@ -148,7 +148,7 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				if(extended_version > 1)
 				{
-					dbg->fatal("way_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
+					dbg->fatal("way_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
 				}
 			}
 
@@ -194,7 +194,7 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->number_of_seasons = 0;
 		}
 		else {
-			dbg->fatal("way_reader_t::read_node()","Invalid version %d", version);
+			dbg->fatal("way_reader_t::read_node","Invalid version %d", version);
 		}
 		desc->set_way_constraints(way_constraints);
 		if(extended_version < 1 || !extended)
@@ -238,7 +238,7 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	desc->base_maintenance = desc->maintenance;
 	desc->base_way_only_cost = desc->way_only_cost;
 
-	DBG_DEBUG("way_reader_t::read_node()",
+	DBG_DEBUG("way_reader_t::read_node",
 		"version=%d, price=%d, maintenance=%d, topspeed=%d, max_weight=%d, "
 		"wtype=%d, styp=%d, intro_year=%i, axle_load=%d, wear_capacity=%d, monthly_base_wear=%d, "
 		"way_constraints_permissive = %d, way_constraints_prohibitive = %d",

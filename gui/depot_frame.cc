@@ -56,7 +56,7 @@ depot_frame_t::depot_frame_t(depot_t* depot) :
 	lb_convoi_line("Serves Line:", SYSCOL_TEXT, gui_label_t::left),
 	convoy_assembler(depot->get_wegtyp(), depot->get_player_nr(), check_way_electrified(true) )
 {
-DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->get_max_convoi_length());
+DBG_DEBUG("depot_frame_t::depot_frame_t","get_max_convoi_length=%i",depot->get_max_convoi_length());
 	last_selected_line = depot->get_last_selected_line();
 	no_schedule_text     = translator::translate("<no schedule set>");
 	clear_schedule_text  = translator::translate("<clear schedule>");

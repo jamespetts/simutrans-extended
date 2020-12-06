@@ -79,7 +79,7 @@ private:
 		uint16 newsize;
 		if (size == 65535) {
 			// completely out of handles
-			dbg->fatal("quickstone<T>::find_next()","no free index found (size=%i)",size);
+			dbg->fatal("quickstone<T>::find_next","no free index found (size=%i)",size);
 			return 0; //dummy for compiler
 		} else if (size >= 32768) {
 			// max out on handles, don't overflow uint16
@@ -177,20 +177,20 @@ public:
 	{
 		if(p) {
 			if(  id == 0  ) {
-				dbg->fatal("quickstone<T>::quickstone_tpl(T*,uint16)","wants to assign non-null pointer to null index");
+				dbg->fatal("quickstone<T>::quickstone_tpl","wants to assign non-null pointer to null index");
 			}
 			while(  id >= size  ) {
 				enlarge();
 			}
 			if(  data[id]!=NULL  &&  data[id]!=p  ) {
-				dbg->fatal("quickstone<T>::quickstone_tpl(T*,uint16)","slot (%d) already taken", id);
+				dbg->fatal("quickstone<T>::quickstone_tpl","slot (%d) already taken", id);
 			}
 			entry = id;
 			data[entry] = p;
 		}
 		else {
 			if(  id!=0  ) {
-				dbg->fatal("quickstone<T>::quickstone_tpl(T*,uint16)","wants to assign null pointer to non-null index");
+				dbg->fatal("quickstone<T>::quickstone_tpl","wants to assign null pointer to non-null index");
 			}
 			// all NULL pointers are mapped to entry 0
 			entry = 0;

@@ -80,7 +80,7 @@ void guarded_free(void *p)
 
 	// check sig
 	if(check < low_mark || check >= count) {
-		printf("guarded_free(): check is %d, valid range is 0..%d\n", check, count);
+		printf("guarded_free: check is %d, valid range is 0..%d\n", check, count);
 		exit(0);
 //	    dbg->fatal("guarded_free()","check is %d, valid range is 0..%d\n", check, count);
 	}
@@ -91,7 +91,7 @@ void guarded_free(void *p)
 
 	// check size
 	if(size < 0) {
-	    dbg->fatal("guarded_free()",
+	    dbg->fatal("guarded_free",
 		       "size is %d, valid range is >= 0\n", size);
 	}
 
@@ -107,7 +107,7 @@ void guarded_free(void *p)
 	// check end marker
 
 	if(dead != 0xdeaddead) {
-	    dbg->fatal("guarded_free()",
+	    dbg->fatal("guarded_free",
 		       "dead marker for %p (%d bytes) is %d, should be 0xdeaddead\n", base, size, dead);
 	}
 
@@ -149,14 +149,14 @@ void* xmalloc(size_t const size)
 #else
 #	if defined DO_STATS
 	++block_count;
-	printf("Message: xmalloc(): allocating %d bytes, %ld block\n", size, block_count);
+	printf("Message: xmalloc: allocating %d bytes, %ld block\n", size, block_count);
 #	endif
 
 	void* const p = malloc(size);
 #endif
 	if (!p) {
 		// use unified error handler instead, since BeOS need this as C style file!
-		dbg->fatal("xmalloc()", "Could not alloc %li bytes.", (long)size );
+		dbg->fatal("xmalloc", "Could not alloc %li bytes.", (long)size );
 	}
 
 #if defined USE_KEYLOCK
@@ -193,13 +193,13 @@ void* xrealloc(void* const ptr, size_t const size)
 			(base[size + 11] <<  0);
 
 		if (check < low_mark || check >= count) { // check sig
-			dbg->fatal("xrealloc()", "check is %d, valid range is 0..%d\n", check, count);
+			dbg->fatal("xrealloc", "check is %d, valid range is 0..%d\n", check, count);
 		}
 		if (size < 0) { // check size
-			dbg->fatal("xrealloc()", "size is %d, valid range is >= 0\n", size);
+			dbg->fatal("xrealloc", "size is %d, valid range is >= 0\n", size);
 		}
 		if (dead != 0xdeaddead) { // check end marker
-			dbg->fatal("xrealloc()", "dead marker for %p (%d bytes) is %d, should be 0xdeaddead\n", base, size, dead);
+			dbg->fatal("xrealloc", "dead marker for %p (%d bytes) is %d, should be 0xdeaddead\n", base, size, dead);
 		}
 	}
 
@@ -209,7 +209,7 @@ void* xrealloc(void* const ptr, size_t const size)
 #endif
 	if (!p) {
 		// use unified error handler instead, since BeOS need this as C style file!
-		dbg->fatal("realloc()", "Could not alloc %li bytes.", (long)size );
+		dbg->fatal("realloc", "Could not alloc %li bytes.", (long)size );
 	}
 
 #if defined USE_KEYLOCK

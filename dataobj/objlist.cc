@@ -720,7 +720,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 		if(  file->get_version()<=110000  ) {
 			file->rdwr_long(max_object_index);
 			if(max_object_index>254) {
-				dbg->error("objlist_t::laden()","Too many objects (%i) at (%i,%i), some vehicle may not appear immediately.",max_object_index,current_pos.x,current_pos.y);
+				dbg->error("objlist_t::laden","Too many objects (%i) at (%i,%i), some vehicle may not appear immediately.",max_object_index,current_pos.x,current_pos.y);
 			}
 		}
 		else {
@@ -974,11 +974,11 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 				case obj_t::async_wolke: { async_wolke_t w(file); break; }
 
 				default:
-					dbg->fatal("objlist_t::laden()", "During loading: Unknown object type '%d'", typ);
+					dbg->fatal("objlist_t::laden", "During loading: Unknown object type '%d'", typ);
 			}
 
 			if(new_obj  &&  new_obj->get_typ()!=typ) {
-				dbg->warning( "objlist_t::rdwr()","typ error : %i instead %i on %i,%i, object ignored!", new_obj->get_typ(), typ, new_obj->get_pos().x, new_obj->get_pos().y );
+				dbg->warning( "objlist_t::rdwr","typ error : %i instead %i on %i,%i, object ignored!", new_obj->get_typ(), typ, new_obj->get_pos().x, new_obj->get_pos().y );
 				new_obj = NULL;
 			}
 
@@ -987,7 +987,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 			}
 
 			if(new_obj  &&  new_obj->get_pos()!=current_pos) {
-				dbg->warning("objlist_t::rdwr()","position error: %i,%i,%i instead %i,%i,%i (object will be ignored)",new_obj->get_pos().x,new_obj->get_pos().y,new_obj->get_pos().z,current_pos.x,current_pos.y,current_pos.z);
+				dbg->warning("objlist_t::rdwr","position error: %i,%i,%i instead %i,%i,%i (object will be ignored)",new_obj->get_pos().x,new_obj->get_pos().y,new_obj->get_pos().z,current_pos.x,current_pos.y,current_pos.z);
 				new_obj = NULL;
 			}
 
@@ -1040,13 +1040,13 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 			}
 			else if (new_obj->get_pos().get_2d() == current_pos.get_2d()) {
 				// ok, just error in z direction => we will correct it
-				dbg->warning( "objlist_t::rdwr()","position error: z pos corrected on %i,%i from %i to %i", new_obj->get_pos().x, new_obj->get_pos().y, new_obj->get_pos().z, current_pos.z);
+				dbg->warning( "objlist_t::rdwr","position error: z pos corrected on %i,%i from %i to %i", new_obj->get_pos().x, new_obj->get_pos().y, new_obj->get_pos().z, current_pos.z);
 				file->wr_obj_id(new_obj->get_typ());
 				new_obj->set_pos(current_pos);
 				new_obj->rdwr(file);
 			}
 			else {
-				dbg->error("objlist_t::rdwr()","unresolvable position error: %i,%i instead %i,%i (object type %i will be not saved!)", new_obj->get_pos().x, new_obj->get_pos().y, current_pos.x, current_pos.y, new_obj->get_typ());
+				dbg->error("objlist_t::rdwr","unresolvable position error: %i,%i instead %i,%i (object type %i will be not saved!)", new_obj->get_pos().x, new_obj->get_pos().y, current_pos.x, current_pos.y, new_obj->get_typ());
 				file->wr_obj_id(-1);
 			}
 		}
@@ -1064,11 +1064,11 @@ void objlist_t::dump() const
 		return;
 	}
 	else if(capacity==1) {
-		DBG_MESSAGE("objlist_t::dump()","one object \'%s\' owned by sp %p", obj.one->get_name(), obj.one->get_owner() );
+		DBG_MESSAGE("objlist_t::dump","one object \'%s\' owned by sp %p", obj.one->get_name(), obj.one->get_owner() );
 		return;
 	}
 
-	DBG_MESSAGE("objlist_t::dump()","%i objects", top );
+	DBG_MESSAGE("objlist_t::dump","%i objects", top );
 	for(uint8 n=0; n<top; n++) {
 		DBG_MESSAGE( obj.some[n]->get_name(), "at %i owned by sp %p", n, obj.some[n]->get_owner() );
 	}
@@ -1297,7 +1297,7 @@ void objlist_t::check_season(const bool calc_only_season_change)
 	if(  capacity <= 1  ) {
 		// lets check here for consistency
 		if(  top != capacity  ) {
-			dbg->fatal( "objlist_t::check_season()", "top not matching!" );
+			dbg->fatal( "objlist_t::check_season", "top not matching!" );
 		}
 		obj_t *check_obj = obj.one;
 		if(  !check_obj->check_season( calc_only_season_change )  ) {

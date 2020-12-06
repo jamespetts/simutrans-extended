@@ -713,7 +713,7 @@ void vehicle_class_manager_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		// convoy vanished
 		if(  !cnv.is_bound()  ) {
-			dbg->error( "vehicle_class_manager_t::rdwr()", "Could not restore vehicle class manager window of (%d)", cnv.get_id() );
+			dbg->error( "vehicle_class_manager_t::rdwr", "Could not restore vehicle class manager window of (%d)", cnv.get_id() );
 			destroy_win( this );
 			return;
 		}

@@ -153,7 +153,7 @@ void strasse_t::rdwr(loadsave_t *file)
 				desc = default_strasse;
 				welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 			}
-			dbg->warning("strasse_t::rdwr()", "Unknown street %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
+			dbg->warning("strasse_t::rdwr", "Unknown street %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);
@@ -313,8 +313,8 @@ void strasse_t::update_ribi_mask_oneway(ribi_t::ribi mask, ribi_t::ribi allow, p
 	}
 
 	// assertion. @mask and @allow must be single or none.
-	if(!(ribi_t::is_single(mask)||(mask==ribi_t::none))) dbg->error( "weg_t::update_ribi_mask_oneway()", "mask is not single or none.");
-	if(!(ribi_t::is_single(allow)||(allow==ribi_t::none))) dbg->error( "weg_t::update_ribi_mask_oneway()", "allow is not single or none.");
+	if(!(ribi_t::is_single(mask)||(mask==ribi_t::none))) dbg->error( "weg_t::update_ribi_mask_oneway", "mask is not single or none.");
+	if(!(ribi_t::is_single(allow)||(allow==ribi_t::none))) dbg->error( "weg_t::update_ribi_mask_oneway", "allow is not single or none.");
 
 	if(  mask==ribi_t::none  ) {
 		if(  ribi_t::is_twoway(get_ribi_unmasked())  ) {

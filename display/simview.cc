@@ -203,7 +203,7 @@ void main_view_t::display(bool force_dirty)
 			for(  int t = 0;  t < env_t::num_threads - 1;  t++  ) {
 				if(  pthread_create( &thread[t], &attr, display_region_thread, (void *)&ka[t] )  ) {
 					can_multithreading = false;
-					dbg->error( "main_view_t::display()", "cannot multi-thread, error at thread #%i", t+1 );
+					dbg->error( "main_view_t::display", "cannot multi-thread, error at thread #%i", t+1 );
 					return;
 				}
 			}

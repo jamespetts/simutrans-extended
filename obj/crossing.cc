@@ -131,7 +131,7 @@ void crossing_t::rdwr(loadsave_t *file)
 		uint8 bdummy=0;
 		file->rdwr_byte(bdummy);
 		file->rdwr_long(ldummy);
-		dbg->fatal("crossing_t::rdwr()","I should be never force to load old style crossings!" );
+		dbg->fatal("crossing_t::rdwr","I should be never force to load old style crossings!" );
 	}
 	// which waytypes?
 	uint8 w1, w2;
@@ -156,11 +156,11 @@ void crossing_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		desc = crossing_logic_t::get_crossing( (waytype_t)w1, (waytype_t)w2, speedlimit0, speedlimit1, welt->get_timeline_year_month());
 		if(desc==NULL) {
-			dbg->warning("crossing_t::rdwr()","requested for waytypes %i and %i not available, try to load object without timeline", w1, w2 );
+			dbg->warning("crossing_t::rdwr","requested for waytypes %i and %i not available, try to load object without timeline", w1, w2 );
 			desc = crossing_logic_t::get_crossing( (waytype_t)w1, (waytype_t)w2, speedlimit0, speedlimit1, 0);
 		}
 		if(desc==NULL) {
-			dbg->fatal("crossing_t::rdwr()","requested for waytypes %i and %i but nothing defined!", w1, w2 );
+			dbg->fatal("crossing_t::rdwr","requested for waytypes %i and %i but nothing defined!", w1, w2 );
 		}
 		crossing_logic_t::add( this, static_cast<crossing_logic_t::crossing_state_t>(state) );
 	}

@@ -120,7 +120,7 @@ void interaction_t::move_cursor( const event_t &ev )
 void interaction_t::interactive_event( const event_t &ev )
  {
 	if(ev.ev_class == EVENT_KEYBOARD) {
-		DBG_MESSAGE("interaction_t::interactive_event()","Keyboard event with code %d '%c'", ev.ev_code, (ev.ev_code>=32  &&  ev.ev_code<=126) ? ev.ev_code : '?' );
+		DBG_MESSAGE("interaction_t::interactive_event","Keyboard event with code %d '%c'", ev.ev_code, (ev.ev_code>=32  &&  ev.ev_code<=126) ? ev.ev_code : '?' );
 
 		switch(ev.ev_code) {
 
@@ -224,7 +224,7 @@ void interaction_t::interactive_event( const event_t &ev )
 
 	if(  IS_LEFTRELEASE(&ev)  &&  ev.my < display_get_height() -16 -(TICKER_HEIGHT*ticker::empty())  ) {
 
-		DBG_MESSAGE("interaction_t::interactive_event(event_t &ev)", "calling a tool");
+		DBG_MESSAGE("interaction_t::interactive_event", "calling a tool");
 
 		koord3d pos = world->get_zeiger()->get_pos();
 		if(world->is_within_grid_limits(pos.get_2d())) {

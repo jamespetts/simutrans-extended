@@ -203,7 +203,7 @@ int ai_goods_t::get_factory_tree_missing_count( fabrik_t *fab )
 		FOR(vector_tpl<koord>, const& q, fab->get_suppliers()) {
 			fabrik_t* const qfab = fabrik_t::get_fab(q);
 			if(!qfab) {
-				dbg->error("fabrik_t::get_fab()","fab %s at %s does not find supplier at %s.", fab->get_name(), fab->get_pos().get_str(), q.get_str());
+				dbg->error("fabrik_t::get_fab","fab %s at %s does not find supplier at %s.", fab->get_name(), fab->get_pos().get_str(), q.get_str());
 				continue;
 			}
 			if( !is_forbidden( qfab, fab, ware ) ) {
@@ -337,7 +337,7 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 
 	if( !ok ) {
 		// no suitable locations found
-		DBG_MESSAGE( "ai_t::suche_platz1_platz2()", "no suitable locations found" );
+		DBG_MESSAGE( "ai_t::suche_platz1_platz2", "no suitable locations found" );
 	}
 	else {
 		// save places
@@ -346,7 +346,7 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 		platz2 = ziel;
 		size2 = ziel_size;
 
-		DBG_MESSAGE( "ai_t::suche_platz1_platz2()", "platz1=%d,%d platz2=%d,%d", platz1.x, platz1.y, platz2.x, platz2.y );
+		DBG_MESSAGE( "ai_t::suche_platz1_platz2", "platz1=%d,%d platz2=%d,%d", platz1.x, platz1.y, platz2.x, platz2.y );
 
 		// reserve space with marker
 		set_marker( platz1, size1 );
@@ -379,7 +379,7 @@ bool ai_goods_t::create_ship_transport_vehicle(fabrik_t *qfab, int vehicle_count
 			ship_vehicle = v_second->get_leader(0);
 		}
 	}
-	DBG_MESSAGE( "ai_goods_t::create_ship_transport_vehicle()", "for %i ships", vehicle_count );
+	DBG_MESSAGE( "ai_goods_t::create_ship_transport_vehicle", "for %i ships", vehicle_count );
 
 	if(  convoihandle_t::is_exhausted()  ) {
 		// too many convois => cannot do anything about this ...
@@ -735,7 +735,7 @@ bool ai_goods_t::create_simple_rail_transport()
 
 	// connect track to station
 	if(  with_tf  ||  build_no_tf  ) {
-DBG_MESSAGE("ai_goods_t::create_simple_rail_transport()","building simple track from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
+DBG_MESSAGE("ai_goods_t::create_simple_rail_transport","building simple track from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
 		// connect to track
 
 		koord3d_vector_t const& r     = with_tf ? baumaulwurf.get_route() : bauigel.get_route();
@@ -895,7 +895,7 @@ void ai_goods_t::step()
 			}
 			rail_engine = NULL;
 			rail_weg = NULL;
-DBG_MESSAGE("do_ki()","rail vehicle %p",rail_vehicle);
+DBG_MESSAGE("do_ki","rail vehicle %p",rail_vehicle);
 
 			// is road transport allowed?
 			if(road_transport) {
@@ -903,7 +903,7 @@ DBG_MESSAGE("do_ki()","rail vehicle %p",rail_vehicle);
 				road_vehicle = vehicle_search( road_wt, 10, best_road_speed, freight, false);
 			}
 			road_weg = NULL;
-DBG_MESSAGE("do_ki()","road vehicle %p",road_vehicle);
+DBG_MESSAGE("do_ki","road vehicle %p",road_vehicle);
 
 			ship_vehicle = NULL;
 			if(start->get_desc()->get_placement()==factory_desc_t::Water) {
@@ -924,7 +924,7 @@ DBG_MESSAGE("do_ki()","road vehicle %p",road_vehicle);
 			const int prod = min((uint32)ziel->get_base_production(),
 			                 ( start->get_base_production() * start->get_desc()->get_product(start_ware)->get_factor() )/256u - (uint32)(start->get_output()[start_ware].get_stat(1, FAB_GOODS_DELIVERED)) );
 
-DBG_MESSAGE("do_ki()","check railway");
+DBG_MESSAGE("do_ki","check railway");
 			/* calculate number of cars for railroad */
 			count_rail=255;	// no cars yet
 			if(  rail_vehicle!=NULL  ) {
@@ -951,12 +951,12 @@ DBG_MESSAGE("do_ki()","check railway");
 							count_rail = rail_engine->get_power()*rail_engine->get_gear()/(80*64);
 						}
 						count_rail = ((count_rail+1)&0x0FE)+1;
-DBG_MESSAGE("ai_goods_t::do_ki()","Engine %s guess to need %d rail cars %s for route (%s)", rail_engine->get_name(), count_rail, rail_vehicle->get_name(), rail_weg->get_name() );
+DBG_MESSAGE("ai_goods_t::do_ki","Engine %s guess to need %d rail cars %s for route (%s)", rail_engine->get_name(), count_rail, rail_vehicle->get_name(), rail_weg->get_name() );
 					}
 				}
 				if(  rail_engine==NULL  ||  rail_weg==NULL  ) {
 					// no rail transport possible
-DBG_MESSAGE("ai_goods_t::do_ki()","No railway possible.");
+DBG_MESSAGE("ai_goods_t::do_ki","No railway possible.");
 					rail_vehicle = NULL;
 					count_rail = 255;
 				}
@@ -964,7 +964,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No railway possible.");
 
 			INT_CHECK("simplay 1265");
 
-DBG_MESSAGE("do_ki()","check railway");
+DBG_MESSAGE("do_ki","check railway");
 			/* calculate number of cars for road; much easier */
 			count_road=255;	// no cars yet
 			if(  road_vehicle!=NULL  ) {
@@ -977,11 +977,11 @@ DBG_MESSAGE("do_ki()","check railway");
 					}
 					// minimum vehicle is 1, maximum vehicle is 48, more just result in congestion
 					count_road = min( 254, (prod*dist) / (road_vehicle->get_total_capacity()*best_road_speed*2)+2 );
-DBG_MESSAGE("ai_goods_t::do_ki()","guess to need %d road cars %s for route %s", count_road, road_vehicle->get_name(), road_weg->get_name() );
+DBG_MESSAGE("ai_goods_t::do_ki","guess to need %d road cars %s for route %s", count_road, road_vehicle->get_name(), road_weg->get_name() );
 				}
 				else {
 					// no roads there !?!
-DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
+DBG_MESSAGE("ai_goods_t::do_ki","No roadway possible.");
 				}
 			}
 
@@ -1013,7 +1013,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 				const sint32 profit_per_month = ( (freight_revenue_per_trip - freight_cost_per_trip) * tpm / dist * 2) ;
 
 				cost_rail = rail_weg->get_maintenance() - profit_per_month;
-				DBG_MESSAGE("ai_goods_t::do_ki()","Net credits per month for rail transport %.2f (income %.2f)",cost_rail/100.0, profit_per_month/100.0 );
+				DBG_MESSAGE("ai_goods_t::do_ki","Net credits per month for rail transport %.2f (income %.2f)",cost_rail/100.0, profit_per_month/100.0 );
 			}
 
 			// and calculate cost for road
@@ -1034,7 +1034,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 				const sint32 profit_per_month = ( (freight_revenue_per_trip - freight_cost_per_trip) * tpm / dist * 2) ;
 
 				cost_road = road_weg->get_maintenance() - profit_per_month;
-				DBG_MESSAGE("ai_goods_t::do_ki()","Net credits per month for road transport %.2f (income %.2f)",cost_road/100.0, profit_per_month/100.0 );
+				DBG_MESSAGE("ai_goods_t::do_ki","Net credits per month for road transport %.2f (income %.2f)",cost_road/100.0, profit_per_month/100.0 );
 			}
 
 			// check location, if vehicles found
@@ -1153,7 +1153,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 					state = NR_RAIL_SUCCESS;
 				}
 				else {
-DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i and %i,%i and try road",platz1.x,platz1.y,platz2.x,platz2.y);
+DBG_MESSAGE("ai_goods_t::step","remove already constructed rail between %i,%i and %i,%i and try road",platz1.x,platz1.y,platz2.x,platz2.y);
 					// no success: clean route
 					char param[16];
 					sprintf( param, "%i", track_wt );
@@ -1313,7 +1313,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 				if(delete_this) {
 					waytype_t const wt = cnv->front()->get_desc()->get_waytype();
 					linehandle_t line = cnv->get_line();
-					DBG_MESSAGE("ai_goods_t::do_ki()","%s retires convoi %s!", get_name(), cnv->get_name());
+					DBG_MESSAGE("ai_goods_t::do_ki","%s retires convoi %s!", get_name(), cnv->get_name());
 
 					koord3d start_pos, end_pos;
 					schedule_t *schedule = cnv->get_schedule();
@@ -1395,7 +1395,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 		break;
 
 		default:
-			dbg->warning("ai_goods_t::step()","Illegal state!", state );
+			dbg->warning("ai_goods_t::step","Illegal state!", state );
 			state = NR_INIT;
 	}
 }
@@ -1423,7 +1423,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 			road_vehicle = NULL;
 			road_weg = NULL;
 
-			next_construction_steps = welt->get_steps()+simrand(400, "void ai_goods_t::rdwr()");
+			next_construction_steps = welt->get_steps()+simrand(400, "ai_goods_t::rdwr");
 
 			root = start = ziel = NULL;
 		}

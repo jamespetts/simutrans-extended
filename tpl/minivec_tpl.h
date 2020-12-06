@@ -35,7 +35,7 @@ public:
 	void resize(uint new_size)
 	{
 		if (new_size > 255) {
-			dbg->fatal("minivec_tpl<T>::resize()", "new size %u too large (>255).", new_size);
+			dbg->fatal("minivec_tpl<T>::resize", "new size %u too large (>255).", new_size);
 		}
 		// not yet used, but resize may be called anyway
 		if(size<=0) {
@@ -118,7 +118,7 @@ public:
 	void insert_at(uint8 pos, T elem)
 	{
 		if (pos > count) {
-			dbg->fatal("minivec_tpl<T>::append()", "cannot insert at %i! Only %i elements.", pos, count);
+			dbg->fatal("minivec_tpl<T>::append", "cannot insert at %i! Only %i elements.", pos, count);
 		}
 
 		if (pos < count) {

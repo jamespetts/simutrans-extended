@@ -105,7 +105,7 @@ void message_t::set_message_flags(sint32 t, sint32 w, sint32 a, sint32 i)
 */
 void message_t::add_message(const char *text, koord pos, uint16 what_flags, PLAYER_COLOR_VAL color, image_id image)
 {
-	DBG_MESSAGE("message_t::add_msg()", "%40s (at %i,%i)", text, pos.x, pos.y);
+	DBG_MESSAGE("message_t::add_msg", "%40s (at %i,%i)", text, pos.x, pos.y);
 
 	sint32 what = what_flags & ~local_flag;
 	sint32 art = (1 << what);

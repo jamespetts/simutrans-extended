@@ -66,7 +66,7 @@ obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->seasons = 1;
 		desc->building = NULL;
 	}
-	DBG_DEBUG("tile_reader_t::read_node()","phases=%i index=%i seasons=%i",
+	DBG_DEBUG("tile_reader_t::read_node","phases=%i index=%i seasons=%i",
 		desc->phases,
 		desc->index,
 		desc->seasons );
@@ -178,7 +178,7 @@ void building_reader_t::register_obj(obj_desc_t *&data)
 	uint8 l = desc->type == building_desc_t::generic_stop ? 16 : 4;
 	while (l > 0) {
 		if ((desc->layouts & l) != 0  &&  (desc->layouts != l)) {
-			dbg->error( "building_reader_t::register_obj()", "Building %s has %i layouts (illegal) => set to %i", desc->get_name(), desc->layouts, l );
+			dbg->error( "building_reader_t::register_obj", "Building %s has %i layouts (illegal) => set to %i", desc->get_name(), desc->layouts, l );
 			desc->layouts = l;
 			break;
 		}
@@ -310,7 +310,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			if(extended_version > 5)
 			{
-				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
+				dbg->fatal( "building_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
 			desc->is_control_tower = decode_uint8(p);
 			desc->population_and_visitor_demand_capacity = decode_uint16(p);
@@ -390,7 +390,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			if(extended_version > 2)
 			{
-				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
+				dbg->fatal( "building_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
 			else
 			{
@@ -440,7 +440,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			if(extended_version > 2)
 			{
-				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "building_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 			else if(extended_version == 2)
 			{
@@ -628,12 +628,12 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	else if((desc->level > 32767 && (desc->type >= building_desc_t::bahnhof || desc->type == building_desc_t::factory)) ||
 	        (version<=3  &&  ((uint8)desc->type >= building_desc_t::bahnhof  ||  desc->type == building_desc_t::factory  ||  desc->type == building_desc_t::depot)  &&  desc->level==0))
 	{
-		DBG_DEBUG("building_reader_t::read_node()","old station building -> set level to 4");
+		DBG_DEBUG("building_reader_t::read_node","old station building -> set level to 4");
 		desc->level = 4;
 	}
 	else if(  version<=5  &&  (desc->type == building_desc_t::factory  ||  desc->type == building_desc_t::depot)  ) {
 		desc->level ++;
-		DBG_DEBUG("building_reader_t::read_node()","old station building -> increment level by one to %i", desc->level );
+		DBG_DEBUG("building_reader_t::read_node","old station building -> increment level by one to %i", desc->level );
 	}
 
 	if(  version<=6  ) {
@@ -650,7 +650,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	if (desc->level == 65535) {
 		desc->level = 1;	// apparently wrong level
-		dbg->warning("building_reader_t::read_node()","level was 65535, intended was probably 0 => changed." );
+		dbg->warning("building_reader_t::read_node","level was 65535, intended was probably 0 => changed." );
 	}
 
 	if (version < 9) {
@@ -662,7 +662,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 	}
 
-	DBG_DEBUG("building_reader_t::read_node()",
+	DBG_DEBUG("building_reader_t::read_node",
 		"version=%d"
 		" gtyp=%d"
 		" type=%d"

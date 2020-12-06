@@ -153,10 +153,10 @@ bool ai_t::call_general_tool( int tool, koord k, const char *param )
 	const char * err = tool_t::general_tool[tool]->work( this, pos );
 	if(err) {
 		if(*err) {
-			dbg->message("ai_t::call_general_tool()","failed for tool %i at (%s) because of \"%s\"", tool, pos.get_str(), err );
+			dbg->message("ai_t::call_general_tool","failed for tool %i at (%s) because of \"%s\"", tool, pos.get_str(), err );
 		}
 		else {
-			dbg->message("ai_t::call_general_tool()","not successful for tool %i at (%s)", tool, pos.get_str() );
+			dbg->message("ai_t::call_general_tool","not successful for tool %i at (%s)", tool, pos.get_str() );
 		}
 	}
 	tool_t::general_tool[tool]->set_default_param(old_param);
@@ -231,7 +231,7 @@ bool ai_t::find_place(koord &start, koord &size, koord target, koord off)
 		dir[1] = koord( 0, sgn(target.y-start.y) );
 	}
 
-	DBG_MESSAGE("ai_t::find_place()","at (%i,%i) for size (%i,%i)",xpos,ypos,off.x,off.y);
+	DBG_MESSAGE("ai_t::find_place","at (%i,%i) for size (%i,%i)",xpos,ypos,off.x,off.y);
 	int maxy = min( welt->get_size().y, ypos + off.y + cov );
 	int maxx = min( welt->get_size().x, xpos + off.x + cov );
 	for (int y = max(0,ypos-cov);  y < maxy;  y++) {
@@ -251,7 +251,7 @@ bool ai_t::find_place(koord &start, koord &size, koord target, koord off)
 			else {
 				koord test(x,y);
 				if(  get_halt(test).is_bound()  ) {
-DBG_MESSAGE("ai_t::find_place()","Search around stop at (%i,%i)",x,y);
+DBG_MESSAGE("ai_t::find_place","Search around stop at (%i,%i)",x,y);
 
 					// we are on a station that belongs to us
 					int xneu=x-1, yneu=y-1;
@@ -397,7 +397,7 @@ bool ai_t::built_update_headquarter()
 			}
 			// failed
 			if(  place==koord::invalid  ||  err!=NULL  ) {
-				dbg->warning( "ai_t::built_update_headquarter()", "HQ failed with : %s", translator::translate(err) );
+				dbg->warning( "ai_t::built_update_headquarter", "HQ failed with : %s", translator::translate(err) );
 			}
 			return false;
 		}
@@ -487,7 +487,7 @@ bool ai_t::create_simple_road_transport(koord platz1, koord size1, koord platz2,
 {
 	// sanity check here
 	if(road_weg==NULL) {
-		DBG_MESSAGE("ai_t::create_simple_road_transport()","called without valid way.");
+		DBG_MESSAGE("ai_t::create_simple_road_transport","called without valid way.");
 		return false;
 	}
 
@@ -524,7 +524,7 @@ bool ai_t::create_simple_road_transport(koord platz1, koord size1, koord platz2,
 	route_t verbindung;
 	if (verbindung.calc_route(welt, welt->lookup_kartenboden(platz1)->get_pos(), welt->lookup_kartenboden(platz2)->get_pos(), test_driver, 0, 0, false, 0) == route_t::valid_route  &&
 		verbindung.get_count()<2u*shortest_distance(platz1,platz2))  {
-DBG_MESSAGE("ai_passenger_t::create_simple_road_transport()","Already connection between %d,%d to %d,%d is only %i",platz1.x, platz1.y, platz2.x, platz2.y, verbindung.get_count() );
+DBG_MESSAGE("ai_passenger_t::create_simple_road_transport","Already connection between %d,%d to %d,%d is only %i",platz1.x, platz1.y, platz2.x, platz2.y, verbindung.get_count() );
 		// found something with the nearly same length
 		delete test_driver;
 		return true;
@@ -565,17 +565,17 @@ DBG_MESSAGE("ai_passenger_t::create_simple_road_transport()","Already connection
 
 	// now build with or without terraforming
 	if (with_tf) {
-		DBG_MESSAGE("ai_t::create_simple_road_transport()","building not so simple road from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
+		DBG_MESSAGE("ai_t::create_simple_road_transport","building not so simple road from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
 		baumaulwurf.build();
 		return true;
 	}
 	else if(bauigel.get_count() > 2) {
-		DBG_MESSAGE("ai_t::create_simple_road_transport()","building simple road from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
+		DBG_MESSAGE("ai_t::create_simple_road_transport","building simple road from %d,%d to %d,%d",platz1.x, platz1.y, platz2.x, platz2.y);
 		bauigel.build();
 		return true;
 	}
 	// beware: The stop position might have changes!
-	DBG_MESSAGE("ai_t::create_simple_road_transport()","building simple road from %d,%d to %d,%d failed",platz1.x, platz1.y, platz2.x, platz2.y);
+	DBG_MESSAGE("ai_t::create_simple_road_transport","building simple road from %d,%d to %d,%d failed",platz1.x, platz1.y, platz2.x, platz2.y);
 	return false;
 }
 

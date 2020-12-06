@@ -44,7 +44,7 @@ marker_t& marker_t::instance(int world_size_x, int world_size_y, uint32 thread_n
 		markers[thread_number].init(world_size_x, world_size_y);
 		return markers[thread_number];
 #else
-		dbg->fatal("marker_t& marker_t::instance(int world_size_x, int world_size_y, uint32 thread_number)", "Attempting to instantiate threaded marker in a single-threaded build");
+		dbg->fatal("marker_t& marker_t::instance", "Attempting to instantiate threaded marker in a single-threaded build");
 		return the_instance;
 #endif
 	}

@@ -224,16 +224,16 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 		!STRICMP(type_name, "airport")  ||
 		!STRICMP(type_name, "wharf")
 	) {
-		dbg->fatal("building_writer_t::write_obj()","%s is obsolete type for %s; use stop/extension and waytype!", type_name, obj.get("name") );
+		dbg->fatal("building_writer_t::write_obj","%s is obsolete type for %s; use stop/extension and waytype!", type_name, obj.get("name") );
 	} else if (!STRICMP(type_name, "hall")  ||  !STRICMP(type_name, "post")  ||  !STRICMP(type_name, "shed")  ) {
-		dbg->fatal("building_writer_t::write_obj()","%s is obsolete type for %s; use extension and waytype!", type_name, obj.get("name") );
+		dbg->fatal("building_writer_t::write_obj","%s is obsolete type for %s; use extension and waytype!", type_name, obj.get("name") );
 	} else {
-		dbg->fatal( "building_writer_t::write_obj()","%s is obsolete type for %s", type_name, obj.get("name") );
+		dbg->fatal( "building_writer_t::write_obj","%s is obsolete type for %s", type_name, obj.get("name") );
 	}
 
 	// Is this a station extension building?
 	if (obj.get_int("extension_building", 0) > 0) {
-		dbg->fatal("building_writer_t::write_obj()","extension_building is obsolete keyword for %s; use stop/extension and waytype!", obj.get("name") );
+		dbg->fatal("building_writer_t::write_obj","extension_building is obsolete keyword for %s; use stop/extension and waytype!", obj.get("name") );
 	}
 
 

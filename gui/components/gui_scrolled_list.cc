@@ -93,7 +93,7 @@ void gui_scrolled_list_t::show_selection(int sel)
 		int s = 0;
 		for (int i = 0; i<sel; s += item_list[i]->get_height(), i++) {
 		}
-		DBG_MESSAGE("gui_scrolled_list_t::show_selection()", "sel=%d, offset=%d, size.h=%d", s, offset, size.h);
+		DBG_MESSAGE("gui_scrolled_list_t::show_selection", "sel=%d, offset=%d, size.h=%d", s, offset, size.h);
 		if (s < offset || (s + item_list[sel]->get_height()) > offset + size.h) {
 			// outside range => reposition
 			sb.set_knob_offset(max(0, s - (size.h / 2)));

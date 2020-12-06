@@ -196,10 +196,10 @@ void road_user_t::hop(grund_t *)
 	if(count > 1) {
 #ifdef DEBUG_SIMRAND_CALLS
 		char buf[256];
-		sprintf(buf, "road_user_t::hop() %s", typeid(*this).name());
+		sprintf(buf, "road_user_t::hop %s", typeid(*this).name());
 		pos_next = list[simrand(count, buf)]->get_pos();
 #else
-		pos_next = list[simrand(count, "road_user_t::hop()")]->get_pos();
+		pos_next = list[simrand(count, "road_user_t::hop")]->get_pos();
 #endif
 		direction = calc_set_direction(get_pos(), pos_next);
 	} else if(count==1) {
@@ -342,7 +342,7 @@ stringhashtable_tpl<const citycar_desc_t *> private_car_t::table;
 bool private_car_t::register_desc(const citycar_desc_t *desc)
 {
 	if(  table.remove(desc->get_name())  ) {
-		dbg->warning( "citycar_desc_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "citycar_desc_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 	}
 	table.put(desc->get_name(), desc);
 	return true;
@@ -537,12 +537,12 @@ void private_car_t::rdwr(loadsave_t *file)
 		desc = table.get(s);
 
 		if(  desc == 0  &&  !liste_timeline.empty()  ) {
-			dbg->warning("private_car_t::rdwr()", "Object '%s' not found in table, trying random stadtauto object type",s);
+			dbg->warning("private_car_t::rdwr", "Object '%s' not found in table, trying random stadtauto object type",s);
 			desc = pick_any_weighted(liste_timeline);
 		}
 
 		if(desc == 0) {
-			dbg->warning("private_car_t::rdwr()", "loading game with private cars, but no private car objects found in PAK files.");
+			dbg->warning("private_car_t::rdwr", "loading game with private cars, but no private car objects found in PAK files.");
 		}
 		else {
 			set_image(desc->get_image_id(ribi_t::get_dir(get_direction())));
@@ -550,7 +550,7 @@ void private_car_t::rdwr(loadsave_t *file)
 	}
 
 	if(file->get_version() <= 86001) {
-		time_to_life = simrand(1000000, "void private_car_t::rdwr")+10000;
+		time_to_life = simrand(1000000, "private_car_t::rdwr")+10000;
 	}
 	else if(file->get_version() <= 89004) {
 		file->rdwr_long(time_to_life);
@@ -1315,7 +1315,7 @@ void private_car_t::hop(grund_t* to)
 		if(cr) {
 			cr->add_to_crossing(this);
 		} else {
-			dbg->warning("private_car_t::hop(grund_t* to)", "No crossing found at %s", to->get_pos().get_str());
+			dbg->warning("private_car_t::hop", "No crossing found at %s", to->get_pos().get_str());
 		}
 	}
 	if(  next_lane==1  ) {

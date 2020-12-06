@@ -66,7 +66,7 @@ vehicle_t* vehicle_builder_t::build(koord3d k, player_t* player, convoi_t* cnv, 
 		case narrowgauge_wt:v = new narrowgauge_rail_vehicle_t(k, vb, player, cnv); break;
 
 		default:
-			dbg->fatal("vehicle_builder_t::build()", "cannot built a vehicle with waytype %i", vb->get_waytype());
+			dbg->fatal("vehicle_builder_t::build", "cannot built a vehicle with waytype %i", vb->get_waytype());
 	}
 
 	if(cnv)
@@ -137,7 +137,7 @@ bool vehicle_builder_t::register_desc(vehicle_desc_t *desc)
 	const int idx = GET_WAYTYPE_INDEX( desc->get_waytype() );
 	vehicle_desc_t *old_desc = name_fahrzeuge.get( desc->get_name() );
 	if(  old_desc  ) {
-		dbg->warning( "vehicle_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "vehicle_builder_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		name_fahrzeuge.remove( desc->get_name() );
 		typ_fahrzeuge[idx].remove(old_desc);
 	}
@@ -194,7 +194,7 @@ static bool compare_vehicle_desc(const vehicle_desc_t* a, const vehicle_desc_t* 
 bool vehicle_builder_t::successfully_loaded()
 {
 	// first: check for bonus tables
-	DBG_MESSAGE("vehicle_builder_t::sort_lists()","called");
+	DBG_MESSAGE("vehicle_builder_t::sort_lists","called");
 	for(  int wt_idx=0;  wt_idx<9;  wt_idx++  ) {
 		slist_tpl<vehicle_desc_t*>& typ_liste = typ_fahrzeuge[wt_idx];
 		uint count = typ_liste.get_count();
@@ -357,7 +357,7 @@ const vehicle_desc_t *vehicle_builder_t::vehicle_search( waytype_t wt, const uin
 		}
 	}
 	// no vehicle found!
-	DBG_MESSAGE( "vehicle_builder_t::vehicle_search()","could not find a suitable vehicle! (speed %i, weight %i)",target_speed,target_weight);
+	DBG_MESSAGE( "vehicle_builder_t::vehicle_search","could not find a suitable vehicle! (speed %i, weight %i)",target_speed,target_weight);
 	return NULL;
 }
 
@@ -485,7 +485,7 @@ const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const 
 	}
 	// no vehicle found!
 	if(  desc==NULL  ) {
-		DBG_MESSAGE( "vehicle_builder_t::get_best_matching()","could not find a suitable vehicle! (speed %i, weight %i)",target_speed,target_weight);
+		DBG_MESSAGE( "vehicle_builder_t::get_best_matching","could not find a suitable vehicle! (speed %i, weight %i)",target_speed,target_weight);
 	}
 	return desc;
 }

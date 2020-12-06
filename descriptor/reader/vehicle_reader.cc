@@ -281,7 +281,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			else
 			{
-				dbg->fatal( "vehicle_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "vehicle_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 		}
 	}
@@ -408,7 +408,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			else
 			{
-				dbg->fatal( "vehicle_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "vehicle_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 		}
 	}
@@ -564,13 +564,13 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			else
 			{
-				dbg->fatal( "vehicle_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "vehicle_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 		}
 	}
 	else {
 		if(  version!=0  ) {
-			dbg->fatal( "vehicle_reader_t::read_node()","Do not know how to handle version=%i", version );
+			dbg->fatal( "vehicle_reader_t::read_node","Do not know how to handle version=%i", version );
 		}
 		// old node, version 0
 
@@ -719,16 +719,16 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			wavname[i] = decode_sint8(p);
 		}
 		desc->sound = (sint16)sound_desc_t::get_sound_id(wavname);
-DBG_MESSAGE("vehicle_reader_t::register_obj()","sound %s to %i",wavname,desc->sound);
+DBG_MESSAGE("vehicle_reader_t::register_obj","sound %s to %i",wavname,desc->sound);
 	}
 	else if(desc->sound>=0  &&  desc->sound<=MAX_OLD_SOUNDS) {
 		sint16 old_id = desc->sound;
 		desc->sound = (sint16)sound_desc_t::get_compatible_sound_id(old_id);
-DBG_MESSAGE("vehicle_reader_t::register_obj()","old sound %i to %i",old_id,desc->sound);
+DBG_MESSAGE("vehicle_reader_t::register_obj","old sound %i to %i",old_id,desc->sound);
 	}
 	desc->loaded();
 
-	DBG_DEBUG("vehicle_reader_t::read_node()",
+	DBG_DEBUG("vehicle_reader_t::read_node",
 		"version=%d "
 		"way=%d classes=%d capacity=%d comfort=%d cost=%d topspeed=%d weight=%g axle_load=%d power=%d "
 		"betrieb=%d sound=%d vor=%d nach=%d "

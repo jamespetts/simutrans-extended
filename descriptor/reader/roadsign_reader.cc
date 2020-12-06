@@ -81,7 +81,7 @@ obj_desc_t * roadsign_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			if(extended_version > 3)
 			{
-				dbg->fatal( "roadsign_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "roadsign_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 			desc->allow_underground = decode_uint8(p);
 			if(extended_version >= 1)
@@ -139,7 +139,7 @@ obj_desc_t * roadsign_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			if(extended_version > 1)
 			{
-				dbg->fatal( "roadsign_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "roadsign_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 			desc->allow_underground = decode_uint8(p);
 		}
@@ -165,7 +165,7 @@ obj_desc_t * roadsign_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->wtyp = road_wt;
 	}
 	else {
-		dbg->fatal("roadsign_reader_t::read_node()","version 0 not supported. File corrupt?");
+		dbg->fatal("roadsign_reader_t::read_node","version 0 not supported. File corrupt?");
 	}
 
 	if(  version<=3  &&  (  desc->is_choose_sign() ||  desc->is_private_way()  )  &&  desc->get_waytype() == road_wt  ) {
@@ -200,7 +200,7 @@ obj_desc_t * roadsign_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->double_block = false;
 	}
 
-	DBG_DEBUG("roadsign_reader_t::read_node()",
+	DBG_DEBUG("roadsign_reader_t::read_node",
 		"version=%i, min_speed=%i, price=%i, flags=%x, wtyp=%i, offset_left=%i, intro=%i/%i, retire=%i/%i",
 		version,
 		desc->min_speed,

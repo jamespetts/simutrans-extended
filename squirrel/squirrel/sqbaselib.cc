@@ -502,7 +502,7 @@ static SQInteger array_top(HSQUIRRELVM v)
 		v->Push(_array(o)->Top());
 		return 1;
 	}
-	else return sq_throwerror(v,_SC("top() on a empty array"));
+	else return sq_throwerror(v,_SC("top on a empty array"));
 }
 
 static SQInteger array_insert(HSQUIRRELVM v)

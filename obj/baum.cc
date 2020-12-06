@@ -58,7 +58,7 @@ void baum_t::distribute_trees(int density)
 	unsigned   const t_forest_size  = (unsigned)pow(((double)x * (double)y), 0.25) * s.get_forest_base_size() / 11 + (x + y) / (2 * s.get_forest_map_size_divisor());
 	uint8      const c_forest_count = (unsigned)pow(((double)x * (double)y), 0.5)  / s.get_forest_count_divisor();
 
-DBG_MESSAGE("verteile_baeume()","creating %i forest",c_forest_count);
+DBG_MESSAGE("verteile_baeume","creating %i forest",c_forest_count);
 	loadingscreen_t ls(translator::translate("Placing trees"),c_forest_count, true, true);
 	for (uint8 c1 = 0 ; c1 < c_forest_count ; c1++) {
 		// to have same execution order for simrand
@@ -208,7 +208,7 @@ uint32 baum_t::create_forest(koord new_center, koord size )
 			uint8 number_to_plant = 0;
 			uint8 const max_trees_here = min(welt->get_settings().get_max_no_of_trees_on_square(), (tree_probability - TREE_MIN_PROBABILITY + 1) / 2);
 			for (uint8 c2 = 0 ; c2<max_trees_here; c2++) {
-				const uint32 rating = simrand(10, "uint32 baum_t::create_forest") + TREE_MIN_PROBABILITY + c2*2;
+				const uint32 rating = simrand(10, "baum_t::create_forest") + TREE_MIN_PROBABILITY + c2*2;
 				if (rating < tree_probability ) {
 					number_to_plant++;
 				}
@@ -227,7 +227,7 @@ void baum_t::fill_trees(int density)
 	if(  desc_names.empty()  ) {
 		return;
 	}
-DBG_MESSAGE("verteile_baeume()","distributing single trees");
+DBG_MESSAGE("verteile_baeume","distributing single trees");
 	koord pos;
 	for(  pos.y=0;  pos.y<welt->get_size().y;  pos.y++  ) {
 		for(  pos.x=0;  pos.x<welt->get_size().x;  pos.x++  ) {
@@ -236,7 +236,7 @@ DBG_MESSAGE("verteile_baeume()","distributing single trees");
 				// plant spare trees, (those with low preffered density) or in an entirely tree climate
 				uint16 cl = 1 << welt->get_climate(pos);
 				settings_t const& s = welt->get_settings();
-				if ((cl & s.get_no_tree_climates()) == 0 && ((cl & s.get_tree_climates()) != 0 || simrand(s.get_forest_inverse_spare_tree_density() * density, "baum_t::fill_trees()") < 100)) {
+				if ((cl & s.get_no_tree_climates()) == 0 && ((cl & s.get_tree_climates()) != 0 || simrand(s.get_forest_inverse_spare_tree_density() * density, "baum_t::fill_trees") < 100)) {
 					plant_tree_on_coordinate(pos, 1, 1);
 				}
 			}
@@ -262,7 +262,7 @@ bool baum_t::successfully_loaded()
 	FOR(stringhashtable_tpl<tree_desc_t const*>, const& i, desc_names) {
 		tree_list.insert_ordered(i.value, compare_tree_desc);
 		if(  tree_list.get_count()==255  ) {
-			dbg->error( "baum_t::successfully_loaded()", "Maximum tree count exceeded! (max 255 instead of %i)", desc_names.get_count() );
+			dbg->error( "baum_t::successfully_loaded", "Maximum tree count exceeded! (max 255 instead of %i)", desc_names.get_count() );
 			break;
 		}
 	}
@@ -313,7 +313,7 @@ bool baum_t::register_desc(tree_desc_t *desc)
 {
 	// avoid duplicates with same name
 	if(desc_names.remove(desc->get_name())) {
-		dbg->warning( "baum_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "baum_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 	}
 	desc_names.put(desc->get_name(), desc );
 	return true;
@@ -500,8 +500,8 @@ bool baum_t::plant_tree()
 	// the area for normal new tree planting is slightly more restricted, square of 9x9 was too much
 
 	// to have same execution order for simrand
-	const sint16 sx = simrand(5, "baum_t::plant_tree()")-2;
-	const sint16 sy = simrand(5, "baum_t::plant_tree()")-2;
+	const sint16 sx = simrand(5, "baum_t::plant_tree")-2;
+	const sint16 sy = simrand(5, "baum_t::plant_tree")-2;
 	const koord k = get_pos().get_2d() + koord(sx,sy);
 
 	return plant_tree_on_coordinate(k, tree_list[tree_id], true, false);
@@ -522,7 +522,7 @@ bool baum_t::check_season(const bool)
 	if(  age >= 512  &&  age <= 515  ) {
 		// only in this month a tree can span new trees
 		// only 1-3 trees will be planted....
-		uint8 const c_plant_tree_max = 1 + simrand( welt->get_settings().get_max_no_of_trees_on_square(), "bool baum_t::check_season(const bool)" );
+		uint8 const c_plant_tree_max = 1 + simrand( welt->get_settings().get_max_no_of_trees_on_square(), "baum_t::check_season" );
 		uint retrys = 0;
 		for(  uint8 c_temp = 0;  c_temp < c_plant_tree_max  &&  retrys < c_plant_tree_max;  c_temp++  ) {
 			if(  !plant_tree()  ) {

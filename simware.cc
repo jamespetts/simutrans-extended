@@ -98,7 +98,7 @@ void ware_t::rdwr(loadsave_t *file)
 		file->rdwr_str(typ, lengthof(typ));
 		const goods_desc_t *type = goods_manager_t::get_info(typ);
 		if(type==NULL) {
-			dbg->warning("ware_t::rdwr()","unknown ware of catg %d!",catg);
+			dbg->warning("ware_t::rdwr","unknown ware of catg %d!",catg);
 			index = goods_manager_t::get_info_catg(catg)->get_index();
 			menge = 0;
 		}

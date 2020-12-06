@@ -1312,7 +1312,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		}
 
 	}
-DBG_DEBUG("gui_convoy_assembler_t::build_vehicle_lists()","finally %i passenger vehicle, %i  engines, %i good wagons",pas_vec.get_count(),loks_vec.get_count(),waggons_vec.get_count());
+DBG_DEBUG("gui_convoy_assembler_t::build_vehicle_lists","finally %i passenger vehicle, %i  engines, %i good wagons",pas_vec.get_count(),loks_vec.get_count(),waggons_vec.get_count());
 
 
 
@@ -1594,7 +1594,7 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 void gui_convoy_assembler_t::set_vehicle_bar_shape(gui_image_list_t::image_data_t *pic, const vehicle_desc_t *v)
 {
 	if (!v || !pic) {
-		dbg->error("void gui_convoy_assembler_t::set_vehicle_bar_shape()", "pass the invalid parameter)");
+		dbg->error("gui_convoy_assembler_t::set_vehicle_bar_shape", "pass the invalid parameter)");
 		return;
 	}
 	pic->basic_coupling_constraint_prev = v->get_basic_constraint_prev();
@@ -1607,7 +1607,7 @@ void gui_convoy_assembler_t::set_vehicle_bar_shape(gui_image_list_t::image_data_
 void gui_convoy_assembler_t::init_convoy_color_bars(vector_tpl<const vehicle_desc_t *> *vehs)
 {
 	if (!vehs->get_count()) {
-		dbg->error("void gui_convoy_assembler_t::init_convoy_color_bars()", "Convoy trying to initialize colorbar was null)");
+		dbg->error("gui_convoy_assembler_t::init_convoy_color_bars", "Convoy trying to initialize colorbar was null)");
 		return;
 	}
 	const uint16 month_now = welt->get_timeline_year_month();
@@ -1999,7 +1999,7 @@ void gui_convoy_assembler_t::update_data()
 			}
 		}
 
-DBG_DEBUG("gui_convoy_assembler_t::update_data()","current %s with colors %i,%i",info->get_name(),img.lcolor,img.rcolor);
+DBG_DEBUG("gui_convoy_assembler_t::update_data","current %s with colors %i,%i",info->get_name(),img.lcolor,img.rcolor);
 	}
 
 	if (depot_frame)

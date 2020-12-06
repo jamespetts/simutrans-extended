@@ -72,7 +72,7 @@ void gui_textarea_t::recalc_size()
 			new_lines += LINESPACE;
 		} while(  next != NULL  &&  *buf!=0  );
 	}
-DBG_MESSAGE("gui_textarea_t::recalc_size()","reset size to %i,%i",x_size+L_PADDING_RIGHT,new_lines);
+DBG_MESSAGE("gui_textarea_t::recalc_size","reset size to %i,%i",x_size+L_PADDING_RIGHT,new_lines);
 	set_size( scr_size( x_size + L_PADDING_RIGHT, new_lines + 10) );
 }
 

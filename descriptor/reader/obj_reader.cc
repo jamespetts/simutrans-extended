@@ -59,10 +59,10 @@ bool obj_reader_t::finish_rd()
 	resolve_xrefs();
 
 	FOR(obj_map, const& i, *obj_reader) {
-		DBG_MESSAGE("obj_reader_t::finish_rd()","Checking %s objects...", i.value->get_type_name());
+		DBG_MESSAGE("obj_reader_t::finish_rd","Checking %s objects...", i.value->get_type_name());
 
 		if (!i.value->successfully_loaded()) {
-			dbg->warning("obj_reader_t::finish_rd()","... failed!");
+			dbg->warning("obj_reader_t::finish_rd","... failed!");
 			return false;
 		}
 	}
@@ -127,7 +127,7 @@ bool obj_reader_t::load(const char *path, const char *message)
 		if(drawing  &&  skinverwaltung_t::biglogosymbol==NULL) {
 			display_fillbox_wh( 0, 0, display_get_width(), display_get_height(), COL_BLACK, true );
 			read_file((name+"symbol.BigLogo.pak").c_str());
-DBG_MESSAGE("obj_reader_t::load()","big logo %p", skinverwaltung_t::biglogosymbol);
+DBG_MESSAGE("obj_reader_t::load","big logo %p", skinverwaltung_t::biglogosymbol);
 		}
 
 		loadingscreen_t ls( message, max, true );
@@ -136,7 +136,7 @@ DBG_MESSAGE("obj_reader_t::load()","big logo %p", skinverwaltung_t::biglogosymbo
 			// defining the pak tile width ....
 			read_file((name+"ground.Outside.pak").c_str());
 			if(ground_desc_t::outside==NULL) {
-				dbg->warning("obj_reader_t::load()","ground.Outside.pak not found, cannot guess tile size! (driving on left will not work!)");
+				dbg->warning("obj_reader_t::load","ground.Outside.pak not found, cannot guess tile size! (driving on left will not work!)");
 			}
 			else {
 				if (char const* const copyright = ground_desc_t::outside->get_copyright()) {
@@ -145,7 +145,7 @@ DBG_MESSAGE("obj_reader_t::load()","big logo %p", skinverwaltung_t::biglogosymbo
 			}
 		}
 
-DBG_MESSAGE("obj_reader_t::load()", "reading from '%s'", name.c_str());
+DBG_MESSAGE("obj_reader_t::load", "reading from '%s'", name.c_str());
 
 		uint n = 0;
 		FORX(searchfolder_t, const& i, find, ++n) {
@@ -165,7 +165,7 @@ DBG_MESSAGE("obj_reader_t::load()", "reading from '%s'", name.c_str());
 void obj_reader_t::read_file(const char *name)
 {
 	// Hajo: added trace
-	DBG_DEBUG("obj_reader_t::read_file()", "filename='%s'", name);
+	DBG_DEBUG("obj_reader_t::read_file", "filename='%s'", name);
 
 	if (FILE* const fp = fopen(name, "rb")) {
 		sint32 n = 0;
@@ -179,7 +179,7 @@ void obj_reader_t::read_file(const char *name)
 
 		if(feof(fp)) {
 			// Hajo: added error check
-			dbg->error("obj_reader_t::read_file()",	"unexpected end of file after %d bytes while reading '%s'!",n, name);
+			dbg->error("obj_reader_t::read_file",	"unexpected end of file after %d bytes while reading '%s'!",n, name);
 		}
 		else {
 //			DBG_DEBUG("obj_reader_t::read_file()", "skipped %d header bytes", n);
@@ -193,20 +193,20 @@ void obj_reader_t::read_file(const char *name)
 		n = fread(dummy, 4, 1, fp);
 		version = decode_uint32(p);
 
-		DBG_DEBUG("obj_reader_t::read_file()", "read %d blocks, file version is %x", n, version);
+		DBG_DEBUG("obj_reader_t::read_file", "read %d blocks, file version is %x", n, version);
 
 		if(version <= COMPILER_VERSION_CODE) {
 			obj_desc_t *data = NULL;
 			read_nodes(fp, data, 0, version );
 		}
 		else {
-			DBG_DEBUG("obj_reader_t::read_file()","version of '%s' is too old, %d instead of %d", name, version, COMPILER_VERSION_CODE );
+			DBG_DEBUG("obj_reader_t::read_file","version of '%s' is too old, %d instead of %d", name, version, COMPILER_VERSION_CODE );
 		}
 		fclose(fp);
 	}
 	else {
 		// Hajo: added error check
-		dbg->error("obj_reader_t::read_file()", "reading '%s' failed!", name);
+		dbg->error("obj_reader_t::read_file", "reading '%s' failed!", name);
 	}
 }
 
@@ -253,7 +253,7 @@ void obj_reader_t::read_nodes(FILE* fp, obj_desc_t*& data, int register_nodes, u
 	}
 	else {
 		// no reader found ...
-		dbg->warning("obj_reader_t::read_nodes()","skipping unknown %.4s-node\n",reinterpret_cast<const char *>(&node.type));
+		dbg->warning("obj_reader_t::read_nodes","skipping unknown %.4s-node\n",reinterpret_cast<const char *>(&node.type));
 		fseek(fp, node.size, SEEK_CUR);
 		for(int i = 0; i < node.children; i++) {
 			skip_nodes(fp,version);
@@ -289,12 +289,12 @@ void obj_reader_t::resolve_xrefs()
 			}
 
 			if(!obj_loaded) {
-				dbg->warning("obj_reader_t::resolve_xrefs()", "cannot resolve '%4.4s-%s'", &u.key, i.key);
+				dbg->warning("obj_reader_t::resolve_xrefs", "cannot resolve '%4.4s-%s'", &u.key, i.key);
 			}
 
 			FOR(slist_tpl<obj_desc_t**>, const x, i.value) {
 				if (!obj_loaded && fatals.get(x)) {
-					dbg->fatal("obj_reader_t::resolve_xrefs()", "cannot resolve '%4.4s-%s'", &u.key, i.key);
+					dbg->fatal("obj_reader_t::resolve_xrefs", "cannot resolve '%4.4s-%s'", &u.key, i.key);
 				}
 				// delete old xref-node
 				xref_nodes.append(*x);

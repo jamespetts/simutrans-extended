@@ -65,7 +65,7 @@ obj_desc_t * tree_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->allowed_climates = all_but_arctic_climate;
 		desc->distribution_weight = 3;
 	}
-	DBG_DEBUG("tree_reader_t::read_node()",
+	DBG_DEBUG("tree_reader_t::read_node",
 		"version=%i, climates=$%X, seasons=%i, chance=%i (node.size=%i)",
 		version,
 		desc->allowed_climates,

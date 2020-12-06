@@ -120,7 +120,7 @@ static void show_times(karte_t *welt, main_view_t *view)
 	welt->set_fast_forward(true);
 	intr_disable();
 
-	dbg->message( "show_times()", "simple profiling of drawing routines" );
+	dbg->message( "show_times", "simple profiling of drawing routines" );
  	int i;
 
 	image_id img = ground_desc_t::outside->get_image(0,0);
@@ -129,40 +129,40 @@ static void show_times(karte_t *welt, main_view_t *view)
 	for (i = 0;  i < 6000000;  i++) {
 		display_img_aux(img, 50, 50, 1, 0, true  CLIP_NUM_DEFAULT);
 	}
-	dbg->message( "display_img()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_img", "%i iterations took %li ms", i, dr_time() - ms );
 
 	image_id player_img = skinverwaltung_t::color_options->get_image_id(0);
  	ms = dr_time();
 	for (i = 0;  i < 1000000;  i++) {
  		display_color_img( player_img, 120, 100, i%15, 0, 1);
 	}
-	dbg->message( "display_color_img() with recolor", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_color_img with recolor", "%i iterations took %li ms", i, dr_time() - ms );
 
  	ms = dr_time();
 	for (i = 0;  i < 1000000;  i++) {
 		display_color_img( img, 120, 100, 0, 1, 1);
  		display_color_img( player_img, 160, 150, 16, 1, 1);
 	}
-	dbg->message( "display_color_img()", "3x %i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_color_img", "3x %i iterations took %li ms", i, dr_time() - ms );
 
  	ms = dr_time();
 	for (i = 0;  i < 600000;  i++) {
 		dr_prepare_flush();
  		dr_flush();
 	}
-	dbg->message( "display_flush_buffer()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_flush_buffer", "%i iterations took %li ms", i, dr_time() - ms );
 
  	ms = dr_time();
 	for (i = 0;  i < 300000;  i++) {
  		display_text_proportional_len_clip(100, 120, "Dies ist ein kurzer Textetxt ...", 0, 0, false, -1);
 	}
-	dbg->message( "display_text_proportional_len_clip()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_text_proportional_len_clip", "%i iterations took %li ms", i, dr_time() - ms );
 
  	ms = dr_time();
 	for (i = 0;  i < 300000;  i++) {
  		display_fillbox_wh(100, 120, 300, 50, 0, false);
 	}
-	dbg->message( "display_fillbox_wh()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_fillbox_wh", "%i iterations took %li ms", i, dr_time() - ms );
 
  	ms = dr_time();
  	for (i = 0; i < 2000; i++) {
@@ -184,7 +184,7 @@ static void show_times(karte_t *welt, main_view_t *view)
 			welt->lookup( w->get_pos() )->get_neighbour( dummy, invalid_wt, ribi_t::north );
 		}
 	}
-	dbg->message( "grund_t::get_neighbour()", "%i iterations took %li ms", i*weg_t::get_alle_wege().get_count(), dr_time() - ms );
+	dbg->message( "grund_t::get_neighbour", "%i iterations took %li ms", i*weg_t::get_alle_wege().get_count(), dr_time() - ms );
 
  	ms = dr_time();
 	for (i = 0; i < 2000; i++) {
@@ -368,7 +368,7 @@ static void ask_language()
  */
 static void sim_new_handler()
 {
-	dbg->fatal("sim_new_handler()", "OUT OF MEMORY or other error allocating new object");
+	dbg->fatal("sim_new_handler", "OUT OF MEMORY or other error allocating new object");
 }
 
 
@@ -694,7 +694,7 @@ int simu_main(int argc, char** argv)
 	chdir( env_t::program_dir );
 	if(  found_simuconf  ) {
 		if(simuconf.open(path_to_simuconf)) {
-			printf("parse_simuconf() in program dir (%s): ", path_to_simuconf);
+			printf("parse_simuconf in program dir (%s): ", path_to_simuconf);
 			env_t::default_settings.parse_simuconf( simuconf, disp_width, disp_height, fullscreen, env_t::objfilename );
 		}
 	}
@@ -703,7 +703,7 @@ int simu_main(int argc, char** argv)
 	// otherwise it is in ~/simutrans/simuconf.tab
 	string obj_conf = string(env_t::user_dir) + "simuconf.tab";
 	if (simuconf.open(obj_conf.c_str())) {
-		printf("parse_simuconf() in user dir (%s): ", obj_conf.c_str());
+		printf("parse_simuconf in user dir (%s): ", obj_conf.c_str());
 		env_t::default_settings.parse_simuconf( simuconf, disp_width, disp_height, fullscreen, env_t::objfilename );
 	}
 
@@ -751,7 +751,7 @@ int simu_main(int argc, char** argv)
 			portadress = 13353;
 		}
 		// will fail fatal on the opening routine ...
-		dbg->message( "simmain()", "Server started on port %i", portadress );
+		dbg->message( "simmain", "Server started on port %i", portadress );
 		env_t::networkmode = network_init_server( portadress );
 	}
 	else {
@@ -760,7 +760,7 @@ int simu_main(int argc, char** argv)
 	}
 
 #ifdef DEBUG
-	DBG_MESSAGE( "simmain::main()", "Version: " VERSION_NUMBER EXTENDED_VERSION "  Date: " VERSION_DATE);
+	DBG_MESSAGE( "simmain::main", "Version: " VERSION_NUMBER EXTENDED_VERSION "  Date: " VERSION_DATE);
 	DBG_MESSAGE( "Debuglevel","%i", env_t::verbose_debug );
 	DBG_MESSAGE( "program_dir", env_t::program_dir );
 	DBG_MESSAGE( "home_dir", env_t::user_dir );
@@ -801,7 +801,7 @@ int simu_main(int argc, char** argv)
 		themes_ok = gui_theme_t::themes_init("themes.tab");
 	}
 	if(  !themes_ok  ) {
-		dbg->fatal( "simmain()", "No GUI themes found! Please re-install!" );
+		dbg->fatal( "simmain", "No GUI themes found! Please re-install!" );
 	}
 	chdir( env_t::program_dir );
 
@@ -933,7 +933,7 @@ int simu_main(int argc, char** argv)
 		sint16 idummy;
 		string dummy;
 		env_t::default_settings.set_way_height_clearance( 0 );
-		dbg->important("parse_simuconf() at %s: ", obj_conf.c_str());
+		dbg->important("parse_simuconf at %s: ", obj_conf.c_str());
 		env_t::default_settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
 		pak_diagonal_multiplier = env_t::default_settings.get_pak_diagonal_multiplier();
 		pak_height_conversion_factor = env_t::pak_height_conversion_factor;
@@ -949,7 +949,7 @@ int simu_main(int argc, char** argv)
 	if (simuconf.open(obj_conf.c_str())) {
 		sint16 idummy;
 		string dummy;
-		printf("parse_simuconf() in user dir, second time (%s): ", obj_conf.c_str());
+		printf("parse_simuconf in user dir, second time (%s): ", obj_conf.c_str());
 		env_t::default_settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
 		simuconf.close();
 	}
@@ -970,14 +970,14 @@ int simu_main(int argc, char** argv)
 		sint16 idummy;
 		string dummy;
 		if (simuconf.open(obj_conf.c_str())) {
-			printf("parse_simuconf() in addons: %s", obj_conf.c_str());
+			printf("parse_simuconf in addons: %s", obj_conf.c_str());
 			env_t::default_settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
 			simuconf.close();
 		}
 		// and parse user settings again ...
 		obj_conf = string(env_t::user_dir) + "simuconf.tab";
 		if (simuconf.open(obj_conf.c_str())) {
-			printf("parse_simuconf() in user dir, third time (%s): ", obj_conf.c_str());
+			printf("parse_simuconf in user dir, third time (%s): ", obj_conf.c_str());
 			env_t::default_settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
 			simuconf.close();
 		}
@@ -1018,7 +1018,7 @@ int simu_main(int argc, char** argv)
 	// Adam - Moved away loading from simmain and placed into translator for better modularization
 	if(  !translator::load(env_t::objfilename)  ) {
 		// installation error: likely only program started
-		dbg->fatal("simmain::main()", "Unable to load any language files\n"
+		dbg->fatal("simmain::main", "Unable to load any language files\n"
 		                              "*** PLEASE INSTALL PROPER BASE FILES ***\n\n"
 							"either run ./get_lang_files.sh\n\nor\n\n"
 							"download a complete simutrans archive and put the text/ folder here."

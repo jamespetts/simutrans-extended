@@ -976,14 +976,14 @@ void signal_t::info(cbuffer_t & buf) const
 			{
 				buf.append("\n");
 				buf.append(translator::translate("keine"));
-				dbg->warning("signal_t::info()", "Signalbox could not be found from a signal on valid ground");
+				dbg->warning("signal_t::info", "Signalbox could not be found from a signal on valid ground");
 			}
 		}
 		else
 		{
 			buf.append("\n");
 			buf.append(translator::translate("keine"));
-			dbg->warning("signal_t::info()", "Signalbox could not be found from a signal on valid ground");
+			dbg->warning("signal_t::info", "Signalbox could not be found from a signal on valid ground");
 		}
 	}
 }

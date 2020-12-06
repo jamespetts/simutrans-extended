@@ -79,7 +79,7 @@ public:
 	T& at(unsigned x, unsigned y)
 	{
 		if(  (int)((w-x)|(h-y))<0  ) {
-			dbg->fatal("array2d_tpl<T>::at()","index out of bounds: (%d,%d) not in (0..%d, 0..%d)", x, y, w-1, h-1);
+			dbg->fatal("array2d_tpl<T>::at","index out of bounds: (%d,%d) not in (0..%d, 0..%d)", x, y, w-1, h-1);
 		}
 		return data[y*w + x];
 	}
@@ -103,7 +103,7 @@ public:
         {
 			if(  h != other.h  &&  w != other.w  ) {
 				if(  h*w!=0  ) {
-					dbg->error("array2d_tpl<T>::=()","source has different size!");
+					dbg->error("array2d_tpl<T>::=","source has different size!");
 				}
 			}
 			delete [] data;

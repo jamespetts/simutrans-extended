@@ -281,7 +281,7 @@ convoi_t::~convoi_t()
 
 	close_windows();
 
-DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
+DBG_MESSAGE("convoi_t::~convoi_t", "destroying %d, %p", self.get_id(), this);
 	// stop following
 	if(welt->get_viewport()->get_follow_convoi()==self) {
 		welt->get_viewport()->set_follow_convoi( convoihandle_t() );
@@ -512,7 +512,7 @@ void convoi_t::finish_rd()
 
 	bool realing_position = false;
 	if(  vehicle_count>0  ) {
-		DBG_MESSAGE("convoi_t::finish_rd()","state=%s, next_stop_index=%d", state_names[state], next_stop_index );
+		DBG_MESSAGE("convoi_t::finish_rd","state=%s, next_stop_index=%d", state_names[state], next_stop_index );
 
 	const uint32 max_route_index = get_route() ? get_route()->get_count() - 1 : 0;
 
@@ -522,7 +522,7 @@ void convoi_t::finish_rd()
 				vehicle_t* v = vehicle[i];
 				if(v->get_route_index() > max_route_index && max_route_index > 0 && i > 0)
 				{
-					dbg->error("convoi_t::finish_rd()", "Route index is %i, whereas maximum route index is %i for convoy %i", v->get_route_index(), max_route_index, self.get_id());
+					dbg->error("convoi_t::finish_rd", "Route index is %i, whereas maximum route index is %i for convoy %i", v->get_route_index(), max_route_index, self.get_id());
 					v->set_route_index(front()->get_route_index());
 				}
 				v->set_leading( i==0 );
@@ -556,7 +556,7 @@ void convoi_t::finish_rd()
 				}
 			}
 		}
-DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
+DBG_MESSAGE("convoi_t::finish_rd","next_stop_index=%d", next_stop_index );
 
 		linehandle_t new_line = line;
 		if(  !new_line.is_bound()  ) {
@@ -581,7 +581,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 			if(new_line.is_bound()) {
 				line = new_line;
 				line->add_convoy(self, true);
-				DBG_DEBUG("convoi_t::finish_rd()","%s registers for %d", name_and_id, line.get_id());
+				DBG_DEBUG("convoi_t::finish_rd","%s registers for %d", name_and_id, line.get_id());
 			}
 			else {
 				line = linehandle_t();
@@ -590,20 +590,20 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 	}
 	else {
 		// no vehicles in this convoi?!?
-		dbg->error( "convoi_t::finish_rd()","No vehicles in Convoi %i: will be destroyed!", self.get_id() );
+		dbg->error( "convoi_t::finish_rd","No vehicles in Convoi %i: will be destroyed!", self.get_id() );
 		destroy();
 		return;
 	}
 	// put convoi again right on track?
 	if(realing_position  &&  vehicle_count>1) {
 		// display just a warning
-		DBG_MESSAGE("convoi_t::finish_rd()","cnv %i is currently too long.",self.get_id());
+		DBG_MESSAGE("convoi_t::finish_rd","cnv %i is currently too long.",self.get_id());
 
 		if (route.empty()) {
 			// realigning needs a route
 			state = NO_ROUTE;
 			owner->report_vehicle_problem( self, koord3d::invalid );
-			dbg->error( "convoi_t::finish_rd()", "No valid route, but needs realignment at (%s)!", front()->get_pos().get_str() );
+			dbg->error( "convoi_t::finish_rd", "No valid route, but needs realignment at (%s)!", front()->get_pos().get_str() );
 		}
 		else {
 			// since start may have been changed
@@ -612,7 +612,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 			if(last_route_index > route.get_count() - 1 && v_count > 0)
 			{
 				last_route_index = 0;
-				dbg->warning("convoi_t::finish_rd()", "Convoy %i's route index is out of range: resetting to zero", self.get_id());
+				dbg->warning("convoi_t::finish_rd", "Convoy %i's route index is out of range: resetting to zero", self.get_id());
 			}
 			uint16 start_index = min(max(1u, vehicle[vehicle_count - 1u]->get_route_index() - 1u), route.get_count() - 1u);
 
@@ -1354,7 +1354,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 			break;	// DRIVING
 
 		default:
-			dbg->fatal("convoi_t::sync_step()", "Wrong state %d!\n", state);
+			dbg->fatal("convoi_t::sync_step", "Wrong state %d!\n", state);
 			break;
 	}
 
@@ -2498,7 +2498,7 @@ void convoi_t::new_month()
 {
 	// should not happen: leftover convoi without vehicles ...
 	if(vehicle_count==0) {
-		DBG_DEBUG("convoi_t::new_month()","no vehicles => self destruct!");
+		DBG_DEBUG("convoi_t::new_month","no vehicles => self destruct!");
 		self_destruct();
 		return;
 	}
@@ -2743,10 +2743,10 @@ void convoi_t::start()
 		}
 		wait_lock = 0;
 
-		DBG_MESSAGE("convoi_t::start()","Convoi %s wechselt von INITIAL nach ROUTING_1", name_and_id);
+		DBG_MESSAGE("convoi_t::start","Convoi %s wechselt von INITIAL nach ROUTING_1", name_and_id);
 	}
 	else {
-		dbg->warning("convoi_t::start()","called with state=%s\n",state_names[state]);
+		dbg->warning("convoi_t::start","called with state=%s\n",state_names[state]);
 	}
 }
 
@@ -2842,10 +2842,10 @@ void convoi_t::warten_bis_weg_frei(sint32 restart_speed)
 
 bool convoi_t::add_vehicle(vehicle_t *v, bool infront)
 {
-DBG_MESSAGE("convoi_t::add_vehicle()","at pos %i of %i totals.",vehicle_count,max_vehicle);
+DBG_MESSAGE("convoi_t::add_vehicle","at pos %i of %i totals.",vehicle_count,max_vehicle);
 	// extend array if requested (only needed for trains)
 	if(vehicle_count == max_vehicle) {
-DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_vehicle);
+DBG_MESSAGE("convoi_t::add_vehicle","extend array_tpl to %i totals.",max_rail_vehicle);
 		//vehicle.resize(max_rail_vehicle, NULL);
 		vehicle.resize(max_rail_vehicle);
 	}
@@ -2909,7 +2909,7 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 	longest_max_loading_time = calc_longest_max_loading_time();
 	calc_direction_steps();
 
-DBG_MESSAGE("convoi_t::add_vehicle()","now %i of %i total vehicles.",vehicle_count,max_vehicle);
+DBG_MESSAGE("convoi_t::add_vehicle","now %i of %i total vehicles.",vehicle_count,max_vehicle);
 	return true;
 }
 
@@ -2918,11 +2918,11 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 	// Adapted from the add/remove vehicle functions
 	// @author: jamespetts, February 2010
 
-	DBG_MESSAGE("convoi_t::upgrade_vehicle()","at pos %i of %i totals.",i,max_vehicle);
+	DBG_MESSAGE("convoi_t::upgrade_vehicle","at pos %i of %i totals.",i,max_vehicle);
 
 	if (i >= vehicle.get_count())
 	{
-		dbg->error("convoi_t::upgrade_vehicle()", "Attempting to append beyond end of convoy");
+		dbg->error("convoi_t::upgrade_vehicle", "Attempting to append beyond end of convoy");
 		return;
 	}
 
@@ -3007,7 +3007,7 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 
 	delete old_vehicle;
 
-DBG_MESSAGE("convoi_t::upgrade_vehicle()","now %i of %i total vehicles.",i,max_vehicle);
+DBG_MESSAGE("convoi_t::upgrade_vehicle","now %i of %i total vehicles.",i,max_vehicle);
 }
 
 vehicle_t *convoi_t::remove_vehicle_bei(uint16 i)
@@ -3119,7 +3119,7 @@ void convoi_t::set_erstes_letztes()
 		back()->set_last(true);
 	}
 	else {
-		dbg->warning("convoi_t::set_erstes_letzes()", "called with vehicle_count==0!");
+		dbg->warning("convoi_t::set_erstes_letzes", "called with vehicle_count==0!");
 	}
 }
 
@@ -3141,7 +3141,7 @@ bool convoi_t::set_schedule(schedule_t * sch)
 		return false;
 	}
 
-	DBG_DEBUG("convoi_t::set_schedule()", "new=%p, old=%p", sch, schedule);
+	DBG_DEBUG("convoi_t::set_schedule", "new=%p, old=%p", sch, schedule);
 	assert(sch != NULL);
 
 	if(!line.is_bound() && state != INITIAL)
@@ -3283,7 +3283,7 @@ bool convoi_t::can_go_alte_direction()
 		if(gr==NULL  ||  (pred!=NULL  &&  (abs(v->get_pos().x-pred->get_pos().x)>=2  ||  abs(v->get_pos().y-pred->get_pos().y)>=2))  ) {
 			// ending here is an error!
 			// this is an already broken train => restart
-			dbg->warning("convoi_t::go_alte_direction()","broken convoy (id %i) found => fixing!",self.get_id());
+			dbg->warning("convoi_t::go_alte_direction","broken convoy (id %i) found => fixing!",self.get_id());
 			set_akt_speed(8);
 			return false;
 		}
@@ -3291,7 +3291,7 @@ bool convoi_t::can_go_alte_direction()
 		// now check, if ribi is straight and train is not
 		ribi_t::ribi weg_ribi = gr->get_weg_ribi_unmasked(v->get_waytype());
 		if(ribi_t::is_straight(weg_ribi)  &&  (weg_ribi|v->get_direction())!=weg_ribi) {
-			dbg->warning("convoi_t::go_alte_direction()","convoy with wrong vehicle directions (id %i) found => fixing!",self.get_id());
+			dbg->warning("convoi_t::go_alte_direction","convoy with wrong vehicle directions (id %i) found => fixing!",self.get_id());
 			set_akt_speed(8);
 			return false;
 		}
@@ -3305,7 +3305,7 @@ bool convoi_t::can_go_alte_direction()
 	// check if convoi is way too short (even for diagonal tracks)
 	tile_length += (ribi_t::is_straight(welt->lookup(vehicle[vehicle_count-1]->get_pos())->get_weg_ribi_unmasked(vehicle[vehicle_count-1]->get_waytype())) ? 16 : 8192/vehicle_t::get_diagonal_multiplier());
 	if(  convoi_length>tile_length  ) {
-		dbg->warning("convoi_t::go_alte_direction()","convoy too short (id %i) => fixing!",self.get_id());
+		dbg->warning("convoi_t::go_alte_direction","convoy too short (id %i) => fixing!",self.get_id());
 		set_akt_speed(8);
 		return false;
 	}
@@ -3934,7 +3934,7 @@ void convoi_t::rdwr(loadsave_t *file)
 	if(wait_lock > 1470000 && file->get_extended_version() < 11)
 	{
 		// max as was set by NO_ROUTE in former times. This code is deprecated now as the wait_lock can be higher with the convoy spacing feature.
-		dbg->warning("convoi_t::sync_prepre()","Convoi %d: wait lock out of bounds: wait_lock = %d, setting to 1470000",self.get_id(), wait_lock);
+		dbg->warning("convoi_t::sync_prepre","Convoi %d: wait lock out of bounds: wait_lock = %d, setting to 1470000",self.get_id(), wait_lock);
 		wait_lock = 1470000;
 	}
 
@@ -4010,14 +4010,14 @@ void convoi_t::rdwr(loadsave_t *file)
 					case obj_t::maglev_vehicle:         v = new maglev_rail_vehicle_t(file, first, last);     break;
 					case obj_t::narrowgauge_vehicle:    v = new narrowgauge_rail_vehicle_t(file, first, last);     break;
 					default:
-						dbg->fatal("convoi_t::convoi_t()","Can't load vehicle type %d", typ);
+						dbg->fatal("convoi_t::convoi_t","Can't load vehicle type %d", typ);
 				}
 			}
 
 			// no matching vehicle found?
 			if(v->get_desc()==NULL) {
 				// will create orphan object, but better than crashing at deletion ...
-				dbg->error("convoi_t::convoi_t()","Can't load vehicle and no replacement found!");
+				dbg->error("convoi_t::convoi_t","Can't load vehicle and no replacement found!");
 				i --;
 				vehicle_count --;
 				continue;
@@ -4064,11 +4064,11 @@ void convoi_t::rdwr(loadsave_t *file)
 				if(!gr) {
 					gr = welt->lookup_kartenboden(v->get_pos().get_2d());
 					if(gr) {
-						dbg->error("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d (setting to %i,%i,%i)", v->get_pos().get_str(), v->get_name(), state, gr->get_pos().x, gr->get_pos().y, gr->get_pos().z );
+						dbg->error("convoi_t::rdwr", "invalid position %s for vehicle %s in state %d (setting to %i,%i,%i)", v->get_pos().get_str(), v->get_name(), state, gr->get_pos().x, gr->get_pos().y, gr->get_pos().z );
 						v->set_pos( gr->get_pos() );
 					}
 					else {
-						dbg->fatal("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d", v->get_pos().get_str(), v->get_name(), state);
+						dbg->fatal("convoi_t::rdwr", "invalid position %s for vehicle %s in state %d", v->get_pos().get_str(), v->get_name(), state);
 					}
 					state = INITIAL;
 				}
@@ -4084,7 +4084,7 @@ void convoi_t::rdwr(loadsave_t *file)
 					}
 				}
 				if(  gr->get_top()>253  ) {
-					dbg->warning( "convoi_t::rdwr()", "cannot put vehicle on ground at (%s)", gr->get_pos().get_str() );
+					dbg->warning( "convoi_t::rdwr", "cannot put vehicle on ground at (%s)", gr->get_pos().get_str() );
 				}
 				gr->obj_add(v);
 				v->clear_flag(obj_t::not_on_map);
@@ -4568,7 +4568,7 @@ void convoi_t::rdwr(loadsave_t *file)
 						}
 						if(desc == NULL)
 						{
-							dbg->warning("convoi_t::rdwr()","no vehicle pak for '%s' search for something similar", vehicle_name);
+							dbg->warning("convoi_t::rdwr","no vehicle pak for '%s' search for something similar", vehicle_name);
 						}
 						else
 						{
@@ -4916,7 +4916,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			file->rdwr_byte(no_route_retry_count);
 			if(no_route_retry_count > 7)
 			{
-				dbg->warning("convoi_t::rdwr()","Convoi %d: no_route_retry_count out of bounds:  = %d, setting to 7",self.get_id(), no_route_retry_count);
+				dbg->warning("convoi_t::rdwr","Convoi %d: no_route_retry_count out of bounds:  = %d, setting to 7",self.get_id(), no_route_retry_count);
 				no_route_retry_count = 7;
 			}
 		}
@@ -5256,7 +5256,7 @@ void convoi_t::get_freight_info_by_class(cbuffer_t &)
 
 void convoi_t::open_schedule_window( bool show )
 {
-	DBG_MESSAGE("convoi_t::open_schedule_window()","Id = %ld, State = %d, Lock = %d",self.get_id(), state, wait_lock);
+	DBG_MESSAGE("convoi_t::open_schedule_window","Id = %ld, State = %d, Lock = %d",self.get_id(), state, wait_lock);
 
 	// manipulation of schedule not allowed while:
 	// - just starting
@@ -5333,7 +5333,7 @@ void convoi_t::laden() //"load" (Babelfish)
 	if(!this_halt.is_bound())
 	{
 		state = CAN_START;
-		dbg->warning("void convoi_t::laden()", "%s trying to load at %s when not at a halt", get_name(), halt.is_bound() ? halt->get_name() : "none");
+		dbg->warning("convoi_t::laden", "%s trying to load at %s when not at a halt", get_name(), halt.is_bound() ? halt->get_name() : "none");
 		return;
 	}
 
@@ -5432,7 +5432,7 @@ void convoi_t::laden() //"load" (Babelfish)
 		{
 			// Necessary to prevent divisions by zero.
 			// This code should never be reached.
-			dbg->warning("void convoi_t::laden()", "Journey time is %i for %s.", latest_journey_time, get_name());
+			dbg->warning("convoi_t::laden", "Journey time is %i for %s.", latest_journey_time, get_name());
 			latest_journey_time = 1;
 		}
 
@@ -5651,7 +5651,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 				average_speed = kmh_from_meters_and_tenths(travel_distance_meters, journey_tenths);
 				if(average_speed > speed_to_kmh(get_min_top_speed()))
 				{
-					dbg->warning("sint64 convoi_t::calc_revenue", "Average speed (%i) for %s exceeded maximum speed (%i); falling back to overall average", average_speed, get_name(), speed_to_kmh(get_min_top_speed()));
+					dbg->warning("convoi_t::calc_revenue", "Average speed (%i) for %s exceeded maximum speed (%i); falling back to overall average", average_speed, get_name(), speed_to_kmh(get_min_top_speed()));
 				}
 				else
 				{
@@ -6090,7 +6090,7 @@ station_tile_search_ready: ;
 		arrival_time = now;
 		if (arrival_time < WAIT_INFINITE)
 		{
-			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
+			dbg->warning("convoi_t::hat_gehalten", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
 		}
 	}
 	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
@@ -6357,7 +6357,7 @@ void convoi_t::destroy()
  */
 void convoi_t::dump() const
 {
-	dbg->debug("convoi::dump()",
+	dbg->debug("convoi::dump",
 		"\nvehicle_count = %d\n"
 		"wait_lock = %d\n"
 		"owner_n = %d\n"
@@ -6513,7 +6513,7 @@ void convoi_t::set_line(linehandle_t org_line)
 void convoi_t::unset_line()
 {
 	if(  line.is_bound()  ) {
-DBG_DEBUG("convoi_t::unset_line()", "removing old destinations from line=%d, schedule=%p",line.get_id(),schedule);
+DBG_DEBUG("convoi_t::unset_line", "removing old destinations from line=%d, schedule=%p",line.get_id(),schedule);
 		line->remove_convoy(self);
 		line = linehandle_t();
 		line_update_pending = linehandle_t();
@@ -7000,7 +7000,7 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot)
 	// limit update to certain states that are considered to be safe for schedule updates
 	int state = get_state();
 	if(state==convoi_t::EDIT_SCHEDULE) {
-DBG_MESSAGE("convoi_t::go_to_depot()","convoi state %i => cannot change schedule ... ", state );
+DBG_MESSAGE("convoi_t::go_to_depot","convoi state %i => cannot change schedule ... ", state );
 		return false;
 	}
 
@@ -7175,7 +7175,7 @@ DBG_MESSAGE("convoi_t::go_to_depot()","convoi state %i => cannot change schedule
 	else if (!transport_success)
 	{
 		sprintf(txt, translator::translate("Depot found but could not be inserted in schedule.  This is a bug!%s\n"), get_name());
-		dbg->warning("convoi_t::go_to_depot()", "Depot found but could not be inserted in schedule for convoy %s", get_name());
+		dbg->warning("convoi_t::go_to_depot", "Depot found but could not be inserted in schedule for convoy %s", get_name());
 		success = false;
 	}
 	if ( (!success || show_success) && get_owner() == welt->get_active_player())
@@ -8019,7 +8019,7 @@ uint32 convoi_t::calc_reverse_delay() const
 	}
 	else
 	{
-		dbg->warning("void convoi_t::book_departure_time(sint64 time)", "Cannot find last halt to set departure time");
+		dbg->warning("convoi_t::book_departure_time", "Cannot find last halt to set departure time");
 	}
  }
 
@@ -8093,7 +8093,7 @@ uint32 convoi_t::calc_reverse_delay() const
 	 case air_wt:
 		 return obj_t::airdepot;
 	 default:
-		 dbg->error("obj_t::typ convoi_t::get_depot_type() const", "Invalid waytype: cannot find correct depot type");
+		 dbg->error("obj_t::convoi_t::get_depot_type", "Invalid waytype: cannot find correct depot type");
 		 return obj_t::strassendepot;
 	 };
  }
@@ -8150,7 +8150,7 @@ void convoi_t::emergency_go_to_depot(bool show_success)
 
 			// The player can engineer this deliberately by blowing up depots and tracks, so it isn't always a game error.
 			// But it usually is an error, so report it as one.
-			dbg->error("void convoi_t::emergency_go_to_depot()", "Could not find a depot to which to send convoy %i", self.get_id() );
+			dbg->error("convoi_t::emergency_go_to_depot", "Could not find a depot to which to send convoy %i", self.get_id() );
 
 			destroy();
 #ifdef MULTI_THREAD

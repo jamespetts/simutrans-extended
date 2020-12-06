@@ -64,7 +64,7 @@ void sound_desc_t::init()
 	// process sound.tab
 	tabfile_t soundconf;
 	if (soundconf.open((sound_path + "sound.tab").c_str())) {
-DBG_MESSAGE("sound_desc_t::init()","successfully opened sound/sound.tab"  );
+DBG_MESSAGE("sound_desc_t::init","successfully opened sound/sound.tab"  );
 		tabfileobj_t contents;
 		soundconf.read(contents);
 		// max. 16 old sounds ...
@@ -73,9 +73,9 @@ DBG_MESSAGE("sound_desc_t::init()","successfully opened sound/sound.tab"  );
 			sprintf(buf, "sound[%i]", i);
 			const char *fn=ltrim(contents.get(buf));
 			if(fn[0]>0) {
-DBG_MESSAGE("sound_desc_t::init()","reading sound %s", fn  );
+DBG_MESSAGE("sound_desc_t::init","reading sound %s", fn  );
 				compatible_sound_id[i] = get_sound_id( fn );
-DBG_MESSAGE("sound_desc_t::init()","assigned system sound %d to sound %s (id=%i)", i, (const char *)fn, compatible_sound_id[i] );
+DBG_MESSAGE("sound_desc_t::init","assigned system sound %d to sound %s (id=%i)", i, (const char *)fn, compatible_sound_id[i] );
 			}
 		}
 		// now assign special sounds for climates, beaches and forest
@@ -105,13 +105,13 @@ sint16 sound_desc_t::get_sound_id(const char *name)
 		if(id!=NO_SOUND) {
 			s = new sound_ids(id,name);
 			name_sound.put(s->filename.c_str(), s );
-DBG_MESSAGE("sound_desc_t::get_sound_id()","successfully loaded sound %s internal id %i", s->filename.c_str(), s->id );
+DBG_MESSAGE("sound_desc_t::get_sound_id","successfully loaded sound %s internal id %i", s->filename.c_str(), s->id );
 			return s->id;
 		}
-		dbg->warning("sound_desc_t::get_sound_id()","sound \"%s\" not found", name );
+		dbg->warning("sound_desc_t::get_sound_id","sound \"%s\" not found", name );
 		return NO_SOUND;
 	}
-DBG_MESSAGE("sound_desc_t::get_sound_id()","successfully retrieved sound %s internal id %i", s->filename.c_str(), s->id );
+DBG_MESSAGE("sound_desc_t::get_sound_id","successfully retrieved sound %s internal id %i", s->filename.c_str(), s->id );
 	return s->id;
 }
 
@@ -131,10 +131,10 @@ bool sound_desc_t::register_desc(sound_desc_t *desc)
 	if(desc->sound_id!=NO_SOUND) {
 		if(desc->nr>=0  &&  desc->nr<=8) {
 			compatible_sound_id[desc->nr] = desc->sound_id;
-DBG_MESSAGE("sound_desc_t::get_sound_id()","successfully registered sound %s internal id %i as compatible sound %i", desc->get_name(), desc->sound_id, desc->nr );
+DBG_MESSAGE("sound_desc_t::get_sound_id","successfully registered sound %s internal id %i as compatible sound %i", desc->get_name(), desc->sound_id, desc->nr );
 			return true;
 		}
 	}
-	dbg->warning("sound_desc_t::get_sound_id()","failed to register sound %s internal id %i", desc->get_name() );
+	dbg->warning("sound_desc_t::get_sound_id","failed to register sound %s internal id %i", desc->get_name() );
 	return false;
 }

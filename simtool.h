@@ -1080,7 +1080,7 @@ public:
 			welt->set_dirty();
 		} else {
 			// no ribi_arrow pak.
-			dbg->warning("tool_show_ribi_t::init()", "the ribi_arrow pak is not installed!");
+			dbg->warning("tool_show_ribi_t::init", "the ribi_arrow pak is not installed!");
 		}
 		return false;
 	}

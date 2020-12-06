@@ -195,7 +195,7 @@ bool hausbauer_t::successfully_loaded()
 
 			default:
 				// obsolete object, usually such pak set will not load properly anyway (old objects should be caught before!)
-				dbg->error("hausbauer_t::successfully_loaded()","unknown subtype %i of \"%s\" ignored",desc->get_type(),desc->get_name());
+				dbg->error("hausbauer_t::successfully_loaded","unknown subtype %i of \"%s\" ignored",desc->get_type(),desc->get_name());
 		}
 
 		// Casting away the const is nasty:
@@ -258,11 +258,11 @@ bool hausbauer_t::register_desc(building_desc_t *desc)
 	if(old_desc) {
 		// do not overlay existing factories if the new one is not a factory
 		if (old_desc->is_factory()  &&  !desc->is_factory()) {
-			dbg->warning( "hausbauer_t::register_desc()", "Object %s could not be registered since it would overlay an existing factory building!", desc->get_name() );
+			dbg->warning( "hausbauer_t::register_desc", "Object %s could not be registered since it would overlay an existing factory building!", desc->get_name() );
 			delete desc;
 			return false;
 		}
-		dbg->warning( "hausbauer_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "hausbauer_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		desc_names.remove(desc->get_name());
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
@@ -301,7 +301,7 @@ void hausbauer_t::fill_menu(tool_selector_t* tool_selector, building_desc_t::bty
 	}
 
 	const uint16 time = welt->get_timeline_year_month();
-	DBG_DEBUG("hausbauer_t::fill_menu()","maximum %i",station_building.get_count());
+	DBG_DEBUG("hausbauer_t::fill_menu","maximum %i",station_building.get_count());
 	FOR(  vector_tpl<building_desc_t const*>,  const desc,  station_building  ) {
 //		DBG_DEBUG("hausbauer_t::fill_menu()", "try to add %s (%p)", desc->get_name(), desc);
 		if(  desc->get_type() == btype  &&  desc->get_builder()  &&  ((btype == building_desc_t::headquarters || btype == building_desc_t::signalbox) ||  desc->get_extra()==(uint16)wt)  ) {
@@ -531,7 +531,7 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 						tile->get_foreground(0, 0)    == IMG_EMPTY
 					)) {
 						// may have a rotation that is not recoverable
-						DBG_MESSAGE("hausbauer_t::build()","get_tile() empty at %i,%i",k.x,k.y);
+						DBG_MESSAGE("hausbauer_t::build","get_tile empty at %i,%i",k.x,k.y);
 				continue;
 			}
 
@@ -837,7 +837,7 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 				gb = new airdepot_t(pos, player, tile);
 				break;
 			default:
-				dbg->fatal("hausbauer_t::build_station_extension_depot()","waytpe %i has no depots!", desc->get_extra() );
+				dbg->fatal("hausbauer_t::build_station_extension_depot","waytpe %i has no depots!", desc->get_extra() );
 				break;
 		}
 	}
@@ -889,7 +889,7 @@ const building_tile_desc_t *hausbauer_t::find_tile(const char *name, int org_idx
 		const int size = desc->get_y()*desc->get_x();
 		if(  idx >= desc->get_all_layouts()*size  ) {
 			idx %= desc->get_all_layouts()*size;
-			DBG_MESSAGE("gebaeude_t::rdwr()","%s using tile %i instead of %i",name,idx,org_idx);
+			DBG_MESSAGE("gebaeude_t::rdwr","%s using tile %i instead of %i",name,idx,org_idx);
 		}
 		return desc->get_tile(idx);
 	}
@@ -1027,7 +1027,7 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 			continue;
 		}
 
-		const uint16 random = simrand(100, "static const building_desc_t* get_city_building_from_list");
+		const uint16 random = simrand(100, "static building_desc_t* get_city_building_from_list");
 
 		const int thislevel = desc->get_level();
 		if(thislevel>sum_level) {
@@ -1079,7 +1079,7 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 	const building_desc_t *desc_at_least=NULL;
 	FOR(vector_tpl<building_desc_t const*>, const desc, building_list)
 	{
-		const uint16 random = simrand(100, "static const building_desc_t* get_city_building_from_list");
+		const uint16 random = simrand(100, "static building_desc_t* get_city_building_from_list");
 		if(	desc->is_allowed_climate(cl) && desc->is_allowed_region(region) && is_allowed_size(desc, size)  &&
 			desc->get_distribution_weight()>0  &&
 			(time==0  ||  (desc->get_intro_year_month()<=time  &&  ((allow_earlier && random > 65) || desc->get_retire_year_month()>time)))) {

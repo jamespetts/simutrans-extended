@@ -51,14 +51,14 @@ obj_desc_t *factory_field_class_reader_t::read_node(FILE *fp, obj_node_info_t &n
 		desc->storage_capacity = decode_uint16(p);
 		desc->spawn_weight = decode_uint16(p);
 
-		DBG_DEBUG("factory_field_class_reader_t::read_node()", "has_snow %i, production %i, capacity %i, spawn_weight %i",
+		DBG_DEBUG("factory_field_class_reader_t::read_node", "has_snow %i, production %i, capacity %i, spawn_weight %i",
 			desc->snow_image,
 			desc->production_per_field,
 			desc->storage_capacity,
 			desc->spawn_weight);
 	}
 	else {
-		dbg->fatal("factory_field_class_reader_t::read_node()","unknown version %i", v&0x00ff );
+		dbg->fatal("factory_field_class_reader_t::read_node","unknown version %i", v&0x00ff );
 	}
 
 	return desc;
@@ -114,7 +114,7 @@ obj_desc_t *factory_field_group_reader_t::read_node(FILE *fp, obj_node_info_t &n
 		 */
 		incomplete_field_class_desc = field_class_desc;
 
-		DBG_DEBUG("factory_field_group_reader_t::read_node()", "version=%i, probability=%i, fields: max=%i / min=%i / start=%i, field classes=%i, storage=%i, field_prod=%i, chance=%i, has_snow=%i",
+		DBG_DEBUG("factory_field_group_reader_t::read_node", "version=%i, probability=%i, fields: max=%i / min=%i / start=%i, field classes=%i, storage=%i, field_prod=%i, chance=%i, has_snow=%i",
 			v,
 			desc->probability,
 			desc->max_fields,
@@ -127,11 +127,11 @@ obj_desc_t *factory_field_group_reader_t::read_node(FILE *fp, obj_node_info_t &n
 			field_class_desc->snow_image);
 	}
 	else {
-		dbg->fatal("factory_field_group_reader_t::read_node()","unknown version %i", v&0x00ff );
+		dbg->fatal("factory_field_group_reader_t::read_node","unknown version %i", v&0x00ff );
 	}
 
 	if (v > 0x8001) {
-		DBG_DEBUG("factory_field_group_reader_t::read_node()", "version=%i, probability=%i, fields: max=%i / min=%i / start=%i, field classes=%i",
+		DBG_DEBUG("factory_field_group_reader_t::read_node", "version=%i, probability=%i, fields: max=%i / min=%i / start=%i, field classes=%i",
 			v,
 			desc->probability,
 			desc->max_fields,
@@ -179,7 +179,7 @@ obj_desc_t *factory_smoke_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	desc->xy_off = koord( x, y );
 	/*smoke speed*/ decode_sint16(p);
 
-	DBG_DEBUG("factory_product_reader_t::read_node()","zeitmaske=%d (size %i)",node.size);
+	DBG_DEBUG("factory_product_reader_t::read_node","zeitmaske=%d (size %i)",node.size);
 
 	return desc;
 }
@@ -214,7 +214,7 @@ obj_desc_t *factory_supplier_reader_t::read_node(FILE *fp, obj_node_info_t &node
 		desc->consumption = decode_uint16(p);
 	}
 
-	DBG_DEBUG("factory_product_reader_t::read_node()", "version=%d, capacity=%d, count=%d, consumption=%d",
+	DBG_DEBUG("factory_product_reader_t::read_node", "version=%d, capacity=%d, count=%d, consumption=%d",
 		0,
 		desc->capacity,
 		desc->supplier_count,
@@ -253,7 +253,7 @@ obj_desc_t *factory_product_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->factor = 256;
 	}
 
-	DBG_DEBUG("factory_product_reader_t::read_node()", "version=%d capacity=%d factor=%x", version, desc->capacity, desc->factor);
+	DBG_DEBUG("factory_product_reader_t::read_node", "version=%d capacity=%d factor=%x", version, desc->capacity, desc->factor);
 	return desc;
 }
 
@@ -326,7 +326,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			if (extended_version > 4)
 			{
 				// Check for incompatible future versions
-				dbg->fatal("factory_reader_t::read_node()", "Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
+				dbg->fatal("factory_reader_t::read_node", "Incompatible pak file version for Simutrans-Extended, number %i", extended_version);
 			}
 		}
 		desc->expand_probability = rescale_probability(decode_uint16(p));
@@ -369,7 +369,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->base_max_distance_to_supplier = 65535;
 		}
 
-		DBG_DEBUG("factory_reader_t::read_node()", "version=4, platz=%i, supplier_count=%i, pax=%i, sound_interval=%li, sound_id=%i", desc->placement, desc->supplier_count, desc->pax_level, desc->sound_interval, desc->sound_id);
+		DBG_DEBUG("factory_reader_t::read_node", "version=4, platz=%i, supplier_count=%i, pax=%i, sound_interval=%li, sound_id=%i", desc->placement, desc->supplier_count, desc->pax_level, desc->sound_interval, desc->sound_id);
 	}
 	else if(version == 3) {
 		// Versioned node, version 3
@@ -405,7 +405,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			if(extended_version > 4)
 			{
 				// Check for incompatible future versions
-				dbg->fatal( "factory_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
+				dbg->fatal( "factory_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
 		}
 		desc->expand_probability = rescale_probability( decode_uint16(p) );
@@ -430,7 +430,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->base_max_distance_to_consumer = 65535;
 		}
 		desc->base_max_distance_to_supplier = 65535;
-		DBG_DEBUG("factory_reader_t::read_node()","version=3, platz=%i, supplier_count=%i, pax=%i", desc->placement, desc->supplier_count, desc->pax_level );
+		DBG_DEBUG("factory_reader_t::read_node","version=3, platz=%i, supplier_count=%i, pax=%i", desc->placement, desc->supplier_count, desc->pax_level );
 	} else if(version == 2) {
 		// Versioned node, version 2
 		desc->placement = (site_t)decode_uint16(p); //"placement" (Babelfish)
@@ -464,7 +464,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			if(extended_version > 1)
 			{
 				// Check for incompatible future versions
-				dbg->fatal( "factory_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
+				dbg->fatal( "factory_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version );
 			}
 		}
 		desc->expand_probability = 0;
@@ -516,7 +516,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	else
 	{
 		// old node, version 0, without pax_level
-		DBG_DEBUG("factory_reader_t::read_node()","version=0");
+		DBG_DEBUG("factory_reader_t::read_node","version=0");
 		desc->placement = (site_t)v;
 		decode_uint16(p);	// alsways zero
 		desc->productivity = decode_uint16(p)|0x8000;
@@ -558,7 +558,7 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	desc->max_distance_to_consumer = desc->base_max_distance_to_consumer;
 	desc->max_distance_to_supplier = desc->base_max_distance_to_supplier;
 
-	DBG_DEBUG("factory_reader_t::read_node()",
+	DBG_DEBUG("factory_reader_t::read_node",
 		"version=%i, place=%i, productivity=%i, suppliers=%i, products=%i, fields=%i, range=%i, level=%i"
 		 "Demands: pax=%i / mail=%i / electric=%i,"
 		 "Boosts: pax=%i / mail=%i / electric=%i,"
@@ -595,13 +595,13 @@ obj_desc_t *factory_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			wavname[i] = decode_sint8(p);
 		}
 		desc->sound_id = (sint8)sound_desc_t::get_sound_id(wavname);
-		DBG_MESSAGE("vehicle_reader_t::register_obj()", "sound %s to %i", wavname, desc->sound_id);
+		DBG_MESSAGE("vehicle_reader_t::register_obj", "sound %s to %i", wavname, desc->sound_id);
 
 	}
 	else if (desc->sound_id >= 0 && desc->sound_id <= MAX_OLD_SOUNDS) {
 		sint16 old_id = desc->sound_id;
 		desc->sound_id = (sint8)sound_desc_t::get_compatible_sound_id((sint8)old_id);
-		DBG_MESSAGE("vehicle_reader_t::register_obj()", "old sound %i to %i", old_id, desc->sound_id);
+		DBG_MESSAGE("vehicle_reader_t::register_obj", "old sound %i to %i", old_id, desc->sound_id);
 	}
 
 	return desc;

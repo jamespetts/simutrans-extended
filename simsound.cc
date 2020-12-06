@@ -194,7 +194,7 @@ int midi_init(const char *directory)
 	  fclose(file);
 	}
 	else {
-	  dbg->warning("midi_init()","can't open file '%s' for reading.", full_path);
+	  dbg->warning("midi_init","can't open file '%s' for reading.", full_path);
 	}
 
 	if(  max_midi >= 0  ) {
@@ -208,7 +208,7 @@ int midi_init(const char *directory)
 void midi_play(const int no)
 {
 	if(  no > max_midi  ) {
-	  dbg->warning("midi_play()", "MIDI index %d too high (total loaded: %d)", no, max_midi);
+	  dbg->warning("midi_play", "MIDI index %d too high (total loaded: %d)", no, max_midi);
 	}
 	else if(  !midi_get_mute()  ) {
 	  dr_play_midi(no);
@@ -282,7 +282,7 @@ void check_midi()
 		// Are we in playing mode?
 		if(  false == midi_get_mute()  ) {
 			midi_play(current_midi);
-			DBG_MESSAGE("check_midi()", "Playing MIDI %d", current_midi);
+			DBG_MESSAGE("check_midi", "Playing MIDI %d", current_midi);
 		}
 	}
 

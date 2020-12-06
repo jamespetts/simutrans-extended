@@ -1934,7 +1934,7 @@ void path_explorer_t::compartment_t::step()
 		default :
 		{
 			// Should not reach here
-			dbg->error("compartment_t::step()", "Invalid step index : %u \n", current_phase);
+			dbg->error("compartment_t::step", "Invalid step index : %u \n", current_phase);
 			return;
 		}
 	}

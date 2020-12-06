@@ -49,7 +49,7 @@ bool goods_manager_t::successfully_loaded()
 	goods.insert_at(0,load_passengers);
 
 	if(goods.get_count()>=255) {
-		dbg->fatal("goods_manager_t::successfully_loaded()","Too many different goods %i>255",goods.get_count()-1 );
+		dbg->fatal("goods_manager_t::successfully_loaded","Too many different goods %i>255",goods.get_count()-1 );
 	}
 
 	// assign indexes, and fix number_of_classes
@@ -105,7 +105,7 @@ bool goods_manager_t::successfully_loaded()
 	// however, some place do need the dummy ...
 	ware_t::index_to_desc[2] = NULL;
 
-	DBG_MESSAGE("goods_manager_t::successfully_loaded()","total goods %i, different kind of categories %i", goods.get_count(), max_catg_index );
+	DBG_MESSAGE("goods_manager_t::successfully_loaded","total goods %i, different kind of categories %i", goods.get_count(), max_catg_index );
 
 	return true;
 }
@@ -128,7 +128,7 @@ bool goods_manager_t::register_desc(goods_desc_t *desc)
 	// avoid duplicates with same name
 	goods_desc_t *old_desc = const_cast<goods_desc_t *>(desc_names.get(desc->get_name()));
 	if(  old_desc  ) {
-		dbg->warning( "goods_manager_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "goods_manager_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		desc_names.remove(desc->get_name());
 		goods.remove( old_desc );
 	}
@@ -159,7 +159,7 @@ const goods_desc_t *goods_manager_t::get_info(const char* name)
 	}
 	if(  ware == NULL  ) {
 		// to avoid crashed with NULL pointer in skripts return good NONE
-		dbg->warning( "goods_manager_t::get_info()", "No desc for %s", name );
+		dbg->warning( "goods_manager_t::get_info", "No desc for %s", name );
 		ware = goods_manager_t::none;
 	}
 	return ware;
@@ -175,7 +175,7 @@ const goods_desc_t *goods_manager_t::get_info_catg(const uint8 catg)
 			}
 		}
 	}
-	dbg->warning("goods_manager_t::get_info()", "No info for good catg %d available, set to passengers", catg);
+	dbg->warning("goods_manager_t::get_info", "No info for good catg %d available, set to passengers", catg);
 	return goods[0];
 }
 

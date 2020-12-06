@@ -1036,7 +1036,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 			// limit update to certain states that are considered to be safe for schedule updates
 			if(cnv->is_locked())
 			{
-				DBG_MESSAGE("convoi_info_t::action_triggered()","convoi state %i => cannot change schedule ... ", cnv->get_state() );
+				DBG_MESSAGE("convoi_info_t::action_triggered","convoi state %i => cannot change schedule ... ", cnv->get_state() );
 				return false;
 			}
 			go_home_button.pressed = true;
@@ -1260,7 +1260,7 @@ void convoi_info_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		// convoy vanished
 		if(  !cnv.is_bound()  ) {
-			dbg->error( "convoi_info_t::rdwr()", "Could not restore convoi info window of (%d)", cnv.get_id() );
+			dbg->error( "convoi_info_t::rdwr", "Could not restore convoi info window of (%d)", cnv.get_id() );
 			destroy_win( this );
 			return;
 		}

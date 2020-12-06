@@ -136,7 +136,7 @@ bool replace_data_t::sscanf_replace(const char *ptr)
 	}
 	if(  *p!='|'  )
 	{
-		dbg->error( "replace_data_t::sscanf_replace()","incomplete entry termination!" );
+		dbg->error( "replace_data_t::sscanf_replace","incomplete entry termination!" );
 		return false;
 	}
 	p++;
@@ -158,7 +158,7 @@ bool replace_data_t::sscanf_replace(const char *ptr)
 		}
 		if(desc == NULL)
 		{
-			dbg->warning("replace_data_t::sscanf_replace()","no vehicle pak for '%s' search for something similar", vehicle_name);
+			dbg->warning("replace_data_t::sscanf_replace","no vehicle pak for '%s' search for something similar", vehicle_name);
 		}
 		else
 		{
@@ -208,7 +208,7 @@ void replace_data_t::rdwr(loadsave_t *file)
 			}
 			if(desc == NULL)
 			{
-				dbg->warning("replace_data_t::rdwr()","no vehicle pak for '%s' search for something similar", vehicle_name);
+				dbg->warning("replace_data_t::rdwr","no vehicle pak for '%s' search for something similar", vehicle_name);
 			}
 			else
 			{

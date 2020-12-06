@@ -329,7 +329,7 @@ public:
 	T remove_first()
 	{
 		if (empty()) {
-			dbg->fatal("slist_tpl<T>::remove_first()","List of <%s> is empty",typeid(T).name());
+			dbg->fatal("slist_tpl<T>::remove_first","List of <%s> is empty",typeid(T).name());
 		}
 
 		T tmp = head->data;
@@ -376,7 +376,7 @@ public:
 	T& at(uint32 pos) const
 	{
 		if (pos >= node_count) {
-			dbg->fatal("slist_tpl<T>::at()", "<%s> index %d is out of bounds", typeid(T).name(), pos);
+			dbg->fatal("slist_tpl<T>::at", "<%s> index %d is out of bounds", typeid(T).name(), pos);
 		}
 
 		node_t* p = head;

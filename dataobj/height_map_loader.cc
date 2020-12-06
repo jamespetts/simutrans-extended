@@ -32,7 +32,7 @@ bool height_map_loader_t::get_height_data_from_file( const char *filename, sint8
 		if(strcmp(id, "P6")) {
 			if(strcmp(id, "BM")) {
 				fclose(file);
-				dbg->error("height_map_loader_t::load_heightfield()","Heightfield has wrong image type %s instead P6/BM", id);
+				dbg->error("height_map_loader_t::load_heightfield","Heightfield has wrong image type %s instead P6/BM", id);
 				return false;
 			}
 			// bitmap format
@@ -71,7 +71,7 @@ bool height_map_loader_t::get_height_data_from_file( const char *filename, sint8
 #endif
 			if((bit_depth!=8  &&  bit_depth!=24)  ||  format>1) {
 				if(!update_only_values) {
-					dbg->fatal("height_map_loader_t::get_height_data_from_file()","Can only use 8Bit (RLE or normal) or 24 bit bitmaps!");
+					dbg->fatal("height_map_loader_t::get_height_data_from_file","Can only use 8Bit (RLE or normal) or 24 bit bitmaps!");
 				}
 				fclose( file );
 				return false;
@@ -210,7 +210,7 @@ bool height_map_loader_t::get_height_data_from_file( const char *filename, sint8
 			if(param[2]!=255) {
 				fclose(file);
 				if(!update_only_values) {
-					dbg->fatal("height_map_loader_t::load_heightfield()","Heightfield has wrong color depth %d", param[2] );
+					dbg->fatal("height_map_loader_t::load_heightfield","Heightfield has wrong color depth %d", param[2] );
 				}
 				return false;
 			}

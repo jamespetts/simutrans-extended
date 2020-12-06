@@ -118,7 +118,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				if(extended_version > 1)
 				{
-					dbg->fatal("tunnel_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
+					dbg->fatal("tunnel_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
 				}
 			}
 		}
@@ -146,7 +146,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				if(extended_version > 1)
 				{
-					dbg->fatal("tunnel_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
+					dbg->fatal("tunnel_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
 				}
 			}
 			desc->has_way = decode_uint8(p);
@@ -169,7 +169,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				way_constraints.set_prohibitive(decode_uint8(p));
 				if(extended_version > 0)
 				{
-					dbg->fatal("tunnel_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
+					dbg->fatal("tunnel_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
 				}
 			}
 			desc->broad_portals = 0;
@@ -193,7 +193,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				else
 				{
-					dbg->fatal("tunnel_reader_t::read_node()","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
+					dbg->fatal("tunnel_reader_t::read_node","Incompatible pak file version for Simutrans-Ex, number %i", extended_version);
 				}
 			}
 			desc->has_way = 0;
@@ -213,7 +213,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->broad_portals = 0;
 		}
 		else {
-			dbg->fatal("tunnel_reader_t::read_node()","illegal version %d",version);
+			dbg->fatal("tunnel_reader_t::read_node","illegal version %d",version);
 		}
 
 		if( !extended && version < 5  ) {
@@ -231,7 +231,7 @@ obj_desc_t * tunnel_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 		desc->base_cost = desc->price;
 		desc->base_maintenance = desc->maintenance;
-		DBG_DEBUG("tunnel_reader_t::read_node()",
+		DBG_DEBUG("tunnel_reader_t::read_node",
 			"version=%d, waytype=%d, price=%d, maintenance=%d, topspeed=%d, intro=%d/%d, retire=%d/%d, axle_load=%d, has_way=%i, seasons=%i, b_portals=%i",
 			version,
 			desc->wtyp,

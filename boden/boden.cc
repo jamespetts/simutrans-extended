@@ -39,7 +39,7 @@ boden_t::boden_t(loadsave_t *file, koord pos ) : grund_t( koord3d(pos,0) )
 				objlist.add( tree );
 			}
 			else {
-				dbg->warning( "boden_t::boden_t()", "Could not restore tree type %i at (%s)", id, pos.get_str() );
+				dbg->warning( "boden_t::boden_t", "Could not restore tree type %i at (%s)", id, pos.get_str() );
 			}
 			// check for next tree
 			id = file->rd_obj_id();

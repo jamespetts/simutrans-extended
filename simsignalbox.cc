@@ -227,7 +227,7 @@ koord signalbox_t::transfer_all_signals(signalbox_t* sb)
 			signal_t* s = gr->find<signal_t>();
 			if(!s)
 			{
-				dbg->error("signalbox_t::transfer_all_signals(signalbox_t* sb)", "Signal cannot be retrieved");
+				dbg->error("signalbox_t::transfer_all_signals", "Signal cannot be retrieved");
 				continue;
 			}
 

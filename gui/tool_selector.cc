@@ -52,11 +52,11 @@ void tool_selector_t::add_tool_selector(tool_t *tool_in)
 
 	int ww = max(2,(display_get_width()/env_t::iconsize.w)-2);	// to avoid zero or negative ww on posix (no graphic) backends
 	tool_icon_width = tools.get_count();
-DBG_DEBUG4("tool_selector_t::add_tool()","ww=%i, tool_icon_width=%i",ww,tool_icon_width);
+DBG_DEBUG4("tool_selector_t::add_tool","ww=%i, tool_icon_width=%i",ww,tool_icon_width);
 	if(  allow_break  &&  (ww<tool_icon_width  ||  (env_t::toolbar_max_width>0  &&  env_t::toolbar_max_width<tool_icon_width))  ) {
 		//break them
 		int rows = (tool_icon_width/ww)+1;
-DBG_DEBUG4("tool_selector_t::add_tool()","ww=%i, rows=%i",ww,rows);
+DBG_DEBUG4("tool_selector_t::add_tool","ww=%i, rows=%i",ww,rows);
 		// assure equal distribution if more than a single row is needed
 		tool_icon_width = (tool_icon_width+rows-1)/rows;
 		if(  env_t::toolbar_max_width > 0  ) {
@@ -74,7 +74,7 @@ DBG_DEBUG4("tool_selector_t::add_tool()","ww=%i, rows=%i",ww,rows);
 	tool_icon_disp_end = min( tool_icon_disp_start+tool_icon_width*tool_icon_height, tools.get_count() );
 	has_prev_next = ((uint32)tool_icon_width*tool_icon_height < tools.get_count());
 
-DBG_DEBUG4("tool_selector_t::add_tool()", "at position %i (width %i)", tools.get_count(), tool_icon_width);
+DBG_DEBUG4("tool_selector_t::add_tool", "at position %i (width %i)", tools.get_count(), tool_icon_width);
 }
 
 

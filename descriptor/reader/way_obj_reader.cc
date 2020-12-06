@@ -84,12 +84,12 @@ obj_desc_t * way_obj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			}
 			else if(extended_version != 16)
 			{
-				dbg->fatal( "way_obj_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
+				dbg->fatal( "way_obj_reader_t::read_node","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
 		}
 	}
 	else {
-		dbg->fatal("way_obj_reader_t::read_node()","Invalid version %d", version);
+		dbg->fatal("way_obj_reader_t::read_node","Invalid version %d", version);
 	}
 
 	desc->set_way_constraints(way_constraints);
@@ -100,7 +100,7 @@ obj_desc_t * way_obj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	// but still need this value to be set to avoid it being zero.
 	desc->topspeed_gradient_1 = desc->topspeed_gradient_2 = desc->topspeed;
 
-	DBG_DEBUG("way_obj_reader_t::read_node()",
+	DBG_DEBUG("way_obj_reader_t::read_node",
 		"version=%d price=%d maintenance=%d topspeed=%d wtype=%d own_wtype=%d intro=%i/%i, retire=%i/%i",
 		version,
 		desc->price,

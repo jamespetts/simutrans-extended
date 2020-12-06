@@ -62,7 +62,7 @@ bool groundobj_t::register_desc(groundobj_desc_t *desc)
 	assert(desc->get_speed()==0);
 	// remove duplicates
 	if(  desc_names.remove( desc->get_name() )  ) {
-		dbg->warning( "groundobj_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "groundobj_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 	}
 	desc_names.put(desc->get_name(), desc );
 	return true;
@@ -88,7 +88,7 @@ const groundobj_desc_t *groundobj_t::random_groundobj_for_climate(climate_bits c
 
 	// now weight their distribution
 	if(  weight > 0  ) {
-		const int w=simrand(weight, "const groundobj_desc_t *groundobj_t::random_groundobj_for_climate(climate_bits cl, slope_t::type slope  )");
+		const int w=simrand(weight, "groundobj_desc_t *groundobj_t::random_groundobj_for_climate");
 		weight = 0;
 		FOR(vector_tpl<groundobj_desc_t const*>, const i, groundobj_typen) {
 			if(  i->is_allowed_climate_bits(cl)  &&  (slope == slope_t::flat  ||  (i->get_phases() >= slope  &&  i->get_image_nr(0,slope)!=IMG_EMPTY  )  )  ) {
@@ -198,7 +198,7 @@ void groundobj_t::rdwr(loadsave_t *file)
 			desc = desc_names.get(translator::compatibility_name(bname));
 		}
 		if (desc == NULL) {
-			groundobjtype = simrand(groundobj_typen.get_count(), "void groundobj_t::rdwr(loadsave_t *file)");
+			groundobjtype = simrand(groundobj_typen.get_count(), "groundobj_t::rdwr");
 		}
 		else {
 			groundobjtype = desc->get_index();

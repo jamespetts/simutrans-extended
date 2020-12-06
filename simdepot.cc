@@ -209,7 +209,7 @@ void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
 		depot_frame->action_triggered(NULL,(long int)0);
 	}
 	acnv->set_home_depot( get_pos() );
-	DBG_MESSAGE("depot_t::convoi_arrived()", "convoi %d, %p entered depot", acnv.get_id(), acnv.get_rep());
+	DBG_MESSAGE("depot_t::convoi_arrived", "convoi %d, %p entered depot", acnv.get_id(), acnv.get_rep());
 }
 
 
@@ -221,11 +221,11 @@ void depot_t::show_info()
 
 vehicle_t* depot_t::buy_vehicle(const vehicle_desc_t* info, uint16 livery_scheme_index)
 {
-	DBG_DEBUG("depot_t::buy_vehicle()", info->get_name());
+	DBG_DEBUG("depot_t::buy_vehicle", info->get_name());
 	vehicle_t* veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, livery_scheme_index); //"owner" = "owner" (Google)
-	DBG_DEBUG("depot_t::buy_vehicle()", "vehiclebauer %p", veh);
+	DBG_DEBUG("depot_t::buy_vehicle", "vehiclebauer %p", veh);
 	vehicles.append(veh);
-	DBG_DEBUG("depot_t::buy_vehicle()", "appended %i vehicle", vehicles.get_count());
+	DBG_DEBUG("depot_t::buy_vehicle", "appended %i vehicle", vehicles.get_count());
 	return veh;
 }
 
@@ -322,7 +322,7 @@ void depot_t::sell_vehicle(vehicle_t* veh)
 	vehicles.remove(veh);
 	sint64 cost = veh->calc_sale_value();
 	get_owner()->book_new_vehicle(cost, get_pos().get_2d(), get_waytype() );
-	DBG_MESSAGE("depot_t::sell_vehicle()", "this=%p sells %p", this, veh);
+	DBG_MESSAGE("depot_t::sell_vehicle", "this=%p sells %p", this, veh);
 	veh->before_delete();
 	delete veh;
 }
@@ -628,11 +628,11 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 
 		if (!cnv.is_bound()) {
-			dbg->warning("depot_t::start_convoi()","No convoi to start!");
+			dbg->warning("depot_t::start_convoi","No convoi to start!");
 		} else if (!cnv->get_schedule()) {
-			dbg->warning("depot_t::start_convoi()","No schedule for convoi.");
+			dbg->warning("depot_t::start_convoi","No schedule for convoi.");
 		} else if (!cnv->get_schedule()->is_editing_finished()) {
-			dbg->warning("depot_t::start_convoi()","Schedule is incomplete/not finished");
+			dbg->warning("depot_t::start_convoi","Schedule is incomplete/not finished");
 		}
 	}
 	return false;
@@ -684,7 +684,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 
 	if(file->is_saving()) {
 		count = list.get_count();
-		DBG_MESSAGE("depot_t::vehicle_laden()","saving %d vehicles",count);
+		DBG_MESSAGE("depot_t::vehicle_laden","saving %d vehicles",count);
 	}
 	file->rdwr_long(count);
 
@@ -692,11 +692,11 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 
 		// no house definition for this => use a normal hut ...
 		if(  this->get_tile()==NULL  ) {
-			dbg->error( "depot_t::rdwr()", "tile for depot not found!" );
+			dbg->error( "depot_t::rdwr", "tile for depot not found!" );
 			set_tile( (*hausbauer_t::get_citybuilding_list( building_desc_t::city_res ))[0]->get_tile(0), true );
 		}
 
-		DBG_MESSAGE("depot_t::vehicle_laden()","loading %d vehicles",count);
+		DBG_MESSAGE("depot_t::vehicle_laden","loading %d vehicles",count);
 		for (int i = 0; i < count; i++) {
 			obj_t::typ typ = (obj_t::typ)file->rd_obj_id();
 
@@ -718,15 +718,15 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			case maglev_vehicle:   v = new maglev_rail_vehicle_t(file, first, last);  break;
 			case narrowgauge_vehicle: v = new narrowgauge_rail_vehicle_t(file, first, last);  break;
 			default:
-				dbg->fatal("depot_t::vehicle_laden()", "invalid vehicle type $%X", typ);
+				dbg->fatal("depot_t::vehicle_laden", "invalid vehicle type $%X", typ);
 			}
 			const vehicle_desc_t* desc = v->get_desc();
 			if (desc) {
-				DBG_MESSAGE("depot_t::vehicle_laden()", "loaded %s", desc->get_name());
+				DBG_MESSAGE("depot_t::vehicle_laden", "loaded %s", desc->get_name());
 				list.insert(v);
 			}
 			else {
-				dbg->error("depot_t::vehicle_laden()", "vehicle has no desc => ignored");
+				dbg->error("depot_t::vehicle_laden", "vehicle has no desc => ignored");
 			}
 
 			if (v->get_owner() == NULL)

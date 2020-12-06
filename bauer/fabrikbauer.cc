@@ -194,12 +194,12 @@ const factory_desc_t *factory_builder_t::get_random_consumer(bool electric, clim
 	}
 	// no consumer installed?
 	if (consumer.empty()) {
-DBG_MESSAGE("factory_builder_t::get_random_consumer()","No suitable consumer found");
+DBG_MESSAGE("factory_builder_t::get_random_consumer","No suitable consumer found");
 		return NULL;
 	}
 	// now find a random one
 	factory_desc_t const* const fd = pick_any_weighted(consumer);
-	DBG_MESSAGE("factory_builder_t::get_random_consumer()", "consumer %s found.", fd->get_name());
+	DBG_MESSAGE("factory_builder_t::get_random_consumer", "consumer %s found.", fd->get_name());
 	return fd;
 }
 
@@ -218,10 +218,10 @@ void factory_builder_t::register_desc(factory_desc_t *desc)
 
 		// to be compatible with old factories, since new code only steps once per factory, not per tile
 		desc->set_productivity( (p&0x7FFF)*k.x*k.y );
-DBG_DEBUG("factory_builder_t::register_desc()","Correction for old factory: Increase production from %i by %i",p&0x7FFF,k.x*k.y);
+DBG_DEBUG("factory_builder_t::register_desc","Correction for old factory: Increase production from %i by %i",p&0x7FFF,k.x*k.y);
 	}
 	if(  const factory_desc_t *old_desc = desc_table.remove(desc->get_name())  ) {
-		dbg->warning( "factory_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "factory_builder_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		delete old_desc;
 	}
 	desc_table.put(desc->get_name(), desc);
@@ -243,7 +243,7 @@ bool factory_builder_t::successfully_loaded()
 			find_producer( producer, current->get_supplier(j)->get_input_type(), 0 );
 			if(  producer.is_contained(current)  ) {
 				// must not happen else
-				dbg->fatal( "factory_builder_t::build_link()", "Factory %s output %s cannot be its own input!", i.key, current->get_supplier(j)->get_input_type()->get_name() );
+				dbg->fatal( "factory_builder_t::build_link", "Factory %s output %s cannot be its own input!", i.key, current->get_supplier(j)->get_input_type()->get_name() );
 			}
 		}
 		checksum_t *chk = new checksum_t();
@@ -268,7 +268,7 @@ int factory_builder_t::count_producers(const goods_desc_t *ware, uint16 timeline
 			}
 		}
 	}
-DBG_MESSAGE("factory_builder_t::count_producers()","%i producer for good '%s' found.", anzahl, translator::translate(ware->get_name()));
+DBG_MESSAGE("factory_builder_t::count_producers","%i producer for good '%s' found.", anzahl, translator::translate(ware->get_name()));
 	return anzahl;
 }
 
@@ -296,9 +296,9 @@ void factory_builder_t::find_producer(weighted_vector_tpl<const factory_desc_t *
 
 	// no producer installed?
 	if(  producer.empty()  ) {
-		dbg->error("factory_builder_t::find_producer()", "no producer for good '%s' was found.", translator::translate(ware->get_name()));
+		dbg->error("factory_builder_t::find_producer", "no producer for good '%s' was found.", translator::translate(ware->get_name()));
 	}
-	DBG_MESSAGE("factory_builder_t::find_producer()", "%i producer for good '%s' found.", producer.get_count(), translator::translate(ware->get_name()) );
+	DBG_MESSAGE("factory_builder_t::find_producer", "%i producer for good '%s' found.", producer.get_count(), translator::translate(ware->get_name()) );
 }
 
 
@@ -403,14 +403,14 @@ void factory_builder_t::distribute_attractions(int max_number)
 	int retrys = max_number*4;
 	while(current_number<max_number  &&  retrys-->0) {
 		koord3d	pos=koord3d( koord::koord_random(welt->get_size().x,welt->get_size().y),1);
-		const building_desc_t *attraction=hausbauer_t::get_random_attraction(welt->get_timeline_year_month(),true,(climate)simrand((int)arctic_climate+1, "void factory_builder_t::distribute_attractions"));
+		const building_desc_t *attraction=hausbauer_t::get_random_attraction(welt->get_timeline_year_month(),true,(climate)simrand((int)arctic_climate+1, "factory_builder_t::distribute_attractions"));
 
 		// no attractions for that climate or too new
 		if(attraction==NULL  ||  (welt->use_timeline()  &&  attraction->get_intro_year_month()>welt->get_current_month()) ) {
 			continue;
 		}
 
-		int	rotation=simrand(attraction->get_all_layouts()-1, "void factory_builder_t::distribute_attractions");
+		int	rotation=simrand(attraction->get_all_layouts()-1, "factory_builder_t::distribute_attractions");
 		pos = find_random_construction_site(pos.get_2d(), 20, attraction->get_size(rotation),false,attraction,false,0x0FFFFFFF);	// so far -> land only
 		if(welt->lookup(pos)) {
 			// Platz gefunden ...
@@ -687,7 +687,7 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 
 	// everything built -> update map if needed
 	if(parent==NULL) {
-		DBG_MESSAGE("factory_builder_t::build_link()","update karte");
+		DBG_MESSAGE("factory_builder_t::build_link","update karte");
 
 		// update the map if needed
 		reliefkarte_t::get_karte()->calc_map_size();
@@ -720,7 +720,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* our_fab, const factory_d
 	const int anzahl_producer_d=count_producers( ware, welt->get_timeline_year_month() );
 
 	if(anzahl_producer_d==0) {
-		dbg->error("factory_builder_t::build_link()","No producer for %s found, chain incomplete!",ware->get_name() );
+		dbg->error("factory_builder_t::build_link","No producer for %s found, chain incomplete!",ware->get_name() );
 		return 0;
 	}
 
@@ -842,12 +842,12 @@ int factory_builder_t::build_chain_link(const fabrik_t* our_fab, const factory_d
 		if(  producer.empty()  ) {
 			// can happen with timeline
 			if(!info->is_consumer_only()) {
-				dbg->error( "factory_builder_t::build_link()", "no producer for %s!", ware->get_name() );
+				dbg->error( "factory_builder_t::build_link", "no producer for %s!", ware->get_name() );
 				return 0;
 			}
 			else {
 				// only consumer: Will do with partly covered chains
-				dbg->error( "factory_builder_t::build_link()", "no producer for %s!", ware->get_name() );
+				dbg->error( "factory_builder_t::build_link", "no producer for %s!", ware->get_name() );
 			}
 		}
 
@@ -973,7 +973,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	// In the future, the building of pure consumer industries other than power stations should be part of
 	// the city growth system and taken out of this entirely. That would leave this system free to complete
 	// industry chains as needed.
-	const bool force_add_consumer = force_consumer == 2 || (force_consumer == 0 && 75 > simrand(100, "factory_builder_t::increase_industry_density()"));
+	const bool force_add_consumer = force_consumer == 2 || (force_consumer == 0 && 75 > simrand(100, "factory_builder_t::increase_industry_density"));
 
 	weighted_vector_tpl<const goods_desc_t*> oversupplied_goods;
 
@@ -1130,7 +1130,7 @@ next_ware_check:
 					// only return, if successful
 					if(unlinked_consumer->get_suppliers().get_count() > last_suppliers)
 					{
-						DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "added ware %i to factory %s", missing_goods_index, unlinked_consumer->get_name() );
+						DBG_MESSAGE( "factory_builder_t::increase_industry_density", "added ware %i to factory %s", missing_goods_index, unlinked_consumer->get_name() );
 						// tell the player
 						if(tell_me) {
 							stadt_t *s = welt->find_nearest_city( unlinked_consumer->get_pos().get_2d() );
@@ -1176,13 +1176,13 @@ next_ware_check:
 	const sint64 promille = ((sint64)electric_productivity * 4000l) / total_electric_demand;
 	const sint64 target_promille = (sint64)welt->get_settings().get_electric_promille();
 	int no_electric = force_add_consumer || (promille >= target_promille) ? 1 : 0;
-	DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "production of electricity/total electrical demand is %i/%i (%i o/oo)", electric_productivity, total_electric_demand, promille );
+	DBG_MESSAGE( "factory_builder_t::increase_industry_density", "production of electricity/total electrical demand is %i/%i (%i o/oo)", electric_productivity, total_electric_demand, promille );
 
 	// Determine whether to fill in oversupplied goods with a consumer industry, or generate one entirely randomly
 	const goods_desc_t* input_for_consumer = NULL;
-	if (!oversupplied_goods.empty() && simrand(100,"factory_builder_t::increase_industry_density()") < 20)
+	if (!oversupplied_goods.empty() && simrand(100,"factory_builder_t::increase_industry_density") < 20)
 	{
-		const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density() 2");
+		const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density 2");
 		input_for_consumer = oversupplied_goods.at_weight(pick);
 	}
 
@@ -1216,7 +1216,7 @@ next_ware_check:
 				}
 				koord testpos = in_city ? pick_any_weighted(welt->get_cities())->get_pos() : koord::koord_random(welt->get_size().x, welt->get_size().y);
 				koord3d pos = welt->lookup_kartenboden( testpos )->get_pos();
-				int rotation = simrand(consumer->get_building()->get_all_layouts()-1, "factory_builder_t::increase_industry_density()");
+				int rotation = simrand(consumer->get_building()->get_all_layouts()-1, "factory_builder_t::increase_industry_density");
 				if(!in_city)
 				{
 					// find somewhere on the map
@@ -1263,7 +1263,7 @@ next_ware_check:
 	}
 
 	// we should not reach here, because it means neither land nor city industries exist ...
-	dbg->warning( "factory_builder_t::increase_industry_density()", "No suitable city industry found => pak missing something?" );
+	dbg->warning( "factory_builder_t::increase_industry_density", "No suitable city industry found => pak missing something?" );
 	return 0;
 }
 

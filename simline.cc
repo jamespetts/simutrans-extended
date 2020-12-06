@@ -104,7 +104,7 @@ simline_t::simline_t(player_t* player, linetype type, loadsave_t *file)
 
 simline_t::~simline_t()
 {
-	DBG_DEBUG("simline_t::~simline_t()", "deleting schedule=%p", schedule);
+	DBG_DEBUG("simline_t::~simline_t", "deleting schedule=%p", schedule);
 
 	if (!welt->is_destroying())
 	{
@@ -115,7 +115,7 @@ simline_t::~simline_t()
 
 	delete schedule;
 	self.detach();
-	DBG_MESSAGE("simline_t::~simline_t()", "line %d (%p) destroyed", self.get_id(), this);
+	DBG_MESSAGE("simline_t::~simline_t", "line %d (%p) destroyed", self.get_id(), this);
 }
 
 simline_t::linetype simline_t::get_linetype(const waytype_t wt)
@@ -145,7 +145,7 @@ void simline_t::create_schedule()
 		case simline_t::maglevline:      set_schedule(new maglev_schedule_t()); break;
 		case simline_t::narrowgaugeline: set_schedule(new narrowgauge_schedule_t()); break;
 		default:
-			dbg->fatal( "simline_t::create_schedule()", "Cannot create default schedule!" );
+			dbg->fatal( "simline_t::create_schedule", "Cannot create default schedule!" );
 	}
 }
 
@@ -539,7 +539,7 @@ void simline_t::finish_rd()
 
 void simline_t::register_stops(schedule_t * schedule)
 {
-	DBG_DEBUG("simline_t::register_stops()", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
+	DBG_DEBUG("simline_t::register_stops", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
 	FOR(minivec_tpl<schedule_entry_t>,const &i, schedule->entries) {
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
@@ -547,7 +547,7 @@ void simline_t::register_stops(schedule_t * schedule)
 			halt->add_line(self);
 		}
 		else {
-			DBG_DEBUG("simline_t::register_stops()", "halt null");
+			DBG_DEBUG("simline_t::register_stops", "halt null");
 		}
 	}
 	financial_history[0][LINE_DEPARTURES_SCHEDULED] = calc_departures_scheduled();
@@ -599,7 +599,7 @@ void simline_t::renew_stops()
 		// Added by Knightly
 		haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, player);
 
-		DBG_DEBUG("simline_t::renew_stops()", "Line id=%d, name='%s'", self.get_id(), name.c_str());
+		DBG_DEBUG("simline_t::renew_stops", "Line id=%d, name='%s'", self.get_id(), name.c_str());
 	}
 	else
 	{

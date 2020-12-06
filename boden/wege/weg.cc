@@ -489,7 +489,7 @@ void weg_t::rdwr(loadsave_t *file)
 	if(file->get_extended_version() >= 1)
 	{
 		if (max_axle_load > 32768) {
-			dbg->error("weg_t::rdwr()", "Max axle load out of range");
+			dbg->error("weg_t::rdwr", "Max axle load out of range");
 		}
 		uint16 wdummy16 = max_axle_load;
 		file->rdwr_short(wdummy16);
@@ -1426,7 +1426,7 @@ void weg_t::calc_image()
 		set_image(IMG_EMPTY);
 		set_after_image(IMG_EMPTY);
 		if(  from==NULL  ) {
-			dbg->error( "weg_t::calc_image()", "Own way at %s not found!", get_pos().get_str() );
+			dbg->error( "weg_t::calc_image", "Own way at %s not found!", get_pos().get_str() );
 		}
 #ifdef MULTI_THREAD
 		pthread_mutex_unlock( &weg_calc_image_mutex );

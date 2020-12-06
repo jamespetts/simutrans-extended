@@ -739,11 +739,11 @@ fabrik_t::fabrik_t(loadsave_t* file)
 	last_sound_ms = welt->get_ticks();
 
 	if(  desc == NULL  ) {
-		dbg->warning( "fabrik_t::fabrik_t()", "No pak-file for factory at (%s) - will not be built!", pos_origin.get_str() );
+		dbg->warning( "fabrik_t::fabrik_t", "No pak-file for factory at (%s) - will not be built!", pos_origin.get_str() );
 		return;
 	}
 	else if(  !welt->is_within_limits(pos_origin.get_2d())  ) {
-		dbg->warning( "fabrik_t::fabrik_t()", "%s is not a valid position! (Will not be built!)", pos_origin.get_str() );
+		dbg->warning( "fabrik_t::fabrik_t", "%s is not a valid position! (Will not be built!)", pos_origin.get_str() );
 		desc = NULL; // to get rid of this broken factory later...
 	}
 	else
@@ -777,7 +777,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 	prodfactor_pax = 0;
 	prodfactor_mail = 0;
 	if (initial_prod_base < 0) {
-		prodbase = desc->get_productivity() + simrand(desc->get_range(), "fabrik_t::fabrik_t() prodbase");
+		prodbase = desc->get_productivity() + simrand(desc->get_range(), "fabrik_t::fabrik_t prodbase");
 	}
 	else {
 		prodbase = initial_prod_base;
@@ -1122,7 +1122,7 @@ bool fabrik_t::add_random_field(uint16 probability)
 		return false;
 	}
 	// we are lucky and are allowed to generate a field
-	if(simrand(10000, "bool fabrik_t::add_random_field")>=probability) {
+	if(simrand(10000, "fabrik_t::add_random_field")>=probability) {
 		return false;
 	}
 
@@ -1158,7 +1158,7 @@ bool fabrik_t::add_random_field(uint16 probability)
 	} while (radius <= 128 && build_locations.empty());
 	// built on one of the positions
 	if (!build_locations.empty()) {
-		grund_t *gr = build_locations.at(simrand(build_locations.get_count(), "bool fabrik_t::add_random_field"));
+		grund_t *gr = build_locations.at(simrand(build_locations.get_count(), "fabrik_t::add_random_field"));
 		leitung_t* lt = gr->find<leitung_t>();
 		if(lt) {
 			gr->obj_remove(lt);
@@ -1262,14 +1262,14 @@ void fabrik_t::rdwr(loadsave_t *file)
 	else {
 		char s[256];
 		file->rdwr_str(s, lengthof(s));
-DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
+DBG_DEBUG("fabrik_t::rdwr","loading factory '%s'",s);
 		desc = factory_builder_t::get_desc(s);
 		if(  desc==NULL  ) {
 			//  maybe it was only renamed?
 			desc = factory_builder_t::get_desc(translator::compatibility_name(s));
 		}
 		if(  desc==NULL  ) {
-			dbg->warning( "fabrik_t::rdwr()", "Pak-file for factory '%s' missing!", s );
+			dbg->warning( "fabrik_t::rdwr", "Pak-file for factory '%s' missing!", s );
 			// we continue loading even if desc==NULL
 			welt->add_missing_paks( s, karte_t::MISSING_FACTORY );
 		}
@@ -1317,7 +1317,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			ware.set_typ( goods_manager_t::get_info(ware_name) );
 
 			if (!desc || !desc->get_supplier(i)) {
-				if (desc) dbg->warning("fabrik_t::rdwr()", "Factory at %s requested producer for %s but has none!", pos_origin.get_fullstr(), ware_name);
+				if (desc) dbg->warning("fabrik_t::rdwr", "Factory at %s requested producer for %s but has none!", pos_origin.get_fullstr(), ware_name);
 				ware.menge = 0;
 			}
 
@@ -1424,7 +1424,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			ware.set_typ(goods_manager_t::get_info(ware_name));
 
 			if (!desc || !desc->get_product(i)) {
-				if (desc) dbg->warning("fabrik_t::rdwr()", "Factory at %s requested consumer for %s but has none!", pos_origin.get_fullstr(), ware_name);
+				if (desc) dbg->warning("fabrik_t::rdwr", "Factory at %s requested consumer for %s but has none!", pos_origin.get_fullstr(), ware_name);
 				ware.menge = 0;
 			}
 			else {
@@ -1499,7 +1499,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		// take care of old files
 		if(  file->get_version() < 86001  ) {
 			koord k = desc ? desc->get_building()->get_size() : koord(1,1);
-			DBG_DEBUG("fabrik_t::rdwr()","correction of production by %i",k.x*k.y);
+			DBG_DEBUG("fabrik_t::rdwr","correction of production by %i",k.x*k.y);
 			// since we step from 86.01 per factory, not per tile!
 			prodbase *= k.x*k.y*2;
 		}
@@ -1950,7 +1950,7 @@ bool fabrik_t::out_of_stock_selective()
 		return true;
 	}
 
-	const uint32 random = simrand(weight_of_all_items, "bool fabrik_t::out_of_stock_selective()");
+	const uint32 random = simrand(weight_of_all_items, "fabrik_t::out_of_stock_selective");
 	return random < weight_of_out_of_stock_items;
 }
 
@@ -2706,7 +2706,7 @@ void fabrik_t::new_month()
 	const uint16 timeline_month = welt->get_timeline_year_month(); // This will be 0 if timeline is disabled.
 	const uint16 retire_month = desc->get_building()->get_retire_year_month();
 	const uint32 latest_retire_month = retire_month + (12 * welt->get_settings().get_factory_max_years_obsolete());
-	if(timeline_month > retire_month && (latest_retire_month <= timeline_month || simrand(latest_retire_month - timeline_month, "void fabrik_t::new_month()") == 0))
+	if(timeline_month > retire_month && (latest_retire_month <= timeline_month || simrand(latest_retire_month - timeline_month, "fabrik_t::new_month") == 0))
 	{
 		char buf[256];
 
@@ -2768,7 +2768,7 @@ void fabrik_t::new_month()
 				upgrade_chance_percent += (minimum_base_upgrade_chance_percent * 2);
 				upgrade_chance_percent /= 2;
 
-				const uint32 probability = simrand(101, "void fabrik_t::new_month()");
+				const uint32 probability = simrand(101, "fabrik_t::new_month");
 
 				if(upgrade_chance_percent > probability)
 				{
@@ -2780,7 +2780,7 @@ void fabrik_t::new_month()
 					}
 					const uint32 average_density = total_density / list_count;
 					const uint32 probability = 1 / ((100u - ((adjusted_density + average_density) / max_density)) * (uint32)list_count) / 100u;
-					const uint32 distribution_weight = simrand(probability, "void fabrik_t::new_month()");
+					const uint32 distribution_weight = simrand(probability, "fabrik_t::new_month");
 
 					const int old_distributionweight = desc->get_distribution_weight();
 					const factory_desc_t* new_type = upgrade_list[distribution_weight];
@@ -2793,7 +2793,7 @@ void fabrik_t::new_month()
 					const char* new_name = get_name();
 					get_building()->calc_image();
 					// Base production is randomised, so is an instance value. Must re-set from the type.
-					prodbase = desc->get_productivity() + simrand(desc->get_range(), "void fabrik_t::new_month()");
+					prodbase = desc->get_productivity() + simrand(desc->get_range(), "fabrik_t::new_month");
 					// Re-add the fields
 					for(uint16 i = 0; i < adjusted_number_of_fields; i ++)
 					{
@@ -3401,7 +3401,7 @@ void fabrik_t::finish_rd()
 			}
 			else {
 				// remove this ...
-				dbg->warning( "fabrik_t::finish_rd()", "No factory at expected position %s!", lieferziele[i].get_str() );
+				dbg->warning( "fabrik_t::finish_rd", "No factory at expected position %s!", lieferziele[i].get_str() );
 				lieferziele.remove_at(i);
 				i--;
 			}

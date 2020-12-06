@@ -281,17 +281,17 @@ bool haltestelle_t::remove(player_t *player, koord3d pos)
 
 	// wrong ground?
 	if(bd==NULL) {
-		dbg->error("haltestelle_t::remove()","illegal ground at %d,%d,%d", pos.x, pos.y, pos.z);
+		dbg->error("haltestelle_t::remove","illegal ground at %d,%d,%d", pos.x, pos.y, pos.z);
 		return false;
 	}
 
 	halthandle_t halt = bd->get_halt();
 	if(!halt.is_bound()) {
-		dbg->error("haltestelle_t::remove()","no halt at %d,%d,%d", pos.x, pos.y, pos.z);
+		dbg->error("haltestelle_t::remove","no halt at %d,%d,%d", pos.x, pos.y, pos.z);
 		return false;
 	}
 
-DBG_MESSAGE("haltestelle_t::remove()","removing segment from %d,%d,%d", pos.x, pos.y, pos.z);
+DBG_MESSAGE("haltestelle_t::remove","removing segment from %d,%d,%d", pos.x, pos.y, pos.z);
 	// otherwise there will be marked tiles left ...
 	if (halt->get_pax_enabled() || halt->get_mail_enabled()) {
 		halt->mark_unmark_coverage(false);
@@ -306,7 +306,7 @@ DBG_MESSAGE("haltestelle_t::remove()","removing segment from %d,%d,%d", pos.x, p
 		gebaeude_t* gb = bd->find<gebaeude_t>();
 		if(gb)
 		{
-			DBG_MESSAGE("haltestelle_t::remove()",  "removing building" );
+			DBG_MESSAGE("haltestelle_t::remove",  "removing building" );
 			if(gb->get_tile()->get_desc()->get_is_control_tower())
 			{
 				halt->remove_control_tower();
@@ -322,13 +322,13 @@ DBG_MESSAGE("haltestelle_t::remove()","removing segment from %d,%d,%d", pos.x, p
 	}
 
 	if(!halt->existiert_in_welt()) {
-DBG_DEBUG("haltestelle_t::remove()","remove last");
+DBG_DEBUG("haltestelle_t::remove","remove last");
 		// all deleted?
-DBG_DEBUG("haltestelle_t::remove()","destroy");
+DBG_DEBUG("haltestelle_t::remove","destroy");
 		haltestelle_t::destroy( halt );
 	}
 	else {
-DBG_DEBUG("haltestelle_t::remove()","not last");
+DBG_DEBUG("haltestelle_t::remove","not last");
 		// acceptance and type may have been changed ... (due to post office/dock/railways station deletion)
  		halt->recalc_station_type();
 	}
@@ -543,7 +543,7 @@ haltestelle_t::~haltestelle_t()
 		i++;
 	}
 	if (i != 1) {
-		dbg->error("haltestelle_t::~haltestelle_t()", "handle %i found %i times in haltlist!", self.get_id(), i );
+		dbg->error("haltestelle_t::~haltestelle_t", "handle %i found %i times in haltlist!", self.get_id(), i );
 	}
 
 	if(!welt->is_destroying())
@@ -797,13 +797,13 @@ void haltestelle_t::set_name(const char *new_name)
 		if(gr->get_flag(grund_t::has_text)) {
 			halthandle_t h = all_names.remove(gr->get_text());
 			if(h!=self) {
-				DBG_MESSAGE("haltestelle_t::set_name()","removing name %s already used!",gr->get_text());
+				DBG_MESSAGE("haltestelle_t::set_name","removing name %s already used!",gr->get_text());
 			}
 		}
 		if(!gr->find<label_t>()) {
 			gr->set_text( new_name );
 			if(new_name  &&  all_names.set(gr->get_text(),self).is_bound() ) {
- 				DBG_MESSAGE("haltestelle_t::set_name()","name %s already used!",new_name);
+ 				DBG_MESSAGE("haltestelle_t::set_name","name %s already used!",new_name);
 			}
 		}
 		// Knightly : need to update the title text of the associated halt detail and info dialogs, if present
@@ -1058,7 +1058,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 		while(true) {
 			// well now try them all from "0..." over "9..." to "A..." to "Z..."
 			for(  int i=0;  i<10+26;  i++  ) {
-				const int random_base = simrand(10 + 26, "haltestelle_t::create_name()");
+				const int random_base = simrand(10 + 26, "haltestelle_t::create_name");
 				numbername[0] = random_base < 10 ? '0' + random_base : 'A' + random_base - 10;
 				const char *base_name = translator::translate(numbername,lang);
 				if(base_name==numbername) {
@@ -1113,7 +1113,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 		const vector_tpl<char*>& street_names(translator::get_street_name_list(welt->get_region(k)));
 		// make sure we do only ONE random call regardless of how many names are available (to avoid desyncs in network games)
 		if (const uint32 count = street_names.get_count()) {
-			uint32 idx = simrand(count, "char* haltestelle_t::create_name(koord const k, char const* const typ)");
+			uint32 idx = simrand(count, "char* haltestelle_t::create_name");
 			static const uint32 some_primes[] = { 19, 31, 109, 199, 409, 571, 631, 829, 1489, 1999, 2341, 2971, 3529, 4621, 4789, 7039, 7669, 8779, 9721 };
 			// find prime that does not divide count
 			uint32 offset = 1;
@@ -1138,7 +1138,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 		}
 		else {
 			/* the one random call to avoid desyncs */
-			simrand(5, "char* haltestelle_t::create_name(koord const k, char const* const typ) dummy");
+			simrand(5, "char* haltestelle_t::create_name dummy");
 		}
 	}
 
@@ -1843,9 +1843,9 @@ uint32 haltestelle_t::get_service_frequency(halthandle_t destination, uint8 cate
 	}
 
 	if(destination.is_bound()) {
-		dbg->message("uint32 haltestelle_t::get_service_frequency(halthandle_t destination, uint8 category) const", "Unknown frequency for %s from %s to %s", translator::translate(goods_manager_t::get_info_catg_index(category)->get_catg_name()), get_name(), destination->get_name());
+		dbg->message("haltestelle_t::get_service_frequency", "Unknown frequency for %s from %s to %s", translator::translate(goods_manager_t::get_info_catg_index(category)->get_catg_name()), get_name(), destination->get_name());
 	} else {
-		dbg->warning("uint32 haltestelle_t::get_service_frequency(halthandle_t destination, uint8 category) const", "Tried to calculate frequency for %s from %s to missing halt", translator::translate(goods_manager_t::get_info_catg_index(category)->get_catg_name()), get_name());
+		dbg->warning("haltestelle_t::get_service_frequency", "Tried to calculate frequency for %s from %s to missing halt", translator::translate(goods_manager_t::get_info_catg_index(category)->get_catg_name()), get_name());
 	}
 
 	return calc_service_frequency(destination, category);
@@ -2032,7 +2032,7 @@ void haltestelle_t::refresh_routing(const schedule_t *const sched, const minivec
 	}
 	else
 	{
-		dbg->error("convoi_t::refresh_routing()", "Schedule or player is NULL");
+		dbg->error("convoi_t::refresh_routing", "Schedule or player is NULL");
 	}
 }
 
@@ -2472,7 +2472,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 					sint64 this_arrival_time = check_arrivals.get(cnv->self.get_id());
 					if (this_arrival_time == 0)
 					{
-						dbg->message("bool haltestelle_t::fetch_goods()", "Unknown arrival time for %s at %s", cnv->get_name(), get_name());
+						dbg->message("haltestelle_t::fetch_goods", "Unknown arrival time for %s at %s", cnv->get_name(), get_name());
 						this_arrival_time = welt->get_ticks();
 
 						// Fall back to convoy's general average speed if a point-to-point average is not available.
@@ -3126,7 +3126,7 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 		assert(mutex_error == 0);
 		(void)mutex_error;
 #endif
-		dbg->warning("haltestelle_t::liefere_an()","%d %s delivered to %s has walked between too many consecutive stops: terminating early to avoid infinite loops", ware.menge, translator::translate(ware.get_name()), get_name() );
+		dbg->warning("haltestelle_t::liefere_an","%d %s delivered to %s has walked between too many consecutive stops: terminating early to avoid infinite loops", ware.menge, translator::translate(ware.get_name()), get_name() );
 #ifdef MULTI_THREAD
 		int error = pthread_mutex_unlock(&karte_t::step_passengers_and_mail_mutex);
 		assert(error == 0);
@@ -3150,7 +3150,7 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 		assert(mutex_error == 0);
 		(void)mutex_error;
 #endif
-		dbg->warning("haltestelle_t::liefere_an()","%d %s delivered to %s have no longer a route to their destination.", ware.menge, translator::translate(ware.get_name()), get_name() );
+		dbg->warning("haltestelle_t::liefere_an","%d %s delivered to %s have no longer a route to their destination.", ware.menge, translator::translate(ware.get_name()), get_name() );
 #ifdef MULTI_THREAD
 		mutex_error = pthread_mutex_unlock(&karte_t::step_passengers_and_mail_mutex);
 		assert(mutex_error == 0);
@@ -3171,7 +3171,7 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 		assert(mutex_error == 0);
 		(void)mutex_error;
 #endif
-		dbg->warning("haltestelle_t::liefere_an()","%d %s delivered to %s were intended for a building that has been deleted.", ware.menge, translator::translate(ware.get_name()), get_name() );
+		dbg->warning("haltestelle_t::liefere_an","%d %s delivered to %s were intended for a building that has been deleted.", ware.menge, translator::translate(ware.get_name()), get_name() );
 #ifdef MULTI_THREAD
 		mutex_error = pthread_mutex_unlock(&karte_t::step_passengers_and_mail_mutex);
 		assert(mutex_error == 0);
@@ -3241,7 +3241,7 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 		assert(mutex_error == 0);
 		(void)mutex_error;
 #endif
-		DBG_MESSAGE("haltestelle_t::liefere_an()", "%s has discovered that it is quicker to walk to its destination from %s than take its previously planned route.", translator::translate(ware.get_name()), get_name());
+		DBG_MESSAGE("haltestelle_t::liefere_an", "%s has discovered that it is quicker to walk to its destination from %s than take its previously planned route.", translator::translate(ware.get_name()), get_name());
 #ifdef MULTI_THREAD
 		mutex_error = pthread_mutex_unlock(&karte_t::step_passengers_and_mail_mutex);
 		assert(mutex_error == 0);
@@ -3723,7 +3723,7 @@ void haltestelle_t::add_to_station_type( grund_t *gr )
 
 	if(desc==NULL) {
 		// no desc, but solid ground?!?
-		dbg->error("haltestelle_t::get_station_type()","ground belongs to halt but no desc?");
+		dbg->error("haltestelle_t::get_station_type","ground belongs to halt but no desc?");
 		return;
 	}
 	//if(desc) DBG_DEBUG("haltestelle_t::get_station_type()","desc(%p)=%s",desc,desc->get_name());
@@ -3891,17 +3891,17 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		while(k!=koord3d::invalid) {
 			grund_t *gr = welt->lookup(k);
 			if(!gr) {
-				dbg->error("haltestelle_t::rdwr()", "invalid position %s", k.get_str() );
+				dbg->error("haltestelle_t::rdwr", "invalid position %s", k.get_str() );
 				gr = welt->lookup_kartenboden(k.get_2d());
 				if(gr)
 				{
-					dbg->error("haltestelle_t::rdwr()", "setting to %s", gr->get_pos().get_str() );
+					dbg->error("haltestelle_t::rdwr", "setting to %s", gr->get_pos().get_str() );
 				}
 			}
 			// during loading and saving halts will be referred by their base position
 			// so we may already be defined ...
 			if(gr && gr->get_halt().is_bound()) {
-				dbg->warning( "haltestelle_t::rdwr()", "bound to ground twice at (%i,%i)!", k.x, k.y );
+				dbg->warning( "haltestelle_t::rdwr", "bound to ground twice at (%i,%i)!", k.x, k.y );
 			}
 			// prissi: now check, if there is a building -> we allow no longer ground without building!
 			const gebaeude_t* gb = gr ? gr->find<gebaeude_t>() : NULL;
@@ -3912,7 +3912,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				// Factories will be re-linked on loading
 			}
 			else {
-				dbg->warning("haltestelle_t::rdwr()", "will no longer add ground without building at %s!", k.get_str() );
+				dbg->warning("haltestelle_t::rdwr", "will no longer add ground without building at %s!", k.get_str() );
 			}
 			k.rdwr( file );
 		}
@@ -4023,10 +4023,10 @@ void haltestelle_t::rdwr(loadsave_t *file)
                 else if(  ware.menge>0  )
                 {
                     if(  ware.get_desc()  ) {
-                        dbg->error( "haltestelle_t::rdwr()", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str() );
+                        dbg->error( "haltestelle_t::rdwr", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str() );
                     }
                     else {
-                        dbg->error( "haltestelle_t::rdwr()", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str() );
+                        dbg->error( "haltestelle_t::rdwr", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str() );
                     }
                 }
             }
@@ -4786,7 +4786,7 @@ void haltestelle_t::finish_rd(bool need_recheck_for_walking_distance)
 			else {
 				new_name = create_name( get_basis_pos(), "H" );
 			}
-			dbg->warning("haltestelle_t::set_name()","name already used: \'%s\' -> \'%s\'", current_name, new_name );
+			dbg->warning("haltestelle_t::set_name","name already used: \'%s\' -> \'%s\'", current_name, new_name );
 			if(bd)
 			{
 				bd->set_text( new_name );
@@ -5204,7 +5204,7 @@ bool haltestelle_t::add_grund(grund_t *gr, bool relink_factories, bool recalc_ne
 		}
 	}
 	if (  !grund_is_where_it_should_be || gr->get_halt() != self || !gr->is_halt()  ) {
-		dbg->error( "haltestelle_t::add_grund()", "no ground added to (%s)", gr->get_pos().get_str() );
+		dbg->error( "haltestelle_t::add_grund", "no ground added to (%s)", gr->get_pos().get_str() );
 	}
 	assert(grund_is_where_it_should_be);
 	assert(gr->get_halt() == self);
@@ -5239,7 +5239,7 @@ bool haltestelle_t::rem_grund(grund_t *gr)
 	slist_tpl<tile_t>::iterator i = std::find(tiles.begin(), tiles.end(), gr);
 	if (i == tiles.end()) {
 		// was not part of station => do nothing
-		dbg->error("haltestelle_t::rem_grund()","removed illegal ground from halt");
+		dbg->error("haltestelle_t::rem_grund","removed illegal ground from halt");
 		return false;
 	}
 
@@ -5535,7 +5535,7 @@ bool haltestelle_t::unreserve_position(grund_t *gr, convoihandle_t cnv)
 			}
 		}
 	}
-DBG_MESSAGE("haltestelle_t::unreserve_position()","failed for gr=%p",gr);
+DBG_MESSAGE("haltestelle_t::unreserve_position","failed for gr=%p",gr);
 	return false;
 }
 
@@ -5548,7 +5548,7 @@ bool haltestelle_t::is_reservable(const grund_t *gr, convoihandle_t cnv) const
 	FOR(slist_tpl<tile_t>, const& i, tiles) {
 		if (gr == i.grund) {
 			if (i.reservation[0] == cnv) {
-DBG_MESSAGE("haltestelle_t::is_reservable()","gr=%d,%d already reserved by cnv=%d",gr->get_pos().x,gr->get_pos().y,cnv.get_id());
+DBG_MESSAGE("haltestelle_t::is_reservable","gr=%d,%d already reserved by cnv=%d",gr->get_pos().x,gr->get_pos().y,cnv.get_id());
 				return true;
 			}
 			// not reserved
@@ -5563,7 +5563,7 @@ DBG_MESSAGE("haltestelle_t::is_reservable()","gr=%d,%d already reserved by cnv=%
 			//return false;
 		}
 	}
-DBG_MESSAGE("haltestelle_t::reserve_position()","failed for gr=%i,%i, cnv=%d",gr->get_pos().x,gr->get_pos().y,cnv.get_id());
+DBG_MESSAGE("haltestelle_t::reserve_position","failed for gr=%i,%i, cnv=%d",gr->get_pos().x,gr->get_pos().y,cnv.get_id());
 	return false;
 }
 

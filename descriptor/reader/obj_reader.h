@@ -102,7 +102,7 @@ protected:
 	template<typename T> static T* read_node(obj_node_info_t const& node)
 	{
 		if (node.size != 0) {
-			dbg->fatal("obj_reader_t::read_node()", "node of type %.4s must have size 0, but has size %u", reinterpret_cast<char const*>(&node.type), node.size);
+			dbg->fatal("obj_reader_t::read_node", "node of type %.4s must have size 0, but has size %u", reinterpret_cast<char const*>(&node.type), node.size);
 		}
 
 		return new T();

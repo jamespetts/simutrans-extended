@@ -285,7 +285,7 @@ void convoi_detail_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		// convoy vanished
 		if(  !cnv.is_bound()  ) {
-			dbg->error( "convoi_detail_t::rdwr()", "Could not restore convoi detail window of (%d)", cnv.get_id() );
+			dbg->error( "convoi_detail_t::rdwr", "Could not restore convoi detail window of (%d)", cnv.get_id() );
 			destroy_win( this );
 			return;
 		}

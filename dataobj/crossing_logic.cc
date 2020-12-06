@@ -224,10 +224,10 @@ void crossing_logic_t::register_desc(crossing_desc_t *desc)
 		for(uint8 i=0; i<vec.get_count(); i++) {
 			if (strcmp(vec[i]->get_name(), desc->get_name())==0) {
 				vec.remove_at(i);
-				dbg->warning( "crossing_logic_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+				dbg->warning( "crossing_logic_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 			}
 		}
-DBG_DEBUG( "crossing_logic_t::register_desc()","%s", desc->get_name() );
+DBG_DEBUG( "crossing_logic_t::register_desc","%s", desc->get_name() );
 		// .. then make sorted insert
 		for(uint8 i=0; i<vec.get_count(); i++) {
 			if (compare_crossing(desc, vec[i])<0) {

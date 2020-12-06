@@ -171,7 +171,7 @@ wayobj_t::~wayobj_t()
 				weg->set_max_speed(max_speed);
 			}
 			else {
-				dbg->warning("wayobj_t::~wayobj_t()","ground was not a way!");
+				dbg->warning("wayobj_t::~wayobj_t","ground was not a way!");
 			}
 		}
 	}
@@ -311,7 +311,7 @@ void wayobj_t::finish_rd()
 		}
 		else
 		{
-			dbg->warning("wayobj_t::finish_rd()","ground was not a way!");
+			dbg->warning("wayobj_t::finish_rd","ground was not a way!");
 		}
 	}
 
@@ -353,7 +353,7 @@ void wayobj_t::calc_image()
 		const waytype_t wt = (desc->get_wtyp()==tram_wt) ? track_wt : desc->get_wtyp();
 		weg_t *w=gr->get_weg(wt);
 		if(!w) {
-			dbg->error("wayobj_t::calc_image()","without way at (%s)", get_pos().get_str() );
+			dbg->error("wayobj_t::calc_image","without way at (%s)", get_pos().get_str() );
 			// well, we are not on a way anymore? => delete us
 			cleanup(get_owner());
 			delete this;
@@ -540,7 +540,7 @@ static bool compare_wayobj_desc(const way_obj_desc_t* a, const way_obj_desc_t* b
 bool wayobj_t::successfully_loaded()
 {
 	if(table.empty()) {
-		dbg->warning("wayobj_t::successfully_loaded()", "No obj found - may crash when loading catenary.");
+		dbg->warning("wayobj_t::successfully_loaded", "No obj found - may crash when loading catenary.");
 	}
 
 	way_obj_desc_t const* def = 0;
@@ -562,7 +562,7 @@ bool wayobj_t::register_desc(way_obj_desc_t *desc)
 	// avoid duplicates with same name
 	way_obj_desc_t *old_desc = table.get(desc->get_name());
 	if(old_desc) {
-		dbg->warning( "wayobj_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->warning( "wayobj_t::register_desc", "Object %s was overlaid by addon!", desc->get_name() );
 		table.remove(desc->get_name());
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
@@ -583,7 +583,7 @@ bool wayobj_t::register_desc(way_obj_desc_t *desc)
 	}
 
 	table.put(desc->get_name(), desc);
-DBG_DEBUG( "wayobj_t::register_desc()","%s", desc->get_name() );
+DBG_DEBUG( "wayobj_t::register_desc","%s", desc->get_name() );
 	return true;
 }
 
@@ -607,7 +607,7 @@ void wayobj_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 
 		way_obj_desc_t const* const desc = i.value;
 		if(  desc->is_available(time)  ) {
 
-			DBG_DEBUG("wayobj_t::fill_menu()", "try to add %s(%p)", desc->get_name(), desc);
+			DBG_DEBUG("wayobj_t::fill_menu", "try to add %s(%p)", desc->get_name(), desc);
 			if(  desc->get_builder()  &&  wtyp==desc->get_wtyp()  ) {
 				// only add items with a cursor
 				matching.append(desc);

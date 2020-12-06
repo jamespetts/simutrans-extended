@@ -36,7 +36,7 @@ template<class desc_t> bool register_desc(spezial_obj_tpl<desc_t> const* so, des
 	for (; so->name; ++so) {
 		if (strcmp(so->name, desc->get_name()) == 0) {
 			if (*so->desc != NULL) {
-				dbg->message("register_desc()", "Notice: obj %s already defined", so->name);
+				dbg->message("register_desc", "Notice: obj %s already defined", so->name);
 			}
 			*so->desc = desc;
 			return true;
@@ -54,7 +54,7 @@ template<class desc_t> bool successfully_loaded(spezial_obj_tpl<desc_t> const* s
 {
 	for (; so->name; ++so) {
 		if (!*so->desc) {
-			dbg->fatal("successfully_loaded()", "%s-object %s not found.\n*** PLEASE INSTALL PROPER BASE FILE AND CHECK PATH ***", typeid(**so->desc).name(), so->name);
+			dbg->fatal("successfully_loaded", "%s-object %s not found.\n*** PLEASE INSTALL PROPER BASE FILE AND CHECK PATH ***", typeid(**so->desc).name(), so->name);
 			return false;
 		}
 	}

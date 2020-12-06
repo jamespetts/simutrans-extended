@@ -392,7 +392,7 @@ public:
 				return bags[i].remove_first().value;
 			}
 		}
-		dbg->fatal( "hashtable_tpl::remove_first()", "Hashtable already empty!" );
+		dbg->fatal( "hashtable_tpl::remove_first", "Hashtable already empty!" );
 		return value_t();
 	}
 

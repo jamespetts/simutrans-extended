@@ -120,7 +120,7 @@ koord ai_passenger_t::find_area_for_hub( const koord lo, const koord ru, const k
 			}
 		}
 	}
-DBG_MESSAGE("ai_passenger_t::find_area_for_hub()","suggest hub at (%i,%i)",best_pos.x,best_pos.y);
+DBG_MESSAGE("ai_passenger_t::find_area_for_hub","suggest hub at (%i,%i)",best_pos.x,best_pos.y);
 	return best_pos;
 }
 
@@ -783,7 +783,7 @@ bool ai_passenger_t::create_air_transport_vehicle(const stadt_t *start_stadt, co
  */
 void ai_passenger_t::create_bus_transport_vehicle(koord startpos2d,int vehicle_count,koord *stops,int count,bool do_wait)
 {
-DBG_MESSAGE("ai_passenger_t::create_bus_transport_vehicle()","bus at (%i,%i)",startpos2d.x,startpos2d.y);
+DBG_MESSAGE("ai_passenger_t::create_bus_transport_vehicle","bus at (%i,%i)",startpos2d.x,startpos2d.y);
 	// now start all vehicle one field before, so they load immediately
 	koord3d startpos = welt->lookup_kartenboden(startpos2d)->get_pos();
 
@@ -974,7 +974,7 @@ void ai_passenger_t::step()
 
 			const weighted_vector_tpl<stadt_t*>& staedte = welt->get_cities();
 			int count = staedte.get_count();
-			int offset = (count>1) ? simrand(count-1, "ai_passenger_t::step()") : 0;
+			int offset = (count>1) ? simrand(count-1, "ai_passenger_t::step") : 0;
 			// start with previous target
 			const stadt_t* last_start_stadt=start_stadt;
 			start_stadt = end_stadt;
@@ -988,26 +988,26 @@ void ai_passenger_t::step()
 				start_stadt = pick_any_weighted(staedte);
 				offset = staedte.index_of(start_stadt);
 			}
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using city %s for start",start_stadt->get_name());
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","using city %s for start",start_stadt->get_name());
 			const halthandle_t start_halt = get_our_hub(start_stadt);
 			// find starting place
 
 if(!start_halt.is_bound()) {
-	DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","new_hub");
+	DBG_MESSAGE("ai_passenger_t::do_passenger_ki","new_hub");
 }
 			platz1 = start_halt.is_bound() ? start_halt->get_basis_pos() : find_place_for_hub( start_stadt );
 			if(platz1==koord::invalid) {
 				return;
 			}
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using place (%i,%i) for start",platz1.x,platz1.y);
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","using place (%i,%i) for start",platz1.x,platz1.y);
 
-			if(count==1  ||  simrand(3, "ai_passenger_t::step()")==0) {
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching attraction");
+			if(count==1  ||  simrand(3, "ai_passenger_t::step")==0) {
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","searching attraction");
 				// 25 % of all connections are tourist attractions
 				const weighted_vector_tpl<gebaeude_t*> &world_attractions = welt->get_ausflugsziele();
 				// this way, we are sure, our factory is connected to this town ...
 				unsigned	last_dist = 0xFFFFFFFF;
-				bool ausflug=simrand(2, "ai_passenger_t::step()")!=0;	// holidays first ...
+				bool ausflug=simrand(2, "ai_passenger_t::step")!=0;	// holidays first ...
 				int ziel_count=ausflug;
 				for( int i=0;  i<ziel_count;  i++  ) {
 					unsigned	dist;
@@ -1032,7 +1032,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching attraction");
 						if(  !get_halt(test_platz).is_bound()  ) {
 							// not served
 							dist = shortest_distance(platz1,test_platz);
-							if(dist+simrand(50, "ai_passenger_t::step()")<last_dist  &&   dist>3) {
+							if(dist+simrand(50, "ai_passenger_t::step")<last_dist  &&   dist>3) {
 								// but closer than the others
 								if(ausflug) {
 									end_attraction = world_attractions[i];
@@ -1047,11 +1047,11 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching attraction");
 				if(platz2!=koord::invalid) {
 					// found something
 					state = NR_SAMMLE_ROUTEN;
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","decision: %s wants to built network between %s and %s",get_name(),start_stadt->get_name(),ausflug?end_attraction->get_tile()->get_desc()->get_name():ziel->get_name());
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","decision: %s wants to built network between %s and %s",get_name(),start_stadt->get_name(),ausflug?end_attraction->get_tile()->get_desc()->get_name():ziel->get_name());
 				}
 			}
 			else {
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching town");
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","searching town");
 				int last_dist = 9999999;
 				// find a good route
 				for( int i=0;  i<count;  i++  ) {
@@ -1074,7 +1074,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching town");
 				// ok, found two cities
 				if(start_stadt!=NULL  &&  end_stadt!=NULL) {
 					state = NR_SAMMLE_ROUTEN;
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","%s wants to built network between %s and %s",get_name(),start_stadt->get_name(),end_stadt->get_name());
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","%s wants to built network between %s and %s",get_name(),start_stadt->get_name(),end_stadt->get_name());
 				}
 			}
 		}
@@ -1085,10 +1085,10 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","%s wants to built network betwe
 		{
 			//
 			koord end_hub_pos = koord::invalid;
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","Find hub");
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","Find hub");
 			// also for target (if not tourist attraction!)
 			if(end_stadt!=NULL) {
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","try to built connect to city %p", end_stadt );
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","try to built connect to city %p", end_stadt );
 				// target is town
 				halthandle_t h = get_our_hub(end_stadt);
 				if(h.is_bound()) {
@@ -1106,12 +1106,12 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","try to built connect to city %p
 			if(end_hub_pos!=koord::invalid) {
 				// ok, now we check the vehicle
 				platz2 = end_hub_pos;
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","hub found -> NR_BAUE_ROUTE1");
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","hub found -> NR_BAUE_ROUTE1");
 				state = NR_BAUE_ROUTE1;
 			}
 			else {
 				// no success
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","no suitable hub found");
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","no suitable hub found");
 				end_stadt = NULL;
 				state = CHECK_CONVOI;
 			}
@@ -1130,7 +1130,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","no suitable hub found");
 				// find the really cheapest road
 				road_weg = way_builder_t::weg_search(road_wt, road_vehicle->get_topspeed(), road_vehicle->get_weight(), welt->get_timeline_year_month(), type_flat, 1);
 				state = NR_BAUE_STRASSEN_ROUTE;
-DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->get_name(),road_weg->get_name());
+DBG_MESSAGE("ai_passenger_t::do_passenger_ki","using %s on %s",road_vehicle->get_name(),road_weg->get_name());
 			}
 			else {
 				// no success
@@ -1257,7 +1257,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 		case NR_SUCCESS:
 		{
 			state = CHECK_CONVOI;
-			next_construction_steps = welt->get_steps() + simrand( construction_speed/16, "ai_passenger_t::step()" );
+			next_construction_steps = welt->get_steps() + simrand( construction_speed/16, "ai_passenger_t::step" );
 		}
 		break;
 
@@ -1267,11 +1267,11 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 		{
 			// next time: do something different
 			state = NR_INIT;
-			next_construction_steps = welt->get_steps() + simrand( ai_t::construction_speed, "ai_passenger_t::step()" ) + 25;
+			next_construction_steps = welt->get_steps() + simrand( ai_t::construction_speed, "ai_passenger_t::step" ) + 25;
 
 			vector_tpl<linehandle_t> lines(0);
 			simlinemgmt.get_lines( simline_t::line, &lines);
-			const uint32 offset = simrand(lines.get_count(), "ai_passenger_t::step()");
+			const uint32 offset = simrand(lines.get_count(), "ai_passenger_t::step");
 			for (uint32 i = 0;  i<lines.get_count();  i++  ) {
 				linehandle_t line = lines[(i+offset)%lines.get_count()];
 				if(line->get_linetype()!=simline_t::airline  &&  line->get_linetype()!=simline_t::truckline) {
@@ -1369,7 +1369,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 		break;
 
 		default:
-			DBG_MESSAGE("ai_passenger_t::do_passenger_ki()",	"Illegal state %d!", state );
+			DBG_MESSAGE("ai_passenger_t::do_passenger_ki",	"Illegal state %d!", state );
 			end_stadt = NULL;
 			state = NR_INIT;
 	}
@@ -1393,7 +1393,7 @@ void ai_passenger_t::rdwr(loadsave_t *file)
 	if(file->get_version()<101000) {
 		// ignore saving, reinit on loading
 		if(  file->is_loading()  ) {
-			next_construction_steps = welt->get_steps()+simrand(ai_t::construction_speed, "ai_passenger_t::rdwr()");
+			next_construction_steps = welt->get_steps()+simrand(ai_t::construction_speed, "ai_passenger_t::rdwr");
 		}
 		return;
 	}

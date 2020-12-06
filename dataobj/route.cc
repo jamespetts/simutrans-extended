@@ -100,7 +100,7 @@ bool route_t::append_straight_route(karte_t *welt, koord3d dest )
 	// then try to calculate direct route
 	koord pos = back().get_2d();
 	route.resize( route.get_count()+koord_distance(pos,ziel)+2 );
-	DBG_MESSAGE("route_t::append_straight_route()","start from (%i,%i) to (%i,%i)",pos.x,pos.y,dest.x,dest.y);
+	DBG_MESSAGE("route_t::append_straight_route","start from (%i,%i) to (%i,%i)",pos.x,pos.y,dest.x,dest.y);
 	while(pos!=ziel) {
 		// shortest way
 		if(abs(pos.x-ziel.x)>=abs(pos.y-ziel.y)) {
@@ -114,7 +114,7 @@ bool route_t::append_straight_route(karte_t *welt, koord3d dest )
 		}
 		route.append(welt->lookup_kartenboden(pos)->get_pos());
 	}
-	DBG_MESSAGE("route_t::append_straight_route()","to (%i,%i) found.",ziel.x,ziel.y);
+	DBG_MESSAGE("route_t::append_straight_route","to (%i,%i) found.",ziel.x,ziel.y);
 
 	return pos==ziel;
 }
@@ -629,7 +629,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 	{
 		if(  step >= MAX_STEP  )
 		{
-			dbg->warning("route_t::find_route()","Too many steps (%i>=max %i) in route (too long/complex)", step, MAX_STEP);
+			dbg->warning("route_t::find_route","Too many steps (%i>=max %i) in route (too long/complex)", step, MAX_STEP);
 
 		}
 	}
@@ -1073,14 +1073,14 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 #ifdef DEBUG_ROUTES
 	// display marked route
 	//reliefkarte_t::get_karte()->calc_map();
-	DBG_DEBUG("route_t::intern_calc_route()","steps=%i  (max %i) in route, open %i, cost %u (max %u)",step,MAX_STEP,queue.get_count(),tmp->g,max_cost);
+	DBG_DEBUG("route_t::intern_calc_route","steps=%i  (max %i) in route, open %i, cost %u (max %u)",step,MAX_STEP,queue.get_count(),tmp->g,max_cost);
 #endif
 
 	//INT_CHECK("route 194");
 	// target reached?
 	if(!ziel_erreicht  || step >= MAX_STEP  ||  tmp->g >= max_cost  ||  tmp->parent==NULL) {
 		if(  step >= MAX_STEP  ) {
-			dbg->warning("route_t::intern_calc_route()","Too many steps (%i>=max %i) in route (too long/complex)",step,MAX_STEP);
+			dbg->warning("route_t::intern_calc_route","Too many steps (%i>=max %i) in route (too long/complex)",step,MAX_STEP);
 			ok = route_too_complex;
 		}
 	}
@@ -1095,7 +1095,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 			// debug heuristics
 			if (tmp->f > best) {
 				uint32 dist = calc_distance( tmp->gr->get_pos(), ziel);
-				dbg->warning("route_t::intern_calc_route()", "Problem with heuristic:  from %s to %s at %s, best = %d, cost = %d, heur = %d, dist = %d, turns = %d\n",
+				dbg->warning("route_t::intern_calc_route", "Problem with heuristic:  from %s to %s at %s, best = %d, cost = %d, heur = %d, dist = %d, turns = %d\n",
 						    start.get_str(), ziel.get_fullstr(), tmp->gr->get_pos().get_2d().get_str(), best, tmp->g, tmp->f, dist, tmp->f - tmp->g - dist);
 			}
 #endif
@@ -1242,14 +1242,14 @@ void route_t::postprocess_water_route(karte_t *welt)
 #endif
 	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, max_len, avoid_tile, direction, flags);
 #ifdef DEBUG_ROUTES
-	if(tdriver->get_waytype()==water_wt) {DBG_DEBUG("route_t::calc_route()","route from %d,%d to %d,%d with %i steps in %u ms found.",start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );}
+	if(tdriver->get_waytype()==water_wt) {DBG_DEBUG("route_t::calc_route","route from %d,%d to %d,%d with %i steps in %u ms found.",start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );}
 #endif
 
 //	INT_CHECK("route 343");
 
 	if(ok != valid_route)
 	{
-		DBG_MESSAGE("route_t::calc_route()","No route from %d,%d to %d,%d found",start.x, start.y, ziel.x, ziel.y);
+		DBG_MESSAGE("route_t::calc_route","No route from %d,%d to %d,%d found",start.x, start.y, ziel.x, ziel.y);
 		// no route found
 		route.resize(1);
 		route.append(start); // just to be safe

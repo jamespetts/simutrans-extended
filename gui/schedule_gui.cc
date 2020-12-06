@@ -144,7 +144,7 @@ void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, c
 void schedule_gui_t::gimme_short_stop_name(cbuffer_t& buf, player_t const* const player_, const schedule_t *schedule, int i, int max_chars)
 {
 	if (i < 0 || schedule == NULL || i >= schedule->get_count()) {
-		dbg->warning("void schedule_gui_t::gimme_short_stop_name()", "tried to receive unused entry %i in schedule %p.", i, schedule);
+		dbg->warning("schedule_gui_t::gimme_short_stop_name", "tried to receive unused entry %i in schedule %p.", i, schedule);
 		return;
 	}
 	const schedule_entry_t& entry = schedule->entries[i];
@@ -775,7 +775,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 
 bool schedule_gui_t::action_triggered( gui_action_creator_t *comp, value_t p)
 {
-DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_selector);
+DBG_MESSAGE("schedule_gui_t::action_triggered","comp=%p combo=%p",comp,&line_selector);
 
 	if(comp == &bt_add) {
 		mode = adding;

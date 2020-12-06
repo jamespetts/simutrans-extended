@@ -375,7 +375,7 @@ bool loadsave_t::rd_open(const char *filename_utf8 )
 	}
 	if(mode==text) {
 		close();
-		dbg->error("loadsave_t::rd_open()","text mode no longer supported." );
+		dbg->error("loadsave_t::rd_open","text mode no longer supported." );
 		return false;
 	}
 
@@ -706,7 +706,7 @@ size_t loadsave_t::read(void *buf, size_t len)
 {
 	if(  buffered  ) {
 		if(  len>=LS_BUF_SIZE*2  ) {
-			dbg->fatal("loadsave_t::read()","Request for %d too long", len);
+			dbg->fatal("loadsave_t::read","Request for %d too long", len);
 			return 0;
 		}
 		if(  buf_pos[curr_buff]+len<=buf_len[curr_buff]  ) {
@@ -973,7 +973,7 @@ void loadsave_t::rdwr_bool(bool &i)
 			read( buffer, 5 );
 			buffer[5] = 0;
 			if(  strcmp("bool>",buffer)!=0  ) {
-				dbg->fatal( "loadsave_t::rdwr_bool()","expected \"<bool>\", got \"<%s\"", buffer );
+				dbg->fatal( "loadsave_t::rdwr_bool","expected \"<bool>\", got \"<%s\"", buffer );
 			}
 			read( buffer, 4 );
 			buffer[4] = 0;
@@ -982,7 +982,7 @@ void loadsave_t::rdwr_bool(bool &i)
 			read( buffer, 6 );
 			buffer[6] = 0;
 			if(  strcmp("/bool>",buffer)!=0  ) {
-				dbg->fatal( "loadsave_t::rdwr_bool()","expected \"</bool>\", got \"<%s\"", buffer );
+				dbg->fatal( "loadsave_t::rdwr_bool","expected \"</bool>\", got \"<%s\"", buffer );
 			}
 		}
 	}
@@ -1006,7 +1006,7 @@ void loadsave_t::rdwr_xml_number(sint64 &s, const char *typ)
 		read( buffer, len );
 		buffer[len] = 0;
 		if(  strcmp(typ,buffer)!=0  ) {
-			dbg->fatal( "loadsave_t::rdwr_xml_number()","expected \"<%s>\", got \"<%s>\"", typ, buffer );
+			dbg->fatal( "loadsave_t::rdwr_xml_number","expected \"<%s>\", got \"<%s>\"", typ, buffer );
 		}
 		while(  lsgetc()!='>'  )  ;
 		// read number;
@@ -1036,7 +1036,7 @@ void loadsave_t::rdwr_xml_number(sint64 &s, const char *typ)
 					break;
 				}
 				else {
-					dbg->fatal( "loadsave_t::rdwr_xml_number()", "type %s, found %c in number!", typ, c );
+					dbg->fatal( "loadsave_t::rdwr_xml_number", "type %s, found %c in number!", typ, c );
 				}
 			}
 		}
@@ -1044,12 +1044,12 @@ void loadsave_t::rdwr_xml_number(sint64 &s, const char *typ)
 			s = -s;
 		}
 		if(  lsgetc()!='/'  ) {
-			dbg->fatal( "loadsave_t::rdwr_xml_number()", "missing '/' (not closing tag)" );
+			dbg->fatal( "loadsave_t::rdwr_xml_number", "missing '/' (not closing tag)" );
 		}
 		read( buffer, len );
 		buffer[6] = 0;
 		if(  strcmp(typ,buffer)!=0  ) {
-			dbg->fatal( "loadsave_t::rdwr_xml_number()","expected \"</%s>\", got \"</%s>\"", typ, buffer );
+			dbg->fatal( "loadsave_t::rdwr_xml_number","expected \"</%s>\", got \"</%s>\"", typ, buffer );
 		}
 		while(  lsgetc()!='>'  )  ;
 	}
@@ -1140,7 +1140,7 @@ void loadsave_t::rdwr_str( char* result_buffer, size_t const size)
 			read(&len, sizeof(uint16));
 			len = endian(len);
 			if(  len >= size) {
-				dbg->fatal( "loadsave_t::rdwr_str()","string longer (%i) than allowed size (%i)", len, size );
+				dbg->fatal( "loadsave_t::rdwr_str","string longer (%i) than allowed size (%i)", len, size );
 			}
 			read(result_buffer, len);
 			result_buffer[len] = '\0';
@@ -1167,7 +1167,7 @@ void loadsave_t::rdwr_str( char* result_buffer, size_t const size)
 			if (!strstart(buffer, "string>")) {
 				if (!strstart(buffer, "![CDATA") || lsgetc() != '[') {
 					buffer[7] = 0;
-					dbg->fatal( "loadsave_t::rdwr_str()","expected str \"<![CDATA[\", got \"%s\"", buffer );
+					dbg->fatal( "loadsave_t::rdwr_str","expected str \"<![CDATA[\", got \"%s\"", buffer );
 				}
 				string = false;
 			}
@@ -1206,7 +1206,7 @@ void loadsave_t::rdwr_str( char* result_buffer, size_t const size)
 					}
 				}
 				*s = 0;
-				dbg->fatal( "loadsave_t::rdwr_str()","string too long (exceeded %i characters)", size );
+				dbg->fatal( "loadsave_t::rdwr_str","string too long (exceeded %i characters)", size );
 			}
 		}
 	}
@@ -1249,7 +1249,7 @@ void loadsave_t::start_tag(const char *tag)
 			while(  lsgetc()!='<'  ) { /* nothing */ }
 			read( buf, strlen(tag) );
 			if(  !strstart(buf, tag)  ) {
-				dbg->fatal( "loadsave_t::start_tag()","expected \"%s\", got \"%s\"", tag, buf );
+				dbg->fatal( "loadsave_t::start_tag","expected \"%s\", got \"%s\"", tag, buf );
 			}
 			while(  lsgetc()!='>'  )  ;
 		}
@@ -1281,7 +1281,7 @@ void loadsave_t::end_tag(const char *tag)
 void loadsave_t::wr_obj_id(sint16 id)
 {
 	if(!saving) {
-		dbg->fatal( "loadsave_t::wr_obj_id()", "must be only called during saving!" );
+		dbg->fatal( "loadsave_t::wr_obj_id", "must be only called during saving!" );
 	}
 	if(!is_xml()) {
 		lsputc( id );
@@ -1296,7 +1296,7 @@ void loadsave_t::wr_obj_id(sint16 id)
 sint16 loadsave_t::rd_obj_id()
 {
 	if(saving) {
-		dbg->fatal( "loadsave_t::rd_obj_id()", "must be only called during reading!" );
+		dbg->fatal( "loadsave_t::rd_obj_id", "must be only called during reading!" );
 		return INVALID_RDWR_ID;
 	}
 	if(!is_xml()) {
@@ -1346,7 +1346,7 @@ void loadsave_t::rd_obj_id(char *id_buf, int size)
 			read( buf, 6 );
 			buf[5] = 0;
 			if (!strstart(buf, "<id=\"")) {
-				dbg->fatal( "loadsave_t::rd_obj_id()","expected id str \"<id=\"\", got \"%s\"", buf );
+				dbg->fatal( "loadsave_t::rd_obj_id","expected id str \"<id=\"\", got \"%s\"", buf );
 			}
 			// now parse input
 			for(  int i=0;  i<size;  i++  ) {
@@ -1361,7 +1361,7 @@ void loadsave_t::rd_obj_id(char *id_buf, int size)
 			*id_buf = 0;
 			read( buf, 2 );
 			if (!strstart(buf, "/>")) {
-				dbg->fatal( "loadsave_t::rd_obj_id()","id tag not properly closed!" );
+				dbg->fatal( "loadsave_t::rd_obj_id","id tag not properly closed!" );
 			}
 		}
 	}
@@ -1376,7 +1376,7 @@ loadsave_t::combined_version loadsave_t::int_version(const char *version_text, i
 	while(*version_text  &&  *version_text++ != '.')
 		;
 	if(!*version_text) {
-		dbg->fatal( "loadsave_t::int_version()","Really broken version string!" );
+		dbg->fatal( "loadsave_t::int_version","Really broken version string!" );
 		combined_version dud;
 		dud.version = 0;
 		dud.extended_version = 0;
@@ -1388,7 +1388,7 @@ loadsave_t::combined_version loadsave_t::int_version(const char *version_text, i
 	while(*version_text  &&  *version_text++ != '.')
 		;
 	if(!*version_text) {
-		dbg->fatal( "loadsave_t::int_version()","Really broken version string!" );
+		dbg->fatal( "loadsave_t::int_version","Really broken version string!" );
 		combined_version dud;
 		dud.version = 0;
 		dud.extended_version = 0;

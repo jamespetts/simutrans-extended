@@ -79,10 +79,10 @@ obj_desc_t * citycar_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	}
 	// zero speed not allowed, we want something that moves!
 	if(  desc->topspeed<=16  ) {
-		dbg->warning( "citycar_reader_t::read_node()", "citycar must have minimum speed => changed to 1.25 km/h!" );
+		dbg->warning( "citycar_reader_t::read_node", "citycar must have minimum speed => changed to 1.25 km/h!" );
 		desc->topspeed = 16;
 	}
-	DBG_DEBUG("citycar_reader_t::read_node()", "version=%i, speed=%i, chance=%i, intro=%i/%i, retire=%i/%i",
+	DBG_DEBUG("citycar_reader_t::read_node", "version=%i, speed=%i, chance=%i, intro=%i/%i, retire=%i/%i",
 		version,
 		speed_to_kmh(desc->topspeed),
 		desc->distribution_weight,

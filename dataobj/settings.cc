@@ -588,7 +588,7 @@ void settings_t::rdwr(loadsave_t *file)
 		file->rdwr_long(dummy );
 		dummy &= 127;
 		if(dummy>63) {
-			dbg->warning("settings_t::rdwr()", "This game was saved with too many cities! (%i of maximum 63). Simutrans may crash!", dummy);
+			dbg->warning("settings_t::rdwr", "This game was saved with too many cities! (%i of maximum 63). Simutrans may crash!", dummy);
 		}
 		city_count = dummy;
 
@@ -805,7 +805,7 @@ void settings_t::rdwr(loadsave_t *file)
 				// several roads ...
 				file->rdwr_short(num_city_roads);
 				if(  num_city_roads>=16  ) {
-					dbg->fatal("settings_t::rdwr()", "Too many (%i) city roads!", num_city_roads);
+					dbg->fatal("settings_t::rdwr", "Too many (%i) city roads!", num_city_roads);
 				}
 				for(  int i=0;  i<num_city_roads;  i++  ) {
 					file->rdwr_str(city_roads[i].name, lengthof(city_roads[i].name) );
@@ -815,7 +815,7 @@ void settings_t::rdwr(loadsave_t *file)
 				// several intercity roads ...
 				file->rdwr_short(num_intercity_roads);
 				if(  num_intercity_roads>=16  ) {
-					dbg->fatal("settings_t::rdwr()", "Too many (%i) intercity roads!", num_intercity_roads);
+					dbg->fatal("settings_t::rdwr", "Too many (%i) intercity roads!", num_intercity_roads);
 				}
 				for(  int i=0;  i<num_intercity_roads;  i++  ) {
 					file->rdwr_str(intercity_roads[i].name, lengthof(intercity_roads[i].name) );
@@ -2410,7 +2410,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	way_height_clearance  = contents.get_int("way_height_clearance", way_height_clearance );
 	if(  way_height_clearance > 2  &&  way_height_clearance < bounds  ) {
 		sint8 new_whc = clamp( way_height_clearance, bounds, 2 );
-		dbg->warning( "settings_t::parse_simuconf()", "Illegal way_height_clearance of %i set to %i", way_height_clearance, new_whc );
+		dbg->warning( "settings_t::parse_simuconf", "Illegal way_height_clearance of %i set to %i", way_height_clearance, new_whc );
 		way_height_clearance = new_whc;
 	}
 
@@ -2889,7 +2889,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 
 		if ((ul[0] & 1) == 1)
 		{
-			dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+			dbg->message("settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
 			break;
 		}
 
@@ -2906,7 +2906,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 
 		if ((lr[0] & 1) == 1)
 		{
-			dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+			dbg->message("settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
 			break;
 		}
 		for (int i = 1; i < lr[0]; i += 2)
@@ -2935,7 +2935,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 
 			if ((ul[0] & 1) == 1)
 			{
-				dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+				dbg->message("settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
 				break;
 			}
 			for (int i = 1; i < ul[0]; i += 2)
@@ -2948,7 +2948,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 
 			if ((lr[0] & 1) == 1)
 			{
-				dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+				dbg->message("settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
 				break;
 			}
 			for (int i = 1; i < lr[0]; i += 2)

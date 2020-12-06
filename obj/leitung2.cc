@@ -534,7 +534,7 @@ void leitung_t::rdwr(loadsave_t *file)
 						welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 						desc = way_builder_t::leitung_desc;
 					}
-					dbg->warning("leitung_t::rdwr()", "Unknown powerline %s replaced by %s", bname, desc->get_name() );
+					dbg->warning("leitung_t::rdwr", "Unknown powerline %s replaced by %s", bname, desc->get_name() );
 				}
 				set_desc(desc);
 			}

@@ -279,10 +279,10 @@ void gui_theme_t::init_gui_from_images()
 		arrow_button_down_img[i] = skinverwaltung_t::scrollbar->get_image_id( SKIN_BUTTON_ARROW_DOWN+i );
 	}
 	if(  gui_theme_t::gui_arrow_right_size != gui_theme_t::gui_arrow_left_size  ) {
-		dbg->warning( "gui_theme_t::themes_init()", "Size of left and right arrows differ" );
+		dbg->warning( "gui_theme_t::themes_init", "Size of left and right arrows differ" );
 	}
 	if(  gui_theme_t::gui_arrow_up_size != gui_theme_t::gui_arrow_down_size  ) {
-		dbg->warning( "gui_theme_t::themes_init()", "Size of up and down arrows differ" );
+		dbg->warning( "gui_theme_t::themes_init", "Size of up and down arrows differ" );
 	}
 
 	// now init this button dependent size here too
@@ -353,7 +353,7 @@ bool gui_theme_t::themes_init(const char *file_name)
 
 	// first take user data, then user global data
 	if(  !themesconf.open(file_name)  ) {
-		dbg->warning("simwin.cc themes_init()", "Can't read themes from %s", file_name );
+		dbg->warning("simwin.cc themes_init", "Can't read themes from %s", file_name );
 		return false;
 	}
 

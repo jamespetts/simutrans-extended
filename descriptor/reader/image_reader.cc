@@ -109,7 +109,7 @@ obj_desc_t *image_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 	}
 	else {
-		dbg->fatal("image_reader_t::read_node()","illegal versions %d", version );
+		dbg->fatal("image_reader_t::read_node","illegal versions %d", version );
 	}
 
 #if COLOUR_DEPTH == 0
@@ -146,7 +146,7 @@ adjust_image:
 		}
 
 		if(left<desc->x) {
-			dbg->warning( "image_reader_t::read_node()","left(%i)<x(%i) (may be intended)", left, desc->x );
+			dbg->warning( "image_reader_t::read_node","left(%i)<x(%i) (may be intended)", left, desc->x );
 		}
 
 		dest = desc->data;

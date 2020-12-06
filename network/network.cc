@@ -85,7 +85,7 @@ static bool network_initialize()
 		/* Let's load the network in windows */
 		WSADATA wsa;
 		if (int err = WSAStartup(MAKEWORD(2, 2), &wsa)) {
-			dbg->warning("NetworkInitialize()", "failed loading windows socket library with %i", err);
+			dbg->warning("NetworkInitialize", "failed loading windows socket library with %i", err);
 			return false;
 		}
 #endif
@@ -237,9 +237,9 @@ SOCKET network_open_address(char const* cp, char const*& err)
 		local_hints.ai_family = PF_UNSPEC;
 
 		// Insert listen address into local_hints struct to influence local address to bind to
-		DBG_MESSAGE("network_open_address()", "Preparing to bind address: %s", ip.c_str());
+		DBG_MESSAGE("network_open_address", "Preparing to bind address: %s", ip.c_str());
 		if ((ret = getaddrinfo(ip.c_str(), 0, &local_hints, &local)) != 0) {
-			dbg->warning("network_open_address()", "Failed to getaddrinfo for %s, error was: %s", ip.c_str(), gai_strerror(ret));
+			dbg->warning("network_open_address", "Failed to getaddrinfo for %s, error was: %s", ip.c_str(), gai_strerror(ret));
 #ifndef NETTOOL
 			env_t::listen.remove_at(i);
 #endif
@@ -254,22 +254,22 @@ SOCKET network_open_address(char const* cp, char const*& err)
 
 			// Validate address + get string representation for logging
 			if ((ret = getnameinfo((walk_local->ai_addr), (socklen_t)walk_local->ai_addrlen, ipstr_local, sizeof(ipstr_local), NULL, 0, NI_NUMERICHOST)) != 0) {
-				dbg->warning("network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+				dbg->warning("network_open_address", "Call to getnameinfo failed with error: \"%s\"", gai_strerror(ret));
 				continue;
 			}
 
-			DBG_MESSAGE("network_open_address()", "Potential local address: %s", ipstr_local);
+			DBG_MESSAGE("network_open_address", "Potential local address: %s", ipstr_local);
 
 			my_client_socket = socket(walk_local->ai_family, walk_local->ai_socktype, walk_local->ai_protocol);
 
 			if (my_client_socket == INVALID_SOCKET) {
-				DBG_MESSAGE("network_open_address()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
+				DBG_MESSAGE("network_open_address", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
 				continue;
 			}
 
 			// Bind socket to local IP
 			if (::bind(my_client_socket, walk_local->ai_addr, walk_local->ai_addrlen) == -1) {
-				DBG_MESSAGE("network_open_address()", "Unable to bind socket to local IP address! Error: \"%s\"", strerror(GET_LAST_ERROR()));
+				DBG_MESSAGE("network_open_address", "Unable to bind socket to local IP address! Error: \"%s\"", strerror(GET_LAST_ERROR()));
 				network_close_socket(my_client_socket);
 				my_client_socket = INVALID_SOCKET;
 				continue;
@@ -282,14 +282,14 @@ SOCKET network_open_address(char const* cp, char const*& err)
 
 				// Validate remote address + get string representation for logging
 				if ((ret = getnameinfo(walk_remote->ai_addr, (socklen_t)walk_remote->ai_addrlen, ipstr_remote, sizeof(ipstr_remote), NULL, 0, NI_NUMERICHOST)) != 0) {
-					dbg->warning("network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+					dbg->warning("network_open_address", "Call to getnameinfo failed with error: \"%s\"", gai_strerror(ret));
 					continue;
 				}
 
-				DBG_MESSAGE("network_open_address()", "Potential remote address: %s", ipstr_remote);
+				DBG_MESSAGE("network_open_address", "Potential remote address: %s", ipstr_remote);
 
 				if (connect(my_client_socket, walk_remote->ai_addr, (socklen_t)walk_remote->ai_addrlen) != 0) {
-					DBG_MESSAGE("network_open_address()", "Could not connect using this socket. Error: \"%s\"", strerror(GET_LAST_ERROR()));
+					DBG_MESSAGE("network_open_address", "Could not connect using this socket. Error: \"%s\"", strerror(GET_LAST_ERROR()));
 					continue;
 				}
 				connected = true;
@@ -323,7 +323,7 @@ bool network_init_server(int port)
 {
 	// First activate network
 	if (!network_initialize()) {
-		dbg->fatal("network_init_server()", "Failed to initialize network!");
+		dbg->fatal("network_init_server", "Failed to initialize network!");
 	}
 	socket_list_t::reset();
 
@@ -331,7 +331,7 @@ bool network_init_server(int port)
 
 	SOCKET my = socket(PF_INET, SOCK_STREAM, 0);
 	if (my == INVALID_SOCKET) {
-		dbg->fatal("network_init_server()", "Failed to open socket!");
+		dbg->fatal("network_init_server", "Failed to open socket!");
 		return false;
 	}
 
@@ -341,13 +341,13 @@ bool network_init_server(int port)
 	name.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (::bind(my, (struct sockaddr *)&name, sizeof(name)) == -1) {
-		dbg->fatal("network_init_server()", "Bind failed!");
+		dbg->fatal("network_init_server", "Bind failed!");
 		return false;
 	}
 
 	/* Max pending connections */
 	if (listen(my, MAX_PLAYER_COUNT) == -1) {
-		dbg->fatal("network_init_server()", "Listen failed for %i sockets!", MAX_PLAYER_COUNT);
+		dbg->fatal("network_init_server", "Listen failed for %i sockets!", MAX_PLAYER_COUNT);
 		return false;
 	}
 
@@ -375,13 +375,13 @@ bool network_init_server(int port)
 		hints.ai_socktype = SOCK_STREAM;
 
 		// Insert potential listen address into hints struct to influence local address to bind to
-		DBG_MESSAGE("network_init_server()", "Preparing to bind address: \"%s\"", ip.c_str());
+		DBG_MESSAGE("network_init_server", "Preparing to bind address: \"%s\"", ip.c_str());
 		hints.ai_family = PF_UNSPEC;
 		if ((ret = getaddrinfo(ip.c_str(), port_nr, &hints, &server)) != 0) {
-			dbg->fatal("network_init_server()", "Call to getaddrinfo() failed for: \"%s\", error was: \"%s\" - check listen directive in simuconf.tab!", ip.c_str(), gai_strerror(ret));
+			dbg->fatal("network_init_server", "Call to getaddrinfo failed for: \"%s\", error was: \"%s\" - check listen directive in simuconf.tab!", ip.c_str(), gai_strerror(ret));
 		}
 		else {
-			dbg->message("network_init_server()", "Attempting to bind listening sockets for: \"%s\"\n", ip.c_str());
+			dbg->message("network_init_server", "Attempting to bind listening sockets for: \"%s\"\n", ip.c_str());
 		}
 
 		SOCKET server_socket;
@@ -393,16 +393,16 @@ bool network_init_server(int port)
 
 			// Validate address + get string representation for logging
 			if ((ret = getnameinfo(walk->ai_addr, (socklen_t)walk->ai_addrlen, ipstr, sizeof(ipstr), NULL, 0, NI_NUMERICHOST)) != 0) {
-				dbg->warning("network_init_server()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+				dbg->warning("network_init_server", "Call to getnameinfo failed with error: \"%s\"", gai_strerror(ret));
 				continue;
 			}
 
-			DBG_MESSAGE("network_init_server()", "Potential bind address: %s", ipstr);
+			DBG_MESSAGE("network_init_server", "Potential bind address: %s", ipstr);
 
 			server_socket = socket(walk->ai_family, walk->ai_socktype, walk->ai_protocol);
 
 			if (server_socket == INVALID_SOCKET) {
-				dbg->warning("network_init_server()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
+				dbg->warning("network_init_server", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
 				continue;
 			}
 
@@ -411,7 +411,7 @@ bool network_init_server(int port)
 			if (walk->ai_family == AF_INET6) {
 				int const on = 1;
 				if (setsockopt(server_socket, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<const char *>(&on), sizeof(on)) != 0) {
-					dbg->warning("network_init_server()", "Call to setsockopt(IPV6_V6ONLY) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
+					dbg->warning("network_init_server", "Call to setsockopt(IPV6_V6ONLY) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
 					network_close_socket(server_socket);
 					server_socket = INVALID_SOCKET;
 					continue;
@@ -420,20 +420,20 @@ bool network_init_server(int port)
 			// Enable reusing of local addresses
 			int const enable = 1;
 			if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&enable), sizeof(enable)) != 0) {
-				dbg->warning("network_init_server()", "Call to setsockopt(SO_REUSEADDR) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
+				dbg->warning("network_init_server", "Call to setsockopt(SO_REUSEADDR) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
 			}
 
 			if (::bind(server_socket, walk->ai_addr, walk->ai_addrlen) == -1) {
 				/* Unable to bind a socket - abort execution as we are supposed to be a server on this interface */
-				dbg->fatal("network_init_server()", "Unable to bind socket to IP address: \"%s\", error was: \"%s\"", ipstr, strerror(GET_LAST_ERROR()));
+				dbg->fatal("network_init_server", "Unable to bind socket to IP address: \"%s\", error was: \"%s\"", ipstr, strerror(GET_LAST_ERROR()));
 			}
 
 			if (listen(server_socket, 32) == -1) {
 				/* Unable to listen on bound socket - abort execution as we are supposed to be a server on this interface */
-				dbg->fatal("network_init_server()", "Unable to set socket to listen for incoming connections on: \"%s\"", ipstr);
+				dbg->fatal("network_init_server", "Unable to set socket to listen for incoming connections on: \"%s\"", ipstr);
 			}
 
-			dbg->message("network_init_server()", "Added valid listen socket for address: \"%s\"\n", ipstr);
+			dbg->message("network_init_server", "Added valid listen socket for address: \"%s\"\n", ipstr);
 			socket_list_t::add_server(server_socket);
 		}
 		freeaddrinfo(server);
@@ -441,7 +441,7 @@ bool network_init_server(int port)
 
 	// Fatal error if no server sockets could be opened, since we're supposed to be a server!
 	if (socket_list_t::get_server_sockets() == 0) {
-		dbg->fatal("network_init_server()", "Unable to add any server sockets!");
+		dbg->fatal("network_init_server", "Unable to add any server sockets!");
 	}
 	else {
 		printf("Server started, added %d server sockets\n", socket_list_t::get_server_sockets());
@@ -528,7 +528,7 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 #else
 				const char *name = inet_ntoa(client_name.sin_addr);
 #endif
-				dbg->message("check_activity()", "Accepted connection from: %s.", name);
+				dbg->message("check_activity", "Accepted connection from: %s.", name);
 				socket_list_t::add_client(s, ip);
 			}
 		}
@@ -544,7 +544,7 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 			network_command_t *nwc = socket_list_t::get_client(client_id).receive_nwc();
 			if (nwc) {
 				received_command_queue.append(nwc);
-				dbg->warning("network_check_activity()", "received cmd id=%d %s from socket[%d]", nwc->get_id(), nwc->get_name(), sender);
+				dbg->warning("network_check_activity", "received cmd id=%d %s from socket[%d]", nwc->get_id(), nwc->get_name(), sender);
 			}
 			// errors are caught and treated in socket_info_t::receive_nwc
 		}
@@ -775,7 +775,7 @@ void network_close_socket(SOCKET sock)
 		// reset all the special / static socket variables
 		if (sock == nwc_join_t::pending_join_client) {
 			nwc_join_t::pending_join_client = INVALID_SOCKET;
-			DBG_MESSAGE("network_close_socket()", "Close pending_join_client [%d]", nwc_join_t::pending_join_client);
+			DBG_MESSAGE("network_close_socket", "Close pending_join_client [%d]", nwc_join_t::pending_join_client);
 		}
 		if (sock == nwc_pakset_info_t::server_receiver) {
 			nwc_pakset_info_t::server_receiver = INVALID_SOCKET;

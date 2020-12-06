@@ -279,7 +279,7 @@ void vehicle_base_t::leave_tile()
 				cr->release_crossing(this);
 			}
 		} else {
-			dbg->warning("vehicle_base_t::leave_tile()", "No crossing found at %s", gr->get_pos().get_str());
+			dbg->warning("vehicle_base_t::leave_tile", "No crossing found at %s", gr->get_pos().get_str());
 		}
 	}
 
@@ -287,8 +287,8 @@ void vehicle_base_t::leave_tile()
 	if(!get_flag(not_on_map)  &&  (gr==NULL  ||  !gr->obj_remove(this)) ) {
 
 		// was not removed (not found?)
-		dbg->error("vehicle_base_t::leave_tile()","'typ %i' %p could not be removed from %d %d", get_typ(), this, get_pos().x, get_pos().y);
-		DBG_MESSAGE("vehicle_base_t::leave_tile()","checking all plan squares");
+		dbg->error("vehicle_base_t::leave_tile","'typ %i' %p could not be removed from %d %d", get_typ(), this, get_pos().x, get_pos().y);
+		DBG_MESSAGE("vehicle_base_t::leave_tile","checking all plan squares");
 
 		// check, whether it is on another height ...
 		const planquadrat_t *pl = welt->access( get_pos().get_2d() );
@@ -296,7 +296,7 @@ void vehicle_base_t::leave_tile()
 			gr = pl->get_boden_von_obj(this);
 			if(  gr  ) {
 				gr->obj_remove(this);
-				dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_typ(), this, get_pos().x, get_pos().y);
+				dbg->warning("vehicle_base_t::leave_tile","removed vehicle typ %i (%p) from %d %d",get_typ(), this, get_pos().x, get_pos().y);
 			}
 			gr = NULL;
 			return;
@@ -309,14 +309,14 @@ void vehicle_base_t::leave_tile()
 			for(k.x=0; k.x<welt->get_size().x; k.x++) {
 				grund_t *gr = welt->access( k )->get_boden_von_obj(this);
 				if(gr && gr->obj_remove(this)) {
-					dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_name(), this, k.x, k.y);
+					dbg->warning("vehicle_base_t::leave_tile","removed vehicle typ %i (%p) from %d %d",get_name(), this, k.x, k.y);
 					ok = true;
 				}
 			}
 		}
 
 		if(!ok) {
-			dbg->error("vehicle_base_t::leave_tile()","'%s' %p was not found on any map square!",get_name(), this);
+			dbg->error("vehicle_base_t::leave_tile","'%s' %p was not found on any map square!",get_name(), this);
 		}
 	}
 	gr = NULL;
@@ -326,13 +326,13 @@ void vehicle_base_t::leave_tile()
 void vehicle_base_t::enter_tile(grund_t* gr)
 {
 	if(!gr) {
-		dbg->error("vehicle_base_t::enter_tile()","'%s' new position (%i,%i,%i)!",get_name(), get_pos().x, get_pos().y, get_pos().z );
+		dbg->error("vehicle_base_t::enter_tile","'%s' new position (%i,%i,%i)!",get_name(), get_pos().x, get_pos().y, get_pos().z );
 		gr = welt->lookup_kartenboden(get_pos().get_2d());
 		set_pos( gr->get_pos() );
 	}
 	if(!gr->obj_add(this))
 	{
-		dbg->error("vehicle_base_t::enter_tile()","'%s failed to be added to the object list", get_name());
+		dbg->error("vehicle_base_t::enter_tile","'%s failed to be added to the object list", get_name());
 	}
 	weg = gr->get_weg(get_waytype());
 }
@@ -905,7 +905,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 					// check if destination or transfer is still valid
 					if (!end_halt.is_bound() || !via_halt.is_bound())
 					{
-						DBG_MESSAGE("vehicle_t::unload_cargo()", "destination of %d %s is no longer reachable", tmp.menge, translator::translate(tmp.get_name()));
+						DBG_MESSAGE("vehicle_t::unload_cargo", "destination of %d %s is no longer reachable", tmp.menge, translator::translate(tmp.get_name()));
 						total_freight -= tmp.menge;
 						sum_weight -= tmp.menge * tmp.get_desc()->get_weight_per_unit();
 						i = fracht[j].erase(i);
@@ -1271,7 +1271,7 @@ void vehicle_t::fix_class_accommodations()
  */
 void vehicle_t::remove_stale_cargo()
 {
-	DBG_DEBUG("vehicle_t::remove_stale_cargo()", "called");
+	DBG_DEBUG("vehicle_t::remove_stale_cargo", "called");
 
 	// and now check every piece of ware on board,
 	// if its target is somewhere on
@@ -2598,7 +2598,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(l);
 		route_index = (uint16)l;
 		purchase_time = (purchase_time >> welt->ticks_per_world_month_shift) + welt->get_settings().get_starting_year();
-	DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12)+1,purchase_time/12);
+	DBG_MESSAGE("vehicle_t::rdwr_from_convoi","bought at %i/%i.",(purchase_time%12)+1,purchase_time/12);
 	}
 	else {
 		// prissi: changed several data types to save runtime memory
@@ -2706,7 +2706,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 		if(desc==NULL) {
 			welt->add_missing_paks( s, karte_t::MISSING_VEHICLE );
-			dbg->warning("vehicle_t::rdwr_from_convoi()","no vehicle pak for '%s' search for something similar", s);
+			dbg->warning("vehicle_t::rdwr_from_convoi","no vehicle pak for '%s' search for something similar", s);
 		}
 	}
 
@@ -2754,11 +2754,11 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 					{
 						if (ware.get_desc())
 						{
-							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
+							dbg->error("vehicle_t::rdwr_from_convoi", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
 						}
 						else
 						{
-							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
+							dbg->error("vehicle_t::rdwr_from_convoi", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
 						}
 					}
 				}
@@ -2786,10 +2786,10 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 				}
 				else if (ware.menge > 0) {
 					if (ware.get_desc()) {
-						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
+						dbg->error("vehicle_t::rdwr_from_convoi", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
 					}
 					else {
-						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
+						dbg->error("vehicle_t::rdwr_from_convoi", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
 					}
 				}
 			}
@@ -3010,7 +3010,7 @@ vehicle_t::show_info()
 	if(  cnv != NULL  ) {
 		cnv->show_info();
 	} else {
-		dbg->warning("vehicle_t::show_info()","cnv is null, can't open convoi window!");
+		dbg->warning("vehicle_t::show_info","cnv is null, can't open convoi window!");
 	}
 }
 
@@ -3079,7 +3079,7 @@ void vehicle_t::set_class_reassignment(uint8 original_class, uint8 new_class)
 {
 	if (original_class >= number_of_classes || new_class >= number_of_classes)
 	{
-		dbg->error("vehicle_t::set_class_reassignment()", "Attempt to set class out of range");
+		dbg->error("vehicle_t::set_class_reassignment", "Attempt to set class out of range");
 		return;
 	}
 	const bool different = class_reassignments[original_class] != new_class;
@@ -3461,10 +3461,10 @@ road_vehicle_t::road_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) 
 				gd = goods_manager_t::passengers;
 			}
 
-			dbg->warning("road_vehicle_t::road_vehicle_t()","try to find a fitting vehicle for %s.", gd->get_name() );
+			dbg->warning("road_vehicle_t::road_vehicle_t","try to find a fitting vehicle for %s.", gd->get_name() );
 			desc = vehicle_builder_t::get_best_matching(road_wt, 0, (empty ? 0 : 50), is_leading?50:0, speed_to_kmh(speed_limit), gd, true, last_desc, is_last );
 			if(desc) {
-				DBG_MESSAGE("road_vehicle_t::road_vehicle_t()","replaced by %s",desc->get_name());
+				DBG_MESSAGE("road_vehicle_t::road_vehicle_t","replaced by %s",desc->get_name());
 				// still wrong load ...
 				calc_image();
 			}
@@ -4532,7 +4532,7 @@ schedule_t * road_vehicle_t::generate_new_schedule() const
 
 void road_vehicle_t::set_convoi(convoi_t *c)
 {
-	DBG_MESSAGE("road_vehicle_t::set_convoi()","%p",c);
+	DBG_MESSAGE("road_vehicle_t::set_convoi","%p",c);
 	if(c!=NULL) {
 		bool target=(bool)cnv;	// only during loadtype: cnv==1 indicates, that the convoi did reserve a stop
 		vehicle_t::set_convoi(c);
@@ -4616,7 +4616,7 @@ rail_vehicle_t::rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) 
 
 			int power = (is_leading || empty || gd == goods_manager_t::none) ? 500 : 0;
 			const goods_desc_t* w = empty ? goods_manager_t::none : gd;
-			dbg->warning("rail_vehicle_t::rail_vehicle_t()","try to find a fitting vehicle for %s.", power>0 ? "engine": w->get_name() );
+			dbg->warning("rail_vehicle_t::rail_vehicle_t","try to find a fitting vehicle for %s.", power>0 ? "engine": w->get_name() );
 			if(last_desc!=NULL  &&  last_desc->can_follow(last_desc)  &&  last_desc->get_freight_type()==w  &&  (!is_last  ||  last_desc->get_trailer(0)==NULL)) {
 				// same as previously ...
 				desc = last_desc;
@@ -4626,11 +4626,11 @@ rail_vehicle_t::rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) 
 				desc = vehicle_builder_t::get_best_matching(get_waytype(), 0, w!=goods_manager_t::none?5000:0, power, speed_to_kmh(speed_limit), w, false, last_desc, is_last );
 			}
 			if(desc) {
-DBG_MESSAGE("rail_vehicle_t::rail_vehicle_t()","replaced by %s",desc->get_name());
+DBG_MESSAGE("rail_vehicle_t::rail_vehicle_t","replaced by %s",desc->get_name());
 				calc_image();
 			}
 			else {
-				dbg->error("rail_vehicle_t::rail_vehicle_t()","no matching desc found for %s!",w->get_name());
+				dbg->error("rail_vehicle_t::rail_vehicle_t","no matching desc found for %s!",w->get_name());
 			}
 			if (!empty && !fracht->empty() && fracht[0].front().menge == 0) {
 				// this was only there to find a matching vehicle
@@ -4690,7 +4690,7 @@ rail_vehicle_t::~rail_vehicle_t()
 void rail_vehicle_t::set_convoi(convoi_t *c)
 {
 	if(c!=cnv) {
-		DBG_MESSAGE("rail_vehicle_t::set_convoi()","new=%p old=%p",c,cnv);
+		DBG_MESSAGE("rail_vehicle_t::set_convoi","new=%p old=%p",c,cnv);
 		if(leading) {
 			if(cnv!=NULL  &&  cnv!=(convoi_t *)1) {
 				// free route from old convoi
@@ -4710,7 +4710,7 @@ void rail_vehicle_t::set_convoi(convoi_t *c)
 				route_t& r = *c->get_route();
 				if(  (r.get_count()<=route_index  ||  r.empty()  ||  get_pos()==r.back())  &&  c->get_state()!=convoi_t::INITIAL  &&  !c->is_loading()  &&  c->get_state()!=convoi_t::SELF_DESTRUCT  ) {
 					check_for_finish = true;
-					dbg->warning("rail_vehicle_t::set_convoi()", "convoi %i had a too high route index! (%i of max %i)", c->self.get_id(), route_index, r.get_count() - 1);
+					dbg->warning("rail_vehicle_t::set_convoi", "convoi %i had a too high route index! (%i of max %i)", c->self.get_id(), route_index, r.get_count() - 1);
 				}
 				// set default next stop index
 				c->set_next_stop_index( max(route_index,1)-1 );
@@ -8161,7 +8161,7 @@ water_vehicle_t::water_vehicle_t(loadsave_t *file, bool is_leading, bool is_last
 				gd = goods_manager_t::passengers;
 			}
 
-			dbg->warning("water_vehicle_t::water_vehicle_t()", "try to find a fitting vehicle for %s.", gd->get_name());
+			dbg->warning("water_vehicle_t::water_vehicle_t", "try to find a fitting vehicle for %s.", gd->get_name());
 			desc = vehicle_builder_t::get_best_matching(water_wt, 0, empty ? 0 : 30, 100, 40, gd, true, last_desc, is_last );
 			if(desc) {
 				calc_image();
@@ -8438,7 +8438,7 @@ bool air_vehicle_t:: is_target(const grund_t *gr,const grund_t *)
 
 				if (!runway_36_18 && !runway_09_27)
 				{
-					dbg->warning("bool air_vehicle_t:: is_target(const grund_t *gr,const grund_t *)", "Invalid runway directions for %u at %u, %u", cnv->self.get_id(), w->get_pos().x, w->get_pos().y);
+					dbg->warning("air_vehicle_t:: is_target(grund_t *gr,grund_t *)", "Invalid runway directions for %u at %u, %u", cnv->self.get_id(), w->get_pos().x, w->get_pos().y);
 					return false;
 				}
 
@@ -8582,7 +8582,7 @@ bool air_vehicle_t::find_route_to_stop_position()
 	grund_t const* const target = welt->lookup(rt->at(search_for_stop));
 	if(target==NULL  ||  !target->hat_weg(air_wt)) {
 		target_halt = halthandle_t();
-		DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","no runway found at (%s)",rt->at(search_for_stop).get_str());
+		DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position","no runway found at (%s)",rt->at(search_for_stop).get_str());
 		return true;	// no runway any more ...
 	}
 
@@ -8590,7 +8590,7 @@ bool air_vehicle_t::find_route_to_stop_position()
 //	DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","state %i",state);
 	if(!target_halt->find_free_position(air_wt,cnv->self,obj_t::air_vehicle)  ) {
 		target_halt = halthandle_t();
-		DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","no free position found!");
+		DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position","no free position found!");
 		return false;
 	}
 	else {
@@ -8609,7 +8609,7 @@ bool air_vehicle_t::find_route_to_stop_position()
 		flight_state prev_state = state;
 		state = looking_for_parking;
 		if(!target_rt.find_route( welt, rt->at(search_for_stop), this, 500, ribi_t::all, cnv->get_highest_axle_load(), cnv->get_tile_length(), cnv->get_weight_summary().weight / 1000, 100, cnv->has_tall_vehicles())) {
-DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","found no route to free one");
+DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position","found no route to free one");
 			// circle slowly another round ...
 			target_halt = halthandle_t();
 			state = prev_state;
@@ -8745,7 +8745,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 		//DBG_MESSAGE("air_vehicle_t::calc_route()","search runway start near %i,%i,%i with corner in %x",start.x,start.y,start.z, approach_dir);
 #else
 		approach_dir = ribi_t::northeast;	// reverse
-		DBG_MESSAGE("air_vehicle_t::calc_route()","search runway start near (%s)",start.get_str());
+		DBG_MESSAGE("air_vehicle_t::calc_route","search runway start near (%s)",start.get_str());
 #endif
 		if (!route.find_route(welt, start, this, max_speed, ribi_t::all, weight, cnv->get_tile_length(), cnv->get_weight_summary().weight / 1000, welt->get_settings().get_max_route_steps(), cnv->has_tall_vehicles()))
 		{
@@ -8753,7 +8753,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 			ignore_runway_length = true;
 			if (!route.find_route(welt, start, this, max_speed, ribi_t::all, weight, cnv->get_tile_length(), cnv->get_weight_summary().weight / 1000, welt->get_settings().get_max_route_steps(), cnv->has_tall_vehicles()))
 			{
-				DBG_MESSAGE("air_vehicle_t::calc_route()", "failed");
+				DBG_MESSAGE("air_vehicle_t::calc_route", "failed");
 				ignore_runway_length = false;
 				return route_t::no_route;
 			}
@@ -8816,7 +8816,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 			} while(  over>0  );
 			// out of map
 			if(gr==NULL) {
-				dbg->error("air_vehicle_t::calc_route()","out of map!");
+				dbg->error("air_vehicle_t::calc_route","out of map!");
 				return route_t::no_route;
 			}
 			// need some extra step to avoid 180 deg turns
@@ -8831,7 +8831,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 		}
 		else {
 			// init with startpos
-			dbg->error("air_vehicle_t::calc_route()","Invalid route calculation: start is on a single direction field ...");
+			dbg->error("air_vehicle_t::calc_route","Invalid route calculation: start is on a single direction field ...");
 		}
 		state = taxiing;
 		flying_height = 0;
@@ -8884,7 +8884,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 	// just some straight routes ...
 	if(!route.append_straight_route(welt,landing_start)) {
 		// should never fail ...
-		dbg->error( "air_vehicle_t::calc_route()", "No straight route found!" );
+		dbg->error( "air_vehicle_t::calc_route", "No straight route found!" );
 		return route_t::no_route;
 	}
 
@@ -8913,7 +8913,7 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 				// could only happen during loading old savegames;
 				// in new versions it should not possible to build a runway here
 				route.clear();
-				dbg->error("air_vehicle_t::calc_route()","airport too close to the edge! (Cannot go to %i,%i!)",circlepos.x,circlepos.y);
+				dbg->error("air_vehicle_t::calc_route","airport too close to the edge! (Cannot go to %i,%i!)",circlepos.x,circlepos.y);
 				airport_too_close_to_the_edge = true;
 				return route_t::no_route;
 			}
@@ -9335,7 +9335,7 @@ air_vehicle_t::air_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) :
 				gd = goods_manager_t::passengers;
 			}
 
-			dbg->warning("air_vehicle_t::air_vehicle_t()", "try to find a fitting vehicle for %s.", gd->get_name());
+			dbg->warning("air_vehicle_t::air_vehicle_t", "try to find a fitting vehicle for %s.", gd->get_name());
 			desc = vehicle_builder_t::get_best_matching(air_wt, 0, 101, 1000, 800, gd, true, last_desc, is_last );
 			if(desc) {
 				calc_image();
@@ -9382,7 +9382,7 @@ air_vehicle_t::~air_vehicle_t()
 
 void air_vehicle_t::set_convoi(convoi_t *c)
 {
-	DBG_MESSAGE("air_vehicle_t::set_convoi()","%p",c);
+	DBG_MESSAGE("air_vehicle_t::set_convoi","%p",c);
 	if(leading  &&  (uint64)cnv > 1ll) {
 		// free stop reservation
 		route_t const& r = *cnv->get_route();

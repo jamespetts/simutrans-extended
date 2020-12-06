@@ -143,7 +143,7 @@ DBG_MESSAGE("event","HOWDY!");
 			else {
 				// acting on "release" is better than checking for "new selection"
 				if (IS_LEFTRELEASE(ev)) {
-DBG_MESSAGE("gui_combobox_t::infowin_event()","close");
+DBG_MESSAGE("gui_combobox_t::infowin_event","close");
 					close_box();
 				}
 			}
@@ -151,7 +151,7 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()","close");
 		return true;
 	}
 	else if(ev->ev_class==INFOWIN  &&  (ev->ev_code==WIN_CLOSE  ||  ev->ev_code==WIN_UNTOP)  ) {
-DBG_MESSAGE("gui_combobox_t::infowin_event()","close");
+DBG_MESSAGE("gui_combobox_t::infowin_event","close");
 		textinp.infowin_event(ev);
 		droplist.set_visible(false);
 		close_box();
@@ -176,7 +176,7 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()","close");
 bool gui_combobox_t::action_triggered( gui_action_creator_t *comp,value_t p)
 {
 	if (  comp == &droplist  ) {
-DBG_MESSAGE("gui_combobox_t::infowin_event()","scroll selected %i",p.i);
+DBG_MESSAGE("gui_combobox_t::infowin_event","scroll selected %i",p.i);
 		finish = true;
 		set_selection(p.i);
 	}
