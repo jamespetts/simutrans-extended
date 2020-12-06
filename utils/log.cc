@@ -86,7 +86,7 @@ void log_t::debug(const char *who, const char *format, ...)
 		va_start(argptr, format);
 
 		if( log ) {                         /* only log when a log */
-			fprintf(log ,"Debug: %s:\t",who);      /* is already open */
+			fprintf(log ,"D: %s:",who);      /* is already open */
 			vfprintf(log, format, argptr);
 			fprintf(log,"\n");
 
@@ -98,7 +98,7 @@ void log_t::debug(const char *who, const char *format, ...)
 
 		va_start(argptr, format);
 		if( tee ) {                         /* only log when a log */
-			fprintf(tee, "Debug: %s:\t",who);      /* is already open */
+			fprintf(tee, "D: %s:\t",who);      /* is already open */
 			vfprintf(tee, format, argptr);
 			fprintf(tee,"\n");
 		}
@@ -129,7 +129,7 @@ void log_t::message(const char *who, const char *format, ...)
 		va_start(argptr, format);
 
 		if( log ) {                         /* only log when a log */
-			fprintf(log ,"Message: %s:\t",who);      /* is already open */
+			fprintf(log ,"M: %s:",who);      /* is already open */
 			vfprintf(log, format, argptr);
 			fprintf(log,"\n");
 
@@ -141,7 +141,7 @@ void log_t::message(const char *who, const char *format, ...)
 
 		va_start(argptr, format);
 		if( tee ) {                         /* only log when a log */
-			fprintf(tee, "Message: %s:\t",who);      /* is already open */
+			fprintf(tee, "M: %s:",who);      /* is already open */
 			vfprintf(tee, format, argptr);
 			fprintf(tee,"\n");
 		}
@@ -172,7 +172,7 @@ void log_t::warning(const char *who, const char *format, ...)
 		va_start(argptr, format);
 
 		if( log ) {                         /* only log when a log */
-			fprintf(log ,"Warning: %s:\t",who);      /* is already open */
+			fprintf(log ,"W: %s:",who);      /* is already open */
 			vfprintf(log, format, argptr);
 			fprintf(log,"\n");
 
@@ -184,7 +184,7 @@ void log_t::warning(const char *who, const char *format, ...)
 
 		va_start(argptr, format);
 		if( tee ) {                         /* only log when a log */
-			fprintf(tee, "Warning: %s:\t",who);      /* is already open */
+			fprintf(tee, "W: %s:",who);      /* is already open */
 			vfprintf(tee, format, argptr);
 			fprintf(tee,"\n");
 		}
@@ -215,7 +215,7 @@ void log_t::error(const char *who, const char *format, ...)
 		va_start(argptr, format);
 
 		if( log ) {                         /* only log when a log */
-			fprintf(log ,"ERROR: %s:\t",who);      /* is already open */
+			fprintf(log ,"ERROR: %s:",who);      /* is already open */
 			vfprintf(log, format, argptr);
 			fprintf(log,"\n");
 
@@ -230,7 +230,7 @@ void log_t::error(const char *who, const char *format, ...)
 
 		va_start(argptr, format);
 		if( tee ) {                         /* only log when a log */
-			fprintf(tee, "ERROR: %s:\t",who);      /* is already open */
+			fprintf(tee, "ERROR: %s:",who);      /* is already open */
 			vfprintf(tee, format, argptr);
 			fprintf(tee,"\n");
 
@@ -354,7 +354,7 @@ void log_t::vmessage(const char *what, const char *who, const char *format, va_l
 		va_copy(args2, args);
 
 		if( log ) {                         /* only log when a log */
-			fprintf(log ,"%s: %s:\t", what, who);      /* is already open */
+			fprintf(log ,"%s: %s:", what, who);      /* is already open */
 			vfprintf(log, format, args);
 			fprintf(log,"\n");
 
@@ -363,7 +363,7 @@ void log_t::vmessage(const char *what, const char *who, const char *format, va_l
 			}
 		}
 		if( tee ) {                         /* only log when a log */
-			fprintf(tee,"%s: %s:\t", what, who);      /* is already open */;
+			fprintf(tee,"%s: %s:", what, who);      /* is already open */;
 			vfprintf(tee, format, args2);
 			fprintf(tee,"\n");
 		}
