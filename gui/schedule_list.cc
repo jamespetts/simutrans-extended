@@ -736,17 +736,10 @@ void schedule_list_gui_t::display(scr_coord pos)
 
 	sint64 profit = line->get_finance_history(0,LINE_PROFIT);
 
-	sint64 total_trip_times = 0;
-	sint64 convoys_with_trip_data = 0;
 	for (int i = 0; i<icnv; i++) {
 		convoihandle_t const cnv = line->get_convoy(i);
 		// we do not want to count the capacity of depot convois
 		if (!cnv->in_depot()) {
-			total_trip_times += cnv->get_average_round_trip_time();
-			if(cnv->get_average_round_trip_time())
-			{
-				convoys_with_trip_data++;
-			}
 			for (unsigned j = 0; j<cnv->get_vehicle_count(); j++) {
 				capacity += cnv->get_vehicle(j)->get_cargo_max();
 				load += cnv->get_vehicle(j)->get_total_cargo();
@@ -761,23 +754,9 @@ void schedule_list_gui_t::display(scr_coord pos)
 		loadfactor = (load * 100) / capacity;
 	}
 
-	sint64 service_frequency = convoys_with_trip_data ? total_trip_times / convoys_with_trip_data : 0; // In ticks.
-	if(icnv)
-	{
-		service_frequency /= icnv;
-	}
-
-	const int spacing = line->get_schedule()->get_spacing();
-	if(icnv && spacing > 0)
-	{
-		// Check whether the spacing setting affects things.
-		sint64 spacing_ticks = welt->ticks_per_world_month * 12u / (sint64)spacing; // *12 because spacing is now in 12ths
-		const uint32 spacing_time = welt->ticks_to_tenths_of_minutes(spacing_ticks);
-		service_frequency = max(spacing_time, service_frequency);
-	}
-
 	buf.clear();
 	// Display service frequency
+	const sint64 service_frequency = line->get_service_frequency();
 	if(service_frequency)
 	{
 		buf.printf(translator::translate("Service frequency"));
