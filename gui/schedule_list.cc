@@ -331,6 +331,18 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	livery_selector.set_max_size(scr_size(D_BUTTON_WIDTH - 8, LINESPACE * 8 + 2 + 16));
 	livery_selector.set_highlight_color(1);
 	livery_selector.clear_elements();
+	livery_scheme_indices.clear();
+	uint32 i = 0;
+	for(auto scheme : *welt->get_settings().get_livery_schemes())
+	{
+		if(scheme->is_available(welt->get_timeline_year_month()))
+		{
+			// UI TODO: Make the below work with the new UI system
+			//livery_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(scheme->get_name()), SYSCOL_TEXT));
+			livery_scheme_indices.append(i);
+		}
+		i++;
+	}
 	livery_selector.add_listener(this);
 	add_component(&livery_selector);
 
@@ -760,7 +772,7 @@ void schedule_list_gui_t::display(scr_coord pos)
 	if(icnv && spacing > 0)
 	{
 		// Check whether the spacing setting affects things.
-		sint64 spacing_ticks = welt->ticks_per_world_month / (sint64)spacing;
+		sint64 spacing_ticks = welt->ticks_per_world_month * 12u / (sint64)spacing; // *12 because spacing is now in 12ths
 		const uint32 spacing_time = welt->ticks_to_tenths_of_minutes(spacing_ticks);
 		service_frequency = max(spacing_time, service_frequency);
 	}
@@ -971,7 +983,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 				const uint16 month_now = welt->get_timeline_year_month();
 				vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
 
-				ITERATE_PTR(schemes, i)
+				for(uint32 i = 0; i < schemes->get_count(); i ++)
 				{
 					bool found = false;
 					livery_scheme_t* scheme = schemes->get_element(i);

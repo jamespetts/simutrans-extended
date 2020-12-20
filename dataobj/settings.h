@@ -43,8 +43,9 @@ public:
 
 	vector_with_ptr_ownership_tpl( vector_with_ptr_ownership_tpl const& src ) :
 		vector_tpl<T*>( src.get_count() ) {
-		ITERATE( src, i ) {
-			this->append( new T( *src[i] ) );
+		for (auto s : src)
+		{
+			this->append( new T( *s ) );
 		}
 	}
 
@@ -747,6 +748,7 @@ public:
 	bool rural_industries_no_staff_shortage;
 	uint32 auto_connect_industries_and_attractions_by_road;
 
+	bool simplified_maintenance;
 	uint32 path_explorer_time_midpoint;
 	bool save_path_explorer_data;
 
@@ -1261,6 +1263,8 @@ public:
 
 	bool get_rural_industries_no_staff_shortage() const { return rural_industries_no_staff_shortage; }
 	uint32 get_auto_connect_industries_and_attractions_by_road() const { return auto_connect_industries_and_attractions_by_road; }
+
+	bool get_simplified_maintenance() const { return simplified_maintenance; }
 
 	uint32 get_path_explorer_time_midpoint() const { return path_explorer_time_midpoint; }
 	bool get_save_path_explorer_data() const { return save_path_explorer_data; }

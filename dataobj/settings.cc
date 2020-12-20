@@ -543,6 +543,8 @@ settings_t::settings_t() :
 	rural_industries_no_staff_shortage = true;
 	auto_connect_industries_and_attractions_by_road = 4;
 
+	simplified_maintenance = false;
+
 	path_explorer_time_midpoint = 64;
 	save_path_explorer_data = true;
 
@@ -1259,20 +1261,9 @@ void settings_t::rdwr(loadsave_t *file)
 
 				if(file->get_extended_version() >= 12)
 				{
-#ifdef SPECIAL_RESCUE_12_4
-					if(file->is_saving())
-					{
-#endif
 						file->rdwr_long(corner_force_divider[waytype_t(wt)]);
-#ifdef SPECIAL_RESCUE_12_4
-					}
-#endif
 				}
-#ifdef SPECIAL_RESCUE_12_4
-				if(file->is_loading())
-#else
 				else
-#endif
 				{
 					// Former cornering settings. Were numerous.
 					sint32 dummy = 0;
@@ -1299,11 +1290,7 @@ void settings_t::rdwr(loadsave_t *file)
 					file->rdwr_byte(curve_friction_factor[waytype_t(wt)]);
 				}
 			}
-#ifdef SPECIAL_RESCUE_12_4
-			if(file->get_extended_version() >= 12 && file->is_saving())
-#else
 			if(file->get_extended_version() >= 12)
-#endif
 			{
 				file->rdwr_long(tilting_min_radius_effect);
 			}
@@ -1551,10 +1538,7 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(spacing_shift_divisor);
 
 			uint16 livery_schemes_count = 0;
-			if(file->is_loading())
-			{
-				livery_schemes.clear();
-			}
+
 			if(file->is_saving())
 			{
 				livery_schemes_count = livery_schemes.get_count();
@@ -1574,7 +1558,7 @@ void settings_t::rdwr(loadsave_t *file)
 					{
 						livery_scheme_t* scheme = new livery_scheme_t("default", DEFAULT_RETIRE_DATE);
 						scheme->rdwr(file);
-						livery_schemes.append(scheme);
+						livery_schemes.append_unique(scheme);
 					}
 				}
 			}
@@ -1704,16 +1688,6 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(parallel_ways_forge_cost_percentage_air);
 
 			file->rdwr_long(max_diversion_tiles);
-#ifdef SPECIAL_RESCUE_12_3
-			if(file->is_saving())
-			{
-				file->rdwr_long(way_degradation_fraction);
-				file->rdwr_long(way_wear_power_factor_road_type);
-				file->rdwr_long(way_wear_power_factor_rail_type);
-				file->rdwr_short(standard_axle_load);
-				file->rdwr_long(citycar_way_wear_factor);
-			}
-#else
 			file->rdwr_long(way_degradation_fraction);
 			file->rdwr_long(way_wear_power_factor_road_type);
 			file->rdwr_long(way_wear_power_factor_rail_type);
@@ -1730,7 +1704,6 @@ void settings_t::rdwr(loadsave_t *file)
 				file->rdwr_long(max_speed_drive_by_sight_kmh);
 				max_speed_drive_by_sight = kmh_to_speed(max_speed_drive_by_sight_kmh);
 			}
-#endif
 			if ((file->get_extended_version() == 14 && file->get_extended_revision()) >= 31 || file->get_extended_version() >= 15)
 			{
 				file->rdwr_long(max_speed_drive_by_sight_tram);
@@ -1788,7 +1761,7 @@ void settings_t::rdwr(loadsave_t *file)
 			max_comfort_preference_percentage = 500;
 		}
 
-		if (file->get_extended_version() >= 13 && file->get_extended_revision() >= 3)
+		if ((file->get_extended_version() == 13 && file->get_extended_revision() >= 3) || file->get_extended_version() >= 14)
 		{
 			file->rdwr_bool(rural_industries_no_staff_shortage);
 		}
@@ -1806,11 +1779,19 @@ void settings_t::rdwr(loadsave_t *file)
 			auto_connect_industries_and_attractions_by_road = 4;
 		}
 
-		if (file->get_extended_version() >= 13 && file->get_extended_revision() >= 4)
+		if ((file->get_extended_version() == 13 && file->get_extended_revision() >= 4) || file->get_extended_version() >= 14)
 		{
 			file->rdwr_long(power_revenue_factor_percentage);
 		}
 
+		if (file->get_extended_version() >= 15)
+		{
+			file->rdwr_bool(simplified_maintenance);
+		}
+		else if (file->is_loading())
+		{
+			simplified_maintenance = true;
+		}	
 		if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8))
 		{
 			file->rdwr_long(path_explorer_time_midpoint);
@@ -2808,6 +2789,8 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	const uint32 old_max_route_tiles_extrapolated = max_routes_to_process_in_a_step * 1024;
 	const uint32 max_route_tiles_default = old_max_route_tiles_extrapolated ? old_max_route_tiles_extrapolated : max_route_tiles_to_process_in_a_step;
 	max_route_tiles_to_process_in_a_step = contents.get_int("max_route_tiles_to_process_in_a_step", max_route_tiles_default);
+
+	simplified_maintenance = contents.get_int("simplified_maintenance", simplified_maintenance);
 
 	// OK, this is a bit complex.  We are at risk of loading the same livery schemes repeatedly, which
 	// gives duplicate livery schemes and utter confusion.

@@ -173,7 +173,7 @@ public:
 	/**
 	 * Parameters to determine layout and behaviour of the depot_frame_t.
 	 */
-	void convoi_arrived(convoihandle_t cnv, bool fpl_adjust);
+	void convoi_arrived(convoihandle_t cnv, uint16 flags);
 
 	/**
 	 * Opens a new info window for that object.

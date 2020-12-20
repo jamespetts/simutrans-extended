@@ -339,11 +339,7 @@ void simline_t::rdwr(loadsave_t *file)
 		{
 			for (int k = MAX_MONTHS-1; k>=0; k--)
 			{
-#ifdef SPECIAL_RESCUE_12_2
-				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && file->get_extended_version() <= 1) || (j == LINE_REFUNDS && file->get_extended_version() < 8) || ((j == LINE_DEPARTURES || j == LINE_DEPARTURES_SCHEDULED) && (file->get_extended_version() < 12 || file->is_loading())))
-#else
 				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && file->get_extended_version() <= 1) || (j == LINE_REFUNDS && file->get_extended_version() < 8) || ((j == LINE_DEPARTURES || j == LINE_DEPARTURES_SCHEDULED) && file->get_extended_version() < 12))
-#endif
 				{
 					// Versions of Extended saves with 1 and below
 					// did not have settings for average speed or comfort.
@@ -390,11 +386,7 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_extended_version() >= 2)
 	{
-#ifdef SPECIAL_RESCUE_12_2
-		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 || file->is_loading() ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
-#else
-		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
-#endif
+		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : MAX_LINE_COST;
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
@@ -760,9 +752,9 @@ void simline_t::recalc_status()
 
 bool simline_t::has_overcrowded() const
 {
-	ITERATE(line_managed_convoys,i)
+	for(auto line_managed_convoy : line_managed_convoys)
 	{
-		if(line_managed_convoys[i]->get_overcrowded() > 0)
+		if(line_managed_convoy->get_overcrowded() > 0)
 		{
 			return true;
 		}
@@ -997,10 +989,10 @@ void simline_t::set_withdraw( bool yes_no )
 
 void simline_t::propogate_livery_scheme()
 {
-	ITERATE(line_managed_convoys, i)
+	for (auto line_managed_convoy : line_managed_convoys)
 	{
-		line_managed_convoys[i]->set_livery_scheme_index(livery_scheme_index);
-		line_managed_convoys[i]->apply_livery_scheme();
+		line_managed_convoy->set_livery_scheme_index(livery_scheme_index);
+		line_managed_convoy->apply_livery_scheme();
 	}
 }
 
@@ -1023,17 +1015,102 @@ sint64 simline_t::calc_departures_scheduled()
 	return timed_departure_points_count * (sint64) schedule->get_spacing();
 }
 
+void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
+{
+	if (!trigger_one_only)
+	{
+		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				i->set_triggered_conditions(triggers);
+			}
+		}
+	}
+	else
+	{
+		// Find the most suitable convoy to trigger
+	
+		sint64 earliest_arrival_time = welt->get_ticks();
+		convoi_t* cnv_to_trigger = NULL;
+		uint16 trigger;
+
+		// First, check for all convoys that are actually waiting for this conditional trigger.
+		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				if(i->get_state() == convoi_t::AWAITING_TRIGGER)
+				{
+					trigger = i->get_schedule()->get_current_entry().condition_bitfield_receiver & triggers;
+					if(i->get_schedule()->get_current_entry().condition_bitfield_receiver == triggers || i->get_schedule()->get_current_entry().condition_bitfield_receiver == trigger)
+					{
+						// This trigger would allow the convoy to depart
+						if(i->get_arrival_time() < earliest_arrival_time)
+						{
+							earliest_arrival_time = i->get_arrival_time();
+							cnv_to_trigger = i.get_rep();
+						}
+					}
+				}
+			}
+		}
+
+		if(cnv_to_trigger != NULL)
+		{
+			cnv_to_trigger->set_triggered_conditions(triggers); 
+			return;
+		}
+		
+		// Second, check again with partial triggering
+		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				if(i->get_state() == convoi_t::AWAITING_TRIGGER)
+				{
+					if(i->get_schedule()->get_current_entry().condition_bitfield_receiver & triggers)
+					{
+						// This trigger would not allow the convoy to depart alone, but might in combination with others.
+						if(i->get_arrival_time() < earliest_arrival_time)
+						{
+							earliest_arrival_time = i->get_arrival_time();
+							cnv_to_trigger = i.get_rep();
+						}
+					}
+				}
+			}
+		}
+
+		if(cnv_to_trigger != NULL)
+		{
+			cnv_to_trigger->set_triggered_conditions(triggers); 
+			return;
+		}
+
+		// Third, just pick one at random.
+		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				i->set_triggered_conditions(triggers);
+				return;
+			}
+		}
+	}
+}
+
 sint64 simline_t::get_stat_converted(int month, int cost_type) const
 {
 	sint64 value = financial_history[month][cost_type];
-	switch(cost_type) {
-		case LINE_REVENUE:
-		case LINE_OPERATIONS:
-		case LINE_PROFIT:
-		case LINE_WAYTOLL:
-			value = convert_money(value);
-			break;
-		default: ;
+	switch (cost_type) {
+	case LINE_REVENUE:
+	case LINE_OPERATIONS:
+	case LINE_PROFIT:
+		// case LINE_WAYTOLL: // UI TODO: Check whether this should remain commented out
+		value = convert_money(value);
+		break;
+	default:;
 	}
 	return value;
 }

@@ -8,11 +8,13 @@
 
 
 #include "schedule_entry.h"
+#include "../dataobj/consist_order_t.h"
 
 #include "../halthandle_t.h"
 
 #include "../tpl/minivec_tpl.h"
 #include "../tpl/koordhashtable_tpl.h"
+#include "../tpl/inthashtable_tpl.h"
 
 #include "../simskin.h"
 #include "../display/simimg.h"
@@ -64,6 +66,20 @@ public:
 
 	minivec_tpl<schedule_entry_t> entries;
 
+	/*
+	* The consist orders for this schedule, indexed by
+	* the unique ID of each schedule entry.
+	*
+	* These are separate from schedule entries because
+	* they are much more heavyweight objects, and
+	* schedule entries are often copied by value.
+	*
+	* Query: Would move constructors make a difference here?
+	* This would need a great deal of checking and re-factoring
+	* to verify and implement.
+	*/
+	inthashtable_tpl<uint16, consist_order_t> orders;
+
 	/**
 	 * Returns error message if stops are not allowed
 	 */
@@ -91,6 +107,11 @@ public:
 	// always returns a valid entry to the current stop
 	schedule_entry_t const& get_current_entry() const { return current_stop >= entries.get_count() ? dummy_entry : entries[current_stop]; }
 
+private:
+
+	uint16 get_next_free_unique_id() const;
+
+public:
 	/**
 	 * Set the current stop of the schedule .
 	 * If new value is bigger than stops available, the max stop will be used.
@@ -160,21 +181,23 @@ public:
 	halthandle_t get_prev_halt( player_t *player ) const;
 
 	/**
-	 * Inserts a coordinate at current_stop into the schedule.
-	 */
-	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false, bool show_failure = false);
-	/**
-	 * Appends a coordinate to the schedule.
-	 */
-	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, bool wait_for_time = false);
+	* Inserts a coordinate at current_stop into the schedule.
+	*/
+	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint16 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, bool show_failure = false);
 
-	// cleanup a schedule, removes double entries
+	/**
+	* Appends a coordinate to the schedule.
+	*/
+	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint16 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0);
+
+	/**
+	* Cleanup a schedule, removes double entries.
+	*/
 	void cleanup();
 
 	/**
-	 * entfern entries[current_stop] aus dem schedule
-	 * all folgenden Koordinaten verschieben sich dadurch
-	 */
+	* Remove current_stop entry from the schedule.
+	*/
 	bool remove();
 
 	void rdwr(loadsave_t *file);
@@ -264,6 +287,13 @@ private:
 	bool bidirectional;
 	bool mirrored;
 	bool same_spacing_shift;
+
+	/*
+	* The number of convoys per month, now in 12ths:
+	* e.g., if this number is 12, there will be 1
+	* departure per game month (12/12 = 1) per
+	* timed stop in this schedule. 
+	*/
 	sint16 spacing;
 };
 

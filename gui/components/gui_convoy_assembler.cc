@@ -272,6 +272,29 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	bt_show_all.set_tooltip("Show also vehicles that do not match for current action.");
 	add_component(&bt_show_all);
 
+	vehicle_filter.set_highlight_color(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK);
+	vehicle_filter.add_listener(this);
+	add_component(&vehicle_filter);
+
+	livery_selector.add_listener(this);
+	add_component(&livery_selector);
+	livery_selector.clear_elements();
+	vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
+	livery_scheme_indices.clear();
+	uint32 i = 0;
+	for(auto scheme : *schemes)
+	{
+		if(scheme->is_available(welt->get_timeline_year_month()))
+		{
+			// UI TODO: Make the below work with the new UI system
+			//livery_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(scheme->get_name()), SYSCOL_TEXT));
+			livery_scheme_indices.append(i);
+			livery_selector.set_selection(i);
+			livery_scheme_index = i;
+		}
+		i++;
+	}
+
 	bt_class_management.set_typ(button_t::roundbox);
 	bt_class_management.set_text("class_manager");
 	bt_class_management.add_listener(this);
@@ -627,13 +650,14 @@ void gui_convoy_assembler_t::layout()
 	}
 	else
 	{
-		vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
-		ITERATE_PTR(schemes, n)
+		uint32 n = 0;
+		for(auto scheme : *welt->get_settings().get_livery_schemes())
 		{
-			if(schemes->get_element(n)->is_available(welt->get_timeline_year_month()))
+			if(scheme->is_available(welt->get_timeline_year_month()))
 			{
 				livery_selector.set_selection(livery_scheme_indices.index_of(n));
 			}
+			n++;
 		}
 	}
 }
@@ -1259,7 +1283,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 			// check livery scheme and build the abailable livery scheme list
 			if (info->get_livery_count()>0)
 			{
-				ITERATE_PTR(schemes, i)
+				for(uint32 i = 0; i < schemes->get_count(); i++)
 				{
 					livery_scheme_t* scheme = schemes->get_element(i);
 					if (scheme->is_available(welt->get_timeline_year_month()))
@@ -1533,18 +1557,20 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 			if(veh_action == va_upgrade)
 			{
 				uint8 count;
-				ITERATE(vehicles,n)
+				uint32 n = 0;
+				for(auto vehicle : vehicles)
 				{
-					count = vehicles[n]->get_upgrades_count();
+					count = vehicle->get_upgrades_count();
 					for(int i = 0; i < count; i++)
 					{
-						if(vehicles[n]->get_upgrades(i) == info)
+						if(vehicle->get_upgrades(i) == info)
 						{
 							vehicles.insert_at(n, info);
 							vehicles.remove_at(n+1);
 							return;
 						}
 					}
+					n ++;
 				}
 			}
 			else
@@ -1855,9 +1881,9 @@ void gui_convoy_assembler_t::update_data()
 
 			//if(replace_frame == NULL)
 			//{
-				ITERATE(vehicles,i)
+				for(auto vehicle : vehicles)
 				{
-					vehicle_list.append(vehicles[i]);
+					vehicle_list.append(vehicle);
 				}
 			//}
 			//else
@@ -1870,11 +1896,11 @@ void gui_convoy_assembler_t::update_data()
 			//	}
 			//}
 
-			ITERATE(vehicle_list, i)
+			for(auto vehicle : vehicles)
 			{
-				for(uint16 c = 0; c < vehicle_list[i]->get_upgrades_count(); c++)
+				for(uint16 c = 0; c < vehicle->get_upgrades_count(); c++)
 				{
-					if(vehicle_list[i]->get_upgrades(c) && (info == vehicle_list[i]->get_upgrades(c)))
+					if(vehicle->get_upgrades(c) && (info == vehicle->get_upgrades(c)))
 					{
 						if(!player->can_afford(info->get_upgrade_price()))
 						{
@@ -1892,12 +1918,12 @@ void gui_convoy_assembler_t::update_data()
 							// vehicle_list is the list of all vehicles in the current convoy.
 							// vehicles is the list of the vehicles to replace them with.
 							int upgradable_count = 0;
-
-							ITERATE(vehicle_list,j)
+							
+							for(auto vehicle_2 : vehicles)
 							{
-								for(uint16 k = 0; k < vehicle_list[j]->get_upgrades_count(); k++)
+								for(uint16 k = 0; k < vehicle_2->get_upgrades_count(); k++)
 								{
-									if(vehicle_list[j]->get_upgrades(k) && (vehicle_list[j]->get_upgrades(k) == info))
+									if(vehicle_2->get_upgrades(k) && (vehicle_2->get_upgrades(k) == info))
 									{
 										// Counts the number of vehicles in the current convoy that can
 										// upgrade to the currently selected vehicle.

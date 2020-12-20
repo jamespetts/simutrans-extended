@@ -6,14 +6,6 @@
 #ifndef TPL_WEIGHTED_VECTOR_TPL_H
 #define TPL_WEIGHTED_VECTOR_TPL_H
 
-
-#ifndef ITERATE
-#define ITERATE(collection,enumerator) for(uint32 enumerator = 0; enumerator < collection.get_count(); enumerator++)
-#endif
-
-#ifndef ITERATE_PTR
-#define ITERATE_PTR(collection,enumerator) for(uint32 enumerator = 0; enumerator < collection->get_count(); enumerator++)
-#endif
 #include <cstddef>
 #include <iterator>
 

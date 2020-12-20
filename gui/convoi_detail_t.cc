@@ -875,6 +875,24 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			display_proportional_clip_rgb(pos.x + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, upgradable_state == 2 ? COL_UPGRADEABLE : color_idx_to_rgb(COL_GREY2) , true);
 			buf.clear();
 
+			// UI TODO: The below code needs to be updated to the new UI.
+/*
+			// Time since last overhaul
+			buf.clear();
+			const sint32 month_overhaul = v->get_overhaul_time();
+			if (month_overhaul)
+			{
+				buf.printf("%s %s %i", translator::translate("Last overhauled:"), translator::get_month_name(month_overhaul % 12), month_overhaul / 12);
+			}
+			else
+			{
+				buf.printf("%s ", translator::translate("Never overhauled")); 
+			}
+
+			display_proportional_clip(pos.x + w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			extra_y += LINESPACE;
+*/
+
 			// upgradable symbol
 			if (upgradable_state && skinverwaltung_t::upgradable) {
 				if (welt->get_settings().get_show_future_vehicle_info() || (!welt->get_settings().get_show_future_vehicle_info() && v->get_desc()->is_future(month_now) != 2)) {
@@ -1480,7 +1498,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 					livery_state_col = color_idx_to_rgb(COL_BROWN);
 					cbuffer_t temp_buf;
 					int cnt = 0;
-					ITERATE_PTR(schemes, i)
+					for(uint32 i = 0; i < schemes->get_count(); i ++)
 					{
 						livery_scheme_t* scheme = schemes->get_element(i);
 						if (scheme->is_contained(v->get_current_livery())) {

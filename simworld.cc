@@ -3274,9 +3274,9 @@ void karte_t::set_scale()
 	}
 
 	// Stations
-	ITERATE(hausbauer_t::modifiable_station_buildings, n)
+	for(auto station : hausbauer_t::modifiable_station_buildings)
 	{
-		hausbauer_t::modifiable_station_buildings[n]->set_scale(scale_factor);
+		station->set_scale(scale_factor);
 	}
 
 	// Goods
@@ -3287,7 +3287,7 @@ void karte_t::set_scale()
 	}
 
 	// Industries
-	FOR(stringhashtable_tpl<factory_desc_t*>, & info, factory_builder_t::modifiable_table)
+	for(auto info : factory_builder_t::modifiable_table)
 	{
 		info.value->set_scale(scale_factor);
 	}
@@ -6791,14 +6791,14 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			}
 			else
 			{
-				FOR(minivec_tpl<const planquadrat_t*>, const& current_tile_3, current_destination.building->get_tiles())
+				for(const planquadrat_t* current_tile_4 : current_destination.building->get_tiles())
 				{
-					const nearby_halt_t* halt_list = current_tile_3->get_haltlist();
+					const nearby_halt_t* halt_list = current_tile_4->get_haltlist();
 					if (!halt_list)
 					{
 						continue;
 					}
-					for (int h = current_tile_3->get_haltlist_count() - 1; h >= 0; h--)
+					for (int h = current_tile_4->get_haltlist_count() - 1; h >= 0; h--)
 					{
 						halthandle_t halt = halt_list[h].halt;
 						if ((trip == mail_trip && halt->get_mail_enabled()) || (trip != mail_trip && halt->get_pax_enabled()))
@@ -9670,7 +9670,6 @@ DBG_MESSAGE("karte_t::load()", "init player");
 			grund_t * gr = lookup(cnv->get_pos());
 			depot_t *dep = gr ? gr->get_depot() : 0;
 			if(dep) {
-				//cnv->enter_depot(dep);
 				dep->convoi_arrived(cnv->self, false);
 			}
 			else {
@@ -11959,10 +11958,10 @@ void karte_t::privatecar_rdwr(loadsave_t *file)
 		{
 			uint32 count = car_ownership[cl].get_count();
 			file->rdwr_long(count);
-			ITERATE(car_ownership[cl], i)
+			for(auto car_owner : car_ownership[cl])
 			{
-				file->rdwr_longlong(car_ownership[cl].get_element(i).year);
-				file->rdwr_short(car_ownership[cl].get_element(i).ownership_percent);
+				file->rdwr_longlong(car_owner.year);
+				file->rdwr_short(car_owner.ownership_percent);
 			}
 		}
 

@@ -95,15 +95,15 @@ void goods_desc_t::set_scale(uint16)
 	scaled_values.clear();
 	uint16 new_price;
 	uint32 new_distance;
-	ITERATE(values, i)
+	for(auto value : values)
 	{
 		// There are three things going on here:
 		// (1) price is per km, divide by 1000 to get per meter
 		// (2) price is in simcents, multiply by 4096 to get "internal units"
 		// (3) all prices must be divided by 3 for silly historical reasons
 		// The choice of 4096 allows for less precision loss than otherwise
-		new_price = values[i].price * 4096 / 3000;
-		new_distance = values[i].to_distance * 1000;
+		new_price = value.price * 4096 / 3000;
+		new_distance = value.to_distance * 1000;
 		scaled_values.append(fare_stage_t(new_distance, new_price));
 	}
 }
@@ -128,15 +128,16 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 	sint64 total_fare = 0;
 	uint16 per_meter_fare;
 	uint32 remaining_distance = distance_meters;
-	ITERATE(scaled_values, i)
+	uint32 i = 0;
+	for(auto scaled_value : scaled_values)
 	{
 		per_meter_fare = scaled_values[i].price;
-		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_values[i].to_distance)
+		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_value.to_distance)
 		{
 			starting_distance -= scaled_values[i].to_distance;
 			continue;
 		}
-		if(scaled_values[i].to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
+		if(scaled_value.to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
 		{
 			// The last item in the list must trigger the use of the full remaining distance.
 			total_fare += (sint64)per_meter_fare * remaining_distance;
@@ -145,9 +146,10 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 		else
 		{
 			total_fare += (sint64)per_meter_fare * (scaled_values[i].to_distance - starting_distance);
-			remaining_distance -= (scaled_values[i].to_distance - starting_distance);
+			remaining_distance -= (scaled_value.to_distance - starting_distance);
 			starting_distance = 0;
 		}
+		i++;
 	}
 	return total_fare;
 }

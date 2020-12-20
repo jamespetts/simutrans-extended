@@ -543,10 +543,9 @@ haltestelle_t::~haltestelle_t()
 
 	if(!welt->is_destroying())
 	{
-		ITERATE(halts_within_walking_distance, n)
+		for(auto walking_distance_halt : halts_within_walking_distance)
 		{
-			halthandle_t walking_distance_halt = get_halt_within_walking_distance(n);
-			if ( walking_distance_halt.is_bound() )
+			if (walking_distance_halt.is_bound())
 			{
 				walking_distance_halt->remove_halt_within_walking_distance(self);
 			}
@@ -1757,10 +1756,12 @@ uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category
 			binary_heap_tpl<uint32*> sorted_waiting_times;
 			uint32 tt[32];
 
-			ITERATE(times, i)
+			uint32 i = 0;
+			for(auto time : times)
 			{
-				tt[i] = times.get_element(i);
+				tt[i] = time;
 				sorted_waiting_times.insert(&tt[i]);
+				i++;
 			}
 
 			const uint32 count = sorted_waiting_times.get_count();
@@ -1777,9 +1778,10 @@ uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category
 #else
 
 			uint32 total_times = 0;
-			ITERATE(times,i)
+			// We cannot use C++11 ranged for here as the fixed_list_tpl does not support it.
+			for(uint32 i = 0; i < times.get_count(); i ++)
 			{
-				total_times += times.get_element(i);
+				total_times += times[i];
 			}
 			total_times /= count;
 			return total_times;
@@ -1917,7 +1919,7 @@ uint32 haltestelle_t::calc_service_frequency(halthandle_t destination, uint8 cat
 		if (registered_lines[i]->get_schedule()->get_spacing() > 0)
 		{
 			// Check whether the spacing setting affects things.
-			const sint64 spacing_ticks = welt->ticks_per_world_month / (sint64)registered_lines[i]->get_schedule()->get_spacing();
+			const sint64 spacing_ticks = welt->ticks_per_world_month * 12u / (sint64)registered_lines[i]->get_schedule()->get_spacing(); // *12 because spacing is now in twelfths
 			uint32 spacing_time = welt->ticks_to_tenths_of_minutes(spacing_ticks);
 			timing = max(spacing_time, timing);
 		}
@@ -4137,17 +4139,18 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 						uint8 waiting_time_count = iter.value.times.get_count();
 						file->rdwr_byte(waiting_time_count);
-						ITERATE(iter.value.times, n)
+						// We cannot use C++11 ranged for here as the fixed_list_tpl does not support it.
+						for (uint32 i = 0; i < iter.value.times.get_count(); i++)
 						{
+							auto time = iter.value.times[i];
 							// Store each waiting time
 							if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
 							{
-								uint32 current_time = iter.value.times.get_element(n);
-								file->rdwr_long(current_time);
+								file->rdwr_long(time);
 							}
 							else
 							{
-								uint32 ct = iter.value.times.get_element(n);
+								uint32 ct = time;
 								if (ct == UINT32_MAX_VALUE)
 								{
 									ct = 65535;
@@ -4318,9 +4321,9 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		{
 			uint32 count = halts_within_walking_distance.get_count();
 			file->rdwr_long(count);
-			ITERATE(halts_within_walking_distance, n)
+			for(auto halt_within_walking_distance : halts_within_walking_distance)
 			{
-				halts_within_walking_distance[n].rdwr(file);
+				halt_within_walking_distance.rdwr(file);
 			}
 		}
 		else

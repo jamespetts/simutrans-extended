@@ -163,21 +163,22 @@ void depot_t::call_depot_tool( char tool, convoihandle_t cnv, const char *extra,
  * first a convoy reaches the depot during its journey (or on emergency stop)
  * second during loading a convoi is stored in a depot => only store it again
  */
-void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
+void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 {
-	if(fpl_adjust) {
+	if (flags & schedule_entry_t::delete_entry)
+	{
 		// Volker: remove depot from schedule
 		schedule_t *schedule = acnv->get_schedule();
-		for(  int i=0;  i<schedule->get_count();  i++  ) {
+		for (int i = 0; i < schedule->get_count(); i++) {
 			// only if convoi found
-			if(schedule->entries[i].pos==get_pos()) {
-				schedule->set_current_stop( i );
+			if (schedule->entries[i].pos == get_pos()) {
+				schedule->set_current_stop(i);
 				schedule->remove();
 				acnv->set_schedule(schedule);
 			}
 		}
 
-		if(acnv->get_line().is_bound())
+		if (acnv->get_line().is_bound())
 		{
 			acnv->unset_line();
 			acnv->unregister_stops();
@@ -186,20 +187,59 @@ void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
 		{
 			acnv->unregister_stops();
 		}
+
+		if (flags & schedule_entry_t::store && !acnv->get_line().is_bound() || (acnv->get_line().is_bound() && acnv->get_line()->get_convoys().get_count() <= 1))
+		{
+			// There is no need to re-run the path explorer
+			// if this convoy is going to the depot routinely
 #ifdef MULTI_THREAD
-		world()->await_path_explorer();
+			world()->await_path_explorer();
 #endif
-		path_explorer_t::refresh_all_categories(false);
+			path_explorer_t::refresh_all_categories(false);
+		}
 	}
 
+	bool overhaul = false;
+
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
-	for(unsigned i=0; i<acnv->get_vehicle_count(); i++) {
+	for(unsigned i=0; i<acnv->get_vehicle_count(); i++)
+	{
 		vehicle_t *v = acnv->get_vehicle(i);
 		// Hajo: reset vehicle data
 		v->discard_cargo();
-		v->set_pos( koord3d::invalid );
-		v->set_leading( i==0 );
-		v->set_last( i+1==acnv->get_vehicle_count() );
+		if (flags & schedule_entry_t::store)
+		{
+			v->set_pos(koord3d::invalid);
+			v->set_leading(i == 0);
+			v->set_last(i + 1 == acnv->get_vehicle_count());
+		}
+
+		if(flags & schedule_entry_t::maintain_or_overhaul)
+		{
+			if(v->is_overhaul_needed() && !v->get_do_not_overhaul())
+			{
+				v->overhaul();
+				overhaul = true;
+			}
+			else
+			{
+				v->maintain();
+			}
+		}
+	}
+
+	if (flags & schedule_entry_t::maintain_or_overhaul)
+	{
+		if(overhaul)
+		{
+			acnv->set_state(convoi_t::OVERHAUL);
+			acnv->set_wait_lock(2000); // TODO: Use a proper value here. This is temporary.
+		}
+		else
+		{
+			acnv->set_state(convoi_t::MAINTENANCE);
+			acnv->set_wait_lock(1000); // TODO: Use a proper value here. This is temporary.
+		}
 	}
 
 	// this part stores the convoi in the depot
@@ -208,7 +248,10 @@ void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
 	if(depot_frame) {
 		depot_frame->action_triggered(NULL,(long int)0);
 	}
-	acnv->set_home_depot( get_pos() );
+	if (flags & schedule_entry_t::store)
+	{
+		acnv->set_home_depot(get_pos());
+	}
 	DBG_MESSAGE("depot_t::convoi_arrived()", "convoi %d, %p entered depot", acnv.get_id(), acnv.get_rep());
 }
 
@@ -543,7 +586,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 	}
 
 	// convoi not in depot anymore, maybe user double-clicked on start-button
-	if(!convois.is_contained(cnv)) {
+	if(local_execution && !convois.is_contained(cnv)) {
 		return false;
 	}
 
@@ -553,11 +596,14 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		cnv->front()->set_owner(cnv->get_owner());
 		cnv->back()->set_owner(cnv->get_owner());
 	}
-	if (cnv.is_bound() && cnv->get_schedule() && !cnv->get_schedule()->empty()) {
+	if (cnv.is_bound() && cnv->get_schedule() && !cnv->get_schedule()->empty()) 
+	{
 		// if next schedule entry is this depot => advance to next entry
-		const koord3d& cur_pos = cnv->get_schedule()->get_current_entry().pos;
-		if (cur_pos == get_pos()) {
+		koord3d cur_pos = cnv->get_schedule()->get_current_entry().pos;
+		if (cur_pos == get_pos()) 
+		{
 			cnv->get_schedule()->advance();
+			cur_pos = cnv->get_schedule()->get_current_entry().pos;
 		}
 
 		bool convoy_unpowered = cnv->get_sum_power() == 0 || cnv->calc_max_speed(cnv->get_weight_summary()) == 0;
@@ -613,7 +659,8 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			// Is there a cab at the front end of convoy?
 			create_win(new news_img("Cannot start: no cab at the front of the convoy."), w_time_delete, magic_none);
 		}
-		else {
+		else 
+		{
 			// convoi can start now
 			cnv->start();
 
