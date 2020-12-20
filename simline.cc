@@ -1107,7 +1107,7 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 	case LINE_REVENUE:
 	case LINE_OPERATIONS:
 	case LINE_PROFIT:
-		// case LINE_WAYTOLL: // UI TODO: Check whether this should remain commented out
+	case LINE_WAYTOLL: // UI TODO: Check whether this should remain commented out
 		value = convert_money(value);
 		break;
 	default:;
