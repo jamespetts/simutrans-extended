@@ -290,6 +290,7 @@ SOURCES += boden/wege/runway.cc
 SOURCES += boden/wege/schiene.cc
 SOURCES += boden/wege/strasse.cc
 SOURCES += boden/wege/weg.cc
+SOURCES += dataobj/consist_order_t.cc
 SOURCES += dataobj/crossing_logic.cc
 SOURCES += dataobj/objlist.cc
 SOURCES += dataobj/settings.cc
