@@ -1416,6 +1416,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 
 	set_owner( player );
 	purchase_time = welt->get_current_month();
+	overhaul_time = 0;
 	cnv = NULL;
 	speed_limit = speed_unlimited();
 
@@ -1432,6 +1433,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	check_for_finish = false;
 	use_calc_height = true;
 	has_driven = false;
+	do_not_overhaul = false;
+	do_not_auto_upgrade = false;
 
 	previous_direction = direction = ribi_t::none;
 	target_halt = halthandle_t();
@@ -1503,6 +1506,12 @@ vehicle_t::vehicle_t() :
 	class_reassignments = NULL;
 
 	last_stopped_tile = koord3d::invalid;
+	km_since_new = 0u;
+	km_since_last_overhaul = 0u;
+	km_since_last_maintenance = 0u;
+	km_since_last_replenish = 0u;
+	last_maintenance_time = 0ll;
+	tags = 0u;
 }
 
 void vehicle_t::set_desc(const vehicle_desc_t* value)
@@ -2875,7 +2884,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 			uint8 count = pre_corner_direction.get_count();
 			file->rdwr_byte(count);
 			sint16 dir;
-			ITERATE(pre_corner_direction, n)
+			// We cannot use C++11 ranged fo here as the fixed_list_tpl does not support it
+			for(uint32 n = 0; n < pre_corner_direction.get_count(); n ++)
 			{
 				dir = pre_corner_direction[n];
 				file->rdwr_short(dir);
@@ -2956,6 +2966,38 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 			}
 		}
 	}
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_long(overhaul_time);
+		
+		file->rdwr_long(km_since_new);
+		file->rdwr_long(km_since_last_overhaul);
+		file->rdwr_long(km_since_last_maintenance);
+		file->rdwr_long(km_since_last_replenish);
+		file->rdwr_longlong(last_maintenance_time); 
+		file->rdwr_short(tags);
+		
+		bool dno = do_not_overhaul;
+		bool dnau = do_not_auto_upgrade;
+
+		file->rdwr_bool(dno);
+		file->rdwr_bool(dnau);
+
+		do_not_overhaul = dno;
+		do_not_auto_upgrade = dnau;
+	}
+	else
+	{
+		km_since_new = 0u;
+		km_since_last_overhaul = 0u;
+		km_since_last_maintenance = 0u;
+		km_since_last_replenish = 0u;
+		last_maintenance_time = welt->get_ticks();
+		do_not_overhaul = false;
+		do_not_auto_upgrade = false;
+		tags = 0u;
+	}
 }
 
 
@@ -2970,6 +3012,7 @@ uint32 vehicle_t::calc_sale_value() const
 		value /= 1000;
 	}
 	// General depreciation
+	// TODO: Modify this to take into account overhauls
 	// after 20 years, it has only half value
 	// Multiply by .997**number of months
 	// Make sure to use OUR version of pow().
@@ -3118,7 +3161,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 				{
 					char waiting_time[64];
 					cnv->snprintf_remaining_loading_time(waiting_time, sizeof(waiting_time));
-					if(cnv->get_schedule()->get_current_entry().wait_for_time)
+					if(cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 					{
 						sprintf( tooltip_text, translator::translate("Waiting for schedule. %s left"), waiting_time);
 					}
@@ -3949,7 +3992,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					uint8 direction90 = ribi_type(get_pos(), pos_next);
 					if (rs && (!route_index_beyond_end_of_route)) {
 						// Check whether if we reached a choose point
-						if (rs->get_desc()->is_choose_sign())
+						if (rs->get_desc()->is_choose_sign() && !cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
 						{
 							// route position after road sign
 							const koord3d pos_next_next = r.at(route_index + 1u);
@@ -4903,8 +4946,16 @@ bool rail_vehicle_t::is_target(const grund_t *gr,const grund_t *prev_gr)
 
 sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index)
 {
-	const schedule_t* schedule = cnv->get_schedule();
-	grund_t const* target = welt->lookup(schedule->get_current_entry().pos);
+	const schedule_t* schedule = cnv->get_schedule(); 	
+
+	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
+	{
+		// The schedule dictates that we must ignore this choose signal
+		return 0;
+	}
+
+	grund_t const* target = welt->lookup(schedule->get_current_entry().pos); 
+
 
 	if(target == NULL)
 	{
@@ -4913,8 +4964,6 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 	}
 
 	bool choose_ok = true;
-
-	// TODO: Add option in the convoy's schedule to skip choose signals, and implement this here.
 
 	// check whether there is another choose signal or end_of_choose on the route
 	uint32 break_index = start_block + 1;
@@ -7245,7 +7294,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 	// or alternatively free that section reserved beyond the last signal to which reservation can take place
 	if(!success || !directional_reservation_succeeded || ((next_signal_index < INVALID_INDEX) && (next_signal_working_method == absolute_block || next_signal_working_method == token_block || next_signal_working_method == track_circuit_block || next_signal_working_method == cab_signalling || ((next_signal_working_method == time_interval || next_signal_working_method == time_interval_with_telegraph) && !next_signal_protects_no_junctions))))
 	{
-		const bool will_choose = (last_choose_signal_index < INVALID_INDEX) && !is_choosing && not_entirely_free && (last_choose_signal_index == first_stop_signal_index) && !is_from_token;
+		const bool will_choose = (last_choose_signal_index < INVALID_INDEX) && !is_choosing && not_entirely_free && (last_choose_signal_index == first_stop_signal_index) && !is_from_token && !cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
 		// free reservation
 		uint16 curtailment_index;
 		bool do_not_increment_curtailment_index_directional = false;
@@ -9419,11 +9468,7 @@ void rail_vehicle_t::rdwr_from_convoi(loadsave_t* file)
 	xml_tag_t t( file, "rail_vehicle_t" );
 
 	vehicle_t::rdwr_from_convoi(file);
-#ifdef SPECIAL_RESCUE_12_5
-	if(file->get_extended_version() >= 12 && file->is_saving())
-#else
 	if(file->get_extended_version() >= 12)
-#endif
 	{
 		uint8 wm = (uint8)working_method;
 		file->rdwr_byte(wm);
@@ -9450,6 +9495,15 @@ void air_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	file->rdwr_long(search_for_stop);
 	file->rdwr_long(touchdown);
 	file->rdwr_long(takeoff);
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_long(number_of_takeoffs);
+	}
+	else
+	{
+		number_of_takeoffs = 0;
+	}
 }
 
 
@@ -9504,6 +9558,7 @@ void air_vehicle_t::hop(grund_t* gr)
 			) {
 				state = flying;
 				play_sound();
+				number_of_takeoffs ++;
 				new_friction = 1;
 				block_reserver( takeoff, takeoff+100, false );
 				calc_altitude_level( desc->get_topspeed() );

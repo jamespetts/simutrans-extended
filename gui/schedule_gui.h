@@ -72,9 +72,10 @@ private:
 	gui_combobox_t line_selector;
 	gui_label_t lb_line;
 
+	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
-	button_t bt_add, bt_insert, bt_remove; // stop management
-	button_t bt_bidirectional, bt_mirror, bt_wait_for_time, bt_same_spacing_shift;
+	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
+	button_t bt_bidirectional, bt_mirror, bt_wait_for_time, bt_same_spacing_shift, bt_ignore_choose, bt_lay_over, bt_range_stop;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
@@ -86,6 +87,10 @@ private:
 	gui_label_t lb_spacing;
 	gui_numberinput_t numimp_spacing;
 	gui_label_t lb_spacing_as_clock;
+
+	gui_label_t lb_conditional_depart, lb_broadcast_condition;
+	gui_label_t lb_wait_condition;
+	gui_numberinput_t conditional_depart, condition_broadcast;
 
 	gui_label_t lb_spacing_shift;
 	gui_numberinput_t numimp_spacing_shift;

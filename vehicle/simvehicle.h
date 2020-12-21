@@ -288,8 +288,12 @@ private:
 	*/
 	sint32 purchase_time;
 
-	/**
-	* For the more physical acceleration model friction is introduced
+	/* Date of last overhaul in months
+	* @author: jamespetts
+	*/
+	sint32 overhaul_time;
+
+	/** For the more physical acceleration model friction is introduced
 	* frictionforce = gamma*speed*weight
 	* since the total weight is needed a lot of times, we save it
 	*/
@@ -371,6 +375,17 @@ protected:
 	bool smoke:1;
 	bool check_for_finish:1;		// true, if on the last tile
 	bool has_driven:1;
+	
+	bool do_not_overhaul : 1;
+	bool do_not_auto_upgrade : 1;
+
+	uint32 km_since_new;
+	uint32 km_since_last_overhaul;
+	uint32 km_since_last_maintenance;
+	uint32 km_since_last_replenish;
+	sint64 last_maintenance_time;
+
+	uint16 tags;
 
 	void calc_image() OVERRIDE;
 
@@ -388,7 +403,6 @@ public:
 
 	uint8 hop_count;
 
-//public:
 	// the coordinates, where the vehicle was loaded the last time
 	koord3d last_stop_pos;
 
@@ -421,7 +435,15 @@ public:
 	*/
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi(get_waytype()); }
 
+	/*
+	* The date (months) when this vehicle was first purchased.
+	*/
 	sint32 get_purchase_time() const {return purchase_time;}
+	
+	/* 
+	* The date (months) when this vehicle was last overhauled.
+	*/
+	sint32 get_overhaul_time() const { return overhaul_time; }
 
 	void get_smoke(bool yesno ) { smoke = yesno;}
 
@@ -475,9 +497,12 @@ public:
 
 	void set_direction_steps(sint16 value) { direction_steps = value; }
 
+	void step_km(uint32 km) { km_since_new += km; km_since_last_overhaul += km; km_since_last_maintenance += km; km_since_last_replenish += km; }
+
 	void fix_class_accommodations();
 
 	inline koord3d get_last_stop_pos() const { return last_stop_pos;  }
+
 
 #ifdef INLINE_OBJ_TYPE
 protected:
@@ -673,6 +698,28 @@ public:
 
 	virtual sint32 get_takeoff_route_index() const { return INVALID_INDEX; }
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
+
+	// TODO: Implement proper logic for this. Aircraft need different logic to other vehicles, hence
+	// virtual. Query: do we need different logic for other vehicles, too? 
+	// This should always return true when is_maintenance_urgently_needed() would be true.
+	virtual bool is_maintenance_needed() const { return false; }
+	virtual bool is_maintenance_urgently_needed() const { return false; }
+	virtual bool is_overhaul_needed() const { return false; }
+
+	void replenish() { km_since_last_replenish = 0; }
+	void maintain() { replenish(); km_since_last_maintenance = 0; }
+	void overhaul() { maintain(); km_since_last_overhaul = 0; } // TODO: Add code here for updating the livery.
+
+	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
+	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }
+
+	bool get_do_not_overhaul() const { return do_not_overhaul; }
+	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
+
+	uint16 get_tags() const { return tags; }
+	bool is_tag_set(uint16 tag) const { return tag & tags; }
+	void set_tag(uint16 tag) { tag |= tags; }
+	void clear_tag(uint16 tag) { tag &= ~tags; }
 };
 
 
@@ -978,6 +1025,8 @@ private:
 
 	sint16 altitude_level; // for AFHP
 	sint16 landing_distance; // for AFHP
+
+	uint32 number_of_takeoffs;
 
 	void calc_altitude_level(sint32 speed_limit_kmh){
 		altitude_level = max(5, speed_limit_kmh/33);

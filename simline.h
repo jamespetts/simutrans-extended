@@ -293,6 +293,8 @@ public:
 	}
 
 	sint64 calc_departures_scheduled();
+
+	void propagate_triggers(uint16 triggers, bool trigger_one_only);
 };
 
 

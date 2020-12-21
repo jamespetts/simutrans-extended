@@ -145,10 +145,13 @@ void stadt_t::electricity_consumption_rdwr(loadsave_t *file)
 	{
 		uint32 count = electricity_consumption[0].get_count();
 		file->rdwr_long(count);
-		ITERATE(electricity_consumption[0], i)
+		uint32 i = 0;
+		for(auto consumption : electricity_consumption[0])
 		{
+			// Query: can we just say file->rdwr_longlong(consumption.year) here...?
 			file->rdwr_longlong(electricity_consumption[0].get_element(i).year);
 			file->rdwr_short(electricity_consumption[0].get_element(i).consumption_percent);
+			i++; 
 		}
 	}
 

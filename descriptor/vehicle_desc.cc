@@ -296,7 +296,7 @@ uint16 vehicle_desc_t::get_available_livery_count(karte_t *welt) const
 	}
 
 	vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
-	ITERATE_PTR(schemes, i)
+	for(uint32 i = 0; i < schemes->get_count(); i++)
 	{
 		livery_scheme_t* scheme = schemes->get_element(i);
 		if (!scheme->is_available(welt->get_timeline_year_month()))
@@ -417,6 +417,7 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	const uint16 rr = rolling_resistance * float32e8_t((uint32)100);
 	chk->input(ar);
 	chk->input(rr);
+	chk->input(livery_image_type); 
 }
 
 uint8 vehicle_desc_t::get_interactivity() const

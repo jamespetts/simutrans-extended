@@ -91,6 +91,170 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 }
 
 
+// UI TODO: Make the parts of the UI below compatible with the new features
+
+/**
+ * Append description of entry to buf.
+ */
+ /*
+void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
+{
+	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
+	if(halt.is_bound()) 
+	{
+		bool prefix = false;
+		char modified_name[320];
+		if(no_control_tower)
+		{
+			sprintf(modified_name, "%s [%s]", halt->get_name(), translator::translate("NO CONTROL TOWER"));
+		}
+		else
+		{
+			sprintf(modified_name, "%s", halt->get_name());
+		}
+
+		if (entry.is_flag_set(schedule_entry_t::wait_for_time))
+		{
+			buf.printf("[*] ");
+			prefix = true;
+		}
+		if (entry.is_flag_set(schedule_entry_t::lay_over))
+		{
+			buf.printf(translator::translate("[LO] "));
+			prefix = true;
+		}
+		if (entry.is_flag_set(schedule_entry_t::force_range_stop))
+		{
+			buf.printf(translator::translate("[RS] "));
+			prefix = true;
+		}
+		if (entry.is_flag_set(schedule_entry_t::ignore_choose))
+		{
+			buf.printf(translator::translate("[IC] "));
+			prefix = true;
+		}
+		if (entry.condition_bitfield_receiver > 0)
+		{
+			buf.printf("[->%d] ", entry.condition_bitfield_receiver);
+			prefix = true;
+		}
+		if (entry.condition_bitfield_broadcaster > 0)
+		{
+			buf.printf("[%d->] ", entry.condition_bitfield_broadcaster);
+			prefix = true;
+		}
+		if (entry.minimum_loading != 0)
+		{
+			buf.printf("[%d%%] ", entry.minimum_loading);
+			prefix = true;
+		}
+		if (prefix == true)
+		{
+			buf.append(" ");
+		}
+
+
+		buf.printf("%s (%s)", modified_name, entry.pos.get_str() );
+	}
+	else {
+		const grund_t* gr = welt->lookup(entry.pos);
+		if(  gr==NULL  ) {
+			buf.printf("%s (%s)", translator::translate("Invalid coordinate"), entry.pos.get_str() );
+		}
+		else if(  gr->get_depot() != NULL  ) {
+			buf.printf("%s (%s)", translator::translate("Depot"), entry.pos.get_str() );
+		}
+		else if(  const char *label_text = gr->get_text()  ){
+			buf.printf("%s %s (%s)", translator::translate("Wegpunkt"), label_text, entry.pos.get_str() );
+		}
+		else {
+			buf.printf("%s (%s)", translator::translate("Wegpunkt"), entry.pos.get_str() );
+		}
+	}
+
+	if(entry.reverse == 1)
+	{
+		buf.printf(" [<<]");
+	}
+}
+
+
+
+void schedule_gui_t::gimme_short_stop_name(cbuffer_t& buf, player_t const* const player_, const schedule_t *schedule, int i, int max_chars)
+{
+	if (i < 0 || schedule == NULL || i >= schedule->get_count()) {
+		dbg->warning("void schedule_gui_t::gimme_short_stop_name()", "tried to receive unused entry %i in schedule %p.", i, schedule);
+		return;
+	}
+	const schedule_entry_t& entry = schedule->entries[i];
+	const char* p;
+	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
+	if (halt.is_bound()) {
+		p = halt->get_name();
+	}
+	else {
+		const grund_t* gr = welt->lookup(entry.pos);
+		if (gr == NULL) {
+			p = translator::translate("Invalid coordinate");
+		}
+		else if (gr->get_depot() != NULL) {
+			p = translator::translate("Depot");
+		}
+		else {
+			p = translator::translate("Wegpunkt");
+		}
+	}
+
+	// Finally start to append the entry. Start with the most complicated...
+	if (entry.is_flag_set(schedule_entry_t::wait_for_time) && entry.reverse == 1)
+	{
+		if (strlen(p) > (unsigned)max_chars - 8)
+		{
+			buf.printf("[*] %.*s... [<<]", max_chars - 12, p);
+		}
+		else
+		{
+			buf.append("[*] ");
+			buf.append(p);
+			buf.append(" [<<]");
+		}
+	}
+	else if (entry.is_flag_set(schedule_entry_t::wait_for_time))
+	{
+		if (strlen(p) > (unsigned)max_chars - 4)
+		{
+			buf.printf("[*] %.*s...", max_chars - 8, p);
+		}
+		else
+		{
+			buf.append("[*] ");
+			buf.append(p);
+		}
+	}
+	else if (entry.reverse == 1)
+	{
+		if (strlen(p) > (unsigned)max_chars - 4)
+		{
+			buf.printf("%.*s... [<<]", max_chars - 8, p);
+		}
+		else
+		{
+			buf.append(p);
+			buf.append(" [<<]");
+		}
+	}
+	else if (strlen(p) > (unsigned)max_chars)
+	{
+		buf.printf("%.*s...", max_chars - 3, p);
+	}
+	else
+	{
+		buf.append(p);
+	}
+}
+
+*/
+
 zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
 cbuffer_t schedule_gui_stats_t::buf;
 
@@ -216,8 +380,11 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	lb_line("Serves Line:"),
 	lb_wait("month wait time"),
 	lb_waitlevel_as_clock(NULL, SYSCOL_TEXT_HIGHLIGHT, gui_label_t::right),
+	lb_wait_condition("wait_for_trigger"),
+	lb_broadcast_condition("broadcast_trigger_on_arrival"),
 	lb_load("Full load"),
 	lb_spacing("Spacing cnv/month, shift"),
+	lb_conditional_depart("conditional_depart"),
 	lb_spacing_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
 	lb_spacing_shift_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
 	stats(player_),
@@ -241,6 +408,9 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	old_line_count = 0;
 
 	scr_coord_val ypos = D_MARGIN_TOP;
+	//scr_coord_val column_right = BUTTON4_X + 35;
+	scr_coord_val column_right = BUTTON3_X;
+
 	if(  cnv.is_bound()  ) {
 		// things, only relevant to convois, like creating/selecting lines
 		bt_promote_to_line.init( button_t::roundbox, "promote to line", scr_coord( BUTTON3_X, ypos ), D_BUTTON_SIZE );
@@ -287,85 +457,150 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		ypos += D_BUTTON_HEIGHT + D_V_SPACE;
 	}
 
+	// Left hand column:
+
 	// loading level and return tickets
 	const scr_coord_val label_width = min( (D_BUTTON_WIDTH<<1) + D_H_SPACE, max( lb_load.get_size().w, lb_wait.get_size().w ) );
 
 	numimp_load.set_pos( scr_coord( D_MARGIN_LEFT + label_width + D_H_SPACE, ypos ) );
-	numimp_load.set_width( 60 );
+	numimp_load.set_width( 70 );
 	numimp_load.set_value( schedule->get_current_entry().minimum_loading );
 	numimp_load.set_limits( 0, 100 );
 	numimp_load.set_increment_mode(10);
 	numimp_load.add_listener(this);
 	add_component(&numimp_load);
 
-	bt_bidirectional.init(button_t::square_automatic, "Alternate directions", scr_coord( BUTTON3_X, ypos ), scr_size(D_BUTTON_WIDTH*2,D_BUTTON_HEIGHT) );
-	bt_bidirectional.set_tooltip("When adding convoys to the line, every second convoy will follow it in the reverse direction.");
-	bt_bidirectional.pressed = schedule->is_bidirectional();
-	bt_bidirectional.add_listener(this);
-	add_component(&bt_bidirectional);
-
 	lb_load.set_width( label_width );
 	lb_load.align_to( &numimp_load, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
 	add_component( &lb_load );
+	
+	ypos += D_BUTTON_HEIGHT;
+
+	// Conditional depart
+	lb_wait_condition.set_pos(scr_coord(D_MARGIN_LEFT, ypos));
+	lb_wait_condition.set_tooltip("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy");
+	add_component(&lb_wait_condition);
+	conditional_depart.set_pos(scr_coord(D_MARGIN_LEFT + label_width + D_H_SPACE, ypos));
+	conditional_depart.set_width(numimp_load.get_size().w);
+	conditional_depart.set_value(schedule->get_current_entry().condition_bitfield_receiver);
+	conditional_depart.set_limits(0, 15);
+	conditional_depart.set_increment_mode(1);
+	conditional_depart.add_listener(this);
+	add_component(&conditional_depart);
 
 	ypos += D_BUTTON_HEIGHT;
 
-	// Maximum waiting time
-	lb_wait.set_pos( scr_coord( D_MARGIN_LEFT, ypos+2 ) );
-	add_component(&lb_wait);
-
-	if(  schedule->get_current_entry().waiting_time_shift==0  ) {
-		strcpy( str_parts_month, translator::translate("off") );
-		strcpy( str_parts_month_as_clock, translator::translate("off") );
-
-	}
-	else {
-		sprintf( str_parts_month, "1/%d",  1<<(16-schedule->get_current_entry().waiting_time_shift) );
-		sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
-		welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
-	}
-
-	lb_waitlevel_as_clock.set_text_pointer(str_parts_month_as_clock, false);
-	lb_waitlevel_as_clock.set_size( numimp_load.get_size() - scr_size( D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH, 0 ) );
-	lb_waitlevel_as_clock.set_pos( scr_coord(bt_wait_prev.get_pos().x, ypos + 2));
-	lb_waitlevel_as_clock.align_to( &numimp_load, ALIGN_EXTERIOR_V | ALIGN_TOP | ALIGN_LEFT, scr_coord( gui_theme_t::gui_arrow_left_size.w, 0 ) );
-	add_component(&lb_waitlevel_as_clock);
-
-	bt_wait_prev.set_typ( button_t::arrowleft );
-	bt_wait_prev.align_to( &lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_RIGHT | ALIGN_CENTER_V );
-	bt_wait_prev.add_listener(this);
-	add_component( &bt_wait_prev );
-
-	bt_wait_next.set_typ( button_t::arrowright );
-	bt_wait_next.align_to( &lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_LEFT | ALIGN_CENTER_V );
-	bt_wait_next.add_listener(this);
-	lb_waitlevel_as_clock.set_width( bt_wait_next.get_pos().x-bt_wait_prev.get_pos().x-bt_wait_prev.get_size().w );
-	add_component( &bt_wait_next );
-
-	lb_wait.set_width( label_width );
-	lb_wait.align_to( &lb_waitlevel_as_clock, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
-	add_component( &lb_wait );
-
-	if(!cnv.is_bound())
+	if (!cnv.is_bound())
 	{
 		// Wait for time
-		bt_wait_for_time.init(button_t::square_automatic, "Wait for time", scr_coord( BUTTON1_X, ypos+12 ), scr_size(D_BUTTON_WIDTH*2,D_BUTTON_HEIGHT) );
+		bt_wait_for_time.init(button_t::square_automatic, "Wait for time", scr_coord(BUTTON1_X, ypos), scr_size(D_BUTTON_WIDTH * 2, D_BUTTON_HEIGHT));
 		bt_wait_for_time.set_tooltip("If this is set, convoys will wait until one of the specified times before departing, the specified times being fractions of a month.");
-		bt_wait_for_time.pressed = schedule->get_current_entry().wait_for_time;
+		bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
 		bt_wait_for_time.add_listener(this);
 		add_component(&bt_wait_for_time);
 	}
 
-	// Mirror schedule/alternate directions
-	bt_mirror.init(button_t::square_automatic, "return ticket", scr_coord( BUTTON3_X, ypos ), scr_size(D_BUTTON_WIDTH*2,D_BUTTON_HEIGHT) );
-	bt_mirror.set_tooltip("Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.");
-	bt_mirror.pressed = schedule->is_mirrored();
-	bt_mirror.add_listener(this);
-	add_component(&bt_mirror);
+	ypos += D_BUTTON_HEIGHT;
 
-	ypos += LINESPACE;
+	// Maximum waiting time
+	lb_wait.set_pos(scr_coord(D_MARGIN_LEFT, ypos));
+	add_component(&lb_wait);
+
+	if (schedule->get_current_entry().waiting_time_shift == 0) {
+		strcpy(str_parts_month, translator::translate("off"));
+		strcpy(str_parts_month_as_clock, translator::translate("off"));
+
+	}
+	else {
+		sprintf(str_parts_month, "1/%d", 1 << (16 - schedule->get_current_entry().waiting_time_shift));
+		sint64 ticks_waiting = welt->ticks_per_world_month >> (16 - schedule->get_current_entry().waiting_time_shift);
+		welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
+	}
+
+	lb_waitlevel_as_clock.set_text_pointer(str_parts_month_as_clock, false);
+	lb_waitlevel_as_clock.set_size(numimp_load.get_size() - scr_size(D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH, 0));
+	lb_waitlevel_as_clock.set_pos(scr_coord(D_MARGIN_LEFT + label_width + D_H_SPACE + gui_theme_t::gui_arrow_left_size.w, ypos));
+	add_component(&lb_waitlevel_as_clock);
+
+	bt_wait_prev.set_typ(button_t::arrowleft);
+	bt_wait_prev.align_to(&lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_RIGHT | ALIGN_CENTER_V);
+	bt_wait_prev.add_listener(this);
+	add_component(&bt_wait_prev);
+
+	bt_wait_next.set_typ(button_t::arrowright);
+	bt_wait_next.align_to(&lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_LEFT | ALIGN_CENTER_V);
+	bt_wait_next.add_listener(this);
+	lb_waitlevel_as_clock.set_width(bt_wait_next.get_pos().x - bt_wait_prev.get_pos().x - bt_wait_prev.get_size().w);
+	add_component(&bt_wait_next);
+
+	lb_wait.set_width(label_width);
+	lb_wait.align_to(&lb_waitlevel_as_clock, ALIGN_CENTER_V, scr_coord(D_MARGIN_LEFT, 0));
+	add_component(&lb_wait);
+
+
+	// Right hand column:
+	// Reset ypos
+	ypos = D_MARGIN_TOP;
+
+
+	// Modify convoy button
+	bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH*2, D_BUTTON_HEIGHT));
+	bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+	bt_consist_order.add_listener(this);
+	bt_consist_order.pressed = false;
+	add_component(&bt_consist_order);
+
+	ypos += D_BUTTON_HEIGHT + 2;	
+
+
+	// Ignore choose sign/signal
+	bt_ignore_choose.init(button_t::square_automatic, "ignore_choose_on_arrival", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH * 2, D_BUTTON_HEIGHT));
+	bt_ignore_choose.set_tooltip("If this is set, choose signals will be ignored while this convoy is heading to this destination.");
+	bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
+	bt_ignore_choose.add_listener(this);
+	add_component(&bt_ignore_choose);
+
+	ypos += D_BUTTON_HEIGHT + 2;
+
+	// Condition broadcast
+	condition_broadcast.set_pos(scr_coord(column_right, ypos));
+	condition_broadcast.set_width(60);
+	condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
+	condition_broadcast.set_limits(0, 15);
+	condition_broadcast.set_increment_mode(1);
+	condition_broadcast.add_listener(this);
+	add_component(&condition_broadcast);
+	lb_broadcast_condition.set_pos(scr_coord(column_right + condition_broadcast.get_size().w + 5, ypos));
+	lb_broadcast_condition.set_tooltip("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving");
+	add_component(&lb_broadcast_condition);
+
+	ypos += D_BUTTON_HEIGHT + 2;
+
+	// Issuing Lay over
+	bt_lay_over.init(button_t::square_automatic, "lay_over", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH * 2, D_BUTTON_HEIGHT));
+	bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop:");
+	bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+	bt_lay_over.add_listener(this);
+	add_component(&bt_lay_over);
 
 	ypos += D_BUTTON_HEIGHT;
+
+	// Force range stop
+	bt_range_stop.init(button_t::square_automatic, "force_range_stop", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH * 2, D_BUTTON_HEIGHT));
+	bt_range_stop.set_tooltip("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop");
+	bt_range_stop.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::force_range_stop);
+	bt_range_stop.add_listener(this);
+	add_component(&bt_range_stop);
+
+
+
+	// Bottom section, aligned with left column:
+	ypos += D_BUTTON_HEIGHT;
+	ypos += D_BUTTON_HEIGHT;
+	ypos += D_BUTTON_HEIGHT;
+
+	// We modify the right hand column to suit the section better
+	column_right = BUTTON4_X + 35;
 
 	// Spacing
 	if ( !cnv.is_bound() ) {
@@ -376,7 +611,8 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		//numimp_spacing.set_width_by_len(3);
 		numimp_spacing.set_value( schedule->get_spacing() );
 		numimp_spacing.set_limits( 0, 999 );
-		numimp_spacing.set_increment_mode( 1 );
+		// UI TODO: Make it clearer to the player that this is set in increments of 12ths of a fraction of a month.
+		numimp_spacing.set_increment_mode(12);
 		numimp_spacing.add_listener(this);
 		add_component(&numimp_spacing);
 
@@ -392,34 +628,52 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 			numimp_spacing_shift.add_listener(this);
 			add_component(&numimp_spacing_shift);
 		}
+	}
 
-		ypos += D_BUTTON_HEIGHT;
 
+	bt_bidirectional.init(button_t::square_automatic, "Alternate directions", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH * 2, D_BUTTON_HEIGHT));
+	bt_bidirectional.set_tooltip("When adding convoys to the line, every second convoy will follow it in the reverse direction.");
+	bt_bidirectional.pressed = schedule->is_bidirectional();
+	bt_bidirectional.add_listener(this);
+	add_component(&bt_bidirectional);
+
+	ypos += D_BUTTON_HEIGHT;
+	// Row 9
+
+	if (!cnv.is_bound()) {
+		int spacing_shift_mode = welt->get_settings().get_spacing_shift_mode();
 		if (spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE) {
 			//Same spacing button
-			bt_same_spacing_shift.init(button_t::square_automatic, "Use same shift for all stops.", scr_coord( BUTTON1_X , ypos+2 ), scr_size(D_BUTTON_WIDTH*3,D_BUTTON_HEIGHT) );
+			bt_same_spacing_shift.init(button_t::square_automatic, "Use same shift for all stops.", scr_coord(BUTTON1_X, ypos), scr_size(D_BUTTON_WIDTH * 3, D_BUTTON_HEIGHT));
 			bt_same_spacing_shift.set_tooltip("Use one spacing shift value for all stops in schedule.");
 			bt_same_spacing_shift.pressed = schedule->is_same_spacing_shift();
 			bt_same_spacing_shift.add_listener(this);
 			add_component(&bt_same_spacing_shift);
 		}
 
-		lb_spacing_as_clock.set_pos(scr_coord( numimp_spacing.get_pos().x, ypos+2 ) );
+		lb_spacing_as_clock.set_pos(scr_coord(numimp_spacing.get_pos().x, ypos));
 		lb_spacing_as_clock.set_width(50);
 		lb_spacing_as_clock.set_text_pointer(str_spacing_as_clock, false);
 		add_component(&lb_spacing_as_clock);
 
 		if (spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE) {
-			lb_spacing_shift_as_clock.set_pos(scr_coord( numimp_spacing_shift.get_pos().x, ypos+2 ) );
+			lb_spacing_shift_as_clock.set_pos(scr_coord(numimp_spacing_shift.get_pos().x, ypos));
 			lb_spacing_shift_as_clock.set_width(50);
 			lb_spacing_shift_as_clock.set_text_pointer(str_spacing_shift_as_clock, false);
 			add_component(&lb_spacing_shift_as_clock);
 		}
+	}	
+	
+	// Mirror schedule/alternate directions
+	bt_mirror.init(button_t::square_automatic, "return ticket", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH*2, D_BUTTON_HEIGHT));
+	bt_mirror.set_tooltip("Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.");
+	bt_mirror.pressed = schedule->is_mirrored();
+	bt_mirror.add_listener(this);
+	add_component(&bt_mirror);
 
-		ypos += D_BUTTON_HEIGHT;
-	}
-
+	ypos += D_BUTTON_HEIGHT;
 	ypos += D_V_SPACE;
+	// Row 10
 
 	bt_add.init(button_t::roundbox_state, "Add Stop", scr_coord(BUTTON1_X, ypos ), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT) );
 	bt_add.set_tooltip("Appends stops at the end of the schedule");
@@ -440,10 +694,12 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	add_component(&bt_remove);
 
 	ypos += D_BUTTON_HEIGHT;
+	// Row 11
+	
 
-	scrolly.set_pos( scr_coord( 0, ypos ) );
+	scrolly.set_pos(scr_coord(0, ypos));
 	scrolly.set_show_scroll_x(true);
-	scrolly.set_scroll_amount_y(LINESPACE+1);
+	scrolly.set_scroll_amount_y(LINESPACE + 1);
 	add_component(&scrolly);
 
 	mode = adding;
@@ -493,6 +749,8 @@ void schedule_gui_t::update_selection()
 	lb_load.set_color( SYSCOL_BUTTON_TEXT_DISABLED );
 	numimp_load.disable();
 	numimp_load.set_value( 0 );
+	conditional_depart.set_value(0);
+	condition_broadcast.set_value(0);
 	bt_wait_prev.disable();
 	lb_wait.set_color( SYSCOL_BUTTON_TEXT_DISABLED );
 	lb_spacing.set_color( SYSCOL_BUTTON_TEXT_DISABLED );
@@ -511,9 +769,12 @@ void schedule_gui_t::update_selection()
 	if(  !schedule->empty()  ) {
 		schedule->set_current_stop( min(schedule->get_count()-1,schedule->get_current_stop()) );
 		const uint8 current_stop = schedule->get_current_stop();
-		bt_wait_for_time.pressed = schedule->get_current_entry().wait_for_time;
+		bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
+		bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
+		bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+		bt_range_stop.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::force_range_stop);
 		if(  haltestelle_t::get_halt(schedule->entries[current_stop].pos, player).is_bound()  ) {
-			if(!schedule->get_current_entry().wait_for_time)
+			if(!schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 			{
 				lb_load.set_color( SYSCOL_TEXT );
 				numimp_load.enable();
@@ -522,11 +783,20 @@ void schedule_gui_t::update_selection()
 			else if(!schedule->get_spacing())
 			{
 				// Cannot have wait for time without some spacing.
-				schedule->set_spacing(1);
-				numimp_spacing.set_value(1);
+				// 12 because the spacing is in 12ths of a fraction of a month.
+				schedule->set_spacing(12);
+				numimp_spacing.set_value(12);
 			}
 
-			if(  schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].wait_for_time ) {
+			if (schedule->get_current_entry().condition_bitfield_receiver > 0)
+			{
+				conditional_depart.set_value(schedule->get_current_entry().condition_bitfield_receiver);
+			}
+			if (schedule->get_current_entry().condition_bitfield_broadcaster > 0)
+			{
+				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
+			}
+			if(  schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) {
 				bt_wait_prev.enable();
 				lb_wait.set_color( SYSCOL_TEXT );
 				lb_spacing.set_color( SYSCOL_TEXT );
@@ -537,17 +807,17 @@ void schedule_gui_t::update_selection()
 					lb_spacing_shift.set_color( SYSCOL_TEXT );
 					lb_spacing_as_clock.set_color( SYSCOL_TEXT );
 					lb_spacing_shift_as_clock.set_color( SYSCOL_TEXT );
-					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), welt->ticks_per_world_month/schedule->get_spacing());
+					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), (welt->ticks_per_world_month * 12u) / schedule->get_spacing());
 					welt->sprintf_ticks(str_spacing_shift_as_clock, sizeof(str_spacing_as_clock),
-							schedule->entries[current_stop].spacing_shift * welt->ticks_per_world_month/welt->get_settings().get_spacing_shift_divisor()+1
+							schedule->entries[current_stop].spacing_shift * welt->ticks_per_world_month / welt->get_settings().get_spacing_shift_divisor() + 1
 							);
 				}
 				lb_waitlevel_as_clock.set_color( SYSCOL_TEXT_HIGHLIGHT );
 				bt_wait_next.enable();
 			}
-			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].wait_for_time) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
+			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
-				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
+				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift); 
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 			}
 			else {
@@ -743,7 +1013,29 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 	{
 		if(!schedule->empty())
 		{
-			schedule->entries[schedule->get_current_stop()].wait_for_time = bt_wait_for_time.pressed;
+			if (bt_wait_for_time.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
+			}
+			update_selection();
+		}
+	}
+	else if (comp == &bt_ignore_choose)
+	{
+		if (!schedule->empty())
+		{
+			if (bt_ignore_choose.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			}
 			update_selection();
 		}
 	}
@@ -788,6 +1080,47 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		// since init always returns false, it is safe to delete immediately
 		delete tool;
 	}
+	else if (comp == &bt_consist_order) {
+		// Opens new window to alter the consist order
+	}
+	else if (comp == &conditional_depart){
+		schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+		update_selection();
+	}
+	else if (comp == &condition_broadcast) {
+		schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+		update_selection();
+	}
+	else if (comp == &bt_lay_over) {
+		if (!schedule->empty())
+		{
+			if (bt_lay_over.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::lay_over);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::lay_over);
+			}
+			update_selection();
+		}
+	}
+	else if (comp == &bt_range_stop) {
+		if (!schedule->empty())
+		{
+			if (bt_range_stop.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::force_range_stop);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
+			}
+			update_selection();
+		}
+	}
+
+
 	// recheck lines
 	if(  cnv.is_bound()  ) {
 		// unequal to line => remove from line ...
@@ -881,6 +1214,8 @@ void schedule_gui_t::draw(scr_coord pos, scr_size size)
 		schedule->start_editing();
 		cnv->call_convoi_tool( 's', "1" );
 	}
+
+
 
 	// always dirty, to cater for shortening of halt names and change of selections
 	set_dirty();

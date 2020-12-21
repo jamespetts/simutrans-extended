@@ -487,23 +487,6 @@ void weg_t::rdwr(loadsave_t *file)
 		bool prow = public_right_of_way;
 		file->rdwr_bool(prow);
 		public_right_of_way = prow;
-#ifdef SPECIAL_RESCUE_12_3
-		if(file->is_saving())
-		{
-			uint32 rwc = remaining_wear_capacity;
-			file->rdwr_long(rwc);
-			remaining_wear_capacity = rwc;
-			uint16 cmy = creation_month_year;
-			file->rdwr_short(cmy);
-			creation_month_year = cmy;
-			uint16 lrmy = last_renewal_month_year;
-			file->rdwr_short(lrmy);
-			last_renewal_month_year = lrmy;
-			bool deg = degraded;
-			file->rdwr_bool(deg);
-			degraded = deg;
-		}
-#else
 		uint32 rwc = remaining_wear_capacity;
 		file->rdwr_long(rwc);
 		remaining_wear_capacity = rwc;
@@ -516,49 +499,48 @@ void weg_t::rdwr(loadsave_t *file)
 		bool deg = degraded;
 		file->rdwr_bool(deg);
 		degraded = deg;
-#endif
+	}
 
-		if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+	{
+		const uint32 route_array_number = file->get_extended_version() >= 15 || file->get_extended_revision() >= 20 ? 2 : 1;
+
+		if (file->is_saving())
 		{
-			const uint32 route_array_number = file->get_extended_version() >= 15 || file->get_extended_revision() >= 20 ? 2 : 1;
-
-			if (file->is_saving())
+			for (uint32 i = 0; i < route_array_number; i++)
 			{
-				for (uint32 i = 0; i < route_array_number; i++)
+				uint32 private_car_routes_count = private_car_routes[i].get_count();
+				file->rdwr_long(private_car_routes_count);
+				FOR(private_car_route_map, element, private_car_routes[i])
 				{
-					uint32 private_car_routes_count = private_car_routes[i].get_count();
-					file->rdwr_long(private_car_routes_count);
-					FOR(private_car_route_map, element, private_car_routes[i])
-					{
-						koord destination = element.key;
-						koord3d next_tile = element.value;
+					koord destination = element.key;
+					koord3d next_tile = element.value;
 
-						destination.rdwr(file);
-						next_tile.rdwr(file);
-					}
+					destination.rdwr(file);
+					next_tile.rdwr(file);
 				}
 			}
-			else // Loading
+		}
+		else // Loading
+		{
+			for (uint32 i = 0; i < route_array_number; i++)
 			{
-				for (uint32 i = 0; i < route_array_number; i++)
+				uint32 private_car_routes_count = 0;
+				file->rdwr_long(private_car_routes_count);
+				for (uint32 j = 0; j < private_car_routes_count; j++)
 				{
-					uint32 private_car_routes_count = 0;
-					file->rdwr_long(private_car_routes_count);
-					for (uint32 j = 0; j < private_car_routes_count; j++)
-					{
-						koord destination;
-						destination.rdwr(file);
-						koord3d next_tile;
-						next_tile.rdwr(file);
-						bool put_succeeded = private_car_routes[i].put(destination, next_tile);
-						assert(put_succeeded);
-						(void)put_succeeded;
-					}
+					koord destination;
+					destination.rdwr(file);
+					koord3d next_tile;
+					next_tile.rdwr(file);
+					bool put_succeeded = private_car_routes[i].put(destination, next_tile);
+					assert(put_succeeded);
+					(void)put_succeeded;
 				}
-				if (route_array_number == 1)
-				{
-					private_car_routes[1].clear();
-				}
+			}
+			if (route_array_number == 1)
+			{
+				private_car_routes[1].clear();
 			}
 		}
 	}

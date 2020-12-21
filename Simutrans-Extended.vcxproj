@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug (command-line server)|Win32">
@@ -1927,6 +1927,7 @@
   <ItemGroup>
     <ClCompile Include="bauer\goods_manager.cc" />
     <ClCompile Include="dataobj\rect.cc" />
+    <ClCompile Include="dataobj\consist_order_t.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
     <ClCompile Include="descriptor\reader\imagelist3d_reader.cc" />
@@ -2533,6 +2534,7 @@
     <ClCompile Include="descriptor\reader\xref_reader.cc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dataobj\consist_order_t.h" />
     <ClInclude Include="dataobj\environment.h" />
     <ClInclude Include="dataobj\gameinfo.h" />
     <ClInclude Include="dataobj\height_map_loader.h" />
@@ -2979,6 +2981,7 @@
     <None Include="base-texts-missing-feb-2018.dat" />
     <None Include="base-texts-missing-march-2018.dat" />
     <None Include="base-texts-new-convoy-debug-information.dat" />
+    <None Include="base-texts-vehicle-management.dat" />
     <None Include="base_texts_extended-passenger-generation.dat" />
     <None Include="base_texts_bridge-change.dat" />
     <None Include="base_texts_extended_10.0.dat" />

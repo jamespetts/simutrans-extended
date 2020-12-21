@@ -727,7 +727,8 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 					}
 					line_selector.set_focusable( false );
 					last_selected_line = linehandle_t();	// clear last selected line so we can get a new one ...
-					depot->call_depot_tool('l', convoihandle_t(), buf);
+					depot->call_depot_tool('l', cnv, buf);
+
 				}
 				return true;
 			}

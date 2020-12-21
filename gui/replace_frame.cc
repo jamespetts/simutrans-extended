@@ -635,22 +635,24 @@ sint64 replace_frame_t::calc_total_cost()
 	{
 		current_vehicles.append(cnv->get_vehicle(i));
 	}
-	ITERATE((*convoy_assembler.get_vehicles()),j)
+	
+	//ITERATE((*convoy_assembler.get_vehicles()),j)
+	for(auto vehicle : *convoy_assembler.get_vehicles())
 	{
 		const vehicle_desc_t* veh = NULL;
-		//const vehicle_desc_t* test_new_vehicle = (*convoy_assembler.get_vehicles())[j]; // unused
 		// First - check whether there are any of the required vehicles already
 		// in the convoy (free)
-		ITERATE(current_vehicles,k)
+		uint32 k = 0u;
+		for(auto current_vehicle : current_vehicles)
 		{
-			//const vehicle_desc_t* test_old_vehicle = current_vehicles[k]->get_desc(); // unused
-			if(!keep_vehicles.is_contained(k) && current_vehicles[k]->get_desc() == (*convoy_assembler.get_vehicles())[j])
+			if(!keep_vehicles.is_contained(k) && current_vehicle->get_desc() == vehicle)
 			{
-				veh = current_vehicles[k]->get_desc();
+				veh = current_vehicle->get_desc();
 				keep_vehicles.append_unique(k);
 				// No change to price here.
 				break;
 			}
+			k++;
 		}
 
 		// We cannot look up the home depot here, so we cannot check whether there are any
@@ -663,37 +665,40 @@ sint64 replace_frame_t::calc_total_cost()
 			// something else.
 			if(!rpl->get_retain_in_depot())
 			{
-				ITERATE(current_vehicles,l)
+				uint32 l = 0u;
+				for(auto current_vehicle : current_vehicles)
 				{
-					for(uint8 c = 0; c < current_vehicles[l]->get_desc()->get_upgrades_count(); c++)
+					for(uint8 c = 0; c < current_vehicle->get_desc()->get_upgrades_count(); c ++)
 					{
-						//const vehicle_desc_t* possible_upgrade_test = current_vehicles[l]->get_desc()->get_upgrades(c); // unused
-						if(!keep_vehicles.is_contained(l) && (*convoy_assembler.get_vehicles())[j] == current_vehicles[l]->get_desc()->get_upgrades(c))
+						if(!keep_vehicles.is_contained(l) && (vehicle == current_vehicle->get_desc()->get_upgrades(c)))
 						{
-							veh = current_vehicles[l]->get_desc();
+							veh = current_vehicle->get_desc();
 							keep_vehicles.append_unique(l);
 							total_cost += veh ? veh->get_upgrades(c)->get_upgrade_price() : 0;
 							goto end_loop;
 						}
 					}
+					l ++;
 				}
 			}
 end_loop:
 			if(veh == NULL)
 			{
 				// Third - if all else fails, buy from new (expensive).
-				total_cost += (*convoy_assembler.get_vehicles())[j]->get_value();
+				total_cost += vehicle->get_value();
 			}
 		}
 	}
-	ITERATE(current_vehicles,m)
+	uint32 m = 0;
+	for (auto current_vehicle : current_vehicles)
 	{
 		if(!keep_vehicles.is_contained(m))
 		{
 			// This vehicle will not be kept after replacing -
 			// deduct its resale value from the total cost.
-			total_cost -= current_vehicles[m]->calc_sale_value();
+			total_cost -= current_vehicle->calc_sale_value();
 		}
+		m++;
 	}
 
 	return total_cost;

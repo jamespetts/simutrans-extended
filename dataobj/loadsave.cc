@@ -490,8 +490,8 @@ bool loadsave_t::rd_open(const char *filename_utf8 )
 	if(*pak_extension==0) {
 		strcpy( pak_extension, "(unknown)" );
 	}
+
 	this->filename = filename_utf8;
-#ifndef SPECIAL_RESCUE_12_6
 	if (extended_version >= 12)
 	{
 		rdwr_long(extended_revision);
@@ -500,9 +500,6 @@ bool loadsave_t::rd_open(const char *filename_utf8 )
 	{
 		extended_revision = 0;
 	}
-#else
-	extended_revision = 0;
-#endif
 	return true;
 }
 
