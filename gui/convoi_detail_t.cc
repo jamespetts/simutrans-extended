@@ -50,7 +50,6 @@ static const uint8 physics_curves_color[MAX_PHYSICS_CURVES] =
 	COL_DARK_SLATEBLUE
 };
 
-// TODO: Add definitions for SPEED and FORCE
 static const uint8 curves_type[MAX_PHYSICS_CURVES] =
 {
 	KMPH,
@@ -816,7 +815,7 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			buf.clear();
 			// NOTE: These value needs to be modified because these are multiplied by "gear"
 			buf.printf(translator::translate("%s %4d kW, %d kN"), translator::translate("Power:"), cnv->get_sum_power() / 1000, cnv->get_starting_force().to_sint32() / 1000);
-			// TODO: Add the acceleration info here - Ranran
+
 			display_proportional_clip_rgb(pos.x + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 			total_height += LINESPACE;
 
@@ -875,23 +874,6 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			display_proportional_clip_rgb(pos.x + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, upgradable_state == 2 ? COL_UPGRADEABLE : color_idx_to_rgb(COL_GREY2) , true);
 			buf.clear();
 
-			// UI TODO: The below code needs to be updated to the new UI.
-/*
-			// Time since last overhaul
-			buf.clear();
-			const sint32 month_overhaul = v->get_overhaul_time();
-			if (month_overhaul)
-			{
-				buf.printf("%s %s %i", translator::translate("Last overhauled:"), translator::get_month_name(month_overhaul % 12), month_overhaul / 12);
-			}
-			else
-			{
-				buf.printf("%s ", translator::translate("Never overhauled")); 
-			}
-
-			display_proportional_clip(pos.x + w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-			extra_y += LINESPACE;
-*/
 
 			// upgradable symbol
 			if (upgradable_state && skinverwaltung_t::upgradable) {
@@ -1538,7 +1520,22 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 			extra_y += LINESPACE;
 
-			// Bernd Gabriel, 16.06.2009: current average obsolescence increase percentage
+			// Time since last overhaul
+			buf.clear();
+			const sint32 month_overhaul = v->get_overhaul_time();
+			if (month_overhaul)
+			{
+				buf.printf("%s %s %i", translator::translate("Last overhauled:"), translator::get_month_name(month_overhaul % 12), month_overhaul / 12);
+			}
+			else
+			{
+				buf.printf("%s ", translator::translate("Never overhauled"));
+			}
+
+			display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			extra_y += LINESPACE;
+
+			// current average obsolescence increase percentage
 			uint32 percentage = v->get_desc()->calc_running_cost(welt, 100) - 100;
 			if (percentage > 0)
 			{
