@@ -3,10 +3,12 @@
  * (see LICENSE.txt)
  */
 
-#ifndef obj_baum_h
-#define obj_baum_h
+#ifndef OBJ_BAUM_H
+#define OBJ_BAUM_H
 
-#include <string>
+
+#include "../simobj.h"
+
 #include "../tpl/stringhashtable_tpl.h"
 #include "../tpl/vector_tpl.h"
 #include "../tpl/weighted_vector_tpl.h"
@@ -14,20 +16,23 @@
 #include "../simcolor.h"
 #include "../dataobj/environment.h"
 
+#include <string>
+
+#define TREE_MAX_RANDOM_AGE (703)
+#define TREE_MIN_PROBABILITY (38)
+
 /**
  * Simulated trees for Simutrans.
- *
- * @author Hj. Malthaner
  */
 class baum_t : public obj_t
 {
 private:
-	static PLAYER_COLOR_VAL outline_color;
+	static FLAGGED_PIXVAL outline_color;
 
 	/** month of birth */
-	uint16 geburt;
+	uint16 purchase_time;
 
-	/** type of tree (was 9 but for more compact saves now only 254 different ree types are allowed) */
+	/** type of tree (was 9 but for more compact saves now only 254 different tree types are allowed) */
 	uint8 tree_id;
 
 	uint8 season:3;
@@ -42,14 +47,16 @@ private:
 	static vector_tpl<const tree_desc_t *> tree_list;
 	static weighted_vector_tpl<uint32>* tree_list_per_climate;
 
-	bool saee_baum();
+	bool plant_tree();
 
 	/**
 	 * calculate offsets for new trees
 	 */
 	void calc_off(uint8 slope, sint8 x=-128, sint8 y=-128);
 
-	static uint16 random_tree_for_climate_intern(climate cl);
+	static const uint8 invalid_tree_id = 0xFF;
+
+	static uint8 random_tree_for_climate_intern(climate cl);
 
 	static uint8 plant_tree_on_coordinate(koord pos, const uint8 maximum_count, const uint8 count);
 
@@ -63,50 +70,49 @@ public:
 	baum_t(koord3d pos, uint8 type, sint32 age, uint8 slope );
 	baum_t(koord3d pos, const tree_desc_t *desc);
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
-	void finish_rd();
+	void finish_rd() OVERRIDE;
 
-	image_id get_image() const;
+	image_id get_image() const OVERRIDE;
 
 	/**
 	 * hide trees eventually with transparency
 	 */
-	PLAYER_COLOR_VAL get_outline_colour() const { return outline_color; }
-	image_id get_outline_image() const;
+	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE { return outline_color; }
+	image_id get_outline_image() const OVERRIDE;
 
-	static void recalc_outline_color() { outline_color = (env_t::hide_trees  &&  env_t::hide_with_transparency) ? (TRANSPARENT25_FLAG | OUTLINE_FLAG | COL_BLACK) : 0; }
+	static void recalc_outline_color() { outline_color = (env_t::hide_trees  &&  env_t::hide_with_transparency) ? (TRANSPARENT25_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK)) : 0; }
 
 	/**
 	 * Calculates tree image dependent on tree age
-	 * @author Hj. Malthaner
 	 */
-	void calc_image();
+	void calc_image() OVERRIDE;
 
 	/**
 	 * Called whenever the season or snowline height changes
 	 * return false and the obj_t will be deleted
 	 */
-	bool check_season(const bool);
+	bool check_season(const bool) OVERRIDE;
 
-	void rotate90();
+	void rotate90() OVERRIDE;
 
 	/**
 	 * re-calculate z-offset if slope of the tile has changed
 	 */
 	void recalc_off();
 
-	const char *get_name() const {return "Baum";}
+	const char *get_name() const OVERRIDE {return "Baum";}
 #ifdef INLINE_OBJ_TYPE
 #else
-	typ get_typ() const { return baum; }
+	typ get_typ() const OVERRIDE { return baum; }
 #endif
 
-	void show_info();
+	void show_info() OVERRIDE;
 
-	void info(cbuffer_t & buf, bool dummy = false) const;
+	void info(cbuffer_t & buf) const OVERRIDE;
 
-	void cleanup(player_t *player);
+	void cleanup(player_t *player) OVERRIDE;
 
 	void * operator new(size_t s);
 	void operator delete(void *p);
@@ -120,7 +126,7 @@ public:
 	// static functions to handle trees
 
 	// distributes trees on a map
-	static void distribute_trees(int dichte);
+	static void distribute_trees(int density);
 
 	static bool plant_tree_on_coordinate(koord pos, const tree_desc_t *desc, const bool check_climate, const bool random_age );
 
@@ -128,12 +134,12 @@ public:
 	static bool successfully_loaded();
 
 	static uint32 create_forest(koord center, koord size );
-	static void fill_trees(int dichte);
+	static void fill_trees(int density);
 
 	// return list to descs
 	static vector_tpl<tree_desc_t const*> const& get_all_desc() { return tree_list; }
 
-	static const tree_desc_t *random_tree_for_climate(climate cl) { uint16 b = random_tree_for_climate_intern(cl);  return b!=0xFFFF ? tree_list[b] : NULL; }
+	static const tree_desc_t *random_tree_for_climate(climate cl) { uint8 b = random_tree_for_climate_intern(cl);  return b!=invalid_tree_id ? tree_list[b] : NULL; }
 
 	static const tree_desc_t *find_tree( const char *tree_name ) { return tree_list.empty() ? NULL : desc_names.get(tree_name); }
 

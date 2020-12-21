@@ -3,26 +3,26 @@
  * (see LICENSE.txt)
  */
 
-/** @file powernet.h Data structure to manage a net of powerlines - a powernet */
+#ifndef DATAOBJ_POWERNET_H
+#define DATAOBJ_POWERNET_H
 
-#ifndef powernet_t_h
-#define powernet_t_h
 
 #include "../simtypes.h"
 #include "../tpl/slist_tpl.h"
 
 
+/** @file powernet.h Data structure to manage a net of powerlines - a powernet */
+
+
 /**
  * Data class for power networks. A two phase queue to store
  * and hand out power.
- * @author Hj. Malthaner
  */
 class powernet_t
 {
 public:
 	/**
 	 * Must be called when a new map is started or loaded. Clears the table of networks.
-	 * @author Hj. Malthaner
 	 */
 	static void new_world();
 

@@ -3,12 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Nature/Countryside ground for Simutrans.
- * Revised January 2001
- * Hj. Malthaner
- */
-
 #include "../simworld.h"
 #include "../simskin.h"
 
@@ -28,7 +22,7 @@ boden_t::boden_t(loadsave_t *file, koord pos ) : grund_t( koord3d(pos,0) )
 	grund_t::rdwr( file );
 
 	// restoring trees (disadvantage: loosing offsets but much smaller savegame footprint)
-	if(  file->get_version()>=110001  ) {
+	if(  file->get_version_int()>=110001  ) {
 		sint16 id = file->rd_obj_id();
 		while(  id!=-1  ) {
 			sint32 age;
@@ -59,7 +53,7 @@ void boden_t::rdwr(loadsave_t *file)
 {
 	grund_t::rdwr(file);
 
-	if(  file->get_version()>=110001  ) {
+	if(  file->get_version_int()>=110001  ) {
 		// a server send the smallest possible savegames to clients, i.e. saves only types and age of trees
 		if(  env_t::server  &&  !hat_wege()  ) {
 			for(  uint8 i=0;  i<objlist.get_top();  i++  ) {
@@ -97,8 +91,8 @@ void boden_t::calc_image_internal(const bool calc_only_snowline_change)
 
 	const weg_t *const weg = get_weg( road_wt );
 	if(  weg  &&  weg->hat_gehweg()  ) {
-		// single or double slope? (single slopes are not divisible by 8)
-		const uint8 imageid = (!slope_this  ||  (slope_this & 7)) ? ground_desc_t::slopetable[slope_this] : ground_desc_t::slopetable[slope_this >> 1] + 12;
+		// single or double slope
+		const uint8 imageid = (!slope_this  ||  is_one_high(slope_this)) ? ground_desc_t::slopetable[slope_this] : ground_desc_t::slopetable[slope_this >> 1] + 12;
 
 		if(  (get_hoehe() >= welt->get_snowline()  ||  welt->get_climate(pos.get_2d()) == arctic_climate)  &&  skinverwaltung_t::fussweg->get_image_id(imageid + 1) != IMG_EMPTY  ) {
 			// snow images

@@ -6,114 +6,127 @@
 /*
  * Dialog for sound settings
  */
-
-#include <stdio.h>
-
 #include "sound_frame.h"
 #include "../simsound.h"
 #include "../dataobj/translator.h"
+#include "../dataobj/environment.h"
+#include "components/gui_divider.h"
 
 #define L_KNOB_SIZE (32)
-#define DIALOG_WIDTH (276)
 
-const char *sound_frame_t::make_song_name()
+void sound_frame_t::update_song_name()
 {
 	const int current_midi = get_current_midi();
 
 	if(current_midi >= 0) {
-		sprintf(song_buf, "%d - %s", current_midi+1, sound_get_midi_title(current_midi));
+		song_name_label.buf().printf("%d - %s", current_midi+1, sound_get_midi_title(current_midi));
 	}
 	else {
-		sprintf(song_buf, "Music playing disabled/not available" );
+		song_name_label.buf().printf("Music playing disabled/not available" );
 	}
-	return(song_buf);
+	song_name_label.update();
 }
 
 
-sound_frame_t::sound_frame_t()
-  : gui_frame_t( translator::translate("Sound settings") ),
-    sound_volume_scrollbar(scrollbar_t::horizontal),
-    music_volume_scrollbar(scrollbar_t::horizontal),
-    sound_volume_label("Sound volume:"),
-    music_volume_label("Music volume:"),
-    song_name_label(make_song_name()),
-    current_playing_label("Currently playing:")
+const char *specific_volume_names[ MAX_SOUND_TYPES ] = {
+	"TOOL_SOUND",
+	"TRAFFIC_SOUND",
+	"AMBIENT_SOUND",
+	"FACTORY_SOUND",
+	"CROSSING_SOUND",
+	"CASH_SOUND"
+};
+
+
+sound_frame_t::sound_frame_t() :
+	gui_frame_t( translator::translate("Sound settings") ),
+	sound_volume_scrollbar(scrollbar_t::horizontal),
+	music_volume_scrollbar(scrollbar_t::horizontal)
 {
+	set_table_layout(1,0);
 
-	scr_coord cursor = scr_coord(D_MARGIN_LEFT,D_MARGIN_TOP);
-
-	// Sound volume label
-	sound_volume_label.set_pos(cursor);
-	add_component(&sound_volume_label);
-	cursor.y += LINESPACE + D_V_SPACE;
-
-	sound_volume_scrollbar.set_pos(cursor);
-	sound_volume_scrollbar.set_size(scr_size(DIALOG_WIDTH - D_MARGIN_LEFT - D_MARGIN_RIGHT, D_SCROLLBAR_HEIGHT));
-	sound_volume_scrollbar.set_knob(L_KNOB_SIZE, 255+L_KNOB_SIZE);
-	sound_volume_scrollbar.set_knob_offset(sound_get_global_volume());
-	sound_volume_scrollbar.set_scroll_discrete(false);
-	add_component(&sound_volume_scrollbar);
-	sound_volume_scrollbar.add_listener( this );
-	cursor.y += D_SCROLLBAR_HEIGHT + D_V_SPACE;
-
-	sound_mute_button.init( button_t::square_state, "mute sound", cursor ); // 1 = align with scrollbar background
+	sound_mute_button.init( button_t::square_state, "mute sound");
 	sound_mute_button.pressed = sound_get_mute();
 	add_component(&sound_mute_button);
 	sound_mute_button.add_listener( this );
-	cursor.y += D_CHECKBOX_HEIGHT + D_V_SPACE*2;
+
+	add_table(2,0);
+	{
+		// Sound volume label
+		new_component<gui_label_t>( "Sound volume:" );
+
+		sound_volume_scrollbar.set_knob( L_KNOB_SIZE, 255 + L_KNOB_SIZE );
+		sound_volume_scrollbar.set_knob_offset( sound_get_global_volume() );
+		sound_volume_scrollbar.set_scroll_discrete( false );
+		sound_volume_scrollbar.add_listener( this );
+		add_component( &sound_volume_scrollbar );
+
+		new_component<gui_label_t>( "Sound range:" );
+
+		sound_range.set_value( env_t::sound_distance_scaling);
+		sound_range.set_limits( 1, 32 );
+		sound_range.add_listener(this);
+//		sound_range.set_tooltip( "Lower values mean more local sounds" )
+		add_component(&sound_range);
+
+		for( int i = 0; i < MAX_SOUND_TYPES; i++ ) {
+			new_component<gui_label_t>( specific_volume_names[i] );
+
+			specific_volume_scrollbar[ i ] = new scrollbar_t( scrollbar_t::horizontal );
+			specific_volume_scrollbar[i]->set_knob( L_KNOB_SIZE, 255 + L_KNOB_SIZE );
+			specific_volume_scrollbar[i]->set_knob_offset( sound_get_specific_volume((sound_type_t)i) );
+			specific_volume_scrollbar[i]->set_scroll_discrete( false );
+			specific_volume_scrollbar[i]->add_listener( this );
+			add_component( specific_volume_scrollbar[i] );
+		}
+	}
+	end_table();
+
+	new_component<gui_divider_t>();
 
 	// Music
-	music_volume_label.set_pos( cursor );
-	add_component(&music_volume_label);
-	cursor.y += LINESPACE + D_V_SPACE;
-
-	music_volume_scrollbar.set_pos( cursor );
-	music_volume_scrollbar.set_size(scr_size(DIALOG_WIDTH - D_MARGIN_LEFT - D_MARGIN_RIGHT, D_SCROLLBAR_HEIGHT));
-	music_volume_scrollbar.set_knob(L_KNOB_SIZE, 255+L_KNOB_SIZE);
-	music_volume_scrollbar.set_knob_offset(sound_get_midi_volume());
-	music_volume_scrollbar.set_scroll_discrete(false);
-	music_volume_scrollbar.add_listener( this );
-	add_component(&music_volume_scrollbar);
-	cursor.y += D_SCROLLBAR_HEIGHT + D_V_SPACE;
-
-	music_mute_button.init( button_t::square_state, "disable midi",cursor ); // 1 = align with scrollbar background
+	music_mute_button.init( button_t::square_state, "disable midi");
 	music_mute_button.pressed = midi_get_mute();
 	music_mute_button.add_listener( this );
 	add_component(&music_mute_button);
-	cursor.y += LINESPACE + D_V_SPACE*2;
+
+	add_table(2,0);
+	{
+		new_component<gui_label_t>( "Music volume:" );
+
+		music_volume_scrollbar.set_knob( L_KNOB_SIZE, 255 + L_KNOB_SIZE );
+		music_volume_scrollbar.set_knob_offset( sound_get_midi_volume() );
+		music_volume_scrollbar.set_scroll_discrete( false );
+		music_volume_scrollbar.add_listener( this );
+		add_component( &music_volume_scrollbar );
+	}
+	end_table();
 
 	// song selection
-	current_playing_label.set_pos( cursor ); // "Currently Playing:"
-	add_component(&current_playing_label);
-	cursor.y += LINESPACE + D_V_SPACE;
+	new_component<gui_label_t>( "Currently playing:" );
 
-	previous_song_button.init(button_t::arrowleft, "", cursor );
-	//previous_song_button.set_typ(button_t::arrowleft);
-	previous_song_button.add_listener(this);
-	add_component(&previous_song_button);
-	cursor.x += previous_song_button.get_size().w + D_H_SPACE;
+	add_table( 3, 1 );
+	{
+		previous_song_button.set_typ( button_t::arrowleft );
+		previous_song_button.add_listener( this );
+		add_component( &previous_song_button );
 
-	next_song_button.init(button_t::arrowright, "", cursor);
-	//next_song_button.set_typ(button_t::arrowright);
-	next_song_button.add_listener(this);
-	add_component(&next_song_button);
-	cursor.x += next_song_button.get_size().w + D_H_SPACE;
+		next_song_button.set_typ( button_t::arrowright );
+		next_song_button.add_listener( this );
+		add_component( &next_song_button );
 
-	song_name_label.set_pos(cursor); // "Jazz"
-	add_component(&song_name_label);
-	cursor.y += LINESPACE + D_V_SPACE;
-	cursor.x = D_MARGIN_LEFT;
+		add_component( &song_name_label );
+		update_song_name();
+	}
+	end_table();
 
-	previous_song_button.align_to(&song_name_label,ALIGN_CENTER_V);
-	next_song_button.align_to(&song_name_label,ALIGN_CENTER_V);
-
-	shuffle_song_button.init( button_t::square_state, "shuffle midis", cursor );
+	shuffle_song_button.init( button_t::square_state, "shuffle midis" );
 	shuffle_song_button.pressed = sound_get_shuffle_midi();
 	shuffle_song_button.add_listener(this);
 	add_component(&shuffle_song_button);
-	cursor.y += LINESPACE;
 
-	set_windowsize(scr_size(DIALOG_WIDTH, D_TITLEBAR_HEIGHT + cursor.y + D_MARGIN_BOTTOM));
+	set_resizemode(diagonal_resize);
+	reset_min_windowsize();
 }
 
 
@@ -123,13 +136,13 @@ bool sound_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 		midi_stop();
 		midi_next_track();
 		check_midi();
-		song_name_label.set_text(make_song_name());
+		update_song_name();
 	}
 	else if (comp == &previous_song_button) {
 		midi_stop();
 		midi_last_track();
 		check_midi();
-		song_name_label.set_text(make_song_name());
+		update_song_name();
 	}
 	else if (comp == &shuffle_song_button) {
 		sound_set_shuffle_midi( !sound_get_shuffle_midi() );
@@ -150,6 +163,16 @@ bool sound_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 	else if (comp == &music_volume_scrollbar) {
 		sound_set_midi_volume(p.i);
 	}
+	else if (comp == &sound_range) {
+		env_t::sound_distance_scaling = p.i;
+	}
+	else {
+		for( int i = 0; i < MAX_SOUND_TYPES; i++ ) {
+			if( comp == specific_volume_scrollbar[ i ] ) {
+				sound_set_specific_volume( p.i, (sound_type_t)i );
+			}
+		}
+	}
 	return true;
 }
 
@@ -158,11 +181,20 @@ bool sound_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void sound_frame_t::draw(scr_coord pos, scr_size size)
 {
 	// update song name label
-	song_name_label.set_text(make_song_name());
+	update_song_name();
 	gui_frame_t::draw(pos, size);
+}
+
+
+
+// need to delete scroll bars
+sound_frame_t::~sound_frame_t()
+{
+	for( int i = 0; i < MAX_SOUND_TYPES; i++ ) {
+		delete specific_volume_scrollbar[ i ];
+	}
 }

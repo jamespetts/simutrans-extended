@@ -21,6 +21,8 @@
 #include "crossing_logic.h"
 #include "../obj/crossing.h"
 
+#include <algorithm>
+
 
 karte_ptr_t crossing_logic_t::welt;
 
@@ -35,9 +37,8 @@ crossing_logic_t::crossing_logic_t( const crossing_desc_t *desc )
 
 /**
  * @return string; currently unused but useful for debugging
- * @author prissi
  */
-void crossing_logic_t::info(cbuffer_t & buf, bool dummy) const
+void crossing_logic_t::info(cbuffer_t & buf) const
 {
 	static char const* const state_str[4] = { "invalid", "open", "request closing", "closed" };
 	assert(state<4);
@@ -163,7 +164,7 @@ void crossing_logic_t::set_state( crossing_state_t new_state )
 {
 	// play sound (if there and closing)
 	if(new_state==CROSSING_CLOSED  &&  desc->get_sound()>=0  &&  !welt->is_fast_forward()) {
-		welt->play_sound_area_clipped(crossings[0]->get_pos().get_2d(), desc->get_sound(), overheadlines_wt);
+		welt->play_sound_area_clipped(crossings[0]->get_pos().get_2d(), desc->get_sound(), CROSSING_SOUND, overheadlines_wt);
 	}
 
 	if(new_state!=state) {
@@ -210,8 +211,9 @@ int compare_crossing(const crossing_desc_t *c0, const crossing_desc_t *c1)
 void crossing_logic_t::register_desc(crossing_desc_t *desc)
 {
 	// mark if crossing possible
-	const waytype_t way0 = (const waytype_t)min(desc->get_waytype(0), desc->get_waytype(1));
-	const waytype_t way1 = (const waytype_t)max(desc->get_waytype(0), desc->get_waytype(1));
+	const waytype_t way0 = std::min<waytype_t>(desc->get_waytype(0), desc->get_waytype(1));
+	const waytype_t way1 = std::max<waytype_t>(desc->get_waytype(0), desc->get_waytype(1))
+	;
 	if(way0<8  &&  way1<9  &&  way0<way1) {
 		uint8 index = way0 * 9 + way1 - ((way0+2)*(way0+1))/2;
 		// max index = 7*9 + 8 - 9*4 = 71-36 = 35
@@ -221,7 +223,7 @@ void crossing_logic_t::register_desc(crossing_desc_t *desc)
 		for(uint8 i=0; i<vec.get_count(); i++) {
 			if (strcmp(vec[i]->get_name(), desc->get_name())==0) {
 				vec.remove_at(i);
-				dbg->warning( "crossing_logic_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+				dbg->doubled( "crossing", desc->get_name() );
 			}
 		}
 DBG_DEBUG( "crossing_logic_t::register_desc()","%s", desc->get_name() );

@@ -4,6 +4,7 @@
  */
 
 #include <string>
+#include <cmath>
 #include "../../dataobj/tabfile.h"
 #include "../../utils/simstring.h"
 #include "obj_node.h"
@@ -34,8 +35,8 @@ void way_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& obj)
 	obj_node_t node(this, 49, &parent);
 
 
-	// Hajo: Version needs high bit set as trigger -> this is required
-	//       as marker because formerly nodes were unversioned
+	// Version needs high bit set as trigger -> this is required
+	// as marker because formerly nodes were unversionend
 	uint16 version     = 0x8006;
 
 	// This is the overlay flag for Simutrans-Extended

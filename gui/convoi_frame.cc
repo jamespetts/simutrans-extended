@@ -8,33 +8,82 @@
 
 #include "components/gui_convoiinfo.h"
 
-
 #include "convoi_frame.h"
 #include "convoi_filter_frame.h"
 
+#include "simwin.h"
 #include "../simconvoi.h"
-#include "../gui/simwin.h"
 #include "../simworld.h"
+#include "../unicode.h"
 #include "../descriptor/goods_desc.h"
 #include "../bauer/goods_manager.h"
 #include "../dataobj/translator.h"
 #include "../player/simplay.h"
 #include "../utils/simstring.h"
 #include "../vehicle/simvehicle.h"
+#include "../simline.h"
 
  /**
  * All filter and sort settings are static, so the old settings are
  * used when the window is reopened.
  */
-convoi_frame_t::sort_mode_t convoi_frame_t::sortby = convoi_frame_t::nach_name;
+convoi_frame_t::sort_mode_t convoi_frame_t::sortby = convoi_frame_t::by_name;
+static uint8 default_sortmode = 0;
 bool convoi_frame_t::sortreverse = false;
+static uint8 cl_display_mode = gui_convoy_formation_t::appearance;
 
 const char *convoi_frame_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_name",
+	"Line",
 	"cl_btn_sort_income",
 	"cl_btn_sort_type",
-	"cl_btn_sort_id"
+	"cl_btn_sort_id",
+	"cl_btn_sort_max_speed",
+	"cl_btn_sort_power",
+	"cl_btn_sort_value",
+	"cl_btn_sort_age"
 };
+
+const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,2,0,0,4,5,6,7 };
+/**
+ * Scrolled list of gui_convoiinfo_ts.
+ * Filters (by setting visibility) and sorts.
+ */
+class gui_scrolled_convoy_list_t : public gui_scrolled_list_t
+{
+	convoi_frame_t *main;
+
+	static convoi_frame_t *main_static;
+public:
+	gui_scrolled_convoy_list_t(convoi_frame_t *m) :  gui_scrolled_list_t(gui_scrolled_list_t::windowskin)
+	{
+		main = m;
+		set_cmp(compare);
+	}
+
+	void sort()
+	{
+		// set visibility according to filter
+		for(  vector_tpl<gui_component_t*>::iterator iter = item_list.begin();  iter != item_list.end();  ++iter) {
+			gui_convoiinfo_t *a = dynamic_cast<gui_convoiinfo_t*>(*iter);
+
+			a->set_visible( main->passes_filter(a->get_cnv()) );
+			a->set_mode(cl_display_mode);
+			a->set_switchable_label(convoi_frame_t::sortmode_to_label[default_sortmode]);
+		}
+		main_static = main;
+		gui_scrolled_list_t::sort(0);
+	}
+
+	static bool compare(const gui_component_t *aa, const gui_component_t *bb)
+	{
+		const gui_convoiinfo_t *a = dynamic_cast<const gui_convoiinfo_t*>(aa);
+		const gui_convoiinfo_t *b = dynamic_cast<const gui_convoiinfo_t*>(bb);
+
+		return main_static->compare_convois(a->get_cnv(), b->get_cnv());
+	}
+};
+convoi_frame_t* gui_scrolled_convoy_list_t::main_static;
 
 
 bool convoi_frame_t::passes_filter(convoihandle_t cnv)
@@ -44,7 +93,7 @@ bool convoi_frame_t::passes_filter(convoihandle_t cnv)
 		return true;
 	}
 
-	if(  name_filter!=NULL  &&  !strstr(cnv->get_name(), name_filter)  ) {
+	if(  name_filter!=NULL  &&  !utf8caseutf8(cnv->get_name(), name_filter)  ) {
 		// not the right name
 		return false;
 	}
@@ -136,13 +185,16 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 
 	switch (sortby) {
 		default:
-		case nach_name:
+		case by_name:
 			result = strcmp(cnv1->get_internal_name(), cnv2->get_internal_name());
 			break;
-		case nach_gewinn:
+		case by_line:
+			result = cnv1->get_line().get_id() - cnv2->get_line().get_id();
+			break;
+		case by_profit:
 			result = sgn(cnv1->get_jahresgewinn() - cnv2->get_jahresgewinn());
 			break;
-		case nach_typ:
+		case by_type:
 			if(cnv1->get_vehicle_count()*cnv2->get_vehicle_count()>0) {
 				vehicle_t const* const tdriver1 = cnv1->front();
 				vehicle_t const* const tdriver2 = cnv2->front();
@@ -156,33 +208,43 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 				}
 			}
 			break;
-		case nach_id:
+		case by_id:
 			result = cnv1.get_id()-cnv2.get_id();
+			break;
+		case by_max_speed:
+			result = cnv1->get_min_top_speed() - cnv2->get_min_top_speed();
+			break;
+		case by_power:
+			result = cnv1->get_sum_power() - cnv2->get_sum_power();
+			break;
+		case by_value:
+			result = cnv1->get_purchase_cost() - cnv2->get_purchase_cost();
+			break;
+		case by_age:
+			result = cnv1->get_average_age() - cnv2->get_average_age();
 			break;
 	}
 	return sortreverse ? result > 0 : result < 0;
 }
 
 
-void convoi_frame_t::sort_list()
+void convoi_frame_t::fill_list()
 {
 	last_world_convois = welt->convoys().get_count();
 
-	convois.clear();
-	convois.resize(last_world_convois);
-
+	scrolly->clear_elements();
 	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
-		if(cnv->get_owner()==owner  &&   passes_filter(cnv)  ) {
-			convois.append(cnv);
+		if(cnv->get_owner()==owner) {
+			scrolly->new_component<gui_convoiinfo_t>(cnv);
 		}
 	}
-	std::sort(convois.begin(), convois.end(), compare_convois);
+	sort_list();
+}
 
-	sortedby.set_text(sort_text[get_sortierung()]);
-	sorteddir.set_text( get_reverse() ? "cl_btn_sort_desc" : "cl_btn_sort_asc");
 
-	// only now we know how many convois we have
-	resize(scr_coord(0,0));
+void convoi_frame_t::sort_list()
+{
+	scrolly->sort();
 }
 
 
@@ -199,45 +261,68 @@ void convoi_frame_t::sort_list( char *name, uint32 filter, const slist_tpl<const
 
 convoi_frame_t::convoi_frame_t(player_t* player) :
 	gui_frame_t( translator::translate("cl_title"), player),
-	owner(player),
-	vscroll( scrollbar_t::vertical ),
-	sort_label("cl_txt_sort"),
-	filter_label("Filter:")
+	owner(player)
 {
 	name_filter = NULL;
 	filter_flags = 0;
 	filter_is_on = false;
 
-	sort_label.set_pos(scr_coord(BUTTON1_X, 2));
-	add_component(&sort_label);
+	set_table_layout(1,0);
 
-	filter_label.set_pos(scr_coord(BUTTON3_X, 2));
-	add_component(&filter_label);
+	add_table(4,2);
+	{
+		new_component_span<gui_label_t>("cl_txt_sort", 2);
+		new_component<gui_label_t>("cl_txt_mode");
+		filter_on.init(button_t::square, "cl_txt_filter");
+		filter_on.set_tooltip(translator::translate("cl_btn_filter_tooltip"));
+		filter_on.add_listener(this);
+		add_component(&filter_on);
 
-	sortedby.init(button_t::roundbox, "", scr_coord(BUTTON1_X, 14));
-	sortedby.add_listener(this);
-	add_component(&sortedby);
+		for (int i = 0; i < SORT_MODES; i++) {
+			sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
+		}
+		sortedby.set_selection(default_sortmode);
+		sortedby.set_width_fixed(true);
+		sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+		sortedby.add_listener(this);
+		add_component(&sortedby);
 
+		// sort ascend/descend button
+		add_table(3,1);
+		{
+			sort_asc.init(button_t::arrowup_state, "");
+			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
+			sort_asc.add_listener(this);
+			sort_asc.pressed = sortreverse;
+			add_component(&sort_asc);
 
-	sorteddir.init(button_t::roundbox, "", scr_coord(BUTTON2_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	sorteddir.add_listener(this);
-	add_component(&sorteddir);
+			sort_desc.init(button_t::arrowdown_state, "");
+			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
+			sort_desc.add_listener(this);
+			sort_desc.pressed = !sortreverse;
+			add_component(&sort_desc);
+			new_component<gui_margin_t>(10);
+		}
+		end_table();
 
-	filter_on.init(button_t::roundbox, filter_is_on ? "cl_btn_filter_enable" : "cl_btn_filter_disable", scr_coord(BUTTON3_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	filter_on.add_listener(this);
-	add_component(&filter_on);
+		display_mode.init(button_t::roundbox, gui_convoy_formation_t::cnvlist_mode_button_texts[cl_display_mode]);
+		display_mode.add_listener(this);
+		add_component(&display_mode);
 
-	filter_details.init(button_t::roundbox, "cl_btn_filter_settings", scr_coord(BUTTON4_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	filter_details.add_listener(this);
-	add_component(&filter_details);
+		filter_details.init(button_t::roundbox, "cl_btn_filter_settings");
+		filter_details.set_size(D_BUTTON_SIZE);
+		filter_details.add_listener(this);
+		add_component(&filter_details);
+	}
+	end_table();
 
-	sort_list();
+	scrolly = new_component<gui_scrolled_convoy_list_t>(this);
+	scrolly->set_maximize( true );
 
-	set_windowsize(scr_size(D_DEFAULT_WIDTH, D_TITLEBAR_HEIGHT+5*(40)+31+1));
-	set_min_windowsize(scr_size(D_DEFAULT_WIDTH, D_TITLEBAR_HEIGHT+2*(40)+31+1));
+	fill_list();
 
 	set_resizemode(diagonal_resize);
-	resize(scr_coord(0,0));
+	reset_min_windowsize();
 }
 
 
@@ -249,23 +334,8 @@ convoi_frame_t::~convoi_frame_t()
 
 bool convoi_frame_t::infowin_event(const event_t *ev)
 {
-	const sint16 xr = vscroll.is_visible() ? D_SCROLLBAR_WIDTH : 1;
-
 	if(ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE) {
 		destroy_win( magic_convoi_list_filter+owner->get_player_nr() );
-	}
-	else if(IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev)) {
-		// otherwise these events are only registered where directly over the scroll region
-		// (and sometime even not then ... )
-		return vscroll.infowin_event(ev);
-	}
-	else if(  (IS_LEFTRELEASE(ev)  ||  IS_RIGHTRELEASE(ev))  &&  ev->my>47  &&  ev->mx<get_windowsize().w-xr  ) {
-		int y = (ev->my-47)/40 + vscroll.get_knob_offset();
-		if(y<(sint32)convois.get_count()) {
-			// let gui_convoiinfo_t() handle this, since then it will be automatically consistent
-			gui_convoiinfo_t ci(convois[y]);
-			return ci.infowin_event( ev );
-		}
 	}
 	return gui_frame_t::infowin_event(ev);
 }
@@ -273,81 +343,58 @@ bool convoi_frame_t::infowin_event(const event_t *ev)
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber
  */
-bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */ )           // 28-Dec-01    Markus Weber    Added
+bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */ )
 {
 	if(  comp == &filter_on  ) {
 		filter_is_on = !filter_is_on;
-		filter_on.set_text( filter_is_on ? "cl_btn_filter_enable" : "cl_btn_filter_disable");
+		filter_on.pressed = filter_is_on;
 		sort_list();
 	}
 	else if(  comp == &sortedby  ) {
-		set_sortierung( (sort_mode_t)((get_sortierung() + 1) % SORT_MODES) );
+		int tmp = sortedby.get_selection();
+		if (tmp >= 0 && tmp < sortedby.count_elements())
+		{
+			sortedby.set_selection(tmp);
+			sortby = (convoi_frame_t::sort_mode_t)tmp;
+		}
+		else {
+			sortedby.set_selection(0);
+			sortby = convoi_frame_t::by_name;
+		}
+		default_sortmode = (uint8)tmp;
 		sort_list();
 	}
-	else if(  comp == &sorteddir  ) {
+	else if (comp == &sort_asc || comp == &sort_desc) {
 		set_reverse( !get_reverse() );
 		sort_list();
+		sort_asc.pressed = sortreverse;
+		sort_desc.pressed = !sortreverse;
+	}
+	else if (comp == &display_mode) {
+		cl_display_mode = (cl_display_mode + 1) % gui_convoy_formation_t::CONVOY_OVERVIEW_MODES;
+		display_mode.set_text(gui_convoy_formation_t::cnvlist_mode_button_texts[cl_display_mode]);
+		sort_list();
+		resize(scr_size(0, 0));
 	}
 	else if(  comp == &filter_details  ) {
 		if(  !destroy_win( magic_convoi_list_filter+owner->get_player_nr() )  ) {
-			create_win( new convoi_filter_frame_t(owner, this, filter_flags), w_info, magic_convoi_list_filter+owner->get_player_nr() );
+			create_win( new convoi_filter_frame_t(owner, this), w_info, magic_convoi_list_filter+owner->get_player_nr() );
 		}
 	}
 	return true;
 }
 
 
-void convoi_frame_t::resize(const scr_coord size_change)                          // 28-Dec-01    Markus Weber    Added
-{
-	gui_frame_t::resize(size_change);
-	scr_size size = get_windowsize()-scr_size(0,47);
-	vscroll.set_visible(false);
-	remove_component(&vscroll);
-	vscroll.set_knob( size.h/40, convois.get_count() );
-	if(  (sint32)convois.get_count()<=size.h/40  ) {
-		vscroll.set_knob_offset(0);
-	}
-	else {
-		add_component(&vscroll);
-		vscroll.set_visible(true);
-		vscroll.set_pos(scr_coord(size.w-D_SCROLLBAR_WIDTH, 47-16-1));
-		vscroll.set_size(size-D_SCROLLBAR_SIZE);
-		vscroll.set_scroll_amount( 1 );
-	}
-}
-
-
 void convoi_frame_t::draw(scr_coord pos, scr_size size)
 {
 	filter_details.pressed = win_get_magic( magic_convoi_list_filter+owner->get_player_nr() );
-
-	gui_frame_t::draw(pos, size);
-
-	const sint16 xr = vscroll.is_visible() ? D_SCROLLBAR_WIDTH+4 : 6;
-	PUSH_CLIP(pos.x, pos.y+47, size.w-xr, size.h-48 );
-
-	uint32 start = vscroll.get_knob_offset();
-	sint16 yoffset = 47;
+	filter_on.pressed = filter_is_on;
 
 	if (last_world_convois != welt->convoys().get_count()) {
 		// some deleted/ added => resort
-		sort_list();
+		fill_list();
 	}
 
-	for(  unsigned i=start;  i<convois.get_count()  &&  yoffset<size.h+47;  i++  ) {
-		convoihandle_t cnv = convois[i];
-
-		if(cnv.is_bound()) {
-			gui_convoiinfo_t ci(cnv);
-			ci.draw( pos+scr_coord(4,yoffset) );
-		}
-		// full height of a convoi is 40 for all info
-		yoffset += 40;
-	}
-
-	POP_CLIP();
+	gui_frame_t::draw(pos, size);
 }
-
-

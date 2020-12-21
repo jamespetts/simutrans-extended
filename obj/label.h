@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef label_h
-#define label_h
+#ifndef OBJ_LABEL_H
+#define OBJ_LABEL_H
+
 
 #include "../simobj.h"
 #include "../display/simimg.h"
@@ -20,13 +21,13 @@ public:
 	label_t(koord3d pos, player_t *player, const char *text);
 	~label_t();
 
-	void finish_rd();
+	void finish_rd() OVERRIDE;
 
-	void show_info();
+	void show_info() OVERRIDE;
 
 	typ get_typ() const { return obj_t::label; }
 
-	image_id get_image() const;
+	image_id get_image() const OVERRIDE;
 };
 
 #endif

@@ -62,7 +62,7 @@ bool world_remove_player(karte_t *welt, player_t *player)
 // returns index of attraction base tile with index > start
 uint32 get_next_attraction_base(uint32 start)
 {
-	const weighted_vector_tpl<gebaeude_t*>& attractions = welt->get_ausflugsziele();
+	const weighted_vector_tpl<gebaeude_t*>& attractions = welt->get_attractions();
 	for(uint32 i = start+1; i < attractions.get_count(); i++) {
 		gebaeude_t *gb = attractions[i];
 		if (gb != NULL  &&  gb->get_first_tile() == gb) {
@@ -75,7 +75,7 @@ uint32 get_next_attraction_base(uint32 start)
 
 SQInteger world_attraction_list_next(HSQUIRRELVM vm)
 {
-	return generic_get_next_f(vm, welt->get_ausflugsziele().get_count(), get_next_attraction_base);
+	return generic_get_next_f(vm, welt->get_attractions().get_count(), get_next_attraction_base);
 }
 
 namespace script_api {
@@ -84,7 +84,7 @@ namespace script_api {
 
 gebaeude_t* world_attraction_list_get(attraction_list_t, uint32 index)
 {
-	const weighted_vector_tpl<gebaeude_t*>& attractions = welt->get_ausflugsziele();
+	const weighted_vector_tpl<gebaeude_t*>& attractions = welt->get_attractions();
 	return (index < attractions.get_count())  ?  attractions[index]  :  NULL;
 }
 
@@ -142,6 +142,11 @@ void export_world(HSQUIRRELVM vm)
 	 * @returns whether operation was successfull
 	 */
 	STATIC register_method(vm, &world_remove_player, "remove_player", true);
+	/**
+	 * Returns player number @p pl. If player does not exist, returns null.
+	 * @param pl player number
+	 */
+	STATIC register_method(vm, &karte_t::get_player, "get_player", true);
 
 	/**
 	 * @returns current in-game time.
@@ -151,7 +156,7 @@ void export_world(HSQUIRRELVM vm)
 	 * Get monthly statistics of total number of citizens.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	STATIC register_method_fv(vm, &get_world_stat, "get_citizens",          freevariable2<bool,sint32>(true, karte_t::WORLD_CITICENS), true );
+	STATIC register_method_fv(vm, &get_world_stat, "get_citizens",          freevariable2<bool,sint32>(true, karte_t::WORLD_CITIZENS), true );
 	/**
 	 * Get monthly statistics of total city growth.
 	 * @returns array, index [0] corresponds to current month
@@ -223,7 +228,7 @@ void export_world(HSQUIRRELVM vm)
 	 * Get per year statistics of total number of citizens.
 	 * @returns array, index [0] corresponds to current year
 	 */
-	STATIC register_method_fv(vm, &get_world_stat, "get_year_citizens",          freevariable2<bool,sint32>(false, karte_t::WORLD_CITICENS), true );
+	STATIC register_method_fv(vm, &get_world_stat, "get_year_citizens",          freevariable2<bool,sint32>(false, karte_t::WORLD_CITIZENS), true );
 	/**
 	 * Get per year statistics of total city growth.
 	 * @returns array, index [0] corresponds to current year

@@ -14,35 +14,13 @@
 static char thousand_sep = ',';
 static char fraction_sep = '.';
 static const char *large_number_string = "M";
-static double large_number_factor = 1e99;	// off
+static double large_number_factor = 1e99; // off
 static int thousand_sep_exponent = 3;
-
-
-
-// a single use number to string ...
-char *ntos(long number, const char *format)
-{
-	static char tempstring[32];
-	int r;
-
-	if (format) {
-		r = sprintf(tempstring, format, number);
-	}
-	else {
-		r = sprintf(tempstring, "%ld", number);
-	}
-	assert(r<16);(void)r;
-
-	return tempstring;
-}
-
-
 
 
 /**
  * Set thousand separator, used in money_to_string and
  * number_to_string
- * @author Hj. Malthaner
  */
 void set_thousand_sep(char c)
 {
@@ -53,7 +31,6 @@ void set_thousand_sep(char c)
 /**
  * Set thousand exponent (3=1000, 4=10000), used in money_to_string and
  * number_to_string
- * @author prissi
  */
 void set_thousand_sep_exponent(int new_thousand_sep_exponent)
 {
@@ -61,10 +38,10 @@ void set_thousand_sep_exponent(int new_thousand_sep_exponent)
 }
 
 
+
 /**
  * Set fraction separator, used in money_to_string and
  * number_to_string
- * @author Hj. Malthaner
  */
 void set_fraction_sep(char c)
 {
@@ -86,7 +63,6 @@ const char *get_large_money_string()
 /**
  * Set large money abbreviation, used in money_to_string and
  * number_to_string
- * @author prissi
  */
 void set_large_amount(const char *s, const double v)
 {
@@ -99,7 +75,6 @@ void set_large_amount(const char *s, const double v)
  * Formats a money value. Uses thousand separator. Two digits precision.
  * Concludes format with $ sign. Buffer must be large enough, no checks
  * are made!
- * @author Hj. Malthaner
  */
 void money_to_string(char * p, double f, const bool show_decimal)
 {
@@ -115,12 +90,12 @@ void money_to_string(char * p, double f, const bool show_decimal)
 		sprintf( tp, "%.2f", f );
 	}
 
-	// Hajo: skip sign
+	// skip sign
 	if(*tp == '-') {
 		*p ++ = *tp++;
 	}
 
-	// Hajo: format string
+	// format string
 	l = (long)(size_t)(strchr(tp,'.') - tp);
 
 	i = l % thousand_sep_exponent;
@@ -176,12 +151,12 @@ int number_to_string(char * p, double f, int decimals  )
 		has_decimals = strchr(tp,'.')!=NULL;
 	}
 
-	// Hajo: skip sign
+	// skip sign
 	if(*tp == '-') {
 		*p ++ = *tp++;
 	}
 
-	// Hajo: format string
+	// format string
 	l = has_decimals ? (long)(size_t)(strchr(tp,'.') - tp) : strlen(tp);
 
 	i = l % thousand_sep_exponent;
@@ -214,8 +189,46 @@ int number_to_string(char * p, double f, int decimals  )
 
 
 
-// copies a n into a single line and maximum 128 characters
-// @author prissi
+/**
+ * tries to squeese a nubmer into a string with max_length
+ * Will still produce a too long string with too large nubmers!
+ */
+void number_to_string_fit(char *ret, double f, int decimals, int max_length )
+{
+	char   result[128];
+	int    len;
+
+	number_to_string( result, f, decimals );
+	len = strlen(result);
+
+	if(  len <= max_length  ) {
+		// ok fits ...
+		strcpy( ret, result );
+		return;
+	}
+
+	// not fitting: first strip decimals
+	if(  decimals > 0  &&  len <= max_length+decimals+1  ) {
+		tstrncpy( ret, result, len-(decimals) );
+		return;
+	}
+
+	// still not fitting: Then we have to really shorten the string
+	number_to_string( result, f/large_number_factor, 2 );
+	len = strlen( result );
+	const int llen = strlen(large_number_string);
+
+	// not fitting: then strip those remaining decimals
+	if(  len+llen > max_length  ) {
+		result[len-3] = 0;
+	}
+	strcat( result, large_number_string );
+	strcpy( ret, result );
+}
+
+
+
+/// copies a n into a single line and maximum 128 characters
 char *make_single_line_string(const char *in,int number_of_lines)
 {
 	static char buf[64];
@@ -257,10 +270,15 @@ char *make_single_line_string(const char *in,int number_of_lines)
  * Terminated, length limited string copy. Copies at most
  * n characters. Terminates dest string always by 0.
  * @return dest
- * @author Hj. Malthaner
  */
 char *tstrncpy(char *dest, const char *src, size_t n)
 {
+	if (dest == src) {
+		// source and destination are the same
+		// avoid copying overlapping memory regions
+		return dest;
+	}
+
 	strncpy(dest, src, n);
 	dest[n-1] = '\0';
 
@@ -271,7 +289,6 @@ char *tstrncpy(char *dest, const char *src, size_t n)
 /**
  * Removes whitespace from the end of the string.
  * Modifies the argument!
- * @author Hj. Malthaner
  */
 void rtrim(char * buf)
 {
@@ -284,7 +301,6 @@ void rtrim(char * buf)
 /**
  * Hands back a pointer to the first non-whitespace character
  * of the argument. The argument must be 0 terminated
- * @author Hj. Malthaner
  */
 const char * ltrim(const char *p)
 {
@@ -298,8 +314,6 @@ const char * ltrim(const char *p)
 /**
  * Trims a std::string by removing any beginning and ending space/tab characters.
  * (Move to simstring?)
- * @author  Max Kielland
- *
  * @retval std::string  The trimmed string.
  */
 std::string trim(const std::string &str_)

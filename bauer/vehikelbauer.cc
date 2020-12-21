@@ -23,6 +23,22 @@
 
 #include "../tpl/stringhashtable_tpl.h"
 
+
+const char* vehicle_builder_t::engine_type_names[11] =
+{
+  "unknown",
+  "steam",
+  "diesel",
+  "electric",
+  "bio",
+  "sail",
+  "fuel_cell",
+  "hydrogene",
+  "battery",
+  "petrol",
+  "turbine"
+};
+
 static stringhashtable_tpl< vehicle_desc_t*> name_fahrzeuge;
 
 // index 0 aur, 1...8 at normal waytype index
@@ -135,10 +151,8 @@ bool vehicle_builder_t::register_desc(vehicle_desc_t *desc)
 {
 	// register waytype list
 	const int idx = GET_WAYTYPE_INDEX( desc->get_waytype() );
-	vehicle_desc_t *old_desc = name_fahrzeuge.get( desc->get_name() );
-	if(  old_desc  ) {
-		dbg->warning( "vehicle_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
-		name_fahrzeuge.remove( desc->get_name() );
+	if(  vehicle_desc_t *old_desc = name_fahrzeuge.remove( desc->get_name() )  ) {
+		dbg->doubled( "vehicle", desc->get_name() );
 		typ_fahrzeuge[idx].remove(old_desc);
 	}
 	name_fahrzeuge.put(desc->get_name(), desc);
@@ -231,10 +245,11 @@ slist_tpl<vehicle_desc_t*> const & vehicle_builder_t::get_info(waytype_t typ)
 	return typ_fahrzeuge[GET_WAYTYPE_INDEX(typ)];
 }
 
-/* extended search for vehicles for KI *
+
+/**
+ * extended search for vehicles for AI
  * checks also timeline and constraints
  * tries to get best with but adds a little random action
- * @author prissi
  */
 const vehicle_desc_t *vehicle_builder_t::vehicle_search( waytype_t wt, const uint16 month_now, const uint32 target_weight, const sint32 target_speed, const goods_desc_t * target_freight, bool include_electric, bool not_obsolete )
 {
@@ -245,6 +260,9 @@ const vehicle_desc_t *vehicle_builder_t::vehicle_search( waytype_t wt, const uin
 			uint16 payload_per_maintenance;
 			long index;
 		} best, test;
+
+		best.power = 0;
+		best.payload_per_maintenance = 0;
 		best.index = -100000;
 
 		const vehicle_desc_t *desc = NULL;
@@ -360,10 +378,10 @@ const vehicle_desc_t *vehicle_builder_t::vehicle_search( waytype_t wt, const uin
 
 
 
-/* extended search for vehicles for replacement on load time
+/**
+ * extended search for vehicles for replacement on load time
  * tries to get best match (no random action)
  * if prev_desc==NULL, then the convoi must be able to lead a convoi
- * @author prissi
  */
 const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const uint16 month_now, const uint32 target_weight, const uint32 target_power, const sint32 target_speed, const goods_desc_t * target_freight, bool not_obsolete, const vehicle_desc_t *prev_veh, bool is_last )
 {

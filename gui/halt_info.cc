@@ -5,6 +5,8 @@
 
 #include "halt_detail.h"
 #include "halt_info.h"
+//#include "components/gui_button_to_chart.h"
+
 #include "../simworld.h"
 #include "../simware.h"
 #include "../simcolor.h"
@@ -31,7 +33,13 @@
 
 #include "../player/simplay.h"
 
+//#define CHART_HEIGHT (100)
+#define PAX_EVALUATIONS 5
 
+#define L_BUTTON_WIDTH button_size.w
+#define L_CHART_INDENT (66)
+
+#define HALT_CAPACITY_BAR_WIDTH 100
 
 static const char *sort_text[halt_info_t::SORT_MODES] = {
 	"Zielort",
@@ -42,7 +50,9 @@ static const char *sort_text[halt_info_t::SORT_MODES] = {
 	"origin (amount)",
 	"destination (detail)",
 	"wealth (detail)",
-	"wealth (via)"/*,
+	"wealth (via)",
+	"Line",
+	"Line to"/*,
 	"transferring time"*/
 };
 
@@ -90,14 +100,10 @@ const uint8 index_of_haltinfo[MAX_HALT_COST] = {
 	HALT_CONVOIS_ARRIVED
 };
 
-#define COL_HAPPY COL_DARK_GREEN
-#define COL_TOO_WAITNG COL_LIGHT_PURPLE-1
 #define COL_WAITING COL_DARK_TURQUOISE
 #define COL_ARRIVED COL_LIGHT_BLUE
-#define COL_MAIL_NOROUTE COL_BRIGHT_ORANGE
-#define COL_MAIL_DELIVERED COL_DARK_GREEN+1
 
-const int cost_type_color[MAX_HALT_COST] =
+const uint8 cost_type_color[MAX_HALT_COST] =
 {
 	COL_HAPPY,
 	COL_OVERCROWD,
@@ -112,11 +118,274 @@ const int cost_type_color[MAX_HALT_COST] =
 	COL_TURQUOISE
 };
 
-#define PAX_EVALUATIONS 5
+struct type_symbol_t {
+	haltestelle_t::stationtyp type;
+	const skin_desc_t **desc;
+};
 
-#define L_BUTTON_WIDTH button_size.w
-#define L_CHART_INDENT (66)
+const type_symbol_t symbols[] = {
+	{ haltestelle_t::railstation, &skinverwaltung_t::zughaltsymbol },
+	{ haltestelle_t::loadingbay, &skinverwaltung_t::autohaltsymbol },
+	{ haltestelle_t::busstop, &skinverwaltung_t::bushaltsymbol },
+	{ haltestelle_t::dock, &skinverwaltung_t::schiffshaltsymbol },
+	{ haltestelle_t::airstop, &skinverwaltung_t::airhaltsymbol },
+	{ haltestelle_t::monorailstop, &skinverwaltung_t::monorailhaltsymbol },
+	{ haltestelle_t::tramstop, &skinverwaltung_t::tramhaltsymbol },
+	{ haltestelle_t::maglevstop, &skinverwaltung_t::maglevhaltsymbol },
+	{ haltestelle_t::narrowgaugestop, &skinverwaltung_t::narrowgaugehaltsymbol }
+};
 
+
+// helper class
+gui_halt_type_images_t::gui_halt_type_images_t(halthandle_t h)
+{
+	halt = h;
+	set_table_layout(lengthof(symbols), 1);
+	set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
+	assert( lengthof(img_transport) == lengthof(symbols) );
+	// indicator for supplied transport modes
+	haltestelle_t::stationtyp const halttype = halt->get_station_type();
+	for(uint i=0; i < lengthof(symbols); i++) {
+		if ( *symbols[i].desc ) {
+			add_component(img_transport + i);
+			img_transport[i].set_image( (*symbols[i].desc)->get_image_id(0));
+			img_transport[i].enable_offset_removal(true);
+			img_transport[i].set_visible( (halttype & symbols[i].type) != 0);
+		}
+	}
+}
+
+void gui_halt_type_images_t::draw(scr_coord offset)
+{
+	haltestelle_t::stationtyp const halttype = halt->get_station_type();
+	for(uint i=0; i < lengthof(symbols); i++) {
+		img_transport[i].set_visible( (halttype & symbols[i].type) != 0);
+	}
+	gui_aligned_container_t::draw(offset);
+}
+
+gui_halt_capacity_bar_t::gui_halt_capacity_bar_t(halthandle_t h, uint8 ft)
+{
+	if (ft > 2) { return; }
+	freight_type = ft;
+	halt = h;
+}
+
+void gui_halt_capacity_bar_t::draw(scr_coord offset)
+{
+	uint32 wainting_sum = 0;
+	uint32 transship_in_sum = 0;
+	uint32 leaving_sum = 0;
+	bool overcrowded = false;
+	const uint32 capacity= halt->get_capacity(freight_type);
+	if (!capacity) { return; }
+	switch (freight_type) {
+		case 0:
+			wainting_sum = halt->get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_PAS));
+			overcrowded = halt->is_overcrowded(goods_manager_t::INDEX_PAS);
+			transship_in_sum = halt->get_transferring_goods_sum(goods_manager_t::get_info(goods_manager_t::INDEX_PAS)) - halt->get_leaving_goods_sum(goods_manager_t::get_info(goods_manager_t::INDEX_PAS));
+			break;
+		case 1:
+			wainting_sum = halt->get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+			overcrowded = halt->is_overcrowded(goods_manager_t::INDEX_MAIL);
+			transship_in_sum = halt->get_transferring_goods_sum(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL)) - halt->get_leaving_goods_sum(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+			break;
+		case 2:
+			for (uint8 g1 = 0; g1 < goods_manager_t::get_max_catg_index(); g1++) {
+				if (g1 == goods_manager_t::INDEX_PAS || g1 == goods_manager_t::INDEX_MAIL)
+				{
+					continue;
+				}
+				const goods_desc_t *wtyp = goods_manager_t::get_info(g1);
+				switch (g1) {
+				case 0:
+					wainting_sum += halt->get_ware_summe(wtyp);
+					break;
+				default:
+					const uint8 count = goods_manager_t::get_count();
+					for (uint32 g2 = 3; g2 < count; g2++) {
+						goods_desc_t const* const wtyp2 = goods_manager_t::get_info(g2);
+						if (wtyp2->get_catg_index() != g1) {
+							continue;
+						}
+						wainting_sum += halt->get_ware_summe(wtyp2);
+						transship_in_sum += halt->get_transferring_goods_sum(wtyp2, 0);
+						leaving_sum += halt->get_leaving_goods_sum(wtyp2, 0);
+					}
+					break;
+				}
+			}
+			overcrowded = ((wainting_sum + transship_in_sum) > capacity);
+			transship_in_sum -= leaving_sum;
+			break;
+		default:
+			return;
+	}
+	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, HALT_CAPACITY_BAR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH, GOODS_COLOR_BOX_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), true);
+	// transferring (to this station) bar
+	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min(100, (transship_in_sum + wainting_sum) * 100 / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
+
+	const PIXVAL col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : COL_CLEAR;
+	uint8 waiting_factor = min(100, wainting_sum * 100 / capacity);
+
+	display_cylinderbar_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH * waiting_factor / 100, 6, col, true);
+
+	set_size(scr_size(HALT_CAPACITY_BAR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT));
+	gui_container_t::draw(offset);
+}
+
+#define L_WAITING_CELL_WIDTH (proportional_string_width(" 0000000"))
+#define L_CAPACITY_CELL_WIDTH (proportional_string_width("000000"))
+gui_halt_waiting_indicator_t::gui_halt_waiting_indicator_t(halthandle_t h)
+{
+	halt = h;
+
+	set_table_layout(10,0);
+	set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
+	set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, 0));
+	set_spacing(scr_size(D_H_SPACE, 1));
+
+	bool served = false;
+	for (uint8 i = 0; i < 3; i++) {
+		switch (i) {
+			case 0:
+				served = halt->get_pax_enabled();  break;
+			case 1:
+				served = halt->get_mail_enabled(); break;
+			case 2:
+				served = halt->get_ware_enabled(); break;
+			default:
+				served = false; break;
+		}
+
+		if (served) {
+			switch (i) {
+				case 0:
+					new_component<gui_image_t>()->set_image(skinverwaltung_t::passengers->get_image_id(0), true);
+					break;
+				case 1:
+					new_component<gui_image_t>()->set_image(skinverwaltung_t::mail->get_image_id(0), true);
+					break;
+				case 2:
+					new_component<gui_image_t>()->set_image(skinverwaltung_t::goods->get_image_id(0), true);
+					break;
+				default:
+					continue;
+			}
+
+			// waiting bar
+			capacity_bar[i] = new_component<gui_halt_capacity_bar_t>(halt, i);
+
+			// capacity (text)
+			lb_waiting[i].set_align(gui_label_t::right);
+			lb_waiting[i].set_fixed_width(L_WAITING_CELL_WIDTH);
+			add_component(&lb_waiting[i]);
+			new_component<gui_label_t>("/");
+			lb_capacity[i].set_align(gui_label_t::right);
+			lb_capacity[i].set_fixed_width(L_CAPACITY_CELL_WIDTH);
+			add_component(&lb_capacity[i]);
+			new_component<gui_margin_t>(D_H_SPACE);
+
+			new_component<gui_label_t>(i==2 ? "Transfer time: " : "Transshipment time: ");
+			lb_transfer_time[i].set_fixed_width(L_WAITING_CELL_WIDTH);
+			add_component(&lb_transfer_time[i]);
+
+			img_alert.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2) : IMG_EMPTY, true);
+			img_alert.set_rigid(true);
+			img_alert.set_tooltip("No service");
+			img_alert.set_visible(false);
+			add_component(&img_alert);
+			new_component<gui_fill_t>();
+		}
+	}
+}
+
+void gui_halt_waiting_indicator_t::draw(scr_coord offset)
+{
+	uint32 wainting_sum;
+	bool is_operating;
+	bool served;
+	//PIXVAL goods_colval;
+	char transfer_time_as_clock[32];
+	for (uint8 i = 0; i < 3; i++) {
+		switch (i) {
+			case 0:
+				served = halt->get_pax_enabled();  break;
+			case 1:
+				served = halt->get_mail_enabled(); break;
+			case 2:
+				served = halt->get_ware_enabled(); break;
+			default:
+				served = false; break;
+		}
+		if (served) {
+			is_operating = false;
+			wainting_sum = 0;
+			switch (i) {
+				case 0:
+					wainting_sum = halt->get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_PAS));
+					is_operating = halt->gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_PAS));
+					break;
+				case 1:
+					wainting_sum = halt->get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+					is_operating = halt->gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+					break;
+				case 2:
+					for (uint8 g1 = 0; g1 < goods_manager_t::get_max_catg_index(); g1++) {
+						if (g1 == goods_manager_t::INDEX_PAS || g1 == goods_manager_t::INDEX_MAIL)
+						{
+							continue;
+						}
+						const goods_desc_t *wtyp = goods_manager_t::get_info(g1);
+						if (!is_operating)
+						{
+							is_operating = halt->gibt_ab(wtyp);
+						}
+						switch (g1) {
+						case 0:
+							wainting_sum += halt->get_ware_summe(wtyp);
+							break;
+						default:
+							const uint8 count = goods_manager_t::get_count();
+							for (uint32 g2 = 3; g2 < count; g2++) {
+								goods_desc_t const* const wtyp2 = goods_manager_t::get_info(g2);
+								if (wtyp2->get_catg_index() != g1) {
+									continue;
+								}
+								wainting_sum += halt->get_ware_summe(wtyp2);
+							}
+							break;
+						}
+					}
+					break;
+				default:
+					continue;
+			}
+			lb_waiting[i].buf().append(wainting_sum);
+			lb_waiting[i].update();
+			lb_capacity[i].buf().append(halt->get_capacity(i));
+			lb_capacity[i].update();
+
+			if (i == 2) {
+				world()->sprintf_time_tenths(transfer_time_as_clock, sizeof(transfer_time_as_clock), (halt->get_transshipment_time()));
+			}
+			else {
+				world()->sprintf_time_tenths(transfer_time_as_clock, sizeof(transfer_time_as_clock), (halt->get_transfer_time()));
+			}
+			lb_transfer_time[i].buf().append(transfer_time_as_clock);
+			lb_transfer_time[i].update();
+			lb_transfer_time[i].set_color(is_operating ? SYSCOL_TEXT : color_idx_to_rgb(MN_GREY0));
+
+			if (!is_operating && skinverwaltung_t::alerts) {
+				img_alert.set_visible(true);
+			}
+		}
+	}
+	gui_aligned_container_t::draw(offset);
+}
+
+// main class
 halt_info_t::halt_info_t(halthandle_t halt) :
 		gui_frame_t( halt->get_name(), halt->get_owner() ),
 		scrolly(&text),
@@ -137,7 +406,6 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 	freight_selector_size.w = button_size.w+30;
 	scr_coord cursor(D_MARGIN_LEFT, D_MARGIN_TOP);
 
-	const sint16 offset_below_viewport = D_MARGIN_TOP + D_BUTTON_HEIGHT + D_V_SPACE + view.get_size().h;
 	const sint16 client_width = 3*(L_BUTTON_WIDTH + D_H_SPACE) + max(freight_selector_size.w, view.get_size().w );
 	const sint16 total_width = D_MARGIN_LEFT + client_width + D_MARGIN_RIGHT;
 
@@ -167,10 +435,10 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 
 	floating_cursor_t auto_cursor(cursor, D_MARGIN_LEFT, total_width - D_MARGIN_RIGHT);
 	for (int cost = 0; cost<MAX_HALT_COST; cost++) {
-		chart.add_curve(cost_type_color[cost], halt->get_finance_history(), MAX_HALT_COST, index_of_haltinfo[cost], MAX_MONTHS, 0, false, true, 0);
+		chart.add_curve(color_idx_to_rgb(cost_type_color[cost]), halt->get_finance_history(), MAX_HALT_COST, index_of_haltinfo[cost], MAX_MONTHS, 0, false, true, 0);
 		filterButtons[cost].init(button_t::box_state, cost_type[cost], auto_cursor.next_pos(button_size), button_size);
 		filterButtons[cost].add_listener(this);
-		filterButtons[cost].background_color = cost_type_color[cost];
+		filterButtons[cost].background_color = color_idx_to_rgb(cost_type_color[cost]);
 		filterButtons[cost].set_visible(false);
 		filterButtons[cost].pressed = false;
 		filterButtons[cost].set_tooltip(cost_tooltip[cost]);
@@ -190,11 +458,12 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 	freight_sort_selector.clear_elements();
 	for (int i = 0; i < SORT_MODES; i++)
 	{
-		freight_sort_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(sort_text[i]), SYSCOL_TEXT));
+		freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
 	}
-	uint8 sortmode = env_t::default_sortmode < SORT_MODES ? env_t::default_sortmode: env_t::default_sortmode-2; // If sorting by accommodation in vehicles, we might want to sort by classes
-	freight_sort_selector.set_selection(sortmode);
-	halt->set_sortby(sortmode);
+	uint8 sort_mode = env_t::default_sortmode;
+	// 9 and 10 are sort modes for covonvoi, but 11 is for halt
+	halt->set_sortby(sort_mode >= by_line ? env_t::default_sortmode + 2 : env_t::default_sortmode);
+	freight_sort_selector.set_selection(sort_mode);
 	freight_sort_selector.set_focusable(true);
 	freight_sort_selector.set_highlight_color(1);
 	freight_sort_selector.set_pos(cursor);
@@ -269,7 +538,6 @@ bool halt_info_t::is_weltpos()
  * Draw new component. The values to be passed refer to the window
  * i.e. It's the screen coordinates of the window where the
  * component is displayed.
- * @author Hj. Malthaner
  */
 void halt_info_t::draw(scr_coord pos, scr_size size)
 {
@@ -298,8 +566,8 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 
 		sint16 top = pos.y + D_TITLEBAR_HEIGHT + input.get_pos().y + input.get_size().h + D_V_SPACE;
 		//sint16 top = pos.y+36;
-		COLOR_VAL indikatorfarbe = halt->get_status_farbe();
-		display_fillbox_wh_clip(pos.x+10, top+2, D_INDICATOR_WIDTH, D_INDICATOR_HEIGHT, indikatorfarbe, true);
+		PIXVAL indikatorfarbe = halt->get_status_farbe();
+		display_fillbox_wh_clip_rgb(pos.x+10, top+2, D_INDICATOR_WIDTH, D_INDICATOR_HEIGHT, indikatorfarbe, true);
 		int left = 10+D_INDICATOR_WIDTH+2;
 
 		// what kind of station?
@@ -348,7 +616,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 
 		info_buf.clear();
 		info_buf.printf("%s", halt->get_owner()->get_name());
-		display_proportional(left, top, info_buf, ALIGN_LEFT, PLAYER_FLAG|(halt->get_owner()->get_player_color1()+0), true);
+		display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, PLAYER_FLAG|color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), true);
 		top += D_LABEL_HEIGHT * 2;
 
 		bool enabled = false;
@@ -360,11 +628,11 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 		}
 
 		// passengers
-		left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+		left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 		if (welt->get_settings().is_separate_halt_capacities()) {
 			// here only for separate capacities
 			if (halt->get_pax_enabled()) {
-				display_color_img(skinverwaltung_t::passengers->get_image_id(0), left, top, 0, false, false);
+				display_color_img(skinverwaltung_t::passengers->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 				left += 10;
 			}
 			// mail
@@ -375,8 +643,8 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 				}
 				info_buf.printf("%u", halt->get_capacity(1));
 				enabled = true;
-				left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				display_color_img(skinverwaltung_t::mail->get_image_id(0), left, top, 0, false, false);
+				left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				display_color_img(skinverwaltung_t::mail->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 				left += 10;
 			}
 			// goods
@@ -386,8 +654,8 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 					info_buf.append(",  ");
 				}
 				info_buf.printf("%u", halt->get_capacity(2));
-				left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				display_color_img(skinverwaltung_t::goods->get_image_id(0), left, top, 0, false, false);
+				left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				display_color_img(skinverwaltung_t::goods->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 			}
 		}
 
@@ -401,50 +669,50 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 			top += LINESPACE + D_V_SPACE;
 			left = pos.x + D_MARGIN_LEFT;
 			info_buf.printf("%s", translator::translate("Evaluation:"));
-			display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 			info_buf.clear();
 			top += LINESPACE+2;
 
 			const int ev_value_offset_left = display_get_char_max_width(":") + 12;
-			int ev_indicator_width = min( 255, get_windowsize().w - D_MARGIN_LEFT - D_MARGIN_RIGHT * 2 - ev_value_offset_left - view.get_size().w);
-			COLOR_VAL color = MN_GREY0;
+			uint16 ev_indicator_width = min( 255, get_windowsize().w - D_MARGIN_LEFT - D_MARGIN_RIGHT * 2 - ev_value_offset_left - view.get_size().w);
+			PIXVAL color = color_idx_to_rgb(MN_GREY0);
 
 			if (halt->get_pax_enabled()) {
 				left = pos.x + D_MARGIN_LEFT + 10;
 				int pax_ev_num[5] = { halt->haltestelle_t::get_pax_happy(), halt->haltestelle_t::get_pax_unhappy(), halt->haltestelle_t::get_pax_too_waiting(), halt->haltestelle_t::get_pax_too_slow(), halt->haltestelle_t::get_pax_no_route() };
 				int pax_sum = pax_ev_num[0];
-				for (int i = 1; i < PAX_EVALUATIONS; i++) {
+				for (uint8 i = 1; i < PAX_EVALUATIONS; i++) {
 					pax_sum += pax_ev_num[i];
 				}
 				uint8 indicator_height = pax_sum < 100 ? D_INDICATOR_HEIGHT - 1 : D_INDICATOR_HEIGHT;
 				if (pax_sum > 999)  { indicator_height++; }
 				if (pax_sum > 9999) { indicator_height++; }
 				// pax symbol
-				display_color_img(skinverwaltung_t::passengers->get_image_id(0), left, top+2, 0, false, false);
+				display_color_img(skinverwaltung_t::passengers->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 				left += 11;
 
 				info_buf.printf(": %d ", pax_sum);
-				left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + display_get_char_max_width(":");
+				left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + display_get_char_max_width(":");
 				info_buf.clear();
 
 				// value + symbol + tooltip / error message
 				if (!halt->get_ware_summe(goods_manager_t::passengers) && !halt->has_pax_user(2, true)) {
 					// there is no passenger demand
 					if (skinverwaltung_t::alerts) {
-						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top, 0, false, false);
+						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 					}
 					left += 13;
 					info_buf.printf("%s", translator::translate("This stop has no user"));
-					display_proportional(left, top, info_buf, ALIGN_LEFT, MN_GREY0, true);
+					display_proportional_rgb(left, top, info_buf, ALIGN_LEFT,  color_idx_to_rgb(MN_GREY0), true);
 				}
 				else if (!halt->get_ware_summe(goods_manager_t::passengers) && !halt->has_pax_user(2, false)) {
 					// there is demand but it seems no passengers using
 					if (skinverwaltung_t::alerts) {
-						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top, 0, false, false);
+						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 					}
 					left += 13;
 					info_buf.printf("%s", translator::translate("No passenger service"));
-					display_proportional(left, top, info_buf, ALIGN_LEFT, MN_GREY0, true);
+					display_proportional_rgb(left, top, info_buf, ALIGN_LEFT,  color_idx_to_rgb(MN_GREY0), true);
 				}
 				else {
 					// passenger evaluation icons ok?
@@ -452,8 +720,8 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 						info_buf.printf("(");
 						for (int i = 0; i < PAX_EVALUATIONS; i++) {
 							info_buf.printf("%d", pax_ev_num[i]);
-							left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
-							display_color_img(skinverwaltung_t::pax_evaluation_icons->get_image_id(i), left, top, 0, false, false);
+							left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
+							display_color_img(skinverwaltung_t::pax_evaluation_icons->get_image_id(i), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 							if (abs((int)(left - get_mouse_x())) < 14 && abs((int)(top + LINESPACE / 2 - get_mouse_y())) < LINESPACE / 2 + 2) {
 								tooltip_buf.clear();
 								tooltip_buf.printf("%s: %s", translator::translate(cost_type[i]), translator::translate(cost_tooltip[i]));
@@ -493,7 +761,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 						}
 						info_buf.printf(")");
 					}
-					display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+					display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				}
 				info_buf.clear();
 
@@ -502,8 +770,8 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 				left = pos.x + D_MARGIN_LEFT + 10 + ev_value_offset_left;
 				info_buf.clear();
 				if (!pax_sum) {
-					color = halt->has_pax_user(2, false) ? MN_GREY0 : MN_GREY1;
-					display_fillbox_wh_clip(left, top, ev_indicator_width, indicator_height, color, true);
+					color = color_idx_to_rgb(halt->has_pax_user(2, false) ? MN_GREY0 : MN_GREY1);
+					display_fillbox_wh_clip_rgb(left, top, ev_indicator_width, indicator_height, color, true);
 				}
 				else
 				{
@@ -521,7 +789,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 							}
 						}
 						if (pax_ev_num[i]) {
-							display_fillbox_wh_clip(left + indicator_left, top, colored_width, indicator_height, cost_type_color[i], true);
+							display_fillbox_wh_clip_rgb(left + indicator_left, top, colored_width, indicator_height, color_idx_to_rgb(cost_type_color[i]), true);
 						}
 						indicator_left += colored_width;
 					}
@@ -539,17 +807,17 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 				if (mail_sum > 9999) { indicator_height++; }
 
 				// mail symbol
-				display_color_img(skinverwaltung_t::mail->get_image_id(0), left, top + 2, 0, false, false);
+				display_color_img(skinverwaltung_t::mail->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 				left += 11;
 
 				info_buf.printf(": %d ", mail_sum);
-				left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + display_get_char_max_width(":");
+				left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + display_get_char_max_width(":");
 				info_buf.clear();
 
 				// value + symbol + tooltip / error message
 				if (!halt->get_ware_summe(goods_manager_t::mail) && !halt->haltestelle_t::gibt_ab(goods_manager_t::get_info(1))) {
 					if (skinverwaltung_t::alerts) {
-						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top, 0, false, false);
+						display_color_img(skinverwaltung_t::alerts->get_image_id(2), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 					}
 					left += 13;
 					if (!halt->has_mail_user(2, true)) {
@@ -560,15 +828,15 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 						// This station seems not to be used by mail vehicles
 						info_buf.printf("%s", translator::translate("No mail service"));
 					}
-					display_proportional(left, top, info_buf, ALIGN_LEFT, MN_GREY0, true);
+					display_proportional_rgb(left, top, info_buf, ALIGN_LEFT,  color_idx_to_rgb(MN_GREY0), true);
 				}
 				else {
 					// if symbols ok
 					if (skinverwaltung_t::mail_evaluation_icons) {
 						info_buf.printf("(%d", halt->haltestelle_t::get_mail_delivered());
-						left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
+						left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
 
-						display_color_img(skinverwaltung_t::mail_evaluation_icons->get_image_id(0), left, top, 0, false, false);
+						display_color_img(skinverwaltung_t::mail_evaluation_icons->get_image_id(0), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 						if (abs((int)(left - get_mouse_x())) < 14 && abs((int)(top + LINESPACE / 2 - get_mouse_y())) < LINESPACE / 2 + 2) {
 							tooltip_buf.clear();
 							tooltip_buf.printf("%s: %s", translator::translate(cost_type[5]), translator::translate(cost_tooltip[5]));
@@ -578,9 +846,9 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 						left += 11;
 
 						info_buf.printf(", %d", halt->haltestelle_t::get_mail_no_route());
-						left += display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
+						left += display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true) + 1;
 						info_buf.clear();
-						display_color_img(skinverwaltung_t::mail_evaluation_icons->get_image_id(1), left, top, 0, false, false);
+						display_color_img(skinverwaltung_t::mail_evaluation_icons->get_image_id(1), left, top + FIXED_SYMBOL_YOFF, 0, false, false);
 						if (abs((int)(left - get_mouse_x())) < 14 && abs((int)(top + LINESPACE / 2 - get_mouse_y())) < LINESPACE / 2 + 2) {
 							tooltip_buf.clear();
 							tooltip_buf.printf("%s: %s", translator::translate(cost_type[6]), translator::translate(cost_tooltip[6]));
@@ -595,21 +863,21 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
 						info_buf.printf(translator::translate("%d delivered, %d no route"), halt->haltestelle_t::get_mail_delivered(), halt->haltestelle_t::get_mail_no_route());
 						info_buf.printf(")");
 					}
-					display_proportional(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+					display_proportional_rgb(left, top, info_buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				}
 				// Evaluation ratio indicator
 				top += LINESPACE + 1;
 				left = pos.x + D_MARGIN_LEFT + 10 + ev_value_offset_left;
 				info_buf.clear();
 				if (!mail_sum) {
-					color = halt->has_mail_user(2, false) ? MN_GREY0 : MN_GREY1;
-					display_fillbox_wh_clip(left, top, ev_indicator_width, indicator_height, color, true);
+					color =  color_idx_to_rgb(halt->has_mail_user(2, false) ? MN_GREY0 : MN_GREY1);
+					display_fillbox_wh_clip_rgb(left, top, ev_indicator_width, indicator_height, color, true);
 				}
 				else
 				{
-					display_fillbox_wh_clip(left, top, ev_indicator_width, indicator_height, COL_MAIL_NOROUTE, true);
+					display_fillbox_wh_clip_rgb(left, top, ev_indicator_width, indicator_height, color_idx_to_rgb(COL_MAIL_NOROUTE), true);
 					if (mail_delivered_factor) {
-						display_fillbox_wh_clip(left, top, ev_indicator_width*mail_delivered_factor / 255, indicator_height, COL_MAIL_DELIVERED, true);
+						display_fillbox_wh_clip_rgb(left, top, ev_indicator_width*mail_delivered_factor / 255, indicator_height, color_idx_to_rgb(COL_MAIL_DELIVERED), true);
 					}
 				}
 
@@ -790,22 +1058,20 @@ void halt_info_t::update_departures()
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	if (comp == &button) { 			// details button pressed
 		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
-	} else if (comp == &freight_sort_selector) { 	// @author hsiegeln sort button pressed // @author Ves: changed button to combobox
-
+	}
+	else if (comp == &freight_sort_selector) {
 		sint32 sort_mode = freight_sort_selector.get_selection();
-		if (sort_mode < 0)
-		{
+		if (sort_mode < 0 || sort_mode > SORT_MODES) {
 			freight_sort_selector.set_selection(0);
 			sort_mode = 0;
 		}
-		env_t::default_sortmode = (sort_mode_t)((int)(sort_mode) % (int)SORT_MODES);
-		halt->set_sortby(env_t::default_sortmode);
+		env_t::default_sortmode = (sort_mode_t)(int)(sort_mode) % SORT_MODES;
+		halt->set_sortby(sort_mode >= by_line ? env_t::default_sortmode+2 : env_t::default_sortmode);
 	} else  if (comp == &toggler) {
 		show_hide_statistics( toggler.pressed^1 );
 	}

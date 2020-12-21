@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_table_h
-#define gui_table_h
+#ifndef GUI_COMPONENTS_GUI_TABLE_H
+#define GUI_COMPONENTS_GUI_TABLE_H
+
 
 #include <string.h>
 
@@ -18,7 +19,7 @@
 //typedef KOORD_VAL koord_x;
 //typedef KOORD_VAL koord_y;
 typedef KOORD_VAL coordinate_t;
-typedef PLAYER_COLOR_VAL color_t;
+typedef FLAGGED_PIXVAL color_t;
 
 
 /**
@@ -40,8 +41,8 @@ public:
 	void set_x(coordinate_t value) { x = value; }
 	void set_y(coordinate_t value) { y = value; }
 	bool equals(const coordinates_t &value) const { return x == value.x && y == value.y; }
-	bool operator == (const coordinates_t &value) { return equals(value); }
-	bool operator != (const coordinates_t &value) { return !equals(value); }
+	bool operator == (const coordinates_t &value) const { return equals(value); }
+	bool operator != (const coordinates_t &value) const { return !equals(value); }
 };
 
 

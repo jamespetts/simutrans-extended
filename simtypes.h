@@ -6,10 +6,20 @@
 #ifndef SIMTYPES_H
 #define SIMTYPES_H
 
+
 #include <climits>
 #include <stdlib.h>
 
 #include "utils/for.h"
+#include <limits.h>
+
+#ifndef PATH_MAX
+#ifdef MAX_PATH
+#define PATH_MAX (MAX_PATH)
+#else
+#define PATH_MAX 1024
+#endif
+#endif
 
 #if defined _MSC_VER
 #	if _MSC_VER <= 1200
@@ -31,25 +41,11 @@
 #	define NOT_REACHED
 #endif
 
-#define GCC_ATLEAST(major, minor) (defined __GNUC__ && (__GNUC__ > (major) || (__GNUC__ == (major) && __GNUC_MINOR__ >= (minor))))
+#define DELETED = delete
+#define OVERRIDE override
 
-#define CXX11(gcc_major, gcc_minor, msc_ver) ( \
-	__cplusplus >= 201103L || \
-	(defined __GXX_EXTENDED_CXX0X__ && GCC_ATLEAST((gcc_major), (gcc_minor))) || \
-	(defined _MSC_VER && (msc_ver) != 0 && _MSC_VER >= (msc_ver)) \
-)
-
-#if CXX11(4, 4, 0)
-#	define DELETED = delete
-#else
-#	define DELETED
-#endif
-
-#if CXX11(4, 7, 1400)
-#	define OVERRIDE override
-#else
-#	define OVERRIDE
-#endif
+#include <stdint.h> // intptr_t (standard)
+#include <stddef.h> // ptrdiff_t, intptr_t (Microsoft)
 
 #define ENUM_BITSET(T) \
  static inline T operator ~ (T a) { return (T)~(unsigned)a; } \
@@ -89,9 +85,10 @@ enum climate_bits
 	all_but_arctic_climate = ALL_CLIMATES & ~arctic_climate_bit
 };
 
+enum sound_type_t { TOOL_SOUND=0, TRAFFIC_SOUND=1, AMBIENT_SOUND=2, FACTORY_SOUND=3, CROSSING_SOUND=4, CASH_SOUND=5, MAX_SOUND_TYPES, ALL_SOUND=255 };
+
 /**
- * Vordefinierte Wetypeen.
- * @author Hj. Malthaner
+ * Vordefinierte Wegtypen.
  */
 enum waytype_t {
 	invalid_wt       =  -1,
@@ -114,36 +111,29 @@ enum waytype_t {
  * System types for ways
  */
 enum systemtype_t {
-	type_flat = 0,	///< flat track
-	type_elevated = 1,	///< flag for elevated ways
-	type_runway = 1,	///< flag for runway (only aircrafts)
-	type_tram = 7,	///< tram track (waytype = track_wt)
-	type_river = 255,	///< flag for river
-	type_all = 255,	///< special ?
+	type_flat     = 0,   ///< flat track
+	type_elevated = 1,   ///< flag for elevated ways
+	type_runway   = 1,   ///< flag for runway (only aircrafts)
+	type_tram     = 7,   ///< tram track (waytype = track_wt)
+	type_river    = 255, ///< flag for river
+	type_all      = 255  ///< special ?
 };
 
 /**
  * conditions for overtaking on roads
- * @author teamhimeH
  */
  enum overtaking_mode_t {
 	 halt_mode         = -1, // vehicles can stop on passing lane
 	 oneway_mode       = 0,  // condition for one-way road
 	 twoway_mode       = 1,  // condition for two-way road
-	 loading_only_mode = 2,  // overtake a loading convoy only
+	 //loading_only_mode = 2,  // overtake a loading convoy only
 	 prohibited_mode   = 3,  // overtaking is completely forbidden
-	 inverted_mode     = 4,  // vehicles can go only on passing lane
 	 invalid_mode      = 63
  };
 
 enum working_method_t { drive_by_sight, time_interval, absolute_block, token_block, track_circuit_block, cab_signalling, moving_block, one_train_staff, time_interval_with_telegraph };
 
-// makros are not very safe: thus use these macro like functions
-// otherwise things may fail or functions are called uneccessarily twice
-
-#define CLIP(wert,mini,maxi)  min(max((wert),(mini)),(maxi))
-
-// Hajo: define machine independent types
+// define machine independent types
 typedef unsigned int        uint;
 typedef   signed char       sint8;
 typedef unsigned char       uint8;
@@ -168,7 +158,9 @@ typedef unsigned long       uint32;
 #endif
 #endif
 typedef   signed long long  sint64;
+#ifndef NO_UINT64_TYPES
 typedef unsigned long long  uint64;
+#endif
 #ifdef _MSC_VER
 #	define GCC_PACKED
 #	define GCC_ALIGN(a)
@@ -379,7 +371,6 @@ static inline sint64 endian(sint64 const v) { return sint64(endian(uint64(v))); 
  * a helper type to avoid cast operations.  This isn't very clean, but if used
  * with care it seems better than using "long" and casting to a pointer type.
  * In all cases it ensures that no bits are lost.
- * @author Hj. Malthaner
  */
 union value_t
 {

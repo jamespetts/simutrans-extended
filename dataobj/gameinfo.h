@@ -3,24 +3,32 @@
  * (see LICENSE.txt)
  */
 
-#ifndef dataobj_gameinfo_h
-#define dataobj_gameinfo_h
+#ifndef DATAOBJ_GAMEINFO_H
+#define DATAOBJ_GAMEINFO_H
+
 
 #include <string>
 #include "../simtypes.h"
 #include "../simconst.h"
+#include "../simcolor.h"
 #include "../tpl/array2d_tpl.h"
 #include "../network/checksum.h"
 
 class karte_t;
 class loadsave_t;
 
-
+/**
+ * Info about the current game
+ */
 class gameinfo_t
 {
 private:
 	sint32 size_x, size_y;
-	array2d_tpl<uint8> map;
+	/**
+	 * Two pixel arrays: one with indexed colors (sent by servers),
+	 * one with rgb colors (will be displayed)
+	 */
+	array2d_tpl<PIXVAL> map_idx, map_rgb;
 
 	sint32 industries;
 	sint32 tourist_attractions;
@@ -63,7 +71,7 @@ public:
 
 	sint32 get_size_x() const {return size_x;}
 	sint32 get_size_y() const {return size_y;}
-	const array2d_tpl<uint8> *get_map() const { return &map; }
+	const array2d_tpl<PIXVAL> *get_map() const { return &map_rgb; }
 
 	sint32 get_industries() const {return industries;}
 	sint32 get_tourist_attractions() const {return tourist_attractions;}

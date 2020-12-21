@@ -3,11 +3,14 @@
  * (see LICENSE.txt)
  */
 
-#ifndef tpl_sparse_tpl_h
-#define tpl_sparse_tpl_h
+#ifndef TPL_SPARSE_TPL_H
+#define TPL_SPARSE_TPL_H
+
 
 #include "../dataobj/koord.h"
+#include "../macros.h"
 #include "../simtypes.h"
+
 
 template <class T> class sparse_tpl;
 template<class T> void swap(sparse_tpl<T>& a, sparse_tpl<T>& b);
@@ -236,19 +239,19 @@ class sparse_tpl
 			return row_end;
 		}
 
-	friend void swap<>(sparse_tpl<T>& a, sparse_tpl<T>& b);
+		friend void ::swap<>(sparse_tpl<T>& a, sparse_tpl<T>& b);
 
-	sparse_tpl(const sparse_tpl& other);
-	sparse_tpl& operator=( sparse_tpl const& other );
+		sparse_tpl(const sparse_tpl& other);
+		sparse_tpl& operator=(sparse_tpl const& other);
 };
 
 template<class T> void swap(sparse_tpl<T>& a, sparse_tpl<T>& b)
 {
-	sim::swap(a.size,  b.size);
+	sim::swap(a.size, b.size);
 
-	sim::swap(a.data,  b.data);
-	sim::swap(a.col_ind,  b.col_ind);
-	sim::swap(a.row_ptr,  b.row_ptr);
+	sim::swap(a.data, b.data);
+	sim::swap(a.col_ind, b.col_ind);
+	sim::swap(a.row_ptr, b.row_ptr);
 
 	sim::swap(a.data_size, b.data_size);
 	sim::swap(a.data_count, b.data_count);

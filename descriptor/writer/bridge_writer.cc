@@ -4,6 +4,7 @@
  */
 
 #include <string>
+#include <cmath>
 #include "../../utils/simstring.h"
 #include "../../dataobj/tabfile.h"
 #include "obj_node.h"
@@ -99,7 +100,7 @@ void bridge_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& o
 {
 	obj_node_t node(this, 38, &parent);
 
-	uint8  waytype_t					= get_waytype(obj.get("waytype"));
+	uint8  waytype_t				= get_waytype(obj.get("waytype"));
 	uint16 topspeed					= obj.get_int("topspeed", 999);
 	uint16 topspeed_gradient_1      = obj.get_int("topspeed_gradient_1", topspeed);
 	uint16 topspeed_gradient_2      = obj.get_int("topspeed_gradient_2", topspeed_gradient_1);
@@ -116,7 +117,7 @@ void bridge_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& o
 	uint8 max_vehicles_on_tile		= obj.get_int("max_vehicles_on_tile", 251);
 	uint8 has_own_way_graphics		= obj.get_int("has_own_way_graphics", 1); // Traditionally, bridges had their own way graphics, hence the default of 1.
 
-	// prissi: timeline
+	// timeline
 	uint16 intro_date = obj.get_int("intro_year", DEFAULT_INTRO_DATE) * 12;
 	intro_date += obj.get_int("intro_month", 1) - 1;
 
@@ -150,16 +151,16 @@ void bridge_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& o
 		//Compress values into a single byte using bitwise OR.
 		if(tmp_permissive < 8)
 		{
-			permissive_way_constraints = (tmp_permissive > 0) ? permissive_way_constraints | (uint8)pow(2, (double)tmp_permissive) : permissive_way_constraints | 1;
+			permissive_way_constraints = (tmp_permissive > 0) ? permissive_way_constraints | (uint8)pow(2.0, (double)tmp_permissive) : permissive_way_constraints | 1;
 		}
 		if(tmp_prohibitive < 8)
 		{
-			prohibitive_way_constraints = (tmp_prohibitive > 0) ? prohibitive_way_constraints | (uint8)pow(2, (double)tmp_prohibitive) : prohibitive_way_constraints | 1;
+			prohibitive_way_constraints = (tmp_prohibitive > 0) ? prohibitive_way_constraints | (uint8)pow(2.0, (double)tmp_prohibitive) : prohibitive_way_constraints | 1;
 		}
 	}
 
-	// Hajo: Version needs high bit set as trigger -> this is required
-	//       as marker because formerly nodes were unversioned
+	// Version needs high bit set as trigger -> this is required
+	// as marker because formerly nodes were unversionend
 	uint16 version = 0x8009;
 
 	// This is the overlay flag for Simutrans-Extended

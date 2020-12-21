@@ -3,14 +3,16 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _API_H_
-#define _API_H_
+#ifndef SCRIPT_API_API_H
+#define SCRIPT_API_API_H
+
 
 /** @file api.h declarations of export functions. */
 
 #include "../../squirrel/squirrel.h"
 
 void export_city(HSQUIRRELVM vm);
+void export_control(HSQUIRRELVM vm);
 void export_convoy(HSQUIRRELVM vm);
 void export_factory(HSQUIRRELVM vm);
 void export_goods_desc(HSQUIRRELVM vm);

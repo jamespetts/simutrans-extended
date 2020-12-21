@@ -3,6 +3,10 @@
  * (see LICENSE.txt)
  */
 
+#ifndef GUI_VEHICLE_CLASS_MANAGER_H
+#define GUI_VEHICLE_CLASS_MANAGER_H
+
+
 /*
  * Convoi details window
  */
@@ -28,7 +32,6 @@ class gui_class_vehicleinfo_t : public gui_container_t/*, private action_listene
 private:
 	/**
 	 * Handle the convoi to be displayed.
-	 * @author Hj. Malthaner
 	 */
 	convoihandle_t cnv;
 
@@ -45,10 +48,6 @@ private:
 	//char *mail_class_name_untranslated[32];
 
 public:
-	/**
-	 * @param cnv, the handler for displaying the convoi.
-	 * @author Hj. Malthaner
-	 */
 	gui_class_vehicleinfo_t(convoihandle_t cnv);
 
 
@@ -57,10 +56,6 @@ public:
 
 	void set_cnv( convoihandle_t c ) { cnv = c; }
 
-	/**
-	 * Draw the component
-	 * @author Hj. Malthaner
-	 */
 	void draw(scr_coord offset);
 };
 
@@ -73,8 +68,8 @@ public:
 
 private:
 
-	gui_scrollpane_t scrolly;
 	gui_class_vehicleinfo_t veh_info;
+	gui_scrollpane_t scrolly;
 
 	convoihandle_t cnv;
 	button_t reset_all_classes_button;
@@ -89,13 +84,8 @@ private:
 	gui_container_t cont;
 
 	uint16 current_number_of_classes;
-	uint16 old_number_of_classes;
-
 	uint16 current_number_of_accommodations;
-	uint16 old_number_of_accommodations;
-
 	uint32 current_number_of_vehicles;
-	uint32 old_number_of_vehicles;
 
 	uint8 highest_catering;
 	bool is_tpo;
@@ -105,11 +95,7 @@ private:
 
 	uint16 header_height;
 
-	int longest_class_name;
-
 	uint32 overcrowded_capacity;
-
-	bool convoy_bound = false;
 
 	char *pass_class_name_untranslated[32];
 	char *mail_class_name_untranslated[32];
@@ -140,26 +126,11 @@ public:
 
 	void build_class_entries();
 
-	/**
-	 * Draw new component. The values to be passed refer to the window
-	 * i.e. It's the screen coordinates of the window where the
-	 * component is displayed.
-	 * @author Hj. Malthaner
-	 */
-	void draw(scr_coord pos, scr_size size);
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	/**
-	 * Set the window associated helptext
-	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
-	 */
-	const char * get_help_filename() const {return "vehicle_class_manager.txt"; }
+	const char * get_help_filename() const OVERRIDE {return "vehicle_class_manager.txt"; }
 
-	/**
-	 * Set window size and adjust component sizes and/or positions accordingly
-	 * @author Hj. Malthaner
-	 */
-	virtual void set_windowsize(scr_size size);
+	virtual void set_windowsize(scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
@@ -171,9 +142,11 @@ public:
 	// this constructor is only used during loading
 	vehicle_class_manager_t();
 
-	void rdwr( loadsave_t *file );
+	void rdwr( loadsave_t *file ) OVERRIDE;
 
-	uint32 get_rdwr_id() { return magic_class_manager; }
+	uint32 get_rdwr_id() OVERRIDE { return magic_class_manager; }
 
 	~vehicle_class_manager_t();
 };
+
+#endif

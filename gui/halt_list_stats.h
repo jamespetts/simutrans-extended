@@ -3,29 +3,67 @@
  * (see LICENSE.txt)
  */
 
-#ifndef halt_list_stats_h
-#define halt_list_stats_h
+#ifndef GUI_HALT_LIST_STATS_H
+#define GUI_HALT_LIST_STATS_H
+
 
 #include "components/gui_component.h"
+
+#include "components/gui_aligned_container.h"
+#include "components/gui_colorbox.h"
+#include "components/gui_button.h"
+#include "components/gui_image.h"
+#include "components/gui_label.h"
+#include "components/gui_scrolled_list.h"
 #include "../halthandle_t.h"
+
+class gui_halt_type_images_t;
 
 
 /**
- * @author Hj. Malthaner
+ * Helper class to show small three freight category waiting indicator
  */
-class halt_list_stats_t : public gui_world_component_t
+class gui_mini_halt_waiting_indicator_t : public gui_container_t
+{
+	halthandle_t halt;
+public:
+	gui_mini_halt_waiting_indicator_t(halthandle_t h);
+
+	void draw(scr_coord offset);
+};
+
+
+class halt_list_stats_t : public gui_aligned_container_t, public gui_scrolled_list_t::scrollitem_t
 {
 private:
 	halthandle_t halt;
 
 public:
-	halt_list_stats_t() : halt() {}
-	halt_list_stats_t(halthandle_t halt_) : halt(halt_) { size.h = 28; }
-	const halthandle_t get_halt() const { return halt; }
+	gui_label_buf_t label_name, label_cargo;
+	gui_image_t img_enabled[3];
+	gui_halt_type_images_t *img_types;
+	gui_colorbox_t indicator;
+
+public:
+	halt_list_stats_t(halthandle_t halt_);
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
-	void draw(scr_coord offset);
+	/**
+	 * Draw the component
+	 */
+	void draw(scr_coord offset) OVERRIDE;
+
+	void update_label();
+
+	const char* get_text() const OVERRIDE;
+
+	bool is_valid() const OVERRIDE { return halt.is_bound(); }
+
+	halthandle_t get_halt() const { return halt; }
+
+	using gui_aligned_container_t::get_min_size;
+	using gui_aligned_container_t::get_max_size;
 };
 
 #endif

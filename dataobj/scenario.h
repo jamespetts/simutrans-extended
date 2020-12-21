@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef scenario_h
-#define scenario_h
+#ifndef DATAOBJ_SCENARIO_H
+#define DATAOBJ_SCENARIO_H
+
 
 /** @file scenario.h declarations for scenario interface */
 
@@ -239,14 +240,28 @@ public:
 	bool is_scripted() const { return what_scenario == SCRIPTED  ||  what_scenario == SCRIPTED_NETWORK; }
 
 	/**
+	 * compiles and executes given string
+	 * @returns error msg (or NULL if succeeded)
+	 */
+	const char* eval_string(const char* squirrel_string) const;
+
+	/**
 	 * Get percentage of scenario completion. Does not call script to update this value.
 	 * On clients: call server for update via dynamic_string logic.
-	 *
+	 * Returns percentage of scenario completion.
+	 * @param player_nr player
 	 * @returns percentage of scenario completion:
 	 * if >= 100 then scenario is won
 	 * if < 0 then scenario is lost
 	 */
-	int get_completion(int player_nr);
+	sint32 get_completion(int player_nr);
+
+	/**
+	 * Sets percentage of scenario completion. Used as callback if script call got suspended.
+	 * @param player_nr player
+	 * @returns dummy return value
+	 */
+	bool set_completion(sint32 player_nr, sint32 percentage);
 
 	void rotate90(const sint16 y_size);
 

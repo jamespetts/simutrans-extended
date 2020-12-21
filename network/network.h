@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef sim_network_h
-#define sim_network_h
+#ifndef NETWORK_NETWORK_H
+#define NETWORK_NETWORK_H
+
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define USE_WINSOCK 1
@@ -17,12 +18,12 @@
 // must be include before all simutrans stuff!
 
 #	include <winsock2.h>
-#	include <windows.h>
+//#	include <windows.h>
 #	include <ws2tcpip.h>
 #	ifndef IPV6_V6ONLY
 #		define IPV6_V6ONLY (27)
 #	endif
-#	if WINVER<=0x0500
+#	if WINVER<=0x0500 && !defined(USE_IP4_ONLY)
 // compiling for Windows 2000
 #		define USE_IP4_ONLY
 #	endif
@@ -61,6 +62,7 @@ typedef int SOCKET;
 #endif
 
 #include "../simtypes.h"
+#include "../utils/cbuffer_t.h"
 // version of network protocol code
 #define NETWORK_VERSION (1)
 
@@ -139,5 +141,13 @@ void network_core_shutdown();
 // get & set our id on the server
 uint32 network_get_client_id();
 void network_set_client_id(uint32 id);
+
+bool get_external_IP( cbuffer_t &myIPaddr, cbuffer_t &alt_IP );
+
+// trys to open port on router (if there) and get external IP
+bool prepare_for_server( char *externalIPAddress, char *alter_IP, int port );
+
+// removes the redirect (or do nothing)
+void remove_port_forwarding( int port );
 
 #endif

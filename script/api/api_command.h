@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _API_COMMAND_H_
-#define _API_COMMAND_H_
+#ifndef SCRIPT_API_API_COMMAND_H
+#define SCRIPT_API_API_COMMAND_H
+
 
 #include "../api_param.h"
 #include "../../dataobj/koord3d.h"
@@ -39,13 +40,13 @@ namespace script_api {
 	 *
 	 * call_tool_work call_x_tool(parameters..)
 	 * {
-	 * 	....
+	 *      ....
 	 *      return call_tool_work(tool, player, koord3d)
 	 * }
 	 *
 	 * call_tool_init call_x_tool(parameters..)
 	 * {
-	 * 	....
+	 *      ....
 	 *      return call_tool_init(tool, player)
 	 * }
 	 */

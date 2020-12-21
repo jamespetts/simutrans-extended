@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef factory_chart_h
-#define factory_chart_h
+#ifndef GUI_FACTORY_CHART_H
+#define GUI_FACTORY_CHART_H
+
 
 #define MAX_PROD_LABEL      (7-1)
 
@@ -23,19 +24,7 @@ class factory_chart_t : public gui_container_t, private action_listener_t
 private:
 	const fabrik_t *factory;
 
-	// Tab panel for grouping 2 sets of statistics
-	gui_tab_panel_t tab_panel;
-
-	// GUI components for input/output goods' statistics
-	gui_container_t goods_cont;
-	gui_chart_t goods_chart;
-	button_t *goods_buttons;
-	gui_label_t *goods_labels;
-	uint16 goods_button_count;
-	uint16 goods_label_count;
-
 	// GUI components for other production-related statistics
-	gui_container_t prod_cont;
 	gui_chart_t prod_chart;
 	button_t prod_buttons[MAX_FAB_STAT];
 	button_t prod_ref_line_buttons[MAX_FAB_REF_LINE];
@@ -44,17 +33,56 @@ private:
 	// Variables for reference lines
 	sint64 prod_ref_line_data[MAX_FAB_REF_LINE];
 
+	struct button_to_curve_t {
+		button_t* button;
+		uint16 curve;
+	};
+	button_to_curve_t button_to_curve[MAX_FAB_STAT+MAX_FAB_REF_LINE];
+
 public:
 	factory_chart_t(const fabrik_t *_factory);
-	virtual ~factory_chart_t();
 
 	void set_factory(const fabrik_t *_factory);
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
-	virtual void draw(scr_coord pos);
+	virtual void draw(scr_coord pos) OVERRIDE;
+
+	void recalc_size();
 
 	void rdwr( loadsave_t *file );
+};
+
+
+class factory_goods_chart_t : public gui_container_t, private action_listener_t
+{
+private:
+	const fabrik_t *factory;
+
+	// GUI components for input/output goods' statistics
+	gui_chart_t goods_chart;
+	button_t *goods_buttons;
+	gui_label_t *goods_labels;
+	gui_label_t lbl_consumption,  lbl_production;
+	uint16 goods_button_count;
+	uint16 goods_label_count;
+
+	// Optimize goods color to color for chart
+	PIXVAL goods_col_to_chart_col(uint8 col) const;
+
+public:
+	factory_goods_chart_t(const fabrik_t *_factory);
+	virtual ~factory_goods_chart_t();
+
+	void set_factory(const fabrik_t *_factory);
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	virtual void draw(scr_coord pos) OVERRIDE;
+
+	void recalc_size();
+
+	void rdwr(loadsave_t *file);
 };
 
 #endif

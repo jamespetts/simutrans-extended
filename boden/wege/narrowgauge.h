@@ -3,8 +3,8 @@
  * (see LICENSE.txt)
  */
 
-#ifndef boden_wege_narrowgauge_h
-#define boden_wege_narrowgauge_h
+#ifndef BODEN_WEGE_NARROWGAUGE_H
+#define BODEN_WEGE_NARROWGAUGE_H
 
 
 #include "schiene.h"
@@ -22,13 +22,12 @@ public:
 
 	/**
 	 * File loading constructor.
-	 * @author prissi
 	 */
 	narrowgauge_t(loadsave_t *file);
 
-	//virtual waytype_t get_waytype() const {return narrowgauge_wt;}
+	//waytype_t get_waytype() const OVERRIDE {return narrowgauge_wt;}
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 };
 
 #endif

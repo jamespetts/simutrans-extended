@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __ROADSIGN_BESCH_H
-#define __ROADSIGN_BESCH_H
+#ifndef DESCRIPTOR_ROADSIGN_DESC_H
+#define DESCRIPTOR_ROADSIGN_DESC_H
+
 
 #include "obj_base_desc.h"
 #include "image_list.h"
@@ -14,11 +15,7 @@
 #include "../network/checksum.h"
 
 
-/*
- *  Autor:
- *      prissi
- *
- *  Description:
+/**
  *	Road signs
  *
  *  Child nodes:
@@ -106,17 +103,17 @@ public:
 		END_OF_CHOOSE_AREA    = 1U << 7
 	};
 
-	int get_image_id(ribi_t::dir dir) const
+	image_id get_image_id(ribi_t::dir dir) const
 	{
 		image_t const* const image = get_child<image_list_t>(2)->get_image(dir);
 		return image != NULL ? image->get_id() : IMG_EMPTY;
 	}
 
-	int get_count() const { return get_child<image_list_t>(2)->get_count(); }
+	uint16 get_count() const { return get_child<image_list_t>(2)->get_count(); }
 
 	skin_desc_t const* get_cursor() const { return get_child<skin_desc_t>(3); }
 
-	sint32 get_min_speed() const { return min_speed; }
+	uint16 get_min_speed() const { return min_speed; }
 
 	bool is_single_way() const { return (flags&ONE_WAY)!=0; }
 
@@ -142,7 +139,11 @@ public:
 
 	bool is_signal_type() const
 	{
-		return (flags&(SIGN_SIGNAL|SIGN_PRE_SIGNAL|SIGN_LONGBLOCK_SIGNAL))!=0;
+		return (flags&(
+				SIGN_SIGNAL |
+				SIGN_PRE_SIGNAL |
+				SIGN_LONGBLOCK_SIGNAL)
+			) != 0;
 	}
 
 	// This is currently the definition of a station signal

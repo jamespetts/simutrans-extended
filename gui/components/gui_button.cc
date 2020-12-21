@@ -27,24 +27,11 @@
 
 #include "../gui_frame.h"
 
-#define STATE_MASK (127)
-#define AUTOMATIC_MASK (255)
+#define STATE_BIT (button_t::state)
+#define AUTOMATIC_BIT (button_t::automatic)
 
 #define get_state_offset() (b_enabled ? pressed : 2)
 
-// default button codes
-#define SQUARE_BUTTON 0
-#define POS_BUTTON 1
-#define ARROW_LEFT 2
-#define ARROW_RIGHT 3
-#define ARROW_UP 4
-#define ARROW_DOWN 5
-#define SCROLL_BAR 6
-
-// colors
-#define RB_LEFT_BUTTON (201)
-#define RB_BODY_BUTTON (202)
-#define RB_RIGHT_BUTTON (203)
 
 karte_ptr_t button_t::welt;
 
@@ -55,8 +42,9 @@ button_t::button_t() :
 	b_no_translate = false;
 	pressed = false;
 	translated_tooltip = tooltip = NULL;
-	background_color = COL_WHITE;
+	background_color = color_idx_to_rgb(COL_WHITE);
 	b_enabled = true;
+	image = IMG_EMPTY;
 
 	// By default a box button
 	init(box,"");
@@ -75,6 +63,12 @@ void button_t::init(enum type type_par, const char *text_par, scr_coord pos_par,
 	if(  size_par != scr_size::invalid  ) {
 		set_size(size_par);
 	}
+	else if (size_par == scr_size::invalid && type_par & posbutton) {
+		set_size(D_POS_BUTTON_SIZE);
+	}
+	else if (size_par == scr_size::invalid && type_par & roundbox && !(type_par & flexible) ) {
+		set_size(D_BUTTON_SIZE);
+	}
 }
 
 
@@ -83,7 +77,7 @@ void button_t::set_typ(enum type t)
 {
 	type = t;
 	text_color = SYSCOL_BUTTON_TEXT;
-	switch (type&STATE_MASK) {
+	switch (type&TYPE_MASK) {
 
 		case square:
 			text_color = SYSCOL_CHECKBOX_TEXT;
@@ -104,7 +98,7 @@ void button_t::set_typ(enum type t)
 		case posbutton:
 			set_no_translate( true );
 			set_size( gui_theme_t::gui_pos_button_size );
-		break;
+			break;
 
 		case arrowright:
 		case repeatarrowright:
@@ -121,8 +115,9 @@ void button_t::set_typ(enum type t)
 
 		case box:
 			text_color = SYSCOL_COLORED_BUTTON_TEXT;
+			/* FALLTHROUGH */
 		case roundbox:
-			set_size( scr_size(gui_theme_t::gui_button_size.w, max(D_BUTTON_HEIGHT,LINESPACE)) );
+			set_size( scr_size(get_size().w, max(D_BUTTON_HEIGHT, LINESPACE)));
 			break;
 
 		default:
@@ -132,16 +127,74 @@ void button_t::set_typ(enum type t)
 }
 
 
+void button_t::set_targetpos( const koord k )
+{
+	targetpos.x = k.x;
+	targetpos.y = k.y;
+	targetpos.z = welt->max_hgt( k );
+}
+
+
+scr_size button_t::get_max_size() const
+{
+	switch(type&TYPE_MASK) {
+		case square:
+		case box:
+		case roundbox:
+			return (type & flexible) ? scr_size(scr_size::inf.w, get_min_size().h) : get_min_size();
+
+		default:
+			return get_min_size();
+	}
+}
+
+scr_size button_t::get_min_size() const
+{
+
+	switch (type&TYPE_MASK) {
+		case arrowleft:
+		case repeatarrowleft:
+			return gui_theme_t::gui_arrow_left_size;
+
+		case posbutton:
+			return gui_theme_t::gui_pos_button_size;
+
+		case arrowright:
+		case repeatarrowright:
+			return gui_theme_t::gui_arrow_right_size;
+
+		case arrowup:
+			return gui_theme_t::gui_arrow_up_size;
+
+		case arrowdown:
+			return gui_theme_t::gui_arrow_down_size;
+
+		case square: {
+			scr_coord_val w = translated_text ?  D_H_SPACE + proportional_string_width( translated_text ) : 0;
+			return scr_size(w + gui_theme_t::gui_checkbox_size.w, max(gui_theme_t::gui_checkbox_size.h,LINESPACE));
+		}
+		case box:
+		case roundbox: {
+			scr_coord_val w = translated_text ?  2*D_H_SPACE + proportional_string_width( translated_text ) : 0;
+			scr_size size = type & flexible ?
+				scr_size(gui_theme_t::gui_button_size.w, max(D_BUTTON_HEIGHT, LINESPACE)) : scr_size (get_size().w, max(D_BUTTON_HEIGHT,LINESPACE));
+			size.w = max(size.w, w);
+			return size;
+		}
+		default:
+			return gui_component_t::get_min_size();
+	}
+}
+
 /**
  * Sets the text displayed in the button
- * @author Hj. Malthaner
  */
 void button_t::set_text(const char * text)
 {
 	this->text = text;
 	translated_text = b_no_translate ? text : translator::translate(text);
 
-	if(  (type & STATE_MASK) == square  &&  !strempty(translated_text)  ) {
+	if(  (type & TYPE_MASK) == square  &&  !strempty(translated_text)  ) {
 		set_size( scr_size( gui_theme_t::gui_checkbox_size.w + D_H_SPACE + proportional_string_width( translated_text ), max(gui_theme_t::gui_checkbox_size.h, LINESPACE)) );
 	}
 }
@@ -149,7 +202,6 @@ void button_t::set_text(const char * text)
 
 /**
  * Sets the tooltip of this button
- * @author Hj. Malthaner
  */
 void button_t::set_tooltip(const char * t)
 {
@@ -166,7 +218,7 @@ void button_t::set_tooltip(const char * t)
 bool button_t::getroffen(int x,int y)
 {
 	bool hit=gui_component_t::getroffen(x, y);
-	if(  pressed  &&  !hit  &&  type <= STATE_MASK  ) {
+	if(  pressed  &&  !hit  &&  ( (type & STATE_BIT) == 0)  ) {
 		// moved away
 		pressed = 0;
 	}
@@ -176,7 +228,6 @@ bool button_t::getroffen(int x,int y)
 
 /**
  * Event responder
- * @author Hj. Malthaner
  */
 bool button_t::infowin_event(const event_t *ev)
 {
@@ -198,42 +249,43 @@ bool button_t::infowin_event(const event_t *ev)
 		return false;
 	}
 
-	// Hajo: we ignore resize events, they shouldn't make us
-	// pressed or unpressed
+	// we ignore resize events, they shouldn't make us pressed or unpressed
 	if(!b_enabled  ||  IS_WINDOW_RESIZE(ev)) {
 		return false;
 	}
 
-	// Knightly : check if the initial click and the current mouse positions are within the button's boundary
+	// check if the initial click and the current mouse positions are within the button's boundary
 	bool const cxy_within_boundary = 0 <= ev->cx && ev->cx < get_size().w && 0 <= ev->cy && ev->cy < get_size().h;
 	bool const mxy_within_boundary = 0 <= ev->mx && ev->mx < get_size().w && 0 <= ev->my && ev->my < get_size().h;
 
-	// Knightly : update the button pressed state only when mouse positions are within boundary or when it is mouse release
-	if(  type<=STATE_MASK  &&  cxy_within_boundary  &&  (  mxy_within_boundary  ||  IS_LEFTRELEASE(ev)  )  ) {
-		// Hajo: check button state, if we should look depressed
+	// update the button pressed state only when mouse positions are within boundary or when it is mouse release
+	if(  (type & STATE_BIT) == 0  &&  cxy_within_boundary  &&  (  mxy_within_boundary  ||  IS_LEFTRELEASE(ev)  )  ) {
 		pressed = (ev->button_state==1);
 	}
 
-	// Knightly : make sure that the button will take effect only when the mouse positions are within the component's boundary
+	// make sure that the button will take effect only when the mouse positions are within the component's boundary
 	if(  !cxy_within_boundary  ||  !mxy_within_boundary  ) {
 		return false;
 	}
 
-	if(  type>AUTOMATIC_MASK  &&  IS_LEFTCLICK(ev)  ) {
-		pressed = !pressed;
-	}
-
 	if(IS_LEFTRELEASE(ev)) {
-		if(  type==posbutton  ) {
-			koord k(targetpos.x,targetpos.y);
-			call_listeners( &k );
+		if(  (type & TYPE_MASK)==posbutton  ) {
+			call_listeners( &targetpos );
+			if (type == posbutton_automatic) {
+				welt->get_viewport()->change_world_position( targetpos );
+			}
+
 		}
 		else {
+			if(  type & AUTOMATIC_BIT  ) {
+				pressed = !pressed;
+			}
+
 			call_listeners( (long)0 );
 		}
 	}
 	else if(IS_LEFTREPEAT(ev)) {
-		if((type&STATE_MASK)>=repeatarrowleft) {
+		if((type&TYPE_MASK)>=repeatarrowleft) {
 			call_listeners( (long)1 );
 		}
 	}
@@ -246,10 +298,10 @@ void button_t::draw_focus_rect( scr_rect r, scr_coord_val offset) {
 
 	scr_coord_val w = ((offset-1)<<1);
 
-	display_fillbox_wh_clip(r.x-offset+1,     r.y-1-offset+1,    r.w+w, 1, COL_WHITE, false);
-	display_fillbox_wh_clip(r.x-offset+1,     r.y+r.h+offset-1,  r.w+w, 1, COL_WHITE, false);
-	display_vline_wh_clip  (r.x-offset,       r.y-offset+1,      r.h+w,    COL_WHITE, false);
-	display_vline_wh_clip  (r.x+r.w+offset-1, r.y-offset+1,      r.h+w,    COL_WHITE, false);
+	display_fillbox_wh_clip_rgb(r.x-offset+1,     r.y-1-offset+1,    r.w+w, 1, color_idx_to_rgb(COL_WHITE), false);
+	display_fillbox_wh_clip_rgb(r.x-offset+1,     r.y+r.h+offset-1,  r.w+w, 1, color_idx_to_rgb(COL_WHITE), false);
+	display_vline_wh_clip_rgb  (r.x-offset,       r.y-offset+1,      r.h+w,    color_idx_to_rgb(COL_WHITE), false);
+	display_vline_wh_clip_rgb  (r.x+r.w+offset-1, r.y-offset+1,      r.h+w,    color_idx_to_rgb(COL_WHITE), false);
 }
 
 
@@ -261,10 +313,10 @@ void button_t::draw(scr_coord offset)
 	}
 
 	const scr_rect area( offset+pos, size );
-	COLOR_VAL text_color = pressed ? SYSCOL_BUTTON_TEXT_SELECTED : this->text_color;
+	PIXVAL text_color = pressed ? SYSCOL_BUTTON_TEXT_SELECTED : this->text_color;
 	text_color = b_enabled ? text_color : SYSCOL_BUTTON_TEXT_DISABLED;
 
-	switch (type&STATE_MASK) {
+	switch (type&TYPE_MASK) {
 
 		case box: // Colored background box
 			{
@@ -276,7 +328,7 @@ void button_t::draw(scr_coord offset)
 					scr_rect area_text = area - gui_theme_t::gui_color_button_text_offset_right;
 					area_text.set_pos( gui_theme_t::gui_color_button_text_offset + area.get_pos() );
 					if (pressed) { area_text.y++; }
-					display_proportional_ellipse( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
+					display_proportional_ellipsis_rgb( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
 				}
 				if(  win_get_focus()==this  ) {
 					draw_focus_rect( area );
@@ -292,7 +344,11 @@ void button_t::draw(scr_coord offset)
 					scr_rect area_text = area - gui_theme_t::gui_button_text_offset_right;
 					area_text.set_pos( gui_theme_t::gui_button_text_offset + area.get_pos() );
 					if (pressed) { area_text.y++; }
-					display_proportional_ellipse( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
+					display_proportional_ellipsis_rgb( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
+				}
+				else if(image) {
+					const scr_rect img_area = pressed ? scr_rect(area.x, area.y+1, area.w, area.h) : area;
+					display_img_aligned(image, img_area, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true);
 				}
 				if(  win_get_focus()==this  ) {
 					draw_focus_rect( area );
@@ -307,7 +363,8 @@ void button_t::draw(scr_coord offset)
 					text_color = b_enabled ? this->text_color : SYSCOL_CHECKBOX_TEXT_DISABLED;
 					scr_rect area_text = area;
 					area_text.x += gui_theme_t::gui_checkbox_size.w + D_H_SPACE;
-					display_proportional_ellipse( area_text, translated_text, ALIGN_LEFT | ALIGN_CENTER_V | DT_CLIP, text_color, true );
+					area_text.w -= gui_theme_t::gui_checkbox_size.w + D_H_SPACE;
+					display_proportional_ellipsis_rgb( area_text, translated_text, ALIGN_LEFT | ALIGN_CENTER_V | DT_CLIP, text_color, true );
 				}
 				if(  win_get_focus() == this  ) {
 					draw_focus_rect( scr_rect( area.get_pos()+scr_coord(0,(area.get_size().h-gui_theme_t::gui_checkbox_size.w)/2), gui_theme_t::gui_checkbox_size ) );
@@ -319,7 +376,7 @@ void button_t::draw(scr_coord offset)
 			{
 				uint8 offset = get_state_offset();
 				if(  offset == 0  ) {
-					if(  grund_t *gr = welt->lookup_kartenboden(targetpos.x,targetpos.y)  ) {
+					if(  grund_t *gr = welt->lookup_kartenboden(targetpos.get_2d())  ) {
 						offset = welt->get_viewport()->is_on_center( gr->get_pos() );
 					}
 				}
@@ -344,6 +401,8 @@ void button_t::draw(scr_coord offset)
 		case arrowdown:
 			display_img_aligned( gui_theme_t::arrow_button_down_img[ get_state_offset() ], area, ALIGN_CENTER_H|ALIGN_CENTER_V, true );
 			break;
+
+		default: ;
 	}
 
 	if(  translated_tooltip  &&  getroffen( get_mouse_x()-offset.x, get_mouse_y()-offset.y )  ) {
@@ -354,7 +413,7 @@ void button_t::draw(scr_coord offset)
 
 void button_t::update_focusability()
 {
-	switch (type&STATE_MASK) {
+	switch (type&TYPE_MASK) {
 
 		case box:      // Old, 4-line box
 		case roundbox: // New box with round corners

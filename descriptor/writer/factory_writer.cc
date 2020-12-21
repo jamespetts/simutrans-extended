@@ -24,7 +24,7 @@ void factory_field_class_writer_t::write_obj(FILE* outfp, obj_node_t& parent, co
 
 	xref_writer_t::instance()->write_obj(outfp, node, obj_field, field_name, true);
 
-	// Knightly : data specific to each field class
+	// data specific to each field class
 	node.write_uint16(outfp, 0x8001,     0); // version
 	node.write_uint8 (outfp, snow_image, 2);
 	node.write_uint16(outfp, production, 3);
@@ -53,7 +53,7 @@ void factory_field_group_writer_t::write_obj(FILE* outfp, obj_node_t& parent, ta
 		factory_field_class_writer_t::instance()->write_obj(outfp, node, field_name, snow_image, production, capacity, weight);
 	}
 	else {
-		// Knightly : for each field class, retrieve its data and write a field class node
+		// for each field class, retrieve its data and write a field class node
 		for (field_classes = 0;; ++field_classes) {
 			char buf[64];
 
@@ -119,8 +119,8 @@ void factory_product_writer_t::write_obj(FILE* outfp, obj_node_t& parent, int ca
 
 	xref_writer_t::instance()->write_obj(outfp, node, obj_good, warename, true);
 
-	// Hajo: Version needs high bit set as trigger -> this is required
-	//       as marker because formerly nodes were unversioned
+	// Version needs high bit set as trigger -> this is required
+	// as marker because formerly nodes were unversioned
 	// new version 2: pax-level added
 	node.write_uint16(outfp, 0x8001,   0);
 
@@ -164,6 +164,9 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		!STRICMP(placing, "land")  ? factory_desc_t::Land   :
 		!STRICMP(placing, "water") ? factory_desc_t::Water :
 		!STRICMP(placing, "city")  ? factory_desc_t::City  :
+		!STRICMP(placing, "river") ? factory_desc_t::river  :
+		!STRICMP(placing, "shore") ? factory_desc_t::shore  :
+		!STRICMP(placing, "forest")? factory_desc_t::forest :
 		factory_desc_t::Land;
 	uint16 const productivity = obj.get_int("productivity",        10);
 	uint16 const range        = obj.get_int("range",               10);
@@ -187,14 +190,15 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint16 electric_demand       =  obj.get_int("electricity_amount", 65535);
 	electric_demand              =  obj.get_int("electricity_demand", electric_demand);
 	uint16 const max_distance_to_consumer = obj.get_int("max_distance_to_consumer", 65535); // In km, not tiles.
+	uint16 const max_distance_to_supplier = obj.get_int("max_distance_to_supplier", 65535); // In km, not tiles.
 	// how long between sounds
 	uint32 const sound_interval = obj.get_int("sound_interval", 10000u);
 
-	uint16 total_len = 46;
+	uint16 total_len = 48;
 
-	// prissi: must be done here, since it may affect the len of the header!
-	string sound_str = ltrim(obj.get("sound"));
-	sint16 sound_id = NO_SOUND;
+	// must be done here, since it may affect the len of the header!
+	string sound_str = ltrim( obj.get("sound") );
+	sint8 sound_id=NO_SOUND;
 	if (!sound_str.empty()) {
 		// ok, there is some sound
 		sound_id = atoi(sound_str.c_str());
@@ -271,7 +275,7 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// fields (careful, are xref'ed)
 	uint8 fields = 0;
 	if(  *obj.get("fields")  ||  *obj.get("fields[0]")  ) {
-		// Knightly : at least one field class available
+		// at least one field class available
 		fields = 1;
 		factory_field_group_writer_t::instance()->write_obj(fp, node, obj);
 	}
@@ -309,7 +313,8 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// 0x300 - version 12.0 and greater. Removes passenger/mail parameters,
 	// which are now in the gebaeude_t objects, and adds max_distance_to_consumer.
 	// 0x400 - 16-bit sound ID
-	version += 0x400;
+	// 0x500 - 14.11 - max distance to supplier added
+	version += 0x500;
 
 	node.write_uint16(fp, version,						0);
 	node.write_uint16(fp, placement,					2);
@@ -329,17 +334,18 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint16(fp, electric_boost,				27);
 	node.write_uint16(fp, pax_boost,					29);
 	node.write_uint16(fp, mail_boost,					31);
-	node.write_uint16(fp,  electric_demand,				33);
+	node.write_uint16(fp, electric_demand,				33);
 	node.write_uint16(fp, max_distance_to_consumer,		35);
 	node.write_uint32(fp, sound_interval,				37);
 	node.write_uint16(fp, sound_id,						41);
-	node.write_uint8(fp, field_output_divider, 			43);
+	node.write_uint8(fp,  field_output_divider, 		43);
+	node.write_uint16(fp, max_distance_to_supplier,		45);
 
 	// this should be always at the end
 	sint8 sound_str_len = sound_str.size();
 	if (sound_str_len > 0) {
-		node.write_sint8(fp, sound_str_len, 44);
-		node.write_data_at(fp, sound_str.c_str(), 45, sound_str_len);
+		node.write_sint8(fp, sound_str_len, 46);
+		node.write_data_at(fp, sound_str.c_str(), 47, sound_str_len);
 	}
 
 	node.write(fp);

@@ -3,12 +3,14 @@
  * (see LICENSE.txt)
  */
 
-#ifndef simline_h
-#define simline_h
+#ifndef SIMLINE_H
+#define SIMLINE_H
 
+
+#include "simtypes.h"
+#include "simcolor.h"
 #include "convoihandle_t.h"
 #include "linehandle_t.h"
-#include "simtypes.h"
 #include "simconvoi.h"
 
 #include "tpl/minivec_tpl.h"
@@ -34,7 +36,8 @@ enum line_cost_t {
 	LINE_REFUNDS,				//  9 |   | Total refunds paid to passengers/goods owners desiring to use this line but kept waiting too long to do so.
 	LINE_DEPARTURES,			// 10 |   | number of departures of convoys on this line from scheduled points
 	LINE_DEPARTURES_SCHEDULED,	// 11 |   | number of departures scheduled on this line from scheduled departure points
-	MAX_LINE_COST				// 12 | 9 | Total number of cost items
+	LINE_WAYTOLL,				// 12 | 8 |
+	MAX_LINE_COST				// 13 | 9 | Total number of cost items
 };
 
 class karte_ptr_t;
@@ -47,7 +50,11 @@ class simline_t {
 public:
 	enum linetype { line = 0, truckline = 1, trainline = 2, shipline = 3, airline = 4, monorailline=5, tramline=6, maglevline=7, narrowgaugeline=8, MAX_LINE_TYPE};
 
-	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 3, line_overcrowded = 4, line_missing_scheduled_slots = 5, line_has_obsolete_vehicles = 6, line_has_obsolete_vehicles_with_upgrades = 7 };
+	enum line_fireight_group { all_ftype = 0, all_pas = 1, all_mail = 2, all_freight = 3 };
+
+	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64	};
+
+	static const uint linetype_to_stationtype[simline_t::MAX_LINE_TYPE];
 
 protected:
 	schedule_t * schedule;
@@ -63,24 +70,21 @@ private:
 	/**
 	 * Handle for ourselves. Can be used like the 'this' pointer
 	 * Initialized by constructors
-	 * @author Hj. Malthaner
 	 */
 	linehandle_t self;
 
-	/*
+	/**
 	 * the current state saved as color
 	 * Meanings are BLACK (ok), WHITE (no convois), YELLOW (no vehicle moved), RED (last month income minus), BLUE (at least one convoi vehicle is obsolete)
 	 */
-	uint8 state_color;
+	PIXVAL state_color;
 
-	/*
+	/**
 	 * a list of all convoys assigned to this line
-	 * @author hsiegeln
 	 */
 	vector_tpl<convoihandle_t> line_managed_convoys;
 
-	/*
-	 * @author hsiegeln
+	/**
 	 * a list of all catg_index, which can be transported by this line.
 	 */
 	minivec_tpl<uint8> goods_catg_index;
@@ -91,9 +95,8 @@ private:
 	vector_tpl<uint8> passenger_classes_carried;
 	vector_tpl<uint8> mail_classes_carried;
 
-	/*
+	/**
 	 * struct holds new financial history for line
-	 * @author hsiegeln
 	 */
 	sint64 financial_history[MAX_MONTHS][MAX_LINE_COST];
 
@@ -122,7 +125,7 @@ private:
 	// @author: suitougreentea
 	times_history_map journey_times_history;
 
-	states state;
+	uint8 state;
 
 public:
 	simline_t(player_t *player, linetype type);
@@ -132,51 +135,44 @@ public:
 
 	linehandle_t get_handle() const { return self; }
 
-	/*
+	/**
 	 * add convoy to route
-	 * @author hsiegeln
 	 */
 	void add_convoy(convoihandle_t cnv, bool from_loading = false);
 
-	/*
+	/**
 	 * remove convoy from route
-	 * @author hsiegeln
 	 */
 	void remove_convoy(convoihandle_t cnv);
 
-	/*
+	/**
 	 * get convoy
-	 * @author hsiegeln
 	 */
 	convoihandle_t get_convoy(int i) const { return line_managed_convoys[i]; }
 
-	/*
+	/**
 	 * return number of manages convoys in this line
-	 * @author hsiegeln
 	 */
 	uint32 count_convoys() const { return line_managed_convoys.get_count(); }
 
 	vector_tpl<convoihandle_t> const& get_convoys() const { return line_managed_convoys; }
 
-	/*
+	/**
 	 * returns the state of the line
-	 * @author prissi
 	 */
-	uint8 get_state_color() const { return state_color; }
+	PIXVAL get_state_color() const { return state_color; }
+	// This has multiple flags
+	uint8 get_state() const { return state; }
 
-	int get_state() const { return state; }
-
-	/*
-	 * return schedule of line
-	 * @author hsiegeln
+	/**
+	 * return the schedule of the line
 	 */
 	schedule_t * get_schedule() const { return schedule; }
 
 	void set_schedule(schedule_t* schedule);
 
-	/*
+	/**
 	 * get name of line
-	 * @author hsiegeln
 	 */
 	char const* get_name() const { return name; }
 	void set_name(const char *str) { name = str; }
@@ -243,7 +239,13 @@ public:
 	void new_month();
 
 	linetype get_linetype() { return type; }
-	static linetype get_linetype( const waytype_t wt );
+
+	static waytype_t linetype_to_waytype(const linetype lt);
+	static linetype waytype_to_linetype(const waytype_t wt);
+	static const char *get_linetype_name(const linetype lt);
+	inline char const *get_linetype_name() const {
+		return schedule_type_text[type];
+	}
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
@@ -268,6 +270,7 @@ public:
 	bool get_withdraw() const { return withdraw; }
 
 	player_t *get_owner() const {return player;}
+	void set_owner(player_t* value) { player = value; }
 
 	void recalc_status();
 
@@ -278,6 +281,16 @@ public:
 	inline journey_times_map& get_average_journey_times() { return average_journey_times; }
 
 	inline times_history_map& get_journey_times_history() { return journey_times_history; }
+
+	image_id get_linetype_symbol() const
+	{
+		if (type == truckline && goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) {
+			return skinverwaltung_t::bushaltsymbol->get_image_id(0);
+		}
+		else {
+			return schedule->get_schedule_type_symbol();
+		}
+	}
 
 	sint64 calc_departures_scheduled();
 };

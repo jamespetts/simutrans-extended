@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_theme_h
-#define gui_theme_h
+#ifndef GUI_GUI_THEME_H
+#define GUI_GUI_THEME_H
+
 
 #include "../dataobj/koord.h"
 #include "../simcolor.h"
@@ -16,7 +17,7 @@ class image_t;
 /*
  * The following gives positioning aids for elements in dialogues
  * Only those, LINESPACE, and dimensions of elements itself must be
- * exclusively used to calculate positions in dialoguess to have a
+ * exclusively used to calculate positions in dialogues to have a
  * scalable interface
  *
  * Max Kielland:
@@ -27,6 +28,8 @@ class image_t;
 #define D_BUTTON_SIZE          (gui_theme_t::gui_button_size  )
 #define D_BUTTON_WIDTH         (gui_theme_t::gui_button_size.w)
 #define D_BUTTON_HEIGHT        (gui_theme_t::gui_button_size.h)
+#define D_WIDE_BUTTON_SIZE     (scr_size(D_BUTTON_WIDTH*3/2,D_BUTTON_HEIGHT))
+#define D_WIDE_BUTTON_WIDTH    (D_BUTTON_WIDTH*3/2)
 
 #define D_FILTER_BUTTON_SIZE   (gui_theme_t::gui_color_button_size  )
 #define D_FILTER_BUTTON_WIDTH  (gui_theme_t::gui_color_button_size.w)
@@ -91,7 +94,7 @@ class image_t;
 #define D_TITLEBAR_HEIGHT      (gui_theme_t::gui_titlebar_height)
 #define D_DIVIDER_HEIGHT       (gui_theme_t::gui_divider_size.h)
 #define D_STATUSBAR_HEIGHT     (max(16,LINESPACE))                    // statusbar bottom of screen
-#define D_TAB_HEADER_HEIGHT      (gui_tab_panel_t::header_vsize)        // Tab page params (replace with real values from the skin images)
+#define D_TAB_HEADER_HEIGHT    (gui_tab_panel_t::header_vsize)        // Tab page params (replace with real values from the skin images)
 
 // Dialog borders
 #define D_MARGIN_LEFT          (gui_theme_t::gui_frame_left)
@@ -106,6 +109,9 @@ class image_t;
 // space between two elements
 #define D_H_SPACE              (gui_theme_t::gui_hspace)
 #define D_V_SPACE              (gui_theme_t::gui_vspace)
+
+// bars of goods waiting in stations
+#define D_WAITINGBAR_WIDTH     (gui_theme_t::gui_waitingbar_width)
 
 // Button grid helpers
 #define BUTTON1_X     (D_MARGIN_LEFT)
@@ -122,6 +128,8 @@ class image_t;
 // Max Kielland: align helper, returns the offset to apply to N1 for a center alignment around N2
 #define D_GET_CENTER_ALIGN_OFFSET(N1,N2) ((N2-N1)>>1)
 #define D_GET_FAR_ALIGN_OFFSET(N1,N2) (N2-N1)
+
+#define D_FILELIST_V_SPACE (gui_theme_t::gui_filelist_vspace)
 
 #define TOOLTIP_MOUSE_OFFSET_X (16)
 #define TOOLTIP_MOUSE_OFFSET_Y (12)
@@ -141,7 +149,7 @@ enum {
 	SKIN_WINDOW_RESIZE,
 	SKIN_GADGET_GOTOPOS,
 //	SKIN_GADGET_BUTTON,
-	SKIN_GADGET_COUNT,	// maximum number, NOT AN IMAGE
+	SKIN_GADGET_COUNT, // maximum number, NOT AN IMAGE
 
 	// scrollbars horizontal
 	SKIN_BUTTON_ARROW_LEFT = 0,
@@ -200,38 +208,51 @@ class gui_theme_t {
 public:
 	/// @name system colours used by gui components
 	/// @{
-	static COLOR_VAL gui_color_text;                         //@< Color to draw standard text
-	static COLOR_VAL gui_color_text_highlight;               //@< Color to draw highlighted text (tabs, finance window headlines, ware list, fps info in video options, it and em tags)
-	static COLOR_VAL gui_color_text_title;                   //@< Color to draw title text (banner, h1 and a tags)
-	static COLOR_VAL gui_color_text_shadow;                  //@< Color to draw text shadow
-	static COLOR_VAL gui_color_text_strong;                  //@< Color to draw strong text (strong tags)
-	static COLOR_VAL gui_color_edit_text;                    //@< Color to draw text in edit areas
-	static COLOR_VAL gui_color_edit_text_selected;           //@< Color to draw selected text in edit areas
-	static COLOR_VAL gui_color_edit_text_disabled;           //@< Color to draw disabled text in edit areas
-	static COLOR_VAL gui_color_edit_background_selected;     //@< Color to draw background of selected text in edit areas
-	static COLOR_VAL gui_color_edit_beam;                    //@< Color to draw the cursor beam
-	static COLOR_VAL gui_color_chart_background;             //@< Color to draw background of charts
-	static COLOR_VAL gui_color_chart_lines_zero;             //@< Color to draw in-chart horizontal zero line
-	static COLOR_VAL gui_color_chart_lines_odd;              //@< Color to draw in-chart vertical odd lines and text
-	static COLOR_VAL gui_color_chart_lines_even;             //@< Color to draw in-chart vertical even lines and text
-	static COLOR_VAL gui_color_list_text_selected_focus;     //@< Colour to draw the selected element text in list when window has focus
-	static COLOR_VAL gui_color_list_text_selected_nofocus;   //@< Colour to draw the selected element text in list when window is not in focus
-	static COLOR_VAL gui_color_list_background_selected_f;   //@< Colour to draw the selected element background in list when window has focus
-	static COLOR_VAL gui_color_list_background_selected_nf;  //@< Colour to draw the selected element background in list when window is not in focus
-	static COLOR_VAL gui_color_button_text;                  //@< Color to draw text in normal buttons
-	static COLOR_VAL gui_color_button_text_disabled;         //@< Color to draw text in disabled buttons
-	static COLOR_VAL gui_color_button_text_selected;         //@< Color to draw text in pressed normal buttons
-	static COLOR_VAL gui_color_colored_button_text;          //@< Color to draw text in colored buttons
-	static COLOR_VAL gui_color_colored_button_text_selected; //@< Color to draw text in pressed colored buttons
-	static COLOR_VAL gui_color_checkbox_text;                //@< Color to draw text in checkboxes
-	static COLOR_VAL gui_color_checkbox_text_disabled;       //@< Color to draw text in disabled checkboxes
-	static COLOR_VAL gui_color_ticker_background;            //@< Color to draw ticker background
-	static COLOR_VAL gui_color_ticker_divider;               //@< Color to draw ticker divider
-	static COLOR_VAL gui_color_statusbar_text;               //@< Color to draw text in statusbar
-	static COLOR_VAL gui_color_statusbar_background;         //@< Color to draw statusbar background
-	static COLOR_VAL gui_color_statusbar_divider;            //@< Color to draw statusbar divider
-	static COLOR_VAL gui_highlight_color;                    //@< Color to draw highlight dividers (tabs)
-	static COLOR_VAL gui_shadow_color;                       //@< Color to draw shadowed dividers (tabs)
+	static PIXVAL gui_color_text;                         //@< Color to draw standard text
+	static PIXVAL gui_color_text_highlight;               //@< Color to draw highlighted text (tabs, finance window headlines, ware list, fps info in video options, it and em tags)
+	static PIXVAL gui_color_text_title;                   //@< Color to draw title text (banner, h1 and a tags)
+	static PIXVAL gui_color_text_shadow;                  //@< Color to draw text shadow
+	static PIXVAL gui_color_text_strong;                  //@< Color to draw strong text (strong tags)
+	static PIXVAL gui_color_text_inactive;                //@< Color to make it a little less noticeable than regular text
+	static PIXVAL gui_color_text_placeholder;             //@< Color for displaying inconspicuous characters in the input field
+	static PIXVAL gui_color_text_minus;                   //@< Color to draw negative values
+	static PIXVAL gui_color_text_plus;                    //@< Color to draw positive values
+	static PIXVAL gui_color_text_unused;                  //@< Color to draw unused items
+	static PIXVAL gui_color_edit_text;                    //@< Color to draw text in edit areas
+	static PIXVAL gui_color_edit_text_selected;           //@< Color to draw selected text in edit areas
+	static PIXVAL gui_color_edit_text_disabled;           //@< Color to draw disabled text in edit areas
+	static PIXVAL gui_color_edit_background_selected;     //@< Color to draw background of selected text in edit areas
+	static PIXVAL gui_color_edit_beam;                    //@< Color to draw the cursor beam
+	static PIXVAL gui_color_chart_background;             //@< Color to draw background of charts
+	static PIXVAL gui_color_chart_lines_zero;             //@< Color to draw in-chart horizontal zero line
+	static PIXVAL gui_color_chart_lines_odd;              //@< Color to draw in-chart vertical odd lines and text
+	static PIXVAL gui_color_chart_lines_even;             //@< Color to draw in-chart vertical even lines and text
+	static PIXVAL gui_color_list_text_selected_focus;     //@< Colour to draw the selected element text in list when window has focus
+	static PIXVAL gui_color_list_text_selected_nofocus;   //@< Colour to draw the selected element text in list when window is not in focus
+	static PIXVAL gui_color_list_background_selected_f;   //@< Colour to draw the selected element background in list when window has focus
+	static PIXVAL gui_color_list_background_selected_nf;  //@< Colour to draw the selected element background in list when window is not in focus
+	static PIXVAL gui_color_button_text;                  //@< Color to draw text in normal buttons
+	static PIXVAL gui_color_button_text_disabled;         //@< Color to draw text in disabled buttons
+	static PIXVAL gui_color_button_text_selected;         //@< Color to draw text in pressed normal buttons
+	static PIXVAL gui_color_colored_button_text;          //@< Color to draw text in colored buttons
+	static PIXVAL gui_color_colored_button_text_selected; //@< Color to draw text in pressed colored buttons
+	static PIXVAL gui_color_checkbox_text;                //@< Color to draw text in checkboxes
+	static PIXVAL gui_color_checkbox_text_disabled;       //@< Color to draw text in disabled checkboxes
+	static PIXVAL gui_color_ticker_background;            //@< Color to draw ticker background
+	static PIXVAL gui_color_ticker_divider;               //@< Color to draw ticker divider
+	static PIXVAL gui_color_statusbar_text;               //@< Color to draw text in statusbar
+	static PIXVAL gui_color_statusbar_background;         //@< Color to draw statusbar background
+	static PIXVAL gui_color_statusbar_divider;            //@< Color to draw statusbar divider
+	static PIXVAL gui_highlight_color;                    //@< Color to draw highlight dividers (tabs)
+	static PIXVAL gui_shadow_color;                       //@< Color to draw shadowed dividers (tabs)
+	static PIXVAL gui_color_loadingbar_inner;
+	static PIXVAL gui_color_loadingbar_progress;
+	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
+	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
+	static PIXVAL gui_color_empty;                        //@< Color for empty entries
+	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
+	static PIXVAL gui_color_down_pointing_triangle;       //@< (EX unique) Color to draw an downward triangle indicating an decrease in the number
+
 	/// @}
 
 	/// @name GUI element sizes used by gui components
@@ -248,7 +269,7 @@ public:
 	static scr_size gui_arrow_up_size;
 	static scr_size gui_arrow_down_size;
 	static scr_size gui_scrollbar_size;
-	static scr_size gui_min_scrollbar_size;	// minimum width and height of a scrollbar slider
+	static scr_size gui_min_scrollbar_size; // minimum width and height of a scrollbar slider
 	static scr_size gui_label_size;
 	static scr_size gui_edit_size;
 	static scr_size gui_indicator_size;
@@ -264,6 +285,10 @@ public:
 	static KOORD_VAL gui_frame_bottom;
 	static KOORD_VAL gui_hspace;
 	static KOORD_VAL gui_vspace;
+	static KOORD_VAL gui_waitingbar_width;
+
+	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
+	static KOORD_VAL gui_filelist_vspace;
 	/// @}
 
 	// those are the 3x3 images which are used for stretching
@@ -289,8 +314,6 @@ public:
 
 	static bool gui_drop_shadows;
 
-	// on loading font, try to get one this size
-	static uint8 request_linespace;
 
 public:
 	// default dimensions and colors
@@ -305,8 +328,7 @@ public:
 	/**
 	 * Reads theme configuration data, still not final
 	 * searches a theme.tab inside the specified folder
-	 * @author prissi
 	 */
-	static bool themes_init(const char *dir_name);
+	static bool themes_init(const char *dir_name,bool init_font,bool init_tools);
 };
 #endif

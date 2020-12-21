@@ -68,6 +68,8 @@ register_function("get_about_text");
  * - \<a href="..."\>: insert hyper link, text between start and end tag will be colored blue.
  *       - link to another tab of scenario info window: href="tabname", where tabname is one of: info, goal, rules, result, about
  *       - link to position on the map: href="(x,y)" or href="(x,y,z)", click on link will jump to the map position
+ *       - call scripted method: href="script:bla(1)" will call bla(1). The characters \>, ', \" are not allowed in the string and will produce weird results.
+ *         The called method should return quickly.
  *
  * @code
  * <h1>Here is an example.</h1>
@@ -122,6 +124,17 @@ register_function("get_result_text");
  * @typemask string(integer)
  */
 register_function("get_debug_text");
+
+/**
+ * Returns string containing the version of the api
+ * that the scenario supports.
+ *
+ * If it returns "*" then this indicates that the scenario works in the most current api version.
+ * Currently "112.3" and "120.1" are supported.
+ *
+ * @typemask string()
+ */
+register_function("get_api_version");
 
 /**
  * Core function of a scenario: It returns the completion percentage for the

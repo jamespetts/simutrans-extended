@@ -3,11 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * High-Level soundschnittstelle
- * von Hj. Maltahner, 1998, 2000
- */
-
 #include <stdio.h>
 #include <string.h>
 #include "macros.h"
@@ -15,7 +10,7 @@
 #include "descriptor/sound_desc.h"
 #include "sound/sound.h"
 #include "simsound.h"
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "simio.h"
 #include "simdebug.h"
 
@@ -25,65 +20,57 @@
 #include "utils/simstring.h"
 
 
-/**
- * max sound index
- * @author hj. Malthaner
- */
 static bool        new_midi = false;
 static plainstring midi_title[MAX_MIDI];
 
-
-/**
- * Gesamtlautstärke
- * @author hj. Malthaner
- */
-
 static int max_midi = -1; // number of MIDI files
 
-static int current_midi = -1;  // Hajo: init with error condition,
-                               // reset during loading
+static int current_midi = -1;  // init with error condition, reset during loading
 
 
-
-/**
- * setzt lautstärke für all effekte
- * @author Hj. Malthaner
- */
 void sound_set_global_volume(int volume)
 {
 	env_t::global_volume = volume;
 }
 
 
-/**
- * ermittelt lautstaärke für all effekte
- * @author Hj. Malthaner
- */
+void sound_set_specific_volume( int volume, sound_type_t t)
+{
+	env_t::specific_volume[t] = volume;
+}
+
+
 int sound_get_global_volume()
 {
 	return env_t::global_volume;
 }
 
 
-void sound_set_mute(bool on)
+int sound_get_specific_volume( sound_type_t t )
 {
-	env_t::mute_sound = on;
+	return env_t::specific_volume[t];
 }
+
+
+void sound_set_mute(bool f)
+{
+	env_t::global_mute_sound = f;
+}
+
 
 bool sound_get_mute()
 {
-	return (  env_t::mute_sound  ||  SFX_CASH == NO_SOUND  );
+	return (  env_t::global_mute_sound  );
 }
 
 
-void sound_play(uint16 const idx, uint8 const volume)
+void sound_play(uint16 const idx, uint8 const v, sound_type_t t)
 {
-	if(  idx != (uint16)NO_SOUND  &&  !env_t::mute_sound  ) {
-	  dr_play_sample(idx, volume * env_t::global_volume >> 8);
+	uint32 volume = v;
+	if(  idx != (uint16)NO_SOUND  &&  !env_t::global_mute_sound  ) {
+		dr_play_sample(idx, ( (volume  * env_t::global_volume * env_t::specific_volume[t] ) >> 16) );
 	}
 }
-
-
 
 
 bool sound_get_shuffle_midi()
@@ -91,33 +78,23 @@ bool sound_get_shuffle_midi()
 	return env_t::shuffle_midi;
 }
 
+
 void sound_set_shuffle_midi( bool shuffle )
 {
 	env_t::shuffle_midi = shuffle;
 }
 
 
-
-/**
- * setzt Lautstärke für MIDI playback
- * @param volume volume in range 0..255
- * @author Hj. Malthaner
- */
 void sound_set_midi_volume(int volume)
 {
 	if(  !env_t::mute_midi  &&  max_midi > -1  ) {
-	  dr_set_midi_volume(volume);
+		dr_set_midi_volume(volume);
 	}
 	env_t::midi_volume = volume;
 }
 
 
 
-/**
- * ermittelt Lautstärke für MIDI playback
- * @return volume in range 0..255
- * @author Hj. Malthaner
- */
 int sound_get_midi_volume()
 {
 	return env_t::midi_volume;
@@ -127,22 +104,20 @@ int sound_get_midi_volume()
 
 /**
  * gets midi title
- * @author Hj. Malthaner
  */
 const char *sound_get_midi_title(int index)
 {
 	if (  index >= 0  &&  index <= max_midi  ) {
-	  return midi_title[index];
+		return midi_title[index];
 	}
 	else {
-	  return "Invalid MIDI index!";
+		return "Invalid MIDI index!";
 	}
 }
 
 
 /**
  * gets current midi number
- * @author Hj. Malthaner
  */
 int get_current_midi()
 {
@@ -153,52 +128,50 @@ int get_current_midi()
 
 /**
  * Load MIDI files
- * By Owen Rudge
  */
 int midi_init(const char *directory)
 {
 	// read a list of soundfiles
-	char full_path[1024];
+	std::string full_path = std::string(directory) + "music" + PATH_SEPARATOR + "music.tab";
 
-	sprintf( full_path, "%smusic/music.tab", directory );
-	if(  FILE* const file = fopen(full_path, "rb")  ) {
-	  while(!feof(file)) {
-	    char buf[256];
-	    char title[256];
-	    size_t len;
+	if(  FILE* const file = dr_fopen(full_path.c_str(), "rb")  ) {
+		while(!feof(file)) {
+			char buf[256];
+			char title[256];
+			size_t len;
 
-	    read_line(buf,   sizeof(buf),   file);
-	    read_line(title, sizeof(title), file);
-	    if(  !feof(file)  ) {
-	      len = strlen(buf);
-	      while(  len>0  &&  buf[--len] <= 32  ) {
-	        buf[len] = 0;
-	      }
+			read_line(buf,   sizeof(buf),   file);
+			read_line(title, sizeof(title), file);
+			if(  !feof(file)  ) {
+				len = strlen(buf);
+				while(  len>0  &&  buf[--len] <= 32  ) {
+					buf[len] = 0;
+				}
 
-	      if(  len > 1  ) {
-	        sprintf( full_path, "%s%s", directory, buf );
-	        printf("  Reading MIDI file '%s' - %s", full_path, title);
-	        max_midi = dr_load_midi(full_path);
+				if(  len > 1  ) {
+					full_path = std::string(directory) + buf;
+					printf("  Reading MIDI file '%s' - %s", full_path.c_str(), title);
+					max_midi = dr_load_midi(full_path.c_str());
 
-	        if(  max_midi >= 0  ) {
-	          len = strlen(title);
-	          while(  len > 0  &&  title[--len] <= 32  ) {
-	            title[len] = 0;
-	          }
-	          midi_title[max_midi] = title;
-	        }
-	      }
-	    }
-	  }
+					if(  max_midi >= 0  ) {
+						len = strlen(title);
+						while(  len > 0  &&  title[--len] <= 32  ) {
+							title[len] = 0;
+						}
+						midi_title[max_midi] = title;
+					}
+				}
+			}
+		}
 
-	  fclose(file);
+		fclose(file);
 	}
 	else {
-	  dbg->warning("midi_init()","can't open file '%s' for reading.", full_path);
+		dbg->warning("midi_init()","can't open file '%s' for reading.", full_path.c_str() );
 	}
 
 	if(  max_midi >= 0  ) {
-	  current_midi = 0;
+		current_midi = 0;
 	}
 	// success?
 	return (  max_midi >= 0  );
@@ -208,10 +181,10 @@ int midi_init(const char *directory)
 void midi_play(const int no)
 {
 	if(  no > max_midi  ) {
-	  dbg->warning("midi_play()", "MIDI index %d too high (total loaded: %d)", no, max_midi);
+		dbg->warning("midi_play()", "MIDI index %d too high (total loaded: %d)", no, max_midi);
 	}
 	else if(  !midi_get_mute()  ) {
-	  dr_play_midi(no);
+		dr_play_midi( (no<0) ? sim_async_rand(max_midi) : no );
 	}
 }
 
@@ -219,7 +192,7 @@ void midi_play(const int no)
 void midi_stop()
 {
 	if(  !midi_get_mute()  ) {
-	  dr_stop_midi();
+		dr_stop_midi();
 	}
 }
 
@@ -229,17 +202,17 @@ void midi_set_mute(bool on)
 {
 	on |= (  max_midi == -1  );
 	if(  on  ) {
-	  if(  !env_t::mute_midi  ) {
-	    dr_stop_midi();
-	  }
-	  env_t::mute_midi = true;
+		if(  !env_t::mute_midi  ) {
+			dr_stop_midi();
+		}
+		env_t::mute_midi = true;
 	}
 	else {
-	  if(  env_t::mute_midi  ) {
-	    env_t::mute_midi = false;
-	    midi_play(current_midi);
-	  }
-	  dr_set_midi_volume(env_t::midi_volume);
+		if(  env_t::mute_midi  ) {
+			env_t::mute_midi = false;
+			midi_play(current_midi);
+		}
+		dr_set_midi_volume(env_t::midi_volume);
 	}
 }
 
@@ -292,12 +265,11 @@ void check_midi()
 
 /**
  * shuts down midi playing
- * @author Owen Rudge
  */
 void close_midi()
 {
 	if(  max_midi > -1  ) {
-	  dr_destroy_midi();
+		dr_destroy_midi();
 	}
 }
 
@@ -311,10 +283,10 @@ void midi_next_track()
 void midi_last_track()
 {
 	if (  current_midi == 0  ) {
-	  current_midi = max_midi - 1;
+		current_midi = max_midi - 1;
 	}
 	else {
-	  current_midi = current_midi - 2;
+		current_midi = current_midi - 2;
 	}
 	new_midi = true;
 }

@@ -3,26 +3,21 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Defines all button types: Normal (roundbox), Checkboxes (square), Arrows, Scrollbars
- */
+#ifndef GUI_COMPONENTS_GUI_BUTTON_H
+#define GUI_COMPONENTS_GUI_BUTTON_H
 
-#ifndef gui_button_h
-#define gui_button_h
 
 #include "gui_action_creator.h"
 #include "gui_component.h"
 #include "../../simcolor.h"
 #include "../../dataobj/koord.h"
+#include "../../dataobj/koord3d.h"
 #include "../../display/simimg.h"
 
 class karte_ptr_t;
 
 /**
  * Class for buttons in Windows
- *
- * @author Hj. Malthaner, Niels Roest
- * @date December 2000
  */
 class button_t :
 	public gui_action_creator_t,
@@ -39,26 +34,35 @@ public:
 	 * roundbox:      button for "load", "cancel" and such options
 	 * arrow-buttons: buttons with arrows, cannot have text
 	 * repeat arrows: calls the caller until the mouse is released
-	 * scrollbar:     well you guess it. Not used by gui_frame_t things ...
+	 * flexible:      flag, can be set to box, square to get infinitely enlarging buttons
 	 */
 	enum type {
 		square=1, box, roundbox, arrowleft, arrowright, arrowup, arrowdown, repeatarrowleft, repeatarrowright, posbutton,
-		square_state=129, box_state, roundbox_state, arrowleft_state, arrowright_state, arrowup_state, arrowdown_state, scrollbar_horizontal_state, scrollbar_vertical_state, repeatarrowleft_state, repeatarrowright_state,
-		square_automatic=257
+		TYPE_MASK = 127,
+		state = 128,
+		square_state     = square | state,
+		box_state        = box | state,
+		roundbox_state   = roundbox | state,
+		arrowright_state = arrowright | state,
+		arrowup_state    = arrowup | state,
+		arrowdown_state  = arrowdown | state,
+		automatic = 256,
+		square_automatic    = square_state | automatic,
+		box_state_automatic = box_state | automatic,
+		posbutton_automatic = posbutton | automatic,
+		flexible = 512
 	};
 
 protected:
 	/**
 	 * Hide the base class init() version to force use of
 	 * the extended init() version for buttons.
-	 * @author Max Kielland
 	 */
 	using gui_component_t::init;
 
 private:
 	/**
 	 * Tooltip for this button
-	 * @author Hj. Malthaner
 	 */
 	const char * tooltip, *translated_tooltip;
 
@@ -66,7 +70,6 @@ private:
 
 	/**
 	 * if buttons is disabled show only grey label
-	 * @author hsiegeln
 	 */
 	uint8 b_enabled:1;
 	uint8 b_no_translate:1;
@@ -74,14 +77,12 @@ private:
 	/**
 	 * The displayed text of the button
 	 * direct access provided to avoid translations
-	 * @author Hj. Malthaner
 	 */
-	union {
-		const char * text;
-		struct { sint16 x,y; } targetpos;
-	};
+	const char *text;
+
 	const char *translated_text;
 
+	koord3d targetpos;
 	// any click will go to this world
 	static karte_ptr_t welt;
 
@@ -91,15 +92,20 @@ private:
 	button_t(const button_t&);        // forbidden
 	void operator =(const button_t&); // forbidden
 
+	image_id image;
+
 public:
-	COLOR_VAL background_color; //@author hsiegeln
-	COLOR_VAL text_color;
+	PIXVAL background_color;
+	PIXVAL text_color;
 
 	bool pressed;
 	scr_coord_val text_offset_x;
 
 	button_t();
 
+	/**
+	 * Initializes the button. Sets the size depending on type.
+	 */
 	void init(enum type typ, const char *text, scr_coord pos=scr_coord(0,0), scr_size size = scr_size::invalid);
 
 	void set_typ(enum type typ);
@@ -109,32 +115,30 @@ public:
 
 	/**
 	 * Set the displayed text of the button
-	 * @author Hj. Malthaner
 	 */
 	void set_text(const char * text);
 
 	/**
-	 * Get/Set text to position
-	 * @author prissi
+	 * Set position for posbuttons, will be returned on calling listener
 	 */
-	void set_targetpos(const koord k ) { targetpos.x = k.x; targetpos.y = k.y; }
+	void set_targetpos( const koord k ); // assuming this is on map ground
+	void set_targetpos3d( const koord3d k ) { targetpos = k; }
 
 	/**
 	 * Set the displayed text of the button when not to translate
-	 * @author Hj. Malthaner
 	 */
 	void set_no_translate(bool b) { b_no_translate = b; }
 
 	/**
 	 * Sets the tooltip of this button
-	 * @author Hj. Malthaner
 	 */
 	void set_tooltip(const char * tooltip);
+
+	void set_image(image_id b) { image = b; };
 
 	/**
 	 * @return true when x, y is within button area, i.e. the button was clicked
 	 * @return false when x, y is outside button area
-	 * @author Hj. Malthaner
 	 */
 	bool getroffen(int x, int y) OVERRIDE;
 
@@ -142,9 +146,18 @@ public:
 
 	/**
 	 * Draw the component
-	 * @author Hj. Malthaner
 	 */
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
+
+	/**
+	 * Max-size: infinity for checkboxes, equal to size for the other types.
+	 */
+	scr_size get_max_size() const OVERRIDE;
+
+	/**
+	 * Min-size: equal to the size (set by init).
+	 */
+	scr_size get_min_size() const OVERRIDE;
 
 	void enable(bool true_false_par = true) { b_enabled = true_false_par; }
 
@@ -152,10 +165,13 @@ public:
 
 	bool enabled() { return b_enabled; }
 
-	// Knightly : a button can only be focusable when it is enabled
-	virtual bool is_focusable() { return b_enabled && gui_component_t::is_focusable(); }
+	// a button can only be focusable when it is enabled
+	bool is_focusable() OVERRIDE { return b_enabled && gui_component_t::is_focusable(); }
 
 	void update_focusability();
 
 };
+
+ENUM_BITSET(enum button_t::type)
+
 #endif

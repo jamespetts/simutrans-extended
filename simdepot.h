@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _simdepot_h
-#define _simdepot_h
+#ifndef SIMDEPOT_H
+#define SIMDEPOT_H
+
 
 #include "tpl/slist_tpl.h"
 #include "obj/gebaeude.h"
@@ -20,7 +21,6 @@ class gui_convoy_assembler;
 
 /**
  * In Depots werden Fahrzeuge gekauft, gewartet, verkauft und gelagert.
- * @author Hj. Malthaner
  */
 class depot_t : public gebaeude_t
 {
@@ -34,9 +34,6 @@ protected:
 	 * automatically created, when necessary.
 	 * Convois are numbered 0...(n-1).
 	 * Vehicles are accessed by type.
-	 *
-	 * @author Volker Meyer
-	 * @date  30.05.2003
 	 */
 	slist_tpl<vehicle_t *> vehicles;
 	slist_tpl<convoihandle_t> convois;
@@ -79,7 +76,7 @@ public:
 
 	virtual simline_t::linetype get_line_type() const = 0;
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
 	// text for the tabs is defaulted to the train names
 	virtual const char * get_electrics_name() { return "Electrics_tab"; };
@@ -90,8 +87,6 @@ public:
 
 	/**
 	 * Access to convoi list.
-	 * @author Volker Meyer
-	 * @date  30.05.2003
 	 */
 	unsigned convoi_count() const { return convois.get_count(); }
 
@@ -106,7 +101,6 @@ public:
 
 	/**
 	 * copies convoi and its schedule or line
-	 * @author hsiegeln
 	 */
 	convoihandle_t copy_convoi(convoihandle_t old_cnv, bool local_execution);
 
@@ -114,8 +108,6 @@ public:
 	 * Let convoi leave the depot.
 	 * If not possible, a message is displayed and the function returns false.
 	 * @param if local_execution is true, this method creates pop-ups in case of errors
-	 * @author Volker Meyer, Dwachs
-	 * @date  09.06.2003 / 27.04.2010
 	 */
 	bool start_convoi(convoihandle_t cnv, bool local_execution);
 
@@ -124,8 +116,6 @@ public:
 	/**
 	 * Destroy the convoi and put the vehicles in the vehicles list (sell==false),
 	 * or sell all immediately (sell==true).
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	bool disassemble_convoi(convoihandle_t cnv, bool sell);
 
@@ -138,16 +128,12 @@ public:
 	/**
 	 * Remove vehicle from vehicle list and add it to the convoi. Two positions
 	 * are possible - in front or at the rear.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void append_vehicle(convoihandle_t &cnv, vehicle_t* veh, bool infront, bool local_execution);
 
 	/**
 	 * Remove the vehicle at given position from the convoi and put it in the
 	 * vehicle list.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void remove_vehicle(convoihandle_t cnv, int ipos);
 	void remove_vehicles_to_end(convoihandle_t cnv, int ipos);
@@ -155,8 +141,6 @@ public:
 	/**
 	 * Access to vehicles not bound to a convoi. They are not ordered
 	 * in any way.
-	 * @author Volker Meyer
-	 * @date  30.05.2003
 	 */
 	unsigned vehicle_count() const { return vehicles.get_count(); }
 	slist_tpl<vehicle_t*> & get_vehicle_list() { return vehicles; }
@@ -164,8 +148,6 @@ public:
 	/**
 	 * A new vehicle is bought and added to the vehicle list.
 	 * The new vehicle in the list is returned.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	vehicle_t* buy_vehicle(const vehicle_desc_t* info, uint16 livery_scheme_index);
 
@@ -175,48 +157,38 @@ public:
 
 	/**
 	 * Sell a vehicle from the vehicle list.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void sell_vehicle(vehicle_t* veh);
 
 	/**
 	 * Access to vehicle types which can be bought in the depot.
-	 * @author Volker Meyer
 	 */
 	slist_tpl<vehicle_desc_t*> const & get_vehicle_type();
 
 	/**
 	 * Returns the waytype for a certain vehicle; only way to distinguish differnt depots ...
-	 * @author prissi
 	 */
 	virtual waytype_t get_wegtyp() const { return invalid_wt; }
 
 	/**
-	 * A convoi arrived at the depot and is added to the convoi list.
-	 * If fpl_adjust is true, the current depot is removed from schedule.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
+	 * Parameters to determine layout and behaviour of the depot_frame_t.
 	 */
 	void convoi_arrived(convoihandle_t cnv, bool fpl_adjust);
 
 	/**
-	 * Öffnet ein neues Beobachtungsfenster für das Objekt.
-	 * @author Hj. Malthaner
+	 * Opens a new info window for that object.
 	 */
-	void show_info();
+	void show_info() OVERRIDE;
 
 	/**
 	 * Can object be removed?
 	 * @return NULL when OK, otherwise an error message
-	 * @author Hj. Malthaner
 	 */
-	virtual const char *  is_deletable(const player_t *player);
+	const char * is_deletable(const player_t *player) OVERRIDE;
 
 	/**
 	 * identifies the oldest vehicle of a certain type
 	 * @return NULL if no vehicle is found
-	 * @author hsiegeln (stolen from Hajo)
 	 */
 	vehicle_t* get_oldest_vehicle(const vehicle_desc_t* desc);
 
@@ -236,8 +208,6 @@ public:
 
 	/**
 	* new month
-	* @author Bernd Gabriel
-	* @date 26.06.2009
 	*/
 	void new_month();
 
@@ -275,8 +245,6 @@ public:
 
 /**
  * Depots for train vehicles.
- *
- * @author Hj. Malthaner
  * @see depot_t
  * @see gebaeude_t
  */
@@ -295,19 +263,17 @@ public:
 	bahndepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t) : depot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::trainline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::trainline; }
 
 	void rdwr_vehicles(loadsave_t *file) { depot_t::rdwr_vehicle(vehicles,file); }
 
-	virtual waytype_t get_wegtyp() const {return track_wt;}
+	waytype_t get_wegtyp() const OVERRIDE {return track_wt;}
 #ifdef INLINE_OBJ_TYPE
 #else
 	virtual ding_t::typ get_typ() const {return bahndepot;}
 #endif
 	///**
 	// * Parameters to determine layout and behaviour of the depot_frame_t.
-	// * @author Volker Meyer
-	// * @date  09.06.2003
 	// */
 	//int get_x_placement() const {return -25; }
 	//int get_y_placement() const {return -28; }
@@ -330,14 +296,14 @@ public:
 	tramdepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t): bahndepot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::tramline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::tramline; }
 
-	virtual waytype_t get_wegtyp() const {return tram_wt;}
+	waytype_t get_wegtyp() const OVERRIDE {return tram_wt;}
 #ifdef INLINE_OBJ_TYPE
 #else
-	virtual obj_t::typ get_typ() const { return tramdepot; }
+	obj_t::typ get_typ() const OVERRIDE { return tramdepot; }
 #endif
-	//virtual const char *get_name() const {return "Tramdepot"; }
+	//const char *get_name() const OVERRIDE {return "Tramdepot"; }
 };
 
 class monoraildepot_t : public bahndepot_t
@@ -351,14 +317,14 @@ public:
 	monoraildepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t): bahndepot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::monorailline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::monorailline; }
 
-	virtual waytype_t get_wegtyp() const {return monorail_wt;}
+	waytype_t get_wegtyp() const OVERRIDE {return monorail_wt;}
 #ifdef INLINE_OBJ_TYPE
 #else
-	virtual obj_t::typ get_typ() const { return monoraildepot; }
+	obj_t::typ get_typ() const OVERRIDE { return monoraildepot; }
 #endif
-	//virtual const char *get_name() const {return "Monoraildepot"; }
+	//const char *get_name() const OVERRIDE {return "Monoraildepot"; }
 };
 
 class maglevdepot_t : public bahndepot_t
@@ -372,14 +338,14 @@ public:
 	maglevdepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t): bahndepot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::maglevline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::maglevline; }
 
-	virtual waytype_t get_wegtyp() const {return maglev_wt;}
+	waytype_t get_wegtyp() const OVERRIDE {return maglev_wt;}
 #ifdef INLINE_OBJ_TYPE
 #else
-	virtual obj_t::typ get_typ() const { return maglevdepot; }
+	obj_t::typ get_typ() const OVERRIDE { return maglevdepot; }
 #endif
-	//virtual const char *get_name() const {return "Maglevdepot"; }
+	//const char *get_name() const OVERRIDE {return "Maglevdepot"; }
 };
 
 class narrowgaugedepot_t : public bahndepot_t
@@ -393,20 +359,19 @@ public:
 	narrowgaugedepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t): bahndepot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::narrowgaugeline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::narrowgaugeline; }
 
-	virtual waytype_t get_wegtyp() const {return narrowgauge_wt;}
+	waytype_t get_wegtyp() const OVERRIDE {return narrowgauge_wt;}
 #ifdef INLINE_OBJ_TYPE
 #else
-	virtual obj_t::typ get_typ() const { return narrowgaugedepot; }
+	obj_t::typ get_typ() const OVERRIDE { return narrowgaugedepot; }
 #endif
 	//virtual const char *get_name() const {return "Narrowgaugedepot"; }
+	//const char *get_name() const OVERRIDE {return "Narrowgaugedepot"; }
 };
 
 /**
  * Depots for street vehicles
- *
- * @author Hj. Malthaner
  * @see depot_t
  * @see gebaeude_t
  */
@@ -421,17 +386,15 @@ public:
 	strassendepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t) : depot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::truckline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::truckline; }
 
-	virtual waytype_t get_wegtyp() const {return road_wt; }
+	waytype_t get_wegtyp() const OVERRIDE {return road_wt; }
 #ifdef INLINE_OBJ_TYPE
 #else
-	obj_t::typ get_typ() const {return strassendepot;}
+	obj_t::typ get_typ() const OVERRIDE { return strassendepot; }
 #endif
 	///**
 	// * Parameters to determine layout and behaviour of the depot_frame_t.
-	// * @author Volker Meyer
-	// * @date  09.06.2003
 	// */
 	//int get_x_placement() const { return -20; }
 	//int get_y_placement() const { return -25; }
@@ -439,14 +402,12 @@ public:
 	//int get_y_grid() const { return 24; }
 	//unsigned get_max_convoi_length() const { return 4; }
 
-	//const char *get_name() const {return "Strassendepot";}
+	//const char *get_name() const OVERRIDE {return "Strassendepot";}
 };
 
 
 /**
  * Depots for ships
- *
- * @author Hj. Malthaner
  * @see depot_t
  * @see gebaeude_t
  */
@@ -461,17 +422,15 @@ public:
 	schiffdepot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) : depot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::shipline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::shipline; }
 
-	virtual waytype_t get_wegtyp() const {return water_wt; }
+	waytype_t get_wegtyp() const OVERRIDE {return water_wt; }
 #ifdef INLINE_OBJ_TYPE
 #else
-	obj_t::typ get_typ() const {return schiffdepot;}
+	obj_t::typ get_typ() const OVERRIDE { return schiffdepot; }
 #endif
 	///**
 	// * Parameters to determine layout and behaviour of the depot_frame_t.
-	// * @author Volker Meyer
-	// * @date  09.06.2003
 	// */
 	//int get_x_placement() const { return -1; }
 	//int get_y_placement() const { return -11; }
@@ -479,7 +438,7 @@ public:
 	//int get_y_grid() const { return 46; }
 
 	//unsigned get_max_convoi_length() const { return 4; }
-	//const char *get_name() const {return "Schiffdepot";}
+	//const char *get_name() const OVERRIDE {return "Schiffdepot";}
 };
 
 
@@ -497,13 +456,11 @@ public:
 	airdepot_t(koord3d pos,player_t *player, const building_tile_desc_t *t) : depot_t(pos,player,t) {}
 #endif
 
-	virtual simline_t::linetype get_line_type() const { return simline_t::airline; }
+	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::airline; }
 
-	virtual waytype_t get_wegtyp() const { return air_wt; }
+	waytype_t get_wegtyp() const OVERRIDE { return air_wt; }
 	///**
 	// * Parameters to determine layout and behaviour of the depot_frame_t.
-	// * @author Volker Meyer
-	// * @date  09.06.2003
 	// */
 	//int get_x_placement() const {return -10; }
 	//int get_y_placement() const {return -23; }
@@ -513,9 +470,9 @@ public:
 
 #ifdef INLINE_OBJ_TYPE
 #else
-	obj_t::typ get_typ() const { return airdepot; }
+	obj_t::typ get_typ() const OVERRIDE { return airdepot; }
 #endif
-	//const char *get_name() const {return "Hangar";}
+	//const char *get_name() const OVERRIDE {return "Hangar";}
 };
 
 #endif

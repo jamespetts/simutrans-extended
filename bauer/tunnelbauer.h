@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __simtunnel_h
-#define __simtunnel_h
+#ifndef BAUER_TUNNELBAUER_H
+#define BAUER_TUNNELBAUER_H
+
 
 #include "../simtypes.h"
 #include "../dataobj/koord.h"
@@ -12,7 +13,7 @@
 #include "../tpl/stringhashtable_tpl.h"
 
 class karte_ptr_t;
-class player_t;               // Hajo: 22-Nov-01: Added forward declaration
+class player_t;
 class tunnel_desc_t;
 class way_desc_t;
 class tool_selector_t;
@@ -22,15 +23,13 @@ class tool_selector_t;
  * sondern immer vom tunnel_builder_t erzeugt werden.
  *
  * Es gibt keine Instanz - nur statische Methoden.
- *
- * @author V. Meyer
  */
 class tunnel_builder_t {
 private:
 	static karte_ptr_t welt;
 
 	static bool build_tunnel(player_t *player, koord3d pos, koord3d end, koord zv, const tunnel_desc_t *desc, overtaking_mode_t overtaking_mode, const way_desc_t *way_desc = NULL);
-	static void build_tunnel_portal(player_t *player, koord3d end, koord zv, const tunnel_desc_t *desc, const way_desc_t *way_desc, sint64 &cost, overtaking_mode_t overtaking_mode, bool beginning);
+	static void build_tunnel_portal(player_t *player, koord3d end, koord zv, const tunnel_desc_t *desc, const way_desc_t *way_desc, sint64 &cost, bool connect_inside, overtaking_mode_t overtaking_mode, bool beginning);
 
 	tunnel_builder_t() {} // private -> no instance please
 

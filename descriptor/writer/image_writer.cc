@@ -61,8 +61,6 @@ uint32 image_writer_t::block_getpix(int x, int y)
 /**
  * Encodes image data into the internal representation,
  * considers special colors.
- *
- * @author Hj. Malthaner
  */
 static uint16 pixrgb_to_pixval(uint32 rgb)
 {
@@ -86,7 +84,7 @@ static uint16 pixrgb_to_pixval(uint32 rgb)
 		// else store color as 3 red, 4, green, 3 red
 		pix = ((rgb >> 14) & 0x0380) | ((rgb >>  9) & 0x0078) | ((rgb >> 5) & 0x07);
 		pix = 0x8020 + 31*31 + pix*31 + alpha;
-		return endian(pix);
+		return pix;
 	}
 
 
@@ -94,7 +92,7 @@ static uint16 pixrgb_to_pixval(uint32 rgb)
 	for (int i = 0; i < SPECIAL; i++) {
 		if (image_t::rgbtab[i] == (uint32)rgb) {
 			pix = 0x8000 + i;
-			return endian(pix);
+			return pix;
 		}
 	}
 
@@ -104,7 +102,7 @@ static uint16 pixrgb_to_pixval(uint32 rgb)
 
 	// RGB 555
 	pix = ((r & 0xF8) << 7) | ((g & 0xF8) << 2) | ((b & 0xF8) >> 3);
-	return endian(pix);
+	return pix;
 }
 
 
@@ -147,8 +145,6 @@ static void init_dim(uint32 *image, dimension *dim, int img_size)
 /**
  * Encodes an image into a sprite data structure, considers
  * special colors.
- *
- * @author Hj. Malthaner
  */
 uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 {
@@ -197,8 +193,8 @@ uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 				PIXVAL pixval = pixrgb_to_pixval(pix);
 				if(  pixval >= 0x8020  &&  !has_transparent  ) {
 					if(  count  ) {
-						*colored_run_counter = endian(count);
-						*dest++ = endian(0x8000);
+						*colored_run_counter = endian(uint16(count));
+						*dest++ = endian(uint16(0x8000));
 						colored_run_counter = dest++;
 						count = 0;
 					}
@@ -206,14 +202,14 @@ uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 				}
 				else if(  pixval < 0x8020  &&  has_transparent  ) {
 					if(  count  ) {
-						*colored_run_counter = endian(count+has_transparent);
-						*dest++ = endian(0x8000);
+						*colored_run_counter = endian(uint16(count+has_transparent));
+						*dest++ = endian(uint16(0x8000));
 						colored_run_counter = dest++;
 						count = 0;
 					}
 					has_transparent = 0;
 				}
-				*dest++ = pixval;
+				*dest++ = endian(uint16(pixval));
 				count++;
 				if (row_px_count >= img_width) { // end of line ?
 					break;
@@ -222,16 +218,16 @@ uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 				row_px_count++;
 			}
 
-			/* Knightly:
-			 *		If it is not the first clear-colored-run pair and its colored run is empty
-			 *		--> it is superfluous and can be removed by rolling back the pointer
+			/*
+			 * If it is not the first clear-colored-run pair and its colored run is empty
+			 * --> it is superfluous and can be removed by rolling back the pointer
 			 */
 			if(  clear_colored_run_pair_count > 0  &&  count == 0  ) {
 				dest -= 2;
 				// this only happens at the end of a line, so no need to increment clear_colored_run_pair_count
 			}
 			else {
-				*colored_run_counter = endian(count + has_transparent);
+				*colored_run_counter = endian(uint16(count + has_transparent));
 				clear_colored_run_pair_count++;
 			}
 		} while(  row_px_count < img_width  );
@@ -275,7 +271,7 @@ void image_writer_t::write_obj(FILE* outfp, obj_node_t& parent, std::string an_i
 
 	MEMZERO(image);
 
-	// Hajo: if first char is a '>' then this image is not zoomable
+	// if first char is a '>' then this image is not zoomable
 	if(  an_imagekey[0] == '>'  ) {
 		an_imagekey = an_imagekey.substr(1);
 		image.zoomable = false;

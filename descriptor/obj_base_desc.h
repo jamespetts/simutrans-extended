@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __OBJ_BASE_DESC_H
-#define __OBJ_BASE_DESC_H
+#ifndef DESCRIPTOR_OBJ_BASE_DESC_H
+#define DESCRIPTOR_OBJ_BASE_DESC_H
+
 
 #include "text_desc.h"
 
@@ -15,20 +16,24 @@ class tool_t;
  * Common base class for all object descriptors, which get their name and
  * copyright information from child 0 and 1
  */
-class obj_named_desc_t : public obj_desc_t {
-	public:
-		const char* get_name() const
-		{
-			return get_child<text_desc_t>(0)->get_text();
+class obj_named_desc_t : public obj_desc_t
+{
+public:
+	const char *get_name() const
+	{
+		return get_child<text_desc_t>(0)->get_text();
+	}
+
+	const char *get_copyright() const
+	{
+		const text_desc_t *const ts = get_child<text_desc_t>(1);
+		if (!ts) {
+			return 0;
 		}
 
-		const char* get_copyright() const
-		{
-			text_desc_t const* const ts = get_child<text_desc_t>(1);
-			if (!ts) return 0;
-			char const* const text = ts->get_text();
-			return text[0] != '\0' ? text : 0;
-		}
+		const char *const text = ts->get_text();
+		return text[0] != '\0' ? text : NULL;
+	}
 };
 
 /**
@@ -93,10 +98,20 @@ protected:
 	uint8 upgrade_group;		///< The group of elevated ways between which this can be upgraded for the way only cost.
 
 public:
-	obj_desc_transport_related_t() : obj_desc_timelined_t(),
-		base_maintenance(0), base_cost(0),
-               maintenance(0), price(0), axle_load(9999), wtyp(255), topspeed(0), topspeed_gradient_1(0), topspeed_gradient_2(0),
-               base_way_only_cost(0), way_only_cost(0) {}
+	obj_desc_transport_related_t() :
+		obj_desc_timelined_t(),
+		base_maintenance(0),
+		base_cost(0),
+		maintenance(0),
+		price(0),
+		wtyp(255),
+		axle_load(9999),
+		topspeed(0),
+		topspeed_gradient_1(0),
+		topspeed_gradient_2(0),
+		base_way_only_cost(0),
+		way_only_cost(0)
+	{}
 
 	inline sint32 get_base_maintenance() const { return base_maintenance; }
 	inline sint32 get_maintenance() const { return maintenance; }

@@ -3,8 +3,8 @@
  * (see LICENSE.txt)
  */
 
-#ifndef settings_frame_h
-#define settings_frame_h
+#ifndef GUI_SETTINGS_FRAME_H
+#define GUI_SETTINGS_FRAME_H
 
 
 #include "gui_frame.h"
@@ -20,7 +20,6 @@ class settings_t;
 
 /**
  * All messages since the start of the program
- * @author prissi
  */
 class settings_frame_t : public gui_frame_t, action_listener_t
 {
@@ -55,20 +54,13 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
-	const char *get_help_filename() const {return "settings.txt";}
-
-	/**
-	* resize window in response to a resize event
-	* @author Hj. Malthaner
-	*/
-	void resize(const scr_coord delta);
+	const char *get_help_filename() const OVERRIDE {return "settings.txt";}
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	// does not work during new world dialogue
-	virtual bool has_sticky() const { return false; }
+	bool has_sticky() const OVERRIDE { return false; }
 
 	bool infowin_event(event_t const*) OVERRIDE;
 };

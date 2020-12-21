@@ -105,7 +105,7 @@ void times_history_t::update_components()
 	else if (convoi.is_bound()) schedule = convoi->get_schedule();
 	else return;
 
-	const char *name;
+	const char *name = NULL;
 	title_buf.clear();
 	if (line.is_bound()) {
 		title_buf.append(translator::translate("line_times_history"));
@@ -126,7 +126,7 @@ void times_history_t::update_components()
 	update_time = welt->get_ticks();
 }
 
-bool times_history_t::action_triggered(gui_action_creator_t *comp, value_t extra)
+bool times_history_t::action_triggered(gui_action_creator_t *, value_t)
 {
 	return true;
 }

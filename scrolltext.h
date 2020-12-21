@@ -3,7 +3,11 @@
  * (see LICENSE.txt)
  */
 
-/* prissi: first part is left, second part right side */
+#ifndef SCROLLTEXT_H
+#define SCROLLTEXT_H
+
+
+/* first part is left, second part right side */
 
 "","",
 "","",
@@ -31,7 +35,7 @@
 " Owen Rudge","MIDI, patches",
 " Tomas Kubes","patches",
 " Rainer Bertram","patches",
-" Andreas Röver","patches",
+" Andreas Rover","patches",
 " Tilman Raatz","patches",
 " Pasi Ruhanen","BeOS, SDL",
 " Mat Hounsell","GUI",
@@ -52,7 +56,10 @@
 " Inkelyad", "developer",
 " Isidoro","developer (vehicle replacement)",
 " Ranran", "UI features",
-" Freahk", "patch",
+" Freddy Hayward", "patches",
+" W. Lindley", "patches",
+" ceeac", "patches",
+" Freahk", "patches",
 " Progger", "patches",
 " Andrew Carlotti", "patches",
 " THLeaderH", "patch",
@@ -99,6 +106,8 @@
 "James E. Petts", "",
 "W. Lindley", "",
 "Junna","",
+"Freahk", "",
+"John Bridg", "",
 "Dr. Supergood","Pak128.Britain and Pak128.Britain-Ex",
 " Ves","",
 " Vladki","",
@@ -221,6 +230,7 @@
 " Phil Flyer of Youtube", "",
 " Henergy1994 of Youtube", "",
 " Eckletickle of Youtube", "",
+" BetterAircraftFabric of Youtube", "",
 "","",
 "Translation:","",
 "","",
@@ -233,15 +243,15 @@
 " Marcal Guardiola","Spanish",
 " Niels Roest","Dutch",
 " Pasi Ruhanen","Finnish",
-" Rémi Denis-Courmont","French",
+" Remi Denis-Courmont","French",
 " Ferencz Szekely","Hungary & Romanian",
 " Alex Revo","Russian",
 " Grivlad", "Russian (Extended)",
-" Roman Schwörer","French & German",
+" Roman Schworer","French & German",
 " Yannis Kaskamanid", "Greek",
 " Igor Eliezer", "Portuguese",
 " Joan-Josep Bargues", "Catalan",
-" Susanna Björverud", "Swedish",
+" Susanna Bjorverud", "Swedish",
 " Xavier Paz", "Spanish",
 " Wim Vreeswijk", "Dutch",
 " Paul Color", "Swedish",
@@ -285,7 +295,7 @@
 " dantedarkstar","testing",
 " Tuxedohamm","testing",
 " Michael Woodburn","testing",
-" Susanna Björverud","testing",
+" Susanna Bjorverud","testing",
 " Cyrus Hall","testing",
 " AvG","testing",
 " Pavulon","testing",
@@ -336,7 +346,7 @@
 " Zeno","testing",
 " Yona-TYT","testing",
 " Andreas Wagner", "testing",
-" Daniel Schröder", "testing",
+" Daniel Schroder", "testing",
 " Sarlock", "testing",
 " Dr. SuperGood", "testing",
 " Kevin", "testing",
@@ -381,4 +391,6 @@
 "","",
 "","",
 "","",
-0
+0,0
+
+#endif

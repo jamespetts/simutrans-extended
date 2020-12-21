@@ -5,7 +5,7 @@
 
 #include "simloadingscreen.h"
 
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "descriptor/image.h"
 #include "descriptor/skin_desc.h"
 #include "simskin.h"
@@ -32,7 +32,7 @@ loadingscreen_t::loadingscreen_t( const char *w, uint32 max_p, bool logo, bool c
 	}
 
 	// darkens the current screen
-	display_blend_wh(0, 0, display_get_width(), display_get_height(), COL_BLACK, 50 );
+	display_blend_wh_rgb(0, 0, display_get_width(), display_get_height(), color_idx_to_rgb(COL_BLACK), 50 );
 	mark_screen_dirty();
 
 	display_logo();
@@ -67,6 +67,9 @@ void loadingscreen_t::display()
 	const int half_width = width>>1;
 	const int quarter_width = width>>2;
 	const int half_height = display_get_height()>>1;
+	KOORD_VAL const bar_height = max(LINESPACE + 10, 20);
+	KOORD_VAL const bar_y = half_height - bar_height / 2 + 1;
+	KOORD_VAL const bar_text_y = half_height - LINESPACE / 2 + 1;
 
 	const int bar_len = max_progress>0 ? (int) ( ((double)progress*(double)half_width)/(double)max_progress ) : 0;
 
@@ -76,21 +79,21 @@ void loadingscreen_t::display()
 		dr_prepare_flush();
 
 		if(  info  ) {
-			display_proportional( half_width, half_height - 8 - LINESPACE - 4, info, ALIGN_CENTER_H, COL_WHITE, true );
+			display_proportional_rgb( half_width, bar_y - LINESPACE - 2, info, ALIGN_CENTER_H, color_idx_to_rgb(COL_WHITE), true );
 		}
 
 		// outline
-		display_ddd_box( quarter_width-2, half_height-9, half_width+4, 20, COL_GREY6, COL_GREY4, true );
-		display_ddd_box( quarter_width-1, half_height-8, half_width+2, 18, COL_GREY4, COL_GREY6, true );
+		display_ddd_box_rgb( quarter_width-2, bar_y, half_width+4, bar_height, color_idx_to_rgb(COL_GREY6), color_idx_to_rgb(COL_GREY4), true );
+		display_ddd_box_rgb( quarter_width-1, bar_y + 1, half_width+2, bar_height - 2, color_idx_to_rgb(COL_GREY4), color_idx_to_rgb(COL_GREY6), true );
 
 		// inner
-		display_fillbox_wh( quarter_width, half_height - 7, half_width, 16, COL_GREY5, true);
+		display_fillbox_wh_rgb( quarter_width, bar_y + 2, half_width, bar_height - 4, SYSCOL_LOADINGBAR_INNER, true);
 
 		// progress
-		display_fillbox_wh( quarter_width, half_height - 5, bar_len,  12, COL_PASSENGERS, true );
+		display_cylinderbar_wh_clip_rgb( quarter_width, bar_y + 4, bar_len,  bar_height - 8, SYSCOL_LOADINGBAR_PROGRESS, true );
 
 		if(  what  ) {
-			display_proportional( half_width, half_height-4, what, ALIGN_CENTER_H, SYSCOL_TEXT_HIGHLIGHT, false );
+			display_proportional_rgb( half_width, bar_text_y, what, ALIGN_CENTER_H, SYSCOL_TEXT_HIGHLIGHT, false );
 		}
 
 		dr_flush();
@@ -111,8 +114,8 @@ void loadingscreen_t::set_progress( uint32 progress )
 	if(  ev->ev_class == EVENT_SYSTEM  ) {
 		if(  ev->ev_code == SYSTEM_RESIZE  ) {
 			// main window resized
-			simgraph_resize( ev->mx, ev->my );
-			display_fillbox_wh( 0, 0, ev->mx, ev->my, COL_BLACK, true );
+			simgraph_resize( ev->new_window_size );
+			display_fillbox_wh_rgb( 0, 0, ev->mx, ev->my, color_idx_to_rgb(COL_BLACK), true );
 			display_logo();
 			// queue the event anyway, so the viewport is correctly updated on world resume (screen will be resized again).
 			queued_events.append(ev);

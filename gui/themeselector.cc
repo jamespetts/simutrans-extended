@@ -7,7 +7,7 @@
 
 #include "themeselector.h"
 #include "simwin.h"
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #include "../simevent.h"
 #include "gui_theme.h"
 #include "../utils/simstring.h"
@@ -16,7 +16,6 @@
 #include "../dataobj/environment.h"
 #include "../dataobj/tabfile.h"
 
-#define L_ADDON_WIDTH (150)
 
 std::string themeselector_t::undo = "";
 
@@ -24,7 +23,7 @@ themeselector_t::themeselector_t() :
 	savegame_frame_t( ".tab", false, NULL, false )
 {
 	// remove unnecessary buttons
-	remove_component( &input );
+	top_frame.remove_component( &input );
 	delete_enabled = false;
 	label_enabled  = false;
 
@@ -46,7 +45,7 @@ bool themeselector_t::check_file(const char *filename, const char *suffix)
 // A theme button was pressed
 bool themeselector_t::item_action(const char *fullpath)
 {
-	gui_theme_t::themes_init(fullpath);
+	gui_theme_t::themes_init(fullpath,true,true);
 
 	event_t *ev = new event_t();
 	ev->ev_class = EVENT_SYSTEM;
@@ -98,8 +97,8 @@ const char *themeselector_t::get_info(const char *fn )
 
 void themeselector_t::fill_list()
 {
-	add_path( ((std::string)env_t::program_dir+"themes/").c_str() );
-	if(  env_t::user_dir != env_t::program_dir  ) {
+	add_path( ((std::string)env_t::data_dir+"themes/").c_str() );
+	if(  env_t::user_dir != env_t::data_dir  ) {
 		// not signle user
 		add_path( ((std::string)env_t::user_dir+"themes/").c_str() );
 	}
@@ -114,7 +113,7 @@ void themeselector_t::fill_list()
 		}
 
 		delete[] i.button->get_text(); // free up default allocation.
-		i.button->set_typ(button_t::roundbox_state);
+		i.button->set_typ(button_t::roundbox_state | button_t::flexible);
 		i.button->set_text(i.label->get_text_pointer());
 		i.button->pressed = !strcmp( env_t::default_theme.c_str(), i.label->get_text_pointer() ); // mark current theme
 		i.label->set_text_pointer( NULL ); // remove reference to prevent conflicts at delete[]

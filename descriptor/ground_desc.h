@@ -3,20 +3,17 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __GRUND_BESCH_H
-#define __GRUND_BESCH_H
+#ifndef DESCRIPTOR_GROUND_DESC_H
+#define DESCRIPTOR_GROUND_DESC_H
+
 
 #include "obj_base_desc.h"
 #include "image_array.h"
 #include "../simtypes.h"
 #include "../dataobj/ribi.h"
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *    Images of all possible surface tiles: slopes, climates, transitions,
+/**
+ * Images of all possible surface tiles: slopes, climates, transitions, etc.
  *
  *  Child nodes:
  *	0   Name
@@ -54,7 +51,7 @@ public:
 	static const uint8 slopetable[80];
 
 	// returns the pointer to an image structure
-	const image_t *get_image_ptr(int typ, int stage=0) const
+	const image_t *get_image_ptr(uint16 typ, uint16 stage=0) const
 	{
 		image_array_t const* const imgarray   = get_child<image_array_t>(2);
 		image_list_t   const* const list = imgarray->get_list(typ);
@@ -66,7 +63,7 @@ public:
 	}
 
 	// image for all non-climate stuff like foundations ...
-	image_id get_image(int typ, int stage=0) const
+	image_id get_image(uint16 typ, uint16 stage=0) const
 	{
 		image_t const* const image = get_image_ptr(typ, stage);
 		return image ? image->get_id() : IMG_EMPTY;
@@ -75,7 +72,7 @@ public:
 	// image for all ground tiles
 	static image_id get_ground_tile(grund_t *gr);
 
-	static image_id get_water_tile(slope_t::type slope);
+	static image_id get_water_tile(slope_t::type slope, int stage);
 	static image_id get_climate_tile(climate cl, slope_t::type slope);
 	static image_id get_snow_tile(slope_t::type slope);
 	static image_id get_beach_tile(slope_t::type slope, uint8 corners);

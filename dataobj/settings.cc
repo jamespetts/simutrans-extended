@@ -3,14 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Game settings
- *
- * Hj. Malthaner
- *
- * April 2000
- */
-
 #include <string>
 #include <math.h>
 
@@ -38,6 +30,7 @@
 
 #define NEVER 0xFFFFU
 
+sint8 env_t::reverse_base_offsets[8][3];
 
 settings_t::settings_t() :
 	filename(""),
@@ -56,13 +49,12 @@ settings_t::settings_t() :
 	map_number = sim_async_rand(SINT32_MAX_VALUE);
 
 	/* new setting since version 0.85.01
-	 * @author prissi
 	 */
 	factory_count = 12;
 	tourist_attractions = 8;
 
 	city_count = 8;
-	mean_einwohnerzahl = 1600;
+	mean_citizen_count = 1600;
 
 	station_coverage_size = 3;
 	station_coverage_size_factories = 3;
@@ -71,13 +63,16 @@ settings_t::settings_t() :
 
 	show_pax = true;
 
+	world_maximum_height = 32;
+	world_minimum_height = -12;
+
 	// default climate zones
 	set_default_climates( );
 	winter_snowline = 7;	// not mediterranean
-	groundwater = -2;            //25-Nov-01        Markus Weber    Added
+	groundwater = -2;
 
-	max_mountain_height = 160;                  //can be 0-160.0  01-Dec-01        Markus Weber    Added
-	map_roughness = 0.6;                        //can be 0-1      01-Dec-01        Markus Weber    Added
+	max_mountain_height = 160;                  //can be 0-160.0
+	map_roughness = 0.6;                        //can be 0-1
 
 	river_number = 16;
 	min_river_length = 16;
@@ -88,16 +83,16 @@ settings_t::settings_t() :
 	signals_on_left = false;
 
 	// forest setting ...
-	forest_base_size = 36; 	// Base forest size - minimal size of forest - map independent
-	forest_map_size_divisor = 38;	// Map size divisor - smaller it is the larger are individual forests
-	forest_count_divisor = 16;	// Forest count divisor - smaller it is, the more forest are generated
-	forest_inverse_spare_tree_density = 5;	// Determines how often are spare trees going to be planted (works inversely)
-	max_no_of_trees_on_square = 3;	// Number of trees on square 2 - minimal usable, 3 good, 5 very nice looking
-	tree_climates = 0;	// bit set, if this climate is to be covered with trees entirely
-	no_tree_climates = 0;	// bit set, if this climate is to be void of random trees
-	no_trees = false;	// if set, no trees at all, may be useful for low end engines
+	forest_base_size = 36;                 // Base forest size - minimal size of forest - map independent
+	forest_map_size_divisor = 38;          // Map size divisor - smaller it is the larger are individual forests
+	forest_count_divisor = 16;             // Forest count divisor - smaller it is, the more forest are generated
+	forest_inverse_spare_tree_density = 5; // Determines how often are spare trees going to be planted (works inversely)
+	max_no_of_trees_on_square = 3;         // Number of trees on square 2 - minimal usable, 3 good, 5 very nice looking
+	tree_climates = 0;                     // bit set, if this climate is to be covered with trees entirely
+	no_tree_climates = 0;                  // bit set, if this climate is to be void of random trees
+	no_trees = false;                      // if set, no trees at all, may be useful for low end engines
 
-	lake = false;	// if set lakes will be added to map
+	lake = true; // if set lakes will be added to map
 
 	// some settings more
 	allow_player_change = true;
@@ -145,11 +140,11 @@ settings_t::settings_t() :
 	electric_promille = 330;
 
 #ifdef OTTD_LIKE
-	/* prissi: crossconnect all factories (like OTTD and similar games) */
+	// crossconnect all factories (like OTTD and similar games)
 	crossconnect_factories=true;
 	crossconnect_factor=100;
 #else
-	/* prissi: crossconnect a certain number */
+	/* crossconnect a certain number */
 	crossconnect_factories=false;
 	crossconnect_factor=33;
 #endif
@@ -198,7 +193,7 @@ settings_t::settings_t() :
 	// read default from env_t
 	// should be set in simmain.cc (taken from pak-set simuconf.tab
 	way_height_clearance = env_t::default_settings.get_way_height_clearance();
-	if (way_height_clearance < 0 || way_height_clearance >2) {
+	if (way_height_clearance >2) {
 		// if outside bounds, then set to default = 1
 		way_height_clearance = 1;
 	}
@@ -385,7 +380,7 @@ settings_t::settings_t() :
 	//@author: jamespetts
 	// Insolvency and debt settings
 	interest_rate_percent = 10;
-	allow_bankruptcy  = 0;
+	allow_insolvency  = 0;
 	allow_purchases_when_insolvent  = 0;
 
 	// Reversing settings
@@ -471,8 +466,12 @@ settings_t::settings_t() :
 
 	random_mode_commuting = random_mode_visiting = 2;
 
+	tolerance_modifier_percentage = 100;
+
+	industry_density_proportion_override = 0;
+
 	max_route_tiles_to_process_in_a_step = 2048;
-	
+
 	for(uint8 i = 0; i < 17; i ++)
 	{
 		if(i != road_wt)
@@ -531,9 +530,6 @@ settings_t::settings_t() :
 	sighting_distance_meters = 250;
 	assumed_curve_radius_45_degrees = 1000;
 
-	max_speed_drive_by_sight_kmh = 0;
-	max_speed_drive_by_sight = 0;
-
 	time_interval_seconds_to_clear = 600;
 	time_interval_seconds_to_caution = 300;
 
@@ -566,7 +562,7 @@ void settings_t::rdwr(loadsave_t *file)
 	// used to be called einstellungen_t - keep old name during save/load for compatibility
 	xml_tag_t e( file, "einstellungen_t" );
 
-	if(file->get_version() < 86000) {
+	if(file->get_version_int() < 86000) {
 		uint32 dummy;
 
 		file->rdwr_long(size_x );
@@ -581,7 +577,7 @@ void settings_t::rdwr(loadsave_t *file)
 		tourist_attractions = 12;
 
 		// now towns
-		mean_einwohnerzahl = 1600;
+		mean_citizen_count = 1600;
 		dummy =  city_count;
 		file->rdwr_long(dummy );
 		dummy &= 127;
@@ -612,7 +608,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 		// industries
 		file->rdwr_long(factory_count );
-		if(file->get_version()<99018) {
+		if(file->get_version_int()<99018) {
 			uint32 dummy;	// was city chains
 			file->rdwr_long(dummy );
 		}
@@ -622,11 +618,11 @@ void settings_t::rdwr(loadsave_t *file)
 		file->rdwr_long(tourist_attractions );
 
 		// now towns
-		file->rdwr_long(mean_einwohnerzahl );
+		file->rdwr_long(mean_citizen_count );
 		file->rdwr_long(city_count );
 
 		// rest
-		if(file->get_version() < 101000) {
+		if(file->get_version_int() < 101000) {
 			uint32 dummy;	// was scroll dir
 			file->rdwr_long(dummy);
 		}
@@ -634,7 +630,7 @@ void settings_t::rdwr(loadsave_t *file)
 		file->rdwr_long(show_pax );
 		sint32 dummy = groundwater;
 		file->rdwr_long(dummy );
-		if(file->get_version() < 99005) {
+		if(file->get_version_int() < 99005) {
 			groundwater = (sint16)(dummy/16);
 		}
 		else {
@@ -643,7 +639,7 @@ void settings_t::rdwr(loadsave_t *file)
 		file->rdwr_double(max_mountain_height );
 		file->rdwr_double(map_roughness );
 
-		if(file->get_version() >= 86003) {
+		if(file->get_version_int() >= 86003) {
 			dummy = station_coverage_size;
 			file->rdwr_long(dummy);
 			station_coverage_size = (uint16)dummy;
@@ -652,7 +648,7 @@ void settings_t::rdwr(loadsave_t *file)
 		if(file->get_extended_version() >= 11)
 		{
 			file->rdwr_short(station_coverage_size_factories);
-			if ( file->get_version() <= 112002) {
+			if ( file->get_version_int() <= 112002) {
 				// Correct broken save files on load.
 				if (station_coverage_size_factories < 3) {
 					station_coverage_size_factories = 3;
@@ -660,7 +656,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(file->get_version() >= 86006) {
+		if(file->get_version_int() >= 86006) {
 			// handle also size on y direction
 			file->rdwr_long(size_y );
 		}
@@ -668,7 +664,7 @@ void settings_t::rdwr(loadsave_t *file)
 			size_y = size_x;
 		}
 
-		if(file->get_version() >= 86011) {
+		if(file->get_version_int() >= 86011) {
 			// some more settings
 			file->rdwr_byte(allow_player_change);
 			file->rdwr_byte(use_timeline);
@@ -680,7 +676,7 @@ void settings_t::rdwr(loadsave_t *file)
 			starting_year = 1930;
 		}
 
-		if(file->get_version()>=88005) {
+		if(file->get_version_int()>=88005) {
 			file->rdwr_short(bits_per_month);
 		}
 		else {
@@ -688,22 +684,22 @@ void settings_t::rdwr(loadsave_t *file)
 			calc_job_replenishment_ticks();
 		}
 
-		if(file->get_version()>=89003) {
+		if(file->get_version_int()>=89003) {
 			file->rdwr_bool(beginner_mode);
 		}
 		else {
 			beginner_mode = false;
 		}
-		if(  file->get_version()>120000  ){
+		if(  file->get_version_int()>120000  ){
 			file->rdwr_byte( just_in_time );
 		}
-		else if(file->get_version()>=89004) {
+		else if(file->get_version_int()>=89004) {
 			bool jit = just_in_time;
 			file->rdwr_bool(jit);
 			just_in_time = jit ? 1 : 0;
 		}
 		// rotation of the map with respect to the original value
-		if(file->get_version()>=99015) {
+		if(file->get_version_int()>=99015) {
 			file->rdwr_byte(rotation);
 		}
 		else {
@@ -716,14 +712,14 @@ void settings_t::rdwr(loadsave_t *file)
 		}
 
 		// climate borders
-		if(file->get_version()>=91000) {
+		if(file->get_version_int()>=91000) {
 			for(  int i=0;  i<8;  i++ ) {
 				file->rdwr_short(climate_borders[i] );
 			}
 			file->rdwr_short(winter_snowline );
 		}
 
-		if(  file->is_loading()  &&  file->get_version() < 112007  ) {
+		if(  file->is_loading()  &&  file->get_version_int() < 112007  ) {
 			groundwater *= env_t::pak_height_conversion_factor;
 			for(  int i = 0;  i < 8;  i++  ) {
 				climate_borders[i] *= env_t::pak_height_conversion_factor;
@@ -733,7 +729,7 @@ void settings_t::rdwr(loadsave_t *file)
 		}
 
 		// since vehicle will need realignment afterwards!
-		if(file->get_version()<=99018) {
+		if(file->get_version_int()<=99018) {
 			vehicle_base_t::set_diagonal_multiplier( pak_diagonal_multiplier, 1024 );
 		}
 		else {
@@ -746,7 +742,7 @@ void settings_t::rdwr(loadsave_t *file)
 		// 16 was the default value of this setting.
 		uint32 old_passenger_factor = 16;
 
-		if(file->get_version()>=101000) {
+		if(file->get_version_int()>=101000) {
 			// game mechanics
 			file->rdwr_short(origin_x );
 			file->rdwr_short(origin_y );
@@ -758,7 +754,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 
 			// town growth stuff
-			if(file->get_version()>102001) {
+			if(file->get_version_int()>102001) {
 				file->rdwr_long(passenger_multiplier );
 				file->rdwr_long(mail_multiplier );
 				file->rdwr_long(goods_multiplier );
@@ -786,7 +782,7 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_long(stadtauto_duration);
 
 			file->rdwr_bool(numbered_stations);
-			if(file->get_version() <= 102002 || (file->get_extended_version() < 8 && file->get_extended_version() != 0))
+			if(file->get_version_int() <= 102002 || (file->get_extended_version() < 8 && file->get_extended_version() != 0))
 			{
 				if(file->is_loading())
 				{
@@ -835,7 +831,7 @@ void settings_t::rdwr(loadsave_t *file)
 			for(  int i=0;  i<15;  i++  ) {
 				file->rdwr_bool( player_active[i]);
 				file->rdwr_byte( player_type[i]);
-				if(  file->get_version()<=102002 || file->get_extended_version() == 7) {
+				if(  file->get_version_int()<=102002 || file->get_extended_version() == 7) {
 					char dummy[17];
 					dummy[0] = 0;
 					file->rdwr_str(dummy, lengthof(dummy));
@@ -844,7 +840,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 			// cost section ...
 			file->rdwr_bool( freeplay);
-			if(  file->get_version()>102002 && file->get_extended_version() != 7 ) {
+			if(  file->get_version_int()>102002 && file->get_extended_version() != 7 ) {
 				file->rdwr_longlong( starting_money);
 				// these must be saved, since new player will get different amounts eventually
 				for(  int i=0;  i<10;  i++  ) {
@@ -890,7 +886,7 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_longlong(cst_depot_road );
 			file->rdwr_longlong(cst_depot_ship );
 			file->rdwr_longlong(cst_depot_air );
-			if(  file->get_version()<=102001  ) {
+			if(  file->get_version_int()<=102001  ) {
 				sint64 dummy64 = 100000;
 				file->rdwr_longlong(dummy64 );
 				file->rdwr_longlong(dummy64 );
@@ -908,7 +904,7 @@ void settings_t::rdwr(loadsave_t *file)
 			// cost for transformers
 			file->rdwr_longlong(cst_transformer );
 			file->rdwr_longlong(cst_maintain_transformer );
-			if (file->get_version() > 120002 && (file->get_extended_revision() == 0 || file->get_extended_revision() >= 16) || file->get_extended_version() >= 13)
+			if ((file->get_version_int() > 120002 && (file->get_extended_revision() == 0 || file->get_extended_revision() >= 16)) || file->get_extended_version() >= 13)
 			{
 				file->rdwr_longlong(cst_make_public_months);
 			}
@@ -944,7 +940,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(file->get_version()>101000) {
+		if(file->get_version_int()>101000) {
 			file->rdwr_bool( separate_halt_capacities);
 			if(file->get_extended_version() < 2)
 			{
@@ -961,23 +957,23 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short( max_river_length );
 		}
 
-		if(file->get_version()>102000) {
+		if(file->get_version_int()>102000) {
 			file->rdwr_bool(avoid_overcrowding);
 		}
 
-		if(file->get_version()>102001)
+		if(file->get_version_int()>102001)
 		{
-			bool dummy;
+			bool dummy = false;
 			file->rdwr_bool(dummy);
 			file->rdwr_bool(with_private_paks);
 		}
 
-		if(file->get_version()>=102003) {
+		if(file->get_version_int()>=102003) {
 			// network stuff
 			random_counter = get_random_seed( );
 			file->rdwr_long( random_counter );
 			if(  !env_t::networkmode  ||  env_t::server  ) {
-				frames_per_second = clamp(env_t::fps,5,100 );	// update it on the server to the current setting
+				frames_per_second = clamp(env_t::fps, 5u, 100u); // update it on the server to the current setting
 				frames_per_step = env_t::network_frames_per_step;
 			}
 			file->rdwr_long( frames_per_second );
@@ -1315,7 +1311,7 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(factory_max_years_obsolete);
 
 			file->rdwr_byte(interest_rate_percent);
-			file->rdwr_bool(allow_bankruptcy);
+			file->rdwr_bool(allow_insolvency);
 			file->rdwr_bool(allow_purchases_when_insolvent);
 
 			if(file->get_extended_version() >= 11)
@@ -1459,7 +1455,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(  file->get_version()>=110000  ) {
+		if(  file->get_version_int()>=110000  ) {
 			if(  !env_t::networkmode  ||  env_t::server  ) {
 				server_frames_ahead = env_t::server_frames_ahead;
 			}
@@ -1493,7 +1489,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(  file->get_version()>=110001  ) {
+		if(  file->get_version_int()>=110001  ) {
 			file->rdwr_bool( default_player_color_random );
 			for(  int i=0;  i<MAX_PLAYER_COUNT;  i++  ) {
 				file->rdwr_byte( default_player_color[i][0] );
@@ -1509,12 +1505,12 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(  file->get_version()>=110005  ) {
+		if(  file->get_version_int()>=110005  ) {
 			file->rdwr_short(factory_arrival_periods);
 			file->rdwr_bool(factory_enforce_demand);
 		}
 
-		if(  file->get_version()>=110007  )
+		if(  file->get_version_int()>=110007  )
 		{
 			if(file->get_extended_version() == 0 )
 			{
@@ -1531,13 +1527,13 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(file->get_extended_version() >= 10 || (file->get_extended_version() == 0 && file->get_version() >= 110007))
+		if(file->get_extended_version() >= 10 || (file->get_extended_version() == 0 && file->get_version_int() >= 110007))
 		{
 			file->rdwr_bool( drive_on_left );
 			file->rdwr_bool( signals_on_left );
 		}
 
-		if(file->get_version() >= 110007)
+		if(file->get_version_int() >= 110007)
 		{
 			file->rdwr_long( way_toll_runningcost_percentage );
 			file->rdwr_long( way_toll_waycost_percentage );
@@ -1549,7 +1545,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if (file->get_extended_version() >= 9 && file->get_version() >= 110006)
+		if (file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
 		{
 			file->rdwr_byte(spacing_shift_mode);
 			file->rdwr_short(spacing_shift_divisor);
@@ -1588,11 +1584,11 @@ void settings_t::rdwr(loadsave_t *file)
 		{
 			file->rdwr_bool(allow_routing_on_foot);
 			file->rdwr_short(min_wait_airport);
-			if(file->get_version() >= 110007)
+			if(file->get_version_int() >= 110007)
 			{
 				file->rdwr_bool(toll_free_public_roads);
 			}
-			if(file->get_version() >= 111000)
+			if(file->get_version_int() >= 111000)
 			{
 				file->rdwr_bool(allow_making_public);
 			}
@@ -1614,14 +1610,14 @@ void settings_t::rdwr(loadsave_t *file)
 			walking_speed = 5;
 		}
 
-		if(file->get_version()>=111002 && file->get_extended_version() == 0)
+		if(file->get_version_int()>=111002 && file->get_extended_version() == 0)
 		{
 			// Was bonus_basefactor
 			uint32 dummy = 0;
 			file->rdwr_long(dummy);
 		}
 
-		if(file->get_extended_version() >= 10 && file->get_version() >= 111002)
+		if(file->get_extended_version() >= 10 && file->get_version_int() >= 111002)
 		{
 			file->rdwr_long(max_small_city_size);
 			file->rdwr_long(max_city_size);
@@ -1629,46 +1625,45 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_bool(allow_airports_without_control_towers);
 		}
 
-		if(  file->get_version()>=111004  ) {
+		if(  file->get_version_int()>=111004  ) {
 			file->rdwr_bool( allow_underground_transformers );
 		}
 
-		if(  file->get_version()>=111005  ) {
+		if(  file->get_version_int()>=111005  ) {
 			file->rdwr_short( special_building_distance );
 		}
 
-		if(  file->get_version()>=112001  ) {
+		if(  file->get_version_int()>=112001  ) {
 			file->rdwr_short( factory_maximum_intransit_percentage );
 		}
 
-		if(  file->get_version()>=112002  ) {
+		if(  file->get_version_int()>=112002  ) {
 			file->rdwr_short( remove_dummy_player_months );
 			file->rdwr_short( unprotect_abandoned_player_months );
 		}
 
-		if(  file->get_version()>=112003  ) {
+		if(  file->get_version_int()>=112003  ) {
 			file->rdwr_short( max_factory_spacing );
 			file->rdwr_short( max_factory_spacing_percentage );
 		}
-		if(  file->get_version()>=112008  ) {
+		if(  file->get_version_int()>=112008  ) {
 			file->rdwr_longlong( cst_alter_climate );
 			file->rdwr_byte( way_height_clearance );
 		}
-		if(  file->get_version()>=120002 && file->get_extended_version() == 0 ) {
+		if(  file->get_version_int()>=120002 && file->get_extended_version() == 0 ) {
 			file->rdwr_long( default_ai_construction_speed );
 			// This feature is used in Standard only
 		}
 		else if(  file->is_loading()  ) {
 			default_ai_construction_speed = env_t::default_ai_construction_speed;
 		}
-		if(  file->get_version() >=120002 && (file->get_extended_revision() >= 9 || file->get_extended_version() == 0 || file->get_extended_version() >= 13)) {
+		if(  file->get_version_int() >=120002 && (file->get_extended_revision() >= 9 || file->get_extended_version() == 0 || file->get_extended_version() >= 13)) {
 			file->rdwr_bool(lake);
 			file->rdwr_bool(no_trees);
 			file->rdwr_long(max_choose_route_steps );
-		// otherwise the default values of the last one will be used
 		}
 
-		if (file->get_version() > 120003 && (file->get_extended_version() == 0 || file->get_extended_revision() >= 19) || file->get_extended_version() >= 13)
+		if ((file->get_version_int() > 120003 && (file->get_extended_version() == 0 || file->get_extended_revision() >= 19)) || file->get_extended_version() >= 13)
 		{
 			file->rdwr_bool(disable_make_way_public);
 		}
@@ -1736,6 +1731,11 @@ void settings_t::rdwr(loadsave_t *file)
 				max_speed_drive_by_sight = kmh_to_speed(max_speed_drive_by_sight_kmh);
 			}
 #endif
+			if ((file->get_extended_version() == 14 && file->get_extended_revision()) >= 31 || file->get_extended_version() >= 15)
+			{
+				file->rdwr_long(max_speed_drive_by_sight_tram);
+				max_speed_drive_by_sight_tram = kmh_to_speed(max_speed_drive_by_sight_tram);
+			}
 			if(file->get_extended_revision() >= 5 || file->get_extended_version() >= 13)
 			{
 				file->rdwr_short(global_force_factor_percent);
@@ -1835,7 +1835,75 @@ void settings_t::rdwr(loadsave_t *file)
 				file->rdwr_long(max_route_tiles_to_process_in_a_step);
 			}
 		}
+
+		if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 25))
+		{
+			file->rdwr_long(tolerance_modifier_percentage);
+		}
+		else if (file->is_loading())
+		{
+			tolerance_modifier_percentage = 100;
+		}
+
+		if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 27))
+		{
+			file->rdwr_bool(absolute_regions);
+			if (file->is_saving())
+			{
+				uint32 count = regions.get_count();
+				file->rdwr_long(count);
+
+				FOR(vector_tpl<region_definition_t>, region, regions)
+				{
+					region.top_left.rdwr(file);
+					region.bottom_right.rdwr(file);
+					file->rdwr_string(region.name);
+				}
+			}
+			else // Loading
+			{
+				uint32 count = 0;
+				file->rdwr_long(count);
+
+				regions.clear();
+				for (uint32 i = 0; i < count; i++)
+				{
+					region_definition_t r;
+					r.top_left.rdwr(file);
+					r.bottom_right.rdwr(file);
+					file->rdwr_string(r.name);
+					regions.append(r);
+				}
+			}
+		}
+
+		if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 30))
+		{
+			if (!env_t::server)
+			{
+				file->rdwr_long(industry_density_proportion_override);
+			}
+			else
+			{
+				uint32 idpo = industry_density_proportion_override;
+				file->rdwr_long(idpo); // Do not load this value if running a server - allow this to be an override whatever the general override settings.
+			}
+		}
+		else if (file->is_loading())
+		{
+			if (!env_t::server)
+			{
+				industry_density_proportion_override = 0;
+			}
+		}
+		if( (file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() > 14) {
+			file->rdwr_byte(world_maximum_height);
+			file->rdwr_byte(world_minimum_height);
+		}
+		// otherwise the default values of the last one will be used
 	}
+
+
 
 #ifdef DEBUG_SIMRAND_CALLS
 	char buf[256];
@@ -1849,7 +1917,7 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 {
 	tabfileobj_t contents;
 
-	simuconf.read(contents );
+	simuconf.read(contents);
 
 	// Meta-options.
 	// Only the version in default_einstellungen is meaningful.  These determine whether savegames
@@ -1902,9 +1970,16 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	}
 #endif
 
-	env_t::water_animation = contents.get_int("water_animation_ms", env_t::water_animation);
-	env_t::ground_object_probability = contents.get_int("random_grounds_probability", env_t::ground_object_probability);
-	env_t::moving_object_probability = contents.get_int("random_wildlife_probability", env_t::moving_object_probability);
+	//check for fontname, must be a valid name!
+	const char *fname = contents.get_string( "fontname", env_t::fontname.c_str() );
+	if(  FILE *f=fopen(fname,"r")  ) {
+		fclose(f);
+		env_t::fontname = fname;
+	}
+
+	env_t::water_animation = contents.get_int("water_animation_ms", env_t::water_animation );
+	env_t::ground_object_probability = contents.get_int("random_grounds_probability", env_t::ground_object_probability );
+	env_t::moving_object_probability = contents.get_int("random_wildlife_probability", env_t::moving_object_probability );
 
 	env_t::straight_way_without_control = contents.get_int("straight_way_without_control", env_t::straight_way_without_control) != 0;
 
@@ -1925,42 +2000,64 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	env_t::second_open_closes_win = contents.get_int("second_open_closes_win", env_t::second_open_closes_win );
 	env_t::remember_window_positions = contents.get_int("remember_window_positions", env_t::remember_window_positions );
 
-	env_t::front_window_bar_color = contents.get_int("front_window_bar_color", env_t::front_window_bar_color );
-	env_t::front_window_text_color = contents.get_int("front_window_text_color", env_t::front_window_text_color );
-	env_t::bottom_window_bar_color = contents.get_int("bottom_window_bar_color", env_t::bottom_window_bar_color );
-	env_t::bottom_window_text_color = contents.get_int("bottom_window_text_color", env_t::bottom_window_text_color );
-
 	env_t::show_tooltips = contents.get_int("show_tooltips", env_t::show_tooltips );
-	env_t::tooltip_color = contents.get_int("tooltip_background_color", env_t::tooltip_color );
-	env_t::tooltip_textcolor = contents.get_int("tooltip_text_color", env_t::tooltip_textcolor );
 	env_t::tooltip_delay = contents.get_int("tooltip_delay", env_t::tooltip_delay );
 	env_t::tooltip_duration = contents.get_int("tooltip_duration", env_t::tooltip_duration );
 	env_t::toolbar_max_width = contents.get_int("toolbar_max_width", env_t::toolbar_max_width );
 	env_t::toolbar_max_height = contents.get_int("toolbar_max_height", env_t::toolbar_max_height );
-	env_t::cursor_overlay_color = contents.get_int("cursor_overlay_color", env_t::cursor_overlay_color );
 
 	// how to show the stuff outside the map
-	env_t::background_color = contents.get_int("background_color", env_t::background_color );
 	env_t::draw_earth_border = contents.get_int("draw_earth_border", env_t::draw_earth_border ) != 0;
 	env_t::draw_outside_tile = contents.get_int("draw_outside_tile", env_t::draw_outside_tile ) != 0;
 
 	// display stuff
-	env_t::show_names = contents.get_int("show_names", env_t::show_names );
-	env_t::show_month = contents.get_int("show_month", env_t::show_month );
-	env_t::max_acceleration = contents.get_int("fast_forward", env_t::max_acceleration );
-	env_t::fps = contents.get_int("frames_per_second",env_t::fps );
-	env_t::num_threads = clamp( contents.get_int("threads", env_t::num_threads ), 1, MAX_THREADS );
-	env_t::simple_drawing_default = contents.get_int("simple_drawing_tile_size",env_t::simple_drawing_default );
-	env_t::simple_drawing_fast_forward = contents.get_int("simple_drawing_fast_forward",env_t::simple_drawing_fast_forward );
-	env_t::visualize_schedule = contents.get_int("visualize_schedule",env_t::visualize_schedule ) != 0;
-	env_t::show_vehicle_states = contents.get_int("show_vehicle_states",env_t::show_vehicle_states );
+	env_t::show_names = contents.get_int( "show_names", env_t::show_names );
+	env_t::show_month = contents.get_int( "show_month", env_t::show_month );
+	env_t::max_acceleration = contents.get_int( "fast_forward", env_t::max_acceleration );
+	env_t::fps = clamp( (uint32)contents.get_int( "frames_per_second", env_t::fps ), env_t::min_fps, env_t::max_fps );
+	env_t::ff_fps = clamp( (uint32)contents.get_int( "fast_forward_frames_per_second", env_t::ff_fps ), env_t::min_fps, env_t::max_fps );
+	env_t::num_threads = clamp( contents.get_int( "threads", env_t::num_threads ), 1, MAX_THREADS );
+	env_t::simple_drawing_default = contents.get_int( "simple_drawing_tile_size", env_t::simple_drawing_default );
+	env_t::simple_drawing_fast_forward = contents.get_int( "simple_drawing_fast_forward", env_t::simple_drawing_fast_forward );
+	env_t::visualize_schedule = contents.get_int( "visualize_schedule", env_t::visualize_schedule ) != 0;
+	env_t::show_vehicle_states = contents.get_int( "show_vehicle_states", env_t::show_vehicle_states );
+	env_t::follow_convoi_underground = contents.get_int( "follow_convoi_underground", env_t::follow_convoi_underground );
 
-	env_t::show_delete_buttons = contents.get_int("show_delete_buttons",env_t::show_delete_buttons ) != 0;
-	env_t::chat_window_transparency = contents.get_int("chat_transparency",env_t::chat_window_transparency );
+	env_t::show_delete_buttons = contents.get_int( "show_delete_buttons", env_t::show_delete_buttons ) != 0;
+	env_t::chat_window_transparency = contents.get_int( "chat_transparency", env_t::chat_window_transparency );
 
-	env_t::hide_keyboard = contents.get_int("hide_keyboard",env_t::hide_keyboard ) != 0;
+	env_t::hide_keyboard = contents.get_int( "hide_keyboard", env_t::hide_keyboard ) != 0;
+	env_t::numpad_always_moves_map = contents.get_int( "numpad_always_moves_map", env_t::numpad_always_moves_map );
 
-	env_t::player_finance_display_account = contents.get_int("player_finance_display_account",env_t::player_finance_display_account ) != 0;
+	env_t::player_finance_display_account = contents.get_int( "player_finance_display_account", env_t::player_finance_display_account ) != 0;
+
+	int* offsets[8];
+	offsets[0] = contents.get_ints("reverse_base_offset_south");
+	offsets[1] = contents.get_ints("reverse_base_offset_west");
+	offsets[2] = contents.get_ints("reverse_base_offset_southwest");
+	offsets[3] = contents.get_ints("reverse_base_offset_southeast");
+	offsets[4] = contents.get_ints("reverse_base_offset_north");
+	offsets[5] = contents.get_ints("reverse_base_offset_east");
+	offsets[6] = contents.get_ints("reverse_base_offset_northeast");
+	offsets[7] = contents.get_ints("reverse_base_offset_northwest");
+
+	for (uint32 i = 0; i < 8; i++)
+	{
+		if (offsets[i][0] >= 3)
+		{
+			for (uint32 j = 0; j < 3; j++)
+			{
+				env_t::reverse_base_offsets[i][j] = offsets[i][j+1];
+			}
+		}
+		else
+		{
+			for (uint32 j = 0; j < 3; j++)
+			{
+				env_t::reverse_base_offsets[i][j] = 0;
+			}
+		}
+	}
 
 	// network stuff
 	env_t::server_frames_ahead = contents.get_int("server_frames_ahead", env_t::server_frames_ahead );
@@ -1972,6 +2069,12 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	env_t::reload_and_save_on_quit = contents.get_int("reload_and_save_on_quit", env_t::reload_and_save_on_quit );
 
 	env_t::server_announce = contents.get_int("announce_server", env_t::server_announce );
+	if (!env_t::server) {
+		env_t::server_port = contents.get_int("server_port", env_t::server_port);
+	}
+	else {
+		env_t::server_port = env_t::server;
+	}
 	env_t::server_announce = contents.get_int("server_announce", env_t::server_announce );
 	env_t::server_announce_interval = contents.get_int("server_announce_intervall", env_t::server_announce_interval );
 	env_t::server_announce_interval = contents.get_int("server_announce_interval", env_t::server_announce_interval );
@@ -1983,6 +2086,9 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	}
 	if(  *contents.get("server_dns")  ) {
 		env_t::server_dns = ltrim(contents.get("server_dns"));
+	}
+	if(  *contents.get("server_altdns")  ) {
+		env_t::server_alt_dns = ltrim(contents.get("server_altdns"));
 	}
 	if(  *contents.get("server_name")  ) {
 		env_t::server_name = ltrim(contents.get("server_name"));
@@ -2308,10 +2414,10 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	env_t::pak_height_conversion_factor = contents.get_int("height_conversion_factor", env_t::pak_height_conversion_factor );
 
 	// minimum clearance under under bridges: 1 or 2? (HACK: value only zero during loading of pak set config)
-	const uint32 bounds = way_height_clearance != 0 ? 1 : 0;
+	const uint8 bounds = way_height_clearance != 0 ? 1 : 0;
 	way_height_clearance  = contents.get_int("way_height_clearance", way_height_clearance );
 	if(  way_height_clearance > 2  &&  way_height_clearance < bounds  ) {
-		sint8 new_whc = clamp( way_height_clearance, bounds, 2 );
+		uint8 new_whc = clamp( way_height_clearance, bounds, (uint8)2 );
 		dbg->warning( "settings_t::parse_simuconf()", "Illegal way_height_clearance of %i set to %i", way_height_clearance, new_whc );
 		way_height_clearance = new_whc;
 	}
@@ -2514,8 +2620,10 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	// Insolvency and debt settings
 	interest_rate_percent = contents.get_int("interest_rate_percent", interest_rate_percent);
 	// Check for misspelled version
-	allow_bankruptcy = contents.get_int("allow_bankruptsy", allow_bankruptcy);
-	allow_bankruptcy = contents.get_int("allow_bankruptcy", allow_bankruptcy);
+	allow_insolvency = contents.get_int("allow_bankruptsy", allow_insolvency);
+	// Check for deprecated version
+	allow_insolvency = contents.get_int("allow_bankruptcy", allow_insolvency);
+	allow_insolvency = contents.get_int("allow_insolvency", allow_insolvency);
 	// Check for misspelled version
 	allow_purchases_when_insolvent = contents.get_int("allow_purhcases_when_insolvent", allow_purchases_when_insolvent);
 	allow_purchases_when_insolvent = contents.get_int("allow_purchases_when_insolvent", allow_purchases_when_insolvent);
@@ -2567,6 +2675,10 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	towns_adopt_player_roads = (bool)contents.get_int("towns_adopt_player_roads", towns_adopt_player_roads);
 
 	max_elevated_way_building_level = (uint8)contents.get_int("max_elevated_way_building_level", max_elevated_way_building_level);
+
+	tolerance_modifier_percentage = contents.get_int("tolerance_modifier_percentage", tolerance_modifier_percentage);
+
+	industry_density_proportion_override = contents.get_int("industry_density_proportion_override", industry_density_proportion_override);
 
 	assume_everywhere_connected_by_road = (bool)(contents.get_int("assume_everywhere_connected_by_road", assume_everywhere_connected_by_road));
 
@@ -2671,6 +2783,9 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	max_speed_drive_by_sight_kmh = contents.get_int("max_speed_drive_by_sight_kmh", max_speed_drive_by_sight_kmh);
 	max_speed_drive_by_sight = kmh_to_speed(max_speed_drive_by_sight_kmh);
 
+	max_speed_drive_by_sight_tram_kmh = contents.get_int("max_speed_drive_by_sight_tram_kmh", max_speed_drive_by_sight_tram_kmh);
+	max_speed_drive_by_sight_tram = kmh_to_speed(max_speed_drive_by_sight_tram_kmh);
+
 	time_interval_seconds_to_clear = contents.get_int("time_interval_seconds_to_clear", time_interval_seconds_to_clear);
 	time_interval_seconds_to_caution = contents.get_int("time_interval_seconds_to_caution", time_interval_seconds_to_caution);
 
@@ -2753,6 +2868,114 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 		}
 	}
 
+	// Read region data
+	regions.clear();
+	absolute_regions = false;
+	for (int i = 0; i < 255; i++) // NOTE: We can define up to 254 regions. The number 255 is reserved for indicating no region in some contexts.
+	{
+		char name[128];
+		sprintf(name, "region_name[%i]", i);
+
+		const char* region_name = ltrim(contents.get(name));
+		if (region_name[0] == '\0')
+		{
+			break;
+		}
+
+		char upper_left[128];
+		sprintf(upper_left, "region_upper_left_percent[%i]", i);
+
+		char lower_right[128];
+		sprintf(lower_right, "region_lower_right_percent[%i]", i);
+
+		int* ul = contents.get_ints(upper_left);
+		int* lr = contents.get_ints(lower_right);
+
+		uint32 x_percent = 0;
+		uint32 y_percent = 0;
+		region_definition_t r;
+
+		if ((ul[0] & 1) == 1)
+		{
+			dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+			break;
+		}
+
+		for (int i = 1; i < ul[0]; i += 2)
+		{
+			x_percent = (uint32)ul[i];
+			y_percent = (uint32)ul[i+1];
+		}
+
+		uint32 x = x_percent > 0 ? ((uint32)size_x * x_percent) / 100u : 0;
+		uint32 y = y_percent > 0 ? ((uint32)size_y * y_percent) / 100u : 0;
+
+		r.top_left = koord(x, y);
+
+		if ((lr[0] & 1) == 1)
+		{
+			dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+			break;
+		}
+		for (int i = 1; i < lr[0]; i += 2)
+		{
+			x_percent = (uint32)lr[i];
+			y_percent = (uint32)lr[i + 1];
+		}
+
+		x = x_percent > 0 ? ((uint32)size_x * x_percent) / 100u : 0;
+		y = y_percent > 0 ? ((uint32)size_y * y_percent) / 100u : 0;
+
+		r.bottom_right = koord(x, y);
+
+		delete[] ul;
+		delete[] lr;
+
+		sprintf(upper_left, "region_upper_left[%i]", i);
+		sprintf(lower_right, "region_lower_right[%i]", i);
+
+		// Hard coded values override percentages where specified
+		if (contents.get_int(upper_left, 65536) < 65536 && contents.get_int(lower_right, 65536) < 65536)
+		{
+			absolute_regions = true;
+			ul = contents.get_ints(upper_left);
+			lr = contents.get_ints(lower_right);
+
+			if ((ul[0] & 1) == 1)
+			{
+				dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+				break;
+			}
+			for (int i = 1; i < ul[0]; i += 2)
+			{
+				x = (uint32)ul[i];
+				y = (uint32)ul[i + 1];
+			}
+
+			r.top_left = koord(x, y);
+
+			if ((lr[0] & 1) == 1)
+			{
+				dbg->message("void settings_t::parse_simuconf(", "Ill formed line in config/simuconf.tab.\nWill use default value. Format is region_upper_left[percent]=x,y");
+				break;
+			}
+			for (int i = 1; i < lr[0]; i += 2)
+			{
+				x = (uint32)lr[i];
+				y = (uint32)lr[i + 1];
+			}
+
+			r.bottom_right = koord(x, y);
+
+			delete[] ul;
+			delete[] lr;
+		}
+
+		r.name = region_name;
+
+		regions.append(r);
+	}
+
 	/*
 	 * Selection of savegame format through inifile
 	 */
@@ -2776,6 +2999,12 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	else if(strcmp(str, "xml_bzip2") == 0) {
 		loadsave_t::set_savemode(loadsave_t::xml_bzip2 );
 	}
+	else if(strcmp(str, "zstd") == 0) {
+		loadsave_t::set_savemode(loadsave_t::zstd );
+	}
+	else if(strcmp(str, "xml_zstd") == 0) {
+		loadsave_t::set_savemode(loadsave_t::xml_zstd );
+	}
 
 	str = contents.get("autosaveformat" );
 	while (*str == ' ') str++;
@@ -2797,6 +3026,15 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	else if(strcmp(str, "xml_bzip2") == 0) {
 		loadsave_t::set_autosavemode(loadsave_t::xml_bzip2 );
 	}
+	else if(strcmp(str, "zstd") == 0) {
+		loadsave_t::set_autosavemode(loadsave_t::zstd );
+	}
+	else if(strcmp(str, "xml_zstd") == 0) {
+		loadsave_t::set_autosavemode(loadsave_t::xml_zstd );
+	}
+
+	loadsave_t::save_level = contents.get_int("save_level", loadsave_t::save_level );
+	loadsave_t::autosave_level = contents.get_int("autosave_level", loadsave_t::autosave_level );
 
 	/*
 	 * Default resolution
@@ -2807,12 +3045,37 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 
 	with_private_paks = contents.get_int("with_private_paks", with_private_paks)!=0;
 
+	world_maximum_height = contents.get_int("world_maximum_height",world_maximum_height);
+	world_minimum_height = contents.get_int("world_minimum_height",world_minimum_height);
+	if(  world_minimum_height>=world_maximum_height  ) {
+		world_minimum_height = world_maximum_height-1;
+	}
+
 	// Default pak file path
 	objfilename = ltrim(contents.get_string("pak_file_path", ""));
 
 	printf("Reading simuconf.tab successful!\n" );
 
-	simuconf.close( );
+}
+
+// colour stuff can only be parsed when the graphic system has already started
+void settings_t::parse_colours(tabfile_t& simuconf)
+{
+	tabfileobj_t contents;
+
+	simuconf.read( contents );
+
+	env_t::default_window_title_color = contents.get_color("default_window_title_color", env_t::default_window_title_color, &env_t::default_window_title_color_rgb );
+	env_t::front_window_text_color = contents.get_color("front_window_text_color", env_t::front_window_text_color, &env_t::front_window_text_color_rgb );
+	env_t::bottom_window_text_color = contents.get_color("bottom_window_text_color", env_t::bottom_window_text_color, &env_t::bottom_window_text_color_rgb );
+
+	env_t::bottom_window_darkness = contents.get_int("env_t::bottom_window_darkness", env_t::bottom_window_darkness);
+
+	env_t::tooltip_color = contents.get_color("tooltip_color", env_t::tooltip_color, &env_t::tooltip_color_rgb );
+	env_t::tooltip_textcolor = contents.get_color("tooltip_textcolor", env_t::tooltip_textcolor, &env_t::tooltip_textcolor_rgb );
+	env_t::cursor_overlay_color = contents.get_color("cursor_overlay_color", env_t::cursor_overlay_color, &env_t::cursor_overlay_color_rgb );
+
+	env_t::background_color = contents.get_color("background_color", env_t::background_color, &env_t::background_color_rgb );
 }
 
 
@@ -2826,6 +3089,83 @@ int settings_t::get_name_language_id() const
 		lang = translator::get_language();
 	}
 	return lang;
+}
+
+void settings_t::set_size(sint32 x, sint32 y, bool preserve_regions)
+{
+	sint32 old_x = size_x;
+	sint32 old_y = size_y;
+
+	size_x = x;
+	size_y = y;
+	if (!preserve_regions)
+	{
+		reset_regions(old_x, old_y);
+	}
+}
+
+void settings_t::set_size_x(sint32 g)
+{
+	sint32 old_x = size_x;
+	size_x = g;
+
+	reset_regions(old_x, size_y);
+}
+
+void settings_t::set_size_y(sint32 g)
+{
+	sint32 old_y = size_y;
+	size_y = g;
+
+	reset_regions(size_x, old_y);
+}
+
+void settings_t::reset_regions(sint32 old_x, sint32 old_y)
+{
+	if (absolute_regions || (env_t::networkmode && !env_t::server))
+	{
+		return;
+	}
+
+	// Necessary when changing the map size unless regions are specified in absolute
+	// rather than relative terms in ther relevant simuconf.tab
+	vector_tpl<region_definition_t> temp_regions;
+	FOR(vector_tpl<region_definition_t>, region, regions)
+	{
+		sint32 old_percent_x = (region.top_left.x * 100u) / old_x;
+		sint32 old_percent_y = (region.top_left.y * 100u) / old_y;
+		region.top_left.x = (size_x * old_percent_x) / 100u;
+		region.top_left.y = (size_y * old_percent_y) / 100u;
+
+		old_percent_x = (region.bottom_right.x * 100u) / old_x;
+		old_percent_y = (region.bottom_right.y * 100u) / old_y;
+		region.bottom_right.x = (size_x * old_percent_x) / 100u;
+		region.bottom_right.y = (size_y * old_percent_y) / 100u;
+		temp_regions.append(region);
+	}
+
+	regions.clear();
+	FOR(vector_tpl<region_definition_t>, region, temp_regions)
+	{
+		regions.append(region);
+	}
+}
+
+void settings_t::rotate_regions(sint16 y_size)
+{
+	vector_tpl<region_definition_t> temp_regions;
+	FOR(vector_tpl<region_definition_t>, region, regions)
+	{
+		region.top_left.rotate90(y_size);
+		region.bottom_right.rotate90(y_size);
+		temp_regions.append(region);
+	}
+
+	regions.clear();
+	FOR(vector_tpl<region_definition_t>, region, temp_regions)
+	{
+		regions.append(region);
+	}
 }
 
 
@@ -2879,11 +3219,8 @@ static const way_desc_t *get_timeline_road_type( uint16 year, uint16 num_roads, 
 	const way_desc_t *test;
 	for(  int i=0;  i<num_roads;  i++  ) {
 		test = way_builder_t::get_desc( roads[i].name, 0 );
-		if(  test  ) {
-			// return first available for no timeline
-			if(  year==0  ) {
-				return test;
-			}
+		if(  test  )
+		{
 			if(  roads[i].intro==0  ) {
 				// fill in real intro date
 				roads[i].intro = test->get_intro_year_month( );
@@ -2895,9 +3232,11 @@ static const way_desc_t *get_timeline_road_type( uint16 year, uint16 num_roads, 
 					roads[i].retire = NEVER;
 				}
 			}
-			// find newest available ...
-			if(  year>=roads[i].intro  &&  year<roads[i].retire  ) {
-				if(  desc==0  ||  desc->get_intro_year_month()<test->get_intro_year_month()  ) {
+			// find newest available
+			if(year == 0 || (year>=roads[i].intro && year<roads[i].retire))
+			{
+				if(desc==0 || desc->get_intro_year_month()<test->get_intro_year_month())
+				{
 					desc = test;
 				}
 			}
@@ -2928,11 +3267,20 @@ void settings_t::copy_city_road(settings_t const& other)
 }
 
 
+void settings_t::set_default_player_color(uint8 player_nr, uint8 color1, uint8 color2)
+{
+	if (player_nr < MAX_PLAYER_COUNT) {
+		default_player_color[player_nr][0] = color1 < 28 ? color1 : 255;
+		default_player_color[player_nr][1] = color2 < 28 ? color2 : 255;
+	}
+}
+
+
 // returns default player colors for new players
-void settings_t::set_default_player_color(player_t* const player) const
+void settings_t::set_player_color_to_default(player_t* const player) const
 {
 	karte_ptr_t welt;
-	COLOR_VAL color1 = default_player_color[player->get_player_nr()][0];
+	uint8 color1 = default_player_color[player->get_player_nr()][0];
 	if(  color1 == 255  ) {
 		if(  default_player_color_random  ) {
 			// build a vector with all colors
@@ -2964,7 +3312,7 @@ void settings_t::set_default_player_color(player_t* const player) const
 		}
 	}
 
-	COLOR_VAL color2 = default_player_color[player->get_player_nr()][1];
+	uint8 color2 = default_player_color[player->get_player_nr()][1];
 	if(  color2 == 255  ) {
 		if(  default_player_color_random  ) {
 			// build a vector with all colors

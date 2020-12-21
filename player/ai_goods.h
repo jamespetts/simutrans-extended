@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef AI_GOODS_H
-#define AI_GOODS_H
+#ifndef PLAYER_AI_GOODS_H
+#define PLAYER_AI_GOODS_H
+
 
 #include "ai.h"
 
@@ -30,9 +31,9 @@ private:
 	// vars for the KI
 	state state;
 
-	/* test more than one supplier and more than one good *
+	/**
+	 * test more than one supplier and more than one good *
 	 * save last factory for building next supplier/consumer *
-	 * @author prissi
 	 */
 	fabrik_t *root;
 
@@ -107,32 +108,31 @@ private:
 	void create_rail_transport_vehicle(const koord pos1,const koord pos2, int vehicle_count, int minimum_loading);
 
 public:
-	ai_goods_t(karte_t *wl, uint8 nr);
+	ai_goods_t(uint8 nr);
 
 	// this type of AIs identifier
-	virtual uint8 get_ai_id() const { return AI_GOODS; }
+	uint8 get_ai_id() const OVERRIDE { return AI_GOODS; }
 
 	// cannot do airfreight at the moment
-	virtual void set_air_transport( bool ) { air_transport = false; }
+	void set_air_transport( bool ) OVERRIDE { air_transport = false; }
 
-	virtual void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
-	virtual void report_vehicle_problem(convoihandle_t cnv,const koord3d ziel);
+	void report_vehicle_problem(convoihandle_t cnv,const koord3d ziel) OVERRIDE;
 
-	bool set_active( bool b );
+	bool set_active( bool b ) OVERRIDE;
 
-	void step();
+	void step() OVERRIDE;
 
-	void new_year();
+	void new_year() OVERRIDE;
 
-	virtual void rotate90( const sint16 y_size );
+	void rotate90( const sint16 y_size ) OVERRIDE;
 
 	/**
 	 * Tells the player that a fabrik_t is going to be deleted.
 	 * It could also tell, that a fab has been created, but by now the factory_builder_t does not.
-	 * @author Bernd Gabriel, Jan 01, 2010
 	 */
-	virtual void notify_factory(notification_factory_t flag, const fabrik_t*);
+	void notify_factory(notification_factory_t flag, const fabrik_t*) OVERRIDE;
 };
 
 #endif

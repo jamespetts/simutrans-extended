@@ -12,7 +12,8 @@
 #include "../simhalt.h"
 #include "../simware.h"
 #include "../simfab.h"
-#include "../gui/simwin.h"
+#include "../unicode.h"
+#include "simwin.h"
 #include "../descriptor/skin_desc.h"
 
 #include "../bauer/goods_manager.h"
@@ -21,7 +22,40 @@
 
 #include "../utils/cbuffer_t.h"
 
-#define HALT_SCROLL_START (D_MARGIN_TOP + LINESPACE + D_V_SPACE + D_BUTTON_HEIGHT)
+
+static bool passes_filter(haltestelle_t & s); // see below
+static uint8 default_sortmode = 0;
+
+/**
+ * Scrolled list of halt_list_stats_ts.
+ * Filters (by setting visibility) and sorts.
+ */
+class gui_scrolled_halt_list_t : public gui_scrolled_list_t
+{
+public:
+	gui_scrolled_halt_list_t() :  gui_scrolled_list_t(gui_scrolled_list_t::windowskin, compare) {}
+
+	void sort()
+	{
+		// set visibility according to filter
+		for(  vector_tpl<gui_component_t*>::iterator iter = item_list.begin();  iter != item_list.end();  ++iter) {
+			halt_list_stats_t *a = dynamic_cast<halt_list_stats_t*>(*iter);
+
+			a->set_visible( passes_filter(*a->get_halt()) );
+		}
+
+		gui_scrolled_list_t::sort(0);
+	}
+
+	static bool compare(const gui_component_t *aa, const gui_component_t *bb)
+	{
+		const halt_list_stats_t *a = dynamic_cast<const halt_list_stats_t*>(aa);
+		const halt_list_stats_t *b = dynamic_cast<const halt_list_stats_t*>(bb);
+
+		return halt_list_frame_t::compare_halts(a->get_halt(), b->get_halt());
+	}
+};
+
 
 /**
  * All filter and sort settings are static, so the old settings are
@@ -30,14 +64,12 @@
 
 /**
  * This variable defines by which column the table is sorted
- * @author Markus Weber
  */
 halt_list_frame_t::sort_mode_t halt_list_frame_t::sortby = nach_name;
 
 /**
  * This variable defines the sort order (ascending or descending)
  * Values: 1 = ascending, 2 = descending)
- * @author Markus Weber
  */
 bool halt_list_frame_t::sortreverse = false;
 
@@ -99,7 +131,7 @@ static bool passes_filter_name(haltestelle_t const& s)
 {
 	if (!halt_list_frame_t::get_filter(halt_list_frame_t::name_filter)) return true;
 
-	return strstr(s.get_name(), halt_list_frame_t::access_name_filter());
+	return utf8caseutf8(s.get_name(), halt_list_frame_t::access_name_filter());
 }
 
 
@@ -127,8 +159,8 @@ static bool passes_filter_special(haltestelle_t & s)
 	if (!halt_list_frame_t::get_filter(halt_list_frame_t::spezial_filter)) return true;
 
 	if (halt_list_frame_t::get_filter(halt_list_frame_t::ueberfuellt_filter)) {
-		COLOR_VAL const farbe = s.get_status_farbe();
-		if (farbe == COL_RED || farbe == COL_ORANGE) {
+		PIXVAL const farbe = s.get_status_farbe();
+		if (farbe == color_idx_to_rgb(COL_RED) || farbe == color_idx_to_rgb(COL_ORANGE)) {
 			return true; // overcrowded
 		}
 	}
@@ -178,8 +210,6 @@ static bool passes_filter_out(haltestelle_t const& s)
 	 * - es existiert eine Zugverbindung mit dieser Ware (!ziele[...].empty())
 	 */
 
-	// Hajo: todo: check if there is a destination for the good (?)
-
 	for (uint32 i = 0; i != goods_manager_t::get_count(); ++i) {
 		goods_desc_t const* const ware = goods_manager_t::get_info(i);
 		if (!halt_list_frame_t::get_ware_filter_ab(ware)) continue;
@@ -189,9 +219,9 @@ static bool passes_filter_out(haltestelle_t const& s)
 		} else if (ware == goods_manager_t::mail) {
 			if (s.get_mail_enabled()) return true;
 		} else if (ware != goods_manager_t::none) {
-			// Oh Mann - eine doublese Schleife und das noch pro Haltestelle
-			// Zum Glück ist die Anzahl der Fabriken und die ihrer Ausgänge
-			// begrenzt (Normal 1-2 Fabriken mit je 0-1 Ausgang) -  V. Meyer
+			// Sigh - a doubly nested loop per halt
+			// Fortunately the number of factories and their number of outputs
+			// is limited (usually 1-2 factories and 0-1 outputs per factory)
 			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
 				FOR(array_tpl<ware_production_t>, const& j, f->get_output()) {
 					if (j.get_typ() == ware) return true;
@@ -213,8 +243,6 @@ static bool passes_filter_in(haltestelle_t const& s)
 	 * - es existiert eine Zugverbindung mit dieser Ware (!ziele[...].empty())
 	 */
 
-	// Hajo: todo: check if there is a destination for the good (?)
-
 	for (uint32 i = 0; i != goods_manager_t::get_count(); ++i) {
 		goods_desc_t const* const ware = goods_manager_t::get_info(i);
 		if (!halt_list_frame_t::get_ware_filter_an(ware)) continue;
@@ -223,10 +251,11 @@ static bool passes_filter_in(haltestelle_t const& s)
 			if (s.get_pax_enabled()) return true;
 		} else if (ware == goods_manager_t::mail) {
 			if (s.get_mail_enabled()) return true;
-		} else if (ware != goods_manager_t::none) {
-			// Oh Mann - eine doublese Schleife und das noch pro Haltestelle
-			// Zum Glück ist die Anzahl der Fabriken und die ihrer Ausgänge
-			// begrenzt (Normal 1-2 Fabriken mit je 0-1 Ausgang) -  V. Meyer
+		}
+		else if (ware != goods_manager_t::none) {
+			// Sigh - a doubly nested loop per halt
+			// Fortunately the number of factories and their number of outputs
+			// is limited (usually 1-2 factories and 0-1 outputs per factory)
 			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
 				FOR(array_tpl<ware_production_t>, const& j, f->get_input()) {
 					if (j.get_typ() == ware) return true;
@@ -242,7 +271,6 @@ static bool passes_filter_in(haltestelle_t const& s)
 /**
  * Check all filters for one halt.
  * returns true, if it is not filtered away.
- * @author V. Meyer
  */
 static bool passes_filter(haltestelle_t & s)
 {
@@ -258,42 +286,65 @@ static bool passes_filter(haltestelle_t & s)
 
 
 halt_list_frame_t::halt_list_frame_t(player_t *player) :
-	gui_frame_t( translator::translate("hl_title"), player),
-	vscroll( scrollbar_t::vertical ),
-	sort_label(translator::translate("hl_txt_sort")),
-	filter_label(translator::translate("hl_txt_filter"))
+	gui_frame_t( translator::translate("hl_title"), player)
 {
 	m_player = player;
 	filter_frame = NULL;
 
-	sort_label.set_pos(scr_coord(BUTTON1_X, 2));
-	add_component(&sort_label);
-	sortedby.init(button_t::roundbox, "", scr_coord(BUTTON1_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	sortedby.add_listener(this);
-	add_component(&sortedby);
+	set_table_layout(1,0);
 
-	sorteddir.init(button_t::roundbox, "", scr_coord(BUTTON2_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	sorteddir.add_listener(this);
-	add_component(&sorteddir);
+	add_table(2,2);
+	{
+		new_component<gui_label_t>("hl_txt_sort");
 
-	filter_label.set_pos(scr_coord(BUTTON3_X, 2));
-	add_component(&filter_label);
+		filter_on.init(button_t::square_state, "cl_txt_filter");
+		filter_on.set_tooltip(translator::translate("cl_btn_filter_tooltip"));
+		filter_on.pressed = filter_is_on;
+		filter_on.add_listener(this);
+		add_component(&filter_on);
 
-	filter_on.init(button_t::roundbox, translator::translate(get_filter(any_filter) ? "hl_btn_filter_enable" : "hl_btn_filter_disable"), scr_coord(BUTTON3_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	filter_on.add_listener(this);
-	add_component(&filter_on);
+		// sort ascend/descend button
+		add_table(4, 1);
+		{
+			for (int i = 0; i < SORT_MODES; i++) {
+				sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
+			}
+			sortedby.set_selection(default_sortmode);
+			sortedby.set_width_fixed(true);
+			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.add_listener(this);
+			add_component(&sortedby);
 
-	filter_details.init(button_t::roundbox, translator::translate("hl_btn_filter_settings"), scr_coord(BUTTON4_X, 14), scr_size(D_BUTTON_WIDTH,D_BUTTON_HEIGHT));
-	filter_details.add_listener(this);
-	add_component(&filter_details);
+			sort_asc.init(button_t::arrowup_state, "");
+			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
+			sort_asc.add_listener(this);
+			sort_asc.pressed = sortreverse;
+			add_component(&sort_asc);
 
-	display_list();
+			sort_desc.init(button_t::arrowdown_state, "");
+			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
+			sort_desc.add_listener(this);
+			sort_desc.pressed = !sortreverse;
+			add_component(&sort_desc);
+			new_component<gui_margin_t>(10);
+		}
+		end_table();
 
-	set_windowsize(scr_size(D_DEFAULT_WIDTH, D_TITLEBAR_HEIGHT+7*(28)+31+1));
-	set_min_windowsize(scr_size(D_DEFAULT_WIDTH, D_TITLEBAR_HEIGHT + 3 * (28) + HALT_SCROLL_START));
+		filter_details.init(button_t::roundbox, "hl_btn_filter_settings");
+		filter_details.set_size(D_BUTTON_SIZE);
+		filter_details.add_listener(this);
+		add_component(&filter_details);
+	}
+	end_table();
+
+	scrolly = new_component<gui_scrolled_halt_list_t>();
+	scrolly->set_maximize( true );
+
+	fill_list();
 
 	set_resizemode(diagonal_resize);
-	resize (scr_coord(0,0));
+	set_resizemode(diagonal_resize);
+	reset_min_windowsize();
 }
 
 
@@ -307,79 +358,32 @@ halt_list_frame_t::~halt_list_frame_t()
 
 /**
 * This function refreshes the station-list
-* @author Markus Weber/Volker Meyer
 */
-void halt_list_frame_t::display_list()
+void halt_list_frame_t::fill_list()
 {
 	last_world_stops = haltestelle_t::get_alle_haltestellen().get_count();				// count of stations
 
-	ALLOCA(halthandle_t, a, last_world_stops);
-	int n = 0; // temporary variable
-	int i;
-
-	/**************************
-	 * Sort the station list
-	 *************************/
-
-	// create a unsorted station list
-	num_filtered_stops = 0;
+	scrolly->clear_elements();
 	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
 		if(  halt->get_owner() == m_player  ) {
-			a[n++] = halt;
-			if (passes_filter(*halt)) {
-				num_filtered_stops++;
-			}
+			scrolly->new_component<halt_list_stats_t>(halt) ;
 		}
 	}
-	std::sort(a, a + n, compare_halts);
+	sort_list();
+}
 
-	sortedby.set_text(sort_text[get_sortierung()]);
-	sorteddir.set_text(get_reverse() ? "hl_btn_sort_desc" : "hl_btn_sort_asc");
 
-	/****************************
-	 * Display the station list
-	 ***************************/
-
-	stops.clear();   // clear the list
-	stops.resize(n);
-
-	// display stations
-	for (i = 0; i < n; i++) {
-		stops.append(halt_list_stats_t(a[i]));
-		stops.back().set_pos(scr_coord(0,0));
-	}
-	// hide/show scroll bar
-	resize(scr_coord(0,0));
+void halt_list_frame_t::sort_list()
+{
+	scrolly->sort();
 }
 
 
 bool halt_list_frame_t::infowin_event(const event_t *ev)
 {
-	const sint16 xr = vscroll.is_visible() ? D_SCROLLBAR_WIDTH : 1;
-
 	if(ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE) {
 		if(filter_frame) {
 			filter_frame->infowin_event(ev);
-		}
-	}
-	else if(IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev)) {
-		// otherwise these events are only registered where directly over the scroll region
-		// (and sometime even not then ... )
-		return vscroll.infowin_event(ev);
-	}
-	else if ((IS_LEFTRELEASE(ev) || IS_RIGHTRELEASE(ev)) && ev->my>HALT_SCROLL_START + D_TITLEBAR_HEIGHT  &&  ev->mx<get_windowsize().w - xr && !stops.empty()) {
-		const int y = (ev->my - HALT_SCROLL_START - D_TITLEBAR_HEIGHT) / stops[0].get_size().h + vscroll.get_knob_offset();
-
-		if(  y<num_filtered_stops  ) {
-			// find the 'y'th filtered stop in the unfiltered stops list
-			uint32 i=0;
-			for(  int j=0;  i<stops.get_count()  &&  j<=y;  i++  ){
-				if (passes_filter(*stops[i].get_halt())) {
-					j++;
-				}
-			}
-			// let gui_convoiinfo_t() handle this, since then it will be automatically consistent
-			return stops[i-1].infowin_event( ev );
 		}
 	}
 	return gui_frame_t::infowin_event(ev);
@@ -388,22 +392,34 @@ bool halt_list_frame_t::infowin_event(const event_t *ev)
 
 /**
  * This method is called if an action is triggered
- * @author Markus Weber/Volker Meyer
  */
 bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	if (comp == &filter_on) {
 		set_filter(any_filter, !get_filter(any_filter));
-		filter_on.set_text(get_filter(any_filter) ? "hl_btn_filter_enable" : "hl_btn_filter_disable");
-		display_list();
+		filter_is_on = !filter_is_on;
+		filter_on.pressed = filter_is_on;
+		sort_list();
 	}
 	else if (comp == &sortedby) {
-		set_sortierung((sort_mode_t)((get_sortierung() + 1) % SORT_MODES));
-		display_list();
+		int tmp = sortedby.get_selection();
+		if (tmp >= 0 && tmp < sortedby.count_elements())
+		{
+			sortedby.set_selection(tmp);
+			sortby = (halt_list_frame_t::sort_mode_t)tmp;
+		}
+		else {
+			sortedby.set_selection(0);
+			sortby = halt_list_frame_t::nach_name;
+		}
+		default_sortmode = (uint8)tmp;
+		sort_list();
 	}
-	else if (comp == &sorteddir) {
+	else if (comp == &sort_asc || comp == &sort_desc) {
 		set_reverse(!get_reverse());
-		display_list();
+		sort_list();
+		sort_asc.pressed = sortreverse;
+		sort_desc.pressed = !sortreverse;
 	}
 	else if (comp == &filter_details) {
 		if (filter_frame) {
@@ -418,65 +434,16 @@ bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 }
 
 
-/**
- * Resize the window
- * @author Markus Weber
- */
-void halt_list_frame_t::resize(const scr_coord size_change)
-{
-	gui_frame_t::resize(size_change);
-	scr_size size = get_windowsize() - scr_size(0, D_TITLEBAR_HEIGHT + HALT_SCROLL_START);
-	vscroll.set_visible(false);
-	remove_component(&vscroll);
-	int halt_h = (stops.empty() ? 28 : stops[0].get_size().h);
-	vscroll.set_knob(size.h / halt_h, num_filtered_stops);
-	if (num_filtered_stops <= size.h / halt_h) {
-		vscroll.set_knob_offset(0);
-	}
-	else {
-		add_component(&vscroll);
-		vscroll.set_visible(true);
-		vscroll.set_pos(scr_coord(size.w - D_SCROLLBAR_WIDTH, HALT_SCROLL_START));
-		vscroll.set_size(size-D_SCROLLBAR_SIZE);
-		vscroll.set_scroll_amount( 1 );
-	}
-}
-
-
 void halt_list_frame_t::draw(scr_coord pos, scr_size size)
 {
 	filter_details.pressed = filter_frame != NULL;
 
-	gui_frame_t::draw(pos, size);
-
-	const sint16 xr = vscroll.is_visible() ? D_SCROLLBAR_WIDTH+4 : 6;
-	PUSH_CLIP(pos.x, pos.y+47, size.w-xr, size.h-48 );
-
-	const sint32 start = vscroll.get_knob_offset();
-	sint16 yoffset = 47;
-	const int last_num_filtered_stops = num_filtered_stops;
-	num_filtered_stops = 0;
-
 	if(  last_world_stops != haltestelle_t::get_alle_haltestellen().get_count()  ) {
 		// some deleted/ added => resort
-		display_list();
+		fill_list();
 	}
 
-	FOR(vector_tpl<halt_list_stats_t>, & i, stops) {
-		halthandle_t const halt = i.get_halt();
-		if (halt.is_bound() && passes_filter(*halt)) {
-			num_filtered_stops++;
-			if(  num_filtered_stops>start  &&  yoffset<size.h+47  ) {
-				i.draw(pos + scr_coord(0, yoffset));
-				yoffset += i.get_size().h;
-			}
-		}
-	}
-	if(  num_filtered_stops!=last_num_filtered_stops  ) {
-		resize (scr_coord(0,0));
-	}
-
-	POP_CLIP();
+	gui_frame_t::draw(pos, size);
 }
 
 

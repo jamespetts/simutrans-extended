@@ -3,67 +3,46 @@
  * (see LICENSE.txt)
  */
 
-#ifndef curiositylist_frame_t_h
-#define curiositylist_frame_t_h
+#ifndef GUI_CURIOSITYLIST_FRAME_T_H
+#define GUI_CURIOSITYLIST_FRAME_T_H
 
-#include "../gui/gui_frame.h"
-#include "../gui/curiositylist_stats_t.h"
+
+#include "gui_frame.h"
 #include "components/action_listener.h"
-#include "components/gui_label.h"
-#include "components/gui_scrollpane.h"
+#include "components/gui_combobox.h"
+#include "components/gui_scrolled_list.h"
+#include "components/gui_button.h"
+#include "components/gui_combobox.h"
 
 
 /**
  * Curiosity list window
- * @author Hj. Malthaner
  */
 class curiositylist_frame_t : public gui_frame_t, private action_listener_t
 {
- private:
-	static const char *sort_text[curiositylist::SORT_MODES];
+private:
+	gui_combobox_t	sortedby, region_selector;
+	button_t sort_asc, sort_desc;
+	button_t	filter_within_network;
+	gui_scrolled_list_t scrolly;
+	gui_aligned_container_t list;
 
-	gui_label_t sort_label;
-	button_t	sortedby;
-	button_t	sorteddir;
-	curiositylist_stats_t stats;
-	gui_scrollpane_t scrolly;
+	uint32 attraction_count;
 
-	/*
-	 * All filter settings are static, so they are not reset each
-	 * time the window closes.
-	 */
-	static curiositylist::sort_mode_t sortby;
-	static bool sortreverse;
+	void fill_list();
 
- public:
+public:
 	curiositylist_frame_t();
 
-	/**
-	 * resize window in response to a resize event
-	 * @author Hj. Malthaner
-	 */
-	void resize(const scr_coord delta);
+	const char *get_help_filename() const OVERRIDE {return "curiositylist_filter.txt"; }
 
-	/**
-	 * Set the window associated helptext
-	 * @return the filename for the helptext, or NULL
-	 * @author V. Meyer
-	 */
-	const char * get_help_filename() const {return "curiositylist_filter.txt"; }
+	bool has_min_sizer() const OVERRIDE {return true;}
 
-	 /**
-	 * This function refreshes the station-list
-	 * @author Markus Weber
-	 */
-	void display_list();
+	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
-	static curiositylist::sort_mode_t get_sortierung() { return sortby; }
-	static void set_sortierung(const curiositylist::sort_mode_t sm) { sortby = sm; }
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	static bool get_reverse() { return sortreverse; }
-	static void set_reverse(const bool& reverse) { sortreverse = reverse; }
-
-	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+	void map_rotate90( sint16 ) OVERRIDE { fill_list(); }
 };
 
 #endif

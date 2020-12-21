@@ -3,13 +3,13 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_help_frame_h
-#define gui_help_frame_h
+#ifndef GUI_HELP_FRAME_H
+#define GUI_HELP_FRAME_H
+
 
 #include <string>
 
 #include "gui_frame.h"
-#include "components/gui_scrollpane.h"
 #include "components/gui_flowtext.h"
 #include "components/action_listener.h"
 
@@ -23,10 +23,6 @@ private:
 		native,
 		english
 	};
-
-	gui_scrollpane_t
-		scrolly_generaltext,
-		scrolly_helptext;
 
 	gui_flowtext_t
 		generaltext,
@@ -49,9 +45,8 @@ public:
 
 	/**
 	 * resize window in response to a resize event
-	 * @author Hj. Malthaner
 	 */
-	void resize(const scr_coord delta);
+	void resize(const scr_coord delta) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };

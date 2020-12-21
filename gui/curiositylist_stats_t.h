@@ -3,50 +3,51 @@
  * (see LICENSE.txt)
  */
 
-#ifndef curiositylist_stats_t_h
-#define curiositylist_stats_t_h
+#ifndef GUI_CURIOSITYLIST_STATS_T_H
+#define GUI_CURIOSITYLIST_STATS_T_H
 
-#include "../tpl/vector_tpl.h"
-#include "components/gui_component.h"
-#include "components/gui_button.h"
+
+#include "components/gui_aligned_container.h"
+#include "components/gui_colorbox.h"
+#include "components/gui_scrolled_list.h"
+#include "components/gui_image.h"
 
 class gebaeude_t;
 
 namespace curiositylist {
-    enum sort_mode_t { by_name=0, by_paxlevel/*, by_maillevel*/, SORT_MODES };
+	enum sort_mode_t { by_name=0, by_paxlevel, by_pax_arrived, /*by_city,*/ by_region, SORT_MODES };
 };
 
 /**
  * Where curiosity (attractions) stats are calculated for list dialog
- * @author Hj. Malthaner
  */
-class curiositylist_stats_t : public gui_world_component_t
+class curiositylist_stats_t : public gui_aligned_container_t, public gui_scrolled_list_t::scrollitem_t
 {
 private:
-	vector_tpl<gebaeude_t*> attractions;
-	uint32 line_selected;
+	gebaeude_t* attraction;
 
-	uint32 last_world_curiosities;
-	curiositylist::sort_mode_t sortby;
-	bool sortreverse;
+	enum { no_networks = 0, someones_network = 1, own_network = 2 };
+
+	gui_label_t lb_name;
 
 public:
-	curiositylist_stats_t(curiositylist::sort_mode_t sortby, bool sortreverse);
+	static uint8 sort_mode, region_filter;
+	static bool sortreverse, filter_own_network;
+	static bool compare(const gui_component_t *a, const gui_component_t *b);
 
-	void get_unique_attractions(curiositylist::sort_mode_t sortby, bool reverse);
+	curiositylist_stats_t(gebaeude_t *att);
+
+	gui_image_t img_enabled[4];
+
+	char const* get_text() const OVERRIDE;
+	bool is_valid() const OVERRIDE;
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
 	/**
-	 * Recalc the size required to display everything and set size (size).
-	 */
-	void recalc_size();
-
-	/**
 	* Draw the component
-	* @author Hj. Malthaner
 	*/
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 #endif

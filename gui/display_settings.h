@@ -3,82 +3,105 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _display_settings_h_
-#define _display_settings_h_
+#ifndef GUI_DISPLAY_SETTINGS_H
+#define GUI_DISPLAY_SETTINGS_H
+
 
 #include "gui_frame.h"
 #include "components/gui_divider.h"
 #include "components/gui_label.h"
 #include "components/gui_button.h"
 #include "components/gui_numberinput.h"
+#include "components/gui_combobox.h"
+#include "components/gui_tab_panel.h"
 
-#define COLORS_MAX_BUTTONS (28)
-#define BUF_MAXLEN_MS_FORMAT (16)
+/**
+ * Menu with display settings
+ */
+class gui_settings_t : public gui_aligned_container_t
+{
+private:
+	gui_label_buf_t
+		frame_time_value_label,
+		idle_time_value_label,
+		fps_value_label,
+		simloops_value_label,
 
+		rebuild_connexion_label,
+		eligible_halts_label,
+		fill_path_matrix_label,
+		explore_path_label,
+		reroute_goods_label,
+		status_label;
+
+public:
+	gui_settings_t();
+	virtual void draw( scr_coord offset ) OVERRIDE;
+};
+
+class map_settings_t : public gui_aligned_container_t, public action_listener_t
+{
+private:
+	gui_numberinput_t cursor_hide_range;
+	gui_combobox_t hide_buildings;
+public:
+	gui_numberinput_t
+		inp_underground_level,
+		brightness,
+		scrollspeed;
+	map_settings_t();
+	virtual bool action_triggered( gui_action_creator_t *comp, value_t v ) OVERRIDE;
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+class label_settings_t : public gui_aligned_container_t, public action_listener_t
+{
+private:
+	gui_combobox_t convoy_tooltip, money_booking, convoy_nameplate, convoy_loadingbar, freight_waiting_bar;
+public:
+	label_settings_t();
+	virtual bool action_triggered(gui_action_creator_t *comp, value_t v);
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+
+class traffic_settings_t : public gui_aligned_container_t, public action_listener_t
+{
+private:
+	gui_numberinput_t traffic_density;
+	gui_combobox_t follow_mode;
+public:
+	traffic_settings_t();
+	virtual bool action_triggered( gui_action_creator_t *comp, value_t v );
+};
 
 /**
  * Display settings dialog
- * @author Hj. Malthaner
  */
 class color_gui_t : public gui_frame_t, private action_listener_t
 {
 private:
-
-	button_t buttons[COLORS_MAX_BUTTONS];
-
-	gui_numberinput_t
-		brightness,
-		scrollspeed,
-		traffic_density,
-		inp_underground_level,
-		cursor_hide_range;
-
-	gui_label_t
-		brightness_label,
-		scrollspeed_label,
-		hide_buildings_label,
-		traffic_density_label,
-		convoy_tooltip_label,
-		frame_time_label,
-		frame_time_value_label,
-		idle_time_label,
-		idle_time_value_label,
-		fps_label,
-		fps_value_label,
-		simloops_label,
-		simloops_value_label;
-
-	gui_divider_t
-		divider1,
-		divider2,
-		divider3,
-		divider4;
-
-	gui_container_t
-		label_container,
-		value_container;
-
-	// Non translated text buffers for label values
-	char frame_time_buf[BUF_MAXLEN_MS_FORMAT];
-	char idle_time_buf[BUF_MAXLEN_MS_FORMAT];
-	char fps_buf[BUF_MAXLEN_MS_FORMAT];
-	char simloops_buf[BUF_MAXLEN_MS_FORMAT];
+	gui_settings_t gui_settings;
+	map_settings_t map_settings;
+	label_settings_t station_settings;
+	traffic_settings_t traffic_settings;
+	gui_scrollpane_t scrolly_gui, scrolly_map, scrolly_station, scrolly_traffic;
+	gui_tab_panel_t tabs;
 
 public:
 	color_gui_t();
 
+	virtual bool has_min_sizer() const OVERRIDE {return true;}
+
 	/**
 	 * Some windows have associated help text.
 	 * @return The help file name or NULL
-	 * @author Hj. Malthaner
 	 */
-	const char * get_help_filename() const { return "display.txt"; }
+	const char * get_help_filename() const OVERRIDE { return "display.txt"; }
 
-	void draw(scr_coord pos, scr_size size);
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
-
-	virtual void set_windowsize(scr_size size);
 };
 
 #endif

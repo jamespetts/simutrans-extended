@@ -11,47 +11,46 @@
 #include "../descriptor/skin_desc.h"
 
 static const char * catg_names[32] = {
-  "special freight",
-  "CATEGORY_01",	// was "piece goods",
-  "CATEGORY_02",	// was "bulk goods",
-  "CATEGORY_03",	// was "oil/gasoline",
-  "CATEGORY_04",	// was "cooled goods",
-  "CATEGORY_05",	// was "liquid food",
-  "CATEGORY_06",	// was "long goods",
-  "CATEGORY_07",
+	"special freight",
+	"CATEGORY_01",	// was "piece goods",
+	"CATEGORY_02",	// was "bulk goods",
+	"CATEGORY_03",	// was "oil/gasoline",
+	"CATEGORY_04",	// was "cooled goods",
+	"CATEGORY_05",	// was "liquid food",
+	"CATEGORY_06",	// was "long goods",
+	"CATEGORY_07",
 
-  "CATEGORY_08",
-  "CATEGORY_09",
-  "CATEGORY_10",
-  "CATEGORY_11",
-  "CATEGORY_12",
-  "CATEGORY_13",
-  "CATEGORY_14",
-  "CATEGORY_15",
+	"CATEGORY_08",
+	"CATEGORY_09",
+	"CATEGORY_10",
+	"CATEGORY_11",
+	"CATEGORY_12",
+	"CATEGORY_13",
+	"CATEGORY_14",
+	"CATEGORY_15",
 
-  "CATEGORY_16",
-  "CATEGORY_17",
-  "CATEGORY_18",
-  "CATEGORY_19",
-  "CATEGORY_20",
-  "CATEGORY_21",
-  "CATEGORY_22",
-  "CATEGORY_23",
+	"CATEGORY_16",
+	"CATEGORY_17",
+	"CATEGORY_18",
+	"CATEGORY_19",
+	"CATEGORY_20",
+	"CATEGORY_21",
+	"CATEGORY_22",
+	"CATEGORY_23",
 
-  "CATEGORY_24",
-  "CATEGORY_25",
-  "CATEGORY_26",
-  "CATEGORY_27",
-  "CATEGORY_28",
-  "CATEGORY_29",
-  "CATEGORY_30",
-  "CATEGORY_31",
+	"CATEGORY_24",
+	"CATEGORY_25",
+	"CATEGORY_26",
+	"CATEGORY_27",
+	"CATEGORY_28",
+	"CATEGORY_29",
+	"CATEGORY_30",
+	"CATEGORY_31",
 };
 
 
 /**
  * @return Name of the category of the good
- * @author Hj. Malthaner
  */
 const char * goods_desc_t::get_catg_name() const
 {
@@ -91,7 +90,7 @@ image_id goods_desc_t::get_catg_symbol() const
 /**
  * Reset the scaled values.
  */
-void goods_desc_t::set_scale(uint16 scale_factor)
+void goods_desc_t::set_scale(uint16)
 {
 	scaled_values.clear();
 	uint16 new_price;
@@ -191,8 +190,8 @@ sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_dist
 			// Combine the derating factor with the full percentage to get...
 			const sint64 comfort_fare = (fare * multiplier * comfort_modifier) / 10000ll;
 
-			// Always receive minimum of 95% of fare even with discomfort penalty
-			fare = max(fare + comfort_fare, fare * 19 / 20);
+			// Apply the comfort penalty/bonus to the fare
+			fare += comfort_fare;
 
 			if (catering_level > 0)
 			{

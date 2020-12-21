@@ -7,171 +7,174 @@
 #include "city_info.h"
 
 #include "../simcity.h"
-#include "../simcolor.h"
-#include "../display/simgraph.h"
-#include "../display/viewport.h"
-#include "../gui/simwin.h"
+#include "../simevent.h"
 #include "../simworld.h"
 
-#include "../descriptor/skin_desc.h"
-
-#include "../dataobj/translator.h"
-
 #include "../utils/cbuffer_t.h"
-#include "../utils/simstring.h"
+#include "components/gui_label.h"
 
-static const char* total_bev_translation = NULL;
-char citylist_stats_t::total_bev_string[128];
+bool citylist_stats_t::sortreverse = false;
+bool citylist_stats_t::filter_own_network = false;
+uint8 citylist_stats_t::sort_mode = citylist_stats_t::SORT_BY_NAME;
+uint8 citylist_stats_t::region_filter = 0;
 
+uint16 citylist_stats_t::name_width = CITY_NAME_LABEL_WIDTH;
 
-citylist_stats_t::citylist_stats_t(citylist::sort_mode_t sortby, bool sortreverse)
+static karte_ptr_t welt;
+
+citylist_stats_t::citylist_stats_t(stadt_t *c)
 {
-	total_bev_translation = translator::translate("Total inhabitants:");
-	sort(sortby, sortreverse);
-	recalc_size();
-	line_selected = 0xFFFFFFFFu;
-}
+	city = c;
+	set_table_layout(9, 0);
 
+	button_t *b = new_component<button_t>(); // (1,0)
+	b->set_typ(button_t::posbutton_automatic);
+	b->set_targetpos(city->get_center());
 
-class compare_cities
-{
-	public:
-		compare_cities(citylist::sort_mode_t sortby_, bool reverse_) :
-			sortby(sortby_),
-			reverse(reverse_)
-		{}
+	electricity.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
+	electricity.set_rigid(true);
+	add_component(&electricity); // (2,0)
 
-		bool operator ()(const stadt_t* a, const stadt_t* b)
-		{
-			int cmp;
-			switch (sortby) {
-				default: NOT_REACHED
-				case citylist::by_name:   cmp = strcmp(a->get_name(), b->get_name());    break;
-				case citylist::by_size:   cmp = a->get_einwohner() - b->get_einwohner(); break;
-				case citylist::by_growth: cmp = a->get_wachstum()  - b->get_wachstum();  break;
-			}
-			return reverse ? cmp > 0 : cmp < 0;
-		}
+	lb_name.set_fixed_width( name_width );
+	add_component(&lb_name); // (3,0)
 
-	private:
-		citylist::sort_mode_t sortby;
-		bool reverse;
-};
+	add_component(&label); // (4,0)
 
-
-void citylist_stats_t::sort(citylist::sort_mode_t sb, bool sr)
-{
-	const weighted_vector_tpl<stadt_t*>& cities = welt->get_cities();
-
-	sortby = sb;
-	sortreverse = sr;
-
-	city_list.clear();
-	city_list.resize(cities.get_count());
-
-	FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
-		city_list.insert_ordered(i, compare_cities(sortby, sortreverse));
-	}
-}
-
-
-bool citylist_stats_t::infowin_event(const event_t * ev)
-{
-	const uint line = ev->cy / (LINESPACE + 1);
-
-	line_selected = 0xFFFFFFFFu;
-	if(  line >= city_list.get_count()  ) {
-		return false;
-	}
-
-	stadt_t* stadt = city_list[line];
-	if(  ev->button_state > 0  &&  ev->cx  >0  &&  ev->cx < 15  ) {
-		line_selected = line;
-	}
-
-	if(  IS_LEFTRELEASE(ev)  &&  ev->cy > 0  ) {
-		if(  ev->cx > 0  &&  ev->cx < 15  ) {
-			if(  grund_t *gr = welt->lookup_kartenboden( stadt->get_center() )  ) {
-				welt->get_viewport()->change_world_position( gr->get_pos() );
-			}
-		}
-		else {
-			stadt->show_info();
-		}
-	}
-	else if(  IS_RIGHTRELEASE(ev)  &&  ev->cy > 0  ) {
-		if(  grund_t *gr = welt->lookup_kartenboden( stadt->get_center() )  ) {
-			welt->get_viewport()->change_world_position( gr->get_pos() );
-		}
-	}
-	return false;
-}
-
-
-void citylist_stats_t::recalc_size()
-{
-	// show_scroll_x==false ->> size.w not important ->> no need to calc text pixel length
-	set_size( scr_size(210, welt->get_cities().get_count() * (LINESPACE+1) ) );
-}
-
-
-void citylist_stats_t::draw(scr_coord offset)
-{
-	cbuffer_t buf;
-
-	sint32 total_bev = 0;
-	sint32 total_growth = 0;
-
-	if(  welt->get_cities().get_count()!=city_list.get_count()  ) {
-		// some deleted/ added => resort
-		sort( sortby, sortreverse );
-		recalc_size();
-	}
-
-	sint32 sel = line_selected;
-	clip_dimension cl = display_get_clip_wh();
-
-	FORX(vector_tpl<stadt_t*>, const stadt, city_list, offset.y += LINESPACE + 1) {
-
-		sint32 population = stadt->get_finance_history_month(0, HIST_CITICENS);
-		sint32 growth = stadt->get_finance_history_month(0, HIST_GROWTH);
-		if(  offset.y + LINESPACE > cl.y  &&  offset.y <= cl.yy  ) {
-			buf.clear();
-			buf.printf( "%s: ", stadt->get_name() );
-			buf.append( population, 0 );
-			buf.append( " (" );
-			buf.append( growth/10.0, 1 );
-			buf.append( ")" );
-			display_proportional_clip(offset.x + 4 + 10, offset.y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-			// goto button
-			bool selected = sel==0;
-			if(  !selected  ) {
-				// still on center?
-				if(  grund_t *gr = welt->lookup_kartenboden( stadt->get_center() )  ) {
-					selected = welt->get_viewport()->is_on_center( gr->get_pos() );
-				}
-			}
-			display_img_aligned( gui_theme_t::pos_button_img[ selected ], scr_rect( offset.x, offset.y, 14, LINESPACE ), ALIGN_CENTER_V | ALIGN_CENTER_H, true );
-			sel --;
-
-			if(  win_get_magic( (ptrdiff_t)stadt )  ) {
-				display_blend_wh( offset.x, offset.y, size.w, LINESPACE, SYSCOL_TEXT, 25 );
-			}
-		}
-		total_bev    += population;
-		total_growth += growth;
-	}
-	// some cities there?
-	if(  total_bev > 0  ) {
-		buf.clear();
-		buf.printf( "%s %u", total_bev_translation, total_bev);
-		buf.append( " (" );
-		buf.append( total_growth/10.0, 1 );
-		buf.append( ")" );
-		tstrncpy(total_bev_string, buf, lengthof(total_bev_string));
+	if (skinverwaltung_t::alerts) {
+		alert.set_image(skinverwaltung_t::alerts->get_image_id(2), true);
+		alert.set_tooltip("City growth is restrained");
 	}
 	else {
-		total_bev_string[0] = 0;
+		alert.set_image(IMG_EMPTY);
 	}
+	alert.set_rigid(true);
+	add_component(&alert); // (5,0)
+
+	fluctuation_city.set_show_border_value(false);
+	add_component(&fluctuation_city); // (6,0)
+
+	add_component(&lb_region);
+
+	update_label();
+
+	new_component<gui_fill_t>();
+}
+
+void citylist_stats_t::update_label()
+{
+	electricity.set_visible(city->get_finance_history_month(0, HIST_POWER_RECEIVED));
+	if ( (city->get_finance_history_month(0, HIST_POWER_RECEIVED) * 9) < (welt->get_finance_history_month(0, HIST_POWER_NEEDED) / 10) ) {
+		electricity.set_transparent(TRANSPARENT25_FLAG);
+	}
+
+	const scr_coord_val temp_w = proportional_string_width( city->get_name() );
+	if (temp_w > name_width) {
+		name_width = temp_w;
+	}
+	lb_name.buf().printf("%s ", city->get_name());
+	lb_name.update();
+
+	label.buf().printf("%8d ", city->get_finance_history_month(0, HIST_CITIZENS));
+	label.update();
+	//label.set_align(gui_label_t::left);
+
+	lb_region.buf().clear();
+	if (!welt->get_settings().regions.empty()) {
+		lb_region.buf().printf("(%s)", translator::translate(welt->get_region_name(city->get_pos()).c_str()));
+	}
+	lb_region.update();
+
+	const bool allow_citygrowth = city->get_citygrowth();
+	if (!allow_citygrowth) {
+		fluctuation_city.set_color(COL_BLUE);
+	}
+	fluctuation_city.set_value(city->get_finance_history_month(0, HIST_GROWTH));
+	alert.set_visible(!allow_citygrowth);
+
+	set_size(size);
+}
+
+
+void citylist_stats_t::set_size(scr_size size)
+{
+	gui_aligned_container_t::set_size(size);
+}
+
+
+void citylist_stats_t::draw( scr_coord pos)
+{
+	update_label();
+	lb_name.set_fixed_width(name_width);
+	gui_aligned_container_t::draw(pos);
+}
+
+
+bool citylist_stats_t::is_valid() const
+{
+	return world()->get_cities().is_contained(city);
+}
+
+
+bool citylist_stats_t::infowin_event(const event_t *ev)
+{
+	bool swallowed = gui_aligned_container_t::infowin_event(ev);
+
+	if (!swallowed  &&  IS_LEFTRELEASE(ev)) {
+		//city->open_info_window();
+		city->show_info();
+		swallowed = true;
+	}
+	return swallowed;
+}
+
+
+bool citylist_stats_t::compare(const gui_component_t *aa, const gui_component_t *bb)
+{
+	const citylist_stats_t* a = dynamic_cast<const citylist_stats_t*>(aa);
+	const citylist_stats_t* b = dynamic_cast<const citylist_stats_t*>(bb);
+	// good luck with mixed lists
+	assert(a != NULL && b != NULL);
+
+	if (sortreverse) {
+		const citylist_stats_t *temp = a;
+		a = b;
+		b = temp;
+	}
+	if (  sort_mode != sort_mode_t::SORT_BY_NAME  ) {
+		switch (  sort_mode  ) {
+		case SORT_BY_NAME:	// default
+			break;
+		case SORT_BY_SIZE:
+			return a->city->get_city_population() < b->city->get_city_population();
+		case SORT_BY_GROWTH:
+			return a->city->get_wachstum() < b->city->get_wachstum();
+		case SORT_BY_REGION:
+			return welt->get_region(a->city->get_pos()) < welt->get_region(b->city->get_pos());
+		default: break;
+		}
+		// default sorting ...
+	}
+	// first: try to sort by number
+	const char *atxt = a->get_text();
+	int aint = 0;
+	// isdigit produces with UTF8 assertions ...
+	if (atxt[0] >= '0'  &&  atxt[0] <= '9') {
+		aint = atoi(atxt);
+	}
+	else if (atxt[0] == '('  &&  atxt[1] >= '0'  &&  atxt[1] <= '9') {
+		aint = atoi(atxt + 1);
+	}
+	const char *btxt = b->get_text();
+	int bint = 0;
+	if (btxt[0] >= '0'  &&  btxt[0] <= '9') {
+		bint = atoi(btxt);
+	}
+	else if (btxt[0] == '('  &&  btxt[1] >= '0'  &&  btxt[1] <= '9') {
+		bint = atoi(btxt + 1);
+	}
+	if (aint != bint) {
+		return (aint - bint) < 0;
+	}
+	// otherwise: sort by name
+	return strcmp(atxt, btxt) < 0;
 }

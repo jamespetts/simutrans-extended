@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _NETWORK_CMP_PAKSET_H_
-#define _NETWORK_CMP_PAKSET_H_
+#ifndef NETWORK_NETWORK_CMP_PAKSET_H
+#define NETWORK_NETWORK_CMP_PAKSET_H
+
 
 #include "network_cmd.h"
 #include "pakset_info.h"
@@ -25,9 +26,10 @@ class nwc_pakset_info_t : public network_command_t {
 public:
 	nwc_pakset_info_t(uint8 flag_=UNDEFINED) : network_command_t(NWC_PAKSETINFO), flag(flag_), name(NULL), chk(NULL) {}
 	~nwc_pakset_info_t();
-	virtual bool execute(karte_t *);
-	virtual void rdwr();
-	virtual const char* get_name() { return "nwc_pakset_info_t";}
+
+	bool execute(karte_t *) OVERRIDE;
+	void rdwr() OVERRIDE;
+	const char* get_name() OVERRIDE { return "nwc_pakset_info_t";}
 
 	enum {
 		CL_INIT       = 0, // client want pakset info

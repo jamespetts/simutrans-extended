@@ -18,6 +18,7 @@
 
 #include "../dataobj/loadsave.h"
 #include "../dataobj/environment.h"
+#include "../dataobj/translator.h"
 
 #include "../utils/cbuffer_t.h"
 
@@ -86,7 +87,6 @@ void crossing_t::state_changed()
 
 /**
  * Dient zur Neuberechnung des Bildes
- * @author Hj. Malthaner
  */
 void crossing_t::calc_image()
 {
@@ -126,7 +126,7 @@ void crossing_t::rdwr(loadsave_t *file)
 	state = logic==NULL ? crossing_logic_t::CROSSING_INVALID : logic->get_state();
 	file->rdwr_byte(state);
 	file->rdwr_byte(ns);
-	if(file->get_version()<99016) {
+	if(file->get_version_int()<99016) {
 		uint32 ldummy=0;
 		uint8 bdummy=0;
 		file->rdwr_byte(bdummy);
@@ -146,10 +146,10 @@ void crossing_t::rdwr(loadsave_t *file)
 
 	file->rdwr_byte(w1);
 	file->rdwr_byte(w2);
-	if(  file->get_version()>=110000  ) {
+	if(  file->get_version_int()>=110000  ) {
 		file->rdwr_long( speedlimit0 );
 	}
-	if(  file->get_version()>=110001 || (file->get_version() >= 110000 && file->get_extended_version() >= 9)  ) {
+	if(  file->get_version_int()>=110001 || (file->get_version_int() >= 110000 && file->get_extended_version() >= 9)  ) {
 		file->rdwr_long( speedlimit1 );
 	}
 
@@ -167,12 +167,6 @@ void crossing_t::rdwr(loadsave_t *file)
 }
 
 
-/**
- * Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
- * um das Aussehen des Dings an Boden und Umgebung anzupassen
- *
- * @author Hj. Malthaner
- */
 void crossing_t::finish_rd()
 {
 	grund_t *gr=welt->lookup(get_pos());
@@ -205,13 +199,25 @@ void crossing_t::finish_rd()
 
 // returns NULL, if removal is allowed
 // players can remove public owned ways
-const char *crossing_t:: is_deletable(const player_t *player, bool allow_public)
+const char *crossing_t::is_deletable(const player_t *player)
 {
-	if(allow_public && get_owner() && get_owner()->is_public_service())
-	{
+	if(  get_player_nr()==welt->get_public_player()->get_player_nr()  ) {
 		return NULL;
 	}
-	else {
-		return obj_t:: is_deletable(player);
+
+	return obj_t::is_deletable(player);
+}
+
+
+void crossing_t::info(cbuffer_t & buf) const
+{
+	buf.append(translator::translate(get_name()));
+	buf.append("\n");
+	logic->info(buf);
+	buf.append("\n");
+
+	if (char const* const maker = get_desc()->get_copyright()) {
+		buf.printf(translator::translate("Constructed by %s"), maker);
+		buf.append("\n\n");
 	}
 }

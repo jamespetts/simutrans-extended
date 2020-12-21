@@ -43,7 +43,6 @@
 
 #include "descriptor/factory_desc.h"
 #include "bauer/hausbauer.h"
-#include "bauer/goods_manager.h"
 #include "bauer/fabrikbauer.h"
 
 #include "gui/fabrik_info.h"
@@ -57,11 +56,6 @@
 
 #include "path_explorer.h"
 
-#if MULTI_THREAD
-#include "utils/simthread.h"
-static pthread_mutex_t sync_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t add_to_world_list_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 // Fabrik_t
 
@@ -151,14 +145,14 @@ void ware_production_t::rdwr(loadsave_t *file)
 	// we use a temporary variable to save/load old data correctly
 	sint64 statistics_buf[MAX_MONTH][MAX_FAB_GOODS_STAT];
 	memcpy( statistics_buf, statistics, sizeof(statistics_buf) );
-	if(  file->is_saving()  && (file->get_version() <= 120000 || (file->get_extended_version() < 13 && file->get_extended_version() < 18))) {
+	if(  file->is_saving()  && (file->get_version_int() <= 120000 || (file->get_extended_version() < 13 && file->get_extended_version() < 18))) {
 		for(  int m=0;  m<MAX_MONTH;  ++m  ) {
 			statistics_buf[m][0] = (statistics[m][FAB_GOODS_STORAGE] >> DEFAULT_PRODUCTION_FACTOR_BITS);
 			statistics_buf[m][2] = (statistics[m][2] >> DEFAULT_PRODUCTION_FACTOR_BITS);
 		}
 	}
 
-	if(  file->get_version()>112000  ) {
+	if(  file->get_version_int()>112000  ) {
 		for(  int s=0;  s<MAX_FAB_GOODS_STAT;  ++s  ) {
 			for(  int m=0;  m<MAX_MONTH;  ++m  ) {
 				file->rdwr_longlong( statistics_buf[m][s] );
@@ -166,7 +160,7 @@ void ware_production_t::rdwr(loadsave_t *file)
 		}
 		file->rdwr_longlong( weighted_sum_storage );
 	}
-	else if(  file->get_version()>=110005  ) {
+	else if(  file->get_version_int()>=110005  ) {
 		// save/load statistics
 		for(  int s=0;  s<3;  ++s  ) {
 			for(  int m=0;  m<MAX_MONTH;  ++m  ) {
@@ -181,7 +175,7 @@ void ware_production_t::rdwr(loadsave_t *file)
 
 		// Apply correction for output production graphs which have had their precision changed for factory normalization.
 		// Also apply a fix for corrupted in-transit values caused by a logical error.
-		if ((file->get_version() <= 120000 || (file->get_extended_version() < 13 && file->get_extended_version() < 18))) {
+		if ((file->get_version_int() <= 120000 || (file->get_extended_version() < 13 && file->get_extended_version() < 18))) {
 			for (int m = 0; m < MAX_MONTH; ++m) {
 				statistics[m][0] = (statistics[m][FAB_GOODS_STORAGE] & 0xffffffff) << DEFAULT_PRODUCTION_FACTOR_BITS;
 				statistics[m][2] = (statistics[m][2] & 0xffffffff) << DEFAULT_PRODUCTION_FACTOR_BITS;
@@ -218,7 +212,7 @@ void fabrik_t::arrival_statistics_t::init()
 
 void fabrik_t::arrival_statistics_t::rdwr(loadsave_t *file)
 {
-	if(  file->get_version()>=110005  ) {
+	if(  file->get_version_int()>=110005  ) {
 		if(  file->is_loading()  ) {
 			aggregate_arrival = 0;
 			for(  uint32 s=0;  s<SLOT_COUNT;  ++s  ) {
@@ -333,10 +327,8 @@ void fabrik_t::book_weighted_sums(sint64 delta_time)
 		output[out].book_weighted_sum_storage(desc->get_product(out)->get_factor(), delta_time);
 	}
 
-	// production level
-	const sint32 current_prod = get_current_production();
-	weighted_sum_production += current_prod * delta_time;
-	set_stat(current_prod, FAB_PRODUCTION);
+	// production rate
+	set_stat(calc_operation_rate(0), FAB_PRODUCTION);
 
 	// electricity, pax and mail boosts
 	weighted_sum_boost_electric += prodfactor_electric * delta_time;
@@ -816,7 +808,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 		for (weighted_vector_tpl<stadt_t*>::const_iterator i = cities.begin(), end = cities.end(); i != end; ++i)
 		{
 			stadt_t* const c = *i;
-			const sint64 pop = c->get_finance_history_month(0,HIST_CITICENS);
+			const sint64 pop = c->get_finance_history_month(0,HIST_CITIZENS);
 			if(pop > biggest_city_population)
 			{
 				biggest_city_population = pop;
@@ -827,7 +819,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 			}
 		}
 
-		const sint64 this_city_population = city->get_finance_history_month(0,HIST_CITICENS);
+		const sint64 this_city_population = city->get_finance_history_month(0,HIST_CITIZENS);
 		sint32 production;
 
 		if(this_city_population == biggest_city_population)
@@ -1021,7 +1013,7 @@ fabrik_t::~fabrik_t()
 }
 
 
-void fabrik_t::build(sint32 rotate, bool build_fields, bool force_initial_prodbase, bool from_saved)
+void fabrik_t::build(sint32 rotate, bool build_fields, bool, bool from_saved)
 {
 	this->rotate = rotate;
 	pos_origin = welt->lookup_kartenboden(pos_origin.get_2d())->get_pos();
@@ -1101,7 +1093,6 @@ void fabrik_t::build(sint32 rotate, bool build_fields, bool force_initial_prodba
 		else if(  build_fields  )
 		{
 			// make sure not to exceed initial prodbase too much
-			sint32 org_prodbase = prodbase;
 			// we will start with a minimum number and try to get closer to start_fields
 			const uint16 spawn_fields = desc->get_field_group()->get_min_fields() + simrand(desc->get_field_group()->get_start_fields() - desc->get_field_group()->get_min_fields(), "fabrik_t::build");
 			while(  fields.get_count() < spawn_fields  &&  add_random_field(10000u)  )
@@ -1121,7 +1112,6 @@ void fabrik_t::build(sint32 rotate, bool build_fields, bool force_initial_prodba
 
 
 /* field generation code
- * @author Kieron Green
  */
 bool fabrik_t::add_random_field(uint16 probability)
 {
@@ -1177,7 +1167,7 @@ bool fabrik_t::add_random_field(uint16 probability)
 		const koord k = gr->get_pos().get_2d();
 		field_data_t new_field(k);
 		assert(!fields.is_contained(new_field));
-		// Knightly : fetch a random field class desc based on spawn weights
+		// fetch a random field class desc based on spawn weights
 		const weighted_vector_tpl<uint16> &field_class_indices = fd->get_field_class_indices();
 		new_field.field_class_index = pick_any_weighted(field_class_indices);
 		const field_class_desc_t *const field_class = fd->get_field_class( new_field.field_class_index );
@@ -1185,7 +1175,7 @@ bool fabrik_t::add_random_field(uint16 probability)
 		grund_t *gr2 = new fundament_t(gr->get_pos(), gr->get_grund_hang());
 		welt->access(k)->boden_ersetzen(gr, gr2);
 		gr2->obj_add( new field_t(gr2->get_pos(), owner, field_class, this ) );
-		// Knightly : adjust production base and storage capacities
+		// adjust production base and storage capacities
 		adjust_production_for_fields();
 		if(lt) {
 			gr2->obj_add( lt );
@@ -1202,9 +1192,8 @@ void fabrik_t::remove_field_at(koord pos)
 	field_data_t field(pos);
 	assert(fields.is_contained( field ));
 	field = fields[ fields.index_of(field) ];
-	const field_class_desc_t *const field_class = desc->get_field_group()->get_field_class( field.field_class_index );
 	fields.remove(field);
-	// Knightly : revert the field's effect on production base and storage capacities
+	// revert the field's effect on production base and storage capacities
 	adjust_production_for_fields();
 }
 
@@ -1303,7 +1292,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 		file->rdwr_str(ware_name);
 		file->rdwr_long(menge);
-		if(  file->get_version()<110005  ) {
+		if(  file->get_version_int()<110005  ) {
 			// max storage is only loaded/saved for older versions
 			file->rdwr_long(ware.max);
 		}
@@ -1315,7 +1304,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		*/
 		/*
 		//  JIT2 needs to store input demand buffer
-		if (welt->get_settings().get_just_in_time() >= 2 && file->get_version() > 120000) {
+		if (welt->get_settings().get_just_in_time() >= 2 && file->get_version_int() > 120000) {
 			file->rdwr_long(ware.demand_buffer);
 		}
 		*/
@@ -1335,14 +1324,14 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 				// Inputs used to be with respect to actual units of production. They now are normalized with respect to factory production so require conversion.
 				const uint32 prod_factor = desc ? desc->get_supplier(i)->get_consumption() : 1;
-				if (file->get_version() <= 120000) {
+				if (file->get_version_int() <= 120000) {
 					ware.menge = (sint32)(((sint64)menge << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor);
 				}
 				else {
 					ware.menge = menge;
 				}
 
-				// Hajo: repair files that have 'insane' values
+				// repair files that have 'insane' values
 				const sint32 max = (sint32)((((sint64)FAB_MAX_INPUT << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / (sint64)prod_factor);
 				if (ware.menge < 0) {
 					ware.menge = 0;
@@ -1357,8 +1346,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 						pos_origin.get_fullstr(), i, ware_name, ware.get_typ()->get_name(), desc->get_supplier(i)->get_input_type()->get_name());
 				}
 			}
-
-			guarded_free(const_cast<char *>(ware_name));
+			free(const_cast<char *>(ware_name));
 
 			/*
 			* It's very easy for in-transit information to get corrupted,
@@ -1414,13 +1402,13 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		if(  file->is_saving()  ) {
 			ware_name = ware.get_typ()->get_name();
 			// correct scaling for older saves
-			if (file->get_version() <= 120000) {
+			if (file->get_version_int() <= 120000) {
 				menge = (sint32)(((sint64)ware.menge * desc->get_product(i)->get_factor()) >> DEFAULT_PRODUCTION_FACTOR_BITS);
 			}
 		}
 		file->rdwr_str(ware_name);
 		file->rdwr_long(menge);
-		if(  file->get_version()<110005  ) {
+		if(  file->get_version_int()<110005  ) {
 			// max storage is only loaded/saved for older versions
 			file->rdwr_long(ware.max);
 			// obsolete variables -> statistics already contain records on goods delivered
@@ -1439,7 +1427,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			}
 			else {
 				// Outputs used to be with respect to actual units of production. They now are normalized with respect to factory production so require conversion.
-				if (file->get_version() <= 120000) {
+				if (file->get_version_int() <= 120000) {
 					const uint32 prod_factor = desc ? desc->get_product(i)->get_factor() : 1;
 					ware.menge = (sint32)(((sint64)menge << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor);
 				}
@@ -1447,8 +1435,8 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 					ware.menge = menge;
 				}
 
-				// Hajo: repair files that have 'insane' values
-				if (ware.menge < 0) {
+				// repair files that have 'insane' values
+				if(  ware.menge < 0  ) {
 					ware.menge = 0;
 				}
 
@@ -1458,7 +1446,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 						pos_origin.get_fullstr(), i, ware_name, ware.get_typ()->get_name(), desc->get_product(i)->get_output_type()->get_name());
 				}
 			}
-			guarded_free(const_cast<char *>(ware_name));
+			free(const_cast<char *>(ware_name));
 		}
 	}
 	if (desc  &&  output_count != desc->get_product_count()) {
@@ -1494,26 +1482,26 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	owner_n = welt->sp2num(owner);
 	file->rdwr_long(owner_n);
 	file->rdwr_long(prodbase);
-	if(  file->get_version()<110005  ) {
-		// TurfIt : prodfactor saving no longer required
+	if(  file->get_version_int()<110005  ) {
+		// prodfactor saving no longer required
 		sint32 adjusted_value = (prodfactor_electric / 16) + 16;
 		file->rdwr_long(adjusted_value);
 	}
 
-	if(  file->get_version() > 99016  ) {
+	if(  file->get_version_int() > 99016  ) {
 		file->rdwr_long(power);
 	}
 
 	// owner stuff
 	if(  file->is_loading()  ) {
 		// take care of old files
-		if(  file->get_version() < 86001  ) {
+		if(  file->get_version_int() < 86001  ) {
 			koord k = desc ? desc->get_building()->get_size() : koord(1,1);
 			DBG_DEBUG("fabrik_t::rdwr()","correction of production by %i",k.x*k.y);
 			// since we step from 86.01 per factory, not per tile!
 			prodbase *= k.x*k.y*2;
 		}
-		// Hajo: restore factory owner
+		// restore factory owner
 		// Due to a omission in Volkers changes, there might be savegames
 		// in which factories were saved without an owner. In this case
 		// set the owner to the default of player 1
@@ -1537,7 +1525,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		lieferziele[i].rdwr(file);
 	}
 
-	if(  file->get_version()>=112002  ) {
+	if(  file->get_version_int()>=112002  ) {
 		file->rdwr_long( lieferziele_active_last_month );
 	}
 
@@ -1547,11 +1535,11 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	}
 
 	// information on fields ...
-	if(  file->get_version() > 99009  ) {
+	if(  file->get_version_int() > 99009  ) {
 		if(  file->is_saving()  ) {
 			uint16 nr=fields.get_count();
 			file->rdwr_short(nr);
-			if(  file->get_version()>102002  && file->get_extended_version() != 7 ) {
+			if(  file->get_version_int()>102002  && file->get_extended_version() != 7 ) {
 				// each field stores location and a field class index
 				for(  uint16 i=0  ;  i<nr  ;  ++i  ) {
 					koord k = fields[i].location;
@@ -1573,7 +1561,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			koord k;
 			file->rdwr_short(nr);
 			fields.resize(nr);
-			if(  file->get_version()>102002  && file->get_extended_version() != 7 ) {
+			if(  file->get_version_int()>102002  && file->get_extended_version() != 7 ) {
 				// each field stores location and a field class index
 				for(  uint16 i=0  ;  i<nr  ;  ++i  ) {
 					k.rdwr(file);
@@ -1598,7 +1586,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 
-	if(file->get_version() >= 99014 && file->get_extended_version() < 12)
+	if(file->get_version_int() >= 99014 && file->get_extended_version() < 12)
 	{
 		// Was saving/loading of "target_cities".
 		sint32 nr = 0;
@@ -1610,13 +1598,13 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 
-	if(file->get_extended_version() < 9 && file->get_version() < 110006)
+	if(file->get_extended_version() < 9 && file->get_version_int() < 110006)
 	{
 		// Necessary to ensure that the industry density is correct after re-loading a game.
 		welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
 	}
 
-	if(  file->get_version() >= 110005  ) {
+	if(  file->get_version_int() >= 110005  ) {
 		file->rdwr_short(times_expanded);
 		// statistics
 		//sint64 dummy64 = 0;
@@ -1628,6 +1616,15 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 					continue;
 				}
 				file->rdwr_longlong(statistics[m][s]);
+				if (s== FAB_PRODUCTION && (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 29))) {
+					// convert production to producivity
+					if (prodbase && welt->calc_adjusted_monthly_figure(get_base_production())) {
+						statistics[m][s] = calc_operation_rate(m);
+					}
+					else {
+						statistics[m][s] = 0;
+					}
+				}
 			}
 		}
 		file->rdwr_longlong( weighted_sum_production );
@@ -1646,7 +1643,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	arrival_stats_pax.rdwr( file );
 	arrival_stats_mail.rdwr( file );
 
-	if(  file->get_version()>=110007  ) {
+	if(  file->get_version_int()>=110007  ) {
 		file->rdwr_byte(activity_count);
 	}
 	else if(  file->is_loading()  ) {
@@ -1654,7 +1651,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	}
 
 	// save name
-	if(  file->get_version() >= 110007  ) {
+	if(  file->get_version_int() >= 110007  ) {
 		if(  file->is_saving() &&  !name  ) {
 			char const* fullname = desc->get_name();
 			file->rdwr_str(fullname);
@@ -1691,7 +1688,6 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 /**
  * let the chimney smoke, if there is something to produce
- * @author Hj. Malthaner
  */
 void fabrik_t::smoke() const
 {
@@ -1700,18 +1696,22 @@ void fabrik_t::smoke() const
 		const koord size = desc->get_building()->get_size(0)-koord(1,1);
 		const uint8 rot = (4-rotate)%desc->get_building()->get_all_layouts();
 		koord ro = rada->get_pos_off(size,rot);
-		grund_t *gr = welt->lookup_kartenboden(pos_origin.get_2d()+ro);
+		koord smoke_pos = pos_origin.get_2d() + ro;
+		if (!welt->is_within_grid_limits(smoke_pos))
+		{
+			smoke_pos = pos_origin.get_2d();
+		}
+		grund_t *gr = welt->lookup_kartenboden(smoke_pos);
 		// to get same random order on different compilers
-		const sint8 offsetx = ((rada->get_xy_off(rot).x)*OBJECT_OFFSET_STEPS) / 16;
-		const sint8 offsety = ((rada->get_xy_off(rot).y)*OBJECT_OFFSET_STEPS) / 16;
-		wolke_t *smoke =  new wolke_t(gr->get_pos(), offsetx, offsety, rada->get_images() );
+		const sint8 offsetx = ((rada->get_xy_off(rot).x) * OBJECT_OFFSET_STEPS) / 16;
+		const sint8 offsety = ((rada->get_xy_off(rot).y) * OBJECT_OFFSET_STEPS) / 16;
+		wolke_t* smoke = new wolke_t(gr->get_pos(), offsetx, offsety, rada->get_images());
 		gr->obj_add(smoke);
-		welt->sync_way_eyecandy.add( smoke );
+		welt->sync_way_eyecandy.add(smoke);
 	}
 	// maybe sound?
-	if (!world()->is_fast_forward() && desc->get_sound() != NO_SOUND && (welt->get_ticks() > (last_sound_ms + desc->get_sound_interval_ms())))
-	{
-		welt->play_sound_area_clipped(get_pos().get_2d(), desc->get_sound(), noise_barrier_wt);
+	if (!world()->is_fast_forward() && desc->get_sound() != NO_SOUND && (welt->get_ticks() > (last_sound_ms + desc->get_sound_interval_ms()))) {
+		welt->play_sound_area_clipped( get_pos().get_2d(), desc->get_sound(), FACTORY_SOUND, noise_barrier_wt );
 		// The below does not work because this is const - but without this, the whole sound interval does not work.
 		//last_sound_ms = welt->get_ticks();
 	}
@@ -1809,7 +1809,7 @@ sint32 fabrik_t::liefere_an(const goods_desc_t *typ, sint32 menge)
 
 				ware.menge += prod_delta;
 
-				// Hajo: avoid overflow
+				// avoid overflow
 				const sint32 max = (sint32)((((sint64)FAB_MAX_INPUT << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / (sint64)prod_factor);
 				if (ware.menge >= max) {
 					menge -= (sint32)(((sint64)menge * (sint64)(ware.menge - max) + (sint64)(prod_delta >> 1)) / (sint64)prod_delta);
@@ -1966,7 +1966,7 @@ sint32 fabrik_t::goods_needed(const goods_desc_t *typ) const
 			// Version that respects the new industry internal scale and properly deals with the just in time setting being disabled
 			if(typ->get_catg() == 0 || !welt->get_settings().get_just_in_time())
 			{
-				// The simple system
+				// Just in time 0 (or no just in time) - the simple system
 				return ware.max - ware.menge;
 			}
 			else if(welt->get_settings().get_just_in_time() == 1)
@@ -1974,20 +1974,40 @@ sint32 fabrik_t::goods_needed(const goods_desc_t *typ) const
 				// Original just in time with industries always demanding enough goods to fill their storage but no more.
 				return ware.max_transit - (transit_internal_units + ware.menge - ware.max);
 			}
-			else // just_in_time > 1
+			else if(welt->get_settings().get_just_in_time() == 2 || welt->get_settings().get_just_in_time() == 3)
 			{
 				// Modified just in time, with industries not filling more of their storage than they are likely to need.
 				sint32 adjusted_factory_value = ware.menge - ware.max_transit;
 				adjusted_factory_value = max(adjusted_factory_value, 0);
-				const sint32 overall_maximum = ware.max + ware.max_transit;
 				if (welt->get_settings().get_just_in_time() == 2)
 				{
+					const sint32 overall_maximum = ware.max + ware.max_transit;
 					return min(overall_maximum, ware.max_transit - (transit_internal_units + adjusted_factory_value));
 				}
-				else // just_in_time >= 3
+				else if (welt->get_settings().get_just_in_time() == 3)
 				{
 					// In this state, the size of the consumer's storage is ignored.
 					return ware.max_transit - (transit_internal_units + adjusted_factory_value);
+				}
+			}
+			else //just_in_time >= 4
+			{
+				// With this just in time algorithm, industries put goods in transit in time to fill their storage.
+				if (ware.max >= ware.max_transit)
+				{
+					if (ware.menge < ware.max_transit) // Use max_transit as a warehouse stock level at which more goods need to be ordered.
+					{
+						// Demand goods enough goods to fill the internal storage.
+						return ware.max - transit_internal_units;
+					}
+					else
+					{
+						return 0;
+					}
+				}
+				else
+				{
+					return ware.max_transit - ware.menge - transit_internal_units;
 				}
 			}
 		}
@@ -1998,8 +2018,10 @@ sint32 fabrik_t::goods_needed(const goods_desc_t *typ) const
 
 bool fabrik_t::is_active_lieferziel( koord k ) const
 {
-	assert( lieferziele.is_contained(k) );
-	return 0 < ( ( 1 << lieferziele.index_of(k) ) & lieferziele_active_last_month );
+	if ( lieferziele.is_contained(k) ) {
+		return 0 < ( ( 1 << lieferziele.index_of(k) ) & lieferziele_active_last_month );
+	}
+	return false;
 }
 
 
@@ -2244,8 +2266,8 @@ void fabrik_t::step(uint32 delta_t)
 			// we produced some real quantity => smoke
 			smoke();
 
-			// Knightly : distribution_weight to expand every 256 rounds of activities, after which activity count will return to 0 (overflow behaviour)
-			if(  ++activity_count==0  ) {
+			// chance to expand every 256 rounds of activities, after which activity count will return to 0 (overflow behaviour)
+			if(  (++activity_count)==0  ) {
 				if(  desc->get_field_group()  ) {
 					if(  fields.get_count()<desc->get_field_group()->get_max_fields()  ) {
 						// spawn new field with given probability
@@ -2268,7 +2290,7 @@ void fabrik_t::step(uint32 delta_t)
 		}
 	}
 
-	// Knightly : advance arrival slot at calculated interval and recalculate boost where necessary
+	/// advance arrival slot at calculated interval and recalculate boost where necessary
 	delta_slot += delta_t;
 	const sint32 periods = welt->get_settings().get_factory_arrival_periods();
 	const sint32 slot_interval = (1 << (PERIOD_BITS - SLOT_BITS)) * periods;
@@ -2319,11 +2341,10 @@ public:
 
 /**
  * distribute stuff to all best destination
- * @author Hj. Malthaner
  */
 void fabrik_t::verteile_waren(const uint32 product)
 {
-	// wohin liefern ?
+	// Check consumers
 	if(  lieferziele.empty()  )
 	{
 		return;
@@ -2335,15 +2356,14 @@ void fabrik_t::verteile_waren(const uint32 product)
 	// to distribute to all target equally, we use this counter, for the source hald, and target factory, to try first
 	output[product].index_offset++;
 
-	/* prissi: distribute goods to factory
+	/* distribute goods to factory
 	 * that has not an overflowing input storage
 	 * also prevent stops from overflowing, if possible
 	 * Since we can called with menge>max/2 are at least 1 are there, we must first limit the amount we distribute
 	 */
-
 	// We already know the distribution amount. However it has to be converted from factory units into real units.
 	const uint32 prod_factor = desc->get_product(product)->get_factor();
-	sint32 menge = (sint32)(((sint64)output[product].menge * (sint64)(prod_factor)) >> (DEFAULT_PRODUCTION_FACTOR_BITS + precision_bits));
+	sint32 menge = (sint32)(((sint64)output[product].menge * (sint64)(prod_factor)) >> (sint64)(DEFAULT_PRODUCTION_FACTOR_BITS + precision_bits));
 
 	// Check to see whether any consumers are within carting distance: there is no point in boarding transport
 	// if the consumer industry is next door.
@@ -2420,10 +2440,9 @@ void fabrik_t::verteile_waren(const uint32 product)
 	{
 		nearby_halt_t nearby_halt = nearby_freight_halts[(i + output[product].index_offset) % count];
 
-		// Über all Ziele iterieren ("Iterate over all targets" - Google)
-		for(uint32 n = 0; n < lieferziele.get_count(); n ++)
-		{
-			// prissi: this way, the halt that is tried first will change. As a result, if all destinations are empty, it will be spread evenly
+		// Iterate over all targets
+		for(  uint32 n=0;  n<lieferziele.get_count();  n++  ) {
+			// this way, the halt, that is tried first, will change. As a result, if all destinations are empty, it will be spread evenly
 			const koord lieferziel = lieferziele[(n + output[product].index_offset) % lieferziele.get_count()];
 			fabrik_t * ziel_fab = get_fab(lieferziel);
 
@@ -2617,7 +2636,7 @@ void fabrik_t::new_month()
 
 	// calculate weighted averages
 	if(  aggregate_weight>0  ) {
-		set_stat( weighted_sum_production / aggregate_weight, FAB_PRODUCTION );
+		set_stat(calc_operation_rate(1), FAB_PRODUCTION );
 		set_stat( weighted_sum_boost_electric / aggregate_weight, FAB_BOOST_ELECTRIC );
 		set_stat( weighted_sum_boost_pax / aggregate_weight, FAB_BOOST_PAX );
 		set_stat( weighted_sum_boost_mail / aggregate_weight, FAB_BOOST_MAIL );
@@ -2644,7 +2663,7 @@ void fabrik_t::new_month()
 	aggregate_weight = 0;
 
 	// restore the current values
-	set_stat( get_current_production(), FAB_PRODUCTION );
+	set_stat(calc_operation_rate(0), FAB_PRODUCTION);
 	set_stat( prodfactor_electric, FAB_BOOST_ELECTRIC );
 	set_stat( prodfactor_pax, FAB_BOOST_PAX );
 	set_stat( prodfactor_mail, FAB_BOOST_MAIL );
@@ -2679,281 +2698,220 @@ void fabrik_t::new_month()
 	// If it is, give it a distribution_weight of being closed down.
 	// @author: jamespetts
 
-	if(welt->use_timeline() && desc->get_building()->get_retire_year_month() < welt->get_timeline_year_month())
+	const uint16 timeline_month = welt->get_timeline_year_month(); // This will be 0 if timeline is disabled.
+	const uint16 retire_month = desc->get_building()->get_retire_year_month();
+	const uint32 latest_retire_month = retire_month + (12 * welt->get_settings().get_factory_max_years_obsolete());
+	if(timeline_month > retire_month && (latest_retire_month <= timeline_month || simrand(latest_retire_month - timeline_month, "void fabrik_t::new_month()") == 0))
 	{
-		const uint32 difference = welt->get_timeline_year_month() - desc->get_building()->get_retire_year_month();
-		const uint32 max_difference = welt->get_settings().get_factory_max_years_obsolete() * 12;
-		bool closedown = false;
-		if(difference > max_difference)
-		{
-			closedown = true;
-		}
+		char buf[256];
 
-		else
+		const sint32 upgrades_count = desc->get_upgrades_count();
+		if(upgrades_count > 0)
 		{
-			uint32 proportion = (difference * 100) / max_difference;
-			proportion *= 75; //Set to percentage value, but take into account fact will be frequently checked (would otherwise be * 100 - reduced to take into account frequency of checking)
-			const uint32 distribution_weight = (simrand(1000000, "void fabrik_t::new_month()"));
-			if(distribution_weight <= proportion)
+			// This factory has some upgrades: consider upgrading.
+			minivec_tpl<const factory_desc_t*> upgrade_list(upgrades_count);
+			const uint32 max_density = welt->get_target_industry_density() == 0 ? SINT32_MAX_VALUE : (welt->get_target_industry_density() * 150u) / 100u;
+			const uint32 adjusted_density = welt->get_actual_industry_density() - (100u / desc->get_distribution_weight());
+			for(sint32 i = 0; i < upgrades_count; i ++)
 			{
-				closedown = true;
-			}
-		}
+				// Check whether any upgrades are suitable.
+				// Currently, they must be of identical size, as the
+				// upgrade mechanism is quite simple. In future, it might
+				// be possible to write more sophisticated upgrading code
+				// to enable industries that are not identical in such a
+				// way to be upgraded. (Previously, the industry also
+				// had to have the same number of suppliers and consumers,
+				// but this is no longer necessary given the industry re-linker).
 
-		if(closedown)
-		{
-			char buf[256];
+				// Thus, non-suitable upgrades are allowed to be specified
+				// in the .dat files for future compatibility.
 
-			const sint32 upgrades_count = desc->get_upgrades_count();
-			if(upgrades_count > 0)
-			{
-				// This factory has some upgrades: consider upgrading.
-				minivec_tpl<const factory_desc_t*> upgrade_list(upgrades_count);
-				const uint32 max_density = welt->get_target_industry_density() == 0 ? SINT32_MAX_VALUE : (welt->get_target_industry_density() * 150u) / 100u;
-				const uint32 adjusted_density = welt->get_actual_industry_density() - (100u / desc->get_distribution_weight());
-				for(sint32 i = 0; i < upgrades_count; i ++)
+				const factory_desc_t* new_fab = desc->get_upgrades(i);
+				if(new_fab != NULL && new_fab->is_electricity_producer() == desc->is_electricity_producer() &&
+				   new_fab->get_building()->get_x() == desc->get_building()->get_x() &&
+				   new_fab->get_building()->get_y() == desc->get_building()->get_y() &&
+				   new_fab->get_building()->get_size() == desc->get_building()->get_size() &&
+				   new_fab->get_building()->get_intro_year_month() <= timeline_month &&
+				   new_fab->get_building()->get_retire_year_month() >= timeline_month &&
+					adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())))
 				{
-					// Check whether any upgrades are suitable.
-					// Currently, they must be of identical size, as the
-					// upgrade mechanism is quite simple. In future, it might
-					// be possible to write more sophisticated upgrading code
-					// to enable industries that are not identical in such a
-					// way to be upgraded. (Previously, the industry also
-					// had to have the same number of suppliers and consumers,
-					// but this is no longer necessary given the industry re-linker).
-
-					// Thus, non-suitable upgrades are allowed to be specified
-					// in the .dat files for future compatibility.
-
-					const factory_desc_t* fab = desc->get_upgrades(i);
-					if(	fab != NULL && fab->is_electricity_producer() == desc->is_electricity_producer() &&
-						fab->get_building()->get_x() == desc->get_building()->get_x() &&
-						fab->get_building()->get_y() == desc->get_building()->get_y() &&
-						fab->get_building()->get_size() == desc->get_building()->get_size() &&
-						fab->get_building()->get_intro_year_month() <= welt->get_timeline_year_month() &&
-						fab->get_building()->get_retire_year_month() >= welt->get_timeline_year_month() &&
-						adjusted_density < (max_density + (100u / fab->get_distribution_weight())))
-					{
-						upgrade_list.append_unique(fab);
-					}
+					upgrade_list.append_unique(new_fab);
 				}
+			}
 
-				const uint8 list_count = upgrade_list.get_count();
-				if(list_count > 0)
+			const uint8 list_count = upgrade_list.get_count();
+			if(list_count > 0)
+			{
+				// Upgrade if this industry is well served, otherwise close.
+				uint32 upgrade_chance_percent;
+
+				// Get average and max. operation rate for the last 11 months
+				// Note that we have already rolled the statistics, so we cannot count the current (blank) month.
+				uint32 total_operation_rate = 0;
+				uint32 max_operation_rate = 0;
+				for (uint32 i = 1; i < 11; i++)
 				{
-					// Upgrade if this industry is well served, otherwise close.
+					max_operation_rate = max(max_operation_rate, statistics[i][FAB_PRODUCTION]);
+					total_operation_rate += statistics[i][FAB_PRODUCTION];
+				}
+				const uint32 average_operation_rate = total_operation_rate / 11u;
 
-					// TODO: Use statistics for a longer-term view. The statuses are just a snapshot.
-					// However, the statistics need some reworking when town growth is implemented to
-					// remove redundancy - they are also somewhat opaque at present.
+				upgrade_chance_percent = max(average_operation_rate, max_operation_rate / 2);
 
-					uint32 upgrade_chance_percent;
-					switch (status % staff_shortage)
+				const uint32 minimum_base_upgrade_chance_percent = 50;
+
+				upgrade_chance_percent += (minimum_base_upgrade_chance_percent * 2);
+				upgrade_chance_percent /= 2;
+
+				const uint32 probability = simrand(101, "void fabrik_t::new_month()");
+
+				if(upgrade_chance_percent > probability)
+				{
+					// Upgrade
+					uint32 total_density = 0;
+					FOR(minivec_tpl<const factory_desc_t*>, upgrade, upgrade_list)
 					{
-					case mat_overstocked:
-						upgrade_chance_percent = 100;
-						break;
-					case good:
-					case water_resource:
-						upgrade_chance_percent = 90;
-						break;
-					case stuck:
-					case nothing:
-					case medium:
-						upgrade_chance_percent = 75;
-						break;
-					//case staff_shortage:
-					//	upgrade_chance_percent = 66;
-					//	break;
-					case bad:
-						upgrade_chance_percent = 50;
-						break;
-					case inactive:
-					case material_shortage:
-						upgrade_chance_percent = 25;
-						break;
-					case storage_full:
-					case no_material:
-					case shipment_stuck:
-						upgrade_chance_percent = 10;
-						break;
-					default:
-						// Should not be reached.
-						dbg->error("void fabrik_t::new_month()", "Unknown industry status type %i", status);
-						upgrade_chance_percent = 33;
-					};
-					if(status >= staff_shortage){
-						// Note that there is a possibility that staff shortage is involved in the above bad status
-						upgrade_chance_percent *= (uint32)building->get_staffing_level_percentage() / 100; // TODO: review the calculation
+						total_density += (100u / upgrade->get_distribution_weight());
 					}
-					if (get_sector() == fabrik_t::end_consumer)
+					const uint32 average_density = total_density / list_count;
+					const uint32 probability = 1 / ((100u - ((adjusted_density + average_density) / max_density)) * (uint32)list_count) / 100u;
+					const uint32 distribution_weight = simrand(probability, "void fabrik_t::new_month()");
+
+					const int old_distributionweight = desc->get_distribution_weight();
+					const factory_desc_t* new_type = upgrade_list[distribution_weight];
+					welt->decrease_actual_industry_density(100 / old_distributionweight);
+					uint32 percentage = new_type->get_field_group() ? (new_type->get_field_group()->get_max_fields() * 100) / desc->get_field_group()->get_max_fields() : 0;
+					const uint16 adjusted_number_of_fields = percentage ? (fields.get_count() * percentage) / 100 : 0;
+					delete_all_fields();
+					const char* old_name = get_name();
+					desc = new_type;
+					const char* new_name = get_name();
+					get_building()->calc_image();
+					// Base production is randomised, so is an instance value. Must re-set from the type.
+					prodbase = desc->get_productivity() + simrand(desc->get_range(), "void fabrik_t::new_month()");
+					// Re-add the fields
+					for(uint16 i = 0; i < adjusted_number_of_fields; i ++)
 					{
-						// If this is an end consumer, check whether we have a good number
-						// of customers before deciding whether to close/upgrade.
-
-						const uint32 passengers_visiting_this_year = (uint32)building->get_passengers_succeeded_visiting();
-						const uint32 visitor_demand = (uint32)building->get_adjusted_visitor_demand();
-
-						const uint32 current_month = world()->get_last_month();
-						const uint32 visitor_demand_this_year_so_far = (visitor_demand * current_month) / 12u;
-						const uint32 visitors_this_year_so_far = max(1, (uint32)building->get_passengers_succeeded_visiting()); // A zero here will guarantee deletion, which is too harsh.
-
-						const uint32 percentage = visitor_demand_this_year_so_far > 0 ? (visitors_this_year_so_far * 100u) / visitor_demand_this_year_so_far : 100;
-						uint32 upgrade_chance_percent = 100;
-						upgrade_chance_percent *= percentage;
-						upgrade_chance_percent /= 100;
+						add_random_field(10000u);
 					}
-
-					const uint32 probability = simrand(101, "void fabrik_t::new_month()");
-
-					if(upgrade_chance_percent > probability)
+					// Re-set the expansion counter: an upgraded factory may expand further.
+					times_expanded = 0;
+					// Re-calculate production/consumption
+					if(desc->get_placement() == 2 && city && desc->get_product_count() == 0)
 					{
-						// Upgrade
-						uint32 total_density = 0;
-						FOR(minivec_tpl<const factory_desc_t*>, upgrade, upgrade_list)
+						// City consumer industries set their consumption rates by the relative size of the city
+						const weighted_vector_tpl<stadt_t*>& cities = welt->get_cities();
+
+						sint64 biggest_city_population = 0;
+						sint64 smallest_city_population = -1;
+
+						for (weighted_vector_tpl<stadt_t*>::const_iterator i = cities.begin(), end = cities.end(); i != end; ++i)
 						{
-							total_density += (100u / upgrade->get_distribution_weight());
+							stadt_t* const c = *i;
+							const sint64 pop = c->get_finance_history_month(0, HIST_CITIZENS);
+							if(pop > biggest_city_population)
+							{
+								biggest_city_population = pop;
+							}
+							else if(pop < smallest_city_population || smallest_city_population == -1)
+							{
+								smallest_city_population = pop;
+							}
 						}
-						const uint32 average_density = total_density / list_count;
-						const uint32 probability = 1 / ((100u - ((adjusted_density + average_density) / max_density)) * (uint32)list_count) / 100u;
-						const uint32 distribution_weight = simrand(probability, "void fabrik_t::new_month()");
 
-						const int old_distributionweight = desc->get_distribution_weight();
-						const factory_desc_t* new_type = upgrade_list[distribution_weight];
-						welt->decrease_actual_industry_density(100 / old_distributionweight);
-						uint32 percentage = new_type->get_field_group() ? (new_type->get_field_group()->get_max_fields() * 100) / desc->get_field_group()->get_max_fields() : 0;
-						const uint16 adjusted_number_of_fields = percentage ? (fields.get_count() * percentage) / 100 : 0;
-						delete_all_fields();
-						const char* old_name = get_name();
-						desc = new_type;
-						const char* new_name = get_name();
-						get_building()->calc_image();
-						// Base production is randomised, so is an instance value. Must re-set from the type.
-						prodbase = desc->get_productivity() + simrand(desc->get_range(), "void fabrik_t::new_month()");
-						// Re-add the fields
-						for(uint16 i = 0; i < adjusted_number_of_fields; i ++)
+						const sint64 this_city_population = city->get_finance_history_month(0, HIST_CITIZENS);
+						sint32 production;
+
+						if(this_city_population == biggest_city_population)
 						{
-							add_random_field(10000u);
+							production = desc->get_range();
 						}
-						// Re-set the expansion counter: an upgraded factory may expand further.
-						times_expanded = 0;
-						// Re-calculate production/consumption
-						if(desc->get_placement() == 2 && city && desc->get_product_count() == 0)
+						else if(this_city_population == smallest_city_population)
 						{
-							// City consumer industries set their consumption rates by the relative size of the city
-							const weighted_vector_tpl<stadt_t*>& cities = welt->get_cities();
-
-							sint64 biggest_city_population = 0;
-							sint64 smallest_city_population = -1;
-
-							for (weighted_vector_tpl<stadt_t*>::const_iterator i = cities.begin(), end = cities.end(); i != end; ++i)
-							{
-								stadt_t* const c = *i;
-								const sint64 pop = c->get_finance_history_month(0, HIST_CITICENS);
-								if(pop > biggest_city_population)
-								{
-									biggest_city_population = pop;
-								}
-								else if(pop < smallest_city_population || smallest_city_population == -1)
-								{
-									smallest_city_population = pop;
-								}
-							}
-
-							const sint64 this_city_population = city->get_finance_history_month(0, HIST_CITICENS);
-							sint32 production;
-
-							if(this_city_population == biggest_city_population)
-							{
-								production = desc->get_range();
-							}
-							else if(this_city_population == smallest_city_population)
-							{
-								production = 0;
-							}
-							else
-							{
-								const sint64 percentage = (this_city_population - smallest_city_population) * 100ll / (biggest_city_population - smallest_city_population);
-								production = (desc->get_range() * (sint32)percentage) / 100;
-							}
-							prodbase = desc->get_productivity() + production;
-						}
-						else if(desc->get_placement() == 2 && !city && desc->get_product_count() == 0)
-						{
-							prodbase = desc->get_productivity();
+							production = 0;
 						}
 						else
 						{
-							prodbase = desc->get_productivity() + simrand(desc->get_range(), "fabrik_t::new_month");
+							const sint64 percentage = (this_city_population - smallest_city_population) * 100ll / (biggest_city_population - smallest_city_population);
+							production = (desc->get_range() * (sint32)percentage) / 100;
 						}
-
-						prodbase = prodbase > 0 ? prodbase : 1;
-
-						slist_tpl<const goods_desc_t*> input_products;
-
-						// create input information
-						input.resize(desc->get_supplier_count() );
-						for(  int g=0;  g<desc->get_supplier_count();  ++g  ) {
-							const factory_supplier_desc_t *const input_fac = desc->get_supplier(g);
-							input[g].set_typ( input_fac->get_input_type() );
-							input_products.append(input_fac->get_input_type());
-						}
-
-						// The upgraded factory might not have the same inputs as its predecessor.
-						// Remove redundant inputs
-						FOR(vector_tpl<koord>, k, suppliers)
-						{
-							fabrik_t* supplier = fabrik_t::get_fab(k);
-							bool match = false;
-							FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
-							{
-								if(input_products.is_contained(sw.get_typ()))
-								{
-									match = true;
-									break;
-								}
-							}
-							if(!match)
-							{
-								rem_supplier(k);
-							}
-						}
-
-						// Missing inputs are checked in increase_industry_density
-
-						// create output information
-						output.resize( desc->get_product_count() );
-						for(  uint g=0;  g<desc->get_product_count();  ++g  ) {
-							const factory_product_desc_t *const product = desc->get_product(g);
-							output[g].set_typ( product->get_output_type() );
-						}
-
-						recalc_storage_capacities();
-						adjust_production_for_fields();
-						// Re-calculate electricity conspumption, mail and passenger demand, etc.
-						update_scaled_electric_amount();
-						update_scaled_pax_demand();
-						update_scaled_mail_demand();
-						update_prodfactor_pax();
-						update_prodfactor_mail();
-						welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
-						sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
-						welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI, skinverwaltung_t::neujahrsymbol->get_image_id(0));
-						return;
+						prodbase = desc->get_productivity() + production;
 					}
+					else if(desc->get_placement() == 2 && !city && desc->get_product_count() == 0)
+					{
+						prodbase = desc->get_productivity();
+					}
+					else
+					{
+						prodbase = desc->get_productivity() + simrand(desc->get_range(), "fabrik_t::new_month");
+					}
+
+					prodbase = prodbase > 0 ? prodbase : 1;
+
+					slist_tpl<const goods_desc_t*> input_products;
+
+					// create input information
+					input.resize(desc->get_supplier_count() );
+					for(  int g=0;  g<desc->get_supplier_count();  ++g  ) {
+						const factory_supplier_desc_t *const input_fac = desc->get_supplier(g);
+						input[g].set_typ( input_fac->get_input_type() );
+						input_products.append(input_fac->get_input_type());
+					}
+
+					// The upgraded factory might not have the same inputs as its predecessor.
+					// Remove redundant inputs
+					FOR(vector_tpl<koord>, k, suppliers)
+					{
+						fabrik_t* supplier = fabrik_t::get_fab(k);
+						bool match = false;
+						FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
+						{
+							if(input_products.is_contained(sw.get_typ()))
+							{
+								match = true;
+								break;
+							}
+						}
+						if(!match)
+						{
+							rem_supplier(k);
+						}
+					}
+
+					// Missing inputs are checked in increase_industry_density
+
+					// create output information
+					output.resize( desc->get_product_count() );
+					for(  uint g=0;  g<desc->get_product_count();  ++g  ) {
+						const factory_product_desc_t *const product = desc->get_product(g);
+						output[g].set_typ( product->get_output_type() );
+					}
+
+					recalc_storage_capacities();
+					adjust_production_for_fields();
+					// Re-calculate electricity conspumption, mail and passenger demand, etc.
+					update_scaled_electric_amount();
+					update_scaled_pax_demand();
+					update_scaled_mail_demand();
+					update_prodfactor_pax();
+					update_prodfactor_mail();
+					welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+					sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
+					welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI, skinverwaltung_t::neujahrsymbol->get_image_id(0));
+					return;
 				}
 			}
-
-			welt->closed_factories_this_month.append(this);
 		}
+
+		welt->closed_factories_this_month.append(this);
 	}
 	// NOTE: No code should come after this part, as the closing down code may cause this object to be deleted.
 }
 
 // static !
-unsigned fabrik_t::status_to_color[MAX_FAB_STATUS] = {
+uint8 fabrik_t::status_to_color[MAX_FAB_STATUS] = {
 	COL_WHITE, COL_GREEN, COL_DODGER_BLUE, COL_LIGHT_TURQUOISE, COL_BLUE, COL_DARK_GREEN,
-	COL_GREY3, COL_DARK_BROWN+1, COL_YELLOW-1, COL_YELLOW, COL_ORANGE, COL_ORANGE_RED, COL_RED, COL_STAFF_SHORTAGE };
+	COL_GREY3, COL_DARK_BROWN + 1, COL_YELLOW - 1, COL_YELLOW, COL_ORANGE, COL_ORANGE_RED, COL_RED, COL_BLACK, COL_DARK_ORCHID };
 
 #define FL_WARE_NULL           1
 #define FL_WARE_ALLENULL       2
@@ -2978,6 +2936,8 @@ void fabrik_t::recalc_factory_status()
 	total_transit = 0;
 	status_ein = FL_WARE_ALLELIMIT;
 	uint32 i = 0;
+	uint32 input_count = input.get_count();
+	uint32 supplier_check = 0;
 	FOR(array_tpl<ware_production_t>, const& j, input) {
 		if (j.menge >= j.max) {
 			status_ein |= FL_WARE_LIMIT;
@@ -2990,8 +2950,28 @@ void fabrik_t::recalc_factory_status()
 		if ((j.menge >> fabrik_t::precision_bits) == 0) {
 			status_ein |= FL_WARE_FEHLT_WAS;
 		}
-
+		// Does each input goods have one or more suppliers. If not, this factory will not be operational.
+		if (sector == manufacturing) {
+			FOR(vector_tpl<koord>, k, suppliers)
+			{
+				fabrik_t* supplier = fabrik_t::get_fab(k);
+				bool found = false;
+				FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
+				{
+					if (sw.get_typ() == j.get_typ())
+					{
+						supplier_check++;
+						found = true;
+						break;
+					}
+				}
+				if (found) {
+					break; // same goods count only once
+				}
+			}
+		}
 	}
+
 	warenlager >>= fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS;
 	if (warenlager == 0) {
 		status_ein |= FL_WARE_ALLENULL;
@@ -3001,14 +2981,13 @@ void fabrik_t::recalc_factory_status()
 	// one ware missing, but producing
 	if (status_ein & FL_WARE_FEHLT_WAS && !output.empty() && haltcount > 0) {
 		status = material_shortage;
-		return;
 	}
 
 	// set bits for output
 	warenlager = 0;
 	status_aus = FL_WARE_ALLEUEBER75 | FL_WARE_ALLENULL;
 	i = 0;
-	FOR(array_tpl<ware_production_t>, const& j, output) {
+	FORX(array_tpl<ware_production_t>, const& j, output, i++) {
 		if (j.menge > 0) {
 
 			status_aus &= ~FL_WARE_ALLENULL;
@@ -3018,7 +2997,7 @@ void fabrik_t::recalc_factory_status()
 			else {
 				status_aus &= ~FL_WARE_ALLEUEBER75;
 			}
-			warenlager += (uint64)j.menge * (uint64)(desc->get_product(i)->get_factor());
+			warenlager += (uint64)(FAB_DISPLAY_UNIT_HALF + (uint64)j.menge * (uint64)(desc->get_product(i)->get_factor())) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS);
 			status_aus &= ~FL_WARE_ALLENULL;
 		}
 		else {
@@ -3026,20 +3005,31 @@ void fabrik_t::recalc_factory_status()
 			status_aus &= ~FL_WARE_ALLEUEBER75;
 		}
 	}
-	warenlager >>= fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS;
 	total_output = (uint32)warenlager;
 
 	// now calculate status bar
-	if (!haltcount) { status = inactive; }
-	else {
-		switch (sector) {
+	switch (sector) {
 		case marine_resource:
+			if (!lieferziele.get_count())
+			{
+				if (!add_customer(this)) {
+					status = missing_connection;
+					return;
+				}
+			}
 			// since it has a station function, it discriminates only whether stock is full or not
 			status = status_aus & FL_WARE_ALLEUEBER75 ? water_resource_full : water_resource;
 			break;
 		case resource:
 		case resource_city:
-			if (status_aus&FL_WARE_ALLEUEBER75 || status_aus & FL_WARE_UEBER75) {
+			if (!lieferziele.get_count())
+			{
+				status = missing_connection;
+			}
+			else if (!haltcount) {
+				status = inactive;
+			}
+			else if (status_aus&FL_WARE_ALLEUEBER75 || status_aus & FL_WARE_UEBER75) {
 				if (status_aus&FL_WARE_ALLEUEBER75) {
 					status = storage_full;	// connect => needs better service
 				}
@@ -3053,7 +3043,14 @@ void fabrik_t::recalc_factory_status()
 			}
 			break;
 		case manufacturing:
-			if (status_ein&FL_WARE_ALLELIMIT && status_aus&FL_WARE_ALLELIMIT) {
+			// Check if it has at least the minimum required connections
+			if (input_count > supplier_check || !lieferziele.get_count()) {
+				status = missing_connection;
+			}
+			else if (!haltcount) {
+				status = inactive;
+			}
+			else if (status_ein&FL_WARE_ALLELIMIT && status_aus&FL_WARE_ALLELIMIT) {
 				status = stuck; // all storages are full => Shipment and arrival are stagnant, and it can not produce anything
 			}
 			else if (status_ein&FL_WARE_ALLENULL) {
@@ -3078,7 +3075,23 @@ void fabrik_t::recalc_factory_status()
 			break;
 		case end_consumer:
 		case power_plant:
-			if (status_ein&FL_WARE_ALLELIMIT) {
+			if (sector == power_plant && !desc->get_supplier_count()) {
+				// Power plants that do not require materials such as wind power generation
+				if (currently_producing) {
+					status = good;
+				}
+				else {
+					status = bad;
+				}
+			}
+			else if (!suppliers.get_count())
+			{
+				status = missing_connection;
+			}
+			else if (!haltcount) {
+				status = inactive;
+			}
+			else if (status_ein&FL_WARE_ALLELIMIT) {
 				// Excess supply or Stagnation of shipment or Low productivity or Customer shortage => receiving stop
 				status = mat_overstocked;
 			}
@@ -3100,13 +3113,17 @@ void fabrik_t::recalc_factory_status()
 			}
 			break;
 		default:
-			status = nothing;
+			if (!haltcount) {
+				status = inactive;
+			}
+			else {
+				status = nothing;
+			}
 			break;
-		}
-		// staff shortage check
-		if (chk_staff_shortage(sector, building->get_staffing_level_percentage())) {
-			status += staff_shortage;
-		}
+	}
+	// staff shortage check
+	if (chk_staff_shortage(sector, building->get_staffing_level_percentage())) {
+		status += staff_shortage;
 	}
 }
 
@@ -3138,10 +3155,17 @@ void fabrik_t::show_info()
 void fabrik_t::info_prod(cbuffer_t& buf) const
 {
 	buf.clear();
-	buf.append(translator::translate("Durchsatz"));
-	buf.append(get_current_production(), 0);
-	buf.append(translator::translate("units/day"));
-	buf.append("\n");
+	if (get_base_production()) {
+		buf.append(translator::translate("Productivity")); // Note: This term is used in width calculation in fabrik_info. And it is common with the chart button label.
+		// get_current_productivity() does not include factory connections and staffing
+		buf.printf(": %u%% ", get_actual_productivity());
+		const uint32 max_productivity = (100 * (get_desc()->get_electric_boost() + get_desc()->get_pax_boost() + get_desc()->get_mail_boost())) >> DEFAULT_PRODUCTION_FACTOR_BITS;
+		buf.printf(translator::translate("(Max. %d%%)"), max_productivity+100);
+		buf.append("\n");
+
+		buf.printf("%s: %.1f%% (%s: %.1f%%)", translator::translate("Operation rate"), statistics[0][FAB_PRODUCTION] / 100.0, translator::translate("Last Month"), statistics[1][FAB_PRODUCTION] / 100.0);
+		buf.append("\n");
+	}
 	if(get_desc()->is_electricity_producer())
 	{
 		buf.append(translator::translate("Electrical output: "));
@@ -3167,9 +3191,6 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 	if (building)
 	{
 		buf.append("\n");
-                buf.printf("%s: %s\n", translator::translate("Built in"), 
-                           translator::get_year_month(((building->get_purchase_time() / welt->ticks_per_world_month)+welt->get_settings().get_starting_month())+
-                                                      welt->get_settings().get_starting_year()*12));
 		buf.printf("%s: %d\n", translator::translate("Visitor demand"), building->get_adjusted_visitor_demand());
 #ifdef DEBUG
 		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), building->get_adjusted_jobs(), building->check_remaining_available_jobs());
@@ -3177,132 +3198,7 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), building->get_adjusted_jobs(), max(0, building->check_remaining_available_jobs()));
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), building->get_adjusted_mail_demand());
-		// Class entries:
-		building->get_class_percentage(buf);
-		buf.append("\n");
-		if (building->get_adjusted_visitor_demand() > 0)
-		{
-			buf.printf("%s %i\n", translator::translate("Visitors this year:"), building->get_passengers_succeeded_visiting());
-		}
-		if (building->get_adjusted_jobs() > 0)
-		{
-			buf.printf("%s", translator::translate("Commuters this year:"));
-			if (building->get_passengers_succeeded_commuting() != 65535)
-			{
-				buf.printf(" %i", building->get_passengers_succeeded_commuting());
-			}
-			else {
-				buf.printf(" 0");
-			}
-			buf.printf("\n");
-		}
-		if (building->get_adjusted_mail_demand() > 0)
-		{
-			buf.printf("%s", translator::translate("Mail sent this year:"));
-			if (building->get_mail_delivery_success_percent_this_year() < 65535)
-			{
-				buf.printf(" %i (%i%%)", building->get_mail_delivery_succeeded(), building->get_mail_delivery_success_percent_this_year());
-			}
-			else {
-				buf.printf(" 0 (0%%)");
-			}
-			buf.printf("\n");
-		}
-		if (building->get_adjusted_visitor_demand() > 0 && building->get_passenger_success_percent_last_year_visiting() < 65535)
-		{
-			buf.printf("\n%s %i\n", translator::translate("Visitors last year:"), building->get_passenger_success_percent_last_year_visiting());
-		}
-		else {
-			buf.printf("\n");
-		}
-		if (building->get_adjusted_jobs() > 0 && building->get_passenger_success_percent_last_year_commuting() < 65535)
-		{
-			buf.printf("%s %i\n", translator::translate("Commuters last year:"), building->get_passenger_success_percent_last_year_commuting());
-		}
-		else{
-			buf.printf("\n");
-		}
-		if (building->get_adjusted_mail_demand() > 0 && building->get_mail_delivery_succeeded_last_year() < 65535)
-		{
-			buf.printf("%s", translator::translate("Mail sent last year:"));
-			if (building->get_mail_delivery_success_percent_last_year() < 65535)
-			{
-				buf.printf(" %i (%i%%)", building->get_mail_delivery_succeeded_last_year(), building->get_mail_delivery_success_percent_last_year());
-			}
-			else {
-				buf.printf(" 0 (0%%)");
-			}
-			buf.printf("\n");
-		}
-		else {
-			buf.printf("\n");
-		}
-	}
 
-	if (!output.empty()) {
-		buf.append("\n");
-		buf.append(translator::translate("Produktion"));
-
-		for (uint32 index = 0; index < output.get_count(); index++) {
-			const goods_desc_t * type = output[index].get_typ();
-			const sint64 pfactor = (sint64)desc->get_product(index)->get_factor();
-
-			buf.printf( "\n - %s %u/%u %s",
-				translator::translate(type->get_name()),
-				(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)output[index].menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-				(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)output[index].max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-				translator::translate(type->get_mass())
-			);
-
-			if(type->get_catg() != 0) {
-				buf.append(", ");
-				buf.append(translator::translate(type->get_catg_name()));
-			}
-			// Primary industry displays monthly production
-			if (get_sector() == marine_resource || get_sector() == resource) {
-				buf.printf(", %d", get_current_production()*pfactor >> DEFAULT_PRODUCTION_FACTOR_BITS);
-				buf.printf("%s%s", translator::translate(type->get_mass()),translator::translate("/month"));
-			}
-			else {
-				buf.printf(", %u%%", (uint32)((FAB_PRODFACT_UNIT_HALF + (sint32)pfactor * 100) >> DEFAULT_PRODUCTION_FACTOR_BITS));
-			}
-		}
-	}
-
-	if (!input.empty()) {
-		buf.append("\n");
-		buf.append(translator::translate("Verbrauch"));
-
-		for (uint32 index = 0; index < input.get_count(); index++) {
-			if(!desc->get_supplier(index))
-			{
-				continue;
-			}
-			const sint64 pfactor = desc->get_supplier(index) ? (sint64)desc->get_supplier(index)->get_consumption() : 1ll;
-			const uint16 max_intransit_percentage = max_intransit_percentages.get(input[index].get_typ()->get_catg());
-
-			if(  max_intransit_percentage  ) {
-				buf.printf("\n - %s %i/%i(%i)/%u %s, %u%%",
-					translator::translate(input[index].get_typ()->get_name()),
-					(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)input[index].menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-					input[index].get_in_transit(),
-					(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)input[index].max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-					(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)input[index].max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-					translator::translate(input[index].get_typ()->get_mass()),
-					(uint32)((FAB_PRODFACT_UNIT_HALF + (sint32)pfactor * 100) >> DEFAULT_PRODUCTION_FACTOR_BITS)
-				);
-			}
-			else {
-				buf.printf("\n - %s %i/%i/%u %s, %u%%",
-					translator::translate(input[index].get_typ()->get_name()),
-					(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)input[index].menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-					input[index].get_in_transit(),
-					(uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)input[index].max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)),
-					translator::translate(input[index].get_typ()->get_mass()),
-					(uint32)((FAB_PRODFACT_UNIT_HALF + (sint32)pfactor * 100) >> DEFAULT_PRODUCTION_FACTOR_BITS)
-				);
-			}
-		}
 	}
 }
 
@@ -3325,13 +3221,19 @@ void fabrik_t::recalc_nearby_halts()
 	// Go through all the base tiles of the factory.
 	vector_tpl<koord> tile_list;
 	get_tile_list(tile_list);
+
+#ifdef DEBUG
 	bool any_distribution_target = false; // just for debugging
+#endif
+
 	FOR(vector_tpl<koord>, const k, tile_list)
 	{
 		const planquadrat_t* plan = welt->access(k);
 		if(plan)
 		{
+#ifdef DEBUG
 			any_distribution_target=true;
+#endif
 			const uint8 haltlist_count = plan->get_haltlist_count();
 			if(haltlist_count)
 			{
@@ -3404,83 +3306,72 @@ void fabrik_t::recalc_nearby_halts()
 void fabrik_t::info_conn(cbuffer_t& buf) const
 {
 	buf.clear();
-	bool has_previous = false;
-	double distance;
-	char distance_display[10];
-	if (!lieferziele.empty()) {
-		has_previous = true;
-		buf.append(translator::translate("Abnehmer"));
-
-		FOR(vector_tpl<koord>, const& lieferziel, lieferziele) {
-			fabrik_t *fab = get_fab( lieferziel );
-			if(fab) {
-				distance = (double)(shortest_distance(get_pos().get_2d(), fab->get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000.0;
-				if (distance < 1)
-				{
-					sprintf(distance_display, "%.0fm", distance * 1000);
-				}
-				else
-				{
-					uint n_actual = distance < 5 ? 1 : 0;
-					char tmp[10];
-					number_to_string(tmp, distance, n_actual);
-					sprintf(distance_display, "%skm", tmp);
-				}
-
-				if (is_active_lieferziel(lieferziel)) {
-					buf.printf("\n      %s - %s (%d,%d)", fab->get_name(), distance_display, lieferziel.x, lieferziel.y);
-				}
-				else {
-					buf.printf("\n   %s - %s (%d,%d)", fab->get_name(), distance_display, lieferziel.x, lieferziel.y);
-				}
-			}
-		}
-	}
-
-	if (!suppliers.empty()) {
-		if(  has_previous  ) {
-			buf.append("\n\n");
-		}
-		has_previous = true;
-		buf.append(translator::translate("Suppliers"));
-
-		FOR(vector_tpl<koord>, const& supplier, suppliers) {
-			if(  fabrik_t *src = get_fab( supplier )  )
-			{
-				distance = (double)(shortest_distance(get_pos().get_2d(), src->get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000.0;
-				if (distance < 1)
-				{
-					sprintf(distance_display, "%.0fm", distance * 1000);
-				}
-				else
-				{
-					uint n_actual = distance < 5 ? 1 : 0;
-					char tmp[10];
-					number_to_string(tmp, distance, n_actual);
-					sprintf(distance_display, "%skm", tmp);
-				}
-				if(  src->is_active_lieferziel(get_pos().get_2d())  )
-				{
-					buf.printf("\n      %s - %s (%d,%d)", src->get_name(), distance_display, supplier.x, supplier.y);
-				}
-				else {
-					buf.printf("\n   %s - %s (%d,%d)", src->get_name(), distance_display, supplier.x, supplier.y);
-				}
-			}
-		}
-	}
-
-	// Check *all* tiles for nearby stops... but don't update!
-	if ( !nearby_freight_halts.empty() )
+	if (building)
 	{
-		if(  has_previous  ) {
-			buf.append("\n\n");
-		}
-		buf.append(translator::translate("Connected stops (freight)"));
-		FOR(vector_tpl<nearby_halt_t>, const i, nearby_freight_halts)
+		// Class entries:
+		building->get_class_percentage(buf);
+		buf.append("\n");
+		if (building->get_adjusted_visitor_demand() > 0)
 		{
-			buf.printf("\n - %s", i.halt->get_name());
+			buf.printf("%s %i\n", translator::translate("Visitors this year:"), building->get_passengers_succeeded_visiting());
 		}
+		if (building->get_adjusted_jobs() > 0)
+		{
+			buf.printf("%s", translator::translate("Commuters this year:"));
+			if (building->get_passengers_succeeded_commuting() != 65535)
+			{
+				buf.printf(" %i", building->get_passengers_succeeded_commuting());
+			}
+			else {
+				buf.printf(" 0");
+			}
+			buf.printf("\n");
+		}
+		if (building->get_adjusted_mail_demand() > 0)
+		{
+			buf.printf("%s", translator::translate("Mail sent this year:"));
+			if (building->get_mail_delivery_success_percent_this_year() < 65535)
+			{
+				buf.printf(" %i (%i%%)", building->get_mail_delivery_succeeded(), building->get_mail_delivery_success_percent_this_year());
+			}
+			else {
+				buf.printf(" 0 (0%%)");
+			}
+			buf.printf("\n");
+		}
+		if (building->get_adjusted_visitor_demand() > 0 && building->get_passenger_success_percent_last_year_visiting() < 65535)
+		{
+			buf.printf("\n%s %i\n", translator::translate("Visitors last year:"), building->get_passenger_success_percent_last_year_visiting());
+		}
+		else {
+			buf.printf("\n");
+		}
+		if (building->get_adjusted_jobs() > 0 && building->get_passenger_success_percent_last_year_commuting() < 65535)
+		{
+			buf.printf("%s %i\n", translator::translate("Commuters last year:"), building->get_passenger_success_percent_last_year_commuting());
+		}
+		else {
+			buf.printf("\n");
+		}
+		if (building->get_adjusted_mail_demand() > 0 && building->get_mail_delivery_succeeded_last_year() < 65535)
+		{
+			buf.printf("%s", translator::translate("Mail sent last year:"));
+			if (building->get_mail_delivery_success_percent_last_year() < 65535)
+			{
+				buf.printf(" %i (%i%%)", building->get_mail_delivery_succeeded_last_year(), building->get_mail_delivery_success_percent_last_year());
+			}
+			else {
+				buf.printf(" 0 (0%%)");
+			}
+			buf.printf("\n");
+		}
+		else {
+			buf.printf("\n");
+		}
+		buf.printf("\n");
+		buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(building->get_purchase_time()));
+		buf.printf("\n");
+		buf.printf(translator::translate("Constructed by %s"), get_fab(building->get_pos().get_2d())->get_desc()->get_copyright());
 	}
 }
 
@@ -3617,10 +3508,10 @@ void fabrik_t::rem_supplier(koord pos)
 		FOR( vector_tpl<koord>, ziel, suppliers ) {
 			if(  fabrik_t *fab = get_fab( ziel )  ) {
 				for(  uint32 i=0;  i < fab->get_output().get_count();  i++   ) {
-					const ware_production_t &w_out = fab->get_output()[i];
 					// now update transit limits
 					FOR(  array_tpl<ware_production_t>,  &w,  input )
 					{
+						(void)w;
 						calc_max_intransit_percentages();
 					}
 				}
@@ -3663,6 +3554,9 @@ bool fabrik_t::add_supplier(fabrik_t* fab)
 			if(  fab!=this  &&  fab->vorrat_an(ware) > -1  ) { //"inventory to" (Google)
 				// add us to this factory
 				fab->add_lieferziel(pos.get_2d());
+				cbuffer_t buf;
+				buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
+				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
 				return true;
 			}
 	}
@@ -3781,17 +3675,52 @@ void fabrik_t::calc_max_intransit_percentages()
 		{
 			// No factories connected; use the default intransit percentage for now.
 			max_intransit_percentages.put(catg, base_max_intransit_percentage);
-			input[index].max_transit = max(1, (base_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
+			input[index].max_transit = max(1, ((sint64)base_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
 			index ++;
 			continue;
 		}
 		const uint32 time_to_consume = max(1u, get_time_to_consume_stock(index));
 		const sint32 ratio = ((sint32)lead_time * 1000 / (sint32)time_to_consume);
-		const sint32 modified_max_intransit_percentage = (ratio * (sint32)base_max_intransit_percentage) / 1000;
+		const sint32 modified_max_intransit_percentage = (ratio * (sint64)base_max_intransit_percentage) / 1000;
 		max_intransit_percentages.put(catg, (uint16)modified_max_intransit_percentage);
 		input[index].max_transit = max(1, (modified_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
 		index ++;
 	}
+}
+
+uint16 fabrik_t::get_max_intransit_percentage(uint32 index)
+{
+	if (!input.get_count() || input.get_count() < index ) {
+		return 0;
+	}
+	return max_intransit_percentages.get(input[index].get_typ()->get_catg());
+}
+
+uint16 fabrik_t::get_total_input_occupancy() const
+{
+	uint32 i = 0;
+	uint32 capacity_sum = 0;
+	uint32 stock_sum = 0;
+	FORX(array_tpl<ware_production_t>, const& goods, input, i++) {
+		const sint64 pfactor =desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
+		const uint32 stock_quantity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+		const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+
+		stock_sum += min(stock_quantity, storage_capacity);
+		capacity_sum += storage_capacity;
+	}
+	return capacity_sum > 0 ? (uint16)(stock_sum * 100 / capacity_sum) : 0;
+}
+
+uint32 fabrik_t::get_total_output_capacity() const
+{
+	uint32 sum = 0;
+	uint32 i = 0;
+	FORX(array_tpl<ware_production_t>, const& goods, output, i++) {
+		const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();
+		sum += (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+	}
+	return sum;
 }
 
 uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
@@ -3978,13 +3907,91 @@ bool fabrik_t::chk_staff_shortage (uint8 ftype, sint32 staffing_level_percentage
 	return false;
 }
 
-bool fabrik_t::is_connect_own_network() const
+sint32 fabrik_t::get_staffing_level_percentage() const {
+	gebaeude_t* gb = get_fab(pos.get_2d())->get_building();
+	return gb->get_staffing_level_percentage();
+}
+
+bool fabrik_t::is_connected_to_network(player_t *player) const
 {
 	FOR(vector_tpl<nearby_halt_t>, const i, nearby_freight_halts)
 	{
-		if(i.halt->get_owner() == welt->get_active_player() || i.halt->get_owner() == welt->get_public_player()){
+		if(i.halt->get_owner() == player){
+			// In the case of owning station, it only needs to have freight facilities.
+			// It may still be in preparation...
 			return true;
+		}
+		else {
+			for (uint8 catg_index = goods_manager_t::INDEX_NONE+1; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
+			{
+				if (i.halt->has_available_network(player, catg_index)) {
+					return true;
+				}
+			}
 		}
 	}
 	return false;
+}
+
+bool fabrik_t::has_goods_catg_demand(uint8 catg_index) const
+{
+	if (!output.empty()) {
+		for (uint32 index = 0; index < output.get_count(); index++) {
+			if (output[index].get_typ()->get_catg_index() == catg_index) {
+				return true;
+			}
+		}
+	}
+
+	if (!input.empty()) {
+		for (uint32 index = 0; index < input.get_count(); index++) {
+			if (!desc->get_supplier(index))
+			{
+				continue;
+			}
+			if (input[index].get_typ()->get_catg_index() == catg_index) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// NOTE: not added the formula for this month yet
+// TODO: (for this month calcuration) Multiply the production amount and the basic production amount by the ratio to the length of the month time
+uint32 fabrik_t::calc_operation_rate(sint8 month) const
+{
+	if (month < 0 || month >= MAX_MONTH) {
+		return 0;
+	}
+	sint64 base_monthly_prod = welt->calc_adjusted_monthly_figure(prodbase*10); // need to consider the decimal point for small units
+	if (month == 0) {
+		const uint32 ticks_this_month = welt->get_ticks() % welt->ticks_per_world_month;
+		base_monthly_prod = base_monthly_prod * ticks_this_month / welt->ticks_per_world_month;
+	}
+	if (!base_monthly_prod) { return 0; }
+
+	sint32 temp_sum = 0;
+	// which sector?
+	if ((sector == end_consumer || sector == power_plant) && input.get_count()) {
+		// check the consuming rate
+		for (int i = 0; i < input.get_count(); i++) {
+			const sint64 pfactor = desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
+			const uint32 prod_rate = (uint32)((FAB_PRODFACT_UNIT_HALF + (sint32)pfactor * 100) >> DEFAULT_PRODUCTION_FACTOR_BITS);
+			temp_sum += convert_goods(input[i].get_stat(month, FAB_GOODS_CONSUMED)) * 10000 / (sint32)prod_rate;
+		}
+		return (uint32)(temp_sum * 1000 / input.get_count() / base_monthly_prod);
+	}
+	else if(sector != unknown && output.get_count()){
+		// check the producing rate of this factory
+		for (int i = 0; i < output.get_count(); i++) {
+			const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();
+			const uint32 prod_rate = (uint32)((FAB_PRODFACT_UNIT_HALF + (sint32)pfactor * 100) >> DEFAULT_PRODUCTION_FACTOR_BITS);
+
+			temp_sum += convert_goods(output[i].get_stat(month, FAB_GOODS_PRODUCED)) * 10000 / (sint32)prod_rate;
+		}
+		return (uint32)(temp_sum * 1000 / output.get_count() / base_monthly_prod);
+	}
+
+	return 0;
 }

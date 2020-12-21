@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef obj_zeiger_h
-#define obj_zeiger_h
+#ifndef OBJ_ZEIGER_H
+#define OBJ_ZEIGER_H
+
 
 #include "../simobj.h"
 #include "../simtypes.h"
@@ -29,10 +30,10 @@ public:
 
 	void change_pos(koord3d k);
 
-	const char *get_name() const {return "Zeiger";}
+	const char *get_name() const OVERRIDE {return "Zeiger";}
 #ifdef INLINE_OBJ_TYPE
 #else
-	typ get_typ() const { return zeiger; }
+	typ get_typ() const OVERRIDE { return zeiger; }
 #endif
 
 	/**
@@ -46,12 +47,14 @@ public:
 	/// set back image
 	void set_image( image_id b );
 	/// get back image
-	image_id get_image() const {return image;}
+	image_id get_image() const OVERRIDE {return image;}
 
 	/// set front image
 	void set_after_image( image_id b );
 	/// get front image
-	image_id get_front_image() const {return foreground_image;}
+	image_id get_front_image() const OVERRIDE {return foreground_image;}
+
+	bool has_managed_lifecycle() const OVERRIDE;
 };
 
 #endif

@@ -15,44 +15,42 @@
 
 #define L_PADDING_RIGHT (10)
 
-gui_textarea_t::gui_textarea_t(const char* text)
-{
-	buf = new cbuffer_t();
-	my_own_buf = true;
-	buf->append(text);
-	recalc_size();
-}
-
 gui_textarea_t::gui_textarea_t(cbuffer_t* buf_)
 {
+	set_buf(buf_);
+}
+
+
+void gui_textarea_t::set_buf( cbuffer_t* buf_ )
+{
 	buf = buf_;
-	my_own_buf = false;
 	recalc_size();
 }
 
-gui_textarea_t::~gui_textarea_t()
+
+scr_size gui_textarea_t::get_min_size() const
 {
-	if (my_own_buf) {
-		delete buf;
-	}
+	return calc_size();
 }
 
-void gui_textarea_t::set_text(const char *const text)
+
+scr_size gui_textarea_t::get_max_size() const
 {
-	buf->clear();
-	if(text)
-	{
-		buf->append(text);
-	}
+	return get_min_size();
 }
 
-// recalcs the current size;
-// usually not needed to be called explicitly
+
 void gui_textarea_t::recalc_size()
+{
+	set_size(calc_size());
+}
+
+
+scr_size gui_textarea_t::calc_size() const
 {
 	const char *text(*buf);
 
-	// we cannot use: display_multiline_text(pos.x+offset.x, pos.y+offset.y+10, text, COL_BLACK);
+	// we cannot use: display_multiline_text(pos.x+offset.x, pos.y+offset.y+10, text, color_idx_to_rgb(COL_BLACK));
 	// since we also want to dynamically change the size of the component
 	int new_lines=0;
 	int x_size = 1;
@@ -72,40 +70,47 @@ void gui_textarea_t::recalc_size()
 			new_lines += LINESPACE;
 		} while(  next != NULL  &&  *buf!=0  );
 	}
-DBG_MESSAGE("gui_textarea_t::recalc_size()","reset size to %i,%i",x_size+L_PADDING_RIGHT,new_lines);
-	set_size( scr_size( x_size + L_PADDING_RIGHT, new_lines + 10) );
+	return scr_size( x_size + L_PADDING_RIGHT, new_lines );
 }
 
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void gui_textarea_t::draw(scr_coord offset)
 {
 	const char *text(*buf);
 
-	// we cannot use: display_multiline_text(pos.x+offset.x, pos.y+offset.y+10, text, COL_BLACK);
+	// we cannot use: display_multiline_text(pos.x+offset.x, pos.y+offset.y+10, text, color_idx_to_rgb(COL_BLACK));
 	// since we also want to dynamically change the size of the component
-	int new_lines=0;
+	scr_coord_val new_lines = 0;
 
 	// keep previous maximum width
-	int x_size = get_size().w - L_PADDING_RIGHT;
+	scr_coord_val x_size = get_size().w - L_PADDING_RIGHT;
 	if (  (text != NULL)  &&  (*text != '\0')  ) {
 		const char *buf=text;
 		const char *next;
-		const sint16 x = pos.x+offset.x;
-		sint16 y = pos.y+offset.y;
+		const scr_coord_val x = pos.x+offset.x;
+		scr_coord_val y = pos.y+offset.y;
 
 		do {
 			next = strchr(buf, '\n');
-			if(  pos.y + new_lines + (LINESPACE >= 0)  ) {
-				const int len = next != NULL ? (long)(size_t)(next - buf) : -1;
-				int px_len = display_text_proportional_len_clip(x, y + new_lines, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, true, len);
-				if(px_len>x_size) {
-					x_size = px_len;
-				}
+
+			const size_t len = next != NULL ? next - buf : -1;
+			scr_coord_val const draw_y = y + new_lines;
+			int px_len;
+			if (  -LINESPACE <= draw_y  &&  draw_y <= display_get_height() + LINESPACE) {
+				// draw when in screen area
+				px_len = display_text_proportional_len_clip_rgb((KOORD_VAL)x, (KOORD_VAL)draw_y, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, true, len);
 			}
+			else {
+				// track required length when out of screen area
+				px_len = display_calc_proportional_string_len_width(buf, len);
+			}
+			if(px_len>x_size) {
+				x_size = px_len;
+			}
+
 			buf = next + 1;
 			new_lines += LINESPACE;
 		} while(  next != NULL  &&  *buf!=0  );

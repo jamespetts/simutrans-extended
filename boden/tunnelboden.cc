@@ -82,7 +82,7 @@ void tunnelboden_t::calc_image_internal(const bool calc_only_snowline_change)
 		// default tunnel ground images
 		// single or double slope? (single slopes are not divisible by 8)
 		const uint8 slope_this =  get_disp_slope();
-		const uint8 imageid = (!slope_this  ||  (slope_this & 7)) ? ground_desc_t::slopetable[slope_this] : ground_desc_t::slopetable[slope_this >> 1] + 12;
+		const uint8 imageid = (!slope_this  ||  is_one_high(slope_this)) ? ground_desc_t::slopetable[slope_this] : ground_desc_t::slopetable[slope_this >> 1] + 12;
 		set_image( skinverwaltung_t::tunnel_texture->get_image_id( imageid ) );
 	}
 #endif
@@ -95,7 +95,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 
 	grund_t::rdwr(file);
 
-	if(  file->get_version()<88009  ) {
+	if(  file->get_version_int()<88009  ) {
 		uint32 sl = slope;
 		file->rdwr_long(sl);
 		// convert slopes from old single height saved game
@@ -103,7 +103,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 	}
 
 	// only 99.03 version save the tunnel here
-	if(file->get_version()==99003) {
+	if(file->get_version_int()==99003) {
 		char  buf[256];
 		const tunnel_desc_t *desc = NULL;
 		file->rdwr_str(buf, lengthof(buf));
@@ -117,7 +117,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 }
 
 
-void tunnelboden_t::info(cbuffer_t & buf, bool dummy) const
+void tunnelboden_t::info(cbuffer_t &buf) const
 {
 	const tunnel_t *tunnel = find<tunnel_t>();
 	if(tunnel  &&  tunnel->get_desc()) {

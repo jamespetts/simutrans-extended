@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef TPL_WEIGHTED_VECTOR_H
-#define TPL_WEIGHTED_VECTOR_H
+#ifndef TPL_WEIGHTED_VECTOR_TPL_H
+#define TPL_WEIGHTED_VECTOR_TPL_H
+
 
 #ifndef ITERATE
 #define ITERATE(collection,enumerator) for(uint32 enumerator = 0; enumerator < collection.get_count(); enumerator++)
@@ -152,7 +153,6 @@ template<class T> class weighted_vector_tpl
 		/**
 		 * Appends the element at the end of the vector.
 		 * Extend if necessary.
-		 * @author prissi
 		 */
 		bool append(T elem, uint32 weight)
 		{
@@ -450,16 +450,13 @@ template<class T> class weighted_vector_tpl
 
 		weighted_vector_tpl& operator=( weighted_vector_tpl const& other );
 
-	friend void swap<>(weighted_vector_tpl<T>&, weighted_vector_tpl<T>&);
+		friend void swap(weighted_vector_tpl<T>&a, weighted_vector_tpl<T>&b)
+		{
+			sim::swap(a.nodes, b.nodes);
+			sim::swap(a.size, b.size);
+			sim::swap(a.count, b.count);
+			sim::swap(a.total_weight, b.total_weight);
+		}
 };
-
-
-template<class T> void swap(weighted_vector_tpl<T>& a, weighted_vector_tpl<T>& b)
-{
-	sim::swap(a.nodes, b.nodes);
-	sim::swap(a.size, b.size);
-	sim::swap(a.count, b.count);
-	sim::swap(a.total_weight, b.total_weight);
-}
 
 #endif

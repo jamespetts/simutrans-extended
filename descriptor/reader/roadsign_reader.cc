@@ -19,19 +19,19 @@
 
 void roadsign_reader_t::register_obj(obj_desc_t *&data)
 {
-    roadsign_desc_t *desc = static_cast<roadsign_desc_t *>(data);
+	roadsign_desc_t *desc = static_cast<roadsign_desc_t *>(data);
 
-    roadsign_t::register_desc(desc);
+	roadsign_t::register_desc(desc);
 
 	checksum_t *chk = new checksum_t();
 	desc->calc_checksum(chk);
-	pakset_info_t::append(desc->get_name(), chk);
+	pakset_info_t::append(desc->get_name(), get_type(), chk);
 }
 
 
 bool roadsign_reader_t::successfully_loaded() const
 {
-    return roadsign_t::successfully_loaded();
+	return roadsign_t::successfully_loaded();
 }
 
 
@@ -41,7 +41,7 @@ obj_desc_t * roadsign_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	roadsign_desc_t *desc = new roadsign_desc_t();
 
-	// Hajo: Read data
+	// Read data
 	fread(desc_buf, node.size, 1, fp);
 	char * p = desc_buf;
 

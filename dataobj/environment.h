@@ -3,12 +3,14 @@
  * (see LICENSE.txt)
  */
 
-#ifndef dataobj_environment_h
-#define dataobj_environment_h
+#ifndef DATAOBJ_ENVIRONMENT_H
+#define DATAOBJ_ENVIRONMENT_H
+
 
 #include <string>
 #include "../simtypes.h"
 #include "../simconst.h"
+#include "../simcolor.h"
 #include "settings.h"
 #include "../display/scr_coord.h"
 
@@ -22,14 +24,13 @@
  * Class to save all environment parameters, ie everything that changes
  * the look and feel of the game. Most of them can be changed by command-line
  * parameters or simuconf.tab files.
- *
- * @author Hj. Malthaner
  */
 class env_t
 {
 public:
-	/// points to the current simutrans data directory
-	static char program_dir[1024];
+	/// Points to the current simutrans data directory. Usually this is the same directory
+	/// where the executable is located, unless -use_workdir is specified.
+	static char data_dir[PATH_MAX];
 
 	/// points to the current user directory for loading and saving
 	static const char *user_dir;
@@ -46,7 +47,7 @@ public:
 	static std::string objfilename;
 
 	/// this the the preferred GUI theme at startup
-	static plainstring default_theme; // TODO: Implement the actual mechanism for themes from Standard. This is just for save compatibility at present.
+	static plainstring default_theme;
 
 	/**
 	 * @name Network-related settings
@@ -98,8 +99,14 @@ public:
 	 * @name Information about server which is send to list-server
 	 */
 	/// @{
+	/// If set, we are in easy server mode, assuming the IP can change any moment and thus query it before announce)
+	static bool easy_server;
+	/// Default port to start a new server
+	static int server_port;
 	/// DNS name or IP address clients should use to connect to server
 	static std::string server_dns;
+	/// second DNS name or more liekly IP address (for a dualstack machine) to connect to our server
+	static std::string server_alt_dns;
 	/// Name of server for display on list server
 	static std::string server_name;
 	/// Comments about server for display on list server
@@ -145,6 +152,9 @@ public:
 	/// controls scrolling speed and scrolling direction
 	static sint16 scroll_multi;
 
+	/// converts numpad keys to arrows no matter of numlock state
+	static bool numpad_always_moves_map;
+
 	/// open info windows for pedestrian and private cars
 	static bool road_user_info;
 
@@ -170,12 +180,14 @@ public:
 	/// default behavior of the map-window
 	static uint32 default_mapmode;
 
+	/// cut through the map when following convois?
+	static uint8 follow_convoi_underground;
+
 	///which messages to display where?
 	/**
 	 * message_flags[i] is bitfield, where bit is set if message should be show at location i,
 	 * where 0 = show message in ticker, 1 = open auto-close window, 2 = open persistent window, 3 = ignore message
 	 * @see message_option_t
-	 * @author prissi
 	 */
 	static sint32 message_flags[4];
 
@@ -183,7 +195,6 @@ public:
 
 	/**
 	 * window button at right corner (like Windows)
-	 * @author prissi
 	 */
 	static bool window_buttons_right;
 
@@ -197,21 +208,33 @@ public:
 
 	/// customize your tooltips
 	static bool show_tooltips;
-	static uint8 tooltip_color;
-	static uint8 tooltip_textcolor;
+	static uint32 tooltip_color_rgb;
+	static PIXVAL tooltip_color;
+	static uint32 tooltip_textcolor_rgb;
+	static PIXVAL tooltip_textcolor;
 	static uint32 tooltip_delay;
 	static uint32 tooltip_duration;
 
 	/// limit width and height of menu toolbars
-	static uint8 toolbar_max_width;
-	static uint8 toolbar_max_height;
+	static sint8 toolbar_max_width;
+	static sint8 toolbar_max_height;
 
 	// how to highlight topped (untopped windows)
 	static bool window_frame_active;
-	static uint8 front_window_bar_color;
-	static uint8 front_window_text_color;
-	static uint8 bottom_window_bar_color;
-	static uint8 bottom_window_text_color;
+	static uint32 front_window_text_color_rgb;
+	static PIXVAL front_window_text_color;
+	static uint32 bottom_window_text_color_rgb;
+	static PIXVAL bottom_window_text_color;
+	static uint32 default_window_title_color_rgb;
+	static PIXVAL default_window_title_color;
+	static uint8 bottom_window_darkness;
+
+	static uint8 gui_player_color_dark;
+	static uint8 gui_player_color_bright;
+
+	// default font name and -size
+	static std::string fontname;
+	static uint8 fontsize;
 
 	// display compass
 	static uint16 compass_map_position;
@@ -262,8 +285,6 @@ public:
 	/**
 	 * Set to true to hide all trees. "Hiding" is implemented by showing the
 	 * first pic which should be very small.
-	 * @author Volker Meyer
-	 * @date  10.06.2003
 	 */
 	static bool hide_trees;
 
@@ -275,10 +296,14 @@ public:
 	static uint16 cursor_hide_range;
 
 	/// color used for cursor overlay blending
-	static uint8 cursor_overlay_color;
+	static uint32 cursor_overlay_color_rgb;
+	static PIXVAL cursor_overlay_color;
+
+	static sint8 show_money_message;
 
 	/// color used for solid background draw
-	static uint8 background_color;
+	static uint32 background_color_rgb;
+	static PIXVAL background_color;
 
 	/// true if the border shut be shown as cut through the earth
 	static bool draw_earth_border;
@@ -292,6 +317,18 @@ public:
 	 * @see grund_t::display_overlay
 	 */
 	static sint32 show_names;
+
+	/// Display detail level of station freight waiting bar
+	static uint8 freight_waiting_bar_level;
+
+	/// Display waiting bar divided by class
+	static bool classes_waiting_bar;
+
+	/// Show convoy nameplates (line or convoy name).
+	static uint8 show_cnv_nameplates;
+
+	/// Show convoy loading gauge
+	static uint8 show_cnv_loadingbar;
 
 	/// if a schedule is open, show tiles which are used by it
 	static bool visualize_schedule;
@@ -337,8 +374,6 @@ public:
 
 	/**
 	 * show month in date?
-	 *
-	 * @author hsiegeln
 	 */
 	static uint8 show_month;
 
@@ -350,8 +385,10 @@ public:
 	 */
 	/// @{
 
-	/// set the frame rate for the display
-	static uint32 fps;
+	static uint32 fps;                ///< target frame rate
+	static uint32 ff_fps;             ///< target fps during fast forward
+	static const uint32 min_fps = 5;  ///< minimum target fps (actual fps may be lower for large zoom out on slow machines)
+	static const uint32 max_fps = 100;
 
 	/// maximum acceleration with fast forward
 	static sint16 max_acceleration;
@@ -394,7 +431,6 @@ public:
 
 	/**
 	 * Name of rivers; first the river with the lowest number
-	 * @author prissi
 	 */
 	static plainstring river_type[10];
 
@@ -406,13 +442,11 @@ public:
 	/**
 	* Produce more debug info:
 	* can be set by command-line switch '-debug'
-	* @author Hj. Malthaner
 	*/
 	static uint8 verbose_debug;
 
 
 	/// do autosave every month?
-	/// @author prissi
 	static sint32 autosave;
 
 
@@ -422,7 +456,12 @@ public:
 	/// @{
 
 	static sint16 global_volume, midi_volume;
-	static bool mute_sound, mute_midi, shuffle_midi;
+	static bool mute_midi, shuffle_midi;
+	static bool global_mute_sound;
+	static uint16 specific_volume[MAX_SOUND_TYPES];
+
+	/// how dast are distant sounds fading (1: very fast 25: very little)
+	static uint32 sound_distance_scaling;
 
 	/// @}
 
@@ -440,6 +479,9 @@ public:
 	/// as if ctrl-key permanently pressed
 	/// cannot be used in network mode
 	static bool straight_way_without_control;
+
+	// Graphical offsets for reverseing vehicles
+	static sint8 reverse_base_offsets[8][3];
 
 	/// initialize with default values
 	static void init();

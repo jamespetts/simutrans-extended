@@ -18,21 +18,20 @@
 
 void way_reader_t::register_obj(obj_desc_t *&data)
 {
-    way_desc_t *desc = static_cast<way_desc_t *>(data);
+	way_desc_t *desc = static_cast<way_desc_t *>(data);
 
-    way_builder_t::register_desc(desc);
-//    printf("...Weg %s geladen\n", desc->get_name());
+	way_builder_t::register_desc(desc);
 	obj_for_xref(get_type(), desc->get_name(), data);
 
 	checksum_t *chk = new checksum_t();
 	desc->calc_checksum(chk);
-	pakset_info_t::append(desc->get_name(), chk);
+	pakset_info_t::append(desc->get_name(), get_type(), chk);
 }
 
 
 bool way_reader_t::successfully_loaded() const
 {
-    return way_builder_t::successfully_loaded();
+	return way_builder_t::successfully_loaded();
 }
 
 
@@ -43,11 +42,11 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	way_desc_t *desc = new way_desc_t();
 	// DBG_DEBUG("way_reader_t::read_node()", "node size = %d", node.size);
 
-	// Hajo: Read data
+	// Read data
 	fread(desc_buf, node.size, 1, fp);
 	char * p = desc_buf;
 
-	// Hajo: old versions of PAK files have no version stamp.
+	// old versions of PAK files have no version stamp.
 	// But we know, the higher most bit was always cleared.
 	int version = 0;
 

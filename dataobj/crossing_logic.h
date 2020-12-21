@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef crossing_logic_h
-#define crossing_logic_h
+#ifndef DATAOBJ_CROSSING_LOGIC_H
+#define DATAOBJ_CROSSING_LOGIC_H
+
 
 #include "../simtypes.h"
 #include "../tpl/minivec_tpl.h"
@@ -18,12 +19,17 @@ class vehicle_base_t;
 
 /**
  * road sign for traffic (one way minimum speed, traffic lights)
- * @author Hj. Malthaner
  */
 class crossing_logic_t
 {
 public:
-	enum crossing_state_t { CROSSING_INVALID=0, CROSSING_OPEN, CROSSING_REQUEST_CLOSE, CROSSING_CLOSED };
+	enum crossing_state_t {
+		CROSSING_INVALID = 0,
+		CROSSING_OPEN,
+		CROSSING_REQUEST_CLOSE,
+		CROSSING_CLOSED
+	};
+
 protected:
 	static karte_ptr_t welt;
 
@@ -46,9 +52,8 @@ public:
 
 	/**
 	 * @return string (only used for debug at the moment)
-	 * @author prissi
 	 */
-	void info(cbuffer_t & buf, bool dummy = false) const;
+	void info(cbuffer_t & buf) const;
 
 	// recalcs the current state
 	void recalc_state();

@@ -3,11 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Dialog for language change
- * Hj. Malthaner, 2000
- */
-
 #include <stdio.h>
 
 #include "../simdebug.h"
@@ -16,15 +11,16 @@
 #include "../simskin.h"
 #include "../descriptor/skin_desc.h"
 #include "sprachen.h"
+#include "components/gui_image.h"
+#include "components/gui_divider.h"
 
 #include "../display/font.h"
 
 #include "../dataobj/environment.h"
 #include "../dataobj/translator.h"
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #include "../utils/simstring.h"
 
-#define L_DIALOG_WIDTH (220)
 
 int sprachengui_t::cmp_language_button(sprachengui_t::language_button_t a, sprachengui_t::language_button_t b)
 {
@@ -34,32 +30,36 @@ int sprachengui_t::cmp_language_button(sprachengui_t::language_button_t a, sprac
 /**
  * Causes the required fonts for currently selected
  * language to be loaded
- * @author Hj. Malthaner
  */
-void sprachengui_t::init_font_from_lang()
+void sprachengui_t::init_font_from_lang(bool reload_font)
 {
+	// the real fonts for the current language
+	std::string old_font = env_t::fontname;
+
 	static const char *default_name = "PROP_FONT_FILE";
 	const char *prop_font_file = translator::translate(default_name);
 
-	// Hajo: fallback if entry is missing
-	// -> use latin-1 font
-	if(prop_font_file == default_name) {
+	// fallback if entry is missing -> use latin-1 font
+	if(  prop_font_file == default_name  ) {
 		prop_font_file = "cyr.bdf";
 	}
 
-	// load large font
-	chdir( env_t::program_dir );
-	chdir( FONT_PATH );
-	bool ok = false;
-	char prop_font_file_name[1024];
-	tstrncpy( prop_font_file_name, prop_font_file, lengthof(prop_font_file_name) );
-	char *f = strtok( prop_font_file_name, ";" );
-	do {
-		ok = display_load_font(prop_font_file_name);
-		f = strtok( NULL, ";" );
+	if(  reload_font  ) {
+		// load large font
+		dr_chdir( env_t::data_dir );
+		bool ok = false;
+		char prop_font_file_name[4096];
+		tstrncpy( prop_font_file_name, prop_font_file, lengthof(prop_font_file_name) );
+		char *f = strtok( prop_font_file_name, ";" );
+		do {
+			std::string fname = FONT_PATH_X;
+			fname += prop_font_file_name;
+			ok = display_load_font(fname.c_str());
+			f = strtok( NULL, ";" );
+		}
+		while(  !ok  &&  f  );
+		dr_chdir( env_t::user_dir );
 	}
-	while(  !ok  &&  f  );
-	chdir( env_t::user_dir );
 
 	const char * p = translator::translate("SEP_THOUSAND");
 	char c = ',';
@@ -91,31 +91,27 @@ void sprachengui_t::init_font_from_lang()
 sprachengui_t::sprachengui_t() :
 	gui_frame_t( translator::translate("Sprachen") ),
 	text_label(&buf),
-	flags(skinverwaltung_t::flaggensymbol?skinverwaltung_t::flaggensymbol->get_image_id(0):IMG_EMPTY),
 	buttons(translator::get_language_count())
 {
-	// Coordinates are relative to parent (TITLEHEIGHT already subtracted)
-	scr_coord cursor = scr_coord(D_MARGIN_LEFT,D_MARGIN_TOP);
-
-	flags.enable_offset_removal(true);
-	flags.set_pos( scr_coord(L_DIALOG_WIDTH-D_MARGIN_RIGHT-flags.get_size().w, cursor.y) );
-	add_component( &flags);
+	set_table_layout(2,0);
 
 	buf.clear();
 	buf.append(translator::translate("LANG_CHOOSE\n"));
-	text_label.set_pos( cursor );
-	text_label.set_buf(&buf); // force recalculation of size (size)
+	text_label.set_buf(&buf); // force recalculation of size
 	add_component( &text_label );
-	cursor.y += text_label.get_size().h;
 
-	separator.set_pos( cursor );
-	separator.set_width( L_DIALOG_WIDTH-D_MARGINS_X-D_H_SPACE-flags.get_size().w );
-	add_component( &separator );
-	cursor.y = max( separator.get_pos().y + D_DIVIDER_HEIGHT, flags.get_pos().y + flags.get_size().h);
+	if (skinverwaltung_t::flaggensymbol) {
+		gui_image_t *flags = new_component<gui_image_t>(skinverwaltung_t::flaggensymbol->get_image_id(0));
+		flags->enable_offset_removal(true);
+	}
+	else {
+		new_component<gui_empty_t>();
+	}
+
+	new_component_span<gui_divider_t>(2);
 
 	const translator::lang_info* lang = translator::get_langs();
-	chdir( env_t::program_dir );
-	chdir( FONT_PATH );
+	dr_chdir( env_t::data_dir );
 
 	for (int i = 0; i < translator::get_language_count(); ++i, ++lang) {
 		button_t* b = new button_t();
@@ -130,7 +126,19 @@ sprachengui_t::sprachengui_t() :
 		tstrncpy( prop_font_file_name, lang->translate("PROP_FONT_FILE"), lengthof(prop_font_file_name) );
 		char *f = strtok( prop_font_file_name, ";" );
 		do {
-			num_loaded = display_load_font(prop_font_file_name);
+			std::string fname = FONT_PATH_X;
+			fname += prop_font_file_name;
+#if 1
+			// we are onlz checking the existence of the file
+			num_loaded = false;
+			if(  FILE *fnt = dr_fopen(fname.c_str(), "rb")  ) {
+				num_loaded = true;
+				fclose( fnt );
+			}
+#else
+			//
+			num_loaded = display_load_font(fname.c_str());
+#endif
 			f = strtok( NULL, ";" );
 		}
 		while(  !num_loaded  &&  f  );
@@ -160,23 +168,20 @@ sprachengui_t::sprachengui_t() :
 		lb.id = id;
 		buttons.insert_ordered(lb, sprachengui_t::cmp_language_button);
 	}
+	dr_chdir(env_t::user_dir);
 
-	// now set position
+	// insert buttons such that language appears columnswise
 	const uint32 count = buttons.get_count();
-	const scr_coord_val width = ((L_DIALOG_WIDTH - D_MARGINS_X - D_H_SPACE) >> 1);
-	for(uint32 i=0; i<count; i++)
-	{
-		const bool right = (2*i >= count);
-		const scr_coord_val x = cursor.x + (right ? width + D_H_SPACE : 0);
-		const scr_coord_val y = cursor.y + (max(D_CHECKBOX_HEIGHT, LINESPACE) + D_V_SPACE) * (right ? i - (count + 1) / 2: i);
-		buttons[i].button->set_pos( scr_coord( x, y + D_V_SPACE ) );
-		buttons[i].button->set_width( width );
-		add_component( buttons[i].button );
+	const uint32 half = (count+1)/2;
+	for(uint32 i=0; i < half; i++) {
+		add_component(buttons[i].button);
+		if (i+ half < count) {
+			add_component(buttons[i+half].button);
+		}
 	}
 
-	chdir(env_t::user_dir);
-
-	set_windowsize( scr_size(L_DIALOG_WIDTH, D_TITLEBAR_HEIGHT + cursor.y + ((count+1)>>1)*(max(D_CHECKBOX_HEIGHT, LINESPACE)+D_V_SPACE) + D_MARGIN_BOTTOM ) );
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize() );
 }
 
 
@@ -188,7 +193,7 @@ bool sprachengui_t::action_triggered( gui_action_creator_t *comp, value_t)
 		if(b == comp) {
 			b->pressed = true;
 			translator::set_language(buttons[i].id);
-			init_font_from_lang();
+			init_font_from_lang(true);
 		}
 		else {
 			b->pressed = false;
@@ -196,10 +201,4 @@ bool sprachengui_t::action_triggered( gui_action_creator_t *comp, value_t)
 
 	}
 	return true;
-}
-
-sprachengui_t::~sprachengui_t()
-{
-	// reload font
-	sprachengui_t::init_font_from_lang();
 }

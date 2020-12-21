@@ -3,39 +3,33 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_optionen_h
-#define gui_optionen_h
+#ifndef GUI_OPTIONEN_H
+#define GUI_OPTIONEN_H
 
-/**
- * Settings in the game
- * @author Hj. Malthaner
- */
 
-class gui_frame_t;
-class action_listener_t;
-class gui_divider_t;
-class button_t;
-class gui_action_creator_t;
+#include "components/action_listener.h"
+#include "components/gui_button.h"
+#include "gui_frame.h"
+
 
 /*
+ * Settings in the game
+ *
  * Dialog for game options/Main menu
- * Niels Roest, Hj. Malthaner, 2000
  */
 class optionen_gui_t : public gui_frame_t, action_listener_t
 {
 	private:
-		gui_divider_t divider;
-		button_t      option_buttons[11];
+		button_t option_buttons[11];
 
 	public:
 		optionen_gui_t();
 
-		 /**
+		/**
 		 * Set the window associated helptext
 		 * @return the filename for the helptext, or NULL
-		 * @author Hj. Malthaner
 		 */
-		const char * get_help_filename() const {return "options.txt";}
+		const char * get_help_filename() const OVERRIDE {return "options.txt";}
 
 		bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };

@@ -10,7 +10,8 @@
 #include "../../macros.h"
 #include "../../dataobj/translator.h"
 
-#define ARROW_GAP (1)
+uint32 log10( uint32 ); // simrandom.h
+
 
 char gui_numberinput_t::tooltip[256];
 
@@ -18,6 +19,7 @@ gui_numberinput_t::gui_numberinput_t() :
 	gui_component_t(true)
 {
 	bt_left.set_typ(button_t::repeatarrowleft );
+	bt_left.set_pos( scr_coord(0,2) );
 	bt_left.add_listener(this );
 
 	textinp.set_alignment( ALIGN_RIGHT );
@@ -28,11 +30,13 @@ gui_numberinput_t::gui_numberinput_t() :
 	bt_right.add_listener(this );
 
 	set_limits(0, 9999);
-	textbuffer[0] = 0;	// start with empty buffer
+	textbuffer[0] = 0; // start with empty buffer
+	value = 0;
 	textinp.set_text(textbuffer, 20);
 	set_increment_mode( 1 );
 	wrap_mode( true );
 	b_enabled = true;
+	digits = 5;
 
 	set_size( scr_size( D_BUTTON_WIDTH, D_EDIT_HEIGHT ) );
 }
@@ -41,17 +45,31 @@ void gui_numberinput_t::set_size(scr_size size_par) {
 
 	gui_component_t::set_size(size_par);
 
-	textinp.set_size( scr_size( size_par.w - bt_left.get_size().w - bt_right.get_size().w, size_par.h) );
-	bt_left.align_to(&textinp, ALIGN_CENTER_V);
-	textinp.align_to(&bt_left, ALIGN_EXTERIOR_H | ALIGN_LEFT);
-	bt_right.align_to(&textinp, ALIGN_CENTER_V | ALIGN_EXTERIOR_H | ALIGN_LEFT);
+	textinp.set_size( scr_size( size_par.w - bt_left.get_size().w - bt_right.get_size().w - D_H_SPACE, size_par.h) );
 
+	bt_left.set_pos( scr_coord(0,(size.h-D_ARROW_LEFT_HEIGHT)/2) );
+	textinp.align_to( &bt_left, ALIGN_LEFT | ALIGN_EXTERIOR_H | ALIGN_CENTER_V, scr_coord( D_H_SPACE / 2, 0) );
+	bt_right.align_to( &textinp, ALIGN_LEFT | ALIGN_EXTERIOR_H | ALIGN_CENTER_V, scr_coord( D_H_SPACE / 2, 0) );
 }
 
+scr_size gui_numberinput_t::get_max_size() const
+{
+	uint16 max_digits = max(digits, log10( (uint32)max( max(1, abs(min_value)), abs(max_value) ) )+1);
+	return scr_size(display_get_char_max_width( "+-/0123456789" ) * max_digits + D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH + D_H_SPACE,
+					max(LINESPACE+4, max(D_ARROW_LEFT_HEIGHT, D_ARROW_RIGHT_HEIGHT)));
+}
+
+scr_size gui_numberinput_t::get_min_size() const
+{
+	return scr_size(display_get_char_max_width( "+-/0123456789" ) * digits + D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH + D_H_SPACE,
+					max(LINESPACE+4, max(D_ARROW_LEFT_HEIGHT, D_ARROW_RIGHT_HEIGHT)));
+}
 
 void gui_numberinput_t::set_value(sint32 new_value)
-{	// range check
+{
+	// range check
 	value = clamp( new_value, min_value, max_value );
+
 	gui_frame_t *win = win_get_top();
 	if(  win  &&  win->get_focus()!=this  ) {
 		// final value should be correct, but during editing wrong values are allowed
@@ -62,7 +80,7 @@ void gui_numberinput_t::set_value(sint32 new_value)
 		sprintf(textbuffer, "%d", new_value);
 		textinp.set_text(textbuffer, 20);
 	}
-	textinp.set_color( value == new_value ? (b_enabled ? SYSCOL_EDIT_TEXT : SYSCOL_EDIT_TEXT_DISABLED) : COL_RED );
+	textinp.set_color( value == new_value ? (b_enabled ? SYSCOL_EDIT_TEXT : SYSCOL_EDIT_TEXT_DISABLED) : color_idx_to_rgb(COL_RED) );
 	value = new_value;
 }
 
@@ -208,12 +226,13 @@ sint32 gui_numberinput_t::get_prev_value()
 
 
 // all init in one ...
-void gui_numberinput_t::init( sint32 value, sint32 min, sint32 max, sint32 mode, bool wrap )
+void gui_numberinput_t::init( sint32 value, sint32 min, sint32 max, sint32 mode, bool wrap,  uint16 digits_ )
 {
 	set_limits( min, max );
 	set_value( value );
 	set_increment_mode( mode );
 	wrap_mode( wrap );
+	digits = digits_;
 }
 
 
@@ -236,13 +255,16 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 		sint32 new_value = value;
 
 		// mouse wheel -> fast increase / decrease
-		if(IS_WHEELUP(ev)){
-			new_value = get_next_value();
+		if (getroffen(ev->mx + pos.x, ev->my + pos.y)) {
+			if(IS_WHEELUP(ev)) {
+				new_value = get_next_value();
+				result = true;
+			}
+			else if(IS_WHEELDOWN(ev)){
+				new_value = get_prev_value();
+				result = true;
+			}
 		}
-		else if(IS_WHEELDOWN(ev)){
-			new_value = get_prev_value();
-		}
-
 		// catch non-number keys
 		if(  ev->ev_class == EVENT_KEYBOARD  ||  value==new_value  ) {
 			// assume false input
@@ -252,12 +274,12 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 				case '-':
 					call_textinp = min_value <0;
 					break;
-				case 1:		// allow Ctrl-A (select all text) to function
-				case 3:		// allow Ctrl-C (copy text to clipboard)
+				case 1:   // allow Ctrl-A (select all text) to function
+				case 3:   // allow Ctrl-C (copy text to clipboard)
 				case 8:
-				case 9:		// allow text input to handle unfocus event
-				case 22:	// allow Ctrl-V (paste text from clipboard)
-				case 24:	// allow Ctrl-X (cut text and copy to clipboard)
+				case 9:   // allow text input to handle unfocus event
+				case 22:  // allow Ctrl-V (paste text from clipboard)
+				case 24:  // allow Ctrl-X (cut text and copy to clipboard)
 				case 127:
 				case '0':
 				case '1':
@@ -314,7 +336,6 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 
 /**
  * Draw the component
- * @author Dwachs
  */
 void gui_numberinput_t::draw(scr_coord offset)
 {

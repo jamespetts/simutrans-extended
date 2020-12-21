@@ -3,23 +3,17 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _overtaker_h
-#define _overtaker_h
+#ifndef VEHICLE_OVERTAKER_H
+#define VEHICLE_OVERTAKER_H
 
-/**
- * All vehicles that can overtake must include this class
- * These are convois and city cars
- *
- * Oct 2008
- */
 
 #include "../simtypes.h"
+#include "../simunits.h"
+
 
   /**
  * Class dealing with overtaking
  * It is the superclass of convois and city cars (private_car_t)
- *
- * @author isidoro
  */
 class overtaker_t
 {
@@ -32,7 +26,7 @@ protected:
 	sint8 prev_tiles_overtaking;
 	sint8 diff;
 
-	sint32 max_power_speed; // max achievable speed at current power/weight
+	sint32 max_power_speed; // NOT CURRENTLY USED. max achievable speed at current power/weight
 public:
 	overtaker_t():tiles_overtaking(0), diff(0), max_power_speed(SPEED_UNLIMITED) {}
 	virtual ~overtaker_t() {}
@@ -69,7 +63,7 @@ public:
 	// since citycars and convois can react quite different
 	virtual bool can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other) = 0;
 
-	sint32 get_max_power_speed() const { return max_power_speed; }
+	virtual sint32 get_max_power_speed() = 0;
 
 	sint8 get_tiles_overtaking() const { return tiles_overtaking; }
 

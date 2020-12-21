@@ -3,10 +3,9 @@
  * (see LICENSE.txt)
  */
 
-/// New configurable OOP tool system
+#ifndef SIMMENU_H
+#define SIMMENU_H
 
-#ifndef simmenu_h
-#define simmenu_h
 
 #include <string>
 #include "descriptor/sound_desc.h"
@@ -16,6 +15,8 @@
 
 #include "simtypes.h"
 #include "display/simimg.h"
+
+/// New configurable OOP tool system
 
 
 template<class T> class vector_tpl;
@@ -71,7 +72,7 @@ enum {
 	TOOL_ERROR_MESSAGE,
 	TOOL_CHANGE_WATER_HEIGHT,
 	TOOL_SET_CLIMATE,
-	TOOL_BUILD_SIGNALBOX_DEPRECATED,
+	TOOL_ROTATE_BUILDING,
 	TOOL_REASSIGN_SIGNAL_DEPRECATED,
 	GENERAL_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
@@ -119,8 +120,8 @@ enum {
 	TOOL_TOGGLE_RESERVATION,
 	TOOL_VIEW_OWNER,
 	TOOL_HIDE_UNDER_CURSOR,
-	TOOL_CHANGE_ROADSIGN_DEPRECATED,
-	TOOL_SHOW_RIBI_DEPRECATED,
+	TOOL_MOVE_MAP,
+	TOOL_ROLLUP_ALL_WIN,
 	TOOL_RECOLOUR_TOOL_DEPRECATED,
 	TOOL_ACCESS_TOOL_DEPRECATED,
 	SIMPLE_TOOL_STANDARD_COUNT,
@@ -130,6 +131,8 @@ enum {
 	TOOL_RECOLOUR_TOOL,
 	TOOL_ACCESS_TOOL,
 	TOOL_SHOW_SIGNALBOX_COVERAGE,
+	TOOL_CONVOY_NAMEPLATES,
+	TOOL_CONVOY_LOADINGBAR,
 	SIMPLE_TOOL_COUNT,
 	SIMPLE_TOOL = 0x2000
 };
@@ -166,15 +169,22 @@ enum {
 	DIALOG_SETTINGS,
 	DIALOG_GAMEINFO,
 	DIALOG_THEMES,
+	DIALOG_SCENARIO,
+	DIALOG_SCENARIO_INFO,
+	DIALOG_LIST_DEPOT,
+	DIALOG_LIST_VEHICLE,
+	//DIALOG_SCRIPT_TOOL,
 	DIALOG_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
-	DIALOG_TOOL_COUNT=0x0080,
+	DIALOG_LIST_SIGNALBOX =0x0080,
+	DIALOG_TOOL_COUNT,
 	DIALOG_TOOL = 0x4000
 };
 
 enum {
 	// toolbars
 	TOOL_MAINMENU = 0,
+	TOOL_LAST_USED = 1022,
 	TOOLBAR_TOOL = 0x8000u
 };
 
@@ -218,8 +228,8 @@ public:
 		WFL_SHIFT  = 1, ///< shift-key was pressed when mouse-click happened
 		WFL_CTRL   = 2, ///< ctrl-key was pressed when mouse-click happened
 		WFL_LOCAL  = 4, ///< tool call was issued by local client
-		WFL_SCRIPT = 8,  ///< tool call was issued by script (no password checks)
-		WFL_NO_CHK = 16, ///< tool call needs no password or scenario checks
+		WFL_SCRIPT = 8, ///< tool call was issued by script
+		WFL_NO_CHK = 16 ///< tool call needs no password or scenario checks
 	};
 	uint8 flags; // flags are set before init/work/move is called
 
@@ -230,6 +240,7 @@ public:
 	bool no_check()           const { return flags & WFL_NO_CHK; }
 	bool can_use_gui()        const { return is_local_execution() && !is_scripted(); }
 
+	uint8  command_flags; // only shift and control
 	uint16 command_key;// key to toggle action for this function
 
 	static vector_tpl<tool_t *> general_tool;
@@ -277,14 +288,14 @@ public:
 	virtual bool is_selected() const;
 
 	// when true, local execution would do no harm
-	virtual bool is_init_network_save() const { return false; }
-	virtual bool is_move_network_save(player_t *) const { return true; }
+	virtual bool is_init_network_safe() const { return false; }
+	virtual bool is_move_network_safe(player_t *) const { return true; }
 
-	// if is_work_network_save()==false
-	// and is_work_here_network_save(...)==false
+	// if is_work_network_safe()==false
+	// and is_work_here_network_safe(...)==false
 	// then work-command is sent over network
-	virtual bool is_work_network_save() const { return false; }
-	virtual bool is_work_here_network_save(player_t *, koord3d) { return false; }
+	virtual bool is_work_network_safe() const { return false; }
+	virtual bool is_work_here_network_safe(player_t *, koord3d) { return false; }
 
 	// will draw a dark frame, if selected
 	virtual void draw_after(scr_coord pos, bool dirty) const;
@@ -342,7 +353,7 @@ public:
 
 	virtual waytype_t get_waytype() const { return invalid_wt; }
 
-	virtual void rotate90(sint16 y_diff) { return; }
+	virtual void rotate90(sint16) {}
 };
 
 /*
@@ -355,10 +366,10 @@ public:
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 };
 
-/*
+
+/**
  * Class for tools needing two clicks (e.g. building ways).
  * Dragging is also possible.
- * @author Gerd Wachsmuth
  */
 class two_click_tool_t : public tool_t {
 public:
@@ -375,7 +386,7 @@ public:
 	char const* move(player_t*, uint16 /* buttonstate */, koord3d) OVERRIDE;
 	bool move_has_effects() const OVERRIDE { return true; }
 
-	bool is_work_here_network_save(player_t *, koord3d) OVERRIDE;
+	bool is_work_here_network_safe(player_t *, koord3d) OVERRIDE;
 
 	/**
 	 * @returns true if cleanup() needs to be called before another tool can be executed
@@ -434,7 +445,7 @@ protected:
 
 /* toolbar are a new overclass */
 class toolbar_t : public tool_t {
-private:
+protected:
 	const char *helpfile;
 	tool_selector_t *tool_selector;
 	slist_tpl<tool_t *>tools;
@@ -449,14 +460,27 @@ public:
 	tool_selector_t *get_tool_selector() const { return tool_selector; }
 	image_id get_icon(player_t*) const OVERRIDE;
 	bool is_selected() const OVERRIDE;
-	bool is_init_network_save() const OVERRIDE { return true; }
-	bool is_work_network_save() const OVERRIDE { return true; }
+	bool is_init_network_safe() const OVERRIDE { return true; }
+	bool is_work_network_safe() const OVERRIDE { return true; }
 	// show this toolbar
 	bool init(player_t*) OVERRIDE;
 	// close this toolbar
 	bool exit(player_t*) OVERRIDE;
-	void update(player_t *);	// just refresh content
+	virtual void update(player_t *);	// just refresh content
 	void append(tool_t *tool) { tools.append(tool); }
+};
+
+#define MAX_LAST_TOOLS (10)
+
+class toolbar_last_used_t : public toolbar_t {
+private:
+	slist_tpl<tool_t *>all_tools[MAX_PLAYER_COUNT];
+public:
+	toolbar_last_used_t(uint16 const id, char const* const t, char const* const h) : toolbar_t(id,t,h) {}
+	static toolbar_last_used_t *last_used_tools;
+	void update(player_t *) OVERRIDE;	// just refresh content
+	void append(tool_t *, player_t *);
+	void clear();
 };
 
 // create new instance of tool

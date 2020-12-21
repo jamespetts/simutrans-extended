@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef simobjs_h
-#define simobjs_h
+#ifndef SIMOBJ_H
+#define SIMOBJ_H
+
 
 #define INLINE_OBJ_TYPE
 
@@ -26,8 +27,6 @@ class player_t;
 /**
  * Base class of all objects on the map, obj == thing
  * Since everything is a 'obj' on the map, we need to make this as compact and fast as possible.
- *
- * @author Hj. Malthaner
  */
 class obj_t
 {
@@ -80,7 +79,6 @@ private:
 	/**
 	* Used by all constructors to initialize all vars with safe values
 	* -> single source principle
-	* @author Hj. Malthaner
 	*/
 	void init();
 
@@ -96,7 +94,6 @@ protected:
 	/**
 	* Pointer to the world of this thing. Static to conserve space.
 	* Change to instance variable once more than one world is available.
-	* @author Hj. Malthaner
 	*/
 	static karte_ptr_t welt;
 
@@ -117,7 +114,6 @@ public:
 
 	/**
 	 * routines to set, clear, get bit flags
-	 * @author Hj. Malthaner
 	 */
 	inline void set_flag(flag_values flag) {flags |= flag;}
 	inline void clear_flag(flag_values flag) {flags &= ~flag;}
@@ -198,15 +194,8 @@ public:
 	inline void set_yoff(sint8 yoff) {this->yoff = yoff; }
 
 	/**
-	 * Constructor to load object from file
-	 * @author Hj. Malthaner
-	 */
-	obj_t(loadsave_t *file);
-
-	/**
 	 * Constructor to set position of object
 	 * This does *not* add the object to the tile
-	 * @author Hj. Malthaner
 	 */
 #ifdef INLINE_OBJ_TYPE
 	obj_t(typ type);
@@ -217,25 +206,21 @@ public:
 
 	/**
 	 * Destructor: removes object from tile, should close any inspection windows
-	 * @author Hj. Malthaner
 	 */
 	virtual ~obj_t();
 
 	/**
 	 * Routine for cleanup if object is removed (ie book maintenance, cost for removal)
-	 * @author Hj. Malthaner
 	 */
 	virtual void cleanup(player_t *) {}
 
 	/**
 	 * @returns untranslated name of object
-	 * @author Hj. Malthaner
 	 */
 	virtual const char *get_name() const {return "Ding";}
 
 	/**
 	 * @return object type
-	 * @author Hj. Malthaner
 	 * @see typ
 	 */
 #ifdef INLINE_OBJ_TYPE
@@ -255,27 +240,23 @@ public:
 	/**
 	 * called whenever the snowline height changes
 	 * return false and the obj_t will be deleted
-	 * @author prissi
 	 */
 	virtual bool check_season(const bool) { return true; }
 
 	/**
 	 * called during map rotation
-	 * @author priss
 	 */
 	virtual void rotate90();
 
 	/**
 	 * Every object needs an image.
 	 * @return number of current image for that object
-	 * @author Hj. Malthaner
 	 */
 	virtual image_id get_image() const = 0;
 
 	/**
 	 * give image for height > 0 (max. height currently 3)
 	 * IMG_EMPTY is no images
-	 * @author Hj. Malthaner
 	 */
 	virtual image_id get_image(int /*height*/) const {return IMG_EMPTY;}
 
@@ -288,26 +269,21 @@ public:
 	/**
 	 * if a function returns a value here with TRANSPARENT_FLAGS set
 	 * then a transparent outline with the color from the lower 8 bit is drawn
-	 * @author kierongreen
 	 */
-	virtual PLAYER_COLOR_VAL get_outline_colour() const {return 0;}
+	virtual FLAGGED_PIXVAL get_outline_colour() const {return 0;}
 
 	/**
 	 * The image, that will be outlined
-	 * @author kierongreen
 	 */
 	virtual image_id get_outline_image() const { return IMG_EMPTY; }
 
 	/**
 	 * Save and Load of object data in one routine
-	 * @author Hj. Malthaner
 	 */
 	virtual void rdwr(loadsave_t *file);
 
 	/**
 	 * Called after the world is completely loaded from savegame
-	 *
-	 * @author Hj. Malthaner
 	 */
 	virtual void finish_rd() {}
 
@@ -324,22 +300,25 @@ public:
 	/**
 	 * put description of object into the buffer
 	 * (used for certain windows)
-	 * @author Hj. Malthaner
 	 * @see simwin
 	 */
-	virtual void info(cbuffer_t & buf, bool is_bridge = false) const;
+	virtual void info(cbuffer_t & buf) const;
 
 	/**
 	 * Opens a new info window for the object
-	 * @author Hj. Malthaner
 	 */
 	virtual void show_info();
 
 	/**
-	 * @return NULL if OK, otherwise an error message
-	 * @author Hj. Malthaner
+	 * @return True if the object lifecycle is managed by another system so cannot be destroyed.
+	 * False if the object can be destroyed at any time.
 	 */
-	virtual const char * is_deletable(const player_t *player);
+	virtual bool has_managed_lifecycle() const;
+
+	/**
+	 * @return NULL if OK, otherwise an error message
+	 */
+	virtual const char *is_deletable(const player_t *player);
 
 	/**
 	 * Draw background image of object
@@ -369,13 +348,11 @@ public:
 	* When a vehicle moves or a cloud moves, it needs to mark the old spot as dirty (to copy to screen).
 	* This routine already takes position, and offsets (x_off, y_off) into account.
 	* @param yoff extra y-offset, in most cases 0, in pixels.
-	* @author prissi
 	*/
 	void mark_image_dirty(image_id image, sint16 yoff) const;
 
 	/**
 	 * Function for recalculating the image.
-	 * @author Hj. Malthaner
 	 */
 	virtual void calc_image() {}
 };
@@ -401,11 +378,10 @@ class obj_no_info_t : public obj_t
 public:
 #ifdef INLINE_OBJ_TYPE
 #else
-	inline obj_no_info_t(loadsave_t* file) : obj_t(file) {}
 	inline obj_no_info_t(const koord3d& pos) : obj_t(pos) {}
 #endif
 
-	void show_info() {}
+	void show_info() OVERRIDE {}
 
 protected:
 #ifdef INLINE_OBJ_TYPE

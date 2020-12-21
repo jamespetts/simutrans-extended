@@ -40,9 +40,9 @@
 #include "signal.h"
 
 
-const roadsign_desc_t *roadsign_t::default_signal=NULL;
+const roadsign_desc_t *roadsign_t::default_signal = NULL;
 
-stringhashtable_tpl<const roadsign_desc_t *> roadsign_t::table;
+stringhashtable_tpl<roadsign_desc_t *> roadsign_t::table;
 vector_tpl<roadsign_desc_t*> roadsign_t::list;
 
 
@@ -121,7 +121,6 @@ roadsign_t::roadsign_t(player_t *player, koord3d pos, ribi_t::ribi dir, const ro
 	ticks_ns = ticks_ow = 16;
 	ticks_offset = 0;
 	lane_affinity = 4;
-	open_direction = 0xA5; // north-south <-> east-west
 	set_owner( player );
 	if(  desc->is_private_way()  ) {
 		// init ownership of private ways
@@ -239,15 +238,9 @@ void roadsign_t::show_info()
 }
 
 
-/**
- * @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
- * Beobachtungsfenster angezeigt wird.
- * @author Hj. Malthaner
- */
-void roadsign_t::info(cbuffer_t & buf, bool dummy) const
+void roadsign_t::info(cbuffer_t & buf) const
 {
 	obj_t::info(buf);
-	roadsign_t* rs = (roadsign_t*)this;
 
 	buf.append(translator::translate(desc->get_name()));
 	buf.append("\n\n");
@@ -283,11 +276,11 @@ void roadsign_t::info(cbuffer_t & buf, bool dummy) const
 		buf.append("\n");
 	}
 
-	koord3d rs_pos = rs->get_pos();
+	koord3d rs_pos = this->get_pos();
 
 	const grund_t* rs_gr3d = welt->lookup(rs_pos);
 	const weg_t* way = rs_gr3d->get_weg(desc->get_wtyp() != tram_wt ? desc->get_wtyp() : track_wt);
-	if (way->get_max_speed() * 2 >= speed_to_kmh(desc->get_max_speed()))
+	if ((uint32)way->get_max_speed() * 2U >= speed_to_kmh(desc->get_max_speed()))
 	{
 		buf.printf("%s%s%d%s%s", translator::translate("Max. speed:"), " ", speed_to_kmh(desc->get_max_speed()), " ", "km/h");
 		buf.append("\n");
@@ -305,7 +298,7 @@ void roadsign_t::info(cbuffer_t & buf, bool dummy) const
 
 
 	const grund_t *rs_gr = welt->lookup_kartenboden(rs_pos.x, rs_pos.y);
-	if (rs_gr->get_hoehe() > rs_pos.z == true)
+	if (rs_gr->get_hoehe() > rs_pos.z)
 	{
 		buf.append(translator::translate("underground_sign"));
 		buf.append("\n");
@@ -363,12 +356,16 @@ void roadsign_t::info(cbuffer_t & buf, bool dummy) const
 #endif
 	if (desc->is_traffic_light())
 	{
-		buf.append(translator::translate("\nSet phases:"));
-		buf.append("\n\n\n\n\n\n");
-	}
-	if (desc->is_private_way()) // Must be last, as the \n\n\n... section is the free height for the buttons // Ves
-	{
-		buf.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+		if(  automatic  ) {
+			buf.append(translator::translate("\nSet phases:"));
+		}
+		else{
+			if (char const* const maker = desc->get_copyright()) {
+				buf.append("\n");
+				buf.printf(translator::translate("Constructed by %s"), maker);
+			}
+			// extra treatment of trafficlights & private signs, author will be shown by those windows themselves
+		}
 	}
 }
 	// Signal specific information is dealt with in void signal_t::info(cbuffer_t & buf, bool dummy) const (in signal.cc)
@@ -394,8 +391,6 @@ void roadsign_t::calc_image()
 	    (     (desc->get_wtyp()==road_wt  &&  welt->get_settings().is_drive_left()  )
 	      ||  (desc->get_wtyp()!=air_wt  &&  desc->get_wtyp()!=road_wt  &&  welt->get_settings().is_signals_left())
 	    );
-
-	const sint8 height_step = TILE_HEIGHT_STEP << slope_t::is_doubles(gr->get_weg_hang());
 
 	const slope_t::type full_hang = gr->get_weg_hang();
 	const sint8 hang_diff = slope_t::max_diff(full_hang);
@@ -644,7 +639,7 @@ sync_result roadsign_t::sync_step(uint32 /*delta_t*/)
 		uint8 new_state = (ticks >= ticks_ns);
 		if(state!=new_state) {
 			state = new_state;
-			dir = (new_state==0) ? open_direction&0x0F : (open_direction>>4)&0x0F;
+			dir = (new_state == 0) ? ribi_t::northsouth : ribi_t::eastwest;
 			calc_image();
 		}
 	}
@@ -657,9 +652,15 @@ void roadsign_t::rotate90()
 	// only meaningful for traffic lights
 	obj_t::rotate90();
 	if(automatic  &&  !desc->is_private_way()) {
-		uint8 first_dir = ribi_t::rotate90(open_direction&0x0F);
-		uint8 second_dir = ribi_t::rotate90((open_direction>>4)&0x0F);
-		open_direction = first_dir + (second_dir << 4);
+		state = (state+1)&1;
+		if (ticks_offset >= ticks_ns) {
+			ticks_offset -= ticks_ns;
+		} else {
+			ticks_offset += ticks_ow;
+		}
+		uint8 temp = ticks_ns;
+		ticks_ns = ticks_ow;
+		ticks_ow = temp;
 
 		trafficlight_info_t *const trafficlight_win = dynamic_cast<trafficlight_info_t *>( win_get_magic( (ptrdiff_t)this ) );
 		if(  trafficlight_win  ) {
@@ -684,7 +685,7 @@ void roadsign_t::display_after(int xpos, int ypos, bool ) const
 		// draw with owner
 		if(  get_player_nr() != PLAYER_UNOWNED  ) {
 			if(  obj_t::show_owner  ) {
-				display_blend( foreground_image, xpos, ypos, 0, (get_owner()->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, dirty  CLIP_NUM_PAR);
+				display_blend( foreground_image, xpos, ypos, 0, color_idx_to_rgb(get_owner()->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, dirty  CLIP_NUM_PAR);
 			}
 			else {
 				display_color( foreground_image, xpos, ypos, get_player_nr(), true, get_flag(obj_t::dirty)  CLIP_NUM_PAR);
@@ -710,7 +711,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 	else {
 		lane_affinity = 4; // not applied
 	}
-	if(  file->get_version()<=102002  ) {
+	if(  file->get_version_int()<=102002  ) {
 		file->rdwr_byte(dummy);
 		if(  file->is_loading()  ) {
 			ticks_ns = ticks_ow = 16;
@@ -720,7 +721,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(ticks_ns);
 		file->rdwr_byte(ticks_ow);
 	}
-	if(  file->get_version()>=110007 || file->get_extended_version() >= 10 ) {
+	if(  file->get_version_int()>=110007 || file->get_extended_version() >= 10 ) {
 		file->rdwr_byte(ticks_offset);
 	}
 	else {
@@ -729,18 +730,18 @@ void roadsign_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if((file->get_extended_version() == 13 && file->get_extended_revision() >= 6) || file->get_extended_version() >= 14) {
-		file->rdwr_byte(open_direction);
-	} else if(  file->is_loading()  ) {
-		open_direction = 0xA5;
+	if( (file->get_extended_version() == 13 && file->get_extended_revision() >= 6)
+		|| (file->get_extended_version() == 14 && file->get_extended_revision() < 32) ) {
+		file->rdwr_byte(dummy);
 	}
+
 	dummy = state;
 	file->rdwr_byte(dummy);
 	state = dummy;
 	dummy = dir;
 	file->rdwr_byte(dummy);
 	dir = dummy;
-	if(file->get_version()<89000) {
+	if(file->get_version_int()<89000) {
 		dir = ribi_t::backward(dir);
 	}
 
@@ -764,7 +765,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 			}
 		}
 		// init ownership of private ways signs
-		if(  file->get_version()<110007  &&  desc  &&  desc->is_private_way()  ) {
+		if(  file->get_version_int()<110007  &&  desc  &&  desc->is_private_way()  ) {
 			ticks_ns = 0xFD;
 			ticks_ow = 0xFF;
 		}
@@ -784,17 +785,11 @@ void roadsign_t::cleanup(player_t *player)
 }
 
 
-/**
- * Wird nach dem Laden der Welt aufgerufen - üblicherweise benutzt
- * um das Aussehen des Dings an Boden und Umgebung anzupassen
- *
- * @author Hj. Malthaner
- */
 void roadsign_t::finish_rd()
 {
 	grund_t *gr=welt->lookup(get_pos());
 	if(  gr==NULL  ||  !gr->hat_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt)  ) {
-		dbg->error("roadsign_t::finish_rd","roadsing: way/ground missing at %i,%i => ignore", get_pos().x, get_pos().y );
+		dbg->error("roadsign_t::finish_rd","roadsign: way/ground missing at %i,%i => ignore", get_pos().x, get_pos().y );
 	}
 	else {
 		// after loading restore directions
@@ -831,6 +826,11 @@ bool roadsign_t::successfully_loaded()
 	if(table.empty()) {
 		DBG_MESSAGE("roadsign_t", "No signs found - feature disabled");
 	}
+
+	FOR (stringhashtable_tpl<roadsign_desc_t *>, const &i, table) {
+		roadsign_t::list.append(i.value);
+	}
+
 	return true;
 }
 
@@ -838,10 +838,8 @@ bool roadsign_t::successfully_loaded()
 bool roadsign_t::register_desc(roadsign_desc_t *desc)
 {
 	// avoid duplicates with same name
-	const roadsign_desc_t *old_desc = table.get(desc->get_name());
-	if(old_desc) {
-		dbg->warning( "roadsign_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
-		table.remove(desc->get_name());
+	if(const roadsign_desc_t *old_desc = table.remove(desc->get_name())) {
+		dbg->doubled( "roadsign", desc->get_name() );
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
 		delete old_desc;
@@ -861,7 +859,6 @@ bool roadsign_t::register_desc(roadsign_desc_t *desc)
 	}
 
 	roadsign_t::table.put(desc->get_name(), desc);
-	roadsign_t::list.append(desc);
 
 	if(  desc->get_wtyp()==track_wt  &&  desc->get_flags()==roadsign_desc_t::SIGN_SIGNAL  ) {
 		default_signal = desc;
@@ -873,7 +870,6 @@ bool roadsign_t::register_desc(roadsign_desc_t *desc)
 
 /**
  * Fill menu with icons of given signals/roadsings from the list
- * @author Hj. Malthaner
  */
 void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 /*sound_ok*/)
 {
@@ -886,7 +882,7 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 
 	vector_tpl<const roadsign_desc_t *>matching;
 
-	FOR(stringhashtable_tpl<roadsign_desc_t const*>, const& i, table) {
+	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table) {
 		roadsign_desc_t const* const desc = i.value;
 
 		bool allowed_given_current_signalbox;
@@ -897,7 +893,7 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 			player_t* player = welt->get_active_player();
 			if(player)
 			{
-				signalbox_t* sb = player->get_selected_signalbox();
+				const signalbox_t* sb = player->get_selected_signalbox();
 				if(!sb)
 				{
 					allowed_given_current_signalbox = false;
@@ -942,11 +938,10 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 
 /**
  * Finds a matching roadsign
- * @author prissi
  */
 const roadsign_desc_t *roadsign_t::roadsign_search(roadsign_desc_t::types const flag, waytype_t const wt, uint16 const time)
 {
-	FOR(stringhashtable_tpl<roadsign_desc_t const*>, const& i, table) {
+	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table) {
 		roadsign_desc_t const* const desc = i.value;
 		if(  desc->is_available(time)  &&  desc->get_wtyp()==wt  &&  desc->get_flags()==flag  ) {
 			return desc;
@@ -960,7 +955,7 @@ const roadsign_desc_t* roadsign_t::find_best_upgrade(bool underground)
 	const uint16 time = welt->get_timeline_year_month();
 	const roadsign_desc_t* best_candidate = NULL;
 
-	FOR(stringhashtable_tpl<roadsign_desc_t const*>, const& i, table)
+	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table)
 	{
 		roadsign_desc_t const* const new_roadsign_type = i.value;
 		if(new_roadsign_type->is_available(time)

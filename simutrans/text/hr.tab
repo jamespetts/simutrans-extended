@@ -398,7 +398,7 @@ Vrijeme ubrzanja
 Account above %s
 Podizanje preko %s
 Active player only
-Samo aktivan igraË
+Samo aktivan igraÅE
 Add forest
 Dodaj πumu
 Add random citycar
@@ -415,7 +415,7 @@ Airport
 Aerodrom
 All
 Sve
-all convoi tooltips
+always show all
 Savjet za sve konvoje
 Allow city growth
 Dozvoli razvoj grada
@@ -623,7 +623,7 @@ Constructed by %s
 Napravio %s
 convoi %d of %d
 Konvoj %d od %d 
-convoi error tooltips
+only error convoys
 Savjeti greske konvoja
 Convoi has been sent\nto the nearest depot\nof appropriate type.\n
 Konvoj je poslan\nu najblizi depo \nprikladne vrste.\n
@@ -1681,10 +1681,10 @@ Ne postoji!
 #_________________________________program_text__________________________________
  from %s
 od %s
- mins. travelling
-min. putovanja
- mins. waiting)
-min. cekanja)
+%s mins. travelling
+%s min. putovanja
+%s mins. waiting
+%s min. cekanja)
  via %s
 preko %s
 \n\nInterest on your debt is\naccumulating at %i %%
@@ -2113,7 +2113,7 @@ Use performance counter
 Koristiti brojac performanci
 Vehicle running costs (both fixed and distance related)
 Troskovi pogona vozila (fiksni i uvjetovani udaljenoscu)
-waiting time unknown)
+waiting time unknown
 vrijeme cekanja nepoznato)
 waiting\ntolerance\nmax. min
 tolerancija\ncekanja\nmax. min

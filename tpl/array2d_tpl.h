@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef tpl_array2d_tpl_h
-#define tpl_array2d_tpl_h
+#ifndef TPL_ARRAY2D_TPL_H
+#define TPL_ARRAY2D_TPL_H
+
 
 #include <string.h> //for memcpy
 #include "../dataobj/koord.h"
@@ -14,9 +15,6 @@
  * A template class for bounds checked 2-dimensional arrays.
  * This is kept as simple as possible. Does not use exceptions
  * for error handling.
- *
- * @author Hj. Malthaner
- * @see array_tpl
  */
 template <class T>
 class array2d_tpl
@@ -98,8 +96,7 @@ public:
 
 	array2d_tpl<T> & operator = (const array2d_tpl <T> &other)
 	{
-		if(  this != &other  ) // protect against invalid self-assignment
-        {
+		if(  this != &other  ) {// protect against invalid self-assignment
 			if(  h != other.h  &&  w != other.w  ) {
 				if(  h*w!=0  ) {
 					dbg->error("array2d_tpl<T>::=()","source has different size!");

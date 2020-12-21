@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __TUNNEL_BESCH_H
-#define __TUNNEL_BESCH_H
+#ifndef DESCRIPTOR_TUNNEL_DESC_H
+#define DESCRIPTOR_TUNNEL_DESC_H
+
 
 #include "../display/simimg.h"
 #include "../simtypes.h"
@@ -69,7 +70,7 @@ public:
 
 	const image_t *get_background(slope_t::type slope, uint8 season, uint8 type ) const
 	{
-		int const n = season && number_of_seasons == 1 ? 5 : 2;
+	  const uint8 n = season && number_of_seasons == 1 ? 5 : 2;
 		return get_child<image_list_t>(n)->get_image(slope_indices[slope] + 4 * type);
 	}
 
@@ -81,7 +82,7 @@ public:
 
 	const image_t *get_foreground(slope_t::type slope, uint8 season, uint8 type ) const
 	{
-		int const n = season && number_of_seasons == 1 ? 6 : 3;
+	  const uint8 n = season && number_of_seasons == 1 ? 6 : 3;
 		return get_child<image_list_t>(n)->get_image(slope_indices[slope] + 4 * type);
 	}
 

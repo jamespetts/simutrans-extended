@@ -3,14 +3,15 @@
  * (see LICENSE.txt)
  */
 
-#ifndef bigger_map_gui_h
-#define bigger_map_gui_h
+#ifndef GUI_ENLARGE_MAP_FRAME_T_H
+#define GUI_ENLARGE_MAP_FRAME_T_H
+
 
 #include "gui_frame.h"
 #include "components/gui_label.h"
 #include "components/action_listener.h"
 #include "components/gui_numberinput.h"
-#include "components/gui_divider.h"
+#include "components/gui_map_preview.h"
 
 class settings_t;
 
@@ -32,9 +33,10 @@ private:
 
 	/**
 	* Mini Map-Preview
-	* @author Hj. Malthaner
 	*/
-	unsigned char karte[preview_size*preview_size];
+	array2d_tpl<PIXVAL> map;
+	gui_map_preview_t
+		map_preview;
 
 	bool changed_number_of_towns;
 
@@ -47,21 +49,19 @@ private:
 		inp_cluster_size,
 		inp_town_size;
 
+	/*
+	 * Label to display current map seed number.
+	 */
+	gui_label_buf_t	map_number_label;
+
 	button_t
 		start_button;
 
-	gui_label_t
-		memory, // memory requirement
-		cities_label,
-		big_cities_label,
-		clusters_label,
+	gui_label_buf_t
+		info_x_size,
+		info_y_size,
 		cluster_size_label,
-		median_label;
-
-	gui_divider_t
-		divider_1;
-
-	char memory_str[256];
+		size_label; // memory requirement
 
 
 public:
@@ -73,7 +73,6 @@ public:
 	/**
 	* Calculate the new Map-Preview. Initialize the new RNG!
 	* public, because also the climate dialog need it
-	* @author Hj. Malthaner
 	*/
 	void update_preview();
 
@@ -82,17 +81,15 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
-	const char * get_help_filename() const { return "enlarge_map.txt";}
+	const char * get_help_filename() const OVERRIDE { return "enlarge_map.txt";}
 
 	/**
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
-	void draw(scr_coord pos, scr_size size);
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 };
 
 #endif

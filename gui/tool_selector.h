@@ -3,17 +3,19 @@
  * (see LICENSE.txt)
  */
 
-#ifndef TOOL_SELECTOR_H
-#define TOOL_SELECTOR_H
+#ifndef GUI_TOOL_SELECTOR_H
+#define GUI_TOOL_SELECTOR_H
+
 
 #include "gui_frame.h"
 #include "../tpl/vector_tpl.h"
-#include "../gui/simwin.h"
+#include "simwin.h"
+#include "../dataobj/environment.h"
 
 class tool_t;
 
 
-/*
+/**
  * This class defines all toolbar dialogues, floating bar of tools, i.e. the part the user will see
  */
 class tool_selector_t : public gui_frame_t
@@ -32,25 +34,24 @@ private:
 
 	/**
 	 * window width in toolboxes
-	 * @author Hj. Malthaner
 	 */
 	uint16 tool_icon_width;
 	uint16 tool_icon_height;
 
+	scr_coord offset, old_offset;
+
 	uint16 tool_icon_disp_start;
 	uint16 tool_icon_disp_end;
 
-	bool has_prev_next;
+	bool has_prev_next, is_dragging;
 
 	/**
 	 * Window title
-	 * @author Hj. Malthaner
 	 */
 	const char *title;
 
 	/**
 	 * Name of the help file
-	 * @author Hj. Malthaner
 	 */
 	const char *help_file;
 
@@ -64,7 +65,6 @@ public:
 
 	/**
 	 * Add a new tool with values and tooltip text.
-	 * @author Hj. Malthaner
 	 */
 	void add_tool_selector(tool_t *tool_in);
 
@@ -77,20 +77,18 @@ public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
-	 * @author Hj. Malthaner
 	 */
-	const char *get_help_filename() const {return help_file;}
+	const char *get_help_filename() const OVERRIDE {return help_file;}
 
-	PLAYER_COLOR_VAL get_titlecolor() const { return WIN_TITLE; }
+	FLAGGED_PIXVAL get_titlecolor() const OVERRIDE { return env_t::default_window_title_color; }
 
 	bool is_hit(int x, int y) OVERRIDE;
 
 	/**
 	 * Does this window need a next button in the title bar?
 	 * @return true if such a button is needed
-	 * @author Volker Meyer
 	 */
-	bool has_next() const {return has_prev_next;}
+	bool has_next() const OVERRIDE {return has_prev_next;}
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
@@ -98,12 +96,11 @@ public:
 	 * Draw new component. The values to be passed refer to the window
 	 * i.e. It's the screen coordinates of the window where the
 	 * component is displayed.
-	 * @author Hj. Malthaner
 	 */
-	void draw(scr_coord pos, scr_size size);
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	// since no information are needed to be saved to restore this, returning magic is enough
-	virtual uint32 get_rdwr_id() { return magic_toolbar+toolbar_id; }
+	uint32 get_rdwr_id() OVERRIDE { return magic_toolbar+toolbar_id; }
 
 	bool empty(player_t *player) const;
 };

@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef simversion_h
-#define simversion_h
+#ifndef SIMVERSION_H
+#define SIMVERSION_H
+
 
 #ifdef MAKEOBJ
 #ifdef _MSC_VER
@@ -23,23 +24,23 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 #define SIM_BUILD_RELEASE           2
 
 #define SIM_VERSION_MAJOR 120
-#define SIM_VERSION_MINOR   2
+#define SIM_VERSION_MINOR   4
 #define SIM_VERSION_PATCH   1
 #define SIM_VERSION_BUILD SIM_BUILD_NIGHTLY
 
 // Beware: SAVEGAME minor is often ahead of version minor when there were patches.
 //  These have no direct connection at all!
-#define SIM_SAVE_MINOR      4
-#define SIM_SERVER_MINOR    4
+#define SIM_SAVE_MINOR      7
+#define SIM_SERVER_MINOR    7
 
 #define EX_VERSION_MAJOR	14
-#define EX_VERSION_MINOR	9
-#define EX_SAVE_MINOR		20
+#define EX_VERSION_MINOR	12
+#define EX_SAVE_MINOR		32
 
 // Do not forget to increment the save game versions in settings_stats.cc when changing this
 
-#define MAKEOBJ_VERSION "60.06"
-// Transparency and new factories(60.0), railcar_tab(60.01), basic constraint + mixed_load_prohibition(60.06). NOTE: standard now 60.2
+#define MAKEOBJ_VERSION "60.2"
+// new factory locations and provisio
 
 #ifndef QUOTEME
 #	define QUOTEME_(x) #x
@@ -101,5 +102,12 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 /* Relative URL of the list function on server */
 #define ANNOUNCE_LIST_URL "/list?format=csv"
+
+/* url for obtaining the external IP for easz servers */
+#define QUERY_ADDR_IP "simutrans-forum.de:80"
+#define QUERY_ADDR_IPv4_ONLY "ipv4.simutrans-forum.de:80"
+
+/* Relative URL of the IP function on server */
+#define QUERY_ADDR_URL "/get_IP.php"
 
 #endif

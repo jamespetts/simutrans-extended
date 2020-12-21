@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _simvehicle_h
-#define _simvehicle_h
+#ifndef VEHICLE_SIMVEHICLE_H
+#define VEHICLE_SIMVEHICLE_H
+
 
 #include <limits>
 #include <string>
@@ -21,6 +22,7 @@
 #include "../tpl/array_tpl.h"
 #include "../dataobj/route.h"
 
+
 #include "../tpl/fixed_list_tpl.h"
 
 class convoi_t;
@@ -29,6 +31,7 @@ class signal_t;
 class ware_t;
 class schiene_t;
 class strasse_t;
+//class karte_ptr_t;
 
 // for aircraft:
 // length of the holding pattern.
@@ -37,10 +40,24 @@ class strasse_t;
 #define HOLDING_PATTERN_OFFSET 3
 /*----------------------- Movables ------------------------------------*/
 
+class traffic_vehicle_t
+{
+	private:
+		sint64 time_at_last_hop; // ticks
+		uint32 dist_travelled_since_last_hop; // yards
+		virtual uint32 get_max_speed() { return 0; } // returns y/t
+	protected:
+		inline void reset_measurements()
+		{
+			dist_travelled_since_last_hop = 0; //yards
+			time_at_last_hop = world()->get_ticks(); //ticks
+		}
+		inline void add_distance(uint32 distance) { dist_travelled_since_last_hop += distance; } // yards
+		void flush_travel_times(strasse_t*); // calculate travel times, write to way, reset measurements
+};
+
 /**
  * Base class for all vehicles
- *
- * @author Hj. Malthaner
  */
 class vehicle_base_t : public obj_t
 {
@@ -85,7 +102,6 @@ protected:
 
 	/**
 	 * Actual travel direction in screen coordinates
-	 * @author Hj. Malthaner
 	 */
 	ribi_t::ribi direction;
 
@@ -115,7 +131,6 @@ protected:
 
 	/**
 	 * Next position on our path
-	 * @author Hj. Malthaner
 	 */
 	koord3d pos_next;
 
@@ -155,7 +170,7 @@ protected:
 
 	virtual void update_bookkeeping(uint32 steps) = 0;
 
-	virtual void calc_image() = 0;
+	void calc_image() OVERRIDE = 0;
 
 	// check for road vehicle, if next tile is free
 	vehicle_base_t *no_cars_blocking( const grund_t *gr, const convoi_t *cnv, const uint8 current_direction, const uint8 next_direction, const uint8 next_90direction, const private_car_t *pcar, sint8 lane_on_the_tile );
@@ -181,10 +196,10 @@ public:
 	// if true, this convoi needs to restart for correct alignment
 	bool need_realignment() const;
 
-	uint32 do_drive(uint32 dist);	// basis movement code
+	virtual uint32 do_drive(uint32 dist);	// basis movement code
 
 	inline void set_image( image_id b ) { image = b; }
-	virtual image_id get_image() const {return image;}
+	image_id get_image() const OVERRIDE {return image;}
 
 	sint16 get_hoff(const sint16 raster_width = 1) const;
 	uint8 get_steps() const {return steps;} // number of steps pass on the current tile.
@@ -203,7 +218,7 @@ public:
 	 */
 	void calc_height(grund_t *gr = NULL);
 
-	virtual void rotate90();
+	void rotate90() OVERRIDE;
 
 	template<class K1, class K2>
 	static ribi_t::ribi calc_direction(const K1& from, const K2& to)
@@ -220,7 +235,7 @@ public:
 
 	koord3d get_pos_next() const {return pos_next;}
 
-	virtual waytype_t get_waytype() const = 0;
+	waytype_t get_waytype() const OVERRIDE = 0;
 
 	void set_class_reassignment(uint8 original_class, uint8 new_class);
 
@@ -264,28 +279,23 @@ template<> inline vehicle_base_t* obj_cast<vehicle_base_t>(obj_t* const d)
 
 /**
  * Class for all vehicles with route
- *
- * @author Hj. Malthaner
  */
-
 class vehicle_t : public vehicle_base_t, public test_driver_t
 {
 private:
 	/**
 	* Date of purchase in months
-	* @author Hj. Malthaner
 	*/
 	sint32 purchase_time;
 
-	/* For the more physical acceleration model friction is introduced
+	/**
+	* For the more physical acceleration model friction is introduced
 	* frictionforce = gamma*speed*weight
 	* since the total weight is needed a lot of times, we save it
-	* @author prissi
-	* BG, 18.10.2011: in tons in simutrans standard, in kg in simutrans extended
 	*/
 	uint32 sum_weight;
 
-	grund_t* hop_check();
+	grund_t* hop_check() OVERRIDE;
 
 	/**
 	 * Calculate friction caused by slopes and curves.
@@ -296,7 +306,6 @@ private:
 
 	bool load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes);
 
-	// @author: jamespetts
 	// Cornering settings.
 
 	fixed_list_tpl<sint16, 192> pre_corner_direction;
@@ -308,10 +317,8 @@ private:
 	bool is_overweight;
 
 	// Whether this individual vehicle is reversed.
-	// @author: jamespetts
 	bool reversed;
 
-	//@author: jamespetts
 	uint16 diagonal_costs;
 	uint16 base_costs;
 
@@ -320,9 +327,9 @@ private:
 	koord3d last_stopped_tile;
 
 protected:
-	virtual void hop(grund_t*);
+	void hop(grund_t*) OVERRIDE;
 
-	virtual void update_bookkeeping(uint32 steps);
+	void update_bookkeeping(uint32 steps) OVERRIDE;
 
 	// current limit (due to track etc.)
 	sint32 speed_limit;
@@ -336,14 +343,12 @@ protected:
 	// for target reservation and search
 	halthandle_t target_halt;
 
-	/* The friction is calculated new every step, so we save it too
-	* @author prissi
+	/** The friction is calculated new every step, so we save it too
 	*/
 	sint16 current_friction;
 
 	/**
 	* Current index on the route
-	* @author Hj. Malthaner
 	*/
 	uint16 route_index;
 
@@ -355,9 +360,8 @@ protected:
 	convoi_t *cnv;		// != NULL if the vehicle is part of a Convoi
 
 	/**
-	* Previous position on our path
-	* @author Hj. Malthaner
-	*/
+	 * Previous position on our path
+	 */
 	koord3d pos_prev;
 
 	uint8 number_of_classes;
@@ -368,7 +372,7 @@ protected:
 	bool check_for_finish:1;		// true, if on the last tile
 	bool has_driven:1;
 
-	virtual void calc_image();
+	void calc_image() OVERRIDE;
 
 	bool check_access(const weg_t* way) const;
 
@@ -378,7 +382,7 @@ protected:
 public:
 	sint32 calc_speed_limit(const weg_t *weg, const weg_t *weg_previous, fixed_list_tpl<sint16, 192>* cornering_data, uint32 bridge_tiles, ribi_t::ribi current_direction, ribi_t::ribi previous_direction);
 
-	virtual bool check_next_tile(const grund_t* ) const {return false;}
+	bool check_next_tile(const grund_t* ) const OVERRIDE {return false;}
 
 	bool check_way_constraints(const weg_t &way) const;
 
@@ -390,7 +394,7 @@ public:
 
 	convoi_t *get_convoi() const { return cnv; }
 
-	virtual void rotate90();
+	void rotate90() OVERRIDE;
 
 	ribi_t::ribi get_previous_direction() const { return previous_direction; }
 
@@ -406,18 +410,16 @@ public:
 	 */
 	virtual bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8 second_check_count) = 0;
 
-	virtual void enter_tile(grund_t*);
+	void enter_tile(grund_t*) OVERRIDE;
 
-	virtual void leave_tile();
+	void leave_tile() OVERRIDE;
 
-	virtual waytype_t get_waytype() const = 0;
+	waytype_t get_waytype() const OVERRIDE = 0;
 
 	/**
 	* Determine the direction bits for this kind of vehicle.
-	*
-	* @author Hj. Malthaner, 04.01.01
 	*/
-	virtual ribi_t::ribi get_ribi(const grund_t* gr) const { return gr->get_weg_ribi(get_waytype()); }
+	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi(get_waytype()); }
 
 	sint32 get_purchase_time() const {return purchase_time;}
 
@@ -428,11 +430,10 @@ public:
 	void set_route_index(uint16 value) { route_index = value; }
 	const koord3d get_pos_prev() const {return pos_prev;}
 
-	virtual route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel, route_t* route = NULL);
+	virtual route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel);
 
 	/**
 	* Get the base image.
-	* @author Hj. Malthaner
 	*/
 	image_id get_base_image() const { return desc->get_base_image(current_livery.c_str()); }
 
@@ -443,14 +444,12 @@ public:
 
 	/**
 	* @return vehicle description object
-	* @author Hj. Malthaner
 	*/
 	const vehicle_desc_t *get_desc() const {return desc; }
 	void set_desc(const vehicle_desc_t* value);
 
 	/**
 	* @return die running_cost in Cr/100Km
-	* @author Hj. Malthaner
 	*/
 	int get_running_cost() const { return desc->get_running_cost(); }
 	int get_running_cost(const karte_t* welt) const { return desc->get_running_cost(welt); }
@@ -464,7 +463,6 @@ public:
 
 	/**
 	* Play sound, when the vehicle is visible on screen
-	* @author Hj. Malthaner
 	*/
 	void play_sound() const;
 
@@ -472,7 +470,6 @@ public:
 	 * Prepare vehicle for new ride.
 	 * Sets route_index, pos_next, steps_next.
 	 * If @p recalc is true this sets position and recalculates/resets movement parameters.
-	 * @author Hj. Malthaner
 	 */
 	void initialise_journey( uint16 start_route_index, bool recalc );
 
@@ -499,27 +496,16 @@ public:
 
 	void make_smoke() const;
 
-	void show_info();
+	void show_info() OVERRIDE;
 
-#if 0
-private:
 	/**
-	* der normale Infotext
-	* @author Hj. Malthaner
-	*/
-	void info(cbuffer_t & buf, bool dummy = false) const;
-public:
-#endif
-
-
-	/* return friction constant: changes in hill and curves; may even negative downhill *
-	* @author prissi
-	*/
+	 * return friction constant: changes in hill and curves; may even negative downhill *
+	 */
 	inline sint16 get_frictionfactor() const { return current_friction; }
 
-	/* Return total weight including freight (in kg!)
-	* @author prissi
-	*/
+	/**
+	 * Return total weight including freight (in kg!)
+	 */
 	inline uint32 get_total_weight() const { return sum_weight; }
 
 	bool get_is_overweight() { return is_overweight; }
@@ -551,11 +537,8 @@ public:
 
 	/**
 	* Calculate transported cargo total weight in KG
-	* @author Hj. Malthaner
 	*/
 	uint32 get_cargo_weight() const;
-
-	const char * get_cargo_name() const;
 
 	/**
 	* get the type of cargo this vehicle can transport
@@ -574,7 +557,6 @@ public:
 	/**
 	* create an info text for the freight
 	* e.g. to display in a info window
-	* @author Hj. Malthaner
 	*/
 	void get_cargo_info(cbuffer_t & buf) const;
 
@@ -598,7 +580,6 @@ public:
 
 	/**
 	* Delete all vehicle load
-	* @author Hj. Malthaner
 	*/
 	void discard_cargo();
 
@@ -607,7 +588,6 @@ public:
 	* the income for the last hop. This method must be called upon
 	* every stop.
 	* @return income total for last hop
-	* @author Hj. Malthaner
 	*/
 	//sint64  calc_gewinn(koord start, koord end, convoi_t* cnv) const;
 
@@ -640,31 +620,29 @@ public:
 	/**
 	* Remove freight that no longer can reach it's destination
 	* i.e. because of a changed schedule
-	* @author Hj. Malthaner
 	*/
 	void remove_stale_cargo();
 
 	/**
 	* Generate a matching schedule for the vehicle type
-	* @author Hj. Malthaner
 	*/
 	virtual schedule_t *generate_new_schedule() const = 0;
 
-	const char * is_deletable(const player_t *player);
+	const char *is_deletable(const player_t *player) OVERRIDE;
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 	virtual void rdwr_from_convoi(loadsave_t *file);
 
 	uint32 calc_sale_value() const;
 
 	// true, if this vehicle did not moved for some time
-	virtual bool is_stuck();
+	bool is_stuck() OVERRIDE;
 
 	// this routine will display a tooltip for lost, on depot order, and stuck vehicles
 #ifdef MULTI_THREAD
-	virtual void display_overlay(int xpos, int ypos) const;
+	void display_overlay(int xpos, int ypos) const OVERRIDE;
 #else
-	virtual void display_after(int xpos, int ypos, bool dirty) const;
+	void display_after(int xpos, int ypos, bool dirty) const OVERRIDE;
 #endif
 
 	bool is_reversed() const { return reversed; }
@@ -686,8 +664,8 @@ public:
 	uint16 get_accommodation_capacity(uint8 g_class, bool include_lower_classes = false) const;
 	uint16 get_fare_capacity(uint8 g_class, bool include_lower_classes = false) const;
 
-	// BG, 06.06.2009: update player's fixed maintenance
-	void finish_rd();
+	// update player's fixed maintenance
+	void finish_rd() OVERRIDE;
 	void before_delete();
 
 	void set_current_livery(const char* liv) { current_livery = liv; }
@@ -707,11 +685,9 @@ template<> inline vehicle_t* obj_cast<vehicle_t>(obj_t* const d)
 /**
  * A class for road vehicles. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
-class road_vehicle_t : public vehicle_t
+class road_vehicle_t : public vehicle_t, public traffic_vehicle_t
 {
 private:
 	// called internally only from can_enter_tile()
@@ -719,49 +695,52 @@ private:
 	bool choose_route(sint32 &restart_speed, ribi_t::ribi start_direction, uint16 index);
 
 public:
-	bool check_next_tile(const grund_t *bd) const;
+	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
 protected:
 	bool is_checker;
 
 public:
-	virtual void enter_tile(grund_t*);
+	void enter_tile(grund_t*) OVERRIDE;
+	virtual void hop(grund_t*) OVERRIDE;
+	virtual uint32 do_drive(uint32 distance) OVERRIDE;
 
-	virtual void rotate90();
+	void rotate90() OVERRIDE;
 
 	void calc_disp_lane();
 
-	virtual waytype_t get_waytype() const { return road_wt; }
+	waytype_t get_waytype() const OVERRIDE { return road_wt; }
 
 	road_vehicle_t(loadsave_t *file, bool first, bool last);
 	road_vehicle_t();
 	road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv); // start und schedule
 
-	virtual void set_convoi(convoi_t *c);
+	uint32 get_max_speed() override;
+
+	void set_convoi(convoi_t *c) OVERRIDE;
 
 	// how expensive to go here (for way search)
-	virtual int get_cost(const grund_t *, const sint32, koord);
+	int get_cost(const grund_t *, const sint32, koord) OVERRIDE;
 
-	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route);
+	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
-	virtual bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8 second_check_count);
+	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8 second_check_count) OVERRIDE;
 
 	// returns true for the way search to an unknown target.
-	virtual bool  is_target(const grund_t *,const grund_t *);
+	bool is_target(const grund_t *,const grund_t *) OVERRIDE;
 
 	// since we must consider overtaking, we use this for offset calculation
 	virtual void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width, bool prev_based ) const;
-	virtual void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const { get_screen_offset(xoff,yoff,raster_width,false); }
+	virtual void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const OVERRIDE { get_screen_offset(xoff,yoff,raster_width,false); }
 
-#ifdef INLINE_OBJ_TYPE
-#else
-	obj_t::typ get_typ() const { return road_vehicle; }
+#ifndef INLINE_OBJ_TYPE
+	obj_t::typ get_typ() const OVERRIDE { return road_vehicle; }
 #endif
 
-	schedule_t * generate_new_schedule() const;
+	schedule_t * generate_new_schedule() const OVERRIDE;
 
-	virtual overtaker_t* get_overtaker();
-	virtual convoi_t* get_overtaker_cv();
+	overtaker_t* get_overtaker() OVERRIDE;
+	virtual convoi_t* get_overtaker_cv() OVERRIDE;
 
 	virtual vehicle_base_t* other_lane_blocked(const bool only_search_top = false, sint8 offset = 0) const;
 	virtual vehicle_base_t* other_lane_blocked_offset() const { return other_lane_blocked(false,1); }
@@ -771,39 +750,37 @@ public:
 /**
  * A class for rail vehicles (trains). Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
 class rail_vehicle_t : public vehicle_t
 {
 protected:
-	bool check_next_tile(const grund_t *bd) const;
+	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
-	void enter_tile(grund_t*);
+	void enter_tile(grund_t*) OVERRIDE;
 
 	sint32 activate_choose_signal(uint16 start_index, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index);
 
-	working_method_t working_method;
+	working_method_t working_method = drive_by_sight;
 
 public:
-	virtual waytype_t get_waytype() const { return track_wt; }
+	waytype_t get_waytype() const OVERRIDE { return track_wt; }
 
-	void rdwr_from_convoi(loadsave_t *file);
+	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
 
 	// since we might need to unreserve previously used blocks, we must do this before calculation a new route
-	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route);
+	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
 	// how expensive to go here (for way search)
-	virtual int get_cost(const grund_t *, const sint32, koord);
+	int get_cost(const grund_t *, const sint32, koord) OVERRIDE;
 
-	virtual uint32 get_cost_upslope() const { return 75; } // Standard is 15
+	uint32 get_cost_upslope() const OVERRIDE { return 75; } // Standard is 15
 
 	// returns true for the way search to an unknown target.
-	virtual bool  is_target(const grund_t *,const grund_t *);
+	bool is_target(const grund_t *,const grund_t *) OVERRIDE;
 
 	// handles all block stuff and route choosing ...
-	virtual bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8);
+	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8) OVERRIDE;
 
 	// reserves or un-reserves all blocks and returns the handle to the next block (if there)
 	// returns true on successful reservation (the specific number being the number of blocks ahead clear,
@@ -814,7 +791,7 @@ public:
 	// Used for time interval (with and without telegraph) signals on plain track.
 	void find_next_signal(route_t* route, uint16 start_index, uint16 &next_signal);
 
-	void leave_tile();
+	void leave_tile() OVERRIDE;
 
 	/// Unreserve behind the train using the current route
 	void unreserve_in_rear();
@@ -831,16 +808,16 @@ protected:
 	void init(loadsave_t *file, bool is_leading, bool is_last);
 public:
 #else
-	typ get_typ() const { return rail_vehicle; }
+	typ get_typ() const OVERRIDE { return rail_vehicle; }
 #endif
 
 	rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
 	rail_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t *cnv); // start und schedule
 	virtual ~rail_vehicle_t();
 
-	virtual void set_convoi(convoi_t *c);
+	void set_convoi(convoi_t *c) OVERRIDE;
 
-	virtual schedule_t * generate_new_schedule() const;
+	virtual schedule_t * generate_new_schedule() const OVERRIDE;
 
 	working_method_t get_working_method() const { return working_method; }
 	void set_working_method(working_method_t value);
@@ -850,13 +827,12 @@ public:
 
 /**
  * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
  * @see vehicle_t
  */
 class monorail_rail_vehicle_t : public rail_vehicle_t
 {
 public:
-	virtual waytype_t get_waytype() const { return monorail_wt; }
+	waytype_t get_waytype() const OVERRIDE { return monorail_wt; }
 
 #ifdef INLINE_OBJ_TYPE
 	// all handled by rail_vehicle_t
@@ -867,23 +843,22 @@ public:
 	monorail_rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) : rail_vehicle_t(file,is_leading, is_last) {}
 	monorail_rail_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv) : rail_vehicle_t(pos, desc, player, cnv) {}
 
-	typ get_typ() const { return monorail_vehicle; }
+	typ get_typ() const OVERRIDE { return monorail_vehicle; }
 #endif
 
-	schedule_t * generate_new_schedule() const;
+	schedule_t * generate_new_schedule() const OVERRIDE;
 };
 
 
 
 /**
  * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
  * @see vehicle_t
  */
 class maglev_rail_vehicle_t : public rail_vehicle_t
 {
 public:
-	virtual waytype_t get_waytype() const { return maglev_wt; }
+	waytype_t get_waytype() const OVERRIDE { return maglev_wt; }
 
 #ifdef INLINE_OBJ_TYPE
 	// all handled by rail_vehicle_t
@@ -894,23 +869,22 @@ public:
 	maglev_rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) : rail_vehicle_t(file, is_leading, is_last) {}
 	maglev_rail_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv) : rail_vehicle_t(pos, desc, player, cnv) {}
 
-	typ get_typ() const { return maglev_vehicle; }
+	typ get_typ() const OVERRIDE { return maglev_vehicle; }
 #endif
 
-	schedule_t * generate_new_schedule() const;
+	schedule_t * generate_new_schedule() const OVERRIDE;
 };
 
 
 
 /**
- * very similar to normal railroad, so we can implement it here completely ...
- * @author prissi
+ * very similar to normal railroad, so we can implement it here completely
  * @see vehicle_t
  */
 class narrowgauge_rail_vehicle_t : public rail_vehicle_t
 {
 public:
-	virtual waytype_t get_waytype() const { return narrowgauge_wt; }
+	waytype_t get_waytype() const OVERRIDE { return narrowgauge_wt; }
 
 #ifdef INLINE_OBJ_TYPE
 	// all handled by rail_vehicle_t
@@ -921,10 +895,10 @@ public:
 	narrowgauge_rail_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) : rail_vehicle_t(file, is_leading, is_last) {}
 	narrowgauge_rail_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv) : rail_vehicle_t(pos, desc, player, cnv) {}
 
-	typ get_typ() const { return narrowgauge_vehicle; }
+	typ get_typ() const OVERRIDE { return narrowgauge_vehicle; }
 #endif
 
-	schedule_t * generate_new_schedule() const;
+	schedule_t * generate_new_schedule() const OVERRIDE;
 };
 
 
@@ -932,38 +906,36 @@ public:
 /**
  * A class for naval vehicles. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author Hj. Malthaner
  * @see vehicle_t
  */
 class water_vehicle_t : public vehicle_t
 {
 protected:
 	// how expensive to go here (for way search)
-	virtual int get_cost(const grund_t *, const sint32, koord) { return 1; }
+	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; }
 
-	void calc_drag_coefficient(const grund_t *gr);
+	void calc_drag_coefficient(const grund_t *gr) OVERRIDE;
 
-	bool check_next_tile(const grund_t *bd) const;
+	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
-	void enter_tile(grund_t*);
+	void enter_tile(grund_t*) OVERRIDE;
 
 public:
-	waytype_t get_waytype() const { return water_wt; }
+	waytype_t get_waytype() const OVERRIDE { return water_wt; }
 
-	virtual bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8);
+	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8) OVERRIDE;
 
 	bool check_tile_occupancy(const grund_t* gr);
 
 	// returns true for the way search to an unknown target.
-	virtual bool  is_target(const grund_t *,const grund_t *) {return 0;}
+	bool is_target(const grund_t *,const grund_t *) OVERRIDE {return 0;}
 
 	water_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
 	water_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv);
 
 #ifdef INLINE_OBJ_TYPE
 #else
-	obj_t::typ get_typ() const { return water_vehicle; }
+	obj_t::typ get_typ() const OVERRIDE { return water_vehicle; }
 #endif
 
 	schedule_t * generate_new_schedule() const;
@@ -974,8 +946,6 @@ public:
 /**
  * A class for aircrafts. Manages the look of the vehicles
  * and the navigability of tiles.
- *
- * @author hsiegeln
  * @see vehicle_t
  */
 class air_vehicle_t : public vehicle_t
@@ -1033,11 +1003,11 @@ private:
 
 protected:
 	// jumps to next tile and correct the height ...
-	virtual void hop(grund_t*);
+	void hop(grund_t*) OVERRIDE;
 
-	bool check_next_tile(const grund_t *bd) const;
+	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
-	void enter_tile(grund_t*);
+	void enter_tile(grund_t*) OVERRIDE;
 
 	int block_reserver( uint32 start, uint32 end, bool reserve ) const;
 
@@ -1055,79 +1025,79 @@ public:
 	// since we are drawing ourselves, we must mark ourselves dirty during deletion
 	virtual ~air_vehicle_t();
 
-	virtual waytype_t get_waytype() const { return air_wt; }
+	waytype_t get_waytype() const OVERRIDE { return air_wt; }
 
 	// returns true for the way search to an unknown target.
-	virtual bool  is_target(const grund_t *,const grund_t *);
+	bool is_target(const grund_t *,const grund_t *) OVERRIDE;
 
 	//bool can_takeoff_here(const grund_t *gr, ribi_t::ribi test_dir, uint8 len) const;
 
 	// return valid direction
-	virtual ribi_t::ribi get_ribi(const grund_t* ) const;
+	ribi_t::ribi get_ribi(const grund_t* ) const OVERRIDE;
 
 	// how expensive to go here (for way search)
-	virtual int get_cost(const grund_t *, const sint32, koord);
+	int get_cost(const grund_t *, const sint32, koord) OVERRIDE;
 
-	virtual bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8);
+	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8) OVERRIDE;
 
-	virtual void set_convoi(convoi_t *c);
+	void set_convoi(convoi_t *c) OVERRIDE;
 
-	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route);
+	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
 	// BG, 08.08.2012: extracted from can_enter_tile()
-	route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel);
+	route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel) OVERRIDE;
 
 #ifdef INLINE_OBJ_TYPE
 #else
-	typ get_typ() const { return air_vehicle; }
+	typ get_typ() const OVERRIDE { return air_vehicle; }
 #endif
 
-	schedule_t *generate_new_schedule() const;
+	schedule_t *generate_new_schedule() const OVERRIDE;
 
-	void rdwr_from_convoi(loadsave_t *file);
+	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
 
 	int get_flyingheight() const {return flying_height-get_hoff()-2;}
 
 	void force_land() { flying_height = 0; target_height = 0; state = taxiing_to_halt; }
 
 	// image: when flying empty, on ground the plane
-	virtual image_id get_image() const {return !is_on_ground() ? IMG_EMPTY : image;}
+	image_id get_image() const OVERRIDE {return !is_on_ground() ? IMG_EMPTY : image;}
 
 	// image: when flying the shadow, on ground empty
-	virtual image_id get_outline_image() const {return !is_on_ground() ? image : IMG_EMPTY;}
+	image_id get_outline_image() const OVERRIDE {return !is_on_ground() ? image : IMG_EMPTY;}
 
 	// shadow has black color (when flying)
-	virtual PLAYER_COLOR_VAL get_outline_colour() const {return !is_on_ground() ? TRANSPARENT75_FLAG | OUTLINE_FLAG | COL_BLACK : 0;}
+	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE {return !is_on_ground() ? TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK) : 0;}
 
 #ifdef MULTI_THREAD
 	// this draws the "real" aircrafts (when flying)
-	virtual void display_after(int xpos, int ypos, const sint8 clip_num) const;
+	void display_after(int xpos, int ypos, const sint8 clip_num) const OVERRIDE;
 
 	// this routine will display a tooltip for lost, on depot order, and stuck vehicles
-	virtual void display_overlay(int xpos, int ypos) const;
+	void display_overlay(int xpos, int ypos) const OVERRIDE;
 #else
 	// this draws the "real" aircrafts (when flying)
-	virtual void display_after(int xpos, int ypos, bool dirty) const;
+	void display_after(int xpos, int ypos, bool dirty) const OVERRIDE;
 #endif
 
 	// the drag calculation happens it calc_height
-	void calc_drag_coefficient(const grund_t*) {}
+	void calc_drag_coefficient(const grund_t*) OVERRIDE {}
 
 	bool is_on_ground() const { return flying_height==0  &&  !(state==circling  ||  state==flying); }
 
 	// Used for running cost calculations
 	bool is_using_full_power() const { return state != circling && state != taxiing; }
 
-	const char * is_deletable(const player_t *player);
+	const char * is_deletable(const player_t *player) OVERRIDE;
 
-	virtual bool is_flying() const { return !is_on_ground(); }
+	virtual bool is_flying() const OVERRIDE { return !is_on_ground(); }
 
 	bool runway_too_short;
 	bool airport_too_close_to_the_edge;
 	bool is_runway_too_short() {return runway_too_short; }
 	bool is_airport_too_close_to_the_edge() { return airport_too_close_to_the_edge; }
-	virtual sint32 get_takeoff_route_index() const { return (sint32) takeoff; }
-	virtual sint32 get_touchdown_route_index() const { return (sint32) touchdown; }
+	virtual sint32 get_takeoff_route_index() const OVERRIDE { return (sint32) takeoff; }
+	virtual sint32 get_touchdown_route_index() const OVERRIDE { return (sint32) touchdown; }
 };
 
 sint16 get_friction_of_waytype(waytype_t waytype);

@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __WAY_DESC_H
-#define __WAY_DESC_H
+#ifndef DESCRIPTOR_WAY_DESC_H
+#define DESCRIPTOR_WAY_DESC_H
+
 
 #include "image_list.h"
 #include "obj_base_desc.h"
@@ -26,15 +27,13 @@ class checksum_t;
  *	2   Images for flat ways (indexed by ribi)
  *	3   Images for slopes
  *	4   Images for straight diagonal ways
- *	5   Hajo: Skin (cursor and icon)
+ *	5   Skin (cursor and icon)
  * if number_of_seasons == 0  (no winter images)
  *	6-8  front images of image lists 2-4
  * else
  *	6-8  winter images of image lists 2-4
  *	9-11 front images of image lists 2-4
  *	12-14 front winter images of image lists 2-4
- *
- * @author  Volker Meyer, Hj. Malthaner
  */
 class way_desc_t : public obj_desc_transport_infrastructure_t {
 	friend class way_reader_t;
@@ -44,7 +43,6 @@ private:
 	/**
 	 * Way system type: i.e. for wtyp == track this
 	 * can be used to select track system type (tramlike=7, elevated=1, ignore=255)
-	 * @author Hj. Malthaner
 	 */
 	uint8 styp;
 
@@ -102,7 +100,6 @@ public:
 	/**
 	* returns the system type of this way (mostly used with rails)
 	* @see systemtype_t
-	* @author DarioK
 	*/
 	uint8 get_styp() const { return styp; }
 
@@ -116,7 +113,7 @@ public:
 		if (front  &&  !front_images) {
 			return IMG_EMPTY;
 		}
-		int const n = image_list_base_index(season, front);
+		const uint16 n = image_list_base_index(season, front);
 		return get_child<image_list_t>(n)->get_image_id(ribi);
 	}
 
@@ -125,7 +122,7 @@ public:
 		if (front  &&  !front_images) {
 			return IMG_EMPTY;
 		}
-		int const n = image_list_base_index(season, front);
+		const uint16 n = image_list_base_index(season, front);
 		image_list_t const* const imglist = get_child<image_list_t>(n);
 		// only do this if extended switches are there
 		if(  imglist->get_count()>16  ) {
@@ -144,31 +141,31 @@ public:
 		if (front  &&  !front_images) {
 			return IMG_EMPTY;
 		}
-		int const n = image_list_base_index(season, front) + 1;
-		int nr;
+		const uint16 n = image_list_base_index(season, front) + 1;
+		uint16 nr;
 		switch(slope) {
-			case 4:
+			case slope_t::north:
 				nr = 0;
 				break;
-			case 12:
+			case slope_t::west:
 				nr = 1;
 				break;
-			case 28:
+			case slope_t::east:
 				nr = 2;
 				break;
-			case 36:
+			case slope_t::south:
 				nr = 3;
 				break;
-			case 8:
+			case slope_t::north*2:
 				nr = 4;
 				break;
-			case 24:
+			case slope_t::west*2:
 				nr = 5;
 				break;
-			case 56:
+			case slope_t::east*2:
 				nr = 6;
 				break;
-			case 72:
+			case slope_t::south*2:
 				nr = 7;
 				break;
 			default:
@@ -212,7 +209,6 @@ public:
 
 	/**
 	* Skin: cursor (index 0) and icon (index 1)
-	* @author Hj. Malthaner
 	*/
 	const skin_desc_t * get_cursor() const
 	{

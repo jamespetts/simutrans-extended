@@ -24,12 +24,7 @@ grund_info_t::grund_info_t(const grund_t* gr_) :
 	}
 	buf.clear();
 	gr->info(buf);
-
-	textarea.set_size( textarea.get_size() + view.get_size() );
-
 	set_embedded(&view);
-	// adjust positions, sizes, and window-size
-	recalc_size();
 }
 
 
@@ -40,20 +35,22 @@ grund_info_t::grund_info_t(const grund_t* gr_) :
  */
 void grund_info_t::draw(scr_coord pos, scr_size size)
 {
+	// update for owner and name change
 	set_dirty();
 	const obj_t *const d = gr->obj_bei(0);
 	if (  d!=NULL  ) {
 		set_owner( d->get_owner() );
 	}
-	gui_frame_t::set_name( translator::translate(gr->get_name()) );
+	base_infowin_t::set_name( translator::translate(gr->get_name()) );
 
+	const cbuffer_t old_buf(buf);
 	buf.clear();
 	gr->info(buf);
-	textarea.recalc_size();
+	if(  strcmp( buf, old_buf )  ) {
+		recalc_size();
+	}
 
-	gui_frame_t::draw(pos, size);
-
-	recalc_size();
+	base_infowin_t::draw(pos, size);
 }
 
 

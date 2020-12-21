@@ -28,7 +28,7 @@
 #include "dataobj/loadsave.h"
 #include "dataobj/environment.h"
 
-#include "gui/karte.h"
+#include "gui/minimap.h"
 
 
 karte_ptr_t planquadrat_t::welt;
@@ -105,7 +105,7 @@ void planquadrat_t::boden_hinzufuegen(grund_t *bd)
 		// completely empty
 		data.one = bd;
 		ground_size = 1;
-		reliefkarte_t::get_karte()->calc_map_pixel(bd->get_pos().get_2d());
+		minimap_t::get_instance()->calc_map_pixel(bd->get_pos().get_2d());
 		return;
 	}
 	else if(ground_size==1) {
@@ -120,7 +120,7 @@ DBG_MESSAGE("planquadrat_t::boden_hinzufuegen()","addition ground %s at (%i,%i,%
 		tmp[1] = bd;
 		data.some = tmp;
 		ground_size = 2;
-		reliefkarte_t::get_karte()->calc_map_pixel(bd->get_pos().get_2d());
+		minimap_t::get_instance()->calc_map_pixel(bd->get_pos().get_2d());
 		return;
 	}
 	else {
@@ -149,7 +149,7 @@ DBG_MESSAGE("planquadrat_t::boden_hinzufuegen()","addition ground %s at (%i,%i,%
 		ground_size ++;
 		delete [] data.some;
 		data.some = tmp;
-		reliefkarte_t::get_karte()->calc_map_pixel(bd->get_pos().get_2d());
+		minimap_t::get_instance()->calc_map_pixel(bd->get_pos().get_2d());
 	}
 }
 
@@ -186,7 +186,7 @@ bool planquadrat_t::boden_entfernen(grund_t *bd)
 }
 
 
-void planquadrat_t::kartenboden_setzen(grund_t *bd)
+void planquadrat_t::kartenboden_setzen(grund_t *bd, bool startup)
 {
 	assert(bd);
 	grund_t *tmp = get_kartenboden();
@@ -198,14 +198,16 @@ void planquadrat_t::kartenboden_setzen(grund_t *bd)
 		ground_size = 1;
 		bd->set_kartenboden(true);
 	}
-	bd->calc_image();
-	reliefkarte_t::get_karte()->calc_map_pixel(bd->get_pos().get_2d());
+	if (!startup) {
+		// water tiles need neighbor tiles, which might not be initialized at startup
+		bd->calc_image();
+	}
+	minimap_t::get_instance()->calc_map_pixel(bd->get_pos().get_2d());
 }
 
 
 /**
  * replaces the map solid ground (or water) and deletes the old one
- * @author Hansjörg Malthaner
  */
 void planquadrat_t::boden_ersetzen(grund_t *alt, grund_t *neu)
 {
@@ -274,7 +276,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				case grund_t::brueckenboden:    gr = new brueckenboden_t(file, pos);     break;
 				case grund_t::monorailboden:	    gr = new monorailboden_t(file, pos); break;
 				default:
-					gr = 0; // Hajo: keep compiler happy, fatal() never returns
+					gr = 0; // keep compiler happy, fatal() never returns
 					dbg->fatal("planquadrat_t::rdwr()","Error while loading game: Unknown ground type '%d'",gtyp);
 			}
 			// check if we have a matching building here, otherwise set to nothing
@@ -397,7 +399,7 @@ void planquadrat_t::correct_water()
 		sint8 disp_hn_se = max( gr->get_hoehe() + corner_se(slope), water_hgt );
 		sint8 disp_hn_ne = max( gr->get_hoehe() + corner_ne(slope), water_hgt );
 		sint8 disp_hn_nw = max( gr->get_hoehe() + corner_nw(slope), water_hgt );
-		const uint8 sneu = (disp_hn_sw - disp_hneu) + ((disp_hn_se - disp_hneu) * 3) + ((disp_hn_ne - disp_hneu) * 9) + ((disp_hn_nw - disp_hneu) * 27);
+		const slope_t::type sneu = encode_corners(disp_hn_sw - disp_hneu, disp_hn_se - disp_hneu, disp_hn_ne - disp_hneu, disp_hn_nw - disp_hneu);
 		gr->set_hoehe( disp_hneu );
 		gr->set_grund_hang( (slope_t::type)sneu );
 	}
@@ -411,7 +413,7 @@ void planquadrat_t::abgesenkt()
 		const uint8 slope = gr->get_grund_hang();
 
 		gr->obj_loesche_alle(NULL);
-		sint8 max_hgt = gr->get_hoehe() + (slope != 0 ? (slope & 7 ? 1 : 2) : 0);
+		sint8 max_hgt = gr->get_hoehe() + (slope ? 1 : 0);		// only matters that not flat
 
 		koord k(gr->get_pos().get_2d());
 		if(  max_hgt <= welt->get_water_hgt( k )  &&  gr->get_typ() != grund_t::wasser  ) {
@@ -426,7 +428,7 @@ void planquadrat_t::abgesenkt()
 			}
 		}
 		else {
-			reliefkarte_t::get_karte()->calc_map_pixel(k);
+			minimap_t::get_instance()->calc_map_pixel(k);
 		}
 		gr->set_grund_hang( slope );
 	}
@@ -440,7 +442,7 @@ void planquadrat_t::angehoben()
 		const uint8 slope = gr->get_grund_hang();
 
 		gr->obj_loesche_alle(NULL);
-		sint8 max_hgt = gr->get_hoehe() + (slope != 0 ? (slope & 7 ? 1 : 2) : 0);
+		sint8 max_hgt = gr->get_hoehe() + (slope ? 1 : 0);		// only matters that not flat
 
 		koord k(gr->get_pos().get_2d());
 		if(  max_hgt > welt->get_water_hgt( k )  &&  gr->get_typ() == grund_t::wasser  ) {
@@ -467,7 +469,7 @@ void planquadrat_t::angehoben()
 			}
 		}
 		else {
-			reliefkarte_t::get_karte()->calc_map_pixel(k);
+			minimap_t::get_instance()->calc_map_pixel(k);
 		}
 	}
 }
@@ -481,7 +483,7 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 	}
 	const sint8 h0 = gr0->get_disp_height();
 	uint8 i = 1;
-	// underground
+	// tiles below ground drawing height (tunnels in full underground mode)
 	if(  hmin < h0  ) {
 		for(  ;  i < ground_size;  i++  ) {
 			const grund_t* gr = data.some[i];
@@ -518,6 +520,11 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 			for(  uint8 j = i;  j < ground_size;  j++  ) {
 				const sint8 h = data.some[j]->get_hoehe();
 				const sint8 htop = h + slope_t::max_diff(data.some[j]->get_grund_hang());
+
+				// still underground
+				if(  h < h0  ) {
+					continue;
+				}
 				// too high?
 				if(  h > hmax  ) {
 					break;
@@ -525,7 +532,7 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 				// not too low?
 				if(  htop >= hmin  ) {
 					// something on top: clip horizontally to prevent trees etc shining trough bridges
-					const sint16 yh = ypos - tile_raster_scale_y( (h - h0) * TILE_HEIGHT_STEP, raster_tile_width ) + ((3 * raster_tile_width) >> 2);
+					const sint16 yh = ypos - tile_raster_scale_y( (h + corner_nw(data.some[j]->get_grund_hang()) - h0) * TILE_HEIGHT_STEP, raster_tile_width ) + ((3 * raster_tile_width) >> 2);
 					if(  yh >= p_cr.y  ) {
 						display_push_clip_wh(p_cr.x, yh, p_cr.w, p_cr.h + p_cr.y - yh  CLIP_NUM_PAR);
 					}
@@ -539,12 +546,17 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 			gr0->display_obj_all( xpos, ypos, raster_tile_width, is_global  CLIP_NUM_PAR );
 		}
 	}
-	// above ground
+	// above ground drawing height
 	for(  ;  i < ground_size;  i++  ) {
 		const grund_t* gr = data.some[i];
 		const sint8 h = gr->get_hoehe();
 		const slope_t::type slope = gr->get_grund_hang();
 		const sint8 htop = h + max(max(corner_sw(slope), corner_se(slope)),max(corner_ne(slope), corner_nw(slope)));
+
+		// still underground
+		if(  h < h0  ) {
+			continue;
+		}
 		// too high?
 		if(  h > hmax  ) {
 			break;
@@ -598,19 +610,19 @@ void planquadrat_t::display_overlay(const sint16 xpos, const sint16 ypos) const
 		if(gb) {
 			fabrik_t* fab=gb->get_fabrik();
 			if(fab) {
-				PLAYER_COLOR_VAL status = COL_RED;
+				FLAGGED_PIXVAL status = color_idx_to_rgb(COL_RED);
 				if(fab->get_desc()->is_electricity_producer()) {
-					status = COL_LIGHT_BLUE;
+					status = color_idx_to_rgb(COL_LIGHT_BLUE);
 					if(fab->is_transformer_connected()) {
-						status = COL_LIGHT_TURQUOISE;
+						status = color_idx_to_rgb(COL_LIGHT_TURQUOISE);
 					}
 				}
 				else {
 					if(fab->is_transformer_connected()) {
-						status = COL_ORANGE;
+						status = color_idx_to_rgb(COL_ORANGE);
 					}
 					if(fab->get_prodfactor_electric()>0) {
-						status = COL_GREEN;
+						status = color_idx_to_rgb(COL_GREEN);
 					}
 				}
 				display_img_blend( overlay_img(gr), xpos, ypos, status | OUTLINE_FLAG | TRANSPARENT50_FLAG, 0, true);
@@ -627,7 +639,7 @@ void planquadrat_t::display_overlay(const sint16 xpos, const sint16 ypos) const
 			image_id img = overlay_img(gr);
 
 			for(int halt_count = 0; halt_count < halt_list_count; halt_count++) {
-				const PLAYER_COLOR_VAL transparent = PLAYER_FLAG | OUTLINE_FLAG | (halt_list[halt_count].halt->get_owner()->get_player_color1() + 4);
+				const FLAGGED_PIXVAL transparent = PLAYER_FLAG | OUTLINE_FLAG | color_idx_to_rgb(halt_list[halt_count].halt->get_owner()->get_player_color1() + 4);
 				display_img_blend( img, xpos, ypos, transparent | TRANSPARENT25_FLAG, 0, 0);
 			}
 #ifdef PLOT_PLAYER_OUTLINE_COLOURS
@@ -641,7 +653,7 @@ void planquadrat_t::display_overlay(const sint16 xpos, const sint16 ypos) const
 				player_t *display_player = welt->get_player(player_count);
 				if(display_player)
 				{
-					const PLAYER_COLOR_VAL transparent = PLAYER_FLAG | OUTLINE_FLAG | (display_player->get_player_color1() * 4 + 4);
+					const FLAGGED_PIXVAL transparent = PLAYER_FLAG | OUTLINE_FLAG | color_idx_to_rgb(display_player->get_player_color1() * 4 + 4);
 					for(int halt_count = 0; halt_count < halt_list_count; halt_count++)
 					{
 						if(halt_list[halt_count].halt->get_owner() == display_player)
@@ -663,7 +675,7 @@ void planquadrat_t::display_overlay(const sint16 xpos, const sint16 ypos) const
 			const sint16 off = (raster_tile_width>>5);
 			// suitable start search
 			for (size_t h = halt_list_count; h-- != 0;) {
-				display_fillbox_wh_clip(x - h * off, y + h * off, r, r, PLAYER_FLAG | (halt_list[h].halt->get_owner()->get_player_color1() + 4), kartenboden_dirty);
+				display_fillbox_wh_clip_rgb(x - h * off, y + h * off, r, r, PLAYER_FLAG | color_idx_to_rgb(halt_list[h].halt->get_owner()->get_player_color1() + 4), kartenboden_dirty);
 			}
 		}
 	}
@@ -695,16 +707,16 @@ void planquadrat_t::display_overlay(const sint16 xpos, const sint16 ypos) const
 
 	gr->display_overlay(xpos, ypos);
 	if (ground_size > 1) {
+		const sint16 raster_tile_width = get_tile_raster_width();
 		const sint8 h0 = gr->get_disp_height();
 		for(  uint8 i = 1;  i < ground_size;  i++  ) {
 			grund_t* gr = data.some[i];
 			const sint8 h = gr->get_disp_height();
-			const sint16 yypos = ypos - (h - h0 ) * get_tile_raster_width() / 2;
+			const sint16 yypos = ypos - tile_raster_scale_y((h - h0) * TILE_HEIGHT_STEP, raster_tile_width);
 			gr->display_overlay( xpos, yypos );
 		}
 	}
 }
-
 
 /**
  * Finds halt belonging to a player
@@ -763,9 +775,8 @@ void planquadrat_t::halt_list_insert_at(halthandle_t halt, uint8 pos, uint8 dist
 }
 
 
-/* The following functions takes at least 9 bytes of memory per tile but speed up passenger generation *
- * @author prissi
- * Modified: jamespetts, May 2013
+/**
+ * The following functions takes at least 8 bytes of memory per tile but speed up passenger generation *
  */
 void planquadrat_t::add_to_haltlist(halthandle_t halt)
 {
@@ -800,7 +811,6 @@ void planquadrat_t::add_to_haltlist(halthandle_t halt)
 /**
  * removes the halt from a ground
  * however this function check, whether there is really no other part still reachable
- * @author prissi, neroden
  */
 void planquadrat_t::remove_from_haltlist(halthandle_t halt)
 {
@@ -840,7 +850,6 @@ void planquadrat_t::remove_from_haltlist(halthandle_t halt)
 
 /**
  * true, if this halt is reachable from here
- * @author prissi
  */
 uint8 planquadrat_t::get_connected(halthandle_t halt) const
 {
@@ -852,4 +861,16 @@ uint8 planquadrat_t::get_connected(halthandle_t halt) const
 		}
 	}
 	return 255;
+}
+
+void planquadrat_t::update_underground() const
+{
+	get_kartenboden()->check_update_underground();
+	// update tunnel tiles
+	for(unsigned int i=1; i<get_boden_count(); i++) {
+		grund_t *const gr = get_boden_bei(i);
+		if (gr->ist_tunnel()) {
+			gr->check_update_underground();
+		}
+	}
 }

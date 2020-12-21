@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef simpeople_h
-#define simpeople_h
+#ifndef VEHICLE_SIMPEOPLE_H
+#define VEHICLE_SIMPEOPLE_H
+
 
 #include "simroadtraffic.h"
 
@@ -12,8 +13,6 @@ class pedestrian_desc_t;
 
 /**
  * Pedestrians also are road users.
- *
- * @author Hj. Malthaner
  * @see road_user_t
  */
 class pedestrian_t : public road_user_t
@@ -30,9 +29,9 @@ private:
 	bool on_left;
 
 protected:
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
-	void calc_image();
+	void calc_image() OVERRIDE;
 
 	/**
 	 * Creates pedestrian at position given by @p gr.
@@ -47,26 +46,30 @@ public:
 
 	const pedestrian_desc_t *get_desc() const { return desc; }
 
-	const char *get_name() const {return "Fussgaenger";}
+	const char *get_name() const OVERRIDE {return "Fussgaenger";}
 #ifdef INLINE_OBJ_TYPE
 #else
-	typ get_typ() const { return pedestrian; }
+	typ get_typ() const OVERRIDE { return pedestrian; }
 #endif
 
-	sync_result sync_step(uint32 delta_t);
+	void info(cbuffer_t & buf) const OVERRIDE;
+
+	sync_result sync_step(uint32 delta_t) OVERRIDE;
 
 	///@ returns true if pedestrian walks on the left side of the road
 	bool is_on_left() const { return on_left; }
 
 	void calc_disp_lane();
 
-	virtual void rotate90();
+	void rotate90() OVERRIDE;
 
 	// overloaded to enable animations
-	virtual image_id get_image() const;
+	image_id get_image() const OVERRIDE;
 
-	virtual grund_t* hop_check();
-	virtual void hop(grund_t* gr);
+	//void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const OVERRIDE;
+
+	grund_t* hop_check() OVERRIDE;
+	void hop(grund_t* gr) OVERRIDE;
 
 	// class register functions
 	static bool register_desc(const pedestrian_desc_t *desc);

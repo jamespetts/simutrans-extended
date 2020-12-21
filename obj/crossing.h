@@ -3,19 +3,23 @@
  * (see LICENSE.txt)
  */
 
-#ifndef obj_crossing_h
-#define obj_crossing_h
+#ifndef OBJ_CROSSING_H
+#define OBJ_CROSSING_H
+
+
+#include "../simobj.h"
 
 #include "../simtypes.h"
 #include "../display/simimg.h"
 #include "../descriptor/crossing_desc.h"
 #include "../dataobj/crossing_logic.h"
 
+
 class vehicle_base_t;
+
 
 /**
  * road sign for traffic (one way minimum speed, traffic lights)
- * @author Hj. Malthaner
  */
 class crossing_t : public obj_no_info_t
 {
@@ -29,41 +33,38 @@ protected:
 public:
 #ifdef INLINE_OBJ_TYPE
 #else
-	typ get_typ() const { return crossing; }
+	typ get_typ() const OVERRIDE { return crossing; }
 #endif
-	const char* get_name() const { return "Kreuzung"; }
+	const char* get_name() const OVERRIDE { return "Kreuzung"; }
 
 	/**
 	 * waytype associated with this object
 	 * for crossings: return invalid_wt since they do not need a way
 	 * if the way is deleted the crossing will be deleted, too
 	 */
-	waytype_t get_waytype() const { return invalid_wt; }
+	waytype_t get_waytype() const OVERRIDE { return invalid_wt; }
 
 	crossing_t(loadsave_t *file);
 	crossing_t(player_t *player, koord3d pos, const crossing_desc_t *desc, uint8 ns = 0);
 
 	/**
 	 * crossing logic is removed here
-	 * @author prissi
 	 */
 	virtual ~crossing_t();
 
-	void rotate90();
+	void rotate90() OVERRIDE;
 
 	const crossing_desc_t *get_desc() const { return desc; }
 
 	/**
 	 * @return string (only used for debug at the moment)
-	 * @author prissi
 	 */
-	void info(cbuffer_t & buf, bool dummy = false) const { logic->info(buf); }
+	void info(cbuffer_t & buf) const OVERRIDE;
 
 	/**
 	 * @return NULL when OK, otherwise an error message
-	 * @author Hj. Malthaner
 	 */
-	virtual const char * is_deletable(const player_t *player, bool allow_public = false);
+	const char *is_deletable(const player_t *player) OVERRIDE;
 
 	// returns true, if the crossing can be passed by this vehicle
 	bool request_crossing( const vehicle_base_t *v, bool check_only = false ) { return logic->request_crossing( v, check_only ); }
@@ -86,28 +87,33 @@ public:
 
 	/**
 	 * Dient zur Neuberechnung des Bildes
-	 * @author Hj. Malthaner
 	 */
-	void calc_image();
+	void calc_image() OVERRIDE;
 
 	/**
 	* Called whenever the season or snowline height changes
 	* return false and the obj_t will be deleted
+	* depends on snowline only
 	*/
-	bool check_season(const bool calc_only_season_change) { if(  !calc_only_season_change  ) { calc_image(); } return true; }  // depends on snowline only
+	bool check_season(const bool calc_only_season_change) OVERRIDE
+	{
+		if(  !calc_only_season_change  ) {
+			calc_image();
+		}
+		return true;
+	}
 
 	// changes the state of a traffic light
-	image_id get_image() const { return image; }
+	image_id get_image() const OVERRIDE { return image; }
 
 	/**
 	* For the front image hiding vehicles
-	* @author prissi
 	*/
-	image_id get_front_image() const { return foreground_image; }
+	image_id get_front_image() const OVERRIDE { return foreground_image; }
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
-	void finish_rd();
+	void finish_rd() OVERRIDE;
 };
 
 #endif

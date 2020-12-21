@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef loadsave_h
-#define loadsave_h
+#ifndef DATAOBJ_LOADSAVE_H
+#define DATAOBJ_LOADSAVE_H
+
 
 #include <stdio.h>
 #include <string>
@@ -15,34 +16,47 @@ class plainstring;
 struct file_descriptors_t;
 
 /**
-* loadsave_t:
-*
-* This class replaces the FILE when loading and saving games.
-* <p>
-* Hj. Malthaner, 16-Feb-2002, added zlib compression support
-* </p>
-* Can now read and write 3 formats: text, binary and zipped
-* Input format is automatically detected.
-* Output format has a default, changeable with set_savemode, but can be
-* overwritten in wr_open.
-*
-* @author V. Meyer, Hj. Malthaner
-*/
-
-
-class loadsave_t {
+ * This class replaces the FILE when loading and saving games.
+ * Can now read and write 3 formats: text, binary and zipped
+ * Input format is automatically detected.
+ * Output format has a default, changeable with set_savemode, but can be
+ * overwritten in wr_open.
+ */
+class loadsave_t
+{
 public:
-	enum mode_t { text = 1, xml = 2, binary = 0, zipped = 4, xml_zipped = 6, bzip2 = 8, xml_bzip2 = 10 };
+	enum mode_t {
+		binary=0,
+		text=1,
+		xml=2,
+		zipped=4,
+		xml_zipped=6,
+		bzip2=8,
+		xml_bzip2=10,
+		zstd=16,
+		xml_zstd=18
+	};
+
+	enum file_error_t {
+		FILE_ERROR_OK=0,
+		FILE_ERROR_NOT_EXISTING,
+		FILE_ERROR_BZ_CORRUPT,
+		FILE_ERROR_GZ_CORRUPT,
+		FILE_ERROR_NO_VERSION,
+		FILE_ERROR_FUTURE_VERSION,
+		FILE_ERROR_UNSUPPORTED_COMPRESSION
+	};
 
 private:
-	int mode;
+	file_error_t last_error;
+	int mode; ///< See mode_t
 	bool saving;
 	bool buffered;
 	unsigned curr_buff;
 	unsigned buf_pos[2];
 	unsigned buf_len[2];
 	char* ls_buf[2];
-	uint32 version;
+	uint32 version; ///< savegame version
 	uint32 extended_version;
 	uint32 extended_revision; // Secondary saved game identifier for changing the save format without changing the major version.
 	int ident;		// only for XML formatting
@@ -52,11 +66,12 @@ private:
 
 	file_descriptors_t *fd;
 
-	// Hajo: putc got a name clash on my system
+	/// @sa putc
 	inline void lsputc(int c);
 
-	// Hajo: getc got a name clash on my system
+	/// @sa getc
 	inline int lsgetc();
+
 	size_t write(const void * buf, size_t len);
 	size_t read(void *buf, size_t len);
 
@@ -79,24 +94,38 @@ private:
 public:
 	struct combined_version { uint32 version; uint32 extended_version; uint32 extended_revision; };
 
-	static mode_t save_mode;	// default to use for saving
-	static mode_t autosave_mode; // default to use for autosaves and network mode client temp saves
-	static combined_version int_version(const char *version_text, int *mode, char *pak);
+	static mode_t save_mode;     ///< default to use for saving
+	static mode_t autosave_mode; ///< default to use for autosaves and network mode client temp saves
+	static int save_level;    ///< default to use for compression (various libraries allow for szie/speed settings)
+	static int autosave_level;
+
+	/**
+	 * Parses the version information from @p version_text to a version number.
+	 * @param[out] pak Pointer to a sufficiently large buffer (>= 64 chars); when the function returns,
+	 *                 @p pak contains the pakset extension string. May be NULL.
+	 * @retval 0   if an error occurred or the save cannot be loaded
+	 * @retval !=0 the save version; in this case we can read the save file.
+	 */
+	//static uint32 int_version(const char *version_text, char *pak);
+	static combined_version int_version(const char *version_text, char *pak);
 
 	loadsave_t();
 	~loadsave_t();
 
 	bool rd_open(const char *filename);
-	bool wr_open(const char *filename, mode_t mode, const char *pak_extension, const char *savegame_version, const char *savegame_version_ex, const char *savegame_revision_ex);
+	bool wr_open(const char *filename, mode_t mode, int level, const char *pak_extension, const char *savegame_version, const char *savegame_version_ex, const char *savegame_revision_ex);
 	const char *close();
+
+	file_error_t get_last_error() { return last_error; }
 
 	static void set_savemode(mode_t mode) { save_mode = mode; }
 	static void set_autosavemode(mode_t mode) { autosave_mode = mode; }
+	static void set_savelevel(int level) { save_level = level;  }
+	static void set_autosavelevel(int level) { autosave_level = level;  }
 
 	/**
-	* Checks end-of-file
-	* @author Hj. Malthaner
-	*/
+	 * Checks end-of-file
+	 */
 	bool is_eof();
 
 	void set_buffered(bool enable);
@@ -105,8 +134,9 @@ public:
 	bool is_saving() const { return saving; }
 	bool is_zipped() const { return mode&zipped; }
 	bool is_bzip2() const { return mode&bzip2; }
+	bool is_zstd() const { return mode&zstd; }
 	bool is_xml() const { return mode&xml; }
-	uint32 get_version() const { return version; }
+	uint32 get_version_int() const { return version; }
 	uint32 get_extended_version() const { return extended_version; }
 	uint32 get_extended_revision() const { return extended_revision; }
 	const char *get_pak_extension() const { return pak_extension; }

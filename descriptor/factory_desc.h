@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __FABRIK_BESCH_H
-#define __FABRIK_BESCH_H
+#ifndef DESCRIPTOR_FACTORY_DESC_H
+#define DESCRIPTOR_FACTORY_DESC_H
+
 
 #include "obj_desc.h"
 #include "building_desc.h"
@@ -15,12 +16,13 @@
 
 class checksum_t;
 
-/* Knightly : this desc will store data specific to each class of fields
- * Fields are xref'd from skin_desc_t
+/**
+ * this desc will store data specific to each class of fields
+ * Fields are xref'ed from skin_desc_t
  */
 class field_class_desc_t : public obj_desc_t {
 	friend class factory_field_class_reader_t;
-	friend class factory_field_group_reader_t;		// Knightly : this is a special case due to desc restructuring
+	friend class factory_field_group_reader_t;		// this is a special case due to desc restructuring
 
 private:
 	uint8  snow_image;			// 0 or 1 for snow
@@ -42,7 +44,7 @@ public:
 };
 
 
-// Knightly : this desc now only contains common, shared data regarding fields
+// this desc now only contains common, shared data regarding fields
 class field_group_desc_t : public obj_desc_t {
 	friend class factory_field_group_reader_t;
 
@@ -82,12 +84,8 @@ public:
 
 
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Der Rauch einer Fabrik verweist auf eine allgemeine Raucbdscreibung
+/**
+ * Smoke objects for factories.
  *
  *  Child nodes:
  *	0   SKin
@@ -126,12 +124,8 @@ public:
 };
 
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Information about required goods for production
+/**
+ * Information about required goods for production
  *
  *  Child nodes:
  *	0   Ware
@@ -146,19 +140,15 @@ private:
 
 public:
 	goods_desc_t const* get_input_type() const { return get_child<goods_desc_t>(0); }
-	int get_capacity() const { return capacity; }
-	int get_supplier_count() const { return supplier_count; }
-	int get_consumption() const { return consumption; }
+	uint16 get_capacity() const { return capacity; }
+	uint16 get_supplier_count() const { return supplier_count; }
+	uint16 get_consumption() const { return consumption; }
 	void calc_checksum(checksum_t *chk) const;
 };
 
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Information about produced goods of a factory
+/**
+ * Information about produced goods of a factory
  *
  *  Child nodes:
  *	0   Ware
@@ -167,29 +157,24 @@ class factory_product_desc_t : public obj_desc_t {
 	friend class factory_product_reader_t;
 
 private:
-    uint16 capacity;
+	uint16 capacity;
 
-    /**
-     * How much of this product is derived from one unit of factory
-     * production? 256 means 1.0
-     * @author Hj. Malthaner
-     */
-    uint16 factor;
+	/**
+	 * How much of this product is derived from one unit of factory
+	 * production? 256 means 1.0
+	 */
+	uint16 factor;
 
 public:
 	goods_desc_t const* get_output_type() const { return get_child<goods_desc_t>(0); }
-	uint32 get_capacity() const { return capacity; }
-	uint32 get_factor() const { return factor; }
+	uint16 get_capacity() const { return capacity; }
+	uint16 get_factor() const { return factor; }
 	void calc_checksum(checksum_t *chk) const;
 };
 
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Factory.
+/**
+ * Factory.
  *
  *  Child nodes:
  *	0   House descriptor
@@ -206,7 +191,7 @@ class factory_desc_t : public obj_desc_t {
 	friend class factory_reader_t;
 
 public:
-	enum site_t { Land, Water, City };
+	enum site_t { Land, Water, City, river, shore, forest };
 
 private:
 	site_t placement;
@@ -233,7 +218,9 @@ private:
 	uint16 pax_demand; // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
 	uint16 mail_demand; // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
 	uint16 base_max_distance_to_consumer;
+	uint16 base_max_distance_to_supplier;
 	uint16 max_distance_to_consumer;
+	uint16 max_distance_to_supplier;
 	uint16 sound_id;
 	uint32 sound_interval;
 	uint8 field_output_divider; // The number by which the total production of all fields is divided.
@@ -246,13 +233,14 @@ public:
 	smoke_desc_t const* get_smoke() const { return get_child<smoke_desc_t>(1); }
 
 	// we must take care, for the case of no producer/consumer
-	const factory_supplier_desc_t *get_supplier(int i) const
+
+	const factory_supplier_desc_t *get_supplier(uint16 i) const
 	{
-		return 0 <= i && i < supplier_count ? get_child<factory_supplier_desc_t>(2 + i) : 0;
+		return i < supplier_count ? get_child<factory_supplier_desc_t>(2 + i) : 0;
 	}
-	const factory_product_desc_t *get_product(int i) const
+	const factory_product_desc_t *get_product(uint16 i) const
 	{
-		return 0 <= i && i < product_count ? get_child<factory_product_desc_t>(2 + supplier_count + i) : 0;
+		return i < product_count ? get_child<factory_product_desc_t>(2 + supplier_count + i) : 0;
 	}
 	const field_group_desc_t *get_field_group() const {
 		if(!fields) {
@@ -273,21 +261,21 @@ public:
 	site_t get_placement() const { return placement; }
 	int get_distribution_weight() const { return distribution_weight; }
 
-	uint8 get_kennfarbe() const { return color; } //"identification colour code" (Babelfish)
+	PIXVAL get_color() const { return color_idx_to_rgb(color); } //"identification colour code" (Babelfish)
 
-	void set_productivity(int p) { productivity=p; }
+	void set_productivity(uint16 p) { productivity=p; }
 	int get_productivity() const { return productivity; }
 	sint32 get_range() const { return range; }
 
 	/* level for mail and passenger generation */
-	int get_pax_level() const { return pax_level; }
+	uint16 get_pax_level() const { return pax_level; }
 
 	uint16 get_electricity_proportion() const { return electricity_proportion; }
 	uint16 get_inverse_electricity_proportion() const { return inverse_electricity_proportion; }
 
-	int is_electricity_producer() const { return electricity_producer; }
+	bool is_electricity_producer() const { return electricity_producer; }
 
-	const factory_desc_t *get_upgrades(int i) const { return (i >= 0 && i < upgrades) ? get_child<factory_desc_t>(2 + supplier_count + product_count + fields + i) : NULL; }
+	const factory_desc_t *get_upgrades(uint16 i) const { return (i < upgrades) ? get_child<factory_desc_t>(2 + supplier_count + product_count + fields + i) : NULL; }
 
 	sint32 get_upgrades_count() const { return upgrades; }
 
@@ -308,17 +296,25 @@ public:
 	uint32 get_sound_interval_ms() const { return sound_interval; }
 
 	uint16 get_max_distance_to_consumer() const { return max_distance_to_consumer; }
+	uint16 get_max_distance_to_supplier() const { return max_distance_to_supplier;	}
 
 	uint8 get_field_output_divider() const { return field_output_divider; }
 
 	void set_scale(uint16 scale_factor)
 	{
-		if(base_max_distance_to_consumer < 65535)
+		if (base_max_distance_to_consumer < 65535)
 		{
 			uint32 mdc = (uint32)base_max_distance_to_consumer;
 			mdc *= 1000u;
 			mdc /= scale_factor;
 			max_distance_to_consumer = (uint16)mdc;
+		}
+		if(base_max_distance_to_supplier < 65535)
+		{
+			uint32 mds = (uint32)base_max_distance_to_supplier;
+			mds *= 1000u;
+			mds /= scale_factor;
+			max_distance_to_supplier = (uint16)mds;
 		}
 	}
 

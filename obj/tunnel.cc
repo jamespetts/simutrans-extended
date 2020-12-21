@@ -74,10 +74,9 @@ void tunnel_t::calc_image()
 	if(desc)
 	{
 		grund_t *from = welt->lookup(get_pos());
-		image_id old_image = image;
 		slope_t::type hang = gr->get_grund_hang();
-		ribi_t::ribi ribi = gr->get_weg_ribi(desc->get_waytype());
 		ribi_t::ribi ribi_unmasked = gr->get_weg_ribi_unmasked(desc->get_waytype());
+
 		if(gr->ist_karten_boden())
 		{
 			// Tunnel portal
@@ -140,7 +139,7 @@ void tunnel_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t t( file, "tunnel_t" );
 	obj_t::rdwr(file);
-	if(  file->get_version() >= 99001 ) {
+	if(  file->get_version_int() >= 99001 ) {
 		char  buf[256];
 		if(  file->is_loading()  ) {
 			file->rdwr_str(buf, lengthof(buf));

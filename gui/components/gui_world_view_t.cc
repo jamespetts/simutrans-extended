@@ -7,7 +7,6 @@
 
 #include "gui_world_view_t.h"
 #include "../../simworld.h"
-#include "../../display/simview.h"
 #include "../../display/viewport.h"
 #include "../../simobj.h"
 #include "../../display/simgraph.h"
@@ -18,25 +17,45 @@
 #include "../../dataobj/environment.h"
 #include "../../dataobj/koord3d.h"
 
+vector_tpl<world_view_t *> world_view_t::view_list;
 
+void world_view_t::invalidate_all()
+{
+	world_view_t *const *const endpointer = world_view_t::view_list.end();
+	for (world_view_t *const *pointer = world_view_t::view_list.begin() ; pointer != endpointer ; pointer++) {
+		(*pointer)->prepared_rect.discard_area();
+	}
+}
 
 world_view_t::world_view_t(scr_size size ) :
-		raster(get_base_tile_raster_width())
+	prepared_rect(),
+	display_rect(),
+	raster(get_base_tile_raster_width())
 {
 	set_size( size );
+	min_size = size;
+
+	world_view_t::view_list.append(this);
 }
 
 
 world_view_t::world_view_t() :
-		raster(get_base_tile_raster_width())
+	prepared_rect(),
+	display_rect(),
+	raster(get_base_tile_raster_width())
 {
+	world_view_t::view_list.append(this);
+}
+
+world_view_t::~world_view_t()
+{
+	world_view_t::view_list.remove(this);
 }
 
 
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool world_view_t::infowin_event(const event_t* ev)
 {
@@ -68,6 +87,7 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 			fine_here -= scr_coord(x, y);
 		}
 	}
+	koord const height_offset(y_offset, y_offset);
 
 	grund_t const* const kb = welt->lookup_kartenboden(here);
 	if(!kb) {
@@ -97,6 +117,19 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 		return;
 	}
 
+	// prepare view
+	rect_t const world_rect(koord(0, 0), welt->get_size());
+
+	rect_t view_rect = display_rect;
+	view_rect.origin+= here + height_offset;
+	view_rect.mask(world_rect);
+
+	if (view_rect != prepared_rect) {
+		welt->prepare_tiles(view_rect, prepared_rect);
+		prepared_rect = view_rect;
+	}
+
+	// prepare clip area
 	const int clip_x = max(old_clip.x, pos.x);
 	const int clip_y = max(old_clip.y, pos.y);
 	display_set_clip_wh(clip_x, clip_y, min(old_clip.xx, pos.x + size.w) - clip_x, min(old_clip.yy, pos.y + size.h) - clip_y);
@@ -106,10 +139,10 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 	/* Not very elegant, but works: Fill everything with black for underground
 	 * mode. */
 	if(  grund_t::underground_mode  ) {
-		display_fillbox_wh(pos.x, pos.y, size.w, size.h, COL_BLACK, true);
+		display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, color_idx_to_rgb(COL_BLACK), true);
 	}
 	else {
-		welt->get_view()->display_background(pos.x, pos.y, size.w, size.h, true);
+		display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, env_t::background_color, true);
 	}
 
 	const sint16 yoff = obj && obj->is_moving() ?
@@ -119,7 +152,7 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 
 	// display grounds
 	FOR(vector_tpl<koord>, const& off, offsets) {
-		const koord   k     = here + off + koord(y_offset, y_offset);
+		const koord   k     = here + off + height_offset;
 		const sint16  off_x = (off.x - off.y) * 32 * raster / 64 + display_off.x;
 
 		if(  off_x + raster < 0  ||  size.w < off_x  ||  k.x < 0  ||  k.y < 0  ) {
@@ -146,7 +179,7 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 
 	// display things
 	FOR(vector_tpl<koord>, const& off, offsets) {
-		const koord   k     = here + off + koord(y_offset, y_offset);
+		const koord   k     = here + off + height_offset;
 		const sint16  off_x = (off.x - off.y) * 32 * raster / 64 + display_off.x;
 		if(  off_x + raster < 0  ||  size.w < off_x  ||  k.x < 0  ||  k.y < 0  ) {
 			continue;
@@ -194,13 +227,12 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 	}
 
 	display_set_clip_wh(old_clip.x, old_clip.y, old_clip.w, old_clip.h);
-	display_ddd_box_clip(pos.x - 1, pos.y - 1, size.w + 2, size.h + 2, MN_GREY0, MN_GREY4);
+	display_ddd_box_clip_rgb(pos.x - 1, pos.y - 1, size.w + 2, size.h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
 }
 
 
 /**
  * Resize the contents of the window
- * @author prissi
  */
 void world_view_t::set_size(scr_size size)
 {
@@ -217,6 +249,7 @@ void world_view_t::calc_offsets(scr_size size, sint16 dy_off)
 	const sint16 max_dx = size.w/(raster/2) + 2;
 	const sint16 max_dy = (size.h/(raster/2) + dy_off + 10)&0x0FFE; //+10 for highly flying aircraft
 
+	// build offset list
 	offsets.clear();
 	for(  sint16 dy = -max_dy;  dy <= dy_off;  ) {
 		{
@@ -232,4 +265,25 @@ void world_view_t::calc_offsets(scr_size size, sint16 dy_off)
 		}
 		dy++;
 	}
+
+	// determine preparation extents
+	koord offset_extent_min(0, 0);
+	koord offset_extent_max(0, 0);
+	koord const *const iter_end = offsets.end();
+	for (koord const *iter = offsets.begin() ; iter != iter_end ; iter++) {
+		sint16 const x = iter->x;
+		sint16 const y = iter->y;
+		if (x < offset_extent_min.x) {
+			offset_extent_min.x = x;
+		}else if (x > offset_extent_max.x) {
+			offset_extent_max.x = x;
+		}
+		if (y < offset_extent_min.y) {
+			offset_extent_min.y = y;
+		}else if (y > offset_extent_max.y) {
+			offset_extent_max.y = y;
+		}
+	}
+
+	display_rect = rect_t(offset_extent_min, offset_extent_max - offset_extent_min + koord(1, 1));
 }

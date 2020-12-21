@@ -5,11 +5,6 @@
 
 /* basic network functionality, borrowed from OpenTTD */
 
-#if defined(__amiga__)
-// warning: IPv6 will only work on Windows XP and up ...
-#define USE_IP4_ONLY
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -25,6 +20,7 @@
 #include "network_cmd_ingame.h"
 #include "network_cmp_pakset.h"
 #include "../simconst.h"
+#include "../simversion.h"
 
 #ifndef NETTOOL
 #include "../dataobj/environment.h"
@@ -58,6 +54,8 @@ void clear_command_queue()
 #define RET_ERR_STR { DWORD errnr = WSAGetLastError(); if( errnr!=0 ) FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM,NULL,errnr,MAKELANGID(LANG_NEUTRAL,SUBLANG_NEUTRAL),err_str,sizeof(err_str),NULL); err = err_str; return INVALID_SOCKET; }
 #else
 #define RET_ERR_STR { err = err_str; return INVALID_SOCKET; }
+
+#include <signal.h>
 #endif
 
 
@@ -170,7 +168,6 @@ SOCKET network_open_address(char const* cp, char const*& err)
 	}
 
 #else
-
 	// Address format e.g.: "example.com:13353", "128.0.0.1:13353" or "[::1]:80"
 	// this should be replaced with a URI parser...
 	static char err_str[256];
@@ -211,6 +208,7 @@ SOCKET network_open_address(char const* cp, char const*& err)
 #else
 	vector_tpl<std::string> const& ips = env_t::listen;
 #endif
+
 	// For each address in the list of listen addresses try and create a socket to transmit on
 	// Use the first one which works
 	for (uint i = 0; !connected && i != ips.get_count(); ++i) {
@@ -227,9 +225,13 @@ SOCKET network_open_address(char const* cp, char const*& err)
 
 		// Test remote address to ensure it is valid
 		// Fill out remote address structure
-		if ((ret = getaddrinfo(cpaddress.c_str(), cpport.c_str(), &remote_hints, &remote)) != 0) {
-			sprintf(err_str, "Bad address %s", cp);
-			RET_ERR_STR;
+		if (  (ret = getaddrinfo(cpaddress.c_str(), cpport.c_str(), &remote_hints, &remote)) != 0) {
+			sprintf( err_str, "Bad address %s", cp );
+			if(  i+1==ips.get_count()  ) {
+				RET_ERR_STR;
+			}
+			// maybe it is an IPv4 only on the second interface ..
+			continue;
 		}
 
 		// Set up local addrinfo
@@ -280,7 +282,7 @@ SOCKET network_open_address(char const* cp, char const*& err)
 
 			// For each address in remote, try and connect
 			struct addrinfo *walk_remote;
-			for (walk_remote = remote; !connected && walk_remote != NULL; walk_remote = walk_remote->ai_next) {
+			for (  walk_remote = remote;  !connected  &&  walk_remote != NULL;  walk_remote = walk_remote->ai_next  ) {
 				char ipstr_remote[INET6_ADDRSTRLEN];
 
 				// Validate remote address + get string representation for logging
@@ -324,6 +326,9 @@ SOCKET network_open_address(char const* cp, char const*& err)
 */
 bool network_init_server(int port)
 {
+	if (  port==0  ) {
+		dbg->fatal( "network_init_server()", "Cannot host on port 0!" );
+	}
 	// First activate network
 	if (!network_initialize()) {
 		dbg->fatal("network_init_server()", "Failed to initialize network!");
@@ -667,6 +672,12 @@ void network_send_server(network_command_t* nwc)
 bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &count, const int timeout_ms)
 {
 	count = 0;
+
+#if USE_WINSOCK == 0
+	// ignore SIGPIPE sent by send() function.
+	signal(SIGPIPE, SIG_IGN);
+#endif
+
 	while (count < size) {
 		int sent = send(dest, buf + count, size - count, 0);
 		if (sent == -1) {
@@ -703,6 +714,11 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 		count += sent;
 		DBG_DEBUG4("network_send_data", "sent %d bytes to socket[%d]; size=%d, left=%d", count, dest, size, size - count);
 	}
+
+#if USE_WINSOCK == 0
+	signal(SIGPIPE, SIG_DFL);
+#endif
+
 	// we reach here only if data are sent completely
 	return true;
 }
@@ -805,5 +821,220 @@ void network_core_shutdown()
 	network_active = false;
 #ifndef NETTOOL
 	env_t::networkmode = false;
+	network_server_port = 0;	// this also sets ent_t::server to zero
 #endif
 }
+
+
+/* The following helper routines will be  used with the easy-server setup, to host machines behind
+ * routers with frequently changing IP addresses.
+ */
+#ifndef NETTOOL
+
+#include "../utils/cbuffer_t.h"
+#include "network_file_transfer.h"
+
+bool get_external_IP( cbuffer_t &myIPaddr, cbuffer_t &altIPaddr )
+{
+	myIPaddr.clear();
+	altIPaddr.clear();
+	// query "simutrans-forum.de/get_IP.php" for IP (faster than asking router and we can get IP6 too)
+	const char *err = network_http_get( QUERY_ADDR_IP, QUERY_ADDR_URL, altIPaddr );
+	// if we have a dual stack system, IP6 should be preferred, i.e. we have now the IP6
+	if(  err==NULL  &&  strstr(altIPaddr,":")  ) {
+		// try to get and IPv4 address too
+		if(  !network_http_get( QUERY_ADDR_IPv4_ONLY, QUERY_ADDR_URL, myIPaddr )  ) {
+			if(  strcmp( myIPaddr, altIPaddr ) == 0   ) {
+				// same, no alternative address
+				altIPaddr.clear();
+			}
+		}
+	}
+	else {
+		myIPaddr = altIPaddr;
+		altIPaddr.clear();
+	}
+
+#if 0
+	// enable to try to get a symbolic name for IPv4
+	if(  !err  ) {
+		struct sockaddr_in sin;
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family      = AF_INET;
+		sin.sin_addr.s_addr = inet_addr(myIPaddr);
+		sin.sin_port        = 0; // If 0, port is chosen by system
+		char hostname[1024];
+		hostname[0] = 0;
+
+		int failed = getnameinfo((const sockaddr *)&sin, sizeof(sin), hostname, lengthof(hostname), NULL, 0, 0);
+		if(  !failed  &&  *hostname  ) {
+			myIPaddr.clear();
+			myIPaddr.append( hostname );
+		}
+	}
+#endif
+	return err==NULL;
+}
+
+#ifdef USE_UPNP
+/*
+ **** The following functions are used to open ports in UPnP router and will query the IP address ****
+ **** So it will become much easier to set up network games at home.
+ */
+
+extern "C" {
+#include <miniupnpc.h>
+#include <upnpcommands.h>
+}
+
+#if MINIUPNPC_API_VERSION < 14
+#define upnpDiscover(a,b,c,d,e,f,g) upnpDiscover(a,b,c,d,e,g)
+#define UPNP_LOCAL_PORT_ANY 0
+#endif
+
+
+bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, int port )
+{
+	char lanaddr[64] = "unset";	/* my ip address on the LAN */
+	int error = 0;
+	const char *rootdescurl = 0;
+	const char *multicastif = 0;
+	const char *minissdpdpath = 0;
+	int localport = UPNP_LOCAL_PORT_ANY;
+	int ipv6 = 0; // probably not needed for IPv6 ever ...
+	unsigned char ttl = 2; (void)ttl; /* defaulting to 2 */
+	struct UPNPDev *devlist = 0;
+	bool has_IP = false;
+
+	if(  (devlist = upnpDiscover( 2000, multicastif, minissdpdpath, localport, ipv6, ttl, &error ))  ) {
+		struct UPNPUrls urls;
+		struct IGDdatas data;
+
+		UPNP_GetValidIGD( devlist, &urls, &data, lanaddr, sizeof(lanaddr) );
+		// we must know our IP address first
+		if(  UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress) ==  UPNPCOMMAND_SUCCESS  ) {
+			// this is our ID (at least the routes tells us this)
+			char eport[19];
+			char *iport = eport;
+			sprintf( eport, "%d", port );
+			// setting up tcp redirect forever (last parameter "0")
+			if(  UPNP_AddPortMapping(urls.controlURL, data.first.servicetype, eport, iport, lanaddr, "simutrans", "TCP", 0, "0")  ==  UPNPCOMMAND_SUCCESS  ) {
+				// ok, we have our ID and redirected a port to us
+				has_IP = true;
+			}
+			else {
+				dbg->warning( "prepare_for_server()", "Could not redirect port (but may be still ok" );
+				has_IP = true;
+			}
+		}
+		FreeUPNPUrls(&urls);
+	}
+	freeUPNPDevlist(devlist);
+
+	externalAltIPAddress[0] = 0;
+#if 1
+	// use the same routine as later the announce routine, otherwise update with dynamic IP fails
+	cbuffer_t myIPaddr, altIPaddr;
+	if(  get_external_IP( myIPaddr, altIPaddr )  ) {
+		has_IP = true;
+		strcpy( externalIPAddress, myIPaddr );
+		if(  altIPaddr.len()  ) {
+			strcpy( externalAltIPAddress, altIPaddr );
+		}
+	}
+#else
+	// now we have (or have not) the IPv4 at this point (due to the protocol), we check for IP6 too or try to get at least an IP addr
+	cbuffer_t myIPaddr;
+	// lets get IP by query "simutrans-forum.de/get_IP.php" for IP and assume that the redirection is working
+	const char *err = network_http_get( "simutrans-forum.de:80", "/get_IP.php", myIPaddr );
+	if(  !err  ) {
+		if(  has_IP  ) {
+			if(  strcmp(externalIPAddress, myIPaddr.get_str())!=0  ) {
+				strcpy( externalAltIPAddress, myIPaddr.get_str() );
+			}
+		}
+		else {
+			strcpy( externalIPAddress, myIPaddr.get_str() );
+			has_IP = true;
+		}
+	}
+
+	// we have an external IP, let's find if we have a DNS name for it
+	if (!network_initialize()) {
+		return has_IP;
+	}
+
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family      = AF_INET;
+	sin.sin_addr.s_addr = inet_addr(externalIPAddress);
+	sin.sin_port        = 0; // If 0, port is chosen by system
+	char hostname[1024];
+	hostname[0] = 0;
+
+	int failed = getnameinfo((const sockaddr *)&sin, sizeof(sin), hostname, lengthof(hostname), NULL, 0, 0);
+	if(  !failed  &&  *hostname  ) {
+		strcpy( externalIPAddress, hostname );
+	}
+#endif
+	return has_IP;
+}
+
+
+// removes the redirect (or do nothing)
+void remove_port_forwarding( int port )
+{
+	if(  port <= 0  ) {
+		return;
+	}
+
+	char lanaddr[64] = "unset";	/* my ip address on the LAN */
+	char externalIPAddress[64];
+	int error = 0;
+	const char *rootdescurl = 0;
+	const char *multicastif = 0;
+	const char *minissdpdpath = 0;
+	int localport = UPNP_LOCAL_PORT_ANY;
+	int ipv6 = 0; // probably not needed for IPv6 ever ...
+	unsigned char ttl = 2; (void)ttl; /* defaulting to 2 */
+	struct UPNPDev *devlist = 0;
+	bool has_IP = false;
+
+	if(  (devlist = upnpDiscover( 2000, multicastif, minissdpdpath, localport, ipv6, ttl, &error ))  ) {
+		struct UPNPUrls urls;
+		struct IGDdatas data;
+
+		UPNP_GetValidIGD( devlist, &urls, &data, lanaddr, sizeof(lanaddr) );
+		// we must know our IP address first
+		if(  UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress) ==  UPNPCOMMAND_SUCCESS  ) {
+			// this is our ID (at least the routes tells us this)
+			char eport[19];
+			char *iport = eport;
+			sprintf( eport, "%d", port );
+			// setting up tcp redirect forever (last parameter "0")
+			UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, eport, "TCP", NULL);
+		}
+		FreeUPNPUrls(&urls);
+	}
+	freeUPNPDevlist(devlist);
+}
+#else
+// or we just get only our IP and hope we are not behind a router ...
+
+bool prepare_for_server(char *externalIPAddress, char *, int)
+{
+	cbuffer_t myIPaddr;
+	// lets get IP by query "simutrans-forum.de/get_IP.php" for IP and assume that the redirection is working
+	const char *err = network_http_get( "simutrans-forum.de:80", "/get_IP.php", myIPaddr );
+	if(  !err  ) {
+		strcpy( externalIPAddress, myIPaddr.get_str() );
+		return true;
+	}
+	return false;
+}
+
+void remove_port_forwarding( int )
+{
+}
+#endif
+#endif // not NETTOOL

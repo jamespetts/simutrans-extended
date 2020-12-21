@@ -3,20 +3,18 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __BAUM_BESCH_H
-#define __BAUM_BESCH_H
+#ifndef DESCRIPTOR_TREE_DESC_H
+#define DESCRIPTOR_TREE_DESC_H
+
 
 #include "../simtypes.h"
 #include "obj_base_desc.h"
 #include "image_array.h"
 
 #include "../network/checksum.h"
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Tree type description in Simutrans
+
+/**
+ * Tree type description in Simutrans
  *
  *  Child nodes:
  *	0   Name
@@ -53,7 +51,7 @@ public:
 	}
 
 	// old style trees and new style tree support ...
-	int get_seasons() const
+	uint8 get_seasons() const
 	{
 		if(number_of_seasons==0) {
 			return get_child<image_array_t>(2)->get_count() / 5;

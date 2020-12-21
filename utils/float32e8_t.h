@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef FLOAT32E8_T_H_
-#define FLOAT32E8_T_H_
+#ifndef UTILS_FLOAT32E8_T_H
+#define UTILS_FLOAT32E8_T_H
+
 
 #include <iostream>
 using namespace std;
@@ -91,7 +92,6 @@ public:
 
 	inline float32e8_t() : m(0L), e(0), ms(false) {};
 
-	inline float32e8_t(const float32e8_t &value) { m = value.m; e = value.e; ms = value.ms; }
 	inline float32e8_t(const uint32 mantissa, const sint16 exponent, const bool negative_man) { m = mantissa; e = exponent; ms = negative_man; }
 	inline void set_value(const float32e8_t &value) { m = value.m; e = value.e; ms = value.ms; }
 	inline bool is_zero() const { return m == 0L; }

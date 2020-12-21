@@ -30,9 +30,9 @@ line_cost_t convoi_to_line_catgory_[convoi_t::MAX_CONVOI_COST] =
 	LINE_OPERATIONS,
 	LINE_PROFIT,
 	LINE_DISTANCE,
-	LINE_REFUNDS
+	LINE_REFUNDS,
 //	LINE_MAXSPEED,
-//	LINE_WAYTOLL
+	LINE_WAYTOLL
 };
 
 line_cost_t simline_t::convoi_to_line_catgory(convoi_t::convoi_cost_t cnv_cost)
@@ -41,6 +41,17 @@ line_cost_t simline_t::convoi_to_line_catgory(convoi_t::convoi_cost_t cnv_cost)
 	return convoi_to_line_catgory_[cnv_cost];
 }
 
+const uint simline_t::linetype_to_stationtype[simline_t::MAX_LINE_TYPE] = {
+	haltestelle_t::invalid,
+	haltestelle_t::busstop,
+	haltestelle_t::railstation,
+	haltestelle_t::dock,
+	haltestelle_t::airstop,
+	haltestelle_t::monorailstop,
+	haltestelle_t::tramstop,
+	haltestelle_t::maglevstop,
+	haltestelle_t::narrowgaugestop
+};
 
 karte_ptr_t simline_t::welt;
 
@@ -57,7 +68,7 @@ simline_t::simline_t(player_t* player, linetype type)
 	this->schedule = NULL;
 	this->player = player;
 	withdraw = false;
-	state_color = COL_WHITE;
+	state_color = SYSCOL_TEXT;
 
 	for(uint8 i = 0; i < MAX_LINE_COST; i ++)
 	{
@@ -107,7 +118,7 @@ simline_t::~simline_t()
 	DBG_MESSAGE("simline_t::~simline_t()", "line %d (%p) destroyed", self.get_id(), this);
 }
 
-simline_t::linetype simline_t::get_linetype(const waytype_t wt)
+simline_t::linetype simline_t::waytype_to_linetype(const waytype_t wt)
 {
 	switch (wt) {
 		case road_wt: return simline_t::truckline;
@@ -121,6 +132,20 @@ simline_t::linetype simline_t::get_linetype(const waytype_t wt)
 		default: return simline_t::MAX_LINE_TYPE;
 	}
 }
+
+
+const char *simline_t::get_linetype_name(const simline_t::linetype lt)
+{
+	return translator::translate( schedule_type_text[lt] );
+}
+
+
+waytype_t simline_t::linetype_to_waytype(const linetype lt)
+{
+	static const waytype_t wt2lt[MAX_LINE_TYPE] = { invalid_wt, road_wt, track_wt, water_wt, air_wt, monorail_wt, tram_wt, maglev_wt, narrowgauge_wt };
+	return wt2lt[lt];
+}
+
 
 void simline_t::create_schedule()
 {
@@ -243,14 +268,14 @@ void simline_t::rdwr_linehandle_t(loadsave_t *file, linehandle_t &line)
 {
 	uint16 id;
 	if (file->is_saving()) {
-		id = line.is_bound() ? line.get_id(): (file->get_version() < 110000  ? INVALID_LINE_ID_OLD : INVALID_LINE_ID);
+		id = line.is_bound() ? line.get_id(): (file->get_version_int() < 110000  ? INVALID_LINE_ID_OLD : INVALID_LINE_ID);
 	}
 	else {
 		// to avoid undefined errors during loading
 		id = 0;
 	}
 
-	if(file->get_version()<88003) {
+	if(file->get_version_int()<88003) {
 		sint32 dummy=id;
 		file->rdwr_long(dummy);
 		id = (uint16)dummy;
@@ -281,7 +306,7 @@ void simline_t::rdwr(loadsave_t *file)
 	schedule->rdwr(file);
 
 	//financial history
-	if(file->get_version() <= 102002 || (file->get_version() < 103000 && file->get_extended_version() < 7))
+	if(file->get_version_int() <= 102002 || (file->get_version_int() < 103000 && file->get_extended_version() < 7))
 	{
 		for (int j = 0; j<LINE_DISTANCE; j++)
 		{
@@ -332,18 +357,26 @@ void simline_t::rdwr(loadsave_t *file)
 					}
 					continue;
 				}
-				else if(j == 7 && file->get_version() >= 111001 && file->get_extended_version() == 0)
+				else if(j == 7 && file->get_version_int() >= 111001 && file->get_extended_version() == 0)
 				{
 					// In Standard, this is LINE_MAXSPEED.
 					sint64 dummy = 0;
 					file->rdwr_longlong(dummy);
+				}
+				else if (j == LINE_WAYTOLL && (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 25)))
+				{
+					if (file->is_loading())
+					{
+						financial_history[k][j] = 0;
+						continue;
+					}
 				}
 				file->rdwr_longlong(financial_history[k][j]);
 			}
 		}
 	}
 
-	if(file->get_version()>=102002) {
+	if(file->get_version_int()>=102002) {
 		file->rdwr_bool(withdraw);
 	}
 
@@ -358,18 +391,23 @@ void simline_t::rdwr(loadsave_t *file)
 	if(file->get_extended_version() >= 2)
 	{
 #ifdef SPECIAL_RESCUE_12_2
-		const uint8 counter = file->get_version() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 || file->is_loading() ? LINE_REFUNDS + 1 : MAX_LINE_COST;
+		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 || file->is_loading() ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
 #else
-		const uint8 counter = file->get_version() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : MAX_LINE_COST;
+		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
 #endif
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
 			file->rdwr_short(rolling_average_count[i]);
 		}
+		if (file->get_extended_version() > 14 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 25))
+		{
+			file->rdwr_long(rolling_average[LINE_WAYTOLL]);
+			file->rdwr_short(rolling_average_count[LINE_WAYTOLL]);
+		}
 	}
 
-	if(file->get_extended_version() >= 9 && file->get_version() >= 110006)
+	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
 	{
 		file->rdwr_short(livery_scheme_index);
 	}
@@ -464,7 +502,7 @@ void simline_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
-	if(file->get_version() >= 111002 && file->get_extended_version() >= 10 && file->get_extended_version() < 12)
+	if(file->get_version_int() >= 111002 && file->get_extended_version() >= 10 && file->get_extended_version() < 12)
 	{
 		bool dummy_is_alternating_circle_route = false; // Deprecated.
 		file->rdwr_bool(dummy_is_alternating_circle_route);
@@ -654,66 +692,14 @@ void simline_t::recalc_status()
 	state_color = SYSCOL_TEXT;
 	state = line_normal_state;
 
-	if(financial_history[0][LINE_CONVOIS]==0)
+	// Now can have multiple flags, so higher priority will be processed later for text color.
+	// Note that if the pakset has no symbols, it depends on the text color.
+	if (welt->use_timeline())
 	{
-		// no convoys assigned to this line
-		state_color = SYSCOL_TEXT_HIGHLIGHT;
-		state = line_no_convoys;
-		withdraw = false;
-	}
-	else if(financial_history[0][LINE_PROFIT]<0)
-	{
-		// Loss-making
-		state_color = COL_RED;
-		state = line_loss_making;
-	}
-	else if((financial_history[0][LINE_OPERATIONS]|financial_history[1][LINE_OPERATIONS])==0)
-	{
-		// nothing moved
-		state_color = COL_YELLOW;
-		state = line_nothing_moved;
-	}
-	else if(has_overcrowded())
-	{
-		// Overcrowded
-		state_color = COL_DARK_PURPLE;
-		state = line_overcrowded;
-	}
-	else if(financial_history[1][LINE_DEPARTURES] < financial_history[1][LINE_DEPARTURES_SCHEDULED])
-	{
-		// Is missing scheduled slots.
-		state_color = COL_DARK_TURQUOISE;
-		state = line_missing_scheduled_slots;
-	}
-
-
-	//else if (welt->use_timeline())
-	//{
-	//	// Has obsolete vehicles.
-	//	bool has_obsolete = false;
-	//	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
-	//		has_obsolete = i->has_obsolete_vehicles();
-	//		if (has_obsolete) break;
-	//	}
-	//	// now we have to set it
-	//	state_color = has_obsolete ? COL_OBSOLETE : COL_BLACK;
-	//}
-
-	else if(welt->use_timeline())
-	{
-		// Has obsolete vehicles.
-		// Has obsolete vehicles that can upgrade.
-		bool has_obsolete = false;
-		bool has_obsolete_that_can_upgrade = false;
 		const uint16 month_now = welt->get_timeline_year_month();
 
 		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
 		{
-			if (i->has_obsolete_vehicles())
-			{
-				has_obsolete = true;
-			}
-
 			for (uint16 j = 0; j < i->get_vehicle_count(); j++)
 			{
 				vehicle_t *v = i->get_vehicle(j);
@@ -721,26 +707,54 @@ void simline_t::recalc_status()
 				{
 					for (int k = 0; k < v->get_desc()->get_upgrades_count(); k++)
 					{
-						if (v->get_desc()->get_upgrades(k) && !v->get_desc()->get_upgrades(k)->is_future(month_now) && (!v->get_desc()->get_upgrades(k)->is_retired(month_now)))
+						if (v->get_desc()->get_upgrades(k) && !v->get_desc()->get_upgrades(k)->is_future(month_now))
 						{
-							has_obsolete_that_can_upgrade = true;
+							state |= line_has_upgradeable_vehicles;
+							state_color = COL_UPGRADEABLE;
 						}
 					}
 				}
 			}
 
+			if (i->has_obsolete_vehicles())
+			{
+				state |= line_has_obsolete_vehicles;
+				// obsolete has priority over upgradeable (only for color)
+				state_color = COL_OBSOLETE;
+			}
 		}
-		// now we have to set it
-		if (has_obsolete_that_can_upgrade)
-		{
-			state_color = COL_UPGRADEABLE;
-			state = line_has_obsolete_vehicles_with_upgrades;
-		}
-		else if (has_obsolete)
-		{
-			state_color = COL_OBSOLETE;
-			state = line_has_obsolete_vehicles;
-		}
+	}
+
+	if (financial_history[1][LINE_DEPARTURES] < financial_history[1][LINE_DEPARTURES_SCHEDULED])
+	{
+		// Is missing scheduled slots.
+		state_color = color_idx_to_rgb(COL_DARK_TURQUOISE);
+		state |= line_missing_scheduled_slots;
+	}
+	if (has_overcrowded())
+	{
+		// Overcrowded
+		state_color = color_idx_to_rgb(COL_DARK_PURPLE);
+		state |= line_overcrowded;
+	}
+	if((financial_history[0][LINE_DISTANCE]|financial_history[1][LINE_DISTANCE]|financial_history[2][LINE_DISTANCE]) ==0)
+	{
+		// nothing moved
+		state_color = SYSCOL_TEXT_UNUSED;
+		state |= line_nothing_moved;
+	}
+	if(financial_history[0][LINE_CONVOIS]==0)
+	{
+		// no convoys assigned to this line
+		state_color = SYSCOL_EMPTY;
+		state |= line_no_convoys;
+		withdraw = false;
+	}
+	if(financial_history[0][LINE_PROFIT]<0 && financial_history[1][LINE_PROFIT]<0)
+	{
+		// Loss-making
+		state_color = MONEY_MINUS;
+		state |= line_loss_making;
 	}
 }
 
@@ -1016,7 +1030,7 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 		case LINE_REVENUE:
 		case LINE_OPERATIONS:
 		case LINE_PROFIT:
-		// case LINE_WAYTOLL:
+		case LINE_WAYTOLL:
 			value = convert_money(value);
 			break;
 		default: ;

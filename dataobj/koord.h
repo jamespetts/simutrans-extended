@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef KOORD_H
-#define KOORD_H
+#ifndef DATAOBJ_KOORD_H
+#define DATAOBJ_KOORD_H
+
 
 #include "ribi.h"
 #include "../simtypes.h"
@@ -24,7 +25,7 @@ public:
 
 	koord() : x(0), y(0) {}
 
-	koord(short xp, short yp) : x(xp), y(yp) {}
+	koord(sint16 xp, sint16 yp) : x(xp), y(yp) {}
 	koord(loadsave_t* file);
 	koord(ribi_t::ribi ribi) { *this = from_ribi[ribi]; }
 	koord(slope_t::type hang)  { *this = from_hang[hang]; }
@@ -126,7 +127,7 @@ private:
 //}
 
 
-// Knightly : shortest distance in cardinal (N, E, S, W) and ordinal (NE, SE, SW, NW) directions
+// shortest distance in cardinal (N, E, S, W) and ordinal (NE, SE, SW, NW) directions
 static inline uint32 shortest_distance(const koord &a, const koord &b)
 {
 	const uint32 x_offset = abs(a.x - b.x);
@@ -146,8 +147,8 @@ static inline uint32 koord_distance(const koord &a, const koord &b)
 	return abs(a.x - b.x) + abs(a.y - b.y);
 }
 
-// Knightly : multiply the value by the distance weight
-static inline uint32 weight_by_distance(const uint32 value, const uint32 distance)
+// multiply the value by the distance weight
+static inline uint32 weight_by_distance(const sint32 value, const uint32 distance)
 {
 	return (uint32)( ((sint64)value << 10) / (sint64)(distance < 4u ? 4u : distance) );
 }

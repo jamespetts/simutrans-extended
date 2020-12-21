@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef dataobj_settings_h
-#define dataobj_settings_h
+#ifndef DATAOBJ_SETTINGS_H
+#define DATAOBJ_SETTINGS_H
+
 
 #include <string>
 #include "../simtypes.h"
@@ -12,14 +13,8 @@
 #include "../simunits.h"
 #include "livery_scheme.h"
 #include "../tpl/piecewise_linear_tpl.h" // for various revenue tables
+#include "../dataobj/koord.h"
 
-/**
- * Game settings
- *
- * Hj. Malthaner
- *
- * April 2000
- */
 
 class player_t;
 class loadsave_t;
@@ -32,7 +27,12 @@ struct road_timeline_t
 	uint16 intro;
 	uint16 retire;
 };
-
+struct region_definition_t
+{
+	std::string name;
+	koord top_left = koord::invalid;
+	koord bottom_right = koord::invalid;
+};
 
 template <class T>
 class vector_with_ptr_ownership_tpl : public vector_tpl<T*>
@@ -63,6 +63,9 @@ public:
 	}
 };
 
+/**
+ * Game settings
+ */
 class settings_t
 {
 	// these are the only classes, that are allowed to modify elements from settings_t
@@ -97,14 +100,13 @@ private:
 	sint32 map_number;
 
 	/* new setting since version 0.85.01
-	 * @author prissi
 	 */
 	sint32 factory_count;
 	sint32 electric_promille;
 	sint32 tourist_attractions;
 
 	sint32 city_count;
-	sint32 mean_einwohnerzahl;
+	sint32 mean_citizen_count;
 
 	// town growth factors
 	sint32 passenger_multiplier;
@@ -121,10 +123,10 @@ private:
 	uint32 industry_increase;
 	uint32 city_isolation_factor;
 
-	// Knightly : number of periods for averaging the amount of arrived pax/mail at factories
+	// number of periods for averaging the amount of arrived pax/mail at factories
 	uint16 factory_arrival_periods;
 
-	// Knightly : whether factory pax/mail demands are enforced
+	// whether factory pax/mail demands are enforced
 	bool factory_enforce_demand;
 
 	uint16 station_coverage_size;
@@ -141,6 +143,12 @@ private:
 	 */
 	sint32 show_pax;
 
+	/**
+	 * the maximum and minimum allowed world height.
+	 */
+	sint8 world_maximum_height;
+	sint8 world_minimum_height;
+
 	 /**
 	 * waterlevel, climate borders, lowest snow in winter
 	 */
@@ -149,8 +157,8 @@ private:
 	sint16 climate_borders[MAX_CLIMATES];
 	sint16 winter_snowline;
 
-	double max_mountain_height;                  //01-Dec-01        Markus Weber    Added
-	double map_roughness;                        //01-Dec-01        Markus Weber    Added
+	double max_mountain_height;
+	double map_roughness;
 
 	// river stuff
 	sint16 river_number;
@@ -195,16 +203,14 @@ private:
 	/*no goods will put in route, when stored>gemax_storage and goods_in_transit*maximum_intransit_percentage/100>max_storage  */
 	uint16 factory_maximum_intransit_percentage;
 
-	/* prissi: crossconnect all factories (like OTTD and similar games) */
+	/* crossconnect all factories (like OTTD and similar games) */
 	bool crossconnect_factories;
 
-	/* prissi: crossconnect all factories (like OTTD and similar games) */
+	/* crossconnect all factories (like OTTD and similar games) */
 	sint16 crossconnect_factor;
 
 	/**
 	* Generate random pedestrians in the cities?
-	*
-	* @author Hj. Malthaner
 	*/
 	bool random_pedestrians;
 
@@ -230,12 +236,10 @@ private:
 
 	/**
 	 * Use numbering for stations?
-	 *
-	 * @author Hj. Malthaner
 	 */
 	bool numbered_stations;
 
-	/* prissi: maximum number of steps for breath search */
+	/* maximum number of steps for breath search */
 	sint32 max_route_steps;
 
 	// maximum length for route search at signs/signals
@@ -244,7 +248,7 @@ private:
 	// max steps for good routing
 	sint32 max_hops;
 
-	/* prissi: maximum number of steps for breath search */
+	/* maximum number of steps for breath search */
 	sint32 max_transfers;
 
 	/**
@@ -260,7 +264,19 @@ private:
 	// true, if the different capacities (passengers/mail/freight) are counted separately
 	bool separate_halt_capacities;
 
+	/// The set of livery schemes
 	vector_with_ptr_ownership_tpl<class livery_scheme_t> livery_schemes;
+
+	/// This is automatically set if the simuconf.tab region specifications are in absolute
+	/// rather than percentage terms. Stops regions from being modified when the map is resized
+	/// or a new map generated. Does not affect saved games.
+	bool absolute_regions = false;
+
+public:
+	/// The set of all regions
+	vector_tpl<region_definition_t> regions;
+
+private:
 
 	// Whether passengers might walk between stops en route.
 	// @author: jamespetts, August 2011
@@ -333,6 +349,23 @@ private:
 	* unresponsiveness be noticed frequently.
 	*/
 	uint32 max_route_tiles_to_process_in_a_step = 1024;
+
+	/**
+	* This modifies the base journey time tolerance for passenger
+	* trips to allow more fine grained control of the journey time
+	* tolernace algorithm. If this be set to zero, then the per
+	* building adjustment of journey time tolerance will be disabled.
+	* This only affects visiting passengers.
+	*/
+	uint32 tolerance_modifier_percentage = 100;
+
+	/**
+	* Setting this allows overriding of the calculated industry density
+	* proportion to (1) allow players the ability to control industry growth
+	* after map editing; and (2) correct errors/balance issues in server games.
+	* Setting this to 0, its default setting, will mean that it has no effect.
+	*/
+	uint32 industry_density_proportion_override = 0;
 
 public:
 	//Cornering settings
@@ -434,16 +467,16 @@ public:
 	// The base comfort revenue table (comfort - tolerable comfort to percentage)
 	piecewise_linear_tpl<sint16, sint16, sint32> base_comfort_revenue;
 	// The comfort derating table (tenths of minutes to percentage)
-	piecewise_linear_tpl<uint16, uint8> comfort_derating;
+	piecewise_linear_tpl<uint16, uint8, uint32> comfort_derating;
 
 	// @author: neroden
 	// Tables 0 through 5 for catering revenue.
 	// One for each level -- so there are 6 of them total.
 	// Dontcha hate C array declaration style?
-	piecewise_linear_tpl<uint16, sint64> catering_revenues[6];
+	piecewise_linear_tpl<uint16, sint64, uint32> catering_revenues[6];
 
 	// Single table for TPO revenues.
-	piecewise_linear_tpl<uint16, sint64> tpo_revenues;
+	piecewise_linear_tpl<uint16, sint64, uint32> tpo_revenues;
 
 
 	//@author: jamespetts
@@ -479,7 +512,7 @@ public:
 	//@author: jamespetts
 	// Insolvency and debt settings
 	uint8 interest_rate_percent;
-	bool allow_bankruptcy;
+	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
 	// Reversing settings
@@ -530,7 +563,7 @@ public:
 
 private:
 	/// what is the minimum clearance required under bridges
-	sint8 way_height_clearance;
+	uint8 way_height_clearance;
 
 	// 1 = allow purchase of all out of production vehicles, including obsolete vehicles 2 = allow purchase of out of produciton vehicles that are not obsolete only
 	uint8 allow_buying_obsolete_vehicles;
@@ -695,8 +728,11 @@ public:
 
 	uint32 assumed_curve_radius_45_degrees;
 
-	sint32 max_speed_drive_by_sight_kmh;
-	sint32 max_speed_drive_by_sight;
+	sint32 max_speed_drive_by_sight_kmh = 9999;
+	sint32 max_speed_drive_by_sight = SINT32_MAX_VALUE;
+
+	sint32 max_speed_drive_by_sight_tram_kmh = 9999;
+	sint32 max_speed_drive_by_sight_tram = SINT32_MAX_VALUE;
 
 	uint32 time_interval_seconds_to_clear;
 	uint32 time_interval_seconds_to_caution;
@@ -721,7 +757,6 @@ public:
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
 	 * Set to empty string in order to avoid loading.
-	 * @author Hj. Malthaner
 	 */
 	std::string heightfield;
 
@@ -735,14 +770,19 @@ public:
 
 	void copy_city_road(settings_t const& other);
 
-	// init form this file ...
+	// init from this file ...
 	void parse_simuconf( tabfile_t &simuconf, sint16 &disp_width, sint16 &disp_height, sint16 &fullscreen, std::string &objfilename );
 
-	void set_size_x(sint32 g) {size_x=g;}
-	void set_size_y(sint32 g) {size_y=g;}
-	void set_groesse(sint32 x, sint32 y) {size_x = x; size_y=y;}
+	void parse_colours(tabfile_t& simuconf);
+
+	void set_size_x(sint32 g);
+	void set_size_y(sint32 g);
+	void set_size(sint32 x, sint32 y, bool preserve_regions = false);
 	sint32 get_size_x() const {return size_x;}
 	sint32 get_size_y() const {return size_y;}
+
+	void reset_regions(sint32 old_x, sint32 old_y);
+	void rotate_regions(sint16 y_size);
 
 	sint32 get_map_number() const {return map_number;}
 
@@ -757,14 +797,17 @@ public:
 	void set_city_count(sint32 n) {city_count=n;}
 	sint32 get_city_count() const {return city_count;}
 
-	void set_mean_einwohnerzahl( sint32 n ) {mean_einwohnerzahl = n;}
-	sint32 get_mean_einwohnerzahl() const {return mean_einwohnerzahl;} // Median town size
+	void set_mean_citizen_count( sint32 n ) {mean_citizen_count = n;}
+	sint32 get_mean_citizen_count() const {return mean_citizen_count;} // Median town size
 
 	void set_traffic_level(sint32 l) {traffic_level=l;}
 	sint32 get_traffic_level() const {return traffic_level;}
 
 	void set_show_pax(bool yesno) {show_pax=yesno;}
 	bool get_show_pax() const {return show_pax != 0;}
+
+	sint8 get_maximumheight() const { return world_maximum_height; }
+	sint8 get_minimumheight() const { return world_minimum_height; }
 
 	sint16 get_groundwater() const {return groundwater;}
 
@@ -776,10 +819,10 @@ public:
 
 	uint16 get_station_coverage_factories() const {return station_coverage_size_factories;}
 
-	void set_allow_player_change(char n) {allow_player_change=n;}	// prissi, Oct-2005
+	void set_allow_player_change(char n) {allow_player_change=n;}
 	uint8 get_allow_player_change() const {return allow_player_change;}
 
-	void set_use_timeline(char n) {use_timeline=n;}	// prissi, Oct-2005
+	void set_use_timeline(char n) {use_timeline=n;}
 	uint8 get_use_timeline() const {return use_timeline;}
 
 	void set_starting_year( sint16 n ) { starting_year = n; }
@@ -790,7 +833,7 @@ public:
 
 	sint16 get_bits_per_month() const {return bits_per_month;}
 
-	void set_filename(const char *n) {filename=n;}	// prissi, Jun-06
+	void set_filename(const char *n) {filename=n;}
 	const char* get_filename() const { return filename.c_str(); }
 
 	bool get_beginner_mode() const {return beginner_mode;}
@@ -803,9 +846,11 @@ public:
 
 	sint16 get_winter_snowline() const {return winter_snowline;}
 
-	void rotate90() {
+	void rotate90()
+	{
 		rotation = (rotation+1)&3;
-		set_groesse( size_y, size_x );
+		set_size( size_y, size_x, true);
+		rotate_regions(size_y);
 	}
 	uint8 get_rotation() const { return rotation; }
 
@@ -942,16 +987,16 @@ public:
 	uint8 get_congestion_density_factor () const { return congestion_density_factor; }
 	void set_congestion_density_factor (uint8 value)  { congestion_density_factor = value; }
 
-	uint8 get_curve_friction_factor (waytype_t waytype) const { return curve_friction_factor[waytype]; }
+	uint8 get_curve_friction_factor (waytype_t waytype) const { assert((int)waytype < 10); return curve_friction_factor[waytype]; }
 
-	sint32 get_corner_force_divider(waytype_t waytype) const { return corner_force_divider[waytype]; }
+	sint32 get_corner_force_divider(waytype_t waytype) const { assert((int)waytype < 10); return corner_force_divider[waytype]; }
 
 	sint32 get_tilting_min_radius_effect() const { return tilting_min_radius_effect; }
 
 	uint16 get_factory_max_years_obsolete() const { return factory_max_years_obsolete; }
 
 	uint8 get_interest_rate_percent() const { return interest_rate_percent; }
-	bool bankruptcy_allowed() const { return allow_bankruptcy; }
+	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
 
 	uint32 get_unit_reverse_time() const { return unit_reverse_time; }
@@ -976,7 +1021,11 @@ public:
 	void set_allow_airports_without_control_towers(bool value) { allow_airports_without_control_towers = value; }
 
 	// allowed modes are 0,1,2
-	enum { TO_PREVIOUS=0, TO_TRANSFER, TO_DESTINATION };
+	enum {
+		TO_PREVIOUS = 0,
+		TO_TRANSFER,
+		TO_DESTINATION
+	};
 
 
 	bool is_avoid_overcrowding() const { return avoid_overcrowding; }
@@ -1014,10 +1063,11 @@ public:
 	sint32 get_growthfactor_medium() const { return growthfactor_medium; }
 	sint32 get_growthfactor_large() const { return growthfactor_large; }
 
-	// Knightly : number of periods for averaging the amount of arrived pax/mail at factories
+
+	// number of periods for averaging the amount of arrived pax/mail at factories
 	uint16 get_factory_arrival_periods() const { return factory_arrival_periods; }
 
-	// Knightly : whether factory pax/mail demands are enforced
+	// whether factory pax/mail demands are enforced
 	bool get_factory_enforce_demand() const { return factory_enforce_demand; }
 
 	uint16 get_factory_maximum_intransit_percentage() const { return factory_maximum_intransit_percentage; }
@@ -1045,7 +1095,8 @@ public:
 
 	sint16 get_used_vehicle_reduction() const { return used_vehicle_reduction; }
 
-	void set_default_player_color( player_t *player ) const;
+	void set_player_color_to_default( player_t *player ) const;
+	void set_default_player_color(uint8 player_nr, uint8 color1, uint8 color2);
 
 	// usually only used in network mode => no need to set them!
 	uint32 get_random_counter() const { return random_counter; }
@@ -1114,6 +1165,10 @@ public:
 	uint32 get_random_mode_commuting() const { return random_mode_commuting; }
 	uint32 get_random_mode_visiting() const { return random_mode_visiting; }
 
+	uint32 get_tolerance_modifier_percentage() const { return tolerance_modifier_percentage; }
+
+	uint32 get_industry_density_proportion_override() const { return industry_density_proportion_override; }
+
 #ifndef NETTOOL
 	float32e8_t get_simtime_factor() const { return simtime_factor; }
 	float32e8_t meters_to_steps(const float32e8_t &meters) const { return steps_per_meter * meters; }
@@ -1171,8 +1226,8 @@ public:
 
 	uint32 get_max_diversion_tiles() const { return max_diversion_tiles; }
 
-	sint8 get_way_height_clearance() const { return way_height_clearance; }
-	void set_way_height_clearance( sint8 n ) { way_height_clearance = n; }
+	uint8 get_way_height_clearance() const { return way_height_clearance; }
+	void set_way_height_clearance( uint8 n ) { way_height_clearance = n; }
 
 	uint32 get_default_ai_construction_speed() const { return default_ai_construction_speed; }
 	void set_default_ai_construction_speed( uint32 n ) { default_ai_construction_speed = n; }
@@ -1191,6 +1246,8 @@ public:
 
 	sint32 get_max_speed_drive_by_sight_kmh() const { return max_speed_drive_by_sight_kmh; }
 	sint32 get_max_speed_drive_by_sight() const { return max_speed_drive_by_sight; }
+	sint32 get_max_speed_drive_by_sight_tram_kmh() const { return max_speed_drive_by_sight_tram_kmh; }
+	sint32 get_max_speed_drive_by_sight_tram() const { return max_speed_drive_by_sight_tram; }
 
 	uint32 get_time_interval_seconds_to_clear() const { return time_interval_seconds_to_clear; }
 	uint32 get_time_interval_seconds_to_caution() const { return time_interval_seconds_to_caution; }

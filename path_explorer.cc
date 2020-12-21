@@ -9,7 +9,7 @@
 #include "dataobj/translator.h"
 #include "bauer/goods_manager.h"
 #include "descriptor/goods_desc.h"
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "display/simgraph.h"
 #include "player/simplay.h"
 #include "dataobj/environment.h"
@@ -174,8 +174,6 @@ void path_explorer_t::rdwr(loadsave_t* file)
 	}
 
 	// Load/save the connexion_list, which is static
-	uint8 serving_transport;
-
 	uint32 connexion_list_size = 65536;
 	if (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 11))
 	{
@@ -594,6 +592,11 @@ path_explorer_t::compartment_t::~compartment_t()
 	if (outbound_connections)
 	{
 		delete outbound_connections;
+	}
+
+	if (class_name)
+	{
+		delete [] class_name;
 	}
 }
 
@@ -1282,7 +1285,7 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// swap the old connexion hash table with a new one
-				current_halt->swap_connexions(catg, g_class, max_classes, connexion_list[current_halt.get_id()].connexion_table);
+				current_halt->swap_connexions(catg, g_class, connexion_list[current_halt.get_id()].connexion_table);
 
 				// transfer the value of the serving transport counter
 				current_halt->set_schedule_count( catg, g_class, max_classes, connexion_list[ current_halt.get_id() ].serving_transport );
@@ -2031,7 +2034,7 @@ void path_explorer_t::compartment_t::set_class(uint8 value)
 	}
 	else
 	{
-		sprintf(class_name, "");
+		class_name[0] = '\0';
 	}
 }
 

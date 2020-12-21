@@ -22,7 +22,7 @@
 #include "../boden/wege/strasse.h"
 
 #include "../gui/tool_selector.h"
-#include "../gui/karte.h"
+#include "../gui/minimap.h"
 
 #include "../descriptor/bridge_desc.h"
 #include "../descriptor/building_desc.h"
@@ -50,13 +50,13 @@ static stringhashtable_tpl<bridge_desc_t *> desc_table;
 void bridge_builder_t::register_desc(bridge_desc_t *desc)
 {
 	// avoid duplicates with same name
-	if( const bridge_desc_t *old_desc = desc_table.get(desc->get_name()) ) {
-		dbg->warning( "bridge_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
-		desc_table.remove(desc->get_name());
+	if(  const bridge_desc_t *old_desc = desc_table.remove(desc->get_name())  ) {
+		dbg->doubled( "bridge", desc->get_name() );
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
 		delete old_desc;
 	}
+
 	// add the tool
 	tool_build_bridge_t *tool = new tool_build_bridge_t();
 	tool->set_icon( desc->get_cursor()->get_image_id(1) );
@@ -110,7 +110,6 @@ stringhashtable_tpl<bridge_desc_t *> * bridge_builder_t::get_all_bridges()
 
 /**
  * Find a matching bridge
- * @author Hj. Malthaner
  */
 const bridge_desc_t *bridge_builder_t::find_bridge(const waytype_t wtyp, const sint32 min_speed, const uint16 time, const uint16 max_weight)
 {
@@ -227,8 +226,8 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 				// else only the straight ones
 				ribi = gr->get_weg_ribi_unmasked(wt);
 			}
-			// same waytype, same direction, no stop or depot or any other stuff */
-			if(  gr->get_weg(wt)  &&  ribi_t::doubles(ribi) == ribi_t::doubles( check_ribi )  ) {
+			// same waytype, same direction, no stop or depot or any other stuff
+			if (gr->get_weg(wt) && ribi_check(ribi, check_ribi)) {
 				// ok too
 				return NULL;
 			}
@@ -237,10 +236,11 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 
 		if(  w->get_waytype() != wt  ) {
 			// now check for perpendicular and crossing
-			if(  (ribi_t::doubles(ribi) ^ ribi_t::doubles(check_ribi) ) == ribi_t::all  &&  crossing_logic_t::get_crossing(wt, w->get_waytype(), 0, 0, welt->get_timeline_year_month()  )  ) {
+			/*if(  (ribi_t::doubles(ribi) ^ ribi_t::doubles(check_ribi) ) == ribi_t::all  &&  crossing_logic_t::get_crossing(wt, w->get_waytype(), 0, 0, welt->get_timeline_year_month()  )  ) {
 				return NULL;
 			}
-			//return "A bridge must start on a way!";
+			return "A bridge must start on a way!";
+			}*/
 		}
 
 		// same waytype, any direction, no stop or depot or any other stuff */
@@ -297,14 +297,14 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 			const bool public_service = player ? player->is_public_service() : true;
 			const sint8 player_nr = player ? player->get_player_nr() : -1;
 			if (w
-				&& (w->get_max_speed() > 0
+				&& (w->get_max_speed() > 0 && w->get_max_axle_load() > 0
 
 				&& ((w->get_desc()->get_waytype() != road_wt
 					&& w->get_desc()->get_waytype() != tram_wt
 					&& w->get_desc()->get_waytype() != water_wt)
 
 					|| (w->get_player_nr() != player_nr && !public_service)
-					|| (w->is_public_right_of_way() && !public_service))))
+					|| (w->is_public_right_of_way() && !w->is_disused()))))
 			{
 				error_msg = "Bridge blocked by way below or above.";
 				return true;
@@ -786,7 +786,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 
 	DBG_MESSAGE("bridge_builder_t::build()", "build from %s", start.get_str());
 
-	grund_t *start_gr = welt->lookup( start );
+	grund_t* const start_gr = welt->lookup( start );
 	const slope_t::type slope = start_gr->get_weg_hang();
 
 	// get initial height of bridge from start tile
@@ -799,6 +799,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 		dbg->error("void bridge_builder_t::build_bridge()", "Cannot find the end of a bridge at %u,%u)", end.x, end.y);
 		return;
 	}
+
 	slope_t::type end_slope = end_gr->get_weg_hang();
 	sint8 end_slope_height = end.z;
 	if(  end_slope != slope_type(zv) && end_slope != slope_type(zv)*2  ) {
@@ -859,10 +860,12 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 				weg->set_max_speed(min(desc->get_topspeed(), way_desc->get_topspeed()));
 			}
 			const weg_t* old_way = start_gr ? start_gr->get_weg(way_desc->get_wtyp()) : NULL;
-			const wayobj_t* way_object = old_way ? way_object = start_gr->get_wayobj(desc->get_waytype()) : NULL;
+			const wayobj_t* way_object = old_way ? start_gr->get_wayobj(desc->get_waytype()) : NULL;
+
 			// Necessary to avoid the "default" way (which might have constraints) setting the constraints here.
 			weg->clear_way_constraints();
 			weg->add_way_constraints(desc->get_way_constraints());
+
 			if(old_way)
 			{
 				if(way_object)
@@ -885,17 +888,16 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 			weg->set_desc(way_desc);
 			if(  way_desc->get_waytype()==road_wt) {
 				strasse_t* str = (strasse_t*) weg;
-				str->set_overtaking_mode(overtaking_mode);
+				str->set_overtaking_mode(overtaking_mode, player);
 				if(  overtaking_mode<=oneway_mode  ) {
 					str->set_ribi_mask_oneway(ribi_t::reverse_single(ribi_type(zv)));
 				}
 			}
 			weg->set_bridge_weight_limit(desc->get_max_weight());
-			bruecke->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player);
+			player->book_construction_costs(player, -bruecke->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player) - weg->get_desc()->get_value(), weg->get_pos().get_2d(), weg->get_waytype());
 			const grund_t* gr = welt->lookup(weg->get_pos());
 			const slope_t::type hang = gr ? gr->get_weg_hang() :  slope_t::flat;
 			const weg_t* old_way = gr ? gr->get_weg(way_desc->get_wtyp()) : NULL;
-			const wayobj_t* way_object = old_way ? way_object = gr->get_wayobj(desc->get_waytype()) : NULL;
 
 			if(hang != slope_t::flat)
 			{
@@ -979,11 +981,10 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 				if(  weg->get_waytype()==road_wt  ) {
 					strasse_t* str = (strasse_t*) weg;
 					assert(str);
-					str->set_overtaking_mode(overtaking_mode);
+					str->set_overtaking_mode(overtaking_mode, player);
 				}
 				weg->set_bridge_weight_limit(desc->get_max_weight());
 				const weg_t* old_way = gr ? gr->get_weg(way_desc->get_wtyp()) : NULL;
-				const wayobj_t* way_object = old_way ? way_object = gr->get_wayobj(desc->get_waytype()) : NULL;
 				const slope_t::type hang = gr ? gr->get_weg_hang() :  slope_t::flat;
 				if(hang != slope_t::flat)
 				{
@@ -1055,6 +1056,15 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 					} else {
 						bauigel.calc_route( pos, to->get_pos() );
 					}
+					const grund_t* gr_to = welt->lookup(to->get_pos());
+					if (!gr_to)
+					{
+						break;
+					}
+					if (gr_to->hat_wege())
+					{
+						continue;
+					}
 					bauigel.set_overtaking_mode(overtaking_mode);
 					if (bauigel.get_count() == 2) {
 						bauigel.build();
@@ -1068,8 +1078,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 
 void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ribi_neu, slope_t::type weg_hang, const bridge_desc_t* desc, const way_desc_t *way_desc, overtaking_mode_t overtaking_mode, bool beginning)
 {
-	assert(weg_hang >= 0);
-	assert(weg_hang < 81);
+	assert(weg_hang <= slope_t::max_number);
 
 	grund_t *alter_boden = welt->lookup(end);
 	brueckenboden_t *bruecke;
@@ -1093,7 +1102,7 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 			weg = weg_t::alloc( desc->get_waytype() );
 			weg->set_desc(way_desc);
 			weg->set_bridge_weight_limit(desc->get_max_weight());
-			player_t::book_construction_costs(player, -bruecke->neuen_weg_bauen( weg, ribi_neu, player ), end.get_2d(), desc->get_waytype());
+			player_t::book_construction_costs(player, -bruecke->neuen_weg_bauen( weg, ribi_neu, player ) - weg->get_desc()->get_value(), end.get_2d(), desc->get_waytype());
 		}
 		const grund_t* gr = welt->lookup(weg->get_pos());
 		const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
@@ -1102,7 +1111,7 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 			const uint slope_height = (hang & 7) ? 1 : 2;
 			if(slope_height == 1)
 			{
-			weg->set_max_speed(min(desc->get_topspeed_gradient_1(), way_desc->get_topspeed_gradient_1()));
+				weg->set_max_speed(min(desc->get_topspeed_gradient_1(), way_desc->get_topspeed_gradient_1()));
 			}
 			else
 			{
@@ -1116,7 +1125,7 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 		if(  desc->get_waytype()==road_wt  ) {
 			strasse_t* str = (strasse_t*) weg;
 			assert(str);
-			str->set_overtaking_mode(overtaking_mode);
+			str->set_overtaking_mode(overtaking_mode, player);
 			if(  overtaking_mode<=oneway_mode  ) {
 				if(  beginning  ) {
 					str->set_ribi_mask_oneway(ribi_t::reverse_single(ribi_neu));
@@ -1172,7 +1181,7 @@ const char *bridge_builder_t::remove(player_t *player, koord3d pos_start, waytyp
 	do {
 		pos = tmp_list.remove_first();
 
-		// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
+		// weg_position_t changed to grund_t::get_neighbour()
 		grund_t *from = welt->lookup(pos);
 		grund_t *to;
 		koord zv = koord::invalid;
@@ -1202,7 +1211,6 @@ const char *bridge_builder_t::remove(player_t *player, koord3d pos_start, waytyp
 				ribi_t::ribi r = wegtyp==powerline_wt ? from->get_leitung()->get_ribi() : from->get_weg_nr(0)->get_ribi_unmasked();
 				ribi_t::ribi dir1 = r & ribi_t::northeast;
 				ribi_t::ribi dir2 = r & ribi_t::southwest;
-				bool dir1_ok = false, dir2_ok = false;
 
 				grund_t *to;
 				// test if we are at the end of a bridge:
@@ -1312,7 +1320,7 @@ const char *bridge_builder_t::remove(player_t *player, koord3d pos_start, waytyp
 			delete p;
 		}
 		// refresh map
-		reliefkarte_t::get_karte()->calc_map_pixel(pos.get_2d());
+		minimap_t::get_instance()->calc_map_pixel(pos.get_2d());
 	}
 
 	// finally delete the bridge ends (all are kartenboden)

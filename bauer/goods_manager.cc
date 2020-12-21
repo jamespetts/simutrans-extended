@@ -40,10 +40,7 @@ bool goods_manager_t::successfully_loaded()
 		return false;
 	}
 
-	/**
-	* Put special items in front:
-	* Volker Meyer
-	*/
+	// Put special items in front
 	goods.insert_at(0,load_none);
 	goods.insert_at(0,load_mail);
 	goods.insert_at(0,load_passengers);
@@ -90,11 +87,11 @@ bool goods_manager_t::successfully_loaded()
 			assert(goods[i]->get_index()==i);
 			ware_t::index_to_desc[i] = goods[i];
 			if(goods[i]->color==255) {
-				goods[i]->color = 16+4+((i-2)*8)%207;
+				goods[i]->color = ( 16+4+((i-2)*8)%207 );
 			}
 		}
 	}
-	// passenger and good colors
+	// passenger and mail colors
 	if(goods[0]->color==255) {
 		goods[0]->color = COL_GREY3;
 	}
@@ -126,11 +123,9 @@ bool goods_manager_t::register_desc(goods_desc_t *desc)
 	}
 	::register_desc(special_objects, desc);
 	// avoid duplicates with same name
-	goods_desc_t *old_desc = const_cast<goods_desc_t *>(desc_names.get(desc->get_name()));
-	if(  old_desc  ) {
-		dbg->warning( "goods_manager_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
-		desc_names.remove(desc->get_name());
-		goods.remove( old_desc );
+	if(  const goods_desc_t *old_desc = desc_names.remove(desc->get_name())  ) {
+		dbg->doubled( "good", desc->get_name() );
+		goods.remove( const_cast<goods_desc_t*>(old_desc) );
 	}
 	desc_names.put(desc->get_name(), desc);
 
@@ -192,7 +187,7 @@ const goods_desc_t *goods_manager_t::get_info_catg_index(const uint8 catg_index)
 }
 
 
-const uint8 goods_manager_t::get_classes_catg_index(const uint8 catg_index)
+uint8 goods_manager_t::get_classes_catg_index(const uint8 catg_index)
 {
 	if (catg_index == goods_manager_t::INDEX_PAS) {
 		return goods_manager_t::passengers->get_number_of_classes();
@@ -201,6 +196,28 @@ const uint8 goods_manager_t::get_classes_catg_index(const uint8 catg_index)
 		return goods_manager_t::mail->get_number_of_classes();
 	}
 	return 1;
+}
+
+
+const char * goods_manager_t::get_translated_wealth_name(const uint8 catg_index, const uint8 g_class = 0)
+{
+	if (g_class >= get_classes_catg_index(catg_index)) {
+		return NULL;
+	}
+	char *class_name = new char[32]();
+	if (catg_index == goods_manager_t::INDEX_PAS)
+	{
+		sprintf(class_name, "p_class[%u]", g_class);
+	}
+	if (catg_index == goods_manager_t::INDEX_MAIL)
+	{
+		sprintf(class_name, "m_class[%u]", g_class);
+	}
+
+	static char translated_name[32];
+	sprintf(translated_name, "%s", translator::translate(class_name));
+
+	return translated_name;
 }
 
 

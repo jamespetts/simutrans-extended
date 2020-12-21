@@ -13,6 +13,8 @@
 #include "../boden/grund.h"
 #include "../dataobj/loadsave.h"
 #include "../dataobj/environment.h"
+#include "../dataobj/translator.h"
+#include "../utils/cbuffer_t.h"
 
 #include "simpeople.h"
 #include "../descriptor/pedestrian_desc.h"
@@ -34,7 +36,7 @@ static bool compare_fussgaenger_desc(const pedestrian_desc_t* a, const pedestria
 bool pedestrian_t::register_desc(const pedestrian_desc_t *desc)
 {
 	if(  table.remove(desc->get_name())  ) {
-		dbg->warning( "pedestrian_desc_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
+		dbg->doubled( "pedestrian", desc->get_name() );
 	}
 	table.put(desc->get_name(), desc);
 	return true;
@@ -150,7 +152,7 @@ void pedestrian_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_version()<89004) {
+	if(file->get_version_int()<89004) {
 		time_to_life = pick_any(strecke);
 	}
 }
@@ -366,5 +368,16 @@ void pedestrian_t::check_timeline_pedestrians()
 		{
 			current_pedestrians.append(fd, fd->get_distribution_weight());
 		}
+	}
+}
+
+
+void pedestrian_t::info(cbuffer_t & buf) const
+{
+	char const* const owner = translator::translate("Kein Besitzer\n");
+	buf.append(owner);
+
+	if (char const* const maker = get_desc()->get_copyright()) {
+		buf.printf(translator::translate("Constructed by %s"), maker);
 	}
 }

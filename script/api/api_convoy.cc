@@ -66,6 +66,12 @@ vector_tpl<convoihandle_t> const* generic_get_convoy_list(HSQUIRRELVM vm, SQInte
 	return NULL;
 }
 
+SQInteger generic_get_convoy_count(HSQUIRRELVM vm)
+{
+	vector_tpl<convoihandle_t> const* list = generic_get_convoy_list(vm, 1);
+	return list ? param<uint32>::push(vm, list->get_count()) : SQ_ERROR;
+}
+
 SQInteger generic_get_next_convoy(HSQUIRRELVM vm)
 {
 	vector_tpl<convoihandle_t> const* list = generic_get_convoy_list(vm, 1);
@@ -111,6 +117,12 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @typemask convoy_x()
 	 */
 	register_function(vm, generic_get_convoy_by_index, "_get",    2, "xi");
+	/**
+	 * Returns number of convoys in the list.
+	 * @typemask integer()
+	 */
+	register_function(vm, generic_get_convoy_count, "get_count",  1, "x");
+
 	end_class(vm);
 
 	/**
@@ -188,7 +200,7 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	// CONVOI_WAYTOLL not in Extended; unsure whether this is safe to comment out - ACarlotti
-	//register_method_fv(vm, &get_convoy_stat, "get_way_tolls",         freevariable<sint32>(convoi_t::CONVOI_WAYTOLL), true );
+	register_method_fv(vm, &get_convoy_stat, "get_way_tolls",         freevariable<sint32>(convoi_t::CONVOI_WAYTOLL), true );
 	/**
 	 * @returns lifetime traveled distance of this convoy
 	 */

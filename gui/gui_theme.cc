@@ -7,9 +7,10 @@
 
 
 #include "gui_theme.h"
+#include "../simworld.h"
 #include "../simskin.h"
 #include "../simmenu.h"
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #include "../dataobj/environment.h"
 #include "../dataobj/tabfile.h"
 #include "components/gui_button.h"
@@ -20,38 +21,50 @@
 /**
  * Colours
  */
-COLOR_VAL gui_theme_t::gui_color_text;
-COLOR_VAL gui_theme_t::gui_color_text_highlight;
-COLOR_VAL gui_theme_t::gui_color_text_shadow;
-COLOR_VAL gui_theme_t::gui_color_text_title;
-COLOR_VAL gui_theme_t::gui_color_text_strong;
-COLOR_VAL gui_theme_t::gui_color_edit_text;
-COLOR_VAL gui_theme_t::gui_color_edit_text_selected;
-COLOR_VAL gui_theme_t::gui_color_edit_text_disabled;
-COLOR_VAL gui_theme_t::gui_color_edit_background_selected;
-COLOR_VAL gui_theme_t::gui_color_edit_beam;
-COLOR_VAL gui_theme_t::gui_color_chart_background;
-COLOR_VAL gui_theme_t::gui_color_chart_lines_zero;
-COLOR_VAL gui_theme_t::gui_color_chart_lines_odd;
-COLOR_VAL gui_theme_t::gui_color_chart_lines_even;
-COLOR_VAL gui_theme_t::gui_color_list_text_selected_focus;
-COLOR_VAL gui_theme_t::gui_color_list_text_selected_nofocus;
-COLOR_VAL gui_theme_t::gui_color_list_background_selected_f;
-COLOR_VAL gui_theme_t::gui_color_list_background_selected_nf;
-COLOR_VAL gui_theme_t::gui_color_button_text;
-COLOR_VAL gui_theme_t::gui_color_button_text_disabled;
-COLOR_VAL gui_theme_t::gui_color_button_text_selected;
-COLOR_VAL gui_theme_t::gui_color_colored_button_text;
-COLOR_VAL gui_theme_t::gui_color_colored_button_text_selected;
-COLOR_VAL gui_theme_t::gui_color_checkbox_text;
-COLOR_VAL gui_theme_t::gui_color_checkbox_text_disabled;
-COLOR_VAL gui_theme_t::gui_color_ticker_background;
-COLOR_VAL gui_theme_t::gui_color_ticker_divider;
-COLOR_VAL gui_theme_t::gui_color_statusbar_text;
-COLOR_VAL gui_theme_t::gui_color_statusbar_background;
-COLOR_VAL gui_theme_t::gui_color_statusbar_divider;
-COLOR_VAL gui_theme_t::gui_highlight_color;
-COLOR_VAL gui_theme_t::gui_shadow_color;
+PIXVAL gui_theme_t::gui_color_text;
+PIXVAL gui_theme_t::gui_color_text_highlight;
+PIXVAL gui_theme_t::gui_color_text_shadow;
+PIXVAL gui_theme_t::gui_color_text_title;
+PIXVAL gui_theme_t::gui_color_text_strong;
+PIXVAL gui_theme_t::gui_color_text_inactive;
+PIXVAL gui_theme_t::gui_color_text_placeholder;
+PIXVAL gui_theme_t::gui_color_text_minus;
+PIXVAL gui_theme_t::gui_color_text_plus;
+PIXVAL gui_theme_t::gui_color_text_unused;
+PIXVAL gui_theme_t::gui_color_edit_text;
+PIXVAL gui_theme_t::gui_color_edit_text_selected;
+PIXVAL gui_theme_t::gui_color_edit_text_disabled;
+PIXVAL gui_theme_t::gui_color_edit_background_selected;
+PIXVAL gui_theme_t::gui_color_edit_beam;
+PIXVAL gui_theme_t::gui_color_chart_background;
+PIXVAL gui_theme_t::gui_color_chart_lines_zero;
+PIXVAL gui_theme_t::gui_color_chart_lines_odd;
+PIXVAL gui_theme_t::gui_color_chart_lines_even;
+PIXVAL gui_theme_t::gui_color_list_text_selected_focus;
+PIXVAL gui_theme_t::gui_color_list_text_selected_nofocus;
+PIXVAL gui_theme_t::gui_color_list_background_selected_f;
+PIXVAL gui_theme_t::gui_color_list_background_selected_nf;
+PIXVAL gui_theme_t::gui_color_button_text;
+PIXVAL gui_theme_t::gui_color_button_text_disabled;
+PIXVAL gui_theme_t::gui_color_button_text_selected;
+PIXVAL gui_theme_t::gui_color_colored_button_text;
+PIXVAL gui_theme_t::gui_color_colored_button_text_selected;
+PIXVAL gui_theme_t::gui_color_checkbox_text;
+PIXVAL gui_theme_t::gui_color_checkbox_text_disabled;
+PIXVAL gui_theme_t::gui_color_ticker_background;
+PIXVAL gui_theme_t::gui_color_ticker_divider;
+PIXVAL gui_theme_t::gui_color_statusbar_text;
+PIXVAL gui_theme_t::gui_color_statusbar_background;
+PIXVAL gui_theme_t::gui_color_statusbar_divider;
+PIXVAL gui_theme_t::gui_highlight_color;
+PIXVAL gui_theme_t::gui_shadow_color;
+PIXVAL gui_theme_t::gui_color_loadingbar_inner;
+PIXVAL gui_theme_t::gui_color_loadingbar_progress;
+PIXVAL gui_theme_t::gui_color_obsolete;
+PIXVAL gui_theme_t::gui_color_out_of_production;
+PIXVAL gui_theme_t::gui_color_empty;
+PIXVAL gui_theme_t::gui_color_up_pointing_triangle;
+PIXVAL gui_theme_t::gui_color_down_pointing_triangle;
 
 /**
  * Max Kielland
@@ -75,6 +88,8 @@ scr_size gui_theme_t::gui_label_size;
 scr_size gui_theme_t::gui_edit_size;
 scr_size gui_theme_t::gui_gadget_size;
 scr_size gui_theme_t::gui_indicator_size;
+KOORD_VAL gui_theme_t::gui_waitingbar_width;
+
 scr_coord gui_theme_t::gui_focus_offset;
 scr_coord gui_theme_t::gui_button_text_offset_right;
 scr_coord gui_theme_t::gui_color_button_text_offset_right;
@@ -86,6 +101,7 @@ KOORD_VAL gui_theme_t::gui_frame_right;
 KOORD_VAL gui_theme_t::gui_frame_bottom;
 KOORD_VAL gui_theme_t::gui_hspace;
 KOORD_VAL gui_theme_t::gui_vspace;
+KOORD_VAL gui_theme_t::gui_filelist_vspace;
 
 /* those are the 3x3 images which are used for stretching
  * also 1x3 and 3x1 subsets are possible
@@ -115,65 +131,91 @@ image_id gui_theme_t::check_button_img[3];
 image_id gui_theme_t::pos_button_img[3];
 
 bool gui_theme_t::gui_drop_shadows;
-uint8 gui_theme_t::request_linespace = 11;
 
 /**
  * Initializes theme related parameters to hard coded default values.
- * @author  Max Kielland
  */
 void gui_theme_t::init_gui_defaults()
 {
-	gui_color_text                         = COL_BLACK;
-	gui_color_text_highlight               = COL_WHITE;
-	gui_color_text_shadow                  = COL_BLACK;
-	gui_color_text_title                   = 207;
-	gui_color_text_strong                  = COL_RED;
-	gui_color_edit_text                    = COL_WHITE;
-	gui_color_edit_text_selected           = COL_GREY5;
-	gui_color_edit_text_disabled           = COL_GREY3;
-	gui_color_edit_background_selected     = COL_GREY2;
-	gui_color_edit_beam                    = COL_WHITE;
-	gui_color_chart_background             = MN_GREY1;
-	gui_color_chart_lines_zero             = MN_GREY4;
-	gui_color_chart_lines_odd              = COL_WHITE;
-	gui_color_chart_lines_even             = MN_GREY0;
-	gui_color_list_text_selected_focus     = COL_WHITE;
-	gui_color_list_text_selected_nofocus   = MN_GREY3;
-	gui_color_list_background_selected_f   = COL_BLUE;
-	gui_color_list_background_selected_nf  = COL_LIGHT_BLUE;
-	gui_color_button_text                  = COL_BLACK;
-	gui_color_button_text_disabled         = MN_GREY0;
-	gui_color_button_text_selected         = COL_BLACK;
-	gui_color_colored_button_text          = COL_BLACK;
-	gui_color_colored_button_text_selected = COL_BLACK;
-	gui_color_checkbox_text                = COL_BLACK;
-	gui_color_checkbox_text_disabled       = MN_GREY0;
-	gui_color_ticker_background            = MN_GREY2;
-	gui_color_ticker_divider               = COL_BLACK;
-	gui_color_statusbar_text               = COL_BLACK;
-	gui_color_statusbar_background         = MN_GREY1;
-	gui_color_statusbar_divider            = MN_GREY4;
-	gui_highlight_color                    = MN_GREY4;
-	gui_shadow_color                       = MN_GREY0;
+	gui_color_text                         = color_idx_to_rgb(COL_BLACK);
+	gui_color_text_highlight               = color_idx_to_rgb(COL_WHITE);
+	gui_color_text_shadow                  = color_idx_to_rgb(COL_BLACK);
+	gui_color_text_title                   = color_idx_to_rgb(207);
+	gui_color_text_strong                  = color_idx_to_rgb(COL_RED);
+	gui_color_text_inactive                = color_idx_to_rgb(COL_GREY4);
+	gui_color_text_placeholder             = color_idx_to_rgb(COL_GREY5);
+	gui_color_text_minus                   = color_idx_to_rgb(COL_RED);
+	gui_color_text_plus                    = color_idx_to_rgb(COL_BLACK);
+	gui_color_text_unused                  = color_idx_to_rgb(COL_YELLOW);
 
-	gui_button_size        = scr_size(92,14);
-	gui_color_button_size  = scr_size(92,16);
-	gui_button_text_offset = scr_size(0,0);
+	gui_color_edit_text                    = color_idx_to_rgb(COL_WHITE);
+	gui_color_edit_text_selected           = color_idx_to_rgb(COL_GREY5);
+	gui_color_edit_text_disabled           = color_idx_to_rgb(COL_GREY3);
+	gui_color_edit_background_selected     = color_idx_to_rgb(COL_GREY2);
+	gui_color_edit_beam                    = color_idx_to_rgb(COL_WHITE);
+
+	gui_color_chart_background             = color_idx_to_rgb(MN_GREY1);
+	gui_color_chart_lines_zero             = color_idx_to_rgb(MN_GREY4);
+	gui_color_chart_lines_odd              = color_idx_to_rgb(COL_WHITE);
+	gui_color_chart_lines_even             = color_idx_to_rgb(MN_GREY0);
+
+	gui_color_list_text_selected_focus     = color_idx_to_rgb(COL_WHITE);
+	gui_color_list_text_selected_nofocus   = color_idx_to_rgb(MN_GREY3);
+	gui_color_list_background_selected_f   = color_idx_to_rgb(COL_BLUE);
+	gui_color_list_background_selected_nf  = color_idx_to_rgb(COL_LIGHT_BLUE);
+
+	gui_color_button_text                  = color_idx_to_rgb(COL_BLACK);
+	gui_color_button_text_disabled         = color_idx_to_rgb(MN_GREY0);
+	gui_color_button_text_selected         = color_idx_to_rgb(COL_BLACK);
+
+	gui_color_colored_button_text          = color_idx_to_rgb(COL_BLACK);
+	gui_color_colored_button_text_selected = color_idx_to_rgb(COL_WHITE);
+	gui_color_button_text_disabled         = color_idx_to_rgb(MN_GREY0);
+	gui_color_button_text_selected         = color_idx_to_rgb(COL_BLACK);
+	gui_color_colored_button_text          = color_idx_to_rgb(COL_BLACK);
+	gui_color_colored_button_text_selected = color_idx_to_rgb(COL_WHITE);
+	gui_color_checkbox_text                = color_idx_to_rgb(COL_BLACK);
+	gui_color_checkbox_text_disabled       = color_idx_to_rgb(MN_GREY0);
+	gui_color_ticker_background            = color_idx_to_rgb(MN_GREY2);
+	gui_color_ticker_divider               = color_idx_to_rgb(COL_BLACK);
+	gui_color_statusbar_text               = color_idx_to_rgb(COL_BLACK);
+	gui_color_statusbar_background         = color_idx_to_rgb(MN_GREY1);
+	gui_color_statusbar_divider            = color_idx_to_rgb(MN_GREY4);
+
+	gui_highlight_color                    = color_idx_to_rgb(MN_GREY4);
+	gui_shadow_color                       = color_idx_to_rgb(MN_GREY0);
+
+	gui_color_loadingbar_inner             = color_idx_to_rgb(COL_GREY5);
+	gui_color_loadingbar_progress          = color_idx_to_rgb(COL_SOFT_BLUE);
+
+	gui_color_obsolete                     = color_idx_to_rgb(COL_DARK_BLUE);
+	gui_color_out_of_production            = color_idx_to_rgb(COL_SOFT_BLUE);
+	gui_color_empty                        = color_idx_to_rgb(COL_WHITE);
+
+	gui_color_up_pointing_triangle         = color_idx_to_rgb(COL_LIGHT_TURQUOISE);
+	gui_color_down_pointing_triangle       = color_idx_to_rgb(COL_LIGHT_ORANGE-2);
+
+	env_t::gui_player_color_bright = 4;
+	env_t::gui_player_color_dark   = 1;
+
+	gui_button_size              = scr_size(92,14);
+	gui_color_button_size        = scr_size(92,16);
+	gui_button_text_offset       = scr_size(0,0);
 	gui_color_button_text_offset = scr_size(0,0);
-	gui_divider_size       = scr_size(92,2+D_V_SPACE*2);
-	gui_checkbox_size      = scr_size(10,10);
-	gui_pos_button_size    = scr_size(14,LINESPACE);
-	gui_arrow_left_size    = scr_size(14,14);
-	gui_arrow_right_size   = scr_size(14,14);
-	gui_arrow_up_size      = scr_size(14,14);
-	gui_arrow_down_size    = scr_size(14,14);
-	gui_scrollbar_size     = scr_size(14,14);
-	gui_min_scrollbar_size = scr_size(3,3);
-	gui_label_size         = scr_size(92,LINESPACE);
-	gui_edit_size          = scr_size(92,max(LINESPACE+2, max(D_ARROW_LEFT_HEIGHT, D_ARROW_RIGHT_HEIGHT) ));
-	gui_gadget_size        = scr_size(16,16);
-	gui_indicator_size     = scr_size(20,4);
-	gui_focus_offset       = scr_size(1,1);
+	gui_divider_size             = scr_size(92,2+D_V_SPACE*2);
+	gui_checkbox_size            = scr_size(10,10);
+	gui_pos_button_size          = scr_size(14,LINESPACE);
+	gui_arrow_left_size          = scr_size(14,14);
+	gui_arrow_right_size         = scr_size(14,14);
+	gui_arrow_up_size            = scr_size(14,14);
+	gui_arrow_down_size          = scr_size(14,14);
+	gui_scrollbar_size           = scr_size(14,14);
+	gui_min_scrollbar_size       = scr_size(3,3);
+	gui_label_size               = scr_size(92,LINESPACE);
+	gui_edit_size                = scr_size(92,max(LINESPACE+2, max(D_ARROW_LEFT_HEIGHT, D_ARROW_RIGHT_HEIGHT) ));
+	gui_gadget_size              = scr_size(16,16);
+	gui_indicator_size           = scr_size(20,4);
+	gui_focus_offset             = scr_coord(1,1);
 
 	gui_titlebar_height  = 16;
 	gui_frame_left       = 10;
@@ -182,17 +224,18 @@ void gui_theme_t::init_gui_defaults()
 	gui_frame_bottom     = 10;
 	gui_hspace           = 4;
 	gui_vspace           = 4;
+	gui_filelist_vspace  = 0;
+	gui_waitingbar_width = 4;
 	gui_divider_size.h   = D_V_SPACE*2;
 
-	request_linespace    = 11;
 	gui_drop_shadows     = false;
 }
 
 
 // helper for easier init
-void gui_theme_t::init_size_from_image(const image_t *image, scr_size &k)
+void gui_theme_t::init_size_from_image( const image_t *image, scr_size &k )
 {
-	if (image) {
+	if(  image  ) {
 		k = scr_size(image->x+image->w,image->y+image->h);
 	}
 }
@@ -338,16 +381,14 @@ void gui_theme_t::init_gui_from_images()
 
 /**
  * Reads theme configuration data, still not final
- * @author prissi
  *
- * Max Kielland:
  * Note, there will be a theme manager later on and
  * each gui object will find their own parameters by
  * themselves after registering its class to the theme
  * manager. This will be done as the last step in
  * the chain when loading a theme.
  */
-bool gui_theme_t::themes_init(const char *file_name)
+bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_tools )
 {
 	tabfile_t themesconf;
 
@@ -366,11 +407,12 @@ bool gui_theme_t::themes_init(const char *file_name)
 	// theme name to find out current theme
 	std::string theme_name = contents.get( "name" );
 
-	// reload current font if requested size differs
-	uint8 new_size = contents.get_int("font_size", gui_theme_t::request_linespace );
-	if(  new_size != 0  &&  LINESPACE != new_size  ) {
-		gui_theme_t::request_linespace = new_size;
-		display_load_font( NULL );
+	// reload current font if requested size differs and we are allowed to do so
+	uint8 new_size = contents.get_int("font_size", env_t::fontsize );
+	if(  init_fonts  &&  new_size!=0  &&  LINESPACE!=new_size  ) {
+		if(  display_load_font( env_t::fontname.c_str() )  ) {
+			env_t::fontsize = new_size;
+		}
 	}
 
 	// first get the images ( to be able to overload default sizes)
@@ -384,10 +426,11 @@ bool gui_theme_t::themes_init(const char *file_name)
 		else if(  char *s = strrchr( pathname, '\\' )  ) {
 			*s = 0;
 		}
-		chdir( pathname );
+		dr_chdir( pathname );
 		obj_reader_t::read_file(buttonpak.c_str());
 		gui_theme_t::init_gui_from_images();
 		free(pathname);
+		dr_chdir(env_t::user_dir);
 	}
 
 	// first the stuff for the dialogues
@@ -398,6 +441,7 @@ bool gui_theme_t::themes_init(const char *file_name)
 	gui_theme_t::gui_frame_bottom =    (uint32)contents.get_int("gui_frame_bottom",    gui_theme_t::gui_frame_bottom );
 	gui_theme_t::gui_hspace =          (uint32)contents.get_int("gui_hspace",          gui_theme_t::gui_hspace );
 	gui_theme_t::gui_vspace =          (uint32)contents.get_int("gui_vspace",          gui_theme_t::gui_vspace );
+	gui_theme_t::gui_filelist_vspace = (uint32)contents.get_int("gui_filelist_vspace", gui_theme_t::gui_filelist_vspace );
 
 	// the divider needs the vspace added to it for know
 	gui_divider_size.h += gui_vspace*2;
@@ -406,6 +450,12 @@ bool gui_theme_t::themes_init(const char *file_name)
 	gui_theme_t::gui_button_size.w = (uint32)contents.get_int("gui_button_width",  gui_theme_t::gui_button_size.w );
 	gui_theme_t::gui_button_size.h = (uint32)contents.get_int("gui_button_height", gui_theme_t::gui_button_size.h );
 	gui_theme_t::gui_edit_size.h = (uint32)contents.get_int("gui_edit_height", gui_theme_t::gui_edit_size.h );
+
+	gui_theme_t::gui_checkbox_size.w = (uint32)contents.get_int("gui_checkbox_width",  gui_theme_t::gui_checkbox_size.w );
+	gui_theme_t::gui_checkbox_size.h = (uint32)contents.get_int("gui_checkbox_height", gui_theme_t::gui_checkbox_size.h );
+
+	gui_theme_t::gui_gadget_size.w = (uint32)contents.get_int("gui_gadget_width",  gui_theme_t::gui_gadget_size.w );
+	gui_theme_t::gui_gadget_size.h = (uint32)contents.get_int("gui_gadget_height", gui_theme_t::gui_gadget_size.h );
 
 	// make them fit at least the font height
 	gui_theme_t::gui_titlebar_height = max( LINESPACE+2, gui_theme_t::gui_titlebar_height );
@@ -426,7 +476,7 @@ bool gui_theme_t::themes_init(const char *file_name)
 	gui_theme_t::gui_scrollbar_size.w = max( gui_min_scrollbar_size.w, (uint32)contents.get_int("gui_scrollbar_width",  gui_theme_t::gui_scrollbar_size.w ) );
 	gui_theme_t::gui_scrollbar_size.h = max( gui_min_scrollbar_size.h, (uint32)contents.get_int("gui_scrollbar_height", gui_theme_t::gui_scrollbar_size.h ) );
 
-	// in practice, posbutton min height beeter is LINESPACE
+	// in practice, posbutton min height better is LINESPACE
 	gui_theme_t::gui_pos_button_size.w = (uint32)contents.get_int("gui_posbutton_width",  gui_theme_t::gui_pos_button_size.w );
 	gui_theme_t::gui_pos_button_size.h = (uint32)contents.get_int("gui_posbutton_height", gui_theme_t::gui_pos_button_size.h );
 
@@ -435,11 +485,11 @@ bool gui_theme_t::themes_init(const char *file_name)
 	int *button_text_offsets = contents.get_ints("gui_button_text_offset");
 	if(  color_button_text_offsets[0] > 2  ) {
 		gui_theme_t::gui_color_button_text_offset = scr_size(color_button_text_offsets[1], color_button_text_offsets[2]);
-		gui_theme_t::gui_color_button_text_offset_right = scr_size(color_button_text_offsets[3], 0);
+		gui_theme_t::gui_color_button_text_offset_right = scr_coord(color_button_text_offsets[3], 0);
 	}
 	if(  button_text_offsets[0] > 2  ) {
 		gui_theme_t::gui_button_text_offset = scr_size(button_text_offsets[1], button_text_offsets[2]);
-		gui_theme_t::gui_button_text_offset_right = scr_size(button_text_offsets[3], 0);
+		gui_theme_t::gui_button_text_offset_right = scr_coord(button_text_offsets[3], 0);
 	}
 	delete [] color_button_text_offsets;
 	delete [] button_text_offsets;
@@ -448,38 +498,52 @@ bool gui_theme_t::themes_init(const char *file_name)
 	env_t::iconsize.h = env_t::iconsize.w = contents.get_int("icon_width",env_t::iconsize.w );
 
 	// maybe not the best place, rather use simwin for the static defines?
-	gui_theme_t::gui_color_text                         = (COLOR_VAL)contents.get_color("gui_color_text", SYSCOL_TEXT);
-	gui_theme_t::gui_color_text_highlight               = (COLOR_VAL)contents.get_color("gui_color_text_highlight", SYSCOL_TEXT_HIGHLIGHT);
-	gui_theme_t::gui_color_text_shadow                  = (COLOR_VAL)contents.get_color("gui_color_text_shadow", SYSCOL_TEXT_SHADOW);
-	gui_theme_t::gui_color_text_title                   = (COLOR_VAL)contents.get_color("gui_color_text_title", SYSCOL_TEXT_TITLE);
-	gui_theme_t::gui_color_text_strong                  = (COLOR_VAL)contents.get_color("gui_color_text_strong", SYSCOL_TEXT_STRONG);
-	gui_theme_t::gui_color_edit_text                    = (COLOR_VAL)contents.get_color("gui_color_edit_text", SYSCOL_EDIT_TEXT);
-	gui_theme_t::gui_color_edit_text_selected           = (COLOR_VAL)contents.get_color("gui_color_edit_text_selected", SYSCOL_EDIT_TEXT_SELECTED);
-	gui_theme_t::gui_color_edit_text_disabled           = (COLOR_VAL)contents.get_color("gui_color_edit_text_disabled", SYSCOL_EDIT_TEXT_DISABLED);
-	gui_theme_t::gui_color_edit_background_selected     = (COLOR_VAL)contents.get_color("gui_color_edit_background_selected", SYSCOL_EDIT_BACKGROUND_SELECTED);
-	gui_theme_t::gui_color_edit_beam                    = (COLOR_VAL)contents.get_color("gui_color_edit_beam", SYSCOL_CURSOR_BEAM);
-	gui_theme_t::gui_color_chart_background             = (COLOR_VAL)contents.get_color("gui_color_chart_background", SYSCOL_CHART_BACKGROUND);
-	gui_theme_t::gui_color_chart_lines_zero             = (COLOR_VAL)contents.get_color("gui_color_chart_lines_zero", SYSCOL_CHART_LINES_ZERO);
-	gui_theme_t::gui_color_chart_lines_odd              = (COLOR_VAL)contents.get_color("gui_color_chart_lines_odd", SYSCOL_CHART_LINES_ODD);
-	gui_theme_t::gui_color_chart_lines_even             = (COLOR_VAL)contents.get_color("gui_color_chart_lines_even", SYSCOL_CHART_LINES_EVEN);
-	gui_theme_t::gui_color_list_text_selected_focus     = (COLOR_VAL)contents.get_color("gui_color_list_text_selected_focus", SYSCOL_LIST_TEXT_SELECTED_FOCUS);
-	gui_theme_t::gui_color_list_text_selected_nofocus   = (COLOR_VAL)contents.get_color("gui_color_list_text_selected_nofocus", SYSCOL_LIST_TEXT_SELECTED_NOFOCUS);
-	gui_theme_t::gui_color_list_background_selected_f   = (COLOR_VAL)contents.get_color("gui_color_list_background_selected_focus", SYSCOL_LIST_BACKGROUND_SELECTED_F);
-	gui_theme_t::gui_color_list_background_selected_nf  = (COLOR_VAL)contents.get_color("gui_color_list_background_selected_nofocus", SYSCOL_LIST_BACKGROUND_SELECTED_NF);
-	gui_theme_t::gui_color_button_text                  = (COLOR_VAL)contents.get_color("gui_color_button_text", SYSCOL_BUTTON_TEXT);
-	gui_theme_t::gui_color_button_text_disabled         = (COLOR_VAL)contents.get_color("gui_color_button_text_disabled", SYSCOL_BUTTON_TEXT_DISABLED);
-	gui_theme_t::gui_color_button_text_selected         = (COLOR_VAL)contents.get_color("gui_color_button_text_selected", SYSCOL_BUTTON_TEXT_SELECTED);
-	gui_theme_t::gui_color_colored_button_text          = (COLOR_VAL)contents.get_color("gui_color_colored_button_text", SYSCOL_COLORED_BUTTON_TEXT);
-	gui_theme_t::gui_color_colored_button_text_selected = (COLOR_VAL)contents.get_color("gui_color_colored_button_text_selected", SYSCOL_COLORED_BUTTON_TEXT_SELECTED);
-	gui_theme_t::gui_color_checkbox_text                = (COLOR_VAL)contents.get_color("gui_color_checkbox_text", SYSCOL_CHECKBOX_TEXT);
-	gui_theme_t::gui_color_checkbox_text_disabled       = (COLOR_VAL)contents.get_color("gui_color_checkbox_text_disabled", SYSCOL_CHECKBOX_TEXT_DISABLED);
-	gui_theme_t::gui_color_ticker_background            = (COLOR_VAL)contents.get_color("gui_color_ticker_background", SYSCOL_TICKER_BACKGROUND);
-	gui_theme_t::gui_color_ticker_divider               = (COLOR_VAL)contents.get_color("gui_color_ticker_divider", SYSCOL_TICKER_DIVIDER);
-	gui_theme_t::gui_color_statusbar_text               = (COLOR_VAL)contents.get_color("gui_color_statusbar_text", SYSCOL_STATUSBAR_TEXT);
-	gui_theme_t::gui_color_statusbar_background         = (COLOR_VAL)contents.get_color("gui_color_statusbar_background", SYSCOL_STATUSBAR_BACKGROUND);
-	gui_theme_t::gui_color_statusbar_divider            = (COLOR_VAL)contents.get_color("gui_color_statusbar_divider", SYSCOL_STATUSBAR_DIVIDER);
-	gui_theme_t::gui_highlight_color                    = (COLOR_VAL)contents.get_color("gui_highlight_color", SYSCOL_HIGHLIGHT);
-	gui_theme_t::gui_shadow_color                       = (COLOR_VAL)contents.get_color("gui_shadow_color", SYSCOL_SHADOW);
+	gui_theme_t::gui_color_text                         = (PIXVAL)contents.get_color("gui_color_text", SYSCOL_TEXT);
+	gui_theme_t::gui_color_text_highlight               = (PIXVAL)contents.get_color("gui_color_text_highlight", SYSCOL_TEXT_HIGHLIGHT);
+	gui_theme_t::gui_color_text_shadow                  = (PIXVAL)contents.get_color("gui_color_text_shadow", SYSCOL_TEXT_SHADOW);
+	gui_theme_t::gui_color_text_title                   = (PIXVAL)contents.get_color("gui_color_text_title", SYSCOL_TEXT_TITLE);
+	gui_theme_t::gui_color_text_strong                  = (PIXVAL)contents.get_color("gui_color_text_strong", SYSCOL_TEXT_STRONG);
+	gui_theme_t::gui_color_text_inactive                = (PIXVAL)contents.get_color("gui_color_text_inactive", SYSCOL_TEXT_INACTIVE);
+	gui_theme_t::gui_color_text_placeholder             = (PIXVAL)contents.get_color("gui_color_text_placeholder", SYSCOL_TEXT_PLACEHOLDER);
+	gui_theme_t::gui_color_text_minus                   = (PIXVAL)contents.get_color("gui_color_text_minus", MONEY_MINUS);
+	gui_theme_t::gui_color_text_plus                    = (PIXVAL)contents.get_color("gui_color_text_plus", MONEY_PLUS);
+	gui_theme_t::gui_color_text_unused                  = (PIXVAL)contents.get_color("gui_color_text_unused", SYSCOL_TEXT_UNUSED);
+	gui_theme_t::gui_color_edit_text                    = (PIXVAL)contents.get_color("gui_color_edit_text", SYSCOL_EDIT_TEXT);
+	gui_theme_t::gui_color_edit_text_selected           = (PIXVAL)contents.get_color("gui_color_edit_text_selected", SYSCOL_EDIT_TEXT_SELECTED);
+	gui_theme_t::gui_color_edit_text_disabled           = (PIXVAL)contents.get_color("gui_color_edit_text_disabled", SYSCOL_EDIT_TEXT_DISABLED);
+	gui_theme_t::gui_color_edit_background_selected     = (PIXVAL)contents.get_color("gui_color_edit_background_selected", SYSCOL_EDIT_BACKGROUND_SELECTED);
+	gui_theme_t::gui_color_edit_beam                    = (PIXVAL)contents.get_color("gui_color_edit_beam", SYSCOL_CURSOR_BEAM);
+	gui_theme_t::gui_color_chart_background             = (PIXVAL)contents.get_color("gui_color_chart_background", SYSCOL_CHART_BACKGROUND);
+	gui_theme_t::gui_color_chart_lines_zero             = (PIXVAL)contents.get_color("gui_color_chart_lines_zero", SYSCOL_CHART_LINES_ZERO);
+	gui_theme_t::gui_color_chart_lines_odd              = (PIXVAL)contents.get_color("gui_color_chart_lines_odd", SYSCOL_CHART_LINES_ODD);
+	gui_theme_t::gui_color_chart_lines_even             = (PIXVAL)contents.get_color("gui_color_chart_lines_even", SYSCOL_CHART_LINES_EVEN);
+	gui_theme_t::gui_color_list_text_selected_focus     = (PIXVAL)contents.get_color("gui_color_list_text_selected_focus", SYSCOL_LIST_TEXT_SELECTED_FOCUS);
+	gui_theme_t::gui_color_list_text_selected_nofocus   = (PIXVAL)contents.get_color("gui_color_list_text_selected_nofocus", SYSCOL_LIST_TEXT_SELECTED_NOFOCUS);
+	gui_theme_t::gui_color_list_background_selected_f   = (PIXVAL)contents.get_color("gui_color_list_background_selected_focus", SYSCOL_LIST_BACKGROUND_SELECTED_F);
+	gui_theme_t::gui_color_list_background_selected_nf  = (PIXVAL)contents.get_color("gui_color_list_background_selected_nofocus", SYSCOL_LIST_BACKGROUND_SELECTED_NF);
+	gui_theme_t::gui_color_button_text                  = (PIXVAL)contents.get_color("gui_color_button_text", SYSCOL_BUTTON_TEXT);
+	gui_theme_t::gui_color_button_text_disabled         = (PIXVAL)contents.get_color("gui_color_button_text_disabled", SYSCOL_BUTTON_TEXT_DISABLED);
+	gui_theme_t::gui_color_button_text_selected         = (PIXVAL)contents.get_color("gui_color_button_text_selected", SYSCOL_BUTTON_TEXT_SELECTED);
+	gui_theme_t::gui_color_colored_button_text          = (PIXVAL)contents.get_color("gui_color_colored_button_text", SYSCOL_COLORED_BUTTON_TEXT);
+	gui_theme_t::gui_color_colored_button_text_selected = (PIXVAL)contents.get_color("gui_color_colored_button_text_selected", SYSCOL_COLORED_BUTTON_TEXT_SELECTED);
+	gui_theme_t::gui_color_checkbox_text                = (PIXVAL)contents.get_color("gui_color_checkbox_text", SYSCOL_CHECKBOX_TEXT);
+	gui_theme_t::gui_color_checkbox_text_disabled       = (PIXVAL)contents.get_color("gui_color_checkbox_text_disabled", SYSCOL_CHECKBOX_TEXT_DISABLED);
+	gui_theme_t::gui_color_ticker_background            = (PIXVAL)contents.get_color("gui_color_ticker_background", SYSCOL_TICKER_BACKGROUND);
+	gui_theme_t::gui_color_ticker_divider               = (PIXVAL)contents.get_color("gui_color_ticker_divider", SYSCOL_TICKER_DIVIDER);
+	gui_theme_t::gui_color_statusbar_text               = (PIXVAL)contents.get_color("gui_color_statusbar_text", SYSCOL_STATUSBAR_TEXT);
+	gui_theme_t::gui_color_statusbar_background         = (PIXVAL)contents.get_color("gui_color_statusbar_background", SYSCOL_STATUSBAR_BACKGROUND);
+	gui_theme_t::gui_color_statusbar_divider            = (PIXVAL)contents.get_color("gui_color_statusbar_divider", SYSCOL_STATUSBAR_DIVIDER);
+	gui_theme_t::gui_highlight_color                    = (PIXVAL)contents.get_color("gui_highlight_color", SYSCOL_HIGHLIGHT);
+	gui_theme_t::gui_shadow_color                       = (PIXVAL)contents.get_color("gui_shadow_color", SYSCOL_SHADOW);
+	gui_theme_t::gui_color_loadingbar_inner             = (PIXVAL)contents.get_color("gui_color_loadingbar_inner", SYSCOL_LOADINGBAR_INNER);
+	gui_theme_t::gui_color_loadingbar_progress          = (PIXVAL)contents.get_color("gui_color_loadingbar_progress", SYSCOL_LOADINGBAR_PROGRESS);
+	gui_theme_t::gui_color_obsolete                     = (PIXVAL)contents.get_color("gui_color_obsolete", SYSCOL_OBSOLETE);
+	gui_theme_t::gui_color_out_of_production            = (PIXVAL)contents.get_color("gui_color_out_of_production", SYSCOL_OUT_OF_PRODUCTION);
+	gui_theme_t::gui_color_empty                        = (PIXVAL)contents.get_color("gui_color_empty", SYSCOL_EMPTY);
+	gui_theme_t::gui_color_up_pointing_triangle         = (PIXVAL)contents.get_color("gui_color_up_pointing_triangle", SYSCOL_UP_TRIANGLE);
+	gui_theme_t::gui_color_down_pointing_triangle       = (PIXVAL)contents.get_color("gui_color_down_pointing_triangle", SYSCOL_DOWN_TRIANGLE);
+
+	gui_theme_t::gui_waitingbar_width = (uint32)contents.get_int("gui_waitingbar_width", gui_theme_t::gui_waitingbar_width);
 
 	// those two may be rather an own control later on?
 	gui_theme_t::gui_indicator_size = contents.get_scr_size("gui_indicator_size",  gui_theme_t::gui_indicator_size );
@@ -494,25 +558,28 @@ bool gui_theme_t::themes_init(const char *file_name)
 	env_t::remember_window_positions = contents.get_int("remember_window_positions", env_t::remember_window_positions );
 	env_t::window_snap_distance =      contents.get_int("window_snap_distance",      env_t::window_snap_distance );
 	gui_theme_t::gui_drop_shadows =    contents.get_int("gui_drop_shadows",          gui_theme_t::gui_drop_shadows );
+	env_t::bottom_window_darkness =    contents.get_int("bottom_window_darkness",    env_t::bottom_window_darkness );
 
-	env_t::front_window_bar_color =   contents.get_color("front_window_bar_color",   env_t::front_window_bar_color );
-	env_t::front_window_text_color =  contents.get_color("front_window_text_color",  env_t::front_window_text_color );
-	env_t::bottom_window_bar_color =  contents.get_color("bottom_window_bar_color",  env_t::bottom_window_bar_color );
-	env_t::bottom_window_text_color = contents.get_color("bottom_window_text_color", env_t::bottom_window_text_color );
+	env_t::gui_player_color_bright =   contents.get_int("gui_player_color_bright",   env_t::gui_player_color_bright );
+	env_t::gui_player_color_dark =     contents.get_int("gui_player_color_dark",     env_t::gui_player_color_dark );
+
+	env_t::default_window_title_color = contents.get_color("default_window_title_color", env_t::default_window_title_color,  &env_t::default_window_title_color_rgb );
+	env_t::front_window_text_color =    contents.get_color("front_window_text_color",    env_t::front_window_text_color,  &env_t::front_window_text_color_rgb );
+	env_t::bottom_window_text_color =   contents.get_color("bottom_window_text_color",   env_t::bottom_window_text_color, &env_t::bottom_window_text_color_rgb );
+	env_t::cursor_overlay_color =       contents.get_color("cursor_overlay_color",       env_t::cursor_overlay_color,     &env_t::cursor_overlay_color_rgb );
+	env_t::tooltip_color =              contents.get_color("tooltip_background_color",   env_t::tooltip_color,            &env_t::tooltip_color_rgb );
+	env_t::tooltip_textcolor =          contents.get_color("tooltip_text_color",         env_t::tooltip_textcolor,        &env_t::tooltip_textcolor_rgb );
 
 	env_t::show_tooltips =        contents.get_int("show_tooltips",              env_t::show_tooltips );
-	env_t::tooltip_color =        contents.get_color("tooltip_background_color", env_t::tooltip_color );
-	env_t::tooltip_textcolor =    contents.get_color("tooltip_text_color",       env_t::tooltip_textcolor );
 	env_t::tooltip_delay =        contents.get_int("tooltip_delay",              env_t::tooltip_delay );
 	env_t::tooltip_duration =     contents.get_int("tooltip_duration",           env_t::tooltip_duration );
 	env_t::toolbar_max_width =    contents.get_int("toolbar_max_width",          env_t::toolbar_max_width );
 	env_t::toolbar_max_height =   contents.get_int("toolbar_max_height",         env_t::toolbar_max_height );
-	env_t::cursor_overlay_color = contents.get_color("cursor_overlay_color",     env_t::cursor_overlay_color );
 
-	//if(  toolbar_last_used_t::last_used_tools  ) {
-	//	// only re-init if already inited
-	//	tool_t::update_toolbars();
-	//}
+	if(  toolbar_last_used_t::last_used_tools  &&  init_tools  ) {
+		// only re-init if already inited
+		tool_t::update_toolbars();
+	}
 	env_t::default_theme = file_name;
 
 	return true;

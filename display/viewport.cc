@@ -32,7 +32,7 @@ koord viewport_t::get_map2d_coord( const koord3d &viewpos ) const
 	else {
 		lines = (new_yoff - (cached_img_size/4))/(cached_img_size/2);
 	}
-	return viewpos.get_2d() - koord( lines, lines );
+	return world->get_closest_coordinate( viewpos.get_2d() - koord( lines, lines ) );
 }
 
 
@@ -85,6 +85,8 @@ void viewport_t::change_world_position( koord new_ij, sint16 new_xoff, sint16 ne
 	}
 	new_ij -= koord( lines, lines );
 	new_yoff -= (cached_img_size/2)*lines;
+
+	new_ij = world->get_closest_coordinate(new_ij);
 
 	//position changed? => update and mark dirty
 	if(new_ij!=ij_off  ||  new_xoff!=x_off  ||  new_yoff!=y_off) {
@@ -278,22 +280,6 @@ koord3d viewport_t::get_new_cursor_position( const scr_coord &screen_pos, bool g
 }
 
 
-bool viewport_t::is_background_visible() const
-{
-
-	sint32 i,j;
-
-	if ( get_ground_on_screen_coordinate(scr_coord(0,0),i,j)  &&  \
-		get_ground_on_screen_coordinate(scr_coord(cached_disp_width-1,0),i,j)  &&  \
-		get_ground_on_screen_coordinate(scr_coord(0,cached_disp_height-1),i,j)  &&  \
-		get_ground_on_screen_coordinate(scr_coord(cached_disp_width-1,cached_disp_height-1),i,j)  ) {
-			return false;
-	}
-
-	return true;
-}
-
-
 void viewport_t::metrics_updated()
 {
 	cached_disp_width = display_get_width();
@@ -315,6 +301,7 @@ void viewport_t::rotate90( sint16 y_size )
 
 
 viewport_t::viewport_t( karte_t *world, const koord ij_off , sint16 x_off , sint16 y_off )
+	: prepared_rect()
 {
 	this->world = world;
 	assert(world);

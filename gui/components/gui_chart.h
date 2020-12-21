@@ -3,43 +3,48 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_chart_h
-#define gui_chart_h
+#ifndef GUI_COMPONENTS_GUI_CHART_H
+#define GUI_COMPONENTS_GUI_CHART_H
+
 
 #include "../../simtypes.h"
 #include "gui_component.h"
 #include "../../tpl/slist_tpl.h"
 
+// NOTE: KMPH and FORCE hacks drawing accuracy and should not be mixed with other types
 // CURVE TYPES
 #define STANDARD 0
 #define MONEY 1
+#define PERCENT 2
+#define DISTANCE 3
+#define KMPH 4
+#define FORCE 5
+//#define KW       6
 
 /**
  * Draws a group of curves.
- * @author Hendrik Siegeln
  */
 class gui_chart_t : public gui_component_t
 {
 public:
+	enum chart_marker_t { square = 0, cross, diamond, round_box, none };
+
 	/**
 	 * Set background color. -1 means no background
-	 * @author Hj. Malthaner
 	 */
-	void set_background(int color);
+	void set_background(FLAGGED_PIXVAL color);
 
 	gui_chart_t();
 
-	/*
+	/**
 	 * paint chart
-	 * @author hsiegeln
 	 */
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
-	/*
+	/**
 	 * set dimension
-	 * @author hsiegeln
 	 */
 	void set_dimension(int x, int y) {
 		x_elements = x;
@@ -48,7 +53,6 @@ public:
 
 	/**
 	 * Pointer to function which converts supplied values before use
-	 * @author Knightly
 	 */
 	typedef sint64 (*convert_proc) (const sint64);
 
@@ -61,15 +65,10 @@ public:
 	 * @param elements elements in values
 	 * @param proc     conversion procedure to be applied to supplied values
 	 * @returns curve's id
-	 * @author hsiegeln
 	 */
-	int add_curve(int color, const sint64 *values, int size, int offset, int elements, int type, bool show, bool show_value, int precision, convert_proc proc=NULL);
-
-	uint32 add_line(int color, const sint64 *value, int times, bool show, bool show_value, int precision, convert_proc proc=NULL);
+	uint32 add_curve(PIXVAL color, const sint64 *values, int size, int offset, int elements, int type, bool show, bool show_value, int precision, convert_proc proc=NULL, chart_marker_t marker=square);
 
 	void remove_curves() { curves.clear(); }
-
-	void remove_lines() { lines.clear(); }
 
 	/**
 	 * Hide a curve of the set
@@ -82,18 +81,15 @@ public:
 	void show_curve(unsigned int id);
 
 	/**
-	 * Show/hide a line of the set
-	 * @author Knightly
-	 */
-	void show_line(uint32 id);
-	void hide_line(uint32 id);
-
-	/*
 	 * set starting value for x-axis of chart
 	 * example: set_seed(1930) will make a graph starting in year 1930; use set_seed(-1) to display nothing
-	 * @author hsiegeln
 	 */
 	void set_seed(int seed) { this->seed = seed; }
+
+	// x-axis number increase factor. dx=2 then 0, 2, 4, 6...
+	void set_x_axis_span(sint32 dx = 1) { x_axis_span = dx; }
+	// X-axis boundary that aborts the curve drawing.
+	void set_abort_display_x(uint8 abort_x = 0) { abort_display_x = abort_x; }
 
 	void set_show_x_axis(bool yesno) { show_x_axis = yesno; }
 
@@ -103,47 +99,39 @@ public:
 
 	int get_curve_count() { return curves.get_count(); }
 
-private:
+	scr_size get_max_size() const OVERRIDE;
 
-	void calc_gui_chart_values(sint64 *baseline, float *scale, char *, char *) const;
+	scr_size get_min_size() const OVERRIDE;
+
+	void set_min_size(scr_size);
+private:
+	void calc_gui_chart_values(sint64 *baseline, float *scale, char *, char *, int precision ) const;
 
 	/*
 	 * curve struct
-	 * @author hsiegeln
 	 */
 	struct curve_t {
-		int color;
+		PIXVAL color;
 		const sint64 *values;
 		int size;
 		int offset;
 		int elements;
 		bool show;
-		bool show_value; // show first value of curve as number on chart?
-		int type; // 0 = standard, 1 = money
-		int precision;	// how many numbers ...
-		convert_proc convert;	// Knightly : procedure for converting supplied values before use
-	};
-
-	/**
-	 * line struct
-	 * @author Knightly
-	 */
-	struct line_t {
-		int color;
-		const sint64 *value;		// pointer to a single value only
-		int times;					// number of times the same value is repeated
-		bool show;
-		bool show_value;			// whether to show the value as number on the chart
-		int precision;
-		convert_proc convert;	// Knightly : procedure for converting supplied value before use
+		bool show_value;      // show first value of curve as number on chart?
+		int type;             // 0 = standard, 1 = money, 2 = percent
+		const char* suffix;
+		chart_marker_t marker_type;
+		int precision;        // how many numbers ...
+		convert_proc convert; // procedure for converting supplied values before use
 	};
 
 	slist_tpl <curve_t> curves;
-	slist_tpl <line_t> lines;
 
 	int x_elements, y_elements;
+	uint8 abort_display_x = 0;
 
 	int seed;
+	sint32 x_axis_span;
 
 	scr_coord tooltipcoord;
 
@@ -151,9 +139,11 @@ private:
 
 	/**
 	 * Background color, -1 for transparent background
-	 * @author Hj. Malthaner
 	 */
-	int background;
+	FLAGGED_PIXVAL background;
+
+	// TODO do something smarter here
+	scr_size min_size;
 };
 
 #endif

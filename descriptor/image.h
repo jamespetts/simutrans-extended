@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __BILD_BESCH_H
-#define __BILD_BESCH_H
+#ifndef DESCRIPTOR_IMAGE_H
+#define DESCRIPTOR_IMAGE_H
+
 
 #include "../display/simgraph.h"
 #include "../display/simimg.h"
@@ -17,12 +18,10 @@
 //#define TRANSPARENT 0x808088
 #define SPECIAL_TRANSPARENT (0x00E7FFFF)
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Description eines Bildes.
+
+
+/**
+ * Data of one image
  *
  *  Child nodes:
  *	(none)
@@ -31,10 +30,6 @@ class image_t : public obj_desc_t
 {
 public:
 	static const uint32 rgbtab[SPECIAL];
-	static const uint8  special_pal[224*3];
-
-	// returns next matching color to an rgb
-	static COLOR_VAL get_index_from_rgb( uint8 r, uint8 g, uint8 b );
 
 	size_t len;       ///< length of data[] in PIXVAL units
 	scr_coord_val x;  ///< x offset of data[] image
@@ -86,9 +81,7 @@ public:
 
 	void register_image() { ::register_image(this); }
 
-	// decodes this image into a 32 bit bitmap with width target_width
-	void decode_img( sint16 xoff, sint16 yoff, uint32 *target, uint32 target_width, uint32 target_height ) const;
-
+private:
 	friend class image_reader_t;
 };
 

@@ -84,7 +84,9 @@ void *freelist_t::gimme_node(size_t size)
 	size <<= 2;
 
 #ifdef MULTI_THREAD
-	pthread_mutex_lock( &freelist_mutex );
+	int error = pthread_mutex_lock( &freelist_mutex );
+	assert(error == 0);
+	(void)error;
 #endif
 
 	// hold return value
@@ -93,7 +95,8 @@ void *freelist_t::gimme_node(size_t size)
 		// too large: just use malloc anyway
 		tmp = (nodelist_node_t *)xmalloc(size);
 #ifdef MULTI_THREAD
-		pthread_mutex_unlock( &freelist_mutex );
+		error = pthread_mutex_unlock( &freelist_mutex );
+		assert(error == 0);
 #endif
 #ifdef DEBUG_FREELIST
 		tmp->magic = 0xAA;
@@ -153,7 +156,8 @@ void *freelist_t::gimme_node(size_t size)
 #endif
 
 #ifdef MULTI_THREAD
-	pthread_mutex_unlock( &freelist_mutex );
+	error = pthread_mutex_unlock( &freelist_mutex );
+	assert(error == 0);
 #endif
 
 #ifdef DEBUG_FREELIST
@@ -182,13 +186,17 @@ void freelist_t::putback_node( size_t size, void *p )
 	size <<= 2;
 
 #ifdef MULTI_THREAD
-	pthread_mutex_lock( &freelist_mutex );
+	int error = pthread_mutex_lock( &freelist_mutex );
+	assert(error == 0);
+	(void)error;
 #endif
 
 	if(  size > MAX_LIST_INDEX  ) {
 		free(p);
 #ifdef MULTI_THREAD
-		pthread_mutex_unlock( &freelist_mutex );
+		int error = pthread_mutex_unlock( &freelist_mutex );
+		assert(error == 0);
+		(void)error;
 #endif
 		return;
 	}
@@ -213,7 +221,8 @@ void freelist_t::putback_node( size_t size, void *p )
 	*list = tmp;
 
 #ifdef MULTI_THREAD
-	pthread_mutex_unlock( &freelist_mutex );
+	error = pthread_mutex_unlock( &freelist_mutex );
+	assert(error == 0);
 #endif
 }
 
@@ -224,18 +233,18 @@ void freelist_t::free_all_nodes()
 	printf("freelist_t::free_all_nodes(): frees all list memory\n" );
 	while(chunk_list) {
 		nodelist_node_t *p = chunk_list;
-		printf("freelist_t::free_all_nodes(): free node %p (next %p)\n",p,chunk_list->next);
+		printf("freelist_t::free_all_nodes(): free node %p (next %p)\n", (void *)p, (void *)chunk_list->next);
 		chunk_list = chunk_list->next;
 
 		// now release memory
 #ifdef USE_VALGRIND_MEMCHECK
 		VALGRIND_DESTROY_MEMPOOL( p );
 #endif
-		guarded_free( p );
+		free( p );
 	}
 	printf("freelist_t::free_all_nodes(): zeroing\n");
 	for( int i=0;  i<NUM_LIST;  i++  ) {
-		all_lists[i] = NULL;
+		all_lists[i] = nullptr;
 	}
 	printf("freelist_t::free_all_nodes(): ok\n");
 }

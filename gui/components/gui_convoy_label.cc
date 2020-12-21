@@ -31,7 +31,7 @@ scr_size gui_convoy_label_t::get_image_size() const
 	scr_coord_val tamy=0;
 	if (cnv.is_bound() && cnv->get_vehicle_count()>0) {
 		for(unsigned i=0; i<cnv->get_vehicle_count();i++) {
-			KOORD_VAL x, y, w, h;
+			scr_coord_val x, y, w, h;
 			const image_id image=cnv->get_vehicle(i)->get_base_image();
 			display_get_base_image_offset(image, &x, &y, &w, &h );
 			tamx += (w*2)/3;
@@ -70,7 +70,7 @@ void gui_convoy_label_t::draw(scr_coord offset)
 	}
 	if (cnv.is_bound() && cnv->get_vehicle_count()>0) {
 		for(unsigned i=0; i<cnv->get_vehicle_count();i++) {
-			KOORD_VAL x, y, w, h;
+			scr_coord_val x, y, w, h;
 			const image_id image=cnv->get_vehicle(i)->get_base_image();
 			display_get_base_image_offset(image, &x, &y, &w, &h );
 			display_base_img(image,left-x,pos.y+offset.y+13-y-h/2,cnv->get_owner()->get_player_nr(),false,true);
@@ -86,7 +86,7 @@ void gui_convoy_label_t::draw(scr_coord offset)
 			sprintf(tmp, "%s %d (%s %i)",
 				translator::translate("Fahrzeuge:"), cnv->get_vehicle_count(),
 				translator::translate("Station tiles:"), convoy.get_vehicle_summary().tiles);
-			display_proportional( offset.x + 4, offset.y , tmp, ALIGN_LEFT, SYSCOL_TEXT, true );
+			display_proportional_rgb( offset.x + 4, offset.y , tmp, ALIGN_LEFT, SYSCOL_TEXT, true );
 			offset.y+=LINESPACE;
 		}
 		if (show_max_speed) {
@@ -96,7 +96,7 @@ void gui_convoy_label_t::draw(scr_coord offset)
 				translator::translate("Max. speed:"), min_speed,
 				translator::translate("..."), max_speed );
 
-			display_proportional( offset.x + 4, offset.y , tmp, ALIGN_LEFT, SYSCOL_TEXT, true );
+			display_proportional_rgb( offset.x + 4, offset.y , tmp, ALIGN_LEFT, SYSCOL_TEXT, true );
 			offset.y+=LINESPACE;
 		}
 	}

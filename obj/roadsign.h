@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef obj_roadsign_h
-#define obj_roadsign_h
+#ifndef OBJ_ROADSIGN_H
+#define OBJ_ROADSIGN_H
+
 
 #include "../simobj.h"
 #include "../simtypes.h"
@@ -18,7 +19,6 @@ class tool_selector_t;
 
 /**
  * road sign for traffic (one way minimum speed, traffic lights)
- * @author Hj. Malthaner
  */
 class roadsign_t : public obj_t, public sync_steppable
 {
@@ -36,7 +36,6 @@ protected:
 	uint8 ticks_ns;
 	uint8 ticks_ow;
 	uint8 ticks_offset;
-	uint8 open_direction;
 
 	sint8 after_yoffset, after_xoffset;
 
@@ -64,11 +63,10 @@ public:
 		call_on = 9
 	};
 
-	/*
+	/**
 	 * return direction or the state of the traffic light
-	 * @author Hj. Malthaner
 	 */
-	ribi_t::ribi get_dir() const 	{ return dir; }
+	ribi_t::ribi get_dir() const { return dir; }
 
 	/*
 	* sets ribi mask of the sign
@@ -90,7 +88,7 @@ public:
 #else
 	typ get_typ() const { return roadsign; }
 #endif
-	const char* get_name() const { return desc->get_name(); }
+	const char* get_name() const OVERRIDE { return desc->get_name(); }
 
 	// assuming this is a private way sign
 	uint16 get_player_mask() const { return (ticks_ow<<8)|ticks_ns; }
@@ -98,7 +96,7 @@ public:
 	/**
 	 * waytype associated with this object
 	 */
-	waytype_t get_waytype() const { return desc ? desc->get_wtyp() : invalid_wt; }
+	waytype_t get_waytype() const OVERRIDE { return desc ? desc->get_wtyp() : invalid_wt; }
 
 	roadsign_t(loadsave_t *file);
 	roadsign_t(player_t *player, koord3d pos, ribi_t::ribi dir, const roadsign_desc_t* desc, bool preview = false);
@@ -112,25 +110,21 @@ public:
 	virtual ~roadsign_t();
 
 	// since traffic lights need their own window
-	void show_info();
+	void show_info() OVERRIDE;
 
-	/**
-	 * @return Einen Beschreibungsstring für das Objekt, der z.B. in einem
-	 * Beobachtungsfenster angezeigt wird.
-	 * @author Hj. Malthaner
-	 */
-	virtual void info(cbuffer_t & buf, bool dummy = false) const;
+	/// @copydoc obj_t::info
+	void info(cbuffer_t & buf) const OVERRIDE;
 
 	/**
 	 * Calculate actual image
 	 */
-	virtual void calc_image();
+	virtual void calc_image() OVERRIDE;
 
 	// true, if a free route choose point (these are always single way the avoid recalculation of long return routes)
 	bool is_free_route(uint8 check_dir) const { return desc->is_choose_sign() &&  check_dir == dir; }
 
 	// changes the state of a traffic light
-	sync_result sync_step(uint32);
+	sync_result sync_step(uint32) OVERRIDE;
 
 	// change the phases of the traffic lights
 	uint8 get_ticks_ns() const { return ticks_ns; }
@@ -156,42 +150,38 @@ public:
 	void set_lane_affinity(uint8 lf) { lane_affinity = lf; }
 	const koord3d get_intersection() const;
 
-	uint8 get_open_direction() const { return open_direction; }
-	void set_open_direction(uint8 dir) { open_direction = dir; }
-
 	inline void set_image( image_id b ) { image = b; }
-	image_id get_image() const { return image; }
+	image_id get_image() const OVERRIDE { return image; }
 
 	/**
 	* For the front image hiding vehicles
-	* @author prissi
 	*/
-	image_id get_front_image() const { return foreground_image; }
+	image_id get_front_image() const OVERRIDE { return foreground_image; }
 
 	/**
 	* draw the part overlapping the vehicles
 	* (needed to get the right offset even on hills)
-	* @author V. Meyer
 	*/
+
 #ifdef MULTI_THREAD
-	void display_after(int xpos, int ypos, const sint8 clip_num) const;
+	void display_after(int xpos, int ypos, const sint8 clip_num) const OVERRIDE;
 #else
-	void display_after(int xpos, int ypos, bool dirty) const;
+	void display_after(int xpos, int ypos, bool dirty) const OVERRIDE;
 #endif
 
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file) OVERRIDE;
 
-	void rotate90();
+	void rotate90() OVERRIDE;
 
 	// subtracts cost
-	void cleanup(player_t *player);
+	void cleanup(player_t *player) OVERRIDE;
 
-	void finish_rd();
+	void finish_rd() OVERRIDE;
 
 	// static routines from here
 private:
 	static vector_tpl<roadsign_desc_t *> list;
-	static stringhashtable_tpl<const roadsign_desc_t *> table;
+	static stringhashtable_tpl<roadsign_desc_t *> table;
 
 protected:
 	static const roadsign_desc_t *default_signal;
@@ -202,7 +192,6 @@ public:
 
 	/**
 	 * Fill menu with icons of given stops from the list
-	 * @author Hj. Malthaner
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 sound_ok);
 
@@ -261,101 +250,101 @@ public:
 	*/
 
 	// Presignals:
-	static const char* get_pre_signal_aspects_name(signal_aspects wm)
+	static const char* get_pre_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clearpre";
-		case 2:
+		case caution:
 			return "cautionpre";
 		default:
 			return "unknown";
 		};
 	}
 	// Two aspect signals. This also holds the station signals:
-	static const char* get_2_signal_aspects_name(signal_aspects wm)
+	static const char* get_2_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear2";
-		case 2:
+		case caution:
 			return "caution2";
-		case 5:
+		case clear_no_choose:
 			return "clear2";
-		case 6:
+		case caution_no_choose:
 			return "caution2";
-		case 9:
+		case call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Three aspect signals:
-	static const char* get_3_signal_aspects_name(signal_aspects wm)
+	static const char* get_3_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear3";
-		case 2:
+		case caution:
 			return "caution3";
-		case 5:
+		case clear_no_choose:
 			return "clear3";
-		case 6:
+		case caution_no_choose:
 			return "caution3";
-		case 9:
+		case call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Four aspect signals:
-	static const char* get_4_signal_aspects_name(signal_aspects wm)
+	static const char* get_4_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear4";
-		case 2:
+		case caution:
 			return "caution4";
-		case 3:
+		case preliminary_caution:
 			return "preliminary_caution4";
-		case 5:
+		case clear_no_choose:
 			return "clear4";
-		case 6:
+		case caution_no_choose:
 			return "caution4";
-		case 7:
+		case preliminary_caution_no_choose:
 			return "preliminary_caution4";
-		case 9:
+		case call_on:
 			return "call_on";
 		default:
 			return "unknown";
 		};
 	}
 	// Five aspect signals:
-	static const char* get_5_signal_aspects_name(signal_aspects wm)
+	static const char* get_5_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear5";
-		case 2:
+		case caution:
 			return "caution5";
-		case 3:
+		case preliminary_caution:
 			return "preliminary_caution5";
-		case 4:
+		case advance_caution:
 			return "advanced_caution5";
-		case 5:
+		case clear_no_choose:
 			return "clear5";
-		case 6:
+		case caution_no_choose:
 			return "caution5";
-		case 7:
+		case preliminary_caution_no_choose:
 			return "preliminary_caution5";
-		case 8:
+		case advance_caution_no_choose:
 			return "advanced_caution5";
-		case 9:
+		case call_on:
 			return "call_on";
 		default:
 			return "unknown";
@@ -363,84 +352,84 @@ public:
 	}
 	// Now the same for Choose signals!
 	// Two aspect choose signals:
-	static const char* get_2_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_2_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear2_alternate";
-		case 5:
+		case clear_no_choose:
 			return "clear2_main";
-		case 9:
+		case call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Three aspect choose signals:
-	static const char* get_3_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_3_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear3_alternate";
-		case 2:
+		case caution:
 			return "caution3_alternate";
-		case 5:
+		case clear_no_choose:
 			return "clear3_main";
-		case 6:
+		case caution_no_choose:
 			return "caution3_main";
-		case 9:
+		case call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Four aspect choose signals:
-	static const char* get_4_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_4_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear4_alternate";
-		case 2:
+		case caution:
 			return "caution4_alternate";
-		case 3:
+		case preliminary_caution:
 			return "preliminary_caution4_alternate";
-		case 5:
+		case clear_no_choose:
 			return "clear4_main";
-		case 6:
+		case caution_no_choose:
 			return "caution4_main";
-		case 7:
+		case preliminary_caution_no_choose:
 			return "preliminary_caution4_main";
-		case 9:
+		case call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
 		};
 	}
 	// Five aspect choose signals:
-	static const char* get_5_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_5_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "clear5_alternate";
-		case 2:
+		case caution:
 			return "caution5_alternate";
-		case 3:
+		case preliminary_caution:
 			return "preliminary_caution5_alternate";
-		case 4:
+		case advance_caution:
 			return "advanced_caution5_alternate";
-		case 5:
+		case clear_no_choose:
 			return "clear5_main";
-		case 6:
+		case caution_no_choose:
 			return "caution5_main";
-		case 7:
+		case preliminary_caution_no_choose:
 			return "preliminary_caution5_main";
-		case 8:
+		case advance_caution_no_choose:
 			return "advanced_caution5_main";
-		case 9:
+		case call_on:
 			return "call_on_choose";
 		default:
 			return "unknown";
@@ -448,46 +437,46 @@ public:
 	}
 	// Now some time interval signals.
 	// Time interval three aspect signals (There is no two aspect signal). Presignal use the standard presignal:
-	static const char* get_time_signal_aspects_name(signal_aspects wm)
+	static const char* get_time_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "cleartime";
-		case 2:
+		case caution:
 			return "cautiontime";
-		case 5:
+		case clear_no_choose:
 			return "cleartime";
-		case 6:
+		case caution_no_choose:
 			return "cautiontime";
-		case 9:
+		case call_on:
 			return "call_ontime";
 		default:
 			return "unknown";
 		};
 	}
 	// Time interval choose signals:
-	static const char* get_time_choose_signal_aspects_name(signal_aspects wm)
+	static const char* get_time_choose_signal_aspects_name(signal_aspects aspect)
 	{
-		switch (wm)
+		switch (aspect)
 		{
-		case 1:
+		case clear:
 			return "cleartime_alternate";
-		case 2:
+		case caution:
 			return "cautiontime_alternate";
-		case 5:
+		case clear_no_choose:
 			return "cleartime_main";
-		case 6:
+		case caution_no_choose:
 			return "cautiontime_main";
-		case 9:
+		case call_on:
 			return "call_ontime_choose";
 		default:
 			return "unknown";
 		};
 	}
-	static const char* get_directions_name(ribi_t::ribi wm)
+	static const char* get_directions_name(ribi_t::ribi r)
 	{
-		switch (wm)
+		switch (r)
 		{
 		case 1:
 			return "south";

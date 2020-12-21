@@ -9,37 +9,40 @@
 #include "components/action_listener.h"
 
 #include "../simworld.h"
-#include "../gui/simwin.h"
+#include "../simmenu.h"
+#include "simwin.h"
 #include "optionen.h"
 #include "display_settings.h"
 #include "sprachen.h"
 #include "player_frame_t.h"
 #include "kennfarbe.h"
 #include "sound_frame.h"
-#include "loadsave_frame.h"
-#include "scenario_frame.h"
 #include "scenario_info.h"
 #include "../dataobj/scenario.h"
 #include "../dataobj/translator.h"
 
 enum BUTTONS {
 	BUTTON_LANGUAGE = 0,
-	BUTTON_PLAYERS,
-	BUTTON_PLAYER_COLORS,
-	BUTTON_DISPLAY,
-	BUTTON_SOUND,
 	BUTTON_NEW_GAME,
+	BUTTON_PLAYERS,
 	BUTTON_LOAD_GAME,
+	BUTTON_PLAYER_COLORS,
 	BUTTON_SAVE_GAME,
+	BUTTON_DISPLAY,
 	BUTTON_LOAD_SCENARIO,
+	BUTTON_SOUND,
 	BUTTON_SCENARIO_INFO,
 	BUTTON_QUIT
 };
 
 static char const *const option_buttons_text[] =
 {
-	"Sprache", "Spieler(mz)", "Farbe", "Helligk.", "Sound",
-	"Neue Karte", "Load game", "Speichern", "Load scenario", "Scenario", "Beenden"
+	"Sprache", "Neue Karte",
+	"Spieler(mz)", "Load game",
+	"Farbe", "Speichern",
+	"Helligk.", "Load scenario",
+	"Sound", "Scenario",
+	"Beenden"
 };
 
 optionen_gui_t::optionen_gui_t() :
@@ -48,49 +51,35 @@ optionen_gui_t::optionen_gui_t() :
 	assert(  lengthof(option_buttons)==lengthof(option_buttons_text)  );
 	assert(  lengthof(option_buttons)==BUTTON_QUIT+1  );
 
-	scr_coord cursor = scr_coord( D_MARGIN_LEFT, D_MARGIN_TOP );
-
+	set_table_layout(2,0);
+	set_force_equal_columns(true);
 
 	for(  uint i=0;  i<lengthof(option_buttons);  i++  ) {
 
-		switch(i) {
-
-			// Enable/disable scenario button
-			case BUTTON_SCENARIO_INFO:
-				if(  !welt->get_scenario()->active()  ) {
-					option_buttons[BUTTON_SCENARIO_INFO].disable();
-				}
-				break;
-
-			// Move cursor to the second column
-			case BUTTON_NEW_GAME:
-				cursor = scr_coord ( cursor.x+D_BUTTON_WIDTH+D_H_SPACE,D_MARGIN_TOP);
-				break;
-
-			// Squeeze in divider
-			case BUTTON_QUIT:
-				cursor.y -= D_V_SPACE;
-				divider.init( scr_coord(D_MARGIN_LEFT, cursor.y), cursor.x - D_MARGIN_LEFT + D_BUTTON_WIDTH );
-				add_component( &divider );
-				cursor.y += divider.get_size().h; //+D_V_SPACE;
-				break;
-
-		}
-
-		// Add button at cursor
-		option_buttons[i].init( button_t::roundbox, option_buttons_text[i], cursor, scr_size( D_BUTTON_WIDTH, D_BUTTON_HEIGHT ) );
+		add_component(option_buttons + i);
+		option_buttons[i].init(button_t::roundbox | button_t::flexible, option_buttons_text[i]);
 		option_buttons[i].add_listener(this);
-		add_component( option_buttons+i );
-		cursor.y += D_BUTTON_HEIGHT + D_V_SPACE;
+
+		if (i == BUTTON_SCENARIO_INFO) {
+			// Enable/disable scenario button
+			if(  !welt->get_scenario()->active()  ) {
+				option_buttons[BUTTON_SCENARIO_INFO].disable();
+			}
+			// Squeeze in divider
+			new_component_span<gui_divider_t>(2);
+			// empty cell left of quit button
+			new_component<gui_empty_t>();
+		}
 	}
 
-	set_windowsize( scr_size( D_BUTTON_WIDTH + D_MARGIN_RIGHT, D_TITLEBAR_HEIGHT + D_MARGIN_BOTTOM - D_V_SPACE ) + cursor );
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize());
+	set_resizemode(gui_frame_t::horizontal_resize);
 }
 
 
 /**
  * This method is called if an action is triggered
- * @author Hj. Malthaner
  */
 bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
@@ -114,16 +103,24 @@ bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 	else if(  comp == option_buttons + BUTTON_LOAD_GAME  ) {
 		destroy_win(this);
-		create_win(new loadsave_frame_t(true), w_info, magic_load_t);
+		tool_t *tmp_tool = create_tool( DIALOG_LOAD | DIALOG_TOOL );
+		welt->set_tool( tmp_tool, welt->get_active_player() );
+		// since init always returns false, it is safe to delete immediately
+		delete tmp_tool;
 	}
 	else if(  comp == option_buttons + BUTTON_LOAD_SCENARIO  ) {
 		destroy_win(this);
-		destroy_all_win(true);
-		create_win( new scenario_frame_t(), w_info, magic_load_t );
+		tool_t *tmp_tool = create_tool( DIALOG_SCENARIO | DIALOG_TOOL );
+		welt->set_tool( tmp_tool, welt->get_active_player() );
+		// since init always returns false, it is safe to delete immediately
+		delete tmp_tool;
 	}
 	else if(  comp == option_buttons + BUTTON_SAVE_GAME  ) {
 		destroy_win(this);
-		create_win(new loadsave_frame_t(false), w_info, magic_save_t);
+		tool_t *tmp_tool = create_tool( DIALOG_SAVE | DIALOG_TOOL );
+		welt->set_tool( tmp_tool, welt->get_active_player() );
+		// since init always returns false, it is safe to delete immediately
+		delete tmp_tool;
 	}
 	else if(  comp == option_buttons + BUTTON_NEW_GAME  ) {
 		destroy_all_win( true );

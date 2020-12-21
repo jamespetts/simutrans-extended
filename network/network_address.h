@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef _NETWORK_ADDRESS_H_
-#define _NETWORK_ADDRESS_H_
+#ifndef NETWORK_NETWORK_ADDRESS_H
+#define NETWORK_NETWORK_ADDRESS_H
+
 
 #include "../simtypes.h"
 #include "../tpl/vector_tpl.h"
@@ -29,8 +30,6 @@ public:
 
 	net_address_t(const char *);
 
-	net_address_t(const net_address_t&);
-
 	bool matches(const net_address_t &other) const {
 		return (other.ip & mask)==(ip & mask);
 	}
@@ -47,7 +46,6 @@ public:
 
 	/**
 	 * Return human readable representation of this IP address
-	 * @author Timothy Baldock <tb@entropy.me.uk>
 	 */
 	const char* get_str () const;
 

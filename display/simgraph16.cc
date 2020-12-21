@@ -14,7 +14,7 @@
 #include "font.h"
 #include "../pathes.h"
 #include "../simconst.h"
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #include "../simmem.h"
 #include "../simdebug.h"
 #include "../descriptor/image.h"
@@ -25,6 +25,8 @@
 #include "../utils/simstring.h"
 #include "simgraph.h"
 #include "../descriptor/vehicle_desc.h"
+#include "../gui/simwin.h"
+#include "../gui/gui_theme.h"
 
 
 #ifdef _MSC_VER
@@ -32,14 +34,6 @@
 #	define W_OK 2
 #else
 #	include <unistd.h>
-#endif
-
-// first: find out, which copy routines we may use!
-#ifdef  __GNUC__
-# if defined(__i686__)
-// default, but will only make a difference with display_fb_intern
-#  define USE_ASSEMBLER
-# endif
 #endif
 
 #ifdef MULTI_THREAD
@@ -113,8 +107,8 @@ public:
 		if (steps == 0) {
 			return;
 		}
-		sdx = (dx << 16) / steps;
-		sdy = (dy << 16) / steps;
+		sdx = (dx * (1 << 16)) / steps;
+		sdy = (dy * (1 << 16)) / steps;
 		// to stay right from the line
 		// left border: xmin <= x
 		// right border: x < xmax
@@ -123,7 +117,7 @@ public:
 				inc = 1 << 16;
 			}
 			else {
-				inc = (dx << 16) / dy;
+				inc = (dx * (1 << 16)) / dy - (1 << 16);
 			}
 		}
 		else if (dy < 0) {
@@ -131,7 +125,7 @@ public:
 				inc = 0; // (+1)-1 << 16;
 			}
 			else {
-				inc = (1 << 16) - (dx << 16) / dy;
+				inc = 0;
 			}
 		}
 	}
@@ -149,14 +143,15 @@ public:
 		r.non_convex_active = false;
 		if (non_convex  &&  use_non_convex  &&  y < y0  &&  y < (y0 + dy)) {
 			r.non_convex_active = true;
+			y = min(y0, y0+dy) - 1;
 		}
-		else if (dy != 0) {
+		if (  dy != 0  ) {
 			// init Bresenham algorithm
-			const int t = ((y - y0) << 16) / sdy;
+			const int t = ((y - y0) * (1 << 16)) / sdy;
 			// sx >> 16 = x
 			// sy >> 16 = y
-			r.sx = t * sdx + inc + (x0 << 16);
-			r.sy = t * sdy + (y0 << 16);
+			r.sx = t * sdx + inc + (x0 * (1 << 16));
+			r.sy = t * sdy +       (y0 * (1 << 16));
 		}
 	}
 
@@ -167,26 +162,6 @@ public:
 		if (r.non_convex_active) {
 			if (r.y == min(y0, y0 + dy)) {
 				r.non_convex_active = false;
-				if (dy != 0) {
-					// init Bresenham algorithm
-					const int t = ((r.y - y0) << 16) / sdy;
-					// sx >> 16 = x
-					// sy >> 16 = y
-					r.sx = t * sdx + inc + (x0 << 16);
-					r.sy = t * sdy + (y0 << 16);
-					if (dy > 0) {
-						const int r_xmin = r.sx >> 16;
-						if (xmin < r_xmin) {
-							xmin = r_xmin;
-						}
-					}
-					else {
-						const int r_xmax = r.sx >> 16;
-						if (xmax > r_xmax) {
-							xmax = r_xmax;
-						}
-					}
-				}
 			}
 			else {
 				if (dy < 0) {
@@ -201,10 +176,11 @@ public:
 						xmin = r_xmin;
 					}
 				}
+				return;
 			}
 		}
 		// go along the ray, Bresenham
-		else if (dy != 0) {
+		if (  dy != 0  ) {
 			if (dy > 0) {
 				do {
 					r.sx += sdx;
@@ -264,55 +240,57 @@ clipping_info_t clips;
 
 #define CR clips CLIP_NUM_INDEX
 
-static font_type large_font;
+static font_t default_font;
 
 // needed for resizing gui
-int large_font_ascent = 9;
-int large_font_total_height = 11;
+int default_font_ascent = 0;
+int default_font_linespace = 0;
+
 
 #define MAX_PLAYER_COUNT (16)
 
 #define RGBMAPSIZE (0x8000+LIGHT_COUNT+MAX_PLAYER_COUNT)
 
+
 /*
-* Hajo: mapping tables for RGB 555 to actual output format
-* plus the special (player, day&night) colors appended
-*
-* 0x0000 - 0x7FFF: RGB colors
-* 0x8000 - 0x800F: Player colors
-* 0x8010 - 0x001F: Day&Night special colors
-* The following transparent colors are not in the colortable
-* 0x8020 - 0xFFE1: 3 4 3 RGB transparent colors in 31 transparency levels
-*/
+ * mapping tables for RGB 555 to actual output format
+ * plus the special (player, day&night) colors appended
+ *
+ * 0x0000 - 0x7FFF: RGB colors
+ * 0x8000 - 0x800F: Player colors
+ * 0x8010 - 0x001F: Day&Night special colors
+ * The following transparent colors are not in the colortable
+ * 0x8020 - 0xFFE1: 3 4 3 RGB transparent colors in 31 transparency levels
+ */
 static PIXVAL rgbmap_day_night[RGBMAPSIZE];
 
 
 /*
-* Hajo: same as rgbmap_day_night, but always daytime colors
-*/
+ * same as rgbmap_day_night, but always daytime colors
+ */
 static PIXVAL rgbmap_all_day[RGBMAPSIZE];
 
 
 /*
-* Hajo:used by pixel copy functions, is one of rgbmap_day_night
-* rgbmap_all_day
-*/
+ * used by pixel copy functions, is one of rgbmap_day_night
+ * rgbmap_all_day
+ */
 static PIXVAL *rgbmap_current = 0;
 
 
 /*
-* Hajo: mapping table for special-colors (AI player colors)
-* to actual output format - day&night mode
-* 16 sets of 16 colors
-*/
+ * mapping table for special-colors (AI player colors)
+ * to actual output format - day&night mode
+ * 16 sets of 16 colors
+ */
 static PIXVAL specialcolormap_day_night[256];
 
 
 /*
-* Hajo: mapping table for special-colors (AI player colors)
-* to actual output format - all day mode
-* 16 sets of 16 colors
-*/
+ * mapping table for special-colors (AI player colors)
+ * to actual output format - all day mode
+ * 16 sets of 16 colors
+ */
 PIXVAL specialcolormap_all_day[256];
 
 
@@ -337,8 +315,8 @@ static uint8 player_offsets[MAX_PLAYER_COUNT][2];
 
 
 /*
-* Hajo: Image map descriptor structure
-*/
+ * Image map descriptor structure
+ */
 struct imd {
 	sint16 x; // current (zoomed) min x offset
 	sint16 y; // current (zoomed) min y offset
@@ -376,6 +354,7 @@ struct imd {
 #define ONE_OUT_15 (0x3DEF)
 #define TWO_OUT_15 (0x1CE7)
 
+static int bitdepth = 16;
 
 static KOORD_VAL disp_width = 640;
 static KOORD_VAL disp_actual_width = 640;
@@ -413,8 +392,8 @@ static PIXVAL* textur = NULL;
 
 
 /*
-* Hajo: dirty tile management structures
-*/
+ * dirty tile management structures
+ */
 #define DIRTY_TILE_SIZE 16
 #define DIRTY_TILE_SHIFT 4
 
@@ -432,9 +411,9 @@ static int night_shift = -1;
 
 
 /*
-* Hajo: special colors during daytime
-*/
-COLOR_VAL display_day_lights[LIGHT_COUNT * 3] = {
+ * special colors during daytime
+ */
+uint8 display_day_lights[LIGHT_COUNT*3] = {
 	0x57,	0x65,	0x6F, // Dark windows, lit yellowish at night
 	0x7F,	0x9B,	0xF1, // Lighter windows, lit blueish at night
 	0xFF,	0xFF,	0x53, // Yellow light
@@ -449,14 +428,14 @@ COLOR_VAL display_day_lights[LIGHT_COUNT * 3] = {
 	0xC1,	0xB1,	0xD1, // Windows, lit yellow
 	0x4D,	0x4D,	0x4D, // Windows, lit yellow
 	0xE1,	0x00,	0xE1, // purple light for signals
-	0x01, 0x01, 0xFF, // blue light
+	0x01,	0x01,	0xFF, // blue light
 };
 
 
 /*
-* Hajo: special colors during nighttime
-*/
-COLOR_VAL display_night_lights[LIGHT_COUNT * 3] = {
+ * special colors during nighttime
+ */
+uint8 display_night_lights[LIGHT_COUNT*3] = {
 	0xD3,	0xC3,	0x80, // Dark windows, lit yellowish at night
 	0x80,	0xC3,	0xD3, // Lighter windows, lit blueish at night
 	0xFF,	0xFF,	0x53, // Yellow light
@@ -471,13 +450,13 @@ COLOR_VAL display_night_lights[LIGHT_COUNT * 3] = {
 	0xD3,	0xC3,	0x80, // Windows, lit yellow
 	0xD3,	0xC3,	0x80, // Windows, lit yellow
 	0xE1,	0x00,	0xE1, // purple light for signals
-	0x01, 0x01, 0xFF, // blue light
+	0x01,	0x01,	0xFF, // blue light
 };
 
 
 // the players colors and colors for simple drawing operations
-// each eight colors are corresponding to a player color
-static const COLOR_VAL special_pal[224 * 3] =
+// each three values correspond to a color, each 8 colors are a player color
+static const uint8 special_pal[SPECIAL_COLOR_COUNT*3] =
 {
 	36, 75, 103,
 	57, 94, 124,
@@ -707,18 +686,86 @@ static const COLOR_VAL special_pal[224 * 3] =
 
 
 /*
-* Hajo: tile raster width
-*/
+ * tile raster width
+ */
+#define MAX_ZOOM_FACTOR (9)
+#define ZOOM_NEUTRAL (3)
+static uint32 zoom_factor = ZOOM_NEUTRAL;
+static sint32 zoom_num[MAX_ZOOM_FACTOR + 1] = { 2, 3, 4, 1, 3, 5, 1, 3, 1, 1 };
+static sint32 zoom_den[MAX_ZOOM_FACTOR + 1] = { 1, 2, 3, 1, 4, 8, 2, 8, 4, 8 };
+
 KOORD_VAL tile_raster_width = 16;	// zoomed
 KOORD_VAL base_tile_raster_width = 16;	// original
 
-										// Knightly : variables for storing currently used image procedure set and tile raster width
+// variables for storing currently used image procedure set and tile raster width
 display_image_proc display_normal = NULL;
 display_image_proc display_color = NULL;
 display_blend_proc display_blend = NULL;
 display_alpha_proc display_alpha = NULL;
 signed short current_tile_raster_width = 0;
 
+/*
+ * Gets a colour index and returns RGB888
+ */
+uint32 get_color_rgb(uint8 idx)
+{
+	// special_pal has 224 rgb colors
+	if (idx < SPECIAL_COLOR_COUNT) {
+		return special_pal[idx*3 + 0]<<16 | special_pal[idx*3 + 1]<<8 | special_pal[idx*3 + 2];
+	}
+
+	// if it uses one of the special light colours it's under display_day_lights
+	if (idx < SPECIAL_COLOR_COUNT + LIGHT_COUNT) {
+		const uint8 lidx = idx - SPECIAL_COLOR_COUNT;
+		return display_day_lights[lidx*3 + 0]<<16 | display_day_lights[lidx*3 + 1]<<8 | display_day_lights[lidx*3 + 2];
+	}
+
+	// Return black for anything else
+	return 0;
+}
+
+/**
+ * Convert indexed colors to rgb and back
+ */
+PIXVAL color_idx_to_rgb(PIXVAL idx)
+{
+	return (specialcolormap_all_day[(idx) & 0x00FF]);
+}
+
+PIXVAL color_rgb_to_idx(PIXVAL color)
+{
+	for (PIXVAL i = 0; i <= 0xff; i++) {
+		if (specialcolormap_all_day[i] == color) {
+			return i;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Convert env_t colours from RGB888 to the system format
+ */
+void env_t_rgb_to_system_colors()
+{
+	// get system colours for the default colours or settings.xml
+	uint32 rgb = env_t::default_window_title_color_rgb;
+	env_t::default_window_title_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+
+	rgb = env_t::front_window_text_color_rgb;
+	env_t::front_window_text_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+
+	rgb = env_t::bottom_window_text_color_rgb;
+	env_t::bottom_window_text_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+
+	rgb = env_t::tooltip_color_rgb;
+	env_t::tooltip_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+
+	rgb = env_t::cursor_overlay_color_rgb;
+	env_t::cursor_overlay_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+
+	rgb = env_t::background_color_rgb;
+	env_t::background_color = get_system_color( rgb>>16, (rgb>>8)&0xFF, rgb&0xFF );
+}
 
 /* changes the raster width after loading */
 KOORD_VAL display_set_base_raster_width(KOORD_VAL new_raster)
@@ -759,62 +806,42 @@ void display_set_height(KOORD_VAL const h)
 
 
 /**
-* this sets width < 0 if the range is out of bounds
-* so check the value after calling and before displaying
-* @author Hj. Malthaner
-*/
-static int clip_wh(KOORD_VAL *x, KOORD_VAL *width, const KOORD_VAL min_width, const KOORD_VAL max_width)
+ * Clips intervall [x,x+w] such that left <= x and x+w <= right.
+ * If @p w is negative, it stays negative.
+ * @returns difference between old and new value of @p x.
+ */
+inline int clip_intv(KOORD_VAL &x, KOORD_VAL &w, const KOORD_VAL left, const KOORD_VAL right)
 {
-	if (*width <= 0) {
-		*width = 0;
-		return 0;
+	KOORD_VAL xx = min(x+w, right);
+	KOORD_VAL xoff = left - x;
+	if (xoff > 0) { // equivalent to x < left
+		x = left;
 	}
-	if (*x + *width > max_width) {
-		*width = max_width - *x;
+	else {
+		xoff = 0;
 	}
-	if (*x < min_width) {
-		const KOORD_VAL xoff = min_width - *x;
+	w = xx - x;
+	return xoff;
+}
 
-		*width += *x - min_width;
-		*x = min_width;
-
-		return xoff;
-	}
-	return 0;
+/// wrapper for clip_intv
+static int clip_wh(KOORD_VAL *x, KOORD_VAL *w, const KOORD_VAL left, const KOORD_VAL right)
+{
+	return clip_intv(*x, *w, left, right);
 }
 
 
-/**
-* places x and w within bounds left and right
-* if nothing to show, returns false
-* @author Niels Roest
-*/
+/// wrapper for clip_intv, @returns whether @p w is positive
 static bool clip_lr(KOORD_VAL *x, KOORD_VAL *w, const KOORD_VAL left, const KOORD_VAL right)
 {
-	const KOORD_VAL l = *x;      // leftmost pixel
-	const sint32 r = (sint32)*x + (sint32)*w; // rightmost pixel
-
-	if (*w <= 0 || l >= right || r <= left) {
-		*w = 0;
-		return false;
-	}
-
-	// there is something to show.
-	if (l < left) {
-		*w -= left - l;
-		*x = left;
-	}
-	if (r > right) {
-		*w -= (KOORD_VAL)(r - right);
-	}
+	clip_intv(*x, *w, left, right);
 	return *w > 0;
 }
 
 
 /**
-* Get the clipping rectangle dimensions
-* @author Hj. Malthaner
-*/
+ * Get the clipping rectangle dimensions
+ */
 clip_dimension display_get_clip_wh(CLIP_NUM_DEF0)
 {
 	return CR.clip_rect;
@@ -822,19 +849,24 @@ clip_dimension display_get_clip_wh(CLIP_NUM_DEF0)
 
 
 /**
-* Set the clipping rectangle dimensions
-* @author Hj. Malthaner
-*
-* here, a pixel at coordinate xp is displayed if
-*  clip. x <= xp < clip.xx
-* the right-most pixel of an image located at xp with width w is displayed if
-*  clip.x < xp+w <= clip.xx
-* analogously for the y coordinate
-*/
-void display_set_clip_wh(KOORD_VAL x, KOORD_VAL y, KOORD_VAL w, KOORD_VAL h  CLIP_NUM_DEF)
+ * Set the clipping rectangle dimensions
+ *
+ * here, a pixel at coordinate xp is displayed if
+ *  clip. x <= xp < clip.xx
+ * the right-most pixel of an image located at xp with width w is displayed if
+ *  clip.x < xp+w <= clip.xx
+ * analogously for the y coordinate
+ */
+void display_set_clip_wh(KOORD_VAL x, KOORD_VAL y, KOORD_VAL w, KOORD_VAL h  CLIP_NUM_DEF, bool fit)
 {
-	clip_wh(&x, &w, 0, disp_width);
-	clip_wh(&y, &h, 0, disp_height);
+	if (!fit) {
+		clip_wh( &x, &w, 0, disp_width);
+		clip_wh( &y, &h, 0, disp_height);
+	}
+	else {
+		clip_wh( &x, &w, CR.clip_rect.x, CR.clip_rect.xx);
+		clip_wh( &y, &h, CR.clip_rect.y, CR.clip_rect.yy);
+	}
 
 	CR.clip_rect.x = x;
 	CR.clip_rect.y = y;
@@ -950,14 +982,13 @@ static inline void mark_tile_dirty(const int x, const int y)
 #if 0
 	assert(bit / 8 < tile_buffer_length);
 #endif
-	((uint8*)tile_dirty)[bit >> 3] |= 1 << (bit & 7);
+	tile_dirty[bit >> 5] |= 1 << (bit & 31);
 }
 
 
 /**
-* Mark tile as dirty, with _NO_ clipping
-* @author Hj. Malthaner
-*/
+ * Mark tile as dirty, with _NO_ clipping
+ */
 static void mark_rect_dirty_nc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2)
 {
 	// floor to tile size
@@ -981,16 +1012,15 @@ static void mark_rect_dirty_nc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_V
 		int bit = y1 * tile_buffer_per_line + x1;
 		const int end = bit + x2 - x1;
 		do {
-			((uint8*)tile_dirty)[bit >> 3] |= 1 << (bit & 7);
-		} while (++bit <= end);
+			tile_dirty[bit >> 5] |= 1 << (bit & 31);
+		} while(  ++bit <= end  );
 	}
 }
 
 
 /**
-* Mark tile as dirty, with clipping
-* @author Hj. Malthaner
-*/
+ * Mark tile as dirty, with clipping
+ */
 void mark_rect_dirty_wc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2)
 {
 	// inside display?
@@ -1022,11 +1052,11 @@ void mark_rect_dirty_clip(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2
 		if (y1 < CR.clip_rect.y) {
 			y1 = CR.clip_rect.y;
 		}
-		if (x2 > CR.clip_rect.xx) {
-			x2 = CR.clip_rect.xx;
+		if (x2 >= CR.clip_rect.xx) {
+			x2 = CR.clip_rect.xx-1;
 		}
-		if (y2 > CR.clip_rect.yy) {
-			y2 = CR.clip_rect.yy;
+		if (y2 >= CR.clip_rect.yy) {
+			y2 = CR.clip_rect.yy-1;
 		}
 		mark_rect_dirty_nc(x1, y1, x2, y2);
 	}
@@ -1044,9 +1074,8 @@ void mark_screen_dirty()
 
 
 /**
-* the area of this image need update
-* @author Hj. Malthaner
-*/
+ * the area of this image need update
+ */
 void display_mark_img_dirty(image_id image, KOORD_VAL xp, KOORD_VAL yp)
 {
 	if (image < anz_images) {
@@ -1068,9 +1097,8 @@ void display_mark_img_dirty(image_id image, KOORD_VAL xp, KOORD_VAL yp)
 */
 
 /**
-* Flag all images for rezoom on next draw
-* @author Hj. Malthaner
-*/
+ * Flag all images for rezoom on next draw
+ */
 static void rezoom()
 {
 	for (image_id n = 0; n < anz_images; n++) {
@@ -1091,7 +1119,7 @@ void set_zoom_factor(int z)
 	if ((base_tile_raster_width * zoom_num[z]) / zoom_den[z] > 4) {
 		zoom_factor = z;
 		tile_raster_width = (base_tile_raster_width * zoom_num[zoom_factor]) / zoom_den[zoom_factor];
-		fprintf(stderr, "set_zoom_factor() : set %d (%i/%i)\n", zoom_factor, zoom_num[zoom_factor], zoom_den[zoom_factor]);
+		dbg->message("set_zoom_factor()", "Zoom level now %d (%i/%i)", zoom_factor, zoom_num[zoom_factor], zoom_den[zoom_factor] );
 		rezoom();
 	}
 }
@@ -1129,22 +1157,9 @@ static void activate_player_color(sint8 player_nr, bool daynight)
 			for (i = 0; i<8; i++) {
 				rgbmap_all_day[0x8000 + i] = specialcolormap_all_day[player_offsets[player_day][0] + i];
 				rgbmap_all_day[0x8008 + i] = specialcolormap_all_day[player_offsets[player_day][1] + i];
-#if 0
-				transparent_map_all_day[i] = (specialcolormap_all_day[player_offsets[player_day][0] + i] >> 2) & TWO_OUT_16;
-				transparent_map_all_day[i + 8] = (specialcolormap_all_day[player_offsets[player_day][1] + i] >> 2) & TWO_OUT_16;
-				// those save RGB components
-				transparent_map_all_day_rgb[i * 3 + 0] = specialcolormap_day_night[player_offsets[player_day][0] + i] >> 11;
-				transparent_map_all_day_rgb[i * 3 + 1] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 5) & 0x3F;
-				transparent_map_all_day_rgb[i * 3 + 2] = specialcolormap_day_night[player_offsets[player_day][0] + i] & 0x1F;
-				transparent_map_all_day_rgb[i * 3 + 0 + 24] = specialcolormap_day_night[player_offsets[player_day][1] + i] >> 11;
-				transparent_map_all_day_rgb[i * 3 + 1 + 24] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 5) & 0x3F;
-				transparent_map_all_day_rgb[i * 3 + 2 + 24] = specialcolormap_day_night[player_offsets[player_day][1] + i] & 0x1F;
-#endif
 			}
 		}
 		rgbmap_current = rgbmap_all_day;
-		//		transparent_map_current = transparent_map_all_day;
-		//		transparent_map_current_rgb = transparent_map_all_day_rgb;
 	}
 	else {
 		// changing color table
@@ -1154,28 +1169,38 @@ static void activate_player_color(sint8 player_nr, bool daynight)
 			for (i = 0; i<8; i++) {
 				rgbmap_day_night[0x8000 + i] = specialcolormap_day_night[player_offsets[player_night][0] + i];
 				rgbmap_day_night[0x8008 + i] = specialcolormap_day_night[player_offsets[player_night][1] + i];
-				transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 2) & TWO_OUT_16;
-				transparent_map_day_night[i + 8] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 2) & TWO_OUT_16;
-				// those save RGB components
-				transparent_map_day_night_rgb[i * 4 + 0] = specialcolormap_day_night[player_offsets[player_day][0] + i] >> 11;
-				transparent_map_day_night_rgb[i * 4 + 1] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 5) & 0x3F;
-				transparent_map_day_night_rgb[i * 4 + 2] = specialcolormap_day_night[player_offsets[player_day][0] + i] & 0x1F;
-				transparent_map_day_night_rgb[i * 4 + 0 + 32] = specialcolormap_day_night[player_offsets[player_day][1] + i] >> 11;
-				transparent_map_day_night_rgb[i * 4 + 1 + 32] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 5) & 0x3F;
-				transparent_map_day_night_rgb[i * 4 + 2 + 32] = specialcolormap_day_night[player_offsets[player_day][1] + i] & 0x1F;
+				if(  bitdepth==16  ) {
+					transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 2) & TWO_OUT_16;
+					transparent_map_day_night[i + 8] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 2) & TWO_OUT_16;
+					// those save RGB components
+					transparent_map_day_night_rgb[i*4+0] = specialcolormap_day_night[player_offsets[player_day][0]+i] >> 11;
+					transparent_map_day_night_rgb[i*4+1] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 5) & 0x3F;
+					transparent_map_day_night_rgb[i*4+2] = specialcolormap_day_night[player_offsets[player_day][0]+i] & 0x1F;
+					transparent_map_day_night_rgb[i*4+0+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] >> 11;
+					transparent_map_day_night_rgb[i*4+1+32] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 5) & 0x3F;
+					transparent_map_day_night_rgb[i*4+2+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] & 0x1F;
+				}
+				else {
+					transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 2) & TWO_OUT_15;
+					transparent_map_day_night[i+8] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 2) & TWO_OUT_15;
+					// those save RGB components
+					transparent_map_day_night_rgb[i*4+0] = specialcolormap_day_night[player_offsets[player_day][0]+i] >> 10;
+					transparent_map_day_night_rgb[i*4+1] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 5) & 0x31;
+					transparent_map_day_night_rgb[i*4+2] = specialcolormap_day_night[player_offsets[player_day][0]+i] & 0x1F;
+					transparent_map_day_night_rgb[i*4+0+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] >> 10;
+					transparent_map_day_night_rgb[i*4+1+32] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 5) & 0x1F;
+					transparent_map_day_night_rgb[i*4+2+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] & 0x1F;
+				}
 			}
 		}
 		rgbmap_current = rgbmap_day_night;
-		//		transparent_map_current = transparent_map_day_night;
-		//		transparent_map_current_rgb = transparent_map_day_night_rgb;
 	}
 }
 
 
 /**
-* Flag all images to recode colors on next draw
-* @author Hj. Malthaner
-*/
+ * Flag all images to recode colors on next draw
+ */
 static void recode()
 {
 	for (image_id n = 0; n < anz_images; n++) {
@@ -1184,11 +1209,52 @@ static void recode()
 }
 
 
+// to switch between 15 bit and 16 bit recoding ...
+typedef void (*display_recode_img_src_target_proc)(KOORD_VAL h, PIXVAL *src, PIXVAL *target);
+static display_recode_img_src_target_proc recode_img_src_target = NULL;
+
+
 /**
-* Convert a certain image data to actual output data
-* @author prissi
-*/
-static void recode_img_src_target(KOORD_VAL h, PIXVAL *src, PIXVAL *target)
+ * Convert a certain image data to actual output data
+ */
+static void recode_img_src_target_15(KOORD_VAL h, PIXVAL *src, PIXVAL *target)
+{
+	if(  h > 0  ) {
+		do {
+			uint16 runlen = *target++ = *src++;
+			// decode rows
+			do {
+				// clear run is always ok
+				runlen = *target++ = *src++;
+				if(  runlen & TRANSPARENT_RUN  ) {
+					runlen &= ~TRANSPARENT_RUN;
+					while(  runlen--  ) {
+						if(  *src < 0x8020+(31*16)  ) {
+							// expand transparent player color
+							PIXVAL rgb555 = rgbmap_day_night[(*src-0x8020)/31+0x8000];
+							PIXVAL alpha = (*src-0x8020) % 31;
+							PIXVAL pix = ((rgb555 >> 6) & 0x0380) | ((rgb555 >>  4) & 0x0038) | ((rgb555 >> 2) & 0x07);
+							*target++ = 0x8020 + 31*31 + pix*31 + alpha;
+							src ++;
+						}
+						else {
+							*target++ = *src++;
+						}
+					}
+				}
+				else {
+					// now just convert the color pixels
+					while(  runlen--  ) {
+						*target++ = rgbmap_day_night[*src++];
+					}
+				}
+				// next clear run or zero = end
+			} while(  (runlen = *target++ = *src++)  );
+		} while(  --h  );
+	}
+}
+
+static void recode_img_src_target_16(KOORD_VAL h, PIXVAL *src, PIXVAL *target)
 {
 	if (h > 0) {
 		do {
@@ -1233,12 +1299,11 @@ image_id get_image_count()
 
 
 /**
-* Handles the conversion of an image to the output color
-* @author prissi
-*/
+ * Handles the conversion of an image to the output color
+ */
 static void recode_img(const image_id n, const sint8 player_nr)
 {
-	// Hajo: may this image be zoomed
+	// may this image be zoomed
 #ifdef MULTI_THREAD
 	pthread_mutex_lock(&recode_img_mutex);
 	if ((images[n].player_flags & (1 << player_nr)) == 0) {
@@ -1317,15 +1382,14 @@ PIXVAL inline zoomin_pixel(uint8 *p, uint8* pab, uint8 *prl, uint8* pdia)
 
 
 /**
-* Convert base image data to actual image size
-* Uses averages of all sampled points to get the "real" value
-* Blurs a bit
-* @author prissi
-*/
+ * Convert base image data to actual image size
+ * Uses averages of all sampled points to get the "real" value
+ * Blurs a bit
+ */
 static void rezoom_img(const image_id n)
 {
-	// Hajo: may this image be zoomed
-	if (n < anz_images  &&  images[n].base_h > 0) {
+	// may this image be zoomed
+	if(  n < anz_images  &&  images[n].base_h > 0  ) {
 #ifdef MULTI_THREAD
 		pthread_mutex_lock(&rezoom_img_mutex[n % env_t::num_threads]);
 		if ((images[n].recode_flags & FLAG_REZOOM) == 0) {
@@ -1337,15 +1401,15 @@ static void rezoom_img(const image_id n)
 		// we may need night conversion afterwards
 		images[n].player_flags = 0xFFFF; // recode all player colors
 
-										 //  we recalculate the len (since it may be larger than before)
-										 // thus we have to free the old caches
-		if (images[n].zoom_data != NULL) {
-			guarded_free(images[n].zoom_data);
+		//  we recalculate the len (since it may be larger than before)
+		// thus we have to free the old caches
+		if(  images[n].zoom_data != NULL  ) {
+			free( images[n].zoom_data );
 			images[n].zoom_data = NULL;
 		}
-		for (uint8 i = 0; i < MAX_PLAYER_COUNT; i++) {
-			if (images[n].data[i] != NULL) {
-				guarded_free(images[n].data[i]);
+		for(  uint8 i = 0;  i < MAX_PLAYER_COUNT;  i++  ) {
+			if(  images[n].data[i] != NULL  ) {
+				free( images[n].data[i] );
 				images[n].data[i] = NULL;
 			}
 		}
@@ -1760,11 +1824,11 @@ static void rezoom_img(const image_id n)
 						dest[count] = pixval;
 					}
 
-					/* Knightly:
-					*		If it is not the first clear-colored-run pair and its colored run is empty
-					*		--> it is superfluous and can be removed by rolling back the pointer
-					*/
-					if (clear_colored_run_pair_count > 0 && count == 0) {
+					/*
+					 *		If it is not the first clear-colored-run pair and its colored run is empty
+					 *		--> it is superfluous and can be removed by rolling back the pointer
+					 */
+					if(  clear_colored_run_pair_count > 0  &&  count == 0  ) {
 						dest--;
 						// this only happens at the end of a line, so no need to increment clear_colored_run_pair_count
 					}
@@ -1825,16 +1889,6 @@ void display_fit_img_to_width(const image_id n, sint16 new_w)
 }
 
 
-/**
-* Retrieve brightness setting
-* @author Hj. Malthaner
-*/
-int display_get_light()
-{
-	return light_level;
-}
-
-
 /* Tomas variant */
 static void calc_base_pal_from_night_shift(const int night)
 {
@@ -1880,44 +1934,70 @@ static void calc_base_pal_from_night_shift(const int night)
 		G = (int)(G * RG_night_multiplier);
 		B = (int)(B * B_night_multiplier);
 
-		// attention, assuming 16 bit colors form here!!!
-		PIXVAL color = get_system_color(R, G, B);
-		transparent_map_day_night[MAX_PLAYER_COUNT + LIGHT_COUNT + i] = (color >> 2) & TWO_OUT_16;
-		transparent_map_day_night_rgb[(MAX_PLAYER_COUNT + LIGHT_COUNT + i) * 4 + 0] = color >> 11;
-		transparent_map_day_night_rgb[(MAX_PLAYER_COUNT + LIGHT_COUNT + i) * 4 + 1] = (color >> 5) & 0x3F;
-		transparent_map_day_night_rgb[(MAX_PLAYER_COUNT + LIGHT_COUNT + i) * 4 + 2] = color & 0x1F;
+		if(  bitdepth==16  ) {
+			// 16 bit colors form here!
+			PIXVAL color = get_system_color(R, G, B);
+			transparent_map_day_night[MAX_PLAYER_COUNT+LIGHT_COUNT+i] = (color >> 2) & TWO_OUT_16;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+0] = color >> 11;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+1] = (color >> 5) & 0x3F;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+2] = color & 0x1F;
+		}
+		else {
+			// 15 bit colors form here!
+			PIXVAL color = get_system_color(R, G, B);
+			transparent_map_day_night[MAX_PLAYER_COUNT+LIGHT_COUNT+i] = (color >> 2) & TWO_OUT_15;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+0] = color >> 10;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+1] = (color >> 5) & 0x1F;
+			transparent_map_day_night_rgb[(MAX_PLAYER_COUNT+LIGHT_COUNT+i)*4+2] = color & 0x1F;
+		}
 	}
 
 	// player color map (and used for map display etc.)
-	for (i = 0; i < 224; i++) {
-		const int R = (int)(special_pal[i * 3 + 0] * RG_night_multiplier);
-		const int G = (int)(special_pal[i * 3 + 1] * RG_night_multiplier);
-		const int B = (int)(special_pal[i * 3 + 2] * B_night_multiplier);
+	for (i = 0; i < SPECIAL_COLOR_COUNT; i++) {
+		const int R = (int)(special_pal[i*3 + 0] * RG_night_multiplier);
+		const int G = (int)(special_pal[i*3 + 1] * RG_night_multiplier);
+		const int B = (int)(special_pal[i*3 + 2] * B_night_multiplier);
 
 		specialcolormap_day_night[i] = get_system_color(R, G, B);
 	}
-	// special light colors (actually, only non-darkening greys should be used
-	for (i = 0; i<LIGHT_COUNT; i++) {
-		specialcolormap_day_night[i + 224] = get_system_color(display_day_lights[i * 3 + 0], display_day_lights[i * 3 + 1], display_day_lights[i * 3 + 2]);
+
+	// special light colors (actually, only non-darkening greys should be used)
+	for(i=0;  i<LIGHT_COUNT;  i++  ) {
+		specialcolormap_day_night[SPECIAL_COLOR_COUNT+i] = get_system_color( display_day_lights[i*3 + 0], display_day_lights[i*3 + 1], display_day_lights[i*3 + 2] );
 	}
+
 	// init with black for forbidden colors
-	for (i = 224 + LIGHT_COUNT; i<256; i++) {
+	for(i=SPECIAL_COLOR_COUNT+LIGHT_COUNT;  i<256;  i++  ) {
 		specialcolormap_day_night[i] = 0;
 	}
+
 	// default player colors
-	for (i = 0; i<8; i++) {
-		rgbmap_day_night[0x8000 + i] = specialcolormap_day_night[player_offsets[0][0] + i];
-		rgbmap_day_night[0x8008 + i] = specialcolormap_day_night[player_offsets[0][1] + i];
-		// assume 16 bit colors from here!
-		transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 2) & TWO_OUT_16;
-		transparent_map_day_night[i + 8] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 2) & TWO_OUT_16;
-		// those save RGB components
-		transparent_map_day_night_rgb[i * 4 + 0] = specialcolormap_day_night[player_offsets[player_day][0] + i] >> 11;
-		transparent_map_day_night_rgb[i * 4 + 1] = (specialcolormap_day_night[player_offsets[player_day][0] + i] >> 5) & 0x3F;
-		transparent_map_day_night_rgb[i * 4 + 2] = specialcolormap_day_night[player_offsets[player_day][0] + i] & 0x1F;
-		transparent_map_day_night_rgb[i * 4 + 0 + 32] = specialcolormap_day_night[player_offsets[player_day][1] + i] >> 11;
-		transparent_map_day_night_rgb[i * 4 + 1 + 32] = (specialcolormap_day_night[player_offsets[player_day][1] + i] >> 5) & 0x3F;
-		transparent_map_day_night_rgb[i * 4 + 2 + 32] = specialcolormap_day_night[player_offsets[player_day][1] + i] & 0x1F;
+	for(i=0;  i<8;  i++  ) {
+		rgbmap_day_night[0x8000+i] = specialcolormap_day_night[player_offsets[0][0]+i];
+		rgbmap_day_night[0x8008+i] = specialcolormap_day_night[player_offsets[0][1]+i];
+		if(  bitdepth==16  ) {
+			// 16 bit colors from here!
+			transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 2) & TWO_OUT_16;
+			transparent_map_day_night[i+8] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 2) & TWO_OUT_16;
+			// save RGB components
+			transparent_map_day_night_rgb[i*4+0] = specialcolormap_day_night[player_offsets[player_day][0]+i] >> 11;
+			transparent_map_day_night_rgb[i*4+1] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 5) & 0x3F;
+			transparent_map_day_night_rgb[i*4+2] = specialcolormap_day_night[player_offsets[player_day][0]+i] & 0x1F;
+			transparent_map_day_night_rgb[i*4+0+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] >> 11;
+			transparent_map_day_night_rgb[i*4+1+32] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 5) & 0x3F;
+			transparent_map_day_night_rgb[i*4+2+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] & 0x1F;
+		}
+		else {
+			// 15 bit colors from here!
+			transparent_map_day_night[i] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 2) & TWO_OUT_15;
+			transparent_map_day_night[i+8] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 2) & TWO_OUT_15;
+			transparent_map_day_night_rgb[i*4+0] = specialcolormap_day_night[player_offsets[player_day][0]+i] >> 10;
+			transparent_map_day_night_rgb[i*4+1] = (specialcolormap_day_night[player_offsets[player_day][0]+i] >> 5) & 0x1F;
+			transparent_map_day_night_rgb[i*4+2] = specialcolormap_day_night[player_offsets[player_day][0]+i] & 0x1F;
+			transparent_map_day_night_rgb[i*4+0+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] >> 10;
+			transparent_map_day_night_rgb[i*4+1+32] = (specialcolormap_day_night[player_offsets[player_day][1]+i] >> 5) & 0x1F;
+			transparent_map_day_night_rgb[i*4+2+32] = specialcolormap_day_night[player_offsets[player_day][1]+i] & 0x1F;
+		}
 	}
 	player_night = 0;
 
@@ -1937,26 +2017,23 @@ static void calc_base_pal_from_night_shift(const int night)
 
 		PIXVAL color = get_system_color(R > 0 ? R : 0, G > 0 ? G : 0, B > 0 ? B : 0);
 		rgbmap_day_night[0x8000 + MAX_PLAYER_COUNT + i] = color;
-		// attention, assuming 16 bit colors form here!!!
-		transparent_map_day_night[i + MAX_PLAYER_COUNT] = (color >> 2) & TWO_OUT_16;
-		transparent_map_day_night_rgb[(i + MAX_PLAYER_COUNT) * 4 + 0] = color >> 11;
-		transparent_map_day_night_rgb[(i + MAX_PLAYER_COUNT) * 4 + 1] = (color >> 5) & 0x3F;
-		transparent_map_day_night_rgb[(i + MAX_PLAYER_COUNT) * 4 + 2] = color & 0x1F;
+		if(  bitdepth==16  ) {
+			// 16 bit colors from here!
+			transparent_map_day_night[i+MAX_PLAYER_COUNT] = (color >> 2) & TWO_OUT_16;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+0] = color >> 11;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+1] = (color >> 5) & 0x3F;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+2] = color & 0x1F;
+		}
+		else {
+			// 15 bit colors from here!
+			transparent_map_day_night[i+MAX_PLAYER_COUNT] = (color >> 2) & TWO_OUT_15;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+0] = color >> 10;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+1] = (color >> 5) & 0x1F;
+			transparent_map_day_night_rgb[(i+MAX_PLAYER_COUNT)*4+2] = color & 0x1F;
+		}
 	}
 
 	// convert to RGB xxx
-	recode();
-}
-
-
-/**
-* Set brightness setting
-* @author Hj. Malthaner
-*/
-void display_set_light(int new_light_level)
-{
-	light_level = new_light_level;
-	calc_base_pal_from_night_shift(night_shift);
 	recode();
 }
 
@@ -1972,7 +2049,7 @@ void display_day_night_shift(int night)
 
 
 // set first and second company color for player
-void display_set_player_color_scheme(const int player, const COLOR_VAL col1, const COLOR_VAL col2)
+void display_set_player_color_scheme(const int player, const uint8 col1, const uint8 col2)
 {
 	if (player_offsets[player][0] != col1 || player_offsets[player][1] != col2) {
 		// set new player colors
@@ -2087,19 +2164,19 @@ void display_free_all_images_above(image_id above)
 {
 	while (above < anz_images) {
 		anz_images--;
-		if (images[anz_images].zoom_data != NULL) {
-			guarded_free(images[anz_images].zoom_data);
+		if(  images[anz_images].zoom_data != NULL  ) {
+			free( images[anz_images].zoom_data );
 		}
-		for (uint8 i = 0; i < MAX_PLAYER_COUNT; i++) {
-			if (images[anz_images].data[i] != NULL) {
-				guarded_free(images[anz_images].data[i]);
+		for(  uint8 i = 0;  i < MAX_PLAYER_COUNT;  i++  ) {
+			if(  images[anz_images].data[i] != NULL  ) {
+				free( images[anz_images].data[i] );
 			}
 		}
 	}
 }
 
 
-// prissi: query offsets
+// query offsets
 void display_get_image_offset(image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, KOORD_VAL *xw, KOORD_VAL *yw)
 {
 	if (image < anz_images) {
@@ -2111,50 +2188,23 @@ void display_get_image_offset(image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, 
 }
 
 
-// prissi: query un-zoomed offsets
-void display_get_base_image_offset(image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, KOORD_VAL *xw, KOORD_VAL *yw)
+// query un-zoomed offsets
+void display_get_base_image_offset(image_id image, scr_coord_val *xoff, scr_coord_val *yoff, scr_coord_val *xw, scr_coord_val *yw)
 {
-	if (image < anz_images) {
+	if(  image < anz_images  ) {
 		*xoff = images[image].base_x;
 		*yoff = images[image].base_y;
-		*xw = images[image].base_w;
-		*yw = images[image].base_h;
+		*xw   = images[image].base_w;
+		*yw   = images[image].base_h;
 	}
 }
-
-/*
-// prissi: changes the offset of an image
-// we need it this complex, because the actual x-offset is coded into the image
-void display_set_base_image_offset(unsigned image, KOORD_VAL xoff, KOORD_VAL yoff)
-{
-if(image >= anz_images) {
-fprintf(stderr, "Warning: display_set_base_image_offset(): illegal image=%d\n", image);
-return;
-}
-
-// only move images once
-if(  images[image].recode_flags & FLAG_POSITION_CHANGED  ) {
-fprintf(stderr, "Warning: display_set_base_image_offset(): image=%d was already moved!\n", image);
-return;
-}
-images[image].recode_flags |= FLAG_POSITION_CHANGED;
-
-assert(images[image].base_h > 0);
-assert(images[image].base_w > 0);
-
-// avoid overflow
-images[image].base_x += xoff;
-images[image].base_y += yoff;
-}
-*/
 
 // ------------------ display all kind of images from here on ------------------------------
 
 
 /**
-* Copy Pixel from src to dest
-* @author Hj. Malthaner
-*/
+ * Copy Pixel from src to dest
+ */
 static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const end)
 {
 	// for gcc this seems to produce the optimal code ...
@@ -2164,10 +2214,49 @@ static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const
 }
 
 
+
+#ifdef RGB555
 /**
-* Copy pixel, replace player color
-* @author Hj. Malthaner
-*/
+ * Copy pixel, replace player color
+ */
+static inline void colorpixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL* const end)
+{
+	if(  *src < 0x8020  ) {
+		while (src < end) {
+			*dest++ = rgbmap_current[*src++];
+		}
+	}
+	else {
+		while (src < end) {
+			// a semi-transparent pixel
+			uint16 alpha = ((*src-0x8020) % 31)+1;
+			if(  (alpha & 0x07)==0 ) {
+				const PIXVAL colval = transparent_map_day_night[(*src++-0x8020)/31];
+				alpha /= 8;
+				*dest = alpha*colval + (4-alpha)*(((*dest)>>2) & TWO_OUT_15);
+				dest++;
+			}
+			else {
+				uint8 *trans_rgb = transparent_map_day_night_rgb+((*src++-0x8020)/31)*4;
+				const PIXVAL r_src = *trans_rgb++;
+				const PIXVAL g_src = *trans_rgb++;
+				const PIXVAL b_src = *trans_rgb++;
+
+				const PIXVAL r_dest = (*dest >> 10);
+				const PIXVAL g_dest = (*dest >> 5) & 0x1F;
+				const PIXVAL b_dest = (*dest & 0x1F);
+				const PIXVAL r = r_dest + ( ( (r_src - r_dest) * alpha ) >> 5 );
+				const PIXVAL g = g_dest + ( ( (g_src - g_dest) * alpha ) >> 5 );
+				const PIXVAL b = b_dest + ( ( (b_src - b_dest) * alpha ) >> 5 );
+				*dest++ = (r << 10) | (g << 5) | b;
+			}
+		}
+	}
+}
+#else
+/**
+ * Copy pixel, replace player color
+ */
 static inline void colorpixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL* const end)
 {
 	if (*src < 0x8020) {
@@ -2208,6 +2297,8 @@ static inline void colorpixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL* c
 		}
 	}
 }
+#endif
+
 
 
 /**
@@ -2236,9 +2327,8 @@ template<> void templated_pixcopy<colored>(PIXVAL *dest, const PIXVAL *src, cons
 
 
 /**
-* draws image with clipping along arbitrary lines
-* @author Dwachs
-*/
+ * draws image with clipping along arbitrary lines
+ */
 template<pixcopy_routines copyroutine>
 static void display_img_pc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, const PIXVAL *sp  CLIP_NUM_DEF)
 {
@@ -2265,7 +2355,7 @@ static void display_img_pc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, 
 				uint16 has_alpha = runlen & TRANSPARENT_RUN;
 				runlen &= ~TRANSPARENT_RUN;
 
-				// Hajo: something to display?
+				// something to display?
 				if (xmin < xmax  &&  xpos + runlen > xmin && xpos < xmax) {
 					const int left = (xpos >= xmin ? 0 : xmin - xpos);
 					const int len = (xmax - xpos >= runlen ? runlen : xmax - xpos);
@@ -2289,9 +2379,8 @@ static void display_img_pc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, 
 
 
 /**
-* Draw image with horizontal clipping
-* @author Hj. Malthaner
-*/
+ * Draw image with horizontal clipping
+ */
 static void display_img_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, const PIXVAL *sp  CLIP_NUM_DEF)
 {
 	if (h > 0) {
@@ -2312,8 +2401,8 @@ static void display_img_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, 
 				uint16 has_alpha = runlen & TRANSPARENT_RUN;
 				runlen &= ~TRANSPARENT_RUN;
 
-				// Hajo: something to display?
-				if (xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx) {
+				// something to display?
+				if(  xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx  ) {
 					const int left = (xpos >= CR.clip_rect.x ? 0 : CR.clip_rect.x - xpos);
 					const int len = (CR.clip_rect.xx - xpos >= runlen ? runlen : CR.clip_rect.xx - xpos);
 					if (!has_alpha) {
@@ -2363,12 +2452,12 @@ static void display_img_nc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, 
 #ifdef LOW_LEVEL
 #ifdef SIM_BIG_ENDIAN
 					// low level c++ without any unrolling
-					while (runlen--) {
-						*sp++ = *p++;
+					while(  runlen--  ) {
+						*p++ = *sp++;
 					}
 #else
 					// trying to merge reads and writes
-					if (runlen) {
+					if(  runlen  ) {
 						// align to 4 bytes, should use uintptr_t but not available
 						if (reinterpret_cast<size_t>(p) & 0x2) {
 							*p++ = *sp++;
@@ -2442,9 +2531,8 @@ void display_img_aligned(const image_id n, scr_rect area, int align, const int d
 
 
 /**
-* Draw image with vertical clipping (quickly) and horizontal (slowly)
-* @author prissi
-*/
+ * Draw image with vertical clipping (quickly) and horizontal (slowly)
+ */
 void display_img_aux(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const sint8 player_nr_raw, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
 {
 	if (n < anz_images) {
@@ -2590,21 +2678,34 @@ static void display_three_image_row(image_id i1, image_id i2, image_id i3, scr_r
 void display_img_stretch(const stretch_map_t &imag, scr_rect area)
 {
 	scr_coord_val h_top = 0, h_bottom = 0;
-	if (imag[0][0] != IMG_EMPTY) {
-		h_top = images[imag[0][0]].h;
+	scr_coord_val w_left = 0;
+
+	if(  imag[0][0]!=IMG_EMPTY  ) {
+		h_top = images[ imag[0][0] ].h;
+		w_left = images[ imag[0][0] ].w;
 	}
-	if (imag[0][2] != IMG_EMPTY) {
-		h_bottom = images[imag[0][2]].h;
+	if(  imag[0][2]!=IMG_EMPTY  ) {
+		h_bottom = images[ imag[0][2] ].h;
 	}
 
 	// center vertically?
-	if (imag[0][1] == IMG_EMPTY) {
+	if(  imag[0][1] == IMG_EMPTY && imag[2][1] == IMG_EMPTY) {
 		scr_coord_val h = h_top;
 		if (imag[1][0] != IMG_EMPTY) {
 			h = max(h, images[imag[1][0]].h);
 		}
 		// center vertically
 		area.y += (area.h - h) / 2;
+	}
+
+	// center horizontcally?
+	if(  imag[1][0] == IMG_EMPTY  &&  imag[1][2] == IMG_EMPTY  ) {
+		scr_coord_val w = w_left;
+		if(  imag[0][1]!=IMG_EMPTY  ) {
+			w = max( w, images[ imag[0][1] ].w );
+		}
+		// center vertically
+		area.x += (area.w-w)/2;
 	}
 
 	// top row
@@ -2617,12 +2718,12 @@ void display_img_stretch(const stretch_map_t &imag, scr_rect area)
 	}
 
 	// now stretch the middle
-	if (imag[0][1] != IMG_EMPTY) {
-		scr_rect row(area.x, area.y + h_top, area.w, area.h - h_top - h_bottom);
+	if(  imag[0][1]!=IMG_EMPTY  ||  imag[1][1]!=IMG_EMPTY  ) {
+		scr_rect row( area.x, area.y+h_top, area.w, area.h-h_top-h_bottom );
 		// tile it wide
-		scr_coord_val h = images[imag[0][1]].h;
-		while (h <= row.h) {
-			display_three_image_row(imag[0][1], imag[1][1], imag[2][1], row);
+		scr_coord_val h = imag[0][1]!=IMG_EMPTY ? images[imag[0][1]].h : imag[1][1]!=IMG_EMPTY;
+		while(  h <= row.h  ) {
+			display_three_image_row( imag[0][1], imag[1][1], imag[2][1], row );
 			row.y += h;
 			row.h -= h;
 		}
@@ -2638,7 +2739,7 @@ void display_img_stretch(const stretch_map_t &imag, scr_rect area)
 
 
 // local helper function for tiles buttons
-static void display_three_blend_row(image_id i1, image_id i2, image_id i3, scr_rect row, PLAYER_COLOR_VAL color)
+static void display_three_blend_row(image_id i1, image_id i2, image_id i3, scr_rect row, FLAGGED_PIXVAL color)
 {
 	if (i1 != IMG_EMPTY) {
 		scr_coord_val w = images[i1].w;
@@ -2673,7 +2774,7 @@ static void display_three_blend_row(image_id i1, image_id i2, image_id i3, scr_r
 
 
 // this displays a 3x3 array of images to fit the scr_rect like above, but blend the color
-void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, PLAYER_COLOR_VAL color)
+void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, FLAGGED_PIXVAL color)
 {
 	scr_coord_val h_top = 0, h_bottom = 0;
 	if (imag[0][0] != IMG_EMPTY) {
@@ -2724,11 +2825,10 @@ void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, PLAYER_
 
 
 /**
-* Draw Image, replace player color,
-* assumes height is ok and valid data are calculated.
-* color replacement needs the original data => sp points to non-cached data
-* @author hajo/prissi
-*/
+ * Draw Image, replace player color,
+ * assumes height is ok and valid data are calculated.
+ * color replacement needs the original data => sp points to non-cached data
+ */
 static void display_color_img_wc(const PIXVAL *sp, KOORD_VAL x, KOORD_VAL y, KOORD_VAL h  CLIP_NUM_DEF)
 {
 	PIXVAL *tp = textur + y * disp_width;
@@ -2747,8 +2847,8 @@ static void display_color_img_wc(const PIXVAL *sp, KOORD_VAL x, KOORD_VAL y, KOO
 			// now get colored pixels
 			runlen = (*sp++) & ~TRANSPARENT_RUN;	// we recode anyway, so no need to do it explicitely
 
-													// Hajo: something to display?
-			if (xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx) {
+			// something to display?
+			if(  xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx  ) {
 				const int left = (xpos >= CR.clip_rect.x ? 0 : CR.clip_rect.x - xpos);
 				const int len = (CR.clip_rect.xx - xpos > runlen ? runlen : CR.clip_rect.xx - xpos);
 
@@ -2765,9 +2865,8 @@ static void display_color_img_wc(const PIXVAL *sp, KOORD_VAL x, KOORD_VAL y, KOO
 
 
 /**
-* Draw Image, replaced player color
-* @author Hj. Malthaner
-*/
+ * Draw Image, replaced player color
+ */
 void display_color_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 player_nr_raw, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
 	if (n < anz_images) {
@@ -2787,8 +2886,8 @@ void display_color_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 playe
 			return;
 		}
 		else {
-			// do player colour substitution but not daynight - can't use cached images. Do NOT call multithreaded.
-			// prissi: now test if visible and clipping needed
+		// do player colour substitution but not daynight - can't use cached images. Do NOT call multithreaded.
+		// now test if visible and clipping needed
 			const KOORD_VAL x = images[n].x + xp;
 			KOORD_VAL y = images[n].y + yp;
 			const KOORD_VAL w = images[n].w;
@@ -2835,19 +2934,25 @@ void display_color_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 playe
 	} // number ok
 }
 
+void display_color_img_with_tooltip(const image_id n, KOORD_VAL xp, KOORD_VAL yp, sint8 player_nr_raw, const int daynight, const int dirty, const char *text  CLIP_NUM_DEF_NOUSE)
+{
+	display_color_img(n, xp, yp, player_nr_raw, daynight, dirty);
+	if (text && n < anz_images && ( xp <= get_mouse_x() && yp <= get_mouse_y() && (xp+ images[n].w) > get_mouse_x() && (yp+ images[n].h) > get_mouse_y())) {
+		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + images[n].y + images[n].h + TOOLTIP_MOUSE_OFFSET_Y/2 + D_V_SPACE, text);
+	}
+}
 
 /**
-* draw unscaled images, replaces base color
-* @author prissi
-*/
+ * draw unscaled images, replaces base color
+ */
 void display_base_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const sint8 player_nr, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
 	if (base_tile_raster_width == tile_raster_width) {
 		// same size => use standard routine
 		display_color_img(n, xp, yp, player_nr, daynight, dirty  CLIP_NUM_PAR);
 	}
-	else if (n < anz_images) {
-		// prissi: now test if visible and clipping needed
+	else if(  n < anz_images  ) {
+		// now test if visible and clipping needed
 		const KOORD_VAL x = images[n].base_x + xp;
 		KOORD_VAL y = images[n].base_y + yp;
 		const KOORD_VAL w = images[n].base_w;
@@ -2899,6 +3004,68 @@ void display_base_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const sint8 
 		}
 
 	} // number ok
+}
+
+
+
+// Blends two colors
+PIXVAL display_blend_colors(PIXVAL background, PIXVAL foreground, int percent_blend)
+{
+	const PIXVAL alpha = (percent_blend*64)/100;
+
+	switch( alpha ) {
+		case 0:	// nothing to do ...
+			return background;
+		case 16:
+		{
+			const PIXVAL two = (bitdepth==16) ? TWO_OUT_16 : TWO_OUT_15;
+			return (3*(((background)>>2) & two)) + (((foreground)>>2) & two);
+		}
+		case 32:
+		{
+			const PIXVAL one = (bitdepth==16) ? ONE_OUT_16 : ONE_OUT_15;
+			return ((((background)>>1) & one)) + (((foreground)>>1) & one);
+		}
+		case 48:
+		{
+			const PIXVAL two = (bitdepth==16) ? TWO_OUT_16 : TWO_OUT_15;
+			return ((((background)>>2) & two)) + (3*((foreground)>>2) & two);
+		}
+
+		case 64:
+			return foreground;
+
+		default:
+			// any percentage blending: SLOW!
+			if(  bitdepth == 15  ) {
+				// 555 BITMAPS
+				const PIXVAL r_src = (background >> 10) & 0x1F;
+				const PIXVAL g_src = (background >> 5) & 0x1F;
+				const PIXVAL b_src = background & 0x1F;
+				const PIXVAL r_dest = (foreground >> 10) & 0x1F;
+				const PIXVAL g_dest = (foreground >> 5) & 0x1F;
+				const PIXVAL b_dest = (foreground & 0x1F);
+
+				const PIXVAL r = (r_dest * alpha + r_src * (64-alpha) + 32) >> 6;
+				const PIXVAL g = (g_dest * alpha + g_src * (64-alpha) + 32) >> 6;
+				const PIXVAL b = (b_dest * alpha + b_src * (64-alpha) + 32) >> 6;
+				return (r << 10) | (g << 5) | b;
+			}
+			else {
+				// 565 colors
+				const PIXVAL r_src = (background >> 11);
+				const PIXVAL g_src = (background >> 5) & 0x3F;
+				const PIXVAL b_src = background & 0x1F;
+				const PIXVAL r_dest = (foreground >> 11);
+				const PIXVAL g_dest = (foreground >> 5) & 0x3F;
+				const PIXVAL b_dest = (foreground & 0x1F);
+				const PIXVAL r = (r_dest * alpha + r_src * (64-alpha) + 32) >> 6;
+				const PIXVAL g = (g_dest * alpha + g_src * (64-alpha) + 32) >> 6;
+				const PIXVAL b = (b_dest * alpha + b_src * (64-alpha) + 32) >> 6;
+				return (r << 11) | (g << 5) | b;
+			}
+			break;
+	}
 }
 
 
@@ -2971,8 +3138,8 @@ static void pix_blend25_16(PIXVAL *dest, const PIXVAL *src, const PIXVAL, const 
 }
 
 
-// Knightly : the following 6 functions are for display_base_img_blend()
-static void pix_blend_recode75_15(PIXVAL *dest, const PIXVAL *src, const PIXVAL, const PIXVAL len)
+// the following 6 functions are for display_base_img_blend()
+static void pix_blend_recode75_15(PIXVAL *dest, const PIXVAL *src, const PIXVAL , const PIXVAL len)
 {
 	const PIXVAL *const end = dest + len;
 	while (dest < end) {
@@ -3179,6 +3346,22 @@ void display_blend_wh_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, 
 	}
 }
 
+void display_linear_gradient_wh_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL colval, int percent_blend_start, int percent_blend_end, bool horizontal)
+{
+	uint8 transparency = 0;
+	if (horizontal) {
+		for (uint16 i = 0; i < w; i++) {
+			transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / w * i;
+			display_blend_wh_rgb(xp + i, yp, 1, h, colval, transparency);
+		}
+	}
+	else {
+		for (uint16 i = 0; i < h; i++) {
+			transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / h * i;
+			display_blend_wh_rgb(xp, yp + i, w, 1, colval, transparency);
+		}
+	}
+}
 
 static void display_img_blend_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VAL yp, const PIXVAL *sp, int colour, blend_proc p  CLIP_NUM_DEF)
 {
@@ -3198,8 +3381,8 @@ static void display_img_blend_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VA
 				// now get colored pixels
 				runlen = (*sp++) & (~TRANSPARENT_RUN);
 
-				// Hajo: something to display?
-				if (xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx) {
+				// something to display?
+				if(  xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx  ) {
 					const int left = (xpos >= CR.clip_rect.x ? 0 : CR.clip_rect.x - xpos);
 					const int len = (CR.clip_rect.xx - xpos >= runlen ? runlen : CR.clip_rect.xx - xpos);
 					p(tp + xpos + left, sp + left, colour, len - left);
@@ -3403,8 +3586,8 @@ static void display_img_alpha_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VA
 				runlen = ((*sp++) & ~TRANSPARENT_RUN);
 				alphamap++;
 
-				// Hajo: something to display?
-				if (xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx) {
+				// something to display?
+				if(  xpos + runlen > CR.clip_rect.x  &&  xpos < CR.clip_rect.xx  ) {
 					const int left = (xpos >= CR.clip_rect.x ? 0 : CR.clip_rect.x - xpos);
 					const int len = (CR.clip_rect.xx - xpos >= runlen ? runlen : CR.clip_rect.xx - xpos);
 					p(tp + xpos + left, sp + left, alphamap + left, alpha_flags, colour, len - left);
@@ -3423,10 +3606,9 @@ static void display_img_alpha_wc(KOORD_VAL h, const KOORD_VAL xp, const KOORD_VA
 
 
 /**
-* draws the transparent outline of an image
-* @author kierongreen
-*/
-void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char /*player_nr*/, const PLAYER_COLOR_VAL color_index, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
+ * draws the transparent outline of an image
+ */
+void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char /*player_nr*/, const FLAGGED_PIXVAL color_index, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
 {
 	if (n < anz_images) {
 		// need to go to nightmode and or rezoomed?
@@ -3483,7 +3665,7 @@ void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, co
 			// needed now ...
 			const KOORD_VAL w = images[n].w;
 			// get the real color
-			const PIXVAL color = specialcolormap_all_day[color_index & 0xFF];
+			const PIXVAL color = color_index & 0xFFFF;
 			// we use function pointer for the blend runs for the moment ...
 			blend_proc pix_blend = (color_index&OUTLINE_FLAG) ? outline[(color_index&TRANSPARENT_FLAGS) / TRANSPARENT25_FLAG - 1] : blend[(color_index&TRANSPARENT_FLAGS) / TRANSPARENT25_FLAG - 1];
 
@@ -3507,7 +3689,7 @@ void display_rezoomed_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, co
 }
 
 
-void display_rezoomed_img_alpha(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char /*player_nr*/, const PLAYER_COLOR_VAL color_index, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
+void display_rezoomed_img_alpha(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char /*player_nr*/, const FLAGGED_PIXVAL color_index, const int /*daynight*/, const int dirty  CLIP_NUM_DEF)
 {
 	if (n < anz_images  &&  alpha_n < anz_images) {
 		// need to go to nightmode and or rezoomed?
@@ -3574,7 +3756,7 @@ void display_rezoomed_img_alpha(const image_id n, const image_id alpha_n, const 
 			// needed now ...
 			const KOORD_VAL w = images[n].w;
 			// get the real color
-			const PIXVAL color = specialcolormap_all_day[color_index & 0xFF];
+			const PIXVAL color = color_index & 0xFFFF;
 
 			// use horizontal clipping or skip it?
 			if (xp >= CR.clip_rect.x  &&  xp + w <= CR.clip_rect.xx) {
@@ -3596,15 +3778,15 @@ void display_rezoomed_img_alpha(const image_id n, const image_id alpha_n, const 
 }
 
 
-// Knightly : For blending or outlining unzoomed image. Adapted from display_base_img() and display_unzoomed_img_blend()
-void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF)
+// For blending or outlining unzoomed image. Adapted from display_base_img() and display_unzoomed_img_blend()
+void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const FLAGGED_PIXVAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
 	if (base_tile_raster_width == tile_raster_width) {
 		// same size => use standard routine
 		display_rezoomed_img_blend(n, xp, yp, player_nr, color_index, daynight, dirty  CLIP_NUM_PAR);
 	}
-	else if (n < anz_images) {
-		// prissi: now test if visible and clipping needed
+	else if(  n < anz_images  ) {
+		// now test if visible and clipping needed
 		KOORD_VAL x = images[n].base_x + xp;
 		KOORD_VAL y = images[n].base_y + yp;
 		KOORD_VAL w = images[n].base_w;
@@ -3643,7 +3825,7 @@ void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const 
 
 		// new block for new variables
 		{
-			const PIXVAL color = specialcolormap_all_day[color_index & 0xFF];
+			const PIXVAL color = color_index & 0xFFFF;
 			blend_proc pix_blend = (color_index&OUTLINE_FLAG) ? outline[(color_index&TRANSPARENT_FLAGS) / TRANSPARENT25_FLAG - 1] : blend_recode[(color_index&TRANSPARENT_FLAGS) / TRANSPARENT25_FLAG - 1];
 
 			// recode is needed only for blending
@@ -3676,14 +3858,14 @@ void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const 
 }
 
 
-void display_base_img_alpha(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const PLAYER_COLOR_VAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF)
+void display_base_img_alpha(const image_id n, const image_id alpha_n, const unsigned alpha_flags, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const FLAGGED_PIXVAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF)
 {
 	if (base_tile_raster_width == tile_raster_width) {
 		// same size => use standard routine
 		display_rezoomed_img_alpha(n, alpha_n, alpha_flags, xp, yp, player_nr, color_index, daynight, dirty  CLIP_NUM_PAR);
 	}
-	else if (n < anz_images) {
-		// prissi: now test if visible and clipping needed
+	else if(  n < anz_images  ) {
+		// now test if visible and clipping needed
 		KOORD_VAL x = images[n].base_x + xp;
 		KOORD_VAL y = images[n].base_y + yp;
 		KOORD_VAL w = images[n].base_w;
@@ -3730,7 +3912,7 @@ void display_base_img_alpha(const image_id n, const image_id alpha_n, const unsi
 
 		// new block for new variables
 		{
-			const PIXVAL color = specialcolormap_all_day[color_index & 0xFF];
+			const PIXVAL color = color_index & 0xFFFF;
 
 			// recode is needed only for blending
 			if (!(color_index & OUTLINE_FLAG)) {
@@ -3766,9 +3948,13 @@ void display_base_img_alpha(const image_id n, const image_id alpha_n, const unsi
 
 
 // scrolls horizontally, will ignore clipping etc.
-void display_scroll_band(const KOORD_VAL start_y, const KOORD_VAL x_offset, const KOORD_VAL h)
+void display_scroll_band(KOORD_VAL start_y, KOORD_VAL x_offset, KOORD_VAL h)
 {
-	const PIXVAL*const src = textur + start_y * disp_width + x_offset;
+	start_y  = max(start_y,  0);
+	x_offset = min(x_offset, disp_width);
+	h        = min(h,        disp_height);
+
+	const PIXVAL *const src = textur + start_y * disp_width + x_offset;
 	PIXVAL *const dst = textur + start_y * disp_width;
 	const size_t amount = sizeof(PIXVAL) * (h * disp_width - x_offset);
 
@@ -3777,9 +3963,8 @@ void display_scroll_band(const KOORD_VAL start_y, const KOORD_VAL x_offset, cons
 
 
 /**
-* Draw one Pixel
-* @author Hj. Malthaner
-*/
+ * Draw one Pixel
+ */
 #ifdef DEBUG_FLUSH_BUFFER
 static void display_pixel(KOORD_VAL x, KOORD_VAL y, PIXVAL color, bool mark_dirty = true)
 #else
@@ -3813,8 +3998,8 @@ static void display_fb_internal(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_V
 		if (dirty) {
 			mark_rect_dirty_nc(xp, yp, xp + w - 1, yp + h - 1);
 		}
-#if defined(USE_ASSEMBLER)
-		// since only here assembler makes a difference ...
+#if defined USE_ASSEMBLER && defined __GNUC__ && defined __i686__
+		// GCC might not use "rep stos" so force its use
 		const uint32 longcolval = (colval << 16) | colval;
 		do {
 			unsigned int count = w;
@@ -3834,7 +4019,7 @@ static void display_fb_internal(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_V
 				);
 			p += dx;
 		} while (--h);
-#elif defined(LOW_LEVEL)
+#elif defined LOW_LEVEL
 		// low level c++
 		const uint32 colvald = (colval << 16) | colval;
 		do {
@@ -3871,7 +4056,7 @@ static void display_fb_internal(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_V
 }
 
 
-void display_fillbox_wh_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PLAYER_COLOR_VAL color, bool dirty)
+void display_fillbox_wh_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty)
 {
 	display_fb_internal(xp, yp, w, h, color, dirty, 0, disp_width, 0, disp_height);
 }
@@ -3882,10 +4067,42 @@ void display_fillbox_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_
 	display_fb_internal(xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
 }
 
+void display_filled_roundbox_clip(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty)
+{
+	display_fillbox_wh_clip_rgb(xp, yp+1, w, h-2, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+1, yp, w-2, 1, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+1, yp + h-1, w-2, 1, color, dirty);
+}
+
+void display_cylinderbar_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty  CLIP_NUM_DEF)
+{
+	display_fb_internal(xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
+	for (uint8 i = 1; i < h/2; i++) {
+		display_blend_wh_rgb(xp, yp + i, w, 1, color_idx_to_rgb(COL_WHITE), 33 * (h/4-abs(i-h/4))/(h/4));
+	}
+	uint8 start = h * 4 / 7;
+	for (uint8 i = start; i < h; i++) {
+		display_blend_wh_rgb(xp, yp + i, w, 1, color_idx_to_rgb(COL_BLACK), 33*((i-start)+1)/(h-start));
+	}
+}
+
+
+void display_colorbox_with_tooltip(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty, const char *text)
+{
+	display_ddd_box_clip_rgb(xp, yp, w, h, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	//display_fb_internal(xp+1, yp+1, w-2, h-2, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
+	display_fillbox_wh_clip_rgb(xp + 1, yp + 1, w - 2, h - 2, color, dirty);
+	if (text) {
+		if (text && (xp <= get_mouse_x() && yp <= get_mouse_y() && (xp + w) > get_mouse_x() && (yp + h) > get_mouse_y())) {
+			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + h + h / 2 + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE, text);
+		}
+	}
+}
+
+
 /**
-* Draw vertical line
-* @author Hj. Malthaner
-*/
+ * Draw vertical line
+ */
 static void display_vl_internal(const KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL h, const PIXVAL colval, int dirty, KOORD_VAL cL, KOORD_VAL cR, KOORD_VAL cT, KOORD_VAL cB)
 {
 	if (xp >= cL && xp < cR && clip_lr(&yp, &h, cT, cB)) {
@@ -3916,14 +4133,14 @@ void display_vline_wh_clip_rgb(const KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL h, co
 /**
 * Draw raw Pixel data
 */
-void display_array_wh(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, const COLOR_VAL *arr)
+void display_array_wh(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, const PIXVAL *arr)
 {
 	const int arr_w = w;
 	const KOORD_VAL xoff = clip_wh(&xp, &w, CR0.clip_rect.x, CR0.clip_rect.xx);
 	const KOORD_VAL yoff = clip_wh(&yp, &h, CR0.clip_rect.y, CR0.clip_rect.yy);
 	if (w > 0 && h > 0) {
 		PIXVAL *p = textur + xp + yp * disp_width;
-		const COLOR_VAL *arr_src = arr;
+		const PIXVAL *arr_src = arr;
 
 		mark_rect_dirty_nc(xp, yp, xp + w - 1, yp + h - 1);
 		if (xp == CR0.clip_rect.x) arr_src += xoff;
@@ -3932,7 +4149,7 @@ void display_array_wh(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, cons
 			unsigned int ww = w;
 
 			do {
-				*p++ = specialcolormap_all_day[*arr_src++];
+				*p++ = *arr_src++;
 			} while (--ww > 0);
 			arr_src += arr_w - w;
 			p += disp_width - w;
@@ -3940,10 +4157,10 @@ void display_array_wh(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, cons
 	}
 }
 
-void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVAL color, bool dirty, uint8 basic_constraint_flags, uint8 interactivity, bool is_rightside  CLIP_NUM_DEF)
+void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVAL color, bool dirty, uint8 basic_constraint_flags, uint8 interactivity, bool is_rightside  CLIP_NUM_DEF_NOUSE)
 {
 	uint8 h = VEHICLE_BAR_HEIGHT;
-	uint8 width = (w + 1) * 0.9;
+	uint8 width = (uint8)((w + 1) * 0.9);
 	uint8 margin_left = w - width;
 
 	if (is_rightside) {
@@ -3988,7 +4205,7 @@ void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVA
 		}
 		// un-powerd vehicle
 		if (!(interactivity & HAS_POWER)) {
-			display_blend_wh(xp, yp + 1, width - h / 2, h - 2, COL_WHITE, 30);
+			display_blend_wh_rgb(xp, yp + 1, width - h / 2, h - 2, color_idx_to_rgb(COL_WHITE), 30);
 			if ((interactivity & BIDIRECTIONAL)==0 && basic_constraint_flags & vehicle_desc_t::can_be_tail) {
 				display_pixel(xp + width - h / 2 - 1, yp + h - 2, color);
 			}
@@ -4051,7 +4268,7 @@ void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVA
 		}
 		// un-powerd vehicle
 		if (!(interactivity & HAS_POWER)) {
-			display_blend_wh(xp + margin_left + h/2, yp + 1, width - h / 2, h - 2, COL_WHITE, 30);
+			display_blend_wh_rgb(xp + margin_left + h/2, yp + 1, width - h / 2, h - 2, color_idx_to_rgb(COL_WHITE), 30);
 			if (basic_constraint_flags & vehicle_desc_t::can_be_head) {
 				display_pixel(xp + margin_left + h / 2, yp + 1, color);
 				if(interactivity & BIDIRECTIONAL){
@@ -4074,44 +4291,31 @@ void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVA
 // --------------------------------- text rendering stuff ------------------------------
 
 
-uint16 display_load_font(const char* fname)
+bool display_load_font(const char *fname, bool reload)
 {
-	font_type fnt;
+	font_t loaded_fnt;
 
 	if(  fname == NULL  ) {
-		// reload last font
-		if(  load_font(&fnt, large_font.fname)  ) {
-			free(large_font.screen_width);
-			free(large_font.char_data);
-			large_font = fnt;
-			large_font_ascent = large_font.height + large_font.descent;
-			large_font_total_height = large_font.height;
-			return large_font.num_chars;
-		}
-		else {
-			return 0;
-		}
+		dbg->error( "display_load_font", "NULL filename" );
+		return false;
 	}
-	else {
 
-		// skip reloading if already in memory
-		if (strcmp(large_font.fname, fname) == 0) {
-			return large_font.num_chars;
-		}
-		tstrncpy(large_font.fname, fname, lengthof(large_font.fname));
-
-		if (load_font(&fnt, fname)) {
-			free(large_font.screen_width);
-			free(large_font.char_data);
-			large_font = fnt;
-			large_font_ascent = large_font.height + large_font.descent;
-			large_font_total_height = large_font.height;
-			return large_font.num_chars;
-		}
-		else {
-			return 0;
-		}
+	// skip reloading if already in memory, if bdf font
+	if(  !reload  &&  default_font.is_loaded()  &&  strcmp( default_font.get_fname(), fname ) == 0  ) {
+		return true;
 	}
+
+	if(  loaded_fnt.load_from_file(fname)  ) {
+		default_font = loaded_fnt;
+		default_font_ascent    = default_font.get_ascent();
+		default_font_linespace = default_font.get_linespace();
+
+		env_t::fontname = fname;
+
+		return default_font.is_loaded();
+	}
+
+	return false;
 }
 
 
@@ -4131,14 +4335,9 @@ sint32 get_prev_char(const char* text, sint32 pos)
 }
 
 
-KOORD_VAL display_get_char_width(utf16 c)
+KOORD_VAL display_get_char_width(utf32 c)
 {
-	KOORD_VAL pixel_width;
-	if (c >= large_font.num_chars || (pixel_width = large_font.screen_width[c]) == 0xFF) {
-		// default width for missing characters
-		return large_font.screen_width[0];
-	}
-	return pixel_width;
+	return default_font.get_glyph_advance(c);
 }
 
 
@@ -4156,31 +4355,26 @@ KOORD_VAL display_get_char_max_width(const char* text, size_t len) {
 
 
 /**
-* For the next logical character in the text, returns the character code
-* as well as retrieves the char byte count and the screen pixel width
-* CAUTION : The text pointer advances to point to the next logical character
-* @author Knightly
-*/
-unsigned short get_next_char_with_metrics(const char* &text, unsigned char &byte_length, unsigned char &pixel_width)
+ * For the next logical character in the text, returns the character code
+ * as well as retrieves the char byte count and the screen pixel width
+ * CAUTION : The text pointer advances to point to the next logical character
+ */
+utf32 get_next_char_with_metrics(const char* &text, unsigned char &byte_length, unsigned char &pixel_width)
 {
 	size_t len = 0;
-	unsigned short char_code = utf8_to_utf16((const utf8 *)text, &len);
+	utf32 const char_code = utf8_decoder_t::decode((utf8 const *)text, len);
 
-	if (char_code == 0) {
+	if(  char_code==0  ||  char_code == '\n') {
 		// case : end of text reached -> do not advance text pointer
+		// also stop at linebreaks
 		byte_length = 0;
 		pixel_width = 0;
+		return 0;
 	}
 	else {
 		text += len;
 		byte_length = len;
-		if (char_code >= large_font.num_chars || (pixel_width = large_font.screen_width[char_code]) == 0xFF) {
-			// default width for missing characters
-			pixel_width = large_font.screen_width[0];
-		}
-		else {
-			pixel_width = large_font.screen_width[char_code];
-		}
+		pixel_width = default_font.get_glyph_advance(char_code);
 	}
 	return char_code;
 }
@@ -4189,20 +4383,16 @@ unsigned short get_next_char_with_metrics(const char* &text, unsigned char &byte
 /* returns true, if this is a valid character */
 bool has_character(utf16 char_code)
 {
-	if (char_code >= large_font.num_chars || large_font.screen_width[char_code] == 0xFF) {
-		// missing characters
-		return false;
-	}
-	return true;
+	return default_font.is_valid_glyph(char_code);
 }
 
 
 /*
-* returns the index of the last character that would fit within the width
-* If an eclipse len is given, it will only return the last character up to this len if the full length cannot be fitted
-* @returns index of next character. if text[index]==0 the whole string fits
-*/
-size_t display_fit_proportional(const char *text, scr_coord_val max_width, scr_coord_val eclipse_width)
+ * returns the index of the last character that would fit within the width
+ * If an ellipsis len is given, it will only return the last character up to this len if the full length cannot be fitted
+ * @returns index of next character. if text[index]==0 the whole string fits
+ */
+size_t display_fit_proportional( const char *text, scr_coord_val max_width, scr_coord_val ellipsis_width )
 {
 	size_t max_idx = 0;
 
@@ -4211,14 +4401,14 @@ size_t display_fit_proportional(const char *text, scr_coord_val max_width, scr_c
 	scr_coord_val current_offset = 0;
 
 	const char *tmp_text = text;
-	while (get_next_char_with_metrics(tmp_text, byte_length, pixel_width) && max_width > (current_offset + eclipse_width + pixel_width)) {
+	while(  get_next_char_with_metrics(tmp_text, byte_length, pixel_width)  &&  max_width > (current_offset+ellipsis_width+pixel_width)  ) {
 		current_offset += pixel_width;
 		max_idx += byte_length;
 	}
-	size_t eclipse_idx = max_idx;
+	size_t ellipsis_idx = max_idx;
 
 	// now check if the text would fit completely
-	if (eclipse_width  &&  pixel_width > 0) {
+	if(  ellipsis_width  &&  pixel_width > 0  ) {
 		// only when while above failed because of exceeding length
 		current_offset += pixel_width;
 		max_idx += byte_length;
@@ -4232,17 +4422,16 @@ size_t display_fit_proportional(const char *text, scr_coord_val max_width, scr_c
 			return max_idx + byte_length;
 		}
 	}
-	return eclipse_idx;
+	return ellipsis_idx;
 }
 
 
 /**
-* For the previous logical character in the text, returns the character code
-* as well as retrieves the char byte count and the screen pixel width
-* CAUTION : The text pointer recedes to point to the previous logical character
-* @author Knightly
-*/
-unsigned short get_prev_char_with_metrics(const char* &text, const char *const text_start, unsigned char &byte_length, unsigned char &pixel_width)
+ * For the previous logical character in the text, returns the character code
+ * as well as retrieves the char byte count and the screen pixel width
+ * CAUTION : The text pointer recedes to point to the previous logical character
+ */
+utf32 get_prev_char_with_metrics(const char* &text, const char *const text_start, unsigned char &byte_length, unsigned char &pixel_width)
 {
 	if (text <= text_start) {
 		// case : start of text reached or passed -> do not move the pointer backwards
@@ -4251,109 +4440,115 @@ unsigned short get_prev_char_with_metrics(const char* &text, const char *const t
 		return 0;
 	}
 
-	unsigned short char_code;
+	utf32 char_code;
 	// determine the start of the previous logical character
 	do {
 		--text;
 	} while (text>text_start && (*text & 0xC0) == 0x80);
 
 	size_t len = 0;
-	char_code = utf8_to_utf16((const utf8 *)text, &len);
+	char_code = utf8_decoder_t::decode((utf8 const *)text, len);
 	byte_length = len;
+	pixel_width = default_font.get_glyph_advance(char_code);
 
-	if (char_code >= large_font.num_chars || (pixel_width = large_font.screen_width[char_code]) == 0xFF) {
-		// default width for missing characters
-		pixel_width = large_font.screen_width[0];
-	}
 	return char_code;
 }
 
 
 /* proportional_string_width with a text of a given length
 * extended for universal font routines with unicode support
-* @author Volker Meyer
-* @date  15.06.2003
-* @author prissi
-* @date 29.11.04
 */
-int display_calc_proportional_string_len_width(const char* text, size_t len)
+int display_calc_proportional_string_len_width(const char *text, size_t len)
 {
-	const font_type* const fnt = &large_font;
+	const font_t* const fnt = &default_font;
 	unsigned int width = 0;
-	int w;
-
-	unsigned short iUnicode;
-	size_t	iLen = 0;
 
 	// decode char
-	while (iLen < len) {
-		iUnicode = utf8_to_utf16((utf8 const*)text + iLen, &iLen);
-		if (iUnicode == 0) {
+	const char *const end = text + len;
+	while(  text < end  ) {
+		const utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		if(  iUnicode == UNICODE_NUL ||  iUnicode == '\n') {
 			return width;
 		}
-		else if (iUnicode >= fnt->num_chars || (w = fnt->screen_width[iUnicode]) == 0xFF) {
-			// default width for missing characters
-			w = fnt->screen_width[0];
-		}
-		width += w;
+		width += fnt->get_glyph_advance(iUnicode);
 	}
 
 	return width;
 }
 
 
-/* @ see get_mask() */
-static const unsigned char byte_to_mask_array[9] = { 0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01, 0x00 };
 
-/* Helper: calculates mask for clipping *
-* Attention: xL-xR must be <=8 !!!
-* @author priss
-* @date  29.11.04
+/* display_calc_proportional_multiline_string_len_width
+* calculates the width and hieght of a box containing the text inside
 */
+void display_calc_proportional_multiline_string_len_width(int &xw, int &yh, const char *text, size_t len)
+{
+	const font_t* const fnt = &default_font;
+	int width = 0;
+
+	xw = yh = 0;
+
+	// decode char
+	const char *const end = text + len;
+	while(  text < end  ) {
+		utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		if(  iUnicode == '\n'  ) {
+			// new line: record max width
+			xw = max( xw, width );
+			yh += LINESPACE;
+			width = 0;
+		}
+		if(  iUnicode == UNICODE_NUL ) {
+			return;
+		}
+
+		width += fnt->get_glyph_advance(iUnicode);
+	}
+
+	xw = max( xw, width );
+	yh += LINESPACE;
+}
+
+
+
+/**
+ * Helper: calculates 8bit mask for clipping.
+ * Calculates mask to fit pixel interval [xRL,xR) to clipping interval [cL, cR).
+ */
 static unsigned char get_h_mask(const int xL, const int xR, const int cL, const int cR)
 {
 	// do not mask
-	unsigned char mask;
+	unsigned char mask = 0xff;
 
 	// check, if there is something to display
 	if (xR <= cL || xL >= cR) return 0;
-	mask = 0xFF;
+	// 8bit masks only
+	assert(xR - xL <= 8);
+
 	// check for left border
-	if (xL < cL && xR > cL) {
-		// Left border clipped
-		mask = byte_to_mask_array[cL - xL];
+	if (xL < cL) {
+		// left border clipped
+		mask = 0xff >> (cL - xL);
 	}
 	// check for right border
-	if (xL < cR && xR > cR) {
+	if (xR > cR) {
 		// right border clipped
-		mask &= ~byte_to_mask_array[cR - xL];
+		mask &= 0xff << (xR - cR);
 	}
 	return mask;
 }
 
-/*
-* len parameter added - use -1 for previous behaviour.
-* completely renovated for unicode and 10 bit width and variable height
-* @author Volker Meyer, prissi
-* @date  15.06.2003, 2.1.2005
-*/
+/**
+ * len parameter added - use -1 for previous behaviour.
+ * completely renovated for unicode and 10 bit width and variable height
+ */
 int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char* txt, control_alignment_t flags, const PIXVAL color, bool dirty, sint32 len  CLIP_NUM_DEF)
 {
-	const font_type* const fnt = &large_font;
-	KOORD_VAL cL, cR, cT, cB;
-	uint32 c;
-	size_t iTextPos = 0; // pointer on text position: prissi
-	int char_width_1, char_width_2; // 1 is char only, 2 includes room
-	int screen_pos;
-	const uint8 *char_data;
-	const uint8 *p;
-	KOORD_VAL yy = y + fnt->height;
-	KOORD_VAL x0;	// store the initial x (for dirty marking)
-	KOORD_VAL y_offset, char_height;	// real y for display with clipping
-	unsigned char mask1, mask2;	// for horizontal clipping
 
-								// TAKE CARE: Clipping area may be larger than actual screen size ...
-	if ((flags & DT_CLIP)) {
+	KOORD_VAL cL, cR, cT, cB;
+
+	// TAKE CARE: Clipping area may be larger than actual screen size ...
+	if(  (flags & DT_CLIP)  ) {
 		cL = CR.clip_rect.x;
 		cR = CR.clip_rect.xx;
 		cT = CR.clip_rect.y;
@@ -4365,8 +4560,9 @@ int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char*
 		cT = 0;
 		cB = disp_height;
 	}
-	// don't know len yet ...
+
 	if (len < 0) {
+		// don't know len yet
 		len = 0x7FFF;
 	}
 
@@ -4386,64 +4582,62 @@ int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char*
 	}
 
 	// still something to display?
-	if (x >= cR || y >= cB || y + fnt->height <= cT) {
+	const font_t *const fnt = &default_font;
+
+	if (x >= cR || y >= cB || y + fnt->get_linespace() <= cT) {
 		// nothing to display
 		return 0;
 	}
 
-	// x0 contains the starting x
-	x0 = x;
-	y_offset = 0;
-	char_height = fnt->height;
+	// store the initial x (for dirty marking)
+	const KOORD_VAL x0 = x;
+
+	KOORD_VAL y_offset = 0; // real y for display with clipping
+	KOORD_VAL glyph_height = fnt->get_linespace();
+	const KOORD_VAL yy = y + fnt->get_linespace();
+
 	// calculate vertical y clipping parameters
 	if (y < cT) {
 		y_offset = cT - y;
 	}
 	if (yy > cB) {
-		char_height -= yy - cB;
+		glyph_height -= yy - cB;
 	}
 
-	// big loop, char by char
-	while (iTextPos < (size_t)len  &&  txt[iTextPos] != 0) {
-		int h;
-		uint8 char_yoffset;
+	// big loop, draw char by char
+	utf8_decoder_t decoder((utf8 const*)txt);
+	size_t iTextPos = 0; // pointer on text position
 
+	while (iTextPos < (size_t)len  &&  decoder.has_next()) {
 		// decode char
-		c = utf8_to_utf16((utf8 const*)txt + iTextPos, &iTextPos);
+		utf32 c = decoder.next();
+		iTextPos = decoder.get_position() - (utf8 const*)txt;
 
+		if(  c == '\n'  ) {
+			// stop at linebreak
+			break;
+		}
 		// print unknown character?
-		if (c >= fnt->num_chars || fnt->screen_width[c] == 0xFF) {
+		else if(  !fnt->is_valid_glyph(c)  ) {
 			c = 0;
 		}
 
 		// get the data from the font
-		char_data = fnt->char_data + CHARACTER_LEN * c;
-		char_width_1 = char_data[CHARACTER_LEN - 1];
-		char_yoffset = (sint8)char_data[CHARACTER_LEN - 2];
-		char_width_2 = fnt->screen_width[c];
-		if (char_width_1>8) {
-			mask1 = get_h_mask(x, x + 8, cL, cR);
-			// we need to double mask 2, since only 2 Bits are used
-			mask2 = get_h_mask(x + 8, x + char_width_1, cL, cR);
-		}
-		else {
-			// char_width_1<= 8: call directly
-			mask1 = get_h_mask(x, x + char_width_1, cL, cR);
-			mask2 = 0;
-		}
-		// do the display
+		int glyph_width = fnt->get_glyph_width(c);
+		const uint8 glyph_yoffset = std::max(fnt->get_glyph_yoffset(c), (uint8)y_offset);
 
-		if (y_offset>char_yoffset) {
-			char_yoffset = (uint8)y_offset;
-		}
+		// currently max character width 16 bit supported by font.h/font.cc
+		for(  int i=0;  i<2;  i++  ) {
+			const uint8 bits = std::min(8, glyph_width);
+			uint8 mask = get_h_mask(x + i*8, x + i*8 + bits, cL, cR);
+			glyph_width -= bits;
 
-		for (int i = 0; i<2; i++) {
-			p = char_data + char_yoffset + i*CHARACTER_HEIGHT;
-			const uint8 m = i ? mask2 : mask1;
-			if (m) {
-				screen_pos = (y + char_yoffset) * disp_width + x + i * 8;
-				for (h = char_yoffset; h < char_height; h++) {
-					unsigned int dat = *p++ & m;
+			const uint8 *p = fnt->get_glyph_bitmap(c) + glyph_yoffset + i*GLYPH_BITMAP_HEIGHT;
+			if(  mask!=0  ) {
+				int screen_pos = (y+glyph_yoffset) * disp_width + x + i*8;
+
+				for (int h = glyph_yoffset; h < glyph_height; h++) {
+					unsigned int dat = *p++ & mask;
 					PIXVAL* dst = textur + screen_pos;
 #if defined LOW_LEVEL
 					// low level c++
@@ -4458,10 +4652,11 @@ int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char*
 						if (dat & 0x01) dst[7] = color;
 					}
 #else
+
 					// high level c++
-					if (dat != 0) {
-						for (size_t dat_offset = 0; dat_offset < 8; dat_offset++) {
-							if ((dat & (0x80 >> dat_offset))) {
+					if(  dat  !=  0  ) {
+						for(  size_t dat_offset = 0 ; dat_offset < 8 ; dat_offset++  ) {
+							if(  (dat & (0x80 >> dat_offset))  ) {
 								dst[dat_offset] = color;
 							}
 						}
@@ -4471,27 +4666,28 @@ int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char*
 				}
 			}
 		}
-		// next char: screen width
-		x += char_width_2;
+
+		x += fnt->get_glyph_advance(c);
 	}
 
 	if (dirty) {
 		// here, because only now we know the length also for ALIGN_LEFT text
-		mark_rect_dirty_clip(x0, y, x - 1, y + 10 - 1  CLIP_NUM_PAR);
+		mark_rect_dirty_clip( x0, y, x - 1, y + LINESPACE - 1  CLIP_NUM_PAR);
 	}
+
 	// warning: actual len might be longer, due to clipping!
 	return x - x0;
 }
 
 
-/*
-* Displays a string which is abbreviated by the (language specific) ellipse character if too wide
-* If enough space is given then it just displays the full string
-* @returns screen_width
-*/
-KOORD_VAL display_proportional_ellipse_rgb(scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty)
+/**
+ * Displays a string which is abbreviated by the (language specific) ellipsis character if too wide
+ * If enough space is given then it just displays the full string
+ * @returns screen_width
+ */
+KOORD_VAL display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed, PIXVAL shadow_color)
 {
-	const scr_coord_val eclipse_width = translator::get_lang()->eclipse_width;
+	const scr_coord_val ellipsis_width = translator::get_lang()->ellipsis_width;
 	const scr_coord_val max_screen_width = r.w;
 	size_t max_idx = 0;
 
@@ -4505,32 +4701,39 @@ KOORD_VAL display_proportional_ellipse_rgb(scr_rect r, const char *text, int ali
 	}
 
 	const char *tmp_text = text;
-	while (get_next_char_with_metrics(tmp_text, byte_length, pixel_width) && max_screen_width > (current_offset + eclipse_width + pixel_width)) {
+	while(  get_next_char_with_metrics(tmp_text, byte_length, pixel_width)  &&  max_screen_width >= (current_offset+ellipsis_width+pixel_width)  ) {
 		current_offset += pixel_width;
 		max_idx += byte_length;
 	}
-	size_t max_idx_before_ellipse = max_idx;
-	scr_coord_val max_offset_before_ellipse = current_offset;
+	size_t max_idx_before_ellipsis = max_idx;
+	scr_coord_val max_offset_before_ellipsis = current_offset;
 
 	// now check if the text would fit completely
-	if (eclipse_width  &&  pixel_width > 0) {
+	if(  ellipsis_width  &&  pixel_width > 0  ) {
 		// only when while above failed because of exceeding length
 		current_offset += pixel_width;
 		max_idx += byte_length;
 		// check the rest ...
-		while (get_next_char_with_metrics(tmp_text, byte_length, pixel_width) && max_screen_width > (current_offset + pixel_width)) {
+		while(  get_next_char_with_metrics(tmp_text, byte_length, pixel_width)  &&  max_screen_width >= (current_offset+pixel_width)  ) {
 			current_offset += pixel_width;
 			max_idx += byte_length;
 		}
 		// if it does not fit
-		if (max_screen_width <= (current_offset + pixel_width)) {
+		if(  max_screen_width < (current_offset+pixel_width)  ) {
 			KOORD_VAL w = 0;
 			// since we know the length already, we try to center the text with the remaining pixels of the last character
-			if (align & ALIGN_CENTER_H) {
-				w = (max_screen_width - max_offset_before_ellipse - eclipse_width) / 2;
+			if(  align & ALIGN_CENTER_H  ) {
+				w = (max_screen_width-max_offset_before_ellipsis-ellipsis_width)/2;
 			}
-			w += display_text_proportional_len_clip_rgb(r.x + w, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, max_idx_before_ellipse  CLIP_NUM_DEFAULT);
-			w += display_text_proportional_len_clip_rgb(r.x + w, r.y, translator::translate("..."), ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
+			if (shadowed) {
+				display_text_proportional_len_clip_rgb( r.x+w+1, r.y+1, text, ALIGN_LEFT | DT_CLIP, shadow_color, dirty, max_idx_before_ellipsis  CLIP_NUM_DEFAULT);
+			}
+			w += display_text_proportional_len_clip_rgb( r.x+w, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, max_idx_before_ellipsis  CLIP_NUM_DEFAULT);
+
+			if (shadowed) {
+				display_text_proportional_len_clip_rgb( r.x+w+1, r.y+1, translator::translate("..."), ALIGN_LEFT | DT_CLIP, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
+			}
+			w += display_text_proportional_len_clip_rgb( r.x+w, r.y, translator::translate("..."), ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
 			return w;
 		}
 		else {
@@ -4539,11 +4742,18 @@ KOORD_VAL display_proportional_ellipse_rgb(scr_rect r, const char *text, int ali
 			current_offset += pixel_width;
 		}
 	}
-	if (align & ALIGN_CENTER_H) {
-		r.x += (max_screen_width - current_offset) / 2;
-		align &= ~ALIGN_CENTER_H;
+	switch (align & ALIGN_RIGHT) {
+		case ALIGN_CENTER_H:
+			r.x += (max_screen_width - current_offset)/2;
+			break;
+		case ALIGN_RIGHT:
+			r.x += max_screen_width - current_offset;
+		default: ;
 	}
-	return display_text_proportional_len_clip_rgb(r.x, r.y, text, align, color, dirty, -1  CLIP_NUM_DEFAULT);
+	if (shadowed) {
+		display_text_proportional_len_clip_rgb( r.x, r.y, text, ALIGN_LEFT | DT_CLIP, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
+	}
+	return display_text_proportional_len_clip_rgb( r.x, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
 }
 
 
@@ -4562,20 +4772,55 @@ void display_ddd_box_rgb(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL w, KOORD_VAL h, P
 }
 
 
-void display_outline_proportional_rgb(KOORD_VAL xpos, KOORD_VAL ypos, PIXVAL text_color, PIXVAL shadow_color, const char *text, int dirty)
+void display_outline_proportional_rgb(KOORD_VAL xpos, KOORD_VAL ypos, PIXVAL text_color, PIXVAL shadow_color, const char *text, int dirty, sint32 len)
 {
 	const int flags = ALIGN_LEFT | DT_CLIP;
-	display_text_proportional_len_clip_rgb(xpos - 1, ypos - 1 + (12 - large_font_total_height) / 2, text, flags, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
-	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 1 + (12 - large_font_total_height) / 2, text, flags, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
-	display_text_proportional_len_clip_rgb(xpos, ypos + (12 - large_font_total_height) / 2, text, flags, text_color, dirty, -1  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos - 1, ypos - 1 + (12 - LINESPACE) / 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 1 + (12 - LINESPACE) / 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos, ypos + (12 - LINESPACE) / 2, text, flags, text_color, dirty, len  CLIP_NUM_DEFAULT);
 }
 
 
-void display_shadow_proportional_rgb(KOORD_VAL xpos, KOORD_VAL ypos, PIXVAL text_color, PIXVAL shadow_color, const char *text, int dirty)
+void display_shadow_proportional_rgb(KOORD_VAL xpos, KOORD_VAL ypos, PIXVAL text_color, PIXVAL shadow_color, const char *text, int dirty, sint32 len)
 {
 	const int flags = ALIGN_LEFT | DT_CLIP;
-	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 1 + (12 - large_font_total_height) / 2, text, flags, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
-	display_text_proportional_len_clip_rgb(xpos, ypos + (12 - large_font_total_height) / 2, text, flags, text_color, dirty, -1  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 1 + (12 - LINESPACE) / 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos, ypos + (12 - LINESPACE) / 2, text, flags, text_color, dirty, len  CLIP_NUM_DEFAULT);
+}
+
+
+// If want to set the background color in some styles, use it together with display_fillbox_wh_clip
+// style: 0=roundbox back ground, 1=left box + bottom line with shadow, 2=only left box
+void display_heading_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL text_color, PIXVAL frame_color, const char *text, int dirty, uint8 style)
+{
+	if (h < LINESPACE) { h = LINESPACE; }
+	if (style > 2/* max styles */) { style = 0; }
+	uint8 border_left_width=0;
+	uint8 padding_left=h;
+	switch (style)
+	{
+		case 0:
+			display_fillbox_wh_clip_rgb(xp, yp + 1, w, h - 2, frame_color, dirty);
+			display_fillbox_wh_clip_rgb(xp + 1, yp, w - 2, 1, frame_color, dirty);
+			display_fillbox_wh_clip_rgb(xp + 1, yp + h - 1, w - 2, 1, frame_color, dirty);
+			break;
+		case 1:
+			border_left_width = h / 2;
+			display_fillbox_wh_clip_rgb(xp, yp + h, w-1, 1, frame_color, dirty);
+			display_blend_wh_rgb(xp + 1, yp + h+1, w-1, 1, COL_BLACK, 15);
+			break;
+		case 2:
+			border_left_width = h / 3;
+			padding_left = border_left_width*2;
+			break;
+		default:
+			break;
+	}
+	const int flags = ALIGN_LEFT | DT_CLIP;
+	if (border_left_width) {
+		display_fillbox_wh_clip_rgb(xp, yp, border_left_width, h, frame_color, dirty);
+	}
+	display_text_proportional_len_clip_rgb(xp + padding_left, yp + (h - LINESPACE ) / 2, text, flags, text_color, dirty, -1  CLIP_NUM_DEFAULT);
 }
 
 
@@ -4595,52 +4840,50 @@ void display_ddd_box_clip_rgb(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL w, KOORD_VAL
 
 
 // if width equals zero, take default value
-void display_ddd_proportional(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, KOORD_VAL hgt, PLAYER_COLOR_VAL ddd_farbe, PLAYER_COLOR_VAL text_farbe, const char *text, int dirty)
+void display_ddd_proportional(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, KOORD_VAL hgt, FLAGGED_PIXVAL ddd_color, FLAGGED_PIXVAL text_color, const char *text, int dirty)
 {
-	int halfheight = large_font_total_height / 2 + 1;
+	const int halfheight = LINESPACE / 2 + 1;
 
-	display_fillbox_wh(xpos - 2, ypos - halfheight - hgt - 1, width, 1, ddd_farbe + 1, dirty);
-	display_fillbox_wh(xpos - 2, ypos - halfheight - hgt, width, halfheight * 2, ddd_farbe, dirty);
-	display_fillbox_wh(xpos - 2, ypos + halfheight - hgt, width, 1, ddd_farbe - 1, dirty);
+	PIXVAL lighter = display_blend_colors(ddd_color, color_idx_to_rgb(COL_WHITE), 25);
+	PIXVAL darker  = display_blend_colors(ddd_color, color_idx_to_rgb(COL_BLACK), 25);
 
-	display_vline_wh(xpos - 2, ypos - halfheight - hgt - 1, halfheight * 2 + 1, ddd_farbe + 1, dirty);
-	display_vline_wh(xpos + width - 3, ypos - halfheight - hgt - 1, halfheight * 2 + 1, ddd_farbe - 1, dirty);
+	display_fillbox_wh_rgb( xpos - 2, ypos - halfheight - hgt - 1, width, halfheight * 2 + 2, ddd_color, dirty );
 
-	display_proportional(xpos + 2, ypos - halfheight + 1, text, ALIGN_LEFT, text_farbe, dirty);
+	display_fillbox_wh_rgb( xpos - 1, ypos - halfheight - 1 - hgt, width - 2, 1, lighter, dirty );
+	display_fillbox_wh_rgb( xpos - 1, ypos + halfheight - hgt,     width - 2, 1, darker,  dirty );
+
+	display_vline_wh_rgb( xpos - 2,         ypos - halfheight - 1 - hgt, halfheight * 2 + 2, lighter, dirty );
+	display_vline_wh_rgb( xpos + width - 3, ypos - halfheight - 1 - hgt, halfheight * 2 + 2, darker,  dirty );
+
+	display_proportional_rgb(xpos + 2, ypos - halfheight + 1, text, ALIGN_LEFT, text_color, dirty);
 }
 
 
 /**
-* display text in 3d box with clipping
-* @author: hsiegeln
-*/
-void display_ddd_proportional_clip(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, KOORD_VAL hgt, PLAYER_COLOR_VAL ddd_farbe, PLAYER_COLOR_VAL text_farbe, const char *text, int dirty  CLIP_NUM_DEF)
+ * display text in 3d box with clipping
+ */
+void display_ddd_proportional_clip(KOORD_VAL xpos, KOORD_VAL ypos, KOORD_VAL width, KOORD_VAL hgt, FLAGGED_PIXVAL ddd_color, FLAGGED_PIXVAL text_color, const char *text, int dirty  CLIP_NUM_DEF)
 {
-	int halfheight = large_font_total_height / 2 + 1;
+	const int halfheight = LINESPACE / 2 + 1;
 
-	display_fillbox_wh_clip_rgb(xpos - 2, ypos - halfheight - 1 - hgt, width, 1, color_idx_to_rgb(ddd_farbe + 1), dirty  CLIP_NUM_PAR);
-	display_fillbox_wh_clip_rgb(xpos - 2, ypos - halfheight - hgt, width, halfheight * 2, color_idx_to_rgb(ddd_farbe), dirty  CLIP_NUM_PAR);
-	display_fillbox_wh_clip_rgb(xpos - 2, ypos + halfheight - hgt, width, 1, color_idx_to_rgb(ddd_farbe - 1), dirty  CLIP_NUM_PAR);
+	PIXVAL lighter = display_blend_colors(ddd_color, color_idx_to_rgb(COL_WHITE), 25);
+	PIXVAL darker  = display_blend_colors(ddd_color, color_idx_to_rgb(COL_BLACK), 25);
 
-	display_vline_wh_clip_rgb(xpos - 2, ypos - halfheight - 1 - hgt, halfheight * 2 + 1, color_idx_to_rgb(ddd_farbe + 1), dirty  CLIP_NUM_PAR);
-	display_vline_wh_clip_rgb(xpos + width - 3, ypos - halfheight - 1 - hgt, halfheight * 2 + 1, color_idx_to_rgb(ddd_farbe - 1), dirty  CLIP_NUM_PAR);
+	display_fillbox_wh_clip_rgb( xpos - 2, ypos - halfheight - 1 - hgt, width, halfheight * 2 + 2, ddd_color, dirty CLIP_NUM_PAR );
 
-	display_text_proportional_len_clip(xpos + 2, ypos - 5 + (12 - large_font_total_height) / 2, text, ALIGN_LEFT | DT_CLIP, text_farbe, dirty, -1);
+	display_fillbox_wh_clip_rgb( xpos - 1, ypos - halfheight - 1 - hgt, width - 2, 1, lighter, dirty );
+	display_fillbox_wh_clip_rgb( xpos - 1, ypos + halfheight - hgt,     width - 2, 1, darker,  dirty );
+
+	display_vline_wh_clip_rgb( xpos - 2,         ypos - halfheight - 1 - hgt, halfheight * 2 + 2, lighter, dirty );
+	display_vline_wh_clip_rgb( xpos + width - 3, ypos - halfheight - 1 - hgt, halfheight * 2 + 2, darker,  dirty );
+
+	display_text_proportional_len_clip_rgb( xpos + 2, ypos - 5 + (12 - LINESPACE) / 2, text, ALIGN_LEFT | DT_CLIP, text_color, dirty, -1);
 }
 
 
 /**
-* Draw multiline text
-* @author Hj. Malthaner
-*
-* Better performance without copying text!
-* @author Volker Meyer
-* @date  15.06.2003
-*
-* Allow arbitrary colors.
-* @author Tor Egil R. Strand
-* @date 06.10.2013
-*/
+ * Draw multiline text
+ */
 int display_multiline_text_rgb(KOORD_VAL x, KOORD_VAL y, const char *buf, PIXVAL color)
 {
 	int max_px_len = 0;
@@ -4666,9 +4909,8 @@ int display_multiline_text_rgb(KOORD_VAL x, KOORD_VAL y, const char *buf, PIXVAL
 
 
 /**
-* draw line from x,y to xx,yy
-* Hajo
-**/
+ * draw line from x,y to xx,yy
+ **/
 void display_direct_line_rgb(const KOORD_VAL x, const KOORD_VAL y, const KOORD_VAL xx, const KOORD_VAL yy, const PIXVAL colval)
 {
 	int i, steps;
@@ -4683,11 +4925,11 @@ void display_direct_line_rgb(const KOORD_VAL x, const KOORD_VAL y, const KOORD_V
 		steps = 1;
 	}
 
-	xs = (dx << 16) / steps;
-	ys = (dy << 16) / steps;
+	xs = (dx * (1 << 16)) / steps;
+	ys = (dy * (1 << 16)) / steps;
 
-	xp = x << 16;
-	yp = y << 16;
+	xp = x * (1 << 16);
+	yp = y * (1 << 16);
 
 	for (i = 0; i <= steps; i++) {
 #ifdef DEBUG_FLUSH_BUFFER
@@ -4718,11 +4960,11 @@ void display_direct_line_dotted_rgb(const KOORD_VAL x, const KOORD_VAL y, const 
 		steps = 1;
 	}
 
-	xs = (dx << 16) / steps;
-	ys = (dy << 16) / steps;
+	xs = (dx * (1 << 16)) / steps;
+	ys = (dy * (1 << 16)) / steps;
 
-	xp = x << 16;
-	yp = y << 16;
+	xp = x * (1 << 16);
+	yp = y * (1 << 16);
 
 	for (i = 0; i <= steps; i++) {
 		counter++;
@@ -4826,18 +5068,49 @@ void display_filled_circle_rgb(KOORD_VAL x0, KOORD_VAL  y0, int radius, const PI
 }
 
 
+// Currently, only right-facing equilateral triangles are supported. Can be expanded if needed to accommodate another direction.
+// The horizontal size is sqrt(3) times the height. - Ranran
+void display_right_triangle_rgb(KOORD_VAL x, KOORD_VAL y, uint8 height, const PIXVAL colval, const bool dirty)
+{
+	double sqrt3 = sqrt(3);
+	for (uint16 x0 = 0; x0 <= (uint16)(0.99 + height * (sqrt3)); x0++)
+	{
+		display_vline_wh_rgb(x + x0, y + (uint16)(0.99 + x0 / sqrt3), height - (uint16)(0.99 + x0 / sqrt3) * 2, colval, dirty);
+	}
+}
+
+
+int display_fluctuation_triangle_rgb(KOORD_VAL x, KOORD_VAL y, uint8 height, const bool dirty, sint64 value)
+{
+	if (!value) { return 0; } // nothing to draw
+	PIXVAL col = value > 0 ? SYSCOL_UP_TRIANGLE : SYSCOL_DOWN_TRIANGLE;
+	uint8 width = height - height % 2;
+	for (uint i = 0; i < width; i++) {
+		uint8 h = height - 2 * abs(int(width / 2 - i));
+		KOORD_VAL y0 = value > 0 ? y + 2 + height - h : y+2;
+		KOORD_VAL y1 = value > 0 ? y0 - 1 : y + h +1;
+
+		if (h > 1) {
+			display_vline_wh_clip_rgb(x + i, y0, h - 1, col, dirty);
+		}
+		if (h > 0) {
+			display_blend_wh_rgb(x + i, y1, 1, 1, col, 50);
+		}
+	}
+	return width;
+}
+
+
 /**
-* Print a bezier curve between points A and B
-* @author yorkeiser
-* @date  08.04.2012
-* @Ax,Ay=start coordinate of Bezier curve
-* @Bx,By=end coordinate of Bezier curve
-* @ADx,ADy=vector for start direction of curve
-* @BDx,BDy=vector for end direction of Bezier curve
-* @colore=color for curve to be drawn
-* @draw=for dotted lines, how many pixels to be drawn (leave 0 for solid line)
-* @dontDraw=for dotted lines, how many pixels to not be drawn (leave 0 for solid line)
-*/
+ * Print a bezier curve between points A and B
+ * @Ax,Ay=start coordinate of Bezier curve
+ * @Bx,By=end coordinate of Bezier curve
+ * @ADx,ADy=vector for start direction of curve
+ * @BDx,BDy=vector for end direction of Bezier curve
+ * @colore=color for curve to be drawn
+ * @draw=for dotted lines, how many pixels to be drawn (leave 0 for solid line)
+ * @dontDraw=for dotted lines, how many pixels to not be drawn (leave 0 for solid line)
+ */
 void draw_bezier_rgb(KOORD_VAL Ax, KOORD_VAL Ay, KOORD_VAL Bx, KOORD_VAL By, KOORD_VAL ADx, KOORD_VAL ADy, KOORD_VAL BDx, KOORD_VAL BDy, const PIXVAL colore, KOORD_VAL draw, KOORD_VAL dontDraw)
 {
 	KOORD_VAL Cx, Cy, Dx, Dy;
@@ -4914,10 +5187,10 @@ void display_flush_buffer()
 	}
 	// no pointer image available, draw a crosshair
 	else {
-		display_fb_internal(sys_event.mx - 1, sys_event.my - 3, 3, 7, COL_WHITE, true, 0, disp_width, 0, disp_height);
-		display_fb_internal(sys_event.mx - 3, sys_event.my - 1, 7, 3, COL_WHITE, true, 0, disp_width, 0, disp_height);
-		display_direct_line(sys_event.mx - 2, sys_event.my, sys_event.mx + 2, sys_event.my, COL_BLACK);
-		display_direct_line(sys_event.mx, sys_event.my - 2, sys_event.mx, sys_event.my + 2, COL_BLACK);
+		display_fb_internal(sys_event.mx - 1, sys_event.my - 3, 3, 7, color_idx_to_rgb(COL_WHITE), true, 0, disp_width, 0, disp_height);
+		display_fb_internal(sys_event.mx - 3, sys_event.my - 1, 7, 3, color_idx_to_rgb(COL_WHITE), true, 0, disp_width, 0, disp_height);
+		display_direct_line(sys_event.mx - 2, sys_event.my, sys_event.mx + 2, sys_event.my, color_idx_to_rgb(COL_BLACK));
+		display_direct_line(sys_event.mx, sys_event.my - 2, sys_event.mx, sys_event.my + 2, color_idx_to_rgb(COL_BLACK));
 
 		// if crosshair is over the ticker, redraw it totally at next occurs
 		if (!ticker::empty() && sys_event.my + 2 >= disp_height - TICKER_YPOS_BOTTOM &&
@@ -4998,12 +5271,12 @@ void display_flush_buffer()
 				}
 
 #ifdef DEBUG_FLUSH_BUFFER
-				display_vline_wh((x1 << DIRTY_TILE_SHIFT) - 1, y1 << DIRTY_TILE_SHIFT, (y2 - y1) << DIRTY_TILE_SHIFT, COL_YELLOW, false);
-				display_vline_wh(x2 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, (y2 - y1) << DIRTY_TILE_SHIFT, COL_YELLOW, false);
-				display_fillbox_wh(x1 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, (x2 - x1) << DIRTY_TILE_SHIFT, 1, COL_YELLOW, false);
-				display_fillbox_wh(x1 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, (x2 - x1) << DIRTY_TILE_SHIFT, 1, COL_YELLOW, false);
-				display_direct_line(x1 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, x2 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, COL_YELLOW);
-				display_direct_line(x1 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, x2 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, COL_YELLOW);
+				display_vline_wh_rgb((x1 << DIRTY_TILE_SHIFT) - 1, y1 << DIRTY_TILE_SHIFT, (y2 - y1) << DIRTY_TILE_SHIFT, color_idx_to_rgb(COL_YELLOW), false);
+				display_vline_wh_rgb(x2 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, (y2 - y1) << DIRTY_TILE_SHIFT, color_idx_to_rgb(COL_YELLOW), false);
+				display_fillbox_wh_rgb(x1 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, (x2 - x1) << DIRTY_TILE_SHIFT, 1, color_idx_to_rgb(COL_YELLOW), false);
+				display_fillbox_wh_rgb(x1 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, (x2 - x1) << DIRTY_TILE_SHIFT, 1, color_idx_to_rgb(COL_YELLOW), false);
+				display_direct_line_rgb(x1 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, x2 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, color_idx_to_rgb(COL_YELLOW));
+				display_direct_line_rgb(x1 << DIRTY_TILE_SHIFT, (y2 << DIRTY_TILE_SHIFT) - 1, x2 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, color_idx_to_rgb(COL_YELLOW));
 #else
 				dr_textur(x1 << DIRTY_TILE_SHIFT, y1 << DIRTY_TILE_SHIFT, (x2 - x1) << DIRTY_TILE_SHIFT, (y2 - y1) << DIRTY_TILE_SHIFT);
 #endif
@@ -5026,9 +5299,8 @@ void display_flush_buffer()
 
 
 /**
-* Turn mouse pointer visible/invisible
-* @author Hj. Malthaner
-*/
+ * Turn mouse pointer visible/invisible
+ */
 void display_show_pointer(int yesno)
 {
 #ifdef USE_SOFTPOINTER
@@ -5040,9 +5312,8 @@ void display_show_pointer(int yesno)
 
 
 /**
-* mouse pointer image
-* @author prissi
-*/
+ * mouse pointer image
+ */
 void display_set_pointer(int pointer)
 {
 	standard_pointer = pointer;
@@ -5050,9 +5321,8 @@ void display_set_pointer(int pointer)
 
 
 /**
-* mouse pointer image
-* @author prissi
-*/
+ * mouse pointer image
+ */
 void display_show_load_pointer(int loading)
 {
 #ifdef USE_SOFTPOINTER
@@ -5064,13 +5334,12 @@ void display_show_load_pointer(int loading)
 
 
 /**
-* Initialises the graphics module
-* @author Hj. Malthaner
-*/
-void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
+ * Initialises the graphics module
+ */
+void simgraph_init(scr_size window_size, bool full_screen)
 {
-	disp_actual_width = width;
-	disp_height = height;
+	disp_actual_width = window_size.w;
+	disp_height = window_size.h;
 
 #ifdef MULTI_THREAD
 	pthread_mutex_init(&recode_img_mutex, NULL);
@@ -5087,15 +5356,13 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 	}
 
 	// get real width from os-dependent routines
-	disp_width = dr_os_open(width, height, full_screen);
-	if (disp_width>0) {
+	disp_width = dr_os_open(window_size.w, window_size.h, full_screen);
+	if(  disp_width>0  ) {
 		textur = dr_textur_init();
 
 		// init, load, and check fonts
-		large_font.screen_width = NULL;
-		large_font.char_data = NULL;
-		if (!display_load_font(FONT_PATH_X "prop.fnt")) {
-			dr_fatal_notify("No fonts found!");
+		if(  !display_load_font(env_t::fontname.c_str())  &&  !display_load_font(FONT_PATH_X "prop.fnt") ) {
+			dr_fatal_notify( "No fonts found!" );
 			fprintf(stderr, "Error: No fonts found!");
 			exit(-1);
 		}
@@ -5126,7 +5393,7 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 
 	display_set_clip_wh(0, 0, disp_width, disp_height);
 
-	// Hajo: Calculate daylight rgbmap and save it for unshaded tile drawing
+	// Calculate daylight rgbmap and save it for unshaded tile drawing
 	player_day = 0;
 	display_day_night_shift(0);
 	memcpy(specialcolormap_all_day, specialcolormap_day_night, 256 * sizeof(PIXVAL));
@@ -5141,6 +5408,7 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 		}
 		if (c == 31) {
 			// 15 bit per pixel
+			bitdepth = 15;
 			blend[0] = pix_blend25_15;
 			blend[1] = pix_blend50_15;
 			blend[2] = pix_blend75_15;
@@ -5152,6 +5420,10 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 			outline[2] = pix_outline75_15;
 			alpha = pix_alpha_15;
 			alpha_recode = pix_alpha_recode_15;
+			recode_img_src_target = recode_img_src_target_15;
+#ifndef RGB555
+			dr_fatal_notify( "Compiled for 16 bit color depth but using 15!" );
+#endif
 		}
 		else {
 			blend[0] = pix_blend25_16;
@@ -5165,6 +5437,10 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 			outline[2] = pix_outline75_16;
 			alpha = pix_alpha_16;
 			alpha_recode = pix_alpha_recode_16;
+			recode_img_src_target = recode_img_src_target_16;
+#ifdef RGB555
+			dr_fatal_notify( "Compiled for 15 bit color depth but using 16!" );
+#endif
 		}
 	}
 
@@ -5174,27 +5450,25 @@ void simgraph_init(KOORD_VAL width, KOORD_VAL height, int full_screen)
 
 
 /**
-* Check if the graphic module already was initialized.
-* @author Hj. Malthaner
-*/
-int is_display_init()
+ * Check if the graphic module already was initialized.
+ */
+bool is_display_init()
 {
-	return textur != NULL  &&  large_font.num_chars>0;
+	return textur != NULL  &&  default_font.is_loaded()  &&  images!=NULL;
 }
 
 
 /**
-* Close the Graphic module
-* @author Hj. Malthaner
-*/
+ * Close the Graphic module
+ */
 void simgraph_exit()
 {
 	dr_os_close();
 
-	guarded_free(tile_dirty_old);
-	guarded_free(tile_dirty);
+	free( tile_dirty_old );
+	free( tile_dirty );
 	display_free_all_images_above(0);
-	guarded_free(images);
+	free(images);
 
 	tile_dirty = tile_dirty_old = NULL;
 	images = NULL;
@@ -5208,23 +5482,22 @@ void simgraph_exit()
 
 
 /* changes display size
-* @author prissi
-*/
-void simgraph_resize(KOORD_VAL w, KOORD_VAL h)
+ */
+void simgraph_resize(scr_size new_window_size)
 {
-	disp_actual_width = max(16, w);
-	if (h <= 0) {
-		h = 64;
+	disp_actual_width = max( 16, new_window_size.w );
+	if(  new_window_size.h<=0  ) {
+		new_window_size.h = 64;
 	}
 	// only resize, if internal values are different
-	if (disp_width != w || disp_height != h) {
-		KOORD_VAL new_width = dr_textur_resize(&textur, w, h);
-		if (new_width != disp_width || disp_height != h) {
-			disp_width = new_width;
-			disp_height = h;
+	if (disp_width != new_window_size.w || disp_height != new_window_size.h) {
+		KOORD_VAL new_pitch = dr_textur_resize(&textur, new_window_size.w, new_window_size.h);
+		if(  new_pitch!=disp_width  ||  disp_height != new_window_size.h) {
+			disp_width = new_pitch;
+			disp_height = new_window_size.h;
 
-			guarded_free(tile_dirty_old);
-			guarded_free(tile_dirty);
+			free( tile_dirty_old );
+			free( tile_dirty);
 
 			// allocate dirty tile flags
 			tiles_per_line = (disp_width + DIRTY_TILE_SIZE - 1) / DIRTY_TILE_SIZE;
@@ -5254,26 +5527,23 @@ void reset_textur(void *new_textur)
 
 
 /**
-* Take Screenshot
-* @author Hj. Malthaner
-*/
-void display_snapshot(int x, int y, int w, int h)
+ * Take Screenshot
+ */
+void display_snapshot( int x, int y, int w, int h )
 {
 	static int number = 0;
 
 	char buf[80];
 
-	dr_mkdir(SCRENSHOT_PATH);
-
 	// find the first not used screenshot image
 	do {
-		sprintf(buf, SCRENSHOT_PATH_X "simscr%02d.png", number);
-		if (access(buf, W_OK) == -1) {
-			sprintf(buf, SCRENSHOT_PATH_X "simscr%02d.bmp", number);
+		sprintf(buf, SCREENSHOT_PATH_X "simscr%02d.png", number);
+		if(access(buf, W_OK) == -1) {
+			sprintf(buf, SCREENSHOT_PATH_X "simscr%02d.bmp", number);
 		}
 		number++;
 	} while (access(buf, W_OK) != -1);
-	sprintf(buf, SCRENSHOT_PATH_X "simscr%02d.bmp", number - 1);
+	sprintf(buf, SCREENSHOT_PATH_X "simscr%02d.bmp", number-1);
 
 	dr_screenshot(buf, x, y, w, h);
 }

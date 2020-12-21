@@ -39,8 +39,8 @@ bool ai_building_place_with_road_finder::is_road_at(sint16 x, sint16 y) const {
 }
 
 
-bool ai_building_place_with_road_finder::is_area_ok(koord pos, sint16 b, sint16 h, climate_bits cl) const {
-	if(building_placefinder_t::is_area_ok(pos, b, h, cl)) {
+bool ai_building_place_with_road_finder::is_area_ok(koord pos, sint16 b, sint16 h, climate_bits cl, uint16 allowed_regions) const {
+	if(building_placefinder_t::is_area_ok(pos, b, h, cl, allowed_regions)) {
 		// check to not built on a road
 		int i, j;
 		for(j=pos.x; j<pos.x+b; j++) {
@@ -78,9 +78,9 @@ halthandle_t ai_t::get_halt(const koord pos ) const
 }
 
 
-/* returns true,
+/**
+ * returns true,
  * if there is already a connection
- * @author prissi
  */
 bool ai_t::is_connected( const koord start_pos, const koord dest_pos, const goods_desc_t *wtyp ) const
 {
@@ -128,19 +128,6 @@ bool ai_t::is_connected( const koord start_pos, const koord dest_pos, const good
 	// no connection possible between those
 	return false;
 }
-
-
-
-// prepares a general tool just like a player work do
-bool ai_t::init_general_tool( int tool, const char *param )
-{
-	const char *old_param = tool_t::general_tool[tool]->get_default_param();
-	tool_t::general_tool[tool]->set_default_param(param);
-	bool ok = tool_t::general_tool[tool]->init( this );
-	tool_t::general_tool[tool]->set_default_param(old_param);
-	return ok;
-}
-
 
 
 // calls a general tool just like a player work do
@@ -208,9 +195,8 @@ bool ai_t::find_place(koord pos, koord &size, koord *dirs)
 
 
 
-/* needed renovation due to different sized factories
+/** needed renovation due to different sized factories
  * also try "nicest" place first
- * @author HJ & prissi
  */
 bool ai_t::find_place(koord &start, koord &size, koord target, koord off)
 {
@@ -384,7 +370,7 @@ bool ai_t::built_update_headquarter()
 				}
 				if(st) {
 					bool is_rotate=desc->get_all_layouts()>1;
-					place = ai_building_place_with_road_finder(welt).find_place(st->get_pos(), desc->get_x(), desc->get_y(), desc->get_allowed_climate_bits(), &is_rotate);
+					place = ai_building_place_with_road_finder(welt).find_place(st->get_pos(), desc->get_x(), desc->get_y(), desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), &is_rotate);
 				}
 			}
 			const char *err=NOTICE_UNSUITABLE_GROUND;
@@ -411,7 +397,7 @@ bool ai_t::built_update_headquarter()
 /**
  * Find the last water tile using line algorithm
  * start MUST be on land!
- **/
+ */
 koord ai_t::find_shore(koord start, koord end) const
 {
 	int x = start.x;
@@ -580,17 +566,8 @@ DBG_MESSAGE("ai_passenger_t::create_simple_road_transport()","Already connection
 }
 
 
-void ai_t::tell_tool_result(tool_t *tool, koord3d pos, const char *err, bool local)
-{
-	// necessary to show error message if a human helps us poor AI
-	player_t::tell_tool_result(tool, pos, err, local);
-
-	// TODO: process the result...
-}
-
-
 /* create new AI */
-ai_t::ai_t(karte_t *wl, uint8 nr) : player_t( wl, nr )
+ai_t::ai_t(uint8 nr) : player_t( nr )
 {
 	road_transport = rail_transport = air_transport = ship_transport = false;
 	construction_speed = env_t::default_ai_construction_speed;
@@ -601,7 +578,7 @@ void ai_t::rdwr(loadsave_t *file)
 {
 	player_t::rdwr(file);
 
-	if(  file->get_version()<111001  ) {
+	if(  file->get_version_int()<111001  ) {
 		// do not know about ai_t
 		return;
 	}

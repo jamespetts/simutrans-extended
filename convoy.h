@@ -3,6 +3,10 @@
  * (see LICENSE.txt)
  */
 
+#ifndef CONVOY_H
+#define CONVOY_H
+
+
 /* convoy_t: common collection of properties of a convoi_t and a couple of vehicles which are going to become a convoy_t.
  * While convoi_t is involved in game play, convoy_t is the entity that physically models the convoy.
  */
@@ -55,10 +59,7 @@ Fm = cf * v^2 + Frs + m * a
 a = (Fm - Frs - cf * v^2) / m
 
 *******************************************************************************/
-#pragma once
 
-#ifndef convoy_h
-#define convoy_h
 
 #include <limits>
 #include <math.h>
@@ -218,6 +219,7 @@ private:
 		return get_force_summary(abs(speed));
 	}
 
+public:
 	/**
 	 * Get force in N that holds the given speed v or maximum available force, what ever is lesser.
 	 * Frs = Fr + Fs
@@ -337,6 +339,13 @@ public:
 	 * Get the minimum braking distance in steps for the convoy with given weight summary at given simutrans speed.
 	 */
 	sint32 calc_min_braking_distance(const class settings_t &settings, const weight_summary_t &weight, sint32 speed);
+
+	// acceleration
+	// starting acceleration sets speed to 0
+	float32e8_t calc_acceleration(const weight_summary_t &weight, sint32 speed);
+
+	double calc_acceleration_time(const weight_summary_t &weight, sint32 speed);
+	uint32 calc_acceleration_distance(const weight_summary_t &weight, sint32 speed);
 
 	/**
 	 * Calculate the movement within delta_t

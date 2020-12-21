@@ -6,19 +6,15 @@
 # this is config.default.in
 
 # allowed backends:
-#BACKEND = allegro
 #BACKEND = gdi
-#BACKEND = opengl
-#BACKEND = sdl
 #BACKEND = sdl2
-#BACKEND = mixer_sdl
 #BACKEND = posix
 BACKEND = @backend@
 
 # color depth either 16 or 0 (the latter needed for server)
 COLOUR_DEPTH = @color@
 
-# architecture specifi flags
+# architecture specific flags
 #OSTYPE = amiga
 #OSTYPE = beos
 #OSTYPE = cygwin
@@ -30,7 +26,8 @@ COLOUR_DEPTH = @color@
 
 OSTYPE = @os_type@
 
-DEBUG = 3    # Level 1-3, higher number means more debug-friendly, see Makefile
+MSG_LEVEL = 3
+#DEBUG = 3    # Level 1-3, higher number means more debug-friendly, see Makefile
 OPTIMISE = 1 # Add umpteen optimisation flags
 #PROFILE = 1  # Enable profiling
 #PROFILE = 2  # Enable profiling with optimisation flags, can be used with `OPTIMISE = 1'
@@ -43,10 +40,22 @@ WITH_REVISION = @svn@ # adds the revision from svn; required for networkgames
 
 MULTI_THREAD = @multithread@ # Enable multithreading, highly recommended
 
+BUNDLE_PTHREADGC2 = @bundlepthread@
+
+# using UPnP for easy server hosting behind routers
+USE_UPNP = @upnp@
+
+# using freetype for Truetype font support
+USE_FREETYPE = @freetype@
+
+# using zstd compression
+USE_ZSTD = @zstd@
+
+# use static linking (to be at least somewhat portable)
+STATIC = 1
+
 # Define these as empty strings, if you don't have the respective config program
-#ALLEGRO_CONFIG = allegro-config
 #PNG_CONFIG     = pkg-config libpng
-#SDL_CONFIG     = sdl-config
 #SDL2_CONFIG    = sdl2-config
 
 #VERBOSE = 1
@@ -78,7 +87,7 @@ MULTI_THREAD = @multithread@ # Enable multithreading, highly recommended
 # DESTINATION_CITYCARS: Citycars can have a destination (not recommended)
 #
 # In order to use the flags, add a line like this: (-Dxxx)
-FLAGS = @flags@ @freetype2@ @endian@
+FLAGS = @flags@ @endian@
 
 MAKEOBJ_PROGDIR = $(shell pwd)
 NETTOOL_PROGDIR = $(shell pwd)

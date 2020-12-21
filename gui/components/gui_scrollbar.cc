@@ -56,11 +56,39 @@ void scrollbar_t::set_size(scr_size size)
 }
 
 
+scr_size scrollbar_t::get_min_size() const
+{
+	if(type == vertical) {
+		scr_size size = D_ARROW_UP_SIZE;
+		size.clip_lefttop(D_ARROW_DOWN_SIZE);
+		size.w = max(size.w, D_SCROLLBAR_WIDTH);
+		size.h += 40;
+		return size;
+	}
+	else {
+		scr_size size = D_ARROW_LEFT_SIZE;
+		size.clip_lefttop(D_ARROW_RIGHT_SIZE);
+		size.h = max(size.h, D_SCROLLBAR_HEIGHT);
+		size.w += 40;
+		return size;
+	}
+}
+
+
+scr_size scrollbar_t::get_max_size() const
+{
+	scr_size min_size = get_min_size();
+	if(type == vertical) {
+		return scr_size(min_size.w, scr_size::inf.h);
+	}
+	else {
+		return scr_size(scr_size::inf.w, min_size.h);
+	}
+}
+
+
 void scrollbar_t::set_knob(sint32 new_visible_size, sint32 new_total_size)
 {
-	if(  new_visible_size<1  ||  new_total_size<1  ) {
-//		dbg->warning("scrollbar_t::set_knob()","size=%i, area=%i not in 1...x",size,area);
-	}
 	if(  new_total_size != total_size  ) {
 		knob_offset = (sint32)( (double)knob_offset * ( (double)new_total_size / (double) total_size ) + 0.5 );
 	}
@@ -130,13 +158,13 @@ bool scrollbar_t::infowin_event(const event_t *ev)
 	const int y = ev->cy;
 	int i;
 
-	// 2003-11-04 hsiegeln added wheel support
-	// prissi: repaired it, was never doing something ...
 	if(  IS_WHEELUP(ev)  &&  (type == vertical) != IS_SHIFT_PRESSED(ev)  ) {
 		scroll( -knob_scroll_amount );
+		return true;
 	}
 	else if (IS_WHEELDOWN(ev) && (type == vertical) != IS_SHIFT_PRESSED(ev)) {
 		scroll( +knob_scroll_amount );
+		return true;
 	}
 	else if(  is_visible()  &&  !full ) {
 		// don't respond to these messages if not visible
@@ -174,13 +202,14 @@ bool scrollbar_t::infowin_event(const event_t *ev)
 					}
 				}
 			}
+			return true;
 		}
 		else if(  IS_LEFTDRAG(ev)  ||  (dragging  &&  IS_LEFT_BUTTON_PRESSED(ev))  ) {
 			// now dragging the slider ...
 			if(  knobarea.contains( scr_coord(x,y) )  ||  dragging  ) {
 				sint32 delta, change;
 
-				// Hajo: added vertical/horizontal check
+				// added vertical/horizontal check
 				if(type == vertical) {
 					delta = ev->my - ev->cy;
 					change = (sint32)(delta*( (double)total_size / (double) sliderarea.h ) + 0.5);
@@ -196,6 +225,7 @@ bool scrollbar_t::infowin_event(const event_t *ev)
 					change_drag_start( knobarea.x-delta, 0 );
 				}
 				dragging = true;
+				return true;
 			}
 		}
 		else if (IS_LEFTRELEASE(ev)) {
@@ -203,6 +233,7 @@ bool scrollbar_t::infowin_event(const event_t *ev)
 			for (i=0;i<2;i++) {
 				if (button_def[i].getroffen(x, y)) {
 					button_def[i].pressed = false;
+					return true;
 				}
 			}
 		}

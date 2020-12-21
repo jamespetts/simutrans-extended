@@ -19,10 +19,9 @@
 struct old_btyp
 {
 	/**
-	* From type "unknown" also come special buildings e.q. Townhall
-	* @author Hj. Malthaner
-	*/
-	enum typ { wohnung, gewerbe, industrie, unknown };
+	 * From type "unknown" also come special buildings e.q. Townhall
+	 */
+	enum typ {wohnung, gewerbe, industrie, unknown};
 };
 
 
@@ -32,12 +31,12 @@ obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	building_tile_desc_t *desc = new building_tile_desc_t();
 
-	// Hajo: Read data
+	// Read data
 	fread(desc_buf, node.size, 1, fp);
 
 	char * p = desc_buf;
 
-	// Hajo: old versions of PAK files have no version stamp.
+	// old versions of PAK files have no version stamp.
 	// But we know, the highest bit was always cleared.
 	const uint16 v = decode_uint16(p);
 	const int version = (v & 0x8000)!=0 ? v&0x7FFF : 0;
@@ -197,7 +196,7 @@ void building_reader_t::register_obj(obj_desc_t *&data)
 		if(  desc->type != building_desc_t::factory  ) {
 			checksum_t *chk = new checksum_t();
 			desc->calc_checksum(chk);
-			pakset_info_t::append(desc->get_name(), chk);
+			pakset_info_t::append(desc->get_name(), get_type(), chk);
 		}
 	}
 }
@@ -215,11 +214,11 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	building_desc_t *desc = new building_desc_t();
 
-	// Hajo: Read data
+	// Read data
 	fread(desc_buf, node.size, 1, fp);
 
 	char * p = desc_buf;
-	// Hajo: old versions of PAK files have no version stamp.
+	// old versions of PAK files have no version stamp.
 	// But we know, the highest bit was always cleared.
 	const uint16 v = decode_uint16(p);
 	int version = (v & 0x8000)!=0 ? v&0x7FFF : 0;
@@ -245,7 +244,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	}
 
 	//HACK: I have no idea why the above does not work.
-	if (extended && (v == 49928 && version == 8) || (v == 49929 && version == 9))
+	if ((extended && (v == 49928 && version == 8)) || (v == 49929 && version == 9))
 	{
 		extended_version = 3;
 	}
@@ -262,7 +261,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->mail_demand_and_production_capacity = 65535;
 	}
 
-	old_btyp::typ btyp;
+	old_btyp::typ btyp = old_btyp::unknown;
 
 	if (version == 8 || version == 9)
 	{
@@ -276,6 +275,14 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.y = decode_uint16(p);
 		desc->layouts   = decode_uint8(p);
 		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		if (extended_version >= 5)
+		{
+			desc->allowed_regions = decode_uint16(p);
+		}
+		else
+		{
+			desc->allowed_regions = 65535;
+		}
 		if (extended_version >= 3)
 		{
 			desc->enables = decode_uint16(p);
@@ -288,6 +295,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			desc->enables = 65535;
 		}
+
 		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
 		desc->distribution_weight    = decode_uint8(p);
 		desc->intro_date    = decode_uint16(p);
@@ -299,7 +307,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->allow_underground = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version > 4)
+			if(extended_version > 5)
 			{
 				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
@@ -616,7 +624,8 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	{
 		desc->level = extended_version > 0 ? 1 : 4;
 	}
-	else if((desc->level > 32767 && (desc->type >= building_desc_t::bahnhof || desc->type == building_desc_t::factory)) || version<=3  &&  ((uint8)desc->type >= building_desc_t::bahnhof  ||  desc->type == building_desc_t::factory  ||  desc->type == building_desc_t::depot)  &&  desc->level==0)
+	else if((desc->level > 32767 && (desc->type >= building_desc_t::bahnhof || desc->type == building_desc_t::factory)) ||
+	        (version<=3  &&  ((uint8)desc->type >= building_desc_t::bahnhof  ||  desc->type == building_desc_t::factory  ||  desc->type == building_desc_t::depot)  &&  desc->level==0))
 	{
 		DBG_DEBUG("building_reader_t::read_node()","old station building -> set level to 4");
 		desc->level = 4;
@@ -648,6 +657,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			case old_btyp::wohnung:    desc->type = building_desc_t::city_res; break;
 			case old_btyp::gewerbe:    desc->type = building_desc_t::city_com; break;
 			case old_btyp::industrie:  desc->type = building_desc_t::city_ind; break;
+			case old_btyp::unknown:    desc->type = building_desc_t::unknown;  break;
 		}
 	}
 

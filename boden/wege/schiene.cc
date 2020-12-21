@@ -3,13 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Rails for Simutrans
- *
- * Revised January 2001
- * Hj. Malthaner
- */
-
 #include <stdio.h>
 
 #include "../../gui/simwin.h"
@@ -80,11 +73,11 @@ void schiene_t::show_info()
 }
 
 
-void schiene_t::info(cbuffer_t & buf, bool is_bridge) const
+void schiene_t::info(cbuffer_t & buf) const
 {
-	weg_t::info(buf, is_bridge);
+	weg_t::info(buf);
 
-	schiene_t* sch = (schiene_t*)this;
+	const schiene_t* sch = static_cast<const schiene_t *>(this);
 
 	uint8 textlines = 1; // to locate the clickable button
 	if (reserved.is_bound())
@@ -112,11 +105,11 @@ void schiene_t::info(cbuffer_t & buf, bool is_bridge) const
 		case monorail_wt:
 		case maglev_wt:
 			rail_vehicle = (rail_vehicle_t*)reserved->front();
+		default: break;
 		}
 
 		if (rail_vehicle)
 		{
-
 			buf.append(translator::translate(get_working_method_name(rail_vehicle->get_working_method())));
 			textlines += 1;
 			buf.append("\n   ");
@@ -141,9 +134,7 @@ void schiene_t::info(cbuffer_t & buf, bool is_bridge) const
 
 		koord3d vehpos = reserved->get_pos();
 		koord3d schpos = sch->get_pos();
-		const uint32 tiles_to_vehicle = shortest_distance(schpos.get_2d(), vehpos.get_2d());
-		const double km_per_tile = welt->get_settings().get_meters_per_tile() / 1000.0;
-		const double km_to_vehicle = (double)tiles_to_vehicle * km_per_tile;
+		const double km_to_vehicle = welt->tiles_to_km(shortest_distance(schpos.get_2d(), vehpos.get_2d()));
 
 		if (km_to_vehicle < 1)
 		{
@@ -183,7 +174,6 @@ void schiene_t::info(cbuffer_t & buf, bool is_bridge) const
 #ifdef DEBUG_PBS
 		reserved->show_info();
 #endif
-
 	}
 	else
 	{
@@ -209,7 +199,6 @@ void schiene_t::info(cbuffer_t & buf, bool is_bridge) const
 
 /**
  * true, if this rail can be reserved
- * @author prissi
  */
 bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, bool check_directions_at_junctions)
 {
@@ -262,7 +251,6 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, 
 /**
 * releases previous reservation
 * only true, if there was something to release
-* @author prissi
 */
 bool schiene_t::unreserve(convoihandle_t c)
 {
@@ -307,12 +295,12 @@ void schiene_t::rdwr(loadsave_t *file)
 
 	weg_t::rdwr(file);
 
-	if(file->get_version()<99008) {
+	if(file->get_version_int()<99008) {
 		sint32 blocknr=-1;
 		file->rdwr_long(blocknr);
 	}
 
-	if(file->get_version()<89000) {
+	if(file->get_version_int()<89000) {
 		uint8 dummy;
 		file->rdwr_byte(dummy);
 		set_electrify(dummy);

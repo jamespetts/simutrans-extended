@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __OBJ_NODE_INFO_H
-#define __OBJ_NODE_INFO_H
+#ifndef DESCRIPTOR_OBJ_NODE_INFO_H
+#define DESCRIPTOR_OBJ_NODE_INFO_H
+
 
 #include "../simtypes.h"
 
@@ -14,17 +15,13 @@
 #define EXT_OBJ_NODE_INFO_SIZE (12)
 #define LARGE_RECORD_SIZE (0xFFFFu)
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      stored structure of a pak node inside the file.
+/**
+ * Stored structure of a pak node inside the file.
  */
 struct obj_node_info_t {
-    uint32  type;
-    uint16  children;
-    uint32  size;
+	uint32  type;
+	uint16  children;
+	uint32  size;
 };
 
 #endif

@@ -19,11 +19,11 @@
 
 using namespace script_api;
 
-vector_tpl<sint64> const& get_line_stat(linehandle_t line, sint32 INDEX)
+vector_tpl<sint64> const& get_line_stat(simline_t *line, sint32 INDEX)
 {
 	static vector_tpl<sint64> v;
 	v.clear();
-	if (line.is_bound()  &&  0<=INDEX  &&  INDEX<MAX_LINE_COST) {
+	if (line  &&  0<=INDEX  &&  INDEX<MAX_LINE_COST) {
 		for(uint16 i = 0; i < MAX_MONTHS; i++) {
 			v.append( line->get_finance_history(i, (line_cost_t)INDEX) );
 		}
@@ -31,6 +31,24 @@ vector_tpl<sint64> const& get_line_stat(linehandle_t line, sint32 INDEX)
 	return v;
 }
 
+
+waytype_t line_way_type(simline_t *line)
+{
+	if (line) {
+		switch (line->get_linetype()) {
+			case simline_t::truckline: return road_wt;
+			case simline_t::trainline: return track_wt;
+			case simline_t::shipline: return water_wt;
+			case simline_t::monorailline: return monorail_wt;
+			case simline_t::maglevline: return maglev_wt;
+			case simline_t::narrowgaugeline: return narrowgauge_wt;
+			case simline_t::airline: return air_wt;
+			case simline_t::tramline: return tram_wt;
+			default: ;
+		}
+	}
+	return invalid_wt;
+}
 
 SQInteger line_export_convoy_list(HSQUIRRELVM vm)
 {
@@ -171,13 +189,17 @@ void export_line(HSQUIRRELVM vm)
 	 * Get monthly statistics of income/loss due to way tolls.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	// LINE_WAYTOLL not in Extended. Possibly unsafe to just comment this out - ACarlotti
-	//register_method_fv(vm, &get_line_stat, "get_way_tolls",         freevariable<sint32>(LINE_WAYTOLL), true );
+	register_method_fv(vm, &get_line_stat, "get_way_tolls",         freevariable<sint32>(LINE_WAYTOLL), true );
 	/**
 	 * Exports list of convoys belonging to this line.
 	 * @typemask convoy_list_x()
 	 */
 	register_function(vm, &line_export_convoy_list, "get_convoy_list", 1, param<linehandle_t>::typemask());
+
+	/**
+	 * @return waytype of the line
+	 */
+	register_method(vm, &line_way_type, "get_waytype", true);
 
 	end_class(vm);
 }

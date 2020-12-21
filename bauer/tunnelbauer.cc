@@ -9,7 +9,7 @@
 
 #include "tunnelbauer.h"
 
-#include "../gui/karte.h"
+#include "../gui/minimap.h"
 
 #include "../simworld.h"
 #include "../player/simplay.h"
@@ -45,12 +45,11 @@ static stringhashtable_tpl<tunnel_desc_t *> tunnel_by_name;
 void tunnel_builder_t::register_desc(tunnel_desc_t *desc)
 {
 	// avoid duplicates with same name
-	if( const tunnel_desc_t *old_desc = tunnel_by_name.get(desc->get_name()) ) {
-		dbg->warning( "tunnel_builder_t::register_desc()", "Object %s was overlaid by addon!", desc->get_name() );
-		tunnel_by_name.remove(desc->get_name());
+	if( const tunnel_desc_t *old_desc = tunnel_by_name.remove(desc->get_name()) ) {
+		dbg->doubled( "tunnel", desc->get_name() );
 		tool_t::general_tool.remove( old_desc->get_builder() );
 		delete old_desc->get_builder();
-		delete old_desc;
+		// we cannot delete old_desc, since then xref-resolving will crash
 	}
 	// add the tool
 	tool_build_tunnel_t *tool = new tool_build_tunnel_t();
@@ -75,7 +74,6 @@ const tunnel_desc_t *tunnel_builder_t::get_desc(const char *name)
 
 /**
  * Find a matching tunnel
- * @author Hj. Malthaner
  */
 const tunnel_desc_t *tunnel_builder_t::get_tunnel_desc(const waytype_t wtyp, const sint32 min_speed, const uint16 time)
 {
@@ -113,7 +111,6 @@ static bool compare_tunnels(const tunnel_desc_t* a, const tunnel_desc_t* b)
 
 /**
  * Fill menu with icons of given waytype
- * @author Hj. Malthaner
  */
 void tunnel_builder_t::fill_menu(tool_selector_t* tool_selector, const waytype_t wtyp, sint16 /*sound_ok*/)
 {
@@ -181,6 +178,11 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 			return koord3d::invalid;
 		}
 
+		// check water level
+		if (gr->is_water()  && welt->lookup_hgt(pos.get_2d()) <= pos.z) {
+			return koord3d::invalid;
+		}
+
 		if (const char* err = welt->get_scenario()->is_work_allowed_here(player, TOOL_BUILD_TUNNEL|GENERAL_TOOL, waytyp, pos)) {
 			if (msg) {
 				*msg = err;
@@ -193,7 +195,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 		if(  gr == NULL  ) {
 			// check for slope down ...
 			gr = welt->lookup(pos + koord3d(0,0,-1));
- 			if(  !gr  ) {
+			if(  !gr  ) {
 				gr = welt->lookup(pos + koord3d(0,0,-2));
 			}
 			if(  gr  &&  gr->get_weg_hang() == slope_t::flat  ) {
@@ -273,7 +275,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 			}
 			if(  !ribi  ) {
 				// End of the slope - Missing end rail or has no ribis
-				// we still consider if we interfere with a way (original: pr¸fen noch, ob uns dort ein anderer Weg stˆrt)
+				// we still consider if we interfere with a way
 				if(waytyp != powerline_wt) {
 					if(  !gr->hat_wege()  ||  gr->hat_weg(waytyp)  ) {
 						return pos;
@@ -338,7 +340,7 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 /************************************** FIX ME ***************************************************
 ********************** THIS MUST BE RATHER A PROPERTY OF THE TUNNEL IN QUESTION ! ****************/
 	// for conversion factor 1, must be single height, for conversion factor 2, must be double
-	if(  (env_t::pak_height_conversion_factor == 1  &&  !(slope & 7))  ||  (env_t::pak_height_conversion_factor == 2  &&  (slope & 7))  ) {
+	if(  (env_t::pak_height_conversion_factor == 1  &&  !is_one_high(slope))  ||  (env_t::pak_height_conversion_factor == 2  &&  is_one_high(slope))  ) {
 		return "Tunnel muss an\nsingleem\nHang beginnen!\n";
 	}
 
@@ -444,24 +446,27 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		way_desc = way_builder_t::weg_search(waytyp, desc->get_topspeed(), desc->get_max_axle_load(), welt->get_timeline_year_month(), type_flat, desc->get_wear_capacity());
 	}
 
-	build_tunnel_portal(player, pos, zv, desc, way_desc, cost, overtaking_mode, true);
+	build_tunnel_portal(player, pos, zv, desc, way_desc, cost, start != end, overtaking_mode, true);
 
 	ribi = ribi_type(-zv);
-	// don't move on to next tile if only one tile long
-	if(  end != start  ) {
-		pos = pos + zv;
-	}
-	// calc new back image for the ground
+
+	// move on
+	pos = pos + zv;
+
+	// calc back image to remove wall blocking tunnel portal for active underground view
 	if(grund_t::underground_mode) {
 		grund_t *gr = welt->lookup_kartenboden(pos.get_2d());
 		gr->calc_image();
 		gr->set_flag(grund_t::dirty);
 	}
 
+	if (  end == start  ) {
+		// already finished
+		return true;
+	}
+
 	// Now we build the invisible part
 	while(pos.get_2d()!=end.get_2d()) {
-		const grund_t* gr = welt->lookup(start);
-		const weg_t* old_way = gr ? gr->get_weg(waytyp) : NULL;
 		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
 		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
 		if(waytyp != powerline_wt)
@@ -493,7 +498,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 			if(  waytyp==road_wt  ) {
 				strasse_t* str = (strasse_t*) weg;
 				assert(str);
-				str->set_overtaking_mode(overtaking_mode);
+				str->set_overtaking_mode(overtaking_mode, player);
 				str->set_ribi_mask_oneway(ribi_type(-zv));
 			}
 
@@ -512,6 +517,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		assert(!tunnel->ist_karten_boden());
 		player_t::add_maintenance( player, desc->get_maintenance(), desc->get_finance_waytype() );
 		cost += desc->get_value();
+		cost += way_desc->get_value();
 		pos = pos + zv;
 	}
 
@@ -523,7 +529,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		}
 		else if (gr_end->ist_karten_boden()) {
 			// if end is above ground construct an exit
-			build_tunnel_portal(player, pos, -zv, desc, way_desc, cost, overtaking_mode, false);
+			build_tunnel_portal(player, pos, -zv, desc, way_desc, cost, true, overtaking_mode, false);
 			gr_end = NULL; // invalid - replaced by tunnel ground
 			// calc new back image for the ground
 			if (end!=start && grund_t::underground_mode) {
@@ -539,10 +545,10 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 	}
 	else {
 		// construct end tunnel tile
-		const grund_t* gr = welt->lookup(start);
-		const weg_t* old_way = gr ? gr->get_weg(waytyp) : NULL;
 		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
+
 		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
+
 		if(waytyp != powerline_wt) {
 			weg = weg_t::alloc(desc->get_waytype());
 			weg->set_desc(way_desc);
@@ -580,6 +586,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		assert(!tunnel->ist_karten_boden());
 		player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype() );
 		cost += desc->get_value();
+		cost += way_desc->get_value();
 	}
 
 	player_t::book_construction_costs(player, -cost, start.get_2d(), desc->get_waytype());
@@ -587,17 +594,17 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 }
 
 
-void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord zv, const tunnel_desc_t *desc, const way_desc_t *way_desc, sint64 &cost, overtaking_mode_t overtaking_mode, bool beginning)
+void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord zv, const tunnel_desc_t *desc, const way_desc_t *way_desc, sint64 &cost, bool connect_inside, overtaking_mode_t overtaking_mode, bool beginning)
 {
 	grund_t *alter_boden = welt->lookup(end);
 	ribi_t::ribi ribi = 0;
 	if(desc->get_waytype()!=powerline_wt) {
-		ribi = alter_boden->get_weg_ribi_unmasked(desc->get_waytype()) | ribi_type(zv);
+		ribi = alter_boden->get_weg_ribi_unmasked(desc->get_waytype());
+	}
+	if (connect_inside) {
+		ribi |= ribi_type(zv);
 	}
 
-	const grund_t* gr = welt->lookup(end);
-	const weg_t* old_way = gr ? gr->get_weg(way_desc->get_wtyp()) : NULL;
-	const wayobj_t* way_object = old_way ? way_object = gr->get_wayobj(desc->get_waytype()) : NULL;
 	tunnelboden_t *tunnel = new tunnelboden_t( end, alter_boden->get_grund_hang());
 	tunnel->obj_add(new tunnel_t(end, player, desc));
 
@@ -649,7 +656,7 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 		if(  desc->get_waytype()==road_wt  ) {
 			strasse_t* str = (strasse_t*)weg;
 			assert(weg);
-			str->set_overtaking_mode(overtaking_mode);
+			str->set_overtaking_mode(overtaking_mode, player);
 			if(  desc->get_waytype()==road_wt  &&  overtaking_mode<=oneway_mode  ) {
 				if(  beginning  ) {
 					str->set_ribi_mask_oneway(ribi_type(-zv));
@@ -726,8 +733,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 	slist_tpl<koord3d>  tmp_list;
 	koord3d   pos = start;
 
-	// Erstmal das ganze Auﬂmaﬂ des Tunnels bestimmen und sehen,
-	// ob uns was im Weg ist.
+	// First check if all tunnel parts can be removed
 	tmp_list.insert(pos);
 	grund_t *from = welt->lookup(pos);
 	marker.mark(from);
@@ -736,7 +742,6 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 	do {
 		pos = tmp_list.remove_first();
 
-		// V.Meyer: weg_position_t changed to grund_t::get_neighbour()
 		grund_t *from = welt->lookup(pos);
 		grund_t *to;
 		koord zv = koord::invalid;
@@ -750,7 +755,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		else {
 			part_list.insert(pos);
 		}
-		// Alle Tunnelteile auf Entfernbarkeit pr¸fen!
+
 		if(  from->kann_alle_obj_entfernen(player)  ) {
 			return "Der Tunnel ist nicht frei!\n";
 		}
@@ -779,7 +784,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		}
 	} while (!tmp_list.empty());
 
-	// Jetzt geht es ans lˆschen der Tunnel
+	// Now we can delete the tunnel grounds
 	while (!part_list.empty()) {
 		pos = part_list.remove_first();
 		grund_t *gr = welt->lookup(pos);
@@ -794,10 +799,10 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		welt->access(pos.get_2d())->boden_entfernen(gr);
 		delete gr;
 
-		reliefkarte_t::get_karte()->calc_map_pixel( pos.get_2d() );
+		minimap_t::get_instance()->calc_map_pixel( pos.get_2d() );
 	}
 
-	// Und die Tunnelenden am Schluﬂ
+	// And now we can delete the tunnel ends
 	while (!end_list.empty()) {
 		pos = end_list.remove_first();
 

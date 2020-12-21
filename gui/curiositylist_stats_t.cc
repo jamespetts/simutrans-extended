@@ -5,8 +5,6 @@
 
 #include "curiositylist_stats_t.h"
 
-#include "../display/simgraph.h"
-#include "../display/viewport.h"
 #include "../simtypes.h"
 #include "../simcolor.h"
 #include "../simworld.h"
@@ -23,230 +21,225 @@
 #include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
 
-#include "gui_frame.h"
-#include "simwin.h"
 
+#include "../simcity.h"
 
-curiositylist_stats_t::curiositylist_stats_t(curiositylist::sort_mode_t sortby, bool sortreverse)
+uint8 curiositylist_stats_t::sort_mode = curiositylist::by_name;
+uint8 curiositylist_stats_t::region_filter = 0;
+bool curiositylist_stats_t::sortreverse = false;
+bool curiositylist_stats_t::filter_own_network = false;
+static karte_ptr_t welt;
+
+bool curiositylist_stats_t::compare(const gui_component_t *aa, const gui_component_t *bb)
 {
-	get_unique_attractions(sortby,sortreverse);
-	recalc_size();
-	line_selected = 0xFFFFFFFFu;
+	const curiositylist_stats_t* ca = dynamic_cast<const curiositylist_stats_t*>(aa);
+	const curiositylist_stats_t* cb = dynamic_cast<const curiositylist_stats_t*>(bb);
+	const gebaeude_t* a = ca->attraction;
+	const gebaeude_t* b = cb->attraction;
+
+	int cmp = 0;
+	switch ( sort_mode ) {
+		default: NOT_REACHED
+		case curiositylist::by_name:
+		{
+			const char* a_name = translator::translate(a->get_tile()->get_desc()->get_name());
+			const char* b_name = translator::translate(b->get_tile()->get_desc()->get_name());
+			cmp = STRICMP(a_name, b_name);
+			break;
+		}
+
+		case curiositylist::by_paxlevel:
+			cmp = a->get_adjusted_visitor_demand() - b->get_adjusted_visitor_demand();
+			break;
+
+		case curiositylist::by_pax_arrived:
+		{
+			int a_arrive = a->get_passengers_succeeded_commuting() == 65535 ? a->get_passengers_succeeded_visiting() : a->get_passengers_succeeded_visiting() + a->get_passengers_succeeded_commuting();
+			int b_arrive = b->get_passengers_succeeded_commuting() == 65535 ? b->get_passengers_succeeded_visiting() : b->get_passengers_succeeded_visiting() + b->get_passengers_succeeded_commuting();
+			cmp = a_arrive - b_arrive;
+			break;
+		}
+		/*
+		case curiositylist::by_city:
+		{
+			const char* a_name = a->get_stadt() ? a->get_stadt()->get_name() : '\0';
+			const char* b_name = b->get_stadt() ? b->get_stadt()->get_name() : '\0';
+			cmp = STRICMP(a_name, b_name);
+			a->get_stadt()->get_zufallspunkt();
+			break;
+		}*/
+
+		case curiositylist::by_region:
+			cmp = welt->get_region(a->get_pos().get_2d()) - welt->get_region(b->get_pos().get_2d());
+			break;
+	}
+	return sortreverse ? cmp > 0 : cmp < 0;
 }
 
 
-class compare_curiosities
+
+curiositylist_stats_t::curiositylist_stats_t(gebaeude_t *att)
 {
-	public:
-		compare_curiosities(curiositylist::sort_mode_t sortby_, bool reverse_) :
-			sortby(sortby_),
-			reverse(reverse_)
-		{}
+	attraction = att;
+	// pos button
+	set_table_layout(8, 1);
+	button_t *b = new_component<button_t>();
+	b->set_typ(button_t::posbutton_automatic);
+	b->set_targetpos3d(attraction->get_pos());
 
-		bool operator ()(const gebaeude_t* a, const gebaeude_t* b)
-		{
-			int cmp;
-			switch (sortby) {
-				default: NOT_REACHED
-				case curiositylist::by_name:
-				{
-					const char* a_name = translator::translate(a->get_tile()->get_desc()->get_name());
-					const char* b_name = translator::translate(b->get_tile()->get_desc()->get_name());
-					cmp = STRICMP(a_name, b_name);
-					break;
-				}
+	add_table(2, 1);
+	{
+		add_component(&img_enabled[0]);
+		img_enabled[0].set_image(skinverwaltung_t::passengers->get_image_id(0), true);
+		add_component(&img_enabled[1]);
+		img_enabled[1].set_image(skinverwaltung_t::mail->get_image_id(0), true);
 
-				case curiositylist::by_paxlevel:
-					cmp = a->get_adjusted_visitor_demand() - b->get_adjusted_visitor_demand();
-					break;
+		img_enabled[0].set_rigid(true);
+		img_enabled[1].set_rigid(true);
+	}
+	end_table();
+
+	// name
+	lb_name.set_text(attraction->get_tile()->get_desc()->get_name());
+	lb_name.set_min_size(scr_size(D_LABEL_WIDTH*3/2, D_LABEL_HEIGHT));
+	add_component(&lb_name);
+
+	// Pakset must have pax evaluation symbols to show overcrowding symbol
+	if (skinverwaltung_t::pax_evaluation_icons) {
+		img_enabled[2].set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(1), true);
+		img_enabled[2].set_rigid(true);
+	}
+	else {
+		img_enabled[2].set_image(IMG_EMPTY);
+	}
+	add_component(&img_enabled[2]);
+
+	gui_label_buf_t *l = new_component<gui_label_buf_t>();
+	l->buf().printf("(%4d/%4d) ",
+		attraction->get_passengers_succeeded_commuting() == 65535 ? attraction->get_passengers_succeeded_visiting() : attraction->get_passengers_succeeded_visiting() + attraction->get_passengers_succeeded_commuting(),
+		attraction->get_adjusted_visitor_demand());
+	l->update();
+
+
+	// city attraction images
+	add_component(&img_enabled[3]);
+	img_enabled[3].set_image(skinverwaltung_t::intown->get_image_id(0), true);
+	img_enabled[3].set_rigid(false);
+
+	img_enabled[3].set_visible(attraction->get_tile()->get_desc()->get_extra() != 0);
+
+	// city & region name
+	gui_label_buf_t *lb_region = new_component<gui_label_buf_t>();
+	if (attraction->get_stadt() != NULL) {
+		lb_region->buf().append(attraction->get_stadt()->get_name());
+	}
+	if (!welt->get_settings().regions.empty()) {
+		lb_region->buf().printf(" (%s)", translator::translate(welt->get_region_name(attraction->get_pos().get_2d()).c_str()));
+	}
+	lb_region->update();
+
+	new_component<gui_fill_t>();
+}
+
+
+const char* curiositylist_stats_t::get_text() const
+{
+	const unsigned char *name = (const unsigned char *)ltrim( translator::translate(attraction->get_tile()->get_desc()->get_name()) );
+	static char short_name[256];
+	char* dst = short_name;
+	int    cr = 0;
+	for( int j=0;  j<255  &&  cr<10;  j++  ) {
+		if(name[j]>0  &&  name[j]<=' ') {
+			cr++;
+			if(  name[j]<32  ) {
+				break;
 			}
-			return reverse ? cmp > 0 : cmp < 0;
+			if (dst != short_name && dst[-1] != ' ') {
+				*dst++ = ' ';
+			}
 		}
-
-	private:
-		curiositylist::sort_mode_t sortby;
-		bool reverse;
-};
-
-
-void curiositylist_stats_t::get_unique_attractions(curiositylist::sort_mode_t sb, bool sr)
-{
-	const weighted_vector_tpl<gebaeude_t*>& world_attractions = welt->get_ausflugsziele();
-
-	sortby = sb;
-	sortreverse = sr;
-
-	attractions.clear();
-	last_world_curiosities = world_attractions.get_count();
-	attractions.resize(last_world_curiosities);
-
-	FOR(weighted_vector_tpl<gebaeude_t*>, const geb, world_attractions) {
-		if (geb != NULL &&
-				geb->get_first_tile() == geb &&
-				geb->get_adjusted_visitor_demand() != 0) {
-			attractions.insert_ordered( geb, compare_curiosities(sortby, sortreverse) );
+		else {
+			*dst++ = name[j];
 		}
 	}
+	*dst = '\0';
+	// now we have a short name ...
+	return short_name;
+}
+
+
+bool curiositylist_stats_t::is_valid() const
+{
+	return world()->get_attractions().is_contained(attraction);
 }
 
 
 /**
  * Events werden hiermit an die GUI-components
  * gemeldet
- * @author Hj. Malthaner
  */
 bool curiositylist_stats_t::infowin_event(const event_t * ev)
 {
-	const unsigned int line = (ev->cy) / (LINESPACE+1);
-
-	line_selected = 0xFFFFFFFFu;
-	if (line>=attractions.get_count()) {
-		return false;
+	bool swallowed = gui_aligned_container_t::infowin_event(ev);
+	if (!swallowed  &&  IS_LEFTRELEASE(ev)) {
+		attraction->show_info();
+		swallowed = true;
 	}
-
-	gebaeude_t* geb = attractions[line];
-	if (geb==NULL) {
-		return false;
-	}
-
-	// un-press goto button
-	if(  ev->button_state>0  &&  ev->cx>0  &&  ev->cx<15  ) {
-		line_selected = line;
-	}
-
-	if (IS_LEFTRELEASE(ev)) {
-		if(  ev->cx>0  &&  ev->cx<15  ) {
-			welt->get_viewport()->change_world_position(geb->get_pos());
-		}
-		else {
-			geb->show_info();
-		}
-	}
-	else if (IS_RIGHTRELEASE(ev)) {
-		welt->get_viewport()->change_world_position(geb->get_pos());
-	}
-	return false;
-} // end of function curiositylist_stats_t::infowin_event(const event_t * ev)
-
-
-void curiositylist_stats_t::recalc_size()
-{
-	// show_scroll_x==false ->> size.w not important ->> no need to calc text pixel length
-	set_size( scr_size(210, attractions.get_count() * (LINESPACE+1) ) );
+	return swallowed;
 }
 
 
 /**
  * Draw the component
- * @author Hj. Malthaner
  */
 void curiositylist_stats_t::draw(scr_coord offset)
 {
-	clip_dimension const cd = display_get_clip_wh();
-	const int start = cd.y-LINESPACE+1;
-	const int end = cd.yy;
-
-	static cbuffer_t buf;
-	int yoff = offset.y;
-
-	if(  last_world_curiosities != welt->get_ausflugsziele().get_count()  ) {
-		// some deleted/ added => resort
-		get_unique_attractions( sortby, sortreverse );
-		recalc_size();
-	}
-
-	uint32 sel = line_selected;
-	FORX(vector_tpl<gebaeude_t*>, const geb, attractions, yoff += LINESPACE + 1) {
-		if (yoff >= end) {
-			break;
-		}
-
-		int xoff = offset.x+10;
-
-		// skip invisible lines
-		if (yoff < start) {
-			continue;
-		}
-
-		// goto button
-		bool selected = sel==0  ||  welt->get_viewport()->is_on_center( geb->get_pos() );
-		display_img_aligned( gui_theme_t::pos_button_img[ selected ], scr_rect( xoff-8, yoff, 14, LINESPACE ), ALIGN_CENTER_V | ALIGN_CENTER_H, true );
-		sel --;
-
-		buf.clear();
-
-		// is connected? => decide on indicatorfarbe (indicator color)
-		int indicatorfarbe;
-		bool mail=false;
-		bool pax=false;
-		bool all_crowded=true;
-		bool some_crowded=false;
-		const planquadrat_t *plan = welt->access(geb->get_pos().get_2d());
+		// is connected?
+		uint8 mail = 0;
+		uint8 pax  = 0;
+		uint8 pax_crowded = 0;
+		const planquadrat_t *plan = welt->access(attraction->get_pos().get_2d());
 		const nearby_halt_t *halt_list = plan->get_haltlist();
-		for(  unsigned h=0;  (mail&pax)==0  &&  h<plan->get_haltlist_count();  h++ ) {
+		for(  unsigned h=0;  h < plan->get_haltlist_count();  h++ ) {
 			halthandle_t halt = halt_list[h].halt;
 			if (halt->get_pax_enabled()) {
-				pax = true;
-				if (halt->get_pax_unhappy() > 40) {
-					some_crowded |= true;
+				if (halt->has_available_network(welt->get_active_player(), goods_manager_t::INDEX_PAS)) {
+					pax |= own_network;
+					if (halt->get_pax_unhappy() > 40) {
+						pax_crowded |= own_network;
+					}
 				}
-				else {
-					all_crowded = false;
+				else{
+					pax |= someones_network;
+					if (halt->get_pax_unhappy() > 40) {
+						pax_crowded |= someones_network;
+					}
 				}
 			}
 			if (halt->get_mail_enabled()) {
-				mail = true;
-				if (halt->get_pax_unhappy() > 40) {
-					some_crowded |= true;
+				if (halt->has_available_network(welt->get_active_player(), goods_manager_t::INDEX_MAIL)) {
+					mail |= own_network;
 				}
 				else {
-					all_crowded = false;
+					mail |= someones_network;
 				}
 			}
 		}
-		// now decide on color
-		if(some_crowded) {
-			indicatorfarbe = all_crowded ? COL_RED : COL_ORANGE;
-		}
-		else if(pax) {
-			indicatorfarbe = mail ? COL_TURQUOISE : COL_DARK_GREEN;
-		}
-		else {
-			indicatorfarbe = mail ? COL_BLUE : COL_YELLOW;
+
+		img_enabled[0].set_visible(pax & own_network || pax & someones_network);
+		if (pax & someones_network) {
+			img_enabled[0].set_transparent(TRANSPARENT25_FLAG);
 		}
 
-		display_fillbox_wh_clip(xoff+7, yoff+2, D_INDICATOR_WIDTH, D_INDICATOR_HEIGHT, indicatorfarbe, true);
-
-		// the other infos
-		const unsigned char *name = (const unsigned char *)ltrim( translator::translate(geb->get_tile()->get_desc()->get_name()) );
-		char short_name[256];
-		char* dst = short_name;
-		int    cr = 0;
-		for( int j=0;  j<255  &&  cr<10;  j++  ) {
-			if(name[j]>0  &&  name[j]<=' ') {
-				cr++;
-				if(  name[j]<32  ) {
-					break;
-				}
-				if (dst != short_name && dst[-1] != ' ') {
-					*dst++ = ' ';
-				}
-			}
-			else {
-				*dst++ = name[j];
-			}
+		img_enabled[1].set_visible(mail & own_network || mail & someones_network);
+		if (mail & someones_network) {
+			img_enabled[1].set_transparent(TRANSPARENT25_FLAG);
 		}
-		*dst = '\0';
-		// now we have a short name ...
-		buf.printf("%s (%d)", short_name, geb->get_adjusted_visitor_demand());
 
-		display_proportional_clip(xoff+D_INDICATOR_WIDTH+10+9,yoff,buf,ALIGN_LEFT,SYSCOL_TEXT,true);
+		img_enabled[2].set_visible(pax_crowded);
+		if (pax_crowded & someones_network) {
+			img_enabled[2].set_transparent(TRANSPARENT25_FLAG);
+		}
 
-		if (geb->get_tile()->get_desc()->get_extra() != 0) {
-		    display_color_img(skinverwaltung_t::intown->get_image_id(0), xoff+D_INDICATOR_WIDTH+9, yoff, 0, false, false);
-		}
-		if(  win_get_magic( (ptrdiff_t)geb )  ) {
-			display_blend_wh( offset.x+D_POS_BUTTON_WIDTH+D_H_SPACE, yoff, size.w, LINESPACE, SYSCOL_TEXT, 25 );
-		}
-	}
+		gui_aligned_container_t::draw(offset);
 }

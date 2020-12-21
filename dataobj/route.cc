@@ -41,7 +41,7 @@
 
 
 #ifdef DEBUG_ROUTES
-#include "../simsys.h"
+#include "../sys/simsys.h"
 #endif
 
 bool route_t::suspend_private_car_routing = false;
@@ -87,7 +87,6 @@ void route_t::remove_koord_to(uint32 i)
 /**
  * Appends a straight line from the last koord3d in route to the desired target.
  * Will return false if failed
- * @author prissi
  */
 bool route_t::append_straight_route(karte_t *welt, koord3d dest )
 {
@@ -144,7 +143,7 @@ void route_t::INIT_NODES(uint32 max_route_steps, const koord &world_size)
 	}
 }
 
-void route_t::TERM_NODES(void* args)
+void route_t::TERM_NODES(void *)
 {
 	if (MAX_STEP)
 	{
@@ -178,8 +177,8 @@ void route_t::RELEASE_NODES(uint8 nodes_index)
 	_nodes_in_use[nodes_index] = false;
 }
 
-/* find the route to an unknown location
- * @author prissi
+/**
+ * find the route to an unknown location
  */
 bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdriver, const uint32 max_khm, uint8 start_dir, uint32 axle_load, sint32 max_tile_len, uint32 total_weight, uint32 max_depth, bool is_tall, find_route_flags flags)
 {
@@ -205,21 +204,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 	// nothing in lists
 	marker_t& marker = marker_t::instance(welt->get_size().x, welt->get_size().y, karte_t::marker_index);
 
-	// there are several variant for maintaining the open list
-	// however, only binary heap and HOT queue with binary heap are worth considering
-#if defined(tpl_HOT_queue_tpl_h)
-    // static
-	HOT_queue_tpl <ANode *> queue;
-#elif defined(tpl_binary_heap_tpl_h)
-    //static
 	binary_heap_tpl <ANode *> queue;
-#elif defined(tpl_sorted_heap_tpl_h)
-    //static
-	sorted_heap_tpl <ANode *> queue;
-#else
-    //static
-	prioqueue_tpl <ANode *> queue;
-#endif
 
 	// nothing in lists
 	queue.clear();
@@ -268,7 +253,10 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 	if (flags == private_car_checker)
 	{
 		origin_city = welt->access(start.get_2d())->get_city();
-		origin_city->set_private_car_route_finding_in_progress(true);
+		if (origin_city)
+		{
+			origin_city->set_private_car_route_finding_in_progress(true);
+		}
 	}
 
 	uint32 private_car_route_step_counter = 0;
@@ -316,12 +304,32 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 					{
 						// Very rare, but happens occasionally - two cities share a townhall road tile.
 						// Must treat specially in order to avoid a division by zero error
+#ifdef MULTI_THREAD
+						int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+						assert(error == 0);
+						(void)error;
+#endif
 						origin_city->add_road_connexion(10, destination_city);
+#ifdef MULTI_THREAD
+						error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+						assert(error == 0);
+						(void)error;
+#endif
 					}
 					else if(origin_city)
 					{
 						const uint16 straight_line_distance = shortest_distance(origin_city->get_townhall_road(), k.get_2d());
+#ifdef MULTI_THREAD
+						int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+						assert(error == 0);
+						(void)error;
+#endif
 						origin_city->add_road_connexion(tmp->g / straight_line_distance, welt->access(k.get_2d())->get_city());
+#ifdef MULTI_THREAD
+						error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+						assert(error == 0);
+						(void)error;
+#endif
 					}
 				}
 				else
@@ -343,7 +351,15 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							continue;
 						}
 
-						const uint16 straight_line_distance = shortest_distance(origin_city->get_townhall_road(), k.get_2d());
+						uint16 straight_line_distance;
+						if (origin_city)
+						{
+							straight_line_distance = shortest_distance(origin_city->get_townhall_road(), k.get_2d());
+						}
+						else
+						{
+							straight_line_distance = shortest_distance(start.get_2d(), k.get_2d());
+						}
 						uint16 journey_time_per_tile;
 						if(straight_line_distance == 0)
 						{
@@ -357,7 +373,17 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 						if(destination_industry && origin_city)
 						{
 							// This is an industry
+#ifdef MULTI_THREAD
+							int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 							origin_city->add_road_connexion(journey_time_per_tile, destination_industry);
+#ifdef MULTI_THREAD
+							error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 #if 0
 							if (destination_city)
 							{
@@ -366,9 +392,19 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							}
 #endif
 						}
-						else if (origin_city && gb->is_attraction())
+						else if (origin_city && gb && gb->is_attraction())
 						{
+#ifdef MULTI_THREAD
+							int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 							origin_city->add_road_connexion(journey_time_per_tile, gb);
+#ifdef MULTI_THREAD
+							error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 #if 0
 							if (!destination_city)
 							{
@@ -390,23 +426,43 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 			route.clear();
 			ANode* original_tmp = tmp;
 			//route.resize(tmp->count + 16);
-			const koord destination_pos = destination_industry ? destination_industry->get_pos().get_2d() : destination_attraction ? destination_attraction->get_first_tile()->get_pos().get_2d() : destination_city ? destination_city->get_townhall_road() : koord::invalid;
+
+			// There may be multiple objects at this location (a townhall road might share a tile with an industry or attraction).
+			// Make sure to capture all objects.
+			const koord industry_destination_pos = destination_industry ? destination_industry->get_pos().get_2d() : koord::invalid;
+			const koord attraction_destination_pos = destination_attraction ? destination_attraction->get_first_tile()->get_pos().get_2d() : koord::invalid;
+			const koord city_destination_pos = destination_city ? destination_city->get_townhall_road() : koord::invalid;
+
 			koord3d previous = koord3d::invalid;
 			weg_t* w;
 			while (tmp != NULL)
-			{	 
+			{
 				private_car_route_step_counter++;
 				w = tmp->gr->get_weg(road_wt);
-			
+
 				if (w)
 				{
 					// The route is added here in a different array index to the set of routes
 					// that are currently being read.
 
-					// Also, the route is iterated here *backwards*. 
-					w->add_private_car_route(destination_pos, previous);
+					// Also, the route is iterated here *backwards*.
+
+					if (industry_destination_pos != koord::invalid)
+					{
+						w->add_private_car_route(industry_destination_pos, previous);
+					}
+
+					if (attraction_destination_pos != koord::invalid)
+					{
+						w->add_private_car_route(attraction_destination_pos, previous);
+					}
+
+					if (city_destination_pos != koord::invalid)
+					{
+						w->add_private_car_route(city_destination_pos, previous);
+					}
 				}
-			
+
 				// Old route storage - we probably no longer need this.
 				//route.store_at(tmp->count, tmp->gr->get_pos());
 
@@ -415,8 +471,8 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 			}
 
 #ifdef MULTI_THREAD
-			const uint32 max_steps = welt->get_settings().get_max_route_tiles_to_process_in_a_step(); 
-			if (max_steps && !suspend_private_car_routing && private_car_route_step_counter >= max_steps) 
+			const uint32 max_steps = welt->get_settings().get_max_route_tiles_to_process_in_a_step();
+			if (max_steps && !suspend_private_car_routing && private_car_route_step_counter >= max_steps)
 			{
 				// Halt this mid step if there are too many routes being calculated so as not to make the game unresponsive.
 				// On a Ryzen 3900x, calculating all routes from one city on a 600 city map can take ~4 seconds.
@@ -474,7 +530,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 				weg_t* w = to->get_weg(tdriver->get_waytype());
 
-				if (is_tall && w && w->is_height_restricted())
+				if (is_tall && to->is_height_restricted())
 				{
 					// Tall vehicles cannot pass under low bridges
 					continue;
@@ -488,7 +544,6 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 					// This ensures that only that part of the convoy that is actually on the bridge counts.
 					uint32 adjusted_convoy_weight = max_tile_len == 0 ? total_weight : (total_weight * max(bridge_tile_count - 2, 1)) / max_tile_len;
-					const uint32 min_weight = min(adjusted_convoy_weight, total_weight);
 
 					if(axle_load > way_max_axle_load || adjusted_convoy_weight > bridge_weight_limit)
 					{
@@ -497,7 +552,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							// Avoid routing over ways for which the convoy is overweight.
 							continue;
 						}
-						else if(enforce_weight_limits == 3 && (way_max_axle_load == 0 || (axle_load * 100) / way_max_axle_load > 110) || (bridge_weight_limit == 0 || (adjusted_convoy_weight * 100) / bridge_weight_limit > 110))
+						else if((enforce_weight_limits == 3 && (way_max_axle_load == 0 || (axle_load * 100) / way_max_axle_load > 110)) || (bridge_weight_limit == 0 || (adjusted_convoy_weight * 100) / bridge_weight_limit > 110))
 						{
 							// Avoid routing over ways for which the convoy is more than 10% overweight or which have a zero weight limit.
 							continue;
@@ -551,7 +606,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 						}
 						else if(tmp->parent->dir!=tmp->dir  &&  tmp->parent->parent!=NULL)
 						{
-							// discourage 90° turns
+							// discourage 90 degree turns
 							k->g += 10;
 						}
 					}
@@ -623,7 +678,8 @@ ribi_t::ribi *get_next_dirs(const koord3d& gr_pos, const koord3d& ziel)
 	return next_ribi;
 }
 
-route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_speed, const sint64 max_cost, const uint32 axle_load, const uint32 convoy_weight, bool is_tall, const sint32 tile_length, koord3d avoid_tile, uint8 start_dir)
+
+route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_speed, const sint64 max_cost, const uint32 axle_load, const uint32 convoy_weight, bool is_tall, const sint32 tile_length, koord3d avoid_tile, uint8 start_dir, find_route_flags flags)
 {
 	route_result_t ok = no_route;
 
@@ -646,7 +702,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 	// some thing for the search
 	const waytype_t wegtyp = tdriver->get_waytype();
 	const bool is_airplane = tdriver->get_waytype()==air_wt;
-	const uint32 cost_upslope = tdriver->get_cost_upslope();
+	const uint32 cost_upslope = flags == simple_cost ? 0 : tdriver->get_cost_upslope();
 
 	/* On water we will try jump point search (jps):
 	 * - If going straight do not turn, only if near an obstacle.
@@ -671,21 +727,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 		INIT_NODES(welt->get_settings().get_max_route_steps(), welt->get_size());
 	}
 
-	// there are several variant for maintaining the open list
-	// however, only binary heap and HOT queue with binary heap are worth considering
-#if defined(tpl_HOT_queue_tpl_h)
-    // static
-	HOT_queue_tpl <ANode *> queue;
-#elif defined(tpl_binary_heap_tpl_h)
-    //static
 	binary_heap_tpl <ANode *> queue;
-#elif defined(tpl_sorted_heap_tpl_h)
-    //static
-	sorted_heap_tpl <ANode *> queue;
-#else
-    //static
-	prioqueue_tpl <ANode *> queue;
-#endif
 
 	ANode *nodes;
 	uint8 ni = GET_NODES(&nodes);
@@ -721,16 +763,18 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 	ANode* new_top = NULL;
 
 	const uint8 enforce_weight_limits = welt->get_settings().get_enforce_weight_limits();
+#ifndef MULTI_THREAD
 	uint32 beat=1;
+#endif
 	sint32 bridge_tile_count = 0;
-	sint32 best_distance = 65535;
+	uint32 best_distance = 0xFFFF;
+
 	do {
 #ifndef MULTI_THREAD
 		// If this is multi-threaded, we cannot have random
 		// threads calling INT_CHECK.
-		// Hajo: this is too expensive to be called each step
-		if((beat++ & 1023) == 0)
-		{
+		// this is too expensive to be called each step
+		if((beat++ & 1023) == 0) {
 			INT_CHECK("route 161");
 		}
 #endif
@@ -815,7 +859,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 				}
 
 				// Low bridges
-				if (is_tall && w && w->is_height_restricted())
+				if (is_tall && to->is_height_restricted())
 				{
 					continue;
 				}
@@ -920,18 +964,18 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 				}
 
 				// new values for cost g (without way it is either in the air or in water => no costs)
-				const int way_cost = tdriver->get_cost(to, max_speed, tmp->gr->get_pos().get_2d()) + (is_overweight == slowly_only ? 400 : 0);
-				uint32 new_g = tmp->g + (w ? way_cost : 10);
+				const int way_cost = flags == simple_cost ? 1 : tdriver->get_cost(to, max_speed, tmp->gr->get_pos().get_2d()) + (is_overweight == slowly_only ? 400 : 0);
+				uint32 new_g = tmp->g + (w ? way_cost : flags == simple_cost ? 1 : 10);
 
 				// check for curves (usually, one would need the lastlast and the last;
 				// if not there, then we could just take the last
 				uint8 current_dir;
-				if (tmp->parent != NULL) {
+				if (tmp->parent != NULL && flags != simple_cost) {
 					current_dir = next_ribi[r] | tmp->ribi_from;
-					if (tmp->dir != current_dir) {
+					if(tmp->dir!=current_dir) {
 						new_g += 30;
-						if (tmp->parent->dir != tmp->dir  &&  tmp->parent->parent != NULL) {
-							// discourage 90° turns
+						if(tmp->parent->dir!=tmp->dir  &&  tmp->parent->parent!=NULL) {
+							// discourage 90 degree turns
 							new_g += 10;
 						}
 						else if (ribi_t::is_perpendicular(tmp->dir, current_dir))
@@ -952,7 +996,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 
 				// count how many 45 degree turns are necessary to get to target
 				sint8 turns = 0;
-				if (dist > 1) {
+				if (dist > 1 && flags != simple_cost) {
 					ribi_t::ribi to_target = ribi_type(to->get_pos(), ziel);
 
 					if (to_target && (to_target != current_dir)) {
@@ -997,8 +1041,8 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 					// if going straight only check straight direction
 					// if going diagonally check both directions that generate this diagonal
 					// also enter all available canals and turn to get around canals
-					if (tmp->parent != NULL) {
-						k->jps_ribi = ~way_ribi | current_dir | ((wasser_t*)to)->get_canal_ribi();
+					if (tmp->parent!=NULL) {
+						k->jps_ribi = ~way_ribi | current_dir |  ((wasser_t*)to)->get_canal_ribi();
 
 						if (gr->is_water()) {
 							// turn on next tile to enter possible neighbours of canal tiles
@@ -1026,7 +1070,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 
 #ifdef DEBUG_ROUTES
 	// display marked route
-	//reliefkarte_t::get_karte()->calc_map();
+	// minimap_t::get_instance()->calc_map();
 	DBG_DEBUG("route_t::intern_calc_route()","steps=%i  (max %i) in route, open %i, cost %u (max %u)",step,MAX_STEP,queue.get_count(),tmp->g,max_cost);
 #endif
 
@@ -1039,7 +1083,9 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 		}
 	}
 	else {
-		uint32 best = tmp->g;
+#ifdef DEBUG
+		const uint32 best = tmp->g;
+#endif
 		// reached => construct route
 		route.store_at( tmp->count, tmp->gr->get_pos() );
 		while(tmp != NULL) {
@@ -1169,22 +1215,22 @@ void route_t::postprocess_water_route(karte_t *welt)
 }
 
 
-/* searches route, uses intern_calc_route() for distance between stations
+
+/**
+ * searches route, uses intern_calc_route() for distance between stations
  * handles only driving in stations by itself
- * corrected 12/2005 for station search
- * @author Hansjörg Malthaner, prissi
  */
- route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 max_len, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction)
+ route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 max_len, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction, find_route_flags flags)
 {
 	route.clear();
 	const uint32 distance = shortest_distance(start.get_2d(), ziel.get_2d()) * 600;
-	if(tdriver->get_waytype() == water_wt && distance > welt->get_settings().get_max_route_steps())
+	if(tdriver->get_waytype() == water_wt && distance > (uint32)welt->get_settings().get_max_route_steps())
 	{
 		// Do not actually try to calculate the route if it is doomed to failure.
 		// This ensures that the game does not become overloaded if a line
 		// is altered so as to have many ships suddenly unable to find a route.
 		route.append(start); // just to be safe
-		return no_route;
+		return route_too_complex;
 	}
 //	INT_CHECK("route 336");
 
@@ -1192,7 +1238,7 @@ void route_t::postprocess_water_route(karte_t *welt)
 	// profiling for routes ...
 	long ms=dr_time();
 #endif
-	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, max_len, avoid_tile, direction);
+	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, max_len, avoid_tile, direction, flags);
 #ifdef DEBUG_ROUTES
 	if(tdriver->get_waytype()==water_wt) {DBG_DEBUG("route_t::calc_route()","route from %d,%d to %d,%d with %i steps in %u ms found.",start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );}
 #endif
@@ -1309,7 +1355,7 @@ void route_t::rdwr(loadsave_t *file)
 	xml_tag_t r( file, "route_t" );
 	sint32 max_n = route.get_count()-1;
 
-	if(file->get_extended_version() >= 11 && file->get_version() >= 112003)
+	if(file->get_extended_version() >= 11 && file->get_version_int() >= 112003)
 	{
 		file->rdwr_long(max_axle_load);
 		file->rdwr_long(max_convoy_weight);

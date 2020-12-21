@@ -3,14 +3,6 @@
  * (see LICENSE.txt)
  */
 
-/*
- * Info about the current game
- *
- * prissi
- *
- * 8/2010
- */
-
 #include "gameinfo.h"
 #include "../network/network.h"
 #include "../network/network_socket_list.h"
@@ -23,7 +15,7 @@
 #include "../simhalt.h"
 #include "../descriptor/ground_desc.h"
 #include "../player/simplay.h"
-#include "../gui/karte.h"
+#include "../gui/minimap.h"
 #include "../utils/simrandom.h"
 #include "../utils/simstring.h"
 #include "loadsave.h"
@@ -35,7 +27,8 @@
 
 
 gameinfo_t::gameinfo_t(karte_t *welt) :
-	map(MINIMAP_SIZE,MINIMAP_SIZE),
+	map_idx(MINIMAP_SIZE,MINIMAP_SIZE),
+	map_rgb(MINIMAP_SIZE,MINIMAP_SIZE),
 	game_comment(""),
 	file_name(""),
 	pak_name("")
@@ -47,11 +40,11 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 
 
 	industries = welt->get_fab_list().get_count();
-	tourist_attractions = welt->get_ausflugsziele().get_count();
+	tourist_attractions = welt->get_attractions().get_count();
 	city_count = welt->get_cities().get_count();
 	citizen_count = 0;
 	FOR(weighted_vector_tpl<stadt_t*>, const i, welt->get_cities()) {
-		citizen_count += i->get_einwohner();
+		citizen_count += i->get_city_population();
 	}
 
 	const int gr_x = welt->get_size().x;
@@ -60,7 +53,8 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 		for( uint16 j = 0; j < MINIMAP_SIZE; j++ ) {
 			const koord pos(i * gr_x / MINIMAP_SIZE, j * gr_y / MINIMAP_SIZE);
 			const grund_t* gr = welt->lookup_kartenboden(pos);
-			map.at(i,j) = reliefkarte_t::calc_relief_farbe(gr);
+			map_rgb.at(i,j) = minimap_t::calc_ground_color(gr);
+			map_idx.at(i,j) = color_rgb_to_idx( map_rgb.at(i,j) );
 		}
 	}
 
@@ -91,7 +85,7 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 	bits_per_month = s.get_bits_per_month();
 
 	// names of the stations ...
-	strncpy(language_code_names, translator::get_langs()[s.get_name_language_id()].iso, lengthof(language_code_names));
+	tstrncpy(language_code_names, translator::get_langs()[s.get_name_language_id()].iso, lengthof(language_code_names));
 
 	// will contain server-IP/name for network games
 	file_name = s.get_filename();
@@ -119,7 +113,8 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 
 
 gameinfo_t::gameinfo_t(loadsave_t *file) :
-	map(MINIMAP_SIZE,MINIMAP_SIZE),
+	map_idx(MINIMAP_SIZE,MINIMAP_SIZE),
+	map_rgb(MINIMAP_SIZE,MINIMAP_SIZE),
 	game_comment(""),
 	file_name(""),
 	pak_name("")
@@ -136,7 +131,10 @@ void gameinfo_t::rdwr(loadsave_t *file)
 	file->rdwr_long( size_y );
 	for( int y=0;  y<MINIMAP_SIZE;  y++  ) {
 		for( int x=0;  x<MINIMAP_SIZE;  x++  ) {
-			file->rdwr_byte( map.at(x,y) );
+			file->rdwr_short( map_idx.at(x,y) );
+			if (file->is_loading()) {
+				map_rgb.at(x,y) = color_idx_to_rgb(map_idx.at(x,y));
+			}
 		}
 	}
 
@@ -163,7 +161,7 @@ void gameinfo_t::rdwr(loadsave_t *file)
 
 	file->rdwr_str(language_code_names, lengthof(language_code_names) );
 
-	char temp[1024];
+	char temp[PATH_MAX];
 	tstrncpy( temp, game_comment.c_str(), lengthof(temp) );
 	file->rdwr_str( temp, lengthof(temp) );	// game_comment
 	if(  file->is_loading()  ) {

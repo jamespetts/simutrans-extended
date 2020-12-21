@@ -4,16 +4,16 @@
  */
 
 #include "simevent.h"
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "tpl/slist_tpl.h"
 
 // system-independent event handling routines
 
 static int cx = -1; // coordinates of last mouse click event
 static int cy = -1; // initialised to "nowhere"
-static int control_shift_state = 0;	// none pressed
-static event_t meta_event(EVENT_NONE);	// Knightly : for storing meta-events like double-clicks and triple-clicks
-static unsigned int last_meta_class = EVENT_NONE;
+static int control_shift_state = 0; // none pressed
+static event_t meta_event(EVENT_NONE); // for storing meta-events like double-clicks and triple-clicks
+static event_class_t last_meta_class = EVENT_NONE;
 static slist_tpl<event_t *> queued_events;
 
 int event_get_last_control_shift()
@@ -24,7 +24,7 @@ int event_get_last_control_shift()
 }
 
 
-unsigned int last_meta_event_get_class()
+event_class_t last_meta_event_get_class()
 {
 	return last_meta_class;
 }
@@ -45,7 +45,7 @@ void change_drag_start(int x, int y)
 
 static void fill_event(event_t* const ev)
 {
-	// Knightly : variables for detecting double-clicks and triple-clicks
+	// variables for detecting double-clicks and triple-clicks
 	const  unsigned long interval = 400;
 	static unsigned int  prev_ev_class = EVENT_NONE;
 	static unsigned int  prev_ev_code = 0;
@@ -53,7 +53,6 @@ static void fill_event(event_t* const ev)
 	static unsigned char repeat_count = 0;	// number of consecutive sequences of click-release
 
 	// for autorepeat buttons we track button state, press time and a repeat time
-	// code by Niels Roest and Hj. Maltahner
 
 	static int  pressed_buttons = 0; // assume: at startup no button pressed (needed for some backends)
 	static unsigned long lb_time = 0;
@@ -155,12 +154,13 @@ static void fill_event(event_t* const ev)
 			break;
 
 		case SIM_SYSTEM:
-			ev->ev_class = EVENT_SYSTEM;
-			ev->ev_code  = sys_event.code;
+			ev->ev_class        = EVENT_SYSTEM;
+			ev->ev_code         = sys_event.code;
+			ev->new_window_size = sys_event.new_window_size;
 			break;
 	}
 
-	// Knightly : check for double-clicks and triple-clicks
+	// check for double-clicks and triple-clicks
 	const unsigned long curr_time = dr_time();
 	if(  ev->ev_class==EVENT_CLICK  ) {
 		if(  prev_ev_class==EVENT_RELEASE  &&  prev_ev_code==ev->ev_code  &&  curr_time-prev_ev_time<=interval  ) {
@@ -209,8 +209,9 @@ static void fill_event(event_t* const ev)
 		repeat_time = 400;
 	} else if (pressed_buttons == 0) {
 		lb_time = 0;
-	} else { // the else is to prevent race conditions
-		/* Hajo: this would transform non-left button presses always
+	}
+	else { // the else is to prevent race conditions
+		/* this would transform non-left button presses always
 		 * to repeat events. I need right button clicks.
 		 * I have no idea how this can be done cleanly, currently just
 		 * disabling the repeat feature for non-left buttons
@@ -238,7 +239,7 @@ void display_poll_event(event_t* const ev)
 		delete elem;
 		return ;
 	}
-	// Knightly : if there is any pending meta-event, consume it instead of fetching a new event from the system
+	// if there is any pending meta-event, consume it instead of fetching a new event from the system
 	if(  meta_event.ev_class!=EVENT_NONE  ) {
 		*ev = meta_event;
 		last_meta_class = meta_event.ev_class;
@@ -264,7 +265,7 @@ void display_get_event(event_t* const ev)
 		delete elem;
 		return ;
 	}
-	// Knightly : if there is any pending meta-event, consume it instead of fetching a new event from the system
+	// if there is any pending meta-event, consume it instead of fetching a new event from the system
 	if(  meta_event.ev_class!=EVENT_NONE  ) {
 		*ev = meta_event;
 		meta_event.ev_class = EVENT_NONE;

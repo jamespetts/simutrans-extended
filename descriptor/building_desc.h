@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef __HAUS_BESCH_H
-#define __HAUS_BESCH_H
+#ifndef DESCRIPTOR_BUILDING_DESC_H
+#define DESCRIPTOR_BUILDING_DESC_H
+
 
 #include <assert.h>
 #include "image_array.h"
@@ -19,13 +20,8 @@ class tool_t;
 class karte_t;
 class checksum_t;
 
-
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *      Data for one tile of a potentially multi-tile building.
+/**
+ * Data for one tile of a potentially multi-tile building.
  *
  *  Child nodes:
  *   0   Imagelist2D season 0 back
@@ -51,15 +47,15 @@ public:
 	const building_desc_t *get_desc() const { return building; }
 	building_desc_t *get_modifiable_desc() const { return modifiable_haus; }
 
-	int get_index() const { return index; }
-	int get_seasons() const { return seasons; }
-	int get_phases() const { return phases; }
+	uint16 get_index() const { return index; }
+	uint8 get_seasons() const { return seasons; }
+	uint8 get_phases() const { return phases; }
 
 	bool has_image() const {
 		return get_background(0,0,0)!=IMG_EMPTY  ||  get_foreground(0,0)!=IMG_EMPTY;
 	}
 
-	image_id get_background(int phase, int height, int season) const
+	image_id get_background(uint8 phase, uint8 height, uint8 season) const
 	{
 		image_array_t const* const imglist = get_child<image_array_t>(0 + 2 * season);
 		if(phase>0 && phase<phases) {
@@ -105,12 +101,8 @@ public:
 	uint8 get_layout() const;
 };
 
-/*
- *  Autor:
- *      Volker Meyer
- *
- *  Description:
- *       Data for one building, consists of potentially more than one tile.
+/**
+ * Data for one building, consists of potentially more than one tile.
  *
  *  Child nodes:
  *	0   Name
@@ -128,26 +120,25 @@ class building_desc_t : public obj_desc_timelined_t {
 	public:
 		enum btype
 		{
-			unknown				=  0,
-			attraction_city		=  1,
-			attraction_land		=  2,
-			monument			= 3,
-			factory				= 4,
-			townhall			= 5,
-			others				= 6, ///< monorail foundation
-			headquarters			= 7,
-			dock				= 11, ///< dock, build on sloped coast
-									// in these, the extra data points to a waytype
-			depot				= 33,
-			generic_stop		= 34,
-			generic_extension	= 35,
-			flat_dock			= 36, ///< dock, but can start on a flat coast line
-									// city buildings
-			city_res			= 37, ///< residential city buildings
-			city_com			= 38, ///< commercial  city buildings
-			city_ind			= 39, ///< industrial  city buildings
-			signalbox			= 70, // Signalbox. 70 to allow for plenty more Standard ones in between.
-
+			unknown           =  0,
+			attraction_city   =  1,
+			attraction_land   =  2,
+			monument          =  3,
+			factory           =  4,
+			townhall          =  5,
+			others            =  6, ///< monorail foundation
+			headquarters      =  7,
+			dock              = 11, ///< dock, build on sloped coast
+			// in these, the extra data points to a waytype
+			depot             = 33,
+			generic_stop      = 34,
+			generic_extension = 35,
+			flat_dock         = 36, ///< dock, but can start on a flat coast line
+			// city buildings
+			city_res          = 37, ///< residential city buildings
+			city_com          = 38, ///< commercial  city buildings
+			city_ind          = 39, ///< industrial  city buildings
+			signalbox         = 70  // Signalbox. 70 to allow for plenty more Standard ones in between.
 		};
 
 			enum flag_t {
@@ -180,7 +171,7 @@ class building_desc_t : public obj_desc_timelined_t {
 			monorail_geb      = 22,
 			wartehalle        = 30,
 			mail              = 31,
-			lagerhalle        = 32,
+			lagerhalle        = 32
 		};
 
 	building_desc_t::btype type;
@@ -194,12 +185,13 @@ class building_desc_t : public obj_desc_timelined_t {
 		// Signal groups for signal boxes
 	koord  size;
 	flag_t flags;
-	uint16 level;			// or passengers;
-	uint8  layouts;			// 1 2, 4, 8  or 16
-	uint16 enables;			// if it is a stop, what is enabled; if it is a signal box, the signal group that can be linked to this box.
-	uint8  distribution_weight;			// Hajo:chance to build, special buildings, only other is weight factor
+	uint16 level;               // or passengers;
+	uint8  layouts;             // 1 2, 4, 8  or 16
+	uint16 enables;             // if it is a stop, what is enabled ...
+	uint8  distribution_weight; // chance to build, special buildings, only other is weight factor
 
-	/** @author: jamespetts.
+
+	/**
 	 * Additional fields for separate capacity/maintenance
 	 * If these are not specified in the .dat file, they are set to
 	 * PRICE_MAGIC then calculated from the "level" in the old way.
@@ -220,6 +212,7 @@ class building_desc_t : public obj_desc_timelined_t {
 	#define PRICE_MAGIC (2147483647)
 
 	climate_bits allowed_climates;
+	uint16 allowed_regions = 65535;
 
 	/**
 	 * Whether this building can or must be built underground.
@@ -259,16 +252,16 @@ class building_desc_t : public obj_desc_timelined_t {
 
 public:
 
-	koord get_size(int layout = 0) const {
+	koord get_size(uint8 layout = 0) const {
 		return (layout & 1) ? koord(size.y, size.x) : size;
 	}
 
 	// size of the building
-	int get_y(int layout = 0) const {
+	sint16 get_y(sint16 layout = 0) const {
 		return (layout & 1) ? size.x: size.y;
 	}
 
-	int get_x(int layout = 0) const {
+	sint16 get_x(sint16 layout = 0) const {
 		return (layout & 1) ? size.y : size.x;
 	}
 
@@ -306,25 +299,23 @@ public:
 
 	/**
 	* the level is used in many places: for price, for capacity, ...
-	* @author Hj. Malthaner
 	*/
 	uint16 get_level() const { return level; }
 
 	/**
 	 * Mail generation level
-	 * @author Hj. Malthaner
 	 */
 	uint16 get_mail_level() const;
 
 	// how often will this appear
-	int get_distribution_weight() const { return distribution_weight; }
+	uint8 get_distribution_weight() const { return distribution_weight; }
 
-	const building_tile_desc_t *get_tile(int index) const {
+	const building_tile_desc_t *get_tile(uint8 index) const {
 		assert(0<=index  &&  index < layouts * size.x * size.y);
 		return get_child<building_tile_desc_t>(index + 2);
 	}
 
-	const building_tile_desc_t *get_tile(int layout, int x, int y) const;
+	const building_tile_desc_t *get_tile(uint8 layout, sint16 x, sint16 y) const;
 
 	// returns true if the building can be rotated
 	bool can_rotate() const {
@@ -332,8 +323,8 @@ public:
 			return false;
 		}
 		// check for missing tiles after rotation
-		for( int x=0;  x<size.x;  x++  ) {
-			for( int y=0;  y<size.y;  y++  ) {
+		for( sint16 x=0;  x<size.x;  x++  ) {
+			for( sint16 y=0;  y<size.y;  y++  ) {
 				// only true, if one is missing
 				if(get_tile( 0, x, y )->has_image()  ^  get_tile( 1, get_x(1)-y-1, x )->has_image()) {
 					return false;
@@ -343,11 +334,10 @@ public:
 		return true;
 	}
 
-	int adjust_layout(int layout) const;
+	uint8 adjust_layout(uint8 layout) const;
 
 	/**
 	* Skin: cursor (index 0) and icon (index 1)
-	* @author Hj. Malthaner
 	*/
 	const skin_desc_t * get_cursor() const {
 		return flags & FLAG_HAS_CURSOR ? get_child<skin_desc_t>(2 + size.x * size.y * layouts) : 0;
@@ -362,15 +352,19 @@ public:
 	// for the paltzsucher needed
 	climate_bits get_allowed_climate_bits() const { return allowed_climates; }
 
+	bool is_allowed_region(uint8 r) const { return ((1 << r) & allowed_regions) != 0; }
+
+	bool is_allowed_region_bits(uint16 rb) const { return (rb & allowed_regions) != 0; }
+
+	uint16 get_allowed_region_bits() const { return allowed_regions; }
+
 	/**
-	* @return station flags (only used for station buildings, oil rigs and traction types in depots)
-	* @author prissi
+	* @return station flags (only used for station buildings and oil rigs)
 	*/
 	uint16 get_enabled() const { return enables; }
 
 	/**
 	* @return time for doing one step
-	* @author prissi
 	*/
 	uint16 get_animation_time() const { return animation_time; }
 

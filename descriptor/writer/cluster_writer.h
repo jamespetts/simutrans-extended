@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef CLUSTER_WRITER_H
-#define CLUSTER_WRITER_H
+#ifndef DESCRIPTOR_WRITER_CLUSTER_WRITER_H
+#define DESCRIPTOR_WRITER_CLUSTER_WRITER_H
+
 
 #include <stdio.h>
 #include "obj_writer.h"
@@ -22,7 +23,7 @@ class cluster_writer_t
 				int* ints = obj.get_ints(cluster_descriptions);
 
 				for(  int i = 1;  i <= ints[0];  i++  ) {
-					if(  ints[i] > 1  &&  ints[i] <= 32  ) { // Sanity check
+					if(  ints[i] >= 1  &&  ints[i] <= 32  ) { // Sanity check
 						clusters |= 1<<(ints[i]-1);
 					}
 				}

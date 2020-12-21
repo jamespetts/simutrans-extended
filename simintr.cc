@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "simdebug.h"
-#include "simsys.h"
+#include "sys/simsys.h"
 #include "simintr.h"
 #include "gui/simwin.h"
 #include "player/simplay.h"
@@ -35,38 +35,42 @@ static long frame_time = 36*FRAME_TIME_MULTI;
 
 bool reduce_frame_time()
 {
-	if(frame_time > 25*FRAME_TIME_MULTI) {
+	if(  frame_time > 150*FRAME_TIME_MULTI  ) { // < ~6.6fps
+		frame_time -= 8;
+		return true;
+	}
+	else if(frame_time > (FRAME_TIME_MULTI*1000)/env_t::max_fps) {
 		frame_time -= 1;
-		if(  frame_time>150*FRAME_TIME_MULTI  ) {
-			frame_time -= 8;
-		}
 		return true;
 	}
 	else {
-		frame_time = 25*FRAME_TIME_MULTI;
+		frame_time = (FRAME_TIME_MULTI*1000)/env_t::max_fps;
 		return false;
 	}
 }
+
 
 bool increase_frame_time()
 {
-	if(frame_time < 255*FRAME_TIME_MULTI) {
+	if(frame_time > (FRAME_TIME_MULTI*1000)/5) { // < 5 fps
+		return false;
+	}
+	else {
 		frame_time ++;
 		return true;
-	} else {
-		return false;
 	}
 }
 
-long get_frame_time()
+sint32 get_frame_time()
 {
 	return frame_time/FRAME_TIME_MULTI;
 }
 
-void set_frame_time(long time)
+void set_frame_time(uint32 time)
 {
-	frame_time = clamp( time, 10, 250 )*FRAME_TIME_MULTI;
+	frame_time = clamp( time, 1000/env_t::max_fps, 1000/env_t::min_fps )*FRAME_TIME_MULTI;
 }
+
 
 void intr_refresh_display(bool dirty)
 {
@@ -84,35 +88,32 @@ void intr_refresh_display(bool dirty)
 }
 
 
-void interrupt_check()
-{
-	interrupt_check( "0" );
-}
-
-
-
 // debug version with caller information
 void interrupt_check(const char* caller_info)
 {
 	DBG_DEBUG4("interrupt_check", "called from (%s)", caller_info);
-	if(enabled) {
-		static uint32 last_ms = 0;
-		if(  !welt_modell->is_fast_forward()  ||  welt_modell->get_ticks() != last_ms  ) {
-			const long now = dr_time();
-			if((now-last_time)*FRAME_TIME_MULTI < frame_time) {
-				return;
-			}
-			const sint32 diff = ((now - last_time)*welt_modell->get_time_multiplier())/16;
-			if(  diff>0  ) {
-				enabled = false;
-				last_time = now;
-				welt_modell->sync_step( diff, !welt_modell->is_fast_forward(), true );
-				enabled = true;
-			}
-		}
-		last_ms = welt_modell->get_ticks();
-	}
 	(void)caller_info;
+
+	if(  !enabled  ) {
+		return;
+	}
+
+	static uint32 last_ms = 0;
+	if(  !welt_modell->is_fast_forward()  ||  welt_modell->get_ticks() != last_ms  ) {
+		const uint32 now = dr_time();
+		if((now-last_time)*FRAME_TIME_MULTI < frame_time) {
+			return;
+		}
+
+		const sint32 diff = (( (sint32)now - (sint32)last_time)*welt_modell->get_time_multiplier())/16;
+		if(  diff>0  ) {
+			enabled = false;
+			last_time = now;
+			welt_modell->sync_step( diff, !welt_modell->is_fast_forward(), true );
+			enabled = true;
+		}
+	}
+	last_ms = welt_modell->get_ticks();
 }
 
 
@@ -124,42 +125,37 @@ void intr_set(karte_t *welt, main_view_t *view)
 	enabled = true;
 }
 
-/**
- * currently only used by the pause tool. Use with care!
- * @author Hj. Malthaner
- */
-void intr_set_last_time(long time)
+void intr_set_last_time(sint32 time)
 {
 	last_time = time;
 }
-
-long intr_get_last_time()
-{
-	return last_time;
-}
-
 
 void intr_disable()
 {
 	enabled = false;
 }
 
+
 void intr_enable()
 {
 	enabled = true;
 }
 
-// returns a time string in the desired format
 char const *tick_to_string( sint64 ticks, bool show_full )
 {
 	static sint32 tage_per_month[12]={31,28,31,30,31,30,31,31,30,31,30,31};
 	static char const* const seasons[] = { "q2", "q3", "q4", "q1" };
 	static char time [128];
 
+	time[0] = 0;
+
+	// World model might not be initalized if this is called while reading saved windows.
+	if (welt_modell == NULL) {
+		return time;
+	}
+
 	sint32 month = welt_modell->get_last_month();
 	sint32 year = welt_modell->get_last_year();
-
-	time[0] = 0;
 
 	// calculate right month first
 	const uint32 ticks_this_month = ticks % welt_modell->ticks_per_world_month;
@@ -180,8 +176,8 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 		hours = (((sint64)ticks_this_month*tage_per_month[month]) >> (welt_modell->ticks_per_world_month_shift-16));
 		minuten = (((hours*3) % 8192)*60)/8192;
 		hours = ((hours*3) / 8192)%24;
-		}
-	else if (env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE) {
+	}
+	else if (env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE) {
 		world()->sprintf_ticks(ticks_as_clock, sizeof(ticks_as_clock), ticks_this_month);
 		world()->sprintf_ticks(month_as_clock, sizeof(month_as_clock), world()->ticks_per_world_month);
 		tage = hours = minuten = 0;
@@ -195,8 +191,6 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 	if(  show_full  ||  env_t::show_month == env_t::DATE_FMT_SEASON  ) {
 
 		//DBG_MESSAGE("env_t::show_month","%d",env_t::show_month);
-		// @author hsiegeln - updated to show month
-		// @author prissi - also show date if desired
 		// since seasons 0 is always summer for backward compatibility
 		char const* const date = translator::get_date(year, month, tage, translator::translate(seasons[welt_modell->get_season()]));
 		switch(env_t::show_month) {

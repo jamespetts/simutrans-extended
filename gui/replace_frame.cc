@@ -33,7 +33,7 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
 	state(state_replace), replaced_so_far(0),
 	lb_convoy(cnv, true, true),
 	lb_to_be_replaced(NULL, SYSCOL_TEXT, gui_label_t::centered),
-	lb_money(NULL, SYSCOL_TEXT, gui_label_t::money),
+	lb_money(NULL, SYSCOL_TEXT, gui_label_t::money_right),
 	lb_replace_cycle(NULL, SYSCOL_TEXT, gui_label_t::right),
 	lb_replace(NULL, SYSCOL_TEXT, gui_label_t::left),
 	lb_sell(NULL, SYSCOL_TEXT, gui_label_t::left),
@@ -203,8 +203,6 @@ void replace_frame_t::update_total_width(uint32 width)
 void replace_frame_t::layout(scr_size *gr)
 {
 	const uint32 margin=6;
-	const uint32 a_button_width=96;
-	const uint32 a_D_BUTTON_HEIGHT=14;
 
 	/**
 	 * Let's calculate the space and min space
@@ -216,7 +214,7 @@ void replace_frame_t::layout(scr_size *gr)
 	min_total_height=total_height;
 
 	// Width at least to see labels ok
-	update_total_width(400);
+	update_total_width(335*2 + D_MARGINS_X);
 
 	// Convoy label: name+image+specs
 	scr_size img_size=lb_convoy.get_size();
@@ -227,7 +225,7 @@ void replace_frame_t::layout(scr_size *gr)
 	update_total_height(LINESPACE);
 
 	// 3 buttons
-	update_total_width(2*margin+3*a_button_width);
+	update_total_width(2*margin+3*D_BUTTON_WIDTH);
 	// No update height needed, convoy assembler
 
 	// Rest of the vertical space, if any, for convoy_assembler
@@ -267,25 +265,26 @@ void replace_frame_t::layout(scr_size *gr)
 	convoy_assembler.set_size(scr_size(fgr.w,convoy_assembler.get_height()));
 	convoy_assembler.layout();
 
-	uint32 buttons_y = current_y + convoy_assembler.get_convoy_height() - LINESPACE + 24;
-	uint32 buttons_width=(fgr.w-2*margin)/4;
-	bt_autostart.set_size(scr_size(buttons_width, a_D_BUTTON_HEIGHT));
-	bt_depot.set_size(scr_size(buttons_width, a_D_BUTTON_HEIGHT));
-	bt_mark.set_size(scr_size(buttons_width, a_D_BUTTON_HEIGHT));
-	bt_clear.set_size(scr_size(buttons_width, a_D_BUTTON_HEIGHT));
+	uint32 buttons_y = current_y + convoy_assembler.get_convoy_height() + LINESPACE*5 + D_V_SPACE;
+	uint32 buttons_width=(fgr.w-2*margin)/5;
+	bt_autostart.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
+	bt_depot.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
+	bt_mark.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
+	bt_clear.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
 	bt_autostart.set_pos(scr_coord(margin,buttons_y));
 	bt_depot.set_pos(scr_coord(margin+buttons_width,buttons_y));
 	bt_mark.set_pos(scr_coord(margin+(buttons_width*2),buttons_y));
 	bt_clear.set_pos(scr_coord(margin+(buttons_width*3),buttons_y));
+	lb_money.set_pos(scr_coord(margin+(buttons_width*4),buttons_y));
 
-	current_y=buttons_y+a_D_BUTTON_HEIGHT+margin;
-	lb_money.set_pos(scr_coord(margin + (203 *2),current_y));
-	lb_replace_cycle.set_pos(scr_coord(fgr.w-170,current_y));
-	lb_replace.set_pos(scr_coord(fgr.w-166,current_y));
+	current_y=buttons_y+D_BUTTON_HEIGHT+margin;
+	lb_money.set_pos(scr_coord(margin + (186 *2),current_y));
+	lb_replace_cycle.set_pos(scr_coord(fgr.w-250,current_y));
+	lb_replace.set_pos(scr_coord(fgr.w-150,current_y));
 
-	numinp[state_replace].set_pos(scr_coord( fgr.w-110, current_y ) );
-	numinp[state_replace].set_size(scr_size( 50, a_D_BUTTON_HEIGHT ) );
-	lb_n_replace.set_pos(scr_coord( fgr.w-50, current_y ) );
+	numinp[state_replace].set_pos(scr_coord( fgr.w-95, current_y ) );
+	numinp[state_replace].set_size(scr_size( 50, D_BUTTON_HEIGHT ) );
+	lb_n_replace.set_pos(scr_coord( fgr.w-35, current_y ) );
 
 	bt_replace_line.set_pos(scr_coord(margin,current_y));
 	bt_retain_in_depot.set_pos(scr_coord(margin + 162,current_y));
@@ -295,15 +294,15 @@ void replace_frame_t::layout(scr_size *gr)
 	bt_allow_using_existing_vehicles.set_pos(scr_coord(margin + (162 *2),current_y));
 	bt_replace_all.set_pos(scr_coord(margin,current_y));
 	bt_use_home_depot.set_pos(scr_coord(margin + 162,current_y));
-	numinp[state_sell].set_pos(scr_coord( fgr.w-110, current_y ) );
-	numinp[state_sell].set_size(scr_size( 50, a_D_BUTTON_HEIGHT ) );
-	lb_n_sell.set_pos(scr_coord( fgr.w-50, current_y ) );
-	lb_sell.set_pos(scr_coord(fgr.w-166,current_y));
+	numinp[state_sell].set_pos(scr_coord( fgr.w-95, current_y ) );
+	numinp[state_sell].set_size(scr_size( 50, D_BUTTON_HEIGHT ) );
+	lb_n_sell.set_pos(scr_coord( fgr.w-35, current_y ) );
+	lb_sell.set_pos(scr_coord(fgr.w-150,current_y));
 	current_y+=LINESPACE+2;
-	lb_skip.set_pos(scr_coord(fgr.w-166,current_y));
-	numinp[state_skip].set_pos(scr_coord( fgr.w-110, current_y ) );
-	numinp[state_skip].set_size(scr_size( 50, a_D_BUTTON_HEIGHT ) );
-	lb_n_skip.set_pos(scr_coord( fgr.w-50, current_y ) );
+	lb_skip.set_pos(scr_coord(fgr.w-150,current_y));
+	numinp[state_skip].set_pos(scr_coord( fgr.w-95, current_y ) );
+	numinp[state_skip].set_size(scr_size( 50, D_BUTTON_HEIGHT ) );
+	lb_n_skip.set_pos(scr_coord( fgr.w-35, current_y ) );
 
 	current_y+=LINESPACE+margin;
 }

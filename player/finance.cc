@@ -18,7 +18,6 @@
 
 /**
  * initialize finance history arrays
- * @author Jan Korbel
  */
 finance_t::finance_t(player_t * _player, karte_t * _world) :
 	player(_player),
@@ -178,25 +177,8 @@ void finance_t::calc_finance_history()
 sint64 finance_t::get_maintenance_with_bits(transport_type tt) const
 {
 	assert(tt<TT_MAX);
-	return world->calc_adjusted_monthly_figure( (sint64)maintenance[tt] );
+	return world->calc_adjusted_monthly_figure( maintenance[tt] );
 }
-
-
-/**
- * Simworld.cc will shut down and remove any player except the public player who
- * satisfies these conditions
- */
-bool finance_t::is_bankrupted() const
-{
-	// Must have no convois and no infrastructure as well as being "bust"
-	return (
-		account_balance < ( com_month[0][ATC_HARD_CREDIT_LIMIT] )  &&
-		veh_year[TT_ALL][0][ATV_INFRASTRUCTURE_MAINTENANCE] == 0  &&
-		maintenance[TT_ALL] == 0  &&
-		com_year[0][ATC_ALL_CONVOIS] == 0
-	);
-}
-
 
 void finance_t::new_month()
 {
@@ -345,10 +327,10 @@ sint64 finance_t::credit_limit_by_assets() const
 void finance_t::rdwr(loadsave_t *file)
 {
 	// detailed statistic were introduced in this version
-	if( file->get_version() < 112005 ) {
+	if( file->get_version_int() < 112005 ) {
 		rdwr_compatibility(file);
 		if ( file->is_loading() ) {
-			// Loaded hard credit limit will be wrong, fix it quick to avoid bankruptcies
+			// Loaded hard credit limit will be wrong, fix it quick to avoid spurious insolvency
 			calc_credit_limits();
 		}
 		return;
@@ -356,9 +338,9 @@ void finance_t::rdwr(loadsave_t *file)
 
 	/* following lines enables FORWARD compatibility
 	/ you will be still able to load future versions of games with:
-	* 	longer history
-	*	more transport_types
-	*	and new items in ATC_ or ATV_
+	*   longer history
+	*   more transport_types
+	*   and new items in ATC_ or ATV_
 	* Warning: extended adds three lines to ATC_ immediately, with version 112005.
 	* If Standard adds lines to ATC_, we must make adjustments by pushing the extended lines "down".
 	*/
@@ -523,6 +505,24 @@ transport_type finance_t::translate_waytype_to_tt(const waytype_t wt)
 	}
 }
 
+waytype_t finance_t::translate_tt_to_waytype(const transport_type tt)
+{
+	switch (tt)
+	{
+		case TT_ROAD:			return road_wt;
+		case TT_RAILWAY:		return track_wt;
+		case TT_SHIP:			return water_wt;
+		case TT_MONORAIL:		return monorail_wt;
+		case TT_MAGLEV:			return maglev_wt;
+		case  TT_TRAM:			return tram_wt;
+		case TT_NARROWGAUGE:	return narrowgauge_wt;
+		case  TT_AIR:			return air_wt;
+		case TT_POWERLINE:		return powerline_wt;
+		case TT_OTHER:			return overheadlines_wt;
+		default:				return ignore_wt;
+	}
+}
+
 
 /** compatibility code follows **/
 
@@ -553,69 +553,6 @@ enum player_cost {
 	COST_CREDIT_LIMIT	// From extended
 	// OLD_MAX_PLAYER_COST = 21
 };
-
-
-int finance_t::translate_index_cost_to_atc(const int cost_index)
-{
-	static int cost_to_atc_indices[] = {
-		-1,		// COST_CONSTRUCTION
-		-1,		// COST_VEHICLE_RUN
-		-1,		// COST_NEW_VEHICLE
-		-1,		// COST_INCOME
-		-1,		// COST_MAINTENANCE
-		-1,		// COST_ASSETS
-		ATC_CASH,	// COST_CASH - cash can not be assigned to transport type
-		ATC_NETWEALTH,	// COST_NETWEALTH -||-
-		-1,		// COST_PROFIT
-		-1,		// COST_OPERATING_PROFIT
-		-1,		// COST_MARGIN
-		-1,	        // COST_ALL_TRANSPORTED
-		-1,		// ATV_COST_POWERLINES
-		-1,		// COST_TRANSPORTED_PAS
-		-1,		// COST_TRANSPORTED_MAIL
-		-1,		// COST_TRANSPORTED_GOOD
-		ATC_ALL_CONVOIS,        // COST_ALL_CONVOIS
-		ATC_SCENARIO_COMPLETED, // COST_SCENARIO_COMPLETED,// scenario success (only useful if there is one ... )
-		-1,		// COST_WAY_TOLLS,
-		ATC_INTEREST,		// COST_INTEREST
-		ATC_SOFT_CREDIT_LIMIT,		// COST_CREDIT_LIMIT
-		ATC_MAX		// OLD_MAX_PLAYER_COST
-	};
-
-	return (cost_index < OLD_MAX_PLAYER_COST) ? cost_to_atc_indices[cost_index] :  -1;
-}
-
-
-// returns -1 or -2 if not found !!
-// -1 --> set this value to 0, -2 -->use value from old statistic
-int finance_t::translate_index_cost_to_at(int cost_index) {
-	static int indices[] = {
-		ATV_CONSTRUCTION_COST,  // COST_CONSTRUCTION
-		ATV_RUNNING_COST,       // COST_VEHICLE_RUN
-		ATV_NEW_VEHICLE,        // COST_NEW_VEHICLE
-		ATV_REVENUE_TRANSPORT,  // COST_INCOME
-		ATV_INFRASTRUCTURE_MAINTENANCE, // COST_MAINTENANCE
-		ATV_NON_FINANCIAL_ASSETS,// COST_ASSETS
-		-2,                     // COST_CASH - cash can not be assigned to transport type
-		-2,                     // COST_NETWEALTH -||-
-		ATV_PROFIT,             // COST_PROFIT
-		ATV_OPERATING_PROFIT,   // COST_OPERATING_PROFIT
-		ATV_PROFIT_MARGIN,      // COST_MARGIN
-		ATV_TRANSPORTED,        // COST_ALL_TRANSPORTED
-		-1,                     // ATV_COST_POWERLINES
-		ATV_DELIVERED_PASSENGER, // COST_TRANSPORTED_PAS
-		ATV_DELIVERED_MAIL,     // COST_TRANSPORTED_MAIL
-		ATV_DELIVERED_GOOD,     // COST_TRANSPORTED_GOOD
-		-2,                     // COST_ALL_CONVOIS
-		-2,                     // COST_SCENARIO_COMPLETED,// scenario success (only useful if there is one ... )
-		ATV_WAY_TOLL,           // COST_WAY_TOLLS,
-		-2,						// COST_INTEREST,
-		-2,						// COST_CREDIT_LIMIT
-		ATV_MAX                 // OLD_MAX_PLAYER_COST
-	};
-
-	return (cost_index < OLD_MAX_PLAYER_COST) ? indices[cost_index] :  -2;
-}
 
 
 void finance_t::export_to_cost_month(sint64 finance_history_month[][OLD_MAX_PLAYER_COST])
@@ -809,15 +746,15 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 		}
 	}
 
-	if( ( file->get_version() < 112005 ) && ( ! file->is_loading() ) ) { // for saving of game in old format
+	if( ( file->get_version_int() < 112005 ) && ( ! file->is_loading() ) ) { // for saving of game in old format
 		export_to_cost_month( finance_history_month );
 		export_to_cost_year( finance_history_year );
 	}
-	if (file->get_version() < 84008) {
+	if (file->get_version_int() < 84008) {
 		// not so old save game
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<OLD_MAX_PLAYER_COST; cost_type++) {
-				if (file->get_version() < 84007) {
+				if (file->get_version_int() < 84007) {
 					// a cost_type has has been added. For old savegames we only have 9 cost_types, now we have 10.
 					// for old savegames only load 9 types and calculate the 10th; for new savegames load all 10 values
 					if (cost_type < 9) {
@@ -831,7 +768,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version() < 86000) {
+	else if (file->get_version_int() < 86000) {
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<10; cost_type++) {
 				file->rdwr_longlong(finance_history_year[year][cost_type]);
@@ -844,7 +781,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version() < 99011) {
+	else if (file->get_version_int() < 99011) {
 		// powerline category missing
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<12; cost_type++) {
@@ -857,7 +794,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version() < 99017) {
+	else if (file->get_version_int() < 99017) {
 		// without detailed goo statistics
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<13; cost_type++) {
@@ -870,7 +807,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if(  file->get_version()<=102002 && file->get_extended_version() <= 1 ) {
+	else if(  file->get_version_int()<=102002 && file->get_extended_version() <= 1 ) {
 		// saved everything
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<18; cost_type++) {
@@ -883,7 +820,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if(  file->get_version()<=102002  ) {
+	else if(  file->get_version_int()<=102002  ) {
 		// saved everything
 		// Extended had INTEREST, CREDIT_LIMIT
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
@@ -901,7 +838,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if(  file->get_version()<=110006  && file->get_extended_version()==0  ) {
+	else if(  file->get_version_int()<=110006  && file->get_extended_version()==0  ) {
 		// only save what is needed
 		// no way tolls
 		for(int year = 0;  year<OLD_MAX_PLAYER_HISTORY_YEARS;  year++  ) {
@@ -923,7 +860,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 	 * As a result the logic for version <=110006 for extended can fall through to the
 	 * logic for version <= 112004
 	 */
-	else if (  file->get_version() <= 112004  && file->get_extended_version() == 0  ) {
+	else if (  file->get_version_int() <= 112004  && file->get_extended_version() == 0  ) {
 		// savegame version: now with toll
 		for(int year = 0;  year<OLD_MAX_PLAYER_HISTORY_YEARS;  year++  ) {
 			for(  int cost_type = 0;   cost_type<19;   cost_type++  ) {
@@ -940,7 +877,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (  file->get_version() <= 112004  && file->get_extended_version() == 1  ) {
+	else if (  file->get_version_int() <= 112004  && file->get_extended_version() == 1  ) {
 		// is this combination even possible?  I doubt it
 		// no way tolls in extended despite being in standard
 		// no interest or credit limit in extended
@@ -959,7 +896,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (  file->get_version() <= 112004 && file->get_extended_version() <= 10  ) {
+	else if (  file->get_version_int() <= 112004 && file->get_extended_version() <= 10  ) {
 		// Standard had way tolls, extended still didn't
 		// Extended also had INTEREST, CREDIT_LIMIT
 		for(int year = 0;  year<OLD_MAX_PLAYER_HISTORY_YEARS;  year++  ) {
@@ -981,7 +918,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (  file->get_version() <= 112004  ) {
+	else if (  file->get_version_int() <= 112004  ) {
 		// Extended version 11 with old save file format
 		// May happen in files saved with some development versions
 		// Extended has WAY_TOLLS, INTEREST, CREDIT_LIMIT
@@ -1000,17 +937,17 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (  file->get_version() >= 112005  ) {
+	else if (  file->get_version_int() >= 112005  ) {
 		// We should not get here in compatibility loading mode
 		assert(false);
 	}
 
-	if(  file->get_version()>102002  && file->get_extended_version() != 7  ) {
+	if(  file->get_version_int()>102002  && file->get_extended_version() != 7  ) {
 		file->rdwr_longlong(starting_money);
 	}
 
 	// we have to pay maintenance at the beginning of a month
-	if(file->get_version()<99018  &&  file->is_loading()) {
+	if(file->get_version_int()<99018  &&  file->is_loading()) {
 		finance_history_month[0][COST_MAINTENANCE] -= finance_history_month[1][COST_MAINTENANCE];
 		finance_history_year [0][COST_MAINTENANCE] -= finance_history_month[1][COST_MAINTENANCE];
 		set_account_balance(get_account_balance() - finance_history_month[1][COST_MAINTENANCE]);

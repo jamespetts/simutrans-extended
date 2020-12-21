@@ -3,6 +3,7 @@
  * (see LICENSE.txt)
  */
 
+#include "../sys/simsys.h"
 #include "../simconst.h"
 #include "../simtypes.h"
 #include "../simdebug.h"
@@ -93,7 +94,7 @@ const char* scenario_t::init( const char *scenario_base, const char *scenario_na
 	plainstring mapfile;
 
 	// load savegame
-	if ((err = script->call_function("get_map_file", mapfile))) {
+	if ((err = script->call_function(script_vm_t::FORCE, "get_map_file", mapfile))) {
 		dbg->warning("scenario_t::init", "error [%s] calling get_map_file", err);
 		return "No scenario map specified";
 	}
@@ -121,6 +122,10 @@ const char* scenario_t::init( const char *scenario_base, const char *scenario_na
 
 	what_scenario = SCRIPTED;
 	rotation = 0;
+
+	// callback
+	script->register_callback(&scenario_t::set_completion, "scenario_t_set_completed");
+
 	// register ourselves
 	welt->set_scenario(this);
 	welt->get_message()->clear();
@@ -131,7 +136,7 @@ const char* scenario_t::init( const char *scenario_base, const char *scenario_na
 	welt->get_settings().set_starting_month( time % 12);
 
 	// now call startup function
-	if ((err = script->call_function("start"))) {
+	if ((err = script->call_function(script_vm_t::QUEUE, "start"))) {
 		dbg->warning("scenario_t::init", "error [%s] calling start", err);
 	}
 
@@ -146,8 +151,8 @@ bool scenario_t::load_script(const char* filename)
 	// constants must be known compile time
 	export_global_constants(script->get_vm());
 	// load scenario base definitions
-	char basefile[1024];
-	sprintf( basefile, "%sscript/scenario_base.nut", env_t::program_dir );
+	char basefile[1024 + 24 + 1];
+	sprintf( basefile, "%sscript/scenario_base.nut", env_t::data_dir );
 	const char* err = script->call_script(basefile);
 	if (err) { // should not happen ...
 		dbg->error("scenario_t::load_script", "error [%s] calling %s", err, basefile);
@@ -163,7 +168,11 @@ bool scenario_t::load_script(const char* filename)
 	}
 
 	// init strings
-	dynamic_string::init();
+	dynamic_string::init(script);
+	// register callback
+	if (env_t::server) {
+		nwc_scenario_t::init(script);
+	}
 
 	// load scenario definition
 	err = script->call_script(filename);
@@ -179,21 +188,21 @@ void scenario_t::load_compatibility_script()
 {
 	// check api version
 	plainstring api_version;
-	if (const char* err = script->call_function("get_api_version", api_version)) {
+	if (const char* err = script->call_function(script_vm_t::FORCE, "get_api_version", api_version)) {
 		dbg->warning("scenario_t::init", "error [%s] calling get_api_version", err);
-		api_version = "112.3";
+		api_version = "120.1";
 	}
 	if (api_version != "*") {
 		// load scenario compatibility script
 		cbuffer_t buf;
-		buf.printf("%sscript/scenario_compat.nut", env_t::program_dir );
+		buf.printf("%sscript/scenario_compat.nut", env_t::data_dir );
 		if (const char* err = script->call_script((const char*)buf) ) {
 			dbg->warning("scenario_t::init", "error [%s] calling scenario_compat.nut", err);
 		}
 		else {
 			plainstring dummy;
 			// call compatibility function
-			if ((err = script->call_function("compat", dummy, api_version) )) {
+			if ((err = script->call_function(script_vm_t::FORCE, "compat", dummy, api_version) )) {
 				dbg->warning("scenario_t::init", "error [%s] calling compat", err);
 			}
 		}
@@ -292,6 +301,7 @@ bool scenario_t::forbidden_t::operator ==(const forbidden_t &other) const
 				eq = eq  &&  (hmin == other.hmin)  &&  (hmax == other.hmax);
 				eq = eq  &&  (pos_nw == other.pos_nw);
 				eq = eq  &&  (pos_se == other.pos_se);
+				/* FALLTHROUGH */
 			case forbid_tool:
 				eq = eq  &&  (toolnr == other.toolnr);
 				break;
@@ -499,7 +509,7 @@ bool scenario_t::is_tool_allowed(const player_t* player, uint16 tool_id, sint16 
 	// then call script if available
 	if (what_scenario == SCRIPTED) {
 		bool ok = true;
-		const char* err = script->call_function("is_tool_allowed", ok, (uint8)(player  ?  player->get_player_nr() : PLAYER_UNOWNED), tool_id, wt);
+		const char* err = script->call_function(script_vm_t::FORCE, "is_tool_allowed", ok, (uint8)(player  ?  player->get_player_nr() : PLAYER_UNOWNED), tool_id, wt);
 		return err != NULL  ||  ok;
 	}
 
@@ -550,7 +560,7 @@ const char* scenario_t::is_work_allowed_here(const player_t* player, uint16 tool
 	// which is done per client
 	if (what_scenario == SCRIPTED) {
 		static plainstring msg;
-		const char *err = script->call_function("is_work_allowed_here", msg, (uint8)(player ? player->get_player_nr() : PLAYER_UNOWNED), tool_id, pos);
+		const char *err = script->call_function(script_vm_t::FORCE, "is_work_allowed_here", msg, (uint8)(player ? player->get_player_nr() : PLAYER_UNOWNED), tool_id, pos);
 
 		return err == NULL ? msg.c_str() : NULL;
 	}
@@ -571,7 +581,7 @@ const char* scenario_t::is_schedule_allowed(const player_t* player, const schedu
 	// call script
 	if (what_scenario == SCRIPTED) {
 		static plainstring msg;
-		const char *err = script->call_function("is_schedule_allowed", msg, (uint8)(player ? player->get_player_nr() : PLAYER_UNOWNED), schedule);
+		const char *err = script->call_function(script_vm_t::FORCE, "is_schedule_allowed", msg, (uint8)(player  ?  player->get_player_nr() : PLAYER_UNOWNED), schedule);
 
 		return err == NULL ? msg.c_str() : NULL;
 	}
@@ -608,14 +618,22 @@ void scenario_t::step()
 		// player exists and has not won/lost yet
 		if (player  &&  (((won | lost) & mask)==0)) {
 			sint32 percentage = 0;
-			script->call_function("is_scenario_completed", percentage, (uint8)(player ? player->get_player_nr() : PLAYER_UNOWNED));
+			// callback
+			script->prepare_callback("scenario_t_set_completed", 2, i, percentage );
+			// call script
+			const char *err = script->call_function(script_vm_t::QUEUE, "is_scenario_completed", percentage, i);
+			// clear callback
+			script->clear_pending_callback();
 
 			// script might have deleted the player
 			player = welt->get_player(i);
 			if (player == NULL) {
 				continue;
 			}
-
+			// call completed?
+			if (script_vm_t::is_call_suspended(err)) {
+				continue;
+			}
 			player->set_scenario_completion(percentage);
 			// won ?
 			if (percentage >= 100) {
@@ -629,15 +647,6 @@ void scenario_t::step()
 	}
 
 	update_won_lost(new_won, new_lost);
-
-	// server sends the new state to the clients
-	if (env_t::server  &&  (new_won | new_lost)) {
-		nwc_scenario_t *nwc = new nwc_scenario_t();
-		nwc->won = new_won;
-		nwc->lost = new_lost;
-		nwc->what = nwc_scenario_t::UPDATE_WON_LOST;
-		network_send_all(nwc, true);
-	}
 
 	// update texts
 	if (win_get_magic(magic_scenario_info) ) {
@@ -655,20 +664,29 @@ void scenario_t::step()
 void scenario_t::new_month()
 {
 	if (script) {
-		script->call_function("new_month");
+		script->call_function(script_vm_t::QUEUE, "new_month");
 	}
 }
 
 void scenario_t::new_year()
 {
 	if (script) {
-		script->call_function("new_year");
+		script->call_function(script_vm_t::QUEUE, "new_year");
 	}
 }
 
 
 void scenario_t::update_won_lost(uint16 new_won, uint16 new_lost)
 {
+	// server sends the new state to the clients
+	if (env_t::server  &&  (new_won | new_lost)) {
+		nwc_scenario_t *nwc = new nwc_scenario_t();
+		nwc->won = new_won;
+		nwc->lost = new_lost;
+		nwc->what = nwc_scenario_t::UPDATE_WON_LOST;
+		network_send_all(nwc, true);
+	}
+
 	// we are the champions
 	if (new_won) {
 		won |= new_won;
@@ -709,7 +727,7 @@ plainstring scenario_t::load_language_file(const char* filename)
 	}
 	std::string path = scenario_path.c_str();
 	// try user language
-	std::string wanted_file = path + translator::get_lang()->iso + "/" + filename;
+	std::string wanted_file = path + translator::get_lang()->iso + PATH_SEPARATOR + filename;
 
 	const plainstring& cached = cached_text_files.get(wanted_file.c_str());
 	if (cached != NULL) {
@@ -717,14 +735,14 @@ plainstring scenario_t::load_language_file(const char* filename)
 		return cached;
 	}
 	// not cached: try to read file
-	FILE* file = fopen(wanted_file.c_str(), "rb");
+	FILE* file = dr_fopen(wanted_file.c_str(), "rb");
 	if (file == NULL) {
 		// try English
-		file = fopen((path + "en/" + filename).c_str(), "rb");
+		file = fopen((path + "en" + PATH_SEPARATOR + filename).c_str(), "rb");
 	}
 	if (file == NULL) {
 		// try scenario directory
-		file = fopen((path + filename).c_str(), "rb");
+		file = dr_fopen((path + filename).c_str(), "rb");
 	}
 
 	plainstring text = "";
@@ -753,7 +771,10 @@ bool scenario_t::open_info_win() const
 	scenario_info_t *si = (scenario_info_t*)win_get_magic(magic_scenario_info);
 	if (si == NULL) {
 		si = new scenario_info_t();
-		create_win(si, w_info, magic_scenario_info);
+		if (create_win(si, w_info, magic_scenario_info) < 0) {
+			// failed
+			return false;
+		}
 	}
 	si->open_result_tab();
 	return true; // dummy return value
@@ -763,7 +784,7 @@ bool scenario_t::open_info_win() const
 void scenario_t::rdwr(loadsave_t *file)
 {
 	file->rdwr_short(what_scenario);
-	if (file->get_version() <= 111004) {
+	if (file->get_version_int() <= 111004) {
 		uint32 city_nr = 0;
 		file->rdwr_long(city_nr);
 		sint64 factor = 0;
@@ -812,7 +833,7 @@ void scenario_t::rdwr(loadsave_t *file)
 
 				// failed, try scenario from pakset directory
 				if (rdwr_error) {
-					scenario_path = (env_t::program_dir + env_t::objfilename + "scenario/" + scenario_name.c_str() + "/").c_str();
+					scenario_path = (env_t::data_dir + env_t::objfilename + "scenario/" + scenario_name.c_str() + "/").c_str();
 					script_filename.clear();
 					script_filename.printf("%sscenario.nut", scenario_path.c_str());
 					rdwr_error = !load_script(script_filename);
@@ -828,6 +849,8 @@ void scenario_t::rdwr(loadsave_t *file)
 					}
 					// load translations
 					translator::load_files_from_folder( scenario_path.c_str(), "scenario" );
+					// callback
+					script->register_callback(&scenario_t::set_completion, "scenario_t_set_completed");
 				}
 				else {
 					dbg->warning("scenario_t::rdwr", "could not load script file %s", (const char*)script_filename);
@@ -836,7 +859,7 @@ void scenario_t::rdwr(loadsave_t *file)
 		}
 		else {
 			plainstring str;
-			script->call_function("save", str);
+			script->call_function(script_vm_t::FORCE, "save", str);
 			dbg->warning("scenario_t::rdwr", "write persistent scenario data: %s", str.c_str());
 			file->rdwr_str(str);
 		}
@@ -857,16 +880,21 @@ void scenario_t::rdwr(loadsave_t *file)
 	}
 
 	// cached strings
-	if (file->get_version() >= 120003) {
+	if (file->get_version_int() >= 120003) {
 		dynamic_string::rdwr_cache(file);
 	}
 
 	if (what_scenario == SCRIPTED  &&  file->is_loading()  &&  !rdwr_error) {
-		const char* err = script->call_function("resume_game");
+		const char* err = script->call_function(script_vm_t::FORCE, "resume_game");
 		if (err) {
 			dbg->warning("scenario_t::rdwr", "error [%s] calling resume_game", err);
 			rdwr_error = true;
 		}
+	}
+	// client side of scripted game but not on a client
+	if ( (what_scenario == SCRIPTED_NETWORK)  ^  (env_t::networkmode  &&  env_t::server==0) ) {
+		what_scenario = 0;
+		rdwr_error = true;
 	}
 }
 
@@ -882,7 +910,7 @@ void scenario_t::rotate90(const sint16 y_size)
 
 
 // return percentage completed
-int scenario_t::get_completion(int player_nr)
+sint32 scenario_t::get_completion(int player_nr)
 {
 	if ( what_scenario == 0  ||  player_nr < 0  ||  player_nr >= PLAYER_UNOWNED) {
 		return 0;
@@ -916,4 +944,36 @@ int scenario_t::get_completion(int player_nr)
 		}
 	}
 	return min( 100, percentage);
+}
+
+
+bool scenario_t::set_completion(sint32 player_nr, sint32 percentage)
+{
+	if ( player_nr < 0  ||  player_nr >= PLAYER_UNOWNED) {
+		return false;
+	}
+	player_t *player = welt->get_player(player_nr);
+	if (player == NULL) {
+		return false;
+	}
+	player->set_scenario_completion(percentage - player->get_scenario_completion());
+
+	uint16 mask = 1 << player_nr;
+	// check won/lost
+	if (percentage < 0  &&  (lost & mask)==0) {
+		update_won_lost(0, mask);
+	}
+	else if (percentage >= 100  &&  (won & mask)==0) {
+		update_won_lost(mask, 0);
+	}
+	return true;
+}
+
+
+const char* scenario_t::eval_string(const char* squirrel_string) const
+{
+	if (what_scenario == SCRIPTED) {
+		return script->eval_string(squirrel_string);
+	}
+	return "";
 }

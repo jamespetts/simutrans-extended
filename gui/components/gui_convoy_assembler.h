@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_convoy_assembler_h
-#define gui_convoy_assembler_h
+#ifndef GUI_COMPONENTS_GUI_CONVOY_ASSEMBLER_H
+#define GUI_COMPONENTS_GUI_CONVOY_ASSEMBLER_H
+
 
 #include "action_listener.h"
 #include "gui_button.h"
@@ -74,23 +75,16 @@ public:
  *   in order to be used elsewhere if needed (Jan-09).
  * The author markers of the original code have been preserved when
  *   possible.
- *
- * @author Hansjörg Malthaner
- * @date 22-Nov-01
  */
 class gui_convoy_assembler_t :
 	public gui_container_t,
 	public gui_action_creator_t,
 	public action_listener_t
 {
-	/* show retired vehicles (same for all depot)
-	* @author prissi
-	*/
+	// show retired vehicles (same for all depot)
 	static bool show_retired_vehicles;
 
-	/* show retired vehicles (same for all depot)
-	* @author prissi
-	*/
+	// show retired vehicles (same for all depot)
 	static bool show_all;
 
 	/* show outdated vehicles (same for all depot)
@@ -101,8 +95,6 @@ class gui_convoy_assembler_t :
 	/**
 	 * Parameters to determine layout and behaviour of convoy images.
 	 * Originally in simdepot.h.  Based in the code of:
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	static scr_coord get_placement(waytype_t wt);
 	static scr_coord get_grid(waytype_t wt);
@@ -133,14 +125,16 @@ class gui_convoy_assembler_t :
 	/* Gui elements */
 	gui_label_t lb_convoi_number;
 	gui_label_t lb_convoi_count;
+	gui_label_t lb_convoi_count_fluctuation;
+	gui_label_t lb_convoi_tiles;
 	gui_label_t lb_convoi_speed;
 	gui_label_t lb_convoi_cost;
-	gui_label_t lb_convoi_value;
+	gui_label_t lb_convoi_maintenance;
 	gui_label_t lb_convoi_power;
 	gui_label_t lb_convoi_weight;
 	gui_label_t lb_convoi_brake_force;
-	gui_label_t lb_convoi_rolling_resistance;
-	gui_label_t lb_convoi_way_wear_factor;
+	gui_label_t lb_convoi_brake_distance;
+	gui_label_t lb_convoi_axle_load;
 	gui_label_t lb_convoi_line;
 	// Specifies the traction types handled by
 	// this depot.
@@ -152,8 +146,9 @@ class gui_convoy_assembler_t :
 
 	depot_convoi_capacity_t cont_convoi_capacity;
 
-	gui_speedbar_t sb_convoi_length;
-	sint32 convoi_length_ok_sb, convoi_length_slower_sb, convoi_length_too_slow_sb, convoi_tile_length_sb, new_vehicle_length_sb;
+	gui_tile_occupancybar_t tile_occupancy;
+	sint8 new_vehicle_length;
+	//sint32 convoi_length_ok_sb, convoi_length_slower_sb, convoi_length_too_slow_sb, convoi_tile_length_sb, new_vehicle_length_sb;
 
 	button_t bt_outdated;
 	button_t bt_obsolete;
@@ -175,6 +170,8 @@ class gui_convoy_assembler_t :
 
 	vector_tpl<gui_image_list_t::image_data_t*> convoi_pics;
 	gui_image_list_t convoi;
+	gui_container_t cont_convoi;
+	gui_scrollpane_t scrolly_convoi;
 
 	vector_tpl<gui_image_list_t::image_data_t*> pas_vec;
 	vector_tpl<gui_image_list_t::image_data_t*> pas2_vec;
@@ -187,33 +184,38 @@ class gui_convoy_assembler_t :
 	gui_image_list_t electrics;
 	gui_image_list_t loks;
 	gui_image_list_t waggons;
-	gui_scrollpane_t scrolly_pas;
-	gui_scrollpane_t scrolly_pas2;
-	gui_scrollpane_t scrolly_electrics;
-	gui_scrollpane_t scrolly_loks;
-	gui_scrollpane_t scrolly_waggons;
 	gui_container_t cont_pas;
 	gui_container_t cont_pas2;
 	gui_container_t cont_electrics;
 	gui_container_t cont_loks;
 	gui_container_t cont_waggons;
+	gui_scrollpane_t scrolly_pas;
+	gui_scrollpane_t scrolly_pas2;
+	gui_scrollpane_t scrolly_electrics;
+	gui_scrollpane_t scrolly_loks;
+	gui_scrollpane_t scrolly_waggons;
 
 	gui_combobox_t vehicle_filter;
 	gui_label_t lb_vehicle_filter;
 
 	cbuffer_t txt_convoi_number;
 	cbuffer_t txt_convoi_count;
-	cbuffer_t txt_convoi_value;
+	cbuffer_t txt_convoi_tiles;
+	cbuffer_t txt_convoi_maintenance;
 	cbuffer_t txt_convoi_speed;
 	cbuffer_t txt_convoi_cost;
 	cbuffer_t txt_convoi_power;
 	cbuffer_t txt_convoi_weight;
 	cbuffer_t txt_convoi_brake_force;
-	cbuffer_t txt_convoi_rolling_resistance;
+	cbuffer_t tooltip_convoi_rolling_resistance;
 	cbuffer_t txt_convoi_way_wear_factor;
 	cbuffer_t txt_traction_types;
 	cbuffer_t txt_vehicle_count;
 	cbuffer_t txt_livery_count;
+	cbuffer_t txt_convoi_brake_distance;
+	cbuffer_t tooltip_convoi_speed;
+	cbuffer_t text_convoi_axle_load;
+	char txt_convoi_count_fluctuation[6];
 
 	KOORD_VAL second_column_x; // x position of the second text column
 
@@ -230,17 +232,12 @@ class gui_convoy_assembler_t :
 	/**
 	 * A helper map to update loks_vec and waggons_Vec. All entries from
 	 * loks_vec and waggons_vec are referenced here.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	typedef ptrhashtable_tpl<vehicle_desc_t const*, gui_image_list_t::image_data_t*> vehicle_image_map;
 	vehicle_image_map vehicle_map;
 
 	/**
 	 * Draw the info text for the vehicle the mouse is over - if any.
-	 * @author Volker Meyer, Hj. Malthaner
-	 * @date  09.06.2003
-	 * @update 09-Jan-04
 	 */
 	void draw_vehicle_info_text(const scr_coord& pos);
 
@@ -253,13 +250,16 @@ class gui_convoy_assembler_t :
 	void add_to_vehicle_list(const vehicle_desc_t *info);
 
 	//static const sint16 VINFO_HEIGHT = 186 + 14;
-	static const sint16 VINFO_HEIGHT = 300/*250*/;
+	const scr_coord_val VINFO_HEIGHT = 21 * LINESPACE + D_BUTTON_HEIGHT * 3 + D_EDIT_HEIGHT + 3 * D_V_SPACE;
 
 	static uint16 livery_scheme_index;
 	vector_tpl<uint16> livery_scheme_indices;
 	//vector_tpl<uint16> cs_pas_0_indicies;
 	vector_tpl<uint16> cs_pass_indicies;
 
+	/* color bars for current convoi: */
+	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);
+	void set_vehicle_bar_shape(gui_image_list_t::image_data_t *pic, const vehicle_desc_t *v);
 
 public:
 	// Last selected vehicle filter
@@ -275,32 +275,18 @@ public:
 	virtual ~gui_convoy_assembler_t();
 	/**
 	 * Create and fill loks_vec and waggons_vec.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void build_vehicle_lists();
 
 	/**
 	 * Do the dynamic component layout
-	 * @author Volker Meyer
-	 * @date  18.06.2003
 	 */
 	void layout();
 
-	/**
-	 * This method is called if an action is triggered
-	 * @author Hj. Malthaner
-	 *
-	 * Returns true, if action is done and no more
-	 * components should be triggered.
-	 * V.Meyer
-	 */
 	bool action_triggered( gui_action_creator_t *comp, value_t extra);
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
-	 * @author Volker Meyer
-	 * @date  09.06.2003
 	 */
 	void update_data();
 	void update_tabs();
@@ -329,21 +315,22 @@ public:
 
 	inline void set_convoy_tabs_skip(sint32 skip) {convoy_tabs_skip=skip;}
 
-	inline sint16 get_convoy_clist_width() const {return (vehicles.get_count() < 24 ? 24 : vehicles.get_count()) * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER;}
+	inline sint16 get_convoy_clist_width() const { return vehicles.get_count() * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER; } // = CLIST_WIDTH
 
 	inline sint16 get_convoy_image_width() const {return get_convoy_clist_width() + placement_dx;}
 
-	inline sint16 get_convoy_image_height() const {return grid.y + 2 * gui_image_list_t::BORDER;}
+	inline sint16 get_convoy_image_height() const { return grid.y + 2 * gui_image_list_t::BORDER + 5; } // = CLIST_HEIGHT
 
-	inline sint16 get_convoy_height() const {return get_convoy_image_height() + LINESPACE * 4 + 6;}
+	inline sint16 get_convoy_height() const {return get_convoy_image_height() + D_SCROLLBAR_HEIGHT * (get_convoy_clist_width() >= size.w-D_MARGIN_LEFT-D_MARGIN_RIGHT);}
+	//	inline sint16 get_convoy_height() const {return get_convoy_image_height() + LINESPACE * 5 + 6;}
 
 	inline sint16 get_vinfo_height() const { return VINFO_HEIGHT; }
 
 	void set_panel_rows(sint32 dy);
 
-	inline sint16 get_panel_height() const {return (panel_rows * grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER) - 4;}
+	inline sint16 get_panel_height() const {return (panel_rows * grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER + VEHICLE_BAR_HEIGHT);}
 
-	inline sint16 get_min_panel_height() const {return grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER;}
+	inline sint16 get_min_panel_height() const {return grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER + VEHICLE_BAR_HEIGHT;}
 
 	inline int get_height() const {return get_convoy_height() + convoy_tabs_skip + 8 + get_vinfo_height() + 23 + get_panel_height();}
 

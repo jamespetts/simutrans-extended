@@ -6,7 +6,7 @@
 #include "../dataobj/schedule.h"
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
-#include "../gui/karte.h"
+#include "minimap.h"
 #include "../simline.h"
 #include "../gui/simwin.h"
 #include "../simtool.h"
@@ -21,7 +21,7 @@ line_management_gui_t::line_management_gui_t(linehandle_t line, player_t* player
 	this->line = line;
 	// has this line a single running convoi?
 	if(  line->count_convoys() > 0  ) {
-		reliefkarte_t::get_karte()->set_current_cnv( line->get_convoy(0) );
+		minimap_t::get_instance()->set_selected_cnv( line->get_convoy(0) );
 	}
 	show_line_selector(false);
 }
@@ -31,13 +31,6 @@ line_management_gui_t::~line_management_gui_t()
 {
 	delete old_schedule;	// since we pass a *copy* of the line's schedule to the base class
 	old_schedule = NULL;
-}
-
-
-
-const char *line_management_gui_t::get_name() const
-{
-	return translator::translate("Line Management");
 }
 
 

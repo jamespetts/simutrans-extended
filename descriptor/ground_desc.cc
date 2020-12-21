@@ -27,34 +27,11 @@ const int totalslopes = 81;
 #define blue_comp(pix)			((pix)&0x001f)
 
 
-/*  mixed_color
-	this uses pixel map to produce an pixel from pixels src1, src2 and src3
-	src1 uses the red component of map
-	src2 uses the green component of map
-	src3 uses the blue component of map
-*/
-/*static PIXVAL mixed_color(PIXVAL map, PIXVAL src1, PIXVAL src2, PIXVAL src3)
-{
-	if(map!=0) {
-		uint16 rc = red_comp(map);
-		uint16 gc = green_comp(map);
-		uint16 bc = blue_comp(map);
-
-		// overflow safe method ...
-		uint16 rcf = (rc*red_comp(src1) + gc*red_comp(src2) + bc*red_comp(src3) )/(rc+gc+bc);
-		uint16 gcf = (rc*green_comp(src1) + gc*green_comp(src2) + bc*green_comp(src3) )/(rc+bc+gc);
-		uint16 bcf = (rc*blue_comp(src1) + gc*blue_comp(src2) + bc*blue_comp(src3) )/(rc+gc+bc);
-
-		return (bcf)|(gcf<<5)|(rcf<<10);
-	}
-	return 0;
-} */
-
-
 /* combines a texture and a lightmap
  * just weights all pixels by the lightmap
+ * @param binary if true, then a binary decision is made: if lightmap is grey then take original pixel, if not set to black
  */
-static image_t* create_textured_tile(const image_t* image_lightmap, const image_t* image_texture)
+static image_t* create_textured_tile(const image_t* image_lightmap, const image_t* image_texture, bool binary = false)
 {
 	if(  image_lightmap == NULL  ) {
 		image_t *image_dest = image_t::create_single_pixel();
@@ -71,26 +48,36 @@ static image_t* create_textured_tile(const image_t* image_lightmap, const image_
 	// now mix the images
 	for (int j = 0; j < image_dest->get_pic()->h; j++) {
 		sint32 x = *dest++;
+		assert(x >= 0);
 		const sint32 offset = (image_dest->get_pic()->y + j - image_texture->get_pic()->y) * (x_y + 3) + 2; // position of the pixel in a rectangular map
 		do
 		{
 			sint16 runlen = *dest++;
+			assert(runlen >= 0);
 			for(int i=0; i<runlen; i++) {
+				assert(offset+x>0);
 				uint16 mix = texture[offset+x];
-				uint16 grey = *dest;
-				uint16 rc = (red_comp(grey)*red_comp(mix))/16;
-				if(rc>=32) {
-					rc = 31;
+
+				if (!binary) {
+					uint16 grey = *dest;
+					uint16 rc = (red_comp(grey)*red_comp(mix))/16;
+					if(rc>=32) {
+						rc = 31;
+					}
+					uint16 gc = (green_comp(grey)*green_comp(mix))/16;
+					if(gc>=32) {
+						gc = 31;
+					}
+					uint16 bc = (blue_comp(grey)*blue_comp(mix))/16;
+					if(bc>=32) {
+						bc = 31;
+					}
+					*dest++ = (rc<<10) | (gc<<5) | bc;
 				}
-				uint16 gc = (green_comp(grey)*green_comp(mix))/16;
-				if(gc>=32) {
-					gc = 31;
+				else {
+					if (*dest) { *dest = mix;}
+					dest++;
 				}
-				uint16 bc = (blue_comp(grey)*blue_comp(mix))/16;
-				if(bc>=32) {
-					bc = 31;
-				}
-				*dest++ = (rc<<10) | (gc<<5) | bc;
 				x ++;
 			}
 			x += *dest;
@@ -99,6 +86,7 @@ static image_t* create_textured_tile(const image_t* image_lightmap, const image_
 	assert(dest - image_dest->get_data() == (ptrdiff_t)image_dest->get_pic()->len);
 #else
 	(void)image_texture;
+	(void)binary;
 #endif
 	image_dest->register_image();
 	return image_dest;
@@ -369,11 +357,11 @@ static image_t* create_alpha_tile(const image_t* image_lightmap, slope_t::type s
 				// now we have calulated the y_t of square tile that is rotated by 45 degree
 				// so we just have to do a 45 deg backtransform ...
 				// (and do not forget: tile_y_corrected middle = 0!
-				sint16 x_t = tile_x - tile_y_corrected;
-				sint16 y_t = tile_y_corrected + tile_x;
+				sint32 x_t = tile_x - tile_y_corrected;
+				sint32 y_t = tile_y_corrected + tile_x;
 				// due to some inexactness of integer arithmethics, we have to take care of overflow and underflow
-				x_t = max(0, min(x_t, x_y-1));
-				y_t = max(0, min(y_t, x_y-1));
+				x_t = clamp(x_t, 0, x_y-1);
+				y_t = clamp(y_t, 0, x_y-1);
 				sint32 alphamap_offset = ((y_t * mix_x_y) / x_y) * (mix_x_y + 3) + 2 + (x_t * mix_x_y) / x_y;
 
 				// see only the mixmap for mixing
@@ -392,6 +380,75 @@ static image_t* create_alpha_tile(const image_t* image_lightmap, slope_t::type s
 }
 
 
+// copy ref texture, copy pixels from image into new texture
+static image_t* create_texture_from_tile(const image_t* image, const image_t* ref)
+{
+	if(  image == NULL  ||  image->get_pic()->w < 2  ) {
+		image_t *image_dest = image_t::create_single_pixel();
+		return image_dest;
+	}
+	// assumes ref is texture image with no clear runs, full rows.
+	image_t *image_dest = image_t::copy_image(*ref);
+	PIXVAL *const sp2 = image_dest->get_data();
+
+	assert(ref->w == ref->y + ref->h  &&  ref->x == 0);
+
+	const sint32 ref_w = ref->w;
+	const sint32 height= image->get_pic()->h;
+
+	// decode image and put it into dest
+	const PIXVAL* sp = image->get_data();
+
+	for(int y = 0;  y < height;  y++  ) {
+
+		int x = image->x;
+		uint16 runlen = *sp++;
+
+		do {
+			// we start with a clear run
+			x += runlen;
+
+			// now get colored pixels
+			runlen = (*sp++);
+
+			for(uint16 i=0; i<runlen; i++) {
+				PIXVAL p = *sp++;
+
+				// macro to copy pixels into rle-encoded image, with range check
+#				define copypixel(xx, yy) \
+				if (ref->y <= (yy)  &&  (yy) < ref->h  &&  0 <= (xx)  &&  (xx) < ref_w) { \
+					size_t const index = (ref_w + 3) * (yy - ref->y) + xx + 2; \
+					assert(index < image_dest->len); \
+					sp2[index] = p; \
+				}
+				/* Put multiple copies into dest image
+				 *
+				 * image is assumed to be tile shaped,
+				 * and is copied four times to cover tiles of neighboring tiles.
+				 *
+				 * copy +   copy
+				 * | /     \  |
+				 * +  image   +
+				 * | \     /  |
+				 * copy +   copy
+				 *
+				 * ref image is assumed to be rectangular,
+				 * it is used to fill holes due to missing pixels in image.
+				 */
+				copypixel(x, y + image->y);
+				copypixel(x + ref_w/2, y + image->y + ref_w/4);
+				copypixel(x - ref_w/2, y + image->y + ref_w/4);
+				copypixel(x + ref_w/2, y + image->y - ref_w/4);
+				copypixel(x - ref_w/2, y + image->y - ref_w/4);
+
+				x++;
+			}
+		} while(  (runlen = *sp++)  );
+	}
+	// image_dest not registered
+	return image_dest;
+#undef copypixel
+}
 
 /****************************************************************************************************
 * the real textures are registered/calculated below
@@ -404,14 +461,14 @@ karte_t *ground_desc_t::world = NULL;
  */
 const uint8 ground_desc_t::slopetable[80] =
 {
-	0,	1,	0xFF,	2,	3,	0xFF,	0xFF,	0xFF,	0xFF,	4,
-	5, 	0xFF,	6,	7,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	8,	9,	0xFF,
-	10,	11,	0xFF,	0xFF,	0xFF,	0xFF,	12,	13,	0xFF,	14,
-	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,
-	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF,	0xFF
+	0,    1,    0xFF, 2,    3,    0xFF, 0xFF, 0xFF, 0xFF, 4,
+	5,    0xFF, 6,    7,    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 8,    9,    0xFF,
+	10,   11,   0xFF, 0xFF, 0xFF, 0xFF, 12,   13,   0xFF, 14,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
 
 
@@ -448,24 +505,25 @@ const ground_desc_t *ground_desc_t::sea = NULL;
 const ground_desc_t *ground_desc_t::outside = NULL;
 
 static spezial_obj_tpl<ground_desc_t> const grounds[] = {
-    { &boden_texture,	    "ClimateTexture" },
-    { &light_map,	    "LightTexture" },
-    { &transition_water_texture,    "ShoreTrans" },
-    { &transition_slope_texture,    "SlopeTrans" },
-    { &ground_desc_t::fundament,    "Basement" },
-    { &ground_desc_t::slopes,    "Slopes" },
-    { &ground_desc_t::fences,   "Fence" },
-    { &ground_desc_t::marker,   "Marker" },
-    { &ground_desc_t::borders,   "Borders" },
-    { &ground_desc_t::sea,   "Water" },
-    { &ground_desc_t::outside,   "Outside" },
-    { NULL, NULL }
+//	{ &ground_desc_t::shore,    "Shore" },
+	{ &boden_texture,	    "ClimateTexture" },
+	{ &light_map,	    "LightTexture" },
+	{ &transition_water_texture,    "ShoreTrans" },
+	{ &transition_slope_texture,    "SlopeTrans" },
+	{ &ground_desc_t::fundament,    "Basement" },
+	{ &ground_desc_t::slopes,    "Slopes" },
+	{ &ground_desc_t::fences,   "Fence" },
+	{ &ground_desc_t::marker,   "Marker" },
+	{ &ground_desc_t::borders,   "Borders" },
+	{ &ground_desc_t::sea,   "Water" },
+	{ &ground_desc_t::outside,   "Outside" },
+	{ NULL, NULL }
 };
 
 // the water and seven climates
 static const char* const climate_names[MAX_CLIMATES] =
 {
-    "Water", "desert", "tropic", "mediterran", "temperate", "tundra", "rocky", "arctic"
+	"Water", "desert", "tropic", "mediterran", "temperate", "tundra", "rocky", "arctic"
 };
 
 // from this number on there will be all ground images
@@ -923,13 +981,24 @@ void ground_desc_t::init_ground_textures(karte_t *world)
 
 	// water images for water and overlay
 	water_image = image_offset;
+
+	image_t **water_stage_texture = new image_t*[water_animation_stages];
+	for(uint16 stage = 0; stage < water_animation_stages; stage++) {
+		water_stage_texture[stage] = create_texture_from_tile(sea->get_image_ptr(0 /*depth*/, stage), boden_texture->get_image_ptr(water_climate));
+	}
 	for(  int dslope = 0;  dslope < totalslopes - 1;  dslope++  ) {
-		if(  doubleslope_to_imgnr[dslope] != 255  ) {
-			int slope = double_grounds ? dslope : slopetable[dslope];
-			final_tile = create_textured_tile( light_map->get_image_ptr( slope ), boden_texture->get_image_ptr( water_climate ) );
-			ground_image_list.append( final_tile );
+		for(uint16 stage = 0; stage < water_animation_stages; stage++) {
+			if(  doubleslope_to_imgnr[dslope] != 255  ) {
+				int slope = double_grounds ? dslope : slopetable[dslope];
+				final_tile = create_textured_tile( light_map->get_image_ptr( slope ), water_stage_texture[stage], true);
+				ground_image_list.append( final_tile );
+			}
 		}
 	}
+	for(uint16 stage = 0; stage < water_animation_stages; stage++) {
+		delete water_stage_texture[stage];
+	}
+	delete [] water_stage_texture;
 
 	// now the other transitions
 	for(  int i=0;  i < number_of_climates;  i++  ) {
@@ -959,6 +1028,7 @@ void ground_desc_t::init_ground_textures(karte_t *world)
 			int slope = double_grounds ? dslope : slopetable[dslope];
 			final_tile = create_alpha_tile( light_map->get_image_ptr( slope ), dslope, all_rotations_slope[dslope] );
 			alpha_image[dslope] = final_tile->get_id();
+			ground_image_list.append( final_tile );
 		}
 		else {
 			alpha_image[dslope] = IMG_EMPTY;
@@ -977,11 +1047,13 @@ void ground_desc_t::init_ground_textures(karte_t *world)
 				// create alpha image
 				final_tile = create_alpha_tile( light_map->get_image_ptr( slope ), dslope, all_rotations_slope[double_corners] );
 				alpha_corners_image[dslope * 15 + corners - 1] = final_tile->get_id();
+				ground_image_list.append( final_tile );
 
 				double_corners = corners == 15 ? 80 : (1 - scorner_sw(corners)) + 3 * (1 - scorner_se(corners)) + 9 * (1 - scorner_ne(corners)) + 27 * (1 - scorner_nw(corners));
 				if(  all_rotations_beach[double_corners]  ) {
 					final_tile = create_alpha_tile( light_map->get_image_ptr( slope ), dslope, all_rotations_beach[double_corners] );
 					alpha_water_image[dslope * 15 + corners - 1] = final_tile->get_id();
+					ground_image_list.append( final_tile );
 				}
 			}
 			else {
@@ -1013,8 +1085,8 @@ void ground_desc_t::init_ground_textures(karte_t *world)
  */
 image_id ground_desc_t::get_ground_tile(grund_t *gr)
 {
-	slope_t::type slope = gr->get_disp_slope();
-	sint16 height = gr->get_disp_height();
+	slope_t::type slope = gr->get_grund_hang();
+	sint16 height = gr->get_hoehe();
 	koord k = gr->get_pos().get_2d();
 	const sint16 tile_h = height - world->get_water_hgt(k);
 	if(  tile_h < 0  ||  (tile_h == 0  &&  slope == slope_t::flat)  ) {
@@ -1033,9 +1105,9 @@ image_id ground_desc_t::get_ground_tile(grund_t *gr)
 }
 
 
-image_id ground_desc_t::get_water_tile(slope_t::type slope)
+image_id ground_desc_t::get_water_tile(slope_t::type slope, int stage)
 {
-	return water_image + doubleslope_to_imgnr[slope];
+	return water_image + stage + water_animation_stages*doubleslope_to_imgnr[slope];
 }
 
 

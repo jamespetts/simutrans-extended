@@ -29,7 +29,6 @@
 /**
  * Pointer to the world of this thing. Static to conserve space.
  * Change to instance variable once more than one world is available.
- * @author Hj. Malthaner
  */
 karte_ptr_t obj_t::welt;
 
@@ -74,13 +73,6 @@ obj_t::obj_t(const koord3d& pos)
 	this->pos = pos;
 }
 #endif
-
-
-obj_t::obj_t(loadsave_t *file)
-{
-	init();
-	rdwr(file);
-}
 
 
 // removes an object and tries to delete it also from the corresponding objlist
@@ -149,7 +141,7 @@ player_t *obj_t::get_owner() const
  * we want to format it nicely,
  * with two linebreaks at the end => thus the little extra effort
  */
-void obj_t::info(cbuffer_t & buf, bool is_bridge) const
+void obj_t::info(cbuffer_t & buf) const
 {
 	char              translation[256];
 	char const* const owner =
@@ -172,6 +164,9 @@ void obj_t::show_info()
 	create_win( new obj_infowin_t(this), w_info, (ptrdiff_t)this);
 }
 
+bool obj_t::has_managed_lifecycle() const {
+	return false;
+}
 
 // returns NULL, if removal is allowed
 const char *obj_t:: is_deletable(const player_t *player)
@@ -188,7 +183,7 @@ const char *obj_t:: is_deletable(const player_t *player)
 void obj_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t d( file, "obj_t" );
-	if(  file->get_version()<101000) {
+	if(  file->get_version_int()<101000) {
 		pos.rdwr( file );
 	}
 
@@ -227,10 +222,12 @@ void obj_t::display(int xpos, int ypos  CLIP_NUM_DEF) const
 		for(  int j=0;  image!=IMG_EMPTY;  ) {
 
 			if(  owner_n != PLAYER_UNOWNED  ) {
-				if(  obj_t::show_owner  ) {
-					display_blend( image, xpos, ypos, owner_n, (welt->get_player(owner_n)->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+				if(  obj_t::show_owner && welt->get_player(owner_n))
+				{
+					display_blend( image, xpos, ypos, owner_n, color_idx_to_rgb(welt->get_player(owner_n)->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 				}
-				else {
+				else
+				{
 					display_color( image, xpos, ypos, owner_n, true, is_dirty  CLIP_NUM_PAR);
 				}
 			}
@@ -244,19 +241,23 @@ void obj_t::display(int xpos, int ypos  CLIP_NUM_DEF) const
 
 		if(  outline_image != IMG_EMPTY  ) {
 			// transparency?
-			const PLAYER_COLOR_VAL transparent = get_outline_colour();
+			const FLAGGED_PIXVAL transparent = get_outline_colour();
 			if(  TRANSPARENT_FLAGS&transparent  ) {
 				// only transparent outline
 				display_blend( get_outline_image(), xpos, start_ypos, owner_n, transparent, 0, is_dirty  CLIP_NUM_PAR);
  			}
 			else if(  obj_t::get_flag( highlight )  ) {
 				// highlight this tile
-				display_blend( get_image(), xpos, start_ypos, owner_n, COL_RED | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+				display_blend( get_image(), xpos, start_ypos, owner_n, color_idx_to_rgb(COL_RED) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 			}
 		}
 		else if(  obj_t::get_flag( highlight )  ) {
 			// highlight this tile
-			display_blend( get_image(), xpos, start_ypos, owner_n, COL_RED | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+			display_blend( get_image(), xpos, start_ypos, owner_n, color_idx_to_rgb(COL_RED) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+		}
+		else if(  get_outline_colour()  ) {
+			// highlight this tile
+			display_blend(get_image(), xpos, start_ypos, owner_n, get_outline_colour() | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 		}
 	}
 }
@@ -267,11 +268,9 @@ void obj_t::rotate90()
 {
 	// most basic: rotate coordinate
 	pos.rotate90( welt->get_size().y-1 );
-	if(xoff!=0) {
-		sint8 new_dx = -2*yoff;
-		yoff = xoff/2;
-		xoff = new_dx;
-	}
+	sint8 new_dx = -2*yoff;
+	yoff = xoff/2;
+	xoff = new_dx;
 }
 
 
@@ -291,11 +290,11 @@ void obj_t::display_after(int xpos, int ypos, bool) const
 
 		if(  owner_n != PLAYER_UNOWNED  ) {
 			if(  obj_t::show_owner  ) {
-				display_blend( image, xpos, ypos, owner_n, (welt->get_player(owner_n)->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+				display_blend( image, xpos, ypos, owner_n, color_idx_to_rgb(welt->get_player(owner_n)->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 			}
 			else if(  obj_t::get_flag( highlight )  ) {
 				// highlight this tile
-				display_blend( image, xpos, ypos, owner_n, COL_RED | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+				display_blend( image, xpos, ypos, owner_n, color_idx_to_rgb(COL_RED) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 			}
 			else {
 				display_color( image, xpos, ypos, owner_n, true, is_dirty  CLIP_NUM_PAR);
@@ -303,7 +302,7 @@ void obj_t::display_after(int xpos, int ypos, bool) const
 		}
 		else if(  obj_t::get_flag( highlight )  ) {
 			// highlight this tile
-			display_blend( image, xpos, ypos, owner_n, COL_RED | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
+			display_blend( image, xpos, ypos, owner_n, color_idx_to_rgb(COL_RED) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, is_dirty  CLIP_NUM_PAR);
 		}
 		else {
 			display_normal( image, xpos, ypos, 0, true, is_dirty  CLIP_NUM_PAR);
@@ -316,7 +315,6 @@ void obj_t::display_after(int xpos, int ypos, bool) const
 /*
  * when a vehicle moves or a cloud moves, it needs to mark the old spot as dirty (to copy to screen)
  * sometimes they have an extra offset, this is the yoff parameter
-* @author prissi
  */
 void obj_t::mark_image_dirty(image_id image, sint16 yoff) const
 {

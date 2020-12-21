@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef gui_components_gui_numberinput_h
-#define gui_components_gui_numberinput_h
+#ifndef GUI_COMPONENTS_GUI_NUMBERINPUT_H
+#define GUI_COMPONENTS_GUI_NUMBERINPUT_H
+
 
 #include "../../simtypes.h"
 #include "../../display/scr_coord.h"
@@ -15,9 +16,8 @@
 #include "../gui_theme.h"
 
 
-/*
+/**
  * An input field for integer numbers (with arrow buttons for dec/inc)
- * @author Dwachs
  */
 class gui_numberinput_t :
 	public gui_action_creator_t,
@@ -45,9 +45,14 @@ private:
 
 	sint32 min_value, max_value;
 
+	// number of digits,
+	// used to determine min size
+	uint16 digits;
+
 	char textbuffer[20];
 
 	sint32 step_mode;
+
 
 	bool wrapping:1;
 	bool b_enabled:1;
@@ -59,11 +64,9 @@ public:
 	gui_numberinput_t();
 
 	void set_size(scr_size size) OVERRIDE;
-	void set_width_by_len(size_t width, const char* symbols = NULL) {
-		set_width( display_get_char_max_width( (symbols) ? symbols : "+-/0123456789" ) * width + D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH + 2 ); }
 
 	// all init in one ...
-	void init( sint32 value, sint32 min, sint32 max, sint32 mode, bool wrap );
+	void init( sint32 value, sint32 min, sint32 max, sint32 mode = 1, bool wrap = true, uint16 digits = 5);
 
 	/**
 	 * sets and get the current value.
@@ -77,7 +80,13 @@ public:
 	 */
 	void set_limits(sint32 _min, sint32 _max);
 
-	enum { AUTOLINEAR=0, PLAIN = 1, POWER2=-1, PROGRESS=-2 };
+	enum {
+		AUTOLINEAR = 0,
+		PLAIN      = 1,
+		POWER2     = -1,
+		PROGRESS   = -2
+	};
+
 	/**
 	 * AUTOLINEAR: linear increment, scroll wheel 1% range
 	 * POWER2: 16, 32, 64, ...
@@ -98,16 +107,27 @@ public:
 
 	/**
 	 * Draw the component
-	 * @author Dwachs
 	 */
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void enable() { b_enabled = true; set_focusable(true); bt_left.enable(); bt_right.enable(); }
 	void disable() { b_enabled = false; set_focusable(false); bt_left.disable(); bt_right.disable(); }
 	bool enabled() const { return b_enabled; }
-	virtual bool is_focusable() { return b_enabled && gui_component_t::is_focusable(); }
+	bool is_focusable() OVERRIDE { return b_enabled && gui_component_t::is_focusable(); }
+	void enable( bool yesno ) {
+		if( yesno && !gui_component_t::is_focusable() ) {
+			enable();
+		}
+		else if( !yesno  &&  gui_component_t::is_focusable() ) {
+			disable();
+		}
+	}
+
+	scr_size get_max_size() const OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE;
 };
 
 #endif

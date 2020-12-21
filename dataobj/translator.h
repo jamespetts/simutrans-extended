@@ -3,8 +3,9 @@
  * (see LICENSE.txt)
  */
 
-#ifndef TRANSLATOR_H
-#define TRANSLATOR_H
+#ifndef DATAOBJ_TRANSLATOR_H
+#define DATAOBJ_TRANSLATOR_H
+
 
 #include <stdio.h>
 #include <string>
@@ -18,8 +19,6 @@
  *
  * The languages are 0 based index, with a valid range of(with lang being
  * required language): <code>0 <= lang < lang_count</code>.
- *
- * @author Hj. Malthaner, Adam Barclay
  */
 class translator
 {
@@ -40,9 +39,12 @@ private:
 	static void load_language_iso(const std::string &iso);
 
 	static std::string pak_name;
-	static vector_tpl<char*> city_name_list;
-	static vector_tpl<char*> street_name_list;
+	// These are now two dimensional vectors, the elements in the outer vectors representing regions
+	static vector_tpl<vector_tpl<char*> > city_name_list;
+	static vector_tpl<vector_tpl<char*> > street_name_list;
 
+	static void clear_custom_list(vector_tpl<vector_tpl<char *>>&name_list);
+	static void clear_custom_list(vector_tpl<char *>&name_list);
 	static void load_custom_list( int lang, vector_tpl<char*> &name_list, const char *fileprefix );
 
 public:
@@ -54,13 +56,20 @@ public:
 		const char *iso;
 		const char *iso_base;
 		bool is_latin2_based;
-		uint8 eclipse_width;
+		uint8 ellipsis_width;
 	};
 
 	static void init_custom_names(int lang);
 
-	static const vector_tpl<char*> &get_city_name_list() { return city_name_list; }
-	static const vector_tpl<char*> &get_street_name_list() { return street_name_list; }
+	static void delete_all_lists()
+	{
+		clear_custom_list(city_name_list);
+		clear_custom_list(street_name_list);
+	}
+
+	static const vector_tpl<char*> &get_city_name_list(uint8 region) { return city_name_list.get_count() > region && !city_name_list[region].empty() ? city_name_list[region] : city_name_list[0]; }
+	static const vector_tpl<char*> &get_street_name_list(uint8 region) { return street_name_list.get_count() > region && !street_name_list[region].empty() ? street_name_list[region] : street_name_list[0]; }
+
 
 	/**
 	 * Loads up all files of language type from the 'language' directory.
@@ -124,11 +133,11 @@ public:
 	// return the name of the month
 	static const char *get_month_name(uint16 month);
 	// return the short name of the month
-	//static const char *get_short_month_name(uint16 month);
+	static const char *get_short_month_name(uint16 month);
 	// return date in selected format
 	//static const char *get_date(uint16 year, uint16 month);
 	static const char *get_date(uint16 year, uint16 month, uint16 day, char const* season);
-	//static const char *get_short_date(uint16 year, uint16 month);
+	static const char *get_short_date(uint16 year, uint16 month);
 
 	/**
 	 * Translates year_month number to month year formatted string.
