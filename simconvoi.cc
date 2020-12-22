@@ -6105,8 +6105,8 @@ station_tile_search_ready: ;
 			if(line.is_bound() && schedule->get_spacing() && line->count_convoys())
 			{
 				// Departures/month
-				const sint64 spacing = welt->ticks_per_world_month / (sint64)schedule->get_spacing();
-				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
+				const sint64 spacing = (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) / (sint64)schedule->get_spacing();
+				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) / (sint64)welt->get_settings().get_spacing_shift_divisor();
 				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
 				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
 				go_on_ticks_spacing = (wait_from_ticks + spacing * queue_pos) - reversing_time;
@@ -6115,7 +6115,7 @@ station_tile_search_ready: ;
 			if(schedule->get_current_entry().waiting_time_shift > 0)
 			{
 				// Maximum wait time
-				go_on_ticks_waiting = now + (welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift)) - (sint64)reversing_time;
+				go_on_ticks_waiting = now + ((welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift)) - (sint64)reversing_time;
 			}
 
 			if (schedule->get_spacing() && !line.is_bound())
@@ -7914,7 +7914,7 @@ uint32 convoi_t::calc_reverse_delay() const
 				}
 
 				halt->set_estimated_arrival_time(self.get_id(), eta);
-				const sint64 max_waiting_time = schedule->get_current_entry().waiting_time_shift ? welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift) : WAIT_INFINITE;
+				const sint64 max_waiting_time = schedule->get_current_entry().waiting_time_shift ? (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift) : WAIT_INFINITE;
 				if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].wait_for_time) && schedule->get_spacing() > 0)
 				{
 					sint64 spacing_multiplier = 1;
@@ -7936,8 +7936,8 @@ uint32 convoi_t::calc_reverse_delay() const
 					}
 
 					// Add spacing time.
-					const sint64 spacing_ticks = welt->ticks_per_world_month / (sint64)schedule->get_spacing(); // There is a departure from each spaced stop once every this number of ticks
-					const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
+					const sint64 spacing_ticks = (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) / (sint64)schedule->get_spacing(); // There is a departure from each spaced stop once every this number of ticks
+					const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) / (sint64)welt->get_settings().get_spacing_shift_divisor();
 
 					// Use earliest departure time (ready to depart exactly at the scheduled departure time?)
 					const sint64 spacing_ticks_remainder = (earliest_departure_time + spacing_shift) % spacing_ticks;

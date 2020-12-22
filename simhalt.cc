@@ -1917,7 +1917,7 @@ uint32 haltestelle_t::calc_service_frequency(halthandle_t destination, uint8 cat
 		if (registered_lines[i]->get_schedule()->get_spacing() > 0)
 		{
 			// Check whether the spacing setting affects things.
-			const sint64 spacing_ticks = welt->ticks_per_world_month / (sint64)registered_lines[i]->get_schedule()->get_spacing();
+			const sint64 spacing_ticks = (welt->ticks_per_world_month * (registered_lines[i]->get_schedule()->is_annual() ? 12 : 1)) / (sint64)registered_lines[i]->get_schedule()->get_spacing();
 			uint32 spacing_time = welt->ticks_to_tenths_of_minutes(spacing_ticks);
 			timing = max(spacing_time, timing);
 		}

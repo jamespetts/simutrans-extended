@@ -1010,17 +1010,40 @@ sint64 simline_t::calc_departures_scheduled()
 	{
 		return 0;
 	}
-
-	sint64 timed_departure_points_count = 0ll;
-	for(int i = 0; i < schedule->get_count(); i++)
-	{
-		if(schedule->entries[i].wait_for_time || schedule->entries[i].minimum_loading > 0)
+	if(schedule->is_annual()) {
+		sint64 timed_departures_count = 0ll;
+		for(int i = 0; i < schedule->get_count(); i++)
 		{
-			timed_departure_points_count ++;
+			const schedule_entry_t &entry = schedule->entries[i];
+			if(entry.wait_for_time || entry.minimum_loading > 0)
+			{
+				const sint64 year_end_ticks = 12*welt->ticks_per_world_month;
+				const sint64 month_start_ticks = welt->get_last_month()*welt->ticks_per_world_month;
+				const sint64 month_end_ticks = month_start_ticks+welt->ticks_per_world_month;
+				const sint64 shift_ticks = ((12*entry.spacing_shift*welt->ticks_per_world_month)/welt->get_settings().get_spacing_shift_divisor())+1;
+				const sint64 spacing_ticks = year_end_ticks/schedule->get_spacing();
+				for(sint64 d=shift_ticks; d<month_end_ticks; d += spacing_ticks) {
+					if(d>=month_start_ticks) {
+						timed_departures_count++;
+					}
+				}
+			}
 		}
-	}
 
-	return timed_departure_points_count * (sint64) schedule->get_spacing();
+		return timed_departures_count;
+	} else {
+		sint64 timed_departure_points_count = 0ll;
+		for(int i = 0; i < schedule->get_count(); i++)
+		{
+			const schedule_entry_t &entry = schedule->entries[i];
+			if(entry.wait_for_time || entry.minimum_loading > 0)
+			{
+				timed_departure_points_count ++;
+			}
+		}
+
+		return timed_departure_points_count * (sint64) schedule->get_spacing();
+	}
 }
 
 sint64 simline_t::get_stat_converted(int month, int cost_type) const

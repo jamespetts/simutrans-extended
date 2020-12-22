@@ -321,7 +321,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	}
 	else {
 		sprintf( str_parts_month, "1/%d",  1<<(16-schedule->get_current_entry().waiting_time_shift) );
-		sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
+		sint64 ticks_waiting = (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) >> (16-schedule->get_current_entry().waiting_time_shift);
 		welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 	}
 
@@ -363,10 +363,18 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	bt_mirror.add_listener(this);
 	add_component(&bt_mirror);
 
+	ypos += D_BUTTON_HEIGHT;
+
+	// Mirror schedule/alternate directions
+	bt_annual.init(button_t::square_automatic, "Annual", scr_coord( BUTTON3_X, ypos ), scr_size(D_BUTTON_WIDTH*2,D_BUTTON_HEIGHT) );
+	bt_annual.set_tooltip("Vehicles will operate on an annual schedule rather than monthly.");
+	bt_annual.pressed = schedule->is_annual();
+	bt_annual.add_listener(this);
+	add_component(&bt_annual);
+
 	ypos += LINESPACE;
 
 	ypos += D_BUTTON_HEIGHT;
-
 	// Spacing
 	if ( !cnv.is_bound() ) {
 		lb_spacing.set_pos( scr_coord( 10, ypos+2 ) );
@@ -537,9 +545,9 @@ void schedule_gui_t::update_selection()
 					lb_spacing_shift.set_color( SYSCOL_TEXT );
 					lb_spacing_as_clock.set_color( SYSCOL_TEXT );
 					lb_spacing_shift_as_clock.set_color( SYSCOL_TEXT );
-					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), welt->ticks_per_world_month/schedule->get_spacing());
+					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1))/schedule->get_spacing());
 					welt->sprintf_ticks(str_spacing_shift_as_clock, sizeof(str_spacing_as_clock),
-							schedule->entries[current_stop].spacing_shift * welt->ticks_per_world_month/welt->get_settings().get_spacing_shift_divisor()+1
+							schedule->entries[current_stop].spacing_shift * (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1))/welt->get_settings().get_spacing_shift_divisor()+1
 							);
 				}
 				lb_waitlevel_as_clock.set_color( SYSCOL_TEXT_HIGHLIGHT );
@@ -547,7 +555,7 @@ void schedule_gui_t::update_selection()
 			}
 			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].wait_for_time) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
-				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
+				sint64 ticks_waiting = (welt->ticks_per_world_month * (schedule->is_annual() ? 12 : 1)) >> (16-schedule->get_current_entry().waiting_time_shift);
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 			}
 			else {
@@ -724,6 +732,10 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_selection();
 		}
+	}
+	else if (comp == &bt_annual) {
+		schedule->set_annual(bt_annual.pressed);
+		update_selection();
 	}
 	else if (comp == &bt_mirror) {
 		schedule->set_mirrored(bt_mirror.pressed);

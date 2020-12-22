@@ -48,6 +48,7 @@ void schedule_t::copy_from(const schedule_t *src)
 	bidirectional = src->is_bidirectional();
 	mirrored = src->is_mirrored();
 	same_spacing_shift = src->is_same_spacing_shift();
+	annual = src->is_annual();
 }
 
 
@@ -377,7 +378,10 @@ void schedule_t::rdwr(loadsave_t *file)
 		file->rdwr_bool(same_spacing_shift);
 	}
 
-
+	if((file->get_extended_version() == 14 & file->get_extended_revision() >= 33) || file->get_extended_version() > 14)
+	{
+		file->rdwr_bool(annual);
+	}
 }
 
 
@@ -416,6 +420,9 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 		return false;
 	}
 	if (this->same_spacing_shift != schedule->same_spacing_shift) {
+		return false;
+	}
+	if(this->annual != schedule->annual) {
 		return false;
 	}
 	// now we have to check all entries ...
@@ -584,7 +591,7 @@ bool schedule_t::similar( const schedule_t *schedule, const player_t *player )
 void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 {
 	buf.append( current_stop );
-	buf.printf( ",%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift) ;
+	buf.printf( ",%i,%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift, annual) ;
 	buf.append( "|" );
 	buf.append( (int)get_type() );
 	buf.append( "|" );
@@ -626,7 +633,10 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 	if( *p && (*p!=','  &&  *p!='|') ) { same_spacing_shift = bool(atoi(p)); }
 	while ( *p && isdigit(*p) ) { p++; }
 	if ( *p && *p == ',' ) { p++; }
-
+	// annual
+	if( *p && (*p!=','  &&  *p!='|') ) { annual = bool(atoi(p)); }
+	while ( *p && isdigit(*p) ) { p++; }
+	if ( *p && *p == ',' ) { p++; }
 	if(  *p!='|'  ) {
 		dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
 		return false;

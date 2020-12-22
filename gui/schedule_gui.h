@@ -74,7 +74,7 @@ private:
 
 	// always needed
 	button_t bt_add, bt_insert, bt_remove; // stop management
-	button_t bt_bidirectional, bt_mirror, bt_wait_for_time, bt_same_spacing_shift;
+	button_t bt_bidirectional, bt_mirror, bt_wait_for_time, bt_same_spacing_shift, bt_annual;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
