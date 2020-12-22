@@ -1017,19 +1017,18 @@ sint64 simline_t::calc_departures_scheduled()
 			const schedule_entry_t &entry = schedule->entries[i];
 			if(entry.wait_for_time || entry.minimum_loading > 0)
 			{
-				const sint64 year_end_ticks = 12*welt->ticks_per_world_month;
-				const sint64 month_start_ticks = welt->get_last_month()*welt->ticks_per_world_month;
-				const sint64 month_end_ticks = month_start_ticks+welt->ticks_per_world_month;
-				const sint64 shift_ticks = ((12*entry.spacing_shift*welt->ticks_per_world_month)/welt->get_settings().get_spacing_shift_divisor())+1;
-				const sint64 spacing_ticks = year_end_ticks/schedule->get_spacing();
-				for(sint64 d=shift_ticks; d<month_end_ticks; d += spacing_ticks) {
-					if(d>=month_start_ticks) {
+				const sint64 ticks_per_month = welt->ticks_per_world_month;
+				const sint64 ticks_per_year = 12*ticks_per_month;
+				const sint64 start_ticks = welt->get_last_month() * ticks_per_month;
+				for(sint64 t = ((entry.spacing_shift * ticks_per_year) / welt->get_settings().get_spacing_shift_divisor()) + 1;
+					t < start_ticks + ticks_per_month;
+					t += ticks_per_year / schedule->get_spacing()) {
+					if(t >= start_ticks) {
 						timed_departures_count++;
 					}
 				}
 			}
 		}
-
 		return timed_departures_count;
 	} else {
 		sint64 timed_departure_points_count = 0ll;
