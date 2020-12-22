@@ -7,20 +7,19 @@
 #define GUI_SCHEDULE_GUI_H
 
 
+#include "simwin.h"
 #include "gui_frame.h"
 
-#include "components/gui_label.h"
+#include "components/action_listener.h"
 #include "components/gui_numberinput.h"
 #include "components/gui_combobox.h"
 #include "components/gui_button.h"
-#include "components/action_listener.h"
 
 #include "components/gui_textarea.h"
 #include "components/gui_scrollpane.h"
 
 #include "../convoihandle_t.h"
 #include "../linehandle_t.h"
-#include "../gui/simwin.h"
 #include "../tpl/vector_tpl.h"
 
 
@@ -70,7 +69,7 @@ private:
 	// only active with lines
 	button_t bt_promote_to_line;
 	gui_combobox_t line_selector;
-	gui_label_t lb_line;
+	gui_label_buf_t lb_load, lb_wait, lb_waitlevel_as_clock, lb_spacing_as_clock;
 
 	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
@@ -79,23 +78,20 @@ private:
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
-	gui_label_t lb_wait, lb_waitlevel_as_clock;
 
-	gui_label_t lb_load;
 	gui_numberinput_t numimp_load;
 
-	gui_label_t lb_spacing;
+	gui_label_t lb_spacing, lb_shift, lb_plus;
 	gui_numberinput_t numimp_spacing;
-	gui_label_t lb_spacing_as_clock;
 
-	gui_label_t lb_conditional_depart, lb_broadcast_condition;
-	gui_label_t lb_wait_condition;
+	gui_label_t lb_conditional_depart;
 	gui_numberinput_t conditional_depart, condition_broadcast;
 
 	gui_label_t lb_spacing_shift;
 	gui_numberinput_t numimp_spacing_shift;
 	gui_label_t lb_spacing_shift_as_clock;
 
+	cbuffer_t title;
 	char str_parts_month[32];
 	char str_parts_month_as_clock[32];
 
@@ -147,15 +143,6 @@ public:
 	 * Set window size and adjust component sizes and/or positions accordingly
 	 */
 	void set_windowsize(scr_size size) OVERRIDE;
-
-	/**
-	 * show or hide the line selector combobox and its associated label
-	 * @author hsiegeln
-	 */
-	void show_line_selector(bool yesno) {
-		line_selector.set_visible(yesno);
-		lb_line.set_visible(yesno);
-	}
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 

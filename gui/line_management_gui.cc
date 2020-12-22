@@ -23,7 +23,6 @@ line_management_gui_t::line_management_gui_t(linehandle_t line, player_t* player
 	if(  line->count_convoys() > 0  ) {
 		minimap_t::get_instance()->set_selected_cnv( line->get_convoy(0) );
 	}
-	show_line_selector(false);
 }
 
 
@@ -78,7 +77,7 @@ bool line_management_gui_t::infowin_event(const event_t *ev)
 line_management_gui_t::line_management_gui_t() :
 	schedule_gui_t()
 {
-	show_line_selector(false);
+	//show_line_selector(false);
 }
 
 void line_management_gui_t::rdwr(loadsave_t *file)
