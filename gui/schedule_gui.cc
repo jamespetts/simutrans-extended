@@ -100,7 +100,7 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
 {
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
-	if(halt.is_bound()) 
+	if(halt.is_bound())
 	{
 		bool prefix = false;
 		char modified_name[320];
@@ -643,7 +643,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		add_component(&bt_range_stop);
 	}
 	end_table();
-	
+
 	add_table(4,1)->set_force_equal_columns(true);
 	{
 		bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop");
@@ -805,7 +805,7 @@ void schedule_gui_t::update_selection()
 			}
 			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
-				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift); 
+				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 			}
 			else {
