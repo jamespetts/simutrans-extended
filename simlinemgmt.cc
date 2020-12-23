@@ -90,7 +90,7 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 {
 	xml_tag_t l( file, "simlinemgmt_t" );
-
+	DBG_MESSAGE("simlinemgmt_t::rdwr", "player=%s",player->get_name());
 	if(file->is_saving()) {
 		// on old versions
 		if(  file->get_version_int()<101000  ) {
@@ -127,6 +127,7 @@ DBG_MESSAGE("simlinemgmt_t::rdwr()","number of lines=%i",totalLines);
 		for (int i = 0; i<totalLines; i++) {
 			simline_t::linetype lt=simline_t::line;
 			file->rdwr_enum(lt);
+		DBG_MESSAGE("simlinemgmt_t::rdwr","linetype=%s",simline_t::get_linetype_name(lt));
 
 			if(lt < simline_t::truckline  ||  lt > simline_t::narrowgaugeline) {
 					dbg->fatal( "simlinemgmt_t::rdwr()", "Cannot create default line!" );

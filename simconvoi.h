@@ -89,7 +89,7 @@ public:
 	enum { max_vehicle=8, max_rail_vehicle = 64 };
 
 	enum states {INITIAL, // INITIAL means stored in the depot
-		EDIT_SCHEDULE, 
+		EDIT_SCHEDULE,
 		ROUTING_1,
 		ROUTING_2,
 		DUMMY5,
@@ -104,7 +104,7 @@ public:
 		WAITING_FOR_CLEARANCE_TWO_MONTHS,
 		CAN_START_TWO_MONTHS,
 		LEAVING_DEPOT,
-		ENTERING_DEPOT, 
+		ENTERING_DEPOT,
 		REVERSING,
 		OUT_OF_RANGE,
 		EMERGENCY_STOP,
@@ -1539,7 +1539,7 @@ public:
 	bool is_maintenance_urgently_needed() const;
 	bool is_overhaul_needed() const;
 
-	void check_departure(halthandle_t halt = halthandle_t()); 
+	void check_departure(halthandle_t halt = halthandle_t());
 
 	sint64 get_arrival_time() const { return arrival_time; }
 };

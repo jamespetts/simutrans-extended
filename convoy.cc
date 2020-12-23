@@ -471,6 +471,8 @@ void convoy_t::calc_move(const settings_t &settings, long delta_t, const weight_
 				}
 			}
 			dx = x;
+#ifndef REVERT_PHYSICS_MACOS_COMPATIBILITY
+			// This might have caused reports of ships having no power.
 			if (delta_s == dt_s) {
 				// Fix strange bug (macOS, clang LLVM v9.0.0): when compiled without -fno-inline (DEBUG <= 1),
 				// and when delta_s == dt_s, delta_s - dt_s equals some positive number instead of zero, which
@@ -479,6 +481,9 @@ void convoy_t::calc_move(const settings_t &settings, long delta_t, const weight_
 			} else {
 				delta_s -= dt_s; // another time slice passed
 			}
+#else
+		delta_s -= dt_s; // another time slice passed
+#endif
 		}
 		akt_v = v;
 		akt_speed = v_to_speed(v); // akt_speed in simutrans vehicle speed, v in m/s
