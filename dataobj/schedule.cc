@@ -309,7 +309,7 @@ void schedule_t::rdwr(loadsave_t *file)
 			}
 			else
 			{
-				// Previous versions had minimum_loading as a uint8. 
+				// Previous versions had minimum_loading as a uint8.
 				uint8 old_minimum_loading = (uint8)entries[i].minimum_loading;
 				file->rdwr_byte(old_minimum_loading);
 				entries[i].minimum_loading = (uint16)old_minimum_loading;
@@ -338,9 +338,20 @@ void schedule_t::rdwr(loadsave_t *file)
 				{
 					entries[i].reverse = -1;
 				}
-				if (file->get_extended_version() < 14)
+				if (file->get_extended_version() < 15)
 				{
-					if (file->get_extended_version() >= 12)
+					if (file->is_loading()) // NOTE: this may be redundant and might be better of moved to the above line.
+					{
+						entries[i].unique_entry_id = get_next_free_unique_id();
+						entries[i].flags = 0;
+						entries[i].condition_bitfield_broadcaster = 0;
+						entries[i].condition_bitfield_receiver = 0;
+						entries[i].target_id_condition_trigger = 0;
+						entries[i].target_id_couple = 0;
+						entries[i].target_id_uncouple = 0;
+						entries[i].target_unique_entry_uncouple = 0;
+					}
+					if (file->get_extended_version() >= 12) //12-14
 					{
 						// In older versions, there was a single wait_for_time boolean value,
 						// rather than a bitfield of flags
@@ -358,7 +369,7 @@ void schedule_t::rdwr(loadsave_t *file)
 							entries[i].clear_flag(schedule_entry_t::wait_for_time);
 						}
 					}
-					else if (file->is_loading())
+					else if (file->is_loading()) // < 12
 					{
 						if (entries[i].minimum_loading > 100 && spacing)
 						{
@@ -370,18 +381,7 @@ void schedule_t::rdwr(loadsave_t *file)
 						}
 					}
 
-					if (file->is_loading())
-					{
-						entries[i].unique_entry_id = get_next_free_unique_id();
-						entries[i].flags = 0;
-						entries[i].condition_bitfield_broadcaster = 0;
-						entries[i].condition_bitfield_receiver = 0;
-						entries[i].target_id_condition_trigger = 0;
-						entries[i].target_id_couple = 0;
-						entries[i].target_id_uncouple = 0;
-						entries[i].target_unique_entry_uncouple = 0;
-					}
-				}	
+				}
 				else // Newer version (>14) with bitfield and new data
 				{
 					file->rdwr_short(entries[i].flags);
@@ -425,7 +425,7 @@ void schedule_t::rdwr(loadsave_t *file)
 	}
 	if (file->get_extended_version() >= 15)
 	{
-		file->rdwr_short(spacing); 
+		file->rdwr_short(spacing);
 
 		// Consist orders
 		uint32 consist_orders_count = orders.get_count();
@@ -436,7 +436,7 @@ void schedule_t::rdwr(loadsave_t *file)
 			for(auto consist_order : orders)
 			{
 				file->rdwr_short(consist_order.key);
-				consist_order.value.rdwr(file); 
+				consist_order.value.rdwr(file);
 			}
 		}
 
@@ -448,8 +448,8 @@ void schedule_t::rdwr(loadsave_t *file)
 				uint16 schedule_id = 0;
 				file->rdwr_short(schedule_id);
 				consist_order_t order;
-				order.rdwr(file); 
-				orders.put(schedule_id, order); 
+				order.rdwr(file);
+				orders.put(schedule_id, order);
 			}
 		}
 	}
@@ -775,7 +775,7 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			sprintf(modified_name, "%s", halt->get_name());
 		}
 
-		if(entry.wait_for_time)
+		if(entry.is_flag_set(schedule_entry_t::wait_for_time))
 		{
 			buf.printf("[*] ");
 		}
@@ -834,7 +834,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 	}
 
 	// Finally start to append the entry. Start with the most complicated...
-	if (entry.wait_for_time && entry.reverse == 1)
+	if (entry.is_flag_set(schedule_entry_t::wait_for_time) && entry.reverse == 1)
 	{
 		if (strlen(p) > (unsigned)max_chars - 8)
 		{
@@ -847,7 +847,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 			buf.append(" [<<]");
 		}
 	}
-	else if (entry.wait_for_time)
+	else if (entry.is_flag_set(schedule_entry_t::wait_for_time))
 	{
 		if (strlen(p) > (unsigned)max_chars - 4)
 		{

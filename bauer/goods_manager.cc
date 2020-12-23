@@ -225,7 +225,7 @@ const char * goods_manager_t::get_translated_wealth_name(const uint8 catg_index,
 // adjuster for dummies ...
 void goods_manager_t::set_multiplier(sint32 multiplier, uint16 scale_factor)
 {
-	for(unsigned i=0;  i<get_count();  i++  ) 
+	for(unsigned i=0;  i<get_count();  i++  )
 	{
 		goods[i]->values.clear();
 		for(auto goods_entry : goods[i]->base_values)

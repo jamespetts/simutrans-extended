@@ -275,7 +275,7 @@ public:
 	 * Overloaded dereference operator. With this, quickstones can
 	 * be used as if they were pointers.
 	 */
-	T* operator->() const { return data[entry]; } 
+	T* operator->() const { return data[entry]; }
 
 	T& operator *() const { return *data[entry]; }
 

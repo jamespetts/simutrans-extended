@@ -61,11 +61,11 @@ replace_data_t::replace_data_t(loadsave_t *file)
 void replace_data_t::sprintf_replace(cbuffer_t &buf) const
 {
 	// First of all, general information
-	buf.append_bool(autostart); 
+	buf.append_bool(autostart);
 	buf.append_bool(retain_in_depot);
 	buf.append_bool(use_home_depot);
 	buf.append_bool(allow_using_existing_vehicles);
-		
+
 	const uint16 number = number_of_convoys < 0 ? 0 : number_of_convoys; // Do we need this check?
 	buf.append_fixed(number);
 
