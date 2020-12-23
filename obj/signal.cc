@@ -1075,13 +1075,13 @@ void signal_t::rdwr_signal(loadsave_t *file)
 
 		bool ignore_choose_full = ignore_choose;
 		file->rdwr_bool(ignore_choose_full);
-		ignore_choose = ignore_choose_full; 
+		ignore_choose = ignore_choose_full;
 		file->rdwr_bool(no_junctions_to_next_signal);
 		if (file->is_loading() && desc && desc->is_choose_sign())
 		{
 			no_junctions_to_next_signal = false;
 		}
-		file->rdwr_longlong(train_last_passed); 
+		file->rdwr_longlong(train_last_passed);
 	}
 
 	if(no_junctions_to_next_signal && desc && (desc->get_working_method() == time_interval || desc->get_working_method() == time_interval_with_telegraph) && (state == caution || state == caution_no_choose || state == danger))

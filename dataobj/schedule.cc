@@ -309,7 +309,7 @@ void schedule_t::rdwr(loadsave_t *file)
 			}
 			else
 			{
-				// Previous versions had minimum_loading as a uint8. 
+				// Previous versions had minimum_loading as a uint8.
 				uint8 old_minimum_loading = (uint8)entries[i].minimum_loading;
 				file->rdwr_byte(old_minimum_loading);
 				entries[i].minimum_loading = (uint16)old_minimum_loading;
@@ -381,7 +381,7 @@ void schedule_t::rdwr(loadsave_t *file)
 						entries[i].target_id_uncouple = 0;
 						entries[i].target_unique_entry_uncouple = 0;
 					}
-				}	
+				}
 				else // Newer version (>14) with bitfield and new data
 				{
 					file->rdwr_short(entries[i].flags);
@@ -425,7 +425,7 @@ void schedule_t::rdwr(loadsave_t *file)
 	}
 	if (file->get_extended_version() >= 15)
 	{
-		file->rdwr_short(spacing); 
+		file->rdwr_short(spacing);
 
 		// Consist orders
 		uint32 consist_orders_count = orders.get_count();
@@ -436,7 +436,7 @@ void schedule_t::rdwr(loadsave_t *file)
 			for(auto consist_order : orders)
 			{
 				file->rdwr_short(consist_order.key);
-				consist_order.value.rdwr(file); 
+				consist_order.value.rdwr(file);
 			}
 		}
 
@@ -448,8 +448,8 @@ void schedule_t::rdwr(loadsave_t *file)
 				uint16 schedule_id = 0;
 				file->rdwr_short(schedule_id);
 				consist_order_t order;
-				order.rdwr(file); 
-				orders.put(schedule_id, order); 
+				order.rdwr(file);
+				orders.put(schedule_id, order);
 			}
 		}
 	}

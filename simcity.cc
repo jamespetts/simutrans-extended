@@ -151,7 +151,7 @@ void stadt_t::electricity_consumption_rdwr(loadsave_t *file)
 			// Query: can we just say file->rdwr_longlong(consumption.year) here...?
 			file->rdwr_longlong(electricity_consumption[0].get_element(i).year);
 			file->rdwr_short(electricity_consumption[0].get_element(i).consumption_percent);
-			i++; 
+			i++;
 		}
 	}
 

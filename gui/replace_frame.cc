@@ -635,7 +635,7 @@ sint64 replace_frame_t::calc_total_cost()
 	{
 		current_vehicles.append(cnv->get_vehicle(i));
 	}
-	
+
 	//ITERATE((*convoy_assembler.get_vehicles()),j)
 	for(auto vehicle : *convoy_assembler.get_vehicles())
 	{

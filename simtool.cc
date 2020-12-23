@@ -9266,9 +9266,9 @@ bool tool_change_depot_t::init( player_t *player )
 				selected_line->set_livery_scheme_index(cnv->get_livery_scheme_index());
 				if (!welt->get_settings().get_simplified_maintenance())
 				{
-					const grund_t* gr_depot = welt->lookup(depot->get_pos()); 
+					const grund_t* gr_depot = welt->lookup(depot->get_pos());
 					selected_line->get_schedule()->append(gr_depot, 0, 0, 0, schedule_entry_t::conditional_skip);
-					selected_line->get_schedule()->set_reverse(1, 0); 
+					selected_line->get_schedule()->set_reverse(1, 0);
 				}
 			}
 			if(  is_local_execution()  ) {

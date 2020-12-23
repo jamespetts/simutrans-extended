@@ -76,7 +76,7 @@ void livery_scheme_t::rdwr(loadsave_t *file)
 			liv.name = n;
 			liv.intro_date = date;
 			liveries.append_unique(liv);
-		}	
+		}
 	}
 }
 

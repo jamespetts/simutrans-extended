@@ -1043,7 +1043,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 	else
 	{
 		// Find the most suitable convoy to trigger
-	
+
 		sint64 earliest_arrival_time = welt->get_ticks();
 		convoi_t* cnv_to_trigger = NULL;
 		uint16 trigger;
@@ -1071,10 +1071,10 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 
 		if(cnv_to_trigger != NULL)
 		{
-			cnv_to_trigger->set_triggered_conditions(triggers); 
+			cnv_to_trigger->set_triggered_conditions(triggers);
 			return;
 		}
-		
+
 		// Second, check again with partial triggering
 		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
 		{
@@ -1097,7 +1097,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 
 		if(cnv_to_trigger != NULL)
 		{
-			cnv_to_trigger->set_triggered_conditions(triggers); 
+			cnv_to_trigger->set_triggered_conditions(triggers);
 			return;
 		}
 

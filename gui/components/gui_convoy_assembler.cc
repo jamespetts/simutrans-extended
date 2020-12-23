@@ -1917,7 +1917,7 @@ void gui_convoy_assembler_t::update_data()
 							// vehicle_list is the list of all vehicles in the current convoy.
 							// vehicles is the list of the vehicles to replace them with.
 							int upgradable_count = 0;
-							
+
 							for(auto vehicle_2 : vehicles)
 							{
 								for(uint16 k = 0; k < vehicle_2->get_upgrades_count(); k++)

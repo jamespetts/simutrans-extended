@@ -2024,7 +2024,7 @@ end_loop:
 		case DUMMY5:
 		break;
 
-		case REVERSING:		
+		case REVERSING:
 			position = schedule ? schedule->get_current_stop() : 0;
 			rev = !reverse_schedule;
 			schedule->increment_index(&position, &rev);
@@ -2047,7 +2047,7 @@ end_loop:
 					book_waiting_times();
 				}
 			}
-			
+
 			break;
 
 		case EDIT_SCHEDULE:
@@ -2216,13 +2216,13 @@ end_loop:
 		}
 
 		case ROUTE_JUST_FOUND:
-			
-			gr = welt->lookup(get_pos()); 
+
+			gr = welt->lookup(get_pos());
 			if (depot_t* dep = gr->get_depot())
 			{
-				dep->start_convoi(self, false); 
+				dep->start_convoi(self, false);
 			}
-			
+
 			// This used to be part of drive_to(), but this was not suitable for use in a multi-threaded state.
 			gr = welt->lookup(get_route()->back());
 			if (front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || (front()->get_waytype() == monorail_wt && gr && !gr->get_depot()))
@@ -2236,7 +2236,7 @@ end_loop:
 			}
 			vorfahren();
 
-			break;		
+			break;
 
 		case CAN_START:
 		case CAN_START_ONE_MONTH:
@@ -2352,7 +2352,7 @@ end_loop:
 		conditional_bitfield_receiver = schedule->get_current_entry().condition_bitfield_receiver;
 		combined = conditional_bitfield_receiver & conditions_bitfield;
 		is_triggered = conditional_bitfield_receiver == conditions_bitfield || combined == conditional_bitfield_receiver;
-		
+
 		if (is_triggered)
 		{
 			if (schedule->get_current_entry().is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep))
@@ -2364,8 +2364,8 @@ end_loop:
 				// Only clear the triggers actually set.
 				clear_triggered_conditions(conditional_bitfield_receiver);
 			}
-			
-			gr = welt->lookup(get_pos()); 
+
+			gr = welt->lookup(get_pos());
 			if (depot_t* dep = gr->get_depot())
 			{
 				if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait))
@@ -2404,7 +2404,7 @@ end_loop:
 		case ENTERING_DEPOT:
 			check_departure();
 			break;
-		
+
 		ld:
 		// immediate action needed
 		case LEAVING_DEPOT:
@@ -2478,13 +2478,13 @@ end_loop:
 void convoi_t::advance_schedule()
 {
 	advance_schedule_internal();
-	
-	// Is there a conditional skip order here? 
+
+	// Is there a conditional skip order here?
 	// If so, check whether the condition is satisfied and perform the skip.
-	bool skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip); 
+	bool skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
 
 	while(skip)
-	{		
+	{
 		// Is the destination a depot? If so, use the depot skip logic for maintenance.
 		const grund_t* gr = welt->lookup(schedule->get_current_entry().pos);
 		if (gr && gr->get_depot())
@@ -2800,7 +2800,7 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 
 	if (!(flags & schedule_entry_t::maintain_or_overhaul))
 	{
-		// If this is to be maintained or overhauled, the state will be set in 
+		// If this is to be maintained or overhauled, the state will be set in
 		// convoi_arrived
 		if (flags & schedule_entry_t::store)
 		{
@@ -5244,7 +5244,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			file->rdwr_byte(has_reserved);
 		}
 	}
-	
+
 	if ((file->get_extended_version() >= 13 && file->get_extended_revision() >= 5) || file->get_extended_version() >= 14)
 	{
 		bool lswd = last_stop_was_depot;
@@ -6755,7 +6755,7 @@ end_check:
 			schedule->set_current_stop(current_stop); // set new schedule current position to one before best match
 		}
 
-		if(is_depot) 
+		if(is_depot)
 		{
 			// next was depot. restore it
 			///schedule->insert(welt->lookup(depot), 0, 0, 0, false, owner == welt->get_active_player()); // TODO: Confirm whether the last "false" is needed below and remove this comment line once that is done.
@@ -7083,7 +7083,7 @@ void convoi_t::set_depot_when_empty(bool new_dwe)
 	}
 	else if(new_dwe)
 	{
-		go_to_depot(true); 
+		go_to_depot(true);
 	}
 }
 
@@ -7241,7 +7241,7 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 			const grund_t* my_gr = welt->lookup(depot_pos);
 			if (my_gr) {
 				depot_t* my_depot = my_gr->get_depot();
-				if (my_depot) 
+				if (my_depot)
 				{
 					uint16 flags = schedule_entry_t::delete_entry;
 					if(maintain)
@@ -8669,7 +8669,7 @@ void convoi_t::check_departure(halthandle_t halt)
 {
 	// The schedule has not yet been advanced.
 
-	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time); 
+	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
 
 	const sint64 now = welt->get_ticks();
 	if(arrival_time > now || arrival_time == WAIT_INFINITE)

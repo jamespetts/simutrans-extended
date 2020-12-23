@@ -4,8 +4,9 @@
 * @author: jamespetts, February 2018
 */
 
-#ifndef consist_order_h
-#define consist_order_h
+#ifndef DATAOBJ_CONSIST_ORDER_T_H
+#define DATAOBJ_CONSIST_ORDER_T_H
+
 
 #include "../bauer/goods_manager.h"
 
@@ -19,7 +20,7 @@ struct vehicle_description_element
 	* If a specific vehicle is required in this slot,
 	* this is specified. If not, this is a nullptr, and
 	* the rules for vehicle selection are used instead.
-	* If this is != nullptr, the rules below here are 
+	* If this is != nullptr, the rules below here are
 	* ignored.
 	*/
 	const vehicle_desc_t* specific_vehicle = nullptr;
@@ -33,12 +34,12 @@ struct vehicle_description_element
 	bool empty = true;
 
 	/* Rules hereinafter */
-	
+
 	uint8 engine_type = 0;
 
 	uint8 min_catering = 0;
 	uint8 max_catering = 255;
-	
+
 	// If this is 255, then this vehicle may carry
 	// any class of mail/passengers.
 	uint8 must_carry_class = 255;
@@ -54,7 +55,7 @@ struct vehicle_description_element
 	uint32 max_tractive_effort = UINT32_MAX_VALUE;
 	uint32 min_topspeed = 0;
 	uint32 max_topspeed = UINT32_MAX_VALUE;
-	
+
 	uint32 max_weight = UINT32_MAX_VALUE;
 	uint32 min_weight = 0;
 	uint32 max_axle_load = UINT32_MAX_VALUE;
@@ -79,7 +80,7 @@ struct vehicle_description_element
 	* by changing the position of each of the preferences
 	* in the array. The default order is that in which
 	* the elements are arranged above.
-	* 
+	*
 	* + Where the vehicle is a goods carrying vehicle: otherwise, this is ignored
 	*/
 
@@ -100,7 +101,7 @@ struct vehicle_description_element
 		prefer_low_running_cost			= (1u << 12),
 		prefer_low_fixed_cost			= (1u << 13)
 	};
-	
+
 	static const uint8 max_rule_flags = 14;
 
 	uint16 rule_flags[max_rule_flags] { prefer_high_capacity, prefer_high_power, prefer_high_tractive_effort, prefer_high_speed, prefer_high_running_cost, prefer_high_fixed_cost, prefer_low_capacity, prefer_low_power, prefer_low_tractive_effort, prefer_low_speed, prefer_low_running_cost, prefer_low_fixed_cost };
@@ -110,7 +111,7 @@ class consist_order_element_t
 {
 	friend class consist_order_t;
 protected:
-	/* 
+	/*
 	* The goods category of the vehicle that must occupy this slot.
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
@@ -120,7 +121,7 @@ protected:
 	* if this is set to true here.
 	*/
 	bool clear_all_tags = false;
-	
+
 	/*
 	* A bitfield of the tags necessary for a loose vehicle to be
 	* allowed to couple to this convoy.
@@ -142,7 +143,7 @@ class consist_order_t
 protected:
 	/*
 	* The unique ID of the schedule entry to which this consist order refers
-	* is stored as the key of the hashtable in which these are stored, and 
+	* is stored as the key of the hashtable in which these are stored, and
 	* thus need not be stored here.
 	*/
 
@@ -155,7 +156,7 @@ protected:
 	vector_tpl<consist_order_element_t> orders;
 
 public:
-	
+
 	consist_order_element_t& get_order(uint32 element_number)
 	{
 		return orders[element_number];
@@ -164,7 +165,7 @@ public:
 	void rdwr(loadsave_t* file);
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
-	void sscanf_consist_order(const char* ptr); 
+	void sscanf_consist_order(const char* ptr);
 };
 
 #endif

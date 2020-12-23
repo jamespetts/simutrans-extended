@@ -1791,7 +1791,7 @@ void settings_t::rdwr(loadsave_t *file)
 		else if (file->is_loading())
 		{
 			simplified_maintenance = true;
-		}	
+		}
 		if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8))
 		{
 			file->rdwr_long(path_explorer_time_midpoint);
