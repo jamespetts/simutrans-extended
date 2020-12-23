@@ -340,6 +340,17 @@ void schedule_t::rdwr(loadsave_t *file)
 				}
 				if (file->get_extended_version() < 15)
 				{
+					if (file->is_loading()) // NOTE: this may be redundant and might be better of moved to the above line.
+					{
+						entries[i].unique_entry_id = get_next_free_unique_id();
+						entries[i].flags = 0;
+						entries[i].condition_bitfield_broadcaster = 0;
+						entries[i].condition_bitfield_receiver = 0;
+						entries[i].target_id_condition_trigger = 0;
+						entries[i].target_id_couple = 0;
+						entries[i].target_id_uncouple = 0;
+						entries[i].target_unique_entry_uncouple = 0;
+					}
 					if (file->get_extended_version() >= 12) //12-14
 					{
 						// In older versions, there was a single wait_for_time boolean value,
@@ -370,17 +381,6 @@ void schedule_t::rdwr(loadsave_t *file)
 						}
 					}
 
-					if (file->is_loading())
-					{
-						entries[i].unique_entry_id = get_next_free_unique_id();
-						entries[i].flags = 0;
-						entries[i].condition_bitfield_broadcaster = 0;
-						entries[i].condition_bitfield_receiver = 0;
-						entries[i].target_id_condition_trigger = 0;
-						entries[i].target_id_couple = 0;
-						entries[i].target_id_uncouple = 0;
-						entries[i].target_unique_entry_uncouple = 0;
-					}
 				}
 				else // Newer version (>14) with bitfield and new data
 				{
@@ -775,7 +775,7 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			sprintf(modified_name, "%s", halt->get_name());
 		}
 
-		if(entry.wait_for_time)
+		if(entry.is_flag_set(schedule_entry_t::wait_for_time))
 		{
 			buf.printf("[*] ");
 		}
@@ -834,7 +834,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 	}
 
 	// Finally start to append the entry. Start with the most complicated...
-	if (entry.wait_for_time && entry.reverse == 1)
+	if (entry.is_flag_set(schedule_entry_t::wait_for_time) && entry.reverse == 1)
 	{
 		if (strlen(p) > (unsigned)max_chars - 8)
 		{
@@ -847,7 +847,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 			buf.append(" [<<]");
 		}
 	}
-	else if (entry.wait_for_time)
+	else if (entry.is_flag_set(schedule_entry_t::wait_for_time))
 	{
 		if (strlen(p) > (unsigned)max_chars - 4)
 		{
