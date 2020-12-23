@@ -96,7 +96,6 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 /**
  * Append description of entry to buf.
  */
- /*
 void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
 {
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
@@ -253,8 +252,6 @@ void schedule_gui_t::gimme_short_stop_name(cbuffer_t& buf, player_t const* const
 	}
 }
 
-*/
-
 zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
 cbuffer_t schedule_gui_stats_t::buf;
 
@@ -314,7 +311,7 @@ void schedule_gui_stats_t::draw(scr_coord offset)
 				no_control_tower = halt.is_bound() && halt->has_no_control_tower();
 			}
 
-			schedule_t::gimme_stop_name(buf, welt, player, e, no_control_tower);
+			schedule_gui_t::gimme_stop_name(buf, player, e, no_control_tower);
 		}
 
 		if (sel == 0)

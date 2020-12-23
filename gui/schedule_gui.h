@@ -170,6 +170,10 @@ public:
 	void rdwr( loadsave_t *file ) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_schedule_rdwr_dummy; }
+
+	static void gimme_short_stop_name(cbuffer_t &buf, const player_t *const player_, const schedule_t *schedule, int i, int max_chars);
+
+	static void gimme_stop_name(cbuffer_t &buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower);
 };
 
 #endif
