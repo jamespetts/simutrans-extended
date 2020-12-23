@@ -4162,6 +4162,7 @@ void convoi_t::rdwr(loadsave_t *file)
 	}
 
 	route.rdwr(file);
+	DBG_MESSAGE("convoi_t::rdwr","rdwr route: %u",route.get_count());
 
 	if(file->is_loading()) {
 		// extend array if requested (only needed for trains)
@@ -4180,6 +4181,7 @@ void convoi_t::rdwr(loadsave_t *file)
 	file->rdwr_str(name_and_id + name_offset, lengthof(name_and_id) - name_offset);
 	if(file->is_loading()) {
 		set_name(name_and_id+name_offset);	// will add id automatically
+		DBG_MESSAGE("convoi_t::rdwr","rdwr name: %s",get_name());
 	}
 
 	koord3d dummy_pos;
@@ -4221,6 +4223,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				}
 			}
 
+			DBG_MESSAGE("convoi_t::rdwr","rdwr vehicle: %s",v->get_desc()->get_name());
 			// no matching vehicle found?
 			if(v->get_desc()==NULL) {
 				// will create orphan object, but better than crashing at deletion ...
@@ -4325,6 +4328,7 @@ void convoi_t::rdwr(loadsave_t *file)
 
 		// now read the schedule, we have one for sure here
 		schedule->rdwr( file );
+		DBG_MESSAGE("convoi_t::rdwr", "rdwr schedule: %u", schedule->get_count());
 	}
 
 	if(file->is_loading()) {
@@ -4618,6 +4622,7 @@ void convoi_t::rdwr(loadsave_t *file)
 	}
 	else {
 		file->rdwr_short(steps_driven);
+		DBG_MESSAGE("convoi_t::rdwr", "steps_driven=%i", steps_driven);
 	}
 
 	// waiting time left ...
@@ -4654,6 +4659,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			else
 			{
 				file->rdwr_longlong(go_on_ticks);
+				DBG_MESSAGE("convoi_t::rdwr", "go_on_ticks=%lli", go_on_ticks);
 			}
 
 			if(go_on_ticks != WAIT_INFINITE)
@@ -4677,6 +4683,7 @@ void convoi_t::rdwr(loadsave_t *file)
 	else {
 		file->rdwr_byte(tiles_overtaking);
 		set_tiles_overtaking( tiles_overtaking );
+		DBG_MESSAGE("convoi_t::rdwr", "tiles_overtaking=%i", tiles_overtaking);
 	}
 
 	// no_load, withdraw
@@ -4686,13 +4693,16 @@ void convoi_t::rdwr(loadsave_t *file)
 	}
 	else {
 		file->rdwr_bool(no_load);
+		DBG_MESSAGE("convoi_t::rdwr", "no_load=%i", no_load);
 		file->rdwr_bool(withdraw);
+		DBG_MESSAGE("convoi_t::rdwr", "withdraw=%i", withdraw);
 	}
 
 	// reverse_schedule
 	if(file->get_extended_version() >= 9)
 	{
 		file->rdwr_bool(reverse_schedule);
+		DBG_MESSAGE("convoi_t::rdwr", "reverse_schedule=%i", reverse_schedule);
 	}
 	else if(file->is_loading())
 	{
@@ -4711,15 +4721,18 @@ void convoi_t::rdwr(loadsave_t *file)
 	if(file->get_extended_version() >= 1)
 	{
 		file->rdwr_bool(reversed);
+		DBG_MESSAGE("convoi_t::rdwr", "reversed=%i", reversed);
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 12)
 		{
 			file->rdwr_bool(re_ordered);
+			DBG_MESSAGE("convoi_t::rdwr", "re_ordered=%i", re_ordered);
 		}
 
 		//Replacing settings
 		// BG, 31-MAR-2010: new replacing code starts with exp version 8:
 		bool is_replacing = replace && (file->get_extended_version() >= 8);
 		file->rdwr_bool(is_replacing);
+		DBG_MESSAGE("convoi_t::rdwr", "replacing=%i", is_replacing);
 
 		if(file->get_extended_version() >= 8)
 		{
@@ -4735,6 +4748,8 @@ void convoi_t::rdwr(loadsave_t *file)
 				}
 			}
 			file->rdwr_bool(depot_when_empty);
+			DBG_MESSAGE("convoi_t::rdwr", "depot_when_empty=%i", depot_when_empty);
+
 		}
 		else
 		{
@@ -4917,7 +4932,8 @@ void convoi_t::rdwr(loadsave_t *file)
 			{
 				uint32 count = 0;
 				file->rdwr_long(count);
-				// Do NOT use clear_departures here, as this clears the estimated times
+				DBG_MESSAGE("convoi_t::rdwr", "count=%i", count);
+			// Do NOT use clear_departures here, as this clears the estimated times
 				// in the halts that have already been loaded, as the halts load before
 				// the convoys.
 				departures.clear();
@@ -4945,6 +4961,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				}
 
 				file->rdwr_long(count);
+				DBG_MESSAGE("convoi_t::rdwr", "count=%i", count);
 				uint16 x;
 				uint16 y;
 				sint64 departure_time;
@@ -4959,6 +4976,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				}
 
 				file->rdwr_long(count);
+				DBG_MESSAGE("convoi_t::rdwr", "count=%i", count);
 				uint16 total;
 				uint16 ave_count;
 				for(uint32 i = 0; i < count; i ++)

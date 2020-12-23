@@ -338,9 +338,9 @@ void schedule_t::rdwr(loadsave_t *file)
 				{
 					entries[i].reverse = -1;
 				}
-				if (file->get_extended_version() < 14)
+				if (file->get_extended_version() < 15)
 				{
-					if (file->get_extended_version() >= 12)
+					if (file->get_extended_version() >= 12) //12-14
 					{
 						// In older versions, there was a single wait_for_time boolean value,
 						// rather than a bitfield of flags
@@ -358,7 +358,7 @@ void schedule_t::rdwr(loadsave_t *file)
 							entries[i].clear_flag(schedule_entry_t::wait_for_time);
 						}
 					}
-					else if (file->is_loading())
+					else if (file->is_loading()) // < 12
 					{
 						if (entries[i].minimum_loading > 100 && spacing)
 						{
