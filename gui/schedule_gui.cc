@@ -504,7 +504,10 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 				bt_wait_prev.add_listener(this);
 				add_component(&bt_wait_prev);
 
+				lb_waitlevel_as_clock.set_color(SYSCOL_TEXT_HIGHLIGHT);
+				lb_waitlevel_as_clock.buf().append("off");
 				lb_waitlevel_as_clock.set_fixed_width( proportional_string_width("--:--:--") );
+				lb_waitlevel_as_clock.update();
 				add_component(&lb_waitlevel_as_clock);
 
 				bt_wait_next.init(button_t::arrowright, NULL, scr_coord(0, 0));
@@ -813,7 +816,6 @@ void schedule_gui_t::update_selection()
 				strcpy( str_parts_month_as_clock, translator::translate("off") );
 			}
 
-			lb_waitlevel_as_clock.init(SYSCOL_TEXT_HIGHLIGHT, gui_label_t::right);
 			lb_waitlevel_as_clock.buf().append(str_parts_month_as_clock);
 			lb_waitlevel_as_clock.update();
 		}
