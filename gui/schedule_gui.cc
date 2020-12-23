@@ -406,17 +406,17 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	add_table(3, 0)->set_alignment(ALIGN_RIGHT);
 	{
 		if (cnv.is_bound()) {
-			bt_promote_to_line.init(button_t::roundbox, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
+			bt_promote_to_line.init(button_t::roundbox | button_t::flexible, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
 			bt_promote_to_line.set_tooltip("Create a new line based on this schedule");
 			bt_promote_to_line.add_listener(this);
 			add_component(&bt_promote_to_line);
 
 		}
 		else {
-			new_component<gui_margin_t>(D_BUTTON_WIDTH*2);
+			new_component<gui_margin_t>(D_BUTTON_WIDTH);
 		}
 		// Modify convoy button
-		bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(0, 0), scr_size(D_WIDE_BUTTON_SIZE));
+		bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0, 0), scr_size(D_WIDE_BUTTON_SIZE));
 		bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
 		bt_consist_order.add_listener(this);
 		bt_consist_order.pressed = false;
@@ -504,7 +504,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 				bt_wait_prev.add_listener(this);
 				add_component(&bt_wait_prev);
 
-				lb_waitlevel_as_clock.set_color(SYSCOL_TEXT_HIGHLIGHT);
+				lb_waitlevel_as_clock.init(SYSCOL_TEXT_HIGHLIGHT, gui_label_t::right);
 				lb_waitlevel_as_clock.buf().append("off");
 				lb_waitlevel_as_clock.set_fixed_width( proportional_string_width("--:--:--") );
 				lb_waitlevel_as_clock.update();
@@ -647,21 +647,21 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	}
 	end_table();
 
-	add_table(4,1)->set_force_equal_columns(true);
+	add_table(4,1);
 	{
-		bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop");
+		bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0,0), D_BUTTON_SIZE);
 		bt_add.set_tooltip("Appends stops at the end of the schedule");
 		bt_add.add_listener(this);
 		bt_add.pressed = true;
 		add_component(&bt_add);
 
-		bt_insert.init(button_t::roundbox_state | button_t::flexible, "Ins Stop");
+		bt_insert.init(button_t::roundbox_state | button_t::flexible, "Ins Stop", scr_coord(0, 0), D_BUTTON_SIZE);
 		bt_insert.set_tooltip("Insert stop before the current stop");
 		bt_insert.add_listener(this);
 		bt_insert.pressed = false;
 		add_component(&bt_insert);
 
-		bt_remove.init(button_t::roundbox_state | button_t::flexible, "Del Stop");
+		bt_remove.init(button_t::roundbox_state | button_t::flexible, "Del Stop", scr_coord(0, 0), D_BUTTON_SIZE);
 		bt_remove.set_tooltip("Delete the current stop");
 		bt_remove.add_listener(this);
 		bt_remove.pressed = false;
