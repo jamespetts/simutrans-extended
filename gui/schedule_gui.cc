@@ -5,7 +5,6 @@
 
 #include "../simline.h"
 #include "../simcolor.h"
-#include "../simdepot.h"
 #include "../simhalt.h"
 #include "../simworld.h"
 #include "../simmenu.h"
@@ -26,7 +25,6 @@
 #include "../dataobj/environment.h"
 
 #include "../player/simplay.h"
-#include "../vehicle/simvehicle.h"
 
 #include "../tpl/vector_tpl.h"
 
