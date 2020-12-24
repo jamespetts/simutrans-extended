@@ -19,6 +19,8 @@ line_management_gui_t::line_management_gui_t(linehandle_t line, player_t* player
 	schedule_gui_t(line->get_schedule()->copy(), player_, convoihandle_t() )
 {
 	this->line = line;
+	title.printf("%s - %s", translator::translate("Fahrplan"), line->get_name());
+	gui_frame_t::set_name(title);
 	// has this line a single running convoi?
 	if(  line->count_convoys() > 0  ) {
 		minimap_t::get_instance()->set_selected_cnv( line->get_convoy(0) );
