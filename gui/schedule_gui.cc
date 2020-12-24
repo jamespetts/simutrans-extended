@@ -403,8 +403,9 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 
 	set_table_layout(1, 0);
 
-	add_table(3, 0)->set_alignment(ALIGN_RIGHT);
+	add_table(4, 1)->set_alignment(ALIGN_CENTER_V);
 	{
+		new_component<gui_image_t>()->set_image(schedule->get_schedule_type_symbol(), true);
 		if (cnv.is_bound()) {
 			bt_promote_to_line.init(button_t::roundbox | button_t::flexible, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
 			bt_promote_to_line.set_tooltip("Create a new line based on this schedule");
