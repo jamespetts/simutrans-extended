@@ -415,8 +415,9 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	INIT_NUM("max_comfort_preference_percentage", sets->get_max_comfort_preference_percentage(), 100, 65535, gui_numberinput_t::AUTOLINEAR, false);
 	end_table();
 
+	add_table(1,0);
 	SEPERATOR;
-	INIT_BOOL("simplified_maintenance", sets->simplified_maintenance);
+	INIT_BOOL("simplified_maintenance", sets->simplified_maintenance); // I propose this option be removed since there is nothing simplified about having multiple systems - Freddy
 	INIT_END;
 }
 
