@@ -541,53 +541,48 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 {
 	if(!cnv.is_bound()) {
 		destroy_win(this);
+		return;
 	}
-	else {
-		bool any_class = false;
-		for (uint8 veh = 0; veh < cnv->get_vehicle_count(); ++veh)
-		{
-			vehicle_t* v = cnv->get_vehicle(veh);
-			if (v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS || v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL)
-			{
-				if (v->get_desc()->get_total_capacity() > 0)
-				{
-					any_class = true;
-				}
-			}
-		}
 
-		if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
-			withdraw_button.enable();
-			sale_button.enable();
-			retire_button.enable();
-			if (any_class)
+	bool any_class = false;
+	for (uint8 veh = 0; veh < cnv->get_vehicle_count(); ++veh)
+	{
+		vehicle_t* v = cnv->get_vehicle(veh);
+		if (v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS || v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL)
+		{
+			if (v->get_desc()->get_total_capacity() > 0)
 			{
-				class_management_button.enable();
-			}
-			else
-			{
-				class_management_button.disable();
+				any_class = true;
 			}
 		}
-		else {
-			withdraw_button.disable();
-			sale_button.disable();
-			retire_button.disable();
+	}
+
+	if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
+		withdraw_button.enable();
+		sale_button.enable();
+		retire_button.enable();
+		if (any_class)
+		{
+			class_management_button.enable();
+		}
+		else
+		{
 			class_management_button.disable();
 		}
-		withdraw_button.pressed = cnv->get_withdraw();
-		retire_button.pressed = cnv->get_depot_when_empty();
-		class_management_button.pressed = win_get_magic(magic_class_manager);
-	}
-
-	if (cnv->in_depot()) {
-		retire_button.disable();
-		withdraw_button.disable();
+		if (cnv->in_depot()) {
+			retire_button.disable();
+			withdraw_button.disable();
+		}
 	}
 	else {
-		retire_button.enable();
-		withdraw_button.enable();
+		withdraw_button.disable();
+		sale_button.disable();
+		retire_button.disable();
+		class_management_button.disable();
 	}
+	withdraw_button.pressed = cnv->get_withdraw();
+	retire_button.pressed = cnv->get_depot_when_empty();
+	class_management_button.pressed = win_get_magic(magic_class_manager);
 
 	if (tabs.get_active_tab_index()==3) {
 		// common existing_convoy_t for acceleration curve and weight/speed info.
@@ -660,7 +655,7 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 		if (max_speed > 0) {
 			const uint16 display_interval = (max_speed + SPEED_RECORDS-1) / SPEED_RECORDS;
 			float32e8_t rolling_resistance = cnv->get_adverse_summary().fr;
-			te_curve_abort_x = (uint8)((max_speed + (display_interval-1)) / display_interval);
+			te_curve_abort_x = max(2,(uint8)((max_speed + (display_interval-1)) / display_interval));
 			force_chart.set_abort_display_x(te_curve_abort_x);
 			force_chart.set_dimension(te_curve_abort_x, 10000);
 
