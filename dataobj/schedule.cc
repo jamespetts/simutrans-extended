@@ -765,6 +765,7 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
 	if(halt.is_bound())
 	{
+		bool prefix = false;
 		char modified_name[320];
 		if(no_control_tower)
 		{
@@ -778,12 +779,44 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 		if(entry.is_flag_set(schedule_entry_t::wait_for_time))
 		{
 			buf.printf("[*] ");
+			prefix = true;
 		}
-
+		if (entry.is_flag_set(schedule_entry_t::lay_over))
+		{
+			buf.printf(translator::translate("[LO] "));
+			prefix = true;
+		}
+		if (entry.is_flag_set(schedule_entry_t::force_range_stop))
+		{
+			buf.printf(translator::translate("[RS] "));
+			prefix = true;
+		}
+		if (entry.is_flag_set(schedule_entry_t::ignore_choose))
+		{
+			buf.printf(translator::translate("[IC] "));
+			prefix = true;
+		}
+		if (entry.condition_bitfield_receiver > 0)
+		{
+			buf.printf("[->%d] ", entry.condition_bitfield_receiver);
+			prefix = true;
+		}
+		if (entry.condition_bitfield_broadcaster > 0)
+		{
+			buf.printf("[%d->] ", entry.condition_bitfield_broadcaster);
+			prefix = true;
+		}
 		if (entry.minimum_loading != 0)
 		{
-			buf.printf("%d%% ", entry.minimum_loading);
+			buf.printf("[%d%%] ", entry.minimum_loading);
+			prefix = true;
 		}
+		if (prefix == true)
+		{
+			buf.append(" ");
+		}
+
+
 		buf.printf("%s (%s)", modified_name, entry.pos.get_str() );
 	}
 	else {
@@ -800,11 +833,6 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 		else {
 			buf.printf("%s (%s)", translator::translate("Wegpunkt"), entry.pos.get_str() );
 		}
-	}
-
-	if(entry.reverse == 1)
-	{
-		buf.printf(" [<<]");
 	}
 }
 

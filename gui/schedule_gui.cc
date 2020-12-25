@@ -37,14 +37,109 @@
 //#include "components/gui_image.h"
 //#include "components/gui_textarea.h"
 
+static karte_ptr_t welt;
 
+/**
+ * One entry in the list of schedule entries.
+ */
+class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t
+{
+	schedule_entry_t entry;
+	bool is_current;
+	bool is_air_wt;
+	uint number;
+	player_t* player;
+	gui_image_t arrow;
+	gui_label_buf_t stop;
+	gui_label_buf_t lb_reverse;
+	//gui_label_buf_t lb_distance; // UI TODO: seperate distance from the label of stop(name)
+
+public:
+	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false)
+	{
+		player = pl;
+		entry  = e;
+		number = n;
+		is_current = false;
+		is_air_wt = false;
+		set_table_layout(4,1);
+
+		add_component(&arrow);
+		arrow.set_image(gui_theme_t::pos_button_img[0], true);
+
+		add_component(&stop);
+
+		// UI TODO: Add cell(s) for displaying options
+		// UI TODO: Align the x positions of the cells. Consider symbolization and cell separation for some items.
+		lb_reverse.buf().append("[<<]");
+		lb_reverse.set_color(SYSCOL_TEXT_STRONG);
+		lb_reverse.update();
+		lb_reverse.set_visible(false);
+		add_component(&lb_reverse);
+
+		new_component<gui_fill_t>();
+		update_label();
+	}
+
+	void update_label()
+	{
+		stop.buf().printf("%i) ", number+1);
+
+		// UI TODO: fix the distance calcuration - Need to compare with previous "row"
+		koord last_stop_pos = entry.pos.get_2d();
+		double distance;
+		bool no_control_tower = is_air_wt;
+		if (no_control_tower)
+		{
+			halthandle_t halt = world()->lookup(entry.pos)->get_halt();
+			no_control_tower = halt.is_bound() && halt->has_no_control_tower();
+		}
+		schedule_t::gimme_stop_name(stop.buf(), world(), player, entry, no_control_tower);
+		distance = (double)(shortest_distance(last_stop_pos, entry.pos.get_2d()) * world()->get_settings().get_meters_per_tile()) / 1000;
+		stop.buf().printf(" %.1f%s", distance, "km");
+		stop.update();
+
+		lb_reverse.set_visible(entry.reverse == 1);
+	}
+
+	void draw(scr_coord offset) OVERRIDE
+	{
+		update_label();
+		if (is_current) {
+			display_fillbox_wh_clip_rgb(pos.x + offset.x, pos.y + offset.y, size.w, size.h, SYSCOL_LIST_BACKGROUND_SELECTED_F, false);
+		}
+		gui_aligned_container_t::draw(offset);
+	}
+
+	void set_active(bool yesno)
+	{
+		is_current = yesno;
+		arrow.set_image(gui_theme_t::pos_button_img[yesno ? 1: 0], true);
+		stop.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
+	}
+
+	bool infowin_event(const event_t *ev) OVERRIDE
+	{
+		if (ev->ev_class == EVENT_CLICK) {
+			if (IS_RIGHTCLICK(ev) || ev->mx < stop.get_pos().x) {
+				// just center on it
+				world()->get_viewport()->change_world_position(entry.pos);
+			}
+			else {
+				call_listeners(number);
+			}
+			return true;
+		}
+		return false;
+	}
+};
 
 // shows/deletes highlighting of tiles
-void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
+void schedule_gui_stats_t::highlight_schedule( bool marking )
 {
 	marking &= env_t::visualize_schedule;
-	FOR(minivec_tpl<schedule_entry_t>, const& i, markschedule->entries) {
-		if (grund_t* const gr = welt->lookup(i.pos)) {
+	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+		if (grund_t* const gr = world()->lookup(i.pos)) {
 			for(  uint idx=0;  idx<gr->get_top();  idx++  ) {
 				obj_t *obj = gr->obj_bei(idx);
 				if(  marking  ) {
@@ -70,16 +165,16 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 		}
 	}
 	// always remove
-	if(  grund_t *old_gr = welt->lookup(current_stop_mark->get_pos())  ) {
+	if(  grund_t *old_gr = world()->lookup(current_stop_mark->get_pos())  ) {
 		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
 		old_gr->obj_remove( current_stop_mark );
 		old_gr->set_flag( grund_t::dirty );
 		current_stop_mark->set_pos( koord3d::invalid );
 	}
 	// add if required
-	if(  marking  &&  markschedule->get_current_stop() < markschedule->get_count() ) {
-		current_stop_mark->set_pos( markschedule->entries[markschedule->get_current_stop()].pos );
-		if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
+	if(  marking  &&  schedule->get_current_stop() < schedule->get_count() ) {
+		current_stop_mark->set_pos( schedule->entries[schedule->get_current_stop()].pos );
+		if(  grund_t *gr = world()->lookup(current_stop_mark->get_pos())  ) {
 			gr->obj_add( current_stop_mark );
 			current_stop_mark->set_flag( obj_t::dirty );
 			gr->set_flag( grund_t::dirty );
@@ -89,278 +184,100 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 }
 
 
-// UI TODO: Make the parts of the UI below compatible with the new features
-
-/**
- * Append description of entry to buf.
- */
- /*
-void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
-{
-	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
-	if(halt.is_bound())
-	{
-		bool prefix = false;
-		char modified_name[320];
-		if(no_control_tower)
-		{
-			sprintf(modified_name, "%s [%s]", halt->get_name(), translator::translate("NO CONTROL TOWER"));
-		}
-		else
-		{
-			sprintf(modified_name, "%s", halt->get_name());
-		}
-
-		if (entry.is_flag_set(schedule_entry_t::wait_for_time))
-		{
-			buf.printf("[*] ");
-			prefix = true;
-		}
-		if (entry.is_flag_set(schedule_entry_t::lay_over))
-		{
-			buf.printf(translator::translate("[LO] "));
-			prefix = true;
-		}
-		if (entry.is_flag_set(schedule_entry_t::force_range_stop))
-		{
-			buf.printf(translator::translate("[RS] "));
-			prefix = true;
-		}
-		if (entry.is_flag_set(schedule_entry_t::ignore_choose))
-		{
-			buf.printf(translator::translate("[IC] "));
-			prefix = true;
-		}
-		if (entry.condition_bitfield_receiver > 0)
-		{
-			buf.printf("[->%d] ", entry.condition_bitfield_receiver);
-			prefix = true;
-		}
-		if (entry.condition_bitfield_broadcaster > 0)
-		{
-			buf.printf("[%d->] ", entry.condition_bitfield_broadcaster);
-			prefix = true;
-		}
-		if (entry.minimum_loading != 0)
-		{
-			buf.printf("[%d%%] ", entry.minimum_loading);
-			prefix = true;
-		}
-		if (prefix == true)
-		{
-			buf.append(" ");
-		}
-
-
-		buf.printf("%s (%s)", modified_name, entry.pos.get_str() );
-	}
-	else {
-		const grund_t* gr = welt->lookup(entry.pos);
-		if(  gr==NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Invalid coordinate"), entry.pos.get_str() );
-		}
-		else if(  gr->get_depot() != NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Depot"), entry.pos.get_str() );
-		}
-		else if(  const char *label_text = gr->get_text()  ){
-			buf.printf("%s %s (%s)", translator::translate("Wegpunkt"), label_text, entry.pos.get_str() );
-		}
-		else {
-			buf.printf("%s (%s)", translator::translate("Wegpunkt"), entry.pos.get_str() );
-		}
-	}
-
-	if(entry.reverse == 1)
-	{
-		buf.printf(" [<<]");
-	}
-}
-
-
-
-void schedule_gui_t::gimme_short_stop_name(cbuffer_t& buf, player_t const* const player_, const schedule_t *schedule, int i, int max_chars)
-{
-	if (i < 0 || schedule == NULL || i >= schedule->get_count()) {
-		dbg->warning("void schedule_gui_t::gimme_short_stop_name()", "tried to receive unused entry %i in schedule %p.", i, schedule);
-		return;
-	}
-	const schedule_entry_t& entry = schedule->entries[i];
-	const char* p;
-	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
-	if (halt.is_bound()) {
-		p = halt->get_name();
-	}
-	else {
-		const grund_t* gr = welt->lookup(entry.pos);
-		if (gr == NULL) {
-			p = translator::translate("Invalid coordinate");
-		}
-		else if (gr->get_depot() != NULL) {
-			p = translator::translate("Depot");
-		}
-		else {
-			p = translator::translate("Wegpunkt");
-		}
-	}
-
-	// Finally start to append the entry. Start with the most complicated...
-	if (entry.is_flag_set(schedule_entry_t::wait_for_time) && entry.reverse == 1)
-	{
-		if (strlen(p) > (unsigned)max_chars - 8)
-		{
-			buf.printf("[*] %.*s... [<<]", max_chars - 12, p);
-		}
-		else
-		{
-			buf.append("[*] ");
-			buf.append(p);
-			buf.append(" [<<]");
-		}
-	}
-	else if (entry.is_flag_set(schedule_entry_t::wait_for_time))
-	{
-		if (strlen(p) > (unsigned)max_chars - 4)
-		{
-			buf.printf("[*] %.*s...", max_chars - 8, p);
-		}
-		else
-		{
-			buf.append("[*] ");
-			buf.append(p);
-		}
-	}
-	else if (entry.reverse == 1)
-	{
-		if (strlen(p) > (unsigned)max_chars - 4)
-		{
-			buf.printf("%.*s... [<<]", max_chars - 8, p);
-		}
-		else
-		{
-			buf.append(p);
-			buf.append(" [<<]");
-		}
-	}
-	else if (strlen(p) > (unsigned)max_chars)
-	{
-		buf.printf("%.*s...", max_chars - 3, p);
-	}
-	else
-	{
-		buf.append(p);
-	}
-}
-
-*/
-
 zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
 cbuffer_t schedule_gui_stats_t::buf;
 
-void schedule_gui_stats_t::draw(scr_coord offset)
+
+
+schedule_gui_stats_t::schedule_gui_stats_t()
 {
-	if(  !schedule  ) {
-		return;
-	}
+	set_table_layout(1,0);
+	set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, 0));
+	set_spacing(scr_size(D_H_SPACE, 0));
+	last_schedule = NULL;
 
-	if(  schedule->empty()  ) {
-		buf.clear();
-		buf.append(translator::translate("Please click on the map to add\nwaypoints or stops to this\nschedule."));
-		sint16 const width = display_multiline_text_rgb(offset.x + 4, offset.y, buf, SYSCOL_TEXT_HIGHLIGHT );
-		set_size(scr_size(width + 4 + 16, 3 * LINESPACE));
-	}
-	else {
-		int    i     = 0;
-		size_t sel   = schedule->get_current_stop();
-		sint16 width = get_size().w - D_MARGIN_LEFT - D_MARGIN_RIGHT;
-		offset.x += D_MARGIN_LEFT;
-		offset.y += D_V_SPACE;
-		koord last_stop_pos = schedule->entries[0].pos.get_2d();
-		double distance;
-		FOR(minivec_tpl<schedule_entry_t>, const& e, schedule->entries)
-		{
-			if (sel == 0)
-			{
-				// highlight current entry (width is just wide enough, scrolly will do clipping)
-				display_fillbox_wh_clip_rgb(offset.x, offset.y - 1, 2048, LINESPACE + 1, color_idx_to_rgb(player->get_player_color1() + 1), false);
-			}
-
-			if(last_stop_pos != e.pos.get_2d())
-			{
-				distance = (double)(shortest_distance(last_stop_pos, e.pos.get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000.0;
-				buf.printf(" %.1f%s", distance, "km");
-
-				PIXVAL const c = sel == 0 ? color_idx_to_rgb(COL_WHITE) : SYSCOL_TEXT;
-				sint16 const w = display_proportional_clip_rgb(offset.x + 4 + 10, offset.y, buf, ALIGN_LEFT, c, true);
-				if (width < w)
-				{
-					width = w;
-				}
-
-				// the goto button (right arrow)
-				display_img_aligned(gui_theme_t::pos_button_img[ sel == 0 ], scr_rect( offset.x, offset.y, 14, LINESPACE ), ALIGN_CENTER_V | ALIGN_CENTER_H, true);
-				last_stop_pos = e.pos.get_2d();
-				--sel;
-				offset.y += LINESPACE + 1;
-			}
-
-			buf.clear();
-			buf.printf("%i) ", ++i);
-			bool no_control_tower = schedule->get_waytype() == air_wt;
-			if (no_control_tower)
-			{
-				halthandle_t halt = welt->lookup(e.pos)->get_halt();
-				no_control_tower = halt.is_bound() && halt->has_no_control_tower();
-			}
-
-			schedule_t::gimme_stop_name(buf, welt, player, e, no_control_tower);
-		}
-
-		if (sel == 0)
-		{
-			// highlight current entry (width is just wide enough, scrolly will do clipping)
-			display_fillbox_wh_clip_rgb(offset.x, offset.y - 1, 2048, LINESPACE + 1, color_idx_to_rgb(player->get_player_color1() + 1), false);
-		}
-		distance = (double)(shortest_distance(last_stop_pos, schedule->entries[0].pos.get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000;
-		buf.printf(" %.1f%s", distance, "km");
-		PIXVAL c = sel == 0 ? color_idx_to_rgb(COL_WHITE) : SYSCOL_TEXT;
-		sint16 w = display_proportional_clip_rgb(offset.x + 4 + 10, offset.y, buf, ALIGN_LEFT, c, true);
-		if (width < w)
-		{
-			width = w;
-		}
-
-		// the goto button (right arrow)
-		display_img_aligned(gui_theme_t::pos_button_img[ sel == 0 ], scr_rect( offset.x, offset.y, 14, LINESPACE ), ALIGN_CENTER_V | ALIGN_CENTER_H, true);
-
-		set_size(scr_size(width + 16, schedule->get_count() * (LINESPACE + 1)));
-		highlight_schedule(schedule, true);
-	}
-}
-
-
-
-schedule_gui_stats_t::schedule_gui_stats_t(player_t *player_)
-{
-	schedule = NULL;
-	player = player_;
-	if(  current_stop_mark==NULL  ) {
-		current_stop_mark = new zeiger_t(koord3d::invalid, NULL );
-		current_stop_mark->set_image( tool_t::general_tool[TOOL_SCHEDULE_ADD]->cursor );
-	}
+	current_stop_mark = new zeiger_t(koord3d::invalid, NULL);
+	current_stop_mark->set_image(tool_t::general_tool[TOOL_SCHEDULE_ADD]->cursor);
 }
 
 
 
 schedule_gui_stats_t::~schedule_gui_stats_t()
 {
-	if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		gr->obj_remove(current_stop_mark);
+	delete current_stop_mark;
+	delete last_schedule;
+}
+
+void schedule_gui_stats_t::update_schedule()
+{
+	// compare schedules
+	bool ok = (last_schedule != NULL) && last_schedule->entries.get_count() == schedule->entries.get_count();
+	for (uint i = 0; ok && i < last_schedule->entries.get_count(); i++) {
+		ok = last_schedule->entries[i] == schedule->entries[i];
 	}
-	current_stop_mark->set_pos( koord3d::invalid );
+	if (ok) {
+		if (!last_schedule->empty()) {
+			entries[last_schedule->get_current_stop()]->set_active(false);
+			entries[schedule->get_current_stop()]->set_active(true);
+			last_schedule->set_current_stop(schedule->get_current_stop());
+		}
+	}
+	else {
+		remove_all();
+		entries.clear();
+		buf.clear();
+		buf.append(translator::translate("Please click on the map to add\nwaypoints or stops to this\nschedule."));
+		if (schedule->empty()) {
+			new_component<gui_textarea_t>(&buf);
+		}
+		else {
+			for (uint i = 0; i < schedule->entries.get_count(); i++) {
+				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i));
+				entries.back()->add_listener(this);
+			}
+			entries[schedule->get_current_stop()]->set_active(true);
+		}
+		if (last_schedule) {
+			last_schedule->copy_from(schedule);
+		}
+		else {
+			last_schedule = schedule->copy();
+		}
+		set_size(get_min_size());
+	}
+	highlight_schedule(true);
+}
+
+void schedule_gui_stats_t::draw(scr_coord offset)
+{
+	update_schedule();
+
+	gui_aligned_container_t::draw(offset);
+}
+
+bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
+{
+	// has to be one of the entries
+	call_listeners(v);
+	return true;
 }
 
 
+schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle_t cnv_) :
+	gui_frame_t(translator::translate("Fahrplan"), player_),
+	lb_spacing("Spacing cnv/month, shift"),
+	lb_conditional_depart("conditional_depart"),
+	lb_spacing_shift_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
+	stats(new schedule_gui_stats_t()),
+	scrolly(stats)
+	//,old_schedule(sch_)
+{
+	schedule = NULL;
+	player = NULL;
+	if (sch_) {
+		init(sch_, player_, cnv_);
+	}
+}
 
 schedule_gui_t::~schedule_gui_t()
 {
@@ -369,24 +286,23 @@ schedule_gui_t::~schedule_gui_t()
 		// hide schedule on minimap (may not current, but for safe)
 		minimap_t::get_instance()->set_selected_cnv( convoihandle_t() );
 	}
+	delete schedule;
+	delete stats;
 }
 
 
 
-schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle_t cnv_) :
-	gui_frame_t( translator::translate("Fahrplan"), player_),
-	lb_spacing("Spacing cnv/month, shift"),
-	lb_conditional_depart("conditional_depart"),
-	lb_spacing_shift_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
-	stats(player_),
-	scrolly(&stats),
-	old_schedule(sch_),
-	player(player_),
-	cnv(cnv_)
+void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_t cnv)
 {
+	// initialization
+	this->old_schedule = schedule_;
+	this->cnv = cnv;
+	this->player = player;
+	set_owner(player);
+
+	// prepare editing
 	old_schedule->start_editing();
 	schedule = old_schedule->copy();
-	stats.set_schedule(schedule);
 	if(  !cnv.is_bound()  ) {
 		old_line = new_line = linehandle_t();
 	}
@@ -398,6 +314,11 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		gui_frame_t::set_name(title);
 	}
 	old_line_count = 0;
+
+	stats->player = player;
+	stats->schedule = schedule;
+	stats->update_schedule();
+	stats->add_listener(this);
 
 	set_table_layout(1, 0);
 
@@ -843,7 +764,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 				else if(  ev->mx<scrolly.get_size().w-11  ) {
 					schedule->set_current_stop( line );
 					if(  mode == removing  ) {
-						stats.highlight_schedule( schedule, false );
+						stats->highlight_schedule( false );
 						schedule->remove();
 						action_triggered( &bt_add, value_t() );
 					}
@@ -855,7 +776,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 	else if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  &&  schedule!=NULL  ) {
 
 		for(  int i=0;  i<schedule->get_count();  i++  ) {
-			stats.highlight_schedule( schedule, false );
+			stats->highlight_schedule( false );
 		}
 
 		update_tool( false );
@@ -1037,7 +958,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();
-			stats.highlight_schedule( schedule, false );
+			stats->highlight_schedule( false );
 			schedule->copy_from( new_line->get_schedule() );
 			schedule->start_editing();
 		}
@@ -1237,19 +1158,6 @@ void schedule_gui_t::set_windowsize(scr_size size)
 void schedule_gui_t::map_rotate90( sint16 y_size)
 {
 	schedule->rotate90(y_size);
-}
-
-
-schedule_gui_t::schedule_gui_t():
-gui_frame_t( translator::translate("Fahrplan"), NULL),
-	stats(NULL),
-	scrolly(&stats),
-	schedule(NULL),
-	old_schedule(NULL),
-	player(NULL),
-	cnv()
-{
-	// just a dummy
 }
 
 

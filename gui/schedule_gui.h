@@ -29,28 +29,34 @@ struct schedule_entry_t;
 class player_t;
 class cbuffer_t;
 class loadsave_t;
+class gui_schedule_entry_t;
 
 
-class schedule_gui_stats_t : public gui_world_component_t
+class schedule_gui_stats_t : public gui_aligned_container_t, action_listener_t, public gui_action_creator_t
 {
 private:
 	static cbuffer_t buf;
+
+	vector_tpl<gui_schedule_entry_t*> entries;
+	schedule_t *last_schedule;
 	static zeiger_t *current_stop_mark;
-
-
+public:
 	schedule_t* schedule;
 	player_t* player;
 
-public:
-	schedule_gui_stats_t(player_t *player_);
+	schedule_gui_stats_t();
 	~schedule_gui_stats_t();
 
 	void set_schedule( schedule_t* f ) { schedule = f; }
 
-	void highlight_schedule( schedule_t *markschedule, bool marking );
+	void highlight_schedule( bool marking );
 
 	// Draw the component
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
+
+	void update_schedule();
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };
 
 
@@ -58,11 +64,14 @@ public:
 /**
  * GUI for Schedule dialog
  */
-class schedule_gui_t :	public gui_frame_t,
-						public action_listener_t
+class schedule_gui_t : public gui_frame_t, public action_listener_t
 {
-private:
-	enum mode_t {adding, inserting, removing, undefined_mode};
+	enum mode_t {
+		adding,
+		inserting,
+		removing,
+		undefined_mode
+	};
 
 	mode_t mode;
 
@@ -98,7 +107,7 @@ private:
 	char str_spacing_as_clock[32];
 	char str_spacing_shift_as_clock[32];
 
-	schedule_gui_stats_t stats;
+	schedule_gui_stats_t *stats;
 	gui_scrollpane_t scrolly;
 
 	// to add new lines automatically
@@ -122,8 +131,10 @@ protected:
 
 	linehandle_t new_line, old_line;
 
+	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv);
+
 public:
-	schedule_gui_t(schedule_t* schedule, player_t* player_, convoihandle_t cnv);
+	schedule_gui_t(schedule_t* schedule = NULL, player_t* player = NULL, convoihandle_t cnv = convoihandle_t());
 
 	virtual ~schedule_gui_t();
 
@@ -150,9 +161,6 @@ public:
 	 * Map rotated, rotate schedules too
 	 */
 	void map_rotate90( sint16 ) OVERRIDE;
-
-	// this constructor is only used during loading
-	schedule_gui_t();
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 
