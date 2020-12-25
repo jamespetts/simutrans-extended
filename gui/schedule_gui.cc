@@ -270,7 +270,6 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	lb_spacing_shift_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
 	stats(new schedule_gui_stats_t()),
 	scrolly(stats)
-	//,old_schedule(sch_)
 {
 	schedule = NULL;
 	player = NULL;
@@ -751,33 +750,10 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 
 		// close combo box; we must do it ourselves, since the box does not receive outside events ...
 		line_selector.close_box();
-
-		if(  ev->my>=scrolly.get_pos().y+D_TITLEBAR_HEIGHT  ) {
-			// we are now in the multiline region ...
-			const int line = ( ev->my - scrolly.get_pos().y + scrolly.get_scroll_y() - D_TITLEBAR_HEIGHT)/(LINESPACE+1);
-
-			if(  line >= 0 && line < schedule->get_count()  ) {
-				if(  IS_RIGHTCLICK(ev)  ||  ev->mx<16  ) {
-					// just center on it
-					welt->get_viewport()->change_world_position( schedule->entries[line].pos );
-				}
-				else if(  ev->mx<scrolly.get_size().w-11  ) {
-					schedule->set_current_stop( line );
-					if(  mode == removing  ) {
-						stats->highlight_schedule( false );
-						schedule->remove();
-						action_triggered( &bt_add, value_t() );
-					}
-					update_selection();
-				}
-			}
-		}
 	}
 	else if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  &&  schedule!=NULL  ) {
 
-		for(  int i=0;  i<schedule->get_count();  i++  ) {
-			stats->highlight_schedule( false );
-		}
+		stats->highlight_schedule( false );
 
 		update_tool( false );
 		schedule->cleanup();
@@ -798,14 +774,12 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 						cbuffer_t buf;
 						schedule->sprintf_schedule( buf );
 						cnv->call_convoi_tool( 'g', buf );
-						delete schedule;
 					}
 				}
 				else {
 					cbuffer_t buf;
 					schedule->sprintf_schedule( buf );
 					cnv->call_convoi_tool( 'g', buf );
-					delete schedule;
 				}
 
 				if(  cnv->in_depot()  ) {
@@ -993,6 +967,20 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		welt->set_tool( tool, player );
 		// since init always returns false, it is safe to delete immediately
 		delete tool;
+	}
+	else if (comp == stats) {
+		// click on one of the schedule entries
+		const int line = p.i;
+
+		if(  line >= 0 && line < schedule->get_count()  ) {
+			schedule->set_current_stop( line );
+			if(  mode == removing  ) {
+				stats->highlight_schedule( false );
+				schedule->remove();
+				action_triggered( &bt_add, value_t() );
+			}
+			update_selection();
+		}
 	}
 	else if (comp == &bt_consist_order) {
 		// Opens new window to alter the consist order
