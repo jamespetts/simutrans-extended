@@ -4223,7 +4223,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				}
 			}
 
-			DBG_MESSAGE("convoi_t::rdwr","rdwr vehicle: %s",v->get_desc()->get_name());
+			//DBG_MESSAGE("convoi_t::rdwr","rdwr vehicle: %s",v->get_desc()->get_name());
 			// no matching vehicle found?
 			if(v->get_desc()==NULL) {
 				// will create orphan object, but better than crashing at deletion ...
