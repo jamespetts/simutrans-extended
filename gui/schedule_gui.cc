@@ -33,9 +33,9 @@
 #include "line_item.h"
 
 #include "components/gui_button.h"
-#include "minimap.h"
 //#include "components/gui_image.h"
-//#include "components/gui_textarea.h"
+#include "components/gui_textarea.h"
+#include "minimap.h"
 
 static karte_ptr_t welt;
 
@@ -120,10 +120,10 @@ public:
 
 	bool infowin_event(const event_t *ev) OVERRIDE
 	{
-		if (ev->ev_class == EVENT_CLICK) {
-			if (IS_RIGHTCLICK(ev) || ev->mx < stop.get_pos().x) {
+		if( ev->ev_class == EVENT_CLICK ) {
+			if(  IS_RIGHTCLICK(ev)  ||  ev->mx < stop.get_pos().x) {
 				// just center on it
-				world()->get_viewport()->change_world_position(entry.pos);
+				welt->get_viewport()->change_world_position( entry.pos );
 			}
 			else {
 				call_listeners(number);

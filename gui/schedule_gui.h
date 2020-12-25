@@ -15,7 +15,6 @@
 #include "components/gui_combobox.h"
 #include "components/gui_button.h"
 
-#include "components/gui_textarea.h"
 #include "components/gui_scrollpane.h"
 
 #include "../convoihandle_t.h"
@@ -23,7 +22,6 @@
 #include "../tpl/vector_tpl.h"
 
 
-class zeiger_t;
 class schedule_t;
 struct schedule_entry_t;
 class player_t;
