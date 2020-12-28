@@ -41,7 +41,7 @@ static karte_ptr_t welt;
 
 
 #define L_ENTRY_NO_HEIGHT (LINESPACE+4)
-#define L_ENTRY_NO_WIDTH (proportional_string_width("00")+4)
+#define L_ENTRY_NO_WIDTH (proportional_string_width("88")+6)
 
 gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint number_, sint8 player, uint8 style_)
 {
@@ -60,7 +60,7 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 	const PIXVAL base_colval = color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1()+4);
 	PIXVAL text_colval = base_colval;
 	if (number > 99) {
-		size.w = proportional_string_width("000")+4;
+		size.w = proportional_string_width("000")+6;
 	}
 
 	// draw the back image
@@ -410,7 +410,7 @@ cbuffer_t schedule_gui_stats_t::buf;
 schedule_gui_stats_t::schedule_gui_stats_t()
 {
 	set_table_layout(1,0);
-	set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, 0));
+	set_margin(scr_size(0,0), scr_size(0,0));
 	set_spacing(scr_size(D_H_SPACE, 0));
 	last_schedule = NULL;
 
@@ -552,10 +552,12 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	stats->update_schedule();
 	stats->add_listener(this);
 
-	set_table_layout(1, 0);
+	set_table_layout(1,0);
+	set_margin(scr_size(0,D_MARGIN_TOP), scr_size(0,0));
 
-	add_table(4, 1)->set_alignment(ALIGN_CENTER_V);
+	add_table(4, 1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 	{
+		set_alignment(ALIGN_CENTER_V);
 		new_component<gui_image_t>()->set_image(schedule->get_schedule_type_symbol(), true);
 		if (cnv.is_bound()) {
 			bt_promote_to_line.init(button_t::roundbox | button_t::flexible, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
@@ -583,7 +585,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	end_table();
 
 	if (cnv.is_bound()) {
-		add_table(5, 0);
+		add_table(5,0);
 		{
 			new_component<gui_label_t>("Serves Line:");
 			line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
@@ -616,13 +618,14 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		end_table();
 	}
 
-	add_table(4,0)->set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
+	add_table(4,0)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 	{
+		//set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
 		lb_load.buf().append("Full load");
 		lb_load.update();
 		add_component(&lb_load);
 
-		add_table(2, 1);
+		add_table(2,1);
 		{
 			numimp_load.init(schedule->get_current_entry().minimum_loading, 0, 100, 10, false);
 			numimp_load.set_width(70);
@@ -633,7 +636,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		end_table();
 		new_component<gui_margin_t>(D_H_SPACE);
 
-		add_table(2, 1);
+		add_table(2,1);
 		{
 			// Maximum waiting time
 			lb_wait.buf().append("month wait time");
@@ -799,7 +802,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	}
 	end_table();
 
-	add_table(4,1);
+	add_table(4,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 	{
 		bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0,0), D_BUTTON_SIZE);
 		bt_add.set_tooltip("Appends stops at the end of the schedule");
@@ -840,10 +843,10 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	mode = adding;
 	update_selection();
 
-	reset_min_windowsize();
-
 	set_resizemode(diagonal_resize);
-	resize( scr_coord(0,0) );
+
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize());
 }
 
 
@@ -1372,9 +1375,10 @@ void schedule_gui_t::set_windowsize(scr_size size)
 	gui_frame_t::set_windowsize(size);
 
 	size = get_windowsize()-scr_size(0, D_SCROLLBAR_HEIGHT+D_V_SPACE);
-	scrolly.set_size(size-scr_size(0,scrolly.get_pos().y));
-
 	line_selector.set_max_size(scr_size(BUTTON4_X-D_MARGIN_LEFT, size.h-line_selector.get_pos().y -D_SCROLLBAR_HEIGHT-D_MARGIN_BOTTOM));
+	// make scrolly take all of space
+	scrolly.set_size(scr_size(scrolly.get_size().w, get_client_windowsize().h - scrolly.get_pos().y - D_MARGIN_BOTTOM));
+
 }
 
 
