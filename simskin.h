@@ -147,6 +147,9 @@ public:
 	static const skin_desc_t *service_frequency;
 	/// image to indicate that the movement method is walking
 	static const skin_desc_t *on_foot;
+	/// image shown in schedule dialog
+	static const skin_desc_t *layover;
+	static const skin_desc_t *refuel;
 
 
 
