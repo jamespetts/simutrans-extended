@@ -776,22 +776,22 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			sprintf(modified_name, "%s", halt->get_name());
 		}
 
-		if(entry.is_flag_set(schedule_entry_t::wait_for_time))
+		if(entry.is_flag_set(schedule_entry_t::wait_for_time) && !skinverwaltung_t::waiting_time)
 		{
 			buf.printf("[*] ");
 			prefix = true;
 		}
-		if (entry.is_flag_set(schedule_entry_t::lay_over))
+		if (entry.is_flag_set(schedule_entry_t::lay_over) && !skinverwaltung_t::layover)
 		{
 			buf.printf(translator::translate("[LO] "));
 			prefix = true;
 		}
-		if (entry.is_flag_set(schedule_entry_t::force_range_stop))
+		if (entry.is_flag_set(schedule_entry_t::force_range_stop) && !skinverwaltung_t::refuel)
 		{
 			buf.printf(translator::translate("[RS] "));
 			prefix = true;
 		}
-		if (entry.is_flag_set(schedule_entry_t::ignore_choose))
+		if (entry.is_flag_set(schedule_entry_t::ignore_choose) && !skinverwaltung_t::alerts)
 		{
 			buf.printf(translator::translate("[IC] "));
 			prefix = true;
@@ -806,32 +806,27 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			buf.printf("[%d->] ", entry.condition_bitfield_broadcaster);
 			prefix = true;
 		}
-		if (entry.minimum_loading != 0)
-		{
-			buf.printf("[%d%%] ", entry.minimum_loading);
-			prefix = true;
-		}
 		if (prefix == true)
 		{
 			buf.append(" ");
 		}
 
 
-		buf.printf("%s (%s)", modified_name, entry.pos.get_str() );
+		buf.printf("%s ", modified_name);
 	}
 	else {
 		const grund_t* gr = welt->lookup(entry.pos);
 		if(  gr==NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Invalid coordinate"), entry.pos.get_str() );
+			buf.printf("%s ", translator::translate("Invalid coordinate"));
 		}
 		else if(  gr->get_depot() != NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Depot"), entry.pos.get_str() );
+			buf.printf("%s ", translator::translate("Depot"));
 		}
 		else if(  const char *label_text = gr->get_text()  ){
-			buf.printf("%s %s (%s)", translator::translate("Wegpunkt"), label_text, entry.pos.get_str() );
+			buf.printf("%s %s ", translator::translate("Wegpunkt"), label_text);
 		}
 		else {
-			buf.printf("%s (%s)", translator::translate("Wegpunkt"), entry.pos.get_str() );
+			buf.printf("%s ", translator::translate("Wegpunkt"));
 		}
 	}
 }
