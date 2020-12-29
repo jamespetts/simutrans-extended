@@ -173,7 +173,7 @@ public:
 		add_component(&label); //1
 
 		img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
-		img_layover.set_tooltip(translator::translate("hlptxt_layover_symbol"));
+		img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
 		img_layover.set_rigid(true); // false breaks the layout
 		img_layover.set_visible(false);
 		add_component(&img_layover); //2
@@ -194,17 +194,18 @@ public:
 
 			new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
 			img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(0) : IMG_EMPTY, true);
-			img_refuel.set_tooltip(translator::translate("hlptxt_force_range_stop_symbol"));
+			img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
 			img_refuel.set_rigid(false);
 			img_refuel.set_visible(false);
 			add_component(&img_refuel); //5-3
 			add_component(&stop); // 5-4
 
 			img_ignore_choose.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
-			img_ignore_choose.set_tooltip(translator::translate("hlptxt_ignore_choose_symbol"));
+			img_ignore_choose.set_tooltip(translator::translate("If this is set, choose signals will be ignored while this convoy is heading to this destination."));
 			img_ignore_choose.set_rigid(false);
 			img_ignore_choose.set_visible(false);
 			add_component(&img_ignore_choose); //5-5
+
 			lb_pos.buf().printf("(%s)", entry.pos.get_str());
 			lb_pos.update();
 			add_component(&lb_pos); // 5-6
@@ -626,7 +627,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	add_table(4,0)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 	{
 		//set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
-		lb_load.buf().append("Full load");
+		lb_load.buf().append(translator::translate("Full load"));
 		lb_load.update();
 		add_component(&lb_load);
 
@@ -644,7 +645,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		add_table(2,1);
 		{
 			// Maximum waiting time
-			lb_wait.buf().append("month wait time");
+			lb_wait.buf().append(translator::translate("month wait time"));
 			lb_wait.update();
 			add_component(&lb_wait);
 
@@ -758,7 +759,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		}
 
 		// Conditional depart
-		new_component<gui_label_t>("wait_for_trigger")->set_tooltip("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy");
+		new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy"));
 		conditional_depart.set_width(numimp_load.get_size().w);
 		conditional_depart.init(schedule->get_current_entry().condition_bitfield_receiver, 0, 15, 1);
 		conditional_depart.add_listener(this);
@@ -776,7 +777,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 			condition_broadcast.add_listener(this);
 			add_component(&condition_broadcast);
 
-			new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving");
+			new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip(translator::translate("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving"));
 		}
 		end_table();
 
@@ -791,7 +792,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 
 		// Issuing Lay over
 		bt_lay_over.init(button_t::square_automatic, "lay_over");
-		bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop:");
+		bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop");
 		bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
 		bt_lay_over.add_listener(this);
 		add_component(&bt_lay_over,2);

@@ -1026,7 +1026,7 @@ Friction:
 fuel_cell
 燃料電池
 Full load
-積むまで待機(％):
+積むまで待機
 Fundament
 土地
 Fussgaenger
@@ -4057,6 +4057,28 @@ Unreachable
 N/A
 %.2f sec
 %.2f 秒
+wait_for_trigger
+増結待ち
+if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy
+指定された数の編成を増結するまで駅で待機します
+broadcast_trigger_on_arrival
+編成解放
+if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving
+編成は駅に到着後、指定された数の編成を切り離します
+force_range_stop
+給油／補給指定
+if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop
+この駅で必ず給油／補給を行います
+ignore_choose_on_arrival
+到着番線の固定
+If this is set, choose signals will be ignored while this convoy is heading to this destination.
+この駅では選択信号／標識を無視して指定地点へ進みます
+lay_over
+非営業状態で待機
+if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
+次の運用時刻まで非営業車扱いで待機します
+Last overhauled:
+最終全検：
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
