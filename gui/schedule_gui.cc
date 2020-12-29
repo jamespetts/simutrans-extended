@@ -455,7 +455,12 @@ void schedule_gui_stats_t::update_schedule()
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt));
 				if (i< schedule->entries.get_count()-1) {
 					entries[i]->set_distance(schedule->entries[i+1].pos);
-					entries[i]->set_line_style(base_line_style);
+					if(welt->lookup(schedule->entries[i].pos)->get_depot() || welt->lookup(schedule->entries[i+1].pos)->get_depot()) {
+						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
+					}
+					else {
+						entries[i]->set_line_style(base_line_style);
+					}
 				}
 				entries.back()->add_listener(this);
 			}
@@ -464,7 +469,7 @@ void schedule_gui_stats_t::update_schedule()
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::reversed);
 				}
 				else {
-					entries[schedule->entries.get_count()-1]->set_distance(schedule->entries[0].pos);
+					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos);
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed); // UI TODO: down arrow is better?
 				}
 			}

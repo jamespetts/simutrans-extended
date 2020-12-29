@@ -819,11 +819,16 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 		if(  gr==NULL  ) {
 			buf.printf("%s ", translator::translate("Invalid coordinate"));
 		}
+		else if(  const char *label_text = gr->get_text()  ){
+			if (gr->get_depot() != NULL) {
+				buf.printf("%s %s ", translator::translate("Depot"), label_text);
+			}
+			else {
+				buf.printf("%s %s ", translator::translate("Wegpunkt"), label_text);
+			}
+		}
 		else if(  gr->get_depot() != NULL  ) {
 			buf.printf("%s ", translator::translate("Depot"));
-		}
-		else if(  const char *label_text = gr->get_text()  ){
-			buf.printf("%s %s ", translator::translate("Wegpunkt"), label_text);
 		}
 		else {
 			buf.printf("%s ", translator::translate("Wegpunkt"));
