@@ -30,6 +30,40 @@ class loadsave_t;
 class gui_schedule_entry_t;
 
 
+class gui_wait_loading_schedule_t : public gui_container_t
+{
+	uint8 val = 0;
+public:
+	gui_wait_loading_schedule_t(uint8 val=0);
+
+	void draw(scr_coord offset);
+
+	void set_value(const uint8 v) { val = v; };
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+class gui_schedule_couple_order_t : public gui_container_t
+{
+	uint16 join = 0;
+	uint16 leave = 0;
+	gui_label_buf_t lb_join, lb_leave;
+
+public:
+	gui_schedule_couple_order_t(uint16 leave=0, uint16 join=0);
+
+	void draw(scr_coord offset);
+
+	void set_join(const uint16 j) { join = j; };
+	void set_leave(const uint16 l) { leave = l; };
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
 class gui_schedule_entry_number_t : public gui_container_t
 {
 	sint8 player_nr;

@@ -796,16 +796,6 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			buf.printf(translator::translate("[IC] "));
 			prefix = true;
 		}
-		if (entry.condition_bitfield_receiver > 0)
-		{
-			buf.printf("[->%d] ", entry.condition_bitfield_receiver);
-			prefix = true;
-		}
-		if (entry.condition_bitfield_broadcaster > 0)
-		{
-			buf.printf("[%d->] ", entry.condition_bitfield_broadcaster);
-			prefix = true;
-		}
 		if (prefix == true)
 		{
 			buf.append(" ");

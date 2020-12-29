@@ -43,6 +43,69 @@ static karte_ptr_t welt;
 #define L_ENTRY_NO_HEIGHT (LINESPACE+4)
 #define L_ENTRY_NO_WIDTH (proportional_string_width("88")+6)
 
+// helper class
+gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint8 val_)
+{
+	val = val_;
+	const scr_coord_val img_width = skinverwaltung_t::goods->get_image(0)->get_pic()->w;
+	size.w = img_width + 8; // symbol_width + margin + border*2 + bar_width
+	size.h = L_ENTRY_NO_HEIGHT;
+}
+
+void gui_wait_loading_schedule_t::draw(scr_coord offset)
+{
+	if (val && size.h>2) {
+		display_color_img_with_tooltip(skinverwaltung_t::goods->get_image_id(0), pos.x+offset.x, pos.y+offset.y + D_GET_CENTER_ALIGN_OFFSET(skinverwaltung_t::goods->get_image(0)->get_pic()->h, size.h), 0, false, false, translator::translate("Full load"));
+		display_ddd_box_clip_rgb(   pos.x+offset.x+size.w-6,   pos.y+offset.y,   6, size.h,   color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4)); // frame
+		display_fillbox_wh_clip_rgb(pos.x+offset.x+size.w-6+1, pos.y+offset.y+1, 4, size.h-1, color_idx_to_rgb(MN_GREY2), true);                       // background
+		const scr_coord_val bar_height = (size.h-2)*val/100;
+		display_fillbox_wh_clip_rgb(pos.x+offset.x+size.w-6+1, pos.y+offset.y+(size.h-2)+1-bar_height, 4, bar_height, COL_IN_TRANSIT, true);           // load limit
+		gui_container_t::draw(offset);
+	}
+}
+
+
+#define L_COUPLE_ORDER_LABEL_WIDTH (proportional_string_width("+88")+D_H_SPACE)
+gui_schedule_couple_order_t::gui_schedule_couple_order_t(uint16 leave_, uint16 join_)
+{
+	leave = leave_;
+	join = join_;
+	size.h = L_ENTRY_NO_HEIGHT;
+	lb_leave.init(color_idx_to_rgb(COL_WHITE), gui_label_t::centered);
+	lb_leave.set_pos(scr_coord(0, 2));
+	lb_leave.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, LINESPACE));
+	lb_join.init(color_idx_to_rgb(COL_WHITE), gui_label_t::centered);
+	lb_join.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, LINESPACE));
+	lb_leave.set_fixed_width(L_COUPLE_ORDER_LABEL_WIDTH);
+	lb_join.set_fixed_width(L_COUPLE_ORDER_LABEL_WIDTH);
+	add_component(&lb_leave);
+	add_component(&lb_join);
+}
+
+void gui_schedule_couple_order_t::draw(scr_coord offset)
+{
+	scr_coord_val total_x = 0;
+	if (leave || join) {
+		lb_leave.set_visible(leave);
+		lb_join.set_visible(join);
+		if (leave) {
+			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINESPACE, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
+			lb_leave.buf().printf("-%u", leave);
+			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
+		}
+		if (join) {
+			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE / 2, LINESPACE, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
+			lb_join.buf().printf("+%u", join);
+			lb_join.set_pos(scr_coord(total_x + LINESPACE/2, 2));
+			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
+		}
+		lb_leave.update();
+		lb_join.update();
+		gui_container_t::draw(offset);
+	}
+	size.w = total_x;
+}
+
 gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint number_, sint8 player, uint8 style_)
 {
 	number = number_+1;
@@ -79,7 +142,7 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 				color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1() + 4), true);
 			break;
 		case number_style::waypoint:
-			display_fillbox_wh_clip_rgb(pos.x + offset.x + L_ENTRY_NO_WIDTH / 4, pos.y + offset.y, L_ENTRY_NO_WIDTH/2, L_ENTRY_NO_HEIGHT,
+			display_fillbox_wh_clip_rgb(pos.x+offset.x + L_ENTRY_NO_WIDTH / 4, pos.y+offset.y, L_ENTRY_NO_WIDTH/2, L_ENTRY_NO_HEIGHT,
 				color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1() + 4), true);
 			display_filled_circle_rgb(pos.x+offset.x + size.w/2, pos.y+offset.y + L_ENTRY_NO_HEIGHT/2, L_ENTRY_NO_HEIGHT/2, base_colval);
 			break;
@@ -151,11 +214,13 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	bool is_air_wt;
 	uint number;
 	player_t* player;
-	gui_image_t img_ware, img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
+	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
 	gui_label_buf_t stop;
-	gui_label_buf_t label, lb_reverse, lb_minload, lb_distance, lb_pos;
+	gui_label_buf_t lb_reverse, lb_distance, lb_pos;
 	gui_schedule_entry_number_t *entry_no;
 	gui_colored_route_bar_t *route_bar;
+	gui_wait_loading_schedule_t *wait_loading;
+	gui_schedule_couple_order_t *couple_order;
 
 public:
 	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false)
@@ -168,20 +233,18 @@ public:
 		set_table_layout(6,0);
 		set_spacing(scr_size(D_H_SPACE,0));
 
-		label.set_align(gui_label_t::right);
-		label.set_fixed_width(15); // dummy
-		add_component(&label); //1
-
 		img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
 		img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
 		img_layover.set_rigid(true); // false breaks the layout
 		img_layover.set_visible(false);
-		add_component(&img_layover); //2
+		add_component(&img_layover); //1
 
 		img_hourglass.set_image(skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
 		img_hourglass.set_rigid(true);
-		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time));
-		add_component(&img_hourglass); //3
+		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
+		add_component(&img_hourglass); //2
+
+		wait_loading = new_component<gui_wait_loading_schedule_t>(entry.minimum_loading); // 3
 
 		entry_no = new_component<gui_schedule_entry_number_t>(number, player->get_player_nr(), 0); // 4
 
@@ -192,7 +255,9 @@ public:
 			img_nc_alert.set_visible(false);
 			add_component(&img_nc_alert); // 5-1
 
-			new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
+			couple_order = new_component<gui_schedule_couple_order_t>(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster); // 5-2
+			//new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
+
 			img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(0) : IMG_EMPTY, true);
 			img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
 			img_refuel.set_rigid(false);
@@ -230,27 +295,18 @@ public:
 		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_nr(),0); // 6
 		route_bar->set_visible(true);
 
-		add_table(2,1); //7
-		{
-			img_ware.set_image(skinverwaltung_t::goods->get_image_id(0), true);
-			img_ware.set_rigid(true);
-			img_ware.set_tooltip(translator::translate("Full load"));
-			img_ware.set_visible(entry.minimum_loading != 0);
-			add_component(&img_ware); // 7-1
-			add_component(&lb_minload); // 7-2
-		}
-		end_table();
-
-		// UI TODO: Add cell(s) for displaying options
-		// UI TODO: Align the x positions of the cells. Consider symbolization and cell separation for some items.
-
-		new_component<gui_fill_t>(); //8
+		new_component<gui_empty_t>(); //7
+		new_component<gui_fill_t>();  //8
 		update_label();
 	}
 
 	void update_label()
 	{
 		halthandle_t halt = welt->lookup(entry.pos)->get_halt();
+		wait_loading->set_value(entry.minimum_loading);
+		couple_order->set_join(entry.condition_bitfield_broadcaster);
+		couple_order->set_leave(entry.condition_bitfield_receiver);
+
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
 		if (halt.is_bound()) {
 			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::halt);
@@ -287,18 +343,7 @@ public:
 		schedule_t::gimme_stop_name(stop.buf(), world(), player, entry, no_control_tower); // UI TODO: After porting the function, remove this function
 		stop.update();
 
-		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time));
-		img_ware.set_visible(entry.minimum_loading != 0);
-		if (entry.minimum_loading != 0) {
-			lb_minload.buf().printf("%d%%", entry.minimum_loading);
-			lb_minload.set_visible(true);
-		}
-		else {
-			lb_minload.set_visible(false);
-		}
-		lb_minload.set_rigid(true);
-		lb_minload.set_fixed_width(D_BUTTON_WIDTH/2);
-		lb_minload.update();
+		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
 		lb_reverse.set_visible(entry.reverse == 1);
 	}
 
@@ -318,7 +363,6 @@ public:
 
 	void set_line_style(uint8 s)
 	{
-		// UI TODO: Check the 2 points as depot or waypoint and rewrite the style
 		route_bar->set_line_style(s);
 	}
 
@@ -626,7 +670,6 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 
 	add_table(4,0)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 	{
-		//set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
 		lb_load.buf().append(translator::translate("Full load"));
 		lb_load.update();
 		add_component(&lb_load);
