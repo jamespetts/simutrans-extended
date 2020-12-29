@@ -216,7 +216,7 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	player_t* player;
 	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
 	gui_label_buf_t stop;
-	gui_label_buf_t lb_reverse, lb_distance, lb_pos;
+	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
 	gui_schedule_entry_number_t *entry_no;
 	gui_colored_route_bar_t *route_bar;
 	gui_wait_loading_schedule_t *wait_loading;
@@ -295,7 +295,7 @@ public:
 		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_nr(),0); // 6
 		route_bar->set_visible(true);
 
-		new_component<gui_empty_t>(); //7
+		add_component(&lb_speed_limit); // 7
 		new_component<gui_fill_t>();  //8
 		update_label();
 	}
@@ -360,6 +360,8 @@ public:
 		}
 		lb_distance.update();
 	}
+
+	// UI TODO: Creating a function that updates the speed limit label. Check the speed limit at the "next" pos.
 
 	void set_line_style(uint8 s)
 	{
