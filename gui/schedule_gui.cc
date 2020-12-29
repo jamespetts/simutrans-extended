@@ -591,7 +591,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	end_table();
 
 	if (cnv.is_bound()) {
-		add_table(5,0);
+		add_table(5,0)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 		{
 			new_component<gui_label_t>("Serves Line:");
 			line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
