@@ -230,8 +230,10 @@ public:
 		number = n;
 		is_current = false;
 		is_air_wt = air_wt;
-		set_table_layout(6,0);
+		set_table_layout(7,0);
 		set_spacing(scr_size(D_H_SPACE,0));
+
+		new_component<gui_margin_t>(5); // UI TODO: Use variables to make the right margins
 
 		img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
 		img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
@@ -290,7 +292,7 @@ public:
 		lb_distance.set_rigid(true);
 		lb_distance.buf().append("");
 		lb_distance.update();
-		add_component(&lb_distance, 3); // 5
+		add_component(&lb_distance, 4); // 5
 
 		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_nr(),0); // 6
 		route_bar->set_visible(true);
@@ -1439,6 +1441,7 @@ void schedule_gui_t::map_rotate90( sint16 y_size)
 }
 
 
+// UI TODO: Must support new UI
 void schedule_gui_t::rdwr(loadsave_t *file)
 {
 	// this handles only schedules of bound convois
