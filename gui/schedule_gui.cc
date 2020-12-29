@@ -207,12 +207,12 @@ public:
 			add_component(&img_ignore_choose); //5-5
 			lb_pos.buf().printf("(%s)", entry.pos.get_str());
 			lb_pos.update();
-			add_component(&lb_pos); // 5-5
+			add_component(&lb_pos); // 5-6
 
+			lb_reverse.set_visible(true);
 			lb_reverse.buf().append("[<<]");
 			lb_reverse.set_color(SYSCOL_TEXT_STRONG);
 			lb_reverse.update();
-			lb_reverse.set_visible(false);
 			add_component(&lb_reverse); // 5-7
 		}
 		end_table();
