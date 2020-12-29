@@ -3165,23 +3165,23 @@ void gui_convoy_assembler_t::draw_vehicle_bar_help(scr_coord offset)
 	display_proportional_clip_rgb(left, top, translator::translate("Vehicle bar shape legend:"), ALIGN_LEFT, SYSCOL_TEXT, true);
 	top += LINESPACE;
 	left += D_MARGIN_LEFT;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_head, 0, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 0, true);
+	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, vehicle_desc_t::can_be_head, 0, false);
+	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 0, true);
 	padding = display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_one_direction"), ALIGN_LEFT, CITY_KI, true);
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_head, 1, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, (vehicle_desc_t::can_be_head + vehicle_desc_t::can_be_tail), 1, true);
+	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, vehicle_desc_t::can_be_head, 1, false);
+	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, (vehicle_desc_t::can_be_head + vehicle_desc_t::can_be_tail), 1, true);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_cab_head"), ALIGN_LEFT, CITY_KI, true));
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, true);
+	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, false);
+	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, true);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_can_be_at_rear"), ALIGN_LEFT, CITY_KI, true));
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, 0, 0, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, 0, 0, true);
+	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, 0, 0, false);
+	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, 0, 0, true);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_intermediate"), ALIGN_LEFT, CITY_KI, true));
 
 	/*

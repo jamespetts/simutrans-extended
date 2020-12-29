@@ -285,7 +285,7 @@ void display_cylinderbar_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KO
 
 void display_colorbox_with_tooltip(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty, const char *text=NULL);
 
-void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVAL color, bool dirty, uint8 basic_coupling_constraint, uint8 interactivity, bool is_rightside CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
+void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty, uint8 basic_coupling_constraint, uint8 interactivity, bool is_rightside CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
 
 enum {
 	BIDIRECTIONAL = 1,

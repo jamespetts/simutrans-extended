@@ -4157,9 +4157,8 @@ void display_array_wh(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, cons
 	}
 }
 
-void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, PIXVAL color, bool dirty, uint8 basic_constraint_flags, uint8 interactivity, bool is_rightside  CLIP_NUM_DEF_NOUSE)
+void display_veh_form_wh_clip_rgb(KOORD_VAL xp, KOORD_VAL yp, KOORD_VAL w, KOORD_VAL h, PIXVAL color, bool dirty, uint8 basic_constraint_flags, uint8 interactivity, bool is_rightside  CLIP_NUM_DEF_NOUSE)
 {
-	uint8 h = VEHICLE_BAR_HEIGHT;
 	uint8 width = (uint8)((w + 1) * 0.9);
 	uint8 margin_left = w - width;
 
