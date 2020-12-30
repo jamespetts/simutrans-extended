@@ -129,12 +129,19 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 	// draw the back image
 	switch (style) {
 		case number_style::halt:
-		default:
 			display_filled_roundbox_clip(pos.x+offset.x, pos.y+offset.y, size.w, L_ENTRY_NO_HEIGHT, base_colval, false);
-			display_filled_roundbox_clip(pos.x+offset.x + 2, pos.y+offset.y + 2, size.w - 4, L_ENTRY_NO_HEIGHT-4, color_idx_to_rgb(COL_WHITE), false);
+			text_colval = color_idx_to_rgb(COL_WHITE);
+			break;
+		case number_style::interchange:
+			display_filled_roundbox_clip(pos.x+offset.x, pos.y+offset.y, size.w, L_ENTRY_NO_HEIGHT, base_colval, false);
+			display_filled_roundbox_clip(pos.x+offset.x + 2, pos.y+offset.y + 2, size.w - 4, L_ENTRY_NO_HEIGHT - 4, color_idx_to_rgb(COL_WHITE), false);
 			break;
 		case number_style::depot:
-			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, size.w, L_ENTRY_NO_HEIGHT, base_colval, false);
+			for (uint8 i = 0; i < 3; i++) {
+				const scr_coord_val w = (size.w/2)*(i+1)/4;
+				display_fillbox_wh_clip_rgb(pos.x+offset.x+(size.w-w*2)/2, pos.y+offset.y+i, w*2, 1, color_idx_to_rgb(91), false);
+			}
+			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+3, size.w, L_ENTRY_NO_HEIGHT-3, color_idx_to_rgb(91), false);
 			text_colval = color_idx_to_rgb(COL_WHITE);
 			break;
 		case number_style::none:
@@ -146,8 +153,12 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 				color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1() + 4), true);
 			display_filled_circle_rgb(pos.x+offset.x + size.w/2, pos.y+offset.y + L_ENTRY_NO_HEIGHT/2, L_ENTRY_NO_HEIGHT/2, base_colval);
 			break;
+		default:
+			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, size.w, L_ENTRY_NO_HEIGHT, base_colval, false);
+			text_colval = color_idx_to_rgb(COL_WHITE);
+			break;
 	}
-	if (style == number_style::halt || style == number_style::depot) {
+	if (style != number_style::waypoint) {
 		lb_number.buf().printf("%u", number);
 		lb_number.set_color(text_colval);
 	}
@@ -311,7 +322,8 @@ public:
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
 		if (halt.is_bound()) {
-			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::halt);
+			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
+			entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 			entry_no->set_owner(halt->get_owner()->get_player_nr());
 
 			if (is_air_wt) {

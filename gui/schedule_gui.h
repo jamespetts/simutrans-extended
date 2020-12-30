@@ -73,6 +73,7 @@ class gui_schedule_entry_number_t : public gui_container_t
 public:
 	enum number_style {
 		halt = 0,
+		interchange, //(halt) 
 		depot,
 		waypoint,
 		none
