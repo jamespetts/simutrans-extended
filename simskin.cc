@@ -82,6 +82,7 @@ const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service 
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
 const skin_desc_t* skinverwaltung_t::layover            = NULL;
 const skin_desc_t* skinverwaltung_t::refuel             = NULL;
+const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
 
 // cursors
 const skin_desc_t* skinverwaltung_t::cursor_general     = NULL;	// new cursors
@@ -146,6 +147,7 @@ static spezial_obj_tpl<skin_desc_t> const symbol_objekte[] = {
 	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
 	{ &skinverwaltung_t::layover,            "Layover"        },
 	{ &skinverwaltung_t::refuel,             "Refuel"         },
+	{ &skinverwaltung_t::ignore_choose,      "IgnoreChoose"   },
 	{ &skinverwaltung_t::seasons_icons,      "Seasons"        },
 	{ &skinverwaltung_t::message_options,    "MessageOptions" },
 	{ &skinverwaltung_t::color_options,      "ColorOptions"   },
@@ -201,7 +203,7 @@ bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 	switch (type) {
 		case menu:    sd = menu_objekte+1;     break;
 		case cursor:  sd = cursor_objekte;     break;
-		case symbol:  sd = symbol_objekte+16;   break;
+		case symbol:  sd = symbol_objekte+17;   break;
 		case misc:
 			sd = misc_objekte+3;
 			// for compatibility: use sidewalk as tunneltexture

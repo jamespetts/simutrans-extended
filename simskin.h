@@ -150,6 +150,7 @@ public:
 	/// image shown in schedule dialog
 	static const skin_desc_t *layover;
 	static const skin_desc_t *refuel;
+	static const skin_desc_t *ignore_choose;
 
 
 

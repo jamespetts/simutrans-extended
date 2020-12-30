@@ -267,7 +267,7 @@ public:
 			add_component(&img_refuel); //5-3
 			add_component(&stop); // 5-4
 
-			img_ignore_choose.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
+			img_ignore_choose.set_image(skinverwaltung_t::ignore_choose ? skinverwaltung_t::ignore_choose->get_image_id(0) : skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
 			img_ignore_choose.set_tooltip(translator::translate("If this is set, choose signals will be ignored while this convoy is heading to this destination."));
 			img_ignore_choose.set_rigid(false);
 			img_ignore_choose.set_visible(false);
