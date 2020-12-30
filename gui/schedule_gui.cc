@@ -317,8 +317,8 @@ public:
 	{
 		halthandle_t halt = welt->lookup(entry.pos)->get_halt();
 		wait_loading->set_value(entry.minimum_loading);
-		couple_order->set_join(entry.condition_bitfield_broadcaster);
-		couple_order->set_leave(entry.condition_bitfield_receiver);
+		couple_order->set_leave(entry.condition_bitfield_broadcaster);
+		couple_order->set_join(entry.condition_bitfield_receiver);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
 		if (halt.is_bound()) {
