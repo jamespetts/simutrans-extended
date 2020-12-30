@@ -22,7 +22,7 @@ public:
 		sint8 const waiting_time_shift,
 		sint16 spacing_shift,
 		sint8 reverse,
-		uint16 flags,
+		uint32 flags,
 		uint16 unique_entry_id,
 		uint16 condition_bitfield_broadcaster,
 		uint16 condition_bitfield_receiver,
@@ -53,26 +53,30 @@ public:
 	enum schedule_entry_flag
 	{
 		/* General*/
-		wait_for_time					= (1u << 0),
-		lay_over						= (1u << 1),
-		ignore_choose					= (1u << 2),
-		force_range_stop				= (1u << 3),
-
+		wait_for_time                   = (1u << 0),
+		lay_over                        = (1u << 1),
+		ignore_choose                   = (1u << 2),
+		force_range_stop                = (1u << 3),
 		/* Conditional triggers */
-		conditional_depart_before_wait	= (1u << 4),
-		conditional_depart_after_wait	= (1u << 5),
-		conditional_skip				= (1u << 6),
-		send_trigger					= (1u << 7),
-		cond_trigger_is_line_or_cnv		= (1u << 8),
-		clear_stored_triggers_on_dep	= (1u << 9),
-		trigger_one_only				= (1u << 10),
+		conditional_depart_before_wait  = (1u << 4),
+		conditional_depart_after_wait   = (1u << 5),
+		conditional_skip                = (1u << 6),
+		send_trigger                    = (1u << 7),
+		cond_trigger_is_line_or_cnv     = (1u << 8),
+		clear_stored_triggers_on_dep    = (1u << 9),
+		trigger_one_only                = (1u << 10),
 
 		/* Re-combination */
-		couple							= (1u << 11),
-		uncouple						= (1u << 12),
-		couple_target_is_line_or_cnv	= (1u << 13),
-		uncouple_target_is_line_or_cnv	= (1u << 14),
-		uncouple_target_sch_is_reversed = (1u << 15)
+		couple                          = (1u << 11),
+		uncouple                        = (1u << 12),
+		couple_target_is_line_or_cnv    = (1u << 13),
+		uncouple_target_is_line_or_cnv  = (1u << 14),
+		uncouple_target_sch_is_reversed = (1u << 15),
+
+		discharge_payload               = (1u << 16),
+		set_down_only                   = (1u << 17),
+		pick_up_only                    = (1u << 18)
+
 	};
 
 	// These are used in place of minimum_loading to control
@@ -87,7 +91,7 @@ public:
 	/*
 	* A bitfield of flags of the type schedule_entry_flag (supra)
 	*/
-	uint16 flags;
+	uint32 flags;
 
 	/**
 	 * Wait for % load at this stop

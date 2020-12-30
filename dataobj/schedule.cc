@@ -116,7 +116,7 @@ halthandle_t schedule_t::get_prev_halt( player_t *player ) const
 }
 
 
-bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint16 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure)
+bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count() >= 254)
@@ -158,7 +158,7 @@ bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 
 
 
-bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint16 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple)
+bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count()>=254) {
@@ -384,7 +384,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				}
 				else // Newer version (>14) with bitfield and new data
 				{
-					file->rdwr_short(entries[i].flags);
+					file->rdwr_long(entries[i].flags);
 					file->rdwr_short(entries[i].unique_entry_id);
 					file->rdwr_short(entries[i].condition_bitfield_broadcaster);
 					file->rdwr_short(entries[i].condition_bitfield_receiver);
@@ -500,7 +500,7 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 	}
 	// now we have to check all entries ...
 	// we need to do this that complicated, because the last stop may make the difference
-	uint16 f1=0, f2=0;
+	uint32 f1=0, f2=0;
 	while(  f1+f2<entries.get_count()+schedule->entries.get_count()  ) {
 
 		if(		f1<entries.get_count()  &&  f2<schedule->entries.get_count()
@@ -508,7 +508,7 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 			&& schedule->entries[(uint16)f2].minimum_loading == entries[(uint16)f1].minimum_loading
 			&& schedule->entries[(uint8)f2].waiting_time_shift == entries[(uint8)f1].waiting_time_shift
 			&& schedule->entries[(uint8)f2].spacing_shift == entries[(uint8)f1].spacing_shift
-			&& schedule->entries[(uint16)f2].flags == entries[(uint16)f1].flags
+			&& schedule->entries[(uint32)f2].flags == entries[(uint32)f1].flags
 			&& schedule->entries[(uint16)f2].unique_entry_id == entries[(uint16)f1].unique_entry_id
 			&& schedule->entries[(uint16)f2].condition_bitfield_broadcaster == entries[(uint16)f1].condition_bitfield_broadcaster
 			&& schedule->entries[(uint16)f2].condition_bitfield_receiver == entries[(uint16)f1].condition_bitfield_receiver
@@ -737,7 +737,7 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 	const uint32 number_of_data_per_entry = 13 + 2; // +2 is necessary as a koord3d takes 3 values
 	// now scan the entries
 	while(  *p>0  ) {
-		sint16 values[number_of_data_per_entry];
+		sint32 values[number_of_data_per_entry];
 		for(  sint8 i=0;  i<number_of_data_per_entry;  i++  ) {
 			values[i] = atoi( p );
 			while(  *p  &&  (*p!=','  &&  *p!='|')  ) {
