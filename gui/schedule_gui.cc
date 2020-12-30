@@ -65,7 +65,7 @@ void gui_wait_loading_schedule_t::draw(scr_coord offset)
 }
 
 
-#define L_COUPLE_ORDER_LABEL_WIDTH (proportional_string_width("+88")+D_H_SPACE)
+#define L_COUPLE_ORDER_LABEL_WIDTH (proportional_string_width("88")+D_H_SPACE)
 gui_schedule_couple_order_t::gui_schedule_couple_order_t(uint16 leave_, uint16 join_)
 {
 	leave = leave_;
@@ -73,9 +73,9 @@ gui_schedule_couple_order_t::gui_schedule_couple_order_t(uint16 leave_, uint16 j
 	size.h = L_ENTRY_NO_HEIGHT;
 	lb_leave.init(color_idx_to_rgb(COL_WHITE), gui_label_t::centered);
 	lb_leave.set_pos(scr_coord(0, 2));
-	lb_leave.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, LINESPACE));
+	lb_leave.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, D_LABEL_HEIGHT));
 	lb_join.init(color_idx_to_rgb(COL_WHITE), gui_label_t::centered);
-	lb_join.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, LINESPACE));
+	lb_join.set_size(scr_size(L_COUPLE_ORDER_LABEL_WIDTH, D_LABEL_HEIGHT));
 	lb_leave.set_fixed_width(L_COUPLE_ORDER_LABEL_WIDTH);
 	lb_join.set_fixed_width(L_COUPLE_ORDER_LABEL_WIDTH);
 	add_component(&lb_leave);
@@ -90,12 +90,12 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 		lb_join.set_visible(join);
 		if (leave) {
 			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINESPACE, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
-			lb_leave.buf().printf("-%u", leave);
+			lb_leave.buf().printf("%u", leave);
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
 		}
 		if (join) {
 			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE / 2, LINESPACE, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
-			lb_join.buf().printf("+%u", join);
+			lb_join.buf().printf("%u", join);
 			lb_join.set_pos(scr_coord(total_x + LINESPACE/2, 2));
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
 		}
@@ -113,7 +113,7 @@ gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint number_, sint8 pla
 	player_nr = player;
 	size.w = L_ENTRY_NO_WIDTH;
 	lb_number.set_align(gui_label_t::centered);
-	lb_number.set_size(scr_size(size.w, L_ENTRY_NO_HEIGHT));
+	lb_number.set_size(scr_size(size.w, D_LABEL_HEIGHT));
 	lb_number.set_pos(scr_coord(0, 2));
 	add_component(&lb_number);
 }
@@ -260,7 +260,7 @@ public:
 			couple_order = new_component<gui_schedule_couple_order_t>(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster); // 5-2
 			//new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
 
-			img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(0) : IMG_EMPTY, true);
+			img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(1) : IMG_EMPTY, true);
 			img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
 			img_refuel.set_rigid(false);
 			img_refuel.set_visible(false);
@@ -529,7 +529,6 @@ void schedule_gui_stats_t::update_schedule()
 		else {
 			last_schedule = schedule->copy();
 		}
-		set_size(get_min_size());
 	}
 	highlight_schedule(true);
 }
@@ -539,6 +538,7 @@ void schedule_gui_stats_t::draw(scr_coord offset)
 	update_schedule();
 
 	gui_aligned_container_t::draw(offset);
+	set_size(get_min_size());
 }
 
 bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
