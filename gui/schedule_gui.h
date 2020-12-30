@@ -119,7 +119,7 @@ private:
 
 	vector_tpl<gui_schedule_entry_t*> entries;
 	schedule_t *last_schedule;
-	static zeiger_t *current_stop_mark;
+	zeiger_t *current_stop_mark;
 public:
 	schedule_t* schedule;
 	player_t* player;

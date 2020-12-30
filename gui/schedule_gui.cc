@@ -451,7 +451,6 @@ void schedule_gui_stats_t::highlight_schedule( bool marking )
 }
 
 
-zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
 cbuffer_t schedule_gui_stats_t::buf;
 
 
