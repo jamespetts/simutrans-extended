@@ -386,7 +386,7 @@ public:
 	{
 		update_label();
 		if (is_current) {
-			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, size.w, L_ENTRY_NO_HEIGHT, SYSCOL_LIST_BACKGROUND_SELECTED_F, false);
+			display_blend_wh_rgb(pos.x+offset.x, pos.y+offset.y-1, size.w, L_ENTRY_NO_HEIGHT+2, SYSCOL_LIST_BACKGROUND_SELECTED_F, 50);
 		}
 		gui_aligned_container_t::draw(offset);
 	}
