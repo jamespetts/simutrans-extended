@@ -57,6 +57,11 @@ public:
 		lay_over                        = (1u << 1),
 		ignore_choose                   = (1u << 2),
 		force_range_stop                = (1u << 3),
+
+		discharge_payload               = (1u << 16),
+		set_down_only                   = (1u << 17),
+		pick_up_only                    = (1u << 18),
+
 		/* Conditional triggers */
 		conditional_depart_before_wait  = (1u << 4),
 		conditional_depart_after_wait   = (1u << 5),
@@ -71,11 +76,7 @@ public:
 		uncouple                        = (1u << 12),
 		couple_target_is_line_or_cnv    = (1u << 13),
 		uncouple_target_is_line_or_cnv  = (1u << 14),
-		uncouple_target_sch_is_reversed = (1u << 15),
-
-		discharge_payload               = (1u << 16),
-		set_down_only                   = (1u << 17),
-		pick_up_only                    = (1u << 18)
+		uncouple_target_sch_is_reversed = (1u << 15)
 
 	};
 
