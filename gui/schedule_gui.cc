@@ -89,12 +89,12 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 		lb_leave.set_visible(leave);
 		lb_join.set_visible(join);
 		if (leave) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINESPACE, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
 			lb_leave.buf().printf("%u", leave);
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
 		}
 		if (join) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE / 2, LINESPACE, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE / 2, LINEASCENT+2, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
 			lb_join.buf().printf("%u", join);
 			lb_join.set_pos(scr_coord(total_x + LINESPACE/2, 2));
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
@@ -400,7 +400,7 @@ public:
 	bool infowin_event(const event_t *ev) OVERRIDE
 	{
 		if( ev->ev_class == EVENT_CLICK ) {
-			if(  IS_RIGHTCLICK(ev)  ||  ev->mx < stop.get_pos().x) {
+			if(  IS_RIGHTCLICK(ev)  ||  (ev->mx < entry_no->get_pos().x+L_ENTRY_NO_WIDTH && ev->mx > entry_no->get_pos().x) ) {
 				// just center on it
 				welt->get_viewport()->change_world_position( entry.pos );
 			}
