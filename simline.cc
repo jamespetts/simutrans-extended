@@ -775,6 +775,32 @@ bool simline_t::has_overcrowded() const
 	return false;
 }
 
+bool simline_t::needs_electrification() const
+{
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		if (line_managed_convoy->needs_electrification())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+uint16 simline_t::get_min_range() const
+{
+	uint16 min_range = UINT16_MAX;
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		if (line_managed_convoy->get_min_range())
+		{
+			min_range = min(line_managed_convoy->get_min_range(), min_range);
+		}
+	}
+	return min_range == UINT16_MAX ? 0 : min_range;
+}
+
+
 void simline_t::calc_classes_carried()
 {
 	if (welt->is_destroying())

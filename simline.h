@@ -265,6 +265,10 @@ public:
 	//@author: jamespetts
 	bool has_overcrowded() const;
 
+	bool needs_electrification() const;
+
+	uint16 get_min_range() const;
+
 	void set_withdraw( bool yes_no );
 
 	bool get_withdraw() const { return withdraw; }
