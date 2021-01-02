@@ -58,4 +58,40 @@ public:
 	}
 };
 
+
+/**
+ * Draws a colored bar to represent the role and status of the vehicle
+ */
+class gui_vehicle_bar_t : public gui_component_t
+{
+	PIXVAL color = COL_DANGER;
+
+	uint8 height = VEHICLE_BAR_HEIGHT;
+	uint8 width = VEHICLE_BAR_HEIGHT*4;
+
+	//const char * tooltip;
+	uint8 flags_left;
+	uint8 flags_right;
+	uint8 interactivity;
+
+public:
+	gui_vehicle_bar_t(PIXVAL = COL_DANGER, scr_size size=scr_size(VEHICLE_BAR_HEIGHT*4, VEHICLE_BAR_HEIGHT));
+
+	void init(PIXVAL color_par, scr_size size=scr_size(VEHICLE_BAR_HEIGHT*4, VEHICLE_BAR_HEIGHT)) {
+		set_color(color_par);
+		set_size(size);
+	}
+
+	void set_flags(uint8 flags_left_, uint8 flags_right_, uint8 interactivity_);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	void set_color(PIXVAL c) { color = c; }
+
+	scr_size get_min_size() const OVERRIDE { return size; };
+	scr_size get_max_size() const OVERRIDE { return size; };
+
+	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h;};
+};
+
 #endif

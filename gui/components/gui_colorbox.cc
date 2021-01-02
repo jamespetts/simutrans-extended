@@ -50,3 +50,27 @@ void gui_colorbox_t::draw(scr_coord offset)
 		display_fillbox_wh_rgb(offset.x, offset.y, width, height, color, true);
 	}
 }
+
+
+
+gui_vehicle_bar_t::gui_vehicle_bar_t(PIXVAL c, scr_size size)
+{
+	color = c;
+	width = size.w;
+	height = size.h;
+	set_size(size);
+}
+
+void gui_vehicle_bar_t::set_flags(uint8 flags_left_, uint8 flags_right_, uint8 interactivity_)
+{
+	flags_left = flags_left_;
+	flags_right=flags_right_;
+	interactivity=interactivity_;
+}
+
+void gui_vehicle_bar_t::draw(scr_coord offset)
+{
+	offset += pos;
+	display_veh_form_wh_clip_rgb(offset.x,         offset.y, (width+1)/2, height, color, true, flags_left,  interactivity, false);
+	display_veh_form_wh_clip_rgb(offset.x+width/2, offset.y, (width+1)/2, height, color, true, flags_right, interactivity, true);
+}
