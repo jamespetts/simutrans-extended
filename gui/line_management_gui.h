@@ -29,7 +29,6 @@ public:
 
 private:
 	linehandle_t line;
-	cbuffer_t title;
 };
 
 #endif

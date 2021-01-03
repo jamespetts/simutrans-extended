@@ -12,8 +12,10 @@
 
 #include "components/action_listener.h"
 #include "components/gui_numberinput.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
 #include "components/gui_button.h"
+#include "components/gui_image.h"
 
 #include "components/gui_scrollpane.h"
 
@@ -33,12 +35,13 @@ class gui_schedule_entry_t;
 class gui_wait_loading_schedule_t : public gui_container_t
 {
 	uint8 val = 0;
+	uint32 flags;
 public:
-	gui_wait_loading_schedule_t(uint8 val=0);
+	gui_wait_loading_schedule_t(uint32 flags, uint8 val=0);
 
 	void draw(scr_coord offset);
 
-	void set_value(const uint8 v) { val = v; };
+	void init(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
@@ -56,8 +59,7 @@ public:
 
 	void draw(scr_coord offset);
 
-	void set_join(const uint16 j) { join = j; };
-	void set_leave(const uint16 l) { leave = l; };
+	void set_value(const uint16 j, const uint16 l) { join = j; leave = l; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
@@ -73,7 +75,7 @@ class gui_schedule_entry_number_t : public gui_container_t
 public:
 	enum number_style {
 		halt = 0,
-		interchange, //(halt) 
+		interchange,
 		depot,
 		waypoint,
 		none
@@ -82,6 +84,8 @@ public:
 	gui_schedule_entry_number_t(uint number, sint8 player, uint8 style_ = number_style::halt);
 
 	void draw(scr_coord offset);
+
+	void init(uint number_, sint8 player, uint8 style_ = number_style::halt) { number = number_; player_nr = player; style = style_; };
 
 	void set_number_style(uint8 style_) { style = style_; };
 	void set_owner(sint8 player_nr_) { player_nr = player_nr_; };
@@ -124,6 +128,7 @@ private:
 public:
 	schedule_t* schedule;
 	player_t* player;
+	uint16 range_limit;
 
 	schedule_gui_stats_t();
 	~schedule_gui_stats_t();
@@ -164,7 +169,8 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
 	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
-	button_t bt_bidirectional, bt_mirror, bt_wait_for_time, bt_same_spacing_shift, bt_ignore_choose, bt_lay_over, bt_range_stop;
+	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
+	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only, bt_ignore_choose, bt_lay_over, bt_range_stop;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
@@ -174,14 +180,15 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	gui_label_t lb_spacing, lb_shift, lb_plus;
 	gui_numberinput_t numimp_spacing;
 
-	gui_label_t lb_conditional_depart;
-	gui_numberinput_t conditional_depart, condition_broadcast;
+	gui_numberinput_t conditional_depart, condition_broadcast, numimp_speed_limit;
 
 	gui_label_t lb_spacing_shift;
 	gui_numberinput_t numimp_spacing_shift;
 	gui_label_t lb_spacing_shift_as_clock;
 
-	cbuffer_t title;
+	gui_schedule_entry_number_t *entry_no;
+	gui_label_buf_t lb_entry_pos;
+
 	char str_parts_month[32];
 	char str_parts_month_as_clock[32];
 
@@ -189,7 +196,7 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	char str_spacing_shift_as_clock[32];
 
 	schedule_gui_stats_t *stats;
-	gui_scrollpane_t scrolly;
+	gui_scrollpane_t scroll;
 
 	// to add new lines automatically
 	uint32 old_line_count;
@@ -209,10 +216,18 @@ protected:
 	schedule_t* old_schedule;
 	player_t *player;
 	convoihandle_t cnv;
+	cbuffer_t title;
 
 	linehandle_t new_line, old_line;
 
+	gui_image_t img_electric, img_refuel;
+
+	uint16 min_range = UINT16_MAX;
+	gui_label_buf_t lb_min_range;
+
 	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv);
+
+	inline void set_min_range(uint16 range) { stats->range_limit = range; };
 
 public:
 	schedule_gui_t(schedule_t* schedule = NULL, player_t* player = NULL, convoihandle_t cnv = convoihandle_t());

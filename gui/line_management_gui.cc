@@ -23,8 +23,17 @@ line_management_gui_t::line_management_gui_t(linehandle_t line, player_t* player
 		title.printf("%s - %s", translator::translate("Fahrplan"), line->get_name());
 		gui_frame_t::set_name(title);
 		// has this line a single running convoi?
-		if (line->count_convoys() > 0) {
+		if(  line->count_convoys() > 0  ) {
 			minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
+			img_electric.set_visible(line->needs_electrification());
+			min_range = min(line->get_min_range() ? line->get_min_range() : UINT16_MAX, min_range);
+			if (min_range>0 && min_range<UINT16_MAX) {
+				lb_min_range.buf().printf("%u km", min_range);
+				lb_min_range.update();
+			}
+			img_refuel.set_visible(min_range>0 && min_range<UINT16_MAX);
+			lb_min_range.set_visible(min_range>0 && min_range<UINT16_MAX);
+			schedule_gui_t::set_min_range(min_range);
 		}
 	}
 }
@@ -32,7 +41,7 @@ line_management_gui_t::line_management_gui_t(linehandle_t line, player_t* player
 
 line_management_gui_t::~line_management_gui_t()
 {
-	delete old_schedule;	// since we pass a *copy* of the line's schedule to the base class
+	delete old_schedule; // since we pass a *copy* of the line's schedule to the base class
 	old_schedule = NULL;
 }
 
@@ -82,9 +91,10 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 {
 	scr_size size = get_windowsize();
 	size.rdwr( file );
+	simline_t::rdwr_linehandle_t(file, line);
 	// player that edits
 	uint8 player_nr;
-	if(  file->is_saving()  ) {
+	if (file->is_saving()) {
 		player_nr = player->get_player_nr();
 	}
 	file->rdwr_byte( player_nr );
@@ -100,7 +110,7 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 	old_schedule->rdwr(file);
 
 	if(  file->is_loading()  ) {
-		assert(player);	// since it was alive during saving, this should never happen
+		assert(player); // since it was alive during saving, this should never happen
 		if(  line.is_bound()  &&  old_schedule->matches( welt, line->get_schedule() )  ) {
 
 			delete old_schedule;
@@ -109,9 +119,24 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 			schedule_t *save_schedule = schedule->copy();
 
 			init(line->get_schedule()->copy(), line->get_owner(), convoihandle_t() );
+			title.printf("%s - %s", translator::translate("Fahrplan"), line->get_name());
+			gui_frame_t::set_name(title);
 			// init replaced schedule, restore
 			schedule->copy_from(save_schedule);
 			delete save_schedule;
+
+			if(  line->count_convoys() > 0  ) {
+				minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
+				img_electric.set_visible(line->needs_electrification());
+				min_range = min(line->get_min_range() ? line->get_min_range() : UINT16_MAX, min_range);
+				if (min_range>0 && min_range<UINT16_MAX) {
+					lb_min_range.buf().printf("%u km", min_range);
+					lb_min_range.update();
+				}
+				img_refuel.set_visible(min_range>0 && min_range<UINT16_MAX);
+				lb_min_range.set_visible(min_range>0 && min_range<UINT16_MAX);
+				schedule_gui_t::set_min_range(min_range);
+			}
 
 			set_windowsize(size);
 
