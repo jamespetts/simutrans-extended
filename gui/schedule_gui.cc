@@ -58,9 +58,9 @@ void gui_wait_loading_schedule_t::draw(scr_coord offset)
 	if (val || flags & schedule_entry_t::discharge_payload || flags & schedule_entry_t::pick_up_only || flags & schedule_entry_t::set_down_only) {
 		display_color_img(skinverwaltung_t::goods->get_image_id(0), pos.x+offset.x, pos.y+offset.y + D_GET_CENTER_ALIGN_OFFSET(skinverwaltung_t::goods->get_image(0)->get_pic()->h, size.h), 0, false, false);
 		if (val || flags & schedule_entry_t::discharge_payload) {
-			const PIXVAL bgcolor = val ? color_idx_to_rgb(MN_GREY2) : COL_DANGER;
+			const PIXVAL bgcolor = val ? color_idx_to_rgb(MN_GREY2) : color_idx_to_rgb(COL_RED+1);
 			display_ddd_box_clip_rgb(   pos.x+offset.x+left,   pos.y+offset.y,   6, size.h,   color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4)); // frame
-			display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+1, 4, size.h-1, bgcolor, true);                                          // background
+			display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+1, 4, size.h-2, bgcolor, true);                                          // background
 			if (val) {
 				const scr_coord_val bar_height = (size.h-2)*val/100;
 				display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+(size.h-2)+1-bar_height, 4, bar_height, COL_IN_TRANSIT, true);       // load limit
@@ -74,7 +74,7 @@ void gui_wait_loading_schedule_t::draw(scr_coord offset)
 			left += display_fluctuation_triangle_rgb(pos.x+offset.x+left+1, pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(7, size.h), 7, false, -1);
 		}
 		gui_container_t::draw(offset);
-		size.w = left;
+		size.w = left+1;
 		set_size(size);
 	}
 }
@@ -257,9 +257,9 @@ public:
 		is_current = false;
 		is_air_wt = air_wt;
 		set_table_layout(7,0);
-		set_spacing(scr_size(D_H_SPACE,0));
+		set_spacing(scr_size(1,0));
 
-		new_component<gui_margin_t>(5); // UI TODO: Use variables to make the right margins
+		new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
 
 		img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
 		img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
@@ -313,7 +313,7 @@ public:
 		new_component<gui_fill_t>(); // 6
 
 		// 2nd row
-		lb_distance.set_fixed_width(proportional_string_width("(0000km)"));
+		lb_distance.set_fixed_width(proportional_string_width("(0000km) "));
 		lb_distance.set_align(gui_label_t::right);
 		lb_distance.set_rigid(true);
 		lb_distance.buf().append("");
