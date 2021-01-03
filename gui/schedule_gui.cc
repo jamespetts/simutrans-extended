@@ -331,7 +331,7 @@ public:
 
 	void update_label()
 	{
-		halthandle_t halt = welt->lookup(entry.pos)->get_halt();
+		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
 		wait_loading->init(entry.flags, entry.minimum_loading);
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
