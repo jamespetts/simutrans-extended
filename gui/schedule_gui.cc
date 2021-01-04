@@ -343,7 +343,12 @@ public:
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
-		if (halt.is_bound()) {
+		if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
+			// Depot check must come first, as depot and dock tiles can overlap at sea
+			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
+			entry_no->set_owner(player->get_player_nr());
+		}
+		else if (halt.is_bound()) {
 			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
 			entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 			entry_no->set_owner(halt->get_owner()->get_player_nr());
@@ -354,10 +359,6 @@ public:
 					no_control_tower = true;
 				}
 			}
-		}
-		else if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
-			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
-			entry_no->set_owner(player->get_player_nr());
 		}
 		else {
 			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
@@ -1124,6 +1125,7 @@ void schedule_gui_t::update_selection()
 			bt_discharge_payload.enable();
 			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
 			entry_no->init(current_stop+1, halt->get_owner()->get_player_nr(),
+				is_depot ? gui_schedule_entry_number_t::number_style::depot :
 				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 			if(!schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 			{
