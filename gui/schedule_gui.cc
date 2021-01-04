@@ -414,7 +414,6 @@ public:
 	void draw(scr_coord offset) OVERRIDE
 	{
 		update_label();
-		display_blend_wh_rgb(pos.x + offset.x, pos.y + offset.y, size.w, L_ENTRY_NO_HEIGHT+LINESPACE, color_idx_to_rgb(COL_WHITE), 20);
 		if (is_current) {
 			display_blend_wh_rgb(pos.x+offset.x, pos.y+offset.y-1, size.w, L_ENTRY_NO_HEIGHT+2, SYSCOL_LIST_BACKGROUND_SELECTED_F, 75);
 		}
@@ -1004,7 +1003,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 			// Conditional depart
 			add_table(3,2);
 			{
-				new_component<gui_vehicle_bar_t>(SYSCOL_UP_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(0,3, HAS_POWER|BIDIRECTIONAL);
+				new_component<gui_vehicle_bar_t>(SYSCOL_UP_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(vehicle_desc_t::unknown_constraint, 3, HAS_POWER|BIDIRECTIONAL);
 				new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy"));
 				conditional_depart.set_width(numimp_load.get_size().w);
 				conditional_depart.init(schedule->get_current_entry().condition_bitfield_receiver, 0, 15, 1);
@@ -1012,7 +1011,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 				add_component(&conditional_depart);
 
 				// Condition broadcast
-				new_component<gui_vehicle_bar_t>(SYSCOL_DOWN_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(3,0, HAS_POWER|BIDIRECTIONAL);
+				new_component<gui_vehicle_bar_t>(SYSCOL_DOWN_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(3, vehicle_desc_t::unknown_constraint, HAS_POWER|BIDIRECTIONAL);
 				new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip(translator::translate("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving"));
 				condition_broadcast.set_width(60);
 				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
