@@ -216,7 +216,7 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 			break;
 		}
 		case line_style::dashed:
-			for (uint8 h = 0; h+2<LINESPACE; h+=4) {
+			for (uint8 h=1; h+2<LINESPACE; h+=4) {
 				display_fillbox_wh_clip_rgb(pos.x+offset.x + L_ENTRY_NO_WIDTH/4 + 1, pos.y+offset.y+h, width - 2, 2,
 					color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1()+3), true);
 			}
