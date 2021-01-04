@@ -126,7 +126,7 @@ gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint number_, sint8 pla
 	number = number_+1;
 	style = style_;
 	player_nr = player;
-	size.w = L_ENTRY_NO_WIDTH;
+	set_size(scr_size(L_ENTRY_NO_WIDTH, L_ENTRY_NO_HEIGHT));
 	lb_number.set_align(gui_label_t::centered);
 	lb_number.set_size(scr_size(size.w, D_LABEL_HEIGHT));
 	lb_number.set_pos(scr_coord(0, 2));
@@ -178,7 +178,6 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 		lb_number.set_color(text_colval);
 	}
 	lb_number.update();
-	set_size(scr_size(size.w, L_ENTRY_NO_HEIGHT));
 	lb_number.set_fixed_width(size.w);
 	gui_container_t::draw(offset);
 }
@@ -565,7 +564,7 @@ void schedule_gui_stats_t::update_schedule()
 				}
 				else {
 					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos, range_limit);
-					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed); // UI TODO: down arrow is better?
+					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 				}
 			}
 			entries[schedule->get_current_stop()]->set_active(true);
@@ -585,7 +584,7 @@ void schedule_gui_stats_t::draw(scr_coord offset)
 	update_schedule();
 
 	gui_aligned_container_t::draw(offset);
-	set_size(get_min_size());
+	set_size(get_min_size()); // This is necessary to display the component in the correct position immediately after opening the dialog
 }
 
 bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
@@ -664,7 +663,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
 
 	if (cnv.is_bound()) {
-		add_table(4,0)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
+		add_table(4,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 		{
 			new_component<gui_label_t>("Serves Line:");
 			line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
@@ -761,7 +760,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 				add_component(&lb_min_range);
 
 				new_component<gui_fill_t>();
-				add_table(2, 1);
+				add_table(2,1);
 				{
 					new_component<gui_image_t>()->set_image(skinverwaltung_t::reverse_arrows ? skinverwaltung_t::reverse_arrows->get_image_id(0) : IMG_EMPTY, true);
 					// Mirror schedule/alternate directions
@@ -824,7 +823,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 			{
 				// Minimum loading
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::goods->get_image_id(0), true);
-				add_table(4, 0);
+				add_table(4,1);
 				{
 					lb_load.buf().append(translator::translate("Full load"));
 					lb_load.update();
@@ -895,7 +894,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 					welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 				}
 
-				add_table(4, 1);
+				add_table(4,1);
 				{
 					bt_wait_prev.init(button_t::arrowleft, NULL, scr_coord(0, 0));
 					bt_wait_prev.add_listener(this);
@@ -953,7 +952,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 					}
 
 					if (spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE) {
-						add_table(2, 1);
+						add_table(2,1);
 						{
 							lb_plus.init("+", scr_coord(0, 0));
 							add_component(&lb_plus);
@@ -1003,7 +1002,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 			}
 			end_table();
 			// Conditional depart
-			add_table(3,0);
+			add_table(3,2);
 			{
 				new_component<gui_vehicle_bar_t>(SYSCOL_UP_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(0,3, HAS_POWER|BIDIRECTIONAL);
 				new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy"));
@@ -1675,7 +1674,6 @@ void schedule_gui_t::map_rotate90( sint16 y_size)
 }
 
 
-// UI TODO: Must support new UI
 void schedule_gui_t::rdwr(loadsave_t *file)
 {
 	// this handles only schedules of bound convois
