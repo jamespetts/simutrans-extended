@@ -98,6 +98,7 @@ class gui_colored_route_bar_t : public gui_container_t
 {
 	sint8 player_nr;
 	uint8 style;
+	uint8 alert_level;
 public:
 	enum line_style {
 		solid = 0,
@@ -113,6 +114,8 @@ public:
 	void draw(scr_coord offset);
 
 	void set_line_style(uint8 style_) { style = style_; };
+	// Color the edges of the line according to the warning level.  0=ok(none), 1=yellow, 2=orange, 3=red
+	void set_alert_level(uint8 level) { alert_level = level; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }

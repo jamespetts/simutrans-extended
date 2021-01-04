@@ -193,6 +193,25 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 {
 	set_size(scr_size(L_ENTRY_NO_WIDTH, LINESPACE));
 	const uint8 width = L_ENTRY_NO_WIDTH/2;
+
+	const PIXVAL alert_colval = (alert_level==1) ? COL_CAUTION : (alert_level==2) ? COL_WARNING : color_idx_to_rgb(COL_RED+1);
+	// edge lines
+	if (alert_level) {
+		switch (style) {
+			default:
+				display_blend_wh_rgb(pos.x+offset.x+L_ENTRY_NO_WIDTH/4-1, pos.y+offset.y, width+2, LINESPACE, alert_colval, 60);
+				break;
+			case line_style::dashed:
+			case line_style::thin:
+				display_blend_wh_rgb(pos.x+offset.x+L_ENTRY_NO_WIDTH/4,   pos.y+offset.y, width,   LINESPACE, alert_colval, 60);
+				break;
+			case line_style::reversed:
+			case line_style::none:
+				break;
+		}
+	}
+
+	// base line/image
 	switch (style) {
 		case line_style::solid:
 		default:
@@ -394,7 +413,8 @@ public:
 		else {
 			lb_distance.buf().printf("%4.1f%s", distance, "km");
 		}
-		lb_distance.set_color(range_limit && range_limit< (uint16)distance ? COL_DANGER : SYSCOL_TEXT);
+		lb_distance.set_color(range_limit && range_limit < (uint16)distance ? COL_DANGER : SYSCOL_TEXT);
+		route_bar->set_alert_level(range_limit && range_limit < (uint16)distance ? 3 : 0);
 		lb_distance.update();
 	}
 
