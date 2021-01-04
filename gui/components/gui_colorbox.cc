@@ -56,8 +56,6 @@ void gui_colorbox_t::draw(scr_coord offset)
 gui_vehicle_bar_t::gui_vehicle_bar_t(PIXVAL c, scr_size size)
 {
 	color = c;
-	width = size.w;
-	height = size.h;
 	set_size(size);
 }
 
@@ -71,6 +69,6 @@ void gui_vehicle_bar_t::set_flags(uint8 flags_left_, uint8 flags_right_, uint8 i
 void gui_vehicle_bar_t::draw(scr_coord offset)
 {
 	offset += pos;
-	display_veh_form_wh_clip_rgb(offset.x,         offset.y, (width+1)/2, height, color, true, flags_left,  interactivity, false);
-	display_veh_form_wh_clip_rgb(offset.x+width/2, offset.y, (width+1)/2, height, color, true, flags_right, interactivity, true);
+	display_veh_form_wh_clip_rgb(offset.x,          offset.y, (size.w+1)/2, size.h, color, true, flags_left,  interactivity, false);
+	display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y, (size.w+1)/2, size.h, color, true, flags_right, interactivity, true);
 }

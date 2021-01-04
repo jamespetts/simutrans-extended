@@ -64,12 +64,8 @@ public:
  */
 class gui_vehicle_bar_t : public gui_component_t
 {
-	PIXVAL color = COL_DANGER;
+	PIXVAL color;
 
-	uint8 height = VEHICLE_BAR_HEIGHT;
-	uint8 width = VEHICLE_BAR_HEIGHT*4;
-
-	//const char * tooltip;
 	uint8 flags_left;
 	uint8 flags_right;
 	uint8 interactivity;
@@ -90,8 +86,6 @@ public:
 
 	scr_size get_min_size() const OVERRIDE { return size; };
 	scr_size get_max_size() const OVERRIDE { return size; };
-
-	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h;};
 };
 
 #endif
