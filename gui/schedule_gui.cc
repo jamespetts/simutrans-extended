@@ -200,6 +200,13 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 			display_fillbox_wh_clip_rgb(pos.x+offset.x + L_ENTRY_NO_WIDTH/4, pos.y+offset.y, width, LINESPACE,
 				color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1()+3), true);
 			break;
+		case line_style::thin:
+		{
+			const uint8 border_width = 2 + L_ENTRY_NO_WIDTH%2;
+			display_fillbox_wh_clip_rgb(pos.x+offset.x + L_ENTRY_NO_WIDTH/2 - 1, pos.y+offset.y, border_width, LINESPACE,
+				color_idx_to_rgb(welt->get_player(player_nr)->get_player_color1()+3), true);
+			break;
+		}
 		case line_style::doubled:
 		{
 			const uint8 border_width = width>6 ? 3:2;
@@ -539,7 +546,10 @@ void schedule_gui_stats_t::update_schedule()
 				if (i< schedule->entries.get_count()-1) {
 					entries[i]->set_distance(schedule->entries[i+1].pos, range_limit);
 					//entries[i]->set_speed_limit(schedule->entries[i+1].maximum_speed); // UI TODO:
-					if(welt->lookup(schedule->entries[i].pos)->get_depot() || welt->lookup(schedule->entries[i+1].pos)->get_depot()) {
+					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
+						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
+					}
+					else if(welt->lookup(schedule->entries[i].pos)->get_depot() || welt->lookup(schedule->entries[i+1].pos)->get_depot()) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 					}
 					else {

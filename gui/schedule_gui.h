@@ -101,6 +101,7 @@ class gui_colored_route_bar_t : public gui_container_t
 public:
 	enum line_style {
 		solid = 0,
+		thin,
 		doubled,
 		dashed,
 		reversed, // display reverse symbol
