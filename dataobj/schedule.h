@@ -159,6 +159,13 @@ public:
 	 */
 	void increment_index_until_next_halt(player_t* player, uint8 *index, bool *reversed) const;
 
+	/*
+	 * Calculate the distance via waypoint, not the straight line distance between stations
+	 * Currently it is for the schedule UI and does not consider reversed. Please change if necessary
+	 * Also, next "halt" is not correct because the tile coordinates do not always match. So needed to calculate the distance by coordinates
+	 */
+	uint32 calc_distance_to_next_halt(player_t *player, uint8 index) const;
+
 	/***
 	 * "Completed"
 	 */

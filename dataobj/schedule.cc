@@ -610,6 +610,23 @@ void schedule_t::increment_index_until_next_halt(player_t *player, uint8 *index,
 	}
 }
 
+// This can't inspect the loop beyond the end of the schedule. Because it doesn't make sense to do it if it can't be represented on the schedule UI.
+// Also, if the end of the schedule is a waypoint, the scheduling may not be complete and such a setting is also deprecated.
+uint32 schedule_t::calc_distance_to_next_halt(player_t *player, uint8 index) const
+{
+	uint32 distance=0;
+	for (uint8 i=index; i<get_count()-1; i++) {
+		const koord3d next_pos = entries[i+1].pos;
+		const bool is_depot = world()->lookup(entries[i+1].pos)->get_depot();
+		distance += shortest_distance(next_pos.get_2d(), entries[i].pos.get_2d()) * world()->get_settings().get_meters_per_tile();
+		const halthandle_t halt = haltestelle_t::get_halt(next_pos, player);
+		if (halt.is_bound() || is_depot) {
+			return distance;
+		}
+	}
+	return distance;
+}
+
 /**
  * Ordering based on halt id
  */
