@@ -402,19 +402,19 @@ public:
 		lb_reverse.set_visible(entry.reverse == 1);
 	}
 
-	void set_distance(koord3d next_pos, uint16 range_limit = 0)
+	void set_distance(koord3d next_pos, uint32 distance_to_next_halt = 0, uint16 range_limit = 0)
 	{
-		double distance;
-		distance = (double)(shortest_distance(next_pos.get_2d(), entry.pos.get_2d()) * world()->get_settings().get_meters_per_tile()) / 1000;
-		if (!welt->lookup(next_pos)->get_halt().is_bound() || !welt->lookup(entry.pos)->get_halt().is_bound()) {
+		// uint32 distance_to_next_pos;
+		const uint32 distance_to_next_pos = shortest_distance(next_pos.get_2d(), entry.pos.get_2d()) * world()->get_settings().get_meters_per_tile();
+		if (distance_to_next_pos != distance_to_next_halt || !welt->lookup(entry.pos)->get_halt().is_bound()) {
 			// Either is not a station
-			lb_distance.buf().printf("(%.1f%s)", distance, "km");
+			lb_distance.buf().printf("(%.1f%s)", (double)(distance_to_next_pos/1000.0), "km");
 		}
 		else {
-			lb_distance.buf().printf("%4.1f%s", distance, "km");
+			lb_distance.buf().printf("%4.1f%s", (double)(distance_to_next_pos / 1000.0), "km");
 		}
-		lb_distance.set_color(range_limit && range_limit < (uint16)distance ? COL_DANGER : SYSCOL_TEXT);
-		route_bar->set_alert_level(range_limit && range_limit < (uint16)distance ? 3 : 0);
+		lb_distance.set_color(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? COL_DANGER : SYSCOL_TEXT);
+		route_bar->set_alert_level(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? 3 : 0);
 		lb_distance.update();
 	}
 
@@ -563,7 +563,7 @@ void schedule_gui_stats_t::update_schedule()
 			for (uint i = 0; i < schedule->entries.get_count(); i++) {
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt));
 				if (i< schedule->entries.get_count()-1) {
-					entries[i]->set_distance(schedule->entries[i+1].pos, range_limit);
+					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
 					//entries[i]->set_speed_limit(schedule->entries[i+1].maximum_speed); // UI TODO:
 					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
@@ -582,7 +582,7 @@ void schedule_gui_stats_t::update_schedule()
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::reversed);
 				}
 				else {
-					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos, range_limit);
+					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos, 0, range_limit);
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 				}
 			}
