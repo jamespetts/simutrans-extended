@@ -3924,8 +3924,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				next                 = r.at(test_index + 1u);
 				next_direction   = calc_direction(r.at(test_index - 1u), next);
 				next_90direction = calc_direction(r.at(test_index),      next);
-				obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL,
-										   lane_of_the_tile);
+				obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, lane_of_the_tile);
 			}
 			else {
 				next                 = r.at(test_index);
@@ -3933,8 +3932,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				if(  curr_direction == next_90direction  ||  !gr->is_halt()  ) {
 					// check cars but allow to enter intersection if we are turning even when a car is blocking the halt on the last tile of our route
 					// preserves old bus terminal behaviour
-					obj = get_blocking_vehicle(gr, cnv, curr_direction, next_90direction, ribi_t::none, NULL,
-											   lane_of_the_tile);
+					obj = get_blocking_vehicle(gr, cnv, curr_direction, next_90direction, ribi_t::none, NULL, lane_of_the_tile);
 				}
 			}
 

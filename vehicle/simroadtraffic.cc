@@ -881,8 +881,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 				const uint8 next_direction = ribi_type(dir);
 				const uint8 nextnext_direction = ribi_type(dir);
 				// test next field after way crossing
-				if(get_blocking_vehicle(test, NULL, next_direction, nextnext_direction, nextnext_direction, this,
-										next_lane)) {
+				if(get_blocking_vehicle(test, NULL, next_direction, nextnext_direction, nextnext_direction, this, next_lane)) {
 					return false;
 				}
 				// ok, left the crossing
