@@ -1551,6 +1551,10 @@ public:
 		return ticks_to_seconds(ticks) / 6L;
 	}
 
+	inline sint64 tenths_to_ticks(sint64 tenths) const {
+		return get_seconds_to_ticks(tenths * 6);
+	}
+
 	/**
 	 * Finer timing conversion for UI only
 	 * @author: jamespetts

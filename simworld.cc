@@ -6263,24 +6263,8 @@ void karte_t::add_to_waiting_list(ware_t ware, koord origin_pos)
 
 sint64 karte_t::calc_ready_time(ware_t ware, koord origin_pos) const
 {
-	sint64 ready_time = get_ticks();
-
-	uint16 distance = shortest_distance(ware.get_zielpos(), origin_pos);
-
-	if (ware.is_freight())
-	{
-		const uint32 tenths_of_minutes = walk_haulage_time_tenths_from_distance(distance);
-		const sint64 carting_time = get_seconds_to_ticks(tenths_of_minutes * 6);
-		ready_time += carting_time;
-	}
-	else
-	{
-		const uint32 seconds = walking_time_secs_from_distance(distance);
-		const sint64 walking_time = get_seconds_to_ticks(seconds);
-		ready_time += walking_time;
-	}
-
-	return ready_time;
+	const uint16 dist = shortest_distance(ware.get_zielpos(), origin_pos);
+	return get_ticks() + tenths_to_ticks(ware.is_freight() ? walk_haulage_time_tenths_from_distance(dist) : walking_time_tenths_from_distance(dist));
 }
 
 void karte_t::check_transferring_cargoes()
