@@ -6394,20 +6394,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	const city_cost history_type = (wtyp == goods_manager_t::passengers) ? HIST_PAS_TRANSPORTED : HIST_MAIL_TRANSPORTED;
 	const uint32 units_this_step = simrand((uint32)settings.get_passenger_routing_packet_size(), "void karte_t::generate_passengers_and_mail(uint32 delta_t) passenger/mail packet size") + 1;
 	// Pick the building from which to generate passengers/mail
-	gebaeude_t* gb;
-	if(wtyp == goods_manager_t::passengers)
-	{
-		// Pick a passenger building at random
-		const uint32 weight = simrand(passenger_origins.get_sum_weight() - 1, "void karte_t::generate_passengers_and_mail(uint32 delta_t) pick origin building (passengers)");
-		gb = passenger_origins.at_weight(weight);
-	}
-	else
-	{
-		// Pick a mail building at random
-		const uint32 weight = simrand(mail_origins_and_targets.get_sum_weight() - 1, "void karte_t::generate_passengers_and_mail(uint32 delta_t) pick origin building (mail)");
-		gb = mail_origins_and_targets.at_weight(weight);
-	}
-
+	gebaeude_t* gb = pick_any_weighted(wtyp == goods_manager_t::passengers ? passenger_origins : mail_origins_and_targets);
 	stadt_t* city = gb->get_stadt();
 
 	// We need this for recording statistics for onward journeys in the very original departure point.
