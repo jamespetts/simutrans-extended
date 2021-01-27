@@ -1551,10 +1551,6 @@ public:
 		return ticks_to_seconds(ticks) / 6L;
 	}
 
-	inline sint64 tenths_to_ticks(sint64 tenths) const {
-		return get_seconds_to_ticks(tenths * 6);
-	}
-
 	/**
 	 * Finer timing conversion for UI only
 	 * @author: jamespetts
@@ -1587,6 +1583,10 @@ public:
 		//return ((sint64)seconds * 4096L * 1000L) / (sint64)get_settings().get_meters_per_tile() / 30L / 6L;
 
 		return seconds_to_ticks(seconds, get_settings().get_meters_per_tile());
+	}
+
+	inline sint64 tenths_to_ticks(sint64 tenths) const {
+		return get_seconds_to_ticks(tenths * 6);
 	}
 
 	inline double tiles_to_km(uint32 tiles) const
