@@ -11697,14 +11697,23 @@ player_t *karte_t::get_public_player() const
 void karte_t::add_building_to_world_list(gebaeude_t *gb, bool ordered)
 {
 	assert(gb);
+
+	auto add_internal = [ordered, gb](weighted_vector_tpl<gebaeude_t*>& list, uint32 weight) {
+		if(ordered) {
+			list.insert_ordered(gb, weight, stadt_t::compare_gebaeude_pos);
+		} else {
+			list.append(gb, weight);
+		}
+	};
+
 	gb->set_in_world_list(true);
 	if(gb != gb->get_first_tile())
 	{
 		return;
 	}
-	const building_desc_t *building = gb->get_tile()->get_desc();
+	const building_desc_t *gb_desc = gb->get_tile()->get_desc();
 
-	if (building->get_mail_demand_and_production_capacity() == 0 && building->get_population_and_visitor_demand_capacity() == 0 && building->get_employment_capacity() == 0)
+	if (gb_desc->get_mail_demand_and_production_capacity() == 0 && gb_desc->get_population_and_visitor_demand_capacity() == 0 && gb_desc->get_employment_capacity() == 0)
 	{
 		// This building is no longer capable of dealing with passengers/mail: do not add it.
 		gb->set_adjusted_jobs(0);
@@ -11715,95 +11724,27 @@ void karte_t::add_building_to_world_list(gebaeude_t *gb, bool ordered)
 
 	if(gb->get_adjusted_population() > 0)
 	{
-		if(ordered)
-		{
-			passenger_origins.insert_ordered(gb, gb->get_adjusted_population(), stadt_t::compare_gebaeude_pos);
-		}
-		else
-		{
-			passenger_origins.append(gb, gb->get_adjusted_population());
-		}
+		add_internal(passenger_origins, gb->get_adjusted_population());
 		passenger_step_interval = calc_adjusted_step_interval(passenger_origins.get_sum_weight(), get_settings().get_passenger_trips_per_month_hundredths());
 	}
 
-	const uint8 number_of_classes = goods_manager_t::passengers->get_number_of_classes();
+	const uint8 num_classes = goods_manager_t::passengers->get_number_of_classes();
 
-	if(ordered)
+	const uint32 class_proportions_sum = gb_desc->get_class_proportions_sum();
+	const uint16 adjusted_visitor_demand = gb->get_adjusted_visitor_demand();
+	const uint32 class_proportions_sum_jobs = gb_desc->get_class_proportions_sum_jobs();
+	const uint16 adjusted_jobs = gb->get_adjusted_jobs();
+
+	for (uint8 i = 0; i < num_classes; i++)
 	{
-
-		if (building->get_class_proportions_sum() > 0)
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				visitor_targets[i].insert_ordered(gb, gb->get_adjusted_visitor_demand() * building->get_class_proportion(i) / building->get_class_proportions_sum(), stadt_t::compare_gebaeude_pos);
-			}
-		}
-		else
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				visitor_targets[i].insert_ordered(gb, gb->get_adjusted_visitor_demand() / number_of_classes, stadt_t::compare_gebaeude_pos);
-			}
-		}
-
-		if (building->get_class_proportions_sum_jobs() > 0)
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				commuter_targets[i].insert_ordered(gb, gb->get_adjusted_jobs() * building->get_class_proportion_jobs(i) / building->get_class_proportions_sum_jobs(), stadt_t::compare_gebaeude_pos);
-			}
-		}
-		else
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				commuter_targets[i].insert_ordered(gb, gb->get_adjusted_jobs() / number_of_classes, stadt_t::compare_gebaeude_pos);
-			}
-		}
+		add_internal(visitor_targets[i], class_proportions_sum > 0 ? adjusted_visitor_demand * gb_desc->get_class_proportion(i) / class_proportions_sum : adjusted_visitor_demand / num_classes);
+		add_internal(commuter_targets[i], class_proportions_sum_jobs > 0 ? adjusted_jobs * gb_desc->get_class_proportion_jobs(i) / class_proportions_sum_jobs : adjusted_jobs / num_classes);
 	}
-	else
-	{
-		if (building->get_class_proportions_sum() > 0)
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				visitor_targets[i].append(gb, gb->get_adjusted_visitor_demand() * building->get_class_proportion(i) / building->get_class_proportions_sum());
-			}
-		}
-		else
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				visitor_targets[i].append(gb, gb->get_adjusted_visitor_demand() / number_of_classes);
-			}
-		}
 
-		if (building->get_class_proportions_sum_jobs() > 0)
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				commuter_targets[i].append(gb, gb->get_adjusted_jobs() * building->get_class_proportion_jobs(i) / building->get_class_proportions_sum_jobs());
-			}
-		}
-		else
-		{
-			for (uint8 i = 0; i < number_of_classes; i++)
-			{
-				commuter_targets[i].append(gb, gb->get_adjusted_jobs() / number_of_classes);
-			}
-		}
-	}
 
 	if(gb->get_adjusted_mail_demand() > 0)
 	{
-		if(ordered)
-		{
-			mail_origins_and_targets.insert_ordered(gb, gb->get_adjusted_mail_demand(), stadt_t::compare_gebaeude_pos);
-		}
-		else
-		{
-			mail_origins_and_targets.append(gb, gb->get_adjusted_mail_demand());
-		}
+		add_internal(mail_origins_and_targets, gb->get_adjusted_mail_demand());
 		mail_step_interval = calc_adjusted_step_interval(mail_origins_and_targets.get_sum_weight(), get_settings().get_mail_packets_per_month_hundredths());
 	}
 }
