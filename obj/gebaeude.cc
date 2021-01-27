@@ -1336,7 +1336,7 @@ void gebaeude_t::rdwr(loadsave_t *file)
 		file->rdwr_short(mail_demand);
 	}
 
-	if ((file->get_extended_version() == 13 && file->get_extended_revision() >= 1) || file->get_extended_version() >= 14)
+	if (file->get_extended_version_int() >= 13001)
 	{
 		loaded_passenger_and_mail_figres = true;
 
@@ -1349,7 +1349,7 @@ void gebaeude_t::rdwr(loadsave_t *file)
 		file->rdwr_short(adjusted_mail_demand);
 	}
 
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 4) || file->get_extended_version() >= 15)
+	if (file->get_extended_version_int() >= 14004)
 	{
 		file->rdwr_short(mail_generated);
 		file->rdwr_short(mail_delivery_succeeded_last_year);

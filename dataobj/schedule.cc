@@ -253,7 +253,9 @@ void schedule_t::rdwr(loadsave_t *file)
 	make_current_stop_valid();
 
 	uint8 size = entries.get_count();
-	if(  file->get_version_int()<=101000  ) {
+	const uint32 ext_ver = file->get_extended_version();
+	const uint32 std_ver = file->get_version_int();
+	if(std_ver <= 101000  ) {
 		uint32 dummy=current_stop;
 		file->rdwr_long(dummy);
 		current_stop = (uint8)dummy;
@@ -261,7 +263,7 @@ void schedule_t::rdwr(loadsave_t *file)
 		sint32 maxi=size;
 		file->rdwr_long(maxi);
 		DBG_MESSAGE("schedule_t::rdwr()","read schedule %p with %i entries",this,maxi);
-		if(file->get_version_int()<86010) {
+		if(std_ver < 86010) {
 			// old array had different maxi-counter
 			maxi ++;
 		}
@@ -270,7 +272,7 @@ void schedule_t::rdwr(loadsave_t *file)
 	else {
 		file->rdwr_byte(current_stop);
 		file->rdwr_byte(size);
-		if(file->get_version_int()>=102003 && file->get_extended_version() >= 9)
+		if(std_ver >= 102003 && ext_ver >= 9)
 		{
 			file->rdwr_bool(bidirectional);
 			file->rdwr_bool(mirrored);
@@ -278,7 +280,7 @@ void schedule_t::rdwr(loadsave_t *file)
 	}
 	entries.resize(size);
 
-	if(file->get_version_int()<99012) {
+	if(std_ver < 99012) {
 		for(  uint8 i=0; i<size; i++  ) {
 			koord3d pos;
 			uint32 dummy;
@@ -297,7 +299,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				entries[i].reverse = -1;
 			}
 			entries[i].pos.rdwr(file);
-			if(file->get_extended_version() >= 10 && file->get_version_int() >= 111002)
+			if(ext_ver >= 10 && std_ver >= 111002)
 			{
 				file->rdwr_short(entries[i].minimum_loading);
 				if(entries[i].minimum_loading > 100 && spacing)
@@ -315,18 +317,18 @@ void schedule_t::rdwr(loadsave_t *file)
 				entries[i].minimum_loading = (uint16)old_ladegrad;
 
 			}
-			if(file->get_version_int()>=99018) {
+			if(std_ver >= 99018) {
 				file->rdwr_byte(entries[i].waiting_time_shift);
 
-				if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
+				if(ext_ver >= 9 && std_ver >= 110006)
 				{
 					file->rdwr_short(entries[i].spacing_shift);
 				}
 
-				if(file->get_extended_version() >= 10)
+				if(ext_ver >= 10)
 				{
 					file->rdwr_byte(entries[i].reverse);
-					if(file->get_extended_revision() < 4 && file->get_extended_version() < 13 && entries[i].reverse)
+					if(file->get_extended_version_int() < 12004 && entries[i].reverse)
 					{
 						// Older versions had true as a default: set to indeterminate.
 						entries[i].reverse = -1;
@@ -339,7 +341,7 @@ void schedule_t::rdwr(loadsave_t *file)
 #ifdef SPECIAL_RESCUE_12 // For testers who want to load games saved with earlier unreleased versions.
 				if(file->get_extended_version() >= 12 && file->is_saving())
 #else
-				if(file->get_extended_version() >= 12)
+				if(ext_ver >= 12)
 #endif
 				{
 					file->rdwr_bool(entries[i].wait_for_time);
@@ -367,12 +369,12 @@ void schedule_t::rdwr(loadsave_t *file)
 		current_stop = 0;
 	}
 
-	if(file->get_extended_version() >= 9)
+	if(ext_ver >= 9)
 	{
 		file->rdwr_short(spacing);
 	}
 
-	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
+	if(ext_ver >= 9 && std_ver >= 110006)
 	{
 		file->rdwr_bool(same_spacing_shift);
 	}

@@ -306,13 +306,16 @@ void simline_t::rdwr(loadsave_t *file)
 	schedule->rdwr(file);
 
 	//financial history
-	if(file->get_version_int() <= 102002 || (file->get_version_int() < 103000 && file->get_extended_version() < 7))
+	const uint32 std_ver = file->get_version_int();
+	const uint32 ext_ver = file->get_extended_version();
+	const uint32 ext_ver_int = file->get_extended_version_int();
+	if(std_ver <= 102002 || (std_ver < 103000 && ext_ver < 7))
 	{
 		for (int j = 0; j<LINE_DISTANCE; j++)
 		{
 			for (int k = MAX_MONTHS-1; k>=0; k--)
 			{
-				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && file->get_extended_version() <= 1) || (j == LINE_REFUNDS && file->get_extended_version() < 8))
+				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && ext_ver <= 1) || (j == LINE_REFUNDS && ext_ver < 8))
 				{
 					// Versions of Extended saves with 1 and below
 					// did not have settings for average speed or comfort.
@@ -342,7 +345,7 @@ void simline_t::rdwr(loadsave_t *file)
 #ifdef SPECIAL_RESCUE_12_2
 				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && file->get_extended_version() <= 1) || (j == LINE_REFUNDS && file->get_extended_version() < 8) || ((j == LINE_DEPARTURES || j == LINE_DEPARTURES_SCHEDULED) && (file->get_extended_version() < 12 || file->is_loading())))
 #else
-				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && file->get_extended_version() <= 1) || (j == LINE_REFUNDS && file->get_extended_version() < 8) || ((j == LINE_DEPARTURES || j == LINE_DEPARTURES_SCHEDULED) && file->get_extended_version() < 12))
+				if(((j == LINE_AVERAGE_SPEED || j == LINE_COMFORT) && ext_ver <= 1) || (j == LINE_REFUNDS && ext_ver < 8) || ((j == LINE_DEPARTURES || j == LINE_DEPARTURES_SCHEDULED) && ext_ver < 12))
 #endif
 				{
 					// Versions of Extended saves with 1 and below
@@ -357,13 +360,13 @@ void simline_t::rdwr(loadsave_t *file)
 					}
 					continue;
 				}
-				else if(j == 7 && file->get_version_int() >= 111001 && file->get_extended_version() == 0)
+				else if(j == 7 && std_ver >= 111001 && ext_ver == 0)
 				{
 					// In Standard, this is LINE_MAXSPEED.
 					sint64 dummy = 0;
 					file->rdwr_longlong(dummy);
 				}
-				else if (j == LINE_WAYTOLL && (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 25)))
+				else if (j == LINE_WAYTOLL && ext_ver_int < 14025)
 				{
 					if (file->is_loading())
 					{
@@ -376,11 +379,11 @@ void simline_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_version_int()>=102002) {
+	if(std_ver >= 102002) {
 		file->rdwr_bool(withdraw);
 	}
 
-	if(file->get_extended_version() >= 9)
+	if(ext_ver >= 9)
 	{
 		file->rdwr_bool(start_reversed);
 	}
@@ -388,26 +391,26 @@ void simline_t::rdwr(loadsave_t *file)
 	// otherwise initialized to zero if loading ...
 	financial_history[0][LINE_CONVOIS] = count_convoys();
 
-	if(file->get_extended_version() >= 2)
+	if(ext_ver >= 2)
 	{
 #ifdef SPECIAL_RESCUE_12_2
 		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 || file->is_loading() ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
 #else
-		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
+		const uint8 counter = std_ver < 103000 ? LINE_DISTANCE : ext_ver < 12 ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
 #endif
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
 			file->rdwr_short(rolling_average_count[i]);
 		}
-		if (file->get_extended_version() > 14 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 25))
+		if (ext_ver_int < 14025)
 		{
 			file->rdwr_long(rolling_average[LINE_WAYTOLL]);
 			file->rdwr_short(rolling_average_count[LINE_WAYTOLL]);
 		}
 	}
 
-	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
+	if(ext_ver >= 9 && std_ver >= 110006)
 	{
 		file->rdwr_short(livery_scheme_index);
 	}
@@ -416,7 +419,7 @@ void simline_t::rdwr(loadsave_t *file)
 		livery_scheme_index = 0;
 	}
 
-	if(file->get_extended_version() >= 10)
+	if(ext_ver >= 10)
 	{
 		if(file->is_saving())
 		{
@@ -458,7 +461,7 @@ void simline_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
-	if ((file->get_extended_version() == 13 && file->get_extended_revision() >= 2) || file->get_extended_version() >= 14)
+	if (ext_ver_int >= 13002)
 	{
 		if(file->is_saving())
 		{
@@ -502,7 +505,7 @@ void simline_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
-	if(file->get_version_int() >= 111002 && file->get_extended_version() >= 10 && file->get_extended_version() < 12)
+	if(std_ver >= 111002 && ext_ver >= 10 && ext_ver < 12)
 	{
 		bool dummy_is_alternating_circle_route = false; // Deprecated.
 		file->rdwr_bool(dummy_is_alternating_circle_route);

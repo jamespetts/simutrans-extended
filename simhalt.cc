@@ -3782,12 +3782,15 @@ void warenziel_rdwr(loadsave_t *file)
 
 void haltestelle_t::rdwr(loadsave_t *file)
 {
+	const uint32 std_ver = file->get_version_int();
+	const uint32 ext_ver = file->get_extended_version();
+	const uint32 ext_ver_int = file->get_extended_version_int();
 	xml_tag_t h( file, "haltestelle_t" );
 
 	sint32 owner_n;
 	koord3d k;
 	// will restore halthandle_t after loading
-	if(file->get_version_int() > 110005)
+	if(std_ver > 110005)
 	{
 		if(file->is_saving())
 		{
@@ -3815,7 +3818,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			uint16 halt_id;
 			file->rdwr_short(halt_id);
 			self.set_id(halt_id);
-			if((file->get_extended_version() >= 10 || file->get_extended_version() == 0) && halt_id != 0)
+			if((ext_ver >= 10 || ext_ver == 0) && halt_id != 0)
 			{
 				self = halthandle_t(this, halt_id);
 			}
@@ -3837,12 +3840,12 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		owner_n = welt->sp2num( owner );
 	}
 
-	if(file->get_version_int()<99008) {
+	if(std_ver < 99008) {
 		init_pos.rdwr( file );
 	}
 	file->rdwr_long(owner_n);
 
-	if(file->get_version_int()<=88005) {
+	if(std_ver <= 88005) {
 		bool dummy;
 		file->rdwr_bool(dummy); // pax
 		file->rdwr_bool(dummy); // mail
@@ -3872,7 +3875,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			const building_desc_t *desc=gb ? gb->get_tile()->get_desc():NULL;
 			if(desc)
 			{
-				add_grund( gr, false /*do not relink factories now*/, !(file->get_extended_version() >= 13 || file->get_extended_revision() >= 21) /*do not recalculate nearby halts now unless loading an older version*/  );
+				add_grund( gr, false /*do not relink factories now*/, ext_ver_int < 12021 /*do not recalculate nearby halts now unless loading an older version*/  );
 				// Factories will be re-linked on loading
 			}
 			else {
@@ -3897,7 +3900,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 	uint8 max_catg_count_game = goods_manager_t::get_max_catg_index();
 	uint8 max_catg_count_file = max_catg_count_game;
 
-	if(file->get_extended_version() >= 11)
+	if(ext_ver >= 11)
 	{
 		// Version 11 and above - the maximum category count is saved with the game.
 		file->rdwr_byte(max_catg_count_file);
@@ -3917,7 +3920,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				s = "y";	// needs to be non-empty
 				file->rdwr_str(s);
 				bool has_uint16_count;
-				if(file->get_version_int() <= 112002 || file->get_extended_version() <= 10)
+				if(std_ver <= 112002 || ext_ver <= 10)
 				{
 					const uint32 count = warray->get_count();
 					uint16 short_count = min(count, 65535u);
@@ -3962,7 +3965,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		file->rdwr_str(s, lengthof(s));
 		while(*s) {
 			uint32 count;
-			if(  file->get_version_int() <= 112002  || (file->get_extended_version() > 0 && file->get_extended_version() <= 10) ) {
+			if(std_ver <= 112002 || (ext_ver > 0 && ext_ver <= 10) ) {
 				// Older versions stored only 16-bit count values.
 				uint16 scount;
 				file->rdwr_short(scount);
@@ -3999,7 +4002,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 		// old games save the list with stations
 		// however, we have to rebuilt them anyway for the new format
-		if(file->get_version_int()<99013) {
+		if(std_ver < 99013) {
 			uint16 count;
 			file->rdwr_short(count);
 
@@ -4017,12 +4020,12 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 5)
+	if (ext_ver >= 5)
 	{
-		const int max_j = (file->get_extended_version() == 14 && file->get_extended_revision() >= 9) || file->get_extended_version() >= 15 ? 11 : 9;
+		const int max_j = ext_ver_int >= 14009 ? 11 : 9;
 		for (int j = 0; j < max_j /*MAX_HALT_COST*/; j++)
 		{
-			if (((file->get_extended_version() == 14 && file->get_extended_revision() < 5) || file->get_extended_version() < 14) && j==8)
+			if (ext_ver_int < 14005 && j == 8)
 			{
 				break;
 			}
@@ -4043,7 +4046,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				{
 					// Walked passengers in Standard
 					// (Extended stores these in cities, not stops)
-					if(file->get_version_int() >= 111001)
+					if(std_ver >= 111001)
 					{
 						sint64 dummy = 0;
 						file->rdwr_longlong(dummy);
@@ -4071,7 +4074,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 2)
+	if(ext_ver >= 2)
 	{
 		for(int i = 0; i < max_catg_count_file; i ++)
 		{
@@ -4080,7 +4083,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				uint8 passenger_classes;
 				uint8 mail_classes;
 
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+				if (ext_ver_int >= 12022)
 				{
 					passenger_classes = goods_manager_t::passengers->get_number_of_classes();
 					mail_classes = goods_manager_t::mail->get_number_of_classes();
@@ -4119,7 +4122,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 					{
 						uint16 id = iter.key;
 
-						if (file->get_extended_version() >= 10)
+						if (ext_ver >= 10)
 						{
 							file->rdwr_short(id);
 						}
@@ -4139,7 +4142,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 						ITERATE(iter.value.times, n)
 						{
 							// Store each waiting time
-							if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+							if (ext_ver_int >= 12014)
 							{
 								uint32 current_time = iter.value.times.get_element(n);
 								file->rdwr_long(current_time);
@@ -4160,7 +4163,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 							}
 						}
 
-						if (file->get_extended_version() >= 9)
+						if (ext_ver >= 9)
 						{
 							waiting_time_set wt = iter.value;
 							file->rdwr_byte(wt.month);
@@ -4175,7 +4178,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				uint8 passenger_classes;
 				uint8 mail_classes;
 
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+				if (ext_ver_int >= 12022)
 				{
 					file->rdwr_byte(passenger_classes);
 					file->rdwr_byte(mail_classes);
@@ -4214,7 +4217,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 					uint16 id = 0;
 					for (uint16 k = 0; k < halts_count; k++)
 					{
-						if (file->get_extended_version() >= 10)
+						if (ext_ver >= 10)
 						{
 							file->rdwr_short(id);
 						}
@@ -4245,7 +4248,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 						for (uint8 j = 0; j < waiting_time_count; j++)
 						{
 							uint32 current_time;
-							if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+							if (ext_ver_int >= 12014)
 							{
 								file->rdwr_long(current_time);
 							}
@@ -4264,7 +4267,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 							}
 							list.add_to_tail(current_time);
 						}
-						if (file->get_extended_version() >= 9)
+						if (ext_ver >= 9)
 						{
 							file->rdwr_byte(month);
 						}
@@ -4284,7 +4287,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			}
 		}
 
-		if(file->get_extended_version() > 0 && file->get_extended_version() < 3)
+		if(ext_ver > 0 && ext_ver < 3)
 		{
 			uint16 old_paths_timestamp = 0;
 			uint16 old_connexions_timestamp = 0;
@@ -4293,7 +4296,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			file->rdwr_short(old_connexions_timestamp);
 			file->rdwr_bool(old_reschedule);
 		}
-		else if(file->get_extended_version() > 0 && file->get_extended_version() < 10)
+		else if(ext_ver > 0 && ext_ver < 10)
 		{
 			for(short i = 0; i < max_catg_count_file; i ++)
 			{
@@ -4306,12 +4309,12 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >=9 && file->get_version_int() >= 110000)
+	if(ext_ver >= 9 && std_ver >= 110000)
 	{
 		file->rdwr_bool(do_alternative_seats_calculation);
 	}
 
-	if(file->get_extended_version() >= 10)
+	if(ext_ver >= 10)
 	{
 		if(file->is_saving())
 		{
@@ -4334,7 +4337,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				add_halt_within_walking_distance(halt);
 			}
 		}
-		if(file->get_version_int() >= 111002)
+		if(std_ver >= 111002)
 		{
 			file->rdwr_byte(control_towers);
 		}
@@ -4347,9 +4350,9 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 11)
+	if(ext_ver >= 11)
 	{
-		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+		if (ext_ver_int >= 12014)
 		{
 			file->rdwr_long(transfer_time);
 		}
@@ -4368,7 +4371,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 12 || (file->get_version_int() >= 112007 && file->get_extended_version() >= 11))
+	if(ext_ver >= 12 || (std_ver >= 112007 && ext_ver >= 11))
 	{
 		file->rdwr_byte(check_waiting);
 	}
@@ -4377,7 +4380,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		check_waiting = 0;
 	}
 
-	if(file->get_extended_version() >= 12)
+	if(ext_ver >= 12)
 	{
 		// Load/save the estimated arrival and departure times.
 		uint16 convoy_id;
@@ -4436,7 +4439,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if((file->get_extended_version() >= 12 && file->get_extended_revision() >= 11) || file->get_extended_version() >= 13)
+	if(ext_ver_int >= 12011)
 	{
 		uint32 station_signals_count = station_signals.get_count();
 		file->rdwr_long(station_signals_count);
@@ -4476,7 +4479,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		station_signals.clear();
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 15)
+	if (ext_ver_int >= 12015)
 	{
 		uint32 count;
 		sint64 ready;
@@ -4550,7 +4553,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 	}
 
 	// Load/save connexions data for the path explorer.
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8))
+	if (ext_ver_int >= 14008)
 	{
 		const uint8 max_categories = goods_manager_t::get_max_catg_index();
 		const uint8 max_classes = max(goods_manager_t::passengers->get_number_of_classes(), goods_manager_t::mail->get_number_of_classes());

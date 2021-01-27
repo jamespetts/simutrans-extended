@@ -2510,7 +2510,9 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	obj_t::rdwr(file);
 	uint8 saved_number_of_classes = number_of_classes;
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+	const uint32 ext_ver_int = file->get_extended_version_int();
+
+	if (ext_ver_int >= 12022)
 	{
 		// We needed to save this in case "desc" could not be found on re-loading because
 		// of some pakset changes. Now we save this for compatibility, and also in
@@ -2545,7 +2547,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+	if (ext_ver_int >= 12022)
 	{
 		file->rdwr_bool(create_dummy_ware);
 	}
@@ -2598,7 +2600,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(speed_limit);
 		file->rdwr_enum(direction);
 		file->rdwr_enum(previous_direction);
-		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+		if (ext_ver_int >= 12022)
 		{
 			for (uint8 i = 0; i < saved_number_of_classes; i++)
 			{
@@ -2713,7 +2715,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	{
 		slist_tpl<ware_t> *temp_fracht = new slist_tpl<ware_t>[saved_number_of_classes];
 
-		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+		if (ext_ver_int >= 12022)
 		{
 			for (uint8 i = 0; i < saved_number_of_classes; i++)
 			{
@@ -2914,7 +2916,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 22)
+	if (ext_ver_int >= 12022)
 	{
 		for (uint8 i = 0; i < saved_number_of_classes; i++)
 		{
@@ -2927,7 +2929,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 19))
+	if (ext_ver_int >= 14019)
 	{
 		last_stopped_tile.rdwr(file);
 	}

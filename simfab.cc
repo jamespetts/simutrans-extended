@@ -1328,6 +1328,9 @@ void fabrik_t::set_name(const char *new_name)
 
 void fabrik_t::rdwr(loadsave_t *file)
 {
+	const uint32 ext_ver = file->get_extended_version();
+	const uint32 std_ver = file->get_version_int();
+	const uint32 ext_ver_int = file->get_extended_version_int();
 	xml_tag_t f( file, "fabrik_t" );
 	sint32 i;
 	sint32 owner_n;
@@ -1367,7 +1370,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		input.resize( input_count );
 	}
 	bool mismatch = false;
-	for(  i=0;  i<input_count;  ++i  ) {
+	for(i=0; i < input_count; ++i  ) {
 		ware_production_t &ware = input[i];
 		const char *ware_name = NULL;
 		sint32 menge = ware.menge;
@@ -1376,7 +1379,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 		file->rdwr_str(ware_name);
 		file->rdwr_long(menge);
-		if(  file->get_version_int()<110005  ) {
+		if(std_ver < 110005  ) {
 			// max storage is only loaded/saved for older versions
 			file->rdwr_long(ware.max);
 		}
@@ -1408,7 +1411,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 				// Inputs used to be with respect to actual units of production. They now are normalized with respect to factory production so require conversion.
 				const uint32 prod_factor = desc ? desc->get_supplier(i)->get_consumption() : 1;
-				if (file->get_version_int() <= 120000) {
+				if (std_ver <= 120000) {
 					ware.menge = (sint32)(((sint64)menge << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor);
 				}
 				else {
@@ -1486,13 +1489,13 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		if(  file->is_saving()  ) {
 			ware_name = ware.get_typ()->get_name();
 			// correct scaling for older saves
-			if (file->get_version_int() <= 120000) {
+			if (std_ver <= 120000) {
 				menge = (sint32)(((sint64)ware.menge * desc->get_product(i)->get_factor()) >> DEFAULT_PRODUCTION_FACTOR_BITS);
 			}
 		}
 		file->rdwr_str(ware_name);
 		file->rdwr_long(menge);
-		if(  file->get_version_int()<110005  ) {
+		if(std_ver < 110005  ) {
 			// max storage is only loaded/saved for older versions
 			file->rdwr_long(ware.max);
 			// obsolete variables -> statistics already contain records on goods delivered
@@ -1511,7 +1514,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			}
 			else {
 				// Outputs used to be with respect to actual units of production. They now are normalized with respect to factory production so require conversion.
-				if (file->get_version_int() <= 120000) {
+				if (std_ver <= 120000) {
 					const uint32 prod_factor = desc ? desc->get_product(i)->get_factor() : 1;
 					ware.menge = (sint32)(((sint64)menge << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor);
 				}
@@ -1566,20 +1569,20 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	owner_n = welt->sp2num(owner);
 	file->rdwr_long(owner_n);
 	file->rdwr_long(prodbase);
-	if(  file->get_version_int()<110005  ) {
+	if(std_ver < 110005  ) {
 		// prodfactor saving no longer required
 		sint32 adjusted_value = (prodfactor_electric / 16) + 16;
 		file->rdwr_long(adjusted_value);
 	}
 
-	if(  file->get_version_int() > 99016  ) {
+	if(std_ver > 99016  ) {
 		file->rdwr_long(power);
 	}
 
 	// owner stuff
 	if(  file->is_loading()  ) {
 		// take care of old files
-		if(  file->get_version_int() < 86001  ) {
+		if(std_ver < 86001  ) {
 			koord k = desc ? desc->get_building()->get_size() : koord(1,1);
 			DBG_DEBUG("fabrik_t::rdwr()","correction of production by %i",k.x*k.y);
 			// since we step from 86.01 per factory, not per tile!
@@ -1609,7 +1612,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		consumers[i].rdwr(file);
 	}
 
-	if(  file->get_version_int()>=112002  ) {
+	if(std_ver >= 112002  ) {
 		file->rdwr_long(consumers_active_last_month );
 	}
 
@@ -1619,11 +1622,11 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	}
 
 	// information on fields ...
-	if(  file->get_version_int() > 99009  ) {
+	if(std_ver > 99009  ) {
 		if(  file->is_saving()  ) {
 			uint16 nr=fields.get_count();
 			file->rdwr_short(nr);
-			if(  file->get_version_int()>102002  && file->get_extended_version() != 7 ) {
+			if(std_ver > 102002 && ext_ver != 7 ) {
 				// each field stores location and a field class index
 				for(  uint16 i=0  ;  i<nr  ;  ++i  ) {
 					koord k = fields[i].location;
@@ -1645,7 +1648,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			koord k;
 			file->rdwr_short(nr);
 			fields.resize(nr);
-			if(  file->get_version_int()>102002  && file->get_extended_version() != 7 ) {
+			if(std_ver > 102002 && ext_ver != 7 ) {
 				// each field stores location and a field class index
 				for(  uint16 i=0  ;  i<nr  ;  ++i  ) {
 					k.rdwr(file);
@@ -1670,7 +1673,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 
-	if(file->get_version_int() >= 99014 && file->get_extended_version() < 12)
+	if(std_ver >= 99014 && ext_ver < 12)
 	{
 		// Was saving/loading of "target_cities".
 		sint32 nr = 0;
@@ -1682,25 +1685,25 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 
-	if(file->get_extended_version() < 9 && file->get_version_int() < 110006)
+	if(ext_ver < 9 && std_ver < 110006)
 	{
 		// Necessary to ensure that the industry density is correct after re-loading a game.
 		welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
 	}
 
-	if(  file->get_version_int() >= 110005  ) {
+	if(std_ver >= 110005  ) {
 		file->rdwr_short(times_expanded);
 		// statistics
 		//sint64 dummy64 = 0;
 		for(  int s=0;  s<MAX_FAB_STAT;  ++s  ) {
 			for(  int m=0;  m<MAX_MONTH;  ++m  ) {
-				if (((file->get_extended_version() == 14 && file->get_extended_revision() <= 6) || file->get_extended_version() < 14) && s == 11)
+				if (ext_ver_int < 14006 && s == 11)
 				{
 					statistics[m][s] = 0;
 					continue;
 				}
 				file->rdwr_longlong(statistics[m][s]);
-				if (s== FAB_PRODUCTION && (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 29))) {
+				if (s== FAB_PRODUCTION && ext_ver_int < 14029) {
 					// convert production to producivity
 					if (prodbase && welt->calc_adjusted_monthly_figure(get_base_production())) {
 						statistics[m][s] = calc_operation_rate(m);
@@ -1727,7 +1730,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	arrival_stats_pax.rdwr( file );
 	arrival_stats_mail.rdwr( file );
 
-	if(  file->get_version_int()>=110007  ) {
+	if(std_ver >= 110007  ) {
 		file->rdwr_byte(activity_count);
 	}
 	else if(  file->is_loading()  ) {
@@ -1735,7 +1738,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	}
 
 	// save name
-	if(  file->get_version_int() >= 110007  ) {
+	if(std_ver >= 110007  ) {
 		if(  file->is_saving() &&  !name  ) {
 			char const* fullname = desc->get_name();
 			file->rdwr_str(fullname);
@@ -1749,7 +1752,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 23)
+	if (ext_ver_int >= 12023)
 	{
 		if (file->is_loading())
 		{

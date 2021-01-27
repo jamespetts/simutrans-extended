@@ -136,7 +136,7 @@ void stadt_t::electricity_consumption_init(const std::string &objfilename)
 */
 void stadt_t::electricity_consumption_rdwr(loadsave_t *file)
 {
-	if(file->get_extended_version() < 9)
+	if(file->get_extended_version_int() < 9000)
 	{
 		 return;
 	}
@@ -978,14 +978,15 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 */
 void stadt_t::cityrules_rdwr(loadsave_t *file)
 {
-	const uint32 exp_ver = file->get_extended_version();
-	if(exp_ver > 0 && exp_ver < 9)
+	const uint32 ext_ver = file->get_extended_version();
+	const uint32 extended_version_int = file->get_extended_version_int();
+	if(ext_ver > 0 && ext_ver < 9)
 	{
 		 return;
 	}
 
 	const uint32 std_ver = file->get_version_int();
-	if( exp_ver == 0 && std_ver >= 112008 ) {
+	if(ext_ver == 0 && std_ver >= 112008 ) {
 		file->rdwr_long( cluster_factor );
 	}
 
@@ -997,18 +998,18 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
 	// for networked games... both is *needed* for network games though
 
 	// NOTE: This code is not *only* called for network games.
-	if(exp_ver >= 12 || (exp_ver > 0 && std_ver >= 112005))
+	if(ext_ver >= 12 || (ext_ver > 0 && std_ver >= 112005))
 	{
 		file->rdwr_long(cluster_factor);
 		file->rdwr_long(bridge_success_percentage);
 	}
 
-	if(file->get_extended_version() >= 12 || (file->get_version_int() >= 112007 && file->get_extended_version() >= 11))
+	if(ext_ver >= 12 || (std_ver >= 112007 && ext_ver >= 11))
 	{
 		file->rdwr_long(renovations_try);
 		file->rdwr_long(renovations_count);
 	}
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 13) || file->get_extended_version() >= 15)
+	if (extended_version_int >= 14013)
 	{
 		file->rdwr_long(renovation_range);
 		file->rdwr_long(renovation_influence_type);
@@ -1024,7 +1025,7 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
 		file->rdwr_short(renovation_ranges_by_type[2]);
 		file->rdwr_long(renovation_distance_chance);
 	}
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 14) || file->get_extended_version() >= 15)
+	if (extended_version_int >= 14015)
 	{
 		file->rdwr_long(minimum_city_distance);
 	}
@@ -1771,6 +1772,9 @@ stadt_t::stadt_t(loadsave_t* file) :
 void stadt_t::rdwr(loadsave_t* file)
 {
 	sint32 owner_n;
+	uint32 extended_version_int = file->get_extended_version_int();
+	uint32 ext_ver = file->get_extended_version();
+	uint32 std_ver = file->get_version_int();
 
 	if (file->is_saving()) {
 		owner_n = welt->sp2num(owner);
@@ -1962,7 +1966,7 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(stadtinfo_options);
 		}
 	}
-	else if(file->get_extended_version() > 0 && file->get_extended_version() < 3)
+	else if(ext_ver > 0 && ext_ver < 3)
 	{
 		// Move congestion history to the correct place (shares with power received).
 
@@ -2013,26 +2017,26 @@ void stadt_t::rdwr(loadsave_t* file)
 		// save button settings for this town
 		file->rdwr_long(stadtinfo_options);
 	}
-	else if(file->get_extended_version() >= 3)
+	else if(ext_ver >= 3)
 	{
 		for(uint year = 0; year < MAX_CITY_HISTORY_YEARS; year++)
 		{
 			for(uint32 hist_type = 0; hist_type < adapted_max_city_history; hist_type++)
 			{
-				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->get_version_int() < 111001))
+				if(hist_type == HIST_PAS_WALKED && (ext_ver < 10 || std_ver < 111001))
 				{
 					// Versions earlier than 111.1 Ex 10.8 did not record walking passengers.
 					city_history_year[year][hist_type] = 0;
 					continue;
 				}
 
-				if(file->get_extended_version() < 12 && (hist_type == HIST_JOBS || hist_type == HIST_VISITOR_DEMAND))
+				if(ext_ver < 12 && (hist_type == HIST_JOBS || hist_type == HIST_VISITOR_DEMAND))
 				{
 					city_history_year[year][hist_type] = 0;
 					continue;
 				}
 
-				if(file->get_extended_version() < 12 && (hist_type == LEGACY_HIST_CAR_OWNERSHIP))
+				if(ext_ver < 12 && (hist_type == LEGACY_HIST_CAR_OWNERSHIP))
 				{
 					sint64 car_ownership_history = welt->get_finance_history_year(0, karte_t::WORLD_CAR_OWNERSHIP);
 					file->rdwr_longlong(car_ownership_history);
@@ -2048,19 +2052,19 @@ void stadt_t::rdwr(loadsave_t* file)
 		{
 			for(uint hist_type = 0; hist_type < adapted_max_city_history; hist_type++)
 			{
-				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->get_version_int() < 111001))
+				if(hist_type == HIST_PAS_WALKED && (ext_ver < 10 || std_ver < 111001))
 				{
 					// Versions earlier than 111.1 Ex 10.8 did not record walking passengers.
 					city_history_month[month][hist_type] = 0;
 					continue;
 				}
-				if(file->get_extended_version() < 12 && (hist_type == HIST_JOBS || hist_type == HIST_VISITOR_DEMAND))
+				if(ext_ver < 12 && (hist_type == HIST_JOBS || hist_type == HIST_VISITOR_DEMAND))
 				{
 					city_history_month[month][hist_type] = 0;
 					continue;
 				}
 
-				if(file->get_extended_version() < 12 && (hist_type == LEGACY_HIST_CAR_OWNERSHIP))
+				if(ext_ver < 12 && (hist_type == LEGACY_HIST_CAR_OWNERSHIP))
 				{
 					sint64 car_ownership_history = welt->get_finance_history_month(0, karte_t::WORLD_CAR_OWNERSHIP);
 					file->rdwr_longlong(car_ownership_history);
@@ -2076,13 +2080,13 @@ void stadt_t::rdwr(loadsave_t* file)
 		file->rdwr_long(stadtinfo_options);
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 26)
+	if (extended_version_int >= 12026)
 	{
 		// This load/save block used to be further down, but has been moved here
 		// because it is necessary to load outgoing_private_cars before the city
 		// growth factors.
 
-		if ((file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 19)))
+		if (extended_version_int < 14019)
 		{
 			// This was check_road_connexions
 			bool dummy;
@@ -2102,13 +2106,13 @@ void stadt_t::rdwr(loadsave_t* file)
 	}
 
 	// differential history
-	if (file->get_version_int() <= 120000 || (file->get_extended_version() > 0 && file->get_extended_version() < 25)) {
+	if (std_ver <= 120000 || ext_ver > 0) { // there was probably an error here - extended version 25 does not exist.
 		if (file->is_loading()) {
 			// Initalize differential statistics assuming a differential of 0.
 			city_growth_get_factors(city_growth_factor_previous, 0);
 		}
 	}
-	else if (file->get_extended_version() == 0) {
+	else if (ext_ver == 0) {
 		if (file->is_loading()) {
 			// Initalize differential statistics assuming a differential of 0.
 			city_growth_get_factors(city_growth_factor_previous, 0);
@@ -2128,28 +2132,28 @@ void stadt_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	if(file->get_version_int()>99014  &&  file->get_version_int()<99016) {
+	if(std_ver>99014  &&  std_ver<99016) {
 		sint32 dummy = 0;
 		file->rdwr_long(dummy);
 		file->rdwr_long(dummy);
 	}
 
 	// since 102.2 there are static cities
-	if(file->get_version_int()>102001 ) {
+	if(std_ver>102001 ) {
 		file->rdwr_bool(allow_citygrowth);
 	}
 	else if(  file->is_loading()  ) {
 		allow_citygrowth = true;
 	}
 	// save townhall road position
-	if(file->get_version_int()>102002 && file->get_extended_version() != 7 ) {
+	if(std_ver>102002 && ext_ver != 7 ) {
 		townhall_road.rdwr(file);
 	}
 	else if(  file->is_loading()  ) {
 		townhall_road = koord::invalid;
 	}
 
-	if(file->get_version_int() >= 110005 && file->get_extended_version() < 12)
+	if(std_ver >= 110005 && ext_ver < 12)
 	{
 		// Old "factory_entry_t" code - deprecated, but must skip to the correct
 		// position in old saved game files. NOTE: There is *no* way to save in
@@ -2182,16 +2186,16 @@ void stadt_t::rdwr(loadsave_t* file)
 	//target_factories_pax.rdwr( file );
 	//target_factories_mail.rdwr( file );
 
-	if(file->get_extended_version() >=9 && file->get_version_int() >= 110000 && file->get_extended_version() < 13 && file->get_extended_revision() < 26)
+	if(ext_ver >=9 && file->get_version_int() >= 110000 && extended_version_int < 12026)
 	{
 		// This load/save block has been moved upwards because it is necessary to load outgoing_private_cars before setting the growth factors, which is done above.
-		if ((file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 19)))
+		if (extended_version_int < 14019)
 		{
 			// This was check_road_connexions
 			bool dummy;
 			file->rdwr_bool(dummy);
 		}
-		if(file->get_extended_version() < 11)
+		if(ext_ver < 11)
 		{
 			// Was private_car_update_month
 			uint8 dummy;
@@ -2203,7 +2207,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		file->rdwr_long(incoming_private_cars);
 	}
 
-	if(file->is_saving() && file->get_extended_version() >=9 && file->get_version_int() >= 110000)
+	if(file->is_saving() && ext_ver >=9 && std_ver >= 110000)
 	{
 		uint32 time;
 		koord k;
@@ -2214,7 +2218,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		FOR(connexion_map, const& city_iter, connected_cities)
 		{
 			time = city_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+			if (extended_version_int >= 12014)
 			{
 				file->rdwr_long(time);
 			}
@@ -2240,7 +2244,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		FOR(connexion_map, const& industry_iter, connected_industries)
 		{
 			time = industry_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+			if (extended_version_int >= 13014)
 			{
 				file->rdwr_long(time);
 			}
@@ -2266,7 +2270,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		FOR(connexion_map, const& attraction_iter, connected_attractions)
 		{
 			time = attraction_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+			if (extended_version_int >= 13014)
 			{
 				file->rdwr_long(time);
 			}
@@ -2294,7 +2298,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	{
 		// We have to be rather careful about this.  City borders are no longer strictly determined
 		// by building layout, they are their own thing.  But when loading old files, shrink to fit...
-		if (file->get_extended_version() < 12) {
+		if (ext_ver < 12) {
 			// Due to some bugs in the special buildings/town hall
 			// placement code, li,re,ob,un could've gotten irregular values
 			// If a game is loaded, the game might suffer from such an mistake
@@ -2307,7 +2311,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		connected_cities.clear();
 		connected_industries.clear();
 		connected_attractions.clear();
-		if(file->get_extended_version() >=9 && file->get_version_int() >= 110000)
+		if(ext_ver >=9 && std_ver >= 110000)
 		{
 			uint32 time;
 			koord k;
@@ -2317,7 +2321,7 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+				if (extended_version_int >= 13014)
 				{
 					file->rdwr_long(time);
 				}
@@ -2344,7 +2348,7 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+				if (extended_version_int >= 13014)
 				{
 					file->rdwr_long(time);
 				}
@@ -2370,7 +2374,7 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+				if (extended_version_int >= 13014)
 				{
 					file->rdwr_long(time);
 				}
@@ -2395,13 +2399,13 @@ void stadt_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+	if (extended_version_int >= 14019)
 	{
 		// Private car route data
 		file->rdwr_bool(private_car_route_finding_in_progress);
 
 		// All apart from the above is deprecated as this system was found to use too much memory.
-		if (file->get_extended_version() == 14 && file->get_extended_revision() < 20)
+		if (extended_version_int < 14020)
 		{
 			uint32 dummy = 0;
 			file->rdwr_long(dummy);
@@ -2409,7 +2413,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	if(file->get_extended_version() >= 12 && file->get_extended_version() < 13)
+	if(ext_ver >= 12 && ext_ver < 13)
 	{
 		// Was waschtum
 		uint32 dummy;

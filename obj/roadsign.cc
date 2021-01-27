@@ -730,8 +730,8 @@ void roadsign_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if( (file->get_extended_version() == 13 && file->get_extended_revision() >= 6)
-		|| (file->get_extended_version() == 14 && file->get_extended_revision() < 32) ) {
+	if(file->get_extended_version_int() >= 13006 && file->get_extended_version_int() < 14032)
+	{
 		file->rdwr_byte(dummy);
 	}
 

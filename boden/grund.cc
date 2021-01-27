@@ -331,7 +331,7 @@ void grund_t::rdwr(loadsave_t *file)
 						break;
 
 					case road_wt:
-						if(file->get_extended_version()==14 && file->get_extended_revision()>=19 && file->get_extended_revision()<33) {
+						if(file->get_extended_version_int() >= 14019 && file->get_extended_version_int() < 14033) {
 							weg = new strasse_t(file, get_pos());
 						} else {
 							weg = new strasse_t(file);

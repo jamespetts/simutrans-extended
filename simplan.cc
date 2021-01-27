@@ -313,7 +313,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 		} while(gr != 0);
 	}
 
-	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 21)
+	if (file->get_extended_version_int() >= 12021)
 	{
 		// Cache the halt_list as this saves a huge amount of time re-calculating this on loading.
 

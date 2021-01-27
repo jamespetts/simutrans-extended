@@ -244,7 +244,7 @@ void ware_t::rdwr(loadsave_t *file)
 		is_commuting_trip = commuting;
 	}
 
-	if (file->get_extended_version() >= 13 || (file->get_extended_version() == 12 && file->get_extended_revision() >= 22))
+	if (file->get_extended_version_int() >= 12022)
 	{
 		file->rdwr_byte(g_class);
 	}
@@ -255,7 +255,7 @@ void ware_t::rdwr(loadsave_t *file)
 
 	g_class = min(g_class, get_desc()->get_number_of_classes()-1);
 
-	if (file->get_extended_version() >= 13 || (file->get_extended_version() == 12 && file->get_extended_revision() >= 27))
+	if (file->get_extended_version_int() >= 12027)
 	{
 		file->rdwr_short(comfort_preference_percentage);
 	}

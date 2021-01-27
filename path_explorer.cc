@@ -99,7 +99,8 @@ void path_explorer_t::finalise()
 
 void path_explorer_t::rdwr(loadsave_t* file)
 {
-	if (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 10))
+	const uint32 extended_version_int = file->get_extended_version_int();
+	if (extended_version_int < 14010)
 	{
 		// Iterate through the compartments and load/save these
 		for (uint8 ca = 0; ca < max_categories; ++ca)
@@ -173,7 +174,7 @@ void path_explorer_t::rdwr(loadsave_t* file)
 
 	// Load/save the connexion_list, which is static
 	uint32 connexion_list_size = 65536;
-	if (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 11))
+	if (extended_version_int < 14011)
 	{
 		// Wrong number was used in original code
 		connexion_list_size = 63336;

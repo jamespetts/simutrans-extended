@@ -961,7 +961,7 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 		file->rdwr_short( player_age );
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_revision() >= 26 && file->get_extended_version() == 14))
+	if (file->get_extended_version_int() >= 14026)
 	{
 		file->rdwr_bool(allow_voluntary_takeover);
 	}

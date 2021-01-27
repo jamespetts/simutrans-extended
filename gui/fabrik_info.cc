@@ -572,7 +572,7 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 		set_windowsize( size );
 	}
 	chart.rdwr( file );
-	if (file->get_extended_version() > 14 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 29)) {
+	if (file->get_extended_version_int() >= 14029) {
 		goods_chart.rdwr(file);
 		uint8 selected_tab = tabs.get_active_tab_index();
 		file->rdwr_byte(selected_tab);

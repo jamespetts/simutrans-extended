@@ -139,6 +139,7 @@ public:
 	uint32 get_version_int() const { return finfo.ext_version.version; }
 	uint32 get_extended_version() const { return finfo.ext_version.extended_version; }
 	uint32 get_extended_revision() const { return finfo.ext_version.extended_revision; }
+	uint32 get_extended_version_int() const { return get_extended_version()*1000 + get_extended_revision();}
 
 	void rdwr_byte(sint8 &c);
 	void rdwr_byte(uint8 &c);

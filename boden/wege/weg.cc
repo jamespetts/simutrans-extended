@@ -390,6 +390,8 @@ weg_t::~weg_t()
 
 void weg_t::rdwr(loadsave_t *file)
 {
+	const uint32 standard_version_int = file->get_version_int();
+	const uint32 extended_version_int = file->get_extended_version_int();
 	xml_tag_t t( file, "weg_t" );
 
 	// save owner
@@ -420,7 +422,7 @@ void weg_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	const uint32 max_stat_types = file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 19) ? MAX_WAY_STATISTICS : 2;
+	const uint32 max_stat_types = extended_version_int >= 14019 ? MAX_WAY_STATISTICS : 2;
 
 	for(uint32 type = 0; type < max_stat_types; type++)
 	{
@@ -433,7 +435,7 @@ void weg_t::rdwr(loadsave_t *file)
 	}
 
 
-	if (file->is_loading() && ((file->get_extended_version() < 14) || (file->get_extended_version() == 14 && file->get_extended_revision() < 19)))
+	if (file->is_loading() && extended_version_int >= 14019)
 	{
 		// Very early version - initialise the travel time statistics
 		for(uint32 type = 0; type < MAX_WAY_TRAVEL_TIMES; type++)
@@ -446,7 +448,7 @@ void weg_t::rdwr(loadsave_t *file)
 	}
 
 	// NOTE: Revision 24 refers to the travel-time-congestion patch - if other patches that increment this number are merged first, then this must be updated too.
-	else if(file->is_loading() && file->get_extended_version() == 14 && file->get_extended_revision() >= 19 && file->get_extended_revision() < 24)
+	else if(file->is_loading() && extended_version_int >= 14019 && extended_version_int < 14024 )
 	{
 		// Older version - estimate travel time statistics from deprecated stopped vehicle statistics
 		// Use 10 seconds as the base time to cross the way ? the actual value is not important at all but the ratio is.
@@ -467,7 +469,7 @@ void weg_t::rdwr(loadsave_t *file)
 	}
 
 	// NOTE: Revision 24 refers to the travel-time-congestion patch - if other patches that increment this number are merged first, then this must be updated too.
-	else if ((file->get_extended_version() >= 15) || (file->get_extended_version() == 14 && file->get_extended_revision() >= 24))
+	else if (extended_version_int >= 14024)
 	{
 		for(uint32 type = 0; type < MAX_WAY_TRAVEL_TIMES; type++)
 		{
@@ -480,7 +482,7 @@ void weg_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 1)
+	if(extended_version_int >= 1000)
 	{
 		if (max_axle_load > 32768) {
 			dbg->error("weg_t::rdwr()", "Max axle load out of range");
@@ -490,7 +492,7 @@ void weg_t::rdwr(loadsave_t *file)
 		max_axle_load = wdummy16;
 	}
 
-	if(file->get_extended_version() >= 12)
+	if(extended_version_int >= 12000)
 	{
 		bool prow = public_right_of_way;
 		file->rdwr_bool(prow);
@@ -526,9 +528,9 @@ void weg_t::rdwr(loadsave_t *file)
 		degraded = deg;
 #endif
 
-		if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+		if (extended_version_int >= 14019)
 		{
-			const uint32 route_array_number = file->get_extended_version() >= 15 || file->get_extended_revision() >= 20 ? 2 : 1;
+			const uint32 route_array_number = extended_version_int >= 14020 ? 2 : 1;
 
 			if (file->is_saving())
 			{
@@ -548,14 +550,14 @@ void weg_t::rdwr(loadsave_t *file)
 				for (uint32 i = 0; i < route_array_number; i++)
 				{
 					// Unfortunately, the way private car routes are stored has changed a number of times in an effort to save memory.
-					if((file->get_extended_version()==14 && file->get_extended_revision() >= 19) || file->get_extended_version() > 14) {
-						if(file->get_extended_version() == 14 && file->get_extended_revision() < 37) {
+					if(extended_version_int >= 14019) {
+						if(extended_version_int >= 14037) {
 							uint32 private_car_routes_count = 0;
 							file->rdwr_long(private_car_routes_count);
 							for (uint32 j = 0; j < private_car_routes_count; j++) {
 								koord destination;
 								destination.rdwr(file);
-								if (file->get_extended_revision() < 33) {
+								if (extended_version_int > 14033) {
 									// Koord3d representation
 									koord3d next_tile;
 									next_tile.rdwr(file);
