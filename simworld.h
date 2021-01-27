@@ -1573,10 +1573,10 @@ public:
 		 */
 		return get_settings().get_meters_per_tile() * ticks * 30L * 6L / (4096L * 1000L);
 	}
-#ifndef NETTOOL
 	/**
 	* Reverse conversion of the above.
 	*/
+
 	inline sint64 get_seconds_to_ticks(uint32 seconds) const
 	{
 		// S = a * T * c * d / (e * f)
@@ -1588,7 +1588,7 @@ public:
 
 		return seconds_to_ticks(seconds, get_settings().get_meters_per_tile());
 	}
-#endif
+
 	inline double tiles_to_km(uint32 tiles) const
 	{
 		return (double)tiles * get_settings().get_meters_per_tile() / 1000.0;
