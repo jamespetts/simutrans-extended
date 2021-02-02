@@ -1,6 +1,7 @@
-//
-// Created by freddy on 2/2/21.
-//
+/*
+ * This file is part of the Simutrans-Extended project under the Artistic License.
+ * (see LICENSE.txt)
+ */
 
 #include "overtaker.h"
 
