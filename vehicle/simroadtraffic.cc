@@ -691,12 +691,12 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	if(  get_pos()==pos_next_next  ) {
 		// turning around => single check
 		const uint8 next_direction = ribi_t::backward(this_direction);
-		dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
+		dt = get_overtaker()->get_blocking_vehicle(gr, next_direction, next_direction, next_direction, 0);
 
 		// do not block railroad crossing
 		if(dt==NULL  &&  str->is_crossing()) {
 			const grund_t *gr = welt->lookup(get_pos());
-			dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
+			dt = get_overtaker()->get_blocking_vehicle(gr, next_direction, next_direction, next_direction, 0);
 		}
 	}
 	else {
@@ -728,7 +728,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 			grund_t *test = welt->lookup(pos_next_next);
 			if(  test  ) {
 				next_90direction = this->calc_direction(pos_next, pos_next_next);
-				dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
+				dt = get_overtaker()->get_blocking_vehicle(gr, this_direction, next_direction, next_90direction, next_lane);
 				if(  !dt  ) {
 					// This possibly made traffic too cautious at junctions, causing delays. However, precisely what this did
 					// and why it did it remain unclear, so retaining for reference.
@@ -739,7 +739,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		}
 		else {
 			// not a crossing => skip 90 degrees check!
-			dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
+			dt = get_overtaker()->get_blocking_vehicle(gr, this_direction, next_direction, next_90direction, next_lane);
 			frei = true;
 		}
 		//If this car is overtaking, the car must avoid a head-on crash.
@@ -793,7 +793,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 							}
 						} else if(  private_car_t* const caut = obj_cast<private_car_t>(dt)  ) {
 							if(  caut  ) {
-								if(  next_lane<1  &&  !is_overtaking()  &&  !other_lane_blocked(false)  &&  !caut->is_overtaking()  &&  can_overtake(caut, caut->get_current_speed(), VEHICLE_STEPS_PER_TILE)  ) {
+								if(  next_lane<1  &&  !is_overtaking()  &&  !other_lane_blocked(false)  &&  !caut->is_overtaking()  &&  can_overtake(caut, caut->get_current_speed_internal(), VEHICLE_STEPS_PER_TILE)  ) {
 									if(current_speed==0) {
 										ms_traffic_jam = 0;
 										current_speed = 48;
@@ -881,7 +881,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 				const uint8 next_direction = ribi_type(dir);
 				const uint8 nextnext_direction = ribi_type(dir);
 				// test next field after way crossing
-				if(get_blocking_vehicle(test, NULL, next_direction, nextnext_direction, nextnext_direction, this, next_lane)) {
+				if(get_overtaker()->get_blocking_vehicle(test, next_direction, nextnext_direction, nextnext_direction, next_lane)) {
 					return false;
 				}
 				// ok, left the crossing

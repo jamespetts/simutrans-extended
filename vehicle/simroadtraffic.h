@@ -144,9 +144,10 @@ public:
 	void enter_tile(grund_t* gr) OVERRIDE;
 
 	void calc_current_speed(grund_t*);
-	uint16 get_current_speed() const {return current_speed;}
+	uint16 get_current_speed_internal() const {return current_speed;}
+	sint32 get_current_speed() const OVERRIDE {return kmh_to_speed((sint32)get_current_speed_internal());}
 
-	uint32 get_max_speed() override;
+	uint32 get_max_speed() OVERRIDE;
 	inline sint32 get_max_power_speed() OVERRIDE {return get_max_speed();}
 
 	const char *get_name() const OVERRIDE {return "Verkehrsteilnehmer";}

@@ -9,12 +9,14 @@
 
 #include "../simtypes.h"
 #include "../simunits.h"
+#include "simvehicle.h"
 
 
-  /**
- * Class dealing with overtaking
- * It is the superclass of convois and city cars (private_car_t)
- */
+/**
+* Class dealing with overtaking
+* It is the superclass of convois and city cars (private_car_t)
+*/
+class vehicle_base_t;
 class overtaker_t
 {
 protected:
@@ -36,6 +38,8 @@ public:
 	bool is_overtaken() const { return diff > 0; }
 
 	bool can_be_overtaken() const { return tiles_overtaking == 0; }
+
+	vehicle_base_t *get_blocking_vehicle(const grund_t *gr, uint8 current_direction, uint8 next_direction, uint8 next_90direction, sint8 lane_on_the_tile ) const;
 
 	void set_tiles_overtaking(sint8 v) {
 		prev_tiles_overtaking = tiles_overtaking;
@@ -64,6 +68,8 @@ public:
 	virtual bool can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other) = 0;
 
 	virtual sint32 get_max_power_speed() = 0;
+
+	virtual sint32 get_current_speed() const = 0;
 
 	sint8 get_tiles_overtaking() const { return tiles_overtaking; }
 

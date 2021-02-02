@@ -624,110 +624,6 @@ sint16 vehicle_base_t::get_hoff(const sint16 raster_width) const
 }
 
 
-/* true, if one could pass through this field
- * also used for citycars, thus defined here
- */
-vehicle_base_t *vehicle_base_t::get_blocking_vehicle(const grund_t *gr, const convoi_t *cnv, const uint8 current_direction, const uint8 next_direction, const uint8 next_90direction, const private_car_t *pcar, sint8 lane_on_the_tile )
-{
-	bool cnv_overtaking = false; //whether this convoi is on passing lane.
-	if(  cnv  ) {
-		cnv_overtaking = cnv -> is_overtaking();
-	}
-	if(  pcar  ) {
-		cnv_overtaking = pcar -> is_overtaking();
-	}
-	switch (lane_on_the_tile) {
-		case 1:
-		cnv_overtaking = true; //treat as convoi is overtaking.
-		break;
-		case -1:
-		cnv_overtaking = false; //treat as convoi is not overtaking.
-		break;
-	}
-	// Search vehicle
-	for(  uint8 pos=1;  pos < gr->get_top();  pos++  ) {
-		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos))  ) {
-			if(  v->get_typ()==obj_t::pedestrian  ) {
-				continue;
-			}
-
-			// check for car
-			uint8 other_direction=255;
-			bool other_moving = false;
-			bool other_overtaking = false; //whether the other convoi is on passing lane.
-			if(  road_vehicle_t const* const at = obj_cast<road_vehicle_t>(v)  ) {
-				// ignore ourself
-				if(  cnv == at->get_convoi()  ) {
-					continue;
-				}
-				other_direction = at->get_direction();
-				other_moving = at->get_convoi()->get_akt_speed() > kmh_to_speed(1);
-				other_overtaking = at->get_convoi()->is_overtaking();
-			}
-			// check for city car
-			else if(  v->get_waytype() == road_wt  ) {
-				other_direction = v->get_direction();
-				if(  private_car_t const* const sa = obj_cast<private_car_t>(v)  ){
-					if(  pcar == sa  ) {
-						continue; // ignore ourself
-					}
-					other_moving = sa->get_current_speed() > 1;
-					other_overtaking = sa->is_overtaking();
-				}
-			}
-
-			// ok, there is another car ...
-			if(  other_direction != 255  ) {
-				if(  next_direction == other_direction  &&  !ribi_t::is_threeway(gr->get_weg_ribi(road_wt))  &&  cnv_overtaking == other_overtaking  ) {
-					// only consider cars on same lane.
-					// cars going in the same direction and no crossing => that mean blocking ...
-					return v;
-				}
-
-				const ribi_t::ribi other_90direction = (gr->get_pos().get_2d() == v->get_pos_next().get_2d()) ? other_direction : calc_direction(gr->get_pos(),v->get_pos_next());
-				if(  other_90direction == next_90direction  &&  cnv_overtaking == other_overtaking  ) {
-					// Want to exit in same as other   ~50% of the time
-					return v;
-				}
-
-				const bool across = next_direction == (drives_on_left ? ribi_t::rotate45l(next_90direction) : ribi_t::rotate45(next_90direction)); // turning across the opposite directions lane
-				const bool other_across = other_direction == (drives_on_left ? ribi_t::rotate45l(other_90direction) : ribi_t::rotate45(other_90direction)); // other is turning across the opposite directions lane
-				if(  other_direction == next_direction  &&  !(other_across || across)  &&  cnv_overtaking == other_overtaking  ) {
-					// only consider cars on same lane.
-					// entering same straight waypoint as other ~18%
-					return v;
-				}
-
-				const bool straight = next_direction == next_90direction; // driving straight
-				const ribi_t::ribi current_90direction = straight ? ribi_t::backward(next_90direction) : (~(next_direction|ribi_t::backward(next_90direction)))&0x0F;
-				const bool other_straight = other_direction == other_90direction; // other is driving straight
-				const bool other_exit_same_side = current_90direction == other_90direction; // other is exiting same side as we're entering
-				const bool other_exit_opposite_side = ribi_t::backward(current_90direction) == other_90direction; // other is exiting side across from where we're entering
-				if(  across  &&  ((ribi_t::is_perpendicular(current_90direction,other_direction)  &&  other_moving)  ||  (other_across  &&  other_exit_opposite_side)  ||  ((other_across  ||  other_straight)  &&  other_exit_same_side  &&  other_moving) ) )  {
-					// other turning across in front of us from orth entry dir'n   ~4%
-					return v;
-				}
-
-				const bool headon = ribi_t::backward(current_direction) == other_direction; // we're meeting the other headon
-				const bool other_exit_across = (drives_on_left ? ribi_t::rotate90l(next_90direction) : ribi_t::rotate90(next_90direction)) == other_90direction; // other is exiting by turning across the opposite directions lane
-				if(  straight  &&  (ribi_t::is_perpendicular(current_90direction,other_direction)  ||  (other_across  &&  other_moving  &&  (other_exit_across  ||  (other_exit_same_side  &&  !headon))) ) ) {
-					// other turning across in front of us, but allow if other is stopped - duplicating historic behaviour   ~2%
-					return v;
-				}
-				else if(  other_direction == current_direction  &&  current_90direction == ribi_t::none  &&  cnv_overtaking == other_overtaking  ) {
-					// entering same diagonal waypoint as other   ~1%
-					return v;
-				}
-
-				// else other car is not blocking   ~25%
-			}
-		}
-	}
-
-	// way is free
-	return NULL;
-}
-
 bool vehicle_base_t::judge_lane_crossing( const uint8 current_direction, const uint8 next_direction, const uint8 other_next_direction, const bool is_overtaking, const bool forced_to_change_lane ) const
 {
 	bool on_left = !(is_overtaking==welt->get_settings().is_drive_left());
@@ -3826,7 +3722,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ribi_t::ribi curr_90direction = calc_direction(get_pos(), pos_next);
 		ribi_t::ribi next_direction   = calc_direction(get_pos(), next);
 		ribi_t::ribi next_90direction = calc_direction(pos_next, next);
-		obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane);
+		obj = get_overtaker()->get_blocking_vehicle(gr, curr_direction, next_direction, next_90direction, next_lane);
 
 		// do not block intersections
 		const bool drives_on_left = welt->get_settings().is_drive_left();
@@ -3924,7 +3820,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				next                 = r.at(test_index + 1u);
 				next_direction   = calc_direction(r.at(test_index - 1u), next);
 				next_90direction = calc_direction(r.at(test_index),      next);
-				obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, lane_of_the_tile);
+				obj = get_overtaker()->get_blocking_vehicle(gr, curr_direction, next_direction, next_90direction, lane_of_the_tile);
 			}
 			else {
 				next                 = r.at(test_index);
@@ -3932,7 +3828,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				if(  curr_direction == next_90direction  ||  !gr->is_halt()  ) {
 					// check cars but allow to enter intersection if we are turning even when a car is blocking the halt on the last tile of our route
 					// preserves old bus terminal behaviour
-					obj = get_blocking_vehicle(gr, cnv, curr_direction, next_90direction, ribi_t::none, NULL, lane_of_the_tile);
+					obj = get_overtaker()->get_blocking_vehicle(gr, curr_direction, next_90direction, ribi_t::none, lane_of_the_tile);
 				}
 			}
 
@@ -4104,7 +4000,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							}
 						}
 						else if(  private_car_t* const caut = obj_cast<private_car_t>(obj)  ) {
-							if(  cnv->get_lane_affinity() != -1  &&  next_lane<1  &&  !cnv->is_overtaking()  &&  !other_lane_blocked()  &&  cnv->can_overtake(caut, caut->get_current_speed(), VEHICLE_STEPS_PER_TILE)  ) {
+							if(  cnv->get_lane_affinity() != -1  &&  next_lane<1  &&  !cnv->is_overtaking()  &&  !other_lane_blocked()  &&  cnv->can_overtake(caut, caut->get_current_speed_internal(), VEHICLE_STEPS_PER_TILE)  ) {
 								return true;
 							}
 						}
@@ -4367,7 +4263,7 @@ vehicle_base_t* road_vehicle_t::other_lane_blocked(const bool only_search_top, s
 							continue;
 						}
 						// Ignore stopping convoi on the tile behind this convoi to change lane in traffic jam.
-						if(  can_reach_tail  &&  caut->get_current_speed() == 0  ) {
+						if(  can_reach_tail  && caut->get_current_speed_internal() == 0  ) {
 							continue;
 						}
 						if(  test_index==tail_index-1+offset  ||  test_index==tail_index+offset  ){

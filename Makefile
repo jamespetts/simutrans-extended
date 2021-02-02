@@ -564,6 +564,7 @@ SOURCES += utils/simthread.cc
 SOURCES += vehicle/movingobj.cc
 SOURCES += vehicle/simpeople.cc
 SOURCES += vehicle/simvehicle.cc
+SOURCES += vehicle/overtaker.cc
 SOURCES += simunits.cc
 SOURCES += convoy.cc
 SOURCES += utils/float32e8_t.cc

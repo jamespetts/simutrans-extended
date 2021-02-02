@@ -1509,6 +1509,8 @@ public:
 	uint8 calc_auto_removal_length(uint8 car_no) const;
 	uint8 get_auto_removal_vehicle_count(uint8 car_no) const;
 
+	sint32 get_current_speed() const override;
+
 private:
 	/** Train formation checks
 	 *  v14.8 - Jan, 2020 @Ranran

@@ -8786,3 +8786,7 @@ bool convoi_t::check_way_constraints_of_all_vehicles(const weg_t& way) const
 	}
 	return true;
 }
+
+sint32 convoi_t::get_current_speed() const {
+	return get_akt_speed();
+}

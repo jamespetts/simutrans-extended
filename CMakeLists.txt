@@ -448,7 +448,7 @@ add_executable(simutrans-extended
 	vehicle/simpeople.cc
 	vehicle/simroadtraffic.cc
 	vehicle/simvehicle.cc
-)
+        vehicle/overtaker.cc)
 
 if (WIN32)
 	target_sources(simutrans-extended PRIVATE sys/clipboard_w32.cc)
