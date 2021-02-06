@@ -518,16 +518,11 @@ void weg_t::rdwr(loadsave_t *file)
 		{
 			for (uint32 i = 0; i < route_array_number; i++)
 			{
-				uint32 private_car_routes_count = private_car_routes[i].get_count();
-				file->rdwr_long(private_car_routes_count);
-				FOR(private_car_route_map, element, private_car_routes[i])
-				{
-					for(uint32 j=0; j<5; j++) {
-						uint32 private_car_routes_count = private_car_routes[i][j].get_count();
-						file->rdwr_long(private_car_routes_count);
-						for(uint32 k=0; k<private_car_routes_count; k++) {
-							private_car_routes[i][j][k].rdwr(file);
-						}
+				for (uint32 j = 0; j < 5; j++) {
+					uint32 private_car_routes_count = private_car_routes[i][j].get_count();
+					file->rdwr_long(private_car_routes_count);
+					for (uint32 k = 0; k < private_car_routes_count; k++) {
+						private_car_routes[i][j][k].rdwr(file);
 					}
 				}
 			}

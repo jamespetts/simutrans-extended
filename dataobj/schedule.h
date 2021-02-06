@@ -86,7 +86,7 @@ public:
 	* This would need a great deal of checking and re-factoring
 	* to verify and implement.
 	*/
-	inthashtable_tpl<uint16, consist_order_t> orders;
+	inthashtable_tpl<uint16, consist_order_t, N_BAGS_SMALL> orders;
 
 	/**
 	 * Returns error message if stops are not allowed
