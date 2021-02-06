@@ -15,7 +15,7 @@ static pthread_mutex_t senke_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 #include "leitung2.h"
 #include "../simdebug.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../player/simplay.h"
 #include "../display/simimg.h"
 #include "../simfab.h"
@@ -64,12 +64,12 @@ int leitung_t::gimme_neighbours(leitung_t **conn)
 		// get next connected tile (if there)
 		grund_t *gr;
 		conn[i] = NULL;
-		if(  (ribi & ribi_t::nsew[i])  &&  gr_base->get_neighbour( gr, invalid_wt, ribi_t::nsew[i] ) ) {
+		if(  (ribi & ribi_t::nesw[i])  &&  gr_base->get_neighbour( gr, invalid_wt, ribi_t::nesw[i] ) ) {
 			leitung_t *lt = gr->get_leitung();
 			// check that we can connect to the other tile: correct slope,
 			// both ground or both tunnel or both not tunnel
 			bool const ok = (gr->ist_karten_boden()  &&  gr_base->ist_karten_boden())  ||  (gr->ist_tunnel()==gr_base->ist_tunnel());
-			if(  lt  &&  (ribi_t::backward(ribi_t::nsew[i]) & get_powerline_ribi(gr))  &&  ok  ) {
+			if(  lt  &&  (ribi_t::backward(ribi_t::nesw[i]) & get_powerline_ribi(gr))  &&  ok  ) {
 				if(!lt->get_owner() || lt->get_owner()->allows_access_to(get_owner()->get_player_nr()) || get_owner()->is_public_service())
 				{
 					conn[i] = lt;
@@ -85,7 +85,7 @@ int leitung_t::gimme_neighbours(leitung_t **conn)
 fabrik_t *leitung_t::suche_fab_4(const koord pos)
 {
 	for(int k=0; k<4; k++) {
-		fabrik_t *fab = fabrik_t::get_fab( pos+koord::nsew[k] );
+		fabrik_t *fab = fabrik_t::get_fab( pos+koord::nesw[k] );
 		if(fab) {
 			return fab;
 		}
@@ -149,6 +149,7 @@ leitung_t::~leitung_t()
 	if (welt->is_destroying()) {
 		return;
 	}
+
 	grund_t *gr = welt->lookup(get_pos());
 	if(gr) {
 		leitung_t *conn[4];
@@ -342,6 +343,7 @@ void leitung_t::calc_image()
 	}
 }
 
+
 /**
  * Recalculates the images of all neighbouring
  * powerlines and the powerline itself
@@ -353,8 +355,8 @@ void leitung_t::calc_neighbourhood()
 	if(gimme_neighbours(conn)>0) {
 		for( uint8 i=0;  i<4 ;  i++  ) {
 			if(conn[i]  &&  conn[i]->get_net()==get_net()) {
-				ribi |= ribi_t::nsew[i];
-				conn[i]->add_ribi(ribi_t::backward(ribi_t::nsew[i]));
+				ribi |= ribi_t::nesw[i];
+				conn[i]->add_ribi(ribi_t::backward(ribi_t::nesw[i]));
 				conn[i]->calc_image();
 			}
 		}
@@ -415,13 +417,6 @@ void leitung_t::finish_rd()
 	player_t::add_maintenance(get_owner(), desc->get_maintenance(), powerline_wt);
 }
 
-
-/**
- * Speichert den Zustand des Objekts.
- *
- * @param file Zeigt auf die Datei, in die das Objekt geschrieben werden
- * soll.
- */
 void leitung_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t d( file, "leitung_t" );
@@ -482,6 +477,7 @@ void leitung_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
+
 	if(get_typ()==leitung) {
 		/* ATTENTION: during loading thus MUST not be called from the constructor!!!
 		* (Otherwise it will be always true!
@@ -491,8 +487,7 @@ void leitung_t::rdwr(loadsave_t *file)
 				const char *s = desc->get_name();
 				file->rdwr_str(s);
 			}
-			else
-			{
+			else {
 				char bname[128];
 				file->rdwr_str(bname, lengthof(bname));
 				if(bname[0] == '~')
@@ -502,11 +497,9 @@ void leitung_t::rdwr(loadsave_t *file)
 				}
 
 				const way_desc_t *desc = way_builder_t::get_desc(bname);
-				if(desc==NULL)
-				{
+				if(desc==NULL) {
 					desc = way_builder_t::get_desc(translator::compatibility_name(bname));
-					if(desc==NULL)
-					{
+					if(desc==NULL) {
 						welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 						desc = way_builder_t::leitung_desc;
 					}
@@ -515,10 +508,8 @@ void leitung_t::rdwr(loadsave_t *file)
 				set_desc(desc);
 			}
 		}
-		else
-		{
-			if (file->is_loading())
-			{
+		else {
+			if (file->is_loading()) {
 				set_desc(way_builder_t::leitung_desc);
 			}
 		}
@@ -592,17 +583,16 @@ pumpe_t::pumpe_t(koord3d pos, player_t *player) :
 pumpe_t::~pumpe_t()
 {
 	if(fab) {
-		fab->set_transformer_connected( NULL );
+		fab->set_transformer_connected(NULL);
 		fab = NULL;
 	}
 	pumpe_list.remove( this );
 	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().cst_maintain_transformer, powerline_wt);
 }
 
-
 void pumpe_t::step(uint32 delta_t)
 {
-	if(fab==NULL) {
+	if(  fab == NULL  ) {
 		return;
 	}
 
@@ -649,9 +639,10 @@ void pumpe_t::finish_rd()
 		}
 		if(  fab  ) {
 			// only add when factory there
-			fab->set_transformer_connected( this );
+			fab->set_transformer_connected(this);
 		}
 	}
+
 #ifdef MULTI_THREAD
 	pthread_mutex_lock( &pumpe_list_mutex );
 #endif
@@ -668,7 +659,6 @@ void pumpe_t::finish_rd()
 	pthread_mutex_unlock( &calc_image_mutex );
 #endif
 }
-
 
 void pumpe_t::info(cbuffer_t & buf) const
 {
@@ -714,6 +704,7 @@ senke_t::senke_t(loadsave_t *file) :
 	last_power_demand = 0;
 	power_load = 0;
 	rdwr( file );
+
 	welt->sync.add(this);
 }
 
@@ -738,6 +729,7 @@ senke_t::senke_t(koord3d pos, player_t *player, stadt_t* c) :
 	last_power_demand = 0;
 	power_load = 0;
 	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
+
 	welt->sync.add(this);
 }
 
@@ -763,7 +755,6 @@ senke_t::~senke_t()
 	}
 	player_t::add_maintenance(get_owner(), welt->get_settings().cst_maintain_transformer, powerline_wt);
 }
-
 
 void senke_t::step(uint32 delta_t)
 {
@@ -1020,6 +1011,8 @@ sync_result senke_t::sync_step(uint32 delta_t)
 	}
 
 	next_t += delta_t;
+
+	// change graphics at most 16 times a second
 	if(  next_t > PRODUCTION_DELTA_T / 16  ) {
 		// sawtooth waveform resetting at PRODUCTION_DELTA_T / 16 => image changes at most this fast
 		next_t -= next_t - next_t % (PRODUCTION_DELTA_T / 16);
@@ -1116,4 +1109,3 @@ void senke_t::info(cbuffer_t & buf) const
 		buf.append(city->get_name());
 	}
 }
-

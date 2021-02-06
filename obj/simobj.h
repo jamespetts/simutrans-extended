@@ -3,8 +3,8 @@
  * (see LICENSE.txt)
  */
 
-#ifndef SIMOBJ_H
-#define SIMOBJ_H
+#ifndef OBJ_SIMOBJ_H
+#define OBJ_SIMOBJ_H
 
 
 #define INLINE_OBJ_TYPE
@@ -13,16 +13,17 @@
 #else
 #endif
 
-#include "simtypes.h"
-#include "display/clip_num.h"
-#include "display/simimg.h"
-#include "simcolor.h"
-#include "dataobj/koord3d.h"
+#include "../simtypes.h"
+#include "../display/clip_num.h"
+#include "../display/simimg.h"
+#include "../simcolor.h"
+#include "../dataobj/koord3d.h"
 
 
 class cbuffer_t;
 class karte_ptr_t;
 class player_t;
+
 
 /**
  * Base class of all objects on the map, obj == thing
@@ -33,11 +34,11 @@ class obj_t
 public:
 	// flags
 	enum flag_values {
-		no_flags=0,  /// no special properties
-		dirty=1,        /// mark image dirty when drawing
-		not_on_map=2,   /// this object is not placed on any tile (e.g. vehicles in a depot)
-		is_vehicle=4,   /// this object is a vehicle obviously
-		highlight=8      /// for drawing some highlighted outline
+		no_flags   = 0,      /// no special properties
+		dirty      = 1 << 0, /// mark image dirty when drawing
+		not_on_map = 1 << 1, /// this object is not placed on any tile (e.g. vehicles in a depot)
+		is_vehicle = 1 << 2, /// this object is a vehicle obviously
+		highlight  = 1 << 3  /// for drawing some highlighted outline
 	};
 
 	// display only outline with player color on owner stuff

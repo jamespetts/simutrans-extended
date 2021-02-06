@@ -590,8 +590,8 @@ compass_screen_position = 0
 compass_map_position = 13
 
 # If set to 1 (default) the numpad will always move the map.
-# If active, this does not allow for number entry
-numpad_always_moves_map = 0
+# if set to 0, it will always produce numbers
+numpad_always_moves_map = 1
 
 # Should either account (default) or net wealth be shown below the screen?
 player_finance_display_account = 1

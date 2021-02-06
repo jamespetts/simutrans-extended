@@ -9,7 +9,7 @@
 
 #include "dataobj/ribi.h"
 
-#include "simobj.h"
+#include "obj/simobj.h"
 #include "obj/gebaeude.h"
 
 #include "tpl/vector_tpl.h"
@@ -45,23 +45,23 @@ class building_desc_t;
 #define CITY_NAME_LABEL_WIDTH (126)	// size of
 
 enum city_cost {
-	HIST_CITIZENS=0,		// total people
-	HIST_JOBS,				// Total jobs
-	HIST_VISITOR_DEMAND,	// Total visitor demand
-	HIST_GROWTH,			// growth (just for convenience)
-	HIST_BUILDING,			// number of buildings
-	HIST_CITYCARS,			// Amount of private traffic produced by the city
-	HIST_PAS_TRANSPORTED,	// number of passengers that successfully complete their journeys
-	HIST_PAS_GENERATED,		// total number generated
-	HIST_PAS_WALKED,		// The number of passengers who walked to their destination.
-	HIST_MAIL_TRANSPORTED,	// letters that could be sent
-	HIST_MAIL_GENERATED,	// all letters generated
-	HIST_GOODS_RECEIVED,	// times all storages were not empty
-	HIST_GOODS_NEEDED,		// times storages checked
-	HIST_POWER_RECEIVED,	// power consumption
-	HIST_POWER_NEEDED,		// Power demand by the city.
-	HIST_CONGESTION,		// Level of congestion in the city, expressed in percent.
-	MAX_CITY_HISTORY		// Total number of items in array
+	HIST_CITIZENS = 0,     // total people
+	HIST_JOBS,             // Total jobs
+	HIST_VISITOR_DEMAND,   // Total visitor demand
+	HIST_GROWTH,           // growth (just for convenience)
+	HIST_BUILDING,         // number of buildings
+	HIST_CITYCARS,         // Amount of private traffic produced by the city
+	HIST_PAS_TRANSPORTED,  // number of passengers that successfully complete their journeys
+	HIST_PAS_GENERATED,    // total number generated
+	HIST_PAS_WALKED,       // The number of passengers who walked to their destination.
+	HIST_MAIL_TRANSPORTED, // letters that could be sent
+	HIST_MAIL_GENERATED,   // all letters generated
+	HIST_GOODS_RECEIVED,   // times all storages were not empty
+	HIST_GOODS_NEEDED,     // times storages checked
+	HIST_POWER_RECEIVED,   // power consumption
+	HIST_POWER_NEEDED,     // Power demand by the city.
+	HIST_CONGESTION,       // Level of congestion in the city, expressed in percent.
+	MAX_CITY_HISTORY       // Total number of items in array
 };
 
 // The base offset for passenger statistics.
@@ -369,7 +369,12 @@ private:
 	 */
 	void step_grow_city(bool new_town = false, bool map_generation = false);
 
-	enum pax_return_type { no_return, factory_return, tourist_return, city_return };
+	enum pax_return_type {
+		no_return,
+		factory_return,
+		tourist_return,
+		city_return
+	};
 
 	/**
 	 * baut Spezialgebaeude, z.B Stadion

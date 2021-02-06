@@ -14,14 +14,19 @@
 #include "../../network/pakset_info.h"
 
 /**
-* Old building types, for compatibility ...
-*/
+ * Old building types, for compatibility ...
+ */
 struct old_btyp
 {
 	/**
 	 * From type "unknown" also come special buildings e.q. Townhall
 	 */
-	enum typ {wohnung, gewerbe, industrie, unknown};
+	enum typ {
+		wohnung,
+		gewerbe,
+		industrie,
+		unknown
+	};
 };
 
 
@@ -65,7 +70,7 @@ obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->seasons = 1;
 		desc->building = NULL;
 	}
-	DBG_DEBUG("tile_reader_t::read_node()","phases=%i index=%i seasons=%i",
+	DBG_DEBUG("tile_reader_t::read_node()","phases=%i, index=%i, seasons=%i",
 		desc->phases,
 		desc->index,
 		desc->seasons );
@@ -161,7 +166,7 @@ void building_reader_t::register_obj(obj_desc_t *&data)
 	}
 	// and finally old stations ...
 	// correct all building types in building_desc_t::old_building_types_t
-	else if ((uint8)desc->get_type() >= building_desc_t::bahnhof && (uint8)desc->get_type() <= building_desc_t::lagerhalle) {
+	else if(  (uint8)desc->get_type()>=building_desc_t::bahnhof  &&  (uint8)desc->get_type()<=building_desc_t::lagerhalle) {
 		// compatibility stuff
 		static uint16 old_to_new_waytype[16] = { track_wt, road_wt, road_wt, water_wt, water_wt, air_wt, monorail_wt, 0, track_wt, road_wt, road_wt, 0 , water_wt, air_wt, monorail_wt, 0 };
 		uint8 type = desc->type;
@@ -269,11 +274,11 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		// station price, maintenance and capacity added
 		btyp = (old_btyp::typ)decode_uint8(p);
 		desc->type = (building_desc_t::btype)decode_uint8(p);
-		desc->level     = decode_uint16(p);
+		desc->level = decode_uint16(p);
 		desc->extra_data = decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
+		desc->layouts = decode_uint8(p);
 		desc->allowed_climates = (climate_bits)decode_uint16(p);
 		if (extended_version >= 5)
 		{
@@ -296,14 +301,14 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->enables = 65535;
 		}
 
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = decode_uint16(p);
-		desc->capacity  = decode_uint16(p);
+		desc->capacity = decode_uint16(p);
 		desc->maintenance = decode_sint32(p);
-		desc->price     = decode_sint32(p);
+		desc->price = decode_sint32(p);
 		desc->allow_underground = decode_uint8(p);
 		if(extended)
 		{
@@ -364,20 +369,20 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		// underground mode added
 		btyp = (old_btyp::typ)decode_uint8(p);
 		desc->type = (building_desc_t::btype)decode_uint8(p);
-		desc->level     = decode_uint16(p) + 1; // This was necessary for the previous versions.
+		desc->level = decode_uint16(p) + 1; // This was necessary for the previous versions.
 		desc->extra_data = decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
+		desc->layouts = decode_uint8(p);
 		desc->allowed_climates = (climate_bits)decode_uint16(p);
-		desc->enables   = decode_uint8(p);
+		desc->enables = decode_uint8(p);
 		if(extended_version < 1 && desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = decode_uint16(p);
 
@@ -411,22 +416,22 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	else if(version == 5  ||  version==6) {
 		// Versioned node, version 5 or 6  (only level logic is different)
 		// animation interval in ms added
-		btyp					= (old_btyp::typ)decode_uint8(p);
-		desc->type				= (building_desc_t::btype)decode_uint8(p);
-		desc->level				= decode_uint16(p) + 1;
-		desc->extra_data		= decode_uint32(p);
-		desc->size.x			= decode_uint16(p);
-		desc->size.y			= decode_uint16(p);
-		desc->layouts			= decode_uint8(p);
-		desc->allowed_climates	= (climate_bits)decode_uint16(p);
-		desc->enables			= decode_uint8(p);
+		btyp                   = (old_btyp::typ)decode_uint8(p);
+		desc->type             = (building_desc_t::btype)decode_uint8(p);
+		desc->level            = decode_uint16(p) + 1;
+		desc->extra_data       = decode_uint32(p);
+		desc->size.x           = decode_uint16(p);
+		desc->size.y           = decode_uint16(p);
+		desc->layouts          = decode_uint8(p);
+		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		desc->enables          = decode_uint8(p);
 		if(extended_version < 1 && desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
 		}
-		desc->flags		 = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight		 = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = decode_uint16(p);
 
@@ -470,16 +475,16 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->extra_data= decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
+		desc->layouts = decode_uint8(p);
 		desc->allowed_climates = (climate_bits)decode_uint16(p);
 		desc->enables   = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = 300;
 
@@ -489,19 +494,20 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		btyp = (old_btyp::typ)decode_uint8(p);
 		desc->type = (building_desc_t::btype)decode_uint8(p);
 		desc->level     = decode_uint16(p) + 1;
-		desc->extra_data= decode_uint32(p);
+		desc->level = decode_uint16(p);
+		desc->extra_data = decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
-		desc->allowed_climates   =  (climate_bits)0xFFFE; // all but water
-		desc->enables   = decode_uint8(p);
+		desc->layouts = decode_uint8(p);
+		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
+		desc->enables = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 255;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = 300;
 	}
@@ -510,11 +516,11 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		btyp = (old_btyp::typ)decode_uint8(p);
 		desc->type = (building_desc_t::btype)decode_uint8(p);
 		desc->level     = decode_uint16(p) + 1;
-		desc->extra_data= decode_uint32(p);
+		desc->extra_data = decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
-		desc->allowed_climates   =  (climate_bits)0xFFFE; // all but water
+		desc->layouts = decode_uint8(p);
+		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
 		desc->enables   = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
@@ -524,9 +530,9 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			desc->enables   = 0x80;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
-		desc->intro_date    = decode_uint16(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
 		desc->animation_time = 300;
 	}
@@ -535,11 +541,11 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		btyp = (old_btyp::typ)decode_uint8(p);
 		desc->type = (building_desc_t::btype)decode_uint8(p);
 		desc->level     = decode_uint16(p) + 1;
-		desc->extra_data= decode_uint32(p);
+		desc->extra_data = decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint8(p);
-		desc->allowed_climates   =  (climate_bits)0xFFFE; // all but water
+		desc->layouts = decode_uint8(p);
+		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
@@ -548,10 +554,10 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			desc->enables   = 0x80;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint8(p);
-		desc->distribution_weight    = decode_uint8(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
 
-		desc->intro_date    = DEFAULT_INTRO_DATE*12;
+		desc->intro_date = DEFAULT_INTRO_DATE*12;
 		desc->retire_date = DEFAULT_RETIRE_DATE*12;
 		desc->animation_time = 300;
 	}
@@ -564,8 +570,8 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->extra_data= decode_uint32(p);
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
-		desc->layouts   = decode_uint32(p);
-		desc->allowed_climates   =  (climate_bits)0xFFFE; // all but water
+		desc->layouts = decode_uint32(p);
+		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
@@ -574,10 +580,10 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		{
 			desc->enables   = 0x80;
 		}
-		desc->flags     = (building_desc_t::flag_t)decode_uint32(p);
-		desc->distribution_weight    = 100;
+		desc->flags = (building_desc_t::flag_t)decode_uint32(p);
+		desc->distribution_weight = 100;
 
-		desc->intro_date    = DEFAULT_INTRO_DATE*12;
+		desc->intro_date = DEFAULT_INTRO_DATE*12;
 		desc->retire_date = DEFAULT_RETIRE_DATE*12;
 		desc->animation_time = 300;
 	}
@@ -680,6 +686,9 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		version,
 		btyp,
 		desc->type,
+		desc->price,
+		desc->maintenance,
+		desc->capacity,
 		desc->level,
 		desc->extra_data,
 		desc->size.x,
@@ -689,6 +698,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->flags,
 		desc->distribution_weight,
 		desc->allowed_climates,
+		desc->allow_underground,
 		desc->animation_time,
 		desc->intro_date,
 		desc->retire_date

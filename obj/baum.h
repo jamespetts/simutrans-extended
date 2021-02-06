@@ -7,7 +7,7 @@
 #define OBJ_BAUM_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 
 #include "../tpl/stringhashtable_tpl.h"
 #include "../tpl/vector_tpl.h"
@@ -136,7 +136,7 @@ public:
 	static uint32 create_forest(koord center, koord size );
 	static void fill_trees(int density);
 
-	// return list to descs
+	// return list to descriptors
 	static vector_tpl<tree_desc_t const*> const& get_all_desc() { return tree_list; }
 
 	static const tree_desc_t *random_tree_for_climate(climate cl) { uint8 b = random_tree_for_climate_intern(cl);  return b!=invalid_tree_id ? tree_list[b] : NULL; }

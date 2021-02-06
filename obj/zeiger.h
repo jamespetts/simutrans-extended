@@ -7,7 +7,7 @@
 #define OBJ_ZEIGER_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 #include "../simtypes.h"
 #include "../display/simimg.h"
 
@@ -37,11 +37,11 @@ public:
 #endif
 
 	/**
-	* Set area to be marked around cursor
-	* @param area size of marked area
-	* @param center true if cursor is centered within marked area
-	* @param offset if center==false then cursor is at position @p offset
-	*/
+	 * Set area to be marked around cursor
+	 * @param area size of marked area
+	 * @param center true if cursor is centered within marked area
+	 * @param offset if center==false then cursor is at position @p offset
+	 */
 	void set_area( koord area, bool center, koord offset = koord(0,0) );
 
 	/// set back image

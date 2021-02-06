@@ -14,7 +14,7 @@
 
 #include "../../display/simimg.h"
 #include "../../simtypes.h"
-#include "../../simobj.h"
+#include "../../obj/simobj.h"
 #include "../../descriptor/way_desc.h"
 #include "../../dataobj/koord3d.h"
 #include "../../tpl/minivec_tpl.h"
@@ -92,14 +92,14 @@ public:
 	static void clear_list_of__ways();
 
 	enum {
-		HAS_SIDEWALK   = 0x01,
-		IS_ELECTRIFIED = 0x02,
-		HAS_SIGN       = 0x04,
-		HAS_SIGNAL     = 0x08,
-		HAS_WAYOBJ     = 0x10,
-		HAS_CROSSING   = 0x20,
-		IS_DIAGONAL    = 0x40, // marker for diagonal image
-		IS_SNOW = 0x80	// marker, if above snowline currently
+		HAS_SIDEWALK   = 1 << 0,
+		IS_ELECTRIFIED = 1 << 1,
+		HAS_SIGN       = 1 << 2,
+		HAS_SIGNAL     = 1 << 3,
+		HAS_WAYOBJ     = 1 << 4,
+		HAS_CROSSING   = 1 << 5,
+		IS_DIAGONAL    = 1 << 6, // marker for diagonal image
+		IS_SNOW        = 1 << 7  // marker, if above snowline currently
 	};
 
 	struct runway_directions
@@ -448,7 +448,8 @@ public:
 	image_id get_image() const OVERRIDE {return image;}
 
 	inline void set_after_image( image_id b ) { foreground_image = b; }
-	image_id get_front_image() const OVERRIDE { return foreground_image; }
+	image_id get_front_image() const OVERRIDE {return foreground_image;}
+
 
 	// correct maintenance
 	void finish_rd() OVERRIDE;

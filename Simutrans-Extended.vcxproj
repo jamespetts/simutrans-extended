@@ -2032,6 +2032,9 @@
     <ClCompile Include="obj\pillar.cc" />
     <ClCompile Include="obj\roadsign.cc" />
     <ClCompile Include="obj\signal.cc" />
+    <ClCompile Include="obj\simobj.cc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="obj\tunnel.cc" />
     <ClCompile Include="obj\wayobj.cc" />
     <ClCompile Include="obj\wolke.cc" />
@@ -2080,9 +2083,6 @@
     <ClCompile Include="script\script.cc" />
     <ClCompile Include="siminteraction.cc" />
     <ClCompile Include="simloadingscreen.cc" />
-    <ClCompile Include="simobj.cc">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="simsignalbox.cc" />
     <ClCompile Include="sys\simsys.cc" />
     <ClCompile Include="sys\simsys_d.cc">
@@ -2628,6 +2628,7 @@
     <ClInclude Include="obj\pillar.h" />
     <ClInclude Include="obj\roadsign.h" />
     <ClInclude Include="obj\signal.h" />
+    <ClInclude Include="obj\simobj.h" />
     <ClInclude Include="obj\tunnel.h" />
     <ClInclude Include="obj\wayobj.h" />
     <ClInclude Include="obj\wolke.h" />
@@ -2653,7 +2654,6 @@
     <ClInclude Include="script\script.h" />
     <ClInclude Include="siminteraction.h" />
     <ClInclude Include="simloadingscreen.h" />
-    <ClInclude Include="simobj.h" />
     <ClInclude Include="simtool-dialogs.h" />
     <ClInclude Include="simunits.h" />
     <ClInclude Include="squirrel\sqstdaux.h" />

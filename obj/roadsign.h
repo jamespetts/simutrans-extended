@@ -7,7 +7,7 @@
 #define OBJ_ROADSIGN_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 #include "../simtypes.h"
 #include "../descriptor/roadsign_desc.h"
 #include "../ifc/sync_steppable.h"
@@ -26,7 +26,11 @@ protected:
 	image_id image;
 	image_id foreground_image;
 
-	enum { SHOW_FONT=1, SHOW_BACK=2, SWITCH_AUTOMATIC=16 };
+	enum {
+		SHOW_FONT        = 1,
+		SHOW_BACK        = 2,
+		SWITCH_AUTOMATIC = 16
+	};
 
 	uint8 state:4;	// counter for steps ...
 	uint8 dir:4;
@@ -49,18 +53,17 @@ protected:
 
 public:
 	// Max. 16 (15 incl. 0)
-	enum signal_aspects
-	{
-		danger = 0,
-		clear = 1,
-		caution = 2,
-		preliminary_caution = 3,
-		advance_caution = 4,
-		clear_no_choose = 5,
-		caution_no_choose = 6,
+	enum signal_aspects {
+		danger                        = 0,
+		clear                         = 1,
+		caution                       = 2,
+		preliminary_caution           = 3,
+		advance_caution               = 4,
+		clear_no_choose               = 5,
+		caution_no_choose             = 6,
 		preliminary_caution_no_choose = 7,
-		advance_caution_no_choose = 8,
-		call_on = 9
+		advance_caution_no_choose     = 8,
+		call_on                       = 9
 	};
 
 	/**

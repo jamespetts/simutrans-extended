@@ -347,25 +347,25 @@ void fabrik_t::book_weighted_sums(sint64 delta_time)
 }
 
 
-void fabrik_t::update_scaled_electric_amount()
+void fabrik_t::update_scaled_electric_demand()
 {
 	if(desc->get_electric_amount() == 65535)
 	{
 		// demand not specified in pak, use old fixed demands and the Extended electricity proportion
 		const uint16 electricity_proportion = get_desc()->is_electricity_producer() ? 400 : get_desc()->get_electricity_proportion();
-		scaled_electric_amount = PRODUCTION_DELTA_T * (uint32)(prodbase * electricity_proportion) / 100;
+		scaled_electric_demand = PRODUCTION_DELTA_T * (uint32)(prodbase * electricity_proportion) / 100;
 		return;
 	}
 
 	// If the demand is specified in the pakset, do not use the Extended electricity proportion.
 	const sint64 prod = std::max(1ll, (sint64)desc->get_productivity());
-	scaled_electric_amount = (uint32)( (( (sint64)(desc->get_electric_amount()) * (sint64)prodbase + (prod >> 1ll) ) / prod) << (sint64)POWER_TO_MW );
+	scaled_electric_demand = (uint32)( (( (sint64)(desc->get_electric_amount()) * (sint64)prodbase + (prod >> 1ll) ) / prod) << (sint64)POWER_TO_MW );
 
-	if(  scaled_electric_amount == 0  ) {
+	if(  scaled_electric_demand == 0  ) {
 		prodfactor_electric = 0;
 	}
 
-	scaled_electric_amount = welt->scale_for_distance_only(scaled_electric_amount);
+	scaled_electric_demand = welt->scale_for_distance_only(scaled_electric_demand);
 }
 
 
@@ -624,7 +624,7 @@ void fabrik_t::set_base_production(sint32 p, bool is_from_saved_game)
 {
 	prodbase = p > 0 ? p : 1;
 	recalc_storage_capacities();
-	update_scaled_electric_amount();
+	update_scaled_electric_demand();
 	update_scaled_pax_demand(is_from_saved_game);
 	update_scaled_mail_demand(is_from_saved_game);
 	update_prodfactor_pax();
@@ -966,7 +966,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 
 	calc_max_intransit_percentages();
 
-	update_scaled_electric_amount();
+	update_scaled_electric_demand();
 	update_scaled_pax_demand();
 	update_scaled_mail_demand();
 
@@ -2126,7 +2126,7 @@ void fabrik_t::step(uint32 delta_t)
 		// power station? => produce power
 		if(  desc->is_electricity_producer()  ) {
 			currently_producing = true;
-			power = (uint32)( ((sint64)scaled_electric_amount * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS );
+			power = (uint32)( ((sint64)scaled_electric_demand * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS );
 		}
 
 		// produced => trigger smoke
@@ -2134,10 +2134,10 @@ void fabrik_t::step(uint32 delta_t)
 	}
 	else {
 		// not a producer => then consume electricity ...
-		if(  !desc->is_electricity_producer()  &&  scaled_electric_amount>0  ) {
+		if(  !desc->is_electricity_producer()  &&  scaled_electric_demand>0  ) {
 			// TODO: Consider linking this to actual production only
 
-			prodfactor_electric = (sint32)( ( (sint64)(desc->get_electric_boost()) * (sint64)power + (sint64)(scaled_electric_amount >> 1) ) / (sint64)scaled_electric_amount );
+			prodfactor_electric = (sint32)( ( (sint64)(desc->get_electric_boost()) * (sint64)power + (sint64)(scaled_electric_demand >> 1) ) / (sint64)scaled_electric_demand );
 
 		}
 
@@ -2186,7 +2186,7 @@ void fabrik_t::step(uint32 delta_t)
 					if (desc->is_electricity_producer())
 					{
 						// power station => produce power
-						power += (uint32)(((sint64)scaled_electric_amount * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS);
+						power += (uint32)(((sint64)scaled_electric_demand * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS);
 					}
 
 					if (status >= staff_shortage)
@@ -2205,7 +2205,7 @@ void fabrik_t::step(uint32 delta_t)
 					if (desc->is_electricity_producer())
 					{
 						// power station => produce power
-						power += (uint32)((((sint64)scaled_electric_amount * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS) * input[index].menge / (v + 1));
+						power += (uint32)((((sint64)scaled_electric_demand * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS) * input[index].menge / (v + 1));
 					}
 
 					if (status >= staff_shortage)
@@ -2308,7 +2308,7 @@ void fabrik_t::step(uint32 delta_t)
 		if(  currently_producing || desc->get_product_count() == 0  ) {
 			// Pure consumers (i.e., those that do not produce anything) should require full power at all times
 			// requires full power even if runs out of raw material next cycle
-			power_demand = scaled_electric_amount;
+			power_demand = scaled_electric_demand;
 		}
 	}
 
@@ -2992,7 +2992,7 @@ void fabrik_t::new_month()
 						recalc_storage_capacities();
 						adjust_production_for_fields();
 						// Re-calculate electricity conspumption, mail and passenger demand, etc.
-						update_scaled_electric_amount();
+						update_scaled_electric_demand();
 						update_scaled_pax_demand();
 						update_scaled_mail_demand();
 						update_prodfactor_pax();
@@ -3272,13 +3272,13 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 	if(get_desc()->is_electricity_producer())
 	{
 		buf.append(translator::translate("Electrical output: "));
-		buf.append(scaled_electric_amount >> POWER_TO_MW);
+		buf.append(scaled_electric_demand >> POWER_TO_MW);
 		buf.append(" MW");
 	}
 	else
 	{
 		buf.append(translator::translate("Electrical demand: "));
-		buf.append((scaled_electric_amount * 1000) >> POWER_TO_MW);
+		buf.append((scaled_electric_demand * 1000) >> POWER_TO_MW);
 		buf.append(" KW");
 	}
 

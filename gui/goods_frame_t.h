@@ -28,7 +28,14 @@ class goods_desc_t;
 class goods_frame_t : public gui_frame_t, private action_listener_t
 {
 private:
-	enum sort_mode_t { by_number, by_name, by_revenue, by_category, by_weight, SORT_MODES };
+	enum sort_mode_t {
+		by_number   = 0,
+		by_name     = 1,
+		by_revenue  = 2,
+		by_category = 3,
+		by_weight   = 4,
+		SORT_MODES  = 5
+	};
 	static const char *sort_text[SORT_MODES];
 
 	// static, so we remember the last settings

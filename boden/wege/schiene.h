@@ -123,7 +123,7 @@ public:
 	/**
 	* gets the related convoi
 	*/
-	convoihandle_t get_reserved_convoi() const { return reserved; }
+	convoihandle_t get_reserved_convoi() const {return reserved;}
 
 	void rdwr(loadsave_t *file) OVERRIDE;
 

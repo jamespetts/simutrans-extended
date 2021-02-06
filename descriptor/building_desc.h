@@ -141,12 +141,13 @@ class building_desc_t : public obj_desc_timelined_t {
 			signalbox         = 70  // Signalbox. 70 to allow for plenty more Standard ones in between.
 		};
 
-			enum flag_t {
-			FLAG_NULL = 0,
-			FLAG_NO_INFO = 1, ///< do not show info window
-			FLAG_NO_PIT = 2, ///< do not show construction pit
-			FLAG_NEED_GROUND = 4, ///< needs ground drawn below
-			FLAG_HAS_CURSOR = 8  ///< there is cursor/icon for this
+
+		enum flag_t {
+			FLAG_NULL        = 0,
+			FLAG_NO_INFO     = 1 << 0, ///< do not show info window
+			FLAG_NO_PIT      = 1 << 1, ///< do not show construction pit
+			FLAG_NEED_GROUND = 1 << 2, ///< needs ground drawn below
+			FLAG_HAS_CURSOR  = 1 << 3  ///< there is cursor/icon for this
 		};
 
 	private:
@@ -295,7 +296,7 @@ public:
 	bool is_connected_with_town() const;
 
 	/// @returns headquarter level (or -1 if building is not headquarter)
-	sint32 get_headquarter_level() const  { return (is_headquarters() ? get_extra() : -1) ; }
+	sint32 get_headquarters_level() const  { return (is_headquarters() ? get_extra() : -1) ; }
 
 	/**
 	* the level is used in many places: for price, for capacity, ...

@@ -7,7 +7,7 @@
 
 #include "../simunits.h"
 #include "../simdebug.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 #include "../player/simplay.h"
 #include "../simtool.h"
@@ -148,7 +148,7 @@ roadsign_t::~roadsign_t()
 	if(  desc  ) {
 		const grund_t *gr = welt->lookup(get_pos());
 		if(gr) {
-			weg_t* weg = gr->get_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt);
+			weg_t *weg = gr->get_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt);
 			if(weg) {
 				if (!preview) {
 					player_t* owner = get_owner();
@@ -158,7 +158,7 @@ roadsign_t::~roadsign_t()
 						sint32 maint = get_desc()->get_maintenance();
 						player_t::add_maintenance(owner, -maint, weg->get_waytype());
 					}
-					if (desc->is_single_way() || desc->is_signal_type()) {
+					if (desc->is_single_way()  ||  desc->is_signal_type()) {
 						// signal removed, remove direction mask
 						weg->set_ribi_maske(ribi_t::none);
 					}
@@ -639,7 +639,7 @@ sync_result roadsign_t::sync_step(uint32 /*delta_t*/)
 		uint8 new_state = (ticks >= ticks_ns);
 		if(state!=new_state) {
 			state = new_state;
-			dir = (new_state == 0) ? ribi_t::northsouth : ribi_t::eastwest;
+			dir = (new_state==0) ? ribi_t::northsouth : ribi_t::eastwest;
 			calc_image();
 		}
 	}

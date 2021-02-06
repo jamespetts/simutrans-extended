@@ -5,7 +5,7 @@
 
 #include "../simdebug.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 #include "../player/simplay.h"
 #include "../simtypes.h"
@@ -257,11 +257,11 @@ void groundobj_t::rdwr(loadsave_t *file)
 	else {
 		char bname[128];
 		file->rdwr_str(bname, lengthof(bname));
-		groundobj_desc_t *desc = desc_table.get(bname);
-		if (desc == NULL) {
-			desc = desc_table.get(translator::compatibility_name(bname));
+		groundobj_desc_t *desc = desc_table.get( bname );
+		if(  desc==NULL  ) {
+			desc =  desc_table.get( translator::compatibility_name( bname ) );
 		}
-		if (desc == NULL) {
+		if(  desc==NULL  ) {
 			groundobjtype = simrand(groundobj_typen.get_count(), "void groundobj_t::rdwr(loadsave_t *file)");
 		}
 		else {

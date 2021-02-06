@@ -179,7 +179,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 		}
 
 		// check water level
-		if (gr->is_water()  && welt->lookup_hgt(pos.get_2d()) <= pos.z) {
+		if (gr->is_water()  &&  welt->lookup_hgt(pos.get_2d()) <= pos.z) {
 			return koord3d::invalid;
 		}
 
@@ -364,6 +364,7 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 		}
 	}
 
+
 	if(!welt->is_within_limits(end.get_2d())) {
 		return "Tunnel must start on single way!";
 	}
@@ -466,7 +467,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		gr->set_flag(grund_t::dirty);
 	}
 
-	if (  end == start  ) {
+	if(  end == start  ) {
 		// already finished
 		return true;
 	}
@@ -475,8 +476,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 	while(pos.get_2d()!=end.get_2d()) {
 		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
 		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		if(waytyp != powerline_wt)
-		{
+		if(waytyp != powerline_wt) {
 			const uint32 max_speed = min(desc->get_topspeed(), way_desc->get_topspeed());
 			const uint32 max_axle_load = min(desc->get_axle_load(), way_desc->get_axle_load());
 			weg = weg_t::alloc(desc->get_waytype());
@@ -552,9 +552,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 	else {
 		// construct end tunnel tile
 		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
-
 		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-
 		if(waytyp != powerline_wt) {
 			weg = weg_t::alloc(desc->get_waytype());
 			weg->set_desc(way_desc);
@@ -629,8 +627,7 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 		else {
 			// needs still one
 			weg = weg_t::alloc( desc->get_waytype() );
-			if(  way_desc  )
-			{
+			if(  way_desc  ) {
 				weg->set_desc( way_desc );
 			}
 			else
@@ -765,6 +762,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		if(  from->kann_alle_obj_entfernen(player)  ) {
 			return "Der Tunnel ist nicht frei!\n";
 		}
+
 		ribi_t::ribi waytype_ribi = ribi_t::none;
 		if(  waytyp == powerline_wt  ) {
 			if(  from->get_leitung()  ) {
@@ -777,10 +775,11 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		if(  !remove_all  &&  ribi_t::is_threeway(waytype_ribi)  ) {
 			return "This tunnel branches. You can try Control+Click to remove.";
 		}
+
 		// Nachbarn raussuchen
 		for(int r = 0; r < 4; r++) {
-			if((zv == koord::invalid || zv == koord::nsew[r]) &&
-				from->get_neighbour(to, delete_waytyp, ribi_t::nsew[r]) &&
+			if((zv == koord::invalid || zv == koord::nesw[r]) &&
+				from->get_neighbour(to, delete_waytyp, ribi_t::nesw[r]) &&
 				!marker.is_marked(to) &&
 				(waytyp != powerline_wt || to->get_leitung()))
 			{

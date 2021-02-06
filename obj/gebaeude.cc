@@ -18,7 +18,7 @@ static pthread_mutex_t add_to_city_mutex = PTHREAD_MUTEX_INITIALIZER;
 #include "../bauer/tunnelbauer.h"
 #include "../bauer/brueckenbauer.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../simfab.h"
 #include "../simhalt.h"
 #include "../gui/simwin.h"

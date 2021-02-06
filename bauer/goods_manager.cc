@@ -26,10 +26,10 @@ goods_desc_t *goods_manager_t::load_passengers = NULL;
 goods_desc_t *goods_manager_t::load_mail = NULL;
 goods_desc_t *goods_manager_t::load_none = NULL;
 
-static spezial_obj_tpl<goods_desc_t> const special_objects[] = {
+static special_obj_tpl<goods_desc_t> const special_objects[] = {
 	{ &goods_manager_t::passengers, "Passagiere" },
-	{ &goods_manager_t::mail,	    "Post" },
-	{ &goods_manager_t::none,	    "None" },
+	{ &goods_manager_t::mail,       "Post" },
+	{ &goods_manager_t::none,       "None" },
 	{ NULL, NULL }
 };
 
@@ -87,7 +87,7 @@ bool goods_manager_t::successfully_loaded()
 			assert(goods[i]->get_index()==i);
 			ware_t::index_to_desc[i] = goods[i];
 			if(goods[i]->color==255) {
-				goods[i]->color = ( 16+4+((i-2)*8)%207 );
+				goods[i]->color = 16+4+((i-2)*8)%207;
 			}
 		}
 	}
@@ -237,4 +237,3 @@ void goods_manager_t::set_multiplier(sint32 multiplier, uint16 scale_factor)
 		goods[i]->set_scale(scale_factor);
 	}
 }
-

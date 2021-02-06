@@ -38,6 +38,7 @@ void wasser_t::prepare_for_refresh()
 	}
 }
 
+
 /**
  * helper function: return maximal possible ribis, does not
  * take water ribi of sea tiles into account.
@@ -56,13 +57,13 @@ void wasser_t::calc_image_internal(const bool calc_only_snowline_change)
 		set_hoehe(height);
 		slope = slope_t::flat;
 
-		sint16 zpos = min(welt->lookup_hgt(pos2d), height); // otherwise slope will fail ...
+		sint16 zpos = min( welt->lookup_hgt( pos2d ), height ); // otherwise slope will fail ...
 
-		if (grund_t::underground_mode == grund_t::ugm_level  &&  grund_t::underground_level < zpos) {
+		if(  grund_t::underground_mode == grund_t::ugm_level  &&  grund_t::underground_level < zpos  ) {
 			set_image(IMG_EMPTY);
 		}
 		else {
-			set_image(min(height - zpos, ground_desc_t::water_depth_levels) /*ground_desc_t::get_ground_tile(0,zpos)*/);
+			set_image( min( height - zpos, ground_desc_t::water_depth_levels ) /*ground_desc_t::get_ground_tile(0,zpos)*/ );
 		}
 		recalc_ribis();
 
@@ -83,7 +84,7 @@ void wasser_t::recalc_ribis()
 
 	for(  uint8 i = 0;  i < 4;  i++  ) {
 		grund_t *gr_neighbour = NULL;
-		ribi_t::ribi test = ribi_t::nsew[i];
+		ribi_t::ribi test = ribi_t::nesw[i];
 
 		if( get_neighbour(gr_neighbour, invalid_wt, test) ) {
 			// neighbour tile has water ways
@@ -123,7 +124,7 @@ void wasser_t::recalc_water_neighbours()
 
 	for(  uint8 i = 0;  i < 4;  i++  ) {
 		grund_t *gr_neighbour = NULL;
-		ribi_t::ribi test = ribi_t::nsew[i];
+		ribi_t::ribi test = ribi_t::nesw[i];
 
 		if( get_neighbour(gr_neighbour, invalid_wt, test) ) {
 			if (wasser_t* gr_water = dynamic_cast<wasser_t*>(gr_neighbour) ) {

@@ -3,13 +3,13 @@
  * (see LICENSE.txt)
  */
 
+#include <math.h>
 #include <string>
 #include <stdio.h>
-#include <math.h>
 
 #include "../simdebug.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 #include "../player/simplay.h"
 #include "../simtypes.h"
@@ -19,7 +19,7 @@
 
 #include "../descriptor/tree_desc.h"
 
-#include "../obj/groundobj.h"
+#include "groundobj.h"
 
 #include "../utils/cbuffer_t.h"
 #include "../utils/simrandom.h"
@@ -40,7 +40,7 @@ static const uint8 tree_age_index[12] =
 FLAGGED_PIXVAL baum_t::outline_color = 0;
 
 // quick lookup of an image, assuring always five seasons and five ages
-// missing images just have just identical entries
+// missing images just have identical entries
 // seasons are: 0=summer, 1=autumn, 2=winter, 3=spring, 4=snow
 // snow image is used if tree is above snow line, or for arctic climate
 static image_id tree_id_to_image[256][5*5];

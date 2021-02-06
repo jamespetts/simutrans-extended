@@ -22,9 +22,9 @@ const int totalslopes = 81;
 * maybe they should be put in their own module, even though they are only used here ...
 */
 
-#define red_comp(pix)			(((pix)>>10)&0x001f)
-#define green_comp(pix)		(((pix)>>5)&0x001f)
-#define blue_comp(pix)			((pix)&0x001f)
+#define red_comp(pix)    (((pix)>>10)&0x001f)
+#define green_comp(pix)   (((pix)>>5)&0x001f)
+#define blue_comp(pix)         ((pix)&0x001f)
 
 
 /* combines a texture and a lightmap
@@ -250,20 +250,20 @@ static image_t* create_textured_tile(const image_t* image_lightmap, const image_
  * BEWARE: Assumes all images but image_lightmap are square!
  * BEWARE: no special colors or your will see literally blue!
  */
-static image_t* create_alpha_tile(const image_t* image_lightmap, slope_t::type slope, const image_t* bild_alphamap)
+static image_t* create_alpha_tile(const image_t* image_lightmap, slope_t::type slope, const image_t* image_alphamap)
 {
-	if(  image_lightmap == NULL  ||  bild_alphamap == NULL  ||  bild_alphamap->get_pic()->w < 2  ) {
+	if(  image_lightmap == NULL  ||  image_alphamap == NULL  ||  image_alphamap->get_pic()->w < 2  ) {
 		image_t *image_dest = image_t::create_single_pixel();
 		image_dest->register_image();
 		return image_dest;
 	}
-	assert( bild_alphamap->get_pic()->w == bild_alphamap->get_pic()->h);
+	assert( image_alphamap->get_pic()->w == image_alphamap->get_pic()->h);
 
 	image_t *image_dest = image_lightmap->copy_rotate(0);
 
-	PIXVAL const* const alphamap  = bild_alphamap->get_data();
+	PIXVAL const* const alphamap  = image_alphamap->get_data();
 	const sint32 x_y     = image_dest->get_pic()->w;
-	const sint32 mix_x_y = bild_alphamap->get_pic()->w;
+	const sint32 mix_x_y = image_alphamap->get_pic()->w;
 	sint16 tile_x, tile_y;
 
 	/*
@@ -504,7 +504,7 @@ const ground_desc_t *ground_desc_t::borders = NULL;
 const ground_desc_t *ground_desc_t::sea = NULL;
 const ground_desc_t *ground_desc_t::outside = NULL;
 
-static spezial_obj_tpl<ground_desc_t> const grounds[] = {
+static special_obj_tpl<ground_desc_t> const grounds[] = {
 //	{ &ground_desc_t::shore,    "Shore" },
 	{ &boden_texture,	    "ClimateTexture" },
 	{ &light_map,	    "LightTexture" },

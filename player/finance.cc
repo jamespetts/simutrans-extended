@@ -530,20 +530,20 @@ waytype_t finance_t::translate_tt_to_waytype(const transport_type tt)
 #define OLD_MAX_PLAYER_HISTORY_MONTHS  (12) // number of months to keep history
 
 enum player_cost {
-	COST_CONSTRUCTION=0,// Construction
-	COST_VEHICLE_RUN,   // Vehicle running costs
-	COST_NEW_VEHICLE,   // New vehicles
-	COST_INCOME,        // Income
-	COST_MAINTENANCE,   // Upkeep
-	COST_ASSETS,        // value of all vehicles and buildings
-	COST_CASH,          // Cash
-	COST_NETWEALTH,     // Total Cash + Assets
-	COST_PROFIT,        // COST_POWERLINES+COST_INCOME-(COST_CONSTRUCTION+COST_VEHICLE_RUN+COST_NEW_VEHICLE+COST_MAINTENANCE)
-	COST_OPERATING_PROFIT, // COST_POWERLINES+COST_INCOME-(COST_VEHICLE_RUN+COST_MAINTENANCE)+COST_INTEREST
-	COST_MARGIN,        // COST_OPERATING_PROFIT/COST_INCOME
-	COST_ALL_TRANSPORTED, // all transported goods
-	COST_POWERLINES,	  // revenue from the power grid
-	COST_TRANSPORTED_PAS,	// number of passengers that actually reached destination
+	COST_CONSTRUCTION = 0,   // Construction
+	COST_VEHICLE_RUN,        // Vehicle running costs
+	COST_NEW_VEHICLE,        // New vehicles
+	COST_INCOME,             // Income
+	COST_MAINTENANCE,        // Upkeep
+	COST_ASSETS,             // value of all vehicles and buildings
+	COST_CASH,               // Cash
+	COST_NETWEALTH,          // Total Cash + Assets
+	COST_PROFIT,             // COST_POWERLINES+COST_INCOME-(COST_CONSTRUCTION+COST_VEHICLE_RUN+COST_NEW_VEHICLE+COST_MAINTENANCE)
+	COST_OPERATING_PROFIT,   // COST_POWERLINES+COST_INCOME-(COST_VEHICLE_RUN+COST_MAINTENANCE)+COST_INTEREST
+	COST_MARGIN,             // COST_OPERATING_PROFIT/COST_INCOME
+	COST_ALL_TRANSPORTED,    // all transported goods
+	COST_POWERLINES,         // revenue from the power grid
+	COST_TRANSPORTED_PAS,    // number of passengers that actually reached destination
 	COST_TRANSPORTED_MAIL,
 	COST_TRANSPORTED_GOOD,
 	COST_ALL_CONVOIS,		// number of convois

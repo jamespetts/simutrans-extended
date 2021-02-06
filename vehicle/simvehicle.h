@@ -11,7 +11,7 @@
 #include <string>
 #include "../simtypes.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "../obj/simobj.h"
 #include "../halthandle_t.h"
 #include "../convoihandle_t.h"
 #include "../ifc/simtestdriver.h"
@@ -998,7 +998,15 @@ public:
 class air_vehicle_t : public vehicle_t
 {
 public:
-	enum flight_state { taxiing=0, departing=1, flying=2, landing=3, looking_for_parking=4, circling=5, taxiing_to_halt=6  };
+	enum flight_state {
+		taxiing             = 0,
+		departing           = 1,
+		flying              = 2,
+		landing             = 3,
+		looking_for_parking = 4,
+		circling            = 5,
+		taxiing_to_halt     = 6
+	};
 
 private:
 

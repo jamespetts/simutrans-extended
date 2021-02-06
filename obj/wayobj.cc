@@ -8,7 +8,7 @@
 #include "../boden/grund.h"
 #include "../simworld.h"
 #include "../display/simimg.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../player/simplay.h"
 #include "../simtool.h"
 
@@ -144,11 +144,9 @@ wayobj_t::~wayobj_t()
 						weg->add_way_constraints(t->get_desc()->get_way_constraints());
 					}
 				}
-				if(gr->get_typ()==grund_t::brueckenboden)
-				{
+				if(gr->get_typ()==grund_t::brueckenboden) {
 					bruecke_t *b = gr->find<bruecke_t>(1);
-					if(b)
-					{
+					if(b) {
 						if(hang != slope_t::flat)
 						{
 							const uint slope_height = (hang & 7) ? 1 : 2;
@@ -182,14 +180,14 @@ wayobj_t::~wayobj_t()
 	if( gr ) {
 		for( uint8 i = 0; i < 4; i++ ) {
 			// Remove ribis from adjacent wayobj.
-			if( ribi_t::nsew[i] & get_dir() ) {
+			if( ribi_t::nesw[i] & get_dir() ) {
 				grund_t *next_gr;
-				if( gr->get_neighbour( next_gr, desc->get_wtyp(), ribi_t::nsew[i] ) ) {
+				if( gr->get_neighbour( next_gr, desc->get_wtyp(), ribi_t::nesw[i] ) ) {
 					wayobj_t *wo2 = next_gr->get_wayobj( desc->get_wtyp() );
 					if( wo2 ) {
 						wo2->mark_image_dirty( wo2->get_front_image(), 0 );
 						wo2->mark_image_dirty( wo2->get_image(), 0 );
-						wo2->set_dir( wo2->get_dir() & ~ribi_t::backward(ribi_t::nsew[i]) ); // This has the effect of looking for directions in front of this way object (the ~ combined with the ribi_t::backward).
+						wo2->set_dir( wo2->get_dir() & ~ribi_t::backward(ribi_t::nesw[i]) ); // This has the effect of looking for directions in front of this way object (the ~ combined with the ribi_t::backward).
 						wo2->mark_image_dirty( wo2->get_front_image(), 0 );
 						wo2->mark_image_dirty( wo2->get_image(), 0 );
 						wo2->set_flag(obj_t::dirty);
@@ -252,12 +250,12 @@ void wayobj_t::cleanup(player_t *player)
 
 // returns NULL, if removal is allowed
 // players can remove public owned wayobjs
-const char *wayobj_t:: is_deletable(const player_t *player)
+const char *wayobj_t::is_deletable(const player_t *player)
 {
 	if(  get_player_nr()==1  ) {
 		return NULL;
 	}
-	return obj_t:: is_deletable(player);
+	return obj_t::is_deletable(player);
 }
 
 
@@ -311,8 +309,7 @@ void wayobj_t::finish_rd()
 			// Add the way constraints together.
 			weg->add_way_constraints(desc->get_way_constraints());
 		}
-		else
-		{
+		else {
 			dbg->warning("wayobj_t::finish_rd()","ground was not a way!");
 		}
 	}
@@ -411,7 +408,7 @@ void wayobj_t::calc_image()
 					grund_t *to;
 					rekursion++;
 					for(int r = 0; r < 4; r++) {
-						if(gr->get_neighbour(to, wt, ribi_t::nsew[r])) {
+						if(gr->get_neighbour(to, wt, ribi_t::nesw[r])) {
 							wayobj_t* wo = to->get_wayobj( wt );
 							if(wo) {
 								wo->calc_image();
@@ -448,8 +445,7 @@ void wayobj_t::calc_image()
 const char *wayobj_t::extend_wayobj_t(koord3d pos, player_t *owner, ribi_t::ribi dir, const way_obj_desc_t *desc)
 {
 	grund_t *gr=welt->lookup(pos);
-	if(gr)
-	{
+	if(gr) {
 		wayobj_t *existing_wayobj = gr->get_wayobj( desc->get_wtyp() );
 		if( existing_wayobj ) {
 			if(  existing_wayobj->get_desc() != desc  &&  player_t::check_owner(owner, existing_wayobj->get_owner())  ) {
@@ -499,7 +495,7 @@ const char *wayobj_t::extend_wayobj_t(koord3d pos, player_t *owner, ribi_t::ribi
 		gr->calc_image();
 		for(int r = 0; r < 4; r++) {
 			grund_t *to;
-			if(gr->get_neighbour(to, invalid_wt, ribi_t::nsew[r])) {
+			if(gr->get_neighbour(to, invalid_wt, ribi_t::nesw[r])) {
 				to->calc_image();
 			}
 		}
@@ -507,14 +503,14 @@ const char *wayobj_t::extend_wayobj_t(koord3d pos, player_t *owner, ribi_t::ribi
 
 		for( uint8 i = 0; i < 4; i++ ) {
 		// Extend wayobjects around the new one, that aren't already connected.
-			if( ribi_t::nsew[i] & ~wo->get_dir() ) {
+			if( ribi_t::nesw[i] & ~wo->get_dir() ) {
 				grund_t *next_gr;
-				if( gr->get_neighbour( next_gr, desc->get_wtyp(), ribi_t::nsew[i] ) ) {
+				if( gr->get_neighbour( next_gr, desc->get_wtyp(), ribi_t::nesw[i] ) ) {
 					wayobj_t *wo2 = next_gr->get_wayobj( desc->get_wtyp() );
 					if( wo2 ) {
-						wo2->set_dir( wo2->get_dir() | ribi_t::backward(ribi_t::nsew[i]) );
+						wo2->set_dir( wo2->get_dir() | ribi_t::backward(ribi_t::nesw[i]) );
 						wo2->mark_image_dirty( wo2->get_front_image(), 0 );
-						wo->set_dir( wo->get_dir() | ribi_t::nsew[i] );
+						wo->set_dir( wo->get_dir() | ribi_t::nesw[i] );
 						wo->mark_image_dirty( wo->get_front_image(), 0 );
 					}
 				}
@@ -628,7 +624,7 @@ const way_obj_desc_t *wayobj_t::get_overhead_line(waytype_t wt, uint16 time)
 {
 	for(auto const& i : table) {
 		way_obj_desc_t const* const desc = i.value;
-		if(  desc->is_available(time)  &&  desc->get_wtyp()==wt  &&  desc->is_overhead_line()) {
+		if(  desc->is_available(time)  &&  desc->get_wtyp()==wt  &&  desc->is_overhead_line()  ) {
 			return desc;
 		}
 	}

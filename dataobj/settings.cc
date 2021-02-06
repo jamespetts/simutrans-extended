@@ -1859,9 +1859,12 @@ void settings_t::rdwr(loadsave_t *file)
 				industry_density_proportion_override = 0;
 			}
 		}
-		if( (file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() > 14) {
+		if(  file->is_version_ex_atleast(14, 32)  ) {
 			file->rdwr_byte(world_maximum_height);
 			file->rdwr_byte(world_minimum_height);
+
+			world_maximum_height = clamp<sint8>(world_maximum_height, 16, 127);
+			world_minimum_height = clamp<sint8>(world_minimum_height, -127, -12);
 		}
 
 		if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 36) || file->get_extended_version() >= 15)
@@ -2363,7 +2366,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	starting_year = contents.get_int( "starting_year", starting_year );
 	starting_month = contents.get_int( "starting_month", starting_month + 1 ) - 1;
 
-	env_t::new_height_map_conversion = contents.get_int("new_height_map_conversion", env_t::new_height_map_conversion );
+	env_t::height_conv_mode = (env_t::height_conversion_mode)::clamp<int>(contents.get_int("new_height_map_conversion", (int)env_t::height_conv_mode ), 0, env_t::NUM_HEIGHT_CONV_MODES-1);
 
 	river_number = contents.get_int( "river_number", river_number );
 	min_river_length = contents.get_int( "river_min_length", min_river_length );
@@ -3028,11 +3031,9 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	with_private_paks = contents.get_int("with_private_paks", with_private_paks)!=0;
 
-	world_maximum_height = contents.get_int("world_maximum_height",world_maximum_height);
-	world_minimum_height = contents.get_int("world_minimum_height",world_minimum_height);
-	if(  world_minimum_height>=world_maximum_height  ) {
-		world_minimum_height = world_maximum_height-1;
-	}
+	// note: no need to check for min_height < max_height, since -12 < 16
+	world_maximum_height = clamp(contents.get_int("world_maximum_height",world_maximum_height), 16, 127);
+	world_minimum_height = clamp(contents.get_int("world_minimum_height",world_minimum_height), -127, -12);
 
 	// Default pak file path
 	objfilename = ltrim(contents.get_string("pak_file_path", "" ) );

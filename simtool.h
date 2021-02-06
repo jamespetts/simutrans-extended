@@ -12,7 +12,7 @@
 #include "simtypes.h"
 #include "simworld.h"
 #include "simmenu.h"
-#include "simobj.h"
+#include "obj/simobj.h"
 
 #include "boden/wege/schiene.h"
 #include "boden/wege/strasse.h"
@@ -289,7 +289,7 @@ protected:
 	overtaking_mode_t overtaking_mode;
 	bool look_toolbar = false;
 
-	virtual way_desc_t const* get_desc(uint16, bool) const;
+	virtual way_desc_t const* get_desc(uint16 timeline_year_month) const;
 	bool calc_route( way_builder_t &bauigel, const koord3d &, const koord3d & );
 
 public:
@@ -320,7 +320,7 @@ private:
 	char const* do_work(player_t*, koord3d const&, koord3d const&) OVERRIDE;
 public:
 	tool_build_cityroad() : tool_build_way_t(TOOL_BUILD_CITYROAD | GENERAL_TOOL) {}
-	way_desc_t const* get_desc(uint16, bool) const OVERRIDE;
+	way_desc_t const* get_desc(uint16) const OVERRIDE;
 	image_id get_icon(player_t* const player) const OVERRIDE { return tool_t::get_icon(player); }
 	bool is_selected() const OVERRIDE { return tool_t::is_selected(); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
@@ -467,7 +467,6 @@ public:
 
 // builds roadsigns and signals
 class tool_build_roadsign_t : public two_click_tool_t {
-
 private:
 	const roadsign_desc_t* desc;
 	const char *place_sign_intern( player_t *, grund_t*, const roadsign_desc_t* b = NULL);
@@ -544,7 +543,8 @@ public:
 	bool is_init_network_safe() const OVERRIDE { return true; }
 };
 
-/* builds (random) tourist attraction (default_param==NULL) and maybe adds it to the next city
+/**
+ * builds (random) tourist attraction (default_param==NULL) and maybe adds it to the next city
  * the parameter string is a follow (or NULL):
  * 1#theater
  * first letter: ignore climates
@@ -645,7 +645,7 @@ public:
 class tool_forest_t : public two_click_tool_t {
 public:
 	tool_forest_t() : two_click_tool_t(TOOL_FOREST | GENERAL_TOOL) {}
-	image_id get_icon(player_t *) const OVERRIDE { return baum_t::get_count() > 0 ? icon : IMG_EMPTY; }
+	image_id get_icon(player_t *) const  OVERRIDE { return baum_t::get_count() > 0 ? icon : IMG_EMPTY; }
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("Add forest"); }
 	bool init( player_t *player) OVERRIDE { return  baum_t::get_count() > 0  &&  two_click_tool_t::init(player); }
 private:

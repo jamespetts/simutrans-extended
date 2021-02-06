@@ -60,7 +60,7 @@ uint16 building_desc_t::get_mail_level() const
 		default:
 		case city_res:   return level;
 		case city_com:   return level * 2;
-		case city_ind: return level / 2;
+		case city_ind:   return level / 2;
 	}
 }
 

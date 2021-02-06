@@ -921,7 +921,7 @@ DBG_MESSAGE("do_ki()","check railway");
 			if(  rail_vehicle!=NULL  ) {
 				// if our car is faster: well use slower speed to save money
 				best_rail_speed = min(51, rail_vehicle->get_topspeed());
-				//for engine: guess number of cars
+				// for engine: guess number of cars
 				count_rail = (prod*dist) / (rail_vehicle->get_total_capacity()*best_rail_speed)+1;
 				// assume the engine weight 100 tons for power needed calculation
 				int total_weight = count_rail*( rail_vehicle->get_total_capacity()*freight->get_weight_per_unit() + rail_vehicle->get_weight() );
@@ -1133,7 +1133,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 					if(count_rail<org_count_rail) {
 						// rethink engine
 						int best_rail_speed = min(51, rail_vehicle->get_topspeed());
-						//for engine: guess number of cars
+						// for engine: guess number of cars
 						sint32 power_needed=(sint32)(((best_rail_speed*best_rail_speed)/2500.0+1.0)*(100.0+count_rail*( (rail_vehicle->get_weight()+rail_vehicle->get_capacity()*freight->get_weight_per_unit())*0.001 )));
 						const vehicle_desc_t *v=vehicle_search( track_wt, power_needed, best_rail_speed, NULL, false);
 						if(v->get_running_cost(welt)<rail_engine->get_running_cost(welt)) {

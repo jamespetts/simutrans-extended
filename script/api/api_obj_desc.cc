@@ -282,7 +282,7 @@ void export_goods_desc(HSQUIRRELVM vm)
 	/**
 	 * @returns headquarter level (or -1 if building is not headquarter)
 	 */
-	register_method(vm, &building_desc_t::get_headquarter_level, "get_headquarter_level");
+	register_method(vm, &building_desc_t::get_headquarters_level, "get_headquarter_level");
 
 	/**
 	 * Returns an array with all buildings of the given type.

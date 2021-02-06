@@ -404,7 +404,7 @@ koord3d factory_builder_t::find_random_construction_site(koord pos, int radius, 
 	}
 
 	uint32 diam   = 2*radius + 1;
-	uint32 area = diam * diam;
+	uint32 area   = diam * diam;
 	uint32 index  = simrand(area, "find_random_construction_site");
 	koord k;
 
@@ -460,7 +460,7 @@ void factory_builder_t::distribute_attractions(int max_number)
 
 	int retrys = max_number*4;
 	while(current_number<max_number  &&  retrys-->0) {
-		koord3d	pos=koord3d( koord::koord_random(welt->get_size().x,welt->get_size().y),1);
+		koord3d pos=koord3d( koord::koord_random(welt->get_size().x,welt->get_size().y),1);
 		const building_desc_t *attraction=hausbauer_t::get_random_attraction(welt->get_timeline_year_month(),true,(climate)simrand((int)arctic_climate+1, "void factory_builder_t::distribute_attractions"));
 
 		// no attractions for that climate or too new
@@ -471,7 +471,7 @@ void factory_builder_t::distribute_attractions(int max_number)
 		int	rotation=simrand(attraction->get_all_layouts()-1, "void factory_builder_t::distribute_attractions");
 		pos = find_random_construction_site(pos.get_2d(), 20, attraction->get_size(rotation), factory_desc_t::Land, attraction, false, 0x0FFFFFFF);	// so far -> land only
 		if(welt->lookup(pos)) {
-			// Platz gefunden ...
+			// space found, build attraction
 			gebaeude_t* gb = hausbauer_t::build(welt->get_public_player(), pos, rotation, attraction);
 			current_number ++;
 			retrys = max_number*4;
@@ -658,7 +658,6 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 			pos->rotate90( welt->get_size().y-info->get_building()->get_y(rotate) );
 			welt->rotate90();
 		}
-
 		assert( !welt->cannot_save() );
 	}
 
@@ -734,7 +733,7 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 	DBG_MESSAGE("factory_builder_t::build_link","Construction of %s at (%i,%i).",info->get_name(),pos->x,pos->y);
 	INT_CHECK("fabrikbauer 594");
 
-	const fabrik_t *our_fab = build_factory(parent, info, initial_prod_base, rotate, *pos, player);
+	const fabrik_t *our_fab=build_factory(parent, info, initial_prod_base, rotate, *pos, player);
 
 	INT_CHECK("fabrikbauer 596");
 
@@ -775,10 +774,10 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 	 */
 	const factory_supplier_desc_t *supplier = info->get_supplier(supplier_nr);
 	const goods_desc_t *ware = supplier->get_input_type();
-	const int producer_count=count_producers(ware, welt->get_timeline_year_month() );
+	const int producer_count=count_producers( ware, welt->get_timeline_year_month() );
 
-	if(producer_count == 0) {
-		dbg->error("factory_builder_t::build_link()","No producer for %s found, chain incomplete!",ware->get_name() );
+	if(producer_count==0) {
+		dbg->error("factory_builder_t::build_chain_link()","No producer for %s found, chain incomplete!",ware->get_name() );
 		return 0;
 	}
 
@@ -1252,8 +1251,7 @@ next_ware_check:
 		input_for_consumer = oversupplied_goods.at_weight(pick);
 	}
 
-	while(no_electric < 2)
-	{
+	while(  no_electric<2  ) {
 		bool ignore_climates = false;
 
 		for(int retries = 20; retries > 0; retries--)
@@ -1288,25 +1286,20 @@ next_ware_check:
 					// find somewhere on the map
 					pos = find_random_construction_site( koord(welt->get_size().x/2,welt->get_size().y/2), welt->get_size_max()/2, consumer->get_building()->get_size(rotation), consumer->get_placement(), consumer->get_building(),ignore_climates,10000);
 				}
-				else
-				{
+				else {
 					// or within the city limit
 					const stadt_t *city = pick_any_weighted(welt->get_cities());
 					koord diff = city->get_rechtsunten()-city->get_linksoben();
 					pos = find_random_construction_site( city->get_center(), max(diff.x,diff.y)/2, consumer->get_building()->get_size(rotation), consumer->get_placement(), consumer->get_building(), ignore_climates, 1000);
 				}
-
-				if(welt->lookup(pos))
-				{
+				if(welt->lookup(pos)) {
 					// Space found...
 					nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 1, ignore_climates);
-					if(nr > 0)
-					{
+					if(nr>0) {
 						fabrik_t *our_fab = fabrik_t::get_fab( pos.get_2d() );
 						minimap_t::get_instance()->calc_map_size();
 						// tell the player
-						if(tell_me)
-						{
+						if(tell_me) {
 							stadt_t *s = welt->find_nearest_city(pos.get_2d());
 							const char *stadt_name = s ? s->get_name() : translator::translate("nowhere");
 							cbuffer_t buf;
@@ -1316,8 +1309,7 @@ next_ware_check:
 						return nr;
 					}
 				}
-				else if(retries == 1 && !ignore_climates)
-				{
+				else if(  retries==1  &&  !ignore_climates  ) {
 					// from now on, we will ignore climates to avoid broken chains
 					ignore_climates = true;
 					retries = 20;

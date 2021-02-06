@@ -37,20 +37,31 @@ public:
 	 * flexible:      flag, can be set to box, square to get infinitely enlarging buttons
 	 */
 	enum type {
-		square=1, box, roundbox, arrowleft, arrowright, arrowup, arrowdown, repeatarrowleft, repeatarrowright, posbutton,
-		TYPE_MASK = 127,
-		state = 128,
-		square_state     = square | state,
-		box_state        = box | state,
-		roundbox_state   = roundbox | state,
+		square = 1,
+		box,
+		roundbox,
+		arrowleft,
+		arrowright,
+		arrowup,
+		arrowdown,
+		repeatarrowleft,
+		repeatarrowright,
+		posbutton,
+		TYPE_MASK = (1 << 7) - 1,
+
+		state            = 1 << 7,
+		square_state     = square     | state,
+		box_state        = box        | state,
+		roundbox_state   = roundbox   | state,
 		arrowright_state = arrowright | state,
-		arrowup_state    = arrowup | state,
-		arrowdown_state  = arrowdown | state,
+		arrowup_state    = arrowup    | state,
+		arrowdown_state  = arrowdown  | state,
 		automatic = 256,
 		square_automatic    = square_state | automatic,
-		box_state_automatic = box_state | automatic,
-		posbutton_automatic = posbutton | automatic,
-		flexible = 512
+		box_state_automatic = box_state    | automatic,
+		posbutton_automatic = posbutton    | automatic,
+
+		flexible = 1 << 9
 	};
 
 protected:

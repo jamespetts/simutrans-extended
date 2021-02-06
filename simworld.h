@@ -212,21 +212,21 @@ public:
 	void perlin_hoehe_loop(sint16, sint16, sint16, sint16);
 
 	enum player_cost {
-		WORLD_CITIZENS=0,		//!< total people
-		WORLD_JOBS,				//!< total jobs
-		WORLD_VISITOR_DEMAND,	//!< total visitor demand
-		WORLD_GROWTH,			//!< growth (just for convenience)
-		WORLD_TOWNS,			//!< number of all cities
-		WORLD_FACTORIES,		//!< number of all consuming only factories
-		WORLD_CONVOIS,			//!< total number of convois
-		WORLD_CITYCARS,			//!< number of passengers completing their journeys by private car
-		WORLD_PAS_RATIO,		//!< percentage of passengers that started successful
-		WORLD_PAS_GENERATED,	//!< total number generated
-		WORLD_MAIL_RATIO,		//!< percentage of mail that started successful
-		WORLD_MAIL_GENERATED,	//!< all letters generated
-		WORLD_GOODS_RATIO,		//!< ratio of chain completeness
-		WORLD_TRANSPORTED_GOODS,//!< all transported goods
-		WORLD_CAR_OWNERSHIP,	//!< The proportion of people with access to a private car
+		WORLD_CITIZENS = 0,      ///< total people
+		WORLD_JOBS,              ///< total jobs
+		WORLD_VISITOR_DEMAND,    ///< total visitor demand
+		WORLD_GROWTH,            ///< growth (just for convenience)
+		WORLD_TOWNS,             ///< number of all cities
+		WORLD_FACTORIES,         ///< number of all consuming only factories
+		WORLD_CONVOIS,           ///< total number of convois
+		WORLD_CITYCARS,          ///< number of passengers completing their journeys by private car
+		WORLD_PAS_RATIO,         ///< percentage of passengers that started successful
+		WORLD_PAS_GENERATED,     ///< total number generated
+		WORLD_MAIL_RATIO,        ///< percentage of mail that started successful
+		WORLD_MAIL_GENERATED,    ///< all letters generated
+		WORLD_GOODS_RATIO,       ///< ratio of chain completeness
+		WORLD_TRANSPORTED_GOODS, ///< all transported goods
+		WORLD_CAR_OWNERSHIP,     ///< The proportion of people with access to a private car
 		MAX_WORLD_COST
 	};
 
@@ -245,13 +245,28 @@ public:
 		on_foot
 	};
 
-	enum { NORMAL=0, PAUSE_FLAG = 0x01, FAST_FORWARD=0x02, FIX_RATIO=0x04 };
+	enum {
+		NORMAL       = 0,
+		PAUSE_FLAG   = 1 << 0,
+		FAST_FORWARD = 1 << 1,
+		FIX_RATIO    = 1 << 2
+	};
 
 	/**
 	 * Missing things during loading:
 	 * factories, vehicles, roadsigns or catenary may be severe
 	 */
-	enum missing_level_t { NOT_MISSING=0, MISSING_FACTORY=1, MISSING_VEHICLE=2, MISSING_SIGN=3, MISSING_WAYOBJ=4, MISSING_ERROR=4, MISSING_BRIDGE, MISSING_BUILDING, MISSING_WAY };
+	enum missing_level_t {
+		NOT_MISSING     = 0,
+		MISSING_FACTORY = 1,
+		MISSING_VEHICLE = 2,
+		MISSING_SIGN    = 3,
+		MISSING_WAYOBJ  = 4,
+		MISSING_ERROR   = 4,
+		MISSING_BRIDGE,
+		MISSING_BUILDING,
+		MISSING_WAY
+	};
 
 	void set_car_ownership_history_month(int month, sint64 value) { finance_history_month[month][WORLD_CAR_OWNERSHIP] = value; }
 	void set_car_ownership_history_year(int year, sint64 value) { finance_history_year[year][WORLD_CAR_OWNERSHIP] = value; }
@@ -834,7 +849,10 @@ private:
 	 */
 	uint32 server_last_announce_time;
 
-	enum { SYNCX_FLAG = 0x01, GRIDS_FLAG = 0x02 };
+	enum {
+		SYNCX_FLAG = 1 << 0,
+		GRIDS_FLAG = 1 << 1
+	};
 
 	void world_xy_loop(xy_loop_func func, uint8 flags);
 	static void *world_xy_loop_thread(void *);
@@ -1247,7 +1265,13 @@ public:
 	 */
 	void call_change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool scripted_call=false);
 
-	enum change_player_tool_cmds { new_player=1, toggle_freeplay=2, delete_player=3, toggle_player_active=4 };
+	enum change_player_tool_cmds {
+		new_player           = 1,
+		toggle_freeplay      = 2,
+		delete_player        = 3,
+		toggle_player_active = 4
+	};
+
 	/**
 	 * @param exec If false checks whether execution is allowed, if true executes tool.
 	 * @returns Whether execution is allowed.

@@ -33,7 +33,7 @@ void groundobj_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& o
 	// The last image is always the snow image!
 	uint8 const number_of_seasons = obj.get_int("seasons", 1);
 
-	// distribution probabiltion for all of this set
+	// distribution probability for all of this set
 	uint16 const distribution_weight = obj.get_int("distributionweight", 3);
 
 	// how much for removal

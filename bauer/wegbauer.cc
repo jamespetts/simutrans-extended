@@ -150,6 +150,7 @@ bool way_builder_t::register_desc(way_desc_t *desc)
 	return true;
 }
 
+
 const vector_tpl<const way_desc_t *>&  way_builder_t::get_way_list(const waytype_t wtyp, systemtype_t styp)
 {
 	static vector_tpl<const way_desc_t *> dummy;
@@ -163,6 +164,7 @@ const vector_tpl<const way_desc_t *>&  way_builder_t::get_way_list(const waytype
 	}
 	return dummy;
 }
+
 
 /**
  * Finds a way with a given speed limit for a given waytype
@@ -188,8 +190,7 @@ const way_desc_t* way_builder_t::weg_search(const waytype_t wtyp, const sint32 s
 						( best->get_topspeed() <  test->get_topspeed()  &&  test->get_topspeed() <=     speed_limit  )    || // closer to desired speed (from the low end)
 						(     speed_limit      <  best->get_topspeed()  &&  test->get_topspeed() <   best->get_topspeed()) || // respects speed_limit better
 						( time!=0  &&  !best_allowed  &&  test_allowed)                                                       // current choice is actually not really allowed, timewise
-						)
-					{
+						) {
 							best = test;
 							best_allowed = test_allowed;
 					}
@@ -923,7 +924,7 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 			// calculate costs
 			*costs = str ? 0 : s.way_count_straight;
 			if((str==NULL  &&  to->hat_wege())  ||  (str  &&  to->has_two_ways())) {
-				*costs += 4;	// avoid crossings
+				*costs += 4; // avoid crossings
 			}
 			if(to->get_weg_hang()!=0  &&  !to_flat) {
 				*costs += s.way_count_slope;
@@ -955,7 +956,7 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 			*costs = s.way_count_straight;
 			if (!sch) *costs += 1; // only prefer existing rails a little
 			if((sch  &&  to->has_two_ways())  ||  (sch==NULL  &&  to->hat_wege())) {
-				*costs += 4;	// avoid crossings
+				*costs += 4; // avoid crossings
 			}
 			if(to->get_weg_hang()!=0  &&  !to_flat) {
 				*costs += s.way_count_slope;
@@ -1071,7 +1072,7 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 		case luft: // runway
 			{
 				const weg_t *w = to->get_weg(air_wt);
-				if(  w  &&  w->get_desc()->get_styp()==type_runway  &&  desc->get_styp()!=type_runway &&  ribi_t::is_single(w->get_ribi_unmasked())  ) {
+				if(  w  &&  w->get_desc()->get_styp()==type_runway  &&  desc->get_styp()!=type_runway  &&  ribi_t::is_single(w->get_ribi_unmasked())  ) {
 					// cannot go over the end of a runway with a taxiway
 					return false;
 				}
@@ -1121,7 +1122,7 @@ bool way_builder_t::check_terraforming( const grund_t *from, const grund_t *to, 
 		sint8 middle = from_hgt * 2;
 		sint8 end    = to_hgt * 2;
 		// get 3 heights - start (min start from, but should be same), middle (average end from/average start to), end (min end to)
-		if(  dir ==  koord::north  ) {
+		if(  dir == koord::north  ) {
 			start  += corner_sw(from_slope) + corner_se(from_slope);
 			middle += corner_ne(from_slope) + corner_nw(from_slope);
 			end    += corner_ne(to_slope) + corner_nw(to_slope);
@@ -1290,10 +1291,10 @@ void way_builder_t::check_for_bridge(const grund_t* parent_from, const grund_t* 
 		switch(  bautyp&bautyp_mask  ) {
 			case schiene_tram:
 			case strasse: {
-					const weg_t *other = way1;
-					if (  way0->get_waytype() != desc->get_wtyp()  ) {
-						if (  way1  ) {
-							// two different ways
+				const weg_t *other = way1;
+				if (  way0->get_waytype() != desc->get_wtyp()  ) {
+					if (  way1  ) {
+						// two different ways
 							return;
 						}
 						other = way0;
@@ -1513,7 +1514,7 @@ sint32 way_builder_t::intern_calc_route(const vector_tpl<koord3d> &start, const 
 
 	// some obj for the search
 	grund_t *to;
-	koord3d gr_pos;	// just the last valid pos ...
+	koord3d gr_pos; // just the last valid pos ...
 	route_t::ANode *tmp=NULL;
 	uint32 step = 0;
 	const grund_t* gr=NULL;
@@ -1771,7 +1772,7 @@ DBG_DEBUG("way_builder_t::intern_calc_route()","steps=%i  (max %i) in route, ope
 
 void way_builder_t::intern_calc_straight_route(const koord3d start, const koord3d ziel)
 {
-	bool ok=true;
+	bool ok = true;
 
 	const grund_t* test_bd = welt->lookup(start);
 	if (test_bd == NULL) {
@@ -2090,6 +2091,7 @@ DBG_MESSAGE("calc_route::calc_route", "took %i ms",dr_time()-ms);
 	return route_reversed;
 }
 
+
 void way_builder_t::build_tunnel_and_bridges()
 {
 	if(bridge_desc==NULL  &&  tunnel_desc==NULL) {
@@ -2354,7 +2356,6 @@ sint64 way_builder_t::calc_costs()
 			}
 		}
 	}
-
 	DBG_MESSAGE("way_builder_t::calc_costs()","construction estimate: %f",costs/100.0);
 	return costs;
 }
@@ -2382,7 +2383,7 @@ bool way_builder_t::build_tunnel_tile()
 			// make new tunnelboden
 			tunnelboden_t* tunnel = new tunnelboden_t(route[i], 0);
 			welt->access(route[i].get_2d())->boden_hinzufuegen(tunnel);
-			if(tunnel_desc->get_waytype()!=powerline_wt) {
+			if(  tunnel_desc->get_waytype() != powerline_wt  ) {
 				weg_t *weg = weg_t::alloc(tunnel_desc->get_waytype());
 				weg->set_desc(desc);
 				tunnel->neuen_weg_bauen(weg, route.get_ribi(i), player_builder);
@@ -2424,9 +2425,9 @@ bool way_builder_t::build_tunnel_tile()
 			cost -= tunnel_desc->get_value();
 			player_t::add_maintenance( player_builder,  tunnel_desc->get_maintenance(), tunnel_desc->get_finance_waytype() );
 		}
-		else if(gr->get_typ()==grund_t::tunnelboden) {
+		else if(  gr->get_typ() == grund_t::tunnelboden  ) {
 			// check for extension only ...
-			if(tunnel_desc->get_waytype()!=powerline_wt) {
+			if(  tunnel_desc->get_waytype() != powerline_wt  ) {
 				gr->weg_erweitern( tunnel_desc->get_waytype(), route.get_ribi(i) );
 
 				tunnel_t *tunnel = gr->find<tunnel_t>();
@@ -2456,7 +2457,8 @@ bool way_builder_t::build_tunnel_tile()
 					strasse_t *str = (strasse_t*)gr->get_weg(road_wt);
 					update_ribi_mask_oneway(str,i);
 				}
-			} else {
+			}
+			else {
 				leitung_t *lt = gr->get_leitung();
 				if(!lt) {
 					lt = new leitung_t(gr->get_pos(), player_builder);
@@ -2831,8 +2833,8 @@ void way_builder_t::build_track()
 					if(  desc->get_wtyp() == water_wt  ) {
 						for(  int j = 0;  j < 4;  j++  ) {
 							grund_t *sea = NULL;
-							if (gr->get_neighbour(sea, invalid_wt, ribi_t::nsew[j])  &&  sea->is_water()  ) {
-								gr->weg_erweitern( water_wt, ribi_t::nsew[j] );
+							if (gr->get_neighbour(sea, invalid_wt, ribi_t::nesw[j])  &&  sea->is_water()  ) {
+								gr->weg_erweitern( water_wt, ribi_t::nesw[j] );
 								sea->calc_image();
 							}
 						}
@@ -2847,8 +2849,7 @@ void way_builder_t::build_track()
 			gr->calc_image();
 			minimap_t::get_instance()->calc_map_pixel( gr->get_pos().get_2d() );
 
-			if((i&3)==0)
-			{
+			if((i&3)==0) {
 				INT_CHECK( "wegbauer 1584" );
 			}
 		}
@@ -2985,9 +2986,9 @@ void way_builder_t::build_river()
 			ribi_t::ribi ribi = i<end_n-1 ? route.get_short_ribi(i) : ribi_type(route[i-1]-route[i]);
 			bool extend = gr->weg_erweitern(water_wt, ribi);
 			if(  !extend  ) {
-				weg_t *sch=weg_t::alloc(water_wt);
-				sch->set_desc(desc);
-				gr->neuen_weg_bauen(sch, ribi, NULL);
+				weg_t *river=weg_t::alloc(water_wt);
+				river->set_desc(desc);
+				gr->neuen_weg_bauen(river, ribi, NULL);
 			}
 		}
 	}
@@ -3008,7 +3009,7 @@ void way_builder_t::build_river()
 					for(  type=env_t::river_types-1;  type>0;  type--  ) {
 						// lookup type
 						if(  w->get_desc()==desc_table.get(env_t::river_type[type])  ) {
-							break;
+								break;
 						}
 					}
 					// still room to expand

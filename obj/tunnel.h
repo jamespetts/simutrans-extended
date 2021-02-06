@@ -7,7 +7,7 @@
 #define OBJ_TUNNEL_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 
 class tunnel_desc_t;
@@ -57,6 +57,7 @@ public:
 	void finish_rd() OVERRIDE;
 
 	void cleanup(player_t *player) OVERRIDE;
+
 
 	uint8 get_broad_type() const { return broad_type; };
 

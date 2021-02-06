@@ -29,9 +29,9 @@
 class tree_desc_t : public obj_named_desc_t {
 	friend class tree_reader_t;
 
-	climate_bits	allowed_climates;
-	uint8		distribution_weight;
-	uint8		number_of_seasons;
+	climate_bits allowed_climates;
+	uint8        distribution_weight;
+	uint8        number_of_seasons;
 
 public:
 	uint16 get_distribution_weight() const { return distribution_weight; }

@@ -17,6 +17,7 @@
 #include "../descriptor/skin_desc.h"
 
 
+
 boden_t::boden_t(loadsave_t *file, koord pos ) : grund_t( koord3d(pos,0) )
 {
 	grund_t::rdwr( file );

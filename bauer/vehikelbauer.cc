@@ -228,8 +228,6 @@ bool vehicle_builder_t::successfully_loaded()
 		}
 		delete [] tmp;
 	}
-
-
 	return true;
 }
 

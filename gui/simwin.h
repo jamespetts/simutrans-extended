@@ -32,16 +32,16 @@ struct event_t;
 
 /* Types for the window */
 enum wintype {
-	w_info         = 1, // A info window
-	w_do_not_delete= 2, // A window whose GUI object should not be deleted on close
-	w_no_overlap   = 4, // try to place it below a previous window with the same flag
-	w_time_delete  = 8  // deletion after MESG_WAIT has elapsed
+	w_info          = 1 << 0, // A info window
+	w_do_not_delete = 1 << 1, // A window whose GUI object should not be deleted on close
+	w_no_overlap    = 1 << 2, // try to place it below a previous window with the same flag
+	w_time_delete   = 1 << 3  // deletion after MESG_WAIT has elapsed
 };
 ENUM_BITSET(wintype)
 
 
 enum magic_numbers {
-	magic_none = -1,
+	magic_none     = -1,
 	magic_reserved = 0,
 
 	// from here on, delete second 'new'-ed object in create_win
@@ -73,18 +73,20 @@ enum magic_numbers {
 	magic_city_info_t,
 	magic_citylist_frame_t,
 	magic_mainhelp,
+
 	// player dependent stuff => 16 times present
 	magic_finances_t,
-	magic_convoi_list=magic_finances_t+MAX_PLAYER_COUNT,
-	magic_convoi_list_filter=magic_convoi_list+MAX_PLAYER_COUNT,
-	magic_line_list=magic_convoi_list_filter+MAX_PLAYER_COUNT,
-	magic_halt_list=magic_line_list+MAX_PLAYER_COUNT,
-	magic_line_management_t=magic_halt_list+MAX_PLAYER_COUNT,
-	magic_ai_options_t=magic_line_management_t+MAX_PLAYER_COUNT,
-	//magic_ai_selector = magic_ai_options_t + MAX_PLAYER_COUNT,
-	magic_pwd_t=magic_ai_options_t+MAX_PLAYER_COUNT,
-	magic_jump=magic_pwd_t+MAX_PLAYER_COUNT,
-	magic_headquarter = magic_jump + MAX_PLAYER_COUNT,
+	magic_convoi_list        = magic_finances_t         + MAX_PLAYER_COUNT,
+	magic_convoi_list_filter = magic_convoi_list        + MAX_PLAYER_COUNT,
+	magic_line_list          = magic_convoi_list_filter + MAX_PLAYER_COUNT,
+	magic_halt_list          = magic_line_list          + MAX_PLAYER_COUNT,
+	magic_line_management_t  = magic_halt_list          + MAX_PLAYER_COUNT,
+	magic_ai_options_t       = magic_line_management_t  + MAX_PLAYER_COUNT,
+	//magic_ai_selector      = magic_ai_options_t       + MAX_PLAYER_COUNT,
+	magic_pwd_t              = magic_ai_options_t       + MAX_PLAYER_COUNT,
+	magic_jump               = magic_pwd_t              + MAX_PLAYER_COUNT,
+	magic_headquarter        = magic_jump               + MAX_PLAYER_COUNT,
+
 	// normal stuff
 	magic_curiositylist,
 	magic_factorylist,
@@ -111,17 +113,17 @@ enum magic_numbers {
 
 	// magic numbers with big jumps between them
 	magic_convoi_info,
-	magic_convoi_detail=magic_convoi_info+65536,
-	magic_convoi_time_history=magic_convoi_detail+65536,
-	magic_halt_info=magic_convoi_time_history+65536,
-	magic_halt_detail=magic_halt_info+65536,
-	magic_replace=magic_halt_detail+65536,
-	magic_toolbar=magic_replace+65536,
-	magic_info_pointer=magic_toolbar+256,
-	magic_class_manager=magic_info_pointer+ 65536,
-	magic_line_class_manager= magic_class_manager + 65536,
-	magic_depotlist = magic_line_class_manager +843,
-	magic_vehiclelist = magic_depotlist + MAX_PLAYER_COUNT,
+	magic_convoi_detail       = magic_convoi_info         + 0x10000,
+	magic_convoi_time_history = magic_convoi_detail       + 0x10000,
+	magic_halt_info           = magic_convoi_time_history + 0x10000,
+	magic_halt_detail         = magic_halt_info           + 0x10000,
+	magic_replace             = magic_halt_detail         + 0x10000,
+	magic_toolbar             = magic_replace             + 0x10000,
+	magic_info_pointer        = magic_toolbar             + 0x100,
+	magic_class_manager       = magic_info_pointer        + 0x10000,
+	magic_line_class_manager  = magic_class_manager       + 0x10000,
+	magic_depotlist           = magic_line_class_manager  + 843,
+	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
 	magic_signalboxlist,
 	magic_max
 };
@@ -152,6 +154,9 @@ gui_frame_t *win_get_top();
 
 // returns the focused component of the top window
 gui_component_t *win_get_focus();
+
+// true, if the focus is currently in a text field
+bool win_is_textinput();
 
 int win_get_open_count();
 

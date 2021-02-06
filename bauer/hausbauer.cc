@@ -14,6 +14,7 @@
 #include "../boden/fundament.h"
 
 #include "../dataobj/scenario.h"
+
 #include "../obj/leitung2.h"
 #include "../obj/tunnel.h"
 #include "../obj/zeiger.h"
@@ -51,7 +52,7 @@ vector_tpl<const building_desc_t *> hausbauer_t::townhalls;
 vector_tpl<const building_desc_t *> hausbauer_t::monuments;
 vector_tpl<const building_desc_t *> hausbauer_t::unbuilt_monuments;
 
-/*
+/**
  * List of all registered house descriptors.
  * Allows searching for a desc by its name
  */
@@ -67,7 +68,7 @@ vector_tpl<building_desc_t*> hausbauer_t::modifiable_station_buildings;
 vector_tpl<const building_desc_t *> hausbauer_t::headquarters;
 
 /// special objects directly needed by the program
-static spezial_obj_tpl<building_desc_t> const special_objects[] = {
+static special_obj_tpl<building_desc_t> const special_objects[] = {
 	{ &hausbauer_t::elevated_foundation_desc,   "MonorailGround" },
 	{ NULL, NULL }
 };
@@ -144,8 +145,8 @@ bool hausbauer_t::successfully_loaded()
 	for(auto const& i : desc_names) {
 		building_desc_t *const desc = i.value;
 
-		// now insert the besch into the correct list.
-		switch (desc->get_type()) {
+		// now insert the desc into the correct list.
+		switch(desc->get_type()) {
 			case building_desc_t::city_res:
 				city_residential.insert_ordered(desc,compare_building_desc);
 				break;
@@ -181,7 +182,6 @@ bool hausbauer_t::successfully_loaded()
 			case building_desc_t::depot:
 			case building_desc_t::generic_stop:
 			case building_desc_t::generic_extension:
-
 				station_building.insert_ordered(desc,compare_station_desc);
 				break;
 
@@ -244,7 +244,6 @@ bool hausbauer_t::successfully_loaded()
 
 	// now sort them according level
 	warn_missing_objects(special_objects);
-
 	return true;
 }
 
@@ -323,6 +322,7 @@ void hausbauer_t::fill_menu(tool_selector_t* tool_selector, building_desc_t::bty
 
 	const uint16 time = welt->get_timeline_year_month();
 	DBG_DEBUG("hausbauer_t::fill_menu()","maximum %i",station_building.get_count());
+
 	FOR(  vector_tpl<building_desc_t const*>,  const desc,  station_building  ) {
 //		DBG_DEBUG("hausbauer_t::fill_menu()", "try to add %s (%p)", desc->get_name(), desc);
 		if(  desc->get_type() == btype  &&  desc->get_builder()  &&  ((btype == building_desc_t::headquarters || btype == building_desc_t::signalbox) ||  desc->get_extra()==(uint16)wt)  ) {
@@ -359,7 +359,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 	koord size = tile->get_desc()->get_size( layout );
 	koord k;
 
-	if( tile->get_desc()->get_type() == building_desc_t::headquarters ) {
+	if(  tile->get_desc()->get_type() == building_desc_t::headquarters  ) {
 		gb->get_owner()->add_headquarter( 0, koord::invalid );
 	}
 	if(tile->get_desc()->get_type()==building_desc_t::monument) {
@@ -580,20 +580,22 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 			{
 				if(!gr->hat_wege()) {
 					// save certain object types
-					for (uint8 i = 0; i < gr->obj_count(); i++) {
+					for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 						obj_t *const obj = gr->obj_bei(i);
 						obj_t::typ const objtype = obj->get_typ();
-						if (objtype == obj_t::leitung || objtype == obj_t::pillar) {
+						if(  objtype == obj_t::leitung  ||  objtype == obj_t::pillar  ) {
 							keptobjs.append(obj);
 						}
 					}
-					for (size_t i = 0; i < keptobjs.get_count(); i++) {
+					for(  size_t i = 0;  i < keptobjs.get_count();  i++  ) {
 						gr->obj_remove(keptobjs[i]);
 					}
 
 					// delete everything except vehicles
 					gr->obj_loesche_alle(player);
 				}
+
+				// build new foundation
 				needs_ground_recalc |= gr->get_grund_hang()!=slope_t::flat;
 				// Build fundament up or down?  Up is the default.
 				bool build_up = true;
@@ -746,10 +748,10 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 
 gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d pos, int built_layout, const building_desc_t *desc, void *param)
 {
-	uint8 corner_layout = 6;	// assume single building (for more than 4 layouts)
+	uint8 corner_layout = 6; // assume single building (for more than 4 layouts)
 
 	// adjust layout of neighbouring building
-	if(desc->is_transport_building() &&  desc->get_all_layouts()>1) {
+	if(desc->is_transport_building()  &&  desc->get_all_layouts()>1) {
 
 		int layout = built_layout & 9;
 
@@ -787,7 +789,7 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 				}
 				gb = gr->find<gebaeude_t>();
 			}
-			if(  gb  &&  gb->get_tile()->get_desc()->is_transport_building() ) {
+			if(  gb  &&  gb->get_tile()->get_desc()->is_transport_building()  ) {
 				corner_layout &= ~2; // clear near bit
 				if(gb->get_tile()->get_desc()->get_all_layouts()>4) {
 					koord xy = gb->get_tile()->get_offset();
@@ -945,7 +947,7 @@ const building_desc_t* hausbauer_t::get_random_station(const building_desc_t::bt
 	FOR(vector_tpl<building_desc_t const*>, const desc, station_building) {
 		if(  desc->get_type()== btype  &&  desc->get_extra()==(uint32)wt  &&  (enables==0  ||  (desc->get_enabled()&enables)!=0)  ) {
 			// skip underground stations
-			if( !desc->can_be_built_aboveground()) {
+			if(  !desc->can_be_built_aboveground()  ) {
 				continue;
 			}
 			// ok, now check timeline
@@ -1196,7 +1198,7 @@ const building_desc_t* hausbauer_t::get_residential(int level, koord size, uint1
 }
 
 
-const building_desc_t* hausbauer_t::get_headquarter(int level, uint16 time)
+const building_desc_t* hausbauer_t::get_headquarters(int level, uint16 time)
 {
 	if(  level<0  ) {
 		return NULL;

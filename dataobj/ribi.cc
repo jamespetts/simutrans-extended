@@ -10,10 +10,10 @@
 #include "koord.h"
 #include "koord3d.h"
 
-const ribi_t::ribi ribi_t::nsew[4] = {
+const ribi_t::ribi ribi_t::nesw[4] = {
 	north,
-	south,
 	east,
+	south,
 	west
 };
 
@@ -303,17 +303,17 @@ ribi_t::ribi ribi_typ_intern(sint16 dx, sint16 dy)
 {
 	ribi_t::ribi ribi = ribi_t::none;
 
-	if (dx<0) {
+	if(dx<0) {
 		ribi |= ribi_t::west;
 	}
-	else if (dx>0) {
+	else if(dx>0) {
 		ribi |= ribi_t::east;
 	}
 
-	if (dy<0) {
+	if(dy<0) {
 		ribi |= ribi_t::north;
 	}
-	else if (dy>0) {
+	else if(dy>0) {
 		ribi |= ribi_t::south;
 	}
 	return ribi;
@@ -339,12 +339,12 @@ ribi_t::ribi ribi_type(const koord3d& dir)
 bool ribi_t::is_perpendicular(ribi x, ribi y)
 {
 	// for straight direction x use doppelr lookup table
-	if (is_straight(x)) {
+	if(is_straight(x)) {
 		return (doppelr[x] | doppelr[y]) == all;
 	}
 	// now diagonals (more tricky)
-	if (x != y) {
-		return ((x - y) % 3) == 0;
+	if(x!=y) {
+		return ((x-y)%3)==0;
 	}
 	// ok, then they are not orthogonal
 	return false;
@@ -394,25 +394,24 @@ sint16 slope_t::get_sloping_upwards(const slope_t::type slope, const sint16 rela
 
 slope_t::type slope_type(koord dir)
 {
-	if (dir.x == 0) {
-		if (dir.y < 0) {		    // north direction -> south slope
+	if(dir.x == 0) {
+		if(dir.y < 0) {            // north direction -> south slope
 			return slope_t::south;
 		}
-		if (dir.y > 0) {
-			return slope_t::north;    // south direction -> north slope
+		if(dir.y > 0) {
+			return slope_t::north; // south direction -> north slope
 		}
 	}
-	if (dir.y == 0) {
-		if (dir.x < 0) {
-			return slope_t::east;	    // west direction -> east slope
+	if(dir.y == 0) {
+		if(dir.x < 0) {
+			return slope_t::east;  // west direction -> east slope
 		}
-		if (dir.x > 0) {
-			return slope_t::west;    // east direction -> west slope
+		if(dir.x > 0) {
+			return slope_t::west;  // east direction -> west slope
 		}
 	}
-	return slope_t::flat;	    // ???
+	return slope_t::flat;          // ???
 }
-
 
 
 slope_t::type slope_type(ribi_t::ribi r)

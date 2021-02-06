@@ -20,8 +20,10 @@ class grund_t;
 class marker_t {
 	// added bit mask, because it allows a more efficient
 	// implementation (use & instead of %)
-	enum { bit_unit = (8 * sizeof(unsigned char)),
-		bit_mask = (8 * sizeof(unsigned char))-1 };
+	enum {
+		bit_unit = (8 * sizeof(unsigned char)),
+		bit_mask = (8 * sizeof(unsigned char))-1
+	};
 
 	/// bit-field to mark ground tiles
 	unsigned char *bits;
@@ -40,7 +42,7 @@ class marker_t {
 	 * @param world_size_x x-size of map
 	 * @param world_size_y y-size of map
 	 */
-	void init(int world_size_x,int world_size_y);
+	void init(int world_size_x, int world_size_y);
 
 	/// the instance (single threaded only)
 	static marker_t the_instance;

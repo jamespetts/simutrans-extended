@@ -69,8 +69,7 @@ static void read_png(unsigned char** block, unsigned* width, unsigned* height, F
 	*height = heightpu32;
 
 	if (*height % base_img_size != 0 || *width % base_img_size != 0) {
-		dbg->fatal("while loading PNG", "Invalid image size in %s.", filename_.c_str());
-		exit(1);
+		dbg->fatal( "while loading PNG", "Invalid image size in %s.", filename_.c_str() );
 	}
 
 	/* tell libpng to strip 16 bit/color files down to 8 bits/color */
@@ -178,7 +177,7 @@ bool load_block(unsigned char** block, unsigned* width, unsigned* height, const 
 				break;
 			}
 			struct dirent * ent = NULL;
-			while (ent = readdir(dir)) {
+			while ((ent = readdir(dir)) != NULL) {
 				if (!STRICMP(ent->d_name, name.c_str())) {
 					actual_path += ent->d_name;
 					break;
@@ -266,8 +265,7 @@ int write_png(const char *file_name, unsigned char *data, int width, int height,
 		}
 	}
 	else {
-		dbg->fatal("write_png", "32 bit not supported!");
-		exit(0);
+		dbg->fatal( "write_png", "32 bit not supported!" );
 	}
 
 	// free all

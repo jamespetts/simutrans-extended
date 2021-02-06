@@ -29,7 +29,7 @@
 
 #include "simconst.h"
 
-#include "simobj.h"
+#include "obj/simobj.h"
 #include "convoy.h"
 
 /*
@@ -88,7 +88,8 @@ public:
 	/** Constants */
 	enum { max_vehicle=8, max_rail_vehicle = 64 };
 
-	enum states {INITIAL, // INITIAL means stored in the depot
+	enum states {
+		INITIAL, // INITIAL means stored in the depot
 		EDIT_SCHEDULE,
 		ROUTING_1,
 		ROUTING_2,

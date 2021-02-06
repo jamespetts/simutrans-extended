@@ -348,6 +348,7 @@ add_executable(simutrans-extended
 	obj/pillar.cc
 	obj/roadsign.cc
 	obj/signal.cc
+	obj/simobj.cc
 	obj/tunnel.cc
 	obj/wayobj.cc
 	obj/wolke.cc
@@ -403,7 +404,6 @@ add_executable(simutrans-extended
 	simmem.cc
 	simmenu.cc
 	simmesg.cc
-	simobj.cc
 	simplan.cc
 	simsignalbox.cc
 	simskin.cc

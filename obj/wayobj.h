@@ -9,9 +9,9 @@
 
 #include "../simtypes.h"
 #include "../display/simimg.h"
-#include "../simobj.h"
 #include "../simworld.h"
 #include "../boden/grund.h"
+#include "simobj.h"
 #include "../dataobj/ribi.h"
 #include "../descriptor/way_obj_desc.h"
 #include "../tpl/stringhashtable_tpl.h"
@@ -113,7 +113,7 @@ public:
 	static bool successfully_loaded();
 
 	// search an object (currently only used by AI for catenary)
-	static const way_obj_desc_t *get_overhead_line(waytype_t wt,uint16 time);
+	static const way_obj_desc_t *get_overhead_line(waytype_t wt, uint16 time);
 
 	static const way_obj_desc_t *find_desc(const char *);
 
