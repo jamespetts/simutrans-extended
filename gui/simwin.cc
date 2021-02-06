@@ -64,10 +64,10 @@
 
 #include "../simversion.h"
 
-class inthashtable_tpl<ptrdiff_t,scr_coord> old_win_pos;
+class inthashtable_tpl<ptrdiff_t,scr_coord, N_BAGS_MEDIUM> old_win_pos;
 
 // hash-table: magic number to windowsize
-class inthashtable_tpl<ptrdiff_t, scr_size> saved_windowsizes;
+class inthashtable_tpl<ptrdiff_t, scr_size, N_BAGS_MEDIUM> saved_windowsizes;
 
 #define dragger_size 12
 
@@ -430,7 +430,7 @@ void rdwr_win_settings(loadsave_t *file)
 		} while (magic != magic_none);
 	}
 	else {
-		typedef inthashtable_tpl<ptrdiff_t, scr_size> stupid_table_t;
+		typedef inthashtable_tpl<ptrdiff_t, scr_size, N_BAGS_MEDIUM> stupid_table_t;
 		FOR(stupid_table_t, it, saved_windowsizes) {
 			sint64 m = it.key;
 			file->rdwr_longlong(m);
@@ -1587,12 +1587,12 @@ void win_poll_event(event_t* const ev)
 	if(  ev->ev_class==EVENT_SYSTEM  &&  ev->ev_code==SYSTEM_RELOAD_WINDOWS  ) {
 		dr_chdir( env_t::user_dir );
 		loadsave_t dlg;
-		if(  dlg.wr_open( "dlgpos.xml", loadsave_t::xml_zipped, 1, "temp", SERVER_SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR )  ) {
+		if(  dlg.wr_open( "dlgpos.xml", loadsave_t::xml_zipped, 1, "temp", SERVER_SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR ) == loadsave_t::FILE_STATUS_OK   ) {
 			// save all
 			rdwr_all_win( &dlg );
 			dlg.close();
 			destroy_all_win( true );
-			if(  dlg.rd_open( "dlgpos.xml" )  ) {
+			if(  dlg.rd_open( "dlgpos.xml" ) == loadsave_t::FILE_STATUS_OK  ) {
 				// and reload them ...
 				rdwr_all_win( &dlg );
 			}

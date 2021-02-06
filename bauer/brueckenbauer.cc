@@ -44,7 +44,7 @@ karte_ptr_t bridge_builder_t::welt;
 
 
 /// All bridges hashed by name
-static stringhashtable_tpl<bridge_desc_t *> desc_table;
+static stringhashtable_tpl<bridge_desc_t *, N_BAGS_MEDIUM> desc_table;
 
 
 void bridge_builder_t::register_desc(bridge_desc_t *desc)
@@ -80,7 +80,8 @@ bool bridge_builder_t::laden_erfolgreich()
 	bool strasse_da = false;
 	bool schiene_da = false;
 
-	FOR(stringhashtable_tpl<bridge_desc_t*>, const& i, desc_table) {
+
+	for(auto & i : desc_table) {
 		bridge_desc_t const* const desc = i.value;
 
 		if(desc && desc->get_waytype() == track_wt) {
@@ -103,7 +104,7 @@ bool bridge_builder_t::laden_erfolgreich()
 }
 
 
-stringhashtable_tpl<bridge_desc_t *> * bridge_builder_t::get_all_bridges()
+stringhashtable_tpl<bridge_desc_t *, N_BAGS_MEDIUM> * bridge_builder_t::get_all_bridges()
 {
 	return &desc_table;
 }
@@ -115,7 +116,7 @@ const bridge_desc_t *bridge_builder_t::find_bridge(const waytype_t wtyp, const s
 {
 	const bridge_desc_t *find_desc=NULL;
 
-	FOR(stringhashtable_tpl<bridge_desc_t*>, const& i, desc_table) {
+	for(auto const & i : desc_table) {
 		bridge_desc_t const* const desc = i.value;
 		if(  desc->get_waytype()==wtyp  &&  desc->is_available(time)  ) {
 			if(find_desc==NULL  ||
@@ -155,7 +156,7 @@ void bridge_builder_t::fill_menu(tool_selector_t *tool_selector, const waytype_t
 	vector_tpl<const bridge_desc_t*> matching(desc_table.get_count());
 
 	// list of matching types (sorted by speed)
-	FOR(stringhashtable_tpl<bridge_desc_t*>, const& i, desc_table) {
+	for(auto const & i : desc_table) {
 		bridge_desc_t const* const b = i.value;
 		if (  b->get_waytype()==wtyp  &&  b->is_available(time)  ) {
 			matching.insert_ordered( b, compare_bridges);
@@ -294,17 +295,14 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 			}
 
 			weg_t *w = gr2->get_weg_nr(0);
-			const bool public_service = player ? player->is_public_service() : true;
-			const sint8 player_nr = player ? player->get_player_nr() : -1;
-			if (w
-				&& (w->get_max_speed() > 0 && w->get_max_axle_load() > 0
-
-				&& ((w->get_desc()->get_waytype() != road_wt
+			const bool public_service = player ? player->is_public_service() : false;
+			if ((gr2->is_water() && !public_service)
+				||	w && (((w->get_desc()->get_waytype() != road_wt
 					&& w->get_desc()->get_waytype() != tram_wt
 					&& w->get_desc()->get_waytype() != water_wt)
 
-					|| (w->get_player_nr() != player_nr && !public_service)
-					|| (w->is_public_right_of_way() && !w->is_disused()))))
+					|| (w->get_owner() != player && !public_service)
+					|| (w->is_public_right_of_way() && (!w->is_disused() || welt->get_city(gr2->get_pos().get_2d()))))))
 			{
 				error_msg = "Bridge blocked by way below or above.";
 				return true;

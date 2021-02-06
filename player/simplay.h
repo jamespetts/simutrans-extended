@@ -310,7 +310,7 @@ public:
 	 * @param welt World this players belong to.
 	 * @param player_nr Number assigned to this player - it's an ID.
 	 */
-	player_t( uint8 player_nr );
+	player_t(uint8 player_nr );
 
 	virtual ~player_t();
 
@@ -377,7 +377,7 @@ public:
 	/*
 	 * Called after game is fully loaded;
 	 */
-	virtual void load_finished();
+	virtual void finish_rd();
 
 	virtual void rotate90( const sint16 y_size );
 
@@ -394,7 +394,7 @@ public:
 	/**
 	 * Report the player one of his vehicles has a problem
 	 */
-	virtual void report_vehicle_problem(convoihandle_t cnv,const koord3d ziel);
+	virtual void report_vehicle_problem(convoihandle_t cnv,const koord3d position);
 
 	/**
 	 * Tells the player the result of tool-work commands.

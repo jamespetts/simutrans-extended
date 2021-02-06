@@ -74,10 +74,9 @@ public:
 	// Rotates the tools
 	void rotate_tools(sint16 y_diff);
 
-	/**
-	 * Set the window associated helptext
-	 * @return the filename for the helptext, or NULL
-	 */
+	// untranslated title
+	const char *get_internal_name() const {return title;}
+
 	const char *get_help_filename() const OVERRIDE {return help_file;}
 
 	FLAGGED_PIXVAL get_titlecolor() const OVERRIDE { return env_t::default_window_title_color; }

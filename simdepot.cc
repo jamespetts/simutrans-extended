@@ -47,7 +47,7 @@ depot_t::depot_t(loadsave_t *file) : gebaeude_t()
 #endif
 {
 	rdwr(file);
-	if(file->get_version_int()<88002) {
+	if(file->is_version_less(88, 2)) {
 		set_yoff(0);
 	}
 	all_depots.append(this);
@@ -715,8 +715,8 @@ void depot_t::rdwr(loadsave_t *file)
 	gebaeude_t::rdwr(file);
 
 	rdwr_vehicle(vehicles, file);
-	if (file->get_version_int() < 81033) {
-		// waggons are stored extra, just add them to vehicles
+	if (file->is_version_less(81, 33)) {
+		// wagons are stored extra, just add them to vehicles
 		assert(file->is_loading());
 		rdwr_vehicle(vehicles, file);
 	}

@@ -441,7 +441,7 @@ void leitung_t::rdwr(loadsave_t *file)
 		}
 		city_pos.rdwr(file);
 
-		if(file->get_extended_version() >= 12 || (file->get_extended_version() == 11 && file->get_version_int() >= 112006))
+		if( file->get_extended_version() >= 12 || (file->get_extended_version() == 11 && file->is_version_atleast(112, 6)) )
 		{
 			if(get_typ() == senke)
 			{
@@ -470,7 +470,7 @@ void leitung_t::rdwr(loadsave_t *file)
 				city->add_substation((senke_t*)this);
 			}
 
-			if(file->get_extended_version() >= 12 || (file->get_extended_version() == 11 && file->get_version_int() >= 112006))
+			if( file->get_extended_version() >= 12 || (file->get_extended_version() == 11 && file->is_version_atleast(112, 6)) )
 			{
 				uint32 lpd = 0;
 				file->rdwr_long(lpd);
@@ -482,15 +482,12 @@ void leitung_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
-	if(get_typ() == leitung)
-	{
-		/* ATTENTION: during loading this MUST not be called from the constructor!!!
-		 * (Otherwise it will be always true!)
-		 */
-		if(file->get_version_int() > 102002 && (file->get_extended_version() >= 8 || file->get_extended_version() == 0))
-		{
-			if(file->is_saving())
-			{
+	if(get_typ()==leitung) {
+		/* ATTENTION: during loading thus MUST not be called from the constructor!!!
+		* (Otherwise it will be always true!
+		*/
+		if(file->is_version_atleast(102, 3) && (file->get_extended_version() >= 8 || file->get_extended_version() == 0)) {
+			if(file->is_saving()) {
 				const char *s = desc->get_name();
 				file->rdwr_str(s);
 			}

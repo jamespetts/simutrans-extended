@@ -39,7 +39,7 @@
 #include <stdarg.h>
 
 // cache the scenario text files
-static plainstringhashtable_tpl<plainstring> cached_text_files;
+static plainstringhashtable_tpl<plainstring, N_BAGS_MEDIUM> cached_text_files;
 
 
 scenario_t::scenario_t(karte_t *w) :
@@ -784,7 +784,7 @@ bool scenario_t::open_info_win() const
 void scenario_t::rdwr(loadsave_t *file)
 {
 	file->rdwr_short(what_scenario);
-	if (file->get_version_int() <= 111004) {
+	if (file->is_version_less(111, 5)) {
 		uint32 city_nr = 0;
 		file->rdwr_long(city_nr);
 		sint64 factor = 0;
@@ -880,7 +880,7 @@ void scenario_t::rdwr(loadsave_t *file)
 	}
 
 	// cached strings
-	if (file->get_version_int() >= 120003) {
+	if (file->is_version_atleast(120, 3)) {
 		dynamic_string::rdwr_cache(file);
 	}
 

@@ -625,9 +625,8 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	desc->len *= OBJECT_OFFSET_STEPS/CARUNITS_PER_TILE;
 
 	// before version 8 vehicles could only have one freight image in each direction
-	if(version<8)
-	{
-		desc->freight_image_type = 0;
+	if(version<8) {
+		desc->freight_image_type=0;
 	}
 
 	if(!extended)

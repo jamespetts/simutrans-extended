@@ -403,7 +403,6 @@ public:
 	}
 
 	/**
-	 * Calculates the finance history for player
 	 * Calculates the finance history for player.
 	 * This method has to be called before reading any variables besides account_balance!
 	 */
@@ -506,7 +505,7 @@ public:
 	/**
 	 * Returns the finance history (distinguishable by type of transport) for player.
 	 * Call calc_finance_history before use!
-	 * @param wt one of transport_type
+	 * @param tt one of transport_type
 	 * @param year 0 .. current year, 1 .. last year, etc
 	 * @param type one of accounting_type_vehicles
 	 */
@@ -520,7 +519,7 @@ public:
 
 	/**
 	 * @returns maintenance
-	 * @param wt transport type (Truck, Ship Air, ...)
+	 * @param tt transport type (Truck, Ship Air, ...)
 	 */
 	sint64 get_maintenance(transport_type tt=TT_ALL) const { assert(tt<TT_MAX); return maintenance[tt]; }
 
@@ -598,7 +597,7 @@ public:
 	void set_starting_money(sint64 amount) {  starting_money = amount; }
 
 	/**
- 	 * Translates building_desc_t to transport_type
+	 * Translates building_desc_t to transport_type
 	 * Building can be assigned to transport type using utyp
 	 */
 	static transport_type translate_utyp_to_tt(int utyp);

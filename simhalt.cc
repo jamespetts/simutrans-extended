@@ -62,13 +62,13 @@ karte_ptr_t haltestelle_t::welt;
 
 vector_tpl<halthandle_t> haltestelle_t::alle_haltestellen;
 
-stringhashtable_tpl<halthandle_t> haltestelle_t::all_names;
+stringhashtable_tpl<halthandle_t, N_BAGS_LARGE> haltestelle_t::all_names;
 
 vector_tpl<lines_loaded_t> haltestelle_t::lines_loaded;
 
 uint8 haltestelle_t::pedestrian_limit = 0;
 // hash table only used during loading
-inthashtable_tpl<sint32,halthandle_t> *haltestelle_t::all_koords = NULL;
+inthashtable_tpl<sint32,halthandle_t,N_BAGS_LARGE> *haltestelle_t::all_koords = NULL;
 // since size_x*size_y < 0x1000000, we have just to shift the high bits
 #define get_halt_key(k,width) ( ((k).x*(width)+(k).y) /*+ ((k).z << 25)*/ )
 
@@ -104,7 +104,7 @@ static vector_tpl<linehandle_t>stale_lines;
 
 void haltestelle_t::start_load_game()
 {
-	all_koords = new inthashtable_tpl<sint32,halthandle_t>;
+	all_koords = new inthashtable_tpl<sint32,halthandle_t,N_BAGS_LARGE>;
 }
 
 
@@ -1743,7 +1743,7 @@ sint8 haltestelle_t::is_connected(halthandle_t halt, uint8 catg_index) const
 
 uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category, uint8 g_class)
 {
-	inthashtable_tpl<uint32, haltestelle_t::waiting_time_set> * const wt = waiting_times[category][g_class];
+	inthashtable_tpl<uint32, haltestelle_t::waiting_time_set, N_BAGS_SMALL> * const wt = waiting_times[category][g_class];
 	if(wt->is_contained((halt.get_id())))
 	{
 		fixed_list_tpl<uint32, 32> times = waiting_times[category][g_class]->get(halt.get_id()).times;
@@ -2669,7 +2669,6 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						}
 						if (next_to_load->get_index() != goods_restriction) {
 							schedule->increment_index(&index, &reverse);
-							skipped = true;
 							continue;
 						}
 					}
@@ -3790,10 +3789,8 @@ void haltestelle_t::rdwr(loadsave_t *file)
 	sint32 owner_n;
 	koord3d k;
 	// will restore halthandle_t after loading
-	if(file->get_version_int() > 110005)
-	{
-		if(file->is_saving())
-		{
+	if(file->is_version_atleast(110, 6)) {
+		if(file->is_saving()) {
 			if(!self.is_bound())
 			{
 				// Something has gone a bit wrong here, as the handle to self is not bound.
@@ -3840,12 +3837,12 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		owner_n = welt->sp2num( owner );
 	}
 
-	if(file->get_version_int()<99008) {
+	if(file->is_version_less(99, 8)) {
 		init_pos.rdwr( file );
 	}
 	file->rdwr_long(owner_n);
 
-	if(file->get_version_int()<=88005) {
+	if(file->is_version_less(88, 6)) {
 		bool dummy;
 		file->rdwr_bool(dummy); // pax
 		file->rdwr_bool(dummy); // mail
@@ -3920,8 +3917,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				s = "y";	// needs to be non-empty
 				file->rdwr_str(s);
 				bool has_uint16_count;
-				if(file->get_version_int() <= 112002 || file->get_extended_version() <= 10)
-				{
+				if(  file->is_version_less(112, 3) || file->get_extended_version() <= 10  ) {
 					const uint32 count = warray->get_count();
 					uint16 short_count = min(count, 65535u);
 					file->rdwr_short(short_count);
@@ -3965,8 +3961,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		file->rdwr_str(s, lengthof(s));
 		while(*s) {
 			uint32 count;
-			if(  file->get_version_int() <= 112002  || (file->get_extended_version() > 0 && file->get_extended_version() <= 10) ) {
-				// Older versions stored only 16-bit count values.
+			if(  file->is_version_less(112, 3)  || (file->get_extended_version() > 0 && file->get_extended_version() <= 10)  ) {
 				uint16 scount;
 				file->rdwr_short(scount);
 				count = scount;
@@ -4002,7 +3997,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 		// old games save the list with stations
 		// however, we have to rebuilt them anyway for the new format
-		if(file->get_version_int()<99013) {
+		if(file->is_version_less(99, 13)) {
 			uint16 count;
 			file->rdwr_short(count);
 
@@ -4046,8 +4041,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				{
 					// Walked passengers in Standard
 					// (Extended stores these in cities, not stops)
-					if(file->get_version_int() >= 111001)
-					{
+					if(  file->is_version_atleast(111, 1)  ) {
 						sint64 dummy = 0;
 						file->rdwr_longlong(dummy);
 					}
@@ -4310,8 +4304,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >=9 && file->get_version_int() >= 110000)
-	{
+	if(  file->get_extended_version() >=9 && file->is_version_atleast(110, 0)  ) {
 		file->rdwr_bool(do_alternative_seats_calculation);
 	}
 
@@ -4338,8 +4331,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				add_halt_within_walking_distance(halt);
 			}
 		}
-		if(file->get_version_int() >= 111002)
-		{
+		if(  file->is_version_atleast(111, 2)  ) {
 			file->rdwr_byte(control_towers);
 		}
 	}
@@ -4372,7 +4364,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 12 || (file->get_version_int() >= 112007 && file->get_extended_version() >= 11))
+	if(file->get_extended_version() >= 12 || (file->is_version_atleast(112, 7) && file->get_extended_version() >= 11))
 	{
 		file->rdwr_byte(check_waiting);
 	}
@@ -5018,13 +5010,16 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 	uint32 max_capacity;
 	uint32 total_ware = 0;
 	for (uint8 i = 0; i < goods_manager_t::get_count(); i++) {
-		if (i == 2) {
+		if (i == goods_manager_t::INDEX_NONE) {
 			if (env_t::freight_waiting_bar_level == 1 /* category */) {
 				break;
 			}
 			else {
 				continue; // ignore freight none
 			}
+		}
+		if (i==goods_manager_t::INDEX_PAS && !get_pax_enabled() || i==goods_manager_t::INDEX_MAIL && !get_mail_enabled() || i>goods_manager_t::INDEX_NONE && !get_ware_enabled()) {
+			continue;
 		}
 		uint8 g_class = 1;
 		const goods_desc_t *wtyp = goods_manager_t::get_info(i);
@@ -5123,8 +5118,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 			total_ware = 0; // category total
 			// first, count category waiting total
 			if (gibt_ab(goods_manager_t::get_info_catg_index(i))) {
-				const uint8  count = goods_manager_t::get_count();
-				for (uint8 j = 3; j < count; j++) {
+				for (uint8 j = 3; j < goods_manager_t::get_count(); j++) {
 					goods_desc_t const* const wtyp2 = goods_manager_t::get_info(j);
 					if (wtyp2->get_catg_index() != i) {
 						continue;
@@ -5144,8 +5138,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 				else {
 					v = (v / 4) + 2;
 				}
-				const uint8  count = goods_manager_t::get_count();
-				for (uint8 j = 3; j < count; j++) {
+				for (uint8 j = 3; j < goods_manager_t::get_count(); j++) {
 					goods_desc_t const* const wtyp2 = goods_manager_t::get_info(j);
 					if (wtyp2->get_catg_index() != i) {
 						continue;
@@ -5558,7 +5551,7 @@ uint32 haltestelle_t::get_around_population(uint8 g_class) const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += (g_class == 255) ? gb->get_adjusted_population() : gb->get_adjusted_population_by_class(g_class);
 			}
 		}
@@ -5585,7 +5578,7 @@ uint32 haltestelle_t::get_around_visitor_demand(uint8 g_class) const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += (g_class == 255) ? gb->get_adjusted_visitor_demand() : gb->get_adjusted_visitor_demand_by_class(g_class);
 			}
 		}
@@ -5612,7 +5605,7 @@ uint32 haltestelle_t::get_around_job_demand(uint8 g_class) const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += (g_class == 255) ? gb->get_adjusted_jobs() : gb->get_adjusted_jobs_by_class(g_class);
 			}
 		}
@@ -5639,7 +5632,7 @@ uint32 haltestelle_t::get_around_visitor_generated() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += gb->get_passengers_generated_visiting();
 			}
 		}
@@ -5666,7 +5659,7 @@ uint32 haltestelle_t::get_around_succeeded_visiting() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				// Must not exceed 100%! That is, the number of successes <= the number of generations must be, in any buildings
 				sum += min(gb->get_passengers_succeeded_visiting(), gb->get_passengers_generated_visiting());
 			}
@@ -5694,7 +5687,7 @@ uint32 haltestelle_t::get_around_commuter_generated() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += gb->get_passengers_generated_commuting();
 			}
 		}
@@ -5721,7 +5714,7 @@ uint32 haltestelle_t::get_around_succeeded_commuting() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				// Must not exceed 100%! That is, the number of successes <= the number of generations must be, in any buildings
 				sum += min(gb->get_passengers_succeeded_commuting(), gb->get_passengers_generated_commuting());
 			}
@@ -5749,7 +5742,7 @@ uint32 haltestelle_t::get_around_employee_factor() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += gb->get_adjusted_jobs() - max(gb->check_remaining_available_jobs(),0);
 			}
 		}
@@ -5776,7 +5769,7 @@ uint32 haltestelle_t::get_around_mail_demand() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += gb->get_adjusted_mail_demand();
 			}
 		}
@@ -5803,7 +5796,7 @@ uint32 haltestelle_t::get_around_mail_generated() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				sum += gb->get_mail_generated();
 			}
 		}
@@ -5830,7 +5823,7 @@ uint32 haltestelle_t::get_around_mail_delivery_succeeded() const
 	for (int y = ul.y; y < lr.y; y++) {
 		for (int x = ul.x; x < lr.x; x++) {
 			gebaeude_t* const gb = welt->access_nocheck(x, y)->get_kartenboden()->find<gebaeude_t>();
-			if (gb) {
+			if (gb && gb == gb->get_first_tile()) {
 				// Must not exceed 100%! That is, the number of successes <= the number of generations must be, in any buildings
 				sum += min(gb->get_mail_delivery_succeeded(), gb->get_mail_generated());
 			}

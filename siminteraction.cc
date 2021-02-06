@@ -232,10 +232,10 @@ void interaction_t::interactive_event( const event_t &ev )
 			bool suspended = false; // true if execution was suspended, i.e. sent to server
 			tool_t *tool = world->get_tool(world->get_active_player_nr());
 			player_t *player = world->get_active_player();
-			// first check for visibility etc
+			tool->flags = event_get_last_control_shift();
+			// first check for visibility etc (needs already right flags)
 			const char *err = tool->check_pos( player, pos );
 			if (err==NULL) {
-				tool->flags = event_get_last_control_shift();
 				err = world->call_work(tool, player, pos, suspended);
 			}
 			if (!suspended) {
@@ -314,7 +314,7 @@ bool interaction_t::process_event( event_t &ev )
 			char fn[256];
 			sprintf( fn, "server%d-pwdhash.sve", env_t::server );
 			loadsave_t file;
-			if(file.wr_open(fn, loadsave_t::zipped, 1, "hashes", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR)) {
+			if(file.wr_open(fn, loadsave_t::zipped, 1, "hashes", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR) == loadsave_t::FILE_STATUS_OK) {
 				world->rdwr_player_password_hashes( &file );
 				file.close();
 			}

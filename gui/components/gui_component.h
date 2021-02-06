@@ -273,7 +273,6 @@ public:
 	scr_size get_max_size() const OVERRIDE { return scr_size( fill_x ? scr_size::inf.w : 0, fill_y ? scr_size::inf.h : 0);  }
 };
 
-
 /**
  * Class for an empty element with a fixed size.
  */
@@ -289,6 +288,7 @@ public:
 	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); }
 	scr_size get_max_size() const OVERRIDE { return scr_size(width, height); }
 };
+
 
 
 #endif

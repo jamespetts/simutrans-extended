@@ -177,7 +177,7 @@ void bruecke_t::rdwr(loadsave_t *file)
 		}
 		free(const_cast<char *>(s));
 
-		if(  file->get_version_int() < 112007  &&  env_t::pak_height_conversion_factor==2  ) {
+		if(  file->is_version_less(112, 7)  &&  env_t::pak_height_conversion_factor==2  ) {
 			switch(img) {
 				case bridge_desc_t::OW_Segment: img = bridge_desc_t::OW_Segment2; break;
 				case bridge_desc_t::NS_Segment: img = bridge_desc_t::NS_Segment2; break;
@@ -185,10 +185,10 @@ void bruecke_t::rdwr(loadsave_t *file)
 				case bridge_desc_t::W_Start:    img = bridge_desc_t::W_Start2;    break;
 				case bridge_desc_t::S_Start:    img = bridge_desc_t::S_Start2;    break;
 				case bridge_desc_t::N_Start:    img = bridge_desc_t::N_Start2;    break;
-				case bridge_desc_t::O_Ramp:    img = bridge_desc_t::O_Ramp2;    break;
-				case bridge_desc_t::W_Ramp:    img = bridge_desc_t::W_Ramp2;    break;
-				case bridge_desc_t::S_Ramp:    img = bridge_desc_t::S_Ramp2;    break;
-				case bridge_desc_t::N_Ramp:    img = bridge_desc_t::N_Ramp2;    break;
+				case bridge_desc_t::O_Ramp:     img = bridge_desc_t::O_Ramp2;     break;
+				case bridge_desc_t::W_Ramp:     img = bridge_desc_t::W_Ramp2;     break;
+				case bridge_desc_t::S_Ramp:     img = bridge_desc_t::S_Ramp2;     break;
+				case bridge_desc_t::N_Ramp:     img = bridge_desc_t::N_Ramp2;     break;
 				case bridge_desc_t::OW_Pillar:  img = bridge_desc_t::OW_Pillar2;  break;
 				case bridge_desc_t::NS_Pillar:  img = bridge_desc_t::NS_Pillar2;  break;
 				default: break;

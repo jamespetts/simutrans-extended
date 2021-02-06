@@ -1255,6 +1255,10 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 
 		const uint8 max_hdiff = ground_desc_t::double_grounds ?  2 : 1;
 
+		if(new_slope==ALL_DOWN_SLOPE  &&  pos.z-1<welt->get_minimumheight() ) {
+			return "Maximum tile height difference reached.";
+		}
+
 		// at least a pixel away from the border?
 		if(  pos.z < water_hgt  &&  !gr1->ist_tunnel()  ) {
 			return "Maximum tile height difference reached.";
@@ -2363,6 +2367,62 @@ const char *tool_plant_tree_t::work( player_t *player, koord3d pos )
 	return NULL;
 }
 
+char const* tool_plant_groundobj_t::move(player_t* const player, uint16 const b, koord3d const pos)
+{
+	if (b==0) {
+		return NULL;
+	}
+	if (env_t::networkmode) {
+		// queue tool for network
+		nwc_tool_t *nwc = new nwc_tool_t(player, this, pos, welt->get_steps(), welt->get_map_counter(), false);
+		network_send_server(nwc);
+		return NULL;
+	}
+	else {
+		return work( player, pos );
+	}
+}
+
+
+const char *tool_plant_groundobj_t::work( player_t *player, koord3d pos )
+{
+	koord k(pos.get_2d());
+
+	grund_t *gr = welt->lookup_kartenboden(k);
+	if(gr) {
+
+		const groundobj_desc_t *desc = NULL;
+		bool check_climates = true;
+		if(default_param==NULL  ||  strlen(default_param)==0) {
+			desc = groundobj_t::random_groundobj_for_climate( welt->get_climate( k ) );
+			if (desc == NULL) {
+				return NULL;
+			}
+		}
+		else {
+			check_climates = default_param[0]=='0';
+			desc = groundobj_t::find_groundobj(default_param+3);
+		}
+
+		// disable placing groundobj on slopes unless they have extra phases (=moving or for slopes)
+		if( !(gr->get_grund_hang() == sint8(0))  &&  desc->get_phases() == 2 ) {
+			return NULL;
+		}
+
+		// check funds
+		sint64 const cost = -desc->get_value();
+		if(  !player->can_afford(cost)  ) {
+			return NOTICE_INSUFFICIENT_FUNDS;
+		}
+		if(desc  &&  groundobj_t::plant_groundobj_on_coordinate( k, desc, check_climates ) ) {
+			player_t::book_construction_costs(player, cost, k, ignore_wt);
+			return NULL;
+		}
+		return "";
+	}
+	return NULL;
+}
+
 
 
 /**
@@ -2467,21 +2527,8 @@ const way_desc_t *tool_build_way_t::get_desc( uint16 timeline_year_month, bool r
 image_id tool_build_way_t::get_icon(player_t *) const
 {
 	const way_desc_t *desc = way_builder_t::get_desc(default_param,0);
-	image_id image = icon;
-	bool is_tram = false;
-	if(  desc  ) {
-		is_tram = (desc->get_wtyp()==tram_wt) || (desc->get_styp() == type_tram);
-		if(  image ==  IMG_EMPTY  ) {
-			image = desc->get_cursor()->get_image_id(1);
-		}
-		if(  !desc->is_available( world()->get_timeline_year_month() )  ) {
-			return IMG_EMPTY;
-		}
-	}
-	if(  grund_t::underground_mode==grund_t::ugm_all && !is_tram ) {
-		return IMG_EMPTY;
-	}
-	return image;
+	bool const elevated = desc ? desc->get_styp() == type_elevated  &&  desc->get_wtyp() != air_wt : false;
+	return (grund_t::underground_mode == grund_t::ugm_all && elevated) ? IMG_EMPTY : icon;
 }
 
 const char* tool_build_way_t::get_tooltip(const player_t *) const
@@ -2768,7 +2815,7 @@ bool tool_build_way_t::calc_route( way_builder_t &bauigel, const koord3d &start,
 }
 
 tool_build_way_t* get_build_way_tool_from_toolbar(const way_desc_t* desc) {
-	FOR(stringhashtable_tpl<way_desc_t *>, const& i, *(way_builder_t::get_all_ways())) {
+	for(auto const& i : *(way_builder_t::get_all_ways())) {
 		way_desc_t const* const cand = i.value;
 		if(  cand==desc  &&  cand->get_builder()  ) {
 			return dynamic_cast<tool_build_way_t*> (cand->get_builder());
@@ -3177,7 +3224,7 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 			}
 		}
 	}
-	win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", costs, koord_distance(start, pos) ) );
+	win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", costs, (koord_distance(start, pos)+1) * welt->get_settings().get_meters_per_tile()) );
 }
 
 uint8 tool_build_bridge_t::is_valid_pos(  player_t *player, const koord3d &pos, const char *&error, const koord3d &start )
@@ -3419,7 +3466,7 @@ const char *tool_build_tunnel_t::check_pos( player_t *player, koord3d pos)
 				win_set_static_tooltip( translator::translate("No suitable ground!") );
 
 				slope_t::type sl = gr->get_grund_hang();
-				if(  sl == slope_t::flat  ||  !slope_t::is_way( sl ) ) {
+				if(  sl == slope_t::flat  ||  !slope_t::is_way( sl )  ||  (env_t::pak_height_conversion_factor == 1  &&  !is_one_high(sl))  ||  (env_t::pak_height_conversion_factor == 2  &&  is_one_high(sl))  ) {
 					// cannot start a tunnel here, wrong slope
 					return "";
 				}
@@ -3486,7 +3533,6 @@ const char *tool_build_tunnel_t::do_work( player_t *player, const koord3d &start
 			if( gr->ist_karten_boden() ) {
 				const tunnel_desc_t *desc = tunnel_builder_t::get_desc(default_param);
 				const char *err = NULL;
-				sint64 price = 0;
 
 				// first check for building portal only
 				if(  is_ctrl_pressed()  ) {
@@ -4862,7 +4908,7 @@ const char *tool_build_station_t::tool_station_flat_dock_aux(player_t *player, k
 			}
 
 			if (gr->get_hoehe() != pos.z) {
-				return NOTICE_UNSUITABLE_GROUND;
+				last_error = NOTICE_UNSUITABLE_GROUND;
 				break;
 			}
 
@@ -4918,8 +4964,8 @@ const char *tool_build_station_t::tool_station_flat_dock_aux(player_t *player, k
 			halt = test_halt[i];
 			koord last_k = k + dx*len;
 			// layout: north 2, west 3, south 0, east 1
-			static const uint8 nsew_to_layout[4] = { 2, 0, 1, 3 };
-			layout = nsew_to_layout[i];
+			static const uint8 nesw_to_layout[4] = { 2, 1, 0, 3 };
+			layout = nesw_to_layout[i];
 			if(  layout>=2  ) {
 				// reverse construction in these directions
 				bau_pos = welt->lookup_kartenboden(last_k)->get_pos();
@@ -5788,7 +5834,7 @@ const char *tool_rotate_building_t::work( player_t *player, koord3d pos )
 			for(k.x=0; k.x<desc->get_x(layout); k.x++) {
 				for(k.y=0; k.y<desc->get_y(layout); k.y++) {
 					grund_t *gr = welt->lookup( gb->get_pos()+k );
-					if(  !gr  ) {
+					if(  !gr  ||  gr->hat_wege()  ) {
 						return "Cannot rotate this building!";
 					}
 					const building_tile_desc_t *tile = desc->get_tile(newlayout, k.x, k.y);
@@ -5800,6 +5846,9 @@ const char *tool_rotate_building_t::work( player_t *player, koord3d pos )
 						return "Cannot rotate this building!";
 					}
 				}
+			}
+			if( fabrik_t *fab=gb->get_fabrik() ) {
+				fab->set_rotate( (fab->get_rotate() + 1) % fab->get_desc()->get_building()->get_all_layouts() );
 			}
 			// ok, we can rotate it
 			for(k.x=0; k.x<desc->get_x(layout); k.x++) {
@@ -7375,10 +7424,10 @@ const char *tool_link_factory_t::do_work( player_t *, const koord3d &start, cons
 		}
 		else {
 			// remove connections
-			fab->rem_supplier(last_fab->get_pos().get_2d());
-			fab->rem_lieferziel(last_fab->get_pos().get_2d());
-			last_fab->rem_supplier(fab->get_pos().get_2d());
-			last_fab->rem_lieferziel(fab->get_pos().get_2d());
+			fab->remove_supplier(last_fab->get_pos().get_2d());
+			fab->remove_consumer(last_fab->get_pos().get_2d());
+			last_fab->remove_supplier(fab->get_pos().get_2d());
+			last_fab->remove_consumer(fab->get_pos().get_2d());
 			return NULL;
 		}
 	}
@@ -7393,11 +7442,21 @@ const building_desc_t *tool_headquarter_t::next_level( const player_t *player ) 
 
 const char* tool_headquarter_t::get_tooltip(const player_t *player) const
 {
+	static char my_toolstr[1024];
 	if (building_desc_t const* const desc = next_level(player)) {
+		char old_toolstr[1024];
+		/* since there is one static toolstr for all tools uing tooltip_with_...
+		 * but we are also called every frame from finance window, we need to restore old content
+		 * or all tooltips generated before will only show our message */
+		tstrncpy(old_toolstr, tool_t::toolstr, 1024);
 		settings_t  const& s      = welt->get_settings();
 		char const* const  tip    = player->get_headquarters_level() == 0 ? "build HQ" : "upgrade HQ";
 		sint64      const  factor = (sint64)desc->get_level() * desc->get_x() * desc->get_y();
-		return tooltip_with_price_maintenance(welt, tip, factor * s.cst_multiply_headquarter, factor * s.maint_building);
+
+		strcpy( my_toolstr, tooltip_with_price_maintenance(welt, tip, factor * s.cst_multiply_headquarter, factor * s.maint_building) );
+		tstrncpy(tool_t::toolstr, old_toolstr, 1024);
+
+		return my_toolstr;
 	}
 	return NULL;
 }

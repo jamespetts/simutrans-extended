@@ -56,7 +56,7 @@ const char *translator::lang_info::translate(const char *text) const
 /* Made to be dynamic, allowing any number of languages to be loaded */
 static translator::lang_info langs[40];
 static translator::lang_info *current_langinfo = langs;
-static stringhashtable_tpl<const char*> compatibility;
+static stringhashtable_tpl<const char*, N_BAGS_LARGE> compatibility;
 
 
 translator translator::single_instance;
@@ -122,10 +122,6 @@ static bool is_unicode_file(FILE* f)
 	return false;
 }
 
-
-
-// the bytes in an UTF sequence have always the format 10xxxxxx
-static inline int is_cont_char(utf8 c) { return (c & 0xC0) == 0x80; }
 
 
 // recodes string to put them into the tables
@@ -528,7 +524,7 @@ void translator::init_custom_names(int lang)
 /* now on to the translate stuff */
 
 
-static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
+static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*, N_BAGS_LARGE>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
 {
 	char buffer1 [4096];
 	char buffer2 [4096];
@@ -558,7 +554,7 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*>
 
 void translator::load_language_file(FILE* file)
 {
-	char buffer1 [256];
+	char buffer1[256];
 	bool file_is_utf = is_unicode_file(file);
 
 	// Read language name
@@ -576,9 +572,9 @@ void translator::load_language_file(FILE* file)
 			if(  strcmp(buffer1,"PROP_FONT_FILE") == 0  ) {
 				fgets_line( buffer1, sizeof(buffer1), file );
 				// HACK: so we guess about latin2 from the font name!
-				langs[single_instance.lang_count].is_latin2_based = strcmp( buffer1, "prop-latin2.fnt" ) == 0;
+				langs[single_instance.lang_count].is_latin2_based = STRNICMP( buffer1+5, "latin2", 6 )==0;
 				// we must register now a unicode font
-				langs[single_instance.lang_count].texts.set( "PROP_FONT_FILE", "cyr.bdf" );
+				langs[single_instance.lang_count].texts.set( "PROP_FONT_FILE", langs[single_instance.lang_count].is_latin2_based ? "cyr.bdf" : strdup(buffer1) );
 				break;
 			}
 		}
@@ -777,6 +773,10 @@ void translator::set_language(const char *iso)
 			set_language(i);
 			return;
 		}
+	}
+	// if the request language does not exist
+	if( single_instance.current_lang == -1 ) {
+		set_language(0);
 	}
 }
 

@@ -143,7 +143,8 @@ const char *schedule_list_gui_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_max_speed",
 	"cl_btn_sort_power",
 	"cl_btn_sort_value",
-	"cl_btn_sort_age"
+	"cl_btn_sort_age",
+	"cl_btn_sort_range"
 };
 
 schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
@@ -873,7 +874,7 @@ void schedule_list_gui_t::build_line_list(int selected_tab)
 {
 	sint32 sel = -1;
 	scl.clear_elements();
-	player->simlinemgmt.get_lines(tabs_to_lineindex[selected_tab], &lines, get_filter_type_bits());
+	player->simlinemgmt.get_lines(tabs_to_lineindex[selected_tab], &lines, get_filter_type_bits(), true);
 
 	FOR(vector_tpl<linehandle_t>, const l, lines) {
 		// search name
@@ -1178,7 +1179,7 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 	size.rdwr( file );
 	simline_t::rdwr_linehandle_t(file, line);
 	int chart_records = line_cost_t::MAX_LINE_COST;
-	if (file->get_version_int() < 112008) {
+	if(  file->is_version_less(112, 8)  ) {
 		chart_records = 8;
 	}
 	else if (file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 25)) {

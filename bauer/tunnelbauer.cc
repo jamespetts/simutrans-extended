@@ -39,7 +39,7 @@
 
 karte_ptr_t tunnel_builder_t::welt;
 
-static stringhashtable_tpl<tunnel_desc_t *> tunnel_by_name;
+static stringhashtable_tpl<tunnel_desc_t *, N_BAGS_MEDIUM> tunnel_by_name;
 
 
 void tunnel_builder_t::register_desc(tunnel_desc_t *desc)
@@ -61,7 +61,7 @@ void tunnel_builder_t::register_desc(tunnel_desc_t *desc)
 	tunnel_by_name.put(desc->get_name(), desc);
 }
 
-stringhashtable_tpl <tunnel_desc_t *> * tunnel_builder_t::get_all_tunnels()
+stringhashtable_tpl <tunnel_desc_t *, N_BAGS_MEDIUM> * tunnel_builder_t::get_all_tunnels()
 {
 	return &tunnel_by_name;
 }
@@ -79,7 +79,7 @@ const tunnel_desc_t *tunnel_builder_t::get_tunnel_desc(const waytype_t wtyp, con
 {
 	const tunnel_desc_t *find_desc = NULL;
 
-	FOR(stringhashtable_tpl<tunnel_desc_t*>, const& i, tunnel_by_name) {
+	for(auto const & i: tunnel_by_name) {
 		tunnel_desc_t* const desc = i.value;
 		if(  desc->get_waytype()==wtyp  ) {
 			if(  desc->is_available(time)  ) {
@@ -122,7 +122,7 @@ void tunnel_builder_t::fill_menu(tool_selector_t* tool_selector, const waytype_t
 	const uint16 time=welt->get_timeline_year_month();
 	vector_tpl<const tunnel_desc_t*> matching(tunnel_by_name.get_count());
 
-	FOR(stringhashtable_tpl<tunnel_desc_t*>, const& i, tunnel_by_name) {
+	for(auto const & i : tunnel_by_name) {
 		tunnel_desc_t* const desc = i.value;
 		if(  desc->get_waytype()==wtyp  &&  desc->is_available(time)  ) {
 			matching.insert_ordered(desc, compare_tunnels);
@@ -351,14 +351,17 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 
 	// Search tunnel end and check intermediate tiles
 	const char *err = NULL;
-	koord3d end = find_end_pos(player, gr->get_pos(), zv, desc, full_tunnel, &err);
-	if (err) {
-		return err;
-	}
+	koord3d end = koord3d::invalid;
 
 	if(player && !player->can_afford(desc->get_value()))
 	{
 		return "That would exceed\nyour credit limit.";
+	}
+	else {
+		end = find_end_pos(player, gr->get_pos(), zv, desc, full_tunnel, &err);
+		if (err) {
+			return err;
+		}
 	}
 
 	if(!welt->is_within_limits(end.get_2d())) {
@@ -366,17 +369,20 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 	}
 
 	// check ownership
-	if (const grund_t *gr_end = welt->lookup(end)) {
-		if (weg_t *weg_end = gr_end->get_weg(waytyp)) {
-			if (weg_end-> is_deletable(player)!=NULL) {
+	const grund_t *end_gr = welt->lookup(end);
+	if (end_gr) {
+		if (weg_t *weg_end = end_gr->get_weg(waytyp)) {
+			if (weg_end->is_deletable(player)!=NULL) {
 				return "Das Feld gehoert\neinem anderen Spieler\n";
+			}
+			if(  full_tunnel  &&  end_gr->get_typ() == grund_t::tunnelboden  ) {
+				full_tunnel = false;
 			}
 		}
 	}
 
 	// Begin and end found, we can build
 
-	const grund_t *end_gr = welt->lookup(end);
 	slope_t::type end_slope = slope_type(-zv) * env_t::pak_height_conversion_factor;
 	if(  full_tunnel  &&  (!end_gr  ||  end_gr->get_grund_hang()!=end_slope)  ) {
 		// end slope not at correct height - we have already checked in find_end_pos that we can change this

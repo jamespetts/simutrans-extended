@@ -788,7 +788,7 @@ line_class_manager_t::~line_class_manager_t()
 void line_class_manager_t::rdwr(loadsave_t *file)
 {
 	// convoy data
-	if (file->get_version_int() <=112002) {
+	if (  file->is_version_less(112, 3)  ) {
 		// dummy data
 		koord3d line_pos( koord3d::invalid);
 		char name[128];

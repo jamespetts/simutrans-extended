@@ -116,12 +116,12 @@ void display_snapshot(int, int, int, int)
 
 void display_get_image_offset(image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, KOORD_VAL *xw, KOORD_VAL *yw)
 {
-	if (image < 2) {
+	if(  image < 2  ) {
 		// initialize offsets with dummy values
 		*xoff = 0;
 		*yoff = 0;
-		*xw = 0;
-		*yw = 0;
+		*xw   = 0;
+		*yw   = 0;
 	}
 }
 
@@ -180,15 +180,15 @@ void display_base_img(const image_id, KOORD_VAL, KOORD_VAL, const signed char, c
 {
 }
 
-void display_fit_img_to_width(const image_id, sint16)
+void display_fit_img_to_width( const image_id, sint16)
 {
 }
 
-void display_img_stretch(const stretch_map_t &, scr_rect)
+void display_img_stretch( const stretch_map_t &, scr_rect)
 {
 }
 
-void display_img_stretch_blend(const stretch_map_t &, scr_rect, FLAGGED_PIXVAL)
+void display_img_stretch_blend( const stretch_map_t &, scr_rect, FLAGGED_PIXVAL)
 {
 }
 
@@ -233,7 +233,7 @@ void display_color_img_with_tooltip(const image_id, KOORD_VAL, KOORD_VAL, sint8,
 {
 }
 
-void display_fillbox_wh_rgb(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, PIXVAL, bool)
+void display_fillbox_wh_rgb(KOORD_VAL, KOORD_VAL, KOORD_VAL, KOORD_VAL, PIXVAL, bool )
 {
 }
 
@@ -303,7 +303,7 @@ utf32 get_prev_char_with_metrics(const char* &, const char *const, unsigned char
 	return 0;
 }
 
-bool has_character(utf16)
+bool has_character( utf16 )
 {
 	return false;
 }
@@ -417,11 +417,11 @@ void display_direct_line_dotted_rgb(const KOORD_VAL, const KOORD_VAL, const KOOR
 {
 }
 
-void display_circle_rgb(KOORD_VAL, KOORD_VAL, int, const PIXVAL)
+void display_circle_rgb( KOORD_VAL, KOORD_VAL, int, const PIXVAL )
 {
 }
 
-void display_filled_circle_rgb(KOORD_VAL, KOORD_VAL, int, const PIXVAL)
+void display_filled_circle_rgb( KOORD_VAL, KOORD_VAL, int, const PIXVAL )
 {
 }
 
@@ -446,7 +446,7 @@ void display_progress(int, int)
 {
 }
 
-void display_img_aligned(const image_id, scr_rect, int, int)
+void display_img_aligned( const image_id, scr_rect, int, int )
 {
 }
 

@@ -730,7 +730,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 void convoi_detail_t::rdwr(loadsave_t *file)
 {
 	// convoy data
-	if (file->get_version_int() <=112002) {
+	if (  file->is_version_less(112, 3)  ) {
 		// dummy data
 		koord3d cnv_pos( koord3d::invalid);
 		char name[128];

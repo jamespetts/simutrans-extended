@@ -89,7 +89,7 @@ public:
 
 	void rdwr(loadsave_t *file) OVERRIDE;
 
-	void load_finished() OVERRIDE;
+	void finish_rd() OVERRIDE;
 
 	bool set_active( bool b ) OVERRIDE;
 

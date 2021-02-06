@@ -379,7 +379,6 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	// freight
 	const xref_desc_t *xref = get_child<xref_desc_t>(2);
 	chk->input(xref ? xref->get_name() : "NULL");
-
 	// vehicle constraints
 	// For some reason, this records false mismatches with a few
 	// vehicles when names are used. Use  numbers instead.

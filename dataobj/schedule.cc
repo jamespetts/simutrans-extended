@@ -253,7 +253,7 @@ void schedule_t::rdwr(loadsave_t *file)
 	make_current_stop_valid();
 
 	uint8 size = entries.get_count();
-	if(  file->get_version_int()<=101000  ) {
+	if(  file->is_version_less(101, 1)  ) {
 		uint32 dummy=current_stop;
 		file->rdwr_long(dummy);
 		current_stop = (uint8)dummy;
@@ -261,7 +261,7 @@ void schedule_t::rdwr(loadsave_t *file)
 		sint32 maxi=size;
 		file->rdwr_long(maxi);
 		DBG_MESSAGE("schedule_t::rdwr()","read schedule %p with %i entries",this,maxi);
-		if(file->get_version_int()<86010) {
+		if(file->is_version_less(86, 10)) {
 			// old array had different maxi-counter
 			maxi ++;
 		}
@@ -270,15 +270,14 @@ void schedule_t::rdwr(loadsave_t *file)
 	else {
 		file->rdwr_byte(current_stop);
 		file->rdwr_byte(size);
-		if(file->get_version_int()>=102003 && file->get_extended_version() >= 9)
-		{
+		if(  file->is_version_atleast(102, 3) && file->get_extended_version() >= 9  ) {
 			file->rdwr_bool(bidirectional);
 			file->rdwr_bool(mirrored);
 		}
 	}
 	entries.resize(size);
 
-	if(file->get_version_int()<99012) {
+	if(file->is_version_less(99, 12)) {
 		for(  uint8 i=0; i<size; i++  ) {
 			koord3d pos;
 			uint32 dummy;
@@ -297,8 +296,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				entries[i].reverse = -1;
 			}
 			entries[i].pos.rdwr(file);
-			if(file->get_extended_version() >= 10 && file->get_version_int() >= 111002)
-			{
+			if( file->get_extended_version() >= 10 && file->is_version_atleast(111, 2) ) {
 				file->rdwr_short(entries[i].minimum_loading);
 				if(entries[i].minimum_loading > 100 && spacing)
 				{
@@ -315,13 +313,10 @@ void schedule_t::rdwr(loadsave_t *file)
 				entries[i].minimum_loading = (uint16)old_minimum_loading;
 
 			}
-
-			if(file->get_version_int()>=99018)
-			{
+			if(file->is_version_atleast(99, 18)) {
 				file->rdwr_byte(entries[i].waiting_time_shift);
 
-				if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
-				{
+				if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
 					file->rdwr_short(entries[i].spacing_shift);
 				}
 
@@ -454,12 +449,10 @@ void schedule_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
-	{
+	if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
 		file->rdwr_bool(same_spacing_shift);
 	}
 }
-
 
 
 void schedule_t::rotate90( sint16 y_size )
@@ -471,7 +464,7 @@ void schedule_t::rotate90( sint16 y_size )
 }
 
 
-/**
+/*
  * compare this schedule (schedule) with another, passed in schedule
  */
 bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)

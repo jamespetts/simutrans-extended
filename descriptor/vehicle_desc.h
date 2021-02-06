@@ -34,21 +34,21 @@ class checksum_t;
 /**
  * Vehicle type description - all attributes of a vehicle type
  *
- *  child nodes:
- *	0   Name
- *	1   Copyright
- *	2   freight
- *	3   smoke
+ * Child nodes:
+ *  0   Name
+ *  1   Copyright
+ *  2   freight
+ *  3   smoke
  *	4   empty 1d image list (or 2d list if there are multiple liveries)
  *	5   either 1d (freight_image_type==0), 2d image list or 3d image list (if multiple liveries)
- *	6   required leading vehicle 1
- *	7   required leading vehicle 2
- *	... ...
- *	n+5 required leading vehicle n
- *	n+6 allowed trailing vehicle 1
- *	n+7 allowed trailing vehicle 2
- *	... ...
- *	n+m+5 allowed trailing vehicle m
+ *  6   required leading vehicle 1
+ *  7   required leading vehicle 2
+ * ... ...
+ *  n+5 required leading vehicle n
+ *  n+6 allowed trailing vehicle 1
+ *  n+7 allowed trailing vehicle 2
+ * ... ...
+ *  n+m+5 allowed trailing vehicle m
  *  n+m+6 freight for which special images are defined
  */
 class vehicle_desc_t : public obj_desc_transport_related_t {
@@ -61,7 +61,7 @@ public:
 	 */
 	enum engine_t : uint8 {
 		unknown = 0xFF,
-		steam = 0,
+		steam   = 0,
 		diesel,
 		electric,
 		bio,
@@ -389,7 +389,7 @@ public:
 			// Multiple freight images, single livery
 			// more freight images and a freight: find the right one
 
-			sint8 goods_index = 0; // freight images: if not found use first freight
+			sint8 goods_index=0; // freight images: if not found use first freight
 
 			for( uint8 i=0;  i<freight_image_type;  i++  )
 			{
@@ -404,10 +404,8 @@ public:
 			// vehicle has freight images and we want to use - get appropriate one (if no list then fallback to empty image)
 			image_array_t const* const list2d = get_child<image_array_t>(5);
 			image=list2d->get_image(dir, goods_index);
-			if(!image)
-			{
-				if(dir>3)
-				{
+			if(!image) {
+				if(dir>3) {
 					image = list2d->get_image(dir - 4, goods_index);
 				}
 			}
@@ -467,24 +465,19 @@ public:
 			list = get_child<image_list_t>(5);
 		}
 
-		if(!list)
-		{
+		if(!list) {
 			list = get_child<image_list_t>(4);
-			if(!list)
-			{
+			if(!list) {
 				return IMG_EMPTY;
 			}
 		}
 
 		image = list->get_image(dir);
-		if(!image)
-		{
-			if(dir>3)
-			{
+		if(!image) {
+			if(dir>3) {
 				image = list->get_image(dir - 4);
 			}
-			if(!image)
-			{
+			if(!image) {
 				return IMG_EMPTY;
 			}
 		}

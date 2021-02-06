@@ -61,6 +61,12 @@ strasse_t::strasse_t(loadsave_t *file) : weg_t(road_wt)
 	rdwr(file);
 }
 
+strasse_t::strasse_t(loadsave_t *file, koord3d __rescue_pos__) : weg_t(road_wt)
+{
+	set_pos(__rescue_pos__);
+	rdwr(file);
+}
+
 
 strasse_t::strasse_t() : weg_t(road_wt)
 {
@@ -105,7 +111,7 @@ void strasse_t::rdwr(loadsave_t *file)
 		overtaking_mode = twoway_mode;
 	}
 
-	if(file->get_version_int()<89000) {
+	if(file->is_version_less(89, 0)) {
 		bool gehweg;
 		file->rdwr_bool(gehweg);
 		set_gehweg(gehweg);

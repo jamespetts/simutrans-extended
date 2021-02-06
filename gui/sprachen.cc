@@ -9,8 +9,10 @@
 #include "../pathes.h"
 #include "../display/simimg.h"
 #include "../simskin.h"
+#include "../simmenu.h"
 #include "../descriptor/skin_desc.h"
 #include "sprachen.h"
+#include "simwin.h"
 #include "components/gui_image.h"
 #include "components/gui_divider.h"
 
@@ -20,6 +22,7 @@
 #include "../dataobj/translator.h"
 #include "../sys/simsys.h"
 #include "../utils/simstring.h"
+#include "../simworld.h"
 
 
 int sprachengui_t::cmp_language_button(sprachengui_t::language_button_t a, sprachengui_t::language_button_t b)
@@ -194,6 +197,12 @@ bool sprachengui_t::action_triggered( gui_action_creator_t *comp, value_t)
 			b->pressed = true;
 			translator::set_language(buttons[i].id);
 			init_font_from_lang(true);
+			destroy_all_win( true );
+
+			if (world()) {
+				// no need to update non-existent toolbars
+				tool_t::update_toolbars();
+			}
 		}
 		else {
 			b->pressed = false;

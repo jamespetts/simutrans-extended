@@ -51,27 +51,27 @@ extern int default_font_linespace;
 */
 enum control_alignments_t {
 
-	ALIGN_NONE = 0x00,
+	ALIGN_NONE       = 0x00,
 
-	ALIGN_TOP = 0x01,
-	ALIGN_CENTER_V = 0x02,
-	ALIGN_BOTTOM = 0x03,
+	ALIGN_TOP        = 0x01,
+	ALIGN_CENTER_V   = 0x02,
+	ALIGN_BOTTOM     = 0x03,
 	ALIGN_INTERIOR_V = 0x00,
 	ALIGN_EXTERIOR_V = 0x10,
-	ALIGN_STRETCH_V = 0x20,
+	ALIGN_STRETCH_V  = 0x20,
 
-	ALIGN_LEFT = 0x04,
-	ALIGN_CENTER_H = 0x08,
-	ALIGN_RIGHT = 0x0C,
+	ALIGN_LEFT       = 0x04,
+	ALIGN_CENTER_H   = 0x08,
+	ALIGN_RIGHT      = 0x0C,
 	ALIGN_INTERIOR_H = 0x00,
 	ALIGN_EXTERIOR_H = 0x40,
-	ALIGN_STRETCH_H = 0x80,
+	ALIGN_STRETCH_H  = 0x80,
 
 	// These flags does not belong in here but
 	// are defined here until we sorted this out.
 	// They are only used in display_text_proportional_len_clip_rgb()
-	//	DT_DIRTY         = 0x8000,
-	DT_CLIP = 0x4000
+//	DT_DIRTY         = 0x8000,
+	DT_CLIP          = 0x4000
 };
 typedef uint16 control_alignment_t;
 
@@ -102,7 +102,6 @@ display_set_clip_wh(x, y, w, h);
 #define POP_CLIP() \
 display_set_clip_wh(p_cr.x, p_cr.y, p_cr.w, p_cr.h); \
 }
-
 
 /**
  *
@@ -139,6 +138,7 @@ extern KOORD_VAL base_tile_raster_width;
 /* changes the raster width after loading */
 KOORD_VAL display_set_base_raster_width(KOORD_VAL new_raster);
 
+
 int zoom_factor_up();
 int zoom_factor_down();
 int get_zoom_factor();
@@ -163,13 +163,13 @@ image_id get_image_count();
 void register_image(class image_t *);
 
 // delete all images above a certain number ...
-void display_free_all_images_above(image_id above);
+void display_free_all_images_above( image_id above );
 
 // unzoomed offsets
 void display_get_base_image_offset( image_id image, scr_coord_val *xoff, scr_coord_val *yoff, scr_coord_val *xw, scr_coord_val *yw );
 // zoomed offsets
-void display_get_image_offset(image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, KOORD_VAL *xw, KOORD_VAL *yw);
-void display_mark_img_dirty(image_id image, KOORD_VAL x, KOORD_VAL y);
+void display_get_image_offset( image_id image, KOORD_VAL *xoff, KOORD_VAL *yoff, KOORD_VAL *xw, KOORD_VAL *yw );
+void display_mark_img_dirty( image_id image, KOORD_VAL x, KOORD_VAL y );
 
 void mark_rect_dirty_wc(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2); // clips to screen only
 void mark_rect_dirty_clip(KOORD_VAL x1, KOORD_VAL y1, KOORD_VAL x2, KOORD_VAL y2  CLIP_NUM_DEF); // clips to clip_rect
@@ -181,19 +181,18 @@ void      display_set_height(KOORD_VAL);
 void      display_set_actual_width(KOORD_VAL);
 
 // force a certain size on a image (for rescaling tool images)
-void display_fit_img_to_width(const image_id n, sint16 new_w);
+void display_fit_img_to_width( const image_id n, sint16 new_w );
 
 void display_day_night_shift(int night);
 
-
 // scrolls horizontally, will ignore clipping etc.
-void display_scroll_band(const KOORD_VAL start_y, const KOORD_VAL x_offset, const KOORD_VAL h);
+void display_scroll_band( const KOORD_VAL start_y, const KOORD_VAL x_offset, const KOORD_VAL h );
 
 // set first and second company color for player
-void display_set_player_color_scheme(const int player, const uint8 col1, const uint8 col2);
+void display_set_player_color_scheme(const int player, const uint8 col1, const uint8 col2 );
 
 // only used for GUI, display image inside a rect
-void display_img_aligned(const image_id n, scr_rect area, int align, const int dirty);
+void display_img_aligned( const image_id n, scr_rect area, int align, const int dirty);
 
 // display image with day and night change
 void display_img_aux(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const int daynight, const int dirty  CLIP_NUM_DEF);
@@ -223,10 +222,10 @@ void display_base_img(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed
 typedef image_id stretch_map_t[3][3];
 
 // this displays a 3x3 array of images to fit the scr_rect
-void display_img_stretch(const stretch_map_t &imag, scr_rect area);
+void display_img_stretch( const stretch_map_t &imag, scr_rect area );
 
 // this displays a 3x3 array of images to fit the scr_rect like above, but blend the color
-void display_img_stretch_blend(const stretch_map_t &imag, scr_rect area, FLAGGED_PIXVAL color);
+void display_img_stretch_blend( const stretch_map_t &imag, scr_rect area, FLAGGED_PIXVAL color );
 
 // display unzoomed image with alpha, either blended or as outline
 void display_base_img_blend(const image_id n, KOORD_VAL xp, KOORD_VAL yp, const signed char player_nr, const FLAGGED_PIXVAL color_index, const int daynight, const int dirty  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
@@ -250,7 +249,7 @@ extern signed short current_tile_raster_width;
 // for switching between image procedure sets and setting current tile raster width
 inline void display_set_image_proc( bool is_global )
 {
-	if (is_global) {
+	if(  is_global  ) {
 		display_normal = display_img_aux;
 		display_color = display_color_img;
 		display_blend = display_rezoomed_img_blend;
@@ -371,8 +370,8 @@ void display_calc_proportional_multiline_string_len_width( int &xw, int &yh, con
 // #ifdef MULTI_THREAD
 int display_text_proportional_len_clip_rgb(KOORD_VAL x, KOORD_VAL y, const char* txt, control_alignment_t flags, const PIXVAL color, bool dirty, sint32 len  CLIP_NUM_DEF  CLIP_NUM_DEFAULT_ZERO);
 /* macro are for compatibility */
-#define display_proportional_rgb(              x, y, txt, align, color, dirty)        display_text_proportional_len_clip_rgb(x, y, txt, align,           color, dirty, -1)
-#define display_proportional_clip_rgb(         x, y, txt, align, color, dirty)        display_text_proportional_len_clip_rgb(x, y, txt, align | DT_CLIP, color, dirty, -1)
+#define display_proportional_rgb(               x, y, txt, align, color, dirty)       display_text_proportional_len_clip_rgb( x, y, txt, align,           color, dirty, -1 )
+#define display_proportional_clip_rgb(          x, y, txt, align, color, dirty)       display_text_proportional_len_clip_rgb( x, y, txt, align | DT_CLIP, color, dirty, -1 )
 
 
 /*
@@ -408,10 +407,10 @@ void display_swap_clip_wh(CLIP_NUM_DEF0);
 void display_pop_clip_wh(CLIP_NUM_DEF0);
 
 
-void display_snapshot(int x, int y, int w, int h);
+void display_snapshot( int x, int y, int w, int h );
 
 #if COLOUR_DEPTH != 0
-extern uint8 display_day_lights[LIGHT_COUNT * 3];
+extern uint8 display_day_lights[  LIGHT_COUNT * 3];
 extern uint8 display_night_lights[LIGHT_COUNT * 3];
 #endif
 

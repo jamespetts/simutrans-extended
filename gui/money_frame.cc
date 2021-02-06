@@ -114,9 +114,9 @@ static const uint8 cost_type[3*MAX_PLAYER_COST_BUTTON] =
 	ATC_CASH,                       TT_MAX, MONEY,   // Cash
 	ATV_NON_FINANCIAL_ASSETS,       TT_ALL, MONEY,   // value of all vehicles and buildings
 	ATC_NETWEALTH,                  TT_MAX, MONEY,   // Total Cash + Assets
-	ATC_SOFT_CREDIT_LIMIT,			TT_MAX, MONEY,	// Maximum amount that can be borrowed
-	ATC_HARD_CREDIT_LIMIT,			TT_MAX, MONEY,	// Borrowing which will lead to insolvency
-	ATV_PROFIT_MARGIN,              TT_ALL, STANDARD
+	ATC_SOFT_CREDIT_LIMIT,          TT_MAX, MONEY,	// Maximum amount that can be borrowed
+	ATC_HARD_CREDIT_LIMIT,          TT_MAX, MONEY,	// Borrowing which will lead to insolvency
+	ATV_PROFIT_MARGIN,              TT_ALL, PERCENT
 };
 
 static const sint8 cell_to_buttons[] =

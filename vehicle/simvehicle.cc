@@ -627,7 +627,7 @@ sint16 vehicle_base_t::get_hoff(const sint16 raster_width) const
 /* true, if one could pass through this field
  * also used for citycars, thus defined here
  */
-vehicle_base_t *vehicle_base_t::no_cars_blocking( const grund_t *gr, const convoi_t *cnv, const uint8 current_direction, const uint8 next_direction, const uint8 next_90direction, const private_car_t *pcar, sint8 lane_on_the_tile )
+vehicle_base_t *vehicle_base_t::get_blocking_vehicle(const grund_t *gr, const convoi_t *cnv, const uint8 current_direction, const uint8 next_direction, const uint8 next_90direction, const private_car_t *pcar, sint8 lane_on_the_tile )
 {
 	bool cnv_overtaking = false; //whether this convoi is on passing lane.
 	if(  cnv  ) {
@@ -2560,7 +2560,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	}
 
 	// since obj_t does no longer save positions
-	if(  file->get_version_int()>=101000  ) {
+	if(  file->is_version_atleast(101, 0)  ) {
 		koord3d pos = get_pos();
 		pos.rdwr(file);
 		set_pos(pos);
@@ -2568,7 +2568,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 	sint8 hoff = file->is_saving() ? get_hoff() : 0;
 
-	if(file->get_version_int()<86006) {
+	if(file->is_version_less(86, 6)) {
 		sint32 l;
 		file->rdwr_long(purchase_time);
 		file->rdwr_long(l);
@@ -2589,7 +2589,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	else {
 		// changed several data types to save runtime memory
 		file->rdwr_long(purchase_time);
-		if(file->get_version_int()<99018) {
+		if(file->is_version_less(99, 18)) {
 			file->rdwr_byte(dx);
 			file->rdwr_byte(dy);
 		}
@@ -2625,8 +2625,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	}
 
 	// convert steps to position
-	if(file->get_version_int()<99018) {
-		sint8 ddx = get_xoff(), ddy = get_yoff() - hoff;
+	if(file->is_version_less(99, 18)) {
+		sint8 ddx=get_xoff(), ddy=get_yoff()-hoff;
 		sint8 i=1;
 		dx = dxdy[ ribi_t::get_dir(direction)*2];
 		dy = dxdy[ ribi_t::get_dir(direction)*2+1];
@@ -2651,7 +2651,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	}
 
 	// information about the target halt
-	if(file->get_version_int()>=88007) {
+	if(file->is_version_atleast(88, 7)) {
 		bool target_info;
 		if(file->is_loading()) {
 			file->rdwr_bool(target_info);
@@ -2667,13 +2667,13 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 			cnv = NULL;	// no reservation too
 		}
 	}
-	if((file->get_extended_version()==0 && file->get_version_int()<=112008) || file->get_extended_version()<14) {
+	if( (file->is_version_less(112, 9) && file->get_extended_version()==0) || file->get_extended_version()<14 ) {
 		// Standard version number was increased in Extended without porting this change
 		koord3d pos_prev(koord3d::invalid);
 		pos_prev.rdwr(file);
 	}
 
-	if(file->get_version_int()<=99004) {
+	if(file->is_version_less(99, 5)) {
 		koord3d dummy;
 		dummy.rdwr(file);	// current pos (is already saved as ding => ignore)
 	}
@@ -2817,14 +2817,14 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	delete[]fracht_count;
 
 	// skip first last info (the convoi will know this better than we!)
-	if(file->get_version_int()<88007) {
+	if(file->is_version_less(88, 7)) {
 		bool dummy = 0;
 		file->rdwr_bool(dummy);
 		file->rdwr_bool(dummy);
 	}
 
 	// koordinate of the last stop
-	if(file->get_version_int()>=99015) {
+	if(file->is_version_atleast(99, 15)) {
 		// This used to be 2d, now it's 3d.
 		if(file->get_extended_version() < 12) {
 			if(file->is_saving()) {
@@ -2860,7 +2860,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		reversed = false;
 	}
 
-	if(  file->get_version_int()>=110000  ) {
+	if(  file->is_version_atleast(110, 0)  ) {
 		bool hd = has_driven;
 		file->rdwr_bool( hd );
 		has_driven = hd;
@@ -2871,8 +2871,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >=9 && file->get_version_int() >= 110000)
-	{
+	if(  file->is_version_atleast(110, 0) && file->get_extended_version() >=9  ) {
 		// Existing values now saved in order to prevent network desyncs
 		file->rdwr_short(direction_steps);
 		// "Current revenue" is obsolete, but was used in this file version
@@ -2905,8 +2904,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
-	{
+	if (file->is_version_atleast(110, 6) && file->get_extended_version() >= 9) {
 		file->rdwr_string(current_livery);
 	}
 	else if(file->is_loading())
@@ -3852,7 +3850,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 		}
 
-		// When overtaking_mode changes from inverted_mode to others, no cars blocking must work as the convoi is on traffic lane. Otherwise, no_cars_blocking cannot recognize vehicles on the traffic lane of the next tile.
+		// When overtaking_mode changes from inverted_mode to others, no cars blocking must work as the convoi is on traffic lane. Otherwise, get_blocking_vehicle cannot recognize vehicles on the traffic lane of the next tile.
 		//next_lane = -1 does NOT mean that the vehicle must go traffic lane on the next tile.
 		const strasse_t* current_str = (strasse_t*)(welt->lookup(get_pos())->get_weg(road_wt));
 		if( current_str && current_str->get_overtaking_mode()<=oneway_mode  &&  str->get_overtaking_mode()>oneway_mode  ) {
@@ -3869,7 +3867,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ribi_t::ribi curr_90direction = calc_direction(get_pos(), pos_next);
 		ribi_t::ribi next_direction   = calc_direction(get_pos(), next);
 		ribi_t::ribi next_90direction = calc_direction(pos_next, next);
-		obj = no_cars_blocking( gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane );
+		obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane);
 
 		// do not block intersections
 		const bool drives_on_left = welt->get_settings().is_drive_left();
@@ -3967,7 +3965,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				next                 = r.at(test_index + 1u);
 				next_direction   = calc_direction(r.at(test_index - 1u), next);
 				next_90direction = calc_direction(r.at(test_index),      next);
-				obj = no_cars_blocking( gr, cnv, curr_direction, next_direction, next_90direction, NULL, lane_of_the_tile );
+				obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, lane_of_the_tile);
 			}
 			else {
 				next                 = r.at(test_index);
@@ -3975,7 +3973,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				if(  curr_direction == next_90direction  ||  !gr->is_halt()  ) {
 					// check cars but allow to enter intersection if we are turning even when a car is blocking the halt on the last tile of our route
 					// preserves old bus terminal behaviour
-					obj = no_cars_blocking( gr, cnv, curr_direction, next_90direction, ribi_t::none, NULL, lane_of_the_tile );
+					obj = get_blocking_vehicle(gr, cnv, curr_direction, next_90direction, ribi_t::none, NULL, lane_of_the_tile);
 				}
 			}
 

@@ -925,6 +925,9 @@ private:
 	/// A helper method for use in init/new month
 	void recalc_passenger_destination_weights();
 
+	/// To prevent pause_step constantly re-checking the private car routes when not necessary.
+	bool private_car_route_check_complete = false;
+
 #ifdef MULTI_THREAD
 	bool passengers_and_mail_threads_working;
 	bool convoy_threads_working;
@@ -979,6 +982,7 @@ private:
 
 	destination find_destination(trip_type trip, uint8 g_class);
 
+	static sint32 cities_to_process;
 #ifdef MULTI_THREAD
 	friend void *check_road_connexions_threaded(void* args);
 	friend void *unreserve_route_threaded(void* args);
@@ -986,7 +990,6 @@ private:
 	friend void *step_convoys_threaded(void* args);
 	friend void *path_explorer_threaded(void* args);
 	friend void *step_individual_convoy_threaded(void* args);
-	static sint32 cities_to_process;
 	static vector_tpl<convoihandle_t> convoys_next_step;
 	public:
 	static bool threads_initialised;
@@ -1158,6 +1161,11 @@ public:
 	 * @returns true if world gets destroyed
 	 */
 	bool is_destroying() const { return destroying; }
+
+	uint32 get_cities_awaiting_private_car_route_check_count() const;
+#ifndef NETTOOL
+	uint32 get_cities_to_process() const { return cities_to_process; }
+#endif
 
 #ifdef MULTI_THREAD
 	/**
@@ -2169,7 +2177,7 @@ public:
 	 * File version used when loading (or current if generated)
 	 * @note Useful for finish_rd
 	 */
-	loadsave_t::combined_version load_version;
+	extended_version_t load_version;
 
 	/**
 	 * Checks if the planquadrat (tile) at coordinate (x,y)
@@ -2364,6 +2372,9 @@ public:
 	 * Tasks that are more time-consuming, like route search of vehicles and production of factories.
 	 */
 	void step();
+
+	/// Tasks undertaken by a server when paused
+	void pause_step();
 
 //private:
 	inline planquadrat_t *access_nocheck(int i, int j) const {
@@ -2663,7 +2674,7 @@ public:
 
 private:
 
-	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(city_road); }
+	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(NULL); }
 	void calc_generic_road_time_per_tile_intercity();
 	void calc_max_road_check_depth();
 
@@ -2672,6 +2683,10 @@ private:
 	uint32 get_next_command_step();
 
 	void get_nearby_halts_of_tiles(const minivec_tpl<const planquadrat_t*> &tile_list, const goods_desc_t * wtyp, vector_tpl<nearby_halt_t> &halts) const;
+
+	void refresh_private_car_routes();
+
+	static void clear_private_car_routes() ;
 };
 
 

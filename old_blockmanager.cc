@@ -109,7 +109,7 @@ old_blockmanager_t::rdwr_block(karte_t *,loadsave_t *file)
 	}
 
 	// counters
-	if(file->get_version_int()<=88005) {
+	if(file->is_version_less(88, 6)) {
 		// old style
 		sint32 dummy = 0;
 		file->rdwr_long(dummy);
@@ -127,7 +127,7 @@ void
 old_blockmanager_t::rdwr(karte_t *welt, loadsave_t *file)
 {
 	signale.clear();
-	if(file->get_version_int()>=89000) {
+	if(file->is_version_atleast(89, 0)) {
 		// nothing to do any more ...
 		return;
 	}
