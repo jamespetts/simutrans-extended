@@ -65,9 +65,9 @@ private:
 	 * All gui elements of this dialog:
 	 */
 	gui_combobox_t	sortedby;
-	button_t	sort_asc, sort_desc;
-	button_t	filter_on;
-	button_t	filter_details;
+	button_t sort_asc, sort_desc;
+	button_t filter_on;
+	button_t filter_details;
 	gui_scrolled_halt_list_t *scrolly;
 
 	/*

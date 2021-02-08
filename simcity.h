@@ -195,9 +195,9 @@ private:
 	static uint32 cluster_factor;
 
 	// attribute for the population (Bevoelkerung)
-	sint32 bev;	// total population (bevoelkerung)
-	sint32 arb;	// with a job (arbeit)
-	sint32 won;	// with a residence (wohnung)
+	sint32 bev; // total population (bevoelkerung)
+	sint32 arb; // with a job (arbeit)
+	sint32 won; // with a residence (wohnung)
 
 	/**
 	 * Un-supplied city growth needs

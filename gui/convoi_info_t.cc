@@ -106,8 +106,9 @@ const char *convoi_info_t::sort_text[SORT_MODES] =
 };
 
 
-convoi_info_t::convoi_info_t(convoihandle_t cnv)
-	: gui_frame_t(""),
+
+convoi_info_t::convoi_info_t(convoihandle_t cnv) :
+	gui_frame_t(""),
 	text(&freight_info),
 	view(scr_size(max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
 	loading_bar(cnv),

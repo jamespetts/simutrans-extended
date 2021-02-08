@@ -3846,7 +3846,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		bool dummy;
 		file->rdwr_bool(dummy); // pax
 		file->rdwr_bool(dummy); // mail
-		file->rdwr_bool(dummy);	// ware
+		file->rdwr_bool(dummy); // ware
 	}
 
 	if(file->is_loading()) {
@@ -3912,9 +3912,8 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			vector_tpl<ware_t> *warray = cargo[i];
 			uint32 ware_count = 1;
 
-			if(warray)
-			{
-				s = "y";	// needs to be non-empty
+			if(warray) {
+				s = "y"; // needs to be non-empty
 				file->rdwr_str(s);
 				bool has_uint16_count;
 				if(  file->is_version_less(112, 3) || file->get_extended_version() <= 10  ) {

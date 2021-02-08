@@ -110,6 +110,7 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 	old_schedule->rdwr(file);
 
 	if(  file->is_loading()  ) {
+		player_t *player = welt->get_player(player_nr);
 		assert(player); // since it was alive during saving, this should never happen
 		if(  line.is_bound()  &&  old_schedule->matches( welt, line->get_schedule() )  ) {
 

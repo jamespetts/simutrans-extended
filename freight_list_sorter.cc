@@ -537,9 +537,8 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 				for (int i = j; i < pos; i++)
 				{
 					ware_t const& sumware = wlist[i];
-					if (last_goods_index != sumware.get_index() && last_ware_catg != sumware.get_catg())
-					{
-						break;	// next category reached ...
+					if(  last_goods_index != sumware.get_index() && last_ware_catg != sumware.get_catg()  ) {
+						break; // next category reached ...
 					}
 					sum += sumware.menge;
 				}

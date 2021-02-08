@@ -37,7 +37,7 @@
 #include "../obj/crossing.h"
 #include "../obj/groundobj.h"
 #include "../obj/label.h"
-#include "../obj/leitung2.h"	// for construction of new ways ...
+#include "../obj/leitung2.h"
 #include "../obj/roadsign.h"
 #include "../obj/signal.h"
 #include "../obj/tunnel.h"
@@ -2064,6 +2064,7 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 				}
 			}
 		}
+
 		sint32 costs = (weg->get_desc()->get_value() / 2); // Costs for removal are half construction costs.
 		weg->cleanup( NULL );
 		delete weg;

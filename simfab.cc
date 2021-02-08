@@ -3134,14 +3134,13 @@ void fabrik_t::recalc_factory_status()
 			}
 			else if (status_aus&FL_WARE_ALLEUEBER75 || status_aus & FL_WARE_UEBER75) {
 				if (status_aus&FL_WARE_ALLEUEBER75) {
-					status = storage_full;	// connect => needs better service
+					status = storage_full;  // connect => needs better service
 				}
 				else {
-					status = medium;	// connect => needs better service for at least one product
+					status = medium;        // connect => needs better service for at least one product
 				}
 			}
-			else
-			{
+			else {
 				status = good;
 			}
 			break;
@@ -3171,8 +3170,7 @@ void fabrik_t::recalc_factory_status()
 			else if (status_ein&FL_WARE_LIMIT || status_aus & FL_WARE_LIMIT) {
 				status = medium; // some storages are full
 			}
-			else
-			{
+			else {
 				status = good;
 			}
 			break;
@@ -3210,8 +3208,7 @@ void fabrik_t::recalc_factory_status()
 				// some items out of stock, but still active
 				status = medium;
 			}
-			else
-			{
+			else {
 				status = good;
 			}
 			break;

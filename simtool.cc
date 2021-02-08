@@ -241,7 +241,7 @@ static halthandle_t suche_nahe_haltestelle(player_t *player, karte_t *welt, koor
 		}
 	}
 
-#if AUTOJOIN_PUBLIC
+#ifdef AUTOJOIN_PUBLIC
 	// now search everything for public stops
 	for(  int i=0;  i<8;  i++ ) {
 		if(  planquadrat_t* plan=welt->access(k+koord::neighbours[i])  ) {
@@ -1475,7 +1475,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 
 			// check way ownership
 			if(gr1->hat_wege()) {
-				if(gr1->get_weg_nr(0)-> is_deletable(player)!=NULL) {
+				if(gr1->get_weg_nr(0)->is_deletable(player)!=NULL) {
 					return NOTICE_TILE_FULL;
 				}
 				if(gr1->has_two_ways()  &&  gr1->get_weg_nr(1)-> is_deletable(player)!=NULL) {
@@ -2446,8 +2446,7 @@ static const char *tool_schedule_insert_aux(karte_t *welt, player_t *player, koo
 		{
 			w = bd->get_weg( track_wt );
 		}
-		if(!bd->is_halt())
-		{
+		if(  !bd->is_halt()  ) {
 			if(w != NULL && w->get_owner() && !w->get_owner()->allows_access_to(player->get_player_nr()))
 			{
 				return "Das Feld gehoert\neinem anderen Spieler\n";
@@ -3224,58 +3223,39 @@ uint8 tool_build_bridge_t::is_valid_pos(  player_t *player, const koord3d &pos, 
 	}
 
 	grund_t *gr = welt->lookup(pos);
-	if(  gr==NULL  ||  !slope_t::is_way(gr->get_grund_hang())  ||  !bridge_builder_t::can_place_ramp( player, gr, wt, (is_first_click() ? 0 : ribi_type(pos-start)) )  ) {
+	if(  gr==NULL  ||  !bridge_builder_t::can_place_ramp( player, gr, wt, (is_first_click() ? 0 : ribi_type(pos-start)) )  ) {
 		return 0;
 	}
 
 	if(  is_first_click()  ) {
 		if(  gr->ist_karten_boden()  ) {
 			// first click
+			// check ribis, all other checks already done
 			ribi_t::ribi rw = ribi_t::none;
 			if (wt==powerline_wt) {
-			if (gr->hat_wege()) {
-				return 0;
-			}
-			if (gr->find<leitung_t>()) {
-				rw |= gr->find<leitung_t>()->get_ribi();
-			}
-		}
-		else {
-			if (gr->find<leitung_t>()) {
-				return 0;
-			}
-			if(wt!=road_wt) {
-			// only road bridges can have other ways on it (ie trams)
-				if(gr->has_two_ways()  ||  (gr->hat_wege() && gr->get_weg_nr(0)->get_waytype()!=wt) ) {
-					return 0;
-				}
-				if(gr->hat_wege()){
-					rw |= gr->get_weg_nr(0)->get_ribi_unmasked();
+				if (gr->find<leitung_t>()) {
+					rw |= gr->find<leitung_t>()->get_ribi();
 				}
 			}
 			else {
-				// If road and tram, we have to check both ribis.
+				// way types are checked, take all ribis
 				for(int i=0;i<2;i++) {
-					const weg_t *w = gr->get_weg_nr(i);
-					if (w) {
-						if (w->get_waytype()!=road_wt  && !w->get_desc()->is_tram()) {
-							return 0;
-						}
+					if (const weg_t *w = gr->get_weg_nr(i)) {
 						rw |= w->get_ribi_unmasked();
 					}
 					else break;
 				}
 			}
+			// ribi from slope
+			rw |= ribi_type(gr->get_grund_hang());
+			if(  rw!=ribi_t::none && !ribi_t::is_single(rw)  ) {
+				return 0;
+			}
+			// determine possible directions
+			ribi = ribi_t::backward(rw);
+			return (ribi!=ribi_t::none ? 2 : 0) | (ribi_t::is_single(ribi) ? 1 : 0);
 		}
-		// ribi from slope
-		rw |= ribi_type(gr->get_grund_hang());
-		if(  rw!=ribi_t::none && !ribi_t::is_single(rw)  ) {
-			return 0;
-		}
-		// determine possible directions
-		ribi = ribi_t::backward(rw);
-		return (ribi!=ribi_t::none ? 2 : 0) | (ribi_t::is_single(ribi) ? 1 : 0);
-		} else {
+		else {
 			if(  gr->get_weg_hang()  ) {
 				return 0;
 			}

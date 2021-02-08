@@ -2464,8 +2464,9 @@ bool way_builder_t::build_tunnel_tile()
 					lt = new leitung_t(gr->get_pos(), player_builder);
 					lt->set_desc(desc);
 					gr->obj_add( lt );
-				} else {
-					lt->leitung_t::finish_rd();	// only change powerline aspect
+				}
+				else {
+					lt->leitung_t::finish_rd(); // only change powerline aspect
 					player_t::add_maintenance( player_builder, -lt->get_desc()->get_maintenance(), powerline_wt);
 				}
 			}

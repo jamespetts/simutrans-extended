@@ -28,16 +28,16 @@ class checksum_t;
  *   1   Imagelist2D season 0 front
  *   2   Imagelist2D season 1 back
  *   3   Imagelist2D season 1 front
- *	... ...
+ * ... ...
  */
 class building_tile_desc_t : public obj_desc_t {
 	friend class tile_reader_t;
 
-	const building_desc_t	*building;
+	const building_desc_t *building;
 	building_desc_t		*modifiable_haus;
 
 	uint8  seasons;
-	uint8  phases;	    ///< number of animation phases
+	uint8  phases;  ///< number of animation phases
 	uint16 index;
 
 public:
@@ -104,12 +104,12 @@ public:
 /**
  * Data for one building, consists of potentially more than one tile.
  *
- *  Child nodes:
- *	0   Name
- *	1   Copyright
- *	2   Tile 1
- *	3   Tile 2
- *	... ...
+ * Child nodes:
+ *  0   Name
+ *  1   Copyright
+ *  2   Tile 1
+ *  3   Tile 2
+ * ... ...
  */
 class building_desc_t : public obj_desc_timelined_t {
 	friend class building_reader_t;
@@ -176,7 +176,7 @@ class building_desc_t : public obj_desc_timelined_t {
 		};
 
 	building_desc_t::btype type;
-	uint16 animation_time;	// in ms
+	uint16 animation_time; // in ms
 	uint32 extra_data;
 		// extra data:
 		// minimum population to build for city attractions,

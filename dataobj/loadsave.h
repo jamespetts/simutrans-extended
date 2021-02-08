@@ -100,7 +100,7 @@ protected:
 public:
 	static mode_t save_mode;     ///< default to use for saving
 	static mode_t autosave_mode; ///< default to use for autosaves and network mode client temp saves
-	static int save_level;    ///< default to use for compression (various libraries allow for szie/speed settings)
+	static int save_level;       ///< default to use for compression (various libraries allow for size/speed settings)
 	static int autosave_level;
 
 	/**

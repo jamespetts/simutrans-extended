@@ -82,7 +82,7 @@ private:
 	gui_scrollpane_t scroll_freight;
 
 	gui_combobox_t freight_sort_selector;
-	button_t line_button;	// goto line ...
+	button_t line_button; // goto line ...
 	bool line_bound;
 
 	convoihandle_t cnv;

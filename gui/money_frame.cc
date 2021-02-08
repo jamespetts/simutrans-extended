@@ -102,13 +102,13 @@ static const uint8 cost_type[3*MAX_PLAYER_COST_BUTTON] =
 {
 	ATV_REVENUE_TRANSPORT,          TT_ALL, MONEY,    // Income
 	ATV_RUNNING_COST,               TT_ALL, MONEY,    // Vehicle running costs
-	ATV_VEHICLE_MAINTENANCE,		TT_ALL, MONEY,	  // Vehicle monthly maintenance
+	ATV_VEHICLE_MAINTENANCE,        TT_ALL, MONEY,    // Vehicle monthly maintenance
 	ATV_INFRASTRUCTURE_MAINTENANCE, TT_ALL, MONEY,    // Upkeep
 	ATV_WAY_TOLL,                   TT_ALL, MONEY,
 	ATV_OPERATING_PROFIT,           TT_ALL, MONEY,
 	ATV_NEW_VEHICLE,                TT_ALL, MONEY,   // New vehicles
-	ATV_CONSTRUCTION_COST,	        TT_ALL, MONEY,   // Construction
-	ATC_INTEREST,					TT_MAX, MONEY,	// Interest paid servicing debt
+	ATV_CONSTRUCTION_COST,          TT_ALL, MONEY,   // Construction
+	ATC_INTEREST,                   TT_MAX, MONEY,   // Interest paid servicing debt
 	ATV_PROFIT,                     TT_ALL, MONEY,
 	ATV_TRANSPORTED,                TT_ALL, STANDARD, // all transported goods
 	ATC_CASH,                       TT_MAX, MONEY,   // Cash
@@ -121,17 +121,17 @@ static const uint8 cost_type[3*MAX_PLAYER_COST_BUTTON] =
 
 static const sint8 cell_to_buttons[] =
 {
-	0,		-1,		-1,		-1,		-1,
-	1,		-1,		-1,		-1,		-1,
-	2,		-1,		-1,		-1,		-1,
-	3,		-1,		-1,		-1,		-1,
-	4,		-1,		-1,		-1,		-1,
-	5,		-1,		-1,		11,		-1,
-	6,		-1,		-1,		12,		-1,
-	7,		-1,		-1,		13,		-1,
-	8,		-1,		-1,		14,		-1,
-	9,		-1,		-1,		15,		-1,
-	10,		-1,		-1,		16,		-1
+	0,  -1,  -1,  -1,  -1,
+	1,  -1,  -1,  -1,  -1,
+	2,  -1,  -1,  -1,  -1,
+	3,  -1,  -1,  -1,  -1,
+	4,  -1,  -1,  -1,  -1,
+	5,  -1,  -1,  11,  -1,
+	6,  -1,  -1,  12,  -1,
+	7,  -1,  -1,  13,  -1,
+	8,  -1,  -1,  14,  -1,
+	9,  -1,  -1,  15,  -1,
+	10, -1,  -1,  16,  -1
 };
 
 
@@ -412,7 +412,7 @@ money_frame_t::money_frame_t(player_t *player) :
 					button_to_chart.append(b, current_chart, curve);
 				}
 				else if (l >= 0) {
-					//	money_frame_label_t(uint8 tt, uint8 t, uint8 lt, uint8 i, bool mon)
+					// money_frame_label_t(uint8 tt, uint8 t, uint8 lt, uint8 i, bool mon)
 					money_labels.append( current->new_component<money_frame_label_t>(label_type[4*l], label_type[4*l+1], label_type[4*l+3], label_type[4*l+2], i==1) );
 				}
 				else {

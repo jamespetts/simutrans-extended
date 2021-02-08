@@ -218,7 +218,7 @@ void *karte_t::world_xy_loop_thread(void *ptr)
 	world_thread_param_t *param = reinterpret_cast<world_thread_param_t *>(ptr);
 	while(true) {
 		if(param->keep_running) {
-			simthread_barrier_wait( &world_barrier_start );	// wait for all to start
+			simthread_barrier_wait( &world_barrier_start ); // wait for all to start
 		}
 
 		sint16 x_min = 0;
@@ -240,7 +240,7 @@ void *karte_t::world_xy_loop_thread(void *ptr)
 		}
 
 		if(param->keep_running) {
-			simthread_barrier_wait( &world_barrier_end );	// wait for all to finish
+			simthread_barrier_wait( &world_barrier_end ); // wait for all to finish
 		}
 		else {
 			return NULL;

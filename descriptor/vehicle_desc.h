@@ -39,8 +39,8 @@ class checksum_t;
  *  1   Copyright
  *  2   freight
  *  3   smoke
- *	4   empty 1d image list (or 2d list if there are multiple liveries)
- *	5   either 1d (freight_image_type==0), 2d image list or 3d image list (if multiple liveries)
+ *  4   empty 1d image list (or 2d list if there are multiple liveries)
+ *  5   either 1d (freight_image_type==0), 2d image list or 3d image list (if multiple liveries)
  *  6   required leading vehicle 1
  *  7   required leading vehicle 2
  * ... ...
@@ -116,45 +116,45 @@ public:
 	};
 
 private:
-	uint32 upgrade_price;			// Price if this vehicle is bought as an upgrade, not a new vehicle.
-	uint32 base_upgrade_price;		// Upgrade price (without scale factor)
-	uint16 *capacity;				// Payload (pointer to an array of capacities per class)
-	uint16 overcrowded_capacity;	// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
-	uint32 weight;					// Weight in kg
-	uint32 power;					// Power in kW
-	uint16 running_cost;			// Per kilometre cost
-	uint32 fixed_cost;				// Monthly cost @author: jamespetts, April 2009
-	uint32 base_fixed_cost;			// Monthly cost (without scale factor)
+	uint32 upgrade_price;         // Price if this vehicle is bought as an upgrade, not a new vehicle.
+	uint32 base_upgrade_price;    // Upgrade price (without scale factor)
+	uint16 *capacity;             // Payload (pointer to an array of capacities per class)
+	uint16 overcrowded_capacity;  // The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
+	uint32 weight;                // Weight in kg
+	uint32 power;                 // Power in kW
+	uint16 running_cost;          // Per kilometre cost
+	uint32 fixed_cost;            // Monthly cost @author: jamespetts, April 2009
+	uint32 base_fixed_cost;       // Monthly cost (without scale factor)
 
-	uint16 gear;					// engine gear (power multiplier), 64=100
+	uint16 gear;                  // engine gear (power multiplier), 64=100
 
-	uint8 len;						// length (=8 is half a tile, the old default)
+	uint8 len;                    // length (=8 is half a tile, the old default)
 	sint16 sound;
 
-	uint8 leader_count;				// all defined leading vehicles
-	uint8 trailer_count;			// all defined trailer
-	uint8 upgrades;					// The number of vehicles that are upgrades of this vehicle.
+	uint8 leader_count;           // all defined leading vehicles
+	uint8 trailer_count;          // all defined trailer
+	uint8 upgrades;               // The number of vehicles that are upgrades of this vehicle.
 
-	engine_t engine_type;			// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
+	engine_t engine_type;         // diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 
-	uint8 freight_image_type;		// number of freight images (displayed for different goods)
-	uint8 livery_image_type;		// Number of different liveries (@author: jamespetts, April 2011)
+	uint8 freight_image_type;     // number of freight images (displayed for different goods)
+	uint8 livery_image_type;      // Number of different liveries (@author: jamespetts, April 2011)
 
-	bool is_tilting;				// Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
+	bool is_tilting;              // Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
 
 	way_constraints_of_vehicle_t way_constraints;
 
-	uint8 catering_level;			// The level of catering. 0 for no catering. Higher numbers for better catering.
+	uint8 catering_level;            // The level of catering. 0 for no catering. Higher numbers for better catering.
 
-	bool bidirectional = false;		// Whether must always travel in one direction
-	bool can_lead_from_rear = false;	// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
-	bool can_be_at_rear = true;		// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
+	bool bidirectional = false;      // Whether must always travel in one direction
+	bool can_lead_from_rear = false; // Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
+	bool can_be_at_rear = true;      // Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
-	uint8 *comfort;					// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
+	uint8 *comfort;                  // How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
 
-	uint8 classes;					// The number of different classes that this vehicle accommodates
+	uint8 classes;                   // The number of different classes that this vehicle accommodates
 
 	/** The time that the vehicle takes to load
 	  * in ticks. Min: if no passengers/goods

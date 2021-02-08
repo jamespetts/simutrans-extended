@@ -140,17 +140,18 @@ bool citylist_stats_t::compare(const gui_component_t *aa, const gui_component_t 
 		a = b;
 		b = temp;
 	}
+
 	if (  sort_mode != sort_mode_t::SORT_BY_NAME  ) {
 		switch (  sort_mode  ) {
-		case SORT_BY_NAME:	// default
-			break;
-		case SORT_BY_SIZE:
-			return a->city->get_city_population() < b->city->get_city_population();
-		case SORT_BY_GROWTH:
-			return a->city->get_wachstum() < b->city->get_wachstum();
-		case SORT_BY_REGION:
-			return welt->get_region(a->city->get_pos()) < welt->get_region(b->city->get_pos());
-		default: break;
+			case SORT_BY_NAME: // default
+				break;
+			case SORT_BY_SIZE:
+				return a->city->get_city_population() < b->city->get_city_population();
+			case SORT_BY_GROWTH:
+				return a->city->get_wachstum() < b->city->get_wachstum();
+			case SORT_BY_REGION:
+				return welt->get_region(a->city->get_pos()) < welt->get_region(b->city->get_pos());
+			default: break;
 		}
 		// default sorting ...
 	}

@@ -35,8 +35,8 @@ private:
 	 */
 	class fabs_to_crossconnect_t {
 	public:
-		fabrik_t *fab;		///< The factory
-		sint32 demand;		///< To how many factories this factory needs to connect to
+		fabrik_t *fab; ///< The factory
+		sint32 demand; ///< To how many factories this factory needs to connect to
 
 		fabs_to_crossconnect_t() { fab = NULL; demand = 0; }
 		fabs_to_crossconnect_t(fabrik_t *f, sint32 d) { fab = f; demand = d; }

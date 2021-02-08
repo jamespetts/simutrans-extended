@@ -413,8 +413,8 @@ static vector_tpl<rule_t *> road_rules;
  * n = is nature/empty
  * H = not a house
  * h = is a house
- * T = not a stop	// added in 88.03.3
- * t = is a stop // added in 88.03.3
+ * T = not a stop // added in 88.03.3
+ * t = is a stop  // added in 88.03.3
  * u = good slope for way
  * U = not a slope for ways
  * . = beliebig
@@ -1198,7 +1198,7 @@ class townhall_placefinder_t : public placefinder_t {
 					gr->kann_alle_obj_entfernen(NULL) == NULL;
 			} else {
 				// we want to build the townhall here: maybe replace existing buildings
-				return ((gr->get_typ()==grund_t::boden  &&  gr->ist_natur()) ||	gr->get_typ()==grund_t::fundament) &&
+				return ((gr->get_typ()==grund_t::boden  &&  gr->ist_natur()) || gr->get_typ()==grund_t::fundament) &&
 					gr->kann_alle_obj_entfernen(NULL) == NULL;
 			}
 		}
@@ -1661,7 +1661,7 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 //	has_low_density = false;
 	has_townhall = false;
 
-	stadtinfo_options = 3;	// citizen and growth
+	stadtinfo_options = 3; // citizen and growth
 
 	owner = player;
 
@@ -2647,8 +2647,8 @@ void stadt_t::step(uint32 delta_t)
 
 	// update history (might be changed due to construction/destroying of houses)
 
-	city_history_month[0][HIST_GROWTH] = city_history_month[0][HIST_CITIZENS] - city_history_month[1][HIST_CITIZENS];	// growth
-	city_history_year[0][HIST_GROWTH] = city_history_year[0][HIST_CITIZENS] - city_history_year[1][HIST_CITIZENS];
+	city_history_month[0][HIST_GROWTH] = city_history_month[0][HIST_CITIZENS]-city_history_month[1][HIST_CITIZENS]; // growth
+	city_history_year[0][HIST_GROWTH] = city_history_year[0][HIST_CITIZENS]-city_history_year[1][HIST_CITIZENS];
 
 	city_history_month[0][HIST_BUILDING] = buildings.get_count();
 	city_history_year[0][HIST_BUILDING] = buildings.get_count();
@@ -3434,7 +3434,7 @@ class building_place_with_road_finder: public building_placefinder_t
 					if (!gr) {
 						return false;
 					}
-					if (	0 <= x  &&  x < w-1  &&  0 <= y  &&  y < h-1) {
+					if (  0 <= x  &&  x < w-1  &&  0 <= y  &&  y < h-1  ) {
 						// inside: nothing on top like elevated monorails?
 						if(  gr->get_leitung()!=NULL  ||  welt->lookup(gr->get_pos()+koord3d(0,0,1)  )!=NULL) {
 							// something on top (monorail or powerlines)

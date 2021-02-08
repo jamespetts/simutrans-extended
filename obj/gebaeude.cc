@@ -139,9 +139,8 @@ gebaeude_t::gebaeude_t(koord3d pos, player_t *player, const building_tile_desc_t
 	set_owner(player);
 
 	init();
-	if (t)
-	{
-		set_tile(t, true);	// this will set init time etc.
+	if(t) {
+		set_tile(t,true); // this will set init time etc.
 		sint64 maint;
 		if (tile->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 		{
@@ -1252,7 +1251,9 @@ void gebaeude_t::rdwr(loadsave_t *file)
 					welt->add_missing_paks(buf, karte_t::MISSING_BUILDING);
 				}
 			}
-		}	// here we should have a valid tile pointer or nothing ...
+		}
+
+		// here we should have a valid tile pointer or nothing ...
 
 			/* avoid double construction of monuments:
 			* remove them from selection lists

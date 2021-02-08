@@ -74,7 +74,11 @@ uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
 uint16 env_t::specific_volume[MAX_SOUND_TYPES];
 bool env_t::global_mute_sound = false;
+#ifdef __APPLE__
 bool env_t::mute_midi = true;
+#else
+bool env_t::mute_midi = false;
+#endif
 bool env_t::shuffle_midi = true;
 sint16 env_t::window_snap_distance = 8;
 scr_size env_t::iconsize( 32, 32 );
@@ -244,8 +248,8 @@ void env_t::init()
 	// debug level (0: only fatal, 1: error, 2: warning, 3: all
 	verbose_debug = 0;
 
-	default_sortmode = 1;	// sort by amount
-	default_mapmode = 0;	// show cities
+	default_sortmode = 1; // sort by amount
+	default_mapmode = 0;  // show cities
 
 	savegame_version_str = SAVEGAME_VER_NR;
 	savegame_ex_version_str = EXTENDED_VER_NR;

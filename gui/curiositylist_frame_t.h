@@ -21,9 +21,9 @@
 class curiositylist_frame_t : public gui_frame_t, private action_listener_t
 {
 private:
-	gui_combobox_t	sortedby, region_selector;
+	gui_combobox_t sortedby, region_selector;
 	button_t sort_asc, sort_desc;
-	button_t	filter_within_network;
+	button_t filter_within_network;
 	gui_scrolled_list_t scrolly;
 	gui_aligned_container_t list;
 

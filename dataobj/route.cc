@@ -1300,7 +1300,9 @@ void route_t::postprocess_water_route(karte_t *welt)
 #endif
 	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, max_len, avoid_tile, direction, flags);
 #ifdef DEBUG_ROUTES
-	if(tdriver->get_waytype()==water_wt) {DBG_DEBUG("route_t::calc_route()","route from %d,%d to %d,%d with %i steps in %u ms found.",start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );}
+	if(tdriver->get_waytype()==water_wt) {
+		DBG_DEBUG("route_t::calc_route()", "route from %d,%d to %d,%d with %i steps in %u ms found.", start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );
+	}
 #endif
 
 //	INT_CHECK("route 343");

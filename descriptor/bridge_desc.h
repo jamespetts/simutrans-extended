@@ -33,18 +33,17 @@ class bridge_desc_t : public obj_desc_transport_infrastructure_t {
 	friend class bridge_reader_t;
 
 private:
-	uint8 pillars_every;	// =0 off
-	bool pillars_asymmetric;	// =0 off else leave one off for north/west slopes
-	uint offset;	// flag, because old bridges had their name/copyright at the wrong position
+	uint8 pillars_every;       // =0 off
+	bool pillars_asymmetric;   // =0 off else leave one off for north/west slopes
+	uint offset;               // flag, because old bridges had their name/copyright at the wrong position
 	bool has_own_way_graphics; // Whether the way graphics are built into the bridge itself (do not allow display of other way graphics if this is set). This was traditional in Simutrans for a long time, so this is on by default.
 	bool has_way;
 
-	uint8 max_length;	// =0 off, else maximum length
-	uint8 max_height;	// =0 off, else maximum length
-	uint32 max_weight; //@author: jamespetts. Weight limit for convoys.
+	uint8 max_length;        // =0 off, else maximum length
+	uint8 max_height;        // =0 off, else maximum length
+	uint32 max_weight;       //@author: jamespetts. Weight limit for convoys.
 
-	/* number of seasons (0 = none, 1 = no snow/snow
-	*/
+	// number of seasons (0 = none, 1 = no snow/snow
 
 	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
 	* @author: jamespetts*/

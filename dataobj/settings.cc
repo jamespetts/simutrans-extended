@@ -68,7 +68,7 @@ settings_t::settings_t() :
 
 	// default climate zones
 	set_default_climates( );
-	winter_snowline = 7;	// not mediterranean
+	winter_snowline = 7; // not mediterranean
 	groundwater = -2;
 
 	max_mountain_height = 160;                  //can be 0-160.0
@@ -609,7 +609,7 @@ void settings_t::rdwr(loadsave_t *file)
 		// industries
 		file->rdwr_long(factory_count );
 		if(file->is_version_less(99, 18)) {
-			uint32 dummy;	// was city chains
+			uint32 dummy; // was city chains
 			file->rdwr_long(dummy );
 		}
 		else {
@@ -623,7 +623,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 		// rest
 		if(file->is_version_less(101, 0)) {
-			uint32 dummy;	// was scroll dir
+			uint32 dummy; // was scroll dir
 			file->rdwr_long(dummy );
 		}
 		file->rdwr_long(traffic_level );

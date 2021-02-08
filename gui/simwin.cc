@@ -129,9 +129,9 @@ static std::string static_tooltip_text;
 
 // For timed tooltip with initial delay and finite visible duration.
 // Valid owners are required for timing. Invalid (NULL) owners disable timing.
-static const void * tooltip_owner = 0;	// owner of the registered tooltip
-static const void * tooltip_group = 0;	// group to which the owner belongs
-static uint32 tooltip_register_time = 0;	// time at which a tooltip is initially registered
+static const void * tooltip_owner = 0;   // owner of the registered tooltip
+static const void * tooltip_group = 0;   // group to which the owner belongs
+static uint32 tooltip_register_time = 0; // time at which a tooltip is initially registered
 
 static bool show_ticker=0;
 

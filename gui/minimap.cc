@@ -341,7 +341,7 @@ static void display_airport( const scr_coord_val xx, const scr_coord_val yy, con
 static void display_harbor( const scr_coord_val xx, const scr_coord_val yy, const FLAGGED_PIXVAL color )
 {
 	int x = xx + 5;
-	int y = yy - 11 + 13;	//to not overwrite airline symbol
+	int y = yy - 11 + 13; //to not overwrite airline symbol
 
 	if ( y < 0 ) {
 		y = 0;
@@ -689,7 +689,8 @@ PIXVAL minimap_t::calc_height_color(const sint16 height, const sint16 groundwate
 			// to avoid relative_index==0
 			relative_index += 1;
 		}
-	} else {
+	}
+	else {
 		relative_index = height-groundwater;
 	}
 	return color_idx_to_rgb(map_type_color[clamp( relative_index+MAX_MAP_TYPE_WATER-1, 0, MAX_MAP_TYPE_WATER+MAX_MAP_TYPE_LAND-1 )]);
@@ -705,9 +706,10 @@ PIXVAL minimap_t::calc_ground_color(const grund_t *gr, bool show_contour, bool s
 
 #ifdef DEBUG_ROUTES
 	/* for debug purposes only ...*/
-	if(world->ist_markiert(gr)) {
+	if(gr->get_flag(grund_t::marked)) {
 		color = color_idx_to_rgb(COL_PURPLE);
-	}else
+	}
+	else
 #endif
 	if(gr->get_halt().is_bound() && show_buildings) {
 		color = COL_HALT;
@@ -730,13 +732,13 @@ PIXVAL minimap_t::calc_ground_color(const grund_t *gr, bool show_contour, bool s
 					fabrik_t *fab = gb ? gb->get_fabrik() : NULL;
 					if(fab==NULL) {
 						sint16 height = corner_sw(gr->get_grund_hang());
-						if (show_contour) {
+						if ( show_contour ) {
 							color = calc_height_color(world->lookup_hgt(gr->get_pos().get_2d()) + height, world->get_water_hgt(gr->get_pos().get_2d()));
 						}
 						else {
 							color = color_idx_to_rgb(map_type_color[MAX_MAP_TYPE_WATER - 1]);
 						}
-						//color = COL_BLUE;	// water with boat?
+						//color = color_idx_to_rgb(COL_BLUE); // water with boat?
 					}
 					else {
 						color = fab->get_color();
@@ -763,9 +765,9 @@ PIXVAL minimap_t::calc_ground_color(const grund_t *gr, bool show_contour, bool s
 						case tram_wt:
 						case track_wt: color = COL_RAIL; break;
 						case water_wt: color = COL_CANAL; break;
-						case air_wt: color = COL_RUNWAY; break;
+						case air_wt:   color = COL_RUNWAY; break;
 						case monorail_wt:
-						default:	// all other ways light red ...
+						default: // all other ways light red ...
 							color = color_idx_to_rgb(135); break;
 							break;
 					}
@@ -1852,7 +1854,7 @@ void minimap_t::draw(scr_coord pos)
 		temp_stop = temp_stop + pos;
 		display_ddd_proportional_clip( temp_stop.x + 10, temp_stop.y + 7, proportional_string_width( display_station->get_name() ) + 8, 0, color_idx_to_rgb(display_station->get_owner()->get_player_color1()+3), color_idx_to_rgb(COL_WHITE), display_station->get_name(), false );
 	}
-	max_waiting_change = new_max_waiting_change;	// update waiting tendencies
+	max_waiting_change = new_max_waiting_change; // update waiting tendencies
 
 	// if we do not do this here, vehicles would erase the town names
 	// ADD: if CRTL key is pressed, temporary show the name

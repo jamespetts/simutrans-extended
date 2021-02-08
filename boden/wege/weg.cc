@@ -127,7 +127,7 @@ const char *weg_t::waytype_to_string(waytype_t wt)
 		case narrowgauge_wt: return "narrowgauge_track";
 		case road_wt:        return "road";
 		case water_wt:       return "water";
-		case air_wt:         return "air_wt";
+		case air_wt:         return "air";
 		default:
 			// keep compiler happy; should never reach here anyway
 			break;
@@ -404,8 +404,8 @@ void weg_t::rdwr(loadsave_t *file)
 	uint8 dummy8 = ribi;
 	file->rdwr_byte(dummy8);
 	if(  file->is_loading()  ) {
-		ribi = dummy8 & 15;	// before: high bits was maske
-		ribi_maske = 0;	// maske will be restored by signal/roadsign
+		ribi = dummy8 & 15; // before: high bits was maske
+		ribi_maske = 0; // maske will be restored by signal/roadsing
 	}
 
 	sint16 dummy16=max_speed;

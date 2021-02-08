@@ -93,14 +93,14 @@ void traffic_vehicle_t::flush_travel_times(strasse_t* str)
  * (however, the real dirs are only calculated during display, these are the old ones)
  */
 sint8 vehicle_base_t::dxdy[ 8*2 ] = {
-	-2, 1,	// s
-	-2, -1,	// w
-	-4, 0,	// sw
-	0, 2,	//se
-	2, -1,	// n
-	2, 1,	// e
-	4, 0,	// ne
-	0, -2	// nw
+	-2,  1, // s
+	-2, -1, // w
+	-4,  0, // sw
+	 0,  2, // se
+	 2, -1, // n
+	 2,  1, // e
+	 4,  0, // ne
+	 0, -2  // nw
 };
 
 
@@ -134,16 +134,14 @@ bool vehicle_base_t::need_realignment() const
 // [0]=xoff [1]=yoff
 static sint8 driveleft_base_offsets[8][2] =
 {
-	{ 12, 6 },
-	{ -12, 6 },
-	{ 0, 6 },
-	{ 12, 0 },
+	{  12,  6 },
+	{ -12,  6 },
+	{   0,  6 },
+	{  12,  0 },
 	{ -12, -6 },
-	{ 12, -6 },
-	{ 0, -6 },
-	{ -12, 0 }
-//	{ 12, -12, 0, 12, -12, 12, 0 -12 },
-//	{ 6, 6, 6, 0, -6, -6, -6, 0 }
+	{  12, -6 },
+	{   0, -6 },
+	{ -12,  0 }
 };
 
 // [0]=xoff [1]=yoff
@@ -562,7 +560,7 @@ ribi_t::ribi vehicle_base_t::calc_set_direction(const koord3d& start, const koor
 // beware of bridges, tunnels, slopes, ...
 void vehicle_base_t::calc_height(grund_t *gr)
 {
-	use_calc_height = false;	// assume, we are only needed after next hop
+	use_calc_height = false;   // assume, we are only needed after next hop
 	zoff_start = zoff_end = 0; // assume flat way
 
 	if(gr==NULL) {
@@ -880,12 +878,10 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 		return 0;
 	}
 
-	if(halt->is_enabled(get_cargo_type()))
-	{
+	if(  halt->is_enabled( get_cargo_type() )  ) {
 		for (uint8 j = 0; j < number_of_classes; j++)
 		{
-			if (!fracht[j].empty())
-			{
+			if (  !fracht[j].empty()  ) {
 				for (slist_tpl<ware_t>::iterator i = fracht[j].begin(), end = fracht[j].end(); i != end; )
 				{
 					const ware_t& tmp = *i;
@@ -2655,7 +2651,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		bool target_info;
 		if(file->is_loading()) {
 			file->rdwr_bool(target_info);
-			cnv = (convoi_t *)target_info;	// will be checked during convoi reassignment
+			cnv = (convoi_t *)target_info; // will be checked during convoi reassignment
 		}
 		else {
 			target_info = target_halt.is_bound();
@@ -2664,7 +2660,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	}
 	else {
 		if(file->is_loading()) {
-			cnv = NULL;	// no reservation too
+			cnv = NULL; // no reservation too
 		}
 	}
 	if( (file->is_version_less(112, 9) && file->get_extended_version()==0) || file->get_extended_version()<14 ) {
@@ -2675,7 +2671,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 	if(file->is_version_less(99, 5)) {
 		koord3d dummy;
-		dummy.rdwr(file);	// current pos (is already saved as ding => ignore)
+		dummy.rdwr(file); // current pos (is already saved as ding => ignore)
 	}
 	pos_next.rdwr(file);
 
@@ -3528,11 +3524,10 @@ route_t::route_result_t road_vehicle_t::calc_route(koord3d start, koord3d ziel, 
 			target_halt->unreserve_position(welt->lookup( cnv->get_route()->at( cnv->get_route()->get_count()-length-1) ), cnv->self );
 		}
 	}
-	target_halt = halthandle_t();	// no block reserved
+	target_halt = halthandle_t(); // no block reserved
 	const uint32 routing_weight = cnv != NULL ? cnv->get_highest_axle_load() : ((get_sum_weight() + 499) / 1000);
 	route_t::route_result_t r = route->calc_route(welt, start, ziel, this, max_speed, routing_weight, is_tall, cnv->get_tile_length(), SINT64_MAX_VALUE, cnv->get_weight_summary().weight / 1000 );
-	if(  r == route_t::valid_route_halt_too_short  )
-	{
+	if(  r == route_t::valid_route_halt_too_short  ) {
 		cbuffer_t buf;
 		buf.printf( translator::translate("Vehicle %s cannot choose because stop too short!"), cnv->get_name());
 		welt->get_message()->add_message( (const char *)buf, ziel.get_2d(), message_t::traffic_jams, PLAYER_FLAG | cnv->get_owner()->get_player_nr(), cnv->front()->get_base_image() );
@@ -4554,7 +4549,7 @@ void road_vehicle_t::set_convoi(convoi_t *c)
 {
 	DBG_MESSAGE("road_vehicle_t::set_convoi()","%p",c);
 	if(c!=NULL) {
-		bool target=(bool)cnv;	// only during loadtype: cnv==1 indicates, that the convoi did reserve a stop
+		bool target=(bool)cnv; // only during loadtype: cnv==1 indicates, that the convoi did reserve a stop
 		vehicle_t::set_convoi(c);
 		if(target  &&  leading  &&  c->get_route()->empty()) {
 			// reinitialize the target halt
@@ -4768,9 +4763,8 @@ route_t::route_result_t rail_vehicle_t::calc_route(koord3d start, koord3d ziel, 
 			block_reserver(cnv->get_route(), cnv->back()->get_route_index(), dummy, dummy, target_halt.is_bound() ? 100000 : 1, false, true);
 		}
 	}
-
-	cnv->set_next_reservation_index( 0 );	// nothing to reserve
-	target_halt = halthandle_t();	// no block reserved
+	cnv->set_next_reservation_index( 0 ); // nothing to reserve
+	target_halt = halthandle_t(); // no block reserved
 	// use length > 8888 tiles to advance to the end of terminus stations
 	const sint16 tile_length = (cnv->get_schedule()->get_current_entry().reverse == 1 ? 8888 : 0) + cnv->get_true_tile_length();
 	route_t::route_result_t r = route->calc_route(welt, start, ziel, this, max_speed, cnv != NULL ? cnv->get_highest_axle_load() : ((get_sum_weight() + 499) / 1000), is_tall, tile_length, SINT64_MAX_VALUE, cnv ? cnv->get_weight_summary().weight / 1000 : get_total_weight());
@@ -8244,7 +8238,7 @@ bool water_vehicle_t::check_next_tile(const grund_t *bd) const
 		}
 	}
 	// channel can have more stuff to check
-#if ENABLE_WATERWAY_SIGNS
+#ifdef ENABLE_WATERWAY_SIGNS
 	if(  w  &&  w->has_sign()  ) {
 		const roadsign_t* rs = bd->find<roadsign_t>();
 		if(  rs->get_desc()->get_wtyp()==get_waytype()  ) {
@@ -8590,7 +8584,7 @@ bool air_vehicle_t::find_route_to_stop_position()
 	grund_t const* const last = welt->lookup(rt->back());
 	target_halt = last ? last->get_halt() : halthandle_t();
 	if(!target_halt.is_bound()) {
-		return true;	// no halt to search
+		return true; // no halt to search
 	}
 
 	// then: check if the search point is still on a runway (otherwise just proceed)
@@ -8598,7 +8592,7 @@ bool air_vehicle_t::find_route_to_stop_position()
 	if(target==NULL  ||  !target->hat_weg(air_wt)) {
 		target_halt = halthandle_t();
 		DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","no runway found at (%s)",rt->at(search_for_stop).get_str());
-		return true;	// no runway any more ...
+		return true; // no runway any more ...
 	}
 
 	// is our target occupied?
@@ -8661,7 +8655,7 @@ route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, s
 			block_reserver( touchdown - landing_distance, search_for_stop+1, false );
 		}
 	}
-	target_halt = halthandle_t();	// no block reserved
+	target_halt = halthandle_t(); // no block reserved
 
 	takeoff = touchdown = search_for_stop = INVALID_INDEX;
 	const route_t::route_result_t result = calc_route_internal(welt, start, ziel, max_speed, cnv->get_highest_axle_load(), state, flying_height, target_height, runway_too_short, airport_too_close_to_the_edge, takeoff, touchdown, search_for_stop, *route);
@@ -8756,10 +8750,10 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 		// second: find start runway end
 		state = taxiing;
 #ifdef USE_DIFFERENT_WIND
-		approach_dir = get_approach_ribi( ziel, start );	// reverse
+		approach_dir = get_approach_ribi( ziel, start ); // reverse
 		//DBG_MESSAGE("air_vehicle_t::calc_route()","search runway start near %i,%i,%i with corner in %x",start.x,start.y,start.z, approach_dir);
 #else
-		approach_dir = ribi_t::northeast;	// reverse
+		approach_dir = ribi_t::northeast; // reverse
 		DBG_MESSAGE("air_vehicle_t::calc_route()","search runway start near (%s)",start.get_str());
 #endif
 		if (!route.find_route(welt, start, this, max_speed, ribi_t::all, weight, cnv->get_tile_length(), cnv->get_weight_summary().weight / 1000, welt->get_settings().get_max_route_steps(), cnv->has_tall_vehicles()))
@@ -8784,12 +8778,14 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 	}
 
 	// second: find target runway end
-	state = taxiing_to_halt;	// only used for search
+
+	state = taxiing_to_halt; // only used for search
+
 #ifdef USE_DIFFERENT_WIND
-	approach_dir = get_approach_ribi( start, ziel );	// reverse
+	approach_dir = get_approach_ribi( start, ziel ); // reverse
 	//DBG_MESSAGE("air_vehicle_t::calc_route()","search runway target near %i,%i,%i in corners %x",ziel.x,ziel.y,ziel.z,approach_dir);
 #else
-	approach_dir = ribi_t::southwest;	// reverse
+	approach_dir = ribi_t::southwest; // reverse
 	//DBG_MESSAGE("air_vehicle_t::calc_route()","search runway target near %i,%i,%i in corners %x",ziel.x,ziel.y,ziel.z);
 #endif
 	route_t end_route;
@@ -9510,7 +9506,7 @@ void air_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 // well lots of code to make sure, we have at least two different directions for the runway search
 uint8 air_vehicle_t::get_approach_ribi( koord3d start, koord3d ziel )
 {
-	uint8 dir = ribi_type(ziel-start);	// reverse
+	uint8 dir = ribi_type(ziel-start); // reverse
 	// make sure, there are at last two directions to choose, or you might en up with not route
 	if(ribi_t::is_single(dir)) {
 		dir |= (dir<<1);
