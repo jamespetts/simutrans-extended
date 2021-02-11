@@ -2110,8 +2110,6 @@ zooming out
 %s  мин. ожидание)
  via %s
  через %s
-"%s has built a new %s %s %s."
-%s построил новую %s %s %s.
 %s\nCost:     %d$\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d (%d)%s %s\nWeight: %dt\nTop speed: %dkm/h\n
 %s\nСтоимость: %d ₵\nОбсл.: %1.2f ₵/км, %1.2f ₵/мес\nВместимость: %d (%d) %s %s\nМасса: %d т\nМакс. скорость: %d км/ч\n
 %s\nCost:     %d$\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d%s %s\nWeight: %dt\nTop speed: %dkm/h\n

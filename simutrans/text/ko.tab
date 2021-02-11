@@ -1765,8 +1765,6 @@ Zu nah am Kartenrand
 ; 최고속도로 부터 멈춤 까지의 거리 %i - %i 미터
 ; brakes from max. speed in %i m
 ; 최고속도로 부터 멈춤 까지의 거리 %i 미터
-"%s has built a new %s %s %s."
-"%s ,지음: %s %s %s."
 (Max. comfortable journey time: 
 (편안하게 이동 할수있는 시간:
 [R]

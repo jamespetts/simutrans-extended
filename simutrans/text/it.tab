@@ -2135,8 +2135,6 @@ via %s
 ; spazio frenata dalla massima velocitE%i - %i m
 ; brakes from max. speed in %i m
 ; spazio frenata dalla massima velocitE%i m
-"%s has built a new %s %s %s."
-%s ha costruito un nuovo %s %s %s.
 (catering_levels: %s)
 (livello catering: %s)
 (Max. comfortable journey time: 

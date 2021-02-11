@@ -3080,7 +3080,7 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 		}
 		// check for obsolete
 		if(!has_obsolete  &&  welt->use_timeline()) {
-			has_obsolete = info->is_obsolete( welt->get_timeline_year_month(), welt );
+			has_obsolete = info->is_obsolete( welt->get_timeline_year_month() );
 		}
 		player_t::add_maintenance( get_owner(), info->get_maintenance(), info->get_waytype() );
 	}
@@ -7832,7 +7832,7 @@ bool convoi_t::calc_obsolescence(uint16 timeline_year_month)
 {
 	// convoi has obsolete vehicles?
 	for(int j = get_vehicle_count(); --j >= 0; ) {
-		if (vehicle[j]->get_desc()->is_obsolete(timeline_year_month, welt)) {
+		if (vehicle[j]->get_desc()->is_obsolete(timeline_year_month)) {
 			return true;
 		}
 	}
@@ -8872,7 +8872,7 @@ bool convoi_t::all_vehicles_are_buildable() const
 		{
 			return false;
 		}
-		if(!welt->get_settings().get_allow_buying_obsolete_vehicles() && get_vehicle(i)->get_desc()->is_obsolete(welt->get_timeline_year_month(), welt))
+		if(!welt->get_settings().get_allow_buying_obsolete_vehicles() && get_vehicle(i)->get_desc()->is_obsolete(welt->get_timeline_year_month()))
 		{
 			return false;
 		}

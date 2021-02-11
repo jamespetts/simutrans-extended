@@ -1186,8 +1186,8 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 			if ((depot_frame && depot_frame->get_depot()->is_contained(info)) ||
 				((way_electrified || info->get_engine_type() != vehicle_desc_t::electric) &&
 				(((!info->is_future(month_now)) && (!info->is_retired(month_now))) ||
-					(info->is_retired(month_now) &&	(((show_retired_vehicles && info->is_obsolete(month_now, welt)) ||
-					(show_outdated_vehicles && (!info->is_obsolete(month_now, welt)))))))))
+					(info->is_retired(month_now) &&	(((show_retired_vehicles && info->is_obsolete(month_now)) ||
+					(show_outdated_vehicles && (!info->is_obsolete(month_now)))))))))
 			{
 				// check if allowed
 				bool append = true;
@@ -1612,14 +1612,14 @@ void gui_convoy_assembler_t::init_convoy_color_bars(vector_tpl<const vehicle_des
 	uint32 i=0;
 	// change green into blue for retired vehicles
 	PIXVAL base_col = (!vehs->get_element(i)->is_future(month_now) && !vehs->get_element(i)->is_retired(month_now)) ? COL_SAFETY :
-		(vehicles[i]->is_obsolete(month_now, welt)) ? COL_OBSOLETE : COL_OUT_OF_PRODUCTION;
+		(vehicles[i]->is_obsolete(month_now)) ? COL_OBSOLETE : COL_OUT_OF_PRODUCTION;
 	uint32 end = vehs->get_count();
 	set_vehicle_bar_shape(convoi_pics[0], vehs->get_element(0));
 	convoi_pics[0]->lcolor = vehs->get_element(0)->can_follow(NULL) ? base_col : COL_CAUTION;
 	for (i = 1; i < end; i++)
 	{
 		if (vehs->get_element(i)->is_future(month_now) || vehs->get_element(i)->is_retired(month_now)) {
-			if (vehicles[i]->is_obsolete(month_now, welt)) {
+			if (vehicles[i]->is_obsolete(month_now)) {
 				base_col = COL_OBSOLETE;
 			}
 			else {
@@ -1761,7 +1761,7 @@ void gui_convoy_assembler_t::update_data()
 		gui_image_list_t::image_data_t& img  = *i.value;
 
 		PIXVAL ok_color = info->is_future(month_now) || info->is_retired(month_now) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-		if (info->is_obsolete(month_now, welt)) {
+		if (info->is_obsolete(month_now)) {
 			ok_color = COL_OBSOLETE;
 		}
 
@@ -1770,7 +1770,7 @@ void gui_convoy_assembler_t::update_data()
 		img.rcolor = ok_color;
 		set_vehicle_bar_shape(&img, info);
 		if (info->get_upgrades_count()) {
-			img.has_upgrade = info->has_available_upgrade(month_now, welt->get_settings().get_show_future_vehicle_info());
+			img.has_upgrade = info->has_available_upgrade(month_now);
 		}
 
 		/*
@@ -2328,7 +2328,7 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 					txt_convoi_number.clear();
 					txt_convoi_number.printf("%.2s", cnv->get_car_numbering(sel_index) < 0 ? translator::translate("LOCO_SYM") : "");
 					txt_convoi_number.printf("%d", abs(cnv->get_car_numbering(sel_index)));
-					lb_convoi_number.set_color(veh_type->has_available_upgrade(welt->get_timeline_year_month(), welt->get_settings().get_show_future_vehicle_info()) == 2? COL_UPGRADEABLE : COL_WHITE);
+					lb_convoi_number.set_color(veh_type->has_available_upgrade(welt->get_timeline_year_month()) == 2? COL_UPGRADEABLE : COL_WHITE);
 					lb_convoi_number.set_pos(scr_coord((grid.x - grid_dx)*sel_index + D_MARGIN_LEFT, 4));
 
 

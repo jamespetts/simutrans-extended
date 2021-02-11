@@ -2133,8 +2133,6 @@ Bsuburb
 ; na velocidade máx. freia entre %im e %im
 ; brakes from max. speed in %i m
 ; na velocidade máx. freia em %im
-"%s has built a new %s %s %s."
-"%s construiu uma nova %s %s %s."
 (Max. comfortable journey time: 
 (Tempo máx. para viagem confortável:
 [R]

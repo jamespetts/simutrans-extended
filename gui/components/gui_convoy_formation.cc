@@ -128,7 +128,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 #endif
 
 		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-		if (v->get_desc()->is_obsolete(month_now, welt)) {
+		if (v->get_desc()->is_obsolete(month_now)) {
 			col_val = COL_OBSOLETE;
 		}
 		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity(), false);

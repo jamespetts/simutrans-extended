@@ -122,7 +122,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	display_get_base_image_offset(image, &x, &y, &w, &h );
 	display_base_img(image, offset.x - x, offset.y - y, world()->get_active_player_nr(), false, true);
 
-	const uint8 upgradable_state = veh->has_available_upgrade(month, world()->get_settings().get_show_future_vehicle_info());
+	const uint8 upgradable_state = veh->has_available_upgrade(month);
 	// upgradable symbol
 	if (upgradable_state && skinverwaltung_t::upgradable) {
 		if (world()->get_settings().get_show_future_vehicle_info() || (!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) != 2)) {
@@ -139,7 +139,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	else if (veh->is_available_only_as_upgrade()) {
 		name_colval = COL_UPGRADEABLE;
 	}
-	else if (veh->is_obsolete(month, world())) {
+	else if (veh->is_obsolete(month)) {
 		name_colval = COL_OBSOLETE;
 	}
 	else if (veh->is_retired(month)) {
@@ -486,10 +486,10 @@ void vehiclelist_frame_t::fill_list()
 				if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
 					continue;
 				}
-				if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month, world()))) {
+				if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month))) {
 					continue;
 				}
-				if (!bt_obsolete.pressed && veh->is_obsolete(month, world())) {
+				if (!bt_obsolete.pressed && veh->is_obsolete(month)) {
 					continue;
 				}
 				if (!bt_future.pressed && veh->is_future(month)) {
@@ -533,10 +533,10 @@ void vehiclelist_frame_t::fill_list()
 			if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
 				continue;
 			}
-			if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month, world()))) {
+			if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month))) {
 				continue;
 			}
-			if (!bt_obsolete.pressed && veh->is_obsolete(month, world())) {
+			if (!bt_obsolete.pressed && veh->is_obsolete(month)) {
 				continue;
 			}
 			if (!bt_future.pressed && veh->is_future(month)) {
