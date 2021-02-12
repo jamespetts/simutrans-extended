@@ -66,6 +66,23 @@ uint32 vehicle_desc_t::get_adjusted_monthly_fixed_cost() const
 	return world()->calc_adjusted_monthly_figure(calc_running_cost(get_fixed_cost()));
 }
 
+uint32 vehicle_desc_t::get_max_loading_weight() const{
+	uint32 max_loading_weight = weight;
+	if (get_total_capacity()) {
+		uint16 max_freight_weight = get_freight_type()->get_weight_per_unit();
+		for (uint8 i = 0; i < goods_manager_t::get_count(); i++) {
+			const goods_desc_t &ware = *goods_manager_t::get_info(i);
+			if (ware.get_catg_index() == get_freight_type()->get_catg_index() && max_freight_weight < ware.get_weight_per_unit()) {
+				max_freight_weight = ware.get_weight_per_unit();
+			}
+		}
+		max_loading_weight += get_total_capacity() * max_freight_weight;
+	}
+	if (overcrowded_capacity) {
+		max_loading_weight += overcrowded_capacity * goods_manager_t::passengers->get_weight_per_unit();
+	}
+	return max_loading_weight;
+}
 /**
  * Get the ratio of power to force from either given power and force or according to given waytype.
  * Will never return 0, promised.
