@@ -145,9 +145,14 @@ const char *network_gameinfo(const char *cp, gameinfo_t *gi)
 			// now into gameinfo
 			const loadsave_t::file_status_t status = fd.rd_open( filename );
 
-			if(  status != loadsave_t::FILE_STATUS_OK  ) {
-				// some more insets, while things may have failed
-				err = (status == loadsave_t::FILE_STATUS_ERR_FUTURE_VERSION) ? "Server version too new" : "Server busy";
+			if(  status == loadsave_t::FILE_STATUS_ERR_FUTURE_VERSION  ) {
+				err = "Server version too new";
+			}
+			else if(  status == loadsave_t::FILE_STATUS_ERR_NO_VERSION  ) {
+				err = "Unknown server version";
+			}
+			else if(  status != loadsave_t::FILE_STATUS_OK  ) {
+				err = "Server busy";
 			}
 			else if (fd.is_version_ex_less(EX_VERSION_MAJOR, EX_SAVE_MINOR)) {
 				err = "Server version too old";
