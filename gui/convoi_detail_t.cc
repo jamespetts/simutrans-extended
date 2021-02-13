@@ -1347,7 +1347,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 
 				uint32 percentage = 0;
 				for (uint16 i = 0; i < vehicle_count; i++) {
-					percentage += cnv->get_vehicle(i)->get_desc()->calc_running_cost(welt, 10000);
+					percentage += cnv->get_vehicle(i)->get_desc()->calc_running_cost(10000);
 				}
 				percentage = percentage / (vehicle_count * 100) - 100;
 				if (percentage > 0)
@@ -1531,7 +1531,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			extra_y += LINESPACE;
 
 			// current average obsolescence increase percentage
-			uint32 percentage = v->get_desc()->calc_running_cost(welt, 100) - 100;
+			uint32 percentage = v->get_desc()->calc_running_cost(100) - 100;
 			if (percentage > 0)
 			{
 				buf.clear();
@@ -1549,7 +1549,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 
 			// maintenance
 			buf.clear();
-			buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), v->get_desc()->get_running_cost() / 100.0, v->get_desc()->get_adjusted_monthly_fixed_cost(welt) / 100.0);
+			buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), v->get_desc()->get_running_cost() / 100.0, v->get_desc()->get_adjusted_monthly_fixed_cost() / 100.0);
 			display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, MONEY_PLUS, true);
 			extra_y += LINESPACE;
 
@@ -1619,7 +1619,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 						buf.clear();
 						money_to_string(number, desc->get_upgrade_price() / 100);
 						buf.printf("%s %s,  ", translator::translate("Upgrade price:"), number);
-						buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), desc->get_running_cost() / 100.0, desc->get_adjusted_monthly_fixed_cost(welt) / 100.0);
+						buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), desc->get_running_cost() / 100.0, desc->get_adjusted_monthly_fixed_cost() / 100.0);
 						display_proportional_clip_rgb(pos.x + extra_w + offset.x + D_MARGIN_LEFT + grid_width, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 						extra_y += LINESPACE + 2;
 					}

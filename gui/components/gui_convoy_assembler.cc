@@ -829,7 +829,7 @@ void gui_convoy_assembler_t::draw(scr_coord parent_pos)
 			total_power += desc->get_power();
 			total_force += desc->get_tractive_effort();
 			maint_per_km += desc->get_running_cost();
-			maint_per_month += desc->get_adjusted_monthly_fixed_cost(welt);
+			maint_per_month += desc->get_adjusted_monthly_fixed_cost();
 			way_wear_factor += (double)desc->get_way_wear_factor();
 			highest_axle_load = max(highest_axle_load, desc->get_axle_load());
 			convoihandle_t cnv;
@@ -2403,7 +2403,7 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 		}
 		buf.printf(translator::translate("Cost: %8s %s"), tmp, resale_entry);
 		buf.append("\n");
-		buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), veh_type->get_running_cost() / 100.0, veh_type->get_adjusted_monthly_fixed_cost(welt) / 100.0);
+		buf.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), veh_type->get_running_cost() / 100.0, veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
 		buf.append("\n");
 
 		// Physics information:

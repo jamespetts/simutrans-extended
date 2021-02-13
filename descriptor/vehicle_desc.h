@@ -644,7 +644,7 @@ public:
 	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
 	uint32 get_fixed_cost() const { return fixed_cost; }
 	uint32 get_fixed_cost(class karte_t *welt) const;  //Overloaded method - includes increase for obsolescence.
-	uint32 get_adjusted_monthly_fixed_cost(class karte_t *welt) const; // includes increase for obsolescence and adjustment for monthly figures
+	uint32 get_adjusted_monthly_fixed_cost() const; // includes increase for obsolescence and adjustment for monthly figures
 	sint16 get_sound() const { return sound; }
 	bool is_bidirectional() const { return bidirectional; }
 	uint8 get_comfort(uint32 g_class = 0) const { return  classes == 0 ? 0: g_class >= classes ? comfort[0] : comfort[g_class]; }
@@ -692,7 +692,7 @@ public:
 	}
 
 	// BG, 15.06.2009: the formula for obsolescence formerly implemented twice in get_running_cost() and get_fixed_cost()
-	uint32 calc_running_cost(const class karte_t *welt, uint32 base_cost) const;
+	uint32 calc_running_cost(uint32 base_cost) const;
 
 	float32e8_t get_power_force_ratio() const;
 	uint32 calc_max_force(const uint32 power) const {

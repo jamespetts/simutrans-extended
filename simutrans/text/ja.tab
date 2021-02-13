@@ -487,8 +487,6 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 1編成
 1 Einzelfahrzeug im Depot
 1台/両が留置されています。
-100 km/h = %i tiles/month
-100 km/h = %i タイル/月
 1LIGHT_CHOOSE
 明るさ:
 1WORLD_CHOOSE
@@ -2795,8 +2793,6 @@ Last renewed
 最終更新年月
 latest_3
 過去3回の実測値
-left
-所要
 line_class_manager
 路線のクラス割当て
 line_has_obsolete_vehicles
@@ -4085,6 +4081,8 @@ Last overhauled:
 最終全検：
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+100 km/h = %i tiles/month
+100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
 旅客 %d %c, %d %c, %d 経路なし\n\n定員/容量: %i\n
 Passengers %d %c, %d %c, %d no route
@@ -4141,3 +4139,5 @@ Power: %4d kW\n
 #今年の移動成功率(通勤):
 #Passenger success rate this year (non-local):
 #今年の移動成功率(旅行):
+#left
+#所要

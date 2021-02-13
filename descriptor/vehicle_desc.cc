@@ -9,24 +9,24 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 
-uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) const
+uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
 	// No cost or no time line --> no obsolescence cost increase.
-	if (base_cost == 0 || !welt->use_timeline())
+	if (base_cost == 0 || !world()->use_timeline())
 	{
 		return base_cost;
 	}
 
 	// I am not obsolete --> no obsolescence cost increase.
 	const uint16 months_after_retire = get_obsolete_year_month() - retire_date;
-	sint32 months_of_obsolescence = welt->get_current_month() - (get_retire_year_month() + months_after_retire);
+	sint32 months_of_obsolescence = world()->get_current_month() - (get_retire_year_month() + months_after_retire);
 	if (months_of_obsolescence <= 0)
 	{
 		return base_cost;
 	}
 
 	// I am obsolete --> obsolescence cost increase.
-	uint16 running_cost_increase_percent = increase_maintenance_by_percent ? increase_maintenance_by_percent :welt->get_settings().get_obsolete_running_cost_increase_percent();
+	uint16 running_cost_increase_percent = increase_maintenance_by_percent ? increase_maintenance_by_percent : world()->get_settings().get_obsolete_running_cost_increase_percent();
 	uint32 max_cost = (base_cost * running_cost_increase_percent) / 100;
 	if (max_cost == base_cost)
 	{
@@ -34,7 +34,7 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 	}
 
 	// Current month is beyond the months_of_increasing_costs --> maximum increased obsolescence cost.
-	uint16 phase_years = years_before_maintenance_max_reached ? years_before_maintenance_max_reached :welt->get_settings().get_obsolete_running_cost_increase_phase_years();
+	uint16 phase_years = years_before_maintenance_max_reached ? years_before_maintenance_max_reached : world()->get_settings().get_obsolete_running_cost_increase_phase_years();
 	sint32 months_of_increasing_costs = phase_years * 12;
 	if (months_of_obsolescence >= months_of_increasing_costs)
 	{
@@ -53,17 +53,17 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 // @author: jamespetts
 uint16 vehicle_desc_t::get_running_cost(const karte_t* welt) const
 {
-	return calc_running_cost(welt, get_running_cost());
+	return calc_running_cost(get_running_cost());
 }
 
 uint32 vehicle_desc_t::get_fixed_cost(karte_t *welt) const
 {
-	return calc_running_cost(welt, get_fixed_cost());
+	return calc_running_cost(get_fixed_cost());
 }
 
-uint32 vehicle_desc_t::get_adjusted_monthly_fixed_cost(karte_t *welt) const
+uint32 vehicle_desc_t::get_adjusted_monthly_fixed_cost() const
 {
-	return welt->calc_adjusted_monthly_figure(calc_running_cost(welt, get_fixed_cost()));
+	return world()->calc_adjusted_monthly_figure(calc_running_cost(get_fixed_cost()));
 }
 
 /**
