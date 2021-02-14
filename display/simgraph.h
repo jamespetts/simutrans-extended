@@ -281,12 +281,12 @@ void display_cylinderbar_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coo
 
 void display_colorbox_with_tooltip(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty, const char *text=NULL);
 
-void display_veh_form_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, PIXVAL color, bool dirty, uint8 basic_coupling_constraint, uint8 interactivity, bool is_rightside CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
-
 enum {
 	BIDIRECTIONAL = 1,
 	HAS_POWER = 2
 };
+
+void display_veh_form_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty, bool is_rightside=false, uint8 basic_coupling_constraint=1, uint8 interactivity=BIDIRECTIONAL|HAS_POWER CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
 
 void display_vline_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val h, PIXVAL color, bool dirty);
 

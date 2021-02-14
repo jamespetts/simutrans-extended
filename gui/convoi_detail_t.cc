@@ -1101,8 +1101,8 @@ void gui_convoy_payload_info_t::draw(scr_coord offset)
 			if (v->get_desc()->is_obsolete(month_now)) {
 				veh_bar_color = COL_OBSOLETE;
 			}
-			display_veh_form_wh_clip_rgb(pos.x + offset.x+1, pos.y + offset.y + total_height + extra_y + LINESPACE, (grid_width-6)/2, veh_bar_color, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity(), false);
-			display_veh_form_wh_clip_rgb(pos.x + offset.x + (grid_width-6)/2 + 1, pos.y + offset.y + total_height + extra_y + LINESPACE, (grid_width-6)/2, veh_bar_color, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity(), true);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x+1,                  pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
+			display_veh_form_wh_clip_rgb(pos.x+offset.x+(grid_width-6)/2+1, pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, true,  v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
 
 			// goods category symbol
 			if (v->get_desc()->get_total_capacity() || v->get_desc()->get_overcrowded_capacity()) {
@@ -1589,8 +1589,8 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 						else if (desc->is_obsolete(month_now)) {
 							upgrade_state_color = COL_OBSOLETE;
 						}
-						display_veh_form_wh_clip_rgb(pos.x + extra_w + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height + extra_y + 1, VEHICLE_BAR_HEIGHT * 2, upgrade_state_color, true, desc->get_basic_constraint_prev(), desc->get_interactivity(), false);
-						display_veh_form_wh_clip_rgb(pos.x + extra_w + offset.x + D_MARGIN_LEFT + VEHICLE_BAR_HEIGHT * 2 - 1, pos.y + offset.y + total_height + extra_y + 1, VEHICLE_BAR_HEIGHT * 2, upgrade_state_color, true, desc->get_basic_constraint_next(), desc->get_interactivity(), true);
+						display_veh_form_wh_clip_rgb(pos.x+extra_w+offset.x+D_MARGIN_LEFT,                        pos.y+offset.y+total_height+extra_y+1, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, upgrade_state_color, true, false, desc->get_basic_constraint_prev(), desc->get_interactivity());
+						display_veh_form_wh_clip_rgb(pos.x+extra_w+offset.x+D_MARGIN_LEFT+VEHICLE_BAR_HEIGHT*2-1, pos.y+offset.y+total_height+extra_y+1, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, upgrade_state_color, true, true,  desc->get_basic_constraint_next(), desc->get_interactivity());
 
 						buf.clear();
 						buf.append(translator::translate(v->get_desc()->get_upgrades(i)->get_name()));

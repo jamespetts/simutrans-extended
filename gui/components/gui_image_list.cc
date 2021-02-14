@@ -94,10 +94,10 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 
 			// display mark
 			if(idata.lcolor!=EMPTY_IMAGE_BAR) {
-				display_veh_form_wh_clip_rgb(xpos + 1, ypos + grid.y - VEHICLE_BAR_HEIGHT - 1, grid.x/2 - 1, idata.lcolor, true, idata.basic_coupling_constraint_prev, idata.interactivity, false);
+				display_veh_form_wh_clip_rgb(xpos + 1,      ypos + grid.y - VEHICLE_BAR_HEIGHT-1, grid.x/2 - 1,      VEHICLE_BAR_HEIGHT, idata.lcolor, true, false, idata.basic_coupling_constraint_prev, idata.interactivity);
 			}
 			if(idata.rcolor!=EMPTY_IMAGE_BAR) {
-				display_veh_form_wh_clip_rgb(xpos + grid.x/2, ypos + grid.y - VEHICLE_BAR_HEIGHT - 1, grid.x - grid.x/2 - 1, idata.rcolor, true, idata.basic_coupling_constraint_next, idata.interactivity, true);
+				display_veh_form_wh_clip_rgb(xpos+grid.x/2, ypos + grid.y - VEHICLE_BAR_HEIGHT-1, grid.x-grid.x/2-1, VEHICLE_BAR_HEIGHT, idata.rcolor, true, true,  idata.basic_coupling_constraint_next, idata.interactivity);
 			}
 			if (sel_index-- == 0) {
 				display_ddd_box_clip_rgb(xpos, ypos, grid.x, grid.y, color_idx_to_rgb(MN_GREY4), color_idx_to_rgb(MN_GREY0));

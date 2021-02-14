@@ -2795,8 +2795,8 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 						else if (desc->is_obsolete(month_now, welt)) {
 							upgrade_state_color = COL_OBSOLETE;
 						}
-						display_veh_form_wh_clip_rgb(pos.x + 335, top + 1, VEHICLE_BAR_HEIGHT * 2, upgrade_state_color, true, desc->get_basic_constraint_prev(), desc->get_interactivity(), false);
-						display_veh_form_wh_clip_rgb(pos.x + 335 + VEHICLE_BAR_HEIGHT * 2 - 1, top + 1, VEHICLE_BAR_HEIGHT * 2, upgrade_state_color, true, desc->get_basic_constraint_next(), desc->get_interactivity(), true);
+						display_veh_form_wh_clip_rgb(pos.x + 335, top + 1, VEHICLE_BAR_HEIGHT * 2, VEHICLE_BAR_HEIGHT, upgrade_state_color, true, false, desc->get_basic_constraint_prev(), desc->get_interactivity());
+						display_veh_form_wh_clip_rgb(pos.x + 335 + VEHICLE_BAR_HEIGHT * 2 - 1, top + 1, VEHICLE_BAR_HEIGHT * 2, VEHICLE_BAR_HEIGHT, upgrade_state_color, true, true, desc->get_basic_constraint_next(), desc->get_interactivity());
 
 						buf.clear();
 						buf.append(translator::translate(veh_type->get_upgrades(i)->get_name()));
@@ -3140,34 +3140,30 @@ void gui_convoy_assembler_t::draw_vehicle_bar_help(scr_coord offset)
 	display_proportional_clip_rgb(left, top, translator::translate("Vehicle bar shape legend:"), ALIGN_LEFT, SYSCOL_TEXT, true);
 	top += LINESPACE;
 	left += D_MARGIN_LEFT;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_head, 0, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 0, true);
+	const KOORD_VAL padding_y = D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT,LINESPACE);
+	display_veh_form_wh_clip_rgb(left,                      top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, vehicle_desc_t::can_be_head, 0);
+	display_veh_form_wh_clip_rgb(left+VEHICLE_BAR_HEIGHT*2, top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, true,  vehicle_desc_t::can_be_tail, 0);
 	padding = display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_one_direction"), ALIGN_LEFT, CITY_KI, true);
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_head, 1, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, (vehicle_desc_t::can_be_head + vehicle_desc_t::can_be_tail), 1, true);
+	display_veh_form_wh_clip_rgb(left,                      top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, vehicle_desc_t::can_be_head, 1);
+	display_veh_form_wh_clip_rgb(left+VEHICLE_BAR_HEIGHT*2, top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, true, (vehicle_desc_t::can_be_head + vehicle_desc_t::can_be_tail), 1);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_cab_head"), ALIGN_LEFT, CITY_KI, true));
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::can_be_tail, 1, true);
+	display_veh_form_wh_clip_rgb(left,                      top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, vehicle_desc_t::can_be_tail, 1);
+	display_veh_form_wh_clip_rgb(left+VEHICLE_BAR_HEIGHT*2, top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, true,  vehicle_desc_t::can_be_tail, 1);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_can_be_at_rear"), ALIGN_LEFT, CITY_KI, true));
 
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, 0, 0, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, 0, 0, true);
+	display_veh_form_wh_clip_rgb(left,                      top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, 0, 0);
+	display_veh_form_wh_clip_rgb(left+VEHICLE_BAR_HEIGHT*2, top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, true,  0, 0);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_intermediate"), ALIGN_LEFT, CITY_KI, true));
 
 	/*
 	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT * 2, COL_SAFETY, true, vehicle_desc_t::unknown_constraint, 0, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT * 2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT * 2, COL_SAFETY, true, vehicle_desc_t::unknown_constraint, 0, true);
-	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT * 4 + 3, top, translator::translate("helptxt_unknown_constraint"), ALIGN_LEFT, CITY_KI, true));
-
-	top += LINESPACE;
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::fixed_coupling_prev, 0, false, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, vehicle_desc_t::fixed_coupling_next, 0, true, false);
+	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, vehicle_desc_t::fixed_coupling_prev, 0, false);
+	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2, COL_SAFETY, true, true, vehicle_desc_t::fixed_coupling_next, 0, false);
 	padding = max(padding, display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_fixed_outside_depot"), ALIGN_LEFT, CITY_KI, true));
 	*/
 
@@ -3175,11 +3171,11 @@ void gui_convoy_assembler_t::draw_vehicle_bar_help(scr_coord offset)
 	top = offset.y + D_V_SPACE + grid.y + LINESPACE;
 	left += padding + VEHICLE_BAR_HEIGHT * 4 + D_H_SPACE + D_MARGIN_LEFT;
 
-	display_fillbox_wh_clip_rgb(left+1, top+ FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2 - 2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true);
+	display_fillbox_wh_clip_rgb(left+1, top+padding_y, VEHICLE_BAR_HEIGHT*2 - 2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true);
 	display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT * 2 + 3, top, translator::translate("helptxt_powered_vehicle"), ALIGN_LEFT, CITY_KI, true);
 
 	top += LINESPACE;
-	display_fillbox_wh_clip_rgb(left+1, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2 - 2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true);
+	display_fillbox_wh_clip_rgb(left+1, top+padding_y, VEHICLE_BAR_HEIGHT*2 - 2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true);
 	display_blend_wh_rgb(left+3, top + FIXED_SYMBOL_YOFF + 1, VEHICLE_BAR_HEIGHT*2 - 6, VEHICLE_BAR_HEIGHT - 2, color_idx_to_rgb(COL_WHITE), 30);
 	display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*2 + 3, top, translator::translate("helptxt_unpowered_vehicle"), ALIGN_LEFT, CITY_KI, true);
 
@@ -3197,13 +3193,4 @@ void gui_convoy_assembler_t::draw_vehicle_bar_help(scr_coord offset)
 			display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT * 2 + 3, top, translator::translate("Upgrade will be available in the near future"), ALIGN_LEFT, CITY_KI, true);
 		}
 	}
-
-	/*
-	top += LINESPACE*3;
-
-	display_veh_form_wh_clip_rgb(left, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2 - 1, COL_SAFETY, true, (vehicle_desc_t::permanent_coupling_next + vehicle_desc_t::fixed_coupling_next), 0, true, false);
-	display_veh_form_wh_clip_rgb(left + VEHICLE_BAR_HEIGHT*2 + 1, top + FIXED_SYMBOL_YOFF, VEHICLE_BAR_HEIGHT*2 - 1, COL_SAFETY, true, (vehicle_desc_t::permanent_coupling_prev + vehicle_desc_t::fixed_coupling_prev), 0, false, false);
-	display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_permanent_couple"), ALIGN_LEFT, CITY_KI, true);
-	*/
-
 }
