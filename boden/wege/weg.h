@@ -574,6 +574,8 @@ public:
 	runway_directions get_runway_directions() const;
 	uint32 get_runway_length(bool is_36_18) const;
 
+	void step_travel_times();
+
 	//void increment_traffic_stopped_counter() { statistics[0][WAY_STAT_WAITING] ++; }
 	inline void update_travel_times(uint32 actual, uint32 ideal)
 	{

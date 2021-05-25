@@ -6142,6 +6142,9 @@ void karte_t::refresh_private_car_routes() {
 	for(auto & city : stadt) {
 		cities_awaiting_private_car_route_check.insert(city);
 	}
+	for(auto & w : weg_t::get_alle_wege()){
+		w->step_travel_times();
+	}
 }
 
 void karte_t::clear_private_car_routes() {
