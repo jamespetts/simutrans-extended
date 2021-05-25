@@ -1666,7 +1666,7 @@ void weg_t::step_travel_times(){
 	for (int type=0; type<MAX_WAY_TRAVEL_TIMES; type++) {
 		for (int month=MAX_WAY_STAT_MONTHS-1; month>0; month--) {
 			travel_times[month][type] /= 2;
-			travel_times[month][type] = travel_times[month-1][type] / 2;
+			travel_times[month][type] += travel_times[month-1][type] / 2;
 		}
 		travel_times[0][type] = 0;
 	}
