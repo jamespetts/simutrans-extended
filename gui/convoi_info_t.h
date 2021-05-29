@@ -35,6 +35,25 @@
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
 
 
+class gui_convoy_loading_info_t : public gui_aligned_container_t
+{
+	convoihandle_t cnv;
+
+	uint8 old_vehicle_count = 0;
+	sint32 old_weight = -1;
+	bool old_reversed = false;
+
+	void update_list();
+
+public:
+	gui_convoy_loading_info_t(convoihandle_t cnv);
+
+	void set_convoy(convoihandle_t c) { cnv = c; };
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+
 /**
  * Displays an information window for a convoi
  */
