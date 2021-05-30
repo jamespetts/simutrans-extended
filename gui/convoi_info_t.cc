@@ -92,7 +92,7 @@ static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
 };
 
 
-#define L_CAPACITY_CELL_WIDTH proportional_string_width(" 8888/8888")
+		const scr_coord_val text_width = show_loading ? proportional_string_width(" 18888/18888") : proportional_string_width(" 188888");
 void gui_convoy_loading_info_t::update_list()
 {
 	remove_all();
@@ -104,7 +104,7 @@ void gui_convoy_loading_info_t::update_list()
 
 		const bool overcrowded = cnv->get_overcrowded() ? true : false;
 
-		add_table(3,0);
+		add_table(4+show_loading,0);
 		{
 			for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
 			{
@@ -113,7 +113,7 @@ void gui_convoy_loading_info_t::update_list()
 				}
 				const uint8 g_classes = goods_manager_t::get_classes_catg_index(catg_index);
 
-				bool is_lowest_class = true; // for display catgry symbol
+				bool is_lowest_class = true; // for display catgroy symbol
 				for (uint8 i = 0; i < g_classes; i++) {
 					const goods_desc_t* ware = goods_manager_t::get_info_catg_index(catg_index);
 					const uint16 capacity = cnv->get_unique_fare_capacity(catg_index,i);
@@ -141,14 +141,25 @@ void gui_convoy_loading_info_t::update_list()
 					}
 					lb->update();
 
-					// 3: capacity bar
+					// 3: capacity text
 					const uint16 cargo_sum = cnv->get_total_cargo_by_fare_class(catg_index,i);
-					PIXVAL catg_bar_col = catg_index < goods_manager_t::INDEX_NONE ? ware->get_color() : color_idx_to_rgb(115);
-					if (cargo_sum>capacity) {
-						// overcrowded!
-						catg_bar_col = color_idx_to_rgb(COL_OVERCROWD);
+					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+					if (show_loading) {
+						lb->buf().printf(" %4d/%3d", min(capacity, cargo_sum), capacity);
 					}
-					new_component<gui_data_bar_t>()->init(min(cargo_sum,capacity), capacity, L_CAPACITY_CELL_WIDTH, catg_bar_col, true);
+					else {
+						lb->buf().append(capacity,0);
+					}
+					lb->set_fixed_width(text_width);
+					lb->update();
+
+					// 4: capacity bar
+					if (show_loading) {
+						const PIXVAL catg_bar_col = catg_index < goods_manager_t::INDEX_NONE ? ware->get_color() : color_idx_to_rgb(115);
+						new_component<gui_capacity_bar_t>(scr_size(102, LINESPACE*0.6 + 2), catg_bar_col)->set_value(capacity, cargo_sum);
+					}
+
+					new_component<gui_fill_t>();
 				}
 
 				if (catg_index == goods_manager_t::INDEX_PAS && cnv->get_overcrowded_capacity() > 0) {
@@ -159,7 +170,23 @@ void gui_convoy_loading_info_t::update_list()
 						new_component<gui_label_t>("overcrowded_capacity");
 					}
 					new_component<gui_label_t>("overcrowded_capacity");
-					new_component<gui_data_bar_t>()->init(cnv->get_overcrowded(), cnv->get_overcrowded_capacity(), L_CAPACITY_CELL_WIDTH, color_idx_to_rgb(COL_OVERCROWD), true);
+
+					// 3: capacity text
+					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+					if (show_loading) {
+						lb->buf().printf(" %4d/%3d", cnv->get_overcrowded(), cnv->get_overcrowded_capacity());
+					}
+					else {
+						lb->buf().append(cnv->get_overcrowded_capacity(),0);
+					}
+					lb->set_fixed_width(text_width);
+					lb->update();
+
+					// 4: capacity bar
+					if (show_loading) {
+						new_component<gui_capacity_bar_t>(scr_size(102, LINESPACE*0.6), color_idx_to_rgb(COL_OVERCROWD))->set_value(cnv->get_overcrowded_capacity(), cnv->get_overcrowded());
+					}
+					new_component<gui_fill_t>();
 				}
 			}
 		}
@@ -168,9 +195,10 @@ void gui_convoy_loading_info_t::update_list()
 	set_size(get_size());
 }
 
-gui_convoy_loading_info_t::gui_convoy_loading_info_t(convoihandle_t cnv)
+gui_convoy_loading_info_t::gui_convoy_loading_info_t(convoihandle_t cnv, bool show_loading_info)
 {
 	this->cnv = cnv;
+	show_loading = show_loading_info;
 	set_table_layout(1, 0);
 
 	update_list();
