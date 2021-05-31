@@ -32,6 +32,8 @@
 #include "convoi_detail_t.h"
 
 #include "../obj/roadsign.h"
+#include "components/gui_vehicle_capacitybar.h"
+
 
 #define CHART_HEIGHT (100)
 
@@ -92,125 +94,6 @@ static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
 };
 
 
-void gui_convoy_loading_info_t::update_list()
-{
-	remove_all();
-	if (cnv.is_bound()) {
-		const scr_coord_val text_width = show_loading ? proportional_string_width(" 18888/18888") : proportional_string_width(" 188888");
-		// update factors
-		old_vehicle_count = cnv->get_vehicle_count();
-		old_reversed = cnv->is_reversed();
-		old_weight = cnv->get_weight_summary().weight;
-
-		const bool overcrowded = cnv->get_overcrowded() ? true : false;
-
-		add_table(4+show_loading,0);
-		{
-			for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
-			{
-				if (!cnv->get_goods_catg_index().is_contained(catg_index)) {
-						continue;
-				}
-				const uint8 g_classes = goods_manager_t::get_classes_catg_index(catg_index);
-
-				bool is_lowest_class = true; // for display catgroy symbol
-				for (uint8 i = 0; i < g_classes; i++) {
-					const goods_desc_t* ware = goods_manager_t::get_info_catg_index(catg_index);
-					const uint16 capacity = cnv->get_unique_fare_capacity(catg_index,i);
-					if (!capacity) {
-						continue;
-					}
-					// 1: goods category symbol
-					if (is_lowest_class) {
-						new_component<gui_image_t>(ware->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
-						is_lowest_class = false;
-					}
-					else {
-						new_component<gui_empty_t>();
-					}
-
-					// 2: fare class name / category name
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-					if (g_classes==1) {
-						// no classes => show the category name
-						lb->buf().printf("%s", ware->get_catg_name());
-					}
-					else {
-						// "fare" class name
-						lb->buf().printf("%s", ( goods_manager_t::get_translated_wealth_name(catg_index,i) )); // UI TODO: wealth => fare
-					}
-					lb->update();
-
-					// 3: capacity text
-					const uint16 cargo_sum = cnv->get_total_cargo_by_fare_class(catg_index,i);
-					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-					if (show_loading) {
-						lb->buf().printf(" %4d/%3d", min(capacity, cargo_sum), capacity);
-					}
-					else {
-						lb->buf().append(capacity,0);
-					}
-					lb->set_fixed_width(text_width);
-					lb->update();
-
-					// 4: capacity bar
-					if (show_loading) {
-						PIXVAL catg_bar_col = catg_index < goods_manager_t::INDEX_NONE ? ware->get_color() : color_idx_to_rgb(115);
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6+2)), catg_bar_col)->set_value(capacity, cargo_sum);
-					}
-
-					new_component<gui_fill_t>();
-				}
-
-				if (catg_index == goods_manager_t::INDEX_PAS && cnv->get_overcrowded_capacity() > 0) {
-					if (skinverwaltung_t::pax_evaluation_icons) {
-						new_component<gui_image_t>(skinverwaltung_t::pax_evaluation_icons->get_image_id(1), 0, ALIGN_CENTER_V, true)->set_tooltip(translator::translate("overcrowded_capacity"));
-					}
-					else {
-						new_component<gui_label_t>("overcrowded_capacity");
-					}
-					new_component<gui_label_t>("overcrowded_capacity");
-
-					// 3: capacity text
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-					if (show_loading) {
-						lb->buf().printf(" %4d/%3d", cnv->get_overcrowded(), cnv->get_overcrowded_capacity());
-					}
-					else {
-						lb->buf().append(cnv->get_overcrowded_capacity(),0);
-					}
-					lb->set_fixed_width(text_width);
-					lb->update();
-
-					// 4: capacity bar
-					if (show_loading) {
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), color_idx_to_rgb(COL_OVERCROWD))->set_value(cnv->get_overcrowded_capacity(), cnv->get_overcrowded());
-					}
-					new_component<gui_fill_t>();
-				}
-			}
-		}
-		end_table();
-	}
-	set_size(get_size());
-}
-
-gui_convoy_loading_info_t::gui_convoy_loading_info_t(convoihandle_t cnv, bool show_loading_info)
-{
-	this->cnv = cnv;
-	show_loading = show_loading_info;
-	set_table_layout(1, 0);
-
-	update_list();
-}
-
-void gui_convoy_loading_info_t::draw(scr_coord offset)
-{
-	if(old_weight != cnv->get_weight_summary().weight || old_vehicle_count != cnv->get_vehicle_count() || old_reversed != cnv->is_reversed()) {
-		update_list();
-	}
-	gui_aligned_container_t::draw(offset);
-}
 
 //bool convoi_info_t::route_search_in_progress=false;
 

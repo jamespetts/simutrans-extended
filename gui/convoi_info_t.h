@@ -35,28 +35,6 @@
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
 
 
-// UI TODO: Incorporate a mode without capacity display into the convoy assembler
-class gui_convoy_loading_info_t : public gui_aligned_container_t
-{
-	convoihandle_t cnv;
-
-	uint8 old_vehicle_count = 0;
-	sint32 old_weight = -1;
-	bool old_reversed = false;
-
-	bool show_loading;
-
-	void update_list();
-
-public:
-	gui_convoy_loading_info_t(convoihandle_t cnv, bool show_loading_info=true);
-
-	void set_convoy(convoihandle_t c) { cnv = c; };
-
-	void draw(scr_coord offset) OVERRIDE;
-};
-
-
 /**
  * Displays an information window for a convoi
  */
