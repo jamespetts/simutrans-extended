@@ -278,7 +278,7 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 	// take slopes on grounds below into accout
 	const sint8 clearance = welt->get_settings().get_way_height_clearance() - 1;
 	for(int dz = -clearance -2; dz <= clearance; dz++) {
-		grund_t *gr2;
+		grund_t *gr2 = NULL;
 		if (dz != 0 && (gr2 = welt->lookup(pos + koord3d(0,0,dz)))) {
 
 			const slope_t::type slope = gr2->get_weg_hang();
@@ -1391,7 +1391,7 @@ const char *bridge_builder_t::remove(player_t *player, koord3d pos_start, waytyp
 						// now remove ribi (or full way)
 						w->set_ribi( (~ribi_t::backward( ribi_t::nesw[i] )) & w->get_ribi_unmasked() );
 						if(  w->get_ribi_unmasked() == 0  ) {
-							// nowthing left => then remove completly
+							// nothing left => then remove completly
 							koord3d prev_pos = prev->get_pos();
 							prev->remove_everything_from_way( player, wegtyp, bridge_ribi ); // removes stop and signals correctly
 							prev->weg_entfernen( wegtyp, true );

@@ -76,7 +76,6 @@ public:
 	 *
 	 * @param player the player wanting to build the bridge
 	 * @param end the position of the ramp
-	 * @param zv direction the bridge will face
 	 * @param desc the bridge description.
 	 * @param overtaking_mode condition of overtaking. This is applied only to road.
 	 * @param beginning if this ramp is beginning of the bridge, be true. otherwise, be false. (for ribi_mask_oneway)
@@ -154,7 +153,6 @@ public:
 	 * Fill menu with icons for all ways of the given waytype
 	 * @param tool_selector gui object of the toolbar
 	 * @param wtyp way type
-	 * @param welt the current world
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, sint16 sound_ok);
 };

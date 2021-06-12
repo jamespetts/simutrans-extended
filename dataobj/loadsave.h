@@ -20,6 +20,7 @@ struct file_descriptors_t;
 
 /**
  * This class replaces the FILE when loading and saving games.
+ *
  * Can now read and write 3 formats: text, binary and zipped
  * Input format is automatically detected.
  * Output format has a default, changeable with set_savemode, but can be

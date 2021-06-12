@@ -31,6 +31,8 @@
 
 #define CHART_HEIGHT (100)
 
+sint16 convoi_info_t::tabstate = -1;
+
 static const char cost_type[BUTTON_COUNT][64] =
 {
 	"Free Capacity",
@@ -179,7 +181,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 					container_line.new_component<gui_empty_t>();
 				}
 				// goto line button
-				line_button.init( button_t::posbutton, NULL);
+				line_button.init( button_t::arrowright, NULL );
 				line_button.set_targetpos3d( koord3d::invalid );
 				line_button.add_listener( this );
 				line_bound = false;
@@ -250,6 +252,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	end_table();
 
 	// tab panel: connections, chart panels
+	switch_mode.add_listener(this);
 	add_component(&switch_mode);
 	switch_mode.add_tab(&scroll_freight, translator::translate("cd_payload_tab"));
 
@@ -273,27 +276,6 @@ void convoi_info_t::init(convoihandle_t cnv)
 	container_freight.add_component(&text);
 
 	switch_mode.add_tab(&container_stats, translator::translate("Chart"));
-
-	/*
-#ifdef ACCELERATION_BUTTON
-	//Bernd Gabriel, Sep, 24 2009: acceleration curve:
-
-	for (int i = 0; i < MAX_MONTHS; i++)
-	{
-		physics_curves[i][0] = 0;
-	}
-
-	chart.add_curve(color_idx_to_rgb(cost_type_color[btn]), (sint64*)physics_curves, 1,0, MAX_MONTHS, cost_type_money[btn], false, true, cost_type_money[btn]*2);
-	filterButtons[btn].init(button_t::box_state, cost_type[btn],
-			scr_coord(BUTTON1_X+(D_BUTTON_WIDTH+D_H_SPACE)*(btn%4), view.get_size().h+174+(D_BUTTON_HEIGHT+D_H_SPACE)*(btn/4)),
-			D_BUTTON_SIZE);
-	filterButtons[btn].add_listener(this);
-	filterButtons[btn].background_color = color_idx_to_rgb(cost_type_color[btn]);
-	filterButtons[btn].set_visible(false);
-	filterButtons[btn].pressed = false;
-	add_component(filterButtons + btn);
-#endif
-*/
 
 	container_stats.set_table_layout(1,0);
 
@@ -594,7 +576,7 @@ void convoi_info_t::update_labels()
 
 	// realign container - necessary if strings changed length
 	container_top->set_size( container_top->get_size() );
-	set_min_windowsize(scr_size(max(D_DEFAULT_WIDTH, get_min_windowsize().w), D_TITLEBAR_HEIGHT + switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_MARGIN_TOP));
+	set_min_windowsize(scr_size(max(D_DEFAULT_WIDTH, get_min_windowsize().w), D_TITLEBAR_HEIGHT + switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT));
 }
 
 
@@ -609,28 +591,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 	{
 		destroy_win(this);
 	}
-
-		//Bernd Gabriel, Dec, 02 2009: common existing_convoy_t for acceleration curve and weight/speed info.
-		//convoi_t &convoy = *cnv.get_rep();
-/*
-#ifdef ACCELERATION_BUTTON
-		//Bernd Gabriel, Sep, 24 2009: acceleration curve:
-		if (filterButtons[ACCELERATION_BUTTON].is_visible() && filterButtons[ACCELERATION_BUTTON].pressed)
-		{
-			const int akt_speed_soll = kmh_to_speed(convoy.calc_max_speed(convoy.get_weight_summary()));
-			float32e8_t akt_v = 0;
-			sint32 akt_speed = 0;
-			sint32 sp_soll = 0;
-			int i = MAX_MONTHS;
-			physics_curves[--i][0] = akt_speed;
-			while (i > 0)
-			{
-				convoy.calc_move(welt->get_settings(), 15 * 64, akt_speed_soll, akt_speed_soll, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed, sp_soll, akt_v);
-				physics_curves[--i][0] = speed_to_kmh(akt_speed);
-			}
-		}
-#endif
-*/
 
 	// make titlebar dirty to display the correct coordinates
 	if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
@@ -825,14 +785,37 @@ koord3d convoi_info_t::get_weltpos( bool set )
 	}
 }
 
+void convoi_info_t::set_tab_opened()
+{
+	tabstate = switch_mode.get_active_tab_index();
+
+	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT;
+
+	switch (tabstate)
+	{
+		case 0: // loaded detail
+		default:
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + scroll_freight.get_size().h)));
+			break;
+		case 1: // chart
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_stats.get_size().h)));
+			break;
+	}
+}
+
 
 /**
  * This method is called if an action is triggered
  */
 bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
+	if(  comp == &switch_mode  &&  get_windowsize().h == get_min_windowsize().h  ) {
+		set_tab_opened();
+		return true;
+	}
+
 	// follow convoi on map?
-	if(comp == &follow_button) {
+	if(  comp == &follow_button  ) {
 		if(welt->get_viewport()->get_follow_convoi()==cnv) {
 			// stop following
 			welt->get_viewport()->set_follow_convoi( convoihandle_t() );
@@ -844,7 +827,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 
 	// details?
-	if(comp == &details_button) {
+	if(  comp == &details_button  ) {
 		create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail+cnv.get_id() );
 		return true;
 	}
@@ -853,15 +836,12 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		cnv->get_owner()->simlinemgmt.show_lineinfo( cnv->get_owner(), cnv->get_line() );
 		welt->set_dirty();
 	}
-
-	if(  comp == &input  ) {
+	else if(  comp == &input  ) {
 		// rename if necessary
 		rename_cnv();
 	}
-
 	// sort by what
-	if(comp == &freight_sort_selector) {
-		// sort by what
+	else if(  comp == &freight_sort_selector  ) {
 		sint32 sort_mode = freight_sort_selector.get_selection();
 		if (sort_mode < 0)
 		{
@@ -875,30 +855,28 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	// some actions only allowed, when I am the player
 	if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
 
-		if(comp == &button) {
+		if(  comp == &button  ) {
 			cnv->call_convoi_tool( 'f', NULL );
 			return true;
 		}
 
 		//if(comp == &no_load_button    &&    !route_search_in_progress) {
-		if(comp == &no_load_button) {
+		if(  comp == &no_load_button  ) {
 			cnv->call_convoi_tool( 'n', NULL );
 			return true;
 		}
 
-		if(comp == &replace_button)
-		{
+		if(  comp == &replace_button  )	{
 			create_win(20, 20, new replace_frame_t(cnv, get_name()), w_info, magic_replace + cnv.get_id() );
 			return true;
 		}
 
-		if(comp == &times_history_button)
-		{
+		if(  comp == &times_history_button  ) {
 			create_win(20, 20, new times_history_t(linehandle_t(), cnv), w_info, magic_convoi_time_history + cnv.get_id() );
 			return true;
 		}
 
-		if(comp == &go_home_button) {
+		if(  comp == &go_home_button  ) {
 			// limit update to certain states that are considered to be safe for schedule updates
 			if(cnv->is_locked())
 			{

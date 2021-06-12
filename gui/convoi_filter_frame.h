@@ -30,7 +30,7 @@ public:
 		name_filter        = 1 << 1,
 		typ_filter         = 1 << 2,
 		ware_filter        = 1 << 3,
-		spezial_filter     = 1 << 4,
+		special_filter     = 1 << 4,
 
 		lkws_filter        = 1 << 5,
 		zuege_filter       = 1 << 6,
@@ -115,7 +115,7 @@ private:
 	button_t ware_keine;
 	button_t ware_invers;
 
-	gui_aligned_container_t  ware_cont;
+	gui_aligned_container_t ware_cont;
 	gui_scrollpane_t ware_scrolly;
 
 public:
@@ -125,6 +125,8 @@ public:
 	 * Constructor. Generates all necessary Subcomponents.
 	 */
 	convoi_filter_frame_t(player_t *player, convoi_frame_t *parent);
+
+	void init(uint32 filter_flags, const slist_tpl<const goods_desc_t*>* wares);
 
 	/**
 	 * Does this window need a min size button in the title bar?

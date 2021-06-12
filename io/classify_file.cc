@@ -72,14 +72,15 @@ file_classify_status_t classify_file(const char *path, file_info_t *info)
 #if USE_ZSTD // otherwise we cannot read it
 		zstd_file_rdwr_stream_t s(path, false, 0);
 		if (!classify_file_data(&s, info)) {
-			info->file_type = file_info_t::TYPE_RAW;
+#else
+		{
+#endif
+			info->file_type = file_info_t::TYPE_ZSTD;
 			info->ext_version = extended_version_t::INVALID;
 			info->header_size = 0;
 		}
+
 		return FILE_CLASSIFY_OK;
-#else
-		dbg->fatal( "classify_file()", "Compiled without zstd support but zstd savegame!" );
-#endif
 	}
 
 	fseek(f, 0, SEEK_SET);

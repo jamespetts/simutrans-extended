@@ -12,6 +12,8 @@
 #include "../obj_node_info.h"
 #include "building_reader.h"
 #include "../../network/pakset_info.h"
+#include "../../tpl/array_tpl.h"
+
 
 /**
  * Old building types, for compatibility ...
@@ -32,19 +34,18 @@ struct old_btyp
 
 obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 {
-	ALLOCA(char, desc_buf, node.size);
-
-	building_tile_desc_t *desc = new building_tile_desc_t();
-
-	// Read data
-	fread(desc_buf, node.size, 1, fp);
-
-	char * p = desc_buf;
+	array_tpl<char> desc_buf(node.size);
+	if (fread(desc_buf.begin(), node.size, 1, fp) != 1) {
+		return NULL;
+	}
+	char *p = desc_buf.begin();
 
 	// old versions of PAK files have no version stamp.
 	// But we know, the highest bit was always cleared.
 	const uint16 v = decode_uint16(p);
 	const int version = (v & 0x8000)!=0 ? v&0x7FFF : 0;
+
+	building_tile_desc_t *desc = new building_tile_desc_t();
 
 	if(version == 2) {
 //  DBG_DEBUG("tile_reader_t::read_node()","version=1");
@@ -215,14 +216,12 @@ bool building_reader_t::successfully_loaded() const
 
 obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 {
-	ALLOCA(char, desc_buf, node.size);
+	array_tpl<char> desc_buf(node.size);
+	if (fread(desc_buf.begin(), node.size, 1, fp) != 1) {
+		return NULL;
+	}
+	char * p = desc_buf.begin();
 
-	building_desc_t *desc = new building_desc_t();
-
-	// Read data
-	fread(desc_buf, node.size, 1, fp);
-
-	char * p = desc_buf;
 	// old versions of PAK files have no version stamp.
 	// But we know, the highest bit was always cleared.
 	const uint16 v = decode_uint16(p);
@@ -253,6 +252,9 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	{
 		extended_version = 3;
 	}
+	old_btyp::typ btyp = old_btyp::unknown;
+
+	building_desc_t *desc = new building_desc_t();
 
 	if(version <= 7)
 	{
@@ -266,8 +268,6 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->mail_demand_and_production_capacity = 65535;
 	}
 
-	old_btyp::typ btyp = old_btyp::unknown;
-
 	if (version == 8 || version == 9)
 	{
 		// Versioned node, version 8
@@ -279,7 +279,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		desc->allowed_climates = (climate_bits)(decode_uint16(p) & ALL_CLIMATES);
 		if (extended_version >= 5)
 		{
 			desc->allowed_regions = decode_uint16(p);
@@ -374,7 +374,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		desc->allowed_climates = (climate_bits)(decode_uint16(p) & ALL_CLIMATES);
 		desc->enables = decode_uint8(p);
 		if(extended_version < 1 && desc->type == building_desc_t::depot)
 		{
@@ -423,7 +423,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x           = decode_uint16(p);
 		desc->size.y           = decode_uint16(p);
 		desc->layouts          = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		desc->allowed_climates = (climate_bits)(decode_uint16(p) & ALL_CLIMATES);
 		desc->enables          = decode_uint8(p);
 		if(extended_version < 1 && desc->type == building_desc_t::depot)
 		{
@@ -476,7 +476,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)decode_uint16(p);
+		desc->allowed_climates = (climate_bits)(decode_uint16(p) & ALL_CLIMATES);
 		desc->enables   = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
@@ -499,7 +499,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
+		desc->allowed_climates = all_but_water_climate; // all but water
 		desc->enables = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
@@ -520,7 +520,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
+		desc->allowed_climates = all_but_water_climate; // all but water
 		desc->enables   = decode_uint8(p);
 		if(desc->type == building_desc_t::depot)
 		{
@@ -545,7 +545,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint8(p);
-		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
+		desc->allowed_climates = all_but_water_climate; // all but water
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;
@@ -571,7 +571,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->size.x = decode_uint16(p);
 		desc->size.y = decode_uint16(p);
 		desc->layouts = decode_uint32(p);
-		desc->allowed_climates = (climate_bits)0xFFFE; // all but water
+		desc->allowed_climates = all_but_water_climate; // all but water
 		if(desc->type == building_desc_t::depot)
 		{
 			desc->enables = 65535;

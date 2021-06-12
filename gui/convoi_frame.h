@@ -8,10 +8,13 @@
 
 
 #include "gui_frame.h"
+#include "simwin.h"
+
 #include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "components/gui_combobox.h"
 #include "components/gui_convoiinfo.h"
+#include "components/gui_textinput.h"
 #include "../convoihandle_t.h"
 
 class player_t;
@@ -51,7 +54,7 @@ private:
 
 	// these are part of the top UI
 	gui_combobox_t	sortedby;
-	button_t	sort_asc, sort_desc;
+	button_t	sort_order;
 	button_t	display_mode;
 	button_t	filter_on;
 	button_t	filter_details;
@@ -61,7 +64,7 @@ private:
 
 	// actual filter setting
 	bool filter_is_on;
-	const slist_tpl<const goods_desc_t *>*waren_filter;
+	static const slist_tpl<const goods_desc_t *>*waren_filter;
 	char *name_filter;
 	uint32 filter_flags;
 
@@ -96,7 +99,7 @@ public:
 	 */
 	void sort_list( char *name, uint32 filter, const slist_tpl<const goods_desc_t *> *wares );
 
-	convoi_frame_t(player_t *player);
+	convoi_frame_t();
 
 	virtual ~convoi_frame_t();
 
@@ -105,17 +108,8 @@ public:
 	 */
 	bool infowin_event(const event_t *ev) OVERRIDE;
 
-	/**
-	 * Draw new component. The values to be passed refer to the window
-	 * i.e. It's the screen coordinates of the window where the
-	 * component is displayed.
-	 */
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	/**
-	 * Set the window associated helptext
-	 * @return the filename for the helptext, or NULL
-	 */
 	const char * get_help_filename() const OVERRIDE {return "convoi.txt"; }
 
 	static sort_mode_t get_sortierung() { return sortby; }
@@ -127,6 +121,10 @@ public:
 	bool has_min_sizer() const OVERRIDE {return true;}
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	void rdwr( loadsave_t *file ) OVERRIDE;
+
+	uint32 get_rdwr_id() OVERRIDE { return magic_convoi_list; }
 };
 
 #endif

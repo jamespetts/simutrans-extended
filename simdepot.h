@@ -79,7 +79,7 @@ public:
 	void rdwr(loadsave_t *file) OVERRIDE;
 
 	// text for the tabs is defaulted to the train names
-	virtual const char * get_electrics_name() { return "Electrics_tab"; };
+	virtual const char * get_electrics_name() { return "Electrics_tab"; }
 	virtual const char * get_passenger_name() { return "Pas_tab"; }
 	virtual const char * get_zieher_name() { return "Lokomotive_tab"; }
 	virtual const char * get_haenger_name() { return "Waggon_tab"; }
@@ -107,7 +107,7 @@ public:
 	/**
 	 * Let convoi leave the depot.
 	 * If not possible, a message is displayed and the function returns false.
-	 * @param if local_execution is true, this method creates pop-ups in case of errors
+	 * @param local_execution if true, this method creates pop-ups in case of errors
 	 */
 	bool start_convoi(convoihandle_t cnv, bool local_execution);
 

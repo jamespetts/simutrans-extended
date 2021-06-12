@@ -54,6 +54,9 @@ void gui_label_t::set_fixed_width(const scr_coord_val width)
 
 scr_size gui_label_t::get_min_size() const
 {
+	if (fixed_width) {
+		return scr_size(fixed_width, D_LABEL_HEIGHT);
+	}
 	return scr_size( max(min_size.w, text ? display_calc_proportional_string_len_width(text,strlen(text)) : D_BUTTON_WIDTH), D_LABEL_HEIGHT );
 }
 
@@ -115,11 +118,17 @@ void gui_label_t::draw(scr_coord offset)
 			if(separator) {
 				display_proportional_clip_rgb(right.x, right.y, separator, ALIGN_LEFT, color, true);
 				if(  separator!=text  ) {
+					if (shadowed) {
+						display_text_proportional_len_clip_rgb(right.x+1, right.y+1, text, ALIGN_RIGHT | DT_CLIP, color_shadow, true, separator - text);
+					}
 					display_text_proportional_len_clip_rgb(right.x, right.y, text, ALIGN_RIGHT | DT_CLIP, color, true, separator-text );
 				}
 			}
 			else {
 				// integer or normal text
+				if (shadowed) {
+					display_proportional_clip_rgb(right.x + 1, right.y + 1, text, ALIGN_RIGHT | DT_CLIP, color_shadow, true);
+				}
 				display_proportional_clip_rgb(right.x, right.y, text, ALIGN_RIGHT, color, true);
 			}
 		}

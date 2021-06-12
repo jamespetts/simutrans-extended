@@ -26,6 +26,7 @@ PIXVAL gui_theme_t::gui_color_text_highlight;
 PIXVAL gui_theme_t::gui_color_text_shadow;
 PIXVAL gui_theme_t::gui_color_text_title;
 PIXVAL gui_theme_t::gui_color_text_strong;
+PIXVAL gui_theme_t::gui_color_text_weak;
 PIXVAL gui_theme_t::gui_color_text_inactive;
 PIXVAL gui_theme_t::gui_color_text_placeholder;
 PIXVAL gui_theme_t::gui_color_text_minus;
@@ -58,9 +59,12 @@ PIXVAL gui_theme_t::gui_color_statusbar_background;
 PIXVAL gui_theme_t::gui_color_statusbar_divider;
 PIXVAL gui_theme_t::gui_highlight_color;
 PIXVAL gui_theme_t::gui_shadow_color;
+PIXVAL gui_theme_t::gui_color_indicator_border_top_left;
+PIXVAL gui_theme_t::gui_color_indicator_border_bottom_right;
 PIXVAL gui_theme_t::gui_color_loadingbar_inner;
 PIXVAL gui_theme_t::gui_color_loadingbar_progress;
 PIXVAL gui_theme_t::gui_color_obsolete;
+PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_out_of_production;
 PIXVAL gui_theme_t::gui_color_empty;
 PIXVAL gui_theme_t::gui_color_up_pointing_triangle;
@@ -131,6 +135,7 @@ image_id gui_theme_t::check_button_img[3];
 image_id gui_theme_t::pos_button_img[3];
 
 bool gui_theme_t::gui_drop_shadows;
+bool gui_theme_t::pressed_button_sinks;
 
 /**
  * Initializes theme related parameters to hard coded default values.
@@ -142,6 +147,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_text_shadow                  = color_idx_to_rgb(COL_BLACK);
 	gui_color_text_title                   = color_idx_to_rgb(207);
 	gui_color_text_strong                  = color_idx_to_rgb(COL_RED);
+	gui_color_text_weak                    = color_idx_to_rgb(MN_GREY0);
 	gui_color_text_inactive                = color_idx_to_rgb(COL_GREY4);
 	gui_color_text_placeholder             = color_idx_to_rgb(COL_GREY5);
 	gui_color_text_minus                   = color_idx_to_rgb(COL_RED);
@@ -184,6 +190,9 @@ void gui_theme_t::init_gui_defaults()
 
 	gui_highlight_color                    = color_idx_to_rgb(MN_GREY4);
 	gui_shadow_color                       = color_idx_to_rgb(MN_GREY0);
+
+	gui_color_indicator_border_top_left     = color_idx_to_rgb(MN_GREY0);
+	gui_color_indicator_border_bottom_right = color_idx_to_rgb(MN_GREY4);
 
 	gui_color_loadingbar_inner             = color_idx_to_rgb(COL_GREY5);
 	gui_color_loadingbar_progress          = color_idx_to_rgb(COL_SOFT_BLUE);
@@ -229,6 +238,9 @@ void gui_theme_t::init_gui_defaults()
 	gui_divider_size.h   = D_V_SPACE*2;
 
 	gui_drop_shadows     = false;
+	pressed_button_sinks = true;
+
+	gui_color_chat_window_network_transparency = color_idx_to_rgb(COL_WHITE);
 }
 
 
@@ -273,7 +285,7 @@ void gui_theme_t::init_gui_from_images()
 			button_tiles[i][j%3][j/3] = skinverwaltung_t::button->get_image_id( i*9+j );
 		}
 	}
-	image_id has_second_mask;
+	image_id has_second_mask = 0xFFFF;
 	for(  int i=0;  i<2;  i++  ) {
 		has_second_mask = 0xFFFF;
 		for(  int j=0;  j<9;  j++  ) {
@@ -503,6 +515,7 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_text_shadow                  = (PIXVAL)contents.get_color("gui_color_text_shadow", SYSCOL_TEXT_SHADOW);
 	gui_theme_t::gui_color_text_title                   = (PIXVAL)contents.get_color("gui_color_text_title", SYSCOL_TEXT_TITLE);
 	gui_theme_t::gui_color_text_strong                  = (PIXVAL)contents.get_color("gui_color_text_strong", SYSCOL_TEXT_STRONG);
+	gui_theme_t::gui_color_text_weak                    = (PIXVAL)contents.get_color("gui_color_text_weak", SYSCOL_TEXT_WEAK);
 	gui_theme_t::gui_color_text_inactive                = (PIXVAL)contents.get_color("gui_color_text_inactive", SYSCOL_TEXT_INACTIVE);
 	gui_theme_t::gui_color_text_placeholder             = (PIXVAL)contents.get_color("gui_color_text_placeholder", SYSCOL_TEXT_PLACEHOLDER);
 	gui_theme_t::gui_color_text_minus                   = (PIXVAL)contents.get_color("gui_color_text_minus", MONEY_MINUS);
@@ -535,11 +548,14 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_statusbar_divider            = (PIXVAL)contents.get_color("gui_color_statusbar_divider", SYSCOL_STATUSBAR_DIVIDER);
 	gui_theme_t::gui_highlight_color                    = (PIXVAL)contents.get_color("gui_highlight_color", SYSCOL_HIGHLIGHT);
 	gui_theme_t::gui_shadow_color                       = (PIXVAL)contents.get_color("gui_shadow_color", SYSCOL_SHADOW);
+	gui_theme_t::gui_color_indicator_border_top_left    = (PIXVAL)contents.get_color("gui_color_indicator_border_top_left",     SYSCOL_INDICATOR_BORDER1);
+	gui_theme_t::gui_color_indicator_border_bottom_right= (PIXVAL)contents.get_color("gui_color_indicator_border_bottom_right", SYSCOL_INDICATOR_BORDER2);
 	gui_theme_t::gui_color_loadingbar_inner             = (PIXVAL)contents.get_color("gui_color_loadingbar_inner", SYSCOL_LOADINGBAR_INNER);
 	gui_theme_t::gui_color_loadingbar_progress          = (PIXVAL)contents.get_color("gui_color_loadingbar_progress", SYSCOL_LOADINGBAR_PROGRESS);
 	gui_theme_t::gui_color_obsolete                     = (PIXVAL)contents.get_color("gui_color_obsolete", SYSCOL_OBSOLETE);
 	gui_theme_t::gui_color_out_of_production            = (PIXVAL)contents.get_color("gui_color_out_of_production", SYSCOL_OUT_OF_PRODUCTION);
 	gui_theme_t::gui_color_empty                        = (PIXVAL)contents.get_color("gui_color_empty", SYSCOL_EMPTY);
+	gui_theme_t::gui_color_chat_window_network_transparency = (PIXVAL)contents.get_color("gui_color_chat_window_network_transparency", gui_color_chat_window_network_transparency);
 	gui_theme_t::gui_color_up_pointing_triangle         = (PIXVAL)contents.get_color("gui_color_up_pointing_triangle", SYSCOL_UP_TRIANGLE);
 	gui_theme_t::gui_color_down_pointing_triangle       = (PIXVAL)contents.get_color("gui_color_down_pointing_triangle", SYSCOL_DOWN_TRIANGLE);
 
@@ -558,10 +574,13 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	env_t::remember_window_positions = contents.get_int("remember_window_positions", env_t::remember_window_positions );
 	env_t::window_snap_distance =      contents.get_int("window_snap_distance",      env_t::window_snap_distance );
 	gui_theme_t::gui_drop_shadows =    contents.get_int("gui_drop_shadows",          gui_theme_t::gui_drop_shadows );
+	gui_theme_t::pressed_button_sinks = contents.get_int("pressed_button_sinks",     gui_theme_t::pressed_button_sinks );
 	env_t::bottom_window_darkness =    contents.get_int("bottom_window_darkness",    env_t::bottom_window_darkness );
-
+	env_t::menupos                   = contents.get_int("menubar_position",          env_t::menupos);
 	env_t::gui_player_color_bright =   contents.get_int("gui_player_color_bright",   env_t::gui_player_color_bright );
 	env_t::gui_player_color_dark =     contents.get_int("gui_player_color_dark",     env_t::gui_player_color_dark );
+	env_t::gui_titlebar_player_color_background_brightness = env_t::gui_player_color_dark;
+	env_t::gui_titlebar_player_color_background_brightness = contents.get_int("gui_titlebar_player_color_background_brightness", env_t::gui_titlebar_player_color_background_brightness);
 
 	env_t::default_window_title_color = contents.get_color("default_window_title_color", env_t::default_window_title_color,  &env_t::default_window_title_color_rgb );
 	env_t::front_window_text_color =    contents.get_color("front_window_text_color",    env_t::front_window_text_color,  &env_t::front_window_text_color_rgb );
@@ -575,6 +594,8 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	env_t::tooltip_duration =     contents.get_int("tooltip_duration",           env_t::tooltip_duration );
 	env_t::toolbar_max_width =    contents.get_int("toolbar_max_width",          env_t::toolbar_max_width );
 	env_t::toolbar_max_height =   contents.get_int("toolbar_max_height",         env_t::toolbar_max_height );
+
+	env_t::chat_window_transparency =   100 - contents.get_int("gui_chat_window_network_transparency", 100 - env_t::chat_window_transparency);
 
 	if(  toolbar_last_used_t::last_used_tools  &&  init_tools  ) {
 		// only re-init if already inited

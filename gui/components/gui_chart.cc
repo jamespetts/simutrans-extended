@@ -122,8 +122,8 @@ void gui_chart_t::draw(scr_coord offset)
 	sint64 baseline = 0;
 	sint64* pbaseline = &baseline;
 
-	float scale = 0;
-	float* pscale = &scale;
+	double scale = 0;
+	double* pscale = &scale;
 
 	// calc baseline and scale
 	calc_gui_chart_values(pbaseline, pscale, cmin, cmax, 18);
@@ -279,7 +279,7 @@ void gui_chart_t::draw(scr_coord offset)
 
 						if(  env_t::left_to_right_graphs  ) {
 							const sint16 width = proportional_string_width(cmin)+7;
-							display_ddd_proportional( tmpx + 8, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), width, 0, color_idx_to_rgb(COL_GREY4), c.color, cmin, true);
+							display_ddd_proportional( tmpx + 8, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), width, 0, env_t::tooltip_color, c.color, cmin, true);
 						}
 						else if(  (baseline-tmp/scale-8) > 0  &&  (baseline-tmp/scale+8) < chart_size.h  &&  abs((int)(tmp/scale)) > 9  ) {
 							display_proportional_rgb(tmpx - 4, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), cmin, ALIGN_RIGHT, c.color, true );
@@ -294,7 +294,7 @@ void gui_chart_t::draw(scr_coord offset)
 }
 
 
-void gui_chart_t::calc_gui_chart_values(sint64 *baseline, float *scale, char *cmin, char *cmax, int maximum_axis_len) const
+void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *cmin, char *cmax, int maximum_axis_len) const
 {
 	sint64 tmp=0;
 	double min = 0, max = 0;

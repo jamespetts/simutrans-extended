@@ -22,12 +22,8 @@
 #include "server_frame.h"
 #include "components/gui_image.h"
 
-#define L_LINESPACE_EXTRA_2  ( LINESPACE + 2 )
-#define L_LINESPACE_EXTRA_5  ( LINESPACE + 5 )
-#define L_LINESPACE_EXTRA_7  ( LINESPACE + 7 )
 
 // Local adjustments
-#define L_TEXT_INDENT        ( 24 )                            // Shadow text indent
 #define L_BANNER_ROWS        ( 5 )                             // Rows of scroll text
 #define L_BANNER_TEXT_INDENT ( 4 )                             // Scroll text padding (left/right)
 #define L_BANNER_HEIGHT      ( L_BANNER_ROWS * LINESPACE + 2 ) // Banner control height in pixels
@@ -184,8 +180,8 @@ void banner_t::draw(scr_coord pos, scr_size size )
 {
 	gui_frame_t::draw( pos, size );
 
-	// add white line on top since this frame has no title bar.
-	display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, 1, color_idx_to_rgb(COL_GREY6), false);
+	// add line on top since this frame has no title bar.
+	display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, 1, SYSCOL_HIGHLIGHT, false);
 }
 
 void banner_text_t::draw(scr_coord offset)

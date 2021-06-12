@@ -54,7 +54,7 @@ factorylist_frame_t::factorylist_frame_t() :
 		filter_within_network.pressed = filter_own_network;
 		add_component(&filter_within_network); // (1,2)
 
-		add_table(4, 1);
+		add_table(3,1);
 		{
 			for (int i = 0; i < factorylist::SORT_MODES; i++) {
 				sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
@@ -65,19 +65,14 @@ factorylist_frame_t::factorylist_frame_t() :
 			sortedby.add_listener(this);
 			add_component(&sortedby); // (2,1,1)
 
-			// sort ascend/descend button
-			sort_asc.init(button_t::arrowup_state, "");
-			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-			sort_asc.add_listener(this);
-			sort_asc.pressed = sortreverse;
-			add_component(&sort_asc); // (2,1,2)
+			// sort asc/desc switching button
+			sorteddir.init(button_t::sortarrow_state, "");
+			sorteddir.set_tooltip(translator::translate("hl_btn_sorteddir"));
+			sorteddir.add_listener(this);
+			sorteddir.pressed = sortreverse;
+			add_component(&sorteddir); // (2,1,2)
 
-			sort_desc.init(button_t::arrowdown_state, "");
-			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-			sort_desc.add_listener(this);
-			sort_desc.pressed = !sortreverse;
-			add_component(&sort_desc); // (2,1,3)
-			new_component<gui_margin_t>(LINESPACE); // (2,1,4)
+			new_component<gui_margin_t>(LINESPACE); // (2,1,3)
 		}
 		end_table(); // (2,1)
 
@@ -148,11 +143,10 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /
 		default_sortmode = (uint8)tmp;
 		display_list();
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sorteddir) {
 		set_reverse(!get_reverse());
 		display_list();
-		sort_asc.pressed = sortreverse;
-		sort_desc.pressed = !sortreverse;
+		sorteddir.pressed = sortreverse;
 	}
 	else if (comp == &filter_within_network) {
 		filter_own_network = !filter_own_network;
@@ -188,4 +182,34 @@ void factorylist_frame_t::draw(scr_coord pos, scr_size size)
 	display_list();
 
 	gui_frame_t::draw(pos, size);
+}
+
+
+void factorylist_frame_t::rdwr(loadsave_t* file)
+{
+	scr_size size = get_windowsize();
+	uint8 sm = (uint8)sortby;
+
+	size.rdwr(file);
+	scrolly.rdwr(file);
+	//file->rdwr_str(name_filter, lengthof(name_filter));
+	file->rdwr_byte(sm);
+	file->rdwr_bool(sortreverse);
+	file->rdwr_bool(filter_own_network);
+	file->rdwr_byte(filter_goods_catg);
+	file->rdwr_byte(display_mode);
+	file->rdwr_byte(default_sortmode);
+
+	if (file->is_loading()) {
+		sortby = (factorylist::sort_mode_t)sm;
+		sortedby.set_selection(default_sortmode);
+		freight_type_c.set_selection((filter_goods_catg == goods_manager_t::INDEX_NONE) ? 0 : filter_goods_catg);
+		set_filter_goods_catg(filter_goods_catg);
+		sorteddir.pressed = sortreverse;
+		filter_within_network.pressed = filter_own_network;
+		btn_display_mode.set_text(translator::translate(display_mode_text[display_mode]));
+		stats.display_mode = display_mode;
+		display_list();
+		set_windowsize(size);
+	}
 }

@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <time.h>
 #include <stdlib.h>
 #include "simrandom.h"
 #include "../dataobj/environment.h"
@@ -246,7 +247,7 @@ uint16 get_random_mode()
 }
 
 
-static uint32 async_rand_seed = 12345678+dr_time();
+static uint32 async_rand_seed = 12345678 + (uint32)time( NULL ); // Do not use dr_time(). It returns 0 on program startup for some platforms (SDL).
 
 /* simpler simrand for anything not game critical (like UI) */
 uint32 sim_async_rand( uint32 max )
@@ -260,6 +261,7 @@ uint32 sim_async_rand( uint32 max )
 	return (async_rand_seed >> 8) % max;
 }
 
+
 static uint32 thread_local noise_seed = 0;
 
 uint32 setsimrand(uint32 seed,uint32 ns)
@@ -268,7 +270,7 @@ uint32 setsimrand(uint32 seed,uint32 ns)
 
 	if(seed!=0xFFFFFFFF) {
 		init_genrand( seed );
-		async_rand_seed = seed+dr_time();
+		async_rand_seed = seed + dr_time(); // dr_time() ok here. re comment ^^^. setsimrand not called immediately on program startup.
 		random_origin = 0;
 	}
 	if(noise_seed!=0xFFFFFFFF) {
@@ -343,7 +345,6 @@ void exit_perlin_map()
 
 #define map_noise(x,y) (0+map[(x)+1+((y)+1)*map_w])
 
-
 static double smoothed_noise(const int x, const int y)
 {
 	/* this gives a very smooth world */
@@ -385,6 +386,7 @@ static double smoothed_noise(const int x, const int y)
 // this gives very hilly world
 //   return int_noise(x,y);
 }*/
+
 
 static double linear_interpolate(const double a, const double b, const double x)
 {

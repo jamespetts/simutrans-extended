@@ -25,10 +25,10 @@ void gui_halthandled_lines_t::draw(scr_coord offset)
 {
 	static karte_ptr_t welt;
 	int xoff = 0;
-	int yoff = 2;
+	int yoff = 0;
 
 	if (halt.is_bound()) {
-		offset.x += D_MARGIN_LEFT;
+		offset.x += pos.x;
 
 		cbuffer_t buf;
 		for (uint8 lt = 1; lt < simline_t::MAX_LINE_TYPE; lt++) {
@@ -89,7 +89,8 @@ void gui_halthandled_lines_t::draw(scr_coord offset)
 			}
 		}
 	}
-	scr_size size(400, yoff + LINEASCENT+4);
+	xoff += D_H_SPACE;
+	scr_size size(xoff, yoff + LINEASCENT+4);
 	if (size != get_size()) {
 		set_size(size);
 	}

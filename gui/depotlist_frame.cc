@@ -5,12 +5,17 @@
 
 #include "depotlist_frame.h"
 #include "gui_theme.h"
+
+#include "../player/simplay.h"
+
+#include "../simcity.h"
 #include "../simdepot.h"
 #include "../simskin.h"
-#include "../dataobj/translator.h"
-#include "../descriptor/skin_desc.h"
-#include "../simcity.h"
+#include "../simworld.h"
 
+#include "../dataobj/translator.h"
+
+#include "../descriptor/skin_desc.h"
 #include "../boden/wege/maglev.h"
 #include "../boden/wege/monorail.h"
 #include "../boden/wege/narrowgauge.h"
@@ -221,6 +226,14 @@ bool depotlist_stats_t::compare(const gui_component_t *aa, const gui_component_t
 
 	case by_region:
 		cmp = welt->get_region(a->get_pos().get_2d()) - welt->get_region(b->get_pos().get_2d());
+		if (cmp == 0) {
+			const koord a_city_koord = welt->get_city(a->get_pos().get_2d()) ? welt->get_city(a->get_pos().get_2d())->get_pos() : koord(0, 0);
+			const koord b_city_koord = welt->get_city(b->get_pos().get_2d()) ? welt->get_city(b->get_pos().get_2d())->get_pos() : koord(0, 0);
+			cmp = a_city_koord.x - b_city_koord.x;
+			if (cmp == 0) {
+				cmp = a_city_koord.y - b_city_koord.y;
+			}
+		}
 		break;
 
 	case by_waytype:
@@ -273,10 +286,10 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 
 	add_table(2,1);
 	{
-		add_table(1, 2);
+		add_table(1,2);
 		{
 			new_component<gui_label_t>("hl_txt_sort");
-			add_table(4, 1);
+			add_table(3,1);
 			{
 				sortedby.clear_elements();
 				for (int i = 0; i < SORT_MODES; i++) {
@@ -286,17 +299,12 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 				sortedby.add_listener(this);
 				add_component(&sortedby);
 
-				sort_asc.init(button_t::arrowup_state, "");
-				sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-				sort_asc.add_listener(this);
-				sort_asc.pressed = depotlist_stats_t::reverse;
-				add_component(&sort_asc);
-
-				sort_desc.init(button_t::arrowdown_state, "");
-				sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-				sort_desc.add_listener(this);
-				sort_desc.pressed = !depotlist_stats_t::reverse;
-				add_component(&sort_desc);
+				// sort asc/desc switching button
+				sort_order.init(button_t::sortarrow_state, "");
+				sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+				sort_order.add_listener(this);
+				sort_order.pressed = depotlist_stats_t::reverse;
+				add_component(&sort_order);
 
 				new_component<gui_margin_t>(D_H_SPACE*2);
 			}
@@ -351,6 +359,21 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 }
 
 
+depotlist_frame_t::depotlist_frame_t() :
+	gui_frame_t(translator::translate("dp_title"), NULL),
+	scrolly(gui_scrolled_list_t::windowskin, depotlist_stats_t::compare)
+{
+	player = NULL;
+	last_depot_count = 0;
+
+	set_table_layout(1, 0);
+
+	scrolly.set_maximize(true);
+
+	set_resizemode(diagonal_resize);
+	reset_min_windowsize();
+}
+
 /**
  * This method is called if an action is triggered
  */
@@ -360,11 +383,10 @@ bool depotlist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		depotlist_stats_t::sort_mode = max(0, v.i);
 		scrolly.sort(0);
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		depotlist_stats_t::reverse = !depotlist_stats_t::reverse;
 		scrolly.sort(0);
-		sort_asc.pressed = depotlist_stats_t::reverse;
-		sort_desc.pressed = !depotlist_stats_t::reverse;
+		sort_order.pressed = depotlist_stats_t::reverse;
 	}
 	else if (comp == &all_depot_types) {
 		all_depot_types.pressed ^= 1;
@@ -442,20 +464,32 @@ void depotlist_frame_t::draw(scr_coord pos, scr_size size)
 
 void depotlist_frame_t::rdwr(loadsave_t *file)
 {
+	scr_size size = get_windowsize();
+	uint8 player_nr = player ? player->get_player_nr() : 0;
+
 	file->rdwr_byte(depot_type_filter_bits);
-	file->rdwr_bool(sort_asc.pressed);
+	file->rdwr_bool(sort_order.pressed);
 	uint8 s = depotlist_stats_t::sort_mode;
 	file->rdwr_byte(s);
+	if (file->is_version_ex_atleast(14, 40)) {
+		file->rdwr_byte(player_nr);
+		size.rdwr(file);
+	}
 
 	if (file->is_loading()) {
+		player = welt->get_player(player_nr);
+		gui_frame_t::set_owner(player);
+		win_set_magic(this, magic_depotlist + player_nr);
 		sortedby.set_selection(s);
 		depotlist_stats_t::sort_mode = s;
-		depotlist_stats_t::reverse = sort_asc.pressed;
-		sort_desc.pressed = !sort_asc.pressed;
+		depotlist_stats_t::reverse = sort_order.pressed;
 		for (int i = 0; i < MAX_DEPOT_TYPES; i++) {
 			filter_buttons[i].pressed = depot_type_filter_bits & (1 << i);
 		}
 		fill_list();
+		if (file->is_version_ex_atleast(14, 40)) {
+			set_windowsize(size);
+		}
 		all_depot_types.pressed = (depot_type_filter_bits == 255);
 	}
 }

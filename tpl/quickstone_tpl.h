@@ -39,6 +39,13 @@ private:
 	static uint16 size;
 
 	/**
+	 * The index in the table for this handle.
+	 * (only this variable is actually saved, since the rest is static!)
+	 */
+	uint16 entry;
+
+private:
+	/**
 	 * Retrieves next free tombstone index
 	 */
 	static uint16 find_next() {
@@ -98,12 +105,6 @@ private:
 		size = newsize;
 		return next-1;
 	}
-
-	/**
-	 * The index in the table for this handle.
-	 * (only this variable is actually saved, since the rest is static!)
-	 */
-	uint16 entry;
 
 public:
 	/**

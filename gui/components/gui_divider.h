@@ -15,12 +15,14 @@
  */
 class gui_divider_t : public gui_component_t
 {
+	scr_coord_val temp_width = gui_theme_t::gui_divider_size.w;
 public:
 	// TODO remove later
 	void init( scr_coord xy, scr_coord_val width, scr_coord_val height = D_DIVIDER_HEIGHT ) {
+		temp_width = width;
 		set_pos( xy );
 		set_size( scr_size( width, height ) );
-	};
+	}
 
 	scr_size get_min_size() const OVERRIDE;
 
