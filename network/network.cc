@@ -552,7 +552,7 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 			network_command_t *nwc = socket_list_t::get_client(client_id).receive_nwc();
 			if (nwc) {
 				received_command_queue.append(nwc);
-				dbg->message("network_check_activity()", "received cmd id=%d %s from socket[%d]", nwc->get_id(), nwc->get_name(), sender);
+				dbg->message( "network_check_activity()", "received cmd %s (id %d) from socket[%d]", nwc->get_name(), nwc->get_id(), sender );
 			}
 			// errors are caught and treated in socket_info_t::receive_nwc
 		}
@@ -699,8 +699,8 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 				tv.tv_sec = timeout_ms / 1000;
 				tv.tv_usec = (timeout_ms % 1000) * 1000ul;
 				// can we write?
-				if (select(FD_SETSIZE, NULL, &fds, NULL, &tv) != 1) {
-					dbg->warning("network_send_data", "could not write to [%s]", dest);
+				if(  select( FD_SETSIZE, NULL, &fds, NULL, &tv )!=1  ) {
+					dbg->warning("network_send_data", "could not write to socket [%d]", dest);
 					return false;
 				}
 			}

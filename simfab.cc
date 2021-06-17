@@ -1089,7 +1089,7 @@ fabrik_t::~fabrik_t()
 
 		char buf[192];
 		sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
-		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, COL_DARK_RED, skinverwaltung_t::neujahrsymbol->get_image_id(0));
+		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, color_idx_to_rgb(COL_DARK_RED), skinverwaltung_t::neujahrsymbol->get_image_id(0));
 		for(sint32 i = number_of_customers - 1; i >= 0; i --)
 		{
 			fabrik_t* tmp = get_fab(consumers[i]);

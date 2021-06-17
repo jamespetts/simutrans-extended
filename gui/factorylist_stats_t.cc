@@ -104,6 +104,14 @@ class compare_factories
 					break;
 				case factorylist::by_region:
 					cmp = welt->get_region(a->get_pos().get_2d()) - welt->get_region(b->get_pos().get_2d());
+					if (cmp == 0) {
+						const koord a_city_koord = welt->get_city(a->get_pos().get_2d()) ? welt->get_city(a->get_pos().get_2d())->get_pos() : koord(0, 0);
+						const koord b_city_koord = welt->get_city(b->get_pos().get_2d()) ? welt->get_city(b->get_pos().get_2d())->get_pos() : koord(0, 0);
+						cmp = a_city_koord.x - b_city_koord.x;
+						if (cmp == 0) {
+							cmp = a_city_koord.y - b_city_koord.y;
+						}
+					}
 					break;
 			}
 			if (cmp == 0) {
@@ -248,7 +256,7 @@ void factorylist_stats_t::draw(scr_coord offset)
 
 				// staffing
 				if (fab->get_desc()->get_building()->get_class_proportions_sum_jobs()) {
-					display_ddd_box_clip_rgb(xoff + offset_left, yoff+2, 52, D_INDICATOR_HEIGHT+2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+					display_ddd_box_clip_rgb(xoff + offset_left, yoff+2, 52, D_INDICATOR_HEIGHT+2, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 					uint32 staff_shortage_factor=0;
 					if (fab->get_sector() == fabrik_t::end_consumer) {
 						staff_shortage_factor = welt->get_settings().get_minimum_staffing_percentage_consumer_industry();

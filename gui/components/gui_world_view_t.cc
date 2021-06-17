@@ -228,7 +228,7 @@ void world_view_t::internal_draw(const scr_coord offset, obj_t const* const obj)
 	}
 
 	display_set_clip_wh(old_clip.x, old_clip.y, old_clip.w, old_clip.h);
-	display_ddd_box_clip_rgb(pos.x - 1, pos.y - 1, size.w + 2, size.h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_ddd_box_clip_rgb(pos.x - 1, pos.y - 1, size.w + 2, size.h + 2, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 }
 
 

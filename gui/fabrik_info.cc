@@ -247,7 +247,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	int left = D_MARGIN_LEFT + D_INDICATOR_WIDTH + D_H_SPACE;
 	int top = pos.y + view.get_pos().y + D_TITLEBAR_HEIGHT;
 
-	display_ddd_box_clip_rgb(pos.x + view.get_pos().x, top + view.get_size().h, view.get_size().w, D_INDICATOR_HEIGHT + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_ddd_box_clip_rgb(pos.x + view.get_pos().x, top + view.get_size().h, view.get_size().w, D_INDICATOR_HEIGHT + 2, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 	// tooltip for staffing_bar
 	if (abs((int)(pos.x + view.get_pos().x + view.get_size().h/2 - get_mouse_x())) < view.get_size().h/2 && abs((int)(top + view.get_size().h + (D_INDICATOR_HEIGHT+2)/2 - get_mouse_y())) < (D_INDICATOR_HEIGHT+2)/2) {
 		prod_buf.append(translator::translate("staffing_bar_tooltip_help"));
@@ -378,25 +378,25 @@ bool fabrik_info_t::infowin_event(const event_t *ev)
 void fabrik_info_t::set_tab_opened()
 {
 	tabstate = tabs.get_active_tab_index();
-	int margin_above_tab = tabs.get_pos().y + D_TAB_HEADER_HEIGHT + D_MARGINS_Y;
+	const scr_coord_val margin_above_tab = tabs.get_pos().y + D_TAB_HEADER_HEIGHT + D_MARGINS_Y;
 	switch (tabstate)
 	{
-	case 0: // info
-	default:
-		tabs.set_size(scrolly_info.get_size());
-		set_windowsize(scr_size(get_windowsize().w, margin_above_tab + D_V_SPACE * 2 + min(22 * LINESPACE, container_info.get_size().h)));
-		break;
-	case 1: // goods chart
-		goods_chart.recalc_size();
-		set_windowsize(scr_size(get_windowsize().w, margin_above_tab + goods_chart.get_size().h));
-		break;
-	case 2: // prod chart
-		chart.recalc_size();
-		set_windowsize(scr_size(get_windowsize().w, margin_above_tab + chart.get_size().h));
-		break;
-	case 3: // details
-		set_windowsize(scr_size(get_windowsize().w, margin_above_tab + D_V_SPACE * 2 + container_details.get_size().h));
-		break;
+		case 0: // info
+		default:
+			tabs.set_size(scrolly_info.get_size());
+			set_windowsize(scr_size(get_windowsize().w, margin_above_tab + D_V_SPACE * 2 + min(22 * LINESPACE, container_info.get_size().h)));
+			break;
+		case 1: // goods chart
+			goods_chart.recalc_size();
+			set_windowsize(scr_size(get_windowsize().w, margin_above_tab + goods_chart.get_size().h));
+			break;
+		case 2: // prod chart
+			chart.recalc_size();
+			set_windowsize(scr_size(get_windowsize().w, margin_above_tab + chart.get_size().h));
+			break;
+		case 3: // details
+			set_windowsize(scr_size(get_windowsize().w, margin_above_tab + D_V_SPACE * 2 + container_details.get_size().h));
+			break;
 	}
 }
 

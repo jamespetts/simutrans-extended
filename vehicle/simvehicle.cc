@@ -302,7 +302,7 @@ void vehicle_base_t::leave_tile()
 			for(k.x=0; k.x<welt->get_size().x; k.x++) {
 				grund_t *gr = welt->access( k )->get_boden_von_obj(this);
 				if(gr && gr->obj_remove(this)) {
-					dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_name(), this, k.x, k.y);
+					dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_typ(), this, k.x, k.y);
 					ok = true;
 				}
 			}
@@ -847,7 +847,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 			if (!r.empty() && route_index < r.get_count() - 1) {
 				grund_t const* const gr = welt->lookup(pos_next);
 				if (!gr || !gr->get_weg(get_waytype())) {
-					if (!(water_wt == get_waytype()  && gr && gr->is_water())) { // ships on the open sea are valid
+					if (!(water_wt == get_waytype()  &&  gr  &&  gr->is_water())) { // ships on the open sea are valid
 						pos_next = r.at(route_index + 1U);
 					}
 				}
@@ -7125,7 +7125,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		bool no_reverse = schedule->entries[schedule_index].reverse == 0;
 		schedule->increment_index(&schedule_index, &rev);
 		koord3d cur_pos = route->back();
-		uint16 next_next_signal;
+		uint16 next_next_signal = INVALID_INDEX;
 		bool route_success;
 		sint32 token_block_blocks = 0;
 		if(no_reverse || one_train_staff_onward_reservation)

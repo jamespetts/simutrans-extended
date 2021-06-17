@@ -213,6 +213,7 @@ public:
 	static PIXVAL gui_color_text_title;                   //@< Color to draw title text (banner, h1 and a tags)
 	static PIXVAL gui_color_text_shadow;                  //@< Color to draw text shadow
 	static PIXVAL gui_color_text_strong;                  //@< Color to draw strong text (strong tags)
+	static PIXVAL gui_color_text_weak;                    //@< Set a text color that is weaker than normal text because there is no text thickness. ex) Gray for standard black text
 	static PIXVAL gui_color_text_inactive;                //@< Color to make it a little less noticeable than regular text
 	static PIXVAL gui_color_text_placeholder;             //@< Color for displaying inconspicuous characters in the input field
 	static PIXVAL gui_color_text_minus;                   //@< Color to draw negative values
@@ -245,14 +246,16 @@ public:
 	static PIXVAL gui_color_statusbar_divider;            //@< Color to draw statusbar divider
 	static PIXVAL gui_highlight_color;                    //@< Color to draw highlight dividers (tabs)
 	static PIXVAL gui_shadow_color;                       //@< Color to draw shadowed dividers (tabs)
+	static PIXVAL gui_color_indicator_border_top_left;
+	static PIXVAL gui_color_indicator_border_bottom_right;
 	static PIXVAL gui_color_loadingbar_inner;
 	static PIXVAL gui_color_loadingbar_progress;
 	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
 	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
+	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
 	static PIXVAL gui_color_down_pointing_triangle;       //@< (EX unique) Color to draw an downward triangle indicating an decrease in the number
-
 	/// @}
 
 	/// @name GUI element sizes used by gui components
@@ -313,7 +316,7 @@ public:
 	static image_id pos_button_img[3];
 
 	static bool gui_drop_shadows;
-
+	static bool pressed_button_sinks;
 
 public:
 	// default dimensions and colors

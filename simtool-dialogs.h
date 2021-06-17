@@ -80,7 +80,7 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("Einstellungen aendern"); }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_optionen_gui_t); }
 	bool init(player_t*) OVERRIDE{
-		create_win(240, 120, new optionen_gui_t(), w_info, magic_optionen_gui_t);
+		create_win(-1, -1, new optionen_gui_t(), w_info, magic_optionen_gui_t, true);
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_optionen_gui_t); return false; }
@@ -321,12 +321,12 @@ class dialog_list_halt_t : public tool_t {
 public:
 	dialog_list_halt_t() : tool_t(DIALOG_LIST_HALT | DIALOG_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("hl_title"); }
-	bool is_selected() const OVERRIDE{ return win_get_magic(magic_halt_list_t); }
+	bool is_selected() const OVERRIDE{ return win_get_magic(magic_halt_list); }
 	bool init(player_t* player) OVERRIDE{
-		create_win(new halt_list_frame_t(player), w_info, magic_halt_list_t);
+		create_win(new halt_list_frame_t(), w_info, magic_halt_list);
 		return false;
 	}
-	bool exit(player_t*) OVERRIDE{ destroy_win(magic_halt_list_t); return false; }
+	bool exit(player_t*) OVERRIDE{ destroy_win(magic_halt_list); return false; }
 	bool is_init_network_safe() const OVERRIDE{ return true; }
 	bool is_work_network_safe() const OVERRIDE{ return true; }
 };
@@ -338,7 +338,7 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("cl_title"); }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_convoi_list + welt->get_active_player_nr()); }
 	bool init(player_t* player) OVERRIDE{
-		create_win(new convoi_frame_t(player), w_info, magic_convoi_list + player->get_player_nr());
+		create_win(new convoi_frame_t(), w_info, magic_convoi_list + player->get_player_nr());
 		return false;
 	}
 	bool exit(player_t* const player) OVERRIDE{ destroy_win(magic_convoi_list + player->get_player_nr()); return false; }

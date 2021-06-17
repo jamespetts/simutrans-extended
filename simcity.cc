@@ -714,7 +714,6 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 				// ignore
 		}
 	}
-	//printf("Success\n");
 	return true;
 }
 
@@ -724,7 +723,6 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
  * @note but the rules should explicitly forbid building then?!?
  */
 sint32 stadt_t::bewerte_pos(const koord pos, const rule_t &regel)
-
 {
 	// will be called only a single time, so we can stop after a single match
 	if(bewerte_loc(pos, regel,   0) ||
@@ -795,7 +793,6 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	if (!cityconf.open((user_dir+"cityrules.tab").c_str())) {
 		if (!cityconf.open((objfilename+"config/cityrules.tab").c_str())) {
 			dbg->fatal("stadt_t::init()", "Can't read cityrules.tab" );
-			return false;
 		}
 	}
 
@@ -897,10 +894,9 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 		}
 
 		// put rule into memory
-		const uint8 offset = (7 - (uint)size) / 2;
+		const uint8 offset = (7 - (uint8)size) / 2;
 		for (uint y = 0; y < size; y++) {
 			for (uint x = 0; x < size; x++) {
-
 				const char flag = rule[x + y * (size + 1)];
 				// check for allowed characters; ignore '.';
 				// leave midpoint out, should be 'n', which is checked in build() anyway
@@ -910,7 +906,6 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 				else {
 					if ((x+offset!=3  ||  y+offset!=3)  &&  flag!='.') {
 						dbg->warning("stadt_t::cityrules_init()", "house rule %d entry (%d,%d) is '%c' and will be ignored", i + 1, x+offset, y+offset, flag);
-
 					}
 				}
 			}
@@ -947,7 +942,7 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 		}
 
 		// put rule into memory
-		const uint8 offset = (7 - (uint)size) / 2;
+		const uint8 offset = (7 - (uint8)size) / 2;
 		for (uint y = 0; y < size; y++) {
 			for (uint x = 0; x < size; x++) {
 				const char flag = rule[x + y * (size + 1)];
@@ -2445,7 +2440,6 @@ void stadt_t::finish_rd()
 		dbg->warning("stadt_t::finish_rd()", "City %s has no valid townhall after loading the savegame, try to build a new one.", get_name());
 		check_bau_townhall(true);
 	}
-
 	// new city => need to grow
 	if (buildings.empty()) {
 		step_grow_city(true);
@@ -3603,7 +3597,7 @@ void stadt_t::check_bau_townhall(bool new_town)
 	if(desc != NULL) {
 		grund_t* gr = welt->lookup_kartenboden(pos);
 		gebaeude_t* gb = obj_cast<gebaeude_t>(gr->first_obj());
-		bool neugruendung = !has_townhall || !gb || !gb->is_townhall();
+		bool neugruendung = !has_townhall ||  !gb || !gb->is_townhall();
 		bool umziehen = !neugruendung;
 		koord alte_str(koord::invalid);
 		koord best_pos(pos);
@@ -3645,12 +3639,12 @@ void stadt_t::check_bau_townhall(bool new_town)
 				// no, the size is ok
 				// still need to check whether the existing townhall is not broken in some way
 				umziehen = false;
-				for (k.y = 0; k.y < groesse_alt.y; k.y++) {
-					for (k.x = 0; k.x < groesse_alt.x; k.x++) {
+				for(k.y = 0; k.y < groesse_alt.y; k.y ++) {
+					for(k.x = 0; k.x < groesse_alt.x; k.x ++) {
 						// for buildings with holes the hole could be on a different height ->gr==NULL
 						bool ok = false;
 						if (grund_t *gr = welt->lookup_kartenboden(k + pos)) {
-							if (gebaeude_t *gb_part = gr->find<gebaeude_t>()) {
+							if(gebaeude_t *gb_part = gr->find<gebaeude_t>()) {
 								// there may be buildings with holes, so we only remove our building!
 								if (gb_part->get_tile() == desc_alt->get_tile(old_layout, k.x, k.y)) {
 									ok = true;
@@ -3662,7 +3656,7 @@ void stadt_t::check_bau_townhall(bool new_town)
 				}
 				if (!umziehen) {
 					// correct position if new townhall is smaller than old
-					if (old_layout == 0) {
+					if(  old_layout == 0  ) {
 						best_pos.y -= desc->get_y(old_layout) - groesse_alt.y;
 					}
 					else if (old_layout == 1) {
@@ -3862,6 +3856,7 @@ void stadt_t::bewerte_res_com_ind(const koord pos, int &ind_score, int &com_scor
 
 	for (k.y = pos.y - 2; k.y <= pos.y + 2; k.y++) {
 		for (k.x = pos.x - 2; k.x <= pos.x + 2; k.x++) {
+
 			building_desc_t::btype t = building_desc_t::unknown;
 			if (const grund_t* gr = welt->lookup_kartenboden(k)) {
 				if (gebaeude_t const* const gb = obj_cast<gebaeude_t>(gr->first_obj())) {
@@ -3869,12 +3864,12 @@ void stadt_t::bewerte_res_com_ind(const koord pos, int &ind_score, int &com_scor
 				}
 			}
 
-				int i = -1;
-			switch (t) {
+			int i = -1;
+			switch(t) {
 				case building_desc_t::city_res: i = 0; break;
 				case building_desc_t::city_com: i = 1; break;
 				case building_desc_t::city_ind: i = 2; break;
-				default:;
+				default: ;
 			}
 			if (i >= 0) {
 				ind_score += ind_neighbour_score[i];
@@ -4357,18 +4352,18 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	}
 	const koord3d pos(gr->get_pos());
 
-	// Not building on ways (this was actually tested before be the cityrules), btu you can construct manually
+	// Not building on ways (this was actually tested before be the cityrules), but you can construct manually
 	if(  !gr->ist_natur() ) {
 		return;
 	}
 	// test ownership of all objects that can block construction
-	for (uint8 i = 0; i < gr->obj_count(); i++) {
+	for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 		obj_t *const obj = gr->obj_bei(i);
-		if (obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar) {
+		if(  obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar  ) {
 			return;
 		}
 	}
-	// Refuse to build on a slope, when there is a groudn right on top of it (=> the house would sit on the bridge then!)
+	// Refuse to build on a slope, when there is a ground right on top of it (=> the house would sit on the bridge then!)
 	if(  gr->get_grund_hang() != slope_t::flat  &&  welt->lookup(koord3d(k, welt->max_hgt(k))) != NULL  ) {
 		return;
 	}
@@ -4642,8 +4637,7 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	}
 
 	// good enough to renovate, and we found a building?
-	if (sum > 0 && h != NULL)
-	{
+	if(  sum > 0  &&  h != NULL  ) {
 //		DBG_MESSAGE("stadt_t::renovate_city_building()", "renovation at %i,%i (%i level) of typ %i to typ %i with desire %i", k.x, k.y, alt_typ, want_to_have, sum);
 
 		for (uint16 i=0; i<surrounding_pos.get_count(); i++) {
@@ -5106,7 +5100,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	}
 
 	// somebody else's things on it?
-	if (bd->kann_alle_obj_entfernen(NULL)) {
+	if(  bd->kann_alle_obj_entfernen(NULL)  ) {
 		return false;
 	}
 
@@ -5160,8 +5154,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		if (sch->get_desc()->get_styp() != type_tram) {
 			// not a tramway
 			ribi_t::ribi r = sch->get_ribi_unmasked();
-			if (!ribi_t::is_straight(r))
-			{
+			if (!ribi_t::is_straight(r)) {
 				// no building on crossings, curves, dead ends unless this is an unowned degraded way
 				if (!(sch->get_player_nr() == PLAYER_UNOWNED && sch->is_degraded()))
 				{
@@ -5329,17 +5322,17 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 					// does not have a bridge available ...
 					return false;
 				}
-				const char* err = NULL;
+				const char *err = NULL;
 				sint8 bridge_height;
 				koord3d end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, false);
-				if (err || koord_distance(k, end.get_2d()) > 3) {
+				if(err  ||   koord_distance( k, end.get_2d())>3) {
 					// try to find shortest possible
 					end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, true);
 				}
 				// if the river is nagigable, we need a two hight slope, so we have to start on a flat tile
-				if (err && *err != 0 && strcmp(err, "Bridge is too long for this type!\n") != 0 && bd->get_weg_hang() != slope_t::flat) {
+				if(  err  &&  *err!=0  &&  strcmp(err,"Bridge is too long for this type!\n")!=0  &&  bd->get_weg_hang()!=slope_t::flat    ) {
 					slope_t::type old_slope = bd->get_grund_hang();
-					sint8 h_diff = slope_t::max_diff(old_slope);
+					sint8 h_diff = slope_t::max_diff( old_slope );
 					// raise up the tile
 					bd->set_grund_hang( slope_t::flat );
 					bd->set_hoehe( bd->get_hoehe() + h_diff );
@@ -5349,7 +5342,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 					}
 
 					end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, false);
-					if (err || koord_distance(k, end.get_2d()) > 3) {
+					if(err  ||   koord_distance( k, end.get_2d())>3) {
 						// try to find shortest possible
 						end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, true);
 					}
@@ -5362,8 +5355,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 							bd->obj_bei(i)->set_pos( bd->get_pos() );
 						}
 					}
-					else
-					{
+					else {
 						// update slope graphics on tile and tile in front
 						// The below code from Standard does not seem to exist in Extended
 						// (that is, the check_update_underground() logic.
@@ -5395,8 +5387,6 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 				}
 			}
 		}
-		return true;
-
 		return true;
 	}
 

@@ -29,12 +29,12 @@ class tool_selector_t;
 class hausbauer_t
 {
 private:
-	static vector_tpl<const building_desc_t*> attractions_land; // Land attractions
-	static vector_tpl<const building_desc_t*> attractions_city; // City attractions
-	static vector_tpl<const building_desc_t*> townhalls; // Town halls
-	static vector_tpl<const building_desc_t*> monuments; // Monuments
-	static vector_tpl<const building_desc_t*> unbuilt_monuments; // Unbuilt monuments
-	static vector_tpl<const building_desc_t*> headquarters; //< Company headquarters
+	static vector_tpl<const building_desc_t*> attractions_land;  ///< Sights outside of cities
+	static vector_tpl<const building_desc_t*> attractions_city;  ///< Sights within cities
+	static vector_tpl<const building_desc_t*> townhalls;         ///< Town halls
+	static vector_tpl<const building_desc_t*> monuments;         ///< All monuments
+	static vector_tpl<const building_desc_t*> unbuilt_monuments; ///< All unbuilt monuments
+	static vector_tpl<const building_desc_t*> headquarters;      ///< Company headquarters
 
 	/// @returns a random entry from @p list
 	static const building_desc_t* get_random_desc(vector_tpl<const building_desc_t*>& list, uint16 time, bool ignore_retire, climate cl);
@@ -130,7 +130,7 @@ public:
 	/**
 	 * Removes an arbitrary building.
 	 * It will also take care of factories and foundations.
-	 * @param sp the player wanting to remove the building.
+	 * @param player the player wanting to remove the building.
 	 */
 	static void remove(player_t *player, const gebaeude_t *gb, bool map_generation);
 

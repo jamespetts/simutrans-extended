@@ -1004,7 +1004,7 @@ void gui_convoy_assembler_t::draw(scr_coord parent_pos)
 			money_to_string(buf, total_cost / 100.0);
 			// FIXME: The correct term must be used for the translation of "Cost:"
 			txt_convoi_cost.append(translator::translate("Cost:"));
-			const PIXVAL col_cost = (uint32)resale_value == total_cost ? SYSCOL_TEXT : COL_SOFT_BLUE;
+			const PIXVAL col_cost = (uint32)resale_value == total_cost ? SYSCOL_TEXT : COL_OUT_OF_PRODUCTION;
 			display_proportional_clip_rgb(parent_pos.x + D_MARGIN_LEFT + proportional_string_width(translator::translate("Cost:")) + 10, parent_pos.y + pos.y + lb_convoi_cost.get_pos().y, buf, ALIGN_LEFT, col_cost, true);
 
 			txt_convoi_maintenance.printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), (double)maint_per_km / 100.0, (double)maint_per_month / 100.0);
@@ -2149,25 +2149,25 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 		new_vehicle_length = new_vehicle_length_sb_force_zero ? 0 : veh_type->get_length();
 		uint8 auto_addition_length = 0;
 		if (!new_vehicle_length_sb_force_zero) {
-			auto_addition_length = veh_action == va_insert ? veh_type->calc_auto_connection_length(false) : veh_type->calc_auto_connection_length(true);
-			vehicle_fluctuation += veh_action == va_insert ? veh_type->get_auto_connection_vehicle_count(false) : veh_type->get_auto_connection_vehicle_count(true);
+			auto_addition_length = veh_type->calc_auto_connection_length(!(veh_action == va_insert));
+			vehicle_fluctuation += veh_type->get_auto_connection_vehicle_count(!(veh_action == va_insert));
 			vehicle_fluctuation++;
 			lb_convoi_count.set_visible(true);
 		}
-		tile_occupancy.set_new_veh_length(new_vehicle_length + auto_addition_length, veh_action == va_insert ? true : false, new_vehicle_length_sb_force_zero ? 0xFFu : new_vehicle_length);
+		tile_occupancy.set_new_veh_length(new_vehicle_length + auto_addition_length, (veh_action == va_insert), new_vehicle_length_sb_force_zero ? 0xFFu : new_vehicle_length);
 		if (!new_vehicle_length_sb_force_zero) {
 			if (veh_action == va_append && auto_addition_length == 0) {
-				tile_occupancy.set_assembling_incomplete(vec[sel_index]->rcolor == COL_YELLOW ? true : false);
+				tile_occupancy.set_assembling_incomplete(vec[sel_index]->rcolor == COL_YELLOW);
 			}
 			else if (veh_action == va_insert && auto_addition_length == 0) {
-				tile_occupancy.set_assembling_incomplete(vec[sel_index]->lcolor == COL_YELLOW ? true : false);
+				tile_occupancy.set_assembling_incomplete(vec[sel_index]->lcolor == COL_YELLOW);
 			}
 			else {
 				tile_occupancy.set_assembling_incomplete(false);
 			}
 		}
 		else if(convoi_pics.get_count()){
-			tile_occupancy.set_assembling_incomplete((convoi_pics[0]->lcolor == COL_YELLOW || convoi_pics[convoi_pics.get_count() - 1]->rcolor == COL_YELLOW) ? true : false);
+			tile_occupancy.set_assembling_incomplete((convoi_pics[0]->lcolor == COL_YELLOW || convoi_pics[convoi_pics.get_count() - 1]->rcolor == COL_YELLOW));
 		}
 
 		// Search and focus on upgrade targets in convoy
@@ -2310,7 +2310,7 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 					txt_convoi_number.clear();
 					txt_convoi_number.printf("%.2s", cnv->get_car_numbering(sel_index) < 0 ? translator::translate("LOCO_SYM") : "");
 					txt_convoi_number.printf("%d", abs(cnv->get_car_numbering(sel_index)));
-					lb_convoi_number.set_color(veh_type->has_available_upgrade(welt->get_timeline_year_month()) == 2? COL_UPGRADEABLE : COL_WHITE);
+					lb_convoi_number.set_color(veh_type->has_available_upgrade(welt->get_timeline_year_month()) == 2? COL_UPGRADEABLE : SYSCOL_TEXT_HIGHLIGHT);
 					lb_convoi_number.set_pos(scr_coord((grid.x - grid_dx)*sel_index + D_MARGIN_LEFT, 4));
 
 

@@ -84,7 +84,6 @@ public:
 };
 
 
-
 gui_settings_t::gui_settings_t()
 {
 	set_table_layout( 1, 0 );
@@ -101,10 +100,39 @@ gui_settings_t::gui_settings_t()
 	buttons[ IDBTN_CHANGE_FONT ].init( button_t::roundbox_state | button_t::flexible, "Select display font" );
 	add_component( buttons + IDBTN_CHANGE_FONT );
 
+	// position of menu
+	add_table(5,1)->set_spacing(scr_size(0,0));
+	{
+		new_component<gui_label_t>("Toolbar position:");
+		new_component<gui_margin_t>(D_H_SPACE);
+		static char const* const positions[] = { "Left", "Top", "Right", "Bottom" };
+		for (uint8 i=0; i<4; i++) {
+			toolbar_pos[i].pressed = (env_t::menupos == i);
+			toolbar_pos[i].init( button_t::roundbox_state, positions[i], scr_coord(0,0), scr_size(D_BUTTON_WIDTH*0.8, D_BUTTON_HEIGHT) );
+		}
+
+		add_component( &toolbar_pos[MENU_LEFT] );
+		add_table(1,2);
+		{
+			add_component( &toolbar_pos[MENU_TOP] );
+			add_component( &toolbar_pos[MENU_BOTTOM] );
+		}
+		end_table();
+		add_component( &toolbar_pos[MENU_RIGHT] );
+	}
+	end_table();
+
+	reselect_closes_tool.init( button_t::square_state, "Reselect closes tools" );
+	reselect_closes_tool.pressed = env_t::reselect_closes_tool;
+	add_component( &reselect_closes_tool, 2 );
+
+	new_component<gui_divider_t>();
+
 	// add controls to info container
-	add_table(2,4);
+	add_table(2,0);
 	{
 		set_alignment(ALIGN_LEFT);
+
 		// Frame time label
 		new_component<gui_label_t>("Frame time:");
 		frame_time_value_label.buf().printf(" 9999 ms");
@@ -412,7 +440,7 @@ bool map_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
 	}
 	// Hide building
 	if( &hide_buildings == comp ) {
-		env_t::hide_buildings = v.i;
+		env_t::hide_buildings = (uint8)v.i;
 		world()->set_dirty();
 	}
 	return true;
@@ -563,7 +591,7 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
 	// Convoy tooltip
 	if (&convoy_tooltip == comp) {
-		env_t::show_vehicle_states = v.i;
+		env_t::show_vehicle_states = (uint8)v.i;
 	}
 	// Convoy nameplate
 	if (&convoy_nameplate == comp) {
@@ -574,7 +602,7 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 		env_t::show_cnv_loadingbar = v.i;
 	}
 	if (&money_booking == comp) {
-		env_t::show_money_message = v.i;
+		env_t::show_money_message = (sint8)v.i;
 	}
 	// freight waiting bar detail level
 	if (&freight_waiting_bar == comp) {
@@ -655,7 +683,7 @@ bool traffic_settings_t::action_triggered( gui_action_creator_t *comp, value_t v
 	}
 
 	if( &follow_mode == comp ) {
-		env_t::follow_convoi_underground = v.i;
+		env_t::follow_convoi_underground = (uint8)v.i;
 	}
 	return true;
 }
@@ -685,6 +713,10 @@ color_gui_t::color_gui_t() :
 	for( int i = 0; i < COLORS_MAX_BUTTONS; i++ ) {
 		buttons[ i ].add_listener( this );
 	}
+	for( uint8 i = 0; i < 4; i++ ) {
+		gui_settings.toolbar_pos[i].add_listener(this);
+	}
+	gui_settings.reselect_closes_tool.add_listener(this);
 
 	set_resizemode(diagonal_resize);
 	set_min_windowsize( scr_size(D_DEFAULT_WIDTH, max(get_min_windowsize().h, traffic_settings.get_size().h)) );
@@ -693,8 +725,36 @@ color_gui_t::color_gui_t() :
 	resize( scr_coord( 0, 0 ) );
 }
 
-bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t)
+bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t )
 {
+	bool reflesh_toolbar_pos_btn = false;
+	for(  uint8 i=0; i<4; i++  ) {
+		if(  comp == &gui_settings.toolbar_pos[i]  ) {
+			env_t::menupos = i;
+			reflesh_toolbar_pos_btn = true;
+
+			welt->set_dirty();
+			// move all windows
+			event_t* ev = new event_t();
+			ev->ev_class = EVENT_SYSTEM;
+			ev->ev_code = SYSTEM_RELOAD_WINDOWS;
+			queue_event(ev);
+			break;
+		}
+	}
+	if( reflesh_toolbar_pos_btn ) {
+		for(  uint8 i=0; i<4; i++  ) {
+			gui_settings.toolbar_pos[i].pressed = (env_t::menupos == i);
+		}
+		return true;
+	}
+
+	if(  comp == &gui_settings.reselect_closes_tool  ) {
+		env_t::reselect_closes_tool = !env_t::reselect_closes_tool;
+		gui_settings.reselect_closes_tool.pressed = env_t::reselect_closes_tool;
+		return true;
+	}
+
 	int i;
 	for(  i=0;  i<COLORS_MAX_BUTTONS  &&  comp!=buttons+i;  i++  ) { }
 
@@ -842,4 +902,14 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 
 	// All components are updated, now draw them...
 	gui_frame_t::draw(pos, size);
+}
+
+
+void color_gui_t::rdwr(loadsave_t *f)
+{
+	tabs.rdwr(f);
+	scrolly_gui.rdwr(f);
+	scrolly_map.rdwr(f);
+	scrolly_station.rdwr(f);
+	scrolly_traffic.rdwr(f);
 }

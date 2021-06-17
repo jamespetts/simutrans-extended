@@ -187,6 +187,10 @@ public:
 	 */
 	static void unlock_player_all(uint8 player_nr, bool unlock, uint32 except_client = list.get_count());
 
+	/**
+	 * send command to all clients
+	 * @param only_playing_clients if true then send only to playing clients
+	 */
 	static void send_all(network_command_t* nwc, bool only_playing_clients);
 
 	static void change_state(uint32 id, uint8 new_state);

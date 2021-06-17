@@ -80,8 +80,13 @@ class obj_reader_t
 	static unresolved_map unresolved;
 	static ptrhashtable_tpl<obj_desc_t **, int, N_BAGS_SMALL>  fatals;
 
-	static void read_nodes(FILE* fp, obj_desc_t*& data, int register_nodes,uint32 version);
-	static void skip_nodes(FILE *fp,uint32 version);
+	/// Read a descriptor node.
+	/// @param fp File to read from
+	/// @param[out] data If reading is successful, contains descriptor for the object, else NULL.
+	/// @param register_nodes Nesting level for desc-nodes, should normally be 0
+	/// @param version File format version
+	static bool read_nodes(FILE* fp, obj_desc_t *&data, int register_nodes, uint32 version);
+	static bool skip_nodes(FILE *fp, uint32 version);
 
 protected:
 	obj_reader_t() { /* Beware: Cannot register here! */}
@@ -111,6 +116,7 @@ public:
 	virtual const char *get_type_name() const = 0;
 
 	static bool finish_rd();
+
 	/**
 	 * Loads all pak files from a directory, displaying a progress bar if the display is initialized
 	 * @param path Directory to be scanned for PAK files
@@ -119,7 +125,7 @@ public:
 	static bool load(const char *path, const char *message);
 
 	// Only for single files, must take care of all the cleanup/registering matrix themselves
-	static void read_file(const char *name);
+	static bool read_file(const char *name);
 };
 
 #endif

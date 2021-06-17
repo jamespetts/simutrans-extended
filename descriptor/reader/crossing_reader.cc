@@ -15,6 +15,7 @@
 
 #include "../../simdebug.h"
 #include "../../network/pakset_info.h"
+#include "../../tpl/array_tpl.h"
 
 
 void crossing_reader_t::register_obj(obj_desc_t *&data)
@@ -32,13 +33,11 @@ void crossing_reader_t::register_obj(obj_desc_t *&data)
 
 obj_desc_t * crossing_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 {
-	ALLOCA(char, desc_buf, node.size);
-
-	crossing_desc_t *desc = new crossing_desc_t();
-
-	// Read data
-	fread(desc_buf, node.size, 1, fp);
-	char * p = desc_buf;
+	array_tpl<char> desc_buf(node.size);
+	if (fread(desc_buf.begin(), node.size, 1, fp) != 1) {
+		return NULL;
+	}
+	char *p = desc_buf.begin();
 
 	// old versions of PAK files have no version stamp.
 	// But we know, the higher most bit was always cleared.
@@ -60,6 +59,8 @@ obj_desc_t * crossing_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 		extended_version -= 1;
 	}
+
+	crossing_desc_t *desc = new crossing_desc_t();
 
 	if(version == 0) {
 		dbg->error("crossing_reader_t::read_node()","Old version of crossings cannot be used!");

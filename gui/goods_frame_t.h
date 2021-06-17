@@ -61,7 +61,7 @@ private:
 	vector_tpl<const goods_desc_t*> good_list;
 
 	gui_combobox_t sortedby;
-	button_t sort_asc, sort_desc;
+	button_t sort_order;
 
 	// replace button list with numberinput components for faster navigation
 	// @author: HeinBloed, April 2012

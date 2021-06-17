@@ -282,7 +282,7 @@ bool hausbauer_t::register_desc(building_desc_t *desc)
 			tool = new tool_build_station_t();
 		}
 		tool->set_icon( desc->get_cursor()->get_image_id(1) );
-		tool->cursor = desc->get_cursor()->get_image_id(0),
+		tool->cursor = desc->get_cursor()->get_image_id(0);
 		tool->set_default_param(desc->get_name());
 		tool_t::general_tool.append( tool );
 		desc->set_builder( tool );
@@ -871,7 +871,6 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 				break;
 			default:
 				dbg->fatal("hausbauer_t::build_station_extension_depot()","waytpe %i has no depots!", desc->get_extra() );
-				break;
 		}
 	}
 	else if(desc->is_signalbox())

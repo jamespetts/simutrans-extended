@@ -106,6 +106,8 @@ const uint8 citylist_frame_t::hist_type_type[karte_t::MAX_WORLD_COST] =
 	PERCENT
 };
 
+char citylist_frame_t::name_filter[256] = "";
+
 
 citylist_frame_t::citylist_frame_t() :
 	gui_frame_t(translator::translate("City list")),
@@ -129,21 +131,21 @@ citylist_frame_t::citylist_frame_t() :
 
 	list.set_table_layout(1, 0);
 
-	list.add_table(3, 2);
+	list.add_table(2,2);
 	{
 		// 1st row
 		list.new_component<gui_label_t>("hl_txt_sort");
 
-		list.new_component<gui_label_t>("Filter:");
-
-		filter_within_network.init(button_t::square_state, "Within own network");
-		filter_within_network.set_tooltip("Show only cities within the active player's transportation network");
-		filter_within_network.add_listener(this);
-		filter_within_network.pressed = citylist_stats_t::filter_own_network;
-		list.add_component(&filter_within_network);
+		list.add_table(2, 1);
+		{
+			list.new_component<gui_label_t>("Filter:");
+			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			list.add_component(&name_filter_input);
+		}
+		list.end_table();
 
 		// 2nd row
-		list.add_table(3, 1);
+		list.add_table(2,1);
 		{
 			for (int i = 0; i < citylist_stats_t::SORT_MODES; i++) {
 				sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
@@ -154,40 +156,42 @@ citylist_frame_t::citylist_frame_t() :
 			sortedby.add_listener(this);
 			list.add_component(&sortedby);
 
-			// sort ascend/descend button
-			sort_asc.init(button_t::arrowup_state, "");
-			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-			sort_asc.add_listener(this);
-			sort_asc.pressed = citylist_stats_t::sortreverse;
-			list.add_component(&sort_asc);
-
-			sort_desc.init(button_t::arrowdown_state, "");
-			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-			sort_desc.add_listener(this);
-			sort_desc.pressed = !(citylist_stats_t::sortreverse);
-			list.add_component(&sort_desc);
+			// sort ascend/descend switching button
+			sorteddir.init(button_t::sortarrow_state, "");
+			sorteddir.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sorteddir.add_listener(this);
+			sorteddir.pressed = citylist_stats_t::sortreverse;
+			list.add_component(&sorteddir);
 		}
 		list.end_table();
 
-		list.new_component<gui_empty_t>();
+		list.add_table(3,1);
+		{
+			list.new_component<gui_margin_t>(LINESPACE);
+			if (!welt->get_settings().regions.empty()) {
+				//region_selector
+				region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All regions"), SYSCOL_TEXT);
 
-		if (!welt->get_settings().regions.empty()) {
-			//region_selector
-			region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All regions"), SYSCOL_TEXT);
-
-			for (uint8 r = 0; r < welt->get_settings().regions.get_count(); r++) {
-				region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(welt->get_settings().regions[r].name.c_str()), SYSCOL_TEXT);
+				for (uint8 r = 0; r < welt->get_settings().regions.get_count(); r++) {
+					region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(welt->get_settings().regions[r].name.c_str()), SYSCOL_TEXT);
+				}
+				region_selector.set_selection(citylist_stats_t::region_filter);
+				region_selector.set_width_fixed(true);
+				region_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+				region_selector.add_listener(this);
+				list.add_component(&region_selector);
 			}
-			region_selector.set_selection(citylist_stats_t::region_filter);
-			region_selector.set_width_fixed(true);
-			region_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
-			region_selector.add_listener(this);
-			list.add_component(&region_selector);
-		}
-		else {
-			list.new_component<gui_empty_t>();
-		}
+			else {
+				list.new_component<gui_empty_t>();
+			}
 
+			filter_within_network.init(button_t::square_state, "Within own network");
+			filter_within_network.set_tooltip("Show only cities within the active player's transportation network");
+			filter_within_network.add_listener(this);
+			filter_within_network.pressed = citylist_stats_t::filter_own_network;
+			list.add_component(&filter_within_network);
+		}
+		list.end_table();
 	}
 	list.end_table();
 
@@ -263,8 +267,12 @@ void citylist_frame_t::update_label()
 void citylist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
+	strcpy(last_name_filter, name_filter);
 	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
 		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != welt->get_region(city->get_pos())) {
+			continue;
+		}
+		if (last_name_filter[0] != 0 && !utf8caseutf8(city->get_name(), last_name_filter)) {
 			continue;
 		}
 
@@ -288,11 +296,10 @@ bool citylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		citylist_stats_t::region_filter = max(0, v.i);
 		fill_list();
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sorteddir) {
 		citylist_stats_t::sortreverse = !citylist_stats_t::sortreverse;
 		scrolly.sort(0);
-		sort_asc.pressed = citylist_stats_t::sortreverse;
-		sort_desc.pressed = !(citylist_stats_t::sortreverse);
+		sorteddir.pressed = citylist_stats_t::sortreverse;
 	}
 	else if (comp == &filter_within_network) {
 		citylist_stats_t::filter_own_network = !citylist_stats_t::filter_own_network;
@@ -308,10 +315,38 @@ void citylist_frame_t::draw(scr_coord pos, scr_size size)
 {
 	welt->update_history();
 
-	if(  (sint32)world()->get_cities().get_count() != scrolly.get_count()  ) {
+	if(  (sint32)world()->get_cities().get_count() != scrolly.get_count()  ||  strcmp(last_name_filter, name_filter)  ) {
 		fill_list();
 	}
 	update_label();
 
 	gui_frame_t::draw(pos, size);
+}
+
+
+
+void citylist_frame_t::rdwr(loadsave_t* file)
+{
+	scr_size size = get_windowsize();
+
+	size.rdwr(file);
+	scrolly.rdwr(file);
+	year_month_tabs.rdwr(file);
+	main.rdwr(file);
+	//filterowner.rdwr(file);
+	sortedby.rdwr(file);
+	file->rdwr_str(name_filter, lengthof(name_filter));
+	file->rdwr_byte(citylist_stats_t::sort_mode);
+	file->rdwr_byte(citylist_stats_t::region_filter);
+	file->rdwr_bool(citylist_stats_t::sortreverse);
+	file->rdwr_bool(citylist_stats_t::filter_own_network);
+	if (file->is_loading()) {
+		sorteddir.pressed = citylist_stats_t::sortreverse;
+		filter_within_network.pressed = citylist_stats_t::filter_own_network;
+		sortedby.set_selection(citylist_stats_t::sort_mode);
+		region_selector.set_selection(citylist_stats_t::region_filter);
+		name_filter_input.set_text( name_filter, lengthof(name_filter) );
+		fill_list();
+		set_windowsize(size);
+	}
 }

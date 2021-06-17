@@ -330,7 +330,7 @@ const char *tool_query_t::work( player_t *player, koord3d pos )
 
 		if(  env_t::single_info  ) {
 
-			int old_count = win_get_open_count();
+			uint32 old_count = win_get_open_count();
 
 			if(  is_ctrl_pressed()  ) {
 				// reverse order
@@ -383,7 +383,7 @@ const char *tool_query_t::work( player_t *player, koord3d pos )
 					}
 				}
 
-				for (size_t n = gr->get_top(); n-- != 0;) {
+				for (uint8 n = gr->get_top(); n-- != 0;) {
 					obj_t *obj = gr->obj_bei(n);
 					if(  obj && obj->get_typ()!=obj_t::wayobj && obj->get_typ()!=obj_t::pillar && obj->get_typ()!=obj_t::label  ) {
 						DBG_MESSAGE("tool_query_t()", "index %u", (unsigned)n);
@@ -3975,6 +3975,12 @@ const char *tool_wayremover_t::do_work( player_t *player, const koord3d &start, 
 						}
 
 						can_delete &= gr->remove_everything_from_way(player,wt,rem);
+						if (gr->get_typ() == grund_t::tunnelboden  &&  !gr->hat_wege()  ) {
+							// tunnel portal has been removed
+							grund_t* gr_new = new boden_t(gr->get_pos(), gr->get_grund_hang());
+							welt->access(gr->get_pos().get_2d())->kartenboden_setzen(gr_new);
+							gr = gr_new;
+						}
 
 						if(weg)
 						{
@@ -4764,7 +4770,7 @@ DBG_MESSAGE("tool_build_station_t::tool_station_dock_aux()","building dock from 
 			{
 				message.printf(translator::translate("%s has built a new %s near %s."), player->get_name(), "Dock", city_name);
 			}
-			welt->get_message()->add_message(message, pos.get_2d(), message_t::ai, player->get_player_color1());
+			welt->get_message()->add_message(message, pos.get_2d(), message_t::ai, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
 		}
 	}
 	hausbauer_t::build(halt->get_owner(), bau_pos, layout, desc, &halt);
@@ -5152,7 +5158,6 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 	else {
 		// something wrong with station number of layouts
 		dbg->fatal( "tool_build_station_t::tool_station_aux", "%s has wrong number of layouts (must be 2,4,8,16!)", desc->get_name() );
-		return p_error;
 	}
 
 	if(  desc->get_all_layouts() == 8  ||  desc->get_all_layouts() == 16  ) {
@@ -5315,7 +5320,7 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 			{
 				message.printf(translator::translate("%s has built a new %s near %s."), player->get_name(), stop, city_name);
 			}
-			welt->get_message()->add_message(message, pos.get_2d(), message_t::ai, player->get_player_color1());
+			welt->get_message()->add_message(message, pos.get_2d(), message_t::ai, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
 		}
 	}
 	hausbauer_t::build_station_extension_depot(halt->get_owner(), bd->get_pos(), layout, desc, &halt);
@@ -9244,7 +9249,7 @@ bool tool_change_depot_t::init( player_t *player )
 {
 	char tool=0;
 	koord pos2d;
-	sint16 z;
+	sint8 z;
 	uint16 convoi_id;
 	uint16 livery_scheme_index;
 
@@ -9253,7 +9258,7 @@ bool tool_change_depot_t::init( player_t *player )
 	while(  *p  &&  *p<=' '  ) {
 		p++;
 	}
-	sscanf( p, "%c,%hi,%hi,%hi,%hi,%hi", &tool, &pos2d.x, &pos2d.y, &z, &convoi_id, &livery_scheme_index );
+	sscanf( p, "%c,%hi,%hi,%hhi,%hi,%hi", &tool, &pos2d.x, &pos2d.y, &z, &convoi_id, &livery_scheme_index );
 
 	koord3d pos(pos2d, z);
 
@@ -9535,7 +9540,7 @@ bool tool_change_player_t::init( player_t *player_in)
 				{
 					message.printf("%s %s", player->get_name(), translator::translate("is_not_available_for_takeover_any_more"));
 				}
-				welt->get_message()->add_message(message, koord::invalid, message_t::ai, player->get_player_color1());
+				welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
 			}
 			break;
 		case 'u': // Take over another company
@@ -9545,13 +9550,13 @@ bool tool_change_player_t::init( player_t *player_in)
 				if (err)
 				{
 					message.printf(translator::translate(err));
-					welt->get_message()->add_message(message, koord::invalid, message_t::ai, player->get_player_color1());
+					welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
 				}
 				else
 				{
 					message.printf("%s %s %s", player->get_name(), translator::translate("has_taken_over"), welt->get_player(state)->get_name());
 					player->take_over(welt->get_player(state));
-					welt->get_message()->add_message(message, koord::invalid, message_t::ai, player->get_player_color1());
+					welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
 				}
 			}
 			break;
@@ -9577,8 +9582,9 @@ bool tool_change_player_t::init( player_t *player_in)
 bool tool_change_traffic_light_t::init( player_t *player )
 {
 	koord pos2d;
-	sint16 z, ns, ticks;
-	if(  5!=sscanf( default_param, "%hi,%hi,%hi,%hi,%hi", &pos2d.x, &pos2d.y, &z, &ns, &ticks )  ) {
+	sint8 z;
+	sint16 ns, ticks;
+	if(  5!=sscanf( default_param, "%hi,%hi,%hhi,%hi,%hi", &pos2d.x, &pos2d.y, &z, &ns, &ticks )  ) {
 		return false;
 	}
 	koord3d pos(pos2d, z);
@@ -9699,7 +9705,8 @@ bool tool_rename_t::init(player_t *player)
 		case 'm':
 		case 'f': {
 			koord pos2d;
-			if(  3!=sscanf( p, "%hi,%hi,%hi", &pos2d.x, &pos2d.y, &id )  ) {
+			sint8 z;
+			if(  3!=sscanf( p, "%hi,%hi,%hhi", &pos2d.x, &pos2d.y, &z )  ) {
 				dbg->error( "tool_rename_t::init", "no position given for marker/factory! (%s)", default_param );
 				return false;
 			}
@@ -9709,7 +9716,7 @@ bool tool_rename_t::init(player_t *player)
 			}
 			while(  *p>0  &&  *p++!=','  ) {
 			}
-			pos = koord3d(pos2d, id);
+			pos = koord3d(pos2d, z);
 			id = 0;
 			break;
 		}
@@ -9808,7 +9815,7 @@ bool tool_rename_t::init(player_t *player)
 
 bool tool_recolour_t::init(player_t *)
 {
-	uint16 id = 0;
+	uint8 id = 0;
 
 	// skip the rest of the command
 	const char *p = default_param;
@@ -10032,7 +10039,7 @@ bool tool_access_t::init(player_t *)
 	{
 		message.printf(translator::translate("%s has withdrawn access rights from %s"),  welt->get_player(id_setting_player)->get_name(), welt->get_player(id_receiving_player)->get_name());
 	}
-	welt->get_message()->add_message(message, koord::invalid, message_t::ai, setting_player->get_player_color1());
+	welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(setting_player->get_player_color1() + env_t::gui_player_color_dark));
 	return false;
 }
 

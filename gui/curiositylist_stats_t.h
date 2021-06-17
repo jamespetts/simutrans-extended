@@ -50,9 +50,6 @@ public:
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
-	/**
-	* Draw the component
-	*/
 	void draw(scr_coord offset) OVERRIDE;
 };
 

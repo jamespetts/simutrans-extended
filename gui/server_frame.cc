@@ -43,7 +43,7 @@ public:
 			scr_coord p = get_pos() + offset;
 			scr_size mapsize( gi->get_map()->get_width(), gi->get_map()->get_height() );
 			// 3D border around the map graphic
-			display_ddd_box_clip_rgb(p.x, p.y, mapsize.w + 2, mapsize.h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4) );
+			display_ddd_box_clip_rgb(p.x, p.y, mapsize.w + 2, mapsize.h + 2, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2 );
 			display_array_wh( p.x + 1, p.y + 1, mapsize.w, mapsize.h, gi->get_map()->to_array() );
 		}
 	}
@@ -60,6 +60,7 @@ public:
 server_frame_t::server_frame_t() :
 	gui_frame_t( translator::translate("Game info") ),
 	gi(welt),
+	custom_valid(false),
 	serverlist( gui_scrolled_list_t::listskin, gui_scrolled_list_t::scrollitem_t::compare ),
 	game_text(&buf)
 {

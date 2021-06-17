@@ -125,7 +125,7 @@ goods_frame_t::goods_frame_t() :
 	new_component<gui_label_t>("hl_txt_sort");
 
 	// sort mode
-	sort_row = add_table(5, 1);
+	sort_row = add_table(4, 1);
 	{
 		for (int i = 0; i < SORT_MODES; i++) {
 			sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
@@ -136,25 +136,20 @@ goods_frame_t::goods_frame_t() :
 		sortedby.add_listener(this);
 		add_component(&sortedby); // (1,1)
 
-		// sort ascend/descend button
-		sort_asc.init(button_t::arrowup_state, "");
-		sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-		sort_asc.add_listener(this);
-		sort_asc.pressed = sortreverse;
-		add_component(&sort_asc); // (2,1)
+		// sort asc/desc switching button
+		sort_order.init(button_t::sortarrow_state, "");
+		sort_order.set_tooltip(translator::translate("hl_btn_sort_order")); // UI TODO: Change translation
+		sort_order.add_listener(this);
+		sort_order.pressed = sortreverse;
+		add_component(&sort_order); // (2,1)
 
-		sort_desc.init(button_t::arrowdown_state, "");
-		sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-		sort_desc.add_listener(this);
-		sort_desc.pressed = !sortreverse;
-		add_component(&sort_desc); // (3,1)
-		new_component<gui_margin_t>(LINESPACE); // (4,1)
+		new_component<gui_margin_t>(LINESPACE); // (3,1)
 
 		filter_goods_toggle.init(button_t::square_state, "Show only used");
 		filter_goods_toggle.set_tooltip(translator::translate("Only show goods which are currently handled by factories"));
 		filter_goods_toggle.add_listener(this);
 		filter_goods_toggle.pressed = filter_goods;
-		add_component(&filter_goods_toggle); // (5,1)
+		add_component(&filter_goods_toggle); // (4,1)
 	}
 	end_table();
 
@@ -245,12 +240,11 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		default_sortmode = (uint8)tmp;
 		sort_list();
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		// order
 		sortreverse ^= 1;
 		sort_list();
-		sort_asc.pressed = sortreverse;
-		sort_desc.pressed = !sortreverse;
+		sort_order.pressed = sortreverse;
 	}
 	else if (comp == &speed_input) {
 		vehicle_speed = v.i;
@@ -305,7 +299,7 @@ void goods_frame_t::rdwr(loadsave_t *file)
 	file->rdwr_byte(catering_level);
 	file->rdwr_long(vehicle_speed);
 	file->rdwr_byte(g_class);
-	file->rdwr_bool(sort_asc.pressed);
+	file->rdwr_bool(sort_order.pressed);
 	file->rdwr_bool(filter_goods_toggle.pressed);
 	uint8 s = default_sortmode;
 	file->rdwr_byte(s);
@@ -315,8 +309,7 @@ void goods_frame_t::rdwr(loadsave_t *file)
 	if (file->is_loading()) {
 		sortedby.set_selection(s);
 		sortby = (sort_mode_t)b;
-		sortreverse = sort_asc.pressed;
-		sort_desc.pressed = !sort_asc.pressed;
+		sortreverse = sort_order.pressed;
 		sort_list();
 		distance_input.set_value(distance);
 		comfort_input.set_value(comfort);

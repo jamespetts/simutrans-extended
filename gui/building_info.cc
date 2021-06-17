@@ -22,6 +22,7 @@
 #include "components/gui_image.h"
 #include "components/gui_colorbox.h"
 
+sint16 building_info_t::tabstate = -1;
 
 gui_building_stats_t::gui_building_stats_t(const gebaeude_t* gb, PIXVAL color)
 {
@@ -247,12 +248,13 @@ void gui_building_stats_t::draw(scr_coord offset)
 	}
 }
 
-building_info_t::building_info_t(gebaeude_t* gb, player_t* owner) : base_infowin_t(translator::translate(gb->get_name()), owner),
-building_view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
-cont_stats(gb, get_titlecolor()),
-scrolly_stats(&cont_stats, true),
-scrolly_near_by_halt(&cont_near_by_halt, true),
-scrolly_signalbox(&cont_signalbox_info, true)
+building_info_t::building_info_t(gebaeude_t* gb, player_t* owner) :
+	base_infowin_t(translator::translate(gb->get_name()), owner),
+	building_view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
+	cont_stats(gb, get_titlecolor()),
+	scrolly_stats(&cont_stats, true),
+	scrolly_near_by_halt(&cont_near_by_halt, true),
+	scrolly_signalbox(&cont_signalbox_info, true)
 {
 	this->owner = owner;
 	building = gb->get_first_tile();
@@ -263,6 +265,7 @@ scrolly_signalbox(&cont_signalbox_info, true)
 	add_table(1,0)->set_margin(scr_size(0,0), scr_size(0, 0));
 	tabs.add_tab(&scrolly_stats, translator::translate("Statistics"));
 	tabs.add_tab(&scrolly_near_by_halt, translator::translate("Stops potentially within walking distance:"));
+	tabs.add_listener(this);
 	add_component(&tabs);
 	end_table();
 
@@ -324,6 +327,7 @@ scrolly_signalbox(&cont_signalbox_info, true)
 	building->info(buf);
 	recalc_size();
 	set_resizemode(diagonal_resize);
+	set_min_windowsize(scr_size(max(D_DEFAULT_WIDTH, get_min_windowsize().w), D_TITLEBAR_HEIGHT + textarea.get_size().h + D_V_SPACE + D_MARGIN_TOP + D_TAB_HEADER_HEIGHT));
 	set_windowsize(scr_size(get_min_windowsize().w, textarea.get_size().h + cont_stats.get_size().h + D_MARGINS_Y*2 + D_V_SPACE*2 + D_TITLEBAR_HEIGHT + D_TAB_HEADER_HEIGHT));
 }
 
@@ -370,28 +374,13 @@ void building_info_t::update_near_by_halt()
 
 		// Service operation indicator
 		if (halt->is_enabled(goods_manager_t::passengers)) {
-			if (halt->gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_PAS))) {
-				any_operating_stops_passengers = true;
-				// If it is crowded, display the overcrowding color
-				cont_near_by_halt.new_component<gui_colorbox_t>()->init(halt->is_overcrowded(goods_manager_t::INDEX_PAS) ? color_idx_to_rgb(COL_OVERCROWD) : color_idx_to_rgb(COL_GREEN), scr_size(10,D_INDICATOR_HEIGHT), true, false);
-			}
-			else {
-				// there is an attribute but the service does not provide it
-				cont_near_by_halt.new_component<gui_colorbox_t>()->init(COL_INACTIVE, scr_size(10, D_INDICATOR_HEIGHT), true, false);
-			}
+			cont_near_by_halt.new_component<gui_colorbox_t>()->init(halt->get_status_color(0), scr_size(10, D_INDICATOR_HEIGHT), true, false);
 		}
 		else {
 			cont_near_by_halt.new_component<gui_margin_t>(8);
 		}
 		if (halt->is_enabled(goods_manager_t::mail)) {
-			if (halt->gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL))) {
-				any_operating_stops_mail = true;
-				cont_near_by_halt.new_component<gui_colorbox_t>()->init(halt->is_overcrowded(goods_manager_t::INDEX_MAIL) ? color_idx_to_rgb(COL_OVERCROWD) : color_idx_to_rgb(COL_GREEN), scr_size(10, D_INDICATOR_HEIGHT), true, false);
-			}
-			else {
-				// there is an attribute but the service does not provide it
-				cont_near_by_halt.new_component<gui_colorbox_t>()->init(COL_INACTIVE, scr_size(10, D_INDICATOR_HEIGHT), true, false);
-			}
+			cont_near_by_halt.new_component<gui_colorbox_t>()->init(halt->get_status_color(1), scr_size(10, D_INDICATOR_HEIGHT), true, false);
 		}
 		else {
 			cont_near_by_halt.new_component<gui_margin_t>(8);
@@ -458,8 +447,7 @@ void building_info_t::update_near_by_halt()
 		cont_near_by_halt.new_component_span<gui_label_t>("No mail service", 4);
 		cont_near_by_halt.new_component<gui_empty_t>();
 	}
-
-	reset_min_windowsize();
+	resize(scr_size(0,0));
 }
 
 void building_info_t::update_signalbox_info() {
@@ -508,6 +496,44 @@ void building_info_t::update_signalbox_info() {
 		cont_signalbox_info.set_visible(true);
 	}
 	reset_min_windowsize();
+}
+
+// Tabs are closed => left click the tab to open it with the appropriate size.
+// A tab is open   => Switching to a different tab does not change the size.
+//                    left click the same tab again to adjust it to the appropriate size.
+void building_info_t::set_tab_opened()
+{
+	const scr_coord_val margin_above_tab = D_TITLEBAR_HEIGHT + textarea.get_size().h + D_V_SPACE + D_MARGIN_TOP + D_TAB_HEADER_HEIGHT;
+	scr_coord_val ideal_size_h = margin_above_tab + D_MARGIN_BOTTOM;
+	switch (tabstate)
+	{
+		case 0:
+		default:
+			ideal_size_h += cont_stats.get_size().h;
+			break;
+		case 1: // near by stop
+			ideal_size_h += cont_near_by_halt.get_size().h;
+			break;
+		case 2: // signalbox info
+			ideal_size_h += cont_signalbox_info.get_size().h;
+			break;
+	}
+	if (get_windowsize().h != ideal_size_h) {
+		set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, ideal_size_h)));
+	}
+}
+
+bool building_info_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if(  comp == &tabs  ) {
+		const sint16 old_tab = tabstate;
+		tabstate = tabs.get_active_tab_index();
+		if ( get_windowsize().h == get_min_windowsize().h || tabstate == old_tab  ) {
+			set_tab_opened();
+		}
+		return true;
+	}
+	return false;
 }
 
 void building_info_t::draw(scr_coord pos, scr_size size)

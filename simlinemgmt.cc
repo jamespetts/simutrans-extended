@@ -60,7 +60,7 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 {
 	// when a line is updated, all managed convoys must get the new schedule!
 	for (auto& cnv : line->get_convoys())
-	{	
+	{
 		cnv->set_update_line(line);
 		if(line->get_schedule()->get_count() < 2)
 		{

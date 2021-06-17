@@ -2019,10 +2019,6 @@ Vehicle %s is stucked!
 「%s」が\n立ち往生しています！
 Vehicle details
 乗り物の詳細
-Vehicle Name
-車両名
-Vehicle Power
-出力
 Verbrauch
 消費
 Vergroessere die Karte\n
@@ -2936,7 +2932,7 @@ no_route_too_complex_message
 no_time_entry
 記録なし
 normal_unidirectional_order
-停車順: 往路
+順行路
 North To South
 南北方向
 north_and_east
@@ -3128,17 +3124,17 @@ requires
 Reset this replacing operation
 編成の置き換え操作をリセットします。
 reset_all_classes
-全てのクラス設定をリセット
+運賃クラス設定を初期化
 reset_all_mail_classes
-全ての郵便クラス設定をリセット
+郵便物運賃クラス設定を初期化
 reset_all_pass_classes
-全ての旅客クラス設定をリセット
+旅客運賃クラス設定を初期化
 resets_all_classes_to_their_defaults
-全クラス設定をデフォルトに戻します。
+客室（設備）等級に対する運賃クラスの設定を推奨設定に戻します
 resets_all_mail_classes_to_their_defaults
-全郵便クラスの設定をデフォルトに戻します。
+この路線に所属する全ての車両の郵便物運賃クラスの設定を推奨設定に戻します
 resets_all_passenger_classes_to_their_defaults
-全旅客クラスの設定をデフォルトに戻します。
+この路線に所属する全ての車両の旅客運賃クラスの設定を推奨設定に戻します
 residents_wealth
 住民の裕福度
 Restrictions:
@@ -3152,9 +3148,9 @@ Revenue from electricity transmission
 revenue of
 収入:
 reverse route
-経路の反転
+逆行路
 reversed_unidirectional_order
-停車順: 復路
+逆行路
 Reversing
 折り返し中
 Reversing. %s left
@@ -3536,7 +3532,7 @@ West To East
 When adding convoys to the line, every second convoy will follow it in the reverse direction.
 路線に車両を追加したとき、車両が交互に反対方向へ運行するように設定します。
 When this is set, the vehicle will visit stops in reverse order.
-この項目が有効な場合、車両は逆順に停車します。
+このチェックを有効にすると、スケジュールの行路を逆順に巡回します。
 Whether the lighting in the main game window simulates a periodic transition between day and night.
 一定の時間間隔で日中の表示と夜間の表示を切り替えるかどうかを設定します。
 with_wayobj
@@ -3718,9 +3714,9 @@ Starting acceleration:
 Sell for %s
 %sで売却
 cl_btn_general
-編成外観・積載率
+編成外観
 cl_btn_payload
-カテゴリ別積載状況
+積載状況
 cl_btn_formation
 編成図
 available_company_takeovers:
@@ -3853,6 +3849,8 @@ Available:
 製造期間：
 Show future
 登場予定
+Show upgraded
+改造車両を表示
 GUI settings
 GUI設定
 map view
@@ -4057,6 +4055,12 @@ Population/Visitor demand
 人口／訪問者需要
 Climate
 気候
+Vehicle not found
+該当なし
+One vehicle found
+該当数: 1
+%u vehicles found
+該当数: %u
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month
@@ -4083,8 +4087,14 @@ Welcome to Simutrans-Experimental, a game created by Hj. Malthaner and the Simut
 ようこそSimutrans-Extendedへ! Simutrans-StandardはHj. MalthanerとSimutransコミュニティによって開発されました。Simutrans-ExtendedはSimutrans-Standardを元にしてJames E. PettsとSimutransコミュニティによって開発されました。
 Usage/Output
 使用量/発電量
+Vehicle Name
+車両名
+Vehicle Power
+出力
 Power (MW)
 電力 (MW)
+Power: %4d kW\n
+出力: %4d kW\n
 #Show mail service coverage/mail network
 #郵便事業が行われている範囲を表示
 #Show passenger coverage/passenger network
@@ -4093,8 +4103,6 @@ Power (MW)
 #分所要
 # mins. waiting)
 #分待ち)
-Power: %4d kW\n
-出力: %4d kW\n
 #Odometer: %s km
 #積算距離： %skm
 #; %i km/h @ %.2f sec

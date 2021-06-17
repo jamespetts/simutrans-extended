@@ -45,7 +45,6 @@ waytype_t get_waytype(const char* waytype)
 		uv8 = any_wt;
 	} else {
 		dbg->fatal("get_waytype()","invalid waytype \"%s\"\n", waytype);
-		exit(1);
 	}
 
 	return uv8;

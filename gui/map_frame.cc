@@ -98,7 +98,7 @@ public:
 		double bar_width = (double)get_size().w/(double)MAX_SEVERITY_COLORS;
 		// color bar
 		for(  int i=0;  i<MAX_SEVERITY_COLORS;  i++  ) {
-			display_fillbox_wh_clip_rgb(pos.x + (i*bar_width), pos.y+2,  bar_width+1, 7, minimap_t::calc_severity_color(i, MAX_SEVERITY_COLORS-1), false);
+			display_fillbox_wh_clip_rgb(pos.x + (scr_coord_val)(i*bar_width), pos.y+2, (scr_coord_val)bar_width+1, 7, minimap_t::calc_severity_color(i, MAX_SEVERITY_COLORS-1), false);
 		}
 	}
 	scr_size get_min_size() const OVERRIDE
@@ -399,45 +399,21 @@ void map_frame_t::update_buttons()
 
 static bool compare_factories(const factory_desc_t* const a, const factory_desc_t* const b)
 {
-	if (a->get_supplier_count() == 0) {
-		// a source
-		if (b->get_supplier_count() > 0) {
-			return true;
-		}
-		else {
-			// both producer, sort by name
-			return strcmp(translator::translate(a->get_name()), translator::translate(b->get_name())) < 0;
-		}
+	const bool a_producer_only = a->get_supplier_count() == 0;
+	const bool b_producer_only = b->get_supplier_count() == 0;
+	const bool a_consumer_only = a->get_product_count() == 0;
+	const bool b_consumer_only = b->get_product_count() == 0;
+
+	if (a_producer_only != b_producer_only) {
+		return a_producer_only; // producers to the front
+	}
+	else if (a_consumer_only != b_consumer_only) {
+		return !a_consumer_only; // consumers to the end
 	}
 	else {
-		// a not source
-		if (b->get_supplier_count() == 0) {
-			// b source, in front
-			return false;
-		}
-		else {
-			if (a->get_product_count() == 0) {
-				// a consumer
-				if (b->get_product_count() > 0) {
-					// b factory, in front
-					return false;
-				}
-				else {
-					// both consumer, sort by name
-					return strcmp(translator::translate(a->get_name()), translator::translate(b->get_name())) < 0;
-				}
-			}
-			else {
-				// a factory
-				if (b->get_product_count() == 0) {
-					// b producer to end
-					return true;
-				}
-			}
-		}
+		// both of same type, sort by name
+		return strcmp(translator::translate(a->get_name()), translator::translate(b->get_name())) < 0;
 	}
-	// both factory, sort by name
-	return strcmp(translator::translate(a->get_name()), translator::translate(b->get_name())) < 0;
 }
 
 

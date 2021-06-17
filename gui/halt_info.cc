@@ -219,7 +219,7 @@ void gui_halt_capacity_bar_t::draw(scr_coord offset)
 		default:
 			return;
 	}
-	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, HALT_CAPACITY_BAR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, HALT_CAPACITY_BAR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH, GOODS_COLOR_BOX_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), true);
 	// transferring (to this station) bar
 	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min(100, (transship_in_sum + wainting_sum) * 100 / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
@@ -386,7 +386,7 @@ void gui_halt_waiting_indicator_t::draw(scr_coord offset)
 			}
 			lb_transfer_time[i].buf().append(transfer_time_as_clock);
 			lb_transfer_time[i].update();
-			lb_transfer_time[i].set_color(is_operating ? SYSCOL_TEXT : color_idx_to_rgb(MN_GREY0));
+			lb_transfer_time[i].set_color(is_operating ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE);
 
 			if (!is_operating && skinverwaltung_t::alerts) {
 				img_alert.set_visible(true);

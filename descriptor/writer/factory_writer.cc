@@ -172,9 +172,9 @@ void factory_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint16 const range        = obj.get_int("range",               10);
 	uint16 const dist_weight  = obj.get_int("distributionweight",   1);
 	uint8  const color        = obj.get_color("mapcolor", 255);
+
 	if (color == 255) {
 		dbg->fatal( "Factory", "%s missing an identification color! (mapcolor)", obj_writer_t::last_name );
-		exit(1);
 	}
 
 	uint16 const electricity_percent = obj.get_int("electricity_percent", 17);

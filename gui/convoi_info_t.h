@@ -77,6 +77,7 @@ private:
 	button_t details_button;
 	button_t reverse_button;
 
+	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
 	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
 	gui_scrollpane_t scroll_freight;
@@ -113,6 +114,9 @@ private:
 	gui_button_to_chart_array_t button_to_chart;
 
 	void init(convoihandle_t cnv);
+
+	void set_tab_opened();
+
 public:
 	convoi_info_t(convoihandle_t cnv = convoihandle_t());
 

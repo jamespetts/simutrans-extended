@@ -8,6 +8,7 @@
 #include "../../simcolor.h"
 #include "../../simworld.h"
 
+#include "../../dataobj/environment.h"
 #include "../../dataobj/translator.h"
 #include "../../utils/cbuffer_t.h"
 
@@ -65,7 +66,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				left = 2;
 				yoff += 2; // box position adjistment
 				// [storage indicator]
-				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 				display_fillbox_wh_clip_rgb(pos.x + offset.x + left + 1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, STORAGE_INDICATOR_WIDTH, GOODS_COLOR_BOX_HEIGHT-2, color_idx_to_rgb(MN_GREY2), true);
 				if (storage_capacity) {
 					const uint16 colored_width = min(STORAGE_INDICATOR_WIDTH, (uint16)(STORAGE_INDICATOR_WIDTH * stock_quantity / storage_capacity));
@@ -154,7 +155,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				left = 2;
 				yoff+=2; // box position adjistment
 				// [storage indicator]
-				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT, SYSCOL_INDICATOR_BORDER1, SYSCOL_INDICATOR_BORDER2);
 				display_fillbox_wh_clip_rgb(pos.x + offset.x + left+1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, STORAGE_INDICATOR_WIDTH, GOODS_COLOR_BOX_HEIGHT-2, color_idx_to_rgb(MN_GREY2), true);
 				if (storage_capacity) {
 					const uint16 colored_width = min(STORAGE_INDICATOR_WIDTH, (uint16)(STORAGE_INDICATOR_WIDTH * stock_quantity / storage_capacity));
@@ -346,7 +347,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, transport_goods->get_color(), NULL);
 			xoff += 12;
 			// [distance]
-			col_val = is_within_own_network ? SYSCOL_TEXT : color_idx_to_rgb(COL_GREY3);
+			col_val = is_within_own_network ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK;
 			distance = (double)(shortest_distance(k, fab->get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000.0;
 			if (distance < 1)
 			{
@@ -375,13 +376,12 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				buf.clear();
 				if (lead_time == UINT32_MAX_VALUE) {
 					buf.append("--:--:--");
-					col_val = color_idx_to_rgb(COL_GREY4);
 				}
 				else {
 					char lead_time_as_clock[32];
 					welt->sprintf_time_tenths(lead_time_as_clock, 32, lead_time);
 					buf.append(lead_time_as_clock);
-					col_val = is_connected_to_own_network ? SYSCOL_TEXT : color_idx_to_rgb(COL_GREY4);
+					col_val = is_connected_to_own_network ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE;
 				}
 				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
 				xoff += D_H_SPACE * 2;
@@ -549,7 +549,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			// [name]
 			buf.clear();
 			buf.append(halt->get_name());
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1()), true);
+			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1() + env_t::gui_player_color_dark), true);
 			xoff += D_H_SPACE * 2;
 
 			bool has_active_freight_connection = false;
@@ -614,26 +614,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			}
 
 			// [status bar]
-			// get_status_farbe() may not fit for freight station. so a dedicated alert display
-			// This can be separated as a function of simhalt if used elsewhere.
-			//if (halt->is_overcrowded(2)) { col = COL_RED; } // This may be extremely lagging
-			if (!has_active_freight_connection) {
-				col_val = COL_INACTIVE; // seems that the freight convoy is not running here
-			}
-			else if (wainting_sum + transship_sum > halt->get_capacity(2)) {
-				col_val = COL_DANGER;
-			}
-			else if (wainting_sum + transship_sum > halt->get_capacity(2)*0.9) {
-				col_val = COL_WARNING;
-			}
-			else if (!wainting_sum && !transship_sum) {
-				// Still have to consider
-				col_val = COL_CAUTION;
-			}
-			else {
-				col_val = COL_CLEAR;
-			}
-			display_fillbox_wh_clip_rgb(offset.x + D_V_SPACE + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH * 2 / 3, D_INDICATOR_HEIGHT + 1, col_val, true);
+			display_fillbox_wh_clip_rgb(offset.x + D_V_SPACE + 1, offset.y + yoff + D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_HEIGHT+1, LINESPACE), D_INDICATOR_WIDTH * 2/3, D_INDICATOR_HEIGHT+1, halt->get_status_color(2), true);
 
 			if (win_get_magic(magic_halt_info + halt.get_id())) {
 				display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);

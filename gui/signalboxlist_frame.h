@@ -22,7 +22,7 @@ private:
 	static bool filter_has_vacant_slot;
 
 	gui_combobox_t sortedby;
-	button_t sort_asc, sort_desc, filter_vacant_slot;
+	button_t sort_order, filter_vacant_slot;
 	gui_scrolled_list_t scrolly;
 
 	uint32 last_signalbox_count;

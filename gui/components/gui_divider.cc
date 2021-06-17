@@ -16,11 +16,11 @@ void gui_divider_t::draw(scr_coord offset)
 
 scr_size gui_divider_t::get_min_size() const
 {
-	return gui_theme_t::gui_divider_size;
+	return scr_size( min(size.w, gui_theme_t::gui_divider_size.w), gui_theme_t::gui_divider_size.h );
 }
 
 
 scr_size gui_divider_t::get_max_size() const
 {
-	return scr_size(scr_size::inf.w, gui_theme_t::gui_divider_size.h);
+	return scr_size( temp_width<gui_theme_t::gui_divider_size.w ? temp_width : scr_size::inf.w, gui_theme_t::gui_divider_size.h );
 }
