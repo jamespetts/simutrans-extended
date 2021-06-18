@@ -1263,7 +1263,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 				}
 			}
 
-			// check livery scheme and build the abailable livery scheme list
+			// check livery scheme and build the available livery scheme list
 			if (info->get_livery_count()>0)
 			{
 				ITERATE_PTR(schemes, i)
@@ -2465,24 +2465,14 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 		uint8 lines = 0;
 		int top = pos.y + tabs.get_pos().y + tabs.get_size().h + 31 + LINESPACE * 2 + 4 + 16;
 
-		buf.printf( "%s %s\n",
-			translator::translate("Intro. date:"),
-			translator::get_year_month( veh_type->get_intro_year_month())
-		);
-		lines++;
-
+		buf.printf("%s %s - ", translator::translate("Available:"), translator::get_short_date(veh_type->get_intro_year_month() / 12, veh_type->get_intro_year_month() % 12));
 		if (veh_type->get_retire_year_month() != DEFAULT_RETIRE_DATE * 12 &&
 			(((!welt->get_settings().get_show_future_vehicle_info() && veh_type->will_end_prodection_soon(welt->get_timeline_year_month()))
 				|| welt->get_settings().get_show_future_vehicle_info()
 				|| veh_type->is_retired(welt->get_timeline_year_month()))))
 		{
-			buf.printf( "%s %s\n",
-				translator::translate("Retire. date:"),
-				translator::get_year_month( veh_type->get_retire_year_month())
-			);
-			buf.append("\n");
+			buf.printf("%s", translator::get_short_date( veh_type->get_retire_year_month() / 12, veh_type->get_retire_year_month() % 12 ) );
 		}
-		buf.append("\n");
 		lines+=2;
 		display_multiline_text_rgb(pos.x + 335/*370*/, top, buf, SYSCOL_TEXT);
 
