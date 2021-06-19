@@ -3126,14 +3126,14 @@ void gui_convoy_assembler_t::init_vehicle_bar_legends()
 		tbl_vehicle_bar_legends.new_component<gui_label_t>("helptxt_powered_vehicle", SYSCOL_TEXT_WEAK);
 
 		tbl_vehicle_bar_legends.new_component<gui_margin_t>(D_MARGIN_LEFT);
-		tbl_vehicle_bar_legends.new_component<gui_vehicle_bar_t>(COL_SAFETY)->set_flags(vehicle_desc_t::can_be_head, vehicle_desc_t::can_be_head, 0);
+		tbl_vehicle_bar_legends.new_component<gui_vehicle_bar_t>(COL_SAFETY)->set_flags(vehicle_desc_t::can_be_head, vehicle_desc_t::can_be_head|vehicle_desc_t::can_be_tail, BIDIRECTIONAL);
 		tbl_vehicle_bar_legends.new_component<gui_label_t>("helptxt_cab_head", SYSCOL_TEXT_WEAK);
 		tbl_vehicle_bar_legends.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		tbl_vehicle_bar_legends.new_component<gui_vehicle_bar_t>(COL_SAFETY, scr_size(VEHICLE_BAR_HEIGHT*2-2, VEHICLE_BAR_HEIGHT))->set_flags(vehicle_desc_t::unknown_constraint, vehicle_desc_t::unknown_constraint, 0);
 		tbl_vehicle_bar_legends.new_component<gui_label_t>("helptxt_unpowered_vehicle", SYSCOL_TEXT_WEAK);
 
 		tbl_vehicle_bar_legends.new_component<gui_margin_t>(D_MARGIN_LEFT);
-		tbl_vehicle_bar_legends.new_component<gui_vehicle_bar_t>(COL_SAFETY)->set_flags(vehicle_desc_t::can_be_tail, vehicle_desc_t::can_be_tail, 0);
+		tbl_vehicle_bar_legends.new_component<gui_vehicle_bar_t>(COL_SAFETY)->set_flags(vehicle_desc_t::can_be_tail, vehicle_desc_t::can_be_tail, BIDIRECTIONAL);
 		tbl_vehicle_bar_legends.new_component<gui_label_t>("helptxt_can_be_at_rear", SYSCOL_TEXT_WEAK);
 		tbl_vehicle_bar_legends.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		tbl_vehicle_bar_legends.new_component<gui_image_t>(skinverwaltung_t::upgradable ? skinverwaltung_t::upgradable->get_image_id(1):IMG_EMPTY, 0, ALIGN_NONE, true);
