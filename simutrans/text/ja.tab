@@ -2311,8 +2311,6 @@ alt_route_and_callon
 副本線誘導
 Alternate directions
 交互に運転方向を反転
-Arrivals from\n
-到着予想時間:\n
 aspects
 現示数
 assets
@@ -3865,6 +3863,8 @@ traffic settings
 交通設定
 Convoi following mode
 編成追跡時のカメラ動作
+Toolbar position:
+ツールバー表示位置：
 tooltip/coverage
 ツールチップ／有効範囲
 Grid
