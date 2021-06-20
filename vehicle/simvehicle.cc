@@ -3225,7 +3225,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 		if(is_overweight)
 		{
 			if (tooltip_display_level > 0) {
-				sprintf(tooltip_text, translator::translate("Too heavy"), cnv->get_name());
+				sprintf(tooltip_text, translator::translate("Too heavy"));
 				color = COL_WARNING;
 			}
 		}
