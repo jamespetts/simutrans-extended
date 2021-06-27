@@ -26,7 +26,7 @@ private:
 
 public:
 	/// amount of goods
-	uint32 menge;
+	uint32 amount;
 
 	/// type of good, used as index into index_to_desc
 	uint32 index: 8;
@@ -48,12 +48,12 @@ private:
 	/**
 	 * Handle of target station.
 	 */
-	halthandle_t ziel;
+	halthandle_t destination;
 
 	/**
 	 * Handle of station, where the packet has to leave convoy.
 	 */
-	halthandle_t zwischenziel;
+	halthandle_t next_transfer;
 
 	/**
 	 * A handle to the ultimate origin.
@@ -71,25 +71,25 @@ private:
 	/**
 	 * Target position (factory, etc)
 	 */
-	koord zielpos;
+	koord destination_pos;
 
 	/**
-	 * Update target (zielpos) for factory-going goods (after loading or rotating)
+	 * Update target (destination_pos) for factory-going goods (after loading or rotating)
 	 */
 	void update_factory_target();
 
 public:
-	inline const halthandle_t &get_ziel() const { return ziel; }
-	void set_ziel(const halthandle_t &ziel) { this->ziel = ziel; }
+	inline const halthandle_t &get_destination() const { return destination; }
+	void set_destination(const halthandle_t &_destination) { destination = _destination; }
 
-	inline const halthandle_t &get_zwischenziel() const { return zwischenziel; }
-	inline halthandle_t &access_zwischenziel() { return zwischenziel; }
-	void set_zwischenziel(const halthandle_t &zwischenziel) { this->zwischenziel = zwischenziel; }
+	inline const halthandle_t &get_next_transfer() const { return next_transfer; }
+	inline halthandle_t &access_next_transfer() { return next_transfer; }
+	void set_next_transfer(const halthandle_t &_next_transfer) { next_transfer = _next_transfer; }
 
-	koord get_zielpos() const { return zielpos; }
-	void set_zielpos(const koord zielpos) { this->zielpos = zielpos; }
+	koord get_destination_pos() const { return destination_pos; }
+	void set_destination_pos(const koord _destination_pos) { destination_pos = _destination_pos; }
 
-	void reset() { menge = 0; ziel = zwischenziel = origin = last_transfer = halthandle_t(); zielpos = koord::invalid; }
+	void reset() { amount = 0; destination = next_transfer = origin = last_transfer = halthandle_t(); destination_pos = koord::invalid; }
 
 	ware_t();
 	ware_t(const goods_desc_t *typ);
@@ -127,12 +127,12 @@ public:
 	sint64 arrival_time;
 
 	int operator==(const ware_t &w) {
-		return	menge == w.menge &&
-			zwischenziel == w.zwischenziel &&
+		return amount == w.amount &&
+			next_transfer == w.next_transfer &&
 			arrival_time == w.arrival_time &&
-			index == w.index  &&
-			ziel == w.ziel  &&
-			zielpos == w.zielpos &&
+			index == w.index &&
+			destination == w.destination &&
+			destination_pos == w.destination_pos &&
 			origin == w.origin &&
 			last_transfer == w.last_transfer &&
 			g_class == w.g_class;
@@ -140,10 +140,10 @@ public:
 
 	bool can_merge_with(const ware_t &w)
 	{
-		return zwischenziel == w.zwischenziel &&
-			index == w.index  &&
-			ziel == w.ziel  &&
-			zielpos == w.zielpos &&
+		return next_transfer == w.next_transfer &&
+			index == w.index &&
+			destination == w.destination &&
+			destination_pos == w.destination_pos &&
 			origin == w.origin &&
 			last_transfer == w.last_transfer &&
 			g_class == w.g_class;

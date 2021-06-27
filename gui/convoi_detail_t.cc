@@ -1247,7 +1247,7 @@ void gui_convoy_payload_info_t::draw(scr_coord offset)
 					FOR(slist_tpl<ware_t>, const ware, v->get_cargo(0))
 					{
 						goods_desc_t const* const wtyp = ware.get_desc();
-						cargo_sum += ware.menge;
+						cargo_sum += ware.amount;
 
 						// draw the goods loading bar
 						int bar_end_offset = cargo_sum * LOADING_BAR_WIDTH / v->get_desc()->get_total_capacity();

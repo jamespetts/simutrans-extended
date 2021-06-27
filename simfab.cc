@@ -278,7 +278,7 @@ void fabrik_t::update_transit( const ware_t& ware, bool add )
 {
 	if(  ware.index > goods_manager_t::INDEX_NONE  ) {
 		// only for freights
-		fabrik_t *fab = get_fab( ware.get_zielpos() );
+		fabrik_t *fab = get_fab(ware.get_destination_pos() );
 		if(  fab  ) {
 			fab->update_transit_intern( ware, add );
 		}
@@ -292,7 +292,7 @@ void fabrik_t::update_transit_intern( const ware_t& ware, bool add )
 	FOR(  array_tpl<ware_production_t>,  &w,  input ) {
 		if(  w.get_typ()->get_index() == ware.index  ) {
 
-			w.book_stat_no_negative(add ? (sint64)ware.menge : -(sint64)ware.menge, FAB_GOODS_TRANSIT );
+			w.book_stat_no_negative(add ? (sint64)ware.amount : -(sint64)ware.amount, FAB_GOODS_TRANSIT );
 			return;
 		}
 	}
@@ -2351,7 +2351,7 @@ void fabrik_t::step(uint32 delta_t)
 		for(  uint32 product = 0;  product < output.get_count();  product++  )
 		{
 			const sint32 units = (sint32)(((sint64)output[product].menge * (sint64)(get_prodfactor())) >> ((sint64)DEFAULT_PRODUCTION_FACTOR_BITS + (sint64)precision_bits));
-			//if(  output[product].menge > (1 << precision_bits)  ||  output[product].menge*2 > output[product].max  )
+			//if(  output[product].amount > (1 << precision_bits)  ||  output[product].amount*2 > output[product].max  )
 			if(units)
 			{
 				verteile_waren(product);
@@ -2463,7 +2463,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 	/* distribute goods to factory
 	 * that has not an overflowing input storage
 	 * also prevent stops from overflowing, if possible
-	 * Since we can called with menge>max/2 are at least 1 are there, we must first limit the amount we distribute
+	 * Since we can called with amount>max/2 are at least 1 are there, we must first limit the amount we distribute
 	 */
 	// We already know the distribution amount. However it has to be converted from factory units into real units.
 	const uint32 prod_factor = desc->get_product(product)->get_factor();
@@ -2494,8 +2494,8 @@ void fabrik_t::verteile_waren(const uint32 product)
 					can_cart_to_consumer = true;
 
 					ware_t ware(output[product].get_typ());
-					ware.menge = menge;
-					ware.set_zielpos(consumer_pos);
+					ware.amount = menge;
+					ware.set_destination_pos(consumer_pos);
 
 					uint32 input_num;
 					// find the index in the target factory
@@ -2558,8 +2558,8 @@ void fabrik_t::verteile_waren(const uint32 product)
 				if(needed >= 0)
 				{
 					ware_t ware(output[product].get_typ(), nearby_halt.halt);
-					ware.menge = menge;
-					ware.set_zielpos(consumer_pos);
+					ware.amount = menge;
+					ware.set_destination_pos(consumer_pos);
 					ware.arrival_time = welt->get_ticks();
 
 					uint32 w;
@@ -2583,13 +2583,13 @@ void fabrik_t::verteile_waren(const uint32 product)
 					{
 						// without production stop when target overflowing, distribute to least overflow target
 						const sint32 fab_left = this_consumer->get_input()[w].max - this_consumer->get_input()[w].menge;
-						dist_list.insert_ordered(distribute_ware_t(nearby_halt, fab_left, this_consumer->get_input()[w].max, (sint32)nearby_halt.halt->get_ware_fuer_zielpos(output[product].get_typ(), ware.get_zielpos()), ware), distribute_ware_t::compare);
+						dist_list.insert_ordered(distribute_ware_t(nearby_halt, fab_left, this_consumer->get_input()[w].max, (sint32)nearby_halt.halt->get_ware_fuer_zielpos(output[product].get_typ(), ware.get_destination_pos()), ware), distribute_ware_t::compare);
 					}
 					else if(needed > 0)
 					{
 						// we are not overflowing: Station can only store up to a maximum amount of goods
 						const sint32 halt_left = (sint32)nearby_halt.halt->get_capacity(2) - (sint32)nearby_halt.halt->get_ware_summe(ware.get_desc());
-						dist_list.insert_ordered(distribute_ware_t(nearby_halt, min(halt_left, needed_base_units), nearby_halt.halt->get_capacity(2), (sint32)nearby_halt.halt->get_ware_fuer_zielpos(output[product].get_typ(),ware.get_zielpos()), ware), distribute_ware_t::compare);
+						dist_list.insert_ordered(distribute_ware_t(nearby_halt, min(halt_left, needed_base_units), nearby_halt.halt->get_capacity(2), (sint32)nearby_halt.halt->get_ware_fuer_zielpos(output[product].get_typ(), ware.get_destination_pos()), ware), distribute_ware_t::compare);
 					}
 				}
 			}
@@ -2639,26 +2639,26 @@ void fabrik_t::verteile_waren(const uint32 product)
 			menge = 0;
 		}
 		// since it is assigned here to an unsigned variable!
-		best_ware.menge = menge;
+		best_ware.amount = menge;
 
 		if(  space_left<0 && best_halt.is_bound()  ) {
 			// find, what is most waiting here from us
 			ware_t most_waiting(output[product].get_typ());
-			most_waiting.menge = 0;
+			most_waiting.amount = 0;
 			for(auto const & consumer_pos : consumers) {
 				uint32 const amount = best_halt->get_ware_fuer_zielpos(output[product].get_typ(), consumer_pos);
-				if(  amount > most_waiting.menge  ) {
-					most_waiting.set_zielpos(consumer_pos);
-					most_waiting.menge = amount;
+				if(  amount > most_waiting.amount  ) {
+					most_waiting.set_destination_pos(consumer_pos);
+					most_waiting.amount = amount;
 					most_waiting.arrival_time = welt->get_ticks();
 				}
 			}
 
 			//  we will reroute some goods
-			if(  best->amount_waiting==0  &&  most_waiting.menge>0  ) {
+			if(  best->amount_waiting==0  && most_waiting.amount > 0  ) {
 				// remove something from the most waiting goods
-				if(  best_halt->recall_ware( most_waiting, min((sint32)(most_waiting.menge/2), 1 - space_left) )  ) {
-					best_ware.menge += most_waiting.menge;
+				if(  best_halt->recall_ware( most_waiting, min((sint32)(most_waiting.amount / 2), 1 - space_left) )  ) {
+					best_ware.amount += most_waiting.amount;
 				}
 				else {
 					// overcrowded with other stuff (not from us)
@@ -2667,7 +2667,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 			}
 			else {
 				// overflowed with our own ware and we have still nearly full stock
-//				if(  output[product].menge>= (3 * output[product].max) >> 2  ) {
+//				if(  output[product].amount>= (3 * output[product].max) >> 2  ) {
 					/* Station too full, notify player */
 //					best_halt->desceid_station_voll();
 //				}
@@ -2676,7 +2676,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 			}
 		}
 
-		// Since menge might have been mutated, it must be converted back. This might introduce some error with some prod factors which is always rounded up.
+		// Since amount might have been mutated, it must be converted back. This might introduce some error with some prod factors which is always rounded up.
 		const sint32 prod_delta = ((((sint64)menge << (DEFAULT_PRODUCTION_FACTOR_BITS + precision_bits)) + (sint64)(prod_factor - 1)) / (sint64)prod_factor);
 
 		output[product].menge -= prod_delta;
@@ -2692,8 +2692,8 @@ void fabrik_t::verteile_waren(const uint32 product)
 		}
 		fabrik_t::update_transit( best_ware, true );
 		// add as active destination
-		consumers_active_last_month |= (1 << consumers.index_of(best_ware.get_zielpos()));
-		output[product].book_stat(best_ware.menge, FAB_GOODS_DELIVERED);
+		consumers_active_last_month |= (1 << consumers.index_of(best_ware.get_destination_pos()));
+		output[product].book_stat(best_ware.amount, FAB_GOODS_DELIVERED);
 	}
 }
 
@@ -3126,7 +3126,7 @@ void fabrik_t::recalc_factory_status()
 			status_aus &= ~FL_WARE_ALLENULL;
 		}
 		else {
-			// menge = 0
+			// amount = 0
 			status_aus &= ~FL_WARE_ALLEUEBER75;
 		}
 	}
@@ -3816,16 +3816,16 @@ uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
 					const uint32 origin_transfer_time = (((uint32)nearby_halt.distance * transfer_journey_time_factor) / 100) + nearby_halt.halt->get_transshipment_time();
 					ware_t tmp;
 					tmp.set_desc(wtype);
-					tmp.set_zielpos(pos.get_2d());
+					tmp.set_destination_pos(pos.get_2d());
 					tmp.set_origin(nearby_halt.halt);
 					uint32 current_journey_time = (uint32)nearby_halt.halt->find_route(tmp, best_journey_time);
 					if (current_journey_time < UINT32_MAX_VALUE)
 					{
 						current_journey_time += origin_transfer_time;
-						if (tmp.get_ziel().is_bound())
+						if (tmp.get_destination().is_bound())
 						{
-							const uint32 destination_distance_to_stop = shortest_distance(tmp.get_zielpos(), tmp.get_ziel()->get_basis_pos());
-							const uint32 destination_transfer_time = ((destination_distance_to_stop * transfer_journey_time_factor) / 100) + tmp.get_ziel()->get_transshipment_time();
+							const uint32 destination_distance_to_stop = shortest_distance(tmp.get_destination_pos(), tmp.get_destination()->get_basis_pos());
+							const uint32 destination_transfer_time = ((destination_distance_to_stop * transfer_journey_time_factor) / 100) + tmp.get_destination()->get_transshipment_time();
 							current_journey_time += destination_transfer_time;
 						}
 

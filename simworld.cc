@@ -4552,7 +4552,7 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 		for (size_t j = tcarray.get_count(); j-- > 0;)
 		{
 			transferring_cargo_t& tc = tcarray[j];
-			if (tc.ware.menge > 0)
+			if (tc.ware.amount > 0)
 			{
 				tc.ware.rotate90(cached_size.x);
 			}
@@ -6265,7 +6265,7 @@ sint64 karte_t::calc_ready_time(ware_t ware, koord origin_pos) const
 {
 	sint64 ready_time = get_ticks();
 
-	uint16 distance = shortest_distance(ware.get_zielpos(), origin_pos);
+	uint16 distance = shortest_distance(ware.get_destination_pos(), origin_pos);
 
 	if (ware.is_freight())
 	{
@@ -6315,7 +6315,7 @@ void karte_t::check_transferring_cargoes()
 
 void karte_t::deposit_ware_at_destination(ware_t ware)
 {
-	const grund_t* gr = lookup_kartenboden(ware.get_zielpos());
+	const grund_t* gr = lookup_kartenboden(ware.get_destination_pos());
 	gebaeude_t* gb_dest = gr->get_building();
 	fabrik_t* const fab = gb_dest ? gb_dest->get_fabrik() : NULL;
 	if (!gb_dest)
@@ -6332,13 +6332,13 @@ void karte_t::deposit_ware_at_destination(ware_t ware)
 			if (!ware.is_passenger() || ware.is_commuting_trip)
 			{
 				// Only book arriving passengers for commuting trips.
-				fab->liefere_an(ware.get_desc(), ware.menge);
+				fab->liefere_an(ware.get_desc(), ware.amount);
 			}
 			else if(fab->get_sector() == fabrik_t::end_consumer)
 			{
 				// Add visiting passengers as consumers
-				fab->add_consuming_passengers(ware.menge);
-				fab->book_stat(ware.menge, FAB_CONSUMER_ARRIVED);
+				fab->add_consuming_passengers(ware.amount);
+				fab->book_stat(ware.amount, FAB_CONSUMER_ARRIVED);
 			}
 			gb_dest =lookup(fab->get_pos())->find<gebaeude_t>();
 		}
@@ -6357,12 +6357,12 @@ void karte_t::deposit_ware_at_destination(ware_t ware)
 				if (gb_dest && gb_dest->get_tile()->get_desc()->get_type() != building_desc_t::city_res)
 				{
 					// Do not record the passengers coming back home again.
-					gb_dest->set_commute_trip(ware.menge);
+					gb_dest->set_commute_trip(ware.amount);
 				}
 			}
 			else if (gb_dest && gb_dest->get_tile()->get_desc()->get_type() != building_desc_t::city_res)
 			{
-				gb_dest->add_passengers_succeeded_visiting(ware.menge);
+				gb_dest->add_passengers_succeeded_visiting(ware.amount);
 			}
 
 			// Arriving passengers may create pedestrians
@@ -6370,11 +6370,11 @@ void karte_t::deposit_ware_at_destination(ware_t ware)
 			// that they left (not their ultimate destination).
 			if (get_settings().get_show_pax())
 			{
-				const uint32 menge = ware.menge;
+				const uint32 menge = ware.amount;
 				koord3d pos_pedestrians;
-				if (ware.get_zwischenziel().is_bound())
+				if (ware.get_next_transfer().is_bound())
 				{
-					pos_pedestrians = ware.get_zwischenziel()->get_basis_pos3d();
+					pos_pedestrians = ware.get_next_transfer()->get_basis_pos3d();
 				}
 				else
 				{
@@ -6944,8 +6944,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				// Check whether public transport can be used.
 				// Journey start information needs to be added later.
 				pax.reset();
-				pax.set_zielpos(destination_pos);
-				pax.menge = units_this_step;
+				pax.set_destination_pos(destination_pos);
+				pax.amount = units_this_step;
 				//"Menge" = volume (Google)
 
 				// Search for a route using public transport.
@@ -7016,11 +7016,11 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 
 					// Because it is possible to walk between stops in the route finder, check to make sure that this is not an all walking journey.
 					// We cannot test this recursively within a reasonable time, so check only for the first stop.
-					if (current_journey_time < UINT32_MAX_VALUE && pax.get_ziel() == pax.get_zwischenziel())
+					if (current_journey_time < UINT32_MAX_VALUE && pax.get_destination() == pax.get_next_transfer())
 					{
-						haltestelle_t::connexion* cnx = current_halt->get_connexions(wtyp->get_catg_index(), pax.get_class())->get(pax.get_zwischenziel());
+						haltestelle_t::connexion* cnx = current_halt->get_connexions(wtyp->get_catg_index(), pax.get_class())->get(pax.get_next_transfer());
 
-						if (current_halt->is_within_walking_distance_of(pax.get_zwischenziel()) && (!cnx || (!cnx->best_convoy.is_bound() && !cnx->best_line.is_bound()) || (((cnx->best_convoy.is_bound() && !cnx->best_convoy->carries_this_or_lower_class(pax.get_catg(), pax.get_class())) || (cnx->best_line.is_bound() && !cnx->best_line->carries_this_or_lower_class(pax.get_catg(), pax.get_class()))))))
+						if (current_halt->is_within_walking_distance_of(pax.get_next_transfer()) && (!cnx || (!cnx->best_convoy.is_bound() && !cnx->best_line.is_bound()) || (((cnx->best_convoy.is_bound() && !cnx->best_convoy->carries_this_or_lower_class(pax.get_catg(), pax.get_class())) || (cnx->best_line.is_bound() && !cnx->best_line->carries_this_or_lower_class(pax.get_catg(), pax.get_class()))))))
 						{
 							// Do not treat this as a public transport route: if it is a viable walking route, it will be so treated elsewhere.
 							current_journey_time = UINT32_MAX_VALUE;
@@ -7035,7 +7035,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 						if(!current_halt->is_overcrowded(wtyp->get_index()))
 						{
 							best_journey_time = current_journey_time;
-							if(pax.get_ziel().is_bound())
+							if(pax.get_destination().is_bound())
 							{
 								route_status = public_transport;
 							}
@@ -7348,7 +7348,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			}
 
 			set_return_trip = true;
-			pax.set_zielpos(current_destination.location);
+			pax.set_destination_pos(current_destination.location);
 			// We cannot do this on arrival, as the ware packets do not remember their origin building.
 			if(trip == commuting_trip)
 			{
@@ -7397,7 +7397,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 
 		case on_foot:
 
-			pax.set_zielpos(current_destination.location);
+			pax.set_destination_pos(current_destination.location);
 
 			if(tolerance < UINT32_MAX_VALUE)
 			{
@@ -7625,7 +7625,7 @@ no_route:
 				// for all return journeys should still show accurate percentages overall.
 			}
 
-			ret_halt = pax.get_ziel();
+			ret_halt = pax.get_destination();
 			// Those who have driven out have to take thier cars back regardless of whether public transport is better - do not check again.
 			bool return_in_private_car = route_status == private_car;
 			bool return_on_foot = route_status == on_foot;
@@ -7660,16 +7660,16 @@ no_route:
 				return_passengers.set_class(pax.get_class());
 
 #ifndef FORBID_FIND_ROUTE_FOR_RETURNING_PASSENGERS_1
-				return_passengers.menge = units_this_step;
+				return_passengers.amount = units_this_step;
 				// Overcrowding at the origin stop does not prevent a return to this stop.
 				// best_bad_start_halt is actually the best start halt irrespective of overcrowding:
 				// if the start halt is not overcrowded, this will be the actual start halt.
 #ifdef MULTI_THREAD
-				return_passengers.set_ziel(start_halts[passenger_generation_thread_number].get_element(best_bad_start_halt).halt);
+				return_passengers.set_destination(start_halts[passenger_generation_thread_number].get_element(best_bad_start_halt).halt);
 #else
-				return_passengers.set_ziel(start_halts[best_bad_start_halt].halt);
+				return_passengers.set_destination(start_halts[best_bad_start_halt].halt);
 #endif
-				return_passengers.set_zielpos(origin_pos.get_2d());
+				return_passengers.set_destination_pos(origin_pos.get_2d());
 				return_passengers.is_commuting_trip = trip == commuting_trip;
 				return_passengers.comfort_preference_percentage = pax.comfort_preference_percentage;
 
@@ -7711,7 +7711,7 @@ no_route:
 				{
 					if (!direct_return_available)
 					{
-						return_passengers.set_ziel(start_halt);
+						return_passengers.set_destination(start_halt);
 
 #ifndef FORBID_FIND_ROUTE_FOR_RETURNING_PASSENGERS_2
 						can_return = ret_halt->find_route(return_passengers) < UINT32_MAX_VALUE;
@@ -7722,7 +7722,7 @@ no_route:
 						if (!return_halt_is_overcrowded)
 						{
 #ifndef FORBID_STARTE_MIT_ROUTE_FOR_RETURNING_PASSENGERS
-							ret_halt->starte_mit_route(return_passengers, pax.get_zielpos());
+							ret_halt->starte_mit_route(return_passengers, pax.get_destination_pos());
 #endif
 							if (current_destination.type == factory && (trip == commuting_trip || trip == mail_trip))
 							{
@@ -10145,7 +10145,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			// On re-loading, there is no need to distribute the
 			// cargoes about different members of this array.
 			transferring_cargoes[0].append(tc);
-			fabrik_t* fab = fabrik_t::get_fab(tc.ware.get_zielpos());
+			fabrik_t* fab = fabrik_t::get_fab(tc.ware.get_destination_pos());
 			if (fab)
 			{
 				fab->update_transit(tc.ware, true);

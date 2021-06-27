@@ -886,15 +886,15 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 				{
 					const ware_t& tmp = *i;
 
-					halthandle_t end_halt = tmp.get_ziel();
-					halthandle_t via_halt = tmp.get_zwischenziel();
+					halthandle_t end_halt = tmp.get_destination();
+					halthandle_t via_halt = tmp.get_next_transfer();
 
 					// check if destination or transfer is still valid
 					if (!end_halt.is_bound() || !via_halt.is_bound())
 					{
-						DBG_MESSAGE("vehicle_t::unload_cargo()", "destination of %d %s is no longer reachable", tmp.menge, translator::translate(tmp.get_name()));
-						total_freight -= tmp.menge;
-						sum_weight -= tmp.menge * tmp.get_desc()->get_weight_per_unit();
+						DBG_MESSAGE("vehicle_t::unload_cargo()", "destination of %d %s is no longer reachable", tmp.amount, translator::translate(tmp.get_name()));
+						total_freight -= tmp.amount;
+						sum_weight -= tmp.amount * tmp.get_desc()->get_weight_per_unit();
 						i = fracht[j].erase(i);
 					}
 					else if (end_halt == halt || via_halt == halt)
@@ -917,7 +917,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 								const uint16 distance = shortest_distance(halt->get_basis_pos(), tmp.get_origin()->get_basis_pos());
 								const uint32 distance_meters = (uint32)distance * welt->get_settings().get_meters_per_tile();
 								// Refund is approximation.
-								const sint64 refund_amount = (tmp.menge * tmp.get_desc()->get_refund(distance_meters) + 2048ll) / 4096ll;
+								const sint64 refund_amount = (tmp.amount * tmp.get_desc()->get_refund(distance_meters) + 2048ll) / 4096ll;
 
 								revenue_from_unloading -= refund_amount;
 
@@ -927,19 +927,19 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 							}
 
 							// Add passengers to unhappy (due to overcrowding) passengers.
-							halt->add_pax_unhappy(tmp.menge);
+							halt->add_pax_unhappy(tmp.amount);
 
-							total_freight -= tmp.menge;
+							total_freight -= tmp.amount;
 						}
 						else
 						{
 							assert(halt.is_bound());
 
-							const uint32 menge = tmp.menge;
+							const uint32 menge = tmp.amount;
 							halt->liefere_an(tmp); //"supply" (Babelfish)
 							sum_menge += menge;
 							index = tmp.get_index(); // Note that there is only one freight type per vehicle
-							total_freight -= tmp.menge;
+							total_freight -= tmp.amount;
 							cnv->invalidate_weight_summary();
 
 							// Calculate the revenue for each packet.
@@ -1119,7 +1119,7 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 				{
 					FOR(slist_tpl<ware_t>, const& w, fracht[i])
 					{
-						freight_this_class += w.menge;
+						freight_this_class += w.amount;
 					}
 				}
 			}
@@ -1142,7 +1142,7 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 					for (slist_tpl<ware_t>::iterator iter_z = freight_add.begin(); iter_z != freight_add.end(); )
 					{
 						ware_t &ware = *iter_z;
-						total_freight += ware.menge;
+						total_freight += ware.amount;
 
 						// could this be joined with existing freight?
 						FOR(slist_tpl<ware_t>, &tmp, fracht[i])
@@ -1151,14 +1151,14 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 							// @author: jamespetts
 							if (ware.can_merge_with(tmp))
 							{
-								tmp.menge += ware.menge;
-								ware.menge = 0;
+								tmp.amount += ware.amount;
+								ware.amount = 0;
 								break;
 							}
 						}
 
 						// if != 0 we could not join it to existing => load it
-						if (ware.menge != 0)
+						if (ware.amount != 0)
 						{
 							++iter_z;
 							// we add list directly
@@ -1211,12 +1211,12 @@ void vehicle_t::fix_class_accommodations()
 		}
 		FOR(slist_tpl<ware_t>, &tmp, fracht[i])
 		{
-			load[i] += tmp.menge;
+			load[i] += tmp.amount;
 			if (load[i] > capacity[i])
 			{
 				ware_t moved_ware = tmp;
-				moved_ware.menge = load[i] - capacity[i];
-				tmp.menge -= load[i] - capacity[i];
+				moved_ware.amount = load[i] - capacity[i];
+				tmp.amount -= load[i] - capacity[i];
 				load[i] = capacity[i];
 				wares_to_move.append(moved_ware);
 				pos++;
@@ -1231,12 +1231,12 @@ void vehicle_t::fix_class_accommodations()
 			i--;
 			continue;
 		}
-		load[i] += wares_to_move[pos].menge;
+		load[i] += wares_to_move[pos].amount;
 		if (load[i] > capacity[i] && i != lowest_available_class)
 		{
 			ware_t ware_copy = wares_to_move[pos];
-			ware_copy.menge = wares_to_move[pos].menge + capacity[i] - load[i];
-			wares_to_move[pos].menge = load[i] - capacity[i];
+			ware_copy.amount = wares_to_move[pos].amount + capacity[i] - load[i];
+			wares_to_move[pos].amount = load[i] - capacity[i];
 			fracht[i].append(ware_copy);
 			load[i] = capacity[i];
 			i--;
@@ -1274,10 +1274,10 @@ void vehicle_t::remove_stale_cargo()
 
 				bool found = false;
 
-				if (tmp.get_zwischenziel().is_bound()) {
+				if (tmp.get_next_transfer().is_bound()) {
 					// the original halt exists, but does we still go there?
 					FOR(minivec_tpl<schedule_entry_t>, const& i, cnv->get_schedule()->entries) {
-						if (haltestelle_t::get_halt(i.pos, cnv->get_owner()) == tmp.get_zwischenziel()) {
+						if (haltestelle_t::get_halt(i.pos, cnv->get_owner()) == tmp.get_next_transfer()) {
 							found = true;
 							break;
 						}
@@ -1293,10 +1293,10 @@ void vehicle_t::remove_stale_cargo()
 						if (halt.is_bound()) {
 							if (halt->is_enabled(tmp.get_index())) {
 								// ok, lets change here, since goods are accepted here
-								tmp.access_zwischenziel() = halt;
-								if (!tmp.get_ziel().is_bound()) {
+								tmp.access_next_transfer() = halt;
+								if (!tmp.get_destination().is_bound()) {
 									// set target, to prevent that unload_cargo drops cargo
-									tmp.set_ziel(halt);
+									tmp.set_destination(halt);
 								}
 								found = true;
 								break;
@@ -1311,11 +1311,11 @@ void vehicle_t::remove_stale_cargo()
 				}
 				else {
 					// since we need to point at factory (0,0), we recheck this too
-					koord k = tmp.get_zielpos();
+					koord k = tmp.get_destination_pos();
 					fabrik_t *fab = fabrik_t::get_fab(k);
-					tmp.set_zielpos(fab ? fab->get_pos().get_2d() : k);
+					tmp.set_destination_pos(fab ? fab->get_pos().get_2d() : k);
 
-					total_freight += tmp.menge;
+					total_freight += tmp.amount;
 				}
 			}
 
@@ -2136,7 +2136,7 @@ uint32 vehicle_t::get_cargo_weight() const
 	{
 		FOR(slist_tpl<ware_t>, const& c, fracht[i])
 		{
-			weight += c.menge * c.get_desc()->get_weight_per_unit();
+			weight += c.amount * c.get_desc()->get_weight_per_unit();
 		}
 	}
 	return weight;
@@ -2174,7 +2174,7 @@ void vehicle_t::get_cargo_info(cbuffer_t & buf) const
 		uint8 freight_info_order = 6; // = by_destination_detail
 		slist_tpl <ware_t>capacity;
 		ware_t ware = get_cargo_type();
-		ware.menge = desc->get_total_capacity();
+		ware.amount = desc->get_total_capacity();
 		capacity.insert(ware);
 		freight_list_sorter_t::sort_freight(fracht_array[0], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL, true);
 	}
@@ -2339,7 +2339,7 @@ uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
 
 	FOR(slist_tpl<ware_t>, const& ware, fracht[g_class])
 	{
-		carried += ware.menge;
+		carried += ware.amount;
 	}
 
 	return carried;
@@ -2470,7 +2470,7 @@ uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
 			{
 				if(ware.is_passenger())
 				{
-					passenger_count += ware.menge;
+					passenger_count += ware.amount;
 				}
 			}
 		}
@@ -2689,10 +2689,10 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		{
 			// create dummy freight for savegame compatibility
 			ware_t ware( desc->get_freight_type() );
-			ware.menge = 0;
-			ware.set_ziel( halthandle_t() );
-			ware.set_zwischenziel( halthandle_t() );
-			ware.set_zielpos( get_pos().get_2d() );
+			ware.amount = 0;
+			ware.set_destination(halthandle_t());
+			ware.set_next_transfer(halthandle_t());
+			ware.set_destination_pos(get_pos().get_2d());
 			ware.rdwr(file);
 		}
 
@@ -2716,22 +2716,22 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 				for (uint32 j = 0; j < fracht_count[i]; j++)
 				{
 					ware_t ware(file);
-					if ((desc == NULL || ware.menge > 0) && welt->is_within_limits(ware.get_zielpos()) && ware.get_desc())
+					if ((desc == NULL || ware.amount > 0) && welt->is_within_limits(ware.get_destination_pos()) && ware.get_desc())
 					{
 						// also add, of the desc is unknown to find matching replacement
 						temp_fracht[i].insert(ware);
 							// restore in-transit information
 							fabrik_t::update_transit(ware, true);
 					}
-					else if (ware.menge > 0)
+					else if (ware.amount > 0)
 					{
 						if (ware.get_desc())
 						{
-							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
+							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.amount, ware.get_name(), ware.get_destination_pos().get_str());
 						}
 						else
 						{
-							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
+							dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.amount, ware.get_destination_pos().get_str());
 						}
 					}
 				}
@@ -2750,19 +2750,19 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 				// From an older version with no classes, so put all the ware
 				// packets in class zero.
 				ware_t ware(file);
-				if ((desc == NULL || ware.menge > 0) && welt->is_within_limits(ware.get_zielpos()) && ware.get_desc())
+				if ((desc == NULL || ware.amount > 0) && welt->is_within_limits(ware.get_destination_pos()) && ware.get_desc())
 				{
 					// also add, of the desc is unknown to find matching replacement
 					temp_fracht[0].insert(ware);
 						// restore in-transit information
 						fabrik_t::update_transit(ware, true);
 				}
-				else if (ware.menge > 0) {
+				else if (ware.amount > 0) {
 					if (ware.get_desc()) {
-						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.menge, ware.get_name(), ware.get_zielpos().get_str());
+						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of %s to %s ignored!", ware.amount, ware.get_name(), ware.get_destination_pos().get_str());
 					}
 					else {
-						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.menge, ware.get_zielpos().get_str());
+						dbg->error("vehicle_t::rdwr_from_convoi()", "%i of unknown to %s ignored!", ware.amount, ware.get_destination_pos().get_str());
 					}
 				}
 			}
@@ -2946,7 +2946,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		{
 			FOR(slist_tpl<ware_t>, const& c, fracht[i])
 			{
-				total_freight += c.menge;
+				total_freight += c.amount;
 			}
 		}
 	}
@@ -3439,7 +3439,7 @@ road_vehicle_t::road_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) 
 				// still wrong load ...
 				calc_image();
 			}
-			if(!empty  &&  fracht[0].front().menge == 0) {
+			if(!empty  && fracht[0].front().amount == 0) {
 				// this was only there to find a matching vehicle
 				fracht[0].remove_first();
 			}
@@ -4597,7 +4597,7 @@ DBG_MESSAGE("rail_vehicle_t::rail_vehicle_t()","replaced by %s",desc->get_name()
 			else {
 				dbg->error("rail_vehicle_t::rail_vehicle_t()","no matching desc found for %s!",w->get_name());
 			}
-			if (!empty && !fracht->empty() && fracht[0].front().menge == 0) {
+			if (!empty && !fracht->empty() && fracht[0].front().amount == 0) {
 				// this was only there to find a matching vehicle
 				fracht[0].remove_first();
 			}

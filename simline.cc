@@ -1064,3 +1064,7 @@ sint64 simline_t::get_service_frequency()
 	}
 	return service_frequency;
 }
+
+waytype_t simline_t::get_waytype() const {
+	return linetype_to_waytype(type);
+}

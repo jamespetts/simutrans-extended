@@ -1474,8 +1474,8 @@ bool convoi_t::drive_to()
 	const uint8 original_current_stop = schedule->get_current_stop();
 	bool schedule_advanced = false;
 
-	const bool rail_type = front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt;
-	const bool check_onwards = front()->get_waytype() == road_wt || rail_type;
+	const bool rail_type = get_waytype() == track_wt || get_waytype() == tram_wt || get_waytype() == narrowgauge_wt || get_waytype() == maglev_wt || get_waytype() == monorail_wt;
+	const bool check_onwards = get_waytype() == road_wt || rail_type;
 
 	route_t::route_result_t success = calc_route(start, ziel, speed_to_kmh(get_min_top_speed()));
 
@@ -1712,6 +1712,8 @@ bool convoi_t::drive_to()
 	}
 	return false;
 }
+
+waytype_t convoi_t::get_waytype() const { return front()->get_waytype(); }
 
 
 /**
@@ -5157,7 +5159,7 @@ void convoi_t::get_freight_info(cbuffer_t & buf)
 				FOR(slist_tpl<ware_t>, ware, v->get_cargo(j))
 				{
 					// if != 0 we could not join it to existing => load it
-					if (ware.menge != 0)
+					if (ware.amount != 0)
 					{
 						if (sort_by_accommodation && pass_veh)
 						{
@@ -5183,13 +5185,13 @@ void convoi_t::get_freight_info(cbuffer_t & buf)
 		for (uint16 i = 0; i != n; ++i) {
 			if(max_loaded_waren[i]>0  &&  i!=goods_manager_t::INDEX_NONE) {
 				ware_t ware(goods_manager_t::get_info(i));
-				ware.menge = max_loaded_waren[i];
+				ware.amount = max_loaded_waren[i];
 				// append to category?
 				slist_tpl<ware_t>::iterator j = capacity.begin();
 				slist_tpl<ware_t>::iterator end = capacity.end();
 				while (j != end && j->get_desc()->get_catg_index() < ware.get_desc()->get_catg_index()) ++j;
 				if (j != end && j->get_desc()->get_catg_index() == ware.get_desc()->get_catg_index()) {
-					j->menge += max_loaded_waren[i];
+					j->amount += max_loaded_waren[i];
 				}
 				else {
 					// not yet there
@@ -5722,7 +5724,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 	// Note that fare comes out in units of 1/4096 of a simcent, for computational precision
 
 	// Finally multiply by the number of items.
-	const sint64 revenue = fare * (sint64)ware.menge;
+	const sint64 revenue = fare * (sint64)ware.amount;
 
 	// Now apportion the revenue.
 
@@ -7814,7 +7816,7 @@ uint32 convoi_t::calc_reverse_delay() const
 #ifdef MULTI_THREAD
 						 pthread_mutex_lock(&step_convois_mutex);
 #endif
-						 halt->add_waiting_time(waiting_minutes, iter.get_zwischenziel(), iter.get_desc()->get_catg_index(), j);
+						 halt->add_waiting_time(waiting_minutes, iter.get_next_transfer(), iter.get_desc()->get_catg_index(), j);
 #ifdef MULTI_THREAD
 						int error = pthread_mutex_unlock(&step_convois_mutex);
 						assert(error == 0);

@@ -55,7 +55,7 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 
 	case by_via_sum:
 	case by_amount: { // sort by ware amount
-			int const order = w2.menge - w1.menge;
+			int const order = w2.amount - w1.amount;
 			if (order != 0) {
 				return order < 0;
 			}
@@ -65,8 +65,8 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 	case by_via:  // sort by via_destination name
 	case by_accommodation_via: // Initial sorting is done already in simconvoi.cc
 		{
-			halthandle_t const v1 = w1.get_zwischenziel();
-			halthandle_t const v2 = w2.get_zwischenziel();
+			halthandle_t const v1 = w1.get_next_transfer();
+			halthandle_t const v2 = w2.get_next_transfer();
 			if (v1.is_bound() && v2.is_bound()) {
 				int const order = strcmp(v1->get_name(), v2->get_name());
 				if (order != 0) return order < 0;
@@ -98,8 +98,8 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 		/* FALLTHROUGH */
 
 	case by_name: { // sort by destination stop name
-			halthandle_t const d1 = w1.get_ziel();
-			halthandle_t const d2 = w2.get_ziel();
+			halthandle_t const d1 = w1.get_destination();
+			halthandle_t const d2 = w2.get_destination();
 
 			if (d1.is_bound() && d2.is_bound()) {
 				return strcmp(d1->get_name(), d2->get_name()) < 0;
@@ -117,16 +117,16 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 	case by_accommodation_detail: // Initial sorting is done already in simconvoi.cc
 		{
 
-			grund_t* gr = welt->lookup_kartenboden(w1.get_zielpos());
+			grund_t* gr = welt->lookup_kartenboden(w1.get_destination_pos());
 			const gebaeude_t* const gb1 = gr ? gr->find<gebaeude_t>() : NULL;
-			gr = welt->lookup_kartenboden(w2.get_zielpos());
+			gr = welt->lookup_kartenboden(w2.get_destination_pos());
 			const gebaeude_t* const gb2 = gr ? gr->find<gebaeude_t>() : NULL;
 			if (gb1 && gb2)
 			{
 				const fabrik_t *fab = NULL;
 				// TODO -oBG, 29.12.2013: optimize:
-				const char *const name1 = (fabrik_t::get_fab(w1.get_zielpos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w1.get_zielpos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb1->get_tile()->get_desc()->get_name()));
-				const char *const name2 = (fabrik_t::get_fab(w2.get_zielpos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w2.get_zielpos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb2->get_tile()->get_desc()->get_name()));
+				const char *const name1 = (fabrik_t::get_fab(w1.get_destination_pos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w1.get_destination_pos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb1->get_tile()->get_desc()->get_name()));
+				const char *const name2 = (fabrik_t::get_fab(w2.get_destination_pos()) && sortby != by_origin ? ((fab = fabrik_t::get_fab(w2.get_destination_pos())) ? fab->get_name() : "Invalid Factory") : translator::translate(gb2->get_tile()->get_desc()->get_name()));
 				return strcmp(name1, name2) < 0;
 			}
 			if (gb1)
@@ -149,14 +149,14 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 		/* FALLTHROUGH */
 
 	case by_wealth_via: { // sort by class
-		halthandle_t const v1 = w1.get_zwischenziel();
-		halthandle_t const v2 = w2.get_zwischenziel();
+		halthandle_t const v1 = w1.get_next_transfer();
+		halthandle_t const v2 = w2.get_next_transfer();
 		if (v1.is_bound() && v2.is_bound())
 		{
 			int const class_order = w2.get_class() - w1.get_class();
 			if (class_order == 0)
 			{
-				int const order = w2.menge - w1.menge;
+				int const order = w2.amount - w1.amount;
 				if (order != 0) {
 					return order < 0;
 				}
@@ -178,8 +178,8 @@ bool freight_list_sorter_t::compare_ware(ware_t const& w1, ware_t const& w2)
 	case by_line:
 	case by_line_via: {
 		return false;
-		halthandle_t const v1 = w1.get_zwischenziel();
-		halthandle_t const v2 = w2.get_zwischenziel();
+		halthandle_t const v1 = w1.get_next_transfer();
+		halthandle_t const v2 = w2.get_next_transfer();
 		if (v1.is_bound() && v2.is_bound()) {
 			halthandle_t const current_halt = w1.get_last_transfer().is_bound() ? w1.get_last_transfer() : w2.get_last_transfer();
 
@@ -304,7 +304,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 
 
 	FOR(vector_tpl<ware_t>, const& ware, warray) {
-		if (ware.get_desc() == goods_manager_t::none || ware.menge == 0) {
+		if (ware.get_desc() == goods_manager_t::none || ware.amount == 0) {
 			continue;
 		}
 		wlist[pos] = ware;
@@ -316,10 +316,10 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_zwischenziel() == wlist[pos].get_zwischenziel() &&
-					(wlist[i].get_ziel() == wlist[i].get_zwischenziel()) == (wlist[pos].get_ziel() == wlist[pos].get_zwischenziel()))
+					wlist[i].get_next_transfer() == wlist[pos].get_next_transfer() &&
+					(wlist[i].get_destination() == wlist[i].get_next_transfer()) == (wlist[pos].get_destination() == wlist[pos].get_next_transfer()))
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 				}
 			}
 		}
@@ -328,9 +328,9 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_zwischenziel() == wlist[pos].get_zwischenziel())
+					wlist[i].get_next_transfer() == wlist[pos].get_next_transfer())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 				}
 			}
 		}
@@ -341,7 +341,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
 					wlist[i].get_origin() == wlist[pos].get_origin())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 					break;
 				}
 			}
@@ -354,9 +354,9 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
 					wlist[i].get_origin() == wlist[pos].get_origin() &&
 					wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_ziel() == wlist[pos].get_ziel())
+					wlist[i].get_destination() == wlist[pos].get_destination())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 					break;
 				}
 			}
@@ -367,9 +367,9 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_ziel() == wlist[pos].get_ziel())
+					wlist[i].get_destination() == wlist[pos].get_destination())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 					break;
 				}
 			}
@@ -380,9 +380,9 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_zielpos() == wlist[pos].get_zielpos())
+					wlist[i].get_destination_pos() == wlist[pos].get_destination_pos())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 					break;
 				}
 			}
@@ -394,9 +394,9 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
 					wlist[i].get_class() == wlist[pos].get_class() &&
-					wlist[i].get_zielpos() == wlist[pos].get_zielpos())
+					wlist[i].get_destination_pos() == wlist[pos].get_destination_pos())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 					break;
 				}
 			}
@@ -406,75 +406,75 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() &&
-					wlist[i].get_zwischenziel() == wlist[pos].get_zwischenziel() &&
+					wlist[i].get_next_transfer() == wlist[pos].get_next_transfer() &&
 					wlist[i].get_class() == wlist[pos].get_class())
 				{
-					wlist[i].menge += wlist[pos--].menge;
+					wlist[i].amount += wlist[pos--].amount;
 				}
 			}
 		}
 
 		if (sort_mode == by_line_via && pos > 0) {
 			//halthandle_t const current_halt = ware.get_last_transfer();
-			halthandle_t const current_halt = ware.get_last_transfer().is_bound() ? ware.get_last_transfer() : ware.get_zwischenziel();
+			halthandle_t const current_halt = ware.get_last_transfer().is_bound() ? ware.get_last_transfer() : ware.get_next_transfer();
 
 			for (int i = 0; i < pos; i++)
 			{
-				if (wlist[i].get_zwischenziel() == wlist[pos].get_zwischenziel() && wlist[i].get_index() == wlist[pos].get_index())
+				if (wlist[i].get_next_transfer() == wlist[pos].get_next_transfer() && wlist[i].get_index() == wlist[pos].get_index())
 				{
 					if (!current_halt.is_bound()) {
 						// unknown => unified
-						wlist[i].menge += wlist[pos--].menge;
+						wlist[i].amount += wlist[pos--].amount;
 					}
 
 					const uint8 catg_index = wlist[i].get_catg();
-					const linehandle_t tmp_line = current_halt->get_preferred_line(wlist[i].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
-					if (tmp_line.is_bound() && tmp_line == current_halt->get_preferred_line(wlist[pos].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
+					const linehandle_t tmp_line = current_halt->get_preferred_line(wlist[i].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
+					if (tmp_line.is_bound() && tmp_line == current_halt->get_preferred_line(wlist[pos].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
 					{
 						// waiting same line
-						wlist[i].menge += wlist[pos--].menge;
+						wlist[i].amount += wlist[pos--].amount;
 					}
 					else {
-						const convoihandle_t tmp_cnv = current_halt->get_preferred_convoy(wlist[i].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
-						if (tmp_cnv.is_bound() && tmp_cnv == current_halt->get_preferred_convoy(wlist[pos].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
+						const convoihandle_t tmp_cnv = current_halt->get_preferred_convoy(wlist[i].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
+						if (tmp_cnv.is_bound() && tmp_cnv == current_halt->get_preferred_convoy(wlist[pos].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
 						{
 							// waiting same convoy
-							wlist[i].menge += wlist[pos--].menge;
+							wlist[i].amount += wlist[pos--].amount;
 						}
-						else if (wlist[i].get_zielpos() == wlist[pos].get_zielpos() || wlist[i].get_last_transfer() == wlist[pos].get_last_transfer()) {
+						else if (wlist[i].get_destination_pos() == wlist[pos].get_destination_pos() || wlist[i].get_last_transfer() == wlist[pos].get_last_transfer()) {
 							// line or convoy not found => Transporting from the station to the destination
-							wlist[i].menge += wlist[pos--].menge;
+							wlist[i].amount += wlist[pos--].amount;
 						}
 					}
 				}
 			}
 		}
 		else if (sort_mode == by_line && pos > 0) {
-			halthandle_t const current_halt = ware.get_last_transfer().is_bound() ? ware.get_last_transfer() : ware.get_zwischenziel();
+			halthandle_t const current_halt = ware.get_last_transfer().is_bound() ? ware.get_last_transfer() : ware.get_next_transfer();
 			for (int i = 0; i < pos; i++)
 			{
 				if (wlist[i].get_index() == wlist[pos].get_index() && current_halt.is_bound())
 				{
 					const uint8 catg_index = wlist[i].get_catg();
-					const linehandle_t tmp_line = current_halt->get_preferred_line(wlist[i].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
+					const linehandle_t tmp_line = current_halt->get_preferred_line(wlist[i].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
 
-					if (tmp_line.is_bound() && tmp_line == current_halt->get_preferred_line(wlist[pos].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
+					if (tmp_line.is_bound() && tmp_line == current_halt->get_preferred_line(wlist[pos].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
 					{
 						// waiting same line
-						wlist[i].menge += wlist[pos--].menge;
+						wlist[i].amount += wlist[pos--].amount;
 						break;
 					}
 					else {
-						const convoihandle_t tmp_cnv = current_halt->get_preferred_convoy(wlist[i].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
-						if (tmp_cnv.is_bound() && tmp_cnv == current_halt->get_preferred_convoy(wlist[pos].get_zwischenziel(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
+						const convoihandle_t tmp_cnv = current_halt->get_preferred_convoy(wlist[i].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[i].get_index()) - 1);
+						if (tmp_cnv.is_bound() && tmp_cnv == current_halt->get_preferred_convoy(wlist[pos].get_next_transfer(), catg_index, goods_manager_t::get_classes_catg_index(wlist[pos].get_index()) - 1))
 						{
 							// waiting same convoy
-							wlist[i].menge += wlist[pos--].menge;
+							wlist[i].amount += wlist[pos--].amount;
 							break;
 						}
-						else if (wlist[i].get_zielpos() == wlist[pos].get_zielpos() || wlist[i].get_zwischenziel() == wlist[pos].get_zwischenziel()) {
+						else if (wlist[i].get_destination_pos() == wlist[pos].get_destination_pos() || wlist[i].get_next_transfer() == wlist[pos].get_next_transfer()) {
 							// line or convoy not found => Transporting from the station to the destination
-							wlist[i].menge += wlist[pos--].menge;
+							wlist[i].amount += wlist[pos--].amount;
 						}
 					}
 				}
@@ -489,7 +489,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 		uint32 rt_pos = wlist[pos] == tc.ware ? tc.ready_time : NULL;
 		if (wlist[i].get_index() == wlist[pos].get_index() && rt_i == rt_pos)
 		{
-		wlist[i].menge += wlist[pos--].menge;
+		wlist[i].amount += wlist[pos--].amount;
 		break;
 		}
 		}
@@ -518,8 +518,8 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 
 		for (int j = 0; j < pos; j++)
 		{
-			halthandle_t const halt = wlist[j].get_ziel();
-			halthandle_t const via_halt = wlist[j].get_zwischenziel();
+			halthandle_t const halt = wlist[j].get_destination();
+			halthandle_t const via_halt = wlist[j].get_next_transfer();
 			halthandle_t const origin_halt = wlist[j].get_origin();
 
 			ware_t const& ware = wlist[j];
@@ -540,7 +540,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 					if(  last_goods_index != sumware.get_index() && last_ware_catg != sumware.get_catg()  ) {
 						break; // next category reached ...
 					}
-					sum += sumware.menge;
+					sum += sumware.amount;
 				}
 
 				// display all ware
@@ -558,13 +558,13 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 						ware_t const& current = *full_i++;
 						if (last_goods_index == current.get_index() || last_ware_catg == current.get_catg())
 						{
-							add_ware_heading(buf, sum, current.menge, &current, what_doing, accommodation, 0, show_empty);
+							add_ware_heading(buf, sum, current.amount, &current, what_doing, accommodation, 0, show_empty);
 							heading_added = true;
 							break;
 						}
 						else
 						{
-							add_ware_heading(buf, 0, current.menge, &current, what_doing, accommodation, 0, show_empty);
+							add_ware_heading(buf, 0, current.amount, &current, what_doing, accommodation, 0, show_empty);
 							heading_added = true;
 						}
 					}
@@ -588,7 +588,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 					{
 						break;	// next class or category reached ...
 					}
-					class_total += sumware.menge;
+					class_total += sumware.amount;
 				}
 				add_ware_heading(buf, sum, 0, &ware, what_doing, last_ware_class, class_total, show_empty);
 			}
@@ -612,7 +612,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			}
 			// detail amount
 			goods_desc_t const& desc = *ware.get_desc();
-			buf.printf("%5u%s", ware.menge, translator::translate(desc.get_mass()));
+			buf.printf("%5u%s", ware.amount, translator::translate(desc.get_mass()));
 
 			switch (sortby) {
 				case by_origin:
@@ -620,7 +620,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 				case by_wealth_detail:
 				case by_accommodation_detail:
 					if (ware.is_passenger()) {
-						if (ware.menge == 1) {
+						if (ware.amount == 1) {
 							buf.printf(" %s", ware.is_commuting_trip ? translator::translate("commuter") : translator::translate("visitor"));
 						}
 						else {
@@ -676,7 +676,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 			// the target name is not correct for the via sort
 			if (sortby != by_via_sum && sortby != by_origin_amount && sortby != by_wealth_via && sortby < by_accommodation_via)
 			{
-				koord zielpos = ware.get_zielpos();
+				koord zielpos = ware.get_destination_pos();
 				const grund_t* gr = welt->lookup_kartenboden(zielpos);
 				const gebaeude_t* const gb = gr ? gr->get_building() : NULL;
 				cbuffer_t dbuf;
@@ -845,7 +845,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 	// still entires left?
 	for (; full_i != full_end; ++full_i) {
 		ware_t const& g = *full_i;
-		add_ware_heading(buf, 0, g.menge, &g, what_doing, g.get_class(), 0, show_empty);
+		add_ware_heading(buf, 0, g.amount, &g, what_doing, g.get_class(), 0, show_empty);
 	}
 
 

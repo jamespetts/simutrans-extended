@@ -791,6 +791,8 @@ private:
 public:
 #endif
 
+	waytype_t get_waytype() const;
+
 	/**
 	 * remove all track reservations (trains only)
 	 */

@@ -114,8 +114,8 @@ bool ai_t::is_connected( const koord start_pos, const koord dest_pos, const good
 	// now try to find a route
 	// ok, they are not in walking distance
 	ware_t ware(wtyp);
-	ware.set_zielpos(dest_pos);
-	ware.menge = 1;
+	ware.set_destination_pos(dest_pos);
+	ware.amount = 1;
 	for (uint16 hh = 0; hh<start_plan->get_haltlist_count(); hh++)
 	{
 		if(start_list[hh].halt->find_route(ware) < UINT32_MAX_VALUE)
