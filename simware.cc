@@ -68,9 +68,9 @@ void ware_t::set_desc(const goods_desc_t* type)
 
 void ware_t::rdwr(loadsave_t *file)
 {
-	sint32 amount = amount;
-	file->rdwr_long(amount);
-	amount = amount;
+	sint32 _amount = amount;
+	file->rdwr_long(_amount);
+	amount = _amount;
 	if(file->is_version_less(99, 8)) {
 		sint32 max;
 		file->rdwr_long(max);
