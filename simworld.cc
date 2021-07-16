@@ -5450,7 +5450,7 @@ void karte_t::step()
 	if(  env_t::server  &&  last_clients!=socket_list_t::get_playing_clients()  ) {
 		if(  env_t::server_announce  ) {
 			// inform the master server
-			announce_server( 1 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HEARTBEAT );
 		}
 
 		// check if player has left and send message
@@ -8785,7 +8785,7 @@ void karte_t::switch_server( bool start_server, bool port_forwarding )
 
 		if(  env_t::server  ) {
 			// take down server
-			announce_server(2);
+			announce_server(karte_t::SERVER_ANNOUNCE_GOODBYE);
 			remove_port_forwarding( env_t::server );
 		}
 		network_core_shutdown();
@@ -10805,7 +10805,7 @@ bool karte_t::interactive(uint32 quit_month)
 
 		// Announce server startup to the listing server
 		if(  env_t::server_announce  ) {
-			announce_server( 0 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HELLO );
 		}
 	}
 
@@ -10977,7 +10977,7 @@ bool karte_t::interactive(uint32 quit_month)
 		// Interval-based server announcements
 		if (  env_t::server  &&  env_t::server_announce  &&  env_t::server_announce_interval > 0  &&
 			dr_time() >= server_last_announce_time + (uint32)env_t::server_announce_interval * 1000  ) {
-			announce_server( 1 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HEARTBEAT );
 		}
 
 		DBG_DEBUG4("karte_t::interactive", "point of loop return");
@@ -10989,7 +10989,7 @@ bool karte_t::interactive(uint32 quit_month)
 
 	// On quit announce server as being offline
 	if(  env_t::server  &&  env_t::server_announce  ) {
-		announce_server( 2 );
+		announce_server( karte_t::SERVER_ANNOUNCE_GOODBYE );
 	}
 
 	intr_enable();
@@ -11016,7 +11016,7 @@ void karte_t::announce_server(int status)
 		if(  env_t::easy_server  &&  status<2  &&  get_external_IP(buf,altbuf)  ) {
 			// ipdate IP just in case
 			if(  status == 1  &&  (env_t::server_dns.compare( buf )  ||  env_t::server_alt_dns.compare( altbuf ))  ) {
-				announce_server( 2 );
+				announce_server( karte_t::SERVER_ANNOUNCE_GOODBYE );
 				status = 0; // since starting with new IP
 				// if we had uPnP, we may need to drill another hole in the firewall again; the delay is no problem, since all clients will be lost anyway
 				char IP[256], altIP[256];

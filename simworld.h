@@ -956,13 +956,19 @@ public:
 	void inc_rands(uint8 num) { rands[num]++; }
 	inline void add_to_debug_sums(uint8 num, uint32 val) { debug_sums[num] += val; }
 
+	enum server_announce_type_t
+	{
+		SERVER_ANNOUNCE_HELLO     = 0, ///< my server is now up
+		SERVER_ANNOUNCE_HEARTBEAT = 1, ///< my server is still up
+		SERVER_ANNOUNCE_GOODBYE   = 2, ///< my server is now down
+	};
 
 	/**
 	 * Announce server and current state to listserver.
 	 * @param status Specifies what information should be announced
 	 * or offline (the latter only in cases where it is shutting down)
 	 */
-	void announce_server(int status);
+	void announce_server(server_announce_type_t status);
 
 	vector_tpl<fabrik_t*> closed_factories_this_month;
 	weighted_vector_tpl<fabrik_t*> should_close_factories_this_month;
