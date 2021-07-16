@@ -11004,24 +11004,29 @@ bool karte_t::interactive(uint32 quit_month)
 // 0 - startup
 // 1 - interval
 // 2 - shutdown
-void karte_t::announce_server(int status)
+void karte_t::announce_server(server_announce_type_t status)
 {
 	DBG_DEBUG( "announce_server()", "status: %i",  status );
+
 	// Announce game info to server, format is:
 	// st=on&dns=server.com&port=13353&rev=1234&pak=pak128&name=some+name&time=3,1923&size=256,256&active=[0-16]&locked=[0-16]&clients=[0-16]&towns=15&citizens=3245&factories=33&convoys=56&stops=17
 	// (This is the data part of an HTTP POST)
 	if(  env_t::server  &&  env_t::server_announce  ) {
 		// in easy_server mode, we assume the IP may change frequently and thus query it before each announce
 		cbuffer_t buf, altbuf;
+
 		if(  env_t::easy_server  &&  status<2  &&  get_external_IP(buf,altbuf)  ) {
 			// ipdate IP just in case
-			if(  status == 1  &&  (env_t::server_dns.compare( buf )  ||  env_t::server_alt_dns.compare( altbuf ))  ) {
+			if(  status == SERVER_ANNOUNCE_HEARTBEAT    &&  (env_t::server_dns.compare( buf )  ||  env_t::server_alt_dns.compare( altbuf ))  ) {
 				announce_server( karte_t::SERVER_ANNOUNCE_GOODBYE );
-				status = 0; // since starting with new IP
+
+				status = SERVER_ANNOUNCE_HELLO; // since starting with new IP
+
 				// if we had uPnP, we may need to drill another hole in the firewall again; the delay is no problem, since all clients will be lost anyway
 				char IP[256], altIP[256];
 				prepare_for_server( IP, altIP, env_t::server_port );
 			}
+
 			// now update DNS info
 			env_t::server_dns = (const char *)buf;
 			env_t::server_alt_dns = (const char *)altbuf;
@@ -11035,6 +11040,7 @@ void karte_t::announce_server(int status)
 		buf.printf( "&port=%u", env_t::server );
 		// Always send announce interval to allow listing server to predict next announce
 		buf.printf( "&aiv=%u", env_t::server_announce_interval );
+
 		// Always send status, either online or offline
 		if (  status == 0  ||  status == 1  ) {
 			buf.append( "&st=1" );
@@ -11042,6 +11048,7 @@ void karte_t::announce_server(int status)
 		else {
 			buf.append( "&st=0" );
 		}
+
 #ifndef REVISION
 #	define REVISION 0
 #endif
@@ -11054,6 +11061,7 @@ void karte_t::announce_server(int status)
 		buf.printf("&ver=%x", strtol(QUOTEME(REVISION), NULL, 16));
 		// Pakset version
 		buf.append( "&pak=" );
+
 		// Announce pak set, ideally get this from the copyright field of ground.Outside.pak
 		char const* const copyright = ground_desc_t::outside->get_copyright();
 		if (copyright && STRICMP("none", copyright) != 0) {
@@ -11066,6 +11074,7 @@ void karte_t::announce_server(int status)
 			pak_name.erase( pak_name.length() - 1 );
 			encode_URI( buf, pak_name.c_str() );
 		}
+
 		// TODO - change this to be the start date of the current map
 		buf.printf( "&start=%u,%u", settings.get_starting_month() + 1, settings.get_starting_year() );
 		// Add server name for listing
@@ -11094,6 +11103,7 @@ void karte_t::announce_server(int status)
 				}
 			}
 		}
+
 		buf.printf( "&time=%u,%u",   (get_current_month() % 12) + 1, get_current_month() / 12 );
 		buf.printf( "&size=%u,%u",   get_size().x, get_size().y );
 		buf.printf( "&active=%u",    active );
@@ -11126,6 +11136,7 @@ void karte_t::network_disconnect()
 	create_win({ display_get_width()/2-128, 40 }, new news_img("Lost synchronisation\nwith server."), w_info, magic_none);
 	ticker::add_msg( translator::translate("Lost synchronisation\nwith server."), koord::invalid, SYSCOL_TEXT );
 	last_active_player_nr = active_player_nr;
+
 	set_pause(true);
 }
 
