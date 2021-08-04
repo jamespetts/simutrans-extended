@@ -76,6 +76,10 @@ if (ZSTD_FOUND)
 	option(SIMUTRANS_USE_ZSTD "Enable support for zstd save file compression (larger save files than bzip2, but faster)" ON)
 endif (ZSTD_FOUND)
 
+if (FluidSynth_FOUND)
+	option(SIMUTRANS_USE_FLUIDSYNTH_MIDI "Enable FluidSynth for MIDI playback" ON)
+endif (FluidSynth_FOUND)
+
 option(SIMUTRANS_ENABLE_PROFILING "Enable profiling code" OFF)
 option(SIMUTRANS_USE_SYSLOG "Enable logging to syslog" OFF)
 option(SIMUTRANS_ENABLE_IPV6 "Enable connections using IPv6 in addition to IPv4" ON)
@@ -474,7 +478,7 @@ endif (WIN32)
 
 
 if (SIMUTRANS_BACKEND STREQUAL "sdl2")
-	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s2.cc sound/sdl2_sound.cc ${BACKUP_MUSIC})
+	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s2.cc sound/sdl2_sound.cc)
 	target_link_libraries(simutrans-extended PRIVATE SDL2::Core)
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
 
@@ -492,7 +496,7 @@ elseif (SIMUTRANS_BACKEND STREQUAL "mixer_sdl2")
 	endif ()
 
 elseif (SIMUTRANS_BACKEND STREQUAL "gdi")
-	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_w.cc sys/simsys_w32_png.cc ${BACKUP_SOUND} ${BACKUP_MUSIC})
+	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_w.cc sys/simsys_w32_png.cc ${BACKUP_SOUND} )
 	target_link_libraries(simutrans-extended PRIVATE imm32)
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
 
@@ -535,6 +539,16 @@ if (SIMUTRANS_USE_ZSTD)
 	target_link_libraries(simutrans-extended PRIVATE ZSTD::ZSTD)
 endif (SIMUTRANS_USE_ZSTD)
 
+# only consider FluidSynth for SDL2 and GDI backends
+if ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
+	if (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
+		target_sources(simutrans-extended PRIVATE music/fluidsynth.cc gui/loadsoundfont_frame.cc)
+		target_compile_definitions(simutrans-extended PRIVATE USE_FLUIDSYNTH_MIDI=1)
+		target_link_libraries(simutrans-extended PRIVATE FluidSynth::FluidSynth)
+	else ()
+		target_sources( simutrans-extended PRIVATE ${BACKUP_MUSIC} )
+	endif (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
+endif ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
 
 #
 # compile options

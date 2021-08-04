@@ -52,6 +52,8 @@
 static pthread_mutex_t weg_calc_image_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static pthread_mutexattr_t mutex_attributes;
 static pthread_rwlockattr_t rwlock_attributes;
+
+pthread_mutex_t weg_t::private_car_route_map::route_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 
@@ -355,8 +357,12 @@ void weg_t::init()
 	//assert(error == 0);
 	//int error = pthread_rwlock_init(&private_car_store_route_rwlock, &rwlock_attributes);
 	//assert(error == 0);
-	private_car_store_route_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 #endif
+	for(uint32 j=0; j<2; j++){
+		for(uint32 i=0; i<5; i++){
+			private_car_routes[j][i].set_route_map_elem(j);
+		}
+	}
 }
 
 
@@ -383,9 +389,7 @@ weg_t::~weg_t()
 			player_t::add_maintenance(player, -maint, desc->get_finance_waytype());
 		}
 	}
-#ifdef MULTI_THREAD
-	pthread_rwlock_destroy(&private_car_store_route_rwlock);
-#endif
+
 }
 
 
@@ -519,11 +523,7 @@ void weg_t::rdwr(loadsave_t *file)
 			for (uint32 i = 0; i < route_array_number; i++)
 			{
 				for (uint32 j = 0; j < 5; j++) {
-					uint32 private_car_routes_count = private_car_routes[i][j].get_count();
-					file->rdwr_long(private_car_routes_count);
-					for (uint32 k = 0; k < private_car_routes_count; k++) {
-						private_car_routes[i][j][k].rdwr(file);
-					}
+					private_car_routes[i][j].rdwr(file);
 				}
 			}
 		}
@@ -556,10 +556,30 @@ void weg_t::rdwr(loadsave_t *file)
 						for(uint8 j=0; j<5; j++) {
 							uint32 private_car_routes_count = 0;
 							file->rdwr_long(private_car_routes_count);
-							private_car_routes[i][j].resize(private_car_routes_count);
-							for(uint32 k=0; k<private_car_routes_count; k++) {
-								koord dest; dest.rdwr(file);
-								private_car_routes[i][j].insert_unique(dest);
+							for (uint32 j = 0; j < private_car_routes_count; j++) {
+								koord destination;
+								destination.rdwr(file);
+								if (file->get_extended_revision() < 33) {
+									// Koord3d representation
+									koord3d next_tile;
+									next_tile.rdwr(file);
+									private_car_routes[i][get_map_idx(next_tile)].insert_unique(destination);
+								} else {
+									// Integer-neighbour representation
+									uint8 next_tile_neighbour;
+									file->rdwr_byte(next_tile_neighbour);
+									private_car_routes[i][get_map_idx(private_car_t::neighbour_from_int(get_pos(), next_tile_neighbour))].insert_unique(destination);
+								}
+							}
+						} else {
+							// Container membership representation
+							for(uint8 j=0; j<5; j++) {
+								private_car_routes[i][j].rdwr(file);
+							}
+
+							if(file->is_version_ex_less(14,39)) {
+								// Correct for nsew->nesw change
+								std::swap(private_car_routes[i][1],private_car_routes[i][2]);
 							}
 						}
 					}
@@ -569,6 +589,71 @@ void weg_t::rdwr(loadsave_t *file)
 	}
 }
 
+void weg_t::private_car_route_map::rdwr(loadsave_t *file){
+	if(file->is_saving()){
+
+		uint32 count=get_count();
+		//single or null
+		if(count < 2){
+			file->rdwr_long(count);
+			if(count==1){
+				single_koord.rdwr(file);
+			}
+			return;
+		}
+		//use negative coords to store index and link mode
+		if(link_mode == link_mode_master){
+			count+=2;
+		}else{
+			count=2;
+		}
+		file->rdwr_long(count);
+		koord idx1,idx2;
+		idx1.x = -2;
+		idx1.y = static_cast<sint16>((idx >> 16) & 0xFFFF);
+		idx1.rdwr(file);
+		idx2.x = -1 - (sint16)link_mode;
+		idx2.y = static_cast<sint16>((idx) & 0xFFFF);
+		idx2.rdwr(file);
+		//save the destination list
+		if(link_mode==link_mode_master){
+			for(uint32 k = 0; k < get_count(); k++){
+				route_maps[route_map_elem][idx].get_by_index(k).rdwr(file);
+			}
+		}
+	}else{
+		uint32 count=0;
+		file->rdwr_long(count);
+		resize(0);
+		if(count == 1){
+			single_koord.rdwr(file);
+			link_mode = link_mode_single;
+		}else if(count >= 2){
+			koord idx1,idx2;
+			idx1.rdwr(file);
+			idx2.rdwr(file);
+			if(idx1.x == -2){
+				//newer file, extract index and link mode
+				idx =  uint32(static_cast<uint16>(idx1.y)) << 16;
+				idx |= uint32(static_cast<uint16>(idx2.y));
+				link_mode = -1 - idx2.x;
+				if(link_mode == link_mode_master){
+					route_maps[route_map_elem].store_at(idx,ordered_vector_tpl<koord,uint32>(count-2));
+				}
+			}else{
+				//older file, just append destinations
+				resize(count);
+				insert_unique(idx1);
+				insert_unique(idx2);
+			}
+			//for master or old file, read remaining destinations
+			for(uint32 k=2; k<count; k++){
+				koord dest; dest.rdwr(file);
+				insert_unique(dest);
+			}
+		}
+	}
+}
 
 void weg_t::info(cbuffer_t & buf) const
 {
@@ -683,6 +768,13 @@ void weg_t::info(cbuffer_t & buf) const
 
 			uint32 cities_count = 0;
 			uint32 buildings_count = 0;
+#ifdef DEBUG
+			buf.append(translator::translate("[indices: "));
+			for(uint8 i=0;i<5;i++) {
+				buf.printf("%d ",private_car_routes[private_car_routes_currently_reading_element][i].get_idx());
+			}
+			buf.append("]\n");
+#endif
 			for(uint8 i=0;i<5;i++) {
 				for(uint32 j=0;j<private_car_routes[private_car_routes_currently_reading_element][i].get_count();j++){
 					const koord dest = private_car_routes[private_car_routes_currently_reading_element][i][j];
@@ -692,8 +784,12 @@ void weg_t::info(cbuffer_t & buf) const
 					{
 						buildings_count++;
 #ifdef DEBUG
-						buf.append("\n");
-						buf.append(translator::translate(building->get_individual_name()));
+						if(j < 5){
+							buf.append("\n");
+							buf.append(translator::translate(building->get_individual_name()));
+						}else if(j==5){
+							buf.append("\n...");
+						}
 #endif
 					}
 					else
@@ -1879,14 +1975,218 @@ signal_t *weg_t::get_signal(ribi_t::ribi direction_of_travel) const
 	else return NULL;
 }
 
+//#define NO_PRIVATE_CAR_DESTINATION_LINKING
+
+vector_tpl<ordered_vector_tpl<koord,uint32> > weg_t::private_car_route_map::route_maps[2];
+
+void weg_t::private_car_route_map::clear(){
+	if(link_mode==link_mode_master){
+		route_maps[route_map_elem][idx].clear();
+	}else{
+		link_mode=link_mode_NULL;
+	}
+}
+
+void weg_t::private_car_route_map::pre_reset(){
+	if(link_mode==link_mode_master){
+		route_maps[route_map_elem][idx].clear();
+	}
+	link_mode=link_mode_NULL;
+}
+
+bool weg_t::private_car_route_map::contains(koord elem) const{
+	if(link_mode==link_mode_NULL){
+		return false;
+	}
+	if(link_mode==link_mode_single){
+		bool result= single_koord==elem;
+		return result;
+	}
+	bool result=route_maps[route_map_elem][idx].contains(elem);
+	return result;
+}
+
+bool weg_t::private_car_route_map::insert_unique(koord elem, private_car_route_map* link_to, uint8 link_dir){
+	if(link_mode==link_mode_NULL){
+		single_koord=elem;
+		link_mode=link_mode_single;
+		return true;
+	}
+	if(link_mode==link_mode_single){
+		if(single_koord==elem){
+			return false;
+		}
+		if(link_to
+				&& link_to->link_mode!=link_mode_NULL
+				&& link_to->link_mode!=link_mode_single
+				&& link_to->contains(single_koord)
+				&& link_to->contains(elem)){
+			link_mode=link_dir;
+			idx=link_to->idx;
+			return true;
+		}
+		route_maps[route_map_elem].append(ordered_vector_tpl<koord,uint32>());
+		uint32 new_idx=route_maps[route_map_elem].get_count()-1;
+		route_maps[route_map_elem][new_idx].insert_unique(single_koord);
+		idx=new_idx;
+		link_mode=link_mode_master;
+	}
+	if(link_mode==link_mode_master){
+		bool result = route_maps[route_map_elem][idx].insert_unique(elem);
+		return result;
+	}
+	if(link_to){
+		if(link_mode==link_dir
+				&& link_to->link_mode!=link_mode_NULL
+				&& link_to->link_mode!=link_mode_single){
+			idx=link_to->idx;
+			return false;
+		}
+		route_maps[route_map_elem].append(ordered_vector_tpl<koord,uint32>(route_maps[route_map_elem][idx]));
+		uint32 new_idx=route_maps[route_map_elem].get_count()-1;
+		if(link_to->link_mode==link_mode_single){
+			route_maps[route_map_elem][new_idx].insert_unique(link_to->single_koord);
+		}else if(link_to->link_mode!=link_mode_NULL){
+			route_maps[route_map_elem][new_idx].set_union(route_maps[route_map_elem][link_to->idx]);
+		}
+		idx=new_idx;
+		link_mode=link_mode_master;
+		bool result = route_maps[route_map_elem][idx].insert_unique(elem);
+		return result;
+	}
+	return false;
+}
+
+koord& weg_t::private_car_route_map::get_by_index(uint32_t i){
+	if(link_mode==link_mode_single){
+		koord& result=single_koord;
+		return result;
+	}
+	koord& result = route_maps[route_map_elem][idx][i];
+	return result;
+}
+
+const koord& weg_t::private_car_route_map::get_by_index(uint32_t i) const {
+	if(link_mode==link_mode_single){
+		const koord& result=single_koord;
+		return result;
+	}
+	const koord& result = route_maps[route_map_elem][idx][i];
+	return result;
+}
+koord& weg_t::private_car_route_map::operator[](uint32 i){
+	return get_by_index(i);
+}
+
+const koord& weg_t::private_car_route_map::operator[](uint32 i) const {
+	return get_by_index(i);
+}
+
+uint32 weg_t::private_car_route_map::get_count() const {
+	if(link_mode==link_mode_NULL){
+		return 0;
+	}
+	if(link_mode==link_mode_single){
+		return 1;
+	}
+	const uint32 result = route_maps[route_map_elem][idx].get_count();
+	return result;
+}
+
+bool weg_t::private_car_route_map::is_empty() const {
+	if(link_mode==link_mode_NULL){
+		return true;
+	}
+	if(link_mode==link_mode_single){
+		return false;
+	}
+	const bool result = route_maps[route_map_elem][idx].is_empty();
+	return result;
+}
+
+bool weg_t::private_car_route_map::remove(koord elem){
+
+	if(link_mode==link_mode_NULL){
+		return false;
+	}
+	if(link_mode==link_mode_single){
+		if(single_koord==elem){
+			link_mode=link_mode_NULL;
+			return true;
+		}
+		return false;
+	}
+	bool result = route_maps[route_map_elem][idx].remove(elem);
+	return result;
+}
+
+void weg_t::private_car_route_map::resize(uint32 new_size){
+	if((link_mode==link_mode_single || link_mode==link_mode_NULL) && new_size<=1){
+		return;
+	}
+	if(link_mode!=link_mode_master){
+		ordered_vector_tpl<koord,uint32> to_append=(link_mode==link_mode_single || link_mode==link_mode_NULL)
+				? ordered_vector_tpl<koord,uint32>() : ordered_vector_tpl<koord,uint32>(route_maps[route_map_elem][idx]);
+		route_maps[route_map_elem].append(to_append);
+		idx=route_maps[route_map_elem].get_count()-1;
+		if(link_mode==link_mode_single){
+			route_maps[route_map_elem][idx].insert_unique(single_koord);
+		}
+		link_mode=link_mode_master;
+	}
+	route_maps[route_map_elem][idx].resize(new_size);
+}
+
+void weg_t::private_car_route_map::reset(uint8 map_elem){
+	route_maps[map_elem].clear();
+	route_maps[map_elem].resize(0);
+}
+
+weg_t::private_car_route_map* weg_t::private_car_backtrace_last_route_map=NULL;
+uint8 weg_t::private_car_backtrace_last_idx=0;
+
+void weg_t::private_car_backtrace_begin(){
+	private_car_route_map::route_map_lock();
+	private_car_backtrace_last_route_map=NULL;
+}
+
+void weg_t::private_car_backtrace_end(){
+	private_car_route_map::route_map_unlock();
+}
+
+void weg_t::private_car_backtrace_add(koord destination, koord3d next_tile){
+	uint8 writing_elem=get_private_car_routes_currently_writing_element();
+	auto map = private_car_routes[writing_elem];
+	const uint8 map_idx = get_map_idx(next_tile);
+
+	if(!map[map_idx].contains(destination)) {
+#ifdef NO_PRIVATE_CAR_DESTINATION_LINKING
+		for(uint8 i=0;i<5;i++) {
+			if(i != map_idx && map[i].remove(destination)) {
+				break;
+			}
+		}
+		map[map_idx].insert_unique(destination);
+#else
+		map[map_idx].insert_unique(destination,private_car_backtrace_last_route_map,private_car_backtrace_last_idx);
+#endif
+	}
+}
+
+void weg_t::private_car_backtrace_inc(koord3d next_tile){
+	uint8 writing_elem=get_private_car_routes_currently_writing_element();
+	auto map = private_car_routes[writing_elem];
+	const uint8 map_idx = get_map_idx(next_tile);
+	private_car_backtrace_last_route_map=map+map_idx;
+	private_car_backtrace_last_idx=map_idx;
+}
+
 void weg_t::add_private_car_route(koord destination, koord3d next_tile)
 {
-#ifdef MULTI_THREAD
-	int error = pthread_rwlock_wrlock(&private_car_store_route_rwlock);
-	assert(error == 0);
-	(void)error;
-#endif
-	auto map = private_car_routes[get_private_car_routes_currently_writing_element()];
+
+	uint8 writing_elem=get_private_car_routes_currently_writing_element();
+	private_car_route_map::route_map_lock();
+	auto map = private_car_routes[writing_elem];
 	const uint8 map_idx = get_map_idx(next_tile);
 
 	if(!map[map_idx].contains(destination)) {
@@ -1897,11 +2197,9 @@ void weg_t::add_private_car_route(koord destination, koord3d next_tile)
 		}
 		map[map_idx].insert_unique(destination);
 	}
-#ifdef MULTI_THREAD
-	error = pthread_rwlock_unlock(&private_car_store_route_rwlock);
-	assert(error == 0);
-	(void)error;
-#endif
+
+	private_car_route_map::route_map_unlock();
+
 #ifdef DEBUG_PRIVATE_CAR_ROUTES
 	calc_image();
 #endif
@@ -1919,16 +2217,13 @@ uint8 weg_t::get_map_idx(const koord3d &next_tile) const {
 	return (uint8) 4;
 }
 
+//never called
 void weg_t::delete_all_routes_from_here(bool reading_set)
 {
 	const uint32 routes_index = reading_set ? private_car_routes_currently_reading_element : get_private_car_routes_currently_writing_element();
 
 	vector_tpl<koord> destinations_to_delete;
-#ifdef MULTI_THREAD
-		int error = pthread_rwlock_rdlock(&private_car_store_route_rwlock);
-		assert(error == 0);
-		(void)error;
-#endif
+
 	for(uint8 i=0;i<5;i++) {
 		auto &map = private_car_routes[routes_index][i];
 		if (!map.is_empty()) {
@@ -1937,12 +2232,6 @@ void weg_t::delete_all_routes_from_here(bool reading_set)
 			}
 		}
 	}
-#ifdef MULTI_THREAD
-		error = pthread_rwlock_unlock(&private_car_store_route_rwlock);
-		assert(error == 0);
-		(void)error;
-#endif
-
 		FOR(vector_tpl<koord>, dest, destinations_to_delete)
 		{
 			// This must be done in a two stage process to avoid memory corruption as the delete_route_to function will affect the very hashtable being iterated.
@@ -1953,6 +2242,7 @@ void weg_t::delete_all_routes_from_here(bool reading_set)
 #endif
 }
 
+//never called
 void weg_t::delete_route_to(koord destination, bool reading_set)
 {
 	const uint32 routes_index = reading_set ? private_car_routes_currently_reading_element : get_private_car_routes_currently_writing_element();
@@ -1969,17 +2259,9 @@ void weg_t::delete_route_to(koord destination, bool reading_set)
 			weg_t* const w = gr->get_weg(road_wt);
 			if (w)
 			{
-#ifdef MULTI_THREAD
-				int error = pthread_rwlock_rdlock(&w->private_car_store_route_rwlock);
-				assert(error == 0);
-				(void)error;
-#endif
+
 				next_tile = w->get_next_on_private_car_route_to(destination, reading_set);
-#ifdef MULTI_THREAD
-				error = pthread_rwlock_unlock(&w->private_car_store_route_rwlock);
-				assert(error == 0);
-				(void)error;
-#endif
+
 				w->remove_private_car_route(destination, reading_set);
 			}
 		}
@@ -1991,24 +2273,17 @@ void weg_t::delete_route_to(koord destination, bool reading_set)
 	}
 }
 
+//never called
 void weg_t::remove_private_car_route(koord destination, bool reading_set)
 {
 	const uint32 routes_index = reading_set ? private_car_routes_currently_reading_element : get_private_car_routes_currently_writing_element();
-#ifdef MULTI_THREAD
-	int error = pthread_rwlock_wrlock(&private_car_store_route_rwlock);
-	assert(error == 0);
-	(void)error;
-#endif
+	private_car_route_map::route_map_lock();
 	for(uint8 i=0;i<5;i++) {
 		if(private_car_routes[routes_index][i].remove(destination)) {
 			break;
 		}
 	}
-#ifdef MULTI_THREAD
-	error = pthread_rwlock_unlock(&private_car_store_route_rwlock);
-	assert(error == 0);
-	(void)error;
-#endif
+	private_car_route_map::route_map_unlock();
 }
 
 void weg_t::add_travel_time_update(weg_t* w, uint32 actual, uint32 ideal)
@@ -2032,17 +2307,19 @@ void weg_t::clear_travel_time_updates() {
 	pending_road_travel_time_updates.clear();
 }
 
-koord3d weg_t::get_next_on_private_car_route_to(koord dest, bool reading_set) const {
+koord3d weg_t::get_next_on_private_car_route_to(koord dest, bool reading_set, uint8 startdir) const {
+#ifdef NO_PRIVATE_CAR_DESTINATION_LINKING
+	startdir=0;
+#endif
 	auto map = private_car_routes[reading_set ? private_car_routes_currently_reading_element : get_private_car_routes_currently_writing_element()];
-	for(uint8 i=0; i<5; i++) {
-		if(map[i].contains(dest)) {
-			if(i<4) {
-				grund_t* to;
-				if(welt->lookup(get_pos())->get_neighbour(to, waytype_t::road_wt,ribi_t::nesw[i])) {
-					return to->get_pos();
-				}
-			} else {
-				return koord3d::invalid;
+	if(map[4].contains(dest)){
+		return koord3d::invalid;
+	}
+	for(uint8 i=startdir; i<4+startdir; i++) {
+		if(map[i&3].contains(dest)) {
+			grund_t* to;
+			if(welt->lookup(get_pos())->get_neighbour(to, waytype_t::road_wt,ribi_t::nesw[i&3])) {
+				return to->get_pos();
 			}
 		}
 	}

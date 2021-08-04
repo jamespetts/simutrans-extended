@@ -106,9 +106,16 @@ bool farbengui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 				player_color_1[j]->pressed = false;
 			}
 			player_color_1[i]->pressed = true;
-			player->set_player_color( i*8, player->get_player_color2() );
-			env_t::default_settings.set_default_player_color(player->get_player_nr(), player->get_player_color1(), player->get_player_color2());
 
+			// re-colour a player
+			cbuffer_t buf;
+			buf.printf( "1%u,%i", player->get_player_nr(), i*8);
+			tool_t *tool = create_tool( TOOL_RECOLOUR_TOOL | SIMPLE_TOOL );
+			tool->set_default_param( buf );
+			welt->set_tool( tool, player );
+			env_t::default_settings.set_default_player_color(player->get_player_nr(), player->get_player_color1(), player->get_player_color2());
+			// since init always returns false, it is save to delete immediately
+			delete tool;
 			return true;
 		}
 
@@ -118,12 +125,18 @@ bool farbengui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 				player_color_2[j]->pressed = false;
 			}
 			player_color_2[i]->pressed = true;
-			player->set_player_color( player->get_player_color1(), i*8 );
-			env_t::default_settings.set_default_player_color(player->get_player_nr(), player->get_player_color1(), player->get_player_color2());
 
+			// re-colour a player
+			cbuffer_t buf;
+			buf.printf( "2%u,%i", player->get_player_nr(), i*8);
+			tool_t *tool = create_tool( TOOL_RECOLOUR_TOOL | SIMPLE_TOOL );
+			tool->set_default_param( buf );
+			welt->set_tool( tool, player );
+			env_t::default_settings.set_default_player_color(player->get_player_nr(), player->get_player_color1(), player->get_player_color2());
+			// since init always returns false, it is save to delete immediately
+			delete tool;
 			return true;
 		}
-
 	}
 
 	return false;

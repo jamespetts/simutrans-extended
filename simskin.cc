@@ -201,9 +201,9 @@ bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 {
 	special_obj_tpl<skin_desc_t> const* sd;
 	switch (type) {
-		case menu:    sd = menu_objekte+1;     break;
+		case menu:    return true; // skins will be handled elsewhere
 		case cursor:  sd = cursor_objekte;     break;
-		case symbol:  sd = symbol_objekte+17;   break;
+		case symbol:  sd = symbol_objekte+17;  break;
 		case misc:
 			sd = misc_objekte+3;
 			// for compatibility: use sidewalk as tunneltexture

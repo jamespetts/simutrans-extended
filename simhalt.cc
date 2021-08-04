@@ -425,6 +425,7 @@ haltestelle_t::haltestelle_t(loadsave_t* file)
 
 	status_color = SYSCOL_TEXT_UNUSED;
 	last_status_color = color_idx_to_rgb(COL_PURPLE);
+	status_color_freight = COL_INACTIVE;
 	last_bar_count = 0;
 
 	enables = NOT_ENABLED;
@@ -497,6 +498,7 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 
 	status_color = SYSCOL_TEXT_UNUSED;
 	last_status_color = color_idx_to_rgb(COL_PURPLE);
+	status_color_freight = COL_INACTIVE;
 	last_bar_count = 0;
 
 	sortierung = freight_list_sorter_t::by_name;
@@ -1380,21 +1382,27 @@ void haltestelle_t::step()
 								// Refund is approximation: 2x distance at standard rate with no adjustments.
 								const sint64 refund_amount = (tmp.menge * tmp.get_desc()->get_refund(distance_meters) + 2048ll) / 4096ll;
 
-								owner->book_revenue(-refund_amount, get_basis_pos(), ignore_wt, ATV_REVENUE_PASSENGER);
 								// Find the line the pasenger was *trying to go on* -- make it pay the refund
-								linehandle_t account_line = get_preferred_line(tmp.get_zwischenziel(), tmp.get_catg(), tmp.get_class());
+								linehandle_t account_line = get_preferred_line(tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class());
 								if(account_line.is_bound())
 								{
 									account_line->book(-refund_amount, LINE_PROFIT);
 									account_line->book(-refund_amount, LINE_REFUNDS);
+									account_line->get_owner()->book_revenue(-refund_amount, get_basis_pos(), simline_t::linetype_to_waytype(account_line->get_linetype()), ATV_REVENUE_PASSENGER);
 								}
 								else
 								{
-									convoihandle_t account_convoy = get_preferred_convoy(tmp.get_zwischenziel(), tmp.get_catg(), tmp.get_class());
+									convoihandle_t account_convoy = get_preferred_convoy(tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class());
 									if(account_convoy.is_bound())
 									{
 										account_convoy->book(-refund_amount, convoi_t::CONVOI_PROFIT);
 										account_convoy->book(-refund_amount, convoi_t::CONVOI_REFUNDS);
+										account_convoy->get_owner()->book_revenue(-refund_amount, get_basis_pos(), account_convoy->front()->get_waytype(), ATV_REVENUE_PASSENGER);
+									}
+									else
+									{
+										// no line or convoy found -> charge the stop owner
+										owner->book_revenue(-refund_amount, get_basis_pos(), ignore_wt, ATV_REVENUE_PASSENGER);
 									}
 								}
 							}
@@ -2139,27 +2147,18 @@ uint32 haltestelle_t::find_route(const vector_tpl<halthandle_t>& destination_hal
 
  	koord destination_stop_pos = destination_pos;
 
-	bool is_freight = false;
+	bool is_freight;
 	uint8 g_class;
 	uint8 ware_catg;
 
-	if (ware.is_freight())
-	{
-		is_freight = true;
-		ware_catg = ware.get_desc()->get_catg_index();
-		g_class = 0;
-	}
-	else if (ware.is_mail())
-	{
-		ware_catg = goods_manager_t::INDEX_MAIL;
-		g_class = 0;
-	}
-	else // Passengers
-	{
-		// Class only matters for passengers
-		g_class = ware.g_class;
-		ware_catg = goods_manager_t::INDEX_PAS;
-	}
+
+	assert(ware.is_passenger() == (ware.get_desc()->get_catg_index() == goods_manager_t::INDEX_PAS));
+	assert(ware.is_mail() == (ware.get_desc()->get_catg_index() == goods_manager_t::INDEX_MAIL));
+
+	is_freight = ware.is_freight(); //Obvious
+    ware_catg = ware.get_desc()->get_catg_index(); //pax will always return 0 here; mail will always return 1 here
+    g_class = ware.g_class; //In case of freight always 0
+
 
 	bool found_a_halt = false;
 
@@ -2798,6 +2797,27 @@ void haltestelle_t::update_alternative_seats(convoihandle_t cnv)
 	}
 }
 
+
+sint64 haltestelle_t::get_overcrowded_proporion(uint8 typ) const
+{
+	sint64 waiting_amount_of_this_typ = 0;
+	switch (typ) {
+		case 0:
+			waiting_amount_of_this_typ = get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_PAS));
+			break;
+		case 1:
+			waiting_amount_of_this_typ = get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+			break;
+		case 2:
+			waiting_amount_of_this_typ = financial_history[0][HALT_WAITING] - get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_PAS)) - get_ware_summe(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
+			break;
+		default:
+			return 0; // error
+	}
+	const sint64 catg_capacity = capacity[typ] ? (sint64)capacity[typ] : 1;
+	return (sint64)(waiting_amount_of_this_typ * 10ll / catg_capacity);
+}
+
 uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp) const
 {
 	int sum = 0;
@@ -3324,8 +3344,7 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 
 
 /**
- * @param buf the buffer to fill
- * @return Goods description text (buf)
+ * @param[out] buf Goods description text (buf)
  */
 void haltestelle_t::get_freight_info(cbuffer_t & buf)
 {
@@ -4708,51 +4727,55 @@ void haltestelle_t::finish_rd(bool need_recheck_for_walking_distance)
 		}
 	}
 
-	// what kind of station here?
-	recalc_station_type();
-
 	// handle name for old stations which don't exist in kartenboden
+	// also recover from stations without tiles (from broken savegames)
 	grund_t* bd = welt->lookup(get_basis_pos3d());
-	if(bd!=NULL  &&  !bd->get_flag(grund_t::has_text) ) {
-		// restore label and bridges
-		grund_t* bd_old = welt->lookup_kartenboden(get_basis_pos());
-		if(bd_old) {
-			// transfer name (if there)
-			const char *name = bd->get_text();
-			if(name) {
-				set_name( name );
-				bd_old->set_text( NULL );
-			}
-			else {
-				set_name( "Unknown" );
+	if(bd!=NULL) {
+
+		// what kind of station here?
+		recalc_station_type();
+
+		if(  !bd->get_flag(grund_t::has_text)  ) {
+			// restore label and bridges
+			grund_t* bd_old = welt->lookup_kartenboden(get_basis_pos());
+			if(bd_old) {
+				// transfer name (if there)
+				const char *name = bd->get_text();
+				if(name) {
+					set_name( name );
+					bd_old->set_text( NULL );
+				}
+				else {
+					set_name( "Unknown" );
+				}
 			}
 		}
-	}
-	else {
-		const char *current_name = bd ? bd->get_text() : translator::translate("Invalid stop");
-		if(  all_names.get(current_name).is_bound()  &&  fabrik_t::get_fab(get_basis_pos())==NULL  ) {
-			// try to get a new name ...
-			const char *new_name;
-			if(  station_type & airstop  ) {
-				new_name = create_name( get_basis_pos(), "Airport" );
+		else {
+			const char *current_name = bd ? bd->get_text() : translator::translate("Invalid stop");
+			if(  all_names.get(current_name).is_bound()  &&  fabrik_t::get_fab(get_basis_pos())==NULL  ) {
+				// try to get a new name ...
+				const char *new_name;
+				if(  station_type & airstop  ) {
+					new_name = create_name( get_basis_pos(), "Airport" );
+				}
+				else if(  station_type & dock  ) {
+					new_name = create_name( get_basis_pos(), "Dock" );
+				}
+				else if(  station_type & (railstation|monorailstop|maglevstop|narrowgaugestop)  ) {
+					new_name = create_name( get_basis_pos(), "BF" );
+				}
+				else {
+					new_name = create_name( get_basis_pos(), "H" );
+				}
+				dbg->warning("haltestelle_t::set_name()","name already used: \'%s\' -> \'%s\'", current_name, new_name );
+				if(bd)
+				{
+					bd->set_text( new_name );
+				}
+				current_name = new_name;
 			}
-			else if(  station_type & dock  ) {
-				new_name = create_name( get_basis_pos(), "Dock" );
-			}
-			else if(  station_type & (railstation|monorailstop|maglevstop|narrowgaugestop)  ) {
-				new_name = create_name( get_basis_pos(), "BF" );
-			}
-			else {
-				new_name = create_name( get_basis_pos(), "H" );
-			}
-			dbg->warning("haltestelle_t::set_name()","name already used: \'%s\' -> \'%s\'", current_name, new_name );
-			if(bd)
-			{
-				bd->set_text( new_name );
-			}
-			current_name = new_name;
+			all_names.set( current_name, self );
 		}
-		all_names.set( current_name, self );
 	}
 
 	convoihandle_t convoy;
@@ -4903,17 +4926,36 @@ void haltestelle_t::recalc_status()
 			}
 		}
 
+		bool has_active_freight_connection = transferring_total;
+		uint32 total_freight = 0;
 		for(  uint32 i = 3;  i < count;  i++  ) {
 			goods_desc_t const* const wtyp = goods_manager_t::get_info(i);
 			const uint32 ware_sum = get_ware_summe(wtyp);
+			if (gibt_ab(wtyp) && status_color_freight != color_idx_to_rgb(COL_OVERCROWD)) {
+				status_color_freight = COL_CLEAR;
+			}
+			if (ware_sum) {
+				has_active_freight_connection = true;
+			}
 
-			total_sum += ware_sum;
+			total_freight += ware_sum;
 			if((ware_sum + transferring_total) > max_ware)
 			{
 				status_bits |= (ware_sum + transferring_total) > max_ware + 32 || enables & CROWDED ? 2 : 1;
 				overcrowded[wtyp->get_index()/8] |= 1<<(wtyp->get_index()%8);
+				status_color_freight = color_idx_to_rgb(COL_OVERCROWD);
 			}
 		}
+		if (!has_active_freight_connection && status_color_freight != COL_CLEAR) {
+			status_color_freight = COL_INACTIVE;
+		}
+		else if (!total_freight && !transferring_total) {
+			status_color_freight = COL_CAUTION;
+		}
+		else if(status_color_freight != color_idx_to_rgb(COL_OVERCROWD)) {
+			status_color_freight = COL_CLEAR;
+		}
+		total_sum+=total_freight;
 	}
 
 	// take the worst color for status
@@ -4934,11 +4976,47 @@ void haltestelle_t::recalc_status()
 }
 
 
+PIXVAL haltestelle_t::get_status_color(uint8 typ) const
+{
+	switch (typ) {
+		case 0:
+			if (!get_pax_enabled() || !gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_PAS))) {
+				return COL_INACTIVE;
+			}
+			if (!is_overcrowded(goods_manager_t::INDEX_PAS)) {
+				return COL_CLEAR;
+			}
+			break;
+		case 1:
+			if (!get_mail_enabled() || !gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL))) {
+				return COL_INACTIVE;
+			}
+			if (!is_overcrowded(goods_manager_t::INDEX_MAIL)) {
+				return COL_CLEAR;
+			}
+			break;
+		case 2:
+			if (!get_ware_enabled()) {
+				return COL_INACTIVE;
+			}
+			return status_color_freight;
+		default:
+			return COL_INACTIVE;
+	}
+	if (get_overcrowded_proporion(typ) == 0) {
+		return COL_CAUTION;
+	}
+	if (get_overcrowded_proporion(typ) < 10) {
+		return COL_CLEAR;
+	}
+	return color_idx_to_rgb(COL_OVERCROWD);
+}
+
 
 /**
  * Draws some nice colored bars giving some status information
  */
-void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
+void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 {
 	// ignore freight that cannot reach to this station
 	sint16 count = 0;
@@ -4983,13 +5061,13 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 
 	if(  count != last_bar_count  ) {
 		// bars will shift x positions, mark entire station bar region dirty
-		KOORD_VAL max_bar_height = 0;
+		scr_coord_val max_bar_height = 0;
 		for(  sint16 i = 0;  i < last_bar_count;  i++  ) {
 			if(  last_bar_height[i] > max_bar_height  ) {
 				max_bar_height = last_bar_height[i];
 			}
 		}
-		const KOORD_VAL x = xpos - (last_bar_count * D_WAITINGBAR_WIDTH - get_tile_raster_width()) / 2;
+		const scr_coord_val x = xpos - (last_bar_count * D_WAITINGBAR_WIDTH - get_tile_raster_width()) / 2;
 		mark_rect_dirty_wc( x - 1 - D_WAITINGBAR_WIDTH, ypos - 11 - max_bar_height - 6, x + last_bar_count * D_WAITINGBAR_WIDTH + 12 - 2, ypos - 11 );
 
 		// reset bar heights for new count
@@ -5003,7 +5081,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 
 	ypos -= D_LABEL_HEIGHT/2 +D_WAITINGBAR_WIDTH;
 	xpos -= (count * D_WAITINGBAR_WIDTH - get_tile_raster_width()) / 2;
-	const KOORD_VAL x = xpos;
+	const int x = xpos;
 
 	sint16 bar_height_index = 0;
 	uint32 max_capacity;
@@ -5058,8 +5136,8 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 					display_fillbox_wh_clip_rgb(xpos + (D_WAITINGBAR_WIDTH / 2) - 2, ypos - v - 5, 4, 1, color_idx_to_rgb(COL_WHITE), false);
 				}
 
-				if (last_bar_height[bar_height_index] != (KOORD_VAL)v) {
-					if ((KOORD_VAL)v > last_bar_height[bar_height_index]) {
+				if (last_bar_height[bar_height_index] != (scr_coord_val)v) {
+					if ((scr_coord_val)v > last_bar_height[bar_height_index]) {
 						// bar will be longer, mark new height dirty
 						mark_rect_dirty_wc(xpos, ypos - v - 6, xpos + 4 - 1, ypos + 4 - 1);
 					}
@@ -5093,8 +5171,8 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 			display_fillbox_wh_clip_rgb(xpos + (D_WAITINGBAR_WIDTH / 2) - 2, ypos - v - 5, 4, 1, color_idx_to_rgb(COL_WHITE), false);
 		}
 
-		if (last_bar_height[bar_height_index] != (KOORD_VAL)v) {
-			if ((KOORD_VAL)v > last_bar_height[bar_height_index]) {
+		if (last_bar_height[bar_height_index] != (scr_coord_val)v) {
+			if ((scr_coord_val)v > last_bar_height[bar_height_index]) {
 				// bar will be longer, mark new height dirty
 				mark_rect_dirty_wc(xpos, ypos - v - 6, xpos + 4 - 1, ypos + 4 - 1);
 			}
@@ -5127,7 +5205,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 			}
 
 			// second, draw the bar
-			KOORD_VAL yoff = 0;
+			scr_coord_val yoff = 0;
 			max_capacity = get_capacity(2);
 			if (gibt_ab(goods_manager_t::get_info_catg_index(i))) {
 				uint32 v = min(total_ware, get_capacity(2));
@@ -5143,7 +5221,7 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 						continue;
 					}
 					if (total_ware) {
-						KOORD_VAL h = (v*get_ware_summe(wtyp2) + total_ware-1) / total_ware;
+						scr_coord_val h = (v*get_ware_summe(wtyp2) + total_ware-1) / total_ware;
 						h = min(h, v-yoff);
 
 						display_fillbox_wh_clip_rgb(xpos, ypos - v - 1 + yoff, 1, h, color_idx_to_rgb(COL_GREY4), false);
@@ -5159,8 +5237,8 @@ void haltestelle_t::display_status(KOORD_VAL xpos, KOORD_VAL ypos)
 					display_fillbox_wh_clip_rgb(xpos + (D_WAITINGBAR_WIDTH / 2) - 2, ypos - v - 5, 4, 1, color_idx_to_rgb(COL_WHITE), false);
 				}
 
-				if (last_bar_height[bar_height_index] != (KOORD_VAL)v) {
-					if ((KOORD_VAL)v > last_bar_height[bar_height_index]) {
+				if (last_bar_height[bar_height_index] != (scr_coord_val)v) {
+					if ((scr_coord_val)v > last_bar_height[bar_height_index]) {
 						// bar will be longer, mark new height dirty
 						mark_rect_dirty_wc(xpos, ypos - v - 6, xpos + 4 - 1, ypos + 4 - 1);
 					}
@@ -6229,45 +6307,17 @@ void haltestelle_t::calc_transfer_time()
 	// Adjust for overcrowding - transfer time increases with a more crowded stop.
 	// TODO: Better separate waiting times for different types of goods.
 
-	const uint8 max_categories = goods_manager_t::get_max_catg_index();
-	sint64 waiting_passengers = 0;
-	sint64 waiting_goods = 0;
 	// TODO: Consider adding waiting mail here, too
 	// This would require a separete mail transfer time.
 
-	for(uint8 i = 0; i < max_categories; i++)
+	if(get_overcrowded_proporion(0) >= 10)
 	{
-		if(cargo[i])
-		{
-			if (i == goods_manager_t::INDEX_PAS)
-			{
-				vector_tpl<ware_t> * warray = cargo[i];
-				FOR(vector_tpl<ware_t>, &w, *warray)
-				{
-					waiting_passengers += w.menge;
-				}
-			}
-			else if (i > goods_manager_t::INDEX_NONE)
-			{
-				vector_tpl<ware_t> * warray = cargo[i];
-				FOR(vector_tpl<ware_t>, &w, *warray)
-				{
-					waiting_goods += w.menge;
-				}
-			}
-		}
+		transfer_time = (uint32)std::min(std::max((sint64)transfer_time, (get_overcrowded_proporion(0) * (2ll * get_overcrowded_proporion(0))) / 10ll), (sint64)transfer_time * 10ll);
 	}
 
-	if(capacity[0] > 0 && waiting_passengers > capacity[0])
+	if(get_overcrowded_proporion(2) >= 10)
 	{
-		const sint64 overcrowded_proporion_passengers = waiting_passengers * 10ll / capacity[0];
-		transfer_time = (uint32)std::min(std::max((sint64)transfer_time, (overcrowded_proporion_passengers * (2ll * overcrowded_proporion_passengers)) / 10ll), (sint64)transfer_time * 10ll);
-	}
-
-	if(capacity[2] > 0 && waiting_goods > capacity[2])
-	{
-		const sint64 overcrowded_proportion_goods = waiting_goods * 10ll / capacity[2];
-		transshipment_time = (uint32)std::min(std::max((sint64)transshipment_time, (overcrowded_proportion_goods * (2ll *overcrowded_proportion_goods)) / 10ll), (sint64)transshipment_time * 10ll);
+		transshipment_time = (uint32)std::min(std::max((sint64)transshipment_time, (get_overcrowded_proporion(2) * (2ll * get_overcrowded_proporion(2))) / 10ll), (sint64)transshipment_time * 10ll);
 	}
 
 	// For reference, with a transshipment speed of 1 km/h and a walking speed of 5 km/h,

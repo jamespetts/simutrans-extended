@@ -59,9 +59,8 @@ void simlinemgmt_t::deregister_line(linehandle_t line)
 void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 {
 	// when a line is updated, all managed convoys must get the new schedule!
-	const int count = line->count_convoys();
-	for(  int i = 0;  i<count;  i++  ) {
-		const convoihandle_t cnv = line->get_convoy(i);
+	for (auto& cnv : line->get_convoys())
+	{
 		cnv->set_update_line(line);
 		if(line->get_schedule()->get_count() < 2)
 		{
@@ -70,7 +69,8 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 			cnv->emergency_go_to_depot();
 			// Note that this may destroy a convoi in extreme cases (no depot).
 		}
-		if(  cnv.is_bound() && cnv->in_depot()  ) {
+		if(  cnv.is_bound() && cnv->in_depot()  )
+		{
 			cnv->check_pending_updates(); // apply new schedule immediately for convoys in depot
 		}
 	}
@@ -78,7 +78,8 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 	{
 		// finally de/register all stops
 		line->renew_stops();
-		if (count > 0) {
+		if (line->count_convoys() > 0)
+		{
 			world()->set_schedule_counter();
 		}
 	}

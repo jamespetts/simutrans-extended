@@ -213,6 +213,7 @@ public:
 	static PIXVAL gui_color_text_title;                   //@< Color to draw title text (banner, h1 and a tags)
 	static PIXVAL gui_color_text_shadow;                  //@< Color to draw text shadow
 	static PIXVAL gui_color_text_strong;                  //@< Color to draw strong text (strong tags)
+	static PIXVAL gui_color_text_weak;                    //@< Set a text color that is weaker than normal text because there is no text thickness. ex) Gray for standard black text
 	static PIXVAL gui_color_text_inactive;                //@< Color to make it a little less noticeable than regular text
 	static PIXVAL gui_color_text_placeholder;             //@< Color for displaying inconspicuous characters in the input field
 	static PIXVAL gui_color_text_minus;                   //@< Color to draw negative values
@@ -250,9 +251,9 @@ public:
 	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
 	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
+	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
 	static PIXVAL gui_color_down_pointing_triangle;       //@< (EX unique) Color to draw an downward triangle indicating an decrease in the number
-
 	/// @}
 
 	/// @name GUI element sizes used by gui components
@@ -278,17 +279,17 @@ public:
 	static scr_coord gui_color_button_text_offset_right; // extra right offset for the text (in case of asymmetric or buttons with color on the right)
 	static scr_coord gui_button_text_offset_right;       // extra right offset for the text (in case of asymmetric or buttons with checkmark on the right)
 
-	static KOORD_VAL gui_titlebar_height;
-	static KOORD_VAL gui_frame_left;
-	static KOORD_VAL gui_frame_top;
-	static KOORD_VAL gui_frame_right;
-	static KOORD_VAL gui_frame_bottom;
-	static KOORD_VAL gui_hspace;
-	static KOORD_VAL gui_vspace;
-	static KOORD_VAL gui_waitingbar_width;
+	static scr_coord_val gui_titlebar_height;
+	static scr_coord_val gui_frame_left;
+	static scr_coord_val gui_frame_top;
+	static scr_coord_val gui_frame_right;
+	static scr_coord_val gui_frame_bottom;
+	static scr_coord_val gui_hspace;
+	static scr_coord_val gui_vspace;
+	static scr_coord_val gui_waitingbar_width;
 
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
-	static KOORD_VAL gui_filelist_vspace;
+	static scr_coord_val gui_filelist_vspace;
 	/// @}
 
 	// those are the 3x3 images which are used for stretching
@@ -313,7 +314,7 @@ public:
 	static image_id pos_button_img[3];
 
 	static bool gui_drop_shadows;
-
+	static bool pressed_button_sinks;
 
 public:
 	// default dimensions and colors

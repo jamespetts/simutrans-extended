@@ -22,7 +22,7 @@ class goods_desc_t;
 class vehiclelist_frame_t : public gui_frame_t, private action_listener_t
 {
 private:
-	button_t bt_obsolete, bt_outdated, bt_only_upgrade, bt_future, sort_asc, sort_desc;
+	button_t bt_obsolete, bt_outdated, bt_only_upgrade, bt_future, sort_order;
 	gui_scrolled_list_t scrolly;
 	gui_tab_panel_t tabs;
 	gui_combobox_t sort_by, ware_filter, engine_filter;

@@ -73,6 +73,8 @@ enum travel_times {
 };
 
 
+
+
 /**
  * Ways is the base class for all traffic routes. (roads, track, runway etc.)
  * Ways always "belong" to a ground. They have direction bits (ribis) as well as
@@ -208,9 +210,6 @@ private:
 	// Whether the way is in a degraded state.
 	bool degraded:1;
 
-#ifdef MULTI_THREAD
-	pthread_rwlock_t private_car_store_route_rwlock;
-#endif
 
 protected:
 
@@ -247,18 +246,103 @@ public:
 	// This was in strasse_t, but being there possibly caused heap corruption.
 	minivec_tpl<gebaeude_t*> connected_buildings;
 
+	/**
+	 * Map of all private car routes from way
+	 */
+	class private_car_route_map{
+	public:
+		void set_route_map_elem(uint8 elem){route_map_elem=elem;}
+
+		private_car_route_map(){link_mode=link_mode_NULL;}
+
+		void clear();
+
+		void pre_reset();
+
+		bool contains(koord elem) const;
+		bool insert_unique(koord elem, private_car_route_map* link_to = NULL, uint8 link_dir=0);
+
+		koord& get_by_index(uint32_t i);
+		const koord& get_by_index(uint32_t i) const;
+
+		koord& operator [] (uint32 i);
+		const koord& operator [] (uint32 i) const ;
+
+		uint32 get_count() const ;
+		bool is_empty() const ;
+
+		bool remove(koord elem);
+		void resize(uint32 new_size);
+
+		static void reset(uint8 map_elem);
+
+		//backwards compatible saving
+		void rdwr(loadsave_t *file);
+
+	private:
+		union {
+			uint32 idx;
+			koord single_koord;
+		};
+		uint8 link_mode:3;
+		uint8 route_map_elem:1;
+		enum link_modes {
+			link_mode_NULL=7,
+			link_mode_single=6,
+			link_mode_master=5
+		};
+
+		static vector_tpl<ordered_vector_tpl<koord,uint32> > route_maps[2];
+public:
+
+		inline sint32 get_idx() const {if(link_mode==link_mode_NULL || link_mode==link_mode_single) return -1; return idx;}
+
+#ifdef MULTI_THREAD
+		static pthread_mutex_t route_map_mtx;
+#endif
+
+
+		inline static void route_map_lock() {
+#ifdef MULTI_THREAD
+			int error = pthread_mutex_lock(&route_map_mtx);
+			assert(error == 0);
+			(void)error;
+#endif
+			return;
+		}
+
+		inline static void route_map_unlock() {
+#ifdef MULTI_THREAD
+			int error = pthread_mutex_unlock(&route_map_mtx);
+			assert(error == 0);
+			(void)error;
+#endif
+			return;
+		}
+	};
+
+
+
 	// Likewise, out of caution, put this here for the same reason.
 	// n_bags must be fairly low as there are 2 maps per way and usually zero elements per way, up to ~150 in high cases and ~1500 in highest cases
-	typedef ordered_vector_tpl<koord, uint32> private_car_route_map;
+	//typedef ordered_vector_tpl<koord, uint32> private_car_route_map;
 	//typedef std::unordered_map<koord, koord3d> private_car_route_map_2;
 	private_car_route_map private_car_routes[2][5];
 	//private_car_route_map_2 private_car_routes_std[2];
 	static uint32 private_car_routes_currently_reading_element;
 	static uint32 get_private_car_routes_currently_writing_element() { return private_car_routes_currently_reading_element == 1 ? 0 : 1; }
 
+	static void private_car_backtrace_begin();
+	static void private_car_backtrace_end();
+	void private_car_backtrace_add(koord destination, koord3d next_tile);
+	void private_car_backtrace_inc(koord3d next_tile);
+
+	static private_car_route_map* private_car_backtrace_last_route_map;
+	static uint8 private_car_backtrace_last_idx;
+
 	void add_private_car_route(koord dest, koord3d next_tile);
 	bool has_private_car_route(koord dest) const;
-	koord3d get_next_on_private_car_route_to(koord dest, bool reading_set=true) const;
+	koord3d get_next_on_private_car_route_to(koord dest, bool reading_set=true, uint8 start_dir=0) const;
 private:
 	/// Set the boolean value to true to modify the set currently used for reading (this must ONLY be done when this is called from a single threaded part of the code).
 	void remove_private_car_route(koord dest, bool reading_set = false);

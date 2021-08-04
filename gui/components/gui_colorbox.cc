@@ -47,7 +47,7 @@ void gui_colorbox_t::draw(scr_coord offset)
 		display_colorbox_with_tooltip(offset.x, offset.y, width, height, color, true, tooltip);
 	}
 	else {
-		display_fillbox_wh_rgb(offset.x, offset.y, width, height, color, true);
+		display_fillbox_wh_clip_rgb(offset.x, offset.y, width, height, color, true);
 	}
 }
 

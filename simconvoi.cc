@@ -1357,7 +1357,6 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 
 		default:
 			dbg->fatal("convoi_t::sync_step()", "Wrong state %d!\n", state);
-			break;
 	}
 
 	// Debug sums:
@@ -5278,7 +5277,7 @@ void convoi_t::show_info()
 		}
 	}
 	else {
-		if(  env_t::verbose_debug  ) {
+		if(  env_t::verbose_debug >= log_t::LEVEL_ERROR  ) {
 			dump();
 		}
 		create_win( new convoi_info_t(self), w_info, magic_convoi_info+self.get_id() );
@@ -5297,7 +5296,7 @@ void convoi_t::info(cbuffer_t & buf) const
 
 		buf.printf(" %s: %ikW\n", translator::translate("Leistung"), sum_power );
 
-		buf.printf(" %s: %i (%i) t\n", translator::translate("Gewicht"), sum_weight, sum_gesamtweight-sum_weight );
+		buf.printf(" %s: %ld (%ld) t\n", translator::translate("Gewicht"), (long)sum_weight, (long)(sum_gesamtweight - sum_weight));
 
 		buf.printf(" %s: ", translator::translate("Gewinn")  );
 
@@ -5412,9 +5411,8 @@ void convoi_t::get_freight_info(cbuffer_t & buf)
 
 		// apend info on total capacity
 		slist_tpl <ware_t>capacity;
-
-		for (size_t i = 0; i != n; ++i) {
-			if (max_loaded_waren[i] > 0 && i != goods_manager_t::INDEX_NONE) {
+		for (uint16 i = 0; i != n; ++i) {
+			if(max_loaded_waren[i]>0  &&  i!=goods_manager_t::INDEX_NONE) {
 				ware_t ware(goods_manager_t::get_info(i));
 				ware.menge = max_loaded_waren[i];
 				// append to category?
@@ -5461,7 +5459,7 @@ void convoi_t::get_freight_info_by_class(cbuffer_t &)
 
 void convoi_t::open_schedule_window( bool show )
 {
-	DBG_MESSAGE("convoi_t::open_schedule_window()","Id = %ld, State = %d, Lock = %d",self.get_id(), state, wait_lock);
+	DBG_MESSAGE("convoi_t::open_schedule_window()","Id = %hu, State = %d, Lock = %d", self.get_id(), (int)state, wait_lock);
 
 	// manipulation of schedule not allowed while:
 	// - just starting
@@ -5536,8 +5534,8 @@ void convoi_t::laden() //"load" (Babelfish)
 
 	if(!this_halt.is_bound())
 	{
-		state = CAN_START;
-		dbg->warning("void convoi_t::laden()", "%s trying to load at %s when not at a halt", get_name(), halt.is_bound() ? halt->get_name() : "none");
+		suche_neue_route();
+		dbg->warning("void convoi_t::laden()", "%s trying to load at %s when not at a halt; rerouting", get_name(), halt.is_bound() ? halt->get_name() : "none");
 		return;
 	}
 
@@ -6004,7 +6002,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
-	grund_t *gr = welt->lookup(front()->get_pos());
+	grund_t *gr=welt->lookup(front()->get_pos());
 
 	// now find out station length
 	uint16 vehicles_loading=0;
@@ -6290,6 +6288,129 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
+	const sint64 now = welt->get_ticks();
+	if(arrival_time > now || arrival_time == WAIT_INFINITE)
+	{
+		// This is a workaround for an odd bug the origin of which is as yet unclear.
+		go_on_ticks = WAIT_INFINITE;
+		arrival_time = now;
+		if (arrival_time < WAIT_INFINITE)
+		{
+			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
+		}
+	}
+	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
+	bool running_late = false;
+	sint64 go_on_ticks_waiting = WAIT_INFINITE;
+	const sint64 earliest_departure_time = arrival_time + ((sint64)current_loading_time - reversing_time);
+	if(go_on_ticks == WAIT_INFINITE)
+	{
+		if(haltestelle_t::get_halt(get_pos(), get_owner()) != haltestelle_t::get_halt(schedule->get_current_entry().pos, get_owner()))
+		{
+			// Sometimes, for some reason, the loading method is entered with the wrong schedule entry. Make sure that this does not cause
+			// convoys to become stuck trying to get a full load at stops where this is not possible (freight consumers, etc.).
+			loading_limit = 0;
+		}
+		if((!loading_limit || loading_level >= loading_limit) && !wait_for_time)
+		{
+			// Simple case: do not wait for a full load or a particular time.
+			go_on_ticks = std::max(earliest_departure_time, arrival_time);
+		}
+		else
+		{
+			// Wait for a % load or a spacing slot.
+			sint64 go_on_ticks_spacing = WAIT_INFINITE;
+
+			if(line.is_bound() && schedule->get_spacing() && line->count_convoys())
+			{
+				// Departures/month
+				const sint64 spacing = welt->ticks_per_world_month / (sint64)schedule->get_spacing();
+				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
+				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
+				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
+				go_on_ticks_spacing = (wait_from_ticks + spacing * queue_pos) - reversing_time;
+			}
+
+			if(schedule->get_current_entry().waiting_time_shift > 0)
+			{
+				// Maximum wait time
+				go_on_ticks_waiting = now + (welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift)) - (sint64)reversing_time;
+			}
+
+			if (schedule->get_spacing() && !line.is_bound())
+			{
+				// Spacing should not be possible without a line, but this can occasionally occur. Without this, the convoy will wait forever.
+				go_on_ticks_spacing = earliest_departure_time;
+			}
+
+			go_on_ticks = std::min(go_on_ticks_spacing, go_on_ticks_waiting);
+			go_on_ticks = std::max(earliest_departure_time, go_on_ticks);
+			running_late = wait_for_time && (go_on_ticks_waiting < go_on_ticks_spacing);
+			if(running_late)
+			{
+				go_on_ticks = earliest_departure_time;
+			}
+		}
+	}
+
+	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
+		// destroy when empty
+		self_destruct();
+		return;
+	}
+
+	// loading is finished => maybe drive on
+	bool can_go = false;
+
+	can_go = loading_level >= loading_limit && (now >= go_on_ticks || !wait_for_time);
+	//can_go = can_go || (now >= go_on_ticks_waiting && !wait_for_time); // This is pre-14 August 2016 code
+	can_go = can_go || (now >= go_on_ticks && !wait_for_time);
+	can_go = can_go || running_late;
+	can_go = can_go || no_load;
+	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
+	can_go = can_go && now > earliest_departure_time;
+	if(can_go) {
+		// add available capacity after loading(!) to statistics
+		for (unsigned i = 0; i<vehicle_count; i++) {
+			book(get_vehicle(i)->get_cargo_max()-get_vehicle(i)->get_total_cargo(), CONVOI_CAPACITY);
+		}
+
+		// Advance schedule
+		advance_schedule();
+		state = ROUTING_1;
+		//dbg->message("void convoi_t::hat_gehalten(halthandle_t halt)", "Convoy %s departing from stop %s at step %i. Its departure time is calculated as %ll", get_name(), halt.is_bound() ? halt->get_name() : "unknown", welt->get_steps(), go_on_ticks);
+	}
+
+	// reset the wait_lock
+	if(state == ROUTING_1)
+	{
+		wait_lock = 0;
+	}
+	else if(state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS) // Do not add extra delay if the convoy has already decided to depart and is just waiting for clearance.
+	{
+		if (loading_limit > 0 && !wait_for_time)
+		{
+			wait_lock = (sint32) ((earliest_departure_time - now) / 2ll);
+		}
+		else
+		{
+			wait_lock = (sint32) ((go_on_ticks - now) / 2ll);
+		}
+		// The random extra wait here is designed to avoid processing every convoy at once
+		wait_lock += (sint32)(self.get_id()) % 1024;
+		if (wait_lock < 0 )
+		{
+			wait_lock = 0;
+		}
+		else if(wait_lock > 8192 && go_on_ticks == WAIT_INFINITE)
+		{
+			// This is needed because the above calculation (from Standard) produces excessively
+			// large numbers on occasions due to the conversion in Extended of certain values
+			// (karte_t::ticks and go_on_ticks) to sint64. It would be better ultimately to fix that,
+			// but this seems to work for now.
+			wait_lock = 8192;
+		}
+	}
 	check_departure(halt);
 }
 
@@ -7352,7 +7473,7 @@ uint16 convoi_t::get_true_tile_length() const
 void convoi_t::set_withdraw(bool new_withdraw)
 {
 	withdraw = new_withdraw;
-	if(  withdraw  &&  (loading_level==0  ||  goods_catg_index.empty())) {
+	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
 		// test if convoi in depot and not driving
 		grund_t *gr = welt->lookup( get_pos());
 		if(  gr  &&  gr->get_depot()  &&  state == INITIAL  ) {

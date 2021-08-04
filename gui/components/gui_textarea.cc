@@ -61,14 +61,15 @@ scr_size gui_textarea_t::calc_size() const
 
 		do {
 			next = strchr(buf, '\n');
-			const size_t len = next != NULL ? next - buf : -1;
-			int px_len = display_calc_proportional_string_len_width(buf, len);
+			const size_t len = next ? next-buf : 0;
+			const int px_len = display_calc_proportional_string_len_width(buf, len);
+
 			if(px_len>x_size) {
 				x_size = px_len;
 			}
-			buf = next + 1;
+
 			new_lines += LINESPACE;
-		} while(  next != NULL  &&  *buf!=0  );
+		} while(  next != NULL  &&  ((void)(buf = next+1), *buf!=0)  );
 	}
 	return scr_size( x_size + L_PADDING_RIGHT, new_lines );
 }
@@ -101,7 +102,7 @@ void gui_textarea_t::draw(scr_coord offset)
 			int px_len;
 			if (  -LINESPACE <= draw_y  &&  draw_y <= display_get_height() + LINESPACE) {
 				// draw when in screen area
-				px_len = display_text_proportional_len_clip_rgb((KOORD_VAL)x, (KOORD_VAL)draw_y, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, true, len);
+				px_len = display_text_proportional_len_clip_rgb(x, draw_y, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, true, len);
 			}
 			else {
 				// track required length when out of screen area
@@ -111,10 +112,10 @@ void gui_textarea_t::draw(scr_coord offset)
 				x_size = px_len;
 			}
 
-			buf = next + 1;
 			new_lines += LINESPACE;
-		} while(  next != NULL  &&  *buf!=0  );
+		} while(  next != NULL  &&  ((void)(buf = next+1), *buf!=0)  );
 	}
+
 	scr_size size( max( x_size + L_PADDING_RIGHT, get_size().w ), new_lines );
 	if(  size!=get_size()  ) {
 		set_size(size);

@@ -797,14 +797,14 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 const char * depot_t:: is_deletable(const player_t *player)
 {
 	if(player!=get_owner()  &&  player!=welt->get_public_player()) {
-		return "Das Feld gehoert\neinem anderen Spieler\n";
+		return NOTICE_OWNED_BY_OTHER_PLAYER;
 	}
 	if (!vehicles.empty()) {
 		return "There are still vehicles\nstored in this depot!\n";
 	}
 
 	FOR(slist_tpl<convoihandle_t>, const c, convois) {
-		if (c->get_vehicle_count() > 0) {
+		if (c.is_bound() && c->get_vehicle_count() > 0) {
 			return "There are still vehicles\nstored in this depot!\n";
 		}
 	}

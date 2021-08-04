@@ -217,7 +217,7 @@ class gui_convoy_assembler_t :
 	cbuffer_t text_convoi_axle_load;
 	char txt_convoi_count_fluctuation[6];
 
-	KOORD_VAL second_column_x; // x position of the second text column
+	scr_coord_val second_column_x; // x position of the second text column
 
 	enum { va_append, va_insert, va_sell, va_upgrade };
 	uint8 veh_action;

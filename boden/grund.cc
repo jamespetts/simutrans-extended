@@ -92,7 +92,7 @@ static inthashtable_tpl<uint64, char*, N_BAGS_LARGE> ground_texts;
 #define get_ground_text_key(k) ( (uint64)(k).x + ((uint64)(k).y << 16) + ((uint64)(k).z << 32) )
 
 // and the reverse operation
-#define get_ground_koord3d_key(key) koord3d( (key) & 0x00007FFF, ((key)>>16) & 0x00007fff, (key)>>32 )
+#define get_ground_koord3d_key(key) koord3d( (key) & 0x00007FFF, ((key)>>16) & 0x00007fff, (sint8)((key)>>32) )
 
 void grund_t::set_text(const char *text)
 {
@@ -1961,7 +1961,10 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 				// already own this land.
 
 				// get_land_value returns a *negative* value.
-				cost += welt->get_land_value(pos);
+				if (!weg->is_public_right_of_way())
+				{
+					cost += welt->get_land_value(pos);
+				}
 			}
 
 			// add
@@ -1974,9 +1977,9 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 			weg_t *other = (weg_t *)obj_bei(0);
 			// another way will be added
 			if(flags&has_way2) {
-				dbg->error("grund_t::neuen_weg_bauen()","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
-				return 0;
+				dbg->fatal("grund_t::neuen_weg_bauen()","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
 			}
+
 			// add the way
 			objlist.add( weg );
 			weg->set_ribi(ribi);
@@ -2547,7 +2550,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 				{
 					// Check whether the immediately adjacent tile is an intersection.
 					const weg_t* this_way = to->get_weg(wt);
-					if (this_way->is_junction())
+					if (to->is_water() || this_way->is_junction())
 					{
 						intersections.append_unique(to);
 						break;
@@ -2567,7 +2570,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 						}
 						else if (to->get_neighbour(to_check, w->get_waytype(), ribi_t::nesw[n]))
 						{
-							if (to_check == from)
+							if (to_check == from || to_check == this)
 							{
 								continue;
 							}
@@ -2921,15 +2924,34 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 
 		// need to remove railblocks to recalculate connections
 		// remove all ways or just some?
-		if(add==ribi_t::none) {
+		if(add==ribi_t::none)
+		{
 			player_t* owner = weg->get_owner();
 			koord3d pos = weg->get_pos();
 			costs -= weg_entfernen(wt, true);
-			if(owner == player)
+			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land.
+			const bool public_right_of_way = weg->is_public_right_of_way(); // We must capture this before deleting the way object.
+			const bool is_main_way = get_weg_nr(0) == weg;
+			const bool are_other_ways = get_weg_nr(1);
+			if (!public_right_of_way && is_main_way) // Land costs are not used for public rights of way; also, do not refund the land value when deleting a crossing over another player's way.
 			{
-				// Need to sell the land on which the way is situated: refund the land value.
-				// Note that get_land_value() produces a negative number.
-				costs -= welt->get_land_value(pos);
+				if (player == owner)
+				{
+					costs += land_refund_cost;
+					if (are_other_ways)
+					{
+						// If we are deleting a crossing over another player's way
+						// and the deleting player paid to buy the land, then the land
+						// value must be debited from the other player's way to avoid
+						// that other player being able to get a refund of the value of
+						// land for which that player had never paid.
+						player_t::book_construction_costs(get_weg_nr(0)->get_owner(), -land_refund_cost, get_pos().get_2d(), wt);
+					}
+				}
+				else
+				{
+					player_t::book_construction_costs(owner, -land_refund_cost, get_pos().get_2d(), wt);
+				}
 			}
 			if(flags&is_kartenboden) {
 				// remove ribis from sea tiles
@@ -2938,14 +2960,6 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 					if (gr  &&  gr->is_water()) {
 						gr->calc_image(); // to recalculate ribis
 					}
-				}
-				// make tunnel portals to normal ground
-				if (get_typ()==tunnelboden  &&  (flags&has_way1)==0) {
-					// remove remaining objs
-					obj_loesche_alle( player );
-					// set to normal ground
-					welt->access(here)->kartenboden_setzen( new boden_t( pos, slope ) );
-					// now this is already deleted !
 				}
 			}
 		}

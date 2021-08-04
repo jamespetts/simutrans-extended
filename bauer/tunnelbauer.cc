@@ -13,6 +13,7 @@
 
 #include "../simworld.h"
 #include "../player/simplay.h"
+#include "../player/finance.h"
 #include "../simtool.h"
 
 #include "../descriptor/tunnel_desc.h"
@@ -374,7 +375,7 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 	if (end_gr) {
 		if (weg_t *weg_end = end_gr->get_weg(waytyp)) {
 			if (weg_end->is_deletable(player)!=NULL) {
-				return "Das Feld gehoert\neinem anderen Spieler\n";
+				return NOTICE_OWNED_BY_OTHER_PLAYER;
 			}
 			if(  full_tunnel  &&  end_gr->get_typ() == grund_t::tunnelboden  ) {
 				full_tunnel = false;
@@ -881,8 +882,7 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 
 		// then add the new ground, copy everything and replace the old one
 		grund_t *gr_new = new boden_t(pos, gr->get_grund_hang());
-		gr_new->take_obj_from( gr );
-		welt->access(pos.get_2d())->kartenboden_setzen(gr_new );
+		welt->access(pos.get_2d())->kartenboden_setzen(gr_new);
 
 		if(gr_new->get_leitung()) {
 			gr_new->get_leitung()->finish_rd();

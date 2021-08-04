@@ -33,6 +33,9 @@
 #OPTIMISE = 1 # Add umpteen optimisation flags
 #PROFILE = 1  # Enable profiling
 #PROFILE = 2  # Enable profiling with optimisation flags, can be used with `OPTIMISE = 1'
+#LTO = 1 # enable link time optimizations
+#TUNE_NATIVE = 1 # enable tuning for this machine (makes binary not portable)
+#GCC_POPCOUNT = 1 # use gcc builtin popcount to speed up on modern machines (makes binary not portable) 
 
 #AV_FOUNDATION = 1  # Use AVFoundation instead of QTKit. If you are using macOS 10.12 or later, this must be enabled.
 
@@ -44,13 +47,16 @@ WITH_REVISION = 1 # adds the commit number (truncated) from Github; important fo
 MULTI_THREAD = 1 # Enable multithreading
 
 # using freetype for Truetype font support
-USE_FREETYPE = 0
+#USE_FREETYPE = 0
 
 # using UPnP for easy server hosting behind routers
 #USE_UPNP = 0
 
 # using zstd compression library
 USE_ZSTD = 1
+
+# using FluidSynth for MIDI playback (SDL2 backend needed for Linux/MacOS, SDL2 or GDI for MinGW)
+#USE_FLUIDSYNTH_MIDI = 1
 
 # Define these as empty strings, if you don't have the respective config program
 #PNG_CONFIG     = pkg-config libpng

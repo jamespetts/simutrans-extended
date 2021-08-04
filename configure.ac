@@ -44,9 +44,18 @@ then
   AC_SEARCH_LIBS(upnpDiscover, miniupnpc, [AC_SUBST(upnp, 1)], [AC_SUBST(upnp, 0)], -liphlpapi -lws2_32 )
   #optional freetype
   AC_SEARCH_LIBS(FT_Init_FreeType, freetype, [AC_SUBST(freetype, '1')], [AC_SUBST(freetype, '0')], -lpng -lharfbuzz -lgraphite2 -lfreetype )
+  # optional fluidsynth
+	AC_SEARCH_LIBS(new_fluid_settings, fluidsynth,
+		[AC_SUBST(fluidsynth, 1)],
+		[AC_SUBST(fluidsynth, 0)],
+		-lglib-2.0 -lintl -liconv -ldsound -lole32)
 else
   AC_SEARCH_LIBS(upnpDiscover, miniupnpc, [AC_SUBST(upnp, 1)], [AC_SUBST(upnp, 0)] )
   AC_SEARCH_LIBS(FT_Init_FreeType, freetype, [AC_SUBST(freetype, '1')], [AC_SUBST(freetype, '0')], -lpng )
+	# optional fluidsynth
+	AC_SEARCH_LIBS(new_fluid_settings, fluidsynth,
+		[AC_SUBST(fluidsynth, 1)],
+		[AC_SUBST(fluidsynth, 0)] )
 if test "$ac_cv_header_LocaleRoster_h" == yes
 then
 	AC_SUBST(os_type, haiku)

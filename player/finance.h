@@ -37,6 +37,11 @@ char const *const NOTICE_NO_TREES = "Trees disabled!";
 char const *const NOTICE_UNSUITABLE_GROUND = "No suitable ground!";
 
 /**
+* Message returned when a tool fails because the target is owned by another player and access is not granted.
+*/
+char const *const NOTICE_OWNED_BY_OTHER_PLAYER = "Das Feld gehoert\neinem anderen Spieler\n";
+
+/**
 * Message returned when a depot cannot be placed.
 */
 char const *const NOTICE_DEPOT_BAD_POS = "Cannot built depot here!";
@@ -225,7 +230,6 @@ public:
 	 * Adds construction cost to finance stats.
 	 * @param amount sum of money
 	 * @param wt way type, e.g. tram_wt
-	 * @param utyp used for distinguishing transport type of building for accounting purposes, used with buildings only.
 	 */
 	inline void book_construction_costs(const sint64 amount, const waytype_t wt) {
 		transport_type tt = translate_waytype_to_tt(wt);
@@ -247,7 +251,6 @@ public:
 	 * Adds maintenance into/from finance stats.
 	 * @param change monthly maintenance cost difference
 	 * @param wt - waytype for accounting purposes
-	 * @param utyp - used for distinguishing of transport type of buildings. Used with buildings only.
 	 */
 	inline sint64 book_maintenance(sint64 change, waytype_t const wt)
 	{
@@ -534,6 +537,8 @@ public:
 		// see calc_finance_history
 		return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS] + account_balance;
 	}
+
+	sint64 get_financial_assets() const {return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];}
 
 	sint64 get_scenario_completed() const { return com_month[0][ATC_SCENARIO_COMPLETED]; }
 

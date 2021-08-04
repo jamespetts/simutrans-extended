@@ -22,18 +22,21 @@ you have two options, either using Microsoft Visual C++ Express (which
 is free in Version 7.0 or up) or GCC.
 
 To compile you will need the following libraries:
-libz (http://www.zlib.net/)
-libpng (http://www.libpng.org/pub/png/) for makeobj
-libbz2.lib (compile from source from http://www.bzip.org/downloads.html)
+libz (https://www.zlib.net/)
+libpng (http://www.libpng.org/pub/png/)
+libbz2.lib (compile from source from https://sourceware.org/bzip2/downloads.html)
 
-For the recommended SDL-support you need
-libSDL (http://www.libsdl.org/)
-libSDL_mixer (link from the same page)
+The following are also recommendend, but optional
+libfreetype (https://www.freetype.org/)
+libminiupnpc (http://miniupnp.free.fr/ or https://miniupnp.tuxfamily.org/)
 
-The link for allegro lib is:
-http://www.talula.demon.co.uk/allegro/
-or
-http://alleg.sourceforge.net/index.de.html
+For the recommended SDL2-support you need
+libSDL2 [better than libSDL] (https://libsdl.org/)
+libSDL_mixer (https://www.libsdl.org/projects/SDL_mixer/)
+
+The link for allegro lib is (but the allegro backend has not been
+tested for a long time):
+https://liballeg.org/old.html
 
 To make life easier, you can follow the instructions to compile OpenTTD:
 http://wiki.openttd.org/Category:Compiling_OpenTTD
@@ -54,7 +57,7 @@ nightlies). To incorporate bz2lib, download make bz2lib and add them
 manually (via FLAGS = -I/dwonloadeddir -L/downloadeddir).
 
 A subversion will be also a good idea. You can find some of them on:
-http://subversion.tigris.org/
+https://subversion.apache.org/
 or you some other client.
 
 Check out the latest source from the SVN or check out a certain revision.

@@ -62,7 +62,7 @@ void gui_aligned_container_t::set_size(scr_size new_size)
 //	printf("\n");
 
 	if (min_size.h > new_size.h  ||  min_size.w > new_size.w) {
-		dbg->warning("gui_aligned_container_t::set_size", "new size (%d,%d) smaller than min size (%d,%d)", new_size.w, new_size.h, min_size.w, min_size.h);
+		dbg->message("gui_aligned_container_t::set_size", "new size (%d,%d) smaller than min size (%d,%d)", new_size.w, new_size.h, min_size.w, min_size.h);
 	}
 
 	scr_size extra = new_size - min_size;

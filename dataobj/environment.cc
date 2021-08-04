@@ -16,6 +16,9 @@
 #include "../utils/simrandom.h"
 void rdwr_win_settings(loadsave_t *file); // simwin
 
+sint16 env_t::menupos = MENU_TOP;
+bool env_t::reselect_closes_tool = true;
+
 sint8 env_t::pak_tile_height_step = 16;
 sint8 env_t::pak_height_conversion_factor = 1;
 env_t::height_conversion_mode env_t::height_conv_mode = env_t::HEIGHT_CONV_LINEAR;
@@ -73,6 +76,8 @@ sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
 uint16 env_t::specific_volume[MAX_SOUND_TYPES];
+
+std::string env_t::soundfont_filename = "";
 bool env_t::global_mute_sound = false;
 bool env_t::mute_midi = false;
 bool env_t::shuffle_midi = true;
@@ -120,7 +125,7 @@ bool env_t::townhall_info;
 bool env_t::single_info;
 bool env_t::window_buttons_right;
 bool env_t::window_frame_active;
-uint8 env_t::verbose_debug;
+log_t::level_t env_t::verbose_debug;
 uint8 env_t::default_sortmode;
 uint32 env_t::default_mapmode;
 uint8 env_t::show_month;
@@ -171,6 +176,7 @@ sint8 env_t::show_money_message;
 
 uint8 env_t::gui_player_color_dark = 1;
 uint8 env_t::gui_player_color_bright = 4;
+uint8 env_t::gui_titlebar_player_color_background_brightness;
 
 std::string env_t::fontname = FONT_PATH_X "prop.fnt";
 uint8 env_t::fontsize = 11;
@@ -242,7 +248,7 @@ void env_t::init()
 	remember_window_positions = true;
 
 	// debug level (0: only fatal, 1: error, 2: warning, 3: all
-	verbose_debug = 0;
+	verbose_debug = log_t::LEVEL_FATAL;
 
 	default_sortmode = 1; // sort by amount
 	default_mapmode = 0;  // show cities
@@ -318,7 +324,7 @@ void env_t::init()
 	// upper right
 	compass_map_position = ALIGN_RIGHT|ALIGN_TOP;
 	// lower right
-	compass_screen_position = 0, // disbale, other could be ALIGN_RIGHT|ALIGN_BOTTOM;
+	compass_screen_position = 0; // disbale, other could be ALIGN_RIGHT|ALIGN_BOTTOM;
 
 	// Listen on all addresses by default
 	listen.append_unique("::");
@@ -583,6 +589,20 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_long(sound_distance_scaling);
 	}
 
+	if( file->is_version_ex_atleast(14, 41) ) {
+		file->rdwr_byte(gui_titlebar_player_color_background_brightness);
+		file->rdwr_short(env_t::menupos);
+		env_t::menupos &= 3;
+		file->rdwr_bool( reselect_closes_tool );
+	}
+
+	if( file->is_version_atleast( 122, 1 )  ||  file->is_version_ex_atleast(14, 42) ) {
+		plainstring str = soundfont_filename.c_str();
+		file->rdwr_str( str );
+		if(  file->is_loading()  ) {
+			soundfont_filename = str ? str.c_str() : "";
+		}
+	}
 
 	// server settings are not saved, since they are server specific
 	// and could be different on different servers on the same computers

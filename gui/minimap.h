@@ -35,52 +35,54 @@ class goods_desc_t;
 class minimap_t : public gui_component_t
 {
 public:
-	enum MAP_DISPLAY_MODE {
+	enum MAP_DISPLAY_MODE: unsigned int {
 		PLAIN                       = 0,
-		MAP_TOWN                    = 1 << 0,
-		MAP_STATION_COVERAGE        = 1 << 1,
-		MAP_CONVOYS                 = 1 << 2,
-		MAP_FREIGHT                 = 1 << 3,
-		MAP_STATUS                  = 1 << 4,
-		MAP_SERVICE                 = 1 << 5,
-		MAP_TRAFFIC                 = 1 << 6,
-		MAP_ORIGIN                  = 1 << 7,
-		MAP_TRANSFER                = 1 << 8,
-		MAP_WAITING                 = 1 << 9,
-		MAP_TRACKS                  = 1 << 10,
-		MAX_SPEEDLIMIT              = 1 << 11,
-		MAP_POWERLINES              = 1 << 12,
-		MAP_TOURIST                 = 1 << 13,
-		MAP_FACTORIES               = 1 << 14,
-		MAP_DEPOT                   = 1 << 15,
-		MAP_FOREST                  = 1 << 16,
-		MAP_CITYLIMIT               = 1 << 17,
-		MAP_PAX_DEST                = 1 << 18,
-		MAP_OWNER                   = 1 << 19,
-		MAP_LINES                   = 1 << 20,
-		MAP_LEVEL                   = 1 << 21,
-		MAP_WAITCHANGE              = 1 << 22,
-		MAP_CONDITION               = 1 << 23,
-		MAP_WEIGHTLIMIT             = 1 << 24,
-		MAP_ACCESSIBILITY_COMMUTING = 1 << 25,
-		MAP_ACCESSIBILITY_TRIP      = 1 << 26,
-		MAP_STAFF_FULFILLMENT       = 1 << 27,
-		MAP_MAIL_DELIVERY           = 1 << 28,
-		MAP_CONGESTION              = 1 << 29,
+		MAP_TOWN                    = 1u << 0u,
+		MAP_STATION_COVERAGE        = 1u << 1u,
+		MAP_CONVOYS                 = 1u <<2u,
+		MAP_FREIGHT                 = 1u <<3u,
+		MAP_STATUS                  = 1u <<4u,
+		MAP_SERVICE                 = 1u <<5u,
+		MAP_TRAFFIC                 = 1u <<6u,
+		MAP_ORIGIN                  = 1u <<7u,
+		MAP_TRANSFER                = 1u <<8u,
+		MAP_WAITING                 = 1u <<9u,
+		MAP_TRACKS                  = 1u <<10u,
+		MAX_SPEEDLIMIT              = 1u <<11u,
+		MAP_POWERLINES              = 1u <<12u,
+		MAP_TOURIST                 = 1u <<13u,
+		MAP_FACTORIES               = 1u <<14u,
+		MAP_DEPOT                   = 1u <<15u,
+		MAP_FOREST                  = 1u <<16u,
+		MAP_CITYLIMIT               = 1u <<17u,
+		MAP_PAX_DEST                = 1u <<18u,
+		MAP_OWNER                   = 1u <<19u,
+		MAP_LINES                   = 1u <<20u,
+		MAP_LEVEL                   = 1u <<21u,
+		MAP_WAITCHANGE              = 1u <<22u,
+		MAP_CONDITION               = 1u <<23u,
+		MAP_WEIGHTLIMIT             = 1u <<24u,
+		MAP_ACCESSIBILITY_COMMUTING = 1u <<25u,
+		MAP_ACCESSIBILITY_TRIP      = 1u <<26u,
+		MAP_STAFF_FULFILLMENT       = 1u <<27u,
+		MAP_MAIL_DELIVERY           = 1u <<28u,
+		MAP_CONGESTION              = 1u <<29u,
 
 		MAP_MODE_HALT_FLAGS = (MAP_STATUS|MAP_SERVICE|MAP_ORIGIN|MAP_TRANSFER|MAP_WAITING|MAP_WAITCHANGE),
 		MAP_MODE_FLAGS = (MAP_TOWN|MAP_CITYLIMIT|MAP_STATUS|MAP_SERVICE|MAP_WAITING|MAP_WAITCHANGE|MAP_TRANSFER|MAP_LINES|MAP_FACTORIES|MAP_ORIGIN|MAP_DEPOT|MAP_TOURIST|MAP_CONVOYS)
 	};
 
 private:
+	//This one really has to be static
+	static minimap_t *single_instance;
 	static karte_ptr_t world;
 
 	minimap_t();
 
-	static minimap_t *single_instance;
+
 
 	/// the terrain map
-	array2d_tpl<PIXVAL> *map_data;
+	array2d_tpl<PIXVAL> *map_data{nullptr};
 
 	/// nonstatic, if we have someday many maps ...
 	void set_map_color_clip( sint16 x, sint16 y, PIXVAL color );
@@ -131,25 +133,26 @@ private:
 
 	vector_tpl<line_segment_t> schedule_cache;
 	convoihandle_t current_cnv;
-	uint8 last_schedule_counter;
+	uint8 last_schedule_counter{};
 	vector_tpl<halthandle_t> stop_cache;
 
 	/// adds a schedule to cache
 	void add_to_schedule_cache( convoihandle_t cnv, bool with_waypoints );
 
 	/**
+	 * //TODO Why are the following two static?
 	 * 0: normal
 	 * everything else: special map
 	 */
-	static MAP_DISPLAY_MODE mode;
-	static MAP_DISPLAY_MODE last_mode;
+	MAP_DISPLAY_MODE mode{MAP_TOWN};
+	MAP_DISPLAY_MODE last_mode{MAP_TOWN};
 	static const uint8 severity_color[MAX_SEVERITY_COLORS];
 
 	koord screen_to_map_coord(const scr_coord&) const;
 
 	/// for passenger destination display
-	const stadt_t *selected_city;
-	uint32 pax_destinations_last_change;
+	const stadt_t *selected_city{nullptr};
+	uint32 pax_destinations_last_change{};
 
 	koord last_world_pos;
 
@@ -161,28 +164,28 @@ private:
 	 * These are size and offset of visible part of map.
 	 * We only show and compute this.
 	 */
-	scr_coord cur_off, new_off;
-	scr_size cur_size, new_size;
+	scr_coord cur_off{scr_coord(0,0)};
+	scr_coord new_off{scr_coord(0,0)};
+	scr_size cur_size{scr_size(0,0)};
+	scr_size new_size{scr_size(0,0)};
 
 	/// true, if full redraw is needed
-	bool needs_redraw;
+	bool needs_redraw{true};
 
 	const fabrik_t* get_factory_near(koord pos, bool large_area) const;
 
-	const fabrik_t* draw_factory_connections(PIXVAL colour, scr_coord pos) const;
+	const fabrik_t* draw_factory_connections(const fabrik_t* const fab, bool supplier_link, const scr_coord pos) const;
 
+	//TODO why static?
 	static sint32 max_cargo;
 	static sint32 max_passed;
 
 	/// the zoom factors
-	sint16 zoom_out, zoom_in;
-
-	uint16 citycar_speed_average;
-
-	void set_citycar_speed_average();
+	sint16 zoom_out{1};
+	sint16 zoom_in{1};
 
 	/// if true, draw the map with 45 degree rotation
-	bool isometric;
+	bool isometric{false};
 
 	bool is_matching_freight_catg(const minivec_tpl<uint8> &goods_catg_index);
 
@@ -194,15 +197,15 @@ public:
 	void toggle_isometric() { isometric = !isometric; }
 	bool is_isometric() const { return isometric; }
 
-	static bool is_visible;
+	bool is_visible{false};
 
-	bool show_network_load_factor;
-	bool show_contour;
-	bool show_buildings;
+	bool show_network_load_factor{false};
+	bool show_contour{true};
+	bool show_buildings{true};
 
-	int player_showed_on_map;
-	int transport_type_showed_on_map;
-	const goods_desc_t *freight_type_group_index_showed_on_map;
+	int player_showed_on_map{};
+	int transport_type_showed_on_map{simline_t::line};
+	const goods_desc_t *freight_type_group_index_showed_on_map{nullptr};
 
 	/**
 	 * returns a color based on an amount (high amount/scale -> color shifts from green to red)
@@ -218,7 +221,7 @@ public:
 	/**
 	 * returns a color based on the current height
 	 */
-	static PIXVAL calc_height_color(const sint16 height, const sint16 groundwater);
+	static PIXVAL calc_height_color(sint16 height, sint16 groundwater);
 
 	/// needed for town passenger map
 	static PIXVAL calc_ground_color (const grund_t *gr, bool show_contour = true, bool show_buildings = true);
@@ -227,22 +230,24 @@ public:
 	static minimap_t *get_instance();
 
 	// HACK! since we cannot set cleanly the current offset/size, we use this helper function
-	void set_xy_offset_size( scr_coord off, scr_size size ) {
+	void set_xy_offset_size( scr_coord off, const scr_size& size ) {
 		new_off = off;
 		new_size = size;
 	}
 
 	/// update color with render mode (but few are ignored ... )
-	void calc_map_pixel(const koord k);
+	void calc_map_pixel(koord k);
 
 	void calc_map();
 
 	/// calculates the current size of the map (but do not change anything else)
 	void calc_map_size();
 
-	~minimap_t();
+	~minimap_t() override;
 
 	void init();
+
+	void finalize();
 
 	void set_display_mode(MAP_DISPLAY_MODE new_mode);
 
@@ -278,6 +283,7 @@ public:
 	scr_size get_min_size() const OVERRIDE;
 
 	scr_size get_max_size() const OVERRIDE;
+
 };
 
 #endif

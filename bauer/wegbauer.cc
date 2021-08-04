@@ -110,7 +110,6 @@ bool way_builder_t::successfully_loaded()
 	set_default(strasse_t::default_strasse,         road_wt,        type_flat, 50);
 	if(  strasse_t::default_strasse == NULL ) {
 		dbg->fatal( "way_builder_t::successfully_loaded()", "No road found at all!" );
-		return false;
 	}
 
 	set_default(schiene_t::default_schiene,         track_wt,       type_flat, 80);
@@ -2183,8 +2182,7 @@ void way_builder_t::build_tunnel_and_bridges()
 /*
  * returns the amount needed to built this way
  */
-sint64 way_builder_t::calc_costs()
-{
+sint64 way_builder_t::calc_costs() {
 	if(desc->is_mothballed())
 	{
 		// It is free to mothball a way. No other calculations are needed, as mothballed types
@@ -2228,7 +2226,8 @@ sint64 way_builder_t::calc_costs()
 		sint64 replace_cost = 0;
 		bool upgrading = false;
 
-		const grund_t* gr = welt->lookup(route[i] + offset);
+		const koord3d pos = route[i] + offset;
+		const grund_t* gr = welt->lookup(pos);
 		if( gr ) {
 			if( bautyp&tunnel_flag ) {
 				const tunnel_t *tunnel = gr->find<tunnel_t>();
@@ -2256,13 +2255,12 @@ sint64 way_builder_t::calc_costs()
 			}
 
 			sint64 forge_cost = upgrading ? 0 : welt->get_settings().get_forge_cost(desc->get_waytype());
-			const koord3d pos = gr->get_pos();
 
 			if(!upgrading && !(bautyp & tunnel_flag) && !(bautyp & elevated_flag) && route.get_count() > 1)
 			{
 				for(int n = 0; n < 8; n ++)
 				{
-					const koord kn = pos.get_2d().neighbours[n] + pos.get_2d();
+					const koord kn = koord::neighbours[n] + pos.get_2d();
 					if(!welt->is_within_grid_limits(kn))
 					{
 						continue;
@@ -2290,10 +2288,10 @@ sint64 way_builder_t::calc_costs()
 			single_cost += forge_cost;
 
 			const obj_t* obj = gr->obj_bei(0);
-			if(!upgrading && (obj == NULL || obj->get_owner() != player_builder))
+			if(!upgrading && (obj == NULL || obj->get_owner() == NULL))
 			{
-				// Only add the cost of the land if the player does not
-				// already own this land.
+				// Only add the cost of the land if this land is not already owned
+				// by either this player or some other player.
 
 				// get_land_value returns a *negative* value.
 				single_cost -= welt->get_land_value(gr->get_pos());
@@ -2319,7 +2317,7 @@ sint64 way_builder_t::calc_costs()
 		}
 		else if(!gr)
 		{
-			// No ground -building a new elevated way. Do not add the land value as it is still possible to build underneath an elevated way.
+			// No ground - building a new elevated way. Do not add the land value as it is still possible to build underneath an elevated way.
 			costs += (welt->get_settings().get_forge_cost(desc->get_waytype()) + desc->get_value());
 		}
 		else
@@ -2646,9 +2644,14 @@ void way_builder_t::build_road()
 					{
 						if (str->get_owner() != player_builder)
 						{
-							// If taking ownership of a way, must buy the underlying land.
 							str->set_owner(player_builder);
-							cost += welt->get_land_value(gr->get_pos());
+							// If taking ownership of a way, must buy the underlying land,
+							// except in cases of public rights of way, in which the underlying land
+							// is assumed to be owned by third parties subject to the way.
+							if (!str->is_public_right_of_way())
+							{
+								cost += welt->get_land_value(gr->get_pos());
+							}
 						}
 						// Set maintenance costs here
 						// including corrections for diagonals.

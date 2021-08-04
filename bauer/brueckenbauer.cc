@@ -209,7 +209,7 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 
 		if(  w->is_deletable(player) != NULL  ) {
 			// not our way
-			return "Das Feld gehoert\neinem anderen Spieler\n";
+			return NOTICE_OWNED_BY_OTHER_PLAYER;
 		}
 
 		// now check for direction
@@ -217,7 +217,7 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 		if(  weg_t *w2 = gr->get_weg_nr(1)  ) {
 			if(  w2->is_deletable(player) != NULL ) {
 				// not our way
-				return "Das Feld gehoert\neinem anderen Spieler\n";
+				return NOTICE_OWNED_BY_OTHER_PLAYER;
 			}
 			if(  !gr->ist_uebergang()  ) {
 				// If road and tram, we have to check both ribis.
@@ -278,7 +278,7 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 	// take slopes on grounds below into accout
 	const sint8 clearance = welt->get_settings().get_way_height_clearance() - 1;
 	for(int dz = -clearance -2; dz <= clearance; dz++) {
-		grund_t *gr2;
+		grund_t *gr2 = NULL;
 		if (dz != 0 && (gr2 = welt->lookup(pos + koord3d(0,0,dz)))) {
 
 			const slope_t::type slope = gr2->get_weg_hang();
@@ -349,7 +349,7 @@ bool bridge_builder_t::is_monorail_junction(koord3d pos, player_t *player, const
 			if(  weg_t *w = gr2->get_weg_nr(0)  ) {
 				if(  !player_t::check_owner(w->get_owner(),player)  ) {
 					// not our way
-					error_msg = "Das Feld gehoert\neinem anderen Spieler\n";
+					error_msg = NOTICE_OWNED_BY_OTHER_PLAYER;
 					return false;
 				}
 				if(  w->get_waytype() == desc->get_waytype()  ) {
@@ -1391,12 +1391,16 @@ const char *bridge_builder_t::remove(player_t *player, koord3d pos_start, waytyp
 						// now remove ribi (or full way)
 						w->set_ribi( (~ribi_t::backward( ribi_t::nesw[i] )) & w->get_ribi_unmasked() );
 						if(  w->get_ribi_unmasked() == 0  ) {
-							// nowthing left => then remove completel
+							// nothing left => then remove completly
 							prev->remove_everything_from_way( player, wegtyp, bridge_ribi ); // removes stop and signals correctly
 							prev->weg_entfernen( wegtyp, true );
 							if(  prev->get_typ() == grund_t::monorailboden  ) {
 								welt->access( prev->get_pos().get_2d() )->boden_entfernen( prev );
 								delete prev;
+							}
+							else if(  prev->get_typ() == grund_t::tunnelboden  &&  !prev->hat_wege()  ) {
+								grund_t* gr_new = new boden_t(prev->get_pos(), prev->get_grund_hang());
+								welt->access(prev->get_pos().get_2d())->kartenboden_setzen(gr_new);
 							}
 						}
 						else {

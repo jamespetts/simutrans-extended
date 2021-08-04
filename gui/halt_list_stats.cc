@@ -112,8 +112,8 @@ void gui_mini_halt_waiting_indicator_t::draw(scr_coord offset)
 		// [colorbox]
 		display_ddd_box_clip_rgb(pos.x+offset.x, pos.y+offset.y + i*(MINI_WAITING_BAR_HEIGHT+1), MINI_WAITING_BAR_HEIGHT, MINI_WAITING_BAR_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
 		if (served) {
-			const KOORD_VAL base_x = pos.x + offset.x;
-			const KOORD_VAL base_y = pos.y + offset.y + i * (MINI_WAITING_BAR_HEIGHT + 1);
+			const scr_coord_val base_x = pos.x + offset.x;
+			const scr_coord_val base_y = pos.y + offset.y + i * (MINI_WAITING_BAR_HEIGHT + 1);
 			const uint8 color_box_size = is_operating ? MINI_WAITING_BAR_HEIGHT : MINI_WAITING_BAR_HEIGHT-2;
 			display_fillbox_wh_clip_rgb(is_operating ? base_x : base_x+1, is_operating ? base_y : base_y+1,	color_box_size, color_box_size, goods_colval, false);
 		}

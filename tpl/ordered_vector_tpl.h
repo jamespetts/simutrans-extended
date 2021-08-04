@@ -145,7 +145,8 @@ template<class T, class inttype> class ordered_vector_tpl
 			T* old_data = data;
 			inttype old_count = count;
 
-			data = new T[ count + vT.count ];
+			size = count + vT.count;
+			data = new T[ size ];
 			count = 0;
 
 			inttype i,j;
@@ -175,6 +176,7 @@ template<class T, class inttype> class ordered_vector_tpl
 				data[ count++ ] = vT.data[j];
 				j++;
 			}
+			delete [] old_data;
 		};
 
 		void set_diff(const ordered_vector_tpl<T, inttype> vT)

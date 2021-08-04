@@ -119,7 +119,13 @@ static const char *revision_ex[] =
 	"34",
 	"35",
 	"36",
-	"37"
+	"37",
+	"38",
+	"39",
+	"40",
+	"41",
+	"42",
+	"43"
 };
 
 
@@ -714,8 +720,8 @@ void settings_display_stats_t::init(settings_t const* const)
 	INIT_NUM( "bottom_window_darkness", env_t::bottom_window_darkness, 0, 100, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
 	INIT_BOOL( "show_tooltips", env_t::show_tooltips );
-	INIT_NUM( "tooltip_background_color", env_t::tooltip_color, 0, 16777215, 1, 0 );
-	INIT_NUM( "tooltip_text_color", env_t::tooltip_textcolor, 0, 16777215, 1, 0 );
+	INIT_NUM( "tooltip_background_color", env_t::tooltip_color_rgb, 0, 16777215, 1, 0 );
+	INIT_NUM( "tooltip_text_color", env_t::tooltip_textcolor_rgb, 0, 16777215, 1, 0 );
 	INIT_NUM( "tooltip_delay", env_t::tooltip_delay, 0, 10000, gui_numberinput_t::AUTOLINEAR, 0 );
 	INIT_NUM( "tooltip_duration", env_t::tooltip_duration, 0, 30000, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
@@ -1014,7 +1020,7 @@ void settings_climates_stats_t::init(settings_t* const sets)
 	buf.printf( "%s %i", translator::translate( "Summer snowline" ), arctic );
 	SEPERATOR
 	INIT_BOOL( "lake", sets->get_lake() );
-	INIT_NUM_NEW( "Number of rivers", sets->get_river_number(), 0, 1024, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM_NEW( "Number of rivers", sets->get_river_number(), 0, 4096, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "minimum length of rivers", sets->get_min_river_length(), 0, max(16,sets->get_max_river_length())-16, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "maximum length of rivers", sets->get_max_river_length(), sets->get_min_river_length()+16, 8196, gui_numberinput_t::AUTOLINEAR, false );
 	// add listener to all of them

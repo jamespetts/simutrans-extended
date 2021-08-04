@@ -24,7 +24,7 @@
 #include "../utils/simstring.h"
 
 
-enum sort_mode_t { best, by_intro, by_retire, by_power, by_capacity, by_name, SORT_MODES };
+enum sort_mode_t { best, by_name, by_value, by_running_cost, by_capacity, by_speed, by_power, by_tractive_force, by_axle_load, by_intro, by_retire, SORT_MODES };
 
 int vehiclelist_stats_t::sort_mode = by_intro;
 bool vehiclelist_stats_t::reverse = false;
@@ -90,7 +90,11 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 
 	// column 2
 	part2.clear();
-	part2.printf( "%s %4.1ft\n", translator::translate( "Weight:" ), veh->get_weight() / 1000.0 );
+	part2.printf( "%s %4.1ft", translator::translate( "Weight:" ), veh->get_weight() / 1000.0 );
+	if (veh->get_waytype() != water_wt) {
+		part2.printf( ", %s %it", translator::translate( "Axle load:" ), veh->get_axle_load() );
+	}
+	part2.append("\n");
 	part2.printf( "%s %s - ", translator::translate( "Available:" ), translator::get_short_date( veh->get_intro_year_month() / 12, veh->get_intro_year_month() % 12 ) );
 	if (veh->get_retire_year_month() != DEFAULT_RETIRE_DATE * 12 &&
 		(((!world()->get_settings().get_show_future_vehicle_info() && veh->will_end_prodection_soon(world()->get_timeline_year_month()))
@@ -200,12 +204,48 @@ bool vehiclelist_stats_t::compare(const gui_component_t *aa, const gui_component
 		}
 		break;
 
+	case by_value:
+		cmp = a->get_value() - b->get_value();
+		break;
+
+	case by_running_cost:
+		cmp = a->get_running_cost(world()) - b->get_running_cost(world());
+		break;
+
+	case by_speed:
+		cmp = a->get_topspeed() - b->get_topspeed();
+		break;
+
 	case by_power:
 		cmp = a->get_power() - b->get_power();
+		if (cmp == 0) {
+			cmp = a->get_tractive_effort() - b->get_tractive_effort();
+		}
 		break;
+
+	case by_tractive_force:
+		cmp = a->get_tractive_effort() - b->get_tractive_effort();
+		if (cmp == 0) {
+			cmp = a->get_power() - b->get_power();
+		}
+		break;
+
+	case by_axle_load:
+	{
+		const uint16 a_axle_load = a->get_waytype() == water_wt ? 0 : a->get_axle_load();
+		const uint16 b_axle_load = b->get_waytype() == water_wt ? 0 : b->get_axle_load();
+		cmp = a_axle_load - b_axle_load;
+		if (cmp == 0) {
+			cmp = a->get_weight() - b->get_weight();
+		}
+		break;
+	}
 
 	case by_capacity:
 		cmp = a->get_total_capacity() - b->get_total_capacity();
+		if (cmp == 0) {
+			cmp = a->get_overcrowded_capacity() - b->get_overcrowded_capacity();
+		}
 		break;
 
 	case by_name:
@@ -222,11 +262,16 @@ bool vehiclelist_stats_t::compare(const gui_component_t *aa, const gui_component
 
 static const char *sort_text[SORT_MODES] = {
 	"Unsorted",
-	"Intro. date:",
-	"Retire. date:",
-	"Power:",
+	"Name",
+	"Price",
+	"Maintenance:",
 	"Capacity:",
-	"Name"
+	"Max. speed:",
+	"Power:",
+	"Tractive Force:",
+	"Axle load:",
+	"Intro. date:",
+	"Retire. date:"
 };
 
 vehiclelist_frame_t::vehiclelist_frame_t() :
@@ -241,13 +286,13 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	add_table(2,0);
 	{
 		// left column
-		add_table(1, 3);
+		add_table(1,3);
 		{
-			add_table(1, 2);
+			add_table(1,2);
 			{
 				new_component<gui_label_t>( "hl_txt_sort" );
 
-				add_table(4, 1);
+				add_table(3,1);
 				{
 					sort_by.clear_elements();
 					for(int i = 0; i < SORT_MODES; i++) {
@@ -259,17 +304,13 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 					sort_by.add_listener( this );
 					add_component( &sort_by );
 
-					sort_asc.init(button_t::arrowup_state, "");
-					sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-					sort_asc.add_listener(this);
-					sort_asc.pressed = vehiclelist_stats_t::reverse;
-					add_component(&sort_asc);
+					// sort asc/desc switching button
+					sort_order.init(button_t::sortarrow_state, "");
+					sort_order.set_tooltip( translator::translate("hl_btn_sort_order") );
+					sort_order.add_listener( this );
+					sort_order.pressed = vehiclelist_stats_t::reverse;
+					add_component( &sort_order );
 
-					sort_desc.init(button_t::arrowdown_state, "");
-					sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-					sort_desc.add_listener(this);
-					sort_desc.pressed = !vehiclelist_stats_t::reverse;
-					add_component(&sort_desc);
 					new_component<gui_margin_t>(LINESPACE);
 				}
 				end_table();
@@ -421,11 +462,10 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 	else if(comp == &ware_filter) {
 		fill_list();
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		vehiclelist_stats_t::reverse = !vehiclelist_stats_t::reverse;
 		scrolly.sort(0);
-		sort_asc.pressed = vehiclelist_stats_t::reverse;
-		sort_desc.pressed = !vehiclelist_stats_t::reverse;
+		sort_order.pressed = vehiclelist_stats_t::reverse;
 	}
 	else if(comp == &bt_obsolete) {
 		bt_obsolete.pressed ^= 1;

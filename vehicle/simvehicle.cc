@@ -302,7 +302,7 @@ void vehicle_base_t::leave_tile()
 			for(k.x=0; k.x<welt->get_size().x; k.x++) {
 				grund_t *gr = welt->access( k )->get_boden_von_obj(this);
 				if(gr && gr->obj_remove(this)) {
-					dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_name(), this, k.x, k.y);
+					dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_typ(), this, k.x, k.y);
 					ok = true;
 				}
 			}
@@ -847,7 +847,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 			if (!r.empty() && route_index < r.get_count() - 1) {
 				grund_t const* const gr = welt->lookup(pos_next);
 				if (!gr || !gr->get_weg(get_waytype())) {
-					if (!(water_wt == get_waytype()  && gr && gr->is_water())) { // ships on the open sea are valid
+					if (!(water_wt == get_waytype()  &&  gr  &&  gr->is_water())) { // ships on the open sea are valid
 						pos_next = r.at(route_index + 1U);
 					}
 				}
@@ -1657,7 +1657,7 @@ void vehicle_t::leave_tile()
 {
 	vehicle_base_t::leave_tile();
 #ifndef DEBUG_ROUTES
-	if(last  &&  minimap_t::is_visible) {
+	if(last  &&  minimap_t::get_instance()->is_visible) {
 			minimap_t::get_instance()->calc_map_pixel(get_pos().get_2d());
 	}
 #endif
@@ -1670,7 +1670,7 @@ void vehicle_t::enter_tile(grund_t* gr)
 {
 	vehicle_base_t::enter_tile(gr);
 
-	if(leading  &&  minimap_t::is_visible  ) {
+	if(leading  &&  minimap_t::get_instance()->is_visible  ) {
 		minimap_t::get_instance()->calc_map_pixel( get_pos().get_2d() );
 	}
 }
@@ -3864,10 +3864,6 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ribi_t::ribi next_90direction = calc_direction(pos_next, next);
 		obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane);
 
-		// do not block intersections
-		const bool drives_on_left = welt->get_settings().is_drive_left();
-		bool int_block = ribi_t::is_threeway(str->get_ribi_unmasked())  &&  (((drives_on_left ? ribi_t::rotate90l(curr_90direction) : ribi_t::rotate90(curr_90direction)) & str->get_ribi_unmasked())  ||  curr_90direction != next_90direction  ||  (rs  &&  rs->get_desc()->is_traffic_light()));
-
 		//If this convoi is overtaking, the convoi must avoid a head-on crash.
 		if(  cnv->is_overtaking()  ){
 			while(  test_index < route_index + 2u && test_index < r.get_count()  ){
@@ -3917,7 +3913,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		sint8 lane_of_the_tile = next_lane;
 		overtaking_mode_t mode_of_start_point = str->get_overtaking_mode();
 		// check exit from crossings and intersections, allow to proceed after 4 consecutive
-		while(  !obj   &&  (str->is_crossing()  ||  int_block)  &&  test_index < r.get_count()  &&  test_index < route_index + 4u  ) {
+		while(  !obj   &&  str->is_crossing()  &&  test_index < r.get_count()  &&  test_index < route_index + 4u  ) {
 			if(  str->is_crossing()  ) {
 				crossing_t* cr = gr->find<crossing_t>(2);
 				if(  !cr->request_crossing(this)  ) {
@@ -4060,13 +4056,10 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				rs = NULL;
 			}
 
-			// check for blocking intersection
-			int_block = ribi_t::is_threeway(str->get_ribi_unmasked())  &&  (((drives_on_left ? ribi_t::rotate90l(curr_90direction) : ribi_t::rotate90(curr_90direction)) & str->get_ribi_unmasked())  ||  curr_90direction != next_90direction  ||  (rs  &&  rs->get_desc()->is_traffic_light()));
-
 			test_index++;
 		}
 
-		if(  obj  &&  test_index > route_index + 1u  &&  !str->is_crossing()  &&  !int_block  ) {
+		if(  obj  &&  test_index > route_index + 1u  &&  !str->is_crossing()  ) {
 			// found a car blocking us after checking at least 1 intersection or crossing
 			// and the car is in a place we could stop. So if it can move, assume it will, so we will too.
 			// but check only upto 8 cars ahead to prevent infinite recursion on roundabouts.
@@ -7181,7 +7174,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		bool no_reverse = schedule->entries[schedule_index].reverse == 0;
 		schedule->increment_index(&schedule_index, &rev);
 		koord3d cur_pos = route->back();
-		uint16 next_next_signal;
+		uint16 next_next_signal = INVALID_INDEX;
 		bool route_success;
 		sint32 token_block_blocks = 0;
 		if(no_reverse || one_train_staff_onward_reservation)

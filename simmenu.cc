@@ -119,6 +119,9 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_PLANT_GROUNDOBJ:             tool = new tool_plant_groundobj_t();     break;
 		case TOOL_REASSIGN_SIGNAL_DEPRECATED:
 		case TOOL_REASSIGN_SIGNAL:             tool = new tool_reassign_signal_t();     break;
+		case TOOL_EXEC_SCRIPT:
+		case TOOL_EXEC_TWO_CLICK_SCRIPT:
+			return NULL; // Tools reserved by standard
 		default:
 			dbg->error("create_general_tool()","cannot satisfy request for general_tool[%i]!",toolnr);
 			return NULL;
@@ -173,12 +176,12 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_HIDE_UNDER_CURSOR:    tool = new tool_hide_under_cursor_t();    break;
 		case TOOL_MOVE_MAP:             tool = new tool_move_map_t();             break;
 		case TOOL_ROLLUP_ALL_WIN:       tool = new tool_rollup_all_win_t();       break;
-		case TOOL_CHANGE_ROADSIGN:   tool = new tool_change_roadsign_t(); break;
-		case TOOL_SHOW_RIBI:    tool = new tool_show_ribi_t(); break;
+		case TOOL_CHANGE_ROADSIGN:      tool = new tool_change_roadsign_t();      break;
+		case TOOL_SHOW_RIBI:            tool = new tool_show_ribi_t();            break;
 		case TOOL_RECOLOUR_TOOL_DEPRECATED:
 		case TOOL_RECOLOUR_TOOL:		tool = new tool_recolour_t(); break;
 		case TOOL_ACCESS_TOOL_DEPRECATED:
-		case TOOL_ACCESS_TOOL:		tool = new tool_access_t(); break;
+		case TOOL_ACCESS_TOOL:          tool = new tool_access_t(); break;
 		case UNUSED_WKZ_PWDHASH_TOOL:
 			dbg->warning("create_simple_tool()","deprecated tool [%i] requested", toolnr);
 			return NULL;
@@ -232,6 +235,8 @@ tool_t *create_dialog_tool(int toolnr)
 		case DIALOG_LIST_VEHICLE:    tool = new dialog_list_vehicle_t();    break;
 		case DIALOG_LIST_SIGNALBOX:  tool = new dialog_list_signalbox_t();  break;
 		case DIALOG_EDIT_GROUNDOBJ:  tool = new dialog_edit_groundobj_t();  break;
+		case DIALOG_SCRIPT_TOOL:
+			return NULL; // Tools reserved by standard
 		default:
 			dbg->error("create_dialog_tool()","cannot satisfy request for dialog_tool[%i]!",toolnr);
 			return NULL;

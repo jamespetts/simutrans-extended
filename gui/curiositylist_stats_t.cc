@@ -40,6 +40,13 @@ bool curiositylist_stats_t::compare(const gui_component_t *aa, const gui_compone
 	int cmp = 0;
 	switch ( sort_mode ) {
 		default: NOT_REACHED
+
+		case curiositylist::by_paxlevel:
+			if (a->get_adjusted_visitor_demand() != b->get_adjusted_visitor_demand()) {
+				cmp = a->get_adjusted_visitor_demand() - b->get_adjusted_visitor_demand();
+				break;
+			}
+
 		case curiositylist::by_name:
 		{
 			const char* a_name = translator::translate(a->get_tile()->get_desc()->get_name());
@@ -48,10 +55,6 @@ bool curiositylist_stats_t::compare(const gui_component_t *aa, const gui_compone
 			break;
 		}
 
-		case curiositylist::by_paxlevel:
-			cmp = a->get_adjusted_visitor_demand() - b->get_adjusted_visitor_demand();
-			break;
-
 		case curiositylist::by_pax_arrived:
 		{
 			int a_arrive = a->get_passengers_succeeded_commuting() == 65535 ? a->get_passengers_succeeded_visiting() : a->get_passengers_succeeded_visiting() + a->get_passengers_succeeded_commuting();
@@ -59,18 +62,17 @@ bool curiositylist_stats_t::compare(const gui_component_t *aa, const gui_compone
 			cmp = a_arrive - b_arrive;
 			break;
 		}
-		/*
-		case curiositylist::by_city:
-		{
-			const char* a_name = a->get_stadt() ? a->get_stadt()->get_name() : '\0';
-			const char* b_name = b->get_stadt() ? b->get_stadt()->get_name() : '\0';
-			cmp = STRICMP(a_name, b_name);
-			a->get_stadt()->get_zufallspunkt();
-			break;
-		}*/
 
 		case curiositylist::by_region:
 			cmp = welt->get_region(a->get_pos().get_2d()) - welt->get_region(b->get_pos().get_2d());
+			if (cmp == 0) {
+				const koord a_city_koord = welt->get_city(a->get_pos().get_2d()) ? welt->get_city(a->get_pos().get_2d())->get_pos() : koord(0, 0);
+				const koord b_city_koord = welt->get_city(b->get_pos().get_2d()) ? welt->get_city(b->get_pos().get_2d())->get_pos() : koord(0, 0);
+				cmp = a_city_koord.x - b_city_koord.x;
+				if (cmp == 0) {
+					cmp = a_city_koord.y - b_city_koord.y;
+				}
+			}
 			break;
 	}
 	return sortreverse ? cmp > 0 : cmp < 0;

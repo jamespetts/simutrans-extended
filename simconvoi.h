@@ -1158,8 +1158,7 @@ private:
 public:
 
 	/**
-	* @param buf the buffer to fill
-	* @return Freight description text (buf)
+	* @param[out] buf Filled with freight description
 	*/
 	void get_freight_info(cbuffer_t & buf);
 	void get_freight_info_by_class(cbuffer_t & buf);

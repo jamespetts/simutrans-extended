@@ -824,7 +824,6 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_str(language_code_names, lengthof(language_code_names) );
 
 			// restore AI state
-			//char password[16]; // unused
 			for(  int i=0;  i<15;  i++  ) {
 				file->rdwr_bool(player_active[i] );
 				file->rdwr_byte(player_type[i] );
@@ -1889,7 +1888,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 
 // read the settings from this file
-void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, sint16 &fullscreen, std::string& objfilename )
+void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool &fullscreen, std::string& objfilename )
 {
 	tabfileobj_t contents;
 
@@ -1961,20 +1960,22 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::straight_way_without_control = contents.get_int( "straight_way_without_control", env_t::straight_way_without_control ) != 0;
 
 	env_t::road_user_info = contents.get_int( "pedes_and_car_info", env_t::road_user_info ) != 0;
-	env_t::tree_info = contents.get_int( "tree_info", env_t::tree_info ) != 0;
-	env_t::ground_info = contents.get_int( "ground_info", env_t::ground_info ) != 0;
-	env_t::townhall_info = contents.get_int( "townhall_info", env_t::townhall_info ) != 0;
-	env_t::single_info = contents.get_int( "only_single_info", env_t::single_info );
+	env_t::tree_info      = contents.get_int( "tree_info",          env_t::tree_info      ) != 0;
+	env_t::ground_info    = contents.get_int( "ground_info",        env_t::ground_info    ) != 0;
+	env_t::townhall_info  = contents.get_int( "townhall_info",      env_t::townhall_info  ) != 0;
+	env_t::single_info    = contents.get_int( "only_single_info",   env_t::single_info    ) != 0;
 
-	env_t::compass_map_position = contents.get_int( "compass_map_position", env_t::compass_map_position );
+	env_t::compass_map_position    = contents.get_int( "compass_map_position",    env_t::compass_map_position );
 	env_t::compass_screen_position = contents.get_int( "compass_screen_position", env_t::compass_screen_position );
 
-	env_t::window_snap_distance = contents.get_int( "window_snap_distance", env_t::window_snap_distance );
-	env_t::window_buttons_right = contents.get_int( "window_buttons_right", env_t::window_buttons_right );
-	env_t::left_to_right_graphs = contents.get_int( "left_to_right_graphs", env_t::left_to_right_graphs );
-	env_t::window_frame_active = contents.get_int( "window_frame_active", env_t::window_frame_active );
-	env_t::second_open_closes_win = contents.get_int( "second_open_closes_win", env_t::second_open_closes_win );
-	env_t::remember_window_positions = contents.get_int( "remember_window_positions", env_t::remember_window_positions );
+	env_t::window_snap_distance      = contents.get_int( "window_snap_distance",      env_t::window_snap_distance      );
+	env_t::window_buttons_right      = contents.get_int( "window_buttons_right",      env_t::window_buttons_right      ) != 0;
+	env_t::left_to_right_graphs      = contents.get_int( "left_to_right_graphs",      env_t::left_to_right_graphs      ) != 0;
+	env_t::window_frame_active       = contents.get_int( "window_frame_active",       env_t::window_frame_active       ) != 0;
+	env_t::second_open_closes_win    = contents.get_int( "second_open_closes_win",    env_t::second_open_closes_win    ) != 0;
+	env_t::remember_window_positions = contents.get_int( "remember_window_positions", env_t::remember_window_positions ) != 0;
+	env_t::menupos                   = contents.get_int( "menubar_position",          env_t::menupos);
+	env_t::reselect_closes_tool      = contents.get_int( "reselect_closes_tool",      env_t::reselect_closes_tool ) != 0;
 
 	env_t::show_tooltips = contents.get_int( "show_tooltips", env_t::show_tooltips );
 	env_t::tooltip_delay = contents.get_int( "tooltip_delay", env_t::tooltip_delay );
@@ -2002,8 +2003,8 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::show_delete_buttons = contents.get_int( "show_delete_buttons", env_t::show_delete_buttons ) != 0;
 	env_t::chat_window_transparency = contents.get_int( "chat_transparency", env_t::chat_window_transparency );
 
-	env_t::hide_keyboard = contents.get_int( "hide_keyboard", env_t::hide_keyboard ) != 0;
-	env_t::numpad_always_moves_map = contents.get_int( "numpad_always_moves_map", env_t::numpad_always_moves_map );
+	env_t::hide_keyboard           = contents.get_int( "hide_keyboard", env_t::hide_keyboard ) != 0;
+	env_t::numpad_always_moves_map = contents.get_int( "numpad_always_moves_map", env_t::numpad_always_moves_map ) != 0;
 
 	env_t::player_finance_display_account = contents.get_int( "player_finance_display_account", env_t::player_finance_display_account ) != 0;
 
@@ -2313,7 +2314,6 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 			else {
 				startingmoneyperyear[ k ].interpol = false;
 			}
-			//			printf("smpy[%d] year=%d money=%lld\n",k,startingmoneyperyear[k].year,startingmoneyperyear[k].money);
 			j++;
 		}
 		else {
@@ -2363,8 +2363,8 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	bits_per_month = contents.get_int( "bits_per_month", bits_per_month );
 	calc_job_replenishment_ticks();
 	use_timeline = contents.get_int( "use_timeline", use_timeline );
-	starting_year = contents.get_int( "starting_year", starting_year );
-	starting_month = contents.get_int( "starting_month", starting_month + 1 ) - 1;
+	starting_year = clamp(contents.get_int( "starting_year", starting_year ), 0, 0x7FFF);
+	starting_month = clamp(contents.get_int( "starting_month", starting_month + 1 ) - 1, 0, 11);
 
 	env_t::height_conv_mode = (env_t::height_conversion_mode)::clamp<int>(contents.get_int("new_height_map_conversion", (int)env_t::height_conv_mode ), 0, env_t::NUM_HEIGHT_CONV_MODES-1);
 
@@ -3038,7 +3038,10 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// Default pak file path
 	objfilename = ltrim(contents.get_string("pak_file_path", "" ) );
 
-	printf("Reading simuconf.tab successful!\n" );
+	// FluidSynth MIDI parameters
+	if(  *contents.get("soundfont_filename")  ) {
+		env_t::soundfont_filename = ltrim(contents.get("soundfont_filename"));
+	}
 }
 
 // colour stuff can only be parsed when the graphic system has already started
@@ -3134,13 +3137,17 @@ void settings_t::reset_regions(sint32 old_x, sint32 old_y)
 	}
 }
 
-void settings_t::rotate_regions(sint16 y_size)
+void settings_t::rotate_regions()
 {
 	vector_tpl<region_definition_t> temp_regions;
 	FOR(vector_tpl<region_definition_t>, region, regions)
 	{
-		region.top_left.rotate90(y_size);
-		region.bottom_right.rotate90(y_size);
+		const sint16 temp_top_y= region.top_left.y;
+		region.top_left.y = region.bottom_right.y;
+		region.bottom_right.y= temp_top_y;
+
+		region.top_left.rotate90(world()->get_size().y-1);
+		region.bottom_right.rotate90(world()->get_size().y-1);
 		temp_regions.append(region);
 	}
 
@@ -3194,7 +3201,7 @@ sint64 settings_t::get_starting_money(sint16 const year) const
 
 /**
  * returns newest way-desc for road_timeline_t arrays
- * @param road_timeline_t must be an array with at least num_roads elements, no range checks!
+ * @param roads must be an array with at least @p num_roads elements, no range checks!
  */
 static const way_desc_t *get_timeline_road_type( uint16 year, uint16 num_roads, road_timeline_t* roads)
 {

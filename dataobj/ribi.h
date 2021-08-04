@@ -200,25 +200,52 @@ private:
 	static const ribi doppelr[16];
 	/// Lookup table to convert ribi to dir.
 	static const dir  dirs[16];
+
+#ifdef USE_GCC_POPCOUNT
+	static uint8 get_numways(ribi x) { return (__builtin_popcount(x));}
+#endif
+
 public:
 	/// Table containing the four compass directions
-	static const ribi nesw[4];
+	struct _nesw {
+		ribi operator [] (const int i) const {return 1<<i;}
+	};
+	static const _nesw nesw;
+
 	/// Convert building layout to ribi (four rotations), use doppelt in case of two rotations
 	static const ribi layout_to_ribi[4]; // building layout to ribi (for four rotations, for two use doppelt()!
 
-	static bool is_twoway(ribi x) { return (flags[x]&twoway)!=0; }
-	static bool is_threeway(ribi x) { return (flags[x]&threeway)!=0; }
+#ifdef USE_GCC_POPCOUNT
+	static bool is_twoway(ribi x) { return get_numways(x)==2; }
+	static bool is_threeway(ribi x) { return get_numways(x)>2; }
+#else
+	static bool is_twoway(ribi x) { return (0x1668>>x)&1; }
+	static bool is_threeway(ribi x) { return (0xE880>>x)&1; }
+#endif
+
 	static bool is_perpendicular(ribi x, ribi y);
-	static bool is_single(ribi x) { return (flags[x] & single) != 0; }
-	static bool is_bend(ribi x) { return (flags[x] & bend) != 0; }
-	static bool is_straight(ribi x) { return (flags[x] & (straight_ns | straight_ew)) != 0; }
-	static bool is_straight_ns(ribi x) { return (flags[x] & straight_ns) != 0; }
-	static bool is_straight_ew(ribi x) { return (flags[x] & straight_ew) != 0; }
+#ifdef USE_GCC_POPCOUNT
+	static bool is_single(ribi x) { return get_numways(x)==1; }
+#else
+	static bool is_single(ribi x) { return (0x0116>>x)&1; }
+#endif
+	static bool is_bend(ribi x) { return (0x1248>>x)&1; }
+	static bool is_straight(ribi x) { return (0x0536>>x)&1; }
+	static bool is_straight_ns(ribi x) { return (0x0032>>x)&1; }
+	static bool is_straight_ew(ribi x) { return (0x0504>>x)&1; }
 
 	/// Convert single/straight direction into their doubled form (n, ns -> ns), map all others to zero
+#ifdef HAS_64_BIT_SYSTEM
+	static ribi doubles(ribi x) {return (INT64_C(0x00000A0A00550A50)>>(x*4))&0xf; }
+#else
 	static ribi doubles(ribi x) { return doppelr[x]; }
-	/// Backward direction for single ribi's, bitwise-NOT for all others
+#endif
+	/// Backward direction for single (or straight) ribi's, bitwise-NOT for all others
+#ifdef HAS_64_BIT_SYSTEM
+	static ribi backward(ribi x) {return (INT64_C(0x01234A628951C84F)>>(x*4))&0xF; }
+#else
 	static ribi backward(ribi x) { return backwards[x]; }
+#endif
 
 	/**
 	 * Same as backward, but for single directions only.
@@ -237,7 +264,11 @@ public:
 	static ribi rotate45l(ribi x) { return (is_single(x) ? x|rotate90l(x) : x&rotate90l(x)); } // 45 to the left
 
 	/// Convert ribi to dir
+#ifdef HAS_64_BIT_SYSTEM
+	static dir get_dir(ribi x) {return (INT64_C(0x0002007103006540)>>(x*4))&0x7; }
+#else
 	static dir get_dir(ribi x) { return dirs[x]; }
+#endif
 };
 
 /**

@@ -674,7 +674,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 
 	if(player != NULL && player->get_player_nr() != 1 && !player->allows_access_to(1))
 	{
-		// Private cas should have the same restrictions as to the roads on which to travel
+		// Private cars should have the same restrictions as to the roads on which to travel
 		// as players' vehicles.
 		time_to_life = 0;
 		return false;
@@ -729,9 +729,8 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 				next_90direction = this->calc_direction(pos_next, pos_next_next);
 				dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
 				if(  !dt  ) {
-					// This possibly made traffic too cautious at junctions, causing delays. However, precisely what this did
-					// and why it did it remain unclear, so retaining for reference.
-					//dt = get_blocking_vehicle( test, NULL, next_direction, next_90direction, next_90direction, this, next_lane);
+					// This check prevented cars from entering junctions when the tile beyond the junction was occupied.
+					// dt = get_blocking_vehicle( test, NULL, next_direction, next_90direction, next_90direction, this, next_lane);
 				}
 			}
 			// this fails with two crossings together; however, I see no easy way out here ...
@@ -1059,7 +1058,7 @@ grund_t* private_car_t::hop_check()
 
 		if (found_route)
 		{
-			pos_next_next = weg->get_next_on_private_car_route_to(check_target);
+			pos_next_next = weg->get_next_on_private_car_route_to(check_target,true,simrand(4,"private_car_t::hop_check"));
 
 			// Check whether we are at the end of the route (i.e. the destination)
 			if ((current_city == destination_city) && pos_next_next == koord3d::invalid)

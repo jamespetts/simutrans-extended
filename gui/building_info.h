@@ -43,11 +43,13 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
-class building_info_t : public base_infowin_t
+class building_info_t : public base_infowin_t, private action_listener_t
 {
 	cbuffer_t building_tooltip;
 	const gebaeude_t *building;
 	player_t *owner;
+	static sint16 tabstate;
+
 	location_view_t building_view;
 	gui_aligned_container_t cont_near_by_halt, cont_signalbox_info, signal_table;
 	gui_building_stats_t cont_stats;
@@ -57,6 +59,9 @@ class building_info_t : public base_infowin_t
 
 	void update_near_by_halt();
 	void update_signalbox_info();
+
+	void set_tab_opened();
+
 public:
 	building_info_t(gebaeude_t* gb, player_t* owner);
 
@@ -65,6 +70,10 @@ public:
 	koord3d get_weltpos(bool) OVERRIDE { return building->get_pos(); }
 
 	bool is_weltpos() OVERRIDE;
+
+	bool has_min_sizer() const OVERRIDE { return true; }
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 

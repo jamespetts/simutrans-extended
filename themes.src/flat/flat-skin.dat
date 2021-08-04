@@ -295,6 +295,10 @@ Image[6]=> gadget.0.6
 Image[7]=> gadget.0.7,-2,-2
 # goto pos
 Image[8]=> gadget.0.8
+# unlocked
+Image[9]=> gadget.0.9
+# locked
+Image[10]=> gadget.0.10
 --
 # window background
 Obj=menu

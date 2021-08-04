@@ -84,29 +84,39 @@ distribute()
 
 buildOSX()
 {
-	echo "Building macOS package"
-
-	# builds a bundle for macOS
-	mkdir -p "simutrans.app/Contents/MacOS"
-	mkdir -p "simutrans.app/Contents/Resources"
-	cp $BUILDDIR/$simexe_name "simutrans.app/Contents/MacOS/simutrans"
-	strip "simutrans.app/Contents/MacOS/simutrans"
-	cp "../OSX/simutrans.icns" "simutrans.app/Contents/Resources/simutrans.icns"
-	localostype=$(uname)
+  echo "Build Mac OS package"
+	# builds a bundle for MAC OS
+	mkdir -p "simutrans-extended.app/Contents/MacOS"
+	mkdir -p "simutrans-extended.app/Contents/Resources"
+	cp $BUILDDIR$simexe_name   "simutrans-extended.app/Contents/MacOS/$simexe_name"
+	strip "simutrans-extended.app/Contents/MacOS/$simexe_name"
+	cp "../OSX/simutrans.icns" "simutrans-extended.app/Contents/Resources/simutrans-extended.icns"
+	localostype=`uname -o`
 	if [ "Msys" == "$localostype" ] || [ "Linux" == "$localostype" ]; then
 		# only 7z on linux and windows can do that ...
 		getSDL2mac
 		7z x "SDL2-2.0.10.dmg"
 		rm SDL2-2.0.10.dmg
 	else
-		# assume macOS
-		hdiutil attach ../SDL2-2.0.10.dmg >>/dev/stderr
-		cp -R -v /Volumes/SDL2 .
-		hdiutil eject /Volumes/SDL2 >>/dev/stderr
+		# assume MacOS
+		mkdir -p "simutrans-extended.app/Contents/Frameworks/"
+		# add those paths if you want to ship fluidsynth
+			#"/usr/local/opt/glib/lib/libgthread-2.0.0.dylib" \
+			#"/usr/local/opt/fluid-synth/lib/libfluidsynth.2.dylib" \
+		cp "/usr/local/opt/freetype/lib/libfreetype.6.dylib" \
+			"/usr/local/opt/libpng/lib/libpng16.16.dylib" \
+			"/usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib" \
+			"simutrans-extended.app/Contents/Frameworks/"
+		install_name_tool -change "/usr/local/opt/freetype/lib/libfreetype.6.dylib" "@executable_path/../Frameworks/libfreetype.6.dylib" "simutrans-extended.app/Contents/MacOS/$simexe_name"
+		install_name_tool -change "/usr/local/opt/libpng/lib/libpng16.16.dylib" "@executable_path/../Frameworks/libpng16.16.dylib" "simutrans-extended.app/Contents/MacOS/$simexe_name"
+		sudo install_name_tool -change "/usr/local/opt/libpng/lib/libpng16.16.dylib" "@executable_path/../Frameworks/libpng16.16.dylib" "simutrans-extended.app/Contents/MacOS/$simexe_name"
+		install_name_tool -change "/usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib" "@executable_path/../Frameworks/libSDL2-2.0.0.dylib" "simutrans-extended.app/Contents/MacOS/$simexe_name"
+		#uncomment for fluidsynth
+		#install_name_tool -change "/usr/local/opt/glib/lib/libgthread-2.0.0.dylib" "@executable_path/../Frameworks/libgthread-2.0.0.dylib" "simutrans.app/Contents/MacOS/simutrans"
+		#install_name_tool -change "/usr/local/opt/fluid-synth/lib/libfluidsynth.2.dylib" "@executable_path/../Frameworks/libfluidsynth.2.dylib" "simutrans.app/Contents/MacOS/simutrans"
 	fi
-
-	echo "APPL????" > "simutrans.app/Contents/PkgInfo"
-	sh ../OSX/plistgen.sh "simutrans.app" "simutrans"
+	echo "APPL????" > "simutrans-extended.app/Contents/PkgInfo"
+	sh ../OSX/plistgen.sh "simutrans-extended.app" "$simexe_name"
 }
 
 
@@ -129,7 +139,7 @@ fi
 BUILDDIR="$(grep '^PROGDIR' config.default | sed 's/PROGDIR[ ]*=[ ]*//' | sed 's/[ ]*\#.*//')"
 
 if [ -n "$BUILDDIR" ]; then
-	BUILDDIR="$(pwd)/simutrans"
+	BUILDDIR="$(pwd)/"
 else
 	BUILDDIR="$(pwd)/build/default"
 fi
@@ -195,29 +205,22 @@ fi
 echo "Targeting archive $simarchiv"
 
 # now build the archive for distribution
+cd simutrans
 
 if [ "$OST" = "mac" ]; then
-	cd simutrans
-		buildOSX
-	cd ..
-
-	ls
-	pwd
-
-	zip -r -9 simumac.zip simutrans 1>/dev/null
-
-	cd simutrans
-		rm -rf SDL2
-		rm -rf simutrans.app
-	cd ..
-	exit 0
-
+    buildOSX
+    cd ..
+    ls
+    pwd
+    zip -r -9 - simutrans > simumac.zip
+    cd simutrans
+    rm -rf simutrans-extended.app
+    exit 0
 else
-	cd simutrans
-		echo "Building default zip archive..."
-		cp "$BUILDDIR/$simexe_name" ./$simexe_name
-		strip ./$simexe_name
-		cp ..$updatepath$updater $updater
+    echo "Building default zip archive..."
+    cp "$BUILDDIR/$simexe_name" ./$simexe_name
+    strip ./$simexe_name
+    cp ..$updatepath$updater $updater
 	cd ..
 
 	distribute

@@ -659,37 +659,45 @@ void fabrik_t::add_consumer(koord ziel)
 }
 
 
-void fabrik_t::remove_consumer(koord pos)
+void fabrik_t::remove_consumer(koord consumer_pos)
 {
-	consumers.remove(pos);
+	consumers.remove(consumer_pos);
 }
 
-bool fabrik_t::disconnect_consumer(koord pos) //Returns true if must be destroyed.
+bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be destroyed.
 {
-	if (pos != koord::invalid)
+	if (consumer_pos != koord::invalid)
 	{
-		remove_consumer(pos);
+		remove_consumer(consumer_pos);
 	}
 
 	vector_tpl<const goods_desc_t*> available_consumers(desc->get_product_count());
-	for (const auto consumer : consumers)
+	for (const koord other_consumer_pos : consumers)
 	{
-		const fabrik_t* consumer_factory = fabrik_t::get_fab(consumer);
-		for (uint32 i = 0; i < consumer_factory->get_desc()->get_supplier_count(); i++)
+		if(const fabrik_t* consumer_factory = fabrik_t::get_fab(other_consumer_pos))
 		{
-			const goods_desc_t* product = consumer_factory->get_desc()->get_supplier(i)->get_input_type();
-			available_consumers.append_unique(product);
+			if(const factory_desc_t* consumer_factory_desc = consumer_factory->get_desc())
+			{
+				for (uint32 i = 0; i < consumer_factory_desc->get_supplier_count(); i++)
+				{
+					if(const goods_desc_t* product = consumer_factory_desc->get_supplier(i)->get_input_type())
+					{
+						available_consumers.append_unique(product);
+					}
+				}
+			}
 		}
 	}
 
 	vector_tpl<const goods_desc_t*> unfulfilled_requirements;
 	// Check to ensure that all supply types are still connected
-	for (const auto output_type : output)
+	for (const ware_production_t &output_type : output)
 	{
 		bool fulfilled = false;
-		for (const auto available_consumer_type : available_consumers)
+		const goods_desc_t* output_goods_type = output_type.get_typ();
+		for (const goods_desc_t* available_consumer_type : available_consumers)
 		{
-			if (available_consumer_type == output_type.get_typ())
+			if (available_consumer_type == output_goods_type)
 			{
 				fulfilled = true;
 				break;
@@ -697,7 +705,7 @@ bool fabrik_t::disconnect_consumer(koord pos) //Returns true if must be destroye
 		}
 		if (!fulfilled)
 		{
-			unfulfilled_requirements.append(output_type.get_typ());
+			unfulfilled_requirements.append(output_goods_type);
 		}
 	}
 
@@ -710,53 +718,64 @@ bool fabrik_t::disconnect_consumer(koord pos) //Returns true if must be destroye
 
 		for(sint16 i = welt->get_fab_list().get_count() - 1; i >= 0; i --)
 		{
-			fabrik_t* fab = welt->get_fab_list()[i];
-			if(add_customer(fab))
-			{
-				// Check which consumer, if any, that we are still short of.
-				for (uint32 i = 0; i < fab->get_desc()->get_supplier_count(); i++)
+			if(fabrik_t* fab = welt->get_fab_list()[i]){
+				if(add_customer(fab))
 				{
-					const goods_desc_t* product = fab->get_desc()->get_supplier(i)->get_input_type();
-					unfulfilled_requirements.remove(product);
-				}
-				if (unfulfilled_requirements.empty())
-				{
-					// Keep connecting until we are not short of anything
-					return false;
+					// Check which consumer, if any, that we are still short of.
+					for (uint32 j = 0; j < fab->get_desc()->get_supplier_count(); j++)
+					{
+						if(const goods_desc_t* product = fab->get_desc()->get_supplier(j)->get_input_type()) {
+							unfulfilled_requirements.remove(product);
+						}
+					}
+					if (unfulfilled_requirements.empty())
+					{
+						// Keep connecting until we are not short of anything
+						return false;
+					}
 				}
 			}
 		}
-		return true;
+		// Destroy if missing all outputs
+		return unfulfilled_requirements.get_count() == desc->get_product_count();
 	}
 	return false;
 }
 
-bool fabrik_t::disconnect_supplier(koord pos) //Returns true if must be destroyed.
+bool fabrik_t::disconnect_supplier(koord supplier_pos) //Returns true if must be destroyed.
 {
-	if (pos != koord::invalid)
+	if (supplier_pos != koord::invalid)
 	{
-		remove_supplier(pos);
+		remove_supplier(supplier_pos);
 	}
 
 	vector_tpl<const goods_desc_t*> available_inputs(desc->get_supplier_count());
-	for (const auto supplier : suppliers)
+	for (const koord other_supplier_pos : suppliers)
 	{
-		const fabrik_t* supplier_factory = fabrik_t::get_fab(supplier);
-		for (uint32 i = 0; i < supplier_factory->get_desc()->get_product_count(); i++)
+		if(const fabrik_t* supplier_factory = fabrik_t::get_fab(other_supplier_pos))
 		{
-			const factory_product_desc_t* product = supplier_factory->get_desc()->get_product(i);
-			available_inputs.append_unique(product->get_output_type());
+			if(const factory_desc_t* supplier_factory_desc = supplier_factory->get_desc())
+			{
+				for (uint32 i = 0; i < supplier_factory_desc->get_product_count(); i++)
+				{
+					if(const factory_product_desc_t* product = supplier_factory_desc->get_product(i))
+					{
+						available_inputs.append_unique(product->get_output_type());
+					}
+				}
+			}
 		}
 	}
 
 	vector_tpl<const goods_desc_t*> unfulfilled_requirements;
 	// Check to ensure that all supply types are still connected
-	for (const auto input_type : input)
+	for (const ware_production_t& input_type : input)
 	{
 		bool fulfilled = false;
-		for (const auto available_supply_type : available_inputs)
+		const goods_desc_t* input_goods_type = input_type.get_typ();
+		for (const goods_desc_t* available_supply_type : available_inputs)
 		{
-			if (available_supply_type == input_type.get_typ())
+			if (available_supply_type == input_goods_type)
 			{
 				fulfilled = true;
 				break;
@@ -764,7 +783,7 @@ bool fabrik_t::disconnect_supplier(koord pos) //Returns true if must be destroye
 		}
 		if (!fulfilled)
 		{
-			unfulfilled_requirements.append(input_type.get_typ());
+			unfulfilled_requirements.append(input_goods_type);
 		}
 	}
 
@@ -780,11 +799,13 @@ bool fabrik_t::disconnect_supplier(koord pos) //Returns true if must be destroye
 			fabrik_t* fab = welt->get_fab_list()[i];
 			if(add_supplier(fab))
 			{
+				const factory_desc_t* fab_desc = fab->get_desc();
 				// Check which supplies, if any, that we are still short of.
-				for (uint32 i = 0; i < fab->get_desc()->get_product_count(); i++)
+				for (uint32 j = 0; j < fab_desc->get_product_count(); j++)
 				{
-					const factory_product_desc_t* product = fab->get_desc()->get_product(i);
-					unfulfilled_requirements.remove(product->get_output_type());
+					if(const factory_product_desc_t* product = fab_desc->get_product(j)) {
+						unfulfilled_requirements.remove(product->get_output_type());
+					}
 				}
 				if (unfulfilled_requirements.empty())
 				{
@@ -793,7 +814,8 @@ bool fabrik_t::disconnect_supplier(koord pos) //Returns true if must be destroye
 				}
 			}
 		}
-		return true;
+		// Destroy if missing all inputs for end-consumers, or if missing any inputs for other industries.
+		return sector == end_consumer ? unfulfilled_requirements.get_count() == desc->get_supplier_count() : true;
 	}
 	return false;
 }
@@ -1067,7 +1089,7 @@ fabrik_t::~fabrik_t()
 
 		char buf[192];
 		sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
-		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, COL_DARK_RED, skinverwaltung_t::neujahrsymbol->get_image_id(0));
+		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, color_idx_to_rgb(COL_DARK_RED), skinverwaltung_t::neujahrsymbol->get_image_id(0));
 		for(sint32 i = number_of_customers - 1; i >= 0; i --)
 		{
 			fabrik_t* tmp = get_fab(consumers[i]);
@@ -3534,9 +3556,9 @@ void fabrik_t::add_supplier(koord ziel)
 }
 
 
-void fabrik_t::remove_supplier(koord pos)
+void fabrik_t::remove_supplier(koord supplier_pos)
 {
-	suppliers.remove(pos);
+	suppliers.remove(supplier_pos);
 
 	if(  welt->get_settings().get_factory_maximum_intransit_percentage()  ) {
 		// set to zero

@@ -116,7 +116,8 @@ enum sort_modes_t { SORT_BY_NAME=0, SORT_BY_ID, SORT_BY_PROFIT, SORT_BY_TRANSPOR
 static uint8 current_sort_mode = 0;
 
 #define LINE_NAME_COLUMN_WIDTH ((D_BUTTON_WIDTH*3)+11+4)
-#define SCL_HEIGHT (15*LINESPACE)
+#define SCL_HEIGHT (min(L_DEFAULT_WINDOW_HEIGHT/2+D_TAB_HEADER_HEIGHT,(15*LINESPACE)))
+#define L_DEFAULT_WINDOW_HEIGHT max(305, 24*LINESPACE)
 
 /// selected convoy tab
 static uint8 selected_convoy_tab = 0;
@@ -346,18 +347,13 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	livery_selector.add_listener(this);
 	add_component(&livery_selector);
 
-	// sort button
-	sort_asc.init(button_t::arrowup_state, "", scr_coord(BUTTON1_X + D_BUTTON_WIDTH * 1.5 + D_H_SPACE, (D_BUTTON_HEIGHT-D_ARROW_UP_HEIGHT)/2), D_ARROW_UP_SIZE);
-	sort_asc.set_tooltip(translator::translate("cl_btn_sort_asc"));
-	sort_asc.add_listener(this);
-	sort_asc.pressed = sortreverse;
-	cont_convoys.add_component(&sort_asc);
-
-	sort_desc.init(button_t::arrowdown_state, "", sort_asc.get_pos() + scr_coord(D_ARROW_UP_WIDTH+2, 0), D_ARROW_DOWN_SIZE);
-	sort_desc.set_tooltip(translator::translate("cl_btn_sort_desc"));
-	sort_desc.add_listener(this);
-	sort_desc.pressed = !sortreverse;
-	cont_convoys.add_component(&sort_desc);
+	// sort asc/desc switching button
+	sort_order.set_typ(button_t::sortarrow_state); // NOTE: This dialog is not yet auto-aligned, so we need to pre-set the typ to calculate the size
+	sort_order.init(button_t::sortarrow_state, "", scr_coord(BUTTON1_X + D_BUTTON_WIDTH * 1.5 + D_H_SPACE, 2), sort_order.get_min_size());
+	sort_order.set_tooltip(translator::translate("cl_btn_sort_order"));
+	sort_order.add_listener(this);
+	sort_order.pressed = sortreverse;
+	cont_convoys.add_component(&sort_order);
 
 	bt_mode_convois.init(button_t::roundbox, gui_convoy_formation_t::cnvlist_mode_button_texts[selected_cnvlist_mode[player->get_player_nr()]], scr_coord(BUTTON3_X, 2), scr_size(D_BUTTON_WIDTH+15, D_BUTTON_HEIGHT));
 	bt_mode_convois.add_listener(this);
@@ -417,7 +413,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	update_lineinfo( line );
 
 	// resize button
-	set_min_windowsize(scr_size(LINE_NAME_COLUMN_WIDTH + D_BUTTON_WIDTH*3 + D_MARGIN_LEFT*2, 305));
+	set_min_windowsize(scr_size(LINE_NAME_COLUMN_WIDTH + D_BUTTON_WIDTH*3 + D_MARGIN_LEFT*2, L_DEFAULT_WINDOW_HEIGHT));
 	set_resizemode(diagonal_resize);
 	resize(scr_coord(0,0));
 	resize(scr_coord(D_BUTTON_WIDTH, LINESPACE*3+D_V_SPACE)); // suitable for 4 buttons horizontally and 5 convoys vertically
@@ -528,11 +524,10 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		default_sortmode = (uint8)tmp;
 		update_lineinfo(line);
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		set_reverse(!get_reverse());
 		update_lineinfo(line);
-		sort_asc.pressed = sortreverse;
-		sort_desc.pressed = !sortreverse;
+		sort_order.pressed = sortreverse;
 	}
 	else if (comp == &bt_mode_convois) {
 		selected_cnvlist_mode[player->get_player_nr()] = (selected_cnvlist_mode[player->get_player_nr()] + 1) % gui_convoy_formation_t::CONVOY_OVERVIEW_MODES;
@@ -570,7 +565,7 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		update_lineinfo( selected_line[player->get_player_nr()][selected_tab[player->get_player_nr()]] );
 		build_line_list(tab);
 		if (tab>0) {
-			bt_new_line.enable();
+			bt_new_line.enable( (welt->get_active_player() == player || player == welt->get_player(1))  &&  !welt->get_active_player()->is_locked() );
 		}
 		else {
 			bt_new_line.disable();
@@ -648,7 +643,8 @@ void schedule_list_gui_t::reset_line_name()
 
 void schedule_list_gui_t::rename_line()
 {
-	if (line.is_bound()) {
+	if (line.is_bound()
+		&& ((player == welt->get_active_player() && !welt->get_active_player()->is_locked()) || welt->get_active_player() == welt->get_public_player())) {
 		const char *t = inp_name.get_text();
 		// only change if old name and current name are the same
 		// otherwise some unintended undo if renaming would occur
@@ -677,11 +673,12 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 	if(  old_player != welt->get_active_player()  ) {
 		// deativate buttons, if not curretn player
 		old_player = welt->get_active_player();
-		const bool activate = old_player == player || old_player == welt->get_player( 1 );
+		const bool activate = (old_player == player || old_player == welt->get_player( 1 )) && !welt->get_active_player()->is_locked();
 		bt_delete_line.enable( activate );
 		bt_edit_line.enable( activate );
 		bt_new_line.enable( activate   &&  tabs.get_active_tab_index() > 0);
 		bt_withdraw_line.enable( activate );
+		livery_selector.enable( activate );
 	}
 
 	// if search string changed, update line selection
@@ -717,7 +714,7 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 #define GOODS_SYMBOL_CELL_WIDTH 14 // TODO: This will be used in common with halt detail in the future
 void schedule_list_gui_t::display(scr_coord pos)
 {
-	int icnv = line->count_convoys();
+	uint32 icnv = line->count_convoys();
 
 	cbuffer_t buf;
 	char ctmp[128];
@@ -737,11 +734,11 @@ void schedule_list_gui_t::display(scr_coord pos)
 
 	sint64 profit = line->get_finance_history(0,LINE_PROFIT);
 
-	for (int i = 0; i<icnv; i++) {
+	for (uint32 i = 0; i<icnv; i++) {
 		convoihandle_t const cnv = line->get_convoy(i);
 		// we do not want to count the capacity of depot convois
 		if (!cnv->in_depot()) {
-			for (unsigned j = 0; j<cnv->get_vehicle_count(); j++) {
+			for (uint8 j = 0; j<cnv->get_vehicle_count(); j++) {
 				capacity += cnv->get_vehicle(j)->get_cargo_max();
 				load += cnv->get_vehicle(j)->get_total_cargo();
 			}
@@ -796,7 +793,7 @@ void schedule_list_gui_t::display(scr_coord pos)
 			vehicle_t* v = cnv->get_vehicle(veh);
 			if (v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS || v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL)
 			{
-				bt_line_class_manager.enable();
+				bt_line_class_manager.enable( (welt->get_active_player() == player || player == welt->get_player(1)) && !welt->get_active_player()->is_locked() );
 			}
 		}
 	}
@@ -904,11 +901,13 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		rename_line();
 	}
 	if(new_line.is_bound()) {
+		const bool activate = (old_player == player || old_player == welt->get_player(1)) && !welt->get_active_player()->is_locked();
 		// ok, this line is visible
 		scrolly_convois.set_visible(true);
 		scrolly_haltestellen.set_visible(true);
 		inp_name.set_visible(true);
 		filled_bar.set_visible(true);
+		livery_selector.set_visible(true);
 
 		// fill container with info of line's convoys
 		// we do it here, since this list needs only to be
@@ -943,12 +942,12 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		add_component(&bt_withdraw_line);
 		bt_withdraw_line.disable();
 		if(icnv>0) {
-			bt_withdraw_line.enable();
+			bt_withdraw_line.enable( activate );
 		}
 		else {
-			bt_delete_line.enable();
+			bt_delete_line.enable( activate );
 		}
-		bt_edit_line.enable();
+		bt_edit_line.enable( activate );
 
 		bt_withdraw_line.pressed = new_line->get_withdraw();
 
@@ -1051,6 +1050,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		cont.remove_all();
 		scrolly_convois.set_visible(false);
 		scrolly_haltestellen.set_visible(false);
+		livery_selector.set_visible(false);
 		inp_name.set_visible(false);
 		filled_bar.set_visible(false);
 		scl.set_selection(-1);

@@ -9,6 +9,7 @@ find_package(PNG)
 find_package(Freetype)
 find_package(MiniUPNP)
 find_package(ZSTD)
+find_package(FluidSynth)
 
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 find_package(Threads)

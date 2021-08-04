@@ -45,6 +45,7 @@ const char *convoi_frame_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_range"
 };
 
+const slist_tpl<const goods_desc_t*>* convoi_frame_t::waren_filter = NULL;
 const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,2,0,0,4,5,6,7,8 };
 /**
  * Scrolled list of gui_convoiinfo_ts.
@@ -148,7 +149,7 @@ bool convoi_frame_t::passes_filter(convoihandle_t cnv)
 		}
 	}
 
-	if(  get_filter(convoi_filter_frame_t::spezial_filter)  ) {
+	if(  get_filter(convoi_filter_frame_t::special_filter)  ) {
 		if ((!get_filter(convoi_filter_frame_t::noroute_filter)  || cnv->get_state() != convoi_t::NO_ROUTE) &&
 				(!get_filter(convoi_filter_frame_t::stucked_filter)  || (cnv->get_state() != convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS && cnv->get_state() != convoi_t::CAN_START_TWO_MONTHS)) &&
 				(!get_filter(convoi_filter_frame_t::indepot_filter)  || !cnv->in_depot()) &&
@@ -263,11 +264,11 @@ void convoi_frame_t::sort_list( char *name, uint32 filter, const slist_tpl<const
 }
 
 
-convoi_frame_t::convoi_frame_t(player_t* player) :
-	gui_frame_t( translator::translate("cl_title"), player),
-	owner(player)
+convoi_frame_t::convoi_frame_t() :
+	gui_frame_t( translator::translate("cl_title"), welt->get_active_player())
 {
 	name_filter = NULL;
+	owner = welt->get_active_player();
 	filter_flags = 0;
 	filter_is_on = false;
 
@@ -291,20 +292,15 @@ convoi_frame_t::convoi_frame_t(player_t* player) :
 		sortedby.add_listener(this);
 		add_component(&sortedby);
 
-		// sort ascend/descend button
-		add_table(3,1);
+		// sort asc/desc switching button
+		add_table(2,1);
 		{
-			sort_asc.init(button_t::arrowup_state, "");
-			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-			sort_asc.add_listener(this);
-			sort_asc.pressed = sortreverse;
-			add_component(&sort_asc);
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.add_listener(this);
+			sort_order.pressed = sortreverse;
+			add_component(&sort_order);
 
-			sort_desc.init(button_t::arrowdown_state, "");
-			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-			sort_desc.add_listener(this);
-			sort_desc.pressed = !sortreverse;
-			add_component(&sort_desc);
 			new_component<gui_margin_t>(10);
 		}
 		end_table();
@@ -369,11 +365,10 @@ bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */
 		default_sortmode = (uint8)tmp;
 		sort_list();
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		set_reverse( !get_reverse() );
 		sort_list();
-		sort_asc.pressed = sortreverse;
-		sort_desc.pressed = !sortreverse;
+		sort_order.pressed = sortreverse;
 	}
 	else if (comp == &display_mode) {
 		cl_display_mode = (cl_display_mode + 1) % gui_convoy_formation_t::CONVOY_OVERVIEW_MODES;
@@ -383,7 +378,10 @@ bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */
 	}
 	else if(  comp == &filter_details  ) {
 		if(  !destroy_win( magic_convoi_list_filter+owner->get_player_nr() )  ) {
-			create_win( new convoi_filter_frame_t(owner, this), w_info, magic_convoi_list_filter+owner->get_player_nr() );
+			convoi_filter_frame_t *gui_cff = new convoi_filter_frame_t(owner, this);
+			gui_cff->init(filter_flags, waren_filter);
+			create_win( gui_cff, w_info, magic_convoi_list_filter+owner->get_player_nr() );
+
 		}
 	}
 	return true;
@@ -401,4 +399,58 @@ void convoi_frame_t::draw(scr_coord pos, scr_size size)
 	}
 
 	gui_frame_t::draw(pos, size);
+}
+
+
+void convoi_frame_t::rdwr(loadsave_t *file)
+{
+	sint32 cont_xoff = scrolly->get_scroll_x();
+	sint32 cont_yoff = scrolly->get_scroll_y();
+	scr_size size = get_windowsize();
+	uint8 player_nr = owner->get_player_nr();
+
+	file->rdwr_byte( player_nr );
+	size.rdwr( file );
+	file->rdwr_bool( sortreverse );
+	file->rdwr_bool( filter_is_on );
+	file->rdwr_long( filter_flags );
+	file->rdwr_byte( default_sortmode );
+	file->rdwr_byte( cl_display_mode );
+	if (file->is_saving()) {
+		uint8 good_nr = get_filter(convoi_filter_frame_t::ware_filter) ? waren_filter->get_count() : 0;
+		file->rdwr_byte(good_nr);
+		if (good_nr > 0) {
+			FOR( slist_tpl<const goods_desc_t *>, const i, *waren_filter ) {
+				char *name = const_cast<char *>(i->get_name());
+				file->rdwr_str(name,256);
+			}
+		}
+	}
+	else {
+		uint8 good_nr;
+		file->rdwr_byte(good_nr);
+		if (good_nr > 0) {
+			static slist_tpl<const goods_desc_t *>waren_filter_rd;
+			for (sint16 i = 0; i < good_nr; i++) {
+				char name[256];
+				file->rdwr_str(name, lengthof(name));
+				if (const goods_desc_t *gd = goods_manager_t::get_info(name)) {
+					waren_filter_rd.append(gd);
+				}
+			}
+			waren_filter = &waren_filter_rd;
+		}
+
+		sortby = (sort_mode_t)default_sortmode;
+		sort_order.pressed = sortreverse;
+		filter_on.pressed = filter_is_on;
+		sortedby.set_selection(default_sortmode);
+		display_mode.set_text(gui_convoy_formation_t::cnvlist_mode_button_texts[cl_display_mode]);
+		owner = welt->get_player(player_nr);
+		win_set_magic(this, magic_convoi_list + player_nr);
+
+		fill_list();
+		set_windowsize(size);
+
+	}
 }

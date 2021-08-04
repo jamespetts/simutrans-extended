@@ -10,8 +10,9 @@
 #include "../simtypes.h"
 #include "../display/scr_coord.h"
 
+#ifndef NETTOOL
 #include <zlib.h>
-#include <string>
+#endif
 
 #include <cstddef>
 
@@ -54,9 +55,9 @@ struct sys_event_t
 		unsigned long code;
 		void *ptr;
 	};
-	int mx;                  /* es sind negative Koodinaten mgl */
-	int my;
-	int mb;
+	sint32 mx;                  /* es sind negative Koodinaten mgl */
+	sint32 my;
+	uint16 mb;
 
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
@@ -119,8 +120,10 @@ char *dr_getcwd(char *buf, size_t size);
 // Functions the same as fopen except filename must be UTF-8 encoded.
 FILE *dr_fopen(const char *filename, const char *mode);
 
+#ifndef NETTOOL
 // Functions the same as gzopen except path must be UTF-8 encoded.
 gzFile dr_gzopen(const char *path, const char *mode);
+#endif
 
 // Functions the same as stat except path must be UTF-8 encoded.
 int dr_stat(const char *path, struct stat *buf);

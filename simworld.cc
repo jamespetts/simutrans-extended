@@ -171,12 +171,6 @@ vector_tpl<nearby_halt_t> karte_t::start_halts;
 vector_tpl<halthandle_t> karte_t::destination_list;
 #endif
 
-// advance 201 ms per sync_step in fast forward mode
-#define MAGIC_STEP (201)
-
-// frame per second for fast forward
-#define FF_PPS (10)
-
 
 static uint32 last_clients = -1;
 static uint8 last_active_player_nr = 0;
@@ -246,8 +240,6 @@ void *karte_t::world_xy_loop_thread(void *ptr)
 			return NULL;
 		}
 	}
-
-	return ptr;
 }
 #endif
 
@@ -298,7 +290,6 @@ void karte_t::world_xy_loop(xy_loop_func function, uint8 flags)
 		for(  int t = 0;  t < env_t::num_threads - 1;  t++  ) {
 			if(  pthread_create( &thread[t], &attr, world_xy_loop_thread, (void *)&world_thread_param[t] )  ) {
 				dbg->fatal( "karte_t::world_xy_loop()", "cannot multithread, error at thread #%i", t+1 );
-				return;
 			}
 		}
 		spawned_world_threads = true;
@@ -365,12 +356,12 @@ void checklist_t::rdwr(memory_rw_t *buffer)
 
 int checklist_t::print(char *buffer, const char *entity) const
 {
-	return sprintf(buffer, "%s=[ss=%u st=%u nfc=%u rand=%u halt=%u line=%u cnvy=%u\n\tssr=%u,%u,%u,%u,%u,%u,%u,%u\n\tstr=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n\texr=%u,%u,%u,%u,%u,%u,%u,%u\n\tsums=%u,%u,%u,%u,%u,%u,%u,%u]\n",
+	return sprintf(buffer, "%s=[ss=%u st=%u nfc=%u rand=%u halt=%u line=%u cnvy=%u\n\tssr=%u,%u,%u,%u,%u,%u,%u,%u\n\tstr=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n\texr=%u,%u,%u,%u,%u,%u,%u,%u\n\tsums=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",
 		entity, ss, st, nfc, random_seed, halt_entry, line_entry, convoy_entry,
 		rand[0], rand[1], rand[2], rand[3], rand[4], rand[5], rand[6], rand[7],
 		rand[8], rand[9], rand[10], rand[11], rand[12], rand[13], rand[14], rand[15], rand[16], rand[17], rand[18], rand[19], rand[20], rand[21], rand[22], rand[23],
 		rand[24], rand[25], rand[26], rand[27], rand[28], rand[29], rand[30], rand[31],
-		debug_sum[0], debug_sum[1], debug_sum[2], debug_sum[3], debug_sum[4], debug_sum[5], debug_sum[6], debug_sum[7]
+		debug_sum[0], debug_sum[1], debug_sum[2], debug_sum[3], debug_sum[4], debug_sum[5], debug_sum[6], debug_sum[7], debug_sum[8], debug_sum[9]
 	);
 }
 
@@ -416,12 +407,6 @@ void karte_t::perlin_hoehe_loop( sint16 x_min, sint16 x_max, sint16 y_min, sint1
 }
 
 
-/**
- * Height one point in the map with "perlin noise"
- *
- * @param frequency in 0..1.0 roughness, the higher the rougher
- * @param amplitude in 0..160.0 top height of mountains, may not exceed 160.0!!!
- */
 sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max)
 {
 	// replace the fixed values with your settings. Amplitude is the top highness of the mountains,
@@ -2612,7 +2597,7 @@ void karte_t::create_beaches(  int xoff, int yoff  )
 			if(  gr->is_water()  &&  gr->get_hoehe()==groundwater  &&  gr->kann_alle_obj_entfernen(NULL)==NULL) {
 				koord k( ix, iy );
 				uint8 neighbour_water = 0;
-				bool water[8];
+				bool water[8] = {};
 				// check whether nearby tiles are water
 				for(  int i = 0;  i < 8;  i++  ) {
 					grund_t *gr2 = lookup_kartenboden( k + koord::neighbours[i] );
@@ -2756,14 +2741,14 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 
 	intr_disable();
 
-	bool minimap_was_visible = minimap_t::is_visible;
+	bool minimap_was_visible = minimap_t::get_instance()->is_visible;
 
 	uint32 max_display_progress;
 
 	// If this is not called by karte_t::init
 	if(  old_x != 0  ) {
 		mute_sound(true);
-		minimap_t::is_visible = false;
+		minimap_t::get_instance()->is_visible = false;
 
 		if(is_display_init()) {
 			display_show_pointer(false);
@@ -3074,8 +3059,8 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 		}
 		mute_sound(false);
 
-		minimap_t::is_visible = minimap_was_visible;
 		minimap_t::get_instance()->init();
+		minimap_t::get_instance()->is_visible = minimap_was_visible;
 		minimap_t::get_instance()->calc_map();
 		minimap_t::get_instance()->set_display_mode( minimap_t::get_instance()->get_display_mode() );
 
@@ -4643,7 +4628,7 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	factory_builder_t::new_world();
 
 	// update minimap
-	if(minimap_t::is_visible) {
+	if(minimap_t::get_instance()->is_visible) {
 		minimap_t::get_instance()->set_display_mode( minimap_t::get_instance()->get_display_mode() );
 	}
 
@@ -4916,6 +4901,8 @@ void karte_t::sync_step(uint32 delta_t, bool do_sync_step, bool display )
 	debug_sums[5] = 0; // Passengers/mail generated this step
 	debug_sums[6] = 0; // Transferring cargoes before passenger generation
 	debug_sums[7] = 0; // Transferring cargoes after passenger generation
+	debug_sums[8] = 0; // Sync objects before sync list step
+	debug_sums[9] = 0; // Sync objects after sync list step
 
 	set_random_mode( SYNC_STEP_RANDOM );
 	haltestelle_t::pedestrian_limit = 0;
@@ -4924,7 +4911,7 @@ void karte_t::sync_step(uint32 delta_t, bool do_sync_step, bool display )
 
 		// just for progress
 		if(  delta_t > 10000  ) {
-			dbg->error( "karte_t::sync_step()", "delta_t too large: %li", delta_t );
+			dbg->error( "karte_t::sync_step()", "delta_t (%u) too large, limiting to 10000", delta_t );
 			delta_t = 10000;
 		}
 		ticks += delta_t;
@@ -4948,7 +4935,9 @@ void karte_t::sync_step(uint32 delta_t, bool do_sync_step, bool display )
 
 		clear_random_mode( INTERACTIVE_RANDOM );
 
+		debug_sums[8] = sync.list.get_count();
 		sync.sync_step( delta_t );
+		debug_sums[9] = sync.list.get_count();
 
 		rands[4] = get_random_seed();
 
@@ -5420,7 +5409,7 @@ void karte_t::new_year()
 
 	cbuffer_t buf;
 	buf.printf( translator::translate("Year %i has started."), last_year );
-	msg->add_message(buf,koord::invalid,message_t::general,color_idx_to_rgb(COL_BLACK),skinverwaltung_t::neujahrsymbol->get_image_id(0));
+	msg->add_message(buf,koord::invalid,message_t::general,SYSCOL_TEXT,skinverwaltung_t::neujahrsymbol->get_image_id(0));
 
 	FOR(vector_tpl<convoihandle_t>, const cnv, convoi_array) {
 		cnv->new_year();
@@ -5532,7 +5521,7 @@ void karte_t::recalc_average_speed(bool skip_messages)
 					{
 						cbuffer_t buf;
 						buf.printf(translator::translate("The following %s has become obsolete:\n%s\n"), vehicle_type, translator::translate(info->get_name()));
-						msg->add_message(buf, koord::invalid, message_t::new_vehicle, color_idx_to_rgb(COL_DARK_BLUE), info->get_base_image());
+						msg->add_message(buf, koord::invalid, message_t::new_vehicle, COL_OBSOLETE, info->get_base_image());
 					}
 				}
 			}
@@ -5659,7 +5648,7 @@ void karte_t::step()
 
 		// needs plausibility check?!?
 		if(delta_t>10000  || delta_t<0) {
-			dbg->error( "karte_t::step()", "delta_t (%li) out of bounds!", delta_t );
+			dbg->error( "karte_t::step()", "delta_t (%u) out of bounds!", delta_t );
 			last_step_ticks = ticks;
 			next_step_time = time+10;
 			return;
@@ -6145,12 +6134,16 @@ void karte_t::refresh_private_car_routes() {
 }
 
 void karte_t::clear_private_car_routes() {
+	weg_t::private_car_route_map::route_map_lock();
 	for(auto & w : weg_t::get_alle_wege()) {
 		for(auto & l : w->private_car_routes[weg_t::get_private_car_routes_currently_writing_element()]) {
-			l.clear();
-			l.resize(0);
+			l.pre_reset();
 		}
 	}
+	weg_t::private_car_route_map::reset(weg_t::get_private_car_routes_currently_writing_element());
+
+	weg_t::private_car_route_map::route_map_unlock();
+
 }
 
 void karte_t::step_time_interval_signals()
@@ -8933,7 +8926,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 
 		for (auto city : cities_awaiting_private_car_route_check)
 		{
-			koord location = city->get_center();
+			koord location = city->get_pos();
 			location.rdwr(file);
 		}
 
@@ -9420,7 +9413,7 @@ void karte_t::load(loadsave_t *file)
 			dr_chdir( env_t::data_dir );
 			if(simuconf.open("config/simuconf.tab")) {
 				printf("parse_simuconf() in program dir (%s) for override of save file: ", "config/simuconf.tab");
-				settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
+				settings.parse_simuconf( simuconf );
 				simuconf.close();
 			}
 			dr_chdir( env_t::user_dir );
@@ -9430,7 +9423,7 @@ void karte_t::load(loadsave_t *file)
 			std::string pak_simuconf = env_t::objfilename + "config/simuconf.tab";
 			if(simuconf.open(pak_simuconf.c_str())) {
 				printf("parse_simuconf() in pak dir (%s) for override of save file: ", pak_simuconf.c_str() );
-				settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
+				settings.parse_simuconf( simuconf );
 				simuconf.close();
 			}
 			dr_chdir( env_t::user_dir );
@@ -9440,7 +9433,7 @@ void karte_t::load(loadsave_t *file)
 			std::string userdir_simuconf = "simuconf.tab";
 			if(simuconf.open("simuconf.tab")) {
 				printf("parse_simuconf() in user dir (%s) for override of save file: ", userdir_simuconf.c_str() );
-				settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
+				settings.parse_simuconf( simuconf );
 				simuconf.close();
 			}
 		}
@@ -11061,7 +11054,12 @@ void karte_t::process_network_commands(sint32 *ms_difference)
 			const sint32 time_to_next = (sint32)next_step_time - (sint32)timems; // +'ve - still waiting for next,  -'ve - lagging
 			const sint64 frame_timediff = ((sint64)server_sync_step - sync_steps - settings.get_server_frames_ahead() - env_t::additional_client_frames_behind) * fix_ratio_frame_time; // +'ve - server is ahead,  -'ve - client is ahead
 			const sint64 timediff = time_to_next + frame_timediff;
-			dbg->warning("NWC_CHECK", "time difference to server %lli", frame_timediff );
+
+			if(frame_timediff <= -1000 || frame_timediff >= 1000) {
+				dbg->warning("NWC_CHECK", "time difference to server %lli", frame_timediff );
+			} else {
+				dbg->message("NWC_CHECK", "time difference to server %lli", frame_timediff );
+			}
 
 			if(  frame_timediff < (0 - (sint64)settings.get_server_frames_ahead() - (sint64)env_t::additional_client_frames_behind) * (sint64)fix_ratio_frame_time / 2  ) {
 				// running way ahead - more than half margin, simply set next_step_time ahead to where it should be
@@ -11157,13 +11155,13 @@ void karte_t::do_network_world_command(network_world_command_t *nwc)
 	// want to execute something in the past?
 	if (nwc->get_sync_step() < sync_steps) {
 		if (!nwc->ignore_old_events()) {
-			dbg->warning("karte_t:::do_network_world_command", "wanted to do_command(%d) in the past", nwc->get_id());
+			dbg->warning("karte_t:::do_network_world_command", "wanted to do_command(%s) in the past", nwc->get_name());
 			network_disconnect();
 		}
 	}
 	// check map counter
 	else if (nwc->get_map_counter() != map_counter) {
-		dbg->warning("karte_t:::do_network_world_command", "wanted to do_command(%d) from another world", nwc->get_id());
+		dbg->warning("karte_t:::do_network_world_command", "wanted to do_command(%s) from another world", nwc->get_name());
 	}
 	// check random counter?
 	else if(  nwc->get_id()==NWC_CHECK  ) {
@@ -11417,11 +11415,6 @@ bool karte_t::interactive(uint32 quit_month)
 							network_send_all(nwcstep, true);
 						}
 					}
-#if DEBUG>4
-					if(  env_t::networkmode  &&  (sync_steps & 7)==0  &&  env_t::verbose_debug>4  ) {
-						dbg->message("karte_t::interactive", "time=%lu sync=%d"/*  rand=%d"*/, dr_time(), sync_steps/*, LRAND(sync_steps)*/);
-					}
-#endif
 
 					// no clients -> pause game
 					if (  env_t::networkmode  &&  env_t::pause_server_no_clients  &&  socket_list_t::get_playing_clients() == 0  &&  !nwc_join_t::is_pending()  ) {
@@ -11511,7 +11504,7 @@ void karte_t::announce_server(int status)
 #	define REVISION 0
 #endif
 		// Simple revision used for matching (integer)
-		//buf.printf( "&rev=%d", atol( QUOTEME(REVISION) ) );
+		//buf.printf( "&rev=%d", (int)atol( QUOTEME(REVISION) ));
 		buf.printf("&rev=%d", strtol(QUOTEME(REVISION), NULL, 16));
 		// Complex version string used for display
 		//buf.printf( "&ver=Simutrans %s (#%s) built %s", QUOTEME(VERSION_NUMBER), QUOTEME(REVISION), QUOTEME(VERSION_DATE) );

@@ -345,7 +345,7 @@ void player_t::step()
 {
 	/*
 	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen mEsen die Fahrpläne rgelmaessig pruefen
+	// die haltestellen mï¿½Esen die Fahrplï¿½ne rgelmaessig pruefen
 	uint8 i = (uint8)(welt->get_steps()+player_nr);
 	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
 	//while(iter.next()) {
@@ -741,6 +741,7 @@ void player_t::complete_liquidation()
 								break;
 							case obj_t::gebaeude:
 								hausbauer_t::remove( this, (gebaeude_t *)obj, false );
+								gr = plan->get_boden_bei(b); // fundament has now been replaced by normal ground
 								break;
 							case obj_t::way:
 							{
@@ -1249,19 +1250,24 @@ void player_t::set_selected_signalbox(signalbox_t* sb)
 sint64 player_t::calc_takeover_cost() const
 {
 	sint64 cost = 0;
-	const bool do_not_adopt_liabilities = check_solvency() == player_t::in_liquidation;
-	if (!do_not_adopt_liabilities)
-	{
-		if (finance->get_account_balance() < 0)
-		{
-			cost -= finance->get_account_balance();
-		}
 
-		// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
+	const bool adopt_liabilities = check_solvency() != player_t::in_liquidation;
+	if(adopt_liabilities){
+		// Refund the free starting capital on company takeover.
+		// This represents a situation in which the starting capital is a non-interest-bearing available to each company only exactly once.
+		// Do not add this cost when the company is in liquidation as discussed in the forums, although this re-enables a free-money-generator exploit.
+		// TODO: Reconsider this whenever a more sophisticated loan system is implemented.
+		cost += welt->get_settings().get_starting_money(welt->get_last_year());
 	}
 
+	if (adopt_liabilities || finance->get_account_balance() > 0) {
+		cost -= finance->get_account_balance();
+	}
+	// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
+
+
 	// TODO: Consider a more sophisticated system here; but where can we get the data for this?
-	cost -= finance->get_netwealth();
+	cost += finance->get_financial_assets();
 	return cost;
 }
 
@@ -1283,8 +1289,8 @@ const char* player_t::can_take_over(player_t* target_player)
 void player_t::take_over(player_t* target_player)
 {
 	// Pay for the takeover
-	finance->book_account(target_player->calc_takeover_cost());
-
+	finance->book_account(-target_player->calc_takeover_cost());
+/*
 	if (check_solvency() != player_t::in_liquidation)
 	{
 		// Take the player's account balance, whether negative or not.
@@ -1292,7 +1298,7 @@ void player_t::take_over(player_t* target_player)
 
 		// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
 	}
-
+*/
 	// Transfer maintenance costs
 	for (uint32 i = 0; i < transport_type::TT_MAX; i++)
 	{

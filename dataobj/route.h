@@ -101,7 +101,7 @@ public:
 
 	uint32 get_max_axle_load() const { return max_axle_load; }
 
-	void rotate90( sint16 y_size ) { route.rotate90( y_size ); };
+	void rotate90( sint16 y_size ) { route.rotate90( y_size ); }
 
 	bool is_contained(const koord3d &k) const { return route.is_contained(k); }
 

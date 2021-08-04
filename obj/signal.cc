@@ -477,8 +477,8 @@ void signal_t::info(cbuffer_t & buf) const
 		--------------------
 		* Ribi enum direction values
 		* 1 = North
-		* 4 = South
 		* 2 = East
+		* 4 = South
 		* 8 = West
 		*/
 		initial_direction =
@@ -555,7 +555,7 @@ void signal_t::info(cbuffer_t & buf) const
 							weg_t* weg = to->get_weg(waytype);
 							gr = welt->lookup(weg->get_pos());
 							initial_direction = 0; // reset initial direction and start record what direction we came from by reversing the direction in which we are traveling
-							uint8 new_from_direction = r == 0 ? 1 : r == 1 ? 0 : r == 2 ? 3 : r == 3 ? 2 : 0;
+							uint8 new_from_direction = r == 0 ? 2 : r == 1 ? 3 : r == 2 ? 0 : r == 3 ? 1 : 0;
 							coming_from_direction = ribi_t::nesw[new_from_direction];
 							dead_end = false;
 

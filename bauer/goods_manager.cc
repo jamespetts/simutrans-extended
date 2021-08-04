@@ -49,13 +49,13 @@ bool goods_manager_t::successfully_loaded()
 		dbg->fatal("goods_manager_t::successfully_loaded()","Too many different goods %i>255",goods.get_count()-1 );
 	}
 
-	// assign indexes, and fix number_of_classes
+	// assign indices, and fix number_of_classes
 	for(  uint8 i=3;  i<goods.get_count();  i++  ) {
 		goods[i]->goods_index = i;
 		goods[i]->fix_number_of_classes();
 	}
 
-	// now assign unique category indexes for unique categories
+	// now assign unique category indices for unique categories
 	max_catg_index = 0;
 	// first assign special freight (which always needs an own category)
 	FOR(vector_tpl<goods_desc_t*>, const i, goods) {
