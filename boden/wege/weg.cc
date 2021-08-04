@@ -554,33 +554,12 @@ void weg_t::rdwr(loadsave_t *file)
 					} else {
 						// Container membership representation
 						for(uint8 j=0; j<5; j++) {
-							uint32 private_car_routes_count = 0;
-							file->rdwr_long(private_car_routes_count);
-							for (uint32 j = 0; j < private_car_routes_count; j++) {
-								koord destination;
-								destination.rdwr(file);
-								if (file->get_extended_revision() < 33) {
-									// Koord3d representation
-									koord3d next_tile;
-									next_tile.rdwr(file);
-									private_car_routes[i][get_map_idx(next_tile)].insert_unique(destination);
-								} else {
-									// Integer-neighbour representation
-									uint8 next_tile_neighbour;
-									file->rdwr_byte(next_tile_neighbour);
-									private_car_routes[i][get_map_idx(private_car_t::neighbour_from_int(get_pos(), next_tile_neighbour))].insert_unique(destination);
-								}
-							}
-						} else {
-							// Container membership representation
-							for(uint8 j=0; j<5; j++) {
-								private_car_routes[i][j].rdwr(file);
-							}
+							private_car_routes[i][j].rdwr(file);
+						}
 
-							if(file->is_version_ex_less(14,39)) {
-								// Correct for nsew->nesw change
-								std::swap(private_car_routes[i][1],private_car_routes[i][2]);
-							}
+						if(file->is_version_ex_less(14,39)) {
+							// Correct for nsew->nesw change
+							std::swap(private_car_routes[i][1],private_car_routes[i][2]);
 						}
 					}
 				}

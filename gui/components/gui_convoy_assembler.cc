@@ -3165,7 +3165,7 @@ void gui_convoy_assembler_t::draw_vehicle_bar_help(scr_coord offset)
 	display_proportional_clip_rgb(left, top, translator::translate("Vehicle bar shape legend:"), ALIGN_LEFT, SYSCOL_TEXT, true);
 	top += LINESPACE;
 	left += D_MARGIN_LEFT;
-	const KOORD_VAL padding_y = D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT,LINESPACE);
+	const scr_coord_val padding_y = D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT,LINESPACE);
 	display_veh_form_wh_clip_rgb(left,                      top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, false, vehicle_desc_t::can_be_head, 0);
 	display_veh_form_wh_clip_rgb(left+VEHICLE_BAR_HEIGHT*2, top+padding_y, VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, COL_SAFETY, true, true,  vehicle_desc_t::can_be_tail, 0);
 	padding = display_proportional_clip_rgb(left + VEHICLE_BAR_HEIGHT*4 + 3, top, translator::translate("helptxt_one_direction"), ALIGN_LEFT, CITY_KI, true);
