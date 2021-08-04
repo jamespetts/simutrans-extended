@@ -9,7 +9,7 @@
 
 #include "schiene_info.h"
 #include "../boden/wege/schiene.h" // The rest of the dialog
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 #include "../simmenu.h"
 #include "../simworld.h"

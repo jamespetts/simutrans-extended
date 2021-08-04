@@ -16,7 +16,7 @@
 #include "../../dataobj/translator.h"
 #include "../../dataobj/ribi.h"
 #include "../../utils/cbuffer_t.h"
-#include "../../vehicle/simvehicle.h" /* for calc_direction */
+#include "../../vehicle/vehicle.h" /* for calc_direction */
 #include "../../obj/wayobj.h"
 #include "../../player/simplay.h"
 

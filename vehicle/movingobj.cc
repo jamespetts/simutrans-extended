@@ -212,6 +212,7 @@ void movingobj_t::rdwr(loadsave_t *file)
 	file->rdwr_byte(steps_next);
 
 	pos_next.rdwr(file);
+
 	koord p = pos_next_next.get_2d();
 	p.rdwr(file);
 	if(file->is_loading()) {
@@ -362,7 +363,7 @@ grund_t* movingobj_t::hop_check()
 		}
 	}
 
-	if(timetochange==0) {
+	if (timetochange==0) {
 		// direction change needed
 		timetochange = simrand(speed_to_kmh(get_desc()->get_speed())/3, "bool movingobj_t::hop_check()");
 		const koord pos=pos_next.get_2d();
@@ -415,6 +416,7 @@ void movingobj_t::hop(grund_t* gr)
 
 	set_pos(pos_next);
 	enter_tile(gr);
+
 	// next position
 	pos_next = pos_next_next;
 }

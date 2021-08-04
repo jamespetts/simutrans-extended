@@ -13,7 +13,7 @@
 
 #include "../simunits.h"
 #include "../simconvoi.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simcolor.h"
 #include "../display/simgraph.h"
 #include "../simworld.h"

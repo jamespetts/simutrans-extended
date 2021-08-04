@@ -40,9 +40,10 @@
 #include "descriptor/roadsign_desc.h"
 #include "descriptor/tunnel_desc.h"
 
-#include "vehicle/simvehicle.h"
+#include "vehicle/air_vehicle.h"
+#include "vehicle/rail_vehicle.h"
 #include "vehicle/simroadtraffic.h"
-#include "vehicle/simpeople.h"
+#include "vehicle/pedestrian.h"
 
 #include "gui/line_management_gui.h"
 #include "gui/tool_selector.h"

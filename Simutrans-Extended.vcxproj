@@ -2250,6 +2250,7 @@
     <ClCompile Include="squirrel\squirrel\sqvm.cc" />
     <ClCompile Include="squirrel\sq_extensions.cc" />
     <ClCompile Include="utils\cbuffer_t.cc" />
+    <ClCompile Include="utils\checklist.cc" />
     <ClCompile Include="gui\citybuilding_edit.cc" />
     <ClCompile Include="descriptor\reader\citycar_reader.cc" />
     <ClCompile Include="gui\citylist_frame_t.cc" />
@@ -2364,6 +2365,7 @@
     <ClCompile Include="boden\wege\monorail.cc" />
     <ClCompile Include="boden\monorailboden.cc" />
     <ClCompile Include="utils\simrandom.cc" />
+    <ClCompile Include="vehicle\air_vehicle.cc" />
     <ClCompile Include="vehicle\movingobj.cc" />
     <ClCompile Include="boden\wege\narrowgauge.cc" />
     <ClCompile Include="descriptor\reader\obj_reader.cc" />
@@ -2475,7 +2477,7 @@
     <ClCompile Include="simmem.cc" />
     <ClCompile Include="simmenu.cc" />
     <ClCompile Include="simmesg.cc" />
-    <ClCompile Include="vehicle\simpeople.cc" />
+    <ClCompile Include="vehicle\pedestrian.cc" />
     <ClCompile Include="simplan.cc" />
     <ClCompile Include="player\simplay.cc" />
     <ClCompile Include="simskin.cc" />
@@ -2501,8 +2503,11 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="simticker.cc" />
-    <ClCompile Include="vehicle\simvehicle.cc" />
     <ClCompile Include="vehicle\simroadtraffic.cc" />
+    <ClCompile Include="vehicle\vehicle.cc" />
+    <ClCompile Include="vehicle\rail_vehicle.cc" />
+    <ClCompile Include="vehicle\road_vehicle.cc" />
+    <ClCompile Include="vehicle\water_vehicle.cc" />
     <ClCompile Include="simware.cc" />
     <ClCompile Include="simtool.cc" />
     <ClCompile Include="simworld.cc" />
@@ -2703,6 +2708,7 @@
     <ClInclude Include="descriptor\reader\building_reader.h" />
     <ClInclude Include="descriptor\writer\building_writer.h" />
     <ClInclude Include="utils\cbuffer_t.h" />
+    <ClInclude Include="utils\checklist.h" />
     <ClInclude Include="gui\citybuilding_edit.h" />
     <ClInclude Include="descriptor\reader\citycar_reader.h" />
     <ClInclude Include="descriptor\writer\citycar_writer.h" />
@@ -2844,6 +2850,7 @@
     <ClInclude Include="boden\monorailboden.h" />
     <ClInclude Include="utils\simrandom.h" />
     <ClInclude Include="utils\simthread.h" />
+    <ClInclude Include="vehicle\air_vehicle.h" />
     <ClInclude Include="vehicle\movingobj.h" />
     <ClInclude Include="music\music.h" />
     <ClInclude Include="boden\wege\narrowgauge.h" />
@@ -2912,7 +2919,7 @@
     <ClInclude Include="simmem.h" />
     <ClInclude Include="simmenu.h" />
     <ClInclude Include="simmesg.h" />
-    <ClInclude Include="vehicle\simpeople.h" />
+    <ClInclude Include="vehicle\pedestrian.h" />
     <ClInclude Include="simplan.h" />
     <ClInclude Include="player\simplay.h" />
     <ClInclude Include="simskin.h" />
@@ -2921,8 +2928,11 @@
     <ClInclude Include="sys\simsys.h" />
     <ClInclude Include="simticker.h" />
     <ClInclude Include="simtypes.h" />
-    <ClInclude Include="vehicle\simvehicle.h" />
     <ClInclude Include="vehicle\simroadtraffic.h" />
+    <ClInclude Include="vehicle\vehicle.h" />
+    <ClInclude Include="vehicle\rail_vehicle.h" />
+    <ClInclude Include="vehicle\road_vehicle.h" />
+    <ClInclude Include="vehicle\water_vehicle.h" />
     <ClInclude Include="simversion.h" />
     <ClInclude Include="simware.h" />
     <ClInclude Include="simtool.h" />

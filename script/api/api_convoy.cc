@@ -14,7 +14,7 @@
 #include "../../simhalt.h"
 #include "../../simline.h"
 #include "../../simworld.h"
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 
 using namespace script_api;
 

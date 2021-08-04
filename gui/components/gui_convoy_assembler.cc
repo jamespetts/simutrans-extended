@@ -30,7 +30,7 @@
 #include "../../dataobj/environment.h"
 #include "../../dataobj/livery_scheme.h"
 #include "../../utils/simstring.h"
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 #include "../../descriptor/building_desc.h"
 #include "../../descriptor/vehicle_desc.h"
 #include "../../player/simplay.h"

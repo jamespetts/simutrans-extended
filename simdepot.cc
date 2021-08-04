@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "simconvoi.h"
-#include "vehicle/simvehicle.h"
+#include "vehicle/vehicle.h"
 #include "gui/simwin.h"
 #include "player/simplay.h"
 #include "player/finance.h"
@@ -35,6 +35,11 @@
 #include "descriptor/building_desc.h"
 
 #include "utils/cbuffer_t.h"
+
+#include "vehicle/air_vehicle.h"
+#include "vehicle/rail_vehicle.h"
+#include "vehicle/road_vehicle.h"
+#include "vehicle/water_vehicle.h"
 
 
 slist_tpl<depot_t *> depot_t::all_depots;

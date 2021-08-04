@@ -20,7 +20,7 @@
 #include "../dataobj/translator.h"
 #include "../player/simplay.h"
 #include "../utils/simstring.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simline.h"
 
  /**

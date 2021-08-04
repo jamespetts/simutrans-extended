@@ -3,13 +3,15 @@
  * (see LICENSE.txt)
  */
 
-#ifndef VEHICLE_SIMPEOPLE_H
-#define VEHICLE_SIMPEOPLE_H
+#ifndef VEHICLE_PEDESTRIAN_H
+#define VEHICLE_PEDESTRIAN_H
 
 
 #include "simroadtraffic.h"
 
+
 class pedestrian_desc_t;
+
 
 /**
  * Pedestrians also are road users.
