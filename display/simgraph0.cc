@@ -252,7 +252,6 @@ void display_colorbox_with_tooltip(scr_coord_val, scr_coord_val, scr_coord_val, 
 
 void display_veh_form_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool, bool, uint8, uint8 CLIP_NUM_DEF_NOUSE)
 {
-}{
 }
 
 void display_vline_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool)
