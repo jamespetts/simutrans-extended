@@ -17,7 +17,7 @@
 #include "../player/simplay.h"
 
 #include "simroadtraffic.h"
-#include "simpeople.h"
+#include "pedestrian.h"
 
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
@@ -29,12 +29,14 @@
 #include "../boden/grund.h"
 #include "../boden/wege/weg.h"
 #include "../boden/wege/strasse.h"
-#include "../boden/wege/strasse.h"
 #include "../descriptor/citycar_desc.h"
 #include "../descriptor/roadsign_desc.h"
 
 
 #include "../utils/cbuffer_t.h"
+
+#include "road_vehicle.h"
+
 
 /**********************************************************************************************************************/
 /* Road users (Verkehrsteilnehmer) basis class from here on */
@@ -109,8 +111,8 @@ road_user_t::road_user_t(grund_t* bd, uint16 random) :
 			break;
 	}
 
-	set_xoff((dx<0) ? OBJECT_OFFSET_STEPS : -OBJECT_OFFSET_STEPS);
-	set_yoff((dy<0) ? OBJECT_OFFSET_STEPS / 2 : -OBJECT_OFFSET_STEPS / 2);
+	set_xoff( (dx<0) ? OBJECT_OFFSET_STEPS : -OBJECT_OFFSET_STEPS );
+	set_yoff( (dy<0) ? OBJECT_OFFSET_STEPS/2 : -OBJECT_OFFSET_STEPS/2 );
 
 	if(to) {
 		pos_next = to->get_pos();
@@ -329,7 +331,6 @@ void road_user_t::finish_rd()
 }
 
 
-
 /**********************************************************************************************************************/
 /* private_car_t (city cars) from here on */
 
@@ -398,10 +399,13 @@ void private_car_t::build_timeline_list(karte_t *welt)
 	}
 }
 
+
+
 bool private_car_t::list_empty()
 {
 	return liste_timeline.empty();
 }
+
 
 
 private_car_t::~private_car_t()
@@ -516,8 +520,7 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 				current_speed = 48;
 			}
 			else {
-				if(ms_traffic_jam>welt->ticks_per_world_month  &&  old_ms_traffic_jam<=welt->ticks_per_world_month)
-				{
+				if(  ms_traffic_jam > welt->ticks_per_world_month  &&  old_ms_traffic_jam<=welt->ticks_per_world_month  ) {
 					// message after two month, reset waiting timer
 					welt->get_message()->add_message( translator::translate("To heavy traffic\nresults in traffic jam.\n"), get_pos().get_2d(), message_t::traffic_jams|message_t::expire_after_one_month_flag, color_idx_to_rgb(COL_ORANGE) );
 				}
@@ -525,8 +528,7 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		}
 		weg_next = 0;
 	}
-	else
-	{
+	else {
 		if(ms_traffic_jam == SINT32_MAX_VALUE)
 		{
 			ms_traffic_jam = 0;
@@ -969,6 +971,7 @@ void private_car_t::enter_tile(grund_t* gr)
 	get_weg()->book(1, WAY_STAT_CONVOIS);
 }
 
+
 grund_t* private_car_t::hop_check()
 {
 	// TODO: Consider multi-threading this. This only ultimately
@@ -996,7 +999,7 @@ grund_t* private_car_t::hop_check()
 	}
 
 	// traffic light phase check (since this is on next tile, it will always be necessary!)
-	const ribi_t::ribi direction90 = ribi_type(get_pos(),pos_next);
+	const ribi_t::ribi direction90 = ribi_type(get_pos(), pos_next);
 
 	if(  weg->has_sign()  ) {
 		const roadsign_t* rs = from->find<roadsign_t>();
@@ -1382,7 +1385,6 @@ void private_car_t::hop(grund_t* to)
 }
 
 
-
 void private_car_t::calc_image()
 {
 	set_image(desc->get_image_id(ribi_t::get_dir(get_direction())));
@@ -1426,7 +1428,6 @@ void private_car_t::info(cbuffer_t & buf) const
 }
 
 
-
 // to make smaller steps than the tile granularity, we have to use this trick
 void private_car_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_width, bool prev_based ) const
 {
@@ -1446,6 +1447,7 @@ void private_car_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster
 	}
 }
 
+
 void private_car_t::calc_disp_lane()
 {
 	// driving in the back or the front
@@ -1458,7 +1460,6 @@ void private_car_t::rotate90()
 	road_user_t::rotate90();
 	calc_disp_lane();
 }
-
 
 /**
  * conditions for a city car to overtake another overtaker.
@@ -1663,7 +1664,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		gr = to;
 		check_pos = to->get_pos();
 
-		direction = ~ribi_type( check_pos,pos_prev ) & str->get_ribi();
+		direction = ~ribi_type( check_pos, pos_prev ) & str->get_ribi();
 	}
 
 	// Second phase: only facing traffic is forbidden
@@ -1733,7 +1734,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		gr = to;
 		check_pos = to->get_pos();
 
-		direction = ~ribi_type( check_pos,pos_prev ) & str->get_ribi();
+		direction = ~ribi_type( check_pos, pos_prev ) & str->get_ribi();
 	} while( time_overtaking > 0 );
 
 	set_tiles_overtaking( 1+n_tiles );

@@ -21,7 +21,7 @@
 #include "brueckenboden.h"
 #include "wege/weg.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 brueckenboden_t::brueckenboden_t(koord3d pos, int grund_hang, int weg_hang) : grund_t(pos)
 {

@@ -16,7 +16,7 @@
 #include "../dataobj/replace_data.h"
 #include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 static bool _is_electrified(const karte_t* welt, const convoihandle_t& cnv)
 {

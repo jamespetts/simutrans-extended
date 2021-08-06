@@ -3,7 +3,7 @@
  * (see LICENSE.txt)
  */
 
-#include <stdio.h>
+#include "pedestrian.h"
 
 #include "../simdebug.h"
 #include "../simworld.h"
@@ -14,10 +14,12 @@
 #include "../dataobj/loadsave.h"
 #include "../dataobj/environment.h"
 #include "../dataobj/translator.h"
-#include "../utils/cbuffer_t.h"
 
-#include "simpeople.h"
+#include "../utils/cbuffer_t.h"
 #include "../descriptor/pedestrian_desc.h"
+
+#include <cstdio>
+
 
 static uint32 const strecke[] = { 6000, 11000, 15000, 20000, 25000, 30000, 35000, 40000 };
 
@@ -119,6 +121,7 @@ void pedestrian_t::calc_image()
 		set_image(desc->get_image_id(ribi_t::get_dir(get_direction())));
 	}
 }
+
 
 image_id pedestrian_t::get_image() const
 {
@@ -297,7 +300,7 @@ void pedestrian_t::hop(grund_t *gr)
 		current_direction = ribi_type(from, get_pos());
 	}
 	// ribi opposite to current direction
-	ribi_t::ribi reverse_direction = ribi_t::reverse_single(current_direction);
+	ribi_t::ribi reverse_direction = ribi_t::reverse_single( current_direction );
 	// all possible directions
 	ribi_t::ribi ribi = weg->get_ribi_unmasked() & (~reverse_direction);
 	// randomized offset
@@ -327,7 +330,7 @@ void pedestrian_t::hop(grund_t *gr)
 			if (turn_ribi == new_direction) {
 				// short diagonal (turn but do not cross street)
 				direction = calc_set_direction(from, pos_next);
-				steps_next = (ped_offset * 181) / 128; // * sqrt(2)
+				steps_next = (ped_offset*181) / 128; // * sqrt(2)
 				steps_offset = 0;
 			}
 			else {
@@ -342,7 +345,7 @@ void pedestrian_t::hop(grund_t *gr)
 		pos_next = from;
 		direction = calc_set_direction(get_pos(), pos_next);
 		steps_offset = VEHICLE_STEPS_PER_TILE - ped_offset;
-		steps_next = ped_offset;
+		steps_next   = ped_offset;
 		on_left = !on_left;
 	}
 

@@ -19,6 +19,7 @@
 #include "player/simplay.h"
 #include "simplan.h"
 #include "display/simimg.h"
+#include "vehicle/road_vehicle.h"
 #include "vehicle/simroadtraffic.h"
 #include "simhalt.h"
 #include "simfab.h"

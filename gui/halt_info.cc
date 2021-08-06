@@ -25,7 +25,7 @@
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 #include "../utils/simstring.h"
 

@@ -9,7 +9,6 @@
 #include "components/gui_chart.h"
 
 #include "../simconvoi.h"
-#include "../vehicle/simvehicle.h"
 #include "../simcolor.h"
 #include "../simunits.h"
 #include "../simworld.h"
@@ -30,7 +29,10 @@
 #include "vehicle_class_manager.h"
 
 #include "../display/simgraph.h"
+
 #include "../display/viewport.h"
+
+#include "../vehicle/rail_vehicle.h"
 
 
 #define LOADING_BAR_WIDTH 150

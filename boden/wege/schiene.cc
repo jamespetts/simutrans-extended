@@ -9,7 +9,6 @@
 #include "../../simconvoi.h"
 #include "../../simworld.h"
 #include "../../utils/simstring.h"
-#include "../../vehicle/simvehicle.h"
 
 #include "../../obj/signal.h"
 
@@ -24,6 +23,7 @@
 #include "../../gui/schiene_info.h"
 
 #include "schiene.h"
+#include "../../vehicle/rail_vehicle.h"
 
 
 const way_desc_t *schiene_t::default_schiene=NULL;

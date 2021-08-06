@@ -12,7 +12,7 @@
 
 #include "../bauer/vehikelbauer.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../descriptor/vehicle_desc.h"
 
 

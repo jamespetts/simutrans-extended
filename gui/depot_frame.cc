@@ -11,7 +11,7 @@
 
 #include "../simunits.h"
 #include "../simworld.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simconvoi.h"
 #include "../simdepot.h"
 #include "simwin.h"

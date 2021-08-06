@@ -75,7 +75,7 @@
 
 #include "bauer/vehikelbauer.h"
 
-#include "vehicle/simvehicle.h"
+#include "vehicle/vehicle.h"
 #include "vehicle/simroadtraffic.h"
 
 using std::string;

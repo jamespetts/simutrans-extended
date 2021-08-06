@@ -1,7 +1,7 @@
 #include "gui_convoy_payloadinfo.h"
 #include <algorithm>
 
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 #include "../../simconvoi.h"
 #include "../../simcolor.h"
 #include "../../utils/cbuffer_t.h"

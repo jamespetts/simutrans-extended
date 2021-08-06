@@ -18,7 +18,7 @@
 #include "../utils/simrandom.h"
 #include "../utils/simstring.h"
 #include "../utils/float32e8_t.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../player/simplay.h"
 #include "loadsave.h"
 #include "tabfile.h"

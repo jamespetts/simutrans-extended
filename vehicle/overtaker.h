@@ -11,7 +11,7 @@
 #include "../simunits.h"
 
 
-  /**
+/**
  * Class dealing with overtaking
  * It is the superclass of convois and city cars (private_car_t)
  */

@@ -56,11 +56,16 @@
 #include "obj/wayobj.h"
 #include "obj/signal.h"
 
-#include "vehicle/simvehicle.h"
+#include "vehicle/vehicle.h"
 #include "vehicle/overtaker.h"
 
 #include "utils/simstring.h"
 #include "utils/cbuffer_t.h"
+
+#include "vehicle/air_vehicle.h"
+#include "vehicle/rail_vehicle.h"
+#include "vehicle/road_vehicle.h"
+#include "vehicle/water_vehicle.h"
 
 #include "convoy.h"
 
