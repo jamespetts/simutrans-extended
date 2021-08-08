@@ -253,3 +253,30 @@ const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 	}
 	return NULL;
 }
+
+const skin_desc_t *skinverwaltung_t::get_waytype_skin(waytype_t wt)
+{
+	switch (wt)
+	{
+		case road_wt:
+			return autohaltsymbol;
+			//return bushaltsymbol;
+		case track_wt:
+			return zughaltsymbol;
+		case water_wt:
+			return schiffshaltsymbol;
+		case monorail_wt:
+			return monorailhaltsymbol;
+		case maglev_wt:
+			return maglevhaltsymbol;
+		case tram_wt:
+			return tramhaltsymbol;
+		case narrowgauge_wt:
+			return narrowgaugehaltsymbol;
+		case air_wt:
+			return airhaltsymbol;
+		default:
+			break;
+	}
+	return NULL;
+}

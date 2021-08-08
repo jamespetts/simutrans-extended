@@ -8,6 +8,7 @@
 
 
 #include "gui_frame.h"
+#include "depotlist_frame.h" // for stats
 #include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "components/gui_button_to_chart.h"
@@ -40,7 +41,8 @@ private:
 	gui_label_buf_t scenario_completion;
 	gui_label_buf_t warn;
 
-	gui_aligned_container_t container_year, container_month;
+	gui_aligned_container_t container_year, container_month, cont_stats;
+	gui_scrollpane_t scrolly_stats;
 
 	uint16 transport_types[TT_MAX];
 	uint16 transport_type_option;
@@ -66,11 +68,45 @@ private:
 	vector_tpl<money_frame_label_t*> money_labels;
 
 	void update_labels();
+	void update_stats();
+	void init_stats();
 
 	void fill_chart_tables();
 
 	bool is_chart_table_zero(int ttoption);
 
+	// for stats
+	uint16 tt_halt_counts[TT_MAX_VEH-1];
+	uint32 tt_way_length[TT_MAX_VEH-1];
+	sint64 tt_way_maint[TT_MAX_VEH-1];
+	uint32 tt_electrified_len[TT_MAX_VEH-1];
+	sint64 tt_electrification_maint[TT_MAX_VEH-1];
+	uint32 tt_depot_counts[TT_MAX_VEH-1];
+	sint64 tt_depot_maint[TT_MAX_VEH-1];
+	uint16 tt_convoy_counts[TT_MAX_VEH-1];
+	uint16 tt_inactive_convoy_counts[TT_MAX_VEH-1];
+	uint32 tt_vehicle_counts[TT_MAX_VEH-1];
+	uint32 tt_vehicle_maint[TT_MAX_VEH-1];
+	uint16 tt_sign_counts[TT_MAX_VEH-1];
+	uint16 tt_sign_maint[TT_MAX_VEH-1];
+	gui_label_buf_t lb_station_counts[TT_MAX_VEH-1];
+	gui_label_buf_t lb_way_distances[TT_MAX_VEH-1];
+	gui_label_buf_t lb_way_maintenances[TT_MAX_VEH-1];
+	gui_label_buf_t lb_electrified_distances[TT_MAX_VEH-1];
+	gui_label_buf_t lb_electrification_maint[TT_MAX_VEH-1];
+	gui_label_buf_t lb_depots[TT_MAX_VEH-1];
+	gui_label_buf_t lb_depots_maint[TT_MAX_VEH-1];
+	gui_label_buf_t lb_line_counts[TT_MAX_VEH-1];
+	gui_label_buf_t lb_convoy_counts[TT_MAX_VEH-1];
+	gui_label_buf_t lb_vehicle_counts[TT_MAX_VEH-1];
+	gui_label_buf_t lb_vehicle_maint[TT_MAX_VEH-1];
+	gui_label_buf_t lb_sign_counts[TT_MAX_VEH-1];
+	gui_label_buf_t lb_sign_maint[TT_MAX_VEH-1];
+	gui_label_buf_t lb_total_halts,                          lb_total_electrified_km,        lb_total_depots,      lb_total_active_lines, lb_own_convoy_count, lb_own_vehicle_count, lb_own_sign_count;
+	gui_label_buf_t lb_total_halt_maint, lb_total_way_maint, lb_total_electrification_maint, lb_total_depot_maint,                                             lb_total_veh_maint,   lb_total_sign_maint;
+	gui_label_buf_t lb_signalbox_count, lb_signalbox_maint;
+
+	button_t bt_access_haltlist, bt_access_depotlist, bt_access_schedulelist, bt_access_convoylist, bt_access_signalboxlist;
 
 public:
 	/**

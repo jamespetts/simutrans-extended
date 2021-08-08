@@ -4039,6 +4039,42 @@ Population/Visitor demand
 人口／訪問者需要
 Climate
 気候
+player_stats
+会社情報
+Signalboxes
+信号扱所
+way_distances
+総延長
+Electrified Distances
+電化総延長
+Active lines
+稼働路線数
+Signals/signs
+信号／標識
+Vehicles
+車両
+Total
+合計
+Monthly maintenance cost details
+月間維持管理費用
+Number of depots per way type, and those monthly maintenance costs.
+乗り物タイプごとの車庫数と月管理費用
+hlptxt_mf_stations
+乗り物タイプごとの対応駅数と合計月管理費用
+Number of signalboxes and total monthly maintenance costs.
+所有信号扱所の総数と月管理費用
+hlptxt_mf_way_distances
+所有道路、滑走路、軌道、水路の総延長と月管理費用
+hlptxt_mf_electrified_distances
+電化総延長と月管理費用
+Number of signals and signs per way type, and those monthly maintenance costs.
+信号、標識の総数と月管理費用
+Number of active lines per way type.
+乗り物タイプごとの稼働中の路線数
+Number of convoys per way type, and inactive convoys number in parentheses.
+乗り物タイプごとの編成数。カッコ内は車庫に留置中の編成数
+Number of vehicles per way type, and those monthly maintenance costs.
+乗り物タイプごとの車両数と月あたり車両保存費
 Vehicle not found
 該当なし
 One vehicle found
