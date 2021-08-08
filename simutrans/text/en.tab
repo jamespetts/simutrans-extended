@@ -6090,3 +6090,16 @@ Stops potentially within walking distance:
 Stops potentially within walking distance
 ignore regions
 Ignore regions
+player_stats
+Statistics
+Convois
+Convoys
+way_distances
+Kilometerage of ways
+Electrified Distances
+Kilometerage of electrification
+hlptxt_mf_way_distances
+The total length of ways of each type owned by this player, together with the monthly maintenance cost of each
+hlptxt_mf_electrified_distances
+The total length of electified ways of each type owned by this player, together with the monthly maintenance cost of each
+
