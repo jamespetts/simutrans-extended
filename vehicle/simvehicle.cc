@@ -3256,13 +3256,17 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 		ypos += tile_raster_scale_y(get_yoff(), raster_width) + 14;
 
 		// convoy(line) nameplate
-		if (cnv && (env_t::show_cnv_nameplates == 3 || (env_t::show_cnv_nameplates == 2 && cnv->get_owner() == welt->get_active_player())
-			|| ((env_t::show_cnv_nameplates == 1 || env_t::show_cnv_nameplates == 2) && welt->get_zeiger()->get_pos() == get_pos()) ))
+		if (cnv && (env_t::show_cnv_nameplates%4 == 3 || (env_t::show_cnv_nameplates%4 == 2 && cnv->get_owner() == welt->get_active_player())
+			|| ((env_t::show_cnv_nameplates%4 == 1 || env_t::show_cnv_nameplates%4 == 2) && welt->get_zeiger()->get_pos() == get_pos()) ))
 		{
 			char nameplate_text[1024];
 			// show the line name, including when the convoy is coupled.
 			linehandle_t lh = cnv->get_line();
-			if (lh.is_bound()) {
+			if (env_t::show_cnv_nameplates & 4 ) {
+				// convoy ID
+				sprintf(nameplate_text, "%i", cnv->self.get_id());
+			}
+			else if (lh.is_bound()) {
 				// line name
 				tstrncpy(nameplate_text, lh->get_name(), lengthof(nameplate_text));
 			}
@@ -3274,8 +3278,16 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 
 			const int width = proportional_string_width(nameplate_text) + 7;
 			if (ypos > LINESPACE + 32 && ypos + LINESPACE < display_get_clip_wh().yy) {
-				display_ddd_proportional_clip(xpos, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT - LINESPACE/2-2, width, 0, col_val, color_idx_to_rgb(COL_WHITE), nameplate_text, true);
-				// (*)display_ddd_proportional_clip's height is LINESPACE/2+1+1
+				const scr_coord_val yoff = LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT + LINESPACE/2 + 2;
+				if (env_t::show_cnv_nameplates & 4) {
+					display_veh_form_wh_clip_rgb(xpos,                     ypos-yoff-LINESPACE/2-1, width/2+LINESPACE/2, LINESPACE+4, col_val, true, false, vehicle_desc_t::can_be_head, HAS_POWER | BIDIRECTIONAL);
+					display_veh_form_wh_clip_rgb(xpos+width/2+LINESPACE/2, ypos-yoff-LINESPACE/2-1, width/2+LINESPACE/2, LINESPACE+4, col_val, true, true,  vehicle_desc_t::can_be_head|vehicle_desc_t::can_be_tail, HAS_POWER | BIDIRECTIONAL);
+					display_text_proportional_len_clip_rgb(xpos+LINESPACE/2+3, ypos-yoff-LINESPACE/2+1, nameplate_text, ALIGN_LEFT | DT_CLIP, color_idx_to_rgb(COL_WHITE), true, -1);
+				}
+				else {
+					display_ddd_proportional_clip(xpos, ypos-yoff, width, 0, col_val, color_idx_to_rgb(COL_WHITE), nameplate_text, true);
+					// (*)display_ddd_proportional_clip's height is LINESPACE/2+1+1
+				}
 			}
 		}
 

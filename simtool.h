@@ -883,7 +883,7 @@ public:
 	tool_convoy_nameplate_t() : tool_t(TOOL_CONVOY_NAMEPLATES | SIMPLE_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("switch the convoy nameplate display mode"); }
 	bool init(player_t *) OVERRIDE {
-		env_t::show_cnv_nameplates = (env_t::show_cnv_nameplates + 1) % 4;
+		env_t::show_cnv_nameplates = (env_t::show_cnv_nameplates + 1) % 8;
 		welt->set_dirty();
 		return false;
 	}

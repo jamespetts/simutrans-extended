@@ -3901,6 +3901,14 @@ Select the behavior of the camera when the following convoy enters the tunnel.
 追跡中の編成がトンネルに入った時のカメラの挙動を選択することができます。
 do nothing
 何もしない
+Convoy ID
+編成ID
+name_plate
+運行系統名／編成名
+help_text_btn_line_name_plate
+ゲーム画面の編成上に運行系統名（または編成名）を表示します
+Shows the convoy unique ID
+ゲーム画面の編成上に編成固有のID番号を表示します
 sb_title
 信号扱所一覧
 sb_type

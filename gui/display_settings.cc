@@ -548,6 +548,22 @@ label_settings_t::label_settings_t()
 		add_component(&convoy_nameplate);
 		convoy_nameplate.add_listener(this);
 
+		new_component<gui_empty_t>();
+		new_component<gui_empty_t>();
+		add_table(3,1)->set_spacing(scr_size(0,0));
+		{
+			new_component<gui_margin_t>(D_ARROW_LEFT_WIDTH+D_H_SPACE);
+			bt_convoy_id_plate[0].init(button_t::roundbox_state, "name_plate");
+			bt_convoy_id_plate[1].init(button_t::roundbox_state, "Convoy ID");
+			bt_convoy_id_plate[0].set_tooltip("help_text_btn_line_name_plate");
+			bt_convoy_id_plate[1].set_tooltip("Shows the convoy unique ID");
+			bt_convoy_id_plate[0].add_listener(this);
+			bt_convoy_id_plate[1].add_listener(this);
+			add_component(&bt_convoy_id_plate[0]);
+			add_component(&bt_convoy_id_plate[1]);
+		}
+		end_table();
+
 		// Convoy loading bar
 		new_component<gui_margin_t>(LINESPACE/2);
 		new_component<gui_label_t>("Loading bar")->set_tooltip(translator::translate("A loading rate bar is displayed above the convoy."));
@@ -596,6 +612,15 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 	// Convoy nameplate
 	if (&convoy_nameplate == comp) {
 		env_t::show_cnv_nameplates = v.i;
+		if (bt_convoy_id_plate[1].pressed) {
+			env_t::show_cnv_nameplates |= 4;
+		}
+	}
+	else if (&bt_convoy_id_plate[0] == comp) {
+		env_t::show_cnv_nameplates &= ~4;
+	}
+	else if (&bt_convoy_id_plate[1] == comp) {
+		env_t::show_cnv_nameplates |= 4;
 	}
 	// Convoy loading bar
 	if (&convoy_loadingbar == comp) {
@@ -613,7 +638,9 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 
 void label_settings_t::draw(scr_coord offset)
 {
-	convoy_nameplate.set_selection(env_t::show_cnv_nameplates);
+	convoy_nameplate.set_selection(env_t::show_cnv_nameplates % 4);
+	bt_convoy_id_plate[1].pressed = env_t::show_cnv_nameplates & 4;
+	bt_convoy_id_plate[0].pressed = !(env_t::show_cnv_nameplates & 4);
 	convoy_loadingbar.set_selection(env_t::show_cnv_loadingbar);
 	convoy_tooltip.set_selection(env_t::show_vehicle_states);
 	freight_waiting_bar.set_selection(env_t::freight_waiting_bar_level);
