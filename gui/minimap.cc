@@ -728,7 +728,7 @@ PIXVAL minimap_t::calc_ground_color(const grund_t *gr, bool show_contour, bool s
 							color = calc_height_color(world->lookup_hgt(gr->get_pos().get_2d()) + height, world->get_water_hgt(gr->get_pos().get_2d()));
 						}
 						else {
-							color = color_idx_to_rgb(map_type_color[MAX_MAP_TYPE_WATER - 1]);
+							color = color_idx_to_rgb(map_type_color[MAX_MAP_TYPE_WATER-1]-1);
 						}
 						//color = color_idx_to_rgb(COL_BLUE); // water with boat?
 					}
@@ -769,7 +769,7 @@ PIXVAL minimap_t::calc_ground_color(const grund_t *gr, bool show_contour, bool s
 						color = COL_POWERLINE;
 					}
 					else if (!show_contour) {
-						color = color_idx_to_rgb(map_type_color[MAX_MAP_TYPE_WATER]);
+						color = color_idx_to_rgb(map_type_color[MAX_MAP_TYPE_WATER+1]);
 					}
 					else {
 						sint16 height = corner_sw(gr->get_grund_hang());
