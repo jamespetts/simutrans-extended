@@ -7,12 +7,16 @@
 
 #include "convoi_detail_t.h"
 #include "components/gui_chart.h"
+#include "components/gui_image.h"
+#include "components/gui_colorbox.h"
+#include "components/gui_schedule_item.h"
 
 #include "../simconvoi.h"
 #include "../simcolor.h"
 #include "../simunits.h"
 #include "../simworld.h"
 #include "../simline.h"
+#include "../simhalt.h"
 
 #include "../dataobj/environment.h"
 #include "../dataobj/schedule.h"
@@ -110,7 +114,7 @@ void gui_capacity_occupancy_bar_t::display_loading_bar(scr_coord_val xp, scr_coo
 	if (capacity > 0 || overcrowd_capacity > 0) {
 		// base
 		display_fillbox_wh_clip_rgb(xp+1, yp, w*capacity / (capacity+overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
-		// dsiplay loading barSta
+		// dsiplay loading bar
 		display_fillbox_wh_clip_rgb(xp+1, yp, min(w*loading / (capacity+overcrowd_capacity), w * capacity / (capacity+overcrowd_capacity)), h, color, true);
 		display_blend_wh_rgb(xp+1, yp , w*loading / (capacity+overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
 		display_blend_wh_rgb(xp+1, yp+1, w*loading / (capacity+overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
@@ -178,6 +182,296 @@ scr_size gui_capacity_occupancy_bar_t::get_min_size() const
 scr_size gui_capacity_occupancy_bar_t::get_max_size() const
 {
 	return scr_size(size_fixed ? LOADING_BAR_WIDTH : scr_size::inf.w, LOADING_BAR_HEIGHT);
+}
+
+
+gui_vehicle_cargo_info_t::gui_vehicle_cargo_info_t(vehicle_t *v, bool yesno)
+{
+	veh=v;
+	show_loaded_detail = yesno;
+	schedule = veh->get_convoi()->get_schedule();
+	set_table_layout(1,0);
+
+	set_alignment(ALIGN_LEFT | ALIGN_CENTER_V);
+	update();
+}
+
+void gui_vehicle_cargo_info_t::update()
+{
+	total_cargo = veh->get_total_cargo();
+	remove_all();
+
+	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(veh->get_cargo_type()->get_catg_index());
+	const bool is_pass_veh = veh->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS;
+	const bool is_mail_veh = veh->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL;
+
+	for (uint8 ac = 0; ac < number_of_classes; ac++) { // accomo class index
+		if (!veh->get_desc()->get_capacity(ac) && !veh->get_overcrowded_capacity(ac)) {
+			continue; // no capacity for this accommo class
+		}
+
+		add_table(2,1);
+		{
+			new_component<gui_capacity_occupancy_bar_t>(veh, ac);
+			//Loading time
+			char min_loading_time_as_clock[32];
+			char max_loading_time_as_clock[32];
+			world()->sprintf_ticks(min_loading_time_as_clock, sizeof(min_loading_time_as_clock), veh->get_desc()->get_min_loading_time());
+			world()->sprintf_ticks(max_loading_time_as_clock, sizeof(max_loading_time_as_clock), veh->get_desc()->get_max_loading_time());
+			gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+			lb->buf().printf(" %s %s - %s", translator::translate("Loading time:"), min_loading_time_as_clock, max_loading_time_as_clock);
+			lb->update();
+		}
+		end_table();
+
+		add_table(3,1);
+		{
+			gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+			// [fare class name/catgname]
+			if (number_of_classes>1) {
+				lb->buf().append(goods_manager_t::get_translated_wealth_name(veh->get_cargo_type()->get_catg_index(), veh->get_reassigned_class(ac)));
+			}
+			else {
+				lb->buf().append(translator::translate(veh->get_desc()->get_freight_type()->get_catg_name()));
+			}
+			lb->buf().append(":");
+			// [capacity]
+			lb->buf().printf("%4d/%3d", veh->get_total_cargo_by_class(ac),veh->get_desc()->get_capacity(ac));
+			if (veh->get_overcrowded_capacity(ac)) {
+				lb->buf().printf("(%u)", veh->get_overcrowded_capacity(ac));
+			}
+			lb->update();
+
+			// [accomo class name]
+			if (number_of_classes>1) {
+				lb = new_component_span<gui_label_buf_t>(SYSCOL_EDIT_TEXT_DISABLED, gui_label_t::left);
+				if (veh->get_reassigned_class(ac) != ac) {
+					lb->buf().printf("(*%s)", goods_manager_t::get_translated_wealth_name(veh->get_cargo_type()->get_catg_index(), ac));
+					// UI TODO: A.Carlotti has proposed making it possible to define an accommodation name that is unique to the class capacity of the vehicle.
+					// But not yet implemented.
+					//lb->buf().printf("%s:", veh->get_translated_accommodation_class_name(ac));
+				}
+				lb->update();
+			}
+			else {
+				new_component<gui_empty_t>();
+			}
+
+			// [comfort(pax) / mixload prohibition(freight)]
+			lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+			if (is_pass_veh) {
+				lb->buf().printf(" %s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)));
+			}
+			else if (veh->get_desc()->get_mixed_load_prohibition()) {
+				lb->buf().append( translator::translate("(mixed_load_prohibition)") );
+				lb->set_color(color_idx_to_rgb(COL_BRONZE)); // FIXME: color optimization for dark theme
+			}
+			lb->update();
+		}
+		end_table();
+
+		if(!show_loaded_detail) {
+			continue;
+		}
+
+		if (!total_cargo) {
+			// no cargo => empty
+			new_component<gui_label_t>("leer", SYSCOL_TEXT_WEAK, gui_label_t::left);
+			new_component<gui_empty_t>();
+		}
+		else {
+			add_table(2,0);
+			// The cargo list is displayed in the order of stops with reference to the schedule of the convoy.
+			vector_tpl<vector_tpl<ware_t>> fracht_array(number_of_classes);
+			slist_tpl<koord3d> temp_list; // check for duplicates
+			for (uint8 i = 0; i < schedule->get_count(); i++) {
+				fracht_array.clear();
+				uint8 e; // schedule(halt) entry number
+				if (veh->get_convoi()->get_reverse_schedule()) {
+					e = (schedule->get_current_stop() + schedule->get_count() - i) % schedule->get_count();
+					if (schedule->is_mirrored() && (schedule->get_current_stop() - i) <= 0) {
+						break;
+					}
+				}
+				else {
+					e = (schedule->get_current_stop() + i) % schedule->get_count();
+					if (schedule->is_mirrored() && (schedule->get_current_stop() + i) >= schedule->get_count()) {
+						break;
+					}
+				}
+				halthandle_t const halt = haltestelle_t::get_halt(schedule->entries[e].pos, veh->get_convoi()->get_owner());
+				if (!halt.is_bound()) {
+					continue;
+				}
+				if (temp_list.is_contained(halt->get_basis_pos3d())) {
+					break; // The convoy came to the same station twice.
+				}
+				temp_list.append(halt->get_basis_pos3d());
+
+				// ok, now count cargo
+				uint16 sum_of_heading_to_this_halt = 0;
+
+				// build the cargo list heading to this station by "wealth" class
+				for (uint8 wc = 0; wc < number_of_classes; wc++) { // wealth class
+					vector_tpl<ware_t> this_iteration_vector(veh->get_cargo(ac).get_count());
+					FOR(slist_tpl<ware_t>, ware, veh->get_cargo(ac)) {
+						if (ware.get_zwischenziel().is_bound() && ware.get_zwischenziel() == halt) {
+							if (ware.get_class() == wc) {
+								// merge items of the same class to the same destination
+								bool merge = false;
+								FOR(vector_tpl<ware_t>, &recorded_ware, this_iteration_vector) {
+									if (ware.get_index() == recorded_ware.get_index() &&
+										ware.get_class() == recorded_ware.get_class() &&
+										ware.is_commuting_trip == recorded_ware.is_commuting_trip &&
+										ware.get_zielpos() == recorded_ware.get_zielpos())
+									{
+										recorded_ware.menge += ware.menge;
+										merge = true;
+										break;
+									}
+								}
+								if (!merge) {
+									this_iteration_vector.append(ware);
+								}
+								sum_of_heading_to_this_halt += ware.menge;
+							}
+						}
+					}
+					fracht_array.append(this_iteration_vector);
+				}
+
+				// now display the list
+				if (sum_of_heading_to_this_halt) {
+					// via halt
+					new_component<gui_margin_t>(LINESPACE); // most left
+					add_table(5,1)->set_spacing(scr_size(0, D_H_SPACE));
+					{
+						gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+						lb->buf().printf("%u%s ", sum_of_heading_to_this_halt, translator::translate(veh->get_cargo_type()->get_mass()));
+						lb->update();
+						lb->set_fixed_width(lb->get_min_size().w+D_H_SPACE);
+						new_component<gui_label_t>("To:");
+						// schedule number
+						const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
+						new_component<gui_schedule_entry_number_t>(e, halt->get_owner()->get_player_color1(),
+							is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+							scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
+							halt->get_basis_pos3d()
+							);
+
+						// stop name
+						lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+						lb->buf().append(halt->get_name());
+						lb->update();
+
+						new_component<gui_fill_t>();
+					}
+					end_table();
+
+					new_component<gui_empty_t>(); // most left
+					add_table(2,1); // station list
+					{
+						new_component<gui_margin_t>(LINESPACE); // left margin
+
+						add_table(2,0)->set_alignment(ALIGN_TOP); // wealth list
+						{
+							for (uint8 wc = 0; wc < number_of_classes; wc++) { // wealth class
+								uint32 wealth_sum = 0;
+								if (fracht_array[wc].get_count()) {
+									gui_label_buf_t *lb_wealth_total = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+									lb_wealth_total->set_size(scr_size(0,0));
+									add_table(1,0); // for destination list
+									{
+										add_table(4,0)->set_spacing(scr_size(D_H_SPACE,1)); // for destination list
+										{
+											FOR(vector_tpl<ware_t>, w, fracht_array[wc]) {
+												if (!w.menge) {
+													continue;
+												}
+												// 1. goods color box
+												const PIXVAL goods_color = (w.is_passenger() && w.is_commuting_trip) ? color_idx_to_rgb(COL_COMMUTER) : w.get_desc()->get_color();
+												new_component<gui_colorbox_t>()->init(goods_color, scr_size((LINESPACE>>1)+2, (LINESPACE>>1)+2), true);
+
+												// 2. goods name
+												if (!w.is_passenger() && !w.is_mail()) {
+													new_component<gui_label_t>(w.get_name());
+												}
+												else {
+													new_component<gui_empty_t>();
+												}
+
+												// 3. goods amount and unit
+												gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+												lb->buf().printf("%3u", w.menge, 0);
+												if (w.is_passenger()) {
+													if (w.menge == 1) {
+														lb->buf().printf(" %s", w.is_commuting_trip ? translator::translate("commuter") : translator::translate("visitor"));
+													}
+													else {
+														lb->buf().printf(" %s", w.is_commuting_trip ? translator::translate("commuters") : translator::translate("visitors"));
+													}
+												}
+												else {
+													lb->buf().append(translator::translate(veh->get_cargo_type()->get_mass()));
+												}
+												lb->update();
+
+												// 4. destination halt
+												lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+												if (w.get_ziel() != w.get_zwischenziel()) {
+													lb->buf().printf("%s%s", translator::translate(" > "), w.get_ziel()->get_name());
+												}
+												lb->update();
+
+												wealth_sum += w.menge;
+											}
+										}
+										end_table();
+									}
+									end_table();
+
+									if (number_of_classes > 1 && wealth_sum) {
+										lb_wealth_total->buf().printf("%s: %u%s", goods_manager_t::get_translated_wealth_name(veh->get_cargo_type()->get_catg_index(), wc), wealth_sum, translator::translate(veh->get_cargo_type()->get_mass()));
+										lb_wealth_total->set_visible(true);
+										lb_wealth_total->set_size(lb_wealth_total->get_min_size());
+									}
+									else {
+										lb_wealth_total->set_visible(false);
+										lb_wealth_total->set_rigid(true);
+										lb_wealth_total->set_size(scr_size(5,0));
+									}
+									lb_wealth_total->update();
+
+									new_component_span<gui_empty_t>(2); // vertical margin between loading wealth classes
+								}
+							}
+						}
+						end_table();
+					}
+					end_table();
+
+					new_component_span<gui_empty_t>(2); // vertical margin between stations
+				}
+			}
+			end_table();
+		}
+	}
+	gui_aligned_container_t::set_size(get_min_size());
+}
+
+void gui_vehicle_cargo_info_t::draw(scr_coord offset)
+{
+	if (veh->get_total_cargo() != total_cargo) {
+		update();
+	}
+	set_visible(veh->get_cargo_max());
+	if (veh->get_cargo_max()) {
+		gui_aligned_container_t::set_size(get_min_size());
+		gui_aligned_container_t::draw(offset);
+	}
+	else {
+		gui_aligned_container_t::set_size(scr_size(0,0));
+	}
 }
 
 

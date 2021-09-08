@@ -53,6 +53,26 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
+class gui_vehicle_cargo_info_t : public gui_aligned_container_t
+{
+	schedule_t * schedule;
+	vehicle_t *veh;
+	uint16 total_cargo=0;
+	bool show_loaded_detail = true;
+
+public:
+	gui_vehicle_cargo_info_t(vehicle_t *v, bool display_loaded_detail);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	void set_show_detail(bool yesno) {
+		show_loaded_detail = yesno;
+		update();
+	}
+	void update();
+};
+
+
 // helper class to show the colored acceleration text
 class gui_acceleration_label_t : public gui_container_t
 {
