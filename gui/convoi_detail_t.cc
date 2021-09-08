@@ -702,35 +702,33 @@ void convoi_detail_t::init(convoihandle_t cnv)
 	// content of payload info tab
 	cont_payload.set_table_layout(1,0);
 
-	if (cnv->get_vehicle_count() > 1) {
-		cont_payload.add_table(4,3)->set_spacing(scr_size(0,0));
-		{
-			cont_payload.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_MARGIN_RIGHT, 0));
+	cont_payload.add_table(4,3)->set_spacing(scr_size(0,0));
+	{
+		cont_payload.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_MARGIN_RIGHT, 0));
 
-			cont_payload.new_component<gui_label_t>("Loading time:");
-			cont_payload.add_component(&lb_loading_time);
+		cont_payload.new_component<gui_label_t>("Loading time:");
+		cont_payload.add_component(&lb_loading_time);
+		cont_payload.new_component<gui_margin_t>(D_H_SPACE*2);
+
+		// This method cannot be used with new GUI engine
+		display_detail_button.init(button_t::square_state, "Display loaded detail", scr_coord(0,0), scr_size(D_BUTTON_WIDTH*1.5, D_BUTTON_HEIGHT));
+		display_detail_button.set_tooltip("Displays detailed information of the vehicle's load.");
+		display_detail_button.add_listener(this);
+		display_detail_button.pressed = true;
+		cont_payload.add_component(&display_detail_button);
+		payload_info.set_show_detail(true);
+
+		if (cnv->get_catering_level(goods_manager_t::INDEX_PAS)) {
+			cont_payload.new_component<gui_label_t>("Catering level");
+			cont_payload.add_component(&lb_catering_level);
 			cont_payload.new_component<gui_margin_t>(D_H_SPACE*2);
-
-			// This method cannot be used with new GUI engine
-			display_detail_button.init(button_t::square_state, "Display loaded detail", scr_coord(0,0), scr_size(D_BUTTON_WIDTH*1.5, D_BUTTON_HEIGHT));
-			display_detail_button.set_tooltip("Displays detailed information of the vehicle's load.");
-			display_detail_button.add_listener(this);
-			display_detail_button.pressed = true;
-			cont_payload.add_component(&display_detail_button);
-			payload_info.set_show_detail(true);
-
-			if (cnv->get_catering_level(goods_manager_t::INDEX_PAS)) {
-				cont_payload.new_component<gui_label_t>("Catering level");
-				cont_payload.add_component(&lb_catering_level);
-				cont_payload.new_component<gui_margin_t>(D_H_SPACE*2);
-				cont_payload.new_component<gui_empty_t>();
-			}
-			if (cnv->get_catering_level(goods_manager_t::INDEX_MAIL)) {
-				cont_payload.new_component_span<gui_label_t>("traveling_post_office",4);
-			}
+			cont_payload.new_component<gui_empty_t>();
 		}
-		cont_payload.end_table();
+		if (cnv->get_catering_level(goods_manager_t::INDEX_MAIL)) {
+			cont_payload.new_component_span<gui_label_t>("traveling_post_office",4);
+		}
 	}
+	cont_payload.end_table();
 
 	cont_payload.add_component(&scrolly_payload_info);
 	scrolly_payload_info.set_maximize(true);
