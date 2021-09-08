@@ -33,6 +33,22 @@ class scr_coord;
 #define SPEED_RECORDS 25
 
 
+// Band graph showing loading status based on capacity for each vehicle "accommodation class"
+// The color is based on the color of the cargo
+class gui_capacity_occupancy_bar_t : public gui_container_t
+{
+	vehicle_t *veh;
+	uint8 a_class;
+public:
+	gui_capacity_occupancy_bar_t(vehicle_t *v, uint8 accommo_class=0);
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE;
+
+	void display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity);
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 // helper class to show the colored acceleration text
 class gui_acceleration_label_t : public gui_container_t
 {

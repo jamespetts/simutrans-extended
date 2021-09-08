@@ -88,6 +88,100 @@ static char const* const chart_help_text[] =
 };
 
 
+gui_capacity_occupancy_bar_t::gui_capacity_occupancy_bar_t(vehicle_t *v, uint8 ac)
+{
+	veh=v;
+	switch (veh->get_cargo_type()->get_catg_index())
+	{
+		case goods_manager_t::INDEX_PAS:
+			a_class = min(goods_manager_t::passengers->get_number_of_classes()-1, ac);
+			break;
+		case goods_manager_t::INDEX_MAIL:
+			a_class = min(goods_manager_t::mail->get_number_of_classes()-1, ac);
+			break;
+		default:
+			a_class = 0;
+			break;
+	}
+}
+
+void gui_capacity_occupancy_bar_t::display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity)
+{
+	if (capacity > 0 || overcrowd_capacity > 0) {
+		// base
+		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, w * capacity / (capacity + overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
+		// dsiplay loading barSta
+		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * capacity / (capacity + overcrowd_capacity)), h, color, true);
+		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2, w * loading / (capacity + overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
+		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
+		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + h - 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_BLACK), 10);
+		if (overcrowd_capacity && (loading > (capacity - overcrowd_capacity))) {
+			display_fillbox_wh_clip_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), h + 2, color_idx_to_rgb(COL_OVERCROWD), true);
+			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 3, color_idx_to_rgb(COL_WHITE), 15);
+			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 1, color_idx_to_rgb(COL_WHITE), 15);
+			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 2, color_idx_to_rgb(COL_BLACK), 10);
+		}
+
+		// frame
+		display_ddd_box_clip_rgb(xp - 1, yp + (LINESPACE - h) / 2 - 1, w * capacity / (capacity + overcrowd_capacity) + 2, h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY0));
+		// overcrowding frame
+		if (overcrowd_capacity) {
+			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 1, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, 1, 1, color_idx_to_rgb(MN_GREY0));  // top
+			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 2, xp + w, yp + (LINESPACE - h) / 2 + h, 1, 1, color_idx_to_rgb(MN_GREY0));  // right. start from dot
+			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 + h, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h, 1, 1, color_idx_to_rgb(MN_GREY0)); // bottom
+		}
+	}
+}
+
+void gui_capacity_occupancy_bar_t::draw(scr_coord offset)
+{
+	if (!veh) {
+		return;
+	}
+	offset += pos;
+	if (veh->get_accommodation_capacity(a_class) > 0 || veh->get_overcrowded_capacity(a_class)) {
+		switch (veh->get_cargo_type()->get_catg_index())
+		{
+			case goods_manager_t::INDEX_PAS:
+			case goods_manager_t::INDEX_MAIL:
+				display_loading_bar(offset.x, offset.y, size.w, LOADING_BAR_HEIGHT, veh->get_cargo_type()->get_color(), veh->get_total_cargo_by_class(a_class), veh->get_fare_capacity(veh->get_reassigned_class(a_class)), veh->get_overcrowded_capacity(a_class));
+				break;
+			default:
+				// draw the "empty" loading bar
+				display_loading_bar(offset.x, offset.y, size.w, LOADING_BAR_HEIGHT, color_idx_to_rgb(COL_GREY4), 0, 1, 0);
+
+				int bar_start_offset = 0;
+				int cargo_sum = 0;
+				FOR(slist_tpl<ware_t>, const ware, veh->get_cargo(0))
+				{
+					goods_desc_t const* const wtyp = ware.get_desc();
+					cargo_sum += ware.menge;
+
+					// draw the goods loading bar
+					int bar_end_offset = cargo_sum * size.w / veh->get_desc()->get_total_capacity();
+					PIXVAL goods_color = wtyp->get_color();
+					if (bar_end_offset - bar_start_offset) {
+						display_cylinderbar_wh_clip_rgb(offset.x + bar_start_offset, offset.y+((LINESPACE-LOADING_BAR_HEIGHT)>>1), bar_end_offset - bar_start_offset, LOADING_BAR_HEIGHT, goods_color, true);
+					}
+					bar_start_offset += bar_end_offset - bar_start_offset;
+				}
+				break;
+		}
+
+	}
+}
+
+scr_size gui_capacity_occupancy_bar_t::get_min_size() const
+{
+	return scr_size(LOADINGBAR_WIDTH + 2, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+}
+
+scr_size gui_capacity_occupancy_bar_t::get_max_size() const
+{
+	return scr_size(scr_size::inf.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+}
+
+
 // helper class
 gui_acceleration_label_t::gui_acceleration_label_t(convoihandle_t c)
 {
