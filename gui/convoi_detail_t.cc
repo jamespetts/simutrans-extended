@@ -109,26 +109,26 @@ void gui_capacity_occupancy_bar_t::display_loading_bar(scr_coord_val xp, scr_coo
 {
 	if (capacity > 0 || overcrowd_capacity > 0) {
 		// base
-		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, w * capacity / (capacity + overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
+		display_fillbox_wh_clip_rgb(xp+1, yp, w*capacity / (capacity+overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
 		// dsiplay loading barSta
-		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * capacity / (capacity + overcrowd_capacity)), h, color, true);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2, w * loading / (capacity + overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + h - 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_BLACK), 10);
+		display_fillbox_wh_clip_rgb(xp+1, yp, min(w*loading / (capacity+overcrowd_capacity), w * capacity / (capacity+overcrowd_capacity)), h, color, true);
+		display_blend_wh_rgb(xp+1, yp , w*loading / (capacity+overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
+		display_blend_wh_rgb(xp+1, yp+1, w*loading / (capacity+overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
+		display_blend_wh_rgb(xp+1, yp+h-1, w*loading / (capacity+overcrowd_capacity), 1, color_idx_to_rgb(COL_BLACK), 10);
 		if (overcrowd_capacity && (loading > (capacity - overcrowd_capacity))) {
-			display_fillbox_wh_clip_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), h + 2, color_idx_to_rgb(COL_OVERCROWD), true);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 3, color_idx_to_rgb(COL_WHITE), 15);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 1, color_idx_to_rgb(COL_WHITE), 15);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 2, color_idx_to_rgb(COL_BLACK), 10);
+			display_fillbox_wh_clip_rgb(xp+1 + w * capacity / (capacity+overcrowd_capacity) + 1, yp-1, min(w*loading / (capacity+overcrowd_capacity), w * (loading-capacity) / (capacity+overcrowd_capacity)), h + 2, color_idx_to_rgb(COL_OVERCROWD), true);
+			display_blend_wh_rgb(xp+1 + w*capacity / (capacity+overcrowd_capacity) + 1, yp, min(w*loading / (capacity+overcrowd_capacity), w * (loading-capacity) / (capacity+overcrowd_capacity)), 3, color_idx_to_rgb(COL_WHITE), 15);
+			display_blend_wh_rgb(xp+1 + w*capacity / (capacity+overcrowd_capacity) + 1, yp + 1, min(w*loading / (capacity+overcrowd_capacity), w * (loading-capacity) / (capacity+overcrowd_capacity)), 1, color_idx_to_rgb(COL_WHITE), 15);
+			display_blend_wh_rgb(xp+1 + w*capacity / (capacity+overcrowd_capacity) + 1, yp + h - 1, min(w*loading / (capacity+overcrowd_capacity), w * (loading-capacity) / (capacity+overcrowd_capacity)), 2, color_idx_to_rgb(COL_BLACK), 10);
 		}
 
 		// frame
-		display_ddd_box_clip_rgb(xp - 1, yp + (LINESPACE - h) / 2 - 1, w * capacity / (capacity + overcrowd_capacity) + 2, h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY0));
+		display_ddd_box_clip_rgb(xp, yp - 1, w * capacity / (capacity+overcrowd_capacity) + 2, h + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY0));
 		// overcrowding frame
 		if (overcrowd_capacity) {
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 1, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, 1, 1, color_idx_to_rgb(MN_GREY0));  // top
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 2, xp + w, yp + (LINESPACE - h) / 2 + h, 1, 1, color_idx_to_rgb(MN_GREY0));  // right. start from dot
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 + h, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h, 1, 1, color_idx_to_rgb(MN_GREY0)); // bottom
+			display_direct_line_dotted_rgb(xp+1 + w, yp - 1, xp+1 + w * capacity / (capacity+overcrowd_capacity) + 1, yp - 1, 1, 1, color_idx_to_rgb(MN_GREY0));  // top
+			display_direct_line_dotted_rgb(xp+1 + w, yp - 2, xp+1 + w, yp + h, 1, 1, color_idx_to_rgb(MN_GREY0));  // right. start from dot
+			display_direct_line_dotted_rgb(xp+1 + w, yp + h, xp+1 + w * capacity / (capacity+overcrowd_capacity) + 1, yp + h, 1, 1, color_idx_to_rgb(MN_GREY0)); // bottom
 		}
 	}
 }
@@ -161,24 +161,23 @@ void gui_capacity_occupancy_bar_t::draw(scr_coord offset)
 					int bar_end_offset = cargo_sum * size.w / veh->get_desc()->get_total_capacity();
 					PIXVAL goods_color = wtyp->get_color();
 					if (bar_end_offset - bar_start_offset) {
-						display_cylinderbar_wh_clip_rgb(offset.x + bar_start_offset, offset.y+((LINESPACE-LOADING_BAR_HEIGHT)>>1), bar_end_offset - bar_start_offset, LOADING_BAR_HEIGHT, goods_color, true);
+						display_cylinderbar_wh_clip_rgb(offset.x+bar_start_offset+1, offset.y, bar_end_offset - bar_start_offset, LOADING_BAR_HEIGHT, goods_color, true);
 					}
 					bar_start_offset += bar_end_offset - bar_start_offset;
 				}
 				break;
 		}
-
 	}
 }
 
 scr_size gui_capacity_occupancy_bar_t::get_min_size() const
 {
-	return scr_size(LOADINGBAR_WIDTH + 2, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+	return scr_size(LOADING_BAR_WIDTH, LOADING_BAR_HEIGHT);
 }
 
 scr_size gui_capacity_occupancy_bar_t::get_max_size() const
 {
-	return scr_size(scr_size::inf.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+	return scr_size(size_fixed ? LOADING_BAR_WIDTH : scr_size::inf.w, LOADING_BAR_HEIGHT);
 }
 
 

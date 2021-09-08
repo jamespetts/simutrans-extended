@@ -39,11 +39,15 @@ class gui_capacity_occupancy_bar_t : public gui_container_t
 {
 	vehicle_t *veh;
 	uint8 a_class;
+	bool size_fixed = true;
+
 public:
 	gui_capacity_occupancy_bar_t(vehicle_t *v, uint8 accommo_class=0);
 
 	scr_size get_min_size() const OVERRIDE;
 	scr_size get_max_size() const OVERRIDE;
+
+	void set_size_fixed(bool yesno) { size_fixed = yesno; };
 
 	void display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity);
 	void draw(scr_coord offset) OVERRIDE;
