@@ -5147,6 +5147,7 @@ void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 				break;
 		}
 	}
+	ypos += -D_WAITINGBAR_WIDTH - LINESPACE/6;
 
 
 	if(  count != last_bar_count  ) {
@@ -5158,7 +5159,7 @@ void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 			}
 		}
 		const scr_coord_val x = xpos - (last_bar_count * D_WAITINGBAR_WIDTH - get_tile_raster_width()) / 2;
-		mark_rect_dirty_wc( x - 1 - D_WAITINGBAR_WIDTH, ypos - 11 - max_bar_height - 6, x + last_bar_count * D_WAITINGBAR_WIDTH + 12 - 2, ypos - 11 );
+		mark_rect_dirty_wc( x - 1 - D_WAITINGBAR_WIDTH, ypos, x + last_bar_count * D_WAITINGBAR_WIDTH + 12 - 2, ypos - 11 );
 
 		// reset bar heights for new count
 		last_bar_height.clear();
@@ -5169,7 +5170,6 @@ void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 		last_bar_count = count;
 	}
 
-	ypos -= D_LABEL_HEIGHT/2 +D_WAITINGBAR_WIDTH;
 	xpos -= (count * D_WAITINGBAR_WIDTH - get_tile_raster_width()) / 2;
 	const int x = xpos;
 

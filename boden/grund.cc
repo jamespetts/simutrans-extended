@@ -1821,13 +1821,14 @@ void display_text_label(sint16 xpos, sint16 ypos, const char* text, const player
 			display_ddd_proportional_clip( xpos, ypos, proportional_string_width(text)+7, 0, color_idx_to_rgb(pc), color_idx_to_rgb(COL_BLACK), text, dirty );
 			break;
 		case 1:
-			display_outline_proportional_rgb( xpos, ypos-(LINESPACE/2), color_idx_to_rgb(pc+3), color_idx_to_rgb(COL_BLACK), text, dirty );
+			display_outline_proportional_rgb( xpos, ypos, color_idx_to_rgb(pc+3), color_idx_to_rgb(COL_BLACK), text, dirty );
 			break;
-		case 2:
-			display_outline_proportional_rgb( xpos + LINESPACE + D_H_SPACE, ypos-(LINESPACE/4),   color_idx_to_rgb(COL_YELLOW), color_idx_to_rgb(COL_BLACK), text, dirty );
-			display_ddd_box_clip_rgb(         xpos,                         ypos-(LINESPACE/2),   LINESPACE,   LINESPACE,   color_idx_to_rgb(pc-2), PLAYER_FLAG|color_idx_to_rgb(pc+2) );
-			display_fillbox_wh_rgb(           xpos+1,                       ypos-(LINESPACE/2)+1, LINESPACE-2, LINESPACE-2, color_idx_to_rgb(pc), dirty );
+		case 2: {
+			display_ddd_box_clip_rgb(         xpos,                         ypos,   LINESPACE,   LINESPACE,   color_idx_to_rgb(pc-2), PLAYER_FLAG|color_idx_to_rgb(pc+2) );
+			display_outline_proportional_rgb( xpos + LINESPACE + D_H_SPACE, ypos,   color_idx_to_rgb(COL_YELLOW), color_idx_to_rgb(COL_BLACK), text, dirty );
+			display_fillbox_wh_rgb(           xpos+1,                       ypos+1, LINESPACE-2, LINESPACE-2, color_idx_to_rgb(pc), dirty );
 			break;
+		}
 	}
 }
 
@@ -1860,7 +1861,7 @@ void grund_t::display_overlay(const sint16 xpos, const sint16 ypos)
 		}
 	}
 
-	if(  env_t::show_factory_storage_bar  ) {
+	if( env_t::show_factory_storage_bar ) {
 		if( get_building() ) {
 			if( env_t::show_factory_storage_bar == 1 || get_building()->get_first_tile()==get_building() ) {
 				if (fabrik_t *fab = get_building()->get_first_tile()->get_fabrik()) {
