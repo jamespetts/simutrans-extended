@@ -9,6 +9,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_image.h"
 #include "components/gui_colorbox.h"
+#include "components/gui_divider.h"
 #include "components/gui_schedule_item.h"
 
 #include "../simconvoi.h"
@@ -36,7 +37,7 @@
 #include "../display/viewport.h"
 
 
-#define LOADING_BAR_WIDTH 150
+#define LOADING_BAR_WIDTH 170
 #define LOADING_BAR_HEIGHT 5
 #define CHART_HEIGHT (100)
 #define L_COL_ACCEL_FULL COL_ORANGE_RED
@@ -115,6 +116,7 @@ void gui_capacity_occupancy_bar_t::display_loading_bar(scr_coord_val xp, scr_coo
 		// base
 		display_fillbox_wh_clip_rgb(xp+1, yp, w*capacity / (capacity+overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
 		// dsiplay loading bar
+		//display_cylinderbar_wh_clip_rgb(xp+1, yp, min(w*loading / (capacity+overcrowd_capacity), w*capacity / (capacity+overcrowd_capacity)), h, color, true);
 		display_fillbox_wh_clip_rgb(xp+1, yp, min(w*loading / (capacity+overcrowd_capacity), w * capacity / (capacity+overcrowd_capacity)), h, color, true);
 		display_blend_wh_rgb(xp+1, yp , w*loading / (capacity+overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
 		display_blend_wh_rgb(xp+1, yp+1, w*loading / (capacity+overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
@@ -224,7 +226,7 @@ void gui_vehicle_cargo_info_t::update()
 		}
 		end_table();
 
-		add_table(3,1);
+		add_table(4,1);
 		{
 			gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 			// [fare class name/catgname]
@@ -267,6 +269,8 @@ void gui_vehicle_cargo_info_t::update()
 				lb->set_color(color_idx_to_rgb(COL_BRONZE)); // FIXME: color optimization for dark theme
 			}
 			lb->update();
+
+			new_component<gui_fill_t>();
 		}
 		end_table();
 
@@ -344,7 +348,7 @@ void gui_vehicle_cargo_info_t::update()
 				if (sum_of_heading_to_this_halt) {
 					// via halt
 					new_component<gui_margin_t>(LINESPACE); // most left
-					add_table(5,1)->set_spacing(scr_size(0, D_H_SPACE));
+					add_table(5,1)->set_spacing(scr_size(D_H_SPACE,0));
 					{
 						gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 						lb->buf().printf("%u%s ", sum_of_heading_to_this_halt, translator::translate(veh->get_cargo_type()->get_mass()));
@@ -637,11 +641,11 @@ convoi_detail_t::convoi_detail_t(convoihandle_t cnv) :
 	gui_frame_t(""),
 	veh_info(cnv),
 	formation(cnv),
-	payload_info(cnv),
+	cont_payload_info(cnv),
 	maintenance(cnv),
 	scrolly_formation(&formation),
 	scrolly(&veh_info),
-	scrolly_payload_info(&payload_info),
+	scrolly_payload_info(&cont_payload_info),
 	scrolly_maintenance(&maintenance)
 {
 	if (cnv.is_bound()) {
@@ -694,43 +698,43 @@ void convoi_detail_t::init(convoihandle_t cnv)
 
 	add_component(&tabs);
 	tabs.add_tab(&scrolly, translator::translate("cd_spec_tab"));
-	tabs.add_tab(&cont_payload, translator::translate("cd_payload_tab"));
+	tabs.add_tab(&cont_payload_tab, translator::translate("cd_payload_tab"));
 	tabs.add_tab(&cont_maintenance,  translator::translate("cd_maintenance_tab"));
 	tabs.add_tab(&container_chart, translator::translate("cd_physics_tab"));
 	tabs.add_listener(this);
 
 	// content of payload info tab
-	cont_payload.set_table_layout(1,0);
+	cont_payload_tab.set_table_layout(1,0);
 
-	cont_payload.add_table(4,3)->set_spacing(scr_size(0,0));
+	cont_payload_tab.add_table(4,3)->set_spacing(scr_size(0,0));
 	{
-		cont_payload.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_MARGIN_RIGHT, 0));
+		cont_payload_tab.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_MARGIN_RIGHT, 0));
 
-		cont_payload.new_component<gui_label_t>("Loading time:");
-		cont_payload.add_component(&lb_loading_time);
-		cont_payload.new_component<gui_margin_t>(D_H_SPACE*2);
+		cont_payload_tab.new_component<gui_label_t>("Loading time:");
+		cont_payload_tab.add_component(&lb_loading_time);
+		cont_payload_tab.new_component<gui_margin_t>(D_H_SPACE*2);
 
 		// This method cannot be used with new GUI engine
-		display_detail_button.init(button_t::square_state, "Display loaded detail", scr_coord(0,0), scr_size(D_BUTTON_WIDTH*1.5, D_BUTTON_HEIGHT));
+		display_detail_button.init(button_t::square_state, "Display loaded detail", scr_coord(0,0), scr_size((D_BUTTON_WIDTH*3)>>1, D_BUTTON_HEIGHT));
 		display_detail_button.set_tooltip("Displays detailed information of the vehicle's load.");
 		display_detail_button.add_listener(this);
 		display_detail_button.pressed = true;
-		cont_payload.add_component(&display_detail_button);
-		payload_info.set_show_detail(true);
+		cont_payload_info.set_show_detail(true);
+		cont_payload_tab.add_component(&display_detail_button);
 
 		if (cnv->get_catering_level(goods_manager_t::INDEX_PAS)) {
-			cont_payload.new_component<gui_label_t>("Catering level");
-			cont_payload.add_component(&lb_catering_level);
-			cont_payload.new_component<gui_margin_t>(D_H_SPACE*2);
-			cont_payload.new_component<gui_empty_t>();
+			cont_payload_tab.new_component<gui_label_t>("Catering level");
+			cont_payload_tab.add_component(&lb_catering_level);
+			cont_payload_tab.new_component<gui_margin_t>(D_H_SPACE*2);
+			cont_payload_tab.new_component<gui_empty_t>();
 		}
 		if (cnv->get_catering_level(goods_manager_t::INDEX_MAIL)) {
-			cont_payload.new_component_span<gui_label_t>("traveling_post_office",4);
+			cont_payload_tab.new_component_span<gui_label_t>("traveling_post_office",4);
 		}
 	}
-	cont_payload.end_table();
+	cont_payload_tab.end_table();
 
-	cont_payload.add_component(&scrolly_payload_info);
+	cont_payload_tab.add_component(&scrolly_payload_info);
 	scrolly_payload_info.set_maximize(true);
 
 	// content of maintenance tab
@@ -930,6 +934,15 @@ void convoi_detail_t::update_labels()
 		lb_value.update();
 	}
 
+	if (tabstate == CD_TAB_LOADED_DETAIL) {
+		const sint64 seed_temp = cnv->is_reversed() + cnv->get_vehicle_count() + cnv->get_sum_weight() + display_detail_button.pressed;
+		if (old_seed != seed_temp) {
+			// something has changed => update
+			old_seed = seed_temp;
+			cont_payload_info.update_list();
+		}
+	}
+
 	set_min_windowsize(scr_size(max(D_DEFAULT_WIDTH, get_min_windowsize().w), D_TITLEBAR_HEIGHT + tabs.get_pos().y + D_TAB_HEADER_HEIGHT));
 	resize(scr_coord(0, 0));
 }
@@ -1116,7 +1129,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 		}
 		else if (comp == &display_detail_button) {
 			display_detail_button.pressed = !display_detail_button.pressed;
-			payload_info.set_show_detail(display_detail_button.pressed);
+			cont_payload_info.set_show_detail(display_detail_button.pressed);
 			return true;
 		}
 		else if (comp == &tabs) {
@@ -1192,6 +1205,7 @@ void convoi_detail_t::rdwr(loadsave_t *file)
 		w->scrolly.set_scroll_position( xoff, yoff );
 		w->scrolly_formation.set_scroll_position(formation_xoff, formation_yoff);
 		w->tabs.set_active_tab_index(selected_tab);
+		w->cont_payload_info.set_cnv(cnv);
 		// we must invalidate halthandle
 		cnv = convoihandle_t();
 		destroy_win( this );
@@ -1460,257 +1474,76 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 gui_convoy_payload_info_t::gui_convoy_payload_info_t(convoihandle_t cnv)
 {
 	this->cnv = cnv;
+
+	set_table_layout(1,0);
+	set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(0, D_V_SPACE));
+	update_list();
+}
+
+void gui_convoy_payload_info_t::update_list()
+{
+	remove_all();
+	if (cnv.is_bound()) {
+		add_table(2,0)->set_alignment(ALIGN_TOP);
+		for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
+			const vehicle_t* veh = cnv->get_vehicle(i);
+			// left part
+			add_table(1,3)->set_alignment(ALIGN_TOP | ALIGN_CENTER_H);
+			{
+				const uint16 month_now = world()->get_timeline_year_month();
+				// cars number in this convoy
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+				sint8 car_number = cnv->get_car_numbering(i);
+				if (car_number < 0) {
+					lb->buf().printf("%.2s%d", translator::translate("LOCO_SYM"), abs(car_number)); // This also applies to horses and tractors and push locomotives.
+				}
+				else {
+					lb->buf().append(car_number);
+				}
+				lb->set_color(veh->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK);
+				lb->set_fixed_width((D_BUTTON_WIDTH*3)>>3);
+				lb->update();
+
+				// vehicle color bar
+				const PIXVAL veh_bar_color = veh->get_desc()->is_obsolete(month_now) ? COL_OBSOLETE : (veh->get_desc()->is_future(month_now) || veh->get_desc()->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+				new_component<gui_vehicle_bar_t>(veh_bar_color, scr_size((D_BUTTON_WIDTH*3>>3)-6, VEHICLE_BAR_HEIGHT))
+					->set_flags(
+						veh->is_reversed() ? veh->get_desc()->get_basic_constraint_next() : veh->get_desc()->get_basic_constraint_prev(),
+						veh->is_reversed() ? veh->get_desc()->get_basic_constraint_prev() : veh->get_desc()->get_basic_constraint_next(),
+						veh->get_desc()->get_interactivity()
+					);
+
+				// goods category symbol
+				if (veh->get_desc()->get_total_capacity() || veh->get_desc()->get_overcrowded_capacity()) {
+					new_component<gui_image_t>(veh->get_desc()->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_H, true);
+				}
+				else {
+					new_component<gui_empty_t>();
+				}
+			}
+			end_table();
+
+			// right part
+			add_table(2,2);
+			{
+				gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left, 2);
+				lb->buf().append(translator::translate(veh->get_desc()->get_name()));
+				lb->update();
+				new_component<gui_margin_t>(LINESPACE>>1);
+				new_component<gui_vehicle_cargo_info_t>(cnv->get_vehicle(i), show_detail);
+			}
+			end_table();
+
+			new_component_span<gui_border_t>(2);
+		}
+		end_table();
+	}
+	set_size(get_size());
 }
 
 void gui_convoy_payload_info_t::draw(scr_coord offset)
 {
-	// keep previous maximum width
-	int x_size = get_size().w - 51 - pos.x;
-	karte_t *welt = world();
-	offset.y += LINESPACE / 2;
-	offset.x += D_H_SPACE;
-
-
-
-	int total_height = 0;
-	if (cnv.is_bound()) {
-		//char number[64];
-		cbuffer_t buf;
-		int extra_w = D_H_SPACE;
-		const uint16 month_now = welt->get_timeline_year_month();
-		const uint8 catering_level = cnv->get_catering_level(goods_manager_t::INDEX_PAS);
-
-		char min_loading_time_as_clock[32];
-		char max_loading_time_as_clock[32];
-
-		if (cnv->get_no_load()) {
-			if (skinverwaltung_t::alerts) {
-				display_color_img(skinverwaltung_t::alerts->get_image_id(2), pos.x + offset.x + extra_w, pos.y + offset.y + total_height + FIXED_SYMBOL_YOFF, 0, false, false);
-			}
-			buf.clear();
-			buf.append(translator::translate("No load setting"));
-			display_proportional_clip_rgb(pos.x + offset.x + extra_w + 14, pos.y + offset.y + total_height, buf, ALIGN_LEFT, SYSCOL_TEXT, false);
-			total_height += LINESPACE*1.5;
-		}
-
-		static cbuffer_t freight_info;
-		for (uint8 veh = 0; veh < cnv->get_vehicle_count(); veh++) {
-			vehicle_t *v = cnv->get_vehicle(veh);
-			freight_info.clear();
-
-			// now add the other info
-			int extra_y = 0;
-			const uint16 grid_width = D_BUTTON_WIDTH / 3;
-			extra_w = grid_width;
-
-			int boarding_rate = 0;
-			int returns = 0;
-
-			// cars number in this convoy
-			PIXVAL veh_bar_color;
-			sint8 car_number = cnv->get_car_numbering(veh);
-			buf.clear();
-
-			if (car_number < 0) {
-				buf.printf("%.2s%d", translator::translate("LOCO_SYM"), abs(car_number)); // This also applies to horses and tractors and push locomotives.
-			}
-			else {
-				buf.append(car_number);
-			}
-			display_proportional_clip_rgb(pos.x + offset.x + 1, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
-			buf.clear();
-
-			// vehicle color bar
-			veh_bar_color = (v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-			if (v->get_desc()->is_obsolete(month_now)) {
-				veh_bar_color = COL_OBSOLETE;
-			}
-			display_veh_form_wh_clip_rgb(pos.x+offset.x+1,                  pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
-			display_veh_form_wh_clip_rgb(pos.x+offset.x+(grid_width-6)/2+1, pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, true,  v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
-
-			// goods category symbol
-			if (v->get_desc()->get_total_capacity() || v->get_desc()->get_overcrowded_capacity()) {
-				display_color_img(v->get_cargo_type()->get_catg_symbol(), pos.x + offset.x + grid_width / 2 - 5, pos.y + offset.y + total_height + extra_y + LINESPACE * 2, 0, false, false);
-			}
-			// name of this
-			//display_multiline_text(pos.x + offset.x, pos.y + offset.y + total_height + extra_y, translator::translate(v->get_desc()->get_name()), SYSCOL_TEXT, true);
-			display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, translator::translate(v->get_desc()->get_name()), ALIGN_LEFT, SYSCOL_TEXT, true);
-			extra_y += LINESPACE + D_V_SPACE;
-
-			if (v->get_desc()->get_total_capacity() > 0)
-			{
-				boarding_rate = v->get_total_cargo() * 100 / v->get_cargo_max();
-
-				//Loading time
-				welt->sprintf_ticks(min_loading_time_as_clock, sizeof(min_loading_time_as_clock), v->get_desc()->get_min_loading_time());
-				welt->sprintf_ticks(max_loading_time_as_clock, sizeof(max_loading_time_as_clock), v->get_desc()->get_max_loading_time());
-				buf.clear();
-				buf.printf("%s %s - %s", translator::translate("Loading time:"), min_loading_time_as_clock, max_loading_time_as_clock);
-				display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				extra_y += LINESPACE;
-
-				// Class entries, if passenger or mail vehicle
-				bool pass_veh = v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS;
-				bool mail_veh = v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL;
-
-				uint8 pass_classes = goods_manager_t::passengers->get_number_of_classes();
-				uint8 mail_classes = goods_manager_t::mail->get_number_of_classes();
-
-				goods_desc_t const& g = *v->get_cargo_type();
-
-				if (pass_veh || mail_veh) {
-
-					int classes_to_check = pass_veh ? pass_classes : mail_classes;
-					int left;
-					for (uint8 i = 0; i < classes_to_check; i++)
-					{
-						buf.clear();
-						if (v->get_accommodation_capacity(i) > 0 || v->get_overcrowded_capacity(i))
-						{
-							left = pos.x + extra_w + offset.x;
-
-							// [class name]
-							if (v->get_reassigned_class(i) != i)
-							{
-								left += display_proportional_clip_rgb(left, pos.y + offset.y + total_height + extra_y, "(*)", ALIGN_LEFT, SYSCOL_EDIT_TEXT_DISABLED, true);
-								buf.clear();
-							}
-
-							buf.append(goods_manager_t::get_translated_wealth_name(v->get_cargo_type()->get_catg_index(), v->get_reassigned_class(i)));
-							buf.append(":");
-
-							PIXVAL text_color = boarding_rate > 100 ? color_idx_to_rgb(COL_DARK_PURPLE) : SYSCOL_TEXT;
-							// [comfort]
-							if (pass_veh)
-							{
-								buf.printf(" %s ", translator::translate("Comfort:"));
-								left += display_proportional_clip_rgb(left, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-								buf.clear();
-
-								buf.printf("%3i", v->get_comfort(catering_level, v->get_reassigned_class(i)));
-								left += display_proportional_clip_rgb(left, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, text_color, true);
-								buf.clear();
-
-								buf.append(", ");
-							}
-							left += display_proportional_clip_rgb(left, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-							// [capacity]
-							buf.clear();
-
-							buf.printf("%4d/%3d", v->get_total_cargo_by_class(i), v->get_fare_capacity(v->get_reassigned_class(i)));
-							if (v->get_overcrowded_capacity(i)) {
-								buf.printf("(%d)", v->get_overcrowded_capacity(i));
-							}
-							left += display_proportional_clip_rgb(left, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-
-							// [color bar(pas/mail)]
-							left += D_H_SPACE;
-							// only for pas and mail
-							display_loading_bar(left, pos.y + offset.y + total_height + extra_y, LOADING_BAR_WIDTH, LOADING_BAR_HEIGHT, g.get_color(), v->get_total_cargo_by_class(i), v->get_fare_capacity(v->get_reassigned_class(i)), v->get_overcrowded_capacity(i));
-
-							extra_y += LINESPACE + 2;
-						}
-					}
-
-					buf.clear();
-				}
-				else {
-					int left = 0;
-					char const* const name = translator::translate(g.get_catg_name());
-					left += display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y, name, ALIGN_LEFT, SYSCOL_TEXT, true);
-					left += D_H_SPACE;
-					// [color bar(goods)]
-					// draw the "empty" loading bar
-					display_loading_bar(pos.x + extra_w + offset.x + left, pos.y + offset.y + total_height + extra_y, LOADING_BAR_WIDTH, LOADING_BAR_HEIGHT, color_idx_to_rgb(COL_GREY4), 0, 1, 0);
-
-					int bar_start_offset = 0;
-					int cargo_sum= 0 ;
-					extra_y += (LINESPACE - LOADING_BAR_HEIGHT) / 2;
-					FOR(slist_tpl<ware_t>, const ware, v->get_cargo(0))
-					{
-						goods_desc_t const* const wtyp = ware.get_desc();
-						cargo_sum += ware.menge;
-
-						// draw the goods loading bar
-						int bar_end_offset = cargo_sum * LOADING_BAR_WIDTH / v->get_desc()->get_total_capacity();
-						PIXVAL goods_color = wtyp->get_color();
-						if (bar_end_offset - bar_start_offset) {
-							display_cylinderbar_wh_clip_rgb(pos.x + extra_w + offset.x + left + bar_start_offset, pos.y + offset.y + total_height + extra_y, bar_end_offset - bar_start_offset, LOADING_BAR_HEIGHT, goods_color, true);
-						}
-						bar_start_offset += bar_end_offset - bar_start_offset;
-					}
-					if (v->get_desc()->get_mixed_load_prohibition()) {
-						extra_y += LINESPACE;
-						buf.clear();
-						buf.printf("%s", translator::translate("(mixed_load_prohibition)"));
-						display_proportional_clip_rgb(pos.x + extra_w + offset.x, pos.y + offset.y + total_height + extra_y - (LINESPACE - LOADING_BAR_HEIGHT) / 2, buf, ALIGN_LEFT, color_idx_to_rgb(COL_BRONZE), true);
-					}
-					extra_y += LINESPACE + 2;
-				}
-
-				if (show_detail) {
-					// We get the freight info via the freight_list_sorter now, so no need to do anything but fetch it
-					v->get_cargo_info(freight_info);
-					// show it
-					const int px_len = display_multiline_text_rgb(pos.x + offset.x + extra_w, pos.y + offset.y + total_height + extra_y, freight_info, SYSCOL_TEXT);
-					if (px_len + extra_w > x_size)
-					{
-						x_size = px_len + extra_w;
-					}
-					// count returns
-					returns = 0;
-					const char *p = freight_info;
-					for (int i = 0; i < freight_info.len(); i++)
-					{
-						if (p[i] == '\n')
-						{
-							returns++;
-						}
-					}
-				}
-				extra_y += (returns*LINESPACE) + LINESPACE;
-			}
-
-			// skip at least 3.5 lines. (This is for vehicles without capacity such as locomotives)
-			total_height += max(extra_y + LINESPACE, 3.5 * LINESPACE);
-		}
-	}
-
-	scr_size size(max(x_size + pos.x, get_size().w), total_height);
-	if (size != get_size()) {
-		set_size(size);
-	}
-}
-
-
-void gui_convoy_payload_info_t::display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity)
-{
-	if (capacity > 0 || overcrowd_capacity > 0) {
-		// base
-		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, w * capacity / (capacity + overcrowd_capacity), h, color_idx_to_rgb(COL_GREY4), false);
-		// dsiplay loading barSta
-		display_fillbox_wh_clip_rgb(xp, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * capacity / (capacity + overcrowd_capacity)), h, color, true);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2, w * loading / (capacity + overcrowd_capacity), 3, color_idx_to_rgb(COL_WHITE), 15);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_WHITE), 15);
-		display_blend_wh_rgb(xp, yp + (LINESPACE - h) / 2 + h - 1, w * loading / (capacity + overcrowd_capacity), 1, color_idx_to_rgb(COL_BLACK), 10);
-		if (overcrowd_capacity && (loading > (capacity- overcrowd_capacity))) {
-			display_fillbox_wh_clip_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), h+2,color_idx_to_rgb(COL_OVERCROWD), true);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 3, color_idx_to_rgb(COL_WHITE), 15);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 1, color_idx_to_rgb(COL_WHITE), 15);
-			display_blend_wh_rgb(xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h - 1, min(w * loading / (capacity + overcrowd_capacity), w * (loading - capacity) / (capacity + overcrowd_capacity)), 2, color_idx_to_rgb(COL_BLACK), 10);
-		}
-
-		// frame
-		display_ddd_box_clip_rgb(xp - 1, yp + (LINESPACE - h) / 2 - 1, w * capacity / (capacity + overcrowd_capacity) + 2, h + 2,  color_idx_to_rgb(MN_GREY0),  color_idx_to_rgb(MN_GREY0));
-		// overcrowding frame
-		if (overcrowd_capacity) {
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 1, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 - 1, 1, 1,  color_idx_to_rgb(MN_GREY0));  // top
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 - 2, xp + w, yp + (LINESPACE - h) / 2 + h, 1, 1,  color_idx_to_rgb(MN_GREY0));  // right. start from dot
-			display_direct_line_dotted_rgb(xp + w, yp + (LINESPACE - h) / 2 + h, xp + w * capacity / (capacity + overcrowd_capacity) + 1, yp + (LINESPACE - h) / 2 + h, 1, 1,  color_idx_to_rgb(MN_GREY0)); // bottom
-		}
-	}
+	gui_aligned_container_t::draw(offset);
 }
 
 
@@ -1726,7 +1559,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 	// keep previous maximum width
 	int x_size = get_size().w - 51 - pos.x;
 	karte_t *welt = world();
-	offset.y += LINESPACE / 2;
+	offset.y += LINESPACE>>1;
 	offset.x += D_H_SPACE;
 
 	int total_height = 0;
@@ -1743,7 +1576,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			buf.clear();
 			buf.append(translator::translate("Replacing"));
 			display_proportional_clip_rgb(pos.x + offset.x + extra_w + 14, pos.y + offset.y + total_height, buf, ALIGN_LEFT, SYSCOL_TEXT, false);
-			total_height += LINESPACE * 1.5;
+			total_height += (LINESPACE*3)>>1;
 		}
 
 		// display total values
@@ -1819,7 +1652,7 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 					display_color_img(skinverwaltung_t::alerts->get_image_id(2), pos.x + offset.x + D_MARGIN_LEFT, pos.y + offset.y + total_height + FIXED_SYMBOL_YOFF, 0, false, false);
 				}
 				display_proportional_clip_rgb(pos.x + offset.x + D_MARGIN_LEFT + 13, pos.y + offset.y + total_height, buf, ALIGN_LEFT, COL_OBSOLETE, true);
-				total_height += LINESPACE * 1.5;
+				total_height += (LINESPACE*3)>>1;
 				any_obsoletes = true;
 			}
 		}
