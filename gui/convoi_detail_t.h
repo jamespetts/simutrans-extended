@@ -55,18 +55,26 @@ public:
 
 class gui_vehicle_cargo_info_t : public gui_aligned_container_t
 {
+	// Note: different from freight_list_sorter_t
+	enum filter_mode_t : uint8 {
+		hide_detail = 0,
+		by_unload_halt,      // (by wealth)
+		by_destination_halt, // (by wealth)
+		by_final_destination // (by wealth)
+	};
+
 	schedule_t * schedule;
 	vehicle_t *veh;
 	uint16 total_cargo=0;
-	bool show_loaded_detail = true;
+	uint8 show_loaded_detail = by_unload_halt;
 
 public:
-	gui_vehicle_cargo_info_t(vehicle_t *v, bool display_loaded_detail);
+	gui_vehicle_cargo_info_t(vehicle_t *v, uint8 display_loaded_detail);
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	void set_show_detail(bool yesno) {
-		show_loaded_detail = yesno;
+	void set_show_detail(uint8 filter_mode) {
+		show_loaded_detail = filter_mode;
 		update();
 	}
 	void update();
@@ -140,13 +148,13 @@ class gui_convoy_payload_info_t : public gui_aligned_container_t
 {
 private:
 	convoihandle_t cnv;
-	bool show_detail = true;
+	uint8 show_detail = 1; // by_unload_halt
 
 public:
 	gui_convoy_payload_info_t(convoihandle_t cnv);
 
 	void set_cnv(convoihandle_t c) { cnv = c; }
-	void set_show_detail(bool yesno) { show_detail = yesno; update_list(); }
+	void set_show_detail(uint8 filter_mode) { show_detail = filter_mode; update_list(); }
 
 	void update_list();
 
@@ -208,7 +216,7 @@ private:
 	button_t withdraw_button;
 	button_t retire_button;
 	button_t class_management_button;
-	button_t display_detail_button;
+	gui_combobox_t cb_loaded_detail;
 
 	gui_combobox_t overview_selctor;
 	gui_label_buf_t

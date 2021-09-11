@@ -36,6 +36,9 @@
 #include "../vehicle/rail_vehicle.h"
 #include "../display/viewport.h"
 
+// for gui_vehicle_cargo_info_t
+#include "../simcity.h"
+#include "../obj/gebaeude.h"
 
 #define LOADING_BAR_WIDTH 170
 #define LOADING_BAR_HEIGHT 5
@@ -91,6 +94,15 @@ static char const* const chart_help_text[] =
 	"helptxt_fv_graph_tractive_effort",
 	"Total force acting in the opposite direction of the convoy"
 };
+
+static char const* const txt_loaded_display[4] =
+{
+	"Hide loaded detail",
+	"Unload halt",
+	"Destination halt",
+	"Final destination"
+};
+
 
 
 gui_capacity_occupancy_bar_t::gui_capacity_occupancy_bar_t(vehicle_t *v, uint8 ac)
@@ -187,10 +199,10 @@ scr_size gui_capacity_occupancy_bar_t::get_max_size() const
 }
 
 
-gui_vehicle_cargo_info_t::gui_vehicle_cargo_info_t(vehicle_t *v, bool yesno)
+gui_vehicle_cargo_info_t::gui_vehicle_cargo_info_t(vehicle_t *v, uint8 filter_mode)
 {
 	veh=v;
-	show_loaded_detail = yesno;
+	show_loaded_detail = filter_mode;
 	schedule = veh->get_convoi()->get_schedule();
 	set_table_layout(1,0);
 
@@ -274,7 +286,7 @@ void gui_vehicle_cargo_info_t::update()
 		}
 		end_table();
 
-		if(!show_loaded_detail) {
+		if( show_loaded_detail==hide_detail ) {
 			continue;
 		}
 
@@ -326,9 +338,15 @@ void gui_vehicle_cargo_info_t::update()
 								FOR(vector_tpl<ware_t>, &recorded_ware, this_iteration_vector) {
 									if (ware.get_index() == recorded_ware.get_index() &&
 										ware.get_class() == recorded_ware.get_class() &&
-										ware.is_commuting_trip == recorded_ware.is_commuting_trip &&
-										ware.get_zielpos() == recorded_ware.get_zielpos())
+										ware.is_commuting_trip == recorded_ware.is_commuting_trip
+										)
 									{
+										if( show_loaded_detail==by_final_destination  &&  ware.get_zielpos()!=recorded_ware.get_zielpos() ) {
+											continue;
+										}
+										if( show_loaded_detail==by_destination_halt &&  ware.get_ziel()!=recorded_ware.get_ziel() ) {
+											continue;
+										}
 										recorded_ware.menge += ware.menge;
 										merge = true;
 										break;
@@ -422,11 +440,102 @@ void gui_vehicle_cargo_info_t::update()
 												lb->set_fixed_width(lb->get_min_size().w);
 
 												// 4. destination halt
-												lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-												if (w.get_ziel() != w.get_zwischenziel()) {
-													lb->buf().printf("%s%s", translator::translate(" > "), w.get_ziel()->get_name());
+												if(  show_loaded_detail==by_final_destination ||
+													(show_loaded_detail==by_destination_halt  &&  w.get_ziel()!=w.get_zwischenziel()) ){
+													add_table( show_loaded_detail==by_destination_halt ? 4:7, 1);
+													{
+														// final destination building
+														if (show_loaded_detail == by_final_destination) {
+															if (is_pass_veh || is_mail_veh) {
+																if (skinverwaltung_t::on_foot) {
+																	new_component<gui_image_t>(skinverwaltung_t::on_foot->get_image_id(0), 0, ALIGN_CENTER_V, true);
+																}
+																else {
+																	new_component<gui_label_t>(" > ");
+																}
+															}
+															else {
+																new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, ALIGN_CENTER_V, true);
+															}
+															// destination building
+															cbuffer_t dbuf;
+															if (const grund_t* gr = world()->lookup_kartenboden(w.get_zielpos())) {
+																if (const gebaeude_t* const gb = gr->get_building()) {
+																	gb->get_description(dbuf);
+																}
+																else {
+																	dbuf.append(translator::translate("Unknown destination"));
+																}
+																lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+																lb->buf().append(dbuf.get_str());
+																lb->update();
+																lb->set_fixed_width(lb->get_min_size().w+D_H_SPACE);
+
+																const stadt_t* city = world()->get_city(w.get_zielpos());
+																if (city) {
+																	new_component<gui_image_t>(skinverwaltung_t::intown->get_image_id(0), 0, ALIGN_CENTER_V, true);
+																}
+																else {
+																	new_component<gui_empty_t>();
+																}
+
+																// pos
+																lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+
+																if (city) {
+																	lb->buf().append( city->get_name() );
+																}
+																lb->buf().printf(" %s ", w.get_zielpos().get_fullstr());
+																lb->update();
+															}
+															else {
+																new_component_span<gui_label_t>("Unknown destination", 3);
+															}
+														}
+
+														// via halt(=w.get_ziel())
+														new_component<gui_label_t>(show_loaded_detail==by_destination_halt ? " > " : " via");
+
+														if (w.get_ziel().is_bound()) {
+															//button_t *b = new_component<button_t>();
+															//b->set_typ(button_t::posbutton_automatic);
+															//b->set_targetpos(w.get_ziel().get_rep()->get_basis_pos());
+															const bool is_interchange = (w.get_ziel().get_rep()->registered_lines.get_count() + w.get_ziel().get_rep()->registered_convoys.get_count()) > 1;
+															new_component<gui_schedule_entry_number_t>(-1, w.get_ziel().get_rep()->get_owner()->get_player_color1(),
+																is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+																scr_size(LINESPACE+4, LINESPACE),
+																w.get_ziel().get_rep()->get_basis_pos3d()
+																);
+
+															lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+															lb->buf().printf("%s", w.get_ziel()->get_name());
+															lb->update();
+
+															if( show_loaded_detail==by_destination_halt ) {
+																// distance
+																const uint32 distance = shortest_distance(w.get_zwischenziel().get_rep()->get_basis_pos(), w.get_ziel().get_rep()->get_basis_pos()) * world()->get_settings().get_meters_per_tile();
+																lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+																if (distance < 1000) {
+																	lb->buf().printf("%um", distance);
+																}
+																else if (distance < 20000) {
+																	lb->buf().printf("%.1fkm", (double)distance / 1000.0);
+																}
+																else {
+																	lb->buf().printf("%ukm", distance / 1000);
+																}
+																lb->update();
+															}
+														}
+														else {
+															new_component_span<gui_label_t>("unknown", show_loaded_detail==by_destination_halt ? 3:2); // e.g. halt was removed
+														}
+													}
+													end_table();
 												}
-												lb->update();
+												else {
+													new_component<gui_fill_t>();
+												}
 
 												wealth_sum += w.menge;
 											}
@@ -715,13 +824,18 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		cont_payload_tab.add_component(&lb_loading_time);
 		cont_payload_tab.new_component<gui_margin_t>(D_H_SPACE*2);
 
-		// This method cannot be used with new GUI engine
-		display_detail_button.init(button_t::square_state, "Display loaded detail", scr_coord(0,0), scr_size((D_BUTTON_WIDTH*3)>>1, D_BUTTON_HEIGHT));
-		display_detail_button.set_tooltip("Displays detailed information of the vehicle's load.");
-		display_detail_button.add_listener(this);
-		display_detail_button.pressed = true;
-		cont_payload_info.set_show_detail(true);
-		cont_payload_tab.add_component(&display_detail_button);
+		cont_payload_tab.add_table(3,1)->set_spacing(scr_size(0, 0));
+		{
+			cont_payload_tab.new_component<gui_label_t>("Display loaded detail")->set_tooltip("Displays detailed information of the vehicle's load.");
+			for(uint8 i=0; i<4; i++) {
+				cb_loaded_detail.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_loaded_display[i]), SYSCOL_TEXT);
+			}
+			cont_payload_tab.add_component(&cb_loaded_detail);
+			cb_loaded_detail.add_listener(this);
+			cb_loaded_detail.set_selection(1);
+			cont_payload_tab.new_component<gui_fill_t>();
+		}
+		cont_payload_tab.end_table();
 
 		if (cnv->get_catering_level(goods_manager_t::INDEX_PAS)) {
 			cont_payload_tab.new_component<gui_label_t>("Catering level");
@@ -936,7 +1050,7 @@ void convoi_detail_t::update_labels()
 	}
 
 	if (tabstate == CD_TAB_LOADED_DETAIL) {
-		const sint64 seed_temp = cnv->is_reversed() + cnv->get_vehicle_count() + cnv->get_sum_weight() + display_detail_button.pressed;
+		const sint64 seed_temp = cnv->is_reversed() + cnv->get_vehicle_count() + cnv->get_sum_weight() + cb_loaded_detail.get_selection();
 		if (old_seed != seed_temp) {
 			// something has changed => update
 			old_seed = seed_temp;
@@ -1128,9 +1242,8 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			update_labels();
 			return true;
 		}
-		else if (comp == &display_detail_button) {
-			display_detail_button.pressed = !display_detail_button.pressed;
-			cont_payload_info.set_show_detail(display_detail_button.pressed);
+		else if( comp==&cb_loaded_detail ) {
+			cont_payload_info.set_show_detail(cb_loaded_detail.get_selection());
 			return true;
 		}
 		else if (comp == &tabs) {
