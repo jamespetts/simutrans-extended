@@ -394,7 +394,7 @@ void gui_vehicle_cargo_info_t::update()
 												}
 												// 1. goods color box
 												const PIXVAL goods_color = (w.is_passenger() && w.is_commuting_trip) ? color_idx_to_rgb(COL_COMMUTER) : w.get_desc()->get_color();
-												new_component<gui_colorbox_t>()->init(goods_color, scr_size((LINESPACE>>1)+2, (LINESPACE>>1)+2), true);
+												new_component<gui_colorbox_t>(goods_color)->set_size( scr_size((LINESPACE>>1)+2, (LINESPACE>>1)+2) );
 
 												// 2. goods name
 												if (!w.is_passenger() && !w.is_mail()) {
@@ -406,7 +406,7 @@ void gui_vehicle_cargo_info_t::update()
 
 												// 3. goods amount and unit
 												gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-												lb->buf().printf("%3u", w.menge, 0);
+												lb->buf().printf("%u", w.menge);
 												if (w.is_passenger()) {
 													if (w.menge == 1) {
 														lb->buf().printf(" %s", w.is_commuting_trip ? translator::translate("commuter") : translator::translate("visitor"));
@@ -419,6 +419,7 @@ void gui_vehicle_cargo_info_t::update()
 													lb->buf().append(translator::translate(veh->get_cargo_type()->get_mass()));
 												}
 												lb->update();
+												lb->set_fixed_width(lb->get_min_size().w);
 
 												// 4. destination halt
 												lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
@@ -437,7 +438,6 @@ void gui_vehicle_cargo_info_t::update()
 									if (number_of_classes > 1 && wealth_sum) {
 										lb_wealth_total->buf().printf("%s: %u%s", goods_manager_t::get_translated_wealth_name(veh->get_cargo_type()->get_catg_index(), wc), wealth_sum, translator::translate(veh->get_cargo_type()->get_mass()));
 										lb_wealth_total->set_visible(true);
-										lb_wealth_total->set_size(lb_wealth_total->get_min_size());
 									}
 									else {
 										lb_wealth_total->set_visible(false);
@@ -445,6 +445,7 @@ void gui_vehicle_cargo_info_t::update()
 										lb_wealth_total->set_size(scr_size(5,0));
 									}
 									lb_wealth_total->update();
+									lb_wealth_total->set_size(lb_wealth_total->get_min_size());
 
 									new_component_span<gui_empty_t>(2); // vertical margin between loading wealth classes
 								}
