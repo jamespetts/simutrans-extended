@@ -497,9 +497,6 @@ void gui_vehicle_cargo_info_t::update()
 														new_component<gui_label_t>(show_loaded_detail==by_destination_halt ? " > " : " via");
 
 														if (w.get_ziel().is_bound()) {
-															//button_t *b = new_component<button_t>();
-															//b->set_typ(button_t::posbutton_automatic);
-															//b->set_targetpos(w.get_ziel().get_rep()->get_basis_pos());
 															const bool is_interchange = (w.get_ziel().get_rep()->registered_lines.get_count() + w.get_ziel().get_rep()->registered_convoys.get_count()) > 1;
 															new_component<gui_schedule_entry_number_t>(-1, w.get_ziel().get_rep()->get_owner()->get_player_color1(),
 																is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
