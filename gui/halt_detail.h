@@ -30,6 +30,20 @@ class player_t;
 class gui_halt_waiting_indicator_t;
 
 
+// Similar function: gui_convoy_handle_catg_img_t
+class gui_line_handle_catg_img_t : public gui_container_t
+{
+	linehandle_t line;
+
+public:
+	gui_line_handle_catg_img_t(linehandle_t line);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE;
+};
+
 // tab1 - pax and mail
 class halt_detail_pas_t : public gui_container_t
 {
