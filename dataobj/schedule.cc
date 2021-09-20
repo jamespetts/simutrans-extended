@@ -115,6 +115,30 @@ halthandle_t schedule_t::get_prev_halt( player_t *player ) const
 }
 
 
+halthandle_t schedule_t::get_origin_halt(player_t *player) const
+{
+	for (  uint8 i=0; i<entries.get_count(); i++  ) {
+		halthandle_t h = haltestelle_t::get_halt(entries[i].pos, player);
+		if (h.is_bound()) {
+			return h;
+		}
+	}
+	return halthandle_t();
+}
+
+halthandle_t schedule_t::get_destination_halt(player_t *player) const
+{
+	for (  uint8 i=1; i<entries.get_count(); i++  ) {
+		halthandle_t h = haltestelle_t::get_halt(entries[entries.get_count()-i].pos, player);
+		if (h.is_bound()) {
+			return h;
+		}
+	}
+	return halthandle_t();
+}
+
+
+
 bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, bool wait_for_time, bool show_failure)
 {
 	// stored in minivec, so we have to avoid adding too many

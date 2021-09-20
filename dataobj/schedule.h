@@ -167,6 +167,10 @@ public:
 	 */
 	halthandle_t get_prev_halt( player_t *player ) const;
 
+	// This is used to display the outline the schedule.
+	halthandle_t get_origin_halt(player_t *player) const;
+	halthandle_t get_destination_halt(player_t *player) const;
+
 	/**
 	 * Inserts a coordinate at current_stop into the schedule.
 	 */
