@@ -1,0 +1,82 @@
+name: nightly
+on: push
+#  - schedule:
+#    - cron: '0 2 * * *'
+jobs:
+  nightly:
+    runs-on: ubuntu-latest    
+    steps:
+      - uses: actions/checkout@v2  
+      
+      - name: Get latest successful commit
+        uses: nrwl/last-successful-commit-action@v1        
+        id: last_successful_commit
+        with:
+          branch: 'master'
+          workflow_id: 'ci.yml'
+          github_token: ${{ secrets.CI_token }}
+      
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ steps.last_successful_commit.outputs.commit_hash }}    
+      
+#      - name: Set nightly tag to current commit
+#        uses: richardsimko/update-tag@v1
+#        with:
+#          tag_name: Nightly
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.CI_token }}
+          
+#      - name: Get artifacts
+#        uses: dawidd6/action-download-artifact@v2
+#        with:
+#          github_token: ${{secrets.CI_token}}
+#          workflow: ci.yml
+#          commit: ${{ steps.last_successful_commit.outputs.commit_hash }}
+          
+#      - name: Prepare Linux deployment
+#        run: |
+#          mkdir ./deploy
+#          mkdir ./deploy/linux
+#          mv ./sim-linux-sdl2mixer-nightly/simutrans-extended ./deploy/linux/simutrans-extended
+#          mv ./sim-linux-posix-nightly/simutrans-extended ./deploy/linux/simutrans-extended-server
+#          mv ./makeobj-linux-nightly/makeobj-extended ./deploy/linux/makeobj-extended
+#          mv ./nettool-linux-nightly/nettool-extended ./deploy/linux/nettool-extended
+#      - uses: papeloto/action-zip@v1
+#        with:
+#          files: ./deploy/linux/*
+#          dest: linux.zip
+
+#      - name: Prepare macOS deployment
+#        run: |
+#          mkdir ./deploy/macos
+#          mv ./sim-mac-sdl2-nightly/simutrans-extended ./deploy/macos/simutrans-extended
+#          mv ./sim-mac-headless-nightly/simutrans-extended ./deploy/macos/simutrans-extended-server
+#          mv ./makeobj-mac-nightly/makeobj-extended ./deploy/macos/makeobj-extended
+#          mv ./nettool-mac-nightly/nettool-extended ./deploy/macos/nettool-extended
+#      - uses: papeloto/action-zip@v1
+#        with:
+#          files: ./deploy/macos/*
+#          dest: macos.zip
+          
+#      - name: Prepare Windows deployment
+#        run: |
+#          mkdir ./deploy/windows
+#          mv ./sim-mingw-sdl2-nightly/simutrans-extended.exe ./deploy/windows/simutrans-extended.exe
+#          mv ./sim-mingw-posix-nightly/simutrans-extended.exe ./deploy/windows/simutrans-extended-server.exe
+#          mv ./makeobj-mingw-nightly/makeobj-extended.exe ./deploy/windows/makeobj-extended.exe
+#          mv ./nettool-mingw-nightly/nettool-extended.exe ./deploy/windows/nettool-extended.exe
+#      - uses: papeloto/action-zip@v1
+#        with:
+#          files: ./deploy/windows/*
+#          dest: windows.zip
+          
+#      - name: Deploy
+#        uses: svenstaro/upload-release-action@v2
+#        with:
+#          repo_token: ${{ secrets.CI_token }}
+#          file: ./deploy/*
+#          tag: Nightly
+#          overwrite: true
+#          file_glob: true
