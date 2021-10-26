@@ -788,3 +788,6 @@ makeobj:
 
 nettool:
 	$(Q)$(MAKE) -e -C nettools FLAGS="$(FLAGS)"
+test: simutrans
+	$(BUILDDIR)/$(PROG) -set_workdir $(shell pwd)/simutrans -objects pak -scenario automated-tests -debug 2 -lang en -fps 100
+
