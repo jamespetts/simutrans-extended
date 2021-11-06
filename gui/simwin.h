@@ -128,6 +128,7 @@ enum magic_numbers {
 	magic_line_class_manager  = magic_class_manager       + 0x10000,
 	magic_depotlist           = magic_line_class_manager  + 843,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
+	//magic_pakinstall,
 	magic_vehicle_detail,
 	magic_signalboxlist,
 	magic_pier_rotation_select,
@@ -235,5 +236,8 @@ void win_set_tooltip(scr_coord_val xpos, scr_coord_val ypos, const char *text, c
  * *MUST* be explicitly unset!
  */
 void win_set_static_tooltip(const char *text);
+
+// shows a modal dialoge (blocks other interaction)
+void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*quit)());
 
 #endif

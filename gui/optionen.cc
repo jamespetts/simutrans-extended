@@ -122,8 +122,8 @@ bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		// since init always returns false, it is safe to delete immediately
 		delete tmp_tool;
 	}
-	else if(  comp == option_buttons + BUTTON_NEW_GAME  ) {
-		destroy_all_win( true );
+	else if (comp == option_buttons + BUTTON_NEW_GAME) {
+		destroy_all_win(true);
 		welt->stop(false);
 	}
 	else if(  comp == option_buttons + BUTTON_QUIT  ) {
