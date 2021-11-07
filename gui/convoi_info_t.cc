@@ -128,6 +128,7 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	loading_bar(cnv),
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),
+	loading_info(linehandle_t(), cnv),
 	scroll_freight(&container_freight, true, true),
 	scroll_times_history(&cont_times_history, true),
 	lc_preview(0)
@@ -281,6 +282,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	switch_mode.add_tab(&scroll_freight, translator::translate("cd_payload_tab"));
 
 	container_freight.set_table_layout(1,0);
+	container_freight.add_component(&loading_info);
 	container_freight.add_table(2,1);
 	{
 		container_freight.new_component<gui_label_t>("loaded passenger/freight");
