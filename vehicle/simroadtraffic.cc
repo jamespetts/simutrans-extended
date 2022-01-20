@@ -931,7 +931,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		return true;
 	}
 	// If this vehicle is forced to go back to traffic lane at the next tile and traffic lane is not safe to change lane, this vehicle should wait.
-	if(  str->get_overtaking_mode() > oneway_mode  &&  str->get_overtaking_mode() <= prohibited_mode  &&  get_tiles_overtaking() == 1  ) {
+	if(  str->get_overtaking_mode() == prohibited_mode  &&  get_tiles_overtaking() == 1  ) {
 		if(  vehicle_base_t* v = other_lane_blocked(false)  ) {
 			if(  v->get_waytype() == road_wt  &&  judge_lane_crossing(get_90direction(), calc_direction(pos_next,pos_next_next), v->get_90direction(), true, true)) {
 				return false;
@@ -1535,10 +1535,6 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		return true;
 	}
 
-	if(  overtaking_mode == twoway_mode  ) {
-		// since other vehicle is moving...
-		return false;
-	}
 	// On one-way road, other_speed is current speed. Otherwise, other_speed is the theoretical max power speed.
 	sint32 diff_speed = (sint32)current_speed - other_speed;
 	if(  diff_speed < kmh_to_speed(2)  ) {
