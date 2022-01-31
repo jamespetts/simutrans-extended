@@ -73,10 +73,15 @@ bool env_t::server_runs_background_tasks_when_paused = false;
 
 std::string env_t::nickname = "";
 
+uint8 env_t::chat_unread_public = 0;
+uint8 env_t::chat_unread_company = 0;
+uint8 env_t::chat_unread_whisper = 0;
+
 // this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
 sint16 env_t::scroll_multi = -2;
 bool env_t::scroll_infinite = false;
+uint16 env_t::scroll_threshold = 8;
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
@@ -222,6 +227,7 @@ void env_t::init()
 	cursor_hide_range = 5;
 
 	scroll_infinite = true;
+	scroll_threshold = 16;
 
 	visualize_schedule = true;
 
@@ -636,6 +642,10 @@ void env_t::rdwr(loadsave_t *file)
 
 	if( file->is_version_atleast(123, 1) ) {
 		file->rdwr_short(display_scale_percent);
+	}
+
+	if (file->is_version_atleast(123, 2)) {
+		file->rdwr_short(scroll_threshold);
 	}
 
 	// server settings are not saved, since they are server specific
