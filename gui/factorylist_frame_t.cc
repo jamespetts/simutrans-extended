@@ -32,8 +32,8 @@ const char *factorylist_frame_t::display_mode_text[factorylist_stats_t::FACTORYL
 	"fl_btn_operation",
 	"fl_btn_storage",
 	"fl_stats_last_month",
-	"Goods needed",
-	"Output",
+	"Needed",
+	"Products",
 	"fl_btn_region"
 };
 
