@@ -67,7 +67,6 @@ stringhashtable_tpl<halthandle_t, N_BAGS_LARGE> haltestelle_t::all_names;
 
 vector_tpl<lines_loaded_t> haltestelle_t::lines_loaded;
 
-uint8 haltestelle_t::pedestrian_limit = 0;
 // hash table only used during loading
 inthashtable_tpl<sint32,halthandle_t,N_BAGS_LARGE> *haltestelle_t::all_koords = NULL;
 // since size_x*size_y < 0x1000000, we have just to shift the high bits
@@ -2344,7 +2343,9 @@ bool haltestelle_t::recall_ware( ware_t& w, uint32 menge )
 				w.menge = tmp.menge;
 				tmp.menge = 0;
 			}
-			book(w.menge, HALT_ARRIVED);
+			assert( (!w.is_passenger() && !w.is_mail()) );
+			book(w.menge*w.get_desc()->get_weight_per_unit()/10, HALT_GOODS_HANDLING_VOLUME);
+
 			fabrik_t::update_transit( w, false );
 			resort_freight_info = true;
 			return true;
@@ -2698,7 +2699,25 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 					}
 					load.insert(neu);
 
-					book(neu.menge, HALT_DEPARTED);
+					if (neu.get_origin() == self) {
+						// departed
+						if (neu.is_passenger()) {
+							if ( neu.is_commuting_trip ) {
+								book(neu.menge, HALT_COMMUTERS);
+							}
+							else {
+								book(neu.menge, HALT_VISITORS);
+							}
+						}
+						else if (neu.is_mail()) {
+							book(neu.menge*neu.get_desc()->get_weight_per_unit(), HALT_MAIL_HANDLING_VOLUME);
+						}
+						else {
+							// goods
+							book(neu.menge*neu.get_desc()->get_weight_per_unit()/10, HALT_GOODS_HANDLING_VOLUME);
+						}
+					}
+
 					resort_freight_info = true;
 
 					if(requested_amount == 0)
@@ -3871,6 +3890,10 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 	if(file->is_loading()) {
 		owner = welt->get_player(owner_n);
+		if (!owner) {
+			dbg->fatal("haltestelle_t::rdwr", "Halt (%hu) has no owner!", self.get_id());
+		}
+
 		k.rdwr( file );
 		while(k!=koord3d::invalid) {
 			grund_t *gr = welt->lookup(k);
@@ -4036,8 +4059,8 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 	if (file->get_extended_version() >= 5)
 	{
-		const int max_j = (file->get_extended_version() == 14 && file->get_extended_revision() >= 9) || file->get_extended_version() >= 15 ? 11 : 9;
-		for (int j = 0; j < max_j /*MAX_HALT_COST*/; j++)
+		const int halt_records = file->is_version_ex_atleast(14,48) ? MAX_HALT_COST : file->is_version_ex_atleast(14,9) ? 11 : 9;
+		for (int j = 0; j < halt_records; j++)
 		{
 			if (((file->get_extended_version() == 14 && file->get_extended_revision() < 5) || file->get_extended_version() < 14) && j==8)
 			{
@@ -4046,6 +4069,9 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			for (int k = MAX_MONTHS - 1; k >= 0; k--)
 			{
 				file->rdwr_longlong(financial_history[k][j]);
+				if (file->is_version_ex_atleast(14,48) && j== HALT_COMMUTERS && file->is_loading()) {
+					financial_history[k][j] = 0;
+				}
 			}
 		}
 	}
@@ -4077,12 +4103,11 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 		for (int k = MAX_MONTHS - 1; k >= 0; k--)
 		{
-			if(file->is_loading())
-			{
-				financial_history[k][HALT_TOO_SLOW] = 0;
-				financial_history[k][HALT_TOO_WAITING] = 0;
-				financial_history[k][HALT_MAIL_DELIVERED] = 0;
-				financial_history[k][HALT_MAIL_NOROUTE] = 0;
+			if( file->is_loading() ) {
+				for( uint8 l = HALT_TOO_SLOW; l<MAX_HALT_COST; l++ )
+				{
+					financial_history[k][l] = 0;
+				}
 			}
 		}
 	}
@@ -4687,8 +4712,6 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 	// So compute it fresh every time
 	calc_transfer_time();
-
-	pedestrian_limit = 0;
 }
 
 
@@ -4965,7 +4988,8 @@ void haltestelle_t::recalc_status()
 	}
 	else
 	{
-		status_color = color_idx_to_rgb( (financial_history[0][HALT_WAITING]+financial_history[0][HALT_DEPARTED] == 0) ? COL_YELLOW : COL_GREEN );
+		const sint64 total_usage_this_month = financial_history[0][HALT_VISITORS] + financial_history[0][HALT_COMMUTERS]+ financial_history[0][HALT_MAIL_HANDLING_VOLUME] + financial_history[0][HALT_GOODS_HANDLING_VOLUME];
+		status_color = color_idx_to_rgb( (total_usage_this_month+total_sum == 0) ? COL_YELLOW : COL_GREEN );
 	}
 
 	if((station_type & airstop) && has_no_control_tower())

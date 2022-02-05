@@ -19,6 +19,7 @@ class karte_t;
 class test_driver_t;
 class grund_t;
 
+
 /**
  * Route, e.g. for vehicles
  */
@@ -103,6 +104,7 @@ public:
 
 	void rotate90( sint16 y_size ) { route.rotate90( y_size ); }
 
+
 	bool is_contained(const koord3d &k) const { return route.is_contained(k); }
 
 	uint32 index_of(const koord3d &k) const { return (uint32)(route.index_of(k)); }
@@ -158,7 +160,7 @@ public:
 	bool append_straight_route( karte_t *w, koord3d target);
 
 	/**
-	 * Finds route to a location, where @p tdriver-> is_target becomes true.
+	 * Finds route to a location, where @p tdriver->is_target becomes true.
 	 * @param max_depth is the maximum length of a route
 	 */
 	bool find_route(karte_t *w, const koord3d start, test_driver_t *tdriver, const uint32 max_khm, uint8 start_dir, uint32 axle_load, sint32 max_tile_len, uint32 total_weight, uint32 max_depth, bool is_tall, find_route_flags flags = none);

@@ -804,7 +804,7 @@ void convoi_t::add_running_cost(sint64 cost, const weg_t *weg)
 {
 	jahresgewinn += cost;
 
-	if(weg && weg->get_owner() != get_owner() && weg->get_owner() != NULL && (!welt->get_settings().get_toll_free_public_roads() || (weg->get_waytype() != road_wt || weg->get_player_nr() != 1)))
+	if(weg && weg->get_owner() != get_owner() && weg->get_owner() != NULL && (!welt->get_settings().get_toll_free_public_roads() || (weg->get_waytype() != road_wt || weg->get_owner_nr() != 1)))
 	{
 		// running on non-public way costs toll (since running costs are positive => invert)
 		sint32 toll = -(cost * welt->get_settings().get_way_toll_runningcost_percentage()) / 100l;
@@ -864,7 +864,7 @@ void convoi_t::increment_odometer(uint32 steps)
 		}
 		else
 		{
-			player = way->get_player_nr();
+			player = way->get_owner_nr();
 		}
 	}
 
@@ -1836,7 +1836,7 @@ void convoi_t::step()
 						{
 							if(vehicle[k]->get_desc() == replacing_vehicle)
 							{
-								veh = remove_vehicle_bei(k);
+								veh = remove_vehicle_at(k);
 								break;
 							}
 						}
@@ -1861,7 +1861,7 @@ void convoi_t::step()
 									{
 										veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, replacing_vehicle, true);
 										upgrade_vehicle(j, veh);
-										remove_vehicle_bei(j);
+										remove_vehicle_at(j);
 										goto end_loop;
 									}
 								}
@@ -1901,7 +1901,7 @@ end_loop:
 						}
 						else
 						{
-							vehicle_t* old_veh = remove_vehicle_bei(a);
+							vehicle_t* old_veh = remove_vehicle_at(a);
 							old_veh->discard_cargo();
 							old_veh->set_leading(false);
 							old_veh->set_last(false);
@@ -3202,7 +3202,7 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 DBG_MESSAGE("convoi_t::upgrade_vehicle()","now %i of %i total vehicles.",i,max_vehicle);
 }
 
-vehicle_t *convoi_t::remove_vehicle_bei(uint16 i)
+vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 {
 	vehicle_t *v = NULL;
 	if(i<vehicle_count) {
@@ -4433,6 +4433,16 @@ void convoi_t::rdwr(loadsave_t *file)
 		{
 			switch (j)
 			{
+			case CONVOI_MAIL_DISTANCE:
+			case CONVOI_PAYLOAD_DISTANCE:
+				if( file->is_version_ex_less(14,48) && file->is_loading() ) {
+					for (int k = MAX_MONTHS-1; k>=0; k--)
+					{
+						financial_history[k][j] = 0;
+					}
+					continue;
+				}
+				break;
 			case CONVOI_AVERAGE_SPEED:
 			case CONVOI_COMFORT:
 				if (file->get_extended_version() < 2)
@@ -5941,6 +5951,12 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 
 		// Finally, get the fare.
 		fare = goods->get_total_fare(revenue_distance_meters, starting_distance_meters, comfort, catering_level, g_class, journey_tenths);
+
+		// add transportation measurement to statistics
+		// passenger-km(x10 for precision)
+		const sint64 pas_distance = ware.menge*revenue_distance_meters/100;
+		book(pas_distance, convoi_t::CONVOI_PAX_DISTANCE);
+		get_owner()->book_transported(pas_distance, front()->get_waytype(), 0);
 	}
 	else if(ware.is_mail())
 	{
@@ -5948,12 +5964,25 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		const uint8 catering_level = get_catering_level(goods->get_catg_index());
 		// Finally, get the fare.
 		fare = goods->get_total_fare(revenue_distance_meters, starting_distance_meters, 0u, catering_level, g_class, journey_tenths);
+
+		// add transportation measurement to statistics
+		// kg-kilometre(x10 for precision)
+		const sint64 mail_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters / 100;
+		book(mail_distance, convoi_t::CONVOI_MAIL_DISTANCE); // in kg-km/10
+		// tonne-kilometre(x10 for precision)
+		get_owner()->book_transported(mail_distance/10, front()->get_waytype(), 1);
 	}
 	else
 	{
 		// Freight ignores comfort and catering and TPO.
 		// So here we can skip the complicated version for speed.
 		fare = goods->get_total_fare(revenue_distance_meters, starting_distance_meters);
+
+		// add transportation measurement to statistics
+		// tonne-kilometre(x10 for precision)
+		const sint64 payload_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters/100000;
+		book(payload_distance, convoi_t::CONVOI_PAYLOAD_DISTANCE);
+		get_owner()->book_transported(payload_distance, front()->get_waytype(), 2);
 	}
 	// Note that fare comes out in units of 1/4096 of a simcent, for computational precision
 
@@ -6007,11 +6036,11 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
-	grund_t *gr=welt->lookup(front()->get_pos());
+	grund_t *gr = welt->lookup(front()->get_pos());
 
 	// now find out station length
 	uint16 vehicles_loading=0;
-	if(  gr->is_water()  ) {
+	if(vehicle[0]->get_desc()->get_waytype() == water_wt) {
 		// harbour has any size
 		vehicles_loading = vehicle_count;
 	}
@@ -7626,7 +7655,7 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 			strasse_t *str=(strasse_t *)gr->get_weg(road_wt);
 			if(  str==NULL  ) {
 				return false;
-			}else if(  akt_speed < fmin(get_max_power_speed(), str->get_max_speed())/2  &&  diff_speed >= kmh_to_speed(0)  ){
+			}else if(  akt_speed < fmin(get_max_power_speed(), str->get_max_speed(is_electric))/2  &&  diff_speed >= kmh_to_speed(0)  ){
 				//Warning: diff_speed == 0 is acceptable. We must consider the case diff_speed == 0.
 				in_congestion = true;
 			}else{
@@ -7708,7 +7737,7 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 			return false;
 		}
 		// street gets too slow (TODO: should be able to be correctly accounted for)
-		if(  overtaking_mode_loop >= twoway_mode  &&  akt_speed > kmh_to_speed(str->get_max_speed())  ) {
+		if(  overtaking_mode_loop >= twoway_mode  &&  akt_speed > kmh_to_speed(str->get_max_speed(is_electric))  ) {
 			return false;
 		}
 
@@ -7779,13 +7808,13 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 
 		if(  ribi_t::is_straight(str->get_ribi())  ) {
 			// The code from Standard can produce a division be zero error.
-			if (kmh_to_speed(str->get_max_speed()) > 0)
+			if (kmh_to_speed(str->get_max_speed(is_electric)) > 0)
 			{
-				time_overtaking -= (VEHICLE_STEPS_PER_TILE << 16) / kmh_to_speed(str->get_max_speed());
+				time_overtaking -= (VEHICLE_STEPS_PER_TILE << 16) / kmh_to_speed(str->get_max_speed(is_electric));
 			}
 		}
 		else {
-			time_overtaking -= (vehicle_base_t::get_diagonal_vehicle_steps_per_tile()<<16) / kmh_to_speed(str->get_max_speed());
+			time_overtaking -= (vehicle_base_t::get_diagonal_vehicle_steps_per_tile()<<16) / kmh_to_speed(str->get_max_speed(is_electric));
 		}
 
 		// Check for other vehicles in facing direction

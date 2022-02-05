@@ -91,8 +91,15 @@ protected:
 	static void xref_to_resolve(obj_type type, const char *name, obj_desc_t **dest, bool fatal);
 	static void resolve_xrefs();
 
-	virtual obj_desc_t* read_node(FILE* fp, obj_node_info_t& node) = 0;
-	virtual void register_obj(obj_desc_t *&/*data*/) {}
+	/// Read a descriptor from @p fp. Does version check and compatibility transformations.
+	/// @returns The descriptor on success, or NULL on failure
+	virtual obj_desc_t *read_node(FILE *fp, obj_node_info_t &node) = 0;
+
+	/// Register descriptor so the object described by the descriptor can be built in-game.
+	virtual void register_obj(obj_desc_t *&/*desc*/) {}
+
+	/// Does post-loading checks.
+	/// @returns true if everything ok
 	virtual bool successfully_loaded() const { return true; }
 
 	void register_reader();

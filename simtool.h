@@ -883,7 +883,7 @@ public:
 	tool_convoy_nameplate_t() : tool_t(TOOL_CONVOY_NAMEPLATES | SIMPLE_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("switch the convoy nameplate display mode"); }
 	bool init(player_t *) OVERRIDE {
-		env_t::show_cnv_nameplates = (env_t::show_cnv_nameplates + 1) % 4;
+		env_t::show_cnv_nameplates = (env_t::show_cnv_nameplates + 1) % 8;
 		welt->set_dirty();
 		return false;
 	}
@@ -897,6 +897,19 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("switch the convoy loading bar display mode"); }
 	bool init(player_t *) OVERRIDE {
 		env_t::show_cnv_loadingbar = (env_t::show_cnv_loadingbar + 1) % 4;
+		welt->set_dirty();
+		return false;
+	}
+	bool is_init_network_safe() const OVERRIDE { return true; }
+	bool is_work_network_safe() const OVERRIDE { return true; }
+};
+
+class tool_show_factory_storage_t : public tool_t {
+public:
+	tool_show_factory_storage_t() : tool_t(TOOL_SHOW_FACTORY_STORAGE | SIMPLE_TOOL) {}
+	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("switch the industry storage display mode"); }
+	bool init(player_t *) OVERRIDE {
+		env_t::show_factory_storage_bar = (env_t::show_factory_storage_bar+1) % 4;
 		welt->set_dirty();
 		return false;
 	}
@@ -933,6 +946,21 @@ public:
 		welt->set_dirty();
 		return false;
 	}
+	bool is_init_network_safe() const OVERRIDE { return true; }
+	bool is_work_network_safe() const OVERRIDE { return true; }
+};
+
+class tool_show_depot_name_t : public tool_t {
+public:
+	tool_show_depot_name_t() : tool_t(TOOL_SHOW_DEPOT_NAME | SIMPLE_TOOL) {}
+	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("Show depot names"); }
+	bool is_selected() const OVERRIDE { return env_t::show_depot_names; }
+	bool init( player_t * ) OVERRIDE {
+		env_t::show_depot_names = !env_t::show_depot_names;
+		welt->set_dirty();
+		return false;
+	}
+	bool exit(player_t *s ) OVERRIDE { return init(s); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	bool is_work_network_safe() const OVERRIDE { return true; }
 };

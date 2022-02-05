@@ -206,9 +206,10 @@ private:
 #endif
 
 public:
-	/// Table containing the four compass directions
+
+	/// Table containing the four compass directions (now as function)
 	struct _nesw {
-		ribi operator [] (const int i) const {return 1<<i;}
+		ribi operator [] ( const uint8 i ) const { return 1<<i; }
 	};
 	static const _nesw nesw;
 

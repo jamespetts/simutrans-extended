@@ -192,22 +192,10 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 		}
 
 		// next tile
-		gr = welt->lookup(pos);
-		if(  gr == NULL  ) {
-			// check for slope down ...
-			gr = welt->lookup(pos + koord3d(0,0,-1));
-			if(  !gr  ) {
-				gr = welt->lookup(pos + koord3d(0,0,-2));
-			}
-			if(  gr  &&  gr->get_weg_hang() == slope_t::flat  ) {
-				// Don't care about _flat_ tunnels below.
-				gr = NULL;
-			}
-
-			if(  !gr  &&  env_t::pak_height_conversion_factor==2  ) {
-				// check for one above
-				gr = welt->lookup(pos + koord3d(0,0,1));
-			}
+		gr = welt->lookup_with_checking_down_way_slope(pos);
+		if(  !gr  &&  env_t::pak_height_conversion_factor==2  ) {
+			// check for one above
+			gr = welt->lookup(pos + koord3d(0,0,1));
 		}
 
 		if(gr) {
@@ -335,14 +323,14 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 		}
 	}
 	if(  !slope_t::is_single(slope)  ) {
-		return "Tunnel muss an\nsingleem\nHang beginnen!\n";
+		return "Tunnel muss an\neinfachem\nHang beginnen!\n";
 	}
 
 /************************************** FIX ME ***************************************************
 ********************** THIS MUST BE RATHER A PROPERTY OF THE TUNNEL IN QUESTION ! ****************/
 	// for conversion factor 1, must be single height, for conversion factor 2, must be double
 	if(  (env_t::pak_height_conversion_factor == 1  &&  !is_one_high(slope))  ||  (env_t::pak_height_conversion_factor == 2  &&  is_one_high(slope))  ) {
-		return "Tunnel muss an\nsingleem\nHang beginnen!\n";
+		return "Tunnel muss an\neinfachem\nHang beginnen!\n";
 	}
 
 	if(  gr->has_two_ways()  &&  waytyp != road_wt  ) {

@@ -10,55 +10,50 @@
 #include "components/gui_component.h"
 #include "gui_frame.h"
 #include "components/gui_label.h"
-#include "times_history_entry.h"
 
-// @author: suitougreentea
-class times_history_container_t :
-	public gui_container_t,
-	public action_listener_t
+#include "../simworld.h"
+#include "../linehandle_t.h"
+#include "../dataobj/schedule.h"
+
+
+class gui_times_history_t : public gui_aligned_container_t
 {
-private:
-	const player_t *owner;
-	schedule_t *schedule;
+	//const player_t *owner;
+	player_t* player;
+
+	// if it is a history about convoi, line is null
+	linehandle_t line;
+	// if it is a history about line, convoi is null
+	convoihandle_t convoy;
+
 	times_history_map *map;
 
 	bool mirrored;
-	bool reversed;
+	bool reversed = false;
 
-	gui_label_t lbl_order;
-	gui_label_t lbl_name_header;
-	gui_label_t lbl_time_header;
-	gui_label_t lbl_average_header;
+	schedule_t *schedule;
 
-	slist_tpl<button_t *> buttons;
-	slist_tpl<gui_label_t *> name_labels;
-	slist_tpl<times_history_entry_t *> entry_labels;
+	// for update
+	uint8 old_current_stop = -1;
+	uint32 update_time;
+	sint32 old_route_index = INT32_MAX;
 
-	slist_tpl<uint8> *last_schedule_indices;
-
-	static class karte_ptr_t welt;
+	void init();
 
 	// Create list of entries displayed.
-	// This depends on mirror/reverse states of line/convoi
+	// This depends on mirror/reverse states of line/convoy
 	void construct_data(slist_tpl<uint8> *schedule_indices, slist_tpl<departure_point_t *> *time_keys);
 
-	bool updated_schedule_indices(slist_tpl<uint8> *schedule_indices);
-
-	void delete_buttons();
-	void delete_labels();
+	void build_table();
 
 public:
-	times_history_container_t() {}
-	times_history_container_t(const player_t *owner, schedule_t *schedule, times_history_map *map, bool mirrored, bool reversed);
-	~times_history_container_t();
+	gui_times_history_t(linehandle_t line, convoihandle_t convoi, bool line_reversed_display = false);
 
-	void update_container();
-
-	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+	// for reload from the save
+	void set_line(linehandle_t line_) { line = line_; init(); }
+	void set_convoy(convoihandle_t convoi) { convoy = convoi; init(); };
 
 	void draw(scr_coord offset) OVERRIDE;
-
-	inline void set_schedule(schedule_t *s) { schedule = s; }
 };
 
 #endif

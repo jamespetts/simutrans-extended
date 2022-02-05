@@ -321,8 +321,8 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \n전철화 된\n
 \nHeightfield has wrong image type.\n
 \nHeightfield가 잘못된\n이미지 타입입니다.\n
-\nis reserved by:
-\n열차에 의해 예약됨
+is reserved by:
+열차에 의해 예약됨
 \nminimum speed:
 \n최저속도：
 \nnot elektrified
@@ -639,8 +639,8 @@ Convoi is sold when all wagons are empty.
 빈차가 되면 차량은 팔릴것입니다.
 convoi mouseover tooltips
 차량 마우스오버 도구팁
-convoi passed last\nmonth %i\n
-\n지난달에 통과한\n차량: %i\n
+convoi passed last month:
+지난달에 통과한\n차량: %i\n
 Convois
 차량
 Convois: %d\nProfit: %s

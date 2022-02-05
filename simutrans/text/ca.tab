@@ -407,8 +407,8 @@ fins a
 \nelectrificat\n
 \nHeightfield has wrong image type.\n
 \nEl pl‡nol tÅEun tipus d'imatge incorrecte.\n
-\nis reserved by:
-\nreservat pel tren
+is reserved by:
+reservat pel tren
 \nminimum speed:
 \nvelocitat m˙ãima:
 \nnot elektrified
@@ -769,8 +769,8 @@ Convoi is sold when all wagons are empty.
 VendrÅEel vehicle quan estigui buid.
 convoi mouseover tooltips
 Textos de ratolÅEen combois
-convoi passed last\nmonth %i\n
-\nconvois que circularen\nel mes passat: %i\n
+convoi passed last month:
+convois que circularen\nel mes passat: %i\n
 Convois
 combois
 Convois: %d\nProfit: %s

@@ -24,12 +24,12 @@
 #include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
 
-#include "../obj/roadsign.h"
 #include "simwin.h"
 #include "vehicle_class_manager.h"
 
 #include "../display/simgraph.h"
 #include "../vehicle/rail_vehicle.h"
+#include "../display/viewport.h"
 
 
 #define LOADING_BAR_WIDTH 150
@@ -54,12 +54,12 @@ static const uint8 physics_curves_color[MAX_PHYSICS_CURVES] =
 
 static const uint8 curves_type[MAX_PHYSICS_CURVES] =
 {
-	KMPH,
-	KMPH,
-	KMPH,
-	KMPH,
-	FORCE,
-	FORCE
+	gui_chart_t::KMPH,
+	gui_chart_t::KMPH,
+	gui_chart_t::KMPH,
+	gui_chart_t::KMPH,
+	gui_chart_t::FORCE,
+	gui_chart_t::FORCE
 };
 
 static const gui_chart_t::chart_marker_t marker_type[MAX_PHYSICS_CURVES] = {
@@ -248,8 +248,8 @@ void gui_acceleration_dist_label_t::draw(scr_coord offset)
 // main class
 convoi_detail_t::convoi_detail_t(convoihandle_t cnv) :
 	gui_frame_t(""),
-	formation(cnv),
 	veh_info(cnv),
+	formation(cnv),
 	payload_info(cnv),
 	maintenance(cnv),
 	scrolly_formation(&formation),
@@ -282,8 +282,7 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		class_management_button.add_listener(this);
 
 		// 2nd row
-		add_component(&lb_working_method);
-		new_component<gui_fill_t>();
+		new_component_span<gui_empty_t>(2);
 
 		for (uint8 i = 0; i < gui_convoy_formation_t::CONVOY_OVERVIEW_MODES; i++) {
 			overview_selctor.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(gui_convoy_formation_t::cnvlist_mode_button_texts[i]), SYSCOL_TEXT);
@@ -365,6 +364,9 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		cont_maintenance.add_component(&retire_button);
 
 		sale_button.init(button_t::roundbox, "Verkauf", scr_coord(0,0), D_BUTTON_SIZE);
+		if (skinverwaltung_t::alerts) {
+			sale_button.set_image(skinverwaltung_t::alerts->get_image_id(3));
+		}
 		sale_button.set_tooltip("Remove vehicle from map. Use with care!");
 		sale_button.add_listener(this);
 		cont_maintenance.add_component(&sale_button);
@@ -503,27 +505,11 @@ void convoi_detail_t::set_tab_opened()
 
 void convoi_detail_t::update_labels()
 {
-	lb_vehicle_count.buf().printf("%s %i (%s %i)", translator::translate("Fahrzeuge:"), cnv->get_vehicle_count(), translator::translate("Station tiles:"), cnv->get_tile_length());
+	lb_vehicle_count.buf().printf("%s %i", translator::translate("Fahrzeuge:"), cnv->get_vehicle_count());
+	if( cnv->front()->get_waytype()!=water_wt ) {
+		lb_vehicle_count.buf().printf(" (%s %i)", translator::translate("Station tiles:"), cnv->get_tile_length());
+	}
 	lb_vehicle_count.update();
-
-	vehicle_t* v1 = cnv->get_vehicle(0);
-
-	if (v1->get_waytype() == track_wt || v1->get_waytype() == maglev_wt || v1->get_waytype() == tram_wt || v1->get_waytype() == narrowgauge_wt || v1->get_waytype() == monorail_wt) {
-		if (cnv->in_depot()) {
-			lb_working_method.buf().append("");
-		}
-		else {
-			// Current working method
-			rail_vehicle_t* rv1 = (rail_vehicle_t*)v1;
-			rail_vehicle_t* rv2 = (rail_vehicle_t*)cnv->get_vehicle(cnv->get_vehicle_count() - 1);
-			lb_working_method.buf().printf("%s: %s", translator::translate("Current working method"), translator::translate(rv1->is_leading() ? roadsign_t::get_working_method_name(rv1->get_working_method()) : roadsign_t::get_working_method_name(rv2->get_working_method())));
-		}
-	}
-	else if (uint16 minimum_runway_length = cnv->get_vehicle(0)->get_desc()->get_minimum_runway_length()) {
-		// for air vehicle
-		lb_working_method.buf().printf("%s: %i m \n", translator::translate("Minimum runway length"), minimum_runway_length);
-	}
-	lb_working_method.update();
 
 	// update the convoy overview panel
 	formation.set_mode(overview_selctor.get_selection());
@@ -760,7 +746,20 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 	return false;
 }
 
-
+bool convoi_detail_t::infowin_event(const event_t *ev)
+{
+	if (cnv.is_bound() && formation.getroffen(ev->cx - formation.get_pos().x, ev->cy - D_TITLEBAR_HEIGHT  - scrolly_formation.get_pos().y)) {
+		if (IS_LEFTRELEASE(ev)) {
+			cnv->show_info();
+			return true;
+		}
+		else if (IS_RIGHTRELEASE(ev)) {
+			world()->get_viewport()->change_world_position(cnv->get_pos());
+			return true;
+		}
+	}
+	return gui_frame_t::infowin_event(ev);
+}
 
 void convoi_detail_t::rdwr(loadsave_t *file)
 {
@@ -1478,8 +1477,8 @@ void gui_convoy_maintenance_info_t::draw(scr_coord offset)
 			if (v->get_desc()->is_obsolete(month_now)) {
 				veh_bar_color = COL_OBSOLETE;
 			}
-			display_veh_form_wh_clip_rgb(pos.x + offset.x+1, pos.y + offset.y + total_height + extra_y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity(), false);
-			display_veh_form_wh_clip_rgb(pos.x + offset.x + (grid_width-6)/2 + 1, pos.y + offset.y + total_height + extra_y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity(), true);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x+1,                  pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
+			display_veh_form_wh_clip_rgb(pos.x+offset.x+(grid_width-6)/2+1, pos.y+offset.y+total_height+extra_y+LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, veh_bar_color, true, true,  v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
 
 			// goods category symbol
 			if (v->get_desc()->get_total_capacity() || v->get_desc()->get_overcrowded_capacity()) {

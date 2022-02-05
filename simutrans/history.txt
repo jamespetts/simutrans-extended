@@ -1,3 +1,9 @@
+	CHG: lang files are loaded if their name is *XX.tab or XX*.tab The first is preferred to avoid confusion by name like ja-taken.tab
+	ADD: selected convoi in minimap now magenta. Also network display properly updated when activating or closing windows
+
+
+Release of 123.0 (r10137 on 30-Dec-2021):
+	KNOWN BUG: ugly movement of pedestrians on diagonals/curves
 	FIX: Wrong tooltip when building something with the finance window opened
 	ADD: map only moves when numlock off, new tool to move to map view (simple_tool[36]=,keybinding,-1|0)
 	ADD: new option in simuconf.tab "numpad_always_moves_map" regardsless of numlock state
@@ -18,7 +24,10 @@
 	FIX: Crash when liquidating company owning a house
 	ADD: chat window transparency in network mode now controlled by theme: gui_color_chat_window_network_transparency and gui_chat_window_network_transparency
 	CHG: search dialoges now consistent design, text search, preserved during saveload
+	ADD: menubar can be now top bottom left or right
 	ADD: reselect a tool will close it (new default, set by reselect_closes_tool in menuconf.tab)
+	FIX: Grid height not restored when removing building on a raised tile
+	CHG: window rollup also with double click
 
 
 Release of 122.0 (r9274 on 10-Oct-2020):

@@ -34,7 +34,7 @@ gui_chart_t::gui_chart_t() : gui_component_t()
 	seed = 0;
 	show_x_axis = true;
 	show_y_axis = true;
-	ltr = false;
+	ltr = 1;
 	x_elements = 0;
 	x_axis_span = 1;
 	min_size = scr_size(0,0);
@@ -71,12 +71,19 @@ uint32 gui_chart_t::add_curve(PIXVAL color, const sint64 *values, int size, int 
 	new_curve.show_value = show_value;
 	new_curve.type = type;
 	switch (type) {
-		case MONEY:   new_curve.suffix = "$"; break;
-		case PERCENT: new_curve.suffix = "%"; break;
-		case DISTANCE:   new_curve.suffix = "km"; break;
-		case FORCE:   new_curve.suffix = "kN"; break;
-		case KMPH:   new_curve.suffix = "km/h"; break;
-		default:      new_curve.suffix = NULL; break;
+		case MONEY:    new_curve.suffix = "$";    break;
+		case PERCENT:  new_curve.suffix = "%";    break;
+		case DISTANCE: new_curve.suffix = "km";   break;
+		case FORCE:    new_curve.suffix = "kN";   break;
+		case KMPH:     new_curve.suffix = "km/h"; break;
+		case PAX_KM:   new_curve.suffix = translator::translate("pkm");  break;
+		case KG_KM:    new_curve.suffix = translator::translate("kgkm"); break;
+		case TON_KM:
+		case TON_KM_MAIL:
+			           new_curve.suffix = translator::translate("tkm");  break;
+		case KW:       new_curve.suffix = "kW";   break;
+		case TONNEN:   new_curve.suffix = translator::translate("tonnen");   break;
+		default:       new_curve.suffix = NULL;   break;
 	}
 	new_curve.precision = precision;
 	new_curve.convert = proc;
@@ -107,6 +114,9 @@ void gui_chart_t::draw(scr_coord offset)
 	scr_coord chart_offset(100,0);
 	int maximum_axis_len = 22;
 
+	// Only charts with a changeable orientation will follow the env_t::left_to_right_graphs setting.
+	const bool left_to_right_graph = (ltr==1) ? env_t::left_to_right_graphs : (ltr==2) ? false : true;
+
 	offset += pos;
 	if(  size.w<D_DEFAULT_WIDTH  ) {
 		chart_offset.x = size.w/6;
@@ -133,7 +143,7 @@ void gui_chart_t::draw(scr_coord offset)
 		display_fillbox_wh_clip_rgb(offset.x, offset.y, chart_size.w, chart_size.h, background, false);
 	}
 	int tmpx, factor;
-	if(env_t::left_to_right_graphs) {
+	if(  left_to_right_graph  ) {
 		tmpx = offset.x + chart_size.w - chart_size.w % (x_elements - 1);
 		factor = -1;
 	}
@@ -163,12 +173,12 @@ void gui_chart_t::draw(scr_coord offset)
 	// draw chart lines
 	scr_coord_val x_last = 0;  // remember last digit position to avoid overwriting by next label
 	for(  int i = 0;  i < x_elements;  i++  ) {
-		const int j = env_t::left_to_right_graphs ? x_elements - 1 - i : i;
+		const int j = left_to_right_graph ? x_elements - 1 - i : i;
 		const scr_coord_val x0 = tmpx + factor * (chart_size.w / (x_elements - 1) ) * j;
 		const PIXVAL line_color = (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
 			// display x-axis
-			int val = (abort_display_x && env_t::left_to_right_graphs) ? (abort_display_x - j - 1) * x_axis_span : seed - (j*x_axis_span);
+			int val = (abort_display_x && left_to_right_graph) ? (abort_display_x - j - 1) * x_axis_span : seed - (j*x_axis_span);
 			sprintf(digit, "%i", abs(val));
 			scr_coord_val x =  x0 - (seed != j ? (int)(2 * log( (double)abs(seed - j) )) : 0);
 			if(  x > x_last  ) {
@@ -183,8 +193,8 @@ void gui_chart_t::draw(scr_coord offset)
 	int tooltip_n=-1;
 	int ttcx = tooltipcoord.x-chart_offset.x;
 	if(  ttcx>0  &&  ttcx<chart_size.w  ) {
-		const uint8 temp_x = abort_display_x ? (env_t::left_to_right_graphs ? abort_display_x : x_elements-abort_display_x) : x_elements;
-		if(env_t::left_to_right_graphs) {
+		const uint8 temp_x = abort_display_x ? (left_to_right_graph ? abort_display_x : x_elements-abort_display_x) : x_elements;
+		if(  left_to_right_graph  ) {
 			tooltip_n = x_elements-1-(ttcx*temp_x+4)/(chart_size.w|1);
 		}
 		else {
@@ -196,8 +206,8 @@ void gui_chart_t::draw(scr_coord offset)
 	FOR(slist_tpl<curve_t>, const& c, curves) {
 		if (c.show) {
 			double display_tmp;
-			int start = abort_display_x ? (env_t::left_to_right_graphs ? c.elements - abort_display_x : 0) : 0;
-			int end = abort_display_x ? (env_t::left_to_right_graphs ? c.elements : abort_display_x) : c.elements;
+			int start = abort_display_x ? (left_to_right_graph ? c.elements - abort_display_x : 0) : 0;
+			int end   = abort_display_x ? (left_to_right_graph ? c.elements : abort_display_x) : c.elements;
 			// for each curve iterate through all elements and display curve
 			for (int i = start; i < end; i++) {
 
@@ -206,10 +216,6 @@ void gui_chart_t::draw(scr_coord offset)
 				if(  c.convert  ) {
 					tmp = c.convert(tmp);
 					display_tmp = tmp;
-				}
-				else if(  c.type == MONEY || c.type == PERCENT  ) {
-					display_tmp = tmp*0.01;
-					tmp /= 100;
 				}
 				else {
 					display_tmp = tmp;
@@ -221,34 +227,33 @@ void gui_chart_t::draw(scr_coord offset)
 					scr_coord_val y = (scr_coord_val)(offset.y + baseline - (long)(tmp / scale) - 2);
 					switch (c.marker_type)
 					{
-					case cross:
-						display_direct_line_rgb(x, y, x + 4, y + 4, c.color);
-						display_direct_line_rgb(x + 4, y, x, y + 4, c.color);
-						break;
-					case diamond:
-						for (int j = 0; j < 5; j++) {
-							display_vline_wh_clip_rgb(x + j, y + abs(2 - j), 5 - 2 * abs(2 - j), c.color, false);
-						}
-						break;
-					case round_box:
-						display_filled_roundbox_clip(x, y, 5, 5, c.color, true);
-						break;
-					case none:
-						// display nothing
-						break;
-					case square:
-					default:
-						display_fillbox_wh_clip_rgb(x, y, 5, 5, c.color, true);
-						break;
+						case cross:
+							display_direct_line_rgb(x, y, x + 4, y + 4, c.color);
+							display_direct_line_rgb(x + 4, y, x, y + 4, c.color);
+							break;
+						case diamond:
+							for (int j = 0; j < 5; j++) {
+								display_vline_wh_clip_rgb(x + j, y + abs(2 - j), 5 - 2 * abs(2 - j), c.color, false);
+							}
+							break;
+						case round_box:
+							display_filled_roundbox_clip(x, y, 5, 5, c.color, true);
+							break;
+						case none:
+							// display nothing
+							break;
+						case square:
+						default:
+							display_fillbox_wh_clip_rgb(x, y, 5, 5, c.color, true);
+							break;
 					}
 				}
 
-				// Change digits after drawing a line to smooth the curve of the physics chart
 				if (c.type == KMPH) {
 					display_tmp = (double)speed_to_kmh(tmp*10)/10.0;
 				}
-				else if (c.type == FORCE) {
-					display_tmp = tmp * 0.001;
+				else {
+					display_tmp = tmp / pow(10, c.precision);
 				}
 
 				// display tooltip?
@@ -277,9 +282,9 @@ void gui_chart_t::draw(scr_coord offset)
 							strcat(cmin, c.suffix);
 						}
 
-						if(  env_t::left_to_right_graphs  ) {
+						if(  left_to_right_graph  ) {
 							const sint16 width = proportional_string_width(cmin)+7;
-							display_ddd_proportional( tmpx + 8, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), width, 0, env_t::tooltip_color, c.color, cmin, true);
+							display_ddd_proportional( tmpx + 8, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), width, 0, c.color, is_dark_color(c.color) ? color_idx_to_rgb(COL_WHITE) : color_idx_to_rgb(COL_BLACK), cmin, true);
 						}
 						else if(  (baseline-tmp/scale-8) > 0  &&  (baseline-tmp/scale+8) < chart_size.h  &&  abs((int)(tmp/scale)) > 9  ) {
 							display_proportional_rgb(tmpx - 4, (scr_coord_val)(offset.y+baseline-(int)(tmp/scale)-4), cmin, ALIGN_RIGHT, c.color, true );
@@ -313,10 +318,6 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 				if(  c.convert  ) {
 					tmp = c.convert(tmp);
 				}
-				else if(  c.type == MONEY || c.type == PERCENT  ) {
-					tmp /= 100;
-					precision = 0;
-				}
 				else if (  c.type == KMPH  ) {
 					convert_kmph = true;
 					precision = 0;
@@ -345,8 +346,8 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 	}
 
 	// if accel chart => Drawing accuracy hack: simspeed to integer km/h. (Do not rewrite min max for scaling)
-	number_to_string_fit(cmin, convert_kmph ? speed_to_kmh((int)min) : convert_n_to_kn ? min/1000.0 : (double)min, precision, maximum_axis_len - (min_suffix != 0));
-	number_to_string_fit(cmax, convert_kmph ? speed_to_kmh((int)max) : convert_n_to_kn ? max/1000.0 : (double)max, precision, maximum_axis_len - (max_suffix != 0));
+	number_to_string_fit(cmin, convert_kmph ? speed_to_kmh((int)min) : (double)min/pow(10,precision), precision, maximum_axis_len - (min_suffix != 0));
+	number_to_string_fit(cmax, convert_kmph ? speed_to_kmh((int)max) : (double)max/pow(10,precision), precision, maximum_axis_len - (max_suffix != 0));
 
 	if(  min_suffix  ) {
 		strcat( cmin, min_suffix );

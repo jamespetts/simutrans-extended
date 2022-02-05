@@ -453,8 +453,8 @@ Pos1
 \nelektrifiziert\n
 \nHeightfield has wrong image type.\n
 \nFalscher Dateityp.\n
-\nis reserved by:
-\nreserviert von Zug: \n
+is reserved by:
+reserviert von Zug: \n
 \nminimum speed:
 \nMindestgeschwin-\ndigkeit: 
 \nnot elektrified
@@ -817,8 +817,8 @@ Convoi is sold when all wagons are empty.
 Fahrzeugverband wird vom Bildschirm entfernt, sobald dieser leer ist. Verkaufswert wird dem Kontostand gutgeschrieben.
 convoi mouseover tooltips
 Fahrzeuge: Maustooltips
-convoi passed last\nmonth %i\n
-\nIm letzten Monat vorbeigefahrene \nFahrzeuge: %i\n
+convoi passed last month:
+Im letzten Monat vorbeigefahrene \nFahrzeuge: %i\n
 Convois
 Fahrzeuge
 Convois: %d\nProfit: %s

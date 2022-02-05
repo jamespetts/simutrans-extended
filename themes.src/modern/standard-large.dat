@@ -90,6 +90,21 @@ Image[23]=> button.2.4
 Image[24]=> button.2.6
 Image[25]=> button.2.8
 Image[26]=> button.2.7
+# unpressed right angle corner
+Image[27]=> button.0.9
+Image[28]=> button.0.10
+Image[29]=> button.0.11
+Image[30]=> button.0.12
+# pressed right angle corner
+Image[31]=> button.1.9
+Image[32]=> button.1.10
+Image[33]=> button.1.11
+Image[34]=> button.1.12
+# disabled right angle corner
+Image[35]=> button.2.9
+Image[36]=> button.2.10
+Image[37]=> button.2.11
+Image[38]=> button.2.12
 --
 Obj=menu
 name=Editfield
@@ -208,6 +223,10 @@ Image[6]=> gadget.0.6
 Image[7]=> gadget.0.7
 # goto pos
 Image[8]=> gadget.0.8
+# unlocked
+Image[9]=> gadget.0.9
+# locked
+Image[10]=> gadget.0.10
 --
 # divider line
 Obj=menu

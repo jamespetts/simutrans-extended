@@ -24,6 +24,8 @@
 #include "bauer/tunnelbauer.h"
 
 #include "descriptor/building_desc.h"
+#include "descriptor/bridge_desc.h"
+#include "descriptor/tunnel_desc.h"
 
 #include "boden/grund.h"
 #include "boden/wege/strasse.h"
@@ -57,6 +59,164 @@ vector_tpl<toolbar_t *>tool_t::toolbar_tool(0);
 char tool_t::toolstr[1088];
 
 toolbar_last_used_t *toolbar_last_used_t::last_used_tools = NULL;
+
+
+
+const char *tool_t::id_to_string(uint16 id)
+{
+#define CASE_TO_STRING(entry) case entry: return #entry
+
+	if (id & GENERAL_TOOL) {
+		switch (id & ~GENERAL_TOOL) {
+		CASE_TO_STRING(TOOL_QUERY);
+		CASE_TO_STRING(TOOL_REMOVER);
+		CASE_TO_STRING(TOOL_RAISE_LAND);
+		CASE_TO_STRING(TOOL_LOWER_LAND);
+		CASE_TO_STRING(TOOL_SETSLOPE);
+		CASE_TO_STRING(TOOL_RESTORESLOPE);
+		CASE_TO_STRING(TOOL_MARKER);
+		CASE_TO_STRING(TOOL_CLEAR_RESERVATION);
+		CASE_TO_STRING(TOOL_TRANSFORMER);
+		CASE_TO_STRING(TOOL_ADD_CITY);
+		CASE_TO_STRING(TOOL_CHANGE_CITY_SIZE);
+		CASE_TO_STRING(TOOL_PLANT_TREE);
+		CASE_TO_STRING(TOOL_SCHEDULE_ADD);
+		CASE_TO_STRING(TOOL_SCHEDULE_INS);
+		CASE_TO_STRING(TOOL_BUILD_WAY);
+		CASE_TO_STRING(TOOL_BUILD_BRIDGE);
+		CASE_TO_STRING(TOOL_BUILD_TUNNEL);
+		CASE_TO_STRING(TOOL_WAYREMOVER);
+		CASE_TO_STRING(TOOL_BUILD_WAYOBJ);
+		CASE_TO_STRING(TOOL_BUILD_STATION);
+		CASE_TO_STRING(TOOL_BUILD_ROADSIGN);
+		CASE_TO_STRING(TOOL_BUILD_DEPOT);
+		CASE_TO_STRING(TOOL_BUILD_HOUSE);
+		CASE_TO_STRING(TOOL_BUILD_LAND_CHAIN);
+		CASE_TO_STRING(TOOL_CITY_CHAIN);
+		CASE_TO_STRING(TOOL_BUILD_FACTORY);
+		CASE_TO_STRING(TOOL_LINK_FACTORY);
+		CASE_TO_STRING(TOOL_HEADQUARTER);
+		CASE_TO_STRING(TOOL_LOCK_GAME);
+		CASE_TO_STRING(TOOL_ADD_CITYCAR);
+		CASE_TO_STRING(TOOL_FOREST);
+		CASE_TO_STRING(TOOL_STOP_MOVER);
+		CASE_TO_STRING(TOOL_MAKE_STOP_PUBLIC);
+		CASE_TO_STRING(TOOL_REMOVE_WAYOBJ);
+		CASE_TO_STRING(TOOL_SLICED_AND_UNDERGROUND_VIEW);
+		CASE_TO_STRING(TOOL_BUY_HOUSE);
+		CASE_TO_STRING(TOOL_BUILD_CITYROAD);
+		CASE_TO_STRING(TOOL_ERROR_MESSAGE);
+		CASE_TO_STRING(TOOL_CHANGE_WATER_HEIGHT);
+		CASE_TO_STRING(TOOL_SET_CLIMATE);
+		CASE_TO_STRING(TOOL_ROTATE_BUILDING);
+		CASE_TO_STRING(TOOL_REASSIGN_SIGNAL_DEPRECATED);
+		//CASE_TO_STRING(TOOL_MERGE_STOP);
+		CASE_TO_STRING(TOOL_EXEC_SCRIPT);
+		CASE_TO_STRING(TOOL_EXEC_TWO_CLICK_SCRIPT);
+		CASE_TO_STRING(TOOL_PLANT_GROUNDOBJ);
+
+		CASE_TO_STRING(TOOL_BUILD_SIGNALBOX);
+		CASE_TO_STRING(TOOL_REASSIGN_SIGNAL);
+		}
+	}
+	else if (id & SIMPLE_TOOL) {
+		switch (id & ~SIMPLE_TOOL) {
+		CASE_TO_STRING(TOOL_PAUSE);
+		CASE_TO_STRING(TOOL_FASTFORWARD);
+		CASE_TO_STRING(TOOL_SCREENSHOT);
+		CASE_TO_STRING(TOOL_INCREASE_INDUSTRY);
+		CASE_TO_STRING(TOOL_UNDO);
+		CASE_TO_STRING(TOOL_SWITCH_PLAYER);
+		CASE_TO_STRING(TOOL_STEP_YEAR);
+		CASE_TO_STRING(TOOL_CHANGE_GAME_SPEED);
+		CASE_TO_STRING(TOOL_ZOOM_IN);
+		CASE_TO_STRING(TOOL_ZOOM_OUT);
+		CASE_TO_STRING(TOOL_SHOW_COVERAGE);
+		CASE_TO_STRING(TOOL_SHOW_NAME);
+		CASE_TO_STRING(TOOL_SHOW_GRID);
+		CASE_TO_STRING(TOOL_SHOW_TREES);
+		CASE_TO_STRING(TOOL_SHOW_HOUSES);
+		CASE_TO_STRING(TOOL_SHOW_UNDERGROUND);
+		CASE_TO_STRING(TOOL_ROTATE90);
+		CASE_TO_STRING(TOOL_QUIT);
+		CASE_TO_STRING(TOOL_FILL_TREES);
+		CASE_TO_STRING(TOOL_DAYNIGHT_LEVEL);
+		CASE_TO_STRING(TOOL_VEHICLE_TOOLTIPS);
+		CASE_TO_STRING(TOOL_TOOGLE_PAX);
+		CASE_TO_STRING(TOOL_TOOGLE_PEDESTRIANS);
+		CASE_TO_STRING(TOOL_TRAFFIC_LEVEL);
+		CASE_TO_STRING(TOOL_CHANGE_CONVOI);
+		CASE_TO_STRING(TOOL_CHANGE_LINE);
+		CASE_TO_STRING(TOOL_CHANGE_DEPOT);
+		CASE_TO_STRING(TOOL_CHANGE_PLAYER);
+		CASE_TO_STRING(TOOL_CHANGE_TRAFFIC_LIGHT);
+		CASE_TO_STRING(TOOL_CHANGE_CITY);
+		CASE_TO_STRING(TOOL_RENAME);
+		CASE_TO_STRING(TOOL_ADD_MESSAGE);
+		CASE_TO_STRING(TOOL_TOGGLE_RESERVATION);
+		CASE_TO_STRING(TOOL_VIEW_OWNER);
+		CASE_TO_STRING(TOOL_HIDE_UNDER_CURSOR);
+		CASE_TO_STRING(TOOL_MOVE_MAP);
+		CASE_TO_STRING(TOOL_ROLLUP_ALL_WIN);
+		CASE_TO_STRING(TOOL_RECOLOUR_TOOL_DEPRECATED);
+		CASE_TO_STRING(TOOL_SHOW_DEPOT_NAME);
+
+		CASE_TO_STRING(TOOL_CHANGE_ROADSIGN);
+		CASE_TO_STRING(TOOL_SHOW_RIBI);
+		CASE_TO_STRING(TOOL_RECOLOUR_TOOL);
+		CASE_TO_STRING(TOOL_ACCESS_TOOL);
+		CASE_TO_STRING(TOOL_SHOW_SIGNALBOX_COVERAGE);
+		CASE_TO_STRING(TOOL_CONVOY_NAMEPLATES);
+		CASE_TO_STRING(TOOL_CONVOY_LOADINGBAR);
+		CASE_TO_STRING(TOOL_SHOW_FACTORY_STORAGE);
+		}
+	}
+	else if (id & DIALOG_TOOL) {
+		switch (id & ~DIALOG_TOOL) {
+		CASE_TO_STRING(DIALOG_HELP);
+		CASE_TO_STRING(DIALOG_OPTIONS);
+		CASE_TO_STRING(DIALOG_MINIMAP);
+		CASE_TO_STRING(DIALOG_LINEOVERVIEW);
+		CASE_TO_STRING(DIALOG_MESSAGES);
+		CASE_TO_STRING(DIALOG_FINANCES);
+		CASE_TO_STRING(DIALOG_PLAYERS);
+		CASE_TO_STRING(DIALOG_DISPLAYOPTIONS);
+		CASE_TO_STRING(DIALOG_SOUND);
+		CASE_TO_STRING(DIALOG_LANGUAGE);
+		CASE_TO_STRING(DIALOG_PLAYERCOLOR);
+		CASE_TO_STRING(DIALOG_JUMP);
+		CASE_TO_STRING(DIALOG_LOAD);
+		CASE_TO_STRING(DIALOG_SAVE);
+		CASE_TO_STRING(DIALOG_LIST_HALT);
+		CASE_TO_STRING(DIALOG_LIST_CONVOI);
+		CASE_TO_STRING(DIALOG_LIST_TOWN);
+		CASE_TO_STRING(DIALOG_LIST_GOODS);
+		CASE_TO_STRING(DIALOG_LIST_FACTORY);
+		CASE_TO_STRING(DIALOG_LIST_CURIOSITY);
+		CASE_TO_STRING(DIALOG_EDIT_FACTORY);
+		CASE_TO_STRING(DIALOG_EDIT_ATTRACTION);
+		CASE_TO_STRING(DIALOG_EDIT_HOUSE);
+		CASE_TO_STRING(DIALOG_EDIT_TREE);
+		CASE_TO_STRING(DIALOG_ENLARGE_MAP);
+		CASE_TO_STRING(DIALOG_LIST_LABEL);
+		CASE_TO_STRING(DIALOG_CLIMATES);
+		CASE_TO_STRING(DIALOG_SETTINGS);
+		CASE_TO_STRING(DIALOG_GAMEINFO);
+		CASE_TO_STRING(DIALOG_THEMES);
+		CASE_TO_STRING(DIALOG_SCENARIO);
+		CASE_TO_STRING(DIALOG_SCENARIO_INFO);
+		CASE_TO_STRING(DIALOG_LIST_DEPOT);
+		CASE_TO_STRING(DIALOG_LIST_VEHICLE);
+		CASE_TO_STRING(DIALOG_SCRIPT_TOOL);
+		CASE_TO_STRING(DIALOG_EDIT_GROUNDOBJ);
+
+		CASE_TO_STRING(DIALOG_LIST_SIGNALBOX);
+		}
+	}
+
+	return "<unknown tool>";
+}
+
 
 // separator in toolbars
 class tool_dummy_t : public tool_t {
@@ -132,6 +292,7 @@ tool_t *create_general_tool(int toolnr)
 	return tool;
 }
 
+
 tool_t *create_simple_tool(int toolnr)
 {
 	tool_t* tool = NULL;
@@ -148,6 +309,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_ZOOM_OUT:             tool = new tool_zoom_out_t();             break;
 		case TOOL_SHOW_COVERAGE:        tool = new tool_show_coverage_t();        break;
 		case TOOL_SHOW_NAME:            tool = new tool_show_name_t();            break;
+		case TOOL_SHOW_DEPOT_NAME:      tool = new tool_show_depot_name_t();      break;
 		case TOOL_SHOW_SIGNALBOX_COVERAGE:     tool = new tool_show_signalbox_coverage_t(); break;
 		case TOOL_SHOW_GRID:            tool = new tool_show_grid_t();            break;
 		case TOOL_SHOW_TREES:           tool = new tool_show_trees_t();           break;
@@ -160,6 +322,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_VEHICLE_TOOLTIPS:     tool = new tool_vehicle_tooltips_t();     break;
 		case TOOL_CONVOY_NAMEPLATES:    tool = new tool_convoy_nameplate_t();     break;
 		case TOOL_CONVOY_LOADINGBAR:    tool = new tool_convoy_loadingbar_t();    break;
+		case TOOL_SHOW_FACTORY_STORAGE: tool = new tool_show_factory_storage_t(); break;
 		case TOOL_TOOGLE_PAX:           tool = new tool_toggle_pax_station_t();   break;
 		case TOOL_TOOGLE_PEDESTRIANS:   tool = new tool_toggle_pedestrians_t();   break;
 		case TOOL_TRAFFIC_LEVEL:        tool = new tool_traffic_level_t();        break;
@@ -180,7 +343,6 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_SHOW_RIBI:            tool = new tool_show_ribi_t();            break;
 		case TOOL_RECOLOUR_TOOL_DEPRECATED:
 		case TOOL_RECOLOUR_TOOL:		tool = new tool_recolour_t(); break;
-		case TOOL_ACCESS_TOOL_DEPRECATED:
 		case TOOL_ACCESS_TOOL:          tool = new tool_access_t(); break;
 		case UNUSED_WKZ_PWDHASH_TOOL:
 			dbg->warning("create_simple_tool()","deprecated tool [%i] requested", toolnr);
@@ -190,7 +352,7 @@ tool_t *create_simple_tool(int toolnr)
 			return NULL;
 	}
 
-	assert(tool->get_id()  ==  (toolnr | SIMPLE_TOOL)  ||  (toolnr == TOOL_RECOLOUR_TOOL_DEPRECATED ||  toolnr == TOOL_ACCESS_TOOL_DEPRECATED));
+	assert(tool->get_id()  ==  (toolnr | SIMPLE_TOOL)  ||  toolnr == TOOL_RECOLOUR_TOOL_DEPRECATED );
 	return tool;
 }
 
@@ -261,7 +423,97 @@ tool_t *create_tool(int toolnr)
 	if (tool == NULL) {
 		dbg->error("create_tool()","cannot satisfy request for tool with id %i!",toolnr);
 	}
+
 	return tool;
+}
+
+
+/**
+ * Returns desc and tool pointer corresponding to the
+ * general toolid with name @p param_str.
+ */
+void general_tool_get_desc_builder(uint16 id, const char *param_str, const obj_desc_timelined_t* &desc, tool_t* &tool)
+{
+	if (  id & ((uint16)SIMPLE_TOOL | (uint16)DIALOG_TOOL) ) {
+		return;
+	}
+	id = id & (~GENERAL_TOOL);
+	const obj_desc_transport_infrastructure_t* desc1 = NULL;
+
+	if (param_str) {
+		switch (id) {
+			case TOOL_BUILD_WAY:
+				desc1 = way_builder_t::get_desc(param_str);
+				break;
+			case TOOL_BUILD_BRIDGE:
+				desc1 = bridge_builder_t::get_desc(param_str);
+				break;
+			case TOOL_BUILD_TUNNEL:
+				desc1 = tunnel_builder_t::get_desc(param_str);
+				break;
+			case TOOL_BUILD_ROADSIGN:
+				desc1 = roadsign_t::find_desc(param_str);
+				break;
+			case TOOL_BUILD_WAYOBJ:
+				desc1 = wayobj_t::find_desc(param_str);
+				break;
+				// The following 3's descriptions are registered by hausbauer_t.
+			case TOOL_BUILD_DEPOT:
+			case TOOL_BUILD_STATION:
+			case TOOL_HEADQUARTER: {
+				const building_desc_t* desc2 = hausbauer_t::get_desc(param_str);
+				desc = desc2;
+				tool = desc2 ? desc2->get_builder() : NULL;
+				return;
+			}
+			default: ;
+		}
+	}
+	if (desc1) {
+		desc = desc1;
+		tool = desc1->get_builder();
+	}
+}
+
+
+/**
+ * Set the defaults of a newly created general tool.
+ */
+void set_defaults_general_tool(tool_t *tool, const char *param_str)
+{
+	if (  tool  ==  NULL  ) {
+		return;
+	}
+	tool_t* copy_from = NULL;
+	const obj_desc_timelined_t* desc = NULL;
+
+	general_tool_get_desc_builder(tool->get_id(), param_str, desc, copy_from);
+
+	if (copy_from) {
+		*tool = *copy_from;
+	}
+}
+
+
+/**
+ * Checks whether a tool is available in the current timeline.
+ *
+ * Note that this function would return true on error. It is done so
+ * if no description was found, the previous toolbar button logic
+ * will still be applied - show buttons with icons regardless of
+ * whether the objects they build are available or not.
+ */
+bool check_tool_availability(const tool_t *tool, uint16 time)
+{
+	if (  tool  ==  NULL  ) {
+		return true;
+	}
+	tool_t* dummy = NULL;
+	const obj_desc_timelined_t* desc = NULL;
+
+	general_tool_get_desc_builder(tool->get_id(), tool->get_default_param(), desc, dummy);
+
+	return desc ? desc->is_available(time) : true;
 }
 
 
@@ -410,13 +662,14 @@ static bool compare_tool(tool_t const* const a, tool_t const* const b)
 
 
 // read a tab file to add images, cursors and sound to the tools
-void tool_t::read_menu(const std::string &objfilename)
+bool tool_t::read_menu(const std::string &menuconf_path)
 {
 	char_to_tool.clear();
 	tabfile_t menuconf;
+
 	// only use pak specific menus, since otherwise images may be missing
-	if (!menuconf.open((objfilename+"config/menuconf.tab").c_str())) {
-		dbg->fatal("tool_t::init_menu()", "Can't read %sconfig/menuconf.tab", objfilename.c_str() );
+	if (!menuconf.open(menuconf_path.c_str())) {
+		return false;
 	}
 
 	tabfileobj_t contents;
@@ -431,8 +684,8 @@ void tool_t::read_menu(const std::string &objfilename)
 		const skin_desc_t *icons;
 		const skin_desc_t *cursor;
 		bool with_sound;
-
 	};
+
 	tool_class_info_t info[] = {
 		{ "general_tool", GENERAL_TOOL_STANDARD_COUNT, GENERAL_TOOL_COUNT, general_tool, skinverwaltung_t::tool_icons_general, skinverwaltung_t::cursor_general, true },
 		{ "simple_tool",  SIMPLE_TOOL_STANDARD_COUNT, SIMPLE_TOOL_COUNT,  simple_tool,  skinverwaltung_t::tool_icons_simple,  NULL, false},
@@ -440,7 +693,7 @@ void tool_t::read_menu(const std::string &objfilename)
 	};
 
 	// first init all tools
-	DBG_MESSAGE( "tool_t::init_menu()", "Reading general menu" );
+	DBG_MESSAGE( "tool_t::read_menu()", "Reading general menu" );
 	for(  uint16 t=0; t<3; t++) {
 		for(  uint16 i=0;  i<info[t].count;  i++  ) {
 			if(  i>=info[t].standard_count  &&  i<0x80  ) {
@@ -461,7 +714,7 @@ void tool_t::read_menu(const std::string &objfilename)
 			if(*str) {
 				// Check if tool is deprecated
 				if(  (  t==0  &&  i==TOOL_REASSIGN_SIGNAL_DEPRECATED  )
-				   || (  t==1  &&  ( i== TOOL_RECOLOUR_TOOL_DEPRECATED || i==TOOL_ACCESS_TOOL_DEPRECATED )  )  ) {
+				   || (  t==1  &&  i== TOOL_RECOLOUR_TOOL_DEPRECATED  )  ) {
 					// Do not warn if new id also appears in menuconf:
 					char new_id[256];
 					sprintf( new_id, "%s[%i]", info[t].type, tool->get_id()&0xFFF );
@@ -470,6 +723,11 @@ void tool_t::read_menu(const std::string &objfilename)
 						dbg->warning( "tool_t::read_menu()", "deprecated tool number used in %s; menuconf.tab will need updating", id);
 					}
 				}
+			}
+
+			if (!tool) {
+				dbg->warning("tool_t::read_menu", "Ignoring deprecated %s[%i] (%s)", info[t].type, i, tool_t::id_to_string((1<<(t+12)) | i));
+				continue;
 			}
 
 			while(*str==' ') {
@@ -537,7 +795,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					str++;
 				}
 				if(*str>=' ') {
-					tool->command_key = str_to_key(str,&(tool->command_flags));
+					tool->command_key = str_to_key(str, &tool->command_flags);
 					char_to_tool.append(tool);
 				}
 			}
@@ -651,7 +909,7 @@ void tool_t::read_menu(const std::string &objfilename)
 						// now create tool
 						addtool = create_general_tool( toolnr );
 						// copy defaults
-						*addtool = *(general_tool[toolnr]);
+						set_defaults_general_tool(addtool, param_str);
 
 						if(  toolnr==TOOL_BUILD_WAY  ) {
 							tool_build_way_t* way_tool = dynamic_cast<tool_build_way_t*> (addtool);
@@ -665,7 +923,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No general tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? GENERAL_TOOL_STANDARD_COUNT : GENERAL_TOOL_COUNT );
+					dbg->warning( "tool_t::read_menu()", "When parsing menuconf.tab: General tool id is not valid (%hhu >= %i). Tool ignored.", toolnr, (toolnr<0x80) ? (int)GENERAL_TOOL_STANDARD_COUNT : (int)GENERAL_TOOL_COUNT );
 				}
 			}
 			else if (char const* const c = strstart(toolname, "simple_tool[")) {
@@ -681,7 +939,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No simple tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? SIMPLE_TOOL_STANDARD_COUNT : SIMPLE_TOOL_COUNT );
+					dbg->warning( "tool_t::read_menu()", "When parsing menuconf.tab: Simple tool id is not valid (%hhu >= %i). Tool ignored.", toolnr, (toolnr<0x80) ? (int)SIMPLE_TOOL_STANDARD_COUNT : (int)SIMPLE_TOOL_COUNT );
 				}
 			}
 			else if (char const* const c = strstart(toolname, "dialog_tool[")) {
@@ -697,7 +955,7 @@ void tool_t::read_menu(const std::string &objfilename)
 					}
 				}
 				else {
-					dbg->error( "tool_t::read_menu()", "When parsing menuconf.tab: No dialog tool %i defined (max %i)!", toolnr, (toolnr<0x80) ? DIALOG_TOOL_STANDARD_COUNT : DIALOG_TOOL_COUNT );
+					dbg->warning( "tool_t::read_menu()", "When parsing menuconf.tab: Dialog tool id is not valid (%hhu >= %i). Tool ignored.", toolnr, (toolnr<0x80) ? (int)DIALOG_TOOL_STANDARD_COUNT : (int)DIALOG_TOOL_COUNT );
 				}
 			}
 			else if (char const* const c = strstart(toolname, "toolbar[")) {
@@ -707,20 +965,24 @@ void tool_t::read_menu(const std::string &objfilename)
 						addtool = toolbar_last_used_t::last_used_tools;
 					}
 					else {
-						dbg->fatal( "Error in menuconf: toolbar cannot call main toolbar", "%s", toolname );
+						dbg->error( "Error in menuconf: toolbar cannot call main toolbar", "%s", toolname );
+						return false;
 					}
 				}
+
 				if(toolbar_tool.get_count()==toolnr) {
 					if(param_str==NULL) {
 						param_str = "Unnamed toolbar";
-						dbg->warning( "tool_t::read_menu()", "Missing title for toolbar[%d]", toolnr);
+						dbg->warning( "tool_t::read_menu()", "Missing title for toolbar[%hhu]", toolnr);
 					}
+
 					char *c = strdup(param_str);
 					const char *title = c;
 					c += strcspn(c, ",");
 					if (*c != '\0') {
 						*c++ = '\0';
 					}
+
 					toolbar_t* const tb = new toolbar_t(toolbar_tool.get_count() | TOOLBAR_TOOL, title, c);
 					toolbar_tool.append(tb);
 					addtool = tb;
@@ -732,6 +994,7 @@ void tool_t::read_menu(const std::string &objfilename)
 				addtool->default_param = strdup(toolname);
 				addtool->command_key = 1;
 			}
+
 			if(addtool) {
 				if(icon!=IMG_EMPTY) {
 					addtool->icon = icon;
@@ -751,6 +1014,7 @@ void tool_t::read_menu(const std::string &objfilename)
 
 	// sort characters
 	std::sort(char_to_tool.begin(), char_to_tool.end(), compare_tool);
+	return true;
 }
 
 
@@ -825,7 +1089,7 @@ const char *kartenboden_tool_t::check_pos(player_t *, koord3d pos )
 image_id toolbar_t::get_icon(player_t *player) const
 {
 	// no image for edit tools => do not open
-	if(  icon==IMG_EMPTY  ||  (player!=NULL  &&  strcmp(default_param,"EDITTOOLS")==0  &&  player->get_player_nr()!=welt->get_public_player()->get_player_nr())  ) {
+	if(  icon==IMG_EMPTY  ||  (player!=NULL  &&  strcmp(default_param,"EDITTOOLS")==0  &&  player->get_player_nr()!=PUBLIC_PLAYER_NR)  ) {
 		return IMG_EMPTY;
 	}
 	// now have we a least one visible tool?
@@ -929,6 +1193,9 @@ void toolbar_t::update(player_t *player)
 			}
 			scenario_t *scen = welt->get_scenario();
 			if(  scen->is_scripted()  &&  !scen->is_tool_allowed(player, w->get_id(), w->get_waytype())) {
+				continue;
+			}
+			if ( !check_tool_availability(w,  welt->get_timeline_year_month()) ) {
 				continue;
 			}
 			// now add it to the toolbar gui

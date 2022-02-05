@@ -295,7 +295,7 @@ S veµkou parádou\nodhalilo mesto %s\nnovEatrakciu.\n%i obyvateµov oslavuje.
 \nsmery:
 \nelektrified
 \nelektrifikovanE
-\nis reserved by:
+is reserved by:
 \nobsadenEvlakom 
 \nminimum speed:
 \nnajni¾¹ia povolenErıchlos»
@@ -565,7 +565,7 @@ Convoi has been sent\nto the nearest depot\nof appropriate type.\n
 Konvoj bol poslanı do\nnajbli¾¹ieho depa prúlu¹ného\ntypu.
 Convoi is sold when all wagons are empty.
 Konvoj bude vyradenı, keEbudEv¹etky jeho vozidlEprázdne.
-convoi passed last\nmonth %i\n
+convoi passed last month:
 \nkonvojov za poslednı mesiac: %i\n
 Convois
 Konvoje

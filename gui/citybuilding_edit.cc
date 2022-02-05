@@ -27,12 +27,13 @@
 // new tool definition
 tool_build_house_t citybuilding_edit_frame_t::haus_tool=tool_build_house_t();
 cbuffer_t citybuilding_edit_frame_t::param_str;
+bool citybuilding_edit_frame_t::sortreverse = false;
 
 
 static bool compare_building_desc(const building_desc_t* a, const building_desc_t* b)
 {
 	int diff = strcmp( a->get_name(), b->get_name() );
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_name(const building_desc_t* a, const building_desc_t* b)
 {
@@ -40,7 +41,7 @@ static bool compare_building_desc_name(const building_desc_t* a, const building_
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_level_pax(const building_desc_t* a, const building_desc_t* b)
 {
@@ -48,7 +49,7 @@ static bool compare_building_desc_level_pax(const building_desc_t* a, const buil
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_population(const building_desc_t* a, const building_desc_t* b)
 {
@@ -56,7 +57,7 @@ static bool compare_building_desc_population(const building_desc_t* a, const bui
 	if (diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_jobs(const building_desc_t* a, const building_desc_t* b)
 {
@@ -64,7 +65,7 @@ static bool compare_building_desc_jobs(const building_desc_t* a, const building_
 	if (diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_level_mail(const building_desc_t* a, const building_desc_t* b)
 {
@@ -73,7 +74,7 @@ static bool compare_building_desc_level_mail(const building_desc_t* a, const bui
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_date_intro(const building_desc_t* a, const building_desc_t* b)
 {
@@ -81,7 +82,7 @@ static bool compare_building_desc_date_intro(const building_desc_t* a, const bui
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_date_retire(const building_desc_t* a, const building_desc_t* b)
 {
@@ -89,7 +90,7 @@ static bool compare_building_desc_date_retire(const building_desc_t* a, const bu
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_building_desc_size(const building_desc_t* a, const building_desc_t* b)
 {
@@ -103,7 +104,7 @@ static bool compare_building_desc_size(const building_desc_t* a, const building_
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return citybuilding_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 
 
@@ -119,17 +120,17 @@ citybuilding_edit_frame_t::citybuilding_edit_frame_t(player_t* player_) :
 	bt_res.init( button_t::square_state, "residential house");
 	bt_res.add_listener(this);
 	bt_res.pressed = true;
-	cont_filter.add_component(&bt_res);
+	cont_filter.add_component(&bt_res,3);
 
 	bt_com.init( button_t::square_state, "shops and stores");
 	bt_com.add_listener(this);
 	bt_com.pressed = true;
-	cont_filter.add_component(&bt_com);
+	cont_filter.add_component(&bt_com,3);
 
 	bt_ind.init( button_t::square_state, "industrial building");
 	bt_ind.add_listener(this);
 	bt_ind.pressed = true;
-	cont_filter.add_component(&bt_ind);
+	cont_filter.add_component(&bt_ind,3);
 
 	// add to sorting selection
 	cb_sortedby.new_component<gui_sorting_item_t>(gui_sorting_item_t::BY_LEVEL_PAX);
@@ -161,6 +162,7 @@ void citybuilding_edit_frame_t::put_item_in_list( const building_desc_t* desc )
 	const sint32 month_now = bt_timeline.pressed ? welt->get_current_month() : bt_timeline_custom.pressed ? ni_timeline_year.get_value()*12 + ni_timeline_month.get_value()-1 : 0;
 	const uint8 chosen_climate = get_climate();
 	const uint8 sortedby = get_sortedby();
+	sortreverse = sort_order.pressed;
 	if( (!use_timeline  ||  (!desc->is_future(month_now)  &&  (!desc->is_retired(month_now)  ||  allow_obsolete)) )
 		&&  ( desc->get_allowed_climate_bits() & chosen_climate) ) {
 		// timeline allows for this, and so does climates setting
@@ -209,9 +211,9 @@ void citybuilding_edit_frame_t::fill_list()
 		// color code for objects: BLACK: normal, YELLOW: consumer only, GREEN: source only
 		PIXVAL color;
 		switch (i->get_type()) {
-			case building_desc_t::city_res: color = color_idx_to_rgb(COL_BLUE);       break;
-			case building_desc_t::city_com: color = color_idx_to_rgb(COL_DARK_GREEN); break;
-			default:                        color = SYSCOL_TEXT;                      break;
+			case building_desc_t::city_res: color = color_idx_to_rgb(COL_DARK_BLUE + env_t::gui_player_color_dark); break;
+			case building_desc_t::city_com: color = color_idx_to_rgb(40 + env_t::gui_player_color_dark);            break;
+			default:                        color = SYSCOL_TEXT;                                                    break;
 		}
 		char const* const name = get_sortedby()==gui_sorting_item_t::BY_NAME_OBJECT ?  i->get_name() : translator::translate(i->get_name());
 		scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(name, color);
@@ -285,12 +287,11 @@ void citybuilding_edit_frame_t::change_item_info(sint32 entry)
 				const uint16 allowed_region_bits = desc->get_allowed_region_bits();
 				if (allowed_region_bits < 65535) {
 					uint32 region_idx = 0;
-					FORX(vector_tpl<region_definition_t>, region, welt->get_settings().regions, region_idx) {
+					FORX(vector_tpl<region_definition_t>, region, welt->get_settings().regions, region_idx++) {
 						if (allowed_region_bits & (1 << region_idx))
 						{
 							buf.printf(" - %s\n", translator::translate(region.name.c_str()));
 						}
-						region_idx++;
 					}
 				}
 				else {
@@ -331,7 +332,7 @@ void citybuilding_edit_frame_t::change_item_info(sint32 entry)
 
 		// the tools will be always updated, even though the data up there might be still current
 		param_str.clear();
-		param_str.printf("%i%c%s", bt_climates.pressed, rotation>253 ? (rotation==254 ? 'A' : '#') : '0'+rotation, desc->get_name() );
+		param_str.printf("%i%i%c%s", bt_climates.pressed, bt_ignore_regions.pressed, rotation>253 ? (rotation==254 ? 'A' : '#') : '0'+rotation, desc->get_name() );
 		haus_tool.set_default_param(param_str);
 		welt->set_tool( &haus_tool, player );
 	}

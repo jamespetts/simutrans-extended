@@ -77,7 +77,9 @@ bool loadsave_frame_t::item_action(const char *filename)
 {
 	if(do_load) {
 		welt->switch_server( easy_server.pressed, true );
+#if (defined(MSG_LEVEL) && MSG_LEVEL > 1) || defined(DEBUG)
 		long start_load = dr_time();
+#endif
 		if(  !welt->load(filename)  ) {
 			welt->switch_server( false, true );
 		}
@@ -99,7 +101,9 @@ bool loadsave_frame_t::item_action(const char *filename)
 			// and now we need to copy the servergame to the map ...
 #endif
 		}
+#if (defined(MSG_LEVEL) && MSG_LEVEL > 1) || defined(DEBUG)
 		long start_save = dr_time();
+#endif
 		welt->save( filename, false, env_t::savegame_version_str, env_t::savegame_ex_version_str, env_t::savegame_ex_revision_str, false );
 		DBG_MESSAGE( "loadsave_frame_t::item_action", "save world %li ms", dr_time() - start_save );
 		welt->set_dirty();
@@ -179,130 +183,6 @@ const char *loadsave_frame_t::get_help_filename() const
 }
 
 
-/*
-void loadsave_frame_t::add_file(const char *fullpath, const char *filename, const bool not_cutting_suffix)
-{
-	char buttontext[1024];
-	strcpy( buttontext, filename );
-	if ( !not_cutting_suffix ) {
-		buttontext[strlen(buttontext)-4] = '\0';
-	}
-	file_table.add_row( new gui_loadsave_table_row_t( fullpath, buttontext ));
-}
-
-
-gui_loadsave_table_row_t::gui_loadsave_table_row_t(const char *pathname, const char *buttontext) : gui_file_table_row_t(pathname, buttontext)
-{
-	if (error.empty()) {
-		// check hash table
-		svei = loadsave_frame_t::cached_info.get(pathname);
-		if (svei   &&  svei->file_size == info.st_size  &&  svei->mod_time == info.st_mtime) {
-			// compare size and mtime
-			// if both are equal then most likely the files are the same
-			// no need to read the file for pak_extension
-			svei->file_exists = true;
-		}
-		else {
-			// read pak_extension from file
-			loadsave_t test;
-			try {
-				test.rd_open(pathname);
-				test.close();
-			}
-			catch (char *e) {
-				error = e;
-			}
-			catch (...) {
-				error = "failed reading header";
-			}
-
-			// now insert in hash_table
-			svei = new sve_info_t(test.get_pak_extension(), info.st_mtime, info.st_size, test.get_version_int(), test.get_extended_version() );
-			// copy filename
-			char *key = strdup(pathname);
-			sve_info_t *svei_old = loadsave_frame_t::cached_info.set(key, svei);
-			if (svei_old) {
-				delete svei_old;
-			}
-		}
-	}
-}
-
-gui_file_table_pak_column_t::gui_file_table_pak_column_t() : gui_file_table_label_column_t(150)
-{
-	strcpy(pak, env_t::objfilename.c_str());
-	pak[strlen(pak) - 1] = 0;
-}*/
-
-
-/*
-int gui_file_table_pak_column_t::compare_rows(const gui_table_row_t &row1, const gui_table_row_t &row2) const
-{
-	char s1[1024];
-	strcpy(s1, get_text(row1));
-	sint32 f1 = strsim(s1, pak);
-	char s2[1024];
-	strcpy(s2, get_text(row2));
-	sint32 f2 = strsim(s2, pak);
-	int result = sgn(f1 - f2);
-	if (!result)
-		result = strcmp(s1, s2);
-	dbg->debug("gui_file_table_pak_column_t::compare_rows()", "\"%s\" %s \"%s\"", s1, result < 0 ? "<" : result == 0 ? "==" : ">", s2);
-	return result;
-}*/
-
-/*
-const char *gui_file_table_pak_column_t::get_text(const gui_table_row_t &row) const
-{
-	const char *pak = static_cast<const gui_loadsave_table_row_t &>(row).get_pak_extension();
-	return strlen(pak) > 3 && (!STRNICMP(pak, "zip", 3) || !STRNICMP(pak, "xml", 3)) ? pak + 3 : pak;
-}*/
-
-
-/*
-sint32 gui_file_table_std_column_t::get_int(const gui_table_row_t &row) const
-{
-	// file version
-	return (sint32)static_cast<const gui_loadsave_table_row_t &>(row).get_version_int();
-}*/
-
-
-/*
-void gui_file_table_std_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
-	uint32 v2 = (uint32) get_int(row);
-	uint32 v1 = v2 / 1000;
-	uint32 v0 = v1 / 1000;
-	v1 %= 1000;
-	v2 %= 1000;
-	char date[64];
-	sprintf(date, "v %d.%d.%d", v0, v1, v2);
-	lbl.set_text(date);
-	gui_file_table_label_column_t::paint_cell(offset, x, y, row);
-}
-
-
-sint32 gui_file_table_exp_column_t::get_int(const gui_table_row_t &row) const
-{
-	// file version
-	return (sint32)static_cast<const gui_loadsave_table_row_t &>(row).get_extended_version();
-}
-
-
-void gui_file_table_exp_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
-	uint32 v3 = get_int(row);
-	char date[64];
-	if (v3)
-	{
-		sprintf(date, "e %d", v3);
-	}
-	else
-	{
-		date[0] = 0;
-	}
-	lbl.set_text(date);
-	gui_file_table_label_column_t::paint_cell(offset, x, y, row);
-}*/
-
 const char *loadsave_frame_t::get_info(const char *fname)
 {
 	static char date[1024];
@@ -319,15 +199,18 @@ const char *loadsave_frame_t::get_info(const char *fname)
 
 	// check hash table
 	sve_info_t *svei = cached_info.get(fname);
+	uint32 version = 0;
+	uint32 extended_version = 0;
 	if (svei   &&  svei->file_size == sb.st_size  &&  svei->mod_time == sb.st_mtime) {
 		// compare size and mtime
 		// if both are equal then most likely the files are the same
 		// no need to read the file for pak_extension
 		pak_extension = svei->pak.c_str();
 		svei->file_exists = true;
+		version = svei->version;
+		extended_version = svei->extended_version;
 	}
 	else {
-		/*
 		// read pak_extension from file
 		loadsave_t test;
 		test.rd_open(fname); // == loadsave_t::FILE_STATUS_OK
@@ -340,12 +223,12 @@ const char *loadsave_frame_t::get_info(const char *fname)
 		char *key = strdup(fname);
 		sve_info_t *svei_old = cached_info.set(key, svei_new);
 		delete svei_old;
-		*/
 	}
 
 	// write everything in string
 	// add pak extension
-	const size_t n = snprintf( date, lengthof(date), "%s - ", pak_extension.c_str());
+	const size_t n = (version && extended_version) ? snprintf( date, lengthof(date), "%s (v %u.%u, e %i) - ", pak_extension.c_str(), version/1000, version%100, extended_version):
+		snprintf(date, lengthof(date), "%s - ", pak_extension.c_str());
 
 	// add the time too
 	struct tm *tm = localtime(&sb.st_mtime);

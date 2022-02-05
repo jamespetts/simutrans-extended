@@ -53,6 +53,8 @@ enum {
 	IDBTN_LEFT_TO_RIGHT_GRAPHS,
 	IDBTN_SHOW_SIGNALBOX_COVERAGE,
 	IDBTN_CLASSES_WAITING_BAR,
+	IDBTN_SHOW_DEPOT_NAME,
+	IDBTN_SHOW_FACTORY_STORAGE,
 	COLORS_MAX_BUTTONS,
 };
 
@@ -94,10 +96,18 @@ gui_settings_t::gui_settings_t()
 
 	// Show thememanager
 	buttons[ IDBTN_SHOW_THEMEMANAGER ].init( button_t::roundbox_state | button_t::flexible, "Select a theme for display" );
+	if (skinverwaltung_t::open_window) {
+		buttons[ IDBTN_SHOW_THEMEMANAGER ].set_image(skinverwaltung_t::open_window->get_image_id(0));
+		buttons[ IDBTN_SHOW_THEMEMANAGER ].set_image_position_right(true);
+	}
 	add_component( buttons + IDBTN_SHOW_THEMEMANAGER );
 
 	// Change font
 	buttons[ IDBTN_CHANGE_FONT ].init( button_t::roundbox_state | button_t::flexible, "Select display font" );
+	if (skinverwaltung_t::open_window) {
+		buttons[ IDBTN_CHANGE_FONT ].set_image(skinverwaltung_t::open_window->get_image_id(0));
+		buttons[ IDBTN_CHANGE_FONT ].set_image_position_right(true);
+	}
 	add_component( buttons + IDBTN_CHANGE_FONT );
 
 	// position of menu
@@ -125,6 +135,52 @@ gui_settings_t::gui_settings_t()
 	reselect_closes_tool.init( button_t::square_state, "Reselect closes tools" );
 	reselect_closes_tool.pressed = env_t::reselect_closes_tool;
 	add_component( &reselect_closes_tool, 2 );
+
+	new_component<gui_divider_t>();
+
+	// window pop-up controll
+	new_component<gui_label_t>("Information windows pop up control:");
+	add_table(5,0)->set_spacing(scr_size(0,D_V_SPACE));
+	{
+		for (uint8 i=0; i<4; i++) {
+			info_window_toggler[i*2].init(  button_t::roundbox_left_state,  "hl_btn_filter_enable",  scr_coord(0,0), D_BUTTON_SIZE );
+			info_window_toggler[i*2+1].init(button_t::roundbox_right_state, "hl_btn_filter_disable", scr_coord(0,0), D_BUTTON_SIZE );
+		}
+
+		new_component<gui_margin_t>(LINESPACE);
+		new_component<gui_label_t>("ground_info")->set_tooltip(translator::translate("helptxt_ground_info_toggler"));
+		new_component<gui_margin_t>(D_H_SPACE);
+		info_window_toggler[0].pressed =  env_t::ground_info;
+		info_window_toggler[1].pressed = !env_t::ground_info;
+		add_component(&info_window_toggler[0]);
+		add_component(&info_window_toggler[1]);
+
+		// tree, rock, birds
+		new_component<gui_margin_t>(LINESPACE);
+		new_component<gui_label_t>("tree_info")->set_tooltip(translator::translate("helptxt_tree_info_toggler"));
+		new_component<gui_margin_t>(D_H_SPACE);
+		info_window_toggler[2].pressed =  env_t::tree_info;
+		info_window_toggler[3].pressed = !env_t::tree_info;
+		add_component(&info_window_toggler[2]);
+		add_component(&info_window_toggler[3]);
+
+		new_component<gui_margin_t>(LINESPACE);
+		new_component<gui_label_t>("Private car")->set_tooltip(translator::translate("can open a dedicated window by clicking on a private car."));
+		new_component<gui_margin_t>(D_H_SPACE);
+		info_window_toggler[4].pressed = env_t::road_user_info & 1;
+		info_window_toggler[5].pressed = !info_window_toggler[4].pressed;
+		add_component(&info_window_toggler[4]);
+		add_component(&info_window_toggler[5]);
+
+		new_component<gui_margin_t>(LINESPACE);
+		new_component<gui_label_t>("Fussgaenger")->set_tooltip(translator::translate("can open a dedicated window by clicking on a pedestrian."));
+		new_component<gui_margin_t>(D_H_SPACE);
+		info_window_toggler[6].pressed = env_t::road_user_info & 2;
+		info_window_toggler[7].pressed = !info_window_toggler[6].pressed;
+		add_component(&info_window_toggler[6]);
+		add_component(&info_window_toggler[7]);
+	}
+	end_table();
 
 	new_component<gui_divider_t>();
 
@@ -321,8 +377,8 @@ map_settings_t::map_settings_t()
 		inp_underground_level.add_listener(this);
 		add_component(&inp_underground_level);
 
-		// Toggle simple drawing for debugging
 #ifdef DEBUG
+		// Toggle simple drawing for debugging
 		new_component<gui_margin_t>(LINESPACE/2);
 		buttons[IDBTN_SIMPLE_DRAWING].init(button_t::square_state, "Simple drawing");
 		add_component(buttons + IDBTN_SIMPLE_DRAWING, 2);
@@ -375,6 +431,25 @@ map_settings_t::map_settings_t()
 		add_component(&scrollspeed);
 	}
 	end_table();
+
+	// Set date format
+	new_component<gui_label_t>("Date format");
+	add_table(2,0);
+	{
+		new_component<gui_margin_t>(LINESPACE/2);
+		time_setting.set_focusable( false );
+		uint8 old_show_month = env_t::show_month;
+		sint32 current_tick = world()->get_ticks();
+		for( env_t::show_month = 0; env_t::show_month<10; env_t::show_month++ ) {
+			tstrncpy( time_str[env_t::show_month], tick_to_string( current_tick, true ), 64 );
+			time_setting.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( time_str[env_t::show_month], SYSCOL_TEXT );
+		}
+		env_t::show_month = old_show_month;
+		time_setting.set_selection( old_show_month );
+		add_component( &time_setting );
+		time_setting.add_listener( this );
+	}
+	end_table();
 	new_component<gui_divider_t>();
 
 	new_component<gui_label_t>("transparencies");
@@ -422,11 +497,11 @@ bool map_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
 		env_t::daynight_level = (sint8)v.i;
 	}
 	// Scroll speed edit
-	if( &scrollspeed == comp ) {
+	else if( &scrollspeed == comp ) {
 		env_t::scroll_multi = (sint16)(buttons[ IDBTN_SCROLL_INVERSE ].pressed ? -v.i : v.i);
 	}
 	// underground slice edit
-	if( comp == &inp_underground_level ) {
+	else if( comp == &inp_underground_level ) {
 		if( grund_t::underground_mode == grund_t::ugm_level ) {
 			grund_t::underground_level = inp_underground_level.get_value();
 
@@ -434,6 +509,11 @@ bool map_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
 			world()->update_underground();
 		}
 	}
+	else if( comp == &time_setting ) {
+		env_t::show_month = v.i;
+		return true;
+	}
+
 	// Smart hide objects edit
 	if( &cursor_hide_range == comp ) {
 		env_t::cursor_hide_range = cursor_hide_range.get_value();
@@ -531,6 +611,27 @@ label_settings_t::label_settings_t()
 	}
 	end_table();
 
+	// Show own depot name
+	buttons[IDBTN_SHOW_DEPOT_NAME].init(button_t::square_state, "Show own depot names");
+	buttons[IDBTN_SHOW_DEPOT_NAME].pressed = env_t::show_depot_names;
+	buttons[IDBTN_SHOW_DEPOT_NAME].set_tooltip("Show the name of own depots in the main game window.");
+	add_component(buttons + IDBTN_SHOW_DEPOT_NAME);
+
+	new_component<gui_divider_t>();
+	add_table(2,1);
+	{
+		new_component<gui_label_t>("Industry overlay")->set_tooltip(translator::translate("Display bars above the factory to show the status"));
+		factory_tooltip.set_focusable(false);
+		factory_tooltip.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("never show"), SYSCOL_TEXT);
+		factory_tooltip.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("mouseover"), SYSCOL_TEXT);
+		factory_tooltip.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Within own network"), SYSCOL_TEXT);
+		factory_tooltip.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("always show all"), SYSCOL_TEXT);
+		factory_tooltip.set_selection(env_t::show_factory_storage_bar);
+		add_component(&factory_tooltip);
+		factory_tooltip.add_listener(this);
+	}
+	end_table();
+
 	new_component<gui_divider_t>();
 
 	new_component<gui_label_t>("Convoy tooltips");
@@ -547,6 +648,24 @@ label_settings_t::label_settings_t()
 		convoy_nameplate.set_selection(env_t::show_cnv_nameplates);
 		add_component(&convoy_nameplate);
 		convoy_nameplate.add_listener(this);
+
+		new_component<gui_empty_t>();
+		new_component<gui_empty_t>();
+		add_table(4,1)->set_spacing(scr_size(0,0));
+		{
+			new_component<gui_margin_t>( D_ARROW_LEFT_WIDTH+D_H_SPACE );
+			// UI TODO: radio button is better
+			bt_convoy_id_plate[0].init(button_t::roundbox_left_state  | button_t::flexible, "name_plate");
+			bt_convoy_id_plate[1].init(button_t::roundbox_right_state | button_t::flexible, "Convoy ID");
+			bt_convoy_id_plate[0].set_tooltip("help_text_btn_line_name_plate");
+			bt_convoy_id_plate[1].set_tooltip("Shows the convoy unique ID");
+			bt_convoy_id_plate[0].add_listener(this);
+			bt_convoy_id_plate[1].add_listener(this);
+			add_component(&bt_convoy_id_plate[0]);
+			add_component(&bt_convoy_id_plate[1]);
+			new_component<gui_margin_t>( D_ARROW_LEFT_WIDTH+D_H_SPACE );
+		}
+		end_table();
 
 		// Convoy loading bar
 		new_component<gui_margin_t>(LINESPACE/2);
@@ -589,6 +708,10 @@ label_settings_t::label_settings_t()
 
 bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
+	// Factory tooltip
+	if(&factory_tooltip == comp){
+		env_t::show_factory_storage_bar = v.i;
+	}
 	// Convoy tooltip
 	if (&convoy_tooltip == comp) {
 		env_t::show_vehicle_states = (uint8)v.i;
@@ -596,6 +719,15 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 	// Convoy nameplate
 	if (&convoy_nameplate == comp) {
 		env_t::show_cnv_nameplates = v.i;
+		if (bt_convoy_id_plate[1].pressed) {
+			env_t::show_cnv_nameplates |= 4;
+		}
+	}
+	else if (&bt_convoy_id_plate[0] == comp) {
+		env_t::show_cnv_nameplates &= ~4;
+	}
+	else if (&bt_convoy_id_plate[1] == comp) {
+		env_t::show_cnv_nameplates |= 4;
 	}
 	// Convoy loading bar
 	if (&convoy_loadingbar == comp) {
@@ -613,11 +745,14 @@ bool label_settings_t::action_triggered(gui_action_creator_t *comp, value_t v)
 
 void label_settings_t::draw(scr_coord offset)
 {
-	convoy_nameplate.set_selection(env_t::show_cnv_nameplates);
+	convoy_nameplate.set_selection(env_t::show_cnv_nameplates % 4);
+	bt_convoy_id_plate[1].pressed = env_t::show_cnv_nameplates & 4;
+	bt_convoy_id_plate[0].pressed = !(env_t::show_cnv_nameplates & 4);
 	convoy_loadingbar.set_selection(env_t::show_cnv_loadingbar);
 	convoy_tooltip.set_selection(env_t::show_vehicle_states);
 	freight_waiting_bar.set_selection(env_t::freight_waiting_bar_level);
 	freight_waiting_bar.enable(env_t::show_names & 2);
+	factory_tooltip.set_selection(env_t::show_factory_storage_bar % 4);
 
 	gui_aligned_container_t::draw(offset);
 }
@@ -671,7 +806,7 @@ bool traffic_settings_t::action_triggered( gui_action_creator_t *comp, value_t v
 {
 	// Traffic density edit
 	if( &traffic_density == comp ) {
-		if( !env_t::networkmode || world()->get_active_player_nr() == 1 ) {
+		if( !env_t::networkmode || world()->get_active_player_nr() == PUBLIC_PLAYER_NR ) {
 			static char level[ 16 ];
 			sprintf( level, "%li", v.i );
 			tool_t::simple_tool[ TOOL_TRAFFIC_LEVEL & 0xFFF ]->set_default_param( level );
@@ -716,6 +851,9 @@ color_gui_t::color_gui_t() :
 	for( uint8 i = 0; i < 4; i++ ) {
 		gui_settings.toolbar_pos[i].add_listener(this);
 	}
+	for (uint8 i = 0; i < 8; i++) {
+		gui_settings.info_window_toggler[i].add_listener(this);
+	}
 	gui_settings.reselect_closes_tool.add_listener(this);
 
 	set_resizemode(diagonal_resize);
@@ -725,7 +863,7 @@ color_gui_t::color_gui_t() :
 	resize( scr_coord( 0, 0 ) );
 }
 
-bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t )
+bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t)
 {
 	bool reflesh_toolbar_pos_btn = false;
 	for(  uint8 i=0; i<4; i++  ) {
@@ -755,6 +893,33 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t )
 		return true;
 	}
 
+	if (comp == &gui_settings.info_window_toggler[0] || comp == &gui_settings.info_window_toggler[1]) {
+		gui_settings.info_window_toggler[0].pressed = (comp == &gui_settings.info_window_toggler[0]);
+		gui_settings.info_window_toggler[1].pressed = !gui_settings.info_window_toggler[0].pressed;
+		env_t::ground_info = gui_settings.info_window_toggler[0].pressed;
+		return true;
+	}
+	if (comp == &gui_settings.info_window_toggler[2] || comp == &gui_settings.info_window_toggler[3]) {
+		gui_settings.info_window_toggler[2].pressed = (comp == &gui_settings.info_window_toggler[2]);
+		gui_settings.info_window_toggler[3].pressed = !gui_settings.info_window_toggler[2].pressed;
+		env_t::tree_info = gui_settings.info_window_toggler[2].pressed;
+		return true;
+	}
+	if (comp == &gui_settings.info_window_toggler[4] || comp == &gui_settings.info_window_toggler[5]) {
+		env_t::road_user_info &= ~1;
+		if (comp == &gui_settings.info_window_toggler[4]) { env_t::road_user_info |= 1; }
+		gui_settings.info_window_toggler[4].pressed = (comp == &gui_settings.info_window_toggler[4]);
+		gui_settings.info_window_toggler[5].pressed = !gui_settings.info_window_toggler[4].pressed;
+		return true;
+	}
+	if (comp == &gui_settings.info_window_toggler[6] || comp == &gui_settings.info_window_toggler[7]) {
+		env_t::road_user_info &= ~2;
+		if (comp == &gui_settings.info_window_toggler[6]) { env_t::road_user_info |= 2; }
+		gui_settings.info_window_toggler[6].pressed = (comp == &gui_settings.info_window_toggler[6]);
+		gui_settings.info_window_toggler[7].pressed = !gui_settings.info_window_toggler[6].pressed;
+		return true;
+	}
+
 	int i;
 	for(  i=0;  i<COLORS_MAX_BUTTONS  &&  comp!=buttons+i;  i++  ) { }
 
@@ -768,12 +933,12 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t )
 		env_t::scroll_multi = -env_t::scroll_multi;
 		break;
 	case IDBTN_PEDESTRIANS_AT_STOPS:
-		if( !env_t::networkmode || welt->get_active_player_nr() == 1 ) {
+		if( !env_t::networkmode || welt->get_active_player_nr() == PUBLIC_PLAYER_NR ) {
 			welt->set_tool( tool_t::simple_tool[ TOOL_TOOGLE_PAX & 0xFFF ], welt->get_active_player() );
 		}
 		break;
 	case IDBTN_PEDESTRIANS_IN_TOWNS:
-		if( !env_t::networkmode || welt->get_active_player_nr() == 1 ) {
+		if( !env_t::networkmode || welt->get_active_player_nr() == PUBLIC_PLAYER_NR ) {
 			welt->set_tool( tool_t::simple_tool[ TOOL_TOOGLE_PEDESTRIANS & 0xFFF ], welt->get_active_player() );
 		}
 		break;
@@ -793,6 +958,9 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t )
 		break;
 	case IDBTN_SHOW_STATION_COVERAGE:
 		env_t::station_coverage_show = env_t::station_coverage_show == 0 ? 0xFF : 0;
+		break;
+	case IDBTN_SHOW_DEPOT_NAME:
+		env_t::show_depot_names = !env_t::show_depot_names;
 		break;
 	case IDBTN_UNDERGROUND_VIEW:
 		// see simtool.cc::tool_show_underground_t::init
@@ -886,6 +1054,7 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 	buttons[IDBTN_UNDERGROUND_VIEW].pressed = grund_t::underground_mode == grund_t::ugm_all;
 	buttons[IDBTN_SHOW_GRID].pressed = grund_t::show_grid;
 	buttons[IDBTN_SHOW_WAITING_BARS].pressed = (env_t::show_names&2)!=0;
+	buttons[IDBTN_SHOW_DEPOT_NAME].pressed = env_t::show_depot_names;
 	buttons[IDBTN_SHOW_SLICE_MAP_VIEW].pressed = grund_t::underground_mode == grund_t::ugm_level;
 	buttons[IDBTN_SHOW_SCHEDULES_STOP].pressed = env_t::visualize_schedule;
 	buttons[IDBTN_SIMPLE_DRAWING].pressed = env_t::simple_drawing;

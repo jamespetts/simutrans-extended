@@ -64,8 +64,6 @@ public:
 
 	void show_info() OVERRIDE;
 
-	void info(cbuffer_t & buf) const OVERRIDE;
-
 	void cleanup(player_t *player) OVERRIDE;
 
 	const groundobj_desc_t* get_desc() const { return groundobj_typen[groundobjtype]; }

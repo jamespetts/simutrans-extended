@@ -63,12 +63,8 @@ protected:
 	// returns extra file info
 	const char *get_info(const char *fname) OVERRIDE;
 
-	// FIXME: need incorporating r7664
-	//// sort with respect to info, which is date
-	////bool compare_items ( const dir_entry_t & entry, const char *info, const char *) OVERRIDE;
-
 	// sort with respect to info, which is date
-	virtual bool compare_items ( const dir_entry_t & entry, const char *info, const char *);
+	bool compare_items ( const dir_entry_t & entry, const char *info, const char *) OVERRIDE;
 
 public:
 	/**

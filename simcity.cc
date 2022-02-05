@@ -267,7 +267,7 @@ static uint32 renovations_try = 3;
 * proportional_renovation_radius is equal to 1
 * @author catasteroid
 */
-static uint32 renovation_range = 3;
+static uint32 renovation_range = 10;
 
 /*
 * whether renovation_chance or renovation_count is influenced by city population density
@@ -294,7 +294,7 @@ static uint32 renovation_count_increase_every = 2500;
 /*
 * hard cap on renovation_count if the city has a really high population
 */
-static uint32 renovation_count_maximum = 25;
+static uint32 renovation_count_maximum = 5;
 
 /*
 * overrides default behaviour allowing very large cities to renovate buildings
@@ -302,7 +302,7 @@ static uint32 renovation_count_maximum = 25;
 * value based on the city's population status
 * @author catasteroid
 */
-static uint32 proportional_renovation_radius = 0;
+static uint32 proportional_renovation_radius = 1;
 
 /*
 * used with the above proportional_renovation_radius figure to use a value determined
@@ -310,7 +310,7 @@ static uint32 proportional_renovation_radius = 0;
 * respectively, they can be all set to the same value to use a generic proportional
 * percentage value for all city sizes
 */
-static uint16 renovation_range_proportions[] = { 80,60,40 };
+static uint16 renovation_range_proportions[] = { 50,50,50 };
 
 /*
 * whether residential, commercial and industrial buildings are renovated at different ranges
@@ -810,7 +810,12 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	bridge_success_percentage = (uint32)contents.get_int("bridge_success_percentage", 25);
 	renovation_percentage = (uint32)contents.get_int("renovation_percentage", renovation_percentage);
 	renovations_count = (uint32)contents.get_int("renovations_count", renovations_count);
-	renovations_try   = (uint32)contents.get_int("renovations_try", renovations_try);
+	/*
+	* I erroneously assumed that the below values as defined in my changes to the cityrules.tab file would also be reflected with the changes merged in
+	* this actually was not the case and was causing a number of issues that went largely identified by me between late 2019 and mid/late 2021
+	* @author catasteroid
+	*/
+	renovations_try = (uint32)contents.get_int("renovations_try", renovations_try);
 	renovation_range = (uint32)contents.get_int("renovation_range", renovation_range);
 	renovation_influence_type = (uint32)contents.get_int("renovation_influence_type", renovation_influence_type);
 	renovation_city_size_count[0] = (uint16)contents.get_int("renovation_count_village", renovation_city_size_count[0]);
@@ -2425,14 +2430,8 @@ void stadt_t::rdwr(loadsave_t* file)
 }
 
 
-/**
- * Wird am Ende der Laderoutine aufgerufen, wenn die Welt geladen ist
- * und nur noch die Datenstrukturenneu verknuepft werden muessen.
- */
 void stadt_t::finish_rd()
 {
-	//step_count = 0;
-	//next_step = 0;
 	next_growth_step = 0;
 
 	// there might be broken savegames
@@ -3378,7 +3377,6 @@ void stadt_t::merke_passagier_ziel(koord k, PIXVAL color)
 	{
 		pax_destinations_new.set(position, color);
 	}
-
 	pax_destinations_new_change ++;
 }
 
@@ -4504,7 +4502,10 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	// Divide unemployed by 4, because it counts towards commercial and industrial,
 	// and both of those count 'double' for population relative to residential.
 	const int employment_wanted  = get_unemployed() / 4;
-	const int housing_wanted = get_homeless() / 4;
+	// const int housing_wanted = get_homeless() / 4;
+	// made a major error here and didn't test cases with pre-version 14 paksets
+	// i never discovered the issue until now - Catasteroid
+	const int housing_wanted = get_homeless();
 
 	int industrial_suitability, commercial_suitability, residential_suitability;
 	bewerte_res_com_ind(k, industrial_suitability, commercial_suitability, residential_suitability );
@@ -4560,6 +4561,9 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	vector_tpl<koord> available_sizes;
 	get_available_building_size(k, available_sizes);
 	const uint8 size_offset = simrand(available_sizes.get_count(), "bool stadt_t::renovate_city_building");
+
+	// it's important to note buildings of a higher "level" are not strictly better than what they'll be replaced with in this model
+	// this may be due to inconsistencies between level value and resident/job numbers and the classes thereof in individual buildings
 
 	// try to build
 	const building_desc_t* h = NULL;
@@ -4844,7 +4848,41 @@ uint32 stadt_t::get_population_by_class(uint8 p_class)
 	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
 	{
 		gebaeude_t* building = *i;
-		sum += building->get_adjusted_population_by_class(p_class);
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_population_by_class(p_class);
+		}
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_jobs_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_jobs_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_jobs_by_class(p_class);
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_visitor_demand_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_visitor_demand_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_visitor_demand_by_class(p_class);
 	}
 	return sum;
 }
@@ -5083,10 +5121,10 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		bool allow_deletion = true;
 
 		const weg_t* runway = bd->get_weg(air_wt);
-		allow_deletion &= !runway || (runway->get_player_nr() == PLAYER_UNOWNED && runway->get_max_speed() == 0);
+		allow_deletion &= !runway || (runway->get_owner_nr() == PLAYER_UNOWNED && runway->get_max_speed() == 0);
 
 		const weg_t* waterway = bd->get_weg(water_wt);
-		allow_deletion &= !waterway || (!waterway->is_public_right_of_way() && waterway->get_player_nr() == PLAYER_UNOWNED && waterway->is_degraded());
+		allow_deletion &= !waterway || (!waterway->is_public_right_of_way() && waterway->get_owner_nr() == PLAYER_UNOWNED && waterway->is_degraded());
 
 		if (!allow_deletion)
 		{
@@ -5160,7 +5198,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			ribi_t::ribi r = sch->get_ribi_unmasked();
 			if (!ribi_t::is_straight(r)) {
 				// no building on crossings, curves, dead ends unless this is an unowned degraded way
-				if (!(sch->get_player_nr() == PLAYER_UNOWNED && sch->is_degraded()))
+				if (!(sch->get_owner_nr() == PLAYER_UNOWNED && sch->is_degraded()))
 				{
 					return false;
 				}
@@ -5901,6 +5939,16 @@ void stadt_t::add_substation(senke_t* substation)
 void stadt_t::remove_substation(senke_t* substation)
 {
 	substations.remove(substation);
+}
+
+sint64 stadt_t::get_cityhistory_last_quarter(int type)
+{
+	sint64 sum = 0;
+	const uint8 q_last_month_offset = world()->get_current_month()%3 + 1;
+	for (uint8 i = 0; i < 3; i++) {
+		sum += city_history_month[i+q_last_month_offset][type];
+	}
+	return sum;
 }
 
 private_car_destination_finder_t::private_car_destination_finder_t(karte_t* w, road_vehicle_t* m, stadt_t* o)

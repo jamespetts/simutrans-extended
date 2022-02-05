@@ -90,24 +90,23 @@ convoi_filter_frame_t::convoi_filter_frame_t(player_t *player, convoi_frame_t *m
 		name_filter_input.add_listener(this);
 		add_component(&name_filter_input);
 
-		add_table(2, 0);
-		{
-			// type and special buttons
-			for(  int i=2;  i<FILTER_BUTTONS;  i++  ) {
-				if (i==2 || i==11) {
-					if (i==11) {
-						new_component<gui_margin_t>();
-						new_component<gui_empty_t>();
-					}
-					add_component(filter_buttons + i, 2);
+		// type and special buttons
+		for(  int i=2;  i<FILTER_BUTTONS;  i++  ) {
+			if (i==2 || i==11) {
+				if (i==11) {
+					new_component<gui_empty_t>();
 				}
-				else {
+				add_component(filter_buttons + i, 2);
+			}
+			else {
+				add_table(2,0);
+				{
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 					add_component(filter_buttons + i);
 				}
+				end_table();
 			}
 		}
-		end_table();
 	}
 	end_table();
 

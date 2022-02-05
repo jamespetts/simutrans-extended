@@ -166,7 +166,7 @@ public:
 	static bool numpad_always_moves_map;
 
 	/// open info windows for pedestrian and private cars
-	static bool road_user_info;
+	static uint8 road_user_info;
 
 	/// open info windows for trees
 	static bool tree_info;
@@ -330,6 +330,9 @@ public:
 	 */
 	static sint32 show_names;
 
+	/// Show own depot name label
+	static bool show_depot_names;
+
 	/// Display detail level of station freight waiting bar
 	static uint8 freight_waiting_bar_level;
 
@@ -341,6 +344,9 @@ public:
 
 	/// Show convoy loading gauge
 	static uint8 show_cnv_loadingbar;
+
+	/// Show factory storage bar
+	static uint8 show_factory_storage_bar;
 
 	/// if a schedule is open, show tiles which are used by it
 	static bool visualize_schedule;
@@ -488,7 +494,6 @@ public:
 	/// if true this will show a softkeyboard only when editing text
 	/// default is off
 	static bool hide_keyboard;
-
 
 	/// default settings
 	/// read in simmain.cc from various tab files

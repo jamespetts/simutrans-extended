@@ -40,6 +40,9 @@ public:
 		square = 1,
 		box,
 		roundbox,
+		roundbox_left,
+		roundbox_middle,
+		roundbox_right,
 		imagebox,
 		sortarrow,
 		arrowleft,
@@ -55,6 +58,9 @@ public:
 		square_state     = square     | state,
 		box_state        = box        | state,
 		roundbox_state   = roundbox   | state,
+		roundbox_left_state   = roundbox_left   | state,
+		roundbox_middle_state = roundbox_middle | state,
+		roundbox_right_state  = roundbox_right  | state,
 		imagebox_state   = imagebox   | state,
 		sortarrow_state  = sortarrow  | state,
 		arrowright_state = arrowright | state,
@@ -101,6 +107,8 @@ private:
 	koord3d targetpos;
 	image_id img;
 
+	bool img_on_right=false;
+
 	// any click will go to this world
 	static karte_ptr_t welt;
 
@@ -139,8 +147,11 @@ public:
 	void set_targetpos( const koord k ); // assuming this is on map ground
 	void set_targetpos3d( const koord3d k ) { targetpos = k; }
 
-	// only relevant for imagebox
+	// relevant for imagebox, box and roundbox
 	void set_image(image_id id) { img = id; }
+	// Currently can only choose between the left and right edges,
+	// but in the future we could add options such as just to the left of the text.
+	void set_image_position_right(bool on_right) { img_on_right = on_right; }
 
 	/**
 	 * Set the displayed text of the button when not to translate

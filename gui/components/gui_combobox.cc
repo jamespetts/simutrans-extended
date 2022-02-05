@@ -161,8 +161,8 @@ DBG_MESSAGE("event","HOWDY!");
 		}
 		else if (droplist.is_visible()) {
 			event_t ev2 = *ev;
-			scr_coord diff = droplist.get_pos() - gui_component_t::get_pos();
-			translate_event(&ev2, -diff.x, -diff.y);
+			const scr_coord diff = droplist.get_pos() - gui_component_t::get_pos();
+			ev2.move_origin(diff);
 
 			if( droplist.getroffen(ev->cx + pos.x, ev->cy + pos.y)  ) {
 				int old_selection = droplist.get_selection();
@@ -202,7 +202,7 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()","close");
 		gui_scrolled_list_t::scrollitem_t *item = droplist.get_selected_item();
 		if(  item==NULL  ||  item->is_editable()  ) {
 			event_t ev2 = *ev;
-			translate_event(&ev2, -textinp.get_pos().x, -textinp.get_pos().y);
+			ev2.move_origin(textinp.get_pos());
 			return textinp.infowin_event(ev);
 		}
 	}
@@ -362,7 +362,7 @@ void gui_combobox_t::set_size(scr_size size)
 
 	droplist.request_size(scr_size(this->size.w, droplist.get_size().h));
 
-	textinp.set_size( scr_size( size.w - bt_prev.get_size().w - bt_next.get_size().w - D_H_SPACE, closed_size.h-D_V_SPACE/2  ) );
+	textinp.set_size( scr_size( size.w - bt_prev.get_size().w - bt_next.get_size().w - D_H_SPACE, closed_size.h ) );
 	set_pos(get_pos());
 
 	bt_prev.set_pos( scr_coord(0,(size.h-D_ARROW_LEFT_HEIGHT)/2) );
@@ -403,7 +403,7 @@ scr_size gui_combobox_t::get_min_size() const
 		return scr_size(bl.w + ti.w + br.w + D_H_SPACE, max(max(bl.h, ti.h), br.h));
 	}
 	else {
-		return scr_size(bl.w + sl.w + br.w + D_H_SPACE, max(max(bl.h, ti.h), br.h));
+		return scr_size(bl.w + br.w + sl.w - D_H_SPACE, max(max(bl.h, ti.h), br.h));
 	}
 }
 

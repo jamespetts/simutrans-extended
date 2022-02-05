@@ -61,7 +61,7 @@ public:
 	virtual bool can_enter_tile() { return 1; }
 	grund_t* hop_check() OVERRIDE;
 	void hop(grund_t* gr) OVERRIDE;
-	virtual void update_bookkeeping(uint32) {};
+	virtual void update_bookkeeping(uint32) OVERRIDE {};
 
 	waytype_t get_waytype() const OVERRIDE { return get_desc()->get_waytype(); }
 
@@ -77,8 +77,6 @@ public:
 	bool check_season(const bool) OVERRIDE;
 
 	void show_info() OVERRIDE;
-
-	void info(cbuffer_t & buf) const OVERRIDE;
 
 	void cleanup(player_t *player) OVERRIDE;
 

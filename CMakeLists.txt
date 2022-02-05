@@ -231,6 +231,7 @@ add_executable(simutrans-extended
 	gui/components/gui_map_preview.cc
 	gui/components/gui_numberinput.cc
 	gui/components/gui_obj_view_t.cc
+	gui/components/gui_schedule_item.cc
 	gui/components/gui_scrollbar.cc
 	gui/components/gui_scrolled_list.cc
 	gui/components/gui_scrollpane.cc
@@ -239,6 +240,7 @@ add_executable(simutrans-extended
 	gui/components/gui_tab_panel.cc
 	gui/components/gui_textarea.cc
 	gui/components/gui_textinput.cc
+	gui/components/gui_vehicle_capacitybar.cc
 	gui/components/gui_world_view_t.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc
@@ -303,25 +305,26 @@ add_executable(simutrans-extended
 	gui/scenario_info.cc
 	gui/schedule_gui.cc
 	gui/schedule_list.cc
-	gui/schiene_info.cc
 	gui/server_frame.cc
 	gui/settings_frame.cc
 	gui/settings_stats.cc
+	gui/signal_connector_gui.cc
 	gui/signal_info.cc
 	gui/signal_spacing.cc
 	gui/signalboxlist_frame.cc
 	gui/simwin.cc
+	gui/slim_obj_info.cc
 	gui/sound_frame.cc
 	gui/sprachen.cc
 	gui/station_building_select.cc
 	gui/themeselector.cc
-	gui/times_history.cc
 	gui/times_history_container.cc
-	gui/times_history_entry.cc
 	gui/tool_selector.cc
 	gui/trafficlight_info.cc
 	gui/vehiclelist_frame.cc
 	gui/vehicle_class_manager.cc
+	gui/water_info.cc
+	gui/way_info.cc
 	gui/welt.cc
 	io/rdwr/bzip2_file_rdwr_stream.cc
 	io/rdwr/raw_file_rdwr_stream.cc
@@ -441,7 +444,6 @@ add_executable(simutrans-extended
 	squirrel/squirrel/sqvm.cc
 	unicode.cc
 	utils/cbuffer_t.cc
-	utils/checklist.cc
 	utils/csv.cc
 	utils/float32e8_t.cc
 	utils/log.cc

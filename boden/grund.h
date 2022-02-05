@@ -591,8 +591,8 @@ public:
 
 	template<typename T> T* find(uint start = 0) const { return static_cast<T*>(objlist.suche(map_obj<T>::code, start)); }
 
-	uint8  obj_add(obj_t *obj) { return objlist.add(obj); }
-	uint8 obj_remove(const obj_t* obj) { return objlist.remove(obj); }
+	bool obj_add(obj_t *obj) { return objlist.add(obj); }
+	bool obj_remove(const obj_t* obj) { return objlist.remove(obj); }
 	bool obj_loesche_alle(player_t *player) { return objlist.loesche_alle(player,offsets[flags/has_way1]); }
 	bool obj_ist_da(const obj_t* obj) const { return objlist.ist_da(obj); }
 	obj_t * obj_bei(uint8 n) const { return objlist.bei(n); }
@@ -763,6 +763,9 @@ public:
 	bool removing_way_would_disrupt_public_right_of_way(waytype_t wt);
 	bool removing_road_would_break_monument_loop();
 
+	// Helper method
+	const way_desc_t* get_default_road(weg_t* w) const;
+
 	typedef koordhashtable_tpl<koord, bool, N_BAGS_SMALL> road_network_plan_t;
 	/**
 	 * Check whether building a road would result in a 2x2 square
@@ -869,9 +872,12 @@ public:
 	 */
 	bool remove_everything_from_way(player_t *player,waytype_t wt,ribi_t::ribi ribi_rem);
 
+	/// @returns true if this is a dummy ground that is only there for UI purposes
+	/// (previews for bridges, elevated ways and tunnels)
+	bool is_dummy_ground() const;
+
 	void* operator new(size_t s);
 	void  operator delete(void* p, size_t s);
-
 };
 
 

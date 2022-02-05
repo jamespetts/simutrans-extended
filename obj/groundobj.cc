@@ -22,6 +22,8 @@
 #include "../dataobj/environment.h"
 #include "../dataobj/freelist.h"
 
+#include "../gui/simwin.h"
+#include "../gui/slim_obj_info.h"
 
 #include "groundobj.h"
 
@@ -275,25 +277,8 @@ void groundobj_t::rdwr(loadsave_t *file)
 void groundobj_t::show_info()
 {
 	if(env_t::tree_info) {
-		obj_t::show_info();
+		create_win(new slim_obj_info_t(this), w_info, (ptrdiff_t)this);
 	}
-}
-
-
-void groundobj_t::info(cbuffer_t & buf) const
-{
-	obj_t::info(buf);
-
-	buf.append(translator::translate(get_desc()->get_name()));
-	if (char const* const maker = get_desc()->get_copyright()) {
-		buf.append("\n");
-		buf.printf(translator::translate("Constructed by %s"), maker);
-	}
-	buf.append("\n");
-	buf.append(translator::translate("cost for removal"));
-	char buffer[128];
-	money_to_string( buffer, get_desc()->get_value()/100.0 );
-	buf.append( buffer );
 }
 
 

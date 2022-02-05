@@ -502,6 +502,10 @@ void leitung_t::rdwr(loadsave_t *file)
 					if(desc==NULL) {
 						welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 						desc = way_builder_t::leitung_desc;
+
+						if (!desc) {
+							dbg->fatal("leitung_t::rdwr", "Trying to load powerline but pakset has none!");
+						}
 					}
 					dbg->warning("leitung_t::rdwr()", "Unknown powerline %s replaced by %s", bname, desc->get_name() );
 				}
@@ -529,7 +533,7 @@ void leitung_t::rdwr(loadsave_t *file)
 // players can remove public owned powerlines
 const char *leitung_t::is_deletable(const player_t *player)
 {
-	if(  get_player_nr()==welt->get_public_player()->get_player_nr()  &&  player  ) {
+	if(  get_owner_nr()==PUBLIC_PLAYER_NR  &&  player  ) {
 		return NULL;
 	}
 	return obj_t::is_deletable(player);

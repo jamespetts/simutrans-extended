@@ -80,6 +80,7 @@ const skin_desc_t* skinverwaltung_t::reverse_arrows     = NULL;
 const skin_desc_t* skinverwaltung_t::waiting_time       = NULL; // waiting time at the station
 const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service frequency
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
+const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 const skin_desc_t* skinverwaltung_t::layover            = NULL;
 const skin_desc_t* skinverwaltung_t::refuel             = NULL;
 const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
@@ -145,6 +146,7 @@ static special_obj_tpl<skin_desc_t> const symbol_objekte[] = {
 	{ &skinverwaltung_t::waiting_time,       "WaitingTime"    },
 	{ &skinverwaltung_t::service_frequency,  "ServiceFrequency" },
 	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
+	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
 	{ &skinverwaltung_t::layover,            "Layover"        },
 	{ &skinverwaltung_t::refuel,             "Refuel"         },
 	{ &skinverwaltung_t::ignore_choose,      "IgnoreChoose"   },
@@ -203,7 +205,7 @@ bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 	switch (type) {
 		case menu:    return true; // skins will be handled elsewhere
 		case cursor:  sd = cursor_objekte;     break;
-		case symbol:  sd = symbol_objekte+17;  break;
+		case symbol:  sd = symbol_objekte+18;  break;
 		case misc:
 			sd = misc_objekte+3;
 			// for compatibility: use sidewalk as tunneltexture
@@ -256,6 +258,33 @@ const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 		if (strncmp(str, s->get_name(), len) == 0) {
 			return s;
 		}
+	}
+	return NULL;
+}
+
+const skin_desc_t *skinverwaltung_t::get_waytype_skin(waytype_t wt)
+{
+	switch (wt)
+	{
+		case road_wt:
+			return autohaltsymbol;
+			//return bushaltsymbol;
+		case track_wt:
+			return zughaltsymbol;
+		case water_wt:
+			return schiffshaltsymbol;
+		case monorail_wt:
+			return monorailhaltsymbol;
+		case maglev_wt:
+			return maglevhaltsymbol;
+		case tram_wt:
+			return tramhaltsymbol;
+		case narrowgauge_wt:
+			return narrowgaugehaltsymbol;
+		case air_wt:
+			return airhaltsymbol;
+		default:
+			break;
 	}
 	return NULL;
 }

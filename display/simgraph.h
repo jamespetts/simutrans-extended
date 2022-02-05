@@ -44,6 +44,9 @@ extern int default_font_linespace;
 #define WAITINGBAR_HEIGHT 4
 #define LOADINGBAR_WIDTH 100
 
+#define D_ENTRY_NO_HEIGHT (LINESPACE+4)
+#define D_ENTRY_NO_WIDTH (proportional_string_width("188")+6)
+
 /**
 * Alignment enum to align controls against each other
 * Vertical and horizontal alignment can be masked together
@@ -149,6 +152,14 @@ void simgraph_exit();
 void simgraph_resize(scr_size new_window_size);
 void reset_textur(void *new_textur);
 
+// If the background color is dark, the white text will match.
+bool is_dark_color(PIXVAL color);
+bool is_dark_color(uint32 rgb);
+
+// Returns the brightness of the color from -128 to 127.
+// If it is greater than 0, black text will fit, if it is smaller, white text will fit.
+// The higher the positive value, the less visible the white text.
+sint8 get_color_brightness_index(PIXVAL color);
 
 /**
  * Loads the font, returns the number of characters in it
@@ -288,6 +299,9 @@ enum {
 
 void display_veh_form_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty, bool is_rightside=false, uint8 basic_coupling_constraint=1, uint8 interactivity=BIDIRECTIONAL|HAS_POWER CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
 
+void display_convoy_arrow_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
+#define display_convoy_arrow_wh_clip( x, y, w, h, c, d ) display_convoy_arrow_wh_clip_rgb( (x), (y), (w), (h), specialcolormap_all_day[(c)&0xFF], (d))
+
 void display_vline_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val h, PIXVAL color, bool dirty);
 
 void display_vline_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val h, PIXVAL c, bool dirty  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
@@ -369,12 +383,9 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 #define display_proportional_clip_rgb(          x, y, txt, align, color, dirty)       display_text_proportional_len_clip_rgb( x, y, txt, align | DT_CLIP, color, dirty, -1 )
 
 
-/*
- * Display a string that is abbreviated by the (language specific) ellipsis character if too wide
- * If enough space is given, it just display the full string
- * @returns screen_width
- */
-scr_coord_val display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0 );
+/// Display a string that is abbreviated by the (language specific) ellipsis character if too wide
+/// If enough space is given, it just display the full string
+void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0 );
 
 void display_ddd_proportional(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty);
 
@@ -392,6 +403,10 @@ void draw_bezier_rgb(scr_coord_val Ax, scr_coord_val Ay, scr_coord_val Bx, scr_c
 int display_fluctuation_triangle_rgb(scr_coord_val x, scr_coord_val y, uint8 height, const bool dirty, sint64 value=0);
 
 void display_right_triangle_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val height, const PIXVAL colval, const bool dirty);
+void display_right_pointer_rgb(scr_coord_val x, scr_coord_val y, uint8 height, const PIXVAL colval, const bool dirty);
+void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val raster_width, uint8 way_dir, uint8 sig_dir, uint8 state, bool is_diagonal=false, uint8 open_dir=15/* all */, sint8 slope=type_flat);
+
+void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width=12, const uint8 darkest_pcol_idx=88/*brown*/, const bool dirty=true);
 
 void display_set_clip_wh(scr_coord_val x, scr_coord_val y, scr_coord_val w, scr_coord_val h  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO, bool fit = false);
 clip_dimension display_get_clip_wh(CLIP_NUM_DEF0 CLIP_NUM_DEFAULT_ZERO);

@@ -96,8 +96,8 @@ depot_t *depot_t::find_depot( koord3d start, const obj_t::typ depot_type, const 
 {
 	depot_t *found = NULL;
 	koord3d found_pos = forward ? koord3d(welt->get_size().x+1,welt->get_size().y+1,welt->get_groundwater()) : koord3d(-1,-1,-1);
-	uint32 found_hash = forward ? 0x7FFFFFF : -1;
-	uint32 start_hash = start.x + (8192 * start.y);
+	sint32 found_hash = forward ? 0x7FFFFFF : -1;
+	sint32 start_hash = start.x + (8192 * start.y);
 	FOR(slist_tpl<depot_t*>, const d, all_depots) {
 		if(d->get_typ()==depot_type  &&  d->get_owner()==player) {
 			// ok, the right type of depot
@@ -350,7 +350,7 @@ void depot_t::append_vehicle(convoihandle_t &cnv, vehicle_t* veh, bool infront, 
 
 void depot_t::remove_vehicle(convoihandle_t cnv, int ipos)
 {
-	vehicle_t* veh = cnv->remove_vehicle_bei( ipos );
+	vehicle_t* veh = cnv->remove_vehicle_at( ipos );
 	if(  veh  ) {
 		vehicles.append( veh );
 	}
@@ -359,7 +359,7 @@ void depot_t::remove_vehicle(convoihandle_t cnv, int ipos)
 
 void depot_t::remove_vehicles_to_end(convoihandle_t cnv, int ipos)
 {
-	while(  vehicle_t* veh = cnv->remove_vehicle_bei( ipos )  ) {
+	while(  vehicle_t* veh = cnv->remove_vehicle_at( ipos )  ) {
 		vehicles.append( veh );
 	}
 }
@@ -549,7 +549,7 @@ bool depot_t::disassemble_convoi(convoihandle_t cnv, bool sell)
 	if(  cnv.is_bound()  ) {
 		if(  !sell  ) {
 			// store vehicles in depot
-			while(  vehicle_t* const v = cnv->remove_vehicle_bei(0)  ) {
+			while(  vehicle_t* const v = cnv->remove_vehicle_at(0)  ) {
 				v->discard_cargo();
 				v->set_leading(false);
 				v->set_last(false);

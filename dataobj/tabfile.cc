@@ -3,7 +3,6 @@
  * (see LICENSE.txt)
  */
 
-#include "../sys/simsys.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -13,6 +12,7 @@
 #define dr_fopen fopen
 #endif
 
+#include "../sys/simsys.h"
 #include "../simdebug.h"
 #include "../descriptor/image.h"
 #include "koord.h"
@@ -115,6 +115,7 @@ const koord &tabfileobj_t::get_koord(const char *key, koord def)
 	return ret;
 }
 
+
 const scr_size &tabfileobj_t::get_scr_size(const char *key, scr_size def)
 {
 	static scr_size ret;
@@ -149,11 +150,11 @@ PIXVAL tabfileobj_t::get_color(const char *key, PIXVAL def, uint32 *color_rgb)
 		else {
 			// this inputs also hex correct
 			uint8 index = (uint8)strtoul( value, NULL, 0 );
-			//we save in settings as RGB888
+			// we save in settings as RGB888
 			if (color_rgb) {
 				*color_rgb = get_color_rgb(index);
 			}
-			//but the functions expect in the system colour (like RGB565)
+			// but the functions expect in the system colour (like RGB565)
 			return color_idx_to_rgb(index);
 		}
 #else
@@ -171,14 +172,28 @@ int tabfileobj_t::get_int(const char *key, int def)
 	if(!value) {
 		return def;
 	}
-	else {
-		// skip spaces/tabs
-		while ( *value>0  &&  *value<=32  ) {
-			value ++;
-		}
-		// this inputs also hex correct
-		return strtol( value, NULL, 0 );
+
+	// skip spaces/tabs
+	while ( *value>0  &&  *value<=32  ) {
+		value ++;
 	}
+
+	// this inputs also hex correct
+	return strtol( value, NULL, 0 );
+}
+
+
+int tabfileobj_t::get_int_clamped(const char *key, int def, int min_value, int max_value)
+{
+	const int int_value = get_int(key, def);
+	const int clamped_value = clamp(int_value, min_value, max_value);
+
+	if (clamped_value != int_value) {
+		dbg->warning("tabfileobj_t::get_int_clamped()", "Value %d for key %s out of range %d..%d, resetting to %d",
+			int_value, key, min_value, max_value, clamped_value);
+	}
+
+	return clamped_value;
 }
 
 
@@ -213,12 +228,14 @@ int *tabfileobj_t::get_ints(const char *key)
 		result[0] = 0;
 		return result;
 	}
+
 	// Determine number
 	for(tmp = value; *tmp; tmp++) {
 		if(*tmp == ',') {
 			count++;
 		}
 	}
+
 	// Create result vector and fill
 	result = new int[count + 1];
 
@@ -231,6 +248,7 @@ int *tabfileobj_t::get_ints(const char *key)
 			do {
 				tmp ++;
 			} while ( *tmp>0  &&  *tmp<=32  );
+
 			// this inputs also hex correct
 			result[count++] = strtol( tmp, NULL, 0 );
 		}
@@ -448,7 +466,7 @@ bool tabfile_t::read(tabfileobj_t &objinfo, FILE *fp)
 							strcpy(delim_expand, delim);
 						}
 
-						printf("%s = %s\n", line_expand, delim_expand);
+						dbg->message("tabfile_t::read", "Parameter expansion %s = %s\n", line_expand, delim_expand);
 						objinfo.put(line_expand, delim_expand);
 						if (fp != NULL) {
 							fprintf(fp, "%s=%s\n", line_expand, delim_expand);
@@ -533,7 +551,7 @@ int tabfile_t::find_parameter_expansion(char *key, char *data, int *parameters, 
 		else if (!isalpha(*s) && !isdigit(*s) && *s != '_' && *s != '.') {
 			// only allow [a-zA-Z0-9_.] in keys ('.' is required for city rules)
 			dbg->error("tabfile_t::find_parameter_expansion",
-				"Found invalid character %c in key of parameter expansion (Only alphanumeric characters, '.' and '_' allowed)", *s);
+				"Found invalid character '%c' in key of parameter expansion (Only alphanumeric characters, '.' and '_' allowed)", *s);
 			return 0;
 		}
 	}

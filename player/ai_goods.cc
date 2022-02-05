@@ -1295,7 +1295,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 					sint64 goods=0;
 					// no goods for six months?
 					for( int i=0;  i<6;  i ++) {
-						goods += cnv->get_finance_history( i, convoi_t::CONVOI_TRANSPORTED_GOODS );
+						goods += cnv->get_finance_history( i, convoi_t::CONVOI_PAX_DISTANCE );
 					}
 					delete_this = (goods==0);
 				}
@@ -1540,6 +1540,7 @@ bool ai_goods_t::is_forbidden( fabrik_t *fab1, fabrik_t *fab2, const goods_desc_
 void ai_goods_t::fabconnection_t::rdwr(loadsave_t *file)
 {
 	koord3d k3d;
+
 	if(file->is_saving()) {
 		k3d = fab1->get_pos();
 		k3d.rdwr(file);

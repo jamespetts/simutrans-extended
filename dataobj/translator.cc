@@ -532,10 +532,15 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*,
 			fgets_line(buffer2, sizeof(buffer2), file);
 			if(  strcmp(buffer1,buffer2)  ) {
 				// only add line which are actually different
-				const char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
-				const char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
+				char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
+				char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
+
 				if(  cbuffer_t::check_format_strings(raw, translated)  ) {
 					table->set( raw, translated );
+				}
+				else {
+					free(raw);
+					free(translated);
 				}
 			}
 		}
@@ -595,28 +600,36 @@ static translator::lang_info* get_lang_by_iso(const char *iso)
 void translator::load_files_from_folder(const char *folder_name, const char *what)
 {
 	searchfolder_t folder;
-	int num_pak_lang_dat = folder.search(folder_name, "tab");
+	const int num_pak_lang_dat = folder.search(folder_name, "tab");
 	DBG_MESSAGE("translator::load_files_from_folder()", "search folder \"%s\" and found %i files", folder_name, num_pak_lang_dat); (void)num_pak_lang_dat;
-	//read now the basic language infos
-	FOR(searchfolder_t, const& i, folder) {
-		string const fileName(i);
-		size_t pstart = fileName.rfind('/') + 1;
-		const string iso = fileName.substr(pstart, fileName.size() - pstart - 4);
 
-		lang_info* lang = get_lang_by_iso(iso.c_str());
+	//read now the basic language infos
+	FOR(searchfolder_t, const& filename, folder) {
+		lang_info* lang = NULL;
+		const char* langcode = strrchr(filename,'.');
+
+		if(  langcode  &&  (langcode-filename)>2  ) {
+			// try before the point
+			lang = get_lang_by_iso(langcode-2);
+			if (lang == NULL) {
+				// try instead the start of the string
+				lang = get_lang_by_iso(filename);
+			}
+		}
+
 		if (lang != NULL) {
-			DBG_MESSAGE("translator::load_files_from_folder()", "loading %s translations from %s for language %s", what, fileName.c_str(), lang->iso_base);
-			if (FILE* const file = dr_fopen(fileName.c_str(), "rb")) {
+			DBG_MESSAGE("translator::load_files_from_folder()", "loading %s translations from %s for language %s", what, filename, lang->iso_base);
+			if (FILE* const file = dr_fopen(filename, "rb")) {
 				bool file_is_utf = is_unicode_file(file);
 				load_language_file_body(file, &lang->texts, true, file_is_utf, lang->is_latin2_based );
 				fclose(file);
 			}
 			else {
-				dbg->warning("translator::load_files_from_folder()", "cannot open '%s'", fileName.c_str());
+				dbg->warning("translator::load_files_from_folder()", "cannot open '%s'", filename);
 			}
 		}
 		else {
-			dbg->warning("translator::load_files_from_folder()", "no %s texts for language '%s'", what, iso.c_str());
+			dbg->warning("translator::load_files_from_folder()", "%s no language '%s'", filename, what );
 		}
 	}
 }

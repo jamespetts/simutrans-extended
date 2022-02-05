@@ -10,11 +10,16 @@
 #include "gui_component.h"
 #include "../../simcolor.h"
 
+// for gui_vehicle_number_t
+#include "../../descriptor/vehicle_desc.h"
+#include "../../utils/cbuffer_t.h"
+
 /**
  * Draws a simple colored box.
  */
 class gui_colorbox_t : public gui_component_t
 {
+protected:
 	PIXVAL color;
 
 	scr_coord_val height = D_INDICATOR_HEIGHT;
@@ -22,9 +27,10 @@ class gui_colorbox_t : public gui_component_t
 	bool size_fixed = false;
 	bool show_frame = true;
 
+	scr_size max_size;
+
 	const char * tooltip;
 
-	scr_size max_size;
 public:
 	gui_colorbox_t(PIXVAL c = 0);
 
@@ -60,10 +66,33 @@ public:
 
 
 /**
+ * Draws a simple right triangle arrow.
+ */
+class gui_right_pointer_t : public gui_colorbox_t
+{
+	uint8 height;
+
+public:
+	gui_right_pointer_t(PIXVAL c = SYSCOL_TEXT, uint8 height_ = (LINESPACE*3)>>2);
+
+	void init(PIXVAL color_par, scr_size size) {
+		set_color(color_par);
+		set_size(size);
+	}
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; };
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+/**
  * Draws a colored bar to represent the role and status of the vehicle
  */
 class gui_vehicle_bar_t : public gui_component_t
 {
+protected:
 	PIXVAL color;
 
 	uint8 flags_left;
@@ -86,6 +115,62 @@ public:
 
 	scr_size get_min_size() const OVERRIDE { return size; };
 	scr_size get_max_size() const OVERRIDE { return size; };
+};
+
+
+class gui_vehicle_number_t : public gui_vehicle_bar_t
+{
+	bool show_frame;
+	cbuffer_t buf;
+
+	void init();
+
+public:
+	gui_vehicle_number_t(const char* text_=NULL, PIXVAL bgcol = COL_SAFETY, PIXVAL /*textcol*/ = color_idx_to_rgb(COL_WHITE), bool show_frame_ = true) :
+		gui_vehicle_bar_t(bgcol) {
+		show_frame = show_frame_;
+		set_flags(vehicle_desc_t::can_be_head, vehicle_desc_t::can_be_head|vehicle_desc_t::can_be_tail, HAS_POWER | BIDIRECTIONAL);
+		set_text(text_);
+	}
+
+	void set_text(const char* text_) {
+		if (text_) {
+			buf.clear();
+			buf.append(text_);
+		}
+		init();
+	}
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+
+class gui_capacity_bar_t : public gui_colorbox_t
+{
+	PIXVAL bg_col;
+	uint16 capacity;
+	uint16 loading;
+	bool cylinder_style;
+
+public:
+	gui_capacity_bar_t(scr_size size, PIXVAL c = color_idx_to_rgb(COL_GREEN), bool size_fixed=true, bool cylinder_style = true):
+		gui_colorbox_t(c),
+		cylinder_style(cylinder_style)
+	{
+		gui_colorbox_t::set_size(size);
+		width = size.w; height = size.h;
+		set_size_fixed(size_fixed);
+		bg_col = color_idx_to_rgb(COL_GREY4);
+	}
+
+	void set_value(uint16 capacity, uint16 loading_amount) {
+		this->capacity = capacity;
+		loading = loading_amount;
+	};
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); };
+	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); };
 };
 
 #endif

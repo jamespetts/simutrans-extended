@@ -29,9 +29,10 @@ public:
 	attraction_item_t(uint8 i) : gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(sort_text[i]), SYSCOL_TEXT) { }
 };
 
-curiositylist_frame_t::curiositylist_frame_t() :
+curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 	gui_frame_t(translator::translate("curlist_title")),
-	scrolly(gui_scrolled_list_t::windowskin, curiositylist_stats_t::compare)
+	scrolly(gui_scrolled_list_t::windowskin, curiositylist_stats_t::compare),
+	filter_city(city)
 {
 	attraction_count = 0;
 
@@ -41,11 +42,23 @@ curiositylist_frame_t::curiositylist_frame_t() :
 		// 1st row
 		new_component<gui_label_t>("hl_txt_sort");
 
-		add_table(2, 1);
+		add_table(4,1);
 		{
 			new_component<gui_label_t>("Filter:");
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			name_filter_input.set_rigid(false);
 			add_component(&name_filter_input);
+
+			lb_target_city.set_visible(false);
+			lb_target_city.set_rigid(false);
+			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
+			add_component(&lb_target_city);
+
+			bt_cansel_cityfilter.init(button_t::roundbox, "reset");
+			bt_cansel_cityfilter.add_listener(this);
+			bt_cansel_cityfilter.set_visible(false);
+			bt_cansel_cityfilter.set_rigid(false);
+			add_component(&bt_cansel_cityfilter);
 		}
 		end_table();
 
@@ -100,6 +113,8 @@ curiositylist_frame_t::curiositylist_frame_t() :
 	}
 	end_table();
 
+	set_cityfilter(city);
+
 	set_alignment(ALIGN_STRETCH_V | ALIGN_STRETCH_H);
 	add_component(&scrolly);
 	fill_list();
@@ -120,6 +135,9 @@ void curiositylist_frame_t::fill_list()
 		if (curiositylist_stats_t::region_filter && (curiositylist_stats_t::region_filter - 1) != welt->get_region(geb->get_pos().get_2d())) {
 			continue;
 		}
+		if (filter_city!=NULL && filter_city!=geb->get_stadt()) {
+			continue;
+		}
 		if (last_name_filter[0] != 0 && !utf8caseutf8(geb->get_tile()->get_desc()->get_name(), name_filter)) {
 			continue;
 		}
@@ -137,6 +155,22 @@ void curiositylist_frame_t::fill_list()
 	scrolly.set_size(scrolly.get_size());
 }
 
+void curiositylist_frame_t::set_cityfilter(stadt_t *city)
+{
+	filter_city = city;
+	name_filter_input.set_visible(filter_city==NULL);
+	bt_cansel_cityfilter.set_visible(filter_city!=NULL);
+	lb_target_city.set_visible(filter_city!=NULL);
+	if (city) {
+		filter_within_network.pressed = false;
+		curiositylist_stats_t::filter_own_network = false;
+		name_filter[0] = '\0';
+		lb_target_city.buf().printf("%s>%s", translator::translate("City"), city->get_name());
+		lb_target_city.update();
+	}
+	resize(scr_size(0,0));
+	fill_list();
+}
 
 /**
  * This method is called if an action is triggered
@@ -161,6 +195,9 @@ bool curiositylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 		filter_within_network.pressed = curiositylist_stats_t::filter_own_network;
 		fill_list();
 	}
+	else if (comp == &bt_cansel_cityfilter) {
+		set_cityfilter(NULL);
+	}
 	return true;
 }
 
@@ -179,6 +216,7 @@ void curiositylist_frame_t::draw(scr_coord pos, scr_size size)
 void curiositylist_frame_t::rdwr(loadsave_t* file)
 {
 	scr_size size = get_windowsize();
+	uint32 townindex = UINT32_MAX;
 
 	size.rdwr(file);
 	scrolly.rdwr(file);
@@ -187,11 +225,26 @@ void curiositylist_frame_t::rdwr(loadsave_t* file)
 	file->rdwr_bool(curiositylist_stats_t::sortreverse);
 	file->rdwr_byte(curiositylist_stats_t::region_filter);
 	file->rdwr_bool(curiositylist_stats_t::filter_own_network);
+	if (file->is_saving()) {
+		if (filter_city != NULL) {
+			townindex = welt->get_cities().index_of(filter_city);
+		}
+		file->rdwr_long(townindex);
+	}
 	if (file->is_loading()) {
+		if (file->is_version_ex_atleast(14, 50)) {
+			file->rdwr_long(townindex);
+			if (townindex != UINT32_MAX) {
+				filter_city = welt->get_cities()[townindex];
+			}
+		}
 		sortedby.set_selection(curiositylist_stats_t::sort_mode);
 		region_selector.set_selection(curiositylist_stats_t::region_filter);
 		sort_order.pressed = curiositylist_stats_t::sortreverse;
 		filter_within_network.pressed = curiositylist_stats_t::filter_own_network;
+		if (filter_city!=NULL) {
+			set_cityfilter(filter_city);
+		}
 		fill_list();
 		set_windowsize(size);
 	}

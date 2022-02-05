@@ -58,6 +58,7 @@ public:
 	// Returns number of signals transferred successfully, number that failed (x,y).
 	koord transfer_all_signals(signalbox_t* sb);
 
+	uint16 get_capacity() const;
 	uint32 get_number_of_signals_controlled_from_this_box() const { return signals.get_count(); }
 
 	const slist_tpl<koord3d> & get_signal_list() const { return signals; }

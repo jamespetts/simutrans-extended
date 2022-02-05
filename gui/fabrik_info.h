@@ -7,7 +7,7 @@
 #define GUI_FABRIK_INFO_H
 
 
-#include "../gui/simwin.h"
+#include "simwin.h"
 
 #include "building_info.h"
 #include "factory_chart.h"
@@ -29,8 +29,6 @@ class button_t;
 
 /**
  * info on city demand
-
- * @author
  */
 class gui_fabrik_info_t : public gui_container_t
 {
@@ -98,7 +96,7 @@ public:
 	// refreshes all text and location pointers
 	void update_info();
 
-	fabrik_info_t(fabrik_t* fab, const gebaeude_t* gb);
+	fabrik_info_t(fabrik_t* fab = NULL, const gebaeude_t* gb = NULL);
 
 	virtual ~fabrik_info_t();
 
@@ -111,8 +109,6 @@ public:
 	 * @return the filename for the helptext, or NULL
 	 */
 	const char *get_help_filename() const OVERRIDE {return "industry_info.txt";}
-
-	bool has_min_sizer() const OVERRIDE {return true;}
 
 	koord3d get_weltpos(bool) OVERRIDE { return fab->get_pos(); }
 
@@ -133,9 +129,6 @@ public:
 
 	// rotated map need new info ...
 	void map_rotate90( sint16 ) OVERRIDE;
-
-	// this constructor is only used during loading
-	fabrik_info_t();
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 

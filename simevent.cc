@@ -16,6 +16,27 @@ static event_t meta_event(EVENT_NONE); // for storing meta-events like double-cl
 static event_class_t last_meta_class = EVENT_NONE;
 static slist_tpl<event_t *> queued_events;
 
+
+event_t::event_t(event_class_t event_class) :
+	ev_class(event_class),
+	ev_code(0),
+	mx(0), my(0),
+	cx(0), cy(0),
+	button_state(0),
+	ev_key_mod(SIM_MOD_NONE)
+{
+}
+
+
+void event_t::move_origin(scr_coord delta)
+{
+	mx -= delta.x;
+	cx -= delta.x;
+	my -= delta.y;
+	cy -= delta.y;
+}
+
+
 int event_get_last_control_shift()
 {
 	// shift = 1
@@ -40,6 +61,14 @@ void change_drag_start(scr_coord_val x, scr_coord_val y)
 {
 	cx += x;
 	cy += y;
+}
+
+
+// since finger events work with absolute coordinates
+void set_click_xy(scr_coord_val x, scr_coord_val y)
+{
+	cx = x;
+	cy = y;
 }
 
 
@@ -247,30 +276,6 @@ void display_poll_event(event_t* const ev)
 	}
 	else {
 		last_meta_class = EVENT_NONE;
-		GetEventsNoWait();
-		fill_event(ev);
-		// prepare for next event
-		sys_event.type = SIM_NOEVENT;
-		sys_event.code = 0;
-	}
-}
-
-
-void display_get_event(event_t* const ev)
-{
-	if(  !queued_events.empty()  ) {
-		// We have a queued (injected programatically) event, return it.
-		event_t *elem = queued_events.remove_first();
-		*ev = *elem;
-		delete elem;
-		return ;
-	}
-	// if there is any pending meta-event, consume it instead of fetching a new event from the system
-	if(  meta_event.ev_class!=EVENT_NONE  ) {
-		*ev = meta_event;
-		meta_event.ev_class = EVENT_NONE;
-	}
-	else {
 		GetEvents();
 		fill_event(ev);
 		// prepare for next event

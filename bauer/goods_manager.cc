@@ -33,6 +33,13 @@ static special_obj_tpl<goods_desc_t> const special_objects[] = {
 	{ NULL, NULL }
 };
 
+static char const wealth_class_name_untranslated_pas[5][32] = {
+	"p_class[0]", "p_class[1]", "p_class[2]", "p_class[3]", "p_class[4]"
+};
+
+static char const wealth_class_name_untranslated_mail[5][32] = {
+	"m_class[0]", "m_class[1]", "m_class[2]", "m_class[3]", "m_class[4]"
+};
 
 bool goods_manager_t::successfully_loaded()
 {
@@ -203,22 +210,15 @@ uint8 goods_manager_t::get_classes_catg_index(const uint8 catg_index)
 const char * goods_manager_t::get_translated_wealth_name(const uint8 catg_index, const uint8 g_class = 0)
 {
 	if (g_class >= get_classes_catg_index(catg_index)) {
-		return NULL;
+		return "\0";
 	}
-	char *class_name = new char[32]();
-	if (catg_index == goods_manager_t::INDEX_PAS)
-	{
-		sprintf(class_name, "p_class[%u]", g_class);
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return translator::translate(wealth_class_name_untranslated_pas[g_class]);
 	}
-	if (catg_index == goods_manager_t::INDEX_MAIL)
-	{
-		sprintf(class_name, "m_class[%u]", g_class);
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return translator::translate(wealth_class_name_untranslated_mail[g_class]);
 	}
-
-	static char translated_name[32];
-	sprintf(translated_name, "%s", translator::translate(class_name));
-
-	return translated_name;
+	return "\0";
 }
 
 

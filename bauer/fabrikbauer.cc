@@ -147,7 +147,7 @@ public:
 					return false;
 				}
 				// Do not build in the exclusion zone of another factory.
-				if(  is_factory_at(k.x, k.y)  ) {
+				if( is_factory_at(k.x, k.y)  ) {
 					return false;
 				}
 				if(  0 <= x  &&  x < w  &&  0 <= y  &&  y < h  ) {
@@ -175,13 +175,33 @@ public:
 								condmet += gr->hat_weg(road_wt);
 								break;
 							case factory_desc_t::shore:
-								condmet += welt->get_climate(k)==water_climate;
+							case factory_desc_t::shore_city:
+								if (welt->get_climate(k) == water_climate)
+								{
+									if (site == factory_desc_t::shore_city)
+									{
+										condmet += gr->hat_weg(road_wt);
+									}
+									else
+									{
+										condmet++;
+									}
+								}
 								break;
 							case factory_desc_t::river:
+							case factory_desc_t::river_city:
 							if(  welt->get_settings().get_river_number() >0  ) {
 								weg_t* river = gr->get_weg(water_wt);
-								if (river  &&  river->get_desc()->get_styp()==type_river) {
-									condmet++;
+								if (river  &&  river->get_desc()->get_styp()==type_river)
+								{
+									if (site == factory_desc_t::river_city)
+									{
+										condmet += gr->hat_weg(road_wt);
+									}
+									else
+									{
+										condmet++;
+									}
 									DBG_DEBUG("factory_site_searcher_t::is_area_ok()", "Found river near %s", pos.get_str());
 								}
 								break;
@@ -253,9 +273,9 @@ DBG_MESSAGE("factory_builder_t::get_random_consumer()","No suitable consumer fou
 }
 
 
-const factory_desc_t *factory_builder_t::get_desc(const char *fabtype)
+const factory_desc_t *factory_builder_t::get_desc(const char *factory_name)
 {
-	return desc_table.get(fabtype);
+	return desc_table.get(factory_name);
 }
 
 
@@ -305,7 +325,7 @@ bool factory_builder_t::successfully_loaded()
 
 int factory_builder_t::count_producers(const goods_desc_t *ware, uint16 timeline)
 {
-	int anzahl=0;
+	int count=0;
 
 	// iterate over all factories and check if they produce this good...
 	for(auto const& t : desc_table) {
@@ -313,12 +333,12 @@ int factory_builder_t::count_producers(const goods_desc_t *ware, uint16 timeline
 		for (uint i = 0; i < tmp->get_product_count(); i++) {
 			const factory_product_desc_t *product = tmp->get_product(i);
 			if(  product->get_output_type()==ware  &&  tmp->get_distribution_weight()>0  &&  tmp->get_building()->is_available(timeline)  ) {
-				anzahl++;
+				count++;
 			}
 		}
 	}
-DBG_MESSAGE("factory_builder_t::count_producers()","%i producer for good '%s' found.", anzahl, translator::translate(ware->get_name()));
-	return anzahl;
+DBG_MESSAGE("factory_builder_t::count_producers()","%i producer for good '%s' found.", count, translator::translate(ware->get_name()));
+	return count;
 }
 
 
@@ -647,7 +667,7 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 	}
 
 	// no cities at all?
-	if (info->get_placement() == factory_desc_t::City  &&  welt->get_cities().empty()) {
+	if ((info->get_placement() == factory_desc_t::City || info->get_placement() == factory_desc_t::shore_city || info->get_placement() == factory_desc_t::river_city) &&  welt->get_cities().empty()) {
 		return 0;
 	}
 
@@ -662,7 +682,7 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 	}
 
 	// Industries in town needs different place search
-	if (info->get_placement() == factory_desc_t::City) {
+	if (info->get_placement() == factory_desc_t::City || info->get_placement() == factory_desc_t::shore_city || info->get_placement() == factory_desc_t::river_city) {
 
 		koord size=info->get_building()->get_size(0);
 
@@ -689,10 +709,10 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 			k1 = factory_site_searcher_t(welt, factory_desc_t::City).find_place(city->get_pos(), size.y, size.x, cl, regions_allowed);
 		}
 
-
                 int streetdir = 0;
                 if (size.x == 1 && size.y == 1) {
                   static int const neighbours_to_senw[] = { 0x0c, 0x08, 0x09, 0x01, 0x03, 0x02, 0x06, 0x04 };
+                  static int const neighbours_to_diag[] = { 4, 8, 1, 8, 1, 2, 4, 2 };
                   for ( int i = 1;  i < 8;  i+=2  ) {
                     grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
                     if ( gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
@@ -709,7 +729,8 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
                     for(  int i = 0;  i < 8;  i+=2  ) {
                       grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
                       if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
-                        streetdir |= neighbours_to_senw[i];
+                        int ribi_ns = ((int)gr2->get_weg_ribi_unmasked(road_wt) & 0x05) ? 1 : 0;
+                        streetdir |= neighbours_to_diag[ i + ribi_ns ];
                       }
                     }
                   }
@@ -818,7 +839,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 	// how much do we need?
 	sint32 consumption = origin_fab->get_base_production() * (supplier ? supplier->get_consumption() : 1);
 
-	slist_tpl<fabs_to_crossconnect_t> factories_to_correct;
+	slist_tpl<factories_to_crossconnect_t> factories_to_correct;
 	slist_tpl<fabrik_t *> new_factories;	      // since the cross-correction must be done later
 	slist_tpl<fabrik_t *> crossconnected_suppliers;	// also done after the construction of new chains
 
@@ -904,9 +925,9 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 								crossconnected_suppliers.append(fab);
 								for(auto const & consumer_pos : fab->get_consumers()) {
 									fabrik_t* consumer = fabrik_t::get_fab(consumer_pos);
-									slist_tpl<fabs_to_crossconnect_t>::iterator i = std::find(factories_to_correct.begin(), factories_to_correct.end(), fabs_to_crossconnect_t(consumer, 0));
+									slist_tpl<factories_to_crossconnect_t>::iterator i = std::find(factories_to_correct.begin(), factories_to_correct.end(), factories_to_crossconnect_t(consumer, 0));
 									if (i == factories_to_correct.end()) {
-										factories_to_correct.append(fabs_to_crossconnect_t(consumer, 1));
+										factories_to_correct.append(factories_to_crossconnect_t(consumer, 1));
 									}
 									else {
 										i->demand += 1;
@@ -1014,7 +1035,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		 */
 		FOR(slist_tpl<fabrik_t*>, const fab, new_factories)
 		{
-			for(slist_tpl<fabs_to_crossconnect_t>::iterator fabs_to_correct = factories_to_correct.begin(), end = factories_to_correct.end(); fabs_to_correct != end;)
+			for(slist_tpl<factories_to_crossconnect_t>::iterator fabs_to_correct = factories_to_correct.begin(), end = factories_to_correct.end(); fabs_to_correct != end;)
 			{
 				fabs_to_correct->demand -= 1;
 				const uint count = fab->get_desc()->get_product_count();
@@ -1306,7 +1327,7 @@ next_ware_check:
 						continue;
 					}
 				}
-				const bool in_city = consumer->get_placement() == factory_desc_t::City;
+				const bool in_city = consumer->get_placement() == factory_desc_t::City || consumer->get_placement() == factory_desc_t::shore_city || consumer->get_placement() == factory_desc_t::river_city;
 				if (in_city && welt->get_cities().empty())
 				{
 					// we cannot build this factory here

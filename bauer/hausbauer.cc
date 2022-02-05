@@ -510,7 +510,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 							sea->recalc_water_neighbours();
 						}
 						else {
-							if(  gr->get_grund_hang() == new_slope  ) {
+							if(  gr->get_grund_hang() == new_slope  && new_hgt == pos.z  ) {
 								ground_recalc = false;
 							}
 							welt->access(newk)->kartenboden_setzen( new boden_t( koord3d( newk, new_hgt ), new_slope ) );
@@ -524,6 +524,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 							if(grund_t *gr = welt->lookup_kartenboden(newk+koord::south)) {
 								gr->calc_image();
 							}
+							welt->set_grid_hgt( newk, new_hgt+corner_nw(new_slope) );
 						}
 					}
 					else if (wasser_t* sea = dynamic_cast<wasser_t*>(gr)) {
@@ -915,18 +916,25 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 
 const building_tile_desc_t *hausbauer_t::find_tile(const char *name, int org_idx)
 {
-	int idx = org_idx;
-	const building_desc_t *desc = desc_names.get(name);
-	if(desc) {
-		const int size = desc->get_y()*desc->get_x();
-		if(  idx >= desc->get_all_layouts()*size  ) {
-			idx %= desc->get_all_layouts()*size;
-			DBG_MESSAGE("gebaeude_t::rdwr()","%s using tile %i instead of %i",name,idx,org_idx);
-		}
-		return desc->get_tile(idx);
+	if (org_idx < 0) {
+		return NULL;
 	}
-//	DBG_MESSAGE("hausbauer_t::find_tile()","\"%s\" not in hashtable",name);
-	return NULL;
+
+	const building_desc_t *desc = desc_names.get(name);
+
+	if(!desc) {
+		// DBG_MESSAGE("hausbauer_t::find_tile()","\"%s\" not in hashtable",name);
+		return NULL;	}
+
+	const int size = desc->get_y()*desc->get_x();
+	int idx = org_idx;
+
+	if (idx >= desc->get_all_layouts()*size) {
+		idx %= desc->get_all_layouts()*size;
+		DBG_MESSAGE("gebaeude_t::rdwr()", "%s using tile %i instead of %i", name, idx, org_idx);
+	}
+
+	return desc->get_tile(idx);
 }
 
 

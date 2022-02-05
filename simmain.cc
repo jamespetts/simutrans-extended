@@ -117,7 +117,7 @@ static void show_sizes()
 // render tests ...
 static void show_times(karte_t *welt, main_view_t *view)
 {
-	intr_set(welt, view);
+	intr_set_view(view);
 	welt->set_fast_forward(true);
 	intr_disable();
 
@@ -221,7 +221,7 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 		welt->reset_interaction();
 		welt->reset_timer();
 
-		uint32 ms_pause = max( 25, 1000/env_t::fps );
+		const uint32 ms_per_frame = 1000/env_t::fps;
 		uint32 last_step = dr_time();
 		uint step_count = 5;
 
@@ -229,16 +229,19 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 			do {
 				DBG_DEBUG4("modal_dialogue", "calling win_poll_event");
 				win_poll_event(&ev);
+
 				x = ev.mx;
 				y = ev.my;
 				win_clamp_xywh_position(x, y, scr_size(1, 1), false );
 				ev.mx = x;
 				ev.my = y;
+
 				x = ev.cx;
 				y = ev.cy;
 				win_clamp_xywh_position(x, y, scr_size(1, 1), false);
 				ev.cx = x;
 				ev.cy = y;
+
 				if(  ev.ev_class == EVENT_KEYBOARD  &&  ev.ev_code == SIM_KEY_F1  ) {
 					if(  gui_frame_t *win = win_get_top()  ) {
 						if(  const char *helpfile = win->get_help_filename()  ) {
@@ -254,10 +257,10 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 					break;
 				}
 				dr_sleep(5);
-			} while(  dr_time() - last_step < ms_pause );
+			} while(  dr_time() - last_step < ms_per_frame );
 
 			DBG_DEBUG4("modal_dialogue", "calling welt->sync_step");
-			welt->sync_step( ms_pause, true, true );
+			welt->sync_step( ms_per_frame, true, true );
 
 			if(  step_count--==0  ) {
 				DBG_DEBUG4("modal_dialogue", "calling welt->step");
@@ -265,7 +268,7 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 				welt->step();
 				step_count = 5;
 			}
-			last_step += ms_pause;
+			last_step += ms_per_frame;
 		}
 	}
 	else {
@@ -310,12 +313,12 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 	}
 
 	// just trigger not another following window => wait for button release
-	display_get_event(&ev);
 	if (IS_LEFTCLICK(&ev)) {
 		do {
-			display_get_event(&ev);
+			display_poll_event(&ev);
 		} while (!IS_LEFTRELEASE(&ev));
 	}
+
 	// restore autosave
 	env_t::autosave = old_autosave;
 }
@@ -609,16 +612,6 @@ int simu_main(int argc, char** argv)
 	else {
 		strcpy( env_t::data_dir, argv[0] );
 		*(strrchr( env_t::data_dir, PATH_SEPARATOR[0] )+1) = 0;
-
-#ifdef __APPLE__
-		// change working directory from binary dir to bundle dir
-		if(  !strcmp((env_t::data_dir + (strlen(env_t::data_dir) - 20 )), ".app/Contents/MacOS/")  ) {
-			env_t::data_dir[strlen(env_t::data_dir) - 20] = 0;
-			while(  env_t::data_dir[strlen(env_t::data_dir) - 1] != '/'  ) {
-				env_t::data_dir[strlen(env_t::data_dir) - 1] = 0;
-			}
-		}
-#endif
 
 #ifdef __APPLE__
 		// Detect if the binary is started inside an application bundle
@@ -954,7 +947,6 @@ int simu_main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 	DBG_MESSAGE("simu_main()", ".. results in disp_width=%d, disp_height=%d", display_get_width(), display_get_height());
-
 	// now that the graphics system has already started
 	// the saved colours can be converted to the system format
 	env_t_rgb_to_system_colors();
@@ -1267,7 +1259,15 @@ int simu_main(int argc, char** argv)
 	}
 
 	dbg->message("simu_main()","Reading menu configuration ...");
-	tool_t::read_menu(env_t::objfilename);
+	dr_chdir( env_t::data_dir );
+	if (!tool_t::read_menu(env_t::objfilename + "config/menuconf.tab")) {
+		// Fatal error while reading menuconf.tab, we cannot continue!
+		dbg->fatal(
+			"Could not read %s%sconfig/menuconf.tab.\n"
+			"This file is required for a valid pak set (graphics).\n"
+			"Please install and select a valid pak set.",
+			env_t::data_dir, env_t::objfilename.c_str());
+	}
 
 	dbg->message("simu_main()","Reading private car ownership configuration ...");
 	karte_t::privatecar_init(env_t::objfilename);
@@ -1493,11 +1493,14 @@ int simu_main(int argc, char** argv)
 	if(  loadgame==""  ||  !welt->load(loadgame.c_str())  ) {
 		// create a default map
 		DBG_MESSAGE("simu_main()", "Init with default map (failing will be a pak error!)");
+
 		// no autosave on initial map during the first six month ...
 		loadgame = "";
 		new_world = true;
+
 		sint32 old_autosave = env_t::autosave;
 		env_t::autosave = false;
+
 		uint32 old_number_of_big_cities = env_t::number_of_big_cities;
 		env_t::number_of_big_cities = 0;
 		settings_t sets;
@@ -1510,15 +1513,19 @@ int simu_main(int argc, char** argv)
 		sets.set_tourist_attractions(1);
 		sets.set_traffic_level(7);
 		welt->init(&sets,0);
+
 		//  start in June ...
-		intr_set(welt, view);
+		intr_set_view(view);
 		win_set_world(welt);
+
 		tool_t::toolbar_tool[0]->init(welt->get_active_player());
+
 		welt->set_fast_forward(true);
 		welt->sync_step(5000,true,false);
 		welt->step_month(5);
 		welt->step();
 		welt->step();
+
 		env_t::number_of_big_cities = old_number_of_big_cities;
 		env_t::autosave = old_autosave;
 	}
@@ -1528,7 +1535,7 @@ int simu_main(int argc, char** argv)
 			welt->get_settings().set_freeplay( true );
 		}
 		// just init view (world was loaded from file)
-		intr_set(welt, view);
+		intr_set_view(view);
 		win_set_world(welt);
 		tool_t::toolbar_tool[0]->init(welt->get_active_player());
 	}

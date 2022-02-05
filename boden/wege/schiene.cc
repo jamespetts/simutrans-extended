@@ -20,8 +20,6 @@
 #include "../../descriptor/way_desc.h"
 #include "../../bauer/wegbauer.h"
 
-#include "../../gui/schiene_info.h"
-
 #include "schiene.h"
 #include "../../vehicle/rail_vehicle.h"
 
@@ -40,7 +38,13 @@ schiene_t::schiene_t() : weg_t(track_wt)
 {
 	reserved = convoihandle_t();
 	type = block;
-	set_desc(schiene_t::default_schiene);
+
+	if (schiene_t::default_schiene) {
+		set_desc(schiene_t::default_schiene);
+	}
+	else {
+		dbg->fatal("schiene_t::schiene_t()", "No rail way available!");
+	}
 }
 
 
@@ -67,134 +71,6 @@ void schiene_t::rotate90()
 	weg_t::rotate90();
 }
 
-void schiene_t::show_info()
-{
-	create_win(new schiene_info_t(this), w_info, (ptrdiff_t)this);
-}
-
-
-void schiene_t::info(cbuffer_t & buf) const
-{
-	weg_t::info(buf);
-
-	const schiene_t* sch = static_cast<const schiene_t *>(this);
-
-	uint8 textlines = 1; // to locate the clickable button
-	if (reserved.is_bound())
-	{
-		const char* reserve_text = translator::translate("\nis reserved by:");
-		// ignore linebreak
-		if (reserve_text[0] == '\n') {
-			reserve_text++;
-		}
-
-		buf.append(reserve_text);
-		buf.append("\n   ");
-		buf.append(translator::translate(reserved->get_name()));
-		buf.append("\n   ");
-
-
-		//		if (get_desc()->get_styp() == monorail_wt || maglev_wt || tram_wt || narrowgauge_wt)
-
-		rail_vehicle_t* rail_vehicle = NULL;
-		switch (reserved->front()->get_waytype())
-		{
-		case track_wt:
-		case narrowgauge_wt:
-		case tram_wt:
-		case monorail_wt:
-		case maglev_wt:
-			rail_vehicle = (rail_vehicle_t*)reserved->front();
-		default: break;
-		}
-
-		if (rail_vehicle)
-		{
-			buf.append(translator::translate(get_working_method_name(rail_vehicle->get_working_method())));
-			textlines += 1;
-			buf.append("\n   ");
-
-			// We do not need to specify if the reservation is a "block" type. Only show the two other more interresting reservation types
-			if (get_reservation_type() != block) {
-				buf.append(translator::translate(get_reservation_type_name(get_reservation_type())));
-				if (get_reservation_type() == directional)
-				{
-					buf.append(", ");
-					buf.append(translator::translate("reservation_heading"));
-					buf.append(": ");
-					buf.append(translator::translate(get_directions_name(get_reserved_direction())));
-				}
-				textlines += 1;
-				buf.append("\n   ");
-			}
-		}
-		buf.append(translator::translate("distance_to_vehicle"));
-		buf.append(": ");
-		textlines += 1;
-
-		koord3d vehpos = reserved->get_pos();
-		koord3d schpos = sch->get_pos();
-		const double km_to_vehicle = welt->tiles_to_km(shortest_distance(schpos.get_2d(), vehpos.get_2d()));
-
-		if (km_to_vehicle < 1)
-		{
-			float m_to_vehicle = km_to_vehicle * 1000;
-			buf.append(m_to_vehicle);
-			buf.append("m");
-		}
-		else
-		{
-			uint n_actual;
-			if (km_to_vehicle < 20)
-			{
-				n_actual = 1;
-			}
-			else
-			{
-				n_actual = 0;
-			}
-			char number_actual[10];
-			number_to_string(number_actual, km_to_vehicle, n_actual);
-			buf.append(number_actual);
-			buf.append("km");
-		}
-		buf.append(", ");
-		buf.append(speed_to_kmh(reserved->get_akt_speed()));
-		buf.append(translator::translate("km/h"));
-
-		vehicle_t* vehicle = NULL;
-		vehicle = (vehicle_t*)reserved->front();
-
-		buf.append(" (");
-		buf.append(translator::translate(get_directions_name(vehicle->get_direction())));
-		buf.append(")");
-
-
-
-#ifdef DEBUG_PBS
-		reserved->show_info();
-#endif
-	}
-	else
-	{
-		if (get_desc()->get_wtyp() == air_wt)
-		{
-			if (get_desc()->get_styp() == type_runway)
-			{
-				buf.append(translator::translate("runway_not_reserved"));
-				buf.append("\n\n");
-				textlines += 1;
-			}
-		}
-		else
-		{
-			buf.append(translator::translate("track_not_reserved"));
-			buf.append("\n\n");
-			textlines += 1;
-		}
-	}
-	sch->textlines_in_info_window = textlines;
-}
 
 
 /**
@@ -329,18 +205,22 @@ void schiene_t::rdwr(loadsave_t *file)
 			loaded_replacement_way = way_builder_t::get_desc(rbname);
 		}
 
-		sint32 old_max_speed=get_max_speed();
+		sint32 old_max_speed = get_max_speed();
 		uint32 old_max_axle_load = get_max_axle_load();
 		uint32 old_bridge_weight_limit = get_bridge_weight_limit();
 		const way_desc_t *desc = way_builder_t::get_desc(bname);
+
 		if(desc==NULL) {
 			sint32 old_max_speed=get_max_speed();
 			desc = way_builder_t::get_desc(translator::compatibility_name(bname));
 			if(desc==NULL) {
 				desc = default_schiene;
+				if (!desc) {
+					dbg->fatal("schiene_t::rdwr", "Trying to load train tracks but pakset has none!");
+				}
 				welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 			}
-			dbg->warning("schiene_t::rdwr()", "Unknown rail %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
+			dbg->warning("schiene_t::rdwr()", "Unknown rail '%s' replaced by '%s' (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);
@@ -368,7 +248,7 @@ void schiene_t::rdwr(loadsave_t *file)
 			}
 
 		}
-		//DBG_MESSAGE("schiene_t::rdwr","track %s at (%i,%i) max_speed %i",bname,get_pos().x,get_pos().y,old_max_speed);
+//		DBG_MESSAGE("schiene_t::rdwr","track %s at (%i,%i) max_speed %i",bname,get_pos().get_str(), old_max_speed);
 		if(old_max_axle_load > 0)
 		{
 			set_max_axle_load(old_max_axle_load);
@@ -377,7 +257,7 @@ void schiene_t::rdwr(loadsave_t *file)
 		{
 			set_bridge_weight_limit(old_bridge_weight_limit);
 		}
-		//DBG_MESSAGE("schiene_t::rdwr","track %s at (%i,%i) max_speed %i",bname,get_pos().x,get_pos().y,old_max_speed);
+//		DBG_MESSAGE("schiene_t::rdwr","track %s at (%s) max_speed %i", bname, get_pos().get_str(), old_max_speed);
 	}
 	if(file->get_extended_version() >= 12)
 	{
@@ -403,4 +283,31 @@ void schiene_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(d);
 		direction = (ribi_t::ribi)d;
 	}
+}
+
+
+FLAGGED_PIXVAL schiene_t::get_outline_colour() const
+{
+		uint8 reservation_colour;
+		switch(type)
+		{
+		case block:
+		default:
+			reservation_colour = COL_RED;
+			break;
+
+		case directional:
+			reservation_colour = COL_BLUE;
+			break;
+
+		case priority:
+			reservation_colour = COL_YELLOW;
+			break;
+#ifdef DEBUG
+		case stale_block:
+			reservation_colour = COL_DARK_RED;
+			break;
+#endif
+		};
+		return (show_reservations  &&  reserved.is_bound()) ? TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(reservation_colour) : 0;
 }

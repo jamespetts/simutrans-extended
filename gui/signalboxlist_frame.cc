@@ -53,8 +53,7 @@ void signalboxlist_stats_t::update_label()
 
 	// connected / capacity
 	lb_connected.buf().printf(" %3d/%3d,",
-		sb->get_number_of_signals_controlled_from_this_box(),
-		sb->get_first_tile()->get_tile()->get_desc()->get_capacity());
+		sb->get_number_of_signals_controlled_from_this_box(), sb->get_capacity() );
 	lb_connected.update();
 
 	// signalbox radius

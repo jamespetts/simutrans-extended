@@ -67,7 +67,7 @@ void button_t::init(enum type type_par, const char *text_par, scr_coord pos_par,
 	else if (size_par == scr_size::invalid && type_par & posbutton) {
 		set_size(D_POS_BUTTON_SIZE);
 	}
-	else if (size_par == scr_size::invalid && type_par & roundbox && !(type_par & flexible) ) {
+	else if (size_par == scr_size::invalid && (type_par & roundbox || type_par & roundbox_left || type_par & roundbox_middle || type_par & roundbox_right) && !(type_par & flexible) ) {
 		set_size(D_BUTTON_SIZE);
 	}
 }
@@ -118,6 +118,9 @@ void button_t::set_typ(enum type t)
 			text_color = SYSCOL_COLORED_BUTTON_TEXT;
 			/* FALLTHROUGH */
 		case roundbox:
+		case roundbox_left:
+		case roundbox_middle:
+		case roundbox_right:
 			set_size( scr_size(get_size().w, max(D_BUTTON_HEIGHT, LINESPACE)));
 			break;
 
@@ -155,6 +158,9 @@ scr_size button_t::get_max_size() const
 		case square:
 		case box:
 		case roundbox:
+		case roundbox_left:
+		case roundbox_middle:
+		case roundbox_right:
 			return (type & flexible) ? scr_size(scr_size::inf.w, get_min_size().h) : get_min_size();
 
 		default:
@@ -188,7 +194,10 @@ scr_size button_t::get_min_size() const
 			return scr_size(w + gui_theme_t::gui_checkbox_size.w, max(gui_theme_t::gui_checkbox_size.h,LINESPACE));
 		}
 		case box:
-		case roundbox: {
+		case roundbox:
+		case roundbox_left:
+		case roundbox_middle:
+		case roundbox_right: {
 			scr_coord_val w = translated_text ?  2*D_H_SPACE + proportional_string_width( translated_text ) : 0;
 			scr_size size = type & flexible ?
 				scr_size(gui_theme_t::gui_button_size.w, max(D_BUTTON_HEIGHT, LINESPACE)) : scr_size (get_size().w, max(D_BUTTON_HEIGHT,LINESPACE));
@@ -350,37 +359,68 @@ void button_t::draw(scr_coord offset)
 
 	switch (type&TYPE_MASK) {
 
-		case box: // Colored background box
-			{
-				display_img_stretch( gui_theme_t::button_tiles[get_state_offset()], area );
-				display_img_stretch_blend( gui_theme_t::button_color_tiles[b_enabled && pressed], area, background_color | TRANSPARENT75_FLAG | OUTLINE_FLAG );
-				if(  text  ) {
-					text_color = pressed ? SYSCOL_COLORED_BUTTON_TEXT_SELECTED : text_color;
-					// move the text to leave evt. space for a colored box top left or bottom right of it
-					scr_rect area_text = area - gui_theme_t::gui_color_button_text_offset_right;
-					area_text.set_pos( gui_theme_t::gui_color_button_text_offset + area.get_pos() );
-					if (pressed && gui_theme_t::pressed_button_sinks) { area_text.y++; }
-					display_proportional_ellipsis_rgb( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
-				}
-				if(  win_get_focus()==this  ) {
-					draw_focus_rect( area );
-				}
-			}
-			break;
-
+		case box:      // Colored background box
 		case roundbox: // button with inside text
+		case roundbox_left:
+		case roundbox_middle:
+		case roundbox_right:
 			{
-				display_img_stretch( gui_theme_t::round_button_tiles[get_state_offset()], area );
+				switch (type&TYPE_MASK) {
+					case box:
+						display_img_stretch(gui_theme_t::button_tiles[get_state_offset()], area);
+						display_img_stretch_blend(gui_theme_t::button_color_tiles[b_enabled && pressed], area, background_color | TRANSPARENT75_FLAG | OUTLINE_FLAG);
+						break;
+					case roundbox_left:
+						display_img_stretch(gui_theme_t::round_button_left_tiles[get_state_offset()], area);
+						break;
+					case roundbox_middle:
+						display_img_stretch(gui_theme_t::round_button_middle_tiles[get_state_offset()], area);
+						break;
+					case roundbox_right:
+						display_img_stretch(gui_theme_t::round_button_right_tiles[get_state_offset()], area);
+						break;
+					default:
+						display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
+						break;
+				}
+
+				scr_coord_val x=0, y=0, w=0, h=0;
+				if(  img  ) {
+					display_get_image_offset(img, &x, &y, &w, &h);
+				}
+				scr_rect area_img  = scr_rect(area.x, area.y, w>0?w+4:0, area.h);
+				scr_rect area_text = area - gui_theme_t::gui_button_text_offset_right;
+				area_img.set_pos( area.get_pos() );
+				area_text.set_pos( gui_theme_t::gui_button_text_offset + area.get_pos() );
 				if(  text  ) {
+					if( img != IMG_EMPTY ) {
+						area_text.w -= (w+D_H_SPACE);
+						if (!img_on_right) {
+							area_text.x += w;
+						}
+						else {
+							area_img.x += area_text.w;
+						}
+					}
+					if( type&box && pressed ) {
+						text_color = SYSCOL_COLORED_BUTTON_TEXT_SELECTED;
+					}
 					// move the text to leave evt. space for a colored box top left or bottom right of it
-					scr_rect area_text = area - gui_theme_t::gui_button_text_offset_right;
-					area_text.set_pos( gui_theme_t::gui_button_text_offset + area.get_pos() );
-					if (pressed && gui_theme_t::pressed_button_sinks) { area_text.y++; }
+					if( pressed && gui_theme_t::pressed_button_sinks ) area_text.y++;
 					display_proportional_ellipsis_rgb( area_text, translated_text, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, text_color, true );
 				}
-				else if(img) {
-					const scr_rect img_area = (pressed && gui_theme_t::pressed_button_sinks) ? scr_rect(area.x, area.y+1, area.w, area.h) : area;
-					display_img_aligned(img, img_area, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true);
+				if(  img != IMG_EMPTY  ) {
+					if(  text  ) {
+						if ( !img_on_right ) {
+							area_img.x += gui_theme_t::gui_button_text_offset.w;
+						}
+					}
+					else {
+						// image on center
+						area_img=area;
+					}
+					if( pressed && gui_theme_t::pressed_button_sinks ) area_img.y++;
+					display_img_aligned( img, area_img, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true );
 				}
 				if(  win_get_focus()==this  ) {
 					draw_focus_rect( area );
@@ -508,6 +548,9 @@ void button_t::update_focusability()
 		case posbutton:
 		case arrowup:
 		case arrowdown:
+		case roundbox_left:
+		case roundbox_middle:
+		case roundbox_right:
 		default:
 			set_focusable(false);
 			break;

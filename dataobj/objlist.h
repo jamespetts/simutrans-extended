@@ -43,6 +43,7 @@ private:
 
 	objlist_t(objlist_t const&);
 	objlist_t& operator=(objlist_t const&);
+
 public:
 	objlist_t();
 	~objlist_t();

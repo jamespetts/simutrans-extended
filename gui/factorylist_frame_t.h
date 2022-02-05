@@ -11,8 +11,8 @@
 #include "gui_frame.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
-#include "factorylist_stats_t.h"
 #include "components/gui_combobox.h"
+#include "factorylist_stats_t.h"
 #include "../descriptor/goods_desc.h"
 #include "../bauer/goods_manager.h"
 
@@ -27,13 +27,15 @@ private:
 	static const char *sort_text[factorylist::SORT_MODES];
 	static const char *display_mode_text[FACTORYLIST_MODES];
 
-	gui_combobox_t	sortedby;
-	gui_combobox_t	freight_type_c;
+	gui_combobox_t freight_type_c;
+	gui_combobox_t sortedby;
 	button_t sorteddir;
 	button_t filter_within_network, btn_display_mode;
 	factorylist_stats_t stats;
 	gui_scrollpane_t scrolly;
 	gui_aligned_container_t list;
+
+	void fill_list();
 
 	//static char name_filter[256];
 	//char last_name_filter[256];
@@ -56,8 +58,6 @@ public:
 
 	const char *get_help_filename() const OVERRIDE {return "factorylist_filter.txt"; }
 
-	void display_list();
-
 	static void set_sortierung(const factorylist::sort_mode_t& sm) { sortby = sm; }
 
 	static bool get_reverse() { return sortreverse; }
@@ -69,10 +69,7 @@ public:
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	bool has_min_sizer() const OVERRIDE { return true; }
-
-	// FIXME: The GUI overhaul has been partially incorporated. The list has not been auto-aligned yet
-	//void map_rotate90( sint16 ) OVERRIDE { fill_list(); }
+	void map_rotate90( sint16 ) OVERRIDE { fill_list(); }
 
 	void rdwr(loadsave_t* file) OVERRIDE;
 

@@ -63,11 +63,15 @@ message_frame_t::message_frame_t() :
 	{
 		option_bt.init(button_t::roundbox, translator::translate("Optionen"));
 		option_bt.set_size(D_BUTTON_SIZE);
+		if (skinverwaltung_t::open_window) {
+			option_bt.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			option_bt.set_image_position_right(true);
+		}
 		option_bt.add_listener(this);
 		add_component(&option_bt);
 
 		copy_bt.init(button_t::roundbox, translator::translate("Copy to clipboard"));
-		copy_bt.set_size(scr_size(max(proportional_string_width(translator::translate("Copy to clipboard"))+gui_theme_t::gui_button_text_offset.w+gui_theme_t::gui_button_text_offset_right.x, D_BUTTON_WIDTH), D_BUTTON_HEIGHT));
+		copy_bt.set_size(scr_size(max(proportional_string_width(translator::translate("Copy to clipboard"))+D_BUTTON_PADDINGS_X, D_BUTTON_WIDTH), D_BUTTON_HEIGHT));
 		copy_bt.add_listener(this);
 		add_component(&copy_bt);
 
@@ -104,6 +108,7 @@ message_frame_t::message_frame_t() :
 	set_resizemode(diagonal_resize);
 	if(  env_t::networkmode  && env_t::chat_window_transparency!=100  ) {
 		set_transparent( 100-env_t::chat_window_transparency, gui_theme_t::gui_color_chat_window_network_transparency );
+		scrolly.set_skin_type(gui_scrolled_list_t::transparent);
 	}
 
 	fill_list();

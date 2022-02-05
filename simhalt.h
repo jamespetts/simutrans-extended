@@ -35,11 +35,11 @@
 #include "tpl/binary_heap_tpl.h"
 #include "tpl/minivec_tpl.h"
 
-#define MAX_HALT_COST				11 // Total number of cost items
+#define MAX_HALT_COST				13 // Total number of cost items
 #define MAX_MONTHS					12 // Max history
-#define MAX_HALT_NON_MONEY_TYPES	8 // number of non money types in HALT's financial statistic
-#define HALT_ARRIVED				0 // the amount of ware that arrived here
-#define HALT_DEPARTED				1 // the amount of ware that has departed from here
+//#define MAX_HALT_NON_MONEY_TYPES	8 // number of non money types in HALT's financial statistic
+#define HALT_VISITORS               0 // the amount of visitors that getting on and off
+#define HALT_COMMUTERS              1 // the amount of commuters that getting on and off
 #define HALT_WAITING				2 // the amount of ware waiting
 #define HALT_HAPPY					3 // number of happy passengers
 #define HALT_UNHAPPY				4 // number of unhappy passengers
@@ -49,6 +49,8 @@
 #define HALT_TOO_WAITING            8 // The number of passengers who waited so long at the station.
 #define HALT_MAIL_DELIVERED         9 // amount of delivered mail from here
 #define HALT_MAIL_NOROUTE          10 // amount of no-route mail
+#define HALT_MAIL_HANDLING_VOLUME  11 // the handling volume of mail
+#define HALT_GOODS_HANDLING_VOLUME 12 // the handling volume of goods
  /* NOTE - Standard has HALT_WALKED here as no. 7. In Extended, this is in cities, not stops.*/
 
 // This should be network safe multi-threadedly (this has been considered carefully and tested somewhat,
@@ -274,8 +276,6 @@ public:
 	uint32 get_number_of_halts_within_walking_distance() const;
 
 	halthandle_t get_halt_within_walking_distance(uint32 index) const { return halts_within_walking_distance[index]; }
-
-	static uint8 pedestrian_limit;
 
 	/**
 	 * List of all tiles (grund_t) that belong to this halt.
@@ -892,19 +892,16 @@ public:
 	uint32 get_around_mail_generated() const;
 	uint32 get_around_mail_delivery_succeeded() const;
 
-	// @author: jamespetts
-	// Returns the percentage of unhappy people
-	// out of the total of happy and unhappy people.
-	uint16 get_unhappy_percentage(uint8 month) const
+	// The number of passengers who have tried to use this station.
+	sint64 get_potential_passenger_number(uint8 month) const
 	{
-		sint64 happy_count = financial_history[month][HALT_HAPPY];
-		sint64 unhappy_count = financial_history[month][HALT_UNHAPPY];
-		if (happy_count > 0) {
- 			return (uint16) (unhappy_count * 100 / (happy_count + unhappy_count) );
-		}
-		else {
-			return 0;
-		}
+		sint64 sum=0;
+		sum += financial_history[month][HALT_HAPPY];
+		sum += financial_history[month][HALT_UNHAPPY];
+		sum += financial_history[month][HALT_NOROUTE];
+		sum += financial_history[month][HALT_TOO_SLOW];
+		sum += financial_history[month][HALT_TOO_WAITING];
+		return sum;
 	}
 
 	// Getting and setting average waiting times in minutes

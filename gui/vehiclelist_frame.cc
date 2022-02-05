@@ -352,7 +352,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 							continue;
 						}
 						if (ware->get_catg() == 0) {
-							ware_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(ware->get_name()), SYSCOL_TEXT);
+							ware_filter.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(ware->get_name()), SYSCOL_TEXT, ware->get_catg_symbol());
 							idx_to_ware.append(ware);
 						}
 					}
@@ -360,7 +360,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 					for (int i = 1; i < goods_manager_t::get_max_catg_index(); i++) {
 						const goods_desc_t *ware = goods_manager_t::get_info_catg(i);
 						if (ware->get_catg() != 0) {
-							ware_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(ware->get_catg_name()), SYSCOL_TEXT);
+							ware_filter.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(ware->get_catg_name()), SYSCOL_TEXT, ware->get_catg_symbol());
 							idx_to_ware.append(ware);
 						}
 					}

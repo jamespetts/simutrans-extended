@@ -57,7 +57,7 @@ class schedule_t
 	}
 
 protected:
-	schedule_t() : editing_finished(false), bidirectional(false), mirrored(false), same_spacing_shift(true), current_stop(0), spacing(0) {}
+	schedule_t() : editing_finished(false), current_stop(0), bidirectional(false), mirrored(false), same_spacing_shift(true), spacing(0) {}
 
 public:
 	enum schedule_type {
@@ -112,7 +112,7 @@ public:
 	 */
 	uint8 get_current_stop() const { return current_stop; }
 
-	// always returns a valid entry to the current stop
+	/// returns the current stop, always a valid entry
 	schedule_entry_t const& get_current_entry() const { return current_stop >= entries.get_count() ? dummy_entry : entries[current_stop]; }
 
 private:
@@ -129,7 +129,7 @@ public:
 		make_current_stop_valid();
 	}
 
-	// advance entry by one ...
+	/// advance current_stop by one
 	void advance() {
 		if(  !entries.empty()  ) {
 			current_stop = (current_stop+1)%entries.get_count();
@@ -206,13 +206,13 @@ public:
 	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0);
 
 	/**
-	* Cleanup a schedule, removes double entries.
-	*/
+	 * Cleanup a schedule, removes double entries.
+	 */
 	void cleanup();
 
 	/**
-	* Remove current_stop entry from the schedule.
-	*/
+	 * Remove current_stop entry from the schedule.
+	 */
 	bool remove();
 
 	void rdwr(loadsave_t *file);
@@ -290,6 +290,9 @@ public:
 	{
 		return schedule_type_text[get_type()];
 	};
+
+	// Distance to return to the first scheduled point
+	uint32 get_travel_distance() const;
 
 	/**
 	 * Append description of entry to buf.

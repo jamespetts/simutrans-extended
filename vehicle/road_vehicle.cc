@@ -174,7 +174,7 @@ bool road_vehicle_t::check_next_tile(const grund_t *bd) const
 			{
 				return false;
 			}
-			if(  rs_desc->is_private_way()  &&  (rs->get_player_mask() & (1<<get_player_nr()) ) == 0  ) {
+			if(  rs_desc->is_private_way()  &&  (rs->get_player_mask() & (1<<get_owner_nr()) ) == 0  ) {
 				// private road
 				return false;
 			}
@@ -203,7 +203,8 @@ int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	}
 
 	// max_speed?
-	sint32 max_tile_speed = w->get_max_speed();
+	bool electric = cnv != NULL ? cnv->needs_electrification() : desc->get_engine_type() == vehicle_desc_t::electric;
+	sint32 max_tile_speed = w->get_max_speed(electric);
 
 	// add cost for going (with maximum speed, cost is 1)
 	sint32 costs = (max_speed <= max_tile_speed) ? 10 : 40 - (30 * max_tile_speed) / max_speed;
@@ -709,13 +710,14 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							strasse_t *str=(strasse_t *)gr->get_weg(road_wt);
 							sint32 cnv_max_speed;
 							sint32 other_max_speed;
+							const bool electric = cnv->needs_electrification();
 							if (desc->get_override_way_speed())
 							{
 								cnv_max_speed = cnv->get_min_top_speed() * kmh_to_speed(1);
 							}
 							else
 							{
-								cnv_max_speed = (int)fmin(cnv->get_min_top_speed(), str->get_max_speed() * kmh_to_speed(1));
+								cnv_max_speed = (int)fmin(cnv->get_min_top_speed(), str->get_max_speed(electric) * kmh_to_speed(1));
 							}
 							if (ocnv->front()->get_desc()->get_override_way_speed())
 							{
@@ -723,7 +725,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							}
 							else
 							{
-								other_max_speed = (int)fmin(ocnv->get_min_top_speed(), str->get_max_speed() * kmh_to_speed(1));
+								other_max_speed = (int)fmin(ocnv->get_min_top_speed(), str->get_max_speed(electric) * kmh_to_speed(1));
 							}
 							if(  cnv->is_overtaking() && kmh_to_speed(10) <  cnv_max_speed - other_max_speed  ) {
 								// If the convoi is on passing lane and there is slower convoi in front of this, this convoi request the slower to go to traffic lane.

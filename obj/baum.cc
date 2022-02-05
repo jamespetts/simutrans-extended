@@ -29,6 +29,8 @@
 #include "../dataobj/environment.h"
 #include "../dataobj/freelist.h"
 
+#include "../gui/slim_obj_info.h"
+#include "../gui/simwin.h"
 
 #include "baum.h"
 
@@ -323,10 +325,11 @@ bool baum_t::register_desc(tree_desc_t *desc)
 // takes care of slopes
 void baum_t::calc_off(uint8 slope, sint8 x_, sint8 y_)
 {
-	sint16 random = (sint16)( get_pos().x + get_pos().y + get_pos().z + slope + (uint64)this );
+	const sint16 random = (sint16)( get_pos().x + get_pos().y + get_pos().z + slope + tree_id + purchase_time );
+
 	// point on tile (imaginary origin at sw corner, x axis: north, y axis: east
 	sint16 x = x_==-128 ? (random + tree_id) & 31  : x_;
-	sint16 y = y_==-128 ? (random + get_age()) & 31 : y_;
+	sint16 y = y_==-128 ? (random + purchase_time) & 31 : y_;
 
 	// the last bit has to be the same
 	y = y ^ (x&1);
@@ -610,23 +613,7 @@ void baum_t::finish_rd()
 void baum_t::show_info()
 {
 	if(env_t::tree_info) {
-		obj_t::show_info();
-	}
-}
-
-
-void baum_t::info(cbuffer_t & buf) const
-{
-	obj_t::info(buf);
-
-	buf.append( translator::translate(get_desc()->get_name()) );
-	buf.append( "\n" );
-	uint32 age = get_age();
-	buf.printf( translator::translate("%i years %i months old."), age/12, (age%12) );
-
-	if (char const* const maker = get_desc()->get_copyright()) {
-		buf.append("\n\n");
-		buf.printf(translator::translate("Constructed by %s"), maker);
+		create_win(new slim_obj_info_t(this), w_info, (ptrdiff_t)this);
 	}
 }
 

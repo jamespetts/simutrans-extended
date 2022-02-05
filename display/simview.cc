@@ -95,11 +95,12 @@ static bool can_multithreading = true;
 
 void main_view_t::display(bool force_dirty)
 {
+	const uint32 rs = get_random_seed();
+
 #if COLOUR_DEPTH != 0
 	DBG_DEBUG4("main_view_t::display", "starting ...");
 	display_set_image_proc(true);
 
-	uint32 rs = get_random_seed();
 	const sint16 disp_width = display_get_width();
 	const sint16 disp_real_height = display_get_height();
 	const sint16 IMG_SIZE = get_tile_raster_width();
@@ -112,7 +113,7 @@ void main_view_t::display(bool force_dirty)
 		// rect default
 		break;
 	case MENU_BOTTOM:
-		clip_rr = scr_rect(0, win_get_statusbar_height() + (!ticker::empty() ? TICKER_HEIGHT : 0), disp_width, disp_height - env_t::iconsize.h + 1);
+		clip_rr.y = win_get_statusbar_height() + (!ticker::empty() ? TICKER_HEIGHT : 0);
 		break;
 	case MENU_LEFT:
 		clip_rr = scr_rect(env_t::iconsize.w, 0, disp_width - env_t::iconsize.w, disp_height);
@@ -132,7 +133,7 @@ void main_view_t::display(bool force_dirty)
 		force_dirty = false;
 	}
 
-	const int dpy_width = clip_rr.w/IMG_SIZE + 2;
+	const int dpy_width = display_get_width()/IMG_SIZE + 2;
 	const int dpy_height = (disp_real_height*4)/IMG_SIZE;
 
 	const int i_off = viewport->get_world_position().x + viewport->get_viewport_ij_offset().x;
@@ -251,7 +252,7 @@ void main_view_t::display(bool force_dirty)
 		// the last we can run ourselves, setting clip_wh to the screen edge instead of wh_x (in case disp_width % num_threads != 0)
 		clear_all_poly_clip( env_t::num_threads - 1 );
 		display_set_clip_wh( lt_x, clip_rr.y, clip_rr.w, clip_rr.h, env_t::num_threads - 1 );
-		display_region( koord( lt_x - IMG_SIZE / 2, clip_rr.y ), koord( clip_rr.w - lt_x + IMG_SIZE, clip_rr.h ), y_min, dpy_height + 4 * 4, false, true, env_t::num_threads - 1 );
+		display_region( koord( lt_x - IMG_SIZE / 2, clip_rr.y ), koord( clip_rr.x + clip_rr.w + IMG_SIZE, clip_rr.h ), y_min, dpy_height + 4 * 4, false, true, env_t::num_threads - 1 );
 
 		simthread_barrier_wait( &display_barrier_end );
 
@@ -274,10 +275,11 @@ void main_view_t::display(bool force_dirty)
 		const sint16 ypos = y*(IMG_SIZE/4) + const_y_off;
 		plotted = false;
 
-		for(sint16 x=-2-((y+dpy_width) & 1); (x*(IMG_SIZE/2) + const_x_off)<disp_width; x+=2) {
-			const int i = ((y+x) >> 1) + i_off;
-			const int j = ((y-x) >> 1) + j_off;
-			const int xpos = x*(IMG_SIZE/2) + const_x_off;
+		for( sint16 x = -2-((y+dpy_width) & 1); (x*(IMG_SIZE/2) + const_x_off)<clip_rr.x+clip_rr.w; x += 2 ) {
+
+			const sint16 i = ((y + x) >> 1) + i_off;
+			const sint16 j = ((y - x) >> 1) + j_off;
+			const sint16 xpos = x * (IMG_SIZE / 2) + const_x_off;
 
 			if(  xpos+IMG_SIZE>0  ) {
 				const planquadrat_t *plan=welt->access(i,j);
@@ -354,6 +356,7 @@ void main_view_t::display(bool force_dirty)
 
 #else
 	(void)force_dirty;
+	(void)rs;
 #endif
 }
 

@@ -546,8 +546,11 @@ bool ground_desc_t::register_desc(const ground_desc_t *desc)
 {
 	if(strcmp("Outside", desc->get_name())==0) {
 		image_t const* const image = desc->get_child<image_array_t>(2)->get_image(0,0);
-		dbg->message("ground_desc_t::register_desc()", "setting raster width to %i", image->get_pic()->w);
-		display_set_base_raster_width(image->get_pic()->w);
+		if (image)
+		{
+			dbg->message("ground_desc_t::register_desc()", "setting raster width to %i", image->get_pic()->w);
+			display_set_base_raster_width(image->get_pic()->w);
+		}
 	}
 	// find out water animation stages
 	if(strcmp("Water", desc->get_name())==0) {

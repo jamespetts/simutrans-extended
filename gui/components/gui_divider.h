@@ -31,4 +31,20 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
+/**
+ * A horizontal border line
+ */
+class gui_border_t : public gui_divider_t
+{
+	PIXVAL color;
+public:
+	gui_border_t(PIXVAL color = SYSCOL_HIGHLIGHT);
+
+	scr_size get_min_size() const OVERRIDE;
+
+	scr_size get_max_size() const OVERRIDE;
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 #endif

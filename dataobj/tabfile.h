@@ -17,6 +17,7 @@ class koord;
 class scr_coord;
 class scr_size;
 
+
 class obj_info_t
 {
 public:
@@ -168,6 +169,12 @@ public:
 	 * Get an int
 	 */
 	int get_int(const char *key, int def);
+
+	/**
+	 * Get an int value. If the value is not between @p min_value and @p max_value, a warning
+	 * is emitted and the value is clamped to either @p min_value or @p max_value.
+	 */
+	int get_int_clamped(const char *key, int def, int min_value, int max_value);
 
 	/**
 	 * Get an sint64 (actually uses double, thus only 48 bits are retrievable)

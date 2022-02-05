@@ -88,9 +88,6 @@ wayobj_t::~wayobj_t()
 				weg_t *weg2 = welt->lookup(get_pos())->get_weg_nr(1);
 				if (weg2) {
 					weg2->set_electrify(true);
-					if (weg2->get_max_speed()>desc->get_topspeed()) {
-						weg2->set_max_speed(desc->get_topspeed());
-					}
 				}
 			}
 			if(weg) {
@@ -252,7 +249,7 @@ void wayobj_t::cleanup(player_t *player)
 // players can remove public owned wayobjs
 const char *wayobj_t::is_deletable(const player_t *player)
 {
-	if(  get_player_nr()==1  ) {
+	if(  get_owner_nr()==PUBLIC_PLAYER_NR  ) {
 		return NULL;
 	}
 	return obj_t::is_deletable(player);
@@ -284,28 +281,7 @@ void wayobj_t::finish_rd()
 		{
 			// Weg wieder freigeben, wenn das Signal nicht mehr da ist.
 			weg->set_electrify(true);
-			sint32 way_top_speed;
-			if(hang != slope_t::flat)
-			{
-				const uint slope_height = (hang & 7) ? 1 : 2;
-				if(slope_height == 1)
-				{
-					way_top_speed = desc->get_topspeed_gradient_1();
-				}
-				else
-				{
-					way_top_speed = desc->get_topspeed_gradient_2();
-				}
-			}
-			else
-			{
-				way_top_speed = desc->get_topspeed();
-			}
 
-			if(weg->get_max_speed() > way_top_speed)
-			{
-				weg->set_max_speed(way_top_speed);
-			}
 			// Add the way constraints together.
 			weg->add_way_constraints(desc->get_way_constraints());
 		}

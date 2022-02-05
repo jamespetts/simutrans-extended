@@ -130,6 +130,15 @@ void nwc_nick_t::rdwr()
 {
 	network_command_t::rdwr();
 	packet->rdwr_str(nickname);
+
+	if (packet->is_loading() && env_t::server && id == NWC_NICK) {
+		const SOCKET sock = packet->get_sender();
+		const socket_info_t &client = socket_list_t::get_client(socket_list_t::get_client_id(sock));
+
+		if (client.state != socket_info_t::playing) {
+			packet->failed();
+		}
+	}
 }
 
 
@@ -275,7 +284,16 @@ void nwc_chat_t::rdwr()
 	packet->rdwr_str( clientname );
 	packet->rdwr_str( destination );
 
-	dbg->warning("nwc_chat_t::rdwr", "rdwr message=%s plnr=%d clientname=%s destination=%s", message.c_str(), player_nr, clientname.c_str(), destination.c_str());
+	if (packet->is_loading() && env_t::server) {
+		const SOCKET sock = packet->get_sender();
+		const socket_info_t &client = socket_list_t::get_client(socket_list_t::get_client_id(sock));
+
+		if (client.state != socket_info_t::playing) {
+			packet->failed();
+		}
+	}
+
+	dbg->message("nwc_chat_t::rdwr", "rdwr message=%s plnr=%d clientname=%s destination=%s", message.c_str(), player_nr, clientname.c_str(), destination.c_str());
 }
 
 
@@ -531,6 +549,10 @@ void nwc_game_t::rdwr()
 {
 	network_command_t::rdwr();
 	packet->rdwr_long(len);
+
+	if (packet->is_loading() && env_t::server) {
+		packet->failed();
+	}
 }
 
 
@@ -664,6 +686,10 @@ void nwc_sync_t::rdwr()
 	network_world_command_t::rdwr();
 	packet->rdwr_long(client_id);
 	packet->rdwr_long(new_map_counter);
+
+	if (packet->is_loading() && env_t::server) {
+		packet->failed();
+	}
 }
 
 
@@ -1186,9 +1212,8 @@ void nwc_tool_t::rdwr()
 		custom_data.append_tail(*packet);
 	}
 
-	//if (packet->is_loading()) {
-		dbg->warning("nwc_tool_t::rdwr", "rdwr id=%d client=%d plnr=%d pos=%s tool_id=%d defpar=%s init=%d flags=%d", id, tool_client_id, player_nr, pos.get_str(), tool_id, (char const*)default_param, init, flags);
-	//}
+	dbg->message("nwc_tool_t::rdwr", "rdwr id=%d client=%d plnr=%d pos=%s tool_id=%d defpar=%s init=%d flags=%d",
+		id, tool_client_id, player_nr, pos.get_str(), tool_t::id_to_string(tool_id), default_param.c_str(), init, flags);
 }
 
 
@@ -1269,7 +1294,7 @@ network_broadcast_world_command_t* nwc_tool_t::clone(karte_t *welt)
 		// do scenario checks here, send error message back
 		if ( scen->is_scripted() ) {
 			if (!scen->is_tool_allowed(welt->get_player(player_nr), tool_id, wt)) {
-				dbg->warning("nwc_tool_t::clone", "tool=%d  wt=%d tool not allowed", tool_id, wt);
+				dbg->warning("nwc_tool_t::clone", "tool_id=%s  wt=%d tool not allowed", tool_t::id_to_string(tool_id), wt);
 				// TODO return error message ?
 				return NULL;
 			}
@@ -1288,7 +1313,7 @@ network_broadcast_world_command_t* nwc_tool_t::clone(karte_t *welt)
 					nwt->default_param = err;
 					nwt->last_sync_step = welt->get_last_checklist_sync_step();
 					nwt->last_checklist = welt->get_last_checklist();
-					dbg->warning("nwc_tool_t::clone", "send sync_steps=%d  tool_id=%d  error=%s", nwt->get_sync_step(), tool_id, err);
+					dbg->warning("nwc_tool_t::clone", "send sync_steps=%d  tool_id=%s  error=%s", nwt->get_sync_step(), tool_t::id_to_string(tool_id), err);
 					return nwt;
 				}
 			}
@@ -1299,7 +1324,7 @@ network_broadcast_world_command_t* nwc_tool_t::clone(karte_t *welt)
 	nwc_tool_t *nwt = new nwc_tool_t(*this);
 	nwt->last_sync_step = welt->get_last_checklist_sync_step();
 	nwt->last_checklist = welt->get_last_checklist();
-	dbg->warning("nwc_tool_t::clone", "send sync_steps=%d  tool_id=%d %s", nwt->get_sync_step(), tool_id, init ? "init" : "work");
+	dbg->warning("nwc_tool_t::clone", "send sync_steps=%d  tool_id=%s %s", nwt->get_sync_step(), tool_t::id_to_string(tool_id), init ? "init" : "work");
 	return nwt;
 }
 
@@ -1365,7 +1390,7 @@ void nwc_tool_t::do_command(karte_t *welt)
 			player->tell_tool_result(tool, pos, err);
 		}
 		if (err) {
-			dbg->warning("nwc_tool_t::do_command","failed with '%s'",err);
+			dbg->warning("nwc_tool_t::do_command","Tool %s failed with '%s'", tool->get_name(), err);
 		}
 		tool->exit(player);
 	}

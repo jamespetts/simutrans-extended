@@ -82,11 +82,15 @@ class gui_routebar_t : public gui_component_t
 {
 private:
 	const sint32 *value;
+	const sint32 *reserve_value = 0;
 	sint32 base;
 	uint8 state;
+	PIXVAL reserved_color;
 
 public:
 	gui_routebar_t() { base = 100; state = 0; }
+	void set_reservation(const sint32 *value, PIXVAL color = color_idx_to_rgb(COL_BLUE));
+	void set_reserved_color(PIXVAL color) { reserved_color = color; };
 	void set_base(sint32 base);
 	void init(const sint32 *value, uint8 state);
 
@@ -105,17 +109,21 @@ public:
 class gui_bandgraph_t : public gui_component_t
 {
 private:
-	sint32 total;
+	sint32 total = 0;
+	bool size_fixed;
 	struct info_t {
 		PIXVAL color;
 		const sint32 *value;
+		bool cylinder_style;
 	};
 	slist_tpl <info_t> values;
 
 public:
-	gui_bandgraph_t() { total = 0; }
+	gui_bandgraph_t(scr_size size = D_INDICATOR_SIZE, bool size_fixed_ = true) { set_size(size); size_fixed=size_fixed_; }
 
-	void add_color_value(const sint32 *value, PIXVAL color);
+	void add_color_value(const sint32 *value, PIXVAL color, bool cylinder_style=false);
+
+	void clear() { values.clear(); }
 
 	void draw(scr_coord offset) OVERRIDE;
 

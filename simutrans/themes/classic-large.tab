@@ -8,7 +8,7 @@ show_tooltips = 1
 
 # tooltip background color (+-1 around this index is used), taken from player-color table
 tooltip_background_color = 4
-tooltip_text_color       = #000000
+tooltip_text_color =       = #000000
 
 # delay before showing tooltip in ms (default 500ms)
 tooltip_delay = 500
@@ -133,18 +133,20 @@ default_window_title_color = #D74700
 
 # third (best together with 2nd):use different text color for bar
 # some colors are 215-white, 240-black 208-214- all shades of gray
-front_window_text_color  = #FFFFFF
+front_window_text_color = #FFFFFF
 bottom_window_text_color = #DDDDDD
 
 # How much shade for player colors (7 brightest 0 darkest)
 gui_player_color_bright = 4
 gui_player_color_dark = 1
 
-# make the chat window transparent in network games
-gui_chat_window_network_transparency = 25
+##################################size stuff##################################
 
-# if defined, use plain color for chat window in network games
-gui_color_chat_window_network_transparency = #EEEEEE
+# maximum size of tool bars in tools (0 = no limit)
+# if more tools than allowed by height,
+# next and prev arrows for scrolling appears
+toolbar_max_width = 0
+toolbar_max_height = 0
 
 ##################################pakstuff##################################
 

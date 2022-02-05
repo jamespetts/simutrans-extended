@@ -660,13 +660,13 @@ public:
 	// returns the current productivity relative to 100
 	sint32 get_current_productivity() const { return welt->calc_adjusted_monthly_figure(prodbase) ? get_current_production() * 100 / welt->calc_adjusted_monthly_figure(prodbase) : 0; }
 	// returns the current productivity including the effect of staff shortage
-	sint32 get_actual_productivity() const { return status == inactive ? 0 : status >= staff_shortage ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
+	sint32 get_actual_productivity() const { return status == inactive ? 0 : is_staff_shortage() ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
 
 	/* returns the status of the current factory, as well as output */
 	enum {
 		nothing, good, water_resource, medium, water_resource_full, storage_full,
 		inactive, shipment_stuck, material_shortage, no_material, bad,
-		mat_overstocked, stuck, missing_connection, staff_shortage,
+		mat_overstocked, stuck, missing_connections, missing_consumer, material_not_available,
 		MAX_FAB_STATUS
 	};
 	static uint8 status_to_color[MAX_FAB_STATUS];
@@ -679,6 +679,11 @@ public:
 	// return total storage occupancy for UI. should ignore the overflow of certain goods.
 	uint16 get_total_input_occupancy() const;
 	uint32 get_total_output_capacity() const;
+
+	/**
+	 * Draws some nice colored bars giving some status information
+	 */
+	void display_status(sint16 xpos, sint16 ypos);
 
 	/**
 	 * Crossconnects all factories
@@ -710,7 +715,7 @@ public:
 	// @returns industry type
 	uint8 get_sector() const { return sector; }
 	// Determine shortage of staff for each industry type
-	bool chk_staff_shortage(uint8 abc, sint32 staffing_level_percentage) const;
+	bool is_staff_shortage() const;
 
 	sint32 get_staffing_level_percentage() const;
 

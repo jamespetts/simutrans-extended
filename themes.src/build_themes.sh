@@ -5,49 +5,49 @@
 # (see LICENSE.txt)
 #
 
-# assumes makeobj is in the trunk directory
+# assumes makeobj is in ../build/default/makeobj-extended
 
-cd ../aero
+cd aero
 rm -rf *.pak
-../makeobj pak aerotheme.pak skins_aero.dat
+../../build/default/makeobj-extended/makeobj-extended pak aerotheme.pak skins_aero.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../flat
 rm -rf *.pak
-../makeobj pak flat.pak flat-skin.dat
+../../build/default/makeobj-extended/makeobj-extended pak flat.pak flat-skin.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../standard
 rm -rf *.pak
-../makeobj pak classic.pak standard.dat
+../../build/default/makeobj-extended/makeobj-extended pak classic.pak standard.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../highcontrast
 rm -rf *.pak
-../makeobj pak highcontrast.pak theme.dat
+../../build/default/makeobj-extended/makeobj-extended pak highcontrast.pak theme.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../highcontrast-large
 rm -rf *.pak
-../makeobj pak highcontrast-large.pak theme.dat
+../../build/default/makeobj-extended/makeobj-extended pak highcontrast-large.pak theme.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../modern
 rm -rf *.pak
-../makeobj pak modern.pak standard.dat
-../makeobj pak modern-large.pak standard-large.dat
+../../build/default/makeobj-extended/makeobj-extended pak modern.pak standard.dat
+../../build/default/makeobj-extended/makeobj-extended pak modern-large.pak standard-large.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
 cd ../newstandard
 rm -rf *.pak
-../makeobj pak newstandard.pak newstandard.dat
-../makeobj pak newstandard-large.pak newstandard-large.dat
+../../build/default/makeobj-extended/makeobj-extended pak newstandard.pak newstandard.dat
+../../build/default/makeobj-extended/makeobj-extended pak newstandard-large.pak newstandard-large.dat
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 

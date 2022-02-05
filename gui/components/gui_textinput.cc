@@ -5,7 +5,6 @@
 
 #include <string.h>
 
-#include "../gui_frame.h"
 #include "gui_textinput.h"
 #include "../simwin.h"
 #include "../../dataobj/translator.h"
@@ -33,13 +32,13 @@ gui_textinput_t::gui_textinput_t() :
 
 scr_size gui_textinput_t::get_min_size() const
 {
-	return scr_size( 16*LINESPACE, ::max(LINESPACE+4,D_BUTTON_HEIGHT) );
+	return scr_size(4*LINESPACE, ::max(LINESPACE+4, D_EDIT_HEIGHT) );
 }
 
 
 scr_size gui_textinput_t::get_max_size() const
 {
-	return scr_size( scr_size::inf.w, ::max(LINESPACE+4,D_BUTTON_HEIGHT) );
+	return scr_size( scr_size::inf.w, ::max(LINESPACE+4, D_EDIT_HEIGHT) );
 }
 
 
@@ -482,6 +481,11 @@ bool gui_textinput_t::infowin_event(const event_t *ev)
 			call_listeners((long)0);
 		}
 		return true;
+	}
+	else if(  ev->ev_class == INFOWIN   &&  ev->ev_code == WIN_CLOSE  &&  focus_received  ) {
+		// release focus on close and close keyboard
+		dr_stop_textinput();
+		focus_received = false;
 	}
 	return false;
 }

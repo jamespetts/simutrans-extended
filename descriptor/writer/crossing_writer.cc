@@ -101,12 +101,12 @@ void crossing_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// Top speed of this way
 	uv16 = obj.get_int("speed[0]", 0);
 	if(uv16==0) {
-		dbg->fatal( "Crossing", "A maxspeed MUST be given for both ways!");
+		dbg->fatal( "Crossing", "A maxspeed MUST be given for both ways");
 	}
 	node.write_uint16(fp, uv16, 4);
 	uv16 = obj.get_int("speed[1]", 0);
-	if(uv16==0) {
-		dbg->fatal( "Crossing", "A maxspeed MUST be given for both ways!");
+	if(uv16==0 && wegtyp2 != water_wt) {
+		dbg->fatal( "Crossing", "A maxspeed MUST be given for both ways (unless waytpype 2 is water)");
 	}
 	node.write_uint16(fp, uv16, 6);
 

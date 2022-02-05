@@ -46,6 +46,11 @@ public:
 
 	virtual ~pedestrian_t();
 
+	/**
+	 * Open a new observation window for the object.
+	 */
+	void show_info() OVERRIDE;
+
 	const pedestrian_desc_t *get_desc() const { return desc; }
 
 	const char *get_name() const OVERRIDE {return "Fussgaenger";}
@@ -53,8 +58,6 @@ public:
 #else
 	typ get_typ() const OVERRIDE { return pedestrian; }
 #endif
-
-	void info(cbuffer_t & buf) const OVERRIDE;
 
 	sync_result sync_step(uint32 delta_t) OVERRIDE;
 
@@ -77,7 +80,7 @@ public:
 	static bool register_desc(const pedestrian_desc_t *desc);
 	static bool successfully_loaded();
 
-	static void generate_pedestrians_at(koord3d k, uint32 anzahl, uint32 time_to_live = 0);
+	static void generate_pedestrians_at(koord3d k, uint32 count, uint32 time_to_live = 0);
 
 	static void check_timeline_pedestrians();
 };

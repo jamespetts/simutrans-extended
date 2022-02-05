@@ -70,19 +70,21 @@ struct route_range_specification
 class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {
 public:
-	enum convoi_cost_t {			// Exp|Std|Description
-		CONVOI_CAPACITY = 0,		//  0 | 0 | the amount of ware that could be transported, theoretically
-		CONVOI_TRANSPORTED_GOODS,	//  1 | 1 | the amount of ware that has been transported
-		CONVOI_AVERAGE_SPEED,		//  2 |   | the average speed of the convoy per rolling month
-		CONVOI_COMFORT,				//  3 |   | the aggregate comfort rating of this convoy
-		CONVOI_REVENUE,				//  4 | 2 | the income this CONVOI generated
-		CONVOI_OPERATIONS,			//  5 | 3 | the cost of operations this CONVOI generated
-		CONVOI_PROFIT,				//  6 | 4 | total profit of this convoi
-		CONVOI_DISTANCE,			//  7 | 5 | total distance traveled this month
-		CONVOI_REFUNDS,				//  8 |   | the refunds passengers waiting for this convoy (only when not attached to a line) have received.
-//		CONVOI_MAXSPEED,			//    | 6 | average max. possible speed
-		CONVOI_WAYTOLL,				//  9 | 7 |
-		MAX_CONVOI_COST				// 10 | 8 |
+	enum convoi_cost_t {            // Ext|Std|Description
+		CONVOI_CAPACITY = 0,        //  0 | 0 | the amount of ware that could be transported, theoretically
+		CONVOI_PAX_DISTANCE,        //  1 |   | the distance (km) travelled by passengers
+		CONVOI_AVERAGE_SPEED,       //  2 |   | the average speed of the convoy per rolling month
+		CONVOI_COMFORT,             //  3 |   | the aggregate comfort rating of this convoy
+		CONVOI_REVENUE,             //  4 | 2 | the income this CONVOI generated
+		CONVOI_OPERATIONS,          //  5 | 3 | the cost of operations this CONVOI generated
+		CONVOI_PROFIT,              //  6 | 4 | total profit of this convoi
+		CONVOI_DISTANCE,            //  7 | 5 | total distance traveled this month
+		CONVOI_REFUNDS,             //  8 |   | the refunds passengers waiting for this convoy (only when not attached to a line) have received.
+//		CONVOI_MAXSPEED,            //    | 6 | average max. possible speed
+		CONVOI_WAYTOLL,             //  9 | 7 |
+		CONVOI_MAIL_DISTANCE,       // 10 |   | the distance (km) travelled by mail
+		CONVOI_PAYLOAD_DISTANCE,    // 11 |   | moving 1 ton of cargo a distance of 1 km
+		MAX_CONVOI_COST             // 12 | 8 |
 	};
 
 	/** Constants */
@@ -1074,7 +1076,7 @@ public:
 	/**
 	* Removes vehicles at position i
 	*/
-	vehicle_t * remove_vehicle_bei(unsigned short i);
+	vehicle_t * remove_vehicle_at(unsigned short i);
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
@@ -1295,7 +1297,7 @@ public:
 	/* including this route_index, the route was reserved the last time
 	 * currently only used for tracks
 	 */
-	uint16 get_next_reservation_index() const {return next_reservation_index;}
+	uint16 &get_next_reservation_index() { return next_reservation_index; }
 	void set_next_reservation_index(uint16 n);
 
 	/* the current state of the convoi */

@@ -450,8 +450,10 @@ bool way_builder_t::check_crossing(const koord zv, const grund_t *bd, waytype_t 
 	// crossing available and ribis ok
 	const crossing_desc_t *crd = crossing_logic_t::get_crossing(wtyp, w->get_waytype(), 0, 0, welt->get_timeline_year_month());
 	if(crd!=NULL) {
-		// If existing way is water, then only allow building if desired way (presumably road) has max axle load of 0.
-		if ( (w->get_waytype() == water_wt) && (desc->get_axle_load() > 0)) {
+		if (w->get_waytype() == water_wt && crd->get_maxspeed(1) == 0 && w->get_max_speed() > 0)
+		{
+			// If the ford flag is set (waytype 2 of the crossing is water and its maximum speed is zero),
+			// do not allow fording a navigable river.
 			return false;
 		}
 
@@ -1826,18 +1828,7 @@ void way_builder_t::intern_calc_straight_route(const koord3d start, const koord3
 			pos.z = bd_von->get_vmove(diff);
 
 			// check next tile
-			grund_t *bd_nach = welt->lookup(pos + diff);
-			if(  !bd_nach  ) {
-				// check for slope down ...
-				bd_nach = welt->lookup(pos + diff + koord3d(0,0,-1));
-				if(  !bd_nach  ) {
-					bd_nach = welt->lookup(pos + diff + koord3d(0,0,-2));
-				}
-				if(  bd_nach  &&  bd_nach->get_weg_hang() == slope_t::flat  ) {
-					// Don't care about _flat_ tunnels below.
-					bd_nach = NULL;
-				}
-			}
+			grund_t *bd_nach = welt->lookup_with_checking_down_way_slope(pos + diff);
 			if(  bd_nach == NULL  ){
 				bd_nach = new tunnelboden_t(pos + diff, slope_t::flat);
 				bd_nach_new = true;

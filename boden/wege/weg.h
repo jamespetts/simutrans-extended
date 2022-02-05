@@ -396,7 +396,8 @@ public:
 	void add_way_constraints(const way_constraints_of_way_t& value) { way_constraints.add(value); }
 	void remove_way_constraints(const way_constraints_of_way_t& value) { way_constraints.remove(value); }
 
-	sint32 get_max_speed() const { return max_speed; }
+	// Convoys that do not require electrification can ignore speed limit by electrification
+	sint32 get_max_speed(bool needs_electrification = false) const;
 
 	uint32 get_max_axle_load() const { return max_axle_load; }
 	uint32 get_bridge_weight_limit() const { return bridge_weight_limit; }
@@ -415,11 +416,6 @@ public:
 	static const char *waytype_to_string(waytype_t wt);
 
 	void rdwr(loadsave_t *file) OVERRIDE;
-
-	/**
-	* Info-text for this way
-	*/
-	void info(cbuffer_t & buf) const OVERRIDE;
 
 	/**
 	 * @return NULL if OK, otherwise an error message

@@ -319,8 +319,8 @@ do
 \nelektrificirano\n
 \nHeightfield has wrong image type.\n
 \nPolje visine ima krivi\tip slike.\n
-\nis reserved by:
-\nrezervirano od vlaka 
+is reserved by:
+rezervirano od vlaka 
 \nminimum speed:
 \nnajmanja brzina:
 \nnot elektrified
@@ -631,8 +631,8 @@ Convoi is sold when all wagons are empty.
 Konvoj je prodan kad su svi vagoni prazni.
 convoi mouseover tooltips
 Savjeti konvoja prelaska misem
-convoi passed last\nmonth %i\n
-\nkonvoja proslo zasnji\nmjesec: %i\n
+convoi passed last month:
+konvoja proslo zasnji\nmjesec: %i\n
 Convois
 Konvoj
 Convois: %d\nProfit: %s

@@ -3544,7 +3544,7 @@ Bridge cannot be built over deep water\n
 Bridge cannot be built over deep water.\n\nBuild a length restricted bridge instead.
 Bruecke
 Bridge
-Bruecke muss an\nsingleem\nHang beginnen!\n
+Bruecke muss an\neinfachem\nHang beginnen!\n
 Bridges must start on a straight slope.\n
 Brueckenboden
 Bridge
@@ -3716,6 +3716,8 @@ Clear block reservation
 Show/clear block reservations
 COLOR_CHOOSE\n
 Please choose a\ncolour from the\ntable:\n
+Constructed by
+Author:
 Constructed by %s
 Author: %s
 Construction_Btn
@@ -3728,8 +3730,8 @@ Convoi is sold when all wagons are empty.
 The vehicle will be sold as soon as it is completely empty.
 Convoi is sent to depot when all wagons are empty.
 The convoy will be sent to the nearest depot as soon as it is completely empty.
-convoi passed last\nmonth %i\n
-\nConvoys that passed in the previous month: %i\n
+convoi passed last month:
+Passed here last month:
 Convois: %d\nProfit: %s
 Vehicles: %d\nProfit: %s
 Convoys
@@ -3945,7 +3947,7 @@ Remove intermediate signals
 replace other signals
 Replace existing signals
 Hier warten/lagern:
-Sort passengers/freight by
+Waiting/transferring
 hlf_btn_alle
 all
 hlf_btn_invers
@@ -4620,7 +4622,7 @@ tropic
 Dune
 Truck
 Truck
-Tunnel muss an\nsingleem\nHang beginnen!\n
+Tunnel muss an\neinfachem\nHang beginnen!\n
 Tunnels must start on a straight double height slope.\n
 Tunnel must end on single way!
 Tunnels must end on a single way with a slope.
@@ -4762,8 +4764,8 @@ Hide all buildings
 \nElectrified\n
 \nHeightfield has wrong image type.\n
 \nHeightfield has wrong image type.\n
-\nis reserved by:
-\nReserved by: 
+is reserved by:
+Reserved by: 
 \nminimum speed:
 \nMinimum speed: 
 \nnot elektrified
@@ -5477,11 +5479,11 @@ reassigned price
 reassigned_classes
 reassigned prices
 times_history
-Times History
+Timing data
 view_journey_times_history_of_this_line
-View journey times history of this line.
+View journey timing data of this line.
 view_journey_times_history_of_this_convoy
-View journey times history of this convoy.
+View journey timing data of this convoy.
 no_time_entry
 ----
 stations
@@ -5497,9 +5499,9 @@ Reversed unidirectional order:
 normal_unidirectional_order
 Normal unidirectional order:
 line_times_history
-Line Times History: 
+Line timing data: 
 convoy_times_history
-Convoy Times History: 
+Convoy timing data: 
 more_units
 more units
 distance
@@ -5702,6 +5704,8 @@ Selectable livery schemes
 Selectable livery schemes
 Starting acceleration:
 Starting acceleration:
+time_to_top_speed:
+Time to accelerate to top speed:
 ; %i km/h @ %.2f sec
 ; %i km/h @ %.2f sec
 ; %i km/h @ %.2f - %.2f sec
@@ -6086,3 +6090,149 @@ Total force acting in the opposite direction of the convoy
 The resistance acting on these vehicles at any given rate of speed up to the maximum
 Stops potentially within walking distance:
 Stops potentially within walking distance
+db_convoy_to
+To
+db_convoy_from
+From
+ignore regions
+Ignore regions
+gl_normal
+Fare/weight
+gl_prod
+Producers
+gl_con
+Consumers
+Open the fare calculation input field
+Show fare calculation settings
+player_stats
+Statistics
+Signalboxes
+Signal boxes
+way_distances
+Way kilometreage
+Electrified Distances
+Electrified kilometreage
+Active lines
+Active lines
+Signals/signs
+Signals/signs
+Vehicles
+Vehicles
+Convois
+Consists
+Total
+Total
+Monthly maintenance cost details
+Monthly maintenance cost details
+Number of depots per way type, and those monthly maintenance costs.
+Number of depots per way type, and the monthly maintenance cost of each
+hlptxt_mf_stations
+Number of stops per way type, and the monthly maintenance cost of each
+Number of signalboxes and total monthly maintenance costs.
+Number of signal boxes and their total monthly maintenance cost
+hlptxt_mf_way_distances
+The total kilometreage of each type of way together with the monthly maintenance cost of each
+hlptxt_mf_electrified_distances
+The total kilometreage of each type of electrified way together with the monthly maintenance cost of each
+Number of signals and signs per way type, and those monthly maintenance costs.
+The number of signals and signs of each way type and the monthly maintenance cost of each
+Number of active lines per way type.
+Number of active lines per way type
+Number of convoys per way type, and inactive convoys number in parentheses.
+Number of active for each way type, with those that are inactive shown in parentheses
+Number of vehicles per way type, and those monthly maintenance costs.
+Number of vehicles per way type and the monthly maintenance cost of each
+name_plate
+Line
+Invalid filter
+Invalid filter
+Road routes from here:
+Road routes from here
+speed_restricted
+The speed of this way is restricted for reasons other than the nature of the way itself, e.g. by being in a built-up area.
+Display bars above the factory to show the status
+Display bars above industries to show their statuses
+cl_btn_filter_tooltip
+Filter this list by criteria defined under "settings"
+hl_waiting_detail
+Currently waiting
+hl_facility
+Facility details
+hl_location
+Location
+hl_waiting_pax
+Passengers waiting
+hl_waiting_mail
+Mail waiting
+hl_waiting_goods
+Goods waiting
+hl_pax_evaluation
+Actual vs. potential passengers
+hl_mail_evaluation
+Actual vs. potential mail
+hl_goods_needed
+Goods inwards demand
+hl_products
+Goods outwards demand
+coverage_population
+Local population
+coverage_mail_demands
+Local mail demand
+coverage_visitor_demands
+Local visitor demand
+coverage_jobs
+Local employment
+by_waiting_passengers
+waiting passengers
+by_waiting_mails
+waiting mail
+by_waiting_goods
+waiting goods
+hl_sort_tiles
+ground size
+hl_sort_capacity
+capacity
+hl_sort_overcrowding_rate
+relative overcrowding
+by_potential_pax_number
+potential passengers
+by_potential_mail_users
+potential mail
+by_pax_happy_last_month
+passengers last month
+by_mail_delivered_last_month
+mail last month
+by_convoy_arrivals_last_month
+arrivals last month
+by_surrounding_population
+local population
+by_surrounding_mail_demand
+local mail demand
+by_surrounding_visitor_demand
+local visitor demand
+by_surrounding_jobs
+local jobs
+waiting_status
+Stops
+show_mutual_use
+Include other companies' stops
+travel_distance
+Line service distance
+switch_sb
+Change signalbox
+open_signal_connector_gui
+Reassign this signal to a different signalbox
+ground_info
+Land
+tree_info
+Trees
+fare_chart
+Price/distance
+has_no_class
+n/a
+no_speed_bonus
+Time insensitive
+fare_short
+120km
+fare_long
+1,200km

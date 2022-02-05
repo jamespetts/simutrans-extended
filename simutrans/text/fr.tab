@@ -421,7 +421,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \nélectrifié\n
 \nHeightfield has wrong image type.\n
 \nLe dénivelEn'est pas\nau bon format d'image.\n
-\nis reserved by:
+is reserved by:
 \nréservEpar le train
 \nminimum speed:
 \nvitesse minimale
@@ -757,7 +757,7 @@ Convoi is sold when all wagons are empty.
 Le véhicule sera vendu une fois qu'il sera complètement vide.
 convoi mouseover tooltips
 Info-bulles convoi:mouseover
-convoi passed last\nmonth %i\n
+convoi passed last month:
 Nombre de convois\npassés par ici le mois\ndernier : %i\n
 Convois
 Convoi

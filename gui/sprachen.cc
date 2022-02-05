@@ -132,7 +132,7 @@ sprachengui_t::sprachengui_t() :
 			std::string fname = FONT_PATH_X;
 			fname += prop_font_file_name;
 #if 1
-			// we are onlz checking the existence of the file
+			// we are only checking the existence of the file
 			num_loaded = false;
 			if(  FILE *fnt = dr_fopen(fname.c_str(), "rb")  ) {
 				num_loaded = true;

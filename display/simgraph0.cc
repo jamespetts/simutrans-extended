@@ -74,6 +74,21 @@ void display_mark_img_dirty(image_id, scr_coord_val, scr_coord_val)
 {
 }
 
+bool is_dark_color(PIXVAL)
+{
+	return true;
+}
+
+bool is_dark_color(uint32)
+{
+	return true;
+}
+
+sint8 get_color_brightness_index(PIXVAL)
+{
+	return 0;
+}
+
 bool display_load_font(const char*, bool)
 {
 	return true;
@@ -254,6 +269,10 @@ void display_veh_form_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, s
 {
 }
 
+void display_convoy_arrow_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool  CLIP_NUM_DEF_NOUSE)
+{
+}
+
 void display_vline_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool)
 {
 }
@@ -430,12 +449,24 @@ void display_right_triangle_rgb(scr_coord_val, scr_coord_val, scr_coord_val, con
 {
 }
 
+void display_right_pointer_rgb(scr_coord_val, scr_coord_val, uint8, const PIXVAL, const bool)
+{
+}
+
 int display_fluctuation_triangle_rgb(scr_coord_val, scr_coord_val, uint8, const bool, sint64)
 {
 	return 0;
 }
 
 void draw_bezier_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, const PIXVAL, scr_coord_val, scr_coord_val)
+{
+}
+
+void display_signal_direction_rgb(scr_coord_val, scr_coord_val, scr_coord_val, uint8, uint8, uint8, bool, uint8, sint8)
+{
+}
+
+void display_depot_symbol(scr_coord_val, scr_coord_val, scr_coord_val, const uint8, const bool)
 {
 }
 
@@ -451,9 +482,8 @@ void display_img_aligned( const image_id, scr_rect, int, bool )
 {
 }
 
-scr_coord_val display_proportional_ellipsis_rgb( scr_rect, const char *, int, PIXVAL, bool, bool, PIXVAL)
+void display_proportional_ellipsis_rgb( scr_rect, const char *, int, PIXVAL, bool, bool, PIXVAL)
 {
-	return 0;
 }
 
 image_id get_image_count()

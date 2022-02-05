@@ -191,7 +191,8 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 	}
 
 	if(  !slope_t::is_way(gr->get_weg_hang())  ) {
-		return "Bruecke muss an\nsingleem\nHang beginnen!\n";
+		// it's not a straight slope
+		return "Bruecke muss an\neinfachem\nHang beginnen!\n";
 	}
 
 	if(  gr->is_halt()  ||  gr->get_depot() || gr->get_signalbox() )
@@ -276,7 +277,7 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 	/* can't build directly above or below a way if height clearance == 2 except if the way below is a friendly road, tramway or waterway,
 	not being a public right of way*/
 	// take slopes on grounds below into accout
-	const sint8 clearance = welt->get_settings().get_way_height_clearance() - 1;
+	const sint8 clearance = welt->get_settings().get_way_height_clearance()-1;
 	for(int dz = -clearance -2; dz <= clearance; dz++) {
 		grund_t *gr2 = NULL;
 		if (dz != 0 && (gr2 = welt->lookup(pos + koord3d(0,0,dz)))) {
@@ -336,8 +337,6 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 
 	return false;
 }
-
-
 
 // return true if bridge can be connected to monorail tile
 bool bridge_builder_t::is_monorail_junction(koord3d pos, player_t *player, const bridge_desc_t *desc, const char *&error_msg)
@@ -836,7 +835,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 {
 	ribi_t::ribi ribi = ribi_type(zv);
 
-	DBG_MESSAGE("bridge_builder_t::build()", "build from %s", start.get_str());
+	DBG_MESSAGE("bridge_builder_t::build()", "build from %s", start.get_str() );
 
 	grund_t* const start_gr = welt->lookup( start );
 	const slope_t::type slope = start_gr->get_weg_hang();
@@ -871,7 +870,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 		}
 	}
 
-	if (slope || bridge_height != 0) {
+	if(  slope  ||  bridge_height != 0  ) {
 		// needs a ramp to start on ground
 		add_height = slope ?  slope_t::max_diff(slope) : bridge_height;
 		build_ramp( player, start, ribi, slope?0:slope_type(zv)*add_height, desc, way_desc, overtaking_mode, true );
@@ -1117,7 +1116,7 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 						continue;
 					}
 					bauigel.set_overtaking_mode(overtaking_mode);
-					if (bauigel.get_count() == 2) {
+					if(  bauigel.get_count() == 2  ) {
 						bauigel.build();
 					}
 				}
@@ -1197,7 +1196,8 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 				weg->add_way_constraints(way_object->get_desc()->get_way_constraints());
 			}
 		}
-	} else {
+	}
+	else {
 		leitung_t *lt = bruecke->get_leitung();
 		if(!lt) {
 			lt = new leitung_t(bruecke->get_pos(), player);

@@ -250,7 +250,7 @@ PIXVAL server_frame_t::update_info()
 		buf.printf( translator::translate("%u Client(s)\n"), (unsigned)gi.get_clients() );
 	}
 	buf.printf( "%s %u\n", translator::translate("Towns"), gi.get_city_count() );
-	number_to_string( temp, gi.get_einwohnerzahl(), 0 );
+	number_to_string( temp, gi.get_citizen_count(), 0 );
 	buf.printf( "%s %s\n", translator::translate("citicens"), temp );
 	buf.printf( "%s %u\n", translator::translate("Factories"), gi.get_industries() );
 	buf.printf( "%s %u\n", translator::translate("Convoys"), gi.get_convoi_count() );

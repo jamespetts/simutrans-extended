@@ -121,6 +121,7 @@ gui_color_loadingbar_inner = #868c86
 
 gui_player_color_dark = 5	
 gui_player_color_bright = 5
+gui_titlebar_player_color_background_brightness = 2
 
 ##################################size stuff##################################
 

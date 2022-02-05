@@ -51,12 +51,12 @@ uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 
 // Get running costs. Running costs increased if the vehicle is obsolete.
 // @author: jamespetts
-uint16 vehicle_desc_t::get_running_cost(const karte_t* welt) const
+uint16 vehicle_desc_t::get_running_cost(const karte_t *) const
 {
 	return calc_running_cost(get_running_cost());
 }
 
-uint32 vehicle_desc_t::get_fixed_cost(karte_t *welt) const
+uint32 vehicle_desc_t::get_fixed_cost(karte_t *) const
 {
 	return calc_running_cost(get_fixed_cost());
 }

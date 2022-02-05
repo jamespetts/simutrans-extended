@@ -34,7 +34,7 @@ private:
 public:
 	gui_loadingbar_t(convoihandle_t cnv);
 
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
 
 	scr_size get_min_size() const OVERRIDE;
 

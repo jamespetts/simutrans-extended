@@ -21,6 +21,7 @@
 #include "scenario_frame.h"
 #include "server_frame.h"
 #include "components/gui_image.h"
+#include "optionen.h"
 
 
 // Local adjustments
@@ -124,7 +125,10 @@ banner_t::banner_t() : gui_frame_t("")
 		load_scenario.add_listener( this );
 		add_component( &load_scenario );
 
-		new_component<gui_empty_t>();
+		// Options button
+		options.init( button_t::roundbox | button_t::flexible, "Optionen");
+		options.add_listener( this );
+		add_component( &options );
 
 		// Play online button
 		join_map.init( button_t::roundbox | button_t::flexible, "join game");
@@ -168,6 +172,10 @@ bool banner_t::action_triggered( gui_action_creator_t *comp, value_t)
 		destroy_all_win(true);
 		create_win( new scenario_frame_t(), w_info, magic_load_t );
 	}
+	else if(  comp == &options  ) {
+		destroy_all_win(true);
+		create_win( new optionen_gui_t(), w_info, magic_optionen_gui_t );
+	}
 	else if(  comp == &join_map  ) {
 		destroy_all_win(true);
 		create_win( new server_frame_t(), w_info, magic_server_frame_t );
@@ -175,14 +183,6 @@ bool banner_t::action_triggered( gui_action_creator_t *comp, value_t)
 	return true;
 }
 
-
-void banner_t::draw(scr_coord pos, scr_size size )
-{
-	gui_frame_t::draw( pos, size );
-
-	// add white line on top since this frame has no title bar.
-	display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, 1, color_idx_to_rgb(COL_GREY6), false);
-}
 
 void banner_text_t::draw(scr_coord offset)
 {

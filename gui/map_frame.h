@@ -21,7 +21,7 @@
 
 class karte_ptr_t;
 
-#define MAP_MAX_BUTTONS (29)
+#define MAP_MAX_BUTTONS (31)
 
 /**
  * Minimap window
@@ -93,20 +93,12 @@ private:
 	void show_hide_scale(const bool show);
 	void show_hide_directory(const bool show);
 
-	char* scale_text = NULL;
-
 public:
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
 	 */
 	const char * get_help_filename() const OVERRIDE {return "map.txt";}
-
-	/**
-	 * Does this window need a min size button in the title bar?
-	 * @return true if such a button is needed
-	 */
-	bool has_min_sizer() const OVERRIDE {return true;}
 
 	/**
 	 * Constructor. Adds all necessary Subcomponents.

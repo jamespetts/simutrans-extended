@@ -297,7 +297,7 @@ bool have_crossings_same_wt(const crossing_desc_t *c0, const crossing_desc_t *c1
 void crossing_logic_t::add( crossing_t *start_cr, crossing_state_t state )
 {
 	koord3d pos = start_cr->get_pos();
-	const koord zv = start_cr->get_dir() ? koord::west :  koord::north;
+	const koord zv = start_cr->get_dir() ? koord::west : koord::north;
 	slist_tpl<crossing_t *>crossings;
 	minivec_tpl<crossing_logic_t *>crossings_logics;
 
@@ -374,7 +374,7 @@ void crossing_logic_t::remove( crossing_t *cr )
 	else {
 		// check for a crossing to the east/south
 		koord3d pos = cr->get_pos();
-		const koord zv = cr->get_dir() ? koord::west :  koord::north;
+		const koord zv = cr->get_dir() ? koord::west : koord::north;
 		const grund_t *gr = welt->lookup( pos-zv );
 		if(  gr  ) {
 			crossing_t *found_cr = gr->find<crossing_t>();

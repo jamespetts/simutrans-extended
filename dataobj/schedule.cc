@@ -769,6 +769,22 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 }
 
 
+uint32 schedule_t::get_travel_distance() const
+{
+	uint32 total_distance = 0;
+	for (int i = 0; i < entries.get_count()-1; i++) {
+		total_distance += shortest_distance(entries[i].pos.get_2d(), entries[i + 1].pos.get_2d());
+	}
+	if (mirrored) {
+		total_distance *= 2;
+	}
+	else if (entries.get_count() > 1) {
+		total_distance += shortest_distance(entries[entries.get_count()-1].pos.get_2d(), entries[0].pos.get_2d());
+	}
+	return total_distance;
+}
+
+
 void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
 {
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);

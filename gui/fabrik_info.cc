@@ -15,7 +15,6 @@
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
 #include "../simcity.h"
-#include "../gui/simwin.h"
 #include "../simmenu.h"
 #include "../player/simplay.h"
 #include "../simworld.h"
@@ -34,8 +33,7 @@ static const char factory_status_type[fabrik_t::MAX_FAB_STATUS][64] =
 	"Material shortage", "No material",
 	"stop_some_goods_arrival", "Fully stocked",
 	"fab_stuck",
-	"missing_connection",
-	"staff_shortage"
+	"missing_connection", "missing_connection", "material_not_available"
 };
 
 static const int fab_alert_level[fabrik_t::MAX_FAB_STATUS] =
@@ -46,16 +44,16 @@ static const int fab_alert_level[fabrik_t::MAX_FAB_STATUS] =
 	2, 2,
 	3, 3,
 	4,
-	4, 0
+	4, 4, 4
 };
 
 sint16 fabrik_info_t::tabstate = 0;
 
 fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
-	gui_frame_t("", fab_->get_owner()),
+	gui_frame_t(""),
 	fab(fab_),
 	goods_chart(fab_),
-	chart(fab_),
+	chart(NULL),
 	lbl_factory_status(factory_status),
 	view(gb, scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
 	prod(&prod_buf),
@@ -74,12 +72,15 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 }
 
 
-void fabrik_info_t::init(fabrik_t *, const gebaeude_t *)
+void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* gb)
 {
+	fab = fab_;
 	staffing_level = staffing_level2 = staff_shortage_factor = 0;
 
+	// window name
 	tstrncpy( fabname, fab->get_name(), lengthof(fabname) );
-	gui_frame_t::set_name( fabname );
+	gui_frame_t::set_name(fab->get_name());
+	set_owner(fab->get_owner());
 
 	input.set_pos(scr_coord(D_MARGIN_LEFT,D_MARGIN_TOP));
 	input.set_text( fabname, lengthof(fabname) );
@@ -122,6 +123,8 @@ void fabrik_info_t::init(fabrik_t *, const gebaeude_t *)
 	txt.set_pos(scr_coord(D_MARGIN_LEFT, 0));
 
 	update_info();
+
+	chart.set_factory(fab);
 
 	container_info.add_component(&lb_suppliers);
 	container_info.add_component(&all_suppliers);
@@ -171,8 +174,6 @@ fabrik_info_t::~fabrik_info_t()
 {
 	rename_factory();
 	fabname[0] = 0;
-
-	//delete [] stadtbuttons;
 }
 
 
@@ -257,20 +258,20 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	top += D_BUTTON_HEIGHT+D_V_SPACE;
 
 	// status color bar
-	if (fab->get_status() >= fabrik_t::staff_shortage) {
+	if (fab->is_staff_shortage()) {
 		display_ddd_box_clip_rgb(pos.x + D_MARGIN_LEFT - 1, top + 1, D_INDICATOR_WIDTH + 2, D_INDICATOR_HEIGHT + 2, COL_STAFF_SHORTAGE, COL_STAFF_SHORTAGE);
 	}
-	PIXVAL indikatorfarbe = color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status() % fabrik_t::staff_shortage]);
+	PIXVAL indikatorfarbe = color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status()]);
 	display_fillbox_wh_clip_rgb(pos.x + D_MARGIN_LEFT, top + 2, D_INDICATOR_WIDTH, D_INDICATOR_HEIGHT, indikatorfarbe, true);
 	// Status line written text
-	if(skinverwaltung_t::alerts && fab_alert_level[fab->get_status() % fabrik_t::staff_shortage]){
+	if(skinverwaltung_t::alerts && fab_alert_level[fab->get_status()]){
 		left += D_H_SPACE * 2;
-		display_color_img(skinverwaltung_t::alerts->get_image_id(fab_alert_level[fab->get_status() % fabrik_t::staff_shortage]), pos.x + left, top, 0, false, false);
+		display_color_img(skinverwaltung_t::alerts->get_image_id(fab_alert_level[fab->get_status()]), pos.x + left, top, 0, false, false);
 		left += 13;
 	}
 	prod_buf.clear();
-	if (factory_status_type[fab->get_status() % fabrik_t::staff_shortage]) {
-		prod_buf.append(translator::translate(factory_status_type[fab->get_status()%fabrik_t::staff_shortage]));
+	if (factory_status_type[fab->get_status()]) {
+		prod_buf.append(translator::translate(factory_status_type[fab->get_status()]));
 	}
 	display_proportional_rgb(pos.x + left, top, prod_buf, ALIGN_LEFT, indikatorfarbe, true);
 
@@ -314,7 +315,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 
 	factory_status.clear();
 	factory_status.append("");
-	if (fab->get_status() >= fabrik_t::staff_shortage) {
+	if (fab->is_staff_shortage()) {
 		factory_status.append(translator::translate("staff_shortage"));
 	}
 	lbl_factory_status.set_color(COL_STAFF_SHORTAGE);
@@ -335,7 +336,7 @@ bool fabrik_info_t::is_weltpos()
  */
 bool fabrik_info_t::action_triggered( gui_action_creator_t *comp, value_t)
 {
-	if(comp == &input) {
+	if(  comp == &input  ) {
 		rename_factory();
 	}
 	else if(comp == &details_button) {
@@ -404,18 +405,17 @@ void fabrik_info_t::set_tab_opened()
 void fabrik_info_t::map_rotate90(sint16)
 {
 	// force update
-	old_suppliers_count++;
-	old_consumers_count++;
-	old_stops_count++;
+	old_suppliers_count ++;
+	old_consumers_count ++;
+	old_stops_count ++;
 	update_components();
 }
-
 
 // update name and buffers
 void fabrik_info_t::update_info()
 {
 	tstrncpy( fabname, fab->get_name(), lengthof(fabname) );
-	gui_frame_t::set_name( fabname );
+	gui_frame_t::set_name(fab->get_name());
 	input.set_text( fabname, lengthof(fabname) );
 
 	update_components();
@@ -425,8 +425,8 @@ void fabrik_info_t::update_info()
 void fabrik_info_t::update_components()
 {
 	// update texts
-	fab->info_prod(prod_buf);
-	fab->info_conn(info_buf);
+	fab->info_prod( prod_buf );
+	fab->info_conn( info_buf );
 
 	// tab1 - connections
 	scr_coord_val y = D_V_SPACE; // calc for layout
@@ -489,40 +489,6 @@ void gui_fabrik_info_t::draw(scr_coord offset)
 /***************** Saveload stuff from here *****************/
 
 
-fabrik_info_t::fabrik_info_t() :
-	gui_frame_t("", welt->get_public_player()),
-	fab(NULL),
-	goods_chart(NULL),
-	chart(NULL),
-	view(scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
-	prod(&prod_buf),
-	txt(&info_buf),
-	storage(NULL),
-	container_details(NULL, get_titlecolor()),
-	scrolly_info(&container_info),
-	scrolly_details(&container_details),
-	all_suppliers(NULL, true),
-	all_consumers(NULL, false),
-	nearby_halts(NULL)
-{
-
-	input.set_pos(scr_coord(D_MARGIN_LEFT,D_MARGIN_TOP));
-	input.set_text( fabname, lengthof(fabname) );
-	input.add_listener(this);
-	add_component(&input);
-
-	add_component(&view);
-
-	prod.set_pos( scr_coord( D_MARGIN_LEFT, D_MARGIN_TOP+D_BUTTON_HEIGHT+D_V_SPACE+LINESPACE ) );
-	add_component( &prod );
-
-	const sint16 total_width = D_MARGIN_LEFT + 3*(D_BUTTON_WIDTH + D_H_SPACE) + max( D_BUTTON_WIDTH, view.get_size().w ) + D_MARGIN_RIGHT;
-	set_min_windowsize(scr_size(total_width, D_TITLEBAR_HEIGHT+LINESPACE*5+D_MARGIN_BOTTOM));
-
-	set_resizemode(diagonal_resize);
-}
-
-
 void fabrik_info_t::rdwr( loadsave_t *file )
 {
 	scr_size size = get_windowsize();
@@ -547,7 +513,7 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 
 	if(  file->is_loading()  ) {
 		fab = fabrik_t::get_fab(fabpos );
-		gebaeude_t* gb = welt->lookup_kartenboden(fabpos)->find<gebaeude_t>();
+		gebaeude_t* gb = welt->lookup_kartenboden( fabpos )->find<gebaeude_t>();
 
 		if (fab != NULL && gb != NULL) {
 			view.set_obj(gb);

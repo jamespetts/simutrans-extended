@@ -111,7 +111,7 @@ public:
 	image_id get_icon(player_t *) const OVERRIDE{ return /*player && player->is_public_service() ? IMG_EMPTY :*/ icon; }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_line_management_t + welt->get_active_player_nr()); }
 	bool init(player_t* player) OVERRIDE{
-	if (true /*player->get_player_nr() != 1*/) {
+	if (true /*!player->is_public_service()*/) {
 		create_win(new schedule_list_gui_t(player), w_info, magic_line_management_t + player->get_player_nr());
 		}
 		return false;
@@ -321,12 +321,12 @@ class dialog_list_halt_t : public tool_t {
 public:
 	dialog_list_halt_t() : tool_t(DIALOG_LIST_HALT | DIALOG_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("hl_title"); }
-	bool is_selected() const OVERRIDE{ return win_get_magic(magic_halt_list); }
+	bool is_selected() const OVERRIDE{ return win_get_magic(magic_halt_list + welt->get_active_player_nr()); }
 	bool init(player_t* player) OVERRIDE{
-		create_win(new halt_list_frame_t(), w_info, magic_halt_list);
+		create_win(new halt_list_frame_t(), w_info, magic_halt_list + player->get_player_nr());
 		return false;
 	}
-	bool exit(player_t*) OVERRIDE{ destroy_win(magic_halt_list); return false; }
+	bool exit(player_t* player) OVERRIDE{ destroy_win(magic_halt_list + player->get_player_nr()); return false; }
 	bool is_init_network_safe() const OVERRIDE{ return true; }
 	bool is_work_network_safe() const OVERRIDE{ return true; }
 };

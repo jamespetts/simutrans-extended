@@ -86,13 +86,13 @@ protected:
 	loadsave_t(const loadsave_t&);
 	loadsave_t& operator=(const loadsave_t&);
 
-	friend void *save_thread(void *ptr);
-	friend void *load_thread(void *ptr);
+	friend void *save_thread( void *ptr );
+	friend void *load_thread( void *ptr );
 
 	/**
-	* Reads into buffer number @p buf_num.
-	* @returns number of bytes read or -1 in case of error
-	*/
+	 * Reads into buffer number @p buf_num.
+	 * @returns number of bytes read or -1 in case of error
+	 */
 	size_t fill_buffer(int buf_num);
 
 	void flush_buffer(int buf_num);
@@ -167,8 +167,9 @@ public:
 	// s is a malloc-ed string (will be freed and newly allocated on load time!)
 	void rdwr_str(const char *&s);
 
-	// s is a buf of size given
-	void rdwr_str(char* s, size_t size);
+	/// @p s is a buf of size given
+	/// @p size includes space for the trailing 0
+	void rdwr_str(char *s, size_t size);
 
 	void rdwr_string(std::string &s);
 
@@ -180,8 +181,8 @@ public:
 	void rdwr_str(plainstring& str);
 
 	// only meaningful for XML
-	void start_tag(const char *tag);
-	void end_tag(const char *tag);
+	void start_tag( const char *tag );
+	void end_tag( const char *tag );
 
 	// use this for enum types
 	template <class X>
@@ -189,11 +190,11 @@ public:
 	{
 		sint32 int_x;
 
-		if (is_saving()) {
+		if(is_saving()) {
 			int_x = (sint32)x;
 		}
 		rdwr_long(int_x);
-		if (is_loading()) {
+		if(is_loading()) {
 			x = (X)int_x;
 		}
 	}
@@ -201,13 +202,15 @@ public:
 
 
 
-// this produced semicautomatic hierarchies
-class xml_tag_t {
+// this produces semi-automatic hierarchies
+class xml_tag_t
+{
 private:
 	loadsave_t *file;
 	const char *tag;
+
 public:
-	xml_tag_t(loadsave_t *f, const char *t) : file(f), tag(t) { file->start_tag(tag); }
+	xml_tag_t( loadsave_t *f, const char *t ) : file(f), tag(t) { file->start_tag(tag); }
 	~xml_tag_t() { file->end_tag(tag); }
 };
 

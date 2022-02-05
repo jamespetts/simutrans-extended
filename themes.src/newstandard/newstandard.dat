@@ -91,6 +91,21 @@ Image[23]=> button.2.4
 Image[24]=> button.2.6
 Image[25]=> button.2.8
 Image[26]=> button.2.7
+# unpressed right angle corner
+Image[27]=> button.0.9
+Image[28]=> button.0.10
+Image[29]=> button.0.11
+Image[30]=> button.0.12
+# pressed right angle corner
+Image[31]=> button.1.9
+Image[32]=> button.1.10
+Image[33]=> button.1.11
+Image[34]=> button.1.12
+# disabled right angle corner
+Image[35]=> button.2.9
+Image[36]=> button.2.10
+Image[37]=> button.2.11
+Image[38]=> button.2.12
 --
 Obj=menu
 name=Editfield
@@ -131,92 +146,28 @@ Image[6]=> back.2.0
 Image[7]=> back.2.1
 Image[8]=> back.2.2
 --
-# titlebar background
-Obj=menu
-name=Titlebar
-Image[0]=> titlebar.0.0
-Image[1]=> titlebar.0.1
-Image[2]=> titlebar.0.2
-Image[3]=> titlebar.1.0
-Image[4]=> titlebar.1.1
-Image[5]=> titlebar.1.2
-Image[6]=> titlebar.2.0
-Image[7]=> titlebar.2.1
-Image[8]=> titlebar.2.2
-# color mask (will be blended, so it is a good idea to have a bright color for the foreground in this area)
-Image[9]=> titlebar.3.0
-Image[10]=> titlebar.3.1
-Image[11]=> titlebar.3.2
-Image[12]=> titlebar.4.0
-Image[13]=> titlebar.4.1
-Image[14]=> titlebar.4.2
-Image[15]=> titlebar.5.0
-Image[16]=> titlebar.5.1
-Image[17]=> titlebar.5.2
---
-# Gadgets background
-Obj=menu
-name=GadgetBack
-# all gadget except close
-Image[0]=> titlebar.0.0
-Image[1]=> titlebar.0.1
-Image[2]=> titlebar.0.2
-Image[3]=> titlebar.1.0
-Image[4]=> titlebar.1.1
-Image[5]=> titlebar.1.2
-Image[6]=> titlebar.2.0
-Image[7]=> titlebar.2.1
-Image[8]=> titlebar.2.2
-# color mask for above (will be blended, so it is a good idea to have a bright color for the foreground in this area)
-Image[9]=> titlebar.3.0
-Image[10]=> titlebar.3.1
-Image[11]=> titlebar.3.2
-Image[12]=> titlebar.4.0
-Image[13]=> titlebar.4.1
-Image[14]=> titlebar.4.2
-Image[15]=> titlebar.5.0
-Image[16]=> titlebar.5.1
-Image[17]=> titlebar.5.2
-# close background when buttons at left
-Image[18]=> titlebar.0.0
-Image[19]=> titlebar.0.1
-Image[20]=> titlebar.0.3
-Image[21]=> titlebar.1.0
-Image[22]=> titlebar.1.1
-Image[23]=> titlebar.1.2
-Image[24]=> titlebar.2.0
-Image[25]=> titlebar.2.1
-Image[26]=> titlebar.2.2
-# color mask for above (will be blended, so it is a good idea to have a bright color for the foreground in this area)
-Image[27]=> titlebar.3.0
-Image[28]=> titlebar.3.1
-Image[29]=> titlebar.3.3
-Image[30]=> titlebar.4.0
-Image[31]=> titlebar.4.1
-Image[32]=> titlebar.4.2
-Image[33]=> titlebar.5.0
-Image[34]=> titlebar.5.1
-Image[35]=> titlebar.5.2
-# close background when buttons at right
-Image[36]=> titlebar.1.3
-Image[37]=> titlebar.0.1
-Image[38]=> titlebar.0.2
-Image[39]=> titlebar.1.0
-Image[40]=> titlebar.1.1
-Image[41]=> titlebar.1.2
-Image[42]=> titlebar.2.0
-Image[43]=> titlebar.2.1
-Image[44]=> titlebar.2.2
-# color mask for above (will be blended, so it is a good idea to have a bright color for the foreground in this area)
-Image[45]=> titlebar.4.3
-Image[46]=> titlebar.3.1
-Image[47]=> titlebar.3.2
-Image[48]=> titlebar.4.0
-Image[49]=> titlebar.4.1
-Image[50]=> titlebar.4.2
-Image[51]=> titlebar.5.0
-Image[52]=> titlebar.5.1
-Image[53]=> titlebar.5.2
+## titlebar background
+#Obj=menu
+#name=Titlebar
+#Image[0]=> titlebar.0.0
+#Image[1]=> titlebar.0.1
+#Image[2]=> titlebar.0.2
+#Image[3]=> titlebar.1.0
+#Image[4]=> titlebar.1.1
+#Image[5]=> titlebar.1.2
+#Image[6]=> titlebar.2.0
+#Image[7]=> titlebar.2.1
+#Image[8]=> titlebar.2.2
+## color mask (will be blended, so it is a good idea to have a bright color for the foreground in this area)
+#Image[9]=> titlebar.3.0
+#Image[10]=> titlebar.3.1
+#Image[11]=> titlebar.3.2
+#Image[12]=> titlebar.4.0
+#Image[13]=> titlebar.4.1
+#Image[14]=> titlebar.4.2
+#Image[15]=> titlebar.5.0
+#Image[16]=> titlebar.5.1
+#Image[17]=> titlebar.5.2
 --
 #################################################################
 #
@@ -295,6 +246,10 @@ Image[6]=> gadget.0.6
 Image[7]=> gadget.0.7
 # goto pos
 Image[8]=> gadget.0.8
+# unlocked
+Image[9]=> gadget.0.9
+# locked
+Image[10]=> gadget.0.10
 --
 # window background
 Obj=menu

@@ -171,15 +171,15 @@ void export_halt(HSQUIRRELVM vm)
 	register_method<bool (haltestelle_t::*)(const goods_desc_t*) const>(vm, &haltestelle_t::is_enabled, "accepts_good", false);
 
 	/**
-	 * Get monthly statistics of number of arrived goods.
+	 * Get monthly statistics of number of passengers.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_halt_stat, "get_arrived", freevariable<sint32>(HALT_ARRIVED), true);
+	register_method_fv(vm, &get_halt_stat, "get_visitors", freevariable<sint32>(HALT_VISITORS), true);
 	/**
-	 * Get monthly statistics of number of departed goods.
+	 * Get monthly statistics of number of pax transfers.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_halt_stat, "get_departed", freevariable<sint32>(HALT_DEPARTED), true);
+	register_method_fv(vm, &get_halt_stat, "get_commuters", freevariable<sint32>(HALT_COMMUTERS), true);
 	/**
 	 * Get monthly statistics of number of waiting goods.
 	 * @returns array, index [0] corresponds to current month

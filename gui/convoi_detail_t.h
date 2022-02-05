@@ -171,9 +171,9 @@ private:
 
 	gui_combobox_t overview_selctor;
 	gui_label_buf_t
-		lb_vehicle_count, lb_working_method, // for main frame
-		lb_loading_time, lb_catering_level,  // for payload tab
-		lb_odometer, lb_value;               // for maintenance tab
+		lb_vehicle_count,                   // for main frame
+		lb_loading_time, lb_catering_level, // for payload tab
+		lb_odometer, lb_value;              // for maintenance tab
 	gui_acceleration_label_t      *lb_acceleration;
 	gui_acceleration_time_label_t *lb_acc_time;
 	gui_acceleration_dist_label_t *lb_acc_distance;
@@ -183,8 +183,6 @@ private:
 	sint64 accel_curves[SPEED_RECORDS][MAX_ACCEL_CURVES];
 	sint64 force_curves[SPEED_RECORDS][MAX_FORCE_CURVES];
 	uint8 te_curve_abort_x = SPEED_RECORDS;
-
-	bool has_min_sizer() const OVERRIDE { return true; }
 
 	void update_labels();
 
@@ -200,6 +198,8 @@ public:
 	const char * get_help_filename() const OVERRIDE {return "convoidetail.txt"; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	bool infowin_event(event_t const*) OVERRIDE;
 
 	/**
 	 * called when convoi was renamed

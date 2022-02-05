@@ -60,11 +60,6 @@ private:
 	scr_coord placement;
 
 	/**
-	 * Rows or columns?
-	 */
-	int use_rows;
-
-	/**
 	 * Player number to obtain player color used to display the images.
 	 */
 	sint8 player_nr;

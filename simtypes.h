@@ -213,6 +213,10 @@ static inline int max(const int a, const int b)
 }
 #endif
 
+template<typename T> static inline void set_bits_to(T& bits, const T mask, const T values){
+	bits = (bits & ~mask) | values;
+}
+
 // @author: jamespetts, April 2011
 template<class T> static T set_scale_generic(T value, uint16 scale_factor) { return (value * (T)scale_factor) / (T)1000; }
 

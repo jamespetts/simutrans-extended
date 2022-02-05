@@ -15,12 +15,17 @@
 
 class skin_reader_t : public obj_reader_t {
 public:
-	obj_desc_t* read_node(FILE*, obj_node_info_t&) OVERRIDE;
+	/// @copydoc obj_reader_t::read_node
+	obj_desc_t *read_node(FILE *fp, obj_node_info_t &node) OVERRIDE;
 
 protected:
-	void register_obj(obj_desc_t*&) OVERRIDE;
+	/// @copydoc obj_reader_t::register_obj
+	void register_obj(obj_desc_t *&desc) OVERRIDE;
+
+	/// @copydoc obj_reader_t::successfully_loaded
 	bool successfully_loaded() const OVERRIDE;
 
+	/// @returns type of skin this reader is able to read
 	virtual skinverwaltung_t::skintyp_t get_skintype() const = 0;
 };
 
@@ -30,6 +35,7 @@ class menuskin_reader_t : public skin_reader_t {
 
 	menuskin_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::menu; }
 public:
 	static menuskin_reader_t*instance() { return &the_instance; }
@@ -44,6 +50,7 @@ class cursorskin_reader_t : public skin_reader_t {
 
 	cursorskin_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::cursor; }
 public:
 	static cursorskin_reader_t*instance() { return &the_instance; }
@@ -59,6 +66,7 @@ class symbolskin_reader_t : public skin_reader_t {
 
 	symbolskin_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::symbol; }
 public:
 	static symbolskin_reader_t*instance() { return &the_instance; }
@@ -74,6 +82,7 @@ class fieldskin_reader_t : public skin_reader_t {
 
 	fieldskin_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::nothing; }
 public:
 	static fieldskin_reader_t *instance() { return &the_instance; }
@@ -88,6 +97,7 @@ class smoke_reader_t : public skin_reader_t {
 
 	smoke_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::nothing; }
 
 public:
@@ -104,6 +114,7 @@ class miscimages_reader_t : public skin_reader_t {
 
 	miscimages_reader_t() { register_reader(); }
 protected:
+	/// @copydoc skin_reader_t::get_skintype
 	skinverwaltung_t::skintyp_t get_skintype() const OVERRIDE { return skinverwaltung_t::misc; }
 public:
 	static miscimages_reader_t*instance() { return &the_instance; }

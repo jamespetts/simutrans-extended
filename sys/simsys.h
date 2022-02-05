@@ -62,7 +62,7 @@ struct sys_event_t
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
 
-	unsigned int key_mod; /* key mod, like ALT, STRG, SHIFT */
+	unsigned int key_mod; /* key mod, like ALT, CTRL, SHIFT */
 };
 
 extern sys_event_t sys_event;
@@ -163,7 +163,6 @@ int get_mouse_y();
 void ex_ord_update_mx_my();
 
 void GetEvents();
-void GetEventsNoWait();
 
 uint32 dr_time();
 void dr_sleep(uint32 millisec);

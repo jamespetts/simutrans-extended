@@ -64,8 +64,11 @@ class legend_entry_t : public gui_component_t
 {
 	gui_label_t label;
 	PIXVAL color;
+	bool filtered;
 public:
-	legend_entry_t(const char* text, PIXVAL c) : label(text), color(c) {}
+	legend_entry_t(const char* text, PIXVAL c, bool filtered_=false) : label(text), color(c), filtered(filtered_) {
+		label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
+	}
 
 	scr_size get_min_size() const OVERRIDE
 	{
@@ -80,8 +83,10 @@ public:
 	void draw(scr_coord offset) OVERRIDE
 	{
 		scr_coord pos = get_pos() + offset;
-		display_ddd_box_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH, D_INDICATOR_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4) );
-		display_fillbox_wh_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH, D_INDICATOR_BOX_HEIGHT, color, false );
+		if (!filtered) {
+			display_ddd_box_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE)-1, D_INDICATOR_BOX_WIDTH, D_INDICATOR_HEIGHT+2, SYSCOL_TEXT, SYSCOL_TEXT );
+		}
+		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, color, false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
 	}
 };
@@ -127,16 +132,18 @@ map_button_t button_init[MAP_MAX_BUTTONS] = {
 	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Factories", "Highlite factories", minimap_t::MAP_FACTORIES },
 	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Depots", "Highlite depots", minimap_t::MAP_DEPOT },
 	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Convoys", "Show convoys", minimap_t::MAP_CONVOYS },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Status", "Show capacity and if halt is overcrowded", minimap_t::MAP_STATUS },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "hl_btn_sort_waiting", "Show how many people/much is waiting at halts", minimap_t::MAP_WAITING },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Queueing", "Show the change of waiting at halts", minimap_t::MAP_WAITCHANGE },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Passengers", "The number of passengers at the stop last month", minimap_t::MAP_TRANSFER },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Handling mails", "The number of mail that handling at the stop last month", minimap_t::MAP_MAIL_HANDLING_VOLUME },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Handling goods", "The number of goods that handling at the stop last month", minimap_t::MAP_GOODS_HANDLING_VOLUME },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_passengers", "Show how many people/much is waiting at halts", minimap_t::MAP_PAX_WAITING },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_mails", "Show how many mails are waiting at halts", minimap_t::MAP_MAIL_WAITING },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_goods", "Show how many goods are waiting at halts", minimap_t::MAP_GOODS_WAITING },
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Service", "Show how many convoi reach a station", minimap_t::MAP_SERVICE },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Transfers", "Sum of departure/arrivals at halts", minimap_t::MAP_TRANSFER },
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Origin", "Show initial passenger departure", minimap_t::MAP_ORIGIN },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "map_btn_freight", "Show transported freight/freight network", minimap_t::MAP_FREIGHT },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Traffic", "Show usage of network", minimap_t::MAP_TRAFFIC },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Wear", "Show the condition of ways", minimap_t::MAP_CONDITION },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Congestion", "Show how congested that roads are", minimap_t::MAP_CONGESTION }, // TODO: Add translation text for this
+	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Congestion", "Show how congested that roads are", minimap_t::MAP_CONGESTION },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Speedlimit", "Show speedlimit of ways", minimap_t::MAX_SPEEDLIMIT },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Weight limit", "Show the weight limit of ways", minimap_t::MAP_WEIGHTLIMIT },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Tracks", "Highlight railroad tracks", minimap_t::MAP_TRACKS },
@@ -291,9 +298,9 @@ map_frame_t::map_frame_t() :
 		viewable_freight_types.append(NULL);
 		freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("All freight types"), SYSCOL_TEXT) ;
 		viewable_freight_types.append(goods_manager_t::passengers);
-		freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("Passagiere"), SYSCOL_TEXT) ;
+		freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>( translator::translate("Passagiere"), SYSCOL_TEXT, skinverwaltung_t::passengers->get_image_id(0)) ;
 		viewable_freight_types.append(goods_manager_t::mail);
-		freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("Post"), SYSCOL_TEXT) ;
+		freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>( translator::translate("Post"), SYSCOL_TEXT, skinverwaltung_t::mail->get_image_id(0)) ;
 		viewable_freight_types.append(goods_manager_t::none); // for all freight ...
 		freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("Fracht"), SYSCOL_TEXT) ;
 		for(  int i = 0;  i < goods_manager_t::get_max_catg_index();  i++  ) {
@@ -302,7 +309,7 @@ map_frame_t::map_frame_t() :
 			if(  index == goods_manager_t::INDEX_NONE  ||  freight_type->get_catg()==0  ) {
 				continue;
 			}
-			freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(freight_type->get_catg_name()), SYSCOL_TEXT);
+			freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(freight_type->get_catg_name()), SYSCOL_TEXT, freight_type->get_catg_symbol());
 			viewable_freight_types.append(freight_type);
 		}
 		for(  int i=0;  i < goods_manager_t::get_count();  i++  ) {
@@ -310,7 +317,7 @@ map_frame_t::map_frame_t() :
 			if(  ware->get_catg() == 0  &&  ware->get_index() > 2  ) {
 				// Special freight: Each good is special
 				viewable_freight_types.append(ware);
-				freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate(ware->get_name()), SYSCOL_TEXT) ;
+				freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>( translator::translate(ware->get_name()), SYSCOL_TEXT, ware->get_catg_symbol()) ;
 			}
 		}
 	}
@@ -348,11 +355,18 @@ map_frame_t::map_frame_t() :
 		filter_buttons[index].add_listener(this);
 		filter_container.add_component(filter_buttons + index);
 	}
+	filter_buttons[6].set_image(skinverwaltung_t::passengers->get_image_id(0));
+	filter_buttons[7].set_image(skinverwaltung_t::mail->get_image_id(0));
+	filter_buttons[8].set_image(skinverwaltung_t::goods->get_image_id(0));
+	filter_buttons[9].set_image(skinverwaltung_t::passengers->get_image_id(0));
+	filter_buttons[10].set_image(skinverwaltung_t::mail->get_image_id(0));
+	filter_buttons[11].set_image(skinverwaltung_t::goods->get_image_id(0));
 	filter_container.end_table();
 	update_buttons();
 
 	// directory container
 	directory_container.set_table_layout(4,0);
+	directory_container.set_spacing(scr_size(D_H_SPACE,1));
 	directory_container.set_visible(false);
 	add_component(&directory_container);
 
@@ -443,8 +457,16 @@ void map_frame_t::update_factory_legend()
 		// now sort
 
 		// add corresponding legend entries
+		bool filter_by_catg = (minimap_t::get_instance()->freight_type_group_index_showed_on_map != nullptr && minimap_t::get_instance()->freight_type_group_index_showed_on_map != goods_manager_t::none);
+		PIXVAL prev_color = NULL;
+		const char *prev_name = {};
 		FOR(vector_tpl<const factory_desc_t*>, f, factory_types) {
-			directory_container.new_component<legend_entry_t>(f->get_name(), f->get_color());
+			if (prev_name && !strcmp(translator::translate(f->get_name()), prev_name) && f->get_color()==prev_color) {
+				continue;
+			}
+			directory_container.new_component<legend_entry_t>(f->get_name(), f->get_color(), ( filter_by_catg  &&  !f->has_goods_catg_demand( minimap_t::get_instance()->freight_type_group_index_showed_on_map->get_catg_index() ) ));
+			prev_color = f->get_color();
+			prev_name = translator::translate(f->get_name());
 		}
 	}
 }
@@ -544,6 +566,8 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 	else if (  comp == &freight_type_c  ) {
 		minimap_t::get_instance()->freight_type_group_index_showed_on_map = viewable_freight_types[freight_type_c.get_selection()];
 		minimap_t::get_instance()->invalidate_map_lines_cache();
+		update_factory_legend();
+		reset_min_windowsize();
 	}
 	else if (  comp == &b_overlay_networks_load_factor  ) {
 		minimap_t::get_instance()->show_network_load_factor = !minimap_t::get_instance()->show_network_load_factor;
@@ -604,7 +628,7 @@ void map_frame_t::zoom(bool magnify)
 bool map_frame_t::infowin_event(const event_t *ev)
 {
 	event_t ev2 = *ev;
-	translate_event(&ev2, -scrolly.get_pos().x, -scrolly.get_pos().y-D_TITLEBAR_HEIGHT);
+	ev2.move_origin(scrolly.get_pos() + scr_coord(0, D_TITLEBAR_HEIGHT));
 
 	if(ev->ev_class == INFOWIN) {
 		if(ev->ev_code == WIN_OPEN) {

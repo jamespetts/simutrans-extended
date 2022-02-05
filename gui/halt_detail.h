@@ -54,7 +54,6 @@ class halt_detail_goods_t : public gui_container_t
 {
 private:
 	halthandle_t halt;
-	karte_t *welt;
 
 	cbuffer_t goods_info;
 
@@ -205,7 +204,7 @@ private:
 	uint32 cached_convoy_count;
 	uint32 old_factory_count, old_catg_count;
 	uint32 update_time;
-	scr_coord_val cashed_size_y;
+	scr_coord_val cached_size_y;
 	static sint16 tabstate;
 	bool show_pas_info, show_freight_info;
 
@@ -224,18 +223,15 @@ private:
 	gui_tab_panel_t tabs;
 
 	// route tab stuffs
+	uint8 selected_route_catg_index = goods_manager_t::INDEX_NONE;
+	uint8 selected_class = 0;
 	gui_halt_route_info_t destinations;
 	bool list_by_station = false;
 	button_t bt_by_category, bt_by_station;
 	slist_tpl<button_t *>catg_buttons, pas_class_buttons, mail_class_buttons;
-	char *pass_class_name_untranslated[32];
-	char *mail_class_name_untranslated[32];
-	uint8 selected_route_catg_index = goods_manager_t::INDEX_NONE;
-	uint8 selected_class = 0;
+
 	// Opening and closing the button panel on the route tab
 	void open_close_catg_buttons();
-
-	bool has_min_sizer() const OVERRIDE { return true; }
 
 	void update_components();
 

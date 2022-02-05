@@ -43,7 +43,7 @@ factorylist_frame_t::factorylist_frame_t() :
 	stats(sortby,sortreverse, filter_own_network, filter_goods_catg),
 	scrolly(&stats)
 {
-	set_table_layout(1, 0);
+	set_table_layout(1,0);
 	add_table(2, 2);
 	{
 		new_component<gui_label_t>("hl_txt_sort"); // (1,1)
@@ -74,7 +74,7 @@ factorylist_frame_t::factorylist_frame_t() :
 
 			new_component<gui_margin_t>(LINESPACE); // (2,1,3)
 		}
-		end_table(); // (2,1)
+		end_table();
 
 		add_table(2, 1);
 		{
@@ -86,7 +86,7 @@ factorylist_frame_t::factorylist_frame_t() :
 				if (index == goods_manager_t::INDEX_NONE || freight_type->get_catg() == 0) {
 					continue;
 				}
-				freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(freight_type->get_catg_name()), SYSCOL_TEXT);
+				freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(freight_type->get_catg_name()), SYSCOL_TEXT, freight_type->get_catg_symbol());
 				viewable_freight_types.append(freight_type);
 			}
 			for (int i = 0; i < goods_manager_t::get_count(); i++) {
@@ -94,7 +94,7 @@ factorylist_frame_t::factorylist_frame_t() :
 				if (ware->get_catg() == 0 && ware->get_index() > 2) {
 					// Special freight: Each good is special
 					viewable_freight_types.append(ware);
-					freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(ware->get_name()), SYSCOL_TEXT);
+					freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(ware->get_name()), SYSCOL_TEXT, ware->get_catg_symbol());
 				}
 			}
 			freight_type_c.set_selection((filter_goods_catg == goods_manager_t::INDEX_NONE) ? 0 : filter_goods_catg);
@@ -110,16 +110,15 @@ factorylist_frame_t::factorylist_frame_t() :
 		end_table(); // (2,2)
 
 	}
-	end_table(); // (2,0)
+	end_table();
 
 	scrolly.set_scroll_amount_y(LINESPACE+1);
-	add_component(&scrolly); // (3,0)
-	scrolly.set_maximize(true);
+	add_component(&scrolly);
+	fill_list();
 
-	display_list();
-
-	reset_min_windowsize();
 	set_resizemode(diagonal_resize);
+	scrolly.set_maximize(true);
+	reset_min_windowsize();
 }
 
 
@@ -129,7 +128,7 @@ factorylist_frame_t::factorylist_frame_t() :
  */
 bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
-	if(comp == &sortedby) {
+	if (comp == &sortedby) {
 		int tmp = sortedby.get_selection();
 		if (tmp >= 0 && tmp < sortedby.count_elements())
 		{
@@ -141,17 +140,17 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /
 			set_sortierung(factorylist::by_name);
 		}
 		default_sortmode = (uint8)tmp;
-		display_list();
+		fill_list();
 	}
 	else if (comp == &sorteddir) {
 		set_reverse(!get_reverse());
-		display_list();
+		fill_list();
 		sorteddir.pressed = sortreverse;
 	}
 	else if (comp == &filter_within_network) {
 		filter_own_network = !filter_own_network;
 		filter_within_network.pressed = filter_own_network;
-		display_list();
+		fill_list();
 	}
 	else if (comp == &btn_display_mode) {
 		display_mode = (++display_mode)%FACTORYLIST_MODES;
@@ -165,13 +164,13 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t /
 		else if (freight_type_c.get_selection() == 0) {
 			filter_goods_catg = goods_manager_t::INDEX_NONE;
 		}
-		display_list();
+		fill_list();
 	}
 	return true;
 }
 
 
-void factorylist_frame_t::display_list()
+void factorylist_frame_t::fill_list()
 {
 	stats.sort(sortby, get_reverse(), get_filter_own_network(), filter_goods_catg);
 	stats.recalc_size();
@@ -179,9 +178,9 @@ void factorylist_frame_t::display_list()
 
 void factorylist_frame_t::draw(scr_coord pos, scr_size size)
 {
-	display_list();
+	fill_list();
 
-	gui_frame_t::draw(pos, size);
+	gui_frame_t::draw(pos,size);
 }
 
 
@@ -209,7 +208,7 @@ void factorylist_frame_t::rdwr(loadsave_t* file)
 		filter_within_network.pressed = filter_own_network;
 		btn_display_mode.set_text(translator::translate(display_mode_text[display_mode]));
 		stats.display_mode = display_mode;
-		display_list();
+		fill_list();
 		set_windowsize(size);
 	}
 }

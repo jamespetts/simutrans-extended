@@ -29,11 +29,13 @@ tool_build_land_chain_t factory_edit_frame_t::land_chain_tool = tool_build_land_
 tool_city_chain_t factory_edit_frame_t::city_chain_tool = tool_city_chain_t();
 tool_build_factory_t factory_edit_frame_t::fab_tool = tool_build_factory_t();
 cbuffer_t factory_edit_frame_t::param_str;
+bool factory_edit_frame_t::sortreverse = false;
+
 
 static bool compare_factory_desc(const factory_desc_t* a, const factory_desc_t* b)
 {
 	int diff = strcmp( a->get_name(), b->get_name() );
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_name(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -41,7 +43,7 @@ static bool compare_factory_desc_name(const factory_desc_t* a, const factory_des
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_visitor_demands(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -50,7 +52,7 @@ static bool compare_factory_desc_visitor_demands(const factory_desc_t* a, const 
 	if (diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_jobs(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -59,7 +61,7 @@ static bool compare_factory_desc_jobs(const factory_desc_t* a, const factory_des
 	if (diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_level_mail(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -68,7 +70,7 @@ static bool compare_factory_desc_level_mail(const factory_desc_t* a, const facto
 	if ( diff == 0 ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_date_intro(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -76,7 +78,7 @@ static bool compare_factory_desc_date_intro(const factory_desc_t* a, const facto
 	if ( diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_date_retire(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -84,7 +86,7 @@ static bool compare_factory_desc_date_retire(const factory_desc_t* a, const fact
 	if ( diff == 0) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_size(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -98,7 +100,7 @@ static bool compare_factory_desc_size(const factory_desc_t* a, const factory_des
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 static bool compare_factory_desc_goods_number(const factory_desc_t* a, const factory_desc_t* b)
 {
@@ -110,7 +112,7 @@ static bool compare_factory_desc_goods_number(const factory_desc_t* a, const fac
 	if(  diff==0  ) {
 		diff = strcmp(a->get_name(), b->get_name());
 	}
-	return diff < 0;
+	return factory_edit_frame_t::sortreverse ? diff > 0 : diff < 0;
 }
 
 
@@ -123,11 +125,11 @@ factory_edit_frame_t::factory_edit_frame_t(player_t* player_) :
 
 	bt_city_chain.init( button_t::square_state, "Only city chains");
 	bt_city_chain.add_listener(this);
-	cont_filter.add_component(&bt_city_chain);
+	cont_filter.add_component(&bt_city_chain,3);
 
 	bt_land_chain.init( button_t::square_state, "Only land chains");
 	bt_land_chain.add_listener(this);
-	cont_filter.add_component(&bt_land_chain);
+	cont_filter.add_component(&bt_land_chain,3);
 
 	// add water to climate selection
 	cb_climates.new_component<gui_climates_item_t>(climate::water_climate);
@@ -171,6 +173,7 @@ void factory_edit_frame_t::fill_list()
 	const bool land_chain = bt_land_chain.pressed;
 	const sint32 month_now = bt_timeline.pressed ? welt->get_current_month() : bt_timeline_custom.pressed ? ni_timeline_year.get_value()*12 + ni_timeline_month.get_value()-1 : 0;
 	const uint8 sortedby = get_sortedby();
+	sortreverse = sort_order.pressed;
 
 	factory_list.clear();
 
@@ -184,8 +187,8 @@ void factory_edit_frame_t::fill_list()
 				&&  ( desc->get_building()->get_allowed_climate_bits() & get_climate()) ) {
 				// timeline allows for this, and so does climates setting
 
-				if( ( city_chain  &&  (desc->get_placement() == factory_desc_t::City && desc->is_consumer_only() ) )
-				||  ( land_chain  &&  (desc->get_placement() != factory_desc_t::City && desc->is_consumer_only() ) )
+				if( ( city_chain  &&  ((desc->get_placement() == factory_desc_t::City || desc->get_placement() == factory_desc_t::shore_city || desc->get_placement() == factory_desc_t::river_city) && desc->is_consumer_only() ) )
+				||  ( land_chain  &&  ((desc->get_placement() == factory_desc_t::City || desc->get_placement() == factory_desc_t::shore_city || desc->get_placement() == factory_desc_t::river_city) && desc->is_consumer_only() ) )
 				||  (!city_chain  &&  !land_chain) ) {
 					switch(sortedby) {
 						case gui_sorting_item_t::BY_NAME_TRANSLATED:     factory_list.insert_ordered( desc, compare_factory_desc_name );           break;
@@ -208,8 +211,8 @@ void factory_edit_frame_t::fill_list()
 	scl.set_selection(-1);
 	FOR(vector_tpl<factory_desc_t const*>, const i, factory_list) {
 		PIXVAL const color =
-			i->is_consumer_only() ? color_idx_to_rgb(COL_BLUE)       :
-			i->is_producer_only() ? color_idx_to_rgb(COL_DARK_GREEN) :
+			i->is_consumer_only() ? color_idx_to_rgb(COL_DARK_BLUE + env_t::gui_player_color_dark) :
+			i->is_producer_only() ? color_idx_to_rgb(40 + env_t::gui_player_color_dark)            :
 			SYSCOL_TEXT;
 		char const* const name = get_sortedby()==gui_sorting_item_t::BY_NAME_OBJECT ?  i->get_name() : translator::translate(i->get_name());
 		scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(name, color);
@@ -328,12 +331,11 @@ void factory_edit_frame_t::change_item_info(sint32 entry)
 				const uint16 allowed_region_bits = desc->get_allowed_region_bits();
 				if (allowed_region_bits < 65535) {
 					uint32 region_idx = 0;
-					FORX(vector_tpl<region_definition_t>, region, welt->get_settings().regions, region_idx) {
+					FORX(vector_tpl<region_definition_t>, region, welt->get_settings().regions, region_idx++) {
 						if (allowed_region_bits & (1 << region_idx))
 						{
 							buf.printf(" - %s\n", translator::translate(region.name.c_str()));
 						}
-						region_idx++;
 					}
 				}
 				else {
@@ -402,7 +404,7 @@ void factory_edit_frame_t::change_item_info(sint32 entry)
 
 		// the tools will be always updated, even though the data up there might be still current
 		param_str.clear();
-		param_str.printf("%i%c%i,%s", bt_climates.pressed, rotation>253 ? (rotation==254 ? 'A' : '#') : '0'+rotation, production, fac_desc->get_name() );
+		param_str.printf("%i%i%c%i,%s", bt_climates.pressed, bt_ignore_regions.pressed, rotation>253 ? (rotation==254 ? 'A' : '#') : '0'+rotation, production, fac_desc->get_name() );
 		if(bt_land_chain.pressed) {
 			land_chain_tool.set_default_param(param_str);
 			welt->set_tool( &land_chain_tool, player );

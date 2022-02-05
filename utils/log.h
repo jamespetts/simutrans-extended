@@ -51,10 +51,12 @@ private:
 	 */
 	const char* tag;
 
+#ifdef SYSLOG
 	/**
 	 * Log to syslog?
 	 */
 	bool syslog;
+#endif
 
 	std::string doublettes;
 

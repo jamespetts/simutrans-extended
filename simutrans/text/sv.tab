@@ -328,7 +328,7 @@ I %s\ninvigs ett nytt\nmonument.\n%i åskådare deltar\ni festligheterna.
 \nelektrifierad\n
 \nHeightfield has wrong image type.\n
 \nFel filtyp.\n
-\nis reserved by:
+is reserved by:
 \ntågväg är lagd för: \n
 \nminimum speed:
 \nminsta tillåtna hastighet:
@@ -658,7 +658,7 @@ Convoi is sold when all wagons are empty.
 Konvojen kommer att tas bort sEfort som den är tömd. Försäljningsvärdet kommer att tillgodogöras kassan.
 convoi mouseover tooltips
 konvojstatus vid muspekning
-convoi passed last\nmonth %i\n
+convoi passed last month:
 \nkonvojer som passerade\nförra månaden: %i\n
 Convois
 Konvojer

@@ -1906,7 +1906,8 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 			return;
 		}
 
-		way_desc_t const* desc = welt->get_settings().get_intercity_road_type(welt->get_timeline_year_month());
+		// Use the industry road type for attractions as well as industries
+		way_desc_t const* desc = welt->get_settings().get_industry_road_type(welt->get_timeline_year_month());
 		if (desc == NULL || !welt->get_settings().get_use_timeline())
 		{
 			// Hajo: try some default (might happen with timeline ... )

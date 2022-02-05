@@ -41,8 +41,6 @@ public:
 	const char *get_help_filename() const OVERRIDE {return "vehiclelist.txt"; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
-
-	bool has_min_sizer() const { return true; }
 };
 
 
@@ -63,10 +61,10 @@ public:
 
 	vehiclelist_stats_t(const vehicle_desc_t *);
 
-	char const* get_text() const;
-	scr_size get_size() const { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
-	scr_size get_min_size() const { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
-	scr_size get_max_size() const { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
+	char const* get_text() const OVERRIDE;
+	scr_size get_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
+	scr_size get_min_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
+	scr_size get_max_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
 
 	static bool compare(const gui_component_t *a, const gui_component_t *b );
 

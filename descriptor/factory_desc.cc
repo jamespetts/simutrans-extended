@@ -6,7 +6,7 @@
 #include "factory_desc.h"
 #include "xref_desc.h"
 #include "../network/checksum.h"
-
+#include "../bauer/goods_manager.h"
 
 void field_class_desc_t::calc_checksum(checksum_t *chk) const
 {
@@ -100,6 +100,32 @@ bool factory_desc_t::get_accepts_these_goods(const goods_desc_t* input) const
 		if (get_supplier(i)->get_input_type() == input)
 		{
 			return true;
+		}
+	}
+	return false;
+}
+
+bool factory_desc_t::has_goods_catg_demand(uint8 catg_index) const
+{
+	if (catg_index == goods_manager_t::INDEX_NONE) {
+		return false;
+	}
+	if (product_count) {
+		for (uint32 i = 0; i < product_count; i++) {
+			if (get_product(i)->get_output_type()->get_catg_index() == catg_index) {
+				return true;
+			}
+		}
+	}
+
+	if (supplier_count) {
+		for (uint32 i = 0; i < supplier_count; i++) {
+			if (!get_supplier(i)) {
+				continue;
+			}
+			if (get_supplier(i)->get_input_type()->get_catg_index() == catg_index) {
+				return true;
+			}
 		}
 	}
 	return false;

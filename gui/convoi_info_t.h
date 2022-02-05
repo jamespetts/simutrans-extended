@@ -26,8 +26,12 @@
 
 #include "../utils/cbuffer_t.h"
 #include "components/gui_convoy_payloadinfo.h"
+#include "components/gui_schedule_item.h"
+
+#include "times_history_container.h"
 
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
+
 
 /**
  * Displays an information window for a convoi
@@ -59,28 +63,34 @@ private:
 	gui_textarea_t text;
 	obj_view_t view;
 	gui_label_buf_t speed_label, profit_label, running_cost_label, weight_label, target_label, line_label;
-	gui_label_buf_t distance_label, avg_triptime_label;
+	gui_label_buf_t distance_label, lb_working_method;
 	gui_textinput_t input;
 	gui_loadingbar_t loading_bar;
 	gui_speedbar_t speed_bar;
 	gui_routebar_t route_bar;
-	gui_image_t img_reverse_route;
+	sint32 next_reservation_index;
 	gui_chart_t chart;
+	gui_image_t img_reverse_route;
+
 	button_t button;
 	button_t follow_button;
 	button_t go_home_button;
 	button_t no_load_button;
 	button_t replace_button;
-	button_t times_history_button;
 	int statistics_height;
 
 	button_t details_button;
 	button_t reverse_button;
 
+	gui_aligned_container_t next_halt_cells;
+	gui_schedule_entry_number_t next_halt_number;
+
+	gui_times_history_t cont_times_history;
+
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
 	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
-	gui_scrollpane_t scroll_freight;
+	gui_scrollpane_t scroll_freight, scroll_times_history;
 
 	gui_combobox_t freight_sort_selector;
 	button_t line_button; // goto line ...
@@ -135,8 +145,6 @@ public:
 	 */
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	bool has_min_sizer() const OVERRIDE { return true; }
-
 	bool is_weltpos() OVERRIDE;
 
 	koord3d get_weltpos( bool set ) OVERRIDE;
@@ -147,6 +155,8 @@ public:
 	 * called when convoi was renamed
 	 */
 	void update_data() { reset_cnv_name(); set_dirty(); }
+
+	bool infowin_event(const event_t *ev) OVERRIDE;
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 

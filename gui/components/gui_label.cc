@@ -307,3 +307,24 @@ scr_size gui_heading_t::get_min_size() const
 {
 	return scr_size(min(D_DEFAULT_WIDTH, get_size().w), D_HEADING_HEIGHT);
 }
+
+
+void gui_label_with_symbol_t::draw(scr_coord offset)
+{
+	display_color_img(imageid, pos.x+offset.x, pos.y+offset.y + D_GET_CENTER_ALIGN_OFFSET(10,D_LABEL_HEIGHT), 0, false, false);
+	offset.x += 14;
+	gui_label_buf_t::draw(offset);
+}
+
+scr_size gui_label_with_symbol_t::get_min_size() const
+{
+	return scr_size(gui_label_buf_t::get_min_size().w+14, D_LABEL_HEIGHT);
+}
+
+scr_size gui_label_with_symbol_t::get_max_size() const
+{
+	if (fixed_width) {
+		return get_min_size();
+	}
+	return align == left ? scr_size(max(get_min_size().w, size.w), get_min_size().h) : scr_size(scr_size::inf.w, get_min_size().h);
+}

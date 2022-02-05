@@ -32,7 +32,7 @@ void gui_halthandled_lines_t::draw(scr_coord offset)
 
 		cbuffer_t buf;
 		for (uint8 lt = 1; lt < simline_t::MAX_LINE_TYPE; lt++) {
-			if (!halt->get_station_type() & simline_t::linetype_to_stationtype[lt]) {
+			if ((halt->get_station_type() & simline_t::linetype_to_stationtype[lt]) == 0) {
 				continue;
 			}
 			bool found = false;

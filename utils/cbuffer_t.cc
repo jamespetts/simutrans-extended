@@ -588,3 +588,15 @@ bool cbuffer_t::decode_bool(const char* p)
 	char bool_char = *p;
 	return (bool)atoi(&bool_char);
 }
+
+// remove whitespace and unprinatable characters
+void cbuffer_t::trim()
+{
+	while (size > 0) {
+		const unsigned char c = buf[size - 1];
+		if (c >= 33) {
+			break;
+		}
+		size--;
+	}
+}

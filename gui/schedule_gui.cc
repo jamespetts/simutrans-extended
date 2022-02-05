@@ -1288,6 +1288,9 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 	else if(  ev->ev_class == INFOWIN  &&  (ev->ev_code == WIN_TOP  ||  ev->ev_code == WIN_OPEN)  &&  schedule!=NULL  ) {
 		// just to be sure, renew the tools ...
 		update_tool( true );
+		if(  cnv.is_bound()  ) {
+			minimap_t::get_instance()->set_selected_cnv(cnv);
+		}
 	}
 
 	return gui_frame_t::infowin_event(ev);
@@ -1461,7 +1464,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		}
 	}
 	else if (comp == &line_selector) {
-		uint32 selection = p.i;
+// 		uint32 selection = p.i;
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();

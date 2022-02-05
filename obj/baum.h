@@ -110,8 +110,6 @@ public:
 
 	void show_info() OVERRIDE;
 
-	void info(cbuffer_t & buf) const OVERRIDE;
-
 	void cleanup(player_t *player) OVERRIDE;
 
 	void * operator new(size_t s);

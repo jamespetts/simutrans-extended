@@ -27,8 +27,8 @@
 
 
 gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
-	formation(cnv),
-	loading_bar(cnv)
+	loading_bar(cnv),
+	formation(cnv)
 {
 	this->cnv = cnv;
 	this->show_line_name = show_line_name;

@@ -61,10 +61,10 @@ char const *const NOTICE_DISABLED_PUBLIC_WAY = "Not allowed to make publicly own
 #define OLD_MAX_PLAYER_COST (21)
 
 /// number of years to keep history
-#define MAX_PLAYER_HISTORY_YEARS  (25)
+#define MAX_PLAYER_HISTORY_YEARS  (26)
 
 /// number of months to keep history
-#define MAX_PLAYER_HISTORY_MONTHS (25)
+#define MAX_PLAYER_HISTORY_MONTHS (26)
 
 
 /**
@@ -87,6 +87,23 @@ enum transport_type {
 	TT_MAX_VEH = TT_OTHER,
 	TT_POWERLINE,
 	TT_MAX
+};
+
+
+/* these have to match the strings in schedule_type_text[]!  */
+/* (and it is sad that the order between those do not match ...) */
+static const char* const transport_type_text[TT_MAX] = {
+	"All",
+	"Truck",
+	"Train",
+	"Ship",
+	"Monorail",
+	"Maglev",
+	"Tram",
+	"Narrowgauge",
+	"Air",
+	"tt_Other",
+	"Powerlines",
 };
 
 
@@ -613,6 +630,10 @@ public:
 	static transport_type translate_waytype_to_tt(waytype_t wt);
 
 	static waytype_t translate_tt_to_waytype(transport_type tt);
+
+	inline static char const *get_transport_type_name(transport_type tt) {
+		return transport_type_text[tt];
+	}
 
 	void update_assets(sint64 delta, waytype_t wt);
 

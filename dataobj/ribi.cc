@@ -248,7 +248,7 @@ const int slope_t::flags[81] = {
 };
 
 
-const slope_t::type hang_from_ribi[16] = {
+const slope_t::type slope_from_ribi[16] = {
 	0,
 	slope_t::north,
 	slope_t::east,
@@ -411,5 +411,5 @@ slope_t::type slope_type(koord dir)
 
 slope_t::type slope_type(ribi_t::ribi r)
 {
-	return hang_from_ribi[r];
+	return slope_from_ribi[r];
 }

@@ -57,7 +57,7 @@ gui_sorting_item_t::gui_sorting_item_t(uint8 s) : gui_scrolled_list_t::const_tex
 		case BY_JOBS:                text = translator::translate("Jobs"); break;
 		case BY_LEVEL_MAIL:          text = translator::translate("Mail demand/output"); break;
 		case BY_DATE_INTRO:          text = translator::translate("Intro. date"); break;
-		case BY_DATE_RETIRE:         text = translator::translate("Retire Date"); break;
+		case BY_DATE_RETIRE:         text = translator::translate("Retire date"); break;
 		case BY_SIZE:                text = translator::translate("Size (area)"); break;
 		case BY_COST:                text = translator::translate("Price"); break;
 		case BY_GOODS_NUMBER:        text = translator::translate("Goods"); break;
@@ -90,7 +90,7 @@ extend_edit_gui_t::extend_edit_gui_t(const char *name, player_t* player_) :
 	cont_timeline.set_table_layout(4,0);
 	// add filters
 	cont_left.add_component(&cont_filter);
-	cont_filter.set_table_layout(1,0);
+	cont_filter.set_table_layout(3,0);
 	//add list
 	cont_left.add_component(&scl);
 	// add stretcher element
@@ -125,7 +125,7 @@ extend_edit_gui_t::extend_edit_gui_t(const char *name, player_t* player_) :
 	scl.set_min_width( (D_DEFAULT_WIDTH-D_MARGIN_LEFT-D_MARGIN_RIGHT-2*D_H_SPACE)/2 );
 
 	// start filling cont_timeline---------------------------------------------------------------------------------------------
-	bt_timeline.init( button_t::square_state, "Use timeline start year");
+	bt_timeline.init( button_t::square_state, "timeline");
 	bt_timeline.pressed = welt->get_settings().get_use_timeline()&1;
 	bt_timeline.add_listener(this);
 	cont_timeline.add_component(&bt_timeline, 4);
@@ -158,32 +158,36 @@ extend_edit_gui_t::extend_edit_gui_t(const char *name, player_t* player_) :
 
 	// start filling cont_filter---------------------------------------------------------------------------------------------
 	// climate filter
-	gui_aligned_container_t *tbl_climate = cont_filter.add_table(2,0);
-	tbl_climate->new_component<gui_label_t>("Climate");
-	tbl_climate->add_component(&cb_climates);
+	cont_filter.new_component<gui_label_t>("Climate");
+	cont_filter.add_component(&cb_climates, 2);
 	cb_climates.add_listener(this);
 	cb_climates.new_component<gui_climates_item_t>(climate::MAX_CLIMATES);
 	for(uint8 i=climate::desert_climate; i<climate::MAX_CLIMATES; i++){
 		cb_climates.new_component<gui_climates_item_t>(i);
 	}
 	cb_climates.set_selection(0);
-	cont_filter.end_table();
 
 	// Sorting box
-	gui_aligned_container_t *tbl_sorting = cont_filter.add_table(2,0);
-	tbl_sorting->new_component<gui_label_t>("Sort by");
-	tbl_sorting->add_component(&cb_sortedby);
+	cont_filter.new_component<gui_label_t>("Sort by");
+	cont_filter.add_component(&cb_sortedby);
+	sort_order.init(button_t::sortarrow_state, "");
+	sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+	sort_order.add_listener(this);
+	sort_order.pressed = false;
+	cont_filter.add_component(&sort_order);
 	cb_sortedby.add_listener(this);
 	cb_sortedby.new_component<gui_sorting_item_t>(gui_sorting_item_t::BY_NAME_TRANSLATED);
 	cb_sortedby.new_component<gui_sorting_item_t>(gui_sorting_item_t::BY_NAME_OBJECT);
 	cb_sortedby.set_selection(0);
-	cont_filter.end_table();
 	// end filling cont_filter---------------------------------------------------------------------------------------------
 
 	//filling cont_options
 	bt_climates.init( button_t::square_state, "ignore climates");
 	bt_climates.add_listener(this);
 	cont_options.add_component(&bt_climates);
+	bt_ignore_regions.init(button_t::square_state, "ignore regions");
+	bt_ignore_regions.add_listener(this);
+	cont_options.add_component(&bt_ignore_regions);
 
 	//setting scrollable content box
 	scrolly.set_visible(true);
@@ -225,6 +229,10 @@ bool extend_edit_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 		bt_climates.pressed ^= 1;
 		fill_list();
 	}
+	else if (comp == &bt_ignore_regions) {
+		bt_ignore_regions.pressed ^= 1;
+		fill_list();
+	}
 	else if(  comp==&bt_timeline  ) {
 		bt_timeline_custom.pressed = false;
 		bt_timeline.pressed ^= 1;
@@ -246,6 +254,10 @@ bool extend_edit_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 		change_item_info(scl.get_selection());
 	}
 	else if(  comp==&cb_sortedby  ) {
+		fill_list();
+	}
+	else if(  comp == &sort_order  ) {
+		sort_order.pressed = !sort_order.pressed;
 		fill_list();
 	}
 

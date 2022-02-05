@@ -45,7 +45,7 @@ public:
 	obj_t::typ get_typ() const OVERRIDE { return water_vehicle; }
 #endif
 
-	schedule_t * generate_new_schedule() const;
+	schedule_t * generate_new_schedule() const OVERRIDE;
 
 };
 

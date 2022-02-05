@@ -99,6 +99,8 @@ public:
 	void new_component(const A1& a1) { droplist.new_component<C>(a1); }
 	template<class C, class A1, class A2>
 	void new_component(const A1& a1, const A2& a2) { droplist.new_component<C>(a1, a2); }
+	template<class C, class A1, class A2, class A3>
+	void new_component(const A1& a1, const A2& a2, const A3& a3) { droplist.new_component<C>(a1, a2, a3); }
 
 	/**
 	 * remove all elements from droplist

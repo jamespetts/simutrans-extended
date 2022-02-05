@@ -42,7 +42,8 @@ class gui_scrolled_list_t :
 public:
 	enum type {
 		windowskin,
-		listskin
+		listskin,
+		transparent
 	};
 
 	/**
@@ -93,6 +94,16 @@ public:
 
 	};
 
+	// Currently, it is assumed to display a general-purpose symbol with a width of about 12px.
+	class img_label_scrollitem_t : public const_text_scrollitem_t
+	{
+		image_id img;
+	public:
+		img_label_scrollitem_t(char const* const t, PIXVAL const col, const image_id i = IMG_EMPTY) : const_text_scrollitem_t( t, col) { img=i; }
+
+		void draw(scr_coord pos) OVERRIDE;
+	};
+
 
 private:
 	enum type type;
@@ -117,6 +128,8 @@ protected:
 	void cleanup_elements();
 
 public:
+	virtual void set_skin_type(enum type t) { this->type = t; }
+
 	void set_cmp(item_compare_func cmp) { compare = cmp; }
 
 	gui_scrolled_list_t(enum type, item_compare_func cmp = 0);

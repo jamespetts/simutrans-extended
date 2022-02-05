@@ -39,8 +39,6 @@ public:
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
-
-	bool has_min_sizer() const OVERRIDE { return true; }
 };
 
 class signalboxlist_stats_t : public gui_aligned_container_t, public gui_scrolled_list_t::scrollitem_t

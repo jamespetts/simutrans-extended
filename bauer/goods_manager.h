@@ -69,7 +69,7 @@ public:
 	static uint8 get_classes_catg_index(const uint8 catg_index);
 
 	// @return translated class name
-	static const char * get_translated_wealth_name(const uint8 catg_index, const uint8 g_class);
+	static char const* get_translated_wealth_name(const uint8 catg_index, const uint8 g_class);
 	// Currently there is no distinction in the name of class, but in case of distinction it is necessary to separate into the following
 	//static const char * get_translated_fare_class_name(const uint8 catg_index, const uint8 g_class);
 	//static const char * get_translated_accommodation_class_name(const uint8 catg_index, const uint8 g_class);

@@ -18,6 +18,9 @@
 #include "../utils/cbuffer_t.h"
 #include "../descriptor/pedestrian_desc.h"
 
+#include "../gui/simwin.h"
+#include "../gui/slim_obj_info.h"
+
 #include <cstdio>
 
 
@@ -28,7 +31,7 @@ static weighted_vector_tpl<const pedestrian_desc_t*> current_pedestrians; // Onl
 stringhashtable_tpl<const pedestrian_desc_t *, N_BAGS_SMALL> pedestrian_t::table;
 
 
-static bool compare_fussgaenger_desc(const pedestrian_desc_t* a, const pedestrian_desc_t* b)
+static bool compare_pedestrian_desc(const pedestrian_desc_t* a, const pedestrian_desc_t* b)
 {
 	// sort pedestrian objects descriptors by their name
 	return strcmp(a->get_name(), b->get_name())<0;
@@ -55,7 +58,7 @@ bool pedestrian_t::successfully_loaded()
 		vector_tpl<const pedestrian_desc_t*> temp_liste(0);
 		for(auto const& i : table) {
 			// just entered them sorted
-			temp_liste.insert_ordered(i.value, compare_fussgaenger_desc);
+			temp_liste.insert_ordered(i.value, compare_pedestrian_desc);
 		}
 		for(auto const i : temp_liste) {
 			pedestrian_list.append(i, i->get_distribution_weight());
@@ -135,6 +138,14 @@ image_id pedestrian_t::get_image() const
 }
 
 
+void pedestrian_t::show_info()
+{
+	if (env_t::road_user_info & 2) {
+		create_win(new slim_obj_info_t(this), w_info, (ptrdiff_t)this);
+	}
+}
+
+
 void pedestrian_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t f( file, "pedestrian_t" );
@@ -189,8 +200,7 @@ void pedestrian_t::generate_pedestrians_at(const koord3d k, uint32 count, uint32
 	}
 
 	grund_t* gr = welt->lookup(k);
-	if (gr)
-	{
+	if (gr) {
 		weg_t* weg = gr->get_weg(road_wt);
 
 		if (!weg)
@@ -310,7 +320,7 @@ void pedestrian_t::hop(grund_t *gr)
 	for(uint r = 0; r < 4; r++) {
 		new_direction = ribi_t::nesw[ (r+offset) & 3];
 
-		if ((ribi & new_direction) != 0 && gr->get_neighbour(to, road_wt, new_direction)) {
+		if(  (ribi & new_direction)!=0  &&  gr->get_neighbour(to, road_wt, new_direction) ) {
 			// this is our next target
 			break;
 		}
@@ -371,16 +381,5 @@ void pedestrian_t::check_timeline_pedestrians()
 		{
 			current_pedestrians.append(fd, fd->get_distribution_weight());
 		}
-	}
-}
-
-
-void pedestrian_t::info(cbuffer_t & buf) const
-{
-	char const* const owner = translator::translate("Kein Besitzer\n");
-	buf.append(owner);
-
-	if (char const* const maker = get_desc()->get_copyright()) {
-		buf.printf(translator::translate("Constructed by %s"), maker);
 	}
 }

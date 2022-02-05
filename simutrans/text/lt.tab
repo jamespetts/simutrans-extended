@@ -389,8 +389,8 @@ iki
 \nelektrifikuotas\n
 \nHeightfield has wrong image type.\n
 \nNetinkamas failas ukščio žem?lapiui\n
-\nis reserved by:
-\nparuošta kitam traukiniui:
+is reserved by:
+paruošta kitam traukiniui:
 \nminimum speed:
 \nmažiausias greitis: 
 \nnot elektrified
@@ -753,8 +753,8 @@ Convoi is sold when all wagons are empty.
 Transporto priemonė bus perduota iškart kai bus tuščia. 
 convoi mouseover tooltips
 konvojų pranešimai užvedus rodyklę
-convoi passed last\nmonth %i\n
-\nkonvojai pravažiavę praeitą\nmėnesį: %i\n
+convoi passed last month:
+konvojai pravažiavę praeitą\nmėnesį: %i\n
 Convois
 Konvojai
 Convois: %d\nProfit: %s

@@ -29,20 +29,20 @@ private:
 	static karte_ptr_t welt;
 
 	/**
-	 * @class fabs_to_crossconnect_t
+	 * @class factories_to_crossconnect_t
 	 * Used for cross-connection checks between factories.
 	 * This is necessary for finding producers for factory supply.
 	 */
-	class fabs_to_crossconnect_t {
+	class factories_to_crossconnect_t {
 	public:
 		fabrik_t *fab; ///< The factory
 		sint32 demand; ///< To how many factories this factory needs to connect to
 
-		fabs_to_crossconnect_t() { fab = NULL; demand = 0; }
-		fabs_to_crossconnect_t(fabrik_t *f, sint32 d) { fab = f; demand = d; }
+		factories_to_crossconnect_t() { fab = NULL; demand = 0; }
+		factories_to_crossconnect_t(fabrik_t *f, sint32 d) { fab = f; demand = d; }
 
-		bool operator == (const fabs_to_crossconnect_t& x) const { return fab == x.fab; }
-		bool operator != (const fabs_to_crossconnect_t& x) const { return fab != x.fab; }
+		bool operator == (const factories_to_crossconnect_t& x) const { return fab == x.fab; }
+		bool operator != (const factories_to_crossconnect_t& x) const { return fab != x.fab; }
 	};
 
 	/// Table of all factories that can be built
@@ -80,7 +80,7 @@ public:
 	static void distribute_attractions(int max_number);
 
 	/// @returns a factory description for a factory name
-	static const factory_desc_t * get_desc(const char *fabtype);
+	static const factory_desc_t *get_desc(const char *factory_name);
 
 	/// @returns the table containing all factory descriptions
 	static const stringhashtable_tpl<const factory_desc_t*, N_BAGS_MEDIUM>& get_factory_table() { return desc_table; }
@@ -110,7 +110,7 @@ public:
 	 * (meaning there are no unfinished factory chains).
 	 * @returns number of factories built
 	 */
-	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates);
+	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates );
 
 	/**
 	 * Helper function for baue_hierachie(): builds the connections (chain) for one single product)

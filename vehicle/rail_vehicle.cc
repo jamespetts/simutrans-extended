@@ -242,7 +242,7 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 	// also allow driving on foreign tracks ...
 	const bool needs_no_electric = !(cnv!=NULL ? cnv->needs_electrification() : desc->get_engine_type() == vehicle_desc_t::electric);
 
-	if((!needs_no_electric && !sch->is_electrified()) || (sch->get_max_speed() == 0 && speed_limit < INT_MAX) || (cnv ? !cnv->check_way_constraints_of_all_vehicles(*sch) : !check_way_constraints(*sch)))
+	if((!needs_no_electric && !sch->is_electrified()) || (sch->get_max_speed(needs_no_electric) == 0 && speed_limit < INT_MAX) || (cnv ? !cnv->check_way_constraints_of_all_vehicles(*sch) : !check_way_constraints(*sch)))
 	{
 		return false;
 	}
@@ -260,7 +260,7 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 				// below speed limit
 				return false;
 			}
-			if(  rs->get_desc()->is_private_way()  &&  (rs->get_player_mask() & (1<<get_player_nr()) ) == 0  ) {
+			if(  rs->get_desc()->is_private_way()  &&  (rs->get_player_mask() & (1<<get_owner_nr()) ) == 0  ) {
 				// private road
 				return false;
 			}
@@ -304,7 +304,8 @@ int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	}
 
 	// add cost for going (with maximum speed, cost is 10)
-	const sint32 max_tile_speed = w->get_max_speed();
+	const bool needs_no_electric = !(cnv != NULL ? cnv->needs_electrification() : desc->get_engine_type() == vehicle_desc_t::electric);
+	const sint32 max_tile_speed = w->get_max_speed(needs_no_electric);
 	int costs = (max_speed <= max_tile_speed) ? 10 : 40 - (30 * max_tile_speed) / max_speed;
 	if (desc->get_override_way_speed())
 	{

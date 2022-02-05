@@ -15,6 +15,8 @@
 #include "descriptor/building_desc.h"
 #include "simdebug.h"
 #include "simtool.h"
+#include "gui/signal_info.h"
+#include "gui/simwin.h"
 
 slist_tpl<signalbox_t *> signalbox_t::all_signalboxes;
 
@@ -130,6 +132,11 @@ void signalbox_t::rotate90()
 	signals.append_list(temp_list);
 }
 
+uint16 signalbox_t::get_capacity() const
+{
+	return get_first_tile()->get_tile()->get_desc()->get_capacity();
+}
+
 void signalbox_t::remove_signal(signal_t* s)
 {
 	koord3d k = s->get_pos();
@@ -142,6 +149,10 @@ bool signalbox_t::add_signal(signal_t* s)
 	{
 		signals.append(s->get_pos());
 		s->set_signalbox(get_pos());
+		signal_info_t *win = dynamic_cast<signal_info_t*>(win_get_magic((ptrdiff_t)s));
+		if (win) {
+			win->update_data();
+		}
 		return true;
 	}
 
@@ -170,13 +181,16 @@ bool signalbox_t::can_add_signal(const signal_t* s) const
 	{
 		return false;
 	}
+	if (get_tile()->get_desc()->get_radius() && get_tile()->get_desc()->get_radius() < shortest_distance(s->get_pos().get_2d(), get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) {
+		return false; // out of range
+	}
 
 	return can_add_signal(s->get_desc());
 }
 
 bool signalbox_t::can_add_more_signals() const
 {
-	return signals.get_count() < get_first_tile()->get_tile()->get_desc()->get_capacity();
+	return signals.get_count() < get_capacity();
 }
 
 bool signalbox_t::transfer_signal(signal_t* s, signalbox_t* sb)
@@ -184,6 +198,10 @@ bool signalbox_t::transfer_signal(signal_t* s, signalbox_t* sb)
 	if(sb == this)
 	{
 		return false;
+	}
+
+	if (get_tile()->get_desc()->get_radius() && get_tile()->get_desc()->get_radius() < shortest_distance(s->get_pos().get_2d(), get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) {
+		return false; // out of range
 	}
 
 	if(s->get_desc()->get_working_method() == moving_block)

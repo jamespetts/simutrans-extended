@@ -8,11 +8,8 @@
 
 
 #include "simcolor.h"
+#include "simtypes.h"
 
-// Max Kielland
-// Classic helper macro to transform a #define value into a "string"
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
 // For test purposes themes can be disabled or an alternative theme.tab file can be used.
 //  -1 = No theme, use internal fallback
@@ -158,6 +155,8 @@ public:
 	static const skin_desc_t *refuel;
 	static const skin_desc_t *ignore_choose;
 
+	/// image to clarify the function of buttons
+	static const skin_desc_t *open_window;
 
 
 	/// @name cursors
@@ -196,6 +195,8 @@ public:
 	 * @return pointer to skin object or NULL if nothing found
 	 */
 	static const skin_desc_t *get_extra( const char *str, int len );
+
+	static const skin_desc_t *get_waytype_skin(const waytype_t wt);
 
 private:
 	/// holds objects from paks with type 'menu'

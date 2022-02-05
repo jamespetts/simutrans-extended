@@ -351,7 +351,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 电气化
 \nHeightfield has wrong image type.\n
 高度图图像格式不正确
-\nis reserved by:
+is reserved by:
 已被火车占用
 \nminimum speed:
 最低时速:
@@ -695,8 +695,8 @@ Convoi is sold when all wagons are empty.
 当交通工具完全空时，它将会被卖。
 convoi mouseover tooltips
 滑鼠指标下的交通工具显示提示
-convoi passed last\nmonth %i\n
-\n上月交通流量: %i\n
+convoi passed last month:
+上月交通流量: %i\n
 Convois
 交通工具
 Convois: %d\nProfit: %s

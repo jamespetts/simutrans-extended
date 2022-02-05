@@ -174,7 +174,7 @@ void export_convoy(HSQUIRRELVM vm)
 	 * Get monthly statistics of number of transported goods.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_convoy_stat, "get_transported_goods", freevariable<sint32>(convoi_t::CONVOI_TRANSPORTED_GOODS), true );
+	register_method_fv(vm, &get_convoy_stat, "get_transported_goods", freevariable<sint32>(convoi_t::CONVOI_PAX_DISTANCE), true );
 	/**
 	 * Get monthly statistics of revenue.
 	 * @returns array, index [0] corresponds to current month

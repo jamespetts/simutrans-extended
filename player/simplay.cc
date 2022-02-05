@@ -325,10 +325,10 @@ void player_t::set_player_color(uint8 col1, uint8 col2)
 		cbuffer_t message;
 		const char* player_name = welt->get_player(player_nr)->get_name();
 		message.printf(player_name);
-		welt->get_message()->add_message(message, koord::invalid, message_t::ai, player_color_1);
+		welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(player_color_1));
 		message.clear();
 		message.printf(translator::translate("has changed its colour scheme."));
-		welt->get_message()->add_message(message, koord::invalid, message_t::ai, col1);
+		welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(col1));
 	}
 	set_player_color_no_message(col1, col2);
 }
@@ -563,7 +563,7 @@ void player_t::calc_assets()
 
 	// all vehicles stored in depot not part of a convoi
 	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
-		if(  depot->get_player_nr() == player_nr  ) {
+		if(  depot->get_owner_nr() == player_nr  ) {
 			FOR(slist_tpl<vehicle_t*>, const veh, depot->get_vehicle_list()) {
 				sint64 restwert = veh->calc_sale_value();
 				assets[TT_ALL] += restwert;

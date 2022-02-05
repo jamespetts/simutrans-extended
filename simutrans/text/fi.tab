@@ -323,7 +323,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \nSähköistetty\n
 \nHeightfield has wrong image type.\n
 \nKorkokuva on\nvääräntyyppinen.\n
-\nis reserved by:
+is reserved by:
 \ntiellEon juna 
 \nminimum speed:
 \nAlin sallittu nopeus:
@@ -639,7 +639,7 @@ Convoi is sold when all wagons are empty.
 Kulkuneuvo myydään, kun kaikki vaunut ovat tyhjiE
 convoi mouseover tooltips
 ajoneuvojen tiedot hiirellE
-convoi passed last\nmonth %i\n
+convoi passed last month:
 Ajoneuvoja viime\nkuussa %i\n
 Convois
 Ajoneuvot

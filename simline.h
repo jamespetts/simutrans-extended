@@ -22,22 +22,25 @@
 #define MAX_MONTHS				12 // Max history
 #define MAX_NON_MONEY_TYPES		4 // number of non money types in line's financial statistic
 
-							// Exp|Std|Description
+                                // Ext|Std|Description
 enum line_cost_t {
-	LINE_CAPACITY =	0,			//  0 | 0 | the amount of ware that could be transported, theoretically
-	LINE_TRANSPORTED_GOODS,		//  1 | 1 | the amount of ware that has been transported
-	LINE_AVERAGE_SPEED,			//  2 |   | average speed of all convoys in the line
-	LINE_COMFORT,				//  3 |   | the average comfort rating of all vehicles on this line (weighted by numbers)
-	LINE_REVENUE,				//  4 | 3 | the income this line generated
-	LINE_OPERATIONS,			//  5 | 4 | the cost of operations this line generated
-	LINE_PROFIT,				//  6 | 5 | total profit of line
-	LINE_CONVOIS,				//  7 | 2 | number of convois for this line
-	LINE_DISTANCE,				//  8 | 6 | distance covered by all convois
-	LINE_REFUNDS,				//  9 |   | Total refunds paid to passengers/goods owners desiring to use this line but kept waiting too long to do so.
-	LINE_DEPARTURES,			// 10 |   | number of departures of convoys on this line from scheduled points
-	LINE_DEPARTURES_SCHEDULED,	// 11 |   | number of departures scheduled on this line from scheduled departure points
-	LINE_WAYTOLL,				// 12 | 8 |
-	MAX_LINE_COST				// 13 | 9 | Total number of cost items
+	LINE_CAPACITY = 0,          //  0 | 0 | the amount of ware that could be transported, theoretically
+	//LINE_TRANSPORTED_GOODS,   //    | 1 | the amount of ware that has been transported
+	LINE_PAX_DISTANCE,          //  1 |   | the distance (km) travelled by passenger
+	LINE_AVERAGE_SPEED,         //  2 |   | average speed of all convoys in the line
+	LINE_COMFORT,               //  3 |   | the average comfort rating of all vehicles on this line (weighted by numbers)
+	LINE_REVENUE,               //  4 | 3 | the income this line generated
+	LINE_OPERATIONS,            //  5 | 4 | the cost of operations this line generated
+	LINE_PROFIT,                //  6 | 5 | total profit of line
+	LINE_CONVOIS,               //  7 | 2 | number of convois for this line
+	LINE_DISTANCE,              //  8 | 6 | distance covered by all convois
+	LINE_REFUNDS,               //  9 |   | Total refunds paid to passengers/goods owners desiring to use this line but kept waiting too long to do so.
+	LINE_DEPARTURES,            // 10 |   | number of departures of convoys on this line from scheduled points
+	LINE_DEPARTURES_SCHEDULED,  // 11 |   | number of departures scheduled on this line from scheduled departure points
+	LINE_WAYTOLL,               // 12 | 8 |
+	LINE_MAIL_DISTANCE,         // 13 |   | the distance (km) travelled by mail
+	LINE_PAYLOAD_DISTANCE,      // 14 |   | moving 1 ton of cargo a distance of 1 km
+	MAX_LINE_COST               // 15 | 9 | Total number of cost items
 };
 
 class karte_ptr_t;
@@ -186,7 +189,7 @@ public:
 	 * get name of line
 	 */
 	char const* get_name() const { return name; }
-	void set_name(const char *str) { name = str; }
+	void set_name(const char *str);
 
 	/*
 	 * load or save the line
@@ -279,6 +282,8 @@ public:
 	bool needs_electrification() const;
 
 	uint16 get_min_range() const;
+
+	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
 
 	void set_withdraw( bool yes_no );
 

@@ -89,6 +89,7 @@ scr_size gui_theme_t::gui_min_scrollbar_size;
 scr_size gui_theme_t::gui_label_size;
 scr_size gui_theme_t::gui_edit_size;
 scr_size gui_theme_t::gui_gadget_size;
+scr_size gui_theme_t::gui_dragger_size;
 scr_size gui_theme_t::gui_indicator_size;
 scr_coord_val gui_theme_t::gui_waitingbar_width;
 
@@ -115,6 +116,9 @@ scr_coord_val gui_theme_t::gui_filelist_vspace;
 stretch_map_t gui_theme_t::button_tiles[3];
 stretch_map_t gui_theme_t::button_color_tiles[2];
 stretch_map_t gui_theme_t::round_button_tiles[3];
+stretch_map_t gui_theme_t::round_button_left_tiles[3];
+stretch_map_t gui_theme_t::round_button_middle_tiles[3];
+stretch_map_t gui_theme_t::round_button_right_tiles[3];
 stretch_map_t gui_theme_t::h_scroll_back_tiles;
 stretch_map_t gui_theme_t::h_scroll_knob_tiles;
 stretch_map_t gui_theme_t::v_scroll_back_tiles;
@@ -158,7 +162,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_edit_background_selected     = color_idx_to_rgb(COL_GREY2);
 	gui_color_edit_beam                    = color_idx_to_rgb(COL_WHITE);
 
-	gui_color_chart_background             = color_idx_to_rgb(MN_GREY1);
+	gui_color_chart_background             = color_idx_to_rgb(MN_GREY3);
 	gui_color_chart_lines_zero             = color_idx_to_rgb(MN_GREY4);
 	gui_color_chart_lines_odd              = color_idx_to_rgb(COL_WHITE);
 	gui_color_chart_lines_even             = color_idx_to_rgb(MN_GREY0);
@@ -298,7 +302,37 @@ void gui_theme_t::init_gui_from_images()
 	// Round buttons
 	for(  int i=0;  i<3;  i++  ) {
 		for(  int j=0;  j<9;  j++  ) {
-			round_button_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( i*9+j );
+			const int n = i*9+j;
+			round_button_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( n );
+			if (j%9==0 && skinverwaltung_t::round_button->get_image_id(27+i*4) != IMG_EMPTY) {
+				// upper left
+				round_button_left_tiles[i][j%3][j/3]   = skinverwaltung_t::round_button->get_image_id( n );
+				round_button_middle_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( 27+i*4 );
+				round_button_right_tiles[i][j%3][j/3]  = skinverwaltung_t::round_button->get_image_id( 27+i*4 );
+			}
+			else if (j%9==2 && skinverwaltung_t::round_button->get_image_id(27+i*4+1) != IMG_EMPTY) {
+				// upper right
+				round_button_left_tiles[i][j%3][j/3]   = skinverwaltung_t::round_button->get_image_id( 27+i*4+1 );
+				round_button_middle_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( 27+i*4+1 );
+				round_button_right_tiles[i][j%3][j/3]  = skinverwaltung_t::round_button->get_image_id( n );
+			}
+			else if (j%9==6 && skinverwaltung_t::round_button->get_image_id(27+i*4+2) != IMG_EMPTY) {
+				// lower left
+				round_button_left_tiles[i][j%3][j/3]   = skinverwaltung_t::round_button->get_image_id( n );
+				round_button_middle_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( 27+i*4+2 );
+				round_button_right_tiles[i][j%3][j/3]  = skinverwaltung_t::round_button->get_image_id( 27+i*4+2 );
+			}
+			else if (j%9==8 && skinverwaltung_t::round_button->get_image_id(27+i*4+3) != IMG_EMPTY) {
+				// lower right
+				round_button_left_tiles[i][j%3][j/3]   = skinverwaltung_t::round_button->get_image_id( 27+i*4+3 );
+				round_button_middle_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( 27+i*4+3 );
+				round_button_right_tiles[i][j%3][j/3]  = skinverwaltung_t::round_button->get_image_id( n );
+			}
+			else {
+				round_button_left_tiles[i][j%3][j/3]   = skinverwaltung_t::round_button->get_image_id( n );
+				round_button_middle_tiles[i][j%3][j/3] = skinverwaltung_t::round_button->get_image_id( n );
+				round_button_right_tiles[i][j%3][j/3]  = skinverwaltung_t::round_button->get_image_id( n );
+			}
 		}
 	}
 
@@ -382,7 +416,10 @@ void gui_theme_t::init_gui_from_images()
 	}
 
 	// gadgets
-	init_size_from_image( skinverwaltung_t::gadget->get_image( SKIN_GADGET_CLOSE ), gui_gadget_size );
+	gui_dragger_size = gui_scrollbar_size;
+	if (skinverwaltung_t::gadget) {
+		init_size_from_image( skinverwaltung_t::gadget->get_image( SKIN_GADGET_CLOSE ), gui_gadget_size );
+	}
 }
 
 
@@ -482,6 +519,12 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	// since scrollbar must have a certain size
 	gui_theme_t::gui_scrollbar_size.w = max( gui_min_scrollbar_size.w, (uint32)contents.get_int("gui_scrollbar_width",  gui_theme_t::gui_scrollbar_size.w ) );
 	gui_theme_t::gui_scrollbar_size.h = max( gui_min_scrollbar_size.h, (uint32)contents.get_int("gui_scrollbar_height", gui_theme_t::gui_scrollbar_size.h ) );
+
+	// dragger size must be as large as scrollbar size
+	if (skinverwaltung_t::gadget) {
+		init_size_from_image( skinverwaltung_t::gadget->get_image( SKIN_WINDOW_RESIZE), gui_dragger_size );
+		gui_dragger_size.clip_lefttop(scr_coord(gui_scrollbar_size.w, gui_scrollbar_size.h));
+	}
 
 	// in practice, posbutton min height better is LINESPACE
 	gui_theme_t::gui_pos_button_size.w = (uint32)contents.get_int("gui_posbutton_width",  gui_theme_t::gui_pos_button_size.w );

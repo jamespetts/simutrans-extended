@@ -97,7 +97,6 @@ settings_t env_t::default_settings;
 // what finances are shown? (default bank balance)
 bool env_t::player_finance_display_account = true;
 
-
 // the following initialisation is not important; set values in init()!
 std::string env_t::objfilename;
 bool env_t::night_shift;
@@ -110,15 +109,17 @@ bool env_t::use_transparency_station_coverage;
 uint8 env_t::station_coverage_show;
 uint8 env_t::signalbox_coverage_show;
 sint32 env_t::show_names;
+bool env_t::show_depot_names;
 uint8 env_t::freight_waiting_bar_level;
 bool env_t::classes_waiting_bar;
 uint8 env_t::show_cnv_nameplates;
 uint8 env_t::show_cnv_loadingbar;
+uint8 env_t::show_factory_storage_bar;
 sint32 env_t::message_flags[4];
 uint32 env_t::water_animation;
 uint32 env_t::ground_object_probability;
 uint32 env_t::moving_object_probability;
-bool env_t::road_user_info;
+uint8 env_t::road_user_info;
 bool env_t::tree_info;
 bool env_t::ground_info;
 bool env_t::townhall_info;
@@ -224,10 +225,12 @@ void env_t::init()
 	signalbox_coverage_show = 0;
 
 	show_names = 3;
+	show_depot_names = false;
 	freight_waiting_bar_level = 2;
 	classes_waiting_bar = false;
 	show_cnv_nameplates = 0;
 	show_cnv_loadingbar = 0;
+	show_factory_storage_bar = 0;
 	player_finance_display_account = true;
 
 	water_animation = 250; // 250ms per wave stage
@@ -236,10 +239,10 @@ void env_t::init()
 
 	follow_convoi_underground = 2;  // slice through map
 
-	road_user_info = false;
+	road_user_info = 1;
 	tree_info = true;
-	ground_info = false;
-	townhall_info = false;
+	ground_info = true;
+	townhall_info = true;
 	single_info = true;
 
 	window_buttons_right = false;
@@ -257,12 +260,11 @@ void env_t::init()
 	savegame_ex_version_str = EXTENDED_VER_NR;
 	savegame_ex_revision_str = EXTENDED_REVISION_NR;
 
-	show_month = DATE_FMT_US;
+	show_month = DATE_FMT_INTERNAL_MINUTE;
 
 	intercity_road_length = 512;
 
 	river_types = 0;
-
 
 	// autosave every x months (0=off)
 	autosave = 0;
@@ -331,6 +333,7 @@ void env_t::init()
 	listen.append_unique("0.0.0.0");
 	show_money_message = 0;
 }
+
 
 // save/restore environment
 void env_t::rdwr(loadsave_t *file)
@@ -405,7 +408,14 @@ void env_t::rdwr(loadsave_t *file)
 	}
 	file->rdwr_short( max_acceleration );
 
-	file->rdwr_bool( road_user_info );
+	if ( file->is_loading() && file->is_version_ex_less(14,45) ) {
+		bool temp_show_road_user_info;
+		file->rdwr_bool( temp_show_road_user_info );
+		road_user_info = temp_show_road_user_info ? 1 : 0;
+	}
+	else {
+		file->rdwr_byte( road_user_info );
+	}
 	file->rdwr_bool( tree_info );
 	file->rdwr_bool( ground_info );
 	file->rdwr_bool( townhall_info );
@@ -568,7 +578,7 @@ void env_t::rdwr(loadsave_t *file)
 	}
 	if(  file->is_version_atleast(120, 6)  ) {
 		plainstring str = fontname.c_str();
-		file->rdwr_str(str);
+		file->rdwr_str( str );
 		if (file->is_loading()) {
 			fontname = str ? str.c_str() : "";
 		}
@@ -602,6 +612,10 @@ void env_t::rdwr(loadsave_t *file)
 		if(  file->is_loading()  ) {
 			soundfont_filename = str ? str.c_str() : "";
 		}
+	}
+	if( file->is_version_ex_atleast(14, 44) ) {
+		file->rdwr_bool( env_t::show_depot_names );
+		file->rdwr_byte( show_factory_storage_bar );
 	}
 
 	// server settings are not saved, since they are server specific

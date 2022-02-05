@@ -277,7 +277,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				case grund_t::brueckenboden: gr = new brueckenboden_t(file, pos); break;
 				case grund_t::monorailboden: gr = new monorailboden_t(file, pos); break;
 				default:
-					gr = 0; // keep compiler happy, fatal() never returns
+					gr = NULL; // keep compiler happy, fatal() never returns
 					dbg->fatal("planquadrat_t::rdwr()","Error while loading game: Unknown ground type '%d'",gtyp);
 			}
 
@@ -286,18 +286,22 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				koord3d pos = gr->get_pos();
 				// show normal ground here
 				grund_t *neu = new boden_t(pos, 0);
+
 				if(gr->get_flag(grund_t::has_text)) {
 					neu->set_flag(grund_t::has_text);
 					gr->clear_flag(grund_t::has_text);
 				}
+
 				// transfer all objects
 				while(  gr->get_top()>0  ) {
 					neu->obj_add( gr->obj_remove_top() );
 				}
+
 				delete gr;
 				gr = neu;
 //DBG_MESSAGE("planquadrat_t::rwdr", "unknown building (or prepare for factory) at %d,%d replaced by normal ground!", pos.x,pos.y);
 			}
+
 			// we should also check for ground below factories
 			if(gr) {
 				if(ground_size==0) {
@@ -312,7 +316,12 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 					welt->set_grid_hgt( pos, hgt );
 				}
 			}
-		} while(gr != 0);
+		} while(gr != NULL);
+
+		// we must always have a kartenboden!
+		if (get_kartenboden() == NULL) {
+			dbg->fatal("planquadrat_t::rdwr", "No kartenboden found for tile at (%s)", pos.get_str());
+		}
 	}
 
 	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 21)
@@ -490,8 +499,7 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 		for(  ;  i < ground_size;  i++  ) {
 			const grund_t* gr = data.some[i];
 			const sint8 h = gr->get_hoehe();
-			const slope_t::type slope = gr->get_grund_hang();
-			const sint8 htop = h + max(max(corner_sw(slope), corner_se(slope)),max(corner_ne(slope), corner_nw(slope)));
+			const sint8 htop = h + slope_t::max_diff( gr->get_grund_hang() );
 			// above ground
 			if(  h > h0  ) {
 				break;
@@ -522,7 +530,6 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 			for(  uint8 j = i;  j < ground_size;  j++  ) {
 				const sint8 h = data.some[j]->get_hoehe();
 				const sint8 htop = h + slope_t::max_diff(data.some[j]->get_grund_hang());
-
 				// still underground
 				if(  h < h0  ) {
 					continue;
@@ -549,15 +556,21 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 		}
 	}
 	// above ground drawing height
-	for(  ;  i < ground_size;  i++  ) {
+	for( ; i < ground_size; i++ ) {
 		const grund_t* gr = data.some[i];
 		const sint8 h = gr->get_hoehe();
-		const slope_t::type slope = gr->get_grund_hang();
-		const sint8 htop = h + max(max(corner_sw(slope), corner_se(slope)),max(corner_ne(slope), corner_nw(slope)));
+		const sint8 htop = h + slope_t::max_diff( gr->get_grund_hang() );
 
 		// still underground
-		if(  h < h0  ) {
-			continue;
+		if( h < h0 ) {
+			if(  grund_t::underground_mode != grund_t::ugm_level  ) {
+				continue;
+			}
+			// in level underground mode we show also the underground slope tiles one level down
+			if(  htop < h0   ||  data.some[0]->get_hoehe() == h0 ) {
+				// but only if there is not just ground above and they would sine through
+				continue;
+			}
 		}
 		// too high?
 		if(  h > hmax  ) {

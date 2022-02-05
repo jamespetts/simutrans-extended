@@ -33,8 +33,8 @@
 
 vehicle_class_manager_t::vehicle_class_manager_t(convoihandle_t cnv)
 	: gui_frame_t(translator::translate("class_manager"), cnv->get_owner()),
-	scrolly(&veh_info),
-	veh_info(cnv)
+	veh_info(cnv),
+	scrolly(&veh_info)
 {
 	this->cnv = cnv;
 
@@ -633,8 +633,8 @@ void vehicle_class_manager_t::set_windowsize(scr_size size)
 // dummy for loading
 vehicle_class_manager_t::vehicle_class_manager_t()
 : gui_frame_t("", NULL ),
-  scrolly(&veh_info),
-  veh_info(convoihandle_t())
+  veh_info(convoihandle_t()),
+  scrolly(&veh_info)
 {
 	cnv = convoihandle_t();
 }
