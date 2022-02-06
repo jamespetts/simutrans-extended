@@ -1688,6 +1688,16 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(parallel_ways_forge_cost_percentage_air);
 
 			file->rdwr_long(max_diversion_tiles);
+#ifdef SPECIAL_RESCUE_12_3
+			if(file->is_saving())
+			{
+				file->rdwr_long(way_degradation_fraction);
+				file->rdwr_long(way_wear_power_factor_road_type);
+				file->rdwr_long(way_wear_power_factor_rail_type);
+				file->rdwr_short(standard_axle_load);
+				file->rdwr_long(citycar_way_wear_factor);
+			}
+#else
 			file->rdwr_long(way_degradation_fraction);
 			file->rdwr_long(way_wear_power_factor_road_type);
 			file->rdwr_long(way_wear_power_factor_rail_type);
