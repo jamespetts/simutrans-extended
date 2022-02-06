@@ -48,7 +48,7 @@ struct vehicle_description_element
 	uint32 max_range = UINT32_MAX_VALUE;
 
 	uint16 min_brake_force = 0;
-	uint16 max_brake_force = UINT32_MAX_VALUE;
+	uint16 max_brake_force = 65535;
 	uint32 min_power = 0;
 	uint32 max_power = UINT32_MAX_VALUE;
 	uint32 min_tractive_effort = 0;
