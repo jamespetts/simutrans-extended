@@ -18,6 +18,7 @@
 #include "components/gui_image.h"
 
 #include "components/gui_scrollpane.h"
+#include "components/gui_schedule_item.h"
 
 #include "../convoihandle_t.h"
 #include "../linehandle_t.h"
