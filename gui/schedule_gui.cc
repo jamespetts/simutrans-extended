@@ -1011,7 +1011,7 @@ void schedule_gui_t::update_selection()
 			bt_range_stop.enable();
 			bt_discharge_payload.enable();
 			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
-			entry_no->init(current_stop+1, halt->get_owner()->get_player_nr(),
+			entry_no->init(current_stop, halt->get_owner()->get_player_color1(),
 				is_depot ? gui_schedule_entry_number_t::number_style::depot :
 				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 			if(!schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
