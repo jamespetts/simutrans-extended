@@ -233,12 +233,12 @@ public:
 		if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
 			// Depot check must come first, as depot and dock tiles can overlap at sea
 			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
-			entry_no->set_owner(player->get_player_nr());
+			entry_no->set_color(player->get_player_color1());
 		}
 		else if (halt.is_bound()) {
 			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
 			entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
-			entry_no->set_owner(halt->get_owner()->get_player_nr());
+			entry_no->set_color(halt->get_owner()->get_player_color1());
 
 			if (is_air_wt) {
 				img_nc_alert.set_visible(halt->has_no_control_tower());
@@ -249,7 +249,7 @@ public:
 		}
 		else {
 			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
-			entry_no->set_owner(player->get_player_nr()); // can't get the owner of the way without passing the value of waytype
+			entry_no->set_color(player->get_player_color1()); // can't get the owner of the way without passing the value of waytype
 		}
 
 		img_layover.set_visible(entry.is_flag_set(schedule_entry_t::lay_over));
