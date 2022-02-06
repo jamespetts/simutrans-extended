@@ -3806,20 +3806,18 @@ uint16 fabrik_t::get_max_intransit_percentage(uint32 index)
 	return max_intransit_percentages.get(input[index].get_typ()->get_catg());
 }
 
-uint16 fabrik_t::get_total_input_occupancy() const
+uint32 fabrik_t::get_total_input_capacity() const
 {
 	uint32 i = 0;
 	uint32 capacity_sum = 0;
 	uint32 stock_sum = 0;
 	FORX(array_tpl<ware_production_t>, const& goods, input, i++) {
 		const sint64 pfactor =desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
-		const uint32 stock_quantity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
 		const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
 
-		stock_sum += min(stock_quantity, storage_capacity);
 		capacity_sum += storage_capacity;
 	}
-	return capacity_sum > 0 ? (uint16)(stock_sum * 100 / capacity_sum) : 0;
+	return capacity_sum;
 }
 
 uint32 fabrik_t::get_total_output_capacity() const
@@ -3863,8 +3861,8 @@ void fabrik_t::display_status(sint16 xpos, sint16 ypos)
 			}
 			const sint64 pfactor = desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
 			//const sint64 max_transit      = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-			const uint32 stock_quantity   = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-			const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+			const uint32 stock_quantity = (uint32)goods.get_storage();
+			const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 			const PIXVAL goods_color = goods.get_typ()->get_color();
 
 			if (storage_capacity) {
@@ -3893,8 +3891,8 @@ void fabrik_t::display_status(sint16 xpos, sint16 ypos)
 		int i = 0;
 		FORX(array_tpl<ware_production_t>, const& goods, output, i++) {
 			const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();
-			const uint32 stock_quantity   = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-			const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+			const uint32 stock_quantity = (uint32)goods.get_storage();
+			const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 			const PIXVAL goods_color  = goods.get_typ()->get_color();
 
 			const uint16 v = min(25, (uint16)(25 * stock_quantity / storage_capacity)) + 2;
@@ -4123,9 +4121,9 @@ bool fabrik_t::is_connected_to_network(player_t *player) const
 	return false;
 }
 
-bool fabrik_t::has_goods_catg_demand(uint8 catg_index) const
+bool fabrik_t::has_goods_catg_demand(uint8 catg_index, uint8 check_option) const
 {
-	if (!output.empty()) {
+	if (!output.empty() && check_option!=1) {
 		for (uint32 index = 0; index < output.get_count(); index++) {
 			if (output[index].get_typ()->get_catg_index() == catg_index) {
 				return true;
@@ -4133,7 +4131,7 @@ bool fabrik_t::has_goods_catg_demand(uint8 catg_index) const
 		}
 	}
 
-	if (!input.empty()) {
+	if (!input.empty() && check_option != 2) {
 		for (uint32 index = 0; index < input.get_count(); index++) {
 			if (!desc->get_supplier(index))
 			{

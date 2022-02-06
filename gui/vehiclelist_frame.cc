@@ -300,7 +300,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 					}
 					sort_by.set_selection( vehiclelist_stats_t::sort_mode );
 					sort_by.set_width_fixed( true );
-					sort_by.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+					sort_by.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 					sort_by.add_listener( this );
 					add_component( &sort_by );
 

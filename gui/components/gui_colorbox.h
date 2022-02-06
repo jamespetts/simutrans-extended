@@ -52,9 +52,9 @@ public:
 
 	scr_size get_max_size() const OVERRIDE;
 
-	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h; max_size =size; };
-	void set_size_fixed(bool yesno) { size_fixed = yesno; };
-	void set_show_frame(bool yesno) { show_frame = yesno; };
+	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h; max_size =size; }
+	void set_size_fixed(bool yesno) { size_fixed = yesno; }
+	void set_show_frame(bool yesno) { show_frame = yesno; }
 
 	void set_tooltip(const char * t);
 
@@ -70,6 +70,7 @@ public:
  */
 class gui_right_pointer_t : public gui_colorbox_t
 {
+protected:
 	uint8 height;
 
 public:
@@ -82,7 +83,34 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; };
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+class gui_operation_status_t : public gui_right_pointer_t
+{
+	uint8 status = operation_stop;
+public:
+	gui_operation_status_t(PIXVAL c = SYSCOL_TEXT, uint8 height_ = (LINESPACE*3)>>2);
+
+	enum {
+		operation_stop   = 0,
+		operation_normal = 1,
+		operation_pause  = 2,
+		operation_invalid = 255 // nothing to show
+	};
+
+	void init(PIXVAL color_par, scr_size size) {
+		set_color(color_par);
+		set_size(size);
+	}
+
+	void set_status(uint8 shape_value) { status = shape_value; }
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
@@ -113,8 +141,8 @@ public:
 
 	void set_color(PIXVAL c) { color = c; }
 
-	scr_size get_min_size() const OVERRIDE { return size; };
-	scr_size get_max_size() const OVERRIDE { return size; };
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return size; }
 };
 
 
@@ -169,8 +197,8 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); };
-	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); };
+	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); }
+	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); }
 };
 
 #endif
