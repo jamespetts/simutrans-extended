@@ -501,7 +501,7 @@ void map_frame_t::show_hide_directory(const bool show)
 }
 
 
-void map_frame_t::enable_network_map()
+void map_frame_t::enable_network_map(koord network_origin)
 {
 	b_overlay_networks.pressed = true;
 	show_hide_legend(false);
@@ -510,6 +510,9 @@ void map_frame_t::enable_network_map()
 
 	env_t::default_mapmode |= minimap_t::MAP_LINES;
 	minimap_t::get_instance()->set_display_mode((minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
+	scr_coord center = minimap_t::get_instance()->map_to_screen_coord(network_origin);
+	const scr_size s_size = scrolly.get_size();
+	scrolly.set_scroll_position(max(0,center.x-(s_size.w/2)), max(0,center.y-(s_size.h/2)));
 }
 
 bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
