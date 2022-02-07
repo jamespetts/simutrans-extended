@@ -1300,6 +1300,7 @@ void minimap_t::init()
 	max_tourist_ziele = max_waiting_pax = max_waiting_mail = max_waiting_goods = max_origin = max_transfer = max_mail_volume = max_goods_volume = max_service = 1;
 	last_schedule_counter = world->get_schedule_counter()-1;
 	set_selected_cnv(convoihandle_t());
+	set_selected_halt(halthandle_t());
 }
 
 void minimap_t::finalize(){
@@ -1400,11 +1401,18 @@ const fabrik_t* minimap_t::draw_factory_connections(const fabrik_t* const fab, b
 void minimap_t::set_selected_cnv( convoihandle_t c )
 {
 	current_cnv = c;
+	current_halt = halthandle_t();
 	schedule_cache.clear();
 	stop_cache.clear();
 	colore_idx = 0;
 	add_to_schedule_cache( current_cnv, true );
 	last_schedule_counter = world->get_schedule_counter()-1;
+}
+
+void minimap_t::set_selected_halt(halthandle_t h)
+{
+	set_selected_cnv(convoihandle_t());
+	current_halt = h;
 }
 
 
@@ -1510,6 +1518,10 @@ void minimap_t::draw(scr_coord pos)
 					for(  uint32 j = 0;  j < linee.get_count();  j++  ) {
 						//cycle on lines
 
+						if (current_halt.is_bound() && !current_halt->registered_lines.is_contained(linee[j])) {
+							continue;
+						}
+
 						if(  transport_type_showed_on_map != simline_t::line  &&  linee[j]->get_linetype() != transport_type_showed_on_map  ) {
 							continue;
 						}
@@ -1549,6 +1561,9 @@ void minimap_t::draw(scr_coord pos)
 			FOR( vector_tpl<convoihandle_t>, cnv, world->convoys() ) {
 				if(  !cnv.is_bound()  ||  cnv->get_line().is_bound()  ) {
 					// not there or already part of a line
+					continue;
+				}
+				if (current_halt.is_bound() && !current_halt->registered_convoys.is_contained(cnv)) {
 					continue;
 				}
 				if(  required_vehicle_owner!= nullptr  &&  required_vehicle_owner != cnv->get_owner()  ) {

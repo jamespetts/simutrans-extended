@@ -14,6 +14,7 @@
 
 #include "../sys/simsys.h"
 #include "../simworld.h"
+#include "../simhalt.h"
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
 #include "../simcolor.h"
@@ -515,6 +516,24 @@ void map_frame_t::enable_network_map(koord network_origin)
 	scrolly.set_scroll_position(max(0,center.x-(s_size.w/2)), max(0,center.y-(s_size.h/2)));
 }
 
+void map_frame_t::set_halt(halthandle_t halt)
+{
+	minimap_t::get_instance()->set_selected_halt(halt.is_bound() ? halt : halthandle_t());
+	if( halt.is_null() ) { return;  };
+
+	b_overlay_networks.pressed = true;
+	show_hide_legend(false);
+	show_hide_scale(false);
+	show_hide_directory(false);
+
+	env_t::default_mapmode |= minimap_t::MAP_LINES;
+	minimap_t::get_instance()->set_display_mode((minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
+	scr_coord center = minimap_t::get_instance()->map_to_screen_coord(halt->get_basis_pos());
+	const scr_size s_size = scrolly.get_size();
+	scrolly.set_scroll_position(max(0,center.x-(s_size.w/2)), max(0,center.y-(s_size.h/2)));
+}
+
+
 bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 {
 	if(comp==&b_show_legend) {
@@ -560,6 +579,8 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		minimap_t::get_instance()->invalidate_map_lines_cache();
 	}
 	else if(comp==&b_overlay_networks) {
+		// This button deactivates station mode.
+		minimap_t::get_instance()->set_selected_halt(halthandle_t());
 		b_overlay_networks.pressed ^= 1;
 		if(  b_overlay_networks.pressed  ) {
 			env_t::default_mapmode |= minimap_t::MAP_LINES;

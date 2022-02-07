@@ -22,6 +22,7 @@
 #include "../utils/simstring.h"
 
 #include "halt_detail.h"
+#include "map_frame.h"
 #include "components/gui_label.h"
 
 
@@ -1362,6 +1363,14 @@ void gui_halt_service_info_t::init(halthandle_t halt)
 	cached_line_count = 0xFFFFFFFFul;
 	cached_convoy_count = 0xFFFFFFFFul;
 
+	bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+	if (skinverwaltung_t::open_window) {
+		bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_access_minimap.set_image_position_right(true);
+	}
+	bt_access_minimap.set_tooltip("helptxt_access_minimap");
+	bt_access_minimap.add_listener(this);
+
 	update_connections(halt);
 }
 
@@ -1393,6 +1402,14 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 
 	set_table_layout(1, 0);
 	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
+
+	add_table(2,1);
+	{
+		add_component(&bt_access_minimap);
+		new_component<gui_fill_t>();
+	}
+	end_table();
+	new_component<gui_empty_t>();
 
 	// add lines that serve this stop
 	new_component<gui_heading_t>("Lines serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), 1);
@@ -1539,6 +1556,21 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 	set_size(get_min_size());
 }
 
+bool gui_halt_service_info_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if (comp == &bt_access_minimap)
+	{
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->set_halt(halt);
+		top_win(win);
+		return true;
+	}
+	return false;
+}
 
 
 class RelativeDistanceOrdering

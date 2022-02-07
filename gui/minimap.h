@@ -135,6 +135,7 @@ private:
 
 	vector_tpl<line_segment_t> schedule_cache;
 	convoihandle_t current_cnv;
+	halthandle_t current_halt;
 	uint8 last_schedule_counter{};
 	vector_tpl<halthandle_t> stop_cache;
 
@@ -265,6 +266,7 @@ public:
 	void draw(scr_coord pos) OVERRIDE;
 
 	void set_selected_cnv( convoihandle_t c );
+	void set_selected_halt(  halthandle_t h  );
 
 	void set_selected_city( const stadt_t* _city );
 

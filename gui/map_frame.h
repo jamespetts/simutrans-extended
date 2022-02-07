@@ -126,6 +126,8 @@ public:
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void enable_network_map(koord network_origin = koord::invalid);
+
+	void set_halt(halthandle_t halt = halthandle_t());
 };
 
 #endif
