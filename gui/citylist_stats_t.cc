@@ -287,7 +287,11 @@ void gui_city_stats_t::draw(scr_coord offset)
 citylist_stats_t::citylist_stats_t(stadt_t *c)
 {
 	city = c;
-	set_table_layout(3,1);
+	set_table_layout(4,1);
+
+	button_t *b = new_component<button_t>();
+	b->set_typ(button_t::posbutton_automatic);
+	b->set_targetpos(city->get_center());
 
 	electricity.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
 	electricity.set_rigid(true);
