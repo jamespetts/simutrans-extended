@@ -1467,7 +1467,7 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 				}
 				lb_frequency->set_align(gui_label_t::right);
 				lb_frequency->update();
-				lb_frequency->set_fixed_width( proportional_string_width("--:--:--") );
+				lb_frequency->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 
 				// convoy count
 				gui_label_buf_t *lb_convoy_count = new_component<gui_label_buf_t>();
@@ -1540,7 +1540,7 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 				}
 				lb_triptime->set_align(gui_label_t::right);
 				lb_triptime->update();
-				lb_triptime->set_fixed_width(proportional_string_width("--:--:--"));
+				lb_triptime->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 
 				new_component<gui_empty_t>();
 
