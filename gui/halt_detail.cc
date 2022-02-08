@@ -1402,10 +1402,11 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 	set_table_layout(1, 0);
 	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
 
-	add_table(2,1);
+	add_table(3,1);
 	{
-		add_component(&bt_access_minimap);
 		new_component<gui_fill_t>();
+		add_component(&bt_access_minimap);
+		new_component<gui_margin_t>(D_MARGIN_RIGHT);
 	}
 	end_table();
 	new_component<gui_empty_t>();
