@@ -755,7 +755,7 @@ void halt_info_t::init(halthandle_t halt)
 			add_component(&view);
 			view.set_location(halt->get_basis_pos3d());
 
-			detail_button.init(button_t::roundbox, "Details");
+			detail_button.init(button_t::roundbox_state, "Details");
 			if (skinverwaltung_t::open_window) {
 				detail_button.set_image(skinverwaltung_t::open_window->get_image_id(0));
 				detail_button.set_image_position_right(true);
@@ -951,6 +951,8 @@ void halt_info_t::activate_chart_buttons()
 void halt_info_t::update_components()
 {
 	indicator_color.set_color(halt->get_status_farbe());
+
+	detail_button.pressed = win_get_magic(magic_halt_detail + halt.get_id());
 
 	// update evaluation
 	if (halt->get_pax_enabled() || halt->get_mail_enabled()) {
