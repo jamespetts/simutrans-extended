@@ -220,7 +220,7 @@ private:
 	gui_aligned_container_t cont_route;
 	gui_halt_service_info_t cont_service;
 	gui_scrollpane_t scrolly_pas, scrolly_goods, scrolly_service, scrolly_route;
-	gui_label_t lb_selected_route_catg;
+	gui_label_buf_t lb_selected_route_catg;
 	gui_heading_t lb_nearby_factory, lb_routes, lb_serve_catg;
 
 	gui_halt_nearby_factory_info_t nearby_factory;

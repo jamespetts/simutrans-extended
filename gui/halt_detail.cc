@@ -239,7 +239,7 @@ void halt_detail_t::init()
 
 	// list (inside the scroll panel)
 	lb_selected_route_catg.set_pos(scr_coord(0, D_V_SPACE));
-	lb_selected_route_catg.set_size(D_BUTTON_SIZE);
+	lb_selected_route_catg.set_size(scr_size(LINESPACE*16, LINESPACE));
 	destinations.set_pos(scr_coord(0, lb_selected_route_catg.get_pos().y + D_BUTTON_HEIGHT));
 	destinations.recalc_size();
 	cont_desinations.add_component(&lb_selected_route_catg);
@@ -387,7 +387,6 @@ void halt_detail_t::update_components()
 						selected_route_catg_index = catg_index;
 						// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 						selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
-						lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name());
 						all_class_btn_pressed = true;
 						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 					}
@@ -421,7 +420,6 @@ void halt_detail_t::update_components()
 							btn->pressed = true;
 							chk_pressed = true;
 							selected_route_catg_index = catg_index;
-							lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name());
 							destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 						}
 						else if (selected_route_catg_index != catg_index) {
@@ -439,6 +437,12 @@ void halt_detail_t::update_components()
 				}
 			}
 		}
+		lb_selected_route_catg.buf().append(translator::translate(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name()));
+		if (goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_number_of_classes()) {
+			// TODO: wealth class => fare class
+			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_wealth_name(selected_route_catg_index, selected_class));
+		}
+		lb_selected_route_catg.update();
 	}
 	destinations.recalc_size();
 	cont_desinations.set_size(scr_size(max(get_windowsize().w, destinations.get_size().w), destinations.get_pos().y + destinations.get_size().h));
@@ -478,14 +482,13 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 			uint8 catg_index = i >= goods_manager_t::INDEX_NONE ? i + 1 : i;
 			if (comp == btn) {
 				selected_class = 0;
-				if ((catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)) {
+				if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL) {
 					flag_all_classes_btn_on = true;
 					// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 					selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
 				}
 				btn->pressed = true; // Don't release when press the same button
 				selected_route_catg_index = catg_index;
-				lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
 				destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 				destinations.recalc_size();
 			}
@@ -508,7 +511,6 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 						else if(flag_upper_classes_btn_off) {
 							cl_btn->pressed = false;
 						}
-						lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
 						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 						destinations.recalc_size();
 					}
