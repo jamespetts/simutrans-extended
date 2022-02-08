@@ -35,7 +35,7 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 #define EX_VERSION_MAJOR	14
 #define EX_VERSION_MINOR	17
-#define EX_SAVE_MINOR		49
+#define EX_SAVE_MINOR		50
 
 // Do not forget to increment the save game versions in settings_stats.cc when changing this
 

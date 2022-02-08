@@ -646,7 +646,7 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
-		win->enable_network_map(origin_halt.is_bound() ? origin_halt->get_basis_pos() : koord::invalid);
+		win->activate_individual_network_mode(origin_halt.is_bound() ? origin_halt->get_basis_pos() : koord::invalid);
 		if (line->count_convoys() > 0) {
 			minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
 		}
