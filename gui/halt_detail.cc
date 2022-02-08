@@ -372,7 +372,7 @@ void halt_detail_t::update_components()
 		bool chk_pressed = (selected_route_catg_index == goods_manager_t::INDEX_NONE) ? false : true;
 		uint8 i = 0;
 		FORX(slist_tpl<button_t *>, btn, catg_buttons, i++) {
-			uint8 catg_index = i >= goods_manager_t::INDEX_NONE ? i + 1 : i;
+			uint8 catg_index = (i < goods_manager_t::INDEX_NONE) ? i : i+1;
 			btn->disable();
 			if (halt->is_enabled(catg_index)) {
 				// check station handled goods category
@@ -388,13 +388,12 @@ void halt_detail_t::update_components()
 						// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 						selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
 						all_class_btn_pressed = true;
-						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 					}
 					else if (selected_route_catg_index != catg_index) {
 						btn->pressed = false;
 					}
 					uint8 cl = 0;
-					FORX(slist_tpl<button_t *>, cl_btn, catg_index == goods_manager_t::INDEX_PAS ? pas_class_buttons : mail_class_buttons, cl++) {
+					FORX(slist_tpl<button_t *>, cl_btn, (catg_index==goods_manager_t::INDEX_PAS) ? pas_class_buttons : mail_class_buttons, cl++) {
 						cl_btn->pressed = selected_class >= cl;
 						if (btn->enabled() == false) {
 							cl_btn->disable();
@@ -420,7 +419,6 @@ void halt_detail_t::update_components()
 							btn->pressed = true;
 							chk_pressed = true;
 							selected_route_catg_index = catg_index;
-							destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 						}
 						else if (selected_route_catg_index != catg_index) {
 							btn->pressed = false;
@@ -429,7 +427,9 @@ void halt_detail_t::update_components()
 				}
 			}
 			else if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL) {
-				selected_class = 0;
+				if (selected_route_catg_index==catg_index) {
+					selected_class = 0;
+				}
 				uint8 cl = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
 				FORX(slist_tpl<button_t *>, cl_btn, catg_index == goods_manager_t::INDEX_PAS ? pas_class_buttons : mail_class_buttons, cl--) {
 					cl_btn->pressed = false;
@@ -442,6 +442,7 @@ void halt_detail_t::update_components()
 			// TODO: wealth class => fare class
 			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_wealth_name(selected_route_catg_index, selected_class));
 		}
+		destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 		lb_selected_route_catg.update();
 	}
 	destinations.recalc_size();
@@ -479,7 +480,7 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 		FORX(slist_tpl<button_t *>, btn, catg_buttons,i++) {
 			bool flag_all_classes_btn_on = false;
 			bool flag_upper_classes_btn_off = false;
-			uint8 catg_index = i >= goods_manager_t::INDEX_NONE ? i + 1 : i;
+			uint8 catg_index = (i < goods_manager_t::INDEX_NONE) ? i : i + 1;
 			if (comp == btn) {
 				selected_class = 0;
 				if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL) {
@@ -489,8 +490,6 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 				}
 				btn->pressed = true; // Don't release when press the same button
 				selected_route_catg_index = catg_index;
-				destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
-				destinations.recalc_size();
 			}
 			if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)
 			{
@@ -511,8 +510,6 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 						else if(flag_upper_classes_btn_off) {
 							cl_btn->pressed = false;
 						}
-						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
-						destinations.recalc_size();
 					}
 					else if(btn->pressed == false){
 						cl_btn->pressed = false;
