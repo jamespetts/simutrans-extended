@@ -841,9 +841,9 @@ void map_frame_t::rdwr( loadsave_t *file )
 	transport_type_c.rdwr(file);
 	freight_type_c.rdwr(file);
 
-	//if( file->is_version_ex_atleast(14,51) ){
-	//	file->rdwr_bool( network_option_visible );
-	//}
+	if( file->is_version_ex_atleast(14,50) ){
+		file->rdwr_bool( network_option_visible );
+	}
 
 	if(  file->is_loading()  ) {
 		set_windowsize( window_size );
@@ -856,7 +856,7 @@ void map_frame_t::rdwr( loadsave_t *file )
 
 		show_hide_directory(directory_visible);
 		show_hide_legend(legend_visible);
-		//show_hide_network_option(network_option_visible);
+		show_hide_network_option(network_option_visible);
 		show_hide_scale(scale_visible);
 
 		b_overlay_networks.pressed = (env_t::default_mapmode & minimap_t::MAP_LINES)!=0;
