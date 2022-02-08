@@ -438,7 +438,7 @@ void halt_detail_t::update_components()
 			}
 		}
 		lb_selected_route_catg.buf().append(translator::translate(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name()));
-		if (goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_number_of_classes()) {
+		if (goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_number_of_classes()>1) {
 			// TODO: wealth class => fare class
 			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_wealth_name(selected_route_catg_index, selected_class));
 		}
