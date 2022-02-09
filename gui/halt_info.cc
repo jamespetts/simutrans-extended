@@ -1156,13 +1156,13 @@ void halt_info_t::set_tab_opened()
 	{
 		case 0:
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_freight.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
 			break;
 		case 1: // departure board
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE)));
 			break;
 		case 2: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_chart.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + chart.get_size().h + (D_BUTTON_HEIGHT+D_V_SPACE)*4 + D_MARGINS_Y)));
 			break;
 	}
 }
