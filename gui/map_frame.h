@@ -49,6 +49,9 @@ private:
 
 	static bool is_cursor_hidden;
 
+	cbuffer_t title_buf;
+	convoihandle_t selected_cnv = convoihandle_t(); // for title name cache
+
 	/**
 	 * We need to keep track of drag/click events
 	 */
@@ -127,6 +130,8 @@ public:
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	void set_title();
 
 	// Launch the network map from an external dialog
 	void activate_individual_network_mode(koord center_pos = koord::invalid);

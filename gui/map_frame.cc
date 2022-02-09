@@ -164,7 +164,7 @@ map_button_t button_init[MAP_MAX_BUTTONS] = {
 #define scrolly (*p_scrolly)
 
 map_frame_t::map_frame_t() :
-	gui_frame_t( translator::translate("Reliefkarte") )
+	gui_frame_t( NULL )
 {
 	// init statics
 	old_ij = koord::invalid;
@@ -407,6 +407,7 @@ map_frame_t::map_frame_t() :
 	show_hide_scale( scale_visible );
 	show_hide_directory( directory_visible );
 
+	set_title();
 	reset_min_windowsize();
 	set_windowsize( window_size );
 	set_resizemode(diagonal_resize);
@@ -543,6 +544,28 @@ void map_frame_t::set_halt(halthandle_t halt)
 	if( halt.is_null() ) { return;  };
 
 	activate_individual_network_mode(halt->get_basis_pos());
+	title_buf.clear();
+	title_buf.printf("%s > %s > %s", translator::translate("Reliefkarte"), translator::translate("Networks"), halt->get_name());
+	set_name(title_buf);
+}
+
+void map_frame_t::set_title()
+{
+	title_buf.clear();
+	title_buf.append(translator::translate("Reliefkarte"));
+	if (b_overlay_networks.pressed) {
+		title_buf.printf(" > %s", translator::translate("Networks"));
+		if (selected_cnv.is_bound()) {
+			title_buf.append(" > ");
+			if( selected_cnv->get_line().is_bound() ){
+				title_buf.append(selected_cnv->get_line()->get_name());
+			}
+			else {
+				title_buf.append(selected_cnv->get_name());
+			}
+		}
+	}
+	set_name( title_buf );
 }
 
 
@@ -605,6 +628,7 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		}
 		minimap_t::get_instance()->set_display_mode(  ( minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode  );
 		minimap_t::get_instance()->invalidate_map_lines_cache();
+		set_title();
 	}
 	else if (  comp == &viewed_player_c  ) {
 		minimap_t::get_instance()->player_showed_on_map = viewable_players[viewed_player_c.get_selection()];
@@ -812,6 +836,14 @@ void map_frame_t::draw(scr_coord pos, scr_size size)
 		old_ij = ij;
 	}
 
+	// update titlebar
+	if (b_overlay_networks.pressed) {
+		if (minimap_t::get_instance()->get_selected_cnv() != selected_cnv) {
+			selected_cnv = minimap_t::get_instance()->get_selected_cnv();
+			set_title();
+		}
+	}
+
 	// draw all child controls
 	gui_frame_t::draw(pos, size);
 
@@ -866,5 +898,6 @@ void map_frame_t::rdwr( loadsave_t *file )
 		minimap_t::get_instance()->freight_type_group_index_showed_on_map = viewable_freight_types[freight_type_c.get_selection()];
 		minimap_t::get_instance()->show_network_load_factor = b_overlay_networks_load_factor.pressed;
 		minimap_t::get_instance()->invalidate_map_lines_cache();
+		set_title();
 	}
 }
