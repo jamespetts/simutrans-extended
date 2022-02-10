@@ -204,7 +204,7 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* gb)
 
 	// take-over chart tabs into our
 	chart.set_factory(fab);
-	//switch_mode.take_tabs(chart.get_tab_panel());
+	switch_mode.take_tabs(chart.get_tab_panel());
 
 	switch_mode.add_tab(&scrolly_details, translator::translate("Building info."));
 
@@ -290,7 +290,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	}
 
 
-	//chart.update();
+	chart.update();
 
 	gui_frame_t::draw(pos, size);
 }
