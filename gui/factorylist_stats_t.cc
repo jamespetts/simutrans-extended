@@ -30,11 +30,6 @@ uint16 factorylist_stats_t::name_width = 0;
 // same as halt_list_stats.cc
 #define L_KOORD_LABEL_WIDTH proportional_string_width("(8888,8888)")
 
-const uint8 severity_color[7] =
-{
-	COL_RED+1, COL_ORANGE_RED, COL_ORANGE, COL_YELLOW-1, 44, COL_DARK_GREEN, COL_GREEN
-};
-
 gui_combined_factory_storage_bar_t::gui_combined_factory_storage_bar_t(fabrik_t *fab, bool is_output)
 {
 	this->fab = fab;

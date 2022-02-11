@@ -78,6 +78,12 @@ class ware_t;
 #define DEMAND_BITS (4)
 
 
+const uint8 severity_color[7] =
+{
+	COL_RED+1, COL_ORANGE_RED, COL_ORANGE, COL_YELLOW-1, 44, COL_DARK_GREEN, COL_GREEN
+};
+
+
 /**
  * Convert internal values to displayed values
  */
