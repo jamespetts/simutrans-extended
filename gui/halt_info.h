@@ -42,21 +42,6 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
-/**
- * Helper class to draw halt handled goods categories
- */
-class gui_halt_handled_goods_images_t : public gui_container_t
-{
-	halthandle_t halt;
-public:
-	gui_halt_handled_goods_images_t(halthandle_t h);
-
-	void draw(scr_coord offset) OVERRIDE;
-
-	scr_size get_min_size() const OVERRIDE { return size; }
-	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
-};
-
 class gui_halt_goods_demand_t : public gui_component_t
 {
 	halthandle_t halt;

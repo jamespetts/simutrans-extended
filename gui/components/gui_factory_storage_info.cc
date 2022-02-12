@@ -805,6 +805,31 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 }
 
 
+gui_halt_handled_goods_images_t::gui_halt_handled_goods_images_t(halthandle_t h)
+{
+	halt = h;
+	// It is necessary to specify the correct height first to eliminate the strange position movement immediately after display.
+	set_size(scr_size(D_H_SPACE*2, D_LABEL_HEIGHT));
+}
+
+void gui_halt_handled_goods_images_t::draw(scr_coord offset)
+{
+	scr_coord_val xoff = D_H_SPACE;
+	for (uint8 i = 0; i<goods_manager_t::get_max_catg_index(); i++) {
+		uint8 g_class = goods_manager_t::get_classes_catg_index(i) - 1;
+		haltestelle_t::connexions_map *connexions = halt->get_connexions(i, g_class);
+
+		if (!connexions->empty())
+		{
+			display_color_img_with_tooltip(goods_manager_t::get_info_catg_index(i)->get_catg_symbol(), pos.x+offset.x + xoff, pos.y + offset.y + D_GET_CENTER_ALIGN_OFFSET(10, D_LABEL_HEIGHT), 0, false, false, translator::translate(goods_manager_t::get_info_catg_index(i)->get_catg_name()));
+			xoff += 14;
+		}
+	}
+	set_size(scr_size(xoff + D_H_SPACE*2, D_LABEL_HEIGHT));
+	gui_container_t::draw(offset);
+}
+
+
 void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
 {
 	factory_list.clear();
