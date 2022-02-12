@@ -477,6 +477,10 @@ public:
 
 	const vector_tpl<koord>& get_suppliers() const { return suppliers; }
 
+	// Check if there is a specific cargo category transportation route between the two factories
+	// This is used as an alternative to is_active_lieferziel(is_consumer_active_at)
+	bool has_connection_with(koord target, uint8 catg_index) const;
+
 	const vector_tpl<nearby_halt_t>& get_nearby_freight_halts() const { return nearby_freight_halts; }
 
 	/**

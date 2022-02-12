@@ -2145,6 +2145,28 @@ bool fabrik_t::is_consumer_active_at(koord consumer_pos ) const
 
 
 
+bool fabrik_t::has_connection_with(koord target, uint8 catg_index) const
+{
+	fabrik_t *target_fab = fabrik_t::get_fab(target);
+	if (target_fab) {
+		FOR(vector_tpl<nearby_halt_t>, const i, nearby_freight_halts) {
+			if (!i.halt->is_enabled(catg_index)) {
+				continue;
+			}
+			FOR(vector_tpl<nearby_halt_t>, const j, target_fab->get_nearby_freight_halts()) {
+				if (!j.halt->is_enabled(catg_index)) {
+					continue;
+				}
+				if (i.halt->is_connected(j.halt, catg_index)) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+
 void fabrik_t::step(uint32 delta_t)
 {
 	if(!has_calculated_intransit_percentages)
