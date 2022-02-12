@@ -440,7 +440,7 @@ map_settings_t::map_settings_t()
 		time_setting.set_focusable( false );
 		uint8 old_show_month = env_t::show_month;
 		sint32 current_tick = world()->get_ticks();
-		for( env_t::show_month = 0; env_t::show_month<10; env_t::show_month++ ) {
+		for( env_t::show_month = 0; env_t::show_month<11; env_t::show_month++ ) {
 			tstrncpy( time_str[env_t::show_month], tick_to_string( current_tick, true ), 64 );
 			time_setting.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( time_str[env_t::show_month], SYSCOL_TEXT );
 		}
