@@ -4,6 +4,7 @@
  */
 
 #include "gui_factory_storage_info.h"
+#include "gui_image.h"
 
 #include "../../simcolor.h"
 #include "../../simworld.h"
@@ -23,7 +24,7 @@
 static const sint64 FAB_DISPLAY_UNIT_HALF = ((sint64)1 << (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS - 1));
 
 
-gui_factory_storage_bar_t::gui_factory_storage_bar_t(const ware_production_t *ware, sint64 factor, bool is_input)
+gui_factory_storage_bar_t::gui_factory_storage_bar_t(const ware_production_t *ware, uint32 factor, bool is_input)
 {
 	this->ware = ware;
 	this->is_input_item = is_input;
@@ -59,6 +60,136 @@ void gui_factory_storage_bar_t::draw(scr_coord offset)
 			}
 		}
 	}
+}
+
+
+gui_factory_product_item_t::gui_factory_product_item_t(fabrik_t *factory, const ware_production_t *ware, bool is_input_item) :
+	lb_leadtime(""), lb_alert("")
+{
+	this->fab = factory;
+	this->ware = ware;
+	this->is_input_item = is_input_item;
+	lb_leadtime.set_image(skinverwaltung_t::travel_time ? skinverwaltung_t::travel_time->get_image_id(0) : IMG_EMPTY);
+	lb_leadtime.set_tooltip(translator::translate("symbol_help_txt_lead_time"));
+	lb_alert.set_visible(false);
+
+	if (fab) {
+		set_table_layout(7,0);
+		init_table();
+	}
+}
+
+void gui_factory_product_item_t::init_table()
+{
+	goods_desc_t const* const desc = ware->get_typ();
+	bool is_available = world()->get_goods_list().is_contained(desc);
+
+	// material arrival status for input (vs supplier)
+	if (is_input_item) {
+		add_component(&operation_status);
+	}
+	new_component<gui_image_t>(desc->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
+	new_component<gui_colorbox_t>(desc->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));
+	new_component<gui_label_t>(desc->get_name(), is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+	// material delivered status for output (vs consumer)
+	if (!is_input_item) {
+		add_component(&operation_status);
+	}
+	new_component<gui_margin_t>(LINESPACE);
+	add_component(&lb_leadtime);
+	lb_leadtime.set_visible(is_input_item);
+	add_component(&lb_alert);
+}
+
+void gui_factory_product_item_t::draw(scr_coord offset)
+{
+	// update operation status
+	if (is_input_item) {
+		// lead time
+		uint32 lead_time = fab->get_lead_time(ware->get_typ());
+		if (lead_time == UINT32_MAX_VALUE) {
+			lb_leadtime.buf().append("--:--:--");
+		}
+		else {
+			char lead_time_as_clock[32];
+			world()->sprintf_time_tenths(lead_time_as_clock, 32, lead_time);
+			lb_leadtime.buf().append(lead_time_as_clock);
+			//col_val = is_connected_to_own_network ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE;
+		}
+		lb_leadtime.update();
+
+		sint32 goods_needed = fab->goods_needed(ware->get_typ());
+
+		// operation status, reciept/intansit or not
+		uint8 reciept_score = 0;
+		if (ware->get_stat(0, FAB_GOODS_RECEIVED)) {
+			// This factory is receiving materials this month.
+			reciept_score += 80 / fab->get_input().get_count();
+		}
+		if (ware->get_stat(1, FAB_GOODS_RECEIVED)) {
+			// This factory hasn't recieved this month yet, but it did last month.
+			reciept_score = min(100, reciept_score + 50);
+		}
+		if (ware->get_stat(0, FAB_GOODS_TRANSIT)) {
+			reciept_score = min(100, reciept_score + 20);
+		}
+		operation_status.set_color(color_idx_to_rgb(severity_color[(reciept_score+19)/20]));
+		if (!reciept_score) {
+			if (goods_needed <= 0) {
+				// No shipments demanded: sufficient product is in stock
+				operation_status.set_status(gui_operation_status_t::operation_pause);
+				lb_alert.set_image(skinverwaltung_t::pax_evaluation_icons ? skinverwaltung_t::pax_evaluation_icons->get_image_id(4) : IMG_EMPTY);
+				lb_alert.buf().append(translator::translate("Shipment is suspended"));
+				lb_alert.set_tooltip(translator::translate("Shipment has been suspended due to consumption demand"));
+				lb_alert.update();
+				lb_alert.set_visible(true);
+			}
+			else {
+				operation_status.set_color(COL_INACTIVE);
+				operation_status.set_status(gui_operation_status_t::operation_stop);
+				lb_alert.set_visible(false);
+			}
+		}
+		else {
+			lb_alert.set_visible(false);
+			if (goods_needed <= 0) {
+				lb_alert.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(3) : IMG_EMPTY);
+				lb_alert.buf().append(translator::translate("Shipment is suspended"));
+				lb_alert.set_tooltip(translator::translate("Suspension of new orders due to sufficient supply"));
+				lb_alert.update();
+				lb_alert.set_visible(true);
+			}
+			operation_status.set_status(gui_operation_status_t::operation_normal);
+		}
+	}
+	else {
+		uint8 shipping_score = 0;
+		if (ware->get_stat(0, FAB_GOODS_DELIVERED)) {
+			// This factory is shipping this month.
+			shipping_score += 80 / fab->get_input().get_count();
+		}
+		if (ware->get_stat(1, FAB_GOODS_DELIVERED)) {
+			// This factory hasn't shipped this month yet, but it did last month.
+			shipping_score = min(100, shipping_score + 50);
+		}
+		if (!shipping_score) {
+			if (!ware->get_stat(0, FAB_GOODS_STORAGE)) {
+				operation_status.set_status(gui_operation_status_t::operation_stop);
+				operation_status.set_color(fab->is_staff_shortage() ? COL_STAFF_SHORTAGE : SYSCOL_TEXT_WEAK);
+			}
+			else {
+				// Stopped due to demand/connection issue
+				operation_status.set_status(gui_operation_status_t::operation_pause);
+				operation_status.set_color(color_idx_to_rgb(COL_RED+1));
+			}
+		}
+		else {
+			operation_status.set_color(color_idx_to_rgb(severity_color[(shipping_score+19)/20]));
+			operation_status.set_status(gui_operation_status_t::operation_normal);
+		}
+	}
+
+	gui_aligned_container_t::draw(offset);
 }
 
 

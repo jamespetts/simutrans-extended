@@ -16,6 +16,8 @@
 #include "../simwin.h"
 
 #include "gui_component.h"
+#include "gui_aligned_container.h"
+#include "gui_colorbox.h"
 
 #include "../../simhalt.h"
 
@@ -30,15 +32,36 @@ class fabrik_t;
 class gui_factory_storage_bar_t : public gui_component_t
 {
 	const ware_production_t* ware;
-	sint64 factor;
+	uint32 factor;
 	bool is_input_item; // which display is needed? - input or output
 
 public:
-	gui_factory_storage_bar_t(const ware_production_t* ware, sint64 factor, bool is_input_item = false);
+	gui_factory_storage_bar_t(const ware_production_t* ware, uint32 factor, bool is_input_item = false);
 
 	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*6, LINEASCENT-2); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, LINEASCENT-2); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+class gui_factory_product_item_t : public gui_aligned_container_t
+{
+	fabrik_t *fab;
+	const ware_production_t* ware;
+	bool is_input_item; // which display is needed? - input or output
+
+	gui_operation_status_t operation_status;
+	gui_label_with_symbol_t lb_leadtime; // only for suppliers
+	gui_label_with_symbol_t lb_alert;
+
+
+	void init_table();
+
+public:
+	gui_factory_product_item_t(fabrik_t *factory, const ware_production_t *ware, bool is_input_item = false);
+
+
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 
