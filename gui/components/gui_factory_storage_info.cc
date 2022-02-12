@@ -22,6 +22,46 @@
 // Half a display unit (0.5).
 static const sint64 FAB_DISPLAY_UNIT_HALF = ((sint64)1 << (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS - 1));
 
+
+gui_factory_storage_bar_t::gui_factory_storage_bar_t(const ware_production_t *ware, sint64 factor, bool is_input)
+{
+	this->ware = ware;
+	this->is_input_item = is_input;
+	this->factor = factor;
+	set_size(get_min_size());
+}
+
+void gui_factory_storage_bar_t::draw(scr_coord offset)
+{
+	offset += pos;
+
+	const scr_coord_val color_bar_w = size.w-2;
+
+	display_ddd_box_clip_rgb(offset.x, offset.y, size.w, size.h, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_fillbox_wh_clip_rgb(offset.x + 1, offset.y+1, color_bar_w, size.h-2, color_idx_to_rgb(MN_GREY2), false);
+
+	uint32 substantial_intransit = 0; // yellowed bar
+
+	if (bool is_available = world()->get_goods_list().is_contained(ware->get_typ())) {
+		const uint32 storage_capacity = (uint32)ware->get_capacity(factor);
+		if (storage_capacity == 0) { return; }
+		const uint32 stock_quantity = min((uint32)ware->get_storage(), storage_capacity);
+
+		const PIXVAL goods_color = ware->get_typ()->get_color();
+		display_cylinderbar_wh_clip_rgb(offset.x+1, offset.y+1, color_bar_w*stock_quantity/storage_capacity, size.h-2, goods_color, true);
+
+		// input has in_transit
+		if (is_input_item) {
+			substantial_intransit = min((uint32)ware->get_in_transit(), storage_capacity-stock_quantity);
+			if (substantial_intransit) {
+				// in transit for input storage
+				display_fillbox_wh_clip_rgb(offset.x+1+color_bar_w* stock_quantity/storage_capacity, offset.y+1, color_bar_w*substantial_intransit/storage_capacity, size.h-2, COL_IN_TRANSIT, false);
+			}
+		}
+	}
+}
+
+
 // component for factory storage display
 gui_factory_storage_info_t::gui_factory_storage_info_t(fabrik_t* factory)
 {

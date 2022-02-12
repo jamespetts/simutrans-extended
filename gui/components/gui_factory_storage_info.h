@@ -10,6 +10,7 @@
 #include "gui_container.h"
 #include "gui_scrollpane.h"
 #include "gui_speedbar.h"
+#include "gui_label.h"
 
 #include "../../simfab.h"
 #include "../simwin.h"
@@ -21,6 +22,25 @@
 #include "../../utils/cbuffer_t.h"  // for industry chain reference(gui_goods_handled_factory_t)
 
 class fabrik_t;
+
+
+/**
+ * Helper class to draw a factory storage bar
+ */
+class gui_factory_storage_bar_t : public gui_component_t
+{
+	const ware_production_t* ware;
+	sint64 factor;
+	bool is_input_item; // which display is needed? - input or output
+
+public:
+	gui_factory_storage_bar_t(const ware_production_t* ware, sint64 factor, bool is_input_item = false);
+
+	void draw(scr_coord offset) OVERRIDE;
+	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*6, LINEASCENT-2); }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
 
 // A GUI component of the factory storage info
 class gui_factory_storage_info_t : public gui_container_t
