@@ -2708,7 +2708,7 @@ public:
 
 	inline void sprintf_time_tenths(char* p, size_t size, uint32 tenths) const
 	{
-		sprintf_time_secs(p, size, 6 * tenths, long_minutes);
+		sprintf_time_secs(p, size, 6 * tenths, env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE);
 	}
 
 	// @author: jamespetts
