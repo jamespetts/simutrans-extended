@@ -126,21 +126,6 @@ public:
 
 };
 
-/**
- * Helper class to draw halt handled goods categories
- */
-class gui_halt_handled_goods_images_t : public gui_container_t
-{
-	halthandle_t halt;
-public:
-	gui_halt_handled_goods_images_t(halthandle_t h);
-
-	void draw(scr_coord offset) OVERRIDE;
-
-	scr_size get_min_size() const OVERRIDE { return size; }
-	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
-};
-
 
 // for industry chain reference
 class gui_goods_handled_factory_t : public gui_component_t

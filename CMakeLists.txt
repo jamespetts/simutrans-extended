@@ -224,6 +224,7 @@ add_executable(simutrans-extended
 	gui/components/gui_fixedwidth_textarea.cc
 	gui/components/gui_flowtext.cc
 	gui/components/gui_halthandled_lines.cc
+	gui/components/gui_halt_indicator.cc
 	gui/components/gui_image.cc
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
