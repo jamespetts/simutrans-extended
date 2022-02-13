@@ -25,7 +25,10 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	scr_size get_min_size() const OVERRIDE { return scr_size(HALT_CAPACITY_BAR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT); }
+	// set fixed width
+	void set_width(scr_coord_val w) { size.w = w; }
+
+	scr_size get_min_size() const OVERRIDE { return scr_size(size.w, GOODS_COLOR_BOX_HEIGHT); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 

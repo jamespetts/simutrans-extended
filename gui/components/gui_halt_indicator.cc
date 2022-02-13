@@ -17,6 +17,7 @@ gui_halt_capacity_bar_t::gui_halt_capacity_bar_t(halthandle_t h, uint8 ft)
 	if (ft > 2) { return; }
 	freight_type = ft;
 	halt = h;
+	set_size(scr_size(HALT_CAPACITY_BAR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT));
 }
 
 void gui_halt_capacity_bar_t::draw(scr_coord offset)
@@ -69,17 +70,16 @@ void gui_halt_capacity_bar_t::draw(scr_coord offset)
 		default:
 			return;
 	}
-	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, HALT_CAPACITY_BAR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
-	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH, GOODS_COLOR_BOX_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), true);
+	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, size.w, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
+	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, (size.w-2), GOODS_COLOR_BOX_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), true);
 	// transferring (to this station) bar
-	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min(100, (transship_in_sum + wainting_sum) * 100 / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
+	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min((size.w-2), (transship_in_sum + wainting_sum) * (size.w-2) / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
 
 	const PIXVAL col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : COL_CLEAR;
 	uint8 waiting_factor = min(100, wainting_sum * 100 / capacity);
 
-	display_cylinderbar_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH * waiting_factor / 100, 6, col, true);
+	display_cylinderbar_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, (size.w-2) * waiting_factor / 100, 6, col, true);
 
-	set_size(scr_size(HALT_CAPACITY_BAR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT));
 	gui_container_t::draw(offset);
 }
 
