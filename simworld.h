@@ -2669,15 +2669,16 @@ public:
 	inline void sprintf_time_secs(char *p, size_t size, uint32 seconds, bool long_minutes) const
 	{
 	// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
+		unsigned int minutes = seconds;
 		if (long_minutes) {
-			unsigned int minutes = seconds / 64;
+			minutes = seconds / 64;
 		}
 		else {
-			unsigned int minutes = seconds / 60;
+			minutes = seconds / 60;
 		}
 		unsigned int hours = minutes / 60;
 		if (long_minutes) {
-			seconds %= 64
+			seconds %= 64;
 		} else {
 			seconds %= 60;
 		}
