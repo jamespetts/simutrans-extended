@@ -83,6 +83,7 @@ public:
 
 };
 
+
 // for industry chain reference
 class gui_goods_handled_factory_t : public gui_component_t
 {
