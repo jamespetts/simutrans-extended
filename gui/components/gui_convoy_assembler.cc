@@ -2561,7 +2561,7 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 							}
 
 							buf.printf(" - %s %i", translator::translate("Comfort:"), base_comfort);
-							welt->sprintf_time_secs(timebuf, sizeof(timebuf), welt->get_settings().max_tolerable_journey(base_comfort + modified_comfort));
+							welt->sprintf_time_secs(timebuf, sizeof(timebuf), welt->get_settings().max_tolerable_journey(base_comfort + modified_comfort), env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE);
 							buf.printf("%s %s %s%s", extra_comfort, translator::translate("(Max. comfortable journey time: "), timebuf, ")\n");
 							lines++;
 						}
