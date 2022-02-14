@@ -729,6 +729,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 	gui_aligned_container_t::draw(offset);
 }
 
+
 void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
 {
 	factory_list.clear();
