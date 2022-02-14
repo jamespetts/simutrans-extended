@@ -5,6 +5,7 @@
 
 #include "gui_factory_storage_info.h"
 #include "gui_image.h"
+#include "gui_halt_indicator.h"
 
 #include "../../simcolor.h"
 #include "../../simworld.h"
@@ -124,7 +125,7 @@ void gui_factory_product_item_t::draw(scr_coord offset)
 		uint8 reciept_score = 0;
 		if (ware->get_stat(0, FAB_GOODS_RECEIVED)) {
 			// This factory is receiving materials this month.
-			reciept_score += 80 / fab->get_input().get_count();
+			reciept_score += 80;
 		}
 		if (ware->get_stat(1, FAB_GOODS_RECEIVED)) {
 			// This factory hasn't recieved this month yet, but it did last month.
@@ -166,7 +167,7 @@ void gui_factory_product_item_t::draw(scr_coord offset)
 		uint8 shipping_score = 0;
 		if (ware->get_stat(0, FAB_GOODS_DELIVERED)) {
 			// This factory is shipping this month.
-			shipping_score += 80 / fab->get_input().get_count();
+			shipping_score += 80;
 		}
 		if (ware->get_stat(1, FAB_GOODS_DELIVERED)) {
 			// This factory hasn't shipped this month yet, but it did last month.
@@ -644,166 +645,89 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 }
 
 
+
+gui_freight_halt_stat_t::gui_freight_halt_stat_t(halthandle_t halt)
+{
+	this->halt = halt;
+	if (halt.is_bound()) {
+		set_table_layout(4,0);
+		new_component<gui_halt_capacity_bar_t>(halt,2)->set_width(LINESPACE*4); // todo: set width
+		add_component(&label_name);
+		old_month = -1; // force update
+		lb_handling_amount.init(SYSCOL_TEXT, gui_label_t::right);
+		lb_handling_amount.set_tooltip(translator::translate("The number of goods that handling at the stop last month"));
+		new_component<gui_halt_handled_goods_images_t>(halt, true);
+		add_component(&lb_handling_amount);
+	}
+}
+
+bool gui_freight_halt_stat_t::infowin_event(const event_t *ev)
+{
+	bool swallowed = gui_aligned_container_t::infowin_event(ev);
+	if(  !swallowed  &&  halt.is_bound()  ) {
+
+		if(IS_LEFTRELEASE(ev)) {
+			if(  event_get_last_control_shift() != 2  ) {
+				halt->show_info();
+			}
+			return true;
+		}
+		if(  IS_RIGHTRELEASE(ev)  ) {
+			world()->get_viewport()->change_world_position(halt->get_basis_pos3d());
+			return true;
+		}
+	}
+	return swallowed;
+}
+
+void gui_freight_halt_stat_t::draw(scr_coord offset)
+{
+	label_name.buf().append(halt->get_name());
+	label_name.set_color(color_idx_to_rgb(halt->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
+	label_name.update();
+
+	if (old_month != world()->get_current_month() % 12) {
+		old_month = world()->get_current_month()%12;
+		lb_handling_amount.buf().append(halt->get_finance_history(1, HALT_GOODS_HANDLING_VOLUME)/100.0, 1);
+		lb_handling_amount.buf().append(translator::translate("tonnen"));
+
+		lb_handling_amount.update();
+	}
+
+	set_size(get_size());
+	if (win_get_magic(magic_halt_info + halt.get_id())) {
+		display_blend_wh_rgb(offset.x + get_pos().x, offset.y + get_pos().y, get_size().w, get_size().h, SYSCOL_TEXT_HIGHLIGHT, 30);
+	}
+	gui_aligned_container_t::draw(offset);
+}
+
 gui_factory_nearby_halt_info_t::gui_factory_nearby_halt_info_t(fabrik_t *factory)
 {
 	this->fab = factory;
 	if (fab) {
-		halt_list = factory->get_nearby_freight_halts();
-		recalc_size();
+		old_halt_count = fab->get_nearby_freight_halts().get_count();
+		set_table_layout(1,0);
+		update_table();
 	}
-	line_selected = 0xFFFFFFFFu;
 }
 
-bool gui_factory_nearby_halt_info_t::infowin_event(const event_t * ev)
+void gui_factory_nearby_halt_info_t::update_table()
 {
-	const unsigned int line = (ev->cy) / (LINESPACE + 1);
-	line_selected = 0xFFFFFFFFu;
-	if (line >= halt_list.get_count()) {
-		return false;
+	old_halt_count = fab->get_nearby_freight_halts().get_count();
+	remove_all();
+	FOR(const vector_tpl<nearby_halt_t>, freight_halt, fab->get_nearby_freight_halts()) {
+		new_component<gui_freight_halt_stat_t>(freight_halt.halt);
 	}
-
-	halthandle_t halt = halt_list[line].halt;
-	const koord3d halt_pos = halt->get_basis_pos3d();
-	if (!halt.is_bound()) {
-		welt->get_viewport()->change_world_position(halt_pos);
-		return false;
-	}
-
-	if (IS_LEFTRELEASE(ev)) {
-		if (ev->cx > 0 && ev->cx < 15) {
-			welt->get_viewport()->change_world_position(halt_pos);
-		}
-		else {
-			halt->show_info();
-		}
-	}
-	else if (IS_RIGHTRELEASE(ev)) {
-		welt->get_viewport()->change_world_position(halt_pos);
-	}
-	return false;
+	set_size(get_size());
 }
-
-void gui_factory_nearby_halt_info_t::recalc_size()
-{
-	if (halt_list.get_count()) {
-		set_size(scr_size(400, halt_list.get_count() * (LINESPACE + 1)));
-	}
-	else {
-		set_size(scr_size(0, 0));
-	}
-}
-
-
-void gui_factory_nearby_halt_info_t::update()
-{
-	if (fab) {
-		halt_list = fab->get_nearby_freight_halts();
-	}
-	recalc_size();
-}
-
 
 void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 {
-	if (!halt_list.get_count()) {
-		return;
+	if (old_halt_count != fab->get_nearby_freight_halts().get_count()) {
+		update_table();
 	}
-
-	static cbuffer_t buf;
-	int xoff = pos.x;
-	int yoff = pos.y;
-
-	FORX(const vector_tpl<nearby_halt_t>, freight_halt, halt_list, yoff += LINESPACE + 1) {
-		PIXVAL col_val = SYSCOL_TEXT;
-
-		halthandle_t halt = freight_halt.halt;
-
-		if (halt.is_bound()) {
-			xoff = D_V_SPACE;
-			col_val = SYSCOL_TEXT;
-			xoff += D_INDICATOR_WIDTH * 2 / 3 +D_H_SPACE;
-
-			// [name]
-			buf.clear();
-			buf.append(halt->get_name());
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1() + env_t::gui_player_color_dark), true);
-			xoff += D_H_SPACE * 2;
-
-			bool has_active_freight_connection = false;
-
-			// [capacity]
-			uint32 wainting_sum = 0;
-			uint32 transship_sum = 0;
-			for (uint i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
-				if (i == goods_manager_t::INDEX_PAS || i == goods_manager_t::INDEX_MAIL)
-				{
-					continue;
-				}
-				const goods_desc_t *wtyp = goods_manager_t::get_info(i);
-				switch (i) {
-					case 0:
-						wainting_sum += halt->get_ware_summe(wtyp);
-						break;
-					default:
-						const uint8  count = goods_manager_t::get_count();
-						for (uint32 j = 3; j < count; j++) {
-							goods_desc_t const* const wtyp2 = goods_manager_t::get_info(j);
-							if (wtyp2->get_catg_index() != i) {
-								continue;
-							}
-							wainting_sum += halt->get_ware_summe(wtyp2);
-							transship_sum += halt->get_transferring_goods_sum(wtyp2, 0);
-						}
-						break;
-				}
-			}
-			display_color_img_with_tooltip(skinverwaltung_t::goods->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("station_capacity_freight"));
-			xoff += 14;
-
-			if (wainting_sum || transship_sum) {
-				has_active_freight_connection = true;
-			}
-
-			buf.clear();
-			buf.printf("%u", wainting_sum);
-			if (transship_sum) {
-				buf.printf("(%u)", transship_sum);
-			}
-			buf.printf("/%u", halt->get_capacity(2));
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
-			xoff += D_H_SPACE;
-
-			// [station handled goods category] (symbol)
-			for (uint i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
-				if (i == goods_manager_t::INDEX_PAS || i == goods_manager_t::INDEX_MAIL)
-				{
-					continue;
-				}
-				uint8 g_class = goods_manager_t::get_classes_catg_index(i) - 1;
-				haltestelle_t::connexions_map *connexions = halt->get_connexions(i, g_class);
-
-				if (!connexions->empty())
-				{
-					display_color_img_with_tooltip(goods_manager_t::get_info_catg_index(i)->get_catg_symbol(), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate(goods_manager_t::get_info_catg_index(i)->get_catg_name()));
-					xoff += 14;
-					has_active_freight_connection = true;
-				}
-			}
-
-			// [status bar]
-			display_fillbox_wh_clip_rgb(offset.x + D_V_SPACE + 1, offset.y + yoff + D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_HEIGHT+1, LINESPACE), D_INDICATOR_WIDTH * 2/3, D_INDICATOR_HEIGHT+1, halt->get_status_color(2), true);
-
-			if (win_get_magic(magic_halt_info + halt.get_id())) {
-				display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);
-			}
-		}
-	}
-	scr_size size(400, yoff);
-	if (size != get_size()) {
-		set_size(size);
-	}
+	gui_aligned_container_t::draw(offset);
 }
-
 
 void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
 {

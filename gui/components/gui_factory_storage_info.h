@@ -104,23 +104,37 @@ public:
 };
 
 
+class gui_freight_halt_stat_t : public gui_aligned_container_t
+{
+private:
+	halthandle_t halt;
+	gui_label_buf_t label_name, lb_handling_amount;
+
+	// update trigger
+	uint8 old_month = 0;
+
+
+public:
+	gui_freight_halt_stat_t(halthandle_t halt);
+
+	bool infowin_event(event_t const*) OVERRIDE;
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 // A display of nearby freight stations for factory GUI
-class gui_factory_nearby_halt_info_t : public gui_world_component_t
+class gui_factory_nearby_halt_info_t : public gui_aligned_container_t
 {
 private:
 	fabrik_t *fab;
-	vector_tpl<nearby_halt_t> halt_list;
-	uint32 line_selected;
+	uint32 old_halt_count;
 
 public:
 	gui_factory_nearby_halt_info_t(fabrik_t *factory);
 
-	void set_fab(fabrik_t *f) { this->fab = f; }
+	void set_fab(fabrik_t *f) { this->fab = f; update_table(); }
 
-	bool infowin_event(event_t const *ev) OVERRIDE;
-
-	void recalc_size();
-	void update();
+	void update_table();
 
 	void draw(scr_coord offset) OVERRIDE;
 
