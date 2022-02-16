@@ -1589,7 +1589,7 @@ public:
 		 * (4096 / 180) = 22.7555555... ticks per second.
 		 * This also needs to be changed because it's stupid; it's based on
 		 * old settings which are now in simunits.h
-		 * 
+		 *
 		 * The magic numbers may be related to "TIME units" comment in simunits.h
 		 */
 		return get_settings().get_meters_per_tile() * ticks * 30L * 6L / (4096L * 1000L);
