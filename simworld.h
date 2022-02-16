@@ -23,6 +23,7 @@
 #include "network/pwd_hash.h"
 #include "dataobj/loadsave.h"
 #include "dataobj/rect.h"
+#include "dataobj/environment.h"
 
 #include "simware.h"
 
