@@ -51,7 +51,7 @@ public:
 class map_settings_t : public gui_aligned_container_t, public action_listener_t
 {
 private:
-	char time_str[10][64];
+	char time_str[11][64];
 	gui_numberinput_t cursor_hide_range;
 	gui_combobox_t time_setting, hide_buildings;
 public:
