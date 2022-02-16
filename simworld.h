@@ -2669,10 +2669,9 @@ public:
 	 */
 	inline void sprintf_time_secs(char *p, size_t size, uint32 seconds, bool long_minutes) const
 	{
-		DBG_DEBUG("sprintf_time_secs()", "Current date format is %u", env_t::show_month);
-		DBG_DEBUG("sprintf_timesecs()", "Current status of long_minutes is %d", long_minutes);
-		DBG_DEBUG("sprintf_time_secs()", "Current output is to %c", p);
-	// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
+		// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
+		// DBG_DEBUG("sprintf_time_secs()", "Current date format is %u", env_t::show_month);
+		// DBG_DEBUG("sprintf_timesecs()", "Current status of long_minutes is %d", long_minutes);
 		unsigned int minutes = seconds;
 		if (long_minutes) {
 			minutes = seconds / 64;
