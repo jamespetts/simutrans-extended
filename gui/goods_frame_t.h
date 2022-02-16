@@ -121,6 +121,12 @@ public:
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	// close or open the input field
+	void activate_input_field();
+
+	// Force opening of goods fare chart mode by external access
+	void set_goods(const goods_desc_t const* goods, bool make_min_size=false);
 };
 
 #endif

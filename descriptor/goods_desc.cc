@@ -264,3 +264,20 @@ bool goods_desc_t::is_available() const
 {
 	return world()->get_goods_list().is_contained(this);
 }
+
+#include "../gui/simwin.h"
+#include "../gui/goods_frame_t.h"
+
+void goods_desc_t::show_info() const
+{
+	goods_frame_t *win = dynamic_cast<goods_frame_t*>(win_get_magic(magic_goodslist));
+	if (!win) {
+		create_win(new goods_frame_t(), w_info, magic_goodslist);
+		win = dynamic_cast<goods_frame_t*>(win_get_magic(magic_goodslist));
+		win->set_goods(this, true);
+	}
+	else {
+		win->set_goods(this);
+	}
+	top_win(win);
+}

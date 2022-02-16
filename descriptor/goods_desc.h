@@ -212,6 +212,9 @@ public:
 
 	// true if this goods is available on this map
 	bool is_available() const;
+
+	// open goods list dialog and show goods fare info
+	void show_info() const;
 };
 
 #endif

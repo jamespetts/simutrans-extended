@@ -433,11 +433,7 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 	}
 	else if (comp == &show_hide_input) {
 		show_input = !show_input;
-		show_hide_input.set_text(show_input ? "-" : "+");
-		show_hide_input.pressed = show_input;
-		input_container.set_visible(show_input);
-		lb_collapsed.set_visible(!show_input);
-		reset_min_windowsize();
+		activate_input_field();
 	}
 	else if (comp == &goods_selector) {
 		selected_goods=goods_selector.get_selection();
@@ -445,6 +441,38 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 	}
 
 	return true;
+}
+
+void goods_frame_t::activate_input_field()
+{
+	show_hide_input.set_text(show_input ? "-" : "+");
+	show_hide_input.pressed = show_input;
+	input_container.set_visible(show_input);
+	lb_collapsed.set_visible(!show_input);
+	reset_min_windowsize();
+}
+
+void goods_frame_t::set_goods(const goods_desc_t const* goods, bool make_min_size)
+{
+	show_input = false; // close the input field
+	activate_input_field();
+	tabs.set_active_tab_index(1); // switch to fare tab
+	tabs_chart.set_active_tab_index(1); // switch to long distance fare tab
+
+	// goods_selector
+	// convert goods_desc to index of goods selector (not goods_id)
+	uint8 i = 0;
+	FORX(vector_tpl<goods_desc_t const*>, const g, world()->get_goods_list(), i++) {
+		if (goods==g) {
+			selected_goods = i;
+			goods_selector.set_selection(i);
+			break;
+		}
+	}
+	update_fare_charts();
+	if (make_min_size) {
+		set_windowsize(get_min_windowsize());
+	}
 }
 
 

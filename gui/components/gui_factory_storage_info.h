@@ -60,6 +60,7 @@ class gui_factory_product_item_t : public gui_aligned_container_t
 public:
 	gui_factory_product_item_t(fabrik_t *factory, const ware_production_t *ware, bool is_input_item = false);
 
+	bool infowin_event(event_t const*) OVERRIDE;
 
 	void draw(scr_coord offset) OVERRIDE;
 };
