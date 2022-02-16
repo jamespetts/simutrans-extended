@@ -259,3 +259,8 @@ void goods_desc_t::fix_number_of_classes()
 		class_revenue_percentages.set_count(1);
 	}
 }
+
+bool goods_desc_t::is_available() const
+{
+	return world()->get_goods_list().is_contained(this);
+}

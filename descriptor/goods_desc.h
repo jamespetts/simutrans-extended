@@ -126,9 +126,8 @@ public:
 	const char * get_catg_name() const;
 
 	/**
-	* @return goods category symbol
-	* @author Ranran, March 2019
-	*/
+	 * @return goods category symbol
+	 */
 	image_id get_catg_symbol() const;
 
 	/*
@@ -210,6 +209,9 @@ public:
 	}
 
 	void fix_number_of_classes();
+
+	// true if this goods is available on this map
+	bool is_available() const;
 };
 
 #endif

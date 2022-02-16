@@ -44,7 +44,7 @@ void gui_factory_storage_bar_t::draw(scr_coord offset)
 
 	uint32 substantial_intransit = 0; // yellowed bar
 
-	if (bool is_available = world()->get_goods_list().is_contained(ware->get_typ())) {
+	if ( ware->get_typ()->is_available() ) {
 		const uint32 storage_capacity = (uint32)ware->get_capacity(factor);
 		if (storage_capacity == 0) { return; }
 		const uint32 stock_quantity = min((uint32)ware->get_storage(), storage_capacity);
@@ -83,7 +83,6 @@ gui_factory_product_item_t::gui_factory_product_item_t(fabrik_t *factory, const 
 void gui_factory_product_item_t::init_table()
 {
 	goods_desc_t const* const desc = ware->get_typ();
-	bool is_available = world()->get_goods_list().is_contained(desc);
 
 	// material arrival status for input (vs supplier)
 	if (is_input_item) {
@@ -91,7 +90,7 @@ void gui_factory_product_item_t::init_table()
 	}
 	new_component<gui_image_t>(desc->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
 	new_component<gui_colorbox_t>(desc->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));
-	new_component<gui_label_t>(desc->get_name(), is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+	new_component<gui_label_t>(desc->get_name(), ware->get_typ()->is_available() ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
 	// material delivered status for output (vs consumer)
 	if (!is_input_item) {
 		add_component(&operation_status);
@@ -229,7 +228,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				{
 					continue;
 				}
-				const bool is_available = world()->get_goods_list().is_contained(goods.get_typ());
+				const bool is_available = goods.get_typ()->is_available();
 
 				const sint64 pfactor = fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll;
 				const sint64 max_transit = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));

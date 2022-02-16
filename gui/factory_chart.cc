@@ -176,7 +176,7 @@ void factory_chart_t::set_factory(const fabrik_t *_factory)
 			const array_tpl<ware_production_t>& input = factory->get_input();
 			goods_cont.add_table(4,0)->set_force_equal_columns(true);
 			for (uint32 g = 0; g < input_count; ++g) {
-				const bool is_available = world()->get_goods_list().is_contained(input[g].get_typ());
+				const bool is_available = input[g].get_typ()->is_available();
 				goods_cont.add_table(2,1);
 				{
 					goods_cont.new_component<gui_image_t>(is_available ? input[g].get_typ()->get_catg_symbol() : IMG_EMPTY, 0, ALIGN_NONE, true);
@@ -226,7 +226,7 @@ void factory_chart_t::set_factory(const fabrik_t *_factory)
 			const array_tpl<ware_production_t>& output = factory->get_output();
 			goods_cont.add_table(4,0)->set_force_equal_columns(true);
 			for (uint32 g = 0; g < output_count; ++g) {
-				const bool is_available = world()->get_goods_list().is_contained(output[g].get_typ());
+				const bool is_available = output[g].get_typ()->is_available();
 				goods_cont.add_table(2,1);
 				{
 					goods_cont.new_component<gui_image_t>(is_available ? output[g].get_typ()->get_catg_symbol() : IMG_EMPTY, 0, ALIGN_NONE, true);
