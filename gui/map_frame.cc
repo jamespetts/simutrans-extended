@@ -118,47 +118,56 @@ public:
 	}
 };
 
+const const uint8 legend_group_color[MAP_MAX_LEGEND_GROUPS] =
+{
+	COL_LIGHT_GREEN, COL_LIGHT_PURPLE, COL_LIGHT_ORANGE, COL_HORIZON_BLUE, COL_WHITE
+};
+
+const const uint8 legend_group_selected_color[MAP_MAX_LEGEND_GROUPS] =
+{
+	COL_DARK_GREEN, COL_DARK_PURPLE, COL_DARK_ORANGE, COL_SOFT_BLUE, COL_GREY5
+};
+
+
 typedef struct {
-	PIXVAL color;
-	PIXVAL select_color;
+	uint8 group;
 	const char *button_text;
 	const char *tooltip_text;
 	minimap_t::MAP_DISPLAY_MODE mode;
 } map_button_t;
 
-
 map_button_t button_init[MAP_MAX_BUTTONS] = {
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Towns", "Overlay town names", minimap_t::MAP_TOWN },
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "CityLimit", "Overlay city limits", minimap_t::MAP_CITYLIMIT },
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Tourists", "Highlite tourist attraction", minimap_t::MAP_TOURIST },
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Factories", "Highlite factories", minimap_t::MAP_FACTORIES },
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Depots", "Highlite depots", minimap_t::MAP_DEPOT },
-	{ COL_LIGHT_GREEN,  COL_DARK_GREEN,  "Convoys", "Show convoys", minimap_t::MAP_CONVOYS },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Passengers", "The number of passengers at the stop last month", minimap_t::MAP_TRANSFER },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Handling mails", "The number of mail that handling at the stop last month", minimap_t::MAP_MAIL_HANDLING_VOLUME },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Handling goods", "The number of goods that handling at the stop last month", minimap_t::MAP_GOODS_HANDLING_VOLUME },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_passengers", "Show how many people/much is waiting at halts", minimap_t::MAP_PAX_WAITING },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_mails", "Show how many mails are waiting at halts", minimap_t::MAP_MAIL_WAITING },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_goods", "Show how many goods are waiting at halts", minimap_t::MAP_GOODS_WAITING },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Service", "Show how many convoi reach a station", minimap_t::MAP_SERVICE },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Origin", "Show initial passenger departure", minimap_t::MAP_ORIGIN },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "map_btn_freight", "Show transported freight/freight network", minimap_t::MAP_FREIGHT },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Traffic", "Show usage of network", minimap_t::MAP_TRAFFIC },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Wear", "Show the condition of ways", minimap_t::MAP_CONDITION },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Congestion", "Show how congested that roads are", minimap_t::MAP_CONGESTION },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Speedlimit", "Show speedlimit of ways", minimap_t::MAX_SPEEDLIMIT },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Weight limit", "Show the weight limit of ways", minimap_t::MAP_WEIGHTLIMIT },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Tracks", "Highlight railroad tracks", minimap_t::MAP_TRACKS },
-	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Powerlines", "Highlite electrical transmission lines", minimap_t::MAP_POWERLINES },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "PaxDest", "Overlay passenger destinations when a town window is open", minimap_t::MAP_PAX_DEST },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "map_btn_building_level", "Show level of city buildings", minimap_t::MAP_LEVEL },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "Stop coverage", "Show the distance to the nearest station", minimap_t::MAP_STATION_COVERAGE },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "Commuting", "Show the success rate for commuting passengers", minimap_t::MAP_ACCESSIBILITY_COMMUTING },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "Visiting", "Show the success rate for visiting passengers", minimap_t::MAP_ACCESSIBILITY_TRIP },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "Staffing", "Show the staff shortage rate", minimap_t::MAP_STAFF_FULFILLMENT },
-	{ COL_HORIZON_BLUE, COL_SOFT_BLUE,  "Mail delivery", "Show the success rate for mail delivery", minimap_t::MAP_MAIL_DELIVERY },
-	{ COL_WHITE,        COL_GREY5,       "Ownership", "Show the owenership of infrastructure", minimap_t::MAP_OWNER },
-	{ COL_WHITE,        COL_GREY5,       "Forest", "Highlite forests", minimap_t::MAP_FOREST }
+	{ 0, "Towns",      "Overlay town names",  minimap_t::MAP_TOWN },
+	{ 0, "CityLimit",  "Overlay city limits", minimap_t::MAP_CITYLIMIT },
+	{ 0, "Tourists",   "Highlite tourist attraction", minimap_t::MAP_TOURIST },
+	{ 0, "Factories",  "Highlite factories", minimap_t::MAP_FACTORIES },
+	{ 0, "Depots",     "Highlite depots",    minimap_t::MAP_DEPOT },
+	{ 0, "Convoys",    "Show convoys",       minimap_t::MAP_CONVOYS },
+	{ 1, "Passengers",            "The number of passengers at the stop last month", minimap_t::MAP_TRANSFER },
+	{ 1, "Handling mails",        "The number of mail that handling at the stop last month", minimap_t::MAP_MAIL_HANDLING_VOLUME },
+	{ 1, "Handling goods",        "The number of goods that handling at the stop last month", minimap_t::MAP_GOODS_HANDLING_VOLUME },
+	{ 1, "by_waiting_passengers", "Show how many people/much is waiting at halts", minimap_t::MAP_PAX_WAITING },
+	{ 1, "by_waiting_mails",      "Show how many mails are waiting at halts", minimap_t::MAP_MAIL_WAITING },
+	{ 1, "by_waiting_goods",      "Show how many goods are waiting at halts", minimap_t::MAP_GOODS_WAITING },
+	{ 1, "Service",               "Show how many convoi reach a station",     minimap_t::MAP_SERVICE },
+	{ 1, "Origin",                "Show initial passenger departure",         minimap_t::MAP_ORIGIN },
+	{ 2, "map_btn_freight", "Show transported freight/freight network", minimap_t::MAP_FREIGHT },
+	{ 2, "Traffic",         "Show usage of network",                    minimap_t::MAP_TRAFFIC },
+	{ 2, "Wear",            "Show the condition of ways",               minimap_t::MAP_CONDITION },
+	{ 2, "Congestion",      "Show how congested that roads are",        minimap_t::MAP_CONGESTION },
+	{ 2, "Speedlimit",      "Show speedlimit of ways",                  minimap_t::MAX_SPEEDLIMIT },
+	{ 2, "Weight limit",    "Show the weight limit of ways",            minimap_t::MAP_WEIGHTLIMIT },
+	{ 2, "Tracks",          "Highlight railroad tracks",                minimap_t::MAP_TRACKS },
+	{ 2, "Powerlines",      "Highlite electrical transmission lines",   minimap_t::MAP_POWERLINES },
+	{ 3, "PaxDest",                "Overlay passenger destinations when a town window is open", minimap_t::MAP_PAX_DEST },
+	{ 3, "map_btn_building_level", "Show level of city buildings", minimap_t::MAP_LEVEL },
+	{ 3, "Stop coverage",          "Show the distance to the nearest station", minimap_t::MAP_STATION_COVERAGE },
+	{ 3, "Commuting",              "Show the success rate for commuting passengers", minimap_t::MAP_ACCESSIBILITY_COMMUTING },
+	{ 3, "Visiting",               "Show the success rate for visiting passengers", minimap_t::MAP_ACCESSIBILITY_TRIP },
+	{ 3, "Staffing",               "Show the staff shortage rate", minimap_t::MAP_STAFF_FULFILLMENT },
+	{ 3, "Mail delivery",          "Show the success rate for mail delivery", minimap_t::MAP_MAIL_DELIVERY },
+	{ 4, "Ownership", "Show the owenership of infrastructure", minimap_t::MAP_OWNER },
+	{ 4, "Forest",    "Highlite forests", minimap_t::MAP_FOREST }
 };
 
 #define scrolly (*p_scrolly)
@@ -418,7 +427,7 @@ void map_frame_t::update_buttons()
 {
 	for(  int i=0;  i<MAP_MAX_BUTTONS;  i++  ) {
 		filter_buttons[i].pressed = (button_init[i].mode&env_t::default_mapmode)!=0;
-		filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? button_init[i].select_color : button_init[i].color);
+		filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? legend_group_selected_color[button_init[i].group] : legend_group_color[button_init[i].group]);
 	}
 }
 
