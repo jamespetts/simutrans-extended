@@ -195,39 +195,6 @@ map_frame_t::map_frame_t() :
 	set_table_layout(1,0);
 
 	// first row of controls
-	add_table(4,1);
-	{
-		// first row of controls
-		b_show_network_option.init(button_t::roundbox_state, "Show networks");
-		b_show_network_option.set_tooltip("Shows option buttons about networks.");
-		b_show_network_option.set_size(D_BUTTON_SIZE);
-		b_show_network_option.add_listener(this);
-		add_component(&b_show_network_option);
-
-		// selections button
-		b_show_legend.init(button_t::roundbox_state, "Show legend");
-		b_show_legend.set_tooltip("Shows buttons on special topics.");
-		b_show_legend.set_size(D_BUTTON_SIZE);
-		b_show_legend.add_listener(this);
-		add_component(&b_show_legend);
-
-		// industry list button
-		b_show_directory.init(button_t::roundbox_state, "Show industry");
-		b_show_directory.set_tooltip("Shows a listing with all industries on the map.");
-		b_show_directory.set_size(D_BUTTON_SIZE);
-		b_show_directory.add_listener(this);
-		add_component(&b_show_directory);
-
-		// scale button
-		b_show_scale.init(button_t::roundbox_state, "Show map scale");
-		b_show_scale.set_tooltip("Shows the color code for several selections.");
-		b_show_scale.set_size(D_BUTTON_SIZE);
-		b_show_scale.add_listener(this);
-		add_component(&b_show_scale);
-	}
-	end_table();
-
-	// second row of controls
 	zoom_row = add_table(7,0);
 	{
 		// zoom levels label
@@ -271,6 +238,39 @@ map_frame_t::map_frame_t() :
 		b_show_buildings.add_listener(this);
 		b_show_buildings.pressed = karte->show_buildings;
 		add_component(&b_show_buildings);
+	}
+	end_table();
+
+	// second row of controls
+	add_table(4,1);
+	{
+		// first row of controls
+		b_show_network_option.init(button_t::roundbox_state, "Show networks");
+		b_show_network_option.set_tooltip("Shows option buttons about networks.");
+		b_show_network_option.set_size(D_BUTTON_SIZE);
+		b_show_network_option.add_listener(this);
+		add_component(&b_show_network_option);
+
+		// selections button
+		b_show_legend.init(button_t::roundbox_state, "Show legend");
+		b_show_legend.set_tooltip("Shows buttons on special topics.");
+		b_show_legend.set_size(D_BUTTON_SIZE);
+		b_show_legend.add_listener(this);
+		add_component(&b_show_legend);
+
+		// industry list button
+		b_show_directory.init(button_t::roundbox_state, "Show industry");
+		b_show_directory.set_tooltip("Shows a listing with all industries on the map.");
+		b_show_directory.set_size(D_BUTTON_SIZE);
+		b_show_directory.add_listener(this);
+		add_component(&b_show_directory);
+
+		// scale button
+		b_show_scale.init(button_t::roundbox_state, "Show map scale");
+		b_show_scale.set_tooltip("Shows the color code for several selections.");
+		b_show_scale.set_size(D_BUTTON_SIZE);
+		b_show_scale.add_listener(this);
+		add_component(&b_show_scale);
 	}
 	end_table();
 
