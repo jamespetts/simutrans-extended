@@ -266,8 +266,9 @@ public:
 	void draw(scr_coord pos) OVERRIDE;
 
 	void set_selected_cnv( convoihandle_t c );
-	inline convoihandle_t get_selected_cnv() { return current_cnv; }
+	convoihandle_t get_selected_cnv() { return current_cnv; }
 	void set_selected_halt(  halthandle_t h  );
+	halthandle_t get_selected_halt() { return current_halt; }
 
 	void set_selected_city( const stadt_t* _city );
 

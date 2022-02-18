@@ -50,6 +50,8 @@ private:
 
 	static bool is_cursor_hidden;
 
+	static uint8 select_legend_bits;
+
 	cbuffer_t title_buf;
 	convoihandle_t selected_cnv = convoihandle_t(); // for title name cache
 
@@ -76,6 +78,7 @@ private:
 	button_t zoom_buttons[2];
 	button_t b_rotate45;
 	button_t b_show_legend;
+	button_t b_legend_group[MAP_MAX_LEGEND_GROUPS];
 	button_t b_show_network_option;
 	button_t b_show_scale;
 	button_t b_show_directory;
@@ -93,9 +96,10 @@ private:
 	gui_combobox_t freight_type_c;
 
 	void zoom(bool zoom_out);
+
 	void update_buttons();
 	void update_factory_legend();
-	void show_hide_legend(const bool show);
+	void show_hide_legend(const bool show, bool from_save=false);
 	void show_hide_network_option(const bool show);
 	void show_hide_scale(const bool show);
 	void show_hide_directory(const bool show);

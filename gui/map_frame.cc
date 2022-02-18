@@ -41,6 +41,7 @@ bool  map_frame_t::scale_visible=false;
 bool  map_frame_t::directory_visible=false;
 bool  map_frame_t::is_cursor_hidden=false;
 bool  map_frame_t::filter_factory_list=true;
+uint8  map_frame_t::select_legend_bits = 0;
 
 // we track our position onscreen
 scr_coord map_frame_t::screenpos;
@@ -116,6 +117,15 @@ public:
 	{
 		return scr_size( scr_size::inf.w, 9);
 	}
+};
+
+
+static const char * const legend_group_help_text[MAP_MAX_LEGEND_GROUPS] = {
+	"selection_group_of_world",
+	"selection_group_of_stops",
+	"selection_group_of_ways",
+	"selection_group_of_citybuidings",
+	"selection_group_of_other"
 };
 
 const const uint8 legend_group_color[MAP_MAX_LEGEND_GROUPS] =
@@ -261,11 +271,22 @@ map_frame_t::map_frame_t() :
 		add_component(&b_show_network_option);
 
 		// selections button
-		b_show_legend.init(button_t::roundbox_state, "Show legend");
-		b_show_legend.set_tooltip("Shows buttons on special topics.");
-		b_show_legend.set_size(D_BUTTON_SIZE);
-		b_show_legend.add_listener(this);
-		add_component(&b_show_legend);
+		add_table(MAP_MAX_LEGEND_GROUPS+1,1)->set_spacing( scr_size(0,0) );
+		{
+			b_show_legend.init(button_t::roundbox_state, "Show legend");
+			b_show_legend.set_tooltip("Shows buttons on special topics.");
+			b_show_legend.set_size(D_BUTTON_SIZE);
+			b_show_legend.add_listener(this);
+			add_component(&b_show_legend);
+			for (uint8 i = 0; i < MAP_MAX_LEGEND_GROUPS; i++) {
+				b_legend_group[i].init(button_t::box_state, "+");
+				b_legend_group[i].background_color = color_idx_to_rgb(legend_group_color[i]);
+				b_legend_group[i].set_tooltip(legend_group_help_text[i]);
+				b_legend_group[i].add_listener(this);
+				add_component(&b_legend_group[i]);
+			}
+		}
+		end_table();
 
 		// industry list button
 		b_show_directory.init(button_t::roundbox_state, "Show industry");
@@ -365,24 +386,19 @@ map_frame_t::map_frame_t() :
 	filter_container.set_visible(false);
 	add_component(&filter_container);
 	filter_container.set_table_layout(1, 0);
-
-	filter_container.add_table(5,0)->set_force_equal_columns(true);
-	// insert filter buttons in legend container
-	for (int index=0; index<MAP_MAX_BUTTONS; index++) {
-		filter_buttons[index].init( button_t::box_state | button_t::flexible, button_init[index].button_text);
+	for (int index = 0; index < MAP_MAX_BUTTONS; index++) {
+		filter_buttons[index].init(button_t::box_state | button_t::flexible, button_init[index].button_text);
 		filter_buttons[index].text_color = SYSCOL_TEXT;
 		filter_buttons[index].set_tooltip( button_init[index].tooltip_text );
 		filter_buttons[index].add_listener(this);
-		filter_container.add_component(filter_buttons + index);
 	}
+	update_buttons();
 	filter_buttons[6].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_buttons[7].set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_buttons[8].set_image(skinverwaltung_t::goods->get_image_id(0));
 	filter_buttons[9].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_buttons[10].set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_buttons[11].set_image(skinverwaltung_t::goods->get_image_id(0));
-	filter_container.end_table();
-	update_buttons();
 
 	// directory container
 	directory_container.set_table_layout(4,0);
@@ -425,10 +441,36 @@ map_frame_t::map_frame_t() :
 
 void map_frame_t::update_buttons()
 {
-	for(  int i=0;  i<MAP_MAX_BUTTONS;  i++  ) {
-		filter_buttons[i].pressed = (button_init[i].mode&env_t::default_mapmode)!=0;
-		filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? legend_group_selected_color[button_init[i].group] : legend_group_color[button_init[i].group]);
+	filter_container.remove_all();
+	if (!select_legend_bits) {
+		b_show_legend.pressed = false;
+		filter_container.set_visible(false);
 	}
+	else if(select_legend_bits==pow(2,MAP_MAX_LEGEND_GROUPS)-1) {
+		b_show_legend.pressed = true;
+	}
+	for (uint8 i = 0; i<MAP_MAX_LEGEND_GROUPS; i++) {
+		b_legend_group[i].pressed = select_legend_bits&(1<<i);
+		b_legend_group[i].set_text(b_legend_group[i].pressed ? "-" : "+");
+		b_legend_group[i].background_color = color_idx_to_rgb(b_legend_group[i].pressed ? legend_group_selected_color[i] : legend_group_color[i]);
+	}
+	if (select_legend_bits) {
+		filter_container.set_visible(true);
+		filter_container.add_table(4,0)->set_force_equal_columns(true);
+		// insert filter buttons in legend container
+		for (int i = 0; i < MAP_MAX_BUTTONS; i++) {
+			if (!(select_legend_bits&(1<<button_init[i].group))) {
+				continue;
+			}
+			filter_buttons[i].pressed = (button_init[i].mode&env_t::default_mapmode)!=0;
+			filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? legend_group_selected_color[button_init[i].group] : legend_group_color[button_init[i].group]);
+			filter_container.add_component(filter_buttons + i);
+		}
+		filter_container.end_table();
+	}
+	filter_container.set_size(filter_container.get_size());
+	reset_min_windowsize();
+	resize(scr_size(0,0));
 }
 
 
@@ -494,11 +536,20 @@ void map_frame_t::update_factory_legend()
 }
 
 
-void map_frame_t::show_hide_legend(const bool show)
+void map_frame_t::show_hide_legend(const bool show, bool from_save)
 {
 	filter_container.set_visible(show);
 	b_show_legend.pressed = show;
 	legend_visible = show;
+	if (!from_save) {
+		if (b_show_legend.pressed) {
+			select_legend_bits=pow(2, MAP_MAX_LEGEND_GROUPS)-1;
+		}
+		else {
+			select_legend_bits = 0;
+		}
+	}
+	update_buttons();
 	reset_min_windowsize();
 }
 
@@ -553,9 +604,7 @@ void map_frame_t::set_halt(halthandle_t halt)
 	if( halt.is_null() ) { return;  };
 
 	activate_individual_network_mode(halt->get_basis_pos());
-	title_buf.clear();
-	title_buf.printf("%s > %s > %s", translator::translate("Reliefkarte"), translator::translate("Networks"), halt->get_name());
-	set_name(title_buf);
+	set_title();
 }
 
 void map_frame_t::set_title()
@@ -564,7 +613,11 @@ void map_frame_t::set_title()
 	title_buf.append(translator::translate("Reliefkarte"));
 	if (b_overlay_networks.pressed) {
 		title_buf.printf(" > %s", translator::translate("Networks"));
-		if (selected_cnv.is_bound()) {
+		if (minimap_t::get_instance()->get_selected_halt().is_bound()) {
+			title_buf.append(" > ");
+			title_buf.append(minimap_t::get_instance()->get_selected_halt()->get_name());
+		}
+		else if (selected_cnv.is_bound()) {
 			title_buf.append(" > ");
 			if( selected_cnv->get_line().is_bound() ){
 				title_buf.append(selected_cnv->get_line()->get_name());
@@ -582,6 +635,7 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 {
 	if(comp==&b_show_legend) {
 		show_hide_legend( !b_show_legend.pressed );
+		update_buttons();
 	}
 	else if(comp==&b_show_network_option) {
 		show_hide_network_option( !b_show_network_option.pressed );
@@ -659,6 +713,14 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		minimap_t::get_instance()->invalidate_map_lines_cache();
 	}
 	else {
+		for( uint8 i=0; i<MAP_MAX_LEGEND_GROUPS; i++ ) {
+			if (  comp == &b_legend_group[i]  ) {
+				select_legend_bits ^= (1<<i);
+				update_buttons();
+				return true;
+			}
+		}
+
 		for(  int i=0;  i<MAP_MAX_BUTTONS;  i++  ) {
 			if(  comp == filter_buttons+i  ) {
 				if(  filter_buttons[i].pressed  ) {
@@ -884,6 +946,7 @@ void map_frame_t::rdwr( loadsave_t *file )
 
 	if( file->is_version_ex_atleast(14,50) ){
 		file->rdwr_bool( network_option_visible );
+		file->rdwr_byte( select_legend_bits );
 	}
 
 	if(  file->is_loading()  ) {
@@ -893,12 +956,11 @@ void map_frame_t::rdwr( loadsave_t *file )
 		scrolly.set_size( scrolly.get_size() );
 
 		minimap_t::get_instance()->set_display_mode(( minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
-		update_buttons();
 
 		show_hide_directory(directory_visible);
-		show_hide_legend(legend_visible);
 		show_hide_network_option(network_option_visible);
 		show_hide_scale(scale_visible);
+		show_hide_legend(legend_visible, true);
 
 		b_overlay_networks.pressed = (env_t::default_mapmode & minimap_t::MAP_LINES)!=0;
 
