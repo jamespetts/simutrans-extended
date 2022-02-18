@@ -2222,13 +2222,15 @@ brakes from max. speed in %i m
 (Max. comfortable journey time:
 (快適に移動できる最大時間:
 (speed_restricted_by_bridge)
-(橋梁による速度制限)
+橋梁による速度制限
 (speed_restricted_by_city)
-(市道化による速度制限)
+都市による速度制限
 (speed_restricted_by_tunnel)
-(トンネルによる速度制限)
+トンネルによる速度制限
 (speed_restricted_by_wayobj)
-(軌道付属設備による速度制限)
+軌道付属設備による速度制限
+(speed_restricted_by_crossing)
+踏切による速度制限
 [R]
 [折返]
 \n\nInterest on your debt is\naccumulating at %i %%

@@ -606,7 +606,7 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 		lb_evaluation("Evaluation:"),
 		scrolly_departure_board(&cont_departure, true, true),
 		text_freight(&freight_info),
-		scrolly_freight(&container_freight, true, true),
+		scrolly_freight(&text_freight, true, true),
 		waiting_bar(halt, false),
 		view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, get_base_tile_raster_width() * 7 / 8)))
 {
@@ -776,12 +776,16 @@ void halt_info_t::init(halthandle_t halt)
 
 	add_component(&switch_mode);
 	switch_mode.add_listener(this);
-	switch_mode.add_tab(&scrolly_freight, translator::translate("Hier warten/lagern:"));
+	switch_mode.add_tab(&container_freight, translator::translate("Hier warten/lagern:"));
+
+	text_freight.set_pos(scr_coord(D_MARGIN_LEFT, D_MARGIN_TOP));
 
 	// list of waiting cargo
 	// sort mode
 	container_freight.set_table_layout(1,0);
-	container_freight.add_table(2,1);
+	container_freight.set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
+	container_freight.add_table(3,1);
+	container_freight.new_component<gui_margin_t>(D_MARGIN_LEFT);
 	container_freight.new_component<gui_label_t>("Sort waiting list by");
 
 	freight_sort_selector.clear_elements();
@@ -801,7 +805,8 @@ void halt_info_t::init(halthandle_t halt)
 	container_freight.add_component(&freight_sort_selector);
 	container_freight.end_table();
 
-	container_freight.add_component(&text_freight);
+	scrolly_freight.set_maximize(true);
+	container_freight.add_component(&scrolly_freight);
 
 	// departure board
 	cont_tab_departure.set_table_layout(1,0);
@@ -852,6 +857,7 @@ void halt_info_t::init(halthandle_t halt)
 		cont_tab_departure.new_component<gui_fill_t>();
 	}
 	cont_tab_departure.end_table();
+	scrolly_departure_board.set_maximize(true);
 	cont_tab_departure.add_component(&scrolly_departure_board);
 	switch_mode.add_tab(&cont_tab_departure, translator::translate("Departure board"));
 
@@ -1148,13 +1154,13 @@ void halt_info_t::set_tab_opened()
 	{
 		case 0:
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_freight.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
 			break;
 		case 1: // departure board
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE)));
 			break;
 		case 2: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_chart.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + chart.get_size().h + (D_BUTTON_HEIGHT+D_V_SPACE)*4 + D_MARGINS_Y)));
 			break;
 	}
 }

@@ -6290,3 +6290,5 @@ access_minimap
 Show route on map
 helptxt_access_minimap
 Show this line's route on the map in schematic form
+(speed_restricted_by_crossing)
+(speed restricted by a crossing)
