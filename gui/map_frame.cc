@@ -128,12 +128,12 @@ static const char * const legend_group_help_text[MAP_MAX_LEGEND_GROUPS] = {
 	"selection_group_of_other"
 };
 
-const const uint8 legend_group_color[MAP_MAX_LEGEND_GROUPS] =
+static const uint8 legend_group_color[MAP_MAX_LEGEND_GROUPS] =
 {
 	COL_LIGHT_GREEN, COL_LIGHT_PURPLE, COL_LIGHT_ORANGE, COL_HORIZON_BLUE, COL_WHITE
 };
 
-const const uint8 legend_group_selected_color[MAP_MAX_LEGEND_GROUPS] =
+static const uint8 legend_group_selected_color[MAP_MAX_LEGEND_GROUPS] =
 {
 	COL_DARK_GREEN, COL_DARK_PURPLE, COL_DARK_ORANGE, COL_SOFT_BLUE, COL_GREY5
 };
