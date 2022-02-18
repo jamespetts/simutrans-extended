@@ -540,7 +540,7 @@ void roadsign_t::calc_image()
 		// traffic light
 		weg_t *str=gr->get_weg(road_wt);
 		if(str) {
-			const uint8 weg_dir = str->get_ribi_unmasked();
+			const uint8 weg_dir = (str->get_ribi()==str->get_ribi_unmasked()) ? str->get_ribi() : str->get_ribi_unmasked()^str->get_ribi();
 			const uint8 direction = desc->get_count()>16 ? (state&2)+((state+1)&1) : (state+1) & 1;
 
 			// other front/back images for left side ...
@@ -565,6 +565,9 @@ void roadsign_t::calc_image()
 					after_xoffset += -XOFF;
 					after_yoffset += YOFF;
 				}
+				else {
+					foreground_image = IMG_EMPTY;
+				}
 
 				if(weg_dir&ribi_t::west) {
 					if(weg_dir&ribi_t::south) {
@@ -583,6 +586,9 @@ void roadsign_t::calc_image()
 					xoff += -XOFF;
 					yoff += -YOFF;
 				}
+				else {
+					tmp_image = IMG_EMPTY;
+				}
 			}
 			else {
 				// drive right ...
@@ -597,6 +603,9 @@ void roadsign_t::calc_image()
 				else if(weg_dir&ribi_t::east) {
 					foreground_image = desc->get_image_id(2+direction*8);
 				}
+				else {
+					foreground_image = IMG_EMPTY;
+				}
 
 				if(weg_dir&ribi_t::west) {
 					if(weg_dir&ribi_t::north) {
@@ -608,6 +617,9 @@ void roadsign_t::calc_image()
 				}
 				else if(weg_dir&ribi_t::north) {
 					tmp_image = desc->get_image_id(1+direction*8);
+				}
+				else {
+					tmp_image = IMG_EMPTY;
 				}
 			}
 

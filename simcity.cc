@@ -5119,10 +5119,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	slope_t::type slope = bd->get_grund_hang();
 	if (!slope_t::is_way(slope)) {
 		climate c = welt->get_climate(k);
-		if (welt->can_flatten_tile(NULL, k, bd->get_hoehe()+1, true)) {
-			welt->flatten_tile(NULL, k, bd->get_hoehe()+1, true);
-		}
-		else if(  bd->get_hoehe() > welt->get_water_hgt(k)  &&  welt->can_flatten_tile(NULL, k, bd->get_hoehe() )  ) {
+		if(  bd->get_hoehe() > welt->get_water_hgt(k)  &&  welt->can_flatten_tile(NULL, k, bd->get_hoehe() )  ) {
 			welt->flatten_tile(NULL, k, bd->get_hoehe());
 		}
 		else {

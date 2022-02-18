@@ -1971,7 +1971,7 @@ const char *tool_buy_house_t::work( player_t *player, koord3d pos)
 				gebaeude_t *gb_part = gr->find<gebaeude_t>();
 				// there may be buildings with holes
 				if(  gb_part  &&  gb_part->get_tile()->get_desc()==bdsc  &&  player_t::check_owner(gb_part->get_owner(),player)  ) {
-					const sint64 cost = welt->get_land_value(gr->get_pos()) * bdsc->get_level() * 5; // Developed land is more valuable than undeveloped land.
+					const sint64 cost = welt->get_land_value(gr->get_pos()) + welt->get_settings().cst_multiply_remove_haus * tile->get_desc()->get_level() * 2; // Developed land is more valuable than undeveloped land.
 					if(!player_t::can_afford(player, -cost))
 					{
 						return NOTICE_INSUFFICIENT_FUNDS;
@@ -7116,7 +7116,7 @@ const char *tool_build_house_t::work( player_t *player, koord3d pos )
 				city->add_gebaeude_to_stadt(gb->access_first_tile());
 				city->reset_city_borders();
 			}
-			player_t::book_construction_costs(player, welt->get_settings().cst_multiply_remove_haus * desc->get_level() * size.x * size.y, k, gb->get_waytype());
+			player_t::book_construction_costs(player, welt->get_settings().cst_multiply_remove_haus*2 * desc->get_level() * size.x * size.y, k, gb->get_waytype());
 			return NULL;
 		}
 	}
@@ -9586,7 +9586,14 @@ bool tool_change_depot_t::init( player_t *player )
 
 								if(tool == 'u')
 								{
-									depot->upgrade_vehicle(cnv, vb);
+									// "p" is the extra data sent from the depot, i.e., the vehicle name after the update is stored.
+									// Somehow a vehicle that is not selected can be a vb, so if we don't check it, it may be upgrading to the wrong vehicle...
+									if (!strcmp(p, vb->get_name())) {
+										depot->upgrade_vehicle(cnv, vb);
+									}
+									else {
+										continue;
+									}
 								}
 								else
 								{
@@ -10180,6 +10187,39 @@ bool tool_add_message_t::init(player_t *player)
 		}
 		welt->get_message()->add_message( text+1, koord::invalid, type,
 							    type & message_t::playermsg_flag ? color_idx_to_rgb(COL_BLACK) : PLAYER_FLAG|player->get_player_nr(), IMG_EMPTY );
+	}
+	return false;
+}
+
+
+bool tool_reassign_signal_internal_t::init(player_t *player)
+{
+	koord3d sig_pos;
+	koord3d new_sb_pos;
+
+	if (6 != sscanf(default_param, "%hi,%hi,%hi,%hi,%hi,%hi", &sig_pos.x, &sig_pos.y, &sig_pos.z, &new_sb_pos.x, &new_sb_pos.y, &new_sb_pos.z))
+	{
+		dbg->error("tool_reassign_signal_internal_t::init", "could not perform (%s)", default_param);
+		return false;
+	}
+
+	signal_t* sig = welt->lookup(sig_pos)->find<signal_t>();
+	if (!sig || sig->get_owner() != player) {
+		return false;
+	}
+	gebaeude_t* gb = world()->lookup(new_sb_pos)->get_building();
+
+	if (!gb || !gb->get_tile()->get_desc()->is_signalbox()) {
+		return false;
+	}
+	signalbox_t *new_sb = (signalbox_t*)world()->lookup(new_sb_pos)->get_building();
+
+	if (grund_t *gr = welt->lookup(sig->get_signalbox())) {
+		if (gebaeude_t* gb = gr->get_building()) {
+			if (gb->get_tile()->get_desc()->is_signalbox()) {
+				new_sb->transfer_signal(sig, (signalbox_t*)gb);
+			}
+		}
 	}
 	return false;
 }

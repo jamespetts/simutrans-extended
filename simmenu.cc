@@ -169,6 +169,7 @@ const char *tool_t::id_to_string(uint16 id)
 		CASE_TO_STRING(TOOL_CONVOY_NAMEPLATES);
 		CASE_TO_STRING(TOOL_CONVOY_LOADINGBAR);
 		CASE_TO_STRING(TOOL_SHOW_FACTORY_STORAGE);
+		CASE_TO_STRING(TOOL_REASSIGN_SIGNAL_INTERNAL);
 		}
 	}
 	else if (id & DIALOG_TOOL) {
@@ -344,6 +345,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_RECOLOUR_TOOL_DEPRECATED:
 		case TOOL_RECOLOUR_TOOL:		tool = new tool_recolour_t(); break;
 		case TOOL_ACCESS_TOOL:          tool = new tool_access_t(); break;
+		case TOOL_REASSIGN_SIGNAL_INTERNAL: tool = new tool_reassign_signal_internal_t(); break;
 		case UNUSED_WKZ_PWDHASH_TOOL:
 			dbg->warning("create_simple_tool()","deprecated tool [%i] requested", toolnr);
 			return NULL;
