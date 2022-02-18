@@ -22,6 +22,7 @@
 class karte_ptr_t;
 
 #define MAP_MAX_BUTTONS (31)
+#define MAP_MAX_LEGEND_GROUPS (5)
 
 /**
  * Minimap window
@@ -42,11 +43,17 @@ private:
 	static scr_coord screenpos;
 
 	static bool legend_visible;
+	static bool network_option_visible;
 	static bool scale_visible;
 	static bool directory_visible;
 	static bool filter_factory_list;
 
 	static bool is_cursor_hidden;
+
+	static uint8 select_legend_bits;
+
+	cbuffer_t title_buf;
+	convoihandle_t selected_cnv = convoihandle_t(); // for title name cache
 
 	/**
 	 * We need to keep track of drag/click events
@@ -63,7 +70,7 @@ private:
 
 	vector_tpl<const goods_desc_t *> viewable_freight_types;
 
-	gui_aligned_container_t filter_container, scale_container, directory_container, *zoom_row;
+	gui_aligned_container_t filter_container, network_filter_container, scale_container, directory_container, *zoom_row;
 
 	gui_scrollpane_t* p_scrolly;
 
@@ -71,6 +78,8 @@ private:
 	button_t zoom_buttons[2];
 	button_t b_rotate45;
 	button_t b_show_legend;
+	button_t b_legend_group[MAP_MAX_LEGEND_GROUPS];
+	button_t b_show_network_option;
 	button_t b_show_scale;
 	button_t b_show_directory;
 	button_t b_overlay_networks;
@@ -87,9 +96,11 @@ private:
 	gui_combobox_t freight_type_c;
 
 	void zoom(bool zoom_out);
+
 	void update_buttons();
 	void update_factory_legend();
-	void show_hide_legend(const bool show);
+	void show_hide_legend(const bool show, bool from_save=false);
+	void show_hide_network_option(const bool show);
 	void show_hide_scale(const bool show);
 	void show_hide_directory(const bool show);
 
@@ -125,7 +136,11 @@ public:
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
-	void enable_network_map();
+	void set_title();
+
+	// Launch the network map from an external dialog
+	void activate_individual_network_mode(koord center_pos = koord::invalid);
+	void set_halt(halthandle_t halt = halthandle_t());
 };
 
 #endif

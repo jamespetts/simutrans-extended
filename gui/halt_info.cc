@@ -606,7 +606,7 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 		lb_evaluation("Evaluation:"),
 		scrolly_departure_board(&cont_departure, true, true),
 		text_freight(&freight_info),
-		scrolly_freight(&container_freight, true, true),
+		scrolly_freight(&text_freight, true, true),
 		waiting_bar(halt, false),
 		view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, get_base_tile_raster_width() * 7 / 8)))
 {
@@ -755,7 +755,7 @@ void halt_info_t::init(halthandle_t halt)
 			add_component(&view);
 			view.set_location(halt->get_basis_pos3d());
 
-			detail_button.init(button_t::roundbox, "Details");
+			detail_button.init(button_t::roundbox_state, "Details");
 			if (skinverwaltung_t::open_window) {
 				detail_button.set_image(skinverwaltung_t::open_window->get_image_id(0));
 				detail_button.set_image_position_right(true);
@@ -776,12 +776,16 @@ void halt_info_t::init(halthandle_t halt)
 
 	add_component(&switch_mode);
 	switch_mode.add_listener(this);
-	switch_mode.add_tab(&scrolly_freight, translator::translate("Hier warten/lagern:"));
+	switch_mode.add_tab(&container_freight, translator::translate("Hier warten/lagern:"));
+
+	text_freight.set_pos(scr_coord(D_MARGIN_LEFT, D_MARGIN_TOP));
 
 	// list of waiting cargo
 	// sort mode
 	container_freight.set_table_layout(1,0);
-	container_freight.add_table(2,1);
+	container_freight.set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
+	container_freight.add_table(3,1);
+	container_freight.new_component<gui_margin_t>(D_MARGIN_LEFT);
 	container_freight.new_component<gui_label_t>("Sort waiting list by");
 
 	freight_sort_selector.clear_elements();
@@ -801,7 +805,8 @@ void halt_info_t::init(halthandle_t halt)
 	container_freight.add_component(&freight_sort_selector);
 	container_freight.end_table();
 
-	container_freight.add_component(&text_freight);
+	scrolly_freight.set_maximize(true);
+	container_freight.add_component(&scrolly_freight);
 
 	// departure board
 	cont_tab_departure.set_table_layout(1,0);
@@ -852,6 +857,7 @@ void halt_info_t::init(halthandle_t halt)
 		cont_tab_departure.new_component<gui_fill_t>();
 	}
 	cont_tab_departure.end_table();
+	scrolly_departure_board.set_maximize(true);
 	cont_tab_departure.add_component(&scrolly_departure_board);
 	switch_mode.add_tab(&cont_tab_departure, translator::translate("Departure board"));
 
@@ -951,6 +957,8 @@ void halt_info_t::activate_chart_buttons()
 void halt_info_t::update_components()
 {
 	indicator_color.set_color(halt->get_status_farbe());
+
+	detail_button.pressed = win_get_magic(magic_halt_detail + halt.get_id());
 
 	// update evaluation
 	if (halt->get_pax_enabled() || halt->get_mail_enabled()) {
@@ -1148,13 +1156,13 @@ void halt_info_t::set_tab_opened()
 	{
 		case 0:
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_freight.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
 			break;
 		case 1: // departure board
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE)));
 			break;
 		case 2: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_chart.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + chart.get_size().h + (D_BUTTON_HEIGHT+D_V_SPACE)*4 + D_MARGINS_Y)));
 			break;
 	}
 }
@@ -1241,7 +1249,7 @@ void halt_info_t::update_cont_departure()
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_LINE_NAME ? "Line" : "Convoy");
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_DEPARTURES ? "db_convoy_to" : "db_convoy_from");
 
-			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), proportional_string_width("--:--:--"));
+			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), D_TIME_6_DIGITS_WIDTH);
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
@@ -1256,7 +1264,7 @@ void halt_info_t::update_cont_departure()
 					world()->sprintf_ticks(timebuf, sizeof(timebuf), hi.delta_ticks);
 					lb->buf().append(timebuf);
 				}
-				lb->set_fixed_width(proportional_string_width("--:--:--"));
+				lb->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 				lb->update();
 
 				const bool is_bus = (hi.cnv->front()->get_waytype() == road_wt && hi.cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS));

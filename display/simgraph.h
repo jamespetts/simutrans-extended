@@ -46,6 +46,7 @@ extern int default_font_linespace;
 
 #define D_ENTRY_NO_HEIGHT (LINESPACE+4)
 #define D_ENTRY_NO_WIDTH (proportional_string_width("188")+6)
+#define D_TIME_6_DIGITS_WIDTH (proportional_string_width("88:88:88")+6)
 
 /**
 * Alignment enum to align controls against each other
