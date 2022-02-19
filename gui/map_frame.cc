@@ -944,7 +944,7 @@ void map_frame_t::rdwr( loadsave_t *file )
 	transport_type_c.rdwr(file);
 	freight_type_c.rdwr(file);
 
-	if( file->is_version_ex_atleast(14,50) ){
+	if( file->is_version_ex_atleast(14,52) ){
 		file->rdwr_bool( network_option_visible );
 		file->rdwr_byte( select_legend_bits );
 	}
