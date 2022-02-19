@@ -2224,6 +2224,14 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 		if (file->is_loading())
 		{
 			working_halt_index_map = new uint16[65536];
+			for (uint32 i = 0; i < 65536; ++i)
+			{
+				// For quickstone handle, there can at most be 65535 valid entries, plus entry 0 which is reserved for null handle
+				// Thus, the range of quickstone entries [1, 65535] is mapped to the range of matrix index [0, 65534]
+				// Matrix index 65535 either means null handle or the halt has no connexion of the relevant goods category
+				// This is always created regardless
+				working_halt_index_map[i] = 65535;
+			}
 		}
 		for (uint32 i = 0; i < 65536; ++i)
 		{

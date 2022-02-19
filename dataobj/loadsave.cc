@@ -1399,3 +1399,10 @@ extended_version_t loadsave_t::int_version(const char *version_text, char *pak_e
 
 	return { version, extended_version, EX_SAVE_MINOR };
 }
+
+
+stream_loadsave_t::stream_loadsave_t(rdwr_stream_t *stream)
+{
+	this->stream = stream;
+	finfo.ext_version = int_version(SAVEGAME_VER_NR EXTENDED_VER_NR "." QUOTEME(EX_SAVE_MINOR), NULL);
+}

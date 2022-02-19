@@ -1203,7 +1203,6 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 				xoff += D_FIXED_SYMBOL_WIDTH + D_V_SPACE;
 			}
 			// input goods color square box
-			ware->get_name();
 			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, ware->get_color(), true, translator::translate(ware->get_name()));
 			xoff += D_FIXED_SYMBOL_WIDTH;
 

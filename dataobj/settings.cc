@@ -8,6 +8,7 @@
 
 #include "settings.h"
 #include "environment.h"
+#include "../pathes.h"
 #include "../simconst.h"
 #include "../simtypes.h"
 #include "../simdebug.h"
@@ -981,8 +982,12 @@ void settings_t::rdwr(loadsave_t *file)
 		}
 		if(file->is_version_atleast(102, 3)) {
 			// network stuff
-			random_counter = get_random_seed( );
-			file->rdwr_long( random_counter );
+			// Superseded by simrand_rdwr in newer versions
+			if (file->is_version_ex_less(14, 51)) {
+				random_counter = get_random_seed( );
+				file->rdwr_long( random_counter );
+			}
+
 			if(  !env_t::networkmode  ||  env_t::server  ) {
 				frames_per_second = clamp(env_t::fps, env_t::min_fps, env_t::max_fps); // update it on the server to the current setting
 				frames_per_step = env_t::network_frames_per_step;
@@ -1994,11 +1999,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	}
 #endif
 
-	//check for fontname, must be a valid name!
-	std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
-	if( FILE* f = fopen( fname.c_str(), "r" ) ) {
-		fclose( f );
-		env_t::fontname = fname;
+	// check for fontname, must be a valid name!
+	if( !env_t::fontname.compare( FONT_PATH_X "prop.fnt" ) ) {
+		// will be only changed if default!
+		std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
+		if( FILE* f = fopen( fname.c_str(), "r" ) ) {
+			fclose( f );
+			env_t::fontname = fname;
+		}
 	}
 	env_t::fontsize  = contents.get_int( "fontsize", env_t::fontsize );
 

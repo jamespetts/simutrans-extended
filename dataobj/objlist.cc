@@ -292,6 +292,27 @@ inline void objlist_t::intern_insert_at(obj_t* new_obj, uint8 pri)
 }
 
 
+// only used internal for loading. DO NOT USE OTHERWISE!
+bool objlist_t::append(obj_t *new_obj)
+{
+	if(capacity==0) {
+		// the first one save direct
+		obj.one = new_obj;
+		top = 1;
+		capacity = 1;
+		return true;
+	}
+
+	if(top>=capacity  &&  !grow_capacity()) {
+		// memory exceeded
+		return false;
+	}
+
+	intern_insert_at(new_obj, top);
+	return true;
+}
+
+
 // this will automatically give the right order for citycars and the like ...
 bool objlist_t::intern_add_moving(obj_t* new_obj)
 {
@@ -891,7 +912,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 						baum_t *b = new baum_t(file);
 						if(  !b->get_desc()  ) {
 							// is there a replacement possible
-							if(  const tree_desc_t *desc = baum_t::random_tree_for_climate( world()->get_climate_at_height(current_pos.z) )  ) {
+							if(  const tree_desc_t *desc = tree_builder_t::random_tree_for_climate( world()->get_climate_at_height(current_pos.z) )  ) {
 								b->set_desc( desc );
 							}
 							else {
@@ -996,7 +1017,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 			}
 
 			if(new_obj) {
-				add(new_obj);
+				append(new_obj);
 			}
 		}
 	}
@@ -1019,7 +1040,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 				||  (new_obj->get_typ()==obj_t::gebaeude  &&  ((gebaeude_t *)new_obj)->get_fabrik())
 				// things with convoi will not be saved
 				||  (new_obj->get_typ()>=66  &&  new_obj->get_typ()<82)
-				||  (env_t::server  &&  new_obj->get_typ()==obj_t::baum  &&  file->is_version_atleast(110, 1))
+				||  (new_obj->get_typ()==obj_t::baum  &&  file->is_version_atleast(110, 1)  && (env_t::server  ||  file->is_version_atleast(122, 2) || file->is_version_ex_atleast(14, 46))) // trees are saved from boden_t
 				// do not save schedule marker
 				||  new_obj->get_typ()==obj_t::schedule_marker
 			) {

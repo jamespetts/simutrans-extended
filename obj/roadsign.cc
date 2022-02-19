@@ -122,7 +122,7 @@ roadsign_t::roadsign_t(player_t *player, koord3d pos, ribi_t::ribi dir, const ro
 	state = 0;
 	ticks_ns = ticks_ow = 16;
 	ticks_offset = 0;
-	ticks_yellow_ns = ticks_yellow_ow = 2;
+	ticks_amber_ns = ticks_amber_ow = 2;
 	lane_affinity = 4;
 	set_owner( player );
 	if(  desc->is_private_way()  ) {
@@ -648,22 +648,19 @@ sync_result roadsign_t::sync_step(uint32 /*delta_t*/)
 	}
 	else {
 		// change every ~32s
-		// Must not overflow if ticks_ns+ticks_ow+ticks_yellow_ns+ticks_yellow_ow=256
-		uint32 ticks = ((welt->get_ticks()>>10)+ticks_offset) % ((uint32)ticks_ns+(uint32)ticks_ow+(uint32)ticks_yellow_ns+(uint32)ticks_yellow_ow);
+		// Must not overflow if ticks_ns+ticks_ow+ticks_amber_ns+ticks_amber_ow=256
+	        uint32 ticks = ((welt->get_ticks()>>10)+ticks_offset) % ((uint32)ticks_ns+(uint32)ticks_ow+(uint32)ticks_amber_ns+(uint32)ticks_amber_ow);
 
-		uint8 new_state = 0;
-		//traffic light transition: e-w dir -> yellow e-w -> n-s dir -> yellow n-s -> ...
-		if(  ticks < ticks_ow  ) {
-		  new_state = 0;
-		}
-		else if(  ticks < ticks_ow+ticks_yellow_ow  ) {
-		  new_state = 2;
-		}
-		else if(  ticks < (uint32)ticks_ow+ticks_yellow_ow+ticks_ns  ) {
-		  new_state = 1;
-		}
-		else {
-		  new_state = 3;
+		uint8 new_state=0;
+		//traffic light transition: e-w dir -> amber e-w -> n-s dir -> amber n-s -> ...
+		if( ticks < ticks_ow ){
+		  new_state=0;
+		}else if( ticks < ticks_ow+ticks_amber_ow ){
+		  new_state=2;
+		}else if( ticks < ticks_ow+ticks_amber_ow+ticks_ns ){
+		  new_state=1;
+		}else{
+		  new_state=3;
 		}
 
 		if(state!=new_state) {
@@ -703,9 +700,9 @@ void roadsign_t::rotate90()
 		uint8 temp = ticks_ns;
 		ticks_ns = ticks_ow;
 		ticks_ow = temp;
-		temp = ticks_yellow_ns;
-		ticks_yellow_ns = ticks_yellow_ow;
-		ticks_yellow_ow = temp;
+		temp = ticks_amber_ns;
+		ticks_amber_ns = ticks_amber_ow;
+		ticks_amber_ow = temp;
 
 		trafficlight_info_t *const trafficlight_win = dynamic_cast<trafficlight_info_t *>( win_get_magic( (ptrdiff_t)this ) );
 		if(  trafficlight_win  ) {
@@ -915,12 +912,12 @@ void roadsign_t::rdwr(loadsave_t *file)
 	}
 
 	if( file->is_version_ex_atleast(14,40) ) {
-	  file->rdwr_byte(ticks_yellow_ns);
-	  file->rdwr_byte(ticks_yellow_ow);
+	  file->rdwr_byte(ticks_amber_ns);
+	  file->rdwr_byte(ticks_amber_ow);
 	}
 	else {
 	  if( file->is_loading() ){
-	    ticks_yellow_ns = ticks_yellow_ow = 2;
+	    ticks_amber_ns = ticks_amber_ow = 2;
 	  }
 	}
 

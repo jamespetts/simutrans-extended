@@ -4149,6 +4149,10 @@ can open a dedicated window by clicking on a private car.
 自家用車をクリックすると専用の情報ウィンドウを開きます
 can open a dedicated window by clicking on a pedestrian.
 歩行者をクリックすると専用の情報ウィンドウを開きます
+Private car
+自家用車
+Reselect closes tools
+選択済のツールボタンを押すと選択を解除する
 Date format
 日時の表示形式
 Show own depot names
@@ -4169,8 +4173,12 @@ Information windows pop up control:
 情報ウィンドウの表示許可設定：
 helptxt_access_minimap
 ミニマップウィンドウに路線図を表示します
+ground_info
+地表タイル
 helptxt_ground_info_toggler
 占有されていないタイルをクリックすると土地情報を情報ウィンドウを開きます
+tree_info
+樹木
 helptxt_tree_info_toggler
 樹木、岩石、鳥の群れなどのオブジェクトをクリックすると専用の情報ウィンドウを開きます
 travel_distance

@@ -821,7 +821,8 @@ bool fabrik_t::disconnect_supplier(koord supplier_pos) //Returns true if must be
 }
 
 
-fabrik_t::fabrik_t(loadsave_t* file)
+fabrik_t::fabrik_t(loadsave_t* file) :
+	sector(ftype::unknown)
 {
 	owner = NULL;
 	power = 0;
@@ -4161,7 +4162,7 @@ uint32 fabrik_t::calc_operation_rate(sint8 month) const
 
 	sint32 temp_sum = 0;
 	// which sector?
-	if ((sector == end_consumer || sector == power_plant) && input.get_count()) {
+	if ((sector == ftype::end_consumer || sector == ftype::power_plant) && !input.empty()) {
 		// check the consuming rate
 		for (uint32 i = 0; i < input.get_count(); i++) {
 			const sint64 pfactor = desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
@@ -4170,7 +4171,7 @@ uint32 fabrik_t::calc_operation_rate(sint8 month) const
 		}
 		return (uint32)(temp_sum * 1000 / input.get_count() / base_monthly_prod);
 	}
-	else if(sector != unknown && output.get_count()){
+	else if(sector != ftype::unknown && !output.empty()){
 		// check the producing rate of this factory
 		for (uint32 i = 0; i < output.get_count(); i++) {
 			const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();

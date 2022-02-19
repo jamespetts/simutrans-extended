@@ -85,7 +85,9 @@ static bool is_unicode_file(FILE* f)
 	int pos = ftell(f);
 //	DBG_DEBUG("is_unicode_file()", "checking for unicode");
 //	fflush(NULL);
-	fread( str, 1, 2,  f );
+	if (fread( str, 1, 2,  f ) != 2) {
+		return false;
+	}
 //	DBG_DEBUG("is_unicode_file()", "file starts with %x%x",str[0],str[1]);
 //	fflush(NULL);
 	if (str[0] == 0xC2 && str[1] == 0xA7) {
@@ -96,7 +98,9 @@ static bool is_unicode_file(FILE* f)
 	if(  str[0]==0xEF  &&  str[1]==0xBB   &&  fgetc(f)==0xBF  ) {
 		// the first letter is the byte order mark => may need to skip a paragraph (Latin A7, UTF8 C2 A7)
 		pos = ftell(f);
-		fread( str, 1, 2,  f );
+		if (fread( str, 1, 2,  f ) != 2) {
+			return false;
+		}
 		if(  str[0] != 0xC2  ||  str[1] == 0xA7  ) {
 			fseek(f, pos, SEEK_SET);
 			dbg->error( "is_unicode_file()", "file is UTF-8 but has no paragraph" );
@@ -597,6 +601,37 @@ static translator::lang_info* get_lang_by_iso(const char *iso)
 }
 
 
+static uint32 get_highest_character( const utf8 *str )
+{
+	size_t len = 0;
+	uint32 max_char = 0, symbol;
+	do {
+		symbol = utf8_decoder_t::decode( str, len );
+		str += len;
+		if( symbol > max_char ) {
+			max_char = symbol;
+		}
+	} while( symbol > 0 );
+	return max_char;
+}
+
+
+uint32 translator::guess_highest_unicode(int n)
+{
+	const char* T1 = langs[n].texts.get( "Bruecke muss an\neinfachem\nHang beginnen!\n" );
+	uint32 max_char = 0xDF;
+	if( T1 ) {
+		max_char = get_highest_character( (const utf8 *)T1 );
+	}
+	const char* T2 = langs[n].texts.get( "Start" );
+	if( T2 ) {
+		uint32 max_char2 = get_highest_character( (const utf8 *)T2 );
+		max_char = max( max_char, max_char2 );
+	}
+	return max_char;
+}
+
+
 void translator::load_files_from_folder(const char *folder_name, const char *what)
 {
 	searchfolder_t folder;
@@ -659,6 +694,7 @@ bool translator::load(const string &path_to_pakset)
 			load_language_iso(iso);
 			load_language_file(file);
 			fclose(file);
+			langs[single_instance.lang_count].highest_character = guess_highest_unicode( single_instance.lang_count );
 			single_instance.lang_count++;
 			if (single_instance.lang_count == (int)lengthof(langs)) {
 				if (++i != end) {
@@ -763,19 +799,30 @@ int translator::get_language(const char *iso)
 }
 
 
-void translator::set_language(const char *iso)
+bool translator::set_language(const char *iso)
 {
 	for(  int i = 0;  i < single_instance.lang_count;  i++  ) {
 		const char *iso_base = langs[i].iso_base;
 		if(  iso_base[0] == iso[0]  &&  iso_base[1] == iso[1]  ) {
 			set_language(i);
-			return;
+			return true;
 		}
 	}
+
 	// if the request language does not exist
 	if( single_instance.current_lang == -1 ) {
+		for( int i = 0; i < single_instance.lang_count; i++ ) {
+			const char* iso_base = langs[i].iso_base;
+			if( iso_base[0] == 'e'  &&  iso_base[1] == 'n' ) {
+				set_language( i );
+				return false;
+			}
+		}
+		// not even english found ...
 		set_language(0);
 	}
+
+	return false;
 }
 
 
