@@ -390,15 +390,16 @@ map_frame_t::map_frame_t() :
 		filter_buttons[index].init(button_t::box_state | button_t::flexible, button_init[index].button_text);
 		filter_buttons[index].text_color = SYSCOL_TEXT;
 		filter_buttons[index].set_tooltip( button_init[index].tooltip_text );
+		filter_buttons[index].pressed = (env_t::default_mapmode & button_init[index].mode) != 0;
 		filter_buttons[index].add_listener(this);
 	}
-	update_buttons();
 	filter_buttons[6].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_buttons[7].set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_buttons[8].set_image(skinverwaltung_t::goods->get_image_id(0));
 	filter_buttons[9].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_buttons[10].set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_buttons[11].set_image(skinverwaltung_t::goods->get_image_id(0));
+	update_buttons();
 
 	// directory container
 	directory_container.set_table_layout(4,0);
@@ -462,7 +463,6 @@ void map_frame_t::update_buttons()
 			if (!(select_legend_bits&(1<<button_init[i].group))) {
 				continue;
 			}
-			filter_buttons[i].pressed = (button_init[i].mode&env_t::default_mapmode)!=0;
 			filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? legend_group_selected_color[button_init[i].group] : legend_group_color[button_init[i].group]);
 			filter_container.add_component(filter_buttons + i);
 		}
