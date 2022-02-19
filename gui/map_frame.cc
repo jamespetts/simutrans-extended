@@ -522,7 +522,7 @@ void map_frame_t::update_factory_legend()
 
 		// add corresponding legend entries
 		bool filter_by_catg = (minimap_t::get_instance()->freight_type_group_index_showed_on_map != nullptr && minimap_t::get_instance()->freight_type_group_index_showed_on_map != goods_manager_t::none);
-		PIXVAL prev_color = NULL;
+		PIXVAL prev_color = 0;
 		const char *prev_name = {};
 		FOR(vector_tpl<const factory_desc_t*>, f, factory_types) {
 			if (prev_name && !strcmp(translator::translate(f->get_name()), prev_name) && f->get_color()==prev_color) {
@@ -543,7 +543,7 @@ void map_frame_t::show_hide_legend(const bool show, bool from_save)
 	legend_visible = show;
 	if (!from_save) {
 		if (b_show_legend.pressed) {
-			select_legend_bits=pow(2, MAP_MAX_LEGEND_GROUPS)-1;
+			select_legend_bits=(uint8)pow(2, MAP_MAX_LEGEND_GROUPS)-1;
 		}
 		else {
 			select_legend_bits = 0;
