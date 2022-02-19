@@ -151,8 +151,8 @@ city_info_t::city_info_t(stadt_t* city) :
 	city(city),
 	pax_map(city),
 	location_map(city),
-	scrolly_stats(&cont_city_stats, true),
-	lb_allow_growth("")
+	lb_allow_growth(""),
+	scrolly_stats(&cont_city_stats, true)
 {
 	if (city) {
 		init();

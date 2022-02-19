@@ -63,7 +63,7 @@ void gui_combined_factory_storage_bar_t::draw(scr_coord offset)
 		if (!is_output && !fab->get_desc()->get_supplier(i)) {
 			continue;
 		}
-		if (bool is_available = world()->get_goods_list().is_contained(goods.get_typ())) {
+		if( world()->get_goods_list().is_contained( goods.get_typ() ) ) {
 			const sint64 pfactor = is_output ? (sint64)fab->get_desc()->get_product(i)->get_factor()
 				: (fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll);
 			const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);

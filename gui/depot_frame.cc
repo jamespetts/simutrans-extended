@@ -671,9 +671,6 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				welt->set_dirty();
 			}
 		}
-		else if(  comp == &bt_sell  ) {
-			depot->call_depot_tool('v', cnv, NULL);
-		}
 		else if (comp == &bt_details) {
 			create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());
 			return true;

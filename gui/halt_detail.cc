@@ -379,7 +379,6 @@ void halt_detail_t::update_components()
 				if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)
 				{
 					btn->enable();
-					bool all_class_btn_pressed = false;
 					if (!chk_pressed) {
 						// Initialization
 						btn->pressed = true;
@@ -387,7 +386,6 @@ void halt_detail_t::update_components()
 						selected_route_catg_index = catg_index;
 						// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 						selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
-						all_class_btn_pressed = true;
 					}
 					else if (selected_route_catg_index != catg_index) {
 						btn->pressed = false;
