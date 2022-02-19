@@ -17,7 +17,6 @@
 
 #include "../vehicle/vehicle.h"
 
-#define L_TIME_6_DIGITS_WIDTH (proportional_string_width("88:88:88")+6) // May be shared with another gui
 gui_times_history_t::gui_times_history_t(linehandle_t line_, convoihandle_t convoi_, bool line_reversed_display)
 {
 	line = line_;
@@ -239,7 +238,7 @@ void gui_times_history_t::build_table()
 					button_t *b = new_component<button_t>();
 					b->set_typ(button_t::posbutton_automatic);
 					b->set_targetpos(entry.pos.get_2d());
-					new_component<gui_margin_t>(max(0,L_TIME_6_DIGITS_WIDTH-D_POS_BUTTON_WIDTH-D_FIXED_SYMBOL_WIDTH*2));
+					new_component<gui_margin_t>(max(0,D_TIME_6_DIGITS_WIDTH-D_POS_BUTTON_WIDTH-D_FIXED_SYMBOL_WIDTH*2));
 				}
 				end_table();
 				add_table(2,1)->set_alignment(ALIGN_RIGHT); {
@@ -289,7 +288,7 @@ void gui_times_history_t::build_table()
 				if (exceed_range) {
 					lb->set_tooltip(translator::translate("out of range"));
 				}
-				lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+				lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 				lb->update();
 
 				if (mirrored && i >= (schedule_indices->get_count()/2)) {
@@ -326,7 +325,7 @@ void gui_times_history_t::build_table()
 						lb->buf().append("--:--");
 						lb->set_color(SYSCOL_TEXT_INACTIVE);
 					}
-					lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+					lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 					lb->update();
 				}
 				uint32 time = history.get_average_seconds();
@@ -340,7 +339,7 @@ void gui_times_history_t::build_table()
 					lb->buf().append(translator::translate("no_time_entry"));
 					lb->set_color(SYSCOL_TEXT_INACTIVE);
 				}
-				lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+				lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 				lb->update();
 
 				// average speed
