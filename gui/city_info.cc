@@ -118,7 +118,7 @@ void city_location_map_t::update()
 	for (sint16 y = 0; y < size.h; y++) {
 		for (sint16 x = 0; x < size.w; x++) {
 			const grund_t *gr = welt->lookup_kartenboden(koord((x * size_x) / size.w, (y * size_y) / size.h));
-			if ( world()->get_city( gr->get_pos().get_2d() )==city ) {
+			if ( world()->get_city( gr->get_pos().get_2d() )==city && !gr->is_water()) {
 				map_array.at(x, y) = color_idx_to_rgb(COL_YELLOW);
 			}
 			else {
