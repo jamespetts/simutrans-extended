@@ -10213,9 +10213,9 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 
 	// MUST be at the end of the load/save routine.
 	if(  file->is_version_atleast(102, 4)  ) {
+		file->rdwr_byte( active_player_nr );
+		active_player = players[active_player_nr];
 		if(  env_t::restore_UI  ) {
-			file->rdwr_byte( active_player_nr );
-			active_player = players[active_player_nr];
 			/* restore all open windows
 			 * otherwise it will be ignored
 			 * which is save, since it is the end of file

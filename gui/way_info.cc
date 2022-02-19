@@ -617,6 +617,9 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				else if (way->is_degraded()) {
 					new_component<gui_label_t>("(speed_restricted_by_degradation)", SYSCOL_TEXT_STRONG);
 				}
+				else if (way->is_crossing()) {
+					new_component<gui_label_t>("(speed_restricted_by_crossing)", SYSCOL_TEXT);
+				}
 				else {
 					new_component<gui_label_t>("(speed_restricted_by_city)", SYSCOL_TEXT_STRONG);
 				}
