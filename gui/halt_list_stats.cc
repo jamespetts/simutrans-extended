@@ -289,7 +289,7 @@ void gui_halt_stats_t::update_table()
 			if (halt->get_ware_enabled()) {
 				add_table(2,1);
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-				lb->buf().append(halt->get_finance_history(1, HALT_GOODS_HANDLING_VOLUME) / 10, 1);
+				lb->buf().append(halt->get_finance_history(1, HALT_GOODS_HANDLING_VOLUME)/100.0, 1);
 				lb->buf().append(translator::translate("tonnen"));
 				lb->init(SYSCOL_TEXT, gui_label_t::right);
 				lb->set_fixed_width((D_BUTTON_WIDTH * 3) >> 2);

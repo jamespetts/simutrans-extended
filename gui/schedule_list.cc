@@ -48,6 +48,7 @@
 
 
 #include "minimap.h"
+#include "map_frame.h"
 #include "halt_info.h"
 
 uint16 schedule_list_gui_t::livery_scheme_index = 0;
@@ -451,6 +452,16 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_line_class_manager.add_listener(this);
 	add_component(&bt_line_class_manager);
 
+	bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(LINE_NAME_COLUMN_WIDTH+D_BUTTON_WIDTH, offset_y), D_WIDE_BUTTON_SIZE);
+	if (skinverwaltung_t::open_window) {
+		bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_access_minimap.set_image_position_right(true);
+	}
+	bt_access_minimap.set_tooltip("helptxt_access_minimap");
+	bt_access_minimap.set_visible(false);
+	bt_access_minimap.add_listener(this);
+	add_component(&bt_access_minimap);
+
 	offset_y += D_BUTTON_HEIGHT;
 	// Select livery
 	livery_selector.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH, offset_y));
@@ -638,6 +649,21 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 	else if (comp == &bt_line_class_manager)
 	{
 		create_win(20, 20, new line_class_manager_t(line), w_info, magic_line_class_manager + line.get_id());
+		return true;
+	}
+	else if (  comp==&bt_access_minimap  ) {
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->enable_network_map();
+		if (line->count_convoys() > 0) {
+			minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
+		}
+		else {
+			minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
+		}
 		return true;
 	}
 	else if (comp == &sortedby) {
@@ -1284,6 +1310,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 	}
 	line = new_line;
 	bt_line_class_manager.set_visible(line.is_bound());
+	bt_access_minimap.set_visible(line.is_bound());
 
 	reset_line_name();
 }

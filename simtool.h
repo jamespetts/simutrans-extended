@@ -1278,16 +1278,16 @@ public:
 class tool_recolour_t : public tool_t {
 public:
 	tool_recolour_t() : tool_t(TOOL_RECOLOUR_TOOL | SIMPLE_TOOL) {}
-	virtual bool init(player_t *);
-	virtual bool is_init_network_save() const { return false; }
+	bool init(player_t *) OVERRIDE;
+	bool is_init_network_safe() const OVERRIDE { return false; }
 };
 
 // internal tool: allow/disallow access
 class tool_access_t : public tool_t {
 public:
 	tool_access_t() : tool_t(TOOL_ACCESS_TOOL | SIMPLE_TOOL) {}
-	virtual bool init(player_t *);
-	virtual bool is_init_network_save() const { return false; }
+	bool init(player_t *) OVERRIDE;
+	bool is_init_network_safe() const OVERRIDE { return false; }
 };
 
 // internal tool: send message (could be used for chats)
@@ -1298,5 +1298,12 @@ public:
 	bool is_init_network_safe() const OVERRIDE { return false; }
 };
 
+// internal tool: change conncted signal box
+class tool_reassign_signal_internal_t : public tool_t {
+public:
+	tool_reassign_signal_internal_t() : tool_t(TOOL_REASSIGN_SIGNAL_INTERNAL | SIMPLE_TOOL) {}
+	bool init(player_t *player) OVERRIDE;
+	bool is_init_network_safe() const OVERRIDE { return false; }
+};
 
 #endif

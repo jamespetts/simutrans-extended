@@ -8,6 +8,7 @@
 #include "../display/viewport.h"
 #include "../descriptor/building_desc.h"
 #include "simwin.h"
+#include "../simmenu.h"
 
 
 gui_signalbox_changer_t::gui_signalbox_changer_t(signalbox_t* to, signal_t* from)
@@ -63,16 +64,19 @@ bool gui_signalbox_changer_t::action_triggered(gui_action_creator_t *comp, value
 		return false;
 	}
 	if (comp == &bt_connect) {
-		koord3d old_sb_pos = sig->get_signalbox();
-		const grund_t* gr = world()->lookup(old_sb_pos);
-		if (gr) {
-			gebaeude_t* gb = gr->get_building();
-			if (gb && gb->get_tile()->get_desc()->is_signalbox()) {
-				signalbox_t *old_sb = (signalbox_t*)gb;
-				sb->transfer_signal(sig, old_sb);
-				update();
-				return true;
-			}
+		if( sb->can_add_more_signals() ) {
+			// text changed => call tool
+			cbuffer_t buf;
+			buf.append(sig->get_pos().get_str());
+			buf.append(",");
+			buf.append(sb->get_pos().get_str());
+			tool_t *tool = create_tool(TOOL_REASSIGN_SIGNAL_INTERNAL | SIMPLE_TOOL);
+			tool->set_default_param(buf);
+			world()->set_tool(tool, world()->get_active_player());
+			// since init always returns false, it is safe to delete immediately
+			delete tool;
+			update();
+			return true;
 		}
 	}
 	return false;

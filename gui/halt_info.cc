@@ -1091,11 +1091,11 @@ void halt_info_t::update_components()
 
 						cont_mail_ev_detail.new_component<gui_label_t>(")");
 						cont_mail_ev_detail.new_component<gui_fill_t>();
+						lb_mail_storage.update();
+						lb_mail_storage.set_fixed_width(L_WAITING_CELL_WIDTH);
 					}
 					lb_mail_storage.set_color(SYSCOL_TEXT);
 				}
-				lb_mail_storage.set_fixed_width(L_WAITING_CELL_WIDTH);
-				lb_mail_storage.update();
 			}
 		}
 	}
