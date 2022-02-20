@@ -174,7 +174,7 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 		minuten = (((hours*3) % 8192)*60)/8192;
 		hours = ((hours*3) / 8192)%24;
 	}
-	else if (env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE) {
+	else if (env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY) {
 		world()->sprintf_ticks(ticks_as_clock, sizeof(ticks_as_clock), ticks_this_month);
 		world()->sprintf_ticks(month_as_clock, sizeof(month_as_clock), world()->ticks_per_world_month);
 		tage = hours = minuten = 0;
@@ -211,6 +211,7 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 			case env_t::DATE_FMT_INTERNAL_MINUTE:
 			case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE:
 			case env_t::DATE_FMT_64_SECOND_MINUTE:
+			case env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY:
 				sprintf(time, "%s %s/%s", date, ticks_as_clock, month_as_clock);
 				break;
 		}

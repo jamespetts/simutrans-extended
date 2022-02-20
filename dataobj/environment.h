@@ -397,8 +397,9 @@ public:
 		DATE_FMT_INTERNAL_MINUTE = 8,
 		DATE_FMT_JAPANESE_INTERNAL_MINUTE = 9,
 		DATE_FMT_64_SECOND_MINUTE = 10,
+		DATE_FMT_64_SECOND_MINUTE_PRETTY = 11,
 		/// If you add a new date format, insert it above this line and increment the value below by 1
-		DATE_FMT_LIMIT_FOR_LOOPS = 11
+		DATE_FMT_LIMIT_FOR_LOOPS = 12
 	};
 
 	/**

@@ -335,7 +335,7 @@ void gui_times_history_t::build_table()
 				lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				if (time != 0) {
 					char average_time_str[32];
-					world()->sprintf_time_secs(average_time_str, 32, time, env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE);
+					world()->sprintf_time_secs(average_time_str, 32, time, env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY);
 					lb->buf().printf("%s", average_time_str);
 				}
 				else {

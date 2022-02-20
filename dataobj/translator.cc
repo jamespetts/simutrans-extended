@@ -863,6 +863,7 @@ const char *translator::get_date(uint16 year, uint16 month, uint16 day, char con
 	case env_t::DATE_FMT_INTERNAL_MINUTE: // Extended unique
 	case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE: // Extended unique
 	case env_t::DATE_FMT_64_SECOND_MINUTE: // Extended unique
+	case env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY: // Extended unique
 		sprintf(date, "%s %d%s %s", season, year, year_sym, month_);
 		break;
 	}
@@ -934,6 +935,7 @@ const char *translator::get_year_month(uint16 year_month)
 		case env_t::DATE_FMT_US_NO_SEASON:
 		case env_t::DATE_FMT_INTERNAL_MINUTE: // Extended unique
 		case env_t::DATE_FMT_64_SECOND_MINUTE: // Extended unique
+		case env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY: // Extended unique
 			sprintf(format_year_month, "%s %04d%s", month_, year, year_sym);
 			break;
 	}
