@@ -61,8 +61,8 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				const sint64 pfactor = fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll;
 				const sint64 max_transit = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 stock_quantity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color = goods.get_typ()->get_color();
 
 				left = 2;
@@ -155,8 +155,8 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 			int i = 0;
 			FORX(array_tpl<ware_production_t>, const& goods, fab->get_output(), i++) {
 				const sint64 pfactor = (sint64)fab->get_desc()->get_product(i)->get_factor();
-				const uint32 stock_quantity   = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity   = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color  = goods.get_typ()->get_color();
 				left = 2;
 				yoff+=2; // box position adjistment
@@ -187,7 +187,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				// [storage capacity]
 				buf.clear();
-				buf.printf("%u/%u,", stock_quantity, storage_capacity);
+				buf.printf("%i/%i,", stock_quantity, storage_capacity);
 				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				left += D_H_SPACE;
 

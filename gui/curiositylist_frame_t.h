@@ -25,7 +25,7 @@ class curiositylist_frame_t : public gui_frame_t, private action_listener_t
 private:
 	gui_combobox_t sortedby, region_selector;
 	button_t sort_order;
-	button_t filter_within_network, bt_cansel_cityfilter;
+	button_t filter_within_network, bt_cancel_cityfilter;
 	gui_scrolled_list_t scrolly;
 	gui_aligned_container_t list;
 	gui_label_buf_t lb_target_city;

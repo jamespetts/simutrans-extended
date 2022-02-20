@@ -138,6 +138,9 @@ public:
 
 	sint32 menge; // in internal units shifted by precision_bits (see step)
 	sint32 max;
+	// returns goods chart value (convert internal value to display value)
+	sint32 get_storage() const { return (sint32)convert_goods(statistics[0][FAB_GOODS_STORAGE]); }
+	sint32 get_capacity(uint32 factor) const { return (sint32)convert_goods(max*factor); }
 	/// Cargo currently in transit from/to this slot. Equivalent to statistics[0][FAB_GOODS_TRANSIT].
 	sint32 get_in_transit() const { return (sint32)statistics[0][FAB_GOODS_TRANSIT]; }
 	/// Current limit on cargo in transit, depending on suppliers mean distance.
@@ -677,7 +680,7 @@ public:
 	uint32 get_total_out() const { return total_output; }
 
 	// return total storage occupancy for UI. should ignore the overflow of certain goods.
-	uint16 get_total_input_occupancy() const;
+	uint32 get_total_input_capacity() const;
 	uint32 get_total_output_capacity() const;
 
 	/**
@@ -747,7 +750,8 @@ public:
     bool is_connected_to_network(player_t *player) const;
 
 	// Returns whether this factory has potential demand for passed goods category
-	bool has_goods_catg_demand(uint8 catg_index = goods_manager_t::INDEX_NONE) const;
+	// 0=check input and output demand, 1=cehck only input, 2=check only output
+	bool has_goods_catg_demand(uint8 catg_index = goods_manager_t::INDEX_NONE, uint8 check_option = 0) const;
 
 
 	// Returns the operating rate to basic production. (x 10)

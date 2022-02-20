@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -25,6 +25,9 @@
 const extended_version_t extended_version_t::INVALID = extended_version_t();
 
 
+bool classify_as_png(FILE *f, file_info_t *info);
+bool classify_as_bmp(FILE *f, file_info_t *info);
+bool classify_as_ppm(FILE *f, file_info_t *info);
 bool classify_as_zstd(FILE *f, file_info_t *info);
 bool classify_as_bzip2(FILE *f, file_info_t *info);
 bool classify_as_zip(FILE *f, file_info_t *info);
@@ -123,6 +126,100 @@ file_classify_status_t classify_file(const char *path, file_info_t *info)
 	return FILE_CLASSIFY_OK;
 }
 
+file_classify_status_t classify_image_file(const char *path, file_info_t *info)
+{
+	if (!info) {
+		dbg->error("classify_file()", "Cannot classify file: info is NULL");
+		return FILE_CLASSIFY_INVALID_ARGS;
+	}
+	else if(  !path  ||  !*path  ) {
+		dbg->error("classify_file()", "Invalid path");
+		return FILE_CLASSIFY_INVALID_ARGS;
+	}
+
+#ifdef MAKEOBJ
+	FILE *f = fopen(path, "rb");
+#else
+	FILE *f = dr_fopen(path, "rb");
+#endif
+
+	if (!f) {
+		// Do not warn about this since we can also use this function to check whether a file exists
+		return FILE_CLASSIFY_NOT_EXISTING;
+	}
+
+	fseek(f, 0, SEEK_SET);
+	if (classify_as_png(f, info)) {
+		fclose(f);
+		return FILE_CLASSIFY_OK;
+	}
+
+	fseek(f, 0, SEEK_SET);
+	if (classify_as_bmp(f, info)) {
+		fclose(f);
+		return FILE_CLASSIFY_OK;
+	}
+
+	fseek(f, 0, SEEK_SET);
+	if (classify_as_ppm(f, info)) {
+		fclose(f);
+		return FILE_CLASSIFY_OK;
+	}
+
+	info->file_type = file_info_t::TYPE_RAW;
+	info->ext_version = extended_version_t::INVALID;
+	info->header_size = 0;
+
+	return FILE_CLASSIFY_OK;
+}
+
+
+bool classify_as_png(FILE *f, file_info_t *info)
+{
+	char buf[80];
+	if (fread(buf, 1, 8, f) != 8) {
+		return false;
+	}
+
+	if (memcmp(buf, "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", 8) != 0) {
+		return false;
+	}
+
+	info->file_type = file_info_t::TYPE_PNG;
+	return true;
+}
+
+
+bool classify_as_bmp(FILE *f, file_info_t *info)
+{
+	char buf[80];
+	if (fread(buf, 1, 2, f) != 2) {
+		return false;
+	}
+
+	if (memcmp(buf, "BM", 2) != 0) {
+		return false;
+	}
+
+	info->file_type = file_info_t::TYPE_BMP;
+	return true;
+}
+
+
+bool classify_as_ppm(FILE *f, file_info_t *info)
+{
+	char buf[80];
+	if (fread(buf, 1, 2, f) != 2) {
+		return false;
+	}
+
+	if (memcmp(buf, "P6", 2) != 0) {
+		return false;
+	}
+
+	info->file_type = file_info_t::TYPE_PPM;
+	return true;
+}
 
 bool classify_as_bzip2(FILE *f, file_info_t *info)
 {

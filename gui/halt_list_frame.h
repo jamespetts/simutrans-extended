@@ -88,7 +88,7 @@ private:
 	button_t sort_order;
 	button_t filter_on;
 	button_t filter_details;
-	button_t btn_show_mutual_use, bt_cansel_cityfilter;
+	button_t btn_show_mutual_use, bt_cancel_cityfilter;
 	gui_combobox_t sortedby, cb_display_mode;
 	gui_scrolled_halt_list_t *scrolly;
 	gui_label_buf_t lb_target_city;

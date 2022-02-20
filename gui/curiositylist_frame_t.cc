@@ -42,50 +42,12 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 		// 1st row
 		new_component<gui_label_t>("hl_txt_sort");
 
-		add_table(4,1);
+		add_table(5,1);
 		{
 			new_component<gui_label_t>("Filter:");
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
-			name_filter_input.set_rigid(false);
 			add_component(&name_filter_input);
 
-			lb_target_city.set_visible(false);
-			lb_target_city.set_rigid(false);
-			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
-			add_component(&lb_target_city);
-
-			bt_cansel_cityfilter.init(button_t::roundbox, "reset");
-			bt_cansel_cityfilter.add_listener(this);
-			bt_cansel_cityfilter.set_visible(false);
-			bt_cansel_cityfilter.set_rigid(false);
-			add_component(&bt_cansel_cityfilter);
-		}
-		end_table();
-
-		// 2nd row
-		add_table(2,1);
-		{
-			for (int i = 0; i < curiositylist::SORT_MODES; i++) {
-				sortedby.new_component<attraction_item_t>(i);
-			}
-			sortedby.set_selection(curiositylist_stats_t::sort_mode);
-			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
-			sortedby.add_listener(this);
-			add_component(&sortedby);
-
-			// sort asc/desc switching button
-			sort_order.init(button_t::sortarrow_state, "");
-			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
-			sort_order.add_listener(this);
-			sort_order.pressed = curiositylist_stats_t::sortreverse;
-			add_component(&sort_order);
-		}
-		end_table();
-
-		add_table(3,1);
-		{
-			new_component<gui_margin_t>(LINESPACE);
 			if (!welt->get_settings().regions.empty()) {
 				//region_selector
 				region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All regions"), SYSCOL_TEXT);
@@ -95,13 +57,48 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 				}
 				region_selector.set_selection(curiositylist_stats_t::region_filter);
 				region_selector.set_width_fixed(true);
-				region_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+				region_selector.set_rigid(false);
+				region_selector.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 				region_selector.add_listener(this);
 				add_component(&region_selector);
 			}
 			else {
 				new_component<gui_empty_t>();
 			}
+
+			lb_target_city.set_visible(false);
+			lb_target_city.set_rigid(false);
+			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
+			add_component(&lb_target_city);
+
+			bt_cancel_cityfilter.init(button_t::roundbox, "reset");
+			bt_cancel_cityfilter.add_listener(this);
+			bt_cancel_cityfilter.set_visible(false);
+			bt_cancel_cityfilter.set_rigid(false);
+			add_component(&bt_cancel_cityfilter);
+		}
+		end_table();
+
+		// 2nd row
+		for (int i = 0; i < curiositylist::SORT_MODES; i++) {
+			sortedby.new_component<attraction_item_t>(i);
+		}
+		sortedby.set_selection(curiositylist_stats_t::sort_mode);
+		sortedby.set_width_fixed(true);
+		sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
+		sortedby.add_listener(this);
+		add_component(&sortedby);
+
+		add_table(3,1);
+		{
+			// sort asc/desc switching button
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.add_listener(this);
+			sort_order.pressed = curiositylist_stats_t::sortreverse;
+			add_component(&sort_order);
+
+			new_component<gui_margin_t>(LINESPACE);
 
 			filter_within_network.init(button_t::square_state, "Within own network");
 			filter_within_network.set_tooltip("Show only connected to own passenger transportation network");
@@ -158,13 +155,14 @@ void curiositylist_frame_t::fill_list()
 void curiositylist_frame_t::set_cityfilter(stadt_t *city)
 {
 	filter_city = city;
-	name_filter_input.set_visible(filter_city==NULL);
-	bt_cansel_cityfilter.set_visible(filter_city!=NULL);
+	region_selector.set_visible(filter_city==NULL && !welt->get_settings().regions.empty());
+	bt_cancel_cityfilter.set_visible(filter_city!=NULL);
 	lb_target_city.set_visible(filter_city!=NULL);
 	if (city) {
 		filter_within_network.pressed = false;
 		curiositylist_stats_t::filter_own_network = false;
-		name_filter[0] = '\0';
+		curiositylist_stats_t::region_filter=0;
+		region_selector.set_selection(0);
 		lb_target_city.buf().printf("%s>%s", translator::translate("City"), city->get_name());
 		lb_target_city.update();
 	}
@@ -195,7 +193,7 @@ bool curiositylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 		filter_within_network.pressed = curiositylist_stats_t::filter_own_network;
 		fill_list();
 	}
-	else if (comp == &bt_cansel_cityfilter) {
+	else if (comp == &bt_cancel_cityfilter) {
 		set_cityfilter(NULL);
 	}
 	return true;

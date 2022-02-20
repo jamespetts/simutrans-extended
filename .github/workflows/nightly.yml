@@ -1,0 +1,183 @@
+name: nightly
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      # Determine the latest successful commit
+      - uses: actions/checkout@v2
+      - name: Get all git tags
+        run: git fetch --prune --unshallow --tags
+      - name: Get latest successful commit hash
+        uses: nrwl/last-successful-commit-action@v1
+        id: last_successful_commit
+        with:
+          branch: 'master'
+          workflow_id: 'ci.yml'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Check for updates
+      - name: Get Nightly hash
+        run: |
+          nightly_sha=$(git rev-parse Nightly)
+          latest_sha=${{ steps.last_successful_commit.outputs.commit_hash }}
+          latest_short_sha=$(git rev-parse --short $latest_sha)
+          outdated=$( [[ $nightly_sha != $latest_sha ]] && echo true || echo false)
+
+          echo "latest_sha=$latest_sha" >> $GITHUB_ENV
+          echo "latest_short_sha=$latest_short_sha" >> $GITHUB_ENV
+          echo "outdated=$outdated" >> $GITHUB_ENV
+
+          [[ $outdated == true ]] &&\
+            echo "Deploy Nightly #$latest_short_sha (Commit: $latest_sha)" ||\
+            echo "Nightly #$latest_short_sha is up to date. Skipping following tasks"
+
+      #TODO If the nightly tag is up-to-date but there is no release (delete manually?) We won't create a new one.
+      - name: Release files
+        if: env.outdated == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          commit: "${{ env.latest_sha }}"
+          name: "Nightly #${{ env.latest_short_sha }}"
+          removeArtifacts: true
+          tag: "Nightly"
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Move the Nightly tag
+        if: env.outdated == 'true'
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.git.updateRef({
+              ...context.repo,
+              ref: "tags/Nightly",
+              sha: "${{ env.latest_sha }}",
+              force: true
+            })
+    outputs:
+      latest_sha: ${{ env.latest_sha }}
+      outdated: ${{ env.outdated }}
+
+  deploy-bin:
+    runs-on: ubuntu-latest
+    if: needs.check-updates.outputs.outdated == 'true'
+    needs: check-updates
+    strategy:
+      matrix:
+        include:
+        - os: linux
+          buildtype: linux
+          backend: sdl2
+        - os: macos
+          buildtype: mac
+          backend: sdl2
+        - os: windows
+          buildtype: mingw
+          backend: sdl2
+          suffix: .exe
+    steps:
+      - name: Get artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: ci.yml
+          commit: ${{ needs.check-updates.outputs.latest_sha }}
+          path: "./artifacts"
+
+      - name: Prepare Deployment
+        run: |
+          mkdir ./${{matrix.os}}
+          cp ./artifacts/sim-${{matrix.buildtype}}-${{matrix.backend}}-nightly/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
+          cp ./artifacts/sim-${{matrix.buildtype}}-posix-nightly/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
+          cp ./artifacts/makeobj-${{matrix.buildtype}}-nightly/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
+          cp ./artifacts/nettool-${{matrix.buildtype}}-nightly/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
+
+      - run: zip ./${{matrix.os}}.zip ./${{matrix.os}}/
+
+      - name: Deploy
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./${{matrix.os}}.zip
+          tag: Nightly
+          overwrite: true
+          file_glob: true
+
+  update-paks:
+    runs-on: ubuntu-latest
+    needs: check-updates #paksets pulling makeobj directly from the artifacts, no need to wait for deploy-bin
+    #if: always() #Wait for deploy-bin to have finished, no matter if successful, failed or skipped
+    strategy:
+      matrix:
+        include:
+          - owner: simutrans
+            repo: simutrans-pak128.britain-ex
+            ref: master
+            workflow_file_name: deploy-nightly.yml
+            token: CI_TOKEN
+#         - owner: Flemmbrav
+#           repo: Pak192.Comic
+#           ref: Extended
+#           workflow_file_name: deploy-nightly.yml
+#           github_token: ${{ secrets.CI_TOKEN }}
+
+    steps:
+      - uses: convictional/trigger-workflow-and-wait@v1.3.0
+        with:
+          owner: ${{ matrix.owner }}
+          repo: ${{ matrix.repo }}
+          ref: ${{ matrix.ref }}
+          workflow_file_name: ${{ matrix.workflow_file_name }}
+          github_token: ${{ secrets[matrix.token] }}
+
+  # TODO: check for changes only deploy if simutrans binaries or at least one of the paksets has changed.
+  deploy-package:
+    runs-on: ubuntu-latest
+    needs: [update-paks, check-updates]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.check-updates.outputs.latest_sha }}
+      #Get binaries
+      - name: Get Linux binaries
+        uses: dsaltares/fetch-gh-release-asset@0.06
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          file: linux.zip
+          version: tags/Nightly
+      - name: Get Windows binaries
+        uses: dsaltares/fetch-gh-release-asset@0.06
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          file: windows.zip
+          version: tags/Nightly
+      - run: |
+          unzip ./windows.zip -d ./simutrans
+          unzip ./linux.zip -d ./simutrans
+
+      #Get paksets
+      - name: Get pak128.britain-ex
+        uses: dsaltares/fetch-gh-release-asset@0.06
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          repo: simutrans/simutrans-pak128.britain-ex
+          file: pak128.britain-ex-nightly.zip
+          version: tags/Nightly
+      #TODO pak192.comic
+      - run: unzip pak128.britain-ex-nightly.zip -d ./simutrans/pak128.britain-ex
+
+      - run: zip ./simutrans-extended.zip ./simutrans/
+
+      - name: Deploy
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./simutrans-extended.zip
+          tag: Nightly
+          overwrite: true

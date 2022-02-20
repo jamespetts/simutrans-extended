@@ -50,7 +50,6 @@ else
           LIBS += -lmingw32
         endif
       endif
-      SOURCES += sys/simsys_w32_png.cc
       CFLAGS  += -DNOMINMAX -DWIN32_LEAN_AND_MEAN -DWINVER=0x0501 -D_WIN32_IE=0x0500
       LIBS    += -lgdi32 -lwinmm -lws2_32 -limm32
       # Disable the console on Windows unless WIN32_CONSOLE is set or graphics are disabled
@@ -77,21 +76,19 @@ ifeq ($(OSTYPE),mac)
   LDFLAGS += -stdlib=libc++
 endif
 
-ifeq ($(OSTYPE), mingw64)
+ifeq ($(BACKEND),sdl2)
+  SOURCES += sys/clipboard_s2.cc
+else ifeq ($(OSTYPE),mingw)
   SOURCES += sys/clipboard_w32.cc
 else
-	ifeq ($(OSTYPE),mingw32)
-	  SOURCES += sys/clipboard_w32.cc
-	else
-	  SOURCES += sys/clipboard_internal.cc
-  endif
+  SOURCES += sys/clipboard_internal.cc
 endif
 
 ifeq ($(OSTYPE),openbsd)
   CXXFLAGS +=  -std=c++11
 endif
 
-LIBS += -lbz2 -lz
+LIBS += -lbz2 -lz -lpng
 
 CXXFLAGS +=  -std=gnu++11
 
@@ -121,7 +118,7 @@ ifneq ($(TUNE_NATIVE),)
 	CFLAGS += -march=native -mtune=native
 	LDFLAGS += -march=native -mtune=native
   ifneq ($(GCC_POPCOUNT),)
-    CFLAGS += -DUSE_GCC_POPCOUNT	
+    CFLAGS += -DUSE_GCC_POPCOUNT
   endif
 endif
 
@@ -494,6 +491,10 @@ SOURCES += gui/welt.cc
 SOURCES += io/classify_file.cc
 SOURCES += io/rdwr/bzip2_file_rdwr_stream.cc
 SOURCES += io/rdwr/raw_file_rdwr_stream.cc
+SOURCES += io/raw_image.cc
+SOURCES += io/raw_image_bmp.cc
+SOURCES += io/raw_image_png.cc
+SOURCES += io/raw_image_ppm.cc
 SOURCES += io/rdwr/rdwr_stream.cc
 SOURCES += io/rdwr/zlib_file_rdwr_stream.cc
 SOURCES += network/checksum.cc
@@ -627,7 +628,7 @@ ifeq ($(BACKEND),posix)
 
 else ifeq ($(BACKEND),gdi)
   SOURCES += sys/simsys_w.cc
-  SOURCES += sound/win32_sound.cc
+  SOURCES += sound/win32_sound_xa.cc
   CFLAGS += -DGDI_SOUND
   ifneq ($(shell expr $(USE_FLUIDSYNTH_MIDI) \>= 1), 1)
     SOURCES += music/w32_midi.cc

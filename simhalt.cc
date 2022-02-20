@@ -4059,7 +4059,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 	if (file->get_extended_version() >= 5)
 	{
-		const int halt_records = file->is_version_ex_atleast(14,48) ? MAX_HALT_COST : file->is_version_ex_atleast(14,9) ? 11 : 9;
+		const int halt_records = file->is_version_ex_atleast(14,49) ? MAX_HALT_COST : file->is_version_ex_atleast(14,9) ? 11 : 9;
 		for (int j = 0; j < halt_records; j++)
 		{
 			if (((file->get_extended_version() == 14 && file->get_extended_revision() < 5) || file->get_extended_version() < 14) && j==8)
@@ -4069,7 +4069,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			for (int k = MAX_MONTHS - 1; k >= 0; k--)
 			{
 				file->rdwr_longlong(financial_history[k][j]);
-				if (file->is_version_ex_atleast(14,48) && j== HALT_COMMUTERS && file->is_loading()) {
+				if (file->is_version_ex_atleast(14,49) && j== HALT_COMMUTERS && file->is_loading()) {
 					financial_history[k][j] = 0;
 				}
 			}

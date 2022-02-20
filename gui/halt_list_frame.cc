@@ -493,11 +493,11 @@ halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
 			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
 			add_component(&lb_target_city);
 
-			bt_cansel_cityfilter.init(button_t::roundbox, "reset");
-			bt_cansel_cityfilter.add_listener(this);
-			bt_cansel_cityfilter.set_visible(false);
-			bt_cansel_cityfilter.set_rigid(false);
-			add_component(&bt_cansel_cityfilter);
+			bt_cancel_cityfilter.init(button_t::roundbox, "reset");
+			bt_cancel_cityfilter.add_listener(this);
+			bt_cancel_cityfilter.set_visible(false);
+			bt_cancel_cityfilter.set_rigid(false);
+			add_component(&bt_cancel_cityfilter);
 		}
 		end_table();
 
@@ -508,7 +508,7 @@ halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
 			}
 			sortedby.set_selection(default_sortmode);
 			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 			sortedby.add_listener(this);
 			add_component(&sortedby);
 
@@ -537,7 +537,7 @@ halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
 		}
 		cb_display_mode.set_selection(display_mode);
 		cb_display_mode.set_width_fixed(true);
-		cb_display_mode.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+		cb_display_mode.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 		cb_display_mode.add_listener(this);
 		add_component(&cb_display_mode);
 	}
@@ -608,7 +608,7 @@ void halt_list_frame_t::set_cityfilter(stadt_t *city)
 {
 	filter_city = city;
 	btn_show_mutual_use.set_visible(filter_city==NULL);
-	bt_cansel_cityfilter.set_visible(filter_city!=NULL);
+	bt_cancel_cityfilter.set_visible(filter_city!=NULL);
 	lb_target_city.set_visible(filter_city!=NULL);
 	if (city) {
 		btn_show_mutual_use.pressed = false;
@@ -686,7 +686,7 @@ bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 		fill_list();
 		btn_show_mutual_use.pressed = show_mutual_stops;
 	}
-	else if (comp == &bt_cansel_cityfilter) {
+	else if (comp == &bt_cancel_cityfilter) {
 		set_cityfilter(NULL);
 	}
 	return true;

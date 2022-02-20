@@ -2228,7 +2228,7 @@ bool grund_t::would_create_excessive_roads(int dx, int dy, road_network_plan_t &
 
 		wayobj_t *wo;
 		if ((wo = gr[i]->get_wayobj(road_wt)) &&
-		    wo->get_desc()->is_noise_barrier()) {
+			(wo->get_desc()->is_noise_barrier() || wo->get_desc()->is_overhead_line())) {
 			return false;
 		}
 
@@ -2299,7 +2299,7 @@ bool grund_t::remove_excessive_roads(int dx, int dy, road_network_plan_t &road_t
 
 		wayobj_t *wo;
 		if ((wo = gr[i]->get_wayobj(road_wt)) &&
-		    wo->get_desc()->is_noise_barrier()) {
+		   ( wo->get_desc()->is_noise_barrier() || wo->get_desc()->is_overhead_line())) {
 			return false;
 		}
 
