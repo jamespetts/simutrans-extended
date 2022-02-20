@@ -2677,7 +2677,7 @@ public:
 		seconds %= seconds_per_minute;
 
 		uint32 hours = minutes / 60;
-		
+
 		if(hours) {
 			minutes %= 60;
 #if defined(_WIN32) || defined (_M_X64)
