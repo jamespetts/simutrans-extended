@@ -1934,25 +1934,25 @@
     <ClCompile Include="descriptor\vehicle_desc.cc" />
     <ClCompile Include="descriptor\way_desc.cc" />
     <ClCompile Include="io\classify_file.cc" />
-    <ClCompile Include="io\raw_image.cc" >
+    <ClCompile Include="io\raw_image.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_bmp.cc" >
+    <ClCompile Include="io\raw_image_bmp.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_png.cc" >
+    <ClCompile Include="io\raw_image_png.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_ppm.cc" >
+    <ClCompile Include="io\raw_image_ppm.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
@@ -1960,6 +1960,7 @@
     </ClCompile>
     <ClCompile Include="io\rdwr\bzip2_file_rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\raw_file_rdwr_stream.cc" />
+    <ClCompile Include="io\rdwr\adler32_stream.cc" />
     <ClCompile Include="io\rdwr\rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zlib_file_rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zstd_file_rdwr_stream.cc" />
@@ -2262,6 +2263,7 @@
     <ClCompile Include="squirrel\squirrel\sqvm.cc" />
     <ClCompile Include="squirrel\sq_extensions.cc" />
     <ClCompile Include="utils\cbuffer_t.cc" />
+    <ClCompile Include="utils\checklist.cc" />
     <ClCompile Include="gui\citybuilding_edit.cc" />
     <ClCompile Include="descriptor\reader\citycar_reader.cc" />
     <ClCompile Include="gui\citylist_frame_t.cc" />
@@ -2529,6 +2531,7 @@
     <ClCompile Include="descriptor\tunnel_desc.cc" />
     <ClCompile Include="descriptor\reader\tunnel_reader.cc" />
     <ClCompile Include="bauer\tunnelbauer.cc" />
+    <ClCompile Include="bauer\tree_builder.cc" />
     <ClCompile Include="boden\tunnelboden.cc" />
     <ClCompile Include="unicode.cc" />
     <ClCompile Include="descriptor\reader\vehicle_reader.cc" />
@@ -2606,6 +2609,7 @@
     <ClInclude Include="io\rdwr\bzip2_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\raw_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\rdwr_stream.h" />
+    <ClInclude Include="io\rdwr\adler32_stream.h" />
     <ClInclude Include="io\rdwr\zlib_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\zstd_file_rdwr_stream.h" />
     <ClInclude Include="network\checksum.h" />
@@ -2709,6 +2713,7 @@
     <ClInclude Include="descriptor\reader\building_reader.h" />
     <ClInclude Include="descriptor\writer\building_writer.h" />
     <ClInclude Include="utils\cbuffer_t.h" />
+    <ClInclude Include="utils\checklist.h" />
     <ClInclude Include="gui\citybuilding_edit.h" />
     <ClInclude Include="descriptor\reader\citycar_reader.h" />
     <ClInclude Include="descriptor\writer\citycar_writer.h" />
@@ -2969,6 +2974,7 @@
     <ClInclude Include="descriptor\reader\tunnel_reader.h" />
     <ClInclude Include="descriptor\writer\tunnel_writer.h" />
     <ClInclude Include="bauer\tunnelbauer.h" />
+    <ClInclude Include="bauer\tree_builder.h" />
     <ClInclude Include="boden\tunnelboden.h" />
     <ClInclude Include="unicode.h" />
     <ClInclude Include="tpl\vector_tpl.h" />

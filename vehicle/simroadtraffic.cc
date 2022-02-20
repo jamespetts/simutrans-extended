@@ -641,9 +641,6 @@ void private_car_t::rdwr(loadsave_t *file)
 		last_tile_marked_as_stopped = koord3d::invalid;
 	}
 
-	// do not start with zero speed!
-	current_speed ++;
-
 	reset_measurements();
 }
 

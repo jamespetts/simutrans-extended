@@ -485,6 +485,7 @@ void print_help()
 		" -server_dns FQDN/IP FQDN or IP address of server for announcements\n"
 		" -server_name NAME   Name of server for announcements\n"
 		" -server_admin_pw PW password for server administration\n"
+		" -heavy NUM          enables heavy-mode debugging for network games. VERY SLOW!\n"
 		" -set_workdir WD     Use WD as directory containing all data.\n"
 		" -singleuser         Save everything in data directory (portable version)\n"
 #ifdef DEBUG
@@ -848,6 +849,12 @@ int simu_main(int argc, char** argv)
 			env_t::server_announce = 0;
 		}
 	}
+	// enabling heavy-mode for debugging network games
+	env_t::network_heavy_mode = 0;
+	if(  args.has_arg("-heavy")  ) {
+		int heavy = atoi(args.gimme_arg("-heavy", 1));
+		env_t::network_heavy_mode = clamp(heavy, 0, 2);
+	}
 
 #ifdef DEBUG
 	DBG_MESSAGE("simu_main()", "Version:    " VERSION_NUMBER EXTENDED_VERSION "  Date: " VERSION_DATE);
@@ -1209,7 +1216,7 @@ int simu_main(int argc, char** argv)
 	}
 
 	// simgraph_init loads default fonts, now we need to load (if not set otherwise)
-	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
+//	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
 	dr_chdir(env_t::data_dir);
 
 	dbg->message("simu_main()","Reading city configuration ...");
@@ -1288,7 +1295,20 @@ int simu_main(int argc, char** argv)
 	dr_chdir( env_t::data_dir );
 
 	if(  translator::get_language()==-1  ) {
-		ask_language();
+		// try current language
+		const char* loc = dr_get_locale();
+		if(  loc==NULL  ||  !translator::set_language( loc )  ) {
+			loc = dr_get_locale_string();
+			if(  loc==NULL  ||  !translator::set_language( loc )  ) {
+				ask_language();
+			}
+			else {
+				sprachengui_t::init_font_from_lang();
+			}
+		}
+		else {
+			sprachengui_t::init_font_from_lang();
+		}
 	}
 
 	bool new_world = true;
@@ -1592,7 +1612,7 @@ int simu_main(int argc, char** argv)
 
 	// simgraph_init loads default fonts, now we need to load
 	// the real fonts for the current language, if not set otherwise
-	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
+	sprachengui_t::init_font_from_lang();
 
 	if (!(env_t::reload_and_save_on_quit && !new_world)) {
 		destroy_all_win(true);

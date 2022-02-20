@@ -1247,7 +1247,7 @@ void halt_info_t::update_cont_departure()
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_LINE_NAME ? "Line" : "Convoy");
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_DEPARTURES ? "db_convoy_to" : "db_convoy_from");
 
-			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), proportional_string_width("--:--:--"));
+			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), D_TIME_6_DIGITS_WIDTH);
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
@@ -1262,7 +1262,7 @@ void halt_info_t::update_cont_departure()
 					world()->sprintf_ticks(timebuf, sizeof(timebuf), hi.delta_ticks);
 					lb->buf().append(timebuf);
 				}
-				lb->set_fixed_width(proportional_string_width("--:--:--"));
+				lb->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 				lb->update();
 
 				const bool is_bus = (hi.cnv->front()->get_waytype() == road_wt && hi.cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS));

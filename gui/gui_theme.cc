@@ -162,7 +162,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_edit_background_selected     = color_idx_to_rgb(COL_GREY2);
 	gui_color_edit_beam                    = color_idx_to_rgb(COL_WHITE);
 
-	gui_color_chart_background             = color_idx_to_rgb(MN_GREY1);
+	gui_color_chart_background             = color_idx_to_rgb(MN_GREY3);
 	gui_color_chart_lines_zero             = color_idx_to_rgb(MN_GREY4);
 	gui_color_chart_lines_odd              = color_idx_to_rgb(COL_WHITE);
 	gui_color_chart_lines_even             = color_idx_to_rgb(MN_GREY0);

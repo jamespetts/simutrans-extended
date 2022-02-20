@@ -198,7 +198,7 @@ signalboxlist_frame_t::signalboxlist_frame_t(player_t *player) :
 			}
 			sortedby.set_selection(signalboxlist_stats_t::sort_mode);
 			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 			sortedby.add_listener(this);
 			add_component(&sortedby);
 

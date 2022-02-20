@@ -2427,14 +2427,8 @@ void stadt_t::rdwr(loadsave_t* file)
 }
 
 
-/**
- * Wird am Ende der Laderoutine aufgerufen, wenn die Welt geladen ist
- * und nur noch die Datenstrukturenneu verknuepft werden muessen.
- */
 void stadt_t::finish_rd()
 {
-	//step_count = 0;
-	//next_step = 0;
 	next_growth_step = 0;
 
 	// there might be broken savegames
@@ -4851,7 +4845,41 @@ uint32 stadt_t::get_population_by_class(uint8 p_class)
 	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
 	{
 		gebaeude_t* building = *i;
-		sum += building->get_adjusted_population_by_class(p_class);
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_population_by_class(p_class);
+		}
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_jobs_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_jobs_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_jobs_by_class(p_class);
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_visitor_demand_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_visitor_demand_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_visitor_demand_by_class(p_class);
 	}
 	return sum;
 }
@@ -5905,6 +5933,16 @@ void stadt_t::add_substation(senke_t* substation)
 void stadt_t::remove_substation(senke_t* substation)
 {
 	substations.remove(substation);
+}
+
+sint64 stadt_t::get_cityhistory_last_quarter(int type)
+{
+	sint64 sum = 0;
+	const uint8 q_last_month_offset = world()->get_current_month()%3 + 1;
+	for (uint8 i = 0; i < 3; i++) {
+		sum += city_history_month[i+q_last_month_offset][type];
+	}
+	return sum;
 }
 
 private_car_destination_finder_t::private_car_destination_finder_t(karte_t* w, road_vehicle_t* m, stadt_t* o)

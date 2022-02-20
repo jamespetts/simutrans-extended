@@ -45,7 +45,8 @@
 void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
 {
 	marking &= env_t::visualize_schedule;
-	FOR(minivec_tpl<schedule_entry_t>, const& i, markschedule->entries) {
+	uint8 n = 0;
+	FORX(minivec_tpl<schedule_entry_t>, const& i, markschedule->entries, n++) {
 		if (grund_t* const gr = welt->lookup(i.pos)) {
 			for(  uint idx=0;  idx<gr->get_top();  idx++  ) {
 				obj_t *obj = gr->obj_bei(idx);
@@ -69,29 +70,35 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 				}
 			}
 
+			schedule_marker_t *marker = gr->find<schedule_marker_t>();
+			if( marking ) {
+				if (!marker) {
+					marker = new schedule_marker_t(i.pos, player, markschedule->get_waytype());
+					marker->set_color( color_idx_to_rgb(player->get_player_color1()+4) );
+					gr->obj_add(marker);
+				}
+				uint8 number_style = gui_schedule_entry_number_t::halt;
+				if (haltestelle_t::get_halt(i.pos, player).is_bound()) {
+					;
+				}
+				else if (gr->get_depot() != NULL) {
+					number_style = gui_schedule_entry_number_t::depot;
+				}
+				else {
+					number_style = gui_schedule_entry_number_t::waypoint;
+				}
+				marker->set_entry_data(n, number_style, markschedule->is_mirrored(), (i.reverse == 1));
+				marker->set_selected( (i==markschedule->get_current_entry()) );
+			}
+			else if( marker ) {
+				// remove marker
+				gr->obj_remove(marker);
+			}
 		}
 	}
-	// always remove
-	if(  grund_t *old_gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		old_gr->obj_remove( current_stop_mark );
-		old_gr->set_flag( grund_t::dirty );
-		current_stop_mark->set_pos( koord3d::invalid );
-	}
-	// add if required
-	if(  marking  &&  markschedule->get_current_stop() < markschedule->get_count() ) {
-		current_stop_mark->set_pos( markschedule->entries[markschedule->get_current_stop()].pos );
-		if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-			gr->obj_add( current_stop_mark );
-			current_stop_mark->set_flag( obj_t::dirty );
-			gr->set_flag( grund_t::dirty );
-		}
-	}
-	current_stop_mark->clear_flag( obj_t::highlight );
 }
 
 
-zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
 cbuffer_t schedule_gui_stats_t::buf;
 
 void schedule_gui_stats_t::draw(scr_coord offset)
@@ -181,21 +188,6 @@ schedule_gui_stats_t::schedule_gui_stats_t(player_t *player_)
 {
 	schedule = NULL;
 	player = player_;
-	if(  current_stop_mark==NULL  ) {
-		current_stop_mark = new zeiger_t(koord3d::invalid, NULL );
-		current_stop_mark->set_image( tool_t::general_tool[TOOL_SCHEDULE_ADD]->cursor );
-	}
-}
-
-
-
-schedule_gui_stats_t::~schedule_gui_stats_t()
-{
-	if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		gr->obj_remove(current_stop_mark);
-	}
-	current_stop_mark->set_pos( koord3d::invalid );
 }
 
 

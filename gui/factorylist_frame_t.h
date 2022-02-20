@@ -8,15 +8,16 @@
 
 
 #include "simwin.h"
+#include "../simcity.h"
 #include "gui_frame.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
-#include "factorylist_stats_t.h"
+#include "components/gui_button.h"
 #include "components/gui_combobox.h"
-#include "../descriptor/goods_desc.h"
-#include "../bauer/goods_manager.h"
+#include "factorylist_stats_t.h"
 
-#define FACTORYLIST_MODES 4
+#define MAX_FACTORY_TYPE_FILTER 4
+
 
 /*
  * Factory list window
@@ -25,56 +26,47 @@ class factorylist_frame_t : public gui_frame_t, private action_listener_t
 {
 private:
 	static const char *sort_text[factorylist::SORT_MODES];
-	static const char *display_mode_text[FACTORYLIST_MODES];
+	static const char *display_mode_text[factorylist_stats_t::FACTORYLIST_MODES];
+	static const char *factory_type_text[MAX_FACTORY_TYPE_FILTER];
+	static const enum button_t::type factory_type_button_style[MAX_FACTORY_TYPE_FILTER];
+	static uint8 factory_type_filter_bits;
 
-	gui_combobox_t	sortedby;
-	gui_combobox_t	freight_type_c;
+	gui_combobox_t sortedby, freight_type_c, cb_display_mode, region_selector;
+
 	button_t sorteddir;
-	button_t filter_within_network, btn_display_mode;
-	factorylist_stats_t stats;
-	gui_scrollpane_t scrolly;
-	gui_aligned_container_t list;
+	button_t filter_within_network, bt_cancel_cityfilter;
+	button_t filter_buttons[MAX_FACTORY_TYPE_FILTER];
+	gui_label_buf_t lb_target_city, lb_factory_counter;
 
-	//static char name_filter[256];
-	//char last_name_filter[256];
-	//gui_textinput_t name_filter_input;
+	gui_scrolled_list_t scrolly;
 
-	/*
-	 * All filter settings are static, so they are not reset each
-	 * time the window closes.
-	 */
-	static factorylist::sort_mode_t sortby;
-	static bool sortreverse;
-	static bool filter_own_network;
-	static uint8 filter_goods_catg;
-	static uint8 display_mode;
+	static char name_filter[256];
+	char last_name_filter[256];
+	gui_textinput_t name_filter_input;
+
+	void fill_list();
+
+	stadt_t *filter_city;
+	uint32 old_factories_count;
 
 	vector_tpl<const goods_desc_t *> viewable_freight_types;
 
 public:
-	factorylist_frame_t();
+	factorylist_frame_t(stadt_t *filter_city = NULL);
 
 	const char *get_help_filename() const OVERRIDE {return "factorylist_filter.txt"; }
-
-	void display_list();
-
-	static void set_sortierung(const factorylist::sort_mode_t& sm) { sortby = sm; }
-
-	static bool get_reverse() { return sortreverse; }
-	static void set_reverse(const bool& reverse) { sortreverse = reverse; }
-	static bool get_filter_own_network() { return filter_own_network; }
-	static void set_filter_goods_catg(uint8 g) { filter_goods_catg = g < goods_manager_t::INDEX_NONE ? 2 : g; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	// FIXME: The GUI overhaul has been partially incorporated. The list has not been auto-aligned yet
-	//void map_rotate90( sint16 ) OVERRIDE { fill_list(); }
+	void map_rotate90( sint16 ) OVERRIDE { fill_list(); }
 
 	void rdwr(loadsave_t* file) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_factorylist; }
+
+	void set_cityfilter(stadt_t *city);
 };
 
 #endif

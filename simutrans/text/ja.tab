@@ -712,7 +712,9 @@ chooses a random map
 citicens
 住民
 City attraction
-都市内施設
+都市内向け施設
+City attractions
+市内の観光施設
 City industries
 産業チェーンの数
 City list
@@ -1058,9 +1060,11 @@ gl_title
 gl_normal
 基本情報
 gl_prod
-生産者
+生産業
 gl_con
-消費者
+対消費者産業
+Manufacturers
+製造業
 go home
 車庫へ
 Goods
@@ -1989,6 +1993,10 @@ transparent station coverage
 駅の有効範囲は半透明色で表示する
 Transport %li passengers
 月に %li人以上の旅客を輸送
+Transported
+輸送実績
+Public transport
+公共交通機関利用
 Travelled
 旅客輸送達成数
 Trees disabled!
@@ -2827,10 +2835,6 @@ Mail delivery success this year:
 今年の郵便配達成功率:
 Mail demand/output
 郵便需要/発送量
-Mail sent last year:
-昨年の郵便発送数:
-Mail sent this year:
-今年の郵便発送数:
 maint_incl_wayobj
 軌道付属設備を含む維持費
 maintenance
@@ -3929,8 +3933,8 @@ Trailers
 被牽引車
 <p>Continue by ESC, SPACE, or BACKSPACE.<br>
 <p>[ESC] [SPACE] [BACKSPACE]、いずれかのキーでゲームを開始します。<br>
-fl_btn_demand
-商品需要
+#fl_btn_demand
+#商品需要
 fl_btn_region
 所在地
 TOOL_SOUND
@@ -4145,6 +4149,10 @@ can open a dedicated window by clicking on a private car.
 自家用車をクリックすると専用の情報ウィンドウを開きます
 can open a dedicated window by clicking on a pedestrian.
 歩行者をクリックすると専用の情報ウィンドウを開きます
+Private car
+自家用車
+Reselect closes tools
+選択済のツールボタンを押すと選択を解除する
 Date format
 日時の表示形式
 Show own depot names
@@ -4165,8 +4173,12 @@ Information windows pop up control:
 情報ウィンドウの表示許可設定：
 helptxt_access_minimap
 ミニマップウィンドウに路線図を表示します
+ground_info
+地表タイル
 helptxt_ground_info_toggler
 占有されていないタイルをクリックすると土地情報を情報ウィンドウを開きます
+tree_info
+樹木
 helptxt_tree_info_toggler
 樹木、岩石、鳥の群れなどのオブジェクトをクリックすると専用の情報ウィンドウを開きます
 travel_distance
@@ -4215,6 +4227,54 @@ The number of mail that handling at the stop last month
 前月の郵便物取扱量
 The number of goods that handling at the stop last month
 前月の貨物取扱量（トン）
+cl_general
+基本データ
+pax_traffic
+旅客流動量
+mail_traffic
+郵便流動量
+goods_traffic
+貨物流動量
+Passengers using public transportation in the last quarter
+前四半期の公共交通機関利用者数
+Percentage of users of public transportation
+公共交通機関利用者の割合
+Number of mail sent in the last quarter
+前四半期の郵便発送数
+Mail delivery success in the last quarter
+前四半期の郵便配達達成率
+pax_destination_mapping
+旅客目的地マッピング
+Open the color legend
+凡例を表示
+pax_transportation_ratio
+旅客移動手段比率
+helptxt_pax_transportation_ratio
+旅客が目的地まで移動した交通手段の比率
+City stops
+市内の駅
+City attractions
+市内のランドマーク
+City factories
+市内の産業
+Open the list of stops in this city
+市内にある全てのプレイヤーの駅一覧を別ウィンドウで表示します
+Open the list of attraction buildings in this city
+市内にある観光施設の一覧を別ウィンドウで表示します
+Open the list of factories in this city
+市内にある産業の一覧を別ウィンドウで表示します
+too_slow_public_transportation
+公共交通機関が遅すぎる
+too_slow_privatecar
+自家用車で移動しようとしたが時間がかかりすぎる
+destination_unavailable
+利用不可能な目的地
+(ci_demands)
+需要
+Production boosted by power supply
+電力供給による生産力ブースト
+fl_stats_last_month
+前月度生産統計
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month

@@ -6292,3 +6292,53 @@ helptxt_access_minimap
 Show this line's route on the map in schematic form
 (speed_restricted_by_crossing)
 (speed restricted by a crossing)
+cl_general
+General information
+pax_traffic
+Passengers
+mail_traffic
+Mail
+goods_traffic
+Goods
+Passengers using public transportation in the last quarter
+Passengers using public transportation in the last quarter
+Percentage of users of public transportation
+Percentage of passengers who use public transportation
+Number of mail sent in the last quarter
+Amount of mail sent in the last quarter
+Mail delivery success in the last quarter
+Amount of mail delivered successfully in the last quarter
+pax_destination_mapping
+Passenger destination mapping
+Open the color legend
+Colour legend
+pax_transportation_ratio
+Passenger transport by mode
+helptxt_pax_transportation_ratio
+The proportion of passengers in this city who reached their destinations, broken down by mode
+City stops
+City stops
+City attractions
+City attractions
+City factories
+City industries
+Open the list of stops in this city
+Open the list of stops in this city
+Open the list of attraction buildings in this city
+Open the list of attraction buildings in this city
+Open the list of factories in this city
+Open the list of factories in this city
+too_slow_public_transportation
+Public transport journey too slow
+too_slow_privatecar
+Private car journey too slow
+destination_unavailable
+Destination unavailable (e.g. no jobs, no stock)
+(ci_demands)
+Demand
+Manufacturers
+Manufacturers
+Production boosted by power supply
+Production boosted by electricity supply
+fl_stats_last_month
+Data (last month)

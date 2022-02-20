@@ -57,10 +57,12 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				{
 					continue;
 				}
+				const bool is_available = world()->get_goods_list().is_contained(goods.get_typ());
+
 				const sint64 pfactor = fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll;
 				const sint64 max_transit = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 stock_quantity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color = goods.get_typ()->get_color();
 
 				left = 2;
@@ -86,7 +88,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				// [goods name]
 				buf.clear();
 				buf.printf("%s", translator::translate(goods.get_typ()->get_name()));
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
 
 				left += 10;
 
@@ -97,37 +99,41 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				// [storage capacity]
 				buf.clear();
-				buf.printf("%u/%u,", stock_quantity, storage_capacity);
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				buf.printf("%u/%u", stock_quantity, storage_capacity);
+				if (is_available) {
+					buf.append(", ");
+				}
+				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
 				left += D_H_SPACE;
 
 				buf.clear();
-				// [in transit]
-				if (fab->get_status() != fabrik_t::inactive) {
-					//const bool in_transit_over_storage = (stock_quantity + (uint32)goods.get_in_transit() > storage_capacity);
-					const sint32 actual_max_transit = max(goods.get_in_transit(), max_transit);
-					if (skinverwaltung_t::in_transit) {
-						display_color_img_with_tooltip(skinverwaltung_t::in_transit->get_image_id(0), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("symbol_help_txt_in_transit"));
-						left += 14;
+				if (is_available) {
+					// [in transit]
+					if (fab->get_status() != fabrik_t::inactive) {
+						//const bool in_transit_over_storage = (stock_quantity + (uint32)goods.get_in_transit() > storage_capacity);
+						const sint32 actual_max_transit = max(goods.get_in_transit(), max_transit);
+						if (skinverwaltung_t::in_transit) {
+							display_color_img_with_tooltip(skinverwaltung_t::in_transit->get_image_id(0), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("symbol_help_txt_in_transit"));
+							left += 14;
+						}
+						buf.printf("%i/%i", goods.get_in_transit(), actual_max_transit);
+						PIXVAL col_val = actual_max_transit == 0 ? COL_DANGER : max_transit == 0 ? color_idx_to_rgb(COL_DARK_ORANGE) : SYSCOL_TEXT;
+						left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
+						buf.clear();
+						buf.append(", ");
 					}
-					buf.printf("%i/%i", goods.get_in_transit(), actual_max_transit);
-					PIXVAL col_val = actual_max_transit == 0 ? COL_DANGER : max_transit == 0 ? color_idx_to_rgb(COL_DARK_ORANGE): SYSCOL_TEXT;
-					left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
-					buf.clear();
-					buf.append(", ");
-				}
 
 
-				// [monthly production]
-				const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
-				if (monthly_prod < 100) {
-					buf.printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
+					// [monthly production]
+					const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
+					if (monthly_prod < 100) {
+						buf.printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
+					}
+					else {
+						buf.printf(translator::translate("consumption %u%s/month"), monthly_prod / 10, translator::translate(goods.get_typ()->get_mass()));
+					}
+					left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				}
-				else {
-					buf.printf(translator::translate("consumption %u%s/month"), monthly_prod/10, translator::translate(goods.get_typ()->get_mass()));
-				}
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
 				yoff += LINESPACE;
 			}
 			yoff += LINESPACE;
@@ -149,8 +155,8 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 			int i = 0;
 			FORX(array_tpl<ware_production_t>, const& goods, fab->get_output(), i++) {
 				const sint64 pfactor = (sint64)fab->get_desc()->get_product(i)->get_factor();
-				const uint32 stock_quantity   = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity   = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color  = goods.get_typ()->get_color();
 				left = 2;
 				yoff+=2; // box position adjistment
@@ -181,7 +187,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				// [storage capacity]
 				buf.clear();
-				buf.printf("%u/%u,", stock_quantity, storage_capacity);
+				buf.printf("%i/%i,", stock_quantity, storage_capacity);
 				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				left += D_H_SPACE;
 

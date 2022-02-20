@@ -13,7 +13,6 @@
 #include "../simhalt.h"
 #include "../simware.h"
 #include "../simfab.h"
-#include "../simcity.h"
 #include "../unicode.h"
 #include "simwin.h"
 #include "../descriptor/skin_desc.h"
@@ -461,10 +460,11 @@ static bool passes_filter(haltestelle_t & s)
 }
 
 
-halt_list_frame_t::halt_list_frame_t() :
-	gui_frame_t( translator::translate("hl_title"), welt->get_active_player())
+halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
+	gui_frame_t( translator::translate("hl_title"), city ? welt->get_public_player() : welt->get_active_player()),
+	filter_city(city)
 {
-	m_player = welt->get_active_player();
+	m_player = filter_city ? welt->get_public_player() : welt->get_active_player();
 	filter_frame = NULL;
 
 	set_table_layout(1,0);
@@ -479,11 +479,27 @@ halt_list_frame_t::halt_list_frame_t() :
 		filter_on.add_listener(this);
 		add_component(&filter_on);
 
-		btn_show_mutual_use.init(button_t::square_state, "show_mutual_use");
-		btn_show_mutual_use.set_tooltip(translator::translate("Also shows the stops of other players you are using"));
-		btn_show_mutual_use.pressed = show_mutual_stops;
-		btn_show_mutual_use.add_listener(this);
-		add_component(&btn_show_mutual_use);
+		add_table(3, 1);
+		{
+			btn_show_mutual_use.init(button_t::square_state, "show_mutual_use");
+			btn_show_mutual_use.set_tooltip(translator::translate("Also shows the stops of other players you are using"));
+			btn_show_mutual_use.pressed = show_mutual_stops;
+			btn_show_mutual_use.set_rigid(false);
+			btn_show_mutual_use.add_listener(this);
+			add_component(&btn_show_mutual_use);
+
+			lb_target_city.set_visible(false);
+			lb_target_city.set_rigid(false);
+			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
+			add_component(&lb_target_city);
+
+			bt_cancel_cityfilter.init(button_t::roundbox, "reset");
+			bt_cancel_cityfilter.add_listener(this);
+			bt_cancel_cityfilter.set_visible(false);
+			bt_cancel_cityfilter.set_rigid(false);
+			add_component(&bt_cancel_cityfilter);
+		}
+		end_table();
 
 		add_table(3,1);
 		{
@@ -492,7 +508,7 @@ halt_list_frame_t::halt_list_frame_t() :
 			}
 			sortedby.set_selection(default_sortmode);
 			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 			sortedby.add_listener(this);
 			add_component(&sortedby);
 
@@ -521,7 +537,7 @@ halt_list_frame_t::halt_list_frame_t() :
 		}
 		cb_display_mode.set_selection(display_mode);
 		cb_display_mode.set_width_fixed(true);
-		cb_display_mode.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+		cb_display_mode.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 		cb_display_mode.add_listener(this);
 		add_component(&cb_display_mode);
 	}
@@ -530,7 +546,12 @@ halt_list_frame_t::halt_list_frame_t() :
 	scrolly = new_component<gui_scrolled_halt_list_t>();
 	scrolly->set_maximize( true );
 
-	fill_list();
+	if( filter_city ) {
+		set_cityfilter( filter_city );
+	}
+	else {
+		fill_list();
+	}
 
 	set_resizemode(diagonal_resize);
 	reset_min_windowsize();
@@ -563,7 +584,13 @@ void halt_list_frame_t::fill_list()
 
 	scrolly->clear_elements();
 	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
-		if(  halt->get_owner() == m_player || (show_mutual_stops && halt->has_available_network(m_player))  ) {
+		if (filter_city != NULL){
+			if (filter_city != world()->get_city(halt->get_basis_pos())) {
+				continue;
+			}
+			scrolly->new_component<halt_list_stats_t>(halt, (uint8)-1);
+		}
+		else if(  halt->get_owner() == m_player || (show_mutual_stops && halt->has_available_network(m_player))  ) {
 			scrolly->new_component<halt_list_stats_t>(halt, show_mutual_stops ? m_player->get_player_nr() : (uint8)-1);
 		}
 	}
@@ -574,6 +601,23 @@ void halt_list_frame_t::fill_list()
 void halt_list_frame_t::sort_list()
 {
 	scrolly->sort();
+}
+
+
+void halt_list_frame_t::set_cityfilter(stadt_t *city)
+{
+	filter_city = city;
+	btn_show_mutual_use.set_visible(filter_city==NULL);
+	bt_cancel_cityfilter.set_visible(filter_city!=NULL);
+	lb_target_city.set_visible(filter_city!=NULL);
+	if (city) {
+		btn_show_mutual_use.pressed = false;
+		show_mutual_stops = false;
+		lb_target_city.buf().printf("%s>%s", translator::translate("City"), city->get_name());
+		lb_target_city.update();
+	}
+	resize(scr_size(0, 0));
+	fill_list();
 }
 
 
@@ -641,6 +685,9 @@ bool halt_list_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* 
 		show_mutual_stops = !show_mutual_stops;
 		fill_list();
 		btn_show_mutual_use.pressed = show_mutual_stops;
+	}
+	else if (comp == &bt_cancel_cityfilter) {
+		set_cityfilter(NULL);
 	}
 	return true;
 }
@@ -724,6 +771,7 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 	scr_size size = get_windowsize();
 	uint8 player_nr = m_player->get_player_nr();
 	uint8 sort_mode = default_sortmode;
+	uint32 townindex=UINT32_MAX;
 
 	file->rdwr_byte(player_nr);
 	size.rdwr(file);
@@ -750,6 +798,12 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 				file->rdwr_str(name, 256);
 			}
 		}
+		file->rdwr_byte(display_mode);
+		file->rdwr_bool(show_mutual_stops);
+		if (filter_city != NULL) {
+			townindex = welt->get_cities().index_of(filter_city);
+		}
+		file->rdwr_long(townindex);
 	}
 	else {
 		// restore warenfilter
@@ -776,14 +830,29 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 				}
 			}
 		}
+		if (file->is_version_ex_atleast(14,50)) {
+			file->rdwr_byte(display_mode);
+			file->rdwr_bool(show_mutual_stops);
+			file->rdwr_long(townindex);
+			if (townindex != UINT32_MAX) {
+				filter_city = welt->get_cities()[townindex];
+			}
+		}
 
 		default_sortmode = (sort_mode_t)sort_mode;
 		sortedby.set_selection(default_sortmode);
-		m_player = welt->get_player(player_nr);
+		m_player = filter_city ? welt->get_public_player() : welt->get_player(player_nr);
+		set_owner(m_player);
 		win_set_magic(this, magic_halt_list + player_nr);
 		filter_on.pressed = get_filter(any_filter);
 		sort_order.pressed = sortreverse;
-		sort_list();
+		btn_show_mutual_use.pressed = show_mutual_stops;
+		cb_display_mode.set_selection(display_mode);
+		scrolly->set_mode(display_mode);
+		if (filter_city!=NULL) {
+			set_cityfilter(filter_city);
+		}
+		fill_list();
 		set_windowsize(size);
 	}
 }

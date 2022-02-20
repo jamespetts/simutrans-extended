@@ -70,7 +70,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_LIGHT_BROWN     191
 #define COL_BROWN           189
 #define COL_DARK_BROWN      178
-#define COL_TRAFFIC         110
+#define COL_TRAFFIC         COL_LIGHT_ORANGE
+#define COL_WALKED          139
 #define COL_DARK_SLATEBLUE  219
 
 // message colors
@@ -211,5 +212,15 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_NO_ROUTE        COL_RED
 #define COL_MAIL_DELIVERED  COL_DARK_GREEN+1
 #define COL_MAIL_NOROUTE    COL_BRIGHT_ORANGE
+// passenger destination mapping
+// Note the relation to the base color of the map - The land is dark green, the station is red, the tracks are dark red, the river is blue.
+#define MAP_COL_HAPPY       COL_GREEN
+#define MAP_COL_TOO_SLOW    170
+#define MAP_COL_TOO_SLOW_USE_PRIVATECAR COL_TOO_SLOW
+#define MAP_COL_PRIVATECAR  COL_TRAFFIC
+#define MAP_COL_WALKED      52
+#define MAP_COL_OVERCROWDED COL_PURPLE
+#define MAP_COL_NOROUTE     COL_RED+3
+#define MAP_COL_UNAVAILABLE COL_DARK_RED
 
 #endif

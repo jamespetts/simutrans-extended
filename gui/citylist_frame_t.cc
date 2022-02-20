@@ -27,7 +27,38 @@ const char *citylist_frame_t::sort_text[citylist_stats_t::SORT_MODES] = {
 	"Name",
 	"citicens",
 	"Growth",
+	"Jobs",
+	"Passagierrate",
+	"Public transport users",
+	"ratio_pax",
+	"sended",
+	"ratio_mail",
+	"Goods needed",
+	"Goods supplied",
+	"ratio_goods",
+	"City size",
+	"Population density",
 	"by_region"
+#ifdef DEBUG
+	, "Unemployed"
+	, "Homeless"
+#endif // DEBUG
+};
+
+const char *citylist_frame_t::display_mode_text[citylist_stats_t::CITYLIST_MODES] =
+{
+	"cl_general",
+	"citicens",
+	"Jobs",
+	"Visitor demand",
+	"pax_traffic",
+	"mail_traffic",
+	"goods_traffic",
+	"Needed",
+	"Products"
+#ifdef DEBUG
+	, "DBG_demands"
+#endif // DEBUG
 };
 
 const char citylist_frame_t::hist_type[karte_t::MAX_WORLD_COST][21] =
@@ -70,11 +101,11 @@ const char citylist_frame_t::hist_type_tooltip[karte_t::MAX_WORLD_COST][256] =
 
 const uint8 citylist_frame_t::hist_type_color[karte_t::MAX_WORLD_COST] =
 {
-	COL_WHITE,
-	COL_GREY6,
-	COL_GREY3,
-	COL_DARK_GREEN,
+	COL_DARK_GREEN+1,
+	COL_COMMUTER,
 	COL_LIGHT_PURPLE,
+	COL_DARK_GREEN,
+	COL_GREY3,
 	71 /*COL_GREEN*/,
 	COL_TURQUOISE,
 	COL_TRAFFIC,
@@ -115,7 +146,7 @@ citylist_frame_t::citylist_frame_t() :
 {
 	set_table_layout(1, 0);
 
-	add_table(3, 0);
+	add_table(3,1);
 	{
 		add_component(&citizens);
 
@@ -125,6 +156,17 @@ citylist_frame_t::citylist_frame_t() :
 		new_component<gui_fill_t>();
 	}
 	end_table();
+
+#ifdef DEBUG
+	add_table(4,1);
+	{
+		new_component<gui_label_t>("(DBG)wolrd's worker needs factor:");
+		add_component(&lb_worker_shortage);
+		new_component<gui_label_t>("(DBG)job_shortage:");
+		add_component(&lb_job_shortage);
+	}
+	end_table();
+#endif
 
 	add_component(&main);
 	main.add_tab(&list, translator::translate("City list"));
@@ -136,11 +178,18 @@ citylist_frame_t::citylist_frame_t() :
 		// 1st row
 		list.new_component<gui_label_t>("hl_txt_sort");
 
-		list.add_table(2, 1);
+		list.add_table(3,1);
 		{
 			list.new_component<gui_label_t>("Filter:");
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			name_filter_input.set_width(D_BUTTON_WIDTH);
 			list.add_component(&name_filter_input);
+
+			filter_within_network.init(button_t::square_state, "Within own network");
+			filter_within_network.set_tooltip("Show only cities within the active player's transportation network");
+			filter_within_network.add_listener(this);
+			filter_within_network.pressed = citylist_stats_t::filter_own_network;
+			list.add_component(&filter_within_network);
 		}
 		list.end_table();
 
@@ -152,7 +201,7 @@ citylist_frame_t::citylist_frame_t() :
 			}
 			sortedby.set_selection(citylist_stats_t::sort_mode);
 			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 			sortedby.add_listener(this);
 			list.add_component(&sortedby);
 
@@ -168,16 +217,16 @@ citylist_frame_t::citylist_frame_t() :
 		list.add_table(3,1);
 		{
 			list.new_component<gui_margin_t>(LINESPACE);
-			if (!welt->get_settings().regions.empty()) {
+			if (!world()->get_settings().regions.empty()) {
 				//region_selector
 				region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All regions"), SYSCOL_TEXT);
 
-				for (uint8 r = 0; r < welt->get_settings().regions.get_count(); r++) {
-					region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(welt->get_settings().regions[r].name.c_str()), SYSCOL_TEXT);
+				for (uint8 r = 0; r < world()->get_settings().regions.get_count(); r++) {
+					region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(world()->get_settings().regions[r].name.c_str()), SYSCOL_TEXT);
 				}
 				region_selector.set_selection(citylist_stats_t::region_filter);
 				region_selector.set_width_fixed(true);
-				region_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+				region_selector.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 				region_selector.add_listener(this);
 				list.add_component(&region_selector);
 			}
@@ -185,11 +234,14 @@ citylist_frame_t::citylist_frame_t() :
 				list.new_component<gui_empty_t>();
 			}
 
-			filter_within_network.init(button_t::square_state, "Within own network");
-			filter_within_network.set_tooltip("Show only cities within the active player's transportation network");
-			filter_within_network.add_listener(this);
-			filter_within_network.pressed = citylist_stats_t::filter_own_network;
-			list.add_component(&filter_within_network);
+			for (uint8 i = 0; i < citylist_stats_t::CITYLIST_MODES; i++) {
+				cb_display_mode.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(display_mode_text[i]), SYSCOL_TEXT);
+			}
+			cb_display_mode.set_selection(citylist_stats_t::display_mode);
+			cb_display_mode.set_width_fixed(true);
+			cb_display_mode.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
+			cb_display_mode.add_listener(this);
+			list.add_component(&cb_display_mode);
 		}
 		list.end_table();
 	}
@@ -217,8 +269,9 @@ citylist_frame_t::citylist_frame_t() :
 
 	container_year.add_table(4,0);
 	for (int i = 0; i<karte_t::MAX_WORLD_COST; i++) {
-		sint16 curve = chart.add_curve(color_idx_to_rgb(hist_type_color[i]), welt->get_finance_history_year(), karte_t::MAX_WORLD_COST, i,
-			MAX_WORLD_HISTORY_YEARS, hist_type_type[i], false, true, (hist_type_type[i]==gui_chart_t::PERCENT && i != karte_t::WORLD_CAR_OWNERSHIP) ? 2 : 0);
+		sint16 curve = chart.add_curve(color_idx_to_rgb(hist_type_color[i]), world()->get_finance_history_year(), karte_t::MAX_WORLD_COST, i,
+			MAX_WORLD_HISTORY_YEARS, hist_type_type[i], false, true, (hist_type_type[i]==gui_chart_t::PERCENT && i != karte_t::WORLD_CAR_OWNERSHIP) ? 2 : 0,
+			0, hist_type_type[i]==gui_chart_t::PERCENT ? gui_chart_t::cross : gui_chart_t::square);
 		// add button
 		buttons[i] = container_year.new_component<button_t>();
 		buttons[i]->init(button_t::box_state_automatic | button_t::flexible, hist_type[i]);
@@ -239,7 +292,7 @@ citylist_frame_t::citylist_frame_t() :
 
 	container_month.add_table(4,0);
 	for (int i = 0; i<karte_t::MAX_WORLD_COST; i++) {
-		sint16 curve = mchart.add_curve(color_idx_to_rgb(hist_type_color[i]), welt->get_finance_history_month(), karte_t::MAX_WORLD_COST, i,
+		sint16 curve = mchart.add_curve(color_idx_to_rgb(hist_type_color[i]), world()->get_finance_history_month(), karte_t::MAX_WORLD_COST, i,
 			MAX_WORLD_HISTORY_MONTHS, hist_type_type[i], false, true, (hist_type_type[i]==gui_chart_t::PERCENT && i != karte_t::WORLD_CAR_OWNERSHIP) ? 2 : 0);
 
 		// add button
@@ -259,10 +312,29 @@ citylist_frame_t::citylist_frame_t() :
 void citylist_frame_t::update_label()
 {
 	citizens.buf().append(translator::translate("Total inhabitants:"));
-	citizens.buf().append(welt->get_finance_history_month()[0], 0);
+	citizens.buf().append(world()->get_finance_history_month()[0], 0);
 	citizens.update();
 
-	fluctuation_world.set_value(welt->get_finance_history_month(1, karte_t::WORLD_GROWTH));
+	fluctuation_world.set_value(world()->get_finance_history_month(1, karte_t::WORLD_GROWTH));
+
+#ifdef DEBUG
+	const sint64 world_jobs = world()->get_finance_history_month(0, karte_t::WORLD_JOBS);
+	const sint64 monthly_job_demand_global = world()->calc_monthly_job_demand();
+
+	// If this is negative, the new city will not be able to build a single house to begin with,
+	// so citybuilding will not build anything and the process will be aborted.
+	const sint64 res_needs_factor = (world_jobs * 100l) - (monthly_job_demand_global * 110l);
+	lb_worker_shortage.buf().append(res_needs_factor,0);
+	lb_worker_shortage.set_color(res_needs_factor<0? COL_DANGER:SYSCOL_TEXT);
+	lb_worker_shortage.set_tooltip("This should not be a negative!");
+	lb_worker_shortage.update();
+
+	const sint64 job_needs_factor = (monthly_job_demand_global * 100l) - (world_jobs * 110l);
+	lb_job_shortage.buf().append(job_needs_factor,0);
+	lb_job_shortage.update();
+
+#endif
+
 }
 
 
@@ -271,7 +343,7 @@ void citylist_frame_t::fill_list()
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
 	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
-		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != welt->get_region(city->get_pos())) {
+		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != world()->get_region(city->get_pos())) {
 			continue;
 		}
 		if (last_name_filter[0] != 0 && !utf8caseutf8(city->get_name(), last_name_filter)) {
@@ -279,7 +351,7 @@ void citylist_frame_t::fill_list()
 		}
 
 		if (!citylist_stats_t::filter_own_network ||
-			(citylist_stats_t::filter_own_network && city->is_within_players_network(welt->get_active_player()))) {
+			(citylist_stats_t::filter_own_network && city->is_within_players_network(world()->get_active_player()))) {
 			scrolly.new_component<citylist_stats_t>(city);
 		}
 	}
@@ -303,6 +375,18 @@ bool citylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		scrolly.sort(0);
 		sorteddir.pressed = citylist_stats_t::sortreverse;
 	}
+	else if (comp == &cb_display_mode) {
+		int tmp = cb_display_mode.get_selection();
+		if (tmp < 0 || tmp >= cb_display_mode.count_elements())
+		{
+			tmp = 0;
+		}
+		cb_display_mode.set_selection(tmp);
+		citylist_stats_t::display_mode = tmp;
+		citylist_stats_t::recalc_wold_max();
+		scrolly.sort(0);
+		resize(scr_coord(0,0));
+	}
 	else if (comp == &filter_within_network) {
 		citylist_stats_t::filter_own_network = !citylist_stats_t::filter_own_network;
 		filter_within_network.pressed = citylist_stats_t::filter_own_network;
@@ -315,7 +399,7 @@ bool citylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 
 void citylist_frame_t::draw(scr_coord pos, scr_size size)
 {
-	welt->update_history();
+	world()->update_history();
 
 	if(  (sint32)world()->get_cities().get_count() != scrolly.get_count()  ||  strcmp(last_name_filter, name_filter)  ) {
 		fill_list();
@@ -342,12 +426,17 @@ void citylist_frame_t::rdwr(loadsave_t* file)
 	file->rdwr_byte(citylist_stats_t::region_filter);
 	file->rdwr_bool(citylist_stats_t::sortreverse);
 	file->rdwr_bool(citylist_stats_t::filter_own_network);
+	if (file->is_version_ex_atleast(14,50)) {
+		file->rdwr_byte(citylist_stats_t::display_mode);
+	}
 	if (file->is_loading()) {
 		sorteddir.pressed = citylist_stats_t::sortreverse;
 		filter_within_network.pressed = citylist_stats_t::filter_own_network;
 		sortedby.set_selection(citylist_stats_t::sort_mode);
 		region_selector.set_selection(citylist_stats_t::region_filter);
 		name_filter_input.set_text( name_filter, lengthof(name_filter) );
+		cb_display_mode.set_selection(citylist_stats_t::display_mode);
+		citylist_stats_t::recalc_wold_max();
 		fill_list();
 		set_windowsize(size);
 	}
