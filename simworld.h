@@ -2672,17 +2672,16 @@ public:
 		// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
 		// DBG_DEBUG("sprintf_time_secs()", "Current date format is %u", env_t::show_month);
 		// DBG_DEBUG("sprintf_timesecs()", "Current status of long_minutes is %d", long_minutes);
-		unsigned int minutes = seconds;
+		unsigned int minutes;
+		unsigned int hours;
 		if (long_minutes) {
 			minutes = seconds / 64;
+			hours = minutes / 60;
+			seconds %= 64;
 		}
 		else {
 			minutes = seconds / 60;
-		}
-		unsigned int hours = minutes / 60;
-		if (long_minutes) {
-			seconds %= 64;
-		} else {
+			hours = minutes / 60;
 			seconds %= 60;
 		}
 		if(hours)
