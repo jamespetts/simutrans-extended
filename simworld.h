@@ -2669,7 +2669,7 @@ public:
 	 */
 	inline void sprintf_time_secs(char *p, size_t size, uint32 seconds, bool long_minutes) const
 	{
-		// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
+		// Long minutes are used by DATE_FMT_64_SECOND_MINUTE and DATE_FMT_64_SECOND_MINUTE_PRETTY
 		// DBG_DEBUG("sprintf_time_secs()", "Current date format is %u", env_t::show_month);
 		// DBG_DEBUG("sprintf_timesecs()", "Current status of long_minutes is %d", long_minutes);
 		const uint8 seconds_per_minute = long_minutes ? 64 : 60;
@@ -2677,7 +2677,9 @@ public:
 		seconds %= seconds_per_minute;
 
 		uint32 hours = minutes / 60;
-		minutes %= 60;
+		
+		if(hours) {
+			minutes %= 60;
 #if defined(_WIN32) || defined (_M_X64)
 			sprintf_s(p, size, "%u:%02u:%02u", hours, minutes, seconds);
 #else
@@ -2697,12 +2699,12 @@ public:
 	inline void sprintf_ticks(char *p, size_t size, sint64 ticks) const
 	{
 		uint32 seconds = (uint32)ticks_to_seconds(ticks);
-		sprintf_time_secs(p, size, seconds, env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE);
+		sprintf_time_secs(p, size, seconds, (env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY) );
 	}
 
 	inline void sprintf_time_tenths(char* p, size_t size, uint32 tenths) const
 	{
-		sprintf_time_secs(p, size, 6 * tenths, env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE);
+		sprintf_time_secs(p, size, 6 * tenths, (env_t::show_month==env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY) );
 	}
 
 	// @author: jamespetts
