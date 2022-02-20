@@ -30,10 +30,10 @@
 #include "../utils/cbuffer_t.h"
 
 #include "simwin.h"
+
 #include "vehicle_class_manager.h"
 
 #include "../display/simgraph.h"
-#include "../vehicle/rail_vehicle.h"
 #include "../display/viewport.h"
 
 // for gui_vehicle_cargo_info_t
@@ -990,7 +990,7 @@ void convoi_detail_t::set_tab_opened()
 			ideal_size_h += veh_info.get_size().h;
 			break;
 		case 1: // loaded detail
-			ideal_size_h += cont_payload.get_size().h;
+			ideal_size_h += cont_payload_tab.get_size().h;
 			break;
 		case 2: // maintenance
 			ideal_size_h += cont_maintenance.get_size().h + D_V_SPACE*2;
@@ -1046,7 +1046,7 @@ void convoi_detail_t::update_labels()
 		lb_value.update();
 	}
 
-	if (tabstate == CD_TAB_LOADED_DETAIL) {
+	if (tabstate == 1) {
 		const sint64 seed_temp = cnv->is_reversed() + cnv->get_vehicle_count() + cnv->get_sum_weight() + cb_loaded_detail.get_selection();
 		if (old_seed != seed_temp) {
 			// something has changed => update

@@ -23,6 +23,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_button_to_chart.h"
 #include "../convoihandle_t.h"
+#include "../vehicle/rail_vehicle.h"
 #include "simwin.h"
 
 class scr_coord;
