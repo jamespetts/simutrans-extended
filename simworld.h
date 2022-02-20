@@ -2672,21 +2672,12 @@ public:
 		// Long minutes are used by DATE_FMT_64_SECOND_MINUTE
 		// DBG_DEBUG("sprintf_time_secs()", "Current date format is %u", env_t::show_month);
 		// DBG_DEBUG("sprintf_timesecs()", "Current status of long_minutes is %d", long_minutes);
-		unsigned int minutes;
-		unsigned int hours;
-		if (long_minutes) {
-			minutes = seconds / 64;
-			hours = minutes / 60;
-			seconds %= 64;
-		}
-		else {
-			minutes = seconds / 60;
-			hours = minutes / 60;
-			seconds %= 60;
-		}
-		if(hours)
-		{
-			minutes %= 60;
+		const uint8 seconds_per_minute = long_minutes ? 64 : 60;
+		uint32 minutes = seconds / seconds_per_minute;
+		seconds %= seconds_per_minute;
+
+		uint32 hours = minutes / 60;
+		minutes %= 60;
 #if defined(_WIN32) || defined (_M_X64)
 			sprintf_s(p, size, "%u:%02u:%02u", hours, minutes, seconds);
 #else
