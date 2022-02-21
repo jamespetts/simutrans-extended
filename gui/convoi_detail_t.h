@@ -74,10 +74,6 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	void set_show_detail(uint8 filter_mode) {
-		show_loaded_detail = filter_mode;
-		update();
-	}
 	void update();
 };
 
