@@ -43,7 +43,7 @@ scr_coord map_frame_t::screenpos;
 
 gui_scrollpane_map_t::gui_scrollpane_map_t(gui_component_t* comp) : gui_scrollpane_t(comp)
 {
-	//set_allow_dragging(false);
+	set_allow_dragging(false);
 	is_dragging = false;
 	is_cursor_hidden = false;
 }

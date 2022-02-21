@@ -11,6 +11,7 @@
 #include "gui_button.h"
 
 #include "../../dataobj/loadsave.h"
+#include "../../dataobj/environment.h"
 #include "../../display/simgraph.h"
 #include "../../simcolor.h"
 
@@ -155,6 +156,32 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 	}
 	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mouse_pos.x>=0 &&  ev->mouse_pos.y>=0  &&  ev->mouse_pos.x<=size.w  &&  ev->mouse_pos.y<=size.h)  ) {
 		// since we get can grab the focus to get keyboard events, we must make sure to handle mouse events only if we are hit
+
+		// we will handle dragging ourselves inf not prevented
+		if(  b_can_drag  &&  ev->ev_class == EVENT_CLICK  ||  b_is_dragging  &&  (ev->ev_class == EVENT_DRAG  ||  ev->ev_class == EVENT_RELEASE)  ) {
+			// init dragging?
+			if(  ev->ev_class == EVENT_CLICK  ) {
+				origin = ev->mouse_pos;
+				b_is_dragging = true;
+				return true;
+			}
+			// now drag: scrollbars are not in pixel, but we will scroll one unit per pixels ...
+			scroll_x.set_knob_offset(scroll_x.get_knob_offset() - (ev->mouse_pos.x - origin.x));
+			scroll_y.set_knob_offset(scroll_y.get_knob_offset() - (ev->mouse_pos.y - origin.y));
+			origin = ev->mouse_pos;
+			// and finally end dragging on release of any button
+			if(  ev->ev_class == EVENT_RELEASE  ) {
+				b_is_dragging = false;
+				if(  abs(ev->mouse_pos.x - ev->click_pos.x) >= 5  || abs(ev->click_pos.x-ev->mouse_pos.x)+abs(ev->click_pos.y-ev->mouse_pos.y) >= env_t::scroll_threshold  ) {
+					// dragged a lot => swallow click
+					return true;
+				}
+			}
+			else {
+				// continue dragging, swallow clikcs
+				return true;
+			}
+		}
 
 		// translate according to scrolled position
 		event_t ev2 = *ev;
