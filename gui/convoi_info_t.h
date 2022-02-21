@@ -26,6 +26,7 @@
 
 #include "../utils/cbuffer_t.h"
 #include "components/gui_convoy_payloadinfo.h"
+#include "components/gui_vehicle_capacitybar.h"
 #include "components/gui_schedule_item.h"
 
 #include "times_history_container.h"
@@ -86,6 +87,7 @@ private:
 
 	gui_aligned_container_t next_halt_cells;
 	gui_schedule_entry_number_t next_halt_number;
+	gui_convoy_loading_info_t loading_info;
 
 	gui_times_history_t cont_times_history;
 

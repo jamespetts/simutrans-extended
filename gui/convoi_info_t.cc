@@ -32,6 +32,8 @@
 #include "convoi_detail_t.h"
 
 #include "../obj/roadsign.h"
+#include "components/gui_vehicle_capacitybar.h"
+
 
 #define CHART_HEIGHT (100)
 
@@ -91,6 +93,8 @@ static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
 	convoi_t::CONVOI_OPERATIONS, convoi_t::CONVOI_REFUNDS, convoi_t::CONVOI_WAYTOLL, convoi_t::CONVOI_PROFIT
 };
 
+
+
 //bool convoi_info_t::route_search_in_progress=false;
 
 /**
@@ -124,6 +128,7 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	loading_bar(cnv),
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),
+	loading_info(linehandle_t(), cnv),
 	scroll_freight(&container_freight, true, true),
 	scroll_times_history(&cont_times_history, true),
 	lc_preview(0)
@@ -141,6 +146,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	gui_frame_t::set_name(cnv->get_name());
 	gui_frame_t::set_owner(cnv->get_owner());
 	cont_times_history.set_convoy(cnv);
+	loading_info.set_convoy(cnv);
 
 	minimap_t::get_instance()->set_selected_cnv(cnv);
 	set_table_layout(1,0);
@@ -293,6 +299,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 		container_freight.add_component(&freight_sort_selector);
 	}
 	container_freight.end_table();
+	container_freight.add_component(&loading_info);
 	container_freight.add_component(&text);
 
 	switch_mode.add_tab(&container_stats, translator::translate("Chart"));
@@ -553,7 +560,7 @@ void convoi_info_t::update_labels()
 		schedule_t::gimme_short_stop_name(target_label.buf(), welt, cnv->get_owner(), schedule, schedule->get_current_stop(), 50);
 	}
 	target_label.update();
-	uint8 halt_col_idx = COL_INACTIVE;
+	uint8 halt_col_idx = COL_GREY3;
 	uint8 halt_symbol_style=0;
 	const koord3d next_pos = schedule->get_current_entry().pos;
 	const halthandle_t next_halt = haltestelle_t::get_halt(next_pos, cnv->get_owner());
