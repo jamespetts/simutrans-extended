@@ -144,14 +144,28 @@ void halt_detail_t::init()
 	bt_sv_route.pressed = false;
 	cont_tab_service.set_table_layout(1,0);
 	cont_tab_service.set_margin(scr_size(0,D_MARGIN_TOP), scr_size(0,0));
-	cont_tab_service.add_table(4,1)->set_spacing(scr_size(0,0));
+	cont_tab_service.add_table(4,2)->set_spacing(scr_size(0,D_V_SPACE));
 	{
 		cont_tab_service.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		cont_tab_service.add_component(&bt_sv_frequency);
 		cont_tab_service.add_component(&bt_sv_catg);
 		cont_tab_service.add_component(&bt_sv_route);
+
+		cont_tab_service.new_component<gui_margin_t>(D_MARGIN_LEFT);
+		bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+		if (skinverwaltung_t::open_window) {
+			bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_access_minimap.set_image_position_right(true);
+		}
+		bt_access_minimap.set_tooltip("helptxt_access_minimap");
+		bt_access_minimap.add_listener(this);
+		cont_tab_service.add_component(&bt_access_minimap,2);
+		cont_tab_service.new_component<gui_empty_t>();
 	}
 	cont_tab_service.end_table();
+
+
+	scroll_service.set_maximize(true);
 	cont_tab_service.add_component(&scroll_service);
 
 	// route tab components
@@ -547,6 +561,16 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 			open_close_catg_buttons();
 		}
 	}
+	else if (comp == &bt_access_minimap) {
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->set_halt(halt);
+		top_win(win);
+		return true;
+	}
 	else if(comp != &tabs){
 		uint8 i = 0;
 		uint8 cl = 0;
@@ -665,7 +689,7 @@ void halt_detail_t::set_tab_opened()
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_goods.get_size().h)));
 			break;
 		case 2: // info
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_service.get_size().h)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_tab_service.get_size().h)));
 			break;
 		case 3: // route
 			destinations.recalc_size();
@@ -1434,14 +1458,6 @@ void gui_halt_service_info_t::init(halthandle_t halt)
 	cached_line_count = 0xFFFFFFFFul;
 	cached_convoy_count = 0xFFFFFFFFul;
 
-	bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
-	if (skinverwaltung_t::open_window) {
-		bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
-		bt_access_minimap.set_image_position_right(true);
-	}
-	bt_access_minimap.set_tooltip("helptxt_access_minimap");
-	bt_access_minimap.add_listener(this);
-
 	update_connections();
 }
 
@@ -1476,15 +1492,6 @@ void gui_halt_service_info_t::update_connections()
 
 	set_table_layout(1, 0);
 	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
-
-	add_table(3,1);
-	{
-		new_component<gui_fill_t>();
-		add_component(&bt_access_minimap);
-		new_component<gui_margin_t>(D_MARGIN_RIGHT);
-	}
-	end_table();
-	new_component<gui_empty_t>();
 
 	// add lines that serve this stop
 	new_component<gui_heading_t>("Lines serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
@@ -1740,22 +1747,6 @@ void gui_halt_service_info_t::update_connections()
 	cached_convoy_count = halt->registered_convoys.get_count();
 
 	set_size(get_min_size());
-}
-
-bool gui_halt_service_info_t::action_triggered(gui_action_creator_t *comp, value_t)
-{
-	if (comp == &bt_access_minimap)
-	{
-		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
-		if (!win) {
-			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
-			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
-		}
-		win->set_halt(halt);
-		top_win(win);
-		return true;
-	}
-	return false;
 }
 
 
