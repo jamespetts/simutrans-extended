@@ -560,7 +560,7 @@ void convoi_info_t::update_labels()
 		schedule_t::gimme_short_stop_name(target_label.buf(), welt, cnv->get_owner(), schedule, schedule->get_current_stop(), 50);
 	}
 	target_label.update();
-	uint8 halt_col_idx = COL_INACTIVE;
+	uint8 halt_col_idx = COL_GREY3;
 	uint8 halt_symbol_style=0;
 	const koord3d next_pos = schedule->get_current_entry().pos;
 	const halthandle_t next_halt = haltestelle_t::get_halt(next_pos, cnv->get_owner());
