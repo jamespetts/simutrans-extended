@@ -217,6 +217,13 @@ public:
 class halt_detail_t : public gui_frame_t, action_listener_t
 {
 private:
+	// tab name
+	enum {
+		HD_TAB_PAX     = 0,
+		HD_TAB_GOODS   = 1,
+		HD_TAB_SERVICE = 2,
+		HD_TAB_ROUTE   = 3,
+	};
 	halthandle_t halt;
 	player_t *cached_active_player; // So that, if different from current, change line links
 	uint32 cached_line_count;
@@ -258,6 +265,11 @@ private:
 	void update_components();
 
 	void set_tab_opened();
+
+	uint8 get_active_tab_index()
+	{
+		return (uint8)(tabstate + (!show_pas_info) + (!show_freight_info&&tabs.get_active_tab_index()));
+	}
 
 public:
 	halt_detail_t(halthandle_t halt = halthandle_t());

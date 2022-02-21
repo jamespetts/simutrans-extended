@@ -409,7 +409,7 @@ void halt_detail_t::update_components()
 	// tab1
 	if (cached_size_y != pas.get_size().h) {
 		cached_size_y = pas.get_size().h;
-		if (tabstate==0) {
+		if (tabstate==HD_TAB_PAX) {
 			set_tab_opened();
 		}
 	}
@@ -670,28 +670,21 @@ void halt_detail_t::set_tab_opened()
 {
 	update_components();
 	tabstate = tabs.get_active_tab_index();
-	uint selected_tab = tabstate;
-	if (!show_pas_info) {
-		selected_tab++;
-	}
-	else if (!show_freight_info && selected_tab) {
-		selected_tab++;
-	}
 
 	int margin_above_tab = tabs.get_pos().y + D_TAB_HEADER_HEIGHT + D_MARGINS_Y + D_V_SPACE;
-	switch (selected_tab)
+	switch (get_active_tab_index())
 	{
-		case 0: // pas
+		case HD_TAB_PAX:
 		default:
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cached_size_y)));
 			break;
-		case 1: // goods
+		case HD_TAB_GOODS:
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_goods.get_size().h)));
 			break;
-		case 2: // info
+		case HD_TAB_SERVICE:
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_tab_service.get_size().h)));
 			break;
-		case 3: // route
+		case HD_TAB_ROUTE:
 			destinations.recalc_size();
 			cont_desinations.set_size(scr_size(max(get_windowsize().w, destinations.get_size().w), destinations.get_pos().y + destinations.get_size().h));
 			cont_route.set_size(scr_size(cont_route.get_size().w, scrolly_route.get_pos().y + scrolly_route.get_size().h));
