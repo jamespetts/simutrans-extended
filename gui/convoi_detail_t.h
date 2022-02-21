@@ -145,13 +145,13 @@ class gui_convoy_payload_info_t : public gui_aligned_container_t
 {
 private:
 	convoihandle_t cnv;
-	uint8 show_detail = 1; // by_unload_halt
+	uint8 display_mode = 1; // by_unload_halt
 
 public:
 	gui_convoy_payload_info_t(convoihandle_t cnv);
 
 	void set_cnv(convoihandle_t c) { cnv = c; }
-	void set_show_detail(uint8 filter_mode) { show_detail = filter_mode; update_list(); }
+	void set_display_mode(uint8 mode) { display_mode = mode; update_list(); }
 
 	void update_list();
 

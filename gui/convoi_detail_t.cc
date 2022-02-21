@@ -1240,7 +1240,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			return true;
 		}
 		else if( comp==&cb_loaded_detail ) {
-			cont_payload_info.set_show_detail(cb_loaded_detail.get_selection());
+			cont_payload_info.set_display_mode(cb_loaded_detail.get_selection());
 			return true;
 		}
 		else if (comp == &tabs) {
@@ -1641,7 +1641,7 @@ void gui_convoy_payload_info_t::update_list()
 				lb->buf().append(translator::translate(veh->get_desc()->get_name()));
 				lb->update();
 				new_component<gui_margin_t>(LINESPACE>>1);
-				new_component<gui_vehicle_cargo_info_t>(cnv->get_vehicle(i), show_detail);
+				new_component<gui_vehicle_cargo_info_t>(cnv->get_vehicle(i), display_mode);
 			}
 			end_table();
 
