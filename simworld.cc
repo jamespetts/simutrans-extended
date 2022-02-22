@@ -9541,7 +9541,8 @@ DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 
 		load(&file);
 
-		if(  env_t::networkmode  ) {
+		if(  env_t::server  ) {
+			// since the sync should have been the last command on the clients due to tcp, only clear command queue on the server
 			clear_command_queue();
 		}
 

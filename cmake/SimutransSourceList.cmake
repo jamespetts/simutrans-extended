@@ -222,7 +222,7 @@ target_sources(simutrans-extended PRIVATE
 	io/raw_image_bmp.cc
 	io/raw_image_png.cc
 	io/raw_image_ppm.cc
-		io/rdwr/adler32_stream.cc
+	io/rdwr/adler32_stream.cc
 	io/rdwr/bzip2_file_rdwr_stream.cc
 	io/rdwr/raw_file_rdwr_stream.cc
 	io/rdwr/rdwr_stream.cc

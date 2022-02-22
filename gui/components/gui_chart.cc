@@ -273,7 +273,7 @@ void gui_chart_t::draw(scr_coord offset)
 						(scr_coord_val)( offset.y+baseline-(int)(tmp/scale) ),
 						c.color);
 				}
-				else if (i == 0 && !abort_display_x || abort_display_x && i == start) {
+				else if ( (i==0 && !abort_display_x)  ||  (abort_display_x && i==start) ) {
 					// for the first element print the current value (optionally)
 					// only print value if not too narrow to min/max/zero
 					if(  c.show_value  ) {

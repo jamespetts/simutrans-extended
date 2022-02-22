@@ -327,7 +327,7 @@ public:
 	uint16 get_livery_scheme_index() const { return livery_scheme_index; }
 	void propogate_livery_scheme();
 
-	void set_line_color(uint8 color_idx = -255, uint8 style = no_letter_code);
+	void set_line_color(uint8 color_idx = 255, uint8 style = no_letter_code);
 	uint8 get_line_lettercode_style() const { return line_lettercode_style; }
 	PIXVAL get_line_color() const;
 	uint8 get_line_color_index() const { return line_color_index; }

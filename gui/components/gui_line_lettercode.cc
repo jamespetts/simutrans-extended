@@ -5,7 +5,6 @@
 
 #include "gui_line_lettercode.h"
 #include "../../utils/simstring.h"
-//#include "../../display/simgraph.h"
 
 
 gui_line_lettercode_t::gui_line_lettercode_t(PIXVAL color_val, uint8 line_lettercode_style)
