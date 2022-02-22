@@ -2030,6 +2030,7 @@
     <ClCompile Include="gui\gui_theme.cc" />
     <ClCompile Include="gui\loadfont_frame.cc" />
     <ClCompile Include="gui\line_class_manager.cc" />
+    <ClCompile Include="gui\line_color_gui.cc" />
     <ClCompile Include="gui\line_item.cc" />
     <ClCompile Include="gui\onewaysign_info.cc" />
     <ClCompile Include="gui\overtaking_mode.cc" />
@@ -2318,6 +2319,7 @@
     <ClCompile Include="gui\gui_frame.cc" />
     <ClCompile Include="gui\components\gui_image_list.cc" />
     <ClCompile Include="gui\components\gui_label.cc" />
+    <ClCompile Include="gui\components\gui_line_lettercode.cc" />
     <ClCompile Include="gui\components\gui_numberinput.cc" />
     <ClCompile Include="gui\components\gui_scrollbar.cc" />
     <ClCompile Include="gui\components\gui_scrolled_list.cc" />
@@ -2590,6 +2592,7 @@
     <ClInclude Include="gui\gui_theme.h" />
     <ClInclude Include="gui\loadfont_frame.h" />
     <ClInclude Include="gui\line_class_manager.h" />
+    <ClInclude Include="gui\line_color_gui.h" />
     <ClInclude Include="gui\onewaysign_info.h" />
     <ClInclude Include="gui\overtaking_mode.h" />
     <ClInclude Include="gui\obj_info.h" />
@@ -2788,6 +2791,7 @@
     <ClInclude Include="gui\components\gui_image.h" />
     <ClInclude Include="gui\components\gui_image_list.h" />
     <ClInclude Include="gui\components\gui_label.h" />
+    <ClInclude Include="gui\components\gui_line_lettercode.h" />
     <ClInclude Include="gui\components\gui_numberinput.h" />
     <ClInclude Include="gui\components\gui_scrollbar.h" />
     <ClInclude Include="gui\components\gui_scrolled_list.h" />

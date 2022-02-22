@@ -66,9 +66,18 @@ public:
 
 	enum line_fireight_group { all_ftype = 0, all_pas = 1, all_mail = 2, all_freight = 3 };
 
-	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64	};
+	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64, line_has_stuck_convoy = 128	};
 
 	static const uint linetype_to_stationtype[simline_t::MAX_LINE_TYPE];
+
+	enum line_lettercode_style_t
+	{
+		no_letter_code      = 0,
+		frame_flag          = 1<<0,
+		white_bg_flag       = 1<<1,
+		left_roundbox_flag  = 1<<2,
+		right_roundbox_flag = 1<<3
+	};
 
 protected:
 	schedule_t * schedule;
@@ -80,6 +89,10 @@ protected:
 private:
 	static karte_ptr_t welt;
 	plainstring name;
+
+	// letter code
+	char linecode_l[4] = {};
+	char linecode_r[4] = {};
 
 	/**
 	 * Handle for ourselves. Can be used like the 'this' pointer
@@ -130,6 +143,9 @@ private:
 
 	uint16 livery_scheme_index;
 
+	uint8 line_lettercode_style=no_letter_code;
+	uint8 line_color_index=255;
+
 	/**
 	* The table of point-to-point average speeds.
 	* @author jamespetts
@@ -177,6 +193,7 @@ public:
 	PIXVAL get_state_color() const { return state_color; }
 	// This has multiple flags
 	uint8 get_state() const { return state; }
+	void set_state(uint8 s) { state |= s; }
 
 	/**
 	 * return the schedule of the line
@@ -190,6 +207,18 @@ public:
 	 */
 	char const* get_name() const { return name; }
 	void set_name(const char *str);
+
+	/**
+	 * line letter code
+	 */
+	char const* get_linecode_l() const { return linecode_l; }
+	void set_linecode_l(const char *str);
+	char const* get_linecode_r() const { return linecode_r; }
+	void set_linecode_r(const char *str);
+	inline bool has_letter_code() const
+	{
+		return (line_color_index != 255 && !(linecode_l[0]=='\0' && linecode_r[0]=='\0'));
+	}
 
 	/*
 	 * load or save the line
@@ -297,6 +326,11 @@ public:
 	void set_livery_scheme_index (uint16 index) { livery_scheme_index = index; }
 	uint16 get_livery_scheme_index() const { return livery_scheme_index; }
 	void propogate_livery_scheme();
+
+	void set_line_color(uint8 color_idx = -255, uint8 style = no_letter_code);
+	uint8 get_line_lettercode_style() const { return line_lettercode_style; }
+	PIXVAL get_line_color() const;
+	uint8 get_line_color_index() const { return line_color_index; }
 
 	inline journey_times_map& get_average_journey_times() { return average_journey_times; }
 

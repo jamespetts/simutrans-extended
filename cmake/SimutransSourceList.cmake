@@ -118,6 +118,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_image.cc
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
+	gui/components/gui_line_lettercode.cc
 	gui/components/gui_map_preview.cc
 	gui/components/gui_numberinput.cc
 	gui/components/gui_obj_view_t.cc
@@ -169,6 +170,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
 	gui/line_class_manager.cc
+	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
 	gui/loadfont_frame.cc

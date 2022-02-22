@@ -1560,6 +1560,9 @@ bool convoi_t::drive_to()
 		{
 			success == route_t::route_too_complex ? state = NO_ROUTE_TOO_COMPLEX : state = NO_ROUTE;
 			no_route_retry_count = 0;
+			if (line.is_bound()) {
+				line->set_state(simline_t::line_has_stuck_convoy);
+			}
 #ifdef MULTI_THREAD
 			pthread_mutex_lock(&step_convois_mutex);
 #endif

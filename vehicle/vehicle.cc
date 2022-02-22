@@ -3232,6 +3232,13 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 			const int width = proportional_string_width(nameplate_text)+7;
 			if (ypos > LINESPACE + 32 && ypos + LINESPACE < display_get_clip_wh().yy) {
 				const scr_coord_val yoff = LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT + LINESPACE/2 + 2;
+				// line letter code
+				if (lh.is_bound() && lh->get_line_color_index()!=255) {
+					const PIXVAL linecol = lh->get_line_color();
+					xpos += display_line_lettercode_rgb(xpos, ypos-yoff-(LINEASCENT+6)/2, linecol, lh->get_line_lettercode_style(), lh->get_linecode_l(), lh->get_linecode_r(), true);
+					xpos += 2;
+				}
+
 				if (env_t::show_cnv_nameplates & 4) {
 					const int bar_height     = LINEASCENT+4;
 					const int bar_width_half = (width+bar_height)/4*2+2;
@@ -3288,16 +3295,16 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 					break;
 			}
 
-			display_ddd_box_clip_rgb(xpos-2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y, LOADINGBAR_WIDTH+2, LOADINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));
+			display_ddd_box_clip_rgb(xpos-2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT, LOADINGBAR_WIDTH+2, LOADINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));
 			sint32 colored_width = cnv->get_loading_level() > 100 ? 100 : cnv->get_loading_level();
 			if (cnv->get_loading_limit() && cnv->get_state() == convoi_t::LOADING) {
-				display_fillbox_wh_clip_rgb(xpos - 1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT - 2, COL_IN_TRANSIT, true);
+				display_fillbox_wh_clip_rgb(xpos - 1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT-2, COL_IN_TRANSIT, true);
 			}
 			else if (cnv->get_loading_limit()) {
-				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT - 2, COL_IN_TRANSIT, 60);
+				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT-2, COL_IN_TRANSIT, 60);
 			}
 			else {
-				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
+				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
 			}
 			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
 
@@ -3308,7 +3315,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 
 			extra_y += LOADINGBAR_HEIGHT;
 
-			// winting gauge
+			// waiting gauge
 			if (waiting_time_per_month) {
 				colored_width = waiting_time_per_month > 100 ? 100 : waiting_time_per_month;
 				display_ddd_box_clip_rgb(xpos - 2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y, colored_width + 2, WAITINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));

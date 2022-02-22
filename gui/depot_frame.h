@@ -118,6 +118,8 @@ private:
 
 	void image_from_storage_list(gui_image_list_t::image_data_t *image_data);
 
+	static bool compare_line(linehandle_t const& l1, linehandle_t const& l2);
+
 public:
 	// the next two are only needed for depot_t update notifications
 	void activate_convoi( convoihandle_t cnv );

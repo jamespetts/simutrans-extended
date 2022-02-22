@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <algorithm>
 
 #include "../simunits.h"
 #include "../simworld.h"
@@ -48,6 +49,48 @@
 
 #include "depot_frame.h"
 #include "convoi_detail_t.h"
+
+
+bool depot_frame_t::compare_line(linehandle_t const& a, linehandle_t const& b)
+{
+	// first: try to sort by line letter code
+	const char *alcl = a->get_linecode_l();
+	const char *blcl = b->get_linecode_l();
+	if (strcmp(alcl, blcl)) {
+		return strcmp(alcl, blcl) < 0;
+	}
+	const char *alcr = a->get_linecode_r();
+	const char *blcr = b->get_linecode_r();
+	if (strcmp(alcr, blcr)) {
+		return strcmp(alcr, blcr) < 0;
+	}
+
+	// second: try to sort by number
+	const char *atxt = a->get_name();
+	int aint = 0;
+	// isdigit produces with UTF8 assertions ...
+	if (atxt[0] >= '0'  &&  atxt[0] <= '9') {
+		aint = atoi(atxt);
+	}
+	else if (atxt[0] == '('  &&  atxt[1] >= '0'  &&  atxt[1] <= '9') {
+		aint = atoi(atxt + 1);
+	}
+	const char *btxt = b->get_name();
+	int bint = 0;
+	if (btxt[0] >= '0'  &&  btxt[0] <= '9') {
+		bint = atoi(btxt);
+	}
+	else if (btxt[0] == '('  &&  btxt[1] >= '0'  &&  btxt[1] <= '9') {
+		bint = atoi(btxt + 1);
+	}
+	if (aint != bint) {
+		return (aint - bint) < 0;
+	}
+	// otherwise: sort by name
+	return strcmp(atxt, btxt) < 0;
+
+	return false;
+}
 
 depot_frame_t::depot_frame_t(depot_t* depot) :
 	gui_frame_t( translator::translate(depot->get_name()), depot->get_owner()),
@@ -554,6 +597,7 @@ void depot_frame_t::build_line_list()
 
 	vector_tpl<linehandle_t> lines;
 	depot->get_owner()->simlinemgmt.get_lines(depot->get_line_type(), &lines, line_type_flags, true);
+	std::sort(lines.begin(), lines.end(), compare_line);
 	FOR(  vector_tpl<linehandle_t>,  const line,  lines  ) {
 		line_selector.new_component<line_scrollitem_t>(line) ;
 		if(  selected_line.is_bound()  &&  selected_line == line  ) {
@@ -564,7 +608,7 @@ void depot_frame_t::build_line_list()
 		// no line selected
 		selected_line = linehandle_t();
 	}
-	line_selector.sort( last_selected_line.is_bound()+extra_option );
+	//line_selector.sort( last_selected_line.is_bound()+extra_option ); // line list is now pre-sorted
 }
 
 

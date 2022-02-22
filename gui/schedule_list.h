@@ -23,6 +23,7 @@
 #include "times_history_container.h"
 #include "components/gui_vehicle_capacitybar.h"
 #include "components/gui_schedule_item.h"
+#include "components/gui_line_lettercode.h"
 
 class player_t;
 
@@ -59,7 +60,8 @@ private:
 
 	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_line_class_manager, bt_mode_convois, bt_show_halt_name;
 	button_t sort_order;
-	button_t bt_access_minimap;
+	button_t bt_access_minimap, bt_line_color_editor;
+	gui_line_lettercode_t lc_preview;
 	gui_container_t cont, cont_charts, cont_convoys;
 	gui_aligned_container_t cont_times_history, cont_line_info, cont_tab_haltlist, cont_transport_density;
 	gui_line_waiting_status_t cont_haltlist;

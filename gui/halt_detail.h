@@ -162,7 +162,7 @@ public:
 
 	void init(halthandle_t halt);
 
-	void update_connections(halthandle_t halt);
+	void update_connections();
 
 	void draw(scr_coord offset) OVERRIDE;
 

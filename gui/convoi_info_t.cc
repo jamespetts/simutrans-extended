@@ -125,7 +125,8 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),
 	scroll_freight(&container_freight, true, true),
-	scroll_times_history(&cont_times_history, true)
+	scroll_times_history(&cont_times_history, true),
+	lc_preview(0)
 {
 	if (cnv.is_bound()) {
 		init(cnv);
@@ -174,9 +175,11 @@ void convoi_info_t::init(convoihandle_t cnv)
 				new_component<gui_margin_t>(100);
 
 				add_component(&container_line,2);
-				container_line.set_table_layout(4,1);
+				container_line.set_table_layout(5,1);
 				container_line.add_component(&line_button);
 				container_line.new_component<gui_label_t>("Serves Line:");
+				lc_preview.set_rigid(false);
+				container_line.add_component(&lc_preview);
 				container_line.add_component(&line_label);
 				if (skinverwaltung_t::reverse_arrows) {
 					img_reverse_route.set_image(cnv->get_schedule()->is_mirrored() ? skinverwaltung_t::reverse_arrows->get_image_id(0) : skinverwaltung_t::reverse_arrows->get_image_id(1), true);
@@ -592,6 +595,14 @@ void convoi_info_t::update_labels()
 	if(  cnv->get_line().is_bound()  ) {
 		line_label.buf().append(cnv->get_line()->get_name());
 		line_label.set_color(cnv->get_line()->get_state_color());
+		if( cnv->get_line()->get_line_color_index()==255 ) {
+			lc_preview.set_visible(false);
+		}
+		else {
+			lc_preview.set_line( cnv->get_line() );
+			lc_preview.set_base_color( cnv->get_line()->get_line_color() );
+			lc_preview.set_visible(true);
+		}
 	}
 	line_label.update();
 

@@ -350,6 +350,11 @@ int display_text_proportional_len_clip_rgb(scr_coord_val, scr_coord_val, const c
 	return 0;
 }
 
+int display_line_lettercode_rgb(scr_coord_val, scr_coord_val, PIXVAL, uint8, const char*, const char*, bool)
+{
+	return 0;
+}
+
 void display_outline_proportional_rgb(scr_coord_val, scr_coord_val, PIXVAL, PIXVAL, const char *, int, sint32)
 {
 }
