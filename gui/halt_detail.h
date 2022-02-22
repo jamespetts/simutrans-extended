@@ -249,7 +249,7 @@ private:
 	gui_tab_panel_t tabs;
 
 	// service tab stuffs
-	button_t bt_sv_frequency, bt_sv_route, bt_sv_catg, bt_access_minimap;
+	button_t bt_sv_frequency, bt_sv_route, bt_sv_catg, bt_access_minimap, bt_access_minimap_catg;
 
 	// route tab stuffs
 	uint8 selected_route_catg_index = goods_manager_t::INDEX_NONE;

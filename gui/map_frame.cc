@@ -549,6 +549,23 @@ void map_frame_t::set_halt(halthandle_t halt)
 	set_name(title_buf);
 }
 
+// TODO: support class
+void map_frame_t::set_category_filter(uint8 catg/*, uint8 g_class*/)
+{
+	if (catg == goods_manager_t::INDEX_NONE) {
+		minimap_t::get_instance()->freight_type_group_index_showed_on_map = NULL;
+		freight_type_c.set_selection(0);
+		return;
+	}
+	minimap_t::get_instance()->freight_type_group_index_showed_on_map = goods_manager_t::get_info_catg(catg);
+	for (uint8 i = 1; i< viewable_freight_types.get_count(); i++) {
+		if (viewable_freight_types[i]->get_catg_index()==catg) {
+			freight_type_c.set_selection(i);
+			break;
+		}
+	}
+}
+
 void map_frame_t::set_title()
 {
 	title_buf.clear();

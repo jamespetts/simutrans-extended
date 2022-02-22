@@ -79,7 +79,7 @@ halt_detail_t::halt_detail_t(halthandle_t halt_) :
 	scrolly_pas(&pas),
 	scrolly_goods(&cont_goods),
 	scroll_service(&cont_service, true, true),
-	scrolly_route(&cont_desinations),
+	scrolly_route(&cont_desinations, true, true),
 	nearby_factory(halt_),
 	destinations(halt_, selected_route_catg_index)
 {
@@ -153,12 +153,17 @@ void halt_detail_t::init()
 
 		cont_tab_service.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+		bt_access_minimap_catg.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
 		if (skinverwaltung_t::open_window) {
 			bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
 			bt_access_minimap.set_image_position_right(true);
+			bt_access_minimap_catg.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_access_minimap_catg.set_image_position_right(true);
 		}
-		bt_access_minimap.set_tooltip("helptxt_access_minimap");
+		bt_access_minimap.set_tooltip("Open the minimap window to show the network around this stop");
 		bt_access_minimap.add_listener(this);
+		bt_access_minimap_catg.set_tooltip("Opens the minimap window showing the network of selected transport items served at this station");
+		bt_access_minimap_catg.add_listener(this);
 		cont_tab_service.add_component(&bt_access_minimap,2);
 		cont_tab_service.new_component<gui_empty_t>();
 	}
@@ -180,10 +185,10 @@ void halt_detail_t::init()
 		bt_by_category.add_listener(this);
 		bt_by_station.pressed = false;
 		bt_by_category.pressed = true;
-		cont_route.new_component<gui_fill_t>();
+		cont_route.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		cont_route.add_component(&bt_by_station);
 		cont_route.add_component(&bt_by_category);
-		cont_route.new_component<gui_margin_t>(D_MARGIN_RIGHT);
+		cont_route.new_component<gui_fill_t>();
 	}
 	cont_route.end_table();
 	lb_serve_catg.init("lb_served_goods_and_classes", scr_coord(0, 0),
@@ -272,9 +277,8 @@ void halt_detail_t::init()
 	cont_route.add_table(8, 0)->set_spacing(scr_size(0, 0));
 	{
 		uint8 cnt = 0;
-		for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
-			if (goods_manager_t::get_info_catg_index(i) == goods_manager_t::none
-				|| i == goods_manager_t::INDEX_PAS || i == goods_manager_t::INDEX_MAIL) {
+		for (uint8 i = goods_manager_t::INDEX_NONE; i < goods_manager_t::get_max_catg_index(); i++) {
+			if (goods_manager_t::get_info_catg_index(i) == goods_manager_t::none) {
 				continue;
 			}
 			// make goods category buttons
@@ -307,13 +311,16 @@ void halt_detail_t::init()
 		color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 	cont_route.add_component(&lb_routes);
 	cont_route.add_component(&scrolly_route);
+	scrolly_route.set_maximize(true);
 
 	// list (inside the scroll panel)
-	lb_selected_route_catg.set_pos(scr_coord(0, D_V_SPACE));
+	lb_selected_route_catg.set_pos(scr_coord(D_MARGIN_LEFT, D_V_SPACE));
 	lb_selected_route_catg.set_size(scr_size(LINESPACE*16, LINESPACE));
+	bt_access_minimap_catg.set_pos(scr_coord(D_MARGIN_LEFT+LINESPACE*16, D_V_SPACE+D_GET_CENTER_ALIGN_OFFSET(D_BUTTON_HEIGHT, LINESPACE)));
 	destinations.set_pos(scr_coord(0, lb_selected_route_catg.get_pos().y + D_BUTTON_HEIGHT));
 	destinations.recalc_size();
 	cont_desinations.add_component(&lb_selected_route_catg);
+	cont_desinations.add_component(&bt_access_minimap_catg);
 	cont_desinations.add_component(&destinations);
 
 
@@ -561,13 +568,14 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 			open_close_catg_buttons();
 		}
 	}
-	else if (comp == &bt_access_minimap) {
+	else if (comp == &bt_access_minimap || comp == &bt_access_minimap_catg) {
 		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		if (!win) {
 			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
 		win->set_halt(halt);
+		win->set_category_filter(comp == &bt_access_minimap ? goods_manager_t::INDEX_NONE : selected_route_catg_index/*, selected_class*/);
 		top_win(win);
 		return true;
 	}
@@ -642,6 +650,7 @@ void halt_detail_t::open_close_catg_buttons()
 	// Show or hide buttons and labels
 	lb_serve_catg.set_visible(!list_by_station);
 	lb_selected_route_catg.set_visible(!list_by_station);
+	bt_access_minimap_catg.set_visible(!list_by_station);
 	uint8 i = 0;
 	uint8 cl = 0;
 	FORX(slist_tpl<button_t *>, btn, catg_buttons, i++) {
@@ -687,7 +696,6 @@ void halt_detail_t::set_tab_opened()
 		case HD_TAB_ROUTE:
 			destinations.recalc_size();
 			cont_desinations.set_size(scr_size(max(get_windowsize().w, destinations.get_size().w), destinations.get_pos().y + destinations.get_size().h));
-			cont_route.set_size(scr_size(cont_route.get_size().w, scrolly_route.get_pos().y + scrolly_route.get_size().h));
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_route.get_size().h)));
 			break;
 	}

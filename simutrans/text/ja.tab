@@ -4303,6 +4303,10 @@ You do not have permission to edit!
 他のプレイヤーの路線は編集できません！
 Save your changes and close the dialog.
 変更を保存してダイアログを閉じます
+Open the minimap window to show the network around this stop
+ミニマップダイアログを開き、この駅を中心としたネットワークを表示します
+Opens the minimap window showing the network of selected transport items served at this station
+ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month

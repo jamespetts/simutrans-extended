@@ -136,6 +136,7 @@ public:
 	// Launch the network map from an external dialog
 	void activate_individual_network_mode(koord center_pos = koord::invalid);
 	void set_halt(halthandle_t halt = halthandle_t());
+	void set_category_filter(uint8 catg/*, uint8 g_class=0*/); // TODO: support class
 };
 
 #endif
