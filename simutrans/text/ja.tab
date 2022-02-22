@@ -4309,6 +4309,12 @@ Open the minimap window to show the network around this stop
 ミニマップダイアログを開き、この駅を中心としたネットワークを表示します
 Opens the minimap window showing the network of selected transport items served at this station
 ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
+hd_sv_mode_frequency
+運行頻度、編成数
+hd_sv_mode_catg
+取扱い貨物
+hd_sv_mode_route
+運行ルート
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month
