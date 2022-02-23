@@ -149,6 +149,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/fabrik_info.cc
 	gui/factory_chart.cc
 	gui/factory_edit.cc
+	gui/factory_legend.cc
 	gui/factorylist_frame_t.cc
 	gui/factorylist_stats_t.cc
 	gui/goods_frame_t.cc
