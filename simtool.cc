@@ -10233,7 +10233,7 @@ bool tool_reassign_signal_internal_t::init(player_t *player)
 	koord3d sig_pos;
 	koord3d new_sb_pos;
 
-	if (6 != sscanf(default_param, "%hi,%hi,%hi,%hi,%hi,%hi", &sig_pos.x, &sig_pos.y, &sig_pos.z, &new_sb_pos.x, &new_sb_pos.y, &new_sb_pos.z))
+	if (6 != sscanf(default_param, "%hi,%hi,%hhi,%hi,%hi,%hhi", &sig_pos.x, &sig_pos.y, &sig_pos.z, &new_sb_pos.x, &new_sb_pos.y, &new_sb_pos.z))
 	{
 		dbg->error("tool_reassign_signal_internal_t::init", "could not perform (%s)", default_param);
 		return false;
