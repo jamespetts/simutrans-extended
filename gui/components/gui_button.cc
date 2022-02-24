@@ -365,6 +365,10 @@ void button_t::draw(scr_coord offset)
 	switch (type&TYPE_MASK) {
 
 		case box:      // Colored background box
+			if(  text && pressed  ) {
+				text_color = SYSCOL_COLORED_BUTTON_TEXT_SELECTED;
+			}
+			/* FALLTHROUGH */
 		case roundbox: // button with inside text
 		case roundbox_left:
 		case roundbox_middle:
@@ -406,9 +410,6 @@ void button_t::draw(scr_coord offset)
 						else {
 							area_img.x += area_text.w;
 						}
-					}
-					if( type&box && pressed ) {
-						text_color = SYSCOL_COLORED_BUTTON_TEXT_SELECTED;
 					}
 					// move the text to leave evt. space for a colored box top left or bottom right of it
 					if( pressed && gui_theme_t::pressed_button_sinks ) area_text.y++;
