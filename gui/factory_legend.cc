@@ -49,11 +49,9 @@ class legend_entry_t : public gui_component_t
 {
 	const factory_desc_t *fac_desc;
 	gui_label_t label;
-	PIXVAL color;
 	bool filtered;
 public:
 	legend_entry_t(const factory_desc_t *f, bool filtered_=false) : fac_desc(f), filtered(filtered_) {
-		color = fac_desc->get_color();
 		label.set_text(f->get_name());
 		label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
 	}
@@ -74,7 +72,7 @@ public:
 		if (!filtered) {
 			display_ddd_box_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE)-1, D_INDICATOR_BOX_WIDTH, D_INDICATOR_HEIGHT+2, SYSCOL_TEXT, SYSCOL_TEXT );
 		}
-		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, color, false );
+		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, fac_desc->get_color(), false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
 	}
 
