@@ -83,7 +83,7 @@ public:
 	virtual schedule_t * generate_new_schedule() const OVERRIDE;
 
 	working_method_t get_working_method() const { return working_method; }
-	void set_working_method(working_method_t value);
+	void set_working_method(working_method_t value) { working_method = value; }
 };
 
 

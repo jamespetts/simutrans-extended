@@ -61,5 +61,12 @@ if (MiniUPNP_FOUND)
 
 	set_target_properties(MiniUPNP::MiniUPNP PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MiniUPNP_INCLUDE_DIRS}")
 	set_target_properties(MiniUPNP::MiniUPNP PROPERTIES IMPORTED_LOCATION "${MiniUPNP_LIBRARIES}")
+	if (MINGW)
+	    # MinGW needs an additional link flags 
+	    set_property(TARGET MiniUPNP::MiniUPNP PROPERTY INTERFACE_LINK_LIBRARIES "-liphlpapi -lws2_32")
+	endif (MINGW)
+	if (MSVC)
+	    set_property(TARGET MiniUPNP::MiniUPNP PROPERTY INTERFACE_LINK_LIBRARIES "iphlpapi.lib")
+	endif (MSVC)
 endif (MiniUPNP_FOUND)
 

@@ -29,6 +29,7 @@
 #include "../display/simgraph.h"
 
 #define BUTTONS_PER_ROW 4
+#define MAX_CITY_LOCATION_MAP_WIDTH (200)
 
 
 const char *hist_type[MAX_CITY_HISTORY] =
@@ -39,7 +40,7 @@ const char *hist_type[MAX_CITY_HISTORY] =
 	"Growth",
 	"Buildings",
 	"Verkehrsteilnehmer",
-	"Public transport users",
+	"Public transport",
 	"Passagiere",
 	"Walked",
 	"sended",
@@ -74,10 +75,10 @@ const uint8 hist_type_color[MAX_CITY_HISTORY] =
 
 const char *pax_dest_type[PAX_DEST_COLOR_LEGENDS] =
 {
-	"Happy",
-	"too_slow_and_gave_up",
-	"too_slow_and_use_privatecar",
-	"Verkehrsteilnehmer",
+	"Public transport",
+	"too_slow_public_transportation",
+	"too_slow_privatecar",
+	"Private car",
 	"Walked",
 	"Turned away",
 	"No Route",
@@ -97,11 +98,61 @@ const uint8 pax_dest_color[PAX_DEST_COLOR_LEGENDS] =
 };
 
 
+city_location_map_t::city_location_map_t(stadt_t* city) : city(city),
+map_array(0, 0)
+{
+	if (city) {
+		update();
+	}
+}
+
+void city_location_map_t::update()
+{
+	scr_coord_val temp_zoom_x = world()->get_size().x/MAX_CITY_LOCATION_MAP_WIDTH;
+	scr_coord_val temp_zoom_y = world()->get_size().y/(LINESPACE*6);
+	uint8 zoom_out_level = max(temp_zoom_x, temp_zoom_y)+1;
+	size=scr_size(world()->get_size().x/zoom_out_level, world()->get_size().y/zoom_out_level);
+	map_array.resize(size.w, size.h);
+	const int size_x = welt->get_size().x;
+	const int size_y = welt->get_size().y;
+	for (sint16 y = 0; y < size.h; y++) {
+		for (sint16 x = 0; x < size.w; x++) {
+			const grund_t *gr = welt->lookup_kartenboden(koord((x * size_x) / size.w, (y * size_y) / size.h));
+			if ( world()->get_city( gr->get_pos().get_2d() )==city ) {
+				map_array.at(x, y) = color_idx_to_rgb(COL_YELLOW);
+			}
+			else {
+				map_array.at(x, y) = minimap_t::calc_ground_color(gr, false);
+			}
+		}
+	}
+}
+
+void city_location_map_t::draw(scr_coord offset)
+{
+	display_array_wh(pos.x + offset.x, pos.y + offset.y, size.w, size.h, map_array.to_array());
+}
+
+bool city_location_map_t::infowin_event(const event_t *ev)
+{
+	if (ev->ev_code == MOUSE_LEFTBUTTON) {
+		const koord p = koord(
+			(ev->mx * world()->get_size().x) / (size.w),
+			(ev->my * world()->get_size().y) / (size.h));
+		world()->get_viewport()->change_world_position(p);
+	}
+	return false;
+}
+
+
+
 city_info_t::city_info_t(stadt_t* city) :
 	gui_frame_t( name, NULL ),
 	city(city),
 	pax_map(city),
-	scrolly_stats(&cont_city_stats, true)
+	location_map(city),
+	scrolly_stats(&cont_city_stats, true),
+	lb_allow_growth("")
 {
 	if (city) {
 		init();
@@ -114,17 +165,60 @@ void city_info_t::init()
 
 	set_table_layout(1,0);
 
-	add_table(3,0)->set_alignment(ALIGN_TOP);
+	add_table(2,1)->set_alignment(ALIGN_TOP);
 	{
-		// add city name input field
-		name_input.add_listener( this );
-		add_component(&name_input);
+		// top left
+		add_table(1,0);
+		{
+			// add city name input field
+			name_input.add_listener( this );
+			add_component(&name_input);
 
-		// add "allow city growth" button below city info
-		allow_growth.init( button_t::square_state, "Allow city growth");
-		allow_growth.pressed = city->get_citygrowth();
-		allow_growth.add_listener( this );
-		add_component(&allow_growth);
+			add_table(4, 3);
+			{
+				// area
+				new_component<gui_label_t>("City size");
+				add_component(&lb_size);
+				add_component(&lb_border);
+				new_component<gui_fill_t>();
+
+				new_component<gui_label_t>("Population density");
+				add_component(&lb_buildings);
+				new_component<gui_empty_t>();
+				new_component<gui_fill_t>();
+
+				new_component<gui_label_t>("Power demand");
+				add_component(&lb_powerdemand);
+				new_component<gui_empty_t>();
+				new_component<gui_fill_t>();
+			}
+			end_table();
+
+			// minimap link buttons
+			add_table(3, 1);
+			{
+				add_component(&bt_city_stops);
+				add_component(&bt_city_factories);
+				add_component(&bt_city_attractions);
+			}
+			end_table();
+		}
+		end_table();
+
+		// top right
+		add_table(1,2);
+		{
+			// city location map
+			add_component(&location_map);
+			// region
+			if (!world()->get_settings().regions.empty()) {
+				new_component<gui_label_buf_t>()->buf().append(translator::translate(world()->get_region_name(city->get_pos()).c_str()));
+			}
+			else {
+				new_component<gui_empty_t>();
+			}
+		}
+		end_table();
 	}
 	end_table();
 
@@ -154,6 +248,11 @@ void city_info_t::init()
 	bt_city_stops.set_tooltip("Open the list of stops in this city");
 	bt_city_stops.add_listener(this);
 	bt_city_stops.pressed = false;
+
+	// add "allow city growth" button below city info
+	allow_growth.init(button_t::square_state, "Allow city growth");
+	allow_growth.pressed = city->get_citygrowth();
+	allow_growth.add_listener(this);
 
 	// tab (month/year)
 	container_chart.set_table_layout(1, 0);
@@ -397,7 +496,14 @@ void city_info_t::update_labels()
 	}
 	lb_powerdemand.update();
 
-	allow_growth.enable(welt->get_active_player() == welt->get_public_player());
+	allow_growth.set_visible(welt->get_active_player() == welt->get_public_player());
+	lb_allow_growth.set_visible(!allow_growth.is_visible());
+	if (lb_allow_growth.is_visible()) {
+		lb_allow_growth.buf().append(city->get_citygrowth() ? translator::translate("Allow city growth") : translator::translate("City growth is restrained"));
+		lb_allow_growth.set_image(skinverwaltung_t::alerts ? (city->get_citygrowth() ? IMG_EMPTY : skinverwaltung_t::alerts->get_image_id(2)) : IMG_EMPTY);
+		lb_allow_growth.update();
+	}
+	resize(scr_size(0,0));
 }
 
 
@@ -405,32 +511,10 @@ void city_info_t::update_stats()
 {
 	scr_coord_val value_cell_width = max(proportional_string_width(translator::translate("This Year")), proportional_string_width(translator::translate("Last Year")));
 	cont_city_stats.remove_all();
-
-	cont_city_stats.add_table(4,3);
+	cont_city_stats.add_table(1,2);
 	{
-		// area
-		cont_city_stats.new_component<gui_label_t>("City size");
-		cont_city_stats.add_component(&lb_size);
-		cont_city_stats.add_component(&lb_border);
-		cont_city_stats.new_component<gui_fill_t>();
-
-		cont_city_stats.new_component<gui_label_t>("Population density");
-		cont_city_stats.add_component(&lb_buildings);
-		cont_city_stats.new_component<gui_empty_t>();
-		cont_city_stats.new_component<gui_fill_t>();
-
-		cont_city_stats.new_component<gui_label_t>("Power demand");
-		cont_city_stats.add_component(&lb_powerdemand);
-		cont_city_stats.new_component<gui_empty_t>();
-		cont_city_stats.new_component<gui_fill_t>();
-	}
-	cont_city_stats.end_table();
-
-	cont_city_stats.add_table(3,1);
-	{
-		cont_city_stats.add_component(&bt_city_stops);
-		cont_city_stats.add_component(&bt_city_factories);
-		cont_city_stats.add_component(&bt_city_attractions);
+		cont_city_stats.add_component(&lb_allow_growth);
+		cont_city_stats.add_component(&allow_growth);
 	}
 	cont_city_stats.end_table();
 
@@ -668,6 +752,8 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 void city_info_t::map_rotate90( sint16 )
 {
 	pax_map.set_size( pax_map.get_size() );
+	location_map.update();
+	resize(scr_size(0,0));
 }
 
 
@@ -707,6 +793,7 @@ void city_info_t::rdwr(loadsave_t *file)
 	if(  file->is_loading()  ) {
 		city = welt->get_cities()[townindex];
 		pax_map.set_city(city);
+		location_map.set_city(city);
 
 		init();
 		win_set_magic( this, (ptrdiff_t)city );

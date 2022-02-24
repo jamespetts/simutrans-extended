@@ -1189,7 +1189,7 @@ server_runs_background_tasks_when_paused = 0
 server_save_game_on_quit = 0
 
 # Chat window transparency (0=off, 25, 50 75 are possible)
-chat_transparency = 75
+chat_transparency = 0
 
 # The number of game months before a player making no changes
 # to its company is unlocked automatically to allow other players

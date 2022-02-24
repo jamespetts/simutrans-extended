@@ -684,11 +684,11 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 				action_selector.set_selection(0);
 				selection=0;
 			}
-				if(  (unsigned)(selection)<= va_upgrade) {
+			if(  (unsigned)(selection)<= va_upgrade) {
 				veh_action=(unsigned)(selection);
 				build_vehicle_lists();
 				update_data();
-				}
+			}
 		}
 		else if (comp == &bt_class_management)
 		{

@@ -217,7 +217,7 @@ void gui_factory_stats_t::update_table()
 											if (catg_index == ware->get_catg_index()) {
 												new_component<gui_colorbox_t>(ware->get_color())->set_size(scr_size(LINESPACE / 2 + 2, LINESPACE / 2 + 2));
 												gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-												lb->buf().append(ware->get_name());
+												lb->buf().append(translator::translate( ware->get_name() ));
 												lb->buf().append(" ");
 												lb->update();
 												goods_found++;

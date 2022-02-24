@@ -1740,6 +1740,11 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 			else if (file->is_version_ex_atleast(14, 47)) {
 				file->rdwr_long(max_speed_drive_by_sight_tram_kmh);
+				if (file->is_version_ex_equal(14, 47) && max_speed_drive_by_sight_tram_kmh < 10)
+				{
+					// Some earlier saved games were broken with invalid values stored here. Restore a sane value.
+					max_speed_drive_by_sight_tram_kmh = 50;
+				}
 				max_speed_drive_by_sight_tram = kmh_to_speed(max_speed_drive_by_sight_tram_kmh);
 			}
 			if(file->get_extended_revision() >= 5 || file->get_extended_version() >= 13)

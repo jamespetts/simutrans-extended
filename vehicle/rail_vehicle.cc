@@ -204,7 +204,7 @@ route_t::route_result_t rail_vehicle_t::calc_route(koord3d start, koord3d ziel, 
 		if (cnv->get_allow_clear_reservation() && (working_method == one_train_staff || working_method == token_block))
 		{
 			// These cannot sensibly be resumed inside a section
-			set_working_method(drive_by_sight);
+			cnv->set_working_method(drive_by_sight);
 			cnv->unreserve_route();
 			cnv->reserve_own_tiles();
 		}
@@ -590,7 +590,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			{
 				signal->set_state(roadsign_t::call_on); // Do not use the same cabinet to switch back to drive by sight immediately after releasing.
 				clear_token_reservation(signal, this, w);
-				set_working_method(drive_by_sight);
+				cnv->set_working_method(drive_by_sight);
 				exiting_one_train_staff = true;
 			}
 			else if(first_pos != koord3d::invalid)
@@ -622,14 +622,14 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 	{
 		if(working_method != token_block && working_method != one_train_staff)
 		{
-			set_working_method(drive_by_sight);
+			cnv->set_working_method(drive_by_sight);
 		}
 
 		if(signal_current && working_method != token_block)
 		{
 			if(working_method != one_train_staff && (signal_current->get_desc()->get_working_method() != one_train_staff || signal_current->get_pos() != cnv->get_last_signal_pos()))
 			{
-				set_working_method(signal_current->get_desc()->get_working_method());
+				cnv->set_working_method(signal_current->get_desc()->get_working_method());
 			}
 		}
 	}
@@ -703,7 +703,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		}
 		else
 		{
-			set_working_method(one_train_staff);
+			cnv->set_working_method(one_train_staff);
 		}
 	}
 
@@ -753,7 +753,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					const sint64 clear_interval_ticks =  welt->get_seconds_to_ticks(welt->get_settings().get_time_interval_seconds_to_clear());
 					const sint64 ticks = welt->get_ticks();
 
-					set_working_method(sig->get_desc()->get_working_method());
+					cnv->set_working_method(sig->get_desc()->get_working_method());
 
 					if(last_passed + caution_interval_ticks > ticks)
 					{
@@ -818,7 +818,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			{
 				clear_token_reservation(w_current->get_signal(ribi), this, w_current);
 			}
-			set_working_method(signal_current->get_desc()->get_working_method());
+			cnv->set_working_method(signal_current->get_desc()->get_working_method());
 		}
 		return true;
 	}
@@ -851,7 +851,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		}
 		else
 		{
-			set_working_method(drive_by_sight);
+			cnv->set_working_method(drive_by_sight);
 		}
 	}
 
@@ -871,7 +871,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				{
 					cnv->set_state(convoi_t::EMERGENCY_STOP);
 					cnv->set_wait_lock(emergency_stop_duration + 2000); // We add 2,000ms to what we assume is the rear train to ensure that the front train starts first.
-					set_working_method(drive_by_sight);
+					cnv->set_working_method(drive_by_sight);
 					cnv->unreserve_route();
 					cnv->reserve_own_tiles();
 					if(c.is_bound() && !this_halt_has_station_signals)
@@ -1074,7 +1074,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 	{
 		modify_check_tile = true;
 		do_not_set_one_train_staff = working_method == one_train_staff;
-		set_working_method(working_method != one_train_staff ? drive_by_sight : one_train_staff);
+		cnv->set_working_method(working_method != one_train_staff ? drive_by_sight : one_train_staff);
 	}
 
 	if(working_method == absolute_block || working_method == track_circuit_block || working_method == drive_by_sight || working_method == token_block || working_method == time_interval || working_method == time_interval_with_telegraph)
@@ -1173,7 +1173,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				// Transitioning out of a signalling system in which the stopping distance is not based on the position of the signals: run the block reserver again in case it was not run on this signal previously.
 				block_reserver(cnv->get_route(), next_block, modified_sighting_distance_tiles, next_signal, 0, true, false, cnv->get_is_choosing());
 			}
-			set_working_method(signal->get_desc()->get_working_method());
+			cnv->set_working_method(signal->get_desc()->get_working_method());
 		}
 
 	}
@@ -1219,7 +1219,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				{
 					if(signal->get_desc()->get_working_method() != one_train_staff || (!do_not_set_one_train_staff && (signal->get_pos() == get_pos()) && (signal->get_state() != roadsign_t::call_on)))
 					{
-						set_working_method(signal->get_desc()->get_working_method());
+						cnv->set_working_method(signal->get_desc()->get_working_method());
 						if (signal->get_desc()->get_working_method() == one_train_staff)
 						{
 							cnv->set_last_signal_pos(signal->get_pos());
@@ -1244,7 +1244,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 						signal->set_state(roadsign_t::danger);
 						if (old_working_method == drive_by_sight)
 						{
-							set_working_method(old_working_method);
+							cnv->set_working_method(old_working_method);
 						}
 						if(starting_from_stand && (working_method == absolute_block || working_method == track_circuit_block || working_method == cab_signalling))
 						{
@@ -1253,7 +1253,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							{
 								// Permissive working allowed: call on.
 								signal->set_state(roadsign_t::call_on);
-								set_working_method(drive_by_sight);
+								cnv->set_working_method(drive_by_sight);
 								call_on = true;
 							}
 						}
@@ -1320,7 +1320,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 
 		if(signal && signal->get_desc()->get_working_method() == token_block)
 		{
-			set_working_method(token_block);
+			cnv->set_working_method(token_block);
 		}
 	}
 	if(working_method == drive_by_sight || working_method == moving_block)
@@ -1329,28 +1329,17 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ok |= route_index == route.get_count() || next_signal > route_index;
 		if (!ok && working_method == one_train_staff)
 		{
-			set_working_method(drive_by_sight);
+			cnv->set_working_method(drive_by_sight);
 		}
 		cnv->set_next_stop_index(next_signal);
 		if (exiting_one_train_staff && get_working_method() == one_train_staff)
 		{
-			set_working_method(drive_by_sight);
+			cnv->set_working_method(drive_by_sight);
 		}
 		return ok;
 	}
 
 	return true;
-}
-
-void rail_vehicle_t::set_working_method(working_method_t value)
-{
-	if (working_method == one_train_staff && value != one_train_staff)
-	{
-		unreserve_in_rear();
-		cnv->reserve_own_tiles();
-	}
-
-	working_method = value;
 }
 
 void rail_vehicle_t::find_next_signal(route_t* route, uint16 start_index, uint16 &next_signal_index)
@@ -1642,7 +1631,10 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 					if (directional_only)
 					{
 						// Stop a directional reservation when a one way sign is encountered
-						count--;
+						if (next_signal_working_method != time_interval_with_telegraph)
+						{
+							count--;
+						}
 						if (is_from_directional)
 						{
 							reached_end_of_loop = true;
@@ -2880,7 +2872,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			{
 				if (working_method != token_block && working_method != one_train_staff)
 				{
-					set_working_method(drive_by_sight);
+					cnv->set_working_method(drive_by_sight);
 				}
 				return 1;
 			}
@@ -2928,11 +2920,19 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 
 		bool last_signal_was_track_circuit_block = false;
 
+		halthandle_t train_halt = haltestelle_t::get_halt(cnv->get_pos(), cnv->get_owner());
+		halthandle_t signal_halt;
+
 		FOR(slist_tpl<grund_t*>, const g, signs)
 		{
 			if(signal_t* const signal = g->find<signal_t>())
 			{
-				if(((counter -- > 0 || (pre_signals.empty() && (!starting_at_signal || signs.get_count() == 1)) || (reached_end_of_loop && (early_platform_index == INVALID_INDEX || last_stop_signal_index < early_platform_index))) && (signal->get_desc()->get_working_method() != token_block || starting_at_signal || ((start_index == first_stop_signal_index) && (first_stop_signal_index == last_stop_signal_index))) && ((route->at(route->get_count() - 1) != signal->get_pos()) || signal->get_desc()->get_working_method() == token_block)))
+				signal_halt = haltestelle_t::get_halt(g->get_pos(), cnv->get_owner());
+				if(((counter -- > 0 || (pre_signals.empty() && (!starting_at_signal || signs.get_count() == 1)) ||
+					(reached_end_of_loop && (early_platform_index == INVALID_INDEX ||
+						last_stop_signal_index < early_platform_index))) && (signal->get_desc()->get_working_method() != token_block ||
+							starting_at_signal || signal_halt == train_halt || ((start_index == first_stop_signal_index) && (first_stop_signal_index == last_stop_signal_index)))
+					&& ((route->at(route->get_count() - 1) != signal->get_pos()) || signal->get_desc()->get_working_method() == token_block)))
 				{
 					const bool use_no_choose_aspect = choose_route_identical_to_main_route || (signal->get_desc()->is_choose_sign() && !is_choosing && choose_return == 0);
 
@@ -3100,9 +3100,13 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 void rail_vehicle_t::clear_token_reservation(signal_t* sig, rail_vehicle_t* w, schiene_t* sch)
 {
 	route_t* route = cnv ? cnv->get_route() : NULL;
-	if(sig && (sig->get_desc()->get_working_method() != token_block && sig->get_desc()->get_working_method() != one_train_staff) && cnv->get_state() != convoi_t::REVERSING)
+	if(cnv && sig && (sig->get_desc()->get_working_method() != token_block && sig->get_desc()->get_working_method() != one_train_staff) && cnv->get_state() != convoi_t::REVERSING)
 	{
-		w->set_working_method(sig->get_desc()->get_working_method());
+		convoi_t* cnv_w = w->get_convoi();
+		if (cnv_w)
+		{
+			w->get_convoi()->set_working_method(sig->get_desc()->get_working_method());
+		}
 	}
 	if(cnv && cnv->get_needs_full_route_flush())
 	{
@@ -3270,7 +3274,7 @@ void rail_vehicle_t::leave_tile()
 						grund_t* gr_this_tile = welt->lookup(this_tile);
 						if (gr_previous_tile && gr_this_tile)
 						{
-							if (gr_previous_tile->get_halt().is_bound() && gr_previous_tile->get_halt() == dest_halt && !gr_this_tile->get_halt().is_bound())
+							if (gr_previous_tile->get_halt().is_bound() && gr_previous_tile->get_halt() == dest_halt && !gr_this_tile->get_halt().is_bound() && working_method != one_train_staff && working_method != token_block)
 							{
 								unreserve_in_rear();
 							}
@@ -3352,7 +3356,7 @@ void rail_vehicle_t::leave_tile()
 
 							if (sig->get_desc()->get_working_method() == drive_by_sight)
 							{
-								set_working_method(drive_by_sight);
+								cnv->set_working_method(drive_by_sight);
 								cnv->set_next_stop_index(route_index + 1);
 							}
 						}

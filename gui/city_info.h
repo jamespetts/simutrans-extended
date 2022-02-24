@@ -156,6 +156,29 @@ public:
 	}
 };
 
+
+class city_location_map_t : public gui_world_component_t
+{
+	stadt_t* city;
+	array2d_tpl<PIXVAL> map_array;
+
+public:
+	city_location_map_t(stadt_t* city);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	// handle clicks into minimaps
+	bool infowin_event(const event_t *ev) OVERRIDE;
+
+	void update(); // init location map
+
+	// for loading saved game
+	void set_city(stadt_t* c) { city = c; update(); };
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return size; }
+};
+
 /**
  * Window containing information about a city.
  */
@@ -171,12 +194,14 @@ private:
 	button_t bt_show_contour, bt_show_hide_legend, bt_city_attractions, bt_city_stops, bt_city_factories;
 	gui_label_t lb_collapsed;
 	gui_label_buf_t lb_size, lb_buildings, lb_border, lb_powerdemand;
+	gui_label_with_symbol_t lb_allow_growth;
 
 	gui_tab_panel_t year_month_tabs, tabs;
 	gui_aligned_container_t container_chart, container_year, container_month, cont_destination_map, cont_minimap_legend;
 	gui_chart_t chart, mchart;                ///< Year and month history charts
 
 	gui_city_minimap_t pax_map;
+	city_location_map_t location_map;
 
 	gui_button_to_chart_array_t button_to_chart;
 

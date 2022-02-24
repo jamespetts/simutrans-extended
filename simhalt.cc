@@ -4970,7 +4970,7 @@ void haltestelle_t::recalc_status()
 		if (!has_active_freight_connection && status_color_freight != COL_CLEAR) {
 			status_color_freight = COL_INACTIVE;
 		}
-		else if (!total_freight && !transferring_total) {
+		else if (!total_freight && !transferring_total && financial_history[0][HALT_GOODS_HANDLING_VOLUME]==0) {
 			status_color_freight = COL_CAUTION;
 		}
 		else if(status_color_freight != color_idx_to_rgb(COL_OVERCROWD)) {

@@ -239,7 +239,7 @@ void gui_city_stats_t::update_table()
 				if (city_goods.get_count()) {
 					add_table(city_goods.get_count()+1,1);
 					{
-						new_component<gui_image_t>(skinverwaltung_t::input_output->get_image_id(citylist_stats_t::goods_demand ? 0:1), 0, ALIGN_CENTER_V, true);
+						new_component<gui_image_t>(skinverwaltung_t::input_output ? skinverwaltung_t::input_output->get_image_id(mode == citylist_stats_t::goods_demand ? 0:1) : IMG_EMPTY, 0, ALIGN_CENTER_V, true);
 						FOR(slist_tpl<const goods_desc_t*>, &goods, city_goods) {
 							add_table(3,1);
 							{

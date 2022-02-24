@@ -1020,6 +1020,8 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 				// things with convoi will not be saved
 				||  (new_obj->get_typ()>=66  &&  new_obj->get_typ()<82)
 				||  (env_t::server  &&  new_obj->get_typ()==obj_t::baum  &&  file->is_version_atleast(110, 1))
+				// do not save schedule marker
+				||  new_obj->get_typ()==obj_t::schedule_marker
 			) {
 				// these objects are simply not saved
 			}

@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -38,11 +38,19 @@ public:
 struct file_info_t
 {
 	enum file_type_t {
-		TYPE_RAW        = 0, // either raw binary or text (dat etc)
-		TYPE_XML        = 1 << 1,
-		TYPE_ZIPPED     = 1 << 2,
-		TYPE_BZIP2      = 1 << 3,
-		TYPE_ZSTD       = 1 << 4,
+		TYPE_RAW = 0, // either raw binary or text (dat etc)
+
+		TYPE_ZIPPED,  // zipped save
+		TYPE_BZIP2,   // bzip2 compressed save
+		TYPE_ZSTD,    // zstd compressed save
+
+		TYPE_PNG,     // PNG image
+		TYPE_BMP,
+		TYPE_PPM,
+
+		TYPE_XML        = 1u << 31,
+
+		// Combined file formats
 		TYPE_XML_ZIPPED = TYPE_XML | TYPE_ZIPPED,
 		TYPE_XML_BZIP2  = TYPE_XML | TYPE_BZIP2,
 		TYPE_XML_ZSTD   = TYPE_XML | TYPE_ZSTD
@@ -69,6 +77,15 @@ ENUM_BITSET(file_info_t::file_type_t);
  * @returns FILE_ERROR_OK iff successfully classified.
  */
 file_classify_status_t classify_file(const char *path, file_info_t *info);
+
+/**
+ * Classify an image file.
+ * @param path must a valid system name, either a short name for windows or UTF8 for other plattforms
+ * @param info If successfully classified, holds information about file format and version.
+ *             Must not be NULL.
+ * @returns FILE_CLASSIFY_OK iff successfully classified.
+ */
+file_classify_status_t classify_image_file(const char *path, file_info_t *info);
 
 
 #endif

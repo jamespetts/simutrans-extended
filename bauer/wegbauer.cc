@@ -2749,6 +2749,11 @@ void way_builder_t::build_track()
 					// build tram track over crossing -> remove crossing
 					if(  gr->has_two_ways()  &&  desc->get_styp()==type_tram  &&  weg->get_desc()->get_styp() != type_tram  ) {
 						if(  crossing_t *cr = gr->find<crossing_t>(2)  ) {
+							// Railroad crossing removal must not transfer ownership of the track to another player
+							if (gr->get_weg_nr(1)->get_owner_nr() != player_builder->get_player_nr()) {
+								continue;
+							}
+
 							// change to tram track
 							cr->mark_image_dirty( cr->get_image(), 0);
 							cr->cleanup(player_builder);

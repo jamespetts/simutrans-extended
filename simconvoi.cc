@@ -1606,7 +1606,7 @@ bool convoi_t::drive_to()
 			}
 
 			// continue route search until the destination is a station/stop or a reversing waypoint
-			while(is_waypoint(ziel) && schedule->get_current_entry().reverse < 1)
+			while(is_waypoint(ziel) && schedule->get_current_entry().reverse < 1 && !gr->get_depot())
 			{
 				allow_clear_reservation = false;
 				start = ziel;
@@ -3847,13 +3847,31 @@ void convoi_t::reverse_order(bool rev)
 		vehicle[i]->set_reversed(reversed);
 	}
 
-	if(front()->get_waytype() == track_wt || front()->get_waytype()  == tram_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
-	{
-		rail_vehicle_t* w = (rail_vehicle_t*)front();
-		w->set_working_method(wm);
-	}
+	set_working_method(wm);
 
 	welt->set_dirty();
+}
+
+void convoi_t::set_working_method(working_method_t value)
+{
+	for (uint32 i = 0; i < vehicle_count; i++)
+	{
+		const vehicle_t* veh = get_vehicle(i);
+		if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt)
+		{
+			rail_vehicle_t* rv = (rail_vehicle_t*)veh;
+			rv->set_working_method(value);
+
+			if (i == 0)
+			{
+				if (rv->get_working_method() == one_train_staff && value != one_train_staff)
+				{
+					rv->unreserve_in_rear();
+					reserve_own_tiles();
+				}
+			}
+		}
+	}
 }
 
 

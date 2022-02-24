@@ -35,7 +35,8 @@ ipch
 /Debug
 /Debug-nettool
 /Release
-/build
+/build*
+/.ccls-cache
 /config.*
 /intermediates
 /makeobj/makeobj
@@ -78,6 +79,22 @@ _UpgradeReport_Files*
 Thumbs.db
 ehthumbs.db
 revision.h
+.gitattributes
+2019 server signal desync logs.txt
+commands for debugging server.txt
+*.db
+*.opendb
+base-texts*
+base_texts*
+wishlist.txt
+test.dat
+teleport-testing.rtf
+simline-corrupt.cc
+bugs-simutrans-ex-0.3.txt
+bugs-pak128.britain.txt
+UpgradeLog.htm
+*.psess
+*.vsp
 
 # Folder config file
 Desktop.ini

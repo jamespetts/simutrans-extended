@@ -1145,6 +1145,8 @@ public:
 
 	bool check_way_constraints_of_all_vehicles(const weg_t& way) const;
 
+	void set_working_method(working_method_t value);
+
 private:
 	journey_times_map average_journey_times;
 public:

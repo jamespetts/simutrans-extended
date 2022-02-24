@@ -1029,7 +1029,9 @@ void gebaeude_t::info(cbuffer_t & buf) const
 			buf.append(translator::translate("Wert"));
 			buf.append(": ");
 			// The land value calculation below will need modifying if multi-tile city buildings are ever introduced.
-			buf.append(-(welt->get_land_value(get_pos())*(tile->get_desc()->get_level()) / 100) * 5);
+			sint64 cost = welt->get_settings().cst_multiply_remove_haus*2 * tile->get_desc()->get_level()*tile->get_desc()->get_size().x*tile->get_desc()->get_size().y;
+			cost += welt->get_land_value(get_pos());
+			buf.append(-(cost/100.0),2);
 			buf.append("$\n");
 		}
 
@@ -1478,7 +1480,7 @@ void gebaeude_t::finish_rd()
 
 void gebaeude_t::cleanup(player_t *player)
 {
-	//	DBG_MESSAGE("gebaeude_t::cleanup()","gb %i");
+//	DBG_MESSAGE("gebaeude_t::cleanup()","gb %i");
 	// remove costs
 
 	const building_desc_t* desc = tile->get_desc();
@@ -1519,11 +1521,20 @@ void gebaeude_t::cleanup(player_t *player)
 		// This check is necessary because the number of PRICE_MAGIC is used if no price is specified.
 		if (desc->get_base_price() == PRICE_MAGIC)
 		{
-			// TODO: find a way of checking what *kind* of stop that this is. This assumes railway.
-			cost = welt->get_settings().cst_multiply_station * desc->get_level();
+			if (desc->is_city_building()) {
+				cost = welt->get_settings().cst_multiply_remove_haus * desc->get_level();
+			}
+			else {
+				// TODO: find a way of checking what *kind* of stop that this is. This assumes railway.
+				cost = welt->get_settings().cst_multiply_station * desc->get_level();
+				// Should be cheaper to bulldoze than build.
+				cost /= 2;
+			}
 		}
-		// Should be cheaper to bulldoze than build.
-		cost /= 2;
+		else {
+			// Should be cheaper to bulldoze than build.
+			cost /= 2;
+		}
 
 		// However, the land value is restored to the player who, by bulldozing, is relinquishing ownership of the land if there are not already ways on the land.
 		// Note: Cost and land value are negative numbers here.
