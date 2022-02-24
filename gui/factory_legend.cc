@@ -5,6 +5,7 @@
 
 
 #include "factory_legend.h"
+#include "factorylist_frame_t.h"
 #include "simwin.h"
 #include "minimap.h"
 
@@ -46,11 +47,14 @@ static bool compare_factories(const factory_desc_t* const a, const factory_desc_
  */
 class legend_entry_t : public gui_component_t
 {
+	const factory_desc_t *fac_desc;
 	gui_label_t label;
 	PIXVAL color;
 	bool filtered;
 public:
-	legend_entry_t(const char* text, PIXVAL c, bool filtered_=false) : label(text), color(c), filtered(filtered_) {
+	legend_entry_t(const factory_desc_t *f, bool filtered_=false) : fac_desc(f), filtered(filtered_) {
+		color = fac_desc->get_color();
+		label.set_text(f->get_name());
 		label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
 	}
 
@@ -72,6 +76,20 @@ public:
 		}
 		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, color, false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
+	}
+
+	bool infowin_event(const event_t *ev) OVERRIDE
+	{
+		if (IS_RIGHTRELEASE(ev)) {
+			factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
+			if (!win) {
+				create_win(-1, -1, new factorylist_frame_t(), w_info, magic_factorylist);
+				win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
+			}
+			win->set_text_filter( translator::translate(fac_desc->get_name()) );
+			top_win(win);
+			return true;
+		}
 	}
 };
 
@@ -185,16 +203,16 @@ void factory_legend_t::update_factory_legend()
 		if (double_column) {
 			// left=output
 			if (!old_catg_index || (f->get_product_count() && !(hide_mismatch.pressed && filter_by_catg && !f->has_goods_catg_demand(old_catg_index, 2)))) {
-				cont_left.new_component<legend_entry_t>(f->get_name(), f->get_color(), (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,2)));
+				cont_left.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,2)));
 			}
 
 			// right=input
 			if (!old_catg_index || (f->get_supplier_count() && !(hide_mismatch.pressed && filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)))) {
-				cont_right.new_component<legend_entry_t>(f->get_name(), f->get_color(), (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)));
+				cont_right.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)));
 			}
 		}
 		else if ( !old_catg_index || !filter_by_catg || (f->has_goods_catg_demand(old_catg_index) || (!f->has_goods_catg_demand(old_catg_index) && filter_by_catg && !hide_mismatch.pressed))) {
-			cont_left.new_component<legend_entry_t>( f->get_name(), f->get_color(), (filter_by_catg &&!f->has_goods_catg_demand(old_catg_index)));
+			cont_left.new_component<legend_entry_t>( f, (filter_by_catg &&!f->has_goods_catg_demand(old_catg_index)));
 		}
 		prev_color = f->get_color();
 		prev_name = translator::translate(f->get_name());
