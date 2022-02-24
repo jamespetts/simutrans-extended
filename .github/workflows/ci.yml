@@ -392,7 +392,7 @@ jobs:
 
   sim-windows-gdi:
     name: Windows (MSVC, GDI)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -403,14 +403,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=gdi -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=gdi -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -424,7 +424,7 @@ jobs:
 
   sim-windows-sdl2:
     name: Windows (MSVC, SDL2)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -437,14 +437,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 sdl2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=sdl2 -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=sdl2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -458,7 +458,7 @@ jobs:
 
   sim-windows-headless:
     name: Windows (MSVC, headless, zstd, UPNP)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -477,7 +477,7 @@ jobs:
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -491,7 +491,7 @@ jobs:
 
   makeobj-windows:
     name: Windows Makeobj (MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -504,14 +504,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -525,7 +525,7 @@ jobs:
 
   nettool-windows:
     name: Windows Nettool (MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -538,14 +538,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build

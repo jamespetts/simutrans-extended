@@ -3,6 +3,8 @@
  * (see LICENSE.txt)
  */
 
+#include <algorithm>
+
 #include "../simline.h"
 #include "../simcolor.h"
 #include "../simdepot.h"
@@ -40,6 +42,46 @@
 //#include "components/gui_textarea.h"
 
 
+bool schedule_gui_t::compare_line(linehandle_t const& a, linehandle_t const& b)
+{
+	// first: try to sort by line letter code
+	const char *alcl = a->get_linecode_l();
+	const char *blcl = b->get_linecode_l();
+	if (strcmp(alcl, blcl)) {
+		return strcmp(alcl, blcl) < 0;
+	}
+	const char *alcr = a->get_linecode_r();
+	const char *blcr = b->get_linecode_r();
+	if (strcmp(alcr, blcr)) {
+		return strcmp(alcr, blcr) < 0;
+	}
+
+	// second: try to sort by number
+	const char *atxt = a->get_name();
+	int aint = 0;
+	// isdigit produces with UTF8 assertions ...
+	if (atxt[0] >= '0'  &&  atxt[0] <= '9') {
+		aint = atoi(atxt);
+	}
+	else if (atxt[0] == '('  &&  atxt[1] >= '0'  &&  atxt[1] <= '9') {
+		aint = atoi(atxt + 1);
+	}
+	const char *btxt = b->get_name();
+	int bint = 0;
+	if (btxt[0] >= '0'  &&  btxt[0] <= '9') {
+		bint = atoi(btxt);
+	}
+	else if (btxt[0] == '('  &&  btxt[1] >= '0'  &&  btxt[1] <= '9') {
+		bint = atoi(btxt + 1);
+	}
+	if (aint != bint) {
+		return (aint - bint) < 0;
+	}
+	// otherwise: sort by name
+	return strcmp(atxt, btxt) < 0;
+
+	return false;
+}
 
 // shows/deletes highlighting of tiles
 void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
@@ -74,7 +116,7 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 			if( marking ) {
 				if (!marker) {
 					marker = new schedule_marker_t(i.pos, player, markschedule->get_waytype());
-					marker->set_color( color_idx_to_rgb(player->get_player_color1()+4) );
+					marker->set_color( line_color_index>=254 ? color_idx_to_rgb(player->get_player_color1()+4) : line_color_idx_to_rgb(line_color_index) );
 					gr->obj_add(marker);
 				}
 				uint8 number_style = gui_schedule_entry_number_t::halt;
@@ -229,6 +271,8 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		// set this schedule as current to show on minimap if possible
 		minimap_t::get_instance()->set_selected_cnv( cnv );
 		old_line = new_line = cnv->get_line();
+		// set line color for marker
+		if (old_line.is_bound()) stats.set_line_color_index(old_line->get_line_color_index());
 	}
 	old_line_count = 0;
 
@@ -746,6 +790,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();
+			stats.set_line_color_index(new_line->get_line_color_index());
 			stats.highlight_schedule( schedule, false );
 			schedule->copy_from( new_line->get_schedule() );
 			schedule->start_editing();
@@ -753,6 +798,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		else {
 			// remove line
 			new_line = linehandle_t();
+			stats.set_line_color_index(254);
 			line_selector.set_selection( 0 );
 		}
 	}
@@ -788,6 +834,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		if(  new_line.is_bound()  &&  !schedule->matches(welt,new_line->get_schedule())  ) {
 			new_line = linehandle_t();
 			line_selector.set_selection(0);
+			stats.set_line_color_index(254);
 		}
 		// only assign old line, when new_line is not equal
 		if(  !new_line.is_bound()  &&  old_line.is_bound()  &&   schedule->matches(welt,old_line->get_schedule())  ) {
@@ -823,12 +870,14 @@ void schedule_gui_t::init_line_selector()
 		line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("<no line>"), SYSCOL_TEXT );
 	}
 
+	std::sort(lines.begin(), lines.end(), compare_line);
 	FOR(  vector_tpl<linehandle_t>,  line,  lines  ) {
 		line_selector.new_component<line_scrollitem_t>(line);
 		if(  !new_line.is_bound()  ) {
 			if(  schedule->matches( welt, line->get_schedule() )  ) {
 				selection = line_selector.count_elements()-1;
 				new_line = line;
+				stats.set_line_color_index(new_line->get_line_color_index());
 			}
 		}
 		else if(  new_line == line  ) {
@@ -837,8 +886,6 @@ void schedule_gui_t::init_line_selector()
 	}
 
 	line_selector.set_selection( selection );
-	line_scrollitem_t::sort_mode = line_scrollitem_t::SORT_BY_NAME;
-	line_selector.sort( offset );
 	old_line_count = player->simlinemgmt.get_line_count();
 	last_schedule_count = schedule->get_count();
 }

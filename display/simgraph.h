@@ -46,6 +46,9 @@ extern int default_font_linespace;
 
 #define D_ENTRY_NO_HEIGHT (LINESPACE+4)
 #define D_ENTRY_NO_WIDTH (proportional_string_width("188")+6)
+#define D_TIME_6_DIGITS_WIDTH (proportional_string_width("88:88:88")+6)
+
+#define MAX_LINE_COLOR_PALETTE 56
 
 /**
 * Alignment enum to align controls against each other
@@ -112,6 +115,9 @@ PIXVAL color_rgb_to_idx(PIXVAL color);
  * Get 24bit RGB888 colour from an index of the old 8bit palette
  */
 uint32 get_color_rgb(uint8 idx);
+
+// Line color palette
+PIXVAL line_color_idx_to_rgb(uint8 idx);
 
 /*
  * Environment colours from RGB888 to system format
@@ -381,6 +387,8 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 /* macro are for compatibility */
 #define display_proportional_rgb(               x, y, txt, align, color, dirty)       display_text_proportional_len_clip_rgb( x, y, txt, align,           color, dirty, -1 )
 #define display_proportional_clip_rgb(          x, y, txt, align, color, dirty)       display_text_proportional_len_clip_rgb( x, y, txt, align | DT_CLIP, color, dirty, -1 )
+
+int display_line_lettercode_rgb(scr_coord_val xpos, scr_coord_val ypos, PIXVAL line_color, uint8 style, const char *text1, const char *text2, bool dirty = true);
 
 
 /// Display a string that is abbreviated by the (language specific) ellipsis character if too wide

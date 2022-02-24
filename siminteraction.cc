@@ -385,7 +385,7 @@ bool interaction_t::process_event( event_t &ev )
 		world->get_viewport()->set_follow_convoi( convoihandle_t() );
 		move_view(ev);
 	}
-	else if(  (left_drag  ||  world->get_tool(world->get_active_player_nr())->get_id() == (TOOL_QUERY | GENERAL_TOOL))  &&  IS_LEFTDRAG(&ev)  ) {
+	else if( (left_drag || world->get_tool(world->get_active_player_nr())->get_id() == (TOOL_QUERY | GENERAL_TOOL)) && IS_LEFTDRAG(&ev) ) {
 		/* ok, we have the query tool selected, and we have a left drag or left release event with an actual difference
 		 * => move the map */
 		if(  !left_drag  ) {

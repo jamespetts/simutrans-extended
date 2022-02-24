@@ -305,7 +305,7 @@ public:
 
 	bool get_is_factory() const { return is_factory; }
 
-        sint32 get_purchase_time() const { return purchase_time; }
+	sint32 get_purchase_time() const { return purchase_time; }
 
 	/**
 	* Call this method when commuting passengers are sent to this building.

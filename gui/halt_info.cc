@@ -8,6 +8,7 @@
 #include "components/gui_button_to_chart.h"
 #include "components/gui_divider.h"
 #include "components/gui_halt_indicator.h"
+#include "components/gui_line_lettercode.h"
 
 #include "../simworld.h"
 #include "../simware.h"
@@ -1155,7 +1156,7 @@ void halt_info_t::update_cont_departure()
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_LINE_NAME ? "Line" : "Convoy");
 			cont_departure.new_component<gui_label_t>(display_mode_bits&SHOW_DEPARTURES ? "db_convoy_to" : "db_convoy_from");
 
-			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), proportional_string_width("--:--:--"));
+			cont_departure.new_component<gui_divider_t>()->init(scr_coord(0, 0), D_TIME_6_DIGITS_WIDTH);
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
@@ -1170,7 +1171,7 @@ void halt_info_t::update_cont_departure()
 					world()->sprintf_ticks(timebuf, sizeof(timebuf), hi.delta_ticks);
 					lb->buf().append(timebuf);
 				}
-				lb->set_fixed_width(proportional_string_width("--:--:--"));
+				lb->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 				lb->update();
 
 				const bool is_bus = (hi.cnv->front()->get_waytype() == road_wt && hi.cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS));
@@ -1185,7 +1186,22 @@ void halt_info_t::update_cont_departure()
 				cont_departure.end_table();
 
 				if (display_mode_bits&SHOW_LINE_NAME) {
-						cont_departure.new_component<gui_label_t>(hi.cnv->get_line().is_bound() ? hi.cnv->get_line()->get_name() : "-", color_idx_to_rgb(hi.cnv->get_owner()->get_player_color1() + env_t::gui_player_color_dark), gui_label_t::left);
+					if (hi.cnv->get_line().is_bound()) {
+						cont_departure.add_table(2,1);
+						{
+							if ( hi.cnv->get_line()->get_line_color_index()==255 ) {
+								cont_departure.new_component<gui_empty_t>();
+							}
+							else {
+								cont_departure.new_component<gui_line_lettercode_t>( hi.cnv->get_line()->get_line_color() )->set_line(hi.cnv->get_line());
+							}
+						}
+						cont_departure.new_component<gui_label_t>(hi.cnv->get_line()->get_name(), color_idx_to_rgb(hi.cnv->get_owner()->get_player_color1() + env_t::gui_player_color_dark), gui_label_t::left);
+						cont_departure.end_table();
+					}
+					else {
+						cont_departure.new_component<gui_label_t>("-", color_idx_to_rgb(hi.cnv->get_owner()->get_player_color1() + env_t::gui_player_color_dark), gui_label_t::left);
+					}
 				}
 				else {
 					const PIXVAL textcol = hi.cnv->get_no_load() ? SYSCOL_TEXT_INACTIVE : hi.cnv->has_obsolete_vehicles() ? COL_OBSOLETE : hi.cnv->get_overcrowded() ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT;

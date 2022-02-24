@@ -17,7 +17,6 @@
 
 #include "../vehicle/vehicle.h"
 
-#define L_TIME_6_DIGITS_WIDTH (proportional_string_width("88:88:88")+6) // May be shared with another gui
 gui_times_history_t::gui_times_history_t(linehandle_t line_, convoihandle_t convoi_, bool line_reversed_display)
 {
 	line = line_;
@@ -130,23 +129,42 @@ void gui_times_history_t::build_table()
 		return;
 	}
 
+	PIXVAL base_color;
+	const uint8 temp_col_index = line.is_bound() ? line->get_line_color_index() : !convoy.is_bound() ? 255 : convoy->get_line().is_bound() ? convoy->get_line()->get_line_color_index() : 255;
+	switch (temp_col_index) {
+		case 254:
+			base_color = color_idx_to_rgb(player->get_player_color1()+4);
+			break;
+		case 255:
+			base_color = color_idx_to_rgb(player->get_player_color1()+2);
+			break;
+		default:
+			base_color = line_color_idx_to_rgb(temp_col_index);
+			break;
+	}
+
+	if (!is_dark_color(base_color)) {
+		base_color = display_blend_colors(base_color, color_idx_to_rgb(COL_BLACK), 15);
+	}
+
 	const scr_coord_val heading_pading_x= D_HEADING_HEIGHT*2;
 	if (mirrored) {
 		new_component<gui_heading_t>("bidirectional_order",
-			color_idx_to_rgb(player->get_player_color1()+2), color_idx_to_rgb(COL_WHITE), 0)->set_width(proportional_string_width(translator::translate("bidirectional_order"))+heading_pading_x);
+			base_color, base_color, 0)->set_width(proportional_string_width(translator::translate("bidirectional_order"))+heading_pading_x+4);
 	}
 	else if (reversed) {
+		add_table(2,1);
 		new_component<gui_heading_t>("reversed_unidirectional_order",
-			color_idx_to_rgb(COL_WHITE), color_idx_to_rgb(player->get_player_color2()+2), 0)->set_width(proportional_string_width(translator::translate("reversed_unidirectional_order"))+heading_pading_x);
+			color_idx_to_rgb(COL_WHITE), base_color, 1)->set_width(proportional_string_width(translator::translate("reversed_unidirectional_order"))+heading_pading_x);
+		new_component<gui_image_t>(skinverwaltung_t::reverse_arrows ? skinverwaltung_t::reverse_arrows->get_image_id(1) : IMG_EMPTY, 0, ALIGN_CENTER_V, true);
+		end_table();
 	}
 	else {
 		new_component<gui_heading_t>("normal_unidirectional_order",
-			color_idx_to_rgb(COL_WHITE), color_idx_to_rgb(player->get_player_color1()+2), 0)->set_width(proportional_string_width(translator::translate("normal_unidirectional_order"))+heading_pading_x);
+			color_idx_to_rgb(COL_WHITE), base_color, 1)->set_width(proportional_string_width(translator::translate("normal_unidirectional_order"))+heading_pading_x);
 	}
 
 	new_component<gui_margin_t>(0, D_V_SPACE);
-
-	const uint8 base_line_style = mirrored ? gui_colored_route_bar_t::line_style::doubled : gui_colored_route_bar_t::line_style::solid;
 
 	const minivec_tpl<schedule_entry_t>& entries = schedule->entries;
 
@@ -239,7 +257,7 @@ void gui_times_history_t::build_table()
 					button_t *b = new_component<button_t>();
 					b->set_typ(button_t::posbutton_automatic);
 					b->set_targetpos(entry.pos.get_2d());
-					new_component<gui_margin_t>(max(0,L_TIME_6_DIGITS_WIDTH-D_POS_BUTTON_WIDTH-D_FIXED_SYMBOL_WIDTH*2));
+					new_component<gui_margin_t>(max(0,D_TIME_6_DIGITS_WIDTH-D_POS_BUTTON_WIDTH-D_FIXED_SYMBOL_WIDTH*2));
 				}
 				end_table();
 				add_table(2,1)->set_alignment(ALIGN_RIGHT); {
@@ -250,8 +268,8 @@ void gui_times_history_t::build_table()
 			}
 			end_table();
 
-			uint8 line_col_idx = (!mirrored && reversed) ? player->get_player_color2() : player->get_player_color1();
-			new_component<gui_schedule_entry_number_t>(entry_index, halt.is_bound() ? halt->get_owner()->get_player_color1() : line_col_idx,
+			uint8 halt_col_idx = (!mirrored && reversed) ? player->get_player_color2() : player->get_player_color1();
+			new_component<gui_schedule_entry_number_t>(entry_index, halt.is_bound() ? halt->get_owner()->get_player_color1() : halt_col_idx,
 				halt.is_bound() ? (is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt)
 					: gui_schedule_entry_number_t::number_style::waypoint,
 				scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT,D_ENTRY_NO_HEIGHT)), entry.pos);
@@ -289,14 +307,14 @@ void gui_times_history_t::build_table()
 				if (exceed_range) {
 					lb->set_tooltip(translator::translate("out of range"));
 				}
-				lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+				lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 				lb->update();
 
-				if (mirrored && i >= (schedule_indices->get_count()/2)) {
-					line_col_idx = player->get_player_color2();
+				uint8 base_line_style = gui_colored_route_bar_t::solid;
+				if (mirrored && (i==(schedule_indices->get_count()/2)-1 || i==schedule_indices->get_count()-2)) {
+					base_line_style = gui_colored_route_bar_t::downward;
 				}
-				new_component<gui_colored_route_bar_t>(line_col_idx, base_line_style)->set_alert_level(exceed_range*3);
-
+				new_component<gui_colored_route_bar_t>(base_color, base_line_style)->set_alert_level(exceed_range*3);
 
 				if (convoy.is_bound()) {
 					if (in_this_section) {
@@ -326,7 +344,7 @@ void gui_times_history_t::build_table()
 						lb->buf().append("--:--");
 						lb->set_color(SYSCOL_TEXT_INACTIVE);
 					}
-					lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+					lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 					lb->update();
 				}
 				uint32 time = history.get_average_seconds();
@@ -340,7 +358,7 @@ void gui_times_history_t::build_table()
 					lb->buf().append(translator::translate("no_time_entry"));
 					lb->set_color(SYSCOL_TEXT_INACTIVE);
 				}
-				lb->set_fixed_width(L_TIME_6_DIGITS_WIDTH);
+				lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
 				lb->update();
 
 				// average speed
@@ -357,7 +375,7 @@ void gui_times_history_t::build_table()
 			}
 			else {
 				new_component<gui_empty_t>();
-				new_component<gui_colored_route_bar_t>(line_col_idx, gui_colored_route_bar_t::line_style::dashed);
+				new_component<gui_colored_route_bar_t>(base_color, gui_colored_route_bar_t::line_style::dashed);
 				if (convoy.is_bound()) {
 					new_component<gui_empty_t>();
 				}

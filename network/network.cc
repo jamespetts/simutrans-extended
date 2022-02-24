@@ -760,7 +760,14 @@ bool network_receive_data(SOCKET sender, void *dest, const uint16 len, uint16 &r
 		}
 		if (res == 0) {
 			// connection closed
-			dbg->warning("network_receive_data", "connection [%d] already closed", sender);
+			// output warning / throw fatal error depending on heavy mode setting
+#ifdef NETTOOL
+			const int heavy_mode = 0;
+#else
+			const int heavy_mode = env_t::network_heavy_mode;
+#endif
+			void (log_t::*outfn)(const char*, const char*, ...) = (heavy_mode == 2 ? &log_t::fatal : &log_t::warning);
+			(dbg->*outfn)("network_receive_data", "Connection [%d] already closed", sender);
 			return false;
 		}
 		received += res;

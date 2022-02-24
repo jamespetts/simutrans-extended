@@ -72,7 +72,7 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 }
 
 
-void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* gb)
+void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 {
 	fab = fab_;
 	// window name

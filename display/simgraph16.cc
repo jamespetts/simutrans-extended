@@ -691,6 +691,26 @@ static const uint8 special_pal[SPECIAL_COLOR_COUNT*3] =
 };
 
 
+// Line color palette
+static const uint32 line_pal[MAX_LINE_COLOR_PALETTE] =
+{
+	0xb52021, 0xe73839, 0xff8284, 0xc6697b,
+	0x94415a, 0xb5517b, 0xef597b, 0xff82bd,
+	0xff61bd, 0xf738e5, 0xce2984, 0xad29ad,
+	0xb551d6, 0x7320e7, 0x9c41ff, 0xb579ff,
+	0x8c82ff, 0x6361ff, 0x4a49d6, 0x0041c6,
+	0x0059e7, 0x0079ff, 0x429aff, 0x7baaef,
+	0x31cbff, 0x00aad6, 0x008ab5, 0x008284,
+	0x21c4c6, 0x52b294, 0x39c439, 0x6bd310,
+	0x429a42, 0x217121, 0x5a8200, 0x73aa00,
+	0x9ccb00, 0xe7e300, 0xcec400, 0xa5a200,
+	0xb58200, 0xde9a00, 0xffc300, 0xffa22a,
+	0xef8a00, 0x946931, 0x84492a, 0xc65100,
+	0xff7900, 0xef9a63, 0xff795a, 0xff6131,
+	0x947194, 0x7b927b, 0x8c9aad, 0x7b797b
+};
+
+
 /*
  * tile raster width
  */
@@ -751,6 +771,14 @@ PIXVAL color_rgb_to_idx(PIXVAL color)
 	}
 	return 0;
 }
+
+PIXVAL line_color_idx_to_rgb(uint8 idx) {
+	if (idx >= MAX_LINE_COLOR_PALETTE) {
+		return 0; // black
+	}
+	uint32 rgb = line_pal[idx];
+	return get_system_color(rgb>>16, (rgb>>8)&0xFF, rgb&0xFF);
+};
 
 
 /*
@@ -4559,10 +4587,21 @@ utf32 get_next_char_with_metrics(const char* &text, unsigned char &byte_length, 
 
 
 /* returns true, if this is a valid character */
-bool has_character( utf16 char_code )
+bool has_character(utf16 char_code)
 {
-	return default_font.is_valid_glyph(char_code);
+	if(  char_code >= default_font.glyphs.size()  ) {
+		// or we crash when accessing the non-existing char ...
+		return false;
+	}
+	bool b1 = default_font.is_loaded();
+	font_t::glyph_t& gl = default_font.glyphs[char_code];
+	uint8  ad = gl.advance;
+	return b1 && ad != 0xFF;
+
+	// this return false for some reason on CJK for valid characters ?!?
+	// return default_font.is_valid_glyph(char_code);
 }
+
 
 
 /*
@@ -4966,7 +5005,8 @@ void display_shadow_proportional_rgb(scr_coord_val xpos, scr_coord_val ypos, PIX
 
 
 // If want to set the background color in some styles, use it together with display_fillbox_wh_clip
-// style: 0=roundbox back ground, 1=left box + bottom line with shadow, 2=only left box
+// This is like <h1> <h2> <h3> ... in html
+// style: 0=Surrounded by a double border, 1=roundbox back ground, 2=left box + bottom line with shadow, 3=only left box
 void display_heading_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL text_color, PIXVAL frame_color, const char *text, int dirty, uint8 style)
 {
 	if (h < LINESPACE) { h = LINESPACE; }
@@ -4976,20 +5016,25 @@ void display_heading_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, sc
 	switch (style)
 	{
 		case 0:
+			display_ddd_box_clip_rgb(   xp,   yp,   w,   h,   frame_color, frame_color);
+			display_fillbox_wh_clip_rgb(xp+1, yp+1, w-2, h-2, color_idx_to_rgb(COL_WHITE), dirty);
+			display_ddd_box_clip_rgb(   xp+2, yp+2, w-4, h-4, frame_color, frame_color);
+			break;
+		case 1:
 			display_fillbox_wh_clip_rgb(xp, yp + 1, w, h - 2, frame_color, dirty);
 			display_fillbox_wh_clip_rgb(xp + 1, yp, w - 2, 1, frame_color, dirty);
 			display_fillbox_wh_clip_rgb(xp + 1, yp + h - 1, w - 2, 1, frame_color, dirty);
 			break;
-		case 1:
+		case 2:
 			border_left_width = h / 2;
 			display_fillbox_wh_clip_rgb(xp, yp + h, w-1, 1, frame_color, dirty);
-			display_blend_wh_rgb(xp + 1, yp + h+1, w-1, 1, COL_BLACK, 15);
+			display_blend_wh_rgb(xp + 1, yp + h+1, w-1, 1, color_idx_to_rgb(COL_BLACK), 15);
 			break;
-		case 2:
+		case 3:
 			border_left_width = h / 3;
 			padding_left = border_left_width*2;
 			break;
-		case 3:
+		case 4:
 			display_right_triangle_rgb(xp+1, yp + (h-LINEASCENT*2/3)/2+1, (LINEASCENT*2/3), SYSCOL_TEXT_SHADOW, dirty);
 			display_right_triangle_rgb(xp,   yp + (h-LINEASCENT*2/3)/2,   (LINEASCENT*2/3), frame_color, dirty);
 			padding_left = (uint8)(h-LINEASCENT*2/3) + D_V_SPACE;
@@ -5002,6 +5047,86 @@ void display_heading_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, sc
 		display_fillbox_wh_clip_rgb(xp, yp, border_left_width, h, frame_color, dirty);
 	}
 	display_text_proportional_len_clip_rgb(xp + padding_left, yp + (h - LINESPACE ) / 2, text, flags, text_color, dirty, -1  CLIP_NUM_DEFAULT);
+}
+
+
+int display_line_lettercode_rgb(scr_coord_val xpos, scr_coord_val ypos, PIXVAL line_color, uint8 style, const char *text1, const char *text2, bool dirty)
+{
+	if( (style==0 && line_color==0) && text1[0]=='\0' && text2[0]=='\0') {
+		return 0;
+	}
+	scr_coord_val h = (text1[0]!='\0' || text2[0]!='\0') ? LINEASCENT+6 : LINEASCENT-2;
+	ypos += D_GET_CENTER_ALIGN_OFFSET(h, LINEASCENT+6);
+	// calculate width
+	uint8 width = 4;
+	const uint8 width_left  = text1[0]=='\0' ? 0 : proportional_string_width(text1)+2;
+	const uint8 width_right = text2[0]=='\0' ? 0 : proportional_string_width(text2)+2;
+	width += width_left + width_right;
+	width = max(LINEASCENT,width);
+
+	const sint8 brightness_factor = get_color_brightness_index(line_color);
+	PIXVAL col_on_white   = brightness_factor<28 ? line_color : display_blend_colors(line_color, color_idx_to_rgb(COL_BLACK), (brightness_factor-28)>>1);
+	PIXVAL col_on_colored = brightness_factor<14 ? color_idx_to_rgb(COL_WHITE) : color_idx_to_rgb(COL_BLACK);
+
+	// background
+	display_filled_roundbox_clip(xpos, ypos, width, h, style&2 ? color_idx_to_rgb(COL_WHITE) : line_color, dirty);
+
+	// frame
+	if( style&1 ) {
+		const PIXVAL frame_col = (style&2 || (style&4 && style&8))? col_on_white : 0;
+		display_ddd_box_clip_rgb(xpos, ypos, width, h, frame_col, frame_col);
+	}
+
+	bool combined_sub_bg = (width_left || width_right) && style&4 && style&8;
+	if( combined_sub_bg ) {
+		if( style&1 ) {
+			display_fillbox_wh_clip_rgb( xpos+2, ypos+2, width-4, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+		}
+		else{
+			display_filled_roundbox_clip(xpos+2, ypos+2, width-4, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+		}
+	}
+
+	if (width_left) {
+		PIXVAL textcol;
+		if(combined_sub_bg){
+			textcol = style&2 ? col_on_colored : col_on_white;
+		}
+		else if (style&4 && !combined_sub_bg) {
+			if( style&1 ) {
+				display_fillbox_wh_clip_rgb( xpos+2, ypos+2, width_left, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+			}
+			else {
+				display_filled_roundbox_clip(xpos+2, ypos+2, width_left, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+			}
+			textcol = style&2 ? col_on_colored : color_idx_to_rgb(COL_BLACK);
+		}
+		else {
+			textcol = style&2 ? col_on_white : col_on_colored;
+		}
+		display_proportional_clip_rgb(xpos+3, ypos+2, text1, ALIGN_LEFT, textcol, dirty);
+	}
+
+	if (width_right) {
+		PIXVAL textcol;
+		if (combined_sub_bg) {
+			textcol = style&2 ? col_on_colored : col_on_white;
+		}
+		else if (style&8 && !combined_sub_bg) {
+			if( style&1 ) {
+				display_fillbox_wh_clip_rgb( xpos+width-width_right-2, ypos+2, width_right, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+			}
+			else {
+				display_filled_roundbox_clip(xpos+width-width_right-2, ypos+2, width_right, h-4, style&2 ? line_color : color_idx_to_rgb(COL_WHITE), dirty);
+			}
+			textcol = style&2 ? col_on_colored : color_idx_to_rgb(COL_BLACK);
+		}
+		else {
+			textcol = style&2 ? col_on_white : col_on_colored;
+		}
+		display_proportional_clip_rgb(xpos+width-width_right-1, ypos+2, text2, ALIGN_LEFT, textcol, dirty);
+	}
+	return width;
 }
 
 

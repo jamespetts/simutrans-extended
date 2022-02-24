@@ -4067,7 +4067,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			for (int k = MAX_MONTHS - 1; k >= 0; k--)
 			{
 				file->rdwr_longlong(financial_history[k][j]);
-				if (file->is_version_ex_atleast(14,49) && j== HALT_COMMUTERS && file->is_loading()) {
+				if (file->is_version_ex_less(14,49) && j== HALT_COMMUTERS && file->is_loading()) {
 					financial_history[k][j] = 0;
 				}
 			}

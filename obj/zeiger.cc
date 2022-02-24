@@ -142,8 +142,12 @@ void schedule_marker_t::display_overlay(int xpos, int ypos) const
 {
 	char buf[4];
 	sprintf(buf, "%i", num+1);
-	const PIXVAL text_color = (style==gui_schedule_entry_number_t::depot || style==gui_schedule_entry_number_t::waypoint)  ? color_idx_to_rgb(COL_WHITE) : color;
 	const PIXVAL base_color = (style==gui_schedule_entry_number_t::depot) ? color_idx_to_rgb(91) : color;
+	// If the base color is too bright, use a black or darkened text color
+	const sint8 brightness_factor = get_color_brightness_index(base_color);
+	const PIXVAL text_color = (style == gui_schedule_entry_number_t::depot) ? color_idx_to_rgb(COL_WHITE) :
+		style==gui_schedule_entry_number_t::waypoint ? (brightness_factor<14 ? color_idx_to_rgb(COL_WHITE) : color_idx_to_rgb(COL_BLACK)) :
+		(brightness_factor<28 ? color : display_blend_colors(base_color, color_idx_to_rgb(COL_BLACK), (brightness_factor-28)>>1));
 	const scr_coord_val width_half = max(LINEASCENT, proportional_string_width(buf)+D_H_SPACE*2+4)>>1;
 	const sint16 raster_tile_width = get_tile_raster_width();
 	const scr_coord_val leg_height = max(raster_tile_width>>4, 9);

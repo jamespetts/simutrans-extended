@@ -154,20 +154,24 @@ vehicle_base_t::vehicle_base_t(typ type):
 vehicle_base_t::vehicle_base_t():
 	obj_t()
 #endif
+	, gr(NULL)
+	, weg(NULL)
+	, direction(ribi_t::none)
+	, use_calc_height(true)
+	, drives_on_left(false)
+	, disp_lane(2)
+	, dx(0)
+	, dy(0)
+	, steps(0)
+	, steps_next(VEHICLE_STEPS_PER_TILE -1)
+	, pos_next(koord3d::invalid)
+	, zoff_start(0)
+	, zoff_end(0)
+	, image(IMG_EMPTY)
+	, next_lane(0)
+	, class_reassignments(NULL)
 {
-	image = IMG_EMPTY;
 	set_flag( obj_t::is_vehicle );
-	steps = 0;
-	steps_next = VEHICLE_STEPS_PER_TILE - 1;
-	use_calc_height = true;
-	drives_on_left = false;
-	dx = 0;
-	dy = 0;
-	zoff_start = zoff_end = 0;
-	next_lane = 0;
-	gr = NULL;
-	weg = NULL;
-	disp_lane = 2;
 }
 
 
@@ -178,26 +182,25 @@ vehicle_base_t::vehicle_base_t(typ type, koord3d pos):
 vehicle_base_t::vehicle_base_t(koord3d pos):
 	obj_t(pos)
 #endif
+	, gr(NULL)
+	, weg(NULL)
+	, direction(ribi_t::none)
+	, use_calc_height(true)
+	, drives_on_left(false)
+	, disp_lane(2)
+	, dx(0)
+	, dy(0)
+	, steps(0)
+	, steps_next(VEHICLE_STEPS_PER_TILE -1)
+	, pos_next(pos)
+	, zoff_start(0)
+	, zoff_end(0)
+	, image(IMG_EMPTY)
+	, next_lane(0)
+	, class_reassignments(NULL)
 {
-	image = IMG_EMPTY;
 	set_flag( obj_t::is_vehicle );
-	pos_next = pos;
-	steps = 0;
-	steps_next = VEHICLE_STEPS_PER_TILE - 1;
-	use_calc_height = true;
-	drives_on_left = false;
-	dx = 0;
-	dy = 0;
-	zoff_start = zoff_end = 0;
-	next_lane = 0;
-	gr = NULL;
-	weg = NULL;
-	disp_lane = 2;
 }
-
-
-
-
 
 
 void vehicle_base_t::rotate90()
@@ -1371,42 +1374,36 @@ vehicle_t::vehicle_t(typ type, koord3d pos, const vehicle_desc_t* desc, player_t
 vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) :
 	vehicle_base_t(pos)
 #endif
+	, purchase_time(welt->get_current_month())
+	, sum_weight(desc->get_weight())
+	, direction_steps(16)
+	, hill_up(0)
+	, hill_down(0)
+	, is_overweight(false)
+	, reversed(false)
+	, diagonal_costs(0)
+	, base_costs(0)
+	, last_stopped_tile(koord3d::invalid)
+	, speed_limit(speed_unlimited())
+	, previous_direction(ribi_t::none)
+	, current_friction(4)
+	, route_index(1)
+	, total_freight(0)
+	, fracht(NULL)
+	, desc(desc)
+	, cnv(NULL)
+	, number_of_classes(desc->get_number_of_classes())
+	, leading(false)
+	, last(false)
+	, smoke(true)
+	, check_for_finish(false)
+	, has_driven(false)
+	, hop_count(0)
+	, last_stop_pos(koord3d::invalid)
 {
-	this->desc = desc;
-
 	set_owner( player );
-	purchase_time = welt->get_current_month();
-	cnv = NULL;
-	speed_limit = speed_unlimited();
 
-	route_index = 1;
-
-	smoke = true;
-	direction = ribi_t::none;
-
-	current_friction = 4;
-	total_freight = 0;
-	sum_weight = desc->get_weight();
-
-	leading = last = false;
-	check_for_finish = false;
-	use_calc_height = true;
-	has_driven = false;
-
-	previous_direction = direction = ribi_t::none;
-	target_halt = halthandle_t();
-
-	//@author: jamespetts
-	direction_steps = 16;
-	is_overweight = false;
-	reversed = false;
-	hop_count = 0;
-	base_costs = 0;
-	diagonal_costs = 0;
-	hill_up = 0;
-	hill_down = 0;
 	current_livery = "default";
-	number_of_classes = desc->get_number_of_classes();
 
 	fracht = new slist_tpl<ware_t>[number_of_classes];
 	class_reassignments = new uint8[number_of_classes];
@@ -1415,10 +1412,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 		// Initialise these with default values.
 		class_reassignments[i] = i;
 	}
-
-	last_stopped_tile = koord3d::invalid;
-
 }
+
 
 #ifdef INLINE_OBJ_TYPE
 vehicle_t::vehicle_t(typ type) :
@@ -1427,42 +1422,36 @@ vehicle_t::vehicle_t(typ type) :
 vehicle_t::vehicle_t() :
 	vehicle_base_t()
 #endif
+	, purchase_time(welt->get_current_month())
+	, sum_weight(10000UL)
+	, direction_steps(16)
+	, hill_up(0)
+	, hill_down(0)
+	, is_overweight(false)
+	, reversed(false)
+	, diagonal_costs(0)
+	, base_costs(0)
+	, last_stopped_tile(koord3d::invalid)
+	, speed_limit(speed_unlimited())
+	, previous_direction(ribi_t::none)
+	, current_friction(4)
+	, route_index(1)
+	, total_freight(0)
+	, fracht(NULL)
+	, desc(NULL)
+	, cnv(NULL)
+	, number_of_classes(0) // This cannot be set substantively here because we do not know the number of classes yet, which is set in desc.
+	, leading(false)
+	, last(false)
+	, smoke(true)
+	, check_for_finish(false)
+	, has_driven(false)
+	, hop_count(0)
+	, last_stop_pos(koord3d::invalid)
 {
-	smoke = true;
-
-	desc = NULL;
-	cnv = NULL;
-
-	route_index = 1;
-	current_friction = 4;
-	sum_weight = 10000UL;
-	total_freight = 0;
-
-	leading = last = false;
-	check_for_finish = false;
-	use_calc_height = true;
-
-	previous_direction = direction = ribi_t::none;
-
-	//@author: jamespetts
-	direction_steps = 16;
-	is_overweight = false;
-	reversed = false;
-	hop_count = 0;
-	base_costs = 0;
-	diagonal_costs = 0;
-	hill_up = 0;
-	hill_down = 0;
 	current_livery = "default";
 
-	// These cannot be set substantively here
-	// because we do not know the number of
-	// classes yet, which is set in desc.
-	number_of_classes = 0;
-	fracht = NULL;
 	class_reassignments = NULL;
-
-	last_stopped_tile = koord3d::invalid;
 }
 
 void vehicle_t::set_desc(const vehicle_desc_t* value)
@@ -3243,6 +3232,13 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 			const int width = proportional_string_width(nameplate_text)+7;
 			if (ypos > LINESPACE + 32 && ypos + LINESPACE < display_get_clip_wh().yy) {
 				const scr_coord_val yoff = LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT + LINESPACE/2 + 2;
+				// line letter code
+				if (lh.is_bound() && lh->get_line_color_index()!=255) {
+					const PIXVAL linecol = lh->get_line_color();
+					xpos += display_line_lettercode_rgb(xpos, ypos-yoff-(LINEASCENT+6)/2, linecol, lh->get_line_lettercode_style(), lh->get_linecode_l(), lh->get_linecode_r(), true);
+					xpos += 2;
+				}
+
 				if (env_t::show_cnv_nameplates & 4) {
 					const int bar_height     = LINEASCENT+4;
 					const int bar_width_half = (width+bar_height)/4*2+2;
@@ -3299,16 +3295,16 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 					break;
 			}
 
-			display_ddd_box_clip_rgb(xpos-2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y, LOADINGBAR_WIDTH+2, LOADINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));
+			display_ddd_box_clip_rgb(xpos-2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT, LOADINGBAR_WIDTH+2, LOADINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));
 			sint32 colored_width = cnv->get_loading_level() > 100 ? 100 : cnv->get_loading_level();
 			if (cnv->get_loading_limit() && cnv->get_state() == convoi_t::LOADING) {
-				display_fillbox_wh_clip_rgb(xpos - 1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT - 2, COL_IN_TRANSIT, true);
+				display_fillbox_wh_clip_rgb(xpos - 1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT-2, COL_IN_TRANSIT, true);
 			}
 			else if (cnv->get_loading_limit()) {
-				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT - 2, COL_IN_TRANSIT, 60);
+				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, cnv->get_loading_limit(), LOADINGBAR_HEIGHT-2, COL_IN_TRANSIT, 60);
 			}
 			else {
-				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT - 2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
+				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
 			}
 			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
 
@@ -3319,7 +3315,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 
 			extra_y += LOADINGBAR_HEIGHT;
 
-			// winting gauge
+			// waiting gauge
 			if (waiting_time_per_month) {
 				colored_width = waiting_time_per_month > 100 ? 100 : waiting_time_per_month;
 				display_ddd_box_clip_rgb(xpos - 2, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y, colored_width + 2, WAITINGBAR_HEIGHT, color_idx_to_rgb(MN_GREY2), color_idx_to_rgb(MN_GREY0));

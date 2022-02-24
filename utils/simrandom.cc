@@ -12,6 +12,8 @@
 #include "simrandom.h"
 #include "../dataobj/environment.h"
 #include "../sys/simsys.h"
+#include "../dataobj/loadsave.h"
+
 
 /* This is the mersenne random generator: More random and faster! */
 
@@ -22,8 +24,8 @@
 #define UPPER_MASK 0x80000000UL /* most significant w-r bits */
 #define LOWER_MASK 0x7fffffffUL /* least significant r bits */
 
-static uint32 thread_local mersenne_twister[MERSENNE_TWISTER_N]; // the array for the state vector
-static int thread_local mersenne_twister_index = MERSENNE_TWISTER_N + 1; // mersenne_twister_index==N+1 means mersenne_twister[N] is not initialized
+static uint32 thread_local mersenne_twister[MERSENNE_TWISTER_N] = { 0 }; // the array for the state vector
+static uint32 thread_local mersenne_twister_index = MERSENNE_TWISTER_N + 1; // mersenne_twister_index==N+1 means mersenne_twister[N] is not initialized
 
 static uint8 thread_local random_origin = 0;
 
@@ -226,6 +228,20 @@ uint32 simrand_normal(const uint32 max, uint32 exponent, const char*)
 	}
 
 	return (uint32)result;
+}
+
+
+void simrand_rdwr(loadsave_t *file)
+{
+	xml_tag_t t(file, "simrand");
+
+	// rdwr index
+	file->rdwr_long(mersenne_twister_index);
+
+	// rdwr state vector
+	for (uint32 i=0; i<MERSENNE_TWISTER_N; ++i) {
+		file->rdwr_long(mersenne_twister[i]);
+	}
 }
 
 

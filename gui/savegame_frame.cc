@@ -545,6 +545,8 @@ bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t
 									}
 								}
 								break;
+							default:
+								break;
 						}
 					}
 					else {

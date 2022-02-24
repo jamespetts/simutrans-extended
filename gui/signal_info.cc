@@ -77,7 +77,7 @@ signal_info_t::signal_info_t(signal_t* const s) :
 
 void signal_info_t::update_data()
 {
-	sig=(signal_t*)view.get_obj();
+	sig = static_cast<const signal_t *>(view.get_obj());
 	koord3d sb = sig->get_signalbox();
 
 	if (sb == koord3d::invalid) {

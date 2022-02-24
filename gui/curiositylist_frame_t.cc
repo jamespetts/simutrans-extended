@@ -230,7 +230,7 @@ void curiositylist_frame_t::rdwr(loadsave_t* file)
 		file->rdwr_long(townindex);
 	}
 	if (file->is_loading()) {
-		if (file->is_version_ex_atleast(14, 50)) {
+		if (file->is_version_ex_atleast(14, 51)) {
 			file->rdwr_long(townindex);
 			if (townindex != UINT32_MAX) {
 				filter_city = welt->get_cities()[townindex];

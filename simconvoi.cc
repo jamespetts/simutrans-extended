@@ -223,7 +223,9 @@ void convoi_t::init(player_t *player)
 	needs_full_route_flush = false;
 }
 
-convoi_t::convoi_t(loadsave_t* file) : vehicle(max_vehicle, NULL)
+convoi_t::convoi_t(loadsave_t* file) :
+	vehicle(max_vehicle, NULL),
+	lane_affinity_end_index(0)
 {
 	self = convoihandle_t();
 	init(0);
@@ -232,6 +234,7 @@ convoi_t::convoi_t(loadsave_t* file) : vehicle(max_vehicle, NULL)
 	last_stop_was_depot = true;
 	max_signal_speed = SPEED_UNLIMITED;
 
+	init_financial_history();
 	no_route_retry_count = 0;
 	rdwr(file);
 	current_stop = schedule == NULL ? 255 : schedule->get_current_stop() - 1;
@@ -1557,6 +1560,9 @@ bool convoi_t::drive_to()
 		{
 			success == route_t::route_too_complex ? state = NO_ROUTE_TOO_COMPLEX : state = NO_ROUTE;
 			no_route_retry_count = 0;
+			if (line.is_bound()) {
+				line->set_state(simline_t::line_has_stuck_convoy);
+			}
 #ifdef MULTI_THREAD
 			pthread_mutex_lock(&step_convois_mutex);
 #endif
@@ -3856,10 +3862,10 @@ void convoi_t::set_working_method(working_method_t value)
 {
 	for (uint32 i = 0; i < vehicle_count; i++)
 	{
-		const vehicle_t* veh = get_vehicle(i);
+		vehicle_t* veh = get_vehicle(i);
 		if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt)
 		{
-			rail_vehicle_t* rv = (rail_vehicle_t*)veh;
+			rail_vehicle_t* rv = static_cast<rail_vehicle_t *>(veh);
 			rv->set_working_method(value);
 
 			if (i == 0)

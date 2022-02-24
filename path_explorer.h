@@ -35,9 +35,29 @@ public:
 		uint64 explore_paths;
 		uint32 reroute_goods;
 
-		limit_set_t() : rebuild_connexions(0), filter_eligible(0), fill_matrix(0), explore_paths(0), reroute_goods(0) { }
-		limit_set_t(bool) : rebuild_connexions(UINT32_MAX_VALUE), filter_eligible(UINT32_MAX_VALUE), fill_matrix(UINT32_MAX_VALUE), explore_paths(UINT64_MAX_VALUE), reroute_goods(UINT32_MAX_VALUE) { }
-		limit_set_t(uint32 c, uint32 e, uint32 m, uint64 p, uint32 g) : rebuild_connexions(c), filter_eligible(e), fill_matrix(m), explore_paths(p), reroute_goods(g) { }
+		explicit limit_set_t() :
+			rebuild_connexions(0),
+			filter_eligible(0),
+			fill_matrix(0),
+			explore_paths(0),
+			reroute_goods(0)
+		{}
+
+		explicit limit_set_t(bool) :
+			rebuild_connexions(UINT32_MAX_VALUE),
+			filter_eligible(UINT32_MAX_VALUE),
+			fill_matrix(UINT32_MAX_VALUE),
+			explore_paths(UINT64_MAX_VALUE),
+			reroute_goods(UINT32_MAX_VALUE)
+		{}
+
+		limit_set_t(uint32 c, uint32 e, uint32 m, uint64 p, uint32 g) :
+			rebuild_connexions(c),
+			filter_eligible(e),
+			fill_matrix(m),
+			explore_paths(p),
+			reroute_goods(g)
+		{}
 
 		void find_min_with(const limit_set_t &other)
 		{
@@ -93,15 +113,14 @@ private:
 
 	class compartment_t
 	{
-
 		friend class path_explorer_t;
 
 	protected:
 		// structure for storing connexion hashtable and serving transport counter
 		struct connexion_list_entry_t
 		{
-			haltestelle_t::connexions_map *connexion_table;
-			uint8 serving_transport;
+			haltestelle_t::connexions_map *connexion_table = NULL;
+			uint8 serving_transport = 0;
 		};
 
 	private:
@@ -112,7 +131,9 @@ private:
 			uint32 aggregate_time;
 			halthandle_t next_transfer;
 
-			path_element_t() : aggregate_time(UINT32_MAX_VALUE) { }
+			path_element_t() :
+				aggregate_time(UINT32_MAX_VALUE)
+			{}
 		};
 
 		// element used during path search only for storing best lines/convoys
@@ -121,7 +142,10 @@ private:
 			uint16 first_transport;
 			uint16 last_transport;
 
-			transport_element_t() : first_transport(0), last_transport(0) { }
+			transport_element_t() :
+				first_transport(0),
+				last_transport(0)
+			{}
 		};
 
 		// structure used for storing indices of halts connected to a transfer, grouped by transport
@@ -136,8 +160,9 @@ private:
 				uint16 transport;
 				vector_tpl<uint16> connected_halts;
 
-				connection_cluster_t(const uint32 halt_vector_size, const uint16 transport_id, const uint16 halt_id)
-					: transport(transport_id), connected_halts(halt_vector_size)
+				connection_cluster_t(const uint32 halt_vector_size, const uint16 transport_id, const uint16 halt_id) :
+					transport(transport_id),
+					connected_halts(halt_vector_size)
 				{
 					connected_halts.append(halt_id);
 				}
@@ -157,8 +182,11 @@ private:
 
 		public:
 
-			connection_t(const uint32 cluster_count, const uint32 working_halt_count)
-				: connection_clusters(cluster_count), usage_level(0), halt_vector_size(working_halt_count) { }
+			connection_t(const uint32 cluster_count, const uint32 working_halt_count) :
+				connection_clusters(cluster_count),
+				usage_level(0),
+				halt_vector_size(working_halt_count)
+			{}
 
 			~connection_t()
 			{

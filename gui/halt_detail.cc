@@ -22,7 +22,9 @@
 #include "../utils/simstring.h"
 
 #include "halt_detail.h"
+#include "map_frame.h"
 #include "components/gui_label.h"
+#include "components/gui_line_lettercode.h"
 
 
 #define GOODS_SYMBOL_CELL_WIDTH 14
@@ -81,7 +83,7 @@ void halt_detail_t::init()
 	show_freight_info = false;
 
 	lb_nearby_factory.init("Fabrikanschluss"/* (en)Connected industries */, scr_coord(D_MARGIN_LEFT, 0),
-		color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), 1);
+		color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 
 	// fill buffer with halt detail
 	goods.recalc_size();
@@ -115,7 +117,7 @@ void halt_detail_t::init()
 	}
 	cont_route.end_table();
 	lb_serve_catg.init("lb_served_goods_and_classes", scr_coord(0, 0),
-		color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), 1);
+		color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 	cont_route.add_component(&lb_serve_catg);
 
 
@@ -232,13 +234,13 @@ void halt_detail_t::init()
 	cont_route.end_table(); // button table end
 
 	lb_routes.init("Direkt erreichbare Haltestellen", scr_coord(0, 0),
-		color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), 1);
+		color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 	cont_route.add_component(&lb_routes);
 	cont_route.add_component(&scrolly_route);
 
 	// list (inside the scroll panel)
 	lb_selected_route_catg.set_pos(scr_coord(0, D_V_SPACE));
-	lb_selected_route_catg.set_size(D_BUTTON_SIZE);
+	lb_selected_route_catg.set_size(scr_size(LINESPACE*16, LINESPACE));
 	destinations.set_pos(scr_coord(0, lb_selected_route_catg.get_pos().y + D_BUTTON_HEIGHT));
 	destinations.recalc_size();
 	cont_desinations.add_component(&lb_selected_route_catg);
@@ -371,14 +373,13 @@ void halt_detail_t::update_components()
 		bool chk_pressed = (selected_route_catg_index == goods_manager_t::INDEX_NONE) ? false : true;
 		uint8 i = 0;
 		FORX(slist_tpl<button_t *>, btn, catg_buttons, i++) {
-			uint8 catg_index = i >= goods_manager_t::INDEX_NONE ? i + 1 : i;
+			uint8 catg_index = (i < goods_manager_t::INDEX_NONE) ? i : i+1;
 			btn->disable();
 			if (halt->is_enabled(catg_index)) {
 				// check station handled goods category
 				if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)
 				{
 					btn->enable();
-					bool all_class_btn_pressed = false;
 					if (!chk_pressed) {
 						// Initialization
 						btn->pressed = true;
@@ -386,15 +387,12 @@ void halt_detail_t::update_components()
 						selected_route_catg_index = catg_index;
 						// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 						selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
-						lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name());
-						all_class_btn_pressed = true;
-						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 					}
 					else if (selected_route_catg_index != catg_index) {
 						btn->pressed = false;
 					}
 					uint8 cl = 0;
-					FORX(slist_tpl<button_t *>, cl_btn, catg_index == goods_manager_t::INDEX_PAS ? pas_class_buttons : mail_class_buttons, cl++) {
+					FORX(slist_tpl<button_t *>, cl_btn, (catg_index==goods_manager_t::INDEX_PAS) ? pas_class_buttons : mail_class_buttons, cl++) {
 						cl_btn->pressed = selected_class >= cl;
 						if (btn->enabled() == false) {
 							cl_btn->disable();
@@ -420,8 +418,6 @@ void halt_detail_t::update_components()
 							btn->pressed = true;
 							chk_pressed = true;
 							selected_route_catg_index = catg_index;
-							lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name());
-							destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 						}
 						else if (selected_route_catg_index != catg_index) {
 							btn->pressed = false;
@@ -430,7 +426,9 @@ void halt_detail_t::update_components()
 				}
 			}
 			else if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL) {
-				selected_class = 0;
+				if (selected_route_catg_index==catg_index) {
+					selected_class = 0;
+				}
 				uint8 cl = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
 				FORX(slist_tpl<button_t *>, cl_btn, catg_index == goods_manager_t::INDEX_PAS ? pas_class_buttons : mail_class_buttons, cl--) {
 					cl_btn->pressed = false;
@@ -438,6 +436,13 @@ void halt_detail_t::update_components()
 				}
 			}
 		}
+		lb_selected_route_catg.buf().append(translator::translate(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name()));
+		if (goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_number_of_classes()>1) {
+			// TODO: wealth class => fare class
+			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_wealth_name(selected_route_catg_index, selected_class));
+		}
+		destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
+		lb_selected_route_catg.update();
 	}
 	destinations.recalc_size();
 	cont_desinations.set_size(scr_size(max(get_windowsize().w, destinations.get_size().w), destinations.get_pos().y + destinations.get_size().h));
@@ -474,19 +479,16 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 		FORX(slist_tpl<button_t *>, btn, catg_buttons,i++) {
 			bool flag_all_classes_btn_on = false;
 			bool flag_upper_classes_btn_off = false;
-			uint8 catg_index = i >= goods_manager_t::INDEX_NONE ? i + 1 : i;
+			uint8 catg_index = (i < goods_manager_t::INDEX_NONE) ? i : i + 1;
 			if (comp == btn) {
 				selected_class = 0;
-				if ((catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)) {
+				if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL) {
 					flag_all_classes_btn_on = true;
 					// Set the most higher wealth class by default. Because the higher class can choose the route of all classes
 					selected_class = goods_manager_t::get_info_catg_index(catg_index)->get_number_of_classes() - 1;
 				}
 				btn->pressed = true; // Don't release when press the same button
 				selected_route_catg_index = catg_index;
-				lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
-				destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
-				destinations.recalc_size();
 			}
 			if (catg_index == goods_manager_t::INDEX_PAS || catg_index == goods_manager_t::INDEX_MAIL)
 			{
@@ -507,9 +509,6 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 						else if(flag_upper_classes_btn_off) {
 							cl_btn->pressed = false;
 						}
-						lb_selected_route_catg.set_text(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
-						destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
-						destinations.recalc_size();
 					}
 					else if(btn->pressed == false){
 						cl_btn->pressed = false;
@@ -833,7 +832,7 @@ void halt_detail_pas_t::draw(scr_coord offset)
 		if (halt->get_pax_enabled()) {
 			top += LINESPACE;
 			display_heading_rgb(offset.x, offset.y + top, D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT,
-				color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), translator::translate("Around passenger demands"), true, 1);
+				color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), translator::translate("Around passenger demands"), true, 2);
 			top += D_HEADING_HEIGHT + D_V_SPACE*2;
 			display_proportional_clip_rgb(offset.x + GOODS_SYMBOL_CELL_WIDTH, offset.y + top, translator::translate("hd_wealth"), ALIGN_LEFT, SYSCOL_TEXT, true);
 			display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + 4, offset.y + top, translator::translate("Population"), ALIGN_LEFT, SYSCOL_TEXT, true);
@@ -904,7 +903,7 @@ void halt_detail_pas_t::draw(scr_coord offset)
 		if ((halt->get_pax_enabled() && arround_population) || halt->get_mail_enabled()) {
 			top += LINESPACE;
 			display_heading_rgb(offset.x, offset.y + top, D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT,
-				color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), translator::translate("Transportation status around this stop"), true, 1);
+				color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), translator::translate("Transportation status around this stop"), true, 2);
 			top += D_HEADING_HEIGHT + D_V_SPACE * 2;
 			// header
 			display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + 4, offset.y + top, translator::translate("hd_generated"), ALIGN_LEFT, SYSCOL_TEXT, true);
@@ -1205,7 +1204,6 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 				xoff += D_FIXED_SYMBOL_WIDTH + D_V_SPACE;
 			}
 			// input goods color square box
-			ware->get_name();
 			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, ware->get_color(), true, translator::translate(ware->get_name()));
 			xoff += D_FIXED_SYMBOL_WIDTH;
 
@@ -1362,20 +1360,28 @@ void gui_halt_service_info_t::init(halthandle_t halt)
 	cached_line_count = 0xFFFFFFFFul;
 	cached_convoy_count = 0xFFFFFFFFul;
 
-	update_connections(halt);
+	bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+	if (skinverwaltung_t::open_window) {
+		bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_access_minimap.set_image_position_right(true);
+	}
+	bt_access_minimap.set_tooltip("helptxt_access_minimap");
+	bt_access_minimap.add_listener(this);
+
+	update_connections();
 }
 
 void gui_halt_service_info_t::draw(scr_coord offset)
 {
 
-	update_connections(halt);
+	update_connections();
 
 	scrolly.set_size(scrolly.get_size());
 
 	gui_aligned_container_t::draw(offset);
 }
 
-void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
+void gui_halt_service_info_t::update_connections()
 {
 	if (!halt.is_bound()) {
 		// first call, or invalid handle
@@ -1394,8 +1400,17 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 	set_table_layout(1, 0);
 	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
 
+	add_table(3,1);
+	{
+		new_component<gui_fill_t>();
+		add_component(&bt_access_minimap);
+		new_component<gui_margin_t>(D_MARGIN_RIGHT);
+	}
+	end_table();
+	new_component<gui_empty_t>();
+
 	// add lines that serve this stop
-	new_component<gui_heading_t>("Lines serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1()+2), 1);
+	new_component<gui_heading_t>("Lines serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 	add_table(6,0)->set_spacing(scr_size(D_H_SPACE, 2));
 	if (halt->registered_lines.empty()) {
 		insert_show_nothing();
@@ -1421,37 +1436,52 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 				new_component<gui_line_button_t>(line);
 
 				// Line labels with color of player
-				gui_label_buf_t *lb = new_component<gui_label_buf_t>(PLAYER_FLAG | color_idx_to_rgb(line->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
-				lb->buf().append(line->get_name());
-				lb->update();
+				add_table(2,1);
+				{
+					if ( line->get_line_color_index()==255 ) {
+						new_component<gui_empty_t>();
+					}
+					else {
+						new_component<gui_line_lettercode_t>( line->get_line_color() )->set_line(line);
+					}
+					gui_label_buf_t *lb = new_component<gui_label_buf_t>(PLAYER_FLAG | color_idx_to_rgb(line->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
+					lb->buf().append(line->get_name());
+					lb->update();
+				}
+				end_table();
 
 				new_component<gui_empty_t>();
-				if (!skinverwaltung_t::service_frequency) {
-					new_component<gui_empty_t>();
+
+				image_id schedule_symbol = skinverwaltung_t::service_frequency ? skinverwaltung_t::service_frequency->get_image_id(0):IMG_EMPTY;
+				PIXVAL time_txtcol=SYSCOL_TEXT;
+				if (line->get_state() & simline_t::line_has_stuck_convoy) {
+					// has stucked convoy
+					time_txtcol = color_idx_to_rgb(COL_DANGER);
+					if (skinverwaltung_t::pax_evaluation_icons) schedule_symbol = skinverwaltung_t::pax_evaluation_icons->get_image_id(4);
 				}
-				else {
-					new_component<gui_image_t>()->set_image(skinverwaltung_t::service_frequency->get_image_id(0), true);
+				else if (line->get_state() & simline_t::line_missing_scheduled_slots) {
+					time_txtcol = color_idx_to_rgb(COL_DARK_TURQUOISE); // FIXME for dark theme
+					if(skinverwaltung_t::missing_scheduled_slot) schedule_symbol = skinverwaltung_t::missing_scheduled_slot->get_image_id(0);
 				}
+				new_component<gui_image_t>(schedule_symbol, 0, ALIGN_CENTER_V, true);
+
 				const sint64 service_frequency = line->get_service_frequency();
-				gui_label_buf_t *lb_frequency = new_component<gui_label_buf_t>();
+				gui_label_buf_t *lb_frequency = new_component<gui_label_buf_t>(time_txtcol, gui_label_t::right);
 				if (service_frequency) {
 					char as_clock[32];
 					world()->sprintf_ticks(as_clock, sizeof(as_clock), service_frequency);
 					lb_frequency->buf().printf(" %s", as_clock);
-					if (line->get_state() & simline_t::line_missing_scheduled_slots) {
-						lb_frequency->set_color(color_idx_to_rgb(COL_DARK_TURQUOISE));
-					}
 				}
 				else {
 					lb_frequency->buf().append("--:--:--");
 					lb_frequency->set_color(COL_INACTIVE);
 				}
-				lb_frequency->set_align(gui_label_t::right);
 				lb_frequency->update();
-				lb_frequency->set_fixed_width( proportional_string_width("--:--:--") );
+				lb_frequency->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 
 				// convoy count
-				gui_label_buf_t *lb_convoy_count = new_component<gui_label_buf_t>();
+				gui_label_buf_t *lb_convoy_count = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+				lb_convoy_count->buf().append(" ");
 				if (line->get_convoys().get_count() == 1) {
 					lb_convoy_count->buf().append(translator::translate("1 convoi"));
 				}
@@ -1472,7 +1502,7 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 
 	// add lineless convoys which serve this stop
 	new_component<gui_margin_t>(0, D_V_SPACE);
-	new_component<gui_heading_t>("Lineless convoys serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()), color_idx_to_rgb(halt->get_owner()->get_player_color1() + 2), 1);
+	new_component<gui_heading_t>("Lineless convoys serving this stop", color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
 	add_table(6, 0)->set_spacing(scr_size(D_H_SPACE, 2));
 	if (halt->registered_convoys.empty()) {
 		insert_show_nothing();
@@ -1502,14 +1532,18 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 				lb->update();
 
 				new_component<gui_empty_t>();
-				if (!skinverwaltung_t::service_frequency) {
-					new_component<gui_empty_t>();
+
+				image_id schedule_symbol = skinverwaltung_t::service_frequency ? skinverwaltung_t::service_frequency->get_image_id(0) : IMG_EMPTY;
+				PIXVAL time_txtcol = SYSCOL_TEXT;
+				if (cnv->get_state() == convoi_t::NO_ROUTE || cnv->get_state() == convoi_t::NO_ROUTE_TOO_COMPLEX || cnv->get_state() == convoi_t::OUT_OF_RANGE) {
+					// convoy is stuck
+					time_txtcol = color_idx_to_rgb(COL_DANGER);
+					if (skinverwaltung_t::pax_evaluation_icons) schedule_symbol = skinverwaltung_t::pax_evaluation_icons->get_image_id(4);
 				}
-				else {
-					new_component<gui_image_t>()->set_image(skinverwaltung_t::service_frequency->get_image_id(0), true);
-				}
+				new_component<gui_image_t>(schedule_symbol, 0, ALIGN_CENTER_V, true);
+
 				const sint64 average_round_trip_time = cnv->get_average_round_trip_time();
-				gui_label_buf_t *lb_triptime = new_component<gui_label_buf_t>();
+				gui_label_buf_t *lb_triptime = new_component<gui_label_buf_t>(time_txtcol,gui_label_t::right);
 				if (average_round_trip_time) {
 					char as_clock[32];
 					world()->sprintf_ticks(as_clock, sizeof(as_clock), average_round_trip_time);
@@ -1519,9 +1553,8 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 					lb_triptime->buf().append("--:--:--");
 					lb_triptime->set_color(COL_INACTIVE);
 				}
-				lb_triptime->set_align(gui_label_t::right);
 				lb_triptime->update();
-				lb_triptime->set_fixed_width(proportional_string_width("--:--:--"));
+				lb_triptime->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
 
 				new_component<gui_empty_t>();
 
@@ -1539,6 +1572,21 @@ void gui_halt_service_info_t::update_connections(halthandle_t /*h*/)
 	set_size(get_min_size());
 }
 
+bool gui_halt_service_info_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if (comp == &bt_access_minimap)
+	{
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->set_halt(halt);
+		top_win(win);
+		return true;
+	}
+	return false;
+}
 
 
 class RelativeDistanceOrdering

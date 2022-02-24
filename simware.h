@@ -42,7 +42,7 @@ public:
 	/// any given level of comfort that this packet of passengers
 	/// (if passengers) will travel in a lower class of accommodation
 	/// than available on a convoy.
-	uint16 comfort_preference_percentage;
+	uint16 comfort_preference_percentage = 500;
 
 private:
 	/**
@@ -93,7 +93,7 @@ public:
 
 	ware_t();
 	ware_t(const goods_desc_t *typ);
-	ware_t(const goods_desc_t *typ, halthandle_t o);
+	ware_t(const goods_desc_t *typ, halthandle_t origin);
 	ware_t(loadsave_t *file);
 
 	/// @returns the non-translated name of the ware.

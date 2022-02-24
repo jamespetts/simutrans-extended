@@ -90,7 +90,7 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
-class gui_halt_service_info_t : public gui_aligned_container_t
+class gui_halt_service_info_t : public gui_aligned_container_t, public action_listener_t
 {
 	/**
      * Button to open line window
@@ -147,6 +147,8 @@ private:
 
 	halthandle_t halt;
 
+	button_t bt_access_minimap;
+
 	uint32 cached_line_count;
 	uint32 cached_convoy_count;
 
@@ -160,9 +162,11 @@ public:
 
 	void init(halthandle_t halt);
 
-	void update_connections(halthandle_t halt);
+	void update_connections();
 
 	void draw(scr_coord offset) OVERRIDE;
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	// FIXME
 	//scr_size get_min_size() const OVERRIDE { return get_size(); }
@@ -216,7 +220,7 @@ private:
 	gui_aligned_container_t cont_route;
 	gui_halt_service_info_t cont_service;
 	gui_scrollpane_t scrolly_pas, scrolly_goods, scrolly_service, scrolly_route;
-	gui_label_t lb_selected_route_catg;
+	gui_label_buf_t lb_selected_route_catg;
 	gui_heading_t lb_nearby_factory, lb_routes, lb_serve_catg;
 
 	gui_halt_nearby_factory_info_t nearby_factory;

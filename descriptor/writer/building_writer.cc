@@ -23,35 +23,33 @@ using std::string;
 /**
  * Calculate numeric engine type from engine type string
  */
-static uint8 get_engine_type(const char* engine_type, tabfileobj_t& obj)
+static vehicle_desc_t::engine_t get_engine_type(const char* engine_type)
 {
-	uint16 uv8 = vehicle_desc_t::diesel;
-
 	if (!STRICMP(engine_type, "diesel")) {
-		uv8 = vehicle_desc_t::diesel;
+		return vehicle_desc_t::diesel;
 	} else if (!STRICMP(engine_type, "electric")) {
-		uv8 = vehicle_desc_t::electric;
+		return vehicle_desc_t::electric;
 	} else if (!STRICMP(engine_type, "steam")) {
-		uv8 = vehicle_desc_t::steam;
+		return vehicle_desc_t::steam;
 	} else if (!STRICMP(engine_type, "bio")) {
-		uv8 = vehicle_desc_t::bio;
+		return vehicle_desc_t::bio;
 	} else if (!STRICMP(engine_type, "sail")) {
-		uv8 = vehicle_desc_t::sail;
+		return vehicle_desc_t::sail;
 	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		uv8 = vehicle_desc_t::fuel_cell;
+		return vehicle_desc_t::fuel_cell;
 	} else if (!STRICMP(engine_type, "hydrogene")) {
-		uv8 = vehicle_desc_t::hydrogene;
+		return vehicle_desc_t::hydrogene;
 	} else if (!STRICMP(engine_type, "battery")) {
-		uv8 = vehicle_desc_t::battery;
+		return vehicle_desc_t::battery;
 	} else if (!STRICMP(engine_type, "petrol")) {
-		uv8 = vehicle_desc_t::petrol;
+		return vehicle_desc_t::petrol;
 	} else if (!STRICMP(engine_type, "turbine")) {
-		uv8 = vehicle_desc_t::turbine;
+		return vehicle_desc_t::turbine;
 	} else if (!STRICMP(engine_type, "unknown")) {
-		uv8 = vehicle_desc_t::unknown;
+		return vehicle_desc_t::unknown;
 	}
 
-	return uv8;
+	return vehicle_desc_t::diesel;
 }
 
 void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seasons,
@@ -318,7 +316,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 					engaged = true;
 					enables = 0;
 				}
-				traction_type = get_engine_type(engine_type.c_str(), obj);
+				traction_type = get_engine_type(engine_type.c_str());
 				const uint16 shifter = 1 << traction_type;
 				enables |= shifter;
 				traction_type_count++;

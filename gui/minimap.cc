@@ -1300,6 +1300,7 @@ void minimap_t::init()
 	max_tourist_ziele = max_waiting_pax = max_waiting_mail = max_waiting_goods = max_origin = max_transfer = max_mail_volume = max_goods_volume = max_service = 1;
 	last_schedule_counter = world->get_schedule_counter()-1;
 	set_selected_cnv(convoihandle_t());
+	set_selected_halt(halthandle_t());
 }
 
 void minimap_t::finalize(){
@@ -1400,11 +1401,18 @@ const fabrik_t* minimap_t::draw_factory_connections(const fabrik_t* const fab, b
 void minimap_t::set_selected_cnv( convoihandle_t c )
 {
 	current_cnv = c;
+	current_halt = halthandle_t();
 	schedule_cache.clear();
 	stop_cache.clear();
 	colore_idx = 0;
 	add_to_schedule_cache( current_cnv, true );
 	last_schedule_counter = world->get_schedule_counter()-1;
+}
+
+void minimap_t::set_selected_halt(halthandle_t h)
+{
+	set_selected_cnv(convoihandle_t());
+	current_halt = h;
 }
 
 
@@ -1426,6 +1434,11 @@ void minimap_t::draw(scr_coord pos)
 		if(  (mode & MAP_LINES) == 0  ||  (mode^last_mode) & MAP_MODE_HALT_FLAGS  ) {
 			// rebuilt stop_cache needed
 			stop_cache.clear();
+			if(  (mode & MAP_LINES)  &&  (last_mode & MAP_LINES)  &&  current_cnv.is_bound()  ) {
+				schedule_cache.clear();
+				add_to_schedule_cache(current_cnv, true);
+				needs_redraw = true;
+			}
 		}
 
 		if(  (mode & MAP_LINES)  &&  (last_mode & MAP_LINES) == 0  &&  current_cnv.is_bound()  ) {
@@ -1510,6 +1523,10 @@ void minimap_t::draw(scr_coord pos)
 					for(  uint32 j = 0;  j < linee.get_count();  j++  ) {
 						//cycle on lines
 
+						if (current_halt.is_bound() && !current_halt->registered_lines.is_contained(linee[j])) {
+							continue;
+						}
+
 						if(  transport_type_showed_on_map != simline_t::line  &&  linee[j]->get_linetype() != transport_type_showed_on_map  ) {
 							continue;
 						}
@@ -1549,6 +1566,9 @@ void minimap_t::draw(scr_coord pos)
 			FOR( vector_tpl<convoihandle_t>, cnv, world->convoys() ) {
 				if(  !cnv.is_bound()  ||  cnv->get_line().is_bound()  ) {
 					// not there or already part of a line
+					continue;
+				}
+				if (current_halt.is_bound() && !current_halt->registered_convoys.is_contained(cnv)) {
 					continue;
 				}
 				if(  required_vehicle_owner!= nullptr  &&  required_vehicle_owner != cnv->get_owner()  ) {
@@ -1621,19 +1641,25 @@ void minimap_t::draw(scr_coord pos)
 		}
 
 		scr_coord k1,k2;
+		bool already_show_lettercode=false;
 		// DISPLAY STATIONS AND AIRPORTS: moved here so station spots are not overwritten by lines drawn
 		FOR(  vector_tpl<line_segment_t>, seg, schedule_cache  ) {
-
-			uint8 color = seg.colorcount;
+			PIXVAL colval = color_idx_to_rgb(seg.colorcount);
 			if(  event_get_last_control_shift()==2  ||  current_cnv.is_bound()  ) {
 				// on control / single convoi use only player colors
-				static uint8 last_color = color;
-				color = seg.player->get_player_color1()+1;
+				static PIXVAL last_color = colval;
+				if (current_cnv.is_bound() && current_cnv.get_rep()->get_line().is_bound() && current_cnv.get_rep()->get_line()->get_line_color()!=0) {
+					// Since white is mixed in the background, it is easier to see in slightly darker.
+					colval = display_blend_colors(current_cnv.get_rep()->get_line()->get_line_color(), color_idx_to_rgb(COL_BLACK), 10);
+				}
+				else {
+					colval = color_idx_to_rgb(seg.player->get_player_color1()+1);
+				}
 				// all lines same thickness if same color
-				if(  color == last_color  ) {
+				if(  colval == last_color  ) {
 					offset = 0;
 				}
-				last_color = color;
+				last_color = colval;
 			}
 			if(  seg.start != last_start  ||  seg.end != last_end  ) {
 				last_start = seg.start;
@@ -1646,7 +1672,16 @@ void minimap_t::draw(scr_coord pos)
 				diagonal = seg.start_diagonal;
 			}
 			// and finally draw ...
-			line_segment_draw( seg.wtyp, k1, seg.start_offset*offset, k2, seg.end_offset*offset, diagonal, color_idx_to_rgb(color) );
+			line_segment_draw( seg.wtyp, k1, seg.start_offset*offset, k2, seg.end_offset*offset, diagonal, colval );
+			if (current_cnv.is_bound() && !already_show_lettercode) {
+				linehandle_t tmp_line = current_cnv.get_rep()->get_line();
+				if (tmp_line.is_bound() && tmp_line->has_letter_code()) {
+					scr_coord_val lc_offset_x = (k1.x-k2.x)>0 ? LINEASCENT+6 : -LINEASCENT*2-6;
+					scr_coord_val lc_offset_y = (k1.y-k2.y)>0 ? LINEASCENT : -LINEASCENT-15;
+					display_line_lettercode_rgb(k1.x+ lc_offset_x, max(0,k1.y+lc_offset_y), tmp_line->get_line_color(), tmp_line->get_line_lettercode_style(), tmp_line->get_linecode_l(), tmp_line->get_linecode_r(), true);
+					already_show_lettercode = true;
+				}
+			}
 		}
 	}
 

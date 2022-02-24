@@ -342,7 +342,7 @@ void money_frame_t::init_stats()
 		}
 	}
 	cont_stats.set_table_layout(1,0);
-	cont_stats.new_component<gui_heading_t>("Monthly maintenance cost details", SYSCOL_TEXT, get_titlecolor(), 1);
+	cont_stats.new_component<gui_heading_t>("Monthly maintenance cost details", SYSCOL_TEXT, get_titlecolor(), 2);
 	cont_stats.add_table(active_wt_count+3,0)->set_spacing( scr_size(D_H_SPACE,1) );
 	{
 		// 0. header (symbol)

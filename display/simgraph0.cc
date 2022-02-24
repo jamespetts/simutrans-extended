@@ -30,6 +30,12 @@ uint32 get_color_rgb(uint8)
 	return 0;
 }
 
+PIXVAL line_color_idx_to_rgb(uint8)
+{
+	return 0;
+}
+
+
 void env_t_rgb_to_system_colors()
 {
 }
@@ -346,6 +352,11 @@ void display_calc_proportional_multiline_string_len_width( int &xw, int &yh, con
 
 
 int display_text_proportional_len_clip_rgb(scr_coord_val, scr_coord_val, const char*, control_alignment_t , const PIXVAL, bool, sint32  CLIP_NUM_DEF_NOUSE)
+{
+	return 0;
+}
+
+int display_line_lettercode_rgb(scr_coord_val, scr_coord_val, PIXVAL, uint8, const char*, const char*, bool)
 {
 	return 0;
 }

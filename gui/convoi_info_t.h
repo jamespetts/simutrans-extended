@@ -29,6 +29,8 @@
 #include "components/gui_schedule_item.h"
 
 #include "times_history_container.h"
+#include "components/gui_colorbox.h"
+#include "components/gui_line_lettercode.h"
 
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
 
@@ -95,6 +97,7 @@ private:
 	gui_combobox_t freight_sort_selector;
 	button_t line_button; // goto line ...
 	bool line_bound;
+	gui_line_lettercode_t lc_preview;
 
 	convoihandle_t cnv;
 	sint32 mean_convoi_speed;

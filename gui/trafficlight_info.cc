@@ -39,13 +39,13 @@ trafficlight_info_t::trafficlight_info_t(roadsign_t* s) :
 	add_table(2,1);
 	{
 	  amber_ns.set_limits( 1, 255 );
-	  amber_ns.set_value( s->get_ticks_yellow_ns() );
+	  amber_ns.set_value( s->get_ticks_amber_ns() );
 	  amber_ns.wrap_mode( false );
 	  amber_ns.add_listener( this );
 	  add_component( &amber_ns );
 
 	  amber_ow.set_limits( 1, 255 );
-	  amber_ow.set_value( s->get_ticks_yellow_ow() );
+	  amber_ow.set_value( s->get_ticks_amber_ow() );
 	  amber_ow.wrap_mode( false );
 	  amber_ow.add_listener( this );
 	  add_component( &amber_ow );
@@ -107,6 +107,6 @@ void trafficlight_info_t::update_data()
 	ns.set_value( roadsign->get_ticks_ns() );
 	ow.set_value( roadsign->get_ticks_ow() );
 	offset.set_value( roadsign->get_ticks_offset() );
-	amber_ns.set_value( roadsign->get_ticks_yellow_ns() );
-	amber_ow.set_value( roadsign->get_ticks_yellow_ow() );
+	amber_ns.set_value( roadsign->get_ticks_amber_ns() );
+	amber_ow.set_value( roadsign->get_ticks_amber_ow() );
 }
