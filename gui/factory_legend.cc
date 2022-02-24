@@ -88,6 +88,7 @@ public:
 			top_win(win);
 			return true;
 		}
+		return gui_component_t::infowin_event(ev);
 	}
 };
 
