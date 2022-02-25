@@ -498,6 +498,7 @@ SOURCES += io/raw_image_bmp.cc
 SOURCES += io/raw_image_png.cc
 SOURCES += io/raw_image_ppm.cc
 SOURCES += io/rdwr/adler32_stream.cc
+SOURCES += io/rdwr/compare_file_rd_stream.cc
 SOURCES += io/rdwr/rdwr_stream.cc
 SOURCES += io/rdwr/zlib_file_rdwr_stream.cc
 SOURCES += network/checksum.cc

@@ -175,6 +175,7 @@ const char *network_command_t::id_to_string(uint16 id)
 	CASE_TO_STRING(NWC_SCENARIO);
 	CASE_TO_STRING(NWC_SCENARIO_RULES);
 	CASE_TO_STRING(NWC_STEP);
+	CASE_TO_STRING(NWC_ROUTESEARCH);
 	}
 
 	return "<unknown network command>";

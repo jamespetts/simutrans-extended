@@ -9539,6 +9539,7 @@ bool karte_t::load(const char *filename)
 	else {
 DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 
+		file.set_buffered(true);
 		load(&file);
 
 		if(  env_t::server  ) {
@@ -9793,8 +9794,6 @@ void karte_t::load(loadsave_t *file)
 
 	tile_counter = 0;
 	simloops = 60;
-
-	file->set_buffered(true);
 
 	rdwr_gamestate(file, &ls);
 
@@ -11251,8 +11250,9 @@ static void heavy_rotate_saves(const char *prefix, uint32 sync_steps, uint32 num
 	world()->save(name, false, SERVER_SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
 
 	if (sync_steps >= num_to_keep) {
-		name.printf(SAVE_PATH_X "heavy/heavy-%s-%04d.sve", prefix, sync_steps - num_to_keep);
-		dr_remove(name);
+		cbuffer_t old_name;
+		old_name.printf(SAVE_PATH_X "heavy/heavy-%s-%04d.sve", prefix, sync_steps - num_to_keep);
+		dr_remove(old_name);
 	}
 }
 

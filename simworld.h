@@ -723,12 +723,12 @@ private:
 	 * Internal saving method.
 	 */
 	void save(loadsave_t *file, bool silent);
-
+public:
 	/**
 	 * Internal loading method.
 	 */
 	void load(loadsave_t *file);
-
+private:
 	void rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls);
 
 	/**

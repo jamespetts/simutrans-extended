@@ -21,8 +21,8 @@
  */
 class signal_info_t : public obj_infowin_t, public action_listener_t
 {
- private:
-	signal_t* sig;
+private:
+	const signal_t* sig;
 	button_t bt_goto_signalbox;
 	button_t bt_info_signalbox;
 	button_t bt_switch_signalbox;

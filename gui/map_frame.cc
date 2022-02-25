@@ -471,7 +471,7 @@ void map_frame_t::update_factory_legend()
 
 		// add corresponding legend entries
 		bool filter_by_catg = (minimap_t::get_instance()->freight_type_group_index_showed_on_map != nullptr && minimap_t::get_instance()->freight_type_group_index_showed_on_map != goods_manager_t::none);
-		PIXVAL prev_color = NULL;
+		PIXVAL prev_color = 0;
 		const char *prev_name = {};
 		FOR(vector_tpl<const factory_desc_t*>, f, factory_types) {
 			if (prev_name && !strcmp(translator::translate(f->get_name()), prev_name) && f->get_color()==prev_color) {

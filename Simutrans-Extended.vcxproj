@@ -1959,6 +1959,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="io\rdwr\bzip2_file_rdwr_stream.cc" />
+    <ClCompile Include="io\rdwr\compare_file_rd_stream.cc" />
     <ClCompile Include="io\rdwr\raw_file_rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\adler32_stream.cc" />
     <ClCompile Include="io\rdwr\rdwr_stream.cc" />
@@ -2610,6 +2611,7 @@
     <ClInclude Include="io\classify_file.h" />
     <ClInclude Include="io\raw_image.h" />
     <ClInclude Include="io\rdwr\bzip2_file_rdwr_stream.h" />
+    <ClInclude Include="io\rdwr\compare_file_rd_stream.h" />
     <ClInclude Include="io\rdwr\raw_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\rdwr_stream.h" />
     <ClInclude Include="io\rdwr\adler32_stream.h" />
