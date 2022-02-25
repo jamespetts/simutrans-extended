@@ -82,7 +82,7 @@ public:
 		}
 		else if (linked) {
 			label.set_color(SYSCOL_LIST_TEXT_SELECTED_FOCUS);
-			
+
 		}
 		else {
 			label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
