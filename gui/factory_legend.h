@@ -64,7 +64,7 @@ public:
 
 	// Does the factory have a goods-based connection with the focused factory?
 	// side specifies the direction of the flow of goods. That is, 0 and 2 have opposite directions.
-	bool is_linked(const factory_desc_t *fac_desc, uint8 side = 1);
+	const goods_desc_t *is_linked(const factory_desc_t *fac_desc, uint8 side = 1);
 };
 
 #endif

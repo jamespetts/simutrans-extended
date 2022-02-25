@@ -46,6 +46,7 @@ static bool compare_factories(const factory_desc_t* const a, const factory_desc_
 class legend_entry_t : public gui_component_t
 {
 	const factory_desc_t *fac_desc;
+	const goods_desc_t* link_item = NULL; // for tooltip
 	gui_label_t label;
 	bool filtered;
 	uint8 in_out = 1; // Which side is placed on? 0=left(check output items), 1=center(nothing to check), 2=right(check input items)
@@ -70,17 +71,16 @@ public:
 	void draw(scr_coord offset) OVERRIDE
 	{
 		bool focused = false;
-		bool linked  = false;
 		if (in_out != 1 && fac_desc) {
 			factory_legend_t *const parent = dynamic_cast<factory_legend_t *>(win_get_magic(magic_factory_legend));
 			focused = parent->is_focused(fac_desc, in_out);
-			linked  = parent->is_linked(fac_desc, in_out);
+			link_item = parent->is_linked(fac_desc, in_out);
 		}
 		scr_coord pos = get_pos() + offset;
 		if (focused) {
 			label.set_color(color_idx_to_rgb(COL_WHITE));
 		}
-		else if (linked) {
+		else if (link_item) {
 			label.set_color(SYSCOL_LIST_TEXT_SELECTED_FOCUS);
 
 		}
@@ -91,7 +91,7 @@ public:
 		if (focused) {
 			display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, in_out==2 ? color_idx_to_rgb(COL_DODGER_BLUE-1) : color_idx_to_rgb(COL_ORANGE-1), false);
 		}
-		else if (linked) {
+		else if (link_item) {
 			display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, SYSCOL_LIST_BACKGROUND_SELECTED_F, false);
 		}
 		if (!filtered) {
@@ -99,6 +99,10 @@ public:
 		}
 		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, fac_desc->get_color(), false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
+
+		if (link_item  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h + TOOLTIP_MOUSE_OFFSET_Y, link_item->get_name(), this);
+		}
 	}
 
 	bool infowin_event(const event_t *ev) OVERRIDE
@@ -270,20 +274,20 @@ bool factory_legend_t::is_focused(const factory_desc_t *fac_desc, uint8 side)
 	return ( focus_fac==fac_desc  &&  focused_factory_side==side );
 };
 
-bool factory_legend_t::is_linked(const factory_desc_t *fac_desc, uint8 side)
+const goods_desc_t *factory_legend_t::is_linked(const factory_desc_t *fac_desc, uint8 side)
 {
 	if (side == 1 || side > 2 || !fac_desc || !focus_fac || focused_factory_side==side) {
-		return false;
+		return NULL;
 	}
 	const factory_desc_t *upstream = !side ? fac_desc : focus_fac;
 	const factory_desc_t *downstream = !side ? focus_fac: fac_desc;
 	const uint16 product_count = !side ? fac_desc->get_product_count() : focus_fac->get_product_count();
 	for (uint16 i = 0; i < upstream->get_product_count(); i++) {
 		if (downstream->get_accepts_these_goods(upstream->get_product(i)->get_output_type())) {
-			return true;
+			return upstream->get_product(i)->get_output_type();
 		}
 	}
-	return false;
+	return NULL;
 };
 
 bool factory_legend_t::action_triggered(gui_action_creator_t *comp, value_t)
