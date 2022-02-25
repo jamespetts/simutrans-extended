@@ -13,6 +13,8 @@
 #include "components/gui_label.h"
 #include  "../display/simgraph.h"
 
+#include "../descriptor/factory_desc.h"
+
 
 class factory_legend_t : public gui_frame_t, action_listener_t
 {
@@ -20,6 +22,9 @@ class factory_legend_t : public gui_frame_t, action_listener_t
 	 * We are bound to this window. All filter states are stored in main_frame.
 	 */
 	map_frame_t *main_frame;
+
+	const factory_desc_t *focus_fac=NULL;
+	uint8 focused_factory_side=1; // 0=left, 1=nothig, 2=right
 
 	bool double_column=false;
 	button_t bt_open_2nd_column;
@@ -51,6 +56,15 @@ public:
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	void update_factory_legend();
+
+	void set_focus_factory(const factory_desc_t *fac_desc, uint8 side = 1);
+
+	// Is the item currently in focus?
+	bool is_focused(const factory_desc_t *fac_desc, uint8 side = 1);
+
+	// Does the factory have a goods-based connection with the focused factory?
+	// side specifies the direction of the flow of goods. That is, 0 and 2 have opposite directions.
+	bool is_linked(const factory_desc_t *fac_desc, uint8 side = 1);
 };
 
 #endif

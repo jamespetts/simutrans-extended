@@ -9,8 +9,6 @@
 #include "simwin.h"
 #include "minimap.h"
 
-#include "../simfab.h"
-
 const char *factory_type_text[3] =
 {
 	"gl_prod",
@@ -50,8 +48,11 @@ class legend_entry_t : public gui_component_t
 	const factory_desc_t *fac_desc;
 	gui_label_t label;
 	bool filtered;
+	uint8 in_out = 1; // Which side is placed on? 0=left(check output items), 1=center(nothing to check), 2=right(check input items)
+
 public:
-	legend_entry_t(const factory_desc_t *f, bool filtered_=false) : fac_desc(f), filtered(filtered_) {
+	legend_entry_t(const factory_desc_t *f, bool filtered_=false, uint8 type=1) : fac_desc(f), filtered(filtered_) {
+		in_out = type;
 		label.set_text(f->get_name());
 		label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
 	}
@@ -68,7 +69,31 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE
 	{
+		bool focused = false;
+		bool linked  = false;
+		if (in_out != 1 && fac_desc) {
+			factory_legend_t *const parent = dynamic_cast<factory_legend_t *>(win_get_magic(magic_factory_legend));
+			focused = parent->is_focused(fac_desc, in_out);
+			linked  = parent->is_linked(fac_desc, in_out);
+		}
 		scr_coord pos = get_pos() + offset;
+		if (focused) {
+			label.set_color(color_idx_to_rgb(COL_WHITE));
+		}
+		else if (linked) {
+			label.set_color(SYSCOL_LIST_TEXT_SELECTED_FOCUS);
+			
+		}
+		else {
+			label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
+		}
+
+		if (focused) {
+			display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, in_out==2 ? color_idx_to_rgb(COL_DODGER_BLUE-1) : color_idx_to_rgb(COL_ORANGE-1), false);
+		}
+		else if (linked) {
+			display_fillbox_wh_clip_rgb(pos.x, pos.y, size.w, size.h, SYSCOL_LIST_BACKGROUND_SELECTED_F, false);
+		}
 		if (!filtered) {
 			display_ddd_box_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE)-1, D_INDICATOR_BOX_WIDTH, D_INDICATOR_HEIGHT+2, SYSCOL_TEXT, SYSCOL_TEXT );
 		}
@@ -78,6 +103,11 @@ public:
 
 	bool infowin_event(const event_t *ev) OVERRIDE
 	{
+		if (IS_LEFTRELEASE(ev)) {
+			factory_legend_t *const parent = dynamic_cast<factory_legend_t *>( win_get_magic(magic_factory_legend) );
+			parent->set_focus_factory(fac_desc, in_out);
+			return true;
+		}
 		if (IS_RIGHTRELEASE(ev)) {
 			factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
 			if (!win) {
@@ -202,12 +232,12 @@ void factory_legend_t::update_factory_legend()
 		if (double_column) {
 			// left=output
 			if (!old_catg_index || (f->get_product_count() && !(hide_mismatch.pressed && filter_by_catg && !f->has_goods_catg_demand(old_catg_index, 2)))) {
-				cont_left.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,2)));
+				cont_left.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,2)),0);
 			}
 
 			// right=input
 			if (!old_catg_index || (f->get_supplier_count() && !(hide_mismatch.pressed && filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)))) {
-				cont_right.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)));
+				cont_right.new_component<legend_entry_t>(f, (filter_by_catg && !f->has_goods_catg_demand(old_catg_index,1)),2);
 			}
 		}
 		else if ( !old_catg_index || !filter_by_catg || (f->has_goods_catg_demand(old_catg_index) || (!f->has_goods_catg_demand(old_catg_index) && filter_by_catg && !hide_mismatch.pressed))) {
@@ -223,6 +253,38 @@ void factory_legend_t::update_factory_legend()
 	resize(scr_coord(0,0));
 }
 
+void factory_legend_t::set_focus_factory(const factory_desc_t *fac_desc, uint8 side)
+{
+	if (side==1 || side>2 || !fac_desc || !double_column || (focus_fac==fac_desc && focused_factory_side==side)) {
+		focus_fac = NULL;
+		focused_factory_side = 1;
+		return;
+	}
+	focused_factory_side = side;
+	focus_fac = fac_desc;
+};
+
+
+bool factory_legend_t::is_focused(const factory_desc_t *fac_desc, uint8 side)
+{
+	return ( focus_fac==fac_desc  &&  focused_factory_side==side );
+};
+
+bool factory_legend_t::is_linked(const factory_desc_t *fac_desc, uint8 side)
+{
+	if (side == 1 || side > 2 || !fac_desc || !focus_fac || focused_factory_side==side) {
+		return false;
+	}
+	const factory_desc_t *upstream = !side ? fac_desc : focus_fac;
+	const factory_desc_t *downstream = !side ? focus_fac: fac_desc;
+	const uint16 product_count = !side ? fac_desc->get_product_count() : focus_fac->get_product_count();
+	for (uint16 i = 0; i < upstream->get_product_count(); i++) {
+		if (downstream->get_accepts_these_goods(upstream->get_product(i)->get_output_type())) {
+			return true;
+		}
+	}
+	return false;
+};
 
 bool factory_legend_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
@@ -269,7 +331,6 @@ void factory_legend_t::draw(scr_coord pos, scr_size size)
 	if (minimap_t::get_instance()->freight_type_group_index_showed_on_map) {
 		uint8 temp_index = minimap_t::get_instance()->freight_type_group_index_showed_on_map->get_catg_index();
 		if (minimap_t::get_instance()->freight_type_group_index_showed_on_map == goods_manager_t::none) {
-			//temp_index = 255;
 			temp_index = goods_manager_t::INDEX_NONE;
 		}
 		if (temp_index != old_catg_index) {
