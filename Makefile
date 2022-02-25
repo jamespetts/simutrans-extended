@@ -422,6 +422,7 @@ SOURCES += gui/extend_edit.cc
 SOURCES += gui/fabrik_info.cc
 SOURCES += gui/factory_chart.cc
 SOURCES += gui/factory_edit.cc
+SOURCES += gui/factory_legend.cc
 SOURCES += gui/factorylist_frame_t.cc
 SOURCES += gui/factorylist_stats_t.cc
 SOURCES += gui/schedule_gui.cc

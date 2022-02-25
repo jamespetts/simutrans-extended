@@ -23,6 +23,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_button_to_chart.h"
 #include "../convoihandle_t.h"
+#include "../vehicle/rail_vehicle.h"
 #include "simwin.h"
 
 class scr_coord;
@@ -31,6 +32,50 @@ class scr_coord;
 #define MAX_FORCE_CURVES 2
 #define MAX_PHYSICS_CURVES (MAX_ACCEL_CURVES+MAX_FORCE_CURVES)
 #define SPEED_RECORDS 25
+
+
+// Band graph showing loading status based on capacity for each vehicle "accommodation class"
+// The color is based on the color of the cargo
+class gui_capacity_occupancy_bar_t : public gui_container_t
+{
+	vehicle_t *veh;
+	uint8 a_class;
+	bool size_fixed = true;
+
+public:
+	gui_capacity_occupancy_bar_t(vehicle_t *v, uint8 accommo_class=0);
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE;
+
+	void set_size_fixed(bool yesno) { size_fixed = yesno; };
+
+	void display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity);
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+class gui_vehicle_cargo_info_t : public gui_aligned_container_t
+{
+	// Note: different from freight_list_sorter_t
+	enum filter_mode_t : uint8 {
+		hide_detail = 0,
+		by_unload_halt,      // (by wealth)
+		by_destination_halt, // (by wealth)
+		by_final_destination // (by wealth)
+	};
+
+	schedule_t * schedule;
+	vehicle_t *veh;
+	uint16 total_cargo=0;
+	uint8 show_loaded_detail = by_unload_halt;
+
+public:
+	gui_vehicle_cargo_info_t(vehicle_t *v, uint8 display_loaded_detail);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	void update();
+};
 
 
 // helper class to show the colored acceleration text
@@ -96,20 +141,21 @@ public:
 };
 
 // content of payload info tab
-class gui_convoy_payload_info_t : public gui_container_t
+class gui_convoy_payload_info_t : public gui_aligned_container_t
 {
 private:
 	convoihandle_t cnv;
-	bool show_detail = true; // Currently broken, always true
+	uint8 display_mode = 1; // by_unload_halt
 
 public:
 	gui_convoy_payload_info_t(convoihandle_t cnv);
 
 	void set_cnv(convoihandle_t c) { cnv = c; }
-	void set_show_detail(bool yesno) { show_detail = yesno; } // Currently not in use
+	void set_display_mode(uint8 mode) { display_mode = mode; update_list(); }
+
+	void update_list();
 
 	void draw(scr_coord offset);
-	void display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity);
 };
 
 // content of maintenance info tab
@@ -142,13 +188,13 @@ public:
 	};
 
 private:
-	gui_aligned_container_t cont_maintenance, cont_payload;
+	gui_aligned_container_t cont_maintenance, cont_payload_tab;
 
 	convoihandle_t cnv;
 
 	gui_vehicleinfo_t veh_info;
 	gui_convoy_formation_t formation;
-	gui_convoy_payload_info_t payload_info;
+	gui_convoy_payload_info_t cont_payload_info;
 	gui_convoy_maintenance_info_t maintenance;
 	gui_aligned_container_t cont_accel, cont_force;
 	gui_chart_t accel_chart, force_chart;
@@ -167,7 +213,7 @@ private:
 	button_t withdraw_button;
 	button_t retire_button;
 	button_t class_management_button;
-	button_t display_detail_button;
+	gui_combobox_t cb_loaded_detail;
 
 	gui_combobox_t overview_selctor;
 	gui_label_buf_t
@@ -183,6 +229,8 @@ private:
 	sint64 accel_curves[SPEED_RECORDS][MAX_ACCEL_CURVES];
 	sint64 force_curves[SPEED_RECORDS][MAX_FORCE_CURVES];
 	uint8 te_curve_abort_x = SPEED_RECORDS;
+
+	sint64 old_seed = 0; // gui update flag
 
 	void update_labels();
 

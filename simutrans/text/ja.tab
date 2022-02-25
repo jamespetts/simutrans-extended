@@ -300,7 +300,7 @@ Show transported freight/freight network
 Show usage of network
 線路/道路の交通量を表示
 Shows a listing with all industries on the map.
-マップ上に存在する全ての産業のリスト
+産業凡例を別ウィンドウで開きます
 Sum of departure/arrivals at halts
 到着・出発した乗り物の数を表示
 #____________________________________ki_text____________________________________
@@ -4305,6 +4305,20 @@ Save your changes and close the dialog.
 変更を保存してダイアログを閉じます
 helptxt_linecode_use_sub_background
 文字の背景に使用される色が基調色とは異なる色に入れ替わります
+Open the minimap window to show the network around this stop
+ミニマップダイアログを開き、この駅を中心としたネットワークを表示します
+Opens the minimap window showing the network of selected transport items served at this station
+ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
+hd_sv_mode_frequency
+運行頻度、編成数
+hd_sv_mode_catg
+取扱い貨物
+hd_sv_mode_route
+運行ルート
+Factory legend
+産業凡例
+Hide mismatch
+条件不一致を非表示
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month

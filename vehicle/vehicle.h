@@ -684,4 +684,6 @@ template<> inline vehicle_t* obj_cast<vehicle_t>(obj_t* const d)
 
 sint16 get_friction_of_waytype(waytype_t waytype);
 
+void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const convoi_t *cnv, bool draw_background = false);
+
 #endif

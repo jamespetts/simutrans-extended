@@ -328,10 +328,10 @@ public:
 	}
 
 	void calc_checksum(checksum_t *chk) const;
-	bool get_accepts_these_goods(const goods_desc_t* input);
 
 	// Returns whether this factory has potential demand for passed goods category
-	bool has_goods_catg_demand(uint8 catg_index) const;
+	// 0=check input and output demand, 1=cehck only input, 2=check only output
+	bool has_goods_catg_demand(uint8 catg_index, uint8 check_option = 0) const;
 };
 
 #endif
