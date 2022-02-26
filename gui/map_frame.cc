@@ -355,7 +355,6 @@ map_frame_t::map_frame_t() :
 	show_hide_network_option( network_option_visible );
 	show_hide_scale( scale_visible );
 
-	set_title();
 	reset_min_windowsize();
 	set_windowsize( window_size );
 	set_resizemode(diagonal_resize);
@@ -385,6 +384,7 @@ void map_frame_t::show_hide_network_option(const bool show)
 	network_filter_container.set_visible(show);
 	b_show_network_option.pressed = show;
 	network_option_visible = show;
+	set_title();
 	reset_min_windowsize();
 }
 
@@ -398,14 +398,16 @@ void map_frame_t::show_hide_scale(const bool show)
 }
 
 
-void map_frame_t::activate_individual_network_mode(koord network_origin)
+void map_frame_t::activate_individual_network_mode(koord network_origin, bool network_mode)
 {
-	b_overlay_networks.pressed = true;
-	show_hide_network_option(true);
+	b_overlay_networks.pressed = network_mode;
+	show_hide_network_option(network_mode);
 	show_hide_legend(false);
 	show_hide_scale(false);
 
-	env_t::default_mapmode |= minimap_t::MAP_LINES;
+	if (network_mode) { env_t::default_mapmode |= minimap_t::MAP_LINES; }
+	else { env_t::default_mapmode &= ~minimap_t::MAP_LINES; }
+
 	minimap_t::get_instance()->set_display_mode((minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
 	scr_coord center = minimap_t::get_instance()->map_to_screen_coord(network_origin);
 	const scr_size s_size = scrolly.get_size();

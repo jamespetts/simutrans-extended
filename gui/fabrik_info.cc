@@ -161,6 +161,7 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 
 	// tab panel: connections, chart panels, details
 	add_component(&switch_mode);
+	scroll_info.set_maximize(true);
 	switch_mode.add_tab(&scroll_info, translator::translate("Connections"));
 
 	// connection information
@@ -172,7 +173,7 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 	container_info.add_table(2,1);
 	{
 		container_info.new_component<gui_fill_t>();
-		bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+		bt_access_minimap.init(button_t::roundbox, "show_chain_on_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
 		if (skinverwaltung_t::open_window) {
 			bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
 			bt_access_minimap.set_image_position_right(true);
@@ -319,7 +320,7 @@ bool fabrik_info_t::action_triggered( gui_action_creator_t *comp, value_t)
 			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
-		//win->activate_individual_network_mode();
+		win->activate_individual_network_mode( fab->get_pos().get_2d(), false );
 		top_win(win);
 		return true;
 	}
