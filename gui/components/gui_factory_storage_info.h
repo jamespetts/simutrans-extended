@@ -105,11 +105,12 @@ public:
 };
 
 
-class gui_freight_halt_stat_t : public gui_aligned_container_t
+class gui_freight_halt_stat_t : public gui_aligned_container_t, private action_listener_t
 {
 private:
 	halthandle_t halt;
 	gui_label_buf_t label_name, lb_handling_amount;
+	button_t bt_show_halt_network;
 
 	// update trigger
 	uint8 old_month = 255;
@@ -118,7 +119,9 @@ private:
 public:
 	gui_freight_halt_stat_t(halthandle_t halt);
 
-	bool infowin_event(event_t const*) OVERRIDE;
+	bool infowin_event(event_t const* ev) OVERRIDE;
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void draw(scr_coord offset) OVERRIDE;
 };

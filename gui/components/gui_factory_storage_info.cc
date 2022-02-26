@@ -19,6 +19,9 @@
 
 #include "../../player/simplay.h"
 
+#include "../map_frame.h"
+#include "../simwin.h"
+
 #define STORAGE_INDICATOR_WIDTH (50)
 
 // Half a display unit (0.5).
@@ -657,7 +660,7 @@ gui_freight_halt_stat_t::gui_freight_halt_stat_t(halthandle_t halt)
 {
 	this->halt = halt;
 	if (halt.is_bound()) {
-		set_table_layout(4,0);
+		set_table_layout(5,1);
 		new_component<gui_halt_capacity_bar_t>(halt,2)->set_width(LINESPACE*4); // todo: set width
 		add_component(&label_name);
 		old_month = -1; // force update
@@ -665,13 +668,34 @@ gui_freight_halt_stat_t::gui_freight_halt_stat_t(halthandle_t halt)
 		lb_handling_amount.set_tooltip(translator::translate("The number of goods that handling at the stop last month"));
 		new_component<gui_halt_handled_goods_images_t>(halt, true);
 		add_component(&lb_handling_amount);
+		bt_show_halt_network.init(button_t::roundbox, "Networks");
+		bt_show_halt_network.add_listener(this);
+		add_component(&bt_show_halt_network);
 	}
+}
+
+bool gui_freight_halt_stat_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if ( comp==&bt_show_halt_network ) {
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->set_halt(halt);
+		top_win(win);
+		return true;
+	}
+	return false;
 }
 
 bool gui_freight_halt_stat_t::infowin_event(const event_t *ev)
 {
 	bool swallowed = gui_aligned_container_t::infowin_event(ev);
-	if(  !swallowed  &&  halt.is_bound()  ) {
+	if (ev->mx < 0 || ev->mx > bt_show_halt_network.get_pos().x ) {
+		return swallowed;
+	}
+	if(  !swallowed  &&  ev->my > 0 && ev->my < size.h &&  halt.is_bound()  ) {
 
 		if(IS_LEFTRELEASE(ev)) {
 			if(  event_get_last_control_shift() != 2  ) {
