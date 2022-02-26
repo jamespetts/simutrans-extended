@@ -736,9 +736,9 @@ void gui_freight_halt_stat_t::draw(scr_coord offset)
 gui_factory_nearby_halt_info_t::gui_factory_nearby_halt_info_t(fabrik_t *factory)
 {
 	this->fab = factory;
+	set_table_layout(1,0);
 	if (fab) {
 		old_halt_count = fab->get_nearby_freight_halts().get_count();
-		set_table_layout(1,0);
 		update_table();
 	}
 }
