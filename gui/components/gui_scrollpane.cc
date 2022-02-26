@@ -31,6 +31,8 @@ gui_scrollpane_t::gui_scrollpane_t(gui_component_t *comp, bool b_scroll_x, bool 
 	b_show_scroll_x = b_scroll_x;
 	b_show_scroll_y = b_scroll_y;
 	b_has_size_corner = true;
+	b_can_drag = true;
+	b_is_dragging = false;
 
 	old_comp_size = scr_size::invalid;
 	maximize = false;
@@ -146,18 +148,24 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 	if(   (b_show_scroll_y  &&  scroll_y.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_y.getroffen(ev->mouse_pos) || scroll_y.getroffen( ev->click_pos)) ) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_y.get_pos());
+		b_is_dragging = false;
 		return scroll_y.infowin_event(&ev2);
 	}
 	else if(  (b_show_scroll_x  &&  scroll_x.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_x.getroffen(ev->mouse_pos) || scroll_x.getroffen( ev->click_pos))) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_x.get_pos());
+		b_is_dragging = false;
 		return scroll_x.infowin_event(&ev2);
 	}
 	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mouse_pos.x>=0 &&  ev->mouse_pos.y>=0  &&  ev->mouse_pos.x<=size.w  &&  ev->mouse_pos.y<=size.h)  ) {
+
 		// since we get can grab the focus to get keyboard events, we must make sure to handle mouse events only if we are hit
+		if(  ev->ev_class < EVENT_CLICK  ||  IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev)  ) {
+			b_is_dragging = false;
+		}
 
 		// we will handle dragging ourselves inf not prevented
-		if( b_is_dragging && ev->ev_class < INFOWIN ) {
+		else if( b_is_dragging && ev->ev_class < INFOWIN ) {
 			// now drag: scrollbars are not in pixel, but we will scroll one unit per pixels ...
 			scroll_x.set_knob_offset(scroll_x.get_knob_offset() - (ev->mouse_pos.x - origin.x));
 			scroll_y.set_knob_offset(scroll_y.get_knob_offset() - (ev->mouse_pos.y - origin.y));
