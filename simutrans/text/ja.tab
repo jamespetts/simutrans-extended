@@ -4307,8 +4307,12 @@ helptxt_linecode_use_sub_background
 文字の背景に使用される色が基調色とは異なる色に入れ替わります
 Open the minimap window to show the network around this stop
 ミニマップダイアログを開き、この駅を中心としたネットワークを表示します
+Open the minimap window to show the freight network of this stop
+ミニマップダイアログを開き、この駅を中心とした貨物ネットワークを表示します
 Opens the minimap window showing the network of selected transport items served at this station
 ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
+show_chain_on_minimap
+関連工場マップ
 hd_sv_mode_frequency
 運行頻度、編成数
 hd_sv_mode_catg

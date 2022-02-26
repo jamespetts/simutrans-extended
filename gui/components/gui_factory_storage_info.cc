@@ -668,7 +668,8 @@ gui_freight_halt_stat_t::gui_freight_halt_stat_t(halthandle_t halt)
 		lb_handling_amount.set_tooltip(translator::translate("The number of goods that handling at the stop last month"));
 		new_component<gui_halt_handled_goods_images_t>(halt, true);
 		add_component(&lb_handling_amount);
-		bt_show_halt_network.init(button_t::roundbox, "Networks");
+		bt_show_halt_network.init( button_t::roundbox, "Networks" );
+		bt_show_halt_network.set_tooltip( translator::translate("Open the minimap window to show the freight network of this stop") );
 		bt_show_halt_network.add_listener(this);
 		add_component(&bt_show_halt_network);
 	}
@@ -682,7 +683,7 @@ bool gui_freight_halt_stat_t::action_triggered(gui_action_creator_t *comp, value
 			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
-		win->set_halt(halt);
+		win->set_halt(halt, true);
 		top_win(win);
 		return true;
 	}

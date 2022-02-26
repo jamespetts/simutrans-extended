@@ -414,10 +414,16 @@ void map_frame_t::activate_individual_network_mode(koord network_origin, bool ne
 	scrolly.set_scroll_position(max(0,center.x-(s_size.w/2)), max(0,center.y-(s_size.h/2)));
 }
 
-void map_frame_t::set_halt(halthandle_t halt)
+void map_frame_t::set_halt(halthandle_t halt, bool freight_mode)
 {
 	minimap_t::get_instance()->set_selected_halt(halt.is_bound() ? halt : halthandle_t());
 	if( halt.is_null() ) { return;  };
+
+	if(freight_mode){
+		// for all freight ...
+		minimap_t::get_instance()->freight_type_group_index_showed_on_map = goods_manager_t::none;
+		freight_type_c.set_selection(3);
+	}
 
 	activate_individual_network_mode(halt->get_basis_pos());
 	title_buf.clear();
