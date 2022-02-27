@@ -561,6 +561,7 @@ void map_frame_t::set_category_filter(uint8 catg/*, uint8 g_class*/)
 	for (uint8 i = 1; i< viewable_freight_types.get_count(); i++) {
 		if (viewable_freight_types[i]->get_catg_index()==catg) {
 			freight_type_c.set_selection(i);
+			minimap_t::get_instance()->freight_type_group_index_showed_on_map = viewable_freight_types[i];
 			break;
 		}
 	}
