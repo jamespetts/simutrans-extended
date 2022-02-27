@@ -506,6 +506,12 @@ void gui_factory_nearby_halt_info_t::update_table()
 	FOR(const vector_tpl<nearby_halt_t>, freight_halt, fab->get_nearby_freight_halts()) {
 		new_component<gui_freight_halt_stat_t>(freight_halt.halt);
 	}
+	if (!old_halt_count) {
+		add_table(2,1);
+		new_component<gui_image_t>(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2) : IMG_EMPTY, 0, ALIGN_CENTER_V, true);
+		new_component<gui_label_t>("No connection to the freight stop.");
+		end_table();
+	}
 	set_size(get_size());
 }
 
