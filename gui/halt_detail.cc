@@ -162,7 +162,7 @@ void halt_detail_t::init()
 		}
 		bt_access_minimap.set_tooltip("Open the minimap window to show the network around this stop");
 		bt_access_minimap.add_listener(this);
-		bt_access_minimap_catg.set_tooltip("Opens the minimap window showing the network of selected transport items served at this station");
+		bt_access_minimap_catg.set_tooltip("Open the minimap window showing the network of selected transport items served at this station");
 		bt_access_minimap_catg.add_listener(this);
 		cont_tab_service.add_component(&bt_access_minimap,2);
 		cont_tab_service.new_component<gui_empty_t>();
