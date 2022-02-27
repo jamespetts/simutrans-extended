@@ -62,8 +62,8 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 	container_details(gb, get_titlecolor()),
 	scroll_info(&container_info),
 	scrolly_details(&container_details),
-	all_suppliers(fab_, true),
-	all_consumers(fab_, false),
+	cont_suppliers(fab_, true),
+	cont_consumers(fab_, false),
 	nearby_halts(fab_)
 {
 	if (fab) {
@@ -185,10 +185,10 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 	container_info.end_table();
 
 	if (!fab->get_input().empty()) {
-		tabs_factory_link.add_tab(&all_suppliers, translator::translate("Suppliers"));
+		tabs_factory_link.add_tab(&cont_suppliers, translator::translate("Suppliers"));
 	}
 	if (!fab->get_output().empty()) {
-		tabs_factory_link.add_tab(&all_consumers, translator::translate("Abnehmer"));
+		tabs_factory_link.add_tab(&cont_consumers, translator::translate("Abnehmer"));
 	}
 
 	container_info.add_component(&tabs_factory_link);
@@ -199,7 +199,6 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 	// initialize to zero, update_info will do the rest
 	old_suppliers_count = 0;
 	old_consumers_count = 0;
-	old_stops_count = 0;
 
 	update_info();
 
@@ -284,12 +283,6 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	}
 	lb_staff_shortage.set_visible(fab->is_staff_shortage());
 
-	if (fab->get_nearby_freight_halts().get_count() != old_stops_count)
-	{
-		nearby_halts.update();
-		old_stops_count = fab->get_nearby_freight_halts().get_count();
-	}
-
 
 	chart.update();
 
@@ -333,7 +326,6 @@ void fabrik_info_t::map_rotate90(sint16)
 	// force update
 	old_suppliers_count ++;
 	old_consumers_count ++;
-	old_stops_count ++;
 	update_components();
 }
 
@@ -356,12 +348,12 @@ void fabrik_info_t::update_components()
 
 	// consumers
 	if(  fab->get_consumers().get_count() != old_consumers_count ) {
-		all_consumers.recalc_size();
+		cont_consumers.update_table();
 		old_consumers_count = fab->get_consumers().get_count();
 	}
 	// suppliers
 	if(  fab->get_suppliers().get_count() != old_suppliers_count ) {
-		all_suppliers.recalc_size();
+		cont_suppliers.update_table();
 		old_suppliers_count = fab->get_suppliers().get_count();
 	}
 	container_info.set_size(container_info.get_min_size());
@@ -388,8 +380,8 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 		if (fab != NULL  &&  gb != NULL) {
 			init(fab, gb);
 			storage.set_fab(fab);
-			all_suppliers.set_fab(fab);
-			all_consumers.set_fab(fab);
+			cont_suppliers.set_fab(fab);
+			cont_consumers.set_fab(fab);
 			nearby_halts.set_fab(fab);
 
 			storage.recalc_size();

@@ -68,10 +68,10 @@ private:
 	gui_aligned_container_t container_info;
 	gui_building_stats_t container_details;
 
-	gui_factory_connection_stat_t all_suppliers, all_consumers;
+	gui_factory_connection_container_t cont_suppliers, cont_consumers;
 	gui_factory_nearby_halt_info_t nearby_halts;
 
-	uint32 old_suppliers_count, old_consumers_count, old_stops_count;
+	uint32 old_suppliers_count, old_consumers_count;
 
 	gui_scrollpane_t scroll_info, scrolly_details;
 

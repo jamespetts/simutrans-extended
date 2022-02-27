@@ -82,29 +82,6 @@ public:
 };
 
 
-// A GUI component of connectable factory list
-class gui_factory_connection_stat_t : public gui_world_component_t
-{
-private:
-	fabrik_t *fab;
-	vector_tpl<koord> fab_list; // connectable factory list(pos)
-	uint32 line_selected;
-
-	bool is_input_display; // which display is needed? - input or output
-
-public:
-	gui_factory_connection_stat_t(fabrik_t *factory, bool is_input_display);
-
-	void set_fab(fabrik_t *f) { this->fab = f; }
-
-	bool infowin_event(event_t const *ev) OVERRIDE;
-
-	void recalc_size();
-
-	void draw(scr_coord offset) OVERRIDE;
-};
-
-
 class gui_freight_halt_stat_t : public gui_aligned_container_t, private action_listener_t
 {
 private:
