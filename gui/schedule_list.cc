@@ -219,7 +219,7 @@ void gui_line_waiting_status_t::init()
 
 				for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
 					if (line->get_goods_catg_index().is_contained(catg_index)) {
-						new_component<gui_halt_waiting_catg_t>(halt, catg_index);
+						new_component<gui_halt_waiting_catg_t>(halt, catg_index, line);
 					}
 				}
 			}

@@ -259,9 +259,10 @@ void gui_halt_goods_demand_t::draw(scr_coord offset)
 }
 
 
-gui_halt_waiting_catg_t::gui_halt_waiting_catg_t(halthandle_t h, uint8 catg)
+gui_halt_waiting_catg_t::gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t l)
 {
 	halt = h;
+	line = l;
 	catg_index = catg;
 	set_size(scr_size(D_H_SPACE, D_LABEL_HEIGHT));
 }
@@ -285,7 +286,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 			if (wtyp->get_catg_index() != catg_index) {
 				continue;
 			}
-			const uint32 sum = halt->get_ware_summe(wtyp);
+			const uint32 sum = halt->get_ware_summe(wtyp, line);
 			if (sum > 0) {
 				buf.clear();
 				display_colorbox_with_tooltip(offset.x + xoff, offset.y + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, wtyp->get_color(), false, NULL);

@@ -78,10 +78,11 @@ public:
 class gui_halt_waiting_catg_t : public gui_component_t
 {
 	halthandle_t halt;
+	linehandle_t line;
 	uint8 catg_index;
 	cbuffer_t buf;
 public:
-	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg);
+	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t line=linehandle_t());
 
 	void draw(scr_coord offset) OVERRIDE;
 
