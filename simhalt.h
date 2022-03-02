@@ -698,6 +698,7 @@ public:
 	uint32 get_ware_summe(const goods_desc_t *warentyp) const;
 	uint32 get_ware_summe(const goods_desc_t *warentyp, uint8 g_class, bool chk_only_commuter = false) const;
 	uint32 get_ware_summe(const goods_desc_t *warentyp, linehandle_t line) const;
+	uint32 get_ware_summe(uint8 carg_index) const;
 
 	uint32 get_leaving_goods_sum(const goods_desc_t *warentyp, uint8 g_class = 255) const;
 	uint32 get_transferring_goods_sum(const goods_desc_t *warentyp, uint8 g_class = 255) const;
