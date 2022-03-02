@@ -8420,12 +8420,12 @@ uint16 convoi_t::get_total_cargo_by_fare_class(uint8 catg, uint8 g_class) const
 
 uint16 convoi_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
 {
-	if ((catg == goods_manager_t::INDEX_PAS && g_class >= goods_manager_t::passengers->get_number_of_classes())
-		|| (catg == goods_manager_t::INDEX_MAIL && g_class >= goods_manager_t::mail->get_number_of_classes()))
+	if (g_class != 255 && ((catg == goods_manager_t::INDEX_PAS && g_class >= goods_manager_t::passengers->get_number_of_classes())
+		|| (catg == goods_manager_t::INDEX_MAIL && g_class >= goods_manager_t::mail->get_number_of_classes())))
 	{
 		return 0;
 	}
-	else if(catg != goods_manager_t::INDEX_PAS && catg != goods_manager_t::INDEX_MAIL && g_class>0){
+	else if(catg != goods_manager_t::INDEX_PAS && catg != goods_manager_t::INDEX_MAIL && (g_class>0 && g_class!=255)){
 		return 0; // freight does not have classes
 	}
 
@@ -8436,7 +8436,7 @@ uint16 convoi_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
 		if (v.get_cargo_type()->get_catg_index() != catg) {
 			continue;
 		}
-		sum += v.get_fare_capacity(g_class);
+		sum += g_class == 255 ? v.get_fare_capacity(goods_manager_t::get_classes_catg_index(catg)-1, true) : v.get_fare_capacity(g_class);
 	}
 	return sum;
 }
