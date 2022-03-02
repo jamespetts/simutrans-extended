@@ -288,7 +288,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 			const uint32 sum = halt->get_ware_summe(wtyp);
 			if (sum > 0) {
 				buf.clear();
-				display_colorbox_with_tooltip(offset.x + xoff, offset.y, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, wtyp->get_color(), false, NULL);
+				display_colorbox_with_tooltip(offset.x + xoff, offset.y + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, wtyp->get_color(), false, NULL);
 				xoff += GOODS_COLOR_BOX_HEIGHT+2;
 
 				buf.printf("%s ", translator::translate(wtyp->get_name()));
@@ -306,7 +306,6 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 	}
 
 	set_size( scr_size(xoff+D_H_SPACE*2, D_LABEL_HEIGHT) );
-	gui_container_t::draw(offset);
 }
 
 

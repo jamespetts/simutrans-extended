@@ -75,7 +75,7 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
-class gui_halt_waiting_catg_t : public gui_container_t
+class gui_halt_waiting_catg_t : public gui_component_t
 {
 	halthandle_t halt;
 	uint8 catg_index;
