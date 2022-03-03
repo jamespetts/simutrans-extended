@@ -526,7 +526,6 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 		cont_charts.add_component(filterButtons + i);
 	}
 	info_tabs.add_tab(&cont_charts, translator::translate("Chart"));
-	info_tabs.set_active_tab_index(selected_convoy_tab);
 
 	cont_times_history.set_table_layout(1,0);
 	info_tabs.add_tab(&scroll_times_history, translator::translate("times_history"));
@@ -562,6 +561,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 		bt_new_line.disable();
 	}
 	update_lineinfo( line );
+	info_tabs.set_active_tab_index(selected_convoy_tab);
 
 	// resize button
 	set_min_windowsize(scr_size(LINE_NAME_COLUMN_WIDTH + D_BUTTON_WIDTH*3 + D_MARGIN_LEFT*2, L_DEFAULT_WINDOW_HEIGHT));
