@@ -158,13 +158,7 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		// since we get can grab the focus to get keyboard events, we must make sure to handle mouse events only if we are hit
 
 		// we will handle dragging ourselves inf not prevented
-		if(  b_can_drag  &&  ev->ev_class == EVENT_CLICK  ||  b_is_dragging  &&  (ev->ev_class == EVENT_DRAG  ||  ev->ev_class == EVENT_RELEASE)  ) {
-			// init dragging?
-			if(  ev->ev_class == EVENT_CLICK  ) {
-				origin = ev->mouse_pos;
-				b_is_dragging = true;
-				return true;
-			}
+		if( b_is_dragging && ev->ev_class < INFOWIN ) {
 			// now drag: scrollbars are not in pixel, but we will scroll one unit per pixels ...
 			scroll_x.set_knob_offset(scroll_x.get_knob_offset() - (ev->mouse_pos.x - origin.x));
 			scroll_y.set_knob_offset(scroll_y.get_knob_offset() - (ev->mouse_pos.y - origin.y));
@@ -192,8 +186,18 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		// hand event to component
 		swallow = comp->infowin_event(&ev2);
 
+		if(  !swallow  &&  b_can_drag  &&  (ev->ev_class == EVENT_CLICK || ev->ev_class == EVENT_DRAG)  ) {
+			// init dragging? (Android SDL starts dragging without preceeding click!)
+			if(!b_is_dragging) {
+				origin = ev->mouse_pos;
+				b_is_dragging = true;
+				return true;
+			}
+		}
+
 		// check if we need to scroll to the focused component
-		if(  get_focus()  &&  focused != get_focus()  ) {
+		gui_component_t *new_focus = get_focus();
+		if(new_focus &&  focused != new_focus) {
 			show_focused();
 		}
 
