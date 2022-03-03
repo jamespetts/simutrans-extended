@@ -121,6 +121,7 @@ static const char * line_alert_helptexts[5] =
 enum sort_modes_t { SORT_BY_NAME=0, SORT_BY_ID, SORT_BY_PROFIT, SORT_BY_TRANSPORTED, SORT_BY_CONVOIS, SORT_BY_DISTANCE, MAX_SORT_MODES };
 
 static uint8 current_sort_mode = 0;
+static uint8 current_hw_display_mode = 0;
 
 #define LINE_NAME_COLUMN_WIDTH ((D_BUTTON_WIDTH*3)+11+4)
 #define SCL_HEIGHT (min(L_DEFAULT_WINDOW_HEIGHT/2+D_TAB_HEADER_HEIGHT,(15*LINESPACE)))
@@ -219,7 +220,19 @@ void gui_line_waiting_status_t::init()
 
 				for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
 					if (line->get_goods_catg_index().is_contained(catg_index)) {
-						new_component<gui_halt_waiting_catg_t>(halt, catg_index, line);
+						switch (current_hw_display_mode)
+						{
+							default:
+							case 0:
+								new_component<gui_halt_waiting_catg_t>(halt, catg_index);
+								break;
+							case 1:
+								new_component<gui_halt_waiting_catg_t>(halt, catg_index, line);
+								break;
+							case 2:
+								new_component<gui_halt_waiting_catg_bar_t>(halt, catg_index, line);
+								break;
+						}
 					}
 				}
 			}
@@ -531,11 +544,23 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	info_tabs.add_tab(&scroll_times_history, translator::translate("times_history"));
 
 	cont_tab_haltlist.set_table_layout(1,0);
-	bt_show_halt_name.init(button_t::square_state, "show station names");
-	bt_show_halt_name.set_tooltip("helptxt_show_station_name");
-	bt_show_halt_name.pressed=true;
-	bt_show_halt_name.add_listener(this);
-	cont_tab_haltlist.add_component(&bt_show_halt_name);
+	cont_tab_haltlist.add_table(3,1);
+	{
+		bt_show_halt_name.init(button_t::square_state, "show station names");
+		bt_show_halt_name.set_tooltip("helptxt_show_station_name");
+		bt_show_halt_name.pressed=true;
+		bt_show_halt_name.add_listener(this);
+		cont_tab_haltlist.add_component(&bt_show_halt_name);
+		hwdm_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("waiting_for_all_txt"), SYSCOL_TEXT);
+		hwdm_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("waiting_for_this_line_txt"), SYSCOL_TEXT);
+		hwdm_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("waiting_for_this_line_graph"), SYSCOL_TEXT);
+		hwdm_selector.add_listener(this);
+		hwdm_selector.set_selection(current_hw_display_mode);
+		cont_tab_haltlist.add_component(&hwdm_selector);
+		cont_tab_haltlist.new_component<gui_fill_t>();
+	}
+	cont_tab_haltlist.end_table();
+
 	cont_tab_haltlist.add_component(&cont_haltlist);
 	info_tabs.add_tab(&scrolly_haltestellen, translator::translate("waiting_status"));
 
@@ -788,6 +813,10 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 	else if (comp == &bt_show_halt_name) {
 		bt_show_halt_name.pressed = !bt_show_halt_name.pressed;
 		cont_haltlist.set_show_name( bt_show_halt_name.pressed );
+	}
+	else if (comp == &hwdm_selector) {
+		current_hw_display_mode = max(0, v.i);
+		cont_haltlist.init();
 	}
 	else {
 		if (line.is_bound()) {

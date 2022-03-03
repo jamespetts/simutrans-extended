@@ -130,7 +130,7 @@ private:
 	static bool compare_convois(convoihandle_t, convoihandle_t);
 	void sort_list();
 
-	gui_combobox_t livery_selector, sortedby;
+	gui_combobox_t livery_selector, sortedby, hwdm_selector;
 
 	uint8 get_filter_type_bits() { return line_type_flags; }
 

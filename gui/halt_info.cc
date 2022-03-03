@@ -7,8 +7,8 @@
 #include "halt_info.h"
 #include "components/gui_button_to_chart.h"
 #include "components/gui_divider.h"
-#include "components/gui_line_lettercode.h"
 #include "components/gui_halt_indicator.h"
+#include "components/gui_line_lettercode.h"
 
 #include "../simworld.h"
 #include "../simware.h"
@@ -265,7 +265,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 			if (wtyp->get_catg_index() != catg_index) {
 				continue;
 			}
-			const uint32 sum = halt->get_ware_summe(wtyp, line);
+			const uint32 sum = line.is_bound() ? halt->get_ware_summe(wtyp, line) : halt->get_ware_summe(wtyp);
 			if (sum > 0) {
 				buf.clear();
 				display_colorbox_with_tooltip(offset.x + xoff, offset.y + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, wtyp->get_color(), false, NULL);
@@ -286,6 +286,57 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 	}
 
 	set_size( scr_size(xoff+D_H_SPACE*2, D_LABEL_HEIGHT) );
+}
+
+
+void gui_halt_waiting_catg_bar_t::draw(scr_coord offset)
+{
+	offset += pos;
+	scr_coord_val xoff = D_H_SPACE;
+	uint8 g_class = goods_manager_t::get_classes_catg_index(catg_index) - 1;
+	haltestelle_t::connexions_map *connexions = halt->get_connexions(catg_index, g_class);
+	const uint32 catg_sum = halt->get_ware_summe(catg_index, line);
+	const uint16 capacity = line->get_unique_fare_capacity(catg_index, 255);
+	if (connexions->empty() || !capacity) {
+		// no connection
+		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, "-", ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
+	}
+	else if (catg_sum) {
+		uint32 waiting_for_this_line = 0;
+		for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
+			const goods_desc_t *wtyp = goods_manager_t::get_info(j);
+			if (wtyp->get_catg_index() != catg_index) {
+				continue;
+			}
+			const uint32 goods_sum = halt->get_ware_summe(wtyp, line);
+			if (goods_sum > 0) {
+				waiting_for_this_line += goods_sum;
+				scr_coord_val width= goods_sum   *   100/max(capacity,catg_sum);
+				display_cylinderbar_wh_clip_rgb(offset.x + xoff, offset.y + D_LABEL_HEIGHT/6, width, D_LABEL_HEIGHT*2/3, wtyp->get_color(), true);
+				xoff += width;
+			}
+		}
+
+		if (waiting_for_this_line>capacity) {
+			// Cargo in excess of line capacity has accumulated.
+			xoff+=3;
+			display_fillbox_wh_clip_rgb(offset.x+xoff,   offset.y+D_GET_CENTER_ALIGN_OFFSET(5,D_LABEL_HEIGHT)+1, 4, 3, SYSCOL_TEXT_HIGHLIGHT, false);
+			display_fillbox_wh_clip_rgb(offset.x+xoff+2, offset.y+D_GET_CENTER_ALIGN_OFFSET(5,D_LABEL_HEIGHT),   1, 5, SYSCOL_TEXT_HIGHLIGHT, false);
+			display_fillbox_wh_clip_rgb(offset.x+xoff+4, offset.y+D_GET_CENTER_ALIGN_OFFSET(5,D_LABEL_HEIGHT)+2, 1, 1, SYSCOL_TEXT_HIGHLIGHT, false);
+			xoff+=5;
+		}
+
+		xoff += D_H_SPACE;
+
+		buf.clear();
+		buf.printf("%u", waiting_for_this_line);
+		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, (waiting_for_this_line>capacity) ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT, true);
+	}
+	else {
+		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, "0", ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
+	}
+
+	set_size(scr_size(xoff + D_H_SPACE * 2, D_LABEL_HEIGHT));
 }
 
 

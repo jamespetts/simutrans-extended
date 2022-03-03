@@ -58,12 +58,15 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
+// display in text
 class gui_halt_waiting_catg_t : public gui_component_t
 {
+protected:
 	halthandle_t halt;
 	linehandle_t line;
 	uint8 catg_index;
 	cbuffer_t buf;
+
 public:
 	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t line=linehandle_t());
 
@@ -72,6 +75,20 @@ public:
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
+
+// display in bar
+class gui_halt_waiting_catg_bar_t : public gui_halt_waiting_catg_t
+{
+public:
+	gui_halt_waiting_catg_bar_t(halthandle_t h, uint8 catg, linehandle_t line = linehandle_t())
+		: gui_halt_waiting_catg_t(h, catg, line) { };
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
 
 class gui_halt_waiting_summary_t : public gui_container_t
 {
