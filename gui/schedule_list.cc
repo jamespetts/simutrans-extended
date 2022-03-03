@@ -1275,8 +1275,8 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		cont_transport_density.remove_all();
 		if (float line_distance = new_line->get_travel_distance()*world()->get_settings().get_meters_per_tile()/100.0) {
 			cont_transport_density.new_component<gui_empty_t>();
-			cont_transport_density.new_component<gui_label_t>("Last Month", gui_label_t::centered);
-			cont_transport_density.new_component<gui_label_t>("Yearly average", gui_label_t::centered);
+			cont_transport_density.new_component<gui_label_t>("Last Month", SYSCOL_TEXT, gui_label_t::centered);
+			cont_transport_density.new_component<gui_label_t>("Yearly average", SYSCOL_TEXT, gui_label_t::centered);
 			cont_transport_density.new_component<gui_empty_t>();
 			// pax
 			if (new_line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
