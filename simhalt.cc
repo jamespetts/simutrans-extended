@@ -2887,7 +2887,7 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, linehandle_t line
 	return sum;
 }
 
-uint32 haltestelle_t::get_ware_summe(uint8 carg_index) const
+uint32 haltestelle_t::get_ware_summe(uint8 carg_index, linehandle_t line) const
 {
 	if (gibt_ab(goods_manager_t::get_info_catg_index(carg_index))) {
 		if (carg_index == goods_manager_t::INDEX_PAS) {
@@ -2906,7 +2906,12 @@ uint32 haltestelle_t::get_ware_summe(uint8 carg_index) const
 			if (wtyp2->get_catg_index() != carg_index) {
 				continue;
 			}
-			sum += get_ware_summe(wtyp2);
+			if (line.is_bound()) {
+				sum += get_ware_summe(wtyp2, line);
+			}
+			else {
+				sum += get_ware_summe(wtyp2);
+			}
 		}
 		return sum;
 	}
