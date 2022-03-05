@@ -165,6 +165,7 @@ void gui_factory_stats_t::update_table()
 					image.set_image(IMG_EMPTY);
 				}
 				add_component(&image);
+				realtime_buf.set_tooltip(translator::translate("symbol_help_txt_in_transit"));
 				add_component(&realtime_buf);
 
 				add_component(&receipt_status);
