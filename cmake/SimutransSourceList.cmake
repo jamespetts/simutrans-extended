@@ -169,6 +169,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
+	gui/linelist_stats_t.cc
 	gui/line_class_manager.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc

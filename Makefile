@@ -443,6 +443,7 @@ SOURCES += gui/kennfarbe.cc
 SOURCES += gui/label_info.cc
 SOURCES += gui/labellist_frame_t.cc
 SOURCES += gui/labellist_stats_t.cc
+SOURCES += gui/linelist_stats_t.cc
 SOURCES += gui/line_class_manager.cc
 SOURCES += gui/line_color_gui.cc
 SOURCES += gui/line_item.cc
