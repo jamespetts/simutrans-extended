@@ -2362,6 +2362,7 @@
     <ClCompile Include="gui\label_info.cc" />
     <ClCompile Include="gui\labellist_frame_t.cc" />
     <ClCompile Include="gui\labellist_stats_t.cc" />
+    <ClCompile Include="gui\linelist_stats_t.cc" />
     <ClCompile Include="gui\line_management_gui.cc" />
     <ClCompile Include="gui\load_relief_frame.cc" />
     <ClCompile Include="dataobj\loadsave.cc" />
@@ -2853,6 +2854,7 @@
     <ClInclude Include="gui\label_info.h" />
     <ClInclude Include="gui\labellist_frame_t.h" />
     <ClInclude Include="gui\labellist_stats_t.h" />
+    <ClInclude Include="gui\linelist_stats_t.h" />
     <ClInclude Include="dings\lagerhaus.h" />
     <ClInclude Include="gui\line_item.h" />
     <ClInclude Include="gui\line_management_gui.h" />
