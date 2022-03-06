@@ -28,6 +28,53 @@
 static const sint64 FAB_DISPLAY_UNIT_HALF = ((sint64)1 << (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS - 1));
 
 
+gui_operation_status_t::gui_operation_status_t(PIXVAL c)
+{
+	color = c;
+	tooltip = NULL;
+	gui_component_t::set_size(scr_size(D_FIXED_SYMBOL_WIDTH, LINESPACE));
+}
+
+void gui_operation_status_t::draw(scr_coord offset)
+{
+	offset += pos;
+	const uint8 yoff = D_GET_CENTER_ALIGN_OFFSET(GOODS_COLOR_BOX_HEIGHT, size.h);
+	switch (status)
+	{
+		case operation_stop:
+			display_fillbox_wh_clip_rgb(offset.x+2, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT-2, GOODS_COLOR_BOX_HEIGHT-2, color, false);
+			break;
+		case operation_pause:
+			display_fillbox_wh_clip_rgb(offset.x+1,   offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
+			display_fillbox_wh_clip_rgb(offset.x+1+ GOODS_COLOR_BOX_HEIGHT/3*2, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
+			break;
+		case operation_normal:
+			display_right_pointer_rgb(offset.x, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT, color, false);
+			break;
+		case operation_caution:
+			if (skinverwaltung_t::alerts) {
+				display_color_img(skinverwaltung_t::alerts->get_image_id(2), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
+			}
+			else {
+				display_proportional_clip_rgb(offset.x, offset.y, "!", ALIGN_LEFT, COL_CAUTION, false);
+			}
+			break;
+		case operation_warning:
+			if (skinverwaltung_t::alerts) {
+				display_color_img(skinverwaltung_t::alerts->get_image_id(4), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
+			}
+			else {
+				display_proportional_clip_rgb(offset.x, offset.y, "X", ALIGN_LEFT, COL_CAUTION, false);
+			}
+			break;
+		case operation_invalid:
+		default:
+			break;
+	}
+}
+
+
+
 gui_factory_storage_bar_t::gui_factory_storage_bar_t(const ware_production_t *ware, uint32 factor, bool is_input)
 {
 	this->ware = ware;

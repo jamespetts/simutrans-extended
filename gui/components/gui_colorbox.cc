@@ -68,35 +68,6 @@ void gui_right_pointer_t::draw(scr_coord offset)
 }
 
 
-gui_operation_status_t::gui_operation_status_t(PIXVAL c)
-{
-	color = c;
-	tooltip = NULL;
-	gui_component_t::set_size(GOODS_COLOR_BOX_SIZE);
-}
-
-void gui_operation_status_t::draw(scr_coord offset)
-{
-		offset += pos;
-		switch (status)
-		{
-			case operation_stop:
-				display_fillbox_wh_clip_rgb(offset.x+1, offset.y+1, size.h-2, size.h-2, color, true);
-				break;
-			case operation_pause:
-				display_fillbox_wh_clip_rgb(offset.x+1,   offset.y+1, size.h/3, size.h-2, color, true);
-				display_fillbox_wh_clip_rgb(offset.x+1+ size.h/3*2, offset.y+1, size.h/3, size.h-2, color, true);
-				break;
-			case operation_normal:
-				display_right_pointer_rgb(offset.x, offset.y, size.h, color, true);
-				break;
-			case operation_invalid:
-			default:
-				break;
-		}
-}
-
-
 gui_vehicle_bar_t::gui_vehicle_bar_t(PIXVAL c, scr_size size)
 {
 	color = c;

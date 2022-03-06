@@ -7,7 +7,7 @@
 #define GUI_FACTORYLIST_STATS_T_H
 
 
-#include "components/gui_colorbox.h"
+#include "components/gui_factory_storage_info.h"
 #include "components/gui_image.h"
 #include "components/gui_label.h"
 #include "components/gui_scrolled_list.h"
