@@ -174,7 +174,7 @@ void gui_factory_stats_t::update_table()
 					add_component(&input_bar);
 				}
 				else {
-					new_component<gui_margin_t>(LINESPACE*5);
+					new_component<gui_margin_t>(min(100,LINESPACE*6));
 				}
 
 				add_component(&producing_status);
@@ -539,9 +539,8 @@ factorylist_stats_t::factorylist_stats_t(fabrik_t *fab)
 	button_t *b = new_component<button_t>();
 	b->set_typ(button_t::posbutton_automatic);
 	b->set_targetpos3d(fab->get_pos());
-	// indicator bar
-	indicator.init(COL_INACTIVE, scr_size(D_INDICATOR_WIDTH,D_INDICATOR_HEIGHT),true,false);
-	add_component(&indicator);
+	// oporation status
+	new_component<gui_factory_operation_status_t>(fab);
 	// factory name
 	add_component(&lb_name);
 	update_label();
@@ -594,8 +593,6 @@ bool factorylist_stats_t::infowin_event(const event_t * ev)
 void factorylist_stats_t::draw(scr_coord pos)
 {
 	update_label();
-
-	indicator.set_color( color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status()]) );
 
 	if (win_get_magic((ptrdiff_t)fab)) {
 		display_blend_wh_rgb(pos.x + get_pos().x, pos.y + get_pos().y, get_size().w, get_size().h, SYSCOL_TEXT_HIGHLIGHT, 30);

@@ -50,7 +50,7 @@ public:
 	gui_combined_factory_storage_bar_t(fabrik_t *fab, bool is_output=false);
 
 	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, GOODS_COLOR_BOX_HEIGHT); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(min(100,LINESPACE*6), GOODS_COLOR_BOX_HEIGHT); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
@@ -98,8 +98,6 @@ class factorylist_stats_t : public gui_aligned_container_t, public gui_scrolled_
 {
 private:
 	fabrik_t *fab;
-	gui_colorbox_t indicator;
-	//gui_image_t halt_connected; // TODO:
 	gui_label_buf_t lb_name;
 
 	gui_factory_stats_t *swichable_info;

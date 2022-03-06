@@ -51,6 +51,15 @@ public:
 };
 
 
+class gui_factory_operation_status_t : public gui_operation_status_t
+{
+	fabrik_t *fab;
+public:
+	gui_factory_operation_status_t(fabrik_t *factory);
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 
 /**
  * Helper class to draw a factory storage bar
@@ -65,7 +74,7 @@ public:
 	gui_factory_storage_bar_t(const ware_production_t* ware, uint32 factor, bool is_input_item = false);
 
 	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, GOODS_COLOR_BOX_HEIGHT); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(min(100,LINESPACE*6), GOODS_COLOR_BOX_HEIGHT); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 

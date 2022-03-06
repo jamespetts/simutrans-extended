@@ -45,8 +45,8 @@ void gui_operation_status_t::draw(scr_coord offset)
 			display_fillbox_wh_clip_rgb(offset.x+2, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT-2, GOODS_COLOR_BOX_HEIGHT-2, color, false);
 			break;
 		case operation_pause:
-			display_fillbox_wh_clip_rgb(offset.x+1,   offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
-			display_fillbox_wh_clip_rgb(offset.x+1+ GOODS_COLOR_BOX_HEIGHT/3*2, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
+			display_fillbox_wh_clip_rgb(offset.x+2,   offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
+			display_fillbox_wh_clip_rgb(offset.x+2+ GOODS_COLOR_BOX_HEIGHT/3*2, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT/3, GOODS_COLOR_BOX_HEIGHT-2, color, false);
 			break;
 		case operation_normal:
 			display_right_pointer_rgb(offset.x, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT, color, false);
@@ -77,6 +77,32 @@ void gui_operation_status_t::draw(scr_coord offset)
 }
 
 
+gui_factory_operation_status_t::gui_factory_operation_status_t(fabrik_t *factory) : gui_operation_status_t{}
+{
+	fab = factory;
+}
+
+void gui_factory_operation_status_t::draw(scr_coord offset)
+{
+	const uint8 avtivity_score = min(6, (uint8)((fab->get_stat(0, FAB_PRODUCTION) + 1999) / 2000));
+	const PIXVAL producing_status_color = color_idx_to_rgb(severity_color[avtivity_score]);
+	set_color((!avtivity_score && fab->is_staff_shortage()) ? COL_STAFF_SHORTAGE : producing_status_color);
+	if (avtivity_score) {
+		set_status(gui_operation_status_t::operation_ok);
+	}
+	else if (fab->get_nearby_freight_halts().empty()) {
+		set_status(gui_operation_status_t::operation_invalid);
+	}
+	else if (!fab->get_output().empty() && fab->get_total_out() == fab->get_total_output_capacity()) {
+		// The output inventory is full, so it is suspending production
+		set_status(gui_operation_status_t::operation_pause);
+	}
+	else {
+		set_status(gui_operation_status_t::operation_stop);
+	}
+
+	gui_operation_status_t::draw(offset);
+}
 
 gui_factory_storage_bar_t::gui_factory_storage_bar_t(const ware_production_t *ware, uint32 factor, bool is_input)
 {
