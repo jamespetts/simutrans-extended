@@ -92,7 +92,7 @@ void gui_factory_product_item_t::init_table()
 		add_component(&operation_status);
 	}
 	new_component<gui_image_t>(desc->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
-	new_component<gui_colorbox_t>(desc->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));
+	new_component<gui_colorbox_t>(desc->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 	new_component<gui_label_t>(desc->get_name(), ware->get_typ()->is_available() ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
 	// material delivered status for output (vs consumer)
 	if (!is_input_item) {

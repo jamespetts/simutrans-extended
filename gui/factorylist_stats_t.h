@@ -50,7 +50,7 @@ public:
 	gui_combined_factory_storage_bar_t(fabrik_t *fab, bool is_output=false);
 
 	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*6, LINEASCENT-2); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, GOODS_COLOR_BOX_HEIGHT); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 

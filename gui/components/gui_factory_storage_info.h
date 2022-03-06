@@ -39,7 +39,7 @@ public:
 	gui_factory_storage_bar_t(const ware_production_t* ware, uint32 factor, bool is_input_item = false);
 
 	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, LINEASCENT-2); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(LINESPACE*5, GOODS_COLOR_BOX_HEIGHT); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
