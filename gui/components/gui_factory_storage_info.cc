@@ -427,6 +427,10 @@ gui_freight_halt_stat_t::gui_freight_halt_stat_t(halthandle_t halt)
 		bt_show_halt_network.init( button_t::roundbox, "Networks" );
 		bt_show_halt_network.set_tooltip( translator::translate("Open the minimap window to show the freight network of this stop") );
 		bt_show_halt_network.add_listener(this);
+		if (skinverwaltung_t::open_window) {
+			bt_show_halt_network.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_show_halt_network.set_image_position_right(true);
+		}
 		add_component(&bt_show_halt_network);
 	}
 }
