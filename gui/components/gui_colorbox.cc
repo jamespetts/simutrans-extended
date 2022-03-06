@@ -68,12 +68,12 @@ void gui_right_pointer_t::draw(scr_coord offset)
 }
 
 
-gui_operation_status_t::gui_operation_status_t(PIXVAL c, uint8 height_)
+gui_operation_status_t::gui_operation_status_t(PIXVAL c)
 {
-	height = height_;
 	color = c;
 	tooltip = NULL;
-	gui_component_t::set_size(scr_size(height, height));
+	scr_coord_val h = (LINEASCENT>>1)+2;
+	gui_component_t::set_size(scr_size(h, h));
 }
 
 void gui_operation_status_t::draw(scr_coord offset)
@@ -82,14 +82,14 @@ void gui_operation_status_t::draw(scr_coord offset)
 		switch (status)
 		{
 			case operation_stop:
-				display_fillbox_wh_clip_rgb(offset.x+1, offset.y+1, height-2, height-2, color, true);
+				display_fillbox_wh_clip_rgb(offset.x+1, offset.y+1, size.h-2, size.h-2, color, true);
 				break;
 			case operation_pause:
-				display_fillbox_wh_clip_rgb(offset.x+1,   offset.y+1, height/3, height-2, color, true);
-				display_fillbox_wh_clip_rgb(offset.x+1+height/3*2, offset.y+1, height/3, height-2, color, true);
+				display_fillbox_wh_clip_rgb(offset.x+1,   offset.y+1, size.h/3, size.h-2, color, true);
+				display_fillbox_wh_clip_rgb(offset.x+1+ size.h/3*2, offset.y+1, size.h/3, size.h-2, color, true);
 				break;
 			case operation_normal:
-				display_right_pointer_rgb(offset.x, offset.y, height, color, true);
+				display_right_pointer_rgb(offset.x, offset.y, size.h, color, true);
 				break;
 			case operation_invalid:
 			default:
