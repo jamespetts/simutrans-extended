@@ -34,10 +34,11 @@ public:
 
 	enum {
 		operation_stop   = 0,
-		operation_normal = 1,
-		operation_pause  = 2,
-		operation_caution = 3,  // alert symbol
-		operation_warning = 4,  // alert symbol
+		operation_pause  = 1,
+		operation_normal = 2,   // right pointer
+		operation_ok     = 3,   // circle
+		operation_caution = 4,  // alert symbol
+		operation_warning = 5,  // alert symbol
 		operation_invalid = 255 // nothing to show
 	};
 

@@ -51,6 +51,9 @@ void gui_operation_status_t::draw(scr_coord offset)
 		case operation_normal:
 			display_right_pointer_rgb(offset.x, offset.y+yoff, GOODS_COLOR_BOX_HEIGHT, color, false);
 			break;
+		case operation_ok:
+			display_filled_circle_rgb(offset.x+(GOODS_COLOR_BOX_HEIGHT>>1)+1, offset.y+yoff+(GOODS_COLOR_BOX_HEIGHT>>1), GOODS_COLOR_BOX_HEIGHT>>1, color);
+			break;
 		case operation_caution:
 			if (skinverwaltung_t::alerts) {
 				display_color_img(skinverwaltung_t::alerts->get_image_id(2), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
