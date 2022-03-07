@@ -840,7 +840,14 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 		}
 
 		default_sortmode = (sort_mode_t)sort_mode;
-		sortedby.set_selection(default_sortmode);
+		if (default_sortmode >= 0 && default_sortmode < sortedby.count_elements()) {
+			sortedby.set_selection(default_sortmode);
+			sortby = (halt_list_frame_t::sort_mode_t)default_sortmode;
+		}
+		else {
+			sortedby.set_selection(0);
+			sortby = halt_list_frame_t::nach_name;
+		}
 		m_player = filter_city ? welt->get_public_player() : welt->get_player(player_nr);
 		set_owner(m_player);
 		win_set_magic(this, magic_halt_list + player_nr);
