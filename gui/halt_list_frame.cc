@@ -227,7 +227,7 @@ bool halt_list_frame_t::compare_halts(halthandle_t const halt1, halthandle_t con
 		}
 		case by_pax_handled_last_month:
 		{
-			const int hist_a = halt1->get_pax_enabled() ? halt1->get_finance_history(1, HALT_VISITORS)+halt2->get_finance_history(1, HALT_COMMUTERS) : -1;
+			const int hist_a = halt1->get_pax_enabled() ? halt1->get_finance_history(1, HALT_VISITORS)+halt1->get_finance_history(1, HALT_COMMUTERS) : -1;
 			const int hist_b = halt2->get_pax_enabled() ? halt2->get_finance_history(1, HALT_VISITORS)+halt2->get_finance_history(1, HALT_COMMUTERS) : -1;
 			order = (int)(hist_a - hist_b);
 			break;
