@@ -166,6 +166,7 @@ void gui_factory_stats_t::update_table()
 				}
 				add_component(&image);
 				realtime_buf.set_tooltip(translator::translate("symbol_help_txt_in_transit"));
+				realtime_buf.set_fixed_width(LINEASCENT*4);
 				add_component(&realtime_buf);
 
 				add_component(&receipt_status);
@@ -197,8 +198,10 @@ void gui_factory_stats_t::update_table()
 			const uint8 goods_count = (display_mode==factorylist_stats_t::fl_goods_needed) ? fab->get_input().get_count() : fab->get_output().get_count();
 			const uint8 storage_index = (display_mode == factorylist_stats_t::fl_goods_needed) ? 0:1;
 			if (goods_count>0) {
-				add_table(2,1);
+				add_table(3,1);
 				{
+					realtime_buf.set_fixed_width(proportional_string_width("88888.8t"));
+					add_component(&realtime_buf);
 					new_component<gui_image_t>()->set_image(skinverwaltung_t::input_output ? skinverwaltung_t::input_output->get_image_id(storage_index) : IMG_EMPTY, true);
 					add_table(goods_manager_t::get_max_catg_index()-goods_manager_t::INDEX_NONE-1,1)->set_spacing(scr_size(0,0));
 					{
@@ -346,7 +349,7 @@ void gui_factory_stats_t::update_table()
 
 			stadt_t* c = world()->get_city(fab->get_pos().get_2d());
 			if (c) {
-				new_component<gui_image_t>()->set_image(skinverwaltung_t::intown->get_image_id(0), true);
+				new_component<gui_image_t>(skinverwaltung_t::intown->get_image_id(0), 0, 0, true);
 			}
 			else {
 				new_component<gui_empty_t>();
@@ -523,6 +526,32 @@ void gui_factory_stats_t::draw(scr_coord offset)
 			realtime_buf.update();
 			break;
 		}
+		case factorylist_stats_t::fl_goods_needed:
+			if (!fab->get_input().empty()) {
+				sint64 total_consume = 0;
+				FOR(array_tpl<ware_production_t>, const& material, fab->get_input()) {
+					goods_desc_t const* const ware = material.get_typ();
+					total_consume += convert_goods(material.get_stat(0, FAB_GOODS_CONSUMED)*ware->get_weight_per_unit())/100;
+				}
+				realtime_buf.buf().printf("%.1ft", total_consume / 10.0);
+				realtime_buf.init(SYSCOL_TEXT, gui_label_t::right);
+				realtime_buf.set_tooltip(translator::translate("Consumed"));
+				realtime_buf.update();
+			}
+			break;
+		case factorylist_stats_t::fl_product:
+			if (!fab->get_output().empty()) {
+				sint64 total_out = 0;
+				FOR(array_tpl<ware_production_t>, const& material, fab->get_output()) {
+					goods_desc_t const* const ware = material.get_typ();
+					total_out += material.get_stat(0, FAB_GOODS_DELIVERED)*ware->get_weight_per_unit()/100;
+				}
+				realtime_buf.buf().printf("%.1ft", total_out/10.0);
+				realtime_buf.init(SYSCOL_TEXT, gui_label_t::right);
+				realtime_buf.set_tooltip(translator::translate("Delivered"));
+				realtime_buf.update();
+			}
+			break;
 		case factorylist_stats_t::fl_activity:
 		default:
 			break;
@@ -643,6 +672,58 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 		case factorylist::by_maxprod:
 			cmp = a->get_base_production()*a->get_prodfactor() - b->get_base_production()*b->get_prodfactor();
 			break;
+
+		case factorylist::by_consume:
+		{
+			int a_consumed = 0;
+			int b_consumed = 0;
+			if (!a->get_input().empty()) {
+				FOR(array_tpl<ware_production_t>, const& material, a->get_input()) {
+					goods_desc_t const* const ware = material.get_typ();
+					a_consumed += convert_goods(material.get_stat(0, FAB_GOODS_CONSUMED)*ware->get_weight_per_unit());
+				}
+			}
+			else {
+				a_consumed = -1;
+			}
+			if (!b->get_input().empty()) {
+				FOR(array_tpl<ware_production_t>, const& material, b->get_input()) {
+					goods_desc_t const* const ware = material.get_typ();
+					b_consumed += convert_goods(material.get_stat(0, FAB_GOODS_CONSUMED)*ware->get_weight_per_unit());
+				}
+			}
+			else {
+				b_consumed = -1;
+			}
+			cmp = a_consumed - b_consumed;
+			break;
+		}
+
+		case factorylist::by_delivered:
+		{
+			int a_delivered = 0;
+			int b_delivered = 0;
+			if (!a->get_output().empty()) {
+				FOR(array_tpl<ware_production_t>, const& material, a->get_output()) {
+					goods_desc_t const* const ware = material.get_typ();
+					a_delivered += material.get_stat(0, FAB_GOODS_DELIVERED)*ware->get_weight_per_unit();
+				}
+			}
+			else {
+				a_delivered = -1;
+			}
+			if (!b->get_output().empty()) {
+				FOR(array_tpl<ware_production_t>, const& material, b->get_output()) {
+					goods_desc_t const* const ware = material.get_typ();
+					b_delivered += material.get_stat(0, FAB_GOODS_DELIVERED)*ware->get_weight_per_unit();
+				}
+			}
+			else {
+				b_delivered = -1;
+			}
+			cmp = a_delivered - b_delivered;
+			break;
+		}
 
 		case factorylist::by_status:
 			cmp = a->get_status() - b->get_status();

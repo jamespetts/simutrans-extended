@@ -23,6 +23,8 @@ namespace factorylist {
 		by_input,
 		by_output,
 		by_maxprod,
+		by_consume,
+		by_delivered,
 		by_status,
 		by_power,
 		by_sector,
