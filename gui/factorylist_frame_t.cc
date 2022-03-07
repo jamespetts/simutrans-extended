@@ -16,6 +16,7 @@ uint8 factorylist_frame_t::factory_type_filter_bits = 255;
 
 const char *factorylist_frame_t::sort_text[factorylist::SORT_MODES] = {
 	"Fabrikname",
+	"Operation rate",
 	"Input",
 	"Output",
 	"Produktion",
@@ -25,7 +26,8 @@ const char *factorylist_frame_t::sort_text[factorylist::SORT_MODES] = {
 	"Power",
 	"Sector",
 	"Staffing",
-	"Operation rate",
+	"Visitor demand",
+	"consumer_arivals",
 	"by_region"
 };
 
@@ -36,6 +38,7 @@ const char *factorylist_frame_t::display_mode_text[factorylist_stats_t::FACTORYL
 	"fl_stats_last_month",
 	"Needed",
 	"Products",
+	"Passagiere",
 	"fl_btn_region"
 };
 

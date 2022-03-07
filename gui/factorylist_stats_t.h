@@ -20,6 +20,7 @@ class fabrik_t;
 namespace factorylist {
 	enum sort_mode_t {
 		by_name = 0,
+		by_operation_rate,
 		by_input,
 		by_output,
 		by_maxprod,
@@ -29,7 +30,8 @@ namespace factorylist {
 		by_power,
 		by_sector,
 		by_staffing,
-		by_operation_rate,
+		by_visitor_demand,
+		by_consumer_arivals,
 		by_region,
 		SORT_MODES,
 
@@ -114,6 +116,7 @@ public:
 		fl_activity,
 		fl_goods_needed,
 		fl_product,
+		fl_passengers,
 		fl_location,
 		FACTORYLIST_MODES
 	};

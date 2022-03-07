@@ -336,6 +336,33 @@ void gui_factory_stats_t::update_table()
 			}
 			break;
 
+		case factorylist_stats_t::fl_passengers:
+		{
+			add_table(6,1)->set_spacing(scr_size(0,0));
+			new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true)->set_tooltip(translator::translate("Visitor demand"));
+			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+			if (gebaeude_t *gb = fab->get_building()) {
+				lb->buf().printf("%d", gb->get_adjusted_visitor_demand());
+				lb->set_fixed_width(LINEASCENT*4);
+			}
+			lb->update();
+
+			new_component<gui_margin_t>(D_H_SPACE*2);
+			new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+
+			realtime_buf.init(SYSCOL_TEXT, gui_label_t::right);
+			realtime_buf.set_fixed_width(LINEASCENT*5);
+			add_component(&realtime_buf);
+
+			lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+			lb->buf().printf("%d", fab->get_stat(1, FAB_CONSUMER_ARRIVED));
+			lb->set_tooltip(translator::translate("Last Month"));
+			lb->set_fixed_width(LINEASCENT*4);
+			lb->update();
+
+			end_table();
+			break;
+		}
 		case factorylist_stats_t::fl_location:
 		default:
 			add_table(4,1);
@@ -552,6 +579,10 @@ void gui_factory_stats_t::draw(scr_coord offset)
 				realtime_buf.update();
 			}
 			break;
+		case factorylist_stats_t::fl_passengers:
+			realtime_buf.buf().printf("%d -", fab->get_stat(0, FAB_CONSUMER_ARRIVED));
+			realtime_buf.update();
+			break;
 		case factorylist_stats_t::fl_activity:
 		default:
 			break;
@@ -740,6 +771,22 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 			break;
 		case factorylist::by_operation_rate:
 			cmp = a->get_stat(1, FAB_PRODUCTION) - b->get_stat(1, FAB_PRODUCTION);
+			break;
+		case factorylist::by_visitor_demand:
+		{
+			int a_demand = -1;
+			int b_demand = -1;
+			if (gebaeude_t *gb = a->get_building()) {
+				a_demand = gb->get_adjusted_visitor_demand();
+			}
+			if (gebaeude_t *gb = b->get_building()) {
+				b_demand = gb->get_adjusted_visitor_demand();
+			}
+			cmp = a_demand - b_demand;
+			break;
+		}
+		case factorylist::by_consumer_arivals:
+			cmp = a->get_stat(0, FAB_CONSUMER_ARRIVED) - b->get_stat(0, FAB_CONSUMER_ARRIVED);
 			break;
 		case factorylist::by_region:
 			cmp = world()->get_region(a->get_pos().get_2d()) - world()->get_region(b->get_pos().get_2d());
