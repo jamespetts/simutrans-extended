@@ -114,7 +114,7 @@ void gui_building_stats_t::init_stats_table()
 			if (building->get_tile()->get_desc()->get_type() != building_desc_t::city_res) {
 				// Buildings other than houses -> display arrival data
 				if (building->get_adjusted_visitor_demand()) {
-					new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+					new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 					new_component<gui_label_t>("Visitor arrivals");
 					lb_visitor_arrivals[0].set_fixed_width(value_cell_width);
 					lb_visitor_arrivals[1].set_fixed_width(value_cell_width);
@@ -125,7 +125,7 @@ void gui_building_stats_t::init_stats_table()
 					new_component<gui_fill_t>();
 				}
 
-				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(GOODS_COLOR_BOX_SIZE);
 				new_component<gui_label_t>("Commuter arrivals");
 				lb_commuter_arrivals[0].set_fixed_width(value_cell_width);
 				lb_commuter_arrivals[1].set_fixed_width(value_cell_width);
@@ -136,7 +136,7 @@ void gui_building_stats_t::init_stats_table()
 				new_component<gui_fill_t>();
 			}
 			if (building->get_adjusted_mail_demand()) {
-				new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+				new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 				new_component<gui_label_t>("hd_mailing");
 				lb_mail_sent[0].set_fixed_width(value_cell_width);
 				lb_mail_sent[1].set_fixed_width(value_cell_width);
@@ -163,7 +163,7 @@ void gui_building_stats_t::init_stats_table()
 			new_component<gui_fill_t>();
 
 			if (building->get_tile()->get_desc()->get_type() == building_desc_t::city_res) {
-				new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+				new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 				new_component<gui_label_t>("Visiting trip");
 				lb_visiting_success_rate[0].set_fixed_width(value_cell_width);
 				lb_visiting_success_rate[1].set_fixed_width(value_cell_width);
@@ -173,7 +173,7 @@ void gui_building_stats_t::init_stats_table()
 				add_component(&lb_visiting_success_rate[1]);
 				new_component<gui_fill_t>();
 
-				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(GOODS_COLOR_BOX_SIZE);
 				new_component<gui_label_t>("Commuting trip");
 				lb_commuting_success_rate[0].set_fixed_width(value_cell_width);
 				lb_commuting_success_rate[1].set_fixed_width(value_cell_width);
@@ -186,7 +186,7 @@ void gui_building_stats_t::init_stats_table()
 
 			// show only if this building has mail demands
 			if(building->get_adjusted_mail_demand()) {
-				new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
+				new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 				new_component<gui_label_t>("hd_mailing");
 				lb_mail_success_rate[0].set_fixed_width(value_cell_width);
 				lb_mail_success_rate[1].set_fixed_width(value_cell_width);

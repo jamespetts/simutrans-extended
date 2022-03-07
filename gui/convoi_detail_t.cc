@@ -412,7 +412,7 @@ void gui_vehicle_cargo_info_t::update()
 												}
 												// 1. goods color box
 												const PIXVAL goods_color = (w.is_passenger() && w.is_commuting_trip) ? color_idx_to_rgb(COL_COMMUTER) : w.get_desc()->get_color();
-												new_component<gui_colorbox_t>(goods_color)->set_size( scr_size((LINESPACE>>1)+2, (LINESPACE>>1)+2) );
+												new_component<gui_colorbox_t>(goods_color)->set_size(GOODS_COLOR_BOX_SIZE);
 
 												// 2. goods name
 												if (!w.is_passenger() && !w.is_mail()) {
