@@ -20,7 +20,7 @@ class fabrik_t;
 namespace factorylist {
 	enum sort_mode_t {
 		by_name = 0,
-		by_available,
+		by_input,
 		by_output,
 		by_maxprod,
 		by_status,
@@ -32,7 +32,7 @@ namespace factorylist {
 		SORT_MODES,
 
 		// the last two are unused
-		by_input,
+		by_available,
 		by_transit
 	};
 };

@@ -618,8 +618,8 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 
 		case factorylist::by_input:
 		{
-			int a_in = a->get_input().empty() ? -1 : (int)a->get_total_in();
-			int b_in = b->get_input().empty() ? -1 : (int)b->get_total_in();
+			int a_in = a->get_input().empty() ? -1 : (int)(a->get_total_in()+a->get_total_transit());
+			int b_in = b->get_input().empty() ? -1 : (int)(b->get_total_in()+b->get_total_transit());
 			cmp = a_in - b_in;
 			break;
 		}
@@ -629,14 +629,6 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 			int a_transit = a->get_input().empty() ? -1 : (int)a->get_total_transit();
 			int b_transit = b->get_input().empty() ? -1 : (int)b->get_total_transit();
 			cmp = a_transit - b_transit;
-			break;
-		}
-
-		case factorylist::by_available:
-		{
-			int a_in = a->get_input().empty() ? -1 : (int)(a->get_total_in()+a->get_total_transit());
-			int b_in = b->get_input().empty() ? -1 : (int)(b->get_total_in()+b->get_total_transit());
-			cmp = a_in - b_in;
 			break;
 		}
 
