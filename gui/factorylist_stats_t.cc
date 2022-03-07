@@ -96,7 +96,7 @@ gui_factory_stats_t::gui_factory_stats_t(fabrik_t *fab) :
 	forwarding_status.set_rigid(true);
 
 	staffing_bar.add_color_value(&staff_shortage_factor, COL_CAUTION);
-	staffing_bar.add_color_value(&staffing_level, goods_manager_t::passengers->get_color());
+	staffing_bar.add_color_value(&staffing_level, color_idx_to_rgb(COL_COMMUTER));
 	staffing_bar.add_color_value(&staffing_level2, COL_STAFF_SHORTAGE);
 	staffing_bar.set_width(100);
 

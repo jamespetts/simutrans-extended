@@ -48,8 +48,8 @@ static const uint8 prod_color[MAX_FAB_STAT] =
 {
 	COL_BROWN, COL_ELECTRICITY - 1,
 	COL_LIGHT_RED, COL_LIGHT_TURQUOISE, COL_ORANGE,
-	0, 0, COL_LIGHT_PURPLE, 0, COL_LIGHT_YELLOW,
-	COL_YELLOW, COL_GREY3
+	0, 0, COL_COMMUTER, 0, COL_LIGHT_YELLOW,
+	COL_YELLOW, COL_LIGHT_PURPLE
 };
 
 static const gui_chart_t::convert_proc prod_convert[MAX_FAB_STAT] =
@@ -83,7 +83,7 @@ static const uint8 ref_chart_type[MAX_FAB_REF_LINE] =
 static const uint8 ref_color[MAX_FAB_REF_LINE] =
 {
 	COL_RED+2, COL_TURQUOISE, COL_ORANGE_RED,
-	COL_RED, COL_DODGER_BLUE, COL_LEMON_YELLOW-2
+	COL_RED, COL_BLUE+2, COL_LEMON_YELLOW-2
 };
 
 static const char *const label_text[MAX_PROD_LABEL+1] =
