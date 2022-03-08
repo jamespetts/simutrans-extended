@@ -142,6 +142,78 @@ void gui_factory_storage_bar_t::draw(scr_coord offset)
 	}
 }
 
+gui_factory_storage_label_t::gui_factory_storage_label_t(const ware_production_t *ware, uint32 capacity)
+{
+	this->ware = ware;
+	this->capacity = capacity;
+}
+
+void gui_factory_storage_label_t::draw(scr_coord offset)
+{
+	if (old_storage != ware->get_storage()) {
+		old_storage = ware->get_storage();
+		if (ware->get_typ()->is_available()) {
+			buf().printf("%3u/%u%s", old_storage, capacity, translator::translate(ware->get_typ()->get_mass()));
+			set_color(SYSCOL_TEXT);
+		}
+		else {
+			buf().printf(" %s", translator::translate("n/a"));
+			set_color(SYSCOL_TEXT_WEAK);
+		}
+		update();
+	}
+	gui_label_buf_t::draw(offset);
+}
+
+gui_factory_intransit_label_t::gui_factory_intransit_label_t(const ware_production_t *ware, uint32 pfactor)
+{
+	this->ware = ware;
+	factor = pfactor;
+}
+
+void gui_factory_intransit_label_t::draw(scr_coord offset)
+{
+	if (old_intransit != ware->get_in_transit() || old_max != ware->max_transit) {
+		old_intransit = ware->get_in_transit();
+		old_max = ware->max_transit;
+		buf().printf("%3i/%i", old_intransit, convert_goods(ware->max_transit*factor));
+		update();
+	}
+	gui_label_buf_t::draw(offset);
+}
+
+
+gui_factory_monthly_prod_label_t::gui_factory_monthly_prod_label_t(fabrik_t *factory, const goods_desc_t *goods, uint32 factor, bool is_input)
+{
+	fab = factory;
+	this->goods = goods;
+	is_input_item = is_input;
+	pfactor = factor;
+}
+
+void gui_factory_monthly_prod_label_t::draw(scr_coord offset)
+{
+	const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
+	if (is_input_item) {
+		if (monthly_prod < 100) {
+			buf().printf(translator::translate("production %.1f%s/month"), (float)monthly_prod/10.0, translator::translate(goods->get_mass()));
+		}
+		else {
+			buf().printf(translator::translate("production %u%s/month"), monthly_prod/10, translator::translate(goods->get_mass()));
+		}
+	}
+	else {
+		if (monthly_prod < 100) {
+			buf().printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod/10.0, translator::translate(goods->get_mass()));
+		}
+		else {
+			buf().printf(translator::translate("consumption %u%s/month"), monthly_prod/10, translator::translate(goods->get_mass()));
+		}
+	}
+	update();
+	gui_label_buf_t::draw(offset);
+}
+
 
 gui_factory_product_item_t::gui_factory_product_item_t(fabrik_t *factory, const ware_production_t *ware, bool is_input_item) :
 	lb_leadtime(""), lb_alert("")
@@ -281,210 +353,84 @@ bool gui_factory_product_item_t::infowin_event(const event_t *ev)
 
 
 // component for factory storage display
-gui_factory_storage_info_t::gui_factory_storage_info_t(fabrik_t* factory)
+gui_factory_storage_info_t::gui_factory_storage_info_t(fabrik_t* factory, bool is_output) :
+	lb_caption(is_output ? translator::translate("Produktion") : translator::translate("Verbrauch") ),
+	lb_alert( is_output ? translator::translate("Storage full") : translator::translate("No material"))
 {
 	this->fab = factory;
+	this->is_output = is_output;
+	set_table_layout(1,0);
+	if (fab) {
+		init_table();
+	}
+}
+
+void gui_factory_storage_info_t::init_table()
+{
+	remove_all();
+	const uint32 rows = is_output ? fab->get_output().get_count() : fab->get_input().get_count();
+	// input storage info (Consumption)
+	if (rows) {
+		if (skinverwaltung_t::input_output) {
+			lb_caption.set_image( skinverwaltung_t::input_output->get_image_id(is_output ? 1:0) );
+		}
+		if (skinverwaltung_t::alerts) {
+			lb_alert.set_image(skinverwaltung_t::alerts->get_image_id(2));
+		}
+		add_table(2,1);
+		{
+			add_component(&lb_caption);
+			lb_alert.set_visible(false);
+			add_component(&lb_alert);
+		}
+		end_table();
+
+		add_table(7,rows)->set_spacing(scr_size(D_H_SPACE,0));
+		{
+			int i = 0;
+			FORX(array_tpl<ware_production_t>, const& goods, is_output ? fab->get_output() : fab->get_input(), i++) {
+				if(!is_output && !fab->get_desc()->get_supplier(i) ) {
+					continue;
+				}
+				const bool is_available = goods.get_typ()->is_available();
+				const sint64 pfactor = is_output ? (sint64)fab->get_desc()->get_product(i)->get_factor()
+					: (fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll);
+				new_component<gui_image_t>(goods.get_typ()->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
+				new_component<gui_colorbox_t>(goods.get_typ()->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+				new_component<gui_label_t>(goods.get_typ()->get_name(), is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+
+				new_component<gui_factory_storage_bar_t>(&goods, pfactor, is_output);
+				new_component<gui_factory_storage_label_t>(&goods, (uint32)goods.get_capacity(pfactor));
+				if (!is_output && is_available) {
+					add_table(2,1);
+					{
+						new_component<gui_image_t>(skinverwaltung_t::input_output ? skinverwaltung_t::in_transit->get_image_id(0):IMG_EMPTY, 0, 0, true);
+						new_component<gui_factory_intransit_label_t>(&goods, pfactor);
+					}
+					end_table();
+					new_component<gui_factory_monthly_prod_label_t>(fab, goods.get_typ(), pfactor, is_output);
+				}
+				else {
+					new_component_span<gui_empty_t>(2);
+				}
+
+			}
+		}
+		end_table();
+	}
+	set_size(get_min_size());
 }
 
 void gui_factory_storage_info_t::draw(scr_coord offset)
 {
-	int left = 0;
-	int yoff = 2;
-	if (fab) {
-		offset.x += D_MARGIN_LEFT;
-
-		cbuffer_t buf;
-
-		const uint32 input_count = fab->get_input().get_count();
-		const uint32 output_count = fab->get_output().get_count();
-
-		// input storage info (Consumption)
-		if (input_count) {
-			// if pakset has symbol, display it
-			if (skinverwaltung_t::input_output)
-			{
-				display_color_img(skinverwaltung_t::input_output->get_image_id(0), pos.x + offset.x, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
-				left += 12;
-			}
-			display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, translator::translate("Verbrauch"), ALIGN_LEFT, SYSCOL_TEXT, true);
-			yoff += LINESPACE;
-
-			int i = 0;
-			FORX(array_tpl<ware_production_t>, const& goods, fab->get_input(), i++) {
-				if (!fab->get_desc()->get_supplier(i))
-				{
-					continue;
-				}
-				const bool is_available = goods.get_typ()->is_available();
-
-				const sint64 pfactor = fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll;
-				const sint64 max_transit = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 stock_quantity = (uint32)goods.get_storage();
-				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
-				const PIXVAL goods_color = goods.get_typ()->get_color();
-
-				left = 2;
-				yoff += 2; // box position adjistment
-				// [storage indicator]
-				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH + 2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
-				display_fillbox_wh_clip_rgb(pos.x + offset.x + left + 1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, STORAGE_INDICATOR_WIDTH, GOODS_COLOR_BOX_HEIGHT-2, color_idx_to_rgb(MN_GREY2), true);
-				if (storage_capacity) {
-					const uint16 colored_width = min(STORAGE_INDICATOR_WIDTH, (uint16)(STORAGE_INDICATOR_WIDTH * stock_quantity / storage_capacity));
-					display_cylinderbar_wh_clip_rgb(pos.x + offset.x + left + 1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, colored_width, 6, goods_color, true);
-					if (goods.get_in_transit()) {
-						const uint16 intransint_width = min(STORAGE_INDICATOR_WIDTH - colored_width, STORAGE_INDICATOR_WIDTH * (uint16)goods.get_in_transit() / storage_capacity);
-						display_fillbox_wh_clip_rgb(pos.x + offset.x + left + 1 + colored_width, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, intransint_width, 6, COL_IN_TRANSIT, true);
-					}
-				}
-				left += STORAGE_INDICATOR_WIDTH + 2 + D_H_SPACE;
-
-				// [goods color box] This design is the same as the goods list
-				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, false);
-				left += 12;
-				yoff -= 2; // box position adjistment
-
-				// [goods name]
-				buf.clear();
-				buf.printf("%s", translator::translate(goods.get_typ()->get_name()));
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
-
-				left += 10;
-
-				// [goods category]
-				display_color_img_with_tooltip(goods.get_typ()->get_catg_symbol(), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate(goods.get_typ()->get_catg_name()));
-				goods.get_typ()->get_catg_name();
-				left += 14;
-
-				// [storage capacity]
-				buf.clear();
-				buf.printf("%u/%u", stock_quantity, storage_capacity);
-				if (is_available) {
-					buf.append(", ");
-				}
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
-				left += D_H_SPACE;
-
-				buf.clear();
-				if (is_available) {
-					// [in transit]
-					if (fab->get_status() != fabrik_t::inactive) {
-						//const bool in_transit_over_storage = (stock_quantity + (uint32)goods.get_in_transit() > storage_capacity);
-						const sint32 actual_max_transit = max(goods.get_in_transit(), max_transit);
-						if (skinverwaltung_t::in_transit) {
-							display_color_img_with_tooltip(skinverwaltung_t::in_transit->get_image_id(0), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("symbol_help_txt_in_transit"));
-							left += 14;
-						}
-						buf.printf("%i/%i", goods.get_in_transit(), actual_max_transit);
-						PIXVAL col_val = actual_max_transit == 0 ? COL_DANGER : max_transit == 0 ? color_idx_to_rgb(COL_DARK_ORANGE) : SYSCOL_TEXT;
-						left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
-						buf.clear();
-						buf.append(", ");
-					}
-
-
-					// [monthly production]
-					const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
-					if (monthly_prod < 100) {
-						buf.printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
-					}
-					else {
-						buf.printf(translator::translate("consumption %u%s/month"), monthly_prod / 10, translator::translate(goods.get_typ()->get_mass()));
-					}
-					left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				}
-				yoff += LINESPACE;
-			}
-			yoff += LINESPACE;
-		}
-
-
-		// output storage info (Production)
-		if (output_count) {
-			left = 0;
-			// if pakset has symbol, display it
-			if(skinverwaltung_t::input_output)
-			{
-				display_color_img(skinverwaltung_t::input_output->get_image_id(1), pos.x + offset.x, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
-				left += 12;
-			}
-			display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, translator::translate("Produktion"), ALIGN_LEFT, SYSCOL_TEXT, true);
-			yoff += LINESPACE;
-
-			int i = 0;
-			FORX(array_tpl<ware_production_t>, const& goods, fab->get_output(), i++) {
-				const sint64 pfactor = (sint64)fab->get_desc()->get_product(i)->get_factor();
-				const uint32 stock_quantity   = (uint32)goods.get_storage();
-				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
-				const PIXVAL goods_color  = goods.get_typ()->get_color();
-				left = 2;
-				yoff+=2; // box position adjistment
-				// [storage indicator]
-				display_ddd_box_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, STORAGE_INDICATOR_WIDTH+2, GOODS_COLOR_BOX_HEIGHT, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
-				display_fillbox_wh_clip_rgb(pos.x + offset.x + left+1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, STORAGE_INDICATOR_WIDTH, GOODS_COLOR_BOX_HEIGHT-2, color_idx_to_rgb(MN_GREY2), true);
-				if (storage_capacity) {
-					const uint16 colored_width = min(STORAGE_INDICATOR_WIDTH, (uint16)(STORAGE_INDICATOR_WIDTH * stock_quantity / storage_capacity));
-					display_cylinderbar_wh_clip_rgb(pos.x + offset.x + left + 1, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF + 1, colored_width, 6, goods_color, true);
-				}
-				left += STORAGE_INDICATOR_WIDTH + 2 + D_H_SPACE;
-
-				// [goods color box] This design is the same as the goods list
-				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, false);
-				left += 12;
-				yoff-=2; // box position adjistment
-
-				// [goods name]
-				buf.clear();
-				buf.printf("%s", translator::translate(goods.get_typ()->get_name()));
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-				left += 10;
-
-				// [goods category]
-				display_color_img_with_tooltip(goods.get_typ()->get_catg_symbol(), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate(goods.get_typ()->get_catg_name()));
-				left += 14;
-
-				// [storage capacity]
-				buf.clear();
-				buf.printf("%i/%i,", stock_quantity, storage_capacity);
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				left += D_H_SPACE;
-
-				// [monthly production]
-				buf.clear();
-				const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
-				if (monthly_prod < 100) {
-					buf.printf(translator::translate("production %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
-				}
-				else {
-					buf.printf(translator::translate("production %u%s/month"), monthly_prod / 10, translator::translate(goods.get_typ()->get_mass()));
-				}
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-				yoff += LINESPACE;
-			}
-			yoff += LINESPACE;
-		}
-
-	}
-	scr_size size(400, yoff);
-	if (size != get_size()) {
-		set_size(size);
-	}
-}
-
-void gui_factory_storage_info_t::recalc_size()
-{
-	if (fab) {
-		uint lines = fab->get_input().get_count() ? fab->get_input().get_count() + 1 : 0;
-		if (fab->get_output().get_count()) {
-			if (lines) { lines++; }
-			lines += fab->get_output().get_count()+1;
-		}
-		set_size(scr_size(400, lines * (LINESPACE + 1)));
+	if (is_output) {
+		lb_alert.set_visible(fab->get_total_out() >= fab->get_total_output_capacity());
 	}
 	else {
-		set_size(scr_size(400, LINESPACE + 1));
+		lb_alert.set_visible(!fab->get_total_in());
 	}
+
+	gui_aligned_container_t::draw(offset);
 }
 
 

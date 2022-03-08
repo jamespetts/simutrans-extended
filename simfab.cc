@@ -3345,56 +3345,6 @@ void fabrik_t::show_info()
 }
 
 
-void fabrik_t::info_prod(cbuffer_t& buf) const
-{
-	buf.clear();
-	if (get_base_production()) {
-		buf.append(translator::translate("Productivity")); // Note: This term is used in width calculation in fabrik_info. And it is common with the chart button label.
-		// get_current_productivity() does not include factory connections and staffing
-		buf.printf(": %u%% ", get_actual_productivity());
-		const uint32 max_productivity = (100 * (get_desc()->get_electric_boost() + get_desc()->get_pax_boost() + get_desc()->get_mail_boost())) >> DEFAULT_PRODUCTION_FACTOR_BITS;
-		buf.printf(translator::translate("(Max. %d%%)"), max_productivity+100);
-		buf.append("\n");
-
-		buf.printf("%s: %.1f%% (%s: %.1f%%)", translator::translate("Operation rate"), statistics[0][FAB_PRODUCTION] / 100.0, translator::translate("Last Month"), statistics[1][FAB_PRODUCTION] / 100.0);
-		buf.append("\n");
-	}
-	if(get_desc()->is_electricity_producer())
-	{
-		buf.append(translator::translate("Electrical output: "));
-		buf.append(scaled_electric_demand >> POWER_TO_MW);
-		buf.append(" MW");
-	}
-	else
-	{
-		buf.append(translator::translate("Electrical demand: "));
-		buf.append((scaled_electric_demand * 1000) >> POWER_TO_MW);
-		buf.append(" KW");
-	}
-
-	buf.append("\n");
-
-	if(city != NULL)
-	{
-		buf.append("\n");
-		buf.append(translator::translate("City"));
-		buf.append(": ");
-		buf.append(city->get_name());
-	}
-	if (building)
-	{
-		buf.append("\n");
-		buf.printf("%s: %d\n", translator::translate("Visitor demand"), building->get_adjusted_visitor_demand());
-#ifdef DEBUG
-		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), building->get_adjusted_jobs(), building->check_remaining_available_jobs());
-#else
-		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), building->get_adjusted_jobs(), max(0, building->check_remaining_available_jobs()));
-#endif
-		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), building->get_adjusted_mail_demand());
-
-	}
-}
-
 /**
  * Recalculate the nearby_freight_halts and nearby_passenger_halts lists.
  * This is a subroutine in order to avoid code duplication.
@@ -4193,7 +4143,7 @@ uint32 fabrik_t::calc_operation_rate(sint8 month) const
 		}
 		return (uint32)(temp_sum * 1000 / input.get_count() / base_monthly_prod);
 	}
-	else if(sector != ftype::unknown && !output.empty()){
+	else if(sector != unknown && output.get_count()){
 		// check the producing rate of this factory
 		for (uint32 i = 0; i < output.get_count(); i++) {
 			const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();

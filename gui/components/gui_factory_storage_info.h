@@ -78,6 +78,45 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
+class gui_factory_storage_label_t : public gui_label_buf_t
+{
+	const ware_production_t* ware;
+	uint32 capacity;
+	uint32 old_storage=-1;
+
+public:
+	gui_factory_storage_label_t(const ware_production_t* ware, uint32 capacity);
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+class gui_factory_intransit_label_t : public gui_label_buf_t
+{
+	const ware_production_t* ware;
+	uint32 factor;
+	sint32 old_max=-1;
+	sint32 old_intransit = -1;
+
+public:
+	gui_factory_intransit_label_t(const ware_production_t* ware, uint32 factor);
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+class gui_factory_monthly_prod_label_t : public gui_label_buf_t
+{
+	fabrik_t *fab;
+	const goods_desc_t* goods;
+	uint32 pfactor;
+	sint32 old_prod = -1;
+	bool is_input_item;
+
+public:
+	gui_factory_monthly_prod_label_t(fabrik_t *factory, const goods_desc_t* goods, uint32 factor, bool is_input_item = false);
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 
 class gui_factory_product_item_t : public gui_aligned_container_t
 {
@@ -102,18 +141,23 @@ public:
 
 
 // A GUI component of the factory storage info
-class gui_factory_storage_info_t : public gui_container_t
+class gui_factory_storage_info_t : public gui_aligned_container_t
 {
 private:
 	fabrik_t *fab;
 
-public:
-	gui_factory_storage_info_t(fabrik_t *factory);
+	bool is_output;
 
-	void set_fab(fabrik_t *f) { this->fab = f; }
+	gui_label_with_symbol_t lb_caption, lb_alert;
+
+public:
+	gui_factory_storage_info_t(fabrik_t *factory, bool show_output);
+
+	void set_fab(fabrik_t *f) { this->fab = f; init_table(); }
+
+	void init_table();
 
 	void draw(scr_coord offset);
-	void recalc_size();
 };
 
 

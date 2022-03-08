@@ -31,6 +31,28 @@ class button_t;
 
 
 /**
+ * Helper class: one row of entries in consumer / supplier table
+ */
+class gui_factory_connection_container_t : public gui_aligned_container_t
+{
+	fabrik_t *fab;
+	bool is_supplier_display; // which display is needed? - input or output
+	uint32 old_connection_count;
+
+public:
+	gui_factory_connection_container_t(fabrik_t *factory, bool is_supplier_display);
+
+	void update_table();
+	// for reload
+	void set_fab(fabrik_t *f) {
+		this->fab = f;
+		update_table();
+	}
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+/**
  * Info window for factories
  */
 class fabrik_info_t : public gui_frame_t, public action_listener_t
@@ -38,7 +60,7 @@ class fabrik_info_t : public gui_frame_t, public action_listener_t
 private:
 	fabrik_t *fab;
 
-	cbuffer_t info_buf, prod_buf, details_buf;
+	cbuffer_t info_buf, details_buf;
 
 	//static sint16 tabstate;
 
@@ -54,16 +76,14 @@ private:
 	char fabname[256];
 	gui_textinput_t input;
 
-	gui_textarea_t prod, txt;
+	gui_textarea_t txt;
 
-	gui_label_t lb_staff_shortage;
-
-	gui_factory_storage_info_t storage;
+	gui_label_with_symbol_t lb_staff_shortage;
+	gui_label_buf_t lb_operation_rate, lb_productivity, lb_electricity_demand, lb_job_demand, lb_visitor_demand, lb_mail_demand, lb_city, lb_alert;
 
 	gui_tab_panel_t switch_mode, tabs_factory_link;
 
-	gui_image_t boost_electric, boost_passenger, boost_mail;
-
+	gui_image_t boost_electric, boost_passenger, boost_mail, img_intown;
 
 	gui_aligned_container_t container_info;
 	gui_building_stats_t container_details;

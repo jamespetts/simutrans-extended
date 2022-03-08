@@ -606,11 +606,6 @@ public:
 	void show_info();
 
 	/**
-	 * infostring on production
-	 */
-	void info_prod(cbuffer_t& buf) const;
-
-	/**
 	 * infostring on targets/sources
 	 */
 	void info_conn(cbuffer_t& buf) const;
