@@ -126,7 +126,7 @@ public:
 	void activate_input_field();
 
 	// Force opening of goods fare chart mode by external access
-	void set_goods(const goods_desc_t const* goods, bool make_min_size=false);
+	void set_goods(const goods_desc_t *goods, bool make_min_size=false);
 };
 
 #endif
