@@ -4076,7 +4076,7 @@ by_potential_pax_number
 by_potential_mail_users
 郵便需要度
 by_pax_happy_last_month
-前月の乗車数
+前月の旅客輸送達成数
 by_mail_delivered_last_month
 前月の郵便発送数
 show_mutual_use
@@ -4309,7 +4309,7 @@ Open the minimap window to show the network around this stop
 ミニマップダイアログを開き、この駅を中心としたネットワークを表示します
 Open the minimap window to show the freight network of this stop
 ミニマップダイアログを開き、この駅を中心とした貨物ネットワークを表示します
-Opens the minimap window showing the network of selected transport items served at this station
+Open the minimap window showing the network of selected transport items served at this station
 ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
 show_chain_on_minimap
 関連工場マップ

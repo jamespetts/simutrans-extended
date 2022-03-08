@@ -227,7 +227,7 @@ bool halt_list_frame_t::compare_halts(halthandle_t const halt1, halthandle_t con
 		}
 		case by_pax_handled_last_month:
 		{
-			const int hist_a = halt1->get_pax_enabled() ? halt1->get_finance_history(1, HALT_VISITORS)+halt2->get_finance_history(1, HALT_COMMUTERS) : -1;
+			const int hist_a = halt1->get_pax_enabled() ? halt1->get_finance_history(1, HALT_VISITORS)+halt1->get_finance_history(1, HALT_COMMUTERS) : -1;
 			const int hist_b = halt2->get_pax_enabled() ? halt2->get_finance_history(1, HALT_VISITORS)+halt2->get_finance_history(1, HALT_COMMUTERS) : -1;
 			order = (int)(hist_a - hist_b);
 			break;
@@ -840,7 +840,14 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 		}
 
 		default_sortmode = (sort_mode_t)sort_mode;
-		sortedby.set_selection(default_sortmode);
+		if (default_sortmode >= 0 && default_sortmode < sortedby.count_elements()) {
+			sortedby.set_selection(default_sortmode);
+			sortby = (halt_list_frame_t::sort_mode_t)default_sortmode;
+		}
+		else {
+			sortedby.set_selection(0);
+			sortby = halt_list_frame_t::nach_name;
+		}
 		m_player = filter_city ? welt->get_public_player() : welt->get_player(player_nr);
 		set_owner(m_player);
 		win_set_magic(this, magic_halt_list + player_nr);

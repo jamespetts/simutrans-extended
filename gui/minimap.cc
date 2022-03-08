@@ -1650,7 +1650,8 @@ void minimap_t::draw(scr_coord pos)
 				static PIXVAL last_color = colval;
 				if (current_cnv.is_bound() && current_cnv.get_rep()->get_line().is_bound() && current_cnv.get_rep()->get_line()->get_line_color()!=0) {
 					// Since white is mixed in the background, it is easier to see in slightly darker.
-					colval = display_blend_colors(current_cnv.get_rep()->get_line()->get_line_color(), color_idx_to_rgb(COL_BLACK), 10);
+					const PIXVAL linecolor = current_cnv.get_rep()->get_line()->get_line_color();
+					colval = display_blend_colors(linecolor, color_idx_to_rgb(COL_BLACK), is_dark_color(linecolor) ? 15:30);
 				}
 				else {
 					colval = color_idx_to_rgb(seg.player->get_player_color1()+1);

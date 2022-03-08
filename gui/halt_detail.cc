@@ -23,8 +23,8 @@
 
 #include "halt_detail.h"
 #include "map_frame.h"
+#include "linelist_stats_t.h"
 #include "components/gui_label.h"
-#include "components/gui_line_lettercode.h"
 #include "components/gui_convoy_payloadinfo.h"
 
 
@@ -36,37 +36,6 @@
 #define MAX_CATEGORY_COLS 16
 
 sint16 halt_detail_t::tabstate = -1;
-
-
-gui_line_handle_catg_img_t::gui_line_handle_catg_img_t(linehandle_t line)
-{
-	this->line = line;
-}
-
-void gui_line_handle_catg_img_t::draw(scr_coord offset)
-{
-	if (!line.is_bound()) {
-		return;
-	}
-	scr_coord_val offset_x = 2;
-	size.w = line->get_goods_catg_index().get_count()*D_FIXED_SYMBOL_WIDTH + 4;
-	offset += pos;
-	FOR(minivec_tpl<uint8>, const catg_index, line->get_goods_catg_index()) {
-		uint8 temp = catg_index;
-		display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), offset.x + offset_x + 2, offset.y + 3, 0, false, true);
-		offset_x += GOODS_SYMBOL_CELL_WIDTH;
-	}
-}
-
-scr_size gui_line_handle_catg_img_t::get_min_size() const
-{
-	return scr_size(size.w, D_FIXED_SYMBOL_WIDTH + 2);
-}
-
-scr_size gui_line_handle_catg_img_t::get_max_size() const
-{
-	return scr_size(scr_size::inf.w, D_FIXED_SYMBOL_WIDTH + 2);
-}
 
 
 halt_detail_t::halt_detail_t(halthandle_t halt_) :
@@ -162,7 +131,7 @@ void halt_detail_t::init()
 		}
 		bt_access_minimap.set_tooltip("Open the minimap window to show the network around this stop");
 		bt_access_minimap.add_listener(this);
-		bt_access_minimap_catg.set_tooltip("Opens the minimap window showing the network of selected transport items served at this station");
+		bt_access_minimap_catg.set_tooltip("Open the minimap window showing the network of selected transport items served at this station");
 		bt_access_minimap_catg.add_listener(this);
 		cont_tab_service.add_component(&bt_access_minimap,2);
 		cont_tab_service.new_component<gui_empty_t>();
@@ -1521,115 +1490,9 @@ void gui_halt_service_info_t::update_connections()
 				new_component<gui_line_button_t>(line);
 
 				// Line labels with color of player
-				add_table(2,1);
-				{
-					if ( line->get_line_color_index()==255 ) {
-						new_component<gui_empty_t>();
-					}
-					else {
-						new_component<gui_line_lettercode_t>( line->get_line_color() )->set_line(line);
-					}
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(PLAYER_FLAG | color_idx_to_rgb(line->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
-					lb->buf().append(line->get_name());
-					lb->update();
-				}
-				end_table();
-
+				new_component<gui_line_label_t>(line);
 				new_component<gui_empty_t>();
-
-				switch (display_mode)
-				{
-					case 1:
-						new_component<gui_line_handle_catg_img_t>(line);
-						break;
-					case 2:
-						add_table(4,1);
-						{
-							const halthandle_t origin_halt = line->get_schedule()->get_origin_halt(line->get_owner());
-							const halthandle_t destination_halt = line->get_schedule()->get_destination_halt(line->get_owner());
-							/*
-							if ( origin_halt.is_bound() ) {
-								const bool is_interchange = (origin_halt.get_rep()->registered_lines.get_count() + origin_halt.get_rep()->registered_convoys.get_count()) > 1;
-								new_component<gui_schedule_entry_number_t>(-1, origin_halt.get_rep()->get_owner()->get_player_color1(),
-									is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
-									scr_size(LINESPACE+4, LINESPACE),
-									origin_halt.get_rep()->get_basis_pos3d()
-									);
-							}
-							*/
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-							if (origin_halt.is_bound()) {
-								lb->buf().printf("%s", origin_halt->get_name());
-							}
-							lb->update();
-
-							const PIXVAL line_color = line->get_line_color_index() > 253 ? color_idx_to_rgb(line->get_owner()->get_player_color1()+3) : line->get_line_color();
-							new_component<gui_vehicle_bar_t>(line_color, scr_size(LINESPACE*3, LINEASCENT-4))->set_flags(
-								line->get_schedule()->is_mirrored() ? vehicle_desc_t::can_be_head | vehicle_desc_t::can_be_tail : 0, vehicle_desc_t::can_be_head | vehicle_desc_t::can_be_tail, 3);
-
-							lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-							if (destination_halt.is_bound() && origin_halt!=destination_halt) {
-								lb->buf().printf("%s", destination_halt->get_name());
-							}
-							lb->update();
-
-							lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-							line->get_travel_distance();
-							lb->buf().printf(" %.1fkm ", (float)(line->get_travel_distance()*world()->get_settings().get_meters_per_tile() / 1000.0));
-							lb->update();
-						}
-						end_table();
-						break;
-					case 0:
-					default:
-						add_table(4,1);
-						{
-							image_id schedule_symbol = skinverwaltung_t::service_frequency ? skinverwaltung_t::service_frequency->get_image_id(0):IMG_EMPTY;
-							PIXVAL time_txtcol=SYSCOL_TEXT;
-							if (line->get_state() & simline_t::line_has_stuck_convoy) {
-								// has stucked convoy
-								time_txtcol = color_idx_to_rgb(COL_DANGER);
-								if (skinverwaltung_t::pax_evaluation_icons) schedule_symbol = skinverwaltung_t::pax_evaluation_icons->get_image_id(4);
-							}
-							else if (line->get_state() & simline_t::line_missing_scheduled_slots) {
-								time_txtcol = color_idx_to_rgb(COL_DARK_TURQUOISE); // FIXME for dark theme
-								if(skinverwaltung_t::missing_scheduled_slot) schedule_symbol = skinverwaltung_t::missing_scheduled_slot->get_image_id(0);
-							}
-							new_component<gui_image_t>(schedule_symbol, 0, ALIGN_CENTER_V, true);
-
-							const sint64 service_frequency = line->get_service_frequency();
-							gui_label_buf_t *lb_frequency = new_component<gui_label_buf_t>(time_txtcol, gui_label_t::right);
-							if (service_frequency) {
-								char as_clock[32];
-								world()->sprintf_ticks(as_clock, sizeof(as_clock), service_frequency);
-								lb_frequency->buf().printf(" %s", as_clock);
-							}
-							else {
-								lb_frequency->buf().append("--:--:--");
-								lb_frequency->set_color(COL_INACTIVE);
-							}
-							lb_frequency->update();
-							lb_frequency->set_fixed_width( D_TIME_6_DIGITS_WIDTH );
-
-							// convoy count
-							gui_label_buf_t *lb_convoy_count = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-							lb_convoy_count->buf().append("");
-							if (line->get_convoys().get_count() == 1) {
-								lb_convoy_count->buf().append(translator::translate("1 convoi"));
-							}
-							else if(line->get_convoys().get_count()) {
-								lb_convoy_count->buf().printf(translator::translate("%d convois"), line->get_convoys().get_count());
-							}
-							else {
-								lb_convoy_count->buf().append(translator::translate("no convois")); // error
-							}
-							lb_convoy_count->set_color(line->has_overcrowded() ? color_idx_to_rgb(COL_DARK_PURPLE) : SYSCOL_TEXT);
-							lb_convoy_count->update();
-							new_component<gui_fill_t>();
-						}
-						end_table();
-						break;
-				}
+				new_component<gui_line_stats_t>(line, display_mode);
 
 				waytype_line_cnt++;
 			}
@@ -1687,7 +1550,7 @@ void gui_halt_service_info_t::update_connections()
 							lb->update();
 
 							const PIXVAL line_color = color_idx_to_rgb(cnv->get_owner()->get_player_color1() + 3);
-							new_component<gui_vehicle_bar_t>(line_color, scr_size(LINESPACE * 3, LINEASCENT - 4))->set_flags(
+							new_component<gui_vehicle_bar_t>(line_color, scr_size(LINESPACE*2, LINEASCENT>>1))->set_flags(
 								cnv->get_schedule()->is_mirrored() ? vehicle_desc_t::can_be_head | vehicle_desc_t::can_be_tail : 0, vehicle_desc_t::can_be_head | vehicle_desc_t::can_be_tail, 3);
 
 							lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
