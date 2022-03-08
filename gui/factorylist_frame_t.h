@@ -31,6 +31,8 @@ private:
 	static const enum button_t::type factory_type_button_style[MAX_FACTORY_TYPE_FILTER];
 	static uint8 factory_type_filter_bits;
 
+	cbuffer_t title_buf;
+
 	gui_combobox_t sortedby, freight_type_c, cb_display_mode, region_selector;
 
 	button_t sorteddir;
@@ -65,6 +67,8 @@ public:
 	void rdwr(loadsave_t* file) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_factorylist; }
+
+	void set_title();
 
 	void set_cityfilter(stadt_t *city);
 	// for filter by factory name

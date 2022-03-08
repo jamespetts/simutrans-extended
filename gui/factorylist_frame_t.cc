@@ -339,20 +339,31 @@ void factorylist_frame_t::fill_list()
 	scrolly.set_size(scrolly.get_size());
 }
 
+void factorylist_frame_t::set_title()
+{
+	title_buf.clear();
+	title_buf.append(translator::translate("fl_title"));
+	if (filter_city) {
+		title_buf.printf(" > %s > %s", translator::translate("City"), filter_city->get_name() );
+	}
+	set_name( title_buf );
+}
+
 void factorylist_frame_t::set_cityfilter(stadt_t *city)
 {
 	filter_city = city;
 	region_selector.set_visible(filter_city == NULL && !welt->get_settings().regions.empty());
 	bt_cancel_cityfilter.set_visible(filter_city != NULL);
 	lb_target_city.set_visible(filter_city != NULL);
-	if (city) {
+	if (filter_city) {
 		filter_within_network.pressed = false;
 		factorylist_stats_t::filter_own_network = false;
 		factorylist_stats_t::region_filter = 0;
 		region_selector.set_selection(0);
-		lb_target_city.buf().printf("%s>%s", translator::translate("City"), city->get_name());
+		lb_target_city.buf().printf("%s>%s", translator::translate("City"), filter_city->get_name());
 		lb_target_city.update();
 	}
+	set_title();
 	resize(scr_size(0, 0));
 	fill_list();
 }
