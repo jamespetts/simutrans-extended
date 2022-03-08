@@ -156,10 +156,6 @@ void factory_chart_t::set_factory(const fabrik_t *_factory)
 		goods_chart.set_dimension(12, 10000);
 		goods_chart.set_background(SYSCOL_CHART_BACKGROUND);
 		goods_chart.set_ltr(env_t::left_to_right_graphs);
-		const uint32 input_count = factory->get_input().get_count();
-		const uint32 output_count = factory->get_output().get_count();
-
-		uint32 count = 0;
 
 		// first tab: charts for goods production/consumption
 
@@ -210,7 +206,6 @@ void factory_chart_t::set_factory(const fabrik_t *_factory)
 						}
 					}
 				}
-				count++;
 			}
 			goods_cont.end_table();
 		}
@@ -252,7 +247,6 @@ void factory_chart_t::set_factory(const fabrik_t *_factory)
 					b->enable(is_available);
 					button_to_chart.append(b, &goods_chart, curve);
 				}
-				count++;
 			}
 			goods_cont.end_table();
 		}
