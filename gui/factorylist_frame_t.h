@@ -36,9 +36,9 @@ private:
 	gui_combobox_t sortedby, freight_type_c, cb_display_mode, region_selector;
 
 	button_t sorteddir;
-	button_t filter_within_network, bt_cancel_cityfilter;
+	button_t filter_within_network, bt_cancel_specialfilter;
 	button_t filter_buttons[MAX_FACTORY_TYPE_FILTER];
-	gui_label_buf_t lb_target_city, lb_factory_counter;
+	gui_label_buf_t lb_filter_target, lb_factory_counter;
 
 	gui_scrolled_list_t scrolly;
 
@@ -49,6 +49,8 @@ private:
 	void fill_list();
 
 	stadt_t *filter_city;
+	halthandle_t filter_halt;
+
 	uint32 old_factories_count;
 
 	vector_tpl<const goods_desc_t *> viewable_freight_types;
@@ -71,6 +73,9 @@ public:
 	void set_title();
 
 	void set_cityfilter(stadt_t *city);
+	void set_haltfilter(halthandle_t halt = halthandle_t());
+	void activate_special_filter(bool activate);
+
 	// for filter by factory name
 	void set_text_filter(const char * text);
 };

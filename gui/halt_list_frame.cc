@@ -493,7 +493,7 @@ halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
 			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
 			add_component(&lb_target_city);
 
-			bt_cancel_cityfilter.init(button_t::roundbox, "reset");
+			bt_cancel_cityfilter.init(button_t::roundbox, "Cancel");
 			bt_cancel_cityfilter.add_listener(this);
 			bt_cancel_cityfilter.set_visible(false);
 			bt_cancel_cityfilter.set_rigid(false);

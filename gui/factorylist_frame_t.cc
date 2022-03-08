@@ -8,6 +8,7 @@
 #include "../dataobj/translator.h"
 #include "../player/simplay.h"
 #include "../simworld.h"
+#include "../simhalt.h"
 #include "../dataobj/environment.h"
 
 
@@ -150,16 +151,16 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 				new_component<gui_empty_t>();
 			}
 
-			lb_target_city.set_visible(false);
-			lb_target_city.set_rigid(false);
-			lb_target_city.set_color(SYSCOL_TEXT_HIGHLIGHT);
-			add_component(&lb_target_city);
+			lb_filter_target.set_visible(false);
+			lb_filter_target.set_rigid(false);
+			lb_filter_target.set_color(SYSCOL_TEXT_HIGHLIGHT);
+			add_component(&lb_filter_target);
 
-			bt_cancel_cityfilter.init(button_t::roundbox, "reset");
-			bt_cancel_cityfilter.add_listener(this);
-			bt_cancel_cityfilter.set_visible(false);
-			bt_cancel_cityfilter.set_rigid(false);
-			add_component(&bt_cancel_cityfilter);
+			bt_cancel_specialfilter.init(button_t::roundbox, "Cancel");
+			bt_cancel_specialfilter.add_listener(this);
+			bt_cancel_specialfilter.set_visible(false);
+			bt_cancel_specialfilter.set_rigid(false);
+			add_component(&bt_cancel_specialfilter);
 		}
 		end_table();
 
@@ -246,8 +247,13 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 		}
 		fill_list();
 	}
-	else if (comp == &bt_cancel_cityfilter) {
-		set_cityfilter(NULL);
+	else if (comp == &bt_cancel_specialfilter) {
+		if (filter_city) {
+			set_cityfilter(NULL);
+		}
+		if (filter_halt.is_bound()){
+			set_haltfilter();
+		}
 	}
 	else if (comp == &filter_buttons[0]) {
 		filter_buttons[0].pressed ^= 1;
@@ -303,6 +309,9 @@ void factorylist_frame_t::fill_list()
 		if (filter_city != NULL && filter_city != fab->get_city()) {
 			continue;
 		}
+		if (filter_halt.is_bound() && !filter_halt->get_fab_list().is_contained(fab)) {
+			continue;
+		}
 		if (last_name_filter[0] != 0 && !utf8caseutf8(fab->get_name(), last_name_filter)) {
 			continue;
 		}
@@ -346,26 +355,50 @@ void factorylist_frame_t::set_title()
 	if (filter_city) {
 		title_buf.printf(" > %s > %s", translator::translate("City"), filter_city->get_name() );
 	}
+	if (filter_halt.is_bound()) {
+		title_buf.printf(" > %s > %s", translator::translate("BF"), filter_halt->get_name());
+	}
 	set_name( title_buf );
+}
+
+void factorylist_frame_t::activate_special_filter(bool activate)
+{
+	region_selector.set_visible(!activate && !welt->get_settings().regions.empty());
+	bt_cancel_specialfilter.set_visible(activate);
+	lb_filter_target.set_visible(activate);
+	if (activate) {
+		filter_within_network.pressed = false;
+		factorylist_stats_t::filter_own_network = false;
+		factorylist_stats_t::region_filter = 0;
+		region_selector.set_selection(0);
+		freight_type_c.set_selection(0);
+		factorylist_stats_t::filter_goods_catg = goods_manager_t::INDEX_NONE;
+	}
+	set_title();
+	resize(scr_size(0, 0));
+	fill_list();
 }
 
 void factorylist_frame_t::set_cityfilter(stadt_t *city)
 {
 	filter_city = city;
-	region_selector.set_visible(filter_city == NULL && !welt->get_settings().regions.empty());
-	bt_cancel_cityfilter.set_visible(filter_city != NULL);
-	lb_target_city.set_visible(filter_city != NULL);
+	filter_halt = halthandle_t();
 	if (filter_city) {
-		filter_within_network.pressed = false;
-		factorylist_stats_t::filter_own_network = false;
-		factorylist_stats_t::region_filter = 0;
-		region_selector.set_selection(0);
-		lb_target_city.buf().printf("%s>%s", translator::translate("City"), filter_city->get_name());
-		lb_target_city.update();
+		lb_filter_target.buf().printf("%s>%s", translator::translate("City"), filter_city->get_name());
+		lb_filter_target.update();
 	}
-	set_title();
-	resize(scr_size(0, 0));
-	fill_list();
+	activate_special_filter(filter_city != NULL);
+}
+
+void factorylist_frame_t::set_haltfilter(halthandle_t halt)
+{
+	filter_halt = halt;
+	filter_city = NULL;
+	if (filter_halt.is_bound()) {
+		lb_filter_target.buf().printf("%s>%s", translator::translate("BF"), filter_halt->get_name());
+		lb_filter_target.update();
+	}
+	activate_special_filter(filter_halt.is_bound());
 }
 
 void factorylist_frame_t::set_text_filter(const char * text)
@@ -376,6 +409,9 @@ void factorylist_frame_t::set_text_filter(const char * text)
 	}
 	if (filter_city) {
 		set_cityfilter(NULL);
+	}
+	else if (filter_halt.is_bound()) {
+		set_haltfilter();
 	}
 	else {
 		fill_list();

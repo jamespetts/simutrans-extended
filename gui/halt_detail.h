@@ -229,13 +229,13 @@ private:
 	gui_halt_service_info_t cont_service;
 	gui_scrollpane_t scrolly_pas, scrolly_goods, scroll_service, scrolly_route;
 	gui_label_buf_t lb_selected_route_catg;
-	gui_heading_t lb_nearby_factory, lb_routes, lb_serve_catg;
+	gui_heading_t lb_routes, lb_serve_catg;
 
 	gui_halt_nearby_factory_info_t nearby_factory;
 	gui_tab_panel_t tabs;
 
 	// service tab stuffs
-	button_t bt_sv_frequency, bt_sv_route, bt_sv_catg, bt_access_minimap, bt_access_minimap_catg;
+	button_t bt_sv_frequency, bt_sv_route, bt_sv_catg, bt_access_minimap, bt_access_minimap_catg, bt_access_factory_list;
 
 	// route tab stuffs
 	uint8 selected_route_catg_index = goods_manager_t::INDEX_NONE;

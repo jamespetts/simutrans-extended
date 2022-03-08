@@ -774,6 +774,7 @@ public:
 	 * Opens an information window for this station.
 	 */
 	void show_info();
+	void show_factory_list();
 
 	/**
 	 * @return the type of a station

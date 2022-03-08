@@ -3448,6 +3448,17 @@ void haltestelle_t::show_info()
 	create_win( new halt_info_t(self), w_info, magic_halt_info + self.get_id() );
 }
 
+void haltestelle_t::show_factory_list()
+{
+	factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
+	if (!win) {
+		create_win(-1, -1, new factorylist_frame_t(), w_info, magic_factorylist);
+		win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
+	}
+	win->set_haltfilter(self);
+	top_win(win);
+}
+
 
 sint64 haltestelle_t::calc_maintenance() const
 {

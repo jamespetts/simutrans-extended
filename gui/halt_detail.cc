@@ -84,8 +84,13 @@ void halt_detail_t::init()
 	show_pas_info = false;
 	show_freight_info = false;
 
-	lb_nearby_factory.init("Fabrikanschluss"/* (en)Connected industries */, scr_coord(D_MARGIN_LEFT, 0),
-		color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_dark), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), 2);
+	bt_access_factory_list.init(button_t::roundbox, "Fabrikanschluss", scr_coord(D_MARGIN_LEFT, 0), scr_size(D_BUTTON_WIDTH*2, D_BUTTON_HEIGHT));
+	if (skinverwaltung_t::open_window) {
+		bt_access_factory_list.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_access_factory_list.set_image_position_right(true);
+	}
+	bt_access_factory_list.set_tooltip("Opens the factory list dialog to display a list of factories connected to this stop.");
+	bt_access_factory_list.add_listener(this);
 
 	// fill buffer with halt detail
 	goods.recalc_size();
@@ -95,9 +100,9 @@ void halt_detail_t::init()
 	tabs.add_listener(this);
 	add_component(&tabs);
 
-	cont_goods.set_pos(scr_coord(0, 0));
+	cont_goods.set_pos(scr_coord(0, D_MARGIN_TOP));
+	cont_goods.add_component(&bt_access_factory_list);
 	cont_goods.add_component(&goods);
-	cont_goods.add_component(&lb_nearby_factory);
 	cont_goods.add_component(&nearby_factory);
 
 	// service tab components
@@ -399,8 +404,9 @@ void halt_detail_t::update_components()
 	}
 	y += goods.get_size().h;
 
-	lb_nearby_factory.set_pos(scr_coord(D_H_SPACE, y));
-	y += D_HEADING_HEIGHT + D_V_SPACE*2;
+	bt_access_factory_list.enable(!halt->get_fab_list().empty());
+
+	y += D_V_SPACE*2;
 	nearby_factory.set_pos(scr_coord(0, y));
 	if (halt->get_fab_list().get_count() != old_factory_count)
 	{
@@ -546,6 +552,10 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 		win->set_halt(halt);
 		win->set_category_filter(comp == &bt_access_minimap ? goods_manager_t::INDEX_NONE : selected_route_catg_index/*, selected_class*/);
 		top_win(win);
+		return true;
+	}
+	else if (comp == &bt_access_factory_list) {
+		halt->show_factory_list();
 		return true;
 	}
 	else if(comp != &tabs){
@@ -1061,7 +1071,7 @@ void halt_detail_goods_t::draw(scr_coord offset)
 {
 	// keep previous maximum width
 	int x_size = get_size().w - 51 - pos.x;
-	int top = D_MARGIN_TOP;
+	int top = D_MARGIN_TOP+D_BUTTON_HEIGHT;
 	offset.x += D_MARGIN_LEFT;
 	int left = GOODS_SYMBOL_CELL_WIDTH;
 
@@ -1250,49 +1260,14 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 	const slist_tpl<fabrik_t*> & fab_list = halt->get_fab_list();
 
 	uint32 sel = line_selected;
-	FORX(const slist_tpl<fabrik_t*>, const fab, fab_list, yoff += LINESPACE + 1) {
-		xoff = D_POS_BUTTON_WIDTH + D_H_SPACE;
-		// [status color bar]
-		const PIXVAL col_val = color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status()]);
-		display_fillbox_wh_clip_rgb(offset.x + xoff + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH / 2 - 1, D_INDICATOR_HEIGHT, col_val, true);
-		xoff += D_INDICATOR_WIDTH / 2 + 3;
-
-		// [name]
-		buf.clear();
-		buf.printf("%s (%d,%d)", fab->get_name(), fab->get_pos().x, fab->get_pos().y);
-		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
-		xoff = max(xoff, D_BUTTON_WIDTH * 2 + D_INDICATOR_WIDTH);
-
-		uint has_input_output = 0;
+	FOR(const slist_tpl<fabrik_t*>, const fab, fab_list) {
 		FOR(array_tpl<ware_production_t>, const& i, fab->get_input()) {
 			goods_desc_t const* const ware = i.get_typ();
-			if (skinverwaltung_t::input_output && !has_input_output) {
-				display_color_img(skinverwaltung_t::input_output->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
-				xoff += D_FIXED_SYMBOL_WIDTH + D_V_SPACE;
-			}
-			// input goods color square box
-			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, ware->get_color(), true, translator::translate(ware->get_name()));
-			xoff += D_FIXED_SYMBOL_WIDTH;
-
 			required_material.append_unique(ware);
-			has_input_output++;
 		}
 
-		if (has_input_output < 4) {
-			xoff += has_input_output ? D_FIXED_SYMBOL_WIDTH * (4 - has_input_output) : D_FIXED_SYMBOL_WIDTH * 5 + D_V_SPACE;
-		}
-		has_input_output = 0;
 		FOR(array_tpl<ware_production_t>, const& i, fab->get_output()) {
 			goods_desc_t const* const ware = i.get_typ();
-			if (skinverwaltung_t::input_output && !has_input_output) {
-				display_color_img(skinverwaltung_t::input_output->get_image_id(1), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
-				xoff += D_FIXED_SYMBOL_WIDTH + D_V_SPACE;
-			}
-			// output goods color square box
-			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, ware->get_color(), true, translator::translate(ware->get_name()));
-			xoff += D_FIXED_SYMBOL_WIDTH;
-
 			if (!active_product.is_contained(ware)) {
 				if ((fab->get_status() % fabrik_t::no_material || fab->get_status() % fabrik_t::material_shortage) && !i.menge) {
 					// this factory is not in operation
@@ -1302,28 +1277,8 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 					active_product.append(ware);
 				}
 			}
-			has_input_output++;
-		}
-		if (fab->get_sector() == fabrik_t::power_plant) {
-			xoff += D_FIXED_SYMBOL_WIDTH;
-			display_color_img(skinverwaltung_t::electricity->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
-		}
-
-
-		// goto button
-		bool selected = sel == 0 || welt->get_viewport()->is_on_center(fab->get_pos());
-		display_img_aligned(gui_theme_t::pos_button_img[selected], scr_rect(offset.x + D_H_SPACE, offset.y + yoff, D_POS_BUTTON_WIDTH, LINESPACE), ALIGN_CENTER_V | ALIGN_CENTER_H, true);
-		sel--;
-
-		if (win_get_magic((ptrdiff_t)fab)) {
-			display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);
 		}
 	}
-	if (!halt->get_fab_list().get_count()) {
-		display_proportional_clip_rgb(offset.x + D_MARGIN_LEFT, offset.y + yoff, translator::translate("keine"), ALIGN_LEFT, color_idx_to_rgb(MN_GREY0), true);
-		yoff += LINESPACE;
-	}
-	yoff += LINESPACE;
 
 	// [Goods needed by nearby industries]
 	xoff = GOODS_SYMBOL_CELL_WIDTH + (int)(D_BUTTON_WIDTH*1.5); // 2nd col x offset
