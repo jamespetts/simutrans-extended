@@ -1269,7 +1269,7 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 		FOR(array_tpl<ware_production_t>, const& i, fab->get_output()) {
 			goods_desc_t const* const ware = i.get_typ();
 			if (!active_product.is_contained(ware)) {
-				if ((fab->get_status() % fabrik_t::no_material || fab->get_status() % fabrik_t::material_shortage) && !i.menge) {
+				if (!fab->get_stat(0, FAB_PRODUCTION) && !i.menge) {
 					// this factory is not in operation
 					inactive_product.append_unique(ware);
 				}

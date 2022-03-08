@@ -756,10 +756,6 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 			break;
 		}
 
-		case factorylist::by_status:
-			cmp = a->get_status() - b->get_status();
-			break;
-
 		case factorylist::by_power:
 			cmp = a->get_prodfactor_electric() - b->get_prodfactor_electric();
 			break;

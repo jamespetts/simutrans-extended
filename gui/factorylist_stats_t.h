@@ -26,7 +26,6 @@ namespace factorylist {
 		by_maxprod,
 		by_consume,
 		by_delivered,
-		by_status,
 		by_power,
 		by_sector,
 		by_staffing,
