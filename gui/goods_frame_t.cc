@@ -452,7 +452,7 @@ void goods_frame_t::activate_input_field()
 	reset_min_windowsize();
 }
 
-void goods_frame_t::set_goods(const goods_desc_t const* goods, bool make_min_size)
+void goods_frame_t::set_goods(const goods_desc_t *goods, bool make_min_size)
 {
 	show_input = false; // close the input field
 	activate_input_field();
