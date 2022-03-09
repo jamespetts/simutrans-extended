@@ -22,7 +22,6 @@
 #include "simplan.h"
 #include "player/simplay.h"
 #include "player/finance.h"
-#include "gui/simwin.h"
 #include "simworld.h"
 #include "simware.h"
 #include "sys/simsys.h"
@@ -47,9 +46,11 @@
 #include "obj/label.h"
 #include "obj/signal.h"
 
+#include "gui/simwin.h"
 #include "gui/halt_info.h"
 #include "gui/halt_detail.h"
 #include "gui/minimap.h"
+#include "gui/factorylist_frame_t.h"
 
 #include "utils/simrandom.h"
 #include "utils/simstring.h"
