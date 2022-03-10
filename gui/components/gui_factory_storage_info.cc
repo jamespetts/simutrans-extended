@@ -345,7 +345,7 @@ void gui_factory_product_item_t::draw(scr_coord offset)
 
 bool gui_factory_product_item_t::infowin_event(const event_t *ev)
 {
-	if (IS_LEFTRELEASE(ev)) {
+	if( IS_LEFTRELEASE(ev)  &&  ware->get_typ()->is_available() ) {
 		ware->get_typ()->show_info();
 	}
 	return gui_aligned_container_t::infowin_event(ev);
