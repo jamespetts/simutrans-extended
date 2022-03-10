@@ -160,12 +160,18 @@ void minimap_t::add_to_schedule_cache( convoihandle_t cnv, bool with_waypoints )
 		return;
 	}
 	schedule_t *schedule = cnv->get_schedule();
+	uint8 line_color_index = 255;
 	if(  !show_network_load_factor  ) {
-		colore_idx += 8;
-		if(  colore_idx >= 208  ) {
-			colore_idx = (colore_idx % 8) + 1;
-			if(  colore_idx == 7  ) {
-				colore_idx = 0;
+		if( cnv->get_line().is_bound()  &&  cnv->get_line()->get_line_color_index()!=255 ) {
+			line_color_index = cnv->get_line()->get_line_color_index();
+		}
+		else {
+			colore_idx += 8;
+			if(  colore_idx >= 208  ) {
+				colore_idx = (colore_idx % 8) + 1;
+				if(  colore_idx == 7  ) {
+					colore_idx = 0;
+				}
 			}
 		}
 	}
@@ -257,7 +263,7 @@ void minimap_t::add_to_schedule_cache( convoihandle_t cnv, bool with_waypoints )
 			if(  (temp_stop.x-old_stop.x)*(temp_stop.y-old_stop.y) == 0  ) {
 				last_diagonal = false;
 			}
-			if(  !schedule_cache.insert_unique_ordered( line_segment_t( temp_stop, temp_offset, old_stop, old_offset, schedule, cnv->get_owner(), colore_idx, last_diagonal ), LineSegmentOrdering() )  &&  add_schedule  ) {
+			if(  !schedule_cache.insert_unique_ordered( line_segment_t( temp_stop, temp_offset, old_stop, old_offset, schedule, cnv->get_owner(), colore_idx, last_diagonal, line_color_index ), LineSegmentOrdering() )  &&  add_schedule  ) {
 				// append if added and not yet there
 				if(  !pt_list->is_contained( schedule )  ) {
 					pt_list->append( schedule );
@@ -286,7 +292,7 @@ void minimap_t::add_to_schedule_cache( convoihandle_t cnv, bool with_waypoints )
 	if(  stops > 2 && !schedule->is_mirrored()  ) {
 		// connect to start
 		last_diagonal ^= true;
-		schedule_cache.insert_unique_ordered( line_segment_t( first_stop, first_offset, old_stop, old_offset, schedule, cnv->get_owner(), colore_idx, last_diagonal ), LineSegmentOrdering() );
+		schedule_cache.insert_unique_ordered( line_segment_t( first_stop, first_offset, old_stop, old_offset, schedule, cnv->get_owner(), colore_idx, last_diagonal, line_color_index ), LineSegmentOrdering() );
 	}
 }
 
@@ -1651,7 +1657,7 @@ void minimap_t::draw(scr_coord pos)
 				if (current_cnv.is_bound() && current_cnv.get_rep()->get_line().is_bound() && current_cnv.get_rep()->get_line()->get_line_color()!=0) {
 					// Since white is mixed in the background, it is easier to see in slightly darker.
 					const PIXVAL linecolor = current_cnv.get_rep()->get_line()->get_line_color();
-					colval = display_blend_colors(linecolor, color_idx_to_rgb(COL_BLACK), is_dark_color(linecolor) ? 15:30);
+					colval = display_blend_colors(linecolor, color_idx_to_rgb(COL_BLACK), is_dark_color(linecolor) ? 10:22);
 				}
 				else {
 					colval = color_idx_to_rgb(seg.player->get_player_color1()+1);
@@ -1661,6 +1667,15 @@ void minimap_t::draw(scr_coord pos)
 					offset = 0;
 				}
 				last_color = colval;
+			}
+			else if (seg.line_color_index < MAX_LINE_COLOR_PALETTE) {
+				// Since white is mixed in the background, it is easier to see in slightly darker.
+				const PIXVAL linecolor = line_color_idx_to_rgb(seg.line_color_index);
+				colval = display_blend_colors(linecolor, color_idx_to_rgb(COL_BLACK), is_dark_color(linecolor) ? 10:22);
+			}
+			else if (seg.line_color_index == 254) {
+				// use player color
+				colval = color_idx_to_rgb(seg.player->get_player_color1()+3);
 			}
 			if(  seg.start != last_start  ||  seg.end != last_end  ) {
 				last_start = seg.start;

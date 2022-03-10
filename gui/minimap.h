@@ -98,17 +98,19 @@ private:
 		player_t *player;
 		waytype_t    wtyp;
 		uint8 colorcount;
+		uint8 line_color_index;
 		uint8 start_offset;
 		uint8 end_offset;
 		bool start_diagonal;
 
 		line_segment_t() {}
-		line_segment_t( koord s, uint8 so, koord e, uint8 eo, schedule_t *f, player_t *p, uint8 cc, bool diagonal ) {
+		line_segment_t( koord s, uint8 so, koord e, uint8 eo, schedule_t *f, player_t *p, uint8 cc, bool diagonal, uint8 lc_idx=255 ) {
 			schedule = f;
 			wtyp = f->get_waytype();
 			player = p;
 			colorcount = cc;
 			start_diagonal = diagonal;
+			line_color_index = lc_idx;
 			if(  s.x<e.x  ||  (s.x==e.x  &&  s.y<e.y)  ) {
 				start = s;
 				end = e;
