@@ -26,31 +26,8 @@
 
 #include "../obj/leitung2.h" // POWER_TO_MW
 
-/*
-static const char factory_status_type[fabrik_t::MAX_FAB_STATUS][64] =
-{
-	"", "", "", "", "", // status not problematic
-	"Storage full",
-	"Inactive", "Shipment stuck",
-	"Material shortage", "No material",
-	"stop_some_goods_arrival", "Fully stocked",
-	"fab_stuck",
-	"missing_connection", "missing_connection", "material_not_available"
-};
-
-static const int fab_alert_level[fabrik_t::MAX_FAB_STATUS] =
-{
-	0, 0, 0, 0, 0, // status not problematic
-	1,
-	2, 2,
-	2, 2,
-	3, 3,
-	4,
-	4, 4, 4
-};
 
 sint16 fabrik_info_t::tabstate = 0;
-*/
 
 
 /**
@@ -497,6 +474,7 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* gb)
 	}
 
 	// tab panel: connections, chart panels, details
+	switch_mode.add_listener(this);
 	add_component(&switch_mode);
 	scroll_info.set_maximize(true);
 	switch_mode.add_tab(&scroll_info, translator::translate("Connections"));
@@ -612,7 +590,6 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	boost_passenger.set_transparent(fab->get_prodfactor_pax()>0 ? 0 : TRANSPARENT50_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK));
 	boost_mail.set_transparent(fab->get_prodfactor_mail()>0 ? 0 : TRANSPARENT50_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK));
 
-	//indicator_color.set_color( color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status()]) );
 	if (fab->get_desc()->get_building()->get_class_proportions_sum_jobs()) {
 			staff_shortage_factor = 0;
 			if (fab->get_sector() == fabrik_t::end_consumer) {
@@ -647,6 +624,9 @@ bool fabrik_info_t::is_weltpos()
  */
 bool fabrik_info_t::action_triggered( gui_action_creator_t *comp, value_t)
 {
+	if(  comp == &switch_mode  ) {
+		set_tab_opened();
+	}
 	if(  comp == &input  ) {
 		rename_factory();
 	}
@@ -658,9 +638,32 @@ bool fabrik_info_t::action_triggered( gui_action_creator_t *comp, value_t)
 		}
 		win->activate_individual_network_mode( fab->get_pos().get_2d(), false );
 		top_win(win);
-		return true;
 	}
 	return true;
+}
+
+
+void fabrik_info_t::set_tab_opened()
+{
+	resize(scr_coord(0, 0));
+	tabstate = switch_mode.get_active_tab_index();
+	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT;
+	scr_coord_val height = 0;
+	switch (tabstate)
+	{
+		case 0: // info
+		default:
+			height = container_info.get_size().h;
+			break;
+		case 1: // goods chart
+		case 2: // prod chart
+			height = chart.get_size().h;
+			break;
+		case 3: // details
+			height = container_details.get_size().h;
+			break;
+	}
+	set_windowsize(scr_size(get_windowsize().w, min(display_get_height()-margin_above_tab, margin_above_tab+height)));
 }
 
 
@@ -743,7 +746,7 @@ void fabrik_info_t::update_components()
 		old_suppliers_count = fab->get_suppliers().get_count();
 	}
 	container_info.set_size(container_info.get_min_size());
-	reset_min_windowsize();
+	set_min_windowsize(scr_size(switch_mode.get_min_size().w, switch_mode.get_pos().y+D_TAB_HEADER_HEIGHT+D_TITLEBAR_HEIGHT));
 	resize(scr_size(0,0));
 	set_dirty();
 }
@@ -772,7 +775,6 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 			nearby_halts.set_fab(fab);
 
 			container_details.init(gb, get_titlecolor());
-			//set_tab_opened();
 		}
 		win_set_magic(this, (ptrdiff_t)this);
 	}
@@ -783,5 +785,6 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 	if(  file->is_loading()  ) {
 		reset_min_windowsize();
 		set_windowsize(size);
+		set_tab_opened();
 	}
 }

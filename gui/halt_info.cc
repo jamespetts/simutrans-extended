@@ -1059,19 +1059,21 @@ void halt_info_t::set_tab_opened()
 {
 	resize(scr_coord(0, 0));
 	scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_MARGINS_Y + D_V_SPACE;
+	scr_coord_val height = 0;
 	switch (switch_mode.get_active_tab_index())
 	{
 		case 0:
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
+			height = text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y;
 			break;
 		case 1: // departure board
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE)));
+			height = cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE;
 			break;
 		case 2: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + chart.get_size().h + (D_BUTTON_HEIGHT+D_V_SPACE)*4 + D_MARGINS_Y)));
+			height = chart.get_size().h + (D_BUTTON_HEIGHT+D_V_SPACE)*4 + D_MARGINS_Y;
 			break;
 	}
+	set_windowsize(scr_size(get_windowsize().w, min(display_get_height()-margin_above_tab, margin_above_tab+height)));
 }
 
 
@@ -1311,7 +1313,7 @@ void halt_info_t::draw(scr_coord pos, scr_size size)
  */
 bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
-	if (comp == &switch_mode  &&  get_windowsize().h == get_min_windowsize().h) {
+	if( comp == &switch_mode  &&  (get_windowsize().h-get_min_windowsize().h<LINESPACE*2) ) {
 		set_tab_opened();
 		return true;
 	}
