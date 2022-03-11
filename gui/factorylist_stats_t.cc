@@ -351,6 +351,7 @@ void gui_factory_stats_t::update_table()
 			new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 
 			realtime_buf.init(SYSCOL_TEXT, gui_label_t::right);
+			realtime_buf.set_tooltip(NULL);
 			realtime_buf.set_fixed_width(LINEASCENT*5);
 			add_component(&realtime_buf);
 
