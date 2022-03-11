@@ -769,6 +769,9 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 		case factorylist::by_operation_rate:
 			cmp = a->get_stat(1, FAB_PRODUCTION) - b->get_stat(1, FAB_PRODUCTION);
 			if (cmp == 0) {
+				cmp = a->get_stat(0, FAB_PRODUCTION) - b->get_stat(0, FAB_PRODUCTION);
+			}
+			if (cmp == 0) {
 				cmp = b->get_status() - a->get_status();
 			}
 			if (cmp == 0) {
