@@ -668,16 +668,13 @@ public:
 	// returns the current productivity relative to 100
 	sint32 get_current_productivity() const { return welt->calc_adjusted_monthly_figure(prodbase) ? get_current_production() * 100 / welt->calc_adjusted_monthly_figure(prodbase) : 0; }
 	// returns the current productivity including the effect of staff shortage
-	sint32 get_actual_productivity() const { return status == inactive ? 0 : is_staff_shortage() ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
+	sint32 get_actual_productivity() const { return status == !nearby_freight_halts.empty() ? 0 : is_staff_shortage() ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
 
 	/* returns the status of the current factory, as well as output */
 	enum {
-		nothing, good, water_resource, medium, water_resource_full, storage_full,
-		inactive, shipment_stuck, material_shortage, no_material, bad,
-		mat_overstocked, stuck, missing_connections, missing_consumer, material_not_available,
+		normal, missing_connections, missing_consumer, material_not_available,
 		MAX_FAB_STATUS
 	};
-	static uint8 status_to_color[MAX_FAB_STATUS];
 
 	uint8  get_status() const { return status; }
 	uint32 get_total_in() const { return total_input; }
