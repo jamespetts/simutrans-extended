@@ -767,6 +767,12 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 			break;
 		case factorylist::by_operation_rate:
 			cmp = a->get_stat(1, FAB_PRODUCTION) - b->get_stat(1, FAB_PRODUCTION);
+			if (cmp == 0) {
+				cmp = b->get_status() - a->get_status();
+			}
+			if (cmp == 0) {
+				cmp = a->get_nearby_freight_halts().get_count() - b->get_nearby_freight_halts().get_count();
+			}
 			break;
 		case factorylist::by_visitor_demand:
 		{

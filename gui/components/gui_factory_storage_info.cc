@@ -90,6 +90,9 @@ void gui_factory_operation_status_t::draw(scr_coord offset)
 	if (avtivity_score) {
 		set_status(gui_operation_status_t::operation_ok);
 	}
+	else if (fab->get_status() != fabrik_t::normal) {
+		set_status(gui_operation_status_t::operation_warning);
+	}
 	else if (fab->get_nearby_freight_halts().empty()) {
 		set_status(gui_operation_status_t::operation_invalid);
 	}
