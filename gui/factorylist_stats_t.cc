@@ -792,7 +792,7 @@ bool factorylist_stats_t::compare(const gui_component_t *aa, const gui_component
 			break;
 		}
 		case factorylist::by_consumer_arivals:
-			cmp = a->get_stat(0, FAB_CONSUMER_ARRIVED) - b->get_stat(0, FAB_CONSUMER_ARRIVED);
+			cmp = a->get_stat(1, FAB_CONSUMER_ARRIVED) - b->get_stat(1, FAB_CONSUMER_ARRIVED);
 			break;
 		case factorylist::by_region:
 			cmp = world()->get_region(a->get_pos().get_2d()) - world()->get_region(b->get_pos().get_2d());
