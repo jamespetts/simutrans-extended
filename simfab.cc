@@ -654,6 +654,7 @@ void fabrik_t::add_consumer(koord ziel)
 		fabrik_t * fab = fabrik_t::get_fab(ziel);
 		if (fab) {
 			fab->add_supplier(get_pos().get_2d());
+			recalc_factory_status();
 		}
 	}
 }
@@ -662,6 +663,7 @@ void fabrik_t::add_consumer(koord ziel)
 void fabrik_t::remove_consumer(koord consumer_pos)
 {
 	consumers.remove(consumer_pos);
+	recalc_factory_status();
 }
 
 bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be destroyed.
@@ -731,14 +733,17 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 					if (unfulfilled_requirements.empty())
 					{
 						// Keep connecting until we are not short of anything
+						recalc_factory_status();
 						return false;
 					}
 				}
 			}
 		}
 		// Destroy if missing all outputs
+		recalc_factory_status();
 		return unfulfilled_requirements.get_count() == desc->get_product_count();
 	}
+	recalc_factory_status();
 	return false;
 }
 
@@ -810,13 +815,16 @@ bool fabrik_t::disconnect_supplier(koord supplier_pos) //Returns true if must be
 				if (unfulfilled_requirements.empty())
 				{
 					// Keep connecting until we are not short of anything
+					recalc_factory_status();
 					return false;
 				}
 			}
 		}
 		// Destroy if missing all inputs for end-consumers, or if missing any inputs for other industries.
+		recalc_factory_status();
 		return sector == end_consumer ? unfulfilled_requirements.get_count() == desc->get_supplier_count() : true;
 	}
+	recalc_factory_status();
 	return false;
 }
 
@@ -992,6 +1000,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 	update_scaled_electric_demand();
 	update_scaled_pax_demand();
 	update_scaled_mail_demand();
+	recalc_factory_status();
 
 	// We can't do these here, because get_tile_list will fail
 	// We have to wait until after ::build is called
@@ -2398,7 +2407,7 @@ void fabrik_t::step(uint32 delta_t)
 			}
 		}
 
-		recalc_factory_status();
+		update_storage_amount();
 
 		// rescale delta_menge here: all products should be produced at least once
 		// (if consumer only: all supplements should be consumed once)
@@ -3072,26 +3081,49 @@ void fabrik_t::new_month()
 
 		welt->closed_factories_this_month.append(this);
 	}
+	recalc_factory_status();
 	// NOTE: No code should come after this part, as the closing down code may cause this object to be deleted.
 }
 
 
-/* returns the status of the current factory, as well as output
-   also updates total_input/total_transit/total_output          */
-void fabrik_t::recalc_factory_status()
+// updates total_input/total_transit/total_output
+void fabrik_t::update_storage_amount()
 {
 	uint64 warenlager;
 
 	// set bits for input
 	warenlager = 0;
 	total_transit = 0;
-	status = normal;
 	uint32 i = 0;
 	if(const uint32 input_count = input.get_count()){
-		uint32 active_input_count = 0;
 		FOR(array_tpl<ware_production_t>, const& j, input) {
 			warenlager += (uint64)j.menge * (uint64)(desc->get_supplier(i++)->get_consumption());
 			total_transit += j.get_in_transit();
+		}
+		warenlager >>= fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS;
+		total_input = (uint32)warenlager;
+	}
+
+	// set bits for output
+	warenlager = 0;
+	i = 0;
+	FORX(array_tpl<ware_production_t>, const& j, output, i++) {
+		if (j.menge > 0) {
+			warenlager += (uint64)(FAB_DISPLAY_UNIT_HALF + (uint64)j.menge * (uint64)(desc->get_product(i)->get_factor())) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS);
+		}
+	}
+	total_output = (uint32)warenlager;
+
+}
+
+/* returns the status of the current factory */
+void fabrik_t::recalc_factory_status()
+{
+	status = normal;
+	uint32 i = 0;
+	if (const uint32 input_count = input.get_count()) {
+		uint32 active_input_count = 0;
+		FOR(array_tpl<ware_production_t>, const& j, input) {
 			// Does each input goods have one or more suppliers? If not, this factory will not be operational.
 			bool found = false;
 			FOR(vector_tpl<koord>, k, suppliers)
@@ -3118,10 +3150,8 @@ void fabrik_t::recalc_factory_status()
 				active_input_count++;
 			}
 		}
-		warenlager >>= fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS;
-		total_input = (uint32)warenlager;
 
-		if (!output.empty()) {
+		if( !output.empty() ) {
 			// All materials must be available for manufacturing.
 			if (active_input_count != input_count) {
 				status = material_not_available;
@@ -3133,18 +3163,8 @@ void fabrik_t::recalc_factory_status()
 		}
 	}
 
-	// set bits for output
-	warenlager = 0;
-	i = 0;
-	FORX(array_tpl<ware_production_t>, const& j, output, i++) {
-		if (j.menge > 0) {
-			warenlager += (uint64)(FAB_DISPLAY_UNIT_HALF + (uint64)j.menge * (uint64)(desc->get_product(i)->get_factor())) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS);
-		}
-	}
-	total_output = (uint32)warenlager;
-
 	// At least one must have a normal downstream industry
-	if (output.get_count()) {
+	if( !output.empty() ) {
 		bool has_any_consumer = false;
 		FOR(vector_tpl<koord>, k, consumers) {
 			const fabrik_t* consumer = fabrik_t::get_fab(k);
@@ -3319,6 +3339,7 @@ void fabrik_t::info_conn(cbuffer_t& buf) const
 void fabrik_t::finish_rd()
 {
 	recalc_nearby_halts();
+	recalc_factory_status();
 
 	// now we have a valid storage limit
 	if(  welt->get_settings().is_crossconnect_factories()  ) {
@@ -3431,6 +3452,7 @@ void fabrik_t::add_supplier(koord ziel)
 		}
 	}
 	suppliers.insert_unique_ordered( ziel, RelativeDistanceOrdering(pos.get_2d()) );
+	recalc_factory_status();
 }
 
 
@@ -3459,6 +3481,7 @@ void fabrik_t::remove_supplier(koord supplier_pos)
 			}
 		}
 	}
+	recalc_factory_status();
 }
 
 

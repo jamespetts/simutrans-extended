@@ -395,6 +395,10 @@ private:
 	 */
 	sint32 delta_slot;
 
+	// updates total_input/total_transit/total_output
+	void update_storage_amount();
+
+	// returns the status of the current factory
 	void recalc_factory_status();
 
 	// create some smoke on the map
