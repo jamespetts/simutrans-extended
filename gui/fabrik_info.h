@@ -106,6 +106,8 @@ public:
 	// refreshes text, images, indicator
 	void update_info();
 
+	void update_factory_link(bool force=false);
+
 	fabrik_info_t(fabrik_t* fab = NULL, const gebaeude_t* gb = NULL);
 
 	virtual ~fabrik_info_t();

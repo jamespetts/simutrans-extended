@@ -106,109 +106,118 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE
 	{
-		fabrik_t *target_fab = fabrik_t::get_fab(target);
-		if (win_get_magic((ptrdiff_t)target_fab)) {
-			display_blend_wh_rgb(offset.x + get_pos().x, offset.y + get_pos().y, get_size().w, get_size().h, SYSCOL_TEXT_HIGHLIGHT, 30);
-		}
-		const bool has_halt = !target_fab->get_nearby_freight_halts().empty();
-		const goods_desc_t *goods = ware->get_typ();
+		if( fabrik_t *target_fab = fabrik_t::get_fab(target) ) {
+			if (win_get_magic((ptrdiff_t)target_fab)) {
+				display_blend_wh_rgb(offset.x + get_pos().x, offset.y + get_pos().y, get_size().w, get_size().h, SYSCOL_TEXT_HIGHLIGHT, 30);
+			}
+			const bool has_halt = !target_fab->get_nearby_freight_halts().empty();
+			const goods_desc_t *goods = ware->get_typ();
 
-		lb_name.set_color(has_halt ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
-		// connection check
-		connection_status.set_visible(false);
-		if (!target_fab->get_nearby_freight_halts().empty() && !fab->get_nearby_freight_halts().empty()) {
+			lb_name.set_color(has_halt ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+			// connection check
+			connection_status.set_visible(false);
+			if (!target_fab->get_nearby_freight_halts().empty() && !fab->get_nearby_freight_halts().empty()) {
 
-			// both factories have freight halt => check for the correct connection
+				// both factories have freight halt => check for the correct connection
 
-			// connected with a suitable freight network?
-			bool has_connection = fab->has_connection_with(target, goods->get_catg_index());
-			connection_status.set_visible(has_connection);
-			if (has_connection) {
-				// check activity
-				if (supplier) {
-					// supplier's stock and shipment?
-					uint8 forwarding_score = 0;
-					FOR(array_tpl<ware_production_t>, const& product, target_fab->get_output()) {
-						if (goods == product.get_typ()) {
-							if (product.get_stat(0, FAB_GOODS_DELIVERED)) {
-								// This factory is shipping this month.
-								forwarding_score += 80;
+				// connected with a suitable freight network?
+				bool has_connection = fab->has_connection_with(target, goods->get_catg_index());
+				connection_status.set_visible(has_connection);
+				if (has_connection) {
+					// check activity
+					if (supplier) {
+						// supplier's stock and shipment?
+						uint8 forwarding_score = 0;
+						FOR(array_tpl<ware_production_t>, const& product, target_fab->get_output()) {
+							if (goods == product.get_typ()) {
+								if (product.get_stat(0, FAB_GOODS_DELIVERED)) {
+									// This factory is shipping this month.
+									forwarding_score += 80;
+								}
+								if (product.get_stat(1, FAB_GOODS_DELIVERED)) {
+									// This factory hasn't shipped this month yet, but it did last month.
+									forwarding_score=min(100, forwarding_score+50);
+								}
+								break;
 							}
-							if (product.get_stat(1, FAB_GOODS_DELIVERED)) {
-								// This factory hasn't shipped this month yet, but it did last month.
-								forwarding_score=min(100, forwarding_score+50);
-							}
-							break;
 						}
-					}
-					if (!forwarding_score) {
-						if (target_fab->is_staff_shortage()) {
-							connection_status.set_color(COL_STAFF_SHORTAGE);
-							connection_status.set_status(gui_operation_status_t::operation_stop);
+						if (!forwarding_score) {
+							if (target_fab->is_staff_shortage()) {
+								connection_status.set_color(COL_STAFF_SHORTAGE);
+								connection_status.set_status(gui_operation_status_t::operation_stop);
+							}
+							else {
+								connection_status.set_color(COL_INACTIVE);
+								connection_status.set_status(gui_operation_status_t::operation_pause);
+							}
 						}
 						else {
-							connection_status.set_color(COL_INACTIVE);
-							connection_status.set_status(gui_operation_status_t::operation_pause);
+							connection_status.set_color(color_idx_to_rgb(severity_color[(forwarding_score+19)/20]));
+							connection_status.set_status(gui_operation_status_t::operation_normal);
 						}
 					}
 					else {
-						connection_status.set_color(color_idx_to_rgb(severity_color[(forwarding_score+19)/20]));
-						connection_status.set_status(gui_operation_status_t::operation_normal);
-					}
-				}
-				else {
-					uint8 shipping_score = 0;
-					FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
-						if (goods == product.get_typ()) {
-							sint32 shipment_demand_to_target=min(target_fab->goods_needed(goods), product.max_transit);
-							if (shipment_demand_to_target <= 0){
-								connection_status.set_status(gui_operation_status_t::operation_pause);
-								connection_status.set_color(color_idx_to_rgb(COL_RED + 1));
-								break;
-							}
+						uint8 shipping_score = 0;
+						FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
+							if (goods == product.get_typ()) {
+								sint32 shipment_demand_to_target=min(target_fab->goods_needed(goods), product.max_transit);
+								if (shipment_demand_to_target <= 0){
+									connection_status.set_status(gui_operation_status_t::operation_pause);
+									connection_status.set_color(color_idx_to_rgb(COL_RED + 1));
+									break;
+								}
 
-							if (product.get_stat(0, FAB_GOODS_DELIVERED)) {
-								// This factory is shipping this month.
-								shipping_score += 80;
-							}
-							if (product.get_stat(1, FAB_GOODS_DELIVERED)) {
-								// This factory hasn't shipped this month yet, but it did last month.
-								shipping_score = min(100, shipping_score + 50);
-							}
+								if (product.get_stat(0, FAB_GOODS_DELIVERED)) {
+									// This factory is shipping this month.
+									shipping_score += 80;
+								}
+								if (product.get_stat(1, FAB_GOODS_DELIVERED)) {
+									// This factory hasn't shipped this month yet, but it did last month.
+									shipping_score = min(100, shipping_score + 50);
+								}
 
-							if (!shipping_score) {
-								if (!product.get_stat(0, FAB_GOODS_STORAGE)) {
-									connection_status.set_status(gui_operation_status_t::operation_stop);
-									connection_status.set_color(fab->is_staff_shortage() ? COL_STAFF_SHORTAGE : SYSCOL_TEXT_WEAK);
+								if (!shipping_score) {
+									if (!product.get_stat(0, FAB_GOODS_STORAGE)) {
+										connection_status.set_status(gui_operation_status_t::operation_stop);
+										connection_status.set_color(fab->is_staff_shortage() ? COL_STAFF_SHORTAGE : SYSCOL_TEXT_WEAK);
+									}
+									else {
+										// Stopped due to demand issue
+										connection_status.set_status(gui_operation_status_t::operation_pause);
+										connection_status.set_color(color_idx_to_rgb(COL_RED+1));
+									}
 								}
 								else {
-									// Stopped due to demand issue
-									connection_status.set_status(gui_operation_status_t::operation_pause);
-									connection_status.set_color(color_idx_to_rgb(COL_RED+1));
+									connection_status.set_color(color_idx_to_rgb(severity_color[(shipping_score+19)/20]));
+									connection_status.set_status(gui_operation_status_t::operation_normal);
 								}
+								break;
 							}
-							else {
-								connection_status.set_color(color_idx_to_rgb(severity_color[(shipping_score+19)/20]));
-								connection_status.set_status(gui_operation_status_t::operation_normal);
-							}
-							break;
 						}
 					}
 				}
 			}
-		}
 
-		if (!supplier) {
-			const uint32 lead_time = target_fab->get_lead_time(goods);
-			if (lead_time == UINT32_MAX_VALUE) {
-				lb_leadtime.buf().append("--:--:--");
+			if (!supplier) {
+				const uint32 lead_time = target_fab->get_lead_time(goods);
+				if (lead_time == UINT32_MAX_VALUE) {
+					lb_leadtime.buf().append("--:--:--");
+				}
+				else {
+					char lead_time_as_clock[32];
+					world()->sprintf_time_tenths(lead_time_as_clock, 32, lead_time);
+					lb_leadtime.buf().append(lead_time_as_clock);
+				}
+				lb_leadtime.update();
 			}
-			else {
-				char lead_time_as_clock[32];
-				world()->sprintf_time_tenths(lead_time_as_clock, 32, lead_time);
-				lb_leadtime.buf().append(lead_time_as_clock);
+		}
+		else {
+			remove_all();
+			// This factory dialog needs to be updated
+			fabrik_info_t *win = dynamic_cast<fabrik_info_t*>(win_get_magic((ptrdiff_t)fab));
+			if (win) {
+				win->update_factory_link(true);
 			}
-			lb_leadtime.update();
 		}
 		gui_aligned_container_t::draw(offset);
 	}
@@ -584,6 +593,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	}
 
 	update_components();
+	update_factory_link();
 
 	// boost stuff
 	boost_electric.set_transparent(fab->get_prodfactor_electric()>0 ? 0 : TRANSPARENT50_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK));
@@ -685,6 +695,20 @@ void fabrik_info_t::update_info()
 	update_components();
 }
 
+void fabrik_info_t::update_factory_link(bool force)
+{
+	// consumers
+	if (force || fab->get_consumers().get_count() != old_consumers_count) {
+		cont_consumers.update_table();
+		old_consumers_count = fab->get_consumers().get_count();
+	}
+	// suppliers
+	if (force || fab->get_suppliers().get_count() != old_suppliers_count) {
+		cont_suppliers.update_table();
+		old_suppliers_count = fab->get_suppliers().get_count();
+	}
+}
+
 // update all buffers
 void fabrik_info_t::update_components()
 {
@@ -735,16 +759,6 @@ void fabrik_info_t::update_components()
 	}
 	lb_city.update();
 
-	// consumers
-	if(  fab->get_consumers().get_count() != old_consumers_count ) {
-		cont_consumers.update_table();
-		old_consumers_count = fab->get_consumers().get_count();
-	}
-	// suppliers
-	if(  fab->get_suppliers().get_count() != old_suppliers_count ) {
-		cont_suppliers.update_table();
-		old_suppliers_count = fab->get_suppliers().get_count();
-	}
 	container_info.set_size(container_info.get_min_size());
 	set_min_windowsize(scr_size(switch_mode.get_min_size().w, switch_mode.get_pos().y+D_TAB_HEADER_HEIGHT+D_TITLEBAR_HEIGHT));
 	resize(scr_size(0,0));
