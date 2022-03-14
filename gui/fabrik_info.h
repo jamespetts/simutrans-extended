@@ -60,7 +60,7 @@ class fabrik_info_t : public gui_frame_t, public action_listener_t
 private:
 	fabrik_t *fab;
 
-	cbuffer_t info_buf, details_buf;
+	cbuffer_t details_buf;
 
 	static sint16 tabstate;
 
@@ -75,8 +75,6 @@ private:
 
 	char fabname[256];
 	gui_textinput_t input;
-
-	gui_textarea_t txt;
 
 	gui_label_with_symbol_t lb_staff_shortage;
 	gui_label_buf_t lb_operation_rate, lb_productivity, lb_electricity_demand, lb_job_demand, lb_visitor_demand, lb_mail_demand, lb_city, lb_alert;

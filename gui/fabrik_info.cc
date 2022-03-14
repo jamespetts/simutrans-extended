@@ -6,6 +6,7 @@
 #include "fabrik_info.h"
 
 #include "components/gui_label.h"
+#include "components/gui_divider.h"
 
 #include "help_frame.h"
 
@@ -321,7 +322,6 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 	fab(fab_),
 	chart(NULL),
 	view(scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width()*7)/8) )),
-	txt(&info_buf),
 	lb_staff_shortage(translator::translate("staff_shortage")),
 	container_details(gb, get_titlecolor()),
 	scroll_info(&container_info),
@@ -550,8 +550,11 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* gb)
 			f->set_text( (const char*)details_buf);
 		}
 	}
-	container_details.add_component(&txt);
-	fab->info_conn(info_buf);
+	if (gb) {
+		container_details.new_component<gui_divider_t>();
+		container_details.new_component<gui_label_buf_t>()->buf().printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(gb->get_purchase_time()));
+		container_details.new_component<gui_label_buf_t>()->buf().printf(translator::translate("Constructed by %s"), fab->get_desc()->get_copyright());
+	}
 
 	set_windowsize(get_min_windowsize());
 	set_resizemode(gui_frame_t::diagonal_resize);
@@ -712,9 +715,6 @@ void fabrik_info_t::update_factory_link(bool force)
 // update all buffers
 void fabrik_info_t::update_components()
 {
-	// update texts
-	fab->info_conn( info_buf );
-
 	// update labels
 	if (fab->get_base_production()) {
 		lb_operation_rate.buf().printf(": %.1f%% (%s: %.1f%%)", fab->get_stat(0,FAB_PRODUCTION)/100.0, translator::translate("Last Month"), fab->get_stat(1,FAB_PRODUCTION)/100.0);
@@ -783,14 +783,13 @@ void fabrik_info_t::rdwr( loadsave_t *file )
 		gebaeude_t* gb = welt->lookup_kartenboden( fabpos )->find<gebaeude_t>();
 
 		if (fab != NULL  &&  gb != NULL) {
+			container_details.init(gb, get_titlecolor());
 			init(fab, gb);
 			cont_suppliers.set_fab(fab);
 			cont_consumers.set_fab(fab);
 			nearby_halts.set_fab(fab);
-
-			container_details.init(gb, get_titlecolor());
 		}
-		win_set_magic(this, (ptrdiff_t)this);
+		win_set_magic(this, (ptrdiff_t)fab);
 	}
 	chart.rdwr(file);
 	scroll_info.rdwr(file);

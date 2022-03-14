@@ -609,11 +609,6 @@ public:
 
 	void show_info();
 
-	/**
-	 * infostring on targets/sources
-	 */
-	void info_conn(cbuffer_t& buf) const;
-
 	void rdwr(loadsave_t *file);
 
 	/*
