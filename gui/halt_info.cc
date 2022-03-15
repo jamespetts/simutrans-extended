@@ -547,31 +547,31 @@ void gui_halt_waiting_indicator_t::draw(scr_coord offset)
 					is_operating = halt->gibt_ab(goods_manager_t::get_info(goods_manager_t::INDEX_MAIL));
 					break;
 				case 2:
-					for (uint8 g1 = 0; g1 < goods_manager_t::get_max_catg_index(); g1++) {
-						if (g1 == goods_manager_t::INDEX_PAS || g1 == goods_manager_t::INDEX_MAIL)
-						{
-							continue;
-						}
+					for (uint8 g1 = goods_manager_t::INDEX_NONE+1; g1 < goods_manager_t::get_max_catg_index(); g1++) {
 						const goods_desc_t *wtyp = goods_manager_t::get_info(g1);
 						if (!is_operating)
 						{
 							is_operating = halt->gibt_ab(wtyp);
 						}
 						switch (g1) {
-						case 0:
-							wainting_sum += halt->get_ware_summe(wtyp);
-							break;
-						default:
-							const uint8 count = goods_manager_t::get_count();
-							for (uint32 g2 = 3; g2 < count; g2++) {
-								goods_desc_t const* const wtyp2 = goods_manager_t::get_info(g2);
-								if (wtyp2->get_catg_index() != g1) {
-									continue;
+							case 0:
+							case 1:
+								// error
+								break;
+							default:
+								const uint8 count = goods_manager_t::get_count();
+								for (uint32 g2 = goods_manager_t::INDEX_NONE+1; g2 < count; g2++) {
+									goods_desc_t const* const wtyp2 = goods_manager_t::get_info(g2);
+									if (wtyp2->get_catg_index() != g1) {
+										continue;
+									}
+									wainting_sum += halt->get_ware_summe(wtyp2);
 								}
-								wainting_sum += halt->get_ware_summe(wtyp2);
-							}
-							break;
+								break;
 						}
+					}
+					if (wainting_sum>0) {
+						is_operating = true;
 					}
 					break;
 				default:
@@ -592,8 +592,8 @@ void gui_halt_waiting_indicator_t::draw(scr_coord offset)
 			lb_transfer_time[i].update();
 			lb_transfer_time[i].set_color(is_operating ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE);
 
-			if (!is_operating && skinverwaltung_t::alerts) {
-				img_alert.set_visible(true);
+			if (skinverwaltung_t::alerts) {
+				img_alert.set_visible(!is_operating);
 			}
 		}
 	}
