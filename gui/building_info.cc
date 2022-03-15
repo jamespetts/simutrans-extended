@@ -37,7 +37,7 @@ void gui_building_stats_t::init(const gebaeude_t* gb, PIXVAL color)
 		frame_color = color;
 
 		set_table_layout(1, 0);
-		set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(0, 0));
+		set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(0, 0));
 
 		init_class_table();
 		init_stats_table();
@@ -262,12 +262,10 @@ building_info_t::building_info_t(gebaeude_t* gb, player_t* owner) :
 	building_view.set_location(building->get_pos());
 	set_embedded(&building_view);
 
-	add_table(1,0)->set_margin(scr_size(0,0), scr_size(0, 0));
 	tabs.add_tab(&scrolly_stats, translator::translate("Statistics"));
 	tabs.add_tab(&scrolly_near_by_halt, translator::translate("Stops potentially within walking distance:"));
 	tabs.add_listener(this);
 	add_component(&tabs);
-	end_table();
 
 	cont_near_by_halt.set_table_layout(7,0);
 	cont_near_by_halt.set_margin(scr_size(0, D_V_SPACE), scr_size(0, 0));
