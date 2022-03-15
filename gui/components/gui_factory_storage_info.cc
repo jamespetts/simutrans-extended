@@ -411,12 +411,16 @@ void gui_factory_storage_info_t::init_table()
 						new_component<gui_factory_intransit_label_t>(&goods, pfactor);
 					}
 					end_table();
+				}
+				else {
+					new_component<gui_empty_t>();
+				}
+				if (is_available) {
 					new_component<gui_factory_monthly_prod_label_t>(fab, goods.get_typ(), pfactor, is_output);
 				}
 				else {
-					new_component_span<gui_empty_t>(2);
+					new_component<gui_empty_t>();
 				}
-
 			}
 		}
 		end_table();
