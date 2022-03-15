@@ -518,7 +518,7 @@ void city_info_t::update_stats()
 	}
 	cont_city_stats.end_table();
 
-	cont_city_stats.new_component<gui_heading_t>("Statistics", SYSCOL_TEXT, env_t::default_window_title_color, 1)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
+	cont_city_stats.new_component<gui_heading_t>("Statistics", SYSCOL_TEXT, env_t::default_window_title_color, 2)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
 	cont_city_stats.add_table(6,0)->set_spacing(scr_size(D_H_SPACE*2,1));
 	{
 		// header
@@ -558,7 +558,7 @@ void city_info_t::update_stats()
 
 
 	// city transportation network quality
-	cont_city_stats.new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, env_t::default_window_title_color, 1)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
+	cont_city_stats.new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, env_t::default_window_title_color, 2)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
 	cont_city_stats.add_table(5, 0)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
 	{
 		// header
