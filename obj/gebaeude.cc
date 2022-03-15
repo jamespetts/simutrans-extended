@@ -1009,11 +1009,13 @@ void gebaeude_t::info(cbuffer_t & buf) const
 			buf.printf("%s: %d\n", translator::translate("citicens"), get_adjusted_population());
 		}
 		buf.printf("%s: %d\n", translator::translate("Visitor demand"), get_adjusted_visitor_demand());
+		if (get_tile()->get_desc()->get_type() != building_desc_t::city_res) {
 #ifdef DEBUG
-		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), get_adjusted_jobs(), check_remaining_available_jobs());
+			buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), get_adjusted_jobs(), check_remaining_available_jobs());
 #else
-		buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), get_adjusted_jobs(), max(0, check_remaining_available_jobs()));
+			buf.printf("%s (%s): %d (%d)\n", translator::translate("Jobs"), translator::translate("available"), get_adjusted_jobs(), max(0, check_remaining_available_jobs()));
 #endif
+		}
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
         buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
