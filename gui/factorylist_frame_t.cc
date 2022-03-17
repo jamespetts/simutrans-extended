@@ -5,6 +5,7 @@
 
 #include "factorylist_frame_t.h"
 #include "gui_theme.h"
+#include "components/gui_divider.h"
 #include "../dataobj/translator.h"
 #include "../player/simplay.h"
 #include "../simworld.h"
@@ -72,42 +73,35 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 	old_factories_count = 0;
 
 	set_table_layout(1,0);
-	add_table(2,3);
+
+	// filter frame
+	add_table(5,1)->set_alignment(ALIGN_TOP);
 	{
-		new_component<gui_label_t>("hl_txt_sort");
-		add_table(3,1);
+		new_component<gui_label_t>("Filter:");
+		lb_factory_counter.set_fixed_width(proportional_string_width("8888/8888"));
+		add_component(&lb_factory_counter);
+
+		show_hide_filter.init(button_t::roundbox, "+");
+		show_hide_filter.set_width(display_get_char_width('+') + D_BUTTON_PADDINGS_X);
+		show_hide_filter.add_listener(this);
+		add_component(&show_hide_filter);
+		lb_collapsed.set_text("Show filter options");
+		add_component(&lb_collapsed);
+
+		// filter options
+		filter_container.set_table_layout(1,0);
 		{
-			new_component<gui_label_t>("Filter:");
-			name_filter_input.set_text(name_filter, lengthof(name_filter));
-			name_filter_input.set_width(D_BUTTON_WIDTH);
-			add_component(&name_filter_input);
+			// name filter
+			filter_container.add_table(2,1);
+			{
+				filter_container.new_component<gui_label_t>("hlf_chk_name_filter");
+				name_filter_input.set_text(name_filter, lengthof(name_filter));
+				name_filter_input.set_width(D_BUTTON_WIDTH);
+				filter_container.add_component(&name_filter_input);
+			}
+			filter_container.end_table();
 
-
-			filter_within_network.init(button_t::square_state, "Within own network");
-			filter_within_network.set_tooltip("Show only connected to own transport network");
-			filter_within_network.add_listener(this);
-			filter_within_network.pressed = factorylist_stats_t::filter_own_network;
-			add_component(&filter_within_network);
-		}
-		end_table();
-
-		// 2nd row
-		for (size_t i = 0; i < lengthof(sort_text); i++) {
-			sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
-		}
-		sortedby.set_selection(factorylist_stats_t::sort_mode);
-		sortedby.add_listener(this);
-		add_component(&sortedby);
-
-		add_table(6,1);
-		{
-			sorteddir.init(button_t::sortarrow_state, NULL);
-			sorteddir.set_tooltip(translator::translate("hl_btn_sort_order"));
-			sorteddir.add_listener(this);
-			sorteddir.pressed = factorylist_stats_t::reverse;
-			add_component(&sorteddir);
-
-			new_component<gui_margin_t>(LINESPACE);
+			// goods filter
 			viewable_freight_types.append(NULL);
 			freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All freight types"), SYSCOL_TEXT);
 			for (int i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
@@ -130,8 +124,26 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 			freight_type_c.set_selection((factorylist_stats_t::filter_goods_catg == goods_manager_t::INDEX_NONE) ? 0 : factorylist_stats_t::filter_goods_catg);
 
 			freight_type_c.add_listener(this);
-			add_component(&freight_type_c);
+			filter_container.add_component(&freight_type_c);
 
+			// type filter
+			filter_container.add_table(MAX_FACTORY_TYPE_FILTER,1)->set_spacing( scr_size(0,1) );
+			{
+				filter_buttons[0].init(button_t::roundbox_state, factory_type_text[0], scr_coord(0, 0), scr_size(proportional_string_width(translator::translate("All")) + D_BUTTON_PADDINGS_X, D_BUTTON_HEIGHT));
+				filter_buttons[0].pressed = (factory_type_filter_bits == 255);
+				filter_buttons[0].add_listener(this);
+				filter_container.add_component(&filter_buttons[0]);
+				for (uint8 i = 1; i < MAX_FACTORY_TYPE_FILTER; i++) {
+					filter_buttons[i].init(factory_type_button_style[i], factory_type_text[i]);
+					filter_buttons[i].add_listener(this);
+					filter_buttons[i].pressed = factory_type_filter_bits & (1 << (i - 1));
+					filter_container.add_component(filter_buttons + i);
+				}
+			}
+			filter_container.end_table();
+
+
+			// region filter
 			if (!welt->get_settings().regions.empty()) {
 				//region_selector
 				region_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All regions"), SYSCOL_TEXT);
@@ -144,51 +156,62 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 				region_selector.set_rigid(false);
 				region_selector.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 				region_selector.add_listener(this);
-				add_component(&region_selector);
-			}
-			else {
-				new_component<gui_empty_t>();
+				filter_container.add_component(&region_selector);
 			}
 
-			lb_filter_target.set_visible(false);
-			lb_filter_target.set_rigid(false);
-			lb_filter_target.set_color(SYSCOL_TEXT_HIGHLIGHT);
-			add_component(&lb_filter_target);
-
-			bt_cancel_specialfilter.init(button_t::roundbox, "Cancel");
-			bt_cancel_specialfilter.add_listener(this);
-			bt_cancel_specialfilter.set_visible(false);
-			bt_cancel_specialfilter.set_rigid(false);
-			add_component(&bt_cancel_specialfilter);
+			filter_within_network.init(button_t::square_state, "Within own network");
+			filter_within_network.set_tooltip("Show only connected to own transport network");
+			filter_within_network.add_listener(this);
+			filter_within_network.pressed = factorylist_stats_t::filter_own_network;
+			filter_container.add_component(&filter_within_network);
 		}
-		end_table();
+		add_component(&filter_container);
+	}
+	end_table();
+	activate_filter_field();
 
-		add_component(&lb_factory_counter);
-		add_table(6,1)->set_spacing(scr_size(0,0));
-		{
-			for (uint8 i = 0; i < factorylist_stats_t::FACTORYLIST_MODES; i++) {
-				cb_display_mode.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(display_mode_text[i]), SYSCOL_TEXT);
-			}
-			cb_display_mode.set_selection(factorylist_stats_t::display_mode);
-			cb_display_mode.set_width_fixed(true);
-			cb_display_mode.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
-			cb_display_mode.add_listener(this);
-			add_component(&cb_display_mode);
+	// special filter
+	add_table(2,1);
+	{
+		lb_filter_target.set_visible(false);
+		lb_filter_target.set_rigid(false);
+		lb_filter_target.set_color(SYSCOL_TEXT_HIGHLIGHT);
+		add_component(&lb_filter_target);
 
-			new_component<gui_margin_t>(D_V_SPACE);
+		bt_cancel_specialfilter.init(button_t::roundbox, "Cancel");
+		bt_cancel_specialfilter.add_listener(this);
+		bt_cancel_specialfilter.set_visible(false);
+		bt_cancel_specialfilter.set_rigid(false);
+		add_component(&bt_cancel_specialfilter);
+	}
+	end_table();
 
-			filter_buttons[0].init(button_t::roundbox_state, factory_type_text[0], scr_coord(0, 0), scr_size(proportional_string_width(translator::translate("All")) + D_BUTTON_PADDINGS_X, D_BUTTON_HEIGHT));
-			filter_buttons[0].pressed = (factory_type_filter_bits == 255);
-			filter_buttons[0].add_listener(this);
-			add_component(&filter_buttons[0]);
-			for (uint8 i = 1; i < MAX_FACTORY_TYPE_FILTER; i++) {
-				filter_buttons[i].init(factory_type_button_style[i], factory_type_text[i]);
-				filter_buttons[i].add_listener(this);
-				filter_buttons[i].pressed = factory_type_filter_bits & (1 << (i - 1));
-				add_component(filter_buttons + i);
-			}
+	new_component<gui_border_t>();
+	add_table(5,1);
+	{
+		new_component<gui_label_t>("hl_txt_sort");
+		for (size_t i = 0; i < lengthof(sort_text); i++) {
+			sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
 		}
-		end_table();
+		sortedby.set_selection(factorylist_stats_t::sort_mode);
+		sortedby.add_listener(this);
+		add_component(&sortedby);
+		sorteddir.init(button_t::sortarrow_state, NULL);
+		sorteddir.set_tooltip(translator::translate("hl_btn_sort_order"));
+		sorteddir.add_listener(this);
+		sorteddir.pressed = factorylist_stats_t::reverse;
+		add_component(&sorteddir);
+
+		new_component<gui_margin_t>(LINESPACE);
+
+		for (uint8 i=0; i < factorylist_stats_t::FACTORYLIST_MODES; i++) {
+			cb_display_mode.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(display_mode_text[i]), SYSCOL_TEXT);
+		}
+		cb_display_mode.set_selection(factorylist_stats_t::display_mode);
+		cb_display_mode.set_width_fixed(true);
+		cb_display_mode.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
+		cb_display_mode.add_listener(this);
+		add_component(&cb_display_mode);
 	}
 	end_table();
 
@@ -254,6 +277,10 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 			set_haltfilter();
 		}
 	}
+	else if (comp == &show_hide_filter) {
+		show_filter = !show_filter;
+		activate_filter_field();
+	}
 	else if (comp == &filter_buttons[0]) {
 		filter_buttons[0].pressed ^= 1;
 		if (filter_buttons[0].pressed) {
@@ -293,6 +320,16 @@ bool factorylist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 	}
 
 	return true;
+}
+
+
+void factorylist_frame_t::activate_filter_field()
+{
+	show_hide_filter.set_text(show_filter ? "-" : "+");
+	show_hide_filter.pressed = show_filter;
+	lb_collapsed.set_visible(!show_filter);
+	filter_container.set_visible(show_filter);
+	reset_min_windowsize();
 }
 
 
@@ -362,7 +399,6 @@ void factorylist_frame_t::set_title()
 
 void factorylist_frame_t::activate_special_filter(bool activate)
 {
-	region_selector.set_visible(!activate && !welt->get_settings().regions.empty());
 	bt_cancel_specialfilter.set_visible(activate);
 	lb_filter_target.set_visible(activate);
 	if (activate) {

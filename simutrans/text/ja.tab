@@ -4311,6 +4311,8 @@ Open the minimap window to show the freight network of this stop
 ミニマップダイアログを開き、この駅を中心とした貨物ネットワークを表示します
 Open the minimap window showing the network of selected transport items served at this station
 ミニマップダイアログを開き、この駅を発着している選択中の輸送アイテムのネットワークを表示します
+Show filter options
+フィルターオプションを開く
 show_chain_on_minimap
 関連工場マップ
 hd_sv_mode_frequency

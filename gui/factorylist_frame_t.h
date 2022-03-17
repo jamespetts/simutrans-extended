@@ -46,6 +46,13 @@ private:
 	char last_name_filter[256];
 	gui_textinput_t name_filter_input;
 
+	// expand/collapse things
+	button_t show_hide_filter;
+	gui_aligned_container_t filter_container;
+	gui_label_t lb_collapsed;
+	bool show_filter = false;
+	void activate_filter_field();
+
 	void fill_list();
 
 	stadt_t *filter_city;
