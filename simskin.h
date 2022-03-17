@@ -154,6 +154,11 @@ public:
 	/// image to clarify the function of buttons
 	static const skin_desc_t *open_window;
 
+	/// image for access dialog buttons
+	static const skin_desc_t *minimap;
+	static const skin_desc_t *network;
+	static const skin_desc_t *details;
+	static const skin_desc_t *factory;
 
 	/// @name cursors
 	/// @{
