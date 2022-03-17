@@ -278,6 +278,7 @@ void gui_factory_connection_container_t::update_table()
 
 		//gui_factory_product_item_t *goods_label =
 		new_component<gui_factory_product_item_t>(fab, &material, is_supplier_display);
+		new_component<gui_margin_t>(0,2);
 		if ( ware->is_available() ) {
 			FOR(vector_tpl<koord>, target_pos, is_supplier_display ? fab->get_suppliers() : fab->get_consumers()) {
 				const fabrik_t * fab2 = fabrik_t::get_fab(target_pos);
