@@ -837,6 +837,11 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 }
 
 
+void convoi_info_t::map_rotate90(sint16 new_ysize)
+{
+	go_home_button.set_targetpos3d(cnv->get_home_depot());
+}
+
 bool convoi_info_t::is_weltpos()
 {
 	return (welt->get_viewport()->get_follow_convoi()==cnv);
