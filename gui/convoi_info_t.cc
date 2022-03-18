@@ -843,6 +843,19 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 	route_bar.set_base(cnv->get_route()->get_count()-1);
 	cnv_route_index = cnv->front()->get_route_index() - 1;
 
+	// Hide the x-scrollbar to not hide the tab header.
+	switch (switch_mode.get_active_tab_index()) {
+		case 0: // loaded detail
+			scroll_freight.set_show_scroll_x( scroll_freight.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+		default:
+		case 1: // chart
+			break;
+		case 2: // times history
+			scroll_times_history.set_show_scroll_x( scroll_times_history.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+	}
+
 	// all gui stuff set => display it
 	gui_frame_t::draw(pos, size);
 }
@@ -879,7 +892,7 @@ void convoi_info_t::set_tab_opened()
 {
 	tabstate = switch_mode.get_active_tab_index();
 
-	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT;
+	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT-1;
 
 	switch (tabstate)
 	{
