@@ -894,19 +894,22 @@ void convoi_info_t::set_tab_opened()
 
 	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT-1;
 
+	scr_coord_val height = 0;
 	switch (tabstate)
 	{
 		case 0: // loaded detail
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + scroll_freight.get_size().h)));
+			height = container_freight.get_size().h;
 			break;
 		case 1: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_stats.get_size().h)));
+			height = chart.get_size().h+D_BUTTON_HEIGHT*3+D_V_SPACE*2+D_MARGINS_Y;
 			break;
 		case 2: // times history
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_times_history.get_size().h)));
+			height = cont_times_history.get_size().h + D_MARGINS_Y;
 			break;
-
+	}
+	if( (get_windowsize().h-margin_above_tab) < height ) {
+		set_windowsize( scr_size(get_windowsize().w, min(display_get_height()-margin_above_tab, margin_above_tab+height)+1) );
 	}
 }
 
@@ -917,7 +920,7 @@ void convoi_info_t::set_tab_opened()
 bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	minimap_t::get_instance()->set_selected_cnv(cnv);
-	if(  comp == &switch_mode  &&  get_windowsize().h == get_min_windowsize().h  ) {
+	if( comp == &switch_mode  &&  (tabstate!=switch_mode.get_active_tab_index() ||  (get_windowsize().h-get_min_windowsize().h<LINESPACE*5)) ) {
 		set_tab_opened();
 		return true;
 	}
