@@ -136,6 +136,13 @@ void button_t::set_typ(enum type t)
 			b_no_translate = false;
 			break;
 		}
+		case depot:
+		{
+			b_no_translate = false;
+			targetpos = koord3d::invalid;
+			break;
+		}
+
 
 		default:
 			break;
@@ -224,6 +231,11 @@ scr_size button_t::get_min_size() const
 			const uint8 block_height = max(size.h/7,2);
 			const uint8 bars_height = uint8((size.h-block_height-4)/4) * block_height*2 + block_height;
 			return scr_size( max( D_BUTTON_HEIGHT, (gui_theme_t::gui_color_button_text_offset.w+4)*2 + 6/*arrow width(5)+margin(1)*/+block_height + (bars_height-2)/2 ), max(D_BUTTON_HEIGHT, LINESPACE) );
+		}
+
+		case depot:
+		{
+			return scr_size( max(18, D_BUTTON_HEIGHT), max(D_BUTTON_HEIGHT, LINESPACE));
 		}
 
 		default:
@@ -334,6 +346,11 @@ bool button_t::infowin_event(const event_t *ev)
 		if((type&TYPE_MASK)>=repeatarrowleft) {
 			call_listeners( (long)1 );
 			return true;
+		}
+	}
+	else if( IS_RIGHTRELEASE(ev) ) {
+		if( (type&TYPE_MASK)==depot  &&  targetpos!=koord3d::invalid ) {
+			world()->get_viewport()->change_world_position( targetpos );
 		}
 	}
 	return false;
@@ -470,6 +487,17 @@ void button_t::draw(scr_coord offset)
 				if(  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)  ) {
 					translated_tooltip = translator::translate(tooltip);
 				}
+			}
+			break;
+
+		case depot:
+			{
+				display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
+				if (background_color != color_idx_to_rgb(COL_WHITE)) {
+					display_img_stretch_blend(gui_theme_t::button_color_tiles[b_enabled && pressed], area, background_color | TRANSPARENT75_FLAG | OUTLINE_FLAG);
+				}
+				const uint8 color_index = b_enabled ? 88/* brown */ : 8/* gray */;
+				display_depot_symbol(area.x+3, area.y+2+(pressed&&gui_theme_t::pressed_button_sinks), size.w-6, color_index, false);
 			}
 			break;
 
