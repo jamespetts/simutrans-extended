@@ -674,9 +674,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		button.enable();
 		line_button.enable();
 
-		// Bernd Gabriel, 01.07.2009: show some colored texts and indicator
-		//input.set_color(cnv->has_obsolete_vehicles() ? color_idx_to_rgb(COL_OBSOLETE) : SYSCOL_TEXT);
-
 		if(  grund_t* gr=welt->lookup(cnv->get_schedule()->get_current_entry().pos)  ) {
 			go_home_button.pressed = gr->get_depot() != NULL;
 		}
