@@ -928,6 +928,8 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		}
 
 		if(  comp == &go_home_button  ) {
+			if (go_home_button.pressed) return false; // already pressed => ignore (because message is annoying)
+
 			// limit update to certain states that are considered to be safe for schedule updates
 			if(cnv->is_locked())
 			{
