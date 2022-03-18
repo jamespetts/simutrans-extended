@@ -273,10 +273,10 @@ void convoi_info_t::init(convoihandle_t cnv)
 	add_table(4,1)->set_force_equal_columns(true);
 	{
 		// this convoi doesn't belong to an AI
-		button.init(button_t::roundbox | button_t::flexible, "Fahrplan");
-		button.set_tooltip("Alters a schedule.");
-		button.add_listener(this);
-		add_component(&button);
+		schedule_button.init(button_t::roundbox | button_t::flexible, "Fahrplan");
+		schedule_button.set_tooltip("Alters a schedule.");
+		schedule_button.add_listener(this);
+		add_component(&schedule_button);
 
 		replace_button.init(button_t::roundbox | button_t::flexible, "Replace");
 		replace_button.set_tooltip("Automatically replace this convoy.");
@@ -694,7 +694,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			line_bound = cnv->get_line().is_bound();
 			container_line.set_visible(line_bound);
 		}
-		button.enable();
+		schedule_button.enable();
 		line_button.enable();
 		go_home_button.enable();
 
@@ -720,7 +720,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			remove_component(&line_button);
 			line_bound = false;
 		}
-		button.disable();
+		schedule_button.disable();
 		go_home_button.disable();
 		no_load_button.disable();
 		replace_button.disable();
@@ -934,7 +934,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	// some actions only allowed, when I am the player
 	if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
 
-		if(  comp == &button  ) {
+		if(  comp == &schedule_button  ) {
 			cnv->call_convoi_tool( 'f', NULL );
 			return true;
 		}

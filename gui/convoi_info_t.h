@@ -75,7 +75,7 @@ private:
 	gui_chart_t chart;
 	gui_image_t img_reverse_route;
 
-	button_t button;
+	button_t schedule_button;
 	button_t no_load_button;
 	button_t replace_button;
 	int statistics_height;
