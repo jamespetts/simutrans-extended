@@ -623,7 +623,9 @@ void convoi_info_t::update_labels()
 			// Current working method
 			rail_vehicle_t* rv1 = (rail_vehicle_t*)v1;
 			rail_vehicle_t* rv2 = (rail_vehicle_t*)cnv->get_vehicle(cnv->get_vehicle_count() - 1);
-			lb_working_method.buf().printf("%s: %s", translator::translate("Current working method"), translator::translate(rv1->is_leading() ? roadsign_t::get_working_method_name(rv1->get_working_method()) : roadsign_t::get_working_method_name(rv2->get_working_method())));
+			working_method_t wm = rv1->is_leading() ? rv1->get_working_method() : rv2->get_working_method();
+			route_bar.set_reserved_color(wm==drive_by_sight? COL_WARNING : color_idx_to_rgb(COL_BLUE));
+			lb_working_method.buf().printf("%s: %s", translator::translate("Current working method"), translator::translate(roadsign_t::get_working_method_name(wm)));
 		}
 	}
 	else if (uint16 minimum_runway_length = cnv->get_vehicle(0)->get_desc()->get_minimum_runway_length()) {
