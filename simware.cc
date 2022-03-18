@@ -57,6 +57,7 @@ ware_t::ware_t(const goods_desc_t *wtyp, halthandle_t o) :
 	g_class(0),
 	ziel(),
 	zwischenziel(),
+	origin(o),
 	zielpos(-1, -1),
 	arrival_time(0)
 {

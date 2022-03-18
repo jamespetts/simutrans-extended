@@ -11,7 +11,7 @@
 #include "../simmenu.h"
 
 
-gui_signalbox_changer_t::gui_signalbox_changer_t(signalbox_t* to, signal_t* from)
+gui_signalbox_changer_t::gui_signalbox_changer_t(signalbox_t* to, const signal_t* from)
 {
 	sig = from;
 	sb = to;
@@ -83,7 +83,7 @@ bool gui_signalbox_changer_t::action_triggered(gui_action_creator_t *comp, value
 }
 
 
-signal_connector_gui_t::signal_connector_gui_t(signal_t *s) :
+signal_connector_gui_t::signal_connector_gui_t(const signal_t *s) :
 	gui_frame_t( translator::translate("Signal connector") )
 {
 	sig_pos = s->get_pos();
@@ -95,7 +95,7 @@ signal_connector_gui_t::signal_connector_gui_t(signal_t *s) :
 }
 
 
-void signal_connector_gui_t::build_list(signal_t* sig)
+void signal_connector_gui_t::build_list(const signal_t* sig)
 {
 	sb_selections.clear();
 	const player_t *player = sig->get_owner();
@@ -108,7 +108,7 @@ void signal_connector_gui_t::build_list(signal_t* sig)
 }
 
 
-void signal_connector_gui_t::update(signal_t* sig)
+void signal_connector_gui_t::update(const signal_t* sig)
 {
 	remove_all();
 

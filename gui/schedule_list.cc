@@ -243,17 +243,17 @@ void gui_line_waiting_status_t::draw(scr_coord offset)
 schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	gui_frame_t(translator::translate("Line Management"), player_),
 	player(player_),
+	lc_preview(0),
 	cont_haltlist(linehandle_t()),
+	cont_line_capacity_by_catg(linehandle_t(), convoihandle_t()),
 	scrolly_convois(&cont),
 	scrolly_haltestellen(&cont_tab_haltlist, true, true),
 	scroll_times_history(&cont_times_history, true, true),
 	scrolly_line_info(&cont_line_info, true, true),
 	scl(gui_scrolled_list_t::listskin, line_scrollitem_t::compare),
-	cont_line_capacity_by_catg(linehandle_t(), convoihandle_t()),
 	lbl_filter("Line Filter"),
 	convoy_infos(),
 	halt_entry_origin(-1), halt_entry_dest(-1),
-	lc_preview(0),
 	routebar_middle(player_->get_player_color1(), gui_colored_route_bar_t::downward)
 {
 	selection = -1;

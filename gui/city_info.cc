@@ -149,8 +149,8 @@ bool city_location_map_t::infowin_event(const event_t *ev)
 city_info_t::city_info_t(stadt_t* city) :
 	gui_frame_t( name, NULL ),
 	city(city),
-	pax_map(city),
 	lb_allow_growth(""),
+	pax_map(city),
 	location_map(city),
 	scrolly_stats(&cont_city_stats, true)
 {

@@ -93,7 +93,7 @@ public:
 
 	ware_t();
 	ware_t(const goods_desc_t *typ);
-	ware_t(const goods_desc_t *typ, halthandle_t o);
+	ware_t(const goods_desc_t *typ, halthandle_t origin);
 	ware_t(loadsave_t *file);
 
 	/// @returns the non-translated name of the ware.

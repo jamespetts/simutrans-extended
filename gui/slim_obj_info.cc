@@ -29,21 +29,21 @@ slim_obj_info_t::slim_obj_info_t(const obj_t* obj) :
 	{
 		case obj_t::pedestrian:
 		{
-			const pedestrian_t *ped = (pedestrian_t *)obj;
+			const pedestrian_t *ped = static_cast<const pedestrian_t *>(obj);
 			maker = ped->get_desc()->get_copyright();
 			break;
 		}
 		case obj_t::baum:
 		{
 			old_date = 0;
-			const baum_t *baum = (baum_t *)obj;
+			const baum_t *baum = static_cast<const baum_t *>(obj);
 			maker = baum->get_desc()->get_copyright();
 			new_component<gui_label_t>(baum->get_desc()->get_name());
 			break;
 		}
 		case obj_t::groundobj:
 		{
-			const groundobj_t *g_obj = (groundobj_t *)obj;
+			const groundobj_t *g_obj = static_cast<const groundobj_t *>(obj);
 			maker = g_obj->get_desc()->get_copyright();
 			new_component<gui_label_t>(g_obj->get_desc()->get_name());
 
@@ -58,7 +58,7 @@ slim_obj_info_t::slim_obj_info_t(const obj_t* obj) :
 
 		case obj_t::movingobj:
 		{
-			const movingobj_t *m_obj = (movingobj_t *)obj;
+			const movingobj_t *m_obj = static_cast<const movingobj_t *>(obj);
 			maker = m_obj->get_desc()->get_copyright();
 			new_component<gui_label_t>(m_obj->get_desc()->get_name());
 
@@ -102,7 +102,7 @@ void slim_obj_info_t::draw(scr_coord pos, scr_size size)
 {
 	if(old_date!=65535 && old_date != world()->get_timeline_year_month()) {
 		// update tree age label
-		if (const baum_t *baum = (baum_t *)view.get_obj()) {
+		if (const baum_t *baum = static_cast<const baum_t *>(view.get_obj())) {
 			old_date = world()->get_timeline_year_month();
 			const uint32 age = baum->get_age();
 			label.buf().printf( translator::translate("%i years %i months old."), age/12, (age%12) );
