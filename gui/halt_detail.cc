@@ -68,11 +68,43 @@ void halt_detail_t::init()
 	gui_frame_t::set_owner(halt->get_owner());
 
 	set_table_layout(1, 0);
-	set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(D_MARGIN_RIGHT, 0));
+	set_margin(scr_size(D_H_SPACE, 2), scr_size(D_MARGIN_RIGHT, 0));
 	set_spacing(scr_size(0, D_V_SPACE));
 
-	add_component(&line_number);
-	waiting_bar = new_component<gui_halt_waiting_indicator_t>(halt);
+	add_table(2,1);
+	{
+		if (skinverwaltung_t::network) {
+			bt_access_minimap.init(button_t::imagebox, NULL);
+			bt_access_minimap.set_image(skinverwaltung_t::network->get_image_id(0));
+		}
+		else {
+			bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+			if (skinverwaltung_t::open_window) {
+				bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+				bt_access_minimap.set_image_position_right(true);
+			}
+		}
+
+		bt_access_minimap_catg.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+		if (skinverwaltung_t::open_window) {
+			bt_access_minimap_catg.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_access_minimap_catg.set_image_position_right(true);
+		}
+		bt_access_minimap.set_tooltip("Open the minimap window to show the network around this stop");
+		bt_access_minimap.add_listener(this);
+		bt_access_minimap_catg.set_tooltip("Open the minimap window showing the network of selected transport items served at this station");
+		bt_access_minimap_catg.add_listener(this);
+		if (skinverwaltung_t::network)  add_component(&bt_access_minimap);
+		add_component(&line_number);
+		if (!skinverwaltung_t::network) add_component(&bt_access_minimap);
+	}
+	end_table();
+	add_table(2,1);
+	{
+		new_component<gui_empty_t>();
+		waiting_bar = new_component<gui_halt_waiting_indicator_t>(halt);
+	}
+	end_table();
 
 	tabs.set_pos(scr_coord(0, LINESPACE*4 + D_MARGIN_TOP + D_V_SPACE));
 	set_min_windowsize(scr_size(D_DEFAULT_WIDTH, D_TITLEBAR_HEIGHT + tabs.get_pos().y + D_TAB_HEADER_HEIGHT));
@@ -113,28 +145,12 @@ void halt_detail_t::init()
 	bt_sv_route.pressed = false;
 	cont_tab_service.set_table_layout(1,0);
 	cont_tab_service.set_margin(scr_size(0,D_MARGIN_TOP), scr_size(0,0));
-	cont_tab_service.add_table(4,2)->set_spacing(scr_size(0,D_V_SPACE));
+	cont_tab_service.add_table(4,1)->set_spacing(scr_size(0,D_V_SPACE));
 	{
 		cont_tab_service.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		cont_tab_service.add_component(&bt_sv_frequency);
 		cont_tab_service.add_component(&bt_sv_catg);
 		cont_tab_service.add_component(&bt_sv_route);
-
-		cont_tab_service.new_component<gui_margin_t>(D_MARGIN_LEFT);
-		bt_access_minimap.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
-		bt_access_minimap_catg.init(button_t::roundbox, "access_minimap", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
-		if (skinverwaltung_t::open_window) {
-			bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			bt_access_minimap.set_image_position_right(true);
-			bt_access_minimap_catg.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			bt_access_minimap_catg.set_image_position_right(true);
-		}
-		bt_access_minimap.set_tooltip("Open the minimap window to show the network around this stop");
-		bt_access_minimap.add_listener(this);
-		bt_access_minimap_catg.set_tooltip("Open the minimap window showing the network of selected transport items served at this station");
-		bt_access_minimap_catg.add_listener(this);
-		cont_tab_service.add_component(&bt_access_minimap,2);
-		cont_tab_service.new_component<gui_empty_t>();
 	}
 	cont_tab_service.end_table();
 

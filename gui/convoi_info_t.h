@@ -76,14 +76,16 @@ private:
 	gui_image_t img_reverse_route;
 
 	button_t button;
-	button_t follow_button;
-	button_t go_home_button;
 	button_t no_load_button;
 	button_t replace_button;
 	int statistics_height;
 
-	button_t details_button;
+	// access buttons
+	button_t bt_open_detail;
+	button_t follow_button;
+	button_t go_home_button;
 	button_t reverse_button;
+	gui_aligned_container_t cont_access_buttons;
 
 	gui_aligned_container_t next_halt_cells;
 	gui_schedule_entry_number_t next_halt_number;
@@ -93,7 +95,7 @@ private:
 
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
-	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
+	gui_aligned_container_t container_freight, container_stats, container_profit, container_line, *container_top;
 	gui_scrollpane_t scroll_freight, scroll_times_history;
 
 	gui_combobox_t freight_sort_selector;

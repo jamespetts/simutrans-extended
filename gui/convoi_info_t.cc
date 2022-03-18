@@ -150,18 +150,20 @@ void convoi_info_t::init(convoihandle_t cnv)
 
 	minimap_t::get_instance()->set_selected_cnv(cnv);
 	set_table_layout(1,0);
+	set_margin( scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(0,D_MARGIN_BOTTOM) );
 
 	// top part: speedbars, view, buttons
 	add_table(2, 0)->set_alignment(ALIGN_TOP);
 	{
 		container_top = add_table(1,0);
 		{
+			new_component<gui_empty_t>();
 			input.add_listener(this);
 			input.set_size(input.get_min_size());
 			reset_cnv_name();
 			add_component(&input);
 
-			add_table(2,0);
+			add_table(2,0)->set_spacing(scr_size(D_H_SPACE<<1,D_V_SPACE>>1));
 			{
 				add_component(&speed_label);
 				speed_bar.set_rigid(true);
@@ -170,15 +172,14 @@ void convoi_info_t::init(convoihandle_t cnv)
 				add_component(&weight_label);
 				add_component(&loading_bar);
 
-				add_table(3, 1);
+				container_profit.set_table_layout(3,1);
 				{
-					new_component<gui_label_t>("Gewinn");
+					container_profit.new_component<gui_label_t>("Gewinn");
 					profit_label.set_align(gui_label_t::left);
-					add_component(&profit_label);
-					add_component(&running_cost_label);
+					container_profit.add_component(&profit_label);
+					container_profit.add_component(&running_cost_label);
 				}
-				end_table();
-				new_component<gui_margin_t>(100);
+				add_component(&container_profit,2);
 
 				add_component(&container_line,2);
 				container_line.set_table_layout(5,1);
@@ -220,22 +221,56 @@ void convoi_info_t::init(convoihandle_t cnv)
 		}
 		end_table();
 
-		add_table(1, 0)->set_spacing(scr_size(0,0));
+		add_table(2,0)->set_alignment(ALIGN_TOP);
 		{
 			add_component(&view);
 			view.set_obj(cnv->front());
 
-			follow_button.init(button_t::roundbox_state, "follow me", scr_coord(0,0), scr_size(view.get_size().w, D_BUTTON_HEIGHT));
+			// access buttons
+			cont_access_buttons.set_table_layout(1,0);
+			cont_access_buttons.set_alignment(ALIGN_TOP | ALIGN_CENTER_H);
+			cont_access_buttons.set_spacing( scr_size(0,0) );
+			follow_button.init(button_t::imagebox_state, NULL);
+			follow_button.set_image( skinverwaltung_t::gadget->get_image_id(SKIN_GADGET_GOTOPOS) );
 			follow_button.set_tooltip("Follow the convoi on the map.");
 			follow_button.add_listener(this);
-			add_component(&follow_button);
-			new_component<gui_empty_t>();
+			add_component(&cont_access_buttons);
+
+			if( skinverwaltung_t::details ) {
+				bt_open_detail.init(button_t::imagebox_state, NULL);
+				bt_open_detail.set_image(skinverwaltung_t::details->get_image_id(0));
+				cont_access_buttons.add_component(&bt_open_detail);
+			}
+			else {
+				bt_open_detail.init(button_t::roundbox | button_t::flexible, "Details");
+				if (skinverwaltung_t::open_window) {
+					bt_open_detail.set_image(skinverwaltung_t::open_window->get_image_id(0));
+					bt_open_detail.set_image_position_right(true);
+				}
+				add_component(&bt_open_detail);
+				new_component<gui_empty_t>();
+			}
+			bt_open_detail.set_tooltip("Vehicle details");
+			bt_open_detail.add_listener(this);
+
+			cont_access_buttons.add_component(&follow_button);
+
+			go_home_button.init(button_t::depot_state, NULL);
+			go_home_button.set_tooltip("Sends the convoi to the last depot it departed from!");
+			go_home_button.set_targetpos3d(cnv->get_home_depot());
+			go_home_button.add_listener(this);
+			cont_access_buttons.add_component(&go_home_button);
+
+			if (skinverwaltung_t::reverse_arrows) {
+				reverse_button.init(button_t::imagebox_state, NULL, scr_coord(0,0), scr_size(16,14));
+				cont_access_buttons.add_component(&reverse_button);
+			}
 		}
 		end_table();
 	}
 	end_table();
 
-	add_table(4,2)->set_force_equal_columns(true);
+	add_table(4,1)->set_force_equal_columns(true);
 	{
 		// this convoi doesn't belong to an AI
 		button.init(button_t::roundbox | button_t::flexible, "Fahrplan");
@@ -243,37 +278,22 @@ void convoi_info_t::init(convoihandle_t cnv)
 		button.add_listener(this);
 		add_component(&button);
 
-		go_home_button.init(button_t::roundbox | button_t::flexible, "go home");
-		go_home_button.set_tooltip("Sends the convoi to the last depot it departed from!");
-		go_home_button.add_listener(this);
-		add_component(&go_home_button);
-
 		replace_button.init(button_t::roundbox | button_t::flexible, "Replace");
 		replace_button.set_tooltip("Automatically replace this convoy.");
 		add_component(&replace_button);
 		replace_button.add_listener(this);
 
-		details_button.init(button_t::roundbox | button_t::flexible, "Details");
-		if (skinverwaltung_t::open_window) {
-			details_button.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			details_button.set_image_position_right(true);
+		if (!skinverwaltung_t::reverse_arrows) {
+			reverse_button.init(button_t::square_state, "reverse route");
+			add_component(&reverse_button);
 		}
-		details_button.set_tooltip("Vehicle details");
-		details_button.add_listener(this);
-		add_component(&details_button);
-
-		reverse_button.init(button_t::square_state, "reverse route");
 		reverse_button.add_listener(this);
-		reverse_button.set_tooltip("When this is set, the vehicle will visit stops in reverse order.");
 		reverse_button.pressed = cnv->get_reverse_schedule();
-		add_component(&reverse_button);
 
 		no_load_button.init(button_t::square_state, "no load");
 		no_load_button.set_tooltip("No goods are loaded onto this convoi.");
 		no_load_button.add_listener(this);
 		add_component(&no_load_button);
-
-		new_component_span<gui_empty_t>(2);
 	}
 	end_table();
 
@@ -645,6 +665,7 @@ void convoi_info_t::update_labels()
 	if (skinverwaltung_t::reverse_arrows) {
 		img_reverse_route.set_image(cnv->get_schedule()->is_mirrored() ? skinverwaltung_t::reverse_arrows->get_image_id(0) : skinverwaltung_t::reverse_arrows->get_image_id(1), true);
 		img_reverse_route.set_visible(cnv->get_reverse_schedule());
+		reverse_button.set_image(cnv->get_schedule()->is_mirrored() ? skinverwaltung_t::reverse_arrows->get_image_id(0) : skinverwaltung_t::reverse_arrows->get_image_id(1));
 	}
 
 	// realign container - necessary if strings changed length
@@ -680,14 +701,16 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		if(  grund_t* gr=welt->lookup(cnv->get_schedule()->get_current_entry().pos)  ) {
 			go_home_button.pressed = gr->get_depot() != NULL;
 		}
-		details_button.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
+		bt_open_detail.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
 		no_load_button.pressed = cnv->get_no_load();
 		no_load_button.enable();
 		replace_button.pressed = cnv->get_replace();
 		replace_button.set_text(cnv->get_replace() ? "Replacing" : "Replace");
 		replace_button.enable();
 		reverse_button.pressed = cnv->get_reverse_schedule();
-		reverse_button.set_text(cnv->get_schedule()->is_mirrored() ? "Return trip" : "reverse route");
+		if (!skinverwaltung_t::reverse_arrows) {
+			reverse_button.set_text(cnv->get_schedule()->is_mirrored() ? "Return trip" : "reverse route");
+		}
 		reverse_button.set_tooltip(cnv->get_schedule()->is_mirrored() ? "during the return trip of the mirror schedule" : "When this is set, the vehicle will visit stops in reverse order.");
 		reverse_button.enable();
 	}
@@ -883,7 +906,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 
 	// details?
-	if(  comp == &details_button  ) {
+	if(  comp == &bt_open_detail  ) {
 		create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail+cnv.get_id() );
 		return true;
 	}

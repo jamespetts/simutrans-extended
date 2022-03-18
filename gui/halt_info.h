@@ -215,8 +215,12 @@ private:
 	gui_textinput_t input;
 	gui_chart_t chart;
 	location_view_t view;
-	button_t detail_button;
-	// button_t sort_button;
+
+	// access buttons
+	button_t bt_open_detail, bt_access_minimap;
+	button_t bt_access_factory_list;
+	gui_aligned_container_t cont_access_buttons;
+
 	gui_combobox_t freight_sort_selector;
 
 	gui_button_to_chart_array_t button_to_chart;

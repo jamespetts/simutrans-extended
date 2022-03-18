@@ -5,6 +5,7 @@
 
 #include "halt_detail.h"
 #include "halt_info.h"
+#include "map_frame.h"
 #include "components/gui_button_to_chart.h"
 #include "components/gui_divider.h"
 #include "components/gui_line_lettercode.h"
@@ -634,6 +635,7 @@ void halt_info_t::init(halthandle_t halt)
 	halt->set_sortby( env_t::default_sortmode );
 
 	set_table_layout(1,0);
+	set_margin( scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(0,D_MARGIN_BOTTOM) );
 
 	// top part
 	add_table(2,1)->set_alignment(ALIGN_TOP);
@@ -641,6 +643,7 @@ void halt_info_t::init(halthandle_t halt)
 		// top left
 		container_top = add_table(1,0);
 		{
+			new_component<gui_empty_t>();
 			// 1st row: input name
 			tstrncpy(edit_name, halt->get_name(), lengthof(edit_name));
 			input.set_text(edit_name, lengthof(edit_name));
@@ -660,8 +663,6 @@ void halt_info_t::init(halthandle_t halt)
 				img_types = new_component<gui_halt_type_images_t>(halt);
 			}
 			end_table();
-
-			new_component<gui_margin_t>(0, D_V_SPACE);
 
 			// capacities
 			add_component(&waiting_bar);
@@ -752,23 +753,43 @@ void halt_info_t::init(halthandle_t halt)
 
 		// top right
 		add_table(1,0)->set_spacing(scr_size(0,0));
+		const bool pakset_has_valid_halt_gui_symbols = (skinverwaltung_t::details && skinverwaltung_t::network);
+		add_table(1+pakset_has_valid_halt_gui_symbols, 0)->set_alignment(ALIGN_TOP);
 		{
 			add_component(&view);
 			view.set_location(halt->get_basis_pos3d());
 
-			detail_button.init(button_t::roundbox, "Details");
-			if (skinverwaltung_t::open_window) {
-				detail_button.set_image(skinverwaltung_t::open_window->get_image_id(0));
-				detail_button.set_image_position_right(true);
+			// access buttons
+			cont_access_buttons.set_table_layout(1,0);
+			cont_access_buttons.set_alignment(ALIGN_TOP);
+			cont_access_buttons.set_spacing( scr_size(0,0) );
+			if (pakset_has_valid_halt_gui_symbols) {
+				bt_open_detail.init(button_t::imagebox_state, NULL);
+				bt_open_detail.set_image(skinverwaltung_t::details->get_image_id(0));
+				bt_access_minimap.init(button_t::imagebox, NULL);
+				bt_access_minimap.set_image(skinverwaltung_t::network->get_image_id(0));
 			}
-			detail_button.set_width(view.get_size().w);
-			detail_button.set_tooltip("Open station/stop details");
-			detail_button.add_listener(this);
-			add_component(&detail_button);
+			else {
+				bt_open_detail.init(button_t::roundbox, "Details");
+				bt_access_minimap.init(button_t::roundbox, "Networks");
+				if (skinverwaltung_t::open_window) {
+					bt_open_detail.set_image(skinverwaltung_t::open_window->get_image_id(0));
+					bt_open_detail.set_image_position_right(true);
+					bt_access_minimap.set_image(skinverwaltung_t::open_window->get_image_id(0));
+					bt_access_minimap.set_image_position_right(true);
+				}
+				bt_access_minimap.set_width(view.get_size().w);
+				bt_access_minimap.set_width(view.get_size().w);
+			}
+			bt_open_detail.set_tooltip("Open station/stop details");
+			bt_access_minimap.set_tooltip("Open the minimap window to show the freight network of this stop");
+			bt_open_detail.add_listener(this);
+			bt_access_minimap.add_listener(this);
+			cont_access_buttons.add_component(&bt_open_detail);
+			cont_access_buttons.add_component(&bt_access_minimap);
+			add_component(&cont_access_buttons);
 		}
 		end_table();
-
-		//new_component<gui_empty_t>();
 	}
 	end_table();
 
@@ -1408,7 +1429,7 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		return true;
 	}
 
-	if (comp == &detail_button) {
+	if( comp == &bt_open_detail ) {
 		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
 	}
 	else if (comp == &freight_sort_selector) {
@@ -1456,6 +1477,19 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	else if (comp == &bt_db_filter[2]) {
 		db_filter_bits ^= DB_SHOW_GOODS;
 		bt_db_filter[2].pressed = db_filter_bits & DB_SHOW_GOODS;
+	}
+	else if( comp == &bt_access_factory_list ) {
+		halt->show_factory_list();
+	}
+	else if( comp == &bt_access_minimap ) {
+		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		if (!win) {
+			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
+		}
+		win->set_halt(halt);
+		win->set_category_filter( goods_manager_t::INDEX_NONE );
+		top_win(win);
 	}
 
 	return true;
