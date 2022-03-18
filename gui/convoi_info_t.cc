@@ -673,6 +673,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		}
 		button.enable();
 		line_button.enable();
+		go_home_button.enable();
 
 		if(  grund_t* gr=welt->lookup(cnv->get_schedule()->get_current_entry().pos)  ) {
 			go_home_button.pressed = gr->get_depot() != NULL;
