@@ -78,6 +78,7 @@ private:
 	button_t schedule_button;
 	button_t no_load_button;
 	button_t replace_button;
+	button_t class_management_button;
 	int statistics_height;
 
 	// access buttons

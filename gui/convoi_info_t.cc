@@ -8,6 +8,7 @@
 #include "convoi_info_t.h"
 #include "minimap.h"
 #include "replace_frame.h"
+#include "vehicle_class_manager.h"
 
 #include "../vehicle/air_vehicle.h"
 #include "../vehicle/rail_vehicle.h"
@@ -286,6 +287,12 @@ void convoi_info_t::init(convoihandle_t cnv)
 		if (!skinverwaltung_t::reverse_arrows) {
 			reverse_button.init(button_t::square_state, "reverse route");
 			add_component(&reverse_button);
+		}
+		else {
+			class_management_button.init(button_t::roundbox | button_t::flexible, "class_manager");
+			class_management_button.set_tooltip("see_and_change_the_class_assignments");
+			class_management_button.add_listener(this);
+			add_component(&class_management_button);
 		}
 		reverse_button.add_listener(this);
 		reverse_button.pressed = cnv->get_reverse_schedule();
@@ -711,6 +718,9 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		if (!skinverwaltung_t::reverse_arrows) {
 			reverse_button.set_text(cnv->get_schedule()->is_mirrored() ? "Return trip" : "reverse route");
 		}
+		else {
+			class_management_button.enable();
+		}
 		reverse_button.set_tooltip(cnv->get_schedule()->is_mirrored() ? "during the return trip of the mirror schedule" : "When this is set, the vehicle will visit stops in reverse order.");
 		reverse_button.enable();
 	}
@@ -725,6 +735,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		no_load_button.disable();
 		replace_button.disable();
 		reverse_button.disable();
+		if (skinverwaltung_t::reverse_arrows) class_management_button.disable();
 	}
 
 /*
@@ -952,6 +963,15 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 
 		if(  comp == &replace_button  )	{
 			create_win(20, 20, new replace_frame_t(cnv, get_name()), w_info, magic_replace + cnv.get_id() );
+			return true;
+		}
+
+		if(  comp == &class_management_button  )	{
+			scr_coord_val new_dialog_pos_x = gui_frame_t::get_pos().x + get_windowsize().w;
+			if (new_dialog_pos_x >= display_get_width()) {
+				new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
+			}
+			create_win(new_dialog_pos_x, gui_frame_t::get_pos().y, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 			return true;
 		}
 
