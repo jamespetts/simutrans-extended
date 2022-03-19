@@ -154,9 +154,10 @@ void convoi_info_t::init(convoihandle_t cnv)
 	set_margin( scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(0,D_MARGIN_BOTTOM) );
 
 	// top part: speedbars, view, buttons
-	add_table(2, 0)->set_alignment(ALIGN_TOP);
+	container_top = add_table(2,0);
 	{
-		container_top = add_table(1,0);
+		container_top->set_alignment(ALIGN_TOP);
+		add_table(1,0);
 		{
 			new_component<gui_empty_t>();
 			input.add_listener(this);
