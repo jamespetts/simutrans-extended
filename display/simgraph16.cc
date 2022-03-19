@@ -5597,8 +5597,8 @@ void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width,
 	display_fillbox_wh_clip_rgb(x, y+width/4, width, width-width/3-1, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
 	// draw the door
 	const scr_coord_val y_start = width/4+1;
-	display_vline_wh_rgb(x+1,             y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
-	display_vline_wh_rgb(x+(width/2)*2-2, y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+	display_vline_wh_clip_rgb(x+1,             y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+	display_vline_wh_clip_rgb(x+(width/2)*2-2, y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
 	if (width < 8) { return; } // too small to draw!
 	for (uint8 i=y_start; i < width-3; i+=2) {
 		const scr_coord_val w = i==y_start ? (width/2)*2-4 : (width/2)*2-6;
