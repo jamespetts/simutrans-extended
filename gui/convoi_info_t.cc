@@ -154,7 +154,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	set_margin( scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(0,D_MARGIN_BOTTOM) );
 
 	// top part: speedbars, view, buttons
-	container_top = add_table(2,0);
+	container_top = add_table(2,1);
 	{
 		container_top->set_alignment(ALIGN_TOP);
 		add_table(1,0);
@@ -165,26 +165,45 @@ void convoi_info_t::init(convoihandle_t cnv)
 			reset_cnv_name();
 			add_component(&input);
 
-			add_table(2,0)->set_spacing(scr_size(D_H_SPACE<<1,D_V_SPACE>>1));
+			cont_speed.set_table_layout(3,1);
 			{
-				add_component(&speed_label);
+				speed_label.init();
+				cont_speed.add_component(&speed_label);
+				cont_speed.new_component<gui_fill_t>();
 				speed_bar.set_rigid(true);
-				add_component(&speed_bar);
+				speed_bar.set_width(100);
+				cont_speed.add_component(&speed_bar);
+			}
+			cont_speed.set_rigid(false);
+			add_component(&cont_speed);
 
-				add_component(&weight_label);
-				add_component(&loading_bar);
+			cont_alert.set_table_layout(2,1);
+			{
+				img_alert.set_image(IMG_EMPTY);
+				cont_alert.add_component(&img_alert);
+				cont_alert.add_component(&alert_label);
+			}
+			add_component(&cont_alert);
+			cont_alert.set_rigid(false);
 
-				container_profit.set_table_layout(3,1);
-				{
-					container_profit.new_component<gui_label_t>("Gewinn");
-					profit_label.set_align(gui_label_t::left);
-					container_profit.add_component(&profit_label);
-					container_profit.add_component(&running_cost_label);
-				}
-				add_component(&container_profit,2);
+			add_component(&weight_label);
 
-				add_component(&container_line,2);
-				container_line.set_table_layout(5,1);
+			//cont_speed.set_size(cont_speed.get_size());
+
+
+			add_table(3,1);
+			{
+				new_component<gui_label_t>("Gewinn");
+				profit_label.set_align(gui_label_t::left);
+				add_component(&profit_label);
+				add_component(&running_cost_label);
+			}
+			end_table();
+
+			add_component(&container_line);
+
+			container_line.set_table_layout(5,1);
+			{
 				container_line.add_component(&line_button);
 				container_line.new_component<gui_label_t>("Serves Line:");
 				lc_preview.set_rigid(false);
@@ -204,26 +223,43 @@ void convoi_info_t::init(convoihandle_t cnv)
 				line_button.set_targetpos3d( koord3d::invalid );
 				line_button.add_listener( this );
 				line_bound = false;
-
-				add_component(&next_halt_cells,2);
-				next_halt_cells.set_table_layout(3,1);
-				next_halt_cells.new_component<gui_label_t>("Fahrtziel"); // "Destination"
-				next_halt_cells.add_component(&next_halt_number);
-				next_halt_cells.add_component(&target_label);
-
-				distance_label.set_align(gui_label_t::right);
-				add_component(&distance_label);
-				add_component(&route_bar);
-
-				lb_working_method.set_align(gui_label_t::right);
-				add_component(&lb_working_method, 2);
 			}
-			end_table();
 
+			
+			cont_next_stop.set_table_layout(2,3);
+			cont_next_stop.set_alignment(ALIGN_CENTER_V);
+			{
+				cont_next_stop.add_table(2,1);
+				{
+					cont_next_stop.new_component<gui_label_t>("Fahrtziel"); // "Destination"
+					cont_next_stop.add_component(&next_halt_number);
+				}
+				cont_next_stop.end_table();
+				// Note: Fix the width of the station name as the automatic resizing destroys the layout when the station name changes
+				// (or it will automatically increase the size independently of the player's intention.)
+				target_label.set_fixed_width(LINEASCENT*20);
+				cont_next_stop.add_component(&target_label);
+
+				distance_label.set_fixed_width(D_BUTTON_WIDTH);
+				distance_label.set_align(gui_label_t::right);
+				cont_next_stop.add_component(&distance_label);
+				route_bar.set_width(LINEASCENT*20);
+				cont_next_stop.add_component(&route_bar);
+
+				const waytype_t wt = cnv->front()->get_waytype();
+				if (wt == track_wt || wt == maglev_wt || wt == tram_wt || wt == narrowgauge_wt || wt == monorail_wt) {
+					lb_working_method.set_align(gui_label_t::right);
+					lb_working_method.set_fixed_width(LINEASCENT*20 + D_BUTTON_WIDTH);
+					cont_next_stop.add_component(&lb_working_method,2);
+				}
+			}
+			add_component(&cont_next_stop);
 		}
 		end_table();
 
-		add_table(2,0)->set_alignment(ALIGN_TOP);
+		container_view = add_table(2,0);
+		container_view->set_alignment(ALIGN_TOP);
+		container_view->set_spacing(scr_size(0,0));
 		{
 			add_component(&view);
 			view.set_obj(cnv->front());
@@ -237,6 +273,10 @@ void convoi_info_t::init(convoihandle_t cnv)
 			follow_button.set_tooltip("Follow the convoi on the map.");
 			follow_button.add_listener(this);
 			add_component(&cont_access_buttons);
+
+			loading_bar.set_fixed_size(view.get_size().w);
+			add_component(&loading_bar);
+			new_component<gui_empty_t>();
 
 			if( skinverwaltung_t::details ) {
 				bt_open_detail.init(button_t::imagebox_state, NULL);
@@ -375,7 +415,6 @@ void convoi_info_t::init(convoihandle_t cnv)
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
-
 	set_resizemode(diagonal_resize);
 }
 
@@ -398,42 +437,50 @@ void convoi_info_t::update_labels()
 	}
 	bool runway_too_short = air_vehicle == NULL ? false : air_vehicle->is_runway_too_short();
 
-	speed_bar.set_visible(false);
+	img_alert.set_image(IMG_EMPTY);
+	cont_speed.set_visible(false);
+	cont_alert.set_visible(true);
 	route_bar.set_state(1);
+
 	switch (cnv->get_state())
 	{
 		case convoi_t::WAITING_FOR_CLEARANCE_ONE_MONTH:
+			if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(2), true);
+			/* FALLTHROUGH */
 		case convoi_t::WAITING_FOR_CLEARANCE:
 
 			if (runway_too_short)
 			{
-				speed_label.buf().printf("%s (%s) %i%s", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				speed_label.set_color(COL_CAUTION);
+				alert_label.buf().printf("%s (%s) %i%s", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
+				alert_label.set_color(COL_CAUTION);
 				route_bar.set_state(3);
 			}
 			else
 			{
-				speed_label.buf().append(translator::translate("Waiting for clearance!"));
-				speed_label.set_color(COL_CAUTION);
+				alert_label.buf().append(translator::translate("Waiting for clearance!"));
+				alert_label.set_color(COL_CAUTION);
 				route_bar.set_state(1);
 			}
 			break;
 
-		case convoi_t::CAN_START:
 		case convoi_t::CAN_START_ONE_MONTH:
+			if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(2), true);
+			/* FALLTHROUGH */
+		case convoi_t::CAN_START:
 
-			speed_label.buf().append(translator::translate("Waiting for clearance!"));
-			speed_label.set_color(SYSCOL_TEXT);
+			alert_label.buf().append(translator::translate("Waiting for clearance!"));
+			alert_label.set_color(SYSCOL_TEXT);
 			route_bar.set_state(1);
 			break;
 
 		case convoi_t::EMERGENCY_STOP:
 
+			if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(3), true);
 			char emergency_stop_time[64];
 			cnv->snprintf_remaining_emergency_stop_time(emergency_stop_time, sizeof(emergency_stop_time));
 
-			speed_label.buf().printf(translator::translate("emergency_stop %s left"), emergency_stop_time);
-			speed_label.set_color(COL_DANGER);
+			alert_label.buf().printf(translator::translate("emergency_stop %s left"), emergency_stop_time);
+			alert_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
 			break;
 
@@ -443,26 +490,31 @@ void convoi_info_t::update_labels()
 			cnv->snprintf_remaining_loading_time(waiting_time, sizeof(waiting_time));
 			if (cnv->get_schedule()->get_current_entry().wait_for_time)
 			{
-				speed_label.buf().printf(translator::translate("Waiting for schedule. %s left"), waiting_time);
-				speed_label.set_color(COL_CAUTION);
+				if(skinverwaltung_t::service_frequency) img_alert.set_image(skinverwaltung_t::service_frequency->get_image_id(0), true);
+				alert_label.buf().printf(translator::translate("Waiting for schedule. %s left"), waiting_time);
+				alert_label.set_color(COL_CAUTION);
 			}
 			else if (cnv->get_loading_limit())
 			{
 				if (!cnv->is_wait_infinite() && strcmp(waiting_time, "0:00"))
 				{
-					speed_label.buf().printf(translator::translate("Loading (%i->%i%%), %s left!"), cnv->get_loading_level(), cnv->get_loading_limit(), waiting_time);
-					speed_label.set_color(COL_CAUTION);
+					if (skinverwaltung_t::waiting_time) img_alert.set_image(skinverwaltung_t::waiting_time->get_image_id(0), true);
+					else img_alert.set_image(skinverwaltung_t::goods->get_image_id(0), true);
+					alert_label.buf().printf(translator::translate("Loading (%i->%i%%), %s left!"), cnv->get_loading_level(), cnv->get_loading_limit(), waiting_time);
+					alert_label.set_color(COL_CAUTION);
 				}
 				else
 				{
-					speed_label.buf().printf(translator::translate("Loading (%i->%i%%)!"), cnv->get_loading_level(), cnv->get_loading_limit());
-					speed_label.set_color(COL_CAUTION);
+					img_alert.set_image(skinverwaltung_t::goods->get_image_id(0), true);
+					alert_label.buf().printf(translator::translate("Loading (%i->%i%%)!"), cnv->get_loading_level(), cnv->get_loading_limit());
+					alert_label.set_color(COL_CAUTION);
 				}
 			}
 			else
 			{
-				speed_label.buf().printf(translator::translate("Loading. %s left!"), waiting_time);
-				speed_label.set_color(SYSCOL_TEXT);
+				if (skinverwaltung_t::waiting_time) img_alert.set_image(skinverwaltung_t::waiting_time->get_image_id(0), true);
+				alert_label.buf().printf(translator::translate("Loading. %s left!"), waiting_time);
+				alert_label.set_color(SYSCOL_TEXT);
 			}
 			route_bar.set_state(1);
 
@@ -471,7 +523,8 @@ void convoi_info_t::update_labels()
 		case convoi_t::WAITING_FOR_LOADING_THREE_MONTHS:
 		case convoi_t::WAITING_FOR_LOADING_FOUR_MONTHS:
 
-			speed_label.buf().printf(translator::translate("Loading (%i->%i%%) Long Time"), cnv->get_loading_level(), cnv->get_loading_limit());
+			if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(3), true);
+			alert_label.buf().printf(translator::translate("Loading (%i->%i%%) Long Time"), cnv->get_loading_level(), cnv->get_loading_limit());
 			route_bar.set_state(2);
 			break;
 
@@ -482,16 +535,16 @@ void convoi_info_t::update_labels()
 			switch (cnv->get_terminal_shunt_mode()) {
 			case convoi_t::rearrange:
 			case convoi_t::shunting_loco:
-				speed_label.buf().printf(translator::translate("Shunting. %s left"), reversing_time);
+				alert_label.buf().printf(translator::translate("Shunting. %s left"), reversing_time);
 				break;
 			case convoi_t::change_direction:
-				speed_label.buf().printf(translator::translate("Changing direction. %s left"), reversing_time);
+				alert_label.buf().printf(translator::translate("Changing direction. %s left"), reversing_time);
 				break;
 			default:
-				speed_label.buf().printf(translator::translate("Reversing. %s left"), reversing_time);
+				alert_label.buf().printf(translator::translate("Reversing. %s left"), reversing_time);
 				break;
 			}
-			speed_label.set_color(SYSCOL_TEXT);
+			alert_label.set_color(SYSCOL_TEXT);
 			route_bar.set_state(1);
 			break;
 
@@ -500,44 +553,53 @@ void convoi_info_t::update_labels()
 
 			if (runway_too_short)
 			{
-				speed_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				speed_label.set_color(COL_DANGER);
+				if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+				else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
+				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
+				alert_label.set_color(COL_DANGER);
 				route_bar.set_state(3);
 			}
 			else
 			{
-				speed_label.buf().append(translator::translate("clf_chk_stucked"));
-				speed_label.set_color(COL_WARNING);
+				if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(3), true);
+				alert_label.buf().append(translator::translate("clf_chk_stucked"));
+				alert_label.set_color(COL_WARNING);
 				route_bar.set_state(2);
 			}
 			break;
 
 		case convoi_t::NO_ROUTE:
 
+			if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+			else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
 			if (runway_too_short)
 			{
-				speed_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
+				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
 			}
 			else
 			{
-				speed_label.buf().append(translator::translate("clf_chk_noroute"));
+				alert_label.buf().append(translator::translate("clf_chk_noroute"));
 			}
-			speed_label.set_color(COL_DANGER);
+			alert_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
 			break;
 
 		case convoi_t::NO_ROUTE_TOO_COMPLEX:
+			if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+			else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
 			//speed_label.buf().append(translator::translate("no_route_too_complex_message"));
-			speed_label.buf().append(translator::translate("clf_chk_noroute"));
-			speed_label.set_color(COL_DANGER);
+			alert_label.buf().append(translator::translate("clf_chk_noroute"));
+			alert_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
 			break;
 
 		case convoi_t::OUT_OF_RANGE:
 
+			if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+			else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
 			//speed_label.buf().printf(translator::translate("out_of_range (max %i km)"), cnv->front()->get_desc()->get_range());
-			speed_label.buf().printf("%s (%s %i%s)", translator::translate("out of range"), translator::translate("max"), cnv->front()->get_desc()->get_range(), translator::translate("km"));
-			speed_label.set_color(COL_DANGER);
+			alert_label.buf().printf("%s (%s %i%s)", translator::translate("out of range"), translator::translate("max"), cnv->front()->get_desc()->get_range(), translator::translate("km"));
+			alert_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
 			break;
 
@@ -547,15 +609,18 @@ void convoi_info_t::update_labels()
 		default:
 			if (runway_too_short)
 			{
-				speed_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				speed_label.set_color(COL_DANGER);
+				if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+				else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
+				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
+				alert_label.set_color(COL_DANGER);
 				route_bar.set_state(3);
 			}
 			else
 			{
 				uint32 empty_weight = cnv->get_vehicle_summary().weight;
 
-				speed_bar.set_visible(true);
+				cont_alert.set_visible(false);
+				cont_speed.set_visible(true);
 				//use median speed to avoid flickering
 				mean_convoi_speed += speed_to_kmh(cnv->get_akt_speed() * 4);
 				mean_convoi_speed /= 2;
@@ -567,6 +632,7 @@ void convoi_info_t::update_labels()
 			}
 			break;
 	}
+	alert_label.update();
 	speed_label.update();
 	profit_label.append_money(cnv->get_jahresgewinn()/100.0);
 	profit_label.update();
@@ -610,22 +676,21 @@ void convoi_info_t::update_labels()
 	char distance_display[13];
 	distance = (double)(cnv_route_index_left * welt->get_settings().get_meters_per_tile()) / 1000.0;
 
-	if (distance <= 0)
-	{
-		sprintf(distance_display, "0km");
-	}
-	else if (distance < 1)
-	{
-		sprintf(distance_display, "%.0fm", distance * 1000);
-	}
-	else
+	if (distance >= 1)
 	{
 		uint n_actual = distance < 5 ? 1 : 0;
 		char tmp[10];
 		number_to_string(tmp, distance, n_actual);
 		sprintf(distance_display, "%skm", tmp);
 	}
-	distance_label.buf().printf( translator::translate("%s left"), distance_display);
+	else if (distance > 0)
+	{
+		sprintf(distance_display, "%.0fm", distance * 1000);
+	}
+	if (distance > 0) {
+		distance_label.buf().printf( translator::translate("%s left"), distance_display);
+	}
+	distance_label.update();
 
 	// only show assigned line, if there is one!
 	if(  cnv->get_line().is_bound()  ) {
@@ -679,7 +744,8 @@ void convoi_info_t::update_labels()
 
 	// realign container - necessary if strings changed length
 	container_top->set_size( container_top->get_size() );
-	set_min_windowsize(scr_size(max(D_DEFAULT_WIDTH, get_min_windowsize().w), D_TITLEBAR_HEIGHT + switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT));
+	set_min_windowsize(scr_size(max(container_top->get_min_size().w+D_H_SPACE, get_min_windowsize().w), D_TITLEBAR_HEIGHT + switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT));
+	resize(scr_size(0,0));
 }
 
 

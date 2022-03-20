@@ -66,10 +66,12 @@ private:
 	gui_textarea_t text;
 	obj_view_t view;
 	gui_label_buf_t speed_label, profit_label, running_cost_label, weight_label, target_label, line_label;
-	gui_label_buf_t distance_label, lb_working_method;
+	gui_label_buf_t alert_label, distance_label, lb_working_method;
 	gui_textinput_t input;
 	gui_loadingbar_t loading_bar;
-	gui_speedbar_t speed_bar;
+	gui_speedbar_fixed_length_t speed_bar;
+	gui_image_t img_alert;
+	gui_aligned_container_t cont_speed, cont_alert;
 	gui_routebar_t route_bar;
 	sint32 next_reservation_index;
 	gui_chart_t chart;
@@ -88,7 +90,6 @@ private:
 	button_t reverse_button;
 	gui_aligned_container_t cont_access_buttons;
 
-	gui_aligned_container_t next_halt_cells;
 	gui_schedule_entry_number_t next_halt_number;
 	gui_convoy_loading_info_t loading_info;
 
@@ -96,7 +97,7 @@ private:
 
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
-	gui_aligned_container_t container_freight, container_stats, container_profit, container_line, *container_top;
+	gui_aligned_container_t container_freight, container_stats, container_line, *container_top, *container_view, cont_next_stop;
 	gui_scrollpane_t scroll_freight, scroll_times_history;
 
 	gui_combobox_t freight_sort_selector;
