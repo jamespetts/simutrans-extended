@@ -225,7 +225,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 				line_bound = false;
 			}
 
-			
+
 			cont_next_stop.set_table_layout(2,3);
 			cont_next_stop.set_alignment(ALIGN_CENTER_V);
 			{
