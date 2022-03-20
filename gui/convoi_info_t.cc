@@ -567,6 +567,7 @@ void convoi_info_t::update_labels()
 			}
 			break;
 	}
+	speed_label.update();
 	profit_label.append_money(cnv->get_jahresgewinn()/100.0);
 	profit_label.update();
 
