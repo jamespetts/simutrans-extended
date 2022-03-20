@@ -188,9 +188,6 @@ void convoi_info_t::init(convoihandle_t cnv)
 
 			add_component(&weight_label);
 
-			//cont_speed.set_size(cont_speed.get_size());
-
-
 			add_table(3,1);
 			{
 				new_component<gui_label_t>("Gewinn");
@@ -224,7 +221,6 @@ void convoi_info_t::init(convoihandle_t cnv)
 				line_button.add_listener( this );
 				line_bound = false;
 			}
-
 
 			cont_next_stop.set_table_layout(2,3);
 			cont_next_stop.set_alignment(ALIGN_CENTER_V);
@@ -644,6 +640,9 @@ void convoi_info_t::update_labels()
 		translator::translate("Weight:"),
 		cnv->get_weight_summary().weight / 1000.0,
 		(cnv->get_weight_summary().weight-cnv->get_sum_weight()) / 1000.0);
+	if ( cnv->front()->get_waytype() != water_wt ) {
+		weight_label.buf().printf(", %s %ut", translator::translate("Max. axle load:"), cnv->get_highest_axle_load());
+	}
 	weight_label.update();
 
 	// next stop
