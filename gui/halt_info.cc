@@ -753,7 +753,9 @@ void halt_info_t::init(halthandle_t halt)
 
 		// top right
 		const bool pakset_has_valid_halt_gui_symbols = (skinverwaltung_t::details && skinverwaltung_t::network);
-		add_table(1+pakset_has_valid_halt_gui_symbols, 0)->set_alignment(ALIGN_TOP);
+		container_view = add_table(1+pakset_has_valid_halt_gui_symbols,0);
+		container_view->set_alignment(ALIGN_TOP);
+		container_view->set_spacing(scr_size(0,0));
 		{
 			add_component(&view);
 			view.set_location(halt->get_basis_pos3d());

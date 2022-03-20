@@ -150,7 +150,7 @@ class halt_info_t : public gui_frame_t, private action_listener_t
 {
 private:
 
-	gui_aligned_container_t *container_top;
+	gui_aligned_container_t *container_top, *container_view;
 	gui_label_buf_t lb_pax_storage, lb_mail_storage;
 	gui_label_t lb_evaluation;
 	gui_colorbox_t indicator_color;
