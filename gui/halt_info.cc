@@ -752,7 +752,6 @@ void halt_info_t::init(halthandle_t halt)
 		end_table();
 
 		// top right
-		add_table(1,0)->set_spacing(scr_size(0,0));
 		const bool pakset_has_valid_halt_gui_symbols = (skinverwaltung_t::details && skinverwaltung_t::network);
 		add_table(1+pakset_has_valid_halt_gui_symbols, 0)->set_alignment(ALIGN_TOP);
 		{
@@ -1477,9 +1476,6 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	else if (comp == &bt_db_filter[2]) {
 		db_filter_bits ^= DB_SHOW_GOODS;
 		bt_db_filter[2].pressed = db_filter_bits & DB_SHOW_GOODS;
-	}
-	else if( comp == &bt_access_factory_list ) {
-		halt->show_factory_list();
 	}
 	else if( comp == &bt_access_minimap ) {
 		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
