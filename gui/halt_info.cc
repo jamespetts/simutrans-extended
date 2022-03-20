@@ -769,7 +769,7 @@ void halt_info_t::init(halthandle_t halt)
 				bt_access_minimap.set_image(skinverwaltung_t::network->get_image_id(0));
 			}
 			else {
-				bt_open_detail.init(button_t::roundbox, "Details");
+				bt_open_detail.init(button_t::roundbox, "Details", scr_coord(0,0), scr_size(view.get_size().w, D_BUTTON_HEIGHT));
 				bt_access_minimap.init(button_t::roundbox, "Networks");
 				if (skinverwaltung_t::open_window) {
 					bt_open_detail.set_image(skinverwaltung_t::open_window->get_image_id(0));
