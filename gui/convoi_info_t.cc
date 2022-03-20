@@ -125,7 +125,7 @@ const char *convoi_info_t::sort_text[SORT_MODES] =
 convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	gui_frame_t(""),
 	text(&freight_info),
-	view(scr_size(max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
+	view(scr_size(max(64, get_base_tile_raster_width()), (get_base_tile_raster_width()>128 ? (get_base_tile_raster_width()*3)>>2 : get_base_tile_raster_width()*7>>3))),
 	loading_bar(cnv),
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),

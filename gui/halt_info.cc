@@ -610,7 +610,7 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 		text_freight(&freight_info),
 		scrolly_freight(&text_freight, true, true),
 		waiting_bar(halt, false),
-		view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, get_base_tile_raster_width() * 7 / 8)))
+		view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), (get_base_tile_raster_width()>128 ? (get_base_tile_raster_width()*3)>>2 : get_base_tile_raster_width()*7>>3)))
 {
 	if (halt.is_bound()) {
 		init(halt);
