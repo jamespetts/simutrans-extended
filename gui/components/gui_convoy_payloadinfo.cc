@@ -91,6 +91,7 @@ void gui_convoy_payloadinfo_t::draw(scr_coord offset)
 gui_loadingbar_t::gui_loadingbar_t(convoihandle_t cnv)
 {
 	this->cnv = cnv;
+	size.w = LOADINGBAR_WIDTH+2;
 }
 
 void gui_loadingbar_t::draw(scr_coord offset)
@@ -158,12 +159,12 @@ void gui_loadingbar_t::draw(scr_coord offset)
 
 scr_size gui_loadingbar_t::get_min_size() const
 {
-	return scr_size(LOADINGBAR_WIDTH + 2, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+	return scr_size(size.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
 }
 
 scr_size gui_loadingbar_t::get_max_size() const
 {
-	return scr_size(size_fixed ? LOADINGBAR_WIDTH+2 : scr_size::inf.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+	return scr_size(size_fixed ? size.w : scr_size::inf.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
 }
 
 

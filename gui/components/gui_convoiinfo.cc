@@ -55,7 +55,7 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
 		add_table(2,1)->set_spacing(scr_size(0, 0));
 		{
 			new_component<gui_margin_t>(LINESPACE/2, 0);
-			loading_bar.set_size_fixed(true);
+			loading_bar.set_fixed_size(LOADINGBAR_WIDTH+2);
 			add_component(&loading_bar);
 		}
 		end_table();

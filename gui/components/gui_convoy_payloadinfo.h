@@ -42,7 +42,8 @@ public:
 
 	scr_size get_max_size() const OVERRIDE;
 
-	void set_size_fixed(bool yesno) { size_fixed = yesno; };
+	// set 0 if disable fixed
+	void set_fixed_size(scr_coord_val w) { size.w=w, size_fixed = (w>0); };
 };
 
 class gui_convoy_handle_catg_img_t : public gui_container_t
