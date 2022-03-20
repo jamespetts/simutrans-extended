@@ -643,21 +643,21 @@ void convoi_info_t::update_labels()
 	line_label.update();
 
 
-	vehicle_t* v1 = cnv->get_vehicle(0);
-	if (v1->get_waytype() == track_wt || v1->get_waytype() == maglev_wt || v1->get_waytype() == tram_wt || v1->get_waytype() == narrowgauge_wt || v1->get_waytype() == monorail_wt) {
+	const waytype_t wt = cnv->front()->get_waytype();
+	if (wt == track_wt || wt == maglev_wt || wt == tram_wt || wt == narrowgauge_wt || wt == monorail_wt) {
 		if (cnv->in_depot()) {
 			lb_working_method.buf().append("");
 		}
 		else {
 			// Current working method
-			rail_vehicle_t* rv1 = (rail_vehicle_t*)v1;
-			rail_vehicle_t* rv2 = (rail_vehicle_t*)cnv->get_vehicle(cnv->get_vehicle_count() - 1);
+			rail_vehicle_t* rv1 = (rail_vehicle_t*)cnv->front();
+			rail_vehicle_t* rv2 = (rail_vehicle_t*)cnv->back();
 			working_method_t wm = rv1->is_leading() ? rv1->get_working_method() : rv2->get_working_method();
 			route_bar.set_reserved_color(wm==drive_by_sight? COL_WARNING : color_idx_to_rgb(COL_BLUE));
 			lb_working_method.buf().printf("%s: %s", translator::translate("Current working method"), translator::translate(roadsign_t::get_working_method_name(wm)));
 		}
 	}
-	else if (uint16 minimum_runway_length = cnv->get_vehicle(0)->get_desc()->get_minimum_runway_length()) {
+	else if (uint16 minimum_runway_length = cnv->front()->get_desc()->get_minimum_runway_length()) {
 		// for air vehicle
 		lb_working_method.buf().printf("%s: %i m \n", translator::translate("Minimum runway length"), minimum_runway_length);
 	}

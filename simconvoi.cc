@@ -3647,7 +3647,7 @@ void convoi_t::vorfahren()
 			{
 				// If a rail type vehicle is reversing in a station, reserve the entire platform.
 				const waytype_t wt = front()->get_waytype();
-				const bool rail_type = front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt;
+				const bool rail_type = wt == track_wt || wt == tram_wt || wt == narrowgauge_wt || wt == maglev_wt || wt == monorail_wt;
 				if(rail_type)
 				{
 					grund_t* vgr = gr;
