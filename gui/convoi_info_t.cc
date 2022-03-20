@@ -989,7 +989,15 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 
 	// details?
 	if(  comp == &bt_open_detail  ) {
-		create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail+cnv.get_id() );
+		scr_coord const& dialog_pos = win_get_pos(this);
+		scr_coord_val new_dialog_pos_x = -1;
+		if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH) < display_get_width()) {
+			new_dialog_pos_x = dialog_pos.x + get_windowsize().w;
+		}
+		else if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH / 2) < display_get_width()) {
+			new_dialog_pos_x = dialog_pos.x + get_windowsize().w / 2;
+		}
+		create_win(new_dialog_pos_x, dialog_pos.y, new convoi_detail_t(cnv), w_info, magic_convoi_detail+cnv.get_id() );
 		return true;
 	}
 
@@ -1032,12 +1040,16 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 			return true;
 		}
 
-		if(  comp == &class_management_button  )	{
-			scr_coord_val new_dialog_pos_x = gui_frame_t::get_pos().x + get_windowsize().w;
-			if (new_dialog_pos_x >= display_get_width()) {
-				new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
+		if(  comp == &class_management_button  ) {
+			scr_coord const& dialog_pos = win_get_pos(this);
+			scr_coord_val new_dialog_pos_x=-1;
+			if ((dialog_pos.x+get_windowsize().w+D_DEFAULT_WIDTH) < display_get_width()) {
+				new_dialog_pos_x = dialog_pos.x+get_windowsize().w;
 			}
-			create_win(new_dialog_pos_x, gui_frame_t::get_pos().y, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
+			else if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH/2) < display_get_width()) {
+				new_dialog_pos_x = dialog_pos.x + get_windowsize().w/2;
+			}
+			create_win(new_dialog_pos_x, dialog_pos.y, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 			return true;
 		}
 

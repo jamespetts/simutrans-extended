@@ -1431,7 +1431,15 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 
 	if( comp == &bt_open_detail ) {
-		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
+		scr_coord const& dialog_pos = win_get_pos(this);
+		scr_coord_val new_dialog_pos_x = -1;
+		if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH) < display_get_width()) {
+			new_dialog_pos_x = dialog_pos.x + get_windowsize().w;
+		}
+		else if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH / 2) < display_get_width()) {
+			new_dialog_pos_x = dialog_pos.x + get_windowsize().w / 2;
+		}
+		create_win(new_dialog_pos_x, dialog_pos.y, new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id());
 	}
 	else if (comp == &freight_sort_selector) {
 		sint32 sort_mode = freight_sort_selector.get_selection();
