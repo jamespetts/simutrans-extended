@@ -433,10 +433,19 @@ void convoi_info_t::update_labels()
 	}
 	bool runway_too_short = air_vehicle == NULL ? false : air_vehicle->is_runway_too_short();
 
-	img_alert.set_image(IMG_EMPTY);
+	if (runway_too_short) {
+		alert_label.buf().printf("%s (%s) %i%s", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
+		alert_label.set_color(COL_WARNING);
+		if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
+		else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
+		route_bar.set_state(3);
+	}
+	else {
+		img_alert.set_image(IMG_EMPTY);
+		route_bar.set_state(1);
+	}
 	cont_speed.set_visible(false);
 	cont_alert.set_visible(true);
-	route_bar.set_state(1);
 
 	switch (cnv->get_state())
 	{
@@ -445,13 +454,7 @@ void convoi_info_t::update_labels()
 			/* FALLTHROUGH */
 		case convoi_t::WAITING_FOR_CLEARANCE:
 
-			if (runway_too_short)
-			{
-				alert_label.buf().printf("%s (%s) %i%s", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				alert_label.set_color(COL_CAUTION);
-				route_bar.set_state(3);
-			}
-			else
+			if (!runway_too_short)
 			{
 				alert_label.buf().append(translator::translate("Waiting for clearance!"));
 				alert_label.set_color(COL_CAUTION);
@@ -547,15 +550,7 @@ void convoi_info_t::update_labels()
 		case convoi_t::CAN_START_TWO_MONTHS:
 		case convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS:
 
-			if (runway_too_short)
-			{
-				if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
-				else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
-				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				alert_label.set_color(COL_DANGER);
-				route_bar.set_state(3);
-			}
-			else
+			if (!runway_too_short)
 			{
 				if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(3), true);
 				alert_label.buf().append(translator::translate("clf_chk_stucked"));
@@ -568,11 +563,7 @@ void convoi_info_t::update_labels()
 
 			if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
 			else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
-			if (runway_too_short)
-			{
-				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-			}
-			else
+			if (!runway_too_short)
 			{
 				alert_label.buf().append(translator::translate("clf_chk_noroute"));
 			}
@@ -603,15 +594,7 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(0);
 
 		default:
-			if (runway_too_short)
-			{
-				if (skinverwaltung_t::pax_evaluation_icons) img_alert.set_image(skinverwaltung_t::pax_evaluation_icons->get_image_id(4), true);
-				else if (skinverwaltung_t::alerts) img_alert.set_image(skinverwaltung_t::alerts->get_image_id(4), true);
-				alert_label.buf().printf("%s (%s %i%s)", translator::translate("Runway too short"), translator::translate("requires"), cnv->front()->get_desc()->get_minimum_runway_length(), translator::translate("m"));
-				alert_label.set_color(COL_DANGER);
-				route_bar.set_state(3);
-			}
-			else
+			if (!runway_too_short)
 			{
 				uint32 empty_weight = cnv->get_vehicle_summary().weight;
 
