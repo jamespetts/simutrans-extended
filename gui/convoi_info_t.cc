@@ -769,7 +769,13 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			reverse_button.set_text(cnv->get_schedule()->is_mirrored() ? "Return trip" : "reverse route");
 		}
 		else {
-			class_management_button.enable();
+			if ((cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) && goods_manager_t::passengers->get_number_of_classes()>1)
+				|| (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL) && goods_manager_t::mail->get_number_of_classes()>1)) {
+				class_management_button.enable();
+			}
+			else {
+				class_management_button.disable();
+			}
 		}
 		reverse_button.set_tooltip(cnv->get_schedule()->is_mirrored() ? "during the return trip of the mirror schedule" : "When this is set, the vehicle will visit stops in reverse order.");
 		reverse_button.enable();

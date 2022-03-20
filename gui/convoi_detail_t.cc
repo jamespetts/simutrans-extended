@@ -1067,29 +1067,15 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 		return;
 	}
 
-	bool any_class = false;
-	for (uint8 veh = 0; veh < cnv->get_vehicle_count(); ++veh)
-	{
-		vehicle_t* v = cnv->get_vehicle(veh);
-		if (v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS || v->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL)
-		{
-			if (v->get_desc()->get_total_capacity() > 0)
-			{
-				any_class = true;
-			}
-		}
-	}
-
 	if(cnv->get_owner()==welt->get_active_player()  &&  !welt->get_active_player()->is_locked()) {
 		withdraw_button.enable();
 		sale_button.enable();
 		retire_button.enable();
-		if (any_class)
-		{
+		if ((cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) && goods_manager_t::passengers->get_number_of_classes()>1)
+			|| (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL) && goods_manager_t::mail->get_number_of_classes()>1)) {
 			class_management_button.enable();
 		}
-		else
-		{
+		else {
 			class_management_button.disable();
 		}
 		if (cnv->in_depot()) {
