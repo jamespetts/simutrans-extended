@@ -108,8 +108,9 @@ map_array(0, 0)
 
 void city_location_map_t::update()
 {
+	const bool is_landscape = world()->get_size().x > world()->get_size().y;
 	scr_coord_val temp_zoom_x = world()->get_size().x/MAX_CITY_LOCATION_MAP_WIDTH;
-	scr_coord_val temp_zoom_y = world()->get_size().y/(LINESPACE*6);
+	scr_coord_val temp_zoom_y = is_landscape ? world()->get_size().y/(LINESPACE*6) : world()->get_size().y/(LINESPACE*8);
 	uint8 zoom_out_level = max(temp_zoom_x, temp_zoom_y)+1;
 	size=scr_size(world()->get_size().x/zoom_out_level, world()->get_size().y/zoom_out_level);
 	map_array.resize(size.w, size.h);
@@ -164,65 +165,10 @@ void city_info_t::init()
 	reset_city_name();
 
 	set_table_layout(1,0);
+	set_margin( scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(D_H_SPACE,D_MARGIN_BOTTOM) );
 
-	add_table(2,1)->set_alignment(ALIGN_TOP);
-	{
-		// top left
-		add_table(1,0);
-		{
-			// add city name input field
-			name_input.add_listener( this );
-			add_component(&name_input);
-
-			add_table(4, 3);
-			{
-				// area
-				new_component<gui_label_t>("City size");
-				add_component(&lb_size);
-				add_component(&lb_border);
-				new_component<gui_fill_t>();
-
-				new_component<gui_label_t>("Population density");
-				add_component(&lb_buildings);
-				new_component<gui_empty_t>();
-				new_component<gui_fill_t>();
-
-				new_component<gui_label_t>("Power demand");
-				add_component(&lb_powerdemand);
-				new_component<gui_empty_t>();
-				new_component<gui_fill_t>();
-			}
-			end_table();
-
-			// minimap link buttons
-			add_table(3, 1);
-			{
-				add_component(&bt_city_stops);
-				add_component(&bt_city_factories);
-				add_component(&bt_city_attractions);
-			}
-			end_table();
-		}
-		end_table();
-
-		// top right
-		add_table(1,2);
-		{
-			// city location map
-			add_component(&location_map);
-			// region
-			if (!world()->get_settings().regions.empty()) {
-				new_component<gui_label_buf_t>()->buf().append(translator::translate(world()->get_region_name(city->get_pos()).c_str()));
-			}
-			else {
-				new_component<gui_empty_t>();
-			}
-		}
-		end_table();
-	}
-	end_table();
-
-	bt_city_attractions.init(button_t::roundbox, "City attractions", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+	// init list link buttons
+	bt_city_attractions.init(button_t::roundbox | button_t::flexible, "City attractions", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
 	if (skinverwaltung_t::open_window) {
 		bt_city_attractions.set_image(skinverwaltung_t::open_window->get_image_id(0));
 		bt_city_attractions.set_image_position_right(true);
@@ -231,7 +177,7 @@ void city_info_t::init()
 	bt_city_attractions.add_listener(this);
 	bt_city_attractions.pressed = false;
 
-	bt_city_factories.init(button_t::roundbox, "City factories", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+	bt_city_factories.init(button_t::roundbox | button_t::flexible, "City factories", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
 	if (skinverwaltung_t::open_window) {
 		bt_city_factories.set_image(skinverwaltung_t::open_window->get_image_id(0));
 		bt_city_factories.set_image_position_right(true);
@@ -240,7 +186,7 @@ void city_info_t::init()
 	bt_city_factories.add_listener(this);
 	bt_city_factories.pressed = false;
 
-	bt_city_stops.init(button_t::roundbox, "City stops", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
+	bt_city_stops.init(button_t::roundbox | button_t::flexible, "City stops", scr_coord(0, 0), D_WIDE_BUTTON_SIZE);
 	if (skinverwaltung_t::open_window) {
 		bt_city_stops.set_image(skinverwaltung_t::open_window->get_image_id(0));
 		bt_city_stops.set_image_position_right(true);
@@ -248,6 +194,19 @@ void city_info_t::init()
 	bt_city_stops.set_tooltip("Open the list of stops in this city");
 	bt_city_stops.add_listener(this);
 	bt_city_stops.pressed = false;
+
+	cont_access_list_buttons.set_table_layout(3,1);
+	cont_access_list_buttons.add_component(&bt_city_stops);
+	cont_access_list_buttons.add_component(&bt_city_factories);
+	cont_access_list_buttons.add_component(&bt_city_attractions);
+
+	name_input.add_listener(this);
+
+	container_top.set_table_layout(2,0);
+	container_top.set_alignment(ALIGN_TOP);
+	init_container_top();
+	add_component(&container_top);
+
 
 	// add "allow city growth" button below city info
 	allow_growth.init(button_t::square_state, "Allow city growth");
@@ -362,6 +321,63 @@ void city_info_t::init()
 	reset_min_windowsize();
 }
 
+void city_info_t::init_container_top()
+{
+	const bool is_landscape = world()->get_size().x > world()->get_size().y;
+
+	container_top.remove_all();
+	// top left
+	container_top.add_table(1, 0);
+	{
+		container_top.new_component<gui_empty_t>();
+		// add city name input field
+		container_top.add_component(&name_input);
+
+		container_top.add_table(4, 3);
+		{
+			// area
+			container_top.new_component<gui_label_t>("City size");
+			container_top.add_component(&lb_size);
+			container_top.add_component(&lb_border);
+			container_top.new_component<gui_fill_t>();
+
+			container_top.new_component<gui_label_t>("Population density");
+			container_top.add_component(&lb_buildings);
+			container_top.new_component<gui_empty_t>();
+			container_top.new_component<gui_fill_t>();
+
+			container_top.new_component<gui_label_t>("Power demand");
+			container_top.add_component(&lb_powerdemand);
+			container_top.new_component<gui_empty_t>();
+			container_top.new_component<gui_fill_t>();
+		}
+		container_top.end_table();
+
+		if(!is_landscape){
+			container_top.add_component(&cont_access_list_buttons);
+		}
+	}
+	container_top.end_table();
+
+	// top right
+	container_top.add_table(1, 2);
+	{
+		// city location map
+		container_top.add_component(&location_map);
+		// region
+		if (!world()->get_settings().regions.empty()) {
+			container_top.new_component<gui_label_buf_t>()->buf().append(translator::translate(world()->get_region_name(city->get_pos()).c_str()));
+		}
+		else {
+			container_top.new_component<gui_empty_t>();
+		}
+	}
+	container_top.end_table();
+
+	if (is_landscape) {
+		container_top.add_component(&cont_access_list_buttons,2);
+	}
+}
 
 city_info_t::~city_info_t()
 {
@@ -753,6 +769,7 @@ void city_info_t::map_rotate90( sint16 )
 {
 	pax_map.set_size( pax_map.get_size() );
 	location_map.update();
+	init_container_top();
 	resize(scr_size(0,0));
 }
 

@@ -197,7 +197,7 @@ private:
 	gui_label_with_symbol_t lb_allow_growth;
 
 	gui_tab_panel_t year_month_tabs, tabs;
-	gui_aligned_container_t container_chart, container_year, container_month, cont_destination_map, cont_minimap_legend;
+	gui_aligned_container_t container_chart, container_year, container_month, cont_destination_map, cont_minimap_legend, cont_access_list_buttons, container_top;
 	gui_chart_t chart, mchart;                ///< Year and month history charts
 
 	gui_city_minimap_t pax_map;
@@ -225,6 +225,9 @@ private:
 	void update_stats();
 
 	void init();
+
+	void init_container_top();
+
 public:
 	city_info_t(stadt_t *city = NULL);
 
