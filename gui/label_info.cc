@@ -20,7 +20,7 @@
 
 label_info_t::label_info_t(label_t* l) :
 	gui_frame_t( translator::translate("Marker"), l->get_owner()),
-	view(l->get_pos(), scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width()*7)/8) ))
+	view(l->get_pos(), scr_size( max(64, get_base_tile_raster_width()), (get_base_tile_raster_width()>128 ? (get_base_tile_raster_width()*3)>>2 : get_base_tile_raster_width()*7>>3) ))
 {
 
 	label = l;

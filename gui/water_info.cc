@@ -12,7 +12,7 @@
 
 water_info_t::water_info_t(const char *name, const koord3d &pos) :
 	gui_frame_t(translator::translate(name), NULL),
-	view(pos, scr_size(max(96, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8)+LINEASCENT))
+	view(pos, scr_size(max(96, get_base_tile_raster_width()), (get_base_tile_raster_width()>128 ? (get_base_tile_raster_width()*3)>>2 : get_base_tile_raster_width()*7>>3)+LINEASCENT ))
 {
 	k=pos;
 	set_table_layout(1,0);

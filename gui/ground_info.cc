@@ -15,7 +15,7 @@
 grund_info_t::grund_info_t(const grund_t* gr_) :
 	base_infowin_t(translator::translate(gr_->get_name())),
 	gr(gr_),
-	view(gr_->get_pos(), scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width()*7)/8) ))
+	view(gr_->get_pos(), scr_size( max(64, get_base_tile_raster_width()), (get_base_tile_raster_width()>128 ? (get_base_tile_raster_width()*3)>>2 : get_base_tile_raster_width()*7>>3) ))
 {
 	const obj_t *const d = gr->obj_bei(0);
 	if (  d!=NULL  ) {
