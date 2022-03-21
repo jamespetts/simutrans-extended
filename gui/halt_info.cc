@@ -983,7 +983,7 @@ void halt_info_t::update_components()
 
 	// update evaluation
 	if (halt->get_pax_enabled() || halt->get_mail_enabled()) {
-		const bool japanese_order = !(env_t::show_month == env_t::DATE_FMT_JAPANESE || env_t::show_month==env_t::DATE_FMT_JAPANESE_NO_SEASON || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE);
+		const bool japanese_order = (env_t::show_month == env_t::DATE_FMT_JAPANESE || env_t::show_month==env_t::DATE_FMT_JAPANESE_NO_SEASON || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE);
 		// passengers evaluation
 		if (halt->get_pax_enabled()) {
 			pax_ev_num[0] = halt->haltestelle_t::get_pax_happy();
