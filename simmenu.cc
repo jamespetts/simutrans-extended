@@ -47,6 +47,9 @@
 
 karte_ptr_t tool_t::welt;
 
+// emulate control key by tool
+uint8 tool_t::control_invert = 0;
+
 // for key lookup; is always sorted during the game
 vector_tpl<tool_t *>tool_t::char_to_tool(0);
 
@@ -335,6 +338,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_CONVOY_NAMEPLATES:    tool = new tool_convoy_nameplate_t();     break;
 		case TOOL_CONVOY_LOADINGBAR:    tool = new tool_convoy_loadingbar_t();    break;
 		case TOOL_SHOW_FACTORY_STORAGE: tool = new tool_show_factory_storage_t(); break;
+		case TOOL_TOGGLE_CONTROL:       tool = new tool_toggle_control_t();       break;
 		case TOOL_TOOGLE_PAX:           tool = new tool_toggle_pax_station_t();   break;
 		case TOOL_TOOGLE_PEDESTRIANS:   tool = new tool_toggle_pedestrians_t();   break;
 		case TOOL_TRAFFIC_LEVEL:        tool = new tool_traffic_level_t();        break;
