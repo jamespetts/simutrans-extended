@@ -6129,7 +6129,7 @@ const char* tool_build_pier_auto_t::get_tooltip(const player_t *) const{
 	const pier_desc_t *tdesc=pier_builder_t::get_desc(name);
 	if(tdesc){
 		strcpy(name, translator::translate(tdesc->get_name()));
-		strcat(name, " "); 
+		strcat(name, " ");
 		strcat(name, translator::translate("elevated support"));
 		tooltip_with_price_maintenance(welt,name,-tdesc->get_value(),tdesc->get_maintenance());
 		size_t n = strlen(toolstr);
