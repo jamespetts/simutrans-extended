@@ -3,7 +3,8 @@ target_sources(simutrans-extended PRIVATE
 	bauer/fabrikbauer.cc
 	bauer/goods_manager.cc
 	bauer/hausbauer.cc
-	bauer/tunnelbauer.cc
+	bauer/pier_builder.cc
+  bauer/tunnelbauer.cc
 	bauer/tree_builder.cc
 	bauer/vehikelbauer.cc
 	bauer/wegbauer.cc
@@ -12,6 +13,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/fundament.cc
 	boden/grund.cc
 	boden/monorailboden.cc
+  boden/pier_deck.cc
 	boden/tunnelboden.cc
 	boden/wasser.cc
 	boden/wege/kanal.cc
@@ -51,6 +53,7 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/ground_desc.cc
 	descriptor/image.cc
 	descriptor/obj_base_desc.cc
+  descriptor/pier_desc.cc
 	descriptor/reader/bridge_reader.cc
 	descriptor/reader/building_reader.cc
 	descriptor/reader/citycar_reader.cc
@@ -65,7 +68,8 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/reader/image_reader.cc
 	descriptor/reader/obj_reader.cc
 	descriptor/reader/pedestrian_reader.cc
-	descriptor/reader/roadsign_reader.cc
+	descriptor/reader/pier_reader.cc
+  descriptor/reader/roadsign_reader.cc
 	descriptor/reader/root_reader.cc
 	descriptor/reader/sim_reader.cc
 	descriptor/reader/skin_reader.cc
@@ -189,7 +193,8 @@ target_sources(simutrans-extended PRIVATE
 	gui/overtaking_mode.cc
 	gui/pakselector.cc
 	gui/password_frame.cc
-	gui/player_frame_t.cc
+	gui/pier_rotation_select.cc
+  gui/player_frame_t.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc
@@ -224,7 +229,7 @@ target_sources(simutrans-extended PRIVATE
 	io/raw_image_ppm.cc
 	io/rdwr/adler32_stream.cc
 	io/rdwr/bzip2_file_rdwr_stream.cc
-		io/rdwr/compare_file_rd_stream.cc
+	io/rdwr/compare_file_rd_stream.cc
 	io/rdwr/raw_file_rdwr_stream.cc
 	io/rdwr/rdwr_stream.cc
 	io/rdwr/zlib_file_rdwr_stream.cc
@@ -250,7 +255,8 @@ target_sources(simutrans-extended PRIVATE
 	obj/groundobj.cc
 	obj/label.cc
 	obj/leitung2.cc
-	obj/pillar.cc
+	obj/pier.cc
+  obj/pillar.cc
 	obj/roadsign.cc
 	obj/signal.cc
 	obj/simobj.cc

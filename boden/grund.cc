@@ -714,7 +714,7 @@ void grund_t::info(cbuffer_t& buf) const
 	if (strcmp(n1, n2)) {
 		buf.printf("%s\n", n2);
         }
-	if (!is_water())
+    if (!is_water() && !(get_typ()==pierdeck))
 	{
 		char price[64];
 		money_to_string(price, abs(welt->get_land_value(pos))/100.0);

@@ -54,6 +54,7 @@
 #include "../obj/leitung2.h"
 #include "../obj/groundobj.h"
 #include "../obj/wayobj.h"
+#include "../obj/pier.h"
 
 #include "../ifc/simtestdriver.h"
 
@@ -898,6 +899,72 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 	if ((bautyp&bautyp_mask)!=leitung) {
 		if (!check_powerline(zv,to)  ||  !check_powerline(-zv,from)) {
 			return false;
+		}
+	}
+
+	// universal check for piers
+	if(zv.x!=0 || zv.y!=0){
+		ribi_t::ribi ribimask;
+		ribi_t::ribi zvribi=zv.to_ribi();
+		ribimask = pier_t::get_below_ribi_total(to);
+		if( (ribimask|ribi_t::backward(zvribi))!=ribimask){
+				return false;
+		}
+		ribimask = pier_t::get_below_ribi_total(from);
+		if( (ribimask|zvribi)!=ribimask){
+				return false;
+		}
+		if(to->get_weg_hang() && pier_t::get_above_ribi_total(to,true)){
+			return false;
+		}
+		if(from->get_weg_hang() && pier_t::get_above_ribi_total(from,true)){
+			return false;
+		}
+		if(welt->get_settings().get_way_height_clearance()==2){
+			//check above mask of pier on bottom
+			if(!(desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung){
+				if(pier_t::get_above_ribi_total(to,true) || pier_t::get_above_ribi_total(from,true)){
+					return false;
+				}
+			}
+			//check for below mask of pier on top
+			if(grund_t *to2 = welt->lookup( to->get_pos() + koord3d(0, 0, 1) ) ){
+				if((!desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung){
+					ribimask = pier_t::get_below_ribi_total(to2);
+					if( (ribimask|ribi_t::backward(zvribi))!=ribimask){
+							return false;
+					}
+
+				}
+			}
+			if(grund_t *from2 = welt->lookup( from->get_pos() + koord3d(0, 0, 1) ) ){
+				if((desc->get_topspeed() > 0 && desc->get_waytype() != water_wt && desc->get_waytype() != road_wt && desc->get_waytype() != tram_wt) || (bautyp&bautyp_mask)==leitung){
+					ribimask = pier_t::get_below_ribi_total(from2);
+					if( (ribimask|zvribi)!=ribimask){
+							return false;
+					}
+				}
+			}
+		}
+		if(to->get_typ()==grund_t::pierdeck){
+			ribimask=pier_t::get_above_ribi_total(to);
+			if((ribimask&ribi_t::backward(zvribi))!=ribi_t::backward(zvribi)){
+				return false;
+			}
+			uint32 deckmask=pier_t::get_deck_obj_mask_total(to);
+			if((deckmask&desc->get_deckmask())!=desc->get_deckmask()){
+				return false;
+			}
+		}
+		if(from->get_typ()==grund_t::pierdeck){
+			ribimask=pier_t::get_above_ribi_total(from);
+			if((ribimask&zvribi)!=zvribi){
+				return false;
+			}
+			uint32 deckmask=pier_t::get_deck_obj_mask_total(from);
+			if((deckmask&desc->get_deckmask())!=desc->get_deckmask()){
+				return false;
+			}
 		}
 	}
 
@@ -2245,9 +2312,9 @@ sint64 way_builder_t::calc_costs() {
 				}
 			}
 
-			sint64 forge_cost = upgrading ? 0 : welt->get_settings().get_forge_cost(desc->get_waytype());
+			sint64 forge_cost = (upgrading || gr->get_typ()==grund_t::pierdeck) ? 0 : welt->get_settings().get_forge_cost(desc->get_waytype());
 
-			if(!upgrading && !(bautyp & tunnel_flag) && !(bautyp & elevated_flag) && route.get_count() > 1)
+			if(!upgrading && gr->get_typ()!=grund_t::pierdeck && !(bautyp & tunnel_flag) && !(bautyp & elevated_flag) && route.get_count() > 1)
 			{
 				for(int n = 0; n < 8; n ++)
 				{
@@ -2659,6 +2726,13 @@ void way_builder_t::build_road()
 				if (build_sidewalk) {
 					str->set_gehweg(build_sidewalk);
 					str->set_public_right_of_way();
+				}
+				if(gr->get_typ()==grund_t::pierdeck){  //position not yet determined in set_desc, handle here
+					uint16 pier_max_load = pier_t::get_max_axle_load_deck_total(gr) / 2;
+					if(pier_max_load < str->get_max_axle_load()){
+						str->set_max_axle_load(pier_max_load);
+					}
+					str->set_max_speed(pier_t::get_speed_limit_deck_total(gr,str->get_max_speed()));
 				}
 				cost += gr->neuen_weg_bauen(str, route.get_short_ribi(i), player_builder, &route) - desc->get_value();
 				// respect speed limit of crossing

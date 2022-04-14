@@ -397,9 +397,17 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint8 number_of_classes_jobs = min(255, class_proportions_jobs.get_count());
 	total_len += 1;
 
+	//pier interactions
+	uint32 pier_deck_mask = obj.get_int("pier_deck_mask",0xFFFF0000);
+	uint32 pier_sub_1_mask = obj.get_int("pier_sub_1_mask",0);
+	uint32 pier_sub_2_mask = obj.get_int("pier_sub_2_mask",0);
+	uint8 pier_sub_needed = obj.get_int("pier_sub_needed",0);
+	total_len+=13;
+
 	// Hajo: take care, hardcoded size of node on disc here!
 	obj_node_t node(this, total_len, &parent);
 	write_head(fp, node, obj);
+
 
 	// scan for most number of seasons
 	int seasons = 1;
@@ -496,7 +504,8 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x300: 16-bit traction types
 	// 0x400: Unused due to versioning errors
 	// 0x500: Class proportions
-	version += 0x600;
+	// 0x600: Pier System
+	version += 0x700;
 
 	int pos = 0;
 
@@ -595,6 +604,18 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 		node.write_uint16(fp, class_proportion, pos);
 		pos += sizeof(uint16);
 	}
+
+	node.write_uint32(fp, pier_deck_mask, pos);
+	pos+=sizeof(uint32);
+
+	node.write_uint32(fp, pier_sub_1_mask, pos);
+	pos+=sizeof(uint32);
+
+	node.write_uint32(fp, pier_sub_2_mask, pos);
+	pos+=sizeof(uint32);
+
+	node.write_uint8(fp, pier_sub_needed, pos);
+	pos+=sizeof(uint8);
 
 	// probably add some icons, if defined
 	slist_tpl<string> cursorkeys;

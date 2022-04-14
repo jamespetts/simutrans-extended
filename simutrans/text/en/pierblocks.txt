@@ -1,0 +1,25 @@
+﻿<title>Elevated way support building blocks help</title>
+
+<h1><strong>Elevated way support building blocks</strong></h1>
+<p>
+<strong>Elevated way supports</strong> are set of building blocks used to create elevated ways and viaducts.  In this menu are the buttons for the manual placement of the individual <strong>Blocks</strong> in a manner similar to building placement.  All blocks that are placed automatically can also be placed manually, and pakset designers may include blocks that can only be placed manually.  In order to make elevated sloped ways, manual placement in required.
+</p>
+<p>
+To manually place a block, optionally CRTL-Click on the block icon to bring up a pop-up window for orientation selection and select the desired orientation, then click on the tile to place the new block.  For some blocks, multiple icons may be present for various orientations.  
+</p>
+<p>
+If an attempt is made to place a single block in a forbidden location, an error message would give the reason as to why.  Some examples of block placement restrictions are as follows:  <br>
+- Blocks cannot usually be placed upon the same tile as a building, however the pakset designer may make exceptions to that rule where a real world exception may occur.  For example the pakset designer may allow blocks to be placed on parking lots as it is not uncommon to use the area below an elevated way for parking.)  
+- Blocks cannot block the path of ways, as would be made obvious by the physical appearance of the block.  This can include appearance of a post or pillar being in the path of the way, or the structure being too low. <br>
+- Blocks cannot be be placed in the same physical space as another block.  Although two blocks can share a tile, they can only do so if there is enough space on the tile so that they do not interfere with each other.  This would be indicated by the physical appearance of the blocks. <br>
+- Blocks can not float in mid-air, nor be placed on too weak of a structure.  This would be implied by the appearances of the blocks.  It is up to the pakset designer to determine what blocks can go onto other blocks.  In some cases, a block can only be placed on the ground.  Also, blocks cannot be built on Bridges or Tunnels.<br>
+- Blocks cannot float.  They cannot be placed in deep water, and many cannot be placed in shallow water either.  The pakset designer may make exceptions for shallow water. <br>
+- Some blocks cannot be built on some types of sloped land.  As the pakset designer may not have the resources needed to create all images required to fully retrofit an old pakset with the new Elevated way support system, some allowance is made so that the pakset designer can choose to not support some types of sloped land for some blocks.  Also, "Through Truss" blocks cannot be built on slopes. <br>
+</p>
+<p>
+In some cases, multiple blocks can be created by dragging. For blocks capable of supporting a straight or diagonal way, blocks would only be placed in line with the first block placed.  For blocks capable of supporting a 4-way intersection, dragging would occur in any direction.  The pakset designer may also allow dragging for other blocks.  Whilst dragging, forbidden locations are skipped without error messages.  Dragging can also result in a stack of blocks up to the height of the originally placed block.  
+<-- (Pressing CNTL while dragging is deprecated.  It is a remnant from the prototype to the automated elevated way support building.) -->
+</p>
+<p>
+<em>Note</em>: During the development of this feature, elevated way supports were called <strong>piers</strong>.
+</p>

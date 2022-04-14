@@ -40,6 +40,7 @@
 #include "obj/roadsign.h"
 #include "obj/leitung2.h"
 #include "obj/wayobj.h"
+#include "obj/pier.h"
 
 #include "dataobj/translator.h"
 #include "dataobj/settings.h"
@@ -4358,7 +4359,7 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	// test ownership of all objects that can block construction
 	for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 		obj_t *const obj = gr->obj_bei(i);
-		if(  obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar  ) {
+		if(  obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar && obj->get_typ() != obj_t::pier ) {
 			return;
 		}
 	}
@@ -4416,15 +4417,18 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	building_desc_t::btype want_to_have = building_desc_t::unknown;
 	const building_desc_t* h = NULL;
 
+	uint32 pier_sub_1_mask=pier_t::get_sub_mask_total(gr);
+	uint32 pier_sub_2_mask=pier_t::get_sub_mask_total(welt->lookup(gr->get_pos()+koord3d(0,0,1)));
+
 	if (!worker_shortage && (sum_commercial > sum_industrial  &&  sum_commercial > sum_residential)) {
-		h = hausbauer_t::get_commercial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+		h = hausbauer_t::get_commercial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_com;
 		}
 	}
 
 	if (!worker_shortage && (h == NULL  &&  sum_industrial > sum_residential  &&  sum_industrial > sum_commercial)) {
-		h = hausbauer_t::get_industrial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+		h = hausbauer_t::get_industrial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_ind;
 		}
@@ -4433,7 +4437,7 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	if (h == NULL  &&  ((sum_residential > sum_industrial  &&  sum_residential > sum_commercial) || worker_shortage)) {
 		if (!job_shortage || worker_shortage)
 		{
-			h = hausbauer_t::get_residential(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+			h = hausbauer_t::get_residential(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		}
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_res;

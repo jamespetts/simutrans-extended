@@ -1927,12 +1927,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bauer\goods_manager.cc" />
+    <ClCompile Include="bauer\pier_builder.cc" />
+    <ClCompile Include="boden\pier_deck.cc" />
     <ClCompile Include="dataobj\rect.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
+    <ClCompile Include="descriptor\pier_desc.cc" />
     <ClCompile Include="descriptor\reader\imagelist3d_reader.cc" />
+    <ClCompile Include="descriptor\reader\pier_reader.cc" />
     <ClCompile Include="descriptor\vehicle_desc.cc" />
     <ClCompile Include="descriptor\way_desc.cc" />
+    <ClCompile Include="gui\pier_rotation_select.cc" />
     <ClCompile Include="io\classify_file.cc" />
     <ClCompile Include="io\raw_image.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
@@ -1965,6 +1970,7 @@
     <ClCompile Include="io\rdwr\rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zlib_file_rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zstd_file_rdwr_stream.cc" />
+    <ClCompile Include="obj\pier.cc" />
     <ClCompile Include="sound\sdl2_mixer_sound.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -2552,6 +2558,8 @@
     <ClCompile Include="descriptor\reader\xref_reader.cc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bauer\pier_builder.h" />
+    <ClInclude Include="boden\pier_deck.h" />
     <ClInclude Include="dataobj\environment.h" />
     <ClInclude Include="dataobj\gameinfo.h" />
     <ClInclude Include="dataobj\height_map_loader.h" />
@@ -2562,7 +2570,9 @@
     <ClInclude Include="dataobj\settings.h" />
     <ClInclude Include="descriptor\image_array_3d.h" />
     <ClInclude Include="descriptor\obj_base_desc.h" />
+    <ClInclude Include="descriptor\pier_desc.h" />
     <ClInclude Include="descriptor\reader\imagelist3d_reader.h" />
+    <ClInclude Include="descriptor\reader\pier_reader.h" />
     <ClInclude Include="display\clip_num.h" />
     <ClInclude Include="display\font.h" />
     <ClInclude Include="display\scr_coord.h" />
@@ -2597,6 +2607,7 @@
     <ClInclude Include="gui\onewaysign_info.h" />
     <ClInclude Include="gui\overtaking_mode.h" />
     <ClInclude Include="gui\obj_info.h" />
+    <ClInclude Include="gui\pier_rotation_select.h" />
     <ClInclude Include="gui\slim_obj_info.h" />
     <ClInclude Include="gui\privatesign_info.h" />
     <ClInclude Include="gui\scenario_info.h" />
@@ -2639,6 +2650,7 @@
     <ClInclude Include="obj\groundobj.h" />
     <ClInclude Include="obj\label.h" />
     <ClInclude Include="obj\leitung2.h" />
+    <ClInclude Include="obj\pier.h" />
     <ClInclude Include="obj\pillar.h" />
     <ClInclude Include="obj\roadsign.h" />
     <ClInclude Include="obj\signal.h" />

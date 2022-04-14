@@ -1360,7 +1360,7 @@ void gebaeude_t::rdwr(loadsave_t *file)
 		file->rdwr_short(mail_delivery_success_percent_last_year);
 	}
 
-	if (file->is_loading())
+	if (file->is_loading() && tile)
 	{
 		anim_frame = 0;
 		anim_time = 0;

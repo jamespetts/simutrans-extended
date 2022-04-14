@@ -624,7 +624,14 @@ SOURCES += gui/components/gui_convoy_payloadinfo.cc
 SOURCES += gui/replace_frame.cc
 SOURCES += dataobj/livery_scheme.cc
 SOURCES += dataobj/replace_data.cc
+SOURCES += obj/pier.cc
+SOURCES += descriptor/reader/pier_reader.cc
+SOURCES += bauer/pier_builder.cc
+SOURCES += boden/pier_deck.cc
+SOURCES += descriptor/pier_desc.cc
+SOURCES += gui/pier_rotation_select.cc
 
+LDFLAGS += -lpng
 
 ifeq ($(BACKEND),posix)
   SOURCES += sys/simsys_posix.cc

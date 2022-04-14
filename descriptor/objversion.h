@@ -52,6 +52,7 @@ enum obj_type
 	obj_menu        = C4ID('M','E','N','U'),
 	obj_miscimages  = C4ID('M','I','S','C'),
 	obj_pedestrian  = C4ID('P','A','S','S'),
+	obj_pier        = C4ID('P','I','E','R'),
 	obj_roadsign    = C4ID('S','I','G','N'),
 	obj_root        = C4ID('R','O','O','T'),
 	obj_smoke       = C4ID('S','M','O','K'),

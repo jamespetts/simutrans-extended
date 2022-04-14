@@ -27,6 +27,7 @@
 #include "../obj/wayobj.h"
 #include "../obj/roadsign.h"
 #include "../obj/groundobj.h"
+#include "../obj/pier.h"
 
 #include "../simtypes.h"
 #include "../simdepot.h"
@@ -58,8 +59,9 @@
  */
 
 #define baum_pri (50)
-#define pillar_pri (7)
-#define wayobj_pri (8)
+#define pillar_pri (9)
+#define wayobj_pri (10)
+#define building_pri (3)
 
 // priority of moving things: should be smaller than the priority of powerlines
 #define moving_obj_pri (100)
@@ -72,19 +74,19 @@ static uint8 type_to_pri[256]=
 	baum_pri, // tree
 	254, // cursor/pointers
 	200, 200, 200, // wolke
-	3, 3, // buildings
-	6, // signal
+	building_pri, building_pri, // buildings
+	8, // signal
 	2, 2, // bridge/tunnel
 	255,
 	1, 1, 1, // depots
-	5, // smoke generator (not used any more)
-	150, 4, 4, // powerlines
+	7, // smoke generator (not used any more)
+	150, 6, 6, // powerlines
 	6, // roadsign
 	pillar_pri, // pillar
 	1, 1, 1, 1, // depots (must be before tunnel!)
 	wayobj_pri, // way objects (electrification)
 	0, // ways (always at the top!)
-	9, // label, indicates ownership: insert before trees
+	11, // label, indicates ownership: insert before trees
 	3, // field (factory extension)
 	1, // crossings, treated like bridges or tunnels
 	1, // groundobjs, overlays over bare ground like lakes etc.
@@ -124,8 +126,10 @@ static uint8 type_to_pri[256]=
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255,
-	3, // signalbox
+	255, 255, 255, 255,
+	4, //parapet
+	5, //pier
+	building_pri, // signalbox
 	255,
 	255, 255, 255, 255, 255, 255, 255, 255
 };
@@ -905,6 +909,14 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 							delete p;
 						}
 					}
+					break;
+
+				case obj_t::pier:
+					new_obj = new pier_t(file);
+					break;
+
+				case obj_t::parapet:
+					new_obj = new parapet_t(file);
 					break;
 
 				case obj_t::baum:

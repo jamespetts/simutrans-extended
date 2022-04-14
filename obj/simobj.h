@@ -181,6 +181,8 @@ public:
 		// Should be negative numbers <= -10
 
 		signalbox = -10,
+		pier = -11,
+		parapet = -12,
 		schedule_marker=-20
 	};
 

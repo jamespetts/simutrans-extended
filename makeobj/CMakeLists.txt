@@ -56,6 +56,7 @@ target_sources(makeobj-extended PRIVATE
 	../descriptor/writer/way_writer.cc
 	../descriptor/writer/way_obj_writer.cc
 	../descriptor/writer/xref_writer.cc
+	../descriptor/writer/pier_writer.cc
 	../utils/dr_rdpng.cc
 )
 

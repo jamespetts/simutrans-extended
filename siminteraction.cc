@@ -79,21 +79,26 @@ void interaction_t::move_cursor( const event_t &ev )
 		zeiger->change_pos(pos);
 
 		if (!tool->move_has_effects()) {
+			tool->end_move(world->get_active_player(), pos);
 			is_dragging = false;
+
 		}
 		else if(  !env_t::networkmode  ||  tool->is_move_network_safe(world->get_active_player())) {
 			tool->flags = event_get_last_control_shift() | tool_t::WFL_LOCAL;
 			if(tool->check_pos( world->get_active_player(), zeiger->get_pos() )==NULL) {
 				if(  ev.button_state == 0  ) {
+					tool->end_move(world->get_active_player(), pos);
 					is_dragging = false;
 				}
 				else if(ev.ev_class==EVENT_DRAG) {
 					if(!is_dragging  &&  prev_pos != koord3d::invalid  &&  tool->check_pos( world->get_active_player(), prev_pos )==NULL) {
 						const char* err = world->get_scenario()->is_work_allowed_here(world->get_active_player(), tool->get_id(), tool->get_waytype(), prev_pos);
 						if (err == NULL) {
+							tool->begin_move(world->get_active_player(), pos);
 							is_dragging = true;
 						}
 						else {
+							tool->end_move(world->get_active_player(), pos);
 							is_dragging = false;
 						}
 					}

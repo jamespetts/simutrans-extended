@@ -6248,6 +6248,16 @@ fare_short
 120km
 fare_long
 1,200km
+PIERTOOLS
+Elevated way supports
+PIERBLOCKS
+Elevated way supports - modular construction (advanced)
+Through Truss
+Through truss
+Bridges cannot be built over large buildings.
+Bridges cannot be built over these buildings.
+Cannot build pier on large buildings
+Elevated way supports cannot be built over these buildings.
 Pax-km
 Passenger km
 Mail-km
@@ -6384,3 +6394,7 @@ You do not have permission to edit!
 You do not have permission to edit this
 helptxt_linecode_use_sub_background
 Use a contrasting coloured background for this part of the code
+per tile apprx.
+per tile approx.
+Pierdeck
+Elevated way support

@@ -51,8 +51,8 @@ public:
 	static vector_tpl<building_desc_t*> modifiable_station_buildings;
 
 private:
-	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters);
-	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters);
+	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 public:
 	/**
@@ -85,16 +85,16 @@ public:
 	static void fill_menu(tool_selector_t* tool_selector, building_desc_t::btype, waytype_t wt, sint16 sound_ok);
 
 	/// @returns a random commercial building matching the requirements.
-	static const building_desc_t* get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns a random industrial building matching the requirements.
-	static const building_desc_t* get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns a random residential building matching the requirements.
-	static const building_desc_t* get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns headquarters with level @p level (takes the first matching one)
 	static const building_desc_t* get_headquarters(int level, uint16 time);

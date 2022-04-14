@@ -33,6 +33,7 @@ class koord3d;
 class koord;
 class way_builder_t;
 class building_desc_t;
+class pier_desc_t;
 class roadsign_desc_t;
 class way_desc_t;
 class route_t;
@@ -451,6 +452,66 @@ public:
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	waytype_t get_waytype() const OVERRIDE;
+};
+
+class tool_build_pier_t : public tool_t {
+private:
+	bool is_dragging;
+	bool end_drag;
+	const char *oldparam;
+	char parambuf[256];
+	const pier_desc_t *get_desc(uint8 *rotation = 0, koord3d *startdrag = 0) const;
+public:
+	tool_build_pier_t() : tool_t(TOOL_BUILD_PIER | GENERAL_TOOL) {}
+	image_id get_icon(player_t *) const override;
+	const char * get_tooltip(const player_t *) const override;
+	bool init(player_t *) override;
+	char const* check_pos(player_t *, koord3d) override;
+	char const* move(player_t *, uint16, koord3d) override;
+	void begin_move(player_t *, koord3d) override;
+	void end_move(player_t*, koord3d) override;
+	bool move_has_effects() const override {return true;}
+	char const* work(player_t*, koord3d) override;
+	bool is_init_network_safe() const override {return true;}
+	waytype_t get_waytype() const override {return any_wt;}
+	bool exit(player_t *) override {is_dragging=false; return true;}
+};
+
+class tool_build_pier_auto_t : public two_click_tool_t {
+
+private:
+	const pier_desc_t* desc;
+	static char toolstring[256];
+	void read_default_param(player_t* player);
+
+	char const* do_work(player_t*, koord3d const&, koord3d const&) override;
+	void mark_tiles(player_t*, koord3d const&, koord3d const&) override;
+	uint8 is_valid_pos(player_t*, koord3d const&, char const*&, koord3d const&) override;
+
+public:
+	tool_build_pier_auto_t() : two_click_tool_t(TOOL_BUILD_PIER_AUTO | GENERAL_TOOL) {
+		desc=NULL;
+	}
+
+	struct pier_info{
+		pier_info() {}
+		static sint8 start_height;
+	} pier[MAX_PLAYER_COUNT];
+
+	const pier_desc_t* get_desc() const {return desc;}
+	char const* get_tooltip(player_t const*) const override;
+	bool init(player_t *) override;
+	bool exit(player_t *const player) override;
+	void draw_after(scr_coord, bool dirty) const override;
+	char const* get_default_param(player_t*) const override;
+	bool is_init_network_safe() const OVERRIDE { return true; }
+	waytype_t get_waytype() const override {return waytype_t::any_wt;}
+	sint8 get_height(player_t* player){
+		return pier[player->get_player_nr()].start_height;
+	}
+	void set_height(player_t* player, sint8 height_){
+		pier[player->get_player_nr()].start_height = height_;
+	}
 };
 
 class tool_rotate_building_t : public tool_t {

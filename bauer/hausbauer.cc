@@ -18,7 +18,7 @@
 #include "../obj/leitung2.h"
 #include "../obj/tunnel.h"
 #include "../obj/zeiger.h"
-
+#include "../obj/pier.h"
 #include "../gui/minimap.h"
 #include "../simworld.h"
 #include "../gui/tool_selector.h"
@@ -488,45 +488,52 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 					}
 					// and maybe restore land below
 					if(gr->get_typ()==grund_t::fundament) {
-						const koord newk = k+pos.get_2d();
-						sint8 new_hgt;
-						const uint8 new_slope = welt->recalc_natural_slope(newk,new_hgt);
-						// test for ground at new height
-						const grund_t *gr2 = welt->lookup(koord3d(newk,new_hgt));
-						if(  (gr2==NULL  ||  gr2==gr) &&  new_slope!=slope_t::flat  ) {
-							// and for ground above new sloped tile
-							gr2 = welt->lookup(koord3d(newk, new_hgt+1));
-							if(  gr==0  && slope_t::max_diff(new_slope) == 2  ) {
-								gr2 = welt->lookup(koord3d(newk, new_hgt + 2));
+						if(gr->find<pier_t>()){
+							//land supporting weight of pier, convert it to normal land
+							koord3d gr_pos=gr->get_pos();
+							slope_t::type gr_slope=gr->get_grund_hang();
+							welt->access(gr_pos.get_2d())->kartenboden_setzen(new boden_t(gr_pos,gr_slope));
+						}else{
+							const koord newk = k+pos.get_2d();
+							sint8 new_hgt;
+							const uint8 new_slope = welt->recalc_natural_slope(newk,new_hgt);
+							// test for ground at new height
+							const grund_t *gr2 = welt->lookup(koord3d(newk,new_hgt));
+							if(  (gr2==NULL  ||  gr2==gr) &&  new_slope!=slope_t::flat  ) {
+								// and for ground above new sloped tile
+								gr2 = welt->lookup(koord3d(newk, new_hgt+1));
+								if(  gr==0  && slope_t::max_diff(new_slope) == 2  ) {
+									gr2 = welt->lookup(koord3d(newk, new_hgt + 2));
+								}
 							}
-						}
-						bool ground_recalc = true;
-						if(  (gr2  &&  gr2!=gr)  ||  dont_remove_slope  ) {
-							// there is another ground below or above
-							// => do not change height, keep foundation
-							welt->access(newk)->kartenboden_setzen( new boden_t( gr->get_pos(), slope_t::flat ) );
-							ground_recalc = false;
-						}
-						else if(  new_hgt <= welt->get_water_hgt(newk)  &&  new_slope == slope_t::flat  ) {
-							wasser_t* sea = new wasser_t( koord3d( newk, new_hgt) );
-							welt->access(newk)->kartenboden_setzen( sea );
-							welt->calc_climate( newk, true );
-							sea->recalc_water_neighbours();
-						}
-						else {
-							if(  gr->get_grund_hang() == new_slope  && new_hgt == pos.z  ) {
+							bool ground_recalc = true;
+							if(  (gr2  &&  gr2!=gr)  ||  dont_remove_slope  ) {
+								// there is another ground below or above
+								// => do not change height, keep foundation
+								welt->access(newk)->kartenboden_setzen( new boden_t( gr->get_pos(), slope_t::flat ) );
 								ground_recalc = false;
 							}
-							welt->access(newk)->kartenboden_setzen( new boden_t( koord3d( newk, new_hgt ), new_slope ) );
-							// climate is stored in planquadrat, and hence automatically preserved
-						}
-						// there might be walls from foundations left => thus some tiles may need to be redrawn
-						if(ground_recalc) {
-							if(grund_t *gr = welt->lookup_kartenboden(newk+koord::east)) {
-								gr->calc_image();
+							else if(  new_hgt <= welt->get_water_hgt(newk)  &&  new_slope == slope_t::flat  ) {
+								wasser_t* sea = new wasser_t( koord3d( newk, new_hgt) );
+								welt->access(newk)->kartenboden_setzen( sea );
+								welt->calc_climate( newk, true );
+								sea->recalc_water_neighbours();
 							}
-							if(grund_t *gr = welt->lookup_kartenboden(newk+koord::south)) {
-								gr->calc_image();
+							else {
+								if(  gr->get_grund_hang() == new_slope  && new_hgt == pos.z  ) {
+									ground_recalc = false;
+								}
+								welt->access(newk)->kartenboden_setzen( new boden_t( koord3d( newk, new_hgt ), new_slope ) );
+								// climate is stored in planquadrat, and hence automatically preserved
+							}
+							// there might be walls from foundations left => thus some tiles may need to be redrawn
+							if(ground_recalc) {
+								if(grund_t *gr = welt->lookup_kartenboden(newk+koord::east)) {
+									gr->calc_image();
+								}
+								if(grund_t *gr = welt->lookup_kartenboden(newk+koord::south)) {
+									gr->calc_image();
+								}
 							}
 							welt->set_grid_hgt( newk, new_hgt+corner_nw(new_slope) );
 						}
@@ -550,6 +557,7 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 	uint8 layout = desc->adjust_layout(org_layout);
 	dim = desc->get_size(org_layout);
 	bool needs_ground_recalc = false;
+	bool sub_pier = false;
 
 	for(k.y = 0; k.y < dim.y; k.y ++) {
 		for(k.x = 0; k.x < dim.x; k.x ++) {
@@ -589,8 +597,11 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 					for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 						obj_t *const obj = gr->obj_bei(i);
 						obj_t::typ const objtype = obj->get_typ();
-						if(  objtype == obj_t::leitung  ||  objtype == obj_t::pillar  ) {
+						if(  objtype == obj_t::leitung  ||  objtype == obj_t::pillar || objtype == obj_t::pier ) {
 							keptobjs.append(obj);
+						}
+						if( objtype == obj_t::pier){
+							sub_pier=true;
 						}
 					}
 					for(  size_t i = 0;  i < keptobjs.get_count();  i++  ) {
@@ -605,7 +616,9 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 				needs_ground_recalc |= gr->get_grund_hang()!=slope_t::flat;
 				// Build fundament up or down?  Up is the default.
 				bool build_up = true;
-				if (dim.x == 1 && dim.y == 1) {
+				if(sub_pier){
+					build_up=false;
+				}else if (dim.x == 1 && dim.y == 1) {
 					// Consider building DOWNWARD.
 					koord front_side_neighbor= koord(0,0);
 					koord other_front_side_neighbor= koord(0,0);
@@ -677,6 +690,7 @@ gebaeude_t* hausbauer_t::build(player_t* player, koord3d pos, int org_layout, co
 						}
 					}
 				}
+
 				// Build a "fundament" to put the building on.
 				grund_t *gr2 = new fundament_t(gr->get_pos(), gr->get_grund_hang(), build_up);
 				welt->access(gr->get_pos().get_2d())->boden_ersetzen(gr, gr2);
@@ -897,6 +911,7 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 	}
 
 	gr->obj_add(gb);
+	parapet_t::hide_all(gr->get_pos());
 
 	if(  station_building.is_contained(desc)  &&  desc->get_type()!=building_desc_t::depot && !desc->is_signalbox()) {
 		// is a station/bus stop
@@ -1025,7 +1040,7 @@ bool is_allowed_size(const building_desc_t* bldg, koord size)
  * This method will never return NULL if there is at least one valid entry in the list.
  * @param cl allowed climates
  */
-const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask, uint32 pier_sub_2_mask)
 {
 	weighted_vector_tpl<const building_desc_t *> selections(16);
 	// calculate sum of level of replaced buildings
@@ -1085,20 +1100,32 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 			}
 		}
 
+		for(uint8 x = 0; x<size.x; x++){
+			for(uint8 y = 0; y<size.y; y++){
+				const grund_t* gr = welt->lookup_kartenboden(pos_origin+koord(x,y));
+				pier_sub_1_mask|=pier_t::get_sub_mask_total(gr);
+				gr = welt->lookup(gr->get_pos());
+				pier_sub_2_mask|=pier_t::get_sub_mask_total(gr);
+			}
+		}
+
 		if(  thislevel == sum_level  &&  desc->get_distribution_weight() > 0  ) {
 			if(  (cl==MAX_CLIMATES  ||  desc->is_allowed_climate(cl)) && desc->is_allowed_region(region)  ) {
 				if(  time == 0  ||  (desc->get_intro_year_month() <= time  &&  ((allow_earlier && random > 65) || desc->get_retire_year_month() > time ))  ) {
-					/* Level, time period, and climate are all OK.
-					 * Now modify the distribution_weight rating by a factor based on the clusters.
-					 */
-					int distribution_weight = desc->get_distribution_weight();
-					if(  clusters  ) {
-						uint32 my_clusters = desc->get_clusters();
-						if(  my_clusters & clusters  ) {
-							distribution_weight *= stadt_t::get_cluster_factor();
+					if((!desc->get_pier_needed() && pier_sub_1_mask==0)
+						|| pier_t::check_sub_masks(pier_sub_1_mask,desc->get_pier_mask(0),pier_sub_2_mask,desc->get_pier_mask(1))){
+						/* Level, time period, and climate are all OK.
+						 * Now modify the distribution_weight rating by a factor based on the clusters.
+						 */
+						int distribution_weight = desc->get_distribution_weight();
+						if(  clusters  ) {
+							uint32 my_clusters = desc->get_clusters();
+							if(  my_clusters & clusters  ) {
+								distribution_weight *= stadt_t::get_cluster_factor();
+							}
 						}
+						selections.append(desc, distribution_weight);
 					}
-					selections.append(desc, distribution_weight);
 				}
 			}
 		}
@@ -1115,7 +1142,7 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 }
 
 
-const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask, uint32 pier_sub_2_mask)
 {
 	weighted_vector_tpl<const building_desc_t *> selections(16);
 
@@ -1126,7 +1153,8 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 		const uint16 random = simrand(100, "static const building_desc_t* get_city_building_from_list");
 		if(	desc->is_allowed_climate(cl) && desc->is_allowed_region(region) && is_allowed_size(desc, size)  &&
 			desc->get_distribution_weight()>0  &&
-			(time==0  ||  (desc->get_intro_year_month()<=time  &&  ((allow_earlier && random > 65) || desc->get_retire_year_month()>time)))) {
+			(time==0  ||  (desc->get_intro_year_month()<=time  &&  ((allow_earlier && random > 65) || desc->get_retire_year_month()>time))) &&
+			((!desc->get_pier_needed() && pier_sub_1_mask==0) || pier_t::check_sub_masks(pier_sub_1_mask,desc->get_pier_mask(0),pier_sub_2_mask,desc->get_pier_mask(1)))) {
 			desc_at_least = desc;
 		}
 
@@ -1145,18 +1173,21 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 		if(  thislevel == level  &&  is_allowed_size(desc, size)  &&  desc->get_distribution_weight() > 0  ) {
 			if(  (cl==MAX_CLIMATES  ||  desc->is_allowed_climate(cl)) && desc->is_allowed_region(region)  ) {
 				if(  time == 0  ||  (desc->get_intro_year_month() <= time  &&  ((allow_earlier && random > 65) || desc->get_retire_year_month() > time ))  ) {
-//					DBG_MESSAGE("hausbauer_t::get_city_building_from_list()","appended %s at %i", desc->get_name(), thislevel );
-					/* Level, time period, region and climate are all OK.
-					 * Now modify the distribution_weight rating by a factor based on the clusters.
-					 */
-					int distribution_weight = desc->get_distribution_weight();
-					if(  clusters  ) {
-						uint32 my_clusters = desc->get_clusters();
-						if(  my_clusters & clusters  ) {
-							distribution_weight *= stadt_t::get_cluster_factor();
+					if((!desc->get_pier_needed() && pier_sub_1_mask==0)
+						|| pier_t::check_sub_masks(pier_sub_1_mask,desc->get_pier_mask(0),pier_sub_2_mask,desc->get_pier_mask(1))){
+						//					DBG_MESSAGE("hausbauer_t::get_city_building_from_list()","appended %s at %i", desc->get_name(), thislevel );
+						/* Level, time period, region and climate are all OK.
+						 * Now modify the distribution_weight rating by a factor based on the clusters.
+						 */
+						int distribution_weight = desc->get_distribution_weight();
+						if(  clusters  ) {
+							uint32 my_clusters = desc->get_clusters();
+							if(  my_clusters & clusters  ) {
+								distribution_weight *= stadt_t::get_cluster_factor();
+							}
 						}
+						selections.append(desc, distribution_weight);
 					}
-					selections.append(desc, distribution_weight);
 				}
 			}
 		}
@@ -1174,39 +1205,39 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 }
 
 
-const building_desc_t* hausbauer_t::get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_commercial, pos_origin, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_commercial, pos_origin, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 
-const building_desc_t* hausbauer_t::get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_commercial, level, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_commercial, level, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 
-const building_desc_t* hausbauer_t::get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_industry, pos_origin, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_industry, pos_origin, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 
-const building_desc_t* hausbauer_t::get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_industry, level, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_industry, level, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 
-const building_desc_t* hausbauer_t::get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_residential, pos_origin, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_residential, pos_origin, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 
-const building_desc_t* hausbauer_t::get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters)
+const building_desc_t* hausbauer_t::get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask,uint32 pier_sub_2_mask)
 {
-	return get_city_building_from_list(city_residential, level, size, time, cl, region, allow_earlier, clusters);
+	return get_city_building_from_list(city_residential, level, size, time, cl, region, allow_earlier, clusters, pier_sub_1_mask, pier_sub_2_mask);
 }
 
 

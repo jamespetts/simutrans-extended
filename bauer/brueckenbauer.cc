@@ -357,6 +357,8 @@ bool bridge_builder_t::is_monorail_junction(koord3d pos, player_t *player, const
 				}
 			}
 			error_msg = NOTICE_TILE_FULL;
+		}else if(gr2->get_typ() == grund_t::pierdeck){
+			return true;
 		}
 	}
 
@@ -394,7 +396,7 @@ koord3d bridge_builder_t::find_end_pos(player_t *player, koord3d pos, const koor
 			return koord3d::invalid;
 		}
 		// must be at least an elevated way for starting, no bridge or tunnel
-		if(  gr2->get_typ() != grund_t::monorailboden  ) {
+		if(  gr2->get_typ() != grund_t::monorailboden  && gr2->get_typ() != grund_t::pierdeck) {
 			error_msg = "A bridge must start on a way!";
 			return koord3d::invalid;
 		}
@@ -658,7 +660,7 @@ bool bridge_builder_t::can_place_ramp(player_t *player, const grund_t *gr, wayty
 {
 	// bridges can only start or end above ground
 	if(  gr->get_typ()!=grund_t::boden  &&  gr->get_typ()!=grund_t::monorailboden  &&
-	     gr->get_typ()!=grund_t::tunnelboden  ) {
+		 gr->get_typ()!=grund_t::tunnelboden && gr->get_typ()!=grund_t::pierdeck) {
 		return false;
 	}
 	// wrong slope

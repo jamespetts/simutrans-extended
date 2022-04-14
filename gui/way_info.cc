@@ -154,7 +154,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_empty_t>();
 			add_table(2, 1);
 			{
-				new_component<gui_image_t>(skinverwaltung_t::alerts->get_image_id(4), 0, ALIGN_NONE, true);
+				new_component<gui_image_t>(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4):IMG_EMPTY, 0, ALIGN_NONE, true);
 				new_component<gui_label_t>("way_cannot_be_used_by_any_vehicle", COL_DANGER);
 			}
 			end_table();

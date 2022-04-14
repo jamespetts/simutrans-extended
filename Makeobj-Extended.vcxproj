@@ -115,6 +115,7 @@
     <ClCompile Include="descriptor\writer\obj_node.cc" />
     <ClCompile Include="descriptor\writer\obj_writer.cc" />
     <ClCompile Include="descriptor\writer\pedestrian_writer.cc" />
+    <ClCompile Include="descriptor\writer\pier_writer.cc" />
     <ClCompile Include="descriptor\writer\roadsign_writer.cc" />
     <ClCompile Include="descriptor\writer\root_writer.cc" />
     <ClCompile Include="descriptor\writer\sim_writer.cc" />
@@ -156,6 +157,7 @@
     <ClInclude Include="descriptor\writer\obj_node.h" />
     <ClInclude Include="descriptor\writer\obj_writer.h" />
     <ClInclude Include="descriptor\writer\pedestrian_writer.h" />
+    <ClInclude Include="descriptor\writer\pier_writer.h" />
     <ClInclude Include="descriptor\writer\roadsign_writer.h" />
     <ClInclude Include="descriptor\writer\root_writer.h" />
     <ClInclude Include="descriptor\writer\skin_writer.h" />

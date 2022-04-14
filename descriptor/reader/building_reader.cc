@@ -312,7 +312,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->allow_underground = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version > 5)
+			if(extended_version > 6)
 			{
 				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
@@ -351,6 +351,17 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			else
 			{
 				desc->class_proportions_sum = 0;
+			}
+			if(extended_version>=6){
+				desc->pier_deck_mask = decode_uint32(p);
+				desc->pier_sub_1_mask = decode_uint32(p) & 0x7FFFFFFF;
+				desc->pier_sub_2_mask = decode_uint32(p) & 0x7FFFFFFF;
+				desc->pier_sub_needed = decode_uint8(p) ? 1 : 0;
+			}else{
+				desc->pier_deck_mask=0xFFFF0000;
+				desc->pier_sub_1_mask=0;
+				desc->pier_sub_2_mask=0;
+				desc->pier_sub_needed=0;
 			}
 		}
 		else

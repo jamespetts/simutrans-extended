@@ -46,6 +46,7 @@
 #include "obj/gebaeude.h"
 #include "obj/label.h"
 #include "obj/signal.h"
+#include "obj/pier.h"
 
 #include "gui/halt_info.h"
 #include "gui/halt_detail.h"
@@ -311,6 +312,7 @@ DBG_MESSAGE("haltestelle_t::remove()","removing segment from %d,%d,%d", pos.x, p
 				halt->recalc_status();
 			}
 			hausbauer_t::remove( player, gb, false );
+			parapet_t::unhide_all(pos);
 			bd = NULL;	// no need to recalc image
 			// removing the building could have destroyed this halt already
 			if (!halt.is_bound()){

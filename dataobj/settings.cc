@@ -512,6 +512,8 @@ settings_t::settings_t() :
 	parallel_ways_forge_cost_percentage_narrowgauge = 35;
 	parallel_ways_forge_cost_percentage_air = 85;
 
+	parallel_pier_cost_percentage = 50;
+
 	passenger_trips_per_month_hundredths = 200;
 	mail_packets_per_month_hundredths = 10;
 	max_onward_trips = 3;

@@ -742,6 +742,8 @@ public:
 	uint16 parallel_ways_forge_cost_percentage_narrowgauge;
 	uint16 parallel_ways_forge_cost_percentage_air;
 
+	uint16 parallel_pier_cost_percentage;
+
 	uint32 max_diversion_tiles;
 
 	uint32 way_degradation_fraction;
@@ -1257,6 +1259,8 @@ public:
 	uint16 get_parallel_ways_forge_cost_percentage_tram() const { return parallel_ways_forge_cost_percentage_tram; }
 	uint16 get_parallel_ways_forge_cost_percentage_narrowgauge() const { return parallel_ways_forge_cost_percentage_narrowgauge; }
 	uint16 get_parallel_ways_forge_cost_percentage_air() const { return parallel_ways_forge_cost_percentage_air; }
+
+	uint16 get_parallel_piers_cost_percentage() const { return parallel_pier_cost_percentage; }
 
 	sint64 get_forge_cost(waytype_t wt) const;
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
