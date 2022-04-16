@@ -12,8 +12,8 @@
 #include "../../display/simgraph.h"
 #include "../../tpl/array2d_tpl.h"
 
-#define MAP_PREVIEW_SIZE_X ((scr_coord_val)(64))
-#define MAP_PREVIEW_SIZE_Y ((scr_coord_val)(64))
+#define MAP_PREVIEW_SIZE_X ((scr_coord_val)(98))
+#define MAP_PREVIEW_SIZE_Y ((scr_coord_val)(98))
 
 /**
  * A map preview component

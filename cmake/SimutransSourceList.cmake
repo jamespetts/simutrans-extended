@@ -136,6 +136,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_textarea.cc
 	gui/components/gui_textinput.cc
 	gui/components/gui_vehicle_capacitybar.cc
+	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc

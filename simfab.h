@@ -649,16 +649,16 @@ public:
 	 * Production multipliers
 	 */
 	sint32 get_prodfactor_electric() const { return prodfactor_electric; }
-	sint32 get_prodfactor_pax() const { return prodfactor_pax; }
-	sint32 get_prodfactor_mail() const { return prodfactor_mail; }
-	sint32 get_prodfactor() const { return DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + prodfactor_pax + prodfactor_mail; }
+	sint32 get_prodfactor_pax() const { return get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_pax; }
+	sint32 get_prodfactor_mail() const { return get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_mail; }
+	sint32 get_prodfactor() const { return DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + get_prodfactor_pax() + get_prodfactor_mail(); }
 
 	/* does not takes month length into account */
 	sint32 get_base_production() const { return prodbase; }
 	void set_base_production(sint32 p, bool is_from_saved_game = false);
 
 	// This is done this way rather than reusing get_prodfactor() because the latter causes a lack of precision (everything being rounded to the nearest 16).
-	sint32 get_current_production() const { return (sint32)(welt->calc_adjusted_monthly_figure(((sint64)prodbase * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + (get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_pax + prodfactor_mail))))) >> 8l; }
+	sint32 get_current_production() const { return (sint32)(welt->calc_adjusted_monthly_figure((sint64)prodbase * (sint64)get_prodfactor())) >> 8l; }
 
 	// returns the current productivity relative to 100
 	sint32 get_current_productivity() const { return welt->calc_adjusted_monthly_figure(prodbase) ? get_current_production() * 100 / welt->calc_adjusted_monthly_figure(prodbase) : 0; }

@@ -74,36 +74,6 @@ public:
 		MAX_TRACTION_TYPE
 	};
 
-	static const char* get_engine_type(engine_t e)
-	{
-		switch(e)
-		{
-		case unknown:
-		default:
-			return "unknown";
-		case steam:
-			return "steam";
-		case diesel:
-			return "diesel";
-		case electric:
-			return "electric";
-		case bio:
-			return "bio";
-		case sail:
-			return "sail";
-		case fuel_cell:
-			return "fuel_cell";
-		case hydrogene:
-			return "hydrogene";
-		case battery:
-			return "battery";
-		case petrol:
-			return "petrol";
-		case turbine:
-			return "turbine";
-		}
-	}
-
 	enum veh_basic_constraint_t {
 		cannot_be_at_end = 0,
 		can_be_head  = 1,

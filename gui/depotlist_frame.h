@@ -11,6 +11,7 @@
 #include "gui_frame.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_scrolled_list.h"
+#include "components/gui_waytype_tab_panel.h"
 #include "components/gui_label.h"
 #include "components/gui_image.h"
 #include "components/gui_combobox.h"
@@ -26,10 +27,10 @@ private:
 	button_t sort_order;
 	gui_scrolled_list_t scrolly;
 
-	button_t filter_buttons[TT_MAX_VEH];
+	gui_waytype_tab_panel_t tabs;
 
 	uint32 last_depot_count;
-	static uint8 depot_type_filter_bits;
+	static uint8 selected_tab;
 
 	void fill_list();
 

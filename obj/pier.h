@@ -32,7 +32,6 @@ public:
     pier_t(koord3d pos, player_t *player, const pier_desc_t *desc, uint8_t rot);
 
     ~pier_t(){
-        dbg->message("pier_t","pier destroyed");
         return;
     }
 

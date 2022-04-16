@@ -2075,7 +2075,6 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::show_depot_names          = contents.get_int( "show_depot_names", env_t::show_depot_names );
 	env_t::show_month                = contents.get_int( "show_month", env_t::show_month );
 	env_t::show_vehicle_states       = contents.get_int( "show_vehicle_states", env_t::show_vehicle_states );
-	env_t::follow_convoi_underground = contents.get_int( "follow_convoi_underground", env_t::follow_convoi_underground );
 
 	env_t::follow_convoi_underground   = contents.get_int_clamped( "follow_convoi_underground",      env_t::follow_convoi_underground, 0, 2 );
 	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, INT_MAX );

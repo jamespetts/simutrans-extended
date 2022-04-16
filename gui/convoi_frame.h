@@ -13,7 +13,7 @@
 #include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "components/gui_combobox.h"
-#include "components/gui_convoiinfo.h"
+#include "components/gui_waytype_tab_panel.h"
 #include "components/gui_textinput.h"
 #include "../convoihandle_t.h"
 
@@ -53,19 +53,21 @@ private:
 	uint32 last_world_convois;
 
 	// these are part of the top UI
-	gui_combobox_t	sortedby;
+	gui_combobox_t	sortedby, overview_selector;
 	button_t	sort_order;
-	button_t	display_mode;
-	button_t	filter_on;
+	//button_t	display_mode;
 	button_t	filter_details;
+
+	char name_filter[256], last_name_filter[256];
+	gui_textinput_t name_filter_input;
 
 	// scroll container of list of convois
 	gui_scrolled_convoy_list_t *scrolly;
 
+	gui_waytype_tab_panel_t tabs;
+
 	// actual filter setting
-	bool filter_is_on;
 	static const slist_tpl<const goods_desc_t *>*waren_filter;
-	char *name_filter;
 	uint32 filter_flags;
 
 	bool get_filter(uint32 filter) { return (filter_flags & filter) != 0; }
@@ -97,7 +99,7 @@ public:
 	/**
 	 * Resorts convois
 	 */
-	void sort_list( char *name, uint32 filter, const slist_tpl<const goods_desc_t *> *wares );
+	void sort_list( uint32 filter, const slist_tpl<const goods_desc_t *> *wares );
 
 	convoi_frame_t();
 

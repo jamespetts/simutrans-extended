@@ -23,7 +23,6 @@ public:
     pier_deck_t(koord3d pos, slope_t::type grund_slope, slope_t::type way_slope);
 
     ~pier_deck_t() {
-        dbg->message("pier_deck_t","deck destroyed");
         return;
     }
 

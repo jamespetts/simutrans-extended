@@ -66,6 +66,7 @@
 #endif
 #include "scenario_info.h"
 #include "depotlist_frame.h"
+#include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
 #include "curiositylist_frame_t.h"
 #include "factorylist_frame_t.h"
@@ -212,7 +213,7 @@ static int display_gadget_box(sint8 code,
 		else if (code == SKIN_GADGET_LOCKED) {
 			gadget_text = "L";
 		}
-		display_proportional_rgb( x+4, y+4, gadget_text, ALIGN_LEFT, color_idx_to_rgb(COL_BLACK), false );
+		display_proportional_rgb( x+4, y+4, gadget_text, ALIGN_LEFT, SYSCOL_TEXT, false );
 	}
 
 	int side = x+REVERSE_GADGETS*D_GADGET_WIDTH-1;
@@ -641,8 +642,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_scenario_info:  w = new scenario_info_t(); break;
 					//case magic_depot:          w = new depot_frame_t(); break;
 					case magic_convoi_list:    w = new convoi_frame_t(); break;
-					//case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
-					//case magic_citylist_frame_t: w = new citylist_frame_t(); break;
+					case magic_depotlist:      w = new depotlist_frame_t(); break;
+					case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
 					case magic_halt_list:      w = new halt_list_frame_t(); break;
 					case magic_citylist_frame_t: w = new citylist_frame_t(); break;
 					case magic_curiositylist:  w = new curiositylist_frame_t(); break;
@@ -964,6 +965,7 @@ static bool destroy_framed_win(simwin_t *wins)
 	if(  wl  ) {
 		wl->set_background_dirty();
 	}
+	tooltip_text = 0;
 	return r;
 }
 
@@ -1450,6 +1452,15 @@ void win_set_pos(gui_frame_t *gui, int x, int y)
 }
 
 
+bool last_drag_is_caught = false;
+
+// since check_pos_win is processed before i.e. scrolling map
+// we do not want to catch the mouse, if we use it already
+void catch_dragging()
+{
+	last_drag_is_caught = true;
+}
+
 /*
  * main window event handler
  */
@@ -1460,8 +1471,20 @@ bool check_pos_win(event_t *ev)
 
 	bool swallowed = false;
 
-	const int x = ev->ev_class==EVENT_MOVE ? ev->mx : ev->cx;
-	const int y = ev->ev_class==EVENT_MOVE ? ev->my : ev->cy;
+	const int x = ev->ev_class==EVENT_MOVE?ev->mx:ev->cx;
+	const int y = ev->ev_class==EVENT_MOVE?ev->my:ev->cy;
+
+	if( last_drag_is_caught ) {
+		if( ev->ev_class == EVENT_DRAG ) {
+			// somebody else drags already => do nothing
+			return false;
+		}
+		if( ev->ev_class == EVENT_RELEASE ) {
+			// we will handle dragging events again after this
+			last_drag_is_caught = false;
+			return false;
+		}
+	}
 
 	// for the moment, no none events
 	if (ev->ev_class == EVENT_NONE) {
@@ -1632,7 +1655,7 @@ bool check_pos_win(event_t *ev)
 						move_win(i, ev);
 						is_moving = i;
 					}
-					if(IS_RIGHTCLICK(ev)  || IS_LEFTDBLCLK(ev)  ) {
+					if(IS_RIGHTCLICK(ev)  ||  IS_LEFTDBLCLK(ev)  ) {
 						wins[i].rollup ^= 1;
 						gui_frame_t *gui = wins[i].gui;
 						scr_size size = gui->get_windowsize();
