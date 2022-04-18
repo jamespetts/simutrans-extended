@@ -1143,6 +1143,7 @@ public:
 	void reserve_own_tiles(bool unreserve = false);
 
 	bool has_tall_vehicles();
+	bool has_tilting_vehicles();
 
 	inline bool get_allow_clear_reservation() const { return allow_clear_reservation; }
 
