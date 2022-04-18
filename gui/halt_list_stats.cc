@@ -7,6 +7,7 @@
 #include "../simhalt.h"
 #include "../simskin.h"
 #include "../simcolor.h"
+#include "../simtool.h"
 #include "../simcity.h"
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
@@ -475,7 +476,7 @@ bool halt_list_stats_t::infowin_event(const event_t *ev)
 				halt->show_detail();
 				return true;
 			}
-			if(  event_get_last_control_shift() != 2  ) {
+			if((event_get_last_control_shift() ^ tool_t::control_invert)==2) {
 				halt->show_info();
 				return true;
 			}
