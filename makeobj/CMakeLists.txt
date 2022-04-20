@@ -68,6 +68,8 @@ target_sources(makeobj-extended PRIVATE
 	../simmem.cc
 	../utils/simstring.cc
 	../utils/searchfolder.cc
+	../utils/csv.cc
+	../utils/cbuffer_t.cc
 )
 
 # These source files produce different object code in makeobj-extended and simutrans
