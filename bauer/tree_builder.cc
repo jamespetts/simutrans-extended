@@ -201,6 +201,10 @@ void tree_builder_t::fill_trees(int dichte, sint16 xtop, sint16 ytop, sint16 xbo
 	for(  pos.y=ytop;  pos.y<ybottom;  pos.y++  ) {
 		for(  pos.x=xtop;  pos.x<xbottom;  pos.x++  ) {
 			grund_t *gr = welt->lookup_kartenboden(pos);
+			if (!gr)
+			{
+				continue;
+			}
 			if(gr->get_top() == 0  &&  gr->get_typ() == grund_t::boden)  {
 				// plant spare trees, (those with low preffered density) or in an entirely tree climate
 				const uint16 cl = 1 << welt->get_climate(pos);

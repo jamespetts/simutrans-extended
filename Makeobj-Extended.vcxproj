@@ -129,6 +129,8 @@
     <ClCompile Include="descriptor\writer\way_writer.cc" />
     <ClCompile Include="descriptor\writer\xref_writer.cc" />
     <ClCompile Include="simdebug.cc" />
+    <ClCompile Include="utils\cbuffer_t.cc" />
+    <ClCompile Include="utils\csv.cc" />
     <ClCompile Include="utils\dr_rdpng.cc" />
     <ClCompile Include="makeobj\makeobj.cc" />
     <ClCompile Include="utils\log.cc" />
@@ -169,6 +171,8 @@
     <ClInclude Include="descriptor\writer\way_obj_writer.h" />
     <ClInclude Include="descriptor\writer\way_writer.h" />
     <ClInclude Include="descriptor\writer\xref_writer.h" />
+    <ClInclude Include="utils\cbuffer_t.h" />
+    <ClInclude Include="utils\csv.h" />
     <ClInclude Include="utils\dr_rdpng.h" />
     <ClInclude Include="dataobj\freelist.h" />
     <ClInclude Include="utils\log.h" />
