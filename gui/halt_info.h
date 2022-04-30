@@ -266,7 +266,7 @@ public:
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 
-	uint32 get_rdwr_id() OVERRIDE { return magic_halt_info; }
+	uint32 get_rdwr_id() OVERRIDE { return magic_halt_info+halt.get_id(); }
 };
 
 #endif

@@ -622,11 +622,9 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_none: return;
 
 					// actual dialogues to restore
-					case magic_convoi_info:    w = new convoi_info_t(); break;
 					case magic_convoi_detail:  w = new convoi_detail_t(); break;
 					case magic_class_manager:  w = new vehicle_class_manager_t(); break;
 					case magic_themes:         w = new themeselector_t(); break;
-					case magic_halt_info:      w = new halt_info_t(); break;
 					case magic_halt_detail:    w = new halt_detail_t(); break;
 					case magic_reliefmap:      w = new map_frame_t(); break;
 					case magic_ki_kontroll_t:  w = new ki_kontroll_t(); break;
@@ -668,6 +666,12 @@ void rdwr_all_win(loadsave_t *file)
 						}
 						else if (id >= magic_depotlist && id < magic_depotlist + MAX_PLAYER_COUNT) {
 							w = new depotlist_frame_t(wl->get_player(id - magic_depotlist));
+						}
+						else if( id>=magic_convoi_info && id < magic_convoi_info+0x10000) {
+							w = new convoi_info_t();
+						}
+						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000) {
+							w = new halt_info_t();
 						}
 						else {
 							dbg->error( "rdwr_all_win()", "No idea how to restore magic 0x%X", id );
