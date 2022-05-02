@@ -1020,7 +1020,7 @@ public:
 	/**
 	* sets a new convoi in route
 	*/
-	void start();
+	void start(depot_t* dep = nullptr);
 
 	void ziel_erreicht(); ///< Called, when the first vehicle reaches the target
 

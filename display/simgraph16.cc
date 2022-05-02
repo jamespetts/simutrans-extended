@@ -3516,20 +3516,12 @@ void display_blend_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, s
 	}
 }
 
-void display_linear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL colval, int percent_blend_start, int percent_blend_end, bool horizontal)
+void display_linear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL colval, int percent_blend_start, int percent_blend_end)
 {
 	uint8 transparency = 0;
-	if (horizontal) {
-		for (uint16 i = 0; i < w; i++) {
-			transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / w * i;
-			display_blend_wh_rgb(xp + i, yp, 1, h, colval, transparency);
-		}
-	}
-	else {
-		for (uint16 i = 0; i < h; i++) {
-			transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / h * i;
-			display_blend_wh_rgb(xp, yp + i, w, 1, colval, transparency);
-		}
+	for (uint16 i = 0; i < w; i++) {
+		transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / w * i;
+		display_blend_wh_rgb(xp + i, yp, 1, h, colval, transparency);
 	}
 }
 

@@ -70,13 +70,36 @@ public:
 	bool is_init_network_safe() const OVERRIDE { return true; }
 };
 
+class tool_path_tool_t : public two_click_tool_t {
+public:
+	tool_path_tool_t(const uint16 tool_id) : two_click_tool_t(tool_id) {}
+	virtual const char * tile_work(player_t*, koord3d const &, koord3d const &)=0;
+	virtual void tile_mark(player_t*, koord3d const &,koord3d const &)=0;
+
+	const char * do_work(player_t *, const koord3d &start, const koord3d &end) override;
+	void mark_tiles(player_t *, const koord3d &start, const koord3d &end) override;
+	uint8 is_valid_pos(player_t *, const koord3d &, const char *&, const koord3d &) override {return 2;}
+	bool is_init_network_safe() const OVERRIDE { return true; }
+	virtual char const *get_tooltip(player_t const*) const override {return "";}
+};
+
+//call tool_remover along path
+class tool_path_remover_t : public tool_path_tool_t {
+public:
+	tool_path_remover_t() : tool_path_tool_t(TOOL_PATH_REMOVER | GENERAL_TOOL) {}
+	void tile_mark(player_t *, const koord3d &, koord3d const &) override;
+	const char * tile_work(player_t *, const koord3d &, koord3d const &) override;
+	char const* get_tooltip(player_t const*) const override { return translator::translate("Path Remove");}
+private:
+	koord3d get_work_pos(koord3d pos, koord3d start);
+};
+
 // alter land height tools
 class tool_raise_lower_base_t : public tool_t {
 protected:
 	bool is_dragging;
 	sint16 drag_height;
 
-	const char* drag(player_t*, koord k, sint16 h, int &n, bool allow_deep_water);
 	virtual sint16 get_drag_height(koord k) = 0;
 	bool check_dragging();
 
@@ -105,6 +128,9 @@ public:
 	bool is_grid_tool() const OVERRIDE {return true;}
 
 	bool update_pos_after_use() const OVERRIDE { return true; }
+
+	static const char* drag(player_t*, koord k, sint16 h, int &n, bool allow_deep_water);
+
 };
 
 class tool_raise_t : public tool_raise_lower_base_t {
@@ -123,6 +149,14 @@ public:
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	sint16 get_drag_height(koord k) OVERRIDE;
+};
+
+class tool_flatten_path_t : public tool_path_tool_t{
+public:
+	tool_flatten_path_t() : tool_path_tool_t(TOOL_FLATTEN_PATH | GENERAL_TOOL) {}
+	void tile_mark(player_t *, const koord3d &, const koord3d &) override;
+	const char * tile_work(player_t *, const koord3d &, const koord3d &) override;
+	char const* get_tooltip(player_t const*) const override { return translator::translate("Flatten Path");}
 };
 
 /* slope tool definitions */

@@ -620,7 +620,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 		else {
 			// convoi can start now
-			cnv->start();
+			cnv->start(this);
 
 			// remove from depot lists
 			remove_convoi( cnv );

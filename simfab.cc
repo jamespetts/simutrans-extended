@@ -835,9 +835,9 @@ fabrik_t::fabrik_t(loadsave_t* file) :
 
 	rdwr(file);
 
-	delta_sum = 0;
-	delta_menge = 0;
-	menge_remainder = 0;
+	delta_t_sum = 0;
+	delta_amount = 0;
+	delta_amount_remainder = 0;
 	total_input = total_transit = total_output = 0;
 	sector = unknown;
 	status = nothing;
@@ -890,9 +890,9 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 		prodbase = initial_prod_base;
 	}
 
-	delta_sum = 0;
-	delta_menge = 0;
-	menge_remainder = 0;
+	delta_t_sum = 0;
+	delta_amount = 0;
+	delta_amount_remainder = 0;
 	activity_count = 0;
 	currently_producing = false;
 	transformer_connected = NULL;
@@ -1864,7 +1864,7 @@ uint32 fabrik_t::scale_output_production(const uint32 product, uint32 menge) con
 }
 
 
-sint32 fabrik_t::count_input_stock(const goods_desc_t *ware)
+sint32 fabrik_t::get_input_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
 
@@ -1879,7 +1879,7 @@ sint32 fabrik_t::count_input_stock(const goods_desc_t *ware)
 }
 
 
-sint32 fabrik_t::count_output_stock(const goods_desc_t *ware)
+sint32 fabrik_t::get_output_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
 
@@ -1959,9 +1959,9 @@ void fabrik_t::add_consuming_passengers(sint32 number_of_passengers)
 
 	// calculate the production per delta_t; scaled to PRODUCTION_DELTA_T
 	// Calculate actual production. A remainder is used for extra precision.
-	const uint64 want_prod_long = welt->scale_for_distance_only((uint64)prodbase * (uint64)boost * (uint64)delta_t + (uint64)menge_remainder);
+	const uint64 want_prod_long = welt->scale_for_distance_only((uint64)prodbase * (uint64)boost * (uint64)delta_t + (uint64)delta_amount_remainder);
 	const sint32 prod = (uint32)(want_prod_long >> (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits));
-	menge_remainder = (uint32)(want_prod_long & ((1 << (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits)) - 1));
+	delta_amount_remainder = (uint32)(want_prod_long & ((1 << (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits)) - 1));
 
 	// Consume stock in proportion to passengers' visits
 	// We want to consume prod amount of each input normally. However, if
@@ -2015,7 +2015,7 @@ void fabrik_t::add_consuming_passengers(sint32 number_of_passengers)
 
 			input[index].menge -= prod_this_input;
 			input[index].book_stat(prod_this_input * (sint64)desc->get_supplier(index)->get_consumption(), FAB_GOODS_CONSUMED);
-			delta_menge += prod_this_input;
+			delta_amount += prod_this_input;
 
 			// Update the demand left to allocate
 			total_remaining -= prod_this_input * (sint64)desc->get_supplier(index)->get_consumption();
@@ -2168,7 +2168,7 @@ void fabrik_t::step(uint32 delta_t)
 		}
 
 		// produced => trigger smoke
-		delta_menge = 1 << fabrik_t::precision_bits;
+		delta_amount = 1 << fabrik_t::precision_bits;
 	}
 	else {
 		// not a producer => then consume electricity ...
@@ -2184,9 +2184,9 @@ void fabrik_t::step(uint32 delta_t)
 
 		// calculate the production per delta_t; scaled to PRODUCTION_DELTA_T
 		// Calculate actual production. A remainder is used for extra precision.
-		const uint64 want_prod_long = welt->scale_for_distance_only(((uint64)prodbase * (uint64)boost * (uint64)delta_t)) + (uint64)menge_remainder;
+		const uint64 want_prod_long = welt->scale_for_distance_only(((uint64)prodbase * (uint64)boost * (uint64)delta_t)) + (uint64)delta_amount_remainder;
 		const uint32 prod = (uint32)(want_prod_long >> (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits));
-		menge_remainder = (uint32)(want_prod_long & ((1 << (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits)) - 1));
+		delta_amount_remainder = (uint32)(want_prod_long & ((1 << (PRODUCTION_DELTA_T_BITS + DEFAULT_PRODUCTION_FACTOR_BITS + DEFAULT_PRODUCTION_FACTOR_BITS - fabrik_t::precision_bits)) - 1));
 
 		// needed for electricity
 		currently_producing = false;
@@ -2237,7 +2237,7 @@ void fabrik_t::step(uint32 delta_t)
 					}
 
 					// to find out if storage changed
-					delta_menge += v;
+					delta_amount += v;
 				}
 				else
 				{
@@ -2255,7 +2255,7 @@ void fabrik_t::step(uint32 delta_t)
 						power /= 100;
 					}
 
-					delta_menge += input[index].menge;
+					delta_amount += input[index].menge;
 
 					input[index].book_stat((sint64)input[index].menge * (desc->get_supplier(index) ? (sint64)desc->get_supplier(index)->get_consumption() : 1), FAB_GOODS_CONSUMED);
 					input[index].menge = 0;
@@ -2312,7 +2312,7 @@ void fabrik_t::step(uint32 delta_t)
 					// produce
 					if (output[product].menge < output[product].max) {
 						// to find out, if storage changed
-						delta_menge += p;
+						delta_amount += p;
 						output[product].menge += p;
 						output[product].book_stat((sint64)p * (sint64)desc->get_product(product)->get_factor(), FAB_GOODS_PRODUCED);
 						// if less than 3/4 filled we neary always consume power
@@ -2359,9 +2359,9 @@ void fabrik_t::step(uint32 delta_t)
 		power = 0;
 	}
 
-	delta_sum += delta_t;
-	if(  delta_sum > PRODUCTION_DELTA_T  ) {
-		delta_sum = delta_sum % PRODUCTION_DELTA_T;
+	delta_t_sum += delta_t;
+	if(  delta_t_sum > PRODUCTION_DELTA_T  ) {
+		delta_t_sum = delta_t_sum % PRODUCTION_DELTA_T;
 
 		// distribute, if there is more than 1 waiting ...
 		// Changed from the original 10 by jamespetts, July 2017
@@ -2378,11 +2378,11 @@ void fabrik_t::step(uint32 delta_t)
 
 		recalc_factory_status();
 
-		// rescale delta_menge here: all products should be produced at least once
+		// rescale delta_amount here: all products should be produced at least once
 		// (if consumer only: all supplements should be consumed once)
 		const uint32 min_change = output.empty() ? input.get_count() : output.get_count();
 
-		if(  (delta_menge>>fabrik_t::precision_bits)>min_change  ) {
+		if(  (delta_amount>>fabrik_t::precision_bits)>min_change  ) {
 
 			// we produced some real quantity => smoke
 			smoke();
@@ -2407,7 +2407,7 @@ void fabrik_t::step(uint32 delta_t)
 
 			INT_CHECK("simfab 558");
 			// reset for next cycle
-			delta_menge = 0;
+			delta_amount = 0;
 		}
 	}
 
@@ -3129,7 +3129,7 @@ void fabrik_t::recalc_factory_status()
 		}
 		total_input = (uint32)warenlager;
 
-		if (!output.empty()) {
+		if( !output.empty() ) {
 			// All materials must be available for manufacturing.
 			if (active_input_count != input_count) {
 				status = material_not_available;
@@ -3170,7 +3170,7 @@ void fabrik_t::recalc_factory_status()
 	total_output = (uint32)warenlager;
 
 	// At least one must have a normal downstream industry
-	if (output.get_count()) {
+	if( !output.empty() ) {
 		bool has_any_consumer = false;
 		FOR(vector_tpl<koord>, k, consumers) {
 			const fabrik_t* consumer = fabrik_t::get_fab(k);
@@ -3642,7 +3642,7 @@ void fabrik_t::add_all_suppliers()
 
 		FOR(vector_tpl<fabrik_t*>, const fab, welt->get_fab_list()) {
 			// connect to an existing one, if this is an producer
-			if(fab!=this  && fab->count_output_stock(ware) > -1) {
+			if(fab!=this  && fab->get_output_stock(ware) > -1) {
 				// add us to this factory
 				// will also add to our suppliers list
 				fab->add_consumer(pos.get_2d());
@@ -3662,7 +3662,7 @@ bool fabrik_t::add_supplier(fabrik_t* fab)
 		const goods_desc_t *ware = supplier->get_input_type();
 
 			// connect to an existing one, if this is an producer
-			if(  fab!=this  && fab->count_output_stock(ware) > -1  ) { //"inventory to" (Google)
+			if(  fab!=this  && fab->get_output_stock(ware) > -1  ) {
 				// add us to this factory
 				fab->add_consumer(pos.get_2d());
 				cbuffer_t buf;
@@ -3685,7 +3685,7 @@ bool fabrik_t::add_customer(fabrik_t* fab)
 		const goods_desc_t *ware = supplier->get_input_type();
 
 			// connect to an existing one, if it is a consumer
-			if(fab!=this && count_output_stock(ware) > -1) { //"inventory to" (Google)
+			if(fab!=this && get_output_stock(ware) > -1) {
 				// add this factory
 				add_consumer(fab->pos.get_2d());
 				return true;

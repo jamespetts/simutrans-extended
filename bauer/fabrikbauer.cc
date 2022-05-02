@@ -881,7 +881,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		// For reference, origin_fab is the consumer and fab is the potential producer already in the game.
 
 		// connect to an existing one if this is a producer
-		if(fab->count_output_stock(ware) > -1)
+		if(fab->get_output_stock(ware) > -1)
 		{
 			const uint32 distance = shortest_distance(fab->get_pos().get_2d(), origin_fab->get_pos().get_2d());
 

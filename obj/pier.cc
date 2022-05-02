@@ -151,7 +151,7 @@ void pier_t::cleanup(player_t *player2){
 void pier_t::rotate90(){
 	set_yoff(0);
 	obj_t::rotate90();
-	rotation = (rotation + 1) & 3; //rotation modulo 4
+	rotation = (rotation - 1) & 3; //rotation modulo 4
 }
 
 const char *pier_t::is_deletable(const player_t *player){

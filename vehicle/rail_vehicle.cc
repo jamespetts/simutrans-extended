@@ -2676,6 +2676,10 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 				else
 				{
 					success = false;
+					if (first_stop_signal_index < INVALID_INDEX && next_signal_index >= INVALID_INDEX)
+					{
+						next_signal_index = first_stop_signal_index;
+					}
 				}
 			} while((schedule_index != cnv->get_schedule()->get_current_stop()) && token_block_blocks && no_reverse && !break_loop_recursive);
 		}

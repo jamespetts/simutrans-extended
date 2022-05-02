@@ -77,7 +77,8 @@ static const char *version_ex[] =
 	".14",
 	".15",
 	".16",
-	".17"
+	".17",
+	".18"
 };
 
 static const char *revision_ex[] =
@@ -127,7 +128,15 @@ static const char *revision_ex[] =
 	"42",
 	"43",
 	"44",
-	"45"
+	"45",
+	"46",
+	"47",
+	"48",
+	"49",
+	"50",
+	"51",
+	"52",
+	"53"
 };
 
 
@@ -923,6 +932,7 @@ void settings_costs_stats_t::init(settings_t const* const sets)
 	INIT_COST( "cost_depot_ship", -sets->cst_depot_ship, 1, 100000000, 10, false );
 	INIT_COST( "cost_buy_land", -sets->cst_buy_land, 0, 100000000, 10, false );
 	INIT_COST( "cost_alter_land", -sets->cst_alter_land, 1, 100000000, 10, false );
+	INIT_COST( "cost_reclaim_land", -sets->cst_reclaim_land, 1, 100000000, 10, false);
 	INIT_COST( "cost_set_slope", -sets->cst_set_slope, 1, 100000000, 10, false );
 	INIT_COST( "cost_alter_climate", -sets->cst_alter_climate, 1, 100000000, 10, false );
 	INIT_COST( "cost_found_city", -sets->cst_found_city, 1, 100000000, 10, false );
@@ -954,6 +964,7 @@ void settings_costs_stats_t::read(settings_t* const sets)
 	READ_COST_VALUE( sets->cst_depot_ship )*(-1);
 	READ_COST_VALUE( sets->cst_buy_land )*(-1);
 	READ_COST_VALUE( sets->cst_alter_land )*(-1);
+	READ_COST_VALUE(sets->cst_reclaim_land)* (-1);
 	READ_COST_VALUE( sets->cst_set_slope )*(-1);
 	READ_COST_VALUE( sets->cst_alter_climate )*(-1);
 	READ_COST_VALUE( sets->cst_found_city )*(-1);

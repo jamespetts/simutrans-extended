@@ -177,7 +177,7 @@ private:
 
 	sint32 einkommen;
 	sint32 max_einkommen;
-	sint32 delta_sum;
+	sint32 delta_t_sum;
 	sint32 next_t;
 	uint32 last_power_demand;
 	uint32 power_load;

@@ -119,6 +119,8 @@ const char *tool_t::id_to_string(uint16 id)
 
 		CASE_TO_STRING(TOOL_BUILD_SIGNALBOX);
 		CASE_TO_STRING(TOOL_REASSIGN_SIGNAL);
+		CASE_TO_STRING(TOOL_PATH_REMOVER);
+		CASE_TO_STRING(TOOL_FLATTEN_PATH);
 		}
 	}
 	else if (id & SIMPLE_TOOL) {
@@ -284,6 +286,8 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_REASSIGN_SIGNAL:             tool = new tool_reassign_signal_t();     break;
 		case TOOL_BUILD_PIER:                  tool = new tool_build_pier_t();          break;
 		case TOOL_BUILD_PIER_AUTO:             tool = new tool_build_pier_auto_t();     break;
+		case TOOL_PATH_REMOVER:                tool = new tool_path_remover_t();        break;
+		case TOOL_FLATTEN_PATH:	               tool = new tool_flatten_path_t();        break;
 		case TOOL_EXEC_SCRIPT:
 		case TOOL_EXEC_TWO_CLICK_SCRIPT:
 			return NULL; // Tools reserved by standard

@@ -596,7 +596,7 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 	}
 	withdraw_button.pressed = cnv->get_withdraw();
 	retire_button.pressed = cnv->get_depot_when_empty();
-	class_management_button.pressed = win_get_magic(magic_class_manager);
+	class_management_button.pressed = win_get_magic(magic_class_manager+cnv.get_id());
 
 	if (tabs.get_active_tab_index()==3) {
 		// common existing_convoy_t for acceleration curve and weight/speed info.

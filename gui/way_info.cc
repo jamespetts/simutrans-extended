@@ -104,7 +104,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			}
 			else if (tunnel) {
 				new_component<gui_margin_t>(10);
-				new_component<gui_label_t>(tunnel->get_desc()->get_name(), color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
+				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()) / 100.0;
 				lb_tunnel->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);

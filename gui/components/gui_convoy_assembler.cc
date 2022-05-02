@@ -485,8 +485,6 @@ void gui_convoy_assembler_t::layout()
 	lb_convoi_number.set_width(30);
 	bt_class_management.set_pos(scr_coord(c3_x, y));
 	bt_class_management.set_size(scr_size(size.w - c3_x-5, LINESPACE));
-	bt_class_management.pressed = win_get_magic(magic_class_manager);
-	//bt_class_management.pressed = show_class_management;
 	y += LINESPACE + 1;
 	lb_convoi_cost.set_pos(scr_coord(c1_x, y));
 	lb_convoi_cost.set_size(scr_size(c2_x - c1_x, LINESPACE));
@@ -832,6 +830,8 @@ void gui_convoy_assembler_t::draw(scr_coord parent_pos)
 
 			if (cnv.is_bound() && cnv->get_vehicle_count() > i)
 			{
+				bt_class_management.pressed = win_get_magic(magic_class_manager+cnv.get_id());
+
 				vehicle_t* v = cnv->get_vehicle(i);
 
 				switch (ware->get_catg_index())

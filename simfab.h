@@ -270,11 +270,11 @@ private:
 	inthashtable_tpl<uint8, uint16, N_BAGS_SMALL> max_intransit_percentages;
 
 	/// Accumulated time since last production
-	sint32 delta_sum;
-	uint32 delta_menge;
+	sint32 delta_t_sum;
+	uint32 delta_amount;
 
 	// production remainder when scaled to PRODUCTION_DELTA_T. added back next step to eliminate cumulative error
-	uint32 menge_remainder;
+	uint32 delta_amount_remainder;
 
 	// number of rounds where there is active production or consumption
 	uint8 activity_count;
@@ -511,12 +511,12 @@ public:
 	void  remove_supplier(koord supplier_pos);
 
 	/**
-	 * @return menge der ware typ ("quantity of the goods type")
-	 *   -1 wenn typ nicht produziert wird ("if not type is produced")
-	 *   sonst die gelagerte menge ("otherwise the stored quantity")
+	 * @return counts amount of ware of typ
+	 *   -1 not produced/used here
+	 *   0>= actual amount
 	 */
-	sint32 count_input_stock(const goods_desc_t *ware);
-	sint32 count_output_stock(const goods_desc_t *ware);
+	sint32 get_input_stock(const goods_desc_t *ware);
+	sint32 get_output_stock(const goods_desc_t *ware);
 
 	/**
 	* returns all power and consume it to prevent multiple pumpes

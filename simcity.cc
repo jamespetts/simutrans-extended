@@ -2843,7 +2843,7 @@ void stadt_t::calc_growth()
 			{
 				city_history_month[0][HIST_GOODS_NEEDED] ++;
 				city_history_year[0][HIST_GOODS_NEEDED] ++;
-				if(fab->count_input_stock(desc->get_supplier(i)->get_input_type()) > 0  )
+				if(fab->get_input_stock(desc->get_supplier(i)->get_input_type()) > 0  )
 				{
 					city_history_month[0][HIST_GOODS_RECEIVED] ++;
 					city_history_year[0][HIST_GOODS_RECEIVED] ++;

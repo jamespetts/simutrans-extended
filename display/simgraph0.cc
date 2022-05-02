@@ -247,7 +247,7 @@ void display_blend_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord
 {
 }
 
-void display_linear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, int, int, bool)
+void display_linear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, int, int)
 {
 }
 

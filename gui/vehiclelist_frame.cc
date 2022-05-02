@@ -476,7 +476,7 @@ void vehiclelist_frame_t::fill_list()
 						}
 						break;
 					default:
-						if (((uint8)veh->get_engine_type() + 1) != engine_filter.get_selection()) {
+						if (((uint8)veh->get_engine_type()+1) != engine_filter.get_selection()-1) {
 							continue;
 						}
 						break;
@@ -523,7 +523,7 @@ void vehiclelist_frame_t::fill_list()
 					}
 					break;
 				default:
-					if (((uint8)veh->get_engine_type() + 1) != engine_filter.get_selection()) {
+					if (((uint8)veh->get_engine_type()+1) != engine_filter.get_selection()-1) {
 						continue;
 					}
 					break;

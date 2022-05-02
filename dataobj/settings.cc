@@ -266,6 +266,7 @@ settings_t::settings_t() :
 	// alter landscape
 	cst_buy_land=-10000;
 	cst_alter_land=-100000;
+	cst_reclaim_land=-1000000;
 	cst_alter_climate=-100000;
 	cst_set_slope=-250000;
 	cst_found_city=-500000000;
@@ -911,6 +912,10 @@ void settings_t::rdwr(loadsave_t *file)
 			// alter landscape
 			file->rdwr_longlong(cst_buy_land );
 			file->rdwr_longlong(cst_alter_land );
+			if (file->is_version_ex_atleast(14, 53))
+			{
+				file->rdwr_longlong(cst_reclaim_land);
+			}
 			file->rdwr_longlong(cst_set_slope );
 			file->rdwr_longlong(cst_found_city );
 			file->rdwr_longlong(cst_multiply_found_industry );
@@ -2592,8 +2597,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// We do not attempt to correct saved games as this was part of the "game balance" involved
 	// with that game.  A save game can be changed using the override options.
 	sint64 new_cost_alter_land = contents.get_int64("cost_alter_land", -1);
-	if (new_cost_alter_land > 0) {
+	if (new_cost_alter_land > 0)
+	{
 		cst_alter_land = new_cost_alter_land * -100 * distance_per_tile;
+	}
+	sint64 new_cost_reclaim_land = contents.get_int64("cost_reclaim_land", -1);
+	if (new_cost_reclaim_land > 0)
+	{
+		cst_reclaim_land = new_cost_reclaim_land * -100 * distance_per_tile;
 	}
 	sint64 new_cost_set_slope = contents.get_int64("cost_set_slope", -1);
 	if (new_cost_set_slope > 0) {
