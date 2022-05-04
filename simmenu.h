@@ -317,13 +317,13 @@ public:
 	virtual bool is_selected() const;
 
 	// when true, local execution would do no harm
-	virtual bool is_init_network_safe() const { return false; }
+	virtual bool is_init_keeps_game_state() const { return false; }
 	virtual bool is_move_network_safe(player_t *) const { return true; }
 
-	// if is_work_network_safe()==false
+	// if is_work_keeps_game_state()==false
 	// and is_work_here_keeps_game_state(...)==false
 	// then work-command is sent over network
-	virtual bool is_work_network_safe() const { return false; }
+	virtual bool is_work_keeps_game_state() const { return false; }
 	virtual bool is_work_here_keeps_game_state(player_t *, koord3d) { return false; }
 
 	// will draw a dark frame, if selected
@@ -499,8 +499,8 @@ public:
 	tool_selector_t *get_tool_selector() const { return tool_selector; }
 	image_id get_icon(player_t*) const OVERRIDE;
 	bool is_selected() const OVERRIDE;
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
+	bool is_init_keeps_game_state() const OVERRIDE { return true; }
+	bool is_work_keeps_game_state() const OVERRIDE { return true; }
 	// show this toolbar
 	bool init(player_t*) OVERRIDE;
 	// close this toolbar

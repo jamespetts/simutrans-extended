@@ -3590,8 +3590,8 @@ void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended)
 		return;
 	}
 	tool_in->flags |= event_get_last_control_shift();
-	if(!env_t::networkmode  ||  tool_in->is_init_network_safe()  ) {
-		if (called_from_script  ||  tool_in->is_init_network_safe()) {
+	if(!env_t::networkmode  ||  tool_in->is_init_keeps_game_state()  ) {
+		if (called_from_script  ||  tool_in->is_init_keeps_game_state()) {
 			local_set_tool(tool_in, player);
 		}
 		else {
@@ -3626,7 +3626,7 @@ void karte_t::local_set_tool( tool_t *tool_in, player_t * player )
 	// now call init
 	bool init_result = tool_in->init(player);
 	// for unsafe tools init() must return false
-	assert(tool_in->is_init_network_safe()  ||  !init_result);
+	assert(tool_in->is_init_keeps_game_state()  ||  !init_result);
 
 	if (player  &&  init_result  &&  !tool_in->is_scripted()) {
 
@@ -10463,7 +10463,7 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool &suspended)
 {
 	const char *err = NULL;
-	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_keeps_game_state(player, pos);
+	bool network_safe_tool = tool->is_work_keeps_game_state() || tool->is_work_here_keeps_game_state(player, pos);
 	if(  !env_t::networkmode  ||  network_safe_tool  ) {
 		// do the work
 		tool->flags |= tool_t::WFL_LOCAL;
