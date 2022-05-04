@@ -10553,6 +10553,12 @@ const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, 
 
 
 static slist_tpl<network_world_command_t*> command_queue;
+static koord3d next_deferred_move_to = koord3d::invalid;
+
+void karte_t::set_deferred_move_to(koord3d k)
+{
+	next_deferred_move_to = k;
+}
 
 void karte_t::command_queue_append(network_world_command_t* nwc) const
 {
