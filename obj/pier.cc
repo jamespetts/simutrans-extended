@@ -481,7 +481,7 @@ void parapet_t::cleanup(player_t *){
 void parapet_t::rotate90(){
 	set_yoff(0);
 	obj_t::rotate90();
-	rotation = (rotation + 1) & 3; //rotation modulo 4
+	rotation = (rotation - 1) & 3; //rotation modulo 4
 }
 
 const char *parapet_t::is_deletable(const player_t *player){
