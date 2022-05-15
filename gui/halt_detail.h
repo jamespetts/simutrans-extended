@@ -20,7 +20,6 @@
 #include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
 #include "components/gui_tab_panel.h"
-#include "components/gui_textarea.h"
 #include "components/gui_container.h"
 #include "components/action_listener.h"
 #include "components/gui_button.h"

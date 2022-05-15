@@ -9,7 +9,6 @@
 
 #include "simwin.h"
 #include "savegame_frame.h"
-#include "components/gui_textarea.h"
 #include "../utils/cbuffer_t.h"
 
 /*

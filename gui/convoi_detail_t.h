@@ -11,7 +11,6 @@
 #include "components/gui_aligned_container.h"
 #include "components/gui_container.h"
 #include "components/gui_scrollpane.h"
-#include "components/gui_textarea.h"
 #include "components/gui_textinput.h"
 #include "components/gui_speedbar.h"
 #include "components/gui_button.h"

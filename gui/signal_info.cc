@@ -64,6 +64,10 @@ signal_info_t::signal_info_t(signal_t* const s) :
 	}
 	end_table();
 
+	remove.init(button_t::roundbox, "remove signal");
+	remove.add_listener(this);
+	add_component(&remove);
+
 	// show author below the settings
 	if (char const* const maker = sig->get_desc()->get_copyright()) {
 		gui_label_buf_t* lb = new_component<gui_label_buf_t>();
@@ -265,6 +269,24 @@ bool signal_info_t::action_triggered(gui_action_creator_t *comp, value_t)
 		create_win( new signal_connector_gui_t(sig), w_info, magic_signal_connector_gui_t );
 		return true;
 	}
+	if(  comp==&remove  &&  sig->get_owner_nr()==welt->get_active_player()->get_player_nr()  ) {
+		bool suspended_execution=false;
+		koord3d pos = sig->get_pos();
+		tool_t::general_tool[TOOL_REMOVE_SIGNAL]->set_default_param(NULL);
+		const char *err = welt->call_work( tool_t::general_tool[TOOL_REMOVE_SIGNAL], welt->get_active_player(), pos, suspended_execution );
+		if(!suspended_execution) {
+			// play sound / error message
+			welt->get_active_player()->tell_tool_result(tool_t::general_tool[TOOL_REMOVE_SIGNAL], pos, err);
+		}
+		return true;
+	}
 
 	return false;
+}
+
+
+void signal_info_t::draw( scr_coord pos, scr_size size )
+{
+	remove.enable( (sig->get_owner()==welt->get_active_player()) );
+	obj_infowin_t::draw( pos, size );
 }

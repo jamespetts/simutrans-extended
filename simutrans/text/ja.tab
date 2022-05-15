@@ -1667,6 +1667,8 @@ remove narrowgauge tracks
 ナローゲージの撤去
 remove powerlines
 送電線の撤去
+remove signal
+信号の撤去
 remove roads
 道路の撤去
 remove tracks
@@ -1800,7 +1802,7 @@ Show map scale
 Show mismatched
 不適合のサーバーを表示
 Show obsolete
-旧型を表示
+老朽車両を含む
 Show offline
 オフラインを表示
 Show only used
@@ -3214,7 +3216,7 @@ Show in the ticker
 Show in ticker
 画面下部にスクロールで表示します。
 Show outdated
-古い車両を表示
+古い車両を含む
 Show the condition of ways
 軌道の状態を表示します。
 Show the map in the same isometric orientation as the main game window
@@ -3844,7 +3846,7 @@ Available:
 Show future
 登場予定
 Show upgraded
-改造車両を表示
+改造車両を含む
 GUI settings
 GUI設定
 map view

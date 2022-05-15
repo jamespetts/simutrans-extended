@@ -282,6 +282,7 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_SET_CLIMATE:                 tool = new tool_set_climate_t();         break;
 		case TOOL_ROTATE_BUILDING:             tool = new tool_rotate_building_t();     break;
 		case TOOL_PLANT_GROUNDOBJ:             tool = new tool_plant_groundobj_t();     break;
+		case TOOL_REMOVE_SIGNAL:               tool = new tool_remove_signal_t();       break;
 		case TOOL_REASSIGN_SIGNAL_DEPRECATED:
 		case TOOL_REASSIGN_SIGNAL:             tool = new tool_reassign_signal_t();     break;
 		case TOOL_BUILD_PIER:                  tool = new tool_build_pier_t();          break;

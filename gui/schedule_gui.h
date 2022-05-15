@@ -15,7 +15,6 @@
 #include "components/gui_button.h"
 #include "components/action_listener.h"
 
-#include "components/gui_textarea.h"
 #include "components/gui_scrollpane.h"
 
 #include "../convoihandle_t.h"
