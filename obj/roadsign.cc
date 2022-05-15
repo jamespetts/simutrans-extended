@@ -832,11 +832,14 @@ void roadsign_t::display_overlay(int xpos, int ypos) const
 						const koord3d next_pos_se = get_next_pos_se(way_ribi, gr->get_weg_hang());
 						if( next_pos_se != koord3d::invalid ) {
 							schiene_t *sch_se = (schiene_t *)(welt->lookup(next_pos_se)->get_weg(wt));
-							convoihandle_t reserved_convoi = sch_se->get_reserved_convoi();
-							if (reserved_convoi.is_bound()) {
-								rail_vehicle_t* rail_vehicle = (rail_vehicle_t*)reserved_convoi->front();
-								if (rail_vehicle->get_working_method() == one_train_staff) {
-									reserve_se = true; // found
+							if (sch_se)
+							{
+								convoihandle_t reserved_convoi = sch_se->get_reserved_convoi();
+								if (reserved_convoi.is_bound()) {
+									rail_vehicle_t* rail_vehicle = (rail_vehicle_t*)reserved_convoi->front();
+									if (rail_vehicle->get_working_method() == one_train_staff) {
+										reserve_se = true; // found
+									}
 								}
 							}
 						}
