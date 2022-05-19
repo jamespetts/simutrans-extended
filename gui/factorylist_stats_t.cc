@@ -56,8 +56,10 @@ void gui_combined_factory_storage_bar_t::draw(scr_coord offset)
 
 	uint32 sum=0;
 	uint32 sum_intransit = 0; // total yellowed bar
-	const uint32 max_capacity = is_output ? fab->get_total_output_capacity() : fab->get_total_input_capacity();
-	assert(max_capacity>0);
+	uint32 max_capacity = is_output ? fab->get_total_output_capacity() : fab->get_total_input_capacity();
+	if(max_capacity==0){
+		max_capacity=1;
+	}
 	int i = 0;
 	FORX(array_tpl<ware_production_t>, const& goods, is_output ? fab->get_output() : fab->get_input(), i++) {
 		if (!is_output && !fab->get_desc()->get_supplier(i)) {
