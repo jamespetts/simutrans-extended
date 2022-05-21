@@ -553,15 +553,17 @@ void convoi_info_t::update_labels()
 		schedule_t::gimme_short_stop_name(target_label.buf(), welt, cnv->get_owner(), schedule, schedule->get_current_stop(), 50);
 	}
 	target_label.update();
-	uint8 halt_col_idx = COL_INACTIVE;
+	uint8 halt_col_idx = COL_GREY3;
 	uint8 halt_symbol_style=0;
 	const koord3d next_pos = schedule->get_current_entry().pos;
 	const halthandle_t next_halt = haltestelle_t::get_halt(next_pos, cnv->get_owner());
+	target_label.set_color(COL_INACTIVE);
 	if (next_halt.is_bound()) {
 		halt_col_idx= next_halt->get_owner()->get_player_color1();
 		if ((next_halt->registered_lines.get_count() + next_halt->registered_convoys.get_count()) > 1) {
 			halt_symbol_style = gui_schedule_entry_number_t::number_style::interchange;
 		}
+		if( next_halt->can_serve(cnv) ) target_label.set_color(SYSCOL_TEXT);
 	}
 	else if (welt->lookup(next_pos) && welt->lookup(next_pos)->get_depot() != NULL) {
 		halt_symbol_style=gui_schedule_entry_number_t::number_style::depot;
@@ -1016,6 +1018,7 @@ void convoi_info_t::rdwr(loadsave_t *file)
 	// init window
 	if(  file->is_loading()  &&  cnv.is_bound())
 	{
+		loading_bar.set_cnv(cnv);
 		init(cnv);
 
 		reset_min_windowsize();

@@ -288,14 +288,17 @@ void gui_times_history_t::build_table()
 			}
 
 			add_table(2,1); {
-				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-				lb->buf().append(halt.is_bound() ? halt->get_name() : "Wegpunkt");
+				const bool can_serve = halt.is_bound() ? line.is_bound() ? halt->can_serve(line) : halt->can_serve(convoy) : false;
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE);
+				if (!can_serve) {
+					lb->buf().printf("(%s)", halt.is_bound() ? halt->get_name() : translator::translate("Wegpunkt"));
+				}
+				else {
+					lb->buf().append(halt->get_name());
+				}
 				lb->update();
 				if (entry.reverse == 1) {
 					new_component<gui_label_t>("[<<]", SYSCOL_TEXT_STRONG);
-				}
-				else {
-					new_component<gui_empty_t>();
 				}
 			}
 			end_table();

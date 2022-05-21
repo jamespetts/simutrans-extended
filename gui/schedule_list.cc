@@ -212,8 +212,14 @@ void gui_line_waiting_status_t::init()
 				);
 
 				if (show_name) {
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-					lb->buf().append(halt->get_name());
+					const bool can_serve = halt->can_serve(line);
+					gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE);
+					if (!can_serve) {
+						lb->buf().printf("(%s)", halt->get_name());
+					}
+					else {
+						lb->buf().append(halt->get_name());
+					}
 					lb->update();
 				}
 

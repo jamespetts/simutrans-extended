@@ -2259,6 +2259,44 @@ uint32 haltestelle_t::find_route(ware_t &ware, const uint32 previous_journey_tim
 	return journey_time;
 }
 
+
+bool haltestelle_t::can_serve(linehandle_t line) const
+{
+	if ((enables&PAX) && line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
+		return true;
+	}
+	if ((enables&POST) && line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL)) {
+		return true;
+	}
+	if ((enables&WARE) && get_capacity(2)) {
+		for (uint8 catg_index=goods_manager_t::INDEX_NONE+1; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+			if( line->get_goods_catg_index().is_contained(catg_index) ) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool haltestelle_t::can_serve(convoihandle_t cnv) const
+{
+	if ((enables&PAX) && cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
+		return true;
+	}
+	if ((enables&POST) && cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL)) {
+		return true;
+	}
+	if ((enables&WARE) && get_capacity(2)) {
+		for (uint8 catg_index=goods_manager_t::INDEX_NONE+1; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+			if( cnv->get_goods_catg_index().is_contained(catg_index) ) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
 /**
  * Found route and station uncrowded
  */
