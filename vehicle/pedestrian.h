@@ -71,7 +71,7 @@ public:
 	// overloaded to enable animations
 	image_id get_image() const OVERRIDE;
 
-	//void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const OVERRIDE;
+	void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const OVERRIDE;
 
 	grund_t* hop_check() OVERRIDE;
 	void hop(grund_t* gr) OVERRIDE;

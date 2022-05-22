@@ -3488,6 +3488,11 @@ void haltestelle_t::show_info()
 	create_win( new halt_info_t(self), w_info, magic_halt_info + self.get_id() );
 }
 
+void haltestelle_t::show_detail()
+{
+	create_win(new halt_detail_t(self), w_info, magic_halt_detail + self.get_id());
+}
+
 
 sint64 haltestelle_t::calc_maintenance() const
 {

@@ -1109,6 +1109,7 @@ public:
 	* @see simwin
 	*/
 	void show_info();
+	void show_detail();
 
 	/**
 	* Get whether the convoi is traversing its schedule in reverse.

@@ -375,7 +375,12 @@ const char *tool_query_t::work( player_t *player, koord3d pos )
 
 				// show halt and labels first ...
 				if(  gr->get_halt().is_bound()  ) {
-					gr->get_halt()->show_info();
+					if(  is_shift_pressed()  ) {
+						gr->get_halt()->show_detail();
+					}
+					else {
+						gr->get_halt()->show_info();
+					}
 					if(  old_count!=win_get_open_count()  ) {
 						return NULL;
 					}

@@ -4,6 +4,7 @@
  */
 
 #include "gui_halthandled_lines.h"
+#include "gui_image.h"
 
 #include "../../simcolor.h"
 #include "../../simworld.h"
@@ -16,82 +17,99 @@
 #include "../../linehandle_t.h"
 #include "../../simline.h"
 
+
+void gui_color_label_t::draw(scr_coord offset)
+{
+	switch (style)
+	{
+	case 1:
+		display_filled_roundbox_clip(pos.x+offset.x, pos.y+offset.y, size.w, size.h, bg_color, false);
+		break;
+	default:
+		display_fillbox_wh_clip_rgb(pos.x+offset.x+1, pos.y+offset.y+1, size.w-2, size.h-2, bg_color, false);
+		break;
+	}
+
+	gui_label_buf_t::draw(scr_coord(offset.x+L_COLOR_LABEL_PADDING_X, offset.y));
+}
+
 gui_halthandled_lines_t::gui_halthandled_lines_t(halthandle_t halt)
 {
 	this->halt = halt;
+	update_table();
 }
 
-void gui_halthandled_lines_t::draw(scr_coord offset)
+void gui_halthandled_lines_t::update_table()
 {
-	static karte_ptr_t welt;
-	int xoff = 0;
-	int yoff = 0;
+	remove_all();
+	old_connex = halt->registered_convoys.get_count() + halt->registered_lines.get_count();
+	set_table_layout(simline_t::MAX_LINE_TYPE-1,1);
+	set_spacing(scr_size(2,0));
+	for( uint8 lt=1; lt < simline_t::MAX_LINE_TYPE; lt++ ) {
+		if( ( halt->get_station_type() & simline_t::linetype_to_stationtype[lt] )==0 ) {
+			continue;
+		}
 
-	if (halt.is_bound()) {
-		offset.x += pos.x;
-
-		cbuffer_t buf;
-		for (uint8 lt = 1; lt < simline_t::MAX_LINE_TYPE; lt++) {
-			if ((halt->get_station_type() & simline_t::linetype_to_stationtype[lt]) == 0) {
-				continue;
-			}
-			bool found = false;
-			for (sint8 i = 0; i < MAX_PLAYER_COUNT; i++) {
-				cbuffer_t count_buf;
-				uint line_count = 0;
-				if (!halt->registered_lines.empty()) {
-					for (uint32 line_idx = 0; line_idx < halt->registered_lines.get_count(); line_idx++) {
-						if (i == halt->registered_lines[line_idx]->get_owner()->get_player_nr()
-							&& lt == halt->registered_lines[line_idx]->get_linetype())
-						{
-							line_count++;
-							if (!found) {
-								found = true;
-								xoff += D_H_SPACE;
-								display_color_img(halt->registered_lines[line_idx]->get_linetype_symbol(), offset.x + xoff - 23, offset.y + yoff - 42 + FIXED_SYMBOL_YOFF, 0, false, true);
-								xoff += 21;
-							}
+		bool found = false;
+		for( sint8 i=0; i<MAX_PLAYER_COUNT; i++ ) {
+			//cbuffer_t count_buf;
+			uint line_count = 0;
+			if (!halt->registered_lines.empty()) {
+				for (uint32 line_idx = 0; line_idx < halt->registered_lines.get_count(); line_idx++) {
+					if (i == halt->registered_lines[line_idx]->get_owner()->get_player_nr()
+						&& lt == halt->registered_lines[line_idx]->get_linetype())
+					{
+						line_count++;
+						if (!found) {
+							found = true;
+							add_table(MAX_PLAYER_COUNT*2+2,1)->set_spacing(scr_size(2,0)); // waytypespce(1) + line"s" + convoy"s" + end_margin
+							new_component<gui_image_t>(skinverwaltung_t::get_waytype_skin(halt->registered_lines[line_idx]->get_schedule()->get_waytype())->get_image_id(0), 0, ALIGN_CENTER_V, true);
 						}
 					}
 				}
 				if (line_count) {
-					count_buf.clear();
-					count_buf.append(line_count, 0);
-					uint text_width = proportional_string_width(count_buf);
-					display_filled_roundbox_clip(offset.x + xoff, offset.y + yoff+1, text_width + 6, LINEASCENT + 4, color_idx_to_rgb(welt->get_player(i)->get_player_color1()+3), true);
-					display_proportional_clip_rgb(offset.x + xoff + 3, offset.y + yoff+2, count_buf, ALIGN_LEFT, color_idx_to_rgb(COL_WHITE), true);
-					xoff += text_width + 5 + 2;
+					cbuffer_t buf;
+					buf.append(line_count, 0);
+					new_component<gui_color_label_t>(buf, color_idx_to_rgb(COL_WHITE),  color_idx_to_rgb(world()->get_player(i)->get_player_color1()+3),1);
 				}
-				uint lineless_convoy_cnt = 0;
-				if (!halt->registered_convoys.empty()) {
-					for (uint32 c = 0; c < halt->registered_convoys.get_count(); c++) {
-						if (i == halt->registered_convoys[c]->get_owner()->get_player_nr()
-							&& lt == halt->registered_convoys[c]->get_schedule()->get_type())
-						{
-							lineless_convoy_cnt++;
-							if (!found) {
-								xoff += D_H_SPACE;
-								found = true;
-								display_color_img(halt->registered_convoys[c]->get_schedule()->get_schedule_type_symbol(), offset.x + xoff - 23, offset.y + yoff - 42, 0, false, true);
-								xoff += 21;
-							}
+			}
+			uint lineless_convoy_cnt = 0;
+			if (!halt->registered_convoys.empty()) {
+				for (uint32 c = 0; c < halt->registered_convoys.get_count(); c++) {
+					if (i == halt->registered_convoys[c]->get_owner()->get_player_nr()
+						&& lt == halt->registered_convoys[c]->get_schedule()->get_type())
+					{
+						lineless_convoy_cnt++;
+						if (!found) {
+							found = true;
+							add_table(MAX_PLAYER_COUNT*2+1,1); // waytypespce(1) + line"s"-1 + convoy"s" + end_margin
+							new_component<gui_image_t>(skinverwaltung_t::get_waytype_skin(halt->registered_convoys[c]->get_schedule()->get_waytype())->get_image_id(0), 0, ALIGN_CENTER_V, true);
 						}
 					}
-					if (lineless_convoy_cnt) {
-						count_buf.clear();
-						count_buf.append(lineless_convoy_cnt, 0);
-						uint text_width = proportional_string_width(count_buf);
-						display_fillbox_wh_clip_rgb(offset.x + xoff, offset.y + yoff+1, text_width + 4, LINEASCENT + 4, color_idx_to_rgb(COL_WHITE), true);
-						display_proportional_clip_rgb(offset.x + xoff+2, offset.y + yoff+2, count_buf, ALIGN_LEFT, color_idx_to_rgb(welt->get_player(i)->get_player_color1() + 1), true);
-						xoff += text_width + 5 + 2;
-					}
+				}
+				if (lineless_convoy_cnt) {
+					cbuffer_t buf;
+					buf.append(lineless_convoy_cnt, 0);
+					new_component<gui_color_label_t>(buf, color_idx_to_rgb(world()->get_player(i)->get_player_color1()+1));
 				}
 			}
 		}
+
+		if (found) {
+			new_component<gui_margin_t>(D_H_SPACE);
+			end_table();
+		}
 	}
-	xoff += D_H_SPACE;
-	scr_size size(xoff, yoff + LINEASCENT+4);
-	if (size != get_size()) {
-		set_size(size);
+	set_size(get_min_size());
+}
+
+void gui_halthandled_lines_t::draw(scr_coord offset)
+{
+	if( !halt.is_bound() ) return;
+
+	if (halt->registered_convoys.get_count()+halt->registered_lines.get_count() != old_connex) {
+		update_table();
 	}
+
+	gui_aligned_container_t::draw(offset);
 }

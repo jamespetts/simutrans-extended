@@ -25,6 +25,7 @@
 #include "map_frame.h"
 #include "components/gui_label.h"
 #include "components/gui_line_lettercode.h"
+#include "components/gui_halthandled_lines.h"
 
 
 #define GOODS_SYMBOL_CELL_WIDTH 14
@@ -39,7 +40,6 @@ sint16 halt_detail_t::tabstate = -1;
 halt_detail_t::halt_detail_t(halthandle_t halt_) :
 	gui_frame_t(""),
 	halt(halt_),
-	line_number(halt_),
 	pas(halt_),
 	goods(halt_),
 	cont_service(halt_),
@@ -69,7 +69,7 @@ void halt_detail_t::init()
 	set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(D_MARGIN_RIGHT, 0));
 	set_spacing(scr_size(0, D_V_SPACE));
 
-	add_component(&line_number);
+	new_component<gui_halthandled_lines_t>(halt);
 	waiting_bar = new_component<gui_halt_waiting_indicator_t>(halt);
 
 	tabs.set_pos(scr_coord(0, LINESPACE*4 + D_MARGIN_TOP + D_V_SPACE));
@@ -1692,6 +1692,9 @@ bool gui_halt_route_info_t::infowin_event(const event_t * ev)
 		if (IS_LEFTRELEASE(ev)) {
 			if (ev->cx > 0 && ev->cx < 15) {
 				welt->get_viewport()->change_world_position(halt_pos);
+			}
+			else if (IS_SHIFT_PRESSED(ev)) {
+				halt->show_detail();
 			}
 			else {
 				halt->show_info();

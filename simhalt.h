@@ -779,6 +779,7 @@ public:
 	 * Opens an information window for this station.
 	 */
 	void show_info();
+	void show_detail();
 
 	/**
 	 * @return the type of a station

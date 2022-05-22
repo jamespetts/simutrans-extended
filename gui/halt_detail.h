@@ -23,7 +23,6 @@
 #include "components/gui_container.h"
 #include "components/action_listener.h"
 #include "components/gui_button.h"
-#include "components/gui_halthandled_lines.h"
 
 class player_t;
 class gui_halt_waiting_indicator_t;
@@ -211,7 +210,6 @@ private:
 	static sint16 tabstate;
 	bool show_pas_info, show_freight_info;
 
-	gui_halthandled_lines_t line_number;
 	gui_halt_waiting_indicator_t *waiting_bar;
 	halt_detail_pas_t pas;
 	halt_detail_goods_t goods;

@@ -225,6 +225,11 @@ void pedestrian_t::generate_pedestrians_at(const koord3d k, uint32 count, uint32
 
 		for (uint32 i = 0; i < count; i++)
 		{
+			if (gr->get_top() >= 240) {
+				// tile too full
+				return;
+			}
+
 			pedestrian_t* ped = new pedestrian_t(gr, time_to_live);
 			ped->calc_height(gr);
 #ifndef MULTI_THREAD
@@ -286,29 +291,35 @@ grund_t* pedestrian_t::hop_check()
 		time_to_life = 0;
 		return NULL;
 	}
+
+	if (from->get_top() >= 240) {
+		time_to_life = 0;
+		return NULL; // target tile full, just die
+	}
+
 	return from;
 }
 
 
 void pedestrian_t::hop(grund_t *gr)
 {
-	koord3d from = get_pos();
+	const koord3d from = get_pos();
 
 	// hop
 	leave_tile();
 	set_pos(gr->get_pos());
-	// no need to call enter_tile();
-	gr->obj_add(this);
+	// no need to call enter_tile()
+
+	// if this fails, the target tile is full, but this should already have been checked in hop_check
+	const bool ok = gr->obj_add(this);
+	assert(ok); (void)ok;
 
 	// determine pos_next
 	const weg_t *weg = gr->get_weg(road_wt);
 	// new target
 	grund_t *to = NULL;
 	// current single direction
-	ribi_t::ribi current_direction = get_direction();
-	if (!ribi_t::is_single(current_direction)) {
-		current_direction = ribi_type(from, get_pos());
-	}
+	ribi_t::ribi current_direction = ribi_type(from, get_pos());
 	// ribi opposite to current direction
 	ribi_t::ribi reverse_direction = ribi_t::reverse_single( current_direction );
 	// all possible directions
@@ -330,9 +341,9 @@ void pedestrian_t::hop(grund_t *gr)
 	if (to) {
 		pos_next = to->get_pos();
 
-		if (new_direction == current_direction) {
+		if( ribi_t::is_twoway( weg->get_ribi_unmasked()) || (new_direction == current_direction) ) {
 			// going straight
-			direction = calc_set_direction(get_pos(), pos_next);
+			direction = calc_set_direction(from, pos_next);
 		}
 		else {
 			ribi_t::ribi turn_ribi = on_left ? ribi_t::rotate90l(current_direction) : ribi_t::rotate90(current_direction);
@@ -370,6 +381,32 @@ void pedestrian_t::hop(grund_t *gr)
 	}
 
 	calc_image();
+}
+
+void pedestrian_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const
+{
+	// vehicles needs finer steps to appear smoother
+	sint32 display_steps = (uint32)(steps + steps_offset)*(uint16)raster_width;
+	if(dx*dy) {
+		display_steps &= 0xFFFFFC00;
+	}
+	else {
+		display_steps = (display_steps*diagonal_multiplier)>>10;
+	}
+	xoff += (display_steps*dx) >> 10;
+	yoff += ((display_steps*dy) >> 10) + (get_hoff(raster_width))/(4*16);
+
+	if (on_left) {
+		sint32 left_off_steps = ( (VEHICLE_STEPS_PER_TILE - 2*ped_offset)*(uint16)raster_width ) & 0xFFFFFC00;
+
+		if (dx*dy==0) {
+			// diagonal
+			left_off_steps /= 2;
+		}
+		// turn left (dx,dy) increments
+		xoff += (left_off_steps*2*dy) >> 10;
+		yoff -= (left_off_steps*dx) >> (10+1);
+	}
 }
 
 void pedestrian_t::check_timeline_pedestrians()
