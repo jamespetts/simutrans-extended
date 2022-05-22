@@ -197,7 +197,7 @@ void pedestrian_t::generate_pedestrians_at(const koord3d k, uint32 count, uint32
 	if (current_pedestrians.empty())
 	{
 		return;
-	}	
+	}
 
 	grund_t* gr = welt->lookup(k);
 	if (gr) {
