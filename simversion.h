@@ -34,13 +34,13 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 #define SIM_SERVER_MINOR    7
 
 #define EX_VERSION_MAJOR	14
-#define EX_VERSION_MINOR	18
+#define EX_VERSION_MINOR	19
 #define EX_SAVE_MINOR		53
 
 // Do not forget to increment the save game versions in settings_stats.cc when changing this
 
-#define MAKEOBJ_VERSION "60.2"
-// new factory locations and provisio
+#define MAKEOBJ_VERSION "60.21"
+// accommodation name
 
 #ifndef QUOTEME
 #	define QUOTEME_(x) #x

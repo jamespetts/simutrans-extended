@@ -142,7 +142,7 @@ void halt_detail_t::init()
 		{
 			for (uint8 c = 0; c < classes; c++) {
 				button_t *cb = new button_t();
-				cb->init(button_t::roundbox_state, goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_PAS, c), scr_coord(0, 0), scr_size(CLASS_TEXT_BUTTON_WIDTH, D_BUTTON_HEIGHT));
+				cb->init(button_t::roundbox_state, goods_manager_t::get_translated_fare_class_name(goods_manager_t::INDEX_PAS, c), scr_coord(0, 0), scr_size(CLASS_TEXT_BUTTON_WIDTH, D_BUTTON_HEIGHT));
 				if (classes>1) {
 					if (c == 0) { cb->set_typ(button_t::roundbox_left_state);  }
 					else if(c == classes-1) { cb->set_typ(button_t::roundbox_right_state); }
@@ -177,7 +177,7 @@ void halt_detail_t::init()
 		{
 			for (uint8 c = 0; c < classes; c++) {
 				button_t *cb = new button_t();
-				cb->init(button_t::roundbox_state, goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_MAIL, c), scr_coord(0, 0), scr_size(CLASS_TEXT_BUTTON_WIDTH, D_BUTTON_HEIGHT));
+				cb->init(button_t::roundbox_state, goods_manager_t::get_translated_fare_class_name(goods_manager_t::INDEX_MAIL, c), scr_coord(0, 0), scr_size(CLASS_TEXT_BUTTON_WIDTH, D_BUTTON_HEIGHT));
 				if (classes > 1) {
 					if (c == 0) { cb->set_typ(button_t::roundbox_left_state); }
 					else if (c == classes - 1) { cb->set_typ(button_t::roundbox_right_state); }
@@ -438,8 +438,7 @@ void halt_detail_t::update_components()
 		}
 		lb_selected_route_catg.buf().append(translator::translate(goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_catg_name()));
 		if (goods_manager_t::get_info_catg_index(selected_route_catg_index)->get_number_of_classes()>1) {
-			// TODO: wealth class => fare class
-			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_wealth_name(selected_route_catg_index, selected_class));
+			lb_selected_route_catg.buf().printf(" > %s", goods_manager_t::get_translated_fare_class_name(selected_route_catg_index, selected_class));
 		}
 		destinations.build_halt_list(selected_route_catg_index, selected_class, list_by_station);
 		lb_selected_route_catg.update();

@@ -354,7 +354,10 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				lb_last_renewed->update();
 			}
 			else {
-				new_component_span<gui_label_t>("Degraded", 2)->set_color(SYSCOL_OBSOLETE);
+				gui_label_buf_t* lb_degraded = new_component_span<gui_label_buf_t>(2);
+				lb_degraded->buf().printf("(%s: %s)", translator::translate("Degraded"), translator::get_short_date(way->get_last_renewal_monty_year() / 12, way->get_creation_month_year() % 12));
+				lb_degraded->set_color(SYSCOL_OBSOLETE);
+				lb_degraded->set_fixed_width(148);
 				new_component<gui_empty_t>();
 			}
 

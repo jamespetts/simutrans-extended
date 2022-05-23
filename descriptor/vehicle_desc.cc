@@ -284,6 +284,14 @@ void vehicle_desc_t::fix_number_of_classes()
 		delete[] comfort_copy;
 		delete[] capacity_copy;
 	}
+	if (accommodation_classes) {
+		accommodation_classes = 0;
+		for (uint8 i = 0; i < classes; i++) {
+			if (capacity[i] > 0) {
+				accommodation_classes++;
+			}
+		}
+	}
 }
 
 
@@ -375,6 +383,7 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(len);
 	chk->input(leader_count);
 	chk->input(trailer_count);
+	chk->input(accommodation_classes);
 	chk->input((uint8)engine_type);
 	// freight
 	const xref_desc_t *xref = get_child<xref_desc_t>(2);
@@ -447,6 +456,29 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 	return upgrade_state;
 }
 
+const char* vehicle_desc_t::get_accommodation_name(uint8 a_class) const
+{
+	if (a_class > classes || !capacity[a_class]) {
+		return NULL;
+	}
+	else if (!accommodation_classes) {
+		// old pak => return default
+		return goods_manager_t::get_default_accommodation_class_name(get_freight_type()->get_catg_index(), a_class);
+	}
+	uint8 count = 0;
+	for (uint8 i = 0; i < classes; i++) {
+		if (a_class == i) {
+			const char* text = get_child<text_desc_t>(get_add_to_node() + trailer_count + leader_count + upgrades + count)->get_text();
+			if (text[0]=='\0') {
+				return goods_manager_t::get_default_accommodation_class_name(get_freight_type()->get_catg_index(), a_class);
+			}
+			return text;
+		}
+		if (capacity[i] > 0) {
+			count++;
+		}
+	}
+}
 
 // The old pak doesn't have a basic constraint, so add a value referring to the constraint.
 // Note: This is ambiguous because it does not have data of cab and constraint[prev]=any.

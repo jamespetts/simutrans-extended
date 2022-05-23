@@ -1355,10 +1355,12 @@ void haltestelle_t::step()
 								passengers_walked = true;
 							}
 
-							if(tmp.get_zwischenziel().is_bound() && shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos())) <= max_walking_distance)
+							const uint32 distance_to_transfer = shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos()));
+							if(tmp.get_zwischenziel().is_bound() && distance_to_transfer <= max_walking_distance)
 							{
 								// Passengers can walk to their next transfer.
-								pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge);
+								const uint32 walking_time = welt->walking_time_tenths_from_distance(distance_to_transfer);
+								pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge, world()->get_seconds_to_ticks(walking_time * 6));
 								tmp.set_last_transfer(self);
 								tmp.get_zwischenziel()->liefere_an(tmp, 1);
 								passengers_walked = true;
@@ -1565,7 +1567,7 @@ uint32 haltestelle_t::reroute_goods(const uint8 catg)
 			   && !get_preferred_convoy(ware.get_zwischenziel(), 0, ware.get_class()).is_bound()
 			   && !get_preferred_line(ware.get_zwischenziel(), 0, ware.get_class()).is_bound())
 			{
-				pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge);
+				pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge, 12000);
 				ware.get_zwischenziel()->liefere_an(ware, 1); // start counting walking steps at 1 again
 				continue;
 			}
@@ -3158,7 +3160,7 @@ void haltestelle_t::starte_mit_route(ware_t ware, koord origin_pos)
 		// This is a bug which should be fixed.  The passenger has already walked here,
 		// and presumably does not wish to walk further... --neroden
 		// If this is within walking distance of the next transfer, and there is not a faster way there, walk there.
-		pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge);
+		pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge, 12000);
 		ware.set_last_transfer(self);
 		ware.get_zwischenziel()->liefere_an(ware, 1);
 		return;
@@ -3355,7 +3357,6 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 			sint64 best_arrival_time_transfer = ware.get_zwischenziel() != ware.get_ziel() ? calc_earliest_arrival_time_at(ware.get_zwischenziel(), dummy, ware.get_desc()->get_catg_index(), ware.g_class) : SINT64_MAX_VALUE;
 
 			const sint64 arrival_after_walking_to_destination = welt->get_seconds_to_ticks(welt->walking_time_tenths_from_distance((uint32)straight_line_distance_destination) * 6) + welt->get_ticks();
-
 			const uint16 straight_line_distance_to_next_transfer = shortest_distance(get_init_pos(), ware.get_zwischenziel()->get_next_pos(get_next_pos(ware.get_zwischenziel()->get_basis_pos())));
 			const sint64 arrival_after_walking_to_next_transfer = welt->get_seconds_to_ticks(welt->walking_time_tenths_from_distance((uint32)straight_line_distance_to_next_transfer) * 6) + welt->get_ticks();
 
@@ -3389,7 +3390,8 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 		{
 			// If this is within walking distance of the next transfer, and there is not a faster way there, walk there.
 		walking:
-			pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge);
+			const uint16 straight_line_distance_to_next_transfer = shortest_distance(get_init_pos(), ware.get_zwischenziel()->get_next_pos(get_next_pos(ware.get_zwischenziel()->get_basis_pos())));
+			pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), ware.menge, welt->get_seconds_to_ticks(welt->walking_time_tenths_from_distance((uint32)straight_line_distance_to_next_transfer) * 6));
 			ware.set_last_transfer(self);
 			ware.get_zwischenziel()->liefere_an(ware, walked_between_stations + 1);
 			return;

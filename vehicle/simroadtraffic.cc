@@ -962,7 +962,7 @@ void private_car_t::enter_tile(grund_t* gr)
 		// delete it ...
 		time_to_life = 0;
 		uint32 number = 2;
-		pedestrian_t::generate_pedestrians_at(get_pos(), number);
+		pedestrian_t::generate_pedestrians_at(get_pos(), number, 6000);
 	}
 	vehicle_base_t::enter_tile(gr);
 	get_weg()->book(1, WAY_STAT_CONVOIS);

@@ -44,8 +44,8 @@ void gui_convoy_payloadinfo_t::draw(scr_coord offset)
 						buf.clear();
 						display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), offset.x + left, offset.y, 0, false, false);
 						left += 12;
-						// [class name]
-						buf.append(goods_manager_t::get_translated_wealth_name(catg_index, i));
+						// [fare class name]
+						buf.append(goods_manager_t::get_translated_fare_class_name(catg_index, i));
 
 						buf.printf(" %i/%i", cargo_sum, capacity);
 						left += display_proportional_clip_rgb(offset.x + left, offset.y, buf, ALIGN_LEFT, text_col, true);

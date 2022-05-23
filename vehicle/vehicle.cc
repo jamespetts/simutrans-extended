@@ -2305,18 +2305,18 @@ uint16 vehicle_t::get_reassigned_class(uint8 g_class) const
 }
 
 
-uint8 vehicle_t::get_number_of_accommodation_classes() const
+uint8 vehicle_t::get_number_of_fare_classes() const
 {
-	uint8 accommodation_classes = 0;
+	uint8 fare_classes = 0;
 	for (uint8 i = 0; i < number_of_classes; i++) {
 		if (get_fare_capacity(i)) {
-			accommodation_classes++;
+			fare_classes++;
 		}
 	}
-	if (!accommodation_classes && desc->get_overcrowded_capacity()) {
-		accommodation_classes++;
+	if (!fare_classes && desc->get_overcrowded_capacity()) {
+		fare_classes++;
 	}
-	return accommodation_classes;
+	return fare_classes;
 }
 
 

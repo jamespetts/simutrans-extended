@@ -1655,7 +1655,7 @@ void *step_passengers_and_mail_threaded(void* args)
 {
 	const uint32* thread_number_ptr = (const uint32*)args;
 	karte_t::passenger_generation_thread_number = *thread_number_ptr;
-	const uint32 seed_base = karte_t::world->get_settings().get_random_counter();
+	const uint32 seed_base = max(karte_t::world->get_settings().get_random_counter(), 1);
 
 	// This may easily overflow, but this is irrelevant for the purposes of a random seed
 	// (so long as both server and client are using the same size of integer)
@@ -6024,7 +6024,8 @@ void karte_t::step()
 #ifdef MULTI_THREAD_CONVOYS
 	// Start the convoys' route finding as soon as possible after the convoys have been stepped: this maximises efficiency and concurrency.
 	// Since it is mostly route finding in the multi-threaded convoy step, it is safe to have this concurrent with everything but the single-
-	// threaded convoy step, and anything that modifies potential routes.
+	// threaded convoy step, and anything that modifies potential routes. It is also potentially a problem to have this running during a
+	// sync step: see here: https://forum.simutrans.com/index.php/topic,20994.0.html. However, this is uncertain.
 	// This also (probably) needs to start after the path explorer, as it can modify the reversing flag of schedules/lines. Starting before
 	// the path explorer would thus lead to a race condition.
 	start_convoy_threads();
@@ -6340,7 +6341,7 @@ void karte_t::deposit_ware_at_destination(ware_t ware)
 				}
 				if (pos_pedestrians != koord3d::invalid)
 				{
-					pedestrian_t::generate_pedestrians_at(pos_pedestrians, menge);
+					pedestrian_t::generate_pedestrians_at(pos_pedestrians, menge, 6000);
 				}
 			}
 		}
@@ -7238,7 +7239,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			// create pedestrians in the near area?
 			if(settings.get_random_pedestrians() && wtyp == goods_manager_t::passengers)
 			{
-				pedestrian_t::generate_pedestrians_at(origin_pos, units_this_step);
+				pedestrian_t::generate_pedestrians_at(origin_pos, units_this_step, 6000);
 			}
 			// We cannot do this on arrival, as the ware packets do not remember their origin building.
 			// However, as for the destination, this can be set when the passengers arrive.

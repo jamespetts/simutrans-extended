@@ -471,7 +471,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 7)
+			if(extended_version < 8)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -708,6 +708,10 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		if (desc->can_lead_from_rear == true && desc->bidirectional == false) {
 			desc->bidirectional = true;
 		}
+	}
+
+	if (version < 11 || (version == 11 && extended && extended_version < 7)) {
+		desc->accommodation_classes = 0;
 	}
 
 	if(desc->sound==LOAD_SOUND) {

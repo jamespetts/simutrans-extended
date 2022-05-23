@@ -2533,8 +2533,11 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 				{
 					if (veh_type->get_capacity(i) > 0)
 					{
+						if (veh_type->get_number_of_classes()>1) {
+							buf.printf("[%u] ", i+1);
+						}
 						buf.printf("%s: %3d %s %s",
-							goods_manager_t::get_translated_wealth_name(veh_type->get_freight_type()->get_catg_index(), i),
+							translator::translate(veh_type->get_accommodation_name(i)),
 							veh_type->get_capacity(i),
 							translator::translate(veh_type->get_freight_type()->get_mass()),
 							translator::translate(veh_type->get_freight_type()->get_name()));

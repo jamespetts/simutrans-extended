@@ -80,7 +80,7 @@ public:
 	static bool register_desc(const pedestrian_desc_t *desc);
 	static bool successfully_loaded();
 
-	static void generate_pedestrians_at(koord3d k, uint32 count, uint32 time_to_live = 0);
+	static void generate_pedestrians_at(koord3d k, uint32 count, uint32 time_to_live);
 
 	static void check_timeline_pedestrians();
 };

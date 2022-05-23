@@ -68,9 +68,9 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		vehicle_t *v = cnv->get_vehicle(veh);
 
 		// set the loading indicator color
-		if (v->get_number_of_accommodation_classes()) {
+		if (v->get_number_of_fare_classes()) {
 			int bar_offset_left = 0;
-			int bar_width = (grid_width - 3) / v->get_number_of_accommodation_classes() - 1;
+			int bar_width = (grid_width - 3) / v->get_number_of_fare_classes() - 1;
 
 			// drawing the color bar
 			int found = 0;
@@ -90,7 +90,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
 					bar_offset_left += bar_width + 1;
 					found++;
-					if (found == v->get_number_of_accommodation_classes()) {
+					if (found == v->get_number_of_fare_classes()) {
 						break;
 					}
 				}
@@ -196,7 +196,7 @@ scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 						display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), offset.x + left, offset.y + top + FIXED_SYMBOL_YOFF, 0, false, false);
 						left += 12;
 						// [class name]
-						buf.append(goods_manager_t::get_translated_wealth_name(catg_index, i));
+						buf.append(goods_manager_t::get_translated_fare_class_name(catg_index, i));
 
 						buf.printf(" %i/%i", cargo_sum, capacity);
 						left += display_proportional_clip_rgb(offset.x + left, offset.y + top, buf, ALIGN_LEFT, text_col, true);

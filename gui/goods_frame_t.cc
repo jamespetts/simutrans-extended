@@ -329,7 +329,7 @@ void goods_frame_t::update_fare_charts()
 	lb_no_speed_bonus.set_visible( (wtyp->get_speed_bonus()==0) );
 	if (selected_goods < goods_manager_t::INDEX_NONE) {
 		// fare class name
-		lb_selected_class.buf().append(goods_manager_t::get_translated_wealth_name(selected_goods, g_class));
+		lb_selected_class.buf().append(goods_manager_t::get_translated_fare_class_name(selected_goods, g_class));
 		lb_selected_class.set_color(SYSCOL_TEXT);
 	}
 	else {

@@ -8795,7 +8795,7 @@ sint16 convoi_t::get_car_numbering(uint8 car_no) const
 	uint8 normal_car_cnt = 0; // It also serves as a flag that the locomotive counting is over
 
 	for (uint8 veh = 0; veh < car_no; veh++) {
-		if (vehicle[veh]->get_number_of_accommodation_classes()) {
+		if (vehicle[veh]->get_number_of_fare_classes()) {
 			normal_car_cnt++;
 		}
 		else {

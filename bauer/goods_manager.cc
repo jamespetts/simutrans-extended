@@ -33,13 +33,31 @@ static special_obj_tpl<goods_desc_t> const special_objects[] = {
 	{ NULL, NULL }
 };
 
-static char const wealth_class_name_untranslated_pas[5][32] = {
+static char const* wealth_class_name_untranslated_pas[5] = {
 	"p_class[0]", "p_class[1]", "p_class[2]", "p_class[3]", "p_class[4]"
 };
 
-static char const wealth_class_name_untranslated_mail[5][32] = {
+static char const* wealth_class_name_untranslated_mail[5] = {
 	"m_class[0]", "m_class[1]", "m_class[2]", "m_class[3]", "m_class[4]"
 };
+
+static char const* fare_class_name_untranslated_pas[5] = {
+	"p_fare[0]", "p_fare[1]", "p_fare[2]", "p_fare[3]", "p_fare[4]"
+};
+
+static char const* fare_class_name_untranslated_mail[5] = {
+	"m_fare[0]", "m_fare[1]", "m_fare[2]", "m_fare[3]", "m_fare[4]"
+};
+
+static char const* default_accommodation_name_untranslated_pas[5] = {
+	"p_accommodation[0]", "p_accommodation[1]", "p_accommodation[2]", "p_accommodation[3]", "p_accommodation[4]"
+};
+
+static char const* default_accommodation_name_untranslated_mail[5] = {
+	"m_accommodation[0]", "m_accommodation[1]", "m_accommodation[2]", "m_accommodation[3]", "m_accommodation[4]"
+};
+
+
 
 bool goods_manager_t::successfully_loaded()
 {
@@ -216,6 +234,34 @@ const char * goods_manager_t::get_translated_wealth_name(const uint8 catg_index,
 	}
 	else if (catg_index == goods_manager_t::INDEX_MAIL) {
 		return translator::translate(wealth_class_name_untranslated_mail[g_class]);
+	}
+	return "\0";
+}
+
+const char * goods_manager_t::get_translated_fare_class_name(const uint8 catg_index, const uint8 f_class = 0)
+{
+	if (f_class >= get_classes_catg_index(catg_index)) {
+		return "\0";
+	}
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return translator::translate(fare_class_name_untranslated_pas[f_class]);
+	}
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return translator::translate(fare_class_name_untranslated_mail[f_class]);
+	}
+	return "\0";
+}
+
+const char * goods_manager_t::get_default_accommodation_class_name(const uint8 catg_index, const uint8 a_class = 0)
+{
+	if (a_class >= get_classes_catg_index(catg_index)) {
+		return "\0";
+	}
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return default_accommodation_name_untranslated_pas[a_class];
+	}
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return default_accommodation_name_untranslated_mail[a_class];
 	}
 	return "\0";
 }

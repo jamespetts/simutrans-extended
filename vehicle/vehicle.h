@@ -533,7 +533,7 @@ public:
 
 	uint16 get_reassigned_class(uint8 g_class) const;
 
-	uint8 get_number_of_accommodation_classes() const;
+	uint8 get_number_of_fare_classes() const;
 
 	/**
 	* Calculate transported cargo total weight in KG
