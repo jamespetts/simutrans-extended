@@ -1112,7 +1112,7 @@ void air_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	file->rdwr_long(takeoff);
 	if (file->is_version_ex_atleast(14, 54))
 	{
-		file->rdwr_longlong(go_on_ticks); 
+		file->rdwr_longlong(go_on_ticks);
 	}
 	else
 	{
