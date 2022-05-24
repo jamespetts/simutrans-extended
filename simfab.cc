@@ -1242,11 +1242,14 @@ bool fabrik_t::add_random_field(uint16 probability)
 			for(sint32 yoff =-radius ; yoff < radius + get_desc()->get_building()->get_size().y; yoff++) {
 				// if we can build on this tile then add it to the list
 				grund_t *gr = welt->lookup_kartenboden(pos.get_2d()+koord(xoff,yoff));
+				// Check for runways
+				const karte_t::runway_info ri = welt->check_nearby_runways(pos.get_2d());
 				if (gr != NULL &&
 						gr->get_typ()        == grund_t::boden &&
 						(gr->get_hoehe()     == pos.z || gr->get_hoehe() == pos.z + 1 || gr->get_hoehe() == pos.z - 1) &&
 						gr->get_grund_hang() == slope_t::flat &&
 						gr->ist_natur() &&
+						ri.pos == koord::invalid &&
 						(gr->find<leitung_t>() || gr->kann_alle_obj_entfernen(NULL) == NULL)) {
 					// only on same height => climate will match!
 					build_locations.append(gr);

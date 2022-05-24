@@ -100,6 +100,7 @@ ribi_t::ribi air_vehicle_t::get_ribi(const grund_t *gr) const
 	switch(state) {
 		case taxiing:
 		case looking_for_parking:
+		case awaiting_clearance_on_runway:
 			return gr->get_weg_ribi(air_wt);
 
 		case taxiing_to_halt:
@@ -185,6 +186,11 @@ bool air_vehicle_t::check_next_tile(const grund_t *bd) const
 //DBG_MESSAGE("air_vehicle_t::check_next_tile()","(cnv %i) in idx %i",cnv->self.get_id(),route_index );
 			// here a height check could avoid too high mountains
 			return true;
+		}
+
+		case awaiting_clearance_on_runway:
+		{
+			return false;
 		}
 	}
 	return false;
@@ -806,9 +812,26 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 			return false;
 		}
 		// stop shortly at the end of the runway
-		state = departing;
+		state = awaiting_clearance_on_runway;
+		go_on_ticks = welt->get_ticks() + welt->get_seconds_to_ticks(10);
+		direction = ribi_t::backward(direction);
+		calc_image();
+		direction = ribi_t::backward(direction);
 		restart_speed = 0;
 		return false;
+	}
+
+	if (state == awaiting_clearance_on_runway)
+	{
+		if (welt->get_ticks() >= go_on_ticks)
+		{
+			state = departing;
+		}
+		else
+		{
+			restart_speed = 0;
+			return false;
+		}
 	}
 
 //DBG_MESSAGE("air_vehicle_t::can_enter_tile()","index %i<>%i",route_index,touchdown);
@@ -987,6 +1010,7 @@ air_vehicle_t::air_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* 
 	cnv = cn;
 	state = taxiing;
 	flying_height = 0;
+	go_on_ticks = 0;
 	target_height = pos.z;
 	runway_too_short = false;
 	airport_too_close_to_the_edge = false;
@@ -1086,6 +1110,14 @@ void air_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	file->rdwr_long(search_for_stop);
 	file->rdwr_long(touchdown);
 	file->rdwr_long(takeoff);
+	if (file->is_version_ex_atleast(14, 54))
+	{
+		file->rdwr_longlong(go_on_ticks);
+	}
+	else
+	{
+		go_on_ticks = 0;
+	}
 }
 
 

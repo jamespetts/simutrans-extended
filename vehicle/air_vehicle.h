@@ -19,13 +19,14 @@ class air_vehicle_t : public vehicle_t
 {
 public:
 	enum flight_state {
-		taxiing             = 0,
-		departing           = 1,
-		flying              = 2,
-		landing             = 3,
-		looking_for_parking = 4,
-		circling            = 5,
-		taxiing_to_halt     = 6
+		taxiing							= 0,
+		departing						= 1,
+		flying							= 2,
+		landing							= 3,
+		looking_for_parking				= 4,
+		circling						= 5,
+		taxiing_to_halt					= 6,
+		awaiting_clearance_on_runway	= 7
 	};
 
 private:
@@ -36,6 +37,9 @@ private:
 	// checking runway length in order to display
 	// the correct error message.
 	bool ignore_runway_length = false;
+
+	// The tick value a which this aircraft will start moving.
+	sint64 go_on_ticks;
 
 #ifdef USE_DIFFERENT_WIND
 	static uint8 get_approach_ribi( koord3d start, koord3d ziel );
