@@ -410,9 +410,14 @@ void gui_vehicle_cargo_info_t::update()
 														}
 
 														// via halt(=w.get_ziel())
-														new_component<gui_label_t>(show_loaded_detail==by_destination_halt ? " > " : " via");
+														if (show_loaded_detail == by_destination_halt) {
+															new_component<gui_label_t>(" > ");
+														}
+														else if (w.get_ziel().is_bound() && w.get_ziel() != w.get_zwischenziel()) {
+															new_component<gui_label_t>(" via");
+														}
 
-														if (w.get_ziel().is_bound()) {
+														if (w.get_ziel().is_bound() && w.get_ziel()!=w.get_zwischenziel()) {
 															const bool is_interchange = (w.get_ziel().get_rep()->registered_lines.get_count() + w.get_ziel().get_rep()->registered_convoys.get_count()) > 1;
 															new_component<gui_schedule_entry_number_t>(-1, w.get_ziel().get_rep()->get_owner()->get_player_color1(),
 																is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
@@ -439,9 +444,6 @@ void gui_vehicle_cargo_info_t::update()
 																}
 																lb->update();
 															}
-														}
-														else {
-															new_component_span<gui_label_t>("unknown", show_loaded_detail==by_destination_halt ? 3:2); // e.g. halt was removed
 														}
 													}
 													end_table();
