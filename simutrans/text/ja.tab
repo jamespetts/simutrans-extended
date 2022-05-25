@@ -2771,6 +2771,10 @@ Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers a
 産業:%sの閉鎖に伴い、%d人の雇用が失われ、%dの供給元と%dの需要先の産業が影響を受けました。
 infinite_range
 有効範囲の制限なし
+Infinite mouse scrolling
+マップスクロール時にポインタ位置を固定（マウス使用時推奨）
+Infinite scrolling using mouse
+windowモードではオフにした場合に画面の外にマウスポインタが移動することがあります。※タッチスクリーンでは動作しない可能性があります！
 Interest
 利子
 intermediate_signal

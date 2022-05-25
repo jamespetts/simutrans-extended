@@ -4229,7 +4229,14 @@ void karte_t::set_tool( tool_t *tool_in, player_t *player )
 	}
 	tool_in->flags |= event_get_last_control_shift();
 	if(!env_t::networkmode  ||  tool_in->is_init_network_safe()  ) {
-		local_set_tool(tool_in, player);
+		if (tool_in->is_init_network_safe()) {
+			local_set_tool(tool_in, player);
+		}
+		else {
+			// queue tool for execution
+			nwc_tool_t* nwc = new nwc_tool_t(player, tool_in, zeiger->get_pos(), steps, map_counter, true);
+			command_queue_append(nwc);
+		}
 	}
 	else {
 		// queue tool for network
@@ -4256,7 +4263,7 @@ void karte_t::local_set_tool( tool_t *tool_in, player_t * player )
 	// for unsafe tools init() must return false
 	assert(tool_in->is_init_network_safe()  ||  !init_result);
 
-	if (player && init_result) {
+	if (player  &&  init_result  &&  !tool_in->is_scripted()) {
 
 		set_dirty();
 		tool_t *sp_tool = selected_tool[player->get_player_nr()];
@@ -4947,6 +4954,8 @@ void karte_t::sync_step(uint32 delta_t, bool do_sync_step, bool display )
 	rands[6] = get_random_seed();
 
 	clear_random_mode( SYNC_STEP_RANDOM );
+
+	eventmanager->check_events();
 }
 
 
@@ -5011,10 +5020,12 @@ void karte_t::update_frame_sleep_time()
 		// way too slow => try to increase time ...
 		if(  last_ms-last_interaction > 100  ) {
 			if(  last_ms-last_interaction > 500  ) {
+				idle_time >>= 1;
 				set_frame_time( 1+get_frame_time() );
 				// more than 1s since last zoom => check if zoom out is a way to improve it
-				if(  last_ms-last_interaction > 5000  &&  get_current_tile_raster_width() < 32  ) {
+				if(  last_ms-last_interaction > 5000  &&  get_current_tile_raster_width() < 32  && realFPS <= 80  ) {
 					zoom_factor_up();
+					viewport->metrics_updated();
 					set_dirty();
 					last_interaction = last_ms-1000;
 				}
@@ -5616,7 +5627,7 @@ void karte_t::step()
 	}
 	else if(  step_mode==FAST_FORWARD  ) {
 		// fast forward first: get average simloops (i.e. calculate acceleration)
-		last_step_nr[steps%32] = dr_time();
+		last_step_nr[steps%32] = time;
 		int last_5_simloops = simloops;
 		if(  last_step_nr[(steps+32-5)%32] < last_step_nr[steps%32]  ) {
 			// since 5 steps=1s
@@ -9546,16 +9557,13 @@ DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 		if(  env_t::server  ) {
 			// since the sync should have been the last command on the clients due to tcp, only clear command queue on the server
 			clear_command_queue();
-		}
 
-		if(  env_t::server  ) {
 			step_mode = FIX_RATIO;
-			if(  env_t::server  ) {
-				// meaningless to use a locked map; there are passwords now
-				settings.set_allow_player_change(true);
-				// language of map becomes server language
-				settings.set_name_language_iso(translator::get_lang()->iso_base);
-			}
+
+			// meaningless to use a locked map; there are passwords now
+			settings.set_allow_player_change(true);
+			// language of map becomes server language
+			settings.set_name_language_iso(translator::get_lang()->iso_base);
 
 			if(  server_reload_pwd_hashes  ) {
 				char fn[256];
@@ -10950,7 +10958,8 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool &suspended)
 {
 	const char *err = NULL;
-	if (!env_t::networkmode || tool->is_work_network_safe() || tool->is_work_here_network_safe(player, pos)) {
+	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_network_safe(player, pos);
+	if(  !env_t::networkmode  ||  network_safe_tool  ) {
 		// do the work
 		tool->flags |= tool_t::WFL_LOCAL;
 		// check allowance by scenario
@@ -10963,9 +10972,22 @@ const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool
 			}
 		}
 		if (err == NULL) {
-			err = tool->work(player, pos);
+			if (network_safe_tool) {
+				err = tool->work(player, pos);
+				suspended = false;
+			}
+			else {
+				// queue tool for execution (will be only done when NOT in networkmode!)
+				nwc_tool_t* nwc = new nwc_tool_t(player, tool, pos, get_steps(), get_map_counter(), false);
+				command_queue_append(nwc);
+				// reset tool
+				tool->init(player);
+				suspended = true;
+			}
 		}
-		suspended = false;
+		else {
+			suspended = false;
+		}
 	}
 	else {
 		// queue tool for network
@@ -11316,9 +11338,7 @@ bool karte_t::interactive(uint32 quit_month)
 			DBG_DEBUG4("karte_t::interactive", "end of sound");
 		}
 
-		// check events queued since our last iteration
-		eventmanager->check_events();
-
+		// events are now checked during each screen update for quicker feedback on scrolling etc.
 		if (env_t::quit_simutrans){
 			break;
 		}
@@ -11334,11 +11354,21 @@ bool karte_t::interactive(uint32 quit_month)
 			DBG_DEBUG4("karte_t::interactive", "can I get some sleep?");
 			INT_CHECK( "karte_t::interactive()" );
 			const sint32 wait_time = (sint32)(next_step_time-dr_time());
-			if(wait_time>0) {
-				dr_sleep(min(wait_time, 3));
-				INT_CHECK( "karte_t::interactive()" );
+			if(wait_time>2) {
+				dr_sleep(2);
+				INT_CHECK("karte_t::interactive()");
 			}
 			DBG_DEBUG4("karte_t::interactive", "end of sleep");
+
+			// process enqueued network world commands
+			while (!command_queue.empty()) {
+				network_world_command_t* nwc = command_queue.remove_first();
+				if (nwc) {
+					nwc->do_command(this);
+					delete nwc;
+				}
+			}
+			INT_CHECK("karte_t::interactive()");
 		}
 
 		// time for the next step?
@@ -11355,6 +11385,7 @@ bool karte_t::interactive(uint32 quit_month)
 					{
 						// only update display
 						idle_time = 100;
+						eventmanager->check_events();
 					}
 			}
 			else if (env_t::networkmode && !env_t::server && sync_steps >= sync_steps_barrier) {
@@ -11432,12 +11463,21 @@ bool karte_t::interactive(uint32 quit_month)
 						set_pause(true);
 					}
 				}
-				else { // Normal step mode
+				else {
+					// Normal step mode
 					INT_CHECK( "karte_t::interactive()" );
 					set_random_mode( STEP_RANDOM );
 					step();
 					clear_random_mode( STEP_RANDOM );
-					idle_time = ((idle_time*7) + next_step_time - dr_time())/8;
+					uint32 cur_time = dr_time();
+					if (next_step_time > cur_time) {
+						// slowly change idel time
+						idle_time = ( (idle_time * 7) + (next_step_time - cur_time) ) / 8;
+					}
+					else {
+						// but half if we are really far behind
+						idle_time >>= 1;
+					}
 					INT_CHECK( "karte_t::interactive()" );
 				}
 			}

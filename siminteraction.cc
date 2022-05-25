@@ -27,25 +27,23 @@
 
 karte_ptr_t interaction_t::world;
 
-
 void interaction_t::move_view( const event_t &ev )
 {
 	koord new_ij = viewport->get_world_position();
 
-	sint16 new_xoff = viewport->get_x_off() - (ev.mx-ev.cx) * env_t::scroll_multi;
-	sint16 new_yoff = viewport->get_y_off() - (ev.my-ev.cy) * env_t::scroll_multi;
+	sint16 new_xoff = viewport->get_x_off() - (ev.mx - ev.cx) * env_t::scroll_multi;
+	sint16 new_yoff = viewport->get_y_off() - (ev.my - ev.cy) * env_t::scroll_multi;
 
 	// this sets the new position and mark screen dirty
 	// => with next refresh we will be at a new location
 	viewport->change_world_position( new_ij, new_xoff, new_yoff );
 
 	// move the mouse pointer back to starting location => infinite mouse movement
-	if(  (ev.mx - ev.cx) != 0  ||  (ev.my-ev.cy) !=0  ) {
-		change_drag_start(ev.mx - ev.cx, ev.my - ev.cy);
-#if 0
-		// move pointer catches the mouse inside the windows but is incompatible with any touch based scolling
-		move_pointer(ev.cx, ev.cy);
-#endif
+	if ((ev.mx - ev.cx) != 0 || (ev.my - ev.cy) != 0) {
+		if(!env_t::scroll_infinite  ||  !move_pointer(ev.cx, ev.cy)) {
+			// fails in finger mode
+			change_drag_start(ev.mx - ev.cx, ev.my - ev.cy);
+		}
 	}
 }
 

@@ -384,12 +384,13 @@ void dr_textur(int xp, int yp, int w, int h)
 
 
 // move cursor to the specified location
-void move_pointer(int x, int y)
+bool move_pointer(int x, int y)
 {
 	POINT pt = { ((long)x*x_scale+16)/32, ((long)y*y_scale+16)/32 };
 
 	ClientToScreen(hwnd, &pt);
 	SetCursorPos(pt.x, pt.y);
+	return true;
 }
 
 
