@@ -86,6 +86,7 @@ protected:
 	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
 	void enter_tile(grund_t*) OVERRIDE;
+	void leave_tile() OVERRIDE;
 
 	int block_reserver( uint32 start, uint32 end, bool reserve ) const;
 

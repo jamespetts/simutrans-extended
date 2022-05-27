@@ -628,7 +628,7 @@ route_t::route_result_t air_vehicle_t::reroute(const uint16 reroute_index, const
 
 
 /* reserves runways (reserve true) or removes the reservation
- * finishes when reaching end tile or leaving the ground (end of runway)
+ * finishes when reaching end of runway
  * @return true if the reservation is successful
  */
 int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) const
@@ -673,15 +673,23 @@ int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) cons
 					end = i;
 					break;
 				}
-				// reserve to the minimum runway length...
-				uint16 current_runway_length_meters = ((i+1)-start)*welt->get_settings().get_meters_per_tile();
-				if(i>start && current_runway_length_meters>min_runway_length_meters){
-					//					std::cout << "reached minimum runway length? min = "<<min_runway_length_meters <<", len = "<<runway_meters << ", i="<<i<<std::endl;
-					success = success == 0 ? 0 : runway_meters >= min_runway_length_meters ? 1 : 2;
-					return success;
-				}
 
-				// end of runway? <- this will not be executed.
+				// We want to reserve the whole length of the runway to prevent conflicts.
+				// Currently, this only works on takeoff. Landing is more difficult, as
+				// the path finder does not necessarily find a path along the whole length of the runway.
+				/*
+				// reserve to the minimum runway length...
+				if (state != taxiing && state != awaiting_clearance_on_runway)
+				{
+					uint16 current_runway_length_meters = ((i + 1) - start) * welt->get_settings().get_meters_per_tile();
+					if (i > start&& current_runway_length_meters > min_runway_length_meters) {
+						success = success == 0 ? 0 : runway_meters >= min_runway_length_meters ? 1 : 2;
+						return success;
+					}
+				}
+				*/
+
+				// end of runway?
 				if(i>start  &&  ribi_t::is_single(sch1->get_ribi_unmasked())  )
 				{
 					runway_tiles = (i + 1) - start;
@@ -761,6 +769,8 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 		}
 	}
 
+	runway_t* rw = (runway_t*)gr->get_weg(air_wt);
+
 	if(  route_index < takeoff  &&  route_index > 1  &&  takeoff < last_index  ) {
 		// check, if tile occupied by a plane on ground
 		for(  uint8 i = 1;  i<gr->get_top();  i++  ) {
@@ -771,7 +781,6 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 			}
 		}
 		// need to reserve runway?
-		runway_t *rw = (runway_t *)gr->get_weg(air_wt);
 		if(rw==NULL) {
 			cnv->suche_neue_route();
 			return false;
@@ -803,9 +812,19 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 		return true;
 	}
 
-	if(  state == taxiing  ) {
+	if(state == taxiing)
+	{
 		// enforce on ground for taxiing
 		flying_height = 0;
+
+		// Do not enter reserved runway if not already on a runway (check whether already on a runway to avoid deadlocks)
+		const grund_t* gr_current = welt->lookup(get_pos());
+		const runway_t* rw_current = gr_current ? (runway_t*)gr_current->get_weg(air_wt) : nullptr;
+		if (rw && rw->get_desc()->get_styp() == type_runway && (!rw_current || rw_current->get_desc()->get_styp() != type_runway) && rw->is_reserved() && rw->get_reserved_convoi() != cnv->self)
+		{
+			restart_speed = 0;
+			return false;
+		}
 	}
 
 	if(  route_index == takeoff  &&  state == taxiing  ) {
@@ -818,9 +837,10 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 		// stop shortly at the end of the runway
 		state = awaiting_clearance_on_runway;
 		go_on_ticks = welt->get_ticks() + welt->get_seconds_to_ticks(10);
-		direction = ribi_t::backward(direction);
+		const ribi_t::ribi old_direction = direction;
+		direction = calc_direction(route.at(takeoff), route.at(takeoff - 1));
 		calc_image();
-		direction = ribi_t::backward(direction);
+		direction = old_direction;
 		restart_speed = 0;
 		return false;
 	}
@@ -843,11 +863,10 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 	// check for another circle ...
 	//	if(  route_index == touchdown - HOLDING_PATTERN_OFFSET )
 	//circling now!
-	if(  route_index == touchdown - landing_distance){
+	if(  route_index == touchdown - landing_distance) {
 		const int runway_state = block_reserver( touchdown, search_for_stop+1 , true );
 		if( runway_state != 1 )
 		{
-
 			if(runway_state == 2)
 			{
 				// Runway too short - explain to player
@@ -947,7 +966,22 @@ void air_vehicle_t::enter_tile(grund_t* gr)
 			w->book(cargo, WAY_STAT_GOODS);
 			if (leading) {
 				w->book(1, WAY_STAT_CONVOIS);
+				w->reserve(cnv->self, get_direction());
 			}
+		}
+	}
+}
+
+void air_vehicle_t::leave_tile()
+{
+	vehicle_t::leave_tile();
+	if (is_on_ground() && state == taxiing || state == taxiing_to_halt || state == looking_for_parking)
+	{
+		grund_t* gr = welt->lookup(get_pos());
+		runway_t* w = (runway_t*)gr->get_weg(air_wt);
+		if (w)
+		{
+			w->unreserve(this);
 		}
 	}
 }
