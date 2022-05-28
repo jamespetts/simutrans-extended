@@ -929,9 +929,6 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 		// nothing free here?
 		if(find_route_to_stop_position()) {
 			// stop reservation successful
-			// unreserve when the aircraft reached the end of runway
-			block_reserver( touchdown, search_for_stop+1, false );
-			//			std::cout << "unreserve 3: "<< state <<" "<< touchdown << std::endl;
 			state = taxiing;
 			restart_speed = kmh_to_speed(10);
 			return true;
@@ -959,12 +956,15 @@ void air_vehicle_t::enter_tile(grund_t* gr)
 {
 	vehicle_t::enter_tile(gr);
 
-	if(  this->is_on_ground()  ) {
+	if(is_on_ground())
+	{
 		runway_t *w=(runway_t *)gr->get_weg(air_wt);
-		if(w) {
+		if(w)
+		{
 			const int cargo = get_total_cargo();
 			w->book(cargo, WAY_STAT_GOODS);
-			if (leading) {
+			if (leading)
+			{
 				w->book(1, WAY_STAT_CONVOIS);
 				w->reserve(cnv->self, get_direction());
 			}
@@ -1308,6 +1308,12 @@ void air_vehicle_t::hop(grund_t* gr)
 
 	speed_limit = new_speed_limit;
 	current_friction = new_friction;
+}
+
+void air_vehicle_t::unreserve_runway()
+{
+	// Unreserve whole runway when leaving runway
+	block_reserver(touchdown, search_for_stop + 1, false);
 }
 
 

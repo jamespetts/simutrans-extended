@@ -5,7 +5,7 @@
 
 simutrans.ac
 
-AC_INIT(simutrans, version-0.1)
+AC_INIT([simutrans],[version-0.1])
 
 AC_PROG_CC
 AC_LANG(C++)
@@ -126,4 +126,5 @@ if test "$ac_cv_sizeof_voidp" == 4
 fi
 
 
-AC_OUTPUT(config.default)
+AC_CONFIG_FILES([config.default])
+AC_OUTPUT

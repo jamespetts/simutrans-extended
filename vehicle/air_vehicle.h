@@ -93,6 +93,8 @@ protected:
 	// find a route and reserve the stop position
 	bool find_route_to_stop_position();
 
+	void unreserve_runway() OVERRIDE;
+
 public:
 	air_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
 	air_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv); // start and schedule
