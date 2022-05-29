@@ -519,7 +519,7 @@ public:
 	sint32 get_speed_limit() const { return speed_limit; }
 	static inline sint32 speed_unlimited() {return (std::numeric_limits<sint32>::max)(); }
 
-	const slist_tpl<ware_t> & get_cargo(uint8 g_class) const { return fracht[g_class];}   // list of goods being transported (indexed by accommodation class)
+	const slist_tpl<ware_t> & get_cargo(uint8 a_class) const { return fracht[a_class];}   // list of goods being transported (indexed by accommodation class)
 
 	/**
 	 * Rotate freight target coordinates, has to be called after rotating factories.
@@ -531,9 +531,9 @@ public:
 	*/
 	uint16 get_total_cargo() const { return total_freight; }
 
-	uint16 get_total_cargo_by_class(uint8 g_class) const;
+	uint16 get_total_cargo_by_class(uint8 a_class) const;
 
-	uint16 get_reassigned_class(uint8 g_class) const;
+	uint8 get_reassigned_class(uint8 a_class) const;
 
 	uint8 get_number_of_fare_classes() const;
 
@@ -663,8 +663,8 @@ public:
 	// @author: jamespetts
 	uint8 get_comfort(uint8 catering_level = 0, uint8 g_class = 0) const;
 
-	uint16 get_accommodation_capacity(uint8 g_class, bool include_lower_classes = false) const;
-	uint16 get_fare_capacity(uint8 g_class, bool include_lower_classes = false) const;
+	uint16 get_accommodation_capacity(uint8 a_class, bool include_lower_classes = false) const;
+	uint16 get_fare_capacity(uint8 fare_class, bool include_lower_classes = false) const;
 
 	// update player's fixed maintenance
 	void finish_rd() OVERRIDE;

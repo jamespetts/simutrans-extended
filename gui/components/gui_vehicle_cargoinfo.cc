@@ -77,7 +77,7 @@ void gui_capacity_occupancy_bar_t::draw(scr_coord offset)
 		{
 			case goods_manager_t::INDEX_PAS:
 			case goods_manager_t::INDEX_MAIL:
-				display_loading_bar(offset.x, offset.y, size.w, LOADING_BAR_HEIGHT, veh->get_cargo_type()->get_color(), veh->get_total_cargo_by_class(a_class), veh->get_fare_capacity((uint8)veh->get_reassigned_class(a_class)), veh->get_overcrowded_capacity(a_class));
+				display_loading_bar(offset.x, offset.y, size.w, LOADING_BAR_HEIGHT, veh->get_cargo_type()->get_color(), veh->get_total_cargo_by_class(a_class), veh->get_fare_capacity(veh->get_reassigned_class(a_class)), veh->get_overcrowded_capacity(a_class));
 				break;
 			default:
 				// draw the "empty" loading bar
@@ -159,7 +159,7 @@ void gui_vehicle_cargo_info_t::update()
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 			// [fare class name/catgname]
 			if (number_of_classes>1) {
-				lb->buf().append(goods_manager_t::get_translated_fare_class_name(veh->get_cargo_type()->get_catg_index(), (uint8)veh->get_reassigned_class(ac)));
+				lb->buf().append(goods_manager_t::get_translated_fare_class_name(veh->get_cargo_type()->get_catg_index(), veh->get_reassigned_class(ac)));
 			}
 			else {
 				lb->buf().append(translator::translate(veh->get_desc()->get_freight_type()->get_catg_name()));
@@ -190,7 +190,7 @@ void gui_vehicle_cargo_info_t::update()
 			}
 			lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 			if (is_pass_veh) {
-				lb->buf().printf("%s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), (uint8)veh->get_reassigned_class(ac)));
+				lb->buf().printf("%s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)));
 			}
 			else if (veh->get_desc()->get_mixed_load_prohibition()) {
 				lb->buf().append( translator::translate("(mixed_load_prohibition)") );

@@ -2287,15 +2287,15 @@ void vehicle_t::set_reversed(bool value)
 	}
 }
 
-uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
+uint16 vehicle_t::get_total_cargo_by_class(uint8 a_class) const
 {
 	uint16 carried = 0;
-	if (g_class >= number_of_classes)
+	if (a_class >= number_of_classes)
 	{
 		return 0;
 	}
 
-	FOR(slist_tpl<ware_t>, const& ware, fracht[g_class])
+	FOR(slist_tpl<ware_t>, const& ware, fracht[a_class])
 	{
 		carried += ware.menge;
 	}
@@ -2303,10 +2303,9 @@ uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
 	return carried;
 }
 
-uint16 vehicle_t::get_reassigned_class(uint8 g_class) const
+uint8 vehicle_t::get_reassigned_class(uint8 a_class) const
 {
-	uint16 reassigned_class = class_reassignments[g_class];
-	return reassigned_class;
+	return class_reassignments[a_class];
 }
 
 
@@ -2349,27 +2348,27 @@ uint16 vehicle_t::get_overcrowding(uint8 g_class) const
 	return carried - capacity > 0 ? carried - capacity : 0;
 }
 
-uint16 vehicle_t::get_accommodation_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_accommodation_capacity(uint8 a_class, bool include_lower_classes) const
 {
 	if (!include_lower_classes) {
-		return desc->get_capacity(g_class);
+		return desc->get_capacity(a_class);
 	}
 
 	uint16 cap = 0;
-	for (uint i=0; i <= g_class; i++)
+	for (uint i=0; i <= a_class; i++)
 	{
 		cap += desc->get_capacity(i);
 	}
 	return cap;
 }
 
-uint16 vehicle_t::get_fare_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_fare_capacity(uint8 fare_class, bool include_lower_classes) const
 {
 	// Take into account class reassignments.
 	uint16 cap = 0;
 	for (uint8 i = 0; i < desc->get_number_of_classes(); i++)
 	{
-		if (class_reassignments[i] == g_class || (include_lower_classes && class_reassignments[i] < g_class))
+		if (class_reassignments[i] == fare_class || (include_lower_classes && class_reassignments[i] < fare_class))
 		{
 			cap += desc->get_capacity(i);
 		}
