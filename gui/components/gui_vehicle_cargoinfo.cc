@@ -186,7 +186,7 @@ void gui_vehicle_cargo_info_t::update()
 
 			// [comfort(pax) / mixload prohibition(freight)]
 			if (is_pass_veh) {
-				add_table(4,1);
+				add_table(3,1);
 				{
 					if (is_pass_veh && skinverwaltung_t::comfort) {
 						new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true);
@@ -197,10 +197,14 @@ void gui_vehicle_cargo_info_t::update()
 					// Check for reduced comfort
 					const sint64 comfort_diff = veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)) - veh->get_desc()->get_adjusted_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS),ac);
 					if (comfort_diff!=0) {
-						new_component<gui_fluctuation_triangle_t>(comfort_diff);
-						lb = new_component<gui_label_buf_t>(comfort_diff>0 ? SYSCOL_UP_TRIANGLE : SYSCOL_DOWN_TRIANGLE, gui_label_t::left);
-						lb->buf().printf("%i", comfort_diff);
-						lb->update();
+						add_table(2,1)->set_spacing(scr_size(1,0));
+						{
+							new_component<gui_fluctuation_triangle_t>(comfort_diff);
+							lb = new_component<gui_label_buf_t>(comfort_diff>0 ? SYSCOL_UP_TRIANGLE : SYSCOL_DOWN_TRIANGLE, gui_label_t::left);
+							lb->buf().printf("%i", comfort_diff);
+							lb->update();
+						}
+						end_table();
 					}
 				}
 				end_table();
