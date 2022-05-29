@@ -153,7 +153,7 @@ void gui_vehicle_cargo_info_t::update()
 		}
 		end_table();
 
-		add_table(6,1);
+		add_table(5,1);
 		{
 			new_component<gui_image_t>(veh->get_cargo_type()->get_fare_symbol(veh->get_reassigned_class(ac)), 0, 0, true);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
@@ -185,18 +185,32 @@ void gui_vehicle_cargo_info_t::update()
 			}
 
 			// [comfort(pax) / mixload prohibition(freight)]
-			if (is_pass_veh && skinverwaltung_t::comfort) {
-				new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true);
-			}
-			lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 			if (is_pass_veh) {
-				lb->buf().printf("%s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)));
+				add_table(4,1);
+				{
+					if (is_pass_veh && skinverwaltung_t::comfort) {
+						new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true);
+					}
+					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+					lb->buf().printf("%s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)));
+					lb->update();
+					// Check for reduced comfort
+					const sint64 comfort_diff = veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)) - veh->get_desc()->get_adjusted_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS),ac);
+					if (comfort_diff!=0) {
+						new_component<gui_fluctuation_triangle_t>(comfort_diff);
+						lb = new_component<gui_label_buf_t>(comfort_diff>0 ? SYSCOL_UP_TRIANGLE : SYSCOL_DOWN_TRIANGLE, gui_label_t::left);
+						lb->buf().printf("%i", comfort_diff);
+						lb->update();
+					}
+				}
+				end_table();
 			}
 			else if (veh->get_desc()->get_mixed_load_prohibition()) {
+				lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 				lb->buf().append( translator::translate("(mixed_load_prohibition)") );
 				lb->set_color(color_idx_to_rgb(COL_BRONZE)); // FIXME: color optimization for dark theme
+				lb->update();
 			}
-			lb->update();
 
 			new_component<gui_fill_t>();
 		}
