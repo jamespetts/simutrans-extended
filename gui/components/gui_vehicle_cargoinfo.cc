@@ -219,9 +219,9 @@ void gui_vehicle_cargo_info_t::update()
 			for (uint8 i = 0; i < schedule->get_count(); i++) {
 				fracht_array.clear();
 				uint8 e; // schedule(halt) entry number
-				if (veh->get_convoi()->get_reverse_schedule()) {
+				if (veh->get_convoi()->get_reverse_schedule() || (schedule->is_mirrored() && veh->get_convoi()->is_reversed())) {
 					e = (schedule->get_current_stop() + schedule->get_count() - i) % schedule->get_count();
-					if (schedule->is_mirrored() && (schedule->get_current_stop() - i) <= 0) {
+					if (schedule->is_mirrored() && (schedule->get_current_stop()<i) ) {
 						break;
 					}
 				}
