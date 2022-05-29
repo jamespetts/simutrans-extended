@@ -311,7 +311,7 @@ void gui_vehicle_cargo_info_t::update()
 					{
 						new_component<gui_margin_t>(LINESPACE); // left margin
 
-						add_table(2,0)->set_spacing(scr_size(D_H_SPACE,1)); // wealth list
+						add_table(2,0)->set_alignment(ALIGN_TOP); // wealth list
 						{
 							for (uint8 wc = 0; wc < number_of_classes; wc++) { // wealth class
 								uint32 wealth_sum = 0;
