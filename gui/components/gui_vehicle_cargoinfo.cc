@@ -134,7 +134,7 @@ void gui_vehicle_cargo_info_t::update()
 	const bool is_pass_veh = veh->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS;
 	const bool is_mail_veh = veh->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_MAIL;
 
-	for (uint8 ac = 0; ac < number_of_classes; ac++) { // accomo class index
+	for (uint8 ac = 0; ac < number_of_classes; ac++) { // accommo class index
 		if (!veh->get_desc()->get_capacity(ac) && !veh->get_overcrowded_capacity(ac)) {
 			continue; // no capacity for this accommo class
 		}
@@ -172,7 +172,7 @@ void gui_vehicle_cargo_info_t::update()
 			}
 			lb->update();
 
-			// [accomo class name]
+			// [accommo class name]
 			if (number_of_classes>1) {
 				lb = new_component<gui_label_buf_t>(SYSCOL_EDIT_TEXT_DISABLED, gui_label_t::left);
 				if (veh->get_reassigned_class(ac) != ac) {
