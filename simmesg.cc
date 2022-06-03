@@ -30,7 +30,7 @@ void message_t::node::rdwr(loadsave_t *file)
 	file->rdwr_str( msg, lengthof(msg) );
 	file->rdwr_long( type );
 	pos.rdwr( file );
-	if (file->get_version_int() < 120005) {
+	if (file->is_version_less(120, 5)) {
 		// color was 16bit, with 0x8000 indicating player colors
 		uint16 c = color & PLAYER_FLAG ? 0x8000 + (color&(~PLAYER_FLAG)) : MN_GREY0;
 		file->rdwr_short(c);
@@ -107,16 +107,16 @@ void message_t::set_message_flags( sint32 t, sint32 w, sint32 a, sint32 i)
 
 /**
  * Add a message to the message list
- * @param pos    position of the event
- * @param color  message color
- * @param where type of message
- * @param image image associated with message (will be ignored if pos!=koord::invalid)
+ * @param pos        position of the event
+ * @param color      message color
+ * @param what_flags type of message
+ * @param image      image associated with message (will be ignored if pos!=koord::invalid)
  */
 void message_t::add_message(const char *text, koord pos, uint16 what_flags, FLAGGED_PIXVAL color, image_id image )
 {
 DBG_MESSAGE("message_t::add_msg()","%40s (at %i,%i)", text, pos.x, pos.y );
 
-	sint32 what_bit = 1<<(what_flags & ~(do_not_rdwr_flag|playermsg_flag|expire_after_one_month_flag));
+	sint32 what_bit = 1<<(what_flags & MESSAGE_TYPE_MASK);
 	if(  what_bit&ignore_flags  ) {
 		// wants us to ignore this completely
 		return;

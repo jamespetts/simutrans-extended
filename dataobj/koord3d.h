@@ -32,7 +32,7 @@ public:
 	koord3d(koord xyp, sint8 zp) : x(xyp.x), y(xyp.y), z(zp) {}
 
 	const char *get_str() const;
-	const char *get_fullstr() const;	// including brackets
+	const char *get_fullstr() const; // including brackets
 
 	void rotate90( sint16 y_diff );
 
@@ -41,7 +41,7 @@ public:
 	static const koord3d invalid;
 
 //	const koord& get_2d() const { return *this; }
-	koord get_2d() const { return koord(x,y); }
+	koord get_2d() const { return koord(x, y); }
 
 	inline const koord3d& operator += (const koord3d& a)
 	{
@@ -92,6 +92,7 @@ static inline bool operator == (const koord3d& a, const koord3d& b)
 //	return a.x == b.x && a.y == b.y && a.z == b.z;
 	return ((a.x-b.x)|(a.y-b.y)|(a.z-b.z))==0;
 }
+
 
 static inline bool operator != (const koord3d& a, const koord3d& b)
 {

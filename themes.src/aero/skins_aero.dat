@@ -109,6 +109,21 @@ Image[23]=> button.2.4
 Image[24]=> button.2.6
 Image[25]=> button.2.8
 Image[26]=> button.2.7
+# unpressed right angle corner
+Image[27]=> roundbutton.0.9
+Image[28]=> roundbutton.0.10
+Image[29]=> roundbutton.0.11
+Image[30]=> roundbutton.0.12
+# pressed right angle corner
+Image[31]=> roundbutton.1.9
+Image[32]=> roundbutton.1.10
+Image[33]=> roundbutton.1.11
+Image[34]=> roundbutton.1.12
+# disabled right angle corner
+Image[35]=> roundbutton.2.9
+Image[36]=> roundbutton.2.10
+Image[37]=> roundbutton.2.11
+Image[38]=> roundbutton.2.12
 --
 Obj=menu
 name=Checkbutton

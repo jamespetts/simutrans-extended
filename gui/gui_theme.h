@@ -28,8 +28,9 @@ class image_t;
 #define D_BUTTON_SIZE          (gui_theme_t::gui_button_size  )
 #define D_BUTTON_WIDTH         (gui_theme_t::gui_button_size.w)
 #define D_BUTTON_HEIGHT        (gui_theme_t::gui_button_size.h)
-#define D_WIDE_BUTTON_SIZE     (scr_size(D_BUTTON_WIDTH*3/2,D_BUTTON_HEIGHT))
-#define D_WIDE_BUTTON_WIDTH    (D_BUTTON_WIDTH*3/2)
+#define D_WIDE_BUTTON_SIZE     (scr_size((D_BUTTON_WIDTH*3)>>1,D_BUTTON_HEIGHT))
+#define D_WIDE_BUTTON_WIDTH    ((D_BUTTON_WIDTH*3)>>1)
+#define D_BUTTON_PADDINGS_X    (gui_theme_t::gui_button_text_offset.w + gui_theme_t::gui_button_text_offset_right.x)
 
 #define D_FILTER_BUTTON_SIZE   (gui_theme_t::gui_color_button_size  )
 #define D_FILTER_BUTTON_WIDTH  (gui_theme_t::gui_color_button_size.w)
@@ -70,6 +71,10 @@ class image_t;
 #define D_GADGET_SIZE          (gui_theme_t::gui_gadget_size  )
 #define D_GADGET_WIDTH         (gui_theme_t::gui_gadget_size.w)
 #define D_GADGET_HEIGHT        (gui_theme_t::gui_gadget_size.h)
+
+#define D_DRAGGER_SIZE         (gui_theme_t::gui_dragger_size  )
+#define D_DRAGGER_WIDTH        (gui_theme_t::gui_dragger_size.w)
+#define D_DRAGGER_HEIGHT       (gui_theme_t::gui_dragger_size.h)
 
 #define D_INDICATOR_BOX_SIZE   (gui_theme_t::gui_indicator_size  )
 #define D_INDICATOR_BOX_HEIGHT (gui_theme_t::gui_indicator_size.h)
@@ -149,7 +154,9 @@ enum {
 	SKIN_WINDOW_RESIZE,
 	SKIN_GADGET_GOTOPOS,
 //	SKIN_GADGET_BUTTON,
-	SKIN_GADGET_COUNT, // maximum number, NOT AN IMAGE
+	SKIN_GADGET_NOTLOCKED,
+	SKIN_GADGET_LOCKED,
+	SKIN_GADGET_COUNT,// maximum number, NOT AN IMAGE
 
 	// scrollbars horizontal
 	SKIN_BUTTON_ARROW_LEFT = 0,
@@ -213,6 +220,7 @@ public:
 	static PIXVAL gui_color_text_title;                   //@< Color to draw title text (banner, h1 and a tags)
 	static PIXVAL gui_color_text_shadow;                  //@< Color to draw text shadow
 	static PIXVAL gui_color_text_strong;                  //@< Color to draw strong text (strong tags)
+	static PIXVAL gui_color_text_weak;                    //@< Set a text color that is weaker than normal text because there is no text thickness. ex) Gray for standard black text
 	static PIXVAL gui_color_text_inactive;                //@< Color to make it a little less noticeable than regular text
 	static PIXVAL gui_color_text_placeholder;             //@< Color for displaying inconspicuous characters in the input field
 	static PIXVAL gui_color_text_minus;                   //@< Color to draw negative values
@@ -250,9 +258,9 @@ public:
 	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
 	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
+	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
 	static PIXVAL gui_color_down_pointing_triangle;       //@< (EX unique) Color to draw an downward triangle indicating an decrease in the number
-
 	/// @}
 
 	/// @name GUI element sizes used by gui components
@@ -274,27 +282,31 @@ public:
 	static scr_size gui_edit_size;
 	static scr_size gui_indicator_size;
 	static scr_size gui_gadget_size;
+	static scr_size gui_dragger_size;
 	static scr_coord gui_focus_offset;
 	static scr_coord gui_color_button_text_offset_right; // extra right offset for the text (in case of asymmetric or buttons with color on the right)
 	static scr_coord gui_button_text_offset_right;       // extra right offset for the text (in case of asymmetric or buttons with checkmark on the right)
 
-	static KOORD_VAL gui_titlebar_height;
-	static KOORD_VAL gui_frame_left;
-	static KOORD_VAL gui_frame_top;
-	static KOORD_VAL gui_frame_right;
-	static KOORD_VAL gui_frame_bottom;
-	static KOORD_VAL gui_hspace;
-	static KOORD_VAL gui_vspace;
-	static KOORD_VAL gui_waitingbar_width;
+	static scr_coord_val gui_titlebar_height;
+	static scr_coord_val gui_frame_left;
+	static scr_coord_val gui_frame_top;
+	static scr_coord_val gui_frame_right;
+	static scr_coord_val gui_frame_bottom;
+	static scr_coord_val gui_hspace;
+	static scr_coord_val gui_vspace;
+	static scr_coord_val gui_waitingbar_width;
 
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
-	static KOORD_VAL gui_filelist_vspace;
+	static scr_coord_val gui_filelist_vspace;
 	/// @}
 
 	// those are the 3x3 images which are used for stretching
 	static stretch_map_t button_tiles[3];
 	static stretch_map_t button_color_tiles[2];
 	static stretch_map_t round_button_tiles[3];
+	static stretch_map_t round_button_left_tiles[3];
+	static stretch_map_t round_button_middle_tiles[3];
+	static stretch_map_t round_button_right_tiles[3];
 	static stretch_map_t h_scroll_back_tiles;
 	static stretch_map_t h_scroll_knob_tiles;
 	static stretch_map_t v_scroll_back_tiles;
@@ -313,7 +325,7 @@ public:
 	static image_id pos_button_img[3];
 
 	static bool gui_drop_shadows;
-
+	static bool pressed_button_sinks;
 
 public:
 	// default dimensions and colors

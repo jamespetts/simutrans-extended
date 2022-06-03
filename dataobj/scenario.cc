@@ -39,7 +39,7 @@
 #include <stdarg.h>
 
 // cache the scenario text files
-static plainstringhashtable_tpl<plainstring> cached_text_files;
+static plainstringhashtable_tpl<plainstring, N_BAGS_MEDIUM> cached_text_files;
 
 
 scenario_t::scenario_t(karte_t *w) :
@@ -752,9 +752,10 @@ plainstring scenario_t::load_language_file(const char* filename)
 		if(len>0) {
 			char* const buf = MALLOCN(char, len + 1);
 			fseek(file,0,SEEK_SET);
-			fread(buf, 1, len, file);
-			buf[len] = '\0';
-			text = buf;
+			if (fread(buf, 1, len, file) == (size_t)len) {
+				buf[len] = '\0';
+				text = buf;
+			}
 			free(buf);
 		}
 		fclose(file);
@@ -784,7 +785,7 @@ bool scenario_t::open_info_win() const
 void scenario_t::rdwr(loadsave_t *file)
 {
 	file->rdwr_short(what_scenario);
-	if (file->get_version_int() <= 111004) {
+	if (file->is_version_less(111, 5)) {
 		uint32 city_nr = 0;
 		file->rdwr_long(city_nr);
 		sint64 factor = 0;
@@ -821,10 +822,9 @@ void scenario_t::rdwr(loadsave_t *file)
 			else {
 				// load script
 				cbuffer_t script_filename;
-
 				// assume error
 				rdwr_error = true;
- 				// try addon directory first
+				// try addon directory first
 				if (env_t::default_settings.get_with_private_paks()) {
 					scenario_path = ( std::string("addons/") + env_t::objfilename + "scenario/" + scenario_name.c_str() + "/").c_str();
 					script_filename.printf("%sscenario.nut", scenario_path.c_str());
@@ -880,7 +880,7 @@ void scenario_t::rdwr(loadsave_t *file)
 	}
 
 	// cached strings
-	if (file->get_version_int() >= 120003) {
+	if (file->is_version_atleast(120, 3)) {
 		dynamic_string::rdwr_cache(file);
 	}
 

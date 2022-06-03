@@ -82,24 +82,23 @@ halt_list_filter_frame_t::halt_list_filter_frame_t(player_t *player, halt_list_f
 		name_filter_input.add_listener(this);
 		add_component(&name_filter_input);
 
-		add_table(2, 0);
-		{
-			// type and special buttons
-			for(  int i=3;  i<FILTER_BUTTONS;  i++  ) {
-				if (i==3 || i==13) {
-					if (i==13) {
-						new_component<gui_margin_t>();
-						new_component<gui_empty_t>();
-					}
-					add_component(filter_buttons + i, 2);
+		// type and special buttons
+		for(  int i=3;  i<FILTER_BUTTONS;  i++  ) {
+			if (i==3 || i==13) {
+				if (i==13) {
+					new_component<gui_empty_t>();
 				}
-				else {
+				add_component(filter_buttons + i, 2);
+			}
+			else {
+				add_table(2,0);
+				{
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 					add_component(filter_buttons + i);
 				}
+				end_table();
 			}
 		}
-		end_table();
 	}
 	end_table();
 

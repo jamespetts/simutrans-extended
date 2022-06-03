@@ -79,7 +79,7 @@ ki_kontroll_t::ki_kontroll_t() :
 			player_active[i-2].align_to( &player_get_finances[i], ALIGN_CENTER_V );
 			player_active[i-2].add_listener(this);
 			if(player  &&  player->get_ai_id()!=player_t::HUMAN  &&  player_tools_allowed) {
-				add_component( player_active+i-2 );
+				add_component( player_active+(i-2) );
 			}
 		}
 
@@ -308,10 +308,10 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		if(comp==(player_select+i)) {
 
 			// make active player
-			remove_component( player_active+i-2 );
+			remove_component( player_active+(i-2) );
 			if(  p.i<player_t::MAX_AI  &&  p.i>0  )
 			{
-				add_component( player_active+i-2 );
+				add_component( player_active+(i-2) );
 				welt->get_settings().set_player_type(i, (uint8)p.i);
 			}
 			else
@@ -608,10 +608,10 @@ void ki_kontroll_t::update_data()
 			// human players cannot be deactivated
 			if (i>1)
 			{
-				remove_component( player_active+i-2 );
+				remove_component( player_active+(i-2) );
 				if(  player->get_ai_id()!=player_t::HUMAN  )
 				{
-					add_component( player_active+i-2 );
+					add_component( player_active+(i-2) );
 				}
 			}
 		}
@@ -629,10 +629,10 @@ void ki_kontroll_t::update_data()
 			}
 
 			if (i>1) {
-				remove_component( player_active+i-2 );
+				remove_component( player_active+(i-2) );
 				if(  0<player_select[i].get_selection()  &&  player_select[i].get_selection()<player_t::MAX_AI)
 				{
-					add_component( player_active+i-2 );
+					add_component( player_active+(i-2) );
 				}
 			}
 

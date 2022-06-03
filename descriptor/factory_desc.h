@@ -22,10 +22,10 @@ class checksum_t;
  */
 class field_class_desc_t : public obj_desc_t {
 	friend class factory_field_class_reader_t;
-	friend class factory_field_group_reader_t;		// this is a special case due to desc restructuring
+	friend class factory_field_group_reader_t; // this is a special case due to desc restructuring
 
 private:
-	uint8  snow_image;			// 0 or 1 for snow
+	uint8  snow_image;           // 0 or 1 for snow
 	uint16 production_per_field;
 	uint16 storage_capacity;
 	uint16 spawn_weight;
@@ -49,11 +49,11 @@ class field_group_desc_t : public obj_desc_t {
 	friend class factory_field_group_reader_t;
 
 private:
-	uint16 probability;			// between 0 ...10000
-	uint16 max_fields;			// maximum number of fields around a single factory
-	uint16 min_fields;			// minimum number of fields around a single factory
-	uint16 start_fields;		// number of fields between min and start_fields to spawn on creation
-	uint16 field_classes;		// number of field classes
+	uint16 probability;     // between 0 ...10000
+	uint16 max_fields;      // maximum number of fields around a single factory
+	uint16 min_fields;      // minimum number of fields around a single factory
+	uint16 start_fields;    // number of fields between min and start_fields to spawn on creation
+	uint16 field_classes;   // number of field classes
 
 	weighted_vector_tpl<uint16> field_class_indices;
 
@@ -87,8 +87,8 @@ public:
 /**
  * Smoke objects for factories.
  *
- *  Child nodes:
- *	0   SKin
+ * Child nodes:
+ *  0   SKin
  */
 class smoke_desc_t : public obj_desc_t {
 	friend class factory_smoke_reader_t;
@@ -127,8 +127,8 @@ public:
 /**
  * Information about required goods for production
  *
- *  Child nodes:
- *	0   Ware
+ * Child nodes:
+ *  0   Ware
  */
 class factory_supplier_desc_t : public obj_desc_t {
 	friend class factory_supplier_reader_t;
@@ -150,8 +150,8 @@ public:
 /**
  * Information about produced goods of a factory
  *
- *  Child nodes:
- *	0   Ware
+ * Child nodes:
+ *  0   Ware
  */
 class factory_product_desc_t : public obj_desc_t {
 	friend class factory_product_reader_t;
@@ -176,37 +176,46 @@ public:
 /**
  * Factory.
  *
- *  Child nodes:
- *	0   House descriptor
- *	1   Smoke descriptor
- *	2   Supplier descriptor 1
- *	3   Supplier descriptor 2
- *	... ...
- *	n+1 Supplier descriptor n
- *	n+2 Consumer descriptor 1
- *	n+3 Consumer descriptor 2
- *	... ...
+ * Child nodes:
+ *  0   House descriptor
+ *  1   Smoke descriptor
+ *  2   Supplier descriptor 1
+ *  3   Supplier descriptor 2
+ * ... ...
+ *  n+1 Supplier descriptor n
+ *  n+2 Consumer descriptor 1
+ *  n+3 Consumer descriptor 2
+ * ... ...
  */
 class factory_desc_t : public obj_desc_t {
 	friend class factory_reader_t;
 
 public:
-	enum site_t { Land, Water, City, river, shore, forest };
+	enum site_t {
+		Land,
+		Water,
+		City,
+		river,
+		shore,
+		forest,
+		river_city,
+		shore_city
+	};
 
 private:
 	site_t placement;
 	uint16 productivity;
 	sint32 range;
-	uint16 distribution_weight;	// probability of construction of this factory
-	uint8 color; //"identification colour code" (Babelfish)
+	uint16 distribution_weight;    // probability of construction of this factory
+	uint8 color;                   //"identification colour code" (Babelfish)
 	uint16 supplier_count;
 	uint16 product_count;
-	uint8 fields;	// only if there are any ...
-	uint16 pax_level; // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
+	uint8 fields;                  // only if there are any ...
+	uint16 pax_level;              // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
 	uint16 electricity_proportion; // Modifier of electricity consumption (a legacy setting for Extended only)
 	uint16 inverse_electricity_proportion;
 	bool electricity_producer;
-	uint8 upgrades; // The industry types to which this industry can be upgraded.
+	uint8 upgrades;                // The industry types to which this industry can be upgraded.
 	uint16 expand_probability;
 	uint16 expand_minimum;
 	uint16 expand_range;
@@ -215,7 +224,7 @@ private:
 	uint16 pax_boost;
 	uint16 mail_boost;
 	uint16 electric_demand;
-	uint16 pax_demand; // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
+	uint16 pax_demand;  // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
 	uint16 mail_demand; // Kept for backwards compatibility only. This is now read from the associated gebaeude_t object.
 	uint16 base_max_distance_to_consumer;
 	uint16 base_max_distance_to_supplier;
@@ -320,6 +329,9 @@ public:
 
 	void calc_checksum(checksum_t *chk) const;
 	bool get_accepts_these_goods(const goods_desc_t* input);
+
+	// Returns whether this factory has potential demand for passed goods category
+	bool has_goods_catg_demand(uint8 catg_index) const;
 };
 
 #endif

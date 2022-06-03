@@ -29,7 +29,7 @@
 
 #include "simconst.h"
 
-#include "simobj.h"
+#include "obj/simobj.h"
 #include "convoy.h"
 
 /*
@@ -54,7 +54,7 @@ class departure_point_t;
 * The table of point-to-point average journey times.
 * @author jamespetts
 */
-typedef koordhashtable_tpl<id_pair, average_tpl<uint32> > journey_times_map;
+typedef koordhashtable_tpl<id_pair, average_tpl<uint32>, N_BAGS_SMALL> journey_times_map;
 
 #ifdef MULTI_THREAD
 struct route_range_specification
@@ -70,25 +70,28 @@ struct route_range_specification
 class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {
 public:
-	enum convoi_cost_t {			// Exp|Std|Description
-		CONVOI_CAPACITY = 0,		//  0 | 0 | the amount of ware that could be transported, theoretically
-		CONVOI_TRANSPORTED_GOODS,	//  1 | 1 | the amount of ware that has been transported
-		CONVOI_AVERAGE_SPEED,		//  2 |   | the average speed of the convoy per rolling month
-		CONVOI_COMFORT,				//  3 |   | the aggregate comfort rating of this convoy
-		CONVOI_REVENUE,				//  4 | 2 | the income this CONVOI generated
-		CONVOI_OPERATIONS,			//  5 | 3 | the cost of operations this CONVOI generated
-		CONVOI_PROFIT,				//  6 | 4 | total profit of this convoi
-		CONVOI_DISTANCE,			//  7 | 5 | total distance traveled this month
-		CONVOI_REFUNDS,				//  8 |   | the refunds passengers waiting for this convoy (only when not attached to a line) have received.
-//		CONVOI_MAXSPEED,			//    | 6 | average max. possible speed
-		CONVOI_WAYTOLL,				//  9 | 7 |
-		MAX_CONVOI_COST				// 10 | 8 |
+	enum convoi_cost_t {            // Ext|Std|Description
+		CONVOI_CAPACITY = 0,        //  0 | 0 | the amount of ware that could be transported, theoretically
+		CONVOI_PAX_DISTANCE,        //  1 |   | the distance (km) travelled by passengers
+		CONVOI_AVERAGE_SPEED,       //  2 |   | the average speed of the convoy per rolling month
+		CONVOI_COMFORT,             //  3 |   | the aggregate comfort rating of this convoy
+		CONVOI_REVENUE,             //  4 | 2 | the income this CONVOI generated
+		CONVOI_OPERATIONS,          //  5 | 3 | the cost of operations this CONVOI generated
+		CONVOI_PROFIT,              //  6 | 4 | total profit of this convoi
+		CONVOI_DISTANCE,            //  7 | 5 | total distance traveled this month
+		CONVOI_REFUNDS,             //  8 |   | the refunds passengers waiting for this convoy (only when not attached to a line) have received.
+//		CONVOI_MAXSPEED,            //    | 6 | average max. possible speed
+		CONVOI_WAYTOLL,             //  9 | 7 |
+		CONVOI_MAIL_DISTANCE,       // 10 |   | the distance (km) travelled by mail
+		CONVOI_PAYLOAD_DISTANCE,    // 11 |   | moving 1 ton of cargo a distance of 1 km
+		MAX_CONVOI_COST             // 12 | 8 |
 	};
 
 	/** Constants */
 	enum { max_vehicle=8, max_rail_vehicle = 64 };
 
-	enum states {INITIAL, // INITIAL means stored in the depot
+	enum states {
+		INITIAL,
 		EDIT_SCHEDULE,
 		ROUTING_1,
 		ROUTING_2,
@@ -565,7 +568,7 @@ private:
 	 * "last_departure_time" member.
 	 * Modified October 2011 to include accumulated distance.
 	 */
-	typedef koordhashtable_tpl<departure_point_t, departure_data_t> departure_map;
+	typedef koordhashtable_tpl<departure_point_t, departure_data_t, N_BAGS_SMALL> departure_map;
 	departure_map departures;
 
 	/*
@@ -579,7 +582,7 @@ private:
 	 * via D has elapsed. The key is the ID for the pair of stops, and
 	 * the value is the last departure time booked between those stops.
 	 */
-	typedef koordhashtable_tpl<id_pair, sint64> departure_time_map;
+	typedef koordhashtable_tpl<id_pair, sint64, N_BAGS_SMALL> departure_time_map;
 	departure_time_map departures_already_booked;
 
 	/**
@@ -588,7 +591,7 @@ private:
 	* convoy will arrive at each stop in its schedule by concatenating
 	* strings of these and adding the waiting time for each stop.
 	*/
-	typedef koordhashtable_tpl<departure_point_t, average_tpl<uint16> > timings_map;
+	typedef koordhashtable_tpl<departure_point_t, average_tpl<uint16>, N_BAGS_SMALL> timings_map;
 	timings_map journey_times_between_schedule_points;
 
 	// @author: suitougreentea
@@ -1027,7 +1030,7 @@ public:
 	/**
 	* sets a new convoi in route
 	*/
-	void start();
+	void start(depot_t* dep = nullptr);
 
 	void ziel_erreicht(); ///< Called, when the first vehicle reaches the target
 
@@ -1073,7 +1076,7 @@ public:
 	/**
 	* Removes vehicles at position i
 	*/
-	vehicle_t * remove_vehicle_bei(unsigned short i);
+	vehicle_t * remove_vehicle_at(unsigned short i);
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
@@ -1116,6 +1119,7 @@ public:
 	* @see simwin
 	*/
 	void show_info();
+	void show_detail();
 
 	/**
 	* Get whether the convoi is traversing its schedule in reverse.
@@ -1152,16 +1156,16 @@ public:
 
 	bool check_way_constraints_of_all_vehicles(const weg_t& way) const;
 
+	void set_working_method(working_method_t value);
+
 private:
 	journey_times_map average_journey_times;
 public:
 
 	/**
-	* @param buf the buffer to fill
-	* @return Freight description text (buf)
+	* @param[out] buf Filled with freight description
 	*/
 	void get_freight_info(cbuffer_t & buf);
-	void get_freight_info_by_class(cbuffer_t & buf);
 	void set_sortby(uint8 order);
 	inline uint8 get_sortby() const { return freight_info_order; }
 	void force_resort() { freight_info_resort = true; }
@@ -1295,7 +1299,7 @@ public:
 	/* including this route_index, the route was reserved the last time
 	 * currently only used for tracks
 	 */
-	uint16 get_next_reservation_index() const {return next_reservation_index;}
+	uint16 &get_next_reservation_index() { return next_reservation_index; }
 	void set_next_reservation_index(uint16 n);
 
 	/* the current state of the convoi */

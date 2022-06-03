@@ -19,6 +19,7 @@
 #include "player/simplay.h"
 #include "simplan.h"
 #include "display/simimg.h"
+#include "vehicle/road_vehicle.h"
 #include "vehicle/simroadtraffic.h"
 #include "simhalt.h"
 #include "simfab.h"
@@ -39,6 +40,7 @@
 #include "obj/roadsign.h"
 #include "obj/leitung2.h"
 #include "obj/wayobj.h"
+#include "obj/pier.h"
 
 #include "dataobj/translator.h"
 #include "dataobj/settings.h"
@@ -266,7 +268,7 @@ static uint32 renovations_try = 3;
 * proportional_renovation_radius is equal to 1
 * @author catasteroid
 */
-static uint32 renovation_range = 3;
+static uint32 renovation_range = 10;
 
 /*
 * whether renovation_chance or renovation_count is influenced by city population density
@@ -293,7 +295,7 @@ static uint32 renovation_count_increase_every = 2500;
 /*
 * hard cap on renovation_count if the city has a really high population
 */
-static uint32 renovation_count_maximum = 25;
+static uint32 renovation_count_maximum = 5;
 
 /*
 * overrides default behaviour allowing very large cities to renovate buildings
@@ -301,7 +303,7 @@ static uint32 renovation_count_maximum = 25;
 * value based on the city's population status
 * @author catasteroid
 */
-static uint32 proportional_renovation_radius = 0;
+static uint32 proportional_renovation_radius = 1;
 
 /*
 * used with the above proportional_renovation_radius figure to use a value determined
@@ -309,7 +311,7 @@ static uint32 proportional_renovation_radius = 0;
 * respectively, they can be all set to the same value to use a generic proportional
 * percentage value for all city sizes
 */
-static uint16 renovation_range_proportions[] = { 80,60,40 };
+static uint16 renovation_range_proportions[] = { 50,50,50 };
 
 /*
 * whether residential, commercial and industrial buildings are renovated at different ranges
@@ -413,8 +415,8 @@ static vector_tpl<rule_t *> road_rules;
  * n = is nature/empty
  * H = not a house
  * h = is a house
- * T = not a stop	// added in 88.03.3
- * t = is a stop // added in 88.03.3
+ * T = not a stop // added in 88.03.3
+ * t = is a stop  // added in 88.03.3
  * u = good slope for way
  * U = not a slope for ways
  * . = beliebig
@@ -717,7 +719,6 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 				// ignore
 		}
 	}
-	//printf("Success\n");
 	return true;
 }
 
@@ -727,7 +728,6 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
  * @note but the rules should explicitly forbid building then?!?
  */
 sint32 stadt_t::bewerte_pos(const koord pos, const rule_t &regel)
-
 {
 	// will be called only a single time, so we can stop after a single match
 	if(bewerte_loc(pos, regel,   0) ||
@@ -798,7 +798,6 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	if (!cityconf.open((user_dir+"cityrules.tab").c_str())) {
 		if (!cityconf.open((objfilename+"config/cityrules.tab").c_str())) {
 			dbg->fatal("stadt_t::init()", "Can't read cityrules.tab" );
-			return false;
 		}
 	}
 
@@ -812,7 +811,12 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	bridge_success_percentage = (uint32)contents.get_int("bridge_success_percentage", 25);
 	renovation_percentage = (uint32)contents.get_int("renovation_percentage", renovation_percentage);
 	renovations_count = (uint32)contents.get_int("renovations_count", renovations_count);
-	renovations_try   = (uint32)contents.get_int("renovations_try", renovations_try);
+	/*
+	* I erroneously assumed that the below values as defined in my changes to the cityrules.tab file would also be reflected with the changes merged in
+	* this actually was not the case and was causing a number of issues that went largely identified by me between late 2019 and mid/late 2021
+	* @author catasteroid
+	*/
+	renovations_try = (uint32)contents.get_int("renovations_try", renovations_try);
 	renovation_range = (uint32)contents.get_int("renovation_range", renovation_range);
 	renovation_influence_type = (uint32)contents.get_int("renovation_influence_type", renovation_influence_type);
 	renovation_city_size_count[0] = (uint16)contents.get_int("renovation_count_village", renovation_city_size_count[0]);
@@ -900,10 +904,9 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 		}
 
 		// put rule into memory
-		const uint8 offset = (7 - (uint)size) / 2;
+		const uint8 offset = (7 - (uint8)size) / 2;
 		for (uint y = 0; y < size; y++) {
 			for (uint x = 0; x < size; x++) {
-
 				const char flag = rule[x + y * (size + 1)];
 				// check for allowed characters; ignore '.';
 				// leave midpoint out, should be 'n', which is checked in build() anyway
@@ -913,7 +916,6 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 				else {
 					if ((x+offset!=3  ||  y+offset!=3)  &&  flag!='.') {
 						dbg->warning("stadt_t::cityrules_init()", "house rule %d entry (%d,%d) is '%c' and will be ignored", i + 1, x+offset, y+offset, flag);
-
 					}
 				}
 			}
@@ -950,7 +952,7 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 		}
 
 		// put rule into memory
-		const uint8 offset = (7 - (uint)size) / 2;
+		const uint8 offset = (7 - (uint8)size) / 2;
 		for (uint y = 0; y < size; y++) {
 			for (uint x = 0; x < size; x++) {
 				const char flag = rule[x + y * (size + 1)];
@@ -988,7 +990,7 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
 	}
 
 	const uint32 std_ver = file->get_version_int();
-	if( exp_ver == 0 && std_ver >= 112008 ) {
+	if(  file->is_version_atleast(112, 8) && exp_ver == 0  ) {
 		file->rdwr_long( cluster_factor );
 	}
 
@@ -1006,7 +1008,7 @@ void stadt_t::cityrules_rdwr(loadsave_t *file)
 		file->rdwr_long(bridge_success_percentage);
 	}
 
-	if(file->get_extended_version() >= 12 || (file->get_version_int() >= 112007 && file->get_extended_version() >= 11))
+	if(file->get_extended_version() >= 12 || (file->is_version_atleast(112, 7) && file->get_extended_version() >= 11))
 	{
 		file->rdwr_long(renovations_try);
 		file->rdwr_long(renovations_count);
@@ -1198,7 +1200,7 @@ class townhall_placefinder_t : public placefinder_t {
 					gr->kann_alle_obj_entfernen(NULL) == NULL;
 			} else {
 				// we want to build the townhall here: maybe replace existing buildings
-				return ((gr->get_typ()==grund_t::boden  &&  gr->ist_natur()) ||	gr->get_typ()==grund_t::fundament) &&
+				return ((gr->get_typ()==grund_t::boden  &&  gr->ist_natur()) || gr->get_typ()==grund_t::fundament) &&
 					gr->kann_alle_obj_entfernen(NULL) == NULL;
 			}
 		}
@@ -1661,7 +1663,7 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 //	has_low_density = false;
 	has_townhall = false;
 
-	stadtinfo_options = 3;	// citizen and growth
+	stadtinfo_options = 3; // citizen and growth
 
 	owner = player;
 
@@ -1798,7 +1800,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	file->rdwr_long(arb);
 	file->rdwr_long(won);
 
-	if(  file->get_version_int()>=112009  ) {
+	if(  file->is_version_atleast(112, 9)  ) {
 		// Must record the partial (less than 1 citizen) growth factor
 		// Otherwise we will get network desyncs
 		// Also allows accumulation of small growth factors
@@ -1808,7 +1810,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		unsupplied_city_growth = 0;
 	}
 	// old values zentrum_namen_cnt : aussen_namen_cnt
-	if(file->get_version_int()<99018) {
+	if(file->is_version_less(99, 18)) {
 		sint32 dummy=0;
 		file->rdwr_long(dummy);
 		file->rdwr_long(dummy);
@@ -1836,12 +1838,9 @@ void stadt_t::rdwr(loadsave_t* file)
 	const int adapted_max_city_history = file->get_extended_version() < 12 ? MAX_CITY_HISTORY + 1 : MAX_CITY_HISTORY;
 
 	// we probably need to load/save the city history
-	if (file->get_version_int() < 86000)
-	{
+	if (file->is_version_less(86, 0)) {
 		//DBG_DEBUG("stadt_t::rdwr()", "is old version: No history!");
-	}
-	else if(file->get_version_int() < 99016)
-	{
+	} else if(file->is_version_less(99, 16)) {
 		// 86.00.0 introduced city history
 		for (uint year = 0; year < MAX_CITY_HISTORY_YEARS; year++)
 		{
@@ -1882,14 +1881,12 @@ void stadt_t::rdwr(loadsave_t* file)
 		file->rdwr_long(dummy);
 		file->rdwr_long(dummy);
 	}
-	else if (file->get_extended_version() == 0)
-	{
+	else if(  file->get_extended_version() == 0  ) {
 		// 99.17.0 extended city history
 		// Extended version 3 extended it further, so skip the last step.
 		// For extended versions *before* 3, power history was treated as congestion
 		// (they are now separate), so that must be handled differently.
-		if (file->get_version_int() <= 120000)
-		{
+		if(  file->is_version_less(120, 0)  ) {
 			for (uint year = 0; year < MAX_CITY_HISTORY_YEARS; year++)
 			{
 				for (uint hist_type = 0; hist_type < 14; hist_type++)
@@ -2022,7 +2019,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		{
 			for(uint32 hist_type = 0; hist_type < adapted_max_city_history; hist_type++)
 			{
-				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->get_version_int() < 111001))
+				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->is_version_less(111, 1)))
 				{
 					// Versions earlier than 111.1 Ex 10.8 did not record walking passengers.
 					city_history_year[year][hist_type] = 0;
@@ -2051,7 +2048,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		{
 			for(uint hist_type = 0; hist_type < adapted_max_city_history; hist_type++)
 			{
-				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->get_version_int() < 111001))
+				if(hist_type == HIST_PAS_WALKED && (file->get_extended_version() < 10 || file->is_version_less(111, 1)))
 				{
 					// Versions earlier than 111.1 Ex 10.8 did not record walking passengers.
 					city_history_month[month][hist_type] = 0;
@@ -2105,7 +2102,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	}
 
 	// differential history
-	if (file->get_version_int() <= 120000 || (file->get_extended_version() > 0 && file->get_extended_version() < 25)) {
+	if (  file->is_version_less(120, 1) || (file->get_extended_version() > 0 && file->get_extended_version() < 25)) {
 		if (file->is_loading()) {
 			// Initalize differential statistics assuming a differential of 0.
 			city_growth_get_factors(city_growth_factor_previous, 0);
@@ -2131,29 +2128,28 @@ void stadt_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	if(file->get_version_int()>99014  &&  file->get_version_int()<99016) {
+	if(file->is_version_atleast(99, 15)  &&  file->is_version_less(99, 16)) {
 		sint32 dummy = 0;
 		file->rdwr_long(dummy);
 		file->rdwr_long(dummy);
 	}
 
 	// since 102.2 there are static cities
-	if(file->get_version_int()>102001 ) {
+	if(file->is_version_atleast(102, 2)) {
 		file->rdwr_bool(allow_citygrowth);
 	}
 	else if(  file->is_loading()  ) {
 		allow_citygrowth = true;
 	}
 	// save townhall road position
-	if(file->get_version_int()>102002 && file->get_extended_version() != 7 ) {
+	if(file->is_version_atleast(102, 3) && file->get_extended_version() != 7) {
 		townhall_road.rdwr(file);
 	}
 	else if(  file->is_loading()  ) {
 		townhall_road = koord::invalid;
 	}
 
-	if(file->get_version_int() >= 110005 && file->get_extended_version() < 12)
-	{
+	if(  file->is_version_atleast(110, 5) && file->get_extended_version() < 12  ) {
 		// Old "factory_entry_t" code - deprecated, but must skip to the correct
 		// position in old saved game files. NOTE: There is *no* way to save in
 		// a version compatible with older saved games with the factory entry
@@ -2185,7 +2181,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	//target_factories_pax.rdwr( file );
 	//target_factories_mail.rdwr( file );
 
-	if(file->get_extended_version() >=9 && file->get_version_int() >= 110000 && file->get_extended_version() < 13 && file->get_extended_revision() < 26)
+	if(file->get_extended_version() >=9 && file->is_version_atleast(110, 0) && file->get_extended_version() < 13 && file->get_extended_revision() < 26)
 	{
 		// This load/save block has been moved upwards because it is necessary to load outgoing_private_cars before setting the growth factors, which is done above.
 		if ((file->get_extended_version() < 14 || (file->get_extended_version() == 14 && file->get_extended_revision() < 19)))
@@ -2206,7 +2202,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		file->rdwr_long(incoming_private_cars);
 	}
 
-	if(file->is_saving() && file->get_extended_version() >=9 && file->get_version_int() >= 110000)
+	if(file->is_saving() && file->get_extended_version() >=9 && file->is_version_atleast(110, 0))
 	{
 		uint32 time;
 		koord k;
@@ -2310,7 +2306,7 @@ void stadt_t::rdwr(loadsave_t* file)
 		connected_cities.clear();
 		connected_industries.clear();
 		connected_attractions.clear();
-		if(file->get_extended_version() >=9 && file->get_version_int() >= 110000)
+		if(file->get_extended_version() >=9 && file->is_version_atleast(110, 0) )
 		{
 			uint32 time;
 			koord k;
@@ -2435,14 +2431,8 @@ void stadt_t::rdwr(loadsave_t* file)
 }
 
 
-/**
- * Wird am Ende der Laderoutine aufgerufen, wenn die Welt geladen ist
- * und nur noch die Datenstrukturenneu verknuepft werden muessen.
- */
 void stadt_t::finish_rd()
 {
-	//step_count = 0;
-	//next_step = 0;
 	next_growth_step = 0;
 
 	// there might be broken savegames
@@ -2454,7 +2444,6 @@ void stadt_t::finish_rd()
 		dbg->warning("stadt_t::finish_rd()", "City %s has no valid townhall after loading the savegame, try to build a new one.", get_name());
 		check_bau_townhall(true);
 	}
-
 	// new city => need to grow
 	if (buildings.empty()) {
 		step_grow_city(true);
@@ -2653,8 +2642,8 @@ void stadt_t::step(uint32 delta_t)
 
 	// update history (might be changed due to construction/destroying of houses)
 
-	city_history_month[0][HIST_GROWTH] = city_history_month[0][HIST_CITIZENS] - city_history_month[1][HIST_CITIZENS];	// growth
-	city_history_year[0][HIST_GROWTH] = city_history_year[0][HIST_CITIZENS] - city_history_year[1][HIST_CITIZENS];
+	city_history_month[0][HIST_GROWTH] = city_history_month[0][HIST_CITIZENS]-city_history_month[1][HIST_CITIZENS]; // growth
+	city_history_year[0][HIST_GROWTH] = city_history_year[0][HIST_CITIZENS]-city_history_year[1][HIST_CITIZENS];
 
 	city_history_month[0][HIST_BUILDING] = buildings.get_count();
 	city_history_year[0][HIST_BUILDING] = buildings.get_count();
@@ -2740,13 +2729,6 @@ void stadt_t::check_all_private_car_routes()
 	assert(error == 0);
 	(void)error;
 #endif
-
-
-	weg_t* const w = gr ? gr->get_weg(road_wt) : NULL;
-	if (w)
-	{
-		w->delete_all_routes_from_here();
-	}
 
 	// This will find the fastest route from the townhall road to *all* other townhall roads, industries and attractions.
 	route_t private_car_route;
@@ -2856,7 +2838,7 @@ void stadt_t::calc_growth()
 
 	FOR(const vector_tpl<fabrik_t*>, const& fab, welt->get_fab_list())
 	{
-		if(fab && fab->get_city() == this && fab->get_lieferziele().empty() && !fab->get_suppliers().empty())
+		if(fab && fab->get_city() == this && fab->get_consumers().empty() && !fab->get_suppliers().empty())
 		{
 			// consumer => check for it storage
 			const factory_desc_t *const desc = fab->get_desc();
@@ -2864,7 +2846,7 @@ void stadt_t::calc_growth()
 			{
 				city_history_month[0][HIST_GOODS_NEEDED] ++;
 				city_history_year[0][HIST_GOODS_NEEDED] ++;
-				if(  fab->input_vorrat_an( desc->get_supplier(i)->get_input_type() )>0  )
+				if(fab->get_input_stock(desc->get_supplier(i)->get_input_type()) > 0  )
 				{
 					city_history_month[0][HIST_GOODS_RECEIVED] ++;
 					city_history_year[0][HIST_GOODS_RECEIVED] ++;
@@ -3396,7 +3378,6 @@ void stadt_t::merke_passagier_ziel(koord k, PIXVAL color)
 	{
 		pax_destinations_new.set(position, color);
 	}
-
 	pax_destinations_new_change ++;
 }
 
@@ -3447,7 +3428,7 @@ class building_place_with_road_finder: public building_placefinder_t
 					if (!gr) {
 						return false;
 					}
-					if (	0 <= x  &&  x < w-1  &&  0 <= y  &&  y < h-1) {
+					if (  0 <= x  &&  x < w-1  &&  0 <= y  &&  y < h-1  ) {
 						// inside: nothing on top like elevated monorails?
 						if(  gr->get_leitung()!=NULL  ||  welt->lookup(gr->get_pos()+koord3d(0,0,1)  )!=NULL) {
 							// something on top (monorail or powerlines)
@@ -3619,7 +3600,7 @@ void stadt_t::check_bau_townhall(bool new_town)
 	if(desc != NULL) {
 		grund_t* gr = welt->lookup_kartenboden(pos);
 		gebaeude_t* gb = obj_cast<gebaeude_t>(gr->first_obj());
-		bool neugruendung = !has_townhall || !gb || !gb->is_townhall();
+		bool neugruendung = !has_townhall ||  !gb || !gb->is_townhall();
 		bool umziehen = !neugruendung;
 		koord alte_str(koord::invalid);
 		koord best_pos(pos);
@@ -3661,12 +3642,12 @@ void stadt_t::check_bau_townhall(bool new_town)
 				// no, the size is ok
 				// still need to check whether the existing townhall is not broken in some way
 				umziehen = false;
-				for (k.y = 0; k.y < groesse_alt.y; k.y++) {
-					for (k.x = 0; k.x < groesse_alt.x; k.x++) {
+				for(k.y = 0; k.y < groesse_alt.y; k.y ++) {
+					for(k.x = 0; k.x < groesse_alt.x; k.x ++) {
 						// for buildings with holes the hole could be on a different height ->gr==NULL
 						bool ok = false;
 						if (grund_t *gr = welt->lookup_kartenboden(k + pos)) {
-							if (gebaeude_t *gb_part = gr->find<gebaeude_t>()) {
+							if(gebaeude_t *gb_part = gr->find<gebaeude_t>()) {
 								// there may be buildings with holes, so we only remove our building!
 								if (gb_part->get_tile() == desc_alt->get_tile(old_layout, k.x, k.y)) {
 									ok = true;
@@ -3678,7 +3659,7 @@ void stadt_t::check_bau_townhall(bool new_town)
 				}
 				if (!umziehen) {
 					// correct position if new townhall is smaller than old
-					if (old_layout == 0) {
+					if(  old_layout == 0  ) {
 						best_pos.y -= desc->get_y(old_layout) - groesse_alt.y;
 					}
 					else if (old_layout == 1) {
@@ -3878,6 +3859,7 @@ void stadt_t::bewerte_res_com_ind(const koord pos, int &ind_score, int &com_scor
 
 	for (k.y = pos.y - 2; k.y <= pos.y + 2; k.y++) {
 		for (k.x = pos.x - 2; k.x <= pos.x + 2; k.x++) {
+
 			building_desc_t::btype t = building_desc_t::unknown;
 			if (const grund_t* gr = welt->lookup_kartenboden(k)) {
 				if (gebaeude_t const* const gb = obj_cast<gebaeude_t>(gr->first_obj())) {
@@ -3885,12 +3867,12 @@ void stadt_t::bewerte_res_com_ind(const koord pos, int &ind_score, int &com_scor
 				}
 			}
 
-				int i = -1;
-			switch (t) {
+			int i = -1;
+			switch(t) {
 				case building_desc_t::city_res: i = 0; break;
 				case building_desc_t::city_com: i = 1; break;
 				case building_desc_t::city_ind: i = 2; break;
-				default:;
+				default: ;
 			}
 			if (i >= 0) {
 				ind_score += ind_neighbour_score[i];
@@ -4373,18 +4355,18 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	}
 	const koord3d pos(gr->get_pos());
 
-	// Not building on ways (this was actually tested before be the cityrules), btu you can construct manually
+	// Not building on ways (this was actually tested before be the cityrules), but you can construct manually
 	if(  !gr->ist_natur() ) {
 		return;
 	}
 	// test ownership of all objects that can block construction
-	for (uint8 i = 0; i < gr->obj_count(); i++) {
+	for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 		obj_t *const obj = gr->obj_bei(i);
-		if (obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar) {
+		if(  obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar && obj->get_typ() != obj_t::pier ) {
 			return;
 		}
 	}
-	// Refuse to build on a slope, when there is a groudn right on top of it (=> the house would sit on the bridge then!)
+	// Refuse to build on a slope, when there is a ground right on top of it (=> the house would sit on the bridge then!)
 	if(  gr->get_grund_hang() != slope_t::flat  &&  welt->lookup(koord3d(k, welt->max_hgt(k))) != NULL  ) {
 		return;
 	}
@@ -4438,15 +4420,18 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	building_desc_t::btype want_to_have = building_desc_t::unknown;
 	const building_desc_t* h = NULL;
 
+	uint32 pier_sub_1_mask=pier_t::get_sub_mask_total(gr);
+	uint32 pier_sub_2_mask=pier_t::get_sub_mask_total(welt->lookup(gr->get_pos()+koord3d(0,0,1)));
+
 	if (!worker_shortage && (sum_commercial > sum_industrial  &&  sum_commercial > sum_residential)) {
-		h = hausbauer_t::get_commercial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+		h = hausbauer_t::get_commercial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_com;
 		}
 	}
 
 	if (!worker_shortage && (h == NULL  &&  sum_industrial > sum_residential  &&  sum_industrial > sum_commercial)) {
-		h = hausbauer_t::get_industrial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+		h = hausbauer_t::get_industrial(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_ind;
 		}
@@ -4455,7 +4440,7 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	if (h == NULL  &&  ((sum_residential > sum_industrial  &&  sum_residential > sum_commercial) || worker_shortage)) {
 		if (!job_shortage || worker_shortage)
 		{
-			h = hausbauer_t::get_residential(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters);
+			h = hausbauer_t::get_residential(0, size_single, current_month, cl, region, new_town, neighbor_building_clusters,pier_sub_1_mask,pier_sub_2_mask);
 		}
 		if (h != NULL) {
 			want_to_have = building_desc_t::city_res;
@@ -4521,7 +4506,10 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	// Divide unemployed by 4, because it counts towards commercial and industrial,
 	// and both of those count 'double' for population relative to residential.
 	const int employment_wanted  = get_unemployed() / 4;
-	const int housing_wanted = get_homeless() / 4;
+	// const int housing_wanted = get_homeless() / 4;
+	// made a major error here and didn't test cases with pre-version 14 paksets
+	// i never discovered the issue until now - Catasteroid
+	const int housing_wanted = get_homeless();
 
 	int industrial_suitability, commercial_suitability, residential_suitability;
 	bewerte_res_com_ind(k, industrial_suitability, commercial_suitability, residential_suitability );
@@ -4577,6 +4565,9 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	vector_tpl<koord> available_sizes;
 	get_available_building_size(k, available_sizes);
 	const uint8 size_offset = simrand(available_sizes.get_count(), "bool stadt_t::renovate_city_building");
+
+	// it's important to note buildings of a higher "level" are not strictly better than what they'll be replaced with in this model
+	// this may be due to inconsistencies between level value and resident/job numbers and the classes thereof in individual buildings
 
 	// try to build
 	const building_desc_t* h = NULL;
@@ -4658,8 +4649,7 @@ bool stadt_t::renovate_city_building(gebaeude_t* gb, bool map_generation)
 	}
 
 	// good enough to renovate, and we found a building?
-	if (sum > 0 && h != NULL)
-	{
+	if(  sum > 0  &&  h != NULL  ) {
 //		DBG_MESSAGE("stadt_t::renovate_city_building()", "renovation at %i,%i (%i level) of typ %i to typ %i with desire %i", k.x, k.y, alt_typ, want_to_have, sum);
 
 		for (uint16 i=0; i<surrounding_pos.get_count(); i++) {
@@ -4862,7 +4852,41 @@ uint32 stadt_t::get_population_by_class(uint8 p_class)
 	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
 	{
 		gebaeude_t* building = *i;
-		sum += building->get_adjusted_population_by_class(p_class);
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_population_by_class(p_class);
+		}
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_jobs_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_jobs_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_jobs_by_class(p_class);
+	}
+	return sum;
+}
+
+uint32 stadt_t::get_visitor_demand_by_class(uint8 p_class)
+{
+	uint32 sum = 0;
+	for (weighted_vector_tpl<gebaeude_t*>::const_iterator i = buildings.begin(); i != buildings.end(); ++i)
+	{
+		gebaeude_t* building = *i;
+		if (building && building == building->get_first_tile()) {
+			sum += building->get_adjusted_visitor_demand_by_class(p_class);
+		}
+	}
+	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+		sum += factory->get_building()->get_adjusted_visitor_demand_by_class(p_class);
 	}
 	return sum;
 }
@@ -5101,10 +5125,10 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		bool allow_deletion = true;
 
 		const weg_t* runway = bd->get_weg(air_wt);
-		allow_deletion &= !runway || (runway->get_player_nr() == PLAYER_UNOWNED && runway->get_max_speed() == 0);
+		allow_deletion &= !runway || (runway->get_owner_nr() == PLAYER_UNOWNED && runway->get_max_speed() == 0);
 
 		const weg_t* waterway = bd->get_weg(water_wt);
-		allow_deletion &= !waterway || (!waterway->is_public_right_of_way() && waterway->get_player_nr() == PLAYER_UNOWNED && waterway->is_degraded());
+		allow_deletion &= !waterway || (!waterway->is_public_right_of_way() && waterway->get_owner_nr() == PLAYER_UNOWNED && waterway->is_degraded());
 
 		if (!allow_deletion)
 		{
@@ -5122,7 +5146,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	}
 
 	// somebody else's things on it?
-	if (bd->kann_alle_obj_entfernen(NULL)) {
+	if(  bd->kann_alle_obj_entfernen(NULL)  ) {
 		return false;
 	}
 
@@ -5130,10 +5154,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	slope_t::type slope = bd->get_grund_hang();
 	if (!slope_t::is_way(slope)) {
 		climate c = welt->get_climate(k);
-		if (welt->can_flatten_tile(NULL, k, bd->get_hoehe()+1, true)) {
-			welt->flatten_tile(NULL, k, bd->get_hoehe()+1, true);
-		}
-		else if(  bd->get_hoehe() > welt->get_water_hgt(k)  &&  welt->can_flatten_tile(NULL, k, bd->get_hoehe() )  ) {
+		if(  bd->get_hoehe() > welt->get_water_hgt(k)  &&  welt->can_flatten_tile(NULL, k, bd->get_hoehe() )  ) {
 			welt->flatten_tile(NULL, k, bd->get_hoehe());
 		}
 		else {
@@ -5176,10 +5197,9 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		if (sch->get_desc()->get_styp() != type_tram) {
 			// not a tramway
 			ribi_t::ribi r = sch->get_ribi_unmasked();
-			if (!ribi_t::is_straight(r))
-			{
+			if (!ribi_t::is_straight(r)) {
 				// no building on crossings, curves, dead ends unless this is an unowned degraded way
-				if (!(sch->get_player_nr() == PLAYER_UNOWNED && sch->is_degraded()))
+				if (!(sch->get_owner_nr() == PLAYER_UNOWNED && sch->is_degraded()))
 				{
 					return false;
 				}
@@ -5193,22 +5213,22 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	ribi_t::ribi connection_roads = ribi_t::none;
 	// add ribi's to connection_roads if possible
 	for (int r = 0; r < 4; r++) {
-		if (ribi_t::nsew[r] & allowed_dir) {
+		if (ribi_t::nesw[r] & allowed_dir) {
 			// now we have to check for several problems ...
 			grund_t* bd2;
-			if(bd->get_neighbour(bd2, invalid_wt, ribi_t::nsew[r])) {
+			if(bd->get_neighbour(bd2, invalid_wt, ribi_t::nesw[r])) {
 				if(bd2->get_typ()==grund_t::fundament  ||  bd2->get_typ()==grund_t::wasser) {
 					// not connecting to a building of course ...
 				}
 				else if (!bd2->ist_karten_boden()) {
 					// do not connect to elevated ways / bridges
 				}
-				else if (bd2->get_typ()==grund_t::tunnelboden  &&  ribi_t::nsew[r]!=ribi_type(bd2->get_grund_hang())) {
+				else if (bd2->get_typ()==grund_t::tunnelboden  &&  ribi_t::nesw[r]!=ribi_type(bd2->get_grund_hang())) {
 					// not the correct slope
 				}
 				else if (bd2->get_typ()==grund_t::brueckenboden
-					&&  (bd2->get_grund_hang()==slope_t::flat  ?  ribi_t::nsew[r]!=ribi_type(bd2->get_weg_hang())
-					                                           :  ribi_t::backward(ribi_t::nsew[r])!=ribi_type(bd2->get_grund_hang()))) {
+					&&  (bd2->get_grund_hang()==slope_t::flat  ?  ribi_t::nesw[r]!=ribi_type(bd2->get_weg_hang())
+					                                           :  ribi_t::backward(ribi_t::nesw[r])!=ribi_type(bd2->get_grund_hang()))) {
 					// not the correct slope
 				}
 				else if(bd2->hat_weg(road_wt)) {
@@ -5218,16 +5238,16 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 						// nothing to connect
 						if(layouts==4) {
 							// single way
-							if(ribi_t::nsew[r]==ribi_t::backward(ribi_t::layout_to_ribi[gb->get_tile()->get_layout()])) {
+							if(ribi_t::nesw[r]==ribi_t::backward(ribi_t::layout_to_ribi[gb->get_tile()->get_layout()])) {
 								// allowed ...
-								connection_roads |= ribi_t::nsew[r];
+								connection_roads |= ribi_t::nesw[r];
 							}
 						}
 						else if(layouts==2 || layouts==8 || layouts==16) {
 							// through way
-							if((ribi_t::doubles( ribi_t::layout_to_ribi[gb->get_tile()->get_layout() & 1] )&ribi_t::nsew[r])!=0) {
+							if((ribi_t::doubles( ribi_t::layout_to_ribi[gb->get_tile()->get_layout() & 1] )&ribi_t::nesw[r])!=0) {
 								// allowed ...
-								connection_roads |= ribi_t::nsew[r];
+								connection_roads |= ribi_t::nesw[r];
 							}
 						}
 						else {
@@ -5243,7 +5263,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 						bauer.init_builder( way_builder_t::strasse | way_builder_t::terraform_flag, welt->get_city_road() );
 						if(  bauer.check_slope( bd, bd2 )  ) {
 							// allowed ...
-							connection_roads |= ribi_t::nsew[r];
+							connection_roads |= ribi_t::nesw[r];
 						}
 					}
 				}
@@ -5270,8 +5290,8 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 
 	// now add the ribis to the other ways (if there)
 	for (int r = 0; r < 4; r++) {
-		if (ribi_t::nsew[r] & connection_roads) {
-			grund_t* bd2 = welt->lookup_kartenboden(k + koord::nsew[r]);
+		if (ribi_t::nesw[r] & connection_roads) {
+			grund_t* bd2 = welt->lookup_kartenboden(k + koord::nesw[r]);
 			weg_t* w2 = bd2->get_weg(road_wt);
 			// The following code was added by Philip on the 30th of August 2014, but this causes roads to become disconnected when the city grows.
 			/*
@@ -5280,15 +5300,15 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			if ((rs && rs->get_desc()->is_private_way()) ||
 			    (w2 && !w2->is_public_right_of_way()) ||
 			    (wo && wo->get_desc()->is_noise_barrier())) {
-				connection_roads &= ~ribi_t::nsew[r];
+				connection_roads &= ~ribi_t::nesw[r];
 			} else {
-				w2->ribi_add(ribi_t::backward(ribi_t::nsew[r]));
+				w2->ribi_add(ribi_t::backward(ribi_t::nesw[r]));
 				bd2->calc_image();
 				bd2->set_flag( grund_t::dirty );
 			}
 			*/
 			// In Philip's code, the following three lines were deleted.
-			w2->ribi_add(ribi_t::backward(ribi_t::nsew[r]));
+			w2->ribi_add(ribi_t::backward(ribi_t::nesw[r]));
 			bd2->calc_image();
 			bd2->set_flag( grund_t::dirty );
 		}
@@ -5345,17 +5365,17 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 					// does not have a bridge available ...
 					return false;
 				}
-				const char* err = NULL;
+				const char *err = NULL;
 				sint8 bridge_height;
 				koord3d end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, false);
-				if (err || koord_distance(k, end.get_2d()) > 3) {
+				if(err  ||   koord_distance( k, end.get_2d())>3) {
 					// try to find shortest possible
 					end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, true);
 				}
 				// if the river is nagigable, we need a two hight slope, so we have to start on a flat tile
-				if (err && *err != 0 && strcmp(err, "Bridge is too long for this type!\n") != 0 && bd->get_weg_hang() != slope_t::flat) {
+				if(  err  &&  *err!=0  &&  strcmp(err,"Bridge is too long for this type!\n")!=0  &&  bd->get_weg_hang()!=slope_t::flat    ) {
 					slope_t::type old_slope = bd->get_grund_hang();
-					sint8 h_diff = slope_t::max_diff(old_slope);
+					sint8 h_diff = slope_t::max_diff( old_slope );
 					// raise up the tile
 					bd->set_grund_hang( slope_t::flat );
 					bd->set_hoehe( bd->get_hoehe() + h_diff );
@@ -5365,7 +5385,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 					}
 
 					end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, false);
-					if (err || koord_distance(k, end.get_2d()) > 3) {
+					if(err  ||   koord_distance( k, end.get_2d())>3) {
 						// try to find shortest possible
 						end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, true);
 					}
@@ -5378,8 +5398,7 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 							bd->obj_bei(i)->set_pos( bd->get_pos() );
 						}
 					}
-					else
-					{
+					else {
 						// update slope graphics on tile and tile in front
 						// The below code from Standard does not seem to exist in Extended
 						// (that is, the check_update_underground() logic.
@@ -5411,8 +5430,6 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 				}
 			}
 		}
-		return true;
-
 		return true;
 	}
 
@@ -5925,15 +5942,21 @@ void stadt_t::remove_substation(senke_t* substation)
 	substations.remove(substation);
 }
 
+sint64 stadt_t::get_cityhistory_last_quarter(int type)
+{
+	sint64 sum = 0;
+	const uint8 q_last_month_offset = world()->get_current_month()%3 + 1;
+	for (uint8 i = 0; i < 3; i++) {
+		sum += city_history_month[i+q_last_month_offset][type];
+	}
+	return sum;
+}
+
 private_car_destination_finder_t::private_car_destination_finder_t(karte_t* w, road_vehicle_t* m, stadt_t* o)
 {
 	welt = w;
 	master = m;
 	origin_city = o;
-	last_tile_speed = 0;
-	last_tile_cost_diagonal = 0;
-	last_tile_cost_straight = 0;
-	last_city = NULL;
 	meters_per_tile_x100 = welt->get_settings().get_meters_per_tile() * 100; // For 100ths of a minute
 }
 
@@ -6007,33 +6030,15 @@ int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_spe
 	}
 
 	const sint32 max_tile_speed = w->get_max_speed(); // This returns speed in km/h.
-	const planquadrat_t* plan = welt->access_nocheck(gr->get_pos().get_2d());
-	const stadt_t* city = plan->get_city();
 	const bool is_diagonal = w->is_diagonal();
-
-	if(city == last_city && max_tile_speed == last_tile_speed)
-	{
-		// Need not redo the whole calculation if nothing has changed.
-		if(is_diagonal && last_tile_cost_diagonal > 0)
-		{
-			return last_tile_cost_diagonal;
-		}
-		else if(last_tile_cost_straight > 0)
-		{
-			return last_tile_cost_straight;
-		}
-	}
-
-	last_city = city;
-	last_tile_speed = max_tile_speed;
 
 	sint32 speed = min(max_speed, max_tile_speed);
 
 #ifndef FORBID_CONGESTION_EFFECTS
-	const uint32 congestion_percentage = w->get_congestion_percentage();
-	if (congestion_percentage)
+	const sint32 congestion_percentage = w->get_congestion_percentage();
+	if (congestion_percentage > 0)
 	{
-		speed -= (speed * congestion_percentage) / 200;
+		speed = speed * 100 / (100 + congestion_percentage);
 		speed = max(4, speed);
 	}
 #endif
@@ -6063,14 +6068,6 @@ int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_spe
 
 	const int cost = mpt / ((speed * 167) / 10);
 
-	if(is_diagonal)
-	{
-		last_tile_cost_diagonal = cost;
-	}
-	else
-	{
-		last_tile_cost_straight = cost;
-	}
 	return cost;
 }
 

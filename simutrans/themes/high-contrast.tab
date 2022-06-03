@@ -54,6 +54,12 @@ bottom_window_bar_color = 3
 front_window_text_color = #FFFFFF
 bottom_window_text_color = #C0C0C0
 
+# make the chat window transparent in network games
+gui_chat_window_network_transparency = 13
+
+# if defined, use plain color for chat window in network games
+gui_color_chat_window_network_transparency = #000000
+
 #################################colour stuff#################################
 
 default_window_title_color = #194766
@@ -115,6 +121,7 @@ gui_color_loadingbar_inner = #868c86
 
 gui_player_color_dark = 5	
 gui_player_color_bright = 5
+gui_titlebar_player_color_background_brightness = 2
 
 ##################################size stuff##################################
 

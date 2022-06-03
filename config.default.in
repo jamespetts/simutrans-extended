@@ -31,6 +31,9 @@ MSG_LEVEL = 3
 OPTIMISE = 1 # Add umpteen optimisation flags
 #PROFILE = 1  # Enable profiling
 #PROFILE = 2  # Enable profiling with optimisation flags, can be used with `OPTIMISE = 1'
+#LTO = 1 # enable link time optimizations
+#TUNE_NATIVE = 1 # enable tuning for this machine (makes binary not portable)
+#GCC_POPCOUNT = 1 # use gcc builtin popcount to speed up on modern machines (makes binary not portable) 
 
 
 WITH_REVISION = @svn@ # adds the revision from svn; required for networkgames
@@ -50,6 +53,9 @@ USE_FREETYPE = @freetype@
 
 # using zstd compression
 USE_ZSTD = @zstd@
+
+# using FluidSynth for MIDI playback (SDL2 backend needed for Linux/MacOS, SDL2 or GDI for MinGW)
+USE_FLUIDSYNTH_MIDI = @fluidsynth@
 
 # use static linking (to be at least somewhat portable)
 STATIC = 1

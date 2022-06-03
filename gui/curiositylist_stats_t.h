@@ -15,7 +15,13 @@
 class gebaeude_t;
 
 namespace curiositylist {
-	enum sort_mode_t { by_name=0, by_paxlevel, by_pax_arrived, /*by_city,*/ by_region, SORT_MODES };
+	enum sort_mode_t {
+		by_name=0,
+		by_paxlevel,
+		by_pax_arrived,
+		by_region,
+		SORT_MODES
+	};
 };
 
 /**
@@ -44,9 +50,6 @@ public:
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
-	/**
-	* Draw the component
-	*/
 	void draw(scr_coord offset) OVERRIDE;
 };
 

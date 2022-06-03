@@ -54,7 +54,7 @@ public:
 
 	static const way_desc_t *get_desc(const char *way_name,const uint16 time=0);
 
-	static stringhashtable_tpl <way_desc_t *> * get_all_ways();
+	static stringhashtable_tpl <way_desc_t *, N_BAGS_LARGE> * get_all_ways();
 
 	static const way_desc_t *get_earliest_way(const waytype_t wtyp);
 
@@ -64,35 +64,38 @@ public:
 
 	static const vector_tpl<const way_desc_t *>&  get_way_list(waytype_t, systemtype_t system_type);
 
+
 	/**
 	 * Fill menu with icons of given waytype
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, const systemtype_t styp, sint16 ok_sound);
 
 	enum bautyp_t {
-		strasse=road_wt,
-		schiene=track_wt,
-		schiene_tram=tram_wt, // Dario: Tramway
-		monorail=monorail_wt,
-		maglev=maglev_wt,
-		wasser=water_wt,
-		luft=air_wt,
-		narrowgauge=narrowgauge_wt,
-		leitung=powerline_wt,
-		river=127,
-		bautyp_mask=255,
-		bot_flag=0x100,					// do not connect to other ways
-		elevated_flag=0x200,			// elevated structure
-		terraform_flag=0x400,
-		tunnel_flag=0x800				// underground structure
+		strasse        = road_wt,
+		schiene        = track_wt,
+		schiene_tram   = tram_wt,
+		monorail       = monorail_wt,
+		maglev         = maglev_wt,
+		wasser         = water_wt,
+		luft           = air_wt,
+		narrowgauge    = narrowgauge_wt,
+		leitung        = powerline_wt,
+		river          = 0x7F,
+		bautyp_mask    = 0xFF,
+
+		bot_flag       = 1 << 8,  // do not connect to other ways
+		elevated_flag  = 1 << 9,  // elevated structure
+		terraform_flag = 1 << 10,
+		tunnel_flag    = 1 << 11,  // underground structure
+		low_clearence_flag = 1 << 12
 	};
 
 private:
 	/// flags used in intern_calc_route, saved in the otherwise unused route_t::ANode->count
 	enum build_type_t {
-		build_straight = 1,      ///< next step has to be straight
-		terraform      = 2,      ///< terraform this tile
-		build_tunnel_bridge = 4, ///< bridge/tunnel ends here
+		build_straight      = 1 << 0, ///< next step has to be straight
+		terraform           = 1 << 1, ///< terraform this tile
+		build_tunnel_bridge = 1 << 2  ///< bridge/tunnel ends here
 	};
 
 	struct next_gr_t
@@ -101,7 +104,7 @@ private:
 		next_gr_t(grund_t* gr_, sint32 cost_, uint8 flag_=0) : gr(gr_), cost(cost_), flag(flag_) {}
 
 		grund_t* gr;
-		sint32     cost;
+		sint32   cost;
 		uint8    flag;
 	};
 	vector_tpl<next_gr_t> next_gr;
@@ -153,6 +156,12 @@ private:
 	 */
 	bool mark_way_for_upgrade_only;
 
+	/**
+	* If set, the way builder will not build crossings over
+	* ways other than unowned and fully degraded ways.
+	*/
+	bool forbid_crossings = false;
+
 	bool build_sidewalk;
 
 	uint32 maximum;    // hoechste Suchtiefe
@@ -173,7 +182,6 @@ public:
 	bool is_allowed_step( const grund_t *from, const grund_t *to, sint32 *costs );
 
 private:
-
 	// checks, if we can built a bridge here ...
 	// may modify next_gr array!
 	void check_for_bridge(const grund_t* parent_from, const grund_t* from, const vector_tpl<koord3d> &ziel);
@@ -225,6 +233,8 @@ public:
 	 */
 	void set_keep_city_roads(bool yesno) { keep_existing_city_roads = yesno; }
 
+	void set_forbid_crossings(bool value) { forbid_crossings = value; }
+
 	void set_build_sidewalk(bool yesno) { build_sidewalk = yesno; }
 
 	void set_mark_way_for_upgrade_only(bool yesno) { mark_way_for_upgrade_only = yesno; }
@@ -262,8 +272,6 @@ public:
 	void build();
 };
 
-
-ENUM_BITSET(way_builder_t::bautyp_t)
-
+ENUM_BITSET(way_builder_t::bautyp_t);
 
 #endif

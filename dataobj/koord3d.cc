@@ -34,7 +34,7 @@ void koord3d::rdwr(loadsave_t *file)
 	file->rdwr_short(v16);
 	y = v16;
 
-	if(file->get_version_int()<99005) {
+	if(file->is_version_less(99, 5)) {
 		file->rdwr_short(v16);
 		if(v16!=-1) {
 			z = (v16/16);
@@ -50,7 +50,7 @@ void koord3d::rdwr(loadsave_t *file)
 		z = v8;
 	}
 
-	if(  file->is_loading()  &&  file->get_version_int() < 112007  &&  x != -1  &&  y != -1  ) {
+	if(  file->is_loading()  &&  file->is_version_less(112, 7)  &&  x != -1  &&  y != -1  ) {
 		// convert heights from old single height saved game
 		z *= env_t::pak_height_conversion_factor;
 	}
@@ -86,10 +86,10 @@ ribi_t::ribi koord3d_vector_t::get_ribi( uint32 index ) const
 	ribi_t::ribi ribi = ribi_t::none;
 	koord3d pos = operator[](index);
 	if( index > 0 ) {
-		ribi |= ribi_type( operator[](index-1)-pos );
+		ribi |= ribi_type( operator[](index-1) - pos );
 	}
 	if( index+1 < get_count() ) {
-		ribi |= ribi_type( operator[](index+1)-pos );
+		ribi |= ribi_type( operator[](index+1) - pos );
 	}
 	return ribi;
 }

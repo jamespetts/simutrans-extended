@@ -8,7 +8,7 @@
 #include "../gui/simwin.h"
 #include "../simdebug.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../boden/wege/schiene.h"
 #include "../boden/grund.h"
 #include "../display/simimg.h"
@@ -477,8 +477,8 @@ void signal_t::info(cbuffer_t & buf) const
 		--------------------
 		* Ribi enum direction values
 		* 1 = North
-		* 4 = South
 		* 2 = East
+		* 4 = South
 		* 8 = West
 		*/
 		initial_direction =
@@ -550,13 +550,13 @@ void signal_t::info(cbuffer_t & buf) const
 					dead_end = true;
 					for (int r = 0; r < 4; r++)
 					{
-						if (((ribi_t::nsew[r] & initial_direction) != 0 || (ribi_t::nsew[r] & coming_from_direction) == 0) && gr->get_neighbour(to, waytype, ribi_t::nsew[r]))
+						if (((ribi_t::nesw[r] & initial_direction) != 0 || (ribi_t::nesw[r] & coming_from_direction) == 0) && gr->get_neighbour(to, waytype, ribi_t::nesw[r]))
 						{
 							weg_t* weg = to->get_weg(waytype);
 							gr = welt->lookup(weg->get_pos());
 							initial_direction = 0; // reset initial direction and start record what direction we came from by reversing the direction in which we are traveling
-							uint8 new_from_direction = r == 0 ? 1 : r == 1 ? 0 : r == 2 ? 3 : r == 3 ? 2 : 0;
-							coming_from_direction = ribi_t::nsew[new_from_direction];
+							uint8 new_from_direction = r == 0 ? 2 : r == 1 ? 3 : r == 2 ? 0 : r == 3 ? 1 : 0;
+							coming_from_direction = ribi_t::nesw[new_from_direction];
 							dead_end = false;
 
 							// Is this new tile a junction of some sorth?
@@ -617,7 +617,7 @@ void signal_t::info(cbuffer_t & buf) const
 												sig_dir == 8 ? 2 :
 												sig_ribi_dir;
 
-											if (ribi_t::nsew[r] == sig_ribi_dir)
+											if (ribi_t::nesw[r] == sig_ribi_dir)
 											{
 												signal = true;
 											}
@@ -823,6 +823,7 @@ void signal_t::calc_image()
 {
 	foreground_image = IMG_EMPTY;
 	image_id image = IMG_EMPTY;
+
 	after_xoffset = 0;
 	after_yoffset = 0;
 	sint8 xoff = 0, yoff = 0;
@@ -836,8 +837,7 @@ void signal_t::calc_image()
 		const ribi_t::ribi hang_dir = ribi_t::backward( ribi_type(full_hang) );
 
 		weg_t *sch = gr->get_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt);
-		if(sch)
-		{
+		if(sch) {
 			uint16 number_of_signal_image_types = desc->get_aspects();
 			if(desc->get_has_call_on())
 			{

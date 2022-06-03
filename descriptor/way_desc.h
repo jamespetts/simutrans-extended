@@ -22,18 +22,18 @@ class checksum_t;
  * way type in Simutrans.
  *
  * Child nodes:
- *	0   Name
- *	1   Copyright
- *	2   Images for flat ways (indexed by ribi)
- *	3   Images for slopes
- *	4   Images for straight diagonal ways
- *	5   Skin (cursor and icon)
+ *  0   Name
+ *  1   Copyright
+ *  2   Images for flat ways (indexed by ribi)
+ *  3   Images for slopes
+ *  4   Images for straight diagonal ways
+ *  5   Skin (cursor and icon)
  * if number_of_seasons == 0  (no winter images)
- *	6-8  front images of image lists 2-4
+ *  6-8  front images of image lists 2-4
  * else
- *	6-8  winter images of image lists 2-4
- *	9-11 front images of image lists 2-4
- *	12-14 front winter images of image lists 2-4
+ *  6-8  winter images of image lists 2-4
+ *  9-11 front images of image lists 2-4
+ *  12-14 front winter images of image lists 2-4
  */
 class way_desc_t : public obj_desc_transport_infrastructure_t {
 	friend class way_reader_t;
@@ -57,6 +57,11 @@ private:
 	/*Way constraints for, e.g., loading gauges, types of electrification, etc.
 	* @author: jamespetts*/
 	way_constraints_of_way_t way_constraints;
+
+	/**
+	 * @brief way_mask mask used for pier system
+	 */
+	uint32 deck_mask;
 
 	// this is the defualt tools for building this way ...
 	// if true front_images lists exists as nodes
@@ -88,6 +93,15 @@ private:
 	}
 public:
 
+	inline bool is_low_clearence(bool permissive=true) const{
+		return this->get_waytype() == waytype_t::road_wt ||
+				this->get_waytype() == waytype_t::tram_wt ||
+				this->get_waytype() == waytype_t::water_wt ||
+				this->get_waytype() == waytype_t::narrowgauge_wt ||
+				(this->get_waytype() == waytype_t::track_wt && permissive) ||
+				this->get_topspeed()==0;
+	}
+
 	// Returns maximum axle load
 	uint32 get_max_axle_load() const { return axle_load; }
 
@@ -107,6 +121,12 @@ public:
 	//systemtype_t get_styp() const { return (systemtype_t)styp; }
 
 	bool is_tram() const { return wtyp == track_wt  &&  styp == type_tram; }
+
+	/**
+	 * @brief get_waymask
+	 * @return may mask
+	 */
+	uint32 get_deckmask() const {return deck_mask;};
 
 	image_id get_image_id(ribi_t::ribi ribi, uint8 season, bool front = false) const
 	{

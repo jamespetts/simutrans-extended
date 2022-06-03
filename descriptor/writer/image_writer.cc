@@ -26,8 +26,6 @@ struct dimension
 	int ymax;
 };
 
-static int special_hist[SPECIAL];
-
 
 std::string image_writer_t::last_img_file;
 
@@ -35,14 +33,6 @@ unsigned image_writer_t::width;
 unsigned image_writer_t::height;
 unsigned char* image_writer_t::block = NULL;
 int image_writer_t::img_size = 64;
-
-
-void image_writer_t::dump_special_histogramm()
-{
-	for(int i = 0; i < SPECIAL; i++) {
-		printf("%2d) 0x%06x : %d\n", i, image_t::rgbtab[i], special_hist[i]);
-	}
-}
 
 
 uint32 image_writer_t::block_getpix(int x, int y)
@@ -69,7 +59,7 @@ static uint16 pixrgb_to_pixval(uint32 rgb)
 	// first: find about alpha
 	assert(  rgb < ALPHA_THRESHOLD  );
 
-	int alpha = 30 - (rgb >> 24)/8;	// transparency in 32 steps, but simutrans uses internally the reverse format
+	int alpha = 30 - (rgb >> 24)/8; // transparency in 32 steps, but simutrans uses internally the reverse format
 	if(  rgb > 0x00FFFFFF  ) {
 		// alpha is now between 0 ... 30
 
@@ -162,7 +152,7 @@ uint16 *image_writer_t::encode_image(int x, int y, dimension* dim, int* len)
 	const int img_height = dim->ymax - dim->ymin + 1;
 
 	for(  line = 0;  line < img_height;  line++  ) {
-		int row_px_count = 0;	// index of the currently handled pixel
+		int row_px_count = 0; // index of the currently handled pixel
 		uint16 clear_colored_run_pair_count = 0;
 
 		uint32 pix = block_getpix( x + row_px_count, y + line );
@@ -414,9 +404,9 @@ void image_writer_t::write_obj(FILE* outfp, obj_node_t& parent, std::string an_i
 	// to avoid any problems due to structure changes, we write manually the data
 	node.write_uint16(outfp, image.x,        0);
 	node.write_uint16(outfp, image.y,        2);
-	node.write_uint16 (outfp, image.w,        4);
-	node.write_uint8 (outfp, 3,             6); // version, always at position 6!
-	node.write_uint16 (outfp, image.h,        7);
+	node.write_uint16(outfp, image.w,        4);
+	node.write_uint8 (outfp, 3,              6); // version, always at position 6!
+	node.write_uint16(outfp, image.h,        7);
 	// len is now automatically calculated
 	node.write_uint8 (outfp, image.zoomable, 9);
 

@@ -10,8 +10,9 @@
 #include "../simtypes.h"
 #include "../display/scr_coord.h"
 
+#ifndef NETTOOL
 #include <zlib.h>
-#include <string>
+#endif
 
 #include <cstddef>
 
@@ -24,7 +25,7 @@
 
 /* Variable for message processing */
 
-/* Klassen */
+/* Classes */
 
 #define SIM_NOEVENT         0
 #define SIM_MOUSE_BUTTONS   1
@@ -54,14 +55,14 @@ struct sys_event_t
 		unsigned long code;
 		void *ptr;
 	};
-	int mx;                  /* es sind negative Koodinaten mgl */
-	int my;
-	int mb;
+	sint32 mx;                  /* es sind negative Koodinaten mgl */
+	sint32 my;
+	uint16 mb;
 
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
 
-	unsigned int key_mod; /* key mod, like ALT, STRG, SHIFT */
+	unsigned int key_mod; /* key mod, like ALT, CTRL, SHIFT */
 };
 
 extern sys_event_t sys_event;
@@ -76,8 +77,8 @@ bool dr_os_init(int const* parameter);
 /* maximum size possible (if there) */
 struct resolution
 {
-	int w;
-	int h;
+	scr_coord_val w;
+	scr_coord_val h;
 };
 resolution dr_query_screen_resolution();
 
@@ -108,7 +109,7 @@ bool dr_cantrash();
 int dr_remove(const char *path);
 
 // rename a file and delete eventually existing file new_utf8
-int dr_rename(const char *existing_utf8, const char *new_utf8);
+int dr_rename( const char *existing_utf8, const char *new_utf8 );
 
 // Functions the same as chdir except path must be UTF-8 encoded.
 int dr_chdir(const char *path);
@@ -119,8 +120,10 @@ char *dr_getcwd(char *buf, size_t size);
 // Functions the same as fopen except filename must be UTF-8 encoded.
 FILE *dr_fopen(const char *filename, const char *mode);
 
+#ifndef NETTOOL
 // Functions the same as gzopen except path must be UTF-8 encoded.
 gzFile dr_gzopen(const char *path, const char *mode);
+#endif
 
 // Functions the same as stat except path must be UTF-8 encoded.
 int dr_stat(const char *path, struct stat *buf);
@@ -139,8 +142,8 @@ void dr_textur(int xp, int yp, int w, int h);
 int dr_textur_resize(unsigned short** textur, int w, int h);
 
 // needed for screen update
-void dr_prepare_flush();	// waits, if previous update not yet finished
-void dr_flush();	// copy to screen (eventually multithreaded)
+void dr_prepare_flush(); // waits, if previous update not yet finished
+void dr_flush();         // copy to screen (eventually multithreaded)
 
 /**
  * Transform a 24 bit RGB color into the system format.
@@ -152,7 +155,7 @@ void show_pointer(int yesno);
 
 void set_pointer(int loading);
 
-void move_pointer(int x, int y);
+bool move_pointer(int x, int y);
 
 int get_mouse_x();
 int get_mouse_y();
@@ -160,20 +163,12 @@ int get_mouse_y();
 void ex_ord_update_mx_my();
 
 void GetEvents();
-void GetEventsNoWait();
 
 uint32 dr_time();
 void dr_sleep(uint32 millisec);
 
 // error message in case of fatal events
 void dr_fatal_notify(char const* msg);
-
-/**
- * Some wrappers can save screenshots.
- * @return 1 on success, 0 if not implemented for a particular wrapper and -1
- *         in case of error.
- */
-int dr_screenshot(const char *filename, int x, int y, int w, int h);
 
 /**
  * Copy text to the clipboard
@@ -214,6 +209,9 @@ void dr_stop_textinput();
  * Inform the IME of a ideal place to open its popup.
  */
 void dr_notify_input_pos(int x, int y);
+
+///  returns current two byte languange ID
+const char* dr_get_locale();
 
 int sysmain(int argc, char** argv);
 

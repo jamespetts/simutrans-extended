@@ -66,7 +66,7 @@ const skin_desc_t* skinverwaltung_t::message_options    = NULL;
 const skin_desc_t* skinverwaltung_t::color_options      = NULL;
 
 const skin_desc_t* skinverwaltung_t::compass_iso        = NULL;
-const skin_desc_t* skinverwaltung_t::compass_map        = NULL;	// compass for minimap
+const skin_desc_t* skinverwaltung_t::compass_map        = NULL; // compass for minimap
 
 const skin_desc_t* skinverwaltung_t::pax_evaluation_icons = NULL;
 const skin_desc_t* skinverwaltung_t::mail_evaluation_icons = NULL;
@@ -80,9 +80,10 @@ const skin_desc_t* skinverwaltung_t::reverse_arrows     = NULL;
 const skin_desc_t* skinverwaltung_t::waiting_time       = NULL; // waiting time at the station
 const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service frequency
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
+const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 
 // cursors
-const skin_desc_t* skinverwaltung_t::cursor_general     = NULL;	// new cursors
+const skin_desc_t* skinverwaltung_t::cursor_general     = NULL; // new cursors
 const skin_desc_t* skinverwaltung_t::bauigelsymbol      = NULL;
 const skin_desc_t* skinverwaltung_t::belegtzeiger       = NULL;
 const skin_desc_t* skinverwaltung_t::mouse_cursor       = NULL;
@@ -98,7 +99,7 @@ const skin_desc_t* skinverwaltung_t::ribi_arrow         = NULL;
 slist_tpl<const skin_desc_t *>skinverwaltung_t::extra_obj;
 
 
-static spezial_obj_tpl<skin_desc_t> const misc_objekte[] = {
+static special_obj_tpl<skin_desc_t> const misc_objekte[] = {
 	{ &skinverwaltung_t::ribi_arrow,        "RibiArrow"    },
 	{ &skinverwaltung_t::senke,             "PowerDest"    },
 	{ &skinverwaltung_t::pumpe,             "PowerSource"  },
@@ -108,7 +109,7 @@ static spezial_obj_tpl<skin_desc_t> const misc_objekte[] = {
 	{ NULL, NULL }
 };
 
-static spezial_obj_tpl<skin_desc_t> const menu_objekte[] = {
+static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	// new menu system
 	{ &skinverwaltung_t::button,            "Button"   },
 	{ &skinverwaltung_t::round_button,      "Roundbutton"  },
@@ -127,7 +128,7 @@ static spezial_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ NULL, NULL }
 };
 
-static spezial_obj_tpl<skin_desc_t> const symbol_objekte[] = {
+static special_obj_tpl<skin_desc_t> const symbol_objekte[] = {
 	{ &skinverwaltung_t::missing_scheduled_slot, "MissingScheduledSlot" },
 	{ &skinverwaltung_t::upgradable,         "Upgradable"     },
 	{ &skinverwaltung_t::pax_evaluation_icons, "PassengersEvaluation" },
@@ -142,6 +143,7 @@ static spezial_obj_tpl<skin_desc_t> const symbol_objekte[] = {
 	{ &skinverwaltung_t::waiting_time,       "WaitingTime"    },
 	{ &skinverwaltung_t::service_frequency,  "ServiceFrequency" },
 	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
+	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
 	{ &skinverwaltung_t::seasons_icons,      "Seasons"        },
 	{ &skinverwaltung_t::message_options,    "MessageOptions" },
 	{ &skinverwaltung_t::color_options,      "ColorOptions"   },
@@ -159,7 +161,7 @@ static spezial_obj_tpl<skin_desc_t> const symbol_objekte[] = {
 };
 
 // simutrans will work without those
-static spezial_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
+static special_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
 	{ &skinverwaltung_t::biglogosymbol,      "BigLogo"        },
 	{ &skinverwaltung_t::mouse_cursor,       "Mouse"          },
 	{ &skinverwaltung_t::zughaltsymbol,      "TrainStop"      },
@@ -182,7 +184,7 @@ static spezial_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
 	{ NULL, NULL }
 };
 
-static spezial_obj_tpl<skin_desc_t> const cursor_objekte[] = {
+static special_obj_tpl<skin_desc_t> const cursor_objekte[] = {
 	// old cursors
 	{ &skinverwaltung_t::bauigelsymbol,  "Builder"      },
 	{ &skinverwaltung_t::cursor_general, "GeneralTools" },
@@ -193,11 +195,11 @@ static spezial_obj_tpl<skin_desc_t> const cursor_objekte[] = {
 
 bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 {
-	spezial_obj_tpl<skin_desc_t> const* sd;
+	special_obj_tpl<skin_desc_t> const* sd;
 	switch (type) {
-		case menu:    sd = menu_objekte+1;     break;
+		case menu:    return true; // skins will be handled elsewhere
 		case cursor:  sd = cursor_objekte;     break;
-		case symbol:  sd = symbol_objekte+14;   break;
+		case symbol:  sd = symbol_objekte+15;  break;
 		case misc:
 			sd = misc_objekte+3;
 			// for compatibility: use sidewalk as tunneltexture
@@ -214,7 +216,7 @@ bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 
 bool skinverwaltung_t::register_desc(skintyp_t type, const skin_desc_t* desc)
 {
-	spezial_obj_tpl<skin_desc_t> const* sd;
+	special_obj_tpl<skin_desc_t> const* sd;
 	switch (type) {
 		case menu:    sd = menu_objekte;   break;
 		case cursor:  sd = cursor_objekte; break;
@@ -250,6 +252,33 @@ const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 		if (strncmp(str, s->get_name(), len) == 0) {
 			return s;
 		}
+	}
+	return NULL;
+}
+
+const skin_desc_t *skinverwaltung_t::get_waytype_skin(waytype_t wt)
+{
+	switch (wt)
+	{
+		case road_wt:
+			return autohaltsymbol;
+			//return bushaltsymbol;
+		case track_wt:
+			return zughaltsymbol;
+		case water_wt:
+			return schiffshaltsymbol;
+		case monorail_wt:
+			return monorailhaltsymbol;
+		case maglev_wt:
+			return maglevhaltsymbol;
+		case tram_wt:
+			return tramhaltsymbol;
+		case narrowgauge_wt:
+			return narrowgaugehaltsymbol;
+		case air_wt:
+			return airhaltsymbol;
+		default:
+			break;
 	}
 	return NULL;
 }

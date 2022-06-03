@@ -49,6 +49,8 @@ cl_btn_sort_schedule
 次の停車駅
 cl_btn_sort_power
 出力
+cl_btn_sort_range
+航続距離
 clf_btn_alle
 全選択
 clf_btn_invers
@@ -87,20 +89,18 @@ hlf_btn_keine
 全解除
 lake
 湖を作成する
+Lake
+湖
 Maximize height levels
 高さを最大化する
 Networks
 路線図
-Queueing
-待機の増減
 Road toll
 通行料
 Scenario
 シナリオ
 Start this as a server
 このゲームをサーバーとして開始します。
-Transfers
-乗降数
 #_________________________________climates_text_________________________________
 #_________________________________climates_text_________________________________
 arctic
@@ -279,20 +279,20 @@ Please click on the map to add\nwaypoints or stops to this\nschedule.
 マップをクリックして、中継点または\n駅をスケジュールに追加してください。
 Set tile climate
 地面タイルの気候を%sに変更します。
-Show capacity and if halt is overcrowded
-各駅/停留所の待合室定員の大きさと混雑度を表示
 Show how many convoi reach a station
 駅に到着した車両の数を表示
 Show how many people/much is waiting at halts
-待機量を表示
+現在の旅客待機量を円の大きさで表示し、混雑度を色で表します。紫は過度の混雑状態を示します。
+Show how many mails are waiting at halts
+現在の郵便待機量を円の大きさで表示し、混雑度を色で表します。
+Show how many goods are waiting at halts
+現在の貨物待機量を円の大きさで表示し、混雑度を色で表します。
 Show initial passenger departure
 旅客および郵便の発生源を表示
 Show level of city buildings
 市内建築物の旅客度/郵便度を表示
 Show speedlimit of ways
 軌道/道路の制限速度を表示
-Show the change of waiting at halts
-先月と比べた待機数の増減を表示
 Show the owenership of infrastructure
 軌道/道路の所有者を表示
 Show transported freight/freight network
@@ -407,7 +407,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \n電化
 \nHeightfield has wrong image type.\n
 \nマップファイルの\nイメージ形式が不正です。\n
-\nis reserved by:
+is reserved by:
 優先列車：
 \nminimum speed:
 \n最低速度：
@@ -437,8 +437,6 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 %i車、
 %i km/h (max. %ikm/h)
  %i km/h (最高速度 %ikm/h)
-%i years %i months old
-%i年%i月です。
 %i years %i months old.
 樹齢 %i 年と %i ヶ月です。
 %s at (%i,%i) now public stop.
@@ -485,8 +483,6 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 1編成
 1 Einzelfahrzeug im Depot
 1台/両が留置されています。
-100 km/h = %i tiles/month
-100 km/h = %i タイル/月
 1LIGHT_CHOOSE
 明るさ:
 1WORLD_CHOOSE
@@ -716,7 +712,9 @@ chooses a random map
 citicens
 住民
 City attraction
-都市内施設
+都市内向け施設
+City attractions
+市内の観光施設
 City industries
 産業チェーンの数
 City list
@@ -731,8 +729,6 @@ CityLimit
 市域
 cl_title
 乗り物一覧
-cl_txt_sort
-並び替え:
 Clear block reservation
 線路占有解除ツール
 clf_chk_aircrafts
@@ -819,8 +815,8 @@ Convoi is sold when all wagons are empty.
 この編成を回送し、空車時に売却します。
 convoi mouseover tooltips
 マウスオーバーで車両の状態を表示
-convoi passed last\nmonth %i\n
-\n前月の交通量: %i\n―――――――――――
+convoi passed last month:
+前月交通量:
 Convois
 編成数
 Convois: %d\nProfit: %s
@@ -855,6 +851,10 @@ Customers live in:
 顧客居住地:
 DAY_SYMBOL
 日
+db_convoy_to
+次の停車駅
+db_convoy_from
+前の停車駅
 deactivated in online mode
 ネットゲームでは使用できません
 Dec.
@@ -1057,6 +1057,14 @@ gl_btn_sort_catg
 カテゴリー順
 gl_title
 貨物一覧
+gl_normal
+基本情報
+gl_prod
+生産業
+gl_con
+対消費者産業
+Manufacturers
+製造業
 go home
 車庫へ
 Goods
@@ -1159,6 +1167,8 @@ Idle:
 待機回数：
 ignore climates
 気候条件を無視する
+ignore regions
+地域条件を無視する
 In the industry legend show only currently existing factories
 現在存在する産業が取り扱っている貨物のみを表示します。
 In Transit
@@ -1188,7 +1198,9 @@ Intro. date:
 invalid
 故障
 Invalid coordinate
-★高度が不正です★
+※無効な座標※
+Invalid filter
+無効なフィルタ設定です
 isometric map
 回転して表示
 Jan.
@@ -1232,7 +1244,7 @@ LARGE_NUMBER_STRING
 LARGE_NUMBER_VALUE
 1e8
 Last Month
-先月
+前月
 Last used tools
 最後に使用したツール
 Last Year
@@ -1251,8 +1263,6 @@ Leitung
 送電線
 length: %d
 建設距離: %d
-letzen Monat: diesen Monat:
-先月:　　　　　　　　　今月:
 Line
 路線
 Line Filter
@@ -1489,6 +1499,10 @@ Only show goods which are currently handled by factories
 現在存在する産業が取り扱っている貨物のみを表示します。
 open
 進入可
+open_signalbox_info
+信号扱所情報
+open_signal_connector_gui
+信号機の接続先を操作する画面を開きます
 Operation
 運行費
 Ops Profit
@@ -1653,6 +1667,8 @@ remove narrowgauge tracks
 ナローゲージの撤去
 remove powerlines
 送電線の撤去
+remove signal
+信号の撤去
 remove roads
 道路の撤去
 remove tracks
@@ -1786,7 +1802,7 @@ Show map scale
 Show mismatched
 不適合のサーバーを表示
 Show obsolete
-旧型を表示
+老朽車両を含む
 Show offline
 オフラインを表示
 Show only used
@@ -1846,13 +1862,15 @@ Sound
 Sound settings
 サウンド設定
 Sound volume:
-マスターボリューム
+効果音ボリューム
 special freight
 専用貨物
 Speedbonus\nroad %i km/h, rail %i km/h\nships %i km/h, planes %i km/h.
 速達ボーナス:\n        道路 %i km/h, 鉄道 %i km/h, \n        海路 %i km/h 空路 %i km/h.
 Speedlimit
 制限速度
+speed_restricted
+最高速度が制限されています
 Speichern
 ゲームの保存
 Spieler
@@ -1979,6 +1997,10 @@ Transport %li passengers
 月に %li人以上の旅客を輸送
 Transported
 輸送実績
+Public transport
+公共交通機関利用
+Travelled
+旅客輸送達成数
 Trees disabled!
 樹木は使用できません！
 TrolleyBus_tab
@@ -2019,10 +2041,6 @@ Vehicle %s is stucked!
 「%s」が\n立ち往生しています！
 Vehicle details
 乗り物の詳細
-Vehicle Name
-車両名
-Vehicle Power
-出力
 Verbrauch
 消費
 Vergroessere die Karte\n
@@ -2056,7 +2074,7 @@ Warnings_msg
 Wasser
 海上
 Water
-沿岸
+水域
 Water level
 海面水位：
 water vehicle
@@ -2199,7 +2217,7 @@ Zu nah am Kartenrand
 #___________________________Simutrans Extended Texts____________________________
 #_________________________________program_text__________________________________
 #_________________________________program_text__________________________________
- %1.2f$/mon)
+ %1.2f$/mon
 %1.2f$/月
  from %s
  (%sから)
@@ -2209,20 +2227,20 @@ brakes from max. speed in %i - %i m
 (制動距離: %i - %i m)
 brakes from max. speed in %i m
 (制動距離: %i m)
-"%s has built a new %s %s %s."
-%1$sは新しい%2$sを%$4s%3$s建設しました。
 (catering_levels: %s)
 (車内サービスレベル: %s)
 (Max. comfortable journey time:
 (快適に移動できる最大時間:
 (speed_restricted_by_bridge)
-(橋梁による速度制限)
+橋梁による速度制限
 (speed_restricted_by_city)
-(市道化による速度制限)
+都市による速度制限
 (speed_restricted_by_tunnel)
-(トンネルによる速度制限)
+トンネルによる速度制限
 (speed_restricted_by_wayobj)
-(軌道付属設備による速度制限)
+軌道付属設備による速度制限
+(speed_restricted_by_crossing)
+踏切による速度制限
 [R]
 [折返]
 \n\nInterest on your debt is\naccumulating at %i %%
@@ -2231,48 +2249,22 @@ brakes from max. speed in %i m
 \n\n信用格付けに影響があります。
 \nCity:
 \n都市:
-\nMax. axle load:
-\n軸重制限:
-\nMax. weight:
-重量制限:
 \nMAY USE:
 \n通行可能:
 \nMUST USE:
 \n必須:
 \nNetwork ID:
 \nネットワークID:
-\nNo postboxes within walking distance
-\n徒歩圏内に郵便ポスト/郵便局はありません。
 \nOrigin: %s\nDestination: %s
 \n出発地: %s\n目的地: %s
 %_stronger
 % 改善
 %_weaker
 % 悪化
-%i_more_stops,_max_walking_time:_%s
-その他に%iヵ所の停留所/駅があり、最も遠い停留所/駅へは%s掛かります。
 %s has built a new %s in %s.
 %sは新たに%sを%sに建設しました。
 %s has built a new %s near %s.
 %sは新たに%sを%sの付近に建設しました。
-%s\nCost:     %d$\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d (%d)%s %s\nWeight: %dt\nTop speed: %dkm/h\n
-%s\n購入費: %d$\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d (%d)%s %s\n重量: %dt\n最高速度: %dkm/h\n
-%s\nCost:     %d$\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d%s %s\nWeight: %dt\nTop speed: %dkm/h\n
-%s\n購入費: %d$\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d%s %s\n重量: %dt\n最高速度: %dkm/h\n
-%s\nCost:     %s\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d (%d)%s %s\nWeight: %dt\nAxle load: %dt\nTop speed: %dkm/h\n\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d (%d)%s %s\n重量: %dt\n軸重: %dt\n最高速度: %dkm/h\n\n最大制動力: %dkN\n転がり抵抗: %.1fN\n
-%s\nCost:     %s\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d (%d)%s %s\nWeight: %dt\nAxle load: %dt\nTop speed: %dkm/h\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d (%d)%s %s\n重量: %dt\n軸重: %dt\n最高速度: %dkm/h\n最大制動力: %dkN\n転がり抵抗: %.1fN\n
-%s\nCost:     %s\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d%s %s\nWeight: %dt\nAxle load: %dt\nTop speed: %dkm/h\n\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d%s %s\n重量: %dt\n軸重: %dt\n最高速度: %dkm/h\n\n最大制動力: %dkN\n転がり抵抗: %.1fN\n
-%s\nCost:     %s\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d%s %s\nWeight: %dt\nAxle load: %dt\nTop speed: %dkm/h\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d%s %s\n重量: %dt\n軸重: %dt\n最高速度: %dkm/h\n最大制動力: %dkN\n転がり抵抗: %.1fN\n
-%s\nCost:     %s\nMaint.: %1.2f$/km, %1.2f$/month\nCapacity: %d%s %s\nWeight: %dt\nTop speed: %dkm/h\nMax. brake force: %dkN\nRolling resistance: %fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n定員/容量: %d%s %s\n重量: %dt\n最高速度: %dkm/h\n最大制動力: %dkN\n転がり抵抗: %fN\n
-%s\nCost: %d$\nMaint.: %1.2f$/km, %1.2f$/month\nPower: %dkW, %dkm/h\nWeight: %dt\n
-%s\n購入費: %d$\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n出力: %dkW, %dkm/h\n重量: %dt\n
-%s\nCost: %s\nMaint.: %1.2f$/km, %1.2f$/month\nPower: %dkW, %dkN\nTop Speed: %dkm/h\nWeight: %dt\nAxle load: %dt\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
-%s\n購入費: %s\n維持費: 1kmあたり%1.2f$, 1ヶ月あたり%1.2f$\n出力: %dkW, %dkN\n最高速度: %dkm/h\n重量: %dt\n軸重: %dt\n最大制動力: %dkN\n転がり抵抗: %.1fN\n
 A signalbox cannot be built here.
 ここには信号扱所を建設できません。
 above\nminutes
@@ -2283,6 +2275,8 @@ Acceleration
 加速
 Access
 アクセス権
+access_minimap
+路線図
 accommodation
 クラス別定員/容量
 accommodation (detail)
@@ -2321,8 +2315,6 @@ alt_route_and_callon
 副本線誘導
 Alternate directions
 交互に運転方向を反転
-Arrivals from\n
-到着予想時間:\n
 aspects
 現示数
 assets
@@ -2338,13 +2330,13 @@ average
 Average speed
 平均速度
 Avg trip time
-平均時間
+運用行程の平均時間
 Axle load:
 軸重:
 Base profit per km (when full):
 満載時の1kmあたりの収入(合計):
 bidirectional_order
-停車順: 往復
+往復行路
 block_reservation
 閉塞予約
 brakes from max. speed in %i m
@@ -2522,7 +2514,7 @@ city_threshold_size
 class
 クラス
 Class
-クラス
+運賃等級
 class_manager
 旅客/郵便クラスの割当て
 classes
@@ -2779,6 +2771,10 @@ Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers a
 産業:%sの閉鎖に伴い、%d人の雇用が失われ、%dの供給元と%dの需要先の産業が影響を受けました。
 infinite_range
 有効範囲の制限なし
+Infinite mouse scrolling
+マップスクロール時にポインタ位置を固定（マウス使用時推奨）
+Infinite scrolling using mouse
+windowモードではオフにした場合に画面の外にマウスポインタが移動することがあります。※タッチスクリーンでは動作しない可能性があります！
 Interest
 利子
 intermediate_signal
@@ -2799,8 +2795,6 @@ Last renewed
 最終更新年月
 latest_3
 過去3回の実測値
-left
-所要
 line_class_manager
 路線のクラス割当て
 line_has_obsolete_vehicles
@@ -2847,10 +2841,6 @@ Mail delivery success this year:
 今年の郵便配達成功率:
 Mail demand/output
 郵便需要/発送量
-Mail sent last year:
-昨年の郵便発送数:
-Mail sent this year:
-今年の郵便発送数:
 maint_incl_wayobj
 軌道付属設備を含む維持費
 maintenance
@@ -2933,8 +2923,6 @@ Next Month:
 来月:
 NO CONTROL TOWER
 空港管制塔なし
-No passenger stops within walking distance\n
-徒歩圏内に旅客駅/停留所はありません。\n
 No suitable depot found!\nYou need to send the\nconvoi to the depot\nmanually.\n%s\n
 適切な車庫が見つかりません。\手動でn車庫へ編成を送る必要があります。\n%s\n
 no_cargo_capacity
@@ -2946,7 +2934,7 @@ no_route_too_complex_message
 no_time_entry
 記録なし
 normal_unidirectional_order
-停車順: 往路
+順行路
 North To South
 南北方向
 north_and_east
@@ -2985,8 +2973,6 @@ one_way_sign
 一方通行標識
 Open countryside
 市域外
-open countryside
-市域外
 Open water
 水上
 Operating revenue less operating expenditure
@@ -3005,14 +2991,6 @@ partly_forged
 一部買収済
 Passenger destinations
 旅客の目的地
-Passenger success rate last year (local):
-昨年の移動成功率(通勤):
-Passenger success rate last year (non-local):
-昨年の移動成功率(旅行):
-Passenger success rate this year (local):
-今年の移動成功率(通勤):
-Passenger success rate this year (non-local):
-今年の移動成功率(旅行):
 passenger_routing_packet_size
 旅客経路計算時のパケットサイズ
 passenger\ndistribution
@@ -3093,8 +3071,6 @@ Rail
 鉄道
 Range
 航続距離
-range
-連続走行/航行可能距離
 Re-route goods:
 経路の再探索:
 Read-only option : need to be set in simuconf.tab
@@ -3148,17 +3124,17 @@ requires
 Reset this replacing operation
 編成の置き換え操作をリセットします。
 reset_all_classes
-全てのクラス設定をリセット
+運賃クラス設定を初期化
 reset_all_mail_classes
-全ての郵便クラス設定をリセット
+郵便物運賃クラス設定を初期化
 reset_all_pass_classes
-全ての旅客クラス設定をリセット
+旅客運賃クラス設定を初期化
 resets_all_classes_to_their_defaults
-全クラス設定をデフォルトに戻します。
+客室（設備）等級に対する運賃クラスの設定を推奨設定に戻します
 resets_all_mail_classes_to_their_defaults
-全郵便クラスの設定をデフォルトに戻します。
+この路線に所属する全ての車両の郵便物運賃クラスの設定を推奨設定に戻します
 resets_all_passenger_classes_to_their_defaults
-全旅客クラスの設定をデフォルトに戻します。
+この路線に所属する全ての車両の旅客運賃クラスの設定を推奨設定に戻します
 residents_wealth
 住民の裕福度
 Restrictions:
@@ -3172,9 +3148,9 @@ Revenue from electricity transmission
 revenue of
 収入:
 reverse route
-経路の反転
+逆行路
 reversed_unidirectional_order
-停車順: 復路
+逆行路
 Reversing
 折り返し中
 Reversing. %s left
@@ -3244,7 +3220,7 @@ Show in the ticker
 Show in ticker
 画面下部にスクロールで表示します。
 Show outdated
-古い車両を表示
+古い車両を含む
 Show the condition of ways
 軌道の状態を表示します。
 Show the map in the same isometric orientation as the main game window
@@ -3343,10 +3319,6 @@ The number of passengers who decline to travel because the journey would take to
 許容できる旅行時間よりも所要時間が長すぎるため、旅行を取り止めた旅客の人数を表します。
 The number of passengers who have travelled successfully from this stop
 この停留所/駅からの移動に成功した旅客の人数を表します。
-The number of passengers/units of mail/goods that have arrived at this stop
-この停留所/駅に到着した旅客/郵便/貨物の数を表します。
-The number of passengers/units of mail/goods that have departed from this stop
-この停留所/駅から出発した旅客/郵便/貨物の数を表します。
 The number of passengers/units of mail/goods waiting at this stop
 駅/停留所で待機している旅客/郵便/貨物の数を表します。
 The number of private car trips in the region overall
@@ -3441,6 +3413,8 @@ transferring
 移動中
 transfers
 移動中の旅客/貨物
+Transfers
+乗降客数
 Transformer only next to factory or in city!
 変電所は産業の隣接マスか市域内にのみ建設できます。
 Transshipment time:
@@ -3521,8 +3495,6 @@ waiting\ntolerance\nmax. min
 最大許容待機時間(分)
 waiting\ntolerance\nmin. min
 最小許容待機時間(分)
-Walked
-徒歩
 Walking time
 駅までの徒歩時間
 Way constraint permissive
@@ -3556,7 +3528,7 @@ West To East
 When adding convoys to the line, every second convoy will follow it in the reverse direction.
 路線に車両を追加したとき、車両が交互に反対方向へ運行するように設定します。
 When this is set, the vehicle will visit stops in reverse order.
-この項目が有効な場合、車両は逆順に停車します。
+このチェックを有効にすると、スケジュールの行路を逆順に巡回します。
 Whether the lighting in the main game window simulates a periodic transition between day and night.
 一定の時間間隔で日中の表示と夜間の表示を切り替えるかどうかを設定します。
 with_wayobj
@@ -3619,6 +3591,8 @@ fab_stuck
 生産停止（資材＆在庫飽和）
 missing_connection
 必要最低限の提携先がありません！
+material_not_available
+資材が調達できなくなっています！
 Within own network
 自家輸送網内のみ表示
 Show only connected to own transport network
@@ -3673,6 +3647,8 @@ Cannot start: no cab at the front of the convoy.
 編成の構成エラー：\n先頭になれない車両が先頭になっています。（運転台が無い等）
 switch the convoy nameplate display mode
 系統名表示モードの切り替え
+switch_sb
+信号機の接続先を変更
 no convoy nameplate
 系統名非表示
 mouseover
@@ -3722,7 +3698,7 @@ Return the vehicle(s) for a full refund.
 Sell the convoy for %s
 編成を %s にて売却します
 Congestion: %i%%
-混雑度： %i%%
+混雑度:  %i%%
 Display loaded detail
 積載情報の詳細を表示
 Displays detailed information of the vehicle's load.
@@ -3738,9 +3714,9 @@ Starting acceleration:
 Sell for %s
 %sで売却
 cl_btn_general
-編成外観・積載率
+編成外観
 cl_btn_payload
-カテゴリ別積載状況
+積載状況
 cl_btn_formation
 編成図
 available_company_takeovers:
@@ -3873,6 +3849,8 @@ Available:
 製造期間：
 Show future
 登場予定
+Show upgraded
+改造車両を含む
 GUI settings
 GUI設定
 map view
@@ -3887,6 +3865,8 @@ traffic settings
 交通設定
 Convoi following mode
 編成追跡時のカメラ動作
+Toolbar position:
+ツールバー表示位置：
 tooltip/coverage
 ツールチップ／有効範囲
 Grid
@@ -3937,6 +3917,14 @@ Select the behavior of the camera when the following convoy enters the tunnel.
 追跡中の編成がトンネルに入った時のカメラの挙動を選択することができます。
 do nothing
 何もしない
+Convoy ID
+編成ID
+name_plate
+運行系統名／編成名
+help_text_btn_line_name_plate
+ゲーム画面の編成上に運行系統名（または編成名）を表示します
+Shows the convoy unique ID
+ゲーム画面の編成上に編成固有のID番号を表示します
 sb_title
 信号扱所一覧
 sb_type
@@ -3951,8 +3939,8 @@ Trailers
 被牽引車
 <p>Continue by ESC, SPACE, or BACKSPACE.<br>
 <p>[ESC] [SPACE] [BACKSPACE]、いずれかのキーでゲームを開始します。<br>
-fl_btn_demand
-商品需要
+#fl_btn_demand
+#商品需要
 fl_btn_region
 所在地
 TOOL_SOUND
@@ -4057,18 +4045,286 @@ Unreachable
 N/A
 %.2f sec
 %.2f 秒
+Travel time and travel speed
+所要時間と表定速度
+Route average waiting time and speed evaluation
+平均待機時間。カッコ内は起点駅到着時からこの目的地までの平均移動時間を速度換算したもの
+Visitor arrivals
+訪問者到着数
+Commuter arrivals
+通勤者到着数
+Statistics
+統計データ
+Signalbox info.
+信号扱所情報
+Available at custom date
+任意の登場年月に変更
+Size (area)
+敷地面積
+Population/Visitor demand
+人口／訪問者需要
+Climate
+気候
+by_waiting_passengers
+旅客待機数
+by_waiting_mails
+郵便待機数
+by_waiting_goods
+貨物待機数
+hl_sort_tiles
+敷地面積
+hl_sort_capacity
+収容数
+hl_sort_overcrowding_rate
+混雑度
+by_potential_pax_number
+旅客需要度
+by_potential_mail_users
+郵便需要度
+by_pax_happy_last_month
+前月の乗車数
+by_mail_delivered_last_month
+前月の郵便発送数
+show_mutual_use
+利用中の他社駅も表示
+Also shows the stops of other players you are using
+路線や編成が乗り入れをしている他社の駅も表示します
+player_stats
+会社情報
+Signalboxes
+信号扱所
+way_distances
+総延長
+Electrified Distances
+電化総延長
+Active lines
+稼働路線数
+Signals/signs
+信号／標識
+Vehicles
+車両
+Total
+合計
+Monthly maintenance cost details
+月間維持管理費用
+Number of depots per way type, and those monthly maintenance costs.
+乗り物タイプごとの車庫数と月管理費用
+hlptxt_mf_stations
+乗り物タイプごとの対応駅数と合計月管理費用
+Number of signalboxes and total monthly maintenance costs.
+所有信号扱所の総数と月管理費用
+hlptxt_mf_way_distances
+所有道路、滑走路、軌道、水路の総延長と月管理費用
+hlptxt_mf_electrified_distances
+電化総延長と月管理費用
+Number of signals and signs per way type, and those monthly maintenance costs.
+信号、標識の総数と月管理費用
+Number of active lines per way type.
+乗り物タイプごとの稼働中の路線数
+Number of convoys per way type, and inactive convoys number in parentheses.
+乗り物タイプごとの編成数。カッコ内は車庫に留置中の編成数
+Number of vehicles per way type, and those monthly maintenance costs.
+乗り物タイプごとの車両数と月あたり車両保存費
+Vehicle not found
+該当なし
+One vehicle found
+該当数: 1
+%u vehicles found
+該当数: %u
+Open the fare calculation input field
+運賃計算入力欄を開く
+Show producers
+資材・製品を生産する産業を表示します
+Show consumers
+資材・製品を消費する産業を表示します
+Municipal way
+市道
+Private way
+私道
+%u cities
+都市へのルート(%u)：
+%u buildings
+ランドマーク／産業へのルート(%u)：
+The gradient does not fit a tunnel
+斜面がトンネルを建設するのに適していません
+Industry overlay
+産業在庫量ツールチップ
+Display bars above the factory to show the status
+産業建築物の上部に在庫量を示すバーを表示します
+can open a dedicated window by clicking on a private car.
+自家用車をクリックすると専用の情報ウィンドウを開きます
+can open a dedicated window by clicking on a pedestrian.
+歩行者をクリックすると専用の情報ウィンドウを開きます
+Private car
+自家用車
+Reselect closes tools
+選択済のツールボタンを押すと選択を解除する
+Date format
+日時の表示形式
+Show own depot names
+プレイヤー所有の車庫名を表示する
+Show the name of own depots in the main game window.
+メインゲーム画面上にプレイヤーの車庫の名前を表示します
+fare_chart
+運賃グラフ
+fare_short
+近距離運賃
+fare_long
+長距離運賃
+no_speed_bonus
+スピードボーナス対象外
+has_no_class
+-
+Information windows pop up control:
+情報ウィンドウの表示許可設定：
+helptxt_access_minimap
+ミニマップウィンドウに路線図を表示します
+ground_info
+地表タイル
+helptxt_ground_info_toggler
+占有されていないタイルをクリックすると土地情報を情報ウィンドウを開きます
+tree_info
+樹木
+helptxt_tree_info_toggler
+樹木、岩石、鳥の群れなどのオブジェクトをクリックすると専用の情報ウィンドウを開きます
+travel_distance
+運行距離
+Pax-km
+旅客輸送量
+Mail-km
+郵便輸送量
+Freight-km
+貨物輸送量
+pkm
+人km
+kgkm
+kg・km
+tkm
+トンkm
+A measure of the amount of passengers transported, expressed in passenger-kilometre
+旅客の輸送量を示す指標。輸送人数と輸送距離の積。
+A measure of the amount of mail transported, expressed in tonne-kilometre
+郵便物の輸送量を示す指標。貨物の重量と輸送距離の積。
+A measure of the amount of freight transported, expressed in tonne-kilometre
+貨物の輸送量を示す指標。貨物の重量と輸送距離の積。
+Transportation density
+輸送密度
+Yearly average
+年間平均
+/mon
+/月
+Handling mails
+郵便取扱量
+Handling goods
+貨物取扱量
+pax_handled_last_month
+前月旅客利用者
+mail_handled_last_month
+前月郵便取扱量
+goods_handled_last_month
+前月貨物取扱量
+The number of visitors that getting on and off
+この駅で乗り降りした旅行者の数
+The number of commuters that getting on and off
+この駅で乗り降りした通勤利用者の数
+The number of passengers at the stop last month
+前月の旅客利用者数
+The number of mail that handling at the stop last month
+前月の郵便物取扱量
+The number of goods that handling at the stop last month
+前月の貨物取扱量（トン）
+cl_general
+基本データ
+pax_traffic
+旅客流動量
+mail_traffic
+郵便流動量
+goods_traffic
+貨物流動量
+Passengers using public transportation in the last quarter
+前四半期の公共交通機関利用者数
+Percentage of users of public transportation
+公共交通機関利用者の割合
+Number of mail sent in the last quarter
+前四半期の郵便発送数
+Mail delivery success in the last quarter
+前四半期の郵便配達達成率
+pax_destination_mapping
+旅客目的地マッピング
+Open the color legend
+凡例を表示
+pax_transportation_ratio
+旅客移動手段比率
+helptxt_pax_transportation_ratio
+旅客が目的地まで移動した交通手段の比率
+City stops
+市内の駅
+City attractions
+市内のランドマーク
+City factories
+市内の産業
+Open the list of stops in this city
+市内にある全てのプレイヤーの駅一覧を別ウィンドウで表示します
+Open the list of attraction buildings in this city
+市内にある観光施設の一覧を別ウィンドウで表示します
+Open the list of factories in this city
+市内にある産業の一覧を別ウィンドウで表示します
+too_slow_public_transportation
+公共交通機関が遅すぎる
+too_slow_privatecar
+自家用車で移動しようとしたが時間がかかりすぎる
+destination_unavailable
+利用不可能な目的地
+(ci_demands)
+需要
+Production boosted by power supply
+電力供給による生産力ブースト
+fl_stats_last_month
+前月度生産統計
+edit_line_color
+ラインカラー編集
+Use unique line color
+ラインカラーを設定する
+Use line letter code
+路線記号を使用する
+Frame with corners
+外枠を使用する
+reset
+やり直し
+save
+登録して終了
+Base color:
+基調色：
+sub_bg:
+背景色を反転：
+Letter code
+記号（前）
+Number
+記号（後）
+Colored
+選択色
+White
+白
+You do not have permission to edit!
+他のプレイヤーの路線は編集できません！
+Save your changes and close the dialog.
+変更を保存してダイアログを閉じます
+helptxt_linecode_use_sub_background
+文字の背景に使用される色が基調色とは異なる色に入れ替わります
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+100 km/h = %i tiles/month
+100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
 旅客 %d %c, %d %c, %d 経路なし\n\n定員/容量: %i\n
 Passengers %d %c, %d %c, %d no route
 旅客の評価 %d %c, %d %c, %d 経路無し
 Passengers %d %s, %d %s, %d no route
 旅客の評価 %d %s, %d %s, %d 経路無し
-Passengers %d %c, %d %c, %d no route, %d too slow
-旅客の評価 %d %c, %d %c, %d 経路無し, %d 許容時間超過
-Passengers %d %s, %d %s, %d no route, %d too slow
-旅客の評価 %d %s, %d %s, %d 経路無し, %d 許容時間超過
+#Passengers %d %c, %d %c, %d no route, %d too slow
+#旅客の評価 %d %c, %d %c, %d 経路無し, %d 許容時間超過
+#Passengers %d %s, %d %s, %d no route, %d too slow
+#旅客の評価 %d %s, %d %s, %d 経路無し, %d 許容時間超過
 Unhappy
 不幸せ
 The number of passengers who have left because of overcrowding or excess waiting
@@ -4077,12 +4333,16 @@ Arbeiter aus:
 労働者居住地:
 No Route
 経路無し
-Welcome to Simutrans-Experimental, a game created by Hj. Malthaner and the Simutrans community, and modified by James E. Petts and the Simutrans community
-ようこそSimutrans-Extendedへ! Simutrans-StandardはHj. MalthanerとSimutransコミュニティによって開発されました。Simutrans-ExtendedはSimutrans-Standardを元にしてJames E. PettsとSimutransコミュニティによって開発されました。
 Usage/Output
 使用量/発電量
+Vehicle Name
+車両名
+Vehicle Power
+出力
 Power (MW)
 電力 (MW)
+Power: %4d kW\n
+出力: %4d kW\n
 #Show mail service coverage/mail network
 #郵便事業が行われている範囲を表示
 #Show passenger coverage/passenger network
@@ -4091,8 +4351,6 @@ Power (MW)
 #分所要
 # mins. waiting)
 #分待ち)
-Power: %4d kW\n
-出力: %4d kW\n
 #Odometer: %s km
 #積算距離： %skm
 #; %i km/h @ %.2f sec
@@ -4101,3 +4359,39 @@ Power: %4d kW\n
 #，%i km/h @ %.2f - %.2f 秒
 #; %i km/h @ %.2f sec -  %i km/h @ %.2f sec
 #，%i km/h @ %.2f 秒 -  %i km/h @ %.2f 秒
+#%i_more_stops,_max_walking_time:_%s
+#その他に%iヵ所の停留所/駅があり、最も遠い停留所/駅へは%s掛かります。
+#No passenger stops within walking distance\n
+#徒歩圏内に旅客駅/停留所はありません。\n
+#\nNo postboxes within walking distance
+#\n徒歩圏内に郵便ポスト/郵便局はありません。
+#Passenger success rate last year (local):
+#昨年の移動成功率(通勤):
+#Passenger success rate last year (non-local):
+#昨年の移動成功率(旅行):
+#Passenger success rate this year (local):
+#今年の移動成功率(通勤):
+#Passenger success rate this year (non-local):
+#今年の移動成功率(旅行):
+#left
+#所要
+#cl_txt_sort
+#並び替え:
+#letzen Monat: diesen Monat:
+#先月:　　　　　　　　　今月:
+#\nMax. axle load:
+#\n軸重制限:
+#\nMax. weight:
+#重量制限:
+#Transported
+#輸送実績
+#The number of passengers/units of mail/goods that have arrived at this stop
+#この停留所/駅に到着した旅客/郵便/貨物の数を表します。
+#The number of passengers/units of mail/goods that have departed from this stop
+#この停留所/駅から出発した旅客/郵便/貨物の数を表します。
+#Show capacity and if halt is overcrowded
+#各駅/停留所の待合室定員の大きさと混雑度を表示
+#Show the change of waiting at halts
+#前月と比べた待機数の増減を表示
+#Queueing
+#待機数の増減

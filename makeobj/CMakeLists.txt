@@ -56,6 +56,7 @@ target_sources(makeobj-extended PRIVATE
 	../descriptor/writer/way_writer.cc
 	../descriptor/writer/way_obj_writer.cc
 	../descriptor/writer/xref_writer.cc
+	../descriptor/writer/pier_writer.cc
 	../utils/dr_rdpng.cc
 )
 
@@ -67,6 +68,8 @@ target_sources(makeobj-extended PRIVATE
 	../simmem.cc
 	../utils/simstring.cc
 	../utils/searchfolder.cc
+	../utils/csv.cc
+	../utils/cbuffer_t.cc
 )
 
 # These source files produce different object code in makeobj-extended and simutrans

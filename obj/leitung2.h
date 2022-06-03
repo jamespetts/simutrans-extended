@@ -10,8 +10,8 @@
 #include "../ifc/sync_steppable.h"
 #include "../dataobj/koord3d.h"
 #include "../dataobj/ribi.h"
-#include "../simobj.h"
 #include "../simcity.h"
+#include "simobj.h"
 #include "../tpl/slist_tpl.h"
 
 #define POWER_TO_MW (12)  // bitshift for converting internal power values to mW for display. This is equivalent to dividing by 5,000
@@ -159,7 +159,7 @@ public:
 
 	void finish_rd() OVERRIDE;
 
-	void calc_image() OVERRIDE {} // otherwise it will change to leitung
+	void calc_image() OVERRIDE {} // empty; otherwise it will change to leitung
 
 	const fabrik_t* get_factory() const { return fab; }
 };
@@ -177,7 +177,7 @@ private:
 
 	sint32 einkommen;
 	sint32 max_einkommen;
-	sint32 delta_sum;
+	sint32 delta_t_sum;
 	sint32 next_t;
 	uint32 last_power_demand;
 	uint32 power_load;
@@ -194,8 +194,11 @@ public:
 	typ get_typ() const { return senke; }
 #endif
 
-	// used to alternate between displaying power on and power off images at a frequency determined by the percentage of power supplied
-	// gives players a visual indication of a power network with insufficient generation
+	/**
+	 * Used to alternate between displaying power on and power off images.
+	 * Frequency determined by the percentage of power supplied.
+	 * Gives players a visual indication of a power network with insufficient generation.
+	 */
 	sync_result sync_step(uint32 delta_t) OVERRIDE;
 
 	const char *get_name() const OVERRIDE {return "Abspanntransformator";}
@@ -204,7 +207,7 @@ public:
 
 	void finish_rd() OVERRIDE;
 
-	void calc_image() OVERRIDE {}	// otherwise it will change to leitung
+	void calc_image() OVERRIDE {} // empty; otherwise it will change to leitung
 
 	uint32 get_power_load() const;
 

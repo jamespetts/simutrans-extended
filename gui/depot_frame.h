@@ -8,16 +8,15 @@
 
 
 #include "gui_frame.h"
-#include "components/gui_label.h"
-#include "components/gui_textinput.h"
-#include "components/gui_combobox.h"
-#include "components/gui_button.h"
 #include "components/action_listener.h"
-#include "components/gui_scrollpane.h"
+#include "components/gui_button.h"
+#include "components/gui_combobox.h"
 #include "components/gui_convoy_assembler.h"
-#include "../simtypes.h"
-#include "../simdepot.h"
+#include "components/gui_label.h"
+#include "components/gui_scrollpane.h"
 #include "components/gui_speedbar.h"
+#include "components/gui_textinput.h"
+#include "../simdepot.h"
 #include "../simtypes.h"
 #include "../utils/cbuffer_t.h"
 
@@ -50,7 +49,7 @@ private:
 	const char* new_convoy_text;
 	gui_combobox_t convoy_selector;
 
-	button_t line_button;	// goto line ...
+	button_t line_button; // goto line ...
 
 	gui_label_t lb_convoi_line;
 
@@ -108,12 +107,6 @@ private:
 	 */
 	sint64 calc_sale_value(const vehicle_desc_t *veh_type);
 
-	/**
-	 * Does this window need a min size button in the title bar?
-	 * @return true if such a button is needed
-	 */
-	bool has_min_sizer() const OVERRIDE {return true;}
-
 	// true if already stored here
 	bool is_contained(const vehicle_desc_t *info);
 
@@ -124,6 +117,8 @@ private:
 	void image_from_convoi_list(uint nr, bool to_end);
 
 	void image_from_storage_list(gui_image_list_t::image_data_t *image_data);
+
+	static bool compare_line(linehandle_t const& l1, linehandle_t const& l2);
 
 public:
 	// the next two are only needed for depot_t update notifications

@@ -120,7 +120,7 @@ private:
 	sint32 growthfactor_medium;
 	sint32 growthfactor_large;
 
-	sint16 special_building_distance;	// distance between attraction to factory or other special buildings
+	sint16 special_building_distance; // distance between attraction to factory or other special buildings
 	uint32 industry_increase;
 	uint32 city_isolation_factor;
 
@@ -190,6 +190,11 @@ private:
 	bool beginner_mode;
 	sint32 beginner_price_factor;
 
+	/* Industry supply model used.
+	 * 0 : Classic (no flow control?)
+	 * 1 : JIT Classic (maximum transit and storage limited)
+	 * 2 : JIT Version 2 (demand buffers with better consumption model)
+	 */
 	uint8 just_in_time;
 
 	// default 0, will be incremented after each 90 degree rotation until 4
@@ -234,6 +239,8 @@ private:
 	road_timeline_t city_roads[16];
 	uint16 num_intercity_roads;
 	road_timeline_t intercity_roads[16];
+	uint16 num_industry_roads;
+	road_timeline_t industry_roads[16];
 
 	/**
 	 * Use numbering for stations?
@@ -252,8 +259,7 @@ private:
 	/* maximum number of steps for breath search */
 	sint32 max_transfers;
 
-	/**
-	 * multiplier for steps on diagonal:
+	/* multiplier for steps on diagonal:
 	 * 1024: TT-like, factor 2, vehicle will be too long and too fast
 	 * 724: correct one, factor sqrt(2)
 	 */
@@ -349,7 +355,29 @@ private:
 	* the faster the performance. Reduce this number if momentary
 	* unresponsiveness be noticed frequently.
 	*/
-	uint32 max_route_tiles_to_process_in_a_step = 1024;
+	uint32 max_route_tiles_to_process_in_a_step = 16384;
+
+	/**
+	* Same as max_route_tiles_to_process_in_a_step, but this is the number
+	* used when running as a server when paused because no clients are
+	* connected and configured to run background tasks while paused.
+	*/
+	uint32 max_route_tiles_to_process_in_a_step_paused_background = 65535;
+
+	/**
+	* These settings allow fine tuning the private car routing algorithm
+	* apropos how many routes are recorded. On larger maps, recording
+	* private car routes can take up a large amount of memory, so it
+	* can be useful to be able to disable some sorts of private car route
+	* recording.
+	*
+	* The numbers represent the maximum visitor demand threshold for the destination
+	* to which this rule applies. If 0, the rule does not apply.
+	*/
+	uint32 private_car_route_to_attraction_visitor_demand_threshold = 120;
+	uint32 private_car_route_to_industry_visitor_demand_threshold = 120;
+	bool do_not_record_private_car_routes_to_distant_non_consumer_industries = true;
+	bool do_not_record_private_car_routes_to_city_buildings = true;
 
 	/**
 	* This modifies the base journey time tolerance for passenger
@@ -572,7 +600,7 @@ private:
 	sint16 used_vehicle_reduction;
 
 	uint32 random_counter;
-	uint32 frames_per_second;	// only used in network mode ...
+	uint32 frames_per_second; // only used in network mode ...
 	uint32 frames_per_step;
 	uint32 server_frames_ahead;
 
@@ -604,7 +632,7 @@ private:
 
 public:
 	/* the big cost section */
-	sint32 maint_building;	// normal building
+	sint32 maint_building; // normal building
 
 	sint64 cst_multiply_dock;
 	sint64 cst_multiply_station;
@@ -620,6 +648,7 @@ public:
 	// alter landscape
 	sint64 cst_buy_land;
 	sint64 cst_alter_land;
+	sint64 cst_reclaim_land;
 	sint64 cst_alter_climate;
 	sint64 cst_set_slope;
 	sint64 cst_found_city;
@@ -715,6 +744,8 @@ public:
 	uint16 parallel_ways_forge_cost_percentage_narrowgauge;
 	uint16 parallel_ways_forge_cost_percentage_air;
 
+	uint16 parallel_pier_cost_percentage;
+
 	uint32 max_diversion_tiles;
 
 	uint32 way_degradation_fraction;
@@ -773,7 +804,16 @@ public:
 	void copy_city_road(settings_t const& other);
 
 	// init from this file ...
-	void parse_simuconf( tabfile_t &simuconf, sint16 &disp_width, sint16 &disp_height, sint16 &fullscreen, std::string &objfilename );
+	void parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool& fullscreen, std::string& objfilename);
+
+	// init without screen parameters ...
+	void parse_simuconf(tabfile_t& simuconf) {
+		sint16 idummy = 0;
+		bool bdummy = false;
+		std::string sdummy;
+
+		parse_simuconf(simuconf, idummy, idummy, bdummy, sdummy);
+	}
 
 	void parse_colours(tabfile_t& simuconf);
 
@@ -784,7 +824,7 @@ public:
 	sint32 get_size_y() const {return size_y;}
 
 	void reset_regions(sint32 old_x, sint32 old_y);
-	void rotate_regions(sint16 y_size);
+	void rotate_regions();
 
 	sint32 get_map_number() const {return map_number;}
 
@@ -811,7 +851,7 @@ public:
 	sint8 get_maximumheight() const { return world_maximum_height; }
 	sint8 get_minimumheight() const { return world_minimum_height; }
 
-	sint16 get_groundwater() const {return groundwater;}
+	sint8 get_groundwater() const {return (sint8)groundwater;}
 
 	double get_max_mountain_height() const {return max_mountain_height;}
 
@@ -840,7 +880,7 @@ public:
 
 	bool get_beginner_mode() const {return beginner_mode;}
 
-	void set_just_in_time(uint8 v) { just_in_time = v; }
+	void set_just_in_time(uint8 b) { just_in_time = b; }
 	uint8 get_just_in_time() const {return just_in_time;}
 
 	void set_default_climates();
@@ -848,11 +888,10 @@ public:
 
 	sint16 get_winter_snowline() const {return winter_snowline;}
 
-	void rotate90()
-	{
+	void rotate90() {
 		rotation = (rotation+1)&3;
 		set_size( size_y, size_x, true);
-		rotate_regions(size_y);
+		rotate_regions();
 	}
 	uint8 get_rotation() const { return rotation; }
 
@@ -872,7 +911,7 @@ public:
 	sint64 get_starting_money(sint16 year) const;
 
 	bool get_random_pedestrians() const { return random_pedestrians; }
-	void set_random_pedestrians( bool value ) { random_pedestrians = value; }
+	void set_random_pedestrians( bool f ) { random_pedestrians = f; }
 
 	sint16 get_special_building_distance() const { return special_building_distance; }
 
@@ -890,6 +929,7 @@ public:
 
 	const way_desc_t *get_city_road_type( uint16 year );
 	const way_desc_t *get_intercity_road_type( uint16 year );
+	const way_desc_t* get_industry_road_type( uint16 year );
 
 	void set_pak_diagonal_multiplier(uint16 n) { pak_diagonal_multiplier = n; }
 	uint16 get_pak_diagonal_multiplier() const { return pak_diagonal_multiplier; }
@@ -1223,6 +1263,8 @@ public:
 	uint16 get_parallel_ways_forge_cost_percentage_narrowgauge() const { return parallel_ways_forge_cost_percentage_narrowgauge; }
 	uint16 get_parallel_ways_forge_cost_percentage_air() const { return parallel_ways_forge_cost_percentage_air; }
 
+	uint16 get_parallel_piers_cost_percentage() const { return parallel_pier_cost_percentage; }
+
 	sint64 get_forge_cost(waytype_t wt) const;
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
 
@@ -1274,6 +1316,17 @@ public:
 
 	uint32 get_max_route_tiles_to_process_in_a_step() const { return max_route_tiles_to_process_in_a_step; }
 	void set_max_route_tiles_to_process_in_a_step(uint32 value) { max_route_tiles_to_process_in_a_step = value; }
+	uint32 get_max_route_tiles_to_process_in_a_step_paused_background() const { return max_route_tiles_to_process_in_a_step_paused_background; }
+	void set_max_route_tiles_to_process_in_a_step_paused_background(uint32 value) { max_route_tiles_to_process_in_a_step_paused_background = value; }
+
+	uint32 get_do_not_record_private_car_routes_to_city_attractions() const { return private_car_route_to_attraction_visitor_demand_threshold; }
+	void set_do_not_record_private_car_routes_to_city_attractions(uint32 value) { private_car_route_to_attraction_visitor_demand_threshold = value; }
+	uint32 get_do_not_record_private_car_routes_to_city_industries() const { return private_car_route_to_industry_visitor_demand_threshold; }
+	void set_do_not_record_private_car_routes_to_city_industries(uint32 value) { private_car_route_to_industry_visitor_demand_threshold = value; }
+	bool get_do_not_record_private_car_routes_to_distant_non_consumer_industries() const { return do_not_record_private_car_routes_to_distant_non_consumer_industries; }
+	void set_do_not_record_private_car_routes_to_distant_non_consumer_industries(bool value) { do_not_record_private_car_routes_to_distant_non_consumer_industries = value; }
+	bool get_do_not_record_private_car_routes_to_city_buildings() const { return do_not_record_private_car_routes_to_city_buildings; }
+	void set_do_not_record_private_car_routes_to_city_buildings(bool value) { do_not_record_private_car_routes_to_city_buildings = value; }
 };
 
 #endif

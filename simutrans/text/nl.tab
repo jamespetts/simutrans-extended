@@ -397,8 +397,8 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 geÅEektrificeerd
 \nHeightfield has wrong image type.\n
 \nHoogteveld heeft een onjuiste\nbestands opmaak.\n
-\nis reserved by:
-\nin gebruik door trein:
+is reserved by:
+in gebruik door trein:
 \nminimum speed:
 \nminimumsnelheid:
 \nnot elektrified
@@ -757,7 +757,7 @@ Convoi is sold when all wagons are empty.
 Het voertuig of de samenstelling wordt verkocht zodra het helemaal leeg is.
 convoi mouseover tooltips
 convooi mouseover tooltips
-convoi passed last\nmonth %i\n
+convoi passed last month:
 Verkeer in de \nvoorafgegane maand: %i\n
 Convois
 Voertuigen

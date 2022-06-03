@@ -7,10 +7,13 @@
 
 #include <assert.h>
 #include <math.h>
+#include <time.h>
 #include <stdlib.h>
 #include "simrandom.h"
 #include "../dataobj/environment.h"
 #include "../sys/simsys.h"
+#include "../dataobj/loadsave.h"
+
 
 /* This is the mersenne random generator: More random and faster! */
 
@@ -21,8 +24,8 @@
 #define UPPER_MASK 0x80000000UL /* most significant w-r bits */
 #define LOWER_MASK 0x7fffffffUL /* least significant r bits */
 
-static uint32 thread_local mersenne_twister[MERSENNE_TWISTER_N]; // the array for the state vector
-static int thread_local mersenne_twister_index = MERSENNE_TWISTER_N + 1; // mersenne_twister_index==N+1 means mersenne_twister[N] is not initialized
+static uint32 thread_local mersenne_twister[MERSENNE_TWISTER_N] = { 0 }; // the array for the state vector
+static uint32 thread_local mersenne_twister_index = MERSENNE_TWISTER_N + 1; // mersenne_twister_index==N+1 means mersenne_twister[N] is not initialized
 
 static uint8 thread_local random_origin = 0;
 
@@ -228,6 +231,20 @@ uint32 simrand_normal(const uint32 max, uint32 exponent, const char*)
 }
 
 
+void simrand_rdwr(loadsave_t *file)
+{
+	xml_tag_t t(file, "simrand");
+
+	// rdwr index
+	file->rdwr_long(mersenne_twister_index);
+
+	// rdwr state vector
+	for (uint32 i=0; i<MERSENNE_TWISTER_N; ++i) {
+		file->rdwr_long(mersenne_twister[i]);
+	}
+}
+
+
 void clear_random_mode( uint16 mode )
 {
 	random_origin &= ~mode;
@@ -246,7 +263,7 @@ uint16 get_random_mode()
 }
 
 
-static uint32 async_rand_seed = 12345678+dr_time();
+static uint32 async_rand_seed = 12345678 + (uint32)time( NULL ); // Do not use dr_time(). It returns 0 on program startup for some platforms (SDL).
 
 /* simpler simrand for anything not game critical (like UI) */
 uint32 sim_async_rand( uint32 max )
@@ -260,6 +277,7 @@ uint32 sim_async_rand( uint32 max )
 	return (async_rand_seed >> 8) % max;
 }
 
+
 static uint32 thread_local noise_seed = 0;
 
 uint32 setsimrand(uint32 seed,uint32 ns)
@@ -268,7 +286,7 @@ uint32 setsimrand(uint32 seed,uint32 ns)
 
 	if(seed!=0xFFFFFFFF) {
 		init_genrand( seed );
-		async_rand_seed = seed+dr_time();
+		async_rand_seed = seed + dr_time(); // dr_time() ok here. re comment ^^^. setsimrand not called immediately on program startup.
 		random_origin = 0;
 	}
 	if(noise_seed!=0xFFFFFFFF) {
@@ -343,7 +361,6 @@ void exit_perlin_map()
 
 #define map_noise(x,y) (0+map[(x)+1+((y)+1)*map_w])
 
-
 static double smoothed_noise(const int x, const int y)
 {
 	/* this gives a very smooth world */
@@ -385,6 +402,7 @@ static double smoothed_noise(const int x, const int y)
 // this gives very hilly world
 //   return int_noise(x,y);
 }*/
+
 
 static double linear_interpolate(const double a, const double b, const double x)
 {
@@ -437,12 +455,16 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 
 	static const double frequency_0[6] = {1,  2,  4,  8, 16, 32};
 	static const double amplitude_0[6] = {0,  1,  2,  3,  4,  5};
+
 	static const double frequency_1[8] = {0.25, 0.5,  1,  2,  4,  8, 16, 32};
-	static const double amplitude_1[8] = {-0.5,   0,  1,  2,  2,  3,  4,  7};
-	static const double frequency_2[16] = {0.0625, 0.125, 0.25, 0.5, 0.75,  1, 1.5,  2, 3, 4, 6, 8, 12, 16, 24, 32};
-	static const double amplitude_2[16] = {-0.5, -0.75, 0, 0.5, 1, 1.5, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 5, 7, 9};
-	//static const double frequency_2[24] = {0.125, 0.25, 0.5, 1, 1.25, 1.5,  1.75, 2,  2.5, 3, 3.5, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32};
-	//static const double amplitude_2[24] = {-1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10};
+	static const double amplitude_1[8] = {-0.5, 0,  1,  2,  2,  3,  4,  7};
+
+	static const double frequency_2[16] = {0.0625, 0.125, 0.25, 0.5, 0.75, 1, 1.33, 1.66, 2, 3, 4, 6, 8, 12, 16, 32};
+	static const double amplitude_2[16] = {-0.5, -0.75, 0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 7, 9};
+
+	// When enabled, this gives an extremely smooth world
+	//static const double frequency_3[24] = {0.002, 0.0625, 0.125, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2.5, 3, 3.5, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32};
+	//static const double amplitude_3[24] = {-0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 	if(m < 768)
 	{
@@ -466,7 +488,7 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 		}
 		return total;
 	}
-	else
+	else /*if (m < 4096)*/
 	{
 		for(i = 0; i < 16; i++)
 		{
@@ -476,6 +498,16 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 										(y * frequency) / 64.0) * amplitude;
 		}
 	}
+	/*else
+	{
+		for (i = 0; i < 23; i++)
+		{
+			const double frequency = frequency_3[i];
+			const double amplitude = pow(p, amplitude_3[i]);
+			total += interpolated_noise((x * frequency) / 32.0,
+										(y * frequency) / 32.0) * amplitude;
+		}
+	}*/
 
 	return total;
 }

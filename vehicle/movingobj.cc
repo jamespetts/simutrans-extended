@@ -8,7 +8,7 @@
 
 #include "../simdebug.h"
 #include "../simworld.h"
-#include "../simobj.h"
+#include "../obj/simobj.h"
 #include "../display/simimg.h"
 #include "../player/simplay.h"
 #include "../simtypes.h"
@@ -28,13 +28,16 @@
 
 #include "../obj/baum.h"
 
+#include "../gui/simwin.h"
+#include "../gui/slim_obj_info.h"
+
 #include "movingobj.h"
 
 /******************************** static stuff: desc management ****************************************************************/
 
 vector_tpl<const groundobj_desc_t *> movingobj_t::movingobj_typen(0);
 
-stringhashtable_tpl<groundobj_desc_t *> movingobj_t::desc_names;
+stringhashtable_tpl<groundobj_desc_t *, N_BAGS_MEDIUM> movingobj_t::desc_names;
 
 
 bool compare_groundobj_desc(const groundobj_desc_t* a, const groundobj_desc_t* b);
@@ -43,11 +46,11 @@ bool compare_groundobj_desc(const groundobj_desc_t* a, const groundobj_desc_t* b
 bool movingobj_t::successfully_loaded()
 {
 	movingobj_typen.resize(desc_names.get_count());
-	FOR(stringhashtable_tpl<groundobj_desc_t*>, const& i, desc_names) {
+	for(auto const& i : desc_names) {
 		movingobj_typen.insert_ordered(i.value, compare_groundobj_desc);
 	}
 	// iterate again to assign the index
-	FOR(stringhashtable_tpl<groundobj_desc_t*>, const& i, desc_names) {
+	for(auto const& i : desc_names) {
 		i.value->index = movingobj_typen.index_of(i.value);
 	}
 
@@ -170,7 +173,7 @@ movingobj_t::movingobj_t(koord3d pos, const groundobj_desc_t *b ) :
 {
 	movingobjtype = movingobj_typen.index_of(b);
 	weg_next = 0;
-	timetochange = 0;	// will do random direct change anyway during next step
+	timetochange = 0; // will do random direct change anyway during next step
 	direction = calc_set_direction( koord3d(0,0,0), koord3d(koord::west,0) );
 	calc_image();
 	welt->sync.add( this );
@@ -212,6 +215,7 @@ void movingobj_t::rdwr(loadsave_t *file)
 	file->rdwr_byte(steps_next);
 
 	pos_next.rdwr(file);
+
 	koord p = pos_next_next.get_2d();
 	p.rdwr(file);
 	if(file->is_loading()) {
@@ -246,25 +250,8 @@ void movingobj_t::rdwr(loadsave_t *file)
 void movingobj_t::show_info()
 {
 	if(env_t::tree_info) {
-		obj_t::show_info();
+		create_win(new slim_obj_info_t(this), w_info, (ptrdiff_t)this);
 	}
-}
-
-
-void movingobj_t::info(cbuffer_t & buf) const
-{
-	obj_t::info(buf);
-
-	buf.append(translator::translate(get_desc()->get_name()));
-	if (char const* const maker = get_desc()->get_copyright()) {
-		buf.append("\n");
-		buf.printf(translator::translate("Constructed by %s"), maker);
-	}
-	buf.append("\n");
-	buf.append(translator::translate("cost for removal"));
-	char buffer[128];
-	money_to_string( buffer, get_desc()->get_value()/100.0 );
-	buf.append( buffer );
 }
 
 
@@ -362,7 +349,7 @@ grund_t* movingobj_t::hop_check()
 		}
 	}
 
-	if(timetochange==0) {
+	if (timetochange==0) {
 		// direction change needed
 		timetochange = simrand(speed_to_kmh(get_desc()->get_speed())/3, "bool movingobj_t::hop_check()");
 		const koord pos=pos_next.get_2d();
@@ -370,7 +357,7 @@ grund_t* movingobj_t::hop_check()
 		uint8 until=0;
 		// find all tiles we can go
 		for(  int i=0;  i<4;  i++  ) {
-			const grund_t *check = welt->lookup_kartenboden(pos+koord::nsew[i]);
+			const grund_t *check = welt->lookup_kartenboden(pos+koord::nesw[i]);
 			if(check_next_tile(check)  &&  check->get_pos()!=get_pos()) {
 				to[until++] = check;
 			}
@@ -415,6 +402,7 @@ void movingobj_t::hop(grund_t* gr)
 
 	set_pos(pos_next);
 	enter_tile(gr);
+
 	// next position
 	pos_next = pos_next_next;
 }

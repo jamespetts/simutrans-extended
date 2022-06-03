@@ -413,8 +413,8 @@ Inicio
 \nelectrificado
 \nHeightfield has wrong image type.\n
 \nEl plano es un tipo de imagen incorrecto.\n
-\nis reserved by:
-\nreservado por el tren
+is reserved by:
+reservado por el tren
 \nminimum speed:
 \nvelocidad mú‹ima
 \nnot elektrified
@@ -777,8 +777,8 @@ Convoi is sold when all wagons are empty.
 Se venderEel vehú€ulo cuando estEcompletamente vacúŒ.
 convoi mouseover tooltips
 Estatus en convois
-convoi passed last\nmonth %i\n
-\nusuarios del pasado\nmes: %i\n
+convoi passed last month:
+usuarios del pasado\nmes: %i\n
 Convois
 convoyes
 Convois: %d\nProfit: %s

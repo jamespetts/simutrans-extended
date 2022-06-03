@@ -28,7 +28,7 @@ public:
 	koord(sint16 xp, sint16 yp) : x(xp), y(yp) {}
 	koord(loadsave_t* file);
 	koord(ribi_t::ribi ribi) { *this = from_ribi[ribi]; }
-	koord(slope_t::type hang)  { *this = from_hang[hang]; }
+	koord(slope_t::type slope) { *this = from_hang[slope]; }
 
 	// use this instead of koord(simrand(x),simrand(y)) to avoid
 	// different order on different compilers
@@ -37,7 +37,7 @@ public:
 	void rdwr(loadsave_t *file);
 
 	const char *get_str() const;
-	const char *get_fullstr() const;	// including brackets
+	const char *get_fullstr() const; // including brackets
 
 	const koord& operator += (const koord & k)
 	{
@@ -84,13 +84,17 @@ public:
 		}
 	}
 
+	ribi_t::ribi to_ribi() const{
+		return ribi_type(*this);
+	}
+
 	static const koord invalid;
 	static const koord north;
 	static const koord south;
 	static const koord east;
 	static const koord west;
 	// the 4 basic directions as an Array
-	static const koord nsew[4];
+	static const koord nesw[4];
 	// 8 next neighbours
 	static const koord neighbours[8];
 	// 15 next nearest neightbours

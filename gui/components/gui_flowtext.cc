@@ -63,7 +63,7 @@ private:
 	enum attributes
 	{
 		ATT_NONE,
-		ATT_NO_SPACE,	// same as none, but no trailing space
+		ATT_NO_SPACE, // same as none, but no trailing space
 		ATT_NEWLINE,
 		ATT_A_START,      ATT_A_END,
 		ATT_H1_START,     ATT_H1_END,
@@ -364,11 +364,11 @@ scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_
 	PIXVAL color        = SYSCOL_TEXT;
 	PIXVAL double_color = SYSCOL_TEXT_SHADOW;
 	bool double_it      = false;
-	bool link_it        = false;	// true, if currently underlining for a link
-	int extra_pixel     = 0;		// extra pixel before next line
-	int last_link_x     = 0;		// at this position ye need to continue underline drawing
-	int max_width       = width;
-	int text_width      = width;
+	bool link_it        = false; // true, if currently underlining for a link
+	int extra_pixel     = 0;     // extra pixel before next line
+	int last_link_x     = 0;     // at this position ye need to continue underline drawing
+	int max_width    = width;
+	int text_width   = width;
 	const int space_width = proportional_string_width(" ");
 
 	FOR(slist_tpl<node_t>, const& i, nodes) {
@@ -526,7 +526,7 @@ bool gui_flowtext_intern_t::infowin_event(const event_t* ev)
 			if(  link.tl.y+LINESPACE == link.br.y  ) {
 				if(  link.tl.x <= evpos.x  &&  evpos.x < link.br.x  &&  link.tl.y <= evpos.y  &&  evpos.y < link.br.y  ) {
 					call_listeners((void const*)link.param.c_str());
-					break;
+					return true;
 				}
 			}
 			else {
@@ -534,23 +534,23 @@ bool gui_flowtext_intern_t::infowin_event(const event_t* ev)
 				if(  link.tl.x <= evpos.x  &&  evpos.x < get_size().w  &&  link.tl.y <= evpos.y  &&  evpos.y < link.tl.y+LINESPACE  ) {
 					// in top line
 					call_listeners((void const*)link.param.c_str());
-					break;
+					return true;
 				}
 				else if(  0 <= evpos.x  &&  evpos.x < link.br.x  &&  link.br.y-LINESPACE <= evpos.y  &&  evpos.y < link.br.y  ) {
 					// in last line
 					call_listeners((void const*)link.param.c_str());
-					break;
+					return true;
 				}
 				else if(  0 <= evpos.x  &&  evpos.x < get_size().w  &&  link.tl.y+LINESPACE <= evpos.y  &&  evpos.y < link.br.y-LINESPACE  ) {
 					// line in between
 					call_listeners((void const*)link.param.c_str());
-					break;
+					return true;
 				}
 
 			}
 		}
 	}
-	return true;
+	return false;
 }
 
 

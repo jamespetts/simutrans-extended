@@ -27,6 +27,9 @@ class root_writer_t : public obj_writer_t {
 		void write_header(FILE* fp);
 		void write_obj_node_info_t(FILE* outfp, const obj_node_info_t &root);
 
+		void writer_init(const char* i, const char* arg);
+		void writer_write(bool separate, const char* filename, FILE* outfp, obj_node_t *node, tabfileobj_t& obj);
+
 	public:
 		void capabilites();
 		static root_writer_t* instance() { return &the_instance; }
@@ -37,6 +40,7 @@ class root_writer_t : public obj_writer_t {
 		void dump(int argc, char* argv[]);
 		void list(int argc, char* argv[]);
 		void copy(const char* name, int argc, char* argv[]);
+		void write_CSV(const char* name, int argc, char* argv[]);
 
 		/**
 		 * @brief Expands makeobj pre-processor stuff

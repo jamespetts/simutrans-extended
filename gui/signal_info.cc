@@ -8,6 +8,9 @@
  */
 
 #include "signal_info.h"
+#include "simwin.h"
+#include "signal_connector_gui.h"
+
 #include "../obj/signal.h" // The rest of the dialog
 #include "../obj/gebaeude.h"
 
@@ -22,129 +25,171 @@ signal_info_t::signal_info_t(signal_t* const s) :
 	obj_infowin_t(s),
 	sig(s)
 {
-	koord3d sb = sig->get_signalbox();
-
 	new_component<gui_label_t>("Controlled from");
 	add_table(3,3);
 	{
 		bt_goto_signalbox.init(button_t::posbutton, NULL);
 		bt_goto_signalbox.set_visible(false);
 		bt_goto_signalbox.set_tooltip(translator::translate("goto_signalbox"));
+		bt_goto_signalbox.set_rigid(true);
 		add_component(&bt_goto_signalbox);
 		bt_goto_signalbox.add_listener(this);
 
-		lb_sb_name.buf().clear();
-		if (sb == koord3d::invalid) {
-			lb_sb_name.buf().append(translator::translate("keine"));
+		add_component(&lb_sb_name);
+
+		bt_info_signalbox.init(button_t::roundbox, "Details");
+		if (skinverwaltung_t::open_window) {
+			bt_info_signalbox.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_info_signalbox.set_image_position_right(true);
 		}
-		else {
-			const grund_t* gr = welt->lookup(sb);
-			if (gr) {
-				const gebaeude_t* gb = gr->get_building();
-				if (gb) {
-					char sb_name[1024] = { '\0' };
-					int max_width = 250;
-					int max_lines = 5; // Set a limit
-					sprintf(sb_name, "%s", translator::translate(gb->get_name()));
+		bt_info_signalbox.set_size(scr_size(D_BUTTON_WIDTH*2/3, D_BUTTON_HEIGHT));
+		bt_info_signalbox.set_visible(false);
+		bt_info_signalbox.set_tooltip(translator::translate("open_signalbox_info"));
+		bt_info_signalbox.add_listener(this);
+		bt_info_signalbox.set_rigid(true);
+		add_component(&bt_info_signalbox);
 
-					//sprintf(sb_name,"This is a very very long signal box name which is so long that no one remembers what it was actually called before the super long name of the signalbox got changed to its current slightly longer name which is still too long to display in only one line therefore splitting this very long signalbox name into several lines although maximum five lines which should suffice more than enough to guard against silly long signal box names");
-					int next_char_index = 0;
+		new_component<gui_empty_t>();
+		add_component(&lb_sb_distance);
 
-					for (int l = 0; l < max_lines; l++) {
-						char temp_name[1024] = { '\0' };
-						next_char_index = display_fit_proportional(sb_name, max_width, 0);
+		bt_switch_signalbox.init(button_t::roundbox, "switch_sb");
+		bt_switch_signalbox.set_size(scr_size(proportional_string_width(translator::translate("switch_sb"))+D_BUTTON_PADDINGS_X, D_BUTTON_HEIGHT));
+		bt_switch_signalbox.set_visible(false);
+		bt_switch_signalbox.set_tooltip(translator::translate("open_signal_connector_gui"));
+		bt_switch_signalbox.add_listener(this);
+		bt_switch_signalbox.set_rigid(true);
+		add_component(&bt_switch_signalbox);
 
-						if (sb_name[next_char_index] == '\0') {
-							lb_sb_name.buf().append(sb_name);
-							break;
-						}
-						else {
-							for (int i = 0; i < next_char_index; i++) {
-								temp_name[i] = sb_name[i];
-							}
-							lb_sb_name.buf().append(temp_name);
-							if (l + 1 == max_lines) {
-								lb_sb_name.buf().append("...");
-							}
+		new_component<gui_margin_t>(D_H_SPACE,D_V_SPACE);
+	}
+	end_table();
 
-							for (int i = 0; sb_name[i] != '\0'; i++) {
-								sb_name[i] = sb_name[i + next_char_index];
-							}
-						}
-					}
+	remove.init(button_t::roundbox, "remove signal");
+	remove.add_listener(this);
+	add_component(&remove);
 
-					const grund_t *ground = welt->lookup_kartenboden(sb.x, sb.y);
-					bool sb_underground = ground->get_hoehe() > sb.z;
+	// show author below the settings
+	if (char const* const maker = sig->get_desc()->get_copyright()) {
+		gui_label_buf_t* lb = new_component<gui_label_buf_t>();
+		lb->buf().printf(translator::translate("Constructed by %s"), maker);
+		lb->update();
+	}
 
-					char sb_coordinates[20];
-					sprintf(sb_coordinates, "<%i,%i>", sb.x, sb.y);
-					lb_sb_name.buf().printf("  %s", sb_coordinates);
-					if (sb_underground) {
-						lb_sb_name.buf().printf(" (%s)", translator::translate("underground"));
-					}
+	update_data();
+}
 
-					// Show the distance between the signal and its signalbox, along with the signals maximum range
-					const uint32 tiles_to_signalbox = shortest_distance(s->get_pos().get_2d(), sb.get_2d());
-					const double km_per_tile = welt->get_settings().get_meters_per_tile() / 1000.0;
-					const double km_to_signalbox = (double)tiles_to_signalbox * km_per_tile;
 
-					if (km_to_signalbox < 1)
-					{
-						float m_to_signalbox = km_to_signalbox * 1000;
-						lb_sb_distance.buf().append(m_to_signalbox);
-						lb_sb_distance.buf().append("m");
+void signal_info_t::update_data()
+{
+	sig = static_cast<const signal_t *>(view.get_obj());
+	koord3d sb = sig->get_signalbox();
+
+	if (sb == koord3d::invalid) {
+		lb_sb_name.buf().append(translator::translate("keine"));
+	}
+	else {
+		const grund_t* gr = welt->lookup(sb);
+		if (gr) {
+			const gebaeude_t* gb = gr->get_building();
+			if (gb) {
+				char sb_name[1024] = { '\0' };
+				int max_width = 250;
+				int max_lines = 5; // Set a limit
+				sprintf(sb_name, "%s", translator::translate(gb->get_name()));
+
+				//sprintf(sb_name,"This is a very very long signal box name which is so long that no one remembers what it was actually called before the super long name of the signalbox got changed to its current slightly longer name which is still too long to display in only one line therefore splitting this very long signalbox name into several lines although maximum five lines which should suffice more than enough to guard against silly long signal box names");
+				int next_char_index = 0;
+
+				for (int l = 0; l < max_lines; l++) {
+					char temp_name[1024] = { '\0' };
+					next_char_index = display_fit_proportional(sb_name, max_width, 0);
+
+					if (sb_name[next_char_index] == '\0') {
+						lb_sb_name.buf().append(sb_name);
+						break;
 					}
 					else {
-						uint n_actual;
-						if (km_to_signalbox < 20) {
-							n_actual = 1;
+						for (int i = 0; i < next_char_index; i++) {
+							temp_name[i] = sb_name[i];
 						}
-						else {
-							n_actual = 0;
+						lb_sb_name.buf().append(temp_name);
+						if (l + 1 == max_lines) {
+							lb_sb_name.buf().append("...");
 						}
-						char number_actual[10];
-						number_to_string(number_actual, km_to_signalbox, n_actual);
-						lb_sb_distance.buf().append(number_actual);
-						lb_sb_distance.buf().append("km");
-					}
 
-					if (s->get_desc()->get_working_method() != moving_block)
-					{
-						lb_sb_distance.buf().append(" (");
-
-						uint32 mdt_sb = s->get_desc()->get_max_distance_to_signalbox();
-
-						if (mdt_sb == 0) {
-							lb_sb_distance.buf().append(translator::translate("infinite_range"));
+						for (int i = 0; sb_name[i] != '\0'; i++) {
+							sb_name[i] = sb_name[i + next_char_index];
 						}
-						else {
-							if (mdt_sb < 1000) {
-								lb_sb_distance.buf().printf("%s: ", translator::translate("max"));
-								lb_sb_distance.buf().append(mdt_sb);
-								lb_sb_distance.buf().append("m");
-							}
-							else {
-								uint n_max;
-								const double max_dist = (double)mdt_sb / 1000;
-								if (max_dist < 20) {
-									n_max = 1;
-								}
-								else {
-									n_max = 0;
-								}
-								char number_max[10];
-								number_to_string(number_max, max_dist, n_max);
-								lb_sb_distance.buf().printf("%s: ", translator::translate("max"));
-								lb_sb_distance.buf().append(number_max);
-								lb_sb_distance.buf().append("km");
-							}
-						}
-						lb_sb_distance.buf().append(")");
 					}
 				}
+
+				const grund_t *ground = welt->lookup_kartenboden(sb.x, sb.y);
+				bool sb_underground = ground->get_hoehe() > sb.z;
+
+				char sb_coordinates[20];
+				sprintf(sb_coordinates, "<%i,%i>", sb.x, sb.y);
+				lb_sb_name.buf().printf("  %s", sb_coordinates);
+				if (sb_underground) {
+					lb_sb_name.buf().printf(" (%s)", translator::translate("underground"));
+				}
+
+				// Show the distance between the signal and its signalbox, along with the signals maximum range
+				const uint32 tiles_to_signalbox = shortest_distance(sig->get_pos().get_2d(), sb.get_2d());
+				const double km_per_tile = welt->get_settings().get_meters_per_tile() / 1000.0;
+				const double km_to_signalbox = (double)tiles_to_signalbox * km_per_tile;
+
+				if (km_to_signalbox < 1)
+				{
+					float m_to_signalbox = km_to_signalbox * 1000;
+					lb_sb_distance.buf().append(m_to_signalbox);
+					lb_sb_distance.buf().append("m");
+				}
 				else {
-					lb_sb_name.buf().append(translator::translate("keine"));
-					dbg->warning("signal_t::info()", "Signalbox could not be found from a signal on valid ground");
+					uint n_actual;
+					if (km_to_signalbox < 20) {
+						n_actual = 1;
+					}
+					else {
+						n_actual = 0;
+					}
+					char number_actual[10];
+					number_to_string(number_actual, km_to_signalbox, n_actual);
+					lb_sb_distance.buf().append(number_actual);
+					lb_sb_distance.buf().append("km");
+				}
+
+				if (sig->get_desc()->get_working_method() != moving_block)
+				{
+					lb_sb_distance.buf().append(" (");
+
+					uint32 mdt_sb = sig->get_desc()->get_max_distance_to_signalbox();
+
+					if (mdt_sb == 0) {
+						lb_sb_distance.buf().append(translator::translate("infinite_range"));
+					}
+					else {
+						if (mdt_sb < 1000) {
+							lb_sb_distance.buf().printf("%s: ", translator::translate("max"));
+							lb_sb_distance.buf().append(mdt_sb);
+							lb_sb_distance.buf().append("m");
+						}
+						else {
+							uint n_max;
+							const double max_dist = (double)mdt_sb / 1000;
+							if (max_dist < 20) {
+								n_max = 1;
+							}
+							else {
+								n_max = 0;
+							}
+							char number_max[10];
+							number_to_string(number_max, max_dist, n_max);
+							lb_sb_distance.buf().printf("%s: ", translator::translate("max"));
+							lb_sb_distance.buf().append(number_max);
+							lb_sb_distance.buf().append("km");
+						}
+					}
+					lb_sb_distance.buf().append(")");
 				}
 			}
 			else {
@@ -152,23 +197,13 @@ signal_info_t::signal_info_t(signal_t* const s) :
 				dbg->warning("signal_t::info()", "Signalbox could not be found from a signal on valid ground");
 			}
 		}
-		lb_sb_name.update();
-		add_component(&lb_sb_name);
-
-		bt_info_signalbox.init(button_t::roundbox, "Details");
-		bt_info_signalbox.set_size(scr_size(D_BUTTON_WIDTH*2/3, D_BUTTON_HEIGHT));
-		bt_info_signalbox.set_visible(false);
-		bt_info_signalbox.set_tooltip(translator::translate("open_signalbox_info"));
-		bt_info_signalbox.add_listener(this);
-		add_component(&bt_info_signalbox);
-
-		new_component<gui_empty_t>();
-		lb_sb_distance.update();
-		add_component(&lb_sb_distance, 2);
-
-		new_component<gui_margin_t>(D_H_SPACE,D_V_SPACE);
+		else {
+			lb_sb_name.buf().append(translator::translate("keine"));
+			dbg->warning("signal_t::info()", "Signalbox could not be found from a signal on valid ground");
+		}
 	}
-	end_table();
+	lb_sb_name.update();
+	lb_sb_distance.update();
 
 	if (sb == koord3d::invalid) {
 		// No signalbox
@@ -182,15 +217,9 @@ signal_info_t::signal_info_t(signal_t* const s) :
 			if (gb) {
 				bt_goto_signalbox.set_visible(true);
 				bt_info_signalbox.set_visible(true);
+				bt_switch_signalbox.set_visible(sig->get_owner_nr() == welt->get_active_player()->get_player_nr());
 			}
 		}
-	}
-
-	// show author below the settings
-	if (char const* const maker = sig->get_desc()->get_copyright()) {
-		gui_label_buf_t* lb = new_component<gui_label_buf_t>();
-		lb->buf().printf(translator::translate("Constructed by %s"), maker);
-		lb->update();
 	}
 
 	recalc_size();
@@ -226,7 +255,7 @@ bool signal_info_t::action_triggered(gui_action_creator_t *comp, value_t)
 				if (gb)
 				{
 					gr->get_building()->show_info();
-					if (sig->get_player_nr() == welt->get_active_player()->get_player_nr())
+					if (sig->get_owner_nr() == welt->get_active_player()->get_player_nr())
 					{
 						welt->get_active_player()->set_selected_signalbox(static_cast<signalbox_t *>(gb));
 					}
@@ -235,6 +264,29 @@ bool signal_info_t::action_triggered(gui_action_creator_t *comp, value_t)
 			return true;
 		}
 	}
+	if(  comp==&bt_switch_signalbox && sig->get_owner_nr()==welt->get_active_player()->get_player_nr()  ) {
+		destroy_win( magic_signal_connector_gui_t );
+		create_win( new signal_connector_gui_t(sig), w_info, magic_signal_connector_gui_t );
+		return true;
+	}
+	if(  comp==&remove  &&  sig->get_owner_nr()==welt->get_active_player()->get_player_nr()  ) {
+		bool suspended_execution=false;
+		koord3d pos = sig->get_pos();
+		tool_t::general_tool[TOOL_REMOVE_SIGNAL]->set_default_param(NULL);
+		const char *err = welt->call_work( tool_t::general_tool[TOOL_REMOVE_SIGNAL], welt->get_active_player(), pos, suspended_execution );
+		if(!suspended_execution) {
+			// play sound / error message
+			welt->get_active_player()->tell_tool_result(tool_t::general_tool[TOOL_REMOVE_SIGNAL], pos, err);
+		}
+		return true;
+	}
 
 	return false;
+}
+
+
+void signal_info_t::draw( scr_coord pos, scr_size size )
+{
+	remove.enable( (sig->get_owner()==welt->get_active_player()) );
+	obj_infowin_t::draw( pos, size );
 }

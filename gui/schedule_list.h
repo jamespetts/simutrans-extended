@@ -18,27 +18,59 @@
 #include "components/gui_combobox.h"
 #include "components/gui_label.h"
 #include "components/gui_convoiinfo.h"
-#include "halt_list_stats.h"
 #include "../simline.h"
 
+#include "times_history_container.h"
+#include "components/gui_vehicle_capacitybar.h"
+#include "components/gui_schedule_item.h"
+#include "components/gui_line_lettercode.h"
+
 class player_t;
+
+
+class gui_line_waiting_status_t : public gui_aligned_container_t
+{
+	linehandle_t line;
+
+	schedule_t *schedule;
+
+	bool show_name=true;
+
+public:
+	gui_line_waiting_status_t(linehandle_t line);
+
+	void init();
+
+	// for reload from the save
+	void set_line(linehandle_t line_) { line = line_; init(); }
+	void set_show_name(bool yesno) { show_name = yesno; init(); }
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+
 class schedule_list_gui_t : public gui_frame_t, public action_listener_t
 {
 public:
-	enum sort_mode_t { by_name = 0, by_schedule, by_profit, by_loading_lvl, by_max_speed, by_power, by_value, by_age, SORT_MODES };
+	enum sort_mode_t { by_name = 0, by_schedule, by_profit, by_loading_lvl, by_max_speed, by_power, by_value, by_age, by_range, SORT_MODES };
 private:
 	player_t *player, *old_player;
 
 	static const char *sort_text[SORT_MODES];
 
-	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_line_class_manager, bt_times_history, bt_mode_convois;
-	button_t sort_asc, sort_desc;
-	gui_container_t cont, cont_haltestellen, cont_charts, cont_convoys;
-	gui_scrollpane_t scrolly_convois, scrolly_haltestellen;
+	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_line_class_manager, bt_mode_convois, bt_show_halt_name;
+	button_t sort_order;
+	button_t bt_access_minimap, bt_line_color_editor;
+	gui_line_lettercode_t lc_preview;
+	gui_container_t cont, cont_charts, cont_convoys;
+	gui_aligned_container_t cont_times_history, cont_line_info, cont_tab_haltlist, cont_transport_density;
+	gui_line_waiting_status_t cont_haltlist;
+	gui_convoy_loading_info_t cont_line_capacity_by_catg;
+	gui_scrollpane_t scrolly_convois, scrolly_haltestellen, scroll_times_history, scrolly_line_info;
 	gui_scrolled_list_t scl;
-	gui_speedbar_t filled_bar;
 	gui_textinput_t inp_name, inp_filter;
 	gui_label_t lbl_filter;
+	gui_label_buf_t lb_line_origin, lb_line_destination, lb_travel_distance, lb_service_frequency, lb_convoy_count;
 	gui_chart_t chart;
 	button_t filterButtons[MAX_LINE_COST];
 	gui_tab_panel_t tabs; // line selector
@@ -48,10 +80,14 @@ private:
 	vector_tpl<gui_convoiinfo_t *> convoy_infos;
 	vector_tpl<convoihandle_t> line_convoys;
 
-	// vector of stop info objects that are being displayed
-	vector_tpl<halt_list_stats_t *> stop_infos;
+	// line info item
+	gui_schedule_entry_number_t halt_entry_origin, halt_entry_dest;
+	gui_colored_route_bar_t routebar_middle;
+	uint8 halt_entry_idx[2];
+	halthandle_t origin_halt, destination_halt;
+	uint8 line_goods_catg_count;
 
-	sint32 selection, capacity, load, loadfactor;
+	sint32 selection;
 
 	uint32 old_line_count;
 	schedule_t *last_schedule;
@@ -87,8 +123,6 @@ private:
 	static uint16 livery_scheme_index;
 	vector_tpl<uint16> livery_scheme_indices;
 
-	cbuffer_t tab_name;
-
 	// sort stuff
 	static sort_mode_t sortby;
 	static bool sortreverse;
@@ -123,12 +157,6 @@ public:
 
 	static bool get_reverse() { return sortreverse; }
 	static void set_reverse(bool reverse) { sortreverse = reverse; }
-
-	/**
-	* Does this window need a min size button in the title bar?
-	* @return true if such a button is needed
-	*/
-	bool has_min_sizer() const OVERRIDE {return true;}
 
 	/**
 	* Draw new component. The values to be passed refer to the window

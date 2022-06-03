@@ -30,7 +30,7 @@ uint8 building_tile_desc_t::get_layout() const
 koord building_tile_desc_t::get_offset() const
 {
 	const building_desc_t *desc = get_desc();
-	koord size = desc->get_size(get_layout());	// rotate if necessary
+	koord size = desc->get_size(get_layout()); // rotate if necessary
 	return koord( index % size.x, (index / size.x) % size.y );
 }
 
@@ -60,7 +60,7 @@ uint16 building_desc_t::get_mail_level() const
 		default:
 		case city_res:   return level;
 		case city_com:   return level * 2;
-		case city_ind: return level / 2;
+		case city_ind:   return level / 2;
 	}
 }
 

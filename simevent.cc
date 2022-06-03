@@ -16,6 +16,27 @@ static event_t meta_event(EVENT_NONE); // for storing meta-events like double-cl
 static event_class_t last_meta_class = EVENT_NONE;
 static slist_tpl<event_t *> queued_events;
 
+
+event_t::event_t(event_class_t event_class) :
+	ev_class(event_class),
+	ev_code(0),
+	mx(0), my(0),
+	cx(0), cy(0),
+	button_state(0),
+	ev_key_mod(SIM_MOD_NONE)
+{
+}
+
+
+void event_t::move_origin(scr_coord delta)
+{
+	mx -= delta.x;
+	cx -= delta.x;
+	my -= delta.y;
+	cy -= delta.y;
+}
+
+
 int event_get_last_control_shift()
 {
 	// shift = 1
@@ -36,10 +57,18 @@ event_class_t last_meta_event_get_class()
  * so the origin keeps pointing to the window top bar.
  *  Mainly to prevent copied, double code.
  */
-void change_drag_start(int x, int y)
+void change_drag_start(scr_coord_val x, scr_coord_val y)
 {
 	cx += x;
 	cy += y;
+}
+
+
+// since finger events work with absolute coordinates
+void set_click_xy(scr_coord_val x, scr_coord_val y)
+{
+	cx = x;
+	cy = y;
 }
 
 
@@ -50,7 +79,7 @@ static void fill_event(event_t* const ev)
 	static unsigned int  prev_ev_class = EVENT_NONE;
 	static unsigned int  prev_ev_code = 0;
 	static unsigned long prev_ev_time = 0;
-	static unsigned char repeat_count = 0;	// number of consecutive sequences of click-release
+	static unsigned char repeat_count = 0; // number of consecutive sequences of click-release
 
 	// for autorepeat buttons we track button state, press time and a repeat time
 
@@ -192,7 +221,7 @@ static void fill_event(event_t* const ev)
 			// case : triple-click
 			meta_event = *ev;
 			meta_event.ev_class = EVENT_TRIPLE_CLICK;
-			repeat_count = 0;	// reset -> start over again
+			repeat_count = 0; // reset -> start over again
 		}
 	}
 	else if(  ev->ev_class!=EVENT_NONE  &&  prev_ev_class!=EVENT_NONE  ) {
@@ -201,29 +230,6 @@ static void fill_event(event_t* const ev)
 		prev_ev_code = 0;
 		prev_ev_time = 0;
 		repeat_count = 0;
-	}
-
-	if (IS_LEFTCLICK(ev)) {
-		// remember button press
-		lb_time = curr_time;
-		repeat_time = 400;
-	} else if (pressed_buttons == 0) {
-		lb_time = 0;
-	}
-	else { // the else is to prevent race conditions
-		/* this would transform non-left button presses always
-		 * to repeat events. I need right button clicks.
-		 * I have no idea how this can be done cleanly, currently just
-		 * disabling the repeat feature for non-left buttons
-		 */
-		if (pressed_buttons == MOUSE_LEFTBUTTON) {
-			if (curr_time > lb_time + repeat_time) {
-				repeat_time = 100;
-				lb_time = curr_time;
-				ev->ev_class = EVENT_REPEAT;
-				ev->ev_code = pressed_buttons;
-			}
-		}
 	}
 
 	ev->button_state = pressed_buttons;
@@ -247,30 +253,6 @@ void display_poll_event(event_t* const ev)
 	}
 	else {
 		last_meta_class = EVENT_NONE;
-		GetEventsNoWait();
-		fill_event(ev);
-		// prepare for next event
-		sys_event.type = SIM_NOEVENT;
-		sys_event.code = 0;
-	}
-}
-
-
-void display_get_event(event_t* const ev)
-{
-	if(  !queued_events.empty()  ) {
-		// We have a queued (injected programatically) event, return it.
-		event_t *elem = queued_events.remove_first();
-		*ev = *elem;
-		delete elem;
-		return ;
-	}
-	// if there is any pending meta-event, consume it instead of fetching a new event from the system
-	if(  meta_event.ev_class!=EVENT_NONE  ) {
-		*ev = meta_event;
-		meta_event.ev_class = EVENT_NONE;
-	}
-	else {
 		GetEvents();
 		fill_event(ev);
 		// prepare for next event

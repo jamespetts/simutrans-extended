@@ -18,7 +18,7 @@
 
 //typedef KOORD_VAL koord_x;
 //typedef KOORD_VAL koord_y;
-typedef KOORD_VAL coordinate_t;
+typedef scr_coord_val coordinate_t;
 typedef FLAGGED_PIXVAL color_t;
 
 

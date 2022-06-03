@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-#include "../../simobj.h"
+#include "../../obj/simobj.h"
 #include "../../simdebug.h"
 #include "../../obj/baum.h"
 
@@ -19,7 +19,7 @@ void tree_reader_t::register_obj(obj_desc_t *&data)
 {
 	tree_desc_t *desc = static_cast<tree_desc_t *>(data);
 
-	baum_t::register_desc(desc);
+	tree_builder_t::register_desc(desc);
 	checksum_t *chk = new checksum_t();
 	desc->calc_checksum(chk);
 	pakset_info_t::append(desc->get_name(), get_type(), chk);
@@ -28,7 +28,7 @@ void tree_reader_t::register_obj(obj_desc_t *&data)
 
 bool tree_reader_t::successfully_loaded() const
 {
-	return baum_t::successfully_loaded();
+	return tree_builder_t::successfully_loaded();
 }
 
 
@@ -56,7 +56,7 @@ obj_desc_t * tree_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		// Versioned node, version 1
 		desc->allowed_climates = all_but_arctic_climate;
 		desc->number_of_seasons = 0;
-		decode_uint8(p);	// ignore hoehenlage
+		decode_uint8(p); // ignore hoehenlage
 		desc->distribution_weight = (uint8)decode_uint8(p);
 	} else {
 		// old node, version 0

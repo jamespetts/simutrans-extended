@@ -169,7 +169,7 @@ namespace script_api {
 	 * @see register_method
 	 *
 	 * @tparam F function pointer signature of c++ method
-	 * @param functptr pointer to the c++ method
+	 * @param funcptr pointer to the c++ method
 	 * @param name name of the method as visible from squirrel
 	 */
 	template<typename F>

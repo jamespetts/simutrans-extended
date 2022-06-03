@@ -63,7 +63,9 @@ private:
 	 * As long we do not have resource scripts, we display make
 	 * some tables for the main attributes of each button.
 	 */
-	enum { FILTER_BUTTONS=16 };
+	enum {
+		FILTER_BUTTONS = 16
+	};
 
 	static halt_list_frame_t::filter_flag_t filter_buttons_types[FILTER_BUTTONS];
 	static const char *filter_buttons_text[FILTER_BUTTONS];
@@ -110,12 +112,6 @@ public:
 	 * Handler for ware_item_t event.
 	 */
 	void ware_item_triggered(const goods_desc_t *ware_ab, const goods_desc_t *ware_an);
-
-	/**
-	 * Does this window need a min size button in the title bar?
-	 * @return true if such a button is needed
-	 */
-	bool has_min_sizer() const OVERRIDE {return true;}
 
 	/**
 	 * Draw new component. The values to be passed refer to the window

@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "../simdebug.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simworld.h"
 #include "../simsound.h"
 
@@ -36,12 +36,18 @@ crossing_logic_t::crossing_logic_t( const crossing_desc_t *desc )
 
 
 /**
- * @return string; currently unused but useful for debugging
+ * @param[out] buf string; currently unused but useful for debugging
  */
 void crossing_logic_t::info(cbuffer_t & buf) const
 {
-	static char const* const state_str[4] = { "invalid", "open", "request closing", "closed" };
-	assert(state<4);
+	static char const* const state_str[NUM_CROSSING_STATES] =
+	{
+		"invalid",
+		"open",
+		"request closing",
+		"closed"
+	};
+
 	buf.printf("%s%u%s%u%s%s\n",
 		translator::translate("\nway1 reserved by"), on_way1.get_count(),
 		translator::translate("\nway2 reserved by"), on_way2.get_count(),
@@ -291,7 +297,7 @@ bool have_crossings_same_wt(const crossing_desc_t *c0, const crossing_desc_t *c1
 void crossing_logic_t::add( crossing_t *start_cr, crossing_state_t state )
 {
 	koord3d pos = start_cr->get_pos();
-	const koord zv = start_cr->get_dir() ? koord::west :  koord::north;
+	const koord zv = start_cr->get_dir() ? koord::west : koord::north;
 	slist_tpl<crossing_t *>crossings;
 	minivec_tpl<crossing_logic_t *>crossings_logics;
 
@@ -334,7 +340,7 @@ void crossing_logic_t::add( crossing_t *start_cr, crossing_state_t state )
 	}
 	// remove all old crossing logics
 	crossing_logic_t *found_logic = NULL;
-	if(	crossings_logics.get_count()>=1  ) {
+	if(  crossings_logics.get_count()>=1  ) {
 		// leave one logic to be used further
 		while(  crossings_logics.get_count()>1  ) {
 			crossing_logic_t *cl = crossings_logics[0];
@@ -368,7 +374,7 @@ void crossing_logic_t::remove( crossing_t *cr )
 	else {
 		// check for a crossing to the east/south
 		koord3d pos = cr->get_pos();
-		const koord zv = cr->get_dir() ? koord::west :  koord::north;
+		const koord zv = cr->get_dir() ? koord::west : koord::north;
 		const grund_t *gr = welt->lookup( pos-zv );
 		if(  gr  ) {
 			crossing_t *found_cr = gr->find<crossing_t>();

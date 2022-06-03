@@ -7,7 +7,7 @@
 
 #include "../simunits.h"
 #include "../simdebug.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 #include "../player/simplay.h"
 #include "../simtool.h"
@@ -39,10 +39,12 @@
 #include "roadsign.h"
 #include "signal.h"
 
+#include "../simconvoi.h"
+#include "../vehicle/rail_vehicle.h"
 
 const roadsign_desc_t *roadsign_t::default_signal = NULL;
 
-stringhashtable_tpl<roadsign_desc_t *> roadsign_t::table;
+stringhashtable_tpl<roadsign_desc_t *, N_BAGS_MEDIUM> roadsign_t::table;
 vector_tpl<roadsign_desc_t*> roadsign_t::list;
 
 
@@ -120,6 +122,7 @@ roadsign_t::roadsign_t(player_t *player, koord3d pos, ribi_t::ribi dir, const ro
 	state = 0;
 	ticks_ns = ticks_ow = 16;
 	ticks_offset = 0;
+	ticks_amber_ns = ticks_amber_ow = 2;
 	lane_affinity = 4;
 	set_owner( player );
 	if(  desc->is_private_way()  ) {
@@ -148,7 +151,7 @@ roadsign_t::~roadsign_t()
 	if(  desc  ) {
 		const grund_t *gr = welt->lookup(get_pos());
 		if(gr) {
-			weg_t* weg = gr->get_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt);
+			weg_t *weg = gr->get_weg(desc->get_wtyp()!=tram_wt ? desc->get_wtyp() : track_wt);
 			if(weg) {
 				if (!preview) {
 					player_t* owner = get_owner();
@@ -158,7 +161,7 @@ roadsign_t::~roadsign_t()
 						sint32 maint = get_desc()->get_maintenance();
 						player_t::add_maintenance(owner, -maint, weg->get_waytype());
 					}
-					if (desc->is_single_way() || desc->is_signal_type()) {
+					if (desc->is_single_way()  ||  desc->is_signal_type()) {
 						// signal removed, remove direction mask
 						weg->set_ribi_maske(ribi_t::none);
 					}
@@ -166,7 +169,7 @@ roadsign_t::~roadsign_t()
 				}
 			}
 			else {
-				dbg->error("roadsign_t::~roadsign_t()","roadsign_t %p was deleted but ground has no way of type %d!", desc->get_wtyp() );
+				dbg->error("roadsign_t::~roadsign_t()","roadsign_t %p was deleted but ground has no way of type %d!", this, desc->get_wtyp() );
 			}
 		}
 	}
@@ -537,8 +540,8 @@ void roadsign_t::calc_image()
 		// traffic light
 		weg_t *str=gr->get_weg(road_wt);
 		if(str) {
-			const uint8 weg_dir = str->get_ribi_unmasked();
-			const uint8 direction = (dir&ribi_t::north)!=0;
+			const uint8 weg_dir = (str->get_ribi()==str->get_ribi_unmasked()) ? str->get_ribi() : str->get_ribi_unmasked()^str->get_ribi();
+			const uint8 direction = desc->get_count()>16 ? (state&2)+((state+1)&1) : (state+1) & 1;
 
 			// other front/back images for left side ...
 			if(  left_offsets  ) {
@@ -562,6 +565,9 @@ void roadsign_t::calc_image()
 					after_xoffset += -XOFF;
 					after_yoffset += YOFF;
 				}
+				else {
+					foreground_image = IMG_EMPTY;
+				}
 
 				if(weg_dir&ribi_t::west) {
 					if(weg_dir&ribi_t::south) {
@@ -580,6 +586,9 @@ void roadsign_t::calc_image()
 					xoff += -XOFF;
 					yoff += -YOFF;
 				}
+				else {
+					tmp_image = IMG_EMPTY;
+				}
 			}
 			else {
 				// drive right ...
@@ -594,6 +603,9 @@ void roadsign_t::calc_image()
 				else if(weg_dir&ribi_t::east) {
 					foreground_image = desc->get_image_id(2+direction*8);
 				}
+				else {
+					foreground_image = IMG_EMPTY;
+				}
 
 				if(weg_dir&ribi_t::west) {
 					if(weg_dir&ribi_t::north) {
@@ -605,6 +617,9 @@ void roadsign_t::calc_image()
 				}
 				else if(weg_dir&ribi_t::north) {
 					tmp_image = desc->get_image_id(1+direction*8);
+				}
+				else {
+					tmp_image = IMG_EMPTY;
 				}
 			}
 
@@ -633,13 +648,37 @@ sync_result roadsign_t::sync_step(uint32 /*delta_t*/)
 	}
 	else {
 		// change every ~32s
-		// Must not overflow if ticks_ns+ticks_ow=256
-		uint32 ticks = ((welt->get_ticks()>>10)+ticks_offset) % ((uint32)ticks_ns+(uint32)ticks_ow);
+		// Must not overflow if ticks_ns+ticks_ow+ticks_amber_ns+ticks_amber_ow=256
+	        uint32 ticks = ((welt->get_ticks()>>10)+ticks_offset) % ((uint32)ticks_ns+(uint32)ticks_ow+(uint32)ticks_amber_ns+(uint32)ticks_amber_ow);
 
-		uint8 new_state = (ticks >= ticks_ns);
+		uint8 new_state=0;
+		//traffic light transition: e-w dir -> amber e-w -> n-s dir -> amber n-s -> ...
+		if( ticks < ticks_ow ){
+		  new_state=0;
+		}else if( ticks < ticks_ow+ticks_amber_ow ){
+		  new_state=2;
+		}else if( ticks < ticks_ow+ticks_amber_ow+ticks_ns ){
+		  new_state=1;
+		}else{
+		  new_state=3;
+		}
+
 		if(state!=new_state) {
 			state = new_state;
-			dir = (new_state == 0) ? ribi_t::northsouth : ribi_t::eastwest;
+			switch(new_state){
+			case 0:
+			  dir=ribi_t::northsouth;
+			  break;
+			case 1:
+			  dir=ribi_t::eastwest;
+			  break;
+			case 2:
+			case 3:
+			  dir=ribi_t::none;
+			  break;
+			default:
+			  dir=ribi_t::eastwest;
+			}
 			calc_image();
 		}
 	}
@@ -652,7 +691,7 @@ void roadsign_t::rotate90()
 	// only meaningful for traffic lights
 	obj_t::rotate90();
 	if(automatic  &&  !desc->is_private_way()) {
-		state = (state+1)&1;
+	  state = (state&2/*whether amber*/) + ((state+1)&1);
 		if (ticks_offset >= ticks_ns) {
 			ticks_offset -= ticks_ns;
 		} else {
@@ -661,6 +700,9 @@ void roadsign_t::rotate90()
 		uint8 temp = ticks_ns;
 		ticks_ns = ticks_ow;
 		ticks_ow = temp;
+		temp = ticks_amber_ns;
+		ticks_amber_ns = ticks_amber_ow;
+		ticks_amber_ow = temp;
 
 		trafficlight_info_t *const trafficlight_win = dynamic_cast<trafficlight_info_t *>( win_get_magic( (ptrdiff_t)this ) );
 		if(  trafficlight_win  ) {
@@ -683,12 +725,12 @@ void roadsign_t::display_after(int xpos, int ypos, bool ) const
 		xpos += tile_raster_scale_x( after_xoffset, raster_width );
 		ypos += tile_raster_scale_y( after_yoffset, raster_width );
 		// draw with owner
-		if(  get_player_nr() != PLAYER_UNOWNED  ) {
+		if(  get_owner_nr() != PLAYER_UNOWNED  ) {
 			if(  obj_t::show_owner  ) {
 				display_blend( foreground_image, xpos, ypos, 0, color_idx_to_rgb(get_owner()->get_player_color1()+2) | OUTLINE_FLAG | TRANSPARENT75_FLAG, 0, dirty  CLIP_NUM_PAR);
 			}
 			else {
-				display_color( foreground_image, xpos, ypos, get_player_nr(), true, get_flag(obj_t::dirty)  CLIP_NUM_PAR);
+				display_color( foreground_image, xpos, ypos, get_owner_nr(), true, get_flag(obj_t::dirty)  CLIP_NUM_PAR);
 			}
 		}
 		else {
@@ -697,6 +739,125 @@ void roadsign_t::display_after(int xpos, int ypos, bool ) const
 	}
 }
 
+bool roadsign_t::check_one_tran_staff_reservation(koord3d pos) const
+{
+	if (pos != koord3d::invalid) {
+		const waytype_t wt = get_waytype()==tram_wt ? track_wt : get_waytype();
+		if(schiene_t *sch = (schiene_t *)(welt->lookup(pos)->get_weg(wt))) {
+			convoihandle_t reserved_convoi = sch->get_reserved_convoi();
+			if (reserved_convoi.is_bound()) {
+				rail_vehicle_t* rail_vehicle = (rail_vehicle_t*)reserved_convoi->front();
+				if (rail_vehicle->get_working_method() == one_train_staff) {
+					return true; // found
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void roadsign_t::display_overlay(int xpos, int ypos) const
+{
+	if (strasse_t::show_masked_ribi) {
+		const waytype_t wt = get_waytype() == tram_wt ? track_wt : get_waytype();
+		if (wt == invalid_wt) { return; }
+		grund_t *gr = welt->lookup(get_pos());
+		weg_t *weg = gr->get_weg(wt);
+		const bool is_diagonal= weg->is_diagonal();
+		const uint8 way_ribi = weg->get_ribi_unmasked();
+
+		const int raster_width = get_current_tile_raster_width();
+		xpos += raster_width/2;
+		ypos += raster_width/16 + tile_raster_scale_y(weg->get_yoff(), raster_width); // Must match the height of the way, not the ground
+
+		if (is_bidirectional()) {
+			if (desc->is_signal_type()) {
+				const schiene_t* sch1 = (schiene_t*)weg;
+				ribi_t::ribi reserved_direction = sch1->get_reserved_direction();
+				display_signal_direction_rgb(xpos, ypos + raster_width / 2, raster_width, way_ribi, dir, sch1->is_reserved_directional() ? 255 : state, is_diagonal, reserved_direction, gr->get_weg_hang());
+			}
+			// TODO: Remove "ribi_arrow" from the intersection.
+			//       Next, pass the opening direction considering the one-way restriction.
+			//if (desc->is_traffic_light()) {
+			//	display_signal_direction_rgb(xpos, ypos + raster_width / 2, raster_width, way_ribi, dir, clear);
+			//}
+		}
+		else {
+			if (desc->is_signal_type() || desc->is_single_way()) {
+				uint8 state_temp = state;
+				uint8 signal_dir = get_dir();
+				uint8 open_dir = ribi_t::all;
+				if (desc->get_working_method() == drive_by_sight) {
+					state_temp = 254;
+				}
+				else if (desc->get_working_method() == one_train_staff) {
+					// we need to check if the staff is there and switch the signal indication
+					// one train staff display doesn't care if the next tile is reserved by another signal working method.
+
+					// The staff post has a direction, but is capable of receiving staff from both directions.
+					koord3d next_pos;
+					signal_dir = ribi_t::all&~(~way_ribi);
+					bool any_reserve = false;
+
+					// Check the tile next to it. Need to be careful about the existence of the slope.
+					// It can also be placed diagonally.
+					if( signal_dir & ribi_t::north ) {
+						koord3d next_pos = get_pos()+koord3d(0,-1,0);
+						if( gr->get_weg_hang()==slope_t::south ) { is_one_high(gr->get_weg_hang()) ? next_pos.z++ : next_pos.z+=2; }
+						if( check_one_tran_staff_reservation( next_pos ) ) {
+							open_dir&=~ribi_t::north;
+							any_reserve = true;
+						}
+					}
+					if( signal_dir & ribi_t::south ) {
+						koord3d next_pos = get_pos()+koord3d(0,1,0);
+						if( gr->get_weg_hang()==slope_t::north ) { is_one_high(gr->get_weg_hang()) ? next_pos.z++ : next_pos.z+=2; }
+						if( check_one_tran_staff_reservation( next_pos ) ) {
+							open_dir&=~ribi_t::south;
+							any_reserve = true;
+						}
+					}
+					if( signal_dir & ribi_t::west ) {
+						koord3d next_pos = get_pos()+koord3d(-1,0,0);
+						if( gr->get_weg_hang()==slope_t::east ) { is_one_high(gr->get_weg_hang()) ? next_pos.z++ : next_pos.z+=2; }
+						if( check_one_tran_staff_reservation( next_pos ) ) {
+							open_dir&=~ribi_t::west;
+							any_reserve = true;
+						}
+					}
+					if( signal_dir & ribi_t::east ) {
+						koord3d next_pos = get_pos()+koord3d(1,0,0);
+						if( gr->get_weg_hang()==slope_t::west ) { is_one_high(gr->get_weg_hang()) ? next_pos.z++ : next_pos.z+=2; }
+						if( check_one_tran_staff_reservation( next_pos ) ) {
+							open_dir&=~ribi_t::east;
+							any_reserve = true;
+						}
+					}
+
+					if (!any_reserve) {
+						// The staff is here
+						if (state != call_on) {
+							state_temp = roadsign_t::caution;
+						}
+					}
+					else {
+						// The staff has been taken by a train.
+						// Entering the block is not allowed. Only exiting the block is allowed.
+						// It meand the direction is limited, and when the staff is returned, it switches to drive_by_sight mode.
+						state_temp = 254; // drive_by_sight
+					}
+					/* -- This is the end of the process for one train staff -- */
+				}
+				else if (desc->is_single_way()) {
+					state_temp = 255;
+				}
+
+				// signal, no_entry/one_way sign
+				display_signal_direction_rgb(xpos, ypos + raster_width / 2, raster_width, way_ribi, signal_dir, state_temp, is_diagonal, open_dir, gr->get_weg_hang());
+			}
+		}
+	}
+}
 
 void roadsign_t::rdwr(loadsave_t *file)
 {
@@ -711,7 +872,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 	else {
 		lane_affinity = 4; // not applied
 	}
-	if(  file->get_version_int()<=102002  ) {
+	if(  file->is_version_less(102, 3)  ) {
 		file->rdwr_byte(dummy);
 		if(  file->is_loading()  ) {
 			ticks_ns = ticks_ow = 16;
@@ -721,7 +882,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(ticks_ns);
 		file->rdwr_byte(ticks_ow);
 	}
-	if(  file->get_version_int()>=110007 || file->get_extended_version() >= 10 ) {
+	if(  file->is_version_atleast(110, 7) || file->get_extended_version() >= 10  ) {
 		file->rdwr_byte(ticks_offset);
 	}
 	else {
@@ -735,13 +896,23 @@ void roadsign_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(dummy);
 	}
 
+	if( file->is_version_ex_atleast(14,40) ) {
+	  file->rdwr_byte(ticks_amber_ns);
+	  file->rdwr_byte(ticks_amber_ow);
+	}
+	else {
+	  if( file->is_loading() ){
+	    ticks_amber_ns = ticks_amber_ow = 2;
+	  }
+	}
+
 	dummy = state;
 	file->rdwr_byte(dummy);
 	state = dummy;
 	dummy = dir;
 	file->rdwr_byte(dummy);
 	dir = dummy;
-	if(file->get_version_int()<89000) {
+	if(file->is_version_less(89, 0)) {
 		dir = ribi_t::backward(dir);
 	}
 
@@ -765,7 +936,7 @@ void roadsign_t::rdwr(loadsave_t *file)
 			}
 		}
 		// init ownership of private ways signs
-		if(  file->get_version_int()<110007  &&  desc  &&  desc->is_private_way()  ) {
+		if(  file->is_version_less(110, 7)  &&  desc  &&  desc->is_private_way()  ) {
 			ticks_ns = 0xFD;
 			ticks_ow = 0xFF;
 		}
@@ -827,7 +998,7 @@ bool roadsign_t::successfully_loaded()
 		DBG_MESSAGE("roadsign_t", "No signs found - feature disabled");
 	}
 
-	FOR (stringhashtable_tpl<roadsign_desc_t *>, const &i, table) {
+	for (auto const &i : table) {
 		roadsign_t::list.append(i.value);
 	}
 
@@ -882,7 +1053,7 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 
 	vector_tpl<const roadsign_desc_t *>matching;
 
-	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table) {
+	for(auto const& i : table) {
 		roadsign_desc_t const* const desc = i.value;
 
 		bool allowed_given_current_signalbox;
@@ -941,7 +1112,7 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
  */
 const roadsign_desc_t *roadsign_t::roadsign_search(roadsign_desc_t::types const flag, waytype_t const wt, uint16 const time)
 {
-	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table) {
+	for(auto const& i : table) {
 		roadsign_desc_t const* const desc = i.value;
 		if(  desc->is_available(time)  &&  desc->get_wtyp()==wt  &&  desc->get_flags()==flag  ) {
 			return desc;
@@ -955,7 +1126,7 @@ const roadsign_desc_t* roadsign_t::find_best_upgrade(bool underground)
 	const uint16 time = welt->get_timeline_year_month();
 	const roadsign_desc_t* best_candidate = NULL;
 
-	FOR(stringhashtable_tpl<roadsign_desc_t *>, const& i, table)
+	for(auto const& i : table)
 	{
 		roadsign_desc_t const* const new_roadsign_type = i.value;
 		if(new_roadsign_type->is_available(time)

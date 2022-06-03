@@ -74,10 +74,19 @@ enum {
 	TOOL_SET_CLIMATE,
 	TOOL_ROTATE_BUILDING,
 	TOOL_REASSIGN_SIGNAL_DEPRECATED,
+	TOOL_EXEC_SCRIPT,
+	TOOL_EXEC_TWO_CLICK_SCRIPT,
+	TOOL_PLANT_GROUNDOBJ,
+	TOOL_ADD_MESSAGE_, // TODO: merge r9550
+	TOOL_REMOVE_SIGNAL,
 	GENERAL_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
 	TOOL_BUILD_SIGNALBOX=0x0080,
 	TOOL_REASSIGN_SIGNAL,
+	TOOL_BUILD_PIER,
+	TOOL_BUILD_PIER_AUTO,
+	TOOL_PATH_REMOVER,
+	TOOL_FLATTEN_PATH,
 	GENERAL_TOOL_COUNT,
 	GENERAL_TOOL = 0x1000
 };
@@ -123,7 +132,7 @@ enum {
 	TOOL_MOVE_MAP,
 	TOOL_ROLLUP_ALL_WIN,
 	TOOL_RECOLOUR_TOOL_DEPRECATED,
-	TOOL_ACCESS_TOOL_DEPRECATED,
+	TOOL_SHOW_DEPOT_NAME,
 	SIMPLE_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
 	TOOL_CHANGE_ROADSIGN=0x0080,
@@ -133,6 +142,8 @@ enum {
 	TOOL_SHOW_SIGNALBOX_COVERAGE,
 	TOOL_CONVOY_NAMEPLATES,
 	TOOL_CONVOY_LOADINGBAR,
+	TOOL_SHOW_FACTORY_STORAGE,
+	TOOL_REASSIGN_SIGNAL_INTERNAL,
 	SIMPLE_TOOL_COUNT,
 	SIMPLE_TOOL = 0x2000
 };
@@ -173,7 +184,8 @@ enum {
 	DIALOG_SCENARIO_INFO,
 	DIALOG_LIST_DEPOT,
 	DIALOG_LIST_VEHICLE,
-	//DIALOG_SCRIPT_TOOL,
+	DIALOG_SCRIPT_TOOL, // dummy
+	DIALOG_EDIT_GROUNDOBJ,
 	DIALOG_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
 	DIALOG_LIST_SIGNALBOX =0x0080,
@@ -188,6 +200,7 @@ enum {
 	TOOLBAR_TOOL = 0x8000u
 };
 
+
 class tool_t {
 public:
 	image_id icon;
@@ -201,6 +214,10 @@ protected:
 	const char *default_param;
 public:
 	uint16 get_id() const { return id; }
+
+	const char *get_name() const { return id_to_string(id); }
+
+	static const char *id_to_string(uint16 id);
 
 	static tool_t *dummy;
 
@@ -225,11 +242,11 @@ public:
 	sint16 ok_sound;
 
 	enum {
-		WFL_SHIFT  = 1, ///< shift-key was pressed when mouse-click happened
-		WFL_CTRL   = 2, ///< ctrl-key was pressed when mouse-click happened
-		WFL_LOCAL  = 4, ///< tool call was issued by local client
-		WFL_SCRIPT = 8, ///< tool call was issued by script
-		WFL_NO_CHK = 16 ///< tool call needs no password or scenario checks
+		WFL_SHIFT  = 1 << 0, ///< shift-key was pressed when mouse-click happened
+		WFL_CTRL   = 1 << 1, ///< ctrl-key was pressed when mouse-click happened
+		WFL_LOCAL  = 1 << 2, ///< tool call was issued by local client
+		WFL_SCRIPT = 1 << 3, ///< tool call was issued by script
+		WFL_NO_CHK = 1 << 4  ///< tool call needs no password or scenario checks
 	};
 	uint8 flags; // flags are set before init/work/move is called
 
@@ -238,7 +255,7 @@ public:
 	bool is_local_execution() const { return flags & WFL_LOCAL; }
 	bool is_scripted()        const { return flags & WFL_SCRIPT; }
 	bool no_check()           const { return flags & WFL_NO_CHK; }
-	bool can_use_gui()        const { return is_local_execution() && !is_scripted(); }
+	bool can_use_gui()        const { return is_local_execution()  &&  !is_scripted(); }
 
 	uint8  command_flags; // only shift and control
 	uint16 command_key;// key to toggle action for this function
@@ -256,7 +273,9 @@ public:
 	static void init_menu();
 	static void exit_menu();
 
-	static void read_menu(const std::string &objfilename);
+	/// Read tool, toolbar configuration and tool shortcuts from @p menuconf
+	/// @param menuconf Path to file to read
+	static bool read_menu(const std::string &menuconf);
 
 	static uint16 const dummy_id = 0xFFFFU;
 
@@ -276,7 +295,7 @@ public:
 	virtual image_id get_icon(player_t *) const { return icon; }
 	void set_icon(image_id i) { icon = i; }
 
-	// returns default_param of this tool for player player
+	// returns default_param of this tool for player
 	// if player==NULL returns default_param that was used to create the tool
 	virtual const char* get_default_param(player_t* = NULL) const { return default_param; }
 	void set_default_param(const char* str) { default_param = str; }
@@ -300,7 +319,7 @@ public:
 	// will draw a dark frame, if selected
 	virtual void draw_after(scr_coord pos, bool dirty) const;
 
-	virtual const char *get_tooltip(player_t const* ) const { return NULL; }
+	virtual const char *get_tooltip(const player_t *) const { return NULL; }
 
 	/**
 	 * @return true if this tool operates over the grid, not the map tiles.
@@ -334,7 +353,17 @@ public:
 	 * Should be overloaded if derived class implements move,
 	 * move will only be called, if this function returns true.
 	 */
-	virtual bool move_has_effects() const { return false; }
+	virtual bool move_has_effects() const { return false;}
+
+	/**
+	 * @brief begin_move called when draggings starts
+	 */
+	virtual void begin_move(player_t*, koord3d) {return;}
+
+	/**
+	 * @brief end_move called to reset dragging (dragging may have not started yet)
+	 */
+	virtual void end_move(player_t*, koord3d) {return;}
 
 	/**
 	 * Returns whether the 2d koordinate passed it's a valid position for this tool to highlight a tile,
@@ -342,7 +371,7 @@ public:
 	 * @see check_pos
 	 * @return true is the coordinate it's found valid, false otherwise.
 	 */
-	bool check_valid_pos(koord k ) const;
+	bool check_valid_pos( koord k ) const;
 
 	/**
 	 * Specifies if the cursor will need a position update after this tool takes effect (ie: changed the height of the tile)
@@ -466,7 +495,7 @@ public:
 	bool init(player_t*) OVERRIDE;
 	// close this toolbar
 	bool exit(player_t*) OVERRIDE;
-	virtual void update(player_t *);	// just refresh content
+	virtual void update(player_t *); // just refresh content
 	void append(tool_t *tool) { tools.append(tool); }
 };
 
@@ -478,7 +507,7 @@ private:
 public:
 	toolbar_last_used_t(uint16 const id, char const* const t, char const* const h) : toolbar_t(id,t,h) {}
 	static toolbar_last_used_t *last_used_tools;
-	void update(player_t *) OVERRIDE;	// just refresh content
+	void update(player_t *) OVERRIDE; // just refresh content
 	void append(tool_t *, player_t *);
 	void clear();
 };

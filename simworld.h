@@ -25,10 +25,11 @@
 #include "dataobj/rect.h"
 
 #include "simware.h"
-
 #include "simplan.h"
-
 #include "simdebug.h"
+
+#include "utils/checklist.h"
+
 
 #ifdef _MSC_VER
 #define snprintf sprintf_s
@@ -59,9 +60,11 @@ class network_world_command_t;
 class goods_desc_t;
 class memory_rw_t;
 class viewport_t;
+class loadingscreen_t;
+
 
 #define CHK_RANDS 32
-#define CHK_DEBUG_SUMS 8
+#define CHK_DEBUG_SUMS 10
 
 #ifdef MULTI_THREAD
 //#define FORBID_MULTI_THREAD_PASSENGER_GENERATION_IN_NETWORK_MODE
@@ -95,60 +98,6 @@ class viewport_t;
 //#define FORBID_FIND_ROUTE_FOR_RETURNING_PASSENGERS_2
 //#define FORBID_STARTE_MIT_ROUTE_FOR_RETURNING_PASSENGERS
 #endif
-
-struct checklist_t
-{
-	uint32 ss;
-	uint32 st;
-	uint8 nfc;
-	uint32 random_seed;
-	uint16 halt_entry;
-	uint16 line_entry;
-	uint16 convoy_entry;
-
-	uint32 rand[CHK_RANDS];
-	uint32 debug_sum[CHK_DEBUG_SUMS];
-
-
-	checklist_t(uint32 _ss, uint32 _st, uint8 _nfc, uint32 _random_seed, uint16 _halt_entry, uint16 _line_entry, uint16 _convoy_entry, uint32 *_rands, uint32 *_debug_sums);
-	checklist_t() : ss(0), st(0), nfc(0), random_seed(0), halt_entry(0), line_entry(0), convoy_entry(0)
-	{
-		for(  uint8 i = 0;  i < CHK_RANDS;  i++  ) {
-			rand[i] = 0;
-		}
-		for(  uint8 i = 0;  i < CHK_DEBUG_SUMS;  i++  ) {
-			debug_sum[i] = 0;
-		}
-	}
-
-	bool operator == (const checklist_t &other) const
-	{
-		bool rands_equal = true;
-		for(  uint8 i = 0;  i < CHK_RANDS  &&  rands_equal;  i++  ) {
-			rands_equal = rands_equal  &&  rand[i] == other.rand[i];
-		}
-		bool debugs_equal = true;
-		for(  uint8 i = 0;  i < CHK_DEBUG_SUMS  &&  debugs_equal;  i++  ) {
-			// If debug sums are too expensive, then this test below would allow them to be switched off independently at either end:
-			// debugs_equal = debugs_equal  &&  (debug_sum[i] == 0  ||  other.debug_sum[i] == 0  ||  debug_sum[i] == other.debug_sum[i]);
-			debugs_equal = debugs_equal  &&  debug_sum[i] == other.debug_sum[i];
-		}
-		return ( rands_equal &&
-			debugs_equal &&
-			ss == other.ss &&
-			st == other.st &&
-			nfc == other.nfc &&
-			random_seed == other.random_seed &&
-			halt_entry == other.halt_entry &&
-			line_entry == other.line_entry &&
-			convoy_entry == other.convoy_entry
-			);
-	}
-	bool operator != (const checklist_t &other) const { return !( (*this)==other ); }
-
-	void rdwr(memory_rw_t *buffer);
-	int print(char *buffer, const char *entity) const;
-};
 
 // Private car ownership information.
 // @author: jamespetts
@@ -198,13 +147,11 @@ class karte_t
 
 public:
 	/**
-	 * Height of a point of the map with "perlin noise"
-	 *
-	 * @param frequency in 0..1.0 roughness, the higher the rougher
-	 * @param amplitude in 0..160.0 top height of mountains, may not exceed 160.0!!!
+	 * Height of a point of the map with "perlin noise".
+	 * Uses map roughness and mountain height from @p sets.
 	 */
-	static sint32 perlin_hoehe(settings_t const*, koord pos, koord const size, sint32 map_size_max);
-	sint32 perlin_hoehe(settings_t const*, koord pos, koord const size);
+	static sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size, sint32 map_size_max);
+	sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size);
 
 	/**
 	 * Loops over tiles setting heights from perlin noise
@@ -212,25 +159,25 @@ public:
 	void perlin_hoehe_loop(sint16, sint16, sint16, sint16);
 
 	enum player_cost {
-		WORLD_CITIZENS=0,		//!< total people
-		WORLD_JOBS,				//!< total jobs
-		WORLD_VISITOR_DEMAND,	//!< total visitor demand
-		WORLD_GROWTH,			//!< growth (just for convenience)
-		WORLD_TOWNS,			//!< number of all cities
-		WORLD_FACTORIES,		//!< number of all consuming only factories
-		WORLD_CONVOIS,			//!< total number of convois
-		WORLD_CITYCARS,			//!< number of passengers completing their journeys by private car
-		WORLD_PAS_RATIO,		//!< percentage of passengers that started successful
-		WORLD_PAS_GENERATED,	//!< total number generated
-		WORLD_MAIL_RATIO,		//!< percentage of mail that started successful
-		WORLD_MAIL_GENERATED,	//!< all letters generated
-		WORLD_GOODS_RATIO,		//!< ratio of chain completeness
-		WORLD_TRANSPORTED_GOODS,//!< all transported goods
-		WORLD_CAR_OWNERSHIP,	//!< The proportion of people with access to a private car
+		WORLD_CITIZENS=0,        ///< total people
+		WORLD_JOBS,              ///< total jobs
+		WORLD_VISITOR_DEMAND,    ///< total visitor demand
+		WORLD_GROWTH,            ///< growth (just for convenience)
+		WORLD_TOWNS,             ///< number of all cities
+		WORLD_FACTORIES,         ///< number of all consuming only factories
+		WORLD_CONVOIS,           ///< total number of convois
+		WORLD_CITYCARS,          ///< number of passengers completing their journeys by private car
+		WORLD_PAS_RATIO,         ///< percentage of passengers that started successful
+		WORLD_PAS_GENERATED,     ///< total number generated
+		WORLD_MAIL_RATIO,        ///< percentage of mail that started successful
+		WORLD_MAIL_GENERATED,    ///< all letters generated
+		WORLD_GOODS_RATIO,       ///< ratio of chain completeness
+		WORLD_TRANSPORTED_GOODS, ///< all transported goods
+		WORLD_CAR_OWNERSHIP,     ///< The proportion of people with access to a private car
 		MAX_WORLD_COST
 	};
 
-	#define MAX_WORLD_HISTORY_YEARS  (12) // number of years to keep history
+	#define MAX_WORLD_HISTORY_YEARS   (12) // number of years to keep history
 	#define MAX_WORLD_HISTORY_MONTHS  (12) // number of months to keep history
 
 	enum route_status_type
@@ -245,13 +192,28 @@ public:
 		on_foot
 	};
 
-	enum { NORMAL=0, PAUSE_FLAG = 0x01, FAST_FORWARD=0x02, FIX_RATIO=0x04 };
+	enum {
+		NORMAL       = 0,
+		PAUSE_FLAG   = 1 << 0,
+		FAST_FORWARD = 1 << 1,
+		FIX_RATIO    = 1 << 2
+	};
 
 	/**
 	 * Missing things during loading:
 	 * factories, vehicles, roadsigns or catenary may be severe
 	 */
-	enum missing_level_t { NOT_MISSING=0, MISSING_FACTORY=1, MISSING_VEHICLE=2, MISSING_SIGN=3, MISSING_WAYOBJ=4, MISSING_ERROR=4, MISSING_BRIDGE, MISSING_BUILDING, MISSING_WAY };
+	enum missing_level_t {
+		NOT_MISSING     = 0,
+		MISSING_FACTORY = 1,
+		MISSING_VEHICLE = 2,
+		MISSING_SIGN    = 3,
+		MISSING_WAYOBJ  = 4,
+		MISSING_ERROR   = 4,
+		MISSING_BRIDGE,
+		MISSING_BUILDING,
+		MISSING_WAY
+	};
 
 	void set_car_ownership_history_month(int month, sint64 value) { finance_history_month[month][WORLD_CAR_OWNERSHIP] = value; }
 	void set_car_ownership_history_year(int year, sint64 value) { finance_history_year[year][WORLD_CAR_OWNERSHIP] = value; }
@@ -449,7 +411,7 @@ private:
 	 * @param keep_water returns false if water tiles would be raised above water
 	 * @param hsw desired height of sw-corner
 	 * @param hse desired height of se-corner
-	 * @param hse desired height of ne-corner
+	 * @param hne desired height of ne-corner
 	 * @param hnw desired height of nw-corner
 	 * @returns NULL if raise_to operation can be performed, an error message otherwise
 	 */
@@ -473,7 +435,7 @@ private:
 	 * @param y coordinate
 	 * @param hsw desired height of sw-corner
 	 * @param hse desired height of se-corner
-	 * @param hse desired height of ne-corner
+	 * @param hne desired height of ne-corner
 	 * @param hnw desired height of nw-corner
 	 * @returns NULL if lower_to operation can be performed, an error message otherwise
 	 */
@@ -760,11 +722,13 @@ private:
 	 * Internal saving method.
 	 */
 	void save(loadsave_t *file, bool silent);
-
+public:
 	/**
 	 * Internal loading method.
 	 */
 	void load(loadsave_t *file);
+private:
+	void rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls);
 
 	/**
 	 * Removes all objects, deletes all data structures and frees all accessible memory.
@@ -834,7 +798,10 @@ private:
 	 */
 	uint32 server_last_announce_time;
 
-	enum { SYNCX_FLAG = 0x01, GRIDS_FLAG = 0x02 };
+	enum {
+		SYNCX_FLAG = 1 << 0,
+		GRIDS_FLAG = 1 << 1
+	};
 
 	void world_xy_loop(xy_loop_func func, uint8 flags);
 	static void *world_xy_loop_thread(void *);
@@ -891,7 +858,7 @@ private:
 	sint32 next_step_passenger;
 	sint32 next_step_mail;
 
-	sint32 passenger_step_interval;
+	sint32 passenger_step_interval = 1;
 	sint32 mail_step_interval;
 
 	// Signals in the time interval working method that need
@@ -924,6 +891,9 @@ private:
 
 	/// A helper method for use in init/new month
 	void recalc_passenger_destination_weights();
+
+	/// To prevent pause_step constantly re-checking the private car routes when not necessary.
+	bool private_car_route_check_complete = false;
 
 #ifdef MULTI_THREAD
 	bool passengers_and_mail_threads_working;
@@ -979,6 +949,7 @@ private:
 
 	destination find_destination(trip_type trip, uint8 g_class);
 
+	static sint32 cities_to_process;
 #ifdef MULTI_THREAD
 	friend void *check_road_connexions_threaded(void* args);
 	friend void *unreserve_route_threaded(void* args);
@@ -986,7 +957,6 @@ private:
 	friend void *step_convoys_threaded(void* args);
 	friend void *path_explorer_threaded(void* args);
 	friend void *step_individual_convoy_threaded(void* args);
-	static sint32 cities_to_process;
 	static vector_tpl<convoihandle_t> convoys_next_step;
 	public:
 	static bool threads_initialised;
@@ -1159,6 +1129,11 @@ public:
 	 */
 	bool is_destroying() const { return destroying; }
 
+	uint32 get_cities_awaiting_private_car_route_check_count() const;
+#ifndef NETTOOL
+	uint32 get_cities_to_process() const { return cities_to_process; }
+#endif
+
 #ifdef MULTI_THREAD
 	/**
 	* @returns true if threads are being terminated
@@ -1196,6 +1171,8 @@ public:
 
 	bool is_fast_forward() const { return step_mode == FAST_FORWARD; }
 	void set_fast_forward(bool ff);
+
+	bool is_step_mode_normal() const { return step_mode == NORMAL; }
 
 	/**
 	 * (un)pause for network games.
@@ -1239,7 +1216,13 @@ public:
 	 */
 	void call_change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool scripted_call=false);
 
-	enum change_player_tool_cmds { new_player=1, toggle_freeplay=2, delete_player=3, toggle_player_active=4 };
+	enum change_player_tool_cmds {
+		new_player           = 1,
+		toggle_freeplay      = 2,
+		delete_player        = 3,
+		toggle_player_active = 4
+	};
+
 	/**
 	 * @param exec If false checks whether execution is allowed, if true executes tool.
 	 * @returns Whether execution is allowed.
@@ -1404,101 +1387,28 @@ public:
 	// Consider what to do about things already calibrated to a different level. (Answer: they could probably
 	// do with recalibration anyway).
 
-	sint32 calc_adjusted_monthly_figure(sint32 nominal_monthly_figure) const
-	{
+	template<typename T>
+	T calc_adjusted_monthly_figure(T nominal_monthly_figure) const {
 		// Adjust for meters per tile
-		const sint32 base_meters_per_tile = (sint32)get_settings().get_base_meters_per_tile();
-		const uint32 base_bits_per_month = (sint32)get_settings().get_base_bits_per_month();
-		const sint32 adjustment_factor = base_meters_per_tile / (sint32)get_settings().get_meters_per_tile();
+		const T base_meters_per_tile = (T)get_settings().get_base_meters_per_tile();
+		const uint32 base_bits_per_month = (T)get_settings().get_base_bits_per_month();
+		const T adjustment_factor = base_meters_per_tile / (T)get_settings().get_meters_per_tile();
 
 		// Adjust for bits per month
 		if(ticks_per_world_month_shift >= base_bits_per_month)
 		{
-			const sint32 adjusted_monthly_figure = (sint32)(nominal_monthly_figure << (ticks_per_world_month_shift - base_bits_per_month));
-			return adjusted_monthly_figure / adjustment_factor;
-		}
-		else
-		{
-			const sint32 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-			return (sint32)(adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift));
-		}
-	}
-
-	sint64 calc_adjusted_monthly_figure(sint64 nominal_monthly_figure) const
-	{
-		// Adjust for meters per tile
-		const sint64 base_meters_per_tile = (sint64)get_settings().get_base_meters_per_tile();
-		const sint64 base_bits_per_month = (sint64)get_settings().get_base_bits_per_month();
-		const sint64 adjustment_factor = base_meters_per_tile / (sint64)get_settings().get_meters_per_tile();
-
-		// Adjust for bits per month
-		if(ticks_per_world_month_shift >= base_bits_per_month)
-		{
-			if (nominal_monthly_figure < adjustment_factor)
-			{
-				// This situation can lead to loss of precision.
-				const sint64 adjusted_monthly_figure = (nominal_monthly_figure * 100ll) / adjustment_factor;
-				return (adjusted_monthly_figure * (1u << (ticks_per_world_month_shift - base_bits_per_month))) / 100ll;
-			}
-			else
-			{
-				const sint64 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-				return (adjusted_monthly_figure * (1u << (ticks_per_world_month_shift - base_bits_per_month)));
+			if(std::is_signed<T>()){
+				const sint64 adjusted_monthly_figure = (sint64)nominal_monthly_figure << (ticks_per_world_month_shift - base_bits_per_month);
+				return adjusted_monthly_figure / adjustment_factor;
+			}else{
+				const uint64 adjusted_monthly_figure = (uint64)nominal_monthly_figure << (ticks_per_world_month_shift - base_bits_per_month);
+				return adjusted_monthly_figure / adjustment_factor;
 			}
 		}
 		else
 		{
-			if (nominal_monthly_figure < adjustment_factor)
-			{
-				// This situation can lead to loss of precision.
-				const sint64 adjusted_monthly_figure = (nominal_monthly_figure * 100ll) / adjustment_factor;
-				return (adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift)) / 100ll;
-			}
-			else
-			{
-				const sint64 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-				return adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift);
-			}
-		}
-	}
-
-	uint64 calc_adjusted_monthly_figure(uint64 nominal_monthly_figure) const
-	{
-		// Adjust for meters per tile
-		const uint64 base_meters_per_tile = (uint64)get_settings().get_base_meters_per_tile();
-		const uint64 base_bits_per_month = (uint64)get_settings().get_base_bits_per_month();
-		const uint64 adjustment_factor = base_meters_per_tile / (uint64)get_settings().get_meters_per_tile();
-
-		// Adjust for bits per month
-		if (ticks_per_world_month_shift >= base_bits_per_month)
-		{
-			const uint64 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-			return adjusted_monthly_figure << (ticks_per_world_month_shift - base_bits_per_month);
-		}
-		else
-		{
-			const uint64 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-			return adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift);
-		}
-	}
-
-	uint32 calc_adjusted_monthly_figure(uint32 nominal_monthly_figure) const
-	{
-		// Adjust for meters per tile
-		const uint32 base_meters_per_tile = get_settings().get_base_meters_per_tile();
-		const uint32 base_bits_per_month =  get_settings().get_base_bits_per_month();
-		const uint32 adjustment_factor = base_meters_per_tile / (uint32)get_settings().get_meters_per_tile();
-
-		// Adjust for bits per month
-		if(ticks_per_world_month_shift >= base_bits_per_month)
-		{
-			const uint32 adjusted_monthly_figure = (uint32)(nominal_monthly_figure << (ticks_per_world_month_shift - base_bits_per_month));
-			return adjusted_monthly_figure / adjustment_factor;
-		}
-		else
-		{
-			const uint32 adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
-			return (uint32)(adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift));
+			const T adjusted_monthly_figure = nominal_monthly_figure / adjustment_factor;
+			return (T)(adjusted_monthly_figure >> (base_bits_per_month - ticks_per_world_month_shift));
 		}
 	}
 
@@ -1896,8 +1806,8 @@ public:
 		}
 	}
 
-	void set_mouse_rest_time(uint32 new_val) { mouse_rest_time = new_val; };
-	void set_sound_wait_time(uint32 new_val) { sound_wait_time = new_val; };
+	void set_mouse_rest_time(uint32 new_val) { mouse_rest_time = new_val; }
+	void set_sound_wait_time(uint32 new_val) { sound_wait_time = new_val; }
 
 	/**
 	* Call this when a ware is ready according to
@@ -2025,6 +1935,25 @@ public:
 		return plan ? plan->get_boden_in_hoehe(pos.z) : NULL;
 		//"boden in height" = floor in height (Google)
 	}
+	// Take into account the possibility that the tile to be checked is a down(way)slope and search for it
+	inline grund_t *lookup_with_checking_down_way_slope(const koord3d &pos) const
+	{
+		const planquadrat_t *plan = access(pos.x, pos.y);
+		if( !plan ) {
+			return NULL;
+		}
+		if( plan->get_boden_in_hoehe(pos.z) ) {
+			return plan->get_boden_in_hoehe(pos.z);
+		}
+		if( plan->get_boden_in_hoehe(pos.z-1) ) {
+			return plan->get_boden_in_hoehe(pos.z-1);
+		}
+		if( plan->get_boden_in_hoehe(pos.z-2)  &&  plan->get_boden_in_hoehe(pos.z-2)->get_weg_hang()!=slope_t::flat ){
+			// Don't care about _flat_ tunnels below.
+			return plan->get_boden_in_hoehe(pos.z-2);
+		}
+		return NULL;
+	}
 
 	/**
 	 * This function takes grid coordinates as a parameter and a desired height (koord3d).
@@ -2128,13 +2057,13 @@ public:
 	 * @return The natural slope at a position.
 	 * @note Uses the corner height for the best slope.
 	 */
-	uint8	recalc_natural_slope( const koord k, sint8 &new_height ) const;
+	uint8 recalc_natural_slope( const koord k, sint8 &new_height ) const;
 
 	/**
 	 * Returns the natural slope a a position using the grid.
 	 * @note No checking, and only using the grind for calculation.
 	 */
-	uint8	calc_natural_slope( const koord k ) const;
+	uint8 calc_natural_slope( const koord k ) const;
 
 	// Getter/setter methods for maintaining the industry density
 	inline uint32 get_target_industry_density() const { return ((uint32)finance_history_month[0][WORLD_CITIZENS] * (sint64)industry_density_proportion) / 1000000ll; }
@@ -2147,7 +2076,7 @@ public:
 	  * Initialize map.
 	  * @param sets Game settings.
 	  */
-	void init(settings_t*, sint8 const* heights);
+	void init(settings_t *sets, sint8 const* heights);
 
 	void init_tiles();
 
@@ -2169,7 +2098,7 @@ public:
 	 * File version used when loading (or current if generated)
 	 * @note Useful for finish_rd
 	 */
-	loadsave_t::combined_version load_version;
+	extended_version_t load_version;
 
 	/**
 	 * Checks if the planquadrat (tile) at coordinate (x,y)
@@ -2359,11 +2288,15 @@ public:
 	/**
 	 * Synchronous stepping of objects like vehicles.
 	 */
-	void sync_step(uint32 delta_t, bool sync, bool display );	// advance also the timer
+	void sync_step(uint32 delta_t, bool sync, bool display ); // advance also the timer
+
 	/**
 	 * Tasks that are more time-consuming, like route search of vehicles and production of factories.
 	 */
 	void step();
+
+	/// Tasks undertaken by a server when paused
+	void pause_step();
 
 //private:
 	inline planquadrat_t *access_nocheck(int i, int j) const {
@@ -2428,6 +2361,8 @@ public:
 
 	inline sint8 get_water_hgt(koord k) const { return get_water_hgt(k.x, k.y); }
 
+
+	bool is_near_land(sint16 x, sint16 y, uint16 distance);
 
 	/**
 	 * Sets water height.
@@ -2507,9 +2442,9 @@ public:
 	/**
 	 * Plays the sound when the position is inside the visible region.
 	 * The sound plays lower when the position is outside the visible region.
-	 * @param pos Position at which the event took place.
+	 * @param k Position at which the event took place.
 	 * @param idx Index of the sound
-	 * @param idx t is the type of sound (for selective muting etc.)
+	 * @param t is the type of sound (for selective muting etc.)
 	 */
 	bool play_sound_area_clipped(koord k, uint16 idx, sound_type_t t, waytype_t cooldown_type);
 
@@ -2522,13 +2457,13 @@ public:
 
 	/**
 	 * Saves the map to a file.
-	 * @param Filename name of the file to write.
+	 * @param filename name of the file to write.
 	 */
 	void save(const char *filename, bool autosave, const char *version, const char *ex_version, const char* ex_revision, bool silent);
 
 	/**
 	 * Loads a map from a file.
-	 * @param Filename name of the file to read.
+	 * @param filename name of the file to read.
 	 */
 	bool load(const char *filename);
 
@@ -2536,7 +2471,7 @@ public:
 	 * Creates a map from a heightfield.
 	 * @param sets game settings.
 	 */
-	void load_heightfield(settings_t*);
+	void load_heightfield(settings_t *sets);
 
 	/**
 	 * Stops simulation and optionally closes the game.
@@ -2608,6 +2543,11 @@ public:
 	uint32 generate_new_map_counter() const;
 
 	/**
+	 * Generates hash of game state by streaming a save to a hash function
+	 */
+	uint32 get_gamestate_hash();
+
+	/**
 	 * Time printing routines.
 	 * Should be inlined.
 	 */
@@ -2663,7 +2603,7 @@ public:
 
 private:
 
-	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(city_road); }
+	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(NULL); }
 	void calc_generic_road_time_per_tile_intercity();
 	void calc_max_road_check_depth();
 
@@ -2672,6 +2612,10 @@ private:
 	uint32 get_next_command_step();
 
 	void get_nearby_halts_of_tiles(const minivec_tpl<const planquadrat_t*> &tile_list, const goods_desc_t * wtyp, vector_tpl<nearby_halt_t> &halts) const;
+
+	void refresh_private_car_routes();
+
+	static void clear_private_car_routes() ;
 };
 
 

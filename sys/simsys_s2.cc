@@ -21,9 +21,9 @@ extern int __argc;
 extern char **__argv;
 #endif
 
-#include "../macros.h"
-#include "simsys_w32_png.h"
 #include "simsys.h"
+
+#include "../macros.h"
 #include "../simversion.h"
 #include "../simevent.h"
 #include "../display/simgraph.h"
@@ -32,12 +32,18 @@ extern char **__argv;
 #include "../gui/simwin.h"
 #include "../gui/components/gui_component.h"
 #include "../gui/components/gui_textinput.h"
+#include "../simintr.h"
+#include "../simworld.h"
+
 
 // Maybe Linux is not fine too, had critical bugs...
 #if !defined(__linux__)
 #define USE_SDL_TEXTEDITING
 #else
 #endif
+
+// threshold for zooming in/out with multitouch
+#define DELTA_PINCH (0.033)
 
 static Uint8 hourglass_cursor[] = {
 	0x3F, 0xFE, //   *************
@@ -106,7 +112,6 @@ static SDL_Cursor *arrow;
 static SDL_Cursor *hourglass;
 static SDL_Cursor *blank;
 
-
 // Number of fractional bits for screen scaling
 #define SCALE_SHIFT_X 5
 #define SCALE_SHIFT_Y 5
@@ -133,6 +138,9 @@ sint32 y_scale = SCALE_NEUTRAL_Y;
 #define TEX_TO_SCREEN_Y(y) (((y) * y_scale) / SCALE_NEUTRAL_Y)
 
 
+bool has_soft_keyboard = false;
+
+
 // no autoscaling yet
 bool dr_auto_scale(bool on_off )
 {
@@ -143,6 +151,7 @@ bool dr_auto_scale(bool on_off )
 		if(  SDL_GetDisplayDPI( 0, NULL, &hdpi, &vdpi )==0  ) {
 			x_scale = ((sint64)hdpi * SCALE_NEUTRAL_X + 1) / TARGET_DPI;
 			y_scale = ((sint64)vdpi * SCALE_NEUTRAL_Y + 1) / TARGET_DPI;
+			DBG_MESSAGE("auto_dpi_scaling","x=%i, y=%i", x_scale, y_scale);
 			return true;
 		}
 		return false;
@@ -159,6 +168,46 @@ bool dr_auto_scale(bool on_off )
 		return false;
 	}
 }
+
+static int SDLCALL my_event_filter(void* /*userdata*/, SDL_Event* event)
+{
+	if (event->type == SDL_APP_TERMINATING) {
+		// quitting immediate, save settings and game without visual feedback
+		intr_disable();
+		if (env_t::reload_and_save_on_quit && !env_t::networkmode) {
+			// save current game, if not online
+			bool old_restore_UI = env_t::restore_UI;
+			env_t::restore_UI = true;
+
+			// construct from pak name an autosave if requested
+			std::string pak_name("autosave-");
+			pak_name.append(env_t::objfilename);
+			pak_name.erase(pak_name.length() - 1);
+			pak_name.append(".sve");
+
+			world()->save(pak_name.c_str(), true, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+			env_t::restore_UI = old_restore_UI;
+		}
+		// save settings
+		{
+			dr_chdir(env_t::user_dir);
+			loadsave_t settings_file;
+			if (settings_file.wr_open("settings.xml", loadsave_t::xml, 0, "settings only/", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR) == loadsave_t::FILE_STATUS_OK) {
+				env_t::rdwr(&settings_file);
+				env_t::default_settings.rdwr(&settings_file);
+				settings_file.close();
+			}
+		}
+		// at this point there is no UI active anymore, and we have no time to die, so just exit and leeve the cleanup to the OS
+		SDL_Quit();
+		exit(0);
+
+		// in priciple we need to return 0, since we handled this alread ...
+		return 0;
+	}
+	return 1;  // let all events be added to the queue since we always return 1.
+}
+
 
 /*
  * Hier sind die Basisfunktionen zur Initialisierung der
@@ -178,14 +227,23 @@ bool dr_os_init(const int* parameter)
 #ifndef USE_SDL_TEXTEDITING
 	SDL_EventState( SDL_TEXTEDITING, SDL_DISABLE );
 #endif
-	SDL_EventState( SDL_FINGERDOWN, SDL_DISABLE );
-	SDL_EventState( SDL_FINGERUP, SDL_DISABLE );
-	SDL_EventState( SDL_FINGERMOTION, SDL_DISABLE );
+	SDL_EventState( SDL_FINGERDOWN, SDL_ENABLE );
+	SDL_EventState( SDL_FINGERUP, SDL_ENABLE );
+	SDL_EventState( SDL_FINGERMOTION, SDL_ENABLE );
 	SDL_EventState( SDL_DOLLARGESTURE, SDL_DISABLE );
 	SDL_EventState( SDL_DOLLARRECORD, SDL_DISABLE );
-	SDL_EventState( SDL_MULTIGESTURE, SDL_DISABLE );
+	SDL_EventState( SDL_MULTIGESTURE, SDL_ENABLE );
 	SDL_EventState( SDL_CLIPBOARDUPDATE, SDL_DISABLE );
 	SDL_EventState( SDL_DROPFILE, SDL_DISABLE );
+
+	// termination event: save current map and settings
+	SDL_SetEventFilter(my_event_filter, 0);
+
+	has_soft_keyboard = SDL_HasScreenKeyboardSupport();
+	if (has_soft_keyboard  &&  !env_t::hide_keyboard) {
+		env_t::hide_keyboard = true;
+	}
+	SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
 
 	sync_blit = parameter[0];  // hijack SDL1 -async flag for SDL2 vsync
 	use_dirty_tiles = !parameter[1]; // hijack SDL1 -use_hw flag to turn off dirty tile updates (force fullscreen updates)
@@ -194,7 +252,9 @@ bool dr_os_init(const int* parameter)
 	sys_event.type = SIM_NOEVENT;
 	sys_event.code = 0;
 
-	SDL_StartTextInput();
+	if (env_t::hide_keyboard) {
+		SDL_StartTextInput();
+	}
 
 	atexit( SDL_Quit ); // clean up on exit
 	return true;
@@ -207,8 +267,8 @@ resolution dr_query_screen_resolution()
 	SDL_DisplayMode mode;
 	SDL_GetCurrentDisplayMode( 0, &mode );
 	DBG_MESSAGE("dr_query_screen_resolution(SDL2)", "screen resolution width=%d, height=%d", mode.w, mode.h );
-	res.w = mode.w;
-	res.h = mode.h;
+	res.w = SCREEN_TO_TEX_X(mode.w);
+	res.h = SCREEN_TO_TEX_Y(mode.h);
 	return res;
 }
 
@@ -271,7 +331,8 @@ bool internal_create_surfaces(int tex_width, int tex_height)
 	if(  !SDL_PixelFormatEnumToMasks( pixel_format, &bpp, &rmask, &gmask, &bmask, &amask )  ) {
 		dbg->error( "internal_create_surfaces(SDL2)", "Pixel format error. Couldn't generate masks: %s", SDL_GetError() );
 		return false;
-	} else if(  bpp != COLOUR_DEPTH  ||  amask != 0  ) {
+	}
+	else if(  bpp != COLOUR_DEPTH  ||  amask != 0  ) {
 		dbg->error( "internal_create_surfaces(SDL2)", "Pixel format error. Bpp got %d, needed %d. Amask got %d, needed 0.", bpp, COLOUR_DEPTH, amask );
 		return false;
 	}
@@ -290,8 +351,11 @@ bool internal_create_surfaces(int tex_width, int tex_height)
 int dr_os_open(int screen_width, int screen_height, bool fullscreen)
 {
 	// scale up
-	const int tex_w = SCREEN_TO_TEX_X(screen_width);
-	const int tex_h = SCREEN_TO_TEX_Y(screen_height);
+	resolution res = dr_query_screen_resolution();
+	const int tex_w = min( res.w, SCREEN_TO_TEX_X(screen_width) );
+	const int tex_h = min( res.h, SCREEN_TO_TEX_Y(screen_height) );
+
+	DBG_MESSAGE("dr_os_open()", "Screen requested %i,%i, available max %i,%i", tex_w, tex_h, res.w, res.h);
 
 	// some cards need those alignments
 	// especially 64bit want a border of 8bytes
@@ -321,6 +385,10 @@ int dr_os_open(int screen_width, int screen_height, bool fullscreen)
 	hourglass = SDL_CreateCursor( hourglass_cursor, hourglass_cursor_mask, 16, 22, 8, 11 );
 	blank = SDL_CreateCursor( blank_cursor, blank_cursor, 8, 2, 0, 0 );
 	SDL_ShowCursor(1);
+
+#if SDL_VERSION_ATLEAST(2, 0, 10)
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0"); // no mouse emulation for touch
+#endif
 
 	if(  !env_t::hide_keyboard  ) {
 		// enable keyboard input at all times unless requested otherwise
@@ -441,12 +509,16 @@ void dr_textur(int xp, int yp, int w, int h)
 		SDL_UpdateTexture( screen_tx, &r, (uint8 *)screen->pixels + yp * screen->pitch + xp * sizeof(PIXVAL), screen->pitch );
 	}
 }
-
+static bool in_finger_handling = false;
 
 // move cursor to the specified location
-void move_pointer(int x, int y)
+bool move_pointer(int x, int y)
 {
+	if (in_finger_handling) {
+		return false;
+	}
 	SDL_WarpMouseInWindow( window, TEX_TO_SCREEN_X(x), TEX_TO_SCREEN_Y(y) );
+	return true;
 }
 
 
@@ -457,23 +529,6 @@ void set_pointer(int loading)
 }
 
 
-/**
- * Some wrappers can save screenshots.
- * @return 1 on success, 0 if not implemented for a particular wrapper and -1
- *         in case of error.
- */
-int dr_screenshot(const char *filename, int x, int y, int w, int h)
-{
-#ifdef WIN32
-	if(  dr_screenshot_png( filename, w, h, screen->w, ((unsigned short *)(screen->pixels)) + x + y * screen->w, screen->format->BitsPerPixel )  ) {
-		return 1;
-	}
-#endif
-	(void)x; (void)y; (void)w; (void)h;
-	return SDL_SaveBMP( screen, filename ) == 0 ? 1 : -1;
-}
-
-
 /*
  * Hier sind die Funktionen zur Messageverarbeitung
  */
@@ -481,14 +536,14 @@ int dr_screenshot(const char *filename, int x, int y, int w, int h)
 
 static inline unsigned int ModifierKeys()
 {
-	SDL_Keymod mod = SDL_GetModState();
+	const SDL_Keymod mod = SDL_GetModState();
 
 	return
-		(mod & KMOD_SHIFT ? 1 : 0)
-		| (mod & KMOD_CTRL ? 2 : 0)
+		  ((mod & KMOD_SHIFT) ? SIM_MOD_SHIFT : SIM_MOD_NONE)
+		| ((mod & KMOD_CTRL)  ? SIM_MOD_CTRL  : SIM_MOD_NONE)
 #ifdef __APPLE__
 		// Treat the Command key as a control key.
-		| (mod & KMOD_GUI ? 2 : 0)
+		| ((mod & KMOD_GUI)   ? SIM_MOD_CTRL  : SIM_MOD_NONE)
 #endif
 		;
 }
@@ -503,46 +558,44 @@ static int conv_mouse_buttons(Uint8 const state)
 }
 
 
-static void internal_GetEvents(bool const wait)
+static void internal_GetEvents()
 {
 	// Apparently Cocoa SDL posts key events that meant to be used by IM...
 	// Ignoring SDL_KEYDOWN during preedit seems to work fine.
 	static bool composition_is_underway = false;
 	static bool ignore_previous_number = false;
+	static int previous_multifinger_touch = 0;
+	static SDL_FingerID FirstFingerId = 0;
+	static double dLastDist = 0.0;
+
+	static bool has_queued_finger_release = false;
+	static sint32 last_mx, last_my; // last finger down pos
+
+	if (has_queued_finger_release) {
+		// we need to send a finger release, which was not done yet
+		has_queued_finger_release = false;
+		sys_event.type = SIM_MOUSE_BUTTONS;
+		sys_event.code = SIM_MOUSE_LEFTUP;
+		sys_event.mb = 0;
+		sys_event.mx = last_mx;
+		sys_event.my = last_my;
+		sys_event.key_mod = ModifierKeys();
+		DBG_MESSAGE("SDL_FINGERUP for queue", "SIM_MOUSE_LEFTUP at %i,%i", sys_event.mx, sys_event.my);
+		return;
+	}
 
 	SDL_Event event;
 	event.type = 1;
-	if(  wait  ) {
-		int n;
-		do {
-			SDL_WaitEvent( &event );
-			n = SDL_PollEvent( NULL );
-		} while(  n != 0  &&  event.type == SDL_MOUSEMOTION  );
-	}
-	else {
-		int n;
-		bool got_one = false;
-		do {
-			n = SDL_PollEvent( &event );
-			if(  n != 0  ) {
-				got_one = true;
-				if(  event.type == SDL_MOUSEMOTION  ) {
-					sys_event.mx   = SCREEN_TO_TEX_X(event.motion.x);
-					sys_event.my   = SCREEN_TO_TEX_Y(event.motion.y);
-					sys_event.type = SIM_MOUSE_MOVE;
-					sys_event.code = SIM_MOUSE_MOVED;
-					sys_event.mb   = conv_mouse_buttons( event.motion.state );
-				}
-			}
-		} while(  n != 0  &&  event.type == SDL_MOUSEMOTION  );
-		if(  !got_one  ) {
-			return;
-		}
+	if (SDL_PollEvent(&event) == 0) {
+		return;
 	}
 
 	static char textinput[SDL_TEXTINPUTEVENT_TEXT_SIZE];
+	DBG_MESSAGE("SDL_EVENT", "0x%X", event.type);
+
 	switch(  event.type  ) {
-		case SDL_WINDOWEVENT: {
+
+		case SDL_WINDOWEVENT:
 			if(  event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED  ) {
 				sys_event.new_window_size.w = SCREEN_TO_TEX_X(event.window.data1);
 				sys_event.new_window_size.h = SCREEN_TO_TEX_Y(event.window.data2);
@@ -551,41 +604,173 @@ static void internal_GetEvents(bool const wait)
 			}
 			// Ignore other window events.
 			break;
-		}
-		case SDL_MOUSEBUTTONDOWN: {
-			sys_event.type    = SIM_MOUSE_BUTTONS;
-			switch(  event.button.button  ) {
-				case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTBUTTON;  break;
-				case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDBUTTON;   break;
-				case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTBUTTON; break;
-				case SDL_BUTTON_X1:     sys_event.code = SIM_MOUSE_WHEELUP;     break;
-				case SDL_BUTTON_X2:     sys_event.code = SIM_MOUSE_WHEELDOWN;   break;
+
+		case SDL_MOUSEBUTTONDOWN:
+			dLastDist = 0.0;
+			if (event.button.which != SDL_TOUCH_MOUSEID) {
+				sys_event.type    = SIM_MOUSE_BUTTONS;
+				switch(  event.button.button  ) {
+					case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTBUTTON;  break;
+					case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDBUTTON;   break;
+					case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTBUTTON; break;
+					case SDL_BUTTON_X1:     sys_event.code = SIM_MOUSE_WHEELUP;     break;
+					case SDL_BUTTON_X2:     sys_event.code = SIM_MOUSE_WHEELDOWN;   break;
+				}
+				sys_event.mx      = SCREEN_TO_TEX_X(event.button.x);
+				sys_event.my      = SCREEN_TO_TEX_Y(event.button.y);
+				sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState(0, 0) );
+				sys_event.key_mod = ModifierKeys();
 			}
-			sys_event.mx      = SCREEN_TO_TEX_X(event.button.x);
-			sys_event.my      = SCREEN_TO_TEX_Y(event.button.y);
-			sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState(0, 0) );
-			sys_event.key_mod = ModifierKeys();
 			break;
-		}
-		case SDL_MOUSEBUTTONUP: {
-			sys_event.type    = SIM_MOUSE_BUTTONS;
-			switch(  event.button.button  ) {
-				case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTUP;  break;
-				case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDUP;   break;
-				case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTUP; break;
+
+		case SDL_MOUSEBUTTONUP:
+			if (!previous_multifinger_touch  &&  !in_finger_handling) {
+				// we try to only handle mouse events
+				sys_event.type    = SIM_MOUSE_BUTTONS;
+				switch(  event.button.button  ) {
+					case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTUP;  break;
+					case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDUP;   break;
+					case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTUP; break;
+				}
+				sys_event.mx      = SCREEN_TO_TEX_X(event.button.x);
+				sys_event.my      = SCREEN_TO_TEX_Y(event.button.y);
+				sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState(0, 0) );
+				sys_event.key_mod = ModifierKeys();
+				previous_multifinger_touch = false;
 			}
-			sys_event.mx      = SCREEN_TO_TEX_X(event.button.x);
-			sys_event.my      = SCREEN_TO_TEX_Y(event.button.y);
-			sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState(0, 0) );
-			sys_event.key_mod = ModifierKeys();
 			break;
-		}
-		case SDL_MOUSEWHEEL: {
+
+		case SDL_MOUSEWHEEL:
 			sys_event.type    = SIM_MOUSE_BUTTONS;
 			sys_event.code    = event.wheel.y > 0 ? SIM_MOUSE_WHEELUP : SIM_MOUSE_WHEELDOWN;
 			sys_event.key_mod = ModifierKeys();
 			break;
-		}
+
+		case SDL_MOUSEMOTION:
+			if (!in_finger_handling) {
+				sys_event.type = SIM_MOUSE_MOVE;
+				sys_event.code = SIM_MOUSE_MOVED;
+				sys_event.mx = SCREEN_TO_TEX_X(event.motion.x);
+				sys_event.my = SCREEN_TO_TEX_Y(event.motion.y);
+				sys_event.mb = conv_mouse_buttons(event.motion.state);
+				sys_event.key_mod = ModifierKeys();
+			}
+			break;
+
+		case SDL_FINGERDOWN:
+			/* just reset scroll state, since another finger may touch down next
+			 * The button down events will be from fingr move and the coordinate will be set from mouse up: enough
+			 */
+	DBG_MESSAGE("SDL_FINGERDOWN", "fingerID=%x FirstFingerId=%x Finger %i", (int)event.tfinger.fingerId, (int)FirstFingerId, SDL_GetNumTouchFingers(event.tfinger.touchId));
+
+			if (!in_finger_handling) {
+				dLastDist = 0.0;
+				FirstFingerId = event.tfinger.fingerId;
+				DBG_MESSAGE("SDL_FINGERDOWN", "FirstfingerID=%x", FirstFingerId);
+				in_finger_handling = true;
+			}
+			else if (FirstFingerId != event.tfinger.fingerId) {
+				previous_multifinger_touch = 2;
+			}
+			break;
+
+		case SDL_FINGERMOTION:
+			// move whatever
+			if(  screen  &&  previous_multifinger_touch==0  &&  FirstFingerId==event.tfinger.fingerId) {
+				if (dLastDist == 0.0) {
+					// not yet a finger down event before => we send one
+					dLastDist = 1e-99;
+					sys_event.type = SIM_MOUSE_BUTTONS;
+					sys_event.code = SIM_MOUSE_LEFTBUTTON;
+					sys_event.mx = event.tfinger.x * display_get_width();
+					sys_event.my = event.tfinger.y * display_get_height();
+	DBG_MESSAGE("SDL_FINGERMOTION", "SIM_MOUSE_LEFTBUTTON at %i,%i", sys_event.mx, sys_event.my);
+				}
+				else {
+					sys_event.type = SIM_MOUSE_MOVE;
+					sys_event.code = SIM_MOUSE_MOVED;
+					sys_event.mx = event.tfinger.x * display_get_width();
+					sys_event.my = event.tfinger.y * display_get_height();
+	DBG_MESSAGE("SDL_FINGERMOTION", "SIM_MOUSE_MOVED at %i,%i", sys_event.mx, sys_event.my);
+				}
+				sys_event.mb = 1;
+				sys_event.key_mod = ModifierKeys();
+			}
+			in_finger_handling = true;
+			break;
+
+		case SDL_FINGERUP:
+			if (screen  &&  in_finger_handling) {
+				if (FirstFingerId==event.tfinger.fingerId  ||  SDL_GetNumTouchFingers(event.tfinger.touchId)==0) {
+					if(!previous_multifinger_touch) {
+						if (dLastDist == 0.0) {
+							dLastDist = 1e-99;
+							// return a press event
+							sys_event.type = SIM_MOUSE_BUTTONS;
+							sys_event.code = SIM_MOUSE_LEFTBUTTON;
+							sys_event.mb = 1;
+							sys_event.key_mod = ModifierKeys();
+							last_mx = sys_event.mx = event.tfinger.x * display_get_width();
+							last_my = sys_event.my = event.tfinger.y * display_get_height();
+							// not yet moved -> set click origin or click will be at last position ...
+							set_click_xy(sys_event.mx, sys_event.my);
+
+							has_queued_finger_release = true;
+		DBG_MESSAGE("SDL_FINGERUP", "SIM_MOUSE_LEFTDOWN+UP at %i,%i", sys_event.mx, sys_event.my);
+						}
+						else {
+							sys_event.type = SIM_MOUSE_BUTTONS;
+							sys_event.code = SIM_MOUSE_LEFTUP;
+							sys_event.mb = 0;
+							sys_event.mx = (event.tfinger.x + event.tfinger.dx) * display_get_width();
+							sys_event.my = (event.tfinger.y + event.tfinger.dy) * display_get_height();
+							sys_event.key_mod = ModifierKeys();
+		DBG_MESSAGE("SDL_FINGERUP", "SIM_MOUSE_LEFTUP at %i,%i", sys_event.mx, sys_event.my);
+						}
+					}
+					previous_multifinger_touch = 0;
+					in_finger_handling = 0;
+					FirstFingerId = 0xFFFF;
+				}
+			}
+			break;
+
+		case SDL_MULTIGESTURE:
+			DBG_MESSAGE("SDL_FINGERUP", "Finger %i", SDL_GetNumTouchFingers(event.tfinger.touchId));
+			in_finger_handling = true;
+			if( event.mgesture.numFingers == 2 ) {
+				// any multitouch is intepreted as pinch zoom
+				dLastDist += event.mgesture.dDist;
+				if( dLastDist<-DELTA_PINCH ) {
+					sys_event.type = SIM_MOUSE_BUTTONS;
+					sys_event.code = SIM_MOUSE_WHEELDOWN;
+					sys_event.key_mod = ModifierKeys();
+					dLastDist += DELTA_PINCH;
+				}
+				else if( dLastDist>DELTA_PINCH ) {
+					sys_event.type = SIM_MOUSE_BUTTONS;
+					sys_event.code = SIM_MOUSE_WHEELUP;
+					sys_event.key_mod = ModifierKeys();
+					dLastDist -= DELTA_PINCH;
+				}
+				previous_multifinger_touch = 2;
+			}
+			else if (event.mgesture.numFingers == 3  &&  screen) {
+				// any three finger touch is scrolling the map
+				sys_event.type = SIM_MOUSE_MOVE;
+				sys_event.code = SIM_MOUSE_MOVED;
+				sys_event.mb = 2;
+				sys_event.mx = SCREEN_TO_TEX_X(event.mgesture.x * screen->w);
+				sys_event.my = SCREEN_TO_TEX_Y(event.mgesture.y * screen->h);
+				sys_event.key_mod = ModifierKeys();
+				if (previous_multifinger_touch != 3) {
+					// just started scrolling
+					set_click_xy(sys_event.mx, sys_event.my);
+				}
+				previous_multifinger_touch = 3;
+			}
+			break;
+
 		case SDL_KEYDOWN: {
 			// Hack: when 2 byte character composition is under way, we have to leave the key processing with the IME
 			// BUT: if not, we have to do it ourselves, or the cursor or return will not be recognised
@@ -607,7 +792,7 @@ static void internal_GetEvents(bool const wait)
 #else
 			const bool key_numlock = (SDL_GetModState() & KMOD_NUM);
 #endif
-			const bool numlock = key_numlock  &&  !env_t::numpad_always_moves_map;
+			const bool numlock = key_numlock  ||  (env_t::numpad_always_moves_map  &&  !win_is_textinput());
 			sys_event.key_mod = ModifierKeys();
 			SDL_Keycode sym = event.key.keysym.sym;
 			bool np = false; // to indicate we converted a numpad key
@@ -617,6 +802,7 @@ static void internal_GetEvents(bool const wait)
 				case SDLK_TAB:        code = SIM_KEY_TAB;                   break;
 				case SDLK_RETURN:     code = SIM_KEY_ENTER;                 break;
 				case SDLK_ESCAPE:     code = SIM_KEY_ESCAPE;                break;
+				case SDLK_AC_BACK:
 				case SDLK_DELETE:     code = SIM_KEY_DELETE;                break;
 				case SDLK_DOWN:       code = SIM_KEY_DOWN;                  break;
 				case SDLK_END:        code = SIM_KEY_END;                   break;
@@ -636,16 +822,16 @@ static void internal_GetEvents(bool const wait)
 				case SDLK_F13:        code = SIM_KEY_F13;                   break;
 				case SDLK_F14:        code = SIM_KEY_F14;                   break;
 				case SDLK_F15:        code = SIM_KEY_F15;                   break;
-				case SDLK_KP_0:       np = true; code = numlock ? '0' : SIM_KEY_NUMPAD_BASE + 0; break;
-				case SDLK_KP_1:       np = true; code = numlock ? '1' : SIM_KEY_NUMPAD_BASE+1; break;
-				case SDLK_KP_2:       np = true; code = numlock ? '2' : SIM_KEY_NUMPAD_BASE+2; break;
-				case SDLK_KP_3:       np = true; code = numlock ? '3' : SIM_KEY_NUMPAD_BASE+3; break;
-				case SDLK_KP_4:       np = true; code = numlock ? '4' : SIM_KEY_NUMPAD_BASE+4; break;
-				case SDLK_KP_5:       np = true; code = numlock ? '5' : SIM_KEY_NUMPAD_BASE+5; break;
-				case SDLK_KP_6:       np = true; code = numlock ? '6' : SIM_KEY_NUMPAD_BASE+6; break;
-				case SDLK_KP_7:       np = true; code = numlock ? '7' : SIM_KEY_NUMPAD_BASE+7; break;
-				case SDLK_KP_8:       np = true; code = numlock ? '8' : SIM_KEY_NUMPAD_BASE+8; break;
-				case SDLK_KP_9:       np = true; code = numlock ? '9' : SIM_KEY_NUMPAD_BASE+9; break;
+				case SDLK_KP_0:       np = true; code = (numlock ? '0' : (unsigned long)SIM_KEY_NUMPAD_BASE); break;
+				case SDLK_KP_1:       np = true; code = (numlock ? '1' : (unsigned long)SIM_KEY_DOWNLEFT); break;
+				case SDLK_KP_2:       np = true; code = (numlock ? '2' : (unsigned long)SIM_KEY_DOWN); break;
+				case SDLK_KP_3:       np = true; code = (numlock ? '3' : (unsigned long)SIM_KEY_DOWNRIGHT); break;
+				case SDLK_KP_4:       np = true; code = (numlock ? '4' : (unsigned long)SIM_KEY_LEFT); break;
+				case SDLK_KP_5:       np = true; code = (numlock ? '5' : (unsigned long)SIM_KEY_CENTER); break;
+				case SDLK_KP_6:       np = true; code = (numlock ? '6' : (unsigned long)SIM_KEY_RIGHT); break;
+				case SDLK_KP_7:       np = true; code = (numlock ? '7' : (unsigned long)SIM_KEY_UPLEFT); break;
+				case SDLK_KP_8:       np = true; code = (numlock ? '8' : (unsigned long)SIM_KEY_UP); break;
+				case SDLK_KP_9:       np = true; code = (numlock ? '9' : (unsigned long)SIM_KEY_UPRIGHT); break;
 				case SDLK_KP_ENTER:   code = SIM_KEY_ENTER;                 break;
 				case SDLK_LEFT:       code = SIM_KEY_LEFT;                  break;
 				case SDLK_PAGEDOWN:   code = '<';                           break;
@@ -656,7 +842,7 @@ static void internal_GetEvents(bool const wait)
 				case SDLK_SCROLLLOCK: code = SIM_KEY_SCROLLLOCK;            break;
 				default: {
 					// Handle CTRL-keys. SDL_TEXTINPUT event handles regular input
-					if(  (sys_event.key_mod & 2)  &&  SDLK_a <= sym  &&  sym <= SDLK_z  ) {
+					if(  (sys_event.key_mod & SIM_MOD_CTRL)  &&  SDLK_a <= sym  &&  sym <= SDLK_z  ) {
 						code = event.key.keysym.sym & 31;
 					}
 					else {
@@ -665,7 +851,7 @@ static void internal_GetEvents(bool const wait)
 					break;
 				}
 			}
-			ignore_previous_number = (np  &&   key_numlock  &&  env_t::numpad_always_moves_map);
+			ignore_previous_number = (np  &&  key_numlock);
 			sys_event.type    = SIM_KEYBOARD;
 			sys_event.code    = code;
 			break;
@@ -719,15 +905,6 @@ static void internal_GetEvents(bool const wait)
 			break;
 		}
 #endif
-		case SDL_MOUSEMOTION: {
-			sys_event.type    = SIM_MOUSE_MOVE;
-			sys_event.code    = SIM_MOUSE_MOVED;
-			sys_event.mx      = SCREEN_TO_TEX_X(event.motion.x);
-			sys_event.my      = SCREEN_TO_TEX_Y(event.motion.y);
-			sys_event.mb      = conv_mouse_buttons( event.motion.state );
-			sys_event.key_mod = ModifierKeys();
-			break;
-		}
 		case SDL_KEYUP: {
 			sys_event.type = SIM_KEYBOARD;
 			sys_event.code = 0;
@@ -749,16 +926,7 @@ static void internal_GetEvents(bool const wait)
 
 void GetEvents()
 {
-	internal_GetEvents( true );
-}
-
-
-void GetEventsNoWait()
-{
-	sys_event.type = SIM_NOEVENT;
-	sys_event.code = 0;
-
-	internal_GetEvents( false );
+	internal_GetEvents();
 }
 
 
@@ -798,6 +966,7 @@ void dr_stop_textinput()
 {
 	if(  env_t::hide_keyboard  ) {
 	    SDL_StopTextInput();
+		SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
 	}
 }
 
@@ -806,6 +975,24 @@ void dr_notify_input_pos(int x, int y)
 	SDL_Rect rect = { TEX_TO_SCREEN_X(x), TEX_TO_SCREEN_Y(y + LINESPACE), 1, 1};
 	SDL_SetTextInputRect( &rect );
 }
+
+
+
+const char* dr_get_locale()
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	static char LanguageCode[5] = "";
+	SDL_Locale *loc = SDL_GetPreferredLocales();
+	if( loc ) {
+		strncpy( LanguageCode, loc->language, 2 );
+		LanguageCode[2] = 0;
+		DBG_MESSAGE( "dr_get_locale()", "%2s", LanguageCode );
+		return LanguageCode;
+	}
+#endif
+	return NULL;
+}
+
 
 #ifdef _MSC_VER
 // Needed for MS Visual C++ with /SUBSYSTEM:CONSOLE to work , if /SUBSYSTEM:WINDOWS this function is compiled but unreachable

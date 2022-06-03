@@ -16,9 +16,12 @@
 #include "../utils/simrandom.h"
 void rdwr_win_settings(loadsave_t *file); // simwin
 
+sint16 env_t::menupos = MENU_TOP;
+bool env_t::reselect_closes_tool = true;
+
 sint8 env_t::pak_tile_height_step = 16;
 sint8 env_t::pak_height_conversion_factor = 1;
-bool env_t::new_height_map_conversion = false;
+env_t::height_conversion_mode env_t::height_conv_mode = env_t::HEIGHT_CONV_LINEAR;
 
 bool env_t::simple_drawing = false;
 bool env_t::simple_drawing_fast_forward = true;
@@ -56,24 +59,29 @@ std::string env_t::server_motd_filename;
 vector_tpl<std::string> env_t::listen;
 bool env_t::server_save_game_on_quit = false;
 bool env_t::reload_and_save_on_quit = true;
+uint8 env_t::network_heavy_mode = 0;
 
 sint32 env_t::server_frames_ahead = 4;
 sint32 env_t::additional_client_frames_behind = 4;
 sint32 env_t::network_frames_per_step = 4;
 uint32 env_t::server_sync_steps_between_checks = 24;
 bool env_t::pause_server_no_clients = false;
+bool env_t::server_runs_background_tasks_when_paused = false;
 
 std::string env_t::nickname = "";
 
-// this is explicitely and interactively set by user => we do not touch it in init
+// this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
-sint16 env_t::scroll_multi = 2;
+sint16 env_t::scroll_multi = -1; // start with same scrool as mouse as nowadays standard
+bool env_t::scroll_infinite = true; // since it fails with touch devices
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
 uint16 env_t::specific_volume[MAX_SOUND_TYPES];
+
+std::string env_t::soundfont_filename = "";
 bool env_t::global_mute_sound = false;
-bool env_t::mute_midi = true;
+bool env_t::mute_midi = false;
 bool env_t::shuffle_midi = true;
 sint16 env_t::window_snap_distance = 8;
 scr_size env_t::iconsize( 32, 32 );
@@ -91,7 +99,6 @@ settings_t env_t::default_settings;
 // what finances are shown? (default bank balance)
 bool env_t::player_finance_display_account = true;
 
-
 // the following initialisation is not important; set values in init()!
 std::string env_t::objfilename;
 bool env_t::night_shift;
@@ -104,22 +111,24 @@ bool env_t::use_transparency_station_coverage;
 uint8 env_t::station_coverage_show;
 uint8 env_t::signalbox_coverage_show;
 sint32 env_t::show_names;
+bool env_t::show_depot_names;
 uint8 env_t::freight_waiting_bar_level;
 bool env_t::classes_waiting_bar;
 uint8 env_t::show_cnv_nameplates;
 uint8 env_t::show_cnv_loadingbar;
+uint8 env_t::show_factory_storage_bar;
 sint32 env_t::message_flags[4];
 uint32 env_t::water_animation;
 uint32 env_t::ground_object_probability;
 uint32 env_t::moving_object_probability;
-bool env_t::road_user_info;
+uint8 env_t::road_user_info;
 bool env_t::tree_info;
 bool env_t::ground_info;
 bool env_t::townhall_info;
 bool env_t::single_info;
 bool env_t::window_buttons_right;
 bool env_t::window_frame_active;
-uint8 env_t::verbose_debug;
+log_t::level_t env_t::verbose_debug;
 uint8 env_t::default_sortmode;
 uint32 env_t::default_mapmode;
 uint8 env_t::show_month;
@@ -170,6 +179,7 @@ sint8 env_t::show_money_message;
 
 uint8 env_t::gui_player_color_dark = 1;
 uint8 env_t::gui_player_color_bright = 4;
+uint8 env_t::gui_titlebar_player_color_background_brightness;
 
 std::string env_t::fontname = FONT_PATH_X "prop.fnt";
 uint8 env_t::fontsize = 11;
@@ -200,13 +210,15 @@ void env_t::init()
 	message_flags[2] = 0x00A0;
 	message_flags[3] = 0;
 
-	night_shift = false;
+	night_shift = true;
 
 	hide_with_transparency = true;
 	hide_trees = false;
 	hide_buildings = env_t::NOT_HIDE;
 	hide_under_cursor = false;
 	cursor_hide_range = 5;
+
+	scroll_infinite = true;
 
 	visualize_schedule = true;
 
@@ -217,10 +229,12 @@ void env_t::init()
 	signalbox_coverage_show = 0;
 
 	show_names = 3;
+	show_depot_names = false;
 	freight_waiting_bar_level = 2;
 	classes_waiting_bar = false;
 	show_cnv_nameplates = 0;
 	show_cnv_loadingbar = 0;
+	show_factory_storage_bar = 0;
 	player_finance_display_account = true;
 
 	water_animation = 250; // 250ms per wave stage
@@ -229,10 +243,10 @@ void env_t::init()
 
 	follow_convoi_underground = 2;  // slice through map
 
-	road_user_info = false;
+	road_user_info = 1;
 	tree_info = true;
-	ground_info = false;
-	townhall_info = false;
+	ground_info = true;
+	townhall_info = true;
 	single_info = true;
 
 	window_buttons_right = false;
@@ -241,24 +255,25 @@ void env_t::init()
 	remember_window_positions = true;
 
 	// debug level (0: only fatal, 1: error, 2: warning, 3: all
-	verbose_debug = 0;
+	verbose_debug = log_t::LEVEL_FATAL;
 
-	default_sortmode = 1;	// sort by amount
-	default_mapmode = 0;	// show cities
+	default_sortmode = 1; // sort by amount
+	default_mapmode = 0;  // show cities
 
 	savegame_version_str = SAVEGAME_VER_NR;
 	savegame_ex_version_str = EXTENDED_VER_NR;
 	savegame_ex_revision_str = EXTENDED_REVISION_NR;
 
-	show_month = DATE_FMT_US;
+	show_month = DATE_FMT_INTERNAL_MINUTE;
 
 	intercity_road_length = 512;
 
 	river_types = 0;
 
-
 	// autosave every x months (0=off)
 	autosave = 0;
+
+	reload_and_save_on_quit = true;
 
 	// default: make 25 frames per second (if possible) and 10 for faster fast forward
 	fps = 25;
@@ -317,13 +332,14 @@ void env_t::init()
 	// upper right
 	compass_map_position = ALIGN_RIGHT|ALIGN_TOP;
 	// lower right
-	compass_screen_position = 0, // disbale, other could be ALIGN_RIGHT|ALIGN_BOTTOM;
+	compass_screen_position = 0; // disbale, other could be ALIGN_RIGHT|ALIGN_BOTTOM;
 
 	// Listen on all addresses by default
 	listen.append_unique("::");
 	listen.append_unique("0.0.0.0");
 	show_money_message = 0;
 }
+
 
 // save/restore environment
 void env_t::rdwr(loadsave_t *file)
@@ -335,7 +351,7 @@ void env_t::rdwr(loadsave_t *file)
 	file->rdwr_bool( night_shift );
 	file->rdwr_byte( daynight_level );
 	file->rdwr_long( water_animation );
-	if(  file->get_version_int()<110007  ) {
+	if(  file->is_version_less(110, 7)  ) {
 		bool dummy_b = 0;
 		file->rdwr_bool( dummy_b );
 	}
@@ -343,17 +359,14 @@ void env_t::rdwr(loadsave_t *file)
 
 	file->rdwr_bool( use_transparency_station_coverage );
 	file->rdwr_byte( station_coverage_show );
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 12) || file->get_extended_version() >= 15)
-	{
+	if( file->is_version_ex_atleast(14, 12) ) {
 		file->rdwr_byte(signalbox_coverage_show);
 	}
 	file->rdwr_long( show_names );
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 22) || file->get_extended_version() >= 15)
-	{
+	if( file->is_version_ex_atleast(14, 22) ) {
 		file->rdwr_byte(show_cnv_nameplates);
 	}
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 28) || file->get_extended_version() >= 15)
-	{
+	if( file->is_version_ex_atleast(14, 28) ) {
 		file->rdwr_byte(show_cnv_loadingbar);
 	}
 
@@ -367,14 +380,14 @@ void env_t::rdwr(loadsave_t *file)
 	file->rdwr_long( message_flags[3] );
 
 	if (  file->is_loading()  ) {
-		if(  file->get_version_int()<110000  ) {
+		if(  file->is_version_less(110, 0)  ) {
 			// did not know about chat message, so we enable it
 			message_flags[0] |=  (1 << message_t::chat); // ticker
 			message_flags[1] &= ~(1 << message_t::chat); // permanent window off
 			message_flags[2] &= ~(1 << message_t::chat); // timed window off
 			message_flags[3] &= ~(1 << message_t::chat); // do not ignore completely
 		}
-		if(  file->get_version_int()<=112002  ) {
+		if(  file->is_version_less(112, 3)  ) {
 			// did not know about scenario message, so we enable it
 			message_flags[0] &= ~(1 << message_t::scenario); // ticker off
 			message_flags[1] |=  (1 << message_t::scenario); // permanent window on
@@ -384,7 +397,7 @@ void env_t::rdwr(loadsave_t *file)
 	}
 
 	file->rdwr_bool( show_tooltips );
-	if (  file->get_version_int()<120005  ) {
+	if (  file->is_version_less(120, 5)  ) {
 		uint8 color = COL_SOFT_BLUE;
 		file->rdwr_byte( color );
 		env_t::tooltip_color_rgb = get_color_rgb(color);
@@ -396,19 +409,26 @@ void env_t::rdwr(loadsave_t *file)
 
 	file->rdwr_long( autosave );
 	file->rdwr_long( fps );
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() >= 15) {
+	if( file->is_version_ex_atleast(14, 32) ) {
 		file->rdwr_long(ff_fps);
 	}
 	file->rdwr_short( max_acceleration );
 
-	file->rdwr_bool( road_user_info );
+	if ( file->is_loading() && file->is_version_ex_less(14,45) ) {
+		bool temp_show_road_user_info;
+		file->rdwr_bool( temp_show_road_user_info );
+		road_user_info = temp_show_road_user_info ? 1 : 0;
+	}
+	else {
+		file->rdwr_byte( road_user_info );
+	}
 	file->rdwr_bool( tree_info );
 	file->rdwr_bool( ground_info );
 	file->rdwr_bool( townhall_info );
 	file->rdwr_bool( single_info );
 
 	file->rdwr_byte( default_sortmode );
-	if(  file->get_version_int()<111004  ) {
+	if(  file->is_version_less(111, 4)  ) {
 		sint8 mode = log2(env_t::default_mapmode)-1;
 		file->rdwr_byte( mode );
 		env_t::default_mapmode = mode>=0 ? 1 << mode : 0;
@@ -420,14 +440,14 @@ void env_t::rdwr(loadsave_t *file)
 	file->rdwr_bool( window_buttons_right );
 	file->rdwr_bool( window_frame_active );
 
-	if(  file->get_version_int()<=112000  ) {
+	if(  file->is_version_less(112, 1)  ) {
 		// set by command-line, it does not make sense to save it.
 		uint8 v = verbose_debug;
 		file->rdwr_byte( v );
 	}
 
 	file->rdwr_long( intercity_road_length );
-	if(  file->get_version_int()<=102002  ) {
+	if(  file->is_version_less(102, 3)  ) {
 		bool no_tree = false;
 		file->rdwr_bool( no_tree );
 	}
@@ -447,7 +467,7 @@ void env_t::rdwr(loadsave_t *file)
 	file->rdwr_short( global_volume );
 	file->rdwr_short( midi_volume );
 	file->rdwr_bool( global_mute_sound );
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() >= 15) {
+	if( file->is_version_ex_atleast(14, 32) ) {
 		for( int i = 0; i <= 5; i++ ) {
 			file->rdwr_short( specific_volume[ i ] );
 		}
@@ -455,9 +475,9 @@ void env_t::rdwr(loadsave_t *file)
 	file->rdwr_bool( mute_midi );
 	file->rdwr_bool( shuffle_midi );
 
-	if(  file->get_version_int()>102001  ) {
+	if(  file->is_version_atleast(102, 2)  ) {
 		file->rdwr_byte( show_vehicle_states );
-		if(  file->get_extended_version() >= 1 && file->get_extended_version() < 12  && file->get_version_int() < 112005 ) {
+		if(  file->get_extended_version() >= 1 && file->get_extended_version() < 12  && file->is_version_less(112, 5) ) {
 			// Extended (but not standard!) was carrying around a dummy variable.
 			// Formerly finance_ltr_graphs.
 			bool dummy = false;
@@ -472,11 +492,10 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_bool(cities_ignore_height);
 	}
 
-	if( file->get_extended_version() >= 9 || (file->get_extended_version() == 0 && file->get_version_int()>=102003))
-	{
+	if(  file->get_extended_version() >= 9 || (file->get_extended_version() == 0 && file->is_version_atleast(102, 3))  ) {
 		file->rdwr_long( tooltip_delay );
 		file->rdwr_long( tooltip_duration );
-		if (  file->get_version_int()<120005  ) {
+		if (  file->is_version_less(120, 5)  ) {
 			uint8 color = COL_WHITE;
 			file->rdwr_byte( color ); // to skip old parameter front_window_bar_color
 
@@ -499,29 +518,29 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(cities_like_water);
 	}
 
-	if(  file->get_version_int()>=110000  ) {
+	if(  file->is_version_atleast(110, 0)  ) {
 		bool dummy = false;
 		file->rdwr_bool(dummy); //was add_player_name_to_message
 		file->rdwr_short( window_snap_distance );
 	}
 
-	if(  file->get_version_int()>=111001  ) {
+	if(  file->is_version_atleast(111, 1)  ) {
 		file->rdwr_bool( hide_under_cursor );
 		file->rdwr_short( cursor_hide_range );
 	}
 
-	if(  file->get_version_int()>=111002  ) {
+	if(  file->is_version_atleast(111, 2)  ) {
 		file->rdwr_bool( visualize_schedule );
 	}
-	if(  file->get_version_int()>=111003  ) {
+	if(  file->is_version_atleast(111, 3)  ) {
 		plainstring str = nickname.c_str();
 		file->rdwr_str(str);
 		if (file->is_loading()) {
 			nickname = str ? str.c_str() : "";
 		}
 	}
-	if(  file->get_version_int()>=112006  ) {
-		if(  file->get_version_int()<120005  ) {
+	if(  file->is_version_atleast(112, 6)  ) {
+		if(  file->is_version_less(120, 5)  ) {
 			uint8 color = COL_GREY2;
 			file->rdwr_byte( color );
 			env_t::background_color_rgb = get_color_rgb(color);
@@ -529,43 +548,53 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_bool( draw_earth_border );
 		file->rdwr_bool( draw_outside_tile );
 	}
-	if(  file->get_version_int()>=112007  ) {
+	if(  file->is_version_atleast(112, 7)  ) {
 		file->rdwr_bool( second_open_closes_win );
 		file->rdwr_bool( remember_window_positions );
 	}
-	if(  file->get_version_int()>=112008  ) {
+	if(  file->is_version_atleast(112, 8)  ) {
 		file->rdwr_bool( show_delete_buttons );
 	}
-	if( file->get_version_int()>=120001 ) {
-	 file->rdwr_str( default_theme );
+	if(  file->is_version_atleast(120, 1)  ) {
+		file->rdwr_str( default_theme );
+	}
+	if(  file->is_version_atleast(120, 2)  && (file->get_extended_version() == 0  || file->get_extended_revision() >= 10 || file->get_extended_version() >= 13) ) {
+		if(  file->is_version_atleast(122, 1)  ||  file->is_version_ex_atleast(14, 38)  ) {
+			sint32 conv_mode = height_conv_mode;
+			file->rdwr_long( conv_mode );
+			if (file->is_loading()) {
+				height_conv_mode = (env_t::height_conversion_mode)::clamp(conv_mode, 0, (int)env_t::NUM_HEIGHT_CONV_MODES-1);
+			}
+		}
+		else {
+			bool new_convert = height_conv_mode != env_t::HEIGHT_CONV_LEGACY_SMALL;
+			file->rdwr_bool( new_convert );
+			height_conv_mode = new_convert ? env_t::HEIGHT_CONV_LEGACY_LARGE : env_t::HEIGHT_CONV_LEGACY_SMALL;
+		}
 	}
 
-	if(  file->get_version_int()>=120002 && (file->get_extended_version() == 0  || file->get_extended_revision() >= 10 || file->get_extended_version() >= 13))
-	{
-		file->rdwr_bool( new_height_map_conversion );
+	if(  file->is_version_atleast(120, 5)  ) {
+		file->rdwr_long( background_color_rgb );
+		file->rdwr_long( tooltip_color_rgb );
+		file->rdwr_long( tooltip_textcolor_rgb );
+		file->rdwr_long( default_window_title_color_rgb );
+		file->rdwr_long( front_window_text_color_rgb );
+		file->rdwr_long( bottom_window_text_color_rgb );
+		file->rdwr_byte( bottom_window_darkness );
 	}
-	if( file->get_version_int()>=120005 ) {
-		file->rdwr_long(background_color_rgb);
-		file->rdwr_long(tooltip_color_rgb);
-		file->rdwr_long(tooltip_textcolor_rgb);
-		file->rdwr_long(default_window_title_color_rgb);
-		file->rdwr_long(front_window_text_color_rgb);
-		file->rdwr_long(bottom_window_text_color_rgb);
-		file->rdwr_byte(bottom_window_darkness);
-	}
-	if (file->get_version_int() >= 120006) {
+	if(  file->is_version_atleast(120, 6)  ) {
 		plainstring str = fontname.c_str();
-		file->rdwr_str(str);
+		file->rdwr_str( str );
 		if (file->is_loading()) {
 			fontname = str ? str.c_str() : "";
 		}
-		file->rdwr_byte(fontsize);
+		file->rdwr_byte( fontsize );
 	}
 
-	if (file->get_version_int()>120007) {
+	if (file->is_version_atleast(120, 8)) {
 		rdwr_win_settings(file);
 	}
-	if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() >= 15) {
+	if( file->is_version_ex_atleast(14, 32) ) {
 		file->rdwr_byte(show_money_message);
 		file->rdwr_byte(follow_convoi_underground);
 		file->rdwr_byte( gui_player_color_dark );
@@ -576,6 +605,27 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_long(sound_distance_scaling);
 	}
 
+	if( file->is_version_ex_atleast(14, 41) ) {
+		file->rdwr_byte(gui_titlebar_player_color_background_brightness);
+		file->rdwr_short(env_t::menupos);
+		env_t::menupos &= 3;
+		file->rdwr_bool( reselect_closes_tool );
+	}
+
+	if( file->is_version_atleast( 122, 1 )  ||  file->is_version_ex_atleast(14, 42) ) {
+		plainstring str = soundfont_filename.c_str();
+		file->rdwr_str( str );
+		if(  file->is_loading()  ) {
+			soundfont_filename = str ? str.c_str() : "";
+		}
+	}
+	if( file->is_version_ex_atleast(14, 44) ) {
+		file->rdwr_bool( env_t::show_depot_names );
+		file->rdwr_byte( show_factory_storage_bar );
+	}
+	if( file->is_version_ex_atleast(14, 55) ) {
+		file->rdwr_bool(scroll_infinite);
+	}
 
 	// server settings are not saved, since they are server specific
 	// and could be different on different servers on the same computers

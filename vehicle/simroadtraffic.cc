@@ -17,7 +17,7 @@
 #include "../player/simplay.h"
 
 #include "simroadtraffic.h"
-#include "simpeople.h"
+#include "pedestrian.h"
 
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
@@ -29,12 +29,14 @@
 #include "../boden/grund.h"
 #include "../boden/wege/weg.h"
 #include "../boden/wege/strasse.h"
-#include "../boden/wege/strasse.h"
 #include "../descriptor/citycar_desc.h"
 #include "../descriptor/roadsign_desc.h"
 
 
 #include "../utils/cbuffer_t.h"
+
+#include "road_vehicle.h"
+
 
 /**********************************************************************************************************************/
 /* Road users (Verkehrsteilnehmer) basis class from here on */
@@ -79,11 +81,11 @@ road_user_t::road_user_t(grund_t* bd, uint16 random) :
 
 	// randomized offset
 	uint8 offset = random & 3;
-	direction = ribi_t::nsew[offset];
+	direction = ribi_t::nesw[offset];
 
 	grund_t *to = NULL;
 	for(uint8 r = 0; r < 4; r++) {
-		ribi_t::ribi ribi = ribi_t::nsew[ (r + offset) &3];
+		ribi_t::ribi ribi = ribi_t::nesw[ (r + offset) &3];
 		if( (ribi & road_ribi)!=0  &&  bd->get_neighbour(to, road_wt, ribi)) {
 			direction = ribi;
 			break;
@@ -109,8 +111,8 @@ road_user_t::road_user_t(grund_t* bd, uint16 random) :
 			break;
 	}
 
-	set_xoff((dx<0) ? OBJECT_OFFSET_STEPS : -OBJECT_OFFSET_STEPS);
-	set_yoff((dy<0) ? OBJECT_OFFSET_STEPS / 2 : -OBJECT_OFFSET_STEPS / 2);
+	set_xoff( (dx<0) ? OBJECT_OFFSET_STEPS : -OBJECT_OFFSET_STEPS );
+	set_yoff( (dy<0) ? OBJECT_OFFSET_STEPS/2 : -OBJECT_OFFSET_STEPS/2 );
 
 	if(to) {
 		pos_next = to->get_pos();
@@ -132,7 +134,7 @@ road_user_t::road_user_t(grund_t* bd, uint16 random) :
  */
 void road_user_t::show_info()
 {
-	if(env_t::road_user_info) {
+	if(env_t::road_user_info&1) {
 		obj_t::show_info();
 	}
 }
@@ -180,8 +182,8 @@ void road_user_t::hop(grund_t *)
 	ribi_t::ribi reverse_direction = ribi_t::backward( get_direction() );
 	int ribi = weg->get_ribi_unmasked();
 	for(int r = 0; r < 4; r++) {
-		if(  (ribi & ribi_t::nsew[r])!=0  &&  (ribi_t::nsew[r]&reverse_direction)==0 &&
-			from->get_neighbour(to, road_wt, ribi_t::nsew[r])
+		if(  (ribi & ribi_t::nesw[r])!=0  &&  (ribi_t::nesw[r]&reverse_direction)==0 &&
+			from->get_neighbour(to, road_wt, ribi_t::nesw[r])
 		) {
 			// check, if this is just a single tile deep
 			int next_ribi =  to->get_weg(road_wt)->get_ribi_unmasked();
@@ -224,7 +226,7 @@ void road_user_t::rdwr(loadsave_t *file)
 	sint8 hoff = file->is_saving() ? get_hoff() : 0;
 
 	// correct old offsets ... REMOVE after savegame increase ...
-	if(file->get_version_int()<99018  &&  file->is_saving()) {
+	if(file->is_version_less(99, 18)  &&  file->is_saving()) {
 		dx = dxdy[ ribi_t::get_dir(direction)*2 ];
 		dy = dxdy[ ribi_t::get_dir(direction)*2+1 ];
 		sint8 i = steps/16;
@@ -234,7 +236,7 @@ void road_user_t::rdwr(loadsave_t *file)
 
 	vehicle_base_t::rdwr(file);
 
-	if(file->get_version_int() < 86006) {
+	if(file->is_version_less(86, 6)) {
 		sint32 l;
 		file->rdwr_long(l);
 		file->rdwr_long(l);
@@ -248,12 +250,12 @@ void road_user_t::rdwr(loadsave_t *file)
 		hoff = (sint8)l;
 	}
 	else {
-		if(file->get_version_int()<99005) {
+		if(file->is_version_less(99, 5)) {
 			sint32 dummy32;
 			file->rdwr_long(dummy32);
 		}
 		file->rdwr_long(weg_next);
-		if(file->get_version_int()<99018) {
+		if(file->is_version_less(99, 18)) {
 			file->rdwr_byte(dx);
 			file->rdwr_byte(dy);
 		}
@@ -264,7 +266,7 @@ void road_user_t::rdwr(loadsave_t *file)
 		file->rdwr_enum(direction);
 		dx = dxdy[ ribi_t::get_dir(direction)*2];
 		dy = dxdy[ ribi_t::get_dir(direction)*2+1];
-		if(file->get_version_int()<99005  ||  file->get_version_int()>99016) {
+		if(file->is_version_less(99, 5)  ||  file->is_version_atleast(99, 17)) {
 			sint16 dummy16 = ((16*(sint16)hoff)/OBJECT_OFFSET_STEPS);
 			file->rdwr_short(dummy16);
 			hoff = (sint8)((OBJECT_OFFSET_STEPS*(sint16)dummy16)/16);
@@ -276,7 +278,7 @@ void road_user_t::rdwr(loadsave_t *file)
 	pos_next.rdwr(file);
 
 	// convert steps to position
-	if(file->get_version_int()<99018) {
+	if(file->is_version_less(99, 18)) {
 		sint8 ddx=get_xoff(), ddy=get_hoff()-hoff;
 		sint8 i=0;
 
@@ -298,7 +300,7 @@ void road_user_t::rdwr(loadsave_t *file)
 	}
 
 	// the lifetime in ms
-	if(file->get_version_int()>89004) {
+	if(file->is_version_atleast(89, 5)) {
 		file->rdwr_long(time_to_life);
 	}
 
@@ -329,13 +331,12 @@ void road_user_t::finish_rd()
 }
 
 
-
 /**********************************************************************************************************************/
 /* private_car_t (city cars) from here on */
 
 
 static weighted_vector_tpl<const citycar_desc_t*> liste_timeline;
-stringhashtable_tpl<const citycar_desc_t *> private_car_t::table;
+stringhashtable_tpl<const citycar_desc_t *, N_BAGS_MEDIUM> private_car_t::table;
 
 bool private_car_t::register_desc(const citycar_desc_t *desc)
 {
@@ -382,7 +383,7 @@ void private_car_t::build_timeline_list(karte_t *welt)
 //DBG_DEBUG("private_car_t::build_timeline_list()","year=%i, month=%i", month_now/12, month_now%12+1);
 
 		// check for every citycar, if still ok ...
-		FOR(stringhashtable_tpl<citycar_desc_t const*>, const& i, table) {
+		for(auto const& i : table) {
 			citycar_desc_t const* const info = i.value;
 			const int intro_month = info->get_intro_year_month();
 			const int retire_month = info->get_retire_year_month();
@@ -398,10 +399,13 @@ void private_car_t::build_timeline_list(karte_t *welt)
 	}
 }
 
+
+
 bool private_car_t::list_empty()
 {
 	return liste_timeline.empty();
 }
+
 
 
 private_car_t::~private_car_t()
@@ -465,7 +469,41 @@ private_car_t::private_car_t(grund_t* gr, koord const target) :
 
 sync_result private_car_t::sync_step(uint32 delta_t)
 {
-	time_to_life -= delta_t;
+	bool slow_destruction = false;
+	if (time_to_life > 0 && time_to_life - delta_t < 10000 && target != koord::invalid)
+	{
+		// Postpone time based destruction of a private car if it is not in its destination city yet.
+		planquadrat_t* tile = welt->access(origin);
+		const stadt_t* origin_city = tile ? tile->get_city() : NULL;
+		if (origin_city)
+		{
+			tile = welt->access(target);
+			const stadt_t* destination_city = tile ? tile->get_city() : NULL;
+			if (!destination_city)
+			{
+				// Be slower to remove a vehicle bound for an attraction or industry until it actually reaches there (handled elsewhere)
+				slow_destruction = true;
+			}
+			else if (origin_city != destination_city)
+			{
+				// Be slower to remove a vehicle bound for a city until it is somewhere in the city
+				const planquadrat_t* this_tile = welt->access(get_pos().get_2d());
+				const stadt_t* this_city = this_tile ? this_tile->get_city() : NULL;
+				if (!this_city || this_city != destination_city)
+				{
+					slow_destruction = true;
+				}
+			}
+		}
+	}
+	if (slow_destruction)
+	{
+		time_to_life -= (delta_t / 3);
+	}
+	else
+	{
+		time_to_life -= delta_t;
+	}
 	if(  time_to_life<=0 ) {
 		return SYNC_DELETE;
 	}
@@ -482,8 +520,7 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 				current_speed = 48;
 			}
 			else {
-				if(ms_traffic_jam>welt->ticks_per_world_month  &&  old_ms_traffic_jam<=welt->ticks_per_world_month)
-				{
+				if(  ms_traffic_jam > welt->ticks_per_world_month  &&  old_ms_traffic_jam<=welt->ticks_per_world_month  ) {
 					// message after two month, reset waiting timer
 					welt->get_message()->add_message( translator::translate("To heavy traffic\nresults in traffic jam.\n"), get_pos().get_2d(), message_t::traffic_jams|message_t::expire_after_one_month_flag, color_idx_to_rgb(COL_ORANGE) );
 				}
@@ -491,9 +528,8 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		}
 		weg_next = 0;
 	}
-	else
-	{
-		if(ms_traffic_jam == 2147483647)
+	else {
+		if(ms_traffic_jam == SINT32_MAX_VALUE)
 		{
 			ms_traffic_jam = 0;
 			// If this is the first step, get the car moving at a sensible speed as soon as possible.
@@ -547,15 +583,15 @@ void private_car_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_version_int() <= 86001) {
+	if(file->is_version_less(86, 2)) {
 		time_to_life = simrand(1000000, "void private_car_t::rdwr")+10000;
 	}
-	else if(file->get_version_int() <= 89004) {
+	else if(file->is_version_less(89, 5)) {
 		file->rdwr_long(time_to_life);
-		time_to_life *= 10000;	// converting from hops left to ms since start
+		time_to_life *= 10000; // converting from hops left to ms since start
 	}
 
-	if(file->get_version_int() <= 86004) {
+	if(file->is_version_less(86, 5)) {
 		// default starting speed for old games
 		if(file->is_loading()) {
 			current_speed = 48;
@@ -567,7 +603,7 @@ void private_car_t::rdwr(loadsave_t *file)
 		current_speed = dummy32;
 	}
 
-	if(file->get_version_int() <= 99010) {
+	if(file->is_version_less(99, 10)) {
 		pos_next_next = koord3d::invalid;
 	}
 	else {
@@ -575,7 +611,7 @@ void private_car_t::rdwr(loadsave_t *file)
 	}
 
 	// overtaking status
-	if(file->get_version_int()<100001) {
+	if(file->is_version_less(100, 1)) {
 		set_tiles_overtaking( 0 );
 	}
 	else {
@@ -583,8 +619,7 @@ void private_car_t::rdwr(loadsave_t *file)
 		set_tiles_overtaking( tiles_overtaking );
 	}
 
-	if(file->get_extended_version() >= 10 && file->get_version_int() >= 111002)
-	{
+	if( file->get_extended_version() >= 10 && file->is_version_atleast(111, 2) ) {
 		file->rdwr_long(ms_traffic_jam);
 		target.rdwr(file);
 		origin.rdwr(file);
@@ -605,9 +640,6 @@ void private_car_t::rdwr(loadsave_t *file)
 	{
 		last_tile_marked_as_stopped = koord3d::invalid;
 	}
-
-	// do not start with zero speed!
-	current_speed ++;
 
 	reset_measurements();
 }
@@ -641,7 +673,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 
 	if(player != NULL && player->get_player_nr() != 1 && !player->allows_access_to(1))
 	{
-		// Private cas should have the same restrictions as to the roads on which to travel
+		// Private cars should have the same restrictions as to the roads on which to travel
 		// as players' vehicles.
 		time_to_life = 0;
 		return false;
@@ -657,12 +689,12 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	if(  get_pos()==pos_next_next  ) {
 		// turning around => single check
 		const uint8 next_direction = ribi_t::backward(this_direction);
-		dt = no_cars_blocking( gr, NULL, next_direction, next_direction, next_direction, this, 0 );
+		dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
 
 		// do not block railroad crossing
 		if(dt==NULL  &&  str->is_crossing()) {
 			const grund_t *gr = welt->lookup(get_pos());
-			dt = no_cars_blocking( gr, NULL, next_direction, next_direction, next_direction, this, 0 );
+			dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
 		}
 	}
 	else {
@@ -694,18 +726,17 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 			grund_t *test = welt->lookup(pos_next_next);
 			if(  test  ) {
 				next_90direction = this->calc_direction(pos_next, pos_next_next);
-				dt = no_cars_blocking( gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
+				dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
 				if(  !dt  ) {
-					// This possibly made traffic too cautious at junctions, causing delays. However, precisely what this did
-					// and why it did it remain unclear, so retaining for reference.
-					//dt = no_cars_blocking( test, NULL, next_direction, next_90direction, next_90direction, this, next_lane);
+					// This check prevented cars from entering junctions when the tile beyond the junction was occupied.
+					// dt = get_blocking_vehicle( test, NULL, next_direction, next_90direction, next_90direction, this, next_lane);
 				}
 			}
 			// this fails with two crossings together; however, I see no easy way out here ...
 		}
 		else {
 			// not a crossing => skip 90 degrees check!
-			dt = no_cars_blocking( gr, NULL, this_direction, next_direction, next_90direction, this, next_lane );
+			dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
 			frei = true;
 		}
 		//If this car is overtaking, the car must avoid a head-on crash.
@@ -847,7 +878,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 				const uint8 next_direction = ribi_type(dir);
 				const uint8 nextnext_direction = ribi_type(dir);
 				// test next field after way crossing
-				if(no_cars_blocking( test, NULL, next_direction, nextnext_direction, nextnext_direction, this, next_lane )) {
+				if(get_blocking_vehicle(test, NULL, next_direction, nextnext_direction, nextnext_direction, this, next_lane)) {
 					return false;
 				}
 				// ok, left the crossing
@@ -871,6 +902,16 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		}
 	}
 
+	const ribi_t::ribi direction90 = ribi_type(get_pos(), pos_next);
+	const ribi_t::ribi ribi = str->get_ribi() & (~ribi_t::backward(direction90));
+	const bool dead_end = ribi == 0;
+
+	if (str->get_overtaking_mode() == oneway_mode && dead_end)
+	{
+		// Do not allow entry to one way dead ends.
+		return false;
+	}
+
 	// If this car is on passing lane and the next tile prohibites overtaking, this vehicle must wait until traffic lane become safe.
 	if(  is_overtaking()  &&  str->get_overtaking_mode() == prohibited_mode  ) {
 		if(  vehicle_base_t* v = other_lane_blocked(false)  ) {
@@ -887,7 +928,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		return true;
 	}
 	// If this vehicle is forced to go back to traffic lane at the next tile and traffic lane is not safe to change lane, this vehicle should wait.
-	if(  str->get_overtaking_mode() > oneway_mode  &&  str->get_overtaking_mode() <= prohibited_mode  &&  get_tiles_overtaking() == 1  ) {
+	if(  str->get_overtaking_mode() == prohibited_mode  &&  get_tiles_overtaking() == 1  ) {
 		if(  vehicle_base_t* v = other_lane_blocked(false)  ) {
 			if(  v->get_waytype() == road_wt  &&  judge_lane_crossing(get_90direction(), calc_direction(pos_next,pos_next_next), v->get_90direction(), true, true)) {
 				return false;
@@ -917,15 +958,16 @@ void private_car_t::enter_tile(grund_t* gr)
 {
 	// Destination city car code revived from an older version of Simutrans.
 	// (Thanks to Prissi for finding this older code).
-	if(target!=koord::invalid  &&  shortest_distance(pos_next.get_2d(),target)<10) {
+	if(target!=koord::invalid  &&  koord_distance(pos_next.get_2d(),target)<10) {
 		// delete it ...
 		time_to_life = 0;
 		uint32 number = 2;
-		pedestrian_t::generate_pedestrians_at(get_pos(), number);
+		pedestrian_t::generate_pedestrians_at(get_pos(), number, 6000);
 	}
 	vehicle_base_t::enter_tile(gr);
 	get_weg()->book(1, WAY_STAT_CONVOIS);
 }
+
 
 grund_t* private_car_t::hop_check()
 {
@@ -954,7 +996,7 @@ grund_t* private_car_t::hop_check()
 	}
 
 	// traffic light phase check (since this is on next tile, it will always be necessary!)
-	const ribi_t::ribi direction90 = ribi_type(get_pos(),pos_next);
+	const ribi_t::ribi direction90 = ribi_type(get_pos(), pos_next);
 
 	if(  weg->has_sign()  ) {
 		const roadsign_t* rs = from->find<roadsign_t>();
@@ -985,7 +1027,7 @@ grund_t* private_car_t::hop_check()
 		// call to get_neighbour() in the heuristic mode.
 
 		// The target is an individual tile. If we are going to a destination in
-		// a city, then we need the route to the city, not the tile.
+		// a city, then we may need the route to the city, not the tile.
 
 		const grund_t* gr_check = welt->lookup_kartenboden(target);
 		const gebaeude_t* gb = gr_check ? gr_check->get_building() : NULL;
@@ -1001,22 +1043,23 @@ grund_t* private_car_t::hop_check()
 		// We need to check here, as the hashtable will give us a 0,0,0 koord rather
 		// than koord::invalid if this be not contained in the hashtable.
 		bool found_route = false;
-		found_route = weg->private_car_routes[weg_t::private_car_routes_currently_reading_element].is_contained(check_target);
+		found_route = weg->has_private_car_route(check_target);
 		if (!found_route)
 		{
-			if (!current_city || current_city != destination_city)
+			if (destination_city && (!current_city || current_city != destination_city))
 			{
 				// Only follow a route inside a city if:
 				// (1) we are not in our destination city; or
 				// (2) there is a route to the individual destination building in the city.
-				check_target = destination_city ? destination_city->get_townhall_road() : koord::invalid;
-				found_route = weg->private_car_routes[weg_t::private_car_routes_currently_reading_element].is_contained(check_target);
+				check_target = destination_city->get_townhall_road();
+				found_route = weg->has_private_car_route(check_target);
 			}
 		}
 
 		if (found_route)
 		{
-			pos_next_next = weg->private_car_routes[weg_t::private_car_routes_currently_reading_element].get(check_target);
+			pos_next_next = weg->get_next_on_private_car_route_to(check_target,true,simrand(4,"private_car_t::hop_check"));
+			welt->add_to_debug_sums(8,1);
 
 			// Check whether we are at the end of the route (i.e. the destination)
 			if ((current_city == destination_city) && pos_next_next == koord3d::invalid)
@@ -1033,12 +1076,13 @@ grund_t* private_car_t::hop_check()
 				pos_next_next = koord3d::invalid;
 
 				// We also need to invalidate the route.
+				/*
 				const planquadrat_t* tile = welt->access(origin);
 				stadt_t* origin_city = tile ? tile->get_city() : NULL;
 				if (origin_city)
 				{
 					//welt->add_queued_city(origin_city); // Prioritise re-checking this city even if already re-checked in this cycle.
-				}
+				}*/
 			}
 			else
 			{
@@ -1052,7 +1096,7 @@ grund_t* private_car_t::hop_check()
 				if (!direction_allowed)
 				{
 					// Check whether the private car is allowed on the subsequent way's direction
-					const koord3d pos_next_next_next = next_way->private_car_routes[weg_t::private_car_routes_currently_reading_element].get(check_target);
+					const koord3d pos_next_next_next = next_way->get_next_on_private_car_route_to(check_target);
 					if (pos_next_next_next != koord3d::invalid)
 					{
 						const ribi_t::ribi dir_next_next = ribi_type(pos_next_next, pos_next_next_next);
@@ -1067,14 +1111,16 @@ grund_t* private_car_t::hop_check()
 				if (!direction_allowed)
 				{
 					pos_next_next = koord3d::invalid;
-
+					// City route checking is too slow for this to be effective.
+					/*
 					// We also need to invalidate the route.
 					const planquadrat_t* tile = welt->access(origin);
 					stadt_t* origin_city = tile ? tile->get_city() : NULL;
 					if (origin_city)
 					{
-						//welt->add_queued_city(origin_city); // Prioritise re-checking this city even if already re-checked in this cycle.
+						welt->add_queued_city(origin_city); // Prioritise re-checking this city even if already re-checked in this cycle.
 					}
+					*/
 				}
 				else
 				{
@@ -1095,6 +1141,7 @@ grund_t* private_car_t::hop_check()
 		}
 	}
 
+	bool city_exit_u_turn = false;
 	// next tile unknown => find next tile
 	if(pos_next_next==koord3d::invalid) {
 
@@ -1102,7 +1149,7 @@ grund_t* private_car_t::hop_check()
 		// so we can check for valid directions
 		ribi_t::ribi ribi = weg->get_ribi() & (~ribi_t::backward(direction90));
 
-		// cul de sac: return
+		// cul-de-sac: return
 		if(ribi==0) {
 			pos_next_next = get_pos();
 			return can_enter_tile(from) ? from : NULL;
@@ -1110,6 +1157,7 @@ grund_t* private_car_t::hop_check()
 
 		static weighted_vector_tpl<koord3d> poslist(4);
 		poslist.clear();
+
 		bool city_exit = false;
 		for (uint32 n = 0; n < 2; n++)
 		{
@@ -1119,20 +1167,20 @@ grund_t* private_car_t::hop_check()
 			}
 			for (uint8 r = 0; r < 4; r++)
 			{
-				if (get_pos().get_2d() == koord::nsew[r] + pos_next.get_2d())
+				if (get_pos().get_2d() == koord::nesw[r] + pos_next.get_2d())
 				{
 					continue;
 				}
-				if ((ribi & ribi_t::nsew[r]) != 0)
+				if ((ribi & ribi_t::nesw[r]) != 0)
 				{
 					grund_t* to;
-					if (from->get_neighbour(to, road_wt, ribi_t::nsew[r]))
+					if (from->get_neighbour(to, road_wt, ribi_t::nesw[r]))
 					{
 						// check, if this is just a single tile deep after a crossing
 						weg_t* w = to->get_weg(road_wt);
-						if (ribi_t::is_single(w->get_ribi()) && (w->get_ribi() & ribi_t::nsew[r]) == 0 && !ribi_t::is_single(ribi))
+						if (ribi_t::is_single(w->get_ribi()) && (w->get_ribi() & ribi_t::nesw[r]) == 0 && !ribi_t::is_single(ribi))
 						{
-							ribi &= ~ribi_t::nsew[r];
+							ribi &= ~ribi_t::nesw[r];
 							continue;
 						}
 						// check, if roadsign forbid next step ...
@@ -1142,7 +1190,7 @@ grund_t* private_car_t::hop_check()
 							if (rs_desc->get_min_speed() > desc->get_topspeed() || (rs_desc->is_private_way() && (rs->get_player_mask() & 2) == 0))
 							{
 								// not allowed to go here
-								ribi &= ~ribi_t::nsew[r];
+								ribi &= ~ribi_t::nesw[r];
 								continue;
 							}
 						}
@@ -1187,6 +1235,7 @@ grund_t* private_car_t::hop_check()
 									{
 										const uint32 dist = 8192 / max(1, shortest_distance(to->get_pos().get_2d(), target));
 										poslist.append(gr_backwards->get_pos(), dist);
+										city_exit_u_turn = true;
 										continue;
 									}
 								}
@@ -1209,7 +1258,7 @@ grund_t* private_car_t::hop_check()
 					else
 					{
 						// not connected?!? => ribi likely wrong
-						ribi &= ~ribi_t::nsew[r];
+						ribi &= ~ribi_t::nesw[r];
 					}
 				}
 			}
@@ -1217,12 +1266,13 @@ grund_t* private_car_t::hop_check()
 		if (!poslist.empty())
 		{
 			pos_next_next = pick_any_weighted(poslist);
+			welt->add_to_debug_sums(9,1);
 		}
 		else
 		{
 			pos_next_next = get_pos();
 		}
-		if(can_enter_tile(from)) {
+		if(city_exit_u_turn || can_enter_tile(from)) {
 			// ok, this direction is fine!
 			ms_traffic_jam = 0;
 			if(current_speed<48) {
@@ -1232,7 +1282,7 @@ grund_t* private_car_t::hop_check()
 		}
 	}
 	else {
-		if(from  &&  can_enter_tile(from)) {
+		if(from  &&  (city_exit_u_turn || can_enter_tile(from))) {
 			// ok, this direction is fine!
 			ms_traffic_jam = 0;
 			if(current_speed<48) {
@@ -1294,7 +1344,7 @@ void private_car_t::hop(grund_t* to)
 
 	if(pos_next_next==get_pos()) {
 		direction = calc_set_direction( pos_next, pos_next_next );
-		steps_next = 0;	// mark for starting at end of tile!
+		steps_next = 0; // mark for starting at end of tile!
 	}
 	else {
 		direction = calc_set_direction( get_pos(), pos_next_next );
@@ -1332,7 +1382,6 @@ void private_car_t::hop(grund_t* to)
 	pos_next = pos_next_next;
 	pos_next_next = koord3d::invalid;
 }
-
 
 
 void private_car_t::calc_image()
@@ -1378,7 +1427,6 @@ void private_car_t::info(cbuffer_t & buf) const
 }
 
 
-
 // to make smaller steps than the tile granularity, we have to use this trick
 void private_car_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_width, bool prev_based ) const
 {
@@ -1398,6 +1446,7 @@ void private_car_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster
 	}
 }
 
+
 void private_car_t::calc_disp_lane()
 {
 	// driving in the back or the front
@@ -1410,7 +1459,6 @@ void private_car_t::rotate90()
 	road_user_t::rotate90();
 	calc_disp_lane();
 }
-
 
 /**
  * conditions for a city car to overtake another overtaker.
@@ -1484,10 +1532,6 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		return true;
 	}
 
-	if(  overtaking_mode == twoway_mode  ) {
-		// since other vehicle is moving...
-		return false;
-	}
 	// On one-way road, other_speed is current speed. Otherwise, other_speed is the theoretical max power speed.
 	sint32 diff_speed = (sint32)current_speed - other_speed;
 	if(  diff_speed < kmh_to_speed(2)  ) {
@@ -1568,10 +1612,10 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 			ribi_t::ribi rib = str->get_ribi();
 			bool found_one = false;
 			for(  int r=0;  r<4;  r++  ) {
-				if(  (rib&ribi_t::nsew[r])==0  ||  check_pos.get_2d()+koord::nsew[r]==pos_prev) {
+				if(  (rib&ribi_t::nesw[r])==0  ||  check_pos.get_2d()+koord::nesw[r]==pos_prev) {
 					continue;
 				}
-				if(gr->get_neighbour(to, road_wt, ribi_t::nsew[r])) {
+				if(gr->get_neighbour(to, road_wt, ribi_t::nesw[r])) {
 					if(found_one) {
 						// two directions to go: unexpected cars may occurs => abort
 						return false;
@@ -1615,7 +1659,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		gr = to;
 		check_pos = to->get_pos();
 
-		direction = ~ribi_type( check_pos,pos_prev ) & str->get_ribi();
+		direction = ~ribi_type( check_pos, pos_prev ) & str->get_ribi();
 	}
 
 	// Second phase: only facing traffic is forbidden
@@ -1648,10 +1692,10 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 			// check for crossings/bridges, if necessary
 			bool found_one = false;
 			for(  int r=0;  r<4;  r++  ) {
-				if(check_pos.get_2d()+koord::nsew[r]==pos_prev) {
+				if(check_pos.get_2d()+koord::nesw[r]==pos_prev) {
 					continue;
 				}
-				if(gr->get_neighbour(to, road_wt, ribi_t::nsew[r])) {
+				if(gr->get_neighbour(to, road_wt, ribi_t::nesw[r])) {
 					if(found_one) {
 						return false;
 					}
@@ -1685,7 +1729,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		gr = to;
 		check_pos = to->get_pos();
 
-		direction = ~ribi_type( check_pos,pos_prev ) & str->get_ribi();
+		direction = ~ribi_type( check_pos, pos_prev ) & str->get_ribi();
 	} while( time_overtaking > 0 );
 
 	set_tiles_overtaking( 1+n_tiles );
@@ -1713,7 +1757,7 @@ vehicle_base_t* private_car_t::other_lane_blocked(const bool only_search_top) co
 		// rear check should be written here...
 		for(uint8 r = 0; r < 4; r++) {
 			grund_t *to = NULL;
-			if( gr && gr->get_neighbour(to, road_wt, ribi_t::nsew[r])  ) {
+			if( gr && gr->get_neighbour(to, road_wt, ribi_t::nesw[r])  ) {
 				if(  to  ) {
 					if(  vehicle_base_t* v = is_there_car(gr)  ) {
 						return v;
@@ -1755,10 +1799,11 @@ vehicle_base_t* private_car_t::is_there_car (grund_t *gr) const
 				if(  is_overtaking() && caut->is_overtaking()  ){
 					continue;
 				}
-				if(  !is_overtaking() && !(caut->is_overtaking())  ){
-					//Prohibit going on passing lane when facing traffic exists.
+				if(  !is_overtaking() && !(caut->is_overtaking())  )
+				{
+					// Prohibit going on passing lane when facing traffic exists.
 					ribi_t::ribi other_direction = caut->get_direction();
-					if(  ribi_t::backward(get_direction()) == other_direction  ) {
+					if( ribi_t::backward(get_direction()) == other_direction  ) {
 						return v;
 					}
 					continue;
@@ -1789,4 +1834,27 @@ void *private_car_t::operator new(size_t /*s*/)
 void private_car_t::operator delete(void *p)
 {
 	freelist_t::putback_node(sizeof(private_car_t),p);
+}
+koord3d private_car_t::neighbour_from_int(koord3d from, uint8 i) {
+	if(i==end_of_route) {
+		return koord3d::invalid;
+	} else if (i==no_route) {
+		return koord3d();
+	} else {
+		return koord3d(from.x+(i%5)-2,from.y+(i%25)/5-2,from.z+(i/25)-2);
+	}
+}
+
+uint8 private_car_t::int_from_neighbour(koord3d from, koord3d to) {
+	if(-2 <= to.x-from.x && to.x-from.x <= 2
+	   && -2 <= to.y-from.y && to.y-from.y <= 2
+	   && -2 <= to.z-from.z && to.z-from.z <= 2) {
+		return (to.x-from.x+2) + 5*(to.y-from.y+2) + 25*(to.z-from.z+2);
+	} else if(to==koord3d::invalid){
+		return end_of_route;
+	} else if (to==koord3d()){
+		return no_route;
+	} else {
+		return invalid_route;
+	}
 }

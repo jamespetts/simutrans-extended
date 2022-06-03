@@ -7,15 +7,15 @@
 #define OBJ_PILLAR_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 #include "../descriptor/bridge_desc.h"
+
+class loadsave_t;
+class karte_t;
 
 /**
  * Bridge piece (visible)
  */
-class loadsave_t;
-class karte_t;
-
 class pillar_t : public obj_t
 {
 	const bridge_desc_t *desc;
@@ -48,7 +48,7 @@ public:
 	void calc_image() OVERRIDE;
 
 	/**
-	 * @return Einen Beschreibungsstring fuer das Objekt, der z.B. in einem
+	 * Einen Beschreibungsstring fuer das Objekt, der z.B. in einem
 	 * Beobachtungsfenster angezeigt wird.
 	 */
 	void show_info() OVERRIDE;

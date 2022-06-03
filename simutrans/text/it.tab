@@ -357,8 +357,8 @@ Con una grande festa,\n%s ha costruito\nun nuovo monumento.\n%i cittadini festeg
 \nelettrificata
 \nHeightfield has wrong image type.\n
 \nLa mappa dei rilievi ・in un formato\ndi immagine errato.\n
-\nis reserved by:
-\nriservata da:
+is reserved by:
+riservata da:
 \nminimum speed:
 \nvelocit・minima:
 \nnot elektrified
@@ -753,8 +753,8 @@ Convoi is sold when all wagons are empty.
 Il convoglio viene venduto quando tutti i vagoni sono vuoti.
 convoi mouseover tooltips
 Richiami convogli con mouse sopra
-convoi passed last\nmonth %i\n
-\nconvogli nell'ultimo\nmese: %i\n
+convoi passed last month:
+convogli nell'ultimo\nmese: %i\n
 Convois
 Convogli
 Convois: %d\nProfit: %s
@@ -2135,8 +2135,6 @@ via %s
 ; spazio frenata dalla massima velocit・%i - %i m
 ; brakes from max. speed in %i m
 ; spazio frenata dalla massima velocit・%i m
-"%s has built a new %s %s %s."
-%s ha costruito un nuovo %s %s %s.
 (catering_levels: %s)
 (livello catering: %s)
 (Max. comfortable journey time: 

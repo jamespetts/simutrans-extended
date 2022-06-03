@@ -136,14 +136,17 @@ public:
 
 	void book_weighted_sum_storage(uint32 factor, sint64 delta_time);
 
-	sint32 menge;	// in internal units shifted by precision_bits (see step)
+	sint32 menge; // in internal units shifted by precision_bits (see step)
 	sint32 max;
+	// returns goods chart value (convert internal value to display value)
+	sint32 get_storage() const { return (sint32)convert_goods(statistics[0][FAB_GOODS_STORAGE]); }
+	sint32 get_capacity(uint32 factor) const { return (sint32)convert_goods(max*factor); }
 	/// Cargo currently in transit from/to this slot. Equivalent to statistics[0][FAB_GOODS_TRANSIT].
 	sint32 get_in_transit() const { return (sint32)statistics[0][FAB_GOODS_TRANSIT]; }
 	/// Current limit on cargo in transit, depending on suppliers mean distance.
 	sint32 max_transit;
 
-	uint32 index_offset; // used for haltlist and lieferziele searches in verteile_waren to produce round robin results
+	uint32 index_offset; // used for haltlist and consumers searches in verteile_waren to produce round robin results
 };
 
 
@@ -162,7 +165,11 @@ public:
 	/**
 	 * Constants
 	 */
-	enum { precision_bits = 10, old_precision_bits = 10, precision_mask = 1023 };
+	enum {
+		old_precision_bits = 10,
+		precision_bits     = 10,
+		precision_mask     = (1 << precision_bits) - 1
+	};
 
 private:
 
@@ -187,8 +194,8 @@ private:
 	void book_weighted_sums(sint64 delta_time);
 
 	/// Possible destinations for produced goods
-	vector_tpl <koord> lieferziele;
-	uint32 lieferziele_active_last_month;
+	vector_tpl <koord> consumers;
+	uint32 consumers_active_last_month;
 
 	/**
 	 * suppliers to this factory
@@ -260,14 +267,14 @@ private:
 
 	// The adjusted "max intransit percentage" for each type of input goods
 	// indexed against the catg of each "input" (the input goods).
-	inthashtable_tpl<uint8, uint16> max_intransit_percentages;
+	inthashtable_tpl<uint8, uint16, N_BAGS_SMALL> max_intransit_percentages;
 
 	/// Accumulated time since last production
-	sint32 delta_sum;
-	uint32 delta_menge;
+	sint32 delta_t_sum;
+	uint32 delta_amount;
 
 	// production remainder when scaled to PRODUCTION_DELTA_T. added back next step to eliminate cumulative error
-	uint32 menge_remainder;
+	uint32 delta_amount_remainder;
 
 	// number of rounds where there is active production or consumption
 	uint8 activity_count;
@@ -307,7 +314,7 @@ private:
 	/**
 	 * Electricity amount scaled with prodbase
 	 */
-	uint32 scaled_electric_amount;
+	uint32 scaled_electric_demand;
 
 	/**
 	 * Pax/mail demand scaled with prodbase and month length
@@ -318,7 +325,7 @@ private:
 	/**
 	 * Update scaled electricity amount
 	 */
-	void update_scaled_electric_amount();
+	void update_scaled_electric_demand();
 
 	/**
 	 * Update scaled pax/mail demand
@@ -342,15 +349,16 @@ private:
 	/**
 	 * Class for collecting arrival data and calculating pax/mail boost with fixed period length
 	 */
-	#define PERIOD_BITS   (18)				// determines period length on which boost calculation is based
-	#define SLOT_BITS     (6)				// determines the number of time slots available
-	#define SLOT_COUNT    (1<<SLOT_BITS)	// number of time slots for accumulating arrived pax/mail
+	#define PERIOD_BITS   (18)              // determines period length on which boost calculation is based
+	#define SLOT_BITS     (6)               // determines the number of time slots available
+	#define SLOT_COUNT    (1<<SLOT_BITS)    // number of time slots for accumulating arrived pax/mail
+
 	class arrival_statistics_t
 	{
 	private:
 		uint16 slots[SLOT_COUNT];
 		uint16 current_slot;
-		uint16 active_slots;		// number of slots covered since aggregate arrival last increased from 0 to +ve
+		uint16 active_slots;      // number of slots covered since aggregate arrival last increased from 0 to +ve
 		uint32 aggregate_arrival;
 		uint32 scaled_demand;
 	public:
@@ -458,8 +466,8 @@ public:
 
 	void rotate90( const sint16 y_size );
 
-	const vector_tpl<koord>& get_lieferziele() const { return lieferziele; } // "Delivery destinations" (Google)
-	bool is_active_lieferziel( koord k ) const;
+	const vector_tpl<koord>& get_consumers() const { return consumers; } // "Delivery destinations" (Google)
+	bool is_consumer_active_at(koord consumer_pos ) const;
 
 	const vector_tpl<koord>& get_suppliers() const { return suppliers; }
 
@@ -490,25 +498,25 @@ public:
 	/**
 	 * Adds a new delivery goal
 	 */
-	void add_lieferziel(koord ziel);
-	void rem_lieferziel(koord pos);
+	void add_consumer(koord ziel);
+	void remove_consumer(koord consumer_pos);
 
-	bool disconnect_consumer(koord pos);
-	bool disconnect_supplier(koord pos);
+	bool disconnect_consumer(koord consumer_pos);
+	bool disconnect_supplier(koord supplier_pos);
 
 	/**
 	 * adds a supplier
 	 */
 	void  add_supplier(koord pos);
-	void  rem_supplier(koord pos);
+	void  remove_supplier(koord supplier_pos);
 
 	/**
-	 * @return menge der ware typ ("quantity of the goods type")
-	 *   -1 wenn typ nicht produziert wird ("if not type is produced")
-	 *   sonst die gelagerte menge ("otherwise the stored quantity")
+	 * @return counts amount of ware of typ
+	 *   -1 not produced/used here
+	 *   0>= actual amount
 	 */
-	sint32 input_vorrat_an(const goods_desc_t *ware);        // Vorrat von Warentyp ("Inventories of product")
-	sint32 vorrat_an(const goods_desc_t *ware);        // Vorrat von Warentyp
+	sint32 get_input_stock(const goods_desc_t *ware);
+	sint32 get_output_stock(const goods_desc_t *ware);
 
 	/**
 	* returns all power and consume it to prevent multiple pumpes
@@ -619,7 +627,8 @@ public:
 	/// Builds buildings (gebaeude_t) for the factory.
 	void build(sint32 rotate, bool build_fields, bool force_initial_prodbase, bool from_saved = false);
 
-	sint16 get_rotate() const { return rotate; }
+	uint8 get_rotate() const { return rotate; }
+	void set_rotate( uint8 r ) { rotate = r; }
 
 	/* field generation code
 	 * spawns a field for sure if probability>=1000
@@ -640,24 +649,29 @@ public:
 	 * Production multipliers
 	 */
 	sint32 get_prodfactor_electric() const { return prodfactor_electric; }
-	sint32 get_prodfactor_pax() const { return prodfactor_pax; }
-	sint32 get_prodfactor_mail() const { return prodfactor_mail; }
-	sint32 get_prodfactor() const { return DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + prodfactor_pax + prodfactor_mail; }
+	sint32 get_prodfactor_pax() const { return get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_pax; }
+	sint32 get_prodfactor_mail() const { return get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_mail; }
+	sint32 get_prodfactor() const { return DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + get_prodfactor_pax() + get_prodfactor_mail(); }
 
 	/* does not takes month length into account */
 	sint32 get_base_production() const { return prodbase; }
 	void set_base_production(sint32 p, bool is_from_saved_game = false);
 
 	// This is done this way rather than reusing get_prodfactor() because the latter causes a lack of precision (everything being rounded to the nearest 16).
-	sint32 get_current_production() const { return (sint32)(welt->calc_adjusted_monthly_figure(((sint64)prodbase * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_electric + (get_sector() == fabrik_t::end_consumer ? 0 : prodfactor_pax + prodfactor_mail))))) >> 8l; }
+	sint32 get_current_production() const { return (sint32)(welt->calc_adjusted_monthly_figure((sint64)prodbase * (sint64)get_prodfactor())) >> 8l; }
 
 	// returns the current productivity relative to 100
 	sint32 get_current_productivity() const { return welt->calc_adjusted_monthly_figure(prodbase) ? get_current_production() * 100 / welt->calc_adjusted_monthly_figure(prodbase) : 0; }
 	// returns the current productivity including the effect of staff shortage
-	sint32 get_actual_productivity() const { return status == inactive ? 0 : status >= staff_shortage ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
+	sint32 get_actual_productivity() const { return status == inactive ? 0 : is_staff_shortage() ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
 
 	/* returns the status of the current factory, as well as output */
-	enum { nothing, good, water_resource, medium, water_resource_full, storage_full, inactive, shipment_stuck, material_shortage, no_material, bad, mat_overstocked, stuck, missing_connection, staff_shortage, MAX_FAB_STATUS };
+	enum {
+		nothing, good, water_resource, medium, water_resource_full, storage_full,
+		inactive, shipment_stuck, material_shortage, no_material, bad,
+		mat_overstocked, stuck, missing_connections, missing_consumer, material_not_available,
+		MAX_FAB_STATUS
+	};
 	static uint8 status_to_color[MAX_FAB_STATUS];
 
 	uint8  get_status() const { return status; }
@@ -666,8 +680,13 @@ public:
 	uint32 get_total_out() const { return total_output; }
 
 	// return total storage occupancy for UI. should ignore the overflow of certain goods.
-	uint16 get_total_input_occupancy() const;
+	uint32 get_total_input_capacity() const;
 	uint32 get_total_output_capacity() const;
+
+	/**
+	 * Draws some nice colored bars giving some status information
+	 */
+	void display_status(sint16 xpos, sint16 ypos);
 
 	/**
 	 * Crossconnects all factories
@@ -689,7 +708,7 @@ public:
 	/**
 	 * Return the scaled electricity amount and pax/mail demand
 	 */
-	uint32 get_scaled_electric_demand() const { return scaled_electric_amount; }
+	uint32 get_scaled_electric_demand() const { return scaled_electric_demand; }
 	uint32 get_scaled_pax_demand() const { return scaled_pax_demand; }
 	uint32 get_monthly_pax_demand() const;
 	uint32 get_scaled_mail_demand() const { return scaled_mail_demand; }
@@ -699,7 +718,7 @@ public:
 	// @returns industry type
 	uint8 get_sector() const { return sector; }
 	// Determine shortage of staff for each industry type
-	bool chk_staff_shortage(uint8 abc, sint32 staffing_level_percentage) const;
+	bool is_staff_shortage() const;
 
 	sint32 get_staffing_level_percentage() const;
 
@@ -731,7 +750,8 @@ public:
     bool is_connected_to_network(player_t *player) const;
 
 	// Returns whether this factory has potential demand for passed goods category
-	bool has_goods_catg_demand(uint8 catg_index = goods_manager_t::INDEX_NONE) const;
+	// 0=check input and output demand, 1=cehck only input, 2=check only output
+	bool has_goods_catg_demand(uint8 catg_index = goods_manager_t::INDEX_NONE, uint8 check_option = 0) const;
 
 
 	// Returns the operating rate to basic production. (x 10)

@@ -21,7 +21,7 @@
 #include "brueckenboden.h"
 #include "wege/weg.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 brueckenboden_t::brueckenboden_t(koord3d pos, int grund_hang, int weg_hang) : grund_t(pos)
 {
@@ -61,12 +61,12 @@ void brueckenboden_t::rdwr(loadsave_t *file)
 
 	grund_t::rdwr(file);
 
-	if(file->get_version_int()<88009) {
+	if(file->is_version_less(88, 9)) {
 		uint8 sl;
 		file->rdwr_byte(sl);
 		slope = sl;
 	}
-	if(  file->is_saving()  &&  file->get_version_int() < 112007  ) {
+	if(  file->is_saving()  &&  file->is_version_less(112, 7)  ) {
 		// truncate double weg_hang to single weg_hang, better than nothing
 		uint8 sl = min( corner_sw(weg_hang), 1 ) + min( corner_se(weg_hang), 1 ) * 2 + min( corner_ne(weg_hang), 1 ) * 4 + min( corner_nw(weg_hang), 1 ) * 8;
 		file->rdwr_byte(sl);
@@ -75,21 +75,28 @@ void brueckenboden_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(weg_hang);
 	}
 
-	if(  file->is_loading()  &&  file->get_version_int() < 112007  ) {
+	if(  file->is_loading()  &&  file->is_version_less(112, 7)  ) {
 		// convert slopes from old single height saved game
 		weg_hang = (scorner_sw(weg_hang) + scorner_se(weg_hang) * 3 + scorner_ne(weg_hang) * 9 + scorner_nw(weg_hang) * 27) * env_t::pak_height_conversion_factor;
 	}
 
 	if(!find<bruecke_t>()) {
-		dbg->error( "brueckenboden_t::rdwr()","no bridge on bridge ground at (%s); try replacement", pos.get_str() );
+		dbg->error( "brueckenboden_t::rdwr()", "No bridge on bridge ground at (%s); try replacement", pos.get_str() );
 		weg_t *w = get_weg_nr(0);
+
 		if(w) {
 			const bridge_desc_t *br_desc = bridge_builder_t::find_bridge( w->get_waytype(), w->get_max_speed(), 0 );
+			if (!br_desc) {
+				dbg->fatal("brueckenboden_t::rdwr", "No suitable bridge found for bridge ground at (%s)!", pos.get_str());
+			}
+
 			const grund_t *kb = welt->lookup_kartenboden(get_pos().get_2d());
 			int height = 1;
+
 			if(  kb && get_pos().z - kb->get_pos().z > 1 ) {
 				height = 2;
 			}
+
 			bruecke_t *br = new bruecke_t( get_pos(), welt->get_public_player(), br_desc, ist_karten_boden() ? br_desc->get_end( slope, get_grund_hang(), get_weg_hang() ) : br_desc->get_straight( w->get_ribi_unmasked(), height ) );
 			obj_add( br );
 		}

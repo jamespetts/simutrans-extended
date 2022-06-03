@@ -10,12 +10,7 @@
 #include "koord.h"
 #include "koord3d.h"
 
-const ribi_t::ribi ribi_t::nsew[4] = {
-	north,
-	south,
-	east,
-	west
-};
+const ribi_t::_nesw ribi_t::nesw;
 
 // same like the layouts of buildings
 const ribi_t::ribi ribi_t::layout_to_ribi[4] = {
@@ -26,60 +21,60 @@ const ribi_t::ribi ribi_t::layout_to_ribi[4] = {
 };
 
 const int ribi_t::flags[16] = {
-	0,						// none
-	single | straight_ns,	// north
-	single | straight_ew,	// east
-	bend | twoway,			// north-east
-	single | straight_ns,	// south
-	straight_ns | twoway,		// north-south
-	bend | twoway,			// south-east
-	threeway,				// north-south-east
-	single | straight_ew,	// west
-	bend | twoway,			// north-west
-	straight_ew | twoway,		// east-west
-	threeway,				// north-east-west
-	bend | twoway,			// south-west
-	threeway,				// north-south-west
-	threeway,				// south-east-west
-	threeway,				// all
+	0,                    // none
+	single | straight_ns, // north
+	single | straight_ew, // east
+	bend | twoway,        // north-east
+	single | straight_ns, // south
+	straight_ns | twoway, // north-south
+	bend | twoway,        // south-east
+	threeway,             // north-south-east
+	single | straight_ew, // west
+	bend | twoway,        // north-west
+	straight_ew | twoway, // east-west
+	threeway,             // north-east-west
+	bend | twoway,        // south-west
+	threeway,             // north-south-west
+	threeway,             // south-east-west
+	threeway,             // all
 };
 
 const ribi_t::ribi ribi_t::backwards[16] = {
-	all,		// none
-	south,		// north
-	west,		// east
-	southwest,	// north-east
-	north,		// south
-	northsouth,	// north-south
-	northwest,	// south-east
-	west,		// north-south-east
-	east,		// west
-	southeast,	// north-west
-	eastwest,	// east-west
-	south,		// north-east-west
-	northeast,	// south-west
-	east,		// north-south-west
-	north,		// south-east-west
-	none		// all
+	all,        // none
+	south,      // north
+	west,       // east
+	southwest,  // north-east
+	north,      // south
+	northsouth, // north-south
+	northwest,  // south-east
+	west,       // north-south-east
+	east,       // west
+	southeast,  // north-west
+	eastwest,   // east-west
+	south,      // north-east-west
+	northeast,  // south-west
+	east,       // north-south-west
+	north,      // south-east-west
+	none        // all
 };
 
 const ribi_t::ribi ribi_t::doppelr[16] = {
-	none,		// none
-	northsouth,	// north
-	eastwest,	// east
-	none,		// north-east
-	northsouth,	// south
-	northsouth,	// north-south
-	none,		// south-east
-	none,		// north-south-east
-	eastwest,	// west
-	none,		// north-west
-	eastwest,	// east-west
-	none,		// north-east-west
-	none,		// south-west
-	none,		// north-south-west
-	none,		// south-east-west
-	none		// all
+	none,       // none
+	northsouth, // north
+	eastwest,   // east
+	none,       // north-east
+	northsouth, // south
+	northsouth, // north-south
+	none,       // south-east
+	none,       // north-south-east
+	eastwest,   // west
+	none,       // north-west
+	eastwest,   // east-west
+	none,       // north-east-west
+	none,       // south-west
+	none,       // north-south-west
+	none,       // south-east-west
+	none        // all
 };
 
 
@@ -249,11 +244,11 @@ const int slope_t::flags[81] = {
 	doubles | all_up,                   // slope 77 # nw2,ne2,se1,sw2   TODO    37 up 1
 	doubles,                            // slope 78 # nw2,ne2,se2
 	doubles | all_up,                   // slope 79 # nw2,ne2,se2,sw1   TODO    39 up 1
-	doubles | way_ns | way_ew | all_up            // slope 80 # nw2,ne2,se2,sw2   TODO    0  up 2
+	doubles | way_ns | way_ew | all_up  // slope 80 # nw2,ne2,se2,sw2   TODO    0  up 2
 };
 
 
-const slope_t::type hang_from_ribi[16] = {
+const slope_t::type slope_from_ribi[16] = {
 	0,
 	slope_t::north,
 	slope_t::east,
@@ -274,22 +269,22 @@ const slope_t::type hang_from_ribi[16] = {
 
 
 const ribi_t::dir ribi_t::dirs[16] = {
-	dir_invalid,	// none
-	dir_north,		// north
-	dir_east,		// east
-	dir_northeast,	// north-east
-	dir_south,		// south
-	dir_invalid,	// north-south
-	dir_southeast,	// south-east
-	dir_invalid,	// north-south-east
-	dir_west,		// west
-	dir_northwest,	// north-west
-	dir_invalid,	// east-west
-	dir_invalid,	// north-east-west
-	dir_southwest,	// south-west
-	dir_invalid,	// north-south-west
-	dir_invalid,	// south-east-west
-	dir_invalid		// all
+	dir_invalid,   // none
+	dir_north,     // north
+	dir_east,      // east
+	dir_northeast, // north-east
+	dir_south,     // south
+	dir_invalid,   // north-south
+	dir_southeast, // south-east
+	dir_invalid,   // north-south-east
+	dir_west,      // west
+	dir_northwest, // north-west
+	dir_invalid,   // east-west
+	dir_invalid,   // north-east-west
+	dir_southwest, // south-west
+	dir_invalid,   // north-south-west
+	dir_invalid,   // south-east-west
+	dir_invalid    // all
 };
 
 
@@ -303,17 +298,17 @@ ribi_t::ribi ribi_typ_intern(sint16 dx, sint16 dy)
 {
 	ribi_t::ribi ribi = ribi_t::none;
 
-	if (dx<0) {
+	if(dx<0) {
 		ribi |= ribi_t::west;
 	}
-	else if (dx>0) {
+	else if(dx>0) {
 		ribi |= ribi_t::east;
 	}
 
-	if (dy<0) {
+	if(dy<0) {
 		ribi |= ribi_t::north;
 	}
-	else if (dy>0) {
+	else if(dy>0) {
 		ribi |= ribi_t::south;
 	}
 	return ribi;
@@ -339,12 +334,12 @@ ribi_t::ribi ribi_type(const koord3d& dir)
 bool ribi_t::is_perpendicular(ribi x, ribi y)
 {
 	// for straight direction x use doppelr lookup table
-	if (is_straight(x)) {
-		return (doppelr[x] | doppelr[y]) == all;
+	if(is_straight(x)) {
+		return (doubles(x) | doubles(y)) == all;
 	}
 	// now diagonals (more tricky)
-	if (x != y) {
-		return ((x - y) % 3) == 0;
+	if(x!=y) {
+		return ((x-y)%3)==0;
 	}
 	// ok, then they are not orthogonal
 	return false;
@@ -394,28 +389,27 @@ sint16 slope_t::get_sloping_upwards(const slope_t::type slope, const sint16 rela
 
 slope_t::type slope_type(koord dir)
 {
-	if (dir.x == 0) {
-		if (dir.y < 0) {		    // north direction -> south slope
+	if(dir.x == 0) {
+		if(dir.y < 0) {            // north direction -> south slope
 			return slope_t::south;
 		}
-		if (dir.y > 0) {
-			return slope_t::north;    // south direction -> north slope
+		if(dir.y > 0) {
+			return slope_t::north; // south direction -> north slope
 		}
 	}
-	if (dir.y == 0) {
-		if (dir.x < 0) {
-			return slope_t::east;	    // west direction -> east slope
+	if(dir.y == 0) {
+		if(dir.x < 0) {
+			return slope_t::east;  // west direction -> east slope
 		}
-		if (dir.x > 0) {
-			return slope_t::west;    // east direction -> west slope
+		if(dir.x > 0) {
+			return slope_t::west;  // east direction -> west slope
 		}
 	}
-	return slope_t::flat;	    // ???
+	return slope_t::flat;          // ???
 }
-
 
 
 slope_t::type slope_type(ribi_t::ribi r)
 {
-	return hang_from_ribi[r];
+	return slope_from_ribi[r];
 }

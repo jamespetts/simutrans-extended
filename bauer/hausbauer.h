@@ -20,7 +20,7 @@ class tool_selector_t;
 /**
  * This class deals with building single- and multi-tile buildings. It knows the descriptions
  * of (nearly) all buildings as regards type, height, size, images and animations.
- * To be able to build a new house the house description must be registered by register_besch().
+ * To be able to build a new house the house description must be registered by register_desc().
  *
  * To ensure all monuments are only present once per map, there is a list
  * which monuments have been built and which not.
@@ -29,12 +29,12 @@ class tool_selector_t;
 class hausbauer_t
 {
 private:
-	static vector_tpl<const building_desc_t*> attractions_land; // Land attractions
-	static vector_tpl<const building_desc_t*> attractions_city; // City attractions
-	static vector_tpl<const building_desc_t*> townhalls; // Town halls
-	static vector_tpl<const building_desc_t*> monuments; // Monuments
-	static vector_tpl<const building_desc_t*> unbuilt_monuments; // Unbuilt monuments
-	static vector_tpl<const building_desc_t*> headquarters; //< Company headquarters
+	static vector_tpl<const building_desc_t*> attractions_land;  ///< Sights outside of cities
+	static vector_tpl<const building_desc_t*> attractions_city;  ///< Sights within cities
+	static vector_tpl<const building_desc_t*> townhalls;         ///< Town halls
+	static vector_tpl<const building_desc_t*> monuments;         ///< All monuments
+	static vector_tpl<const building_desc_t*> unbuilt_monuments; ///< All unbuilt monuments
+	static vector_tpl<const building_desc_t*> headquarters;      ///< Company headquarters
 
 	/// @returns a random entry from @p list
 	static const building_desc_t* get_random_desc(vector_tpl<const building_desc_t*>& list, uint16 time, bool ignore_retire, climate cl);
@@ -51,8 +51,8 @@ public:
 	static vector_tpl<building_desc_t*> modifiable_station_buildings;
 
 private:
-	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters);
-	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters);
+	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_city_building_from_list(const vector_tpl<const building_desc_t*>& building_list, int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier, uint32 clusters, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 public:
 	/**
@@ -85,19 +85,19 @@ public:
 	static void fill_menu(tool_selector_t* tool_selector, building_desc_t::btype, waytype_t wt, sint16 sound_ok);
 
 	/// @returns a random commercial building matching the requirements.
-	static const building_desc_t* get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_commercial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_commercial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns a random industrial building matching the requirements.
-	static const building_desc_t* get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_industrial(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_industrial(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns a random residential building matching the requirements.
-	static const building_desc_t* get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
-	static const building_desc_t* get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l);
+	static const building_desc_t* get_residential(koord pos_origin, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
+	static const building_desc_t* get_residential(int level, koord size, uint16 time, climate cl, uint8 region, bool allow_earlier = false, uint32 clusters = 0l, uint32 pier_sub_1_mask=0,uint32 pier_sub_2_mask=0);
 
 	/// @returns headquarters with level @p level (takes the first matching one)
-	static const building_desc_t* get_headquarter(int level, uint16 time);
+	static const building_desc_t* get_headquarters(int level, uint16 time);
 
 	/// @returns a random tourist attraction matching the requirements.
 	static const building_desc_t* get_random_attraction(uint16 time, bool ignore_retire, climate cl)
@@ -130,7 +130,7 @@ public:
 	/**
 	 * Removes an arbitrary building.
 	 * It will also take care of factories and foundations.
-	 * @param sp the player wanting to remove the building.
+	 * @param player the player wanting to remove the building.
 	 */
 	static void remove(player_t *player, const gebaeude_t *gb, bool map_generation);
 
@@ -139,7 +139,7 @@ public:
 	 * Building size can be larger than 1x1.
 	 * Also the underlying ground will be changed to foundation.
 	 * @param param if building a factory, pointer to the factory,
-	 * 				if building a stop, pointer to the halt handle.
+	 *              if building a stop, pointer to the halt handle.
 	 *
 	 * @return The first built part of the building. Usually at @p pos, if this
 	 *         building tile is not empty.
@@ -157,7 +157,7 @@ public:
 	static const vector_tpl<const building_desc_t *> *get_list(building_desc_t::btype typ);
 
 	/// @returns city building list of type @p typ (res/com/ind)
-	static const vector_tpl<const building_desc_t *> *get_citybuilding_list(building_desc_t::btype typ);
+	static const vector_tpl<const building_desc_t *> *get_citybuilding_list(building_desc_t::btype  typ);
 
 	static void new_month();
 };

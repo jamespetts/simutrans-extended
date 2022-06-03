@@ -12,7 +12,7 @@
 #include "../dataobj/translator.h"
 
 
-stringhashtable_tpl<const goods_desc_t *> goods_manager_t::desc_names;
+stringhashtable_tpl<const goods_desc_t *, N_BAGS_MEDIUM> goods_manager_t::desc_names;
 
 vector_tpl<goods_desc_t *> goods_manager_t::goods;
 
@@ -26,12 +26,37 @@ goods_desc_t *goods_manager_t::load_passengers = NULL;
 goods_desc_t *goods_manager_t::load_mail = NULL;
 goods_desc_t *goods_manager_t::load_none = NULL;
 
-static spezial_obj_tpl<goods_desc_t> const special_objects[] = {
+static special_obj_tpl<goods_desc_t> const special_objects[] = {
 	{ &goods_manager_t::passengers, "Passagiere" },
-	{ &goods_manager_t::mail,	    "Post" },
-	{ &goods_manager_t::none,	    "None" },
+	{ &goods_manager_t::mail,       "Post" },
+	{ &goods_manager_t::none,       "None" },
 	{ NULL, NULL }
 };
+
+static char const* wealth_class_name_untranslated_pas[5] = {
+	"p_class[0]", "p_class[1]", "p_class[2]", "p_class[3]", "p_class[4]"
+};
+
+static char const* wealth_class_name_untranslated_mail[5] = {
+	"m_class[0]", "m_class[1]", "m_class[2]", "m_class[3]", "m_class[4]"
+};
+
+static char const* fare_class_name_untranslated_pas[5] = {
+	"p_fare[0]", "p_fare[1]", "p_fare[2]", "p_fare[3]", "p_fare[4]"
+};
+
+static char const* fare_class_name_untranslated_mail[5] = {
+	"m_fare[0]", "m_fare[1]", "m_fare[2]", "m_fare[3]", "m_fare[4]"
+};
+
+static char const* default_accommodation_name_untranslated_pas[5] = {
+	"p_accommodation[0]", "p_accommodation[1]", "p_accommodation[2]", "p_accommodation[3]", "p_accommodation[4]"
+};
+
+static char const* default_accommodation_name_untranslated_mail[5] = {
+	"m_accommodation[0]", "m_accommodation[1]", "m_accommodation[2]", "m_accommodation[3]", "m_accommodation[4]"
+};
+
 
 
 bool goods_manager_t::successfully_loaded()
@@ -49,13 +74,13 @@ bool goods_manager_t::successfully_loaded()
 		dbg->fatal("goods_manager_t::successfully_loaded()","Too many different goods %i>255",goods.get_count()-1 );
 	}
 
-	// assign indexes, and fix number_of_classes
+	// assign indices, and fix number_of_classes
 	for(  uint8 i=3;  i<goods.get_count();  i++  ) {
 		goods[i]->goods_index = i;
 		goods[i]->fix_number_of_classes();
 	}
 
-	// now assign unique category indexes for unique categories
+	// now assign unique category indices for unique categories
 	max_catg_index = 0;
 	// first assign special freight (which always needs an own category)
 	FOR(vector_tpl<goods_desc_t*>, const i, goods) {
@@ -87,7 +112,7 @@ bool goods_manager_t::successfully_loaded()
 			assert(goods[i]->get_index()==i);
 			ware_t::index_to_desc[i] = goods[i];
 			if(goods[i]->color==255) {
-				goods[i]->color = ( 16+4+((i-2)*8)%207 );
+				goods[i]->color = 16+4+((i-2)*8)%207;
 			}
 		}
 	}
@@ -203,22 +228,43 @@ uint8 goods_manager_t::get_classes_catg_index(const uint8 catg_index)
 const char * goods_manager_t::get_translated_wealth_name(const uint8 catg_index, const uint8 g_class = 0)
 {
 	if (g_class >= get_classes_catg_index(catg_index)) {
-		return NULL;
+		return "\0";
 	}
-	char *class_name = new char[32]();
-	if (catg_index == goods_manager_t::INDEX_PAS)
-	{
-		sprintf(class_name, "p_class[%u]", g_class);
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return translator::translate(wealth_class_name_untranslated_pas[g_class]);
 	}
-	if (catg_index == goods_manager_t::INDEX_MAIL)
-	{
-		sprintf(class_name, "m_class[%u]", g_class);
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return translator::translate(wealth_class_name_untranslated_mail[g_class]);
 	}
+	return "\0";
+}
 
-	static char translated_name[32];
-	sprintf(translated_name, "%s", translator::translate(class_name));
+const char * goods_manager_t::get_translated_fare_class_name(const uint8 catg_index, const uint8 f_class = 0)
+{
+	if (f_class >= get_classes_catg_index(catg_index)) {
+		return "\0";
+	}
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return translator::translate(fare_class_name_untranslated_pas[f_class]);
+	}
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return translator::translate(fare_class_name_untranslated_mail[f_class]);
+	}
+	return "\0";
+}
 
-	return translated_name;
+const char * goods_manager_t::get_default_accommodation_class_name(const uint8 catg_index, const uint8 a_class = 0)
+{
+	if (a_class >= get_classes_catg_index(catg_index)) {
+		return "\0";
+	}
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return default_accommodation_name_untranslated_pas[a_class];
+	}
+	else if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return default_accommodation_name_untranslated_mail[a_class];
+	}
+	return "\0";
 }
 
 
@@ -237,4 +283,3 @@ void goods_manager_t::set_multiplier(sint32 multiplier, uint16 scale_factor)
 		goods[i]->set_scale(scale_factor);
 	}
 }
-

@@ -38,46 +38,46 @@ void cbuffer_t::clear()
 }
 
 
-cbuffer_t::cbuffer_t (const cbuffer_t& cbx)
+cbuffer_t::cbuffer_t(const cbuffer_t& cbx)
 {
-	copy( cbx );
+	copy(cbx);
 }
 
 
 cbuffer_t& cbuffer_t::operator= (const cbuffer_t& cbx)
 {
-	if (  this != &cbx  )
+	if (this != &cbx)
 	{
 		free();
-		copy( cbx );
+		copy(cbx);
 	}
 
 	return *this;
 }
 
 
-void cbuffer_t::copy (const cbuffer_t& cbx)
+void cbuffer_t::copy(const cbuffer_t& cbx)
 {
 	capacity = cbx.capacity;
 	size = cbx.size;
 	buf = new char[capacity];
-	memcpy( buf, cbx.buf, size + 1 );
+	memcpy(buf, cbx.buf, size + 1);
 }
 
 
-void cbuffer_t::free ()
+void cbuffer_t::free()
 {
-	delete [] buf;
+	delete[] buf;
 }
 
 
-void cbuffer_t::append(const char * text)
+void cbuffer_t::append(const char* text)
 {
-	size_t const n = text ? strlen( text ) : 0;
+	size_t const n = text ? strlen(text) : 0;
 	if (n)
 	{
-		extend( n );
-		memcpy( buf + size, text, n + 1);
+		extend(n);
+		memcpy(buf + size, text, n + 1);
 		size += n;
 	}
 }
@@ -85,20 +85,20 @@ void cbuffer_t::append(const char * text)
 void cbuffer_t::append(long n)
 {
 	char tmp[32];
-	char * p = tmp+31;
+	char* p = tmp + 31;
 	bool neg = false;
 	*p = '\0';
 
-	if(n < 0) {
+	if (n < 0) {
 		neg = true;
 		n = -n;
 	}
 
 	do {
-		*--p  = '0' + (n % 10);
-	} while((n/=10) > 0);
+		*--p = '0' + (n % 10);
+	} while ((n /= 10) > 0);
 
-	if(neg) {
+	if (neg) {
 		*--p = '-';
 	}
 
@@ -108,18 +108,18 @@ void cbuffer_t::append(long n)
 
 void cbuffer_t::append(const char* text, size_t maxchars)
 {
-	size_t const n = min( strlen( text ), maxchars );
-	extend( n );
-	memcpy( buf + size, text, n );
+	size_t const n = min(strlen(text), maxchars);
+	extend(n);
+	memcpy(buf + size, text, n);
 	size += n;
 	buf[size] = '\0';  // Ensure buffer is null terminated
 }
 
 
-void cbuffer_t::append(double n,int decimals)
+void cbuffer_t::append(double n, int decimals)
 {
 	char tmp[128];
-	number_to_string( tmp, n, decimals );
+	number_to_string(tmp, n, decimals);
 	append(tmp);
 }
 
@@ -149,52 +149,53 @@ const char* cbuffer_t::get_str() const
  * @param max_params length of typemask
  * @param error receives error message
  */
-static void get_format_mask(const char* format, char *typemask, int max_params, cbuffer_t &error)
+static void get_format_mask(const char* format, char* typemask, int max_params, cbuffer_t& error)
 {
 	MEMZERON(typemask, max_params);
 	uint16 found = 0;
 	bool positional = false;
-	while(format  &&  *format) {
+	while (format && *format) {
 		uint16 pos = found;
 		// skip until percent sign
-		while(*format  &&  *format!='%') format++;
+		while (*format && *format != '%') format++;
 		if (*format == 0) {
 			break;
 		}
 		format++;
 		// read out position
-		int i = atoi(format);
+		const int i = atoi(format);
 		// skip numbers
-		while(*format  &&  ('0'<=*format  &&  *format<='9') ) format++;
+		while (*format && ('0' <= *format && *format <= '9')) format++;
+
 		// check for correct positional argument
-		if (i>0) {
-			if (format  &&  *format=='$')  {
-				format ++;
-				if (found > 0  &&  !positional) {
+		if (i > 0 && i <= max_params) {
+			if (format && *format == '$') {
+				format++;
+				if (found > 0 && !positional) {
 					goto err_mix_pos_nopos;
 				}
 				positional = true;
-				pos = i-1;
+				pos = i - 1;
 			}
 			else {
 				// width specified, eg %2i
 			}
 		}
 		else {
-			if (found>0  &&  positional) {
+			if (found > 0 && positional) {
 				goto err_mix_pos_nopos;
 			}
 		}
 		// now skip until format specifier
 		static const char* all_types = "cCdDeEfFgGiIoOsSuUxXpPnN \t\n";
 		static const char* all_masks = "cciiffffffiiiissiiiippnn   ";
-		while(format  &&  *format) {
+		while (format && *format) {
 			if (const char* type = strchr(all_types, *format)) {
-				char mask = *(all_masks + (type-all_types));
+				char mask = *(all_masks + (type - all_types));
 				if (mask == ' ') {
 					// broken format string
 				}
-				else {
+				else if (pos < max_params) {
 					// found valid format
 					if (pos >= max_params)
 						error.printf("Too many parameters or illegal position %d not in supported range 0..%d.", pos, max_params - 1);
@@ -209,8 +210,8 @@ static void get_format_mask(const char* format, char *typemask, int max_params, 
 	}
 	// check whether positional parameters are continuous
 	if (positional) {
-		for(uint16 i=0; i<found; i++) {
-			if (typemask[i]==0) {
+		for (uint16 i = 0; i < found; i++) {
+			if (typemask[i] == 0) {
 				// unspecified
 				error.printf("Positional parameter %d not specified.", i);
 				return;
@@ -235,7 +236,7 @@ err_mix_pos_nopos:
  */
 bool cbuffer_t::check_format_strings(const char* master, const char* translated)
 {
-	if (master == NULL  ||  translated == NULL) {
+	if (master == NULL || translated == NULL) {
 		return false;
 	}
 	static cbuffer_t buf;
@@ -245,19 +246,19 @@ bool cbuffer_t::check_format_strings(const char* master, const char* translated)
 	get_format_mask(master, master_tm, lengthof(master_tm), buf);
 	if (buf.len() > 0) {
 		// broken master string ?!
-		dbg->warning("cbuffer_t::check_format_strings", "Broken master string '%s': %s", master, (const char*) buf);
+		dbg->warning("cbuffer_t::check_format_strings", "Broken master string '%s': %s", master, (const char*)buf);
 		return false;
 	}
 	// read out translated string
 	get_format_mask(translated, translated_tm, lengthof(translated_tm), buf);
 	if (buf.len() > 0) {
 		// broken translated string
-		dbg->warning("cbuffer_t::check_format_strings", "Broken translation string '%s': %s", translated, (const char*) buf);
+		dbg->warning("cbuffer_t::check_format_strings", "Broken translation string '%s': %s", translated, (const char*)buf);
 		return false;
 	}
 	// check for consistency
-	for(uint i=0; (translated_tm[i])  &&  (i<lengthof(translated_tm)); i++) {
-		if (master_tm[i]==0) {
+	for (uint i = 0; (translated_tm[i]) && (i < lengthof(translated_tm)); i++) {
+		if (master_tm[i] == 0) {
 			// too much parameters requested...
 			// but some master strings like 1extern have no format specifiers - ignore these
 			if (master_tm[0]) {
@@ -266,10 +267,10 @@ bool cbuffer_t::check_format_strings(const char* master, const char* translated)
 			}
 			return true;
 		}
-		else if (master_tm[i]!=translated_tm[i]) {
+		else if (master_tm[i] != translated_tm[i]) {
 			// wrong type
 			dbg->warning("cbuffer_t::check_format_strings", "Parameter %d in translation string '%s' of '%s' has to be of type '%%%c' instead of '%%%c', Typemasks: Master = %s vs Translated = %s",
-			               i+1, translated, master, master_tm[i], translated_tm[i], master_tm,translated_tm);
+				i + 1, translated, master, master_tm[i], translated_tm[i], master_tm, translated_tm);
 			return false;
 		}
 	}
@@ -287,7 +288,7 @@ bool cbuffer_t::check_format_strings(const char* master, const char* translated)
  *
  * ATTENTION: no support for positional precision (which are not used in simutrans anyway!
  */
-static int my_vsnprintf(char *buf, size_t n, const char* fmt, va_list ap )
+static int my_vsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
 {
 #if defined _MSC_FULL_VER  &&  _MSC_FULL_VER >= 140050727  &&  !defined __WXWINCE__
 	// this MSC function can handle positional parameters since 2008
@@ -295,74 +296,74 @@ static int my_vsnprintf(char *buf, size_t n, const char* fmt, va_list ap )
 #else
 #if !defined(HAVE_UNIX98_PRINTF)
 	// this function cannot handle positional parameters
-	if(  const char *c=strstr( fmt, "%1$" )  ) {
+	if (const char* c = strstr(fmt, "%1$")) {
 		// but they are requested here ...
 		// our routine can only handle max. 9 parameters
 		char pos[13];
 		static char format_string[256];
-		char *cfmt = format_string;
+		char* cfmt = format_string;
 		static char buffer[16000]; // the longest possible buffer ...
 		int count = 0;
-		for(  ;  c  &&  count<9;  count++  ) {
-			sprintf( pos, "%%%i$", count+1 );
-			c = strstr( fmt, pos );
-			if(  c  ) {
+		for (; c && count < 9; count++) {
+			sprintf(pos, "%%%i$", count + 1);
+			c = strstr(fmt, pos);
+			if (c) {
 				// extend format string, using 1 as mark between strings
-				if(  count  ) {
+				if (count) {
 					*cfmt++ = '\01';
 				}
 				*cfmt++ = '%';
 				// now find the end
 				c += 3;
-				int len = strspn( c, "+-0123456789 #.hlI" )+1;
-				while(  len-->0  ) {
+				int len = strspn(c, "+-0123456789 #.hlI") + 1;
+				while (len-- > 0) {
 					*cfmt++ = *c++;
 				}
 			}
 		}
 		*cfmt = 0;
 		// now printf into buffer
-		int result = vsnprintf( buffer, 16000, format_string, ap );
-		if(  result<0  ||  result>=16000  ) {
+		int result = vsnprintf(buffer, 16000, format_string, ap);
+		if (result < 0 || result >= 16000) {
 			*buf = 0;
 			return 0;
 		}
 		// check the length
 		result += strlen(fmt);
-		if(   (size_t)result > n  ) {
+		if ((size_t)result > n) {
 			// increase the size please ...
 			return result;
 		}
 		// we have enough size: copy everything together
 		*buf = 0;
-		char *cbuf = buf;
-		cfmt = const_cast<char *>(fmt); // cast is save, as the string is not modified
-		while(  *cfmt!=0  ) {
-			while(  *cfmt!='%'  &&  *cfmt  ) {
+		char* cbuf = buf;
+		cfmt = const_cast<char*>(fmt); // cast is save, as the string is not modified
+		while (*cfmt != 0) {
+			while (*cfmt != '%' && *cfmt) {
 				*cbuf++ = *cfmt++;
 			}
-			if(  *cfmt==0  ) {
+			if (*cfmt == 0) {
 				break;
 			}
 			// get the nth argument
-			char *carg = buffer;
-			int current = cfmt[1]-'1';
-			for(  int j=0;  j<current;  j++  ) {
-				while(  *carg  &&  *carg!='\01'  ) {
-					carg ++;
+			char* carg = buffer;
+			int current = cfmt[1] - '1';
+			for (int j = 0; j < current; j++) {
+				while (*carg && *carg != '\01') {
+					carg++;
 				}
-				assert( *carg );
-				carg ++;
+				assert(*carg);
+				carg++;
 			}
-			while(  *carg  &&  *carg!='\01'  ) {
+			while (*carg && *carg != '\01') {
 				*cbuf++ = *carg++;
 			}
 			// jump rest
 			cfmt += 3;
-			cfmt += strspn( cfmt, "+-0123456789 #.hlI" )+1;
+			cfmt += strspn(cfmt, "+-0123456789 #.hlI") + 1;
 		}
 		*cbuf = 0;
-		return cbuf-buf;
+		return cbuf - buf;
 	}
 	// no positional parameters: use standard vsnprintf
 #endif
@@ -376,12 +377,12 @@ void cbuffer_t::printf(const char* fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	vprintf(fmt,  ap );
+	vprintf(fmt, ap);
 	va_end(ap);
 }
 
 
-void cbuffer_t::vprintf(const char *fmt, va_list ap )
+void cbuffer_t::vprintf(const char* fmt, va_list ap)
 {
 	for (;;) {
 		size_t const n = capacity - size;
@@ -399,8 +400,8 @@ void cbuffer_t::vprintf(const char *fmt, va_list ap )
 		args = ap; // If this throws an error then C++11 conformance may be required.
 #endif
 
-		const int count = my_vsnprintf( buf+size, n, fmt, args );
-		if(  count < 0  ) {
+		const int count = my_vsnprintf(buf + size, n, fmt, args);
+		if (count < 0) {
 #ifdef _WIN32
 			inc = capacity;
 #else
@@ -409,7 +410,7 @@ void cbuffer_t::vprintf(const char *fmt, va_list ap )
 			break;
 #endif
 		}
-		else if(  (size_t)count < n  ) {
+		else if ((size_t)count < n) {
 			size += count;
 			break;
 		}
@@ -426,20 +427,33 @@ void cbuffer_t::vprintf(const char *fmt, va_list ap )
 
 void cbuffer_t::extend(unsigned int min_free_space)
 {
-	if(  min_free_space >= capacity - size  ) {
+	if (min_free_space >= capacity - size) {
 
 		unsigned int by_amount = min_free_space + 1 - (capacity - size);
-		if(  by_amount < capacity  ) {
+		if (by_amount < capacity) {
 			// At least double the size of the buffer.
 			by_amount = capacity;
 		}
 
 		unsigned int new_capacity = capacity + by_amount;
-		char *new_buf = new char [new_capacity];
-		memcpy( new_buf, buf, capacity );
-		delete [] buf;
+		char* new_buf = new char[new_capacity];
+		memcpy(new_buf, buf, capacity);
+		delete[] buf;
 		buf = new_buf;
 		capacity = new_capacity;
+	}
+}
+
+
+// remove whitespace and unprinatable characters
+void cbuffer_t::trim()
+{
+	while (size > 0) {
+		const unsigned char c = buf[size - 1];
+		if (c >= 33) {
+			break;
+		}
+		size--;
 	}
 }
 
@@ -447,15 +461,15 @@ void cbuffer_t::append_fixed(uint8 n)
 {
 	uint32 zeros = 0;
 
-	if(n < 10)
+	if (n < 10)
 	{
 		zeros = 2;
 	}
-	else if(n < 100)
+	else if (n < 100)
 	{
 		zeros = 1;
 	}
-	while(zeros > 0)
+	while (zeros > 0)
 	{
 		append("0");
 		zeros--;
@@ -469,23 +483,23 @@ void cbuffer_t::append_fixed(uint16 n)
 {
 	uint32 zeros = 0;
 
-	if(n < 10)
+	if (n < 10)
 	{
 		zeros = 4;
 	}
-	else if(n < 100)
+	else if (n < 100)
 	{
 		zeros = 3;
 	}
-	else if(n < 1000)
+	else if (n < 1000)
 	{
 		zeros = 2;
 	}
-	else if(n < 10000)
+	else if (n < 10000)
 	{
 		zeros = 1;
 	}
-	while(zeros > 0)
+	while (zeros > 0)
 	{
 		append("0");
 		zeros--;
@@ -498,43 +512,43 @@ void cbuffer_t::append_fixed(uint32 n)
 {
 	uint32 zeros = 0;
 
-	if(n < 10)
+	if (n < 10)
 	{
 		zeros = 9;
 	}
-	else if(n < 100)
+	else if (n < 100)
 	{
 		zeros = 8;
 	}
-	else if(n < 1000)
+	else if (n < 1000)
 	{
 		zeros = 7;
 	}
-	else if(n < 10000)
+	else if (n < 10000)
 	{
 		zeros = 6;
 	}
-	else if(n < 100000)
+	else if (n < 100000)
 	{
 		zeros = 5;
 	}
-	else if(n < 1000000)
+	else if (n < 1000000)
 	{
 		zeros = 4;
 	}
-	else if(n < 10000000)
+	else if (n < 10000000)
 	{
 		zeros = 3;
 	}
-	else if(n < 100000000)
+	else if (n < 100000000)
 	{
 		zeros = 2;
 	}
-	else if(n < 1000000000)
+	else if (n < 1000000000)
 	{
 		zeros = 1;
 	}
-	while(zeros > 0)
+	while (zeros > 0)
 	{
 		append("0");
 		zeros--;
@@ -552,7 +566,7 @@ void cbuffer_t::append_bool(bool value)
 uint8 cbuffer_t::decode_uint8(const char* p)
 {
 	char number_string[4];
-	for(uint32 i = 0; i < 3; i ++)
+	for (uint32 i = 0; i < 3; i++)
 	{
 		number_string[i] = *p++;
 	}
@@ -563,7 +577,7 @@ uint8 cbuffer_t::decode_uint8(const char* p)
 uint16 cbuffer_t::decode_uint16(const char* p)
 {
 	char number_string[6];
-	for(uint32 i = 0; i < 5; i ++)
+	for (uint32 i = 0; i < 5; i++)
 	{
 		number_string[i] = *p++;
 	}
@@ -574,7 +588,7 @@ uint16 cbuffer_t::decode_uint16(const char* p)
 uint32 cbuffer_t::decode_uint32(const char* p)
 {
 	char number_string[11];
-	for(uint32 i = 0; i < 10; i ++)
+	for (uint32 i = 0; i < 10; i++)
 	{
 		number_string[i] = *p++;
 	}

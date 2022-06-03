@@ -7,6 +7,7 @@
 
 #include "components/gui_button.h"
 #include "../simworld.h"
+#include "../simcity.h"
 #include "../player/simplay.h"
 #include "../obj/label.h"
 #include "../utils/simstring.h"
@@ -54,6 +55,14 @@ bool labellist_stats_t::compare(const gui_component_t *aa, const gui_component_t
 		}
 		case labellist::by_region:
 			cmp = welt->get_region(a->label_pos) - welt->get_region(b->label_pos);
+			if (cmp == 0) {
+				const koord a_city_koord = welt->get_city(a->label_pos) ? welt->get_city(a->label_pos)->get_pos() : koord(0, 0);
+				const koord b_city_koord = welt->get_city(b->label_pos) ? welt->get_city(b->label_pos)->get_pos() : koord(0, 0);
+				cmp = a_city_koord.x - b_city_koord.x;
+				if (cmp == 0) {
+					cmp = a_city_koord.y - b_city_koord.y;
+				}
+			}
 			break;
 	}
 	if(cmp==0) {

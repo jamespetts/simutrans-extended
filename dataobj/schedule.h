@@ -57,11 +57,19 @@ class schedule_t
 	}
 
 protected:
-	schedule_t() : editing_finished(false), bidirectional(false), mirrored(false), same_spacing_shift(true), current_stop(0), spacing(0) {}
+	schedule_t() : editing_finished(false), current_stop(0), bidirectional(false), mirrored(false), same_spacing_shift(true), spacing(0) {}
 
 public:
 	enum schedule_type {
-		schedule = 0, truck_schedule = 1, train_schedule = 2, ship_schedule = 3, airplane_schedule = 4, monorail_schedule = 5, tram_schedule = 6, maglev_schedule = 7, narrowgauge_schedule = 8
+		schedule             = 0,
+		truck_schedule       = 1,
+		train_schedule       = 2,
+		ship_schedule        = 3,
+		airplane_schedule    = 4,
+		monorail_schedule    = 5,
+		tram_schedule        = 6,
+		maglev_schedule      = 7,
+		narrowgauge_schedule = 8
 	};
 
 	minivec_tpl<schedule_entry_t> entries;
@@ -78,7 +86,7 @@ public:
 	* This would need a great deal of checking and re-factoring
 	* to verify and implement.
 	*/
-	inthashtable_tpl<uint16, consist_order_t> orders;
+	inthashtable_tpl<uint16, consist_order_t, N_BAGS_MEDIUM> orders;
 
 	/**
 	 * Returns error message if stops are not allowed
@@ -104,7 +112,7 @@ public:
 	 */
 	uint8 get_current_stop() const { return current_stop; }
 
-	// always returns a valid entry to the current stop
+	/// returns the current stop, always a valid entry
 	schedule_entry_t const& get_current_entry() const { return current_stop >= entries.get_count() ? dummy_entry : entries[current_stop]; }
 
 private:
@@ -121,7 +129,7 @@ public:
 		make_current_stop_valid();
 	}
 
-	// advance entry by one ...
+	/// advance current_stop by one
 	void advance() {
 		if(  !entries.empty()  ) {
 			current_stop = (current_stop+1)%entries.get_count();
@@ -196,8 +204,8 @@ public:
 	void cleanup();
 
 	/**
-	* Remove current_stop entry from the schedule.
-	*/
+	 * Remove current_stop entry from the schedule.
+	 */
 	bool remove();
 
 	void rdwr(loadsave_t *file);
@@ -275,6 +283,9 @@ public:
 	{
 		return schedule_type_text[get_type()];
 	};
+
+	// Distance to return to the first scheduled point
+	uint32 get_travel_distance() const;
 
 	/**
 	 * Append description of entry to buf.
@@ -467,6 +478,6 @@ public:
     uint32 get_average_seconds() const;
 };
 
-typedef koordhashtable_tpl<departure_point_t, times_history_data_t> times_history_map;
+typedef koordhashtable_tpl<departure_point_t, times_history_data_t, N_BAGS_SMALL> times_history_map;
 
 #endif

@@ -27,7 +27,8 @@ public:
 		CROSSING_INVALID = 0,
 		CROSSING_OPEN,
 		CROSSING_REQUEST_CLOSE,
-		CROSSING_CLOSED
+		CROSSING_CLOSED,
+		NUM_CROSSING_STATES
 	};
 
 protected:
@@ -51,7 +52,7 @@ public:
 	crossing_logic_t( const crossing_desc_t *desc );
 
 	/**
-	 * @return string (only used for debug at the moment)
+	 * @param[out] buf string (only used for debug at the moment)
 	 */
 	void info(cbuffer_t & buf) const;
 

@@ -17,41 +17,6 @@
 
 #include "gui_theme.h"
 
-// Floating cursor eases to place components on a frame with a fixed width.
-// It places components in a horizontal line one by one as long as the frame is
-// wide enough. If a component would exceed the maximum right coordinate, then
-// the floating cursor wraps the component into a new "line".
-class floating_cursor_t
-{
-	scr_coord cursor;
-	scr_coord_val left;
-	scr_coord_val right;
-	scr_coord_val row_height;
-public:
-	/** constructor
-	 * @param initial, position for the first component
-	 * @param min_left,	the x coordinate where to start new lines
-	 * @param max_right, the x coordinate where lines end
-	 */
-	floating_cursor_t(const scr_coord& initial, scr_coord_val min_left, scr_coord_val max_right);
-
-	/** next_pos() calculates and returns the position of the next component.
-	 * @author Bernd Gabriel
-	 * @date 19-Jan-2014
-	 * @param size, size of the next component
-	 */
-	scr_coord next_pos(const scr_size& size);
-
-	/** new_line() starts a new line.
-	 * If next_pos() has not been called since construction or last new_line(),
-	 * the row_height is still 0 and thus will add a D_V_SPAVE to the y position only.
-	 */
-	void new_line();
-
-	inline scr_coord_val get_row_height() const { return row_height; }
-	inline const scr_coord& get_pos() const { return cursor; }
-};
-
 class loadsave_t;
 class karte_ptr_t;
 class player_t;
@@ -78,14 +43,10 @@ public:
 private:
 
 	const char *name;
-	scr_size size;
+	scr_size windowsize; ///< Size of the whole window (possibly with title bar)
+	scr_size min_windowsize; ///< min size of the whole window
 
-	/**
-	 * Min. size of the window
-	 */
-	scr_size min_windowsize;
-
-	resize_modes resize_mode; // 25-may-02  markus weber added
+	resize_modes resize_mode;
 	const player_t *owner;
 
 	// set true for total redraw
@@ -116,8 +77,7 @@ protected:
 
 public:
 	/**
-	 s et_*
-	 * @param name, Window title
+	 * @param name Window title
 	 * @param player owner for color
 	 */
 	gui_frame_t(const char *name, const player_t *player=NULL);
@@ -151,7 +111,7 @@ public:
 	/**
 	 * @return gets the window sizes
 	 */
-	scr_size get_windowsize() const { return size; }
+	scr_size get_windowsize() const { return windowsize; }
 
 protected:
 	/**
@@ -162,7 +122,7 @@ protected:
 	/**
 	 * Set minimum size of the window
 	 */
-	void set_min_windowsize(scr_size size) { min_windowsize = size; }
+	void set_min_windowsize(scr_size new_size) { min_windowsize = new_size; }
 
 	/**
 	 * Set minimum window size to minimum size of container.
@@ -179,7 +139,7 @@ public:
 	 * @return the usable width and height of the window
 	*/
 	scr_size get_client_windowsize() const {
-		return size - scr_size(0, ( has_title()*D_TITLEBAR_HEIGHT ) );
+		return windowsize - scr_size(0, ( has_title()*D_TITLEBAR_HEIGHT ) );
 	}
 
 	/**
@@ -187,12 +147,6 @@ public:
 	 * @return the filename for the helptext, or NULL
 	 */
 	virtual const char * get_help_filename() const {return NULL;}
-
-	/**
-	 * Does this window need a min size button in the title bar?
-	 * @return true if such a button is needed
-	 */
-	virtual bool has_min_sizer() const {return false;}
 
 	/**
 	 * Does this window need a next button in the title bar?
@@ -235,7 +189,7 @@ public:
 	/**
 	 * Get resize mode
 	 */
-	resize_modes get_resizemode() { return resize_mode; }
+	resize_modes get_resizemode() const { return resize_mode; }
 
 	/**
 	 * Returns true, if inside window area.

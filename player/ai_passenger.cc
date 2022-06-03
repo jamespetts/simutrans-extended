@@ -26,7 +26,7 @@
 #include "../utils/simrandom.h"
 #include "../utils/simstring.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 #include "ai_passenger.h"
 #include "finance.h"
@@ -574,14 +574,14 @@ halthandle_t ai_passenger_t::build_airport(const stadt_t* city, koord pos, int r
 	// now the airstops (only on single tiles, this will always work
 	const building_desc_t* airstop_desc = hausbauer_t::get_random_station(building_desc_t::generic_stop, air_wt, welt->get_timeline_year_month(), 0 );
 	for(  int i=0;  i<4;  i++  ) {
-		if(  shortest_distance(center+koord::nsew[i],bushalt)==1  &&  ribi_t::is_single( welt->lookup_kartenboden(center+koord::nsew[i])->get_weg_ribi_unmasked(air_wt) )  ) {
-			call_general_tool( TOOL_BUILD_STATION, center+koord::nsew[i], airstop_desc->get_name() );
+		if(  shortest_distance(center+koord::nesw[i],bushalt)==1  &&  ribi_t::is_single( welt->lookup_kartenboden(center+koord::nesw[i])->get_weg_ribi_unmasked(air_wt) )  ) {
+			call_general_tool( TOOL_BUILD_STATION, center+koord::nesw[i], airstop_desc->get_name() );
 		}
 	}
 	// and now the one far away ...
 	for(  int i=0;  i<4;  i++  ) {
-		if(  shortest_distance(center+koord::nsew[i],bushalt)>1  &&  ribi_t::is_single( welt->lookup_kartenboden(center+koord::nsew[i])->get_weg_ribi_unmasked(air_wt) )  ) {
-			call_general_tool( TOOL_BUILD_STATION, center+koord::nsew[i], airstop_desc->get_name() );
+		if(  shortest_distance(center+koord::nesw[i],bushalt)>1  &&  ribi_t::is_single( welt->lookup_kartenboden(center+koord::nesw[i])->get_weg_ribi_unmasked(air_wt) )  ) {
+			call_general_tool( TOOL_BUILD_STATION, center+koord::nesw[i], airstop_desc->get_name() );
 		}
 	}
 	// success
@@ -828,13 +828,13 @@ void ai_passenger_t::walk_city(linehandle_t const line, grund_t* const start, in
 	for(int r=0; r<4; r++) {
 
 		// a way in our direction?
-		if(  (ribi & ribi_t::nsew[r])==0  ) {
+		if(  (ribi & ribi_t::nesw[r])==0  ) {
 			continue;
 		}
 
 		// ok, if connected, not marked, and not owner by somebody else
 		grund_t *to;
-		if(  start->get_neighbour(to, road_wt, ribi_t::nsew[r] )  &&  !marker->is_marked(to)  &&  check_owner(to->obj_bei(0)->get_owner(),this)  ) {
+		if(  start->get_neighbour(to, road_wt, ribi_t::nesw[r] )  &&  !marker->is_marked(to)  &&  check_owner(to->obj_bei(0)->get_owner(),this)  ) {
 
 			// ok, here is a valid street tile
 			marker->mark(to);
@@ -855,9 +855,9 @@ void ai_passenger_t::walk_city(linehandle_t const line, grund_t* const start, in
 							for( uint8 own=0;  own<pl->get_haltlist_count();  own++  ) {
 								if(  hl[own].halt->is_enabled(goods_manager_t::INDEX_PAS)  ) {
 									// our stop => nothing to do
-#if AUTOJOIN_PUBLIC
+#ifdef AUTOJOIN_PUBLIC
 									// we leave also public stops alone
-									if(  hl[own].halt->get_owner()==this  ||  hl[own]->get_owner()==welt->get_public_player()  ) {
+									if(  hl[own].halt->get_owner()==this  ||  hl[own].halt->get_owner()==welt->get_public_player()  ) {
 #else
 									if(  hl[own].halt->get_owner()==this  ) {
 #endif
@@ -973,25 +973,32 @@ void ai_passenger_t::step()
 			int count = staedte.get_count();
 			int offset = (count>1) ? simrand(count-1, "ai_passenger_t::step()") : 0;
 			// start with previous target
-			const stadt_t* last_start_stadt=start_stadt;
+			const stadt_t* last_start_stadt = start_stadt;
 			start_stadt = end_stadt;
 			end_stadt = NULL;
 			end_attraction = NULL;
 			ziel = NULL;
 			platz2 = koord::invalid;
+
 			// if no previous town => find one
 			if(start_stadt==NULL) {
+				if (staedte.empty()) {
+					return;
+				}
+
 				// larger start town preferred
 				start_stadt = pick_any_weighted(staedte);
 				offset = staedte.index_of(start_stadt);
 			}
+
 DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using city %s for start",start_stadt->get_name());
 			const halthandle_t start_halt = get_our_hub(start_stadt);
 			// find starting place
 
-if(!start_halt.is_bound()) {
-	DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","new_hub");
-}
+			if(!start_halt.is_bound()) {
+				DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","new_hub");
+			}
+
 			platz1 = start_halt.is_bound() ? start_halt->get_basis_pos() : find_place_for_hub( start_stadt );
 			if(platz1==koord::invalid) {
 				return;
@@ -1003,12 +1010,13 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","searching attraction");
 				// 25 % of all connections are tourist attractions
 				const weighted_vector_tpl<gebaeude_t*> &world_attractions = welt->get_attractions();
 				// this way, we are sure, our factory is connected to this town ...
-				unsigned	last_dist = 0xFFFFFFFF;
-				bool ausflug=simrand(2, "ai_passenger_t::step()")!=0;	// holidays first ...
+				unsigned last_dist = 0xFFFFFFFF;
+				bool ausflug=simrand(2, "ai_passenger_t::step()")!=0; // holidays first ...
 				int ziel_count=ausflug;
 				for( int i=0;  i<ziel_count;  i++  ) {
-					unsigned	dist;
+					unsigned dist;
 					koord pos, size;
+
 					if(ausflug) {
 						const gebaeude_t* a = world_attractions[i];
 						if (a->get_adjusted_mail_demand() <= 25) {
@@ -1140,7 +1148,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 		// built a simple road (no bridges, no tunnels)
 		case NR_BAUE_STRASSEN_ROUTE:
 		{
-			state = NR_BAUE_WATER_ROUTE;	// assume failure
+			state = NR_BAUE_WATER_ROUTE; // assume failure
 			if(  !ai_t::road_transport  ) {
 				// no overland bus lines
 				break;
@@ -1329,8 +1337,8 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 				}
 				// next: check for stuck convois ...
 
-				sint64	free_cap = line->get_finance_history(0,LINE_CAPACITY);
-				sint64	used_cap = line->get_finance_history(0,LINE_TRANSPORTED_GOODS);
+				sint64 free_cap = line->get_finance_history(0,LINE_CAPACITY);
+				sint64 used_cap = line->get_finance_history(0,LINE_PAX_DISTANCE);
 
 				if(free_cap+used_cap==0) {
 					continue;
@@ -1366,7 +1374,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 		break;
 
 		default:
-			DBG_MESSAGE("ai_passenger_t::do_passenger_ki()",	"Illegal state %d!", state );
+			DBG_MESSAGE("ai_passenger_t::do_passenger_ki()", "Illegal state %d!", state );
 			end_stadt = NULL;
 			state = NR_INIT;
 	}
@@ -1376,7 +1384,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 
 void ai_passenger_t::rdwr(loadsave_t *file)
 {
-	if(  file->get_version_int()<102002  ) {
+	if(  file->is_version_less(102, 2)  ) {
 		// due to an error the player was never saved correctly
 		player_t::rdwr(file);
 		return;
@@ -1387,7 +1395,7 @@ void ai_passenger_t::rdwr(loadsave_t *file)
 	ai_t::rdwr(file);
 
 	// then check, if we have to do something or the game is too old ...
-	if(file->get_version_int()<101000) {
+	if(file->is_version_less(101, 0)) {
 		// ignore saving, reinit on loading
 		if(  file->is_loading()  ) {
 			next_construction_steps = welt->get_steps()+simrand(ai_t::construction_speed, "ai_passenger_t::rdwr()");
@@ -1397,7 +1405,7 @@ void ai_passenger_t::rdwr(loadsave_t *file)
 
 	// now save current state ...
 	file->rdwr_enum(state);
-	if(  file->get_version_int()<111001  ) {
+	if(  file->is_version_less(111, 1)  ) {
 		file->rdwr_long(ai_t::construction_speed);
 		file->rdwr_bool(air_transport);
 		file->rdwr_bool(ship_transport);
@@ -1456,7 +1464,7 @@ void ai_passenger_t::report_vehicle_problem(convoihandle_t cnv,const koord3d zie
 }
 
 
-void ai_passenger_t::load_finished()
+void ai_passenger_t::finish_rd()
 {
 	road_vehicle = vehicle_search( road_wt, 50, 80, goods_manager_t::passengers, false);
 	if (road_vehicle == NULL) {

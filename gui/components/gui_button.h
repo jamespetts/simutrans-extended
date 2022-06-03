@@ -37,20 +37,43 @@ public:
 	 * flexible:      flag, can be set to box, square to get infinitely enlarging buttons
 	 */
 	enum type {
-		square=1, box, roundbox, arrowleft, arrowright, arrowup, arrowdown, repeatarrowleft, repeatarrowright, posbutton,
-		TYPE_MASK = 127,
-		state = 128,
-		square_state     = square | state,
-		box_state        = box | state,
-		roundbox_state   = roundbox | state,
+		square = 1,
+		box,
+		roundbox,
+		roundbox_left,
+		roundbox_middle,
+		roundbox_right,
+		imagebox,
+		sortarrow,
+		arrowleft,
+		arrowright,
+		arrowup,
+		arrowdown,
+		posbutton,
+		repeatarrowleft,
+		repeatarrowright,
+		TYPE_MASK = (1 << 6) - 1,
+
+		state            = 1 << 6,
+		square_state     = square     | state,
+		box_state        = box        | state,
+		roundbox_state   = roundbox   | state,
+		roundbox_left_state   = roundbox_left   | state,
+		roundbox_middle_state = roundbox_middle | state,
+		roundbox_right_state  = roundbox_right  | state,
+		imagebox_state   = imagebox   | state,
+		sortarrow_state  = sortarrow  | state,
 		arrowright_state = arrowright | state,
-		arrowup_state    = arrowup | state,
-		arrowdown_state  = arrowdown | state,
-		automatic = 256,
+		arrowup_state    = arrowup    | state,
+		arrowdown_state  = arrowdown  | state,
+		automatic = 1<<7,
 		square_automatic    = square_state | automatic,
-		box_state_automatic = box_state | automatic,
-		posbutton_automatic = posbutton | automatic,
-		flexible = 512
+		box_state_automatic = box_state    | automatic,
+		imagebox_automatic  = imagebox     | automatic,
+		sortarrow_automatic = sortarrow    | automatic,
+		posbutton_automatic = posbutton    | automatic,
+
+		flexible = 1 << 9
 	};
 
 protected:
@@ -79,10 +102,16 @@ private:
 	 * direct access provided to avoid translations
 	 */
 	const char *text;
-
 	const char *translated_text;
 
-	koord3d targetpos;
+	union {
+		koord3d targetpos;
+		image_id img;
+		uint32 button_click_time;
+	};
+
+	bool img_on_right=false;
+
 	// any click will go to this world
 	static karte_ptr_t welt;
 
@@ -92,14 +121,11 @@ private:
 	button_t(const button_t&);        // forbidden
 	void operator =(const button_t&); // forbidden
 
-	image_id image;
-
 public:
 	PIXVAL background_color;
 	PIXVAL text_color;
 
 	bool pressed;
-	scr_coord_val text_offset_x;
 
 	button_t();
 
@@ -124,6 +150,12 @@ public:
 	void set_targetpos( const koord k ); // assuming this is on map ground
 	void set_targetpos3d( const koord3d k ) { targetpos = k; }
 
+	// relevant for imagebox, box and roundbox
+	void set_image(image_id id) { img = id; }
+	// Currently can only choose between the left and right edges,
+	// but in the future we could add options such as just to the left of the text.
+	void set_image_position_right(bool on_right) { img_on_right = on_right; }
+
 	/**
 	 * Set the displayed text of the button when not to translate
 	 */
@@ -133,8 +165,6 @@ public:
 	 * Sets the tooltip of this button
 	 */
 	void set_tooltip(const char * tooltip);
-
-	void set_image(image_id b) { image = b; };
 
 	/**
 	 * @return true when x, y is within button area, i.e. the button was clicked

@@ -28,7 +28,7 @@
 #include "skin_reader.h"
 #include "tree_reader.h"
 #include "vehicle_reader.h"
-
+#include "pier_reader.h"
 
 /**
  * static data
@@ -83,3 +83,4 @@ citycar_reader_t citycar_reader_t::the_instance;
 pedestrian_reader_t pedestrian_reader_t::the_instance;
 
 tree_reader_t tree_reader_t::the_instance;
+pier_reader_t pier_reader_t::the_instance;

@@ -8,7 +8,7 @@
 /** @file api_const.cc exports constants */
 
 #include "../api_param.h"
-#include "../../simobj.h"
+#include "../../obj/simobj.h"
 #include "../../simmenu.h"
 
 using namespace script_api;
@@ -218,7 +218,7 @@ void export_global_constants(HSQUIRRELVM vm)
 	/// way object (overhead wires)
 	enum_slot(vm, "mo_wayobj", obj_t::wayobj);
 	/// way
-	enum_slot(vm, "mo_way", obj_t::way	);
+	enum_slot(vm, "mo_way", obj_t::way);
 	/// text label
 	enum_slot(vm, "mo_label", obj_t::label);
 	/// field

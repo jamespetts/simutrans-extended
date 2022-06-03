@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "../simworld.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../player/simplay.h"
 #include "../boden/grund.h"
 #include "../display/simimg.h"
@@ -123,8 +123,7 @@ void tunnel_t::calc_image()
 			}
 		}
 	}
-	else
-	{
+	else {
 		set_image( IMG_EMPTY );
 		set_after_image( IMG_EMPTY );
 	}
@@ -139,7 +138,7 @@ void tunnel_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t t( file, "tunnel_t" );
 	obj_t::rdwr(file);
-	if(  file->get_version_int() >= 99001 ) {
+	if(  file->is_version_atleast(99, 1) ) {
 		char  buf[256];
 		if(  file->is_loading()  ) {
 			file->rdwr_str(buf, lengthof(buf));
@@ -185,7 +184,7 @@ void tunnel_t::finish_rd()
 		}
 	}
 
-	if (player) {
+	if(player) {
 		// change maintenance
 		weg_t *weg = gr->get_weg(desc->get_waytype());
 		if(weg) {
@@ -212,7 +211,7 @@ void tunnel_t::finish_rd()
 		if(lt) {
 			player_t::add_maintenance( player, -lt->get_desc()->get_maintenance(), powerline_wt );
 		}
-		player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype() );
+		player_t::add_maintenance( player,  tunnel_builder_t::get_total_maintenance(get_pos(),desc), desc->get_finance_waytype() );
 	}
 }
 
@@ -273,7 +272,7 @@ void tunnel_t::set_after_image( image_id b )
 // players can remove public owned ways
 const char *tunnel_t::is_deletable(const player_t *player)
 {
-	if (get_player_nr()==1) {
+	if (get_owner_nr()==PUBLIC_PLAYER_NR) {
 		return NULL;
 	}
 	else {
@@ -305,4 +304,8 @@ void tunnel_t::set_desc(const tunnel_desc_t *_desc)
 		maint /= 14;
 	}
 	player_t::add_maintenance(get_owner(), maint, get_desc()->get_finance_waytype());
+}
+
+bool tunnel_t::get_is_half_height() const{
+	return desc->get_is_half_height();
 }

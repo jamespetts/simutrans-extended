@@ -37,13 +37,12 @@ void kanal_t::rdwr(loadsave_t *file)
 {
 	weg_t::rdwr(file);
 
-	if(file->get_version_int() <= 87000) {
+	if(file->is_version_less(87, 1)) {
 		set_desc(default_kanal);
 		return;
 	}
 
-	if(file->is_saving())
-	{
+	if(file->is_saving()) {
 		const char *s = get_desc()->get_name();
 		file->rdwr_str(s);
 		if(file->get_extended_version() >= 12)
@@ -52,8 +51,7 @@ void kanal_t::rdwr(loadsave_t *file)
 			file->rdwr_str(s);
 		}
 	}
-	else
-	{
+	else {
 		char bname[128];
 		file->rdwr_str(bname, lengthof(bname));
 		const way_desc_t *desc = way_builder_t::get_desc(bname);
@@ -74,9 +72,12 @@ void kanal_t::rdwr(loadsave_t *file)
 			desc = way_builder_t::get_desc(translator::compatibility_name(bname));
 			if(desc==NULL) {
 				desc = default_kanal;
+				if (desc == NULL) {
+					dbg->fatal("kanal_t::rdwr", "Trying to load canal but pakset has no water ways!");
+				}
 				welt->add_missing_paks( bname, karte_t::MISSING_WAY );
 			}
-			dbg->warning("kanal_t::rdwr()", "Unknown channel %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
+			dbg->warning("kanal_t::rdwr()", "Unknown canal '%s' replaced by '%s' (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);

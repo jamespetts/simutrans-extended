@@ -18,10 +18,10 @@ void marker_t::init(int world_size_x, int world_size_y)
 	cached_size_x = world_size_x;
 	int new_bits_length = (world_size_x*world_size_y + bit_mask) / (bit_unit);
 
-	if (bits_length != new_bits_length) {
+	if( bits_length != new_bits_length  ) {
 		bits_length = new_bits_length;
-		delete[] bits;
-		if (bits_length) {
+		delete [] bits;
+		if(bits_length) {
 			bits = new unsigned char[bits_length];
 		}
 		else {
@@ -53,7 +53,7 @@ marker_t& marker_t::instance(int world_size_x, int world_size_y, uint32 thread_n
 
 marker_t::~marker_t()
 {
-	delete[] bits;
+	delete [] bits;
 }
 
 void marker_t::unmark_all()

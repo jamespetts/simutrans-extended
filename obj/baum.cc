@@ -3,367 +3,175 @@
  * (see LICENSE.txt)
  */
 
-#include <string>
-#include <stdio.h>
-#include <math.h>
+#include "baum.h"
 
-#include "../simdebug.h"
-#include "../simworld.h"
-#include "../simobj.h"
-#include "../display/simimg.h"
-#include "../player/simplay.h"
-#include "../simtypes.h"
-#include "../simloadingscreen.h"
+#include "groundobj.h"
 
 #include "../boden/grund.h"
-
+#include "../dataobj/environment.h"
+#include "../dataobj/freelist.h"
+#include "../dataobj/loadsave.h"
+#include "../dataobj/translator.h"
 #include "../descriptor/tree_desc.h"
-
-#include "../obj/groundobj.h"
-
+#include "../display/simimg.h"
+#include "../player/simplay.h"
+#include "../simdebug.h"
+#include "../simtypes.h"
+#include "../simworld.h"
 #include "../utils/cbuffer_t.h"
 #include "../utils/simrandom.h"
 
-#include "../dataobj/loadsave.h"
-#include "../dataobj/translator.h"
-#include "../dataobj/environment.h"
-#include "../dataobj/freelist.h"
+#include <cmath>
+#include <cstdio>
+#include <string>
+#include "../gui/slim_obj_info.h"
+#include "../gui/simwin.h"
 
-
-#include "baum.h"
-
-static const uint8 tree_age_index[12] =
-{
-	0,1,2,3,3,3,3,3,3,4,4,4
-};
 
 FLAGGED_PIXVAL baum_t::outline_color = 0;
 
-// quick lookup of an image, assuring always five seasons and five ages
-// missing images just have just identical entries
-// seasons are: 0=summer, 1=autumn, 2=winter, 3=spring, 4=snow
-// snow image is used if tree is above snow line, or for arctic climate
-static image_id tree_id_to_image[256][5*5];
 
-
-// distributes trees on a map
-void baum_t::distribute_trees(int density)
+baum_t::baum_t(loadsave_t *file) :
+#ifdef INLINE_OBJ_TYPE
+	obj_t(obj_t::baum),
+#endif
+	geburt(welt->get_current_month()),
+	tree_id(0),
+	season(0)
 {
-	// now we can proceed to tree planting routine itself
-	// best forests results are produced if forest size is tied to map size -
-	// but there is some nonlinearity to ensure good forests on small maps
-	settings_t const& s             = welt->get_settings();
-	sint32     const  x             = welt->get_size().x;
-	sint32     const  y             = welt->get_size().y;
-	unsigned   const t_forest_size  = (unsigned)pow(((double)x * (double)y), 0.25) * s.get_forest_base_size() / 11 + (x + y) / (2 * s.get_forest_map_size_divisor());
-	uint8      const c_forest_count = (unsigned)pow(((double)x * (double)y), 0.5)  / s.get_forest_count_divisor();
-
-DBG_MESSAGE("verteile_baeume()","creating %i forest",c_forest_count);
-	loadingscreen_t ls(translator::translate("Placing trees"),c_forest_count, true, true);
-	for (uint8 c1 = 0 ; c1 < c_forest_count ; c1++) {
-		// to have same execution order for simrand
-		koord const start = koord::koord_random(x, y);
-		koord const size  = koord(t_forest_size,t_forest_size) + koord::koord_random(t_forest_size, t_forest_size);
-		create_forest( start, size );
-		ls.set_progress( c1+1 );
-	}
-
-	fill_trees(density);
+	rdwr(file);
 }
 
 
-/*************************** first the static function for the baum_t and tree_desc_t administration ***************/
-
-/*
- * Diese Tabelle ermoeglicht das Auffinden dient zur Auswahl eines Baumtypen
- */
-vector_tpl<const tree_desc_t *> baum_t::tree_list(0);
-
-// index vector into tree_idn, accessible per climate
-weighted_vector_tpl<uint32>* baum_t::tree_list_per_climate = NULL;
-
-/*
- * Diese Tabelle ermoeglicht das Auffinden einer Description durch ihren Namen
- */
-stringhashtable_tpl<const tree_desc_t *> baum_t::desc_names;
-
-
-// total number of trees
-// the same for a certain climate
-int baum_t::get_count(climate cl)
+baum_t::baum_t(koord3d pos) :
+#ifdef INLINE_OBJ_TYPE
+	obj_t(obj_t::baum, pos),
+#else
+	obj_t(pos),
+#endif
+	geburt(welt->get_current_month() - simrand(baum_t::AGE_LIMIT-1)), // generate aged trees, might underflow
+	season(0)
 {
-	return tree_list_per_climate[cl].get_count();
+	tree_id = (uint8)tree_builder_t::random_tree_id_for_climate( welt->get_climate( pos.get_2d() ) );
+
+	calc_off( welt->lookup( get_pos())->get_grund_hang() );
+	calc_image();
 }
 
 
-/**
- * tree planting function - it takes care of checking suitability of area
- */
-uint8 baum_t::plant_tree_on_coordinate(koord pos, const uint8 maximum_count, const uint8 count)
+baum_t::baum_t(koord3d pos, uint8 type, sint32 age, uint8 slope ) :
+#ifdef INLINE_OBJ_TYPE
+	obj_t(obj_t::baum, pos),
+#else
+	obj_t(pos),
+#endif
+	geburt(welt->get_current_month() - age), // might underflow
+	tree_id(type),
+	season(0)
 {
-	grund_t * gr = welt->lookup_kartenboden(pos);
-	if(  gr  ) {
-		if(  get_count( welt->get_climate(pos) ) > 0  &&  gr->ist_natur()  &&  gr->get_top() < maximum_count  ) {
-			obj_t *obj = gr->obj_bei(0);
-			if(obj) {
-				switch(obj->get_typ()) {
-					case obj_t::wolke:
-					case obj_t::air_vehicle:
-					case obj_t::baum:
-					case obj_t::leitung:
-					case obj_t::label:
-					case obj_t::zeiger:
-						// ok to built here
-						break;
-					case obj_t::groundobj:
-						if(((groundobj_t *)obj)->get_desc()->can_build_trees_here()) {
-							break;
-						}
-						/* FALLTHROUGH */
-						// leave these (and all other empty)
-					default:
-						return 0;
-				}
-			}
-			const uint8 count_planted = min( maximum_count - gr->get_top(), count);
-			for (uint8 i=0; i<count_planted; i++) {
-				gr->obj_add( new baum_t(gr->get_pos()) ); //plants the tree(s)
-			}
-			return count_planted;
+	calc_off( slope );
+	calc_image();
+}
+
+
+baum_t::baum_t(koord3d pos, const tree_desc_t *desc) :
+#ifdef INLINE_OBJ_TYPE
+	obj_t(obj_t::baum, pos),
+#else
+	obj_t(pos),
+#endif
+	geburt(welt->get_current_month()),
+	tree_id(tree_builder_t::get_id_by_desc(desc)),
+	season(0)
+{
+
+	calc_off( welt->lookup( get_pos())->get_grund_hang() );
+	calc_image();
+}
+
+
+void baum_t::rdwr(loadsave_t *file)
+{
+	xml_tag_t d( file, "baum_t" );
+
+	obj_t::rdwr(file);
+
+	sint32 alter = (welt->get_current_month() - geburt)<<18;
+	file->rdwr_long(alter);
+
+	// after loading, calculate new
+	geburt = welt->get_current_month() - (alter>>18);
+
+	if(file->is_loading()) {
+		char buf[128];
+		file->rdwr_str(buf, lengthof(buf));
+
+		const tree_desc_t *desc = tree_builder_t::get_desc_by_name( buf );
+		if(  !desc  ) {
+			desc = tree_builder_t::get_desc_by_name( translator::compatibility_name(buf) );
+		}
+
+		if(  desc  ) {
+			tree_id = tree_builder_t::get_id_by_desc( desc );
+		}
+		else {
+			// not a tree
+			tree_id = tree_builder_t::get_num_trees();
 		}
 	}
-	return 0;
+	else {
+		const char *c = get_desc()->get_name();
+		file->rdwr_str(c);
+	}
+
+	// z-offset
+	if(file->is_version_atleast(111, 1)) {
+		uint8 zoff_ = zoff;
+		file->rdwr_byte(zoff_);
+		zoff = zoff_;
+	}
+	else {
+		// correct z-offset
+		if(file->is_loading()) {
+			// this will trigger recalculation of offset in finish_rd()
+			// we cant call calc_off() since this->pos is still invalid
+			set_xoff(-128);
+		}
+
+	}
 }
 
 
-/**
- * tree planting function - it takes care of checking suitability of area
- */
-bool baum_t::plant_tree_on_coordinate(koord pos, const tree_desc_t *desc, const bool check_climate, const bool random_age )
+void baum_t::finish_rd()
 {
-	// none there
-	if(  desc_names.empty()  ) {
-		return false;
+	if(get_xoff()==-128) {
+		calc_off(welt->lookup( get_pos())->get_grund_hang());
 	}
-	grund_t *gr = welt->lookup_kartenboden(pos);
-	if(  gr  ) {
-		if(  gr->ist_natur()  &&  gr->get_top() < welt->get_settings().get_max_no_of_trees_on_square()  &&  (!check_climate  ||  desc->is_allowed_climate( welt->get_climate(pos) ))  ) {
-			if(  gr->get_top() > 0  ) {
-				switch(gr->obj_bei(0)->get_typ()) {
-					case obj_t::wolke:
-					case obj_t::air_vehicle:
-					case obj_t::baum:
-					case obj_t::leitung:
-					case obj_t::label:
-					case obj_t::zeiger:
-						// ok to build here
-						break;
+}
 
-					case obj_t::groundobj:
-						if(((groundobj_t *)(gr->obj_bei(0)))->get_desc()->can_build_trees_here()) {
-							break;
-						}
-						/* FALLTHROUGH */
-						// leave these (and all other empty)
 
-					default:
-						return false;
-				}
-			}
-			baum_t *b = new baum_t(gr->get_pos(), desc); //plants the tree
-			if(  random_age  ) {
-				b->purchase_time = welt->get_current_month() - simrand(TREE_MAX_RANDOM_AGE, "baum_t::plant_tree_on_coordinate");
-				b->calc_off( welt->lookup( b->get_pos() )->get_grund_hang() );
-			}
-			gr->obj_add( b );
-			return true; //tree was planted - currently unused value is not checked
+image_id baum_t::get_image() const
+{
+	if(  env_t::hide_trees  ) {
+		if(  env_t::hide_with_transparency  ) {
+			// we need the real age for transparency or real image
+			return IMG_EMPTY;
+		}
+		else {
+			return tree_builder_t::get_tree_image(tree_id, 0, season);
 		}
 	}
-	return false;
+
+	return tree_builder_t::get_tree_image(tree_id, get_age(), season);
+	//	return get_desc()->get_image_id( season, baum_alter );
 }
 
 
-uint32 baum_t::create_forest(koord new_center, koord size )
+// image which transparent outline is used
+image_id baum_t::get_outline_image() const
 {
-	// none there
-	if(  desc_names.empty()  ) {
-		return 0;
-	}
-	const sint16 xpos_f = new_center.x;
-	const sint16 ypos_f = new_center.y;
-	uint32 number_of_new_trees = 0;
-	for( sint16 j = 0; j < size.x; j++) {
-		for( sint16 i = 0; i < size.y; i++) {
-
-			const sint32 x_tree_pos = (j-(size.x>>1));
-			const sint32 y_tree_pos = (i-(size.y>>1));
-
-			const uint64 distance = 1 + sqrt_i64( ((uint64)x_tree_pos*x_tree_pos*(size.y*size.y) + (uint64)y_tree_pos*y_tree_pos*(size.x*size.x)));
-			const uint32 tree_probability = (uint32)( ( 8 * (uint32)((size.x*size.x)+(size.y*size.y)) ) / distance );
-
-			if (tree_probability < TREE_MIN_PROBABILITY) {
-				continue;
-			}
-
-			uint8 number_to_plant = 0;
-			uint8 const max_trees_here = min(welt->get_settings().get_max_no_of_trees_on_square(), (tree_probability - TREE_MIN_PROBABILITY + 1) / 2);
-			for (uint8 c2 = 0 ; c2<max_trees_here; c2++) {
-				const uint32 rating = simrand(10, "uint32 baum_t::create_forest") + TREE_MIN_PROBABILITY + c2*2;
-				if (rating < tree_probability ) {
-					number_to_plant++;
-				}
-			}
-
-			number_of_new_trees += baum_t::plant_tree_on_coordinate(koord((sint16)(xpos_f + x_tree_pos), (sint16)(ypos_f + y_tree_pos)), welt->get_settings().get_max_no_of_trees_on_square(), number_to_plant);
-		}
-	}
-	return number_of_new_trees;
-}
-
-
-void baum_t::fill_trees(int density)
-{
-	// none there
-	if(  desc_names.empty()  ) {
-		return;
-	}
-DBG_MESSAGE("verteile_baeume()","distributing single trees");
-	koord pos;
-	for(  pos.y=0;  pos.y<welt->get_size().y;  pos.y++  ) {
-		for(  pos.x=0;  pos.x<welt->get_size().x;  pos.x++  ) {
-			grund_t *gr = welt->lookup_kartenboden(pos);
-			if(gr->get_top() == 0  &&  gr->get_typ() == grund_t::boden)  {
-				// plant spare trees, (those with low preferred density) or in an entirely tree climate
-				uint16 cl = 1 << welt->get_climate(pos);
-				settings_t const& s = welt->get_settings();
-				if ((cl & s.get_no_tree_climates()) == 0 && ((cl & s.get_tree_climates()) != 0 || simrand(s.get_forest_inverse_spare_tree_density() * density, "baum_t::fill_trees()") < 100)) {
-					plant_tree_on_coordinate(pos, 1, 1);
-				}
-			}
-		}
-	}
-}
-
-
-static bool compare_tree_desc(const tree_desc_t* a, const tree_desc_t* b)
-{
-	// same level - we do an artificial but unique sorting by (untranslated) name
-	return strcmp(a->get_name(), b->get_name())<0;
-}
-
-
-bool baum_t::successfully_loaded()
-{
-	if(  desc_names.empty()  ) {
-		DBG_MESSAGE("baum_t", "No trees found - feature disabled");
-	}
-
-	FOR(stringhashtable_tpl<tree_desc_t const*>, const& i, desc_names) {
-		tree_list.insert_ordered(i.value, compare_tree_desc);
-		if(  tree_list.get_count()==255  ) {
-			dbg->error( "baum_t::successfully_loaded()", "Maximum tree count exceeded! (max 255 instead of %i)", desc_names.get_count() );
-			break;
-		}
-	}
-	tree_list.append( NULL );
-
-	delete [] tree_list_per_climate;
-	tree_list_per_climate = new weighted_vector_tpl<uint32>[MAX_CLIMATES];
-
-	// clear cache
-	memset( tree_id_to_image, -1, sizeof(tree_id_to_image) );
-	// now register all trees for all fitting climates
-	for(  uint32 typ=0;  typ<tree_list.get_count()-1;  typ++  ) {
-		// add this tree to climates
-		for(  uint8 j=0;  j<MAX_CLIMATES;  j++  ) {
-			if(  tree_list[typ]->is_allowed_climate((climate)j)  ) {
-				tree_list_per_climate[j].append(typ, tree_list[typ]->get_distribution_weight());
-			}
-		}
-		// create cache images
-		for(  uint8 season = 0;  season < 5;  season++  ) {
-			uint8 use_season = 0;
-			const sint16 seasons = tree_list[typ]->get_seasons();
-			if(  seasons > 1  ) {
-				use_season = season;
-				// three possibilities
-				if(  seasons < 4  ) {
-					// only summer and winter => season 4 with winter image
-					use_season = (season == 4);
-				}
-				else if(  seasons == 4  ) {
-					// all there, but the snowy special image missing
-					if(  season == 4  ) {
-						// take spring image (gave best results with pak64, pak.german) ////// but season 2 is winter????
-						use_season = 2;
-					}
-				}
-			}
-			for(  uint8 age = 0;  age < 5;  age++  ) {
-				tree_id_to_image[typ][season * 5 + age] = tree_list[typ]->get_image_id( use_season, age );
-			}
-		}
-	}
-	return true;
-}
-
-
-bool baum_t::register_desc(tree_desc_t *desc)
-{
-	// avoid duplicates with same name
-	if(  desc_names.remove(desc->get_name())  ) {
-		dbg->doubled( "baum_t", desc->get_name() );
-	}
-	desc_names.put(desc->get_name(), desc );
-	return true;
-}
-
-
-// calculates tree position on a tile
-// takes care of slopes
-void baum_t::calc_off(uint8 slope, sint8 x_, sint8 y_)
-{
-	sint16 random = (sint16)( get_pos().x + get_pos().y + get_pos().z + slope + (uint64)this );
-	// point on tile (imaginary origin at sw corner, x axis: north, y axis: east
-	sint16 x = x_==-128 ? (random + tree_id) & 31  : x_;
-	sint16 y = y_==-128 ? (random + get_age()) & 31 : y_;
-
-	// the last bit has to be the same
-	y = y ^ (x&1);
-
-	// bilinear interpolation of tile height
-	uint32 zoff_ = ((corner_ne(slope)*x*y + corner_nw(slope)*x*(32-y)
-	                 + corner_se(slope)*(32-x)*y + corner_sw(slope)*(32-x)*(32-y)) * TILE_HEIGHT_STEP) / (32*32);
-	// now zoff between 0 and TILE_HEIGHT_STEP-1
-	zoff = zoff_ < (uint32)TILE_HEIGHT_STEP ? zoff_ : TILE_HEIGHT_STEP-1u;
-
-	// xoff must be even
-	set_xoff( x + y - 32 );
-	set_yoff( (y - x)/2 - zoff);
-}
-
-
-void baum_t::recalc_off()
-{
-	// reconstruct position on tile
-	const sint8 xoff = get_xoff() + 32;       // = x+y
-	const sint8 yoff = 2*(get_yoff() + zoff); // = y-x
-	sint8 x = (xoff - yoff) / 2;
-	sint8 y = (xoff + yoff) / 2;
-	calc_off(welt->lookup( get_pos())->get_grund_hang(), x, y);
-}
-
-
-void baum_t::rotate90()
-{
-	// cant use obj_t::rotate90 to rotate offsets as it rotates them only if xoff!=0
-	sint8 old_yoff = get_yoff() + zoff;
-	sint8 old_xoff = get_xoff();
-	// rotate position
-	obj_t::rotate90();
-	// .. and the offsets
-	set_xoff( -2 * old_yoff );
-	set_yoff( old_xoff/2 - zoff);
+	return tree_builder_t::get_tree_image(tree_id, get_age(), season);
+	//	return get_desc()->get_image_id( season, baum_alter );
 }
 
 
@@ -384,126 +192,17 @@ void baum_t::calc_image()
 }
 
 
-image_id baum_t::get_image() const
+
+FLAGGED_PIXVAL baum_t::get_outline_colour() const
 {
-	if(  env_t::hide_trees  ) {
-		if(  env_t::hide_with_transparency  ) {
-			// we need the real age for transparency or real image
-			return IMG_EMPTY;
-		}
-		else {
-			return tree_id_to_image[ tree_id ][ season*5 ];
-		}
-	}
-	const uint8 baum_alter = tree_age_index[min(get_age()>>6, 11u)];
-	return tree_id_to_image[ tree_id ][ season*5 + baum_alter ];
-//	return get_desc()->get_image_id( season, baum_alter );
+	return outline_color;
 }
 
 
-// image which transparent outline is used
-image_id baum_t::get_outline_image() const
+void baum_t::recalc_outline_color()
 {
-	const uint8 baum_alter = tree_age_index[min(get_age()>>6, 11u)];
-	return tree_id_to_image[ tree_id ][ season*5 + baum_alter ];
-//	return get_desc()->get_image_id( season, baum_alter );
-}
-
-
-uint32 baum_t::get_age() const
-{
-	sint32 age = welt->get_current_month() - purchase_time;
-	if (age<0) {
-		// correct underflow, purchase_time is 16bit
-		age += 1 << 16;
-	}
-	return age;
-}
-
-
-/**
- * also checks for distribution values
- */
-uint8 baum_t::random_tree_for_climate_intern(climate cl)
-{
-	// now weight their distribution
-	weighted_vector_tpl<uint32> const& t = tree_list_per_climate[cl];
-	return !t.empty() ? pick_any_weighted(t) : invalid_tree_id;
-}
-
-
-baum_t::baum_t(loadsave_t *file) :
-#ifdef INLINE_OBJ_TYPE
-	obj_t(obj_t::baum)
-#else
-	obj_t()
-#endif
-{
-	season = 0;
-	purchase_time = welt->get_current_month();
-	tree_id = 0;
-	rdwr(file);
-}
-
-
-baum_t::baum_t(koord3d pos) :
-#ifdef INLINE_OBJ_TYPE
-	obj_t(obj_t::baum, pos)
-#else
-	obj_t(pos)
-#endif
-{
-	// generate aged trees
-	// might underflow
-	purchase_time = welt->get_current_month() - simrand(TREE_MAX_RANDOM_AGE, "baum_t::baum_t");
-	tree_id = (uint8)random_tree_for_climate_intern( welt->get_climate(pos.get_2d()) );
-	season = 0;
-	calc_off( welt->lookup( get_pos())->get_grund_hang() );
-	calc_image();
-}
-
-
-baum_t::baum_t(koord3d pos, uint8 type, sint32 age, uint8 slope ) :
-#ifdef INLINE_OBJ_TYPE
-	obj_t(obj_t::baum, pos)
-#else
-	obj_t(pos)
-#endif
-{
-	purchase_time = welt->get_current_month()-age; // might underflow
-	tree_id = type;
-	season = 0;
-	calc_off( slope );
-	calc_image();
-}
-
-
-baum_t::baum_t(koord3d pos, const tree_desc_t *desc) :
-#ifdef INLINE_OBJ_TYPE
-	obj_t(obj_t::baum, pos)
-#else
-	obj_t(pos)
-#endif
-{
-	purchase_time = welt->get_current_month();
-	tree_id = tree_list.index_of(desc);
-	season = 0;
-	calc_off( welt->lookup( get_pos())->get_grund_hang() );
-	calc_image();
-}
-
-
-bool baum_t::plant_tree()
-{
-	// spawn a new tree in an area 3x3 tiles around
-	// the area for normal new tree planting is slightly more restricted, square of 9x9 was too much
-
-	// to have same execution order for simrand
-	const sint16 sx = simrand(5, "baum_t::plant_tree()")-2;
-	const sint16 sy = simrand(5, "baum_t::plant_tree()")-2;
-	const koord k = get_pos().get_2d() + koord(sx,sy);
-
-	return plant_tree_on_coordinate(k, tree_list[tree_id], true, false);
+	outline_color = (env_t::hide_trees  &&  env_t::hide_with_transparency) ?
+		(TRANSPARENT25_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_BLACK)) : 0;
 }
 
 
@@ -511,37 +210,39 @@ bool baum_t::plant_tree()
 bool baum_t::check_season(const bool)
 {
 	// take care of birth/death and seasons
-	sint32 age = (welt->get_current_month() - purchase_time);
+	sint32 age = (welt->get_current_month() - geburt);
 
-	// attention: integer underflow (purchase_time is 16bit, month 32bit);
+	// attention: integer underflow (geburt is 16bit, month 32bit);
 	while(  age < 0  ) {
 		age += 1 << 16;
 	}
 
-	if(  age >= 512  &&  age <= 515  ) {
+	if(  age >= baum_t::SPAWN_PERIOD_START  &&  age < baum_t::SPAWN_PERIOD_START + baum_t::SPAWN_PERIOD_LENGTH  ) {
 		// only in this month a tree can span new trees
 		// only 1-3 trees will be planted....
-		uint8 const c_plant_tree_max = 1 + simrand( welt->get_settings().get_max_no_of_trees_on_square(), "bool baum_t::check_season(const bool)" );
-		uint retrys = 0;
-		for(  uint8 c_temp = 0;  c_temp < c_plant_tree_max  &&  retrys < c_plant_tree_max;  c_temp++  ) {
-			if(  !plant_tree()  ) {
-				retrys++;
+		uint8 const c_plant_tree_max = 1 + simrand( welt->get_settings().get_max_no_of_trees_on_square() );
+		uint retries = 0;
+
+		for(  uint8 c_temp = 0;  c_temp < c_plant_tree_max  &&  retries < c_plant_tree_max;  c_temp++  ) {
+			if(  !tree_builder_t::spawn_tree_near(this)  ) {
+				retries++;
 				c_temp--;
 			}
 		}
+
 		// we make the tree four months older to avoid second spawning
-		purchase_time = purchase_time - 4;
+		geburt -= baum_t::SPAWN_PERIOD_LENGTH;
 	}
 
-	// tree will die after 704 month (i.e. 58 years 8 month)
-	if(  age >= 704  ) {
+	// tree will die after 704 months (i.e. 58 years 8 months)
+	if(  age >= baum_t::AGE_LIMIT  ) {
 		mark_image_dirty( get_image(), 0 );
 		return false;
 	}
 
 	// update seasonal image
 	const uint8 old_season = season;
- 	calc_image();
+	calc_image();
 	if(  season != old_season  ) {
 		mark_image_dirty( get_image(), 0 );
 	}
@@ -550,83 +251,68 @@ bool baum_t::check_season(const bool)
 }
 
 
-void baum_t::rdwr(loadsave_t *file)
+void baum_t::rotate90()
 {
-	xml_tag_t d( file, "baum_t" );
+	// cant use obj_t::rotate90 to rotate offsets as it rotates them only if xoff!=0
+	sint8 old_yoff = get_yoff() + zoff;
+	sint8 old_xoff = get_xoff();
 
-	obj_t::rdwr(file);
+	// rotate position
+	obj_t::rotate90();
 
-	sint32 alter = (welt->get_current_month() - purchase_time)<<18;
-	file->rdwr_long(alter);
-
-	// after loading, calculate new
-	purchase_time = welt->get_current_month() - (alter>>18);
-
-	if(file->is_loading()) {
-		char buf[128];
-		file->rdwr_str(buf, lengthof(buf));
-		const tree_desc_t *desc = desc_names.get(buf);
-		if (!tree_list.is_contained(desc)) {
-			desc = desc_names.get(translator::compatibility_name(buf));
-		}
-		if(  tree_list.is_contained(desc)  ) {
-			tree_id = tree_list.index_of( desc );
-		}
-		else {
-			// replace with random tree
-			tree_id = simrand(tree_list.get_count(), "baum_t::rdwr");
-		}
-	}
-	else {
-		const char *c = get_desc()->get_name();
-		file->rdwr_str(c);
-	}
-
-	// z-offset
-	if(file->get_version_int() > 111000) {
-		uint8 zoff_ = zoff;
-		file->rdwr_byte(zoff_);
-		zoff = zoff_;
-	}
-	else {
-		// correct z-offset
-		if(file->is_loading()) {
-			// this will trigger recalculation of offset in finish_rd()
-			// we cant call calc_off() since this->pos is still invalid
-			set_xoff(-128);
-		}
-	}
+	// .. and the offsets
+	set_xoff( -2 * old_yoff );
+	set_yoff( old_xoff/2 - zoff);
 }
 
 
-void baum_t::finish_rd()
+
+void baum_t::recalc_off()
 {
-	if(get_xoff()==-128) {
-		calc_off(welt->lookup( get_pos())->get_grund_hang());
-	}
+	// reconstruct position on tile
+	const sint8 xoff = get_xoff() + 32;       // = x+y
+	const sint8 yoff = 2*(get_yoff() + zoff); // = y-x
+	sint8 x = (xoff - yoff) / 2;
+	sint8 y = (xoff + yoff) / 2;
+
+	calc_off(welt->lookup( get_pos())->get_grund_hang(), x, y);
+}
+
+
+// calculates tree position on a tile
+// takes care of slopes
+void baum_t::calc_off(uint8 slope, sint8 x_, sint8 y_)
+{
+	const sint16 random = (sint16)( get_pos().x + get_pos().y + get_pos().z + slope + tree_id + geburt );
+
+	// point on tile (imaginary origin at sw corner, x axis: north, y axis: east
+	sint16 x = x_==-128 ? (random + tree_id) & 31  : x_;
+	sint16 y = y_==-128 ? (random + geburt) & 31 : y_;
+
+	// the last bit has to be the same
+	y ^= x&1;
+
+	// bilinear interpolation of tile height
+	const uint32 zoff_ =
+		((corner_ne(slope) * x      * y       +
+		  corner_nw(slope) * x      * (32-y)  +
+		  corner_se(slope) * (32-x) * y       +
+		  corner_sw(slope) * (32-x) * (32-y))
+		* TILE_HEIGHT_STEP) / (32*32);
+
+	// now zoff between 0 and TILE_HEIGHT_STEP-1
+	zoff = zoff_ < (uint32)TILE_HEIGHT_STEP ? zoff_ : TILE_HEIGHT_STEP-1u;
+
+	// xoff must be even
+	set_xoff( x + y - 32 );
+	set_yoff( (y - x)/2 - zoff);
 }
 
 
 void baum_t::show_info()
 {
 	if(env_t::tree_info) {
-		obj_t::show_info();
-	}
-}
-
-
-void baum_t::info(cbuffer_t & buf) const
-{
-	obj_t::info(buf);
-
-	buf.append( translator::translate(get_desc()->get_name()) );
-	buf.append( "\n" );
-	uint32 age = get_age();
-	buf.printf( translator::translate("%i years %i months old."), age/12, (age%12) );
-
-	if (char const* const maker = get_desc()->get_copyright()) {
-		buf.append("\n\n");
-		buf.printf(translator::translate("Constructed by %s"), maker);
+		create_win(new slim_obj_info_t(this), w_info, (ptrdiff_t)this);
 	}
 }
 
@@ -635,6 +321,17 @@ void baum_t::cleanup(player_t *player)
 {
 	player_t::book_construction_costs(player, welt->get_settings().cst_remove_tree, get_pos().get_2d(), ignore_wt);
 	mark_image_dirty( get_image(), 0 );
+}
+
+
+uint32 baum_t::get_age() const
+{
+	sint32 age = welt->get_current_month() - geburt;
+	if (age<0) {
+		// correct underflow, geburt is 16bit
+		age += 1 << 16;
+	}
+	return age;
 }
 
 

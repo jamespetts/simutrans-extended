@@ -19,12 +19,14 @@ class tunnel_reader_t : public obj_reader_t {
 	static void convert_old_tunnel(tunnel_desc_t *desc);
 
 protected:
-	void register_obj(obj_desc_t*&) OVERRIDE;
+	/// @copydoc obj_reader_t::register_obj
+	void register_obj(obj_desc_t *&desc) OVERRIDE;
 
 public:
 	static tunnel_reader_t*instance() { return &the_instance; }
 
-	obj_desc_t* read_node(FILE*, obj_node_info_t&) OVERRIDE;
+	/// @copydoc obj_reader_t::read_node
+	obj_desc_t *read_node(FILE *fp, obj_node_info_t &node) OVERRIDE;
 
 	obj_type get_type() const OVERRIDE { return obj_tunnel; }
 	char const* get_type_name() const OVERRIDE { return "tunnel"; }

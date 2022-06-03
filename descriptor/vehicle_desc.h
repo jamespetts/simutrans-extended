@@ -34,21 +34,21 @@ class checksum_t;
 /**
  * Vehicle type description - all attributes of a vehicle type
  *
- *  child nodes:
- *	0   Name
- *	1   Copyright
- *	2   freight
- *	3   smoke
- *	4   empty 1d image list (or 2d list if there are multiple liveries)
- *	5   either 1d (freight_image_type==0), 2d image list or 3d image list (if multiple liveries)
- *	6   required leading vehicle 1
- *	7   required leading vehicle 2
- *	... ...
- *	n+5 required leading vehicle n
- *	n+6 allowed trailing vehicle 1
- *	n+7 allowed trailing vehicle 2
- *	... ...
- *	n+m+5 allowed trailing vehicle m
+ * Child nodes:
+ *  0   Name
+ *  1   Copyright
+ *  2   freight
+ *  3   smoke
+ *  4   empty 1d image list (or 2d list if there are multiple liveries)
+ *  5   either 1d (freight_image_type==0), 2d image list or 3d image list (if multiple liveries)
+ *  6   required leading vehicle 1
+ *  7   required leading vehicle 2
+ * ... ...
+ *  n+5 required leading vehicle n
+ *  n+6 allowed trailing vehicle 1
+ *  n+7 allowed trailing vehicle 2
+ * ... ...
+ *  n+m+5 allowed trailing vehicle m
  *  n+m+6 freight for which special images are defined
  */
 class vehicle_desc_t : public obj_desc_transport_related_t {
@@ -61,7 +61,7 @@ public:
 	 */
 	enum engine_t : uint8 {
 		unknown = 0xFF,
-		steam = 0,
+		steam   = 0,
 		diesel,
 		electric,
 		bio,
@@ -73,36 +73,6 @@ public:
 		turbine,
 		MAX_TRACTION_TYPE
 	};
-
-	static const char* get_engine_type(engine_t e)
-	{
-		switch(e)
-		{
-		case unknown:
-		default:
-			return "unknown";
-		case steam:
-			return "steam";
-		case diesel:
-			return "diesel";
-		case electric:
-			return "electric";
-		case bio:
-			return "bio";
-		case sail:
-			return "sail";
-		case fuel_cell:
-			return "fuel_cell";
-		case hydrogene:
-			return "hydrogene";
-		case battery:
-			return "battery";
-		case petrol:
-			return "petrol";
-		case turbine:
-			return "turbine";
-		}
-	}
 
 	enum veh_basic_constraint_t {
 		cannot_be_at_end = 0,
@@ -116,45 +86,46 @@ public:
 	};
 
 private:
-	uint32 upgrade_price;			// Price if this vehicle is bought as an upgrade, not a new vehicle.
-	uint32 base_upgrade_price;		// Upgrade price (without scale factor)
-	uint16 *capacity;				// Payload (pointer to an array of capacities per class)
-	uint16 overcrowded_capacity;	// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
-	uint32 weight;					// Weight in kg
-	uint32 power;					// Power in kW
-	uint16 running_cost;			// Per kilometre cost
-	uint32 fixed_cost;				// Monthly cost @author: jamespetts, April 2009
-	uint32 base_fixed_cost;			// Monthly cost (without scale factor)
+	uint32 upgrade_price;         // Price if this vehicle is bought as an upgrade, not a new vehicle.
+	uint32 base_upgrade_price;    // Upgrade price (without scale factor)
+	uint16 *capacity;             // Payload (pointer to an array of capacities per class)
+	uint16 overcrowded_capacity;  // The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
+	uint32 weight;                // Weight in kg
+	uint32 power;                 // Power in kW
+	uint16 running_cost;          // Per kilometre cost
+	uint32 fixed_cost;            // Monthly cost @author: jamespetts, April 2009
+	uint32 base_fixed_cost;       // Monthly cost (without scale factor)
 
-	uint16 gear;					// engine gear (power multiplier), 64=100
+	uint16 gear;                  // engine gear (power multiplier), 64=100
 
-	uint8 len;						// length (=8 is half a tile, the old default)
+	uint8 len;                    // length (=8 is half a tile, the old default)
 	sint16 sound;
 
-	uint8 leader_count;				// all defined leading vehicles
-	uint8 trailer_count;			// all defined trailer
-	uint8 upgrades;					// The number of vehicles that are upgrades of this vehicle.
+	uint8 leader_count;           // all defined leading vehicles
+	uint8 trailer_count;          // all defined trailer
+	uint8 upgrades;               // The number of vehicles that are upgrades of this vehicle.
 
-	engine_t engine_type;			// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
+	engine_t engine_type;         // diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 
-	uint8 freight_image_type;		// number of freight images (displayed for different goods)
-	uint8 livery_image_type;		// Number of different liveries (@author: jamespetts, April 2011)
+	uint8 freight_image_type;     // number of freight images (displayed for different goods)
+	uint8 livery_image_type;      // Number of different liveries (@author: jamespetts, April 2011)
 
-	bool is_tilting;				// Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
+	bool is_tilting;              // Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
 
 	way_constraints_of_vehicle_t way_constraints;
 
-	uint8 catering_level;			// The level of catering. 0 for no catering. Higher numbers for better catering.
+	uint8 catering_level;            // The level of catering. 0 for no catering. Higher numbers for better catering.
 
-	bool bidirectional = false;		// Whether must always travel in one direction
-	bool can_lead_from_rear = false;	// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
-	bool can_be_at_rear = true;		// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
+	bool bidirectional = false;      // Whether must always travel in one direction
+	bool can_lead_from_rear = false; // Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
+	bool can_be_at_rear = true;      // Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
-	uint8 *comfort;					// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
+	uint8 *comfort;                  // How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
 
-	uint8 classes;					// The number of different classes that this vehicle accommodates
+	uint8 classes;                   // The number of different classes that this vehicle accommodates
+	uint8 accommodation_classes = 1; // total accommodations that this vehicle has
 
 	/** The time that the vehicle takes to load
 	  * in ticks. Min: if no passengers/goods
@@ -332,7 +303,7 @@ public:
 				const uint8 freight_images = freight_image_type == 255 ? 1 : freight_image_type;
 				for(uint8 i = 0; i < livery_image_type; i++)
 				{
-					if(!strcmp(livery_type, get_child<text_desc_t>(5 + trailer_count + leader_count + upgrades + freight_images + i)->get_text()))
+					if(!strcmp(livery_type, get_child<text_desc_t>(5 + trailer_count + leader_count + upgrades + accommodation_classes + freight_images + i)->get_text()))
 					{
 						livery_index = i;
 						break;
@@ -363,7 +334,7 @@ public:
 				// With the "default" livery, always select livery index 0
 				for(uint8 i = 0; i < livery_image_type; i++)
 				{
-					if(!strcmp(livery_type, get_child<text_desc_t>(6 + trailer_count + leader_count + upgrades + i)->get_text()))
+					if(!strcmp(livery_type, get_child<text_desc_t>(6 + trailer_count + leader_count + upgrades + accommodation_classes + i)->get_text()))
 					{
 						livery_index = i;
 						break;
@@ -389,12 +360,12 @@ public:
 			// Multiple freight images, single livery
 			// more freight images and a freight: find the right one
 
-			sint8 goods_index = 0; // freight images: if not found use first freight
+			sint8 goods_index=0; // freight images: if not found use first freight
 
 			for( uint8 i=0;  i<freight_image_type;  i++  )
 			{
 
-				if (ware == get_child<goods_desc_t>(6 + trailer_count + leader_count + upgrades + i))
+				if (ware == get_child<goods_desc_t>(6 + trailer_count + leader_count + upgrades + accommodation_classes + i))
 				{
 					goods_index = i;
 					break;
@@ -404,10 +375,8 @@ public:
 			// vehicle has freight images and we want to use - get appropriate one (if no list then fallback to empty image)
 			image_array_t const* const list2d = get_child<image_array_t>(5);
 			image=list2d->get_image(dir, goods_index);
-			if(!image)
-			{
-				if(dir>3)
-				{
+			if(!image) {
+				if(dir>3) {
 					image = list2d->get_image(dir - 4, goods_index);
 				}
 			}
@@ -423,7 +392,7 @@ public:
 
 			for( uint8 i=0;  i<freight_image_type;  i++  )
 			{
-				if (ware == get_child<goods_desc_t>(6 + trailer_count + leader_count + upgrades + i))
+				if (ware == get_child<goods_desc_t>(6 + trailer_count + leader_count + upgrades + accommodation_classes + i))
 				{
 					goods_index = i;
 					break;
@@ -434,7 +403,7 @@ public:
 			{
 				for(uint8 j = 0; j < livery_image_type; j++)
 				{
-					if(!strcmp(livery_type, get_child<text_desc_t>(6 + trailer_count + leader_count + freight_image_type + upgrades + j)->get_text()))
+					if(!strcmp(livery_type, get_child<text_desc_t>(6 + trailer_count + leader_count + freight_image_type + upgrades + accommodation_classes + j)->get_text()))
 					{
 						livery_index = j;
 						break;
@@ -467,24 +436,19 @@ public:
 			list = get_child<image_list_t>(5);
 		}
 
-		if(!list)
-		{
+		if(!list) {
 			list = get_child<image_list_t>(4);
-			if(!list)
-			{
+			if(!list) {
 				return IMG_EMPTY;
 			}
 		}
 
 		image = list->get_image(dir);
-		if(!image)
-		{
-			if(dir>3)
-			{
+		if(!image) {
+			if(dir>3) {
 				image = list->get_image(dir - 4);
 			}
-			if(!image)
-			{
+			if(!image) {
 				return IMG_EMPTY;
 			}
 		}
@@ -502,7 +466,7 @@ public:
 			for(sint8 i = 0; i < livery_image_type; i++)
 			{
 				const uint8 freight_images = freight_image_type == 255 ? 1 : freight_image_type;
-				const char* livery_name = get_child<text_desc_t>(5 + trailer_count + leader_count + upgrades + freight_images + i)->get_text();
+				const char* livery_name = get_child<text_desc_t>(5 + trailer_count + leader_count + upgrades + accommodation_classes + freight_images + i)->get_text();
 				if(!strcmp(name, livery_name))
 				{
 					return true;
@@ -519,6 +483,12 @@ public:
 		return livery_image_type;
 	}
 	uint16 get_available_livery_count(class karte_t *welt) const;
+
+	uint8 get_accommodations() const
+	{
+		return accommodation_classes;
+	}
+	const char* get_accommodation_name(uint8 a_class) const;
 
 	/**
 	 * Returns allowed leader vehicles.
@@ -629,8 +599,8 @@ public:
 
 	uint8 get_upgrades_count() const { return upgrades; }
 	// returns this vehicle has available upgrades
-	// 1 = near future, 2 = already available          @Ranran
-	uint8 has_available_upgrade(const uint16 month_now, bool show_future = true) const;
+	// 1 = near future, 2 = already available
+	uint8 has_available_upgrade(const uint16 month_now) const;
 
 	bool can_follow_any() const { return trailer_count==0; }
 
@@ -651,7 +621,7 @@ public:
 	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
 	uint32 get_fixed_cost() const { return fixed_cost; }
 	uint32 get_fixed_cost(class karte_t *welt) const;  //Overloaded method - includes increase for obsolescence.
-	uint32 get_adjusted_monthly_fixed_cost(class karte_t *welt) const; // includes increase for obsolescence and adjustment for monthly figures
+	uint32 get_adjusted_monthly_fixed_cost() const; // includes increase for obsolescence and adjustment for monthly figures
 	sint16 get_sound() const { return sound; }
 	bool is_bidirectional() const { return bidirectional; }
 	uint8 get_comfort(uint32 g_class = 0) const { return  classes == 0 ? 0: g_class >= classes ? comfort[0] : comfort[g_class]; }
@@ -699,7 +669,7 @@ public:
 	}
 
 	// BG, 15.06.2009: the formula for obsolescence formerly implemented twice in get_running_cost() and get_fixed_cost()
-	uint32 calc_running_cost(const class karte_t *welt, uint32 base_cost) const;
+	uint32 calc_running_cost(uint32 base_cost) const;
 
 	float32e8_t get_power_force_ratio() const;
 	uint32 calc_max_force(const uint32 power) const {
@@ -738,7 +708,7 @@ public:
 	* @return time when the vehicle is obsolete
 	* @author: jamespetts
 	*/
-	uint16 get_obsolete_year_month(const class karte_t *welt) const;
+	uint16 get_obsolete_year_month() const;
 
 	// Returns 2 in the near future. Use the judgment of 2 only when control the display of the future
 	uint8 is_future (const uint16 month_now) const
@@ -763,9 +733,9 @@ public:
 	/**
 	 * @ Returns true if the vehicle is obsolete
 	 */
-	bool is_obsolete (const uint16 month_now, const class karte_t* welt) const
+	bool is_obsolete (const uint16 month_now) const
 	{
-		return month_now  &&  (get_obsolete_year_month(welt) <= month_now);
+		return month_now  &&  (get_obsolete_year_month() <= month_now);
 	}
 
 	/**

@@ -40,7 +40,7 @@ public:
 
 	static const tunnel_desc_t *get_desc(const char *);
 
-	static stringhashtable_tpl <tunnel_desc_t *> * get_all_tunnels();
+	static stringhashtable_tpl <tunnel_desc_t *, N_BAGS_MEDIUM> * get_all_tunnels();
 
 	static const tunnel_desc_t *get_tunnel_desc(const waytype_t wtyp, const sint32 min_speed,const uint16 time);
 
@@ -49,6 +49,14 @@ public:
 	static const char *build( player_t *player, koord pos, const tunnel_desc_t *desc, bool full_tunnel, overtaking_mode_t overtaking_mode, const way_desc_t *way_desc = NULL  );
 
 	static const char *remove(player_t *player, koord3d pos, waytype_t wegtyp, bool all);
+
+	static uint32 get_total_cost( koord3d pos, const tunnel_desc_t *desc);
+
+	static uint32 get_total_maintenance (koord3d pos, const tunnel_desc_t *desc);
+
+	static bool get_is_under_building (koord3d pos, const tunnel_desc_t *desc);
+
+	static bool get_is_below_waterline (koord3d pos);
 };
 
 #endif

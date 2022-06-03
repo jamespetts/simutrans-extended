@@ -53,8 +53,7 @@ void signalboxlist_stats_t::update_label()
 
 	// connected / capacity
 	lb_connected.buf().printf(" %3d/%3d,",
-		sb->get_number_of_signals_controlled_from_this_box(),
-		sb->get_first_tile()->get_tile()->get_desc()->get_capacity());
+		sb->get_number_of_signals_controlled_from_this_box(), sb->get_capacity() );
 	lb_connected.update();
 
 	// signalbox radius
@@ -191,7 +190,7 @@ signalboxlist_frame_t::signalboxlist_frame_t(player_t *player) :
 	{
 		new_component<gui_label_t>("hl_txt_sort");
 		new_component<gui_label_t>("Filter:");
-		add_table(4, 1);
+		add_table(3,1);
 		{
 			sortedby.clear_elements();
 			for (int i = 0; i < SORT_MODES; i++) {
@@ -199,22 +198,18 @@ signalboxlist_frame_t::signalboxlist_frame_t(player_t *player) :
 			}
 			sortedby.set_selection(signalboxlist_stats_t::sort_mode);
 			sortedby.set_width_fixed(true);
-			sortedby.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+			sortedby.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
 			sortedby.add_listener(this);
 			add_component(&sortedby);
 
-			sort_asc.init(button_t::arrowup_state, "");
-			sort_asc.set_tooltip(translator::translate("hl_btn_sort_asc"));
-			sort_asc.add_listener(this);
-			sort_asc.pressed = signalboxlist_stats_t::reverse;
-			add_component(&sort_asc);
+			// sort asc/desc switching button
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.add_listener(this);
+			sort_order.pressed = signalboxlist_stats_t::reverse;
+			add_component(&sort_order);
 
-			sort_desc.init(button_t::arrowdown_state, "");
-			sort_desc.set_tooltip(translator::translate("hl_btn_sort_desc"));
-			sort_desc.add_listener(this);
-			sort_desc.pressed = !signalboxlist_stats_t::reverse;
-			add_component(&sort_desc);
-		new_component<gui_margin_t>(LINESPACE);
+			new_component<gui_margin_t>(LINESPACE);
 		}
 		end_table();
 
@@ -244,11 +239,10 @@ bool signalboxlist_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 		signalboxlist_stats_t::sort_mode = max(0, v.i);
 		scrolly.sort(0);
 	}
-	else if (comp == &sort_asc || comp == &sort_desc) {
+	else if (comp == &sort_order) {
 		signalboxlist_stats_t::reverse = !signalboxlist_stats_t::reverse;
 		scrolly.sort(0);
-		sort_asc.pressed = signalboxlist_stats_t::reverse;
-		sort_desc.pressed = !signalboxlist_stats_t::reverse;
+		sort_order.pressed = signalboxlist_stats_t::reverse;
 	}
 	else if (comp == &filter_vacant_slot) {
 		filter_has_vacant_slot = !filter_has_vacant_slot;

@@ -407,8 +407,8 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \nberlistrik\n
 \nHeightfield has wrong image type.\n
 \nTanah memiliki jenis\ngambar yang salah.\n
-\nis reserved by:
-\nDigunakan Kereta:
+is reserved by:
+Digunakan Kereta:
 \nminimum speed:
 \nKecepatan Minimum:
 \nnot elektrified
@@ -787,8 +787,8 @@ Convoi is sold when all wagons are empty.
 Kendaraan akan dijual setelah isinya kosong.
 convoi mouseover tooltips
 keterangan konvoi dengan mouse
-convoi passed last\nmonth %i\n
-\nkonvoi yang lewat\nbulan lalu: %i\n
+convoi passed last month:
+konvoi yang lewat\nbulan lalu: %i\n
 Convois
 Konvoi
 Convois: %d\nProfit: %s

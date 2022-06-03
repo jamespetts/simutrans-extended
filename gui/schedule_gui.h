@@ -15,7 +15,6 @@
 #include "components/gui_button.h"
 #include "components/action_listener.h"
 
-#include "components/gui_textarea.h"
 #include "components/gui_scrollpane.h"
 
 #include "../convoihandle_t.h"
@@ -36,17 +35,18 @@ class schedule_gui_stats_t : public gui_world_component_t
 {
 private:
 	static cbuffer_t buf;
-	static zeiger_t *current_stop_mark;
-
 
 	schedule_t* schedule;
 	player_t* player;
 
+	uint8 line_color_index=254;
+
 public:
 	schedule_gui_stats_t(player_t *player_);
-	~schedule_gui_stats_t();
 
 	void set_schedule( schedule_t* f ) { schedule = f; }
+
+	void set_line_color_index( uint8 idx=254 ) { line_color_index = idx; }
 
 	void highlight_schedule( schedule_t *markschedule, bool marking );
 
@@ -59,11 +59,15 @@ public:
 /**
  * GUI for Schedule dialog
  */
-class schedule_gui_t :	public gui_frame_t,
-						public action_listener_t
+class schedule_gui_t : public gui_frame_t, public action_listener_t
 {
 private:
-	enum mode_t {adding, inserting, removing, undefined_mode};
+	enum mode_t {
+		adding,
+		inserting,
+		removing,
+		undefined_mode
+	};
 
 	mode_t mode;
 
@@ -117,6 +121,8 @@ private:
 
 	// pas=1, mail=2, freight=3
 	uint8 line_type_flags = 0;
+
+	static bool compare_line(linehandle_t const& l1, linehandle_t const& l2);
 
 protected:
 	schedule_t *schedule;

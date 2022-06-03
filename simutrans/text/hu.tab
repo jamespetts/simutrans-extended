@@ -393,8 +393,8 @@ Domborzatfájlt nem lehet megnyitni.
 \nvillamosított\n
 \nHeightfield has wrong image type.\n
 A domborzatfájl inkompatibilis képeket tartalmaz.
-\nis reserved by:
-\nfoglalja: 
+is reserved by:
+foglalja: 
 \nminimum speed:
 \nminimum sebesség:
 \nnot elektrified
@@ -705,8 +705,8 @@ Convoi has been sent\nto the nearest depot\nof appropriate type.\n
 A konvoj a legközelebbi depóba lett küldve.
 Convoi is sold when all wagons are empty.
 A szerelvény el lesz adva amint az összes vagon kiürült.
-convoi passed last\nmonth %i\n
-\nmúlt hónapban áthaladt\njárművek száma: %i\n
+convoi passed last month:
+múlt hónapban áthaladt\njárművek száma: %i\n
 Convois
 Konvojok
 Convois: %d\nProfit: %s

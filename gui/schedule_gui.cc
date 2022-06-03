@@ -3,6 +3,8 @@
  * (see LICENSE.txt)
  */
 
+#include <algorithm>
+
 #include "../simline.h"
 #include "../simcolor.h"
 #include "../simdepot.h"
@@ -26,7 +28,7 @@
 #include "../dataobj/environment.h"
 
 #include "../player/simplay.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 #include "../tpl/vector_tpl.h"
 
@@ -40,12 +42,53 @@
 //#include "components/gui_textarea.h"
 
 
+bool schedule_gui_t::compare_line(linehandle_t const& a, linehandle_t const& b)
+{
+	// first: try to sort by line letter code
+	const char *alcl = a->get_linecode_l();
+	const char *blcl = b->get_linecode_l();
+	if (strcmp(alcl, blcl)) {
+		return strcmp(alcl, blcl) < 0;
+	}
+	const char *alcr = a->get_linecode_r();
+	const char *blcr = b->get_linecode_r();
+	if (strcmp(alcr, blcr)) {
+		return strcmp(alcr, blcr) < 0;
+	}
+
+	// second: try to sort by number
+	const char *atxt = a->get_name();
+	int aint = 0;
+	// isdigit produces with UTF8 assertions ...
+	if (atxt[0] >= '0'  &&  atxt[0] <= '9') {
+		aint = atoi(atxt);
+	}
+	else if (atxt[0] == '('  &&  atxt[1] >= '0'  &&  atxt[1] <= '9') {
+		aint = atoi(atxt + 1);
+	}
+	const char *btxt = b->get_name();
+	int bint = 0;
+	if (btxt[0] >= '0'  &&  btxt[0] <= '9') {
+		bint = atoi(btxt);
+	}
+	else if (btxt[0] == '('  &&  btxt[1] >= '0'  &&  btxt[1] <= '9') {
+		bint = atoi(btxt + 1);
+	}
+	if (aint != bint) {
+		return (aint - bint) < 0;
+	}
+	// otherwise: sort by name
+	return strcmp(atxt, btxt) < 0;
+
+	return false;
+}
 
 // shows/deletes highlighting of tiles
 void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
 {
 	marking &= env_t::visualize_schedule;
-	FOR(minivec_tpl<schedule_entry_t>, const& i, markschedule->entries) {
+	uint8 n = 0;
+	FORX(minivec_tpl<schedule_entry_t>, const& i, markschedule->entries, n++) {
 		if (grund_t* const gr = welt->lookup(i.pos)) {
 			for(  uint idx=0;  idx<gr->get_top();  idx++  ) {
 				obj_t *obj = gr->obj_bei(idx);
@@ -69,25 +112,32 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 				}
 			}
 
+			schedule_marker_t *marker = gr->find<schedule_marker_t>();
+			if( marking ) {
+				if (!marker) {
+					marker = new schedule_marker_t(i.pos, player, markschedule->get_waytype());
+					marker->set_color( line_color_index>=254 ? color_idx_to_rgb(player->get_player_color1()+4) : line_color_idx_to_rgb(line_color_index) );
+					gr->obj_add(marker);
+				}
+				uint8 number_style = gui_schedule_entry_number_t::halt;
+				if (haltestelle_t::get_halt(i.pos, player).is_bound()) {
+					;
+				}
+				else if (gr->get_depot() != NULL) {
+					number_style = gui_schedule_entry_number_t::depot;
+				}
+				else {
+					number_style = gui_schedule_entry_number_t::waypoint;
+				}
+				marker->set_entry_data(n, number_style, markschedule->is_mirrored(), (i.reverse == 1));
+				marker->set_selected( (i==markschedule->get_current_entry()) );
+			}
+			else if( marker ) {
+				// remove marker
+				gr->obj_remove(marker);
+			}
 		}
 	}
-	// always remove
-	if(  grund_t *old_gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		old_gr->obj_remove( current_stop_mark );
-		old_gr->set_flag( grund_t::dirty );
-		current_stop_mark->set_pos( koord3d::invalid );
-	}
-	// add if required
-	if(  marking  &&  markschedule->get_current_stop() < markschedule->get_count() ) {
-		current_stop_mark->set_pos( markschedule->entries[markschedule->get_current_stop()].pos );
-		if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-			gr->obj_add( current_stop_mark );
-			current_stop_mark->set_flag( obj_t::dirty );
-			gr->set_flag( grund_t::dirty );
-		}
-	}
-	current_stop_mark->clear_flag( obj_t::highlight );
 }
 
 
@@ -255,7 +305,8 @@ void schedule_gui_t::gimme_short_stop_name(cbuffer_t& buf, player_t const* const
 
 */
 
-zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
+//zeiger_t *schedule_gui_stats_t::current_stop_mark = NULL;
+
 cbuffer_t schedule_gui_stats_t::buf;
 
 void schedule_gui_stats_t::draw(scr_coord offset)
@@ -345,21 +396,6 @@ schedule_gui_stats_t::schedule_gui_stats_t(player_t *player_)
 {
 	schedule = NULL;
 	player = player_;
-	if(  current_stop_mark==NULL  ) {
-		current_stop_mark = new zeiger_t(koord3d::invalid, NULL );
-		current_stop_mark->set_image( tool_t::general_tool[TOOL_SCHEDULE_ADD]->cursor );
-	}
-}
-
-
-
-schedule_gui_stats_t::~schedule_gui_stats_t()
-{
-	if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		gr->obj_remove(current_stop_mark);
-	}
-	current_stop_mark->set_pos( koord3d::invalid );
 }
 
 
@@ -404,6 +440,8 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		// set this schedule as current to show on minimap if possible
 		minimap_t::get_instance()->set_selected_cnv( cnv );
 		old_line = new_line = cnv->get_line();
+		// set line color for marker
+		if (old_line.is_bound()) stats.set_line_color_index(old_line->get_line_color_index());
 	}
 	old_line_count = 0;
 
@@ -912,6 +950,9 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 	else if(  ev->ev_class == INFOWIN  &&  (ev->ev_code == WIN_TOP  ||  ev->ev_code == WIN_OPEN)  &&  schedule!=NULL  ) {
 		// just to be sure, renew the tools ...
 		update_tool( true );
+		if(  cnv.is_bound()  ) {
+			minimap_t::get_instance()->set_selected_cnv(cnv);
+		}
 	}
 
 	return gui_frame_t::infowin_event(ev);
@@ -921,7 +962,6 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 bool schedule_gui_t::action_triggered( gui_action_creator_t *comp, value_t p)
 {
 DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_selector);
-
 	if(comp == &bt_add) {
 		mode = adding;
 		bt_add.pressed = true;
@@ -1040,10 +1080,11 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		}
 	}
 	else if (comp == &line_selector) {
-		uint32 selection = p.i;
+// 		uint32 selection = p.i;
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();
+			stats.set_line_color_index(new_line->get_line_color_index());
 			stats.highlight_schedule( schedule, false );
 			schedule->copy_from( new_line->get_schedule() );
 			schedule->start_editing();
@@ -1051,6 +1092,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		else {
 			// remove line
 			new_line = linehandle_t();
+			stats.set_line_color_index(254);
 			line_selector.set_selection( 0 );
 		}
 	}
@@ -1127,6 +1169,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		if(  new_line.is_bound()  &&  !schedule->matches(welt,new_line->get_schedule())  ) {
 			new_line = linehandle_t();
 			line_selector.set_selection(0);
+			stats.set_line_color_index(254);
 		}
 		// only assign old line, when new_line is not equal
 		if(  !new_line.is_bound()  &&  old_line.is_bound()  &&   schedule->matches(welt,old_line->get_schedule())  ) {
@@ -1162,12 +1205,14 @@ void schedule_gui_t::init_line_selector()
 		line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("<no line>"), SYSCOL_TEXT );
 	}
 
+	std::sort(lines.begin(), lines.end(), compare_line);
 	FOR(  vector_tpl<linehandle_t>,  line,  lines  ) {
 		line_selector.new_component<line_scrollitem_t>(line);
 		if(  !new_line.is_bound()  ) {
 			if(  schedule->matches( welt, line->get_schedule() )  ) {
 				selection = line_selector.count_elements()-1;
 				new_line = line;
+				stats.set_line_color_index(new_line->get_line_color_index());
 			}
 		}
 		else if(  new_line == line  ) {
@@ -1176,8 +1221,6 @@ void schedule_gui_t::init_line_selector()
 	}
 
 	line_selector.set_selection( selection );
-	line_scrollitem_t::sort_mode = line_scrollitem_t::SORT_BY_NAME;
-	line_selector.sort( offset );
 	old_line_count = player->simlinemgmt.get_line_count();
 	last_schedule_count = schedule->get_count();
 }
@@ -1271,7 +1314,7 @@ void schedule_gui_t::rdwr(loadsave_t *file)
 	size.rdwr( file );
 
 	// convoy data
-	if (file->get_version_int() <=112002) {
+	if(  file->is_version_less(112, 3)  ) {
 		// dummy data
 		uint8 player_nr = 0;
 		koord3d cnv_pos( koord3d::invalid);

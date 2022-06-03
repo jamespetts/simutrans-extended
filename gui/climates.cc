@@ -114,7 +114,7 @@ climate_gui_t::climate_gui_t(settings_t* const sets_par) :
 	add_component( &lake ,2);
 
 	new_component<gui_label_t>("Number of rivers");
-	river_n.init( sets->get_river_number(), 0, 1024, gui_numberinput_t::POWER2, false );
+	river_n.init( sets->get_river_number(), 0, 4096, gui_numberinput_t::POWER2, false );
 	river_n.add_listener(this);
 	add_component( &river_n );
 
@@ -186,7 +186,7 @@ bool climate_gui_t::action_triggered( gui_action_creator_t *comp, value_t v)
 		river_min.set_limits(0,max(2,v.i)-2);
 	}
 	else if(comp==&snowline_winter) {
-		sets->winter_snowline = (sint16)v.i;
+		sets->winter_snowline = (sint8)v.i;
 	}
 	else if(comp==&hilly)
 	{

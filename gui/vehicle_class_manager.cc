@@ -13,28 +13,19 @@
 
 #include "../simunits.h"
 #include "../simconvoi.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simcolor.h"
 #include "../display/simgraph.h"
 #include "../simworld.h"
-#include "../gui/simwin.h"
 
-#include "../dataobj/schedule.h"
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
-// @author hsiegeln
 #include "../simline.h"
-#include "../simmenu.h"
-#include "messagebox.h"
 
 #include "../player/simplay.h"
 
 #include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
-
-#include "components/gui_chart.h"
-
-#include "../obj/roadsign.h"
 
 
 
@@ -42,8 +33,8 @@
 
 vehicle_class_manager_t::vehicle_class_manager_t(convoihandle_t cnv)
 	: gui_frame_t(translator::translate("class_manager"), cnv->get_owner()),
-	scrolly(&veh_info),
-	veh_info(cnv)
+	veh_info(cnv),
+	scrolly(&veh_info)
 {
 	this->cnv = cnv;
 
@@ -642,8 +633,8 @@ void vehicle_class_manager_t::set_windowsize(scr_size size)
 // dummy for loading
 vehicle_class_manager_t::vehicle_class_manager_t()
 : gui_frame_t("", NULL ),
-  scrolly(&veh_info),
-  veh_info(convoihandle_t())
+  veh_info(convoihandle_t()),
+  scrolly(&veh_info)
 {
 	cnv = convoihandle_t();
 }
@@ -687,7 +678,7 @@ vehicle_class_manager_t::~vehicle_class_manager_t()
 void vehicle_class_manager_t::rdwr(loadsave_t *file)
 {
 	// convoy data
-	if (file->get_version_int() <=112002) {
+	if(  file->is_version_less(112, 3)  ) {
 		// dummy data
 		koord3d cnv_pos( koord3d::invalid);
 		char name[128];

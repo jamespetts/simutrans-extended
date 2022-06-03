@@ -39,12 +39,14 @@ private:
 
 	gui_numberinput_t inp_production;
 
-	void fill_list( bool translate ) OVERRIDE;
+	void fill_list() OVERRIDE;
 
 	void change_item_info( sint32 i ) OVERRIDE;
 
 public:
 	factory_edit_frame_t(player_t* player);
+
+	static bool sortreverse;
 
 	/**
 	* in top-level windows the name is displayed in titlebar

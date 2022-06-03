@@ -327,7 +327,7 @@ sint64 finance_t::credit_limit_by_assets() const
 void finance_t::rdwr(loadsave_t *file)
 {
 	// detailed statistic were introduced in this version
-	if( file->get_version_int() < 112005 ) {
+	if( file->is_version_less(112, 5) ) {
 		rdwr_compatibility(file);
 		if ( file->is_loading() ) {
 			// Loaded hard credit limit will be wrong, fix it quick to avoid spurious insolvency
@@ -530,24 +530,24 @@ waytype_t finance_t::translate_tt_to_waytype(const transport_type tt)
 #define OLD_MAX_PLAYER_HISTORY_MONTHS  (12) // number of months to keep history
 
 enum player_cost {
-	COST_CONSTRUCTION=0,// Construction
-	COST_VEHICLE_RUN,   // Vehicle running costs
-	COST_NEW_VEHICLE,   // New vehicles
-	COST_INCOME,        // Income
-	COST_MAINTENANCE,   // Upkeep
-	COST_ASSETS,        // value of all vehicles and buildings
-	COST_CASH,          // Cash
-	COST_NETWEALTH,     // Total Cash + Assets
-	COST_PROFIT,        // COST_POWERLINES+COST_INCOME-(COST_CONSTRUCTION+COST_VEHICLE_RUN+COST_NEW_VEHICLE+COST_MAINTENANCE)
-	COST_OPERATING_PROFIT, // COST_POWERLINES+COST_INCOME-(COST_VEHICLE_RUN+COST_MAINTENANCE)+COST_INTEREST
-	COST_MARGIN,        // COST_OPERATING_PROFIT/COST_INCOME
-	COST_ALL_TRANSPORTED, // all transported goods
-	COST_POWERLINES,	  // revenue from the power grid
-	COST_TRANSPORTED_PAS,	// number of passengers that actually reached destination
+	COST_CONSTRUCTION=0,     // Construction
+	COST_VEHICLE_RUN,        // Vehicle running costs
+	COST_NEW_VEHICLE,        // New vehicles
+	COST_INCOME,             // Income
+	COST_MAINTENANCE,        // Upkeep
+	COST_ASSETS,             // value of all vehicles and buildings
+	COST_CASH,               // Cash
+	COST_NETWEALTH,          // Total Cash + Assets
+	COST_PROFIT,             // COST_POWERLINES+COST_INCOME-(COST_CONSTRUCTION+COST_VEHICLE_RUN+COST_NEW_VEHICLE+COST_MAINTENANCE)
+	COST_OPERATING_PROFIT,   // COST_POWERLINES+COST_INCOME-(COST_VEHICLE_RUN+COST_MAINTENANCE)+COST_INTEREST
+	COST_MARGIN,             // COST_OPERATING_PROFIT/COST_INCOME
+	COST_ALL_TRANSPORTED,    // all transported goods
+	COST_POWERLINES,         // revenue from the power grid
+	COST_TRANSPORTED_PAS,    // number of passengers that actually reached destination
 	COST_TRANSPORTED_MAIL,
 	COST_TRANSPORTED_GOOD,
-	COST_ALL_CONVOIS,		// number of convois
-	COST_SCENARIO_COMPLETED,// scenario success (only useful if there is one ... )
+	COST_ALL_CONVOIS,        // number of convois
+	COST_SCENARIO_COMPLETED, // scenario success (only useful if there is one ... )
 	COST_WAY_TOLLS,
 	COST_INTEREST,		// From extended
 	COST_CREDIT_LIMIT	// From extended
@@ -746,11 +746,11 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 		}
 	}
 
-	if( ( file->get_version_int() < 112005 ) && ( ! file->is_loading() ) ) { // for saving of game in old format
+	if( ( file->is_version_less(112, 5) ) && ( ! file->is_loading() ) ) { // for saving of game in old format
 		export_to_cost_month( finance_history_month );
 		export_to_cost_year( finance_history_year );
 	}
-	if (file->get_version_int() < 84008) {
+	if (file->is_version_less(84, 8)) {
 		// not so old save game
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<OLD_MAX_PLAYER_COST; cost_type++) {
@@ -768,7 +768,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version_int() < 86000) {
+	else if (file->is_version_less(86, 0)) {
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<10; cost_type++) {
 				file->rdwr_longlong(finance_history_year[year][cost_type]);
@@ -781,7 +781,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version_int() < 99011) {
+	else if (file->is_version_less(99, 11)) {
 		// powerline category missing
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<12; cost_type++) {
@@ -794,7 +794,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if (file->get_version_int() < 99017) {
+	else if (file->is_version_less(99, 17)) {
 		// without detailed goo statistics
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<13; cost_type++) {
@@ -807,7 +807,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if(  file->get_version_int()<=102002 && file->get_extended_version() <= 1 ) {
+	else if(  file->is_version_less(102, 3) && file->get_extended_version() <= 1  ) {
 		// saved everything
 		for (int year = 0;year<OLD_MAX_PLAYER_HISTORY_YEARS;year++) {
 			for (int cost_type = 0; cost_type<18; cost_type++) {
@@ -838,7 +838,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 			}
 		}
 	}
-	else if(  file->get_version_int()<=110006  && file->get_extended_version()==0  ) {
+	else if(  file->is_version_less(110, 7)  && file->get_extended_version()==0  ) {
 		// only save what is needed
 		// no way tolls
 		for(int year = 0;  year<OLD_MAX_PLAYER_HISTORY_YEARS;  year++  ) {
@@ -860,7 +860,7 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 	 * As a result the logic for version <=110006 for extended can fall through to the
 	 * logic for version <= 112004
 	 */
-	else if (  file->get_version_int() <= 112004  && file->get_extended_version() == 0  ) {
+	else if (  file->is_version_less(112, 5)  && file->get_extended_version() == 0  ) {
 		// savegame version: now with toll
 		for(int year = 0;  year<OLD_MAX_PLAYER_HISTORY_YEARS;  year++  ) {
 			for(  int cost_type = 0;   cost_type<19;   cost_type++  ) {
@@ -942,12 +942,12 @@ void finance_t::rdwr_compatibility(loadsave_t *file)
 		assert(false);
 	}
 
-	if(  file->get_version_int()>102002  && file->get_extended_version() != 7  ) {
+	if(  file->is_version_atleast(102, 3) && file->get_extended_version() != 7  ) {
 		file->rdwr_longlong(starting_money);
 	}
 
 	// we have to pay maintenance at the beginning of a month
-	if(file->get_version_int()<99018  &&  file->is_loading()) {
+	if(file->is_version_less(99, 18)  &&  file->is_loading()) {
 		finance_history_month[0][COST_MAINTENANCE] -= finance_history_month[1][COST_MAINTENANCE];
 		finance_history_year [0][COST_MAINTENANCE] -= finance_history_month[1][COST_MAINTENANCE];
 		set_account_balance(get_account_balance() - finance_history_month[1][COST_MAINTENANCE]);

@@ -32,11 +32,6 @@ public:
 		return (uint32)(size_t)key;
 	}
 
-	static void dump(const key_t key)
-	{
-		printf("%p", (void *)key);
-	}
-
 	static diff_type comp(key_t key1, key_t key2)
 	{
 		return (cast_ptr_to_t)key1 - (cast_ptr_to_t)key2;
@@ -47,11 +42,11 @@ public:
 /**
  * A template class which implements a hashtable with pointer keys
  */
-template<class key_t, class value_t>
-class ptrhashtable_tpl : public hashtable_tpl<key_t, value_t, ptrhash_tpl<key_t> >
+template<class key_t, class value_t, size_t n_bags>
+class ptrhashtable_tpl : public hashtable_tpl<key_t, value_t, ptrhash_tpl<key_t>, n_bags>
 {
 public:
-	ptrhashtable_tpl() : hashtable_tpl<key_t, value_t, ptrhash_tpl<key_t> >() {}
+	ptrhashtable_tpl() : hashtable_tpl<key_t, value_t, ptrhash_tpl<key_t>, n_bags>() {}
 private:
 	ptrhashtable_tpl(const ptrhashtable_tpl&);
 	ptrhashtable_tpl& operator=( ptrhashtable_tpl const&);

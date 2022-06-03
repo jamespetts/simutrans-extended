@@ -176,8 +176,9 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x400 - 16-bit sound
 	// Standard 11, 0x500 - classes
 	// Standard 11, 0x600 - prev=any, cab_setting
-	// Standard 11, 0x700 - prev=any, cab_setting
-	version += 0x700;
+	// Standard 11, 0x700 - override_way_speed
+	// Standard 11, 0x800 - accommodation name
+	version += 0x800;
 
 	node.write_uint16(fp, version, pos);
 
@@ -482,7 +483,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 				str = obj.get(buf);
 				if (str.empty()) {
 					dbg->fatal( "Vehicle", "Missing freightimage[%d][%s]!", freight, dir_codes[i]);
-					exit(1);
 				}
 				freightkeys.at(i).append(str);
 			}
@@ -539,13 +539,11 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	if (has_8_images && emptykeys.get_count() < 8 && liverykeys_empty.get_count() < 8)
 	{
 		dbg->fatal( "Vehicle", "Missing images (must be either 4 or 8 directions (but %i found)!)\n", emptykeys.get_count() + liverykeys_empty.get_count());
-		exit(1);
 	}
 
 	if (!(freightkeys_old.empty() || liverykeys_freight_old.empty()) && (emptykeys.get_count() != freightkeys_old.get_count() || liverykeys_empty.get_count() != liverykeys_freight_old.get_count()))
 	{
 		dbg->fatal( "Vehicle", "Missing freigthimages (must be either 4 or 8 directions (but %i found)!)\n", freightkeys_old.get_count());
-		exit(1);
 	}
 
 	if(livery_max == 0)
@@ -754,6 +752,20 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		}
 	} while (found);
 
+	uint8 accommo_class = 0;
+	FORX(vector_tpl<uint16>, capacity, class_capacities, accommo_class++) {
+		if (!capacity) { continue; }
+		char buf[128];
+		sprintf(buf, "accommodation_name[%d]", accommo_class);
+		str = obj.get(buf);
+		if (str.empty()) {
+			text_writer_t::instance()->write_obj(fp, node, "\0");
+		}
+		else {
+			text_writer_t::instance()->write_obj(fp, node, str.c_str());
+		}
+	}
+
 	// multiple freight image types - define what good uses each index
 	// good without index will be an error
 	if(freight_image_type < 255)
@@ -799,10 +811,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 			}
 			break;
 		}
-		if(str.empty())
-		{
+		if (str.size() == 0) {
 			dbg->fatal( obj_writer_t::last_name, "Missing liverytype[%i] for %i liveries!", i, livery_max + 1);
-			exit(1);
 		}
 		text_writer_t::instance()->write_obj(fp, node, str.c_str());
 	}
@@ -1090,7 +1100,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint32(fp, way_wear_factor, pos);
 	pos += sizeof (way_wear_factor);
 
-	uint8 is_tall = obj.get_int("is_tall", 0);
+	const uint8 default_is_tall = 0;
+	uint8 is_tall = obj.get_int("is_tall", default_is_tall)+2;
 	node.write_uint8(fp, is_tall, pos);
 	pos += sizeof(is_tall);
 

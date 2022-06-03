@@ -14,7 +14,7 @@
 #include "../../bauer/goods_manager.h"
 #include "../../dataobj/translator.h"
 #include "../../player/simplay.h"
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 #include "gui_label.h"
 
 

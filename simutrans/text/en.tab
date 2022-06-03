@@ -1125,6 +1125,8 @@ Fel
 Rut
 %25A_CITY_SYLL
 Wul
+%25B_CITY_SYLL
+Bal
 #
 # Max: 400 (hex)
 #
@@ -1280,6 +1282,10 @@ Brad
 Scramp
 %4A_CITY_SYLL[1]
 Apple
+%4B_CITY_SYLL[1]
+Skeg
+%4C_CITY_SYLL[1]
+Skeg
 #
 # Max: 400 (hex)
 #
@@ -2160,6 +2166,8 @@ ton
 with
 &21_CITY_SYLL[1]
 by
+&22_CITY_SYLL[1]
+holme
 #
 # Max: 200 (hex)
 #
@@ -3211,6 +3219,8 @@ heath
  Lock
 &43_CITY_SUFFIX
 er's Lock
+&44_CITY_SUFFIX
+ St. George
 # 
 # Max: 50 (hex)
 #
@@ -3313,6 +3323,8 @@ green
  Minor
 &C_CITY_SUFFIX[4]
  Green
+&D_CITY_SUFFIX[4]
+ St. Jute
 # 
 # Max: 50 (hex)
 #
@@ -3544,7 +3556,7 @@ Bridge cannot be built over deep water\n
 Bridge cannot be built over deep water.\n\nBuild a length restricted bridge instead.
 Bruecke
 Bridge
-Bruecke muss an\nsingleem\nHang beginnen!\n
+Bruecke muss an\neinfachem\nHang beginnen!\n
 Bridges must start on a straight slope.\n
 Brueckenboden
 Bridge
@@ -3716,6 +3728,8 @@ Clear block reservation
 Show/clear block reservations
 COLOR_CHOOSE\n
 Please choose a\ncolour from the\ntable:\n
+Constructed by
+Author:
 Constructed by %s
 Author: %s
 Construction_Btn
@@ -3728,8 +3742,8 @@ Convoi is sold when all wagons are empty.
 The vehicle will be sold as soon as it is completely empty.
 Convoi is sent to depot when all wagons are empty.
 The convoy will be sent to the nearest depot as soon as it is completely empty.
-convoi passed last\nmonth %i\n
-\nConvoys that passed in the previous month: %i\n
+convoi passed last month:
+Passed here last month:
 Convois: %d\nProfit: %s
 Vehicles: %d\nProfit: %s
 Convoys
@@ -3945,7 +3959,7 @@ Remove intermediate signals
 replace other signals
 Replace existing signals
 Hier warten/lagern:
-Sort passengers/freight by
+Waiting/transferring
 hlf_btn_alle
 all
 hlf_btn_invers
@@ -4612,7 +4626,7 @@ Trams are not available yet!
 Trams are not yet available.
 TRAMTOOLS
 Trams/light rail tools
-Transported
+Travelled
 Transported
 Travellers now\nuse %s's\nbusses between\n%s \nand %s.\n
 Passengers now\nuse %s's\nbuses between\n%s \nand %s.\n
@@ -4620,12 +4634,12 @@ tropic
 Dune
 Truck
 Truck
-Tunnel muss an\nsingleem\nHang beginnen!\n
+Tunnel muss an\neinfachem\nHang beginnen!\n
 Tunnels must start on a straight double height slope.\n
 Tunnel must end on single way!
 Tunnels must end on a single way with a slope.
 Tunnel must start on single way!
-Tunnels must start on a single way, on a double height slope, and with a matching slope at the other end.
+This is not a suitable place for building this type of tunnel entrance.
 Tunnelboden
 Tunnel
 Tunnelmuendung
@@ -4762,8 +4776,8 @@ Hide all buildings
 \nElectrified\n
 \nHeightfield has wrong image type.\n
 \nHeightfield has wrong image type.\n
-\nis reserved by:
-\nReserved by: 
+is reserved by:
+Reserved by: 
 \nminimum speed:
 \nMinimum speed: 
 \nnot elektrified
@@ -5391,7 +5405,7 @@ Unpowered
 this_vehicle_carries_no_good
 This vehicle carries no goods
 high_clearance_under_bridges_(no_low_bridges)
-High clearance under bridges (no low bridges)
+High clearance under bridges (no low bridges/tunnels)
 equipped_with
 Equipped with
 tilting_vehicle_equipment
@@ -5477,11 +5491,11 @@ reassigned price
 reassigned_classes
 reassigned prices
 times_history
-Times History
+Timing data
 view_journey_times_history_of_this_line
-View journey times history of this line.
+View journey timing data of this line.
 view_journey_times_history_of_this_convoy
-View journey times history of this convoy.
+View journey timing data of this convoy.
 no_time_entry
 ----
 stations
@@ -5497,9 +5511,9 @@ Reversed unidirectional order:
 normal_unidirectional_order
 Normal unidirectional order:
 line_times_history
-Line Times History: 
+Line timing data: 
 convoy_times_history
-Convoy Times History: 
+Convoy timing data: 
 more_units
 more units
 distance
@@ -5702,6 +5716,8 @@ Selectable livery schemes
 Selectable livery schemes
 Starting acceleration:
 Starting acceleration:
+time_to_top_speed:
+Time to accelerate to top speed:
 ; %i km/h @ %.2f sec
 ; %i km/h @ %.2f sec
 ; %i km/h @ %.2f - %.2f sec
@@ -6084,3 +6100,335 @@ helptxt_fv_graph_tractive_effort
 The tractive effort (force) exerted by these vehicles at any given rate of speed up to the maximum
 Total force acting in the opposite direction of the convoy
 The resistance acting on these vehicles at any given rate of speed up to the maximum
+Stops potentially within walking distance:
+Stops potentially within walking distance
+db_convoy_to
+To
+db_convoy_from
+From
+ignore regions
+Ignore regions
+gl_normal
+Fare/weight
+gl_prod
+Producers
+gl_con
+Consumers
+Open the fare calculation input field
+Show fare calculation settings
+player_stats
+Statistics
+Signalboxes
+Signal boxes
+way_distances
+Way kilometreage
+Electrified Distances
+Electrified kilometreage
+Active lines
+Active lines
+Signals/signs
+Signals/signs
+Vehicles
+Vehicles
+Convois
+Consists
+Total
+Total
+Monthly maintenance cost details
+Monthly maintenance cost details
+Number of depots per way type, and those monthly maintenance costs.
+Number of depots per way type, and the monthly maintenance cost of each
+hlptxt_mf_stations
+Number of stops per way type, and the monthly maintenance cost of each
+Number of signalboxes and total monthly maintenance costs.
+Number of signal boxes and their total monthly maintenance cost
+hlptxt_mf_way_distances
+The total kilometreage of each type of way together with the monthly maintenance cost of each
+hlptxt_mf_electrified_distances
+The total kilometreage of each type of electrified way together with the monthly maintenance cost of each
+Number of signals and signs per way type, and those monthly maintenance costs.
+The number of signals and signs of each way type and the monthly maintenance cost of each
+Number of active lines per way type.
+Number of active lines per way type
+Number of convoys per way type, and inactive convoys number in parentheses.
+Number of active for each way type, with those that are inactive shown in parentheses
+Number of vehicles per way type, and those monthly maintenance costs.
+Number of vehicles per way type and the monthly maintenance cost of each
+name_plate
+Line
+Invalid filter
+Invalid filter
+Road routes from here:
+Road routes from here
+speed_restricted
+The speed of this way is restricted for reasons other than the nature of the way itself, e.g. by being in a built-up area.
+Display bars above the factory to show the status
+Display bars above industries to show their statuses
+cl_btn_filter_tooltip
+Filter this list by criteria defined under "settings"
+hl_waiting_detail
+Currently waiting
+hl_facility
+Facility details
+hl_location
+Location
+hl_waiting_pax
+Passengers waiting
+hl_waiting_mail
+Mail waiting
+hl_waiting_goods
+Goods waiting
+hl_pax_evaluation
+Actual vs. potential passengers
+hl_mail_evaluation
+Actual vs. potential mail
+hl_goods_needed
+Goods inwards demand
+hl_products
+Goods outwards demand
+coverage_population
+Local population
+coverage_mail_demands
+Local mail demand
+coverage_visitor_demands
+Local visitor demand
+coverage_jobs
+Local employment
+by_waiting_passengers
+waiting passengers
+by_waiting_mails
+waiting mail
+by_waiting_goods
+waiting goods
+hl_sort_tiles
+ground size
+hl_sort_capacity
+capacity
+hl_sort_overcrowding_rate
+relative overcrowding
+by_potential_pax_number
+potential passengers
+by_potential_mail_users
+potential mail
+by_pax_happy_last_month
+passengers last month
+by_mail_delivered_last_month
+mail last month
+by_convoy_arrivals_last_month
+arrivals last month
+by_surrounding_population
+local population
+by_surrounding_mail_demand
+local mail demand
+by_surrounding_visitor_demand
+local visitor demand
+by_surrounding_jobs
+local jobs
+waiting_status
+Stops
+show_mutual_use
+Include other companies' stops
+travel_distance
+Line service distance
+switch_sb
+Change signalbox
+open_signal_connector_gui
+Reassign this signal to a different signalbox
+ground_info
+Land
+tree_info
+Trees
+fare_chart
+Price/distance
+has_no_class
+n/a
+no_speed_bonus
+Time insensitive
+fare_short
+120km
+fare_long
+1,200km
+PIERTOOLS
+Elevated way supports
+PIERBLOCKS
+Elevated way supports - modular construction (advanced)
+Through Truss
+Through truss
+Bridges cannot be built over large buildings.
+Bridges cannot be built over these buildings.
+Cannot build pier on large buildings
+Elevated way supports cannot be built over these buildings.
+Pax-km
+Passenger km
+Mail-km
+Mail tonne km
+Freight-km
+Freight tonne km
+pkm
+ pass. km
+kgkm
+ kg km
+tkm
+ t km
+A measure of the amount of passengers transported, expressed in passenger-kilometre
+A measure of the amount of passengers transported, expressed in passenger kilometres
+A measure of the amount of mail transported, expressed in tonne-kilometre
+A measure of the amount of mail transported, expressed in tonne kilometres
+A measure of the amount of freight transported, expressed in tonne-kilometre
+A measure of the amount of freight transported, expressed in tonne kilometres
+Transportation density
+Transportation density
+Yearly average
+Yearly average
+/mon
+/month
+Handling mails
+Mail handled
+Handling goods
+Goods handled
+pax_handled_last_month
+Passengers handled last month
+mail_handled_last_month
+Mail handled last month
+goods_handled_last_month
+Goods handled last month
+The number of visitors that getting on and off
+Show the number of visiting passengers using this stop
+The number of commuters that getting on and off
+Show the number of commuting passengers using this stop
+The number of passengers at the stop last month
+Show the number of passengers who used each stop last month
+The number of mail that handling at the stop last month
+Show the amount of mail handled by each stop last month
+The number of goods that handling at the stop last month
+Show The amount of goods handled by each stop last month
+Show how many mails are waiting at halts
+Show the amount of mail waiting at each stop
+Show how many goods are waiting at halts
+Show the amount of goods waiting at each stop
+material_not_available
+Raw materials unavailable
+access_minimap
+Show route on map
+helptxt_access_minimap
+Show this line's route on the map in schematic form
+(speed_restricted_by_crossing)
+(speed restricted by a crossing)
+cl_general
+General information
+pax_traffic
+Passengers
+mail_traffic
+Mail
+goods_traffic
+Goods
+Passengers using public transportation in the last quarter
+Passengers using public transportation in the last quarter
+Percentage of users of public transportation
+Percentage of passengers who use public transportation
+Number of mail sent in the last quarter
+Amount of mail sent in the last quarter
+Mail delivery success in the last quarter
+Amount of mail delivered successfully in the last quarter
+pax_destination_mapping
+Passenger destination mapping
+Open the color legend
+Colour legend
+pax_transportation_ratio
+Passenger transport by mode
+helptxt_pax_transportation_ratio
+The proportion of passengers in this city who reached their destinations, broken down by mode
+City stops
+City stops
+City attractions
+City attractions
+City factories
+City industries
+Open the list of stops in this city
+Open the list of stops in this city
+Open the list of attraction buildings in this city
+Open the list of attraction buildings in this city
+Open the list of factories in this city
+Open the list of factories in this city
+too_slow_public_transportation
+Public transport journey too slow
+too_slow_privatecar
+Private car journey too slow
+destination_unavailable
+Destination unavailable (e.g. no jobs, no stock)
+(ci_demands)
+Demand
+Manufacturers
+Manufacturers
+Production boosted by power supply
+Production boosted by electricity supply
+fl_stats_last_month
+Data (last month)
+edit_line_color
+Edit line colour/code
+Use unique line color
+Use a unique line colour
+Use line letter code
+Use line letter/number code
+Base color:
+Base colour:
+sub_bg:
+Coloured background
+Frame with corners
+Square cornered shape
+Letter code
+Letter code
+Number
+Number
+Colored
+Coloured
+White
+White
+save
+Save
+reset
+Reset
+Save your changes and close the dialog.
+Save your changes and close the dialogue
+You do not have permission to edit!
+You do not have permission to edit this
+helptxt_linecode_use_sub_background
+Use a contrasting coloured background for this part of the code
+per tile apprx.
+per tile approx.
+Pierdeck
+Elevated way support
+The gradient does not fit a tunnel
+This tunnel cannot be built on this gradient.
+Path Remove
+Remove path
+Flatten Path
+Flatten path
+Low bridge
+Low bridge/tunnel
+Depth Limit
+depth limit
+Per-Depth
+depth cost
+Per-Depth-Squared
+depth cost squared
+Max. Dist. to Shore
+max. dist. to shore
+Sub-Sea Prohibited
+sub-sea prohibited
+Sub-Sea Permitted
+sub-sea permitted
+Sub-Sea Depth Limit
+sub-sea depth limit
+Sub-Groundwater Prohibited
+sub-groundwater prohibited
+Sub-Groundwater Permitted
+sub-groundwater permitted
+Sub-Building
+sub-building cost
+Sub-Building Prohibited
+sub-building prohibited
+Sub-Way
+beneath way cost
+Half Height
+low height

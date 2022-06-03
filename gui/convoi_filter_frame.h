@@ -12,7 +12,6 @@
 #include "components/gui_scrollpane.h"
 #include "components/action_listener.h"
 #include "components/gui_button.h"
-#include "components/gui_textinput.h"
 
 class convoi_frame_t;
 class player_t;
@@ -26,30 +25,30 @@ class convoi_filter_frame_t : public gui_frame_t , private action_listener_t
 public:
 
 	enum filter_flag_t {
-		any_filter     =1,
-		name_filter    =2,
-		typ_filter     =4,
-		ware_filter    =8,
-		spezial_filter =16,
-		lkws_filter        = 1 << 5,
-		zuege_filter       = 1 << 6,
-		schiffe_filter     = 1 << 7,
-		aircraft_filter    = 1 << 8,
-		noroute_filter     = 1 << 9,
-		nofpl_filter       = 1 << 10,
-		noincome_filter    = 1 << 11,
-		indepot_filter     = 1 << 12,
-		noline_filter      = 1 << 13,
-		stucked_filter     = 1 << 14,
-		monorail_filter    = 1 << 15,
-		maglev_filter      = 1 << 16,
-		narrowgauge_filter = 1 << 17,
-		tram_filter        = 1 << 18,
-		obsolete_filter    = 1 << 19,
+		any_filter         = 1 << 0,
+
+		special_filter     = 1 << 1,
+		ware_filter        = 1 << 2,
+
+		noroute_filter     = 1 << 3,
+		noschedule_filter  = 1 << 4,
+		noincome_filter    = 1 << 5,
+		indepot_filter     = 1 << 6,
+		noline_filter      = 1 << 7,
+		stucked_filter     = 1 << 8,
+		monorail_filter    = 1 << 9,
+		maglev_filter      = 1 << 10,
+		narrowgauge_filter = 1 << 11,
+		tram_filter        = 1 << 12,
+		obsolete_filter    = 1 << 13,
+
 		// number of first special filter
-		sub_filter         = lkws_filter
+		sub_filter         = noroute_filter
 	};
-	enum { FILTER_BUTTONS=19 };
+
+	enum {
+		FILTER_BUTTONS = 9
+	};
 
 
 private:
@@ -101,16 +100,13 @@ private:
 	 */
 	button_t filter_buttons[FILTER_BUTTONS];
 
-	static char name_filter_text[64];
-	gui_textinput_t name_filter_input;
-
 	button_t typ_filter_enable;
 
 	button_t ware_alle;
 	button_t ware_keine;
 	button_t ware_invers;
 
-	gui_aligned_container_t  ware_cont;
+	gui_aligned_container_t ware_cont;
 	gui_scrollpane_t ware_scrolly;
 
 public:
@@ -121,11 +117,7 @@ public:
 	 */
 	convoi_filter_frame_t(player_t *player, convoi_frame_t *parent);
 
-	/**
-	 * Does this window need a min size button in the title bar?
-	 * @return true if such a button is needed
-	 */
-	bool has_min_sizer() const OVERRIDE {return true;}
+	void init(uint32 filter_flags, const slist_tpl<const goods_desc_t*>* wares);
 
 	/**
 	 * Set the window associated helptext

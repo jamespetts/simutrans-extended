@@ -14,11 +14,11 @@
 
 #include "../../display/simimg.h"
 #include "../../simtypes.h"
-#include "../../simobj.h"
+#include "../../obj/simobj.h"
 #include "../../descriptor/way_desc.h"
 #include "../../dataobj/koord3d.h"
 #include "../../tpl/minivec_tpl.h"
-#include "../../tpl/koordhashtable_tpl.h"
+#include "../../tpl/ordered_vector_tpl.h"
 #include "../../simskin.h"
 
 #ifdef MULTI_THREAD
@@ -73,6 +73,8 @@ enum travel_times {
 };
 
 
+
+
 /**
  * Ways is the base class for all traffic routes. (roads, track, runway etc.)
  * Ways always "belong" to a ground. They have direction bits (ribis) as well as
@@ -92,14 +94,14 @@ public:
 	static void clear_list_of__ways();
 
 	enum {
-		HAS_SIDEWALK   = 0x01,
-		IS_ELECTRIFIED = 0x02,
-		HAS_SIGN       = 0x04,
-		HAS_SIGNAL     = 0x08,
-		HAS_WAYOBJ     = 0x10,
-		HAS_CROSSING   = 0x20,
-		IS_DIAGONAL    = 0x40, // marker for diagonal image
-		IS_SNOW = 0x80	// marker, if above snowline currently
+		HAS_SIDEWALK   = 1 << 0,
+		IS_ELECTRIFIED = 1 << 1,
+		HAS_SIGN       = 1 << 2,
+		HAS_SIGNAL     = 1 << 3,
+		HAS_WAYOBJ     = 1 << 4,
+		HAS_CROSSING   = 1 << 5,
+		IS_DIAGONAL    = 1 << 6, // marker for diagonal image
+		IS_SNOW        = 1 << 7  // marker, if above snowline currently
 	};
 
 	struct runway_directions
@@ -208,9 +210,6 @@ private:
 	// Whether the way is in a degraded state.
 	bool degraded:1;
 
-#ifdef MULTI_THREAD
-	pthread_mutex_t private_car_store_route_mutex;
-#endif
 
 protected:
 
@@ -247,15 +246,103 @@ public:
 	// This was in strasse_t, but being there possibly caused heap corruption.
 	minivec_tpl<gebaeude_t*> connected_buildings;
 
+	/**
+	 * Map of all private car routes from way
+	 */
+	class private_car_route_map{
+	public:
+		void set_route_map_elem(uint8 elem){route_map_elem=elem;}
+
+		private_car_route_map(){link_mode=link_mode_NULL;}
+
+		void clear();
+
+		void pre_reset();
+
+		bool contains(koord elem) const;
+		bool insert_unique(koord elem, private_car_route_map* link_to = NULL, uint8 link_dir=0);
+
+		koord& get_by_index(uint32_t i);
+		const koord& get_by_index(uint32_t i) const;
+
+		koord& operator [] (uint32 i);
+		const koord& operator [] (uint32 i) const ;
+
+		uint32 get_count() const ;
+		bool is_empty() const ;
+
+		bool remove(koord elem);
+		void resize(uint32 new_size);
+
+		static void reset(uint8 map_elem);
+
+		//backwards compatible saving
+		void rdwr(loadsave_t *file);
+
+	private:
+		union {
+			uint32 idx;
+			koord single_koord;
+		};
+		uint8 link_mode:3;
+		uint8 route_map_elem:1;
+		enum link_modes {
+			link_mode_NULL=7,
+			link_mode_single=6,
+			link_mode_master=5
+		};
+
+		static vector_tpl<ordered_vector_tpl<koord,uint32> > route_maps[2];
+public:
+
+		inline sint32 get_idx() const {if(link_mode==link_mode_NULL || link_mode==link_mode_single) return -1; return idx;}
+
+#ifdef MULTI_THREAD
+		static pthread_mutex_t route_map_mtx;
+#endif
+
+
+		inline static void route_map_lock() {
+#ifdef MULTI_THREAD
+			int error = pthread_mutex_lock(&route_map_mtx);
+			assert(error == 0);
+			(void)error;
+#endif
+			return;
+		}
+
+		inline static void route_map_unlock() {
+#ifdef MULTI_THREAD
+			int error = pthread_mutex_unlock(&route_map_mtx);
+			assert(error == 0);
+			(void)error;
+#endif
+			return;
+		}
+	};
+
+
+
 	// Likewise, out of caution, put this here for the same reason.
-	typedef koordhashtable_tpl<koord, koord3d> private_car_route_map;
+	// n_bags must be fairly low as there are 2 maps per way and usually zero elements per way, up to ~150 in high cases and ~1500 in highest cases
+	//typedef ordered_vector_tpl<koord, uint32> private_car_route_map;
 	//typedef std::unordered_map<koord, koord3d> private_car_route_map_2;
-	private_car_route_map private_car_routes[2];
+	private_car_route_map private_car_routes[2][5];
 	//private_car_route_map_2 private_car_routes_std[2];
 	static uint32 private_car_routes_currently_reading_element;
 	static uint32 get_private_car_routes_currently_writing_element() { return private_car_routes_currently_reading_element == 1 ? 0 : 1; }
 
+	static void private_car_backtrace_begin();
+	static void private_car_backtrace_end();
+	void private_car_backtrace_add(koord destination, koord3d next_tile);
+	void private_car_backtrace_inc(koord3d next_tile);
+
+	static private_car_route_map* private_car_backtrace_last_route_map;
+	static uint8 private_car_backtrace_last_idx;
+
 	void add_private_car_route(koord dest, koord3d next_tile);
+	bool has_private_car_route(koord dest) const;
+	koord3d get_next_on_private_car_route_to(koord dest, bool reading_set=true, uint8 start_dir=0) const;
 private:
 	/// Set the boolean value to true to modify the set currently used for reading (this must ONLY be done when this is called from a single threaded part of the code).
 	void remove_private_car_route(koord dest, bool reading_set = false);
@@ -309,10 +396,13 @@ public:
 	void add_way_constraints(const way_constraints_of_way_t& value) { way_constraints.add(value); }
 	void remove_way_constraints(const way_constraints_of_way_t& value) { way_constraints.remove(value); }
 
-	sint32 get_max_speed() const { return max_speed; }
+	// Convoys that do not require electrification can ignore speed limit by electrification
+	sint32 get_max_speed(bool needs_electrification = false) const;
 
 	uint32 get_max_axle_load() const { return max_axle_load; }
 	uint32 get_bridge_weight_limit() const { return bridge_weight_limit; }
+
+	uint32 get_deckmask() const {return desc->get_deckmask();}
 
 	/**
 	* Sets a new description. Replaces old with maximum speed
@@ -330,14 +420,11 @@ public:
 	void rdwr(loadsave_t *file) OVERRIDE;
 
 	/**
-	* Info-text for this way
-	*/
-	void info(cbuffer_t & buf) const OVERRIDE;
-
-	/**
 	 * @return NULL if OK, otherwise an error message
 	 */
 	const char *is_deletable(const player_t *player) OVERRIDE;
+
+	bool is_low_clearence(const player_t* player, bool permissive=true);
 
 	waytype_t get_waytype() const OVERRIDE { return wtyp; }
 
@@ -445,7 +532,8 @@ public:
 	image_id get_image() const OVERRIDE {return image;}
 
 	inline void set_after_image( image_id b ) { foreground_image = b; }
-	image_id get_front_image() const OVERRIDE { return foreground_image; }
+	image_id get_front_image() const OVERRIDE {return foreground_image;}
+
 
 	// correct maintenance
 	void finish_rd() OVERRIDE;
@@ -505,6 +593,8 @@ public:
 		}
 		return (combined_actual * 100u / combined_ideal) - 100u;
 	}
+
+	uint8 get_map_idx(const koord3d &next_tile) const;
 };
 
 

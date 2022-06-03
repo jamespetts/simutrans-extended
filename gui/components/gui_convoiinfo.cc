@@ -10,7 +10,7 @@
 #include "gui_convoiinfo.h"
 
 #include "../../simworld.h"
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 #include "../../simconvoi.h"
 #include "../../simcolor.h"
 #include "../../display/simgraph.h"
@@ -27,8 +27,8 @@
 
 
 gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
-	formation(cnv),
-	loading_bar(cnv)
+	loading_bar(cnv),
+	formation(cnv)
 {
 	this->cnv = cnv;
 	this->show_line_name = show_line_name;
@@ -95,7 +95,12 @@ bool gui_convoiinfo_t::infowin_event(const event_t *ev)
 {
 	if(cnv.is_bound()) {
 		if(IS_LEFTRELEASE(ev)) {
-			cnv->show_info();
+			if( IS_SHIFT_PRESSED(ev) ) {
+				cnv->show_detail();
+			}
+			else {
+				cnv->show_info();
+			}
 			return true;
 		}
 		else if(IS_RIGHTRELEASE(ev)) {
@@ -216,6 +221,17 @@ void gui_convoiinfo_t::update_label()
 			switchable_label_value.buf().printf(cnv->get_average_age() == 1 ? translator::translate("%i month") : translator::translate("%i months"), cnv->get_average_age());
 			if (cnv->has_obsolete_vehicles()) {
 				switchable_label_value.set_color(SYSCOL_OBSOLETE);
+			}
+			switchable_label_title.set_visible(true);
+			switchable_label_value.set_visible(true);
+			break;
+		case 8: //range
+			switchable_label_title.buf().printf("%s: ", translator::translate("cl_btn_range"));
+			if (!cnv->get_min_range()) {
+				switchable_label_value.buf().append(translator::translate("unlimited"));
+			}
+			else {
+				switchable_label_value.buf().printf("%u km", cnv->get_min_range());
 			}
 			switchable_label_title.set_visible(true);
 			switchable_label_value.set_visible(true);

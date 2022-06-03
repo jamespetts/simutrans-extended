@@ -25,7 +25,6 @@ enum event_class_t
 	EVENT_RELEASE        =   6,
 	EVENT_MOVE           =   7,
 	EVENT_DRAG           =   8,
-	EVENT_REPEAT         =   9,
 
 	INFOWIN              =  10,  ///< window event, i.e. WIN_OPEN, WIN_CLOSE
 	WINDOW_RESIZE        =  11,
@@ -108,6 +107,10 @@ enum {
 #define SIM_KEY_F14                 269
 #define SIM_KEY_F15                 270
 
+#define SIM_MOD_NONE   0
+#define SIM_MOD_SHIFT  (1u << 0)
+#define SIM_MOD_CTRL   (1u << 1)
+
 
 /* macros */
 #define IS_MOUSE(ev) ((ev)->ev_class >= EVENT_CLICK && (ev)->ev_class <= EVENT_DRAG)
@@ -115,7 +118,6 @@ enum {
 #define IS_LEFTCLICK(ev)              ((ev)->ev_class == EVENT_CLICK        && (ev)->ev_code == MOUSE_LEFTBUTTON)
 #define IS_LEFTRELEASE(ev)            ((ev)->ev_class == EVENT_RELEASE      && (ev)->ev_code == MOUSE_LEFTBUTTON)
 #define IS_LEFTDRAG(ev)               ((ev)->ev_class == EVENT_DRAG         && (ev)->ev_code == MOUSE_LEFTBUTTON)
-#define IS_LEFTREPEAT(ev)             ((ev)->ev_class == EVENT_REPEAT       && (ev)->ev_code == MOUSE_LEFTBUTTON)
 #define IS_LEFTDBLCLK(ev)             ((ev)->ev_class == EVENT_DOUBLE_CLICK && (ev)->ev_code == MOUSE_LEFTBUTTON)
 #define IS_LEFTTPLCLK(ev)             ((ev)->ev_class == EVENT_TRIPLE_CLICK && (ev)->ev_code == MOUSE_LEFTBUTTON)
 
@@ -141,8 +143,8 @@ enum {
 #define IS_RIGHT_BUTTON_PRESSED(ev)   (((ev)->button_state&2)>>1)
 #define IS_MIDDLE_BUTTON_PRESSED(ev)  (((ev)->button_state&4)>>2)
 
-#define IS_SHIFT_PRESSED(ev)           ((ev)->ev_key_mod&1u)
-#define IS_CONTROL_PRESSED(ev)        (((ev)->ev_key_mod&2u)>>1)
+#define IS_SHIFT_PRESSED(ev)          (((ev)->ev_key_mod&SIM_MOD_SHIFT) != 0)
+#define IS_CONTROL_PRESSED(ev)        (((ev)->ev_key_mod&SIM_MOD_CTRL ) != 0)
 
 
 /**
@@ -163,14 +165,14 @@ enum {
 struct event_t
 {
 public:
-	event_t(event_class_t event_class = EVENT_NONE) :
-		ev_class(event_class),
-		ev_code(0),
-		mx(0), my(0),
-		cx(0), cy(0),
-		button_state(0),
-		ev_key_mod(0)
-	{ }
+	event_t(event_class_t event_class = EVENT_NONE);
+
+public:
+	/**
+	 * Move event origin. Useful when transferring events to sub-components.
+	 * @param delta position of new origin relative to the old origin.
+	 */
+	void move_origin(scr_coord delta);
 
 public:
 	event_class_t ev_class;
@@ -180,10 +182,10 @@ public:
 		void *ev_ptr;
 	};
 
-	int mx, my;
+	scr_coord_val mx, my;
 
 	/// position of last mouse click
-	int cx, cy;
+	scr_coord_val cx, cy;
 
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
@@ -196,23 +198,13 @@ public:
 };
 
 
-/**
- * Translate event origin. Useful when transferring events to sub-components.
- */
-static inline void translate_event(event_t *const ev, int x, int y)
-{
-	ev->mx += x;
-	ev->cx += x;
-	ev->my += y;
-	ev->cy += y;
-}
-
 /// Return one event. Does *not* wait.
 void display_poll_event(event_t*);
 
 /// Wait for one event, and return it.
 void display_get_event(event_t*);
 void change_drag_start(int x, int y);
+void set_click_xy(scr_coord_val x, scr_coord_val y);
 
 int event_get_last_control_shift();
 event_class_t last_meta_event_get_class();

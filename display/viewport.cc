@@ -221,7 +221,7 @@ grund_t* viewport_t::get_ground_on_screen_coordinate(scr_coord screen_pos, sint3
 		gr = world->lookup(koord3d(found_i,found_j,hgt+1));
 		if(gr != NULL) {
 			found = /*select_karten_boden ? gr->ist_karten_boden() :*/ gr->is_visible();
-			if( ( gr->get_typ() == grund_t::tunnelboden || gr->get_typ() == grund_t::monorailboden ) && gr->get_weg_nr(0) == NULL && !gr->get_leitung()  &&  gr->find<zeiger_t>()) {
+			if( gr->is_dummy_ground() && gr->find<zeiger_t>()) {
 				// This is only a dummy ground placed by tool_build_tunnel_t or tool_build_way_t as a preview.
 				found = false;
 			}
@@ -286,7 +286,7 @@ void viewport_t::metrics_updated()
 	cached_disp_height = display_get_height();
 	cached_img_size = get_tile_raster_width();
 
-	set_viewport_ij_offset(	koord(
+	set_viewport_ij_offset(koord(
 		- cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size,
 		cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size
 		) );

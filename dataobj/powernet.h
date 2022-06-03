@@ -44,7 +44,7 @@ private:
 	/// Power demand in current step
 	uint64 this_demand;
 
-	/// Just transfers power demand and supply to current step
+	// Just transfers power demand and supply to current step
 	void step(uint32 delta_t);
 
 public:

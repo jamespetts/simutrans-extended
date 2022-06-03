@@ -23,17 +23,16 @@ class tool_t;
 /**
  * nwc_gameinfo_t
  * @from-client: client wants map info
- *		server sends nwc_gameinfo_t to sender
+ *      server sends nwc_gameinfo_t to sender
  * @from-server:
- *		@data len of gameinfo
- *		client processes this in network_connect
+ *      @data len of gameinfo
+ *      client processes this in network_connect
  */
 class nwc_gameinfo_t : public network_command_t {
 public:
 	nwc_gameinfo_t() : network_command_t(NWC_GAMEINFO) { len = 0; }
 	bool execute(karte_t *) OVERRIDE;
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_gameinfo_t";}
 	uint32 client_id;
 	uint32 len;
 };
@@ -52,10 +51,15 @@ public:
 
 	bool execute(karte_t *) OVERRIDE;
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_nick_t";}
+
 	plainstring nickname;
 
-	enum { WELCOME, CHANGE_NICK, FAREWELL};
+	enum {
+		WELCOME,
+		CHANGE_NICK,
+		FAREWELL
+	};
+
 	/**
 	 * Server-side nickname related stuff:
 	 * what = WELCOME     .. new player joined: send welcome message
@@ -82,12 +86,12 @@ public:
 
 	bool execute (karte_t *) OVERRIDE;
 	void rdwr () OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_chat_t";}
+
 	void add_message (karte_t*) const;
 
 	plainstring message;            // Message text
 	sint8 player_nr;                // Company number message was sent as
-	plainstring clientname;	        // Name of client message is from
+	plainstring clientname;         // Name of client message is from
 	plainstring destination;        // Client to send message to (NULL for all)
 
 private:
@@ -98,11 +102,11 @@ private:
 /**
  * nwc_join_t
  * @from-client: client wants to join the server
- *		server sends nwc_join_t to sender, nwc_sync_t to all clients
+ *      server sends nwc_join_t to sender, nwc_sync_t to all clients
  * @from-server:
- *		@data answer == 1 (if joining now is ok)
- *		@data client_id
- *		client ignores the following nwc_sync_t, waits for nwc_ready_t
+ *      @data answer == 1 (if joining now is ok)
+ *      @data client_id
+ *      client ignores the following nwc_sync_t, waits for nwc_ready_t
  */
 class nwc_join_t : public nwc_nick_t {
 public:
@@ -111,7 +115,7 @@ public:
 
 	bool execute(karte_t *) OVERRIDE;
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_join_t";}
+
 	uint32 client_id;
 	uint8 answer;
 
@@ -130,12 +134,12 @@ private:
 /**
  * nwc_ready_t
  * @from-client:
- *		@data sync_steps at which client will continue
- *		client paused, waits for unpause
+ *      @data sync_steps at which client will continue
+ *      client paused, waits for unpause
  * @from-server:
- *		data is resent to client
- *		map_counter to identify network_commands
- *		unpause client
+ *      data is resent to client
+ *      map_counter to identify network_commands
+ *      unpause client
  */
 class nwc_ready_t : public network_command_t {
 public:
@@ -144,7 +148,7 @@ public:
 
 	bool execute(karte_t *) OVERRIDE;
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_ready_t";}
+
 	uint32 sync_step;
 	uint32 map_counter;
 	checklist_t checklist;
@@ -158,15 +162,15 @@ private:
 /**
  * nwc_game_t
  * @from-server:
- *		@data len of savegame
- *		client processes this in network_connect
+ *      @data len of savegame
+ *     client processes this in network_connect
  */
 class nwc_game_t : public network_command_t {
 public:
 	nwc_game_t(uint32 len_=0) : network_command_t(NWC_GAME), len(len_) {}
 
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_game_t";}
+
 	uint32 len;
 };
 
@@ -175,13 +179,14 @@ public:
  */
 class network_world_command_t : public network_command_t {
 public:
-	network_world_command_t() : network_command_t(), sync_step(0), map_counter(0) {};
+	network_world_command_t() : network_command_t(), sync_step(0), map_counter(0) {}
 	network_world_command_t(uint16 /*id*/, uint32 /*sync_step*/, uint32 /*map_counter*/);
 
 	void rdwr() OVERRIDE;
-	const char* get_name() OVERRIDE { return "network_world_command_t";}
+
 	// put it to the command queue
 	bool execute(karte_t *) OVERRIDE;
+
 	// apply it to the world
 	virtual void do_command(karte_t*) {}
 	uint32 get_sync_step() const { return sync_step; }
@@ -201,23 +206,23 @@ protected:
 /**
  * nwc_sync_t
  * @from-server:
- *		@data client_id this client wants to receive the game
- *		@data new_map_counter new map counter for the new world after game reloading
- *		clients: pause game, save, load, wait for nwc_ready_t command to unpause
- *		server: pause game, save, load, send game to client, send nwc_ready_t command to client
+ *      @data client_id this client wants to receive the game
+ *      @data new_map_counter new map counter for the new world after game reloading
+ *      clients: pause game, save, load, wait for nwc_ready_t command to unpause
+ *      server: pause game, save, load, send game to client, send nwc_ready_t command to client
  */
 class nwc_sync_t : public network_world_command_t {
 public:
-	nwc_sync_t() : network_world_command_t(NWC_SYNC, 0, 0), client_id(0), new_map_counter(0) {};
+	nwc_sync_t() : network_world_command_t(NWC_SYNC, 0, 0), client_id(0), new_map_counter(0) {}
 	nwc_sync_t(uint32 sync_steps, uint32 map_counter, uint32 send_to_client, uint32 _new_map_counter) : network_world_command_t(NWC_SYNC, sync_steps, map_counter), client_id(send_to_client), new_map_counter(_new_map_counter) { }
 
 	void rdwr() OVERRIDE;
 	void do_command(karte_t*) OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_sync_t"; }
+
 	uint32 get_new_map_counter() const { return new_map_counter; }
 private:
 	uint32 client_id; // this client shall receive the game
-	uint32 new_map_counter;	// map counter to be applied to the new world after game reloading
+	uint32 new_map_counter; // map counter to be applied to the new world after game reloading
 };
 
 /**
@@ -266,17 +271,17 @@ private:
 /**
  * nwc_check_t
  * @from-server:
- *		@data checklist random seed and quickstone next check entries at previous sync_step
- *		clients: check random seed, if check fails disconnect.
- *		the check is done in karte_t::interactive
+ *      @data checklist random seed and quickstone next check entries at previous sync_step
+ *      clients: check random seed, if check fails disconnect.
+ *      the check is done in karte_t::interactive
  */
 class nwc_check_t : public network_world_command_t {
 public:
 	nwc_check_t() : network_world_command_t(NWC_CHECK, 0, 0), server_sync_step(0) { }
-	nwc_check_t(uint32 sync_steps, uint32 map_counter, const checklist_t &server_checklist_, uint32 server_sync_step_) : network_world_command_t(NWC_CHECK, sync_steps, map_counter), server_checklist(server_checklist_), server_sync_step(server_sync_step_) {};
+	nwc_check_t(uint32 sync_steps, uint32 map_counter, const checklist_t &server_checklist_, uint32 server_sync_step_) : network_world_command_t(NWC_CHECK, sync_steps, map_counter), server_checklist(server_checklist_), server_sync_step(server_sync_step_) {}
 	void rdwr() OVERRIDE;
 	void do_command(karte_t*) OVERRIDE { }
-	const char* get_name() OVERRIDE { return "nwc_check_t"; }
+
 	checklist_t server_checklist;
 	uint32 server_sync_step;
 	// no action required -> can be ignored if too old
@@ -321,7 +326,7 @@ public:
 	nwc_chg_player_t() : network_broadcast_world_command_t(NWC_CHG_PLAYER, 0, 0), pending_company_creator(NULL) { }
 	nwc_chg_player_t(uint32 sync_steps, uint32 map_counter, uint8 cmd_=255, uint8 player_nr_=255, uint16 param_=0, bool scripted_call_=false)
 	: network_broadcast_world_command_t(NWC_CHG_PLAYER, sync_steps, map_counter),
-	  cmd(cmd_), player_nr(player_nr_), param(param_), scripted_call(scripted_call_), pending_company_creator(NULL) {};
+	  cmd(cmd_), player_nr(player_nr_), param(param_), scripted_call(scripted_call_), pending_company_creator(NULL) {}
 
 	~nwc_chg_player_t();
 
@@ -329,7 +334,6 @@ public:
 	void do_command(karte_t*) OVERRIDE;
 	// do some special checks
 	network_broadcast_world_command_t* clone(karte_t *) OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_chg_player_t"; }
 
 	uint8 cmd;
 	uint8 player_nr;
@@ -384,7 +388,6 @@ public:
 
 	// really executes it, here exec should be true
 	void do_command(karte_t*) OVERRIDE;
-	const char* get_name() OVERRIDE { return "nwc_tool_t"; }
 
 	void init_tool();
 private:
@@ -412,16 +415,15 @@ private:
 /**
  * nwc_step_t
  * @from-server:
- *		@data contains the current sync_steps of the server
- *       defining the maximum sync_steps a client can advance to.
+ *      @data contains the current sync_steps of the server
+ *      defining the maximum sync_steps a client can advance to.
  */
 class nwc_step_t : public network_world_command_t {
 public:
 	nwc_step_t() : network_world_command_t(NWC_STEP, 0, 0) { }
-	nwc_step_t(uint32 sync_steps, uint32 map_counter) : network_world_command_t(NWC_STEP, sync_steps, map_counter) {};
+	nwc_step_t(uint32 sync_steps, uint32 map_counter) : network_world_command_t(NWC_STEP, sync_steps, map_counter) {}
 
 	bool execute(karte_t *) OVERRIDE { return true;}
-	const char* get_name() OVERRIDE { return "nwc_step_t"; }
 };
 
 #endif

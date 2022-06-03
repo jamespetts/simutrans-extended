@@ -48,11 +48,11 @@
 #include <stddef.h> // ptrdiff_t, intptr_t (Microsoft)
 
 #define ENUM_BITSET(T) \
- static inline T operator ~ (T a) { return (T)~(unsigned)a; } \
- static inline T operator & (T a, T b) { return (T)((unsigned)a & (unsigned)b); } \
- static inline T operator &= (T& a, T b) { return a = (T)((unsigned)a & (unsigned)b); } \
- static inline T operator | (T a, T b) { return (T)((unsigned)a | (unsigned)b); } \
- static inline T operator |= (T& a, T b) { return a = (T)((unsigned)a | (unsigned)b); }
+	static inline T operator ~  (T  a)      { return     (T)~(unsigned)a;                } \
+	static inline T operator &  (T  a, T b) { return     (T)((unsigned)a & (unsigned)b); } \
+	static inline T operator &= (T& a, T b) { return a = (T)((unsigned)a & (unsigned)b); } \
+	static inline T operator |  (T  a, T b) { return     (T)((unsigned)a | (unsigned)b); } \
+	static inline T operator |= (T& a, T b) { return a = (T)((unsigned)a | (unsigned)b); }
 
 /* divers enums:
  * better defined here than scattered in thousand files ...
@@ -85,7 +85,17 @@ enum climate_bits
 	all_but_arctic_climate = ALL_CLIMATES & ~arctic_climate_bit
 };
 
-enum sound_type_t { TOOL_SOUND=0, TRAFFIC_SOUND=1, AMBIENT_SOUND=2, FACTORY_SOUND=3, CROSSING_SOUND=4, CASH_SOUND=5, MAX_SOUND_TYPES, ALL_SOUND=255 };
+enum sound_type_t {
+	TOOL_SOUND     = 0,
+	TRAFFIC_SOUND  = 1,
+	AMBIENT_SOUND  = 2,
+	FACTORY_SOUND  = 3,
+	CROSSING_SOUND = 4,
+	CASH_SOUND     = 5,
+	MAX_SOUND_TYPES,
+
+	ALL_SOUND = 0xFF
+};
 
 /**
  * Vordefinierte Wegtypen.
@@ -104,7 +114,7 @@ enum waytype_t {
 	air_wt           =  16,
 	noise_barrier_wt =  17,
 	powerline_wt     = 128,
-	any_wt			 = 255
+	any_wt           = 255
 };
 
 /**
@@ -181,6 +191,56 @@ typedef unsigned long long  uint64;
 #endif
 #endif // ! MULTI_THREAD
 
+static inline uint32 hammingWeight(uint8 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x55);
+	x=(x & 0x33) + ((x>>2) & 0x33);
+	x+=(x>>4);
+	return x & 0xF;
+#endif
+}
+
+static inline uint32 hammingWeight(uint16 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x5555);
+	x=(x & 0x3333) + ((x>>2) & 0x3333);
+	x=(x + (x>>4)) & 0x0F0F;
+	x+=(x>>8);
+	return x & 0x1F;
+#endif
+}
+
+static inline uint32 hammingWeight(uint32 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x55555555);
+	x=(x & 0x33333333) + ((x>>2) & 0x33333333);
+	x=(x + (x>>4)) & 0x0F0F0F0F;
+	x+=(x>>8);
+	x+=(x>>16);
+	return x & 0x3F;
+#endif
+}
+
+static inline uint32 hammingWeight(uint64 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcountl(x));
+#else
+	x-=((x>>1) & 0x5555555555555555);
+	x=(x & 0x3333333333333333) + ((x>>2) & 0x3333333333333333);
+	x=(x + (x>>4)) & 0x0F0F0F0F0F0F0F0F;
+	x+=(x>>8);
+	x+=(x>>16);
+	x+=(x>>32);
+	return x & 0x7F;
+#endif
+}
+
 
 template<typename T> static inline int sgn(T x)
 {
@@ -202,6 +262,10 @@ static inline int max(const int a, const int b)
 	return a > b ? a : b;
 }
 #endif
+
+template<typename T> static inline void set_bits_to(T& bits, const T mask, const T values){
+	bits = (bits & ~mask) | values;
+}
 
 // @author: jamespetts, April 2011
 template<class T> static T set_scale_generic(T value, uint16 scale_factor) { return (value * (T)scale_factor) / (T)1000; }
@@ -336,7 +400,7 @@ static inline bool operator == (const id_pair& a, int b)
 static inline uint16 endian(uint16 v)
 {
 #ifdef SIM_BIG_ENDIAN
-	v = v << 8 | v >> 8; // 0x0011
+	v = (v << 8) | (v >> 8); // 0x0011
 #endif
 	return v;
 }
@@ -344,8 +408,8 @@ static inline uint16 endian(uint16 v)
 static inline uint32 endian(uint32 v)
 {
 #ifdef SIM_BIG_ENDIAN
-	v = (v << 16)              | (v >> 16);              // 0x22330011
-	v = (v <<  8) & 0xFF00FF00 | (v >>  8) & 0x00FF00FF; // 0x33221100
+	v =   (v << 16)                |   (v >> 16);                // 0x22330011
+	v = ( (v <<  8) & 0xFF00FF00 ) | ( (v >>  8) & 0x00FF00FF ); // 0x33221100
 #endif
 	return v;
 }
@@ -353,9 +417,9 @@ static inline uint32 endian(uint32 v)
 static inline uint64 endian(uint64 v)
 {
 #ifdef SIM_BIG_ENDIAN
-	v = (v << 32)                         | (v >> 32);                         // 0x4455667700112233
-	v = (v << 16) & 0xFFFF0000FFFF0000ULL | (v >> 16) & 0x0000FFFF0000FFFFULL; // 0x6677445522330011
-	v = (v <<  8) & 0xFF00FF00FF00FF00ULL | (v >>  8) & 0x00FF00FF00FF00FFULL; // 0x7766554433221100
+	v =   (v << 32)                           |   (v >> 32);                           // 0x4455667700112233
+	v = ( (v << 16) & 0xFFFF0000FFFF0000ULL ) | ( (v >> 16) & 0x0000FFFF0000FFFFULL ); // 0x6677445522330011
+	v = ( (v <<  8) & 0xFF00FF00FF00FF00ULL ) | ( (v >>  8) & 0x00FF00FF00FF00FFULL ); // 0x7766554433221100
 #endif
 	return v;
 }

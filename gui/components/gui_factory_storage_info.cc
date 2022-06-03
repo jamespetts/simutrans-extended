@@ -8,6 +8,7 @@
 #include "../../simcolor.h"
 #include "../../simworld.h"
 
+#include "../../dataobj/environment.h"
 #include "../../dataobj/translator.h"
 #include "../../utils/cbuffer_t.h"
 
@@ -56,10 +57,12 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				{
 					continue;
 				}
+				const bool is_available = world()->get_goods_list().is_contained(goods.get_typ());
+
 				const sint64 pfactor = fab->get_desc()->get_supplier(i) ? (sint64)fab->get_desc()->get_supplier(i)->get_consumption() : 1ll;
 				const sint64 max_transit = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max_transit * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 stock_quantity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color = goods.get_typ()->get_color();
 
 				left = 2;
@@ -78,14 +81,14 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				left += STORAGE_INDICATOR_WIDTH + 2 + D_H_SPACE;
 
 				// [goods color box] This design is the same as the goods list
-				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, NULL);
+				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, false);
 				left += 12;
 				yoff -= 2; // box position adjistment
 
 				// [goods name]
 				buf.clear();
 				buf.printf("%s", translator::translate(goods.get_typ()->get_name()));
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
 
 				left += 10;
 
@@ -96,37 +99,41 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				// [storage capacity]
 				buf.clear();
-				buf.printf("%u/%u,", stock_quantity, storage_capacity);
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				buf.printf("%u/%u", stock_quantity, storage_capacity);
+				if (is_available) {
+					buf.append(", ");
+				}
+				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, is_available ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
 				left += D_H_SPACE;
 
 				buf.clear();
-				// [in transit]
-				if (fab->get_status() != fabrik_t::inactive) {
-					//const bool in_transit_over_storage = (stock_quantity + (uint32)goods.get_in_transit() > storage_capacity);
-					const sint32 actual_max_transit = max(goods.get_in_transit(), max_transit);
-					if (skinverwaltung_t::in_transit) {
-						display_color_img_with_tooltip(skinverwaltung_t::in_transit->get_image_id(0), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("symbol_help_txt_in_transit"));
-						left += 14;
+				if (is_available) {
+					// [in transit]
+					if (fab->get_status() != fabrik_t::inactive) {
+						//const bool in_transit_over_storage = (stock_quantity + (uint32)goods.get_in_transit() > storage_capacity);
+						const sint32 actual_max_transit = max(goods.get_in_transit(), max_transit);
+						if (skinverwaltung_t::in_transit) {
+							display_color_img_with_tooltip(skinverwaltung_t::in_transit->get_image_id(0), pos.x + offset.x + left, pos.y + offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("symbol_help_txt_in_transit"));
+							left += 14;
+						}
+						buf.printf("%i/%i", goods.get_in_transit(), actual_max_transit);
+						PIXVAL col_val = actual_max_transit == 0 ? COL_DANGER : max_transit == 0 ? color_idx_to_rgb(COL_DARK_ORANGE) : SYSCOL_TEXT;
+						left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
+						buf.clear();
+						buf.append(", ");
 					}
-					buf.printf("%i/%i", goods.get_in_transit(), actual_max_transit);
-					PIXVAL col_val = actual_max_transit == 0 ? COL_DANGER : max_transit == 0 ? color_idx_to_rgb(COL_DARK_ORANGE): SYSCOL_TEXT;
-					left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
-					buf.clear();
-					buf.append(", ");
-				}
 
 
-				// [monthly production]
-				const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
-				if (monthly_prod < 100) {
-					buf.printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
+					// [monthly production]
+					const uint32 monthly_prod = (uint32)(fab->get_current_production()*pfactor * 10 >> DEFAULT_PRODUCTION_FACTOR_BITS);
+					if (monthly_prod < 100) {
+						buf.printf(translator::translate("consumption %.1f%s/month"), (float)monthly_prod / 10.0, translator::translate(goods.get_typ()->get_mass()));
+					}
+					else {
+						buf.printf(translator::translate("consumption %u%s/month"), monthly_prod / 10, translator::translate(goods.get_typ()->get_mass()));
+					}
+					left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				}
-				else {
-					buf.printf(translator::translate("consumption %u%s/month"), monthly_prod/10, translator::translate(goods.get_typ()->get_mass()));
-				}
-				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-
 				yoff += LINESPACE;
 			}
 			yoff += LINESPACE;
@@ -148,8 +155,8 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 			int i = 0;
 			FORX(array_tpl<ware_production_t>, const& goods, fab->get_output(), i++) {
 				const sint64 pfactor = (sint64)fab->get_desc()->get_product(i)->get_factor();
-				const uint32 stock_quantity   = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.menge * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
-				const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
+				const uint32 stock_quantity   = (uint32)goods.get_storage();
+				const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);
 				const PIXVAL goods_color  = goods.get_typ()->get_color();
 				left = 2;
 				yoff+=2; // box position adjistment
@@ -163,7 +170,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 				left += STORAGE_INDICATOR_WIDTH + 2 + D_H_SPACE;
 
 				// [goods color box] This design is the same as the goods list
-				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, NULL);
+				display_colorbox_with_tooltip(pos.x + offset.x + left, pos.y + offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, goods_color, false);
 				left += 12;
 				yoff-=2; // box position adjistment
 
@@ -180,7 +187,7 @@ void gui_factory_storage_info_t::draw(scr_coord offset)
 
 				// [storage capacity]
 				buf.clear();
-				buf.printf("%u/%u,", stock_quantity, storage_capacity);
+				buf.printf("%i/%i,", stock_quantity, storage_capacity);
 				left += display_proportional_clip_rgb(pos.x + offset.x + left, pos.y + offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				left += D_H_SPACE;
 
@@ -270,7 +277,7 @@ void gui_factory_connection_stat_t::recalc_size()
 {
 	// show_scroll_x==false ->> size.w not important ->> no need to calc text pixel length
 	if (fab) {
-		uint lines = is_input_display ? fab->get_suppliers().get_count() : fab->get_lieferziele().get_count();
+		uint lines = is_input_display ? fab->get_suppliers().get_count() : fab->get_consumers().get_count();
 		set_size(scr_size(400, lines * (LINESPACE + 1)));
 	}
 	else {
@@ -291,7 +298,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 	double distance;
 	char distance_display[10];
 
-	fab_list = is_input_display ? fab->get_suppliers() : fab->get_lieferziele();
+	fab_list = is_input_display ? fab->get_suppliers() : fab->get_consumers();
 
 
 	uint32 sel = line_selected;
@@ -300,8 +307,8 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 		if (target_fab) {
 			const bool is_active = is_input_display ?
-				target_fab->is_active_lieferziel(fab->get_pos().get_2d()) :
-				fab->is_active_lieferziel(k);
+								   target_fab->is_consumer_active_at(fab->get_pos().get_2d()) :
+								   fab->is_consumer_active_at(k);
 			const bool is_connected_to_own_network = fab->is_connected_to_network(welt->get_active_player()) && target_fab->is_connected_to_network(welt->get_active_player());
 			const bool is_within_own_network = target_fab->is_connected_to_network(welt->get_active_player());
 			xoff = D_POS_BUTTON_WIDTH + D_H_SPACE;
@@ -327,10 +334,10 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 			}
 
 			// [status color bar]
-			if (fab->get_status() >= fabrik_t::staff_shortage) {
+			if (fab->is_staff_shortage()) {
 				display_ddd_box_clip_rgb(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 2, D_INDICATOR_WIDTH / 2, D_INDICATOR_HEIGHT + 2, COL_STAFF_SHORTAGE, COL_STAFF_SHORTAGE);
 			}
-			PIXVAL col_val = color_idx_to_rgb(fabrik_t::status_to_color[target_fab->get_status() % fabrik_t::staff_shortage]);
+			PIXVAL col_val = color_idx_to_rgb(fabrik_t::status_to_color[target_fab->get_status()]);
 			display_fillbox_wh_clip_rgb(offset.x + xoff + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH / 2 - 1, D_INDICATOR_HEIGHT, col_val, true);
 			xoff += D_INDICATOR_WIDTH / 2 + 3;
 
@@ -343,10 +350,10 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				xoff += 11;
 			}
 			// [goods color box] This design is the same as the goods list
-			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, transport_goods->get_color(), NULL);
+			display_colorbox_with_tooltip(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, transport_goods->get_color(), false);
 			xoff += 12;
 			// [distance]
-			col_val = is_within_own_network ? SYSCOL_TEXT : color_idx_to_rgb(COL_GREY3);
+			col_val = is_within_own_network ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK;
 			distance = (double)(shortest_distance(k, fab->get_pos().get_2d()) * welt->get_settings().get_meters_per_tile()) / 1000.0;
 			if (distance < 1)
 			{
@@ -375,13 +382,12 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				buf.clear();
 				if (lead_time == UINT32_MAX_VALUE) {
 					buf.append("--:--:--");
-					col_val = color_idx_to_rgb(COL_GREY4);
 				}
 				else {
 					char lead_time_as_clock[32];
 					welt->sprintf_time_tenths(lead_time_as_clock, 32, lead_time);
 					buf.append(lead_time_as_clock);
-					col_val = is_connected_to_own_network ? SYSCOL_TEXT : color_idx_to_rgb(COL_GREY4);
+					col_val = is_connected_to_own_network ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE;
 				}
 				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, col_val, true);
 				xoff += D_H_SPACE * 2;
@@ -549,7 +555,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			// [name]
 			buf.clear();
 			buf.append(halt->get_name());
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1()), true);
+			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1() + env_t::gui_player_color_dark), true);
 			xoff += D_H_SPACE * 2;
 
 			bool has_active_freight_connection = false;
@@ -602,9 +608,8 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 				{
 					continue;
 				}
-				typedef quickstone_hashtable_tpl<haltestelle_t, haltestelle_t::connexion*> connexions_map_single_remote;
 				uint8 g_class = goods_manager_t::get_classes_catg_index(i) - 1;
-				connexions_map_single_remote *connexions = halt->get_connexions(i, g_class);
+				haltestelle_t::connexions_map *connexions = halt->get_connexions(i, g_class);
 
 				if (!connexions->empty())
 				{
@@ -615,26 +620,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			}
 
 			// [status bar]
-			// get_status_farbe() may not fit for freight station. so a dedicated alert display
-			// This can be separated as a function of simhalt if used elsewhere.
-			//if (halt->is_overcrowded(2)) { col = COL_RED; } // This may be extremely lagging
-			if (!has_active_freight_connection) {
-				col_val = COL_INACTIVE; // seems that the freight convoy is not running here
-			}
-			else if (wainting_sum + transship_sum > halt->get_capacity(2)) {
-				col_val = COL_DANGER;
-			}
-			else if (wainting_sum + transship_sum > halt->get_capacity(2)*0.9) {
-				col_val = COL_WARNING;
-			}
-			else if (!wainting_sum && !transship_sum) {
-				// Still have to consider
-				col_val = COL_CAUTION;
-			}
-			else {
-				col_val = COL_CLEAR;
-			}
-			display_fillbox_wh_clip_rgb(offset.x + D_V_SPACE + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH * 2 / 3, D_INDICATOR_HEIGHT + 1, col_val, true);
+			display_fillbox_wh_clip_rgb(offset.x + D_V_SPACE + 1, offset.y + yoff + D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_HEIGHT+1, LINESPACE), D_INDICATOR_WIDTH * 2/3, D_INDICATOR_HEIGHT+1, halt->get_status_color(2), true);
 
 			if (win_get_magic(magic_halt_info + halt.get_id())) {
 				display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);
@@ -645,4 +631,66 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 	if (size != get_size()) {
 		set_size(size);
 	}
+}
+
+
+void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
+{
+	factory_list.clear();
+	FOR(vector_tpl<fabrik_t*>, const f, world()->get_fab_list()) {
+		if (show_consumer) {
+			// consume(accept) this?
+			if(f->get_desc()->get_accepts_these_goods(ware)) {
+				factory_list.append_unique(f->get_desc());
+			}
+		}
+		else {
+			// produce this?
+			FOR(array_tpl<ware_production_t>, const& product, f->get_output()) {
+				if (product.get_typ() == ware) {
+					factory_list.append_unique(f->get_desc());
+					break; // found
+				}
+			}
+		}
+	}
+}
+
+void gui_goods_handled_factory_t::draw(scr_coord offset)
+{
+	offset += pos;
+	scr_coord_val xoff = 0;
+	if (factory_list.get_count() > 0) {
+		// if pakset has symbol, show symbol
+		if (skinverwaltung_t::input_output){
+			display_color_img(skinverwaltung_t::input_output->get_image_id(show_consumer ? 0:1), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
+			xoff += 14;
+		}
+
+		uint n = 0;
+		FORX(vector_tpl<const factory_desc_t*>, f, factory_list, n++) {
+			bool is_retired=false;
+			if (world()->use_timeline()){
+				if (f->get_building()->get_intro_year_month() > world()->get_timeline_year_month()) {
+					// is future
+					continue;
+				}
+				if (f->get_building()->get_retire_year_month() < world()->get_timeline_year_month()) {
+					is_retired = true;
+				}
+			}
+			if (n) {
+				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, ", ", ALIGN_LEFT, SYSCOL_TEXT, true);
+			}
+			buf.clear();
+			buf.printf("%s", translator::translate(f->get_name()));
+			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, is_retired ? SYSCOL_OUT_OF_PRODUCTION : SYSCOL_TEXT, true);
+		}
+
+	}
+	else {
+		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, "-", ALIGN_LEFT, COL_INACTIVE, true);
+	}
+
+	set_size(scr_size(xoff + D_H_SPACE * 2, D_LABEL_HEIGHT));
 }

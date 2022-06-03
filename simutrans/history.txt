@@ -1,10 +1,34 @@
-	FIX: Wrong tooltip when building something with the finance window opened.
+	CHG: lang files are loaded if their name is *XX.tab or XX*.tab The first is preferred to avoid confusion by name like ja-taken.tab
+	ADD: selected convoi in minimap now magenta. Also network display properly updated when activating or closing windows
+	CHG: Infinite mouse scrolling can be activated manually in the display settings; but it will fail with certain touch devices
+
+
+Release of 123.0 (r10137 on 30-Dec-2021):
+	KNOWN BUG: ugly movement of pedestrians on diagonals/curves
+	FIX: Wrong tooltip when building something with the finance window opened
 	ADD: map only moves when numlock off, new tool to move to map view (simple_tool[36]=,keybinding,-1|0)
 	ADD: new option in simuconf.tab "numpad_always_moves_map" regardsless of numlock state
+	FIX: Wrong loading of 24 bit BMP heightmaps
+	FIX: Wrong loading of 8 bit greyscale BMP heightmaps if width is not divisible by 4
+	ADD: New height conversion modes when loading heightmaps
 	FIX: MessageOptions can be three single images (id=0,1,2) instead of one large image
 	ADD: construction cost tooltip also for normal tunnel construction (clicking on slopes)
 	FIX: Graphical glitches when resizing SDL2 window with -autodpi
 	ADD: special key "SCORLLOCK", "DELETE", ESCAPE", BACKSAPCE" and "+" sign for shift as modifer in tools key binding
+	ADD: (Leartin) groundobj editor
+	ADD: (Leartin) groundobj editor and totally overhauled edit windows
+	FIX: Fatal error when querying servers running very old versions
+	FIX: tunnel can now also connect to sidewards tunnel (as originally intended by the code)
+	ADD: target tile for jumping to a position (via pos button, window icon or jump dialog) will be marked with the current cursor
+	FIX: Crash on reload after lowering canal with a ship on a nearby tile
+	FIX: Crash when liquidating company owning a non-empty underground depot
+	FIX: Crash when liquidating company owning a house
+	ADD: chat window transparency in network mode now controlled by theme: gui_color_chat_window_network_transparency and gui_chat_window_network_transparency
+	CHG: search dialoges now consistent design, text search, preserved during saveload
+	ADD: menubar can be now top bottom left or right
+	ADD: reselect a tool will close it (new default, set by reselect_closes_tool in menuconf.tab)
+	FIX: Grid height not restored when removing building on a raised tile
+	CHG: window rollup also with double click
 
 
 Release of 122.0 (r9274 on 10-Oct-2020):

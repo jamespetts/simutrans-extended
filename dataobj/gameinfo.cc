@@ -131,7 +131,7 @@ void gameinfo_t::rdwr(loadsave_t *file)
 	file->rdwr_long( size_y );
 	for( int y=0;  y<MINIMAP_SIZE;  y++  ) {
 		for( int x=0;  x<MINIMAP_SIZE;  x++  ) {
-			if ((file->get_extended_version() == 14 && file->get_extended_revision() >= 32) || file->get_extended_version() >= 15) {
+			if( file->is_version_ex_atleast(14, 32) ) {
 				file->rdwr_short(map_idx.at(x, y));
 				if (file->is_loading()) {
 					map_rgb.at(x,y) = color_idx_to_rgb(map_idx.at(x,y));
@@ -170,7 +170,7 @@ void gameinfo_t::rdwr(loadsave_t *file)
 
 	char temp[PATH_MAX];
 	tstrncpy( temp, game_comment.c_str(), lengthof(temp) );
-	file->rdwr_str( temp, lengthof(temp) );	// game_comment
+	file->rdwr_str( temp, lengthof(temp) ); // game_comment
 	if(  file->is_loading()  ) {
 		game_comment = temp;
 	}

@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include <string.h>
 
-int debuglevel = 2;
+#include "../utils/log.h"
+
+log_t::level_t debuglevel = log_t::LEVEL_WARN;
 
 #include "../simdebug.h"
 #include "../simtypes.h"
@@ -27,51 +29,49 @@ uint32 dr_time(void)
 
 int main(int argc, char* argv[])
 {
-	argv++, argc--;
+	argv++; argc--;
 
-	init_logging("stderr", true, true, "Makeobj version " MAKEOBJ_VERSION " for simutrans " VERSION_NUMBER EXTENDED_VERSION " and higher\n", "makeobj");
-
-	debuglevel = 2; // only warnings and errorsS
+	init_logging("stderr", true, true, "", "makeobj");
+	debuglevel = log_t::LEVEL_WARN; // only warnings and errors
 
 	while(  argc  &&  (  !STRICMP(argv[0], "quiet")  ||  !STRICMP(argv[0], "verbose")  ||  !STRICMP(argv[0], "debug")  )  ) {
 
 		if (argc && !STRICMP(argv[0], "debug")) {
-			argv++, argc--;
-			debuglevel = 4; // everything
+			argv++; argc--;
+			debuglevel = log_t::LEVEL_DEBUG; // everything
 		}
 		else if (argc && !STRICMP(argv[0], "verbose")) {
-			argv++, argc--;
-			debuglevel = 3;	// only messages errors
+			argv++; argc--;
+			debuglevel = log_t::LEVEL_MSG; // only messages errors
 		}
 		else if (argc && !STRICMP(argv[0], "quiet")) {
-			argv++, argc--;
-			debuglevel = 1;	// only fatal errors
+			argv++; argc--;
+			debuglevel = log_t::LEVEL_ERROR; // only fatal errors
 		}
 
-		if(  debuglevel>1  ) {
+		if(  debuglevel>=log_t::LEVEL_WARN  ) {
 			puts(
-				"\nMakeobj-Extended, based on Makeobj version " MAKEOBJ_VERSION " for Simutrans " VERSION_NUMBER EXTENDED_VERSION " and higher\n"
+				"Makeobj-Extended, based on Makeobj version " MAKEOBJ_VERSION " for Simutrans " VERSION_NUMBER EXTENDED_VERSION " and higher"
 				"Extended version by James E. Petts, derived from Makeobj, (c) 2002-2012 V. Meyer , Hj. Malthaner and \n"
 				"M. Pristovsek and the Simutrans development team. This is open source software, released under the Artistic Licence.\n"
 			);
 		}
-
 	}
 
 	if (argc && !STRICMP(argv[0], "capabilities")) {
-		argv++, argc--;
+		argv++; argc--;
 		root_writer_t::instance()->capabilites();
 		return 0;
 	}
 
 	if (argc && !STRICMP(argv[0], "pak")) {
-		argv++, argc--;
+		argv++; argc--;
 
 		try {
 			const char* dest;
 			if (argc) {
 				dest = argv[0];
-				argv++, argc--;
+				argv++; argc--;
 			}
 			else {
 				dest = "./";
@@ -86,20 +86,20 @@ int main(int argc, char* argv[])
 	}
 
 	if (argc && STRNICMP(argv[0], "pak", 3) == 0) {
-		int img_size = atoi(argv[0] + 3);
+		const int img_size = atoi(argv[0] + 3);
 
 		if (img_size >= 16 && img_size < 32766) {
 			dbg->message( "Image size", "Now set to %dx%d", img_size, img_size );
 
 			obj_writer_t::set_img_size(img_size);
 
-			argv++, argc--;
+			argv++; argc--;
 
 			try {
 				const char* dest;
 				if (argc) {
 					dest = argv[0];
-					argv++, argc--;
+					argv++; argc--;
 				}
 				else {
 					dest = "./";
@@ -111,20 +111,40 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 
-			// image_writer_t::dump_special_histogramm();
 			return 0;
 		}
 	}
 
+	if (argc && !STRICMP(argv[0], "tocsv")) {
+		argv++; argc--;
+
+		try {
+			const char* dest;
+			if (argc) {
+				dest = argv[0];
+				argv++; argc--;
+			}
+			else {
+				dest = 0;
+			}
+			root_writer_t::instance()->write_CSV(dest, argc, argv);
+		}
+		catch (const obj_pak_exception_t& e) {
+			dbg->error( e.get_class(), e.get_info() );
+			return 1;
+		}
+		return 0;
+	}
+
 	if (argc && !STRICMP(argv[0], "expand")) {
-		argv++, argc--;
+		argv++; argc--;
 
 		try {
 			const char* dest;
 
 			if (argc) {
 				dest = argv[0];
-				argv++, argc--;
+				argv++; argc--;
 			}
 			else {
 				dest = "./";
@@ -142,25 +162,25 @@ int main(int argc, char* argv[])
 
 	if (argc > 1) {
 		if (!STRICMP(argv[0], "dump")) {
-			argv++, argc--;
+			argv++; argc--;
 			root_writer_t::instance()->dump(argc, argv);
 			return 0;
 		}
 		if (!STRICMP(argv[0], "list")) {
-			argv++, argc--;
+			argv++; argc--;
 			root_writer_t::instance()->list(argc, argv);
 			return 0;
 		}
 		if (!STRICMP(argv[0], "extract")) {
-			argv++, argc--;
+			argv++; argc--;
 			root_writer_t::instance()->uncopy(argv[0]);
 			return 0;
 		}
 		if (!STRICMP(argv[0], "merge")) {
-			argv++, argc--;
+			argv++; argc--;
 			try {
 				const char* dest = argv[0];
-				argv++, argc--;
+				argv++; argc--;
 				root_writer_t::instance()->copy(dest, argc, argv);
 			}
 			catch (const obj_pak_exception_t& e) {
@@ -172,7 +192,7 @@ int main(int argc, char* argv[])
 	}
 
 	puts(
-		"\n   Usage: MakeObj [QUIET] [DEBUG] <Command> <params>\n"
+		"\n   Usage: MakeObj [QUIET|VERBOSE|DEBUG] <Command> <params>\n"
 		"\n"
 		"      MakeObj CAPABILITIES\n"
 		"         Gives the list of objects, this program can read\n"
@@ -195,10 +215,10 @@ int main(int argc, char* argv[])
 		"      with a trailing slash a directory is searched rather than a file\n"
 		"      default for PAK is PAK ./ ./\n"
 		"\n"
-		"      with QUIET as first arg copyright message will be omitted\n"
+		"      with QUIET as first arg status and copyright messages are omitted\n"
 		"\n"
 		"      with VERBOSE as first arg also unused lines\n"
-		"      and unassinged entrys are printed\n"
+		"      and unassigned entries are printed\n"
 		"\n"
 		"      DEBUG dumps extended information about the pak process.\n"
 		"          Source: interpreted line from .dat file\n"

@@ -28,16 +28,16 @@ class checksum_t;
  *   1   Imagelist2D season 0 front
  *   2   Imagelist2D season 1 back
  *   3   Imagelist2D season 1 front
- *	... ...
+ * ... ...
  */
 class building_tile_desc_t : public obj_desc_t {
 	friend class tile_reader_t;
 
-	const building_desc_t	*building;
+	const building_desc_t *building;
 	building_desc_t		*modifiable_haus;
 
 	uint8  seasons;
-	uint8  phases;	    ///< number of animation phases
+	uint8  phases;  ///< number of animation phases
 	uint16 index;
 
 public:
@@ -104,12 +104,12 @@ public:
 /**
  * Data for one building, consists of potentially more than one tile.
  *
- *  Child nodes:
- *	0   Name
- *	1   Copyright
- *	2   Tile 1
- *	3   Tile 2
- *	... ...
+ * Child nodes:
+ *  0   Name
+ *  1   Copyright
+ *  2   Tile 1
+ *  3   Tile 2
+ * ... ...
  */
 class building_desc_t : public obj_desc_timelined_t {
 	friend class building_reader_t;
@@ -141,12 +141,13 @@ class building_desc_t : public obj_desc_timelined_t {
 			signalbox         = 70  // Signalbox. 70 to allow for plenty more Standard ones in between.
 		};
 
-			enum flag_t {
-			FLAG_NULL = 0,
-			FLAG_NO_INFO = 1, ///< do not show info window
-			FLAG_NO_PIT = 2, ///< do not show construction pit
-			FLAG_NEED_GROUND = 4, ///< needs ground drawn below
-			FLAG_HAS_CURSOR = 8  ///< there is cursor/icon for this
+
+		enum flag_t {
+			FLAG_NULL        = 0,
+			FLAG_NO_INFO     = 1 << 0, ///< do not show info window
+			FLAG_NO_PIT      = 1 << 1, ///< do not show construction pit
+			FLAG_NEED_GROUND = 1 << 2, ///< needs ground drawn below
+			FLAG_HAS_CURSOR  = 1 << 3  ///< there is cursor/icon for this
 		};
 
 	private:
@@ -175,7 +176,7 @@ class building_desc_t : public obj_desc_timelined_t {
 		};
 
 	building_desc_t::btype type;
-	uint16 animation_time;	// in ms
+	uint16 animation_time; // in ms
 	uint32 extra_data;
 		// extra data:
 		// minimum population to build for city attractions,
@@ -242,6 +243,11 @@ class building_desc_t : public obj_desc_timelined_t {
 
 	uint32 class_proportions_sum_jobs;
 
+	uint32 pier_deck_mask; //(future use) can be put on top of pier
+	uint32 pier_sub_1_mask; //piers preexisting for first (ground) floor
+	uint32 pier_sub_2_mask; //piers prexisting for sencond floor
+	uint8  pier_sub_needed : 1; //building needs to be placed within matching pier
+
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
 	}
@@ -295,7 +301,7 @@ public:
 	bool is_connected_with_town() const;
 
 	/// @returns headquarter level (or -1 if building is not headquarter)
-	sint32 get_headquarter_level() const  { return (is_headquarters() ? get_extra() : -1) ; }
+	sint32 get_headquarters_level() const  { return (is_headquarters() ? get_extra() : -1) ; }
 
 	/**
 	* the level is used in many places: for price, for capacity, ...
@@ -435,6 +441,12 @@ public:
 	void fix_number_of_classes();
 
 	static uint8 get_city_building_max_size() { return city_building_max_size; }
+
+	uint32 get_pier_mask(uint8 floor=0) const {
+		return floor==0 ? pier_sub_1_mask : pier_sub_2_mask;
+	}
+
+	bool get_pier_needed() const { return pier_sub_needed;}
 };
 
 

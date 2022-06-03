@@ -31,15 +31,20 @@ tunnelboden_t::tunnelboden_t(loadsave_t *file, koord pos ) : boden_t(koord3d(pos
 	// some versions had tunnel without tunnel objects
 	if (!find<tunnel_t>()) {
 		// then we must spawn it here (a way MUST be always present, or the savegame is completely broken!)
-		weg_t *weg=(weg_t *)obj_bei(0);
-		if(  !weg  ) {
-			dbg->error( "tunnelboden_t::tunnelboden_t()", "Loading without a way at (%s)! Assuming road tunnel!", pos.get_str() );
-			obj_add(new tunnel_t(get_pos(), NULL, tunnel_builder_t::get_tunnel_desc(road_wt, 450, 0)));
+		weg_t *weg = (weg_t *)obj_bei(0);
+
+		const waytype_t wt = weg ? weg->get_desc()->get_wtyp() : road_wt;
+		const tunnel_desc_t *tunnel_desc = tunnel_builder_t::get_tunnel_desc(wt, 450, 0);
+
+		if (!tunnel_desc) {
+			dbg->fatal("tunnelboden_t::tunnelboden_t", "Trying to load tunnel ground but pakset has no tunnels!");
 		}
-		else {
-			obj_add(new tunnel_t(get_pos(), weg->get_owner(), tunnel_builder_t::get_tunnel_desc(weg->get_desc()->get_wtyp(), 450, 0)));
+		else if(  !weg  ) {
+			dbg->warning( "tunnelboden_t::tunnelboden_t()", "Loading without a way at (%s)! Assuming road tunnel!", pos.get_str() );
 		}
-		DBG_MESSAGE("tunnelboden_t::tunnelboden_t()","added tunnel to pos (%i,%i,%i)",get_pos().x, get_pos().y,get_pos().z);
+
+		obj_add(new tunnel_t(get_pos(), weg ? weg->get_owner() : NULL, tunnel_desc));
+		DBG_MESSAGE("tunnelboden_t::tunnelboden_t()", "Added tunnel to pos (%s)", get_pos().get_str());
 	}
 }
 
@@ -95,7 +100,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 
 	grund_t::rdwr(file);
 
-	if(  file->get_version_int()<88009  ) {
+	if(  file->is_version_less(88, 9)  ) {
 		uint32 sl = slope;
 		file->rdwr_long(sl);
 		// convert slopes from old single height saved game
@@ -103,7 +108,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 	}
 
 	// only 99.03 version save the tunnel here
-	if(file->get_version_int()==99003) {
+	if(file->is_version_equal(99, 3)) {
 		char  buf[256];
 		const tunnel_desc_t *desc = NULL;
 		file->rdwr_str(buf, lengthof(buf));
@@ -117,7 +122,7 @@ void tunnelboden_t::rdwr(loadsave_t *file)
 }
 
 
-void tunnelboden_t::info(cbuffer_t &buf) const
+void tunnelboden_t::info(cbuffer_t & buf) const
 {
 	const tunnel_t *tunnel = find<tunnel_t>();
 	if(tunnel  &&  tunnel->get_desc()) {

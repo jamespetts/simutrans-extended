@@ -17,6 +17,7 @@
 #include "../player/simplay.h"
 #include "../gui/simwin.h"
 #include "../simworld.h"
+#include "../simfab.h"
 
 #include "../bauer/wegbauer.h"
 #include "../bauer/vehikelbauer.h" /* for diversion route checking */
@@ -37,13 +38,16 @@
 #include "../obj/crossing.h"
 #include "../obj/groundobj.h"
 #include "../obj/label.h"
-#include "../obj/leitung2.h"	// for construction of new ways ...
+#include "../obj/leitung2.h"
 #include "../obj/roadsign.h"
 #include "../obj/signal.h"
 #include "../obj/tunnel.h"
 #include "../obj/wayobj.h"
+#include "../obj/zeiger.h"
 
 #include "../gui/ground_info.h"
+#include "../gui/water_info.h"
+#include "../gui/way_info.h"
 #include "../gui/minimap.h"
 
 #include "../tpl/inthashtable_tpl.h"
@@ -51,7 +55,7 @@
 #include "../utils/cbuffer_t.h"
 # include "../utils/simstring.h"
 
-#include "../vehicle/simpeople.h"
+#include "../vehicle/pedestrian.h"
 
 #include "wege/kanal.h"
 #include "wege/maglev.h"
@@ -87,12 +91,12 @@ uint8 grund_t::underground_mode = ugm_none;
 /**
  * Table of ground texts
  */
-static inthashtable_tpl<uint64, char*> ground_texts;
+static inthashtable_tpl<uint64, char*, N_BAGS_LARGE> ground_texts;
 
 #define get_ground_text_key(k) ( (uint64)(k).x + ((uint64)(k).y << 16) + ((uint64)(k).z << 32) )
 
 // and the reverse operation
-#define get_ground_koord3d_key(key) koord3d( (key) & 0x00007FFF, ((key)>>16) & 0x00007fff, (key)>>32 )
+#define get_ground_koord3d_key(key) koord3d( (key) & 0x00007FFF, ((key)>>16) & 0x00007fff, (sint8)((key)>>32) )
 
 void grund_t::set_text(const char *text)
 {
@@ -183,11 +187,11 @@ void grund_t::rdwr(loadsave_t *file)
 	uint8 climate_data = plan->get_climate() + (plan->get_climate_corners() << 4);
 
 	xml_tag_t g( file, "grund_t" );
-	if(file->get_version_int()<101000) {
+	if(file->is_version_less(101, 0)) {
 		pos.rdwr(file);
 		z_w = welt->get_groundwater();
 	}
-	else if(  file->get_version_int() < 112007  ) {
+	else if(  file->is_version_less(112, 7)  ) {
 		file->rdwr_byte(z);
 		pos.z = get_typ() == grund_t::wasser ? welt->get_groundwater() : z;
 		z_w = welt->get_groundwater();
@@ -208,7 +212,7 @@ void grund_t::rdwr(loadsave_t *file)
 		plan->set_climate_corners((climate_data >> 4));
 	}
 
-	if(  file->is_loading()  &&  file->get_version_int() < 112007  ) {
+	if(  file->is_loading()  &&  file->is_version_less(112, 7)  ) {
 		// convert heights from old single height saved game - water already at correct height
 		pos.z = get_typ() == grund_t::wasser ? pos.z : pos.z * env_t::pak_height_conversion_factor;
 		z = z * env_t::pak_height_conversion_factor;
@@ -227,7 +231,7 @@ void grund_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if(file->get_version_int()<99007) {
+	if(file->is_version_less(99, 7)) {
 		bool label;
 		file->rdwr_bool(label);
 		if(label) {
@@ -236,13 +240,13 @@ void grund_t::rdwr(loadsave_t *file)
 	}
 
 	sint8 owner_n=-1;
-	if(file->get_version_int()<99005) {
+	if(file->is_version_less(99, 5)) {
 		file->rdwr_byte(owner_n);
 	}
 
-	if(file->get_version_int()>=88009) {
+	if(file->is_version_atleast(88, 9)) {
 		uint8 sl = slope;
-		if(  file->get_version_int() < 112007  &&  file->is_saving()  ) {
+		if(  file->is_version_less(112, 7)  &&  file->is_saving()  ) {
 			// truncate double slopes to single slopes, better than nothing
 			sl = min( corner_sw(slope), 1 ) + min( corner_se(slope), 1 ) * 2 + min( corner_ne(slope), 1 ) * 4 + min( corner_nw(slope), 1 ) * 8;
 		}
@@ -257,7 +261,7 @@ void grund_t::rdwr(loadsave_t *file)
 	}
 
 	if(  file->is_loading()  ) {
-		if(  file->get_version_int() < 112007  ) {
+		if(  file->is_version_less(112, 7)  ) {
 			// convert slopes from old single height saved game
 			slope = encode_corners(scorner_sw(slope), scorner_se(slope), scorner_ne(slope), scorner_nw(slope)) * env_t::pak_height_conversion_factor;
 		}
@@ -331,7 +335,11 @@ void grund_t::rdwr(loadsave_t *file)
 						break;
 
 					case road_wt:
-						weg = new strasse_t(file);
+						if(file->get_extended_version()==14 && file->get_extended_revision()>=19 && file->get_extended_revision()<33) {
+							weg = new strasse_t(file, get_pos());
+						} else {
+							weg = new strasse_t(file);
+						}
 						break;
 
 					case monorail_wt:
@@ -375,7 +383,7 @@ void grund_t::rdwr(loadsave_t *file)
 
 					case water_wt:
 						// ignore old type dock ...
-						if(file->get_version_int()>=87000) {
+						if(file->is_version_atleast(87, 0)) {
 							weg = new kanal_t(file);
 						}
 						else {
@@ -405,7 +413,7 @@ void grund_t::rdwr(loadsave_t *file)
 						// we do not delete them, to keep maintenance costs correct
 					}
 					else {
-						assert((flags&has_way2)==0);	// maximum two ways on one tile ...
+						assert((flags&has_way2)==0); // maximum two ways on one tile ...
 						weg->set_pos(pos);
 						if(owner_n!=-1) {
 							weg->set_owner(welt->get_player(owner_n));
@@ -441,12 +449,54 @@ void grund_t::rdwr(loadsave_t *file)
 	// need to add a crossing for old games ...
 	if (file->is_loading()  &&  ist_uebergang()  &&  !find<crossing_t>(2)) {
 		const crossing_desc_t *cr_desc = crossing_logic_t::get_crossing( ((weg_t *)obj_bei(0))->get_waytype(), ((weg_t *)obj_bei(1))->get_waytype(), ((weg_t *)obj_bei(0))->get_max_speed(), ((weg_t *)obj_bei(1))->get_max_speed(), 0 );
-		if(cr_desc==0) {
-			dbg->fatal("crossing_t::crossing_t()","requested for waytypes %i and %i but nothing defined!", ((weg_t *)obj_bei(0))->get_waytype(), ((weg_t *)obj_bei(1))->get_waytype() );
+		if(cr_desc == 0)
+		{
+			// Try to recover games with crossings in wrong places.
+			if (((weg_t*)obj_bei(1))->get_waytype() == water_wt)
+			{
+				dbg->error("crossing_t::crossing_t()", "requested for waytypes %i and %i but nothing defined!", ((weg_t*)obj_bei(0))->get_waytype(), ((weg_t*)obj_bei(1))->get_waytype());
+				weg_t* w = (weg_t*)obj_bei(0);
+				// delete the second way ...
+				if (flags & has_way2)
+				{
+					flags &= ~has_way2;
+				}
+				else
+				{
+					flags &= ~has_way1;
+				}
+				w->cleanup(NULL);
+				objlist.remove(w);
+				delete w;
+
+			}
+			else if (((weg_t*)obj_bei(0))->get_waytype() == water_wt)
+			{
+				dbg->error("crossing_t::crossing_t()", "requested for waytypes %i and %i but nothing defined!", ((weg_t*)obj_bei(0))->get_waytype(), ((weg_t*)obj_bei(1))->get_waytype());
+				weg_t* w = (weg_t*)obj_bei(1);
+				if (flags & has_way2)
+				{
+					flags &= ~has_way2;
+				}
+				else
+				{
+					flags &= ~has_way1;
+				}
+				w->cleanup(NULL);
+				objlist.remove(w);
+				delete w;
+			}
+			else
+			{
+				dbg->fatal("crossing_t::crossing_t()", "requested for waytypes %i and %i but nothing defined!", ((weg_t*)obj_bei(0))->get_waytype(), ((weg_t*)obj_bei(1))->get_waytype());
+			}
 		}
-		crossing_t *cr = new crossing_t(obj_bei(0)->get_owner(), pos, cr_desc, ribi_t::is_straight_ns(get_weg(cr_desc->get_waytype(1))->get_ribi_unmasked()) );
-		objlist.add( cr );
-		crossing_logic_t::add( cr, crossing_logic_t::CROSSING_INVALID );
+		else
+		{
+			crossing_t* cr = new crossing_t(obj_bei(0)->get_owner(), pos, cr_desc, ribi_t::is_straight_ns(get_weg(cr_desc->get_waytype(1))->get_ribi_unmasked()));
+			objlist.add(cr);
+			crossing_logic_t::add(cr, crossing_logic_t::CROSSING_INVALID);
+		}
 	}
 }
 
@@ -517,10 +567,10 @@ void grund_t::rotate90()
 // after processing the last tile, we recalculate the hashes of the ground texts
 void grund_t::finish_rotate90()
 {
-	typedef inthashtable_tpl<uint64, char*> text_map;
+	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_rotating;
 	// first get the old hashes
-	FOR(text_map, iter, ground_texts) {
+	for(auto iter : ground_texts) {
 		koord3d k = get_ground_koord3d_key( iter.key );
 		k.rotate90( welt->get_size().y-1 );
 		ground_texts_rotating.put( get_ground_text_key(k), iter.value );
@@ -536,7 +586,7 @@ void grund_t::finish_rotate90()
 
 void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 {
-	typedef inthashtable_tpl<uint64, char*> text_map;
+	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_enlarged;
 	// we have recalculate the keys
 	FOR(text_map, iter, ground_texts) {
@@ -573,15 +623,25 @@ void grund_t::take_obj_from(grund_t* other_gr)
 
 void grund_t::show_info()
 {
-	int old_count = win_get_open_count();
+	const uint32 old_count = win_get_open_count();
 	if(get_halt().is_bound()) {
 		get_halt()->show_info();
 		if(env_t::single_info  &&  old_count!=win_get_open_count()  ) {
 			return;
 		}
 	}
-	if(env_t::ground_info  ||  hat_wege()) {
-		create_win(new grund_info_t(this), w_info, (ptrdiff_t)this);
+	// has way
+	if (hat_wege()) {
+		create_win(new way_info_t(this), w_info, (ptrdiff_t)this);
+		return;
+	}
+	if(env_t::ground_info) {
+		if( is_water() ){
+			create_win(new water_info_t("Water", get_pos()), w_info, (ptrdiff_t)this);
+		}
+		else {
+			create_win(new grund_info_t(this), w_info, (ptrdiff_t)this);
+		}
 	}
 }
 
@@ -623,9 +683,8 @@ void grund_t::info(cbuffer_t& buf) const
 			}
 			if (maker) {
 				buf.printf(translator::translate("Constructed by %s"), maker);
-				buf.append("\n");
+				buf.append("\n\n");
 			}
-			buf.append("\n");
 			// second way
 			has_way = true;
 			if(flags&has_way2) {
@@ -655,10 +714,10 @@ void grund_t::info(cbuffer_t& buf) const
 	if (strcmp(n1, n2)) {
 		buf.printf("%s\n", n2);
         }
-	if (!is_water())
+    if (!is_water() && !(get_typ()==pierdeck))
 	{
 		char price[64];
-		money_to_string(price, abs(welt->get_land_value(pos)));
+		money_to_string(price, abs(welt->get_land_value(pos))/100.0);
 		buf.printf("%s: %s\n", translator::translate("Land value"), price);
 		if (!has_way || (flags&has_way1 && get_weg_nr(0)->is_degraded()) || (flags&has_way2 && get_weg_nr(1)->is_degraded()))
 		{
@@ -699,6 +758,7 @@ void grund_t::info(cbuffer_t& buf) const
 			}
 		}
 	}
+
 #if MSG_LEVEL >= 4
 	buf.printf("\nflags $%0X", flags );
 	buf.printf("\n\npos: (%s)",pos.get_str());
@@ -858,7 +918,7 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 	const size_t WALL_COUNT = 2;
 
 	// full underground mode or not ground -> no back image, no need for draw_as_obj
-	if (underground_mode == ugm_all || !ist_karten_boden()) {
+	if(  underground_mode == ugm_all  ||  !ist_karten_boden()  ) {
 		clear_flag(grund_t::draw_as_obj);
 		this->back_imageid = 0;
 		return;
@@ -890,17 +950,17 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 
 	for(  size_t i=0;  i<WALL_COUNT;  i++  ) {
 		// now enter the left/back two height differences
-		if (const grund_t *gr = welt->lookup_kartenboden(k + koord::nsew[(i - 1) & 3])) {
-			const uint8 back_height = min(corner_nw(slope_this), (i == 0 ? corner_sw(slope_this) : corner_ne(slope_this)));
+		if(  const grund_t *gr=welt->lookup_kartenboden(k + koord::nesw[(i+3)&3])  ) {
+			const uint8 back_height = min(corner_nw(slope_this),(i==0?corner_sw(slope_this):corner_ne(slope_this)));
 
 			const sint16 left_hgt=gr->get_disp_height()-back_height;
 			const slope_t::type slope=gr->get_disp_slope();
 
-			const uint8 corner_a = (i == 0 ? corner_sw(slope_this) : corner_nw(slope_this)) - back_height;
-			const uint8 corner_b = (i == 0 ? corner_nw(slope_this) : corner_ne(slope_this)) - back_height;
+			const uint8 corner_a = (i==0?corner_sw(slope_this):corner_nw(slope_this))-back_height;
+			const uint8 corner_b = (i==0?corner_nw(slope_this):corner_ne(slope_this))-back_height;
 
-			sint8 diff_from_ground_1 = left_hgt + (i == 0 ? corner_se(slope) : corner_sw(slope)) - hgt;
-			sint8 diff_from_ground_2 = left_hgt + (i == 0 ? corner_ne(slope) : corner_se(slope)) - hgt;
+			sint8 diff_from_ground_1 = left_hgt+(i==0?corner_se(slope):corner_sw(slope))-hgt;
+			sint8 diff_from_ground_2 = left_hgt+(i==0?corner_ne(slope):corner_se(slope))-hgt;
 
 			if (underground_mode==ugm_level) {
 				const bool gr_is_visible = gr->is_visible();
@@ -910,7 +970,7 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 					diff_from_ground_1 += 1;
 					diff_from_ground_2 += 1;
 					set_flag(grund_t::draw_as_obj);
-					fence[i] = corner_a == corner_b;
+					fence[i] = corner_a==corner_b;
 				}
 				else if ( !isvisible && gr_is_visible){
 					diff_from_ground_1 = max(diff_from_ground_1, 1);
@@ -925,7 +985,7 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 				if ( isvisible && (get_typ()==grund_t::tunnelboden) && ist_karten_boden() && pos.z==underground_level
 					&& corner_nw( get_grund_hang() ) > 0 /* nw corner */) {
 
-					if ((i == 0) ^ (corner_sw(get_grund_hang()) == 0)) {
+					if ( (i==0)  ^  (corner_sw( get_grund_hang() )==0) ) {
 						diff_from_ground_1 = 0;
 						diff_from_ground_2 = 0;
 					}
@@ -933,17 +993,17 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 			}
 
 			// up slope hiding something ...
-			if (diff_from_ground_1 - corner_a<0 || diff_from_ground_2 - corner_b<0) {
-				if (corner_a == corner_b) {
+			if(diff_from_ground_1-corner_a<0  ||  diff_from_ground_2-corner_b<0)  {
+				if(  corner_a==corner_b  ) {
 					// ok, we need a fence here, if there is not a vertical bridgehead
 					weg_t const* w;
 					fence[i] = !(w = get_weg_nr(0)) || (
-						!(w->get_ribi_unmasked() & ribi_t::nsew[(i - 1) & 3]) &&
-						(!(w = get_weg_nr(1)) || !(w->get_ribi_unmasked() & ribi_t::nsew[(i - 1) & 3]))
-						);
+						!(w->get_ribi_unmasked() & ribi_t::nesw[(i+3)&3]) &&
+						(!(w = get_weg_nr(1)) || !(w->get_ribi_unmasked() & ribi_t::nesw[(i+3)&3]))
+					);
 
 					// no fences between water tiles or between invisible tiles
-					if (fence[i] && ((is_water() && gr->is_water()) || (!isvisible && !gr->is_visible()))) {
+					if(  fence[i]  &&  ( (is_water() && gr->is_water()) || (!isvisible && !gr->is_visible()) )  ) {
 						fence[i] = false;
 					}
 				}
@@ -956,10 +1016,10 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 			}
 			// update corner heights
 			if (diff_from_ground_1 > corner_a) {
-				corners_add[i] = max(corners_add[i], scale_z_step * (diff_from_ground_1 - corner_a));
+				corners_add[i] = max(corners_add[i], scale_z_step * (diff_from_ground_1-corner_a));
 			}
 			if (diff_from_ground_2 > corner_b) {
-				corners_add[i + 1] = max(corners_add[i + 1], scale_z_step * (diff_from_ground_2 - corner_b));
+				corners_add[i+1] = max(corners_add[i+1], scale_z_step * (diff_from_ground_2 - corner_b));
 			}
 		}
 	}
@@ -1000,11 +1060,11 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 					}
 				}
 				if (i>0) {
-					test[i - 1] = min(test[i - 1], h + min(corner_sw(s), lh)*scale_z_step + (2 - i)*scale_y_step + step*scale_y_step);
+					test[i-1] = min(test[i-1], h + min(corner_sw(s),lh)*scale_z_step + (2-i)*scale_y_step + step*scale_y_step );
 				}
-				test[i] = min(test[i], h + min(corner_se(s)*scale_z_step, min(min(corner_nw(s), lh), rh)*scale_z_step + scale_y_step) + step*scale_y_step);
+				test[i] = min(test[i], h + min( corner_se(s)*scale_z_step, min(min(corner_nw(s),lh),rh)*scale_z_step + scale_y_step) + step*scale_y_step );
 				if (i<2) {
-					test[i + 1] = min(test[i + 1], h + min(corner_ne(s), rh)*scale_z_step + i*scale_y_step + step*scale_y_step);
+					test[i+1] = min(test[i+1], h + min(corner_ne(s),rh)*scale_z_step + i*scale_y_step + step*scale_y_step);
 				}
 			}
 		}
@@ -1013,7 +1073,7 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 			set_flag(draw_as_obj);
 			break;
 		}
-		else if (test[0] > corners[0] && test[1] > corners[1] && test[2] > corners[2]) {
+		else if (test[0] > corners[0]  &&  test[1] > corners[1]  &&  test[2] > corners[2]) {
 			// we cannot hide anything anymore
 			break;
 		}
@@ -1026,7 +1086,7 @@ void grund_t::calc_back_image(const sint8 hgt, const slope_t::type slope_this)
 			back_imageid = WALL_IMAGE_COUNT + fence_offset;
 		}
 	}
-	this->back_imageid = (is_building != 0) ? -back_imageid : back_imageid;
+	this->back_imageid = (is_building!=0)? -back_imageid : back_imageid;
 }
 #endif
 
@@ -1071,7 +1131,7 @@ void grund_t::display_boden(const sint16 xpos, const sint16 ypos, const sint16 r
 				sint16 yoff = tile_raster_scale_y( -TILE_HEIGHT_STEP*back_height, raster_tile_width );
 				if(  back_image[i]  ) {
 					// Draw extra wall images for walls that cannot be represented by a image.
-					grund_t *gr = welt->lookup_kartenboden( k + koord::nsew[(i-1)&3] );
+					grund_t *gr = welt->lookup_kartenboden( k + koord::nesw[(i+3)&3] );
 					if(  gr  ) {
 						// for left we test corners 2 and 3 (east), for back we use 1 and 2 (south)
 						const slope_t::type gr_slope = gr->get_disp_slope();
@@ -1277,7 +1337,7 @@ void grund_t::display_boden(const sint16 xpos, const sint16 ypos, const sint16 r
 					const int dh = corner_nw(get_disp_way_slope()) * hgt_step;
 					add_poly_clip( xpos + raster_tile_width, ypos + 3 * raster_tile_width / 4 - dh, xpos + raster_tile_width / 2, ypos + raster_tile_width / 2 - dh, ribi_t::north | non_convex CLIP_NUM_PAR );
 				}
-				activate_ribi_clip((way_ribi & ribi_t::northwest) | non_convex  CLIP_NUM_PAR);
+				activate_ribi_clip( (way_ribi & ribi_t::northwest) | non_convex  CLIP_NUM_PAR );
 			}
 			d->display( xpos, ypos CLIP_NUM_PAR );
 		}
@@ -1287,7 +1347,6 @@ void grund_t::display_boden(const sint16 xpos, const sint16 ypos, const sint16 r
 		}
 	}
 }
-
 
 
 void grund_t::display_border( sint16 xpos, sint16 ypos, const sint16 raster_tile_width CLIP_NUM_DEF)
@@ -1406,7 +1465,6 @@ slope_t::type grund_t::get_disp_way_slope() const
 		return slope_t::flat;
 	}
 }
-
 
 
 /**
@@ -1557,16 +1615,17 @@ void grund_t::display_obj_all(const sint16 xpos, const sint16 ypos, const sint16
 	}
 	if(  ribi & ribi_t::east  ) {
 		const int dh = corner_se(slope) * hgt_step;
-		add_poly_clip(xpos + raster_tile_width / 2, ypos + raster_tile_width - dh, xpos + raster_tile_width, ypos + 3 * raster_tile_width / 4 - dh, ribi_t::east | 16 CLIP_NUM_PAR);
+		add_poly_clip( xpos + raster_tile_width / 2, ypos + raster_tile_width - dh, xpos + raster_tile_width, ypos + 3 * raster_tile_width / 4 - dh, ribi_t::east|16 CLIP_NUM_PAR );
 	}
 	if(  ribi & ribi_t::south  ) {
 		const int dh = corner_se(slope) * hgt_step;
-		add_poly_clip(xpos - 1, ypos + 3 * raster_tile_width / 4 - dh, xpos + raster_tile_width / 2 - 1, ypos + raster_tile_width - dh, ribi_t::south | 16  CLIP_NUM_PAR);
+		add_poly_clip( xpos- 1, ypos + 3 * raster_tile_width / 4  - dh, xpos + raster_tile_width / 2 - 1, ypos + raster_tile_width  - dh, ribi_t::south|16  CLIP_NUM_PAR );
 	}
 
 	// display background
 	if (!tunnel_portal  ||  slope == 0) {
-		activate_ribi_clip( (ribi_t::northwest & ribi) | 16 CLIP_NUM_PAR );	}
+		activate_ribi_clip( (ribi_t::northwest & ribi) | 16 CLIP_NUM_PAR );
+	}
 	else {
 		// also clip along the upper edge of the tunnel tile
 		activate_ribi_clip( ribi | 16 CLIP_NUM_PAR );
@@ -1612,7 +1671,7 @@ void grund_t::display_obj_all(const sint16 xpos, const sint16 ypos, const sint16
 		grund_t *gr;
 		if(  get_neighbour( gr, invalid_wt, ribi_t::east )  ) {
 			const bool draw_other_ways = (flags&draw_as_obj)  ||  (gr->flags&draw_as_obj)  ||  !gr->ist_karten_boden();
-			activate_ribi_clip(ribi_t::east | 16 CLIP_NUM_PAR);
+			activate_ribi_clip( ribi_t::east|16 CLIP_NUM_PAR );
 			gr->display_obj_bg( xpos + raster_tile_width / 2, ypos + raster_tile_width / 4 - tile_raster_scale_y( (gr->get_hoehe() - pos.z) * TILE_HEIGHT_STEP, raster_tile_width ), is_global, draw_other_ways, true CLIP_NUM_PAR );
 		}
 	}
@@ -1620,7 +1679,7 @@ void grund_t::display_obj_all(const sint16 xpos, const sint16 ypos, const sint16
 		grund_t *gr;
 		if(  get_neighbour( gr, invalid_wt, ribi_t::south )  ) {
 			const bool draw_other_ways = (flags&draw_as_obj)  ||  (gr->flags&draw_as_obj)  ||  !gr->ist_karten_boden();
-			activate_ribi_clip(ribi_t::south | 16 CLIP_NUM_PAR);
+			activate_ribi_clip( ribi_t::south|16 CLIP_NUM_PAR );
 			gr->display_obj_bg( xpos - raster_tile_width / 2, ypos + raster_tile_width / 4 - tile_raster_scale_y( (gr->get_hoehe() - pos.z) * TILE_HEIGHT_STEP, raster_tile_width ), is_global, draw_other_ways, true CLIP_NUM_PAR );
 		}
 	}
@@ -1798,6 +1857,45 @@ void grund_t::display_overlay(const sint16 xpos, const sint16 ypos)
 			}
 		}
 	}
+
+	if(  env_t::show_factory_storage_bar  ) {
+		if( get_building() ) {
+			if( env_t::show_factory_storage_bar == 1 || get_building()->get_first_tile()==get_building() ) {
+				if (fabrik_t *fab = get_building()->get_first_tile()->get_fabrik()) {
+					if( ( env_t::show_factory_storage_bar == 2 && fab->is_connected_to_network(welt->get_active_player()) )
+						||  env_t::show_factory_storage_bar == 3 ) {
+						fab->display_status(xpos, ypos);
+					}
+					else if (env_t::show_factory_storage_bar == 1 && welt->get_zeiger()->get_pos() == get_pos()) {
+						const sint16 raster_tile_width = get_tile_raster_width();
+						sint16 new_xpos = xpos + (fab->get_pos().x-get_pos().x)*raster_tile_width/2 - (fab->get_pos().y - get_pos().y)*raster_tile_width/2;
+						sint16 new_ypos = ypos + (fab->get_pos().x-get_pos().x)*raster_tile_width/4 + (fab->get_pos().y - get_pos().y)*raster_tile_width/4;
+						fab->display_status(new_xpos, new_ypos);
+					}
+				}
+			}
+		}
+	}
+
+
+
+	if(  env_t::show_depot_names  ) {
+		if(  depot_t *dep = get_depot()  ) {
+			const player_t* owner = dep->get_owner();
+			if( owner==welt->get_active_player() ) {
+				const char *text = translator::translate( dep->get_name() );
+
+				const sint16 raster_tile_width = get_tile_raster_width();
+				const int width = proportional_string_width(text)+7;
+				int new_xpos = xpos - (width-raster_tile_width)/2;
+
+				const scr_coord_val depot_sym_width = max(12,(LINESPACE*3)>>2);
+
+				display_depot_symbol(new_xpos, ypos-LINESPACE/4, depot_sym_width, owner->get_player_color1());
+				display_outline_proportional_rgb(new_xpos+depot_sym_width+4, ypos-LINESPACE/4, color_idx_to_rgb(owner->get_player_color1()+6), color_idx_to_rgb(COL_BLACK), text, dirty);
+			}
+		}
+	}
 	clear_flag(grund_t::dirty);
 }
 
@@ -1861,13 +1959,13 @@ bool grund_t::weg_erweitern(waytype_t wegtyp, ribi_t::ribi ribi)
 				// ribi isn't set at wayobj;
 				for( uint8 i = 0; i < 4; i++ ) {
 					// Add ribis to adjacent wayobj.
-					if( ribi_t::nsew[i] & ribi ) {
+					if( ribi_t::nesw[i] & ribi ) {
 						grund_t *next_gr;
-						if( get_neighbour( next_gr, wegtyp, ribi_t::nsew[i] ) ) {
+						if( get_neighbour( next_gr, wegtyp, ribi_t::nesw[i] ) ) {
 							wayobj_t *wo2 = next_gr->get_wayobj( wegtyp );
 							if( wo2 ) {
-								wo->set_dir( wo->get_dir() | ribi_t::nsew[i] );
-								wo2->set_dir( wo2->get_dir() | ribi_t::backward(ribi_t::nsew[i]) );
+								wo->set_dir( wo->get_dir() | ribi_t::nesw[i] );
+								wo2->set_dir( wo2->get_dir() | ribi_t::backward(ribi_t::nesw[i]) );
 							}
 						}
 					}
@@ -1908,12 +2006,11 @@ sint64 grund_t::remove_trees()
 
 sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player, koord3d_vector_t *route)
 {
-	sint64 cost = 0;
+	sint64 cost=0;
 
 	// not already there?
 	const weg_t * alter_weg = get_weg(weg->get_waytype());
-	if(alter_weg == NULL)
-	{
+	if(alter_weg==NULL) {
 		// ok, we are unique
 		// Calculate the forge cost
 		sint64 forge_cost = welt->get_settings().get_forge_cost(weg->get_waytype());
@@ -1948,8 +2045,7 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 		}
 		cost -= forge_cost;
 
-		if((flags&has_way1)==0)
-		{
+		if((flags&has_way1)==0) {
 			// new first way here, clear trees
 			cost -= remove_trees();
 
@@ -1960,7 +2056,10 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 				// already own this land.
 
 				// get_land_value returns a *negative* value.
-				cost += welt->get_land_value(pos);
+				if (!weg->is_public_right_of_way())
+				{
+					cost += welt->get_land_value(pos);
+				}
 			}
 
 			// add
@@ -1969,31 +2068,33 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 			objlist.add( weg );
 			flags |= has_way1;
 		}
-		else
-		{
+		else {
 			weg_t *other = (weg_t *)obj_bei(0);
 			// another way will be added
-			if(flags&has_way2)
-			{
-				dbg->error("grund_t::neuen_weg_bauen()","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
-				return 0;
+			if(flags&has_way2) {
+				dbg->fatal("grund_t::neuen_weg_bauen()","cannot built more than two ways on %i,%i,%i!",pos.x,pos.y,pos.z);
 			}
+
 			// add the way
 			objlist.add(weg);
 			weg->set_ribi(ribi);
 			weg->set_pos(pos);
 			flags |= has_way2;
-			if(ist_uebergang())
-			{
+			if(ist_uebergang()) {
 				// no tram => crossing needed!
-				waytype_t w2 = other->get_waytype();
-				const crossing_desc_t *cr_desc = crossing_logic_t::get_crossing( weg->get_waytype(), w2, weg->get_max_speed(), other->get_desc()->get_topspeed(), welt->get_timeline_year_month() );
+				waytype_t w2 =  other->get_waytype();
+				const crossing_desc_t *cr_desc = crossing_logic_t::get_crossing( weg->get_waytype(), w2, weg->get_max_speed(), other->get_max_speed(), welt->get_timeline_year_month() );
 				if(cr_desc == nullptr)
 				{
 					dbg->error("crossing_t::crossing_t()", "requested for waytypes %i and %i but nothing defined!", weg->get_waytype(), w2);
 				}
 				else
 				{
+					// If this crossing is a ford type (waytype no. 2 = water; topspeed no. 2 = 0), only allow crossing unnavigable rivers
+					if (cr_desc->get_waytype(1) == water_wt && cr_desc->get_maxspeed(1) == 0 && other->get_max_speed() > 0)
+					{
+						dbg->error("crossing_t::crossing_t()", "Fording a navigable river");
+					}
 					crossing_t* cr = new crossing_t(obj_bei(0)->get_owner(), pos, cr_desc, ribi_t::is_straight_ns(get_weg(cr_desc->get_waytype(1))->get_ribi_unmasked()));
 					objlist.add(cr);
 					cr->finish_rd();
@@ -2034,6 +2135,7 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, player_t *player,
 	return cost;
 }
 
+
 sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 {
 	weg_t *weg = get_weg(wegtyp);
@@ -2056,15 +2158,16 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 			grund_t *to;
 
 			for(int r = 0; r < 4; r++) {
-				if((ribi & ribi_t::nsew[r]) && get_neighbour(to, wegtyp, ribi_t::nsew[r])) {
+				if((ribi & ribi_t::nesw[r]) && get_neighbour(to, wegtyp, ribi_t::nesw[r])) {
 					weg_t *weg2 = to->get_weg(wegtyp);
 					if(weg2) {
-						weg2->ribi_rem(ribi_t::backward(ribi_t::nsew[r]));
+						weg2->ribi_rem(ribi_t::backward(ribi_t::nesw[r]));
 						to->calc_image();
 					}
 				}
 			}
 		}
+
 		sint32 costs = (weg->get_desc()->get_value() / 2); // Costs for removal are half construction costs.
 		weg->cleanup( NULL );
 		delete weg;
@@ -2099,6 +2202,15 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 
 bool grund_t::is_height_restricted() const
 {
+	if(env_t::pak_height_conversion_factor!=2){
+		return false;
+	}
+	if(this->get_typ()==grund_t::tunnelboden){
+		tunnel_t* tunnel = find<tunnel_t>();
+		if(tunnel){
+			return tunnel->get_is_half_height();
+		}
+	}
 	const grund_t* gr_above = world()->lookup(pos + koord3d(0, 0, 1));
 	return env_t::pak_height_conversion_factor == 2
 		   && gr_above
@@ -2126,7 +2238,7 @@ bool grund_t::would_create_excessive_roads(int dx, int dy, road_network_plan_t &
 
 		wayobj_t *wo;
 		if ((wo = gr[i]->get_wayobj(road_wt)) &&
-		    wo->get_desc()->is_noise_barrier()) {
+			(wo->get_desc()->is_noise_barrier() || wo->get_desc()->is_overhead_line())) {
 			return false;
 		}
 
@@ -2197,7 +2309,7 @@ bool grund_t::remove_excessive_roads(int dx, int dy, road_network_plan_t &road_t
 
 		wayobj_t *wo;
 		if ((wo = gr[i]->get_wayobj(road_wt)) &&
-		    wo->get_desc()->is_noise_barrier()) {
+		   ( wo->get_desc()->is_noise_barrier() || wo->get_desc()->is_overhead_line())) {
 			return false;
 		}
 
@@ -2288,7 +2400,7 @@ int grund_t::count_neighbouring_roads(road_network_plan_t &road_tiles)
 	int count = 0;
 
 	for (int i = 0; i < 4; i++) {
-		koord k = ribi_t::nsew[i] + pos.get_2d();
+		koord k = ribi_t::nesw[i] + pos.get_2d();
 
 		if (road_tiles.get(k)) {
 			count++;
@@ -2370,7 +2482,7 @@ bool grund_t::removing_road_would_disconnect_city_building()
 					// than the road that we are trying to delete.
 					for(int q = 0; q < 4; q ++)
 					{
-						const koord ky = kx.nsew[q] + kx;
+						const koord ky = kx.nesw[q] + kx;
 						const grund_t* gry = welt->lookup_kartenboden(ky);
 						if (gry == this)
 						{
@@ -2464,12 +2576,12 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 	for(int n = 0; n < 4; n ++)
 	{
 		grund_t *to;
-		if(w->get_waytype() == water_wt && gr->get_neighbour(to, invalid_wt, ribi_t::nsew[n] ) && to->get_typ() == grund_t::wasser) {
+		if(w->get_waytype() == water_wt && gr->get_neighbour(to, invalid_wt, ribi_t::nesw[n] ) && to->get_typ() == grund_t::wasser) {
 			neighbouring_grounds.append(to);
 			continue;
 		}
 
-		if(gr->get_neighbour(to, w->get_waytype(), ribi_t::nsew[n])) {
+		if(gr->get_neighbour(to, w->get_waytype(), ribi_t::nesw[n])) {
 			weg_t *way = to->get_weg(w->get_waytype());
 
 			if(way && way->get_max_speed() > 0) {
@@ -2481,13 +2593,17 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 	if(neighbouring_grounds.get_count() > 1)
 	{
 		// It is necessary to do this to simulate the way not being there for testing purposes.
+		grund_t* way_gr = welt->lookup(w->get_pos());
+
+		// Original basic algorithm
 		koord3d start = koord3d::invalid;
 		koord3d end;
 		vehicle_desc_t diversion_check_type(w->get_waytype(), kmh_to_speed(w->get_max_speed()), vehicle_desc_t::petrol, w->get_max_axle_load());
 		minivec_tpl<route_t> diversionary_routes;
 		uint32 successful_diversions = 0;
 		uint32 necessary_diversions = 0;
-		FOR(minivec_tpl<grund_t*>, const& gr, neighbouring_grounds)
+
+		for(auto const gr : neighbouring_grounds)
 		{
 			end = start;
 			start = gr->get_pos();
@@ -2499,11 +2615,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 				diversion_checker->set_owner(welt->get_public_player());
 				test_driver_t *driver = diversion_checker;
 				driver = public_driver_t::apply(driver);
-				const way_desc_t* default_road = welt->get_city(w->get_pos().get_2d()) ? welt->get_settings().get_city_road_type(welt->get_timeline_year_month()) : welt->get_settings().get_intercity_road_type(welt->get_timeline_year_month());
-				if(default_road == NULL) // If, for some reason, the default road is not defined
-				{
-					default_road = w->get_desc();
-				}
+				const way_desc_t* default_road = get_default_road(w);
 				const uint32 default_road_axle_load = default_road->get_axle_load();
 				const sint32 default_road_speed = default_road->get_topspeed();
 				const uint32 max_axle_load = w->get_waytype() == road_wt ? min(default_road_axle_load, w->get_max_axle_load()) : w->get_max_axle_load();
@@ -2515,7 +2627,9 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 					// Only increment this counter if the ways were already connected.
 					necessary_diversions ++;
 				}
-				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				// Check that the route can be traversed in both directions
+				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
 				if(route_good && (diversionary_route.get_count() <= welt->get_settings().get_max_diversion_tiles()))
 				{
 					successful_diversions ++;
@@ -2527,7 +2641,200 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 
 		if(successful_diversions < necessary_diversions)
 		{
-			return true;
+			// If the original basic algorithm does not succeed, try the between intersections algorithm instead.
+
+			// First, find the set of connected intersections
+			// One for each direction.
+			minivec_tpl<grund_t*> intersections;
+			for (auto const gr : neighbouring_grounds)
+			{
+				bool intersection_or_end_found_this_direction = false;
+				grund_t* to = gr;
+				grund_t* from = way_gr;
+				grund_t* to_check;
+				while (!intersection_or_end_found_this_direction && intersections.get_count() <= 4)
+				{
+					// Check whether the immediately adjacent tile is an intersection.
+					const weg_t* this_way = to->get_weg(wt);
+					if (to->is_water() || this_way->is_junction())
+					{
+						intersections.append_unique(to);
+						break;
+					}
+
+					// Otherwise, check recursively.
+					// We can now assume that there is only one valid direction from here.
+					bool found_valid_way = false;
+					for (int n = 0; n < 4; n++)
+					{
+						if (w->get_waytype() == water_wt && to->get_neighbour(to_check, invalid_wt, ribi_t::nesw[n]) && to_check->get_typ() == grund_t::wasser)
+						{
+							// This is a water waytype and we have reached open water. Treat open water as akin to an intersection.
+							intersections.append_unique(to_check);
+							intersection_or_end_found_this_direction = true;
+							break;
+						}
+						else if (to->get_neighbour(to_check, w->get_waytype(), ribi_t::nesw[n]))
+						{
+							if (to_check == from || to_check == this)
+							{
+								continue;
+							}
+
+							else
+							{
+								found_valid_way = true;
+								break;
+							}
+						}
+					}
+
+					if (!found_valid_way)
+					{
+						break;
+					}
+
+					from = to;
+					to = to_check;
+
+					weg_t* way = to->get_weg(w->get_waytype());
+
+					if (way && way->get_max_speed() > 0)
+					{
+						if (way->is_junction())
+						{
+							intersections.append_unique(to);
+							intersection_or_end_found_this_direction = true;
+							continue;
+						}
+						if (w->get_waytype() == road_wt)
+						{
+							// Check for connected industry or attraction.
+							if (!way->connected_buildings.empty())
+							{
+								for (auto const building : way->connected_buildings)
+								{
+									if (building->is_attraction() || building->get_is_factory())
+									{
+										// Treat as intersection
+										intersections.append_unique(to);
+										intersection_or_end_found_this_direction = true;
+										break;
+									}
+								}
+							}
+						}
+					}
+					else
+					{
+						break;
+					}
+
+				} // Loop for continuing in each direction
+
+			} // All directions
+
+			if (intersections.get_count() < 2)
+			{
+				// We cannot test the distance between < 2 points
+				return true;
+			}
+
+			// First, check the distance using the existing route.
+
+			vehicle_t* diversion_checker = vehicle_builder_t::build(start, welt->get_public_player(), NULL, &diversion_check_type);
+			diversion_checker->set_flag(obj_t::not_on_map);
+			diversion_checker->set_owner(welt->get_public_player());
+			test_driver_t* driver = diversion_checker;
+			driver = public_driver_t::apply(driver);
+			const way_desc_t* default_road = get_default_road(w);
+			if (default_road == NULL) // If, for some reason, the default road is not defined
+			{
+				default_road = w->get_desc();
+			}
+			const uint32 default_road_axle_load = default_road->get_axle_load();
+			const sint32 default_road_speed = default_road->get_topspeed();
+			const uint32 max_axle_load = w->get_waytype() == road_wt ? min(default_road_axle_load, w->get_max_axle_load()) : w->get_max_axle_load();
+			const sint32 max_speed = w->get_waytype() == road_wt ? min(default_road_speed, w->get_max_speed()) : w->get_max_speed();
+			const uint32 bridge_weight_limit = gr->ist_bruecke() ? w->get_bridge_weight_limit() : 0;
+			const uint32 bridge_weight = max_axle_load * (w->get_waytype() == road_wt ? 2 : 1);  // This is something of a fudge, but it is reasonable to assume that most road vehicles have 2 axles.
+
+			for (uint32 i = 0; i < intersections.get_count() - 1; i++)
+			{
+				route_t existing_route;
+				route_t existing_route_2;
+				start = intersections[i]->get_pos();
+				end = way_gr->get_pos();
+				existing_route.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+				start = end;
+				end = intersections[i + 1]->get_pos();
+				existing_route_2.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+				existing_route.append(&existing_route_2);
+
+				route_t diversionary_route;
+				start = intersections[i]->get_pos();
+				// Check that the route can be traversed in both directions
+				const bool route_good =
+					diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
+				{
+					return true;
+				}
+				diversionary_routes.append(diversionary_route);
+			}
+
+			if(intersections.get_count() >= 3)
+			{
+				// It is necessary to check beyond the recursion pattern above
+				route_t existing_route;
+				route_t existing_route_2;
+				start = intersections[0]->get_pos();
+				end = way_gr->get_pos();
+				existing_route.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+				start = end;
+				end = intersections[2]->get_pos();
+				existing_route_2.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+				existing_route.append(&existing_route_2);
+
+				route_t diversionary_route;
+				start = intersections[0]->get_pos();
+				// Check that the route can be traversed in both directions
+				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
+				{
+					return true;
+				}
+				diversionary_routes.append(diversionary_route);
+			}
+			if (intersections.get_count() == 4)
+			{
+				for (uint32 i = 0; i < 2; i++)
+				{
+					// It is necessary to check beyond the recursion pattern above
+					route_t existing_route;
+					route_t existing_route_2;
+					start = intersections[i == 0 ? 0 : 1]->get_pos();
+					end = way_gr->get_pos();
+					existing_route.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+					start = end;
+					end = intersections[3]->get_pos();
+					existing_route_2.calc_route(welt, start, end, diversion_checker, w->get_max_speed(), max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles() * 100, bridge_weight);
+					existing_route.append(&existing_route_2);
+
+					route_t diversionary_route;
+					start = intersections[i == 0 ? 0 : 1]->get_pos();
+					// Check that the route can be traversed in both directions.
+					const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route
+					&& diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+					if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
+					{
+						return true;
+					}
+					diversionary_routes.append(diversionary_route);
+				}
+			}
 		}
 
 		FOR(minivec_tpl<route_t>, const& diversionary_route, diversionary_routes)
@@ -2536,13 +2843,72 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			{
 				// All diversionary routes must themselves be set as public rights of way.
 				weg_t* way = welt->lookup(diversionary_route.at(n))->get_weg(w->get_waytype());
-				if (way) {
+				if (way)
+				{
 					way->set_public_right_of_way();
 				}
 			}
 		}
 	}
+	else
+	{
+		// This is a dead end. Check whether it connects to anything.
+		if (!w->connected_buildings.empty())
+		{
+			return true;
+		}
+	}
 	return false;
+}
+
+const way_desc_t* grund_t::get_default_road(weg_t* w) const
+{
+	const way_desc_t* default_road;
+	if (welt->get_city(w->get_pos().get_2d()))
+	{
+		// City road
+		default_road = welt->get_settings().get_city_road_type(welt->get_timeline_year_month());
+	}
+	else
+	{
+		// Either an inter-city or an industry road.
+
+		// Check for connected road routes
+		bool city_destinations = false;
+		for (uint8 i = 0; i < 5; i++)
+		{
+			for (uint32 j = 0; j < w->private_car_routes[w->private_car_routes_currently_reading_element][i].get_count(); j++)
+			{
+				const koord dest = w->private_car_routes[w->private_car_routes_currently_reading_element][i][j];
+
+				const stadt_t* city = welt->get_city(dest);
+				if (city && dest == city->get_townhall_road())
+				{
+					city_destinations = true;
+					break;
+				}
+			}
+			if (city_destinations)
+			{
+				break;
+			}
+		}
+
+		if (city_destinations)
+		{
+			default_road = welt->get_settings().get_intercity_road_type(welt->get_timeline_year_month());
+		}
+		else
+		{
+			default_road = welt->get_settings().get_industry_road_type(welt->get_timeline_year_month());
+		}
+	}
+
+	if (default_road == NULL) // If, for some reason, the default road is not defined
+	{
+		default_road = w->get_desc();
+	}
+	return default_road;
 }
 
 // this function is called many many times => make it as fast as possible
@@ -2676,7 +3042,8 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 					costs -= signal->get_desc()->get_value();
 					delete signal;
 				}
-			} else if (wayobj_t* const wayobj = obj_cast<wayobj_t>(obj)) {
+			}
+			else if (wayobj_t* const wayobj = obj_cast<wayobj_t>(obj)) {
 				// wayobj: check dir
 				if (add == ribi_t::none && wayobj->get_desc()->get_wtyp() == wt) {
 					uint8 new_dir=wayobj->get_dir()&add;
@@ -2689,13 +3056,16 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 						delete wayobj;
 					}
 				}
-			} else if (private_car_t* const citycar = obj_cast<private_car_t>(obj)) {
+			}
+			else if (private_car_t* const citycar = obj_cast<private_car_t>(obj)) {
 				// citycar: just delete
 				if (wt == road_wt) delete citycar;
-			} else if (pedestrian_t* const pedestrian = obj_cast<pedestrian_t>(obj)) {
+			}
+			else if (pedestrian_t* const pedestrian = obj_cast<pedestrian_t>(obj)) {
 				// pedestrians: just delete
 				if (wt == road_wt) delete pedestrian;
-			} else if (tunnel_t* const tunnel = obj_cast<tunnel_t>(obj)) {
+			}
+			else if (tunnel_t* const tunnel = obj_cast<tunnel_t>(obj)) {
 				// remove tunnel portal, if not the last tile ...
 				// must be done before weg_entfernen() to get maintenance right
 				uint8 wt = tunnel->get_desc()->get_waytype();
@@ -2718,15 +3088,34 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 
 		// need to remove railblocks to recalculate connections
 		// remove all ways or just some?
-		if(add==ribi_t::none) {
+		if(add==ribi_t::none)
+		{
 			player_t* owner = weg->get_owner();
 			koord3d pos = weg->get_pos();
 			costs -= weg_entfernen(wt, true);
-			if(owner == player)
+			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land.
+			const bool public_right_of_way = weg->is_public_right_of_way(); // We must capture this before deleting the way object.
+			const bool is_main_way = get_weg_nr(0) == weg;
+			const bool are_other_ways = get_weg_nr(1);
+			if (!public_right_of_way && is_main_way) // Land costs are not used for public rights of way; also, do not refund the land value when deleting a crossing over another player's way.
 			{
-				// Need to sell the land on which the way is situated: refund the land value.
-				// Note that get_land_value() produces a negative number.
-				costs -= welt->get_land_value(pos);
+				if (player == owner)
+				{
+					costs += land_refund_cost;
+					if (are_other_ways)
+					{
+						// If we are deleting a crossing over another player's way
+						// and the deleting player paid to buy the land, then the land
+						// value must be debited from the other player's way to avoid
+						// that other player being able to get a refund of the value of
+						// land for which that player had never paid.
+						player_t::book_construction_costs(get_weg_nr(0)->get_owner(), -land_refund_cost, get_pos().get_2d(), wt);
+					}
+				}
+				else
+				{
+					player_t::book_construction_costs(owner, -land_refund_cost, get_pos().get_2d(), wt);
+				}
 			}
 			if(flags&is_kartenboden) {
 				// remove ribis from sea tiles
@@ -2735,14 +3124,6 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 					if (gr  &&  gr->is_water()) {
 						gr->calc_image(); // to recalculate ribis
 					}
-				}
-				// make tunnel portals to normal ground
-				if (get_typ()==tunnelboden  &&  (flags&has_way1)==0) {
-					// remove remaining objs
-					obj_loesche_alle( player );
-					// set to normal ground
-					welt->access(here)->kartenboden_setzen( new boden_t( pos, slope ) );
-					// now this is already deleted !
 				}
 			}
 		}
@@ -2779,4 +3160,12 @@ wayobj_t *grund_t::get_wayobj( waytype_t wt ) const
 		}
 	}
 	return NULL;
+}
+
+
+bool grund_t::is_dummy_ground() const
+{
+	return (get_typ() == grund_t::tunnelboden  ||  get_typ() == grund_t::monorailboden)
+		&&  !hat_wege()
+		&&  get_leitung() == NULL;
 }

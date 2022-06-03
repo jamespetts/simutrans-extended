@@ -13,7 +13,7 @@
 
 #include "../simunits.h"
 #include "../simconvoi.h"
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../simcolor.h"
 #include "../display/simgraph.h"
 #include "../simworld.h"
@@ -23,17 +23,11 @@
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
 #include "../simline.h"
-#include "../simmenu.h"
-#include "messagebox.h"
 
 #include "../player/simplay.h"
 
-#include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
 
-#include "components/gui_chart.h"
-
-#include "../obj/roadsign.h"
 
 
 
@@ -788,7 +782,7 @@ line_class_manager_t::~line_class_manager_t()
 void line_class_manager_t::rdwr(loadsave_t *file)
 {
 	// convoy data
-	if (file->get_version_int() <=112002) {
+	if (  file->is_version_less(112, 3)  ) {
 		// dummy data
 		koord3d line_pos( koord3d::invalid);
 		char name[128];

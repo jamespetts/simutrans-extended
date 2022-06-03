@@ -163,6 +163,12 @@ void gui_routebar_t::set_base(sint32 base)
 	this->base = base != 0 ? base : 1;
 }
 
+void gui_routebar_t::set_reservation(const sint32 *value, PIXVAL color)
+{
+	reserve_value = value;
+	reserved_color= color;
+}
+
 void gui_routebar_t::init(const sint32 *value, uint8 state)
 {
 	this->value = value;
@@ -190,7 +196,10 @@ void gui_routebar_t::draw(scr_coord offset)
 		display_vline_wh_rgb(offset.x + h/2 + w*i/4, offset.y+i%2, h-(i%2)*2, color_idx_to_rgb(col), true);
 	}
 	sint32 const to = min(*value, base) * w / base;
-
+	if (reserve_value  &&  *reserve_value) {
+		sint32 const reserved_to = min(*reserve_value, base) * w / base;
+		display_fillbox_wh_clip_rgb(offset.x + h / 2, offset.y + h / 2 - 1, reserved_to, 3, reserved_color, true);
+	}
 	display_fillbox_wh_clip_rgb(offset.x+h/2, offset.y+h/2-1, to, 3, color_idx_to_rgb(43), true);
 
 	switch (state)
@@ -206,6 +215,7 @@ void gui_routebar_t::draw(scr_coord offset)
 			break;
 		case 0:
 		default:
+			//display_fillbox_wh_clip_rgb( offset.x+h/2, offset.y + 1, to-2, h - 2, color_idx_to_rgb( COL_GREEN ), true );
 			display_right_triangle_rgb(offset.x + to, offset.y, h, COL_CLEAR, true);
 			break;
 	}
@@ -222,20 +232,20 @@ scr_size gui_routebar_t::get_max_size() const
 }
 
 
-void gui_bandgraph_t::add_color_value(const sint32 *value, PIXVAL color)
+void gui_bandgraph_t::add_color_value(const sint32 *value, PIXVAL color, bool cylinder_style)
 {
-	info_t next = { color, value };
+	info_t next = { color, value, cylinder_style };
 	values.insert(next);
 }
 
 scr_size gui_bandgraph_t::get_min_size() const
 {
-	return D_INDICATOR_SIZE;
+	return size;
 }
 
 scr_size gui_bandgraph_t::get_max_size() const
 {
-	return scr_size(scr_size::inf.w, D_INDICATOR_HEIGHT);
+	return scr_size(size_fixed ? get_min_size().w : scr_size::inf.w, size.h);
 }
 
 void gui_bandgraph_t::draw(scr_coord offset)
@@ -251,14 +261,19 @@ void gui_bandgraph_t::draw(scr_coord offset)
 	}
 	else{
 		sint32 temp = 0;
-		KOORD_VAL end = 0;
+		scr_coord_val end = 0;
 		FOR(slist_tpl<info_t>, const& i, values) {
 			if (*i.value>0) {
 				temp += (*i.value);
-				const KOORD_VAL from = size.w * temp / total + 0.5;
-				const KOORD_VAL width = from-end;
+				const scr_coord_val from = size.w * temp / total + 0.5;
+				const scr_coord_val width = from-end;
 				if (width) {
-					display_fillbox_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+					if (i.cylinder_style) {
+						display_cylinderbar_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+					}
+					else {
+						display_fillbox_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+					}
 				}
 				end += width;
 			}

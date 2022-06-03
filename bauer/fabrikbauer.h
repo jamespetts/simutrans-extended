@@ -29,24 +29,24 @@ private:
 	static karte_ptr_t welt;
 
 	/**
-	 * @class fabs_to_crossconnect_t
+	 * @class factories_to_crossconnect_t
 	 * Used for cross-connection checks between factories.
 	 * This is necessary for finding producers for factory supply.
 	 */
-	class fabs_to_crossconnect_t {
+	class factories_to_crossconnect_t {
 	public:
-		fabrik_t *fab;		///< The factory
-		sint32 demand;		///< To how many factories this factory needs to connect to
+		fabrik_t *fab; ///< The factory
+		sint32 demand; ///< To how many factories this factory needs to connect to
 
-		fabs_to_crossconnect_t() { fab = NULL; demand = 0; }
-		fabs_to_crossconnect_t(fabrik_t *f, sint32 d) { fab = f; demand = d; }
+		factories_to_crossconnect_t() { fab = NULL; demand = 0; }
+		factories_to_crossconnect_t(fabrik_t *f, sint32 d) { fab = f; demand = d; }
 
-		bool operator == (const fabs_to_crossconnect_t& x) const { return fab == x.fab; }
-		bool operator != (const fabs_to_crossconnect_t& x) const { return fab != x.fab; }
+		bool operator == (const factories_to_crossconnect_t& x) const { return fab == x.fab; }
+		bool operator != (const factories_to_crossconnect_t& x) const { return fab != x.fab; }
 	};
 
 	/// Table of all factories that can be built
-	static stringhashtable_tpl<const factory_desc_t *> desc_table;
+	static stringhashtable_tpl<const factory_desc_t *, N_BAGS_MEDIUM> desc_table;
 
 	/// @returns the number of producers producing @p ware
 	static int count_producers(const goods_desc_t *ware, uint16 timeline);
@@ -59,7 +59,7 @@ private:
 
 public:
 	/// This is only for the set_scale function in simworld.cc
-	static stringhashtable_tpl<factory_desc_t *> modifiable_table;
+	static stringhashtable_tpl<factory_desc_t *, N_BAGS_MEDIUM> modifiable_table;
 
 	/// Registers the factory description so the factory can be built in-game.
 	static void register_desc(factory_desc_t *desc);
@@ -80,10 +80,10 @@ public:
 	static void distribute_attractions(int max_number);
 
 	/// @returns a factory description for a factory name
-	static const factory_desc_t * get_desc(const char *fabtype);
+	static const factory_desc_t *get_desc(const char *factory_name);
 
 	/// @returns the table containing all factory descriptions
-	static const stringhashtable_tpl<const factory_desc_t*>& get_factory_table() { return desc_table; }
+	static const stringhashtable_tpl<const factory_desc_t*, N_BAGS_MEDIUM>& get_factory_table() { return desc_table; }
 
 	/**
 	 * @param electric true to limit search to electricity producers only
@@ -110,13 +110,13 @@ public:
 	 * (meaning there are no unfinished factory chains).
 	 * @returns number of factories built
 	 */
-	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates);
+	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates );
 
 	/**
 	 * Helper function for baue_hierachie(): builds the connections (chain) for one single product)
 	 * @returns number of factories built
 	 */
-	static int build_chain_link(const fabrik_t* our_fab, const factory_desc_t* info, int supplier_nr, player_t* player, bool no_new_industries = false);
+	static int build_chain_link(const fabrik_t* origin_fab, const factory_desc_t* info, int supplier_nr, player_t* player, bool no_new_industries = false);
 
 	/**
 	 * This function is called whenever it is time for industry growth.
@@ -134,7 +134,6 @@ private:
 	/**
 	 * Checks if the site at @p pos is suitable for construction.
 	 * @param size Size of the building site
-	 * @param water true to search on water
 	 * @param cl allowed climates
 	 */
 	static bool check_construction_site(koord pos, koord size, factory_desc_t::site_t site, bool is_factory, climate_bits cl, uint16 regions_allowed);

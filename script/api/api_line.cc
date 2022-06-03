@@ -159,7 +159,7 @@ void export_line(HSQUIRRELVM vm)
 	 * Get monthly statistics of number of transported goods.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_TRANSPORTED_GOODS), true );
+	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_PAX_DISTANCE), true );
 	/**
 	 * Get monthly statistics of number of convoys in this line.
 	 * @returns array, index [0] corresponds to current month

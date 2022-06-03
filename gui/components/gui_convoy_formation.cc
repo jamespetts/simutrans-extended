@@ -3,7 +3,7 @@
 #include "gui_convoy_formation.h"
 
 #include "../../simconvoi.h"
-#include "../../vehicle/simvehicle.h"
+#include "../../vehicle/vehicle.h"
 
 #include "../../simcolor.h"
 #include "../../display/simgraph.h"
@@ -68,9 +68,9 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		vehicle_t *v = cnv->get_vehicle(veh);
 
 		// set the loading indicator color
-		if (v->get_number_of_accommodation_classes()) {
+		if (v->get_number_of_fare_classes()) {
 			int bar_offset_left = 0;
-			int bar_width = (grid_width - 3) / v->get_number_of_accommodation_classes() - 1;
+			int bar_width = (grid_width - 3) / v->get_number_of_fare_classes() - 1;
 
 			// drawing the color bar
 			int found = 0;
@@ -90,7 +90,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
 					bar_offset_left += bar_width + 1;
 					found++;
-					if (found == v->get_number_of_accommodation_classes()) {
+					if (found == v->get_number_of_fare_classes()) {
 						break;
 					}
 				}
@@ -115,7 +115,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 			buf.append(car_number);
 		}
 
-		int left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : color_idx_to_rgb(COL_GREY2), true);
+		scr_coord_val left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
 #ifdef DEBUG
 		if (v->is_reversed()) {
 			display_proportional_clip_rgb(offset.x + 2 + left, offset.y - 2, "*", ALIGN_LEFT, COL_CAUTION, true);
@@ -128,17 +128,17 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 #endif
 
 		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-		if (v->get_desc()->is_obsolete(month_now, welt)) {
+		if (v->get_desc()->is_obsolete(month_now)) {
 			col_val = COL_OBSOLETE;
 		}
-		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, col_val, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity(), false);
-		display_veh_form_wh_clip_rgb(offset.x + (grid_width-6)/2 + 2, offset.y + LINESPACE, (grid_width-6)/2, col_val, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity(), true);
+		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
+		display_veh_form_wh_clip_rgb(offset.x + (grid_width-6)/2 + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
 
 		offset.x += grid_width;
 	}
 
 	scr_size size(grid_width*cnv->get_vehicle_count() + D_MARGIN_LEFT * 2, LINESPACE + VEHICLE_BAR_HEIGHT + 10 + D_SCROLLBAR_HEIGHT);
-	return size;
+	return scr_size(size.w, max(get_size().h, size.h));
 }
 
 scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_images) const
@@ -158,7 +158,7 @@ scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_im
 		s.w += (w*2)/3;
 		s.h = max(s.h, h);
 	}
-	return s;
+	return scr_size(s.w, max(get_size().h, s.h));
 }
 
 scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
@@ -196,7 +196,7 @@ scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 						display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), offset.x + left, offset.y + top + FIXED_SYMBOL_YOFF, 0, false, false);
 						left += 12;
 						// [class name]
-						buf.append(goods_manager_t::get_translated_wealth_name(catg_index, i));
+						buf.append(goods_manager_t::get_translated_fare_class_name(catg_index, i));
 
 						buf.printf(" %i/%i", cargo_sum, capacity);
 						left += display_proportional_clip_rgb(offset.x + left, offset.y + top, buf, ALIGN_LEFT, text_col, true);
@@ -235,5 +235,5 @@ scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 		}
 	}
 	scr_size size(left, top+LINESPACE);
-	return size;
+	return scr_size(size.w, max(get_size().h, size.h));
 }

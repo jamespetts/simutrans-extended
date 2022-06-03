@@ -11,7 +11,7 @@
 #include <math.h>
 #include "convoy.h"
 #include "bauer/goods_manager.h"
-#include "vehicle/simvehicle.h"
+#include "vehicle/air_vehicle.h"
 #include "simconvoi.h"
 
 static karte_ptr_t welt;

@@ -27,6 +27,7 @@
 #include "sound_writer.h"
 #include "tree_writer.h"
 #include "vehicle_writer.h"
+#include "pier_writer.h"
 
 /*
  * static data
@@ -35,8 +36,8 @@
  * may be also instantiated in the class itself. Therefore, all classes MUST be declared here to force
  * the linking and raise an error if we lack any of them.
  */
-stringhashtable_tpl<obj_writer_t*>* obj_writer_t::writer_by_name = NULL;
-inthashtable_tpl<obj_type, obj_writer_t*>* obj_writer_t::writer_by_type = NULL;
+stringhashtable_tpl<obj_writer_t*, N_BAGS_LARGE>* obj_writer_t::writer_by_name = NULL;
+inthashtable_tpl<obj_type, obj_writer_t*, N_BAGS_LARGE>* obj_writer_t::writer_by_type = NULL;
 
 text_writer_t text_writer_t::the_instance;
 image_writer_t image_writer_t::the_instance;
@@ -84,3 +85,4 @@ citycar_writer_t citycar_writer_t::the_instance;
 pedestrian_writer_t pedestrian_writer_t::the_instance;
 
 tree_writer_t tree_writer_t::the_instance;
+pier_writer_t pier_writer_t::the_instance;

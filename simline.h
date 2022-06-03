@@ -22,22 +22,25 @@
 #define MAX_MONTHS				12 // Max history
 #define MAX_NON_MONEY_TYPES		4 // number of non money types in line's financial statistic
 
-							// Exp|Std|Description
+                                // Ext|Std|Description
 enum line_cost_t {
-	LINE_CAPACITY =	0,			//  0 | 0 | the amount of ware that could be transported, theoretically
-	LINE_TRANSPORTED_GOODS,		//  1 | 1 | the amount of ware that has been transported
-	LINE_AVERAGE_SPEED,			//  2 |   | average speed of all convoys in the line
-	LINE_COMFORT,				//  3 |   | the average comfort rating of all vehicles on this line (weighted by numbers)
-	LINE_REVENUE,				//  4 | 3 | the income this line generated
-	LINE_OPERATIONS,			//  5 | 4 | the cost of operations this line generated
-	LINE_PROFIT,				//  6 | 5 | total profit of line
-	LINE_CONVOIS,				//  7 | 2 | number of convois for this line
-	LINE_DISTANCE,				//  8 | 6 | distance covered by all convois
-	LINE_REFUNDS,				//  9 |   | Total refunds paid to passengers/goods owners desiring to use this line but kept waiting too long to do so.
-	LINE_DEPARTURES,			// 10 |   | number of departures of convoys on this line from scheduled points
-	LINE_DEPARTURES_SCHEDULED,	// 11 |   | number of departures scheduled on this line from scheduled departure points
-	LINE_WAYTOLL,				// 12 | 8 |
-	MAX_LINE_COST				// 13 | 9 | Total number of cost items
+	LINE_CAPACITY = 0,          //  0 | 0 | the amount of ware that could be transported, theoretically
+	//LINE_TRANSPORTED_GOODS,   //    | 1 | the amount of ware that has been transported
+	LINE_PAX_DISTANCE,          //  1 |   | the distance (km) travelled by passenger
+	LINE_AVERAGE_SPEED,         //  2 |   | average speed of all convoys in the line
+	LINE_COMFORT,               //  3 |   | the average comfort rating of all vehicles on this line (weighted by numbers)
+	LINE_REVENUE,               //  4 | 3 | the income this line generated
+	LINE_OPERATIONS,            //  5 | 4 | the cost of operations this line generated
+	LINE_PROFIT,                //  6 | 5 | total profit of line
+	LINE_CONVOIS,               //  7 | 2 | number of convois for this line
+	LINE_DISTANCE,              //  8 | 6 | distance covered by all convois
+	LINE_REFUNDS,               //  9 |   | Total refunds paid to passengers/goods owners desiring to use this line but kept waiting too long to do so.
+	LINE_DEPARTURES,            // 10 |   | number of departures of convoys on this line from scheduled points
+	LINE_DEPARTURES_SCHEDULED,  // 11 |   | number of departures scheduled on this line from scheduled departure points
+	LINE_WAYTOLL,               // 12 | 8 |
+	LINE_MAIL_DISTANCE,         // 13 |   | the distance (km) travelled by mail
+	LINE_PAYLOAD_DISTANCE,      // 14 |   | moving 1 ton of cargo a distance of 1 km
+	MAX_LINE_COST               // 15 | 9 | Total number of cost items
 };
 
 class karte_ptr_t;
@@ -48,13 +51,33 @@ class schedule_t;
 class simline_t {
 
 public:
-	enum linetype { line = 0, truckline = 1, trainline = 2, shipline = 3, airline = 4, monorailline=5, tramline=6, maglevline=7, narrowgaugeline=8, MAX_LINE_TYPE};
+	enum linetype {
+		line            = 0,
+		truckline       = 1,
+		trainline       = 2,
+		shipline        = 3,
+		airline         = 4,
+		monorailline    = 5,
+		tramline        = 6,
+		maglevline      = 7,
+		narrowgaugeline = 8,
+		MAX_LINE_TYPE
+	};
 
 	enum line_fireight_group { all_ftype = 0, all_pas = 1, all_mail = 2, all_freight = 3 };
 
-	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64	};
+	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64, line_has_stuck_convoy = 128	};
 
 	static const uint linetype_to_stationtype[simline_t::MAX_LINE_TYPE];
+
+	enum line_lettercode_style_t
+	{
+		no_letter_code      = 0,
+		frame_flag          = 1<<0,
+		white_bg_flag       = 1<<1,
+		left_roundbox_flag  = 1<<2,
+		right_roundbox_flag = 1<<3
+	};
 
 protected:
 	schedule_t * schedule;
@@ -66,6 +89,10 @@ protected:
 private:
 	static karte_ptr_t welt;
 	plainstring name;
+
+	// letter code
+	char linecode_l[4] = {};
+	char linecode_r[4] = {};
 
 	/**
 	 * Handle for ourselves. Can be used like the 'this' pointer
@@ -116,6 +143,9 @@ private:
 
 	uint16 livery_scheme_index;
 
+	uint8 line_lettercode_style=no_letter_code;
+	uint8 line_color_index=255;
+
 	/**
 	* The table of point-to-point average speeds.
 	* @author jamespetts
@@ -163,6 +193,7 @@ public:
 	PIXVAL get_state_color() const { return state_color; }
 	// This has multiple flags
 	uint8 get_state() const { return state; }
+	void set_state(uint8 s) { state |= s; }
 
 	/**
 	 * return the schedule of the line
@@ -175,7 +206,19 @@ public:
 	 * get name of line
 	 */
 	char const* get_name() const { return name; }
-	void set_name(const char *str) { name = str; }
+	void set_name(const char *str);
+
+	/**
+	 * line letter code
+	 */
+	char const* get_linecode_l() const { return linecode_l; }
+	void set_linecode_l(const char *str);
+	char const* get_linecode_r() const { return linecode_r; }
+	void set_linecode_r(const char *str);
+	inline bool has_letter_code() const
+	{
+		return (line_color_index != 255 && !(linecode_l[0]=='\0' && linecode_r[0]=='\0'));
+	}
 
 	/*
 	 * load or save the line
@@ -265,6 +308,12 @@ public:
 	//@author: jamespetts
 	bool has_overcrowded() const;
 
+	bool needs_electrification() const;
+
+	uint16 get_min_range() const;
+
+	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
+
 	void set_withdraw( bool yes_no );
 
 	bool get_withdraw() const { return withdraw; }
@@ -278,9 +327,16 @@ public:
 	uint16 get_livery_scheme_index() const { return livery_scheme_index; }
 	void propogate_livery_scheme();
 
+	void set_line_color(uint8 color_idx = 255, uint8 style = no_letter_code);
+	uint8 get_line_lettercode_style() const { return line_lettercode_style; }
+	PIXVAL get_line_color() const;
+	uint8 get_line_color_index() const { return line_color_index; }
+
 	inline journey_times_map& get_average_journey_times() { return average_journey_times; }
 
 	inline times_history_map& get_journey_times_history() { return journey_times_history; }
+
+	sint64 get_service_frequency();
 
 	image_id get_linetype_symbol() const
 	{

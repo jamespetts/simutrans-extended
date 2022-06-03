@@ -16,6 +16,8 @@ using std::string;
 
 string root_writer_t::inpath;
 
+const koord koord::invalid(-1, -1); //needed for sparce_tpl.h
+
 void root_writer_t::write_header(FILE* fp)
 {
 	fprintf(fp,
@@ -48,9 +50,11 @@ void root_writer_t::write(const char* filename, int argc, char* argv[])
 
 		if (!outfp) {
 			dbg->fatal( "Write pak", "Cannot create destination file %s", filename );
-			exit(3);
 		}
-		printf("writing file %s\n", filename);
+
+		if (debuglevel >= log_t::LEVEL_WARN) {
+			printf("Writing file %s\n", filename);
+		}
 		write_header(outfp);
 
 		node = new obj_node_t(this, 0, NULL);
@@ -66,42 +70,29 @@ void root_writer_t::write(const char* filename, int argc, char* argv[])
 			if (infile.open(i)) {
 				tabfileobj_t obj;
 
-				printf("   reading file %s\n", i);
-
-				inpath = arg;
-				string::size_type n = inpath.rfind('/');
-
-				if(n!=string::npos) {
-					inpath = inpath.substr(0, n + 1);
-				}
-				else {
-					inpath = "";
-				}
+				writer_init(i,arg);
 
 				while(infile.read(obj)) {
-					if(separate) {
-						string name(filename);
+					writer_write(separate,filename,outfp,node,obj);
+				}
+			}
+			else {
+				dbg->warning( "Write pak", "Cannot read %s", i);
+			}
+		}
+		find.search(arg, "csv");
+		FOR(searchfolder_t, const& i, find) {
+			CSV_file_t infile;
 
-						name = name + obj.get("obj") + "." + obj.get("name") + ".pak";
+			if (infile.load_file(i)) {
+				tabfileobj_t obj;
 
-						outfp = fopen(name.c_str(), "wb");
-						if (!outfp) {
-							dbg->fatal( "Write pak", "Cannot create destination file %s", filename );
-							exit(3);
-						}
-						printf("   writing file %s\n", name.c_str());
-						write_header(outfp);
+				writer_init(i,arg);
 
-						node = new obj_node_t(this, 0, NULL);
-					}
-					obj_writer_t::write(outfp, *node, obj);
-					obj.unused( "#;-/" );
 
-					if(separate) {
-						node->write(outfp);
-						delete node;
-						fclose(outfp);
-					}
+				infile.reset_current_obj();
+				while(infile.get_object(obj)) {
+					writer_write(separate,filename,outfp,node,obj);
 				}
 			}
 			else {
@@ -116,6 +107,83 @@ void root_writer_t::write(const char* filename, int argc, char* argv[])
 	}
 }
 
+void root_writer_t::writer_write(bool separate, const char *filename, FILE *outfp, obj_node_t *node, tabfileobj_t &obj){
+	if(separate) {
+		string name(filename);
+
+		name = name + obj.get("obj") + "." + obj.get("name") + ".pak";
+
+		outfp = fopen(name.c_str(), "wb");
+		if (!outfp) {
+			dbg->fatal( "Write pak", "Cannot create destination file %s", filename );
+		}
+
+		if (debuglevel >= log_t::LEVEL_WARN) {
+			printf("   Writing file %s\n", name.c_str());
+		}
+
+		write_header(outfp);
+		node = new obj_node_t(this, 0, NULL);
+	}
+	obj_writer_t::write(outfp, *node, obj);
+	obj.unused( "#;-/" );
+
+	if(separate) {
+		node->write(outfp);
+		delete node;
+		fclose(outfp);
+	}
+}
+
+void root_writer_t::writer_init(const char *i, const char *arg){
+	if (debuglevel >= log_t::LEVEL_WARN) {
+		printf("   Reading file %s\n", i);
+	}
+
+	inpath = arg;
+	string::size_type n = inpath.rfind('/');
+
+	if(n!=string::npos) {
+		inpath = inpath.substr(0, n + 1);
+	}
+	else {
+		inpath = "";
+	}
+}
+
+void root_writer_t::write_CSV(const char *filename, int argc, char *argv[]){
+	searchfolder_t find;
+	FILE* outfp = NULL;
+	obj_node_t* node = NULL;
+	bool separate = false;
+
+	CSV_file_t csv;
+
+	for(  int i=0;  i==0  ||  i<argc;  i++  ) {
+		const char* arg = (i < argc) ? argv[i] : "./";
+
+		find.search(arg, "dat");
+		FOR(searchfolder_t, const& i, find) {
+			tabfile_t infile;
+
+			if (infile.open(i)) {
+				tabfileobj_t obj;
+
+				if (debuglevel >= log_t::LEVEL_WARN) {
+					printf("   Reading file %s\n", i);
+				}
+
+				while(infile.read(obj)) {
+					csv.add_obj(obj);
+				}
+			}
+			else {
+				dbg->warning( "Write pak", "Cannot read %s", i);
+			}
+		}
+	}
+	csv.save_file(filename);
+}
 
 void root_writer_t::write_obj_node_info_t(FILE* outfp, const obj_node_info_t &root)
 {
@@ -293,7 +361,6 @@ void root_writer_t::copy(const char* name, int argc, char* argv[])
 	}
 	if (!outfp) {
 		dbg->fatal( "Merge", "Cannot open destination file %s", name);
-		exit(3);
 	}
 	fclose(outfp);
 	if (remove(name) != 0) {
@@ -307,9 +374,9 @@ void root_writer_t::copy(const char* name, int argc, char* argv[])
 	printf("writing to temporary file %s\n", tmpfile_name.c_str());
 	write_header(outfp);
 
-	long start = ftell(outfp);	// remember position for adding children
+	long start = ftell(outfp); // remember position for adding children
 	obj_node_info_t root;
-	root.children = 0;	// we will change this later
+	root.children = 0; // we will change this later
 	root.size = 0;
 	root.type = obj_root;
 	this->write_obj_node_info_t(outfp, root);
@@ -364,7 +431,6 @@ void root_writer_t::uncopy(const char* name)
 
 	if (!infp) {
 		dbg->fatal( "Unmerge", "Cannot open archive file %s\n", name);
-		exit(3);
 	}
 
 	if (skip_header(infp)) {
@@ -502,9 +568,11 @@ void root_writer_t::expand_dat(const char* filename, int argc, char* argv[])
 
 		if (!outfp) {
 			dbg->fatal( "Write dat", "Cannot create destination file %s", filename );
-			exit(3);
 		}
-		printf("writing file %s\n", filename);
+
+		if (debuglevel >= log_t::LEVEL_WARN) {
+			printf("Writing file %s\n", filename);
+		}
 	}
 
 	for(  int i=0;  i==0  ||  i<argc;  i++  ) {
@@ -518,7 +586,9 @@ void root_writer_t::expand_dat(const char* filename, int argc, char* argv[])
 			if (infile.open(i)) {
 				tabfileobj_t obj;
 
-				printf("   reading file %s\n", i);
+				if (debuglevel >= log_t::LEVEL_WARN) {
+					printf("   Reading file %s\n", i);
+				}
 
 				inpath = arg;
 				string::size_type n = inpath.rfind('/');
@@ -538,11 +608,15 @@ void root_writer_t::expand_dat(const char* filename, int argc, char* argv[])
 					outfp = fopen(name.c_str(), "wb");
 					if (!outfp) {
 						dbg->fatal( "Write pak", "Cannot create destination file %s", name.c_str() );
-						exit(3);
 					}
-					printf("   writing file %s\n", name.c_str());
+
+					if (debuglevel >= log_t::LEVEL_WARN) {
+						printf("   Writing file %s\n", name.c_str());
+					}
+
 				}
-					// fprintf(outfp, "# Expanded file by makeobj\n");
+
+				// fprintf(outfp, "# Expanded file by makeobj\n");
 				while(infile.read(obj, outfp)) {
 					fprintf(outfp, "---\n");
 				}

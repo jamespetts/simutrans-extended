@@ -581,8 +581,8 @@ Convoi is sold when all wagons are empty.
 Vehicolul va fi vandut imediat ce va fi descarcat.
 convoi mouseover tooltips
 ajutor convoi mouseover
-convoi passed last\nmonth %i\n
-\nconvoaie in ultima\nluna: %i\n
+convoi passed last month:
+convoaie in ultima\nluna: %i\n
 Convois
 Convoaie
 Convois: %d\nProfit: %s

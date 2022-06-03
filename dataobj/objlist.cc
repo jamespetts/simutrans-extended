@@ -27,6 +27,7 @@
 #include "../obj/wayobj.h"
 #include "../obj/roadsign.h"
 #include "../obj/groundobj.h"
+#include "../obj/pier.h"
 
 #include "../simtypes.h"
 #include "../simdepot.h"
@@ -35,9 +36,9 @@
 
 #include "../player/simplay.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/air_vehicle.h"
 #include "../vehicle/simroadtraffic.h"
-#include "../vehicle/simpeople.h"
+#include "../vehicle/pedestrian.h"
 #include "../vehicle/movingobj.h"
 
 #include "../descriptor/building_desc.h"
@@ -58,8 +59,9 @@
  */
 
 #define baum_pri (50)
-#define pillar_pri (7)
-#define wayobj_pri (8)
+#define pillar_pri (9)
+#define wayobj_pri (10)
+#define building_pri (3)
 
 // priority of moving things: should be smaller than the priority of powerlines
 #define moving_obj_pri (100)
@@ -71,50 +73,46 @@ static uint8 type_to_pri[256]=
 	255, //
 	baum_pri, // tree
 	254, // cursor/pointers
-	200, 200, 200,	// wolke
-	3, 3, // buildings
-	6, // signal
+	200, 200, 200, // wolke
+	building_pri, building_pri, // buildings
+	8, // signal
 	2, 2, // bridge/tunnel
 	255,
 	1, 1, 1, // depots
-	5, // smoke generator (not used any more)
-	150, 4, 4, // powerlines
+	7, // smoke generator (not used any more)
+	150, 6, 6, // powerlines
 	6, // roadsign
 	pillar_pri, // pillar
 	1, 1, 1, 1, // depots (must be before tunnel!)
 	wayobj_pri, // way objects (electrification)
 	0, // ways (always at the top!)
-	9, // label, indicates ownership: insert before trees
+	11, // label, indicates ownership: insert before trees
 	3, // field (factory extension)
 	1, // crossings, treated like bridges or tunnels
 	1, // groundobjs, overlays over bare ground like lakes etc.
 	1,  // narrowgaugedepot
-	255, 255, 255, 255, 255, 255, 255, 255,	// 32-63 left empty (old numbers)
+	255, 255, 255, 255, 255, 255, 255, 255, // 32-63 left empty (old numbers)
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
-	moving_obj_pri,	// pedestrians
-	moving_obj_pri,	// city cars
-	moving_obj_pri,	// road vehicle
-	moving_obj_pri,	// rail vehicle
-	moving_obj_pri,	// monorail
-	moving_obj_pri,	// maglev
-	moving_obj_pri,	// narrowgauge
+	moving_obj_pri, // pedestrians
+	moving_obj_pri, // city cars
+	moving_obj_pri, // road vehicle
+	moving_obj_pri, // rail vehicle
+	moving_obj_pri, // monorail
+	moving_obj_pri, // maglev
+	moving_obj_pri, // narrowgauge
 	255, 255, 255, 255, 255, 255, 255, 255, 255,
-	moving_obj_pri,	// ship
-	moving_obj_pri+1,	// aircraft (no trailer, could be handled by normal method)
-	moving_obj_pri+1,	// movingobject (no trailer, could be handled by normal method)
-	255, 255, 255, 255, 255, 255, 255, 255,	// 83-95 left empty (for other moving stuff) 95, is reserved for old choosesignals
+	moving_obj_pri,   // ship
+	moving_obj_pri+1, // aircraft (no trailer, could be handled by normal method)
+	moving_obj_pri+1, // movingobject (no trailer, could be handled by normal method)
+	255, 255, 255, 255, 255, 255, 255, 255, // 83-95 left empty (for other moving stuff) 95, is reserved for old choosesignals
 	255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,	// 96-128 left empty (old numbers)
+	255, 255, 255, 255, 255, 255, 255, 255, // 96-128 left empty (old numbers)
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,	// 128-255 left empty
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, // 128-255 left empty
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
@@ -124,8 +122,14 @@ static uint8 type_to_pri[256]=
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255,
-	3, // signalbox
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255,
+	4, //parapet
+	5, //pier
+	building_pri, // signalbox
 	255,
 	255, 255, 255, 255, 255, 255, 255, 255
 };
@@ -193,13 +197,11 @@ objlist_t::~objlist_t()
 }
 
 
-void objlist_t::set_capacity(uint16 new_cap)
+void objlist_t::set_capacity(uint16 req_cap)
 {
 	// DBG_MESSAGE("objlist_t::set_capacity()", "old cap=%d, new cap=%d", capacity, new_cap);
 
-	if(new_cap>=255) {
-		new_cap = 254;
-	}
+	const uint8 new_cap = req_cap >= 255 ? 254 : (uint8)req_cap;
 
 	// a single object is stored differentially
 	if(new_cap==0) {
@@ -224,9 +226,8 @@ void objlist_t::set_capacity(uint16 new_cap)
 		}
 		capacity = top;
 	}
-	// a single object is stored differentially
-	else if(capacity<=1  &&  new_cap>1) {
-		// if we reach here, new_cap>1 and (capacity==0 or capacity>1)
+	else if(capacity<=1) {
+		// this means we extend from 0 or 1 elements to more than 1
 		obj_t *tmp=obj.one;
 		obj.some = dl_alloc(new_cap);
 		MEMZERON(obj.some, new_cap);
@@ -292,6 +293,27 @@ inline void objlist_t::intern_insert_at(obj_t* new_obj, uint8 pri)
 	}
 	obj.some[pri] = new_obj;
 	top++;
+}
+
+
+// only used internal for loading. DO NOT USE OTHERWISE!
+bool objlist_t::append(obj_t *new_obj)
+{
+	if(capacity==0) {
+		// the first one save direct
+		obj.one = new_obj;
+		top = 1;
+		capacity = 1;
+		return true;
+	}
+
+	if(top>=capacity  &&  !grow_capacity()) {
+		// memory exceeded
+		return false;
+	}
+
+	intern_insert_at(new_obj, top);
+	return true;
 }
 
 
@@ -726,7 +748,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 	if(file->is_loading()) {
 
 		sint32 max_object_index;
-		if(  file->get_version_int()<=110000  ) {
+		if(  file->is_version_less(110, 1)  ) {
 			file->rdwr_long(max_object_index);
 			if(max_object_index>254) {
 				dbg->error("objlist_t::laden()","Too many objects (%i) at (%i,%i), some vehicle may not appear immediately.",max_object_index,current_pos.x,current_pos.y);
@@ -750,15 +772,15 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 			obj_t *new_obj = NULL;
 
 			switch(typ) {
-				case obj_t::bruecke:	    new_obj = new bruecke_t(file);	        break;
-				case obj_t::tunnel:	    new_obj = new tunnel_t(file);	        break;
-				case obj_t::pumpe:		    new_obj = new pumpe_t(file);	        break;
-				case obj_t::leitung:	    new_obj = new leitung_t(file);	        break;
-				case obj_t::senke:		    new_obj = new senke_t(file);	        break;
-				case obj_t::zeiger:	    new_obj = new zeiger_t(file);	        break;
-				case obj_t::signal:	    new_obj = new signal_t(file);   break;
-				case obj_t::label:			new_obj = new label_t(file); break;
-				case obj_t::crossing:		new_obj = new crossing_t(file); break;
+				case obj_t::bruecke:    new_obj = new bruecke_t(file);  break;
+				case obj_t::tunnel:     new_obj = new tunnel_t(file);   break;
+				case obj_t::pumpe:      new_obj = new pumpe_t(file);    break;
+				case obj_t::leitung:    new_obj = new leitung_t(file);  break;
+				case obj_t::senke:      new_obj = new senke_t(file);    break;
+				case obj_t::zeiger:     new_obj = new zeiger_t(file);   break;
+				case obj_t::signal:     new_obj = new signal_t(file);   break;
+				case obj_t::label:      new_obj = new label_t(file);    break;
+				case obj_t::crossing:   new_obj = new crossing_t(file); break;
 
 				case obj_t::wayobj:
 				{
@@ -889,12 +911,20 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 					}
 					break;
 
+				case obj_t::pier:
+					new_obj = new pier_t(file);
+					break;
+
+				case obj_t::parapet:
+					new_obj = new parapet_t(file);
+					break;
+
 				case obj_t::baum:
 					{
 						baum_t *b = new baum_t(file);
 						if(  !b->get_desc()  ) {
 							// is there a replacement possible
-							if(  const tree_desc_t *desc = baum_t::random_tree_for_climate( world()->get_climate_at_height(current_pos.z) )  ) {
+							if(  const tree_desc_t *desc = tree_builder_t::random_tree_for_climate( world()->get_climate_at_height(current_pos.z) )  ) {
 								b->set_desc( desc );
 							}
 							else {
@@ -999,7 +1029,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 			}
 
 			if(new_obj) {
-				add(new_obj);
+				append(new_obj);
 			}
 		}
 	}
@@ -1022,7 +1052,9 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 				||  (new_obj->get_typ()==obj_t::gebaeude  &&  ((gebaeude_t *)new_obj)->get_fabrik())
 				// things with convoi will not be saved
 				||  (new_obj->get_typ()>=66  &&  new_obj->get_typ()<82)
-				||  (env_t::server  &&  new_obj->get_typ()==obj_t::baum  &&  file->get_version_int()>=110001)
+				||  (new_obj->get_typ()==obj_t::baum  &&  file->is_version_atleast(110, 1)  && (env_t::server  ||  file->is_version_ex_atleast(14, 51))) // trees are saved from boden_t
+				// do not save schedule marker
+				||  new_obj->get_typ()==obj_t::schedule_marker
 			) {
 				// these objects are simply not saved
 			}
@@ -1032,7 +1064,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 		}
 		// now we know the number of stuff to save
 		max_object_index --;
-		if(  file->get_version_int()<=110000  ) {
+		if(  file->is_version_less(110, 1)  ) {
 			file->rdwr_long( max_object_index );
 		}
 		else {
@@ -1288,19 +1320,20 @@ void objlist_t::check_season(const bool calc_only_season_change)
 		}
 	}
 	else {
-		// only here delete list is needed!
-		slist_tpl<obj_t *> to_remove;
+		// copy object pointers to check them
+		vector_tpl<obj_t*> list;
 
 		for(  uint8 i = 0;  i < top;  i++  ) {
-			obj_t *check_obj = obj.some[i];
+			list.append(obj.some[i]);
+		}
+		// now work on the copied list
+		// check_season may change this list (by planting new trees)
+		for(  uint8 i = 0, end = list.get_count();  i < end;  i++  ) {
+			obj_t *check_obj = list[i];
 			if(  !check_obj->check_season( calc_only_season_change )  ) {
-				to_remove.insert( check_obj );
+				delete check_obj;
 			}
 		}
 
-		// delete all objects, which do not want to step any more
-		while(  !to_remove.empty()  ) {
-			delete to_remove.remove_first();
-		}
 	}
 }

@@ -56,7 +56,7 @@ const char *translator::lang_info::translate(const char *text) const
 /* Made to be dynamic, allowing any number of languages to be loaded */
 static translator::lang_info langs[40];
 static translator::lang_info *current_langinfo = langs;
-static stringhashtable_tpl<const char*> compatibility;
+static stringhashtable_tpl<const char*, N_BAGS_LARGE> compatibility;
 
 
 translator translator::single_instance;
@@ -74,20 +74,6 @@ const translator::lang_info* translator::get_langs()
 }
 
 
-#ifdef need_dump_hashtable
-// diagnosis
-static void dump_hashtable(stringhashtable_tpl<const char*>* tbl)
-{
-	printf("keys\n====\n");
-	tbl->dump_stats();
-	printf("entries\n=======\n");
-	FOR(stringhashtable_tpl<char const*>, const& i, *tbl) {
-		printf("%s\n", i.object);
-	}
-	fflush(NULL);
-}
-#endif
-
 /* first two file functions needed in connection with utf */
 
 /**
@@ -95,11 +81,13 @@ static void dump_hashtable(stringhashtable_tpl<const char*>* tbl)
  */
 static bool is_unicode_file(FILE* f)
 {
-	unsigned char	str[2];
-	int	pos = ftell(f);
+	unsigned char str[2];
+	int pos = ftell(f);
 //	DBG_DEBUG("is_unicode_file()", "checking for unicode");
 //	fflush(NULL);
-	fread( str, 1, 2,  f );
+	if (fread( str, 1, 2,  f ) != 2) {
+		return false;
+	}
 //	DBG_DEBUG("is_unicode_file()", "file starts with %x%x",str[0],str[1]);
 //	fflush(NULL);
 	if (str[0] == 0xC2 && str[1] == 0xA7) {
@@ -110,7 +98,9 @@ static bool is_unicode_file(FILE* f)
 	if(  str[0]==0xEF  &&  str[1]==0xBB   &&  fgetc(f)==0xBF  ) {
 		// the first letter is the byte order mark => may need to skip a paragraph (Latin A7, UTF8 C2 A7)
 		pos = ftell(f);
-		fread( str, 1, 2,  f );
+		if (fread( str, 1, 2,  f ) != 2) {
+			return false;
+		}
 		if(  str[0] != 0xC2  ||  str[1] == 0xA7  ) {
 			fseek(f, pos, SEEK_SET);
 			dbg->error( "is_unicode_file()", "file is UTF-8 but has no paragraph" );
@@ -122,10 +112,6 @@ static bool is_unicode_file(FILE* f)
 	return false;
 }
 
-
-
-// the bytes in an UTF sequence have always the format 10xxxxxx
-static inline int is_cont_char(utf8 c) { return (c & 0xC0) == 0x80; }
 
 
 // recodes string to put them into the tables
@@ -144,7 +130,12 @@ static char *recode(const char *src, bool translate_from_utf, bool translate_to_
 
 	do {
 		if (*src =='\\') {
-			src +=2;
+			if (*(src + 1) == 0) {
+				// backslash at end of line -> corrupted
+				break;
+			}
+
+			src += 2;
 			*dst++ = c = '\n';
 		}
 		else {
@@ -528,7 +519,7 @@ void translator::init_custom_names(int lang)
 /* now on to the translate stuff */
 
 
-static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
+static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*, N_BAGS_LARGE>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
 {
 	char buffer1 [4096];
 	char buffer2 [4096];
@@ -545,10 +536,15 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*>
 			fgets_line(buffer2, sizeof(buffer2), file);
 			if(  strcmp(buffer1,buffer2)  ) {
 				// only add line which are actually different
-				const char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
-				const char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
+				char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
+				char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
+
 				if(  cbuffer_t::check_format_strings(raw, translated)  ) {
 					table->set( raw, translated );
+				}
+				else {
+					free(raw);
+					free(translated);
 				}
 			}
 		}
@@ -558,7 +554,7 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*>
 
 void translator::load_language_file(FILE* file)
 {
-	char buffer1 [256];
+	char buffer1[256];
 	bool file_is_utf = is_unicode_file(file);
 
 	// Read language name
@@ -576,9 +572,9 @@ void translator::load_language_file(FILE* file)
 			if(  strcmp(buffer1,"PROP_FONT_FILE") == 0  ) {
 				fgets_line( buffer1, sizeof(buffer1), file );
 				// HACK: so we guess about latin2 from the font name!
-				langs[single_instance.lang_count].is_latin2_based = strcmp( buffer1, "prop-latin2.fnt" ) == 0;
+				langs[single_instance.lang_count].is_latin2_based = STRNICMP( buffer1+5, "latin2", 6 )==0;
 				// we must register now a unicode font
-				langs[single_instance.lang_count].texts.set( "PROP_FONT_FILE", "cyr.bdf" );
+				langs[single_instance.lang_count].texts.set( "PROP_FONT_FILE", langs[single_instance.lang_count].is_latin2_based ? "cyr.bdf" : strdup(buffer1) );
 				break;
 			}
 		}
@@ -605,31 +601,70 @@ static translator::lang_info* get_lang_by_iso(const char *iso)
 }
 
 
+static uint32 get_highest_character( const utf8 *str )
+{
+	size_t len = 0;
+	uint32 max_char = 0, symbol;
+	do {
+		symbol = utf8_decoder_t::decode( str, len );
+		str += len;
+		if( symbol > max_char ) {
+			max_char = symbol;
+		}
+	} while( symbol > 0 );
+	return max_char;
+}
+
+
+uint32 translator::guess_highest_unicode(int n)
+{
+	const char* T1 = langs[n].texts.get( "Bruecke muss an\neinfachem\nHang beginnen!\n" );
+	uint32 max_char = 0xDF;
+	if( T1 ) {
+		max_char = get_highest_character( (const utf8 *)T1 );
+	}
+	const char* T2 = langs[n].texts.get( "Start" );
+	if( T2 ) {
+		uint32 max_char2 = get_highest_character( (const utf8 *)T2 );
+		max_char = max( max_char, max_char2 );
+	}
+	return max_char;
+}
+
+
 void translator::load_files_from_folder(const char *folder_name, const char *what)
 {
 	searchfolder_t folder;
-	int num_pak_lang_dat = folder.search(folder_name, "tab");
+	const int num_pak_lang_dat = folder.search(folder_name, "tab");
 	DBG_MESSAGE("translator::load_files_from_folder()", "search folder \"%s\" and found %i files", folder_name, num_pak_lang_dat); (void)num_pak_lang_dat;
-	//read now the basic language infos
-	FOR(searchfolder_t, const& i, folder) {
-		string const fileName(i);
-		size_t pstart = fileName.rfind('/') + 1;
-		const string iso = fileName.substr(pstart, fileName.size() - pstart - 4);
 
-		lang_info* lang = get_lang_by_iso(iso.c_str());
+	//read now the basic language infos
+	FOR(searchfolder_t, const& filename, folder) {
+		lang_info* lang = NULL;
+		const char* langcode = strrchr(filename,'.');
+
+		if(  langcode  &&  (langcode-filename)>2  ) {
+			// try before the point
+			lang = get_lang_by_iso(langcode-2);
+			if (lang == NULL) {
+				// try instead the start of the string
+				lang = get_lang_by_iso(filename);
+			}
+		}
+
 		if (lang != NULL) {
-			DBG_MESSAGE("translator::load_files_from_folder()", "loading %s translations from %s for language %s", what, fileName.c_str(), lang->iso_base);
-			if (FILE* const file = dr_fopen(fileName.c_str(), "rb")) {
+			DBG_MESSAGE("translator::load_files_from_folder()", "loading %s translations from %s for language %s", what, filename, lang->iso_base);
+			if (FILE* const file = dr_fopen(filename, "rb")) {
 				bool file_is_utf = is_unicode_file(file);
 				load_language_file_body(file, &lang->texts, true, file_is_utf, lang->is_latin2_based );
 				fclose(file);
 			}
 			else {
-				dbg->warning("translator::load_files_from_folder()", "cannot open '%s'", fileName.c_str());
+				dbg->warning("translator::load_files_from_folder()", "cannot open '%s'", filename);
 			}
 		}
 		else {
-			dbg->warning("translator::load_files_from_folder()", "no %s texts for language '%s'", what, iso.c_str());
+			dbg->warning("translator::load_files_from_folder()", "%s no language '%s'", filename, what );
 		}
 	}
 }
@@ -659,8 +694,9 @@ bool translator::load(const string &path_to_pakset)
 			load_language_iso(iso);
 			load_language_file(file);
 			fclose(file);
+			langs[single_instance.lang_count].highest_character = guess_highest_unicode( single_instance.lang_count );
 			single_instance.lang_count++;
-			if (single_instance.lang_count == lengthof(langs)) {
+			if (single_instance.lang_count == (int)lengthof(langs)) {
 				if (++i != end) {
 					// some languages were not loaded, let the user know what happened
 					dbg->warning("translator::load()", "some languages were not loaded, limit reached");
@@ -713,12 +749,6 @@ bool translator::load(const string &path_to_pakset)
 		dr_chdir( env_t::data_dir );
 	}
 
-#if DEBUG>=4
-#ifdef need_dump_hashtable
-	dump_hashtable(&compatibility);
-#endif
-#endif
-
 	// use english if available
 	current_langinfo = get_lang_by_iso("en");
 
@@ -769,15 +799,30 @@ int translator::get_language(const char *iso)
 }
 
 
-void translator::set_language(const char *iso)
+bool translator::set_language(const char *iso)
 {
 	for(  int i = 0;  i < single_instance.lang_count;  i++  ) {
 		const char *iso_base = langs[i].iso_base;
 		if(  iso_base[0] == iso[0]  &&  iso_base[1] == iso[1]  ) {
 			set_language(i);
-			return;
+			return true;
 		}
 	}
+
+	// if the request language does not exist
+	if( single_instance.current_lang == -1 ) {
+		for( int i = 0; i < single_instance.lang_count; i++ ) {
+			const char* iso_base = langs[i].iso_base;
+			if( iso_base[0] == 'e'  &&  iso_base[1] == 'n' ) {
+				set_language( i );
+				return false;
+			}
+		}
+		// not even english found ...
+		set_language(0);
+	}
+
+	return false;
 }
 
 
@@ -838,34 +883,34 @@ const char *translator::get_date(uint16 year, uint16 month, uint16 day, char con
 	char const* const day_sym = strcmp("DAY_SYMBOL", translate("DAY_SYMBOL")) ? translate("DAY_SYMBOL") : "";
 	static char date[256];
 	switch (env_t::show_month) {
-	case env_t::DATE_FMT_GERMAN:
-		sprintf(date, "%s %d. %s %d%s", season, day, month_, year, year_sym);
-		break;
-	case env_t::DATE_FMT_GERMAN_NO_SEASON:
-		sprintf(date, "%d. %s %d%s", day, month_, year, year_sym);
-		break;
-	case env_t::DATE_FMT_US:
-		sprintf(date, "%s %s %d %d%s", season, month_, day, year, year_sym);
-		break;
-	case env_t::DATE_FMT_US_NO_SEASON:
-		sprintf(date, "%s %d %d%s", month_, day, year, year_sym);
-		break;
-	case env_t::DATE_FMT_JAPANESE:
-		sprintf(date, "%s %d%s %s %d%s", season, year, year_sym, month_, day, day_sym);
-		break;
-	case env_t::DATE_FMT_JAPANESE_NO_SEASON:
-		sprintf(date, "%d%s %s %d%s", year, year_sym, month_, day, day_sym);
-		break;
-	case env_t::DATE_FMT_MONTH:
-		sprintf(date, "%s, %s %d%s", month_, season, year, year_sym);
-		break;
-	case env_t::DATE_FMT_SEASON:
-		sprintf(date, "%s %d%s", season, year, year_sym);
-		break;
-	case env_t::DATE_FMT_INTERNAL_MINUTE: // Extended unique
-	case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE: // Extended unique
-		sprintf(date, "%s %d%s %s", season, year, year_sym, month_);
-		break;
+		case env_t::DATE_FMT_GERMAN:
+			sprintf(date, "%s %d. %s %d%s", season, day, month_, year, year_sym);
+			break;
+		case env_t::DATE_FMT_GERMAN_NO_SEASON:
+			sprintf(date, "%d. %s %d%s", day, month_, year, year_sym);
+			break;
+		case env_t::DATE_FMT_US:
+			sprintf(date, "%s %s %d %d%s", season, month_, day, year, year_sym);
+			break;
+		case env_t::DATE_FMT_US_NO_SEASON:
+			sprintf(date, "%s %d %d%s", month_, day, year, year_sym);
+			break;
+		case env_t::DATE_FMT_JAPANESE:
+			sprintf(date, "%s %d%s %s %d%s", season, year, year_sym, month_, day, day_sym);
+			break;
+		case env_t::DATE_FMT_JAPANESE_NO_SEASON:
+			sprintf(date, "%d%s %s %d%s", year, year_sym, month_, day, day_sym);
+			break;
+		case env_t::DATE_FMT_MONTH:
+			sprintf(date, "%s, %s %d%s", month_, season, year, year_sym);
+			break;
+		case env_t::DATE_FMT_SEASON:
+			sprintf(date, "%s %d%s", season, year, year_sym);
+			break;
+		case env_t::DATE_FMT_INTERNAL_MINUTE: // Extended unique
+		case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE: // Extended unique
+			sprintf(date, "%s %d%s %s", season, year, year_sym, month_);
+			break;
 	}
 	return date;
 }
@@ -876,18 +921,18 @@ const char *translator::get_short_date(uint16 year, uint16 month)
 	char const* const year_sym = strcmp("YEAR_SYMBOL", translate("YEAR_SYMBOL")) ? translate("YEAR_SYMBOL") : "";
 	static char sdate[256];
 	switch (env_t::show_month) {
-	case env_t::DATE_FMT_JAPANESE:
-	case env_t::DATE_FMT_JAPANESE_NO_SEASON:
-	case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE: // Extended unique
-		sprintf(sdate, "%4d%s %s", year, year_sym, month_);
-		break;
-	case env_t::DATE_FMT_GERMAN:
-	case env_t::DATE_FMT_GERMAN_NO_SEASON:
-	case env_t::DATE_FMT_US:
-	case env_t::DATE_FMT_US_NO_SEASON:
-	default:
-		sprintf(sdate, "%s %4d%s", month_, year, year_sym);
-		break;
+		case env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE:
+		case env_t::DATE_FMT_JAPANESE:
+		case env_t::DATE_FMT_JAPANESE_NO_SEASON:
+			sprintf(sdate, "%4d%s %s", year, year_sym, month_);
+			break;
+		case env_t::DATE_FMT_GERMAN:
+		case env_t::DATE_FMT_GERMAN_NO_SEASON:
+		case env_t::DATE_FMT_US:
+		case env_t::DATE_FMT_US_NO_SEASON:
+		default:
+			sprintf(sdate, "%s %4d%s", month_, year, year_sym);
+			break;
 	}
 	return sdate;
 }

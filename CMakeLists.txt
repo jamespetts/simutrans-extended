@@ -15,75 +15,60 @@ endif (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 set(CMAKE_WARN_DEPRECATED ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 
-
-find_package(CCache)
-if (CCache_FOUND)
-	option(SIMUTRANS_USE_CCACHE "Use CCache compiler cache to improve recompilation speed" ON)
-	if (SIMUTRANS_USE_CCACHE)
-		set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCache_EXECUTABLE}")
-		set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK    "${CCache_EXECUTABLE}")
-	endif (SIMUTRANS_USE_CCACHE)
-endif (CCache_FOUND)
-
+include(SimutransVcpkgTriplet)
 
 project(simutrans-extended LANGUAGES C CXX)
 
 include(SimutransCommitInfo)
-
-include(TestBigEndian)
-TEST_BIG_ENDIAN(SIMUTRANS_BIG_ENDIAN)
-
 
 # Force C++11 everywhere
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(TestBigEndian)
+TEST_BIG_ENDIAN(SIMUTRANS_BIG_ENDIAN)
+
+if (MINGW)
+	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ON)
+	set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+endif ()
+
+if (APPLE)
+	set(CMAKE_PREFIX_PATH "/usr/local/opt/readline")
+	link_directories(/usr/local/lib)
+	set(CMAKE_EXE_LINKER_FLAGS "-framework Cocoa")
+endif ()
 
 #
 # Dependencies
 #
-include(SimutransDependencies)
+find_package(CCache)
+find_package(ZLIB REQUIRED)
+find_package(BZip2 REQUIRED)
+find_package(PNG REQUIRED)
+find_package(MiniUPNP)
+if (MSVC)
+	find_package(ZSTD)
+	find_package(SDL2)
+	find_package(Freetype)
+	find_package(FluidSynth)
+else ()
+	find_package(PkgConfig MODULE REQUIRED)
+	pkg_check_modules(ZSTD IMPORTED_TARGET libzstd)
+	pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+	pkg_check_modules(Freetype IMPORTED_TARGET freetype2)
+	pkg_check_modules(FluidSynth IMPORTED_TARGET fluidsynth>=2.1.0)
+endif ()
+
+set(CMAKE_THREAD_PREFER_PTHREAD ON)
+find_package(Threads)
 
 #
 # Configuration options
 #
 include(SimutransBackend) # Select backend (SDL2 / GDI)
-
-if (CMAKE_USE_PTHREADS_INIT)
-	option(SIMUTRANS_MULTI_THREAD "Use multiple threads for drawing" ON)
-else (CMAKE_USE_PTHREADS_INIT)
-	set(SIMUTRANS_MULTI_THREAD OFF)
-endif (CMAKE_USE_PTHREADS_INIT)
-
-if (NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-	option(SIMUTRANS_BUILD_32BIT "Build 32 or 64 bit executable" OFF)
-endif ()
-
-
-option(SIMUTRANS_VALGRIND_SUPPORT  "Add support for valgrind \"memcheck\" tool" OFF)
-
-if (Freetype_FOUND)
-	option(SIMUTRANS_USE_FREETYPE "Enable TrueType font support using freetype library" OFF)
-endif (Freetype_FOUND)
-set(SIMUTRANS_USE_FREETYPE OFF)
-
-if (MiniUPNP_FOUND)
-	option(SIMUTRANS_USE_UPNP "Use MiniUPNP for easier server setup" ON)
-endif (MiniUPNP_FOUND)
-
-if (ZSTD_FOUND)
-	option(SIMUTRANS_USE_ZSTD "Enable support for zstd save file compression (larger save files than bzip2, but faster)" ON)
-endif (ZSTD_FOUND)
-
-option(SIMUTRANS_ENABLE_PROFILING "Enable profiling code" OFF)
-option(SIMUTRANS_USE_SYSLOG "Enable logging to syslog" OFF)
-option(SIMUTRANS_ENABLE_IPV6 "Enable connections using IPv6 in addition to IPv4" ON)
-option(SIMUTRANS_ENABLE_RANDOMNESS "Disable to make get_random_seed() always return the same number" ON)
-option(SIMUTRANS_DEBUG_SIMRAND "Debug the random number generator" OFF)
-
-set(SIMUTRANS_MSG_LEVEL 0 CACHE STRING "Message verbosity level")
-set_property(CACHE SIMUTRANS_MSG_LEVEL PROPERTY STRINGS 0 1 2 3 4)
+include(SimutransCompileOptions)
 
 # CMake does not fill in CMAKE_BUILD_TYPE automatically.
 if (NOT MSVC)
@@ -95,14 +80,25 @@ endif (NOT MSVC)
 
 
 #
+# sources
+#
+add_executable(simutrans-extended)
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set_target_properties(simutrans-extended PROPERTIES WIN32_EXECUTABLE 1)
+endif ()
+
+include(SimutransSourceList)
+
+
+#
 # output directory
 #
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/simutrans)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/simutrans)
+set_target_properties( simutrans-extended PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/simutrans/$<0:> )
 
 
 #
-# sources
+# Libraries
 #
 add_executable(simutrans-extended
 	bauer/brueckenbauer.cc
@@ -444,10 +440,42 @@ add_executable(simutrans-extended
 	vehicle/simvehicle.cc
 )
 
+target_link_libraries(simutrans-extended PRIVATE PNG::PNG)
+
+
 if (WIN32)
+	target_sources(simutrans-extended PRIVATE simres.rc)
 	target_sources(simutrans-extended PRIVATE sys/clipboard_w32.cc)
+	target_link_libraries(simutrans-extended PRIVATE ws2_32 winmm)
+
+	# Backup sound and music routines if the selected backend does not provide any routines
+	if (MINGW)
+		set(BACKUP_SOUND sound/win32_sound.cc)
+	else ()
+		set(BACKUP_SOUND sound/win32_sound_xa.cc)
+	endif ()
+	set(BACKUP_MUSIC music/w32_midi.cc)
 else ()
-	target_sources(simutrans-extended PRIVATE sys/clipboard_internal.cc)
+	if (SIMUTRANS_BACKEND STREQUAL "sdl2")
+		target_sources(simutrans-extended PRIVATE sys/clipboard_s2.cc)
+	else ()
+		target_sources(simutrans-extended PRIVATE sys/clipboard_internal.cc)
+	endif ()
+	if (APPLE)
+		#Darwin kernel version is used to identify macOS version (16->10.12/Sierra)
+		if (CMAKE_HOST_SYSTEM_VERSION VERSION_GREATER_EQUAL 16) #AVF
+			set(BACKUP_SOUND sound/AVF_core-audio_sound.mm)
+			#AVF MIDI currently crash Simutrans
+			#set(BACKUP_MUSIC music/AVF_core-audio_midi.mm)
+			set(BACKUP_MUSIC music/no_midi.cc)
+		else () #QTKit
+			set(BACKUP_SOUND sound/core-audio_sound.mm)
+			set(BACKUP_MUSIC music/core-audio_midi.mm)
+		endif ()
+	else ()
+		set(BACKUP_SOUND sound/no_sound.cc)
+		set(BACKUP_MUSIC music/no_midi.cc)
+	endif ()
 endif ()
 
 if (SIMUTRANS_MULTI_THREAD)
@@ -455,38 +483,23 @@ if (SIMUTRANS_MULTI_THREAD)
 	target_link_libraries(simutrans-extended PRIVATE Threads::Threads)
 endif (SIMUTRANS_MULTI_THREAD)
 
-
-# Backup sound and music routines if the selected backend does not provide any routines
-if (WIN32)
-	set(BACKUP_SOUND sound/win32_sound.cc)
-	set(BACKUP_MUSIC music/w32_midi.cc)
-else (WIN32)
-	set(BACKUP_SOUND sound/no_sound.cc)
-	set(BACKUP_MUSIC music/no_midi.cc)
-endif (WIN32)
-
-
 if (SIMUTRANS_BACKEND STREQUAL "sdl2")
-	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s2.cc sound/sdl2_sound.cc ${BACKUP_MUSIC})
-	target_link_libraries(simutrans-extended PRIVATE SDL2::Core)
-	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
-
-	if (WIN32)
-		target_sources(simutrans-extended PRIVATE sys/simsys_w32_png.cc)
+	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s2.cc sound/sdl2_sound.cc)
+	target_include_directories(simutrans-extended PRIVATE ${SDL2_INCLUDE_DIRS})
+	if (MINGW)
+		target_link_libraries(simutrans-extended PRIVATE ${SDL2_STATIC_LIBRARIES})
+	elseif (APPLE)
+		target_link_libraries(simutrans-extended PRIVATE ${SDL2_LIBRARIES})
+	elseif (MSVC)
+		target_link_libraries(simutrans-extended PRIVATE SDL2::SDL2)
+	else ()
+		target_link_libraries(simutrans-extended PRIVATE PkgConfig::SDL2)
 	endif ()
-
-elseif (SIMUTRANS_BACKEND STREQUAL "mixer_sdl2")
-	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s2.cc sound/sdl2_mixer_sound.cc music/sdl2_mixer_midi.cc)
-	target_link_libraries(simutrans-extended PRIVATE SDL2::Core SDL2::Mixer)
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
-
-	if (WIN32)
-		target_sources(simutrans-extended PRIVATE sys/simsys_w32_png.cc)
-	endif ()
 
 elseif (SIMUTRANS_BACKEND STREQUAL "gdi")
-	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_w.cc sys/simsys_w32_png.cc ${BACKUP_SOUND} ${BACKUP_MUSIC})
-	target_link_libraries(simutrans-extended PRIVATE imm32)
+	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_w.cc ${BACKUP_SOUND} )
+	target_link_libraries(simutrans-extended PRIVATE imm32 xaudio2_8)
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
 
 else ()
@@ -502,19 +515,21 @@ endif ()
 #
 # Link dependencies
 #
-target_link_libraries(simutrans-extended PRIVATE
-	ZLIB::ZLIB
-	BZip2::BZip2
-)
-
-if (WIN32)
-	target_link_libraries(simutrans-extended PRIVATE ws2_32 winmm)
-endif (WIN32)
+target_link_libraries(simutrans-extended PRIVATE ZLIB::ZLIB)
+target_link_libraries(simutrans-extended PRIVATE BZip2::BZip2)
 
 if (SIMUTRANS_USE_FREETYPE)
+	target_include_directories(simutrans-extended PRIVATE ${Freetype_INCLUDE_DIRS})
+	if (MINGW)
+		target_link_libraries(simutrans-extended PRIVATE ${Freetype_STATIC_LIBRARIES})
+	elseif (APPLE)
+		target_link_libraries(simutrans-extended PRIVATE ${Freetype_LIBRARIES})
+	elseif (MSVC)
+		target_link_libraries(simutrans-extended PRIVATE Freetype::Freetype)
+	else ()
+		target_link_libraries(simutrans-extended PRIVATE PkgConfig::Freetype)
+	endif ()
 	target_compile_definitions(simutrans-extended PRIVATE USE_FREETYPE=1)
-	target_include_directories(simutrans-extended PRIVATE ${FREETYPE_INCLUDE_DIRS})
-	target_link_libraries(simutrans-extended PRIVATE ${FREETYPE_LIBRARIES})
 endif (SIMUTRANS_USE_FREETYPE)
 
 if (SIMUTRANS_USE_UPNP)
@@ -523,14 +538,47 @@ if (SIMUTRANS_USE_UPNP)
 endif (SIMUTRANS_USE_UPNP)
 
 if (SIMUTRANS_USE_ZSTD)
+	target_sources(simutrans-extended PRIVATE io/rdwr/zstd_file_rdwr_stream.cc)
+	target_include_directories(simutrans-extended PRIVATE ${ZSTD_INCLUDE_DIRS})
 	target_compile_definitions(simutrans-extended PRIVATE USE_ZSTD=1)
-	target_link_libraries(simutrans-extended PRIVATE ZSTD::ZSTD)
+	if (MSVC)
+		target_link_libraries(simutrans-extended PRIVATE zstd::libzstd_static)
+	elseif (MINGW)
+		# only 64 bit cmake, 32 bit is broken
+		target_link_libraries(simutrans-extended PRIVATE -lzstd)
+	else()
+		target_link_libraries(simutrans-extended PRIVATE PkgConfig::ZSTD)
+	endif ()
 endif (SIMUTRANS_USE_ZSTD)
 
+# only consider FluidSynth for SDL2 and GDI backends
+if ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
+	if (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
+		target_sources(simutrans-extended PRIVATE music/fluidsynth.cc gui/loadsoundfont_frame.cc)
+		target_compile_definitions(simutrans-extended PRIVATE USE_FLUIDSYNTH_MIDI=1)
+		if (MINGW)
+			# not working because fluidsynth doesn't set static libraries for pkgconf
+			#target_link_libraries(simutrans-extended PRIVATE ${FluidSynth_STATIC_LIBRARIES})
+			# manually linking them instead, until it is fixed
+			target_link_libraries(simutrans-extended PRIVATE -lfluidsynth -lharfbuzz -lgraphite2 -lglib-2.0 -lintl -liconv -ldsound -lole32 -lws2_32 -lgomp -lksuser)
+		elseif (MSVC)
+			target_link_libraries(simutrans-extended PRIVATE ${FluidSynth_LIBRARIES})
+		else ()
+			target_link_libraries(simutrans-extended PRIVATE PkgConfig::FluidSynth)
+		endif (MINGW)
+	else ()
+		target_sources( simutrans-extended PRIVATE ${BACKUP_MUSIC} )
+	endif (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
+endif ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
 
 #
 # compile options
 #
+
+if (MSVC)
+	target_link_options(simutrans-extended PRIVATE /INCREMENTAL:NO /NODEFAULTLIB:LIBCMTD /MANIFEST:NO /LARGEADDRESSAWARE)
+endif ()
+
 if (SIMUTRANS_BIG_ENDIAN)
 	target_compile_definitions(simutrans-extended PRIVATE SIM_BIG_ENDIAN=1)
 endif ()
@@ -543,23 +591,39 @@ if (SIMUTRANS_ENABLE_PROFILING)
 	add_definitions(-DPROFILE=1)
 endif ()
 
-include(SimutransCompileOptions)
 target_compile_options(simutrans-extended PRIVATE ${SIMUTRANS_COMMON_COMPILE_OPTIONS})
 
-target_compile_definitions(simutrans-extended PRIVATE $<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG>)
-target_compile_definitions(simutrans-extended PRIVATE ENABLE_WATERWAY_SIGNS=0 AUTOJOIN_PUBLIC=0)
+target_compile_definitions(simutrans-extended PRIVATE $<IF:$<CONFIG:Debug>,DEBUG=1,>)
+target_compile_definitions(simutrans-extended PRIVATE $<IF:$<CONFIG:Release>,NDEBUG=1,>)
+
 target_compile_definitions(simutrans-extended PRIVATE MSG_LEVEL=${SIMUTRANS_MSG_LEVEL})
 
 if (SIMUTRANS_WITH_REVISION)
 	target_compile_definitions(simutrans-extended PRIVATE REVISION=${SIMUTRANS_SHA_SHORT})
 endif ()
 
+if (SIMUTRANS_AUTOJOIN_PUBLIC)
+	target_compile_definitions(simutrans-extended PRIVATE AUTOJOIN_PUBLIC=1)
+endif ()
+
+if (SIMUTRANS_ENABLE_WATERWAY_SIGNS)
+	target_compile_definitions(simutrans-extended PRIVATE ENABLE_WATERWAY_SIGNS=1)
+endif ()
+
 if (SIMUTRANS_USE_SYSLOG)
 	target_compile_definitions(simutrans-extended PRIVATE SYSLOG=1)
 endif ()
 
-if (NOT SIMUTRANS_USE_IPV6)
+if (SIMUTRANS_DEBUG_FLUSH_BUFFER)
+	target_compile_definitions(simutrans-extended PRIVATE DEBUG_FLUSH_BUFFER=1)
+endif ()
+
+if (SIMUTRANS_USE_IP4_ONLY)
 	target_compile_definitions(simutrans-extended PRIVATE USE_IP4_ONLY=1)
+endif ()
+
+if (SIMUTRANS_STEAM_BUILT)
+	target_compile_definitions(simutrans-extended PRIVATE STEAM_BUILT=1)
 endif ()
 
 if (NOT SIMUTRANS_ENABLE_RANDOMNESS)
@@ -568,6 +632,11 @@ endif ()
 
 if (SIMUTRANS_DEBUG_SIMRAND)
 	target_compile_definitions(simutrans-extended PRIVATE DEBUG_SIMRAND_CALLS=1)
+endif ()
+
+if (SIMUTRANS_HEAVY_MODE)
+	target_compile_definitions(simutrans PRIVATE HEAVY_MODE=${SIMUTRANS_HEAVY_MODE})
+	target_sources(simutrans PRIVATE io/rdwr/adler32_stream.cc)
 endif ()
 
 if (APPLE)
@@ -593,10 +662,7 @@ install(FILES get_pak.sh DESTINATION "simutrans"
 #
 # Nettool/Makeobj
 #
-if (PNG_FOUND)
-	add_subdirectory(makeobj)
-endif ()
-
+add_subdirectory(makeobj)
 add_subdirectory(nettools)
 
 

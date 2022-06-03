@@ -17,42 +17,13 @@
 #include "../descriptor/skin_desc.h"
 #include "../simskin.h"
 
-floating_cursor_t::floating_cursor_t(const scr_coord& initial,	scr_coord_val min_left,	scr_coord_val max_right)
-	: cursor(initial)
-	, left(min_left)
-	, right(max_right)
-	, row_height(0)
-{}
-
-void floating_cursor_t::new_line()
-{
-	cursor.x = left;
-	cursor.y += row_height + D_V_SPACE;
-	row_height = 0;
-}
-
-scr_coord floating_cursor_t::next_pos(const scr_size& size)
-{
-	if (cursor.x + size.w > right)
-	{
-		new_line();
-	}
-	scr_coord curr = cursor;
-	cursor.x += size.w + D_H_SPACE;
-	if (row_height < size.h)
-		row_height = size.h;
-	return curr;
-}
-
-
 karte_ptr_t gui_frame_t::welt;
-
 
 // Insert the container
 gui_frame_t::gui_frame_t(char const* const name, player_t const* const player)
 {
 	this->name = name;
-	size = scr_size(200, 100);
+	windowsize = scr_size(200, 100);
 	min_windowsize = scr_size(0,0);
 	owner = player;
 	set_resizemode(no_resize);  //25-may-02  markus weber  added
@@ -70,23 +41,24 @@ gui_frame_t::gui_frame_t(char const* const name, player_t const* const player)
 /**
  * Set the window size
  */
-void gui_frame_t::set_windowsize(scr_size size)
+void gui_frame_t::set_windowsize(scr_size new_windowsize)
 {
 	gui_aligned_container_t::set_pos(scr_coord(0, has_title()*D_TITLEBAR_HEIGHT));
 
-	if(  size != this->size  ) {
+	if(  new_windowsize != windowsize  ) {
 		// mark old size dirty
 		scr_coord const& pos = win_get_pos(this);
-		mark_rect_dirty_wc( pos.x, pos.y, pos.x+this->size.w, pos.y+this->size.h );
+		mark_rect_dirty_wc( pos.x, pos.y, pos.x+windowsize.w, pos.y+windowsize.h );
 
 		// minimum size //25-may-02  markus weber  added
-		size.clip_lefttop(min_windowsize);
+		new_windowsize.clip_lefttop(min_windowsize);
 
-		this->size = size;
+		windowsize = new_windowsize;
 		dirty = true;
 
 		// TODO respect gui_aligned_container_t::get_max_size()
 	}
+
 	// recompute always, to react on resize(scr_coord(0,0))
 	if (gui_aligned_container_t::is_table()) {
 		gui_aligned_container_t::set_size(get_client_windowsize());
@@ -99,20 +71,21 @@ void gui_frame_t::reset_min_windowsize()
 	gui_aligned_container_t::set_pos(scr_coord(0, has_title()*D_TITLEBAR_HEIGHT));
 
 	if (gui_aligned_container_t::is_table()) {
-		bool at_min_size = size == min_windowsize;
-		scr_size csize = gui_aligned_container_t::get_min_size();
-		scr_coord pos  = gui_aligned_container_t::get_pos();
-		set_min_windowsize( scr_size(csize.w + pos.x, csize.h + pos.y) );
+		const bool at_min_size = windowsize == min_windowsize;
+		const scr_size csize = gui_aligned_container_t::get_min_size();
+		const scr_coord pos  = gui_aligned_container_t::get_pos();
+		const scr_size new_min_windowsize(csize.w + pos.x, csize.h + pos.y);
 
 		if (at_min_size) {
-			set_windowsize(min_windowsize);
+			set_windowsize(new_min_windowsize);
 		}
 		else {
-			scr_size wsize = size;
-			wsize.clip_lefttop(min_windowsize);
+			scr_size wsize = windowsize;
+			wsize.clip_lefttop(new_min_windowsize);
 
 			set_windowsize(wsize);
 		}
+		set_min_windowsize( new_min_windowsize );
 	}
 }
 
@@ -123,7 +96,7 @@ void gui_frame_t::reset_min_windowsize()
  */
 FLAGGED_PIXVAL gui_frame_t::get_titlecolor() const
 {
-	return owner ? PLAYER_FLAG|color_idx_to_rgb(owner->get_player_color1()+env_t::gui_player_color_dark) : env_t::default_window_title_color;
+	return owner ? PLAYER_FLAG|color_idx_to_rgb(owner->get_player_color1()+env_t::gui_titlebar_player_color_background_brightness) : env_t::default_window_title_color;
 }
 
 
@@ -143,7 +116,7 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 
 	if(IS_WINDOW_RESIZE(ev)) {
 		scr_coord delta (  resize_mode & horizontal_resize ? ev->mx - ev->cx : 0,
-		               resize_mode & vertical_resize  ? ev->my - ev->cy : 0);
+		                   resize_mode & vertical_resize   ? ev->my - ev->cy : 0);
 		resize(delta);
 		return true;  // don't pass to children!
 	}
@@ -156,8 +129,9 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 		dirty = true;
 		gui_aligned_container_t::clear_dirty();
 	}
+
 	event_t ev2 = *ev;
-	translate_event(&ev2, 0, -has_title()*D_TITLEBAR_HEIGHT);
+	ev2.move_origin(scr_coord(0, (int)has_title()*D_TITLEBAR_HEIGHT));
 	return gui_aligned_container_t::infowin_event(&ev2);
 }
 
@@ -169,12 +143,12 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 void gui_frame_t::resize(const scr_coord delta)
 {
 	dirty = true;
-	scr_size new_size = size + delta;
+	scr_size new_size = windowsize + delta;
 
 	// resize window to the minimum size
 	new_size.clip_lefttop(min_windowsize);
 
-	scr_coord size_change = new_size - size;
+	scr_coord size_change = new_size - windowsize;
 
 	// resize window
 	set_windowsize(new_size);

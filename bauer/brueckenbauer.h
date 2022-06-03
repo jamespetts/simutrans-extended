@@ -32,7 +32,7 @@ private:
 
 	static karte_ptr_t welt;
 
-	static bool is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg);
+	static bool is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg, bool permissive=false);
 	static bool is_monorail_junction(koord3d pos, player_t *player, const bridge_desc_t *desc, const char *&error_msg);
 public:
 	/**
@@ -51,13 +51,14 @@ public:
 	 * @param min_length the minimum length of the bridge.
 	 * @return the position of the other end of the bridge or koord3d::invalid if no possible end is found
 	 */
-	static koord3d find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge=false, uint32 min_length=0, bool high_bridge = false );
+	static koord3d find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge=false, uint32 min_length=0, bool high_bridge = false, bool low_bridge=false );
 
 	/**
 	 * Checks whether given tile @p gr is suitable for placing bridge ramp.
 	 *
 	 * @param player the player wanting to build the  bridge.
 	 * @param gr the ground to check.
+	 * @param r is ribi_t::none of the direction from bridge to ground.
 	 * @return true, if bridge ramp can be built here.
 	 */
 	static bool can_place_ramp(player_t *player, const grund_t *gr, waytype_t wt, ribi_t::ribi r );
@@ -75,7 +76,6 @@ public:
 	 *
 	 * @param player the player wanting to build the bridge
 	 * @param end the position of the ramp
-	 * @param zv direction the bridge will face
 	 * @param desc the bridge description.
 	 * @param overtaking_mode condition of overtaking. This is applied only to road.
 	 * @param beginning if this ramp is beginning of the bridge, be true. otherwise, be false. (for ribi_mask_oneway)
@@ -109,7 +109,7 @@ public:
 
 	static bool laden_erfolgreich();
 
-	static stringhashtable_tpl<bridge_desc_t *> * get_all_bridges();
+	static stringhashtable_tpl<bridge_desc_t *, N_BAGS_MEDIUM> * get_all_bridges();
 
 
 	/**
@@ -153,7 +153,6 @@ public:
 	 * Fill menu with icons for all ways of the given waytype
 	 * @param tool_selector gui object of the toolbar
 	 * @param wtyp way type
-	 * @param welt the current world
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, sint16 sound_ok);
 };

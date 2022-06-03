@@ -5,7 +5,7 @@
 
 #include "../simworld.h"
 #include "../simtypes.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../boden/grund.h"
 #include "../player/simplay.h"
 #include "../display/simimg.h"
@@ -108,7 +108,8 @@ void bruecke_t::calc_image()
 			unlock_mutex();
 			weg0->unlock_mutex();
 #endif
-			if(weg_t *weg1 = gr->get_weg_nr(1) ) {
+
+			if(  weg_t *weg1 = gr->get_weg_nr(1)  ) {
 #ifdef MULTI_THREAD
 				weg1->lock_mutex();
 #endif
@@ -127,6 +128,15 @@ void bruecke_t::calc_image()
 	}
 }
 
+
+image_id bruecke_t::get_image() const
+{
+	grund_t *gr = welt->lookup(get_pos());
+	if (!gr || desc->get_waytype() == powerline_wt && gr->ist_bruecke()) {
+		return IMG_EMPTY;
+	}
+	return image;
+}
 
 image_id bruecke_t::get_front_image() const
 {
@@ -158,17 +168,21 @@ void bruecke_t::rdwr(loadsave_t *file)
 	file->rdwr_enum(img);
 
 	if(file->is_loading()) {
+		if (!s) {
+			dbg->fatal("bruecke_t::rdwr", "No bridge name for bridge at (%s)", get_pos().get_str());
+		}
+
 		desc = bridge_builder_t::get_desc(s);
 		if(desc==NULL) {
 			desc = bridge_builder_t::get_desc(translator::compatibility_name(s));
 		}
 		if(desc==NULL) {
-			dbg->warning( "bruecke_t::rdwr()", "unknown bridge \"%s\" at (%i,%i) will be replaced with best match!", s, get_pos().x, get_pos().y );
+			dbg->warning( "bruecke_t::rdwr", "Unknown bridge \"%s\" at (%s) will be replaced with best match!", s, get_pos().get_str() );
 			welt->add_missing_paks( s, karte_t::MISSING_BRIDGE );
 		}
 		free(const_cast<char *>(s));
 
-		if(  file->get_version_int() < 112007  &&  env_t::pak_height_conversion_factor==2  ) {
+		if(  file->is_version_less(112, 7)  &&  env_t::pak_height_conversion_factor==2  ) {
 			switch(img) {
 				case bridge_desc_t::OW_Segment: img = bridge_desc_t::OW_Segment2; break;
 				case bridge_desc_t::NS_Segment: img = bridge_desc_t::NS_Segment2; break;
@@ -176,10 +190,10 @@ void bruecke_t::rdwr(loadsave_t *file)
 				case bridge_desc_t::W_Start:    img = bridge_desc_t::W_Start2;    break;
 				case bridge_desc_t::S_Start:    img = bridge_desc_t::S_Start2;    break;
 				case bridge_desc_t::N_Start:    img = bridge_desc_t::N_Start2;    break;
-				case bridge_desc_t::O_Ramp:    img = bridge_desc_t::O_Ramp2;    break;
-				case bridge_desc_t::W_Ramp:    img = bridge_desc_t::W_Ramp2;    break;
-				case bridge_desc_t::S_Ramp:    img = bridge_desc_t::S_Ramp2;    break;
-				case bridge_desc_t::N_Ramp:    img = bridge_desc_t::N_Ramp2;    break;
+				case bridge_desc_t::O_Ramp:     img = bridge_desc_t::O_Ramp2;     break;
+				case bridge_desc_t::W_Ramp:     img = bridge_desc_t::W_Ramp2;     break;
+				case bridge_desc_t::S_Ramp:     img = bridge_desc_t::S_Ramp2;     break;
+				case bridge_desc_t::N_Ramp:     img = bridge_desc_t::N_Ramp2;     break;
 				case bridge_desc_t::OW_Pillar:  img = bridge_desc_t::OW_Pillar2;  break;
 				case bridge_desc_t::NS_Pillar:  img = bridge_desc_t::NS_Pillar2;  break;
 				default: break;
@@ -200,7 +214,7 @@ void bruecke_t::finish_rd()
 				desc = bridge_builder_t::find_bridge( weg->get_waytype(), weg->get_max_speed(), 0 );
 			}
 			if(desc==NULL) {
-				dbg->fatal("bruecke_t::finish_rd()","Unknown bridge for type %x at (%i,%i)", weg->get_waytype(), get_pos().x, get_pos().y );
+				dbg->fatal("bruecke_t::finish_rd()", "Unknown bridge for type %x at (%s)", weg->get_waytype(), get_pos().get_str() );
 			}
 		}
 		else {
@@ -210,7 +224,7 @@ void bruecke_t::finish_rd()
 				desc = bridge_builder_t::find_bridge( powerline_wt, 0, 0 );
 			}
 			if(desc==NULL) {
-				dbg->fatal("bruecke_t::finish_rd()","No powerbridge to built bridge type at (%i,%i)", get_pos().x, get_pos().y );
+				dbg->fatal("bruecke_t::finish_rd()", "No powerline bridge to build bridge type at (%s)", get_pos().get_str() );
 			}
 		}
 	}
@@ -219,11 +233,10 @@ void bruecke_t::finish_rd()
 	// change maintenance
 	if(desc->get_waytype()!=powerline_wt) {
 		weg_t *weg = gr->get_weg(desc->get_waytype());
-
 		if(weg==NULL) {
 			dbg->error("bruecke_t::finish_rd()","Bridge without way at(%s)!", gr->get_pos().get_str() );
 			weg = weg_t::alloc( desc->get_waytype() );
-			gr->neuen_weg_bauen( weg, 0, welt->get_public_player());
+			gr->neuen_weg_bauen( weg, 0, welt->get_public_player() );
 		}
 
 		const way_desc_t* way_desc = weg->get_desc();
@@ -256,7 +269,7 @@ void bruecke_t::finish_rd()
 
 	// with double heights may need to correct image on load (not all desc have double images)
 	// at present only start images have 2 height variants, others to follow...
-	if(  !gr->ist_karten_boden()) {
+	if(  !gr->ist_karten_boden()  ) {
 		if(  desc->get_waytype() != powerline_wt  ) {
 			//img = desc->get_straight( gr->get_weg_ribi_unmasked( desc->get_waytype() ) );
 		}
@@ -337,9 +350,9 @@ void bruecke_t::rotate90()
 
 // returns NULL, if removal is allowed
 // players can remove public owned ways
-const char *bruecke_t:: is_deletable(const player_t *player)
+const char *bruecke_t::is_deletable(const player_t *player)
 {
-	if(  get_player_nr()==welt->get_public_player()->get_player_nr()  ) {
+	if (get_owner_nr()==PUBLIC_PLAYER_NR) {
 		return NULL;
 	}
 	return obj_t::is_deletable(player);

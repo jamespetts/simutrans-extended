@@ -34,7 +34,7 @@ userdir_overrides_savegame_settings = 0
 # Nothing means automatic selection
 # ATTENTION!
 # This will be only used if this file is located in the program directory at config/simuconf.tab!
- simutrans/simuconf.tab in the user directory
+# simutrans/simuconf.tab in the user directory
 #
 #pak_file_path = pak/
 #pak_file_path = pak.german/
@@ -417,11 +417,115 @@ auto_connect_industries_and_attractions_by_road = 4
 #  
 #industry_density_proportion_override = 0
 
-################################# Display settings ################################
+################################# Display settings  ################################
+# Use with care
+# These settings can and should be meade in the Display settings dialogue in game.
+# Settings made here will override player preferences set in the Display settings UI.
+# Do not set these parameters in simuconf unless you know exactly what you are doing!
+
+#################################### GUI settings ####################################
+# show graphs old style (right to left) or rather left to right (default)
+#left_to_right_graphs  = 1
 
 # You can use a system font. BUT you must specify the whole path to it!
 # This can be only set in the user defined simuconf.tab
 #fontname=C:\Windows\fonts\arial.ttf
+
+# if run on a mobile device, setting hide_keyboard=1 will only show the keyboard
+# when there is text to input in a dialoge. Other than that textinput will not
+# be possible (no keyboard short cuts).
+# Currently only supported with SDL2
+hide_keyboard = 0
+
+# Position of the main menu bar (0=top, 1=left, 2=bottom, 3=right)
+#menubar_position = 0
+
+# 1=selecting a tool again will close it (0=will be topped/reinit)
+#reselect_closes_tool = 1
+
+
+##################################### Map view #####################################
+# Draw the earth slope to mark the border (default 1 on)
+draw_earth_border = 1
+
+# Tile the outside with the ground.ouside.pak (default 0 off)
+draw_outside_tile = 0
+
+# Color of background default: COL_GREY2 (210)
+#background_color = 210
+
+# If set to 1 (default) the numpad will always move the map.
+# if set to 0, it will always produce numbers
+#numpad_always_moves_map = 1
+
+# Should month be shown in date?
+# (0=no, 1=yes, 2>=show day in japan format=2, us format=3, german=4, japanese no season=5, us no season=6, german no season = 7, hours/minutes scale = 8, japan hours/minutes scale = 9)
+# This is most useful, if you use longer months than the default length (see below)
+# The hours/minutes scale shows the time in hours/minutes as used for determining journey times and other short times. It is the recommended setting. 
+show_month = 8
+
+
+################################# Tooltips/overlays #################################
+
+# show_names has been deprecated. Use show_station_names, show_station_statistics and station_label_style instead
+# show_names will be ignored if either show_station_names, show_station_statistics or station_label_style is defined within the same file.
+# Across different simuconfs, show_station_names, show_station_statistics and station_label_style can override show_names as well as the other way round. 
+#
+# Show station names?
+# (1=on, 0=off)
+#show_station_names = 1
+
+# Show station status bars?
+# (1=on, 0=off)
+#show_station_statistics = 1
+
+# The visual style of the station name label:
+#   0 = black name in color box
+#   1 = name in player color with outline
+#   2 = box in player color left of name in yellow outline
+#station_label_style = 1
+
+# Show the name of depot above own depots
+#show_depot_names = 0
+
+# show a tooltip on convois at several conditions
+# 0 no messages
+# 1 (default) only no_route and stuck
+# loading and waiting at signals too
+#show_vehicle_states = 1
+
+# If and where to display a compass
+# 0=off (default for main screen)
+# 1=top, 2=vertical centre, 3=bottom, 4=left, 8=horizontal centre, 12=right
+# default for minimap is 1+12=13
+compass_screen_position = 0
+compass_map_position = 13
+
+################################# Vehicle display settings #################################
+
+# pedes_and_car_info has been deprecated. Use pedestrian_info and car_info instead
+# pedes_and_car_info will be ignored if either pedestrian_info or car_info is defined within the same file.
+# Across different simuconfs, car_info and pedestrian_info can override pedes_and_car_info as well as the other way round. 
+#
+# Show info windows for private cars?
+# (1=on, 0=off)
+#privatecar_info = 1
+
+# Show info windows for pedestrians?
+# (1=on, 0=off)
+#pedestrian_info = 0
+
+# If a convoi which you are following enters a tunnel, what to do
+# 0=do not change view, 1=switch to underground mode and back, 2=switch to sliced underground mode
+#follow_convoi_underground = 2
+
+# show (default) tiles with a halt when editing a schedule
+#visualize_schedule = 1
+
+
+
+############################### Further Display settings ###############################
+#These cannot be set in the Display settings UI, so simuconf is the only way to set these
 
 # player color can be fixed for several players or set totally random
 # in the latter case each player will get unique but random coloring
@@ -433,12 +537,6 @@ random_player_colors = 0
 # color values range from 0 to 27 for first and second player color
 # and there are 0...15 player in the game
 player_color[1] = 1,4
-
-# remove companies without convois after x month (0=off, 6=default)
-remove_dummy_player_months = 6
-
-# remove password of abandoned companies (wihtout any building activity) after x month (0=off default)
-unprotect_abondoned_player_months = 0
 
 # (=1) drive on the left side of the road
 drive_left = 0
@@ -467,10 +565,6 @@ random_wildlife_probability = 1000
 # costs some time for the additional redraw (~1-3%)
 water_animation_ms = 250
 
-# Show info windows for private cars and pedestrians?
-# (1=on, 0=off)
-pedes_and_car_info = 0
-
 # How much citycars will be generated
 citycar_level = 5
 
@@ -480,11 +574,11 @@ default_citycar_life = 36
 
 # Show infos on trees?
 # (1=on, 0=off)
-tree_info = 1
+#tree_info = 1
 
 # Show infos also on bare ground?
 # (1=on, 0=off)
-ground_info = 1
+#ground_info = 1
 
 # Show passenger level of townhalls?
 # (1=on, 0=off)
@@ -501,97 +595,9 @@ show_delete_buttons = 1
 # even if there are more objects on this tile
 #only_single_info = 1
 
-# show a tooltip on convois at several conditions
-# 0 no messages
-# 1 (default) only no_route and stuck
-# loading and waiting at signals too
-#show_vehicle_states = 1
-
-# If a convoi which you are following enters a tunnel, what to do
-# 0=do not change view, 1=switch to underground mode and back, 2=switch to sliced underground mode
-#follow_convoi_underground = 2
-
-# show (default) tiles with a halt when editing a schedule
-#visualize_schedule = 1
 
 # Should stations get numbered names? (1=yes, 0=no)
 #numbered_stations = 0
-
-# Show name signs and statistic?
-# 0 = don't show anything
-# 1 = station names
-# 2 = statistics
-# 3 = names and statistics
-# The visual style is added to this number:
-#   0 = black name in color box
-#   4 = name in player color with outline
-#   8 = box left of name in yellow outline
-show_names = 3
-
-# Color of cursor overlay, which is blended over marked ground tiles
-# The available colors and their numbers can be found on
-#    http://simutrans-germany.com/wiki/wiki/tiki-index.php?page=en_FactoryDef#mapcolor
-# Suggested values (155 is the default)
-# -- pak64, pak.german, pak128
-#cursor_overlay_color = 155
-# -- pak128.japan
-#cursor_overlay_color = 149
-
-# Color of background default: COL_GREY2 (210)
-#background_color = 210
-
-# there are three different ways to indicate an active window
-
-# first: draw a frame with titlebar color around active window
-#window_frame_active = 0
-
-# second: draw the title with a different brighness (0: dark ... 6: bright)
-front_window_bar_color = 1
-bottom_window_bar_color = 3
-
-# third (best together with 2nd):use different text color for bar
-# some colors are 215-white, 240-blck 208-214- all shades of gray
-front_window_text_color = 215
-bottom_window_text_color = 209
-
-# when moving, you can use windows to snap onto each other seamlessly
-# if you do not like it, set the catch radius to zero
-window_snap_distance = 8
-
-# show tooltips (default 1=show)
-show_tooltips = 1
-
-# tooltip background color (+-1 arounf this index is used), taken from playercolor table
-tooltip_background_color = 4
-
-# tooltip text color (240=black, 215=white)
-tooltip_text_color = 240
-
-# delay before showing tooltip in ms (default 500ms)
-tooltip_delay = 500
-
-# duration in ms during tooltip is visible (default 5000ms=5s)
-tooltip_duration = 5000
-
-# show graphs old style (right to left) or rather left to right (default)
-left_to_right_graphs  = 1
-
-# if run on a mobile device, setting hide_keyboard=1 will only show the keyboard
-# when there is text to input in a dialoge. Other than that textinput will not
-# be possible (no keyboard short cuts).
-# Currently only supported with SDL2
-hide_keyboard = 0
-
-# If and where to display a compass
-# 0=off (default for main screen)
-# 1=top, 2=vertical centre, 3=bottom, 4=left, 8=horizontal centre, 12=right
-# default for minimap is 1+12=13
-compass_screen_position = 0
-compass_map_position = 13
-
-# if set to 1 (default) teh numpad will alsoways move the map.
-# If active, this does not allow for number entry
-numpad_always_moves_map = 0
 
 # Should either account (default) or net wealth be shown below the screen?
 player_finance_display_account = 1
@@ -704,6 +710,11 @@ cst_make_public_months = 60
 # Minimum clearance under bridges is 1 or 2 levels? (default = conversion factor)
 #way_height_clearance = 1
 
+# This is the maximum "level" of a building that may be built underneath an elevated way.
+# Set this to 0 to disable building elevated ways and bridges with supports over any buildings.
+# Default: 2. 
+#max_elevated_way_building_level=2
+
 # Max. length of initial intercity road connections
 # If you want to speed up map creation, lower this value.
 # If you want more initial intercity roads, raise this value.
@@ -777,27 +788,6 @@ citycar_way_wear_factor = 2
 # default: asphalt_road
 # (old, 102.2.2 and before) city_road_type = city_road
 
-# How many private car routes tiles to process in a step.
-# With a higher number, routing data in game will be updated
-# more frequently. With a lower number, responsiveness will
-# be improved. Turn this down if there are frequent moments
-# of unresponsiveness.
-# 
-# Default: 1024
-# Setting to 0 means that all routes will be processed in
-# a step regardless of number.
-max_route_tiles_to_process_in_a_step = 1024
-
-# If the following setting is set to 1, private cars will assume
-# that they can reach anywhere on the map irrespective of the actual
-# road network. Private cars will not follow routes, but will drive
-# around semi-randomly at all times.
-#
-# Enabling this might improve performance on slow systems.
-# 
-# Default: 0
-assume_everywhere_connected_by_road = 0
-
 # This is the distance in meters at which train drivers can see signals ahead.
 # Trains have to brake in time for signals which might be at danger, so this
 # distance affects train speed. 
@@ -866,6 +856,95 @@ simplified_maintenance = 0
 # This setting alters the revenue for electricity transmission.
 # The figure is a percentage of the default revenue. Default: 100.
 power_revenue_factor_percentage = 100
+
+############################## Private car settings ##############################
+
+# How many private car routes tiles to process in a step.
+# With a higher number, routing data in game will be updated
+# more frequently. With a lower number, responsiveness will
+# be improved. Turn this down if there are frequent moments
+# of unresponsiveness.
+# 
+# Default: 16384
+# Setting to 0 means that all routes will be processed in
+# a step regardless of number of tiles
+max_route_tiles_to_process_in_a_step = 65535
+
+# How many private car tiles to process in a step on a server
+# which is paused and on which processing background tasks
+# while paused is enabled.
+#
+# This setting only affects the game when running as a server.
+#
+# Default: 65535
+# Setting to 0 means that all routes will be processed in
+# a step regardless of number of tiles.
+max_route_tiles_to_process_in_a_step_paused_background = 262140
+
+# If the following setting is set to 1, private cars will assume
+# that they can reach anywhere on the map irrespective of the actual
+# road network. Private cars will not follow routes, but will drive
+# around semi-randomly at all times.
+#
+# Enabling this might improve performance on slow systems.
+# 
+# Default: 0
+assume_everywhere_connected_by_road = 0
+
+# The following settings adjust the recording of private car routes.
+# These are the routes encoded on the in-game roads that private cars
+# follow when going from place to place. Without private car routes
+# written into the world, private cars will move on the basis of
+# a heuristic algorithm estimating which is the best way of getting
+# to their destination, but this will often lead to wrong turns.
+#
+# However, properly writing these data can take a large amount of
+# memory on a large map (and memory consumption of this increases
+# exponentially with the number of cities). Thus, these settings
+# are intended to allow fine tuning of how much in the way of 
+# route data are stored.
+#
+# The first two settings relate to whether private car route
+# finding should not make individual routes to town industries
+# and attractions. If these are enabled (a non-zero value),
+# private cars headed to industries and attractions will instead
+# use the route to the town in which the industry/attraction is
+# located and move heuristically on entering the town. 
+# The number represents the minimum visitor demand (adjusted
+# for scale - i.e., the numbers shown in game, rather than in
+# the .dat files for the pakset) for an in-town industry/attraction
+# before it is allowed to have its own route. This allows load 
+# balancing for high demand town buildings with different access
+# routes without consuming large amounts of memory with routes to
+# large numbers of lower demand buildings. 
+# 
+# Default (for each): 120
+
+private_car_route_to_attraction_visitor_demand_threshold = 0
+private_car_route_to_industry_visitor_demand_threshold = 0
+
+# The next setting deals with private car routes to industries out
+# of town. Cars will not be able to route to these by using the route
+# to the town, so not having a private car route for these is more
+# of a problem. However, if this is set to any non-zero value,
+# no private car route to a non-consumer industry too far away
+# to be within the maximum journey time tolerance of the fastest
+# private car journey possible will be recorded. This may be
+# a problem if private vans (industry owned goods transport)
+# should ever be introduced, but that is not an issue at present.
+#
+# Default: 1
+
+do_not_record_private_car_routes_to_distant_non_consumer_industries = 1
+
+# The next setting, if set to zero (default: 1) allows the private
+# car route finder to record a route to each individual city building.
+# WARNING: This has not been tested. This may result in very large
+# memory consumption. Turn this to zero at your own risk.
+# 
+# Default: 1
+
+do_not_record_private_car_routes_to_city_buildings = 1
 
 ############################### Landscape settings ###############################
 
@@ -942,11 +1021,6 @@ starting_year = 1930
 # Starting month of the game for people who want to start in summer (default 1=January)
 starting_month = 1
 
-# Should month be shown in date?
-# (0=no, 1=yes, 2>=show day in japan format=2, us format=3, german=4, japanese no season=5, us no season=6, german no season = 7, hours/minutes scale = 8, japan hours/minutes scale = 9)
-# This is most useful, if you use longer months than the default length (see below)
-# The hours/minutes scale shows the time in hours/minutes as used for determining journey times and other short times. It is the recommended setting. 
-show_month = 8
 
 # Global time multiplier (will be save with new games)
 # 2^bits_per_month = duration of a game month in milliseconds real time
@@ -956,6 +1030,15 @@ show_month = 8
 bits_per_month = 20
 
 ################################# System settings #################################
+
+# Set this for playing MIDI music with your preferred soundfont.
+# Need Fluidsynth support.
+# A recommended lightweight (30 MB) soundfont is PCLite: 
+#   http://www.personalcopy.com/sfarkfonts1.htm
+#   https://src.fedoraproject.org/repo/pkgs/PersonalCopy-Lite-soundfont/PCLite.sf2/629732b7552c12a8fae5b046d306273a/
+# But there are many more, including greater quality ones.
+# Set either the full path or the name of the .sf2 soundfont saved into the "music" directory
+soundfont_filename = PCLite.sf2
 
 # compress savegames?
 # "binary" means uncompressed, 
@@ -1109,6 +1192,10 @@ server_frames_between_checks = 32
 # Pause server when no clients are connected
 pause_server_no_clients = 0
 
+# Run background tasks (the path explorer and private car
+# route finder) when the server is paused.
+server_runs_background_tasks_when_paused = 0
+
 # Nickname when joining network games
 #nickname = John Doe
 
@@ -1116,7 +1203,7 @@ pause_server_no_clients = 0
 server_save_game_on_quit = 0
 
 # Chat window transparency (0=off, 25, 50 75 are possible)
-chat_transparency = 75
+chat_transparency = 0
 
 # The number of game months before a player making no changes
 # to its company is unlocked automatically to allow other players

@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 
-stringhashtable_tpl<checksum_t*>::iterator nwc_pakset_info_t::server_iterator;
+stringhashtable_tpl<checksum_t*, N_BAGS_LARGE>::iterator nwc_pakset_info_t::server_iterator;
 SOCKET nwc_pakset_info_t::server_receiver = INVALID_SOCKET;
 
 
@@ -143,19 +143,21 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 		}
 		// copy our info to addon
 		// ie treatall our paks as if they were not present on the server
-		stringhashtable_tpl<checksum_t*> addons;
+		stringhashtable_tpl<checksum_t*, N_BAGS_LARGE> addons;
 		{
-			FOR(stringhashtable_tpl<checksum_t*>, const& i, pakset_info_t::get_info()) {
+			for(auto const & i : pakset_info_t::get_info()) {
 				addons.put(i.key, i.value);
 			}
 		}
 		// we do a sorted verctor of names ...
 		vector_tpl<const char *> missing, different;
+
 		// show progress bar
-		uint32 num_paks = addons.get_count()+1;
+		const uint32 num_paks = addons.get_count()+1;
 		uint32 progress = 0;
 #define MAX_WRONG_PAKS 512
-		uint16 wrong_paks=0;
+		uint16 wrong_paks = 0;
+
 		if(num_paks>0) {
 			loadingscreen_t ls(translator::translate("Comparing pak files ..."), num_paks );
 			// communication loop
@@ -240,14 +242,12 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 				}
 
 				// update progress bar
-				if( num_paks > 0 ) {
-					ls.set_progress(progress);
-				}
+				ls.set_progress(progress);
 				delete nwi;
 
 			} while (!ready  &&  wrong_paks<=MAX_WRONG_PAKS);
-
 		}
+
 		// now report the result
 		msg.append("<title>");
 		msg.append(translator::translate("Pakset differences"));
@@ -256,7 +256,7 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 			msg.append("<h1>");
 			msg.append(translator::translate("Pak(s) not on server:"));
 			msg.append("</h1><br>\n");
-			FOR(stringhashtable_tpl<checksum_t*>, const& i, addons) {
+			for(auto const & i : addons) {
 				dbg->warning("network_compare_pakset_with_server", "PAK NOT ON SERVER: %s", i.key);
 				msg.append(translator::translate(i.key+3));
 				msg.append("<br>\n");

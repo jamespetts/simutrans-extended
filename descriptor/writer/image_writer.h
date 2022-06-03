@@ -25,15 +25,13 @@ class image_writer_t : public obj_writer_t {
 		static unsigned char* block;
 		static unsigned width;
 		static unsigned height;
-		static int img_size;	// default 64
+		static int img_size; // default 64
 
 		image_writer_t() { register_writer(false); }
 
 		static uint32 block_getpix(int x, int y);
 
 	public:
-		static void dump_special_histogramm();
-
 		static image_writer_t* instance() { return &the_instance; }
 
 		static void set_img_size(int _img_size) { img_size = _img_size; }

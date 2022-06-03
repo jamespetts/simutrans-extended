@@ -34,7 +34,7 @@
 #include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 #include "ai_goods.h"
 
@@ -181,7 +181,7 @@ bool ai_goods_t::get_factory_tree_lowest_missing( fabrik_t *fab )
  */
 int ai_goods_t::get_factory_tree_missing_count( fabrik_t *fab )
 {
-	int numbers=0;	// how many missing?
+	int numbers=0; // how many missing?
 
 	factory_desc_t const& d = *fab->get_desc();
 	// ok, this is a source ...
@@ -189,7 +189,7 @@ int ai_goods_t::get_factory_tree_missing_count( fabrik_t *fab )
 		return 0;
 	}
 
-	bool complete = false;	// found at least one factory
+	bool complete = false; // found at least one factory
 
 	// now check for all
 	for (int i = 0; i < d.get_supplier_count(); ++i) {
@@ -463,11 +463,11 @@ void ai_goods_t::create_road_transport_vehicle(fabrik_t *qfab, int vehicle_count
 		koord3d pos1 = welt->lookup_kartenboden(platz1)->get_pos();
 		koord3d pos2 = welt->lookup_kartenboden(platz2)->get_pos();
 
-		int	start_location=0;
+		int start_location=0;
 		// sometimes, when factories are very close, we need exact calculation
 		const koord3d& qpos = qfab->get_pos();
 		if ((qpos.x - platz1.x) * (qpos.x - platz1.x) + (qpos.y - platz1.y) * (qpos.y - platz1.y) >
-				(qpos.x - platz2.x) * (qpos.x - platz2.x) + (qpos.y - platz2.y) * (qpos.y - platz2.y)) {
+		    (qpos.x - platz2.x) * (qpos.x - platz2.x) + (qpos.y - platz2.y) * (qpos.y - platz2.y)) {
 			start_location = 1;
 		}
 
@@ -917,11 +917,11 @@ DBG_MESSAGE("do_ki()","road vehicle %p",road_vehicle);
 
 DBG_MESSAGE("do_ki()","check railway");
 			/* calculate number of cars for railroad */
-			count_rail=255;	// no cars yet
+			count_rail=255; // no cars yet
 			if(  rail_vehicle!=NULL  ) {
 				// if our car is faster: well use slower speed to save money
 				best_rail_speed = min(51, rail_vehicle->get_topspeed());
-				//for engine: guess number of cars
+				// for engine: guess number of cars
 				count_rail = (prod*dist) / (rail_vehicle->get_total_capacity()*best_rail_speed)+1;
 				// assume the engine weight 100 tons for power needed calculation
 				int total_weight = count_rail*( rail_vehicle->get_total_capacity()*freight->get_weight_per_unit() + rail_vehicle->get_weight() );
@@ -957,7 +957,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No railway possible.");
 
 DBG_MESSAGE("do_ki()","check railway");
 			/* calculate number of cars for road; much easier */
-			count_road=255;	// no cars yet
+			count_road=255; // no cars yet
 			if(  road_vehicle!=NULL  ) {
 				best_road_speed = road_vehicle->get_topspeed();
 				// find cheapest road
@@ -983,7 +983,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 
 			// find the cheapest transport ...
 			// assume maximum cost
-			int	cost_rail=0x7FFFFFFF, cost_road=0x7FFFFFFF;
+			int cost_rail=0x7FFFFFFF, cost_road=0x7FFFFFFF;
 
 			// calculate cost for rail
 			if(  count_rail<255  ) {
@@ -1051,7 +1051,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 			if(state==NR_BAUE_ROUTE1) {
 				// maybe this route is not builtable ... add to forbidden connections
 				forbidden_connections.append( new fabconnection_t( start, ziel, freight ) );
-				ziel = NULL;	// otherwise it may always try to built the same route!
+				ziel = NULL; // otherwise it may always try to built the same route!
 				state = CHECK_CONVOI;
 			}
 		}
@@ -1133,7 +1133,7 @@ DBG_MESSAGE("ai_goods_t::do_ki()","No roadway possible.");
 					if(count_rail<org_count_rail) {
 						// rethink engine
 						int best_rail_speed = min(51, rail_vehicle->get_topspeed());
-						//for engine: guess number of cars
+						// for engine: guess number of cars
 						sint32 power_needed=(sint32)(((best_rail_speed*best_rail_speed)/2500.0+1.0)*(100.0+count_rail*( (rail_vehicle->get_weight()+rail_vehicle->get_capacity()*freight->get_weight_per_unit())*0.001 )));
 						const vehicle_desc_t *v=vehicle_search( track_wt, power_needed, best_rail_speed, NULL, false);
 						if(v->get_running_cost(welt)<rail_engine->get_running_cost(welt)) {
@@ -1295,7 +1295,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 					sint64 goods=0;
 					// no goods for six months?
 					for( int i=0;  i<6;  i ++) {
-						goods += cnv->get_finance_history( i, convoi_t::CONVOI_TRANSPORTED_GOODS );
+						goods += cnv->get_finance_history( i, convoi_t::CONVOI_PAX_DISTANCE );
 					}
 					delete_this = (goods==0);
 				}
@@ -1315,7 +1315,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 
 					cnv->self_destruct();
 					if(cnv.is_bound()) {
-						cnv->step();	// to really get rid of it
+						cnv->step(); // to really get rid of it
 					}
 
 					// last vehicle on that connection (no line => railroad)
@@ -1395,7 +1395,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 
 void ai_goods_t::rdwr(loadsave_t *file)
 {
-	if(  file->get_version_int()<102002  ) {
+	if(  file->is_version_less(102, 2)  ) {
 		// due to an error the player was never saved correctly
 		player_t::rdwr(file);
 		return;
@@ -1406,7 +1406,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 	ai_t::rdwr(file);
 
 	// then check, if we have to do something or the game is too old ...
-	if(file->get_version_int()<101000) {
+	if(file->is_version_less(101, 0)) {
 		// ignore saving, reinit on loading
 		if(  file->is_loading()  ) {
 			state = NR_INIT;
@@ -1430,7 +1430,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 	file->rdwr_long(count_rail);
 	file->rdwr_long(count_road);
 	file->rdwr_long(count);
-	if(  file->get_version_int()<111001  ) {
+	if(  file->is_version_less(111, 1)  ) {
 		file->rdwr_bool(road_transport);
 		file->rdwr_bool(rail_transport);
 		file->rdwr_bool(ship_transport);
@@ -1519,7 +1519,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 		}
 	}
 	// save harbour position
-	if(  file->get_version_int() > 110000  ) {
+	if(  file->is_version_atleast(110, 1)  ) {
 		harbour.rdwr(file);
 	}
 }
@@ -1540,6 +1540,7 @@ bool ai_goods_t::is_forbidden( fabrik_t *fab1, fabrik_t *fab2, const goods_desc_
 void ai_goods_t::fabconnection_t::rdwr(loadsave_t *file)
 {
 	koord3d k3d;
+
 	if(file->is_saving()) {
 		k3d = fab1->get_pos();
 		k3d.rdwr(file);

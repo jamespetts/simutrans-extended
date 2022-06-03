@@ -12,7 +12,7 @@
 #include "halthandle_t.h"
 #include "simware.h"
 
-#include "simobj.h"
+#include "obj/simobj.h"
 #include "display/simgraph.h"
 #include "simtypes.h"
 #include "simconst.h"
@@ -35,11 +35,11 @@
 #include "tpl/binary_heap_tpl.h"
 #include "tpl/minivec_tpl.h"
 
-#define MAX_HALT_COST				11 // Total number of cost items
+#define MAX_HALT_COST				13 // Total number of cost items
 #define MAX_MONTHS					12 // Max history
-#define MAX_HALT_NON_MONEY_TYPES	8 // number of non money types in HALT's financial statistic
-#define HALT_ARRIVED				0 // the amount of ware that arrived here
-#define HALT_DEPARTED				1 // the amount of ware that has departed from here
+//#define MAX_HALT_NON_MONEY_TYPES	8 // number of non money types in HALT's financial statistic
+#define HALT_VISITORS               0 // the amount of visitors that getting on and off
+#define HALT_COMMUTERS              1 // the amount of commuters that getting on and off
 #define HALT_WAITING				2 // the amount of ware waiting
 #define HALT_HAPPY					3 // number of happy passengers
 #define HALT_UNHAPPY				4 // number of unhappy passengers
@@ -49,6 +49,8 @@
 #define HALT_TOO_WAITING            8 // The number of passengers who waited so long at the station.
 #define HALT_MAIL_DELIVERED         9 // amount of delivered mail from here
 #define HALT_MAIL_NOROUTE          10 // amount of no-route mail
+#define HALT_MAIL_HANDLING_VOLUME  11 // the handling volume of mail
+#define HALT_GOODS_HANDLING_VOLUME 12 // the handling volume of goods
  /* NOTE - Standard has HALT_WALKED here as no. 7. In Extended, this is in cities, not stops.*/
 
 // This should be network safe multi-threadedly (this has been considered carefully and tested somewhat,
@@ -91,9 +93,27 @@ struct lines_loaded_t
 class haltestelle_t
 {
 public:
-	enum station_flags { NOT_ENABLED=0, PAX=1, POST=2, WARE=4, CROWDED=8 };
+	enum station_flags {
+		NOT_ENABLED = 0,
+		PAX         = 1 << 0,
+		POST        = 1 << 1,
+		WARE        = 1 << 2,
+		CROWDED     = 1 << 3,
+	};
 
-	enum stationtyp {invalid=0, loadingbay=1, railstation = 2, dock = 4, busstop = 8, airstop = 16, monorailstop = 32, tramstop = 64, maglevstop=128, narrowgaugestop=256 }; //could be combined with or!
+	// can be combined with or!
+	enum stationtyp {
+		invalid         = 0,
+		loadingbay      = 1 << 0,
+		railstation     = 1 << 1,
+		dock            = 1 << 2,
+		busstop         = 1 << 3,
+		airstop         = 1 << 4,
+		monorailstop    = 1 << 5,
+		tramstop        = 1 << 6,
+		maglevstop      = 1 << 7,
+		narrowgaugestop = 1 << 8
+	};
 
 private:
 	/// List of all halts in the game.
@@ -102,13 +122,13 @@ private:
 	/**
 	 * finds a stop by its name
 	 */
-	static stringhashtable_tpl<halthandle_t> all_names;
+	static stringhashtable_tpl<halthandle_t, N_BAGS_LARGE> all_names;
 
 	/**
 	 * Finds a stop by coordinate.
 	 * only used during loading.
 	 */
-	static inthashtable_tpl<sint32,halthandle_t> *all_koords;
+	static inthashtable_tpl<sint32,halthandle_t, N_BAGS_LARGE> *all_koords;
 
 	/**
 	 * A list of lines and freight categories that have already been loaded with all available freight at the halt.
@@ -126,9 +146,9 @@ private:
 	 */
 	void init_financial_history();
 
-	PIXVAL status_color, last_status_color;
+	PIXVAL status_color, last_status_color, status_color_freight;
 	sint16 last_bar_count;
-	vector_tpl<KOORD_VAL> last_bar_height; // caches the last height of the station bar for each good type drawn in display_status(). used for dirty tile management
+	vector_tpl<scr_coord_val> last_bar_height; // caches the last height of the station bar for each good type drawn in display_status(). used for dirty tile management
 	uint32 capacity[3]; // passenger, mail, goods
 	uint8 overcrowded[256/8]; ///< bit field for each goods type (max 256)
 
@@ -257,8 +277,6 @@ public:
 
 	halthandle_t get_halt_within_walking_distance(uint32 index) const { return halts_within_walking_distance[index]; }
 
-	static uint8 pedestrian_limit;
-
 	/**
 	 * List of all tiles (grund_t) that belong to this halt.
 	 */
@@ -298,11 +316,11 @@ public:
 	};
 	bool do_alternative_seats_calculation; //for optimisations purpose
 
-	const slist_tpl<tile_t> &get_tiles() const { return tiles; };
+	const slist_tpl<tile_t> &get_tiles() const { return tiles; }
 
 	bool is_within_walking_distance_of(halthandle_t halt) const;
 
-	typedef quickstone_hashtable_tpl<haltestelle_t, connexion*> connexions_map;
+	typedef quickstone_hashtable_tpl<haltestelle_t, connexion*, N_BAGS_MEDIUM> connexions_map;
 
 	struct waiting_time_set
 	{
@@ -310,7 +328,7 @@ public:
 		uint8 month;
 	};
 
-	typedef inthashtable_tpl<uint32, waiting_time_set > waiting_time_map;
+	typedef inthashtable_tpl<uint32, waiting_time_set, N_BAGS_SMALL> waiting_time_map;
 
 	void add_control_tower() { control_towers ++; }
 	void remove_control_tower() { if(control_towers > 0) control_towers --; }
@@ -342,7 +360,7 @@ public:
 	bool is_using() const;
 
 
-	typedef inthashtable_tpl<uint16, sint64> arrival_times_map;
+	typedef inthashtable_tpl<uint16, sint64, N_BAGS_SMALL> arrival_times_map;
 #ifdef MULTI_THREAD
 	uint32 get_transferring_cargoes_count() const;
 #else
@@ -460,7 +478,7 @@ private:
 	// Store the service frequencies to all other halts so that this does not need to be
 	// recalculated frequently. These are used as proxies for waiting times when no
 	// recent (or any) waiting time data are available.
-	koordhashtable_tpl<service_frequency_specifier, uint32> service_frequencies;
+	koordhashtable_tpl<service_frequency_specifier, uint32, N_BAGS_SMALL> service_frequencies;
 
 	static const sint64 waiting_multiplication_factor = 3ll;
 	static const sint64 waiting_tolerance_ratio = 50ll;
@@ -495,7 +513,7 @@ private:
 
 public:
 	// Added by : Knightly
-	void swap_connexions(const uint8 category, const uint8 g_class, quickstone_hashtable_tpl<haltestelle_t, haltestelle_t::connexion*>* &cxns)
+	void swap_connexions(const uint8 category, const uint8 g_class, haltestelle_t::connexions_map* &cxns)
 	{
 		// swap the connexion hashtables
 		connexions_map *temp = connexions[category][g_class];
@@ -536,11 +554,12 @@ public:
 	 * Calculates a status color for status bars
 	 */
 	PIXVAL get_status_farbe() const { return status_color; }
+	PIXVAL get_status_color(uint8 typ) const;
 
 	/**
 	 * Draws some nice colored bars giving some status information
 	 */
-	void display_status(KOORD_VAL xpos, KOORD_VAL ypos);
+	void display_status(sint16 xpos, sint16 ypos);
 
 	/**
 	 * "Surrounding searches, achievable factories and builds the
@@ -610,6 +629,11 @@ public:
 		return enables&WARE;
 	}
 
+	// for gui purpose
+	// Compare convoy/line and halt to determine if it has a matching attribute. If not, loading cannot be executed.
+	bool can_serve(linehandle_t line) const;
+	bool can_serve(convoihandle_t cnv) const;
+
 	/**
 	 * Found route and station uncrowded
 	 */
@@ -673,6 +697,8 @@ public:
 	// true, if this station is overcrowded for this category
 	bool is_overcrowded( const uint8 idx ) const { return (overcrowded[idx/8] & (1<<(idx%8)))!=0; }
 
+	sint64 get_overcrowded_proporion(uint8 typ) const;
+
 	/// @returns total amount of the good waiting at this halt.
 	uint32 get_ware_summe(const goods_desc_t *warentyp) const;
 	uint32 get_ware_summe(const goods_desc_t *warentyp, uint8 g_class, bool chk_only_commuter = false) const;
@@ -701,9 +727,7 @@ public:
 	 * Fetches goods from this halt
 	 * @param load Output parameter. Goods will be put into this list, the vehicle has to load them.
 	 * @param good_category Specifies the kind of good (or compatible goods) we are requesting to fetch from this stop.
-	 * @param amount How many units of the cargo we can fetch.
-	 * @param schedule Schedule of the vehicle requesting the fetch.
-	 * @param player Company that's requesting the fetch.
+	 * @param requested_amount How many units of the cargo we can fetch.
 	 */
 	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction);
 
@@ -742,14 +766,12 @@ public:
 	uint8 get_empty_lane(const grund_t *gr, convoihandle_t cnv) const;
 
 	/**
-	 * @param buf the buffer to fill
-	 * @return Goods description text (buf)
+	 * @param[out] buf Goods description text
 	 */
 	void get_freight_info(cbuffer_t & buf);
 
 	/**
-	 * @param buf the buffer to fill
-	 * @return short list of the waiting goods (i.e. 110 Wood, 15 Coal)
+	 * @param[out] buf short list of the waiting goods (i.e. 110 Wood, 15 Coal)
 	 */
 	void get_short_freight_info(cbuffer_t & buf) const;
 
@@ -757,6 +779,7 @@ public:
 	 * Opens an information window for this station.
 	 */
 	void show_info();
+	void show_detail();
 
 	/**
 	 * @return the type of a station
@@ -875,19 +898,16 @@ public:
 	uint32 get_around_mail_generated() const;
 	uint32 get_around_mail_delivery_succeeded() const;
 
-	// @author: jamespetts
-	// Returns the percentage of unhappy people
-	// out of the total of happy and unhappy people.
-	uint16 get_unhappy_percentage(uint8 month) const
+	// The number of passengers who have tried to use this station.
+	sint64 get_potential_passenger_number(uint8 month) const
 	{
-		sint64 happy_count = financial_history[month][HALT_HAPPY];
-		sint64 unhappy_count = financial_history[month][HALT_UNHAPPY];
-		if (happy_count > 0) {
- 			return (uint16) (unhappy_count * 100 / (happy_count + unhappy_count) );
-		}
-		else {
-			return 0;
-		}
+		sint64 sum=0;
+		sum += financial_history[month][HALT_HAPPY];
+		sum += financial_history[month][HALT_UNHAPPY];
+		sum += financial_history[month][HALT_NOROUTE];
+		sum += financial_history[month][HALT_TOO_SLOW];
+		sum += financial_history[month][HALT_TOO_WAITING];
+		return sum;
 	}
 
 	// Getting and setting average waiting times in minutes

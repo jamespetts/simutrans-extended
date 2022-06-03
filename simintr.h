@@ -24,7 +24,7 @@ void set_frame_time(uint32 ms);
 
 void intr_refresh_display(bool dirty);
 
-void intr_set(karte_t *welt, main_view_t *view);
+void intr_set_view(main_view_t *view);
 
 void intr_set_last_time(sint32 time);
 
@@ -37,14 +37,14 @@ void interrupt_check(const char* caller_info = "0");
 
 #if COLOUR_DEPTH == 0 && defined PROFILE
 	// 0 bit graphic + profiling: no interrupt_check.
-	#define INT_CHECK(info);
+	#define INT_CHECK(info)
 #else
 	#ifndef DEBUG
 		// standard version
-		#define INT_CHECK(info) interrupt_check();
+		#define INT_CHECK(info) do { interrupt_check(); } while(false)
 	#else
 		// debug version
-		#define INT_CHECK(info) interrupt_check( __FILE__ ":" QUOTEME(__LINE__) );
+		#define INT_CHECK(info) do { interrupt_check( __FILE__ ":" QUOTEME(__LINE__) ); } while(false)
 	#endif
 #endif
 #endif

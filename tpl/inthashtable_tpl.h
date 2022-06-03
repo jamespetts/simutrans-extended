@@ -38,11 +38,6 @@ public:
 		return (uint32)key;
 	}
 
-	static void dump(const key_t key)
-	{
-		printf("%d", (int)key);
-	}
-
 	static diff_type comp(key_t key1, key_t key2)
 	{
 		return key1 - key2;
@@ -54,11 +49,11 @@ public:
  * Ready to use class for hashing integer types. Note that key can be of any
  * integer type including enums.
  */
-template<class key_t, class value_t>
-class inthashtable_tpl : public hashtable_tpl<key_t, value_t, inthash_tpl<key_t> >
+template<class key_t, class value_t, size_t n_bags>
+class inthashtable_tpl : public hashtable_tpl<key_t, value_t, inthash_tpl<key_t>, n_bags>
 {
 public:
-	inthashtable_tpl() : hashtable_tpl<key_t, value_t, inthash_tpl<key_t> >() {}
+	inthashtable_tpl() : hashtable_tpl<key_t, value_t, inthash_tpl<key_t>, n_bags>() {}
 private:
 	inthashtable_tpl(const inthashtable_tpl&);
 	inthashtable_tpl& operator=( inthashtable_tpl const&);

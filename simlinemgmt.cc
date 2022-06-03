@@ -27,7 +27,7 @@ simlinemgmt_t::~simlinemgmt_t()
 	while (!all_managed_lines.empty()) {
 		linehandle_t line = all_managed_lines.back();
 		all_managed_lines.pop_back();
-		delete line.get_rep();	// detaching handled by line itself
+		delete line.get_rep(); // detaching handled by line itself
 	}
 }
 
@@ -40,8 +40,7 @@ void simlinemgmt_t::add_line(linehandle_t new_line)
 
 void simlinemgmt_t::delete_line(linehandle_t line)
 {
-	if (line.is_bound())
-	{
+	if (line.is_bound()) {
 		all_managed_lines.remove(line);
 		//destroy line object
 		delete line.get_rep();
@@ -60,10 +59,8 @@ void simlinemgmt_t::deregister_line(linehandle_t line)
 void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 {
 	// when a line is updated, all managed convoys must get the new schedule!
-	const int count = line->count_convoys();
-	for(int i = 0; i<count; i++)
+	for (auto& cnv : line->get_convoys())
 	{
-		const convoihandle_t cnv = line->get_convoy(i);
 		cnv->set_update_line(line);
 		if(line->get_schedule()->get_count() < 2)
 		{
@@ -72,7 +69,8 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 			cnv->emergency_go_to_depot();
 			// Note that this may destroy a convoi in extreme cases (no depot).
 		}
-		if(  cnv.is_bound() && cnv->in_depot()  ) {
+		if(  cnv.is_bound() && cnv->in_depot()  )
+		{
 			cnv->check_pending_updates(); // apply new schedule immediately for convoys in depot
 		}
 	}
@@ -80,7 +78,8 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 	{
 		// finally de/register all stops
 		line->renew_stops();
-		if (count > 0) {
+		if (line->count_convoys() > 0)
+		{
 			world()->set_schedule_counter();
 		}
 	}
@@ -93,7 +92,7 @@ void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 	DBG_MESSAGE("simlinemgmt_t::rdwr", "player=%s",player->get_name());
 	if(file->is_saving()) {
 		// on old versions
-		if(  file->get_version_int()<101000  ) {
+		if(  file->is_version_less(101, 0)  ) {
 			file->wr_obj_id("Linemanagement");
 		}
 
@@ -110,7 +109,7 @@ void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 	}
 	else {
 		// on old versions
-		if(  file->get_version_int()<101000  ) {
+		if(  file->is_version_less(101, 0)  ) {
 			char buf[80];
 			file->rd_obj_id(buf, 79);
 			all_managed_lines.clear();
@@ -236,7 +235,10 @@ void simlinemgmt_t::get_lines(int type, vector_tpl<linehandle_t>* lines, uint8 f
 	lines->clear();
 	FOR(vector_tpl<linehandle_t>, const line, all_managed_lines) {
 		if (type == simline_t::line || line->get_linetype() == simline_t::line || line->get_linetype() == type) {
-			if (freight_type_bits && !(show_empty_line && !line->get_convoys().get_count())) {
+			if (!show_empty_line && !line->get_convoys().get_count()) {
+				continue;
+			}
+			if (freight_type_bits) {
 				if (freight_type_bits & (1 << simline_t::all_pas) && line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
 					lines->append(line);
 					continue;

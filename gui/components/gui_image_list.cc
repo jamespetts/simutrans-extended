@@ -17,7 +17,6 @@ gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
 	placement(16, 16)
 {
 	this->images = images;
-	use_rows = true;
 	player_nr = 0;
 	focus = -1;
 }
@@ -48,18 +47,15 @@ int gui_image_list_t::index_at(scr_coord parent_pos, int xpos, int ypos) const
 	ypos -= parent_pos.y + pos.y + BORDER;
 
 	if(xpos>=0  &&  ypos>=0  &&  xpos<size.w-2*BORDER  &&  ypos < size.h-2*BORDER) {
-		const int rows = (size.h - 2 * BORDER) / grid.y;
 		const int columns = (size.w - 2 * BORDER) / grid.x;
 
 		const int column = xpos / grid.x;
 		const int row = ypos / grid.y;
 
-		const unsigned int bild_index = use_rows ?
-		row * columns + column :
-		column * rows + row;
+		const unsigned int index = row * columns + column;
 
-		if (bild_index < images->get_count()  &&  (*images)[bild_index]->image != IMG_EMPTY) {
-			return bild_index;
+		if (index < images->get_count()  &&  (*images)[index]->image != IMG_EMPTY) {
+			return index;
 		}
 	}
 	return -1;
@@ -68,7 +64,6 @@ int gui_image_list_t::index_at(scr_coord parent_pos, int xpos, int ypos) const
 
 void gui_image_list_t::draw(scr_coord parent_pos)
 {
-	const int rows = (size.h - 2 * BORDER) / grid.y;
 	const int columns = (size.w - 2 * BORDER) / grid.x;
 
 	// sel_index should come from infowin_event, but it is not sure?
@@ -77,7 +72,6 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 	// Show available wagon types
 	int xmin = parent_pos.x + pos.x + BORDER;
 	int ymin = parent_pos.y + pos.y + BORDER;
-	int ymax = ymin + rows * grid.y;
 	int xmax = xmin + columns * grid.x;
 	int xpos = xmin;
 	int ypos = ymin;
@@ -94,10 +88,10 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 
 			// display mark
 			if(idata.lcolor!=EMPTY_IMAGE_BAR) {
-				display_veh_form_wh_clip_rgb(xpos + 1, ypos + grid.y - VEHICLE_BAR_HEIGHT - 1, grid.x/2 - 1, idata.lcolor, true, idata.basic_coupling_constraint_prev, idata.interactivity, false);
+				display_veh_form_wh_clip_rgb(xpos + 1,      ypos + grid.y - VEHICLE_BAR_HEIGHT-1, grid.x/2 - 1,      VEHICLE_BAR_HEIGHT, idata.lcolor, true, false, idata.basic_coupling_constraint_prev, idata.interactivity);
 			}
 			if(idata.rcolor!=EMPTY_IMAGE_BAR) {
-				display_veh_form_wh_clip_rgb(xpos + grid.x/2, ypos + grid.y - VEHICLE_BAR_HEIGHT - 1, grid.x - grid.x/2 - 1, idata.rcolor, true, idata.basic_coupling_constraint_next, idata.interactivity, true);
+				display_veh_form_wh_clip_rgb(xpos+grid.x/2, ypos + grid.y - VEHICLE_BAR_HEIGHT-1, grid.x-grid.x/2-1, VEHICLE_BAR_HEIGHT, idata.rcolor, true, true,  idata.basic_coupling_constraint_next, idata.interactivity);
 			}
 			if (sel_index-- == 0) {
 				display_ddd_box_clip_rgb(xpos, ypos, grid.x, grid.y, color_idx_to_rgb(MN_GREY4), color_idx_to_rgb(MN_GREY0));
@@ -138,19 +132,10 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 			}
 		}
 		// advance x, y to next position
-		if(use_rows) {
-			xpos += grid.x;
-			if(xpos == xmax) {
-				xpos = xmin;
-				ypos += grid.y;
-			}
-		}
-		else {
+		xpos += grid.x;
+		if(xpos == xmax) {
+			xpos = xmin;
 			ypos += grid.y;
-			if(ypos == ymax) {
-				ypos = ymin;
-				xpos += grid.x;
-			}
 		}
 	}
 }

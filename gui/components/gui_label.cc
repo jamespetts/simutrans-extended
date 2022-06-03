@@ -54,6 +54,9 @@ void gui_label_t::set_fixed_width(const scr_coord_val width)
 
 scr_size gui_label_t::get_min_size() const
 {
+	if (fixed_width) {
+		return scr_size(fixed_width, D_LABEL_HEIGHT);
+	}
 	return scr_size( max(min_size.w, text ? display_calc_proportional_string_len_width(text,strlen(text)) : D_BUTTON_WIDTH), D_LABEL_HEIGHT );
 }
 
@@ -92,7 +95,7 @@ void gui_label_t::draw(scr_coord offset)
 	if(  align == money_right) {
 		if(text) {
 			const char *separator = NULL;
-			const bool not_a_number = atol(text)==0  &&  !isdigit(*text);
+			const bool not_a_number = atol(text)==0  &&  !isdigit(*text)  &&  *text != '-';
 
 			scr_coord right = pos + offset;
 
@@ -115,11 +118,17 @@ void gui_label_t::draw(scr_coord offset)
 			if(separator) {
 				display_proportional_clip_rgb(right.x, right.y, separator, ALIGN_LEFT, color, true);
 				if(  separator!=text  ) {
+					if (shadowed) {
+						display_text_proportional_len_clip_rgb(right.x+1, right.y+1, text, ALIGN_RIGHT | DT_CLIP, color_shadow, true, separator - text);
+					}
 					display_text_proportional_len_clip_rgb(right.x, right.y, text, ALIGN_RIGHT | DT_CLIP, color, true, separator-text );
 				}
 			}
 			else {
 				// integer or normal text
+				if (shadowed) {
+					display_proportional_clip_rgb(right.x + 1, right.y + 1, text, ALIGN_RIGHT | DT_CLIP, color_shadow, true);
+				}
 				display_proportional_clip_rgb(right.x, right.y, text, ALIGN_RIGHT, color, true);
 			}
 		}
@@ -231,10 +240,43 @@ void gui_label_updown_t::draw(scr_coord offset)
 }
 
 
+void gui_data_bar_t::draw(scr_coord offset)
+{
+	if (max == 0) { return; }
+	size.w = fixed_width;
+	cbuffer_t text;
+	text.clear();
+	uint32 tmp = 10000 * value / max;
+	if (show_value) {
+		text.append(value);
+	}
+	if (show_percentage) {
+		if (show_value) {
+			text.append(" (");
+		}
+		text.printf(show_digit ? "%4.1f%%" : "%3.0f%%", tmp/100.0);
+		if (show_value) {
+			text.append(")");
+		}
+	}
+	const scr_coord_val color_bar_width = (tmp+99)*size.w/10000;
+	display_linear_gradient_wh_rgb(pos.x + offset.x, pos.y + offset.y, color_bar_width, size.h, bar_color, 70, 15);
+	const scr_rect area(offset + pos, size);
+	display_proportional_ellipsis_rgb(area, text, ALIGN_RIGHT | DT_CLIP, color, true);
+
+	if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+		const scr_coord_val by = offset.y + pos.y;
+		const scr_coord_val bh = size.h;
+
+		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+	}
+}
+
+
 gui_heading_t::gui_heading_t(const char* text, PIXVAL color_, PIXVAL frame_color_, uint8 style_) :
 	tooltip(NULL)
 {
-	set_size(scr_size(D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT));
+	set_size(scr_size(D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT+(style_==0)*4));
 	init(text, scr_coord(0, 0), color_, frame_color_, style_);
 }
 
@@ -263,5 +305,26 @@ void gui_heading_t::set_text(const char *text)
 
 scr_size gui_heading_t::get_min_size() const
 {
-	return scr_size(min(D_DEFAULT_WIDTH, get_size().w), D_EDIT_HEIGHT);
+	return scr_size(min(D_DEFAULT_WIDTH, get_size().w), get_size().h);
+}
+
+
+void gui_label_with_symbol_t::draw(scr_coord offset)
+{
+	display_color_img(imageid, pos.x+offset.x, pos.y+offset.y + D_GET_CENTER_ALIGN_OFFSET(10,D_LABEL_HEIGHT), 0, false, false);
+	offset.x += 14;
+	gui_label_buf_t::draw(offset);
+}
+
+scr_size gui_label_with_symbol_t::get_min_size() const
+{
+	return scr_size(gui_label_buf_t::get_min_size().w+14, D_LABEL_HEIGHT);
+}
+
+scr_size gui_label_with_symbol_t::get_max_size() const
+{
+	if (fixed_width) {
+		return get_min_size();
+	}
+	return align == left ? scr_size(max(get_min_size().w, size.w), get_min_size().h) : scr_size(scr_size::inf.w, get_min_size().h);
 }

@@ -3,7 +3,6 @@
  * (see LICENSE.txt)
  */
 
-#include "../sys/simsys.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -13,11 +12,13 @@
 #define dr_fopen fopen
 #endif
 
+#include "../sys/simsys.h"
 #include "../simdebug.h"
 #include "../descriptor/image.h"
 #include "koord.h"
 #include "tabfile.h"
-
+#include "../tpl/vector_tpl.h"
+#include "../utils/csv.h"
 
 #define LINEBUFFER_SIZE (4096)
 
@@ -77,7 +78,7 @@ bool tabfileobj_t::put(const char *key, const char *value)
 
 void tabfileobj_t::clear()
 {
-	FOR(stringhashtable_tpl<obj_info_t>, const& i, objinfo) {
+	for(auto const & i : objinfo) {
 		free(const_cast<char*>(i.key));
 		free(const_cast<char*>(i.value.str));
 	}
@@ -115,6 +116,7 @@ const koord &tabfileobj_t::get_koord(const char *key, koord def)
 	return ret;
 }
 
+
 const scr_size &tabfileobj_t::get_scr_size(const char *key, scr_size def)
 {
 	static scr_size ret;
@@ -149,11 +151,11 @@ PIXVAL tabfileobj_t::get_color(const char *key, PIXVAL def, uint32 *color_rgb)
 		else {
 			// this inputs also hex correct
 			uint8 index = (uint8)strtoul( value, NULL, 0 );
-			//we save in settings as RGB888
+			// we save in settings as RGB888
 			if (color_rgb) {
 				*color_rgb = get_color_rgb(index);
 			}
-			//but the functions expect in the system colour (like RGB565)
+			// but the functions expect in the system colour (like RGB565)
 			return color_idx_to_rgb(index);
 		}
 #else
@@ -171,14 +173,28 @@ int tabfileobj_t::get_int(const char *key, int def)
 	if(!value) {
 		return def;
 	}
-	else {
-		// skip spaces/tabs
-		while ( *value>0  &&  *value<=32  ) {
-			value ++;
-		}
-		// this inputs also hex correct
-		return strtol( value, NULL, 0 );
+
+	// skip spaces/tabs
+	while ( *value>0  &&  *value<=32  ) {
+		value ++;
 	}
+
+	// this inputs also hex correct
+	return strtol( value, NULL, 0 );
+}
+
+
+int tabfileobj_t::get_int_clamped(const char *key, int def, int min_value, int max_value)
+{
+	const int int_value = get_int(key, def);
+	const int clamped_value = clamp(int_value, min_value, max_value);
+
+	if (clamped_value != int_value) {
+		dbg->warning("tabfileobj_t::get_int_clamped()", "Value %d for key %s out of range %d..%d, resetting to %d",
+			int_value, key, min_value, max_value, clamped_value);
+	}
+
+	return clamped_value;
 }
 
 
@@ -213,12 +229,14 @@ int *tabfileobj_t::get_ints(const char *key)
 		result[0] = 0;
 		return result;
 	}
+
 	// Determine number
 	for(tmp = value; *tmp; tmp++) {
 		if(*tmp == ',') {
 			count++;
 		}
 	}
+
 	// Create result vector and fill
 	result = new int[count + 1];
 
@@ -231,6 +249,7 @@ int *tabfileobj_t::get_ints(const char *key)
 			do {
 				tmp ++;
 			} while ( *tmp>0  &&  *tmp<=32  );
+
 			// this inputs also hex correct
 			result[count++] = strtol( tmp, NULL, 0 );
 		}
@@ -274,7 +293,7 @@ sint64 *tabfileobj_t::get_sint64s(const char *key)
 
 void tabfileobj_t::unused( const char *exclude_start_chars )
 {
-	FOR(stringhashtable_tpl<obj_info_t>, const& i, objinfo) {
+	for(auto const & i : objinfo) {
 		if(  !i.value.retrieved  ) {
 			// never retrieved
 			if(  !exclude_start_chars  ||  !strchr( exclude_start_chars, *i.value.str )  ) {
@@ -448,7 +467,7 @@ bool tabfile_t::read(tabfileobj_t &objinfo, FILE *fp)
 							strcpy(delim_expand, delim);
 						}
 
-						printf("%s = %s\n", line_expand, delim_expand);
+						dbg->message("tabfile_t::read", "Parameter expansion %s = %s\n", line_expand, delim_expand);
 						objinfo.put(line_expand, delim_expand);
 						if (fp != NULL) {
 							fprintf(fp, "%s=%s\n", line_expand, delim_expand);
@@ -533,7 +552,7 @@ int tabfile_t::find_parameter_expansion(char *key, char *data, int *parameters, 
 		else if (!isalpha(*s) && !isdigit(*s) && *s != '_' && *s != '.') {
 			// only allow [a-zA-Z0-9_.] in keys ('.' is required for city rules)
 			dbg->error("tabfile_t::find_parameter_expansion",
-				"Found invalid character %c in key of parameter expansion (Only alphanumeric characters, '.' and '_' allowed)", *s);
+				"Found invalid character '%c' in key of parameter expansion (Only alphanumeric characters, '.' and '_' allowed)", *s);
 			return 0;
 		}
 	}
@@ -837,4 +856,148 @@ void tabfile_t::format_key(char *key)
 		}
 	}
 	*t = '\0';
+}
+
+void CSV_file_t::clear(){
+	for(auto const & i : header) {
+		free(const_cast<char*>(i.key));
+	}
+	header.clear();
+	for(uint32 i = 0; i < data.get_data_count(); i++){
+		koord dummypos;
+		const char *value;
+		data.get_nonzero(i,dummypos,value);
+		free(const_cast<char *>(value));
+	}
+	data.reset();
+}
+
+void CSV_file_t::add_obj(const tabfileobj_t &obj){
+	uint32 row=data.add_row(10)-1;
+	uint32 col;
+	for(auto it = obj.get_begin(); it != obj.get_end(); ++it){
+		if(it->value.str==0){
+			continue;
+		}
+		if(header.is_contained(it->key)){
+			col=header.get(it->key);
+		}else{
+			col=data.add_col()-1;
+			header.put(strdup(it->key),col);
+		}
+		data.set(col,row,strdup(it->value.str));
+	}
+}
+
+bool CSV_file_t::get_object(tabfileobj_t &obj){
+	obj.clear();
+	if(current_row >= data.get_size_y()){
+		return false;
+	}
+	for(auto it = header.begin(); it != header.end(); ++it){
+		if(data.get(it->value,current_row)){
+			obj.put(it->key,data.get(it->value,current_row));
+		}
+	}
+
+	current_row+=1;
+	return true;
+}
+
+bool CSV_file_t::save_file(const char *filename){
+	FILE* file;
+	if(filename){
+		file=dr_fopen(filename,"w");
+	}else{
+		file=stdout;
+	}
+	if(!file) return false;
+	CSV_t csv;
+	vector_tpl<uint16> indexes;
+	for(auto it = header.begin(); it != header.end(); ++it){
+		indexes.append(it->value);
+		csv.add_field(it->key);
+	}
+	csv.new_line();
+	for(uint32 j = 0; j < data.get_size_y(); j++){
+		for(uint32 i = 0; i < indexes.get_count(); i++){
+			if(data.get(indexes[i],j)){
+				csv.add_field(data.get(indexes[i],j));
+			}else{
+				csv.add_field("");
+			}
+		}
+		csv.new_line();
+	}
+	fputs(csv.get_str(),file);
+	if(filename){
+		fclose(file);
+	}
+	return true;
+}
+
+bool CSV_file_t::load_file(const char *filename){
+	if(!filename) return false;
+	FILE* file=dr_fopen(filename,"r");
+	if(!file) return false;
+	cbuffer_t filebuff;
+	const size_t subbuffsize=128;
+	char subbuff[subbuffsize];
+	while(fgets(subbuff,subbuffsize,file) ){
+		filebuff.append(subbuff,subbuffsize);
+	}
+	fclose(file);
+
+	CSV_t csv(filebuff.get_str());
+
+	uint32 colcnt=0;
+	vector_tpl<uint32> indexes;
+	for(;;){
+		cbuffer_t headerbuffer;
+		headerbuffer.clear();
+		int numsize = csv.get_next_field(headerbuffer);
+		if(numsize>0){
+			if(header.is_contained(headerbuffer.get_str())){
+				indexes.append(header.get(headerbuffer.get_str()));
+			}else{
+				uint32 col = data.add_col()-1;
+				header.put(strdup(headerbuffer.get_str()),col);
+				indexes.append(col);
+			}
+			colcnt+=1;
+		}else if (numsize==0){
+			indexes.append(0xFFFF);
+			colcnt+=1;
+		}else if (numsize==-1){
+			break;
+		}else{
+			return false;
+		}
+	}
+
+	uint32 rowcnt=csv.get_lines()-1;
+
+	for(uint32 j = 0; j < rowcnt; j++){
+		if(!csv.next_line()){
+			return true;
+		}
+		uint32 row=data.add_row(10)-1;
+		for(uint32 i = 0; i < colcnt; i++){
+			cbuffer_t databuffer;
+			databuffer.clear();
+			int status=csv.get_next_field(databuffer);
+			if(status>=0){
+				if(indexes[i]!=0xFFFF){
+					if(databuffer.len()){
+						data.set(indexes[i],row,strdup(databuffer.get_str()));
+					}
+				}
+			}else if(status==-2){
+				data.trim_row();
+				return true;
+			}
+		}
+	}
+
+	return true;
 }

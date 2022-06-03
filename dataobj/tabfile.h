@@ -11,11 +11,13 @@
 
 #include "../simcolor.h"
 #include "../tpl/stringhashtable_tpl.h"
+#include "../tpl/sparse_tpl.h"
 
 class tabfileobj_t;
 class koord;
 class scr_coord;
 class scr_size;
+
 
 class obj_info_t
 {
@@ -26,6 +28,8 @@ public:
 	obj_info_t(bool b, const char *s ) { retrieved=b; str=s; }
 };
 
+
+
 /**
  * This class can be used instead of FILE to read a game definition file,
  * usually with extension .tab in simutrans.
@@ -34,13 +38,13 @@ public:
  * format in all.
  *
  * File format:
- *	Lines starting with '#' or ' ' are comment lines.
- *	The file content is treated as a list of objects.
- *	Objects are separated by a line starting with a dash (-)
- *	Each object can contain any number of lines in the format '<Key>=<Value>'
- *	These line are NOT ordered
- *	If keys are duplicated for one object, the first value is used
- *	Keys are not case sensitive
+ *  - Lines starting with '#' or ' ' are comment lines.
+ *  - The file content is treated as a list of objects.
+ *  - Objects are separated by a line starting with a dash (-)
+ *  - Each object can contain any number of lines in the format '<Key>=<Value>'
+ *    These line are NOT ordered
+ *  - If keys are duplicated for one object, the first value is used
+ *  - Keys are not case sensitive
  */
 class tabfile_t
 {
@@ -57,7 +61,7 @@ public:
 	 * Read an entire object from the open file.
 	 *
 	 * @return bool false, if empty object or eof
-	 * @param &objinfo  will receive the object info
+	 * @param[out] objinfo  will receive the object info
 	 */
 	bool read(tabfileobj_t &objinfo, FILE *fp = NULL);
 
@@ -113,14 +117,22 @@ private:
  */
 class tabfileobj_t {
 private:
-	stringhashtable_tpl<obj_info_t> objinfo;
+	stringhashtable_tpl<obj_info_t, N_BAGS_LARGE> objinfo;
 
 	template<class I>
 	bool get_x_y( const char *key, I &x, I &y );
 
 public:
-	tabfileobj_t() { ; }
+	tabfileobj_t() { }
 	~tabfileobj_t() { clear(); }
+
+	stringhashtable_tpl<obj_info_t, N_BAGS_LARGE>::const_iterator get_begin() const {
+		return objinfo.begin();
+	}
+
+	stringhashtable_tpl<obj_info_t, N_BAGS_LARGE>::const_iterator get_end() const {
+		return objinfo.end();
+	}
 
 	/**
 	 * prints all unused options lines in the file which do not start with a character from exclude_start_chars
@@ -140,7 +152,7 @@ public:
 	/**
 	 * Get the value for a key - key must be lowercase
 	 *
-	 * @return const char *	returns at least an empty string, never NULL.
+	 * @return const char *returns at least an empty string, never NULL.
 	 */
 	const char *get(const char *key);
 
@@ -153,7 +165,7 @@ public:
 	/**
 	 * Get the value for a koord key - key must be lowercase
 	 *
-	 * @return koord	returns def, if key is not found
+	 * @return def, if key is not found
 	 */
 	const koord &get_koord(const char *key, koord def);
 	const scr_size &get_scr_size(const char *key, scr_size def);
@@ -170,6 +182,12 @@ public:
 	int get_int(const char *key, int def);
 
 	/**
+	 * Get an int value. If the value is not between @p min_value and @p max_value, a warning
+	 * is emitted and the value is clamped to either @p min_value or @p max_value.
+	 */
+	int get_int_clamped(const char *key, int def, int min_value, int max_value);
+
+	/**
 	 * Get an sint64 (actually uses double, thus only 48 bits are retrievable)
 	 */
 	sint64 get_int64(const char *key, sint64 def);
@@ -179,10 +197,31 @@ public:
 	 * and returns an allocated int[N + 1] with
 	 * N at pos. 0, <num 1> at pos 1, etc.
 	 * Do not forget to "delete []" the returned value.
-	 * @return const char *	returns at least an int[1], never NULL.
+	 * @return at least an int[1], never NULL.
 	 */
 	int *get_ints(const char *key);
 	sint64 *get_sint64s(const char *key);
+};
+
+class CSV_file_t
+{
+public:
+    CSV_file_t() {current_row=0;}
+    ~CSV_file_t() {clear();}
+
+public:
+    void clear();
+    void add_obj(const tabfileobj_t& obj);
+    bool save_file(const char *filename);
+
+    bool load_file(const char *filename);
+    void reset_current_obj() {current_row=0;}
+    bool get_object(tabfileobj_t& obj);
+
+private:
+    stringhashtable_tpl<uint16, N_BAGS_LARGE> header;
+    sparse_tpl<const char *,uint32> data;
+    uint16 current_row;
 };
 
 #endif

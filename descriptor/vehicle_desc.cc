@@ -9,24 +9,24 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 
-uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) const
+uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
 	// No cost or no time line --> no obsolescence cost increase.
-	if (base_cost == 0 || !welt->use_timeline())
+	if (base_cost == 0 || !world()->use_timeline())
 	{
 		return base_cost;
 	}
 
 	// I am not obsolete --> no obsolescence cost increase.
-	const uint16 months_after_retire = get_obsolete_year_month(welt) - retire_date;
-	sint32 months_of_obsolescence = welt->get_current_month() - (get_retire_year_month() + months_after_retire);
+	const uint16 months_after_retire = get_obsolete_year_month() - retire_date;
+	sint32 months_of_obsolescence = world()->get_current_month() - (get_retire_year_month() + months_after_retire);
 	if (months_of_obsolescence <= 0)
 	{
 		return base_cost;
 	}
 
 	// I am obsolete --> obsolescence cost increase.
-	uint16 running_cost_increase_percent = increase_maintenance_by_percent ? increase_maintenance_by_percent :welt->get_settings().get_obsolete_running_cost_increase_percent();
+	uint16 running_cost_increase_percent = increase_maintenance_by_percent ? increase_maintenance_by_percent : world()->get_settings().get_obsolete_running_cost_increase_percent();
 	uint32 max_cost = (base_cost * running_cost_increase_percent) / 100;
 	if (max_cost == base_cost)
 	{
@@ -34,7 +34,7 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 	}
 
 	// Current month is beyond the months_of_increasing_costs --> maximum increased obsolescence cost.
-	uint16 phase_years = years_before_maintenance_max_reached ? years_before_maintenance_max_reached :welt->get_settings().get_obsolete_running_cost_increase_phase_years();
+	uint16 phase_years = years_before_maintenance_max_reached ? years_before_maintenance_max_reached : world()->get_settings().get_obsolete_running_cost_increase_phase_years();
 	sint32 months_of_increasing_costs = phase_years * 12;
 	if (months_of_obsolescence >= months_of_increasing_costs)
 	{
@@ -51,19 +51,19 @@ uint32 vehicle_desc_t::calc_running_cost(const karte_t *welt, uint32 base_cost) 
 
 // Get running costs. Running costs increased if the vehicle is obsolete.
 // @author: jamespetts
-uint16 vehicle_desc_t::get_running_cost(const karte_t* welt) const
+uint16 vehicle_desc_t::get_running_cost(const karte_t *) const
 {
-	return calc_running_cost(welt, get_running_cost());
+	return calc_running_cost(get_running_cost());
 }
 
-uint32 vehicle_desc_t::get_fixed_cost(karte_t *welt) const
+uint32 vehicle_desc_t::get_fixed_cost(karte_t *) const
 {
-	return calc_running_cost(welt, get_fixed_cost());
+	return calc_running_cost(get_fixed_cost());
 }
 
-uint32 vehicle_desc_t::get_adjusted_monthly_fixed_cost(karte_t *welt) const
+uint32 vehicle_desc_t::get_adjusted_monthly_fixed_cost() const
 {
-	return welt->calc_adjusted_monthly_figure(calc_running_cost(welt, get_fixed_cost()));
+	return world()->calc_adjusted_monthly_figure(calc_running_cost(get_fixed_cost()));
 }
 
 /**
@@ -226,7 +226,7 @@ uint32 vehicle_desc_t::get_effective_power_index(sint32 speed /* in m/s */ ) con
 	return geared_power[min(speed, max_speed)];
 }
 
-uint16 vehicle_desc_t::get_obsolete_year_month(const karte_t *welt) const
+uint16 vehicle_desc_t::get_obsolete_year_month() const
 {
 	if(increase_maintenance_after_years)
 	{
@@ -234,7 +234,7 @@ uint16 vehicle_desc_t::get_obsolete_year_month(const karte_t *welt) const
 	}
 	else
 	{
-		return retire_date + (welt->get_settings().get_default_increase_maintenance_after_years((waytype_t)wtyp) * 12);
+		return retire_date + (world()->get_settings().get_default_increase_maintenance_after_years((waytype_t)wtyp) * 12);
 	}
 }
 
@@ -283,6 +283,14 @@ void vehicle_desc_t::fix_number_of_classes()
 		classes = actual_number_of_classes;
 		delete[] comfort_copy;
 		delete[] capacity_copy;
+	}
+	if (accommodation_classes) {
+		accommodation_classes = 0;
+		for (uint8 i = 0; i < classes; i++) {
+			if (capacity[i] > 0) {
+				accommodation_classes++;
+			}
+		}
 	}
 }
 
@@ -375,11 +383,11 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(len);
 	chk->input(leader_count);
 	chk->input(trailer_count);
+	chk->input(accommodation_classes);
 	chk->input((uint8)engine_type);
 	// freight
 	const xref_desc_t *xref = get_child<xref_desc_t>(2);
 	chk->input(xref ? xref->get_name() : "NULL");
-
 	// vehicle constraints
 	// For some reason, this records false mismatches with a few
 	// vehicles when names are used. Use  numbers instead.
@@ -428,9 +436,10 @@ uint8 vehicle_desc_t::get_interactivity() const
 	return flags;
 }
 
-uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now, bool show_future) const
+uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 {
 	uint8 upgrade_state = 0; // 1 = not available yet, 2 = already available
+	const bool show_future = world()->get_settings().get_show_future_vehicle_info();
 	for (int i = 0; i < upgrades; i++)
 	{
 		if (show_future) {
@@ -448,6 +457,29 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now, bool show_future) 
 	return upgrade_state;
 }
 
+const char* vehicle_desc_t::get_accommodation_name(uint8 a_class) const
+{
+	if (a_class > classes || !capacity[a_class]) {
+		return NULL;
+	}
+	else if (!accommodation_classes) {
+		// old pak => return default
+		return goods_manager_t::get_default_accommodation_class_name(get_freight_type()->get_catg_index(), a_class);
+	}
+	uint8 count = 0;
+	for (uint8 i = 0; i < classes; i++) {
+		if (a_class == i) {
+			const char* text = get_child<text_desc_t>(get_add_to_node() + trailer_count + leader_count + upgrades + count)->get_text();
+			if (text[0]=='\0') {
+				return goods_manager_t::get_default_accommodation_class_name(get_freight_type()->get_catg_index(), a_class);
+			}
+			return text;
+		}
+		if (capacity[i] > 0) {
+			count++;
+		}
+	}
+}
 
 // The old pak doesn't have a basic constraint, so add a value referring to the constraint.
 // Note: This is ambiguous because it does not have data of cab and constraint[prev]=any.

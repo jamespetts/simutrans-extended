@@ -19,7 +19,7 @@
  * Descriptors (descs) of required objects. The following functions manage
  * the list. The list is "{NULL, NULL}" terminated.
  */
-template<class desc_t> struct spezial_obj_tpl {
+template<class desc_t> struct special_obj_tpl {
 	const desc_t** desc;
 	const char* name;
 };
@@ -31,7 +31,7 @@ template<class desc_t> struct spezial_obj_tpl {
  * @param so List to operate over.
  * @parem desc Descriptor to add.
  */
-template<class desc_t> bool register_desc(spezial_obj_tpl<desc_t> const* so, desc_t const* const desc)
+template<class desc_t> bool register_desc(special_obj_tpl<desc_t> const* so, desc_t const* const desc)
 {
 	for (; so->name; ++so) {
 		if (strcmp(so->name, desc->get_name()) == 0) {
@@ -52,7 +52,7 @@ template<class desc_t> bool register_desc(spezial_obj_tpl<desc_t> const* so, des
  * Verifies the passed list for all objects to be not NULL, ie are loaded.
  * @param so List to check.
  */
-template<class desc_t> bool successfully_loaded(spezial_obj_tpl<desc_t> const* so)
+template<class desc_t> bool successfully_loaded(special_obj_tpl<desc_t> const* so)
 {
 	for (; so->name; ++so) {
 		if (!*so->desc) {
@@ -66,9 +66,8 @@ template<class desc_t> bool successfully_loaded(spezial_obj_tpl<desc_t> const* s
 /**
  * Shows debug messages showing which descriptors lack definition.
  * @param so List to check.
- * @param count Number of elements to check.
  */
-template<class desc_t> void warn_missing_objects(spezial_obj_tpl<desc_t> const* so)
+template<class desc_t> void warn_missing_objects(special_obj_tpl<desc_t> const* so)
 {
 	for (; so->name; ++so) {
 		if (!*so->desc) {

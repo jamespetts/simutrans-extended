@@ -7,8 +7,12 @@
 #define UTILS_SIMRANDOM_H
 
 
-#include <stddef.h>
 #include "../simtypes.h"
+
+#include <cstddef>
+
+
+class loadsave_t;
 
 uint32 get_random_seed();
 
@@ -22,9 +26,9 @@ uint32 sim_async_rand(const uint32 max);
 
 /* generates a random number on [0,max-1]-interval */
 #ifdef DEBUG_SIMRAND_CALLS
-uint32 simrand(const uint32 max, const char* caller);
+uint32 simrand(const uint32 max, const char* caller = "");
 #else
-uint32 simrand(const uint32 max, const char*);
+uint32 simrand(const uint32 max, const char* = "");
 #endif
 
 /* Generates a random number on [0,max-1] interval with a normal distribution*/
@@ -36,6 +40,9 @@ uint32 simrand_normal(const uint32 max, uint32 exponent, const char*);
 
 /* generates a random number on [0,0xFFFFFFFFu]-interval */
 uint32 simrand_plain();
+
+/// reads/writes the sate of the random number generator
+void simrand_rdwr(loadsave_t *file);
 
 double perlin_noise_2D(const double x, const double y, const double persistence, const sint32 map_size = 512);
 

@@ -7,7 +7,7 @@
 #define VEHICLE_SIMROADTRAFFIC_H
 
 
-#include "simvehicle.h"
+#include "road_vehicle.h"
 #include "overtaker.h"
 
 #include "../tpl/slist_tpl.h"
@@ -17,11 +17,10 @@
 class citycar_desc_t;
 class karte_t;
 
-
 /**
  * Base class for traffic participants with random movement
  *
- * Transport vehicles are defined in simvehicle.h, because they greatly
+ * Transport vehicles are defined in vehicle.h, because they greatly
  * differ from the vehicles defined herein for the individual traffic
  * (pedestrians, citycars, movingobj aka flock of sheep).
  */
@@ -132,7 +131,7 @@ public:
 
 	void rotate90() OVERRIDE;
 
-	static stringhashtable_tpl<const citycar_desc_t *> table;
+	static stringhashtable_tpl<const citycar_desc_t *, N_BAGS_MEDIUM> table;
 
 	const citycar_desc_t *get_desc() const { return desc; }
 
@@ -153,7 +152,7 @@ public:
 	//typ get_typ() const OVERRIDE { return road_user; }
 
 	/**
-	 * @return a description string for the object
+	 * @param[out] buf a description string for the object
 	 * e.g. for the observation window/dialog
 	 * @see simwin
 	 */
@@ -187,6 +186,16 @@ public:
 
 	void * operator new(size_t s);
 	void operator delete(void *p);
+
+	typedef enum : uint8 {
+		end_of_route = 125,
+		no_route = 126,
+		invalid_route = 255,
+	} private_car_route_neighbour_t;
+
+	static koord3d neighbour_from_int(koord3d from, uint8 i);
+
+	static uint8 int_from_neighbour(koord3d from, koord3d to);
 };
 
 #endif

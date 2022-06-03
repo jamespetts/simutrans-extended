@@ -38,7 +38,7 @@ struct cached_string_t {
 	}
 };
 
-static plainstringhashtable_tpl<cached_string_t*> cached_results;
+static plainstringhashtable_tpl<cached_string_t*, N_BAGS_LARGE> cached_results;
 
 
 cached_string_t* get_cached_result(const char* function, uint32 cache_time)
@@ -56,7 +56,7 @@ cached_string_t* get_cached_result(const char* function, uint32 cache_time)
 
 dynamic_string::~dynamic_string()
 {
-	FOR(plainstringhashtable_tpl<cached_string_t*>, &iter, cached_results) {
+	for(auto &iter : cached_results) {
 		if (iter.value->listener == this) {
 			iter.value->listener = NULL;
 		}
@@ -89,7 +89,7 @@ void dynamic_string::rdwr_cache(loadsave_t *file)
 		}
 	}
 	else {
-		FOR(plainstringhashtable_tpl<cached_string_t*>, &iter, cached_results) {
+		for(auto &iter : cached_results) {
 			file->rdwr_str(iter.key);
 			iter.value->rdwr(file);
 		}
@@ -174,7 +174,7 @@ const char* dynamic_string::fetch_result(const char* function, script_vm_t *scri
 		else {
 			if (entry == NULL) {
 				cached_string_t *old = cached_results.set(function, new cached_string_t(NULL, dr_time(), listener));
-				assert(old == NULL);
+				assert(old == NULL); (void)old;
 			}
 			// send request
 			nwc_scenario_t *nwc = new nwc_scenario_t();

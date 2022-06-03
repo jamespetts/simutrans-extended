@@ -4,7 +4,6 @@
  */
 
 #include <algorithm>
-#include "../vehicle/simvehicle.h"
 #include "../player/simplay.h"
 #include "../simdebug.h"
 #include "../utils/simrandom.h"
@@ -22,6 +21,10 @@
 #include "vehikelbauer.h"
 
 #include "../tpl/stringhashtable_tpl.h"
+#include "../vehicle/air_vehicle.h"
+#include "../vehicle/rail_vehicle.h"
+#include "../vehicle/road_vehicle.h"
+#include "../vehicle/water_vehicle.h"
 
 
 const char* vehicle_builder_t::engine_type_names[11] =
@@ -39,7 +42,7 @@ const char* vehicle_builder_t::engine_type_names[11] =
   "turbine"
 };
 
-static stringhashtable_tpl< vehicle_desc_t*> name_fahrzeuge;
+static stringhashtable_tpl< vehicle_desc_t*, N_BAGS_SMALL> name_fahrzeuge;
 
 // index 0 aur, 1...8 at normal waytype index
 #define GET_WAYTYPE_INDEX(wt) ((int)(wt)>8 ? 0 : (wt))
@@ -228,8 +231,6 @@ bool vehicle_builder_t::successfully_loaded()
 		}
 		delete [] tmp;
 	}
-
-
 	return true;
 }
 

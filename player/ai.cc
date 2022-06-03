@@ -29,7 +29,7 @@
 
 #include "../utils/cbuffer_t.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 
 
 /* The flesh for the place with road for headquarters searcher ... */
@@ -202,7 +202,7 @@ bool ai_t::find_place(koord &start, koord &size, koord target, koord off)
 {
 	// distance of last found point
 	int dist=0x7FFFFFFF;
-	koord	platz;
+	koord platz;
 	int const cov = welt->get_settings().get_station_coverage_factories() - 1;
 	int xpos = start.x;
 	int ypos = start.y;
@@ -337,7 +337,7 @@ void ai_t::set_marker( koord place, koord size )
 bool ai_t::built_update_headquarter()
 {
 	// find next level
-	const building_desc_t* desc = hausbauer_t::get_headquarter(get_headquarters_level(), welt->get_timeline_year_month());
+	const building_desc_t* desc = hausbauer_t::get_headquarters(get_headquarters_level(), welt->get_timeline_year_month());
 	// is the a suitable one?
 	if(desc!=NULL) {
 		// cost is negative!
@@ -578,10 +578,11 @@ void ai_t::rdwr(loadsave_t *file)
 {
 	player_t::rdwr(file);
 
-	if(  file->get_version_int()<111001  ) {
+	if(  file->is_version_less(111, 1)  ) {
 		// do not know about ai_t
 		return;
 	}
+
 	file->rdwr_long( construction_speed );
 	file->rdwr_bool( road_transport );
 	file->rdwr_bool( rail_transport );

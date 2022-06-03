@@ -30,7 +30,7 @@ char const* network_receive_file( SOCKET const s, char const* const save_as, sin
 	// ok, we have a socket to connect
 	dr_remove(save_as);
 
-	DBG_MESSAGE("network_receive_file", "File size %li", length );
+	DBG_MESSAGE("network_receive_file", "File size %i", length );
 
 	if(length>0) {
 #ifndef NETTOOL // no display, no translator available
@@ -141,16 +141,22 @@ const char *network_gameinfo(const char *cp, gameinfo_t *gi)
 		sprintf( filename, "client%i-network.sve", nwgi->len );
 		err = network_receive_file( my_client_socket, filename, len );
 
-		// now into gameinfo
-		if(  fd.rd_open( filename )  ) {
-			gameinfo_t *pgi = new gameinfo_t( &fd );
-			*gi = *pgi;
-			delete pgi;
+		if (err == NULL) {
+			// now into gameinfo
+			const loadsave_t::file_status_t status = fd.rd_open( filename );
+
+			if(  status != loadsave_t::FILE_STATUS_OK  ) {
+				// some more insets, while things may have failed
+				err = (status == loadsave_t::FILE_STATUS_ERR_FUTURE_VERSION) ? "Server version too new" : "Server busy";
+			}
+			else if (fd.is_version_ex_less(EX_VERSION_MAJOR, EX_SAVE_MINOR)) {
+				err = "Server version too old";
+			}
+			else {
+				*gi = gameinfo_t( &fd );
+			}
+
 			fd.close();
-		}
-		else {
-			// some more insets, while things may have failed
-			err = fd.get_last_error() == loadsave_t::FILE_ERROR_FUTURE_VERSION ? "Server version too new" : "Server busy";
 		}
 		dr_remove( filename );
 end:

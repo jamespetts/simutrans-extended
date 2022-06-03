@@ -43,7 +43,7 @@ private:
 	* @author: jamespetts*/
 	way_constraints_of_way_t way_constraints;
 
-
+	bool is_tall;
 public:
 
 	bool is_overhead_line() const { return (waytype_t)own_wtyp == overheadlines_wt; }
@@ -196,6 +196,8 @@ public:
 	const way_constraints_of_way_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_way_t& value) { way_constraints = value; }
 
+	bool get_is_tall() const {return is_tall;}
+
 	void calc_checksum(checksum_t *chk) const
 	{
 		obj_desc_transport_infrastructure_t::calc_checksum(chk);
@@ -204,6 +206,7 @@ public:
 		//Extended values
 		chk->input(way_constraints.get_permissive());
 		chk->input(way_constraints.get_prohibitive());
+		chk->input(is_tall);
 	}
 };
 

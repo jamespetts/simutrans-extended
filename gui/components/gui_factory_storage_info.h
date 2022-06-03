@@ -18,6 +18,8 @@
 
 #include "../../simhalt.h"
 
+#include "../../utils/cbuffer_t.h"  // for industry chain reference(gui_goods_handled_factory_t)
+
 class fabrik_t;
 
 // A GUI component of the factory storage info
@@ -79,6 +81,24 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
+};
+
+// for industry chain reference
+class gui_goods_handled_factory_t : public gui_component_t
+{
+private:
+	bool show_consumer=false; // false=show producer
+	vector_tpl<const factory_desc_t*> factory_list;
+	void build_factory_list(const goods_desc_t *ware);
+	goods_desc_t item;
+	cbuffer_t buf;
+
+public:
+	gui_goods_handled_factory_t(const goods_desc_t *ware, bool yesno) { show_consumer = yesno; build_factory_list(ware); set_size(D_LABEL_SIZE); };
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
 #endif

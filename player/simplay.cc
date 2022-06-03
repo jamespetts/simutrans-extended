@@ -55,7 +55,7 @@
 #include "../utils/cbuffer_t.h"
 #include "../utils/simstring.h"
 
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/air_vehicle.h"
 
 #include "simplay.h"
 #include "finance.h"
@@ -274,7 +274,7 @@ void player_t::display_messages()
 
 	FOR(slist_tpl<income_message_t*>, const m, messages) {
 
-		const scr_coord scr_pos = vp->get_screen_coord(koord3d(m->pos,welt->lookup_hgt(m->pos)),koord(0,m->alter >> 4));
+		const scr_coord scr_pos = vp->get_screen_coord(koord3d(m->pos,welt->lookup_hgt(m->pos)),koord(0,m->alter >> 4)) + scr_coord((get_tile_raster_width()-display_calc_proportional_string_len_width(m->str, 0x7FFF))/2,0);
 
 		display_shadow_proportional_rgb( scr_pos.x, scr_pos.y, PLAYER_FLAG|color_idx_to_rgb(player_color_1+3), color_idx_to_rgb(COL_BLACK), m->str, true);
 		if(  m->pos.x < 3  ||  m->pos.y < 3  ) {
@@ -325,10 +325,10 @@ void player_t::set_player_color(uint8 col1, uint8 col2)
 		cbuffer_t message;
 		const char* player_name = welt->get_player(player_nr)->get_name();
 		message.printf(player_name);
-		welt->get_message()->add_message(message, koord::invalid, message_t::ai, player_color_1);
+		welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(player_color_1));
 		message.clear();
 		message.printf(translator::translate("has changed its colour scheme."));
-		welt->get_message()->add_message(message, koord::invalid, message_t::ai, col1);
+		welt->get_message()->add_message(message, koord::invalid, message_t::ai, color_idx_to_rgb(col1));
 	}
 	set_player_color_no_message(col1, col2);
 }
@@ -345,7 +345,7 @@ void player_t::step()
 {
 	/*
 	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen mEsen die Fahrpläne rgelmaessig pruefen
+	// die haltestellen mï¿½Esen die Fahrplï¿½ne rgelmaessig pruefen
 	uint8 i = (uint8)(welt->get_steps()+player_nr);
 	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
 	//while(iter.next()) {
@@ -563,7 +563,7 @@ void player_t::calc_assets()
 
 	// all vehicles stored in depot not part of a convoi
 	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
-		if(  depot->get_player_nr() == player_nr  ) {
+		if(  depot->get_owner_nr() == player_nr  ) {
 			FOR(slist_tpl<vehicle_t*>, const veh, depot->get_vehicle_list()) {
 				sint64 restwert = veh->calc_sale_value();
 				assets[TT_ALL] += restwert;
@@ -741,10 +741,11 @@ void player_t::complete_liquidation()
 								break;
 							case obj_t::gebaeude:
 								hausbauer_t::remove( this, (gebaeude_t *)obj, false );
+								gr = plan->get_boden_bei(b); // fundament has now been replaced by normal ground
 								break;
 							case obj_t::way:
 							{
-								weg_t *w = (weg_t *)obj;
+								weg_t *w=(weg_t *)obj;
 								bool mothball = false;
 								if (gr->ist_bruecke() || gr->ist_tunnel())
 								{
@@ -822,7 +823,7 @@ void player_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t sss( file, "spieler_t" );
 
-	if(file->get_version_int() < 112005) {
+	if(file->is_version_less(112, 5)) {
 		sint64 konto = finance->get_account_balance();
 		file->rdwr_longlong(konto);
 		finance->set_account_balance(konto);
@@ -832,13 +833,13 @@ void player_t::rdwr(loadsave_t *file)
 		finance->set_account_overdrawn( account_overdrawn );
 	}
 
-	if(file->get_version_int()<101000) {
+	if(file->is_version_less(101, 0)) {
 		// ignore steps
 		sint32 ldummy=0;
 		file->rdwr_long(ldummy);
 	}
 
-	if(file->get_version_int()<99009) {
+	if(file->is_version_less(99, 9)) {
 		sint32 farbe;
 		file->rdwr_long(farbe);
 		player_color_1 = (uint8)farbe*2;
@@ -850,10 +851,10 @@ void player_t::rdwr(loadsave_t *file)
 	}
 
 	sint32 halt_count=0;
-	if(file->get_version_int()<99008) {
+	if(file->is_version_less(99, 8)) {
 		file->rdwr_long(halt_count);
 	}
-	if(file->get_version_int()<=112002) {
+	if(file->is_version_less(112, 3)) {
 		sint32 haltcount = 0;
 		file->rdwr_long(haltcount);
 	}
@@ -864,16 +865,14 @@ void player_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(active);
 
 	// state is not saved anymore
-	if(file->get_version_int()<99014)
-	{
+	if(file->is_version_less(99, 14)) {
 		sint32 ldummy=0;
 		file->rdwr_long(ldummy);
 		file->rdwr_long(ldummy);
 	}
 
 	// the AI stuff is now saved directly by the different AI
-	if(  file->get_version_int()<101000)
-	{
+	if(  file->is_version_less(101, 0)) {
 		sint32 ldummy = -1;
 		file->rdwr_long(ldummy);
 		file->rdwr_long(ldummy);
@@ -896,7 +895,7 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	}
 
 	// headquarters stuff
-	if (file->get_version_int() < 86004)
+	if (file->is_version_less(86, 4))
 	{
 		headquarter_level = 0;
 		headquarter_pos = koord::invalid;
@@ -913,11 +912,11 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	}
 
 	// line management
-	if(file->get_version_int()>=88003) {
+	if(file->is_version_atleast(88, 3)) {
 		simlinemgmt.rdwr(file,this);
 	}
 
-	if(file->get_version_int()>102002 && file->get_extended_version() != 7) {
+	if(file->is_version_atleast(102, 3) && file->get_extended_version() != 7) {
 		// password hash
 		for(  int i=0;  i<20;  i++  ) {
 			file->rdwr_byte(pwd_hash[i]);
@@ -936,13 +935,11 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	}
 
 	// save the name too
-	if(file->get_version_int()>102003 && (file->get_extended_version() >= 9 || file->get_extended_version() == 0))
-	{
+	if(  file->is_version_atleast(102, 4) && (file->get_extended_version() >= 9 || file->get_extended_version() == 0)  ) {
 		file->rdwr_str( player_name_buf, lengthof(player_name_buf) );
 	}
 
-	if(file->get_version_int() >= 110007 && file->get_extended_version() >= 10)
-	{
+	if(  file->is_version_atleast(110, 7) && file->get_extended_version() >= 10  ) {
 		// Save the colour
 		file->rdwr_byte(player_color_1);
 		file->rdwr_byte(player_color_2);
@@ -957,7 +954,7 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	}
 
 	// save age
-	if(  file->get_version_int() >= 112002  && (file->get_extended_version() >= 11 || file->get_extended_version() == 0) ) {
+	if(  file->is_version_atleast(112, 2) && (file->get_extended_version() >= 11 || file->get_extended_version() == 0)  ) {
 		file->rdwr_short( player_age );
 	}
 
@@ -971,10 +968,8 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	}
 }
 
-/**
- * called after game is fully loaded;
- */
-void player_t::load_finished()
+
+void player_t::finish_rd()
 {
 	simlinemgmt.finish_rd();
 	display_set_player_color_scheme( player_nr, player_color_1, player_color_2 );
@@ -996,8 +991,8 @@ void player_t::rotate90( const sint16 y_size )
 
 void player_t::report_vehicle_problem(convoihandle_t cnv,const koord3d position)
 {
-	switch(cnv->get_state())
-	{
+	switch(cnv->get_state()) {
+
 		case convoi_t::NO_ROUTE_TOO_COMPLEX:
 		DBG_MESSAGE("player_t::report_vehicle_problem", "Vehicle %s can't find a route to (%i,%i) because the route is too long/complex", cnv->get_name(), position.x, position.y);
 			if (this == welt->get_active_player()) {
@@ -1139,19 +1134,18 @@ sint64 player_t::undo()
 					// special case airplane
 					// they can be everywhere, so we allow for everything but runway undo
 					case obj_t::air_vehicle: {
-							if(undo_type!=air_wt) {
-								break;
-							}
-							const air_vehicle_t* aircraft = obj_cast<air_vehicle_t>(gr->obj_bei(i));
-							// flying aircrafts are ok
-							if(!aircraft->is_on_ground()) {
-								break;
-							}
+						if(undo_type!=air_wt) {
+							break;
 						}
-						/* FALLTHROUGH */
-
+						const air_vehicle_t* aircraft = obj_cast<air_vehicle_t>(gr->obj_bei(i));
+						// flying aircrafts are ok
+						if(!aircraft->is_on_ground()) {
+							break;
+						}
+					}
+					/* FALLTHROUGH */
+					// all other are forbidden => no undo any more
 					default:
-						// all other are forbidden => no undo any more
 						last_built.clear();
 						return false;
 				}
@@ -1164,13 +1158,11 @@ sint64 player_t::undo()
 	FOR(vector_tpl<koord3d>, const& i, last_built) {
 		grund_t* const gr = welt->lookup(i);
 		if(  undo_type != powerline_wt  ) {
-			cost += gr->weg_entfernen(undo_type, true);
+			cost += gr->weg_entfernen(undo_type,true);
 			cost -= welt->get_land_value(gr->get_pos());
 		}
 		else {
-			leitung_t* lt = gr->get_leitung();
-			if (lt)
-			{
+			if (leitung_t* lt = gr->get_leitung()) {
 				cost += lt->get_desc()->get_value();
 				lt->cleanup(NULL);
 				delete lt;
@@ -1258,19 +1250,24 @@ void player_t::set_selected_signalbox(signalbox_t* sb)
 sint64 player_t::calc_takeover_cost() const
 {
 	sint64 cost = 0;
-	const bool do_not_adopt_liabilities = check_solvency() == player_t::in_liquidation;
-	if (!do_not_adopt_liabilities)
-	{
-		if (finance->get_account_balance() < 0)
-		{
-			cost -= finance->get_account_balance();
-		}
 
-		// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
+	const bool adopt_liabilities = check_solvency() != player_t::in_liquidation;
+	if(adopt_liabilities){
+		// Refund the free starting capital on company takeover.
+		// This represents a situation in which the starting capital is a non-interest-bearing available to each company only exactly once.
+		// Do not add this cost when the company is in liquidation as discussed in the forums, although this re-enables a free-money-generator exploit.
+		// TODO: Reconsider this whenever a more sophisticated loan system is implemented.
+		cost += welt->get_settings().get_starting_money(welt->get_last_year());
 	}
 
+	if (adopt_liabilities || finance->get_account_balance() > 0) {
+		cost -= finance->get_account_balance();
+	}
+	// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
+
+
 	// TODO: Consider a more sophisticated system here; but where can we get the data for this?
-	cost -= finance->get_netwealth();
+	cost += finance->get_financial_assets();
 	return cost;
 }
 
@@ -1292,8 +1289,8 @@ const char* player_t::can_take_over(player_t* target_player)
 void player_t::take_over(player_t* target_player)
 {
 	// Pay for the takeover
-	finance->book_account(target_player->calc_takeover_cost());
-
+	finance->book_account(-target_player->calc_takeover_cost());
+/*
 	if (check_solvency() != player_t::in_liquidation)
 	{
 		// Take the player's account balance, whether negative or not.
@@ -1301,7 +1298,7 @@ void player_t::take_over(player_t* target_player)
 
 		// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
 	}
-
+*/
 	// Transfer maintenance costs
 	for (uint32 i = 0; i < transport_type::TT_MAX; i++)
 	{

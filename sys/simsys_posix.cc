@@ -90,17 +90,13 @@ void dr_textur(int, int, int, int)
 {
 }
 
-void move_pointer(int, int)
+bool move_pointer(int, int)
 {
+	return false;
 }
 
 void set_pointer(int)
 {
-}
-
-int dr_screenshot(const char *,int,int,int,int)
-{
-	return -1;
 }
 
 void GetEvents()
@@ -111,14 +107,6 @@ void GetEvents()
 	}
 }
 
-
-void GetEventsNoWait()
-{
-	if(  sigterm_received  ) {
-		sys_event.type = SIM_SYSTEM;
-		sys_event.code = SYSTEM_QUIT;
-	}
-}
 
 void show_pointer(int)
 {
@@ -181,8 +169,14 @@ void dr_notify_input_pos(int, int)
 
 static void posix_sigterm(int)
 {
-	DBG_MESSAGE("Received SIGTERM, exiting...");
+	DBG_MESSAGE("posix_sigterm", "Received SIGTERM, exiting...");
 	sigterm_received = 1;
+}
+
+
+const char* dr_get_locale()
+{
+	return "";
 }
 
 

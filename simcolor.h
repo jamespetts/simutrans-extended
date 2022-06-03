@@ -20,7 +20,7 @@
 
 // pixels stored in system type (uint16)
 typedef unsigned short PIXVAL;
-// PIXVAL with above flas (eg. ransparent) (uint32)
+// PIXVAL with above flags (eg. transparent) (uint32)
 typedef unsigned int FLAGGED_PIXVAL;
 
 // Menu colours (they don't change between day and night)
@@ -37,7 +37,7 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_RED             131
 #define COL_DARK_RED        128
 #define COL_LIGHT_RED       134
-#define COL_YELLOW          171
+#define COL_YELLOW          173
 #define COL_DARK_YELLOW     168
 #define COL_LIGHT_YELLOW    175
 #define COL_LEMON_YELLOW    31
@@ -52,7 +52,7 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_DARK_GREEN      136
 #define COL_LIGHT_GREEN     143
 #define COL_APRICOT         95
-#define COL_ORANGE          155
+#define COL_ORANGE          156
 #define COL_DARK_ORANGE     153
 #define COL_LIGHT_ORANGE    158
 #define COL_BRIGHT_ORANGE   133
@@ -70,7 +70,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_LIGHT_BROWN     191
 #define COL_BROWN           189
 #define COL_DARK_BROWN      178
-#define COL_TRAFFIC         110
+#define COL_TRAFFIC         COL_LIGHT_ORANGE
+#define COL_WALKED          139
 #define COL_DARK_SLATEBLUE  219
 
 // message colors
@@ -121,7 +122,7 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_TOLL            COL_ORCHID
 #define COL_POWERLINES      46
 #define COL_CASH_FLOW       102
-#define COL_NEW_VEHICLES    COL_LIGHT_PURPLE
+#define COL_NEW_VEHICLES    COL_ORANGE
 #define COL_CONSTRUCTION    110
 #define COL_PROFIT          COL_HORIZON_BLUE
 #define COL_TRANSPORTED     COL_YELLOW
@@ -161,6 +162,7 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TEXT_SHADOW                  gui_theme_t::gui_color_text_shadow
 #define SYSCOL_TEXT_TITLE                   gui_theme_t::gui_color_text_title
 #define SYSCOL_TEXT_STRONG                  gui_theme_t::gui_color_text_strong
+#define SYSCOL_TEXT_WEAK                    gui_theme_t::gui_color_text_weak
 #define SYSCOL_TEXT_INACTIVE                gui_theme_t::gui_color_text_inactive
 #define SYSCOL_TEXT_PLACEHOLDER             gui_theme_t::gui_color_text_placeholder
 #define MONEY_MINUS                         gui_theme_t::gui_color_text_minus
@@ -210,5 +212,15 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_NO_ROUTE        COL_RED
 #define COL_MAIL_DELIVERED  COL_DARK_GREEN+1
 #define COL_MAIL_NOROUTE    COL_BRIGHT_ORANGE
+// passenger destination mapping
+// Note the relation to the base color of the map - The land is dark green, the station is red, the tracks are dark red, the river is blue.
+#define MAP_COL_HAPPY       COL_GREEN
+#define MAP_COL_TOO_SLOW    170
+#define MAP_COL_TOO_SLOW_USE_PRIVATECAR COL_TOO_SLOW
+#define MAP_COL_PRIVATECAR  COL_TRAFFIC
+#define MAP_COL_WALKED      52
+#define MAP_COL_OVERCROWDED COL_PURPLE
+#define MAP_COL_NOROUTE     COL_RED+3
+#define MAP_COL_UNAVAILABLE COL_DARK_RED
 
 #endif

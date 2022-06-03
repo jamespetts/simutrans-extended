@@ -9,9 +9,9 @@
 
 #include "../simtypes.h"
 #include "../display/simimg.h"
-#include "../simobj.h"
 #include "../simworld.h"
 #include "../boden/grund.h"
+#include "simobj.h"
 #include "../dataobj/ribi.h"
 #include "../descriptor/way_obj_desc.h"
 #include "../tpl/stringhashtable_tpl.h"
@@ -101,7 +101,7 @@ public:
 
 	/* the static routines */
 private:
-	static stringhashtable_tpl<way_obj_desc_t *> table;
+	static stringhashtable_tpl<way_obj_desc_t *, N_BAGS_MEDIUM> table;
 
 public:
 	static const way_obj_desc_t *default_oberleitung;
@@ -113,7 +113,7 @@ public:
 	static bool successfully_loaded();
 
 	// search an object (currently only used by AI for catenary)
-	static const way_obj_desc_t *get_overhead_line(waytype_t wt,uint16 time);
+	static const way_obj_desc_t *get_overhead_line(waytype_t wt, uint16 time);
 
 	static const way_obj_desc_t *find_desc(const char *);
 
@@ -122,7 +122,7 @@ public:
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 sound_ok);
 
-	static stringhashtable_tpl<way_obj_desc_t *>* get_all_wayobjects() { return &table; }
+	static stringhashtable_tpl<way_obj_desc_t *, N_BAGS_MEDIUM>* get_all_wayobjects() { return &table; }
 };
 
 #endif

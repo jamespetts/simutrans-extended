@@ -10,7 +10,7 @@
 #include "../dataobj/environment.h"
 #include "../dataobj/translator.h"
 #include "../player/finance.h" // MAX_PLAYER_HISTORY_YEARS
-#include "../vehicle/simvehicle.h"
+#include "../vehicle/vehicle.h"
 #include "../path_explorer.h"
 #include "settings_stats.h"
 #include "components/gui_divider.h"
@@ -77,7 +77,8 @@ static const char *version_ex[] =
 	".14",
 	".15",
 	".16",
-	".17"
+	".17",
+	".18"
 };
 
 static const char *revision_ex[] =
@@ -113,7 +114,29 @@ static const char *revision_ex[] =
 	"28",
 	"29",
 	"30",
-	"31"
+	"31",
+	"32",
+	"33",
+	"34",
+	"35",
+	"36",
+	"37",
+	"38",
+	"39",
+	"40",
+	"41",
+	"42",
+	"43",
+	"44",
+	"45",
+	"46",
+	"47",
+	"48",
+	"49",
+	"50",
+	"51",
+	"52",
+	"53"
 };
 
 
@@ -153,7 +176,8 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_NUM( "congestion_density_factor", sets->get_congestion_density_factor(), 0, 1024, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_BOOL( "quick_city_growth", sets->get_quick_city_growth());
 	INIT_BOOL( "assume_everywhere_connected_by_road", sets->get_assume_everywhere_connected_by_road());
-	INIT_NUM( "max_route_tiles_to_process_in_a_step", sets->get_max_route_tiles_to_process_in_a_step(), 0, 65535, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM( "max_route_tiles_to_process_in_a_step", sets->get_max_route_tiles_to_process_in_a_step(), 0, 262140, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM( "max_route_tiles_to_process_in_a_step_paused_background", sets->get_max_route_tiles_to_process_in_a_step_paused_background(), 0, 262140, gui_numberinput_t::AUTOLINEAR, false)
 	INIT_BOOL("toll_free_public_roads", sets->get_toll_free_public_roads());
 	INIT_NUM( "spacing_shift_mode", sets->get_spacing_shift_mode(), 0, 2 , gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM( "spacing_shift_divisor", sets->get_spacing_shift_divisor(), 1, 32767 , gui_numberinput_t::AUTOLINEAR, false );
@@ -223,11 +247,23 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 
 	SEPERATOR;
 
+	INIT_BOOL("pause_server_no_clients", env_t::pause_server_no_clients);
+	INIT_BOOL("server_runs_background_tasks_when_paused", env_t::server_runs_background_tasks_when_paused);
+
+	SEPERATOR;
+
 	INIT_BOOL("show_future_vehicle_information", sets->get_show_future_vehicle_info());
 
 	SEPERATOR;
 
 	INIT_NUM("industry_density_proportion_override", sets->get_industry_density_proportion_override(), 0, 65535, gui_numberinput_t::AUTOLINEAR, false);
+
+	SEPERATOR;
+
+	INIT_NUM("do_not_record_private_car_routes_to_city_attractions", sets->get_do_not_record_private_car_routes_to_city_attractions(), 0, 65535, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("do_not_record_private_car_routes_to_city_industries", sets->get_do_not_record_private_car_routes_to_city_industries(), 0, 65535, gui_numberinput_t::PLAIN, false);
+	INIT_BOOL("do_not_record_private_car_routes_to_distant_non_consumer_industries ", sets->get_do_not_record_private_car_routes_to_distant_non_consumer_industries());
+	INIT_BOOL("do_not_record_private_car_routes_to_city_buildings", sets->get_do_not_record_private_car_routes_to_city_buildings());
 
 	INIT_END
 }
@@ -253,6 +289,7 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_BOOL( sets->set_quick_city_growth );
 	READ_BOOL( sets->set_assume_everywhere_connected_by_road );
 	READ_NUM( sets->set_max_route_tiles_to_process_in_a_step );
+	READ_NUM( sets->set_max_route_tiles_to_process_in_a_step_paused_background );
 	READ_BOOL_VALUE(sets->toll_free_public_roads);
 	READ_NUM( sets->set_spacing_shift_mode );
 	READ_NUM( sets->set_spacing_shift_divisor);
@@ -328,9 +365,17 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->path_explorer_time_midpoint);
 	READ_BOOL_VALUE(sets->save_path_explorer_data);
 
+	READ_BOOL_VALUE(env_t::pause_server_no_clients);
+	READ_BOOL_VALUE(env_t::server_runs_background_tasks_when_paused);
+
 	READ_BOOL_VALUE(sets->show_future_vehicle_info);
 
 	READ_NUM_VALUE(sets->industry_density_proportion_override);
+
+	READ_NUM_VALUE(sets->private_car_route_to_attraction_visitor_demand_threshold);
+	READ_NUM_VALUE(sets->private_car_route_to_industry_visitor_demand_threshold);
+	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_distant_non_consumer_industries);
+	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_city_buildings);
 
 	path_explorer_t::set_absolute_limits_external();
 }
@@ -538,20 +583,15 @@ void settings_general_stats_t::init(settings_t const* const sets)
 	INIT_NUM( "fast_forward", env_t::max_acceleration, 1, 1000, gui_numberinput_t::AUTOLINEAR, false );
 	SEPERATOR
 	INIT_BOOL( "numbered_stations", sets->get_numbered_stations() );
-	INIT_NUM( "show_names", env_t::show_names, 0, 7, gui_numberinput_t::AUTOLINEAR, true );
 	SEPERATOR
 	INIT_NUM( "bits_per_month", sets->get_bits_per_month(), 16, 48, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM( "use_timeline", sets->get_use_timeline(), 0, 3, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "starting_year", sets->get_starting_year(), 0, 2999, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "starting_month", sets->get_starting_month(), 0, 11, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "show_month", env_t::show_month, 0, 9, gui_numberinput_t::AUTOLINEAR, true );
 	SEPERATOR
 	INIT_NUM( "random_grounds_probability", env_t::ground_object_probability, 0, 0x7FFFFFFFul, gui_numberinput_t::POWER2, false );
 	INIT_NUM( "random_wildlife_probability", env_t::moving_object_probability, 0, 0x7FFFFFFFul, gui_numberinput_t::POWER2, false );
 	SEPERATOR
-	INIT_BOOL( "pedes_and_car_info", env_t::road_user_info );
-	INIT_BOOL( "tree_info", env_t::tree_info );
-	INIT_BOOL( "ground_info", env_t::ground_info );
 	INIT_BOOL( "townhall_info", env_t::townhall_info );
 	INIT_BOOL( "only_single_info", env_t::single_info );
 	SEPERATOR
@@ -631,20 +671,15 @@ void settings_general_stats_t::read(settings_t* const sets)
 	READ_NUM_VALUE( env_t::max_acceleration );
 
 	READ_BOOL_VALUE( sets->numbered_stations );
-	READ_NUM_VALUE( env_t::show_names );
 
 	READ_NUM_VALUE( sets->bits_per_month );
 	READ_NUM_VALUE( sets->use_timeline );
 	READ_NUM_VALUE_NEW( sets->starting_year );
 	READ_NUM_VALUE_NEW( sets->starting_month );
-	READ_NUM_VALUE( env_t::show_month );
 
 	READ_NUM_VALUE( env_t::ground_object_probability );
 	READ_NUM_VALUE( env_t::moving_object_probability );
 
-	READ_BOOL_VALUE( env_t::road_user_info );
-	READ_BOOL_VALUE( env_t::tree_info );
-	READ_BOOL_VALUE( env_t::ground_info );
 	READ_BOOL_VALUE( env_t::townhall_info );
 	READ_BOOL_VALUE( env_t::single_info );
 
@@ -675,7 +710,6 @@ void settings_display_stats_t::init(settings_t const* const)
 	INIT_NUM( "simple_drawing_tile_size",env_t::simple_drawing_default, 2, 256, gui_numberinput_t::POWER2, false );
 	INIT_BOOL( "simple_drawing_fast_forward",env_t::simple_drawing_fast_forward );
 	INIT_NUM( "water_animation_ms", env_t::water_animation, 0, 1000, 25, false );
-	INIT_NUM( "follow_convoi_underground", env_t::follow_convoi_underground, 0, 2, 1, true );
 	SEPERATOR
 	INIT_BOOL( "window_buttons_right", env_t::window_buttons_right );
 	INIT_BOOL( "window_frame_active", env_t::window_frame_active );
@@ -685,13 +719,12 @@ void settings_display_stats_t::init(settings_t const* const)
 	INIT_NUM( "bottom_window_darkness", env_t::bottom_window_darkness, 0, 100, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
 	INIT_BOOL( "show_tooltips", env_t::show_tooltips );
-	INIT_NUM( "tooltip_background_color", env_t::tooltip_color, 0, 16777215, 1, 0 );
-	INIT_NUM( "tooltip_text_color", env_t::tooltip_textcolor, 0, 16777215, 1, 0 );
+	INIT_NUM( "tooltip_background_color", env_t::tooltip_color_rgb, 0, 16777215, 1, 0 );
+	INIT_NUM( "tooltip_text_color", env_t::tooltip_textcolor_rgb, 0, 16777215, 1, 0 );
 	INIT_NUM( "tooltip_delay", env_t::tooltip_delay, 0, 10000, gui_numberinput_t::AUTOLINEAR, 0 );
 	INIT_NUM( "tooltip_duration", env_t::tooltip_duration, 0, 30000, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
 	INIT_NUM( "cursor_overlay_color", env_t::cursor_overlay_color_rgb, 0, 16777215, gui_numberinput_t::AUTOLINEAR, 0 );
-	INIT_BOOL( "left_to_right_graphs", env_t::left_to_right_graphs );
 	SEPERATOR
 	INIT_BOOL( "player_finance_display_account", env_t::player_finance_display_account );
 
@@ -707,7 +740,6 @@ void settings_display_stats_t::read(settings_t* const)
 	READ_NUM_VALUE( env_t::simple_drawing_default );
 	READ_BOOL_VALUE( env_t::simple_drawing_fast_forward );
 	READ_NUM_VALUE( env_t::water_animation );
-	READ_NUM_VALUE( env_t::follow_convoi_underground );
 
 	READ_BOOL_VALUE( env_t::window_buttons_right );
 	READ_BOOL_VALUE( env_t::window_frame_active );
@@ -723,7 +755,6 @@ void settings_display_stats_t::read(settings_t* const)
 	READ_NUM_VALUE( env_t::tooltip_duration );
 
 	READ_NUM_VALUE( env_t::cursor_overlay_color_rgb );
-	READ_BOOL_VALUE( env_t::left_to_right_graphs );
 
 	READ_BOOL_VALUE( env_t::player_finance_display_account );
 }
@@ -905,6 +936,7 @@ void settings_costs_stats_t::init(settings_t const* const sets)
 	INIT_COST( "cost_depot_ship", -sets->cst_depot_ship, 1, 100000000, 10, false );
 	INIT_COST( "cost_buy_land", -sets->cst_buy_land, 0, 100000000, 10, false );
 	INIT_COST( "cost_alter_land", -sets->cst_alter_land, 1, 100000000, 10, false );
+	INIT_COST( "cost_reclaim_land", -sets->cst_reclaim_land, 1, 100000000, 10, false);
 	INIT_COST( "cost_set_slope", -sets->cst_set_slope, 1, 100000000, 10, false );
 	INIT_COST( "cost_alter_climate", -sets->cst_alter_climate, 1, 100000000, 10, false );
 	INIT_COST( "cost_found_city", -sets->cst_found_city, 1, 100000000, 10, false );
@@ -936,6 +968,7 @@ void settings_costs_stats_t::read(settings_t* const sets)
 	READ_COST_VALUE( sets->cst_depot_ship )*(-1);
 	READ_COST_VALUE( sets->cst_buy_land )*(-1);
 	READ_COST_VALUE( sets->cst_alter_land )*(-1);
+	READ_COST_VALUE(sets->cst_reclaim_land)* (-1);
 	READ_COST_VALUE( sets->cst_set_slope )*(-1);
 	READ_COST_VALUE( sets->cst_alter_climate )*(-1);
 	READ_COST_VALUE( sets->cst_found_city )*(-1);
@@ -985,7 +1018,7 @@ void settings_climates_stats_t::init(settings_t* const sets)
 	buf.printf( "%s %i", translator::translate( "Summer snowline" ), arctic );
 	SEPERATOR
 	INIT_BOOL( "lake", sets->get_lake() );
-	INIT_NUM_NEW( "Number of rivers", sets->get_river_number(), 0, 1024, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM_NEW( "Number of rivers", sets->get_river_number(), 0, 4096, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "minimum length of rivers", sets->get_min_river_length(), 0, max(16,sets->get_max_river_length())-16, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "maximum length of rivers", sets->get_max_river_length(), sets->get_min_river_length()+16, 8196, gui_numberinput_t::AUTOLINEAR, false );
 	// add listener to all of them

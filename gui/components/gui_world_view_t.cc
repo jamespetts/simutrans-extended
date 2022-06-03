@@ -8,16 +8,20 @@
 #include "gui_world_view_t.h"
 #include "../../simworld.h"
 #include "../../display/viewport.h"
-#include "../../simobj.h"
+#include "../../obj/simobj.h"
+#include "../../obj/zeiger.h"
 #include "../../display/simgraph.h"
 #include "../../simcolor.h"
-#include "../../vehicle/simvehicle.h"
 #include "../../boden/grund.h"
 
 #include "../../dataobj/environment.h"
 #include "../../dataobj/koord3d.h"
 
+#include "../../vehicle/air_vehicle.h"
+
+
 vector_tpl<world_view_t *> world_view_t::view_list;
+
 
 void world_view_t::invalidate_all()
 {
@@ -63,9 +67,11 @@ bool world_view_t::infowin_event(const event_t* ev)
 		koord3d const& pos = get_location();
 		if (welt->is_within_limits(pos.get_2d())) {
 			welt->get_viewport()->change_world_position(pos);
+			welt->get_zeiger()->change_pos( pos );
 		}
+		return true;
 	}
-	return true;
+	return false;
 }
 
 

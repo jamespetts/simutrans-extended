@@ -8,7 +8,7 @@
 
 
 #include "../ifc/sync_steppable.h"
-#include "../simobj.h"
+#include "simobj.h"
 #include "../simcolor.h"
 #include "../tpl/minivec_tpl.h"
 #include "../simworld.h"
@@ -230,8 +230,6 @@ public:
 	/// @copydoc obj_t::info
 	void info(cbuffer_t & buf) const OVERRIDE;
 
-	void get_class_percentage(cbuffer_t & buf) const;
-
 	void rdwr(loadsave_t *file) OVERRIDE;
 
 	void display_coverage_radius(bool display);
@@ -307,7 +305,7 @@ public:
 
 	bool get_is_factory() const { return is_factory; }
 
-        sint32 get_purchase_time() const { return purchase_time; }
+	sint32 get_purchase_time() const { return purchase_time; }
 
 	/**
 	* Call this method when commuting passengers are sent to this building.

@@ -31,7 +31,7 @@ public:
 	del_button_t() : button_t()
 	{
 		init(button_t::roundbox, "X");
-		w = max(D_BUTTON_HEIGHT, display_get_char_width('X') + gui_theme_t::gui_button_text_offset.w + gui_theme_t::gui_button_text_offset_right.x);
+		w = max(D_BUTTON_HEIGHT, display_get_char_width('X') + D_BUTTON_PADDINGS_X);
 	}
 	scr_size get_min_size() const OVERRIDE
 	{
@@ -77,7 +77,6 @@ savegame_frame_t::savegame_frame_t(const char *suffix, bool only_directories, co
 	// Needs to be scrollable, size is adjusted in set_windowsize()
 	scrolly.set_scroll_amount_y(D_BUTTON_HEIGHT + D_FOCUS_OFFSET_V);
 	scrolly.set_size_corner(false);
-	scrolly.set_scrollbar_mode( scrollbar_t::show_auto );
 	add_component(&scrolly);
 	scrolly.set_maximize(true);
 
@@ -284,7 +283,6 @@ void savegame_frame_t::list_filled( void )
 {
 	uint cols = (delete_enabled ? 1 : 0) + 1 + (label_enabled ? 1 : 0);
 	button_frame.set_table_layout(1,0);
-	button_frame.add_table(cols,0);
 	button_frame.add_table(cols,0)->set_spacing(scr_size(D_H_SPACE,D_FILELIST_V_SPACE)); // change space between entries to zero to see more on screen
 
 	FOR(slist_tpl<dir_entry_t>, const& i, entries) {
@@ -547,6 +545,8 @@ bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t
 									}
 								}
 								break;
+							default:
+								break;
 						}
 					}
 					else {
@@ -783,9 +783,6 @@ void gui_file_table_t::paint_cell(const scr_coord& offset, coordinate_t x, coord
  * letter is present it is translated to upper case
  *
  * @param path  A pointer to the path string. This string is modified.
- *
- * @return      The function is not returning anything per say, but the
- *              contents of the path parameter has been modified on return.
  */
 void savegame_frame_t::cleanup_path(char *path)
 {

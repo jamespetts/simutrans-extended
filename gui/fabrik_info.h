@@ -7,8 +7,9 @@
 #define GUI_FABRIK_INFO_H
 
 
-#include "../gui/simwin.h"
+#include "simwin.h"
 
+#include "building_info.h"
 #include "factory_chart.h"
 #include "components/action_listener.h"
 #include "components/gui_scrollpane.h"
@@ -28,8 +29,6 @@ class button_t;
 
 /**
  * info on city demand
-
- * @author
  */
 class gui_fabrik_info_t : public gui_container_t
 {
@@ -78,7 +77,8 @@ private:
 
 	gui_factory_storage_info_t storage;
 
-	gui_container_t container_info, container_details;
+	gui_container_t container_info;
+	gui_building_stats_t container_details;
 	gui_scrollpane_t scrolly_info, scrolly_details;
 	gui_factory_connection_stat_t all_suppliers, all_consumers;
 	gui_label_t lb_suppliers, lb_consumers, lb_nearby_halts;
@@ -96,19 +96,19 @@ public:
 	// refreshes all text and location pointers
 	void update_info();
 
-	fabrik_info_t(fabrik_t* fab, const gebaeude_t* gb);
+	fabrik_info_t(fabrik_t* fab = NULL, const gebaeude_t* gb = NULL);
 
 	virtual ~fabrik_info_t();
 
 	void init(fabrik_t* fab, const gebaeude_t* gb);
+
+	fabrik_t* get_factory() { return fab; }
 
 	/**
 	 * Set the window associated helptext
 	 * @return the filename for the helptext, or NULL
 	 */
 	const char *get_help_filename() const OVERRIDE {return "industry_info.txt";}
-
-	bool has_min_sizer() const OVERRIDE {return true;}
 
 	koord3d get_weltpos(bool) OVERRIDE { return fab->get_pos(); }
 
@@ -129,9 +129,6 @@ public:
 
 	// rotated map need new info ...
 	void map_rotate90( sint16 ) OVERRIDE;
-
-	// this constructor is only used during loading
-	fabrik_info_t();
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 

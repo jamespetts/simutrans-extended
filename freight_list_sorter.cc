@@ -537,9 +537,8 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 				for (int i = j; i < pos; i++)
 				{
 					ware_t const& sumware = wlist[i];
-					if (last_goods_index != sumware.get_index() && last_ware_catg != sumware.get_catg())
-					{
-						break;	// next category reached ...
+					if(  last_goods_index != sumware.get_index() && last_ware_catg != sumware.get_catg()  ) {
+						break; // next category reached ...
 					}
 					sum += sumware.menge;
 				}
@@ -596,20 +595,17 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 
 			// Classes preparations.
 			// Only show the wealth if we are not already sorting by wealth
-			char g_class_untranslated[32] = "\0";
 			char g_class_text[32] = "\0";
 			if (!sorting_by_wealth)
 			{
 				if (ware.is_passenger())
 				{
-					sprintf(g_class_untranslated, "p_class[%u]", ware.get_class());
+					sprintf(g_class_text, "%s", goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_PAS, ware.get_class()));
 				}
 				if (ware.is_mail())
 				{
-					sprintf(g_class_untranslated, "m_class[%u]", ware.get_class());
+					sprintf(g_class_text, "%s", goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_MAIL, ware.get_class()));
 				}
-				sprintf(g_class_text, "%s", translator::translate(g_class_untranslated));
-
 			}
 			// detail amount
 			goods_desc_t const& desc = *ware.get_desc();

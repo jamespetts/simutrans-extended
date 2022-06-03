@@ -7,7 +7,7 @@
 #define OBJ_TUNNEL_H
 
 
-#include "../simobj.h"
+#include "simobj.h"
 #include "../display/simimg.h"
 
 class tunnel_desc_t;
@@ -41,7 +41,7 @@ public:
 	 * Called whenever the season or snowline height changes
 	 * return false and the obj_t will be deleted
 	 */
-	bool check_season(const bool calc_only_season_change) OVERRIDE { if(  !calc_only_season_change  ) { calc_image(); } return true; };  // depends on snowline only
+	bool check_season(const bool calc_only_season_change) OVERRIDE { if(  !calc_only_season_change  ) { calc_image(); } return true; }  // depends on snowline only
 
 	void set_image( image_id b );
 	void set_after_image( image_id b );
@@ -58,12 +58,15 @@ public:
 
 	void cleanup(player_t *player) OVERRIDE;
 
-	uint8 get_broad_type() const { return broad_type; };
+
+	uint8 get_broad_type() const { return broad_type; }
 
 	/**
 	 * @return NULL when OK, otherwise an error message
 	 */
 	const char *is_deletable(const player_t *player) OVERRIDE;
+
+	bool get_is_half_height() const;
 };
 
 #endif

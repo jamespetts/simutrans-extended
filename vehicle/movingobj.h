@@ -13,7 +13,7 @@
 #include "../simcolor.h"
 #include "../ifc/sync_steppable.h"
 
-#include "simvehicle.h"
+#include "vehicle.h"
 
 
 /**
@@ -34,7 +34,7 @@ private:
 	koord3d pos_next_next;
 
 	/// static table to find desc by name
-	static stringhashtable_tpl<groundobj_desc_t *> desc_names;
+	static stringhashtable_tpl<groundobj_desc_t *, N_BAGS_MEDIUM> desc_names;
 
 	/// static vector for fast lookup of desc
 	static vector_tpl<const groundobj_desc_t *> movingobj_typen;
@@ -61,7 +61,7 @@ public:
 	virtual bool can_enter_tile() { return 1; }
 	grund_t* hop_check() OVERRIDE;
 	void hop(grund_t* gr) OVERRIDE;
-	virtual void update_bookkeeping(uint32) {};
+	virtual void update_bookkeeping(uint32) OVERRIDE {};
 
 	waytype_t get_waytype() const OVERRIDE { return get_desc()->get_waytype(); }
 
@@ -77,8 +77,6 @@ public:
 	bool check_season(const bool) OVERRIDE;
 
 	void show_info() OVERRIDE;
-
-	void info(cbuffer_t & buf) const OVERRIDE;
 
 	void cleanup(player_t *player) OVERRIDE;
 

@@ -15,16 +15,15 @@ const scr_coord scr_coord::invalid(-1, -1);
 const scr_size scr_size::invalid(-1, -1);
 const scr_size scr_size::inf(0x7fffffff, 0x7fffffff);
 
-
 const koord koord::invalid(-1, -1);
-const koord  koord::north(    0, -1);
+const koord koord::north(    0, -1);
 const koord koord::east(     1,  0);
 const koord koord::south(    0,  1);
 const koord koord::west(   -1,  0);
-const koord koord::nsew[] = {
+const koord koord::nesw[] = {
 	koord( 0, -1),
-	koord( 0,  1),
 	koord( 1,  0),
+	koord( 0,  1),
 	koord(-1,  0)
 };
 
@@ -61,20 +60,20 @@ const koord koord::neighbours[] = {
 
 const koord koord::from_ribi[] = {
 	koord( 0,  0), // none
-	koord( 0, -1), // north				(1)
-	koord( 1,  0), // east				(2)
-	koord( 1, -1), // north-east		(3)
-	koord( 0,  1), // south				(4)
-	koord( 0,  0), // north-south		(5
-	koord( 1,  1), // south-east		(6)
-	koord( 1,  0), // north-south-east	(7)
-	koord(-1,  0), // west				(8)
-	koord(-1, -1), // north-west		(9)
-	koord( 0,  0), // east-west			(10)
-	koord( 0, -1), // north-east-west	(11)
-	koord(-1,  1), // south-west		(12)
-	koord(-1,  0), // north-south-west	(13)
-	koord( 0,  1), // south-east-west	(14)
+	koord( 0, -1), // north             (1)
+	koord( 1,  0), // east              (2)
+	koord( 1, -1), // north-east        (3)
+	koord( 0,  1), // south             (4)
+	koord( 0,  0), // north-south       (5)
+	koord( 1,  1), // south-east        (6)
+	koord( 1,  0), // north-south-east  (7)
+	koord(-1,  0), // west              (8)
+	koord(-1, -1), // north-west        (9)
+	koord( 0,  0), // east-west         (10)
+	koord( 0, -1), // north-east-west   (11)
+	koord(-1,  1), // south-west        (12)
+	koord(-1,  0), // north-south-west  (13)
+	koord( 0,  1), // south-east-west   (14)
 	koord( 0,  0)  // all
 };
 

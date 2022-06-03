@@ -22,8 +22,7 @@ extern int __argc;
 extern char **__argv;
 #endif
 
-//#include "simsys_w32_png.h"
-//#include "simsys.h"
+#include "simsys.h"
 
 #include "../macros.h"
 #include "../simconst.h"
@@ -46,12 +45,6 @@ extern char **__argv;
 #	define GET_WHEEL_DELTA_WPARAM(wparam) ((short)HIWORD(wparam))
 #endif
 
-#include "../simmem.h"
-#include "simsys_w32_png.h"
-#include "simsys.h"
-#include "../simversion.h"
-#include "../simevent.h"
-#include "../macros.h"
 
 
 /*
@@ -75,7 +68,7 @@ volatile HDC hdc = NULL;
 
 #ifdef MULTI_THREAD
 
-HANDLE	hFlushThread=0;
+HANDLE hFlushThread=0;
 CRITICAL_SECTION redraw_underway;
 
 // forward deceleration
@@ -147,7 +140,7 @@ static void create_window(DWORD const ex_style, DWORD const style, int const x, 
 	delete[] wSIM_TITLE;
 
 	ShowWindow(hwnd, SW_SHOW);
-	SetTimer( hwnd, 0, 1111, NULL );	// HACK: so windows thinks we are not dead when processing a timer every 1111 ms ...
+	SetTimer( hwnd, 0, 1111, NULL ); // HACK: so windows thinks we are not dead when processing a timer every 1111 ms ...
 }
 
 
@@ -180,7 +173,7 @@ int dr_os_open(int const w, int const h, bool fullscreen)
 			if(  COLOUR_DEPTH<32  ) {
 				settings.dmBitsPerPel = 32;
 			}
-			printf( "dr_os_open()::Could not reduce color depth to 16 Bit in fullscreen." );
+			dbg->warning("dr_os_open(w32)", "Could not reduce color depth to 16 Bit in fullscreen." );
 		}
 		if(  ChangeDisplaySettings(&settings, CDS_TEST)!=DISP_CHANGE_SUCCESSFUL  ) {
 			ChangeDisplaySettings( NULL, 0 );
@@ -268,20 +261,20 @@ int dr_textur_resize(unsigned short** const textur, int w, int const h)
 	int img_w = w;
 	int img_h = h;
 
-	if(  w > MaxSize.right  ||  h >= MaxSize.bottom  ) {
+	if(  w > (MaxSize.right/x_scale)*32  ||  h >= (MaxSize.bottom/y_scale)*32  ) {
 		// since the query routines that return the desktop data do not take into account a change of resolution
 		free(AllDibData);
 		AllDibData = NULL;
-		MaxSize.right = (w * 32) / x_scale;
-		MaxSize.bottom = ((h + 1) * 32) / y_scale;
+		MaxSize.right = (w*32)/x_scale;
+		MaxSize.bottom = ((h+1)*32)/y_scale;
 		AllDibData = MALLOCN(PIXVAL, img_w * img_h);
 		*textur = (unsigned short*)AllDibData;
 	}
 
 	AllDib->bmiHeader.biWidth  = img_w;
 	AllDib->bmiHeader.biHeight = img_h;
-	WindowSize.right = (w * 32) / x_scale;
-	WindowSize.bottom = (h * 32) / y_scale;
+	WindowSize.right           = (w*32)/x_scale;
+	WindowSize.bottom          = (h*32)/y_scale;
 
 #ifdef MULTI_THREAD
 	LeaveCriticalSection( &redraw_underway );
@@ -391,12 +384,13 @@ void dr_textur(int xp, int yp, int w, int h)
 
 
 // move cursor to the specified location
-void move_pointer(int x, int y)
+bool move_pointer(int x, int y)
 {
 	POINT pt = { ((long)x*x_scale+16)/32, ((long)y*y_scale+16)/32 };
 
 	ClientToScreen(hwnd, &pt);
 	SetCursorPos(pt.x, pt.y);
+	return true;
 }
 
 
@@ -404,52 +398,6 @@ void move_pointer(int x, int y)
 void set_pointer(int loading)
 {
 	SetCursor(LoadCursor(NULL, loading != 0 ? IDC_WAIT : IDC_ARROW));
-}
-
-
-/**
- * Some wrappers can save screenshots.
- * @return 1 on success, 0 if not implemented for a particular wrapper and -1
- *         in case of error.
- */
-int dr_screenshot(const char *filename, int x, int y, int w, int h)
-{
-#if defined RGB555
-	int const bpp = 15;
-#else
-	int const bpp = COLOUR_DEPTH;
-#endif
-	if (!dr_screenshot_png(filename, w, h, AllDib->bmiHeader.biWidth, (unsigned short*)AllDibData+x+y*AllDib->bmiHeader.biWidth, bpp)) {
-		// not successful => save full screen as BMP
-		if (FILE* const fBmp = dr_fopen(filename, "wb")) {
-			BITMAPFILEHEADER bf;
-
-			// since the number of drawn pixel can be smaller than the actual width => only use the drawn pixel for bitmap
-			LONG const old_width = AllDib->bmiHeader.biWidth;
-			AllDib->bmiHeader.biWidth  = display_get_width() - 1;
-			AllDib->bmiHeader.biHeight = WindowSize.bottom   + 1;
-
-			bf.bfType = 0x4d42; //"BM"
-			bf.bfReserved1 = 0;
-			bf.bfReserved2 = 0;
-			bf.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + sizeof(DWORD)*3;
-			bf.bfSize      = (bf.bfOffBits + AllDib->bmiHeader.biHeight * AllDib->bmiHeader.biWidth * 2L + 3L) / 4L;
-			fwrite(&bf, sizeof(BITMAPFILEHEADER), 1, fBmp);
-			fwrite(AllDib, sizeof(AllDib->bmiHeader) + sizeof(*AllDib->bmiColors) * 3, 1, fBmp);
-
-			for (LONG i = 0; i < AllDib->bmiHeader.biHeight; ++i) {
-				// row must be always even number of pixel
-				fwrite(AllDibData + (AllDib->bmiHeader.biHeight - 1 - i) * old_width, (AllDib->bmiHeader.biWidth + 1) & 0xFFFE, 2, fBmp);
-			}
-			AllDib->bmiHeader.biWidth = old_width;
-
-			fclose(fBmp);
-		}
-		else {
-			return -1;
-		}
-	}
-	return 0;
 }
 
 
@@ -473,9 +421,9 @@ LRESULT WINAPI WindowProc(HWND this_hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	static utf8 *u8buf = NULL;
 	static size_t u8bufsize;
 
-	static int last_mb = 0;	// last mouse button state
+	static int last_mb = 0; // last mouse button state
 	switch (msg) {
-		case WM_TIMER:	// dummy timer even to keep windows thinking we are still active
+		case WM_TIMER: // dummy timer even to keep windows thinking we are still active
 			return 0;
 
 		case WM_ACTIVATE: // may check, if we have to restore color depth
@@ -641,7 +589,7 @@ LRESULT WINAPI WindowProc(HWND this_hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			sint16 code = lParam >> 16;
 			if(  code >= 0x47  &&  code <= 0x52  &&  code != 0x4A  &&  code != 0x4e  ) {
-				if(  env_t::numpad_always_moves_map  ||  (GetKeyState( VK_NUMLOCK ) & 1) == 0  ) { // numlock off?
+				if(  (GetKeyState( VK_NUMLOCK ) & 1) == 0  ||  (env_t::numpad_always_moves_map  &&  !win_is_textinput())  ) { // numlock off?
 					switch( code ) {
 						case 0x47: code = SIM_KEY_UPLEFT; break;
 						case 0x48: code = SIM_KEY_UP; break;
@@ -692,8 +640,8 @@ LRESULT WINAPI WindowProc(HWND this_hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		{
 			sint16 code = lParam >> 16;
 			if(  code >= 0x47  &&  code <= 0x52  &&  code != 0x4A  &&  code != 0x4e  ) {
-				if(  env_t::numpad_always_moves_map  ||  (GetKeyState( VK_NUMLOCK ) & 1) == 0  ) { // numlock off?
-					// we handled numpad keys already above ...
+				if(  (GetKeyState( VK_NUMLOCK ) & 1) == 0  ||  (env_t::numpad_always_moves_map  &&  !win_is_textinput())  ) { // numlock off?
+					// we handled this numpad keys already above ...
 					sys_event.type = SIM_NOEVENT;
 					sys_event.code = 0;
 					break;
@@ -906,8 +854,10 @@ LRESULT WINAPI WindowProc(HWND this_hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	if(  update_mouse  ) {
 		sys_event.key_mod = ModifierKeys();
 		sys_event.mb = last_mb = (wParam&3);
-		sys_event.mx      = (LOWORD(lParam) * 32)/x_scale;
-		sys_event.my      = (HIWORD(lParam) * 32)/y_scale;
+		sint16 x = LOWORD(lParam);
+		sys_event.mx      = (x * 32l)/x_scale;
+		sint16 y = HIWORD(lParam);
+		sys_event.my      = (y * 32l)/y_scale;
 	}
 
 
@@ -928,15 +878,6 @@ static void internal_GetEvents(bool const wait)
 
 
 void GetEvents()
-{
-	// already even processed?
-	if(sys_event.type==SIM_NOEVENT) {
-		internal_GetEvents(true);
-	}
-}
-
-
-void GetEventsNoWait()
 {
 	if (sys_event.type==SIM_NOEVENT  &&  PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
 		internal_GetEvents(false);
@@ -1018,6 +959,14 @@ int main()
 #endif
 
 
+const char* dr_get_locale()
+{
+	static char LanguageCode[5]="";
+	GetLocaleInfoA( GetUserDefaultUILanguage(), LOCALE_SISO639LANGNAME, LanguageCode, lengthof( LanguageCode ) );
+	return LanguageCode;
+}
+
+
 int CALLBACK WinMain(HINSTANCE const hInstance, HINSTANCE, LPSTR, int)
 {
 	WNDCLASSW wc;
@@ -1053,7 +1002,7 @@ int CALLBACK WinMain(HINSTANCE const hInstance, HINSTANCE, LPSTR, int)
 	}
 
 #ifdef MULTI_THREAD
-	if(	hFlushThread ) {
+	if(  hFlushThread ) {
 		TerminateThread( hFlushThread, 0 );
 	}
 #endif

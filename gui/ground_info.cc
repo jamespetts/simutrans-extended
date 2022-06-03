@@ -5,11 +5,10 @@
 
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
+#include "../simcity.h"
 #include "../simworld.h"
 #include "../dataobj/translator.h"
 #include "ground_info.h"
-#include "../simcity.h"
-#include "../dataobj/translator.h"
 
 
 
