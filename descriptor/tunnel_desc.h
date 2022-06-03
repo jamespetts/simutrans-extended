@@ -49,6 +49,18 @@ private:
 	 */
 	uint8 broad_portals;
 
+	bool is_half_height;
+	uint32 subsea_cost; //(-1) for subsea construction disalowed
+	uint32 subsea_maintenance;
+	uint32 subwaterline_cost;
+	uint32 subwaterline_maintenance;
+	uint32 subbuilding_cost;
+	uint32 subway_cost;
+	uint32 depth_cost;
+	uint32 depth2_cost;
+	uint8 depth_limit;
+	uint8 underwater_limit;
+	uint16 length_limit;
 public:
 
 	/*
@@ -172,6 +184,24 @@ public:
 	inline bool get_has_way() const { return has_way == 1 || has_way == 3; }
 
 	inline bool has_tunnel_internal_images() const { return has_way == 2 || has_way == 3;  }
+
+	bool get_is_half_height() const {return is_half_height;}
+	bool get_subsea_allowed() const {return subsea_cost!=0xFFFFFFFF;}
+	uint32 get_subsea_cost() const {return subsea_cost;}
+	uint32 get_subsea_maintenance() const {return subsea_maintenance;}
+	bool get_subwaterline_allowed() const {return subwaterline_cost!=0xFFFFFFFF;}
+	uint32 get_subwaterline_cost() const {return subwaterline_cost;}
+	uint32 get_subwaterline_maintenance() const {return subwaterline_maintenance;}
+	bool get_subbuilding_allowed() const {return subbuilding_cost!=0xFFFFFFFF;}
+	uint32 get_subbuilding_cost() const {return subbuilding_cost;}
+	uint32 get_subway_cost() const {return subway_cost;}
+	uint32 get_depth_cost() const {return depth_cost;}
+	uint32 get_depth2_cost() const {return depth2_cost;}
+	uint8 get_depth_limit() const {return depth_limit;}
+	uint8 get_underwater_limit() const {return underwater_limit;}
+	uint16 get_length_limit() const {return length_limit;}
+
+	bool check_way_slope(slope_t::type slope) const;
 
 	/* Way constraints: determines whether vehicles
 	 * can travel on this way. This method decodes

@@ -28,7 +28,7 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 	};
 	int ribi, hang;
 
-	obj_node_t node(this, 32, &parent);
+	uint32 node_size=33;
 
 	sint32 topspeed					= obj.get_int("topspeed",    1000);
 	sint32 topspeed_gradient_1		= obj.get_int("topspeed_gradient_1",    topspeed);
@@ -39,6 +39,63 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 	uint16 axle_load				= obj.get_int("axle_load",   9999);
 	sint8 max_altitude				= obj.get_int("max_altitude", 0);
 	uint8 max_vehicles_on_tile		= obj.get_int("max_vehicles_on_tile", 251);
+
+	uint8 flags = 0;
+
+	flags |= obj.get_int("half_height",0) ? 0x01 : 0;
+
+	uint32 subsea_cost;
+	uint32 subsea_maintenance;
+	if(((subsea_cost=obj.get_int("subsea_cost",0xFFFFFFFF))!=0xFFFFFFFF) || obj.get_int("allow_subsea",0)){
+		flags|=0x02;
+		if(subsea_cost==0xFFFFFFFF){
+			subsea_cost=0;
+		}
+		subsea_maintenance = obj.get_int("subsea_maintenance",0);
+		node_size+=8;
+	}
+
+	uint32 subbuilding_cost;
+	if(obj.get_int("forbid_subbuilding",0)){
+		flags|=0x04;
+		subbuilding_cost=0xFFFFFFFF;
+		node_size+=4;
+	}else if((subbuilding_cost=obj.get_int("subbuilding_cost",0))!=0){
+		flags|=0x04;
+		node_size+=4;
+	}
+
+	uint32 subwaterline_cost=0;
+	uint32 subwaterline_maintenance=0;
+	if(((subwaterline_cost=obj.get_int("subwaterline_cost",0xFFFFFFFF))!=0xFFFFFFFF) || obj.get_int("allow_subsea",0)){
+		flags|=0x08;
+		subwaterline_maintenance = obj.get_int("subwaterline_maintenance",0);
+		if(subwaterline_cost==0xFFFFFFFF){
+			subwaterline_cost=0;
+		}
+		node_size+=8;
+	}
+
+	uint32 depth_cost=obj.get_int("depth_cost",0);
+	uint32 depth2_cost=obj.get_int("depth_squared_cost",0);
+	uint32 subway_cost=obj.get_int("sub_way_cost",0);
+	uint8 depth_limit;
+	depth_limit=obj.get_int("depth_limit",0) & 0x7F;
+	uint8 underwater_limit=obj.get_int("sea_depth_limit",0);
+	if(underwater_limit){
+		flags|=0x20;
+		node_size+=1;
+	}
+	if(depth_cost || depth2_cost || subway_cost || depth_limit){
+		flags|=0x10;
+		node_size+=13;
+	}
+	uint16 length_limit=obj.get_int("length_limit",0);
+	if(length_limit){
+		flags|=0x40;
+		node_size+=2;
+		dbg->warning("tunnel_writer::write_node()","High values of length_limit can reduce performance of tunnel construction");
+	}
 
 	// BG, 11.02.2014: max_weight was missused as axle_load
 	// in experimetal before standard introduced axle_load.
@@ -119,6 +176,8 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 		}
 	}
 
+	obj_node_t node(this, node_size, &parent);
+
 	// Version uses always high bit set as trigger
 	// version 2: snow images
 	// Version 3: pre-defined ways
@@ -132,7 +191,7 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 	// Finally, this is the extended version number. This is *added*
 	// to the standard version number, to be subtracted again when read.
 	// Start at 0x100 and increment in hundreds (hex).
-	version += 0x200;
+	version += 0x300;
 
 	node.write_uint16(fp, version,						0);
 	node.write_sint32(fp, topspeed,						2);
@@ -152,6 +211,44 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 	node.write_uint16(fp, topspeed_gradient_2,			28);
 	node.write_sint8(fp, max_altitude,					30);
 	node.write_uint8(fp, max_vehicles_on_tile,			31);
+	node.write_uint8(fp, flags,							32);
+
+	int offset = 32+1;
+
+	if(flags & 0x02){
+		node.write_uint32(fp, subsea_cost,				offset);
+		node.write_uint32(fp, subsea_maintenance,		offset+4);
+		offset+=8;
+	}
+
+	if(flags & 0x04){
+		node.write_uint32(fp, subbuilding_cost,			offset);
+		offset+=4;
+	}
+
+	if(flags & 0x08){
+		node.write_uint32(fp, subwaterline_cost,		offset);
+		node.write_uint32(fp, subwaterline_maintenance,	offset+4);
+		offset+=8;
+	}
+
+	if(flags & 0x10){
+		node.write_uint32(fp, subway_cost,				offset);
+		node.write_uint32(fp, depth_cost,				offset+4);
+		node.write_uint32(fp, depth2_cost,				offset+8);
+		node.write_uint8(fp,  depth_limit,				offset+12);
+		offset+=13;
+	}
+
+	if(flags & 0x20){
+		node.write_uint8(fp,  underwater_limit,         offset);
+		offset+=1;
+	}
+
+	if(flags & 0x40){
+		node.write_uint16(fp,  length_limit,             offset);
+		offset+=2;
+	}
 
 	write_head(fp, node, obj);
 

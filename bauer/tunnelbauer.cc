@@ -146,8 +146,10 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 	waytype_t waytyp = desc->get_waytype();
 	// use the is_allowed_step routine of way_builder_t, needs an instance
 	way_builder_t bauigel(player);
-	bauigel.init_builder( way_builder_t::tunnel_flag | (way_builder_t::bautyp_t)waytyp, way_builder_t::weg_search( waytyp, 1, 0, type_flat ), desc);
+	bauigel.init_builder( (desc->get_is_half_height() ? way_builder_t::low_clearence_flag : (way_builder_t::bautyp_t)0) |  way_builder_t::tunnel_flag | (way_builder_t::bautyp_t)waytyp, way_builder_t::weg_search( waytyp, 1, 0, type_flat ), desc);
 	sint32 dummy;
+
+	bool firstTile=true;
 
 	while(true) {
 		pos = pos + zv;
@@ -193,7 +195,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 
 		// next tile
 		gr = welt->lookup_with_checking_down_way_slope(pos);
-		if(  !gr  &&  env_t::pak_height_conversion_factor==2  ) {
+		if(  !gr  &&  env_t::pak_height_conversion_factor==2 && !desc->get_is_half_height() ) {
 			// check for one above
 			gr = welt->lookup(pos + koord3d(0,0,1));
 		}
@@ -215,7 +217,7 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 				}
 			}
 			const uint8 slope = gr->get_grund_hang();
-			const slope_t::type new_slope = slope_type(-zv) * welt->get_settings().get_way_height_clearance();
+			const slope_t::type new_slope = slope_type(-zv) * (welt->get_settings().get_way_height_clearance() == 2 && !desc->get_is_half_height() ? 2 : 1);
 
 			if(  gr->ist_karten_boden()  &&  ( slope!=new_slope  ||  pos.z!=gr->get_pos().z )  ) {
 				// lower terrain to match - most of time shouldn't need to raise
@@ -284,6 +286,17 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 		if (!full_tunnel) {
 			return pos;
 		}
+
+		//verify permissions to build tunnel
+		if(!gr && !firstTile){
+			tunnelboden_t from(pos - zv,slope_t::flat);
+			tunnelboden_t to(pos, slope_t::flat);
+			if(!bauigel.is_allowed_step(&from,&to,&dummy)){
+				return koord3d::invalid;
+			}
+		}
+		firstTile=false;
+
 		// All free - keep looking
 	}
 }
@@ -326,10 +339,8 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 		return "Tunnel muss an\neinfachem\nHang beginnen!\n";
 	}
 
-/************************************** FIX ME ***************************************************
-********************** THIS MUST BE RATHER A PROPERTY OF THE TUNNEL IN QUESTION ! ****************/
 	// for conversion factor 1, must be single height, for conversion factor 2, must be double
-	if(  (env_t::pak_height_conversion_factor == 1  &&  !is_one_high(slope))  ||  (env_t::pak_height_conversion_factor == 2  &&  is_one_high(slope))  ) {
+	if(  !desc->check_way_slope(slope)  ) {
 		return "Tunnel muss an\neinfachem\nHang beginnen!\n";
 	}
 
@@ -342,7 +353,7 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 	const char *err = NULL;
 	koord3d end = koord3d::invalid;
 
-	if(player && !player->can_afford(desc->get_value()))
+	if(player && !player->can_afford(get_total_cost(gr->get_pos(),desc)))
 	{
 		return "That would exceed\nyour credit limit.";
 	}
@@ -373,7 +384,10 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 
 	// Begin and end found, we can build
 
-	slope_t::type end_slope = slope_type(-zv) * env_t::pak_height_conversion_factor;
+	slope_t::type end_slope = slope_type(-zv);
+	if( env_t::pak_height_conversion_factor == 2 && !desc->get_is_half_height()){
+		end_slope *= 2;
+	}
 	if(  full_tunnel  &&  (!end_gr  ||  end_gr->get_grund_hang()!=end_slope)  ) {
 		// end slope not at correct height - we have already checked in find_end_pos that we can change this
 		sint8 hsw = end.z + corner_sw(end_slope);
@@ -510,8 +524,8 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		tunnel->calc_image();
 		tunnel->set_flag(grund_t::dirty);
 		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player, desc->get_maintenance(), desc->get_finance_waytype() );
-		cost += desc->get_value();
+		player_t::add_maintenance( player, get_total_maintenance(pos,desc), desc->get_finance_waytype() );
+		cost += get_total_cost(pos,desc);
 		cost += way_desc->get_value();
 		pos = pos + zv;
 	}
@@ -577,8 +591,8 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		tunnel->calc_image();
 		tunnel->set_flag(grund_t::dirty);
 		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype() );
-		cost += desc->get_value();
+		player_t::add_maintenance( player,  get_total_maintenance(pos,desc), desc->get_finance_waytype() );
+		cost += get_total_cost(pos,desc);
 		cost += way_desc->get_value();
 	}
 
@@ -712,8 +726,8 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 		}
 	}
 
-	player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype() );
-	cost += (sint64)desc->get_value();
+	player_t::add_maintenance( player,  get_total_maintenance(end,desc), desc->get_finance_waytype() );
+	cost += (sint64)get_total_cost(end,desc);
 }
 
 
@@ -882,4 +896,69 @@ const char *tunnel_builder_t::remove(player_t *player, koord3d start, waytype_t 
 		kb->set_flag(grund_t::dirty);
 	}
 	return NULL;
+}
+
+bool tunnel_builder_t::get_is_under_building(koord3d pos, const tunnel_desc_t *desc){
+	if(!welt->lookup_kartenboden(pos.get_2d())->get_building()){
+		return false;
+	}
+	if(desc->get_wtyp()==road_wt && desc->get_wtyp()!=water_wt){
+		return true;
+	}
+	//exception to track tunnel beneath the road (allow two subway/tube tunnels beneath city street)
+	for(uint8 r=0; r<4; r++){
+		if(const grund_t *gr2 = welt->lookup(pos+koord(((ribi_t::ribi)(1<<r))))){
+			if(const tunnel_t *t2 = gr2->find<tunnel_t>()){
+				if(t2->get_desc()==desc){
+					if(weg_t* way = welt->lookup_kartenboden(gr2->get_pos().get_2d())->get_weg_nr(0)){
+						if(way->get_waytype()==road_wt){
+							return false;
+						}
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+uint32 tunnel_builder_t::get_total_cost(koord3d pos, const tunnel_desc_t *desc){
+	const grund_t *gr = welt->lookup_kartenboden(pos.get_2d());
+	uint32 total=desc->get_value();
+	if(gr->is_water()){
+		total += desc->get_subsea_cost();
+	}
+
+	if(get_is_under_building(pos,desc)){
+		total += desc->get_subbuilding_cost();
+	}
+
+	if(get_is_below_waterline(pos)){
+		total += desc->get_subwaterline_cost();
+	}
+
+	if(welt->lookup_kartenboden(pos.get_2d())->get_weg_nr(0)){
+		total += desc->get_subway_cost();
+	}
+
+	uint32 depth = welt->lookup_hgt(pos.get_2d()) - pos.z;
+	total += depth * desc->get_depth_cost();
+	total += depth * depth * desc->get_depth2_cost();
+
+	return total;
+}
+
+uint32 tunnel_builder_t::get_total_maintenance(koord3d pos, const tunnel_desc_t *desc){
+	uint32 total=desc->get_maintenance();
+	if(welt->lookup_kartenboden(pos.get_2d())->is_water() && desc->get_subsea_allowed()){
+		total+=desc->get_subsea_maintenance();
+	}
+	if(get_is_below_waterline(pos)){
+		total+=desc->get_subwaterline_maintenance();
+	}
+	return total;
+}
+
+bool tunnel_builder_t::get_is_below_waterline(koord3d pos){
+	return welt->get_water_hgt(pos.get_2d()) > pos.z || welt->get_groundwater() > pos.z;
 }

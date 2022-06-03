@@ -1196,6 +1196,35 @@ const char *weg_t::is_deletable(const player_t *player)
 	return obj_t::is_deletable(player);
 }
 
+bool weg_t::is_low_clearence(const player_t *player, bool permissive){
+	if(this->is_deletable(player)){
+		return false;
+	}
+	if(this->is_public_right_of_way()){
+		return false;
+	}
+	if(!this->desc->is_low_clearence(permissive)){
+		return false;
+	}
+	if(grund_t *gr = welt->lookup(this->get_pos())){
+		for(int i = 0; i < gr->get_top(); i++){
+			obj_t *ob=gr->obj_bei(i);
+			if(ob->get_typ()==obj_t::wayobj){
+				wayobj_t* wo = (wayobj_t*)ob;
+				if(wo->get_desc()->get_is_tall()){
+					return false;
+				}
+			}else if(ob->get_typ()==obj_t::tunnel){
+				tunnel_t* tu = (tunnel_t*)ob;
+				if(!tu->get_desc()->get_is_half_height()){
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 /**
  *  Check whether the city should adopt the road.
  *  (Adopting the road sets a speed limit and builds a sidewalk.)

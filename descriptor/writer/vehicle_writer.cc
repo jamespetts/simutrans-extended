@@ -1100,7 +1100,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint32(fp, way_wear_factor, pos);
 	pos += sizeof (way_wear_factor);
 
-	uint8 is_tall = obj.get_int("is_tall", 0);
+	const uint8 default_is_tall = 0;
+	uint8 is_tall = obj.get_int("is_tall", default_is_tall)+2;
 	node.write_uint8(fp, is_tall, pos);
 	pos += sizeof(is_tall);
 

@@ -77,7 +77,7 @@ obj_desc_t * way_obj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->own_wtyp = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version == 0)
+			if(extended_version <= 1)
 			{
 				way_constraints.set_permissive(decode_uint8(p));
 				way_constraints.set_prohibitive(decode_uint8(p));
@@ -86,6 +86,13 @@ obj_desc_t * way_obj_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			{
 				dbg->fatal( "way_obj_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
+			if(extended_version==1){
+				desc->is_tall = decode_uint8(p);
+			}else{
+				desc->is_tall = false;
+			}
+		}else{
+			desc->is_tall = false;
 		}
 	}
 	else {

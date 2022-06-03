@@ -29,6 +29,8 @@
 
 #include "tpl/slist_tpl.h"
 
+#include "ifc/simtestdriver.h"
+
 class koord3d;
 class koord;
 class way_builder_t;
@@ -38,6 +40,7 @@ class roadsign_desc_t;
 class way_desc_t;
 class route_t;
 class way_obj_desc_t;
+
 
 /****************************** helper functions: *****************************/
 
@@ -400,6 +403,19 @@ private:
 	char const* do_work(player_t*, koord3d const&, koord3d const&) OVERRIDE;
 	void mark_tiles(player_t*, koord3d const&, koord3d const&) OVERRIDE;
 	uint8 is_valid_pos(player_t*, koord3d const&, char const*&, koord3d const&) OVERRIDE;
+
+	bool check_ventilation(const way_builder_t &bauigel);
+	class vent_checker_t : public test_driver_t {
+		uint16 length_limit;
+	public:
+		vent_checker_t(uint16 max_length) {length_limit=max_length;}
+		bool check_next_tile(const grund_t *) const override;
+		waytype_t get_waytype() const override {return invalid_wt;}
+		ribi_t::ribi get_ribi(const grund_t *) const override {return ribi_t::all;}
+		int get_cost(const grund_t *, const sint32, koord from_pos) override;
+		bool is_target(const grund_t *, const grund_t *) override;
+	};
+
 public:
 	tool_build_tunnel_t();
 	char const* get_tooltip(player_t const*) const OVERRIDE;

@@ -10415,6 +10415,55 @@ void karte_t::calc_climate(koord k, bool recalc)
 	}
 }
 
+bool karte_t::is_near_land(sint16 x, sint16 y, uint16 distance){
+	//adjust distance
+	distance /= get_settings().get_meters_per_tile();
+
+	//caching previous results
+	static uint16 last_distance=0;
+	static sint16 last_x=-1;
+	static sint16 last_y=-1;
+	static bool last_ret;
+	if(last_x == x && last_y == y){
+		if(distance>=last_distance && last_ret){
+			return true;
+		}
+		if(distance==last_distance){
+			return last_ret;
+		}
+	}
+	last_x=x;
+	last_y=y;
+	last_distance=distance;
+
+	sint16 minx = x - distance;
+	sint16 maxx = x + distance;
+	sint16 miny = y - distance;
+	sint16 maxy = y + distance;
+	if(minx < 0) minx=0;
+	if(miny < 0) miny=0;
+	if(maxx > cached_grid_size.x) maxx = cached_grid_size.x-1;
+	if(maxy > cached_grid_size.x) maxy = cached_grid_size.y-1;
+	sint32 dist_square=distance * distance;
+	sint32 cx=x;
+	sint32 cy=y;
+
+	for(sint32 j=miny; j <= maxy; j++){
+		for(sint32 i=minx; i <= maxx; i++){
+			if(dist_square < (j-cy) * (j-cy) + (i-cx) * (i-cx)){
+				continue;
+			}
+			if(lookup_hgt_nocheck(i,j) > get_water_hgt_nocheck(i,j)){
+				last_ret=true;
+				return true;
+			}
+		}
+	}
+
+	last_ret=false;
+	return false;
+}
+
 
 // fills array with neighbour heights
 void karte_t::get_neighbour_heights(const koord k, sint8 neighbour_height[8][4]) const

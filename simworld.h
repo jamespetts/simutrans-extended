@@ -2365,6 +2365,8 @@ public:
 	inline sint8 get_water_hgt(koord k) const { return get_water_hgt(k.x, k.y); }
 
 
+	bool is_near_land(sint16 x, sint16 y, uint16 distance);
+
 	/**
 	 * Sets water height.
 	 */

@@ -211,7 +211,7 @@ void tunnel_t::finish_rd()
 		if(lt) {
 			player_t::add_maintenance( player, -lt->get_desc()->get_maintenance(), powerline_wt );
 		}
-		player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype() );
+		player_t::add_maintenance( player,  tunnel_builder_t::get_total_maintenance(get_pos(),desc), desc->get_finance_waytype() );
 	}
 }
 
@@ -304,4 +304,8 @@ void tunnel_t::set_desc(const tunnel_desc_t *_desc)
 		maint /= 14;
 	}
 	player_t::add_maintenance(get_owner(), maint, get_desc()->get_finance_waytype());
+}
+
+bool tunnel_t::get_is_half_height() const{
+	return desc->get_is_half_height();
 }

@@ -758,6 +758,7 @@ void grund_t::info(cbuffer_t& buf) const
 			}
 		}
 	}
+
 #if MSG_LEVEL >= 4
 	buf.printf("\nflags $%0X", flags );
 	buf.printf("\n\npos: (%s)",pos.get_str());
@@ -2201,6 +2202,15 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 
 bool grund_t::is_height_restricted() const
 {
+	if(env_t::pak_height_conversion_factor!=2){
+		return false;
+	}
+	if(this->get_typ()==grund_t::tunnelboden){
+		tunnel_t* tunnel = find<tunnel_t>();
+		if(tunnel){
+			return tunnel->get_is_half_height();
+		}
+	}
 	const grund_t* gr_above = world()->lookup(pos + koord3d(0, 0, 1));
 	return env_t::pak_height_conversion_factor == 2
 		   && gr_above

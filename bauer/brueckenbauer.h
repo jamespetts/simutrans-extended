@@ -32,7 +32,7 @@ private:
 
 	static karte_ptr_t welt;
 
-	static bool is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg);
+	static bool is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg, bool permissive=false);
 	static bool is_monorail_junction(koord3d pos, player_t *player, const bridge_desc_t *desc, const char *&error_msg);
 public:
 	/**
@@ -51,7 +51,7 @@ public:
 	 * @param min_length the minimum length of the bridge.
 	 * @return the position of the other end of the bridge or koord3d::invalid if no possible end is found
 	 */
-	static koord3d find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge=false, uint32 min_length=0, bool high_bridge = false );
+	static koord3d find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge=false, uint32 min_length=0, bool high_bridge = false, bool low_bridge=false );
 
 	/**
 	 * Checks whether given tile @p gr is suitable for placing bridge ramp.

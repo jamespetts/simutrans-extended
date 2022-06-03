@@ -277,7 +277,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				{
 					desc->min_loading_time_seconds = desc->max_loading_time_seconds = 65535;
 				}
-				desc->is_tall = false;
+				desc->is_tall = desc->wtyp==track_wt;
 			}
 			else
 			{
@@ -404,7 +404,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->brake_force = BRAKE_FORCE_UNKNOWN;
 					desc->minimum_runway_length = 10;
 				}
-				desc->is_tall = false;
+				desc->is_tall = desc->wtyp==track_wt;
 			}
 			else
 			{
@@ -539,11 +539,16 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				}
 				if (extended_version > 1)
 				{
-					desc->is_tall = decode_uint8(p);
+					uint8 is_tall = decode_uint8(p);
+					if(is_tall==0 && desc->wtyp==track_wt){
+						desc->is_tall=true;
+					}else{
+						desc->is_tall = is_tall & 1;
+					}
 				}
 				else
 				{
-					desc->is_tall = false;
+					desc->is_tall = desc->wtyp==track_wt;
 				}
 				if (extended && extended_version >= 5)
 				{
@@ -683,7 +688,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->minimum_runway_length = 10;
 		desc->range = 0;
 		desc->way_wear_factor = 1;
-		desc->is_tall = false;
+		desc->is_tall = desc->wtyp==track_wt;
 		desc->basic_constraint_prev = vehicle_desc_t::unknown_constraint;
 		desc->basic_constraint_next = vehicle_desc_t::unknown_constraint;
 		desc->mixed_load_prohibition = false;

@@ -93,10 +93,12 @@ private:
 	}
 public:
 
-	bool is_low_clearence() const{
+	inline bool is_low_clearence(bool permissive=true) const{
 		return this->get_waytype() == waytype_t::road_wt ||
 				this->get_waytype() == waytype_t::tram_wt ||
 				this->get_waytype() == waytype_t::water_wt ||
+				this->get_waytype() == waytype_t::narrowgauge_wt ||
+				(this->get_waytype() == waytype_t::track_wt && permissive) ||
 				this->get_topspeed()==0;
 	}
 

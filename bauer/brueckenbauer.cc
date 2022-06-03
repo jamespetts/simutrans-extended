@@ -272,7 +272,7 @@ const char *check_tile( const grund_t *gr, const player_t *player, waytype_t wt,
 	return ""; // could end here but need not end here
 }
 
-bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg)
+bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t* player, const char *&error_msg, bool permissive)
 {
 	/* can't build directly above or below a way if height clearance == 2 except if the way below is a friendly road, tramway or waterway,
 	not being a public right of way*/
@@ -297,13 +297,9 @@ bool bridge_builder_t::is_blocked(koord3d pos, ribi_t::ribi check_ribi, player_t
 
 			weg_t *w = gr2->get_weg_nr(0);
 			const bool public_service = player ? player->is_public_service() : false;
-			if ((w && w->get_max_speed() > 0) && ((gr2->is_water() && !public_service)
-				||	w && (((w->get_desc()->get_waytype() != road_wt
-					&& w->get_desc()->get_waytype() != tram_wt
-					&& w->get_desc()->get_waytype() != water_wt)
-
-					|| (w->get_owner() != player && !public_service)
-					|| (w->is_public_right_of_way() && (!w->is_disused() || welt->get_city(gr2->get_pos().get_2d())))))))
+			if ((w && w->get_max_speed() > 0) && ((gr2->is_water() && !public_service))
+				||	(w && (!w->is_low_clearence(player,permissive)
+					|| (w->is_public_right_of_way() && (!w->is_disused() || welt->get_city(gr2->get_pos().get_2d()) ) ))))
 			{
 				error_msg = "Bridge blocked by way below or above.";
 				return true;
@@ -369,7 +365,7 @@ bool bridge_builder_t::is_monorail_junction(koord3d pos, player_t *player, const
 // 2 to suppress warnings when h=start_height+x and min_bridge_height=start_height
 #define height_okay2(h) (((h) > max_height) ? false : height_okay_array[h-min_bridge_height])
 
-koord3d bridge_builder_t::find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge, uint32 min_length, bool high_bridge )
+koord3d bridge_builder_t::find_end_pos(player_t *player, koord3d pos, const koord zv, const bridge_desc_t *desc, const char *&error_msg, sint8 &bridge_height, bool ai_bridge, uint32 min_length, bool high_bridge, bool low_bridge )
 {
 	const grund_t *const gr2 = welt->lookup( pos );
 	if(  !gr2  ) {
@@ -473,7 +469,7 @@ koord3d bridge_builder_t::find_end_pos(player_t *player, koord3d pos, const koor
 		bool abort = true;
 		for(sint8 z = min_bridge_height; z <= max_height; z++) {
 			if(height_okay(z)) {
-				if(is_blocked(koord3d(pos.get_2d(), z), ribi_type(zv), player, error_msg)) {
+				if(is_blocked(koord3d(pos.get_2d(), z), ribi_type(zv), player, error_msg, low_bridge)) {
 					height_okay_array[z-min_bridge_height] = false;
 
 					// connect to suitable monorail tiles if possible
