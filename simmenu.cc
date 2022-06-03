@@ -443,7 +443,7 @@ void tool_t::read_menu(const std::string &objfilename)
 			 * -1 will disable any of them
 			 */
 			tool_t *tool = info[t].tools[i];
-			if(*str) {
+			if(*str && tool) {
 				// Check if tool is deprecated
 				if(  (  t==0  &&  i==TOOL_REASSIGN_SIGNAL_DEPRECATED  )
 				   || (  t==1  &&  ( i== TOOL_RECOLOUR_TOOL_DEPRECATED || i==TOOL_ACCESS_TOOL_DEPRECATED )  )  ) {
@@ -461,7 +461,7 @@ void tool_t::read_menu(const std::string &objfilename)
 				str++;
 			}
 
-			if(*str  &&  *str!=',') {
+			if(tool && *str  &&  *str!=',') {
 				// ok, first comes icon
 				uint16 icon = (uint16)atoi(str);
 
