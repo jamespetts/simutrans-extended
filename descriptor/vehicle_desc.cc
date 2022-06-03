@@ -417,7 +417,7 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	const uint16 rr = rolling_resistance * float32e8_t((uint32)100);
 	chk->input(ar);
 	chk->input(rr);
-	chk->input(livery_image_type); 
+	chk->input(livery_image_type);
 }
 
 uint8 vehicle_desc_t::get_interactivity() const

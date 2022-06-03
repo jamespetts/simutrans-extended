@@ -59,10 +59,10 @@ public:
 			for(auto livery : liveries)
 			{
 				if(date >= livery.intro_date)
-				{ 
+				{
 					return true;
 				}
-			}		
+			}
 			return false;
 		}
 	}

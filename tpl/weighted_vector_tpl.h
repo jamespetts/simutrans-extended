@@ -6,6 +6,7 @@
 #ifndef TPL_WEIGHTED_VECTOR_TPL_H
 #define TPL_WEIGHTED_VECTOR_TPL_H
 
+
 #include <cstddef>
 #include <iterator>
 

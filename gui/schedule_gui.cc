@@ -100,7 +100,7 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 void schedule_gui_t::gimme_stop_name(cbuffer_t & buf, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower )
 {
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player_);
-	if(halt.is_bound()) 
+	if(halt.is_bound())
 	{
 		bool prefix = false;
 		char modified_name[320];
@@ -473,7 +473,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	lb_load.set_width( label_width );
 	lb_load.align_to( &numimp_load, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
 	add_component( &lb_load );
-	
+
 	ypos += D_BUTTON_HEIGHT;
 
 	// Conditional depart
@@ -550,7 +550,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	bt_consist_order.pressed = false;
 	add_component(&bt_consist_order);
 
-	ypos += D_BUTTON_HEIGHT + 2;	
+	ypos += D_BUTTON_HEIGHT + 2;
 
 
 	// Ignore choose sign/signal
@@ -662,8 +662,8 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 			lb_spacing_shift_as_clock.set_text_pointer(str_spacing_shift_as_clock, false);
 			add_component(&lb_spacing_shift_as_clock);
 		}
-	}	
-	
+	}
+
 	// Mirror schedule/alternate directions
 	bt_mirror.init(button_t::square_automatic, "return ticket", scr_coord(column_right, ypos), scr_size(D_BUTTON_WIDTH*2, D_BUTTON_HEIGHT));
 	bt_mirror.set_tooltip("Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.");
@@ -695,7 +695,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 
 	ypos += D_BUTTON_HEIGHT;
 	// Row 11
-	
+
 
 	scrolly.set_pos(scr_coord(0, ypos));
 	scrolly.set_show_scroll_x(true);
@@ -817,7 +817,7 @@ void schedule_gui_t::update_selection()
 			}
 			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
-				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift); 
+				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 			}
 			else {

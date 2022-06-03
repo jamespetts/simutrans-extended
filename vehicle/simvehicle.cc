@@ -82,7 +82,7 @@ void traffic_vehicle_t::flush_travel_times(strasse_t* str)
 {
 	if(get_max_speed() && str->get_max_speed() && dist_travelled_since_last_hop > (128 << YARDS_PER_VEHICLE_STEP_SHIFT))
 	{
-		str->update_travel_times(world()->get_ticks() - time_at_last_hop, dist_travelled_since_last_hop / min(get_max_speed(), kmh_to_speed(str->get_max_speed())));
+		weg_t::add_travel_time_update(str, world()->get_ticks() - time_at_last_hop, dist_travelled_since_last_hop / min(get_max_speed(), kmh_to_speed(str->get_max_speed())));
 	}
 	reset_measurements();
 }
@@ -2970,14 +2970,14 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	if (file->get_extended_version() >= 15)
 	{
 		file->rdwr_long(overhaul_time);
-		
+
 		file->rdwr_long(km_since_new);
 		file->rdwr_long(km_since_last_overhaul);
 		file->rdwr_long(km_since_last_maintenance);
 		file->rdwr_long(km_since_last_replenish);
-		file->rdwr_longlong(last_maintenance_time); 
+		file->rdwr_longlong(last_maintenance_time);
 		file->rdwr_short(tags);
-		
+
 		bool dno = do_not_overhaul;
 		bool dnau = do_not_auto_upgrade;
 
@@ -4946,7 +4946,7 @@ bool rail_vehicle_t::is_target(const grund_t *gr,const grund_t *prev_gr)
 
 sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index)
 {
-	const schedule_t* schedule = cnv->get_schedule(); 	
+	const schedule_t* schedule = cnv->get_schedule();
 
 	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
 	{
@@ -4954,7 +4954,7 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 		return 0;
 	}
 
-	grund_t const* target = welt->lookup(schedule->get_current_entry().pos); 
+	grund_t const* target = welt->lookup(schedule->get_current_entry().pos);
 
 
 	if(target == NULL)

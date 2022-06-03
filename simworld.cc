@@ -680,6 +680,7 @@ void karte_t::destroy()
 	world_attractions.clear();
 	DBG_MESSAGE("karte_t::destroy()", "attraction list destroyed");
 
+	weg_t::clear_travel_time_updates();
 	weg_t::clear_list_of__ways();
 	DBG_MESSAGE("karte_t::destroy()", "way list destroyed");
 
@@ -4207,6 +4208,21 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 			}
 			return true;
 		}
+		case toggle_player_active: {
+			// range check, player existent?
+			if (  player_nr <=1  ||  player_nr >= PLAYER_UNOWNED  ||   get_player(player_nr)==NULL ) {
+				return false;
+			}
+			// only public player can (de)activate other players
+			if ( !public_player_unlocked ) {
+				return false;
+			}
+			if (exec) {
+				player_t *player = get_player(player_nr);
+				player->set_active(param != 0);
+			}
+			return true;
+		}
 		case toggle_freeplay: {
 			// only public player can change freeplay mode
 			if (!public_player_unlocked  ||  !settings.get_allow_player_change()) {
@@ -5770,7 +5786,10 @@ void karte_t::step()
 	}
 #endif
 
+	weg_t::apply_travel_time_updates();
+
 	rands[16] = get_random_seed();
+
 
 	INT_CHECK("karte_t::step 3c");
 
@@ -8370,7 +8389,7 @@ DBG_MESSAGE("karte_t::save()", "saving game to '%s'", filename);
 		// There are some problems with re-naming this temporary file.
 		// Corruption is less of an issue when a client is saving a game from a network server,
 		// so abandon this security in this instance to prevent the problems with re-naming causing
-		// problems. This can be reversed if those problems be ever solved. 
+		// problems. This can be reversed if those problems be ever solved.
 		savename[savename.length() - 1] = '_';
 	}
 

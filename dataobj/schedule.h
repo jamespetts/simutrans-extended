@@ -292,7 +292,7 @@ private:
 	* The number of convoys per month, now in 12ths:
 	* e.g., if this number is 12, there will be 1
 	* departure per game month (12/12 = 1) per
-	* timed stop in this schedule. 
+	* timed stop in this schedule.
 	*/
 	sint16 spacing;
 };

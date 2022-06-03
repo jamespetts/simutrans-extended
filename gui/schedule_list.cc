@@ -337,8 +337,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	{
 		if(scheme->is_available(welt->get_timeline_year_month()))
 		{
-			// UI TODO: Make the below work with the new UI system
-			//livery_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(scheme->get_name()), SYSCOL_TEXT));
+			livery_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(scheme->get_name()), SYSCOL_TEXT);
 			livery_scheme_indices.append(i);
 		}
 		i++;

@@ -89,7 +89,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	livery_selector.clear_elements();
 	livery_scheme_indices.clear();
 
-	vehicle_filter.set_highlight_color(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK);
+	vehicle_filter.set_highlight_color(color_idx_to_rgb(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK));
 	vehicle_filter.add_listener(this);
 	add_component(&vehicle_filter);
 
@@ -272,7 +272,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	bt_show_all.set_tooltip("Show also vehicles that do not match for current action.");
 	add_component(&bt_show_all);
 
-	vehicle_filter.set_highlight_color(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK);
+	vehicle_filter.set_highlight_color(color_idx_to_rgb(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK));
 	vehicle_filter.add_listener(this);
 	add_component(&vehicle_filter);
 
@@ -286,8 +286,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	{
 		if(scheme->is_available(welt->get_timeline_year_month()))
 		{
-			// UI TODO: Make the below work with the new UI system
-			//livery_selector.append_element(new gui_scrolled_list_t::const_text_scrollitem_t(translator::translate(scheme->get_name()), SYSCOL_TEXT));
+			livery_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(scheme->get_name()), SYSCOL_TEXT);
 			livery_scheme_indices.append(i);
 			livery_selector.set_selection(i);
 			livery_scheme_index = i;
@@ -1918,7 +1917,7 @@ void gui_convoy_assembler_t::update_data()
 							// vehicle_list is the list of all vehicles in the current convoy.
 							// vehicles is the list of the vehicles to replace them with.
 							int upgradable_count = 0;
-							
+
 							for(auto vehicle_2 : vehicles)
 							{
 								for(uint16 k = 0; k < vehicle_2->get_upgrades_count(); k++)
@@ -2116,7 +2115,7 @@ void gui_convoy_assembler_t::update_tabs()
 		selected_filter = VEHICLE_FILTER_RELEVANT;
 	}
 	vehicle_filter.set_selection(selected_filter);
-	vehicle_filter.set_highlight_color(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK);
+	vehicle_filter.set_highlight_color(color_idx_to_rgb(depot_frame ? depot_frame->get_depot()->get_owner()->get_player_color1() + 1 : replace_frame ? replace_frame->get_convoy()->get_owner()->get_player_color1() + 1 : COL_BLACK));
 }
 
 

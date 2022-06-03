@@ -297,13 +297,18 @@ void simline_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t s( file, "simline_t" );
 
+	DBG_MESSAGE("simline_t::rdwr","start");
 	assert(schedule);
 
 	file->rdwr_str(name);
+	DBG_MESSAGE("simline_t::rdwr","name=%s",name.c_str());
 
 	rdwr_linehandle_t(file, self);
+	DBG_MESSAGE("simline_t::rdwr","linehandle, id=%u",self.get_id());
 
 	schedule->rdwr(file);
+	DBG_MESSAGE("simline_t::rdwr","schedule, count=%u",schedule->get_count());
+
 
 	//financial history
 	if(file->get_version_int() <= 102002 || (file->get_version_int() < 103000 && file->get_extended_version() < 7))
@@ -374,11 +379,13 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_version_int()>=102002) {
 		file->rdwr_bool(withdraw);
+		DBG_MESSAGE("simline_t::rdwr","withdraw=%i",withdraw);
 	}
 
 	if(file->get_extended_version() >= 9)
 	{
 		file->rdwr_bool(start_reversed);
+		DBG_MESSAGE("simline_t::rdwr","start_reversed=%i",start_reversed);
 	}
 
 	// otherwise initialized to zero if loading ...
@@ -386,22 +393,27 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_extended_version() >= 2)
 	{
-		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : MAX_LINE_COST;
+		const uint8 counter = file->get_version_int() < 103000 ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : file->get_extended_version() < 15 ? LINE_WAYTOLL : MAX_LINE_COST;
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average[%i]=%i",i,rolling_average[i]);
 			file->rdwr_short(rolling_average_count[i]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average_count[%i]=%i",i,rolling_average_count[i]);
 		}
 		if (file->get_extended_version() > 14 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 25))
 		{
 			file->rdwr_long(rolling_average[LINE_WAYTOLL]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average[LINE_WAYTOLL=%i]=%i",LINE_WAYTOLL,rolling_average[LINE_WAYTOLL]);
 			file->rdwr_short(rolling_average_count[LINE_WAYTOLL]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average_count[LINE_WAYTOLL=%i]=%i",LINE_WAYTOLL,rolling_average_count[LINE_WAYTOLL]);
 		}
 	}
 
 	if(file->get_extended_version() >= 9 && file->get_version_int() >= 110006)
 	{
 		file->rdwr_short(livery_scheme_index);
+		DBG_MESSAGE("simline_t::rdwr","livery_scheme_index=%i",livery_scheme_index);
 	}
 	else
 	{
@@ -430,6 +442,7 @@ void simline_t::rdwr(loadsave_t *file)
 		{
 			uint32 count = 0;
 			file->rdwr_long(count);
+			DBG_MESSAGE("simline_t::rdwr","journey times, count=%u",count);
 			average_journey_times.clear();
 			for(uint32 i = 0; i < count; i ++)
 			{
@@ -1030,7 +1043,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 	else
 	{
 		// Find the most suitable convoy to trigger
-	
+
 		sint64 earliest_arrival_time = welt->get_ticks();
 		convoi_t* cnv_to_trigger = NULL;
 		uint16 trigger;
@@ -1058,10 +1071,10 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 
 		if(cnv_to_trigger != NULL)
 		{
-			cnv_to_trigger->set_triggered_conditions(triggers); 
+			cnv_to_trigger->set_triggered_conditions(triggers);
 			return;
 		}
-		
+
 		// Second, check again with partial triggering
 		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
 		{
@@ -1084,7 +1097,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 
 		if(cnv_to_trigger != NULL)
 		{
-			cnv_to_trigger->set_triggered_conditions(triggers); 
+			cnv_to_trigger->set_triggered_conditions(triggers);
 			return;
 		}
 

@@ -461,7 +461,7 @@ void cbuffer_t::append_fixed(uint8 n)
 		zeros--;
 	}
 
-	append(n); 
+	append(n);
 }
 
 
@@ -491,7 +491,7 @@ void cbuffer_t::append_fixed(uint16 n)
 		zeros--;
 	}
 
-	append(n); 
+	append(n);
 }
 
 void cbuffer_t::append_fixed(uint32 n)
@@ -540,13 +540,13 @@ void cbuffer_t::append_fixed(uint32 n)
 		zeros--;
 	}
 
-	append(n); 
+	append(n);
 }
 
 
 void cbuffer_t::append_bool(bool value)
 {
-	append(value ? '1' : '0'); 
+	append(value ? '1' : '0');
 }
 
 uint8 cbuffer_t::decode_uint8(const char* p)
@@ -585,5 +585,5 @@ uint32 cbuffer_t::decode_uint32(const char* p)
 bool cbuffer_t::decode_bool(const char* p)
 {
 	char bool_char = *p;
-	return (bool)atoi(&bool_char); 
+	return (bool)atoi(&bool_char);
 }

@@ -17,18 +17,18 @@ struct schedule_entry_t
 public:
 	schedule_entry_t() {}
 
-	schedule_entry_t(koord3d const& pos, 
-		uint16 const minimum_loading, 
-		sint8 const waiting_time_shift, 
-		sint16 spacing_shift, 
-		sint8 reverse, 
-		uint16 flags, 
-		uint16 unique_entry_id, 
-		uint16 condition_bitfield_broadcaster, 
+	schedule_entry_t(koord3d const& pos,
+		uint16 const minimum_loading,
+		sint8 const waiting_time_shift,
+		sint16 spacing_shift,
+		sint8 reverse,
+		uint16 flags,
+		uint16 unique_entry_id,
+		uint16 condition_bitfield_broadcaster,
 		uint16 condition_bitfield_receiver,
-		uint16 target_id_condition_trigger, 
-		uint16 target_id_couple, 
-		uint16 target_id_uncouple, 
+		uint16 target_id_condition_trigger,
+		uint16 target_id_couple,
+		uint16 target_id_uncouple,
 		uint16 target_unique_entry_uncouple) :
 		pos(pos),
 		minimum_loading(minimum_loading),
@@ -51,13 +51,13 @@ public:
 	koord3d pos;
 
 	enum schedule_entry_flag
-	{	
+	{
 		/* General*/
 		wait_for_time					= (1u << 0),
 		lay_over						= (1u << 1),
 		ignore_choose					= (1u << 2),
 		force_range_stop				= (1u << 3),
-		
+
 		/* Conditional triggers */
 		conditional_depart_before_wait	= (1u << 4),
 		conditional_depart_after_wait	= (1u << 5),
@@ -150,10 +150,10 @@ public:
 	* The unique ID of the point in the schedule specified
 	* in target_id_couple from which the convoy comprising
 	* the vehicles uncoupled at this schedule entry will
-	* start. 
+	* start.
 	*
-	* There is no equivalent for couple because the 
-	* convoy to which this convoy will be coupled will 
+	* There is no equivalent for couple because the
+	* convoy to which this convoy will be coupled will
 	* alerady be at the correct point in its schedule.
 	*/
 	uint16 target_unique_entry_uncouple;

@@ -129,6 +129,7 @@ add_executable(simutrans-extended
 	boden/wege/weg.cc
 	convoy.cc
 	dataobj/crossing_logic.cc
+	dataobj/consist_order_t.cc
 	dataobj/environment.cc
 	dataobj/freelist.cc
 	dataobj/gameinfo.cc

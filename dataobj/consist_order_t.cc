@@ -31,12 +31,12 @@ void consist_order_t::rdwr(loadsave_t* file)
 			file->rdwr_short(order.tags_to_set);
 
 			uint32 vehicle_description_count = order.vehicle_description.get_count();
-			file->rdwr_long(vehicle_description_count); 
+			file->rdwr_long(vehicle_description_count);
 
 			for(auto vehicle_description : order.vehicle_description)
 			{
 				// Save each element of the vehicle descriptors
-				const char *s = vehicle_description.specific_vehicle ? vehicle_description.specific_vehicle->get_name() : "~BLANK~"; 
+				const char *s = vehicle_description.specific_vehicle ? vehicle_description.specific_vehicle->get_name() : "~BLANK~";
 				file->rdwr_str(s);
 
 				file->rdwr_bool(vehicle_description.empty);
@@ -44,7 +44,7 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_byte(vehicle_description.min_catering);
 				file->rdwr_byte(vehicle_description.max_catering);
 				file->rdwr_byte(vehicle_description.must_carry_class);
-				file->rdwr_long(vehicle_description.min_range); 
+				file->rdwr_long(vehicle_description.min_range);
 				file->rdwr_long(vehicle_description.max_range);
 				file->rdwr_short(vehicle_description.min_brake_force);
 				file->rdwr_short(vehicle_description.max_brake_force);
@@ -61,18 +61,18 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_short(vehicle_description.min_capacity);
 				file->rdwr_short(vehicle_description.max_capacity);
 				file->rdwr_long(vehicle_description.max_running_cost);
-				file->rdwr_long(vehicle_description.min_running_cost); 
+				file->rdwr_long(vehicle_description.min_running_cost);
 				file->rdwr_long(vehicle_description.max_fixed_cost);
 				file->rdwr_long(vehicle_description.min_fixed_cost);
 
 				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 				{
-					file->rdwr_short(vehicle_description.rule_flags[i]); 
+					file->rdwr_short(vehicle_description.rule_flags[i]);
 				}
 			}
 		}
 	}
-	
+
 	if (file->is_loading())
 	{
 		for (uint32 i = 0; i < orders_count; i++)
@@ -86,7 +86,7 @@ void consist_order_t::rdwr(loadsave_t* file)
 			file->rdwr_short(order.tags_to_set);
 
 			uint32 vehicle_description_count = 0;
-			file->rdwr_long(vehicle_description_count); 
+			file->rdwr_long(vehicle_description_count);
 
 			for(uint32 j = 0; j < vehicle_description_count; j ++)
 			{
@@ -95,7 +95,7 @@ void consist_order_t::rdwr(loadsave_t* file)
 				char vehicle_name[512];
 				file->rdwr_str(vehicle_name, 512);
 				const vehicle_desc_t* desc = vehicle_builder_t::get_info(vehicle_name);
-				if(desc == nullptr) 
+				if(desc == nullptr)
 				{
 					desc = vehicle_builder_t::get_info(translator::compatibility_name(vehicle_name));
 				}
@@ -106,7 +106,7 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_byte(vehicle_description.min_catering);
 				file->rdwr_byte(vehicle_description.max_catering);
 				file->rdwr_byte(vehicle_description.must_carry_class);
-				file->rdwr_long(vehicle_description.min_range); 
+				file->rdwr_long(vehicle_description.min_range);
 				file->rdwr_long(vehicle_description.max_range);
 				file->rdwr_short(vehicle_description.min_brake_force);
 				file->rdwr_short(vehicle_description.max_brake_force);
@@ -123,13 +123,13 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_short(vehicle_description.min_capacity);
 				file->rdwr_short(vehicle_description.max_capacity);
 				file->rdwr_long(vehicle_description.max_running_cost);
-				file->rdwr_long(vehicle_description.min_running_cost); 
+				file->rdwr_long(vehicle_description.min_running_cost);
 				file->rdwr_long(vehicle_description.max_fixed_cost);
 				file->rdwr_long(vehicle_description.min_fixed_cost);
 
 				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 				{
-					file->rdwr_short(vehicle_description.rule_flags[i]); 
+					file->rdwr_short(vehicle_description.rule_flags[i]);
 				}
 
 				order.vehicle_description.append(vehicle_description);
@@ -142,21 +142,21 @@ void consist_order_t::rdwr(loadsave_t* file)
 
 void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 {
-	buf.append_fixed(tags_to_clear); 
-	buf.append_fixed(orders.get_count()); 
+	buf.append_fixed(tags_to_clear);
+	buf.append_fixed(orders.get_count());
 	for (auto order : orders)
 	{
-		buf.append_fixed(order.catg_index); 
+		buf.append_fixed(order.catg_index);
 		buf.append_bool(order.clear_all_tags);
 		buf.append_fixed(order.tags_required);
 		buf.append_fixed(order.tags_to_set);
-		buf.append_fixed(order.vehicle_description.get_count()); 
+		buf.append_fixed(order.vehicle_description.get_count());
 		for(auto desc : order.vehicle_description)
 		{
-			buf.append(desc.specific_vehicle ? desc.specific_vehicle->get_name() : "NULL"); 
+			buf.append(desc.specific_vehicle ? desc.specific_vehicle->get_name() : "NULL");
 			buf.append_bool(desc.empty);
 			buf.append_fixed(desc.engine_type);
-			buf.append_fixed(desc.min_catering); 
+			buf.append_fixed(desc.min_catering);
 			buf.append_fixed(desc.must_carry_class);
 			buf.append_fixed(desc.min_range);
 			buf.append_fixed(desc.max_range);
@@ -180,7 +180,7 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 			buf.append_fixed(desc.min_fixed_cost);
 			for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 			{
-				buf.append_fixed(desc.rule_flags[i]); 
+				buf.append_fixed(desc.rule_flags[i]);
 			}
 		}
 	}
@@ -200,13 +200,13 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 	for(uint32 i = 0;  i < order_count; i ++)
 	{
 		consist_order_element_t element;
-		
-		element.catg_index = cbuffer_t::decode_uint8(p); 
-		element.clear_all_tags = cbuffer_t::decode_bool(p);
-		element.tags_required = cbuffer_t::decode_uint16(p); 
-		element.tags_to_set = cbuffer_t::decode_uint16(p); 
 
-		uint32 vehicle_description_count = cbuffer_t::decode_uint32(p); 
+		element.catg_index = cbuffer_t::decode_uint8(p);
+		element.clear_all_tags = cbuffer_t::decode_bool(p);
+		element.tags_required = cbuffer_t::decode_uint16(p);
+		element.tags_to_set = cbuffer_t::decode_uint16(p);
+
+		uint32 vehicle_description_count = cbuffer_t::decode_uint32(p);
 		for(uint32 j = 0; j < vehicle_description_count; j ++)
 		{
 			vehicle_description_element desc;
@@ -265,7 +265,7 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 			desc.min_fixed_cost = cbuffer_t::decode_uint32(p);
 			for (uint32 k = 0; k < vehicle_description_element::max_rule_flags; k++)
 			{
-				desc.rule_flags[k] = cbuffer_t::decode_uint16(p); 
+				desc.rule_flags[k] = cbuffer_t::decode_uint16(p);
 			}
 
 			element.vehicle_description.append(desc);

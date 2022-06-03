@@ -375,7 +375,7 @@ protected:
 	bool smoke:1;
 	bool check_for_finish:1;		// true, if on the last tile
 	bool has_driven:1;
-	
+
 	bool do_not_overhaul : 1;
 	bool do_not_auto_upgrade : 1;
 
@@ -439,8 +439,8 @@ public:
 	* The date (months) when this vehicle was first purchased.
 	*/
 	sint32 get_purchase_time() const {return purchase_time;}
-	
-	/* 
+
+	/*
 	* The date (months) when this vehicle was last overhauled.
 	*/
 	sint32 get_overhaul_time() const { return overhaul_time; }
@@ -700,7 +700,7 @@ public:
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
 
 	// TODO: Implement proper logic for this. Aircraft need different logic to other vehicles, hence
-	// virtual. Query: do we need different logic for other vehicles, too? 
+	// virtual. Query: do we need different logic for other vehicles, too?
 	// This should always return true when is_maintenance_urgently_needed() would be true.
 	virtual bool is_maintenance_needed() const { return false; }
 	virtual bool is_maintenance_urgently_needed() const { return false; }

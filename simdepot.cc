@@ -596,11 +596,11 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		cnv->front()->set_owner(cnv->get_owner());
 		cnv->back()->set_owner(cnv->get_owner());
 	}
-	if (cnv.is_bound() && cnv->get_schedule() && !cnv->get_schedule()->empty()) 
+	if (cnv.is_bound() && cnv->get_schedule() && !cnv->get_schedule()->empty())
 	{
 		// if next schedule entry is this depot => advance to next entry
 		koord3d cur_pos = cnv->get_schedule()->get_current_entry().pos;
-		if (cur_pos == get_pos()) 
+		if (cur_pos == get_pos())
 		{
 			cnv->get_schedule()->advance();
 			cur_pos = cnv->get_schedule()->get_current_entry().pos;
@@ -659,7 +659,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			// Is there a cab at the front end of convoy?
 			create_win(new news_img("Cannot start: no cab at the front of the convoy."), w_time_delete, magic_none);
 		}
-		else 
+		else
 		{
 			// convoi can start now
 			cnv->start();

@@ -8707,7 +8707,6 @@ bool tool_change_convoi_t::init( player_t *player )
 					if (depot_t *dep = gr->get_depot()) {
 						dep->disassemble_convoi(cnv, true);
 						return false;
-
 					}
 				}
 			}
@@ -9267,9 +9266,9 @@ bool tool_change_depot_t::init( player_t *player )
 				selected_line->set_livery_scheme_index(cnv->get_livery_scheme_index());
 				if (!welt->get_settings().get_simplified_maintenance())
 				{
-					const grund_t* gr_depot = welt->lookup(depot->get_pos()); 
+					const grund_t* gr_depot = welt->lookup(depot->get_pos());
 					selected_line->get_schedule()->append(gr_depot, 0, 0, 0, schedule_entry_t::conditional_skip);
-					selected_line->get_schedule()->set_reverse(1, 0); 
+					selected_line->get_schedule()->set_reverse(1, 0);
 				}
 			}
 			if(  is_local_execution()  ) {
@@ -9493,12 +9492,6 @@ bool tool_change_player_t::init( player_t *player_in)
 
 	// ok now do our stuff
 	switch(  tool  ) {
-		case 'a': // activate/deactivate AI
-			if(  player  &&  player->get_ai_id()!=player_t::HUMAN  &&  (player_in==welt->get_public_player()  ||  !env_t::networkmode)  ) {
-				player->set_active(state);
-				welt->get_settings().set_player_active(id, player->is_active());
-			}
-			break;
 		case 'c': // change player color
 			if(  player  &&  player==player_in  ) {
 				int c1, c2, dummy;
@@ -9542,6 +9535,9 @@ bool tool_change_player_t::init( player_t *player_in)
 			}
 			break;
 
+		case 'a': // WAS: activate/deactivate AI
+			dbg->error( "tool_change_player_t::init()", "deprecated command called" );
+			break;
 	}
 
 	// update the window
