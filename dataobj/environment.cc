@@ -59,6 +59,7 @@ std::string env_t::server_motd_filename;
 vector_tpl<std::string> env_t::listen;
 bool env_t::server_save_game_on_quit = false;
 bool env_t::reload_and_save_on_quit = true;
+uint8 env_t::network_heavy_mode = 0;
 
 sint32 env_t::server_frames_ahead = 4;
 sint32 env_t::additional_client_frames_behind = 4;
@@ -69,9 +70,10 @@ bool env_t::server_runs_background_tasks_when_paused = false;
 
 std::string env_t::nickname = "";
 
-// this is explicitely and interactively set by user => we do not touch it in init
+// this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
-sint16 env_t::scroll_multi = 2;
+sint16 env_t::scroll_multi = -1; // start with same scrool as mouse as nowadays standard
+bool env_t::scroll_infinite = true; // since it fails with touch devices
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
@@ -208,13 +210,15 @@ void env_t::init()
 	message_flags[2] = 0x00A0;
 	message_flags[3] = 0;
 
-	night_shift = false;
+	night_shift = true;
 
 	hide_with_transparency = true;
 	hide_trees = false;
 	hide_buildings = env_t::NOT_HIDE;
 	hide_under_cursor = false;
 	cursor_hide_range = 5;
+
+	scroll_infinite = true;
 
 	visualize_schedule = true;
 
@@ -268,6 +272,8 @@ void env_t::init()
 
 	// autosave every x months (0=off)
 	autosave = 0;
+
+	reload_and_save_on_quit = true;
 
 	// default: make 25 frames per second (if possible) and 10 for faster fast forward
 	fps = 25;
@@ -616,6 +622,9 @@ void env_t::rdwr(loadsave_t *file)
 	if( file->is_version_ex_atleast(14, 44) ) {
 		file->rdwr_bool( env_t::show_depot_names );
 		file->rdwr_byte( show_factory_storage_bar );
+	}
+	if( file->is_version_ex_atleast(14, 55) ) {
+		file->rdwr_bool(scroll_infinite);
 	}
 
 	// server settings are not saved, since they are server specific

@@ -104,7 +104,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			}
 			else if (tunnel) {
 				new_component<gui_margin_t>(10);
-				new_component<gui_label_t>(tunnel->get_desc()->get_name(), color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
+				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()) / 100.0;
 				lb_tunnel->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
@@ -154,7 +154,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_empty_t>();
 			add_table(2, 1);
 			{
-				new_component<gui_image_t>(skinverwaltung_t::alerts->get_image_id(4), 0, ALIGN_NONE, true);
+				new_component<gui_image_t>(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4):IMG_EMPTY, 0, ALIGN_NONE, true);
 				new_component<gui_label_t>("way_cannot_be_used_by_any_vehicle", COL_DANGER);
 			}
 			end_table();
@@ -354,7 +354,10 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				lb_last_renewed->update();
 			}
 			else {
-				new_component_span<gui_label_t>("Degraded", 2)->set_color(SYSCOL_OBSOLETE);
+				gui_label_buf_t* lb_degraded = new_component_span<gui_label_buf_t>(2);
+				lb_degraded->buf().printf("(%s: %s)", translator::translate("Degraded"), translator::get_short_date(way->get_last_renewal_monty_year() / 12, way->get_creation_month_year() % 12));
+				lb_degraded->set_color(SYSCOL_OBSOLETE);
+				lb_degraded->set_fixed_width(148);
 				new_component<gui_empty_t>();
 			}
 

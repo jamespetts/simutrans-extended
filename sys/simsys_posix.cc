@@ -90,8 +90,9 @@ void dr_textur(int, int, int, int)
 {
 }
 
-void move_pointer(int, int)
+bool move_pointer(int, int)
 {
+	return false;
 }
 
 void set_pointer(int)
@@ -170,6 +171,12 @@ static void posix_sigterm(int)
 {
 	DBG_MESSAGE("posix_sigterm", "Received SIGTERM, exiting...");
 	sigterm_received = 1;
+}
+
+
+const char* dr_get_locale()
+{
+	return "";
 }
 
 

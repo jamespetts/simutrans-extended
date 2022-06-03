@@ -225,7 +225,9 @@ void convoi_t::init(player_t *player)
 	needs_full_route_flush = false;
 }
 
-convoi_t::convoi_t(loadsave_t* file) : vehicle(max_vehicle, NULL)
+convoi_t::convoi_t(loadsave_t* file) :
+	vehicle(max_vehicle, NULL),
+	lane_affinity_end_index(0)
 {
 	self = convoihandle_t();
 	init(0);
@@ -234,6 +236,7 @@ convoi_t::convoi_t(loadsave_t* file) : vehicle(max_vehicle, NULL)
 	last_stop_was_depot = true;
 	max_signal_speed = SPEED_UNLIMITED;
 
+	init_financial_history();
 	no_route_retry_count = 0;
 	rdwr(file);
 	current_stop = schedule == NULL ? 255 : schedule->get_current_stop() - 1;
@@ -1170,7 +1173,7 @@ convoi_t::route_infos_t& convoi_t::get_route_infos()
 			convoi_t::route_info_t &this_info = route_infos.get_element(i);
 			const koord3d this_tile = route.at(i);
 			const koord3d next_tile = route.at(min(i + 1, route_count - 1));
-			this_info.speed_limit = welt->lookup_kartenboden(this_tile.get_2d())->is_water() ? vehicle_t::speed_unlimited() : kmh_to_speed(950); // Do not alow supersonic flight over land.
+			this_info.speed_limit = welt->lookup_kartenboden(this_tile.get_2d())->is_water() ? vehicle_t::speed_unlimited() : kmh_to_speed(990); // Do not alow supersonic flight over land.
 			this_info.steps_from_start = current_info.steps_from_start + front.get_tile_steps(current_tile.get_2d(), next_tile.get_2d(), this_info.direction);
 			const grund_t* this_gr = welt->lookup(this_tile);
 			const weg_t *this_weg = get_weg_on_grund(this_gr, waytype);
@@ -1564,6 +1567,9 @@ bool convoi_t::drive_to()
 		{
 			success == route_t::route_too_complex ? state = NO_ROUTE_TOO_COMPLEX : state = NO_ROUTE;
 			no_route_retry_count = 0;
+			if (line.is_bound()) {
+				line->set_state(simline_t::line_has_stuck_convoy);
+			}
 #ifdef MULTI_THREAD
 			pthread_mutex_lock(&step_convois_mutex);
 #endif
@@ -2824,7 +2830,7 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 }
 
 
-void convoi_t::start()
+void convoi_t::start(depot_t* dep)
 {
 	if(state == INITIAL || state == ROUTING_1 || state == ROUTE_JUST_FOUND)
 	{
@@ -2838,6 +2844,11 @@ void convoi_t::start()
 		{
 			home_depot = route.front();
 			front()->set_pos( home_depot );
+		}
+
+		if ((home_depot == koord3d::invalid) && dep)
+		{
+			home_depot = dep->get_pos();
 		}
 		// put the convoi on the depot ground, to get automatic rotation
 		// (vorfahren() will remove it anyway again.)
@@ -4072,10 +4083,10 @@ void convoi_t::set_working_method(working_method_t value)
 {
 	for (uint32 i = 0; i < vehicle_count; i++)
 	{
-		const vehicle_t* veh = get_vehicle(i);
+		vehicle_t* veh = get_vehicle(i);
 		if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt)
 		{
-			rail_vehicle_t* rv = (rail_vehicle_t*)veh;
+			rail_vehicle_t* rv = static_cast<rail_vehicle_t *>(veh);
 			rv->set_working_method(value);
 
 			if (i == 0)
@@ -5317,6 +5328,10 @@ void convoi_t::show_info()
 	}
 }
 
+void convoi_t::show_detail()
+{
+	create_win( new convoi_detail_t(self), w_info, magic_convoi_detail+self.get_id() );
+}
 
 #if 0
 void convoi_t::info(cbuffer_t & buf) const
@@ -5482,11 +5497,6 @@ void convoi_t::get_freight_info(cbuffer_t & buf)
 		}
 		freight_list_sorter_t::sort_freight(total_fracht, buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL);
 	}
-}
-
-void convoi_t::get_freight_info_by_class(cbuffer_t &)
-{
-
 }
 
 
@@ -9267,7 +9277,7 @@ sint16 convoi_t::get_car_numbering(uint8 car_no) const
 	uint8 normal_car_cnt = 0; // It also serves as a flag that the locomotive counting is over
 
 	for (uint8 veh = 0; veh < car_no; veh++) {
-		if (vehicle[veh]->get_number_of_accommodation_classes()) {
+		if (vehicle[veh]->get_number_of_fare_classes()) {
 			normal_car_cnt++;
 		}
 		else {

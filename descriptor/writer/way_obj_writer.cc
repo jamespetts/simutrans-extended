@@ -30,7 +30,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	};
 	int ribi, slope;
 
-	obj_node_t node(this, 22, &parent);
+	obj_node_t node(this, 23, &parent);
 
 
 	// Version needs high bit set as trigger -> this is required
@@ -44,7 +44,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	// Finally, this is the extended version number. This is *added*
 	// to the standard version number, to be subtracted again when read.
 	// Start at 0x100 and increment in hundreds (hex).
-	version += 0x100;
+	version += 0x200;
 
 	uint32 price       = obj.get_int("cost",        100);
 	uint32 maintenance = obj.get_int("maintenance", 100);
@@ -58,6 +58,8 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 
 	uint8 wtyp     =  get_waytype(obj.get("waytype"));
 	uint8 own_wtyp =  get_waytype(obj.get("own_waytype"));
+
+	uint8 is_tall   =  obj.get_int("is_tall", 0) ? 1 : 0;
 
 	// Way constraints
 	// One byte for permissive, one byte for prohibitive.
@@ -102,6 +104,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	node.write_uint8 (outfp, own_wtyp,					19);
 	node.write_uint8(outfp, permissive_way_constraints,	20);
 	node.write_uint8(outfp, prohibitive_way_constraints,21);
+	node.write_uint8(outfp, is_tall,                    22);
 
 	write_head(outfp, node, obj);
 

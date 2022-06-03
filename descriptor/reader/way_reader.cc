@@ -86,6 +86,8 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			extended_version -=1;
 		}
 
+		desc->deck_mask=0x00000000;
+
 		if(version==6) {
 			// version 6, now with axle load
 			desc->price = decode_uint32(p);
@@ -113,7 +115,10 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->upgrade_group = decode_uint8(p);
 					desc->monthly_base_wear = decode_uint32(p);
 				}
-				if(extended_version > 1)
+				if(extended_version >= 2){
+					desc->deck_mask = decode_uint32(p);
+				}
+				if(extended_version > 2)
 				{
 					dbg->fatal( "way_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 				}

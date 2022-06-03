@@ -39,8 +39,8 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 // Do not forget to increment the save game versions in settings_stats.cc when changing this
 
-#define MAKEOBJ_VERSION "60.2"
-// new factory locations and provisio
+#define MAKEOBJ_VERSION "60.21"
+// accommodation name
 
 #ifndef QUOTEME
 #	define QUOTEME_(x) #x

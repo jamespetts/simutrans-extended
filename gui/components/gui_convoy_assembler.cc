@@ -507,8 +507,6 @@ void gui_convoy_assembler_t::layout()
 	lb_convoi_number.set_width(30);
 	bt_class_management.set_pos(scr_coord(c3_x, y));
 	bt_class_management.set_size(scr_size(size.w - c3_x-5, LINESPACE));
-	bt_class_management.pressed = win_get_magic(magic_class_manager);
-	//bt_class_management.pressed = show_class_management;
 	y += LINESPACE + 1;
 	lb_convoi_cost.set_pos(scr_coord(c1_x, y));
 	lb_convoi_cost.set_size(scr_size(c2_x - c1_x, LINESPACE));
@@ -855,6 +853,8 @@ void gui_convoy_assembler_t::draw(scr_coord parent_pos)
 
 			if (cnv.is_bound() && cnv->get_vehicle_count() > i)
 			{
+				bt_class_management.pressed = win_get_magic(magic_class_manager+cnv.get_id());
+
 				vehicle_t* v = cnv->get_vehicle(i);
 
 				switch (ware->get_catg_index())
@@ -2558,8 +2558,11 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 				{
 					if (veh_type->get_capacity(i) > 0)
 					{
+						if (veh_type->get_number_of_classes()>1) {
+							buf.printf("[%u] ", i+1);
+						}
 						buf.printf("%s: %3d %s %s",
-							goods_manager_t::get_translated_wealth_name(veh_type->get_freight_type()->get_catg_index(), i),
+							translator::translate(veh_type->get_accommodation_name(i)),
 							veh_type->get_capacity(i),
 							translator::translate(veh_type->get_freight_type()->get_mass()),
 							translator::translate(veh_type->get_freight_type()->get_name()));

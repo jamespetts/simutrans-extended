@@ -74,8 +74,12 @@ public:
 
 	/// Compute the slope opposite to @p x. Returns flat if @p x does not allow ways on it.
 	static type opposite(type x) { return is_single(x) ? (is_one_high(x) ? (slope_t::all_up_one - x) : (slope_t::all_up_two - x)) : flat; }
+
 	/// Rotate.
 	static type rotate90(type x) { return ( ( (x % slope_t::southeast) * slope_t::northwest ) + ( ( x - (x % slope_t::southeast) ) / slope_t::southeast ) ); }
+	static type rotate180(type x) { return ( ( (x % slope_t::northeast) * slope_t::northeast ) + ( ( x - (x % slope_t::northeast) ) / slope_t::northeast ) ); }
+	static type rotate270(type x) { return ( ( (x % slope_t::northwest) * slope_t::southeast ) + ( ( x - (x % slope_t::northwest) ) / slope_t::northwest ) ); }
+
 	/// Returns true if @p x has all corners raised.
 	static bool is_all_up(type x) { return (flags[x] & all_up)>0; }
 	/// Returns maximal height difference between the corners of this slope.

@@ -402,6 +402,8 @@ public:
 	uint32 get_max_axle_load() const { return max_axle_load; }
 	uint32 get_bridge_weight_limit() const { return bridge_weight_limit; }
 
+	uint32 get_deckmask() const {return desc->get_deckmask();}
+
 	/**
 	* Sets a new description. Replaces old with maximum speed
 	* worth of description and updates the maintenance cost.
@@ -421,6 +423,8 @@ public:
 	 * @return NULL if OK, otherwise an error message
 	 */
 	const char *is_deletable(const player_t *player) OVERRIDE;
+
+	bool is_low_clearence(const player_t* player, bool permissive=true);
 
 	waytype_t get_waytype() const OVERRIDE { return wtyp; }
 

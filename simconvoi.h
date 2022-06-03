@@ -1030,7 +1030,7 @@ public:
 	/**
 	* sets a new convoi in route
 	*/
-	void start();
+	void start(depot_t* dep = nullptr);
 
 	void ziel_erreicht(); ///< Called, when the first vehicle reaches the target
 
@@ -1119,6 +1119,7 @@ public:
 	* @see simwin
 	*/
 	void show_info();
+	void show_detail();
 
 	/**
 	* Get whether the convoi is traversing its schedule in reverse.
@@ -1165,7 +1166,6 @@ public:
 	* @param[out] buf Filled with freight description
 	*/
 	void get_freight_info(cbuffer_t & buf);
-	void get_freight_info_by_class(cbuffer_t & buf);
 	void set_sortby(uint8 order);
 	inline uint8 get_sortby() const { return freight_info_order; }
 	void force_resort() { freight_info_resort = true; }

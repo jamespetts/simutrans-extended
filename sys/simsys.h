@@ -77,8 +77,8 @@ bool dr_os_init(int const* parameter);
 /* maximum size possible (if there) */
 struct resolution
 {
-	int w;
-	int h;
+	scr_coord_val w;
+	scr_coord_val h;
 };
 resolution dr_query_screen_resolution();
 
@@ -155,7 +155,7 @@ void show_pointer(int yesno);
 
 void set_pointer(int loading);
 
-void move_pointer(int x, int y);
+bool move_pointer(int x, int y);
 
 int get_mouse_x();
 int get_mouse_y();
@@ -209,6 +209,9 @@ void dr_stop_textinput();
  * Inform the IME of a ideal place to open its popup.
  */
 void dr_notify_input_pos(int x, int y);
+
+///  returns current two byte languange ID
+const char* dr_get_locale();
 
 int sysmain(int argc, char** argv);
 

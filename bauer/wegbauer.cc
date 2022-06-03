@@ -54,6 +54,7 @@
 #include "../obj/leitung2.h"
 #include "../obj/groundobj.h"
 #include "../obj/wayobj.h"
+#include "../obj/pier.h"
 
 #include "../ifc/simtestdriver.h"
 
@@ -839,13 +840,13 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 	if(  welt->get_settings().get_way_height_clearance()==2  ) {
 		// cannot build if conversion factor 2, we aren't powerline and way with maximum speed > 0 or powerline 1 tile below except for roads, waterways and tram lines: but mark those as being a "low bridge" type that only allows some vehicles to pass.
 		grund_t *to2 = welt->lookup( to->get_pos() + koord3d(0, 0, -1) );
-		if(  to2 && (((bautyp&bautyp_mask)!=leitung && to2->get_weg_nr(0) && to2->get_weg_nr(0)->get_desc()->get_topspeed() > 0 && to2->get_weg_nr(0)->get_desc()->get_waytype() != water_wt && to2->get_weg_nr(0)->get_desc()->get_waytype() != road_wt && to2->get_weg_nr(0)->get_desc()->get_waytype() != tram_wt) || to2->get_leitung())  )
+		if(  to2 && (((bautyp&bautyp_mask)!=leitung && to2->get_weg_nr(0) && to2->get_weg_nr(0)->get_desc()->get_topspeed() > 0 && !to2->get_weg_nr(0)->get_desc()->is_low_clearence()) || to2->get_leitung())  )
 		{
 			return false;
 		}
 		// tile above cannot have way unless we are a way (not powerline) with a maximum speed of 0 (and is not a road, waterway or tram line as above), or be surface if we are underground
 		to2 = welt->lookup( to->get_pos() + koord3d(0, 0, 1) );
-		if(  to2  &&  ((to2->get_weg_nr(0)  &&  ((desc->get_topspeed() > 0 && desc->get_waytype() != water_wt && desc->get_waytype() != road_wt && desc->get_waytype() != tram_wt) || (bautyp&bautyp_mask)==leitung))  ||  (bautyp & tunnel_flag) != 0)  )
+		if(  to2  &&  ((to2->get_weg_nr(0)  &&  ((!desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung))  ||  ((bautyp & tunnel_flag) != 0 && (bautyp & low_clearence_flag) == 0))  )
 		{
 			return false;
 		}
@@ -878,6 +879,54 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 		return false;
 	}
 
+	// univeral check: tunnel restrictions
+	if((bautyp&tunnel_flag) && tunnel_desc){
+		if(!tunnel_desc->get_subsea_allowed()){
+			if(welt->lookup_kartenboden(to->get_pos().get_2d())->is_water()){
+				return false;
+			}
+			if(welt->lookup_kartenboden(from->get_pos().get_2d())->is_water()){
+				return false;
+			}
+		}
+		if(!tunnel_desc->get_subbuilding_allowed()){
+			if(tunnel_builder_t::get_is_under_building(to->get_pos(),tunnel_desc)){
+				return false;
+			}
+			if(tunnel_builder_t::get_is_under_building(from->get_pos(),tunnel_desc)){
+				return false;
+			}
+		}
+		if(!tunnel_desc->get_subwaterline_allowed()){
+			if(tunnel_builder_t::get_is_below_waterline(to->get_pos())){
+				return false;
+			}
+			if(tunnel_builder_t::get_is_below_waterline(from->get_pos())){
+				return false;
+			}
+		}
+		if(tunnel_desc->get_depth_limit()){
+			if(welt->lookup_hgt(to->get_pos().get_2d()) - to->get_pos().z > (sint8)tunnel_desc->get_depth_limit()){
+				return false;
+			}
+			if(welt->lookup_hgt(from->get_pos().get_2d()) - from->get_pos().z > (sint8)tunnel_desc->get_depth_limit()){
+				return false;
+			}
+		}
+		if(tunnel_desc->get_underwater_limit()){
+			if(const grund_t* gr = welt->lookup_kartenboden(from->get_pos().get_2d())){
+				if(gr->is_water() && gr->get_pos().z - from->get_pos().z > (sint8)tunnel_desc->get_underwater_limit()){
+					return false;
+				}
+			}
+			if(const grund_t* gr = welt->lookup_kartenboden(to->get_pos().get_2d())){
+				if(gr->is_water() && gr->get_pos().z - to->get_pos().z > (sint8)tunnel_desc->get_underwater_limit()){
+					return false;
+				}
+			}
+		}
+	}
+
 	// universal check for crossings
 	weg_t* this_way = to->get_weg_nr(0);
 	waytype_t const wtyp = (bautyp == river) ? water_wt : (waytype_t)(bautyp & bautyp_mask);
@@ -898,6 +947,72 @@ bool way_builder_t::is_allowed_step( const grund_t *from, const grund_t *to, sin
 	if ((bautyp&bautyp_mask)!=leitung) {
 		if (!check_powerline(zv,to)  ||  !check_powerline(-zv,from)) {
 			return false;
+		}
+	}
+
+	// universal check for piers
+	if(zv.x!=0 || zv.y!=0){
+		ribi_t::ribi ribimask;
+		ribi_t::ribi zvribi=zv.to_ribi();
+		ribimask = pier_t::get_below_ribi_total(to);
+		if( (ribimask|ribi_t::backward(zvribi))!=ribimask){
+				return false;
+		}
+		ribimask = pier_t::get_below_ribi_total(from);
+		if( (ribimask|zvribi)!=ribimask){
+				return false;
+		}
+		if(to->get_weg_hang() && pier_t::get_above_ribi_total(to,true)){
+			return false;
+		}
+		if(from->get_weg_hang() && pier_t::get_above_ribi_total(from,true)){
+			return false;
+		}
+		if(welt->get_settings().get_way_height_clearance()==2){
+			//check above mask of pier on bottom
+			if(!(desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung){
+				if(pier_t::get_above_ribi_total(to,true) || pier_t::get_above_ribi_total(from,true)){
+					return false;
+				}
+			}
+			//check for below mask of pier on top
+			if(grund_t *to2 = welt->lookup( to->get_pos() + koord3d(0, 0, 1) ) ){
+				if((!desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung){
+					ribimask = pier_t::get_below_ribi_total(to2);
+					if( (ribimask|ribi_t::backward(zvribi))!=ribimask){
+							return false;
+					}
+
+				}
+			}
+			if(grund_t *from2 = welt->lookup( from->get_pos() + koord3d(0, 0, 1) ) ){
+				if((desc->get_topspeed() > 0 && desc->is_low_clearence()) || (bautyp&bautyp_mask)==leitung){
+					ribimask = pier_t::get_below_ribi_total(from2);
+					if( (ribimask|zvribi)!=ribimask){
+							return false;
+					}
+				}
+			}
+		}
+		if(to->get_typ()==grund_t::pierdeck){
+			ribimask=pier_t::get_above_ribi_total(to);
+			if((ribimask&ribi_t::backward(zvribi))!=ribi_t::backward(zvribi)){
+				return false;
+			}
+			uint32 deckmask=pier_t::get_deck_obj_mask_total(to);
+			if((deckmask&desc->get_deckmask())!=desc->get_deckmask()){
+				return false;
+			}
+		}
+		if(from->get_typ()==grund_t::pierdeck){
+			ribimask=pier_t::get_above_ribi_total(from);
+			if((ribimask&zvribi)!=zvribi){
+				return false;
+			}
+			uint32 deckmask=pier_t::get_deck_obj_mask_total(from);
+			if((deckmask&desc->get_deckmask())!=desc->get_deckmask()){
+				return false;
+			}
 		}
 	}
 
@@ -1202,6 +1317,12 @@ void way_builder_t::do_terraforming()
 
 		grund_t *to = welt->lookup(route[i+1]);
 		uint8 to_slope = to->get_grund_hang();
+		sint64 cost = welt->get_settings().cst_set_slope;
+		// Check whether this is an attempt at land reclamation from the sea.
+		if (to->is_water() || from->is_water())
+		{
+			cost += welt->get_settings().cst_reclaim_land;
+		}
 		// calculate new slopes
 		check_terraforming(from, to, &from_slope, &to_slope);
 		bool changed = false;
@@ -1229,7 +1350,7 @@ void way_builder_t::do_terraforming()
 			changed = true;
 			if (last_terraformed != i) {
 				// charge player
-				player_t::book_construction_costs(player_builder, welt->get_settings().cst_set_slope, from->get_pos().get_2d(), ignore_wt);
+				player_t::book_construction_costs(player_builder, cost, from->get_pos().get_2d(), ignore_wt);
 			}
 		}
 		// change slope of to
@@ -1255,7 +1376,7 @@ void way_builder_t::do_terraforming()
 			}
 			changed = true;
 			// charge player
-			player_t::book_construction_costs(player_builder, welt->get_settings().cst_set_slope, to->get_pos().get_2d(), ignore_wt);
+			player_t::book_construction_costs(player_builder, cost, to->get_pos().get_2d(), ignore_wt);
 			last_terraformed = i+1; // do not pay twice for terraforming one tile
 		}
 		// recalc slope image of neighbors
@@ -2245,9 +2366,9 @@ sint64 way_builder_t::calc_costs() {
 				}
 			}
 
-			sint64 forge_cost = upgrading ? 0 : welt->get_settings().get_forge_cost(desc->get_waytype());
+			sint64 forge_cost = (upgrading || gr->get_typ()==grund_t::pierdeck) ? 0 : welt->get_settings().get_forge_cost(desc->get_waytype());
 
-			if(!upgrading && !(bautyp & tunnel_flag) && !(bautyp & elevated_flag) && route.get_count() > 1)
+			if(!upgrading && gr->get_typ()!=grund_t::pierdeck && !(bautyp & tunnel_flag) && !(bautyp & elevated_flag) && route.get_count() > 1)
 			{
 				for(int n = 0; n < 8; n ++)
 				{
@@ -2411,8 +2532,8 @@ bool way_builder_t::build_tunnel_tile()
 				player_t::add_maintenance( player_builder, -lt->get_desc()->get_maintenance(), powerline_wt);
 			}
 			tunnel->calc_image();
-			cost -= tunnel_desc->get_value();
-			player_t::add_maintenance( player_builder,  tunnel_desc->get_maintenance(), tunnel_desc->get_finance_waytype() );
+			cost -= tunnel_builder_t::get_total_cost(tunnel->get_pos(),tunnel_desc);
+			player_t::add_maintenance( player_builder,  tunnel_builder_t::get_total_maintenance(tunnel->get_pos(),tunnel_desc), tunnel_desc->get_finance_waytype() );
 		}
 		else if(  gr->get_typ() == grund_t::tunnelboden  ) {
 			// check for extension only ...
@@ -2440,7 +2561,7 @@ bool way_builder_t::build_tunnel_tile()
 					}
 					gr->calc_image();
 
-					cost -= tunnel_desc->get_value();
+					cost -= tunnel_builder_t::get_total_cost(tunnel->get_pos(),tunnel_desc);
 				}
 				if(  tunnel_desc->get_waytype()==road_wt  ) {
 					strasse_t *str = (strasse_t*)gr->get_weg(road_wt);
@@ -2496,7 +2617,7 @@ bool way_builder_t::build_tunnel_tile()
 					// respect speed limit of crossing
 					weg->count_sign();
 				}
-				cost -= tunnel_desc->get_value();
+				cost -= tunnel_builder_t::get_total_cost(tunnel->get_pos(),tunnel_desc);
 			}
 		}
 	}
@@ -2659,6 +2780,13 @@ void way_builder_t::build_road()
 				if (build_sidewalk) {
 					str->set_gehweg(build_sidewalk);
 					str->set_public_right_of_way();
+				}
+				if(gr->get_typ()==grund_t::pierdeck){  //position not yet determined in set_desc, handle here
+					uint16 pier_max_load = pier_t::get_max_axle_load_deck_total(gr) / 2;
+					if(pier_max_load < str->get_max_axle_load()){
+						str->set_max_axle_load(pier_max_load);
+					}
+					str->set_max_speed(pier_t::get_speed_limit_deck_total(gr,str->get_max_speed()));
 				}
 				cost += gr->neuen_weg_bauen(str, route.get_short_ribi(i), player_builder, &route) - desc->get_value();
 				// respect speed limit of crossing

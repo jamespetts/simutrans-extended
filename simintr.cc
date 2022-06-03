@@ -109,7 +109,8 @@ void interrupt_check(const char* caller_info)
 			enabled = false;
 			last_time = now;
 			world()->sync_step( diff, !world()->is_fast_forward(), true );
-			enabled = true;
+			// since pause may have been activated in this sync_step
+			enabled = !world()->is_paused();
 		}
 	}
 	last_ms = world()->get_ticks();

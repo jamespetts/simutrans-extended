@@ -2681,6 +2681,10 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 				else
 				{
 					success = false;
+					if (first_stop_signal_index < INVALID_INDEX && next_signal_index >= INVALID_INDEX)
+					{
+						next_signal_index = first_stop_signal_index;
+					}
 				}
 			} while((schedule_index != cnv->get_schedule()->get_current_stop()) && token_block_blocks && no_reverse && !break_loop_recursive);
 		}
@@ -3107,7 +3111,11 @@ void rail_vehicle_t::clear_token_reservation(signal_t* sig, rail_vehicle_t* w, s
 	route_t* route = cnv ? cnv->get_route() : NULL;
 	if(cnv && sig && !welt->is_destroying() && (sig->get_desc()->get_working_method() != token_block && sig->get_desc()->get_working_method() != one_train_staff) && cnv->get_state() != convoi_t::REVERSING)
 	{
-		w->get_convoi()->set_working_method(sig->get_desc()->get_working_method());
+		convoi_t* cnv_w = w->get_convoi();
+		if (cnv_w)
+		{
+			w->get_convoi()->set_working_method(sig->get_desc()->get_working_method());
+		}
 	}
 	if(cnv && cnv->get_needs_full_route_flush())
 	{

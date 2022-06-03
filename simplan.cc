@@ -22,7 +22,7 @@
 #include "boden/tunnelboden.h"
 #include "boden/brueckenboden.h"
 #include "boden/monorailboden.h"
-
+#include "boden/pier_deck.h"
 #include "obj/gebaeude.h"
 
 #include "dataobj/loadsave.h"
@@ -276,6 +276,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				case grund_t::tunnelboden:   gr = new tunnelboden_t(file, pos);   break;
 				case grund_t::brueckenboden: gr = new brueckenboden_t(file, pos); break;
 				case grund_t::monorailboden: gr = new monorailboden_t(file, pos); break;
+			case grund_t::pierdeck: gr = new pier_deck_t(file, pos); break;
 				default:
 					gr = NULL; // keep compiler happy, fatal() never returns
 					dbg->fatal("planquadrat_t::rdwr()","Error while loading game: Unknown ground type '%d'",gtyp);
@@ -542,7 +543,7 @@ void planquadrat_t::display_obj(const sint16 xpos, const sint16 ypos, const sint
 				if(  htop >= hmin  ) {
 					// something on top: clip horizontally to prevent trees etc shining trough bridges
 					const sint16 yh = ypos - tile_raster_scale_y( (h + corner_nw(data.some[j]->get_grund_hang()) - h0) * TILE_HEIGHT_STEP, raster_tile_width ) + ((3 * raster_tile_width) >> 2);
-					if(  yh >= p_cr.y  ) {
+					if(  yh >= p_cr.y  && data.some[j]->get_typ()!=grund_t::pierdeck) {
 						display_push_clip_wh(p_cr.x, yh, p_cr.w, p_cr.h + p_cr.y - yh  CLIP_NUM_PAR);
 					}
 					break;

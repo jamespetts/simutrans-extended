@@ -11,6 +11,7 @@
 
 #include "../simcolor.h"
 #include "../tpl/stringhashtable_tpl.h"
+#include "../tpl/sparse_tpl.h"
 
 class tabfileobj_t;
 class koord;
@@ -26,6 +27,8 @@ public:
 	obj_info_t() { retrieved=false; str=0; }
 	obj_info_t(bool b, const char *s ) { retrieved=b; str=s; }
 };
+
+
 
 /**
  * This class can be used instead of FILE to read a game definition file,
@@ -123,6 +126,14 @@ public:
 	tabfileobj_t() { }
 	~tabfileobj_t() { clear(); }
 
+	stringhashtable_tpl<obj_info_t, N_BAGS_LARGE>::const_iterator get_begin() const {
+		return objinfo.begin();
+	}
+
+	stringhashtable_tpl<obj_info_t, N_BAGS_LARGE>::const_iterator get_end() const {
+		return objinfo.end();
+	}
+
 	/**
 	 * prints all unused options lines in the file which do not start with a character from exclude_start_chars
 	 */
@@ -190,6 +201,27 @@ public:
 	 */
 	int *get_ints(const char *key);
 	sint64 *get_sint64s(const char *key);
+};
+
+class CSV_file_t
+{
+public:
+    CSV_file_t() {current_row=0;}
+    ~CSV_file_t() {clear();}
+
+public:
+    void clear();
+    void add_obj(const tabfileobj_t& obj);
+    bool save_file(const char *filename);
+
+    bool load_file(const char *filename);
+    void reset_current_obj() {current_row=0;}
+    bool get_object(tabfileobj_t& obj);
+
+private:
+    stringhashtable_tpl<uint16, N_BAGS_LARGE> header;
+    sparse_tpl<const char *,uint32> data;
+    uint16 current_row;
 };
 
 #endif

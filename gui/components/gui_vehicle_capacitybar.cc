@@ -60,7 +60,7 @@ void gui_convoy_loading_info_t::update_list()
 					}
 					else {
 						// "fare" class name
-						lb->buf().printf("%s", ( goods_manager_t::get_translated_wealth_name(catg_index,i) )); // UI TODO: wealth => fare
+						lb->buf().printf("%s", ( goods_manager_t::get_translated_fare_class_name(catg_index,i) ));
 					}
 					lb->update();
 

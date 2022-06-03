@@ -54,6 +54,7 @@
 
 #include "utils/simstring.h"
 #include "utils/searchfolder.h"
+#include "io/rdwr/compare_file_rd_stream.h"
 
 #include "network/network.h" // must be before any "windows.h" is included via bzlib2.h ...
 #include "dataobj/loadsave.h"
@@ -485,6 +486,7 @@ void print_help()
 		" -server_dns FQDN/IP FQDN or IP address of server for announcements\n"
 		" -server_name NAME   Name of server for announcements\n"
 		" -server_admin_pw PW password for server administration\n"
+		" -heavy NUM          enables heavy-mode debugging for network games. VERY SLOW!\n"
 		" -set_workdir WD     Use WD as directory containing all data.\n"
 		" -singleuser         Save everything in data directory (portable version)\n"
 #ifdef DEBUG
@@ -572,6 +574,11 @@ int simu_main(int argc, char** argv)
 	args_t args(argc, argv);
 	env_t::init();
 
+	printf("Args\n");
+	for (int i = 1; i < argc; i++) {
+		printf("*%s*\n", argv[i]);
+	}
+
 	// you really want help with this?
 	if (args.has_arg("-h") ||
 			args.has_arg("-?") ||
@@ -641,7 +648,7 @@ int simu_main(int argc, char** argv)
 	tabfile_t simuconf;
 	char path_to_simuconf[24];
 	// was  config/simuconf.tab
-	sprintf(path_to_simuconf, "config%csimuconf.tab", PATH_SEPARATOR[0]);
+	sprintf( path_to_simuconf, "config%ssimuconf.tab", PATH_SEPARATOR );
 	if(simuconf.open(path_to_simuconf)) {
 		found_simuconf = true;
 	}
@@ -847,6 +854,12 @@ int simu_main(int argc, char** argv)
 			// no announce for clients ...
 			env_t::server_announce = 0;
 		}
+	}
+	// enabling heavy-mode for debugging network games
+	env_t::network_heavy_mode = 0;
+	if(  args.has_arg("-heavy")  ) {
+		int heavy = atoi(args.gimme_arg("-heavy", 1));
+		env_t::network_heavy_mode = clamp(heavy, 0, 2);
 	}
 
 #ifdef DEBUG
@@ -1085,12 +1098,19 @@ int simu_main(int argc, char** argv)
 
 	// now find the pak specific tab file ...
 	obj_conf = env_t::objfilename + path_to_simuconf;
+	//obj_conf = env_t::pak_dir + "config" + PATH_SEPARATOR + "simuconf.tab";
 	if(  simuconf.open(obj_conf.c_str())  ) {
 		env_t::default_settings.set_way_height_clearance( 0 );
+		uint8 show_month = env_t::env_t::show_month;
 
 		dbg->message("simu_main()", "Parsing %s", obj_conf.c_str());
 		env_t::default_settings.parse_simuconf( simuconf );
 		env_t::default_settings.parse_colours( simuconf );
+
+		if (show_month != env_t::show_month) {
+			dbg->warning("Parsing simuconf.tab", "Pakset defines show_month will be ignored!");
+		}
+		env_t::show_month = show_month;
 
 		pak_diagonal_multiplier = env_t::default_settings.get_pak_diagonal_multiplier();
 		pak_height_conversion_factor = env_t::pak_height_conversion_factor;
@@ -1209,7 +1229,7 @@ int simu_main(int argc, char** argv)
 	}
 
 	// simgraph_init loads default fonts, now we need to load (if not set otherwise)
-	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
+//	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
 	dr_chdir(env_t::data_dir);
 
 	dbg->message("simu_main()","Reading city configuration ...");
@@ -1288,7 +1308,20 @@ int simu_main(int argc, char** argv)
 	dr_chdir( env_t::data_dir );
 
 	if(  translator::get_language()==-1  ) {
-		ask_language();
+		// try current language
+		const char* loc = dr_get_locale();
+		if(  loc==NULL  ||  !translator::set_language( loc )  ) {
+			loc = dr_get_locale_string();
+			if(  loc==NULL  ||  !translator::set_language( loc )  ) {
+				ask_language();
+			}
+			else {
+				sprachengui_t::init_font_from_lang();
+			}
+		}
+		else {
+			sprachengui_t::init_font_from_lang();
+		}
 	}
 
 	bool new_world = true;
@@ -1324,6 +1357,27 @@ int simu_main(int argc, char** argv)
 		dbg->message("simu_main()", "Loading savegame \"%s\"", name );
 		loadgame = buf;
 		new_world = false;
+	}
+
+	// compare two savegames
+	if (!new_world  &&  strstart(loadgame.c_str(), "net:")==NULL  &&  args.has_arg("-compare")) {
+		cbuffer_t buf;
+		dr_chdir( env_t::user_dir );
+
+		const char *name = args.gimme_arg("-compare", 1);
+		buf.printf( SAVE_PATH_X "%s", searchfolder_t::complete(name, "sve").c_str() );
+		// open both files
+		loadsave_t file1, file2;
+		if (file1.rd_open(loadgame.c_str()) == loadsave_t::FILE_STATUS_OK  &&  file2.rd_open(buf) == loadsave_t::FILE_STATUS_OK) {
+			karte_t *welt = new karte_t();
+
+			compare_loadsave_t compare(&file1, &file2);
+			welt->load(&compare);
+
+			delete welt;
+			file1.close();
+			file2.close();
+		}
 	}
 
 	// recover last server game
@@ -1592,7 +1646,7 @@ int simu_main(int argc, char** argv)
 
 	// simgraph_init loads default fonts, now we need to load
 	// the real fonts for the current language, if not set otherwise
-	sprachengui_t::init_font_from_lang( strcmp(env_t::fontname.c_str(), FONT_PATH_X "prop.fnt")==0 );
+	sprachengui_t::init_font_from_lang();
 
 	if (!(env_t::reload_and_save_on_quit && !new_world)) {
 		destroy_all_win(true);

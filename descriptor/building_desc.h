@@ -243,6 +243,11 @@ class building_desc_t : public obj_desc_timelined_t {
 
 	uint32 class_proportions_sum_jobs;
 
+	uint32 pier_deck_mask; //(future use) can be put on top of pier
+	uint32 pier_sub_1_mask; //piers preexisting for first (ground) floor
+	uint32 pier_sub_2_mask; //piers prexisting for sencond floor
+	uint8  pier_sub_needed : 1; //building needs to be placed within matching pier
+
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
 	}
@@ -436,6 +441,12 @@ public:
 	void fix_number_of_classes();
 
 	static uint8 get_city_building_max_size() { return city_building_max_size; }
+
+	uint32 get_pier_mask(uint8 floor=0) const {
+		return floor==0 ? pier_sub_1_mask : pier_sub_2_mask;
+	}
+
+	bool get_pier_needed() const { return pier_sub_needed;}
 };
 
 

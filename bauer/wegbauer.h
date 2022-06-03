@@ -86,7 +86,8 @@ public:
 		bot_flag       = 1 << 8,  // do not connect to other ways
 		elevated_flag  = 1 << 9,  // elevated structure
 		terraform_flag = 1 << 10,
-		tunnel_flag    = 1 << 11  // underground structure
+		tunnel_flag    = 1 << 11,  // underground structure
+		low_clearence_flag = 1 << 12
 	};
 
 private:

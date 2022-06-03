@@ -48,6 +48,9 @@ class road_vehicle_t;
 class tunnel_t;
 class wayobj_t;
 class zeiger_t;
+class pier_t;
+class parapet_t;
+class schedule_marker_t;
 
 template<typename T> struct map_obj {};
 template<> struct map_obj<air_vehicle_t>  { static const obj_t::typ code = obj_t::air_vehicle;  };
@@ -71,7 +74,9 @@ template<> struct map_obj<tunnel_t>       { static const obj_t::typ code = obj_t
 template<> struct map_obj<wayobj_t>       { static const obj_t::typ code = obj_t::wayobj;       };
 template<> struct map_obj<weg_t>          { static const obj_t::typ code = obj_t::way;          };
 template<> struct map_obj<zeiger_t>       { static const obj_t::typ code = obj_t::zeiger;       };
-
+template<> struct map_obj<pier_t>         { static const obj_t::typ code = obj_t::pier;        };
+template<> struct map_obj<parapet_t>      { static const obj_t::typ code = obj_t::parapet;        };
+template<> struct map_obj<schedule_marker_t> { static const obj_t::typ code = obj_t::schedule_marker; };
 
 template<typename T> static inline T* obj_cast(obj_t* const d)
 {
@@ -241,7 +246,9 @@ public:
 		fundament,
 		tunnelboden,
 		brueckenboden,
-		monorailboden
+		monorailboden,
+		pierdeck
+
 	};
 
 	grund_t(koord3d pos);
@@ -275,7 +282,14 @@ public:
 	* Updates snowline dependent grund_t (and derivatives) - none are season dependent
 	* Updates season and or snowline dependent objects
 	*/
-	void check_season_snowline(const bool season_change, const bool snowline_change) { if(  snowline_change  ) { calc_image_internal( snowline_change ); } objlist.check_season( season_change  &&  !snowline_change ); }
+	void check_season_snowline(const bool season_change, const bool snowline_change)
+	{
+		if(  snowline_change  ) {
+			calc_image_internal( snowline_change );
+		}
+
+		objlist.check_season( season_change  &&  !snowline_change );
+	}
 
 	/**
 	 * Updates images after change of underground mode.

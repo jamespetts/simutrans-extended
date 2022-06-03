@@ -144,7 +144,7 @@ enlarge_map_frame_t::enlarge_map_frame_t() :
 	start_button.add_listener( this );
 	add_component( &start_button );
 
-	welt_gui_t::update_memory(sets);
+	welt_gui_t::update_memory(&size_label, sets);
 	update_preview();
 
 	reset_min_windowsize();
@@ -289,5 +289,5 @@ void enlarge_map_frame_t::update_preview()
 	}
 
 	// guess the new memory needed
-	welt_gui_t::update_memory(sets);
+	welt_gui_t::update_memory(&size_label, sets);
 }

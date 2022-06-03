@@ -273,7 +273,7 @@ void gui_chart_t::draw(scr_coord offset)
 						(scr_coord_val)( offset.y+baseline-(int)(tmp/scale) ),
 						c.color);
 				}
-				else if (i == 0 && !abort_display_x || abort_display_x && i == start) {
+				else if ( (i==0 && !abort_display_x)  ||  (abort_display_x && i==start) ) {
 					// for the first element print the current value (optionally)
 					// only print value if not too narrow to min/max/zero
 					if(  c.show_value  ) {
@@ -373,7 +373,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
  */
 bool gui_chart_t::infowin_event(const event_t *ev)
 {
-	if(IS_LEFTREPEAT(ev)  ||  IS_LEFTCLICK(ev)) {
+	if(ev->button_state==1) {
 		// tooptip to show?
 		tooltipcoord = scr_coord(ev->mx,ev->my);
 	}

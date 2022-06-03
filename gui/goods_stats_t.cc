@@ -44,7 +44,7 @@ void goods_stats_t::update_goodslist(vector_tpl<const goods_desc_t*>goods, uint3
 
 		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 		if (wtyp->get_number_of_classes() > 1) {
-			lb->buf().printf("%s (%s)", translator::translate(wtyp->get_name()), goods_manager_t::get_translated_wealth_name(wtyp->get_catg_index(),min(g_class, wtyp->get_number_of_classes()-1)));
+			lb->buf().printf("%s (%s)", translator::translate(wtyp->get_name()), goods_manager_t::get_translated_fare_class_name(wtyp->get_catg_index(),min(g_class, wtyp->get_number_of_classes()-1)));
 		}
 		else {
 			lb->buf().append( translator::translate(wtyp->get_name()) );

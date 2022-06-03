@@ -66,6 +66,7 @@
 #endif
 #include "scenario_info.h"
 #include "depotlist_frame.h"
+#include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
 #include "curiositylist_frame_t.h"
 #include "factorylist_frame_t.h"
@@ -188,7 +189,7 @@ static int display_gadget_box(sint8 code,
 	if(  img != NULL  ) {
 
 		// Max Kielland: This center the gadget image and compensates for any left/top margins within the image to be backward compatible with older PAK sets.
-		display_img_aligned(img->imageid, scr_rect(x, y, D_GADGET_WIDTH, D_TITLEBAR_HEIGHT), ALIGN_CENTER_H | ALIGN_CENTER_V, true);
+		display_img_aligned(img->imageid, scr_rect(x, y, D_GADGET_WIDTH, D_TITLEBAR_HEIGHT), ALIGN_CENTER_H | ALIGN_CENTER_V, false);
 	}
 	else {
 		const char *gadget_text = "#";
@@ -212,7 +213,7 @@ static int display_gadget_box(sint8 code,
 		else if (code == SKIN_GADGET_LOCKED) {
 			gadget_text = "L";
 		}
-		display_proportional_rgb( x+4, y+4, gadget_text, ALIGN_LEFT, color_idx_to_rgb(COL_BLACK), false );
+		display_proportional_rgb( x+4, y+4, gadget_text, ALIGN_LEFT, SYSCOL_TEXT, false );
 	}
 
 	int side = x+REVERSE_GADGETS*D_GADGET_WIDTH-1;
@@ -641,8 +642,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_scenario_info:  w = new scenario_info_t(); break;
 					//case magic_depot:          w = new depot_frame_t(); break;
 					case magic_convoi_list:    w = new convoi_frame_t(); break;
-					//case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
-					//case magic_citylist_frame_t: w = new citylist_frame_t(); break;
+					case magic_depotlist:      w = new depotlist_frame_t(); break;
+					case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
 					case magic_halt_list:      w = new halt_list_frame_t(); break;
 					case magic_citylist_frame_t: w = new citylist_frame_t(); break;
 					case magic_curiositylist:  w = new curiositylist_frame_t(); break;
@@ -964,6 +965,7 @@ static bool destroy_framed_win(simwin_t *wins)
 	if(  wl  ) {
 		wl->set_background_dirty();
 	}
+	tooltip_text = 0;
 	return r;
 }
 
@@ -1450,6 +1452,15 @@ void win_set_pos(gui_frame_t *gui, int x, int y)
 }
 
 
+bool last_drag_is_caught = false;
+
+// since check_pos_win is processed before i.e. scrolling map
+// we do not want to catch the mouse, if we use it already
+void catch_dragging()
+{
+	last_drag_is_caught = true;
+}
+
 /*
  * main window event handler
  */
@@ -1457,11 +1468,24 @@ bool check_pos_win(event_t *ev)
 {
 	static int is_resizing = -1;
 	static int is_moving = -1;
+	static bool is_dragging = false;
 
 	bool swallowed = false;
 
-	const int x = ev->ev_class==EVENT_MOVE ? ev->mx : ev->cx;
-	const int y = ev->ev_class==EVENT_MOVE ? ev->my : ev->cy;
+	const int x = ev->ev_class==EVENT_MOVE?ev->mx:ev->cx;
+	const int y = ev->ev_class==EVENT_MOVE?ev->my:ev->cy;
+
+	if( last_drag_is_caught ) {
+		if( ev->ev_class == EVENT_DRAG ) {
+			// somebody else drags already => do nothing
+			return false;
+		}
+		if( ev->ev_class == EVENT_RELEASE ) {
+			// we will handle dragging events again after this
+			last_drag_is_caught = false;
+			return false;
+		}
+	}
 
 	// for the moment, no none events
 	if (ev->ev_class == EVENT_NONE) {
@@ -1489,9 +1513,9 @@ bool check_pos_win(event_t *ev)
 	scr_coord menuoffset((env_t::menupos == MENU_RIGHT) * (display_get_width() - env_t::iconsize.w), (env_t::menupos == MENU_BOTTOM) * (display_get_height() - env_t::iconsize.h) - D_TITLEBAR_HEIGHT);
 	if (!tool_t::toolbar_tool.empty()  &&
 		tool_t::toolbar_tool[0]->get_tool_selector()  &&
-		tool_t::toolbar_tool[0]->get_tool_selector()->is_hit(x-menuoffset.x, y-menuoffset.y)  &&
+		(is_dragging || tool_t::toolbar_tool[0]->get_tool_selector()->is_hit(x-menuoffset.x, y-menuoffset.y)) &&
 		y > menuoffset.y+D_TITLEBAR_HEIGHT  &&
-		ev->ev_class != EVENT_KEYBOARD) {
+		ev->ev_class >= EVENT_CLICK  &&  ev->ev_class <= EVENT_DRAG  ) {
 
 		event_t wev = *ev;
 		wev.move_origin(menuoffset);
@@ -1499,6 +1523,8 @@ bool check_pos_win(event_t *ev)
 		inside_event_handling = tool_t::toolbar_tool[0];
 		tool_t::toolbar_tool[0]->get_tool_selector()->infowin_event( &wev );
 		inside_event_handling = NULL;
+
+		is_dragging = ev->ev_class != EVENT_RELEASE  &&  ev->button_state>1;
 
 		// swallow event
 		return true;
@@ -1517,13 +1543,13 @@ bool check_pos_win(event_t *ev)
 	}
 
 	// just move top window until button release
-	if(  is_moving>=0  &&  (unsigned)is_moving<wins.get_count()  &&  (IS_LEFTDRAG(ev)  ||  IS_LEFTREPEAT(ev))  ) {
+	if(  is_moving>=0  &&  (unsigned)is_moving<wins.get_count()  &&  (IS_LEFTDRAG(ev)  )  ) {
 		move_win( is_moving, ev );
 		return true;
 	}
 
 	// just resize window until button release
-	if(  is_resizing>=0  &&  (unsigned)is_resizing<wins.get_count()  &&  (IS_LEFTDRAG(ev)  ||  IS_LEFTREPEAT(ev))  ) {
+	if(  is_resizing>=0  &&  (unsigned)is_resizing<wins.get_count()  &&  (IS_LEFTDRAG(ev)  )  ) {
 		resize_win( is_resizing, ev );
 		return true;
 	}
@@ -1632,7 +1658,7 @@ bool check_pos_win(event_t *ev)
 						move_win(i, ev);
 						is_moving = i;
 					}
-					if(IS_RIGHTCLICK(ev)  || IS_LEFTDBLCLK(ev)  ) {
+					if(IS_RIGHTCLICK(ev)  ||  IS_LEFTDBLCLK(ev)  ) {
 						wins[i].rollup ^= 1;
 						gui_frame_t *gui = wins[i].gui;
 						scr_size size = gui->get_windowsize();
@@ -1659,7 +1685,7 @@ bool check_pos_win(event_t *ev)
 												(ev->cx > wins[i].pos.x + size.w - D_DRAGGER_WIDTH  &&
 												 ev->cy > wins[i].pos.y + size.h - D_DRAGGER_HEIGHT);
 
-					if((IS_LEFTCLICK(ev)  ||  IS_LEFTDRAG(ev)  ||  IS_LEFTREPEAT(ev))  &&  canresize  &&  wins[i].gui->get_resizemode()!=gui_frame_t::no_resize) {
+					if((IS_LEFTCLICK(ev)  ||  IS_LEFTDRAG(ev))  &&  canresize  &&  wins[i].gui->get_resizemode()!=gui_frame_t::no_resize) {
 						resize_win( i, ev );
 						is_resizing = i;
 					}
@@ -2011,6 +2037,10 @@ void win_redraw_world()
 bool win_change_zoom_factor(bool magnify)
 {
 	const bool result = magnify ? zoom_factor_up() : zoom_factor_down();
+
+	if(magnify  &&  wl->is_step_mode_normal()) {
+		wl->reset_timer();
+	}
 
 	wl->get_viewport()->metrics_updated();
 

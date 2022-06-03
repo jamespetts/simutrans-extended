@@ -714,7 +714,7 @@ void grund_t::info(cbuffer_t& buf) const
 	if (strcmp(n1, n2)) {
 		buf.printf("%s\n", n2);
         }
-	if (!is_water())
+    if (!is_water() && !(get_typ()==pierdeck))
 	{
 		char price[64];
 		money_to_string(price, abs(welt->get_land_value(pos))/100.0);
@@ -758,6 +758,7 @@ void grund_t::info(cbuffer_t& buf) const
 			}
 		}
 	}
+
 #if MSG_LEVEL >= 4
 	buf.printf("\nflags $%0X", flags );
 	buf.printf("\n\npos: (%s)",pos.get_str());
@@ -2201,6 +2202,15 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 
 bool grund_t::is_height_restricted() const
 {
+	if(env_t::pak_height_conversion_factor!=2){
+		return false;
+	}
+	if(this->get_typ()==grund_t::tunnelboden){
+		tunnel_t* tunnel = find<tunnel_t>();
+		if(tunnel){
+			return tunnel->get_is_half_height();
+		}
+	}
 	const grund_t* gr_above = world()->lookup(pos + koord3d(0, 0, 1));
 	return env_t::pak_height_conversion_factor == 2
 		   && gr_above
@@ -2617,7 +2627,9 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 					// Only increment this counter if the ways were already connected.
 					necessary_diversions ++;
 				}
-				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				// Check that the route can be traversed in both directions
+				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
 				if(route_good && (diversionary_route.get_count() <= welt->get_settings().get_max_diversion_tiles()))
 				{
 					successful_diversions ++;
@@ -2761,7 +2773,10 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 
 				route_t diversionary_route;
 				start = intersections[i]->get_pos();
-				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				// Check that the route can be traversed in both directions
+				const bool route_good =
+					diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
 				if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
 				{
 					return true;
@@ -2784,7 +2799,9 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 
 				route_t diversionary_route;
 				start = intersections[0]->get_pos();
-				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+				// Check that the route can be traversed in both directions
+				const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route &&
+					diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
 				if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
 				{
 					return true;
@@ -2808,7 +2825,9 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 
 					route_t diversionary_route;
 					start = intersections[i == 0 ? 0 : 1]->get_pos();
-					const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
+					// Check that the route can be traversed in both directions.
+					const bool route_good = diversionary_route.calc_route(welt, start, end, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route
+					&& diversionary_route.calc_route(welt, end, start, diversion_checker, max_speed, max_axle_load, false, 0, welt->get_settings().get_max_diversion_tiles(), bridge_weight_limit, w->get_pos(), (uint8)'\017', route_t::simple_cost) == route_t::valid_route;
 					if (!(route_good && diversionary_route.get_count() < existing_route.get_count() + welt->get_settings().get_max_diversion_tiles()))
 					{
 						return true;
@@ -2824,7 +2843,8 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			{
 				// All diversionary routes must themselves be set as public rights of way.
 				weg_t* way = welt->lookup(diversionary_route.at(n))->get_weg(w->get_waytype());
-				if (way) {
+				if (way)
+				{
 					way->set_public_right_of_way();
 				}
 			}

@@ -84,6 +84,10 @@ public:
 		}
 	}
 
+	ribi_t::ribi to_ribi() const{
+		return ribi_type(*this);
+	}
+
 	static const koord invalid;
 	static const koord north;
 	static const koord south;

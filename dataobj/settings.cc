@@ -8,6 +8,7 @@
 
 #include "settings.h"
 #include "environment.h"
+#include "../pathes.h"
 #include "../simconst.h"
 #include "../simtypes.h"
 #include "../simdebug.h"
@@ -265,6 +266,7 @@ settings_t::settings_t() :
 	// alter landscape
 	cst_buy_land=-10000;
 	cst_alter_land=-100000;
+	cst_reclaim_land=-1000000;
 	cst_alter_climate=-100000;
 	cst_set_slope=-250000;
 	cst_found_city=-500000000;
@@ -510,6 +512,8 @@ settings_t::settings_t() :
 	parallel_ways_forge_cost_percentage_tram = 85;
 	parallel_ways_forge_cost_percentage_narrowgauge = 35;
 	parallel_ways_forge_cost_percentage_air = 85;
+
+	parallel_pier_cost_percentage = 50;
 
 	passenger_trips_per_month_hundredths = 200;
 	mail_packets_per_month_hundredths = 10;
@@ -910,6 +914,10 @@ void settings_t::rdwr(loadsave_t *file)
 			// alter landscape
 			file->rdwr_longlong(cst_buy_land );
 			file->rdwr_longlong(cst_alter_land );
+			if (file->is_version_ex_atleast(14, 53))
+			{
+				file->rdwr_longlong(cst_reclaim_land);
+			}
 			file->rdwr_longlong(cst_set_slope );
 			file->rdwr_longlong(cst_found_city );
 			file->rdwr_longlong(cst_multiply_found_industry );
@@ -983,8 +991,12 @@ void settings_t::rdwr(loadsave_t *file)
 		}
 		if(file->is_version_atleast(102, 3)) {
 			// network stuff
-			random_counter = get_random_seed( );
-			file->rdwr_long( random_counter );
+			// Superseded by simrand_rdwr in newer versions
+			if (file->is_version_ex_less(14, 51)) {
+				random_counter = get_random_seed( );
+				file->rdwr_long( random_counter );
+			}
+
 			if(  !env_t::networkmode  ||  env_t::server  ) {
 				frames_per_second = clamp(env_t::fps, env_t::min_fps, env_t::max_fps); // update it on the server to the current setting
 				frames_per_step = env_t::network_frames_per_step;
@@ -1986,11 +1998,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	}
 #endif
 
-	//check for fontname, must be a valid name!
-	std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
-	if( FILE* f = fopen( fname.c_str(), "r" ) ) {
-		fclose( f );
-		env_t::fontname = fname;
+	// check for fontname, must be a valid name!
+	if( !env_t::fontname.compare( FONT_PATH_X "prop.fnt" ) ) {
+		// will be only changed if default!
+		std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
+		if( FILE* f = fopen( fname.c_str(), "r" ) ) {
+			fclose( f );
+			env_t::fontname = fname;
+		}
 	}
 	env_t::fontsize  = contents.get_int( "fontsize", env_t::fontsize );
 
@@ -2057,7 +2072,6 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::show_depot_names          = contents.get_int( "show_depot_names", env_t::show_depot_names );
 	env_t::show_month                = contents.get_int( "show_month", env_t::show_month );
 	env_t::show_vehicle_states       = contents.get_int( "show_vehicle_states", env_t::show_vehicle_states );
-	env_t::follow_convoi_underground = contents.get_int( "follow_convoi_underground", env_t::follow_convoi_underground );
 
 	env_t::follow_convoi_underground   = contents.get_int_clamped( "follow_convoi_underground",      env_t::follow_convoi_underground, 0, 2 );
 	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, INT_MAX );
@@ -2575,8 +2589,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// We do not attempt to correct saved games as this was part of the "game balance" involved
 	// with that game.  A save game can be changed using the override options.
 	sint64 new_cost_alter_land = contents.get_int64("cost_alter_land", -1);
-	if (new_cost_alter_land > 0) {
+	if (new_cost_alter_land > 0)
+	{
 		cst_alter_land = new_cost_alter_land * -100 * distance_per_tile;
+	}
+	sint64 new_cost_reclaim_land = contents.get_int64("cost_reclaim_land", -1);
+	if (new_cost_reclaim_land > 0)
+	{
+		cst_reclaim_land = new_cost_reclaim_land * -100 * distance_per_tile;
 	}
 	sint64 new_cost_set_slope = contents.get_int64("cost_set_slope", -1);
 	if (new_cost_set_slope > 0) {

@@ -701,6 +701,9 @@ void halt_list_frame_t::draw(scr_coord pos, scr_size size)
 		// some deleted/ added => resort
 		fill_list();
 	}
+	if( size!=get_size() ) {
+		resize(scr_coord(0,0));
+	}
 
 	gui_frame_t::draw(pos, size);
 }

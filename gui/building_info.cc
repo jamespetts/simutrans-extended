@@ -51,16 +51,16 @@ void gui_building_stats_t::init_class_table()
 	const bool show_job_info   = (building->get_adjusted_jobs() && !show_population);
 	const bool show_visitor_demands = (building->get_adjusted_visitor_demand() && !show_population);
 	if (show_population) {
-		new_component<gui_heading_t>("residents_wealth", SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("residents_wealth", SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 	}
 	else if (show_visitor_demands && show_job_info) {
-		new_component<gui_heading_t>("wealth_of_visitors_/_commuters", SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("wealth_of_visitors_/_commuters", SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 	}
 	else if (show_job_info){
-		new_component<gui_heading_t>("wealth_of_commuters", SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("wealth_of_commuters", SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 	}
 	else if (show_visitor_demands) {
-		new_component<gui_heading_t>("wealth_of_visitors",  SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("wealth_of_visitors",  SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 	}
 	else {
 		return; // no demand
@@ -101,7 +101,7 @@ void gui_building_stats_t::init_stats_table()
 	scr_coord_val value_cell_width = max(proportional_string_width(translator::translate("This Year")), proportional_string_width(translator::translate("Last Year")));
 
 	if (building->get_tile()->get_desc()->get_type() != building_desc_t::city_res || building->get_adjusted_mail_demand()) {
-		new_component<gui_heading_t>("Trip data", SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("Trip data", SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 		add_table(5,0)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
 		{
 			// header
@@ -152,7 +152,7 @@ void gui_building_stats_t::init_stats_table()
 	}
 
 	if (building->get_tile()->get_desc()->get_type() == building_desc_t::city_res || building->get_adjusted_mail_demand()) {
-		new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, frame_color, 1)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
+		new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, frame_color, 2)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 		add_table(5,0)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
 		{
 			// header

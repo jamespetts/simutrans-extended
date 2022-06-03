@@ -17,7 +17,7 @@
 
 class gui_signalbox_changer_t : public gui_aligned_container_t, private action_listener_t
 {
-	signal_t* sig;
+	const signal_t* sig;
 	signalbox_t* sb;
 
 	bool connected=false;
@@ -30,7 +30,7 @@ class gui_signalbox_changer_t : public gui_aligned_container_t, private action_l
 	void update();
 
 public:
-	gui_signalbox_changer_t(signalbox_t* to, signal_t* from);
+	gui_signalbox_changer_t(signalbox_t* to, const signal_t *from);
 
 	void draw(scr_coord offset) OVERRIDE;
 
@@ -49,13 +49,13 @@ private:
 	koord3d sig_pos;
 
 	// update signal box list
-	void build_list(signal_t* sig);
+	void build_list(const signal_t* sig);
 
 	// update table
-	void update(signal_t* sig);
+	void update(const signal_t* sig);
 
 public:
-	signal_connector_gui_t(signal_t *s);
+	signal_connector_gui_t(const signal_t *s);
 
 	~signal_connector_gui_t();
 

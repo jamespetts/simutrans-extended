@@ -1,0 +1,28 @@
+﻿<title>Elevated way supports help</title>
+
+<h1>Elevated way support tools</h1>
+
+<p>
+<strong>Elevated way supports</strong> are set of building blocks used to create elevated ways and viaducts of multiple different way types.  In this menu are the tools for automatic building of elevated way supports. In the <a href="pierblocks.txt">elevated way support building blocks sub-menu</a> are the tools for individual placement of the blocks for more manual control.
+</p>
+<p>
+To create elevated ways using this system, select the support type, optionally select a height, click drag click to place array of supports at that height (relative to the first click), then place a way (e.g. a road or railway) on the supports. Elevated way supports + a way = an elevated way. Setting the height to 0 allows for the extension of the supports and connection of supports to each other.
+</p>
+<p>
+The current starting height (in tiles) is shown by a yellow number at the top left of the currently selected elevated way support tool. To select the height, CTRL+click the button and choose the height from the menu.
+</p>
+<p>
+Like bridges, elevated way supports cannot be built over some or all types of buildings (depending on the pakset). Unlike bridges, there are also restrictions to prevent the supports from blocking ways. It should be possible to infer what these restrictions are by looking at the supports. Some elevated way supports have speed and axle load limits, which are indicated by the icon tool tips. For roads, the axle load limit is halved as there are two lanes of road traffic.  Depending on the pakset, elevated way supports might also have limits on what types of ways can be placed upon them.  If elevated way supports are limited in such manner, then the limits will be stated in the name (e.g. "Narrow-Gauge Trestle", "Tub-Boat Aqueduct", "Concrete Deck (Taxi-way compatible)".  Most elevated way supports will not work with canals, taxiways or runways unless indicated by their names.
+</p>
+<p>
+There is a special type of elevated way support referred to as a <strong>through truss</strong>, where the deck is on the bottom with the structural components on the sides. Through truss elevated way supports are indicated as such in the tooltips. Because in this type of design (also known as a "box girder" in some contexts) the structure of the elevated way surrounds the way, rather than the way sitting on top of it, it is not possible for two through truss elevated way supports to intersect. It is also not possible to build stations/stops on top of through truss elevated way sections. 
+</p>
+<p>
+For the automated placement icons, the tool-tip only gives an approximation of the cost, as the automatic placement results in substituting elevated way support types when needed, such as for diagonals and crossing over obstacles. Such substitutions are performed to minimise cost while still maintaining the axle load limit, as well as the style (defined by the pakset designer) of the elevated way support type.
+</p>
+<p>
+Elevated way supports are different to integral elevated ways. Integral elevated ways are single objects comprising elevated way support and the way itself: the two cannot be separated, even to upgrade/renew the way: the whole structure, including the supports, must also be renewed. Integral elevated ways are used mostly for monorails and maglevs. In older versions of Simutrans-Extended, all elevated ways other than bridges were of this integral type, so, depending on the pakset, there may be many of these older integral elevated ways present. In some paksets, these integral elevated ways have been deprecated, so it is no longer possible to build new instances of them, but existing integral elevated ways from older versions are available so as to be compatible with older saved games.
+</p>
+<p>
+<em>Note</em>: During the development of this feature, elevated way supports were called <strong>piers</strong>.
+</p>

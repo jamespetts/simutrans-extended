@@ -31,6 +31,7 @@
 #include "../vehicle/rail_vehicle.h"
 #include "../display/viewport.h"
 
+#include "../bauer/vehikelbauer.h"
 
 #define LOADING_BAR_WIDTH 150
 #define LOADING_BAR_HEIGHT 5
@@ -595,7 +596,7 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 	}
 	withdraw_button.pressed = cnv->get_withdraw();
 	retire_button.pressed = cnv->get_depot_when_empty();
-	class_management_button.pressed = win_get_magic(magic_class_manager);
+	class_management_button.pressed = win_get_magic(magic_class_manager+cnv.get_id());
 
 	if (tabs.get_active_tab_index()==3) {
 		// common existing_convoy_t for acceleration curve and weight/speed info.
@@ -925,7 +926,7 @@ void gui_vehicleinfo_t::draw(scr_coord offset)
 			if (v->get_desc()->get_power() > 0) {
 				buf.clear();
 				buf.printf(translator::translate("Power/tractive force (%s): %4d kW / %d kN\n"),
-					translator::translate(vehicle_desc_t::get_engine_type((vehicle_desc_t::engine_t)v->get_desc()->get_engine_type())),
+					translator::translate(vehicle_builder_t::engine_type_names[(vehicle_desc_t::engine_t)v->get_desc()->get_engine_type()]),
 					v->get_desc()->get_power(), v->get_desc()->get_tractive_effort());
 				display_proportional_clip_rgb(pos.x + w + offset.x, pos.y + offset.y + total_height + extra_y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				extra_y += LINESPACE;

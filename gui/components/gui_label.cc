@@ -260,7 +260,7 @@ void gui_data_bar_t::draw(scr_coord offset)
 		}
 	}
 	const scr_coord_val color_bar_width = (tmp+99)*size.w/10000;
-	display_linear_gradient_wh_rgb(pos.x + offset.x, pos.y + offset.y, color_bar_width, size.h, bar_color, 70, 15, true);
+	display_linear_gradient_wh_rgb(pos.x + offset.x, pos.y + offset.y, color_bar_width, size.h, bar_color, 70, 15);
 	const scr_rect area(offset + pos, size);
 	display_proportional_ellipsis_rgb(area, text, ALIGN_RIGHT | DT_CLIP, color, true);
 
@@ -276,7 +276,7 @@ void gui_data_bar_t::draw(scr_coord offset)
 gui_heading_t::gui_heading_t(const char* text, PIXVAL color_, PIXVAL frame_color_, uint8 style_) :
 	tooltip(NULL)
 {
-	set_size(scr_size(D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT));
+	set_size(scr_size(D_DEFAULT_WIDTH - D_MARGINS_X, D_HEADING_HEIGHT+(style_==0)*4));
 	init(text, scr_coord(0, 0), color_, frame_color_, style_);
 }
 
@@ -305,7 +305,7 @@ void gui_heading_t::set_text(const char *text)
 
 scr_size gui_heading_t::get_min_size() const
 {
-	return scr_size(min(D_DEFAULT_WIDTH, get_size().w), D_HEADING_HEIGHT);
+	return scr_size(min(D_DEFAULT_WIDTH, get_size().w), get_size().h);
 }
 
 

@@ -32,8 +32,7 @@ void way_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& obj)
 	int ribi, slope;
 
 	// node size is 46 bytes
-	obj_node_t node(this, 49, &parent);
-
+	obj_node_t node(this, 53, &parent);
 
 	// Version needs high bit set as trigger -> this is required
 	// as marker because formerly nodes were unversionend
@@ -47,7 +46,7 @@ void way_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& obj)
 	// to the standard version number, to be subtracted again when read.
 	// Start at 0x100 and increment in hundreds (hex).
 	// 0x200 - 12.x - added max. speeds for different gradients.
-	version += 0x200;
+	version += 0x300;
 
 	uint32 price				= obj.get_int("cost",        100);
 	uint32 maintenance			= obj.get_int("maintenance", 100);
@@ -85,6 +84,8 @@ void way_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& obj)
 	uint8 draw_as_obj = (obj.get_int("draw_as_ding", 0) == 1);
 	draw_as_obj = (obj.get_int("draw_as_obj", draw_as_obj) == 1);
 	sint8 number_of_seasons = 0;
+
+	uint32 deck_mask = obj.get_int("deck_mask", 0);
 
 	// Way constraints
 	// One byte for permissive, one byte for prohibitive.
@@ -140,6 +141,7 @@ void way_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& obj)
 	node.write_uint32(outfp, way_only_cost,				40);
 	node.write_uint8(outfp, upgrade_group,				44);
 	node.write_uint32(outfp, monthly_base_wear, 		45);
+	node.write_uint32(outfp, deck_mask,					49);
 
 	static const char* const image_type[] = { "", "front" };
 

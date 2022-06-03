@@ -44,6 +44,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
+          if-no-files-found: error
 
 
   sim-linux-posix:
@@ -72,6 +73,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
+          if-no-files-found: error
 
 
   sim-linux-debug-sdl2:
@@ -100,6 +102,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
+          if-no-files-found: error
 
 
   makeobj-linux:
@@ -126,7 +129,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/makeobj-extended
+          path: build/makeobj/makeobj-extended
+          if-no-files-found: error
 
 
   nettool-linux:
@@ -152,7 +156,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/nettool-extended
+          path: build/nettools/nettool-extended
+          if-no-files-found: error
 
 
   sim-mac-sdl2:
@@ -180,6 +185,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
+          if-no-files-found: error
 
 
   sim-mac-posix:
@@ -204,6 +210,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
+          if-no-files-found: error
 
 
   makeobj-mac:
@@ -226,7 +233,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/makeobj-extended
+          path: build/makeobj/makeobj-extended
+          if-no-files-found: error
 
 
   nettool-mac:
@@ -249,7 +257,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/nettool-extended
+          path: build/nettools/nettool-extended
+          if-no-files-found: error
 
 
   sim-mingw-sdl2:
@@ -278,6 +287,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   sim-mingw-gdi:
@@ -306,6 +316,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   sim-mingw-posix:
@@ -334,6 +345,7 @@ jobs:
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   makeobj-mingw:
@@ -360,7 +372,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/makeobj-extended.exe
+          path: build/makeobj/makeobj-extended.exe
+          if-no-files-found: error
 
 
   nettool-mingw:
@@ -387,12 +400,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/nettool-extended.exe
+          path: build/nettools/nettool-extended.exe
+          if-no-files-found: error
 
 
   sim-windows-gdi:
     name: Windows (MSVC, GDI)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -403,14 +417,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=gdi -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=gdi -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -419,12 +433,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/Release/simutrans-extended.exe
+          path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   sim-windows-sdl2:
     name: Windows (MSVC, SDL2)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -437,14 +452,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 sdl2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=sdl2 -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=sdl2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -453,12 +468,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/Release/simutrans-extended.exe
+          path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   sim-windows-headless:
     name: Windows (MSVC, headless, zstd, UPNP)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -477,7 +493,7 @@ jobs:
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -486,12 +502,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/Release/simutrans-extended.exe
+          path: build/simutrans/simutrans-extended.exe
+          if-no-files-found: error
 
 
   makeobj-windows:
     name: Windows Makeobj (MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -504,14 +521,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -520,12 +537,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/Release/makeobj-extended.exe
+          path: build/makeobj/Release/makeobj-extended.exe
+          if-no-files-found: error
 
 
   nettool-windows:
     name: Windows Nettool (MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: check-code-formatting
     if: always()
     steps:
@@ -538,14 +556,14 @@ jobs:
         with:
           vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
           vcpkgArguments: '--disable-metrics zlib bzip2 libpng'
-          vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: x64-windows-static
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
       - name: Configure
         run: |
           cd ${{ github.workspace }}/build
-          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake .. -DSIMUTRANS_BACKEND=none -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: |
           cd ${{ github.workspace }}/build
@@ -554,4 +572,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ github.job }}-nightly
-          path: build/simutrans/Release/nettool-extended.exe
+          path: build/nettools/Release/nettool-extended.exe
+          if-no-files-found: error

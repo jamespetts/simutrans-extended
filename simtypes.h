@@ -191,6 +191,56 @@ typedef unsigned long long  uint64;
 #endif
 #endif // ! MULTI_THREAD
 
+static inline uint32 hammingWeight(uint8 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x55);
+	x=(x & 0x33) + ((x>>2) & 0x33);
+	x+=(x>>4);
+	return x & 0xF;
+#endif
+}
+
+static inline uint32 hammingWeight(uint16 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x5555);
+	x=(x & 0x3333) + ((x>>2) & 0x3333);
+	x=(x + (x>>4)) & 0x0F0F;
+	x+=(x>>8);
+	return x & 0x1F;
+#endif
+}
+
+static inline uint32 hammingWeight(uint32 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcount(x));
+#else
+	x-=((x>>1) & 0x55555555);
+	x=(x & 0x33333333) + ((x>>2) & 0x33333333);
+	x=(x + (x>>4)) & 0x0F0F0F0F;
+	x+=(x>>8);
+	x+=(x>>16);
+	return x & 0x3F;
+#endif
+}
+
+static inline uint32 hammingWeight(uint64 x){
+#ifdef USE_GCC_POPCOUNT
+	return (__builtin_popcountl(x));
+#else
+	x-=((x>>1) & 0x5555555555555555);
+	x=(x & 0x3333333333333333) + ((x>>2) & 0x3333333333333333);
+	x=(x + (x>>4)) & 0x0F0F0F0F0F0F0F0F;
+	x+=(x>>8);
+	x+=(x>>16);
+	x+=(x>>32);
+	return x & 0x7F;
+#endif
+}
+
 
 template<typename T> static inline int sgn(T x)
 {

@@ -629,6 +629,11 @@ public:
 		return enables&WARE;
 	}
 
+	// for gui purpose
+	// Compare convoy/line and halt to determine if it has a matching attribute. If not, loading cannot be executed.
+	bool can_serve(linehandle_t line) const;
+	bool can_serve(convoihandle_t cnv) const;
+
 	/**
 	 * Found route and station uncrowded
 	 */
@@ -774,6 +779,7 @@ public:
 	 * Opens an information window for this station.
 	 */
 	void show_info();
+	void show_detail();
 
 	/**
 	 * @return the type of a station

@@ -704,7 +704,7 @@ senke_t::senke_t(loadsave_t *file) :
 	einkommen = 0;
 	max_einkommen = 1;
 	next_t = 0;
-	delta_sum = 0;
+	delta_t_sum = 0;
 	last_power_demand = 0;
 	power_load = 0;
 	rdwr( file );
@@ -729,7 +729,7 @@ senke_t::senke_t(koord3d pos, player_t *player, stadt_t* c) :
 		city->add_substation(this);
 	}
 	next_t = 0;
-	delta_sum = 0;
+	delta_t_sum = 0;
 	last_power_demand = 0;
 	power_load = 0;
 	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
@@ -1008,10 +1008,10 @@ sync_result senke_t::sync_step(uint32 delta_t)
 		return SYNC_DELETE;
 	}
 
-	delta_sum += delta_t;
-	if(  delta_sum > PRODUCTION_DELTA_T  ) {
+	delta_t_sum += delta_t;
+	if(  delta_t_sum > PRODUCTION_DELTA_T  ) {
 		// sawtooth waveform resetting at PRODUCTION_DELTA_T => time period for image changing
-		delta_sum -= delta_sum - delta_sum % PRODUCTION_DELTA_T;
+		delta_t_sum -= delta_t_sum - delta_t_sum % PRODUCTION_DELTA_T;
 	}
 
 	next_t += delta_t;
@@ -1040,7 +1040,7 @@ sync_result senke_t::sync_step(uint32 delta_t)
 				}
 			}
 
-			if(  delta_sum <= (sint32)load_factor  ) {
+			if(  delta_t_sum <= (sint32)load_factor  ) {
 				new_image = skinverwaltung_t::senke->get_image_id(1+winter_offset);
 			}
 			else {

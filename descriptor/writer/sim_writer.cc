@@ -27,6 +27,7 @@
 #include "sound_writer.h"
 #include "tree_writer.h"
 #include "vehicle_writer.h"
+#include "pier_writer.h"
 
 /*
  * static data
@@ -84,3 +85,4 @@ citycar_writer_t citycar_writer_t::the_instance;
 pedestrian_writer_t pedestrian_writer_t::the_instance;
 
 tree_writer_t tree_writer_t::the_instance;
+pier_writer_t pier_writer_t::the_instance;

@@ -49,12 +49,12 @@ public:
 		arrowright,
 		arrowup,
 		arrowdown,
+		posbutton,
 		repeatarrowleft,
 		repeatarrowright,
-		posbutton,
-		TYPE_MASK = (1 << 7) - 1,
+		TYPE_MASK = (1 << 6) - 1,
 
-		state            = 1 << 7,
+		state            = 1 << 6,
 		square_state     = square     | state,
 		box_state        = box        | state,
 		roundbox_state   = roundbox   | state,
@@ -66,7 +66,7 @@ public:
 		arrowright_state = arrowright | state,
 		arrowup_state    = arrowup    | state,
 		arrowdown_state  = arrowdown  | state,
-		automatic = 256,
+		automatic = 1<<7,
 		square_automatic    = square_state | automatic,
 		box_state_automatic = box_state    | automatic,
 		imagebox_automatic  = imagebox     | automatic,
@@ -104,8 +104,11 @@ private:
 	const char *text;
 	const char *translated_text;
 
-	koord3d targetpos;
-	image_id img;
+	union {
+		koord3d targetpos;
+		image_id img;
+		uint32 button_click_time;
+	};
 
 	bool img_on_right=false;
 

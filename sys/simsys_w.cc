@@ -384,12 +384,13 @@ void dr_textur(int xp, int yp, int w, int h)
 
 
 // move cursor to the specified location
-void move_pointer(int x, int y)
+bool move_pointer(int x, int y)
 {
 	POINT pt = { ((long)x*x_scale+16)/32, ((long)y*y_scale+16)/32 };
 
 	ClientToScreen(hwnd, &pt);
 	SetCursorPos(pt.x, pt.y);
+	return true;
 }
 
 
@@ -956,6 +957,14 @@ int main()
 	return WinMain(hInstance,NULL,NULL,NULL);
 }
 #endif
+
+
+const char* dr_get_locale()
+{
+	static char LanguageCode[5]="";
+	GetLocaleInfoA( GetUserDefaultUILanguage(), LOCALE_SISO639LANGNAME, LanguageCode, lengthof( LanguageCode ) );
+	return LanguageCode;
+}
 
 
 int CALLBACK WinMain(HINSTANCE const hInstance, HINSTANCE, LPSTR, int)

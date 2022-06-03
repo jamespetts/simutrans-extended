@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <algorithm>
 
 #include "../simunits.h"
 #include "../simworld.h"
@@ -44,10 +45,54 @@
 #include "../utils/cbuffer_t.h"
 #include "../utils/simrandom.h"
 
+#include "../bauer/vehikelbauer.h"
+
 #include "../boden/wege/weg.h"
 
 #include "depot_frame.h"
 #include "convoi_detail_t.h"
+
+
+bool depot_frame_t::compare_line(linehandle_t const& a, linehandle_t const& b)
+{
+	// first: try to sort by line letter code
+	const char *alcl = a->get_linecode_l();
+	const char *blcl = b->get_linecode_l();
+	if (strcmp(alcl, blcl)) {
+		return strcmp(alcl, blcl) < 0;
+	}
+	const char *alcr = a->get_linecode_r();
+	const char *blcr = b->get_linecode_r();
+	if (strcmp(alcr, blcr)) {
+		return strcmp(alcr, blcr) < 0;
+	}
+
+	// second: try to sort by number
+	const char *atxt = a->get_name();
+	int aint = 0;
+	// isdigit produces with UTF8 assertions ...
+	if (atxt[0] >= '0'  &&  atxt[0] <= '9') {
+		aint = atoi(atxt);
+	}
+	else if (atxt[0] == '('  &&  atxt[1] >= '0'  &&  atxt[1] <= '9') {
+		aint = atoi(atxt + 1);
+	}
+	const char *btxt = b->get_name();
+	int bint = 0;
+	if (btxt[0] >= '0'  &&  btxt[0] <= '9') {
+		bint = atoi(btxt);
+	}
+	else if (btxt[0] == '('  &&  btxt[1] >= '0'  &&  btxt[1] <= '9') {
+		bint = atoi(btxt + 1);
+	}
+	if (aint != bint) {
+		return (aint - bint) < 0;
+	}
+	// otherwise: sort by name
+	return strcmp(atxt, btxt) < 0;
+
+	return false;
+}
 
 depot_frame_t::depot_frame_t(depot_t* depot) :
 	gui_frame_t( translator::translate(depot->get_name()), depot->get_owner()),
@@ -194,7 +239,7 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 				{
 					txt_traction_types.printf(", ");
 				}
-				txt_traction_types.printf("%s", translator::translate(vehicle_desc_t::get_engine_type((vehicle_desc_t::engine_t)i)));
+				txt_traction_types.printf("%s", translator::translate(vehicle_builder_t::engine_type_names[(vehicle_desc_t::engine_t)(i+1)]));
 			}
 		}
 	}
@@ -554,6 +599,7 @@ void depot_frame_t::build_line_list()
 
 	vector_tpl<linehandle_t> lines;
 	depot->get_owner()->simlinemgmt.get_lines(depot->get_line_type(), &lines, line_type_flags, true);
+	std::sort(lines.begin(), lines.end(), compare_line);
 	FOR(  vector_tpl<linehandle_t>,  const line,  lines  ) {
 		line_selector.new_component<line_scrollitem_t>(line) ;
 		if(  selected_line.is_bound()  &&  selected_line == line  ) {
@@ -564,7 +610,7 @@ void depot_frame_t::build_line_list()
 		// no line selected
 		selected_line = linehandle_t();
 	}
-	line_selector.sort( last_selected_line.is_bound()+extra_option );
+	//line_selector.sort( last_selected_line.is_bound()+extra_option ); // line list is now pre-sorted
 }
 
 
@@ -670,9 +716,6 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				cnv->get_owner()->simlinemgmt.show_lineinfo( cnv->get_owner(), cnv->get_line() );
 				welt->set_dirty();
 			}
-		}
-		else if(  comp == &bt_sell  ) {
-			depot->call_depot_tool('v', cnv, NULL);
 		}
 		else if (comp == &bt_details) {
 			create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());

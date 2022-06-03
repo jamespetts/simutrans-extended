@@ -1667,6 +1667,8 @@ remove narrowgauge tracks
 ナローゲージの撤去
 remove powerlines
 送電線の撤去
+remove signal
+信号の撤去
 remove roads
 道路の撤去
 remove tracks
@@ -1800,7 +1802,7 @@ Show map scale
 Show mismatched
 不適合のサーバーを表示
 Show obsolete
-旧型を表示
+老朽車両を含む
 Show offline
 オフラインを表示
 Show only used
@@ -2512,7 +2514,7 @@ city_threshold_size
 class
 クラス
 Class
-クラス
+運賃等級
 class_manager
 旅客/郵便クラスの割当て
 classes
@@ -2769,6 +2771,10 @@ Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers a
 産業:%sの閉鎖に伴い、%d人の雇用が失われ、%dの供給元と%dの需要先の産業が影響を受けました。
 infinite_range
 有効範囲の制限なし
+Infinite mouse scrolling
+マップスクロール時にポインタ位置を固定（マウス使用時推奨）
+Infinite scrolling using mouse
+windowモードではオフにした場合に画面の外にマウスポインタが移動することがあります。※タッチスクリーンでは動作しない可能性があります！
 Interest
 利子
 intermediate_signal
@@ -3214,7 +3220,7 @@ Show in the ticker
 Show in ticker
 画面下部にスクロールで表示します。
 Show outdated
-古い車両を表示
+古い車両を含む
 Show the condition of ways
 軌道の状態を表示します。
 Show the map in the same isometric orientation as the main game window
@@ -3844,7 +3850,7 @@ Available:
 Show future
 登場予定
 Show upgraded
-改造車両を表示
+改造車両を含む
 GUI settings
 GUI設定
 map view
@@ -4171,6 +4177,10 @@ can open a dedicated window by clicking on a private car.
 自家用車をクリックすると専用の情報ウィンドウを開きます
 can open a dedicated window by clicking on a pedestrian.
 歩行者をクリックすると専用の情報ウィンドウを開きます
+Private car
+自家用車
+Reselect closes tools
+選択済のツールボタンを押すと選択を解除する
 Date format
 日時の表示形式
 Show own depot names
@@ -4191,8 +4201,12 @@ Information windows pop up control:
 情報ウィンドウの表示許可設定：
 helptxt_access_minimap
 ミニマップウィンドウに路線図を表示します
+ground_info
+地表タイル
 helptxt_ground_info_toggler
 占有されていないタイルをクリックすると土地情報を情報ウィンドウを開きます
+tree_info
+樹木
 helptxt_tree_info_toggler
 樹木、岩石、鳥の群れなどのオブジェクトをクリックすると専用の情報ウィンドウを開きます
 travel_distance
@@ -4289,6 +4303,36 @@ Production boosted by power supply
 電力供給による生産力ブースト
 fl_stats_last_month
 前月度生産統計
+edit_line_color
+ラインカラー編集
+Use unique line color
+ラインカラーを設定する
+Use line letter code
+路線記号を使用する
+Frame with corners
+外枠を使用する
+reset
+やり直し
+save
+登録して終了
+Base color:
+基調色：
+sub_bg:
+背景色を反転：
+Letter code
+記号（前）
+Number
+記号（後）
+Colored
+選択色
+White
+白
+You do not have permission to edit!
+他のプレイヤーの路線は編集できません！
+Save your changes and close the dialog.
+変更を保存してダイアログを閉じます
+helptxt_linecode_use_sub_background
+文字の背景に使用される色が基調色とは異なる色に入れ替わります
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month

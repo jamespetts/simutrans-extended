@@ -1927,43 +1927,51 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bauer\goods_manager.cc" />
+    <ClCompile Include="bauer\pier_builder.cc" />
+    <ClCompile Include="boden\pier_deck.cc" />
     <ClCompile Include="dataobj\rect.cc" />
     <ClCompile Include="dataobj\consist_order_t.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
+    <ClCompile Include="descriptor\pier_desc.cc" />
     <ClCompile Include="descriptor\reader\imagelist3d_reader.cc" />
+    <ClCompile Include="descriptor\reader\pier_reader.cc" />
     <ClCompile Include="descriptor\vehicle_desc.cc" />
     <ClCompile Include="descriptor\way_desc.cc" />
+    <ClCompile Include="gui\pier_rotation_select.cc" />
     <ClCompile Include="io\classify_file.cc" />
-    <ClCompile Include="io\raw_image.cc" >
+    <ClCompile Include="io\raw_image.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_bmp.cc" >
+    <ClCompile Include="io\raw_image_bmp.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_png.cc" >
+    <ClCompile Include="io\raw_image_png.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="io\raw_image_ppm.cc" >
+    <ClCompile Include="io\raw_image_ppm.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (command-line server)|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="io\rdwr\bzip2_file_rdwr_stream.cc" />
+    <ClCompile Include="io\rdwr\compare_file_rd_stream.cc" />
     <ClCompile Include="io\rdwr\raw_file_rdwr_stream.cc" />
+    <ClCompile Include="io\rdwr\adler32_stream.cc" />
     <ClCompile Include="io\rdwr\rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zlib_file_rdwr_stream.cc" />
     <ClCompile Include="io\rdwr\zstd_file_rdwr_stream.cc" />
+    <ClCompile Include="obj\pier.cc" />
     <ClCompile Include="sound\sdl2_mixer_sound.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -2030,6 +2038,7 @@
     <ClCompile Include="gui\gui_theme.cc" />
     <ClCompile Include="gui\loadfont_frame.cc" />
     <ClCompile Include="gui\line_class_manager.cc" />
+    <ClCompile Include="gui\line_color_gui.cc" />
     <ClCompile Include="gui\line_item.cc" />
     <ClCompile Include="gui\onewaysign_info.cc" />
     <ClCompile Include="gui\overtaking_mode.cc" />
@@ -2263,6 +2272,7 @@
     <ClCompile Include="squirrel\squirrel\sqvm.cc" />
     <ClCompile Include="squirrel\sq_extensions.cc" />
     <ClCompile Include="utils\cbuffer_t.cc" />
+    <ClCompile Include="utils\checklist.cc" />
     <ClCompile Include="gui\citybuilding_edit.cc" />
     <ClCompile Include="descriptor\reader\citycar_reader.cc" />
     <ClCompile Include="gui\citylist_frame_t.cc" />
@@ -2317,6 +2327,7 @@
     <ClCompile Include="gui\gui_frame.cc" />
     <ClCompile Include="gui\components\gui_image_list.cc" />
     <ClCompile Include="gui\components\gui_label.cc" />
+    <ClCompile Include="gui\components\gui_line_lettercode.cc" />
     <ClCompile Include="gui\components\gui_numberinput.cc" />
     <ClCompile Include="gui\components\gui_scrollbar.cc" />
     <ClCompile Include="gui\components\gui_scrolled_list.cc" />
@@ -2327,6 +2338,7 @@
     <ClCompile Include="gui\components\gui_textarea.cc" />
     <ClCompile Include="gui\components\gui_textinput.cc" />
     <ClCompile Include="gui\components\gui_vehicle_capacitybar.cc" />
+    <ClCompile Include="gui\components\gui_waytype_tab_panel.cc" />
     <ClCompile Include="gui\components\gui_world_view_t.cc" />
     <ClCompile Include="gui\halt_detail.cc" />
     <ClCompile Include="gui\halt_info.cc" />
@@ -2530,6 +2542,7 @@
     <ClCompile Include="descriptor\tunnel_desc.cc" />
     <ClCompile Include="descriptor\reader\tunnel_reader.cc" />
     <ClCompile Include="bauer\tunnelbauer.cc" />
+    <ClCompile Include="bauer\tree_builder.cc" />
     <ClCompile Include="boden\tunnelboden.cc" />
     <ClCompile Include="unicode.cc" />
     <ClCompile Include="descriptor\reader\vehicle_reader.cc" />
@@ -2548,6 +2561,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dataobj\consist_order_t.h" />
+    <ClInclude Include="bauer\pier_builder.h" />
+    <ClInclude Include="boden\pier_deck.h" />
     <ClInclude Include="dataobj\environment.h" />
     <ClInclude Include="dataobj\gameinfo.h" />
     <ClInclude Include="dataobj\height_map_loader.h" />
@@ -2558,7 +2573,9 @@
     <ClInclude Include="dataobj\settings.h" />
     <ClInclude Include="descriptor\image_array_3d.h" />
     <ClInclude Include="descriptor\obj_base_desc.h" />
+    <ClInclude Include="descriptor\pier_desc.h" />
     <ClInclude Include="descriptor\reader\imagelist3d_reader.h" />
+    <ClInclude Include="descriptor\reader\pier_reader.h" />
     <ClInclude Include="display\clip_num.h" />
     <ClInclude Include="display\font.h" />
     <ClInclude Include="display\scr_coord.h" />
@@ -2589,9 +2606,11 @@
     <ClInclude Include="gui\gui_theme.h" />
     <ClInclude Include="gui\loadfont_frame.h" />
     <ClInclude Include="gui\line_class_manager.h" />
+    <ClInclude Include="gui\line_color_gui.h" />
     <ClInclude Include="gui\onewaysign_info.h" />
     <ClInclude Include="gui\overtaking_mode.h" />
     <ClInclude Include="gui\obj_info.h" />
+    <ClInclude Include="gui\pier_rotation_select.h" />
     <ClInclude Include="gui\slim_obj_info.h" />
     <ClInclude Include="gui\privatesign_info.h" />
     <ClInclude Include="gui\scenario_info.h" />
@@ -2606,8 +2625,10 @@
     <ClInclude Include="io\classify_file.h" />
     <ClInclude Include="io\raw_image.h" />
     <ClInclude Include="io\rdwr\bzip2_file_rdwr_stream.h" />
+    <ClInclude Include="io\rdwr\compare_file_rd_stream.h" />
     <ClInclude Include="io\rdwr\raw_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\rdwr_stream.h" />
+    <ClInclude Include="io\rdwr\adler32_stream.h" />
     <ClInclude Include="io\rdwr\zlib_file_rdwr_stream.h" />
     <ClInclude Include="io\rdwr\zstd_file_rdwr_stream.h" />
     <ClInclude Include="network\checksum.h" />
@@ -2632,6 +2653,7 @@
     <ClInclude Include="obj\groundobj.h" />
     <ClInclude Include="obj\label.h" />
     <ClInclude Include="obj\leitung2.h" />
+    <ClInclude Include="obj\pier.h" />
     <ClInclude Include="obj\pillar.h" />
     <ClInclude Include="obj\roadsign.h" />
     <ClInclude Include="obj\signal.h" />
@@ -2711,6 +2733,7 @@
     <ClInclude Include="descriptor\reader\building_reader.h" />
     <ClInclude Include="descriptor\writer\building_writer.h" />
     <ClInclude Include="utils\cbuffer_t.h" />
+    <ClInclude Include="utils\checklist.h" />
     <ClInclude Include="gui\citybuilding_edit.h" />
     <ClInclude Include="descriptor\reader\citycar_reader.h" />
     <ClInclude Include="descriptor\writer\citycar_writer.h" />
@@ -2785,6 +2808,7 @@
     <ClInclude Include="gui\components\gui_image.h" />
     <ClInclude Include="gui\components\gui_image_list.h" />
     <ClInclude Include="gui\components\gui_label.h" />
+    <ClInclude Include="gui\components\gui_line_lettercode.h" />
     <ClInclude Include="gui\components\gui_numberinput.h" />
     <ClInclude Include="gui\components\gui_scrollbar.h" />
     <ClInclude Include="gui\components\gui_scrolled_list.h" />
@@ -2795,6 +2819,7 @@
     <ClInclude Include="gui\components\gui_textarea.h" />
     <ClInclude Include="gui\components\gui_textinput.h" />
     <ClInclude Include="gui\components\gui_vehicle_capacitybar.h" />
+    <ClInclude Include="gui\components\gui_waytype_tab_panel.h" />
     <ClInclude Include="gui\components\gui_world_view_t.h" />
     <ClInclude Include="gui\halt_detail.h" />
     <ClInclude Include="gui\halt_info.h" />
@@ -2971,6 +2996,7 @@
     <ClInclude Include="descriptor\reader\tunnel_reader.h" />
     <ClInclude Include="descriptor\writer\tunnel_writer.h" />
     <ClInclude Include="bauer\tunnelbauer.h" />
+    <ClInclude Include="bauer\tree_builder.h" />
     <ClInclude Include="boden\tunnelboden.h" />
     <ClInclude Include="unicode.h" />
     <ClInclude Include="tpl\vector_tpl.h" />

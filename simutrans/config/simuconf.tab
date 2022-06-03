@@ -710,6 +710,11 @@ cst_make_public_months = 60
 # Minimum clearance under bridges is 1 or 2 levels? (default = conversion factor)
 #way_height_clearance = 1
 
+# This is the maximum "level" of a building that may be built underneath an elevated way.
+# Set this to 0 to disable building elevated ways and bridges with supports over any buildings.
+# Default: 2. 
+#max_elevated_way_building_level=2
+
 # Max. length of initial intercity road connections
 # If you want to speed up map creation, lower this value.
 # If you want more initial intercity roads, raise this value.

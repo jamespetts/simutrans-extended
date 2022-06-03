@@ -22,6 +22,7 @@
 #include "bauer/wegbauer.h"
 #include "bauer/brueckenbauer.h"
 #include "bauer/tunnelbauer.h"
+#include "bauer/pier_builder.h"
 
 #include "descriptor/building_desc.h"
 #include "descriptor/bridge_desc.h"
@@ -29,6 +30,7 @@
 
 #include "boden/grund.h"
 #include "boden/wege/strasse.h"
+#include "boden/pier_deck.h"
 
 #include "dataobj/environment.h"
 #include "dataobj/tabfile.h"
@@ -117,6 +119,8 @@ const char *tool_t::id_to_string(uint16 id)
 
 		CASE_TO_STRING(TOOL_BUILD_SIGNALBOX);
 		CASE_TO_STRING(TOOL_REASSIGN_SIGNAL);
+		CASE_TO_STRING(TOOL_PATH_REMOVER);
+		CASE_TO_STRING(TOOL_FLATTEN_PATH);
 		}
 	}
 	else if (id & SIMPLE_TOOL) {
@@ -278,8 +282,13 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_SET_CLIMATE:                 tool = new tool_set_climate_t();         break;
 		case TOOL_ROTATE_BUILDING:             tool = new tool_rotate_building_t();     break;
 		case TOOL_PLANT_GROUNDOBJ:             tool = new tool_plant_groundobj_t();     break;
+		case TOOL_REMOVE_SIGNAL:               tool = new tool_remove_signal_t();       break;
 		case TOOL_REASSIGN_SIGNAL_DEPRECATED:
 		case TOOL_REASSIGN_SIGNAL:             tool = new tool_reassign_signal_t();     break;
+		case TOOL_BUILD_PIER:                  tool = new tool_build_pier_t();          break;
+		case TOOL_BUILD_PIER_AUTO:             tool = new tool_build_pier_auto_t();     break;
+		case TOOL_PATH_REMOVER:                tool = new tool_path_remover_t();        break;
+		case TOOL_FLATTEN_PATH:	               tool = new tool_flatten_path_t();        break;
 		case TOOL_EXEC_SCRIPT:
 		case TOOL_EXEC_TWO_CLICK_SCRIPT:
 			return NULL; // Tools reserved by standard
@@ -1178,6 +1187,15 @@ void toolbar_t::update(player_t *player)
 					waytype_t way = (waytype_t)(*c!=0 ? atoi(++c) : 0);
 					hausbauer_t::fill_menu( tool_selector, utype, way, get_sound(c));
 				}
+				else if(char const* c = strstart(param, "piers(")) {
+					uint32 filter=0;
+					char mode=c[0];
+					if(c[0]>='a' && c[0]<='z'){
+						filter=atoi(c+1);
+						mode=c[0] + 'A' - 'a';
+					}
+					pier_builder_t::fill_menu(tool_selector,mode,filter);
+				}
 				else if (param[0] == '-') {
 					// add dummy tool_t as separator
 					tool_selector->add_tool_selector( dummy );
@@ -1491,7 +1509,7 @@ void two_click_tool_t::cleanup( bool delete_start_marker )
 		grund_t *gr = welt->lookup( pos );
 		delete z;
 		// Remove dummy ground (placed by tool_build_tunnel_t and tool_build_way_t) unless it has vehicles on it
-		if(gr  &&   (gr->get_typ() == grund_t::tunnelboden  ||  gr->get_typ() == grund_t::monorailboden)  &&  gr->get_weg_nr(0) == NULL && !gr->get_leitung() && !gr->get_convoi_vehicle())
+		if(gr  &&   (gr->get_typ() == grund_t::tunnelboden  ||  gr->get_typ() == grund_t::monorailboden || (gr->get_typ() == grund_t::pierdeck && ((pier_deck_t*)gr)->get_is_dummy()))  &&  gr->get_weg_nr(0) == NULL && !gr->get_leitung() && !gr->get_convoi_vehicle())
 		{
 			welt->access(pos.get_2d())->boden_entfernen(gr);
 			delete gr;

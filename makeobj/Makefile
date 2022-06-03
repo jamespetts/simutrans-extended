@@ -82,8 +82,8 @@ ifneq ($(PROFILE),)
   LDFLAGS += -pg
 endif
 
-CFLAGS   += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wstrict-prototypes $(OS_INC) $(OS_OPT) $(FLAGS)
-CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -std=c++11 $(OS_INC) $(OS_OPT) $(FLAGS)
+CFLAGS   += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wstrict-prototypes -Wpadded $(OS_INC) $(OS_OPT) $(FLAGS)
+CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wpadded -std=c++11 $(OS_INC) $(OS_OPT) $(FLAGS)
 
 # SOLO_SOURCES contains files which are unique to makeobj;
 # SHARED_SOURCES contains those with the exact same object code in makeobj and simutrans;
@@ -119,6 +119,7 @@ SOLO_SOURCES += ../descriptor/writer/vehicle_writer.cc
 SOLO_SOURCES += ../descriptor/writer/way_writer.cc
 SOLO_SOURCES += ../descriptor/writer/way_obj_writer.cc
 SOLO_SOURCES += ../descriptor/writer/xref_writer.cc
+SOLO_SOURCES += ../descriptor/writer/pier_writer.cc
 SOLO_SOURCES += ../utils/dr_rdpng.cc
 SHARED_SOURCES += ../descriptor/image.cc
 SHARED_SOURCES += ../dataobj/freelist.cc
@@ -127,6 +128,8 @@ SHARED_SOURCES += ../simmem.cc
 SHARED_SOURCES += ../utils/simstring.cc
 SHARED_SOURCES += ../utils/searchfolder.cc
 SHARED_SOURCES += ../utils/float32e8_t.cc
+SHARED_SOURCES += ../utils/csv.cc
+SHARED_SOURCES += ../utils/cbuffer_t.cc
 VARIANT_SOURCES += ../utils/simrandom.cc
 VARIANT_SOURCES += ../dataobj/tabfile.cc
 VARIANT_SOURCES += ../utils/log.cc

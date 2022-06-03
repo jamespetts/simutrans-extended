@@ -97,7 +97,7 @@ jobs:
           cp ./artifacts/makeobj-${{matrix.buildtype}}-nightly/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
           cp ./artifacts/nettool-${{matrix.buildtype}}-nightly/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
 
-      - run: zip ./${{matrix.os}}.zip ./${{matrix.os}}/
+      - run: zip -r ./${{matrix.os}}.zip ./${{matrix.os}}/
 
       - name: Deploy
         uses: svenstaro/upload-release-action@v2
@@ -158,8 +158,13 @@ jobs:
           file: windows.zip
           version: tags/Nightly
       - run: |
-          unzip ./windows.zip -d ./simutrans
-          unzip ./linux.zip -d ./simutrans
+          unzip ./windows.zip -d .
+          mv ./windows/* ./simutrans
+          rm -r ./windows
+          
+          unzip ./linux.zip -d .
+          mv ./linux/* ./simutrans
+          rm -r ./linux
 
       #Get paksets
       - name: Get pak128.britain-ex
@@ -170,9 +175,9 @@ jobs:
           file: pak128.britain-ex-nightly.zip
           version: tags/Nightly
       #TODO pak192.comic
-      - run: unzip pak128.britain-ex-nightly.zip -d ./simutrans/pak128.britain-ex
+      - run: unzip pak128.britain-ex-nightly.zip -d ./simutrans/
 
-      - run: zip ./simutrans-extended.zip ./simutrans/
+      - run: zip -r ./simutrans-extended.zip ./simutrans/
 
       - name: Deploy
         uses: svenstaro/upload-release-action@v2

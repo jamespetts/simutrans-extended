@@ -480,10 +480,14 @@ bool halt_list_stats_t::infowin_event(const event_t *ev)
 	if(  !swallowed  &&  halt.is_bound()  ) {
 
 		if(IS_LEFTRELEASE(ev)) {
+			if( IS_SHIFT_PRESSED(ev) ) {
+				halt->show_detail();
+				return true;
+			}
 			if(  event_get_last_control_shift() != 2  ) {
 				halt->show_info();
+				return true;
 			}
-			return true;
 		}
 		if(  IS_RIGHTRELEASE(ev)  ) {
 			welt->get_viewport()->change_world_position(halt->get_basis_pos3d());

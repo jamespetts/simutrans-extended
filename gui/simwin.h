@@ -106,6 +106,7 @@ enum magic_numbers {
 	magic_pakset_info_t,
 	magic_schedule_rdwr_dummy, // only used to save/load schedules
 	magic_line_schedule_rdwr_dummy, // only used to save/load line schedules
+	magic_line_color_gui_t,
 	magic_motd,
 	magic_factory_info, // only used to load/save
 	magic_font,
@@ -126,6 +127,7 @@ enum magic_numbers {
 	magic_depotlist           = magic_line_class_manager  + 843,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
 	magic_signalboxlist,
+	magic_pier_rotation_select,
 	magic_max
 };
 
@@ -142,6 +144,9 @@ void win_clamp_xywh_position(scr_coord_val &x, scr_coord_val &y, scr_size wh, bo
 
 int create_win(gui_frame_t*, wintype, ptrdiff_t magic);
 int create_win(scr_coord_val x, scr_coord_val y, gui_frame_t*, wintype, ptrdiff_t magic, bool move_to_show_full=false);
+
+// call to avoid the main menu getting mouse events while dragging
+void catch_dragging();
 
 bool check_pos_win(event_t*);
 

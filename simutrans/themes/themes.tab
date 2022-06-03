@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Default simutrans theme
 #
 # name of the theme (will be shown with file selector)
@@ -290,4 +289,3 @@ toolbar_max_height = 0
 
 # pak with the images for this theme
 themeimages=newstandard.pak
->>>>>>> 0accae64d06b3867179915b6f2890c983b22ca99

@@ -22,35 +22,45 @@
 
 const goods_desc_t *ware_t::index_to_desc[256];
 
-
-
-ware_t::ware_t() : ziel(), zwischenziel(), zielpos(-1, -1)
+ware_t::ware_t() :
+	menge(0),
+	index(0),
+	is_commuting_trip(false),
+	g_class(0),
+	ziel(),
+	zwischenziel(),
+	zielpos(-1, -1),
+	arrival_time(0)
 {
-	menge = 0;
-	index = 0;
-	arrival_time = 0;
-	g_class = 0;
 }
 
 
-ware_t::ware_t(const goods_desc_t *wtyp) : ziel(), zwischenziel(), zielpos(-1, -1)
+ware_t::ware_t(const goods_desc_t *wtyp) :
+	menge(0),
+	index(wtyp->get_index()),
+	is_commuting_trip(false),
+	g_class(0),
+	ziel(),
+	zwischenziel(),
+	zielpos(-1, -1),
+	arrival_time(0)
 {
 	//This constructor is called from simcity.cc
-	menge = 0;
-	index = wtyp->get_index();
-	arrival_time = 0;
-	g_class = 0;
 }
 
 // Constructor for new revenue system: packet of cargo keeps track of its origin.
 //@author: jamespetts
-ware_t::ware_t(const goods_desc_t *wtyp, halthandle_t o) : ziel(), zwischenziel(), zielpos(-1, -1)
+ware_t::ware_t(const goods_desc_t *wtyp, halthandle_t o) :
+	menge(0),
+	index(wtyp->get_index()),
+	is_commuting_trip(false),
+	g_class(0),
+	ziel(),
+	zwischenziel(),
+	origin(o),
+	zielpos(-1, -1),
+	arrival_time(0)
 {
-	menge = 0;
-	index = wtyp->get_index();
-	origin = o;
-	arrival_time = 0;
-	g_class = 0;
 }
 
 
@@ -105,12 +115,10 @@ void ware_t::rdwr(loadsave_t *file)
 			index = type->get_index();
 		}
 	}
-
 	// convert coordinate to halt indices
 	if(file->is_version_atleast(110, 6) && (file->get_extended_version() >= 10 || file->get_extended_version() == 0)) {
 		// save halt id directly
-		if(file->is_saving())
-		{
+		if(file->is_saving()) {
 			uint16 halt_id = ziel.is_bound() ? ziel.get_id() : 0;
 			file->rdwr_short(halt_id);
 			halt_id = zwischenziel.is_bound() ? zwischenziel.get_id() : 0;
@@ -121,9 +129,7 @@ void ware_t::rdwr(loadsave_t *file)
 				file->rdwr_short(halt_id);
 			}
 		}
-
-		else
-		{
+		else {
 			uint16 halt_id;
 			file->rdwr_short(halt_id);
 			ziel.set_id(halt_id);
@@ -139,11 +145,11 @@ void ware_t::rdwr(loadsave_t *file)
 				origin = zwischenziel;
 			}
 		}
+
 	}
-	else
-	{
-		if(file->is_saving())
-		{
+	else {
+		// save halthandles via coordinates
+		if(file->is_saving()) {
 			koord ziel_koord = ziel.is_bound() ? ziel->get_basis_pos() : koord::invalid;
 			ziel_koord.rdwr(file);
 			koord zwischenziel_koord = zwischenziel.is_bound() ? zwischenziel->get_basis_pos() : koord::invalid;
@@ -154,8 +160,7 @@ void ware_t::rdwr(loadsave_t *file)
 				origin_koord.rdwr(file);
 			}
 		}
-		else
-		{
+		else {
 			koord ziel_koord(file);
 			ziel = haltestelle_t::get_halt_koord_index(ziel_koord);
 			koord zwischen_ziel_koord(file);
@@ -233,11 +238,14 @@ void ware_t::rdwr(loadsave_t *file)
 		last_transfer.set_id(origin.get_id());
 	}
 
-	if(file->get_extended_version() >= 12)
+	if(file->is_version_ex_atleast(12, 0))
 	{
 		bool commuting = is_commuting_trip;
 		file->rdwr_bool(commuting);
 		is_commuting_trip = commuting;
+	}
+	else if (file->is_loading()) {
+		is_commuting_trip = false;
 	}
 
 	if (file->get_extended_version() >= 13 || (file->get_extended_version() == 12 && file->get_extended_revision() >= 22))
@@ -251,7 +259,7 @@ void ware_t::rdwr(loadsave_t *file)
 
 	g_class = min(g_class, get_desc()->get_number_of_classes()-1);
 
-	if (file->get_extended_version() >= 13 || (file->get_extended_version() == 12 && file->get_extended_revision() >= 27))
+	if (file->is_version_ex_atleast(12, 27))
 	{
 		file->rdwr_short(comfort_preference_percentage);
 	}

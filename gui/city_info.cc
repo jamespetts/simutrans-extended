@@ -39,7 +39,7 @@ const char *hist_type[MAX_CITY_HISTORY] =
 	"Visitor demand",
 	"Growth",
 	"Buildings",
-	"Private car",
+	"Verkehrsteilnehmer",
 	"Public transport",
 	"Passagiere",
 	"Walked",
@@ -149,10 +149,10 @@ bool city_location_map_t::infowin_event(const event_t *ev)
 city_info_t::city_info_t(stadt_t* city) :
 	gui_frame_t( name, NULL ),
 	city(city),
+	lb_allow_growth(""),
 	pax_map(city),
 	location_map(city),
-	scrolly_stats(&cont_city_stats, true),
-	lb_allow_growth("")
+	scrolly_stats(&cont_city_stats, true)
 {
 	if (city) {
 		init();
