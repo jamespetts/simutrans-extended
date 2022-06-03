@@ -214,7 +214,7 @@ public:
 		lb_distance.update();
 		add_component(&lb_distance, 4); // 5
 
-		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_nr(),0); // 6
+		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_color1(),0); // 6
 		route_bar->set_visible(true);
 
 		lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
