@@ -75,6 +75,9 @@ private:
 	vector_tpl<gui_schedule_entry_t*> entries;
 	schedule_t *last_schedule;
 	zeiger_t *current_stop_mark;
+
+	uint8 line_color_index = 254;
+
 public:
 	schedule_t* schedule;
 	player_t* player;
@@ -85,7 +88,9 @@ public:
 
 	void set_schedule( schedule_t* f ) { schedule = f; }
 
-	void highlight_schedule( bool marking );
+	void set_line_color_index(uint8 idx = 254) { line_color_index = idx; }
+
+	void highlight_schedule( schedule_t *markschedule, bool marking );
 
 	// Draw the component
 	void draw(scr_coord offset) OVERRIDE;

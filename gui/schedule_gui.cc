@@ -5,6 +5,7 @@
 
 #include "../simline.h"
 #include "../simcolor.h"
+#include "../simdepot.h"
 #include "../simhalt.h"
 #include "../simworld.h"
 #include "../simmenu.h"
@@ -332,10 +333,11 @@ public:
 };
 
 // shows/deletes highlighting of tiles
-void schedule_gui_stats_t::highlight_schedule( bool marking )
+void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
 {
 	marking &= env_t::visualize_schedule;
-	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+	uint8 n = 0;
+	FORX(minivec_tpl<schedule_entry_t>, const& i, schedule->entries, n++) {
 		if (grund_t* const gr = welt->lookup(i.pos)) {
 			for(  uint idx=0;  idx<gr->get_top();  idx++  ) {
 				obj_t *obj = gr->obj_bei(idx);
@@ -359,25 +361,32 @@ void schedule_gui_stats_t::highlight_schedule( bool marking )
 				}
 			}
 
+			schedule_marker_t *marker = gr->find<schedule_marker_t>();
+			if (marking) {
+				if (!marker) {
+					marker = new schedule_marker_t(i.pos, player, markschedule->get_waytype());
+					marker->set_color(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index));
+					gr->obj_add(marker);
+				}
+				uint8 number_style = gui_schedule_entry_number_t::halt;
+				if (haltestelle_t::get_halt(i.pos, player).is_bound()) {
+					;
+				}
+				else if (gr->get_depot() != NULL) {
+					number_style = gui_schedule_entry_number_t::depot;
+				}
+				else {
+					number_style = gui_schedule_entry_number_t::waypoint;
+				}
+				marker->set_entry_data(n, number_style, markschedule->is_mirrored(), (i.reverse == 1));
+				marker->set_selected((i == markschedule->get_current_entry()));
+			}
+			else if (marker) {
+				// remove marker
+				gr->obj_remove(marker);
+			}
 		}
 	}
-	// always remove
-	if(  grund_t *old_gr = welt->lookup(current_stop_mark->get_pos())  ) {
-		current_stop_mark->mark_image_dirty( current_stop_mark->get_image(), 0 );
-		old_gr->obj_remove( current_stop_mark );
-		old_gr->set_flag( grund_t::dirty );
-		current_stop_mark->set_pos( koord3d::invalid );
-	}
-	// add if required
-	if(  marking  &&  schedule->get_current_stop() < schedule->get_count() ) {
-		current_stop_mark->set_pos( schedule->entries[schedule->get_current_stop()].pos );
-		if(  grund_t *gr = welt->lookup(current_stop_mark->get_pos())  ) {
-			gr->obj_add( current_stop_mark );
-			current_stop_mark->set_flag( obj_t::dirty );
-			gr->set_flag( grund_t::dirty );
-		}
-	}
-	current_stop_mark->clear_flag( obj_t::highlight );
 }
 
 
@@ -464,7 +473,7 @@ void schedule_gui_stats_t::update_schedule()
 			last_schedule = schedule->copy();
 		}
 	}
-	highlight_schedule(true);
+	highlight_schedule(schedule, true);
 }
 
 void schedule_gui_stats_t::draw(scr_coord offset)
@@ -1109,7 +1118,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 	}
 	else if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  &&  schedule!=NULL  ) {
 
-		stats->highlight_schedule( false );
+		stats->highlight_schedule(schedule, false);
 
 		update_tool( false );
 		schedule->cleanup();
@@ -1336,7 +1345,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();
-			stats->highlight_schedule( false );
+			stats->highlight_schedule( schedule, false );
 			schedule->copy_from( new_line->get_schedule() );
 			schedule->start_editing();
 		}
@@ -1379,7 +1388,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		if(  line >= 0 && line < schedule->get_count()  ) {
 			schedule->set_current_stop( line );
 			if(  mode == removing  ) {
-				stats->highlight_schedule( false );
+				stats->highlight_schedule( schedule, false );
 				schedule->remove();
 				action_triggered( &bt_add, value_t() );
 			}
