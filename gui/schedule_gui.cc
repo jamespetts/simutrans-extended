@@ -1012,6 +1012,9 @@ void schedule_gui_t::update_tool(bool set)
 
 void schedule_gui_t::update_selection()
 {
+	old_line_count = player->simlinemgmt.get_line_count();
+	last_schedule_count = schedule->get_count();
+
 	numimp_load.disable();
 	numimp_load.set_value( 0 );
 	conditional_depart.set_value(0);
