@@ -106,12 +106,12 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 		lb_leave.set_visible(leave);
 		lb_join.set_visible(join);
 		if (leave) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_DOWN_TRIANGLE, true, true, 3, HAS_POWER|BIDIRECTIONAL);
 			lb_leave.buf().printf("%u", leave);
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
 		}
 		if (join) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_UP_TRIANGLE, true, false, 3, HAS_POWER|BIDIRECTIONAL);
 			lb_join.buf().printf("%u", join);
 			lb_join.set_pos(scr_coord(total_x + LINESPACE/2, 2));
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
