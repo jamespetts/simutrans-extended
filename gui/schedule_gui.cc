@@ -365,7 +365,7 @@ void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool ma
 			if (marking) {
 				if (!marker) {
 					marker = new schedule_marker_t(i.pos, player, markschedule->get_waytype());
-					marker->set_color(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index));
+					marker->set_color( line_color_index>=254 ? color_idx_to_rgb(player->get_player_color1()+4) : line_color_idx_to_rgb(line_color_index) );
 					gr->obj_add(marker);
 				}
 				uint8 number_style = gui_schedule_entry_number_t::halt;
@@ -543,6 +543,8 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		needs_electrification = cnv->needs_electrification();
 		if (old_line.is_bound()) {
 			min_range = old_line->get_min_range() ? old_line->get_min_range() : UINT16_MAX;
+			// set line color for marker
+			stats->set_line_color_index(old_line->get_line_color_index());
 		}
 		if (cnv->get_min_range()) {
 			min_range = min(min_range, cnv->get_min_range());
@@ -1345,6 +1347,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
 		if(  line_scrollitem_t *li = dynamic_cast<line_scrollitem_t*>(line_selector.get_selected_item())  ) {
 			new_line = li->get_line();
+			stats->set_line_color_index(new_line->get_line_color_index());
 			stats->highlight_schedule( schedule, false );
 			schedule->copy_from( new_line->get_schedule() );
 			schedule->start_editing();
@@ -1352,6 +1355,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		else {
 			// remove line
 			new_line = linehandle_t();
+			stats->set_line_color_index(254);
 			line_selector.set_selection( 0 );
 		}
 	}
@@ -1445,6 +1449,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		if(  new_line.is_bound()  &&  !schedule->matches(welt,new_line->get_schedule())  ) {
 			new_line = linehandle_t();
 			line_selector.set_selection(0);
+			stats->set_line_color_index(254);
 		}
 		// only assign old line, when new_line is not equal
 		if(  !new_line.is_bound()  &&  old_line.is_bound()  &&   schedule->matches(welt,old_line->get_schedule())  ) {
@@ -1496,6 +1501,7 @@ void schedule_gui_t::init_line_selector()
 				if (cnv->get_schedule()->matches(welt, line->get_schedule())) {
 					selection = line_selector.count_elements() - 1;
 					new_line = line;
+					stats->set_line_color_index(new_line->get_line_color_index());
 				}
 			}
 			else if (new_line == line) {
