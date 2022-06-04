@@ -1500,6 +1500,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			lb_min_range.set_visible(min_range && min_range != UINT16_MAX);
 		}
+		update_selection();
 	}
 	return true;
 }
