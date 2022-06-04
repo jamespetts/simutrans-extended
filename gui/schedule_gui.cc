@@ -647,7 +647,7 @@ void schedule_gui_t::build_table()
 				img_electric.set_rigid(false);
 				add_component(&img_electric);
 
-				add_table(3,1)->set_spacing(scr_size(0,0));;
+				add_table(3,1)->set_spacing(scr_size(0,0));
 				bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0,0), D_BUTTON_SIZE);
 				bt_add.set_tooltip("Appends stops at the end of the schedule");
 				bt_add.add_listener(this);
