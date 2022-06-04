@@ -180,12 +180,16 @@ protected:
 	uint16 min_range = UINT16_MAX;
 	gui_label_buf_t lb_min_range;
 
-	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv);
+	void build_table();
 
 	inline void set_min_range(uint16 range) { stats->range_limit = range; };
 
 public:
 	schedule_gui_t(schedule_t* schedule = NULL, player_t* player = NULL, convoihandle_t cnv = convoihandle_t());
+	// for convoi
+	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv = convoihandle_t());
+	// for line
+	void init(linehandle_t line);
 
 	virtual ~schedule_gui_t();
 
