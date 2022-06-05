@@ -83,12 +83,11 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	gui_image_list_t* ilists[] = { &convoi, &pas, &pas2, &electrics, &loks, &waggons };
 	for (uint32 i = 0; i < lengthof(ilists); i++) {
 		gui_image_list_t* il = ilists[i];
-		il->set_grid(scr_coord(grid.x - grid_dx, grid.y));
+		il->set_grid(scr_coord(i==0 ? grid.x - grid_dx:grid.x, grid.y));
 		il->set_placement(scr_coord(placement.x - placement_dx, placement.y));
 		il->set_player_nr(player_nr);
 		il->add_listener(this);
 		// only convoi list gets overlapping images
-		grid_dx = 0;
 		placement_dx = 0;
 	}
 	vehicles.clear();
@@ -97,8 +96,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(waytype_t wt, signed char player_
 	/*
 	* [CONVOI]
 	*/
-	convoi.set_player_nr(player_nr);
-	convoi.add_listener(this);
+	convoi.set_max_rows(1);
 
 	cont_convoi.add_component(&lb_convoi_number);
 	cont_convoi.add_component(&convoi);
@@ -432,9 +430,6 @@ void gui_convoy_assembler_t::layout()
 	/*
 	 * [CONVOI]
 	 */
-	convoi.set_grid(scr_coord(grid.x - grid_dx, grid.y));
-	convoi.set_placement(scr_coord(placement.x - placement_dx, placement.y));
-	convoi.set_pos(scr_coord(0, 0));
 	convoi.set_size(scr_size(get_convoy_image_width(), get_convoy_image_height()));
 
 	cont_convoi.set_size(scr_size(get_convoy_clist_width(), grid.y + 5 + 4));
