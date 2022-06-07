@@ -108,7 +108,7 @@ banner_t::banner_t() : gui_frame_t("")
 	// scrolling text ...
 	new_component<banner_text_t>();
 
-	add_table(3,2)->set_force_equal_columns(true);;
+	add_table(3,2)->set_force_equal_columns(true);
 	{
 		// New game button
 		new_map.init( button_t::roundbox | button_t::flexible, "Neue Karte");

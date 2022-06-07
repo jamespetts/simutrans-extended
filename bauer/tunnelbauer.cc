@@ -511,7 +511,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 				str->set_ribi_mask_oneway(ribi_type(-zv));
 			}
 
-			tunnel->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player);;
+			tunnel->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player);
 		}
 		else {
 			lt = new leitung_t(tunnel->get_pos(), player);
