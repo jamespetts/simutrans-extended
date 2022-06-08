@@ -1383,7 +1383,10 @@ bool schedule_list_gui_t::compare_convois(convoihandle_t const cnv1, convoihandl
 			cmp = strcmp(cnv1->get_internal_name(), cnv2->get_internal_name());
 			break;
 		case by_schedule:
-			cmp = cnv1->get_schedule()->get_current_stop() - cnv2->get_schedule()->get_current_stop();
+			cmp = cnv1->get_current_schedule_order() - cnv2->get_current_schedule_order();
+			if( cmp==0 ) {
+				cmp = cnv1->front()->get_route_index() - cnv2->front()->get_route_index();
+			}
 			break;
 		case by_profit:
 			cmp = sgn(cnv1->get_jahresgewinn() - cnv2->get_jahresgewinn());

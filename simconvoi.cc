@@ -6846,6 +6846,15 @@ void convoi_t::set_next_reservation_index(uint16 n)
 }
 
 
+uint16 convoi_t::get_current_schedule_order() const
+{
+	if (reverse_schedule) {
+		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
+	}
+	return (uint16)schedule->get_current_stop();
+}
+
+
 /*
  * the current state saved as color
  * Meanings are BLACK (ok), WHITE (no convois), YELLOW (no vehicle moved), RED (last month income minus), DARK_PURPLE (convoy has overcrowded vehicles), BLUE (at least one convoi vehicle is obsolete)

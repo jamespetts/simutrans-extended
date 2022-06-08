@@ -38,7 +38,7 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
 
 	add_table(1,4)->set_spacing(scr_size(D_H_SPACE, 0));
 	{
-		add_table(3, 1);
+		add_table(4,1);
 		{
 			img_alert.set_image(IMG_EMPTY);
 			img_alert.set_rigid(false);
@@ -47,6 +47,9 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
 			img_operation.set_rigid(false);
 			add_component(&img_operation);
 			add_component(&label_name);
+			img_reverse.set_image(IMG_EMPTY);
+			img_reverse.set_rigid(false);
+			add_component(&img_reverse);
 		}
 		end_table();
 
@@ -176,6 +179,13 @@ void gui_convoiinfo_t::update_label()
 			img_operation.set_visible(true);
 		}
 	}
+	if (skinverwaltung_t::reverse_arrows) {
+		img_reverse.set_visible(false);
+		if (cnv->get_reverse_schedule()) {
+			img_reverse.set_image(skinverwaltung_t::reverse_arrows->get_image_id(cnv->get_schedule()->is_mirrored() ? 0:1), true);
+			img_reverse.set_visible(true);
+		}
+	}
 
 	switchable_label_value.set_color(SYSCOL_TEXT);
 	switch (switch_label)
@@ -183,7 +193,7 @@ void gui_convoiinfo_t::update_label()
 		case 1: // Next stop
 		{
 			if (!cnv->in_depot()) {
-				switchable_label_title.buf().printf("%s: ", translator::translate("Fahrtziel"));
+				switchable_label_title.buf().printf("%s: [%u]", translator::translate("Fahrtziel"), cnv->get_schedule()->get_current_stop()+1);
 				const schedule_t *schedule = cnv->get_schedule();
 				schedule_t::gimme_short_stop_name(switchable_label_value.buf(), world(), cnv->get_owner(), schedule, schedule->get_current_stop(), 50 - strlen(translator::translate("Fahrtziel")));
 				switchable_label_title.set_visible(true);

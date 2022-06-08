@@ -808,6 +808,10 @@ public:
 	const koord3d get_schedule_target() const { return schedule_target; }
 	void set_schedule_target( koord3d t ) { schedule_target = t; }
 
+	// Sorting purpose for GUI
+	// Additional numbers will be assigned if convoy is moving backwards from the end of the schedule
+	uint16 get_current_schedule_order() const;
+
 	/**
 	* get line
 	*/

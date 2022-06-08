@@ -30,7 +30,7 @@ private:
 
 	gui_loadingbar_t loading_bar;
 	gui_label_buf_t label_name, label_line, switchable_label_title, switchable_label_value;
-	gui_image_t img_alert, img_operation;
+	gui_image_t img_alert, img_operation, img_reverse;
 
 	gui_convoy_formation_t formation;
 
