@@ -106,12 +106,12 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 		lb_leave.set_visible(leave);
 		lb_join.set_visible(join);
 		if (leave) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_DOWN_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, true);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_DOWN_TRIANGLE, true, true, 3, HAS_POWER|BIDIRECTIONAL);
 			lb_leave.buf().printf("%u", leave);
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
 		}
 		if (join) {
-			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_UP_TRIANGLE, true, 3, HAS_POWER|BIDIRECTIONAL, false);
+			display_veh_form_wh_clip_rgb(pos.x+offset.x + total_x, pos.y+offset.y+2, L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2, LINEASCENT+2, SYSCOL_UP_TRIANGLE, true, false, 3, HAS_POWER|BIDIRECTIONAL);
 			lb_join.buf().printf("%u", join);
 			lb_join.set_pos(scr_coord(total_x + LINESPACE/2, 2));
 			total_x += L_COUPLE_ORDER_LABEL_WIDTH + LINESPACE/2;
@@ -144,7 +144,7 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	gui_schedule_couple_order_t *couple_order;
 
 public:
-	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false)
+	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index=254)
 	{
 		player = pl;
 		entry  = e;
@@ -215,7 +215,7 @@ public:
 		lb_distance.update();
 		add_component(&lb_distance, 4); // 5
 
-		route_bar = new_component<gui_colored_route_bar_t>(pl->get_player_color1(),0); // 6
+		route_bar = new_component<gui_colored_route_bar_t>(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index),0); // 6
 		route_bar->set_visible(true);
 
 		lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
@@ -439,7 +439,7 @@ void schedule_gui_stats_t::update_schedule()
 			const uint8 base_line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::line_style::doubled : gui_colored_route_bar_t::line_style::solid;
 			const bool is_air_wt = schedule->get_waytype() == air_wt;
 			for (uint i = 0; i < schedule->entries.get_count(); i++) {
-				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt));
+				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt, line_color_index));
 				if (i< schedule->entries.get_count()-1) {
 					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
 					//entries[i]->set_speed_limit(schedule->entries[i+1].maximum_speed); // UI TODO:
@@ -493,9 +493,7 @@ bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
 
 
 schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle_t cnv_) :
-	gui_frame_t(translator::translate("Fahrplan"), player_),
-	lb_spacing("Spacing cnv/month, shift"),
-	lb_spacing_shift_as_clock(NULL, SYSCOL_TEXT, gui_label_t::right),
+	gui_frame_t("", NULL),
 	stats(new schedule_gui_stats_t()),
 	scroll(stats)
 {
@@ -525,13 +523,8 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	this->old_schedule = schedule_;
 	this->cnv = cnv;
 	this->player = player;
-	set_owner(player);
 
-	// prepare editing
-	old_schedule->start_editing();
-	schedule = old_schedule->copy();
-	bool needs_electrification = false;
-	if(  !cnv.is_bound()  ) {
+	if (!cnv.is_bound()) {
 		old_line = new_line = linehandle_t();
 	}
 	else {
@@ -540,7 +533,6 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		old_line = new_line = cnv->get_line();
 		title.printf("%s - %s", translator::translate("Fahrplan"), cnv->get_name());
 		gui_frame_t::set_name(title);
-		needs_electrification = cnv->needs_electrification();
 		if (old_line.is_bound()) {
 			min_range = old_line->get_min_range() ? old_line->get_min_range() : UINT16_MAX;
 			// set line color for marker
@@ -549,9 +541,47 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 		if (cnv->get_min_range()) {
 			min_range = min(min_range, cnv->get_min_range());
 		}
+		img_electric.set_visible(cnv->needs_electrification());
 	}
 	old_line_count = 0;
 
+	build_table();
+}
+
+
+void schedule_gui_t::init(linehandle_t line)
+{
+	if (!line.is_bound()) return;
+
+	this->old_schedule = line->get_schedule()->copy();
+	cnv = convoihandle_t();
+	player = line->get_owner();
+	stats->set_line_color_index(line->get_line_color_index());
+	// has this line a single running convoi?
+	if(  line->count_convoys() > 0  ) {
+		minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
+		img_electric.set_visible(line->needs_electrification());
+		min_range = min(line->get_min_range() ? line->get_min_range() : UINT16_MAX, min_range);
+		if (min_range>0 && min_range<UINT16_MAX) {
+			lb_min_range.buf().printf("%u km", min_range);
+			lb_min_range.update();
+		}
+		img_refuel.set_visible(min_range>0 && min_range<UINT16_MAX);
+		lb_min_range.set_visible(min_range>0 && min_range<UINT16_MAX);
+	}
+	build_table();
+}
+
+void schedule_gui_t::build_table()
+{
+	// prepare editing
+	old_schedule->start_editing();
+	schedule = old_schedule->copy();
+
+	// init frame
+	set_owner(player);
+
+	// init stats
 	stats->player = player;
 	stats->schedule = schedule;
 	stats->range_limit = min_range;
@@ -615,10 +645,9 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 				img_electric.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
 				img_electric.set_tooltip(translator::translate("This line/convoy needs electrification"));
 				img_electric.set_rigid(false);
-				img_electric.set_visible(needs_electrification);
 				add_component(&img_electric);
 
-				add_table(3,1)->set_spacing(scr_size(0,0));;
+				add_table(3,1)->set_spacing(scr_size(0,0));
 				bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0,0), D_BUTTON_SIZE);
 				bt_add.set_tooltip("Appends stops at the end of the schedule");
 				bt_add.add_listener(this);
@@ -820,6 +849,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 				{
 					// Spacing
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+					lb_spacing.set_text("Spacing cnv/month, shift");
 					lb_spacing.set_tooltip(translator::translate("help_txt_departure_per_month"));
 					add_component(&lb_spacing); // UI TODO: need to change the translation
 
@@ -856,6 +886,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 							lb_plus.init("+", scr_coord(0, 0));
 							add_component(&lb_plus);
 
+							lb_spacing_shift_as_clock.set_align(gui_label_t::right);
 							lb_spacing_shift_as_clock.set_fixed_width(proportional_string_width("--:--:--"));
 							lb_spacing_shift_as_clock.set_text_pointer(str_spacing_shift_as_clock, false);
 							add_component(&lb_spacing_shift_as_clock);
@@ -981,6 +1012,9 @@ void schedule_gui_t::update_tool(bool set)
 
 void schedule_gui_t::update_selection()
 {
+	old_line_count = player->simlinemgmt.get_line_count();
+	last_schedule_count = schedule->get_count();
+
 	numimp_load.disable();
 	numimp_load.set_value( 0 );
 	conditional_depart.set_value(0);
@@ -1453,6 +1487,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		}
 		// only assign old line, when new_line is not equal
 		if(  !new_line.is_bound()  &&  old_line.is_bound()  &&   schedule->matches(welt,old_line->get_schedule())  ) {
+			stats->set_line_color_index(old_line->get_line_color_index());
 			new_line = old_line;
 			init_line_selector();
 			min_range = min(new_line->get_min_range() ? new_line->get_min_range() : UINT16_MAX, min_range);
@@ -1465,6 +1500,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			lb_min_range.set_visible(min_range && min_range != UINT16_MAX);
 		}
+		update_selection();
 	}
 	return true;
 }

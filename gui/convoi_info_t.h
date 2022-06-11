@@ -122,8 +122,6 @@ private:
 
 	static const char *sort_text[SORT_MODES];
 
-	void show_hide_statistics( bool show );
-
 	gui_button_to_chart_array_t button_to_chart;
 
 	void init(convoihandle_t cnv);

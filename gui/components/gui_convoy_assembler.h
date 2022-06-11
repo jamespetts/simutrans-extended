@@ -8,6 +8,7 @@
 
 
 #include "action_listener.h"
+#include "gui_aligned_container.h"
 #include "gui_button.h"
 #include "gui_combobox.h"
 #include "gui_divider.h"
@@ -61,12 +62,16 @@ private:
 	uint8 highest_catering;
 	bool is_tpo;
 
-	// The selected convoy so far...
-	vector_tpl<const vehicle_desc_t *> vehicles;
 public:
 	depot_convoi_capacity_t();
 	void set_totals(uint32 pax, uint32 standing_pax, uint32 mail, uint32 goods, uint8 pax_classes, uint8 mail_classes, int good_0, int good_1, int good_2, int good_3, int good_4, uint32 good_0_amount, uint32 good_1_amount, uint32 good_2_amount, uint32 good_3_amount, uint32 good_4_amount, uint32 rest_good, uint8 catering, bool tpo);
 	void draw(scr_coord offset);
+};
+
+class gui_vehicle_bar_legends_t : public gui_aligned_container_t
+{
+public:
+	gui_vehicle_bar_legends_t();
 };
 
 /**
@@ -106,9 +111,6 @@ class gui_convoy_assembler_t :
 	// The selected convoy so far...
 	vector_tpl<const vehicle_desc_t *> vehicles;
 
-	// Last changed vehicle (added/deleted)
-	const vehicle_desc_t *last_changed_vehicle;
-
 	// If this is used for a depot, which depot_frame manages, else NULL
 	class depot_frame_t *depot_frame;
 	class replace_frame_t *replace_frame;
@@ -123,24 +125,23 @@ class gui_convoy_assembler_t :
 	sint32 convoy_tabs_skip;
 
 	/* Gui elements */
-	gui_label_t lb_convoi_number;
 	gui_label_t lb_convoi_count;
-	gui_label_t lb_convoi_count_fluctuation;
-	gui_label_t lb_convoi_tiles;
-	gui_label_t lb_convoi_speed;
-	gui_label_t lb_convoi_cost;
-	gui_label_t lb_convoi_maintenance;
-	gui_label_t lb_convoi_power;
-	gui_label_t lb_convoi_weight;
-	gui_label_t lb_convoi_brake_force;
-	gui_label_t lb_convoi_brake_distance;
-	gui_label_t lb_convoi_axle_load;
-	gui_label_t lb_convoi_line;
+	gui_label_buf_t lb_convoi_number;
+	gui_label_buf_t lb_convoi_count_fluctuation;
+	gui_label_buf_t lb_convoi_tiles;
+	gui_label_buf_t lb_convoi_speed;
+	gui_label_buf_t lb_convoi_cost;
+	gui_label_buf_t lb_convoi_maintenance;
+	gui_label_buf_t lb_convoi_power;
+	gui_label_buf_t lb_convoi_weight;
+	gui_label_buf_t lb_convoi_brake_force;
+	gui_label_buf_t lb_convoi_brake_distance;
+	gui_label_buf_t lb_convoi_axle_load;
 	// Specifies the traction types handled by
 	// this depot.
 	// @author: jamespetts, April 2010
-	gui_label_t lb_traction_types;
-	gui_label_t lb_vehicle_count;
+	gui_label_buf_t lb_traction_types;
+	gui_label_buf_t lb_vehicle_count;
 	// Display the load
 	//gui_container_t cont_convoi_capacity;
 
@@ -163,7 +164,7 @@ class gui_convoy_assembler_t :
 	gui_label_t lb_too_heavy_notice;
 
 	gui_label_t lb_livery_selector;
-	gui_label_t lb_livery_counter;
+	gui_label_buf_t lb_livery_counter;
 	gui_combobox_t livery_selector;
 
 	button_t bt_class_management;
@@ -184,11 +185,6 @@ class gui_convoy_assembler_t :
 	gui_image_list_t electrics;
 	gui_image_list_t loks;
 	gui_image_list_t waggons;
-	gui_container_t cont_pas;
-	gui_container_t cont_pas2;
-	gui_container_t cont_electrics;
-	gui_container_t cont_loks;
-	gui_container_t cont_waggons;
 	gui_scrollpane_t scrolly_pas;
 	gui_scrollpane_t scrolly_pas2;
 	gui_scrollpane_t scrolly_electrics;
@@ -198,27 +194,12 @@ class gui_convoy_assembler_t :
 	gui_combobox_t vehicle_filter;
 	gui_label_t lb_vehicle_filter;
 
-	cbuffer_t txt_convoi_number;
 	cbuffer_t txt_convoi_count;
-	cbuffer_t txt_convoi_tiles;
-	cbuffer_t txt_convoi_maintenance;
-	cbuffer_t txt_convoi_speed;
-	cbuffer_t txt_convoi_cost;
-	cbuffer_t txt_convoi_power;
-	cbuffer_t txt_convoi_weight;
-	cbuffer_t txt_convoi_brake_force;
 	cbuffer_t tooltip_convoi_rolling_resistance;
 	cbuffer_t txt_convoi_way_wear_factor;
-	cbuffer_t txt_traction_types;
-	cbuffer_t txt_vehicle_count;
-	cbuffer_t txt_livery_count;
-	cbuffer_t txt_convoi_brake_distance;
 	cbuffer_t tooltip_convoi_speed;
-	cbuffer_t text_convoi_axle_load;
-	char txt_convoi_count_fluctuation[6];
 
-	gui_aligned_container_t tbl_vehicle_bar_legends;
-	void init_vehicle_bar_legends();
+	gui_vehicle_bar_legends_t cont_vehicle_bar_legends;
 
 	scr_coord_val second_column_x; // x position of the second text column
 
@@ -253,7 +234,7 @@ class gui_convoy_assembler_t :
 	void add_to_vehicle_list(const vehicle_desc_t *info);
 
 	//static const sint16 VINFO_HEIGHT = 186 + 14;
-	const scr_coord_val VINFO_HEIGHT = 21 * LINESPACE + D_BUTTON_HEIGHT * 3 + D_EDIT_HEIGHT + 3 * D_V_SPACE;
+	const scr_coord_val VINFO_HEIGHT = 23 * LINESPACE + D_BUTTON_HEIGHT * 3 + D_EDIT_HEIGHT + 3 * D_V_SPACE;
 
 	static uint16 livery_scheme_index;
 	vector_tpl<uint16> livery_scheme_indices;
@@ -286,7 +267,7 @@ public:
 	 */
 	void layout();
 
-	bool action_triggered( gui_action_creator_t *comp, value_t extra);
+	bool action_triggered( gui_action_creator_t *comp, value_t extra) OVERRIDE;
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
@@ -297,7 +278,7 @@ public:
 	/* The gui_component_t interface */
 	virtual void draw(scr_coord offset);
 
-	bool infowin_event(const event_t *ev);
+	bool infowin_event(const event_t *ev) OVERRIDE;
 
 	inline void clear_convoy() {vehicles.clear();}
 
@@ -305,8 +286,6 @@ public:
 	inline void append_vehicle(const vehicle_desc_t* vb, bool in_front) {vehicles.insert_at(in_front?0:vehicles.get_count(),vb);}
 
 	/* Getter/setter methods */
-
-	inline const vehicle_desc_t *get_last_changed_vehicle() const {return last_changed_vehicle;}
 
 	inline void set_depot_frame(depot_frame_t *df) {depot_frame=df;}
 	inline void set_replace_frame(replace_frame_t *rf) {replace_frame=rf;}
@@ -320,7 +299,7 @@ public:
 
 	inline sint16 get_convoy_clist_width() const { return vehicles.get_count() * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER; } // = CLIST_WIDTH
 
-	inline sint16 get_convoy_image_width() const {return get_convoy_clist_width() + placement_dx;}
+	inline sint16 get_convoy_image_width() const {return convoi.get_max_size().w + placement_dx;}
 
 	inline sint16 get_convoy_image_height() const { return grid.y + 2 * gui_image_list_t::BORDER + 5; } // = CLIST_HEIGHT
 
@@ -346,7 +325,7 @@ public:
 
 	static uint16 get_livery_scheme_index() { return livery_scheme_index; }
 
-	void set_traction_types(const char *traction_types_text) { txt_traction_types.clear(); txt_traction_types.append(traction_types_text); }
+	void set_traction_types(const char *traction_types_text) { lb_traction_types.buf().append(traction_types_text); lb_traction_types.update(); }
 };
 
 #endif

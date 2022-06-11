@@ -265,7 +265,7 @@ void replace_frame_t::layout(scr_size *gr)
 	convoy_assembler.set_size(scr_size(fgr.w,convoy_assembler.get_height()));
 	convoy_assembler.layout();
 
-	uint32 buttons_y = current_y + convoy_assembler.get_convoy_height() + LINESPACE*5 + D_V_SPACE;
+	uint32 buttons_y = current_y + convoy_assembler.get_convoy_height() + LINESPACE*5 + D_V_SPACE*3;
 	uint32 buttons_width=(fgr.w-2*margin)/5;
 	bt_autostart.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
 	bt_depot.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));

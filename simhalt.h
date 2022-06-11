@@ -547,9 +547,6 @@ public:
 	uint8 get_sortby() { return sortierung; }
 	void set_sortby(uint8 sm) { resort_freight_info =true; sortierung = sm; }
 
-	void force_resort() { resort_freight_info = true; }
-
-
 	/**
 	 * Calculates a status color for status bars
 	 */
