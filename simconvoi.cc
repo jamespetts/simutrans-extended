@@ -2056,7 +2056,7 @@ end_loop:
 					book_waiting_times();
 				}
 			}
-			
+
 			break;
 
 		case EDIT_SCHEDULE:
