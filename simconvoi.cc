@@ -2035,10 +2035,8 @@ end_loop:
 		break;
 
 		case REVERSING:
-			position = schedule ? schedule->get_current_stop() : 0;
-			rev = !reverse_schedule;
-			schedule->increment_index(&position, &rev);
-			if (haltestelle_t::get_halt(front()->get_pos(), owner) == haltestelle_t::get_halt(schedule->entries[position].pos, owner))
+			
+			if (true) // Necessary for compiling only due to the need to define variables in a single case.
 			{
 				position = schedule ? schedule->get_current_stop() : 0;
 				rev = !reverse_schedule;
