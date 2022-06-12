@@ -2035,7 +2035,7 @@ end_loop:
 		break;
 
 		case REVERSING:
-			
+
 			if (true) // Necessary for compiling only due to the need to define variables in a single case.
 			{
 				position = schedule ? schedule->get_current_stop() : 0;
