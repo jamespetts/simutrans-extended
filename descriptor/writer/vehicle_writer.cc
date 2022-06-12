@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 88;
+	int total_len = 105;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -149,6 +149,68 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		}
 	} while (j++ < 255);
 
+	// This must also be done here, as it will affect the length of the header.
+	typedef inthashtable_tpl<uint8, uint32, N_BAGS_SMALL> staff_map;
+	uint32 current_staff_number;
+	staff_map staff_types;
+
+	j = 0;
+
+	do
+	{
+		// Check for multiple staff types with a separate number of workers each
+		char buf[13];
+		sprintf(buf, "staff[%u]", j);
+		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_staff_number != UINT32_MAX_VALUE)
+		{	
+			staff_types.put(j, current_staff_number);
+			// Increase the length of the header by 3 for each additional
+			// staff type stored: one for type number and two for the quantity of conductors.
+			total_len += 3;
+		}
+	} while (j++ < 255);
+
+	j = 0;
+	uint32 current_driver_number;
+	staff_map driver_types;
+
+	do
+	{
+		// Check for multiple driver types with a separate number of workers each
+		char buf[13];
+		sprintf(buf, "driver[%u]", j);
+		current_driver_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_driver_number =! UINT32_MAX_VALUE)
+		{
+			driver_types.put(j, current_driver_number);
+			// Increase the length of the header by 3 for each additional
+			// driver type stored: one for type number and two for the quantity of conductors.
+			total_len += 3;
+		}
+	} while (j++ < 255);
+
+	j = 0;
+	uint32 current_conductor_number;
+	staff_map conductor_types;
+
+	do
+	{
+		// Check for multiple conductor types with a separate number of workers each
+		char buf[13];
+		sprintf(buf, "conductor[%u]", j);
+		current_conductor_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_conductor_number != UINT32_MAX_VALUE)
+		{
+			conductor_types.put(j, current_conductor_number);
+			// Increase the length of the header by 3 for each additional
+			// conductor type stored: one for type number and two for the quantity of conductors.
+			total_len += 3;
+		}
+	} while (j++ < 255);
 
 	obj_node_t node(this, total_len, &parent);
 
@@ -178,7 +240,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x600 - prev=any, cab_setting
 	// Standard 11, 0x700 - override_way_speed
 	// Standard 11, 0x800 - accommodation name
-	version += 0x800;
+	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel
+	version += 0x900;
 
 	node.write_uint16(fp, version, pos);
 
@@ -1112,6 +1175,65 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 override_way_speed = obj.get_int("override_way_speed", 0);
 	node.write_uint8(fp, override_way_speed, pos);
 	pos += sizeof(override_way_speed);
+
+	uint8 multiple_working_type = obj.get_int("multiple_working_type", 0);
+	node.write_uint8(fp, multiple_working_type, pos);
+	pos += sizeof(multiple_working_type);
+
+	uint8 self_contained_catering = obj.get_int("self_contained_catering", 0);
+	node.write_uint8(fp, self_contained_catering, pos);
+	pos += sizeof(self_contained_catering);
+
+	uint32 calibration_speed = obj.get_int("calibration_speed", 0);
+	node.write_uint32(fp, calibration_speed, pos);
+	pos += sizeof(calibration_speed);
+
+	uint32 cut_off_speed = obj.get_int("cut_off_speed", 0);
+	node.write_uint32(fp, cut_off_speed, pos);
+	pos += sizeof(cut_off_speed);
+
+	uint32 fuel_per_km = obj.get_int("fuel_per_km", 0);
+	node.write_uint32(fp, fuel_per_km, pos);
+	pos += sizeof(fuel_per_km);
+
+	uint8 total_staff = staff_types.get_count();
+	node.write_uint8(fp, total_staff, pos);
+	pos += sizeof(total_staff);
+
+	FOR(staff_map, staff, staff_types)
+	{
+		node.write_uint8(fp, staff.key, pos);
+		pos += sizeof(staff.key);
+
+		node.write_uint32(fp, staff.value, pos);
+		pos += sizeof(staff.value);
+	}
+
+	uint8 total_drivers = driver_types.get_count();
+	node.write_uint8(fp, total_drivers, pos);
+	pos += sizeof(total_drivers);
+
+	FOR(staff_map, driver, driver_types)
+	{
+		node.write_uint8(fp, driver.key, pos);
+		pos += sizeof(driver.key);
+
+		node.write_uint32(fp, driver.value, pos);
+		pos += sizeof(driver.value);
+	}
+
+	uint8 total_conductors = conductor_types.get_count();
+	node.write_uint8(fp, total_conductors, pos);
+	pos += sizeof(total_conductors);
+
+	FOR(staff_map, conductor, conductor_types)
+	{
+		node.write_uint8(fp, conductor.key, pos);
+		pos += sizeof(conductor.key);
+
+		node.write_uint32(fp, conductor.value, pos);
+		pos += sizeof(conductor.value);
+	}
 
 	sint8 sound_str_len = sound_str.size();
 	if (sound_str_len > 0) {

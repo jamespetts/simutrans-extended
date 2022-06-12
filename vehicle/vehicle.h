@@ -388,6 +388,8 @@ protected:
 	uint32 km_since_last_replenish;
 	sint64 last_maintenance_time;
 
+	sint64 ticks_at_last_departure;
+
 	uint16 tags;
 
 	void calc_image() OVERRIDE;

@@ -1407,6 +1407,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, km_since_last_maintenance(0u)
 	, km_since_last_replenish(0u)
 	, last_maintenance_time(0ll)
+	, ticks_at_last_departure(0ll)
 	, tags(0u)
 {
 	set_owner( player );
@@ -2917,7 +2918,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 15)
+	if (file->is_version_ex_atleast(15, 0))
 	{
 		file->rdwr_long(overhaul_time);
 
@@ -2927,6 +2928,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(km_since_last_replenish);
 		file->rdwr_longlong(last_maintenance_time);
 		file->rdwr_short(tags);
+		file->rdwr_longlong(ticks_at_last_departure); 
 
 		bool dno = do_not_overhaul;
 		bool dnau = do_not_auto_upgrade;
@@ -2947,6 +2949,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
 		tags = 0u;
+		ticks_at_last_departure = 0ll;
 	}
 }
 
