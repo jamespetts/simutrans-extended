@@ -578,7 +578,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 					for (uint32 i = 0; i < total_staff; i++)
 					{
-						desc->staff.put(decode_uint8(p), decode_uint32(p)); 
+						desc->staff.put(decode_uint8(p), decode_uint32(p));
 					}
 
 					const uint8 total_drivers = decode_uint8(p);

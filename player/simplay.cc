@@ -977,9 +977,9 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 
 			FOR(staff_map_player, staff, staff_costs_this_month)
 			{
-				staff.key; 
+				staff.key;
 				file->rdwr_byte(staff.key);
-				file->rdwr_longlong(staff.value); 
+				file->rdwr_longlong(staff.value);
 			}
 		}
 
