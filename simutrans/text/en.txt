@@ -463,6 +463,8 @@ cl_btn_sort_name
 Name
 cl_btn_sort_type
 Type
+cl_btn_sort_range
+Range
 cl_title
 Vehicle List
 cl_txt_filter

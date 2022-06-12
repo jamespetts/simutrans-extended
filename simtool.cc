@@ -5587,6 +5587,12 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 		return NOTICE_UNSUITABLE_GROUND;
 	}
 
+	if (bd->get_weg(wegtype)->get_desc()->is_tram() && wegtype == track_wt)
+	{
+		// Cannot build railway stations on street tramways
+		return "No suitable way on the ground!";
+	}
+
 	const char* msg=pier_t::check_building(desc,pos);
 	if(msg){
 		return msg;
