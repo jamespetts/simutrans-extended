@@ -3449,40 +3449,6 @@ void haltestelle_t::get_freight_info(cbuffer_t & buf)
 	}
 }
 
-void haltestelle_t::get_short_freight_info(cbuffer_t & buf) const
-{
-	bool got_one = false;
-
-	for(unsigned int i=0; i<goods_manager_t::get_count(); i++) {
-		const goods_desc_t *wtyp = goods_manager_t::get_info(i);
-		if(gibt_ab(wtyp)) {
-
-			// ignore goods with sum=zero
-			const int summe=get_ware_summe(wtyp);
-			if(summe>0) {
-
-				if(got_one) {
-					buf.append(", ");
-				}
-
-				buf.printf("%d%s %s", summe, translator::translate(wtyp->get_mass()), translator::translate(wtyp->get_name()));
-
-				got_one = true;
-			}
-		}
-	}
-
-	if(got_one) {
-		buf.append(" ");
-		buf.append(translator::translate("waiting"));
-		buf.append("\n");
-	}
-	else {
-		buf.append(translator::translate("no goods waiting"));
-		buf.append("\n");
-	}
-}
-
 
 
 void haltestelle_t::show_info()

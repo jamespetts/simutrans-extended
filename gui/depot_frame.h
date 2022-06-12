@@ -8,6 +8,7 @@
 
 
 #include "gui_frame.h"
+#include "components/gui_label.h"
 #include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "components/gui_combobox.h"
@@ -40,10 +41,12 @@ private:
 	 */
 	int icnv;
 
+	void init_table();
+
 	/**
 	 * Gui elements
 	 */
-	gui_label_t lb_convois;
+	gui_label_buf_t lb_convois;
 
 	/// contains the current translation of "new convoi"
 	const char* new_convoy_text;
@@ -51,14 +54,11 @@ private:
 
 	button_t line_button; // goto line ...
 
-	gui_label_t lb_convoi_line;
-
 //	gui_speedbar_t sb_convoi_length;
 //	sint32 convoi_length_ok_sb, convoi_length_slower_sb, convoi_length_too_slow_sb, convoi_tile_length_sb, new_vehicle_length_sb;
 
 	button_t bt_start;
 	button_t bt_schedule;
-	button_t bt_destroy;
 	button_t bt_sell;
 	button_t bt_details;
 
@@ -67,10 +67,7 @@ private:
 	/**
 	 * buttons for new route-management
 	 */
-//	button_t bt_new_line;
-//	button_t bt_change_line;
 	button_t bt_copy_convoi;
-//	button_t bt_apply_line;
 
 	// line selector stuff
 	/// contains the current translation of "<no schedule set>"
@@ -95,7 +92,7 @@ private:
 
 	gui_convoy_assembler_t convoy_assembler;
 
-	gui_image_t img_bolt;
+	//gui_image_t img_bolt; // This has been broken for a long time in extended
 
 	linehandle_t selected_line, last_selected_line;
 
@@ -152,7 +149,7 @@ public:
 	/**
 	 * Will update the tabs (don't show empty ones).
 	 */
-	void update_tabs();
+	//void update_tabs();
 
 	/**
 	 * Set the window associated helptext

@@ -1162,7 +1162,6 @@ public:
 	void get_freight_info(cbuffer_t & buf);
 	void set_sortby(uint8 order);
 	inline uint8 get_sortby() const { return freight_info_order; }
-	void force_resort() { freight_info_resort = true; }
 
 	/**
 	* Opens the schedule window
@@ -1484,6 +1483,10 @@ public:
 	void clear_estimated_times();
 
 	void calc_classes_carried();
+
+	uint16 get_total_cargo() const;
+	// Exclude overcrowding capacity
+	uint16 get_cargo_max() const;
 
 	uint16 get_total_cargo_by_fare_class(uint8 catg, uint8 g_class) const;
 	uint16 get_unique_fare_capacity(uint8 catg, uint8 g_class) const;
