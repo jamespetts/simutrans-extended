@@ -258,3 +258,81 @@ Image[0]=-
 Image[1]=> divider.0.0
 Image[2]=-
 --
+#################################################################
+Obj=menu
+name=Alerts
+copyright=Ranran
+Image[0]=> symbols.0.0
+Image[1]=> symbols.0.1
+Image[2]=> symbols.0.2
+Image[3]=> symbols.0.3
+Image[4]=> symbols.0.4
+--
+Obj=menu
+name=WaitingTime
+copyright=Ranran
+# for average waiting time at the stop
+Image[0]=> symbols.2.0
+-------
+Obj=menu
+name=TravelTime
+copyright=Ranran
+# for display the average travering time to the distination
+Image[0]=> symbols.2.1
+-------
+Obj=menu
+name=ServiceFrequency
+copyright=Ranran
+# for display the line service frequency
+Image[0]=> symbols.2.2
+-------
+Obj=menu
+name=MissingScheduledSlot
+copyright=Ranran
+# for line missing scheduled slot
+Image[0]=> symbols.2.3
+-------
+Obj=menu
+name=OnFoot
+copyright=Ranran
+Image[0]=> symbols.3.4
+-------
+Obj=menu
+name=Comfort
+copyright=Ranran
+Image[0]=> symbols.7.0
+-------
+Obj=menu
+name=Upgradable
+copyright=Ranran
+# for vehicle which has upgrade target
+Image[0]=> symbols.0.5
+Image[1]=> symbols.0.6
+-------
+Obj=menu
+name=ReverseArrows
+copyright=Ranran
+# arrows representing the reverse order of the schedule
+Image[0]=> symbols.2.5
+Image[1]=> symbols.2.6
+-------
+Obj=menu
+name=InputOutput
+copyright=Ranran
+# for industry input/output
+Image[0]=> symbols.4.0
+Image[1]=> symbols.4.1
+-------
+Obj=menu
+name=InTransit
+copyright=Ranran
+# for goods in transit for industry information
+Image[0]=> symbols.4.2
+-------
+#################################################################
+-------
+Obj=menu
+name=OpenWindow
+copyright=Ranran
+Image[0]=> button-symbols.0.0
+-------
