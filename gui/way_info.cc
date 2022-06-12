@@ -273,7 +273,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			}
 
 			new_component_span<gui_empty_t>(2);
-			new_component<gui_image_t>(skinverwaltung_t::alerts->get_image_id(2), 0, ALIGN_NONE, true);
+			new_component<gui_image_t>(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2) : 0, 0, ALIGN_NONE, true);
 			new_component<gui_label_t>("Low bridge", SYSCOL_TEXT_STRONG);
 		}
 		if (any_prohibitive) {
