@@ -97,7 +97,7 @@ void interrupt_check(const char* caller_info)
 		return;
 	}
 
-	static sint64 last_ms = 0; 
+	static sint64 last_ms = 0;
 
 	if(  !world()->is_fast_forward()  ||  world()->get_ticks() != last_ms  ) {
 		const uint32 now = dr_time();
