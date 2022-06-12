@@ -632,10 +632,10 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 			for(unsigned i=0; i<vehicle_count; i++) {
 				vehicle_t* v = vehicle[i];
 
-				v->get_smoke(false); //"Allowed to smoke" (Google)
+				v->set_allow_smoke(false);
 				vehicle[i]->do_drive( (VEHICLE_STEPS_PER_CARUNIT*train_length)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 				train_length -= v->get_desc()->get_length();
-				v->get_smoke(true);
+				v->set_allow_smoke(true);
 
 				// eventually reserve this again
 				grund_t *gr=welt->lookup(v->get_pos());
@@ -3635,13 +3635,13 @@ void convoi_t::vorfahren()
 		// just advances the first vehicle
 		vehicle_t* v0 = front();
 		v0->set_leading(false); // switches off signal checks ...
-		v0->get_smoke(false);
+		v0->set_allow_smoke(false);
 		steps_driven = 0;
 		// drive half a tile:
 		for(int i=0; i<vehicle_count; i++) {
 			vehicle[i]->do_drive( (VEHICLE_STEPS_PER_TILE/2)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 		}
-		v0->get_smoke(true);
+		v0->set_allow_smoke(true);
 		v0->set_leading(true); // switches on signal checks to reserve the next route
 
 		// until all other are on the track
@@ -3762,11 +3762,11 @@ void convoi_t::vorfahren()
 				for(sint8 i = 0; i < vehicle_count; i++)
 				{
 					vehicle_t* v = vehicle[i];
-					v->get_smoke(false);
+					v->set_allow_smoke(false);
 					vehicle[i]->do_drive( (VEHICLE_STEPS_PER_CARUNIT*train_length)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 					train_length -= v->get_desc()->get_length();
 					// this gives the length in carunits, 1/CARUNITS_PER_TILE of a full tile => all cars closely coupled!
-					v->get_smoke(true);
+					v->set_allow_smoke(true);
 				//}
 
 			}
