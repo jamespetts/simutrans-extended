@@ -566,7 +566,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				{
 					desc->override_way_speed = false;
 				}
-				if (extended && extended_version >= 9)
+				if (extended && extended_version >= 8)
 				{
 					desc->multiple_working_type = decode_uint8(p);
 					desc->self_contained_catering = decode_uint8(p);
