@@ -594,6 +594,25 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					{
 						desc->conductors.put(decode_uint8(p), decode_uint32(p));
 					}
+
+					desc->base_initial_overhaul_cost = decode_uint32(p);
+					if (desc->base_initial_overhaul_cost == UINT32_MAX_VALUE)
+					{
+						desc->base_initial_overhaul_cost = desc->base_cost / 5u;
+					}
+					desc->base_max_overhaul_cost = decode_uint32(p);
+					if (desc->base_max_overhaul_cost == UINT32_MAX_VALUE)
+					{
+						desc->base_max_overhaul_cost = desc->base_initial_overhaul_cost;
+					}
+
+					desc->overhauls_before_max_cost = decode_uint16(p);
+					desc->max_distance_between_overhauls = decode_uint32(p);
+					desc->max_takeoffs = decode_uint32(p);
+					desc->availability_decay_start_km = decode_uint32(p);
+					desc->starting_availability = decode_uint8(p);
+					desc->minimum_availability = decode_uint8(p);
+
 				}
 				// We do not need the "else", as all of the new values are header initialised.
 			}

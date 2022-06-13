@@ -87,54 +87,65 @@ public:
 	};
 
 private:
-	uint32 upgrade_price;					// Price if this vehicle is bought as an upgrade, not a new vehicle.
-	uint32 base_upgrade_price;				// Upgrade price (without scale factor)
-	uint16 *capacity;						// Payload (pointer to an array of capacities per class)
-	uint16 overcrowded_capacity;			// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
-	uint32 weight;							// Weight in kg
-	uint32 power;							// Power in kW
-	uint16 running_cost;					// Per kilometre cost
-	uint32 fixed_cost;						// Monthly cost @author: jamespetts, April 2009
-	uint32 base_fixed_cost;					// Monthly cost (without scale factor)
+	uint32 upgrade_price;						// Price if this vehicle is bought as an upgrade, not a new vehicle.
+	uint32 base_upgrade_price;					// Upgrade price (without scale factor)
+	uint16 *capacity;							// Payload (pointer to an array of capacities per class)
+	uint16 overcrowded_capacity;				// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
+	uint32 weight;								// Weight in kg
+	uint32 power;								// Power in kW
+	uint16 running_cost;						// Per kilometre cost
+	uint32 fixed_cost;							// Monthly cost @author: jamespetts, April 2009
+	uint32 base_fixed_cost;						// Monthly cost (without scale factor)
 
-	uint32 calibration_speed = 0;			// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
-											// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)
-											// against which the fuel consumption per unit of distance is calibrated.
-	uint32 cut_off_speed = 0;				// The minimum speed below which fuel consumption per km does not reduce (km/h)
+	uint32 base_initial_overhaul_cost = 0;		// Overhaul cost (without scale factor and increase for multiple overhauls)
+	uint32 initial_overhaul_cost = 0;			// Overhaul cost (before increse for multiple overhauls)
+	uint32 base_max_overhaul_cost = 0;			// Overhaul cost (without scale factor after full increase for multiple overhauls)
+	uint32 max_overhaul_cost = 0;				// Overhaul cost (after full increase for multiple overhauls)
+	uint16 overhauls_before_max_cost = 0;		// The number of overhauls before the maximum overhaul cost is reached. 0: no change
+	uint32 max_distance_between_overhauls = 0;	// The maximum distnace in km between overhauls. 0: no overhauls required
+	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
+	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay. 0: no decay
+	uint8 starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
+	uint8 minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
 
-	uint32 fuel_per_km = 0;					// Fuel cost calibrated according to the above. Not all powered vehicles (e.g. sailing ships) use fuel. The traction type records the fuel type.
+	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
+												// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)
+												// against which the fuel consumption per unit of distance is calibrated.
+	uint32 cut_off_speed = 0;					// The minimum speed below which fuel consumption per km does not reduce (km/h)
 
-	uint16 gear;							// engine gear (power multiplier), 64=100
+	uint32 fuel_per_km = 0;						// Fuel cost calibrated according to the above. Not all powered vehicles (e.g. sailing ships) use fuel. The traction type records the fuel type.
 
-	uint8 len;								// length (=8 is half a tile, the old default)
+	uint16 gear;								// engine gear (power multiplier), 64=100
+
+	uint8 len;									// length (=8 is half a tile, the old default)
 	sint16 sound;
 
-	uint8 leader_count;						// all defined leading vehicles
-	uint8 trailer_count;					// all defined trailer
-	uint8 upgrades;							// The number of vehicles that are upgrades of this vehicle.
+	uint8 leader_count;							// all defined leading vehicles
+	uint8 trailer_count;						// all defined trailer
+	uint8 upgrades;								// The number of vehicles that are upgrades of this vehicle.
 
-	engine_t engine_type;					// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
+	engine_t engine_type;						// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 
-	uint8 freight_image_type;				// number of freight images (displayed for different goods)
-	uint8 livery_image_type;				// Number of different liveries (@author: jamespetts, April 2011)
+	uint8 freight_image_type;					// number of freight images (displayed for different goods)
+	uint8 livery_image_type;					// Number of different liveries (@author: jamespetts, April 2011)
 
-	bool is_tilting = false;				// Whether it is a tilting train (can take corners at higher speeds).
+	bool is_tilting = false;					// Whether it is a tilting train (can take corners at higher speeds).
 
 	way_constraints_of_vehicle_t way_constraints;
 
-	uint8 catering_level = 0;				// The level of catering. 0 for no catering. Higher numbers for better catering.
-	bool self_contained_catering = false;	// Whether any catering provided by this vehicle is available to the whole consist or only this vehicle.
+	uint8 catering_level = 0;					// The level of catering. 0 for no catering. Higher numbers for better catering.
+	bool self_contained_catering = false;		// Whether any catering provided by this vehicle is available to the whole consist or only this vehicle.
 
-	bool bidirectional = false;				// Whether must always travel in one direction
-	bool can_lead_from_rear = false;		// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
-	bool can_be_at_rear = true;				// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
+	bool bidirectional = false;					// Whether must always travel in one direction
+	bool can_lead_from_rear = false;			// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
+	bool can_be_at_rear = true;					// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
-	uint8 *comfort;							// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
+	uint8 *comfort;								// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
 
-	uint8 classes;							// The number of different classes that this vehicle accommodates
-	uint8 accommodation_classes = 1;		// total accommodations that this vehicle has
+	uint8 classes;								// The number of different classes that this vehicle accommodates
+	uint8 accommodation_classes = 1;			// total accommodations that this vehicle has
 
 	/**
 	 * Staff data.

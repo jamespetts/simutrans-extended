@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 105;
+	int total_len = 129;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -240,7 +240,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x600 - prev=any, cab_setting
 	// Standard 11, 0x700 - override_way_speed
 	// Standard 11, 0x800 - accommodation name
-	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel
+	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel, overhauls, maintenance
 	version += 0x900;
 
 	node.write_uint16(fp, version, pos);
@@ -1234,6 +1234,39 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		node.write_uint32(fp, conductor.value, pos);
 		pos += sizeof(conductor.value);
 	}
+
+	uint32 initial_overhaul_cost = obj.get_int("initial_overhaul_cost", UINT32_MAX_VALUE); // We encode the default as UINT32_MAX_VALUE so that the default can be changed when the main program reads this.
+	node.write_uint32(fp, initial_overhaul_cost, pos);
+	pos += sizeof(initial_overhaul_cost);
+
+	uint32 max_overhaul_cost = obj.get_int("max_overhaul_cost", UINT32_MAX_VALUE); // We encode the default as UINT32_MAX_VALUE so that the default can be changed when the main program reads this.
+	node.write_uint32(fp, max_overhaul_cost, pos);
+	pos += sizeof(max_overhaul_cost);
+
+	uint16 overhauls_before_max_cost = obj.get_int("overhauls_before_max_cost", 0); // Default of zero for no increase
+	node.write_uint16(fp, overhauls_before_max_cost, pos);
+	pos += sizeof(overhauls_before_max_cost);
+
+	uint32 max_distance_between_overhauls = obj.get_int("max_distance_between_overhauls", 0); // Default of zero means no overhauls required.
+	node.write_uint32(fp, max_distance_between_overhauls, pos);
+	pos += sizeof(max_distance_between_overhauls);
+
+	uint32 max_takeoffs = obj.get_int("max_takeoffs", 0); // Default of zero means unlimited takeoffs
+	node.write_uint32(fp, max_takeoffs, pos);
+	pos += sizeof(max_takeoffs);
+
+	uint32 availability_decay_start_km = obj.get_int("availability_decay_start_km", 0); // Default of zero means no overhauls required.
+	node.write_uint32(fp, availability_decay_start_km, pos);
+	pos += sizeof(availability_decay_start_km);
+
+	uint8 starting_availability = obj.get_int("starting_availability", 100); // Default of 100% availability
+	node.write_uint8(fp, starting_availability, pos);
+	pos += sizeof(starting_availability);
+
+	uint8 minimum_availability = obj.get_int("minimum_availability", 100); // Default of 100% availability
+	node.write_uint8(fp, minimum_availability, pos);
+	pos += sizeof(minimum_availability);
+
 
 	sint8 sound_str_len = sound_str.size();
 	if (sound_str_len > 0) {
