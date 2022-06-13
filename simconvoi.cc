@@ -8184,7 +8184,7 @@ uint32 convoi_t::calc_reverse_delay() const
 		departure_point_t departure_point(schedule_entry, !rev_rev);
 
 		departures.set(departure_point, dep);
-		if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].wait_for_time) && schedule->get_spacing() > 0 && line.is_bound())
+		if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].is_flag_set(schedule_entry_t::wait_for_time)) && schedule->get_spacing() > 0 && line.is_bound())
 		{
 			line->book(1, LINE_DEPARTURES);
 		}
@@ -8236,7 +8236,7 @@ uint32 convoi_t::calc_reverse_delay() const
 
 				halt->set_estimated_arrival_time(self.get_id(), eta);
 				const sint64 max_waiting_time = schedule->get_current_entry().waiting_time_shift ? welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift) : WAIT_INFINITE;
-				if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].wait_for_time) && schedule->get_spacing() > 0)
+				if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].is_flag_set(schedule_entry_t::wait_for_time)) && schedule->get_spacing() > 0)
 				{
 					sint64 spacing_multiplier = 1;
 
