@@ -2608,7 +2608,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						{
 							wait_for_faster_convoy = false;
 						}
-						else if(schedule_entry.minimum_loading > 0 && !schedule_entry.wait_for_time && schedule_entry.waiting_time_shift == 0)
+						else if(schedule_entry.minimum_loading > 0 && !schedule_entry.is_flag_set(schedule_entry_t::wait_for_time) && schedule_entry.waiting_time_shift == 0)
 						{
 							// This convoy has an untimed wait for load order.
 							if(fast_convoy->get_line() == cnv->get_line())
@@ -2621,7 +2621,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 								schedule_entry_t fast_convoy_schedule_entry = fast_convoy->get_schedule()->get_current_entry();
 								if(haltestelle_t::get_halt(fast_convoy_schedule_entry.pos, cnv->get_owner()) == self)
 								{
-									if(fast_convoy_schedule_entry.minimum_loading > 0 && !fast_convoy_schedule_entry.wait_for_time && fast_convoy_schedule_entry.waiting_time_shift == 0)
+									if(fast_convoy_schedule_entry.minimum_loading > 0 && !fast_convoy_schedule_entry.is_flag_set(schedule_entry_t::wait_for_time) && fast_convoy_schedule_entry.waiting_time_shift == 0)
 									{
 										wait_for_faster_convoy = false;
 									}
