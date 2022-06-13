@@ -8734,7 +8734,7 @@ void convoi_t::check_departure(halthandle_t halt)
 		arrival_time = now;
 		if (arrival_time < WAIT_INFINITE)
 		{
-			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time is in the future for convoy %u at stop %u", self.get_id(), halt.get_id());
+			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
 		}
 	}
 	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
@@ -8767,7 +8767,6 @@ void convoi_t::check_departure(halthandle_t halt)
 				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
 				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
 				go_on_ticks_spacing = (wait_from_ticks + spacing * queue_pos) - reversing_time;
-
 			}
 
 			if(schedule->get_current_entry().waiting_time_shift > 0)
@@ -8792,6 +8791,12 @@ void convoi_t::check_departure(halthandle_t halt)
 		}
 	}
 
+	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
+		// destroy when empty
+		self_destruct();
+		return;
+	}
+
 	// loading is finished => maybe drive on
 	bool can_go = false;
 
@@ -8803,13 +8808,6 @@ void convoi_t::check_departure(halthandle_t halt)
 	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
 	can_go = can_go && now > earliest_departure_time;
 	if(can_go) {
-
-		if(withdraw  &&  (loading_level==0  ||  goods_catg_index.empty())) {
-			// destroy when empty
-			self_destruct();
-			return;
-		}
-
 		// add available capacity after loading(!) to statistics
 		for (unsigned i = 0; i<vehicle_count; i++) {
 			book(get_vehicle(i)->get_cargo_max()-get_vehicle(i)->get_total_cargo(), CONVOI_CAPACITY);
