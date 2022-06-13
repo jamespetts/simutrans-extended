@@ -441,7 +441,7 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(multiple_working_type);
 	chk->input(available_only_as_upgrade);
 	chk->input(is_tall);
-	
+
 	// TODO: Consider whether to add the staff detais here, too
 }
 
