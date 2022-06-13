@@ -663,6 +663,25 @@ public:
 	uint32 get_upgrade_price() const { return upgrade_price; }
 	bool is_available_only_as_upgrade() const { return available_only_as_upgrade; }
 
+	uint8 get_multiple_working_type() const { return multiple_working_type; }
+	bool get_self_contained_catering() const { return self_contained_catering; }
+	uint32 get_calibration_speed() const { return calibration_speed; }
+	uint32 get_cut_off_speed() const { return cut_off_speed; }
+	uint32 get_fuel_per_km() const { return fuel_per_km; }
+	uint32 get_initial_overhaul_cost() const { return initial_overhaul_cost; }
+	uint32 get_max_overhaul_cost() const { return max_overhaul_cost; }
+	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }
+	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
+	uint32 get_max_takeoffs() const { return max_takeoffs; }
+	uint32 get_availability_decay_start_km() const { return availability_decay_start_km; }
+	uint8 get_starting_availability() const { return starting_availability; }
+	uint8 get_minimum_availability() const { return minimum_availability; }
+
+	uint32 get_total_staff() const;
+	uint32 get_total_drivers() const;
+	uint32 get_total_conductors() const;
+	// TODO: Add more relevant getters for more specific information about staff costs as necessary
+
 	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
 	{
 		if (g_class >= classes)

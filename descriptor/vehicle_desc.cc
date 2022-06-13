@@ -589,3 +589,18 @@ void vehicle_desc_t::fix_basic_constraint()
 		basic_constraint_next &= ~unknown_constraint;
 	}
 }
+
+uint32 vehicle_desc_t::get_total_staff() const
+{
+	return staff.get_count();
+}
+
+uint32 vehicle_desc_t::get_total_drivers() const
+{
+	return drivers.get_count();
+}
+
+uint32 vehicle_desc_t::get_total_conductors() const
+{
+	return conductors.get_count();
+}
