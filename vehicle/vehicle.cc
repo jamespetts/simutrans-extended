@@ -2928,7 +2928,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(km_since_last_replenish);
 		file->rdwr_longlong(last_maintenance_time);
 		file->rdwr_short(tags);
-		file->rdwr_longlong(ticks_at_last_departure); 
+		file->rdwr_longlong(ticks_at_last_departure);
 
 		bool dno = do_not_overhaul;
 		bool dnau = do_not_auto_upgrade;

@@ -164,7 +164,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
 
 		if (current_staff_number != UINT32_MAX_VALUE)
-		{	
+		{
 			staff_types.put(j, current_staff_number);
 			// Increase the length of the header by 3 for each additional
 			// staff type stored: one for type number and two for the quantity of conductors.
