@@ -19,9 +19,6 @@ struct livery_t
 {
 	std::string name;
 	uint16 intro_date;
-
-	bool operator == (const livery_t comparator) const { return comparator.intro_date == intro_date && name == comparator.name; }
-	bool operator != (const livery_t comparator) const { return comparator.intro_date != intro_date || name != comparator.name; }
 };
 
 class livery_scheme_t
@@ -56,13 +53,14 @@ public:
 		}
 		else
 		{
-			for(auto livery : liveries)
+			ITERATE(liveries, i)
 			{
-				if(date >= livery.intro_date)
+				if(date >= liveries.get_element(i).intro_date)
 				{
 					return true;
 				}
 			}
+
 			return false;
 		}
 	}
@@ -73,10 +71,10 @@ public:
 	// If you want to check if it already appears, pass get_timeline_year_month @ Ranran
 	bool is_contained(const char* name, uint16 date = 0) const
 	{
-		for(auto livery : liveries)
+		ITERATE(liveries, i)
 		{
-			if ((date && date >= livery.intro_date && livery.name.compare(name) == 0)
-				|| (!date && livery.name.compare(name) == 0))
+			if ((date && date >= liveries.get_element(i).intro_date && liveries.get_element(i).name.compare(name) == 0)
+				|| (!date && liveries.get_element(i).name.compare(name) == 0))
 			{
 				return true;
 			}
@@ -85,7 +83,5 @@ public:
 	}
 
 	void rdwr(loadsave_t *file);
-
-	bool operator == (const livery_scheme_t comparator) const;
 };
 #endif
