@@ -853,7 +853,7 @@ public:
 
 		max_overhaul_cost = set_scale_generic<uint32>(base_max_overhaul_cost, scale_factor);
 		if (base_max_overhaul_cost && !initial_overhaul_cost) max_overhaul_cost = 1;
-		
+
 #ifndef NETTOOL
 		if(max_loading_time_seconds != 65535)
 		{
