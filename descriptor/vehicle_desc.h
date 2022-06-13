@@ -153,7 +153,7 @@ private:
 	 * Introduced for version 15
 	 */
 	typedef inthashtable_tpl<uint8, sint32, N_BAGS_SMALL> staff_map;
-	staff_map drivers;						// Staff who need to be present if the vehicle needs to be controlled.
+	staff_map drivers;						// Staff who need to be present if the vehicle needs to be driven.
 	staff_map conductors;					// Staff who need to be present if the vehicle is at the rear.
 	staff_map staff;						// Staff who need to be present at all times.
 
