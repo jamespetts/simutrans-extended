@@ -826,8 +826,10 @@ public:
 	const way_constraints_of_vehicle_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_vehicle_t& value) { way_constraints = value; }
 
-	/*The level of catering provided by this vehicle (0 if none)
-	*@author: jamespetts*/
+	/**
+	* The level of catering provided by this vehicle (0 if none)
+	* @author: jamespetts
+	*/
 	uint8 get_catering_level() const { return catering_level; }
 
 	uint32 get_way_wear_factor() const { return way_wear_factor; }
@@ -845,6 +847,13 @@ public:
 
 		fixed_cost = set_scale_generic<uint32>(base_fixed_cost, scale_factor);
 		if (base_fixed_cost && ! fixed_cost) fixed_cost = 1;
+
+		initial_overhaul_cost = set_scale_generic<uint32>(base_initial_overhaul_cost, scale_factor);
+		if (base_initial_overhaul_cost && !initial_overhaul_cost) initial_overhaul_cost = 1;
+
+		max_overhaul_cost = set_scale_generic<uint32>(base_max_overhaul_cost, scale_factor);
+		if (base_max_overhaul_cost && !initial_overhaul_cost) max_overhaul_cost = 1;
+		
 #ifndef NETTOOL
 		if(max_loading_time_seconds != 65535)
 		{

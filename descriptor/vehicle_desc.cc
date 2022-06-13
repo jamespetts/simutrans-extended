@@ -426,6 +426,21 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(ar);
 	chk->input(rr);
 	chk->input(livery_image_type);
+	chk->input(base_initial_overhaul_cost);
+	chk->input(base_max_overhaul_cost);
+	chk->input(overhauls_before_max_cost);
+	chk->input(max_distance_between_overhauls);
+	chk->input(max_takeoffs);
+	chk->input(availability_decay_start_km);
+	chk->input(starting_availability);
+	chk->input(minimum_availability);
+	chk->input(calibration_speed);
+	chk->input(cut_off_speed);
+	chk->input(fuel_per_km);
+	chk->input(self_contained_catering);
+	chk->input(multiple_working_type);
+	chk->input(available_only_as_upgrade);
+	// TODO: Consider whether to add the staff detais here, too
 }
 
 uint8 vehicle_desc_t::get_interactivity() const
