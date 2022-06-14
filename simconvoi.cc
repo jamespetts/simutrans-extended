@@ -592,7 +592,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 				DBG_DEBUG("convoi_t::finish_rd()","%s registers for %d", name_and_id, line.get_id());
 			}
 			else if (line.is_bound()) {
-				line->add_convoy(self, true);
+				line->add_convoy(self, true); // NOTE: This is possibly a temporary workaround. See here: https://forum.simutrans.com/index.php?msg=200594
 			}
 			else {
 				line = linehandle_t();
