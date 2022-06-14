@@ -107,6 +107,7 @@ private:
 	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay. 0: no decay
 	uint8 starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
 	uint8 minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
+	uint32 replenishment_seconds = 60;			// The number of seconds required for this vehicle to replenish (refuel) at a replenishment stop.
 
 	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
 												// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)

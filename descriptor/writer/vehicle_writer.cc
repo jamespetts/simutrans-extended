@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 128;
+	int total_len = 132;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -1245,6 +1245,10 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 minimum_availability = obj.get_int("minimum_availability", 100); // Default of 100% availability
 	node.write_uint8(fp, minimum_availability, pos);
 	pos += sizeof(minimum_availability);
+
+	uint32 replenishment_seconds = obj.get_int("replenishment_seconds", 60); // Default of 60 seconds
+	node.write_uint32(fp, replenishment_seconds, pos);
+	pos += sizeof(replenishment_seconds);
 
 
 	sint8 sound_str_len = sound_str.size();
