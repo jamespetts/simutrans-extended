@@ -5563,7 +5563,7 @@ bool haltestelle_t::rem_grund(grund_t *gr)
 
 		// Update nearby factories' lists of connected halts.
 		// Must be done AFTER updating the planquadrats,
-		FOR (vector_tpl<fabrik_t*>, fab, affected_fab_list)
+		for(auto fab : affected_fab_list)
 		{
 			fab->recalc_nearby_halts();
 		}

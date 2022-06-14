@@ -4649,7 +4649,8 @@ bool karte_t::rem_fab(fabrik_t *fab)
 	// This is hairy; a cleaner method would be desirable --neroden
 	vector_tpl<koord> tile_list;
 	fab->get_tile_list(tile_list);
-	FOR (vector_tpl<koord>, const k, tile_list) {
+	for(auto const k : tile_list)
+	{
 		planquadrat_t* tile = access(k);
 		if(tile)
 		{
