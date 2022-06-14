@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 129;
+	int total_len = 128;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -159,17 +159,29 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	do
 	{
 		// Check for multiple staff types with a separate number of workers each
-		char buf[13];
+		char buf[36];
 		sprintf(buf, "staff[%u]", j);
 		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
 
 		if (current_staff_number != UINT32_MAX_VALUE)
 		{
-			staff_types.put(j, current_staff_number);
-			// Increase the length of the header by 3 for each additional
-			// staff type stored: one for type number and two for the quantity of conductors.
-			total_len += 3;
+			staff_types.put(j, current_staff_number * 100);
+			// Increase the length of the header by 5 for each additional
+			// staff type stored: one for type number and four for the quantity of staff.
+			total_len += 5;
 		}
+
+		sprintf(buf, "staff_hundredths[%u]", j);
+		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_staff_number != UINT32_MAX_VALUE)
+		{
+			staff_types.put(j, current_staff_number);
+			// Increase the length of the header by 5 for each additional
+			// staff type stored: one for type number and four for the quantity of staff.
+			total_len += 5;
+		}
+
 	} while (j++ < 255);
 
 	j = 0;
@@ -186,29 +198,9 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		if (current_driver_number =! UINT32_MAX_VALUE)
 		{
 			driver_types.put(j, current_driver_number);
-			// Increase the length of the header by 3 for each additional
-			// driver type stored: one for type number and two for the quantity of conductors.
-			total_len += 3;
-		}
-	} while (j++ < 255);
-
-	j = 0;
-	uint32 current_conductor_number;
-	staff_map conductor_types;
-
-	do
-	{
-		// Check for multiple conductor types with a separate number of workers each
-		char buf[13];
-		sprintf(buf, "conductor[%u]", j);
-		current_conductor_number = obj.get_int(buf, UINT32_MAX_VALUE);
-
-		if (current_conductor_number != UINT32_MAX_VALUE)
-		{
-			conductor_types.put(j, current_conductor_number);
-			// Increase the length of the header by 3 for each additional
-			// conductor type stored: one for type number and two for the quantity of conductors.
-			total_len += 3;
+			// Increase the length of the header by 5 for each additional
+			// driver type stored: one for type number and four for the quantity of conductors.
+			total_len += 5;
 		}
 	} while (j++ < 255);
 
@@ -1220,19 +1212,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 		node.write_uint32(fp, driver.value, pos);
 		pos += sizeof(driver.value);
-	}
-
-	uint8 total_conductors = conductor_types.get_count();
-	node.write_uint8(fp, total_conductors, pos);
-	pos += sizeof(total_conductors);
-
-	FOR(staff_map, conductor, conductor_types)
-	{
-		node.write_uint8(fp, conductor.key, pos);
-		pos += sizeof(conductor.key);
-
-		node.write_uint32(fp, conductor.value, pos);
-		pos += sizeof(conductor.value);
 	}
 
 	uint32 initial_overhaul_cost = obj.get_int("initial_overhaul_cost", UINT32_MAX_VALUE); // We encode the default as UINT32_MAX_VALUE so that the default can be changed when the main program reads this.

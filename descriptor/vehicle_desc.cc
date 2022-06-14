@@ -592,7 +592,12 @@ void vehicle_desc_t::fix_basic_constraint()
 
 uint32 vehicle_desc_t::get_total_staff() const
 {
-	return staff.get_count();
+	return (staff_hundredths.get_count() + 99) / 100;
+}
+
+uint32 vehicle_desc_t::get_total_staff_hundredths() const
+{
+	return staff_hundredths.get_count();
 }
 
 uint32 vehicle_desc_t::get_total_drivers() const
@@ -600,7 +605,3 @@ uint32 vehicle_desc_t::get_total_drivers() const
 	return drivers.get_count();
 }
 
-uint32 vehicle_desc_t::get_total_conductors() const
-{
-	return conductors.get_count();
-}

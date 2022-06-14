@@ -154,8 +154,7 @@ private:
 	 */
 	typedef inthashtable_tpl<uint8, sint32, N_BAGS_SMALL> staff_map;
 	staff_map drivers;						// Staff who need to be present if the vehicle needs to be driven.
-	staff_map conductors;					// Staff who need to be present if the vehicle is at the rear.
-	staff_map staff;						// Staff who need to be present at all times.
+	staff_map staff_hundredths;				// Other staff, expressed as a fraction of 100, but always rounded up to the nearest 100 to allow staff to be added incrementally if necessary.
 
 	uint8 multiple_working_type = 0;		// This determines whether multiple powered vehicles need drivers only in the first of them. If the numbers match (and are non-zero), then yes; otherwise, no.
 
@@ -678,8 +677,8 @@ public:
 	uint8 get_minimum_availability() const { return minimum_availability; }
 
 	uint32 get_total_staff() const;
+	uint32 get_total_staff_hundredths() const;
 	uint32 get_total_drivers() const;
-	uint32 get_total_conductors() const;
 	// TODO: Add more relevant getters for more specific information about staff costs as necessary
 
 	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
