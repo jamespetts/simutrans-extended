@@ -592,16 +592,31 @@ void vehicle_desc_t::fix_basic_constraint()
 
 uint32 vehicle_desc_t::get_total_staff() const
 {
-	return (staff_hundredths.get_count() + 99) / 100;
+	uint32 hundredths = 0;
+	for (auto hundredth : staff_hundredths)
+	{
+		hundredths += hundredth.value;
+	}
+	return (hundredths + 99) / 100;
 }
 
 uint32 vehicle_desc_t::get_total_staff_hundredths() const
 {
-	return staff_hundredths.get_count();
+	uint32 count = 0;
+	for (auto hundredth : staff_hundredths)
+	{
+		count += hundredth.value;
+	}
+	return count;
 }
 
 uint32 vehicle_desc_t::get_total_drivers() const
 {
-	return drivers.get_count();
+	uint32 count = 0;
+	for (auto driver : drivers)
+	{
+		count += driver.value;
+	}
+	return count;
 }
 
