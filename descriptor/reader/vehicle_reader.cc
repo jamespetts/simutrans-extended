@@ -471,7 +471,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 8)
+			if(extended_version < 9)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -566,6 +566,55 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				{
 					desc->override_way_speed = false;
 				}
+				if (extended && extended_version >= 8)
+				{
+					desc->multiple_working_type = decode_uint8(p);
+					desc->self_contained_catering = decode_uint8(p);
+					desc->calibration_speed = decode_uint32(p);
+					desc->cut_off_speed = decode_uint32(p);
+					desc->fuel_per_km = decode_uint32(p);
+
+					const uint8 total_staff = decode_uint8(p);
+
+					for (uint32 i = 0; i < total_staff; i++)
+					{
+						desc->staff.put(decode_uint8(p), decode_uint32(p));
+					}
+
+					const uint8 total_drivers = decode_uint8(p);
+
+					for (uint32 i = 0; i < total_drivers; i++)
+					{
+						desc->drivers.put(decode_uint8(p), decode_uint32(p));
+					}
+
+					const uint8 total_conductors = decode_uint8(p);
+
+					for (uint32 i = 0; i < total_conductors; i++)
+					{
+						desc->conductors.put(decode_uint8(p), decode_uint32(p));
+					}
+
+					desc->base_initial_overhaul_cost = decode_uint32(p);
+					if (desc->base_initial_overhaul_cost == UINT32_MAX_VALUE)
+					{
+						desc->base_initial_overhaul_cost = desc->base_cost / 5u;
+					}
+					desc->base_max_overhaul_cost = decode_uint32(p);
+					if (desc->base_max_overhaul_cost == UINT32_MAX_VALUE)
+					{
+						desc->base_max_overhaul_cost = desc->base_initial_overhaul_cost;
+					}
+
+					desc->overhauls_before_max_cost = decode_uint16(p);
+					desc->max_distance_between_overhauls = decode_uint32(p);
+					desc->max_takeoffs = decode_uint32(p);
+					desc->availability_decay_start_km = decode_uint32(p);
+					desc->starting_availability = decode_uint8(p);
+					desc->minimum_availability = decode_uint8(p);
+
+				}
+				// We do not need the "else", as all of the new values are header initialised.
 			}
 			else
 			{

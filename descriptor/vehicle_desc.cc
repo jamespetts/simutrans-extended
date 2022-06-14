@@ -401,16 +401,16 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(overcrowded_capacity);
 	chk->input(base_fixed_cost);
 	chk->input(upgrades);
-	chk->input(is_tilting ? 1 : 0);
-	chk->input(mixed_load_prohibition ? 1 : 0);
-	chk->input(override_way_speed ? 1 : 0);
+	chk->input(is_tilting);
+	chk->input(mixed_load_prohibition);
+	chk->input(override_way_speed);
 	chk->input(basic_constraint_prev);
 	chk->input(basic_constraint_next);
 	chk->input(way_constraints.get_permissive());
 	chk->input(way_constraints.get_prohibitive());
-	chk->input(bidirectional ? 1 : 0);
-	//chk->input(can_lead_from_rear ? 1 : 0); // not used
-	//chk->input(can_be_at_rear ? 1 : 0);
+	chk->input(bidirectional);
+	//chk->input(can_lead_from_rear); // not used
+	//chk->input(can_be_at_rear);
 	for (uint32 i = 0; i < classes; i++)
 	{
 		chk->input(comfort[i]);
@@ -426,6 +426,23 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(ar);
 	chk->input(rr);
 	chk->input(livery_image_type);
+	chk->input(base_initial_overhaul_cost);
+	chk->input(base_max_overhaul_cost);
+	chk->input(overhauls_before_max_cost);
+	chk->input(max_distance_between_overhauls);
+	chk->input(max_takeoffs);
+	chk->input(availability_decay_start_km);
+	chk->input(starting_availability);
+	chk->input(minimum_availability);
+	chk->input(calibration_speed);
+	chk->input(cut_off_speed);
+	chk->input(fuel_per_km);
+	chk->input(self_contained_catering);
+	chk->input(multiple_working_type);
+	chk->input(available_only_as_upgrade);
+	chk->input(is_tall);
+
+	// TODO: Consider whether to add the staff detais here, too
 }
 
 uint8 vehicle_desc_t::get_interactivity() const
@@ -571,4 +588,19 @@ void vehicle_desc_t::fix_basic_constraint()
 		}
 		basic_constraint_next &= ~unknown_constraint;
 	}
+}
+
+uint32 vehicle_desc_t::get_total_staff() const
+{
+	return staff.get_count();
+}
+
+uint32 vehicle_desc_t::get_total_drivers() const
+{
+	return drivers.get_count();
+}
+
+uint32 vehicle_desc_t::get_total_conductors() const
+{
+	return conductors.get_count();
 }

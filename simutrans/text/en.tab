@@ -3485,7 +3485,7 @@ Freight planes
 Airport
 Airport
 AIRTOOLS
-Airport Tools
+Air transport tools
 All
 All
 Allow player change
@@ -4077,7 +4077,7 @@ Map legend
 MAGLEVTOOLS
 Maglev tools
 NARROWGAUGETOOLS
-Narrow gauge tools
+Narrow gauge railway tools
 Leistung
 Power
 Leistung: %d kW
@@ -4521,7 +4521,7 @@ Sound volume:
 special freight
 Special Freight
 SPECIALTOOLS
-Special Construction Tools
+Special tools
 Speedlimit
 Speed limit
 Speichern
@@ -4625,7 +4625,7 @@ Trolleybuses
 Trams are not available yet!
 Trams are not yet available.
 TRAMTOOLS
-Trams/light rail tools
+Tramway tools
 Travelled
 Transported
 Travellers now\nuse %s's\nbusses between\n%s \nand %s.\n
@@ -6432,3 +6432,7 @@ Sub-Way
 beneath way cost
 Half Height
 low height
+remove signal
+Remove signal
+Map Editing Tools
+Map editing tools

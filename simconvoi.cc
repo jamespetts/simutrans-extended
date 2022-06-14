@@ -632,10 +632,10 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 			for(unsigned i=0; i<vehicle_count; i++) {
 				vehicle_t* v = vehicle[i];
 
-				v->get_smoke(false); //"Allowed to smoke" (Google)
+				v->set_allow_smoke(false);
 				vehicle[i]->do_drive( (VEHICLE_STEPS_PER_CARUNIT*train_length)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 				train_length -= v->get_desc()->get_length();
-				v->get_smoke(true);
+				v->set_allow_smoke(true);
 
 				// eventually reserve this again
 				grund_t *gr=welt->lookup(v->get_pos());
@@ -2035,16 +2035,15 @@ end_loop:
 		break;
 
 		case REVERSING:
-			position = schedule ? schedule->get_current_stop() : 0;
-			rev = !reverse_schedule;
-			schedule->increment_index(&position, &rev);
-			if(haltestelle_t::get_halt(front()->get_pos(), owner) == haltestelle_t::get_halt(schedule->entries[position].pos, owner))
+
+			if (true) // Necessary for compiling only due to the need to define variables in a single case.
 			{
 				position = schedule ? schedule->get_current_stop() : 0;
 				rev = !reverse_schedule;
 				schedule->increment_index(&position, &rev);
+
 				halthandle_t this_halt = haltestelle_t::get_halt(front()->get_pos(), owner);
-				if(this_halt == haltestelle_t::get_halt(schedule->entries[position].pos, owner))
+				if (this_halt == haltestelle_t::get_halt(schedule->entries[position].pos, owner))
 				{
 					// Load any newly arrived passengers/mail bundles/goods before setting off.
 					laden();
@@ -2052,7 +2051,7 @@ end_loop:
 				// A convoy starts after reversing
 				state = CAN_START;
 
-				if(front()->last_stop_pos == front()->get_pos())
+				if (front()->last_stop_pos == front()->get_pos())
 				{
 					book_waiting_times();
 				}
@@ -3636,13 +3635,13 @@ void convoi_t::vorfahren()
 		// just advances the first vehicle
 		vehicle_t* v0 = front();
 		v0->set_leading(false); // switches off signal checks ...
-		v0->get_smoke(false);
+		v0->set_allow_smoke(false);
 		steps_driven = 0;
 		// drive half a tile:
 		for(int i=0; i<vehicle_count; i++) {
 			vehicle[i]->do_drive( (VEHICLE_STEPS_PER_TILE/2)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 		}
-		v0->get_smoke(true);
+		v0->set_allow_smoke(true);
 		v0->set_leading(true); // switches on signal checks to reserve the next route
 
 		// until all other are on the track
@@ -3763,11 +3762,11 @@ void convoi_t::vorfahren()
 				for(sint8 i = 0; i < vehicle_count; i++)
 				{
 					vehicle_t* v = vehicle[i];
-					v->get_smoke(false);
+					v->set_allow_smoke(false);
 					vehicle[i]->do_drive( (VEHICLE_STEPS_PER_CARUNIT*train_length)<<YARDS_PER_VEHICLE_STEP_SHIFT );
 					train_length -= v->get_desc()->get_length();
 					// this gives the length in carunits, 1/CARUNITS_PER_TILE of a full tile => all cars closely coupled!
-					v->get_smoke(true);
+					v->set_allow_smoke(true);
 				//}
 
 			}
@@ -6251,7 +6250,9 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 					if(skip_convois || skip_vehicles)
 					{
 						// Not enough freight was available to fill vehicle, or the stop can't supply this type of cargo: don't try to load this category again from this halt onto vehicles in convois on this line this step.
-						skip_catg[catg_index] = true;
+						if( !v->get_desc()->get_mixed_load_prohibition() ) {
+							skip_catg[catg_index] = true;
+						}
 						if(!skip_vehicles  &&  line_data.line.is_bound())
 						{
 							line_data.catg_index = catg_index;
@@ -6350,129 +6351,6 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
-	const sint64 now = welt->get_ticks();
-	if(arrival_time > now || arrival_time == WAIT_INFINITE)
-	{
-		// This is a workaround for an odd bug the origin of which is as yet unclear.
-		go_on_ticks = WAIT_INFINITE;
-		arrival_time = now;
-		if (arrival_time < WAIT_INFINITE)
-		{
-			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
-		}
-	}
-	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
-	bool running_late = false;
-	sint64 go_on_ticks_waiting = WAIT_INFINITE;
-	const sint64 earliest_departure_time = arrival_time + ((sint64)current_loading_time - reversing_time);
-	if(go_on_ticks == WAIT_INFINITE)
-	{
-		if(haltestelle_t::get_halt(get_pos(), get_owner()) != haltestelle_t::get_halt(schedule->get_current_entry().pos, get_owner()))
-		{
-			// Sometimes, for some reason, the loading method is entered with the wrong schedule entry. Make sure that this does not cause
-			// convoys to become stuck trying to get a full load at stops where this is not possible (freight consumers, etc.).
-			loading_limit = 0;
-		}
-		if((!loading_limit || loading_level >= loading_limit) && !wait_for_time)
-		{
-			// Simple case: do not wait for a full load or a particular time.
-			go_on_ticks = std::max(earliest_departure_time, arrival_time);
-		}
-		else
-		{
-			// Wait for a % load or a spacing slot.
-			sint64 go_on_ticks_spacing = WAIT_INFINITE;
-
-			if(line.is_bound() && schedule->get_spacing() && line->count_convoys())
-			{
-				// Departures/month
-				const sint64 spacing = welt->ticks_per_world_month / (sint64)schedule->get_spacing();
-				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
-				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
-				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
-				go_on_ticks_spacing = (wait_from_ticks + spacing * queue_pos) - reversing_time;
-			}
-
-			if(schedule->get_current_entry().waiting_time_shift > 0)
-			{
-				// Maximum wait time
-				go_on_ticks_waiting = now + (welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift)) - (sint64)reversing_time;
-			}
-
-			if (schedule->get_spacing() && !line.is_bound())
-			{
-				// Spacing should not be possible without a line, but this can occasionally occur. Without this, the convoy will wait forever.
-				go_on_ticks_spacing = earliest_departure_time;
-			}
-
-			go_on_ticks = std::min(go_on_ticks_spacing, go_on_ticks_waiting);
-			go_on_ticks = std::max(earliest_departure_time, go_on_ticks);
-			running_late = wait_for_time && (go_on_ticks_waiting < go_on_ticks_spacing);
-			if(running_late)
-			{
-				go_on_ticks = earliest_departure_time;
-			}
-		}
-	}
-
-	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
-		// destroy when empty
-		self_destruct();
-		return;
-	}
-
-	// loading is finished => maybe drive on
-	bool can_go = false;
-
-	can_go = loading_level >= loading_limit && (now >= go_on_ticks || !wait_for_time);
-	//can_go = can_go || (now >= go_on_ticks_waiting && !wait_for_time); // This is pre-14 August 2016 code
-	can_go = can_go || (now >= go_on_ticks && !wait_for_time);
-	can_go = can_go || running_late;
-	can_go = can_go || no_load;
-	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
-	can_go = can_go && now > earliest_departure_time;
-	if(can_go) {
-		// add available capacity after loading(!) to statistics
-		for (unsigned i = 0; i<vehicle_count; i++) {
-			book(get_vehicle(i)->get_cargo_max()-get_vehicle(i)->get_total_cargo(), CONVOI_CAPACITY);
-		}
-
-		// Advance schedule
-		advance_schedule();
-		state = ROUTING_1;
-		//dbg->message("void convoi_t::hat_gehalten(halthandle_t halt)", "Convoy %s departing from stop %s at step %i. Its departure time is calculated as %ll", get_name(), halt.is_bound() ? halt->get_name() : "unknown", welt->get_steps(), go_on_ticks);
-	}
-
-	// reset the wait_lock
-	if(state == ROUTING_1)
-	{
-		wait_lock = 0;
-	}
-	else if(state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS) // Do not add extra delay if the convoy has already decided to depart and is just waiting for clearance.
-	{
-		if (loading_limit > 0 && !wait_for_time)
-		{
-			wait_lock = (sint32) ((earliest_departure_time - now) / 2ll);
-		}
-		else
-		{
-			wait_lock = (sint32) ((go_on_ticks - now) / 2ll);
-		}
-		// The random extra wait here is designed to avoid processing every convoy at once
-		wait_lock += (sint32)(self.get_id()) % 1024;
-		if (wait_lock < 0 )
-		{
-			wait_lock = 0;
-		}
-		else if(wait_lock > 8192 && go_on_ticks == WAIT_INFINITE)
-		{
-			// This is needed because the above calculation (from Standard) produces excessively
-			// large numbers on occasions due to the conversion in Extended of certain values
-			// (karte_t::ticks and go_on_ticks) to sint64. It would be better ultimately to fix that,
-			// but this seems to work for now.
-			wait_lock = 8192;
-		}
-	}
 	check_departure(halt);
 }
 
@@ -6494,27 +6372,11 @@ sint64 convoi_t::calc_sale_value() const
  */
 void convoi_t::calc_loading()
 {
-	int fracht_max = 0;
-	int fracht_menge = 0;
-	int seats_max = 0;
-	int seats_menge = 0;
+	const uint16 seats_max    = get_cargo_max();
+	const uint16 fracht_max   = seats_max + get_overcrowded_capacity();
+	const uint16 fracht_menge = get_total_cargo();
+	const uint16 seats_menge  = fracht_menge - get_overcrowded();
 
-	for(unsigned i=0; i<vehicle_count; i++) {
-		const vehicle_t* v = vehicle[i];
-		if ( v->get_cargo_type() == goods_manager_t::passengers ) {
-			seats_max += v->get_cargo_max();
-			seats_menge += v->get_total_cargo();
-		}
-		else {
-			fracht_max += v->get_cargo_max();
-			fracht_menge += v->get_total_cargo();
-		}
-	}
-	if (seats_max)
-	{
-		fracht_max += seats_max;
-		fracht_menge += seats_menge;
-	}
 	loading_level = fracht_max > 0 ? (fracht_menge*100)/fracht_max : 100;
 	loading_limit = 0;	// will be set correctly from hat_gehalten() routine
 	free_seats = seats_max > seats_menge ? seats_max - seats_menge : 0;
@@ -7098,6 +6960,15 @@ void convoi_t::set_next_reservation_index(uint16 n)
 		n = route.get_count()-1;
 	}
 	next_reservation_index = n;
+}
+
+
+uint16 convoi_t::get_current_schedule_order() const
+{
+	if (reverse_schedule) {
+		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
+	}
+	return (uint16)schedule->get_current_stop();
 }
 
 
@@ -8690,6 +8561,24 @@ void convoi_t::calc_classes_carried()
 	}
 }
 
+uint16 convoi_t::get_total_cargo() const
+{
+	uint16 sum = 0;
+	for (uint8 i = 0; i < vehicle_count; i++) {
+		sum += vehicle[i]->get_total_cargo();
+	}
+	return sum;
+}
+
+uint16 convoi_t::get_cargo_max() const
+{
+	uint16 sum = 0;
+	for (uint8 i = 0; i < vehicle_count; i++) {
+		sum += vehicle[i]->get_cargo_max();
+	}
+	return sum;
+}
+
 uint16 convoi_t::get_total_cargo_by_fare_class(uint8 catg, uint8 g_class) const
 {
 	if ((catg == goods_manager_t::INDEX_PAS && g_class >= goods_manager_t::passengers->get_number_of_classes())
@@ -8845,7 +8734,7 @@ void convoi_t::check_departure(halthandle_t halt)
 		arrival_time = now;
 		if (arrival_time < WAIT_INFINITE)
 		{
-			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time is in the future for convoy %u at stop %u", self.get_id(), halt.get_id());
+			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
 		}
 	}
 	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
@@ -8878,7 +8767,6 @@ void convoi_t::check_departure(halthandle_t halt)
 				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
 				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
 				go_on_ticks_spacing = (wait_from_ticks + spacing * queue_pos) - reversing_time;
-
 			}
 
 			if(schedule->get_current_entry().waiting_time_shift > 0)
@@ -8903,6 +8791,12 @@ void convoi_t::check_departure(halthandle_t halt)
 		}
 	}
 
+	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
+		// destroy when empty
+		self_destruct();
+		return;
+	}
+
 	// loading is finished => maybe drive on
 	bool can_go = false;
 
@@ -8914,13 +8808,6 @@ void convoi_t::check_departure(halthandle_t halt)
 	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
 	can_go = can_go && now > earliest_departure_time;
 	if(can_go) {
-
-		if(withdraw  &&  (loading_level==0  ||  goods_catg_index.empty())) {
-			// destroy when empty
-			self_destruct();
-			return;
-		}
-
 		// add available capacity after loading(!) to statistics
 		for (unsigned i = 0; i<vehicle_count; i++) {
 			book(get_vehicle(i)->get_cargo_max()-get_vehicle(i)->get_total_cargo(), CONVOI_CAPACITY);

@@ -388,6 +388,8 @@ protected:
 	uint32 km_since_last_replenish;
 	sint64 last_maintenance_time;
 
+	sint64 ticks_at_last_departure;
+
 	uint16 tags;
 
 	void calc_image() OVERRIDE;
@@ -438,17 +440,17 @@ public:
 	*/
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi(get_waytype()); }
 
-	/*
+	/**
 	 * The date (months) when this vehicle was first purchased.
 	 */
 	sint32 get_purchase_time() const {return purchase_time;}
 
-	/*
+	/**
 	 * The date (months) when this vehicle was last overhauled.
 	 */
 	sint32 get_overhaul_time() const { return overhaul_time; }
 
-	void get_smoke(bool yesno ) { smoke = yesno;}
+	void set_allow_smoke(bool yesno ) { smoke = yesno; }
 
 	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed_kmh, bool is_tall, route_t* route);
 	uint16 get_route_index() const {return route_index;}

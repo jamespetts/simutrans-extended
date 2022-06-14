@@ -18,6 +18,7 @@
 
 #include "../tpl/slist_tpl.h"
 #include "../tpl/vector_tpl.h"
+#include "../tpl/inthashtable_tpl.h"
 
 #include "../simworld.h"
 
@@ -150,6 +151,12 @@ protected:
 	/// Any player may take over this company at any time if
 	/// this evaluates to true.
 	bool allow_voluntary_takeover;
+
+	/// Staff costs accrued this month per player.
+	/// Key: pay grade
+	/// Value: ticks of time employed
+	typedef inthashtable_tpl<uint8, sint64, N_BAGS_SMALL> staff_map_player;
+	staff_map_player staff_costs_this_month;
 
 public:
 	/**

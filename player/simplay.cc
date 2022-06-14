@@ -966,6 +966,42 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	{
 		allow_voluntary_takeover = false;
 	}
+
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save staff costs by time
+		if (file->is_saving())
+		{
+			uint32 staff_cost_count = staff_costs_this_month.get_count();
+			file->rdwr_long(staff_cost_count);
+
+			FOR(staff_map_player, staff, staff_costs_this_month)
+			{
+				staff.key;
+				file->rdwr_byte(staff.key);
+				file->rdwr_longlong(staff.value);
+			}
+		}
+
+		if (file->is_loading())
+		{
+			staff_costs_this_month.clear();
+
+			uint32 staff_cost_count = 0;
+			file->rdwr_long(staff_cost_count);
+
+			for (uint32 i = 0; i < staff_cost_count; i++)
+			{
+				uint8 key;
+				sint64 value;
+
+				file->rdwr_byte(key);
+				file->rdwr_longlong(value);
+
+				staff_costs_this_month.put(key, value);
+			}
+		}
+	}
 }
 
 
