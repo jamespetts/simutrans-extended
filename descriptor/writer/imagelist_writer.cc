@@ -21,7 +21,8 @@ void imagelist_writer_t::write_obj(FILE* fp, obj_node_t& parent, const slist_tpl
 		dbg->debug("", "------------------------------------------ -------------------- ----- ----- ----- ----- ----- ------ ----\n");
 	}
 
-	FOR(slist_tpl<std::string>, const& s, keys) {
+	for(auto const s : keys)
+	{
 		image_writer_t::instance()->write_obj(fp, node, s, count);
 		count ++;
 	}

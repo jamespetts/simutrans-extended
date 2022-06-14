@@ -64,7 +64,8 @@ void root_writer_t::write(const char* filename, int argc, char* argv[])
 		const char* arg = (i < argc) ? argv[i] : "./";
 
 		find.search(arg, "dat");
-		FOR(searchfolder_t, const& i, find) {
+		for (auto const i : find)
+		{
 			tabfile_t infile;
 
 			if (infile.open(i)) {
@@ -81,7 +82,8 @@ void root_writer_t::write(const char* filename, int argc, char* argv[])
 			}
 		}
 		find.search(arg, "csv");
-		FOR(searchfolder_t, const& i, find) {
+		for (auto const i : find)
+		{
 			CSV_file_t infile;
 
 			if (infile.load_file(i)) {
@@ -163,7 +165,8 @@ void root_writer_t::write_CSV(const char *filename, int argc, char *argv[]){
 		const char* arg = (i < argc) ? argv[i] : "./";
 
 		find.search(arg, "dat");
-		FOR(searchfolder_t, const& i, find) {
+		for(auto const i : find)
+		{
 			tabfile_t infile;
 
 			if (infile.open(i)) {
@@ -251,7 +254,8 @@ void root_writer_t::dump(int argc, char* argv[])
 		else {
 			searchfolder_t find;
 			find.search(argv[i], "pak");
-			FOR(searchfolder_t, const& i, find) {
+			for(auto const i : find)
+			{
 				any |= do_dump(i);
 			}
 		}
@@ -304,7 +308,8 @@ void root_writer_t::list(int argc, char* argv[])
 		else {
 			searchfolder_t find;
 			find.search(argv[i], "pak");
-			FOR(searchfolder_t, const& i, find) {
+			for(auto const i : find)
+			{
 				any |= do_list(i);
 			}
 		}
@@ -389,7 +394,8 @@ void root_writer_t::copy(const char* name, int argc, char* argv[])
 			any = do_copy(outfp, root, argv[i]);
 		} else {
 			find.search(argv[i], "pak");
-			FOR(searchfolder_t, const& i, find) {
+			for(auto const i : find)
+			{
 				if (strcmp(i, name) != 0) {
 					any |= do_copy(outfp, root, i);
 				}
@@ -580,7 +586,8 @@ void root_writer_t::expand_dat(const char* filename, int argc, char* argv[])
 
 		find.search(arg, "dat");
 
-		FOR(searchfolder_t, const& i, find) {
+		for(auto const i : find)
+		{
 			tabfile_t infile;
 
 			if (infile.open(i)) {

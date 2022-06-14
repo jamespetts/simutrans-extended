@@ -1187,8 +1187,7 @@ void halt_info_t::update_cont_departure()
 	sint32 delta_t;
 	const uint32 max_listings = 15;
 
-	FOR(arrival_times_map, const& iter, display_mode_bits&SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times())
-	//for(const const iter : display_mode_bits & SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times()) // Does not compile
+	for(auto const iter : display_mode_bits & SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times())
 	{
 		cnv.set_id(iter.key);
 		if(!cnv.is_bound())

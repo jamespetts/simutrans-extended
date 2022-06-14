@@ -1740,7 +1740,7 @@ void weg_t::delete_all_routes_from_here(bool reading_set)
 			}
 		}
 	}
-		FOR(vector_tpl<koord>, dest, destinations_to_delete)
+		for(auto dest : destinations_to_delete)
 		{
 			// This must be done in a two stage process to avoid memory corruption as the delete_route_to function will affect the very hashtable being iterated.
 			delete_route_to(dest, reading_set);

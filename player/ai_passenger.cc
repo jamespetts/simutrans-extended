@@ -68,7 +68,8 @@ bool ai_passenger_t::set_active(bool new_state)
  */
 halthandle_t ai_passenger_t::get_our_hub( const stadt_t *s ) const
 {
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const halt : haltestelle_t::get_alle_haltestellen())
+	{
 		if (halt->get_owner() == this) {
 			if(  halt->get_pax_enabled()  &&  (halt->get_station_type()&haltestelle_t::busstop)!=0  ) {
 				koord h=halt->get_basis_pos();
@@ -205,7 +206,7 @@ bool ai_passenger_t::create_water_transport_vehicle(const stadt_t* start_stadt, 
 			start_hub = halthandle_t();
 
 			// is there already one harbour next to this one?
-			FOR(haltestelle_t::connexions_map, & iter, *start_connect_hub->get_connexions(0, 0) )
+			for(auto iter : *start_connect_hub->get_connexions(0, 0))
 			{
 				halthandle_t const h = iter.key;
 				if( h.is_bound() && h->get_station_type()&haltestelle_t::dock  )
@@ -236,7 +237,7 @@ bool ai_passenger_t::create_water_transport_vehicle(const stadt_t* start_stadt, 
 			end_connect_hub = end_hub;
 			end_hub = halthandle_t();
 			// is there already one harbour next to this one?
-			FOR(haltestelle_t::connexions_map, & iter, *end_connect_hub->get_connexions(0, 0) )
+			for(auto iter : *end_connect_hub->get_connexions(0, 0))
 			{
 				halthandle_t const h = iter.key;
 				if( h.is_bound() && h->get_station_type()&haltestelle_t::dock  )
@@ -637,7 +638,7 @@ bool ai_passenger_t::create_air_transport_vehicle(const stadt_t *start_stadt, co
 			start_connect_hub = start_hub;
 			start_hub = halthandle_t();
 			// is there already one airport next to this town?
-			FOR(haltestelle_t::connexions_map, & iter, *start_connect_hub->get_connexions(0, 0) )
+			for(auto iter : *start_connect_hub->get_connexions(0, 0))
 			{
 				halthandle_t const h = iter.key;
 				if( h.is_bound() && h->get_station_type()&haltestelle_t::airstop  )
@@ -668,7 +669,7 @@ bool ai_passenger_t::create_air_transport_vehicle(const stadt_t *start_stadt, co
 			end_connect_hub = end_hub;
 			end_hub = halthandle_t();
 			// is there already one airport next to this town?
-			FOR(haltestelle_t::connexions_map, & iter, *end_connect_hub->get_connexions(0, 0) )
+			for(auto iter : *end_connect_hub->get_connexions(0, 0))
 			{
 				halthandle_t const h = iter.key;
 				if( h.is_bound() && h->get_station_type()&haltestelle_t::airstop  )

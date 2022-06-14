@@ -369,7 +369,8 @@ city_info_t::~city_info_t()
 	rename_city();
 	// save button state
 	uint32 flags = 0;
-	FOR(const vector_tpl<gui_button_to_chart_t*>, b2c, button_to_chart.list()) {
+	for(auto b2c : button_to_chart.list())
+	{
 		if (b2c->get_button()->pressed) {
 			flags |= 1 << b2c->get_curve();
 		}

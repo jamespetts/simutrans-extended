@@ -461,7 +461,8 @@ void building_info_t::update_signalbox_info() {
 		signal_table.set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(0, 0));
 		// connected signal list
 		const slist_tpl<koord3d> &signals = sb->get_signal_list();
-		FOR(slist_tpl<koord3d>, k, signals){
+		for(auto k : signals)
+		{
 			grund_t* gr = welt->lookup(k);
 			if (!gr) {
 				continue;

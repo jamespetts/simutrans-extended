@@ -61,12 +61,16 @@ void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seaso
 
 	uint8 phases = 0;
 	for (int i = 0; i < seasons; i++) {
-		FOR(slist_tpl<slist_tpl<string> >, const& s, backkeys.at(i)) {
+		FOR(slist_tpl<slist_tpl<string> >, const& s, backkeys.at(i))
+		//for(auto const s : backkeys.at(i)) // This does not compile
+		{
 			if (phases < s.get_count()) {
 				phases = s.get_count();
 			}
 		}
-		FOR(slist_tpl<slist_tpl<string> >, const& s, frontkeys.at(i)) {
+		FOR(slist_tpl<slist_tpl<string> >, const& s, frontkeys.at(i))
+		//for(auto const s : frontkeys.at(i)) // This does not compile
+		{
 			if (phases < s.get_count()) {
 				phases = s.get_count();
 			}
@@ -590,7 +594,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	pos += sizeof(uint8);
 
 	// Class proportions
-	FOR(vector_tpl<uint16>, class_proportion, class_proportions)
+	for(auto class_proportion : class_proportions)
 	{
 		node.write_uint16(fp, class_proportion, pos);
 		pos += sizeof(uint16);
@@ -599,7 +603,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	node.write_uint8(fp, number_of_classes_jobs, pos);
 	pos += sizeof(uint8);
 
-	FOR(vector_tpl<uint16>, class_proportion, class_proportions_jobs)
+	for(auto class_proportion : class_proportions_jobs)
 	{
 		node.write_uint16(fp, class_proportion, pos);
 		pos += sizeof(uint16);

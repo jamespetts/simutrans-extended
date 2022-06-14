@@ -181,7 +181,8 @@ static void show_times(karte_t *welt, main_view_t *view)
 
 	ms = dr_time();
 	for (i = 0; i < 40000000/(int)weg_t::get_alle_wege().get_count(); i++) {
-		FOR( vector_tpl<weg_t *>, const w, weg_t::get_alle_wege() ) {
+		for(auto const w : weg_t::get_alle_wege())
+		{
 			grund_t *dummy;
 			welt->lookup( w->get_pos() )->get_neighbour( dummy, invalid_wt, ribi_t::north );
 		}

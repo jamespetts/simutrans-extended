@@ -289,8 +289,10 @@ void fabrik_t::update_transit( const ware_t& ware, bool add )
 // just for simplicity ...
 void fabrik_t::update_transit_intern( const ware_t& ware, bool add )
 {
-	FOR(  array_tpl<ware_production_t>,  &w,  input ) {
-		if(  w.get_typ()->get_index() == ware.index  ) {
+	for(auto w : input)
+	{
+		if(  w.get_typ()->get_index() == ware.index  )
+		{
 
 			w.book_stat_no_negative(add ? (sint64)ware.menge : -(sint64)ware.menge, FAB_GOODS_TRANSIT );
 			return;
@@ -565,12 +567,14 @@ void fabrik_t::recalc_storage_capacities()
 			// calculate total storage capacity contributed by fields
 			const field_group_desc_t *const field_group = desc->get_field_group();
 			sint32 field_capacities = 0;
-			FOR(vector_tpl<field_data_t>, const& f, fields) {
+			for(auto const f : fields)
+			{
 				field_capacities += field_group->get_field_class(f.field_class_index)->get_storage_capacity();
 			}
 			const sint32 share = (sint32)(((sint64)field_capacities << precision_bits) / (sint64)ware_types);
 			// first, for input goods
-			FOR(array_tpl<ware_production_t>, &g, input) {
+			for(auto g : input)
+			{
 				for (int b = 0; b<desc->get_supplier_count(); ++b) {
 					const factory_supplier_desc_t *const input = desc->get_supplier(b);
 					if (g.get_typ() == input->get_input_type()) {
@@ -581,7 +585,8 @@ void fabrik_t::recalc_storage_capacities()
 				}
 			}
 			// then, for output goods
-			FOR(array_tpl<ware_production_t>, &g, output) {
+			for(auto g : output)
+			{
 				for (uint b = 0; b<desc->get_product_count(); ++b) {
 					const factory_product_desc_t *const output = desc->get_product(b);
 					if (g.get_typ() == output->get_output_type()) {
@@ -596,7 +601,8 @@ void fabrik_t::recalc_storage_capacities()
 	else {
 		// without fields -> scaling based on prodbase
 		// first, for input goods
-		FOR(array_tpl<ware_production_t>, &g, input) {
+		for(auto g : input)
+		{
 			for (int b = 0; b<desc->get_supplier_count(); ++b) {
 				const factory_supplier_desc_t *const input = desc->get_supplier(b);
 				if (g.get_typ() == input->get_input_type()) {
@@ -607,7 +613,8 @@ void fabrik_t::recalc_storage_capacities()
 			}
 		}
 		// then, for output goods
-		FOR(array_tpl<ware_production_t>, &g, output) {
+		for(auto g : output)
+		{
 			for (uint b = 0; b<desc->get_product_count(); ++b) {
 				const factory_product_desc_t *const output = desc->get_product(b);
 				if (g.get_typ() == output->get_output_type()) {
@@ -971,7 +978,8 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 
 	recalc_storage_capacities();
 	if (input.empty()) {
-		FOR(array_tpl<ware_production_t>, & g, output) {
+		for(auto g : output)
+		{
 			if (g.max > 0) {
 				// if source then start with full storage, so that AI will build line(s) immediately
 				g.menge = g.max - 1;
@@ -1006,7 +1014,7 @@ void fabrik_t::mark_connected_roads(bool del)
 	grund_t* gr;
 	vector_tpl<koord> tile_list;
 	get_tile_list(tile_list);
-	FOR(vector_tpl<koord>, const k, tile_list)
+	for(auto const k : tile_list)
 	{
 		for(uint8 i = 0; i < 8; i ++)
 		{
@@ -1871,7 +1879,8 @@ sint32 fabrik_t::get_input_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
 
-	FOR(array_tpl<ware_production_t>, const& i, input) {
+	for(auto const i : input)
+	{
 		if (ware == i.get_typ()) {
 			menge = i.menge >> precision_bits;
 			break;
@@ -1885,8 +1894,8 @@ sint32 fabrik_t::get_input_stock(const goods_desc_t *ware)
 sint32 fabrik_t::get_output_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
-
-	FOR(array_tpl<ware_production_t>, const& i, output) {
+	for(auto const i : output)
+	{
 		if (ware == i.get_typ()) {
 			menge = i.menge >> precision_bits;
 			break;
@@ -2051,7 +2060,7 @@ bool fabrik_t::out_of_stock_selective()
 	sint32 weight_of_all_items = 0;
 	bool all_out_of_stock = true;
 
-	FOR(array_tpl<ware_production_t>, const& i, input)
+	for(auto const i : input)
 	{
 		if (i.menge <= 0)
 		{
@@ -2625,7 +2634,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 		// of 15 minutes for each stop at 125m/tile.
 		const uint32 transfer_journey_time_factor = ((uint32)welt->get_settings().get_meters_per_tile() * 6u) * 10u;
 		uint32 current_journey_time;
-		FOR(vector_tpl<distribute_ware_t>, & i, dist_list)
+		for(auto i : dist_list)
 		{
 			if (!i.nearby_halt.halt.is_bound())
 			{
@@ -2905,7 +2914,7 @@ void fabrik_t::new_month()
 				{
 					// Upgrade
 					uint32 total_density = 0;
-					FOR(minivec_tpl<const factory_desc_t*>, upgrade, upgrade_list)
+					for(auto upgrade : upgrade_list)
 					{
 						total_density += (100u / upgrade->get_distribution_weight());
 					}
@@ -2998,11 +3007,11 @@ void fabrik_t::new_month()
 					// Remove redundant inputs
 					bool disconnect_supplier_checked = false;
 					bool must_close = false;
-					FOR(vector_tpl<koord>, k, suppliers)
+					for(auto k : suppliers)
 					{
 						fabrik_t* supplier = fabrik_t::get_fab(k);
 						bool match = false;
-						FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
+						for(auto sw : supplier->get_output())
 						{
 							if (input_products.is_contained(sw.get_typ()))
 							{
@@ -3088,7 +3097,8 @@ void fabrik_t::recalc_factory_status()
 	uint32 i = 0;
 	if(const uint32 input_count = input.get_count()){
 		uint32 active_input_count = 0;
-		FOR(array_tpl<ware_production_t>, const& j, input) {
+		for(auto const j : input)
+		{
 			if (j.menge >= j.max) {
 				status_ein |= FL_WARE_LIMIT;
 			}
@@ -3102,14 +3112,14 @@ void fabrik_t::recalc_factory_status()
 			}
 			// Does each input goods have one or more suppliers? If not, this factory will not be operational.
 			bool found = false;
-			FOR(vector_tpl<koord>, k, suppliers)
+			for(auto k : suppliers)
 			{
 				const fabrik_t* supplier = fabrik_t::get_fab(k);
 				if (supplier->get_status() == missing_connections || supplier->get_status() == material_not_available) {
 					// An inoperable factory is synonymous with non-existence => skip!
 					continue;
 				}
-				FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
+				for(auto sw : supplier->get_output())
 				{
 					if (sw.get_typ() == j.get_typ())
 					{
@@ -3175,7 +3185,8 @@ void fabrik_t::recalc_factory_status()
 	// At least one must have a normal downstream industry
 	if( !output.empty() ) {
 		bool has_any_consumer = false;
-		FOR(vector_tpl<koord>, k, consumers) {
+		for(auto k : consumers)
+		{
 			const fabrik_t* consumer = fabrik_t::get_fab(k);
 			// Focus on incomplete connections between manufacturers rather than missing end consumer's connection
 			if (consumer->get_sector()==end_consumer) {
@@ -3400,7 +3411,7 @@ void fabrik_t::recalc_nearby_halts()
 	bool any_distribution_target = false; // just for debugging
 #endif
 
-	FOR(vector_tpl<koord>, const k, tile_list)
+	for(auto const k : tile_list)
 	{
 		const planquadrat_t* plan = welt->access(k);
 		if(plan)
@@ -3496,7 +3507,8 @@ void fabrik_t::finish_rd()
 
 	// now we have a valid storage limit
 	if(  welt->get_settings().is_crossconnect_factories()  ) {
-		FOR(  vector_tpl<fabrik_t*>,  const fab,  welt->get_fab_list()  ) {
+		for(auto const fab : welt->get_fab_list())
+		{
 			fab->add_supplier(this);
 		}
 	}
@@ -3572,13 +3584,18 @@ void fabrik_t::rotate90( const sint16 y_size )
 	pos_origin.x -= desc->get_building()->get_x(rotate)-1;
 	pos.rotate90( y_size );
 
-	FOR(vector_tpl<koord>, & i, consumers) {
+	for(auto i : consumers)
+	{
 		i.rotate90(y_size);
 	}
-	FOR(vector_tpl<koord>, & i, suppliers) {
+
+	for(auto i : suppliers)
+	{
 		i.rotate90(y_size);
 	}
-	FOR(vector_tpl<field_data_t>, & i, fields) {
+
+	for(auto i : fields)
+	{
 		i.location.rotate90(y_size);
 	}
 
@@ -3593,7 +3610,8 @@ void fabrik_t::add_supplier(koord ziel)
 			for(  uint32 i=0;  i < fab->get_output().get_count();  i++   ) {
 				const ware_production_t &w_out = fab->get_output()[i];
 				// now update transit limits
-				FOR(  array_tpl<ware_production_t>,  &w,  input ) {
+				for(auto w : input)
+				{
 					if(  w_out.get_typ() == w.get_typ()  )
 					{
 						calc_max_intransit_percentages();
@@ -3614,16 +3632,19 @@ void fabrik_t::remove_supplier(koord supplier_pos)
 
 	if(  welt->get_settings().get_factory_maximum_intransit_percentage()  ) {
 		// set to zero
-		FOR(  array_tpl<ware_production_t>,  &w,  input ) {
+		for(auto w : input)
+		{
 			w.max_transit = 0;
 		}
 
 		// unfortunately we have to bite the bullet and recalc the values from scratch ...
-		FOR( vector_tpl<koord>, ziel, suppliers ) {
+		for(auto ziel : suppliers)
+		{
 			if(  fabrik_t *fab = get_fab( ziel )  ) {
-				for(  uint32 i=0;  i < fab->get_output().get_count();  i++   ) {
+				for(  uint32 i=0;  i < fab->get_output().get_count();  i++   )
+				{
 					// now update transit limits
-					FOR(  array_tpl<ware_production_t>,  &w,  input )
+					for(auto w : input)
 					{
 						(void)w;
 						calc_max_intransit_percentages();
@@ -3643,7 +3664,8 @@ void fabrik_t::add_all_suppliers()
 		const factory_supplier_desc_t *supplier = desc->get_supplier(i);
 		const goods_desc_t *ware = supplier->get_input_type();
 
-		FOR(vector_tpl<fabrik_t*>, const fab, welt->get_fab_list()) {
+		for(auto const fab : welt->get_fab_list())
+		{
 			// connect to an existing one, if this is an producer
 			if(fab!=this  && fab->get_output_stock(ware) > -1) {
 				// add us to this factory
@@ -3730,7 +3752,8 @@ slist_tpl<const goods_desc_t*> *fabrik_t::get_produced_goods() const
 {
 	slist_tpl<const goods_desc_t*> *goods = new slist_tpl<const goods_desc_t*>();
 
-	FOR(array_tpl<ware_production_t>, const& i, output) {
+	for(auto const i : output)
+	{
 		goods->append(i.get_typ());
 	}
 
@@ -3773,7 +3796,7 @@ void fabrik_t::calc_max_intransit_percentages()
 	const uint16 base_max_intransit_percentage = welt->get_settings().get_factory_maximum_intransit_percentage();
 
 	uint32 index = 0;
-	FOR(array_tpl<ware_production_t>, &w, input)
+	for(auto w : input)
 	{
 		const uint8 catg = w.get_typ()->get_catg();
 		if(base_max_intransit_percentage == 0)
@@ -3925,7 +3948,7 @@ uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
 	// Tenths of minutes.
 	uint32 longest_lead_time = UINT32_MAX_VALUE;
 
-	FOR(vector_tpl<koord>, const& supplier, suppliers)
+	for(auto const supplier : suppliers)
 	{
 		const fabrik_t *fab = get_fab(supplier);
 		if(!fab)
@@ -3940,7 +3963,7 @@ uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
 				uint32 best_journey_time = UINT32_MAX_VALUE;
 				const uint32 transfer_journey_time_factor = ((uint32)welt->get_settings().get_meters_per_tile() * 6) * 10;
 
-				FOR(vector_tpl<nearby_halt_t>, const& nearby_halt, fab->nearby_freight_halts)
+				for(auto const nearby_halt : fab->nearby_freight_halts)
 				{
 					// now search route
 					const uint32 origin_transfer_time = (((uint32)nearby_halt.distance * transfer_journey_time_factor) / 100) + nearby_halt.halt->get_transshipment_time();
@@ -4106,7 +4129,7 @@ sint32 fabrik_t::get_staffing_level_percentage() const {
 
 bool fabrik_t::is_connected_to_network(player_t *player) const
 {
-	FOR(vector_tpl<nearby_halt_t>, const i, nearby_freight_halts)
+	for(auto const i : nearby_freight_halts)
 	{
 		if(i.halt->get_owner() == player){
 			// In the case of owning station, it only needs to have freight facilities.
