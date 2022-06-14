@@ -1471,12 +1471,10 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 	size.rdwr( file );
 	simline_t::rdwr_linehandle_t(file, line);
 	int chart_records = line_cost_t::MAX_LINE_COST;
-	if (file->is_version_ex_less(14,25)) {
-		chart_records = 12;
-	}
-	else if (file->is_version_ex_less(14,48)) {
-		chart_records = 13;
-	}
+	// If change MAX_LINE_COST, separate the number of records for the previous save.
+	//if (file->is_version_ex_less(15,xx)) {
+	//	chart_records = xx;
+	//}
 	for (int i=0; i<chart_records; i++) {
 		bool b = filterButtons[i].pressed;
 		file->rdwr_bool( b );

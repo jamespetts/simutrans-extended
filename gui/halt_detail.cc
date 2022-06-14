@@ -628,9 +628,7 @@ void halt_detail_t::rdwr(loadsave_t *file)
 	halt_pos.rdwr( file );
 	size.rdwr( file );
 	uint8 selected_tab = tabs.get_active_tab_index();
-	if( file->is_version_ex_atleast(14,41) ) {
-		file->rdwr_byte( selected_tab );
-	}
+	file->rdwr_byte( selected_tab );
 	if(  file->is_loading()  ) {
 		halt = welt->lookup( halt_pos )->get_halt();
 		// now we can open the window ...
