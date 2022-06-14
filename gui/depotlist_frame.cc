@@ -369,10 +369,8 @@ void depotlist_frame_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(sort_order.pressed);
 	uint8 s = depotlist_stats_t::sort_mode;
 	file->rdwr_byte(s);
-	if( file->is_version_ex_atleast(14,41) ) {
-		file->rdwr_byte(player_nr);
-		size.rdwr(file);
-	}
+	file->rdwr_byte(player_nr);
+	size.rdwr(file);
 
 	if (file->is_loading()) {
 		player = welt->get_player(player_nr);
@@ -383,8 +381,6 @@ void depotlist_frame_t::rdwr(loadsave_t *file)
 		depotlist_stats_t::reverse = sort_order.pressed;
 		tabs.set_active_tab_index(selected_tab<tabs.get_count() ? selected_tab:0);
 		fill_list();
-		if (file->is_version_ex_atleast(14, 43)) {
-			set_windowsize(size);
-		}
+		set_windowsize(size);
 	}
 }

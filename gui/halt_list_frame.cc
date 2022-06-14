@@ -833,13 +833,11 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 				}
 			}
 		}
-		if (file->is_version_ex_atleast(14,50)) {
-			file->rdwr_byte(display_mode);
-			file->rdwr_bool(show_mutual_stops);
-			file->rdwr_long(townindex);
-			if (townindex != UINT32_MAX) {
-				filter_city = welt->get_cities()[townindex];
-			}
+		file->rdwr_byte(display_mode);
+		file->rdwr_bool(show_mutual_stops);
+		file->rdwr_long(townindex);
+		if (townindex != UINT32_MAX) {
+			filter_city = welt->get_cities()[townindex];
 		}
 
 		default_sortmode = (sort_mode_t)sort_mode;

@@ -1100,7 +1100,7 @@ sint64 simline_t::calc_departures_scheduled()
 	sint64 timed_departure_points_count = 0ll;
 	for(int i = 0; i < schedule->get_count(); i++)
 	{
-		if(schedule->entries[i].wait_for_time || schedule->entries[i].minimum_loading > 0)
+		if(schedule->entries[i].is_flag_set(schedule_entry_t::wait_for_time) || schedule->entries[i].minimum_loading > 0)
 		{
 			timed_departure_points_count ++;
 		}
