@@ -591,7 +591,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 	}
 
 	// convoi not in depot anymore, maybe user double-clicked on start-button
-	if(local_execution && !convois.is_contained(cnv)) {
+	if(/*local_execution &&*/ !convois.is_contained(cnv)) { // The local_execution condition caused timebase issues and excessive speeds of vehicles
 		return false;
 	}
 
