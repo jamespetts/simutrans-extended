@@ -808,7 +808,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	} while (found);
 
 	uint8 accommo_class = 0;
-	FORX(vector_tpl<uint16>, capacity, class_capacities, accommo_class++) {
+	FORX(vector_tpl<uint16>, capacity, class_capacities, accommo_class++)
+	{
 		if (!capacity) { continue; }
 		char buf[128];
 		sprintf(buf, "accommodation_name[%d]", accommo_class);
@@ -1192,7 +1193,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint8(fp, total_staff, pos);
 	pos += sizeof(total_staff);
 
-	FOR(staff_map, staff, staff_types)
+	for(auto staff : staff_types)
 	{
 		node.write_uint8(fp, staff.key, pos);
 		pos += sizeof(staff.key);
@@ -1205,7 +1206,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint8(fp, total_drivers, pos);
 	pos += sizeof(total_drivers);
 
-	FOR(staff_map, driver, driver_types)
+	for(auto driver : driver_types)
 	{
 		node.write_uint8(fp, driver.key, pos);
 		pos += sizeof(driver.key);

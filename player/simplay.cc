@@ -272,7 +272,8 @@ void player_t::display_messages()
 {
 	const viewport_t *vp = welt->get_viewport();
 
-	FOR(slist_tpl<income_message_t*>, const m, messages) {
+	for (auto const m : messages)
+	{
 
 		const scr_coord scr_pos = vp->get_screen_coord(koord3d(m->pos,welt->lookup_hgt(m->pos)),koord(0,m->alter >> 4)) + scr_coord((get_tile_raster_width()-display_calc_proportional_string_len_width(m->str, 0x7FFF))/2,0);
 
@@ -553,7 +554,8 @@ void player_t::calc_assets()
 		assets[i] = 0;
 	}
 	// all convois
-	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
+	for(auto const cnv : welt->convoys())
+	{
 		if(  cnv->get_owner() == this  ) {
 			sint64 restwert = cnv->calc_sale_value();
 			assets[TT_ALL] += restwert;
@@ -562,9 +564,12 @@ void player_t::calc_assets()
 	}
 
 	// all vehicles stored in depot not part of a convoi
-	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
-		if(  depot->get_owner_nr() == player_nr  ) {
-			FOR(slist_tpl<vehicle_t*>, const veh, depot->get_vehicle_list()) {
+	for (auto const depot : depot_t::get_depot_list())
+	{
+		if(  depot->get_owner_nr() == player_nr  )
+		{
+			for(auto const veh : depot->get_vehicle_list())
+			{
 				sint64 restwert = veh->calc_sale_value();
 				assets[TT_ALL] += restwert;
 				assets[finance->translate_waytype_to_tt(veh->get_waytype())] += restwert;
@@ -667,7 +672,8 @@ void player_t::complete_liquidation()
 	// remove all stops
 	// first generate list of our stops
 	slist_tpl<halthandle_t> halt_list;
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
+	for (auto const halt : haltestelle_t::get_alle_haltestellen())
+	{
 		if(  halt->get_owner()==this  ) {
 			halt_list.append(halt);
 		}
@@ -679,16 +685,22 @@ void player_t::complete_liquidation()
 	}
 
 	// transfer all ways in public stops belonging to me to no one
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
-		if(  halt->get_owner()==welt->get_public_player()  ) {
+	for(auto const halt : haltestelle_t::get_alle_haltestellen())
+	{
+		if(  halt->get_owner()==welt->get_public_player()  )
+		{
 			// only concerns public stops tiles
-			FOR(slist_tpl<haltestelle_t::tile_t>, const& i, halt->get_tiles()) {
+			for (auto const i : halt->get_tiles())
+			{
 				grund_t const* const gr = i.grund;
-				for(  uint8 wnr=0;  wnr<2;  wnr++  ) {
+				for(  uint8 wnr=0;  wnr<2;  wnr++  )
+				{
 					weg_t *w = gr->get_weg_nr(wnr);
-					if(  w  &&  w->get_owner()==this  ) {
+					if(  w  &&  w->get_owner()==this  )
+					{
 						// take ownership
-						if (wnr>1  ||  (!gr->ist_bruecke()  &&  !gr->ist_tunnel())) {
+						if (wnr>1  ||  (!gr->ist_bruecke()  &&  !gr->ist_tunnel()))
+						{
 							player_t::add_maintenance( this, -w->get_desc()->get_maintenance(), w->get_desc()->get_finance_waytype() );
 						}
 						w->set_owner(NULL); // make unowned
@@ -975,7 +987,7 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 			uint32 staff_cost_count = staff_costs_this_month.get_count();
 			file->rdwr_long(staff_cost_count);
 
-			FOR(staff_map_player, staff, staff_costs_this_month)
+			for (auto staff : staff_costs_this_month)
 			{
 				staff.key;
 				file->rdwr_byte(staff.key);
@@ -1144,7 +1156,8 @@ sint64 player_t::undo()
 		return false;
 	}
 	// check, if we can still do undo
-	FOR(vector_tpl<koord3d>, const& i, last_built) {
+	for (auto i :last_built)
+	{
 		grund_t* const gr = welt->lookup(i);
 		if(gr==NULL  ||  gr->get_typ()!=grund_t::boden) {
 			// well, something was built here ... so no undo
@@ -1191,7 +1204,8 @@ sint64 player_t::undo()
 
 	// ok, now remove everything last built
 	sint64 cost=0;
-	FOR(vector_tpl<koord3d>, const& i, last_built) {
+	for (auto i : last_built)
+	{
 		grund_t* const gr = welt->lookup(i);
 		if(  undo_type != powerline_wt  ) {
 			cost += gr->weg_entfernen(undo_type,true);
@@ -1402,7 +1416,7 @@ void player_t::take_over(player_t* target_player)
 
 							// Transfer vehicles in a depot not in a convoy, then fall through
 							dep = (depot_t*)obj;
-							FOR(slist_tpl<vehicle_t*>, vehicle, dep->get_vehicle_list())
+							for (auto vehicle : dep->get_vehicle_list())
 							{
 								if (vehicle->get_owner() == target_player)
 								{
@@ -1447,7 +1461,7 @@ void player_t::take_over(player_t* target_player)
 	// Transfer stops
 	// Adapted from the liquidation algorithm
 	slist_tpl<halthandle_t> halt_list;
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen())
+	for (auto const halt : haltestelle_t::get_alle_haltestellen())
 	{
 		if (halt->get_owner() == target_player)
 		{
@@ -1475,7 +1489,7 @@ void player_t::take_over(player_t* target_player)
 		}
 	}
 
-	FOR(vector_tpl<linehandle_t>, line, lines_to_transfer)
+	for (auto line : lines_to_transfer)
 	{
 		line->set_owner(this);
 		target_player->simlinemgmt.deregister_line(line);

@@ -609,7 +609,8 @@ void karte_t::destroy()
 
 	// all fabriken aufraeumen
 	// Clean up all factories
-	FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+	for(auto const f : fab_list)
+	{
 		delete f;
 	}
 	fab_list.clear();
@@ -977,7 +978,8 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 
 		uint32 game_start = current_month;
 		// townhalls available since?
-		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_list(building_desc_t::townhall)) {
+		for(auto const desc : *hausbauer_t::get_list(building_desc_t::townhall))
+		{
 			uint32 intro_year_month = desc->get_intro_year_month();
 			if (intro_year_month < game_start) {
 				game_start = intro_year_month;
@@ -1035,7 +1037,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 	finance_history_year[0][WORLD_JOBS] = finance_history_month[0][WORLD_JOBS] = 0;
 	finance_history_year[0][WORLD_VISITOR_DEMAND] = finance_history_month[0][WORLD_VISITOR_DEMAND] = 0;
 
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	for(auto const city : stadt)
 	{
 		finance_history_year[0][WORLD_CITIZENS] += city->get_finance_history_month(0, HIST_CITIZENS);
 		finance_history_month[0][WORLD_CITIZENS] += city->get_finance_history_year(0, HIST_CITIZENS);
@@ -1523,7 +1525,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	// Set the actual industry density and industry density proportion
 	actual_industry_density = 0;
 	uint32 weight;
-	FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+	for(auto factory : fab_list)
 	{
 		const factory_desc_t* factory_type = factory->get_desc();
 		if(!factory_type->is_electricity_producer())
@@ -2286,7 +2288,7 @@ void karte_t::destroy_threads()
 
 void karte_t::clean_threads(vector_tpl<pthread_t> *thread)
 {
-	FOR(vector_tpl<pthread_t>, this_thread, *thread)
+	for(auto this_thread : *thread)
 	{
 		pthread_join(this_thread, 0);
 	}
@@ -2903,7 +2905,7 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 	// to save the time taken by constantly adding and
 	// removing them during the iterative renovation that
 	// is involved in map generation/enlargement.
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	for(auto const city : stadt)
 	{
 		city->add_all_buildings_to_world_list();
 		city->reset_tiles_for_all_buildings();
@@ -2911,23 +2913,23 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		FOR(weighted_vector_tpl<gebaeude_t*>, const target, commuter_targets[i])
+		for(auto const target : commuter_targets[i])
 		{
 			target->set_building_tiles();
 		}
 
-		FOR(weighted_vector_tpl<gebaeude_t*>, const target, visitor_targets[i])
+		for(auto const target : visitor_targets[i])
 		{
 			target->set_building_tiles();
 		}
 	}
 
-	FOR(weighted_vector_tpl<gebaeude_t*>, const target, mail_origins_and_targets)
+	for(auto const target : mail_origins_and_targets)
 	{
 		target->set_building_tiles();
 	}
 
-	FOR(const vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen())
+	for(auto const halt : haltestelle_t::get_alle_haltestellen())
 	{
 		halt->set_all_building_tiles();
 	}
@@ -3000,7 +3002,7 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 	// After refreshing the haltlists for the map,
 	// refresh the haltlist for all factories.
 	// Don't try to be clever; we don't do map enlargements often.
-	FOR(vector_tpl<fabrik_t*>, const fab, fab_list)
+	for(auto const fab : fab_list)
 	{
 		fab->get_building()->set_building_tiles();
 		fab->recalc_nearby_halts();
@@ -3166,7 +3168,7 @@ void karte_t::set_scale()
 	// Vehicles
 	for(int i = road_wt; i <= air_wt; i++)
 	{
-		FOR(slist_tpl<vehicle_desc_t*>, const & info, vehicle_builder_t::get_info((waytype_t)i))
+		for(auto const info : vehicle_builder_t::get_info((waytype_t)i))
 		{
 			info->set_scale(scale_factor, get_settings().get_way_wear_power_factor_rail_type(), get_settings().get_way_wear_power_factor_road_type(), get_settings().get_standard_axle_load());
 		}
@@ -3392,7 +3394,8 @@ void karte_t::terraformer_t::iterate(bool raise)
 	while( !ready) {
 		actual_flag ^= 3; // flip bits
 		// clear new_flag bit
-		FOR(vector_tpl<node_t>, &i, list) {
+		for(auto i : list)
+		{
 			i.changed &= actual_flag;
 		}
 		// process nodes with actual_flag set
@@ -3416,7 +3419,8 @@ void karte_t::terraformer_t::iterate(bool raise)
 const char* karte_t::terraformer_t::can_raise_all(const player_t *player, bool allow_deep_water, bool keep_water) const
 {
 	const char* err = NULL;
-	FOR(vector_tpl<node_t>, const &i, list) {
+	for(auto const i : list)
+	{
 		err = welt->can_raise_to(player, i.x, i.y, keep_water, allow_deep_water, i.h[0], i.h[1], i.h[2], i.h[3]);
 		if (err) return err;
 	}
@@ -3426,7 +3430,8 @@ const char* karte_t::terraformer_t::can_raise_all(const player_t *player, bool a
 const char* karte_t::terraformer_t::can_lower_all(const player_t *player, bool allow_deep_water) const
 {
 	const char* err = NULL;
-	FOR(vector_tpl<node_t>, const &i, list) {
+	for(auto const i : list)
+	{
 		err = welt->can_lower_to(player, i.x, i.y, i.h[0], i.h[1], i.h[2], i.h[3], allow_deep_water);
 		if (err) {
 			return err;
@@ -3438,7 +3443,8 @@ const char* karte_t::terraformer_t::can_lower_all(const player_t *player, bool a
 int karte_t::terraformer_t::raise_all()
 {
 	int n=0;
-	FOR(vector_tpl<node_t>, &i, list) {
+	for(auto i : list)
+	{
 		n += welt->raise_to(i.x, i.y, i.h[0], i.h[1], i.h[2], i.h[3]);
 	}
 	return n;
@@ -3447,7 +3453,8 @@ int karte_t::terraformer_t::raise_all()
 int karte_t::terraformer_t::lower_all()
 {
 	int n=0;
-	FOR(vector_tpl<node_t>, &i, list) {
+	for(auto i : list)
+	{
 		n += welt->lower_to(i.x, i.y, i.h[0], i.h[1], i.h[2], i.h[3]);
 	}
 	return n;
@@ -4444,12 +4451,14 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	zeiger->change_pos( koord3d::invalid );
 
 	// preprocessing, detach stops from factories to prevent crash
-	FOR(vector_tpl<halthandle_t>, const s, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const s : haltestelle_t::get_alle_haltestellen())
+	{
 		s->release_factory_links();
 	}
 
 	// Rotate cities first so that the private car routes can be removed
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	for(auto const i : stadt)
+	{
 		i->rotate90(cached_size.y);
 	}
 
@@ -4493,11 +4502,13 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	cached_grid_size.y = wx;
 
 	//fixed order factory, halts, convois
-	FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+	for(auto const f : fab_list)
+	{
 		f->rotate90(cached_size.x);
 	}
 	// after rotation of factories, rotate everything that holds freight: stations and convoys
-	FOR(vector_tpl<halthandle_t>, const s, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const s : haltestelle_t::get_alle_haltestellen())
+	{
 		s->rotate90(cached_size.x);
 	}
 
@@ -4525,32 +4536,34 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 		}
 	}
 	// Factories need their halt lists recalculated after the halts are rotated.  Yuck!
-	FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+	for(auto const f : fab_list)
+	{
 		f->recalc_nearby_halts();
 	}
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		FOR(weighted_vector_tpl<gebaeude_t*>, const building, visitor_targets[i])
+		for(auto const building : visitor_targets[i])
 		{
 			building->set_building_tiles();
 		}
-		FOR(weighted_vector_tpl<gebaeude_t*>, const building, commuter_targets[i])
+
+		for(auto const building : commuter_targets[i])
 		{
 			building->set_building_tiles();
 		}
 	}
-	FOR(weighted_vector_tpl<gebaeude_t*>, const building, passenger_origins)
+	for(auto const building : passenger_origins)
 	{
 		building->set_building_tiles();
 	}
-	FOR(weighted_vector_tpl<gebaeude_t*>, const building, mail_origins_and_targets)
+	for(auto const building : mail_origins_and_targets)
 	{
 		building->set_building_tiles();
 	}
 
-
-	FOR(vector_tpl<convoihandle_t>, const i, convoi_array) {
+	for(auto const i : convoi_array)
+	{
 		i->rotate90(cached_size.x);
 	}
 
@@ -4562,12 +4575,14 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	}
 
 	// Recheck city tiles
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	for(auto const i : stadt)
+	{
 		i->check_city_tiles(false);
 	}
 
 	// rotate label texts
-	FOR(slist_tpl<koord>, & l, labels) {
+	for(auto l : labels)
+	{
 		l.rotate90(cached_size.x);
 	}
 
@@ -4706,7 +4721,8 @@ stadt_t *karte_t::find_nearest_city(const koord k, uint32 rank) const
 	slist_tpl<uint32> ordered_distances;
 
 	if(  is_within_limits(k)  ) {
-		FOR(  weighted_vector_tpl<stadt_t*>,  const s,  stadt  ) {
+		for(auto const s : stadt)
+		{
 			if(  k.x >= s->get_linksoben().x  &&  k.y >= s->get_linksoben().y  &&  k.x < s->get_rechtsunten().x  &&  k.y < s->get_rechtsunten().y  ) {
 				const uint32 dist = koord_distance( k, s->get_center() );
 				if(  !contains  ) {
@@ -4742,7 +4758,7 @@ stadt_t *karte_t::find_nearest_city(const koord k, uint32 rank) const
 		{
 			ordered_distances.remove(min_dist);
 			min_dist = UINT32_MAX_VALUE;
-			FOR(slist_tpl<uint32>, distance, ordered_distances)
+			for(auto distance : ordered_distances)
 			{
 				if (distance <= min_dist)
 				{
@@ -4763,7 +4779,7 @@ stadt_t *karte_t::get_city(const koord pos) const
 	if(is_within_limits(pos))
 	{
 		int cities = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const c, stadt)
+		for(auto const c : stadt)
 		{
 			if(c->is_within_city_limits(pos))
 			{
@@ -5122,7 +5138,8 @@ void karte_t::new_month()
 
 	// this should be done before a map update, since the map may want an update of the way usage
 //	DBG_MESSAGE("karte_t::new_month()","ways");
-	FOR(vector_tpl<weg_t*>, const w, weg_t::get_alle_wege()) {
+	for(auto const w : weg_t::get_alle_wege())
+	{
 		w->new_month();
 	}
 
@@ -5157,7 +5174,8 @@ void karte_t::new_month()
 
 //	DBG_MESSAGE("karte_t::new_month()","convois");
 	// hsiegeln - call new month for convois
-	FOR(vector_tpl<convoihandle_t>, const cnv, convoi_array) {
+	for(auto const cnv : convoi_array)
+	{
 		cnv->new_month();
 	}
 
@@ -5171,7 +5189,7 @@ void karte_t::new_month()
 	uint32 electric_productivity = 0;
 	closed_factories_this_month.clear();
 	uint32 closed_factories_count = 0;
-	FOR(vector_tpl<fabrik_t*>, const fab, fab_list)
+	for (auto const fab : fab_list)
 	{
 		if(!closed_factories_this_month.is_contained(fab))
 		{
@@ -5195,7 +5213,7 @@ void karte_t::new_month()
 		}
 	}
 
-	FOR(vector_tpl<fabrik_t*>, const fab, closed_factories_this_month)
+	for(auto const fab : closed_factories_this_month)
 	{
 		if(fab_list.is_contained(fab))
 		{
@@ -5238,7 +5256,7 @@ void karte_t::new_month()
 	INT_CHECK("simworld 3105");
 
 	// Check attractions' road connexions
-	FOR(weighted_vector_tpl<gebaeude_t*>, const &i, world_attractions)
+	for(auto const i : world_attractions)
 	{
 		i->check_road_tiles(false);
 	}
@@ -5246,7 +5264,7 @@ void karte_t::new_month()
 
 	//	DBG_MESSAGE("karte_t::new_month()","cities");
 	stadt.update_weights(get_population);
-	FOR(weighted_vector_tpl<stadt_t*>, const s, stadt)
+	for(auto const s : stadt)
 	{
 		s->new_month();
 		//INT_CHECK("simworld 3117");
@@ -5265,13 +5283,14 @@ void karte_t::new_month()
 	INT_CHECK("simworld 3130");
 
 //	DBG_MESSAGE("karte_t::new_month()","halts");
-	FOR(vector_tpl<halthandle_t>, const s, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const s : haltestelle_t::get_alle_haltestellen())
+	{
 		s->new_month();
 		INT_CHECK("simworld 1877");
 	}
 
 	INT_CHECK("simworld 2522");
-	FOR(slist_tpl<depot_t *>, const& iter, depot_t::get_depot_list())
+	for(auto const iter : depot_t::get_depot_list())
 	{
 		iter->new_month();
 	}
@@ -5292,7 +5311,7 @@ void karte_t::new_month()
 
 	// Check whether downstream substations have become engulfed by
 	// an expanding city.
-	FOR(slist_tpl<senke_t *>, & senke_iter, senke_t::senke_list)
+	for(auto senke_iter : senke_t::senke_list)
 	{
 		// This will add a city if the city has engulfed the substation, and remove a city if
 		// the city has been deleted or become smaller.
@@ -5373,7 +5392,8 @@ void karte_t::new_year()
 	buf.printf( translator::translate("Year %i has started."), last_year );
 	msg->add_message(buf,koord::invalid,message_t::general,SYSCOL_TEXT,skinverwaltung_t::neujahrsymbol->get_image_id(0));
 
-	FOR(vector_tpl<convoihandle_t>, const cnv, convoi_array) {
+	for(auto const cnv : convoi_array)
+	{
 		cnv->new_year();
 	}
 
@@ -5392,7 +5412,7 @@ void karte_t::new_year()
 		}
 	}
 
-	FOR(vector_tpl<fabrik_t*>, const fab, fab_list)
+	for(auto const fab : fab_list)
 	{
 		fab->get_building()->new_year();
 	}
@@ -5451,7 +5471,7 @@ void karte_t::recalc_average_speed(bool skip_messages)
 				}
 				vehicle_type = translator::translate(vehicle_type);
 
-				FOR(slist_tpl<vehicle_desc_t*>, const info, vehicle_builder_t::get_info((waytype_t)i))
+				for(auto const info : vehicle_builder_t::get_info((waytype_t)i))
 				{
 					const uint16 intro_month = info->get_intro_year_month();
 					if (intro_month == current_month)
@@ -5791,7 +5811,7 @@ void karte_t::step()
 #ifndef CONCURRENT_ROUTE_PROCESSING
 	uint32 step_cities_count = 0;
 #endif
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt)
+	for(auto const i : stadt)
 	{
 		i->step(delta_t);
 	}
@@ -5884,7 +5904,7 @@ void karte_t::step()
 	finance_history_year[0][WORLD_JOBS] = finance_history_month[0][WORLD_JOBS] = 0;
 	finance_history_year[0][WORLD_VISITOR_DEMAND] = finance_history_month[0][WORLD_VISITOR_DEMAND] = 0;
 
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	for (auto const city : stadt)
 	{
 		finance_history_year[0][WORLD_CITIZENS] += city->get_finance_history_month(0, HIST_CITIZENS);
 		finance_history_month[0][WORLD_CITIZENS] += city->get_finance_history_year(0, HIST_CITIZENS);
@@ -5917,7 +5937,7 @@ void karte_t::step()
 #ifndef FORBID_SYNC_OBJECTS
 	for (uint32 i = 0; i < get_parallel_operations() + 2; i++)
 	{
-		FOR(vector_tpl<private_car_t*>, car, private_cars_added_threaded[i])
+		for(auto car : private_cars_added_threaded[i])
 		{
 			const koord3d pos_obj = car->get_pos();
 			grund_t* const gr = lookup(pos_obj);
@@ -5934,7 +5954,7 @@ void karte_t::step()
 		}
 		private_cars_added_threaded[i].clear();
 
-		FOR(vector_tpl<pedestrian_t*>, ped, pedestrians_added_threaded[i])
+		for(auto ped : pedestrians_added_threaded[i])
 		{
 			const koord3d pos_obj = ped->get_pos();
 			grund_t* const gr = lookup(pos_obj);
@@ -5972,7 +5992,8 @@ void karte_t::step()
 	INT_CHECK("karte_t::step 5");
 
 	DBG_DEBUG4("karte_t::step", "step factories");
-	FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+	for(auto const f : fab_list)
+	{
 		f->step(delta_t);
 	}
 	rands[20] = get_random_seed();
@@ -6198,7 +6219,7 @@ void karte_t::step_passengers_and_mail(uint32 delta_t)
 void karte_t::get_nearby_halts_of_tiles(const minivec_tpl<const planquadrat_t*> &tile_list, const goods_desc_t * wtyp, vector_tpl<nearby_halt_t> &halts) const
 {
 	// Suitable start search (public transport)
-	FOR(minivec_tpl<const planquadrat_t*>, const& current_tile, tile_list)
+	for(auto const current_tile : tile_list)
 	{
 		const nearby_halt_t* halt_list = current_tile->get_haltlist();
 		for(int h = current_tile->get_haltlist_count() - 1; h >= 0; h--)
@@ -6266,7 +6287,7 @@ void karte_t::check_transferring_cargoes()
 	bool removed;
 	for (sint32 i = 0; i < po; i++)
 	{
-		FOR(vector_tpl<transferring_cargo_t>, tc, transferring_cargoes[i])
+		for(auto tc : transferring_cargoes[i])
 		{
 			/*const uint32 ready_seconds = ticks_to_seconds((tc.ready_time - current_time));
 			const uint32 ready_minutes = ready_seconds / 60;
@@ -6928,9 +6949,9 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 
 
 #ifdef MULTI_THREAD
-				FOR(vector_tpl<nearby_halt_t>, const& nearby_halt, start_halts[passenger_generation_thread_number])
+				for(auto const nearby_halt : start_halts[passenger_generation_thread_number])
 #else
-				FOR(vector_tpl<nearby_halt_t>, const& nearby_halt, start_halts)
+				for(auto const nearby_halt : start_halts)
 #endif
 				{
 					current_halt = nearby_halt.halt;
@@ -7654,9 +7675,9 @@ no_route:
 					// Try to return to one of the other halts near the origin (now the destination)
 					uint32 return_journey_time = UINT32_MAX;
 #ifdef MULTI_THREAD
-					FOR(vector_tpl<nearby_halt_t>, const nearby_halt, start_halts[passenger_generation_thread_number])
+					for(auto const nearby_halt : start_halts[passenger_generation_thread_number])
 #else
-					FOR(vector_tpl<nearby_halt_t>, const nearby_halt, start_halts)
+					for(auto const nearby_halt : start_halts)
 #endif
 					{
 						halthandle_t test_halt = nearby_halt.halt;
@@ -7940,7 +7961,8 @@ void karte_t::restore_history()
 		sint64 total_pas = 1, trans_pas = 0;
 		sint64 total_mail = 1, trans_mail = 0;
 		sint64 total_goods = 1, supplied_goods = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		for(auto const i : stadt)
+		{
 			bev            += i->get_finance_history_month(m, HIST_CITIZENS);
 			trans_pas      += i->get_finance_history_month(m, HIST_PAS_TRANSPORTED);
 			trans_pas      += i->get_finance_history_month(m, HIST_PAS_WALKED);
@@ -7986,7 +8008,8 @@ void karte_t::restore_history()
 		sint64 total_pas_year = 1, trans_pas_year = 0;
 		sint64 total_mail_year = 1, trans_mail_year = 0;
 		sint64 total_goods_year = 1, supplied_goods_year = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		for(auto const i : stadt)
+		{
 			bev                 += i->get_finance_history_year(y, HIST_CITIZENS);
 			trans_pas_year      += i->get_finance_history_year(y, HIST_PAS_TRANSPORTED);
 			trans_pas_year      += i->get_finance_history_year(y, HIST_PAS_WALKED);
@@ -8043,7 +8066,8 @@ void karte_t::update_history()
 	sint64 total_pas_year = 1, trans_pas_year = 0;
 	sint64 total_mail_year = 1, trans_mail_year = 0;
 	sint64 total_goods_year = 1, supplied_goods_year = 0;
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	for(auto const i : stadt)
+	{
 		bev							+= i->get_finance_history_month(0, HIST_CITIZENS);
 		jobs						+= i->get_finance_history_month(0, HIST_JOBS);
 		visitor_demand				+= i->get_finance_history_month(0, HIST_VISITOR_DEMAND);
@@ -9121,7 +9145,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 		}
 	}
 	else {
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		for(auto const i : stadt)
+		{
 			i->rdwr(file);
 			if(!ls) {
 				INT_CHECK("saving");
@@ -9264,7 +9289,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 	else {
 		sint32 fabs = fab_list.get_count();
 		file->rdwr_long(fabs);
-		FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+		for(auto const f : fab_list)
+		{
 			f->rdwr(file);
 			if(!ls) {
 				INT_CHECK("saving");
@@ -9304,7 +9330,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 	else {
 		sint32 haltcount=haltestelle_t::get_alle_haltestellen().get_count();
 		file->rdwr_long(haltcount);
-		FOR(vector_tpl<halthandle_t>, const s, haltestelle_t::get_alle_haltestellen()) {
+		for(auto const s : haltestelle_t::get_alle_haltestellen())
+		{
 			s->rdwr(file);
 		}
 	DBG_MESSAGE("karte_t::save(loadsave_t *file)", "saved stops");
@@ -9359,7 +9386,8 @@ DBG_MESSAGE("karte_t::load()", "%d convois/trains loaded", convoi_array.get_coun
 			uint16 i=convoi_array.get_count();
 			file->rdwr_short(i);
 		}
-		FOR(vector_tpl<convoihandle_t>, const cnv, convoi_array) {
+		for(auto const cnv : convoi_array)
+		{
 			// one MUST NOT call INT_CHECK here or else the convoi will be broken during reloading!
 			cnv->rdwr(file);
 		}
@@ -9860,7 +9888,8 @@ DBG_MESSAGE("karte_t::load()", "laden_abschliesen for tiles finished" );
 
 	// must finish loading cities first before cleaning up factories
 	weighted_vector_tpl<stadt_t*> new_weighted_stadt(stadt.get_count() + 1);
-	FOR(weighted_vector_tpl<stadt_t*>, const s, stadt) {
+	for(auto const s : stadt)
+	{
 		s->finish_rd();
 		new_weighted_stadt.append(s, s->get_einwohner());
 		INT_CHECK("simworld 1278");
@@ -9871,7 +9900,8 @@ DBG_MESSAGE("karte_t::load()", "laden_abschliesen for tiles finished" );
 	ls.set_progress( (get_size().y*3)/2+256+get_size().y/4 );
 
 	DBG_MESSAGE("karte_t::load()", "clean up factories");
-	FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+	for(auto const f : fab_list)
+	{
 		f->finish_rd();
 	}
 
@@ -9880,7 +9910,8 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	ls.set_progress( (get_size().y*3)/2+256+get_size().y/3 );
 
 	// resolve dummy stops into real stops first ...
-	FOR(vector_tpl<halthandle_t>, const i, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const i : haltestelle_t::get_alle_haltestellen())
+	{
 		if (i->get_owner() && i->existiert_in_welt()) {
 			i->finish_rd(file->get_extended_version() < 10);
 		}
@@ -9922,7 +9953,8 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 #if 0
 	// reroute goods for benchmarking
 	dt = dr_time();
-	FOR(vector_tpl<halthandle_t>, const i, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const i : haltestelle_t::get_alle_haltestellen())
+	{
 		sint16 dummy = 0x7FFF;
 		i->reroute_goods(dummy);
 	}
@@ -10017,7 +10049,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		// Loading a game - must set this to zero here and recalculate.
 		actual_industry_density = 0;
 		uint32 weight;
-		FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+		for(auto factory : fab_list)
 		{
 			const factory_desc_t* factory_type = factory->get_desc();
 			if(!factory_type->is_electricity_producer())
@@ -10233,7 +10265,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	}
 
 	// Check attractions' road connexions
-	FOR(weighted_vector_tpl<gebaeude_t*>, const &i, world_attractions)
+	for(auto const i : world_attractions)
 	{
 		i->check_road_tiles(false);
 	}
@@ -10247,7 +10279,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	load_version.extended_version = EX_VERSION_MAJOR;
 	load_version.extended_revision = EX_VERSION_MINOR;
 
-	FOR(slist_tpl<depot_t *>, const dep, depot_t::get_depot_list())
+	for(auto const dep : depot_t::get_depot_list())
 	{
 		// This must be done here, as the cities have not been initialised on loading.
 		dep->add_to_world_list();
@@ -11805,12 +11837,12 @@ const vector_tpl<const goods_desc_t*> &karte_t::get_goods_list()
 		// Reset last vehicle filter, in case goods list has changed
 		gui_convoy_assembler_t::selected_filter = VEHICLE_FILTER_RELEVANT;
 
-		FOR(vector_tpl<fabrik_t*>, const factory, get_fab_list()) {
-			slist_tpl<goods_desc_t const*>* const produced_goods = factory->get_produced_goods();
-			FOR(slist_tpl<goods_desc_t const*>, const good, *produced_goods) {
+		for(auto const factory : get_fab_list())
+		{
+			for(auto const good : *factory->get_produced_goods())
+			{
 				goods_in_game.insert_unique_ordered(good, sort_ware_by_name);
 			}
-			delete produced_goods;
 		}
 
 		goods_in_game.insert_at(0, goods_manager_t::passengers);
@@ -12000,7 +12032,7 @@ void karte_t::update_weight_of_building_in_world_list(gebaeude_t *gb)
 
 void karte_t::remove_all_building_references_to_city(stadt_t* city)
 {
-	FOR(weighted_vector_tpl <gebaeude_t *>, building, passenger_origins)
+	for(auto building : passenger_origins)
 	{
 		if(building->get_stadt() == city)
 		{
@@ -12008,7 +12040,7 @@ void karte_t::remove_all_building_references_to_city(stadt_t* city)
 		}
 	}
 
-	FOR(weighted_vector_tpl <gebaeude_t *>, building, mail_origins_and_targets)
+	for(auto building : mail_origins_and_targets)
 	{
 		if(building->get_stadt() == city)
 		{
@@ -12018,7 +12050,7 @@ void karte_t::remove_all_building_references_to_city(stadt_t* city)
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		FOR(weighted_vector_tpl <gebaeude_t *>, building, commuter_targets[i])
+		for(auto building : commuter_targets[i])
 		{
 			if (building->get_stadt() == city)
 			{
@@ -12026,7 +12058,7 @@ void karte_t::remove_all_building_references_to_city(stadt_t* city)
 			}
 		}
 
-		FOR(weighted_vector_tpl <gebaeude_t *>, building, visitor_targets[i])
+		for(auto building : visitor_targets[i])
 		{
 			if (building->get_stadt() == city)
 			{
@@ -12248,7 +12280,7 @@ void karte_t::privatecar_rdwr(loadsave_t *file)
 			car_ownership[cl].clear();
 			if (cl < number_of_passenger_classes - 1)
 			{
-				FOR(vector_tpl<car_ownership_record_t>, car_own, car_ownership[number_of_passenger_classes - 1])
+				for(auto car_own : car_ownership[number_of_passenger_classes - 1])
 				{
 					car_ownership[cl].append(car_own);
 				}
@@ -12461,7 +12493,7 @@ uint8 karte_t::get_region(koord k, settings_t const* const sets)
 	}
 
 	uint32 current_region = 0;
-	FOR(vector_tpl<region_definition_t>, region, sets->regions)
+	for(auto region : sets->regions)
 	{
 		if (k.x >= region.top_left.x && k.x < region.bottom_right.x && k.y >= region.top_left.y && k.y < region.bottom_right.y)
 		{
@@ -12483,7 +12515,7 @@ uint8 karte_t::get_region(koord k) const
 	}
 
 	uint32 current_region = 0;
-	FOR(vector_tpl<region_definition_t>, region, settings.regions)
+	for(auto region : settings.regions)
 	{
 		if (k.x >= region.top_left.x && k.x < region.bottom_right.x && k.y >= region.top_left.y && k.y < region.bottom_right.y)
 		{
@@ -12544,7 +12576,7 @@ void karte_t::calc_max_vehicle_speeds()
 
 	for (sint32 i = road_wt; i <= narrowgauge_wt; i++)
 	{
-		FOR(slist_tpl<vehicle_desc_t*>, const info, vehicle_builder_t::get_info((waytype_t)i))
+		for(auto const info : vehicle_builder_t::get_info((waytype_t)i))
 		{
 			const sint32 max_speed = speed_to_kmh(info->get_topspeed());
 			if (max_speed > max_available_speed_ground && info->get_power() > 0)
@@ -12554,7 +12586,7 @@ void karte_t::calc_max_vehicle_speeds()
 		}
 	}
 
-	FOR(slist_tpl<vehicle_desc_t*>, const info, vehicle_builder_t::get_info(air_wt))
+	for(auto const info : vehicle_builder_t::get_info(air_wt))
 	{
 		const sint32 max_speed = speed_to_kmh(info->get_topspeed());
 		if (max_speed > max_available_speed_air)

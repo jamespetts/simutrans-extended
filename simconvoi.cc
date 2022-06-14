@@ -399,7 +399,7 @@ void convoi_t::unreserve_route()
 	current_waytype = invalid_wt;
 
 #else
-	FOR(vector_tpl<weg_t*>, const way, weg_t::get_alle_wege())
+	for (auto const way : weg_t::get_alle_wege())
 	{
 		if(way->get_waytype() == front()->get_waytype())
 		{
@@ -577,7 +577,8 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 				vector_tpl<linehandle_t> lines;
 				get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
 				new_line = linehandle_t();
-				FOR(vector_tpl<linehandle_t>, const l, lines) {
+				for(auto const l : lines)
+				{
 					if(  schedule->matches( welt, l->get_schedule() )  ) {
 						// if a line is assigned, set line!
 						new_line = l;
@@ -879,7 +880,7 @@ void convoi_t::increment_odometer(uint32 steps)
 		player = MAX_PLAYER_COUNT + 1;
 	}
 
-	FOR(departure_map, &i, departures)
+	for (auto i : departures)
 	{
 		i.value.increment_way_distance(player, steps_since_last_odometer_increment);
 	}
@@ -2422,7 +2423,7 @@ end_loop:
 		case LEAVING_DEPOT:
 			last_stop_was_depot = true;
 			get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
-			FOR(vector_tpl<linehandle_t>, const l, lines)
+			for(auto const l : lines)
 			{
 				if(schedule->matches(welt, l->get_schedule()))
 				{
@@ -4913,7 +4914,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			{
 				uint32 count = departures.get_count();
 				file->rdwr_long(count);
-				FOR(departure_map, const& iter, departures)
+				for(auto iter : departures)
 				{
 					departure_point = iter.key;
 					departure_time = iter.value.departure_time;
@@ -4936,7 +4937,8 @@ void convoi_t::rdwr(loadsave_t *file)
 				file->rdwr_long(count);
 				uint16 x;
 				uint16 y;
-				FOR(departure_time_map, const& iter, departures_already_booked)
+
+				for (auto iter : departures_already_booked)
 				{
 					x = iter.key.x;
 					y = iter.key.y;
@@ -4950,7 +4952,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				uint16 ave_count;
 				count = journey_times_between_schedule_points.get_count();
 				file->rdwr_long(count);
-				FOR(timings_map, const& iter, journey_times_between_schedule_points)
+				for(auto iter : journey_times_between_schedule_points)
 				{
 					departure_point = iter.key;
 					total = iter.value.total;
@@ -5055,7 +5057,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
 			{
 				// New 32-bit journey times
-				FOR(journey_times_map, const& iter, average_journey_times)
+				for (auto iter : average_journey_times)
 				{
 					id_pair idp = iter.key;
 					file->rdwr_short(idp.x);
@@ -5068,7 +5070,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			}
 			else
 			{
-				FOR(journey_times_map, const& iter, average_journey_times)
+				for (auto iter : average_journey_times)
 				{
 					id_pair idp = iter.key;
 					file->rdwr_short(idp.x);
@@ -5190,7 +5192,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			uint32 count = journey_times_history.get_count();
 			file->rdwr_long(count);
 
-			FOR(times_history_map, const& iter, journey_times_history)
+			for(auto iter : journey_times_history)
 			{
 				departure_point_t idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -5435,7 +5437,7 @@ void convoi_t::get_freight_info(cbuffer_t & buf)
 			for (uint8 j = 0; j < classes_to_check; j++)
 			{
 				// then add the actual load
-				FOR(slist_tpl<ware_t>, ware, v->get_cargo(j))
+				for (auto ware : v->get_cargo(j))
 				{
 					// if != 0 we could not join it to existing => load it
 					if (ware.menge != 0)
@@ -5619,7 +5621,7 @@ void convoi_t::laden() //"load" (Babelfish)
 	{
 		arrival_time = welt->get_ticks();
 		inthashtable_tpl<uint16, sint64, N_BAGS_SMALL> best_times_in_schedule; // Key: halt ID; value: departure time.
-		FOR(departure_map, const& iter, departures)
+		for(auto iter : departures)
 		{
 			const sint64 journey_time_ticks = arrival_time - iter.value.departure_time;
 			if(iter.key.entry > schedule->get_count() - 1)
@@ -5717,7 +5719,7 @@ void convoi_t::laden() //"load" (Babelfish)
 			book(average_speed, CONVOI_AVERAGE_SPEED);
 
 			typedef inthashtable_tpl<uint16, sint64, N_BAGS_SMALL> int_map;
-			FOR(int_map, const& iter, best_times_in_schedule)
+			for(auto iter : best_times_in_schedule)
 			{
 				id_pair pair(iter.key, this_halt_id);
 				const sint32 this_journey_time = (uint32)welt->ticks_to_tenths_of_minutes(arrival_time - iter.value);
@@ -5784,7 +5786,7 @@ void convoi_t::laden() //"load" (Babelfish)
 			book(comfort, CONVOI_COMFORT);
 		}
 
-		FOR(departure_map, & iter, departures)
+		for(auto iter : departures)
 		{
 			// Accumulate distance since each previous stop on the schedule
 			iter.value.add_overall_distance(journey_distance);
@@ -6223,7 +6225,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			line_data.current_stop = get_schedule()->get_current_stop();
 
 			// flag all categories that have already had all available freight loaded onto convois on this line from this halt this step
-			FOR(vector_tpl<lines_loaded_t>, const& i, halt->access_lines_loaded())
+			for (auto i : halt->access_lines_loaded())
 			{
 				if(i.line == line_data.line  &&  i.reversed == line_data.reversed  &&  i.current_stop == line_data.current_stop)
 				{
@@ -6824,7 +6826,7 @@ void convoi_t::register_stops()
 {
 	if(schedule)
 	{
-		FOR(minivec_tpl<schedule_entry_t>, const &i, schedule->entries)
+		for (auto i : schedule->entries)
 		{
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
 			if(halt.is_bound())
@@ -6842,7 +6844,8 @@ void convoi_t::register_stops()
 void convoi_t::unregister_stops()
 {
 	if(  schedule  ) {
-		FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+		for (auto i : schedule->entries)
+		{
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
 			if(  halt.is_bound()  ) {
 				halt->remove_convoy(self);
@@ -8017,7 +8020,7 @@ uint32 convoi_t::calc_reverse_delay() const
 		 const uint8 classes_to_check = vehicle[i]->get_desc()->get_number_of_classes();
 		 for (uint8 j = 0; j < classes_to_check; j++)
 		 {
-			 FOR(slist_tpl< ware_t>, const& iter, vehicle[i]->get_cargo(j))
+			 for(auto iter : vehicle[i]->get_cargo(j))
 			 {
 				 if (iter.get_last_transfer().get_id() == halt.get_id())
 				 {
@@ -8115,7 +8118,7 @@ uint32 convoi_t::calc_reverse_delay() const
 					sint64 spacing_multiplier = 1;
 
 					// This may not be the next convoy on this line to depart from this forthcoming stop, so the spacing may have to be multiplied.
-					FOR(const haltestelle_t::arrival_times_map, const& iter, halt->get_estimated_convoy_departure_times())
+					for(auto iter : halt->get_estimated_convoy_departure_times())
 					{
 						const uint16 id = iter.key;
 						convoihandle_t tmp_cnv;
@@ -8650,7 +8653,7 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 	// Passengers may board vehicles of a lower, but not a higher, class
 	if (catg == goods_manager_t::INDEX_PAS)
 	{
-		FOR(minivec_tpl<uint8>, i, passenger_classes_carried)
+		for (auto i : passenger_classes_carried)
 		{
 			if (i <= g_class)
 			{
@@ -8660,7 +8663,7 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 	}
 	else
 	{
-		FOR(minivec_tpl<uint8>, i, mail_classes_carried)
+		for(auto i : mail_classes_carried)
 		{
 			if (i <= g_class)
 			{
