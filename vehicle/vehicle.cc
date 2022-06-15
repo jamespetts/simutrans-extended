@@ -3428,7 +3428,7 @@ bool vehicle_t::is_overhaul_needed() const
 	{
 		return false;
 	}
-	return km_since_last_overhaul > desc->get_max_distance_between_overhauls(); 
+	return km_since_last_overhaul > desc->get_max_distance_between_overhauls();
 }
 
 void vehicle_t::overhaul()
@@ -3459,5 +3459,5 @@ void vehicle_t::update_livery()
 		// If the scheme is not obsolete, do not change the scheme
 		return;
 	}
-	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.	
+	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.
 }

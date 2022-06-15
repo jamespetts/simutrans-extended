@@ -2194,7 +2194,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	allow_underground_transformers		= contents.get_int( "allow_underground_transformers", allow_underground_transformers ) != 0;
 	disable_make_way_public				= contents.get_int( "disable_make_way_public",        disable_make_way_public ) != 0;
 	maintenance_interval_months			= contents.get_int("maintenance_interval_months", maintenance_interval_months);
-	extended_maintenance_interval_months = contents.get_int("extended_maintenance_interval_months", extended_maintenance_interval_months); 
+	extended_maintenance_interval_months = contents.get_int("extended_maintenance_interval_months", extended_maintenance_interval_months);
 
 	// up to ten rivers are possible
 	for( int i = 0; i < 10; i++ ) {
