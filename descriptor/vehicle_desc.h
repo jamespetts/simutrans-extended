@@ -93,7 +93,7 @@ private:
 	uint16 overcrowded_capacity;				// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
 	uint32 weight;								// Weight in kg
 	uint32 power;								// Power in kW
-	uint16 running_cost;						// Per kilometre cost
+	uint16 running_cost;						// Per kilometre cost (maintenance, not fuel)
 	uint32 fixed_cost;							// Monthly cost @author: jamespetts, April 2009
 	uint32 base_fixed_cost;						// Monthly cost (without scale factor)
 
@@ -102,11 +102,12 @@ private:
 	uint32 base_max_overhaul_cost = 0;			// Overhaul cost (without scale factor after full increase for multiple overhauls)
 	uint32 max_overhaul_cost = 0;				// Overhaul cost (after full increase for multiple overhauls)
 	uint16 overhauls_before_max_cost = 0;		// The number of overhauls before the maximum overhaul cost is reached. 0: no change
-	uint32 max_distance_between_overhauls = 0;	// The maximum distnace in km between overhauls. 0: no overhauls required
+	uint32 max_distance_between_overhauls = 0;	// The maximum distance in km between overhauls. 0: no overhauls required
+	uint16 max_running_cost = UINT32_MAX_VALUE;	// The maximum running cost of vehicles at max_distance_between_overhauls. Sigmoid interpolation between running_cost and this after availabiliuty_decay_start_km
 	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
 	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay and running costs increase. 0: no decay
-	uint8 starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
-	uint8 minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
+	uint8  starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
+	uint8  minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
 	uint32 replenishment_seconds = 60;			// The number of seconds required for this vehicle to replenish (refuel) at a replenishment stop.
 
 	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.

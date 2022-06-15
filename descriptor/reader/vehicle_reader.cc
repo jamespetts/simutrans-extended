@@ -594,7 +594,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 						desc->base_initial_overhaul_cost = desc->base_cost / 5u;
 					}
 					desc->base_max_overhaul_cost = decode_uint32(p);
-					if (desc->base_max_overhaul_cost == UINT32_MAX_VALUE)
+					if (desc->base_max_overhaul_cost == 65535)
 					{
 						desc->base_max_overhaul_cost = desc->base_initial_overhaul_cost;
 					}
@@ -606,6 +606,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->starting_availability = decode_uint8(p);
 					desc->minimum_availability = decode_uint8(p);
 					desc->replenishment_seconds = decode_uint32(p);
+					desc->max_running_cost = decode_uint32(p);
 
 				}
 				// We do not need the "else", as all of the new values are header initialised.
@@ -636,6 +637,15 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->intro_date = DEFAULT_INTRO_DATE*16;
 		desc->retire_date = (DEFAULT_RETIRE_DATE*16);
 		desc->gear = 64;
+	}
+
+	if (desc->max_running_cost == 65535)
+	{
+		desc->max_running_cost = desc->running_cost * 3u;
+		if (desc->max_running_cost < desc->running_cost) // Detect integer overflow
+		{
+			desc->max_running_cost = 65535;
+		}
 	}
 
 	// correct the engine type for old vehicles
