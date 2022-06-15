@@ -315,8 +315,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 			const goods_desc_t *transport_goods = goods_manager_t::none;
 			if (!is_input_display) {
-				for(auto const product : fab->get_output())
-				{
+				FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
 					const goods_desc_t *inquiry_goods = product.get_typ();
 					if (target_fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
 						transport_goods = inquiry_goods;
@@ -325,8 +324,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				}
 			}
 			else {
-				for(auto const product : target_fab->get_output())
-				{
+				FOR(array_tpl<ware_production_t>, const& product, target_fab->get_output()) {
 					const goods_desc_t *inquiry_goods = product.get_typ();
 					if (fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
 						transport_goods = inquiry_goods;
@@ -639,8 +637,7 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
 {
 	factory_list.clear();
-	for(auto const f : world()->get_fab_list())
-	{
+	FOR(vector_tpl<fabrik_t*>, const f, world()->get_fab_list()) {
 		if (show_consumer) {
 			// consume(accept) this?
 			if(f->get_desc()->get_accepts_these_goods(ware)) {
@@ -649,8 +646,7 @@ void gui_goods_handled_factory_t::build_factory_list(const goods_desc_t *ware)
 		}
 		else {
 			// produce this?
-			for(auto const product : f->get_output())
-			{
+			FOR(array_tpl<ware_production_t>, const& product, f->get_output()) {
 				if (product.get_typ() == ware) {
 					factory_list.append_unique(f->get_desc());
 					break; // found

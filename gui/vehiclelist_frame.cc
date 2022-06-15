@@ -464,8 +464,7 @@ void vehiclelist_frame_t::fill_list()
 	if(  tabs.get_active_tab_waytype() == ignore_wt) {
 		// adding all vehiles, i.e. iterate over all available waytypes
 		for(  int i=1;  i<tabs.get_count();  i++  ) {
-			for(auto const veh : vehicle_builder_t::get_info(tabs.get_tab_waytype(i)))
-			{
+			FOR( slist_tpl<vehicle_desc_t *>, const veh, vehicle_builder_t::get_info(tabs.get_tab_waytype(i)) ) {
 				// engine type filter
 				switch (engine_filter.get_selection()) {
 					case 0:
@@ -512,8 +511,7 @@ void vehiclelist_frame_t::fill_list()
 		}
 	}
 	else {
-		for(auto const veh : vehicle_builder_t::get_info(tabs.get_active_tab_waytype()))
-		{
+		FOR(slist_tpl<vehicle_desc_t *>, const veh, vehicle_builder_t::get_info(tabs.get_active_tab_waytype())) {
 			// engine type filter
 			switch (engine_filter.get_selection()) {
 				case 0:

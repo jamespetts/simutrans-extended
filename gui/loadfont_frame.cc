@@ -200,8 +200,7 @@ void loadfont_frame_t::fill_list()
 	savegame_frame_t::fill_list();
 
 	// mark current fonts
-	for(auto const i : entries)
-	{
+	FOR(slist_tpl<dir_entry_t>, const& i, entries) {
 		if (i.type == LI_HEADER) {
 			continue;
 		}
@@ -235,8 +234,7 @@ void loadfont_frame_t::fill_list()
 void loadfont_frame_t::draw(scr_coord pos, scr_size size)
 {
 	// mark current fonts
-	for(auto const i : entries)
-	{
+	FOR(slist_tpl<dir_entry_t>, const& i, entries) {
 		if (i.type == LI_HEADER) {
 			continue;
 		}

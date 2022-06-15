@@ -215,8 +215,7 @@ void minimap_t::add_to_schedule_cache( convoihandle_t cnv, bool with_waypoints )
 	bool last_diagonal = false;
 	const bool add_schedule = schedule->get_waytype() != air_wt;
 
-	for(auto const cur : schedule->entries)
-	{
+	FOR(  minivec_tpl<schedule_entry_t>, cur, schedule->entries  ) {
 
 		//cycle on stops
 		//try to read station's coordinates if there's a station at this schedule stop
@@ -1229,16 +1228,14 @@ void minimap_t::calc_map()
 		const weighted_vector_tpl<gebaeude_t *> &world_attractions = world->get_attractions();
 		// find the current maximum
 		max_tourist_ziele = 1;
-		for(auto const i : world_attractions)
-		{
+		FOR(weighted_vector_tpl<gebaeude_t*>, const i, world_attractions) {
 			int const pax = i->get_adjusted_visitor_demand();
 			if (max_tourist_ziele < pax) {
 				max_tourist_ziele = pax;
 			}
 		}
 		// draw them
-		for (auto const g : world_attractions)
-		{
+		FOR(weighted_vector_tpl<gebaeude_t*>, const g, world_attractions) {
 			koord pos = g->get_pos().get_2d();
 			set_map_color( pos, calc_severity_color(g->get_adjusted_visitor_demand(), max_tourist_ziele));
 		}
@@ -1248,8 +1245,7 @@ void minimap_t::calc_map()
 	// since we do iterate the factory info list, this must be done here
 	if(mode==MAP_FACTORIES)
 	{
-		for(auto const f : world->get_fab_list())
-		{
+		FOR(vector_tpl<fabrik_t*>, const f, world->get_fab_list()) {
 			koord const pos = f->get_pos().get_2d();
 			set_map_color( pos, color_idx_to_rgb(COL_BLACK) );
 			set_map_color(pos, f->get_color());
@@ -1258,8 +1254,7 @@ void minimap_t::calc_map()
 	}
 
 	if(mode==MAP_DEPOT) {
-		for(auto const d : depot_t::get_depot_list())
-		{
+		FOR(slist_tpl<depot_t*>, const d, depot_t::get_depot_list()) {
 			if (d->get_owner() == world->get_active_player()) {
 				koord const pos = d->get_pos().get_2d();
 				// offset of one to avoid
@@ -1383,8 +1378,7 @@ const fabrik_t* minimap_t::draw_factory_connections(const fabrik_t* const fab, b
 		PIXVAL color = supplier_link ? color_idx_to_rgb(COL_RED) : color_idx_to_rgb(COL_WHITE);
 		scr_coord fabpos = map_to_screen_coord( fab->get_pos().get_2d() ) + pos;
 		const vector_tpl<koord>& consumer = supplier_link ? fab->get_suppliers() : fab->get_consumers();
-		for(auto const lieferziel : consumer)
-		{
+		FOR(vector_tpl<koord>, lieferziel, consumer) {
 			const fabrik_t * fab2 = fabrik_t::get_fab(lieferziel);
 			if (fab2) {
 				const scr_coord end = map_to_screen_coord( lieferziel ) + pos;
@@ -1569,8 +1563,7 @@ void minimap_t::draw(scr_coord pos)
 			if (player_showed_on_map != -1) {
 				required_vehicle_owner = world->get_player(player_showed_on_map);
 			}
-			for(auto cnv : world->convoys())
-			{
+			FOR( vector_tpl<convoihandle_t>, cnv, world->convoys() ) {
 				if(  !cnv.is_bound()  ||  cnv->get_line().is_bound()  ) {
 					// not there or already part of a line
 					continue;
@@ -1650,8 +1643,7 @@ void minimap_t::draw(scr_coord pos)
 		scr_coord k1,k2;
 		bool already_show_lettercode=false;
 		// DISPLAY STATIONS AND AIRPORTS: moved here so station spots are not overwritten by lines drawn
-		for(auto seg : schedule_cache)
-		{
+		FOR(  vector_tpl<line_segment_t>, seg, schedule_cache  ) {
 			PIXVAL colval = color_idx_to_rgb(seg.colorcount);
 			if(  event_get_last_control_shift()==2  ||  current_cnv.is_bound()  ) {
 				// on control / single convoi use only player colors
@@ -1700,16 +1692,14 @@ void minimap_t::draw(scr_coord pos)
 	// only fill cache if needed
 	if(  mode & MAP_MODE_HALT_FLAGS  &&  stop_cache.empty()  ) {
 		if(  mode & MAP_ORIGIN  ) {
-			for(auto halt : haltestelle_t::get_alle_haltestellen())
-			{
+			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
 				if(  halt->get_pax_enabled()  ||  halt->get_mail_enabled()  ) {
 					stop_cache.append( halt );
 				}
 			}
 		}
 		else if(  mode&MAP_TRANSFER  ||  mode&MAP_MAIL_HANDLING_VOLUME  ||  mode&MAP_GOODS_HANDLING_VOLUME    ) {
-			for(auto halt : haltestelle_t::get_alle_haltestellen())
-			{
+			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
 				if(  mode & MAP_TRANSFER  ){
 					if( !halt->get_pax_enabled() ) {
 						continue;
@@ -1742,8 +1732,7 @@ void minimap_t::draw(scr_coord pos)
 			}
 		}
 		else if(  mode&MAP_PAX_WAITING  ||  mode&MAP_MAIL_WAITING  ||  mode&MAP_GOODS_WAITING  ||  mode&MAP_SERVICE  ) {
-			for(auto halt : haltestelle_t::get_alle_haltestellen())
-			{
+			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
 				if(  mode&MAP_PAX_WAITING && !halt->get_pax_enabled()  ) {
 					continue;
 				}
@@ -1759,8 +1748,7 @@ void minimap_t::draw(scr_coord pos)
 	}
 	// now draw stop cache
 	// if needed to get new values
-	for(auto station : stop_cache)
-	{
+	FOR(  vector_tpl<halthandle_t>, station, stop_cache  ) {
 
 		if(  !station.is_bound()  ) {
 			// maybe deleted in the meanwhile
@@ -1939,8 +1927,7 @@ void minimap_t::draw(scr_coord pos)
 		const weighted_vector_tpl<stadt_t*>& staedte = world->get_cities();
 		const PIXVAL col = color_idx_to_rgb(showing_schedule ? COL_BLACK : COL_WHITE);
 
-		for(auto const city : staedte)
-		{
+		FOR( weighted_vector_tpl<stadt_t*>, const city, staedte ) {
 			const char * name = city->get_name();
 
 			scr_coord p = map_to_screen_coord( city->get_pos() );
@@ -1953,8 +1940,7 @@ void minimap_t::draw(scr_coord pos)
 	if(  mode & MAP_CITYLIMIT  ) {
 
 		// for all cities
-		for(auto const city : world->get_cities())
-		{
+		FOR(  weighted_vector_tpl<stadt_t*>,  const city,  world->get_cities()  ) {
 			koord k[4];
 			k[0] = city->get_linksoben(); // top left
 			k[2] = city->get_rechtsunten(); // bottom right
@@ -1991,8 +1977,7 @@ void minimap_t::draw(scr_coord pos)
 	// since we do iterate the tourist info list, this must be done here
 	// find tourist spots
 	if(  mode & MAP_TOURIST  ) {
-		for(auto const gb : world->get_attractions())
-		{
+		FOR(  weighted_vector_tpl<gebaeude_t*>, const gb, world->get_attractions()  ) {
 			if(  gb->get_first_tile() == gb  ) {
 				scr_coord gb_pos = map_to_screen_coord( gb->get_pos().get_2d() );
 				gb_pos = gb_pos + pos;
@@ -2010,8 +1995,7 @@ void minimap_t::draw(scr_coord pos)
 	}
 
 	if(  mode & MAP_FACTORIES  ) {
-		for(auto const f : world->get_fab_list())
-		{
+		FOR(  vector_tpl<fabrik_t*>,  const f,  world->get_fab_list()  ) {
 			// filter check
 			if (freight_type_group_index_showed_on_map == goods_manager_t::passengers) {
 				if (!f->get_building()->get_adjusted_visitor_demand() && !f->get_building()->get_adjusted_jobs()) {
@@ -2046,8 +2030,7 @@ void minimap_t::draw(scr_coord pos)
 	}
 
 	if(  mode & MAP_DEPOT  ) {
-		for(auto const d : depot_t::get_depot_list())
-		{
+		FOR(  slist_tpl<depot_t*>,  const d,  depot_t::get_depot_list()  ) {
 			if(  d->get_owner() == world->get_active_player()  ) {
 				scr_coord depot_pos = map_to_screen_coord( d->get_pos().get_2d() );
 				depot_pos = depot_pos + pos;

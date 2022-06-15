@@ -96,7 +96,7 @@ void tool_selector_t::reset_tools()
 
 void tool_selector_t::rotate_tools(sint16 y_diff)
 {
-	for(auto t : tools)
+	FOR(vector_tpl<tool_selector_t::tool_data_t>, t, tools)
 	{
 		t.tool->rotate90(y_diff);
 	}
@@ -231,8 +231,7 @@ bool tool_selector_t::infowin_event(const event_t *ev)
 	}
 	// this resets to query-tool, when closing toolsbar - but only for selected general tools in the closing toolbar
 	else if(ev->ev_class==INFOWIN &&  ev->ev_code==WIN_CLOSE) {
-		for(auto const i : tools)
-		{
+		FOR(vector_tpl<tool_data_t>, const i, tools) {
 			if (i.tool->is_selected() && i.tool->get_id() & GENERAL_TOOL) {
 				welt->set_tool( tool_t::general_tool[TOOL_QUERY], welt->get_active_player() );
 				break;
@@ -404,8 +403,7 @@ void tool_selector_t::draw(scr_coord pos, scr_size sz)
 
 bool tool_selector_t::empty(player_t *player) const
 {
-	for (auto const w : tools)
-	{
+	FOR(vector_tpl<tool_data_t>, w, tools) {
 		if (w.tool->get_icon(player) != IMG_EMPTY) {
 			return false;
 		}

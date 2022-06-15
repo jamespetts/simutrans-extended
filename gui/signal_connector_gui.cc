@@ -99,8 +99,7 @@ void signal_connector_gui_t::build_list(const signal_t* sig)
 {
 	sb_selections.clear();
 	const player_t *player = sig->get_owner();
-	for(auto sigb : signalbox_t::all_signalboxes)
-	{
+	FOR(slist_tpl<signalbox_t*>, const sigb, signalbox_t::all_signalboxes) {
 		if(sigb->get_owner() == player && sigb->get_first_tile() == sigb && sigb->can_add_signal(sig) ) {
 			gui_signalbox_changer_t *sel = new gui_signalbox_changer_t(sigb, sig);
 			sb_selections.append(sel);
@@ -130,10 +129,8 @@ void signal_connector_gui_t::update(const signal_t* sig)
 		if (!sb_selections.get_count()) {
 			new_component<gui_label_t>("keine");
 		}
-		else
-		{
-			for(auto selection : sb_selections)
-			{
+		else {
+			FOR(slist_tpl<gui_signalbox_changer_t *>, &selection, sb_selections) {
 				add_component(selection);
 			}
 		}

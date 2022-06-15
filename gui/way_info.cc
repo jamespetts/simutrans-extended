@@ -1248,8 +1248,7 @@ void way_info_t::update_way_info()
 		if (building_list.get_count()) {
 			cont_road_routes.add_table(4+(!welt->get_settings().regions.empty()),0)->set_spacing(scr_size(D_H_SPACE,0));
 			{
-				for(auto k : building_list)
-				{
+				FOR(vector_tpl<koord>, k, building_list) {
 					const gebaeude_t* building = welt->lookup_kartenboden(k)->get_building();
 					button_t *b = cont_road_routes.new_component<button_t>();
 					b->set_typ(button_t::posbutton_automatic);

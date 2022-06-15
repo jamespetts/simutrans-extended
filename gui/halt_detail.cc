@@ -1194,8 +1194,7 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 		xoff = max(xoff, D_BUTTON_WIDTH * 2 + D_INDICATOR_WIDTH);
 
 		uint has_input_output = 0;
-		for(auto const i : fab->get_input())
-		{
+		FOR(array_tpl<ware_production_t>, const& i, fab->get_input()) {
 			goods_desc_t const* const ware = i.get_typ();
 			if (skinverwaltung_t::input_output && !has_input_output) {
 				display_color_img(skinverwaltung_t::input_output->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
@@ -1213,8 +1212,7 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 			xoff += has_input_output ? D_FIXED_SYMBOL_WIDTH * (4 - has_input_output) : D_FIXED_SYMBOL_WIDTH * 5 + D_V_SPACE;
 		}
 		has_input_output = 0;
-		for(auto const i : fab->get_output())
-		{
+		FOR(array_tpl<ware_production_t>, const& i, fab->get_output()) {
 			goods_desc_t const* const ware = i.get_typ();
 			if (skinverwaltung_t::input_output && !has_input_output) {
 				display_color_img(skinverwaltung_t::input_output->get_image_id(1), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false);
@@ -1738,8 +1736,7 @@ void gui_halt_route_info_t::draw_list_by_dest(scr_coord offset)
 	int yoff = 0;
 	int max_x = D_DEFAULT_WIDTH;
 
-	for(auto const dest : halt_list)
-	{
+	FOR(const vector_tpl<halthandle_t>, const dest, halt_list) {
 		xoff = D_POS_BUTTON_WIDTH + D_H_SPACE;
 		yoff += D_V_SPACE;
 
