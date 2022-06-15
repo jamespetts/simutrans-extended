@@ -104,7 +104,7 @@ private:
 	uint16 overhauls_before_max_cost = 0;		// The number of overhauls before the maximum overhaul cost is reached. 0: no change
 	uint32 max_distance_between_overhauls = 0;	// The maximum distnace in km between overhauls. 0: no overhauls required
 	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
-	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay. 0: no decay
+	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay and running costs increase. 0: no decay
 	uint8 starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
 	uint8 minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
 	uint32 replenishment_seconds = 60;			// The number of seconds required for this vehicle to replenish (refuel) at a replenishment stop.
