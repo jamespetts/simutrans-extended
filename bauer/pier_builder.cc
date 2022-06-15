@@ -1,4 +1,4 @@
-﻿/*
+/*
  * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
@@ -1092,7 +1092,8 @@ void pier_builder_t::fill_menu(tool_selector_t *tool_selector, char mode, uint32
         }
     }
 
-    FOR(vector_tpl<pier_desc_t const*>, const i, matching){
+    for(auto const i : matching)
+    {
         if(mode!='A'){
             tool_selector->add_tool_selector(i->get_builder());
             for(int j=0; j < 3; j++){

@@ -267,7 +267,7 @@ const vehicle_desc_t *vehicle_builder_t::vehicle_search( waytype_t wt, const uin
 		best.index = -100000;
 
 		const vehicle_desc_t *desc = NULL;
-		FOR(slist_tpl<vehicle_desc_t *>, const test_desc, typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)])
+		for(auto const test_desc : typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)])
 		{
 			// no constricts allow for rail vehicles concerning following engines
 			if(wt==track_wt  &&  !test_desc->can_follow_any()  )
@@ -391,7 +391,7 @@ const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const 
 
 	if(  !typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)].empty()  )
 	{
-		FOR(slist_tpl<vehicle_desc_t *>, const test_desc, typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)])
+		for(auto const test_desc : typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)])
 		{
 			if(target_power>0  &&  test_desc->get_power()==0)
 			{
