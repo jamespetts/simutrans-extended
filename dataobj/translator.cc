@@ -192,14 +192,16 @@ vector_tpl< vector_tpl<char*> > translator::city_name_list;
 vector_tpl < vector_tpl<char *> > translator::street_name_list;
 void translator::clear_custom_list(vector_tpl<vector_tpl<char *>>&name_list)
 {
-	FOR(vector_tpl<vector_tpl<char *>>, i, name_list) {
+	for(auto i : name_list)
+	{
 		clear_custom_list(i);
 	}
 	name_list.clear();
 }
 void translator::clear_custom_list(vector_tpl<char *>&name_list)
 {
-	FOR(vector_tpl<char*>, const i, name_list) {
+	for (auto i : name_list)
+	{
 		free(i);
 	}
 	name_list.clear();
@@ -639,7 +641,8 @@ void translator::load_files_from_folder(const char *folder_name, const char *wha
 	DBG_MESSAGE("translator::load_files_from_folder()", "search folder \"%s\" and found %i files", folder_name, num_pak_lang_dat); (void)num_pak_lang_dat;
 
 	//read now the basic language infos
-	FOR(searchfolder_t, const& filename, folder) {
+	for(auto const filename : folder)
+	{
 		lang_info* lang = NULL;
 		const char* langcode = strrchr(filename,'.');
 

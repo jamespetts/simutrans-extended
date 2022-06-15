@@ -1868,7 +1868,7 @@ void settings_t::rdwr(loadsave_t *file)
 				uint32 count = regions.get_count();
 				file->rdwr_long(count);
 
-				FOR(vector_tpl<region_definition_t>, region, regions)
+				for(auto region : regions)
 				{
 					region.top_left.rdwr(file);
 					region.bottom_right.rdwr(file);
@@ -3252,7 +3252,7 @@ void settings_t::reset_regions(sint32 old_x, sint32 old_y)
 	// Necessary when changing the map size unless regions are specified in absolute
 	// rather than relative terms in ther relevant simuconf.tab
 	vector_tpl<region_definition_t> temp_regions;
-	FOR(vector_tpl<region_definition_t>, region, regions)
+	for(auto region : regions)
 	{
 		sint32 old_percent_x = (region.top_left.x * 100u) / old_x;
 		sint32 old_percent_y = (region.top_left.y * 100u) / old_y;
@@ -3267,7 +3267,7 @@ void settings_t::reset_regions(sint32 old_x, sint32 old_y)
 	}
 
 	regions.clear();
-	FOR(vector_tpl<region_definition_t>, region, temp_regions)
+	for(auto region : temp_regions)
 	{
 		regions.append(region);
 	}
@@ -3276,7 +3276,7 @@ void settings_t::reset_regions(sint32 old_x, sint32 old_y)
 void settings_t::rotate_regions()
 {
 	vector_tpl<region_definition_t> temp_regions;
-	FOR(vector_tpl<region_definition_t>, region, regions)
+	for(auto region : regions)
 	{
 		const sint16 temp_top_y= region.top_left.y;
 		region.top_left.y = region.bottom_right.y;
@@ -3288,7 +3288,7 @@ void settings_t::rotate_regions()
 	}
 
 	regions.clear();
-	FOR(vector_tpl<region_definition_t>, region, temp_regions)
+	for(auto region : temp_regions)
 	{
 		regions.append(region);
 	}

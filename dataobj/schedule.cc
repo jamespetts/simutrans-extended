@@ -37,7 +37,8 @@ void schedule_t::copy_from(const schedule_t *src)
 		dbg->fatal("schedule_t::copy_to()","cannot copy from NULL");
 	}
 	entries.clear();
-	FOR(minivec_tpl<schedule_entry_t>, const& i, src->entries) {
+	for(auto const i : src->entries)
+	{
 		entries.append(i);
 	}
 	set_current_stop( src->get_current_stop() );
@@ -457,7 +458,8 @@ void schedule_t::rdwr(loadsave_t *file)
 void schedule_t::rotate90( sint16 y_size )
 {
 	// now we have to rotate all entries ...
-	FOR(minivec_tpl<schedule_entry_t>, & i, entries) {
+	for(auto i : entries)
+	{
 		i.pos.rotate90(y_size);
 	}
 }
@@ -684,7 +686,7 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	buf.append( "|" );
 	buf.append( (int)get_type() );
 	buf.append( "|" );
-	FOR(minivec_tpl<schedule_entry_t>, const& i, entries)
+	for(auto i : entries)
 	{
 		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(), i.minimum_loading, (int)i.waiting_time_shift, (int)i.spacing_shift, (int)i.reverse, (int)i.flags, (int)i.unique_entry_id, (int)i.condition_bitfield_broadcaster, (int)i.condition_bitfield_receiver, (int)i.target_id_condition_trigger, (int)i.target_id_couple, (int)i.target_id_uncouple, (int)i.target_unique_entry_uncouple);
 	}
@@ -927,7 +929,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 
 bool schedule_t::is_contained (koord3d pos)
 {
-	FOR(minivec_tpl<schedule_entry_t>, entry, entries)
+	for(auto entry : entries)
 	{
 		if(pos == entry.pos)
 		{
