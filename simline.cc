@@ -464,7 +464,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = average_journey_times.get_count();
 			file->rdwr_long(count);
 
-			FOR(journey_times_map, const& iter, average_journey_times)
+			for(auto const iter : average_journey_times)
 			{
 				id_pair idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -507,7 +507,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = journey_times_history.get_count();
 			file->rdwr_long(count);
 
-			FOR(times_history_map, const& iter, journey_times_history)
+			for(auto iter : journey_times_history)
 			{
 				departure_point_t idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -602,7 +602,8 @@ void simline_t::finish_rd()
 void simline_t::register_stops(schedule_t * schedule)
 {
 	DBG_DEBUG("simline_t::register_stops()", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
-	FOR(minivec_tpl<schedule_entry_t>,const &i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			//DBG_DEBUG("simline_t::register_stops()", "halt not null");
@@ -631,7 +632,7 @@ void simline_t::unregister_stops()
 
 	// It is necessary to clear all departure data,
 	// which might be out of date on a change of schedule.
-	FOR(vector_tpl<convoihandle_t>, & i, line_managed_convoys)
+	for(auto i : line_managed_convoys)
 	{
 		i->clear_departures();
 	}
@@ -641,7 +642,8 @@ void simline_t::unregister_stops()
 
 void simline_t::unregister_stops(schedule_t * schedule)
 {
-	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			halt->remove_line(self);
@@ -686,7 +688,8 @@ void simline_t::set_line_color(uint8 color_idx, uint8 style)
 
 void simline_t::check_freight()
 {
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		i->check_freight();
 	}
 }
@@ -748,7 +751,7 @@ void simline_t::recalc_status()
 	{
 		const uint16 month_now = welt->get_timeline_year_month();
 
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			for (uint16 j = 0; j < i->get_vehicle_count(); j++)
 			{
@@ -860,13 +863,13 @@ void simline_t::calc_classes_carried()
 
 	passenger_classes_carried.clear();
 	mail_classes_carried.clear();
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+	for(auto const i : line_managed_convoys)
 	{
 		convoi_t const& cnv = *i;
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
+			for(auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
 			{
 				passenger_classes_carried.append_unique(g_class);
 			}
@@ -874,7 +877,7 @@ void simline_t::calc_classes_carried()
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
+			for (auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
 			{
 				mail_classes_carried.append_unique(g_class);
 			}
@@ -912,18 +915,21 @@ void simline_t::recalc_catg_index()
 {
 	// first copy old
 	minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index) {
+	for(auto const i : goods_catg_index)
+	{
 		old_goods_catg_index.append(i);
 	}
 	goods_catg_index.clear();
 	withdraw = !line_managed_convoys.empty();
 	// then recreate current
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		// what goods can this line transport?
 		convoi_t const& cnv = *i;
 		withdraw &= cnv.get_withdraw();
 
-		FOR(minivec_tpl<uint8>, const catg_index, cnv.get_goods_catg_index()) {
+		for(auto const catg_index : cnv.get_goods_catg_index())
+		{
 			goods_catg_index.append_unique( catg_index );
 		}
 	}
@@ -961,7 +967,7 @@ void simline_t::recalc_catg_index()
 	}
 
 	// added categories : present in new category list but not in old category list
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index)
+	for(auto const i : goods_catg_index)
 	{
 		if (!old_goods_catg_index.is_contained(i))
 		{
@@ -1043,7 +1049,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	// Check whether a lower class is carried, as passengers may board vehicles of a lower, but not a higher, class
 	if (catg == goods_manager_t::INDEX_PAS)
 	{
-		FOR(vector_tpl<uint8>, i, passenger_classes_carried)
+		for(auto const i : passenger_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1053,7 +1059,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	}
 	else
 	{
-		FOR(vector_tpl<uint8>, i, mail_classes_carried)
+		for(auto const i : mail_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1113,7 +1119,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 {
 	if (!trigger_one_only)
 	{
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1130,7 +1136,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		uint16 trigger;
 
 		// First, check for all convoys that are actually waiting for this conditional trigger.
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1157,7 +1163,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		}
 
 		// Second, check again with partial triggering
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for (auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1183,7 +1189,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		}
 
 		// Third, just pick one at random.
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for (auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
