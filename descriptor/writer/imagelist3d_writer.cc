@@ -22,7 +22,6 @@ void imagelist3d_writer_t::write_obj(FILE* fp, obj_node_t& parent, const slist_t
 	desc.count = keys.get_count();
 
 	FOR(slist_3d, const& i, keys)
-	//for(auto const i : keys) // This does not compile
 	{
 		imagelist2d_writer_t::instance()->write_obj(fp, node, i);
 	}

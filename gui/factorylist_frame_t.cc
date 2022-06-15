@@ -291,8 +291,7 @@ void factorylist_frame_t::fill_list()
 	old_factories_count = world()->get_fab_list().get_count(); // to avoid too many redraws ...
 	scrolly.clear_elements();
 	uint32 count = 0;
-	for(auto fab : world()->get_fab_list())
-	{
+	FOR(const vector_tpl<fabrik_t *>,fab,world()->get_fab_list()) {
 		if (factorylist_stats_t::region_filter && (factorylist_stats_t::region_filter-1) != world()->get_region(fab->get_pos().get_2d())) {
 			continue;
 		}

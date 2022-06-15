@@ -4180,8 +4180,7 @@ void tool_wayremover_t::mark_tiles( player_t *player, const koord3d &start, cons
 	route_t verbindung;
 	bool can_built = calc_route( verbindung, player, start, end );
 	if( can_built ) {
-		for(auto const pos : verbindung.get_route())
-		{
+		FOR(vector_tpl<koord3d>, const& pos, verbindung.get_route()) {
 			zeiger_t *marker = new zeiger_t(pos, NULL );
 			marker->set_image( cursor );
 			marker->mark_image_dirty( marker->get_image(), 0 );
@@ -4254,8 +4253,7 @@ bool tool_wayremover_t::calc_route( route_t &verbindung, player_t *player, const
 	bool can_delete = start == end  ||  verbindung.get_count()>1;
 	if(  can_delete  ) {
 		// found a route => check if I can delete anything on it
-		for(auto const i : verbindung.get_route())
-		{
+		FOR(koord3d_vector_t, const& i, verbindung.get_route()) {
 			if (!can_delete) break;
 			grund_t const* const gr = welt->lookup(i);
 			if(  wt!=powerline_wt  ) {
@@ -7123,8 +7121,7 @@ const char *tool_build_roadsign_t::do_work( player_t *player, const koord3d &sta
 	mark_tiles(player, start, end);
 	// only search the marked tiles
 	uint32 j=0;
-	for(auto const i : marked)
-	{
+	FOR(slist_tpl<zeiger_t*>, const i, marked) {
 		grund_t* const gr = welt->lookup(i->get_pos());
 		weg_t *weg = gr->get_weg(desc->get_wtyp());
 		ribi_t::ribi dir = directions[j++];
@@ -8072,7 +8069,7 @@ const char *tool_build_land_chain_t::work( player_t *player, koord3d pos )
 			// crossconnect all?
 			if(welt->get_settings().is_crossconnect_factories())
 			{
-				for(auto factory : welt->get_fab_list())
+				FOR(vector_tpl<fabrik_t*>, factory, welt->get_fab_list())
 				{
 					factory->add_all_suppliers();
 				}
@@ -8141,7 +8138,7 @@ const char *tool_city_chain_t::work( player_t *player, koord3d pos )
 		// crossconnect all?
 		if(welt->get_settings().is_crossconnect_factories())
 		{
-			for(auto factory : welt->get_fab_list())
+			FOR(vector_tpl<fabrik_t*>, factory, welt->get_fab_list())
 			{
 				factory->add_all_suppliers();
 			}
@@ -8272,7 +8269,7 @@ const char *tool_build_factory_t::work( player_t *player, koord3d pos )
 			// crossconnect all?
 			if(welt->get_settings().is_crossconnect_factories())
 			{
-				for(auto factory : welt->get_fab_list())
+				FOR(vector_tpl<fabrik_t*>, factory,  welt->get_fab_list())
 				{
 					factory->add_all_suppliers();
 				}
@@ -8746,16 +8743,14 @@ const char *tool_stop_mover_t::do_work( player_t *player, const koord3d &last_po
 			}
 
 			// first, check convoi without line
-			for(auto const cnv : welt->convoys())
-			{
+			FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
 				// check line and owner
 				if(!cnv->get_line().is_bound()  &&  cnv->get_owner()==player) {
 					schedule_t *schedule = cnv->get_schedule();
 					// check waytype
 					if(schedule  &&  schedule->is_stop_allowed(bd)) {
 						bool updated = false;
-						for(auto k : schedule->entries)
-						{
+						FOR(minivec_tpl<schedule_entry_t>, & k, schedule->entries) {
 							if ((catch_all_halt && haltestelle_t::get_halt( k.pos, cnv->get_owner()) == last_halt) ||
 									old_platform.is_contained(k.pos)) {
 								k.pos   = pos;
@@ -8785,14 +8780,12 @@ const char *tool_stop_mover_t::do_work( player_t *player, const koord3d &last_po
 			// next, check lines serving old_halt (no owner check needed for own lines ...
 			vector_tpl<linehandle_t>lines;
 			player->simlinemgmt.get_lines(simline_t::line,&lines);
-			for(auto const line : lines)
-			{
+			FOR(vector_tpl<linehandle_t>, const line, lines) {
 				schedule_t *schedule = line->get_schedule();
 				// check waytype
 				if(schedule->is_stop_allowed(bd)) {
 					bool updated = false;
-					for(auto k : schedule->entries)
-					{
+					FOR(minivec_tpl<schedule_entry_t>, & k, schedule->entries) {
 						// ok!
 						if ((catch_all_halt && haltestelle_t::get_halt( k.pos, line->get_owner()) == last_halt) ||
 								old_platform.is_contained(k.pos)) {
@@ -10077,8 +10070,7 @@ bool tool_change_line_t::init( player_t *player )
 					break;
 				}
 
-				for(auto line : lines)
-				{
+				FOR(vector_tpl<linehandle_t>,line,lines) {
 					if(  line->get_linetype() == linetype  &&  line->get_convoys().get_count() > 2  ) {
 						// correct waytpe and more than one,n now some up usage for the last six months
 						sint64 transported = 0, capacity = 0;
@@ -10095,8 +10087,7 @@ bool tool_change_line_t::init( player_t *player )
 							// less than 33 % usage => remove concois
 							vector_tpl<convoihandle_t> const& cnvs = line->get_convoys();
 							sint64 old_sum_capacity = 0;
-							for(auto cnv : cnvs)
-							{
+							FOR(vector_tpl<convoihandle_t>,cnv,cnvs) {
 								for(  int i=0;  i<cnv->get_vehicle_count();  i++  ) {
 									old_sum_capacity += cnv->get_vehicle(i)->get_desc()->get_capacity();
 								}
@@ -10149,16 +10140,13 @@ bool tool_change_line_t::init( player_t *player )
 			{
 				array_tpl<vector_tpl<convoihandle_t> > cnvs(welt->convoys().get_count());
 				uint32 max_cnvs=0;
-				for(auto cnv : welt->convoys())
-				{
+				FOR(vector_tpl<convoihandle_t>, cnv, welt->convoys()) {
 					// only check lineless convoys
 					if(  !cnv->get_line().is_bound()  ) {
 						bool found = false;
 						// check, if already matches existing convois schedule
-						for(  uint32 i=0;  i<max_cnvs  &&  !found;  i++  )
-						{
-							for(auto cnvcomp : cnvs[i])
-							{
+						for(  uint32 i=0;  i<max_cnvs  &&  !found;  i++  ) {
+							FOR(vector_tpl<convoihandle_t>, cnvcomp, cnvs[i] ) {
 								if(  cnvcomp->get_schedule()->matches( welt, cnv->get_schedule() )  ) {
 									found = true;
 									cnvs[i].append( cnv );
@@ -10177,8 +10165,7 @@ bool tool_change_line_t::init( player_t *player )
 					// if there is more than one convois => new line
 					if(  cnvs[i].get_count()>1  ) {
 						line = player->simlinemgmt.create_line( cnvs[i][0]->get_schedule()->get_type(), player, cnvs[i][0]->get_schedule() );
-						for(auto cnv : cnvs[i])
-						{
+						FOR(vector_tpl<convoihandle_t>, cnv, cnvs[i] ) {
 							line->add_convoy( cnv );
 							cnv->set_line( line );
 						}

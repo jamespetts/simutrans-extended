@@ -187,22 +187,19 @@ void citybuilding_edit_frame_t::fill_list()
 	building_list.clear();
 
 	if(bt_res.pressed) {
-		for(auto const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_res))
-		{
+		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_res)) {
 			put_item_in_list(desc);
 		}
 	}
 
 	if(bt_com.pressed) {
-		for(auto const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_com))
-		{
+		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_com)) {
 			put_item_in_list(desc);
 		}
 	}
 
 	if(bt_ind.pressed) {
-		for(auto const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_ind))
-		{
+		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_ind)) {
 			put_item_in_list(desc);
 		}
 	}
@@ -210,8 +207,7 @@ void citybuilding_edit_frame_t::fill_list()
 	// now build scrolled list
 	scl.clear_elements();
 	scl.set_selection(-1);
-	for(auto const i : building_list)
-	{
+	FOR(vector_tpl<building_desc_t const*>, const i, building_list) {
 		// color code for objects: BLACK: normal, YELLOW: consumer only, GREEN: source only
 		PIXVAL color;
 		switch (i->get_type()) {

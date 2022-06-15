@@ -153,8 +153,7 @@ void convoi_filter_frame_t::init(uint32 filter_flags, const slist_tpl<const good
 	if (&active_ware != wares) {
 		active_ware.clear();
 		if (wares) {
-			for(auto wi : all_ware)
-			{
+			FOR(slist_tpl<ware_item_t*>, wi, all_ware) {
 				wi->pressed = wares->is_contained(wi->ware);
 				if (wi->pressed) {
 					active_ware.append(wi->ware);
@@ -179,24 +178,21 @@ bool convoi_filter_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 		}
 	}
 	if(comp == &ware_alle) {
-		for(auto wi : all_ware)
-		{
+		FOR( slist_tpl<ware_item_t *>, wi, all_ware ) {
 			wi->pressed = true;
 		}
 		sort_list();
 		return true;
 	}
 	if(comp == &ware_keine) {
-		for (auto wi : all_ware)
-		{
+		FOR( slist_tpl<ware_item_t *>, wi, all_ware ) {
 			wi->pressed = false;
 		}
 		sort_list();
 		return true;
 	}
 	if(  comp == &ware_invers  ) {
-		for (auto wi : all_ware)
-		{
+		FOR( slist_tpl<ware_item_t *>, wi, all_ware ) {
 			wi->pressed ^= true;
 		}
 		sort_list();
@@ -209,8 +205,7 @@ bool convoi_filter_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 void convoi_filter_frame_t::sort_list()
 {
 	active_ware.clear();
-	for (auto wi : all_ware)
-	{
+	FOR( slist_tpl<ware_item_t *>, wi, all_ware ) {
 		if(  wi->pressed  ) {
 /*
 			uint8 catg = wi->ware->get_catg();

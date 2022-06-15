@@ -28,8 +28,7 @@ protected:
 	 */
 	void call_listeners(value_t v)
 	{
-		for(auto const l: listeners)
-		{
+		FOR(slist_tpl<action_listener_t*>, const l, listeners) {
 			if (l->action_triggered(this, v)) break;
 		}
 	}

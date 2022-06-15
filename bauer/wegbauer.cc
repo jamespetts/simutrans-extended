@@ -392,8 +392,7 @@ void way_builder_t::fill_menu(tool_selector_t *tool_selector, const waytype_t wt
 	std::sort(matching.begin(), matching.end(), compare_ways);
 
 	// now add sorted ways ...
-	for(auto const i : matching)
-	{
+	FOR(vector_tpl<way_desc_t*>, const i, matching) {
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }
@@ -1312,8 +1311,7 @@ void way_builder_t::do_terraforming()
 {
 	uint32 last_terraformed = terraform_index.get_count();
 
-	for(auto const i : terraform_index)
-	{ // index in route
+	FOR(vector_tpl<uint32>, const i, terraform_index) { // index in route
 		grund_t *from = welt->lookup(route[i]);
 		uint8 from_slope = from->get_grund_hang();
 
@@ -1575,8 +1573,7 @@ void way_builder_t::init_builder(bautyp_t wt, const way_desc_t *b, const tunnel_
 void get_mini_maxi( const vector_tpl<koord3d> &ziel, koord3d &mini, koord3d &maxi )
 {
 	mini = maxi = ziel[0];
-	for(auto const current : ziel)
-	{
+	FOR(vector_tpl<koord3d>, const& current, ziel) {
 		if( current.x < mini.x ) {
 			mini.x = current.x;
 		} else if( current.x > maxi.x ) {
@@ -1608,8 +1605,7 @@ sint32 way_builder_t::intern_calc_route(const vector_tpl<koord3d> &start, const 
 
 	// check for existing koordinates
 	bool has_target_ground = false;
-	for(auto const i : ziel)
-	{
+	FOR(vector_tpl<koord3d>, const& i, ziel) {
 		has_target_ground |= welt->lookup(i) != 0;
 	}
 	if( !has_target_ground ) {
@@ -1645,8 +1641,7 @@ sint32 way_builder_t::intern_calc_route(const vector_tpl<koord3d> &start, const 
 	uint32 step = 0;
 	const grund_t* gr=NULL;
 
-	for(auto const i : start)
-	{
+	FOR(vector_tpl<koord3d>, const& i, start) {
 		gr = welt->lookup(i);
 
 		// is valid ground?
@@ -1768,8 +1763,7 @@ DBG_DEBUG("insert to close","(%i,%i,%i)  f=%i",gr->get_pos().x,gr->get_pos().y,g
 		}
 
 		// now check all valid ones ...
-		for(auto const r : next_gr)
-		{
+		FOR(vector_tpl<next_gr_t>, const& r, next_gr) {
 			to = r.gr;
 
 			if(  to==NULL) {
@@ -2319,8 +2313,7 @@ sint64 way_builder_t::calc_costs() {
 	// calculate costs for terraforming
 	uint32 last_terraformed = terraform_index.get_count();
 
-	for(auto const i : terraform_index)
-	{ // index in route
+	FOR(vector_tpl<uint32>, const i, terraform_index) { // index in route
 		grund_t *from = welt->lookup(route[i]);
 		uint8 from_slope = from->get_grund_hang();
 
@@ -2636,8 +2629,7 @@ bool way_builder_t::build_tunnel_tile()
 
 void way_builder_t::build_elevated()
 {
-	for(auto i : route)
-	{
+	FOR(koord3d_vector_t, & i, route) {
 		planquadrat_t* const plan = welt->access(i.get_2d());
 
 		grund_t* const gr0 = plan->get_boden_in_hoehe(i.z);
@@ -3139,8 +3131,7 @@ void way_builder_t::build_river()
 		route_t to_the_sea;
 		fluss_test_driver_t river_tester;
 		if(to_the_sea.find_route(welt, welt->lookup_kartenboden(route[start_n].get_2d())->get_pos(), &river_tester, 0, ribi_t::all, 0, 1, 0, 0x7FFFFFFF, false)) {
-			for(auto const i : to_the_sea.get_route())
-			{
+			FOR(koord3d_vector_t, const& i, to_the_sea.get_route()) {
 				if (weg_t* const w = welt->lookup(i)->get_weg(water_wt)) {
 					int type;
 					for(  type=env_t::river_types-1;  type>0;  type--  ) {

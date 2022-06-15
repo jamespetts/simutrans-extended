@@ -83,8 +83,7 @@ bool goods_manager_t::successfully_loaded()
 	// now assign unique category indices for unique categories
 	max_catg_index = 0;
 	// first assign special freight (which always needs an own category)
-	for(auto const i : goods)
-	{
+	FOR(vector_tpl<goods_desc_t*>, const i, goods) {
 		if (i->get_catg() == 0) {
 			i->catg_index = max_catg_index++;
 		}
@@ -92,8 +91,7 @@ bool goods_manager_t::successfully_loaded()
 	// mapping of waren_t::catg to catg_index, map[catg] = catg_index
 	uint8 map[255] = {0};
 
-	for(auto const i : goods)
-	{
+	FOR(vector_tpl<goods_desc_t*>, const i, goods) {
 		uint8 const catg = i->get_catg();
 		if(  catg > 0  ) {
 			if(  map[catg] == 0  ) { // We didn't found this category yet -> just create new index.

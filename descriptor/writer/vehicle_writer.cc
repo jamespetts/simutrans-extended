@@ -250,7 +250,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(uint8);
 
 	// Capacities by class
-	for(auto capacity : class_capacities)
+	FOR(vector_tpl<uint16>, capacity, class_capacities)
 	{
 		node.write_uint16(fp, capacity, pos);
 		pos += sizeof(uint16);

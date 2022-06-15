@@ -43,8 +43,7 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 	tourist_attractions = welt->get_attractions().get_count();
 	city_count = welt->get_cities().get_count();
 	citizen_count = 0;
-	for(auto const i : welt->get_cities())
-	{
+	FOR(weighted_vector_tpl<stadt_t*>, const i, welt->get_cities()) {
 		citizen_count += i->get_city_population();
 	}
 

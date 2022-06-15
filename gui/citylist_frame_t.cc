@@ -342,8 +342,7 @@ void citylist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
-	for(auto city : world()->get_cities())
-	{
+	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
 		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != world()->get_region(city->get_pos())) {
 			continue;
 		}

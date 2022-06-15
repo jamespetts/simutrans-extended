@@ -303,8 +303,7 @@ void freight_list_sorter_t::sort_freight(vector_tpl<ware_t> const& warray, cbuff
 	}
 
 
-	for(auto const ware : warray)
-	{
+	FOR(vector_tpl<ware_t>, const& ware, warray) {
 		if (ware.get_desc() == goods_manager_t::none || ware.menge == 0) {
 			continue;
 		}

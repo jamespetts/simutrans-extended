@@ -343,7 +343,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 				if(way && way->connected_buildings.get_count() > 0)
 				{
-					for(auto const gb : way->connected_buildings)
+					FOR(minivec_tpl<gebaeude_t*>, const gb, way->connected_buildings)
 					{
 						if(!gb)
 						{

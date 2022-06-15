@@ -1235,7 +1235,7 @@ void gui_convoy_payload_info_t::draw(scr_coord offset)
 					int bar_start_offset = 0;
 					int cargo_sum= 0 ;
 					extra_y += (LINESPACE - LOADING_BAR_HEIGHT) / 2;
-					for(auto const ware : v->get_cargo(0))
+					FOR(slist_tpl<ware_t>, const ware, v->get_cargo(0))
 					{
 						goods_desc_t const* const wtyp = ware.get_desc();
 						cargo_sum += ware.menge;

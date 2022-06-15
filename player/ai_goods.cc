@@ -143,8 +143,7 @@ bool ai_goods_t::get_factory_tree_lowest_missing( fabrik_t *fab )
 			continue;
 		}
 
-		for(auto const q : fab->get_suppliers())
-		{
+		FOR(vector_tpl<koord>, const& q, fab->get_suppliers()) {
 			fabrik_t* const qfab = fabrik_t::get_fab(q);
 			const factory_desc_t* const fd = qfab->get_desc();
 			for(  uint qq = 0;  qq < fd->get_product_count();  qq++  ) {
@@ -200,8 +199,7 @@ int ai_goods_t::get_factory_tree_missing_count( fabrik_t *fab )
 		{
 			complete = false;
 		}
-		for(auto const q : fab->get_suppliers())
-		{
+		FOR(vector_tpl<koord>, const& q, fab->get_suppliers()) {
 			fabrik_t* const qfab = fabrik_t::get_fab(q);
 			if(!qfab) {
 				dbg->error("fabrik_t::get_fab()","fab %s at %s does not find supplier at %s.", fab->get_name(), fab->get_pos().get_str(), q.get_str());
@@ -271,13 +269,11 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 				add_neighbourhood( one_more, 1 );
 				// Any halts here?
 				vector_tpl<koord> halts;
-				for(auto const j : one_more)
-				{
+				FOR(vector_tpl<koord>, const& j, one_more) {
 					halthandle_t const halt = get_halt(j);
 					if(  halt.is_bound()  &&  !halts.is_contained(halt->get_basis_pos())  ) {
 						bool halt_connected = halt->get_fab_list().is_contained( fab );
-						for(auto const i : halt->get_tiles())
-						{
+						FOR(  slist_tpl<haltestelle_t::tile_t>, const& i, halt->get_tiles()  ) {
 							koord const pos = i.grund->get_pos().get_2d();
 							if(  halt_connected  ||  fab_tiles.is_contained(pos)  ) {
 								halts.append_unique( pos );
@@ -289,8 +285,7 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 				vector_tpl<koord> *next = &halts;
 				for( uint8 k = 0; k < 2; k++ ) {
 					// On which tiles we can start?
-					for(auto const j : *next)
-					{
+					FOR(vector_tpl<koord>, const& j, *next) {
 						grund_t const* const gr = welt->lookup_kartenboden(j);
 						if(  gr  &&  gr->get_grund_hang() == slope_t::flat  &&  !gr->hat_wege()  &&  !gr->get_leitung()  ) {
 							tile_list[i].append_unique( gr->get_pos() );
@@ -806,8 +801,7 @@ void ai_goods_t::step()
 			if(root==NULL) {
 				// find a tree root to complete
 				weighted_vector_tpl<fabrik_t *> start_fabs(20);
-				for(auto const fab : welt->get_fab_list())
-				{
+				FOR(vector_tpl<fabrik_t*>, const fab, welt->get_fab_list()) {
 					// consumer and not completely overcrowded
 					if(  fab->get_desc()->is_consumer_only()  &&  fab->get_status() < fabrik_t::bad  ) {
 						int missing = get_factory_tree_missing_count( fab );
@@ -1333,8 +1327,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 							vector_tpl<linehandle_t> lines;
 							koord water_stop = koord::invalid;
 							simlinemgmt.get_lines( simline_t::shipline, &lines );
-							for(auto const line : lines)
-							{
+							FOR(vector_tpl<linehandle_t>, const line, lines) {
 								schedule_t *schedule=line->get_schedule();
 								if(schedule->get_count()>1  &&  haltestelle_t::get_halt(schedule->entries[0].pos,this)==start_halt) {
 									water_stop = koord( (start_pos.x+schedule->entries[0].pos.x)/2, (start_pos.y+schedule->entries[0].pos.y)/2 );
@@ -1507,8 +1500,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 	sint32 cnt = forbidden_connections.get_count();
 	file->rdwr_long(cnt);
 	if(file->is_saving()) {
-		for(auto const fc : forbidden_connections)
-		{
+		FOR(slist_tpl<fabconnection_t*>, const fc, forbidden_connections) {
 			fc->rdwr(file);
 		}
 	}
@@ -1536,8 +1528,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 bool ai_goods_t::is_forbidden( fabrik_t *fab1, fabrik_t *fab2, const goods_desc_t *w ) const
 {
 	fabconnection_t fc(fab1, fab2, w);
-	for(auto const test_fc : forbidden_connections)
-	{
+	FOR(slist_tpl<fabconnection_t*>, const test_fc, forbidden_connections) {
 		if (fc == (*test_fc)) {
 			return true;
 		}

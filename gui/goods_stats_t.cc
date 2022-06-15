@@ -39,8 +39,7 @@ void goods_stats_t::update_goodslist(vector_tpl<const goods_desc_t*>goods, uint3
 	remove_all();
 	set_table_layout(display_mode>0 ? 5:7, 0);
 
-	for(auto wtyp : goods)
-	{
+	FOR(vector_tpl<const goods_desc_t*>, wtyp, goods) {
 		new_component<gui_colorbox_t>(wtyp->get_color())->set_size(scr_size(LINESPACE/2 + 2, LINESPACE/2 + 2));
 
 		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);

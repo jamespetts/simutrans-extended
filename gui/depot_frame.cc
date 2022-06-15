@@ -431,8 +431,7 @@ void depot_frame_t::update_data()
 	convoy_selector.set_selection(0);
 
 	// check all matching convoys
-	for(auto const c : depot->get_convoy_list())
-	{
+	FOR(slist_tpl<convoihandle_t>, const c, depot->get_convoy_list()) {
 		convoy_selector.new_component<convoy_scrollitem_t>(c) ;
 		if(  cnv.is_bound()  &&  c == cnv  ) {
 			convoy_selector.set_selection( convoy_selector.count_elements() - 1 );
@@ -518,8 +517,7 @@ void depot_frame_t::build_line_list()
 	vector_tpl<linehandle_t> lines;
 	depot->get_owner()->simlinemgmt.get_lines(depot->get_line_type(), &lines, line_type_flags, true);
 	std::sort(lines.begin(), lines.end(), compare_line);
-	for(auto const line : lines)
-	{
+	FOR(  vector_tpl<linehandle_t>,  const line,  lines  ) {
 		line_selector.new_component<line_scrollitem_t>(line) ;
 		if(  selected_line.is_bound()  &&  selected_line == line  ) {
 			line_selector.set_selection( line_selector.count_elements() - 1 );
@@ -536,8 +534,7 @@ void depot_frame_t::build_line_list()
 sint64 depot_frame_t::calc_sale_value(const vehicle_desc_t *veh_type)
 {
 	sint64 wert = 0;
-	for (auto const v : depot->get_vehicle_list())
-	{
+	FOR(slist_tpl<vehicle_t*>, const v, depot->get_vehicle_list()) {
 		if(  v->get_desc() == veh_type  ) {
 			wert += v->calc_sale_value();
 		}

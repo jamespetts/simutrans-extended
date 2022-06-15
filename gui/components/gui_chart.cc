@@ -203,8 +203,7 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 
 	// draw chart's curves
-	for(auto const c : curves)
-	{
+	FOR(slist_tpl<curve_t>, const& c, curves) {
 		if (c.show) {
 			double display_tmp;
 			int start = abort_display_x ? (left_to_right_graph ? c.elements - abort_display_x : 0) : 0;
@@ -311,8 +310,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 	bool convert_kmph = false; // for speed chart. Converts the scale from simspeed to km/h.
 	bool convert_n_to_kn = false; // for force chart
 
-	for(auto const c : curves)
-	{
+	FOR(slist_tpl<curve_t>, const& c, curves) {
 		if(  c.show  ) {
 			for(  int i=0;  i<c.elements;  i++  ) {
 				tmp = c.values[i*c.size+c.offset];

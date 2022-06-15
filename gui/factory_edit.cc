@@ -209,8 +209,7 @@ void factory_edit_frame_t::fill_list()
 	// now build scrolled list
 	scl.clear_elements();
 	scl.set_selection(-1);
-	for(auto const i : factory_list)
-	{
+	FOR(vector_tpl<factory_desc_t const*>, const i, factory_list) {
 		PIXVAL const color =
 			i->is_consumer_only() ? color_idx_to_rgb(COL_DARK_BLUE + env_t::gui_player_color_dark) :
 			i->is_producer_only() ? color_idx_to_rgb(40 + env_t::gui_player_color_dark)            :

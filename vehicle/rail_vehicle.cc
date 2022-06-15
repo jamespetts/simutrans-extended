@@ -2933,7 +2933,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		halthandle_t train_halt = haltestelle_t::get_halt(cnv->get_pos(), cnv->get_owner());
 		halthandle_t signal_halt;
 
-		for(auto const g : signs)
+		FOR(slist_tpl<grund_t*>, const g, signs)
 		{
 			if(signal_t* const signal = g->find<signal_t>())
 			{
@@ -3066,7 +3066,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			}
 		}
 
-		for(auto const signal : pre_signals)
+		FOR(slist_tpl<signal_t*>, const signal, pre_signals)
 		{
 			if(!do_not_clear_distant && !(not_entirely_free && next_signal_index == first_stop_signal_index))
 			{
@@ -3123,7 +3123,7 @@ void rail_vehicle_t::clear_token_reservation(signal_t* sig, rail_vehicle_t* w, s
 		// The route has been recalculated since token block mode was entered, so delete all the reservations.
 		// Do not unreserve tiles ahead in the route (i.e., those not marked stale), however.
 		const waytype_t waytype = sch->get_waytype();
-		for(auto const way : weg_t::get_alle_wege())
+		FOR(vector_tpl<weg_t*>, const way, weg_t::get_alle_wege())
 		{
 			if(way->get_waytype() == waytype)
 			{

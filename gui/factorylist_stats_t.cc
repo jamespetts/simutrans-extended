@@ -219,8 +219,7 @@ void gui_factory_stats_t::update_table()
 									new_component<gui_image_t>(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), 0, ALIGN_NONE, true)->set_tooltip(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
 									add_table(goods_count*2, 1);
 									{
-										for(auto const material : storage_index ? fab->get_output() : fab->get_input())
-										{
+										FOR(array_tpl<ware_production_t>, const& material, storage_index ? fab->get_output() : fab->get_input()) {
 											goods_desc_t const* const ware = material.get_typ();
 											if (catg_index == ware->get_catg_index()) {
 												new_component<gui_colorbox_t>(ware->get_color())->set_size(scr_size(LINESPACE / 2 + 2, LINESPACE / 2 + 2));
@@ -265,8 +264,7 @@ void gui_factory_stats_t::update_table()
 				sint32 total_out = 0;
 				if (!fab->get_input().empty()) {
 					// arrival = FAB_GOODS_RECEIVED
-					for(auto const material : fab->get_input())
-					{
+					FOR(array_tpl<ware_production_t>, const& material, fab->get_input()) {
 						goods_desc_t const* const ware = material.get_typ();
 						total_in  += material.get_stat(1, FAB_GOODS_RECEIVED)*ware->get_weight_per_unit()/100;
 						total_out += convert_goods(material.get_stat(1, FAB_GOODS_CONSUMED)*ware->get_weight_per_unit())/100;
@@ -301,8 +299,7 @@ void gui_factory_stats_t::update_table()
 					// produced
 					total_in = 0;
 					total_out = 0;
-					for(auto const material : fab->get_output())
-					{
+					FOR(array_tpl<ware_production_t>, const& material, fab->get_output()) {
 						goods_desc_t const* const ware = material.get_typ();
 						total_in  += convert_goods(material.get_stat(1, FAB_GOODS_PRODUCED)*ware->get_weight_per_unit())/100;
 						total_out += material.get_stat(1, FAB_GOODS_DELIVERED)*ware->get_weight_per_unit()/100;
@@ -385,8 +382,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 		if (has_halt) {
 			// receipt_status = FAB_GOODS_RECEIVED
 			uint8 reciept_score = 0;
-			for(auto const material : fab->get_input())
-			{
+			FOR(array_tpl<ware_production_t>, const& material, fab->get_input()) {
 				if (material.get_stat(target_month, FAB_GOODS_RECEIVED)) {
 					// This factory is receiving materials this month.
 					reciept_score += 100 / fab->get_input().get_count();
@@ -414,8 +410,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 		if (has_halt) {
 			uint8 forwarding_score = 0;
 			// calculate forwarding_score
-			for(auto const product : fab->get_output())
-			{
+			FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
 				if (product.get_stat(target_month, FAB_GOODS_DELIVERED)) {
 					// This factory is shipping this month.
 					forwarding_score+=100/fab->get_output().get_count();

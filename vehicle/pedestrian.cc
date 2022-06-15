@@ -412,7 +412,7 @@ void pedestrian_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_
 void pedestrian_t::check_timeline_pedestrians()
 {
 	current_pedestrians.clear();
-	for(auto fd : pedestrian_list)
+	FOR(weighted_vector_tpl<const pedestrian_desc_t*>, fd, pedestrian_list)
 	{
 		if (fd->is_available(world()->get_timeline_year_month()))
 		{
