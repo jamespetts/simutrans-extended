@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 135;
+	int total_len = 139;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -1258,6 +1258,10 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 auto_upgrade_index = obj.get_int("auto_upgrade_index", 255); // Default: 255: do not upgrade automatically
 	node.write_uint8(fp, auto_upgrade_index, pos);
 	pos += sizeof(auto_upgrade_index);
+
+	uint32 maintenance_interval_km = obj.get_int("maintenance_interval_km", 0); // Default: 0: use default maintenance interval (1 year)
+	node.write_uint32(fp, maintenance_interval_km, pos);
+	pos += sizeof(maintenance_interval_km);
 
 
 	sint8 sound_str_len = sound_str.size();

@@ -103,6 +103,7 @@ private:
 	uint32 max_overhaul_cost = 0;				// Overhaul cost (after full increase for multiple overhauls)
 	uint16 overhauls_before_max_cost = 0;		// The number of overhauls before the maximum overhaul cost is reached. 0: no change
 	uint32 max_distance_between_overhauls = 0;	// The maximum distance in km between overhauls. 0: no overhauls required
+	uint32 maintenance_interval_km = 0;			// The distance between maintenance depot visits (when the next depot visit will be triggered). 1.5x this will trigger an emergency depot visit wherever the convoy is on its schedule.
 	uint16 max_running_cost = UINT32_MAX_VALUE;	// The maximum running cost of vehicles at max_distance_between_overhauls. Sigmoid interpolation between running_cost and this after availabiliuty_decay_start_km
 	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
 	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay and running costs increase. 0: no decay
