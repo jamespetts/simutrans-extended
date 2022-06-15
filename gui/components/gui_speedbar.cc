@@ -42,7 +42,8 @@ void gui_speedbar_t::draw(scr_coord offset)
 
 	if(vertical) {
 		sint32 from = size.h;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(auto const i : values)
+		{
 			sint32 const to = size.h - min(*i.value, base) * size.h / base;
 			if(to < from) {
 				display_fillbox_wh_clip_rgb(offset.x, offset.y + to, size.w, from - to, i.color, true);
@@ -55,7 +56,8 @@ void gui_speedbar_t::draw(scr_coord offset)
 	}
 	else {
 		sint32 from = 0;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for (auto const i : values)
+		{
 			sint32 const to = min(*i.value, base) * size.w / base;
 			if(to > from) {
 				display_fillbox_wh_clip_rgb(offset.x + from, offset.y, to - from, size.h, i.color, true);
@@ -252,7 +254,8 @@ void gui_bandgraph_t::draw(scr_coord offset)
 {
 	offset += pos;
 	total = 0;
-	FOR(slist_tpl<info_t>, const& i, values) {
+	for (auto const i : values)
+	{
 		total += *i.value;
 	}
 
@@ -262,7 +265,8 @@ void gui_bandgraph_t::draw(scr_coord offset)
 	else{
 		sint32 temp = 0;
 		scr_coord_val end = 0;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for (auto const i : values)
+		{
 			if (*i.value>0) {
 				temp += (*i.value);
 				const scr_coord_val from = size.w * temp / total + 0.5;

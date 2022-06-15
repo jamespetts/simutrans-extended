@@ -529,7 +529,8 @@ void map_frame_t::update_factory_legend()
 		vector_tpl<const factory_desc_t*> factory_types;
 		// generate list of factory types
 		if(  filter_factory_list  ) {
-			FOR(vector_tpl<fabrik_t*>, const f, welt->get_fab_list()) {
+			for(auto const f: welt->get_fab_list())
+			{
 				if(  f->get_desc()->get_distribution_weight() > 0  ) {
 					factory_types.insert_unique_ordered(f->get_desc(), compare_factories);
 				}
@@ -549,7 +550,8 @@ void map_frame_t::update_factory_legend()
 		bool filter_by_catg = (minimap_t::get_instance()->freight_type_group_index_showed_on_map != nullptr && minimap_t::get_instance()->freight_type_group_index_showed_on_map != goods_manager_t::none);
 		PIXVAL prev_color = 0;
 		const char *prev_name = {};
-		FOR(vector_tpl<const factory_desc_t*>, f, factory_types) {
+		for(auto const f : factory_types)
+		{
 			if (prev_name && !strcmp(translator::translate(f->get_name()), prev_name) && f->get_color()==prev_color) {
 				continue;
 			}

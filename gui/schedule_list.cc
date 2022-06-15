@@ -1081,7 +1081,8 @@ void schedule_list_gui_t::build_line_list(int selected_tab)
 	scl.clear_elements();
 	player->simlinemgmt.get_lines(tabs_to_lineindex[selected_tab], &lines, get_filter_type_bits(), true);
 
-	FOR(vector_tpl<linehandle_t>, const l, lines) {
+	for(auto const l : lines)
+	{
 		// search name
 		if(  utf8caseutf8(l->get_name(), schedule_filter)  ) {
 			scl.new_component<line_scrollitem_t>(l);

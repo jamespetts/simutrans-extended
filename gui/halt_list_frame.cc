@@ -397,8 +397,10 @@ static bool passes_filter_out(haltestelle_t const& s)
 			// Sigh - a doubly nested loop per halt
 			// Fortunately the number of factories and their number of outputs
 			// is limited (usually 1-2 factories and 0-1 outputs per factory)
-			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
-				FOR(array_tpl<ware_production_t>, const& j, f->get_output()) {
+			for(auto const f : s.get_fab_list())
+			{
+				for(auto const j : f->get_output())
+				{
 					if (j.get_typ() == ware) return true;
 				}
 			}
@@ -431,8 +433,10 @@ static bool passes_filter_in(haltestelle_t const& s)
 			// Sigh - a doubly nested loop per halt
 			// Fortunately the number of factories and their number of outputs
 			// is limited (usually 1-2 factories and 0-1 outputs per factory)
-			FOR(slist_tpl<fabrik_t*>, const f, s.get_fab_list()) {
-				FOR(array_tpl<ware_production_t>, const& j, f->get_input()) {
+			for (auto const f : s.get_fab_list())
+			{
+				for (auto const j : f->get_output())
+				{
 					if (j.get_typ() == ware) return true;
 				}
 			}
@@ -574,7 +578,8 @@ void halt_list_frame_t::fill_list()
 	last_world_stops = haltestelle_t::get_alle_haltestellen().get_count(); // count of stations
 	if (halt_list_stats_t::name_width==0) {
 		// set name width
-		FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
+		for(auto const halt : haltestelle_t::get_alle_haltestellen())
+		{
 			const scr_coord_val temp_w = proportional_string_width(halt->get_name());
 			if (temp_w > halt_list_stats_t::name_width) {
 				halt_list_stats_t::name_width = temp_w;
@@ -583,7 +588,8 @@ void halt_list_frame_t::fill_list()
 	}
 
 	scrolly->clear_elements();
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
+	for(auto const halt : haltestelle_t::get_alle_haltestellen())
+	{
 		if (filter_city != NULL){
 			if (filter_city != world()->get_city(halt->get_basis_pos())) {
 				continue;
@@ -788,7 +794,8 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 		uint8 good_nr = waren_filter_ab.get_count();
 		file->rdwr_byte(good_nr);
 		if (good_nr > 0) {
-			FOR(slist_tpl<const goods_desc_t*>, const i, waren_filter_ab) {
+			for(auto const i : waren_filter_ab)
+			{
 				char* name = const_cast<char*>(i->get_name());
 				file->rdwr_str(name, 256);
 			}
@@ -796,7 +803,8 @@ void halt_list_frame_t::rdwr(loadsave_t* file)
 		good_nr = waren_filter_an.get_count();
 		file->rdwr_byte(good_nr);
 		if (good_nr > 0) {
-			FOR(slist_tpl<const goods_desc_t*>, const i, waren_filter_an) {
+			for(auto const i : waren_filter_an)
+			{
 				char* name = const_cast<char*>(i->get_name());
 				file->rdwr_str(name, 256);
 			}

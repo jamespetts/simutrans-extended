@@ -111,7 +111,8 @@ void pakselector_t::fill_list()
 
 	entries.sort(dir_entry_t::compare);
 
-	FOR(slist_tpl<dir_entry_t>, &i, entries) {
+	for(auto i : entries)
+	{
 
 		if (i.type == LI_HEADER) {
 			continue;

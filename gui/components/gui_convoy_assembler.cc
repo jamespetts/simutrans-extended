@@ -1039,7 +1039,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		if(electrics_vec.empty()  &&  pas_vec.empty()  &&  pas2_vec.empty()  &&  loks_vec.empty()  &&  waggons_vec.empty())
 		{
 			int loks = 0, waggons = 0, pax=0, electrics = 0, pax2=0;
-			FOR(slist_tpl<vehicle_desc_t *>, const info, vehicle_builder_t::get_info(way_type))
+			for(auto const info : vehicle_builder_t::get_info(way_type))
 			{
 				if(info->get_engine_type() == vehicle_desc_t::electric  &&  (info->get_freight_type()==goods_manager_t::passengers  ||  info->get_freight_type()==goods_manager_t::mail))
 				{
@@ -1077,7 +1077,8 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 	// use this to show only sellable vehicles
 	if(!show_all  &&  veh_action==va_sell && depot_frame) {
 		// just list the one to sell
-		FOR(slist_tpl<vehicle_t*>, const v, depot_frame->get_depot()->get_vehicle_list()) {
+		for(auto const v : depot_frame->get_depot()->get_vehicle_list())
+		{
 			vehicle_desc_t const* const d = v->get_desc();
 			if (vehicle_map.get(d)) continue;
 			add_to_vehicle_list(d);
@@ -1092,7 +1093,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		  depot_frame->update_data();
 		}
 
-		FOR(slist_tpl<vehicle_desc_t *>, const info, vehicle_builder_t::get_info(way_type))
+		for(auto const info : vehicle_builder_t::get_info(way_type))
 		{
 			const vehicle_desc_t *veh = NULL;
 			if(vehicles.get_count()>0) {
@@ -1126,7 +1127,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 
 						if(replace_frame == NULL)
 						{
-							FOR(vector_tpl<const vehicle_desc_t*>, vehicle, vehicles)
+							for(auto vehicle : vehicles)
 							{
 								vehicle_list.append(vehicle);
 							}
@@ -1146,7 +1147,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 							break;
 						}
 
-						FOR(vector_tpl<const vehicle_desc_t*>, vehicle, vehicle_list)
+						for(auto vehicle : vehicle_list)
 						{
 							for(uint16 c = 0; c < vehicle->get_upgrades_count(); c++)
 							{
@@ -1218,7 +1219,8 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		}
 		livery_selector.clear_elements();
 		std::sort(livery_scheme_indices.begin(), livery_scheme_indices.end());
-		FOR(vector_tpl<uint16>, const& i, livery_scheme_indices) {
+		for(auto const i : livery_scheme_indices)
+		{
 			livery_scheme_t* scheme = schemes->get_element(i);
 			livery_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(scheme->get_name()), SYSCOL_TEXT);
 			livery_selector.set_selection(i);
@@ -1264,7 +1266,7 @@ void gui_convoy_assembler_t::add_to_vehicle_list(const vehicle_desc_t *info)
 			if(freight->get_catg_index() >= 3)
 			{
 				bool found = false;
-				FOR(vector_tpl<goods_desc_t const*>, const i, welt->get_goods_list())
+				for(auto const i : welt->get_goods_list())
 				{
 					if (freight->get_catg_index() == i->get_catg_index())
 					{
@@ -1577,7 +1579,7 @@ void gui_convoy_assembler_t::update_data()
 			image_id image;
 			if(depot_frame)
 			{
-				FOR(slist_tpl<vehicle_t *>, const& iter, depot_frame->get_depot()->get_vehicle_list())
+				for(auto const iter : depot_frame->get_depot()->get_vehicle_list())
 				{
 					if(iter->get_desc() == info)
 					{
@@ -1672,7 +1674,7 @@ void gui_convoy_assembler_t::update_data()
 
 	const player_t *player = welt->get_active_player();
 
-	FOR(vehicle_image_map, const& i, vehicle_map)
+	for(auto const i : vehicle_map)
 	{
 		vehicle_desc_t const* const    info = i.key;
 		gui_image_list_t::image_data_t& img  = *i.value;
@@ -1919,7 +1921,7 @@ DBG_DEBUG("gui_convoy_assembler_t::update_data()","current %s with colors %i,%i"
 
 	if (depot_frame)
 	{
-		FOR(slist_tpl<vehicle_t *>, const& iter2, depot_frame->get_depot()->get_vehicle_list())
+		for(auto const iter2 : depot_frame->get_depot()->get_vehicle_list())
 		{
 			gui_image_list_t::image_data_t *imgdat=vehicle_map.get(iter2->get_desc());
 			// can fail, if currently not visible
@@ -2019,7 +2021,8 @@ void gui_convoy_assembler_t::update_tabs()
 	vehicle_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All"), SYSCOL_TEXT);
 	vehicle_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Relevant"), SYSCOL_TEXT);
 
-	FOR(vector_tpl<goods_desc_t const*>, const i, welt->get_goods_list()) {
+	for(auto const i : welt->get_goods_list())
+	{
 		vehicle_filter.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(i->get_name()), SYSCOL_TEXT, i->get_catg_symbol());
 	}
 
@@ -2655,7 +2658,8 @@ void gui_convoy_assembler_t::draw_vehicle_info_text(const scr_coord& pos)
 
 				int rows = 0;
 				int left = 0;
-				FOR(vector_tpl<uint16>, const& i, livery_scheme_indices) {
+				for(auto const i : livery_scheme_indices)
+				{
 					buf.clear();
 					livery_scheme_t* scheme = welt->get_settings().get_livery_schemes()->get_element(i);
 					if (scheme->get_latest_available_livery(welt->get_timeline_year_month(), veh_type))

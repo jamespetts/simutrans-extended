@@ -106,7 +106,8 @@ void themeselector_t::fill_list()
 	// do the search ...
 	savegame_frame_t::fill_list();
 
-	FOR(slist_tpl<dir_entry_t>, const& i, entries) {
+	for(auto const i : entries)
+	{
 
 		if (i.type == LI_HEADER) {
 			continue;

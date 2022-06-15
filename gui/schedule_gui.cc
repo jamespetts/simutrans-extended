@@ -1531,7 +1531,8 @@ void schedule_gui_t::init_line_selector()
 			line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("<no line>"), SYSCOL_TEXT);
 		}
 
-		FOR(vector_tpl<linehandle_t>, line, lines) {
+		for(auto line : lines)
+		{
 			line_selector.new_component<line_scrollitem_t>(line);
 			if (!new_line.is_bound()) {
 				if (cnv->get_schedule()->matches(welt, line->get_schedule())) {

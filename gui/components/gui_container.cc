@@ -90,7 +90,8 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				new_focus = NULL;
 				if(  IS_SHIFT_PRESSED(ev)  ) {
 					// find previous textinput field
-					FOR(vector_tpl<gui_component_t*>, const c, components) {
+					for(auto const c : components)
+					{
 						if (c == comp_focus) break;
 						if (c->is_focusable()) {
 							new_focus = c;
@@ -100,7 +101,8 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				else {
 					// or next input field
 					bool valid = comp_focus==NULL;
-					FOR(vector_tpl<gui_component_t*>, const c, components) {
+					for(auto const c : components)
+					{
 						if (valid && c->is_focusable()) {
 							new_focus = c;
 							break;
@@ -156,7 +158,8 @@ bool gui_container_t::infowin_event(const event_t *ev)
 		if(  !swallowed  ) {
 
 			vector_tpl<gui_component_t *>handle_mouseover;
-			FOR(  vector_tpl<gui_component_t*>,  const comp,  components  ) {
+			for(auto const comp : components)
+			{
 
 				if(  list_dirty  ) {
 					break;
@@ -187,7 +190,8 @@ bool gui_container_t::infowin_event(const event_t *ev)
 			/* since the last drawn are overlaid over all others
 			 * the event-handling must go reverse too
 			 */
-			FOR(  vector_tpl<gui_component_t*>,  const comp,  handle_mouseover  ) {
+			for(auto const comp : handle_mouseover)
+			{
 
 				if (list_dirty) {
 					break;
@@ -296,7 +300,8 @@ void gui_container_t::draw(scr_coord offset)
 
 bool gui_container_t::is_focusable()
 {
-	FOR( vector_tpl<gui_component_t*>, const c, components ) {
+	for(auto const c : components)
+	{
 		if(  c->is_focusable()  ) {
 			return true;
 		}

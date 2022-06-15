@@ -109,8 +109,10 @@ void labellist_frame_t::fill_list()
 	label_count = welt->get_label_list().get_count();
 
 	scrolly.clear_elements();
-	FOR(slist_tpl<koord>, const& pos, welt->get_label_list()) {
-		if (labellist_stats_t::region_filter && (labellist_stats_t::region_filter - 1) != welt->get_region(pos)) {
+	for(auto const pos : welt->get_label_list())
+	{
+		if (labellist_stats_t::region_filter && (labellist_stats_t::region_filter - 1) != welt->get_region(pos))
+		{
 			continue;
 		}
 		label_t* label = welt->lookup_kartenboden(pos)->find<label_t>();
@@ -131,7 +133,8 @@ void labellist_frame_t::fill_list()
 uint32 labellist_frame_t::count_label()
 {
 	uint32 labelcount = 0;
-	FOR(slist_tpl<koord>, const& pos, welt->get_label_list()) {
+	for(auto const pos : welt->get_label_list())
+	{
 		label_t* label = welt->lookup_kartenboden(pos)->find<label_t>();
 		const char* name = welt->lookup_kartenboden(pos)->get_text();
 		// some old version games don't have label nor name.

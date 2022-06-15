@@ -474,7 +474,8 @@ void rdwr_win_settings(loadsave_t *file)
 	}
 	else {
 		typedef inthashtable_tpl<ptrdiff_t, scr_size, N_BAGS_MEDIUM> stupid_table_t;
-		FOR(stupid_table_t, it, saved_windowsizes) {
+		for(auto it : saved_windowsizes)
+		{
 			sint64 m = it.key;
 			file->rdwr_longlong(m);
 			file->rdwr_long(it.value.w);
@@ -493,7 +494,8 @@ gui_frame_t *win_get_magic(ptrdiff_t magic)
 {
 	if(  magic!=-1  &&  magic!=0  ) {
 		// there is at most one window with a positive magic number
-		FOR( vector_tpl<simwin_t>, const& i, wins ) {
+		for(auto const i : wins)
+		{
 			if(  i.magic_number == magic  ) {
 				// if 'special' magic number, return it
 				return i.gui;
@@ -509,7 +511,8 @@ bool win_set_magic( gui_frame_t *gui, ptrdiff_t magic )
 {
 	if(  magic!=-1  &&  magic!=0  ) {
 		// there is at most one window with a positive magic number
-		FOR( vector_tpl<simwin_t>, &i, wins ) {
+		for (auto i : wins)
+		{
 			if(  i.gui == gui  ) {
 				i.magic_number = magic;
 				return true;
@@ -593,7 +596,8 @@ void rdwr_all_win(loadsave_t *file)
 {
 	if( file->is_version_ex_atleast(15,0) ) {
 		if(  file->is_saving()  ) {
-			FOR(vector_tpl<simwin_t>, & i, wins) {
+			for (auto i : wins)
+			{
 				uint32 id = i.gui->get_rdwr_id();
 				if(  id!=magic_reserved  ) {
 					file->rdwr_long( id );
@@ -900,7 +904,8 @@ int create_win(scr_coord_val x, scr_coord_val y, gui_frame_t* const gui, wintype
  */
 static void process_kill_list()
 {
-	FOR(vector_tpl<simwin_t>, & i, kill_list) {
+	for(auto i : kill_list)
+	{
 		if (inside_event_handling != i.gui) {
 			destroy_framed_win(&i);
 			wins.remove(i);
@@ -1201,7 +1206,8 @@ void display_all_win()
 
 void win_rotate90( sint16 new_ysize )
 {
-	FOR(vector_tpl<simwin_t>, const& i, wins) {
+	for (auto const i : wins)
+	{
 		i.gui->map_rotate90(new_ysize);
 	}
 }
@@ -1413,9 +1419,11 @@ void resize_win(int win, event_t *ev)
 // returns true, if gui is a open window handle
 bool win_is_open(gui_frame_t *gui)
 {
-	FOR(vector_tpl<simwin_t>, const& i, wins) {
+	for (auto const i : wins)
+	{
 		if (i.gui == gui) {
-			FOR(vector_tpl<simwin_t>, const& j, kill_list) {
+			for(auto const j : kill_list)
+			{
 				if (j.gui == gui) {
 					return false;
 				}
@@ -1753,7 +1761,8 @@ void win_poll_event(event_t* const ev)
 	if(  ev->ev_class==EVENT_SYSTEM  &&  ev->ev_code==SYSTEM_THEME_CHANGED  ) {
 		// called when font is changed
 		ev->mx = ev->my = ev->cx = ev->cy = 0;
-		FOR(vector_tpl<simwin_t>, const& i, wins) {
+		for (auto const i : wins)
+		{
 			i.gui->infowin_event(ev);
 		}
 		ev->ev_class = IGNORE_EVENT;
