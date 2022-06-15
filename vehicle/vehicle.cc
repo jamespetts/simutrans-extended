@@ -1408,7 +1408,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, km_since_last_overhaul(0u)
 	, km_since_last_maintenance(0u)
 	, km_since_last_replenish(0u)
-	, last_maintenance_time(0ll)
+	, last_maintenance_month(0u)
+	, last_overhaul_month(0u)
 	, ticks_at_last_departure(0ll)
 	, tags(0u)
 {
@@ -2929,7 +2930,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(km_since_last_overhaul);
 		file->rdwr_long(km_since_last_maintenance);
 		file->rdwr_long(km_since_last_replenish);
-		file->rdwr_longlong(last_maintenance_time);
+		file->rdwr_long(last_maintenance_month);
+		file->rdwr_long(last_overhaul_month);
 		file->rdwr_short(tags);
 		file->rdwr_longlong(ticks_at_last_departure);
 
@@ -2948,7 +2950,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		km_since_last_overhaul = 0u;
 		km_since_last_maintenance = 0u;
 		km_since_last_replenish = 0u;
-		last_maintenance_time = welt->get_ticks();
+		last_maintenance_month = welt->get_current_month();
+		last_overhaul_month = welt->get_current_month();
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
 		tags = 0u;

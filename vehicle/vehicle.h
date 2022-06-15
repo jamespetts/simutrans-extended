@@ -386,7 +386,8 @@ protected:
 	uint32 km_since_last_overhaul;
 	uint32 km_since_last_maintenance;
 	uint32 km_since_last_replenish;
-	sint64 last_maintenance_time;
+	uint32 last_maintenance_month;
+	uint32 last_overhaul_month;
 
 	sint64 ticks_at_last_departure;
 
@@ -703,16 +704,16 @@ public:
 	virtual sint32 get_takeoff_route_index() const { return INVALID_INDEX; }
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
 
-	// TODO: Implement proper logic for this. Aircraft need different logic to other vehicles, hence
-	// virtual. Query: do we need different logic for other vehicles, too?
+	// Aircraft need different logic to other vehicles, hence virtual.
+	// Query: do we need different logic for other vehicles, too?
 	// This should always return true when is_maintenance_urgently_needed() would be true.
-	virtual bool is_maintenance_needed() const { return false; }
-	virtual bool is_maintenance_urgently_needed() const { return false; }
+	virtual bool is_maintenance_needed() const { return last_maintenance_month + 12 < welt->get_current_month(); } // Maintenance required every Simutrans year
+	virtual bool is_maintenance_urgently_needed() const { return last_maintenance_month + 18 < welt->get_current_month(); }
 	virtual bool is_overhaul_needed() const { return false; }
 
 	void replenish() { km_since_last_replenish = 0; }
-	void maintain() { replenish(); km_since_last_maintenance = 0; }
-	void overhaul() { maintain(); km_since_last_overhaul = 0; } // TODO: Add code here for updating the livery.
+	void maintain() { replenish(); km_since_last_maintenance = 0; last_maintenance_month = welt->get_current_month(); }
+	void overhaul() { maintain(); km_since_last_overhaul = 0; last_overhaul_month = welt->get_current_month(); } // TODO: Add code here for updating the livery.
 
 	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
 	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }
