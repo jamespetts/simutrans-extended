@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 134;
+	int total_len = 135;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -1254,6 +1254,10 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint16 max_running_cost = obj.get_int("max_running_cost", 65535); // We encode the default as 65535 so that the default can be changed when the main program reads this.
 	node.write_uint16(fp, max_running_cost, pos);
 	pos += sizeof(max_running_cost);
+
+	uint8 auto_upgrade_index = obj.get_int("auto_upgrade_index", 255); // Default: 255: do not upgrade automatically
+	node.write_uint8(fp, auto_upgrade_index, pos);
+	pos += sizeof(auto_upgrade_index);
 
 
 	sint8 sound_str_len = sound_str.size();

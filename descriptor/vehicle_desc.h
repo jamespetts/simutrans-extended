@@ -125,6 +125,7 @@ private:
 	uint8 leader_count;							// all defined leading vehicles
 	uint8 trailer_count;						// all defined trailer
 	uint8 upgrades;								// The number of vehicles that are upgrades of this vehicle.
+	uint8 auto_upgrade_index = 255;				// The index of the vehicle upgrade to which this vehicle upgrades automatically during the first overhaul in which the upgrade is available. Default: 255: no auto upgrade
 
 	engine_t engine_type;						// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 

@@ -607,6 +607,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->minimum_availability = decode_uint8(p);
 					desc->replenishment_seconds = decode_uint32(p);
 					desc->max_running_cost = decode_uint32(p);
+					desc->auto_upgrade_index = decode_uint8(p);
 
 				}
 				// We do not need the "else", as all of the new values are header initialised.
