@@ -7934,21 +7934,10 @@ void convoi_t::clear_replace()
 
  void convoi_t::apply_livery_scheme()
  {
-	 const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(livery_scheme_index);
-	 if(!scheme)
-	 {
-		 return;
-	 }
-	 const uint16 date = welt->get_timeline_year_month();
 	 for (int i = 0; i < vehicle_count; i++)
 	 {
 		vehicle_t& v = *vehicle[i];
-		const char* liv = scheme->get_latest_available_livery(date, v.get_desc());
-		if(liv)
-		{
-			// Only change the livery if there is an available scheme livery.
-			v.set_current_livery(liv);
-		}
+		v.update_livery();
 	 }
  }
 

@@ -700,20 +700,19 @@ public:
 
 	void set_current_livery(const char* liv) { current_livery = liv; }
 	const char* get_current_livery() const { return current_livery.c_str(); }
+	void update_livery(); // Helper method for overhauls
 
 	virtual sint32 get_takeoff_route_index() const { return INVALID_INDEX; }
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
 
+	bool is_maintenance_needed() const;
+	bool is_maintenance_urgently_needed() const;
 	// Aircraft need different logic to other vehicles, hence virtual.
-	// Query: do we need different logic for other vehicles, too?
-	// This should always return true when is_maintenance_urgently_needed() would be true.
-	virtual bool is_maintenance_needed() const { return last_maintenance_month + 12 < welt->get_current_month(); } // Maintenance required every Simutrans year
-	virtual bool is_maintenance_urgently_needed() const { return last_maintenance_month + 18 < welt->get_current_month(); }
-	virtual bool is_overhaul_needed() const { return false; }
+	virtual bool is_overhaul_needed() const;
 
 	void replenish() { km_since_last_replenish = 0; }
 	void maintain() { replenish(); km_since_last_maintenance = 0; last_maintenance_month = welt->get_current_month(); }
-	void overhaul() { maintain(); km_since_last_overhaul = 0; last_overhaul_month = welt->get_current_month(); } // TODO: Add code here for updating the livery.
+	virtual void overhaul();
 
 	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
 	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }

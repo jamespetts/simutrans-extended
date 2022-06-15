@@ -630,6 +630,11 @@ private:
 	// true if companies can make ways public
 	bool disable_make_way_public;
 
+	//The number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 maintenance_interval_months = 12;
+	// The maximum number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 extended_maintenance_interval_months = 18;
+
 public:
 	/* the big cost section */
 	sint32 maint_building; // normal building
@@ -1327,6 +1332,11 @@ public:
 	void set_do_not_record_private_car_routes_to_distant_non_consumer_industries(bool value) { do_not_record_private_car_routes_to_distant_non_consumer_industries = value; }
 	bool get_do_not_record_private_car_routes_to_city_buildings() const { return do_not_record_private_car_routes_to_city_buildings; }
 	void set_do_not_record_private_car_routes_to_city_buildings(bool value) { do_not_record_private_car_routes_to_city_buildings = value; }
+
+	uint32 get_maintenance_interval_months() const { return maintenance_interval_months; }
+	void set_maintenance_interval_months(uint32 value) { maintenance_interval_months = value; }
+	uint32 get_extended_maintenance_interval_months() const { return extended_maintenance_interval_months; }
+	void set_extended_maintenance_interval_months(uint32 value) { extended_maintenance_interval_months = value; }
 };
 
 #endif

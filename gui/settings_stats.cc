@@ -264,6 +264,8 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_NUM("do_not_record_private_car_routes_to_city_industries", sets->get_do_not_record_private_car_routes_to_city_industries(), 0, 65535, gui_numberinput_t::PLAIN, false);
 	INIT_BOOL("do_not_record_private_car_routes_to_distant_non_consumer_industries ", sets->get_do_not_record_private_car_routes_to_distant_non_consumer_industries());
 	INIT_BOOL("do_not_record_private_car_routes_to_city_buildings", sets->get_do_not_record_private_car_routes_to_city_buildings());
+	INIT_NUM("maintenance_interval_months", sets->get_maintenance_interval_months(), 1, 8192, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("extended_maintenance_interval_months", sets->get_extended_maintenance_interval_months(), 2, 8192, gui_numberinput_t::PLAIN, false);
 
 	INIT_END
 }
@@ -376,6 +378,8 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->private_car_route_to_industry_visitor_demand_threshold);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_distant_non_consumer_industries);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_city_buildings);
+	READ_NUM_VALUE(sets->maintenance_interval_months);
+	READ_NUM_VALUE(sets->extended_maintenance_interval_months);
 
 	path_explorer_t::set_absolute_limits_external();
 }

@@ -3404,3 +3404,60 @@ void vehicle_t::before_delete()
 {
 }
 
+bool vehicle_t::is_maintenance_needed() const
+{
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return last_maintenance_month + welt->get_settings().get_maintenance_interval_months() < welt->get_current_month();
+	}
+	return km_since_last_maintenance > desc->get_maintenance_interval_km();
+}
+
+bool vehicle_t::is_maintenance_urgently_needed() const
+{
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return last_maintenance_month + welt->get_settings().get_extended_maintenance_interval_months() < welt->get_current_month();
+	}
+	return km_since_last_maintenance > ((desc->get_maintenance_interval_km() * 3) / 2);
+}
+
+bool vehicle_t::is_overhaul_needed() const
+{
+	if (desc->get_max_distance_between_overhauls() == 0)
+	{
+		return false;
+	}
+	return km_since_last_overhaul > desc->get_max_distance_between_overhauls(); 
+}
+
+void vehicle_t::overhaul()
+{
+	maintain();
+	km_since_last_overhaul = 0;
+	last_overhaul_month = welt->get_current_month();
+	update_livery();
+}
+
+void vehicle_t::update_livery()
+{
+	const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(cnv->get_livery_scheme_index());
+	if (!scheme)
+	{
+		return;
+	}
+	const uint16 date = welt->get_timeline_year_month();
+	const char* liv = scheme->get_latest_available_livery(date, desc);
+	if (liv)
+	{
+		set_current_livery(liv);
+		return;
+	}
+	// We have no current liveries in this scheme
+	if (scheme->is_available(date))
+	{
+		// If the scheme is not obsolete, do not change the scheme
+		return;
+	}
+	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.	
+}

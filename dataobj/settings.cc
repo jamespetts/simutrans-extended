@@ -1700,16 +1700,6 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(parallel_ways_forge_cost_percentage_air);
 
 			file->rdwr_long(max_diversion_tiles);
-#ifdef SPECIAL_RESCUE_12_3
-			if(file->is_saving())
-			{
-				file->rdwr_long(way_degradation_fraction);
-				file->rdwr_long(way_wear_power_factor_road_type);
-				file->rdwr_long(way_wear_power_factor_rail_type);
-				file->rdwr_short(standard_axle_load);
-				file->rdwr_long(citycar_way_wear_factor);
-			}
-#else
 			file->rdwr_long(way_degradation_fraction);
 			file->rdwr_long(way_wear_power_factor_road_type);
 			file->rdwr_long(way_wear_power_factor_rail_type);
@@ -1726,7 +1716,6 @@ void settings_t::rdwr(loadsave_t *file)
 				file->rdwr_long(max_speed_drive_by_sight_kmh);
 				max_speed_drive_by_sight = kmh_to_speed(max_speed_drive_by_sight_kmh);
 			}
-#endif
 			if( file->is_version_ex_equal(14, 46) && file->is_loading() ) {
 				// Special rescue for broken setting
 				uint32 dummy = 0;
@@ -1928,6 +1917,12 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_bool(do_not_record_private_car_routes_to_city_buildings);
 		}
 		// otherwise the default values of the last one will be used
+
+		if (file->is_version_ex_atleast(15, 0))
+		{
+			file->rdwr_long(maintenance_interval_months);
+			file->rdwr_long(extended_maintenance_interval_months);
+		}
 	}
 
 
@@ -2194,10 +2189,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		}
 	}
 
-	drive_on_left                  = contents.get_int( "drive_left",                     drive_on_left ) != 0;
-	signals_on_left                = contents.get_int( "signals_on_left",                signals_on_left ) != 0;
-	allow_underground_transformers = contents.get_int( "allow_underground_transformers", allow_underground_transformers ) != 0;
-	disable_make_way_public        = contents.get_int( "disable_make_way_public",        disable_make_way_public ) != 0;
+	drive_on_left						= contents.get_int( "drive_left",                     drive_on_left ) != 0;
+	signals_on_left						= contents.get_int( "signals_on_left",                signals_on_left ) != 0;
+	allow_underground_transformers		= contents.get_int( "allow_underground_transformers", allow_underground_transformers ) != 0;
+	disable_make_way_public				= contents.get_int( "disable_make_way_public",        disable_make_way_public ) != 0;
+	maintenance_interval_months			= contents.get_int("maintenance_interval_months", maintenance_interval_months);
+	extended_maintenance_interval_months = contents.get_int("extended_maintenance_interval_months", extended_maintenance_interval_months); 
 
 	// up to ten rivers are possible
 	for( int i = 0; i < 10; i++ ) {

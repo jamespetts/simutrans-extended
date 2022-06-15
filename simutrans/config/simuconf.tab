@@ -523,7 +523,6 @@ compass_map_position = 13
 #visualize_schedule = 1
 
 
-
 ############################### Further Display settings ###############################
 #These cannot be set in the Display settings UI, so simuconf is the only way to set these
 
@@ -856,6 +855,14 @@ simplified_maintenance = 0
 # This setting alters the revenue for electricity transmission.
 # The figure is a percentage of the default revenue. Default: 100.
 power_revenue_factor_percentage = 100
+
+# These settings govern the frequency with which vehicles that do not have a distance based
+# maintenance interval set in their individual .dat files must return to the depot for maintenance.
+# After maintenance_interval_months, the vehicle will return to the depot on its next scheduled
+# depot visit. After extended_maintenance_interval_months, the vehicle will return to the depot
+# after its next stop irrespective of its schedule.
+maintenance_interval_months = 12
+extended_maintenance_interval_months = 18
 
 ############################## Private car settings ##############################
 

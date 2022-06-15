@@ -675,10 +675,13 @@ public:
 	uint32 get_max_overhaul_cost() const { return max_overhaul_cost; }
 	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }
 	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
+	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }
+	uint32 get_max_running_cost() const { return max_running_cost; }
 	uint32 get_max_takeoffs() const { return max_takeoffs; }
 	uint32 get_availability_decay_start_km() const { return availability_decay_start_km; }
 	uint8 get_starting_availability() const { return starting_availability; }
 	uint8 get_minimum_availability() const { return minimum_availability; }
+	uint32 get_replenishment_seconds() const { return replenishment_seconds; }
 
 	uint32 get_total_staff() const;
 	uint32 get_total_staff_hundredths() const;

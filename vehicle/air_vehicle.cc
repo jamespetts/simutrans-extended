@@ -1405,3 +1405,12 @@ const char *air_vehicle_t::is_deletable(const player_t *player)
 	}
 	return NULL;
 }
+
+bool air_vehicle_t::is_overhaul_needed() const
+{
+	if (desc->get_max_takeoffs() > 0)
+	{
+		return number_of_takeoffs > desc->get_max_takeoffs() || vehicle_t::is_overhaul_needed();
+	}
+	return vehicle_t::is_overhaul_needed();
+}
