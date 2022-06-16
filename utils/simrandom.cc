@@ -625,14 +625,7 @@ uint64 sigmoid(uint64 value, uint64 upper_bound)
 	}
 
 	// Average the two if in the third quartile of the range
-	if ((value * 4) < (upper_bound * 3))
-	{
-		return (first_part + second_part) / 2;
-	}
-	else
-	{
-		return second_part;
-	}
+	return (first_part + second_part) / 2;
 }
 
 #endif
