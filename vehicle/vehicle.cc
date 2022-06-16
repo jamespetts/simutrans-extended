@@ -3442,7 +3442,7 @@ void vehicle_t::replenish()
 	km_since_last_replenish = 0;
 
 	const sint64 replenish_time = welt->get_seconds_to_ticks(desc->get_replenishment_seconds());
-	cnv->set_wait_lock((sint32)replenish_time); 
+	cnv->set_wait_lock((sint32)replenish_time);
 }
 
 void vehicle_t::maintain()
