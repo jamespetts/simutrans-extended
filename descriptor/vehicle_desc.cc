@@ -622,4 +622,3 @@ uint32 vehicle_desc_t::get_total_drivers() const
 	}
 	return count;
 }
-

@@ -2931,6 +2931,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(km_since_last_maintenance);
 		file->rdwr_long(km_since_last_replenish);
 		file->rdwr_long(last_maintenance_month);
+		file->rdwr_longlong(last_maintenance_time);
 		file->rdwr_long(last_overhaul_month);
 		file->rdwr_short(tags);
 		file->rdwr_longlong(ticks_at_last_departure);
@@ -2943,6 +2944,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 		do_not_overhaul = dno;
 		do_not_auto_upgrade = dnau;
+
+		file->rdwr_short(overhauls);
 	}
 	else
 	{
@@ -2950,12 +2953,14 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		km_since_last_overhaul = 0u;
 		km_since_last_maintenance = 0u;
 		km_since_last_replenish = 0u;
+		last_maintenance_time = welt->get_ticks();
 		last_maintenance_month = welt->get_current_month();
 		last_overhaul_month = welt->get_current_month();
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
 		tags = 0u;
 		ticks_at_last_departure = 0ll;
+		overhauls = 0u;
 	}
 }
 
@@ -3431,12 +3436,63 @@ bool vehicle_t::is_overhaul_needed() const
 	return km_since_last_overhaul > desc->get_max_distance_between_overhauls(); 
 }
 
+void vehicle_t::replenish()
+{
+	cnv->set_state(convoi_t::REPLENISHING);
+	km_since_last_replenish = 0;
+
+	const sint64 replenish_time = welt->get_seconds_to_ticks(desc->get_replenishment_seconds());
+	cnv->set_wait_lock((sint32)replenish_time); 
+}
+
+void vehicle_t::maintain()
+{
+	// Do not call replenish() recursively as this will trigger the wait
+	km_since_last_replenish = 0;
+
+	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
+	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
+	cnv->set_wait_lock((sint32)maintenance_time);
+	cnv->set_state(convoi_t::MAINTENANCE);
+
+	last_maintenance_time = welt->get_ticks();
+	km_since_last_maintenance = 0;
+	last_maintenance_month = welt->get_current_month();
+}
+
 void vehicle_t::overhaul()
 {
-	maintain();
+	// Do not call maintain() recursively as this will trigger the wait
+	km_since_last_replenish = 0;
+	km_since_last_maintenance = 0;
+	last_maintenance_month = welt->get_current_month();
+	last_maintenance_time = welt->get_ticks();
+	cnv->set_state(convoi_t::OVERHAUL);
+
 	km_since_last_overhaul = 0;
+	overhauls++;
 	last_overhaul_month = welt->get_current_month();
 	update_livery();
+
+	sint64 overhaul_cost = get_overhaul_cost(); // TODO: Find the right place to check affordability
+	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category
+
+	// TODO: Add timing/delay
+}
+
+sint64 vehicle_t::get_overhaul_cost() const
+{
+	const sint64 base_overhaul_cost = desc->get_initial_overhaul_cost();
+	const sint64 max_overhaul_cost = desc->get_max_overhaul_cost();
+
+	if (overhauls == 0 || max_overhaul_cost == base_overhaul_cost || max_overhaul_cost == 0)
+	{
+		return base_overhaul_cost;
+	}
+
+	const uint64 overhaul_sigmoid = sigmoid(100000 * overhauls, 100000 * desc->get_overhauls_before_max_cost());
+	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / 10000ll) + base_overhaul_cost;
+	return overhaul_cost;
 }
 
 void vehicle_t::update_livery()

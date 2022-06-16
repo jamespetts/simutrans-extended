@@ -295,6 +295,10 @@ private:
 	 */
 	sint32 overhaul_time;
 
+
+	// The number of times that this vehicle has been overhauled.
+	uint16 overhauls = 0u;
+
 	/**
 	 * For the more physical acceleration model friction is introduced
 	 * frictionforce = gamma*speed*weight
@@ -388,6 +392,7 @@ protected:
 	uint32 km_since_last_replenish;
 	uint32 last_maintenance_month;
 	uint32 last_overhaul_month;
+	sint64 last_maintenance_time;
 
 	sint64 ticks_at_last_departure;
 
@@ -710,9 +715,12 @@ public:
 	// Aircraft need different logic to other vehicles, hence virtual.
 	virtual bool is_overhaul_needed() const;
 
-	void replenish() { km_since_last_replenish = 0; }
-	void maintain() { replenish(); km_since_last_maintenance = 0; last_maintenance_month = welt->get_current_month(); }
+	uint8 get_availability() const { return 100; } // TODO: Implement real logic here
+
+	void replenish();
+	void maintain();
 	virtual void overhaul();
+	sint64 get_overhaul_cost() const;
 
 	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
 	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }
