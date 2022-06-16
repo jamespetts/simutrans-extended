@@ -94,5 +94,5 @@ uint64 sqrt_i64(uint64 num);
 
 // Compute integer sigmoid function
 uint64 sigmoid(uint64 value, uint64 upper_bound);
-}
+
 #endif
