@@ -110,6 +110,7 @@ private:
 	uint8  starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
 	uint8  minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
 	uint32 replenishment_seconds = 60;			// The number of seconds required for this vehicle to replenish (refuel) at a replenishment stop.
+	uint8 overhaul_month_tenths = 10;			// The length of time that this vehicle needs to be overhauled (using the long time scale)
 
 	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
 												// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)
@@ -682,6 +683,7 @@ public:
 	uint8 get_starting_availability() const { return starting_availability; }
 	uint8 get_minimum_availability() const { return minimum_availability; }
 	uint32 get_replenishment_seconds() const { return replenishment_seconds; }
+	uint8 get_overhaul_month_tenths() const { return overhaul_month_tenths; }
 
 	uint32 get_total_staff() const;
 	uint32 get_total_staff_hundredths() const;

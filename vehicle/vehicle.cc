@@ -3467,6 +3467,7 @@ void vehicle_t::overhaul()
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 	last_maintenance_time = welt->get_ticks();
+	cnv->set_wait_lock((welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u);
 	cnv->set_state(convoi_t::OVERHAUL);
 
 	km_since_last_overhaul = 0;
