@@ -191,7 +191,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	do
 	{
 		// Check for multiple driver types with a separate number of workers each
-		char buf[13];
+		char buf[36];
 		sprintf(buf, "driver[%u]", j);
 		current_driver_number = obj.get_int(buf, UINT32_MAX_VALUE);
 
@@ -1189,9 +1189,9 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint32(fp, fuel_per_km, pos);
 	pos += sizeof(fuel_per_km);
 
-	uint8 total_staff = staff_types.get_count();
-	node.write_uint8(fp, total_staff, pos);
-	pos += sizeof(total_staff);
+	uint8 total_staff_types = staff_types.get_count();
+	node.write_uint8(fp, total_staff_types, pos);
+	pos += sizeof(total_staff_types);
 
 	for(auto staff : staff_types)
 	{
@@ -1202,9 +1202,9 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		pos += sizeof(staff.value);
 	}
 
-	uint8 total_drivers = driver_types.get_count();
-	node.write_uint8(fp, total_drivers, pos);
-	pos += sizeof(total_drivers);
+	uint8 total_driver_types = driver_types.get_count();
+	node.write_uint8(fp, total_driver_types, pos);
+	pos += sizeof(total_driver_types);
 
 	for(auto driver : driver_types)
 	{
@@ -1235,7 +1235,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	node.write_uint32(fp, max_takeoffs, pos);
 	pos += sizeof(max_takeoffs);
 
-	uint32 availability_decay_start_km = obj.get_int("availability_decay_start_km", 0); // Default of zero means no overhauls required.
+	uint32 availability_decay_start_km = obj.get_int("availability_decay_start_km", 0); // Default of zero means no decay.
 	node.write_uint32(fp, availability_decay_start_km, pos);
 	pos += sizeof(availability_decay_start_km);
 

@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 		if(  debuglevel>=log_t::LEVEL_WARN  ) {
 			puts(
 				"Makeobj-Extended, based on Makeobj version " MAKEOBJ_VERSION " for Simutrans " VERSION_NUMBER EXTENDED_VERSION " and higher"
-				"Extended version by James E. Petts, derived from Makeobj, (c) 2002-2012 V. Meyer , Hj. Malthaner and \n"
+				"Extended version by the Simutrans-Extended team, derived from Makeobj, (c) 2002-2022 V. Meyer , Hj. Malthaner and \n"
 				"M. Pristovsek and the Simutrans development team. This is open source software, released under the Artistic Licence.\n"
 			);
 		}

@@ -574,18 +574,22 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->cut_off_speed = decode_uint32(p);
 					desc->fuel_per_km = decode_uint32(p);
 
-					const uint8 total_staff = decode_uint8(p);
+					const uint8 total_staff_types = decode_uint8(p);
 
-					for (uint32 i = 0; i < total_staff; i++)
+					for (uint32 i = 0; i < total_staff_types; i++)
 					{
-						desc->staff_hundredths.put(decode_uint8(p), decode_uint32(p));
+						uint8 key = decode_uint8(p);
+						uint32 value = decode_uint32(p);
+						desc->staff_hundredths.put(key, value);
 					}
 
-					const uint8 total_drivers = decode_uint8(p);
+					const uint8 total_driver_types = decode_uint8(p);
 
-					for (uint32 i = 0; i < total_drivers; i++)
+					for (uint32 i = 0; i < total_driver_types; i++)
 					{
-						desc->drivers.put(decode_uint8(p), decode_uint32(p));
+						uint8 key = decode_uint8(p);
+						uint32 value = decode_uint32(p);
+						desc->drivers.put(key, value);
 					}
 
 					desc->base_initial_overhaul_cost = decode_uint32(p);
@@ -606,7 +610,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->starting_availability = decode_uint8(p);
 					desc->minimum_availability = decode_uint8(p);
 					desc->replenishment_seconds = decode_uint32(p);
-					desc->max_running_cost = decode_uint32(p);
+					desc->max_running_cost = decode_uint16(p);
 					desc->auto_upgrade_index = decode_uint8(p);
 					desc->maintenance_interval_km = decode_uint32(p);
 				}
