@@ -367,7 +367,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			if (extended_version >= 7)
 			{
 				// 15.x features - note that these all have defaults set in the header file, so no explicit initialisation is necessary for older versions.
-				desc->max_vehicles_under_maintenance = decode_uint16(p); 
+				desc->max_vehicles_under_maintenance = decode_uint16(p);
 			}
 		}
 		else
