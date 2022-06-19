@@ -37,6 +37,7 @@ protected:
 	 */
 	slist_tpl<vehicle_t *> vehicles;
 	slist_tpl<convoihandle_t> convois;
+	vector_tpl<convoihandle_t> under_maintenance; // Includes maintenance and overhaul, but not replenishment.
 
 	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file);
 
@@ -225,6 +226,25 @@ public:
 	inline unsigned get_max_convoi_length() const { return get_max_convoy_length(get_wegtyp()); }
 
 	void add_to_world_list(bool lock = false);
+
+	// Adds a convoy to a depot for maintenance.
+	// Keeps track of how many are in for maintenance at once for the purposes of the maintenance limit.
+	// Includes overhauls.
+	void register_for_maintenance(convoihandle_t cnv);
+
+	// Puts the convoy at the head of the maintenance queue
+	void prioritise_for_maintenance(convoihandle_t cnv);
+
+	// Move to the back of the maintenance queue.
+	void depriortise_for_maintenance(convoihandle_t cnv);
+
+	// True if this convoy is registered for maintenance, but not currently being worked on because there
+	// are too many other convoys being worked on at present.
+	bool is_awaiting_attention(convoihandle_t cnv) const;
+
+	// For advancing the timing of convoys under maintenance
+	sync_result sync_step(uint32 delta_t);
+
 
 private:
 	linehandle_t last_selected_line;

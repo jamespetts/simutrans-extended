@@ -1266,9 +1266,28 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case WAITING_FOR_CLEARANCE_TWO_MONTHS:
 		case SELF_DESTRUCT:
 		case EMERGENCY_STOP:
+		case REPLENISHING:
+			break;
+
 		case OVERHAUL:
 		case MAINTENANCE:
-		case REPLENISHING:
+			if (true) // For compiling only
+			{
+				const depot_t* dep = welt->lookup(front()->get_pos())->get_depot();
+				if (!dep)
+				{
+					dbg->error("sync_result convoi_t::sync_step(uint32 delta_t)", "Convoy under maintenance not in a depot");
+					state = INITIAL;
+					break;
+				}
+
+				if (dep->is_awaiting_attention(self))
+				{
+					// The maintenance time does not count down if this is awaiting attention.
+					wait_lock += delta_t;
+				}
+			}
+
 			break;
 
 		case INITIAL:

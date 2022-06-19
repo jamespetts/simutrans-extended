@@ -156,7 +156,7 @@ class building_desc_t : public obj_desc_timelined_t {
 				 * These will be converted in building_reader_t::register_obj to a valid btype.
 				 */
 			enum old_building_types_t {
-			// from here on only old style flages
+			// from here on only old style flags
 			bahnhof           =  8,
 			bushalt           =  9,
 			ladebucht         = 10,
@@ -247,6 +247,8 @@ class building_desc_t : public obj_desc_timelined_t {
 	uint32 pier_sub_1_mask; //piers preexisting for first (ground) floor
 	uint32 pier_sub_2_mask; //piers prexisting for sencond floor
 	uint8  pier_sub_needed : 1; //building needs to be placed within matching pier
+
+	uint16 max_vehicles_under_maintenance = 4; // The maximum number of vehicles that can simultaneously be maintained in this building (for depots only)
 
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
@@ -446,7 +448,9 @@ public:
 		return floor==0 ? pier_sub_1_mask : pier_sub_2_mask;
 	}
 
-	bool get_pier_needed() const { return pier_sub_needed;}
+	bool get_pier_needed() const { return pier_sub_needed; }
+
+	uint16 get_max_vehicles_under_maintenance() const { return max_vehicles_under_maintenance; }
 };
 
 

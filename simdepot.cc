@@ -56,6 +56,7 @@ depot_t::depot_t(loadsave_t *file) : gebaeude_t()
 		set_yoff(0);
 	}
 	all_depots.append(this);
+	welt->sync.add(this);
 	selected_filter = VEHICLE_FILTER_RELEVANT;
 	last_selected_line = linehandle_t();
 	command_pending = false;
@@ -75,6 +76,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	last_selected_line = linehandle_t();
 	command_pending = false;
 	add_to_world_list();
+	welt->sync.add(this); 
 }
 
 
@@ -88,6 +90,7 @@ depot_t::~depot_t()
 		welt->remove_building_from_world_list(this);
 		// No need to remove this from the city statistics here, as this will be done by the gebaeude_t parent object.
 	}
+	welt->sync.remove(this);
 }
 
 
@@ -712,6 +715,8 @@ void depot_t::remove_convoi( convoihandle_t cnv )
 	else {
 		convois.remove( cnv );
 	}
+
+	under_maintenance.remove(cnv);
 }
 
 
@@ -725,6 +730,37 @@ void depot_t::rdwr(loadsave_t *file)
 		// wagons are stored extra, just add them to vehicles
 		assert(file->is_loading());
 		rdwr_vehicle(vehicles, file);
+	}
+
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save the queue of maintained vehicles in order
+		if (file->is_saving())
+		{
+			uint32 under_maintenance_count = under_maintenance.get_count();
+			file->rdwr_long(under_maintenance_count);
+
+			for(uint32 i = 0; i < under_maintenance_count; i ++)
+			{
+				uint16 cnv_id = under_maintenance[i].get_id();
+				file->rdwr_short(cnv_id); 
+			}
+		}
+		else if (file->is_loading())
+		{
+			uint32 under_maintenance_count;
+			file->rdwr_long(under_maintenance_count);
+
+			convoihandle_t cnv = convoihandle_t();
+			for (uint32 i = 0; i < under_maintenance_count; i++)
+			{		
+				uint16 cnv_id;
+				file->rdwr_short(cnv_id);
+				cnv.set_id(cnv_id);
+				under_maintenance.append(cnv);
+			}
+		}
+
 	}
 }
 
@@ -802,7 +838,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 /**
  * @return NULL when OK, otherwise an error message
  */
-const char * depot_t:: is_deletable(const player_t *player)
+const char * depot_t::is_deletable(const player_t *player)
 {
 	if(player!=get_owner()  &&  player!=welt->get_public_player()) {
 		return NOTICE_OWNED_BY_OTHER_PLAYER;
@@ -814,6 +850,14 @@ const char * depot_t:: is_deletable(const player_t *player)
 	for (auto const c : convois)
 	{
 		if (c.is_bound() && c->get_vehicle_count() > 0) {
+			return "There are still vehicles\nstored in this depot!\n";
+		}
+	}
+
+	for (auto const c : under_maintenance)
+	{
+		if (c.is_bound() && c->get_vehicle_count() > 0)
+		{
 			return "There are still vehicles\nstored in this depot!\n";
 		}
 	}
@@ -936,7 +980,7 @@ bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 trac
 	if (traction_types != 0 ) {
 		// If traction types were specified, then *one* of them must match
 		// *one* of the types supported by this depot
-		if ( ! (traction_types & this->get_tile()->get_desc()->get_enabled()) ) {
+		if ( ! (traction_types & get_tile()->get_desc()->get_enabled()) ) {
 			return false;
 		}
 	}
@@ -956,3 +1000,52 @@ void depot_t::add_to_world_list(bool)
 	}
 }
 
+void depot_t::register_for_maintenance(convoihandle_t cnv)
+{
+	under_maintenance.append(cnv);
+}
+
+void depot_t::prioritise_for_maintenance(convoihandle_t cnv)
+{
+	if (!under_maintenance.remove(cnv))
+	{
+		return;
+	}
+	under_maintenance.insert_at(0, cnv);
+}
+
+void depot_t::depriortise_for_maintenance(convoihandle_t cnv)
+{
+	if (!under_maintenance.remove(cnv))
+	{
+		return;
+	}
+	under_maintenance.append(cnv);
+}
+
+bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
+{
+	if (!under_maintenance.is_contained(cnv))
+	{
+		dbg->error("bool depot_t::is_awaiting_attention(convoihandle_t cnv) const", "Convoy %s not in maintenance queue where it is expected to be", cnv->get_name());
+		return false;
+	}
+
+	const uint32 queue_pos = under_maintenance.index_of(cnv);
+	if (queue_pos >= get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+sync_result depot_t::sync_step(uint32 delta_t)
+{
+	for (auto c : under_maintenance)
+	{
+		c->sync_step(delta_t);
+	}
+
+	return sync_result::SYNC_OK;
+}

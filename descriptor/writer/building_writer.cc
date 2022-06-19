@@ -332,7 +332,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint16 mail_demand_and_production_capacity = obj.get_int("mail_demand", 65535);
 	mail_demand_and_production_capacity = obj.get_int("mail_demand_and_production_capacity", mail_demand_and_production_capacity);
 
-	total_len = 51;
+	uint16 max_vehicles_under_maintenance = obj.get_int("max_vehicles_under_maintenance", 4);
+
+	total_len = 53;
 
 	uint16 current_class_proportion;
 	vector_tpl<uint16> class_proportions(2);
@@ -505,7 +507,8 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x400: Unused due to versioning errors
 	// 0x500: Class proportions
 	// 0x600: Pier System
-	version += 0x700;
+	// 0x700: 15x - depot maintenance capacity
+	version += 0x800;
 
 	int pos = 0;
 
@@ -616,6 +619,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	node.write_uint8(fp, pier_sub_needed, pos);
 	pos+=sizeof(uint8);
+
+	node.write_uint16(fp, max_vehicles_under_maintenance, pos);
+	pos += sizeof(max_vehicles_under_maintenance);
 
 	// probably add some icons, if defined
 	slist_tpl<string> cursorkeys;
