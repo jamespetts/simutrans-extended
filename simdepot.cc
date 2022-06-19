@@ -76,7 +76,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	last_selected_line = linehandle_t();
 	command_pending = false;
 	add_to_world_list();
-	welt->sync.add(this); 
+	welt->sync.add(this);
 }
 
 
@@ -743,7 +743,7 @@ void depot_t::rdwr(loadsave_t *file)
 			for(uint32 i = 0; i < under_maintenance_count; i ++)
 			{
 				uint16 cnv_id = under_maintenance[i].get_id();
-				file->rdwr_short(cnv_id); 
+				file->rdwr_short(cnv_id);
 			}
 		}
 		else if (file->is_loading())
@@ -753,7 +753,7 @@ void depot_t::rdwr(loadsave_t *file)
 
 			convoihandle_t cnv = convoihandle_t();
 			for (uint32 i = 0; i < under_maintenance_count; i++)
-			{		
+			{
 				uint16 cnv_id;
 				file->rdwr_short(cnv_id);
 				cnv.set_id(cnv_id);

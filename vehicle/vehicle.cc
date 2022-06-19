@@ -3452,7 +3452,7 @@ void vehicle_t::maintain()
 
 	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
 	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
-	cnv->set_wait_lock((sint32)maintenance_time); // TODO: Deal with multiple vehicles in a convoy being maintained and the impact on timings of this. 
+	cnv->set_wait_lock((sint32)maintenance_time); // TODO: Deal with multiple vehicles in a convoy being maintained and the impact on timings of this.
 	cnv->set_state(convoi_t::MAINTENANCE);
 
 	last_maintenance_time = welt->get_ticks();
