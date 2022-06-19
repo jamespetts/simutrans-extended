@@ -56,9 +56,9 @@ public:
 		}
 		else
 		{
-			for(auto livery : liveries)
+			for(uint32 i = 0; i < liveries.get_count(); i ++)
 			{
-				if(date >= livery.intro_date)
+				if(date >= liveries[i].intro_date)
 				{
 					return true;
 				}
