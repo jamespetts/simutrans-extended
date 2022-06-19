@@ -106,6 +106,7 @@ private:
 	uint32 maintenance_interval_km = 0;			// The distance between maintenance depot visits (when the next depot visit will be triggered). 1.5x this will trigger an emergency depot visit wherever the convoy is on its schedule.
 	uint16 max_running_cost = UINT32_MAX_VALUE;	// The maximum running cost of vehicles at max_distance_between_overhauls. Sigmoid interpolation between running_cost and this after availabiliuty_decay_start_km
 	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
+	uint32 availability_decay_start_takeoffs = 0;// The number of takeoffs (flight cycles) after which availability begins to decay and running costs increase. 0: no decay
 	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay and running costs increase. 0: no decay
 	uint8  starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
 	uint8  minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
@@ -679,6 +680,7 @@ public:
 	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }
 	uint32 get_max_running_cost() const { return max_running_cost; }
 	uint32 get_max_takeoffs() const { return max_takeoffs; }
+	uint32 get_availability_decay_start_takeoffs() const { return availability_decay_start_takeoffs; }
 	uint32 get_availability_decay_start_km() const { return availability_decay_start_km; }
 	uint8 get_starting_availability() const { return starting_availability; }
 	uint8 get_minimum_availability() const { return minimum_availability; }

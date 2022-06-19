@@ -3477,8 +3477,6 @@ void vehicle_t::overhaul()
 
 	sint64 overhaul_cost = get_overhaul_cost(); // TODO: Find the right place to check affordability
 	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category
-
-	// TODO: Add timing/delay
 }
 
 sint64 vehicle_t::get_overhaul_cost() const
@@ -3491,7 +3489,7 @@ sint64 vehicle_t::get_overhaul_cost() const
 		return base_overhaul_cost;
 	}
 
-	const uint64 overhaul_sigmoid = sigmoid(100000 * overhauls, 100000 * desc->get_overhauls_before_max_cost());
+	const uint64 overhaul_sigmoid = sigmoid(100000ll * overhauls, 100000ll * desc->get_overhauls_before_max_cost());
 	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / 10000ll) + base_overhaul_cost;
 	return overhaul_cost;
 }
@@ -3517,4 +3515,24 @@ void vehicle_t::update_livery()
 		return;
 	}
 	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.
+}
+
+uint8 vehicle_t::get_availability() const
+{
+	const uint8 base_availability = desc->get_starting_availability();
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
+	{
+		return base_availability;
+	}
+
+	const uint8 min_availability = desc->get_minimum_availability();
+
+	if (km_since_last_overhaul >= desc->get_max_distance_between_overhauls())
+	{
+		return min_availability;
+	}
+
+	const uint64 availability_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
+	const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+	return base_availability - (uint8) availability_loss;
 }

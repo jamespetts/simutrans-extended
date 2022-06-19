@@ -101,6 +101,8 @@ protected:
 
 	void overhaul() { number_of_takeoffs = 0; vehicle_t::overhaul(); }
 
+	uint8 get_availability() const OVERRIDE;
+
 public:
 	air_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
 	air_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv); // start and schedule

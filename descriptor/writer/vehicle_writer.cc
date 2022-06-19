@@ -87,7 +87,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 140;
+	int total_len = 144;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -1278,6 +1278,10 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 overhaul_month_tenths = obj.get_int("overhaul_month_tenths", default_overhaul_month_tenths); // Default differs per waytype and has a special low value for biological vehicles
 	node.write_uint8(fp, overhaul_month_tenths, pos);
 	pos += sizeof(overhaul_month_tenths);
+
+	uint32 availability_decay_start_takeoffs = obj.get_int("availability_decay_start_takeoffs", 0); // Default 0: no decay
+	node.write_uint32(fp, availability_decay_start_takeoffs, pos);
+	pos += sizeof(availability_decay_start_takeoffs);
 
 
 	sint8 sound_str_len = sound_str.size();

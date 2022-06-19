@@ -444,6 +444,8 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(max_running_cost);
 	chk->input(replenishment_seconds);
 	chk->input(maintenance_interval_km);
+	chk->input(overhaul_month_tenths);
+	chk->input(availability_decay_start_takeoffs);
 
 	// TODO: Consider whether to add the staff detais here, too
 }
