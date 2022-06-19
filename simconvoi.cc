@@ -8729,7 +8729,7 @@ void convoi_t::check_departure(halthandle_t halt)
 		arrival_time = now;
 		if (arrival_time < WAIT_INFINITE)
 		{
-			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt->get_name());
+			dbg->warning("void convoi_t::hat_gehalten(halthandle_t halt)", "Arrival time in the future for %s at %s", get_name(), halt.is_bound() ? halt->get_name() : "not a stop");
 		}
 	}
 	const sint64 reversing_time = schedule->get_current_entry().reverse > 0 ? (sint64)calc_reverse_delay() : 0ll;
