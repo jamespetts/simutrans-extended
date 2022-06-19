@@ -720,7 +720,7 @@ void depot_t::remove_convoi( convoihandle_t cnv )
 }
 
 
-// attention! this will not be used for railway depots! They will be loaded by hand ...
+// attention! this will not be used for railway depots when loading! They will be loaded by hand ...
 void depot_t::rdwr(loadsave_t *file)
 {
 	gebaeude_t::rdwr(file);
@@ -732,6 +732,11 @@ void depot_t::rdwr(loadsave_t *file)
 		rdwr_vehicle(vehicles, file);
 	}
 
+	rdwr_maintenance_queue(file);
+}
+
+void depot_t::rdwr_maintenance_queue(loadsave_t* file)
+{
 	if (file->is_version_ex_atleast(15, 0))
 	{
 		// Load/save the queue of maintained vehicles in order
@@ -740,10 +745,10 @@ void depot_t::rdwr(loadsave_t *file)
 			uint32 under_maintenance_count = under_maintenance.get_count();
 			file->rdwr_long(under_maintenance_count);
 
-			for(uint32 i = 0; i < under_maintenance_count; i ++)
+			for (uint32 i = 0; i < under_maintenance_count; i++)
 			{
 				uint16 cnv_id = under_maintenance[i].get_id();
-				file->rdwr_short(cnv_id); 
+				file->rdwr_short(cnv_id);
 			}
 		}
 		else if (file->is_loading())
@@ -753,7 +758,7 @@ void depot_t::rdwr(loadsave_t *file)
 
 			convoihandle_t cnv = convoihandle_t();
 			for (uint32 i = 0; i < under_maintenance_count; i++)
-			{		
+			{
 				uint16 cnv_id;
 				file->rdwr_short(cnv_id);
 				cnv.set_id(cnv_id);
