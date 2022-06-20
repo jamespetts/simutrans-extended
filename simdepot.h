@@ -78,7 +78,7 @@ public:
 	virtual simline_t::linetype get_line_type() const = 0;
 
 	void rdwr(loadsave_t *file) OVERRIDE;
-	void rdwr_maintenance_queue(loadsave_t* file); 
+	void rdwr_maintenance_queue(loadsave_t* file);
 
 	// text for the tabs is defaulted to the train names
 	virtual const char * get_electrics_name() { return "Electrics_tab"; }
