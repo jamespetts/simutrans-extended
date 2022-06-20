@@ -9139,7 +9139,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 				if (file->is_version_ex_atleast(15, 0))
 				{
 					staff_rdwr(file);
-					fuel_rdwr(file); 
+					fuel_rdwr(file);
 				}
 				stadt_t::electricity_consumption_rdwr(file);
 				if(file->is_version_atleast(102, 4) && file->get_extended_version() < 13 && file->get_extended_revision() < 24 && (file->get_extended_version() == 0 || file->get_extended_version() >= 9)) {
@@ -12387,7 +12387,7 @@ void karte_t::staff_init(const std::string& objfilename)
 		}
 
 		vector_tpl<staff_cost_record_t> salary_record;
-		
+
 		for (uint32 j = 1; j < tracks[0]; j += 2)
 		{
 			staff_cost_record_t c(tracks[j], tracks[j + 1]);
@@ -12429,7 +12429,7 @@ void karte_t::staff_rdwr(loadsave_t* file)
 
 				file->rdwr_longlong(year);
 				file->rdwr_longlong(salary);
-				
+
 				staff_cost_record_t scr(year / 12, salary);
 				salaries.access(i)->append(scr);
 			}
