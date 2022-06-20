@@ -22,6 +22,7 @@
 #include "../utils/float32e8_t.h"
 #include "../simunits.h"
 #include "../tpl/inthashtable_tpl.h"
+#include "../utils/simstring.h"
 
 // GEAR_FACTOR: a gear of 1.0 is stored as 64
 #define GEAR_FACTOR 64
@@ -85,6 +86,85 @@ public:
 		only_at_front =(can_be_head|unconnectable),
 		only_at_end = (can_be_tail|unconnectable) // this type always be bidirectional=0
 	};
+
+	/**
+	 * Calculate numeric engine type from engine type string
+	 */
+	static vehicle_desc_t::engine_t get_engine_type(char const* const engine_type)
+	{
+		vehicle_desc_t::engine_t uv8 = vehicle_desc_t::unknown;
+
+		if (!STRICMP(engine_type, "diesel")) {
+			uv8 = vehicle_desc_t::diesel;
+		}
+		else if (!STRICMP(engine_type, "electric")) {
+			uv8 = vehicle_desc_t::electric;
+		}
+		else if (!STRICMP(engine_type, "steam")) {
+			uv8 = vehicle_desc_t::steam;
+		}
+		else if (!STRICMP(engine_type, "bio")) {
+			uv8 = vehicle_desc_t::bio;
+		}
+		else if (!STRICMP(engine_type, "sail")) {
+			uv8 = vehicle_desc_t::sail;
+		}
+		else if (!STRICMP(engine_type, "fuel_cell")) {
+			uv8 = vehicle_desc_t::fuel_cell;
+		}
+		else if (!STRICMP(engine_type, "hydrogene")) {
+			uv8 = vehicle_desc_t::hydrogene;
+		}
+		else if (!STRICMP(engine_type, "battery")) {
+			uv8 = vehicle_desc_t::battery;
+		}
+		else if (!STRICMP(engine_type, "petrol")) {
+			uv8 = vehicle_desc_t::petrol;
+		}
+		else if (!STRICMP(engine_type, "turbine")) {
+			uv8 = vehicle_desc_t::turbine;
+		}
+		else if (!STRICMP(engine_type, "unknown")) {
+			uv8 = vehicle_desc_t::unknown;
+		}
+
+		// printf("Engine type %s -> %d\n", engine_type, uv8);
+
+		return uv8;
+	}
+
+	static const char* get_engine_type_string(uint8 uv8)
+	{
+		switch (uv8)
+		{
+		case vehicle_desc_t::diesel:
+			return "diesel";
+
+		case vehicle_desc_t::steam:
+			return "steam";
+
+		case vehicle_desc_t::bio:
+			return "bio";
+
+		case vehicle_desc_t::sail:
+			return "sail";
+
+		case vehicle_desc_t::fuel_cell:
+			return "fuel cell";
+
+		case vehicle_desc_t::hydrogene:
+			return "hydrogene";
+
+		case vehicle_desc_t::petrol:
+			return "petrol";
+
+		case vehicle_desc_t::turbine:
+			return "turbine";
+
+		default:
+			return "unknown";
+		}
+	}
 
 private:
 	uint32 upgrade_price;						// Price if this vehicle is bought as an upgrade, not a new vehicle.

@@ -19,6 +19,8 @@
 #include "tpl/slist_tpl.h"
 #include "tpl/koordhashtable_tpl.h"
 
+#include "descriptor/vehicle_desc.h"
+
 #include "dataobj/settings.h"
 #include "network/pwd_hash.h"
 #include "dataobj/loadsave.h"
@@ -113,6 +115,32 @@ public:
 	{
 		year = y * 12;
 		ownership_percent = ownership;
+	};
+};
+
+class staff_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 salary; // Per game month, but using the short time scale, so scaled
+
+	staff_cost_record_t(sint64 y = 0, sint64 sal = 0)
+	{
+		year = y * 12;
+		salary = sal;
+	};
+};
+
+class fuel_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 cost; // Per unit defined by the pakset
+
+	fuel_cost_record_t(sint64 y = 0, sint64 cst = 0)
+	{
+		year = y * 12;
+		cost = cst;
 	};
 };
 
@@ -986,6 +1014,10 @@ public:
 
 	static void privatecar_init(const std::string &objfilename);
 
+	static void staff_init(const std::string &objfilename);
+
+	static void fuel_init(const std::string &objfilename);
+
 private:
 
 	static const sint16 default_car_ownership_percent = 25;
@@ -995,6 +1027,21 @@ private:
 
 	sint16 get_private_car_ownership(sint32 monthyear, uint8 g_class) const;
 	void privatecar_rdwr(loadsave_t *file);
+
+	// A hashtable, indexed by staff type number, of vectors containing temporally interpolated salary amounts for each type of staff.
+	typedef vector_tpl<staff_cost_record_t> staff_cost_map;
+	static inthashtable_tpl<uint8, staff_cost_map, N_BAGS_MEDIUM> salaries;
+
+	void staff_rdwr(loadsave_t* file);
+
+	sint64 get_staff_salary(sint32 monthyear, uint8 staff_type) const;
+
+	// This is an array of fuel costs per traction type.
+	static vector_tpl<fuel_cost_record_t> fuel[vehicle_desc_t::MAX_TRACTION_TYPE];
+
+	void fuel_rdwr(loadsave_t* file);
+
+	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
 
 public:
 

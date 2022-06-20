@@ -20,38 +20,6 @@
 
 using std::string;
 
-/**
- * Calculate numeric engine type from engine type string
- */
-static vehicle_desc_t::engine_t get_engine_type(const char* engine_type)
-{
-	if (!STRICMP(engine_type, "diesel")) {
-		return vehicle_desc_t::diesel;
-	} else if (!STRICMP(engine_type, "electric")) {
-		return vehicle_desc_t::electric;
-	} else if (!STRICMP(engine_type, "steam")) {
-		return vehicle_desc_t::steam;
-	} else if (!STRICMP(engine_type, "bio")) {
-		return vehicle_desc_t::bio;
-	} else if (!STRICMP(engine_type, "sail")) {
-		return vehicle_desc_t::sail;
-	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		return vehicle_desc_t::fuel_cell;
-	} else if (!STRICMP(engine_type, "hydrogene")) {
-		return vehicle_desc_t::hydrogene;
-	} else if (!STRICMP(engine_type, "battery")) {
-		return vehicle_desc_t::battery;
-	} else if (!STRICMP(engine_type, "petrol")) {
-		return vehicle_desc_t::petrol;
-	} else if (!STRICMP(engine_type, "turbine")) {
-		return vehicle_desc_t::turbine;
-	} else if (!STRICMP(engine_type, "unknown")) {
-		return vehicle_desc_t::unknown;
-	}
-
-	return vehicle_desc_t::diesel;
-}
-
 void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seasons,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& backkeys,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& frontkeys
@@ -316,7 +284,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 					engaged = true;
 					enables = 0;
 				}
-				traction_type = get_engine_type(engine_type.c_str());
+				traction_type = vehicle_desc_t::get_engine_type(engine_type.c_str());
 				const uint16 shifter = 1 << traction_type;
 				enables |= shifter;
 				traction_type_count++;

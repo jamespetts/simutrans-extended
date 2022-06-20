@@ -22,42 +22,6 @@
 
 using std::string;
 
-/**
- * Calculate numeric engine type from engine type string
- */
-static vehicle_desc_t::engine_t get_engine_type(char const* const engine_type)
-{
-	vehicle_desc_t::engine_t uv8 = vehicle_desc_t::unknown;
-
-	if (!STRICMP(engine_type, "diesel")) {
-		uv8 = vehicle_desc_t::diesel;
-	} else if (!STRICMP(engine_type, "electric")) {
-		uv8 = vehicle_desc_t::electric;
-	} else if (!STRICMP(engine_type, "steam")) {
-		uv8 = vehicle_desc_t::steam;
-	} else if (!STRICMP(engine_type, "bio")) {
-		uv8 = vehicle_desc_t::bio;
-	} else if (!STRICMP(engine_type, "sail")) {
-		uv8 = vehicle_desc_t::sail;
-	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		uv8 = vehicle_desc_t::fuel_cell;
-	} else if (!STRICMP(engine_type, "hydrogene")) {
-		uv8 = vehicle_desc_t::hydrogene;
-	} else if (!STRICMP(engine_type, "battery")) {
-		uv8 = vehicle_desc_t::battery;
-	} else if (!STRICMP(engine_type, "petrol")) {
-		uv8 = vehicle_desc_t::petrol;
-	} else if (!STRICMP(engine_type, "turbine")) {
-		uv8 = vehicle_desc_t::turbine;
-	} else if (!STRICMP(engine_type, "unknown")) {
-		uv8 = vehicle_desc_t::unknown;
-	}
-
-	// printf("Engine type %s -> %d\n", engine_type, uv8);
-
-	return uv8;
-}
-
 
 /**
  * Writes vehicle node data to file
@@ -345,7 +309,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	}
 	else {
 		const char* engine_type = obj.get("engine_type");
-		uv8 = get_engine_type(engine_type);
+		uv8 = vehicle_desc_t::get_engine_type(engine_type);
 	}
 	node.write_uint8(fp, uv8, pos);
 	pos += sizeof(uint8);
