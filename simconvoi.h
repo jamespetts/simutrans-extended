@@ -1390,8 +1390,9 @@ public:
 
 	virtual void reflesh(sint8,sint8) OVERRIDE;
 
-	//Returns the maximum catering level of the category type given in the convoy.
-	//@author: jamespetts
+	// Returns the maximum catering level of the category type given in the convoy.
+	// NOTE: This does not give the value of any vehicles with self-contained catering.
+	// @author: jamespetts
 	uint8 get_catering_level(uint8 type) const;
 
 	//@author: jamespetts

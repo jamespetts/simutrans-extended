@@ -2621,7 +2621,7 @@ uint8 convoi_t::get_comfort(uint8 g_class, bool check_reassigned) const
 	uint16 passenger_seating = 0;
 
 	uint16 capacity;
-	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS);
+	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS); 
 
 	for(uint8 i = 0; i < vehicle_count; i ++)
 	{
@@ -7050,16 +7050,14 @@ PIXVAL convoi_t::get_status_color() const
 	return SYSCOL_TEXT;
 }
 
-uint8
-convoi_t::get_catering_level(uint8 type) const
+uint8 convoi_t::get_catering_level(uint8 type) const
 {
 	uint8 max_catering_level = 0;
 	uint8 current_catering_level;
-	//for(sint16 i = vehicle.get_size() - 1; i >= 0; i --)
 	for(uint8 i = 0; i < vehicle_count; i ++)
 	{
 		vehicle_t* v = get_vehicle(i);
-		if(v == NULL)
+		if(v == NULL || v->get_desc()->get_self_contained_catering())
 		{
 			continue;
 		}

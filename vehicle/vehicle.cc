@@ -2398,6 +2398,12 @@ uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
 	uint32 comfort_sum = 0;
 	uint32 capacity_this_class = 0;
 
+	if (desc->get_self_contained_catering())
+	{
+		// Bespoke comfort adjustment for this vehicle
+		catering_level = max(catering_level, desc->get_catering_level());
+	}
+
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
 		if (class_reassignments[i] == g_class)
