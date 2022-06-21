@@ -624,3 +624,23 @@ uint32 vehicle_desc_t::get_total_drivers() const
 	}
 	return count;
 }
+
+uint32 vehicle_desc_t::get_staff_hundredths(uint8 index) const
+{
+	if (!staff_hundredths.is_contained(index))
+	{
+		return 0;
+	}
+
+	return staff_hundredths.get(index); 
+}
+
+uint32 vehicle_desc_t::get_drivers(uint8 index) const
+{
+	if (!drivers.is_contained(index))
+	{
+		return 0;
+	}
+
+	return drivers.get(index);
+}

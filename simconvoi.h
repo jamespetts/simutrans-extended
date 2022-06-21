@@ -119,6 +119,7 @@ public:
 		MAINTENANCE,
 		OVERHAUL,
 		AWAITING_TRIGGER,
+		LAYOVER,
 		MAX_STATES
 	};
 
@@ -718,6 +719,9 @@ private:
 	// more than once in a step on the same tile
 	koord3d checked_tile_this_step = koord3d::invalid;
 
+	// The last time that salary was paid on staff in this convoy.
+	// Add layover, maintenance and overhaul ticks to this number to discount layover time.
+	sint64 last_salary_point_ticks = 0;
 
 public:
 	/**
@@ -1538,6 +1542,11 @@ private:
 
 	// returns level of coupling constraints between vehicles
 	uint8 check_couple_constraint_level(uint8 car_no, bool rear_side) const;
+
+protected:
+
+	// Run this (1) monthly; and (2) on re-combination. Books staff salaries.
+	void book_salaries();
 
 public:
 

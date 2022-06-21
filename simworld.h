@@ -1034,16 +1034,20 @@ private:
 
 	void staff_rdwr(loadsave_t* file);
 
+public:
+
 	sint64 get_staff_salary(sint32 monthyear, uint8 staff_type) const;
+
+private:
 
 	// This is an array of fuel costs per traction type.
 	static vector_tpl<fuel_cost_record_t> fuel[vehicle_desc_t::MAX_TRACTION_TYPE];
 
 	void fuel_rdwr(loadsave_t* file);
 
-	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
+public: 
 
-public:
+	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
 
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }

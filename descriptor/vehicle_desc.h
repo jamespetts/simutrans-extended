@@ -770,7 +770,9 @@ public:
 	uint32 get_total_staff() const;
 	uint32 get_total_staff_hundredths() const;
 	uint32 get_total_drivers() const;
-	// TODO: Add more relevant getters for more specific information about staff costs as necessary
+
+	uint32 get_staff_hundredths(uint8 index) const;
+	uint32 get_drivers(uint8 index) const;
 
 	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
 	{

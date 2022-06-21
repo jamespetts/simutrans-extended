@@ -12497,7 +12497,7 @@ void karte_t::fuel_init(const std::string& objfilename)
 	// first take user data, then user global data
 	if (!ownership_file.open((objfilename + "config/fuel.tab").c_str()))
 	{
-		dbg->message("stadt_t::staff_init()", "Error opening config/staff.tab.\nWill use default values.");
+		dbg->message("stadt_t::fuel_init()", "Error opening config/staff.tab.\nWill use default values.");
 		return;
 	}
 

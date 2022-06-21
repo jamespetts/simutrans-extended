@@ -1286,7 +1286,13 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 					// The maintenance time does not count down if this is awaiting attention.
 					wait_lock += delta_t;
 				}
+				
 			}
+			// Fallthrough intended
+
+		case LAYOVER:
+			// Do not charge salary on staff/drivers while laid over
+			last_salary_point_ticks += delta_t;
 
 			break;
 
@@ -2769,6 +2775,8 @@ void convoi_t::new_month()
 	if(!has_obsolete  &&  welt->use_timeline()) {
 		has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
 	}
+
+	book_salaries();
 }
 
 /**
@@ -5309,6 +5317,15 @@ void convoi_t::rdwr(loadsave_t *file)
 	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 6))
 	{
 		checked_tile_this_step.rdwr(file);
+	}
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_longlong(last_salary_point_ticks);
+	}
+	else if(file->is_loading())
+	{
+		last_salary_point_ticks = welt->get_ticks();
 	}
 
 	// This must come *after* all the loading/saving.
@@ -9214,4 +9231,41 @@ bool convoi_t::check_way_constraints_of_all_vehicles(const weg_t& way) const
 		}
 	}
 	return true;
+}
+
+void convoi_t::book_salaries()
+{
+	// This assumes that the player owning the convoy pays the salaries of all those working
+	// in the convoy even if different players own individual vehicles. This is probably a
+	// necessary assumption.
+
+	const sint64 delta_ticks = (welt->get_ticks() - last_salary_point_ticks) + 1000; // + 1000 to prevent rounding down for trivial differences.
+	const sint64 percentage_of_month = (delta_ticks * 100ll) / welt->ticks_per_world_month;
+
+	for (uint8 i = 0; i < 255; i++)
+	{
+		uint32 staff_hundredths_this_type = 0;
+		uint32 drivers_this_type = 0;
+
+		// Get the driving vehicle's multiple working type
+		const uint8 multiple_working_type = front()->get_desc()->get_multiple_working_type();
+
+		for (uint8 j = 0; j < get_vehicle_count(); j++)
+		{
+			// Monthly cost is positive, but add it up to a negative number for booking.
+			staff_hundredths_this_type += get_vehicle(j)->get_desc()->get_staff_hundredths(i);
+
+			if (get_vehicle(j)->is_leading() || get_vehicle(j)->get_desc()->get_multiple_working_type() != multiple_working_type || multiple_working_type == 0)
+			{
+				drivers_this_type += get_vehicle(j)->get_desc()->get_drivers(i);
+			}
+		}
+
+		const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
+		const sint64 staff_cost_this_type = (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
+				
+		owner->book_vehicle_maintenance(staff_cost_this_type); // TODO: Consider adding different category for staff costs.
+	}
+
+	last_salary_point_ticks = welt->get_ticks();
 }

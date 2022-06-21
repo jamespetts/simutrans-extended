@@ -3537,3 +3537,4 @@ uint8 vehicle_t::get_availability() const
 	const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
 	return base_availability - (uint8) availability_loss;
 }
+
