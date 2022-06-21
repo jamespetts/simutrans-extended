@@ -2621,7 +2621,7 @@ uint8 convoi_t::get_comfort(uint8 g_class, bool check_reassigned) const
 	uint16 passenger_seating = 0;
 
 	uint16 capacity;
-	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS); 
+	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS);
 
 	for(uint8 i = 0; i < vehicle_count; i ++)
 	{
