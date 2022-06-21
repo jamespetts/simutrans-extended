@@ -3480,10 +3480,32 @@ void vehicle_t::overhaul()
 	km_since_last_overhaul = 0;
 	overhauls++;
 	last_overhaul_month = welt->get_current_month();
-	update_livery();
 
-	sint64 overhaul_cost = get_overhaul_cost(); // TODO: Find the right place to check affordability
-	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category
+	// TODO: Find a way of integrating the replacement system with this. Perhaps replace overrides overhauls?
+	const vehicle_desc_t* upgrade = get_auto_upgrade();
+
+	sint64 overhaul_cost = upgrade ? upgrade->get_upgrade_price() : get_overhaul_cost(); // TODO: Find the right place to check affordability
+
+	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category. Consider how to treat auto upgrades here.
+	if (upgrade)
+	{
+		if (cnv->front() == this)
+		{
+			const char* cnv_name = cnv->get_name();
+			if (strcmp(cnv_name, desc->get_name()) == 0)
+			{
+				cnv->set_name(upgrade->get_name());
+			}
+		}
+		set_desc(upgrade);
+	}
+
+	update_livery();
+}
+
+const vehicle_desc_t* vehicle_t::get_auto_upgrade() const
+{
+	return do_not_auto_upgrade ? nullptr : desc->get_auto_upgrade_type();
 }
 
 sint64 vehicle_t::get_overhaul_cost() const

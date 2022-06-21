@@ -644,3 +644,19 @@ uint32 vehicle_desc_t::get_drivers(uint8 index) const
 
 	return drivers.get(index);
 }
+
+const vehicle_desc_t* vehicle_desc_t::get_auto_upgrade_type() const
+{
+	if (auto_upgrade_index == 255)
+	{
+		return nullptr;
+	}
+
+	const vehicle_desc_t* vehicle_type = get_upgrades(auto_upgrade_index);
+	if (vehicle_type && !vehicle_type->is_available(world()->get_current_month()))
+	{
+		vehicle_type = nullptr;
+	}
+
+	return vehicle_type;
+}

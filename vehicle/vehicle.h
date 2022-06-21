@@ -728,6 +728,7 @@ public:
 
 	bool get_do_not_overhaul() const { return do_not_overhaul; }
 	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
+	const vehicle_desc_t* get_auto_upgrade() const;
 
 	uint16 get_tags() const { return tags; }
 	bool is_tag_set(uint16 tag) const { return tag & tags; }

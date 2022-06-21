@@ -767,6 +767,9 @@ public:
 	uint32 get_replenishment_seconds() const { return replenishment_seconds; }
 	uint8 get_overhaul_month_tenths() const { return overhaul_month_tenths; }
 
+	// Returns the type if available, otherwise returns NULL
+	const vehicle_desc_t* get_auto_upgrade_type() const;
+
 	uint32 get_total_staff() const;
 	uint32 get_total_staff_hundredths() const;
 	uint32 get_total_drivers() const;
