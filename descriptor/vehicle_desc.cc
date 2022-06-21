@@ -632,7 +632,7 @@ uint32 vehicle_desc_t::get_staff_hundredths(uint8 index) const
 		return 0;
 	}
 
-	return staff_hundredths.get(index); 
+	return staff_hundredths.get(index);
 }
 
 uint32 vehicle_desc_t::get_drivers(uint8 index) const

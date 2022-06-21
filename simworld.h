@@ -1045,7 +1045,7 @@ private:
 
 	void fuel_rdwr(loadsave_t* file);
 
-public: 
+public:
 
 	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
 
