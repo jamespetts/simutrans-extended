@@ -3238,6 +3238,21 @@ void karte_t::set_scale()
 	// Settings
 	settings.set_scale();
 
+	// Salaries
+	for (auto salary : salaries)
+	{
+		for (auto specific_salary : salary.value)
+		{
+			sint64 mod_salary = set_scale_generic<sint64>(specific_salary.salary, scale_factor);
+			if (specific_salary.salary > 0 && mod_salary == 0)
+			{
+				mod_salary = 1;
+			}
+			specific_salary.salary = mod_salary;
+		}
+	}
+
+
 	// Cached speed factors need recalc
 	speed_factors_are_set = false;
 }
