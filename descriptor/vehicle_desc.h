@@ -759,6 +759,7 @@ public:
 	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
 	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }
 	uint32 get_max_running_cost() const { return max_running_cost; }
+	uint32 get_max_running_cost(const karte_t* world) const; // Overloaded method to take obsolescence increase
 	uint32 get_max_takeoffs() const { return max_takeoffs; }
 	uint32 get_availability_decay_start_takeoffs() const { return availability_decay_start_takeoffs; }
 	uint32 get_availability_decay_start_km() const { return availability_decay_start_km; }

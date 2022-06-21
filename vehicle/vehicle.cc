@@ -3566,3 +3566,28 @@ uint8 vehicle_t::get_availability() const
 	return base_availability - (uint8) availability_loss;
 }
 
+sint32 vehicle_t::get_running_cost(const karte_t* welt) const
+{
+	const sint32 base_cost = (sint32)desc->get_running_cost(welt); // This includes obsolescence increase
+
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
+	{
+		return base_cost;
+	}
+
+	const sint32 max_cost = (sint32)desc->get_max_running_cost(welt);
+
+	if (km_since_last_overhaul >= desc->get_max_distance_between_overhauls())
+	{
+		return max_cost;
+	}
+
+	const uint64 cost_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
+	const uint64 cost_increase = (((uint64)max_cost - (uint64)base_cost) * cost_sigmoid) / 100000ll;
+	return base_cost + (sint32)cost_increase;
+}
+
+bool vehicle_t::is_wear_affecting_vehicle() const
+{
+	return km_since_last_overhaul > desc->get_availability_decay_start_km();
+}

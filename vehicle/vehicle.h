@@ -482,10 +482,14 @@ public:
 	void set_desc(const vehicle_desc_t* value);
 
 	/**
-	* @return die running_cost in Cr/100Km
+	* Running cost in Simucents/km.
+	* Takes into account obsolescence and distance since last overhaul.
 	*/
-	int get_running_cost() const { return desc->get_running_cost(); }
-	int get_running_cost(const karte_t* welt) const { return desc->get_running_cost(welt); }
+	sint32 get_running_cost(const karte_t* welt) const;
+
+	// True if the running cost is greater or availability lower on account of distance since last overhaul.
+	// Intended for UI use.
+	bool is_wear_affecting_vehicle() const;
 
 	/**
 	* @return fixed maintenance costs in Cr/100months
