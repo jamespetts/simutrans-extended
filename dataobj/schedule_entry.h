@@ -29,7 +29,8 @@ public:
 		uint16 target_id_condition_trigger,
 		uint16 target_id_couple,
 		uint16 target_id_uncouple,
-		uint16 target_unique_entry_uncouple) :
+		uint16 target_unique_entry_uncouple,
+		uint16 target_max_speed_kmh) :
 		pos(pos),
 		minimum_loading(minimum_loading),
 		spacing_shift(spacing_shift),
@@ -42,7 +43,8 @@ public:
 		target_id_condition_trigger(target_id_condition_trigger),
 		target_id_couple(target_id_couple),
 		target_id_uncouple(target_id_uncouple),
-		target_unique_entry_uncouple(target_unique_entry_uncouple)
+		target_unique_entry_uncouple(target_unique_entry_uncouple),
+		max_speed_kmh(target_max_speed_kmh)
 	{}
 
 	/**
@@ -176,6 +178,12 @@ public:
 	 */
 	sint8 reverse;
 
+	/**
+	* The maximum speed in km/h that this convoy may travel
+	* to its current destination. 65535 = unlimited
+	*/
+	uint16 max_speed_kmh = 65535;
+
 	bool is_flag_set(schedule_entry_flag flag) const { return flag & flags; }
 
 	void set_flag(schedule_entry_flag flag) { flags |= flag; }
@@ -183,9 +191,9 @@ public:
 	void clear_flag(schedule_entry_flag flag) { flags &= ~flag; }
 };
 
-inline bool operator ==(const schedule_entry_t &a, const schedule_entry_t &b)
+inline bool operator == (const schedule_entry_t &a, const schedule_entry_t &b)
 {
-	return a.pos == b.pos  &&  a.minimum_loading == b.minimum_loading  &&  a.waiting_time_shift == b.waiting_time_shift;
+	return a.pos == b.pos && a.minimum_loading == b.minimum_loading && a.waiting_time_shift == b.waiting_time_shift;
 }
 
 

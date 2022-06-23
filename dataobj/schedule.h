@@ -198,12 +198,12 @@ public:
 	/**
 	* Inserts a coordinate at current_stop into the schedule.
 	*/
-	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, bool show_failure = false);
+	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, bool show_failure = false, uint16 max_speed_kmh = 65535);
 
 	/**
 	* Appends a coordinate to the schedule.
 	*/
-	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0);
+	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, uint16 max_speed_kmh = 65535);
 
 	/**
 	 * Cleanup a schedule, removes double entries.

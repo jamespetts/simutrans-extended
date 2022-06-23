@@ -958,9 +958,11 @@ void schedule_gui_t::build_table()
 			{
 				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
-				//numimp_speed_limit.init(schedule->get_current_entry().maximum_speed, 0, KMH_SPEED_UNLIMITED, 1); // UI TODO:
+				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
+				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
 				numimp_speed_limit.add_listener(this);
 				add_component(&numimp_speed_limit);
+
 				new_component<gui_label_t>(" km/h");
 			}
 			end_table();

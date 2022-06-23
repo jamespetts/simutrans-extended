@@ -199,8 +199,8 @@ void convoi_t::init(player_t *player)
 
 	//speed_limit = SPEED_UNLIMITED;
 	//brake_speed_soll = SPEED_UNLIMITED;
-	akt_speed_soll = 0;             // target speed
-	set_akt_speed(0);                 // current speed
+	akt_speed_soll = 0;					// target speed
+	set_akt_speed(0);					// current speed
 	sp_soll = 0;
 
 	next_stop_index = INVALID_INDEX;
@@ -1107,7 +1107,7 @@ void convoi_t::calc_acceleration(uint32 delta_t)
 	/*
 	 * calculate movement in the next delta_t ticks.
 	 */
-	akt_speed_soll = min(get_min_top_speed(), max_signal_speed);
+	akt_speed_soll = min(kmh_to_speed(get_schedule()->get_current_entry().max_speed_kmh), min(get_min_top_speed(), max_signal_speed));
 	if(  yielding_quit_index != -1  &&  akt_speed_soll>kmh_to_speed(15)  ) {
 		akt_speed_soll -= kmh_to_speed(15);
 	}
