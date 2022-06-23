@@ -325,7 +325,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		// Allow access to the selected player
 		if(comp == access_out + i)
 		{
-			access_out[i].pressed =! access_out[i].pressed;
+			access_out[i].pressed = !access_out[i].pressed;
 			player_t* player = welt->get_player(i);
 			if(access_out[i].pressed && player)
 			{

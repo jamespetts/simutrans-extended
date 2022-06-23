@@ -200,11 +200,11 @@ const pier_desc_t *pier_builder_t::get_desc_bad_load(koord3d pos,player_t *owner
         if(gr->get_weg_hang()){
             params.need_clearence=true;
         }
-        params.below_way_ribi|=gr->get_weg_nr(0)->get_ribi_unmasked();
-        params.need_clearence|=!gr->get_weg_nr(0)->is_low_clearence(owner);
+        params.below_way_ribi |= gr->get_weg_nr(0)->get_ribi_unmasked();
+        params.need_clearence |= !gr->get_weg_nr(0)->is_low_clearence(owner);
         if(gr->get_weg_nr(1)){
-            params.below_way_ribi|=gr->get_weg_nr(1)->get_ribi_unmasked();
-            params.need_clearence|=!gr->get_weg_nr(1)->is_low_clearence(owner);
+            params.below_way_ribi |= gr->get_weg_nr(1)->get_ribi_unmasked();
+            params.need_clearence |= !gr->get_weg_nr(1)->is_low_clearence(owner);
         }
     }
     if(gr->get_typ()==grund_t::pierdeck){
@@ -212,11 +212,11 @@ const pier_desc_t *pier_builder_t::get_desc_bad_load(koord3d pos,player_t *owner
         const grund_t *gr2 = pier_t::ground_below(gr);
         if(gr2){
             if(gr2->get_weg_nr(0)){
-                params.below_way_ribi|=gr2->get_weg_nr(0)->is_low_clearence(owner) ? 0 : gr2->get_weg_nr(0)->get_ribi_unmasked();
-                params.allow_low_waydeck&=gr2->get_weg_nr(0)->is_low_clearence(owner);
+                params.below_way_ribi |= gr2->get_weg_nr(0)->is_low_clearence(owner) ? 0 : gr2->get_weg_nr(0)->get_ribi_unmasked();
+                params.allow_low_waydeck &= gr2->get_weg_nr(0)->is_low_clearence(owner);
                 if(gr2->get_weg_nr(1)){
-                    params.below_way_ribi|=gr2->get_weg_nr(1)->is_low_clearence(owner) ? 0 : gr2->get_weg_nr(1)->get_ribi_unmasked();
-                    params.allow_low_waydeck&=gr2->get_weg_nr(1)->is_low_clearence(owner);
+                    params.below_way_ribi |= gr2->get_weg_nr(1)->is_low_clearence(owner) ? 0 : gr2->get_weg_nr(1)->get_ribi_unmasked();
+                    params.allow_low_waydeck &= gr2->get_weg_nr(1)->is_low_clearence(owner);
                 }
             }
             //need special code here, pier data may not be complete
@@ -304,11 +304,11 @@ void pier_builder_t::get_params_from_pos(pier_finder_params &params, koord3d pos
     }
     if(gr){
         if(gr->get_weg_nr(0)){
-            params.need_clearence=!gr->get_weg_nr(0)->is_low_clearence(owner);
-            params.below_way_ribi|=gr->get_weg_nr(0)->get_ribi_unmasked();
+            params.need_clearence= !gr->get_weg_nr(0)->is_low_clearence(owner);
+            params.below_way_ribi |= gr->get_weg_nr(0)->get_ribi_unmasked();
             if(gr->get_weg_nr(1)){
-                params.below_way_ribi|=!gr->get_weg_nr(1)->get_ribi_unmasked();
-                params.need_clearence|=gr->get_weg_nr(1)->is_low_clearence(owner);
+                params.below_way_ribi |= !gr->get_weg_nr(1)->get_ribi_unmasked();
+                params.need_clearence |= gr->get_weg_nr(1)->is_low_clearence(owner);
             }
             if(gr->get_weg_hang()){
                 params.need_clearence=true;

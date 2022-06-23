@@ -469,12 +469,12 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 	{	// message from outside!
 		if(comp == &bt_replace_line)
 		{
-			replace_line =! replace_line;
+			replace_line = !replace_line;
 			replace_all = false;
 		}
 		else if(comp == &bt_replace_all)
 		{
-			replace_all =! replace_all;
+			replace_all = !replace_all;
 			replace_line = false;
 		}
 

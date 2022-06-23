@@ -5273,7 +5273,7 @@ void display_direct_line_dotted_rgb(const scr_coord_val x, const scr_coord_val y
 		}
 		if(  !mustDraw  ) {
 			if(  counter == dontDraw  ) {
-				mustDraw=!mustDraw;
+				mustDraw = !mustDraw;
 				counter=0;
 			}
 		}
