@@ -493,7 +493,7 @@ public:
 	// Accumulate rather than charge immediately to reduce rounding down errors
 	void consume_fuel(sint32 steps);
 
-	// Convert the fuel consumption in the most recent trip to money 
+	// Convert the fuel consumption in the most recent trip to money
 	// and charge to the player.
 	void book_fuel_consumption();
 

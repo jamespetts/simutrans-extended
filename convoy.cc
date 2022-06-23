@@ -242,7 +242,7 @@ sint32 convoy_t::calc_max_physical_speed(const weight_summary_t &weight)
 
 sint32 convoy_t::calc_max_speed(const weight_summary_t& weight)
 {
-	return min(vehicle_summary.max_speed, calc_max_physical_speed(weight)); 
+	return min(vehicle_summary.max_speed, calc_max_physical_speed(weight));
 }
 
 sint32 convoy_t::calc_max_weight(sint32 sin_alpha)
