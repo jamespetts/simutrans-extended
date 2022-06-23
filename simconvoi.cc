@@ -9257,7 +9257,7 @@ void convoi_t::book_salaries()
 		const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
 		const sint64 staff_cost_this_type = (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
 
-		owner->book_vehicle_maintenance(staff_cost_this_type); // TODO: Consider adding different category for staff costs.
+		book(-welt->calc_adjusted_monthly_figure(staff_cost_this_type), convoi_t::CONVOI_OPERATIONS);
 	}
 
 	last_salary_point_ticks = welt->get_ticks();
