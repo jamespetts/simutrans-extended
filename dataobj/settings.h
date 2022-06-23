@@ -792,6 +792,9 @@ public:
 	// If false, only information up to one year ahead
 	bool show_future_vehicle_info;
 
+	// For allowing sensibly small per unit costs of fuel (e.g., using the per tonne cost for coal when the prices are calibrated per gramme)
+	uint32 fuel_unit_cost_divider = 1000;
+
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
 	 * Set to empty string in order to avoid loading.
@@ -1337,6 +1340,9 @@ public:
 	void set_maintenance_interval_months(uint32 value) { maintenance_interval_months = value; }
 	uint32 get_extended_maintenance_interval_months() const { return extended_maintenance_interval_months; }
 	void set_extended_maintenance_interval_months(uint32 value) { extended_maintenance_interval_months = value; }
+
+	uint32 get_fuel_unit_cost_divider() const { return fuel_unit_cost_divider; }
+	void set_fuel_unit_cost_divider(uint32 value) { fuel_unit_cost_divider = value; }
 };
 
 #endif

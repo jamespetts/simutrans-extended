@@ -913,16 +913,6 @@ void convoi_t::increment_odometer(uint32 steps)
 		running_cost -= v.get_desc()->get_running_cost(welt);
 	}
 
-	if (waytype == air_wt)
-	{
-		// Halve the running cost if we are circling or taxiing.
-		air_vehicle_t* aircraft = (air_vehicle_t*)front();
-		if (!aircraft->is_using_full_power())
-		{
-			running_cost /= 2;
-		}
-	}
-
 	if (must_add)
 	{
 		add_running_cost(running_cost, weg);
@@ -2786,6 +2776,9 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 {
 	// first remove reservation, if train is still on track
 	unreserve_route();
+
+	// We must do this here, since this will not be stopping at a stop again for a while and may never run again.
+	book_fuel_consumption();
 
 	if(front()->get_waytype() == track_wt || front()->get_waytype()  == tram_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
 	{
@@ -5649,6 +5642,8 @@ void convoi_t::laden() //"load" (Babelfish)
 	// last_stop_pos will be set to get_pos().get_2d() in hat_gehalten (called from inside halt->request_loading later)
 	// so code inside if will be executed once. At arrival time.
 	minivec_tpl<uint8> departure_entries_to_remove(schedule->get_count());
+
+	book_fuel_consumption();
 
 	// Update journey times.
 	// loading in other states such as WAITING_FOR_CLEARANCE and REVERSING are non-scheduled and should be excluded.
@@ -9266,4 +9261,15 @@ void convoi_t::book_salaries()
 	}
 
 	last_salary_point_ticks = welt->get_ticks();
+}
+
+void convoi_t::book_fuel_consumption()
+{
+	for (uint32 i = 0; i < vehicle_count; ++i)
+	{
+		if (vehicle[i]->get_desc()->get_power() > 0)
+		{
+			vehicle[i]->book_fuel_consumption();
+		}
+	}
 }

@@ -1193,6 +1193,9 @@ public:
 	*/
 	void laden();
 
+	// Book fuel consumption of individual vehicles
+	void book_fuel_consumption();
+
 	/**
 	* Setup vehicles before starting to move
 	*/

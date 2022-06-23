@@ -2073,7 +2073,7 @@ void vehicle_t::make_smoke() const
 	// does it smoke at all?
 	if(  smoke  &&  desc->get_smoke()  ) {
 		// Hajo: only produce smoke when heavily accelerating or steam engine
-		if(  (cnv->get_akt_speed() < (sint32)((cnv->get_vehicle_summary().max_sim_speed * 7u) >> 3) && (route_index < cnv->get_route_infos().get_count() - 4)) ||  desc->get_engine_type() == vehicle_desc_t::steam  ) {
+		if(desc->get_engine_type() == vehicle_desc_t::steam || is_at_full_power() && (route_index < cnv->get_route_infos().get_count() - 4)) {
 			grund_t* const gr = welt->lookup( get_pos() );
 			if(  gr  ) {
 				wolke_t* const abgas = new wolke_t( get_pos(), get_xoff() + ((dx * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> 8), get_yoff() + ((dy * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> 8) + get_hoff(), desc->get_smoke() );
@@ -2087,6 +2087,17 @@ void vehicle_t::make_smoke() const
 			}
 		}
 	}
+}
+
+bool vehicle_t::is_at_full_power() const
+{
+	const sint32 max_physical_speed = kmh_to_speed(cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction())));
+	const bool at_max_physical_speed = cnv->get_akt_speed() >= max_physical_speed;
+
+	const sint32 extrinsic_speed_limit = cnv->get_akt_speed_soll();
+	const bool accelerating = cnv->get_akt_speed() < extrinsic_speed_limit;
+
+	return at_max_physical_speed || accelerating;
 }
 
 
@@ -2244,8 +2255,12 @@ void vehicle_t::update_bookkeeping(uint32 steps)
 {
 	   // Only the first vehicle in a convoy does this,
 	   // or else there is double counting.
-	   // NOTE: As of 9.0, increment_odometer() also adds running costs for *all* vehicles in the convoy.
+	   // NOTE: increment_odometer() also adds running costs for *all* vehicles in the convoy.
 		if (leading) cnv->increment_odometer(steps);
+		if (desc->get_power() > 0)
+		{
+			consume_fuel(steps);
+		}
 }
 
 ribi_t::ribi vehicle_t::get_direction_of_travel() const
@@ -2952,6 +2967,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		do_not_auto_upgrade = dnau;
 
 		file->rdwr_short(overhauls);
+		file->rdwr_long(fuel_used_this_trip);
 	}
 	else
 	{
@@ -3590,4 +3606,79 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 bool vehicle_t::is_wear_affecting_vehicle() const
 {
 	return km_since_last_overhaul > desc->get_availability_decay_start_km();
+}
+
+uint32 vehicle_t::calc_fuel_consumption(sint32 steps) const
+{
+	// This is called whenever a vehicle travels 1km
+
+	// First, get the base fuel consumption at the calibration speed
+	const uint32 base_fuel_consumption = desc->get_fuel_per_km();
+
+	if (base_fuel_consumption == 0 || cnv->get_akt_speed() == 0)
+	{
+		// No need to calculate this in detail if this has no fuel cost.
+		return 0;
+	}
+
+	const uint32 calibration_speed = desc->get_calibration_speed();
+
+	const uint32 current_speed_kmh =  speed_to_kmh(cnv->get_akt_speed());
+
+	if (current_speed_kmh == 0)
+	{
+		return 0;
+	}
+
+	uint32 speed_adjusted_fuel_consumption;
+
+	// The first part of the calculation: adjust for speed assuming maximum power output
+
+	if (current_speed_kmh == calibration_speed)
+	{
+		speed_adjusted_fuel_consumption = base_fuel_consumption;
+	}
+	else
+	{
+		// In conditions of maximum power output (accelerating or maintining maximum physical speed),
+		// higher speed will always equal higher efficiency.
+		speed_adjusted_fuel_consumption = (base_fuel_consumption * calibration_speed) / current_speed_kmh;
+	}
+
+	if (is_at_full_power())
+	{
+		const uint32 fuel_consumption = (speed_adjusted_fuel_consumption * steps) / welt->get_settings().get_steps_per_km();
+		return fuel_consumption;
+	}
+
+	// The second part of the calculation: adjust for power output if not accenerating
+
+	const uint32 max_physical_speed_with_current_load = cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction()));
+	const uint32 adjusted_speed = max(current_speed_kmh, desc->get_cut_off_speed());
+
+	const uint32 promille_proportion = (adjusted_speed * 1000u) / max_physical_speed_with_current_load;
+	const uint32 power_adjusted_fuel_consumption = (speed_adjusted_fuel_consumption * promille_proportion) / 1000u;
+
+	const uint32 fuel_consumption = (power_adjusted_fuel_consumption * steps) / welt->get_settings().get_steps_per_km();
+	return fuel_consumption;
+
+	// TODO: Add logic for bimode vehicles when this feature should come to be implemented.
+}
+
+void vehicle_t::consume_fuel(sint32 steps)
+{
+	// Note that the fuel charging system is unit agnostic.
+	if (cnv->get_akt_speed() > 30) // Necessary to prevent spurious fuel use on reversing.
+	{
+		fuel_used_this_trip += calc_fuel_consumption(steps);
+	}
+}
+
+void vehicle_t::book_fuel_consumption()
+{
+	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_current_month(), desc->get_engine_type());
+
+	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
+
+	fuel_used_this_trip = 0;
 }

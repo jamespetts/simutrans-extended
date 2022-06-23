@@ -267,6 +267,10 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_NUM("maintenance_interval_months", sets->get_maintenance_interval_months(), 1, 8192, gui_numberinput_t::PLAIN, false);
 	INIT_NUM("extended_maintenance_interval_months", sets->get_extended_maintenance_interval_months(), 2, 8192, gui_numberinput_t::PLAIN, false);
 
+	SEPERATOR;
+
+	INIT_NUM("fuel_unit_cost_divider", sets->get_fuel_unit_cost_divider(), 1, 1000000, gui_numberinput_t::AUTOLINEAR, false);
+
 	INIT_END
 }
 
@@ -380,6 +384,8 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_city_buildings);
 	READ_NUM_VALUE(sets->maintenance_interval_months);
 	READ_NUM_VALUE(sets->extended_maintenance_interval_months);
+
+	READ_NUM_VALUE(sets->fuel_unit_cost_divider);
 
 	path_explorer_t::set_absolute_limits_external();
 }

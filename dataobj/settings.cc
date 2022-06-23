@@ -1922,10 +1922,15 @@ void settings_t::rdwr(loadsave_t *file)
 		{
 			file->rdwr_long(maintenance_interval_months);
 			file->rdwr_long(extended_maintenance_interval_months);
+			file->rdwr_long(fuel_unit_cost_divider);
 		}
 	}
 
-
+	if (fuel_unit_cost_divider == 0)
+	{
+		// Prevent divisions by zero
+		fuel_unit_cost_divider = 1;
+	}
 
 #ifdef DEBUG_SIMRAND_CALLS
 	char buf[256];
@@ -2929,6 +2934,13 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_route_tiles_to_process_in_a_step_paused_background = contents.get_int("max_route_tiles_to_process_in_a_step_paused_background", max_route_tiles_to_process_in_a_step_paused_background);
 
 	simplified_maintenance = contents.get_int("simplified_maintenance", simplified_maintenance);
+
+	fuel_unit_cost_divider = contents.get_int("fuel_unit_cost_divider", fuel_unit_cost_divider);
+	if (fuel_unit_cost_divider == 0)
+	{
+		// Prevent divisions by zero
+		fuel_unit_cost_divider = 1;
+	}
 
 	// OK, this is a bit complex.  We are at risk of loading the same livery schemes repeatedly, which
 	// gives duplicate livery schemes and utter confusion.

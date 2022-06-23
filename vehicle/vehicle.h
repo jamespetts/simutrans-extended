@@ -394,6 +394,8 @@ protected:
 	uint32 last_overhaul_month;
 	sint64 last_maintenance_time;
 
+	uint32 fuel_used_this_trip = 0;
+
 	sint64 ticks_at_last_departure;
 
 	uint16 tags;
@@ -487,6 +489,17 @@ public:
 	*/
 	sint32 get_running_cost(const karte_t* welt) const;
 
+	// Calculates the fuel cost and accumulates this
+	// Accumulate rather than charge immediately to reduce rounding down errors
+	void consume_fuel(sint32 steps);
+
+	// Convert the fuel consumption in the most recent trip to money 
+	// and charge to the player.
+	void book_fuel_consumption();
+
+	// Calculate the fuel consumption for the given number of steps
+	uint32 calc_fuel_consumption(sint32 steps) const;
+
 	// True if the running cost is greater or availability lower on account of distance since last overhaul.
 	// Intended for UI use.
 	bool is_wear_affecting_vehicle() const;
@@ -534,6 +547,8 @@ public:
 	void set_class_reassignment(uint8 original_class, uint8 new_class);
 
 	void make_smoke() const;
+
+	inline bool is_at_full_power() const;
 
 	void show_info() OVERRIDE;
 

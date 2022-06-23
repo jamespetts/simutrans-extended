@@ -174,8 +174,6 @@ public:
 
 	bool is_on_ground() const { return flying_height==0  &&  !(state==circling  ||  state==flying); }
 
-	// Used for running cost calculations
-	bool is_using_full_power() const { return state != circling && state != taxiing; }
 	const char *is_deletable(const player_t *player) OVERRIDE;
 
 

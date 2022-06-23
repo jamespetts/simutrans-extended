@@ -678,6 +678,10 @@ beginner_price_factor = 1500
  # The number of months of maintainance that the make public tool costs to use
 cst_make_public_months = 60
 
+# Allows fuel units to be set in, for example, grammes whilst fuel costs are calibrated for, for example, tonnes.
+# Preserves accuracy without requiring very high absolute figures (only rounds down at the end of each trip).
+fuel_unit_cost_divider = 1000
+
 ################################### Miscellaneous settings ##################################
 #
 # also pak dependent
@@ -843,7 +847,6 @@ new_height_map_conversion = 0
 # even when disabled companies can still make stops public
 # does not affect public service provider player
 disable_make_way_public = 0
-
 
 # This determines whether vehicles need to visit depots periodically.
 # If enabled (1), the vehicles do not need to visit depots periodically.
