@@ -159,7 +159,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		sprintf(buf, "driver[%u]", j);
 		current_driver_number = obj.get_int(buf, UINT32_MAX_VALUE);
 
-		if (current_driver_number =! UINT32_MAX_VALUE)
+		if (current_driver_number != UINT32_MAX_VALUE)
 		{
 			driver_types.put(j, current_driver_number);
 			// Increase the length of the header by 5 for each additional
@@ -1178,7 +1178,6 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		pos += sizeof(staff.value);
 	}
 
-	// FIXME: For some reason, drivers are not being written to the .pak files
 	uint8 total_driver_types = driver_types.get_count();
 	node.write_uint8(fp, total_driver_types, pos);
 	pos += sizeof(total_driver_types);
