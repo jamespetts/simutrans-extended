@@ -72,7 +72,7 @@ std::string env_t::nickname = "";
 
 // this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
-sint16 env_t::scroll_multi = -1; // start with same scrool as mouse as nowadays standard
+sint16 env_t::scroll_multi = 2;
 bool env_t::scroll_infinite = true; // since it fails with touch devices
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
