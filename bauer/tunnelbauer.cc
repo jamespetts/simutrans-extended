@@ -475,61 +475,6 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		return true;
 	}
 
-	// Now we build the invisible part
-	while(pos.get_2d()!=end.get_2d()) {
-		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
-		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		if(waytyp != powerline_wt) {
-			const uint32 max_speed = min(desc->get_topspeed(), way_desc->get_topspeed());
-			const uint32 max_axle_load = min(desc->get_axle_load(), way_desc->get_axle_load());
-			weg = weg_t::alloc(desc->get_waytype());
-			weg->set_desc(way_desc);
-
-			const grund_t* gr = welt->lookup(pos);
-			const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
-			if(hang != slope_t::flat)
-			{
-				const uint slope_height = (hang & 7) ? 1 : 2;
-				if(slope_height == 1)
-				{
-					weg->set_max_speed(min(desc->get_topspeed_gradient_1(), way_desc->get_topspeed_gradient_1()));
-				}
-				else
-				{
-					weg->set_max_speed(min(desc->get_topspeed_gradient_2(), way_desc->get_topspeed_gradient_2()));
-				}
-			}
-			else
-			{
-				weg->set_max_speed(max_speed);
-			}
-			weg->set_max_axle_load(max_axle_load);
-			if(  waytyp==road_wt  ) {
-				strasse_t* str = (strasse_t*) weg;
-				assert(str);
-				str->set_overtaking_mode(overtaking_mode, player);
-				str->set_ribi_mask_oneway(ribi_type(-zv));
-			}
-
-			tunnel->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player);
-		}
-		else {
-			lt = new leitung_t(tunnel->get_pos(), player);
-			lt->set_desc(way_desc);
-			tunnel->obj_add( lt );
-			lt->finish_rd();
-			player_t::add_maintenance( player, -way_desc->get_maintenance(), powerline_wt );
-		}
-		tunnel->obj_add(new tunnel_t(pos, player, desc));
-		tunnel->calc_image();
-		tunnel->set_flag(grund_t::dirty);
-		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player, get_total_maintenance(pos,desc), desc->get_finance_waytype() );
-		cost += get_total_cost(pos,desc);
-		cost += way_desc->get_value();
-		pos = pos + zv;
-	}
-
 	// if end is tunnel then connect
 	grund_t *gr_end = welt->lookup(end);
 	if (gr_end) {
@@ -538,7 +483,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		}
 		else if (gr_end->ist_karten_boden()) {
 			// if end is above ground construct an exit
-			build_tunnel_portal(player, pos, -zv, desc, way_desc, cost, true, overtaking_mode, false);
+			build_tunnel_portal(player, end, -zv, desc, way_desc, cost, true, overtaking_mode, false);
 			gr_end = NULL; // invalid - replaced by tunnel ground
 			// calc new back image for the ground
 			if (end!=start && grund_t::underground_mode) {
@@ -552,51 +497,15 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 			assert(0);
 		}
 	}
-	else {
-		// construct end tunnel tile
-		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
-		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		if(waytyp != powerline_wt) {
-			weg = weg_t::alloc(desc->get_waytype());
-			weg->set_desc(way_desc);
-			const grund_t* gr = welt->lookup(pos);
-			const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
-			if(hang != slope_t::flat)
-			{
-				const uint slope_height = (hang & 7) ? 1 : 2;
-				if(slope_height == 1)
-				{
-					weg->set_max_speed(desc->get_topspeed_gradient_1());
-				}
-				else
-				{
-					weg->set_max_speed(desc->get_topspeed_gradient_2());
-				}
-			}
-			else
-			{
-				weg->set_max_speed(desc->get_topspeed());
-			}
-			weg->set_max_axle_load(desc->get_max_axle_load());
-			tunnel->neuen_weg_bauen(weg, ribi, player);
-		}
-		else {
-			lt = new leitung_t(tunnel->get_pos(), player);
-			lt->set_desc(way_desc);
-			tunnel->obj_add( lt );
-			lt->finish_rd();
-			player_t::add_maintenance( player, -way_desc->get_maintenance(), powerline_wt );
-		}
-		tunnel->obj_add(new tunnel_t(pos, player, desc));
-		tunnel->calc_image();
-		tunnel->set_flag(grund_t::dirty);
-		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player,  get_total_maintenance(pos,desc), desc->get_finance_waytype() );
-		cost += get_total_cost(pos,desc);
-		cost += way_desc->get_value();
-	}
 
-	player_t::book_construction_costs(player, -cost, start.get_2d(), desc->get_waytype());
+	//build way in tunnel
+	way_builder_t builder(player);
+	builder.init_builder((way_builder_t::bautyp_t)desc->get_waytype()  | way_builder_t::tunnel_flag | (desc->get_is_half_height() ? way_builder_t::low_clearence_flag : (way_builder_t::bautyp_t)0),way_desc,desc);
+	builder.calc_straight_route(start,end);
+	builder.set_overtaking_mode(overtaking_mode);
+	builder.build();
+
+	player_t::book_construction_costs(player, -cost, (start-zv).get_2d(), desc->get_waytype());
 	return true;
 }
 
