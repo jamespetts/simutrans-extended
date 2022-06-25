@@ -153,9 +153,8 @@ void gui_vehicle_cargo_info_t::update()
 		}
 		end_table();
 
-		add_table(5,1);
+		add_table(4,1);
 		{
-			new_component<gui_image_t>(veh->get_cargo_type()->get_fare_symbol(veh->get_reassigned_class(ac)), 0, 0, true);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
 			// [fare class name/catgname]
 			if (number_of_classes>1) {
@@ -511,8 +510,8 @@ void gui_vehicle_cargo_info_t::draw(scr_coord offset)
 	if (veh->get_total_cargo() != total_cargo) {
 		update();
 	}
-	set_visible(veh->get_service_capacity());
-	if (veh->get_service_capacity()) {
+	set_visible(veh->get_desc()->get_total_capacity() || veh->get_desc()->get_overcrowded_capacity());
+	if (veh->get_desc()->get_total_capacity() || veh->get_desc()->get_overcrowded_capacity()) {
 		gui_aligned_container_t::set_size(get_min_size());
 		gui_aligned_container_t::draw(offset);
 	}
