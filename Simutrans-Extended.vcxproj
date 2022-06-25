@@ -2037,7 +2037,6 @@
     <ClCompile Include="gui\factory_chart.cc" />
     <ClCompile Include="gui\gui_theme.cc" />
     <ClCompile Include="gui\loadfont_frame.cc" />
-    <ClCompile Include="gui\line_class_manager.cc" />
     <ClCompile Include="gui\line_color_gui.cc" />
     <ClCompile Include="gui\line_item.cc" />
     <ClCompile Include="gui\onewaysign_info.cc" />
@@ -2338,6 +2337,7 @@
     <ClCompile Include="gui\components\gui_textarea.cc" />
     <ClCompile Include="gui\components\gui_textinput.cc" />
     <ClCompile Include="gui\components\gui_vehicle_capacitybar.cc" />
+    <ClCompile Include="gui\components\gui_vehicle_cargoinfo.cc" />
     <ClCompile Include="gui\components\gui_waytype_tab_panel.cc" />
     <ClCompile Include="gui\components\gui_world_view_t.cc" />
     <ClCompile Include="gui\halt_detail.cc" />
@@ -2605,7 +2605,6 @@
     <ClInclude Include="gui\factory_chart.h" />
     <ClInclude Include="gui\gui_theme.h" />
     <ClInclude Include="gui\loadfont_frame.h" />
-    <ClInclude Include="gui\line_class_manager.h" />
     <ClInclude Include="gui\line_color_gui.h" />
     <ClInclude Include="gui\onewaysign_info.h" />
     <ClInclude Include="gui\overtaking_mode.h" />
@@ -2819,6 +2818,7 @@
     <ClInclude Include="gui\components\gui_textarea.h" />
     <ClInclude Include="gui\components\gui_textinput.h" />
     <ClInclude Include="gui\components\gui_vehicle_capacitybar.h" />
+    <ClInclude Include="gui\components\gui_vehicle_cargoinfo.h" />
     <ClInclude Include="gui\components\gui_waytype_tab_panel.h" />
     <ClInclude Include="gui\components\gui_world_view_t.h" />
     <ClInclude Include="gui\halt_detail.h" />

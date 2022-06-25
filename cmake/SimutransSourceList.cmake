@@ -137,6 +137,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_textarea.cc
 	gui/components/gui_textinput.cc
 	gui/components/gui_vehicle_capacitybar.cc
+	gui/components/gui_vehicle_cargoinfo.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
 	gui/convoi_detail_t.cc
@@ -175,7 +176,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
-	gui/line_class_manager.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc

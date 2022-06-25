@@ -266,6 +266,11 @@ copyright=Ranran
 Image[0]=> symbols.6.0
 -------
 Obj=menu
+name=Comfort
+copyright=Ranran
+Image[0]=> symbols.6.0
+-------
+Obj=menu
 name=Upgradable
 copyright=Ranran
 # for vehicle which has upgrade target

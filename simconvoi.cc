@@ -31,6 +31,7 @@
 #include "gui/depot_frame.h"
 #include "gui/messagebox.h"
 #include "gui/convoi_detail_t.h"
+#include "gui/vehicle_class_manager.h"
 #include "boden/grund.h"
 #include "boden/wege/schiene.h" // for railblocks
 #include "boden/wege/strasse.h"
@@ -933,6 +934,18 @@ bool convoi_t::has_tall_vehicles()
 	}
 	return is_tall;
 }
+
+bool convoi_t::has_tilting_vehicles()
+{
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (get_vehicle(i)->get_desc()->get_tilting()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 
 // BG, 06.11.2011
 route_t::route_result_t convoi_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed)
@@ -8582,6 +8595,11 @@ void convoi_t::calc_classes_carried()
 				}
 			}
 		}
+	}
+	// update dialog
+	vehicle_class_manager_t *win = dynamic_cast<vehicle_class_manager_t*>(win_get_magic((ptrdiff_t)(magic_class_manager + self.get_id())));
+	if (win) {
+		win->recalc_income();
 	}
 }
 

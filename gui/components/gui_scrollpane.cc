@@ -42,14 +42,14 @@ scr_size gui_scrollpane_t::get_min_size() const
 	scr_size csize = take_cached_size ? cached_min_size : comp->get_min_size();
 	csize.w = max( csize.w, scroll_x.get_min_size().w );
 	csize.w = min( csize.w, max_width );
-	csize.h = min( csize.h, scroll_y.get_min_size().h );
+	csize.h = min_height ? min_height : min( csize.h, scroll_y.get_min_size().h );
 	return csize;
 }
 
 scr_size gui_scrollpane_t::get_max_size() const
 {
 	scr_size csize = take_cached_size ? cached_max_size : comp->get_max_size();
-	return csize;
+	return (!b_show_scroll_y && min_height) ? scr_size(csize.w, min_height) : csize;
 }
 
 

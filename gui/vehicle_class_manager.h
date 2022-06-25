@@ -7,146 +7,182 @@
 #define GUI_VEHICLE_CLASS_MANAGER_H
 
 
-/*
- * Convoi details window
- */
-
 #include "gui_frame.h"
-#include "components/gui_container.h"
+#include "simwin.h"
+#include "components/gui_aligned_container.h"
 #include "components/gui_scrollpane.h"
-#include "components/gui_textarea.h"
-#include "components/gui_textinput.h"
-#include "components/gui_speedbar.h"
 #include "components/gui_button.h"
 #include "components/gui_label.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
+#include "components/gui_tab_panel.h"
+#include "components/gui_vehicle_capacitybar.h"
 #include "components/action_listener.h"
 #include "../convoihandle_t.h"
-#include "../gui/simwin.h"
 
-class scr_coord;
+#include "../vehicle/vehicle.h"
 
+#include "../utils/cbuffer_t.h"
+#include "../tpl/slist_tpl.h"
 
-class gui_class_vehicleinfo_t : public gui_container_t/*, private action_listener_t*/
+#include "../bauer/goods_manager.h"
+
+class vehicle_desc_t;
+
+struct accommodation_t
 {
-private:
-	/**
-	 * Handle the convoi to be displayed.
-	 */
-	convoihandle_t cnv;
+	uint8 catg_index=goods_manager_t::INDEX_NONE;
+	uint8 accommo_class=0;
+	const char* name{};
 
+	bool is_match(accommodation_t a)
+	{
+		if (a.accommo_class == accommo_class && !strcmp(a.name,name) && a.accommo_class==accommo_class ) {
+			return true;
+		}
+		return false;
+	}
 
-	// When comboboxes eventually makes it to this part of the window....
-	//slist_tpl<gui_combobox_t *> pass_class_sel;
-	//slist_tpl<gui_combobox_t *> mail_class_sel;
-
-	gui_container_t cont;
-
-	// below a duplication of code, for the moment until I can get it automatically
-	//char *class_name;
-	//char *pass_class_name_untranslated[32];
-	//char *mail_class_name_untranslated[32];
-
-public:
-	gui_class_vehicleinfo_t(convoihandle_t cnv);
-
-
-
-	//bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
-
-	void set_cnv( convoihandle_t c ) { cnv = c; }
-
-	void draw(scr_coord offset);
+	void set_accommodation(const vehicle_desc_t *veh, uint8 a_class)
+	{
+		catg_index = veh->get_freight_type()->get_catg_index();
+		accommo_class = a_class;
+		name = veh->get_accommodation_name(a_class);
+	}
 };
 
+struct accommodation_info_t
+{
+	accommodation_t accommodation;
+	uint16 capacity;
+	uint16 count; // total compartments
+	uint8 assingned_class;
+	uint8 min_comfort;
+	uint8 max_comfort;
+
+	static int compare(const accommodation_info_t & l, const accommodation_info_t &r) {
+		int comp = l.accommodation.catg_index - r.accommodation.catg_index;
+		if (comp==0) {
+			comp = l.assingned_class - r.assingned_class;
+		}
+		return comp;
+	}
+};
+
+
+class accommodation_summary_t
+{
+	slist_tpl<accommodation_info_t> accommo_list;
+public:
+	void clear() { accommo_list.clear(); }
+	void add_vehicle(vehicle_t *veh);
+	void add_convoy(convoihandle_t cnv);
+	void add_line(linehandle_t line);
+
+	const slist_tpl<accommodation_info_t>& get_accommodations() const { return accommo_list; }
+};
+
+
+class gui_accommodation_fare_manager_t : public gui_aligned_container_t
+{
+	accommodation_summary_t accommodations;
+	linehandle_t line;
+	convoihandle_t cnv;
+
+public:
+	gui_accommodation_fare_manager_t(linehandle_t line);
+	gui_accommodation_fare_manager_t(convoihandle_t cnv);
+
+	void update();
+
+	void set_line(linehandle_t line = linehandle_t());
+
+	using gui_aligned_container_t::get_min_size;
+	using gui_aligned_container_t::get_max_size;
+};
+
+class gui_cabin_fare_changer_t : public gui_aligned_container_t, private action_listener_t
+{
+private:
+	vehicle_t *vehicle;
+	uint8 cabin_class;
+
+	gui_fluctuation_triangle_t up_or_down;
+	button_t bt_up, bt_down;
+	gui_label_buf_t lb_assigned_fare;
+
+	uint8 old_assingned_fare;
+
+
+public:
+	gui_cabin_fare_changer_t(vehicle_t *v, uint8 original_class);
+	void draw(scr_coord offset) OVERRIDE;
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+};
+
+
+class gui_accommo_fare_changer_t : public gui_aligned_container_t, private action_listener_t
+{
+private:
+	convoihandle_t cnv;
+	linehandle_t line;
+	accommodation_t acm;
+	uint8 current_fare;
+
+	button_t bt_up, bt_down;
+
+	void change_convoy_fare_class(convoihandle_t cnv, uint8 target_fare);
+
+public:
+	gui_accommo_fare_changer_t(convoihandle_t cnv, accommodation_t acm, uint8 current_fare_class=0);
+	gui_accommo_fare_changer_t(linehandle_t line, accommodation_t acm, uint8 current_fare_class=0);
+	void init(uint8 current_fare_class);
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+};
 
 
 class vehicle_class_manager_t : public gui_frame_t , private action_listener_t
 {
-public:
-	enum sort_mode_t { by_destination=0, by_via=1, by_amount_via=2, by_amount=3, SORT_MODES=4 };
-
-private:
-
-	gui_class_vehicleinfo_t veh_info;
-	gui_scrollpane_t scrolly;
-
 	convoihandle_t cnv;
-	button_t reset_all_classes_button;
 
-	vector_tpl<char> class_indices;
+	cbuffer_t title_buf;
 
-	slist_tpl<gui_combobox_t *> pass_class_sel;
-	slist_tpl<gui_combobox_t *> mail_class_sel;
+	gui_label_buf_t lb_total_max_income, lb_total_running_cost, lb_total_maint;
+	button_t bt_init_fare;
+	gui_convoy_loading_info_t capacity_info;
 
-	sint16 button_width = 190;
+	gui_tab_panel_t tabs;
 
-	gui_container_t cont;
+	gui_aligned_container_t cont_by_vehicle;
+	gui_accommodation_fare_manager_t cont_by_accommo;
+	gui_scrollpane_t scrolly_by_vehicle, scrolly_by_accommo;
 
-	uint16 current_number_of_classes;
-	uint16 current_number_of_accommodations;
-	uint32 current_number_of_vehicles;
+	// update triggar
+	uint8 old_vehicle_count = 0;
+	uint8 old_month = 0;
 
-	uint8 highest_catering;
-	bool is_tpo;
-
-	uint8 vehicle_count;
-	uint8 old_vehicle_count;
-
-	uint16 header_height;
-
-	uint32 overcrowded_capacity;
-
-	char *pass_class_name_untranslated[32];
-	char *mail_class_name_untranslated[32];
-
-	uint32 pass_capacity_at_class[255] = { 0 };
-	uint32 mail_capacity_at_class[255] = { 0 };
-
-	uint32 pass_capacity_at_accommodation[255] = { 0 };
-	uint32 mail_capacity_at_accommodation[255] = { 0 };
-
-	bool any_pass = false;
-	bool any_mail = false;
-
-
+	void init(convoihandle_t cnv);
 
 public:
-
 	vehicle_class_manager_t(convoihandle_t cnv);
-
-	/**
-	* Do the dynamic component layout
-	*/
-	void layout(scr_coord pos);
-
-	/**
-	* Build the class lists
-	*/
-
-	void build_class_entries();
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	const char * get_help_filename() const OVERRIDE {return "vehicle_class_manager.txt"; }
 
-	virtual void set_windowsize(scr_size size) OVERRIDE;
-
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
-	/**
-	 * called when convoi was renamed
-	 */
-	void update_data() { set_dirty(); }
+	void update_list();
+
+	// recalc income and update its label.
+	void recalc_income();
 
 	// this constructor is only used during loading
 	vehicle_class_manager_t();
 
-	void rdwr( loadsave_t *file ) OVERRIDE;
+	void rdwr(loadsave_t *file) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_class_manager; }
-
-	~vehicle_class_manager_t();
 };
 
 #endif

@@ -104,17 +104,6 @@ private:
 	 */
 	sint64 calc_sale_value(const vehicle_desc_t *veh_type);
 
-	// true if already stored here
-	bool is_contained(const vehicle_desc_t *info);
-
-	/// add a single vehicle (helper function)
-	void add_to_vehicle_list(const vehicle_desc_t *info);
-
-	/// for convoi image
-	void image_from_convoi_list(uint nr, bool to_end);
-
-	void image_from_storage_list(gui_image_list_t::image_data_t *image_data);
-
 	static bool compare_line(linehandle_t const& l1, linehandle_t const& l2);
 
 public:
