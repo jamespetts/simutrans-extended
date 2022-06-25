@@ -292,6 +292,8 @@ public:
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
+	uint16 get_unique_fare_capacity(uint8 catg, uint8 g_class) const;
+
 	// recalculates the good transported by this line and (in case of changes) will start schedule recalculation
 	void recalc_catg_index();
 

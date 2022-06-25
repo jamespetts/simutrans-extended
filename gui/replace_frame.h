@@ -85,6 +85,8 @@ private:
 
 	sint64 calc_total_cost();
 
+	void init();
+
 public:
 
 	/**

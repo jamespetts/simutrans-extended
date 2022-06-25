@@ -26,7 +26,7 @@ static bool _is_electrified(const karte_t* welt, const convoihandle_t& cnv)
 	return way ? way->is_electrified() : false;
 }
 
-replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
+replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name) :
 	gui_frame_t(translator::translate("Replace"), cnv->get_owner()),
 	cnv(cnv),
 	replace_line(false), replace_all(false), depot(false),
@@ -41,18 +41,24 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
 	lb_n_replace(NULL, SYSCOL_TEXT, gui_label_t::left),
 	lb_n_sell(NULL, SYSCOL_TEXT, gui_label_t::left),
 	lb_n_skip(NULL, SYSCOL_TEXT, gui_label_t::left),
-	convoy_assembler(
-		cnv->get_vehicle(0)->get_desc()->get_waytype(),
-		cnv->get_owner()->get_player_nr(),
-		_is_electrified(welt, cnv))
+	convoy_assembler(this)
 {
+	{
+		lb_convoy.set_text_pointer(name);
+		init();
+	}
+}
+
+void replace_frame_t::init()
+{
+	convoy_assembler.init(cnv->get_vehicle(0)->get_desc()->get_waytype(), cnv->get_owner()->get_player_nr(), _is_electrified(welt, cnv));
+
 	const uint32 a_button_height = 14;
 	const uint32 margin = 6;
 	txt_money[0] = 0;
 	lb_money.set_text_pointer(txt_money);
 	add_component(&lb_money);
 
-	lb_convoy.set_text_pointer(name);
 	add_component(&lb_convoy);
 
 	lb_to_be_replaced.set_text_pointer(translator::translate("To be replaced by:"));
@@ -96,7 +102,7 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
 	const weg_t *way = welt->lookup(lead_vehicle->get_pos())->get_weg(wt);
 	const bool weg_electrified = way == NULL ? false : way->is_electrified();
 	convoy_assembler.set_electrified( weg_electrified );
-	convoy_assembler.set_convoy_tabs_skip(-2*LINESPACE+3*LINESPACE+2*margin+a_button_height);
+	//convoy_assembler.set_convoy_tabs_skip(-2*LINESPACE+3*LINESPACE+2*margin+a_button_height);
 	convoy_assembler.add_listener(this);
 	if(cnv.is_bound() && cnv->get_replace())
 	{
@@ -180,8 +186,6 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv, const char *name):
 	// Hajo: Trigger layouting
 	set_resizemode(diagonal_resize);
 
-	convoy_assembler.set_replace_frame(this);
-
 	copy = false;
 }
 
@@ -229,10 +233,10 @@ void replace_frame_t::layout(scr_size *gr)
 	// No update height needed, convoy assembler
 
 	// Rest of the vertical space, if any, for convoy_assembler
-	update_total_width(convoy_assembler.get_convoy_image_width());
-	convoy_assembler.set_panel_rows(gr  &&  gr->h==0?-1:fgr.h-total_height);
-	total_height+=convoy_assembler.get_height();
-	min_total_height+=convoy_assembler.get_min_height();
+	//update_total_width(convoy_assembler.get_convoy_image_width());
+	//convoy_assembler.set_panel_rows(gr  &&  gr->h==0?-1:fgr.h-total_height);
+	//total_height+=convoy_assembler.get_height();
+	//min_total_height+=convoy_assembler.get_min_height();
 
 	set_min_windowsize(scr_size(min_total_width, min_total_height));
 	if(fgr.w<0 || (uint32)fgr.w<total_width) {
@@ -262,10 +266,10 @@ void replace_frame_t::layout(scr_size *gr)
 	current_y+=LINESPACE;
 
 	convoy_assembler.set_pos(scr_coord(0,current_y));
-	convoy_assembler.set_size(scr_size(fgr.w,convoy_assembler.get_height()));
-	convoy_assembler.layout();
+	//convoy_assembler.set_size(scr_size(fgr.w,convoy_assembler.get_height()));
+	//convoy_assembler.layout();
 
-	uint32 buttons_y = current_y + convoy_assembler.get_convoy_height() + LINESPACE*5 + D_V_SPACE*3;
+	uint32 buttons_y = current_y /*+ convoy_assembler.get_convoy_height()*/ + LINESPACE*5 + D_V_SPACE*3;
 	uint32 buttons_width=(fgr.w-2*margin)/5;
 	bt_autostart.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
 	bt_depot.set_size(scr_size(buttons_width, D_BUTTON_HEIGHT));
@@ -319,7 +323,7 @@ void replace_frame_t::set_windowsize( scr_size gr )
 
 void replace_frame_t::update_data()
 {
-	convoy_assembler.update_data();
+	convoy_assembler.update_convoi();
 
 	txt_n_replace[0]='\0';
 	txt_n_sell[0]='\0';
@@ -497,7 +501,7 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 		{
 			cnv->call_convoi_tool('X', NULL);
 			rpl = new replace_data_t();
-			convoy_assembler.clear_convoy();
+			//convoy_assembler.clear_convoy(); // FIXME
 		}
 
 		else if(comp==&bt_autostart || comp== &bt_depot || comp == &bt_mark)
@@ -570,7 +574,6 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 			return true;
 		}
 	}
-	convoy_assembler.build_vehicle_lists();
 	update_data();
 	layout(NULL);
 	copy = false;
@@ -587,7 +590,6 @@ bool replace_frame_t::infowin_event(const event_t *ev)
 	//	return true;
 	//} else
 	if(ev->ev_class == INFOWIN && ev->ev_code == WIN_OPEN) {
-		convoy_assembler.build_vehicle_lists();
 		update_data();
 		layout(NULL);
 		return true;

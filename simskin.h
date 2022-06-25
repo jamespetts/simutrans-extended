@@ -10,6 +10,8 @@
 #include "simcolor.h"
 #include "simtypes.h"
 
+#define SYMBOL_OVERCROWDING skinverwaltung_t::pax_evaluation_icons->get_image_id(1)
+
 
 // For test purposes themes can be disabled or an alternative theme.tab file can be used.
 //  -1 = No theme, use internal fallback

@@ -2248,9 +2248,9 @@ brakes from max. speed in %i m
 \nCity:
 \n都市:
 \nMAY USE:
-\n通行可能:
-\nMUST USE:
-\n必須:
+通行可能:
+\nMUST USE: 
+必須:
 \nNetwork ID:
 \nネットワークID:
 \nOrigin: %s\nDestination: %s
