@@ -9253,6 +9253,15 @@ void convoi_t::book_salaries()
 	const sint64 delta_ticks = (welt->get_ticks() - last_salary_point_ticks) + 1000; // + 1000 to prevent rounding down for trivial differences.
 	const sint64 percentage_of_month = (delta_ticks * 100ll) / welt->ticks_per_world_month;
 
+	book(-(sint64)get_salaries(percentage_of_month), convoi_t::CONVOI_OPERATIONS);
+
+	last_salary_point_ticks = welt->get_ticks();
+}
+
+uint32 convoi_t::get_salaries(sint64 percentage_of_month)
+{
+	uint32 sum=0;
+
 	for (uint8 i = 0; i < 255; i++)
 	{
 		uint32 staff_hundredths_this_type = 0;
@@ -9273,12 +9282,10 @@ void convoi_t::book_salaries()
 		}
 
 		const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
-		const sint64 staff_cost_this_type = (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
-
-		book(-welt->calc_adjusted_monthly_figure(staff_cost_this_type), convoi_t::CONVOI_OPERATIONS);
+		sum += (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
 	}
 
-	last_salary_point_ticks = welt->get_ticks();
+	return welt->calc_adjusted_monthly_figure(sum);
 }
 
 void convoi_t::book_fuel_consumption()

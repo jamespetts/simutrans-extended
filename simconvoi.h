@@ -1555,6 +1555,9 @@ protected:
 
 public:
 
+	// Also used in UI as a reference value
+	uint32 get_salaries(sint64 percentage_of_month);
+
 	bool check_triggered_condition(uint16 value) const { return value & conditions_bitfield; }
 	void set_triggered_conditions(uint16 value) { conditions_bitfield |= value; }
 	void clear_triggered_conditions(uint16 value) { conditions_bitfield &= ~value; }
