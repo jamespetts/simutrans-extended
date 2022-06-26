@@ -15,6 +15,7 @@
 #include "components/gui_speedbar.h"
 #include "components/gui_button.h"
 #include "components/gui_label.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
 #include "components/gui_tab_panel.h"
 #include "components/action_listener.h"
@@ -22,6 +23,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_button_to_chart.h"
 #include "../convoihandle_t.h"
+#include "../vehicle/vehicle.h"
 #include "../vehicle/rail_vehicle.h"
 #include "simwin.h"
 
@@ -88,6 +90,28 @@ public:
 	void set_display_mode(uint8 mode) { display_mode = mode; update_list(); }
 
 	void update_list();
+};
+
+
+class gui_vehicle_maintenance_t : public gui_aligned_container_t, private action_listener_t
+{
+private:
+	vehicle_t *vehicle;
+
+	sint32 km_remaining_to_overhaul;
+	sint32 excess_km_from_overhaul_limit = 0;
+	sint32 bar_overhaul_required         = 0;
+
+	button_t bt_do_not_overhaul, bt_do_not_auto_upgrade;
+	gui_colorbox_t availability_indicator;
+	gui_speedbar_fixed_length_t next_overhaul_indicator;
+	gui_label_buf_t lb_availability, lb_km_since_last_maint_, lb_upgrade_vehicle;
+
+
+public:
+	gui_vehicle_maintenance_t(vehicle_t *v);
+	void draw(scr_coord offset) OVERRIDE;
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };
 
 // content of maintenance info tab
@@ -213,7 +237,7 @@ private:
 	gui_label_buf_t
 		lb_vehicle_count,                   // for main frame
 		lb_loading_time, lb_catering_level, // for payload tab
-		lb_odometer, lb_value;              // for maintenance tab
+		lb_odometer, lb_value, lb_next_maintenance, lb_overhaul; // for maintenance tab
 	gui_acceleration_label_t      *lb_acceleration;
 	gui_acceleration_time_label_t *lb_acc_time;
 	gui_acceleration_dist_label_t *lb_acc_distance;

@@ -7,7 +7,6 @@
 
 #include "convoi_detail_t.h"
 #include "components/gui_chart.h"
-#include "components/gui_colorbox.h"
 #include "components/gui_image.h"
 #include "components/gui_divider.h"
 #include "components/gui_schedule_item.h"
@@ -892,7 +891,7 @@ void convoi_detail_t::init(convoihandle_t cnv)
 
 	// content of maintenance tab
 	cont_maintenance_tab.set_table_layout(1,0);
-	cont_maintenance_tab.add_table(5,3)->set_spacing(scr_size(0,0));
+	cont_maintenance_tab.add_table(5,2)->set_spacing(scr_size(0,0));
 	{
 		cont_maintenance_tab.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_MARGIN_RIGHT,0));
 		// 1st row
@@ -923,6 +922,15 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		withdraw_button.set_tooltip("Convoi is sold when all wagons are empty.");
 		withdraw_button.add_listener(this);
 		cont_maintenance_tab.add_component(&withdraw_button);
+	}
+	cont_maintenance_tab.end_table();
+
+	// 3rd row: Information on the need to visit depot
+	cont_maintenance_tab.add_table(3,1);
+	{
+		cont_maintenance_tab.new_component<gui_label_t>("Next maintenance:");
+		cont_maintenance_tab.add_component(&lb_next_maintenance);
+		cont_maintenance_tab.add_component(&lb_overhaul);
 	}
 	cont_maintenance_tab.end_table();
 
@@ -1056,6 +1064,7 @@ void convoi_detail_t::update_labels()
 	// update contents of tabs
 	switch (tabstate)
 	{
+		default:
 		case CD_TAB_MAINTENANCE:
 		{
 			char number[64];
@@ -1068,6 +1077,24 @@ void convoi_detail_t::update_labels()
 			money_to_string(number, cnv->calc_sale_value() / 100.0);
 			lb_value.buf().printf(" %s", number);
 			lb_value.update();
+
+			if( cnv->is_maintenance_urgently_needed() ) {
+				lb_next_maintenance.set_color(COL_WARNING);
+				lb_next_maintenance.buf().append(translator::translate("maintenance_urgently_needed"));
+			}
+			else if( cnv->is_maintenance_needed() ) {
+				lb_next_maintenance.set_color(COL_SAFETY);
+				lb_next_maintenance.buf().append(translator::translate("maintenance_needed"));
+			}
+			else {
+				lb_next_maintenance.set_color(SYSCOL_TEXT);
+				lb_next_maintenance.buf().append(translator::translate("skip_depot_visit"));
+			}
+			lb_next_maintenance.update();
+			if( cnv->is_overhaul_needed() ) {
+				lb_overhaul.buf().append(translator::translate("overhaul_will_be_performed"));
+			}
+			lb_overhaul.update();
 
 			const sint64 seed_temp = cnv->is_reversed() + cnv->get_vehicle_count() + world()->get_timeline_year_month();
 
@@ -1103,8 +1130,105 @@ void convoi_detail_t::update_labels()
 			}
 			break;
 		}
-		default:
-			break;
+
+		case CD_TAB_PHYSICS_CHARTS:
+		{
+			// common existing_convoy_t for acceleration curve and weight/speed info.
+			convoi_t &convoy = *cnv.get_rep();
+
+			// create dummy convoy and calcurate theoretical acceleration curve
+			vector_tpl<const vehicle_desc_t*> vehicles;
+			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+			{
+				vehicles.append(cnv->get_vehicle(i)->get_desc());
+			}
+			potential_convoy_t empty_convoy(vehicles);
+			potential_convoy_t dummy_convoy(vehicles);
+			const sint32 min_weight = dummy_convoy.get_vehicle_summary().weight;
+			const sint32 max_freight_weight = dummy_convoy.get_freight_summary().max_freight_weight;
+
+			const sint32 akt_speed_soll = kmh_to_speed(convoy.calc_max_speed(convoy.get_weight_summary()));
+			const sint32 akt_speed_soll_ = dummy_convoy.get_vehicle_summary().max_sim_speed;
+			float32e8_t akt_v = 0;
+			float32e8_t akt_v_min = 0;
+			float32e8_t akt_v_max = 0;
+			sint32 akt_speed = 0;
+			sint32 akt_speed_min = 0;
+			sint32 akt_speed_max = 0;
+			sint32 sp_soll = 0;
+			sint32 sp_soll_min = 0;
+			sint32 sp_soll_max = 0;
+			int i = SPEED_RECORDS - 1;
+			long delta_t = 1000;
+			sint32 delta_s = (welt->get_settings().ticks_to_seconds(delta_t)).to_sint32();
+			accel_curves[i][1] = akt_speed;
+			accel_curves[i][2] = akt_speed_min;
+			accel_curves[i][3] = akt_speed_max;
+
+			if (env_t::left_to_right_graphs) {
+				accel_chart.set_seed(delta_s * (SPEED_RECORDS - 1));
+				accel_chart.set_x_axis_span(delta_s);
+			}
+			else {
+				accel_chart.set_seed(0);
+				accel_chart.set_x_axis_span(0 - delta_s);
+			}
+			accel_chart.set_abort_display_x(0);
+
+			uint32 empty_weight = convoy.get_vehicle_summary().weight;
+			const sint32 max_speed = convoy.calc_max_speed(weight_summary_t(empty_weight, convoy.get_current_friction()));
+			while (i > 0 && max_speed>0)
+			{
+				empty_convoy.calc_move(welt->get_settings(), delta_t, weight_summary_t(min_weight, empty_convoy.get_current_friction()), akt_speed_soll_, akt_speed_soll_, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed_min, sp_soll_min, akt_v_min);
+				dummy_convoy.calc_move(welt->get_settings(), delta_t, weight_summary_t(min_weight+max_freight_weight, dummy_convoy.get_current_friction()), akt_speed_soll_, akt_speed_soll_, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed_max, sp_soll_max, akt_v_max);
+				convoy.calc_move(welt->get_settings(), delta_t, akt_speed_soll, akt_speed_soll, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed, sp_soll, akt_v);
+				if (env_t::left_to_right_graphs) {
+					accel_curves[--i][1] = cnv->in_depot() ? 0 : akt_speed;
+					accel_curves[i][2] = akt_speed_max;
+					accel_curves[i][3] = akt_speed_min;
+				}
+				else {
+					accel_curves[SPEED_RECORDS-i][1] = cnv->in_depot() ? 0 : akt_speed;
+					accel_curves[SPEED_RECORDS-i][2] = akt_speed_max;
+					accel_curves[SPEED_RECORDS-i][3] = akt_speed_min;
+					i--;
+				}
+			}
+			// for max speed reference line
+			for (i = 0; i < SPEED_RECORDS; i++) {
+				accel_curves[i][0] = empty_convoy.get_vehicle_summary().max_sim_speed;
+			}
+
+			// force chart
+			if (max_speed > 0) {
+				const uint16 display_interval = (max_speed + SPEED_RECORDS-1) / SPEED_RECORDS;
+				float32e8_t rolling_resistance = cnv->get_adverse_summary().fr;
+				te_curve_abort_x = max(2,(uint8)((max_speed + (display_interval-1)) / display_interval));
+				force_chart.set_abort_display_x(te_curve_abort_x);
+				force_chart.set_dimension(te_curve_abort_x, 10000);
+
+				if (env_t::left_to_right_graphs) {
+					force_chart.set_seed(display_interval * (SPEED_RECORDS-1));
+					force_chart.set_x_axis_span(display_interval);
+					for (i = 0; i < max_speed; i++) {
+						if (i % display_interval == 0) {
+							force_curves[SPEED_RECORDS-i / display_interval-1][0] = cnv->get_force_summary(i*kmh2ms);
+							force_curves[SPEED_RECORDS-i / display_interval-1][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
+						}
+					}
+				}
+				else {
+					force_chart.set_seed(0);
+					force_chart.set_x_axis_span(0 - display_interval);
+					for (int i = 0; i < max_speed; i++) {
+						if (i % display_interval == 0) {
+							force_curves[i/display_interval][0] = cnv->get_force_summary(i*kmh2ms);
+							force_curves[i/display_interval][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
+						}
+					}
+				}
+			}
+		}
 	}
 
 
@@ -1139,104 +1263,6 @@ void convoi_detail_t::draw(scr_coord pos, scr_size size)
 	withdraw_button.pressed = cnv->get_withdraw();
 	retire_button.pressed = cnv->get_depot_when_empty();
 	class_management_button.pressed = win_get_magic(magic_class_manager+cnv.get_id());
-
-	if (tabs.get_active_tab_index()==CD_TAB_PHYSICS_CHARTS) {
-		// common existing_convoy_t for acceleration curve and weight/speed info.
-		convoi_t &convoy = *cnv.get_rep();
-
-		// create dummy convoy and calcurate theoretical acceleration curve
-		vector_tpl<const vehicle_desc_t*> vehicles;
-		for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
-		{
-			vehicles.append(cnv->get_vehicle(i)->get_desc());
-		}
-		potential_convoy_t empty_convoy(vehicles);
-		potential_convoy_t dummy_convoy(vehicles);
-		const sint32 min_weight = dummy_convoy.get_vehicle_summary().weight;
-		const sint32 max_freight_weight = dummy_convoy.get_freight_summary().max_freight_weight;
-
-		const sint32 akt_speed_soll = kmh_to_speed(convoy.calc_max_speed(convoy.get_weight_summary()));
-		const sint32 akt_speed_soll_ = dummy_convoy.get_vehicle_summary().max_sim_speed;
-		float32e8_t akt_v = 0;
-		float32e8_t akt_v_min = 0;
-		float32e8_t akt_v_max = 0;
-		sint32 akt_speed = 0;
-		sint32 akt_speed_min = 0;
-		sint32 akt_speed_max = 0;
-		sint32 sp_soll = 0;
-		sint32 sp_soll_min = 0;
-		sint32 sp_soll_max = 0;
-		int i = SPEED_RECORDS - 1;
-		long delta_t = 1000;
-		sint32 delta_s = (welt->get_settings().ticks_to_seconds(delta_t)).to_sint32();
-		accel_curves[i][1] = akt_speed;
-		accel_curves[i][2] = akt_speed_min;
-		accel_curves[i][3] = akt_speed_max;
-
-		if (env_t::left_to_right_graphs) {
-			accel_chart.set_seed(delta_s * (SPEED_RECORDS - 1));
-			accel_chart.set_x_axis_span(delta_s);
-		}
-		else {
-			accel_chart.set_seed(0);
-			accel_chart.set_x_axis_span(0 - delta_s);
-		}
-		accel_chart.set_abort_display_x(0);
-
-		uint32 empty_weight = convoy.get_vehicle_summary().weight;
-		const sint32 max_speed = convoy.calc_max_speed(weight_summary_t(empty_weight, convoy.get_current_friction()));
-		while (i > 0 && max_speed>0)
-		{
-			empty_convoy.calc_move(welt->get_settings(), delta_t, weight_summary_t(min_weight, empty_convoy.get_current_friction()), akt_speed_soll_, akt_speed_soll_, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed_min, sp_soll_min, akt_v_min);
-			dummy_convoy.calc_move(welt->get_settings(), delta_t, weight_summary_t(min_weight+max_freight_weight, dummy_convoy.get_current_friction()), akt_speed_soll_, akt_speed_soll_, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed_max, sp_soll_max, akt_v_max);
-			convoy.calc_move(welt->get_settings(), delta_t, akt_speed_soll, akt_speed_soll, SINT32_MAX_VALUE, SINT32_MAX_VALUE, akt_speed, sp_soll, akt_v);
-			if (env_t::left_to_right_graphs) {
-				accel_curves[--i][1] = cnv->in_depot() ? 0 : akt_speed;
-				accel_curves[i][2] = akt_speed_max;
-				accel_curves[i][3] = akt_speed_min;
-			}
-			else {
-				accel_curves[SPEED_RECORDS-i][1] = cnv->in_depot() ? 0 : akt_speed;
-				accel_curves[SPEED_RECORDS-i][2] = akt_speed_max;
-				accel_curves[SPEED_RECORDS-i][3] = akt_speed_min;
-				i--;
-			}
-		}
-		// for max speed reference line
-		for (i = 0; i < SPEED_RECORDS; i++) {
-			accel_curves[i][0] = empty_convoy.get_vehicle_summary().max_sim_speed;
-		}
-
-		// force chart
-		if (max_speed > 0) {
-			const uint16 display_interval = (max_speed + SPEED_RECORDS-1) / SPEED_RECORDS;
-			float32e8_t rolling_resistance = cnv->get_adverse_summary().fr;
-			te_curve_abort_x = max(2,(uint8)((max_speed + (display_interval-1)) / display_interval));
-			force_chart.set_abort_display_x(te_curve_abort_x);
-			force_chart.set_dimension(te_curve_abort_x, 10000);
-
-			if (env_t::left_to_right_graphs) {
-				force_chart.set_seed(display_interval * (SPEED_RECORDS-1));
-				force_chart.set_x_axis_span(display_interval);
-				for (i = 0; i < max_speed; i++) {
-					if (i % display_interval == 0) {
-						force_curves[SPEED_RECORDS-i / display_interval-1][0] = cnv->get_force_summary(i*kmh2ms);
-						force_curves[SPEED_RECORDS-i / display_interval-1][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
-					}
-				}
-			}
-			else {
-				force_chart.set_seed(0);
-				force_chart.set_x_axis_span(0 - display_interval);
-				for (int i = 0; i < max_speed; i++) {
-					if (i % display_interval == 0) {
-						force_curves[i/display_interval][0] = cnv->get_force_summary(i*kmh2ms);
-						force_curves[i/display_interval][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
-					}
-				}
-			}
-		}
-	}
 
 	update_labels();
 
@@ -1429,6 +1455,180 @@ void gui_convoy_payload_info_t::update_list()
 	set_size(get_size());
 }
 
+#define COL_LIME color_idx_to_rgb(COL_GREEN)
+gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
+{
+	vehicle = v;
+	const vehicle_desc_t *veh_type = vehicle->get_desc();
+	const uint16 month_now = world()->get_timeline_year_month();
+
+	set_table_layout(1,0);
+	set_alignment(ALIGN_LEFT | ALIGN_TOP);
+	set_spacing(scr_size(D_H_SPACE,1));
+
+	// availability
+	add_table(2,1);
+	{
+		availability_indicator.init(COL_LIME,scr_size(D_INDICATOR_BOX_WIDTH, LINEASCENT/2+2),true,false);
+		availability_indicator.set_tooltip(translator::translate("Availability"));
+		add_component(&availability_indicator);
+		add_component(&lb_availability);
+	}
+	end_table();
+
+	// age
+	const sint32 month = vehicle->get_purchase_time();
+	uint32 age_in_months = world()->get_current_month() - month;
+
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>();
+	lb->buf().printf("%s %s  (", translator::translate("Manufactured:"), translator::get_year_month(month));
+	lb->buf().printf(age_in_months < 2 ? translator::translate("%i month") : translator::translate("%i months"), age_in_months);
+	lb->buf().append(")");
+	lb->update();
+
+	//if (!world()->get_settings().get_simplified_maintenance()) {
+		// last_overhaul_month
+		lb = new_component<gui_label_buf_t>();
+		lb->buf().printf("%s %s", translator::translate("Last overhauled:"), vehicle->get_overhaul_count()>0 ? translator::get_year_month(vehicle->get_overhaul_time()) : "-");
+		lb->update();
+
+		add_table(1,3)->set_spacing(scr_size(0,0));
+		{
+			lb = new_component<gui_label_buf_t>();
+			lb->buf().printf("%s: %u km", translator::translate("since_last_overhaul"), vehicle->get_km_since_last_overhaul());
+			lb->update();
+			next_overhaul_indicator.set_base(veh_type->get_max_distance_between_overhauls());
+			next_overhaul_indicator.set_width(LINEASCENT*8);
+			km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls(); // init
+			next_overhaul_indicator.add_color_value(&km_remaining_to_overhaul,      COL_LIME   );
+			next_overhaul_indicator.add_color_value(&bar_overhaul_required,         COL_CAUTION);
+			next_overhaul_indicator.add_color_value(&excess_km_from_overhaul_limit, COL_DANGER );
+
+			add_component(&next_overhaul_indicator);
+			new_component<gui_margin_t>(1,2);
+		}
+		end_table();
+
+		add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
+		{
+			lb = new_component<gui_label_buf_t>();
+			lb->buf().printf("%s: ", translator::translate("Overhaul cost:"));
+			lb->buf().append_money(vehicle->get_overhaul_cost()/100.0);
+			lb->update();
+
+			bt_do_not_overhaul.init(button_t::square_state, "do_not_overhaul");
+			bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
+			bt_do_not_overhaul.add_listener(this);
+
+			add_component(&bt_do_not_overhaul);
+		}
+		end_table();
+
+		if (veh_type->get_upgrades_count()) {
+			add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1, 1));
+			{
+				add_component(&lb_upgrade_vehicle);
+				bt_do_not_auto_upgrade.init(button_t::square_state, "do_not_auto_upgrade");
+				bt_do_not_auto_upgrade.pressed = vehicle->get_do_not_auto_upgrade();
+				bt_do_not_auto_upgrade.add_listener(this);
+				add_component(&bt_do_not_auto_upgrade);
+			}
+			end_table();
+		}
+
+	//}
+
+	new_component<gui_margin_t>(1,D_V_SPACE-1);
+
+	// maintenance
+	lb = new_component<gui_label_buf_t>();
+	lb->buf().printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), veh_type->get_running_cost()/100.0, veh_type->get_adjusted_monthly_fixed_cost()/100.0);
+	lb->update();
+	new_component<gui_margin_t>(1,D_V_SPACE-1);
+
+	// value
+	// TODO: Indication of depreciation
+	char number[64];
+	money_to_string(number, vehicle->calc_sale_value() / 100.0);
+	lb = new_component<gui_label_buf_t>();
+	lb->buf().printf("%s %s", translator::translate("Restwert:"), number);
+	lb->update();
+
+
+	// TODO: upgrade info
+}
+
+
+void gui_vehicle_maintenance_t::draw(scr_coord offset)
+{
+	// availability
+	PIXVAL color = COL_LIME;
+	if(vehicle->get_availability()<100){
+		color = COL_CAUTION;
+	}
+	availability_indicator.set_color(color);
+	lb_availability.buf().printf("%3u%%", vehicle->get_availability());
+	//if( !world()->get_settings().get_simplified_maintenance() ) {
+		lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
+
+		lb_km_since_last_maint_.update();
+
+		if( vehicle->is_overhaul_needed() ) {
+			km_remaining_to_overhaul=0; // green
+			bar_overhaul_required = vehicle->get_desc()->get_max_distance_between_overhauls(); // yellow
+			excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
+		}
+		else {
+			km_remaining_to_overhaul = vehicle->get_desc()->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+		}
+	//}
+
+	if( vehicle->get_desc()->get_upgrades_count() ) {
+		if( vehicle->get_do_not_auto_upgrade() ) {
+			lb_upgrade_vehicle.buf().append("-");
+		}
+		else {
+			if ( vehicle->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ) {
+				const vehicle_desc_t *upgrade_target= vehicle->get_auto_upgrade();
+				lb_upgrade_vehicle.buf().printf("%s: ", translator::translate("auto_upgrade_to"));
+				if (upgrade_target != NULL) {
+					lb_upgrade_vehicle.buf().append(upgrade_target->get_name());
+				}
+				else {
+					lb_upgrade_vehicle.buf().append(translator::translate("unavailable"));
+				}
+			}
+			else {
+				lb_upgrade_vehicle.buf().append("-");
+			}
+		}
+		lb_upgrade_vehicle.update();
+	}
+
+	bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
+	bt_do_not_auto_upgrade.pressed = vehicle->get_do_not_auto_upgrade();
+
+	//set_size(get_min_size());
+	gui_aligned_container_t::draw(offset);
+}
+
+bool gui_vehicle_maintenance_t::action_triggered(gui_action_creator_t *comp, value_t v)
+{
+	if (world()->get_active_player()==vehicle->get_owner()) {
+		if( comp==&bt_do_not_overhaul ) {
+			bt_do_not_overhaul.pressed = !bt_do_not_overhaul.pressed;
+			vehicle->set_do_not_overhaul(bt_do_not_overhaul.pressed);
+			return true;
+		}
+		else if( comp==&bt_do_not_auto_upgrade ) {
+			bt_do_not_auto_upgrade.pressed = !bt_do_not_auto_upgrade.pressed;
+			vehicle->set_do_not_auto_upgrade(bt_do_not_auto_upgrade.pressed);
+			return true;
+		}
+	}
+	return false;
+}
+
 
 gui_convoy_maintenance_info_t::gui_convoy_maintenance_info_t(convoihandle_t cnv)
 {
@@ -1468,7 +1668,7 @@ void gui_convoy_maintenance_info_t::update_list()
 		for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
 			new_component_span<gui_border_t>(2);
 
-			const vehicle_t* veh = cnv->get_vehicle(i);
+			vehicle_t* veh = cnv->get_vehicle(i);
 			// left part
 			add_table(1,2)->set_alignment(ALIGN_TOP);
 			{
@@ -1492,97 +1692,65 @@ void gui_convoy_maintenance_info_t::update_list()
 
 			// right part
 			add_table(3,0);
-			{
+			{ // | (margin_t) | lgui_vehicle_maintenance_t  | (fill_t) |
 				// name
-				gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left, 3);
+				gui_label_buf_t *lb = new_component_span<gui_label_buf_t>(3);
 				lb->buf().append(translator::translate(veh->get_desc()->get_name()));
 				lb->update();
 
-				// livery scheme info
-				if( veh->get_desc()->get_livery_count()>1 ) {
-					if (!strcmp(veh->get_current_livery(), "default")) {
-						if (convoy_scheme->is_contained(veh->get_current_livery(), month_now)) {
-							// current livery belongs to convoy applied livery scheme and active
-							new_component<gui_margin_t>(LINESPACE>>1);
-							// is current livery latest one? no => change text color
-							new_component<gui_label_t>(convoy_scheme->get_name(), strcmp(convoy_scheme->get_latest_available_livery(month_now, veh->get_desc()), veh->get_current_livery()) ? COL_UPGRADEABLE : SYSCOL_TEXT);
-							new_component<gui_fill_t>();
+				new_component<gui_margin_t>(LINESPACE>>1);
+				add_table(1,2);
+				{
+					// livery scheme info
+					if (veh->get_desc()->get_livery_count() > 1) {
+						if (!strcmp(veh->get_current_livery(), "default")) {
+							if (convoy_scheme->is_contained(veh->get_current_livery(), month_now)) {
+								// current livery belongs to convoy applied livery scheme and active
+								// is current livery latest one? no => change text color
+								new_component<gui_label_t>(convoy_scheme->get_name(), strcmp(convoy_scheme->get_latest_available_livery(month_now, veh->get_desc()), veh->get_current_livery()) ? COL_UPGRADEABLE : SYSCOL_TEXT);
+							}
+							else if (convoy_scheme->is_contained(veh->get_current_livery())) {
+								// this is old livery
+								// TODO: add livery scheme symbol
+								new_component<gui_label_t>(convoy_scheme->get_name(), COL_OBSOLETE);
+							}
+							//else { // no livery=>no display }
 						}
-						else if (convoy_scheme->is_contained(veh->get_current_livery())) {
-							// this is old livery
-							new_component<gui_margin_t>(LINESPACE>>1);
-							// TODO: add livery scheme symbol
-							new_component<gui_label_t>(convoy_scheme->get_name(), COL_OBSOLETE);
-							new_component<gui_fill_t>();
-						}
-						//else { // no livery=>no display }
-					}
-					else {
-						// current livery does not belong to convoy applied livery scheme
-						// note: livery may belong to more than one livery scheme
-						bool found_active_scheme = false;
+						else {
+							// current livery does not belong to convoy applied livery scheme
+							// note: livery may belong to more than one livery scheme
+							bool found_active_scheme = false;
 
-						new_component<gui_margin_t>(LINESPACE>>1);
-						gui_label_buf_t *lb_livery = new_component<gui_label_buf_t>(color_idx_to_rgb(COL_BROWN), gui_label_t::left);
-						int cnt = 0;
-						for(uint32 i = 0; i < schemes->get_count(); i++)
-						{
-							livery_scheme_t* scheme = schemes->get_element(i);
-							if (scheme->is_contained(veh->get_current_livery())) {
-								if (scheme->is_available(month_now)) {
-									found_active_scheme = true;
-									if (cnt) { lb_livery->buf().append(", "); }
-									lb_livery->buf().append(translator::translate(scheme->get_name()));
-									cnt++;
-								}
-								else if(!found_active_scheme){
-									if (cnt) { lb_livery->buf().append(", "); }
-									lb_livery->buf().append(translator::translate(scheme->get_name()));
-									cnt++;
+							gui_label_buf_t *lb_livery = new_component<gui_label_buf_t>(color_idx_to_rgb(COL_BROWN));
+							int cnt = 0;
+							for (uint32 i = 0; i < schemes->get_count(); i++)
+							{
+								livery_scheme_t* scheme = schemes->get_element(i);
+								if (scheme->is_contained(veh->get_current_livery())) {
+									if (scheme->is_available(month_now)) {
+										found_active_scheme = true;
+										if (cnt) { lb_livery->buf().append(", "); }
+										lb_livery->buf().append(translator::translate(scheme->get_name()));
+										cnt++;
+									}
+									else if (!found_active_scheme) {
+										if (cnt) { lb_livery->buf().append(", "); }
+										lb_livery->buf().append(translator::translate(scheme->get_name()));
+										cnt++;
+									}
 								}
 							}
+							if (!found_active_scheme) {
+								lb_livery->set_color(color_idx_to_rgb(COL_DARK_BROWN));
+							}
+							lb_livery->update();
 						}
-						if (!found_active_scheme) {
-							lb_livery->set_color(color_idx_to_rgb(COL_DARK_BROWN));
-						}
-						lb_livery->update();
-
-						new_component<gui_fill_t>();
 					}
+
+					new_component<gui_vehicle_maintenance_t>(veh);
 				}
-
-				// age
-				const sint32 month = veh->get_purchase_time();
-				uint32 age_in_months = world()->get_current_month() - month;
-
-				new_component<gui_margin_t>(LINESPACE >> 1);
-				lb = new_component<gui_label_buf_t>();
-
-				lb->buf().printf("%s %s  (", translator::translate("Manufactured:"), translator::get_year_month(month));
-				lb->buf().printf(age_in_months < 2 ? translator::translate("%i month") : translator::translate("%i months"), age_in_months);
-				lb->buf().append(")");
-				lb->update();
+				end_table();
 				new_component<gui_fill_t>();
-
-				// value
-				// TODO: Indication of depreciation
-				char number[64];
-				money_to_string(number, veh->calc_sale_value() / 100.0);
-				new_component<gui_margin_t>(LINESPACE >> 1);
-				lb = new_component<gui_label_buf_t>();
-				lb->buf().printf("%s %s", translator::translate("Restwert:"), number);
-				lb->update();
-				new_component<gui_fill_t>();
-
-				// maintenance
-				new_component<gui_margin_t>(LINESPACE>>1);
-				lb = new_component<gui_label_buf_t>();
-				lb->buf().printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), veh->get_desc()->get_running_cost()/100.0, veh->get_desc()->get_adjusted_monthly_fixed_cost()/100.0);
-				lb->update();
-				new_component<gui_fill_t>();
-
-				// TODO: upgrade info
-
 			}
 			end_table();
 		}
