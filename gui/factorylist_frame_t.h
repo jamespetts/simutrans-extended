@@ -67,6 +67,8 @@ public:
 	uint32 get_rdwr_id() OVERRIDE { return magic_factorylist; }
 
 	void set_cityfilter(stadt_t *city);
+	// for filter by factory name
+	void set_text_filter(const char * text);
 };
 
 #endif

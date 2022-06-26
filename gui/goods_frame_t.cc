@@ -6,8 +6,8 @@
 #include <algorithm>
 
 #include "goods_frame_t.h"
+#include "components/gui_image.h"
 #include "components/gui_scrollpane.h"
-
 
 #include "../bauer/goods_manager.h"
 #include "../descriptor/goods_desc.h"
@@ -103,7 +103,12 @@ goods_frame_t::goods_frame_t() :
 		distance_input.add_listener( this );
 		input_container.add_component(&distance_input);
 
-		input_container.new_component<gui_label_t>("Comfort");
+		input_container.add_table(2,1);
+		{
+			input_container.new_component<gui_image_t>(skinverwaltung_t::comfort ? skinverwaltung_t::comfort->get_image_id(0) : IMG_EMPTY, 0, ALIGN_NONE, true);
+			input_container.new_component<gui_label_t>("Comfort");
+		}
+		input_container.end_table();
 		comfort_input.set_limits( 1, 255 );
 		comfort_input.set_value( comfort );
 		comfort_input.wrap_mode( false );
@@ -249,12 +254,29 @@ goods_frame_t::goods_frame_t() :
 
 	update_fare_charts();
 
+	// comfort chart
+	cont_comfort_chart.set_table_layout(1,0);
+	cont_comfort_chart.new_component<gui_label_t>("(Max. comfortable journey time: ");
+	cont_comfort_chart.new_component<gui_margin_t>(1,LINEASCENT>>1);
+	cont_comfort_chart.add_component(&comfort_chart);
+	comfort_chart.set_ltr(2);
+	comfort_chart.set_dimension(COMFORT_RECORDS, 86400);
+	comfort_chart.set_background(SYSCOL_CHART_BACKGROUND);
+	comfort_chart.set_x_axis_span(5);
+	comfort_chart.show_curve(0);
+	comfort_chart.set_min_size(scr_size(0, 6*LINESPACE));
+	for (uint8 i = 0; i < COMFORT_RECORDS; i++) {
+		comfort_curve[i] = world()->get_settings().max_tolerable_journey(i*5);
+	}
+	comfort_chart.add_curve(15911, (sint64*)comfort_curve, 1, 0, COMFORT_RECORDS, gui_chart_t::TIME, true, false, 0);
+
 	tabs_chart.add_tab(&cont_fare_short, translator::translate("fare_short"));
 	tabs_chart.add_tab(&cont_fare_long,  translator::translate("fare_long"));
 	cont_fare_chart.add_component(&tabs_chart);
 
 	tabs.add_tab(&cont_goods_list, translator::translate("Goods list"));
 	tabs.add_tab(&cont_fare_chart, translator::translate("fare_chart"));
+	tabs.add_tab(&cont_comfort_chart, translator::translate("comfort_chart"));
 	add_component(&tabs);
 
 	reset_min_windowsize();

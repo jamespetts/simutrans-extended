@@ -9,7 +9,7 @@
 #include "../../simevent.h"
 #include "../../simworld.h"
 
-
+#include "../../dataobj/translator.h"
 
 
 gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
@@ -86,7 +86,7 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 
 	FOR(vector_tpl<image_data_t*>, const& iptr, *images) {
 		image_data_t const& idata = *iptr;
-		if(idata.count>=0) {
+		if(idata.count!=-32768) {
 
 			// display mark
 			if(idata.lcolor!=EMPTY_IMAGE_BAR) {
@@ -110,19 +110,24 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 			display_base_img(idata.image, xpos + x, ypos + y, player_nr, false, true);
 
 			// If necessary, display a number:
-			if(idata.count > 0) {
+			if(idata.count != 0) {
 				char text[20];
 
-				sprintf(text, "%d", idata.count);
+				if (idata.count<0) {
+					sprintf(text, "%s%d", translator::translate("LOCO_SYM"), abs(idata.count));
+				}
+				else {
+					sprintf(text, "%d", idata.count);
+				}
 
 				// Let's make a black background to ensure visibility
 				for(int iy = -3; iy < 0; iy++) {
 					for(int ix = 1; ix < 4; ix++) {
-						display_proportional_clip_rgb(xpos + ix, ypos + iy + 1, text, ALIGN_LEFT, color_idx_to_rgb(COL_BLACK), true);
+						display_proportional_clip_rgb(xpos + ix, ypos + iy + 1, text, ALIGN_LEFT, SYSCOL_TEXT_SHADOW, true);
 					}
 				}
 				// Display the number white on black
-				display_proportional_clip_rgb(xpos + 2, ypos - 1, text, ALIGN_LEFT, color_idx_to_rgb(COL_WHITE), true);
+				display_proportional_clip_rgb(xpos + 2, ypos - 1, text, ALIGN_LEFT, SYSCOL_TEXT_HIGHLIGHT, true);
 			}
 
 			// If necessary, display upgradable symbol: 1=upgradeable, 2=has available upgrade target

@@ -10,6 +10,7 @@
 #include "../gui_frame.h"
 #include "../simwin.h"
 #include "../../simcolor.h"
+#include "../../simworld.h" // sprintf_time_secs
 #include "../../utils/simstring.h"
 #include "../../dataobj/environment.h"
 #include "../../display/simgraph.h"
@@ -258,9 +259,14 @@ void gui_chart_t::draw(scr_coord offset)
 
 				// display tooltip?
 				if(i==tooltip_n  &&  abs((int)(baseline-(int)(tmp/scale)-tooltipcoord.y))<10) {
-					number_to_string(tooltip, display_tmp, c.precision);
-					if (c.suffix) {
-						strcat(tooltip, c.suffix);
+					if (c.type == TIME) {
+						world()->sprintf_time_secs(tooltip, sizeof(tooltip), display_tmp);
+					}
+					else {
+						number_to_string(tooltip, display_tmp, c.precision);
+						if (c.suffix) {
+							strcat(tooltip, c.suffix);
+						}
 					}
 					win_set_tooltip( get_mouse_x()+TOOLTIP_MOUSE_OFFSET_X, get_mouse_y()-TOOLTIP_MOUSE_OFFSET_Y, tooltip );
 				}
@@ -309,6 +315,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 
 	bool convert_kmph = false; // for speed chart. Converts the scale from simspeed to km/h.
 	bool convert_n_to_kn = false; // for force chart
+	bool convert_time = false; // for comfort chart. dont use this with other units
 
 	FOR(slist_tpl<curve_t>, const& c, curves) {
 		if(  c.show  ) {
@@ -320,6 +327,10 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 				}
 				else if (  c.type == KMPH  ) {
 					convert_kmph = true;
+					precision = 0;
+				}
+				else if (  c.type == TIME  ) {
+					convert_time = true;
 					precision = 0;
 				}
 				else if (  c.type == FORCE  ) {
@@ -345,15 +356,21 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 		max += 1;
 	}
 
-	// if accel chart => Drawing accuracy hack: simspeed to integer km/h. (Do not rewrite min max for scaling)
-	number_to_string_fit(cmin, convert_kmph ? speed_to_kmh((int)min) : (double)min/pow(10,precision), precision, maximum_axis_len - (min_suffix != 0));
-	number_to_string_fit(cmax, convert_kmph ? speed_to_kmh((int)max) : (double)max/pow(10,precision), precision, maximum_axis_len - (max_suffix != 0));
-
-	if(  min_suffix  ) {
-		strcat( cmin, min_suffix );
+	if (convert_time) {
+		world()->sprintf_time_secs(cmin, 32, (uint32)min);
+		world()->sprintf_time_secs(cmax, 32, (uint32)max);
 	}
-	if(  max_suffix  ) {
-		strcat( cmax, max_suffix );
+	else {
+		// if accel chart => Drawing accuracy hack: simspeed to integer km/h. (Do not rewrite min max for scaling)
+		number_to_string_fit(cmin, convert_kmph ? speed_to_kmh((int)min) : (double)min/pow(10,precision), precision, maximum_axis_len - (min_suffix != 0));
+		number_to_string_fit(cmax, convert_kmph ? speed_to_kmh((int)max) : (double)max/pow(10,precision), precision, maximum_axis_len - (max_suffix != 0));
+
+		if(  min_suffix  ) {
+			strcat( cmin, min_suffix );
+		}
+		if(  max_suffix  ) {
+			strcat( cmax, max_suffix );
+		}
 	}
 
 	// scale: factor to calculate money with, to get y-pos offset
