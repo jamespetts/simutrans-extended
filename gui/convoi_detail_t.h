@@ -106,6 +106,8 @@ private:
 	gui_colorbox_t availability_indicator;
 	gui_speedbar_fixed_length_t next_overhaul_indicator;
 	gui_label_buf_t lb_availability, lb_km_since_last_maint_, lb_upgrade_vehicle;
+	gui_label_buf_t lb_running_cost, lb_running_cost_diff;
+	gui_label_buf_t lb_fixed_cost, lb_fixed_cost_diff;
 
 
 public:

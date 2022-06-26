@@ -1512,7 +1512,7 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 		add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
 		{
 			lb = new_component<gui_label_buf_t>();
-			lb->buf().printf("%s: ", translator::translate("Overhaul cost:"));
+			lb->buf().printf("%s: ", translator::translate("Overhaul cost"));
 			lb->buf().append_money(vehicle->get_overhaul_cost()/100.0);
 			lb->update();
 
@@ -1541,10 +1541,35 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 	new_component<gui_margin_t>(1,D_V_SPACE-1);
 
 	// maintenance
-	lb = new_component<gui_label_buf_t>();
-	lb->buf().printf(translator::translate("Maintenance: %1.2f$/km, %1.2f$/month\n"), veh_type->get_running_cost()/100.0, veh_type->get_adjusted_monthly_fixed_cost()/100.0);
-	lb->update();
-	new_component<gui_margin_t>(1,D_V_SPACE-1);
+	add_table(3,1);
+	{
+		lb = new_component<gui_label_buf_t>();
+		lb->buf().printf("%s: ", translator::translate("Operation"));
+		lb->update();
+		lb_running_cost.buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
+		lb_running_cost.update();
+		add_component(&lb_running_cost); // only update if is_wear_affecting_vehicle()
+		lb_running_cost_diff.set_color(COL_OBSOLETE);
+		lb_running_cost_diff.set_visible(false);
+		add_component(&lb_running_cost_diff);
+	}
+	end_table();
+
+	add_table(3, 1);
+	{
+		lb = new_component<gui_label_buf_t>();
+		lb->buf().printf("%s: ", translator::translate("Vehicle maintenance"));
+		lb->update();
+		lb_fixed_cost.buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
+		lb_fixed_cost.update();
+		add_component(&lb_fixed_cost); // only update if is_wear_affecting_vehicle()
+		lb_fixed_cost_diff.set_color(COL_OBSOLETE);
+		lb_fixed_cost_diff.set_visible(false);
+		add_component(&lb_fixed_cost_diff);
+	}
+	end_table();
+
+	new_component<gui_margin_t>(1, D_V_SPACE - 1);
 
 	// value
 	// TODO: Indication of depreciation
@@ -1561,6 +1586,7 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 
 void gui_vehicle_maintenance_t::draw(scr_coord offset)
 {
+	const vehicle_desc_t *veh_type = vehicle->get_desc();
 	// availability
 	PIXVAL color = COL_LIME;
 	if(vehicle->get_availability()<100){
@@ -1575,20 +1601,49 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 
 		if( vehicle->is_overhaul_needed() ) {
 			km_remaining_to_overhaul=0; // green
-			bar_overhaul_required = vehicle->get_desc()->get_max_distance_between_overhauls(); // yellow
+			bar_overhaul_required = veh_type->get_max_distance_between_overhauls(); // yellow
 			excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
 		}
 		else {
-			km_remaining_to_overhaul = vehicle->get_desc()->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+			km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
 		}
 	//}
 
-	if( vehicle->get_desc()->get_upgrades_count() ) {
+	if( vehicle->is_wear_affecting_vehicle() ){
+		const uint16 change = vehicle->get_running_cost(world()) - veh_type->get_running_cost();
+		lb_running_cost.buf().printf("%1.2f$/km", vehicle->get_running_cost(world()) / 100.0);
+		lb_running_cost.update();
+
+		if( veh_type->get_running_cost()>0 && change ) {
+			lb_running_cost_diff.buf().printf("(+%.1f%%)", (change*1000/veh_type->get_running_cost())/10.0);
+			lb_running_cost_diff.set_visible(true);
+			lb_running_cost_diff.update();
+		}
+	}
+	else {
+		lb_running_cost_diff.set_visible(false);
+	}
+	if( veh_type->is_obsolete(world()->get_timeline_year_month()) ) {
+		const uint16 change = vehicle->get_fixed_cost(world()) - vehicle->get_fixed_cost();
+		lb_fixed_cost.buf().printf("%1.2f$/km", vehicle->get_fixed_cost(world()) / 100.0);
+		lb_fixed_cost.update();
+
+		if( veh_type->get_fixed_cost() > 0  &&  change ) {
+			lb_fixed_cost_diff.buf().printf("(+%.1f%%)", (change * 1000 / vehicle->get_fixed_cost()) / 10.0);
+			lb_fixed_cost_diff.set_visible(true);
+			lb_fixed_cost_diff.update();
+		}
+	}
+	else {
+		lb_fixed_cost_diff.set_visible(false);
+	}
+
+	if( veh_type->get_upgrades_count() ) {
 		if( vehicle->get_do_not_auto_upgrade() ) {
 			lb_upgrade_vehicle.buf().append("-");
 		}
 		else {
-			if ( vehicle->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ) {
+			if ( veh_type->has_available_upgrade(world()->get_timeline_year_month()) ) {
 				const vehicle_desc_t *upgrade_target= vehicle->get_auto_upgrade();
 				lb_upgrade_vehicle.buf().printf("%s: ", translator::translate("auto_upgrade_to"));
 				if (upgrade_target != NULL) {
