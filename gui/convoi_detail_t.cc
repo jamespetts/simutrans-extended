@@ -37,6 +37,7 @@
 #include "../display/viewport.h"
 
 #include "../bauer/vehikelbauer.h"
+#include "../vehicle/air_vehicle.h"
 
 
 #define CHART_HEIGHT (100)
@@ -1492,14 +1493,27 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 		lb->buf().printf("%s %s", translator::translate("Last overhauled:"), vehicle->get_overhaul_count()>0 ? translator::get_year_month(vehicle->get_overhaul_time()) : "-");
 		lb->update();
 
+		const bool is_aircraft = (veh_type->get_waytype() == air_wt);
 		add_table(1,3)->set_spacing(scr_size(0,0));
 		{
-			lb = new_component<gui_label_buf_t>();
-			lb->buf().printf("%s: %u km", translator::translate("since_last_overhaul"), vehicle->get_km_since_last_overhaul());
-			lb->update();
-			next_overhaul_indicator.set_base(veh_type->get_max_distance_between_overhauls());
+			add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
+			{
+				lb = new_component<gui_label_buf_t>();
+				lb->buf().printf("%s: ", translator::translate("since_last_overhaul"));
+				lb->update();
+				add_component(&lb_km_since_last_maint_);
+				if( is_aircraft ) {
+					air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
+					lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
+				}
+				else {
+					lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
+				}
+			}
+			end_table();
+			next_overhaul_indicator.set_base(is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls());
 			next_overhaul_indicator.set_width(LINEASCENT*8);
-			km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls(); // init
+			km_remaining_to_overhaul = is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls(); // init
 			next_overhaul_indicator.add_color_value(&km_remaining_to_overhaul,      COL_LIME   );
 			next_overhaul_indicator.add_color_value(&bar_overhaul_required,         COL_CAUTION);
 			next_overhaul_indicator.add_color_value(&excess_km_from_overhaul_limit, COL_DANGER );
@@ -1569,7 +1583,7 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 	}
 	end_table();
 
-	new_component<gui_margin_t>(1, D_V_SPACE - 1);
+	new_component<gui_margin_t>(1, D_V_SPACE-1);
 
 	// value
 	// TODO: Indication of depreciation
@@ -1595,17 +1609,38 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 	availability_indicator.set_color(color);
 	lb_availability.buf().printf("%3u%%", vehicle->get_availability());
 	//if( !world()->get_settings().get_simplified_maintenance() ) {
-		lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
+		const bool is_aircraft = (veh_type->get_waytype() == air_wt);
+		if( is_aircraft ) {
+			air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
+			lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
+		}
+		else {
+			lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
+		}
 
 		lb_km_since_last_maint_.update();
 
-		if( vehicle->is_overhaul_needed() ) {
-			km_remaining_to_overhaul=0; // green
-			bar_overhaul_required = veh_type->get_max_distance_between_overhauls(); // yellow
-			excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
+		if (is_aircraft) {
+			air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
+			lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
+			if (vehicle->is_overhaul_needed()) {
+				km_remaining_to_overhaul = 0; // green
+				bar_overhaul_required = veh_type->get_max_takeoffs(); // yellow
+				excess_km_from_overhaul_limit = min(aircraft->get_number_of_takeoffs() - bar_overhaul_required, bar_overhaul_required); // orange
+			}
+			else {
+				km_remaining_to_overhaul = veh_type->get_max_takeoffs() - aircraft->get_number_of_takeoffs();
+			}
 		}
 		else {
-			km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+			if( vehicle->is_overhaul_needed() ) {
+				km_remaining_to_overhaul=0; // green
+				bar_overhaul_required = veh_type->get_max_distance_between_overhauls(); // yellow
+				excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
+			}
+			else {
+				km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+			}
 		}
 	//}
 
