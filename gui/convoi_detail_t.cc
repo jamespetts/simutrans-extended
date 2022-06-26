@@ -1504,7 +1504,7 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 				add_component(&lb_km_since_last_maint_);
 				if( is_aircraft ) {
 					air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
-					lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
+					lb_km_since_last_maint_.buf().printf(translator::translate("%u takeoffs"), aircraft->get_number_of_takeoffs());
 				}
 				else {
 					lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
