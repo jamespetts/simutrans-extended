@@ -734,6 +734,7 @@ public:
 	}
 	void fix_number_of_classes();
 	uint32 get_weight() const { return weight; }
+	uint32 get_max_loading_weight() const;
 	uint16 get_running_cost() const { return running_cost; }
 	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
 	uint32 get_fixed_cost() const { return fixed_cost; }

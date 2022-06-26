@@ -73,7 +73,7 @@ gui_operation_status_t::gui_operation_status_t(PIXVAL c, uint8 height_)
 	height = height_;
 	color = c;
 	tooltip = NULL;
-	gui_component_t::set_size(scr_size(height, height));
+	gui_component_t::set_size(GOODS_COLOR_BOX_SIZE);
 }
 
 void gui_operation_status_t::draw(scr_coord offset)

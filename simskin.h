@@ -120,6 +120,8 @@ public:
 	static const skin_desc_t *mail_evaluation_icons;
 	/// @}
 
+	static const skin_desc_t *staff_cost;
+
 	/// images used to alert in line with message text
 	static const skin_desc_t *alerts;
 

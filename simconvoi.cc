@@ -935,6 +935,18 @@ bool convoi_t::has_tall_vehicles()
 	return is_tall;
 }
 
+bool convoi_t::has_tilting_vehicles()
+{
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (get_vehicle(i)->get_desc()->get_tilting()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 // BG, 06.11.2011
 route_t::route_result_t convoi_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed)
 {

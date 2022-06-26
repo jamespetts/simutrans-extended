@@ -86,6 +86,7 @@ const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 const skin_desc_t* skinverwaltung_t::layover            = NULL;
 const skin_desc_t* skinverwaltung_t::refuel             = NULL;
 const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
+const skin_desc_t* skinverwaltung_t::staff_cost         = NULL;
 
 // cursors
 const skin_desc_t* skinverwaltung_t::cursor_general     = NULL; // new cursors
@@ -192,6 +193,7 @@ static special_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
 	{ &skinverwaltung_t::mail_evaluation_icons, "MailEvaluation" },
 	{ &skinverwaltung_t::goods_categories,   "GoodsCategories"},
 	{ &skinverwaltung_t::ind_sector_symbol,  "IndustrySectors" },
+	{ &skinverwaltung_t::staff_cost,         "StaffCost"      },
 	{ NULL, NULL }
 };
 
