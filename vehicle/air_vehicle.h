@@ -186,7 +186,7 @@ public:
 	virtual sint32 get_takeoff_route_index() const OVERRIDE { return (sint32) takeoff; }
 	virtual sint32 get_touchdown_route_index() const OVERRIDE { return (sint32) touchdown; }
 
-	uint32 get_number_of_takeoffs() { return number_of_takeoffs; }
+	uint32 get_number_of_takeoffs() const { return number_of_takeoffs; }
 };
 
 #endif
