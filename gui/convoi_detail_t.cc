@@ -109,7 +109,7 @@ static char const* const txt_spec_modes[gui_convoy_spec_table_t::MAX_SPEC_TABLE_
 	"equipments"
 };
 
-static char const* const spec_table_first_col_text[] =
+static char const* const spec_table_first_col_text[gui_convoy_spec_table_t::MAX_SPECS] =
 {
 	"Car no.",
 	"",
@@ -305,6 +305,11 @@ gui_convoy_spec_table_t::gui_convoy_spec_table_t(convoihandle_t c)
 	set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
 	//set_alignment(ALIGN_LEFT|ALIGN_TOP);
 
+	// First, calculate the width of the first column
+	for (uint8 i=SPECS_FREIGHT_TYPE; i<MAX_SPECS; i++) {
+		spec_table_first_col_width = max(spec_table_first_col_width, proportional_string_width(spec_table_first_col_text[i]));
+	}
+
 	if( cnv.is_bound() ) {
 		update_seed = cnv->get_vehicle_count() + world()->get_current_month() + cnv->get_current_schedule_order() + spec_table_mode + show_sideview;
 		update();
@@ -324,7 +329,6 @@ void gui_convoy_spec_table_t::update()
 		for (uint8 j=0; j < cnv->get_vehicle_count()+2; j++) {
 			// Row label
 			if (j == 0) {
-				spec_table_first_col_width = max(spec_table_first_col_width, proportional_string_width(spec_table_first_col_text[i]));
 				new_component<gui_label_t>(spec_table_first_col_text[i], SYSCOL_TEXT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 				continue;
 			}
@@ -423,7 +427,6 @@ void gui_convoy_spec_table_t::insert_spec_rows()
 		for (uint8 j=0; j < cnv->get_vehicle_count()+2; j++) {
 			// Row label
 			if (j == 0) {
-				spec_table_first_col_width = max(spec_table_first_col_width, proportional_string_width(spec_table_first_col_text[i]));
 				new_component<gui_label_t>(spec_table_first_col_text[i], SYSCOL_TEXT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 				continue;
 			}

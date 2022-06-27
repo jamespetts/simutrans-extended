@@ -136,6 +136,22 @@ public:
 
 class gui_convoy_spec_table_t : public gui_aligned_container_t
 {
+	convoihandle_t cnv;
+	cbuffer_t buf;
+
+	// update flag
+	uint32 update_seed=0;
+
+	void update();
+
+	// Insert rows that make up the spec table
+	void insert_spec_rows();
+	void insert_payload_rows();
+	void insert_maintenance_rows();
+	void insert_constraints_rows();
+
+public:
+
 	enum {
 		SPECS_CAR_NUMBER = 0,
 		SPECS_SIDEVIEW,
@@ -162,7 +178,8 @@ class gui_convoy_spec_table_t : public gui_aligned_container_t
 		MAX_SPECS
 	};
 	enum {
-		SPECS_DETAIL_START = SPECS_FREIGHT_TYPE
+		SPECS_DETAIL_START = SPECS_FREIGHT_TYPE,
+		SPECS_MAINTENANCE_START = SPECS_FREIGHT_TYPE
 		//SPECS_PAYLOADS,
 		//SPECS_COMFORT,
 		//SPECS_CATERING
@@ -171,21 +188,6 @@ class gui_convoy_spec_table_t : public gui_aligned_container_t
 		//MAX_PAYLOAD_ROW
 	};
 
-	convoihandle_t cnv;
-	cbuffer_t buf;
-
-	// update flag
-	uint32 update_seed=0;
-
-	void update();
-
-	// Insert rows that make up the spec table
-	void insert_spec_rows();
-	void insert_payload_rows();
-	void insert_maintenance_rows();
-	void insert_constraints_rows();
-
-public:
 
 	enum { // spec table index
 		SPEC_TABLE_PHYSICS     = 0,
