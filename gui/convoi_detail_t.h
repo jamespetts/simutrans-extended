@@ -173,6 +173,12 @@ class gui_convoy_spec_table_t : public gui_aligned_container_t
 
 	convoihandle_t cnv;
 	cbuffer_t buf;
+
+	// update flag
+	uint32 update_seed=0;
+
+	void update();
+
 	// Insert rows that make up the spec table
 	void insert_spec_rows();
 	void insert_payload_rows();
