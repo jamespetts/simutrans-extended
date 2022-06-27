@@ -101,6 +101,14 @@ static char const* const txt_loaded_display[4] =
 	"Final destination"
 };
 
+static char const* const txt_spec_modes[gui_convoy_spec_table_t::MAX_SPEC_TABLE_MODE] =
+{
+	"principal_spec",
+	"payload_spec",
+	"maintenance_spec",
+	"equipments"
+};
+
 static char const* const spec_table_first_col_text[] =
 {
 	"Car no.",
@@ -356,7 +364,7 @@ void gui_convoy_spec_table_t::insert_spec_rows()
 					case SPECS_RUNNING_COST:
 						buf.printf("%.2f$/km", cnv->get_running_cost() / 100.0); break;
 					case SPECS_FIXED_COST:
-						buf.printf("%.2f$/month", world()->calc_adjusted_monthly_figure(cnv->get_fixed_cost()) / 100.0); break;
+						buf.printf("%.2f$/%s", world()->calc_adjusted_monthly_figure(cnv->get_fixed_cost()) / 100.0, translator::translate("month")); break;
 					case SPECS_VALUE:
 						buf.printf("%.2f$", cnv->get_purchase_cost() / 100.0); break;
 					case SPECS_AGE:
@@ -501,9 +509,9 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 		}
 		else {
 			for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
-				const vehicle_desc_t* v_desc = cnv->get_vehicle(j)->get_desc();
-				if (v_desc->get_freight_type()->get_catg_index() != freight_type_idx) continue;
-				total_ac_class_capacity += v_desc->get_capacity(g_class);
+				const vehicle_desc_t* veh_type = cnv->get_vehicle(j)->get_desc();
+				if (veh_type->get_freight_type()->get_catg_index() != freight_type_idx) continue;
+				total_ac_class_capacity += veh_type->get_capacity(g_class);
 			}
 			if (!total_ac_class_capacity) continue;
 		}
@@ -646,10 +654,10 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 	for (uint8 i = 0; i < 2; i++) {
 		new_component<gui_label_t>(i==0 ? "min_loading_time" : "max_loading_time");
 		for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
-			const vehicle_desc_t *v_desc = cnv->get_vehicle(j)->get_desc();
-			if (v_desc->get_capacity() || v_desc->get_overcrowded_capacity()) {
+			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+			if (veh_type->get_capacity() || veh_type->get_overcrowded_capacity()) {
 				char time_as_clock[32];
-				world()->sprintf_ticks(time_as_clock, sizeof(time_as_clock), i==0 ? v_desc->get_min_loading_time() : v_desc->get_max_loading_time());
+				world()->sprintf_ticks(time_as_clock, sizeof(time_as_clock), i==0 ? veh_type->get_min_loading_time() : veh_type->get_max_loading_time());
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
 				lb->buf().append(time_as_clock);
 				lb->update();
@@ -668,6 +676,185 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 			world()->sprintf_ticks(time_as_clock, sizeof(time_as_clock), i==0 ? cnv->calc_longest_min_loading_time() : cnv->calc_longest_max_loading_time());
 			new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered)->buf().append(time_as_clock);
 		}
+	}
+}
+
+void gui_convoy_spec_table_t::insert_maintenance_rows()
+{
+	// maintenance interval
+	new_component<gui_label_t>("maintenance_interval")->set_fixed_width(spec_table_first_col_width);
+	uint32 total = 0;
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		const uint32 interval_km = veh_type->get_maintenance_interval_km();
+		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+		lb->buf().printf("%u km", interval_km);
+		lb->update();
+		lb->set_fixed_width(lb->get_min_size().w);
+
+		if (interval_km > 0) { // ignore "0"
+			total = min(total, interval_km);
+		}
+	}
+	// Convoy min value
+	gui_label_buf_t *lb_total = new_component<gui_label_buf_t>();
+	if (total>0){
+		lb_total->buf().printf("%u km", total);
+	}
+	else {
+		lb_total->buf().append("-");
+	}
+	lb_total->update();
+
+
+	// maintenance interval
+	total = 0;
+	const bool is_aircraft = cnv->front()->get_waytype()==air_wt;
+	new_component<gui_label_t>("max_overhauls_interval")->set_fixed_width(spec_table_first_col_width);
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		const uint32 interval = veh_type->get_waytype() == air_wt ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls();
+		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+		if( is_aircraft ) {
+			lb->buf().printf(translator::translate("%u takeoffs"), interval);
+		}
+		else {
+			lb->buf().printf("%u km", interval);
+		}
+		lb->update();
+		lb->set_fixed_width(lb->get_min_size().w);
+
+		if (interval > 0) { // ignore "0"
+			total = min(total, interval);
+		}
+	}
+	// Convoy min value
+	lb_total = new_component<gui_label_buf_t>();
+	if (total > 0) {
+		if( is_aircraft ) {
+			lb_total->buf().printf(translator::translate("%u takeoffs"), total);
+		}
+		else {
+			lb_total->buf().printf("%u km", total);
+		}
+	}
+	else {
+		lb_total->buf().append("-");
+	}
+	lb_total->update();
+
+	// get_initial_overhaul_cost
+	total = 0;
+	new_component<gui_label_t>("initial_overhaul_cost")->set_fixed_width(spec_table_first_col_width);
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+		lb->buf().printf("%1.2f$", veh_type->get_initial_overhaul_cost() / 100.0);
+		lb->update();
+		total += veh_type->get_initial_overhaul_cost();
+	}
+	// Convoy total
+	lb_total = new_component<gui_label_buf_t>();
+	lb_total->buf().printf("%1.2f$", total / 100.0);
+	lb_total->update();
+
+	// can upgrade
+	const uint16 month_now = world()->get_timeline_year_month();
+	new_component<gui_label_t>("can_upgrade")->set_fixed_width(spec_table_first_col_width);
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		if (veh_type->get_upgrades_count()) {
+			if( skinverwaltung_t::upgradable ) {
+				new_component<gui_image_t>(skinverwaltung_t::upgradable->get_image_id(veh_type->has_available_upgrade(month_now)?1:0), 0, ALIGN_CENTER_V, true);
+			}
+			else {
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+				lb->buf().printf("%s", translator::translate(veh_type->has_available_upgrade(month_now) ? "Available" : "Yet"));
+				lb->update();
+			}
+		}
+		else {
+			new_component<gui_label_t>("-");
+		}
+	}
+	// Convoy total
+	new_component<gui_empty_t>();
+
+	// Staffing Needs
+	new_component<gui_label_t>("Staffing Needs")->set_fixed_width(spec_table_first_col_width);
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		if (veh_type->get_total_staff_hundredths()) {
+			if (skinverwaltung_t::staff_cost) {
+				new_component<gui_image_t>(skinverwaltung_t::staff_cost->get_image_id(0), 0, ALIGN_CENTER_V, true);
+			}
+			else {
+				new_component<gui_label_t>("YES");
+			}
+		}
+		else {
+			new_component<gui_label_t>("-");
+		}
+	}
+	// Convoy total
+	lb_total = new_component<gui_label_buf_t>();
+	lb_total->buf().printf("%1.2f$", cnv->get_salaries(100) / 100.0);
+	lb_total->update();
+
+#ifdef DEBUG
+	// driver
+	new_component<gui_label_t>("(DBG driver)")->set_fixed_width(spec_table_first_col_width);
+	for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+		const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+		if (veh_type->get_total_drivers()) {
+			if (skinverwaltung_t::staff_cost) {
+				new_component<gui_image_t>(skinverwaltung_t::staff_cost->get_image_id(0), 0, ALIGN_CENTER_V, true);
+			}
+			else {
+				new_component<gui_label_t>("YES");
+			}
+		}
+		else {
+			new_component<gui_label_t>("-");
+		}
+	}
+	// Convoy total
+	new_component<gui_empty_t>();
+
+#endif
+
+}
+
+void gui_convoy_spec_table_t::insert_constraints_rows()
+{
+	if( cnv->has_tall_vehicles() ) {
+		new_component<gui_label_t>("Too tall for low bridges")->set_fixed_width(spec_table_first_col_width);
+		for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+			if (veh_type->get_is_tall()) {
+				new_component<gui_label_t>("YES");
+			}
+			else {
+				new_component<gui_label_t>("-");
+			}
+		}
+		// Convoy total
+		new_component<gui_label_t>("YES");
+	}
+
+	if( cnv->has_tilting_vehicles() ) {
+		new_component<gui_label_t>("tilting_vehicle_equipment")->set_fixed_width(spec_table_first_col_width);
+		for (uint8 j = 0; j < cnv->get_vehicle_count(); j++) {
+			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
+			if (veh_type->get_tilting()) {
+				new_component<gui_label_t>("YES");
+			}
+			else {
+				new_component<gui_label_t>("-");
+			}
+		}
+		// Convoy total
+		new_component<gui_label_t>("YES");
 	}
 }
 
@@ -706,17 +893,17 @@ void gui_convoy_spec_table_t::draw(scr_coord offset)
 				continue;
 			}
 
-			const vehicle_desc_t *v_desc = cnv->get_vehicle(j-1)->get_desc();
+			const vehicle_desc_t *veh_type = cnv->get_vehicle(j-1)->get_desc();
 			const bool reversed = cnv->get_vehicle(j-1)->is_reversed();
 
 			// Whether the cell component is in buf text format or not?
 			if (i == SPECS_ROLE) {
 				const uint16 month_now = world()->get_timeline_year_month();
-				const PIXVAL veh_bar_color = v_desc->is_obsolete(month_now) ? COL_OBSOLETE : (v_desc->is_future(month_now) || v_desc->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-				new_component<gui_vehicle_bar_t>(veh_bar_color, scr_size(D_LABEL_HEIGHT*4, max(GOODS_COLOR_BOX_HEIGHT,LINEASCENT-2)))->set_flags(v_desc->get_basic_constraint_prev(reversed), v_desc->get_basic_constraint_next(reversed), v_desc->get_interactivity());
+				const PIXVAL veh_bar_color = veh_type->is_obsolete(month_now) ? COL_OBSOLETE : (veh_type->is_future(month_now) || veh_type->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+				new_component<gui_vehicle_bar_t>(veh_bar_color, scr_size(D_LABEL_HEIGHT*4, max(GOODS_COLOR_BOX_HEIGHT,LINEASCENT-2)))->set_flags(veh_type->get_basic_constraint_prev(reversed), veh_type->get_basic_constraint_next(reversed), veh_type->get_interactivity());
 			}
 			else if (i == SPECS_SIDEVIEW) {
-				image_id side_view = v_desc->get_image_id(reversed ? ribi_t::dir_northeast : ribi_t::dir_southwest, goods_manager_t::none, cnv->get_vehicle(j - 1)->get_current_livery());
+				image_id side_view = veh_type->get_image_id(reversed ? ribi_t::dir_northeast : ribi_t::dir_southwest, goods_manager_t::none, cnv->get_vehicle(j - 1)->get_current_livery());
 				add_table(1,2)->set_spacing(scr_size(0,0));
 				new_component<gui_fill_t>(false, true);
 				new_component<gui_image_t>(side_view, cnv->get_owner()->get_player_nr(), 0, true);
@@ -736,7 +923,7 @@ void gui_convoy_spec_table_t::draw(scr_coord offset)
 						else {
 							lb->buf().append(car_number, 0);
 						}
-						lb->set_color(v_desc->has_available_upgrade(world()->get_current_month()) == 2 ? COL_UPGRADEABLE : SYSCOL_TEXT);
+						lb->set_color(veh_type->has_available_upgrade(world()->get_current_month()) == 2 ? COL_UPGRADEABLE : SYSCOL_TEXT);
 						break;
 					}
 					default:
@@ -747,11 +934,20 @@ void gui_convoy_spec_table_t::draw(scr_coord offset)
 			}
 		}
 	}
-	if(display_payload_table) {
-		insert_payload_rows();
-	}
-	else {
-		insert_spec_rows();
+	switch (spec_table_mode) {
+		case SPEC_TABLE_PAYLOAD:
+			insert_payload_rows();
+			break;
+		case SPEC_TABLE_MAiNTENANCE:
+			insert_maintenance_rows();
+			break;
+		case SPEC_TABLE_CONSTRAINTS:
+			insert_constraints_rows();
+			break;
+		default:
+		case SPEC_TABLE_PHYSICS:
+			insert_spec_rows();
+			break;
 	}
 	end_table();
 	new_component<gui_fill_t>(false, true);
@@ -822,17 +1018,15 @@ void convoi_detail_t::init(convoihandle_t cnv)
 	// content of spec table
 	cont_spec_tab.set_margin(scr_size(1, D_V_SPACE), scr_size(1, 0));
 	cont_spec_tab.set_table_layout(1,0);
-	cont_spec_tab.add_table(6,0)->set_spacing(scr_size(0,0));
+	cont_spec_tab.add_table(5,0)->set_spacing(scr_size(0,0));
 	{
 		cont_spec_tab.new_component<gui_margin_t>(D_MARGIN_LEFT);
-		bt_spec_table.pressed    = !spec_table.display_payload_table;
-		bt_payload_table.pressed =  spec_table.display_payload_table;
-		bt_spec_table.init(   button_t::roundbox_left_state,  "principal_spec", scr_coord(0,0), D_BUTTON_SIZE);
-		bt_payload_table.init(button_t::roundbox_right_state, "payload_spec",   scr_coord(0,0), D_BUTTON_SIZE);
-		bt_spec_table.add_listener(this);
-		bt_payload_table.add_listener(this);
-		cont_spec_tab.add_component(&bt_spec_table);
-		cont_spec_tab.add_component(&bt_payload_table);
+		for (uint8 i = 0; i < 4; i++) {
+			cb_spec_table_mode.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_spec_modes[i]), SYSCOL_TEXT);
+		}
+		cb_spec_table_mode.set_selection(spec_table_mode);
+		cb_spec_table_mode.add_listener(this);
+		cont_spec_tab.add_component(&cb_spec_table_mode);
 		cont_spec_tab.new_component<gui_margin_t>(LINESPACE);
 		bt_show_sideview.init(button_t::square_state, "show_sideview");
 		bt_show_sideview.pressed = spec_table.show_sideview;
@@ -1303,10 +1497,9 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			cont_payload_info.set_display_mode(cb_loaded_detail.get_selection());
 			return true;
 		}
-		else if (comp == &bt_spec_table || comp == &bt_payload_table) {
-			spec_table.display_payload_table = !spec_table.display_payload_table;
-			bt_spec_table.pressed            = !spec_table.display_payload_table;
-			bt_payload_table.pressed         = spec_table.display_payload_table;
+		else if (comp == &cb_spec_table_mode) {
+			spec_table_mode = cb_spec_table_mode.get_selection();
+			spec_table.spec_table_mode = spec_table_mode;
 			return true;
 		}
 		else if (comp == &bt_show_sideview) {
@@ -1603,7 +1796,7 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 	const vehicle_desc_t *veh_type = vehicle->get_desc();
 	// availability
 	PIXVAL color = COL_LIME;
-	if(vehicle->get_availability()<100){
+	if(vehicle->get_availability()<veh_type->get_minimum_availability()){
 		color = COL_CAUTION;
 	}
 	availability_indicator.set_color(color);

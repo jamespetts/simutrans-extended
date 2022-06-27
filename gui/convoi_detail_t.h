@@ -170,16 +170,30 @@ class gui_convoy_spec_table_t : public gui_aligned_container_t
 		//SPECS_MAX_LOADING_TIME
 		//MAX_PAYLOAD_ROW
 	};
+
 	convoihandle_t cnv;
 	cbuffer_t buf;
 	// Insert rows that make up the spec table
 	void insert_spec_rows();
 	void insert_payload_rows();
+	void insert_maintenance_rows();
+	void insert_constraints_rows();
+
 public:
+
+	enum { // spec table index
+		SPEC_TABLE_PHYSICS     = 0,
+		SPEC_TABLE_PAYLOAD     = 1,
+		SPEC_TABLE_MAiNTENANCE = 2,
+		SPEC_TABLE_CONSTRAINTS = 3,
+		MAX_SPEC_TABLE_MODE    = 4
+	};
+
 	gui_convoy_spec_table_t(convoihandle_t cnv);
+
 	void set_cnv(convoihandle_t c) { cnv = c; }
 	void draw(scr_coord offset) OVERRIDE;
-	bool display_payload_table = false;
+	uint8 spec_table_mode = SPEC_TABLE_PHYSICS;
 	bool show_sideview = true;
 	using gui_aligned_container_t::get_min_size;
 	using gui_aligned_container_t::get_max_size;
@@ -199,11 +213,11 @@ public:
 		SORT_MODES     = 4
 	};
 
-	enum {
-		CD_TAB_MAINTENANCE = 0,
-		CD_TAB_LOADED_DETAIL = 1,
+	enum { // tab index
+		CD_TAB_MAINTENANCE    = 0,
+		CD_TAB_LOADED_DETAIL  = 1,
 		CD_TAB_PHYSICS_CHARTS = 2,
-		CD_TAB_SPEC_TABLE = 3
+		CD_TAB_SPEC_TABLE     = 3
 	};
 
 private:
@@ -232,8 +246,9 @@ private:
 	button_t withdraw_button;
 	button_t retire_button;
 	button_t class_management_button;
-	button_t bt_spec_table, bt_payload_table, bt_show_sideview;
-	gui_combobox_t cb_loaded_detail;
+	button_t bt_show_sideview;
+	uint8 spec_table_mode = gui_convoy_spec_table_t::SPEC_TABLE_PHYSICS;
+	gui_combobox_t cb_loaded_detail, cb_spec_table_mode;
 
 	gui_combobox_t overview_selctor;
 	gui_label_buf_t
