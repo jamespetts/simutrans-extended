@@ -2514,7 +2514,7 @@ class
 Class
 運賃等級
 class_manager
-旅客/郵便クラスの割当て
+運賃等級管理
 classes
 クラス
 Clear
@@ -2560,15 +2560,13 @@ Cluster size
 combined_signal
 複合信号機(場内信号機+通過信号機)
 Comfort
-快適性
+快適度
 comfort expectance\nfor travelling
-移動中の快適性
+移動中の快適度
 comfort impact\nlimitations
-快適性の収入への影響
+快適度の収入への影響
 Comfort:
-快適性:
-comfort: %i
-快適性: %i
+快適度:
 commuting
 通勤中
 Commuting
@@ -2794,7 +2792,7 @@ Last renewed
 latest_3
 過去3回の実測値
 line_class_manager
-路線のクラス割当て
+運賃等級管理
 line_has_obsolete_vehicles
 生産中止した車両があります
 line_has_obsolete_vehicles_with_upgrades
@@ -3470,7 +3468,9 @@ Vehicle maintenance costs per month
 Vehicle running costs (both fixed and distance related)
 固定維持費と運行経費を含む車両の運行費を表します。
 Vehicle running costs per km
-1kmあたり車両維持費
+車両の運行費用
+Convoy running costs per km
+編成の運行費用
 Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.
 車両がスケジュールの終点に達した後、停留所リストの逆順で停車します。
 view_journey_times_history_of_this_convoy
@@ -4309,6 +4309,14 @@ Save your changes and close the dialog.
 変更を保存してダイアログを閉じます
 helptxt_linecode_use_sub_background
 文字の背景に使用される色が基調色とは異なる色に入れ替わります
+Accommodation
+客室グレード
+Compartments
+区画
+fare_management_by_vehicle
+車両別
+fare_management_by_accommo
+客室(区画)グレード別
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month
@@ -4393,3 +4401,7 @@ Power: %4d kW\n
 #前月と比べた待機数の増減を表示
 #Queueing
 #待機数の増減
+#Postrate
+#郵便度
+#comfort: %i
+#快適度: %i

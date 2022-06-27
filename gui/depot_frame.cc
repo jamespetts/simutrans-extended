@@ -119,7 +119,6 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	 * [CONVOY ASSEMBLER]
 	 */
 	convoy_assembler.set_depot_frame(this);
-	convoy_assembler.add_listener(this);
 	update_convoy();
 
 
@@ -730,19 +729,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 bool depot_frame_t::infowin_event(const event_t *ev)
 {
 	// enable disable button actions
-	const bool action_allowed = welt->get_active_player() == depot->get_owner();
-	bt_copy_convoi.enable( action_allowed );
-	bt_start.enable( action_allowed );
-	bt_schedule.enable( action_allowed );
-	bt_sell.enable( action_allowed );
-	bt_details.enable(action_allowed);
-	line_button.enable( action_allowed );
-
-	convoihandle_t cnv = depot->get_convoi(icnv);
-	if (action_allowed && !cnv.is_bound()) {
-		bt_details.disable();
-	}
-	if(  !action_allowed  &&  ev->ev_class <= INFOWIN  ) {
+	if(  ev->ev_class < INFOWIN  &&  (depot == NULL  ||  welt->get_active_player() != depot->get_owner()) ) {
 		return false;
 	}
 
@@ -822,6 +809,7 @@ void depot_frame_t::draw(scr_coord pos, scr_size size)
 {
 	const bool action_allowed = welt->get_active_player() == depot->get_owner();
 
+	// enable disable button actions
 	bt_copy_convoi.enable( action_allowed );
 	bt_start.enable( action_allowed );
 	bt_schedule.enable( action_allowed );

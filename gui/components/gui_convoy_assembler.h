@@ -238,8 +238,6 @@ class gui_convoy_assembler_t :
 
 	static uint16 livery_scheme_index;
 	vector_tpl<uint16> livery_scheme_indices;
-	//vector_tpl<uint16> cs_pas_0_indicies;
-	vector_tpl<uint16> cs_pass_indicies;
 
 	/* color bars for current convoi: */
 	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);

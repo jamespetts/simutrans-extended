@@ -80,6 +80,8 @@ const skin_desc_t* skinverwaltung_t::reverse_arrows     = NULL;
 const skin_desc_t* skinverwaltung_t::waiting_time       = NULL; // waiting time at the station
 const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service frequency
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
+const skin_desc_t* skinverwaltung_t::comfort            = NULL;
+
 const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 
 // cursors
@@ -132,6 +134,7 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::service_frequency,  "ServiceFrequency" },
 	{ &skinverwaltung_t::missing_scheduled_slot, "MissingScheduledSlot" },
 	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
+	{ &skinverwaltung_t::comfort,            "Comfort"        },
 	{ &skinverwaltung_t::upgradable,         "Upgradable"     },
 	{ &skinverwaltung_t::input_output,       "InputOutput"    },
 	{ &skinverwaltung_t::in_transit,         "InTransit"      },

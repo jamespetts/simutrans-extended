@@ -136,6 +136,8 @@ public:
 	static const skin_desc_t *missing_scheduled_slot;
 	/// image shown in display of travel time to the destination / lead time
 	static const skin_desc_t *travel_time;
+	/// image for comfort value
+	static const skin_desc_t *comfort;
 
 	/// images for the factory information
 	static const skin_desc_t *input_output;

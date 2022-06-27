@@ -201,4 +201,23 @@ public:
 	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); }
 };
 
+
+class gui_fluctuation_triangle_t : public gui_colorbox_t
+{
+protected:
+	uint8 height;
+	sint64 value;
+
+public:
+	gui_fluctuation_triangle_t(sint64 value=0, uint8 height_ = (LINESPACE*3)>>2);
+
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	void set_value(sint64 v) { value = v; }
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
 #endif

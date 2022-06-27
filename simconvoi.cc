@@ -31,6 +31,7 @@
 #include "gui/depot_frame.h"
 #include "gui/messagebox.h"
 #include "gui/convoi_detail_t.h"
+#include "gui/vehicle_class_manager.h"
 #include "boden/grund.h"
 #include "boden/wege/schiene.h" // for railblocks
 #include "boden/wege/strasse.h"
@@ -8379,6 +8380,11 @@ void convoi_t::calc_classes_carried()
 				}
 			}
 		}
+	}
+	// update dialog
+	vehicle_class_manager_t *win = dynamic_cast<vehicle_class_manager_t*>(win_get_magic((ptrdiff_t)(magic_class_manager + self.get_id())));
+	if (win) {
+		win->recalc_income();
 	}
 }
 

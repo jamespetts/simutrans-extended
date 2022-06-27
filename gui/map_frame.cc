@@ -9,25 +9,18 @@
 
 #include "minimap.h"
 #include "map_frame.h"
-
-#include "simwin.h"
+#include "factory_legend.h"
 
 #include "../sys/simsys.h"
 #include "../simworld.h"
 #include "../simhalt.h"
-#include "../display/simgraph.h"
 #include "../display/viewport.h"
 #include "../simcolor.h"
-#include "../bauer/fabrikbauer.h"
-#include "../bauer/goods_manager.h"
 #include "../dataobj/environment.h"
 #include "../dataobj/translator.h"
 #include "../dataobj/koord.h"
 #include "../dataobj/loadsave.h"
-#include "../descriptor/factory_desc.h"
 #include "../simfab.h"
-#include "../tpl/minivec_tpl.h"
-#include "../player/finance.h"
 
 
 static koord old_ij=koord::invalid;
@@ -38,49 +31,13 @@ scr_size map_frame_t::window_size;
 bool  map_frame_t::legend_visible=false;
 bool  map_frame_t::network_option_visible = false;
 bool  map_frame_t::scale_visible=false;
-bool  map_frame_t::directory_visible=false;
 bool  map_frame_t::zoomed = true;
-bool  map_frame_t::filter_factory_list=true;
 
 // we track our position onscreen
 scr_coord map_frame_t::screenpos;
 
 #define L_BUTTON_WIDTH (button_size.w)
 #define L_BUTTON_WIDTH_2 100
-
-/**
- * Entries in factory legend: show color indicator + name
- */
-class legend_entry_t : public gui_component_t
-{
-	gui_label_t label;
-	PIXVAL color;
-	bool filtered;
-public:
-	legend_entry_t(const char* text, PIXVAL c, bool filtered_=false) : label(text), color(c), filtered(filtered_) {
-		label.set_color(filtered ? SYSCOL_TEXT_INACTIVE : SYSCOL_TEXT);
-	}
-
-	scr_size get_min_size() const OVERRIDE
-	{
-		return  label.get_min_size() + scr_size(D_INDICATOR_BOX_WIDTH + D_H_SPACE, 0);
-	}
-
-	scr_size get_max_size() const OVERRIDE
-	{
-		return scr_size( scr_size::inf.w, label.get_max_size().h );
-	}
-
-	void draw(scr_coord offset) OVERRIDE
-	{
-		scr_coord pos = get_pos() + offset;
-		if (!filtered) {
-			display_ddd_box_clip_rgb( pos.x, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE)-1, D_INDICATOR_BOX_WIDTH, D_INDICATOR_HEIGHT+2, SYSCOL_TEXT, SYSCOL_TEXT );
-		}
-		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, color, false );
-		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
-	}
-};
 
 gui_scrollpane_map_t::gui_scrollpane_map_t(gui_component_t* comp) : gui_scrollpane_t(comp)
 {
@@ -334,19 +291,23 @@ map_frame_t::map_frame_t() :
 		b_show_legend.add_listener(this);
 		add_component(&b_show_legend);
 
-		// industry list button
-		b_show_directory.init(button_t::roundbox_state, "Show industry");
-		b_show_directory.set_tooltip("Shows a listing with all industries on the map.");
-		b_show_directory.set_size(D_BUTTON_SIZE);
-		b_show_directory.add_listener(this);
-		add_component(&b_show_directory);
-
 		// scale button
 		b_show_scale.init(button_t::roundbox_state, "Show map scale");
 		b_show_scale.set_tooltip("Shows the color code for several selections.");
 		b_show_scale.set_size(D_BUTTON_SIZE);
 		b_show_scale.add_listener(this);
 		add_component(&b_show_scale);
+
+		// industry list button
+		b_show_directory.init(button_t::roundbox_state, "Show industry");
+		if (skinverwaltung_t::open_window) {
+			b_show_directory.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			b_show_directory.set_image_position_right(true);
+		}
+		b_show_directory.set_tooltip("Shows a listing with all industries on the map.");
+		b_show_directory.set_size(D_BUTTON_SIZE);
+		b_show_directory.add_listener(this);
+		add_component(&b_show_directory);
 	}
 	end_table();
 
@@ -451,19 +412,6 @@ map_frame_t::map_frame_t() :
 	filter_container.end_table();
 	update_buttons();
 
-	// directory container
-	directory_container.set_table_layout(4,0);
-	directory_container.set_spacing(scr_size(D_H_SPACE,1));
-	directory_container.set_visible(false);
-	add_component(&directory_container);
-
-	// factory list: show used button
-	b_filter_factory_list.init(button_t::square_state, "Show only used");
-	b_filter_factory_list.set_tooltip("In the industry legend show only currently existing factories");
-	b_filter_factory_list.add_listener(this);
-	directory_container.add_component( &b_filter_factory_list, 4 );
-	update_factory_legend();
-
 	// scale container
 	scale_container.set_table_layout(3,0);
 	scale_container.set_visible(false);
@@ -481,7 +429,6 @@ map_frame_t::map_frame_t() :
 	show_hide_legend( legend_visible );
 	show_hide_network_option( network_option_visible );
 	show_hide_scale( scale_visible );
-	show_hide_directory( directory_visible );
 
 	set_title();
 	reset_min_windowsize();
@@ -495,68 +442,6 @@ void map_frame_t::update_buttons()
 	for(  int i=0;  i<MAP_MAX_BUTTONS;  i++  ) {
 		filter_buttons[i].pressed = (button_init[i].mode&env_t::default_mapmode)!=0;
 		filter_buttons[i].background_color = color_idx_to_rgb(filter_buttons[i].pressed ? button_init[i].select_color : button_init[i].color);
-	}
-}
-
-
-
-static bool compare_factories(const factory_desc_t* const a, const factory_desc_t* const b)
-{
-	const bool a_producer_only = a->get_supplier_count() == 0;
-	const bool b_producer_only = b->get_supplier_count() == 0;
-	const bool a_consumer_only = a->get_product_count() == 0;
-	const bool b_consumer_only = b->get_product_count() == 0;
-
-	if (a_producer_only != b_producer_only) {
-		return a_producer_only; // producers to the front
-	}
-	else if (a_consumer_only != b_consumer_only) {
-		return !a_consumer_only; // consumers to the end
-	}
-	else {
-		// both of same type, sort by name
-		return strcmp(translator::translate(a->get_name()), translator::translate(b->get_name())) < 0;
-	}
-}
-
-
-void map_frame_t::update_factory_legend()
-{
-	directory_container.remove_all();
-	directory_container.add_component( &b_filter_factory_list, 4 );
-
-	if(  directory_visible  ) {
-		vector_tpl<const factory_desc_t*> factory_types;
-		// generate list of factory types
-		if(  filter_factory_list  ) {
-			FOR(vector_tpl<fabrik_t*>, const f, welt->get_fab_list()) {
-				if(  f->get_desc()->get_distribution_weight() > 0  ) {
-					factory_types.insert_unique_ordered(f->get_desc(), compare_factories);
-				}
-			}
-		}
-		else {
-			for(auto i : factory_builder_t::get_factory_table()) {
-				factory_desc_t const* const d = i.value;
-				if (d->get_distribution_weight() > 0) {
-					factory_types.insert_unique_ordered(d, compare_factories);
-				}
-			}
-		}
-		// now sort
-
-		// add corresponding legend entries
-		bool filter_by_catg = (minimap_t::get_instance()->freight_type_group_index_showed_on_map != nullptr && minimap_t::get_instance()->freight_type_group_index_showed_on_map != goods_manager_t::none);
-		PIXVAL prev_color = 0;
-		const char *prev_name = {};
-		FOR(vector_tpl<const factory_desc_t*>, f, factory_types) {
-			if (prev_name && !strcmp(translator::translate(f->get_name()), prev_name) && f->get_color()==prev_color) {
-				continue;
-			}
-			directory_container.new_component<legend_entry_t>(f->get_name(), f->get_color(), ( filter_by_catg  &&  !f->has_goods_catg_demand( minimap_t::get_instance()->freight_type_group_index_showed_on_map->get_catg_index() ) ));
-			prev_color = f->get_color();
-			prev_name = translator::translate(f->get_name());
-		}
 	}
 }
 
@@ -588,24 +473,12 @@ void map_frame_t::show_hide_scale(const bool show)
 }
 
 
-void map_frame_t::show_hide_directory(const bool show)
-{
-	directory_container.set_visible(show);
-	b_show_directory.pressed = show;
-	b_filter_factory_list.pressed = filter_factory_list;
-	directory_visible = show;
-	update_factory_legend();
-	reset_min_windowsize();
-}
-
-
 void map_frame_t::activate_individual_network_mode(koord network_origin)
 {
 	b_overlay_networks.pressed = true;
 	show_hide_network_option(true);
 	show_hide_legend(false);
 	show_hide_scale(false);
-	show_hide_directory(false);
 
 	env_t::default_mapmode |= minimap_t::MAP_LINES;
 	minimap_t::get_instance()->set_display_mode((minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
@@ -657,11 +530,11 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		show_hide_scale( !b_show_scale.pressed );
 	}
 	else if(comp==&b_show_directory) {
-		show_hide_directory( !b_show_directory.pressed );
-	}
-	else if (comp==&b_filter_factory_list) {
-		filter_factory_list = !filter_factory_list;
-		show_hide_directory( b_show_directory.pressed );
+		scr_coord_val new_dialog_pos_x = get_pos().x+get_windowsize().w;
+		if (new_dialog_pos_x >= display_get_width()) {
+			new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
+		}
+		create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
 	}
 	else if(comp==zoom_buttons+1) {
 		// zoom out
@@ -717,7 +590,6 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 	else if (  comp == &freight_type_c  ) {
 		minimap_t::get_instance()->freight_type_group_index_showed_on_map = viewable_freight_types[freight_type_c.get_selection()];
 		minimap_t::get_instance()->invalidate_map_lines_cache();
-		update_factory_legend();
 		reset_min_windowsize();
 	}
 	else if (  comp == &b_overlay_networks_load_factor  ) {
@@ -826,6 +698,7 @@ void map_frame_t::draw(scr_coord pos, scr_size size)
 			set_title();
 		}
 	}
+	b_show_directory.pressed = win_get_magic( magic_factory_legend );
 
 	// draw all child controls
 	gui_frame_t::draw(pos, size);
@@ -842,7 +715,8 @@ void map_frame_t::rdwr( loadsave_t *file )
 {
 	file->rdwr_bool( legend_visible );
 	file->rdwr_bool( scale_visible );
-	file->rdwr_bool( directory_visible );
+	bool open_factory_legend = win_get_magic(magic_factory_legend);
+	file->rdwr_bool( open_factory_legend );
 	file->rdwr_long( env_t::default_mapmode );
 
 	file->rdwr_bool( b_overlay_networks_load_factor.pressed );
@@ -869,7 +743,6 @@ void map_frame_t::rdwr( loadsave_t *file )
 		minimap_t::get_instance()->set_display_mode(( minimap_t::MAP_DISPLAY_MODE)env_t::default_mapmode);
 		update_buttons();
 
-		show_hide_directory(directory_visible);
 		show_hide_legend(legend_visible);
 		show_hide_network_option(network_option_visible);
 		show_hide_scale(scale_visible);
@@ -882,5 +755,13 @@ void map_frame_t::rdwr( loadsave_t *file )
 		minimap_t::get_instance()->show_network_load_factor = b_overlay_networks_load_factor.pressed;
 		minimap_t::get_instance()->invalidate_map_lines_cache();
 		set_title();
+
+		if (open_factory_legend) {
+			scr_coord_val new_dialog_pos_x = get_pos().x+get_windowsize().w;
+			if (new_dialog_pos_x >= display_get_width()) {
+				new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
+			}
+			create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
+		}
 	}
 }

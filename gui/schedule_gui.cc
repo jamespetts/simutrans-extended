@@ -977,20 +977,7 @@ void schedule_gui_t::rdwr(loadsave_t *file)
 	size.rdwr( file );
 
 	// convoy data
-	if(  file->is_version_less(112, 3)  ) {
-		// dummy data
-		uint8 player_nr = 0;
-		koord3d cnv_pos( koord3d::invalid);
-		char name[128];
-		name[0] = 0;
-		file->rdwr_byte( player_nr );
-		file->rdwr_str( name, lengthof(name) );
-		cnv_pos.rdwr( file );
-	}
-	else {
-		// handle
-		convoi_t::rdwr_convoihandle_t(file, cnv);
-	}
+	convoi_t::rdwr_convoihandle_t(file, cnv);
 
 	// schedules
 	if(  file->is_loading()  ) {

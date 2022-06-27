@@ -283,7 +283,7 @@ route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, s
 			block_reserver( takeoff, takeoff+100, false );
 		}
 		else if(route_index>=touchdown-1  &&  state!=taxiing) {
-			block_reserver( touchdown - landing_distance, search_for_stop+1, false );
+			block_reserver( touchdown - landing_distance, search_for_stop + 1, false );
 		}
 	}
 	target_halt = halthandle_t(); // no block reserved
@@ -646,7 +646,7 @@ int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) cons
 
 	int success = runway_meters >= min_runway_length_meters ? 1 : 2;
 
-	for(  uint32 i=start;  success  &&  i<end  &&  i<route->get_count();  i++) {
+	for(  uint32 i=start;  (success || !reserve)  &&  i<end  &&  i<route->get_count();  i++) {
 		grund_t *gr = welt->lookup(route->at(i));
 		runway_t * sch1 = gr ? (runway_t *)gr->get_weg(air_wt) : NULL;
 
@@ -698,15 +698,9 @@ int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) cons
 					return success;
 				}
 			}
-			else if(!sch1->unreserve(cnv->self)) {
-				if(start_now) {
-					// reached a reserved or free track => finished
-					return success;
-				}
-			}
-			else {
-				// un-reserve from here (only used during sale, since there might be reserved tiles not freed)
-				start_now = true;
+			else
+			{
+				success &= sch1->unreserve(cnv->self);
 			}
 		}
 	}

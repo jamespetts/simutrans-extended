@@ -73,6 +73,7 @@
 #include "labellist_frame_t.h"
 #include "display_settings.h"
 #include "optionen.h"
+#include "vehicle_class_manager.h"
 
 #include "../simversion.h"
 
@@ -623,6 +624,7 @@ void rdwr_all_win(loadsave_t *file)
 					// actual dialogues to restore
 					case magic_convoi_info:    w = new convoi_info_t(); break;
 					case magic_convoi_detail:  w = new convoi_detail_t(); break;
+					case magic_class_manager:  w = new vehicle_class_manager_t(); break;
 					case magic_themes:         w = new themeselector_t(); break;
 					case magic_halt_info:      w = new halt_info_t(); break;
 					case magic_halt_detail:    w = new halt_detail_t(); break;

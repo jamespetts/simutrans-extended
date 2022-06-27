@@ -21,6 +21,7 @@
 #include "simlinemgmt.h"
 #include "gui/simwin.h"
 #include "gui/gui_frame.h"
+#include "gui/schedule_list.h"
 
 
 line_cost_t convoi_to_line_catgory_[convoi_t::MAX_CONVOI_COST] =
@@ -894,6 +895,11 @@ void simline_t::calc_classes_carried()
 				}
 			}
 		}*/
+	}
+	// update dialog
+	schedule_list_gui_t *sl = dynamic_cast<schedule_list_gui_t*>(win_get_magic((ptrdiff_t)(magic_line_management_t + get_owner()->get_player_nr())));
+	if (sl) {
+		sl->update_data(self);
 	}
 }
 

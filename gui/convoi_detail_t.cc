@@ -765,18 +765,8 @@ bool convoi_detail_t::infowin_event(const event_t *ev)
 void convoi_detail_t::rdwr(loadsave_t *file)
 {
 	// convoy data
-	if (  file->is_version_less(112, 3)  ) {
-		// dummy data
-		koord3d cnv_pos( koord3d::invalid);
-		char name[128];
-		name[0] = 0;
-		cnv_pos.rdwr( file );
-		file->rdwr_str( name, lengthof(name) );
-	}
-	else {
-		// handle
-		convoi_t::rdwr_convoihandle_t(file, cnv);
-	}
+	convoi_t::rdwr_convoihandle_t(file, cnv);
+
 	// window size, scroll position
 	scr_size size = get_windowsize();
 	sint32 xoff = scrolly.get_scroll_x();

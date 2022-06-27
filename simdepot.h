@@ -43,9 +43,6 @@ protected:
 	static slist_tpl<depot_t *> all_depots;
 
 public:
-	// Last selected vehicle filter
-	int selected_filter;
-
 	/**
 	 * Is this depot suitable for this vehicle?
 	 * Must be same waytype, same owner, suitable traction, etc.

@@ -154,6 +154,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/fabrik_info.cc
 	gui/factory_chart.cc
 	gui/factory_edit.cc
+	gui/factory_legend.cc
 	gui/factorylist_frame_t.cc
 	gui/factorylist_stats_t.cc
 	gui/goods_frame_t.cc
@@ -174,7 +175,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
-	gui/line_class_manager.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
