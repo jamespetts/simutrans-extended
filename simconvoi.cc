@@ -7015,6 +7015,10 @@ void convoi_t::set_next_reservation_index(uint16 n)
 
 uint16 convoi_t::get_current_schedule_order() const
 {
+	if( in_depot() ) {
+		return -1;
+	}
+
 	if (reverse_schedule) {
 		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
 	}
