@@ -101,6 +101,7 @@ private:
 	sint32 km_remaining_to_overhaul;
 	sint32 excess_km_from_overhaul_limit = 0;
 	sint32 bar_overhaul_required         = 0;
+	uint16 last_overhaul_count = 0;
 
 	button_t bt_do_not_overhaul, bt_do_not_auto_upgrade;
 	gui_colorbox_t availability_indicator;
@@ -108,6 +109,7 @@ private:
 	gui_label_buf_t lb_availability, lb_km_since_last_maint_, lb_upgrade_vehicle;
 	gui_label_buf_t lb_running_cost, lb_running_cost_diff;
 	gui_label_buf_t lb_fixed_cost, lb_fixed_cost_diff;
+	gui_label_buf_t lb_overhaul_cost, lb_overhaul_cost_diff;
 
 
 public:

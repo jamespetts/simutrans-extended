@@ -1855,12 +1855,15 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 		}
 		end_table();
 
-		add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
+		add_table(4,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
 		{
 			lb = new_component<gui_label_buf_t>();
 			lb->buf().printf("%s: ", translator::translate("Overhaul cost"));
-			lb->buf().append_money(vehicle->get_overhaul_cost()/100.0);
 			lb->update();
+			lb_overhaul_cost.buf().append_money(vehicle->get_overhaul_cost() / 100.0);
+			lb_overhaul_cost.update();
+			add_component(&lb_overhaul_cost); // only update if overhaul count>1
+			add_component(&lb_overhaul_cost_diff);
 
 			bt_do_not_overhaul.init(button_t::square_state, "do_not_overhaul");
 			bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
@@ -1975,6 +1978,22 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 			}
 		}
 	//}
+
+	if( vehicle->get_overhaul_count()>0  &&  last_overhaul_count!=vehicle->get_overhaul_count() ) {
+		last_overhaul_count = vehicle->get_overhaul_count();
+		const uint32 change = vehicle->get_overhaul_cost() - veh_type->get_initial_overhaul_cost();
+		lb_overhaul_cost.buf().append_money(vehicle->get_overhaul_cost() / 100.0);
+		lb_overhaul_cost.update();
+
+		if( change  &&  veh_type->get_initial_overhaul_cost() ) {
+			lb_overhaul_cost_diff.buf().printf("(+%.1f%%)", (change * 1000 / veh_type->get_initial_overhaul_cost()) / 10.0);
+			lb_overhaul_cost_diff.set_visible(true);
+			lb_overhaul_cost_diff.update();
+		}
+	}
+	else if (!vehicle->get_overhaul_count()){
+		lb_overhaul_cost_diff.set_visible(false);
+	}
 
 	if( vehicle->is_wear_affecting_vehicle() ){
 		const uint16 change = vehicle->get_running_cost(world()) - veh_type->get_running_cost();
