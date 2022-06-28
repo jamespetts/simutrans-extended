@@ -890,9 +890,8 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 				default:
 					break;
 			}
+			new_component<gui_label_buf_t>()->buf().append(buf);
 		}
-		new_component<gui_label_buf_t>()->buf().append(buf);
-
 	}
 
 
@@ -1077,9 +1076,8 @@ void gui_convoy_spec_table_t::insert_constraints_rows()
 				default:
 					break;
 			}
+			new_component<gui_label_buf_t>()->buf().append(buf);
 		}
-		new_component<gui_label_buf_t>()->buf().append(buf);
-
 	}
 }
 
