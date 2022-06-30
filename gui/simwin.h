@@ -109,6 +109,7 @@ enum magic_numbers {
 	magic_line_color_gui_t,
 	magic_motd,
 	magic_factory_info, // only used to load/save
+	magic_factory_legend,
 	magic_font,
 	magic_soundfont, // only with USE_FLUIDSYNTH_MIDI
 	magic_edit_groundobj,

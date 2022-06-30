@@ -517,7 +517,7 @@ void vehicle_class_manager_t::update_list()
 				}
 
 				// col5 - accomodation name
-				cont_by_vehicle.new_component<gui_label_t>(veh->get_desc()->get_accommodation_name(ac));
+				cont_by_vehicle.new_component<gui_label_t>(translator::translate(veh->get_desc()->get_accommodation_name(ac)));
 
 				// col6 : comfort
 				if (veh->get_desc()->get_freight_type() == goods_manager_t::passengers) {

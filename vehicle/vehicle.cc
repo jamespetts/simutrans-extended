@@ -3585,7 +3585,7 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 {
 	const sint32 base_cost = (sint32)desc->get_running_cost(welt); // This includes obsolescence increase
 
-	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km() || desc->get_max_distance_between_overhauls() == 0)
 	{
 		return base_cost;
 	}
