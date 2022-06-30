@@ -135,13 +135,13 @@ static char const* const spec_table_first_col_text[gui_convoy_spec_table_t::MAX_
 	"can_upgrade",
 	"Running costs per km", // "Operation" Vehicle running costs per km
 	"Fixed cost per month", // Vehicle maintenance costs per month
-	"Restwert:",
-	"Too tall for low bridges",
-	"tilting_vehicle_equipment",
 	"maintenance_interval",
 	"max_overhauls_interval",
 	"initial_overhaul_cost",
-	"Staffing Needs"
+	"Staffing Needs",
+	"Restwert:",
+	"Too tall for low bridges",
+	"tilting_vehicle_equipment"
 };
 
 static char const* const payload_table_first_col_text[gui_convoy_spec_table_t::MAX_PAYLOAD_ROW] =
