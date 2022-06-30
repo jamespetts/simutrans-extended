@@ -4891,7 +4891,7 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 
 /// Displays a string which is abbreviated by the (language specific) ellipsis character if too wide
 /// If enough space is given then it just displays the full string
-void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed, PIXVAL shadow_color)
+void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed, PIXVAL shadow_color, bool underlined)
 {
 	const scr_coord_val ellipsis_width = translator::get_lang()->ellipsis_width;
 	const scr_coord_val max_screen_width = r.w;
@@ -4961,6 +4961,9 @@ void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align,
 		display_text_proportional_len_clip_rgb( r.x+1, r.y+1, text, ALIGN_LEFT | DT_CLIP, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
 	}
 	display_text_proportional_len_clip_rgb( r.x, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
+	if (underlined){
+		display_fillbox_wh_clip_rgb( r.x-1, r.y + LINEASCENT - 1, proportional_string_width(text) + 2, 1, color, dirty);
+	}
 }
 
 

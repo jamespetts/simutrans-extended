@@ -42,11 +42,7 @@ public:
 
 class loadsave_frame_t : public savegame_frame_t
 {
-	//friend class gui_loadsave_table_row_t;
 private:
-	gui_file_table_delete_column_t delete_column;
-	gui_file_table_action_column_t action_column;
-	gui_file_table_time_column_t date_column;
 	bool do_load;
 
 	button_t easy_server; // only active on loading savegames

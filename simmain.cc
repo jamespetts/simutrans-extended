@@ -355,10 +355,6 @@ static bool wait_for_key()
 static void ask_objfilename()
 {
 	pakselector_t* sel = new pakselector_t();
-	if(  sel->check_only_one_option()  ) {
-		// If there's only one option, we selected it; don't even show the window
-		delete sel;
-	}
 	// notify gui to load list of paksets
 	event_t ev;
 	ev.ev_class = INFOWIN;
