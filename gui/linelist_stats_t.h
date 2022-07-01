@@ -44,34 +44,4 @@ public:
 };
 
 
-/**
- * Helper class to show a panel whose contents are switched according to the mode
- */
-class gui_line_stats_t : public gui_aligned_container_t
-{
-	linehandle_t line;
-	cbuffer_t buf;
-
-	sint64 old_seed = 0;
-	uint8 mode = ll_frequency;
-
-public:
-	enum stats_mode_t {
-		ll_frequency,
-		ll_handle_goods,
-		ll_route,
-		LINELIST_MODES
-	};
-
-	gui_line_stats_t(linehandle_t line, uint8 mode=ll_frequency);
-
-	void set_mode(uint8 m) { mode=m; init_table(); }
-
-	void update_check();
-	void init_table();
-
-	void draw(scr_coord offset) OVERRIDE;
-};
-
-
 #endif
