@@ -99,7 +99,8 @@ uint32 gui_tile_occupancybar_t::adjust_convoy_length(uint32 total_len, uint8 las
 
 void gui_tile_occupancybar_t::fill_with_color(scr_coord offset, uint8 tile_index, uint8 from, uint8 to, PIXVAL color, uint8 tile_scale)
 {
-	display_fillbox_wh_clip_rgb(offset.x + (CARUNITS_PER_TILE * tile_scale + 4)*tile_index + 1 + from * tile_scale, offset.y + 1, (to - from) * tile_scale, size.h - 2, color, true);
+	const scr_coord_val height = size.h>>1;
+	display_fillbox_wh_clip_rgb(offset.x + (CARUNITS_PER_TILE * tile_scale + 4)*tile_index + 1 + from * tile_scale, offset.y + height/2+1, (to - from) * tile_scale, height-2, color, true);
 }
 
 
@@ -107,6 +108,8 @@ void gui_tile_occupancybar_t::draw(scr_coord offset)
 {
 	uint8 length_to_pixel = 2;// One tile is represented by 16 times longer (1tile = 16length) pixels
 	offset += pos;
+
+	const scr_coord_val height = size.h>>1;
 
 	// calculate internal convoy length (include margin)
 	const uint32 current_length = adjust_convoy_length(convoy_length, last_veh_length);
@@ -137,7 +140,7 @@ void gui_tile_occupancybar_t::draw(scr_coord offset)
 	for (int i = 0; i < tiles; i++)
 	{
 		// draw frame and base color
-		display_ddd_box_clip_rgb(offset.x + (tilebar_width + 4) * i, offset.y, tilebar_width + 2, size.h, color_idx_to_rgb(8), color_idx_to_rgb(8));
+		display_ddd_box_clip_rgb(offset.x + (tilebar_width + 4) * i, offset.y+height/2, tilebar_width + 2, height, color_idx_to_rgb(8), color_idx_to_rgb(8));
 		fill_with_color(offset, i, 0, i == tiles - 1 ? last_tile_occupancy : CARUNITS_PER_TILE, color_idx_to_rgb(COL_GREY4), length_to_pixel);
 		if (insert_mode && len_diff > 0 && len_diff > CARUNITS_PER_TILE*i) {
 			// insert mode, paint the front tile

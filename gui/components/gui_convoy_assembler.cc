@@ -1247,14 +1247,14 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 							}
 						}
 					}
-					const uint16 shifter = 1 << info->get_engine_type();
-					const bool correct_traction_type = veh_action == va_sell || !depot_frame || (shifter & depot_frame->get_depot()->get_tile()->get_desc()->get_enabled());
-					const weg_t* way = depot_frame ? world()->lookup(depot_frame->get_depot()->get_pos())->get_weg(depot_frame->get_depot()->get_waytype()) : NULL;
-					const bool correct_way_constraint = !way || missing_way_constraints_t(info->get_way_constraints(), way->get_way_constraints()).check_next_tile();
-					if(!correct_way_constraint || (!correct_traction_type && (info->get_power() > 0 || (veh_action == va_insert && info->get_leader_count() == 1 && info->get_leader(0) && info->get_leader(0)->get_power() > 0))))
-					{
-						append = false;
-					}
+				}
+				const uint16 shifter = 1 << info->get_engine_type();
+				const bool correct_traction_type = veh_action == va_sell || !depot_frame || (shifter & depot_frame->get_depot()->get_tile()->get_desc()->get_enabled());
+				const weg_t* way = depot_frame ? world()->lookup(depot_frame->get_depot()->get_pos())->get_weg(depot_frame->get_depot()->get_waytype()) : NULL;
+				const bool correct_way_constraint = !way || missing_way_constraints_t(info->get_way_constraints(), way->get_way_constraints()).check_next_tile();
+				if(!correct_way_constraint || (!correct_traction_type && (info->get_power() > 0 || (veh_action == va_insert && info->get_leader_count() == 1 && info->get_leader(0) && info->get_leader(0)->get_power() > 0))))
+				{
+					append = false;
 				}
 				if((append && (veh_action == va_append || veh_action == va_insert)) || (upgradeable &&  veh_action == va_upgrade) || (show_all && veh_action == va_sell))
 				{

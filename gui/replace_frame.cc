@@ -323,7 +323,7 @@ void replace_frame_t::set_windowsize( scr_size gr )
 
 void replace_frame_t::update_data()
 {
-	convoy_assembler.update_convoi();
+	//convoy_assembler.update_convoi();
 
 	txt_n_replace[0]='\0';
 	txt_n_sell[0]='\0';
