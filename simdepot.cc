@@ -267,7 +267,6 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 	}
 
-
 	for (auto veh : vehicles_to_overhaul)
 	{
 		veh->overhaul();
@@ -281,12 +280,13 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 	if(!vehicles_to_overhaul.empty())
 	{
 		acnv->set_state(convoi_t::OVERHAUL);
+		register_for_maintenance(acnv); 
 	}
 	else if (!vehicles_to_maintain.empty())
 	{
 		acnv->set_state(convoi_t::MAINTENANCE);
+		register_for_maintenance(acnv);
 	}
-
 
 	// this part stores the convoi in the depot
 	convois.append(acnv);
@@ -1075,6 +1075,13 @@ void depot_t::add_to_world_list(bool)
 void depot_t::register_for_maintenance(convoihandle_t cnv)
 {
 	under_maintenance.append(cnv);
+
+	if (cnv->get_vehicle_count() > get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	{
+		// Must account for multiple vehicles in a convoy.
+		const sint32 time_multiplier = ((sint32)cnv->get_vehicle_count() * 100) / (sint32)get_tile()->get_desc()->get_max_vehicles_under_maintenance();
+		cnv->set_wait_lock((cnv->get_wait_lock() * time_multiplier) / 100);
+	}
 }
 
 void depot_t::prioritise_for_maintenance(convoihandle_t cnv)
@@ -1103,7 +1110,17 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 		return false;
 	}
 
-	const uint32 queue_pos = under_maintenance.index_of(cnv);
+	uint32 queue_pos = 0;
+
+	for (auto cnv_mnt : under_maintenance)
+	{
+		if (cnv_mnt == cnv)
+		{
+			break;
+		}
+		queue_pos += cnv_mnt->get_vehicle_count();
+	}
+
 	if (queue_pos >= get_tile()->get_desc()->get_max_vehicles_under_maintenance())
 	{
 		return true;
