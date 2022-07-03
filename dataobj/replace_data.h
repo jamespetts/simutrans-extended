@@ -31,7 +31,7 @@ private:
 	 * if marked for replacing, once in depot, auto restart the vehicle
 	 * @author isidoro
 	 */
-	bool autostart;
+	bool autostart = true;
 
 	/**
 	 * If this is true, vehicles will be retained in the depot
@@ -40,7 +40,7 @@ private:
 	 * otherwise sold.
 	 * @author: jamespetts, March 2010
 	 */
-	bool retain_in_depot;
+	bool retain_in_depot = false;
 
 	/**
 	 * If this is true, the convoy will go, if it can, to its
@@ -48,7 +48,7 @@ private:
 	 * closest depot.
 	 * @author: jamespetts, March 2010
 	 */
-	bool use_home_depot;
+	bool use_home_depot = false;
 
 	/**
 	 * If this is true, when the convoy is replaced, vehicles
@@ -56,33 +56,29 @@ private:
 	 * preference to buying new or upgrading.
 	 * @author: jamespetts, March 2010
 	 */
-	bool allow_using_existing_vehicles;
+	bool allow_using_existing_vehicles = true;
 
 	/* The number of (identical) convoys that use this set of
 	 * replace data
 	 * @author: jamespetts, March 2010
 	 */
-	sint16 number_of_convoys;
+	sint16 number_of_convoys = 0;
 
-	bool clearing;
+	bool clearing = false;
 
 public:
 	sint16 get_number_of_convoys() const { return number_of_convoys; }
 
 	bool get_autostart() const { return autostart; }
-
 	void set_autostart(bool new_autostart) { autostart=new_autostart; }
 
 	bool get_retain_in_depot() const { return retain_in_depot; }
-
 	void set_retain_in_depot(bool value) { retain_in_depot = value; }
 
 	bool get_use_home_depot() const { return use_home_depot; }
-
 	void set_use_home_depot(bool value) { use_home_depot = value; }
 
 	bool get_allow_using_existing_vehicles() const { return allow_using_existing_vehicles; }
-
 	void set_allow_using_existing_vehicles(bool value) { allow_using_existing_vehicles = value; }
 
 	const vector_tpl<const vehicle_desc_t *>* get_replacing_vehicles() const { return replacing_vehicles; }

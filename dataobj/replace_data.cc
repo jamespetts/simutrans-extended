@@ -18,14 +18,8 @@
 
 replace_data_t::replace_data_t()
 {
-	autostart = true;
-	retain_in_depot = false;
-	use_home_depot = false;
-	allow_using_existing_vehicles = true;
 	replacing_vehicles = new vector_tpl<const vehicle_desc_t *>;
 	replacing_convoys = new vector_tpl<convoihandle_t>();
-	number_of_convoys = 0;
-	clearing = false;
 }
 
 replace_data_t::replace_data_t(replace_data_t* copy_from)
@@ -95,7 +89,7 @@ bool replace_data_t::sscanf_replace(const char *ptr)
 	const char auev[2] = { *p++, 0 };
 	allow_using_existing_vehicles = atoi(auev);
 
-	//Secondly, get the number of replacing vehicles
+	// Secondly, get the number of replacing vehicles (apparently deprecated)
 	/*char rv[6];
 	for(uint8 i = 0; i < 5; i ++)
 	{
@@ -197,7 +191,7 @@ void replace_data_t::rdwr(loadsave_t *file)
 	}
 }
 
-const vehicle_desc_t*  replace_data_t::get_replacing_vehicle(uint16 number) const
+const vehicle_desc_t* replace_data_t::get_replacing_vehicle(uint16 number) const
 {
 	return replacing_vehicles->get_element(number);
 
