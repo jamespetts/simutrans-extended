@@ -1125,7 +1125,7 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 			our_cnv = true;
 		}
 		else if (our_cnv)
-		{	
+		{
 			// Finish counting only after we get to the end of the cnv in question.
 			break;
 		}
