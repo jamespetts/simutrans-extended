@@ -662,7 +662,7 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 						new_component<gui_image_t>()->set_image(goods_manager_t::get_info_catg_index(freight_type_idx)->get_catg_symbol(), true);
 						if (freight_type_idx == goods_manager_t::INDEX_PAS || freight_type_idx == goods_manager_t::INDEX_MAIL) {
 							gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-							lb->buf().append(goods_manager_t::get_default_accommodation_class_name(freight_type_idx, g_class));
+							lb->buf().append(translator::translate(goods_manager_t::get_default_accommodation_class_name(freight_type_idx, g_class)));
 							lb->update();
 						}
 						else {
