@@ -106,11 +106,28 @@ class loadingscreen_t;
 // (But much of this code is adapted from the speed bonus code,
 // written by Prissi).
 
+enum price_type : uint8 {
+	general,
+	passenger_fare,
+	mail_rate,
+	goods_rate,
+	vehicle_purchase,
+	vehicle_maintenance,
+	buildings,
+	infrastructure,
+	city_land,
+	country_land,
+	corporation_tax,
+	base_rate,
+	MAX_PRICE_TYPE
+};
+
 class car_ownership_record_t
 {
 public:
 	sint64 year;
 	sint16 ownership_percent;
+
 	car_ownership_record_t( sint64 y = 0, sint16 ownership = 0 )
 	{
 		year = y * 12;
@@ -144,6 +161,20 @@ public:
 	};
 };
 
+class price_record_t
+{
+public :
+	sint64 year;
+	uint32 index; // A figure in % defining the index of the price. 100% = same price as in .dat files
+
+	price_record_t(sint64 y = 0, uint32 idx = 0)
+	{
+		year = y * 12;
+		index = idx;
+	}
+};
+
+
 class transferring_cargo_t
 {
 public:
@@ -172,6 +203,49 @@ class karte_t
 	friend class karte_ptr_t; // to access the single instance
 
 	static karte_t* world; ///< static single instance
+
+	static const char* get_price_type_string(uint8 uv8)
+	{
+		switch (uv8)
+		{
+		default:
+		case price_type::general:
+			return "general";
+
+		case price_type::passenger_fare:
+			return "passenger fare";
+
+		case price_type::mail_rate:
+			return "mail rate";
+
+		case price_type::goods_rate:
+			return "goods rate";
+
+		case price_type::vehicle_purchase:
+			return "vehicle purchase";
+
+		case price_type::vehicle_maintenance:
+			return "vehicle maintenance";
+
+		case price_type::buildings:
+			return "buildings";
+
+		case price_type::infrastructure:
+			return "infrastructure";
+
+		case price_type::city_land:
+			return "city land";
+
+		case price_type::country_land:
+			return "country land";
+
+		case price_type::corporation_tax:
+			return "corporation tax";
+
+		case price_type::base_rate:
+			return "base rate";
+		}
+	}
 
 public:
 	/**
@@ -1018,6 +1092,8 @@ public:
 
 	static void fuel_init(const std::string &objfilename);
 
+	static void prices_init(const std::string& objfilename);
+
 private:
 
 	static const sint16 default_car_ownership_percent = 25;
@@ -1048,6 +1124,17 @@ private:
 public:
 
 	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
+
+private:
+
+	// This is an array of indexed prices in % per price type
+	static vector_tpl<price_record_t> prices[MAX_PRICE_TYPE];
+
+	void prices_rdwr(loadsave_t* file);
+
+public:
+
+	uint32 get_price_index(sint32 monthyear, uint8 price_type) const;
 
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }
