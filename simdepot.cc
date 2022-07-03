@@ -73,6 +73,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	all_depots.append(this);
 	last_selected_line = linehandle_t();
 	command_pending = false;
+	strcpy(name, t->get_desc()->get_name());
 	add_to_world_list();
 	welt->sync.add(this);
 }
@@ -835,6 +836,36 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			file->wr_obj_id(v->get_typ());
 			v->rdwr_from_convoi(file);
 		}
+	}
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_str(name, lengthof(name));
+	}
+	else
+	{
+		strcpy(name, "unnamed");
+	}
+}
+
+void depot_t::set_name(const char* value)
+{
+	if (sizeof(*value) > sizeof(name))
+	{
+		dbg->error("void depot_t::set_name(char* value)", "Name too long");
+	}
+	strcpy(name, value);
+}
+
+const char* depot_t::get_name() const
+{
+	if (strcmp(name, "unnamed"))
+	{
+		return name;
+	}
+	else
+	{
+		return gebaeude_t::get_name();
 	}
 }
 
