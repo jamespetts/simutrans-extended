@@ -280,7 +280,7 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 	if(!vehicles_to_overhaul.empty())
 	{
 		acnv->set_state(convoi_t::OVERHAUL);
-		register_for_maintenance(acnv); 
+		register_for_maintenance(acnv);
 	}
 	else if (!vehicles_to_maintain.empty())
 	{
