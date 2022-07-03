@@ -1110,12 +1110,23 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 		return false;
 	}
 
+	if (under_maintenance.index_of(cnv) == 0)
+	{
+		return true;
+	}
+
 	uint32 queue_pos = 0;
+	bool our_cnv = false;
 
 	for (auto cnv_mnt : under_maintenance)
 	{
 		if (cnv_mnt == cnv)
 		{
+			our_cnv = true;
+		}
+		else if (our_cnv)
+		{	
+			// Finish counting only after we get to the end of the cnv in question.
 			break;
 		}
 		queue_pos += cnv_mnt->get_vehicle_count();
