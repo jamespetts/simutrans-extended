@@ -854,6 +854,15 @@ uint16 simline_t::get_min_range() const
 	return min_range == UINT16_MAX ? 0 : min_range;
 }
 
+uint16 simline_t::get_min_top_speed_kmh() const
+{
+	uint16 min_top_speed = 65535;
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		min_top_speed = min(speed_to_kmh(line_managed_convoy->get_min_top_speed()), min_top_speed);
+	}
+	return min_top_speed;
+}
 
 void simline_t::calc_classes_carried()
 {

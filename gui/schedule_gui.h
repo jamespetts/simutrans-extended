@@ -125,7 +125,8 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	// always needed
 	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
-	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only, bt_ignore_choose, bt_lay_over, bt_range_stop;
+	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
+	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
@@ -192,6 +193,8 @@ public:
 	void init(linehandle_t line);
 
 	virtual ~schedule_gui_t();
+
+	virtual uint16 get_min_top_speed_kmh() { return cnv.is_bound() ? speed_to_kmh(cnv->get_min_top_speed()) : 65535; }
 
 	// for updating info ...
 	void init_line_selector();
