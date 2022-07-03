@@ -9815,7 +9815,7 @@ bool tool_change_convoi_t::init( player_t *player )
 
 		case 'P': // Go to depot
 		{
-			cnv->go_to_depot(true);
+			cnv->go_to_depot(true, false, false, true);
 			break;
 		}
 

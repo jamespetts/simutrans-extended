@@ -16,6 +16,17 @@ class cbuffer_t;
 
 class replace_data_t
 {
+public:
+	enum replacement_time
+	{
+		immediate,			// Set by the player to replace as soon as the player closes the replace window
+		on_replenish,		// Set by the player to replace as soon as the convoy reaches its next replenishment stop
+		on_maintenance,		// Set by the player to replace as soon as the convoy next visits the depot for maintenance
+		on_overhaul,		// Set by the player to replace as soon as the convoy next visits the depot for an overhaul
+		manual,				// Set by the player to replace only when next manually sent to the depot
+		automatic			// Set by the code to replace forthwith once one of the above conditions should have been fulfilled.
+	};
+
 private:
 	/**
 	* The replacing vehicles, if any
@@ -58,6 +69,9 @@ private:
 	 */
 	bool allow_using_existing_vehicles = true;
 
+	// When the replacement should take place.
+	uint8 replace_at = immediate;
+
 	/* The number of (identical) convoys that use this set of
 	 * replace data
 	 * @author: jamespetts, March 2010
@@ -80,6 +94,9 @@ public:
 
 	bool get_allow_using_existing_vehicles() const { return allow_using_existing_vehicles; }
 	void set_allow_using_existing_vehicles(bool value) { allow_using_existing_vehicles = value; }
+
+	uint8 get_replace_at() const { return replace_at; }
+	void set_replace_at(replacement_time value) { replace_at = value; }
 
 	const vector_tpl<const vehicle_desc_t *>* get_replacing_vehicles() const { return replacing_vehicles; }
 	const vehicle_desc_t* get_replacing_vehicle(uint16 number) const;

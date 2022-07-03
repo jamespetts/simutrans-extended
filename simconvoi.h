@@ -1167,6 +1167,9 @@ public:
 
 	void set_working_method(working_method_t value);
 
+	// Instigates a replacement according to the attached replace data.
+	bool replace_now();
+
 private:
 	journey_times_map average_journey_times;
 public:
@@ -1350,13 +1353,13 @@ public:
 
 	bool get_depot_when_empty() const { return depot_when_empty; }
 
-	void set_depot_when_empty(bool new_dwe);
+	void set_depot_when_empty(bool new_dwe, bool manually_sent = false);
 
 	// True if the convoy has the same vehicles
 	bool has_same_vehicles(convoihandle_t other) const;
 
 	// Go to depot, if possible
-	bool go_to_depot(bool show_success, bool use_home_depot = false, bool maintain = false);
+	bool go_to_depot(bool show_success, bool use_home_depot = false, bool maintain = false, bool manually_sent = false);
 
 	// True if convoy has no cargo
 	//@author: isidoro

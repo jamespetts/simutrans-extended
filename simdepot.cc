@@ -26,6 +26,7 @@
 #include "dataobj/schedule.h"
 #include "dataobj/loadsave.h"
 #include "dataobj/translator.h"
+#include "dataobj/replace_data.h"
 
 #include "bauer/hausbauer.h"
 #include "obj/gebaeude.h"
@@ -207,7 +208,8 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 	}
 
-	bool overhaul = false;
+	vector_tpl<vehicle_t*> vehicles_to_overhaul;
+	vector_tpl<vehicle_t*> vehicles_to_maintain;
 
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
 	for(unsigned i=0; i<acnv->get_vehicle_count(); i++)
@@ -226,29 +228,65 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		{
 			if(v->is_overhaul_needed() && !v->get_do_not_overhaul())
 			{
-				v->overhaul();
-				overhaul = true;
+				vehicles_to_overhaul.append(v);
 			}
 			else
 			{
-				v->maintain();
+				vehicles_to_maintain.append(v);
 			}
 		}
 	}
 
-	if (flags & schedule_entry_t::maintain_or_overhaul)
+	const replace_data_t* rpl = acnv->get_replace();
+	if (rpl && ((!rpl->get_use_home_depot() || acnv->get_home_depot() == get_pos())))
 	{
-		if(overhaul)
+		// If the home depot is required and this is not it, do not replace.
+
+		if (flags & schedule_entry_t::maintain_or_overhaul &&
+			(rpl->get_replace_at() == replace_data_t::on_maintenance && !vehicles_to_maintain.empty()) ||
+			(rpl->get_replace_at() == replace_data_t::on_overhaul && !vehicles_to_overhaul.empty()))
 		{
-			acnv->set_state(convoi_t::OVERHAUL);
-			acnv->set_wait_lock(2000); // TODO: Use a proper value here. This is temporary.
-		}
-		else
-		{
-			acnv->set_state(convoi_t::MAINTENANCE);
-			acnv->set_wait_lock(1000); // TODO: Use a proper value here. This is temporary.
+			acnv->replace_now();
+			vehicles_to_overhaul.clear();
+			vehicles_to_maintain.clear();
+
+			// We must repeat this as replacing will probably have invalidated the vectors
+			for (unsigned i = 0; i < acnv->get_vehicle_count(); i++)
+			{
+				vehicle_t* v = acnv->get_vehicle(i);
+
+				if (v->is_overhaul_needed() && !v->get_do_not_overhaul())
+				{
+					vehicles_to_overhaul.append(v);
+				}
+				else
+				{
+					vehicles_to_maintain.append(v);
+				}
+			}
 		}
 	}
+
+
+	for (auto veh : vehicles_to_overhaul)
+	{
+		veh->overhaul();
+	}
+
+	for (auto veh : vehicles_to_maintain)
+	{
+		veh->maintain();
+	}
+
+	if(!vehicles_to_overhaul.empty())
+	{
+		acnv->set_state(convoi_t::OVERHAUL);
+	}
+	else if (!vehicles_to_maintain.empty())
+	{
+		acnv->set_state(convoi_t::MAINTENANCE);
+	}
+
 
 	// this part stores the convoi in the depot
 	convois.append(acnv);

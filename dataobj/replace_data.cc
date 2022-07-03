@@ -59,6 +59,7 @@ void replace_data_t::sprintf_replace(cbuffer_t &buf) const
 	buf.append_bool(retain_in_depot);
 	buf.append_bool(use_home_depot);
 	buf.append_bool(allow_using_existing_vehicles);
+	buf.append_fixed(replace_at);
 
 	const uint16 number = number_of_convoys < 0 ? 0 : number_of_convoys; // Do we need this check?
 	buf.append_fixed(number);
@@ -76,10 +77,10 @@ void replace_data_t::sprintf_replace(cbuffer_t &buf) const
 }
 
 
-bool replace_data_t::sscanf_replace(const char *ptr)
+bool replace_data_t::sscanf_replace(const char* ptr)
 {
-	const char *p = ptr;
-	// Firstly, get the general settings.
+	const char* p = ptr;
+	// First, get the general settings.
 	const char as[2] = { *p++, 0 };
 	autostart = atoi(as);
 	const char rid[2] = { *p++, 0 };
@@ -88,6 +89,9 @@ bool replace_data_t::sscanf_replace(const char *ptr)
 	use_home_depot = atoi(uhd);
 	const char auev[2] = { *p++, 0 };
 	allow_using_existing_vehicles = atoi(auev);
+	const char ra[2] = { *p++, 0 };
+	replace_at = atoi(ra);
+
 
 	// Secondly, get the number of replacing vehicles (apparently deprecated)
 	/*char rv[6];
@@ -154,6 +158,15 @@ void replace_data_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(retain_in_depot);
 	file->rdwr_bool(use_home_depot);
 	file->rdwr_bool(allow_using_existing_vehicles);
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_byte(replace_at);
+	}
+	else
+	{
+		replace_at = immediate;
+	}
 
 	uint16 replacing_vehicles_count;
 

@@ -3477,7 +3477,7 @@ void vehicle_t::maintain()
 
 	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
 	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time)); // TODO: Deal with multiple vehicles in a convoy being maintained and the impact on timings of this.
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time)); 
 	cnv->set_state(convoi_t::MAINTENANCE);
 
 	last_maintenance_time = welt->get_ticks();
@@ -3492,7 +3492,7 @@ void vehicle_t::overhaul()
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 	last_maintenance_time = welt->get_ticks();
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));  // TODO: Deal with multiple vehicles in a convoy being overhauled and the impact on timings of this.
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));  
 	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
 	cnv->set_state(convoi_t::OVERHAUL);
 
