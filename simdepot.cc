@@ -26,6 +26,7 @@
 #include "dataobj/schedule.h"
 #include "dataobj/loadsave.h"
 #include "dataobj/translator.h"
+#include "dataobj/replace_data.h"
 
 #include "bauer/hausbauer.h"
 #include "obj/gebaeude.h"
@@ -73,6 +74,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	all_depots.append(this);
 	last_selected_line = linehandle_t();
 	command_pending = false;
+	strcpy(name, t->get_desc()->get_name());
 	add_to_world_list();
 	welt->sync.add(this);
 }
@@ -206,7 +208,8 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 	}
 
-	bool overhaul = false;
+	vector_tpl<vehicle_t*> vehicles_to_overhaul;
+	vector_tpl<vehicle_t*> vehicles_to_maintain;
 
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
 	for(unsigned i=0; i<acnv->get_vehicle_count(); i++)
@@ -225,28 +228,64 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		{
 			if(v->is_overhaul_needed() && !v->get_do_not_overhaul())
 			{
-				v->overhaul();
-				overhaul = true;
+				vehicles_to_overhaul.append(v);
 			}
 			else
 			{
-				v->maintain();
+				vehicles_to_maintain.append(v);
 			}
 		}
 	}
 
-	if (flags & schedule_entry_t::maintain_or_overhaul)
+	const replace_data_t* rpl = acnv->get_replace();
+	if (rpl && ((!rpl->get_use_home_depot() || acnv->get_home_depot() == get_pos())))
 	{
-		if(overhaul)
+		// If the home depot is required and this is not it, do not replace.
+
+		if (flags & schedule_entry_t::maintain_or_overhaul &&
+			(rpl->get_replace_at() == replace_data_t::on_maintenance && !vehicles_to_maintain.empty()) ||
+			(rpl->get_replace_at() == replace_data_t::on_overhaul && !vehicles_to_overhaul.empty()))
 		{
-			acnv->set_state(convoi_t::OVERHAUL);
-			acnv->set_wait_lock(2000); // TODO: Use a proper value here. This is temporary.
+			acnv->replace_now();
+			vehicles_to_overhaul.clear();
+			vehicles_to_maintain.clear();
+
+			// We must repeat this as replacing will probably have invalidated the vectors
+			for (unsigned i = 0; i < acnv->get_vehicle_count(); i++)
+			{
+				vehicle_t* v = acnv->get_vehicle(i);
+
+				if (v->is_overhaul_needed() && !v->get_do_not_overhaul())
+				{
+					vehicles_to_overhaul.append(v);
+				}
+				else
+				{
+					vehicles_to_maintain.append(v);
+				}
+			}
 		}
-		else
-		{
-			acnv->set_state(convoi_t::MAINTENANCE);
-			acnv->set_wait_lock(1000); // TODO: Use a proper value here. This is temporary.
-		}
+	}
+
+	for (auto veh : vehicles_to_overhaul)
+	{
+		veh->overhaul();
+	}
+
+	for (auto veh : vehicles_to_maintain)
+	{
+		veh->maintain();
+	}
+
+	if(!vehicles_to_overhaul.empty())
+	{
+		acnv->set_state(convoi_t::OVERHAUL);
+		register_for_maintenance(acnv);
+	}
+	else if (!vehicles_to_maintain.empty())
+	{
+		acnv->set_state(convoi_t::MAINTENANCE);
+		register_for_maintenance(acnv);
 	}
 
 	// this part stores the convoi in the depot
@@ -836,6 +875,36 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			v->rdwr_from_convoi(file);
 		}
 	}
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_str(name, lengthof(name));
+	}
+	else
+	{
+		strcpy(name, "unnamed");
+	}
+}
+
+void depot_t::set_name(const char* value)
+{
+	if (sizeof(*value) > sizeof(name))
+	{
+		dbg->error("void depot_t::set_name(char* value)", "Name too long");
+	}
+	strcpy(name, value);
+}
+
+const char* depot_t::get_name() const
+{
+	if (strcmp(name, "unnamed"))
+	{
+		return name;
+	}
+	else
+	{
+		return gebaeude_t::get_name();
+	}
 }
 
 /**
@@ -1006,6 +1075,13 @@ void depot_t::add_to_world_list(bool)
 void depot_t::register_for_maintenance(convoihandle_t cnv)
 {
 	under_maintenance.append(cnv);
+
+	if (cnv->get_vehicle_count() > get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	{
+		// Must account for multiple vehicles in a convoy.
+		const sint32 time_multiplier = ((sint32)cnv->get_vehicle_count() * 100) / (sint32)get_tile()->get_desc()->get_max_vehicles_under_maintenance();
+		cnv->set_wait_lock((cnv->get_wait_lock() * time_multiplier) / 100);
+	}
 }
 
 void depot_t::prioritise_for_maintenance(convoihandle_t cnv)
@@ -1034,7 +1110,28 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 		return false;
 	}
 
-	const uint32 queue_pos = under_maintenance.index_of(cnv);
+	if (under_maintenance.index_of(cnv) == 0)
+	{
+		return true;
+	}
+
+	uint32 queue_pos = 0;
+	bool our_cnv = false;
+
+	for (auto cnv_mnt : under_maintenance)
+	{
+		if (cnv_mnt == cnv)
+		{
+			our_cnv = true;
+		}
+		else if (our_cnv)
+		{
+			// Finish counting only after we get to the end of the cnv in question.
+			break;
+		}
+		queue_pos += cnv_mnt->get_vehicle_count();
+	}
+
 	if (queue_pos >= get_tile()->get_desc()->get_max_vehicles_under_maintenance())
 	{
 		return true;

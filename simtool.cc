@@ -9815,7 +9815,7 @@ bool tool_change_convoi_t::init( player_t *player )
 
 		case 'P': // Go to depot
 		{
-			cnv->go_to_depot(true);
+			cnv->go_to_depot(true, false, false, true);
 			break;
 		}
 
@@ -10700,7 +10700,7 @@ bool tool_change_city_t::init( player_t *player )
 
 /* Handles renaming of ingame entities. Needs a default param:
  * [object='c|h|l|m|t|p|f'][id|pos],[name]
- * c=convoi, h=halt, l=line,  m=marker, t=town, p=player, f=factory
+ * c=convoi, h=halt, l=line,  m=marker, t=town, p=player, f=factory, d=depot
  * A=line lettercode left, B=line lettercode right
  * in case of marker / factory, id is a pos3d string
  */
@@ -10716,6 +10716,7 @@ bool tool_rename_t::init(player_t *player)
 		case 'h':
 		case 'l':
 		case 'c':
+		case 'd':
 		case 't':
 		case 'p':
 		case 'A':
@@ -10845,6 +10846,20 @@ bool tool_rename_t::init(player_t *player)
 							fab->set_name(p);
 							return false;
 						}
+					}
+				}
+			}
+		}
+
+		case 'd':
+		{
+			if (grund_t* gr = welt->lookup(pos))
+			{
+				if (depot_t* dep = gr->get_depot())
+				{
+					if (player == dep->get_owner())
+					{
+						dep->set_name(p);
 					}
 				}
 			}

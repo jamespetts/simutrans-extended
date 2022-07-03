@@ -43,6 +43,8 @@ protected:
 
 	static slist_tpl<depot_t *> all_depots;
 
+	char name[128];
+
 public:
 	/**
 	 * Is this depot suitable for this vehicle?
@@ -242,6 +244,9 @@ public:
 
 	// For advancing the timing of convoys under maintenance
 	sync_result sync_step(uint32 delta_t);
+
+	void set_name(const char* value);
+	const char* get_name() const;
 
 
 private:
