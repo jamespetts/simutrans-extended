@@ -851,7 +851,7 @@ void schedule_gui_t::build_table()
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 					lb_spacing.set_text("Spacing cnv/month, shift");
 					lb_spacing.set_tooltip(translator::translate("help_txt_departure_per_month"));
-					add_component(&lb_spacing); // UI TODO: need to change the translation
+					add_component(&lb_spacing);
 
 					// UI TODO: Make it clearer to the player that this is set in increments of 12ths of a fraction of a month.
 					numimp_spacing.init(schedule->get_spacing(), 0, 999, 12);
@@ -1025,6 +1025,7 @@ void schedule_gui_t::update_selection()
 	numimp_spacing.disable();
 	numimp_spacing_shift.disable();
 	lb_spacing_as_clock.buf().append(translator::translate("off"));
+	lb_spacing_as_clock.update();
 	lb_plus.set_visible(false);
 	lb_entry_pos.set_visible(false);
 	sprintf(str_spacing_shift_as_clock, "%s", translator::translate("off") );
@@ -1095,6 +1096,7 @@ void schedule_gui_t::update_selection()
 					welt->sprintf_ticks(str_spacing_shift_as_clock, sizeof(str_spacing_as_clock),
 							schedule->entries[current_stop].spacing_shift * welt->ticks_per_world_month / welt->get_settings().get_spacing_shift_divisor() + 1
 							);
+					lb_spacing_as_clock.buf().clear();
 					lb_spacing_as_clock.buf().append(str_spacing_as_clock);
 					lb_spacing_as_clock.update();
 				}
@@ -1141,7 +1143,6 @@ void schedule_gui_t::update_selection()
 	lb_spacing_as_clock.set_color(schedule->get_spacing() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 	lb_spacing_shift.set_color(schedule->get_spacing() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 	lb_spacing_shift_as_clock.set_color(schedule->get_spacing() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
-	lb_spacing_as_clock.update();
 }
 
 /**
