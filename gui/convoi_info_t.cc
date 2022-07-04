@@ -668,7 +668,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		}
 		button.enable();
 		line_button.enable();
-		details_button.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
 
 		if (!cnv->get_schedule()->empty()) {
 			const grund_t* g = welt->lookup(cnv->get_schedule()->get_current_entry().pos);

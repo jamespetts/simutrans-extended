@@ -110,8 +110,10 @@ class gui_convoy_assembler_t : public gui_aligned_container_t, public gui_action
 	 * Originally in simdepot.h.  Based in the code of:
 	 */
 	static scr_coord get_placement(waytype_t wt);
+public:
 	static scr_coord get_grid(waytype_t wt);
 
+private:
 	waytype_t way_type;
 	bool way_electrified;
 
@@ -181,6 +183,9 @@ class gui_convoy_assembler_t : public gui_aligned_container_t, public gui_action
 	static const char * get_passenger2_name(waytype_t wt);
 
 	// [FILTER]
+	static char name_filter_value[64];
+	gui_textinput_t name_filter_input;
+
 	gui_combobox_t vehicle_filter;
 	static bool show_all;               // show available vehicles (same for all depot)
 	static bool show_outdated_vehicles; // shoe vehicled that production is stopped but not increase maintenance yet.
@@ -280,7 +285,7 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t *comp, value_t extra) OVERRIDE;
-	//bool infowin_event(const event_t *ev) OVERRIDE;
+	bool infowin_event(const event_t *ev) OVERRIDE;
 
 	void set_electrified(bool ele);
 

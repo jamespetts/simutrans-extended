@@ -276,7 +276,7 @@ void depot_frame_t::init_table()
 			bt_sell.set_tooltip("Sell the selected vehicle(s)");
 			add_component(&bt_sell);
 
-			bt_details.init(button_t::roundbox | button_t::flexible, "Details");
+			bt_details.init(button_t::roundbox_state | button_t::flexible, "Details");
 			if (skinverwaltung_t::open_window) {
 				bt_details.set_image(skinverwaltung_t::open_window->get_image_id(0));
 				bt_details.set_image_position_right(true);
@@ -670,7 +670,6 @@ bool depot_frame_t::infowin_event(const event_t *ev)
 	}
 
 	const bool swallowed = gui_frame_t::infowin_event(ev);
-	return false;
 
 	// HACK make line_selector focusable again
 	// now we can release focus
@@ -753,6 +752,9 @@ void depot_frame_t::draw(scr_coord pos, scr_size size)
 	convoihandle_t cnv = depot->get_convoi(icnv);
 	line_button.enable( action_allowed && cnv.is_bound() && cnv->get_line().is_bound() );
 	bt_details.enable( action_allowed && cnv.is_bound() );
+	if( cnv.is_bound() ) {
+		bt_details.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
+	}
 
 	// number of convoys
 	if (old_vehicle_count != depot->get_vehicle_list().get_count()) {

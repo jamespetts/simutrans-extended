@@ -248,6 +248,9 @@ public:
 	void set_name(const char* value);
 	const char* get_name() const;
 
+	void set_name(const char* value);
+	const char* get_name() const;
+
 
 private:
 	linehandle_t last_selected_line;
