@@ -1454,7 +1454,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		update_selection();
 	}
 	else if (comp == &bt_speed_limit) {
-		if (bt_speed_limit.pressed==true) {
+		bt_speed_limit.pressed = !bt_speed_limit.pressed;
+		if (bt_speed_limit.pressed==false) {
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
 		}
 		else {
@@ -1462,8 +1463,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			numimp_speed_limit.set_value(get_min_top_speed_kmh());
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
 		}
-		bt_speed_limit.pressed = !bt_speed_limit.pressed;
-		numimp_speed_limit.enable(!bt_speed_limit.pressed);
+		numimp_speed_limit.enable(bt_speed_limit.pressed);
 	}
 	else if (comp == &numimp_speed_limit) {
 		schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
