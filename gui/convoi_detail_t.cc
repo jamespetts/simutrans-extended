@@ -1814,30 +1814,42 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 	}
 	end_table();
 
-	// age
-	const sint32 month = vehicle->get_purchase_time();
-	uint32 age_in_months = world()->get_current_month() - month;
+	add_table(3,0)->set_spacing(scr_size(D_H_SPACE,1));
+	{
+		// age
+		new_component<gui_table_header_t>("Manufactured:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 
-	gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-	lb->buf().printf("%s %s  (", translator::translate("Manufactured:"), translator::get_year_month(month));
-	lb->buf().printf(age_in_months < 2 ? translator::translate("%i month") : translator::translate("%i months"), age_in_months);
-	lb->buf().append(")");
-	lb->update();
-
-	//if (!world()->get_settings().get_simplified_maintenance()) {
-		// last_overhaul_month
-		lb = new_component<gui_label_buf_t>();
-		lb->buf().printf("%s %s, (%u)", translator::translate("Last overhauled:"), vehicle->get_overhaul_count()>0 ? translator::get_year_month(vehicle->get_overhaul_time()) : "-", vehicle->get_overhaul_count());
+		gui_label_buf_t *lb = new_component<gui_label_buf_t>();
+		const sint32 month = vehicle->get_purchase_time();
+		uint32 age_in_months = world()->get_current_month() - month;
+		lb->buf().printf(" %s  (", translator::get_year_month(month));
+		lb->buf().printf(age_in_months < 2 ? translator::translate("%i month") : translator::translate("%i months"), age_in_months);
+		lb->buf().append(")");
 		lb->update();
+		new_component<gui_fill_t>();
 
-		const bool is_aircraft = (veh_type->get_waytype() == air_wt);
-		add_table(1,3)->set_spacing(scr_size(0,0));
-		{
-			add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
+		//if (!world()->get_settings().get_simplified_maintenance()) {
+			// last_overhaul_month
+			new_component<gui_table_header_t>("Last overhauled:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+			lb = new_component<gui_label_buf_t>();
+			if( !veh_type->get_max_distance_between_overhauls() ) {
+				lb->buf().append(translator::translate("no overhauls required"));
+				lb->set_color(SYSCOL_TEXT_INACTIVE);
+			}
+			else if( vehicle->get_overhaul_count()>0 ) {
+				lb->buf().printf("%s, (%u)", translator::get_year_month(vehicle->get_overhaul_time()), vehicle->get_overhaul_count());
+			}
+			else {
+				lb->buf().append(translator::translate("never"));
+			}
+			lb->update();
+			new_component<gui_fill_t>();
+
+			new_component<gui_table_header_t>("since_last_overhaul", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+
+			const bool is_aircraft = (veh_type->get_waytype() == air_wt);
+			add_table(1,2)->set_spacing(scr_size(D_H_SPACE,1));
 			{
-				lb = new_component<gui_label_buf_t>();
-				lb->buf().printf("%s: ", translator::translate("since_last_overhaul"));
-				lb->update();
 				add_component(&lb_km_since_last_maint_);
 				if( is_aircraft ) {
 					air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
@@ -1846,95 +1858,101 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 				else {
 					lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
 				}
+
+				next_overhaul_indicator.set_width(LINEASCENT*8);
+				if (!veh_type->get_max_distance_between_overhauls()) {
+					next_overhaul_indicator.set_base(1);
+					km_remaining_to_overhaul = 1;
+				}
+				else {
+					next_overhaul_indicator.set_base(is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls());
+					km_remaining_to_overhaul = is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls(); // init
+				}
+				next_overhaul_indicator.add_color_value(&km_remaining_to_overhaul,      COL_LIME   );
+				next_overhaul_indicator.add_color_value(&bar_overhaul_required,         COL_CAUTION);
+				next_overhaul_indicator.add_color_value(&excess_km_from_overhaul_limit, COL_DANGER );
+
+				add_component(&next_overhaul_indicator);
 			}
 			end_table();
-			next_overhaul_indicator.set_base(is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls());
-			next_overhaul_indicator.set_width(LINEASCENT*8);
-			km_remaining_to_overhaul = is_aircraft ? veh_type->get_max_takeoffs() : veh_type->get_max_distance_between_overhauls(); // init
-			next_overhaul_indicator.add_color_value(&km_remaining_to_overhaul,      COL_LIME   );
-			next_overhaul_indicator.add_color_value(&bar_overhaul_required,         COL_CAUTION);
-			next_overhaul_indicator.add_color_value(&excess_km_from_overhaul_limit, COL_DANGER );
+			new_component<gui_fill_t>();
 
-			add_component(&next_overhaul_indicator);
-			new_component<gui_margin_t>(1,2);
-		}
-		end_table();
+			new_component_span<gui_margin_t>(1,2,3);
 
-		add_table(4,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
-		{
-			lb = new_component<gui_label_buf_t>();
-			lb->buf().printf("%s: ", translator::translate("Overhaul cost"));
-			lb->update();
-			lb_overhaul_cost.buf().append_money(vehicle->get_overhaul_cost() / 100.0);
-			lb_overhaul_cost.update();
-			add_component(&lb_overhaul_cost); // only update if overhaul count>1
-			add_component(&lb_overhaul_cost_diff);
+			//if( veh_type->get_max_distance_between_overhauls() ) {
+				new_component<gui_table_header_t>("Overhaul cost", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+				add_table(3,1)->set_spacing(scr_size(D_H_SPACE<<1,1));
+				{
+					lb_overhaul_cost.buf().append_money(vehicle->get_overhaul_cost() / 100.0);
+					lb_overhaul_cost.update();
+					add_component(&lb_overhaul_cost); // only update if overhaul count>1
+					add_component(&lb_overhaul_cost_diff);
 
-			bt_do_not_overhaul.init(button_t::square_state, "do_not_overhaul");
-			bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
-			bt_do_not_overhaul.add_listener(this);
+					bt_do_not_overhaul.init(button_t::square_state, "do_not_overhaul");
+					bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
+					bt_do_not_overhaul.add_listener(this);
 
-			add_component(&bt_do_not_overhaul);
-		}
-		end_table();
+					add_component(&bt_do_not_overhaul);
+				}
+				end_table();
+				new_component<gui_fill_t>();
+			//}
 
-		if (veh_type->get_upgrades_count()) {
-			add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1, 1));
-			{
-				add_component(&lb_upgrade_vehicle);
-				bt_do_not_auto_upgrade.init(button_t::square_state, "do_not_auto_upgrade");
-				bt_do_not_auto_upgrade.pressed = vehicle->get_do_not_auto_upgrade();
-				bt_do_not_auto_upgrade.add_listener(this);
-				add_component(&bt_do_not_auto_upgrade);
-			}
-			end_table();
-		}
+			//if (veh_type->get_upgrades_count()) {
+				new_component<gui_table_header_t>("auto_upgrade_to", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+				add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1, 1));
+				{
+					add_component(&lb_upgrade_vehicle);
+					bt_do_not_auto_upgrade.init(button_t::square_state, "do_not_auto_upgrade");
+					bt_do_not_auto_upgrade.pressed = vehicle->get_do_not_auto_upgrade();
+					bt_do_not_auto_upgrade.add_listener(this);
+					add_component(&bt_do_not_auto_upgrade);
+				}
+				end_table();
+				new_component<gui_fill_t>();
+			//}
 
-	//}
+		//}
+		new_component_span<gui_margin_t>(1, D_V_SPACE-1, 3);
 
-	new_component<gui_margin_t>(1,D_V_SPACE-1);
-
-	// maintenance
-	add_table(3,1);
-	{
-		lb = new_component<gui_label_buf_t>();
-		lb->buf().printf("%s: ", translator::translate("Operation"));
-		lb->update();
+		// maintenance
+		new_component<gui_table_header_t>("Operation", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		lb_running_cost.buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
 		lb_running_cost.update();
-		add_component(&lb_running_cost); // only update if is_wear_affecting_vehicle()
-		lb_running_cost_diff.set_color(COL_OBSOLETE);
-		lb_running_cost_diff.set_visible(false);
-		add_component(&lb_running_cost_diff);
-	}
-	end_table();
+		add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1, 1));
+		{
+			add_component(&lb_running_cost); // only update if is_wear_affecting_vehicle()
+			lb_running_cost_diff.set_color(COL_OBSOLETE);
+			lb_running_cost_diff.set_visible(false);
+			add_component(&lb_running_cost_diff);
+		}
+		end_table();
+		new_component<gui_fill_t>();
 
-	add_table(3, 1);
-	{
-		lb = new_component<gui_label_buf_t>();
-		lb->buf().printf("%s: ", translator::translate("Vehicle maintenance"));
-		lb->update();
+		new_component<gui_table_header_t>("Vehicle maintenance", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		lb_fixed_cost.buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
 		lb_fixed_cost.update();
-		add_component(&lb_fixed_cost); // only update if is_wear_affecting_vehicle()
-		lb_fixed_cost_diff.set_color(COL_OBSOLETE);
-		lb_fixed_cost_diff.set_visible(false);
-		add_component(&lb_fixed_cost_diff);
+		add_table(2,1)->set_spacing(scr_size(D_H_SPACE<<1, 1));
+		{
+			add_component(&lb_fixed_cost); // only update if is_wear_affecting_vehicle()
+			lb_fixed_cost_diff.set_color(COL_OBSOLETE);
+			lb_fixed_cost_diff.set_visible(false);
+			add_component(&lb_fixed_cost_diff);
+		}
+		end_table();
+		new_component<gui_fill_t>();
+
+		new_component_span<gui_margin_t>(1, D_V_SPACE-1, 3);
+
+		// value
+		new_component<gui_table_header_t>("Restwert:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		// TODO: Indication of depreciation
+		lb = new_component<gui_label_buf_t>();
+		lb->buf().append_money(vehicle->calc_sale_value() / 100.0);
+		lb->update();
+		new_component<gui_fill_t>();
 	}
 	end_table();
-
-	new_component<gui_margin_t>(1, D_V_SPACE-1);
-
-	// value
-	// TODO: Indication of depreciation
-	char number[64];
-	money_to_string(number, vehicle->calc_sale_value() / 100.0);
-	lb = new_component<gui_label_buf_t>();
-	lb->buf().printf("%s %s", translator::translate("Restwert:"), number);
-	lb->update();
-
-
-	// TODO: upgrade info
 }
 
 
@@ -1949,37 +1967,39 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 	availability_indicator.set_color(color);
 	lb_availability.buf().printf("%3u%%", vehicle->get_availability());
 	//if( !world()->get_settings().get_simplified_maintenance() ) {
-		const bool is_aircraft = (veh_type->get_waytype() == air_wt);
-		if( is_aircraft ) {
-			air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
-			lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
-		}
-		else {
-			lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
-		}
-
-		lb_km_since_last_maint_.update();
-
-		if (is_aircraft) {
-			air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
-			lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
-			if (vehicle->is_overhaul_needed()) {
-				km_remaining_to_overhaul = 0; // green
-				bar_overhaul_required = veh_type->get_max_takeoffs(); // yellow
-				excess_km_from_overhaul_limit = min(aircraft->get_number_of_takeoffs() - bar_overhaul_required, bar_overhaul_required); // orange
+		if (veh_type->get_max_distance_between_overhauls()) {
+			const bool is_aircraft = (veh_type->get_waytype() == air_wt);
+			if( is_aircraft ) {
+				air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
+				lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
 			}
 			else {
-				km_remaining_to_overhaul = veh_type->get_max_takeoffs() - aircraft->get_number_of_takeoffs();
+				lb_km_since_last_maint_.buf().printf("%u km", vehicle->get_km_since_last_overhaul());
 			}
-		}
-		else {
-			if( vehicle->is_overhaul_needed() ) {
-				km_remaining_to_overhaul=0; // green
-				bar_overhaul_required = veh_type->get_max_distance_between_overhauls(); // yellow
-				excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
+
+			lb_km_since_last_maint_.update();
+
+			if (is_aircraft) {
+				air_vehicle_t* aircraft = (air_vehicle_t*)vehicle;
+				lb_km_since_last_maint_.buf().printf("%u %s", aircraft->get_number_of_takeoffs(), translator::translate("times"));
+				if (vehicle->is_overhaul_needed()) {
+					km_remaining_to_overhaul = 0; // green
+					bar_overhaul_required = veh_type->get_max_takeoffs(); // yellow
+					excess_km_from_overhaul_limit = min(aircraft->get_number_of_takeoffs() - bar_overhaul_required, bar_overhaul_required); // orange
+				}
+				else {
+					km_remaining_to_overhaul = veh_type->get_max_takeoffs() - aircraft->get_number_of_takeoffs();
+				}
 			}
 			else {
-				km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+				if( vehicle->is_overhaul_needed() ) {
+					km_remaining_to_overhaul=0; // green
+					bar_overhaul_required = veh_type->get_max_distance_between_overhauls(); // yellow
+					excess_km_from_overhaul_limit = min(vehicle->get_km_since_last_overhaul()-bar_overhaul_required, bar_overhaul_required); // orange
+				}
+				else {
+					km_remaining_to_overhaul = veh_type->get_max_distance_between_overhauls() - vehicle->get_km_since_last_overhaul();
+				}
 			}
 		}
 	//}
@@ -2031,12 +2051,11 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 
 	if( veh_type->get_upgrades_count() ) {
 		if( vehicle->get_do_not_auto_upgrade() ) {
-			lb_upgrade_vehicle.buf().append("-");
+			lb_upgrade_vehicle.buf().append("disabled");
 		}
 		else {
 			if ( veh_type->has_available_upgrade(world()->get_timeline_year_month()) ) {
 				const vehicle_desc_t *upgrade_target= vehicle->get_auto_upgrade();
-				lb_upgrade_vehicle.buf().printf("%s: ", translator::translate("auto_upgrade_to"));
 				if (upgrade_target != NULL) {
 					lb_upgrade_vehicle.buf().append(upgrade_target->get_name());
 				}
@@ -2049,7 +2068,16 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 			}
 		}
 		lb_upgrade_vehicle.update();
+		lb_overhaul_cost.set_fixed_width(max(lb_overhaul_cost.get_min_size().w, lb_upgrade_vehicle.get_min_size().w));
 	}
+#ifdef DEBUG
+	else {
+		lb_upgrade_vehicle.buf().append("Not upgradeable");
+		lb_upgrade_vehicle.update();
+		lb_overhaul_cost.set_fixed_width(max(lb_overhaul_cost.get_min_size().w, lb_upgrade_vehicle.get_min_size().w));
+		bt_do_not_auto_upgrade.disable();
+	}
+#endif
 
 	bt_do_not_overhaul.pressed = vehicle->get_do_not_overhaul();
 	bt_do_not_auto_upgrade.pressed = vehicle->get_do_not_auto_upgrade();
