@@ -128,6 +128,18 @@ gui_chat_window_network_transparency = 25
 # if defined, use plain color for chat window in network games
 gui_color_chat_window_network_transparency = #D6ECF7
 
+# Color for table
+gui_color_table_header_border       = #52799C
+gui_color_table_frame               = #6392BD
+gui_color_table_background_head_row = #6392BD
+gui_color_table_cell_border         = #8CC3E7
+gui_color_table_background_left_col = #8CC3E7
+gui_color_table_background_data_sum = #ABD3EF
+gui_color_table_background_data     = #C6E3F7
+gui_color_table_background          = #E7F3FF
+gui_color_text_head_row             = #FFFFFF
+gui_color_text_left_col             = #000000
+
 ##################################size stuff##################################
 
 # force main menu icon size
