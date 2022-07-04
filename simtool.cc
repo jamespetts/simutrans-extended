@@ -148,7 +148,7 @@ char *tooltip_with_price_maintenance(karte_t *welt, const char *tip, sint64 pric
 	strcat( tool_t::toolstr, " (" );
 	n = strlen(tool_t::toolstr);
 
-	money_to_string(tool_t::toolstr+n, (double)welt->calc_adjusted_monthly_figure(maintenance)/100.0 );
+	money_to_string(tool_t::toolstr+n, (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance), buildings) / 100.0 );
 	strcat( tool_t::toolstr, ")" );
 	return tool_t::toolstr;
 }
@@ -165,7 +165,7 @@ char *tooltip_with_price_maintenance_level(karte_t *welt, const char *tip, sint6
 	strcat( tool_t::toolstr, " (" );
 	n = strlen(tool_t::toolstr);
 
-	money_to_string(tool_t::toolstr+n, (double)welt->calc_adjusted_monthly_figure(maintenance)/100.0 );
+	money_to_string(tool_t::toolstr+n, (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance), buildings) / 100.0);
 	strcat( tool_t::toolstr, ")" );
 	n = strlen(tool_t::toolstr);
 
@@ -1972,8 +1972,8 @@ const char* tool_transformer_t::get_tooltip(const player_t *) const
 	settings_t const& s = welt->get_settings();
 	sprintf(toolstr, "%s, %ld$ (%ld$)",
 		translator::translate("Build drain"),
-		(long)(s.cst_transformer/-100l),
-		(long)(welt->calc_adjusted_monthly_figure(s.cst_maintain_transformer))/-100l );
+		(long)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), s.cst_transformer, infrastructure) / -100l),
+		(long)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(s.cst_maintain_transformer), infrastructure) / -100l));
 	return toolstr;
 }
 
@@ -4969,7 +4969,7 @@ const char *tool_build_station_t::tool_station_building_aux(player_t *player, bo
 	sint32 const factor = desc->get_level() * desc->get_x() * desc->get_y();
 	if(desc->get_base_price() == PRICE_MAGIC)
 	{
-		cost = s.cst_multiply_post * factor;
+		cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (s.cst_multiply_post * factor), buildings);
 	}
 	else
 	{
@@ -5062,7 +5062,7 @@ const char *tool_build_station_t::tool_station_dock_aux(player_t *player, koord3
 	sint64 costs;
 	if(desc->get_base_price() == PRICE_MAGIC)
 	{
-		costs =welt->get_settings().cst_multiply_dock * desc->get_level();
+		costs = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * desc->get_level()), buildings);
 	}
 	else
 	{
@@ -5308,7 +5308,7 @@ const char *tool_build_station_t::tool_station_flat_dock_aux(player_t *player, k
 	sint64 costs;
 	if(desc->get_base_price() == PRICE_MAGIC)
 	{
-		costs =welt->get_settings().cst_multiply_dock * desc->get_level();
+		costs = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * desc->get_level()), buildings);
 	}
 	else
 	{
@@ -5750,20 +5750,20 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 			{
 				switch(old_desc->get_extra()) {
 					case road_wt:
-						old_cost = welt->get_settings().cst_multiply_roadstop * old_desc->get_level();
+						old_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_roadstop * old_desc->get_level()), buildings);
 						break;
 					case track_wt:
 					case monorail_wt:
 					case maglev_wt:
 					case narrowgauge_wt:
 					case tram_wt:
-						old_cost = welt->get_settings().cst_multiply_station * old_desc->get_level();
+						old_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_station * old_desc->get_level()), buildings);
 						break;
 					case water_wt:
-						old_cost = welt->get_settings().cst_multiply_dock * old_desc->get_level();
+						old_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * old_desc->get_level()), buildings);
 						break;
 					case air_wt:
-						old_cost = welt->get_settings().cst_multiply_airterminal * old_desc->get_level();
+						old_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_airterminal * old_desc->get_level()), buildings);
 						break;
 				}
 			}
@@ -5824,20 +5824,20 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 	{
 		switch(desc->get_extra()) {
 			case road_wt:
-				cost = welt->get_settings().cst_multiply_roadstop * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_roadstop * desc->get_level()), buildings);
 				break;
 			case track_wt:
 			case monorail_wt:
 			case maglev_wt:
 			case narrowgauge_wt:
 			case tram_wt:
-				cost = welt->get_settings().cst_multiply_station * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_station * desc->get_level()), buildings);
 				break;
 			case water_wt:
-				cost = welt->get_settings().cst_multiply_dock * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * desc->get_level()), buildings);
 				break;
 			case air_wt:
-				cost = welt->get_settings().cst_multiply_airterminal * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_airterminal * desc->get_level()), buildings);
 				break;
 		}
 	}
@@ -5870,7 +5870,7 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 		{
 			maint = desc->get_maintenance();
 		}
-		adjusted_cost -= welt->calc_adjusted_monthly_figure(maint * 60);
+		adjusted_cost -= welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maint * 60), buildings);
 	}
 	player_t::book_construction_costs(player,  adjusted_cost, pos.get_2d(), wegtype);
 	if(  env_t::station_coverage_show  &&  welt->get_zeiger()->get_pos().get_2d()==pos.get_2d()  ) {
@@ -6017,7 +6017,8 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		}
 		else
 		{
-			maint = welt->get_settings().maint_building*desc->get_level();
+			maint = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().maint_building * desc->get_level()), buildings);
+
 		}
 		if(desc->get_base_price() != PRICE_MAGIC)
 		{
@@ -6032,19 +6033,19 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 			case maglev_wt:
 			case tram_wt:
 			case narrowgauge_wt:
-				price = welt->get_settings().cst_multiply_station * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_station * desc->get_level()), buildings);
 				break;
 			case road_wt:
-				price = welt->get_settings().cst_multiply_roadstop * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_roadstop * desc->get_level()), buildings);
 				break;
 			case water_wt:
-				price = welt->get_settings().cst_multiply_dock * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * desc->get_level()), buildings);
 				break;
 			case air_wt:
-				price = welt->get_settings().cst_multiply_airterminal * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_airterminal * desc->get_level()), buildings);
 				break;
 			case 0:
-				price = welt->get_settings().cst_multiply_post * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_post * desc->get_level()), buildings);
 				break;
 			default:
 				return "Illegal description";
@@ -6059,7 +6060,7 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		}
 		else
 		{
-			maint = welt->get_settings().maint_building * desc->get_level();
+			maint = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().maint_building * desc->get_level()), buildings);
 		}
 
 		if(desc->get_base_price() != PRICE_MAGIC)
@@ -6070,11 +6071,11 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		{
 			if(desc->get_type()==building_desc_t::dock || desc->get_type()==building_desc_t::flat_dock)
 			{
-				price = welt->get_settings().cst_multiply_dock * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_dock * desc->get_level()), buildings);
 			}
 			else
 			{
-				price = welt->get_settings().cst_multiply_post * desc->get_level();
+				price = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_post * desc->get_level()), buildings);
 			}
 		}
 		const sint16 size_multiplier = desc->get_size().x * desc->get_size().y;
@@ -9147,7 +9148,7 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 				}
 				else
 				{
-					construction_cost = welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months);
+					construction_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months), buildings);
 				}
 
 #ifdef MULTI_THREAD_CONVOYS
@@ -9170,7 +9171,7 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 					}
 					else
 					{
-						construction_cost = welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months);
+						construction_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months), buildings);
 					}
 					if(t->get_owner() == psplayer)
 					{
@@ -9192,7 +9193,7 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 					}
 					else
 					{
-						construction_cost = welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months);
+						construction_cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance_cost * welt->get_settings().cst_make_public_months), buildings);
 					}
 					if(b->get_owner() == psplayer)
 					{

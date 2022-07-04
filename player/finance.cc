@@ -177,7 +177,7 @@ void finance_t::calc_finance_history()
 sint64 finance_t::get_maintenance_with_bits(transport_type tt) const
 {
 	assert(tt<TT_MAX);
-	return world->calc_adjusted_monthly_figure( maintenance[tt] );
+	return world->get_inflation_adjusted_price(world->get_timeline_year_month(), world->calc_adjusted_monthly_figure(maintenance[tt]), infrastructure);
 }
 
 void finance_t::new_month()

@@ -151,6 +151,21 @@ void building_desc_t::fix_number_of_classes()
 	}
 }
 
+sint64 building_desc_t::get_price() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), scaled_price, buildings);
+}
+
+sint64 building_desc_t::get_base_price() const
+{
+	if (price == PRICE_MAGIC)
+	{
+		return price;
+	}
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), price, buildings);
+}
+
+
 void building_desc_t::calc_checksum(checksum_t *chk) const
 {
 	obj_desc_timelined_t::calc_checksum(chk);

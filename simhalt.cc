@@ -3520,7 +3520,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 			if(gb)
 			{
 				const building_desc_t* desc = gb->get_tile()->get_desc();
-				sint32 costs;
+				sint64 costs;
 				if(desc->get_base_maintenance() == PRICE_MAGIC)
 				{
 					// Default value - no specific maintenance set. Use the old method
@@ -3579,14 +3579,14 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				{
 					// Player is voluntarily turning this over to the public player:
 					// pay a fee for the public player for future maintenance.
-					sint64 charge = welt->calc_adjusted_monthly_figure(costs * welt->get_settings().cst_make_public_months);
+					const sint64 charge = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(costs * welt->get_settings().cst_make_public_months), buildings);
 					player_t::book_construction_costs(player,         -charge, get_basis_pos(), gb->get_waytype());
 					player_t::book_construction_costs(public_owner, charge, koord::invalid, gb->get_waytype());
 				}
 				else
 				{
 					// The public player itself is acquiring this stop compulsorily, so pay compensation.
-					sint64 charge = welt->calc_adjusted_monthly_figure(costs);
+					sint64 charge = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(costs), buildings); 
 					player_t::book_construction_costs(player, -charge, get_basis_pos(), gb->get_waytype());
 					player_t::book_construction_costs(owner, charge, koord::invalid, gb->get_waytype());
 				}
@@ -3644,7 +3644,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				// there are also water tiles, which may not have a building
 				player_t *gb_player=gb->get_owner();
 				if(public_owner!=gb_player) {
-					sint32 costs;
+					sint64 costs;
 
 					if(gb->get_tile()->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 					{

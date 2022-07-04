@@ -163,8 +163,7 @@ protected:
 public:
 
 	// Overrides necessary for inflation adjustment to be bespoke per type
-	sint64 get_base_maintenance() const OVERRIDE;
-	sint64 get_maintenance() const OVERRIDE;
+	// Note that we do not override maintenance as this is a consolidated figure and needs to be handled in the player object.
 	sint64 get_base_price() const OVERRIDE;
 	sint64 get_value() const OVERRIDE;
 	sint64 get_base_way_only_cost() const OVERRIDE;

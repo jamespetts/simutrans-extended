@@ -1435,7 +1435,7 @@ void gebaeude_t::finish_rd()
 {
 	calc_image();
 	sint64 maint = tile->get_desc()->get_maintenance();
-	if (maint == PRICE_MAGIC)
+	if (tile->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 	{
 		maint = welt->get_settings().maint_building*tile->get_desc()->get_level();
 	}
@@ -1488,13 +1488,13 @@ void gebaeude_t::cleanup(player_t *player)
 
 	if (desc->is_transport_building() || desc->is_signalbox())
 	{
-		if (desc->get_price() != PRICE_MAGIC)
+		if (desc->get_base_price() != PRICE_MAGIC)
 		{
 			cost = -desc->get_price() / 2;
 		}
 		else
 		{
-			cost = welt->get_settings().cst_multiply_remove_haus * (desc->get_level());
+			cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_remove_haus * (desc->get_level())), buildings);
 		}
 
 		// If the player does not own the building, the land is not bought by bulldozing, so do not add the purchase cost.
@@ -1522,7 +1522,7 @@ void gebaeude_t::cleanup(player_t *player)
 		if (desc->get_base_price() == PRICE_MAGIC)
 		{
 			if (desc->is_city_building()) {
-				cost = welt->get_settings().cst_multiply_remove_haus * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().cst_multiply_remove_haus * (desc->get_level())), buildings);
 			}
 			else {
 				// TODO: find a way of checking what *kind* of stop that this is. This assumes railway.

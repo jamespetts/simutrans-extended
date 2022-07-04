@@ -387,13 +387,15 @@ public:
 	  * recalculation of the prices, which is unnecessary work.
 	  */
 
-	sint32 get_maintenance() const { return scaled_maintenance; }
+	// We do not adjust for inflation here since the total maintenance is stored in the player object.
+	// We must instead adjust for inflation when we debit the player's account with the monthly maintenance.
+	sint64 get_maintenance() const { return scaled_maintenance; }
 
-	sint32 get_base_maintenance() const { return maintenance; }
+	sint64 get_base_maintenance() const { return maintenance; }
 
-	sint32 get_price() const { return scaled_price; }
+	sint64 get_price() const;
 
-	sint32 get_base_price() const { return  price; }
+	sint64 get_base_price() const;
 
 	uint16 get_capacity() const { return capacity; }
 

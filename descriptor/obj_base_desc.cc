@@ -7,16 +7,6 @@
 #include "../network/checksum.h"
 #include "../simworld.h"
 
-sint64 obj_desc_transport_infrastructure_t::get_base_maintenance() const
-{
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_maintenance(), infrastructure);
-}
-
-sint64 obj_desc_transport_infrastructure_t::get_maintenance() const
-{
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_maintenance(), infrastructure);
-}
-
 sint64 obj_desc_transport_infrastructure_t::get_base_price() const
 {
 	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_price(), infrastructure) : obj_desc_transport_related_t::get_base_price();
