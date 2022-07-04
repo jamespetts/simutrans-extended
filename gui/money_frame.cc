@@ -1039,7 +1039,7 @@ void money_frame_t::update_stats()
 			// way
 			if (tt_way_length[i]) {
 				lb_way_distances[i].buf().printf("%.1fkm", (double)(tt_way_length[i] * welt->get_settings().get_meters_per_tile()/10000.0));
-				lb_way_maintenances[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_way_maint[i]), buildings) / 100.0);				
+				lb_way_maintenances[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_way_maint[i]), buildings) / 100.0);
 			}
 			else {
 				lb_way_distances[i].buf().append("-");
@@ -1049,7 +1049,7 @@ void money_frame_t::update_stats()
 			// electrification
 			if (tt_electrified_len[i]) {
 				lb_electrified_distances[i].buf().printf("%.1fkm", (double)(tt_electrified_len[i] * welt->get_settings().get_meters_per_tile() / 10000.0));
-				lb_electrification_maint[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_electrification_maint[i]), infrastructure) / 100.0);				
+				lb_electrification_maint[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_electrification_maint[i]), infrastructure) / 100.0);
 			}
 			else {
 				lb_electrified_distances[i].buf().append("-");
