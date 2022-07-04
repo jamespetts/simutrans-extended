@@ -3586,7 +3586,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				else
 				{
 					// The public player itself is acquiring this stop compulsorily, so pay compensation.
-					sint64 charge = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(costs), buildings); 
+					sint64 charge = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(costs), buildings);
 					player_t::book_construction_costs(player, -charge, get_basis_pos(), gb->get_waytype());
 					player_t::book_construction_costs(owner, charge, koord::invalid, gb->get_waytype());
 				}
