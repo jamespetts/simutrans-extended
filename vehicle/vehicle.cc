@@ -1408,7 +1408,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, km_since_last_overhaul(0u)
 	, km_since_last_maintenance(0u)
 	, km_since_last_replenish(0u)
-	, last_maintenance_month(0u)
+	, last_maintenance_month(welt->get_current_month())
 	, last_overhaul_month(0u)
 	, ticks_at_last_departure(0ll)
 	, tags(0u)
@@ -3445,6 +3445,10 @@ bool vehicle_t::is_maintenance_urgently_needed() const
 	{
 		return last_maintenance_month + welt->get_settings().get_extended_maintenance_interval_months() < welt->get_current_month();
 	}
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return false;
+	}
 	return km_since_last_maintenance > ((desc->get_maintenance_interval_km() * 3) / 2);
 }
 
@@ -3473,7 +3477,7 @@ void vehicle_t::maintain()
 
 	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
 	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time)); // TODO: Deal with multiple vehicles in a convoy being maintained and the impact on timings of this.
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time));
 	cnv->set_state(convoi_t::MAINTENANCE);
 
 	last_maintenance_time = welt->get_ticks();
@@ -3488,7 +3492,8 @@ void vehicle_t::overhaul()
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 	last_maintenance_time = welt->get_ticks();
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));  // TODO: Deal with multiple vehicles in a convoy being overhauled and the impact on timings of this.
+
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));
 	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
 	cnv->set_state(convoi_t::OVERHAUL);
 
@@ -3585,7 +3590,7 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 {
 	const sint32 base_cost = (sint32)desc->get_running_cost(welt); // This includes obsolescence increase
 
-	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km() || desc->get_max_distance_between_overhauls() == 0)
 	{
 		return base_cost;
 	}
@@ -3675,7 +3680,7 @@ void vehicle_t::consume_fuel(sint32 steps)
 
 void vehicle_t::book_fuel_consumption()
 {
-	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_current_month(), desc->get_engine_type());
+	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_timeline_year_month(), desc->get_engine_type());
 
 	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
 

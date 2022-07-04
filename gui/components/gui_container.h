@@ -19,6 +19,11 @@
  */
 class gui_container_t : virtual public gui_component_t
 {
+	// Display the frame of the color specified by the theme
+	bool show_frame = false;
+	// Display the background color specified in the theme
+	bool show_back_ground_color = false;
+
 protected:
 	vector_tpl <gui_component_t *> components;
 
@@ -73,6 +78,11 @@ public:
 	 * will have NO effect.
 	 */
 	void set_focus( gui_component_t *comp_focus );
+
+	void set_table_frame(bool show_border, bool use_background_color=false) {
+		show_frame = show_border;
+		show_back_ground_color = use_background_color;
+	}
 
 	/**
 	 * returns element that has the focus

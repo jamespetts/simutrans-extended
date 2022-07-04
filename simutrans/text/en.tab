@@ -5061,7 +5061,7 @@ Lakes
 The percentage of passengers transported in the region overall
 The percentage of intending passengers making successful journeys in the region overall
 Spacing cnv/month, shift
-Departures/month; shift
+Departures/year
 #-----------------------------
 #-- Signals working methods:--
 drive_by_sight
@@ -6440,3 +6440,9 @@ Map editing tools
 MUST USE:
 \nMAY USE: 
 MAY USE:
+comfort_chart
+Comfort chart
+fare_management_by_vehicle
+By vehicle
+fare_management_by_accommo
+By accommodation

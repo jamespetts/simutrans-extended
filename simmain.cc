@@ -355,10 +355,6 @@ static bool wait_for_key()
 static void ask_objfilename()
 {
 	pakselector_t* sel = new pakselector_t();
-	if(  sel->check_only_one_option()  ) {
-		// If there's only one option, we selected it; don't even show the window
-		delete sel;
-	}
 	// notify gui to load list of paksets
 	event_t ev;
 	ev.ev_class = INFOWIN;
@@ -1295,6 +1291,8 @@ int simu_main(int argc, char** argv)
 	karte_t::staff_init(env_t::objfilename);
 	dbg->message("simu_main()", "Reading fuel cost configuration ...");
 	karte_t::fuel_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading prices/inflation configuration ...");
+	karte_t::prices_init(env_t::objfilename);
 
 #if COLOUR_DEPTH != 0
 	// reread theme

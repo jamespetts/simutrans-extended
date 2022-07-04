@@ -105,12 +105,18 @@ bool factory_desc_t::get_accepts_these_goods(const goods_desc_t* input) const
 	return false;
 }
 
-bool factory_desc_t::has_goods_catg_demand(uint8 catg_index) const
+bool factory_desc_t::has_goods_catg_demand(uint8 catg_index, uint8 check_option) const
 {
 	if (catg_index == goods_manager_t::INDEX_NONE) {
 		return false;
 	}
-	if (product_count) {
+	if (catg_index == goods_manager_t::INDEX_PAS) {
+		return (placement!=factory_desc_t::Water);
+	}
+	if (catg_index == goods_manager_t::INDEX_MAIL) {
+		return (mail_demand!=0);
+	}
+	if (product_count && check_option != 1) {
 		for (uint32 i = 0; i < product_count; i++) {
 			if (get_product(i)->get_output_type()->get_catg_index() == catg_index) {
 				return true;
@@ -118,7 +124,7 @@ bool factory_desc_t::has_goods_catg_demand(uint8 catg_index) const
 		}
 	}
 
-	if (supplier_count) {
+	if (supplier_count && check_option != 2) {
 		for (uint32 i = 0; i < supplier_count; i++) {
 			if (!get_supplier(i)) {
 				continue;

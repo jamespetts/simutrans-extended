@@ -352,6 +352,20 @@ void factorylist_frame_t::set_cityfilter(stadt_t *city)
 	fill_list();
 }
 
+void factorylist_frame_t::set_text_filter(const char * text)
+{
+	if (text) {
+		sprintf(name_filter, "%s", text);
+		name_filter_input.set_text(name_filter, lengthof(name_filter));
+	}
+	if (filter_city) {
+		set_cityfilter(NULL);
+	}
+	else {
+		fill_list();
+	}
+}
+
 
 void factorylist_frame_t::draw(scr_coord pos, scr_size size)
 {

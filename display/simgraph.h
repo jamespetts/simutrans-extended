@@ -393,7 +393,7 @@ int display_line_lettercode_rgb(scr_coord_val xpos, scr_coord_val ypos, PIXVAL l
 
 /// Display a string that is abbreviated by the (language specific) ellipsis character if too wide
 /// If enough space is given, it just display the full string
-void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0 );
+void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0, bool underlined = false );
 
 void display_ddd_proportional(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty);
 

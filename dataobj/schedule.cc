@@ -687,7 +687,21 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	buf.append( "|" );
 	FOR(minivec_tpl<schedule_entry_t>, const& i, entries)
 	{
-		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(), i.minimum_loading, (int)i.waiting_time_shift, (int)i.spacing_shift, (int)i.reverse, (int)i.flags, (int)i.unique_entry_id, (int)i.condition_bitfield_broadcaster, (int)i.condition_bitfield_receiver, (int)i.target_id_condition_trigger, (int)i.target_id_couple, (int)i.target_id_uncouple, (int)i.target_unique_entry_uncouple);
+		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(),
+			i.minimum_loading,
+			(int)i.waiting_time_shift,
+			(int)i.spacing_shift,
+			(int)i.reverse,
+			(int)i.flags,
+			(int)i.unique_entry_id,
+			(int)i.condition_bitfield_broadcaster,
+			(int)i.condition_bitfield_receiver,
+			(int)i.target_id_condition_trigger,
+			(int)i.target_id_couple,
+			(int)i.target_id_uncouple,
+			(int)i.target_unique_entry_uncouple,
+			(int)i.max_speed_kmh
+		);
 	}
 }
 

@@ -733,6 +733,7 @@ public:
 	bool is_maintenance_urgently_needed() const;
 	// Aircraft need different logic to other vehicles, hence virtual.
 	virtual bool is_overhaul_needed() const;
+	uint16 get_overhaul_count() const { return overhauls; }
 	uint32 get_km_since_last_overhaul() const { return km_since_last_overhaul; }
 
 	virtual uint8 get_availability() const;

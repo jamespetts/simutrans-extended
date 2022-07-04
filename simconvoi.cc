@@ -1792,6 +1792,247 @@ void convoi_t::threaded_step()
 	}
 }
 
+bool convoi_t::replace_now()
+{
+	bool autostart = false;
+
+	if (replace && replace->get_replacing_vehicles()->get_count() > 0)
+	{
+		autostart = replace->get_autostart();
+
+		// Knightly : before replacing, copy the existing set of goods category indices
+		minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
+		vector_tpl<uint8> old_passenger_classes_carried;
+		vector_tpl<uint8> old_mail_classes_carried;
+
+		for (uint8 i = 0; i < goods_catg_index.get_count(); ++i)
+		{
+			if (i == goods_manager_t::INDEX_PAS)
+			{
+				for (uint32 j = 0; j < passenger_classes_carried.get_count(); ++j)
+				{
+					old_passenger_classes_carried.append(passenger_classes_carried[j]);
+				}
+			}
+			else if (i == goods_manager_t::INDEX_MAIL)
+			{
+				for (uint32 j = 0; j < mail_classes_carried.get_count(); ++j)
+				{
+					old_mail_classes_carried.append(mail_classes_carried[j]);
+				}
+			}
+			old_goods_catg_index.append(goods_catg_index[i]);
+		}
+
+		const grund_t* gr = welt->lookup(home_depot);
+		depot_t* dep;
+		if (gr && (dep = gr->get_depot())) {
+			char buf[256];
+			name_offset = sprintf(buf, "(%i) ", self.get_id());
+			tstrncpy(buf + name_offset, translator::translate(front()->get_desc()->get_name()), 116);
+			const bool keep_name = strcmp(get_name(), buf);
+			vector_tpl<vehicle_t*> new_vehicles;
+			vehicle_t* veh = NULL;
+			// Acquire the new one
+			for (auto replacing_vehicle : *replace->get_replacing_vehicles())
+			{
+				veh = NULL;
+				// First - check whether there are any of the required vehicles already
+				// in the convoy (free)
+				for (uint8 k = 0; k < vehicle_count; k++)
+				{
+					if (vehicle[k]->get_desc() == replacing_vehicle)
+					{
+						veh = remove_vehicle_at(k);
+						break;
+					}
+				}
+
+				if (veh == NULL && replace->get_allow_using_existing_vehicles())
+				{
+					// Second - check whether there are any of the required vehicles already
+					// in the depot (more or less free).
+					veh = dep->find_oldest_newest(replacing_vehicle, true, &new_vehicles);
+				}
+
+				if (veh == NULL && !replace->get_retain_in_depot())
+				{
+					// Third - check whether the vehicle can be upgraded (cheap)
+					// Note: if "retain in depot" is selected, do not upgrade, as
+					// the old vehicles will be needed (e.g., for a cascade).
+					for (uint16 j = 0; j < vehicle_count; j++)
+					{
+						for (uint8 c = 0; c < vehicle[j]->get_desc()->get_upgrades_count(); c++)
+						{
+							if (replacing_vehicle == vehicle[j]->get_desc()->get_upgrades(c))
+							{
+								veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, replacing_vehicle, true);
+								upgrade_vehicle(j, veh);
+								remove_vehicle_at(j);
+								goto end_loop;
+							}
+						}
+					}
+				}
+			end_loop:
+
+				if (veh == NULL)
+				{
+					// Fourth - if all else fails, buy from new (expensive).
+					veh = dep->buy_vehicle(replacing_vehicle, livery_scheme_index);
+				}
+
+				// This new method is needed to enable this method to iterate over
+				// the existing vehicles in the convoy while it is adding new vehicles.
+				// They must be added to temporary storage, and appended to the existing
+				// convoy at the end, after the existing convoy has been deleted.
+				assert(veh);
+				if (veh)
+				{
+					new_vehicles.append(veh);
+				}
+
+			}
+
+			//First, delete the existing convoy
+			for (sint8 a = vehicle_count - 1; a >= 0; a--)
+			{
+				if (!replace->get_retain_in_depot())
+				{
+					//Sell any vehicles not upgraded or kept.
+					sint64 value = vehicle[a]->calc_sale_value();
+					waytype_t wt = vehicle[a]->get_desc()->get_waytype();
+					owner->book_new_vehicle(value, dep->get_pos().get_2d(), wt);
+					delete vehicle[a];
+					vehicle_count--;
+				}
+				else
+				{
+					vehicle_t* old_veh = remove_vehicle_at(a);
+					old_veh->discard_cargo();
+					old_veh->set_leading(false);
+					old_veh->set_last(false);
+					dep->get_vehicle_list().append(old_veh);
+				}
+			}
+			vehicle_count = 0;
+			reset();
+
+			//Next, add all the new vehicles to the convoy in order.
+			for (auto new_vehicle : new_vehicles)
+			{
+				dep->append_vehicle(self, new_vehicle, false, false);
+			}
+
+			if (!keep_name)
+			{
+				set_name(front()->get_desc()->get_name());
+			}
+
+			clear_replace();
+
+			if (line.is_bound()) {
+				line->recalc_status();
+				if (line->get_replacing_convoys_count() == 0) {
+					char buf[256];
+					sprintf(buf, translator::translate("Replacing\nvehicles of\n%-20s\ncompleted"), line->get_name());
+					welt->get_message()->add_message(buf, home_depot.get_2d(), message_t::general, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+				}
+
+			}
+
+			// Knightly : recalculate goods category index and determine if refresh is needed
+			recalc_catg_index();
+			// Also recalculate classes carried
+			calc_classes_carried();
+
+			minivec_tpl<uint8> catg_differences(goods_catg_index.get_count() + old_goods_catg_index.get_count());
+			minivec_tpl<uint8> passenger_class_differences;
+			minivec_tpl<uint8> mail_class_differences;
+
+			// removed categories and classes: present in old category list but not in new category list
+			for (uint8 i = 0; i < old_goods_catg_index.get_count(); ++i)
+			{
+				if (!goods_catg_index.is_contained(old_goods_catg_index[i]))
+				{
+					catg_differences.append(old_goods_catg_index[i]);
+				}
+				else
+				{
+					// The categories are the same in both: but what about the classes?
+					// Only relevant for passengers and mail.
+					if (i == goods_manager_t::INDEX_PAS)
+					{
+						for (uint32 j = 0; j < passenger_classes_carried.get_count(); j++)
+						{
+							if (old_passenger_classes_carried.get_count() <= j || !passenger_classes_carried.is_contained(old_passenger_classes_carried.get_element(j)))
+							{
+								passenger_class_differences.append(j);
+							}
+						}
+
+						for (uint32 j = 0; j < old_passenger_classes_carried.get_count(); j++)
+						{
+							if (passenger_classes_carried.get_count() <= j || !old_passenger_classes_carried.is_contained(passenger_classes_carried.get_element(j)))
+							{
+								passenger_class_differences.append(j);
+							}
+						}
+					}
+
+					if (i == goods_manager_t::INDEX_MAIL)
+					{
+						for (uint8 j = 0; j < mail_classes_carried.get_count(); j++)
+						{
+							if (old_mail_classes_carried.get_count() <= j || !mail_classes_carried.is_contained(old_mail_classes_carried.get_element(j)))
+							{
+								mail_class_differences.append(j);
+							}
+						}
+
+						for (uint8 j = 0; j < old_mail_classes_carried.get_count(); j++)
+						{
+							if (mail_classes_carried.get_count() <= j || !old_mail_classes_carried.is_contained(mail_classes_carried.get_element(j)))
+							{
+								mail_class_differences.append(j);
+							}
+						}
+					}
+				}
+			}
+
+			// added categories : present in new category list but not in old category list
+			for (uint8 i = 0; i < goods_catg_index.get_count(); ++i)
+			{
+				if (!old_goods_catg_index.is_contained(goods_catg_index[i]))
+				{
+					catg_differences.append(goods_catg_index[i]);
+				}
+			}
+
+			if (catg_differences.get_count() > 0)
+			{
+				if (line.is_bound())
+				{
+					// let the line decide if refresh is needed
+					line->recalc_catg_index();
+				}
+				else
+				{
+					// Refresh only those categories which are either removed or added to the category list
+					haltestelle_t::refresh_routing(schedule, catg_differences, &passenger_class_differences, &mail_class_differences, owner);
+				}
+			}
+
+			if (autostart) {
+				dep->start_convoi(self, false);
+			}
+		}
+	}
+
+	return autostart;
+}
+
 /**
  * Asynchroneous single-threaded stepping of convoys
  */
@@ -1826,239 +2067,10 @@ void convoi_t::step()
 	switch(state)
 	{
 		case INITIAL:
-			// If there is a pending replacement, just do it
-			if (replace && replace->get_replacing_vehicles()->get_count()>0)
+			// If there is a pending replacement, check whether it needs to be done.
+			if (replace && (replace->get_replace_at() == replace_data_t::automatic || replace->get_replace_at() == replace_data_t::immediate))
 			{
-				autostart = replace->get_autostart();
-
-				// Knightly : before replacing, copy the existing set of goods category indices
-				minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
-				vector_tpl<uint8> old_passenger_classes_carried;
-				vector_tpl<uint8> old_mail_classes_carried;
-
-				for( uint8 i = 0; i < goods_catg_index.get_count(); ++i )
-				{
-					if (i == goods_manager_t::INDEX_PAS)
-					{
-						for (uint32 j = 0; j < passenger_classes_carried.get_count(); ++j)
-						{
-							old_passenger_classes_carried.append(passenger_classes_carried[j]);
-						}
-					}
-					else if (i == goods_manager_t::INDEX_MAIL)
-					{
-						for (uint32 j = 0; j < mail_classes_carried.get_count(); ++j)
-						{
-							old_mail_classes_carried.append(mail_classes_carried[j]);
-						}
-					}
-					old_goods_catg_index.append( goods_catg_index[i] );
-				}
-
-				const grund_t *gr = welt->lookup(home_depot);
-				depot_t *dep;
-				if ( gr && (dep = gr->get_depot()) ) {
-					char buf[256];
-					name_offset = sprintf(buf,"(%i) ",self.get_id() );
-					tstrncpy(buf + name_offset, translator::translate(front()->get_desc()->get_name()), 116);
-					const bool keep_name = strcmp(get_name(), buf);
-					vector_tpl<vehicle_t*> new_vehicles;
-					vehicle_t* veh = NULL;
-					// Acquire the new one
-					for(auto replacing_vehicle : *replace->get_replacing_vehicles())
-					{
-						veh = NULL;
-						// First - check whether there are any of the required vehicles already
-						// in the convoy (free)
-						for(uint8 k = 0; k < vehicle_count; k++)
-						{
-							if(vehicle[k]->get_desc() == replacing_vehicle)
-							{
-								veh = remove_vehicle_at(k);
-								break;
-							}
-						}
-
-						if(veh == NULL && replace->get_allow_using_existing_vehicles())
-						{
-							 // Second - check whether there are any of the required vehicles already
-							 // in the depot (more or less free).
-							veh = dep->find_oldest_newest(replacing_vehicle, true, &new_vehicles);
-						}
-
-						if (veh == NULL && !replace->get_retain_in_depot())
-						{
-							// Third - check whether the vehicle can be upgraded (cheap)
-							// Note: if "retain in depot" is selected, do not upgrade, as
-							// the old vehicles will be needed (e.g., for a cascade).
-							for(uint16 j = 0; j < vehicle_count; j ++)
-							{
-								for(uint8 c = 0; c < vehicle[j]->get_desc()->get_upgrades_count(); c ++)
-								{
-									if(replacing_vehicle == vehicle[j]->get_desc()->get_upgrades(c))
-									{
-										veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, replacing_vehicle, true);
-										upgrade_vehicle(j, veh);
-										remove_vehicle_at(j);
-										goto end_loop;
-									}
-								}
-							}
-						}
-end_loop:
-
-						if(veh == NULL)
-						{
-							// Fourth - if all else fails, buy from new (expensive).
-							veh = dep->buy_vehicle(replacing_vehicle, livery_scheme_index);
-						}
-
-						// This new method is needed to enable this method to iterate over
-						// the existing vehicles in the convoy while it is adding new vehicles.
-						// They must be added to temporary storage, and appended to the existing
-						// convoy at the end, after the existing convoy has been deleted.
-						assert(veh);
-						if(veh)
-						{
-							new_vehicles.append(veh);
-						}
-
-					}
-
-					//First, delete the existing convoy
-					for(sint8 a = vehicle_count-1;  a >= 0; a--)
-					{
-						if(!replace->get_retain_in_depot())
-						{
-							//Sell any vehicles not upgraded or kept.
-							sint64 value = vehicle[a]->calc_sale_value();
-							waytype_t wt = vehicle[a]->get_desc()->get_waytype();
-							owner->book_new_vehicle( value, dep->get_pos().get_2d(),wt );
-							delete vehicle[a];
-							vehicle_count--;
-						}
-						else
-						{
-							vehicle_t* old_veh = remove_vehicle_at(a);
-							old_veh->discard_cargo();
-							old_veh->set_leading(false);
-							old_veh->set_last(false);
-							dep->get_vehicle_list().append(old_veh);
-						}
-					}
-					vehicle_count = 0;
-					reset();
-
-					//Next, add all the new vehicles to the convoy in order.
-					for (auto new_vehicle : new_vehicles)
-					{
-						dep->append_vehicle(self, new_vehicle, false, false);
-					}
-
-					if (!keep_name)
-					{
-						set_name(front()->get_desc()->get_name());
-					}
-
-					clear_replace();
-
-					if (line.is_bound()) {
-						line->recalc_status();
-						if (line->get_replacing_convoys_count()==0) {
-							char buf[256];
-							sprintf(buf, translator::translate("Replacing\nvehicles of\n%-20s\ncompleted"), line->get_name());
-							welt->get_message()->add_message(buf, home_depot.get_2d(),message_t::general, PLAYER_FLAG|get_owner()->get_player_nr(), IMG_EMPTY);
-						}
-
-					}
-
-					// Knightly : recalculate goods category index and determine if refresh is needed
-					recalc_catg_index();
-					// Also recalculate classes carried
-					calc_classes_carried();
-
-					minivec_tpl<uint8> catg_differences(goods_catg_index.get_count() + old_goods_catg_index.get_count());
-					minivec_tpl<uint8> passenger_class_differences;
-					minivec_tpl<uint8> mail_class_differences;
-
-					// removed categories and classes: present in old category list but not in new category list
-					for ( uint8 i = 0; i < old_goods_catg_index.get_count(); ++i )
-					{
-						if ( ! goods_catg_index.is_contained( old_goods_catg_index[i] ) )
-						{
-							catg_differences.append( old_goods_catg_index[i] );
-						}
-						else
-						{
-							// The categories are the same in both: but what about the classes?
-							// Only relevant for passengers and mail.
-							if (i == goods_manager_t::INDEX_PAS)
-							{
-								for (uint32 j = 0; j < passenger_classes_carried.get_count(); j++)
-								{
-									if (old_passenger_classes_carried.get_count() <= j || !passenger_classes_carried.is_contained(old_passenger_classes_carried.get_element(j)))
-									{
-										passenger_class_differences.append(j);
-									}
-								}
-
-								for (uint32 j = 0; j < old_passenger_classes_carried.get_count(); j++)
-								{
-									if(passenger_classes_carried.get_count() <= j || !old_passenger_classes_carried.is_contained(passenger_classes_carried.get_element(j)))
-									{
-										passenger_class_differences.append(j);
-									}
-								}
-							}
-
-							if (i == goods_manager_t::INDEX_MAIL)
-							{
-								for (uint8 j = 0; j < mail_classes_carried.get_count(); j++)
-								{
-									if (old_mail_classes_carried.get_count() <= j || !mail_classes_carried.is_contained(old_mail_classes_carried.get_element(j)))
-									{
-										mail_class_differences.append(j);
-									}
-								}
-
-								for (uint8 j = 0; j < old_mail_classes_carried.get_count(); j++)
-								{
-									if (mail_classes_carried.get_count() <= j || !old_mail_classes_carried.is_contained(mail_classes_carried.get_element(j)))
-									{
-										mail_class_differences.append(j);
-									}
-								}
-							}
-						}
-					}
-
-					// added categories : present in new category list but not in old category list
-					for ( uint8 i = 0; i < goods_catg_index.get_count(); ++i )
-					{
-						if ( ! old_goods_catg_index.is_contained( goods_catg_index[i] ) )
-						{
-							catg_differences.append( goods_catg_index[i] );
-						}
-					}
-
-					if (catg_differences.get_count() > 0 )
-					{
-						if ( line.is_bound() )
-						{
-							// let the line decide if refresh is needed
-							line->recalc_catg_index();
-						}
-						else
-						{
-							// refresh only those categories which are either removed or added to the category list
-							haltestelle_t::refresh_routing(schedule, catg_differences, &passenger_class_differences, &mail_class_differences, owner);
-						}
-					}
-
-					if (autostart) {
-						dep->start_convoi(self, false);
-					}
-				}
+				autostart = replace_now();
 			}
 			break;
 
@@ -3133,7 +3145,7 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 		if(!has_obsolete  &&  welt->use_timeline()) {
 			has_obsolete = info->is_obsolete( welt->get_timeline_year_month() );
 		}
-		player_t::add_maintenance( get_owner(), info->get_maintenance(), info->get_waytype() );
+		player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 	}
 	else {
 		return false;
@@ -4335,7 +4347,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				//sum_weight += info->get_weight();
 				has_obsolete |= welt->use_timeline()  &&  info->is_retired( welt->get_timeline_year_month() );
 				is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-				player_t::add_maintenance( get_owner(), info->get_maintenance(), info->get_waytype() );
+				player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 			}
 
 			// some versions save vehicles after leaving depot with koord3d::invalid
@@ -6519,7 +6531,7 @@ void convoi_t::destroy()
 			vehicle[i]->set_flag( obj_t::not_on_map );
 
 		}
-		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_maintenance(), vehicle[i]->get_desc()->get_waytype());
+		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_fixed_cost(), vehicle[i]->get_desc()->get_waytype());
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];
@@ -7021,6 +7033,10 @@ void convoi_t::set_next_reservation_index(uint16 n)
 
 uint16 convoi_t::get_current_schedule_order() const
 {
+	if( in_depot() ) {
+		return -1;
+	}
+
 	if (reverse_schedule) {
 		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
 	}
@@ -7166,7 +7182,7 @@ public:
 	};
 };
 
-void convoi_t::set_depot_when_empty(bool new_dwe)
+void convoi_t::set_depot_when_empty(bool new_dwe, bool manually_sent)
 {
 	if(loading_level > 0)
 	{
@@ -7174,14 +7190,14 @@ void convoi_t::set_depot_when_empty(bool new_dwe)
 	}
 	else if(new_dwe)
 	{
-		go_to_depot(true);
+		go_to_depot(true, false, false, manually_sent);
 	}
 }
 
 /**
  * Convoy is sent to depot.  Return value, success or not.
  */
-bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain)
+bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain, bool manually_sent)
 {
 	if(!schedule->is_editing_finished())
 	{
@@ -7205,6 +7221,11 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 	uint16 shifter;
 	if(replace)
 	{
+		if (manually_sent && replace->get_replace_at() == replace_data_t::manual)
+		{
+			replace->set_replace_at(replace_data_t::automatic);
+		}
+
 		for(auto replacing_vehicle : *replace->get_replacing_vehicles())
 		{
 			if(replacing_vehicle->get_power() == 0)
@@ -8809,7 +8830,7 @@ void convoi_t::check_departure(halthandle_t halt)
 
 			if(line.is_bound() && schedule->get_spacing() && line->count_convoys())
 			{
-				// Departures/month
+				// Departures/year
 				const sint64 spacing = (welt->ticks_per_world_month * 12u) / (sint64)schedule->get_spacing(); // *12 because the spacing setting is now in 12ths of a fraction of a month.
 				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
 				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
@@ -9266,6 +9287,15 @@ void convoi_t::book_salaries()
 	const sint64 delta_ticks = (welt->get_ticks() - last_salary_point_ticks) + 1000; // + 1000 to prevent rounding down for trivial differences.
 	const sint64 percentage_of_month = (delta_ticks * 100ll) / welt->ticks_per_world_month;
 
+	book(-(sint64)get_salaries(percentage_of_month), convoi_t::CONVOI_OPERATIONS);
+
+	last_salary_point_ticks = welt->get_ticks();
+}
+
+uint32 convoi_t::get_salaries(sint64 percentage_of_month)
+{
+	uint32 sum=0;
+
 	for (uint8 i = 0; i < 255; i++)
 	{
 		uint32 staff_hundredths_this_type = 0;
@@ -9286,12 +9316,10 @@ void convoi_t::book_salaries()
 		}
 
 		const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
-		const sint64 staff_cost_this_type = (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
-
-		book(-welt->calc_adjusted_monthly_figure(staff_cost_this_type), convoi_t::CONVOI_OPERATIONS);
+		sum += (((sint64)welt->get_staff_salary(welt->get_timeline_year_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
 	}
 
-	last_salary_point_ticks = welt->get_ticks();
+	return welt->calc_adjusted_monthly_figure(sum);
 }
 
 void convoi_t::book_fuel_consumption()

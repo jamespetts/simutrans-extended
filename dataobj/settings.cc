@@ -3635,33 +3635,44 @@ void settings_t::cache_comfort_tables() {
 // Returns *scaled* values.
 sint64 settings_t::get_forge_cost(waytype_t wt) const
 {
+	sint64 base_cost = 0;
 	switch(wt)
 	{
 	default:
 	case road_wt:
-		return (forge_cost_road * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_road * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case track_wt:
-		return (forge_cost_track * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_track * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case water_wt:
-		return (forge_cost_water * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_water * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case monorail_wt:
-		return (forge_cost_monorail * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_monorail * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case maglev_wt:
-		return (forge_cost_maglev * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_maglev * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case tram_wt:
-		return (forge_cost_tram * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_tram * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case narrowgauge_wt:
-		return (forge_cost_narrowgauge * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_narrowgauge * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case air_wt:
-		return (forge_cost_air * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_air * (sint64)meters_per_tile) / 1000ll;
+		break;
 	};
+
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), base_cost, infrastructure);
 }
 
 sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const

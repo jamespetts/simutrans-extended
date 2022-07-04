@@ -42,11 +42,14 @@ protected:
 	 */
 	PIXVAL color;
 
+	bool underlined=false;
+
 	align_t align;
 	const char * tooltip;
 
 	using gui_component_t::init;
 	scr_coord_val fixed_width=0;
+	scr_size padding = scr_size(0,0);
 
 public:
 	gui_label_t(const char* text=NULL, PIXVAL color=SYSCOL_TEXT, align_t align=left);
@@ -98,6 +101,11 @@ public:
 		this->shadowed = shadowed;
 	}
 
+	void set_underline(bool yesno)
+	{
+		underlined = yesno;
+	}
+
 	/**
 	 * Sets the alignment of the label
 	 */
@@ -111,6 +119,7 @@ public:
 	void set_min_size(scr_size);
 
 	void set_fixed_width(const scr_coord_val width);
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	align_t get_align() const { return align; }
 

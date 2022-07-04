@@ -15,6 +15,7 @@
 #include "components/gui_speedbar.h"
 #include "components/gui_button.h"
 #include "components/gui_label.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
 #include "components/gui_tab_panel.h"
 #include "components/action_listener.h"
@@ -22,6 +23,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_button_to_chart.h"
 #include "../convoihandle_t.h"
+#include "../vehicle/vehicle.h"
 #include "../vehicle/rail_vehicle.h"
 #include "simwin.h"
 
@@ -90,6 +92,32 @@ public:
 	void update_list();
 };
 
+
+class gui_vehicle_maintenance_t : public gui_aligned_container_t, private action_listener_t
+{
+private:
+	vehicle_t *vehicle;
+
+	sint32 km_remaining_to_overhaul;
+	sint32 excess_km_from_overhaul_limit = 0;
+	sint32 bar_overhaul_required         = 0;
+	uint16 last_overhaul_count = 0;
+
+	button_t bt_do_not_overhaul, bt_do_not_auto_upgrade;
+	gui_colorbox_t availability_indicator;
+	gui_speedbar_fixed_length_t next_overhaul_indicator;
+	gui_label_buf_t lb_availability, lb_km_since_last_maint_, lb_upgrade_vehicle;
+	gui_label_buf_t lb_running_cost, lb_running_cost_diff;
+	gui_label_buf_t lb_fixed_cost, lb_fixed_cost_diff;
+	gui_label_buf_t lb_overhaul_cost, lb_overhaul_cost_diff;
+
+
+public:
+	gui_vehicle_maintenance_t(vehicle_t *v);
+	void draw(scr_coord offset) OVERRIDE;
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+};
+
 // content of maintenance info tab
 class gui_convoy_maintenance_info_t : public gui_aligned_container_t
 {
@@ -110,50 +138,89 @@ public:
 
 class gui_convoy_spec_table_t : public gui_aligned_container_t
 {
-	enum {
-		SPECS_CAR_NUMBER = 0,
-		SPECS_SIDEVIEW,
-		SPECS_ROLE,
-		SPECS_FREIGHT_TYPE,
-		SPECS_ENGINE_TYPE,
-		SPECS_POWER,
-		SPECS_TRACTIVE_FORCE,
-		SPECS_SPEED,
-		SPECS_TARE_WEIGHT,
-		SPECS_MAX_GROSS_WIGHT,
-		SPECS_AXLE_LOAD,
-		SPECS_LENGTH,          // for debug
-		SPECS_BRAKE_FORCE,
-		// good
-		SPECS_RANGE,
-		//--- maintenance values ---
-		//SPECS_INCOME
-		SPECS_RUNNING_COST,
-		SPECS_FIXED_COST,
-		SPECS_VALUE,
-		SPECS_AGE,
-		SPECS_TILTING,
-		MAX_SPECS
-	};
-	enum {
-		SPECS_DETAIL_START = SPECS_FREIGHT_TYPE
-		//SPECS_PAYLOADS,
-		//SPECS_COMFORT,
-		//SPECS_CATERING
-		//SPECS_MIN_LOADING_TIME
-		//SPECS_MAX_LOADING_TIME
-		//MAX_PAYLOAD_ROW
-	};
 	convoihandle_t cnv;
 	cbuffer_t buf;
+
+	// update flag
+	uint32 update_seed=0;
+
+	void update();
+
 	// Insert rows that make up the spec table
 	void insert_spec_rows();
 	void insert_payload_rows();
+	void insert_maintenance_rows();
+	void insert_constraints_rows();
+
 public:
+
+	enum {
+		SPEC_CAR_NUMBER = 0,
+		SPEC_ROLE,
+		SPEC_FREIGHT_TYPE,
+		SPEC_ENGINE_TYPE,
+		SPEC_RANGE,
+		SPEC_REPLENSHMENT_SEC,
+		SPEC_POWER,
+		SPEC_GEAR,
+		SPEC_TRACTIVE_FORCE,
+		SPEC_FUEL_PER_KM,
+		SPEC_RATED_SPEED,
+		SPEC_SPEED,
+		SPEC_TARE_WEIGHT,
+		SPEC_MAX_GROSS_WIGHT,
+		SPEC_AXLE_LOAD,
+		SPEC_LENGTH,          // for debug
+		SPEC_BRAKE_FORCE,
+		// good
+		//--- maintenance values ---
+		//SPEC_INCOME
+		SPEC_AGE,
+		SPEC_CAN_UPGRADE,
+		SPEC_RUNNING_COST,
+		SPEC_FIXED_COST,
+		SPEC_MAINTENANCE_INTERVAL,
+		SPEC_OVERHAUL_INTERVAL,
+		SPEC_OVERHAUL_COST, // initial cost
+		SPEC_NEED_STAFF,
+		SPEC_VALUE,
+		//--- equipments ---
+		SPEC_IS_TALL,
+		SPEC_TILTING,
+		MAX_SPECS
+	};
+	enum {
+		SPECS_DETAIL_START = SPEC_FREIGHT_TYPE,
+		SPECS_DETAIL_END   = SPEC_BRAKE_FORCE+1,
+		SPECS_MAINTENANCE_START = SPEC_AGE,
+		SPECS_MAINTENANCE_END   = SPEC_IS_TALL,
+		SPECS_CONSTRAINTS_START = SPEC_IS_TALL
+	};
+	enum {
+		//SPEC_PAYLOADS,
+		//SPEC_COMFORT,
+		SPEC_PROHIBIT_MIXLOAD,
+		SPEC_CATERING,
+		SPEC_TPO,
+		SPEC_MIN_LOADING_TIME,
+		SPEC_MAX_LOADING_TIME,
+		MAX_PAYLOAD_ROW
+	};
+
+
+	enum { // spec table index
+		SPEC_TABLE_PHYSICS     = 0,
+		SPEC_TABLE_PAYLOAD     = 1,
+		SPEC_TABLE_MAiNTENANCE = 2,
+		SPEC_TABLE_CONSTRAINTS = 3,
+		MAX_SPEC_TABLE_MODE    = 4
+	};
+
 	gui_convoy_spec_table_t(convoihandle_t cnv);
+
 	void set_cnv(convoihandle_t c) { cnv = c; }
 	void draw(scr_coord offset) OVERRIDE;
-	bool display_payload_table = false;
+	uint8 spec_table_mode = SPEC_TABLE_PHYSICS;
 	bool show_sideview = true;
 	using gui_aligned_container_t::get_min_size;
 	using gui_aligned_container_t::get_max_size;
@@ -173,11 +240,11 @@ public:
 		SORT_MODES     = 4
 	};
 
-	enum {
-		CD_TAB_MAINTENANCE = 0,
-		CD_TAB_LOADED_DETAIL = 1,
+	enum { // tab index
+		CD_TAB_MAINTENANCE    = 0,
+		CD_TAB_LOADED_DETAIL  = 1,
 		CD_TAB_PHYSICS_CHARTS = 2,
-		CD_TAB_SPEC_TABLE = 3
+		CD_TAB_SPEC_TABLE     = 3
 	};
 
 private:
@@ -206,14 +273,15 @@ private:
 	button_t withdraw_button;
 	button_t retire_button;
 	button_t class_management_button;
-	button_t bt_spec_table, bt_payload_table, bt_show_sideview;
-	gui_combobox_t cb_loaded_detail;
+	button_t bt_show_sideview;
+	uint8 spec_table_mode = gui_convoy_spec_table_t::SPEC_TABLE_PHYSICS;
+	gui_combobox_t cb_loaded_detail, cb_spec_table_mode;
 
 	gui_combobox_t overview_selctor;
 	gui_label_buf_t
 		lb_vehicle_count,                   // for main frame
 		lb_loading_time, lb_catering_level, // for payload tab
-		lb_odometer, lb_value;              // for maintenance tab
+		lb_odometer, lb_value, lb_next_maintenance, lb_overhaul; // for maintenance tab
 	gui_acceleration_label_t      *lb_acceleration;
 	gui_acceleration_time_label_t *lb_acc_time;
 	gui_acceleration_dist_label_t *lb_acc_distance;
