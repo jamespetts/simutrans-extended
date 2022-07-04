@@ -3145,7 +3145,7 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 		if(!has_obsolete  &&  welt->use_timeline()) {
 			has_obsolete = info->is_obsolete( welt->get_timeline_year_month() );
 		}
-		player_t::add_maintenance( get_owner(), info->get_maintenance(), info->get_waytype() );
+		player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 	}
 	else {
 		return false;
@@ -4341,7 +4341,7 @@ void convoi_t::rdwr(loadsave_t *file)
 				//sum_weight += info->get_weight();
 				has_obsolete |= welt->use_timeline()  &&  info->is_retired( welt->get_timeline_year_month() );
 				is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-				player_t::add_maintenance( get_owner(), info->get_maintenance(), info->get_waytype() );
+				player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 			}
 
 			// some versions save vehicles after leaving depot with koord3d::invalid
@@ -6525,7 +6525,7 @@ void convoi_t::destroy()
 			vehicle[i]->set_flag( obj_t::not_on_map );
 
 		}
-		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_maintenance(), vehicle[i]->get_desc()->get_waytype());
+		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_fixed_cost(), vehicle[i]->get_desc()->get_waytype());
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];

@@ -1134,7 +1134,7 @@ private:
 
 public:
 
-	uint32 get_price_index(sint32 monthyear, uint8 price_type) const;
+	sint64 get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const;
 
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }

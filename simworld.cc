@@ -12351,7 +12351,7 @@ sint64 karte_t::get_staff_salary(sint32 monthyear, uint8 staff_type) const
 	if (salaries.get(staff_type).get_count())
 	{
 		uint i = 0;
-		while (i < salaries.get(staff_type).get_count() && monthyear >= salaries.get(staff_type)[i].year)
+		while ((i < salaries.get(staff_type).get_count()) && (monthyear >= salaries.get(staff_type)[i].year))
 		{
 			i++;
 		}
@@ -12469,7 +12469,7 @@ sint64 karte_t::get_fuel_cost(sint32 monthyear, uint8 engine_type) const
 	if (fuel[engine_type].get_count())
 	{
 		uint i = 0;
-		while (i < (fuel[engine_type].get_count() && monthyear >= (fuel[engine_type][i].year)))
+		while ((i < (fuel[engine_type].get_count()) && (monthyear >= fuel[engine_type][i].year)))
 		{
 			i++;
 		}
@@ -12590,7 +12590,7 @@ void karte_t::prices_init(const std::string& objfilename)
 	for (uint8 i = 0; i < MAX_PRICE_TYPE; i++)
 	{
 		char buf[48];
-		sprintf(buf, "[%s]", get_price_type_string(i));
+		sprintf(buf, "%s", get_price_type_string(i));
 		int* tracks = contents.get_ints(buf);
 		if ((tracks[0] & 1) == 1)
 		{
@@ -12645,6 +12645,55 @@ void karte_t::prices_rdwr(loadsave_t* file)
 	}
 }
 
+sint64 karte_t::get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const
+{
+	if (monthyear == 0)
+	{
+		// Timeline off - return base price as we cannot apply inflation.
+		return base_price;
+	}
+
+	sint64 index = 100;
+
+	if (prices[pt].empty())
+	{
+		// If the specific price type has not been defined, use general
+		pt = general;
+	}
+
+	sint64 adjusted_price = base_price;
+	uint32 i = 0;
+
+	// Check for data
+	if (prices[pt].get_count())
+	{
+		while ((i < prices[pt].get_count()) && (monthyear >= (prices[pt][i].year)))
+		{
+			i++;
+		}
+
+		if (i == (prices[pt].get_count()))
+		{
+			index = prices[pt][i - 1].index;
+		}
+		else if (i == 0)
+		{
+			index = prices[pt][0].index;
+		}
+		else
+		{
+			// Interpolate linear
+			const sint64 delta_index = (sint64)prices[pt][i].index - (sint64)prices[pt][i - 1].index;
+			const sint64 delta_years = (sint64)prices[pt][i].year - (sint64)prices[pt][i - 1].year;
+			index = ((delta_index * (monthyear - prices[pt][i - 1].year)) / delta_years) + (sint64)prices[pt][i - 1].index;
+		}
+
+		adjusted_price = (base_price * index) / 100ll;
+	}
+	
+	return adjusted_price;
+}
+
 sint64 karte_t::get_land_value(koord3d k)
 {
 	// TODO: Have this based on a much more sophisticated
@@ -12669,9 +12718,13 @@ sint64 karte_t::get_land_value(koord3d k)
 		{
 			cost *= 3;
 		}
+
+		cost = get_inflation_adjusted_price(get_current_month(), cost, city_land);
 	}
 	else
 	{
+		cost = get_inflation_adjusted_price(get_current_month(), cost, country_land);
+
 		if(k.z > get_groundwater() + 10)
 		{
 			// Mountainous areas are cheaper
@@ -12687,7 +12740,16 @@ sint64 karte_t::get_land_value(koord3d k)
 		const gebaeude_t* gb = obj_cast<gebaeude_t>(gr->first_obj());
 		if(gb)
 		{
-			cost -= (gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5;
+			sint64 wayleave_cost = ((sint64)gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5ll;
+			if (city)
+			{
+				wayleave_cost = get_inflation_adjusted_price(get_current_month(), wayleave_cost, city_land);
+			}
+			else
+			{
+				wayleave_cost = get_inflation_adjusted_price(get_current_month(), wayleave_cost, country_land);
+			}
+			cost -= wayleave_cost;
 		}
 		// Building other than on the surface of the land is cheaper in any event.
 		cost /= 2;

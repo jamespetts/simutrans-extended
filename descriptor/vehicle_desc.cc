@@ -9,8 +9,40 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 
+uint32 vehicle_desc_t::get_running_cost() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), running_cost, vehicle_maintenance);
+}
+
+uint32 vehicle_desc_t::get_max_running_cost() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), max_running_cost, vehicle_maintenance);
+}
+
+uint32 vehicle_desc_t::get_upgrade_price() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), upgrade_price, vehicle_maintenance);
+}
+
+uint32 vehicle_desc_t::get_fixed_cost() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), fixed_cost, vehicle_maintenance);
+}
+
+sint64 vehicle_desc_t::get_value() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), obj_desc_transport_related_t::get_value(), vehicle_purchase);
+}
+
+sint64 vehicle_desc_t::get_base_price() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_current_month(), obj_desc_transport_related_t::get_base_price(), vehicle_purchase);
+}
+
 uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
+	// Inflation is taken care of before we get here.
+
 	// No cost or no time line --> no obsolescence cost increase.
 	if (base_cost == 0 || !world()->use_timeline())
 	{
