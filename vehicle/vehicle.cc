@@ -3492,6 +3492,7 @@ void vehicle_t::overhaul()
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 	last_maintenance_time = welt->get_ticks();
+
 	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));
 	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
 	cnv->set_state(convoi_t::OVERHAUL);
@@ -3679,7 +3680,7 @@ void vehicle_t::consume_fuel(sint32 steps)
 
 void vehicle_t::book_fuel_consumption()
 {
-	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_current_month(), desc->get_engine_type());
+	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_timeline_year_month(), desc->get_engine_type());
 
 	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
 

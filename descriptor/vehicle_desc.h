@@ -735,10 +735,10 @@ public:
 	void fix_number_of_classes();
 	uint32 get_weight() const { return weight; }
 	uint32 get_max_loading_weight() const;
-	uint16 get_running_cost() const { return running_cost; }
-	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
-	uint32 get_fixed_cost() const { return fixed_cost; }
-	uint32 get_fixed_cost(class karte_t *welt) const;  //Overloaded method - includes increase for obsolescence.
+	uint32 get_running_cost() const;
+	uint16 get_running_cost(const class karte_t *welt) const; // Overloaded method - includes increase for obsolescence.
+	uint32 get_fixed_cost() const;
+	uint32 get_fixed_cost(class karte_t *welt) const;  // Overloaded method - includes increase for obsolescence.
 	uint32 get_adjusted_monthly_fixed_cost() const; // includes increase for obsolescence and adjustment for monthly figures
 	sint16 get_sound() const { return sound; }
 	bool is_bidirectional() const { return bidirectional; }
@@ -746,7 +746,7 @@ public:
 	uint16 get_overcrowded_capacity() const { return overcrowded_capacity; }
 	uint32 get_min_loading_time() const { return get_total_capacity() > 0 ? min_loading_time : 0; }
 	uint32 get_max_loading_time() const { return get_total_capacity() > 0 ? max_loading_time : 0; }
-	uint32 get_upgrade_price() const { return upgrade_price; }
+	uint32 get_upgrade_price() const;
 	bool is_available_only_as_upgrade() const { return available_only_as_upgrade; }
 
 	uint8 get_multiple_working_type() const { return multiple_working_type; }
@@ -759,7 +759,7 @@ public:
 	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }
 	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
 	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }
-	uint32 get_max_running_cost() const { return max_running_cost; }
+	uint32 get_max_running_cost() const;
 	uint32 get_max_running_cost(const karte_t* world) const; // Overloaded method to take obsolescence increase
 	uint32 get_max_takeoffs() const { return max_takeoffs; }
 	uint32 get_availability_decay_start_takeoffs() const { return availability_decay_start_takeoffs; }
@@ -768,6 +768,10 @@ public:
 	uint8 get_minimum_availability() const { return minimum_availability; }
 	uint32 get_replenishment_seconds() const { return replenishment_seconds; }
 	uint8 get_overhaul_month_tenths() const { return overhaul_month_tenths; }
+
+	// Overrides from the object base for inflation
+	sint64 get_value() const;
+	sint64 get_base_price() const;
 
 	// Returns the type if available, otherwise returns NULL
 	const vehicle_desc_t* get_auto_upgrade_type() const;

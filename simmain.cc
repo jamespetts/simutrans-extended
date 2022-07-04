@@ -1291,6 +1291,8 @@ int simu_main(int argc, char** argv)
 	karte_t::staff_init(env_t::objfilename);
 	dbg->message("simu_main()", "Reading fuel cost configuration ...");
 	karte_t::fuel_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading prices/inflation configuration ...");
+	karte_t::prices_init(env_t::objfilename);
 
 #if COLOUR_DEPTH != 0
 	// reread theme

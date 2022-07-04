@@ -9118,6 +9118,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 					{
 						staff_rdwr(file);
 						fuel_rdwr(file);
+						prices_rdwr(file);
 					}
 					stadt_t::electricity_consumption_rdwr(file);
 					if(!env_t::networkmode || env_t::server)
@@ -9131,6 +9132,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 							staff_init(env_t::objfilename);
 							printf("stadt_t::fuel_init in pak dir (%s) for override of save file: ", env_t::objfilename.c_str());
 							fuel_init(env_t::objfilename);
+							printf("stadt_t::prices_init in pak dir (%s) for override of save file: ", env_t::objfilename.c_str());
+							prices_init(env_t::objfilename);
 							printf("stadt_t::electricity_consumption_init in pak dir (%s) for override of save file: ", env_t::objfilename.c_str());
 							stadt_t::electricity_consumption_init(env_t::objfilename);
 							dr_chdir(env_t::user_dir);
@@ -9155,6 +9158,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 				{
 					staff_rdwr(file);
 					fuel_rdwr(file);
+					prices_rdwr(file);
 				}
 				stadt_t::electricity_consumption_rdwr(file);
 				if(file->is_version_atleast(102, 4) && file->get_extended_version() < 13 && file->get_extended_revision() < 24 && (file->get_extended_version() == 0 || file->get_extended_version() >= 9)) {
@@ -12102,6 +12106,7 @@ typedef vector_tpl<staff_cost_record_t> staff_cost_map;
 vector_tpl<car_ownership_record_t> *karte_t::car_ownership;
 inthashtable_tpl<uint8, staff_cost_map, N_BAGS_MEDIUM> karte_t::salaries;
 vector_tpl<fuel_cost_record_t> karte_t::fuel[vehicle_desc_t::MAX_TRACTION_TYPE];
+vector_tpl<price_record_t> karte_t::prices[MAX_PRICE_TYPE];
 
 sint16 karte_t::get_private_car_ownership(sint32 monthyear, uint8 g_class) const
 {
@@ -12346,7 +12351,7 @@ sint64 karte_t::get_staff_salary(sint32 monthyear, uint8 staff_type) const
 	if (salaries.get(staff_type).get_count())
 	{
 		uint i = 0;
-		while (i < salaries.get(staff_type).get_count() && monthyear >= salaries.get(staff_type)[i].year)
+		while ((i < salaries.get(staff_type).get_count()) && (monthyear >= salaries.get(staff_type)[i].year))
 		{
 			i++;
 		}
@@ -12464,7 +12469,7 @@ sint64 karte_t::get_fuel_cost(sint32 monthyear, uint8 engine_type) const
 	if (fuel[engine_type].get_count())
 	{
 		uint i = 0;
-		while (i < (fuel[engine_type].get_count() && monthyear >= (fuel[engine_type][i].year)))
+		while ((i < (fuel[engine_type].get_count()) && (monthyear >= fuel[engine_type][i].year)))
 		{
 			i++;
 		}
@@ -12493,16 +12498,16 @@ sint64 karte_t::get_fuel_cost(sint32 monthyear, uint8 engine_type) const
 
 void karte_t::fuel_init(const std::string& objfilename)
 {
-	tabfile_t ownership_file;
+	tabfile_t fuel_file;
 	// first take user data, then user global data
-	if (!ownership_file.open((objfilename + "config/fuel.tab").c_str()))
+	if (!fuel_file.open((objfilename + "config/fuel.tab").c_str()))
 	{
-		dbg->message("stadt_t::fuel_init()", "Error opening config/staff.tab.\nWill use default values.");
+		dbg->message("stadt_t::fuel_init()", "Error opening config/fuel.tab.\nWill use default values.");
 		return;
 	}
 
 	tabfileobj_t contents;
-	ownership_file.read(contents);
+	fuel_file.read(contents);
 
 	/* init the values from line with the form year, proportion, year, proportion
 	 * must be increasing order!
@@ -12566,7 +12571,130 @@ void karte_t::fuel_rdwr(loadsave_t* file)
 	}
 }
 
-sint64 karte_t::get_land_value (koord3d k)
+void karte_t::prices_init(const std::string& objfilename)
+{
+	tabfile_t prices_file;
+	// first take user data, then user global data
+	if (!prices_file.open((objfilename + "config/prices.tab").c_str()))
+	{
+		dbg->message("stadt_t::prices_init()", "Error opening config/prices.tab.\nWill use default values.");
+		return;
+	}
+
+	tabfileobj_t contents;
+	prices_file.read(contents);
+
+	/* init the values from line with the form year, proportion, year, proportion
+	 * must be increasing order!
+	 */
+	for (uint8 i = 0; i < MAX_PRICE_TYPE; i++)
+	{
+		char buf[48];
+		sprintf(buf, "%s", get_price_type_string(i));
+		int* tracks = contents.get_ints(buf);
+		if ((tracks[0] & 1) == 1)
+		{
+			dbg->message("stadt_t::prices_init()", "Ill formed line in config/prices.tab.\nWill use default value. Format is [price_type]=[year],[cost].");
+			prices[i].clear();
+			continue;
+		}
+		prices[i].resize(tracks[0] / 2);
+		for (uint32 j = 1; j < tracks[0]; j += 2)
+		{
+			price_record_t c(tracks[j], tracks[j + 1]);
+			prices[i].append(c);
+		}
+		delete[] tracks;
+	}
+}
+
+void karte_t::prices_rdwr(loadsave_t* file)
+{
+	if (file->get_extended_version() < 15)
+	{
+		return;
+	}
+
+	for (uint8 i = 0; i < MAX_PRICE_TYPE; i++)
+	{
+		if (file->is_saving())
+		{
+			uint32 count = prices[i].get_count();
+			file->rdwr_long(count);
+			for (auto price_type : prices[i])
+			{
+				file->rdwr_longlong(price_type.year);
+				file->rdwr_long(price_type.index);
+			}
+		}
+		else
+		{
+			for (uint8 i = 0; i < vehicle_desc_t::MAX_TRACTION_TYPE; i++)
+			{
+				fuel[i].clear();
+
+				sint64 year;
+				uint32 index;
+
+				file->rdwr_longlong(year);
+				file->rdwr_long(index);
+				price_record_t pr(year / 12, index);
+				prices[i].append(pr);
+			}
+		}
+	}
+}
+
+sint64 karte_t::get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const
+{
+	if (monthyear == 0)
+	{
+		// Timeline off - return base price as we cannot apply inflation.
+		return base_price;
+	}
+
+	sint64 index = 100;
+
+	if (prices[pt].empty())
+	{
+		// If the specific price type has not been defined, use general
+		pt = general;
+	}
+
+	sint64 adjusted_price = base_price;
+	uint32 i = 0;
+
+	// Check for data
+	if (prices[pt].get_count())
+	{
+		while ((i < prices[pt].get_count()) && (monthyear >= (prices[pt][i].year)))
+		{
+			i++;
+		}
+
+		if (i == (prices[pt].get_count()))
+		{
+			index = prices[pt][i - 1].index;
+		}
+		else if (i == 0)
+		{
+			index = prices[pt][0].index;
+		}
+		else
+		{
+			// Interpolate linear
+			const sint64 delta_index = (sint64)prices[pt][i].index - (sint64)prices[pt][i - 1].index;
+			const sint64 delta_years = (sint64)prices[pt][i].year - (sint64)prices[pt][i - 1].year;
+			index = ((delta_index * (monthyear - prices[pt][i - 1].year)) / delta_years) + (sint64)prices[pt][i - 1].index;
+		}
+
+		adjusted_price = (base_price * index) / 100ll;
+	}
+
+	return adjusted_price;
+}
+
+sint64 karte_t::get_land_value(koord3d k)
 {
 	// TODO: Have this based on a much more sophisticated
 	// formula derived from local desirability, based on
@@ -12590,9 +12718,13 @@ sint64 karte_t::get_land_value (koord3d k)
 		{
 			cost *= 3;
 		}
+
+		cost = get_inflation_adjusted_price(get_timeline_year_month(), cost, city_land);
 	}
 	else
 	{
+		cost = get_inflation_adjusted_price(get_timeline_year_month(), cost, country_land);
+
 		if(k.z > get_groundwater() + 10)
 		{
 			// Mountainous areas are cheaper
@@ -12608,7 +12740,16 @@ sint64 karte_t::get_land_value (koord3d k)
 		const gebaeude_t* gb = obj_cast<gebaeude_t>(gr->first_obj());
 		if(gb)
 		{
-			cost -= (gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5;
+			sint64 wayleave_cost = ((sint64)gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5ll;
+			if (city)
+			{
+				wayleave_cost = get_inflation_adjusted_price(get_timeline_year_month(), wayleave_cost, city_land);
+			}
+			else
+			{
+				wayleave_cost = get_inflation_adjusted_price(get_timeline_year_month(), wayleave_cost, country_land);
+			}
+			cost -= wayleave_cost;
 		}
 		// Building other than on the surface of the land is cheaper in any event.
 		cost /= 2;
