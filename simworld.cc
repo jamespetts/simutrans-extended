@@ -12719,11 +12719,11 @@ sint64 karte_t::get_land_value(koord3d k)
 			cost *= 3;
 		}
 
-		cost = get_inflation_adjusted_price(get_current_month(), cost, city_land);
+		cost = get_inflation_adjusted_price(get_timeline_year_month(), cost, city_land);
 	}
 	else
 	{
-		cost = get_inflation_adjusted_price(get_current_month(), cost, country_land);
+		cost = get_inflation_adjusted_price(get_timeline_year_month(), cost, country_land);
 
 		if(k.z > get_groundwater() + 10)
 		{
@@ -12743,11 +12743,11 @@ sint64 karte_t::get_land_value(koord3d k)
 			sint64 wayleave_cost = ((sint64)gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5ll;
 			if (city)
 			{
-				wayleave_cost = get_inflation_adjusted_price(get_current_month(), wayleave_cost, city_land);
+				wayleave_cost = get_inflation_adjusted_price(get_timeline_year_month(), wayleave_cost, city_land);
 			}
 			else
 			{
-				wayleave_cost = get_inflation_adjusted_price(get_current_month(), wayleave_cost, country_land);
+				wayleave_cost = get_inflation_adjusted_price(get_timeline_year_month(), wayleave_cost, country_land);
 			}
 			cost -= wayleave_cost;
 		}

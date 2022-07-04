@@ -9303,7 +9303,7 @@ uint32 convoi_t::get_salaries(sint64 percentage_of_month)
 		}
 
 		const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
-		sum += (((sint64)welt->get_staff_salary(welt->get_current_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
+		sum += (((sint64)welt->get_staff_salary(welt->get_timeline_year_month(), i) * staff_this_type) * percentage_of_month) / 100ll;
 	}
 
 	return welt->calc_adjusted_monthly_figure(sum);

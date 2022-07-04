@@ -3672,7 +3672,7 @@ sint64 settings_t::get_forge_cost(waytype_t wt) const
 		break;
 	};
 
-	return world()->get_inflation_adjusted_price(world()->get_current_month(), base_cost, infrastructure);
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), base_cost, infrastructure);
 }
 
 sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const
