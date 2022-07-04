@@ -12690,7 +12690,7 @@ sint64 karte_t::get_inflation_adjusted_price(sint32 monthyear, sint64 base_price
 
 		adjusted_price = (base_price * index) / 100ll;
 	}
-	
+
 	return adjusted_price;
 }
 
