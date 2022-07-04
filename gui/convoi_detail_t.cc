@@ -935,6 +935,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 					}
 					case SPEC_OVERHAUL_COST:
 						lb->buf().printf("%1.2f$", veh_type->get_initial_overhaul_cost() / 100.0);
+						total += veh_type->get_initial_overhaul_cost();
 						break;
 					case SPEC_NEED_STAFF:
 						if (veh_type->get_total_staff_hundredths()) {
