@@ -208,11 +208,6 @@ public:
 	 */
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
-	/**
-	 * Set window size and adjust component sizes and/or positions accordingly
-	 */
-	void set_windowsize(scr_size size) OVERRIDE;
-
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	/**

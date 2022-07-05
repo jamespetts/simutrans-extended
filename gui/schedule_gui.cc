@@ -727,13 +727,6 @@ void schedule_gui_t::build_table()
 				add_component(&bt_same_spacing_shift);
 			}
 
-			// Modify convoy button
-			bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(0, 0), scr_size(D_WIDE_BUTTON_SIZE));
-			bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
-			bt_consist_order.add_listener(this);
-			bt_consist_order.pressed = false;
-			add_component(&bt_consist_order);
-
 			add_table(2,1);
 			{
 				entry_no = new_component<gui_schedule_entry_number_t>(-1, player->get_player_nr(), 0);
@@ -744,9 +737,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			// station info ?
-
-			add_table(2,0);
+			add_table(2,0)->set_spacing(scr_size(0,0));
 			{
 				// Minimum loading
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::goods->get_image_id(0), true);
@@ -787,7 +778,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			add_table(5,0);
+			add_table(5,0)->set_spacing(scr_size(0,0));
 			{
 				if (!cnv.is_bound()) {
 					// Wait for time
@@ -844,7 +835,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 			if (!cnv.is_bound()) {
-				add_table(5,2);
+				add_table(5,2)->set_spacing(scr_size(0,0));
 				{
 					// Spacing
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
@@ -900,7 +891,37 @@ void schedule_gui_t::build_table()
 				}
 				end_table();
 			}
-			add_table(3,0);
+
+			// Speed limit
+			add_table(4,2)->set_spacing(scr_size(0,0));
+			{
+				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
+				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
+				bt_speed_limit.add_listener(this);
+				add_component(&bt_speed_limit,3);
+
+				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
+				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
+				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+				numimp_speed_limit.add_listener(this);
+				add_component(&numimp_speed_limit);
+
+				new_component<gui_label_t>(" km/h");
+			}
+			end_table();
+
+			new_component<gui_border_t>();
+
+			// Modify convoy button
+			bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0,0));
+			bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+			bt_consist_order.add_listener(this);
+			bt_consist_order.pressed = false;
+			add_component(&bt_consist_order);
+
+			add_table(3,0)->set_spacing(scr_size(0,0));
 			{
 				// Issuing Lay over
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0): IMG_EMPTY, true);
@@ -949,26 +970,6 @@ void schedule_gui_t::build_table()
 				condition_broadcast.set_increment_mode(1);
 				condition_broadcast.add_listener(this);
 				add_component(&condition_broadcast);
-			}
-			end_table();
-
-			// Speed limit
-			add_table(4,2);
-			{
-				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
-				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
-				bt_speed_limit.add_listener(this);
-				add_component(&bt_speed_limit,3);
-
-				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
-				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
-				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
-				numimp_speed_limit.add_listener(this);
-				add_component(&numimp_speed_limit);
-
-				new_component<gui_label_t>(" km/h");
 			}
 			end_table();
 		}
@@ -1617,18 +1618,6 @@ void schedule_gui_t::draw(scr_coord pos, scr_size size)
 	// always dirty, to cater for shortening of halt names and change of selections
 	set_dirty();
 	gui_frame_t::draw(pos,size);
-}
-
-
-
-/**
- * Set window size and adjust component sizes and/or positions accordingly
- */
-void schedule_gui_t::set_windowsize(scr_size size)
-{
-	gui_frame_t::set_windowsize(size);
-
-	// make scroll take all of space
 }
 
 
