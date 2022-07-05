@@ -495,7 +495,7 @@ bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
 schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle_t cnv_) :
 	gui_frame_t("", NULL),
 	stats(new schedule_gui_stats_t()),
-	scroll(stats)
+	scroll(stats, true, true)
 {
 	schedule = NULL;
 	player = NULL;
@@ -708,8 +708,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			scroll.set_show_scroll_x(true);
-			scroll.set_min_width(250);
+			scroll.set_maximize(true);
 			scroll.set_scroll_amount_y(LINESPACE*2 + 1);
 			add_component(&scroll);
 		}
@@ -986,6 +985,7 @@ void schedule_gui_t::build_table()
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
+	line_selector.set_width_fixed(true);
 }
 
 
@@ -1629,8 +1629,6 @@ void schedule_gui_t::set_windowsize(scr_size size)
 	gui_frame_t::set_windowsize(size);
 
 	// make scroll take all of space
-	const scr_coord_val h = cnv.is_bound() ? get_client_windowsize().h - scroll.get_pos().y - D_V_SPACE*3 - D_BUTTON_HEIGHT: get_client_windowsize().h - scroll.get_pos().y - D_V_SPACE;
-	scroll.set_size(scr_size(scroll.get_size().w, h));
 }
 
 
