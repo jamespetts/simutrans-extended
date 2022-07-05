@@ -1051,6 +1051,9 @@ void schedule_gui_t::update_selection()
 		bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
 		bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
 		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
+		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+		numimp_speed_limit.enable(bt_speed_limit.pressed);
 		entry_no->set_visible(true);
 		lb_entry_pos.set_visible(true);
 		lb_entry_pos.buf().printf("(%s)", schedule->entries[current_stop].pos.get_str());
@@ -1469,7 +1472,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
 		if (numimp_speed_limit.get_value()==65535) {
 			bt_speed_limit.pressed = false;
-			numimp_speed_limit.disable();
 		}
 		update_selection();
 	}
