@@ -416,7 +416,7 @@ schedule_gui_stats_t::~schedule_gui_stats_t()
 void schedule_gui_stats_t::update_schedule()
 {
 	// compare schedules
-	bool ok = (last_schedule != NULL) && last_schedule->entries.get_count() == schedule->entries.get_count();
+	bool ok = (last_schedule != NULL) && last_schedule->matches(world(), schedule);
 	for (uint i = 0; ok && i < last_schedule->entries.get_count(); i++) {
 		ok = last_schedule->entries[i] == schedule->entries[i];
 	}
