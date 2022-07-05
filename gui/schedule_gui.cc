@@ -986,7 +986,9 @@ void schedule_gui_t::build_table()
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
-	line_selector.set_width_fixed(true);
+	if( cnv.is_bound() ) {
+		line_selector.set_width_fixed(true);
+	}
 }
 
 
