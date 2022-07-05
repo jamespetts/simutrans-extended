@@ -31,6 +31,7 @@
 #include "../tpl/vector_tpl.h"
 
 #include "depot_frame.h"
+#include "gui_theme.h"
 #include "schedule_gui.h"
 #include "line_item.h"
 
@@ -289,7 +290,7 @@ public:
 
 	void set_speed_limit(uint32 speed)
 	{
-		if (speed) {
+		if (speed!=65535) {
 			lb_speed_limit.buf().printf("%u %s", speed, "km/h");
 		}
 		lb_speed_limit.update();
@@ -441,7 +442,6 @@ void schedule_gui_stats_t::update_schedule()
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt, line_color_index));
 				if (i< schedule->entries.get_count()-1) {
 					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
-					//entries[i]->set_speed_limit(schedule->entries[i+1].maximum_speed); // UI TODO:
 					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
 					}
@@ -452,6 +452,7 @@ void schedule_gui_stats_t::update_schedule()
 						entries[i]->set_line_style(base_line_style);
 					}
 				}
+				entries[i]->set_speed_limit(schedule->entries[i].max_speed_kmh);
 				entries.back()->add_listener(this);
 			}
 			if (schedule->entries.get_count()>1) {
