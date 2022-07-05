@@ -75,7 +75,6 @@ void gui_wait_loading_schedule_t::draw(scr_coord offset)
 		else if(flags & schedule_entry_t::set_down_only){
 			left += display_fluctuation_triangle_rgb(pos.x+offset.x+left+1, pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(7, size.h), 7, false, -1);
 		}
-		gui_container_t::draw(offset);
 		size.w = left+1;
 		set_size(size);
 	}
@@ -227,7 +226,7 @@ public:
 	void update_label()
 	{
 		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-		wait_loading->init(entry.flags, entry.minimum_loading);
+		wait_loading->init_data(entry.flags, entry.minimum_loading);
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary

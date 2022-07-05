@@ -33,7 +33,7 @@ class loadsave_t;
 class gui_schedule_entry_t;
 
 
-class gui_wait_loading_schedule_t : public gui_container_t
+class gui_wait_loading_schedule_t : public gui_component_t
 {
 	uint8 val = 0;
 	uint32 flags;
@@ -42,7 +42,7 @@ public:
 
 	void draw(scr_coord offset);
 
-	void init(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
+	void init_data(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
