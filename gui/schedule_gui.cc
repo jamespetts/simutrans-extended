@@ -1364,36 +1364,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 		}
 	}
-	else if(comp == &bt_wait_for_time)
-	{
-		if(!schedule->empty())
-		{
-			if (bt_wait_for_time.pressed)
-			{
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
-			}
-			else
-			{
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
-			}
-		}
-		update_selection();
-	}
-	else if (comp == &bt_ignore_choose)
-	{
-		if (!schedule->empty())
-		{
-			if (bt_ignore_choose.pressed)
-			{
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
-			}
-			else
-			{
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
-			}
-			update_selection();
-		}
-	}
 	else if (comp == &line_selector) {
 // 		uint32 selection = p.i;
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
@@ -1451,47 +1421,65 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			update_selection();
 		}
 	}
-	else if (comp == &bt_consist_order) {
-		if (!schedule->empty()){
-			// Opens new window to alter the consist order
-			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
-			if (!win) {
-				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+	else if (!schedule->empty()) {
+		if (comp == &bt_wait_for_time)
+		{
+			if (!schedule->empty())
+			{
+				if (bt_wait_for_time.pressed)
+				{
+					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
+				}
+				else
+				{
+					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
+				}
+			}
+			update_selection();
+		}
+		else if (comp == &bt_ignore_choose)
+		{
+			if (!schedule->empty())
+			{
+				if (bt_ignore_choose.pressed)
+				{
+					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+				}
+				else
+				{
+					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+				}
+				update_selection();
+			}
+		}
+		else if (comp == &conditional_depart){
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+			update_selection();
+		}
+		else if (comp == &condition_broadcast) {
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+			update_selection();
+		}
+		else if (comp == &bt_speed_limit) {
+			bt_speed_limit.pressed = !bt_speed_limit.pressed;
+			if (bt_speed_limit.pressed==false) {
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
 			}
 			else {
-				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+				// set convoy max speed
+				numimp_speed_limit.set_value(get_min_top_speed_kmh());
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
 			}
+			numimp_speed_limit.enable(bt_speed_limit.pressed);
 		}
-	}
-	else if (comp == &conditional_depart){
-		schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
-		update_selection();
-	}
-	else if (comp == &condition_broadcast) {
-		schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
-		update_selection();
-	}
-	else if (comp == &bt_speed_limit) {
-		bt_speed_limit.pressed = !bt_speed_limit.pressed;
-		if (bt_speed_limit.pressed==false) {
-			schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
-		}
-		else {
-			// set convoy max speed
-			numimp_speed_limit.set_value(get_min_top_speed_kmh());
+		else if (comp == &numimp_speed_limit) {
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
+			if (numimp_speed_limit.get_value()==65535) {
+				bt_speed_limit.pressed = false;
+			}
+			update_selection();
 		}
-		numimp_speed_limit.enable(bt_speed_limit.pressed);
-	}
-	else if (comp == &numimp_speed_limit) {
-		schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
-		if (numimp_speed_limit.get_value()==65535) {
-			bt_speed_limit.pressed = false;
-		}
-		update_selection();
-	}
-	else if (comp == &bt_lay_over) {
-		if (!schedule->empty())
+		else if (comp == &bt_lay_over)
 		{
 			if (bt_lay_over.pressed)
 			{
@@ -1503,10 +1491,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_selection();
 		}
-	}
-	else if (comp == &bt_range_stop) {
-		if (!schedule->empty())
-		{
+		else if (comp == &bt_range_stop) {
 			if (bt_range_stop.pressed)
 			{
 				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::force_range_stop);
@@ -1516,6 +1501,16 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
 			}
 			update_selection();
+		}
+		else if (comp == &bt_consist_order) {
+			// Opens new window to alter the consist order
+			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
+			if (!win) {
+				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+			}
+			else {
+				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+			}
 		}
 	}
 
