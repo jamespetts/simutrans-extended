@@ -1424,33 +1424,27 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 	else if (!schedule->empty()) {
 		if (comp == &bt_wait_for_time)
 		{
-			if (!schedule->empty())
+			if (bt_wait_for_time.pressed)
 			{
-				if (bt_wait_for_time.pressed)
-				{
-					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
-				}
-				else
-				{
-					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
-				}
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
 			}
 			update_selection();
 		}
 		else if (comp == &bt_ignore_choose)
 		{
-			if (!schedule->empty())
+			if (bt_ignore_choose.pressed)
 			{
-				if (bt_ignore_choose.pressed)
-				{
-					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
-				}
-				else
-				{
-					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
-				}
-				update_selection();
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
 			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			}
+			update_selection();
 		}
 		else if (comp == &conditional_depart){
 			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
