@@ -482,9 +482,10 @@ void schedule_gui_stats_t::update_schedule()
 void schedule_gui_stats_t::draw(scr_coord offset)
 {
 	update_schedule();
-
+	if (size!=get_min_size()) {
+		set_size(get_min_size()); // This is necessary to display the component in the correct position immediately after opening the dialog
+	}
 	gui_aligned_container_t::draw(offset);
-	set_size(get_min_size()); // This is necessary to display the component in the correct position immediately after opening the dialog
 }
 
 bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
@@ -989,6 +990,7 @@ void schedule_gui_t::build_table()
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
+
 	if( cnv.is_bound() ) {
 		line_selector.set_width_fixed(true);
 	}
@@ -1026,6 +1028,8 @@ void schedule_gui_t::update_tool(bool set)
 
 void schedule_gui_t::update_selection()
 {
+	// UI TODO: update components only when needed
+
 	old_line_count = player->simlinemgmt.get_line_count();
 	last_schedule_count = schedule->get_count();
 
@@ -1148,7 +1152,6 @@ void schedule_gui_t::update_selection()
 				entry_no->init(0, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
 			}
 		}
-		resize(scr_coord(0,0)); // UI TODO: Refresh(resize) the screen only when needed
 	}
 	lb_load.set_color(numimp_load.enabled() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 	lb_wait.set_color(bt_wait_prev.enabled() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
@@ -1618,10 +1621,9 @@ void schedule_gui_t::draw(scr_coord pos, scr_size size)
 		cnv->call_convoi_tool( 's', "1" );
 	}
 
-
-
 	// always dirty, to cater for shortening of halt names and change of selections
 	set_dirty();
+	resize(scr_coord(0,0));
 	gui_frame_t::draw(pos,size);
 }
 
