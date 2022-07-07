@@ -1178,6 +1178,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 		stats->highlight_schedule(schedule, false);
 
 		update_tool( false );
+		destroy_win(magic_consist_order); // it may creates data conflicts
 		schedule->cleanup();
 		schedule->finish_editing();
 		// now apply the changes
