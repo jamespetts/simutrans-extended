@@ -35,14 +35,14 @@ class gui_schedule_entry_t;
 
 class gui_wait_loading_schedule_t : public gui_component_t
 {
-	uint8 val = 0;
+	uint16 val = 0;
 	uint32 flags;
 public:
-	gui_wait_loading_schedule_t(uint32 flags, uint8 val=0);
+	gui_wait_loading_schedule_t(uint32 flags, uint16 val=0);
 
 	void draw(scr_coord offset);
 
-	void init_data(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
+	void init_data(uint32 flags_, uint16 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }

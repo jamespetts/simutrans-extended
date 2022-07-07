@@ -47,7 +47,7 @@ static karte_ptr_t welt;
 #define L_ENTRY_NO_WIDTH (proportional_string_width("88")+6)
 
 // helper class
-gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint32 flags_, uint8 val_)
+gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint32 flags_, uint16 val_)
 {
 	val = val_;
 	flags = flags_;
