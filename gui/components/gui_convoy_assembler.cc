@@ -20,7 +20,6 @@
 #include "../../simconvoi.h"
 #include "../simwin.h"
 #include "../../convoy.h"
-#include "../vehicle_class_manager.h"
 
 
 #include "../../bauer/goods_manager.h"
@@ -501,9 +500,75 @@ scr_size gui_vehicle_spec_t::get_max_size() const
 	return scr_size(scr_size::inf.w, size.h);
 }
 
+
+gui_vehicles_capacity_info_t::gui_vehicles_capacity_info_t(vector_tpl<const vehicle_desc_t *> *vehs)
+{
+	vehicles = vehs;
+	if (vehicles->get_count()) {
+		update_accommodations();
+	}
+}
+
+void gui_vehicles_capacity_info_t::update_accommodations()
+{
+	accommodations.clear();
+	old_vehicle_count = vehicles->get_count();
+	for( uint8 i=0; i < vehicles->get_count(); ++i ) {
+		accommodations.add_vehicle_desc(vehicles->get_element(i));
+	}
+	init_table();
+}
+
+void gui_vehicles_capacity_info_t::init_table()
+{
+	remove_all();
+	set_table_layout(3,0);
+	if (vehicles->get_count()) {
+		accommodations.sort();
+		for (auto &acm : accommodations.get_accommodations()) {
+			const uint8 g_classes = goods_manager_t::get_classes_catg_index(acm.accommodation.catg_index);
+			const goods_desc_t* ware_type = goods_manager_t::get_info_catg_index(acm.accommodation.catg_index);
+
+			// 1: goods category symbol
+			new_component<gui_image_t>(ware_type->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
+
+			// 2: fare class name / category name
+			if (g_classes>1) {
+				// "accommodation" class name
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
+				lb->buf().printf("[%u] %s", acm.assingned_class+1, translator::translate(acm.accommodation.name) );
+				lb->update();
+			}
+			else {
+				// no classes => show the category name
+				new_component<gui_label_t>(ware_type->get_catg_name());
+			}
+
+			// 3: capacity text
+			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+			lb->buf().append(acm.capacity, 0);
+			lb->set_fixed_width(proportional_string_width("88,888"));
+			lb->update();
+		}
+	}
+
+}
+
+void gui_vehicles_capacity_info_t::draw(scr_coord offset)
+{
+	if (old_vehicle_count!=vehicles->get_count()) {
+		update_accommodations();
+		set_size(get_min_size());
+	}
+
+	gui_aligned_container_t::draw(offset);
+}
+
+
 gui_convoy_assembler_t::gui_convoy_assembler_t(depot_frame_t *frame) :
 	convoi(&convoi_pics),
 	scrollx_convoi(&cont_convoi, true, false),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	scrolly_convoi_capacity(&cont_convoi_capacity, false, true),
 	pas(&pas_vec),
 	pas2(&pas2_vec),
@@ -523,6 +588,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(depot_frame_t *frame) :
 gui_convoy_assembler_t::gui_convoy_assembler_t(replace_frame_t *frame) :
 	convoi(&convoi_pics),
 	scrollx_convoi(&cont_convoi, true, false),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	scrolly_convoi_capacity(&cont_convoi_capacity, false, true),
 	pas(&pas_vec),
 	pas2(&pas2_vec),
@@ -628,29 +694,46 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 			end_table();
 
 			// top right
-			add_table(1,3)->set_spacing(scr_size(0,0));
+			add_table(1,2)->set_margin(scr_size(0,0), scr_size(D_V_SPACE, 0));
 			{
-				cont_convoi_capacity.set_table_layout(1,0);
-				cont_convoi_capacity.set_margin(scr_size(0, 0), scr_size(D_MARGIN_RIGHT, 0));
-				{
-					if( depot_frame ) {
-						bt_class_management.init(button_t::roundbox | button_t::flexible, "class_manager");
-						bt_class_management.set_tooltip("see_and_change_the_class_assignments");
-						if (skinverwaltung_t::open_window) {
-							bt_class_management.set_image(skinverwaltung_t::open_window->get_image_id(0));
-							bt_class_management.set_image_position_right(true);
-						}
-						bt_class_management.add_listener(this);
-						cont_convoi_capacity.add_component(&bt_class_management);
+				if( depot_frame ) {
+					bt_class_management.init(button_t::roundbox | button_t::flexible, "class_manager");
+					bt_class_management.set_tooltip("see_and_change_the_class_assignments");
+					if (skinverwaltung_t::open_window) {
+						bt_class_management.set_image(skinverwaltung_t::open_window->get_image_id(0));
+						bt_class_management.set_image_position_right(true);
 					}
-
-					//cont_convoi_capacity.add_component(&capacity_info);
-
-					cont_convoi_capacity.new_component<gui_label_t>("FIX ME(capacity)");
+					bt_class_management.add_listener(this);
+					add_component(&bt_class_management);
 				}
-				add_component(&scrolly_convoi_capacity);
-				new_component<gui_fill_t>(false, true);
+				cont_convoi_capacity.set_table_layout(1,0);
+				cont_convoi_capacity.set_margin(scr_size(0, D_V_SPACE), scr_size(0, D_V_SPACE));
+				{
 
+					if (depot_frame) {
+						// "Fare" capacity
+						cont_convoi_capacity.add_component(&capacity_info);
+						cont_convoi_capacity.new_component<gui_fill_t>(false,true);
+					}
+					else {
+						// "Accommodation" capacity
+						cont_convoi_capacity.new_component<gui_vehicles_capacity_info_t>(&vehicles);
+					}
+				}
+				scrolly_convoi_capacity.set_maximize(true);
+				add_component(&scrolly_convoi_capacity);
+			}
+			end_table();
+		}
+		end_table();
+		new_component<gui_border_t>();
+
+		add_table(3,1)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(D_MARGIN_RIGHT,0));
+		{
+			add_table(2,1);
+			{
+				// mode
+				new_component<gui_label_t>("Fahrzeuge:");
 				veh_action = va_append;
 				static const char *txt_veh_action[4] = { "anhaengen", "voranstellen", "verkaufen", "Upgrade" };
 				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[0]), SYSCOL_TEXT);
@@ -662,46 +745,58 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				add_component(&action_selector);
 			}
 			end_table();
-		}
-		end_table();
-		new_component<gui_border_t>();
+			new_component<gui_margin_t>(D_H_SPACE);
 
-		// filter
-		add_table(5,1)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(D_MARGIN_RIGHT,0));
-		{
-			name_filter_input.set_text(name_filter_value, 24);
-			add_component(&name_filter_input);
-			name_filter_input.add_listener(this);
+			// filters
+			add_table(1,2);
+			{
+				add_table(5,1);
+				{
+					if( skinverwaltung_t::search ) {
+						new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+					}
+					name_filter_input.set_text(name_filter_value, 32);
+					add_component(&name_filter_input);
+					name_filter_input.add_listener(this);
+					new_component<gui_margin_t>(D_H_SPACE);
 
-			// goods filter => category?
-			add_component(&vehicle_filter);
-
-			bt_show_all.init(button_t::square_state, "Show all");
-			bt_show_all.set_tooltip("Show also vehicles that do not match for current action.");
-			bt_show_all.pressed = show_all;
-			bt_show_all.add_listener(this);
-			add_component(&bt_show_all);
-
-			if( world()->use_timeline() ) {
-				if( world()->get_settings().get_allow_buying_obsolete_vehicles() ) {
-					bt_outdated.init(button_t::square_state, "Show outdated");
-					bt_outdated.set_tooltip("Show also vehicles no longer in production.");
-					bt_outdated.pressed = show_outdated_vehicles;
-					bt_outdated.add_listener(this);
-					add_component(&bt_outdated);
+					// goods filter => category?
+					new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("clf_chk_waren"));
+					add_component(&vehicle_filter);
 				}
-				if( world()->get_settings().get_allow_buying_obsolete_vehicles() == 1 ) {
-					bt_obsolete.init(button_t::square_state, "Show obsolete");
-					bt_obsolete.set_tooltip("Show also vehicles whose maintenance costs have increased due to obsolescence.");
-					bt_obsolete.pressed = show_obsolete_vehicles;
-					bt_obsolete.add_listener(this);
-					add_component(&bt_obsolete);
+				end_table();
+
+				// checkboxes
+				add_table(3, 1);
+				{
+					bt_show_all.init(button_t::square_state, "Show all");
+					bt_show_all.set_tooltip("Show also vehicles that do not match for current action.");
+					bt_show_all.pressed = show_all;
+					bt_show_all.add_listener(this);
+					add_component(&bt_show_all);
+
+					if( world()->use_timeline() ) {
+						if( world()->get_settings().get_allow_buying_obsolete_vehicles() ) {
+							bt_outdated.init(button_t::square_state, "Show outdated");
+							bt_outdated.set_tooltip("Show also vehicles no longer in production.");
+							bt_outdated.pressed = show_outdated_vehicles;
+							bt_outdated.add_listener(this);
+							add_component(&bt_outdated);
+						}
+						if( world()->get_settings().get_allow_buying_obsolete_vehicles() == 1 ) {
+							bt_obsolete.init(button_t::square_state, "Show obsolete");
+							bt_obsolete.set_tooltip("Show also vehicles whose maintenance costs have increased due to obsolescence.");
+							bt_obsolete.pressed = show_obsolete_vehicles;
+							bt_obsolete.add_listener(this);
+							add_component(&bt_obsolete);
+						}
+					}
 				}
+				end_table();
 			}
+			end_table();
 		}
 		end_table();
-
-		// mode?
 
 		// tab
 		add_component(&tabs);
@@ -1306,7 +1401,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		FORX(vector_tpl<uint16>, const& i, livery_scheme_indices, ++j) {
 			livery_scheme_t* scheme = schemes->get_element(i);
 			livery_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(scheme->get_name()), SYSCOL_TEXT);
-			if (i==livery_scheme_index) {
+			if (j==livery_scheme_index) {
 				livery_selector.set_selection(j);
 			}
 		}
@@ -1524,10 +1619,13 @@ void gui_convoy_assembler_t::update_convoi()
 
 		lb_convoi_way_wear.buf().printf("%.4f", way_wear_factor/10000.0);
 		lb_convoi_way_wear.update();
+		cont_convoi.set_size(cont_convoi.get_min_size()); // Update the size when the number of vehicles changes
 	}
 
+	cont_convoi_capacity.set_size(cont_convoi_capacity.get_min_size());
+
 	if (replace_frame) {
-		replace_frame->update_data(); // TODO: recheck
+		replace_frame->update_data(); // update money
 	}
 
 	build_vehicle_lists();
@@ -1776,6 +1874,7 @@ DBG_DEBUG("gui_convoy_assembler_t::update_data()","current %s with colors %i,%i"
 				}
 			}
 		}
+		capacity_info.set_convoy(depot_frame->get_depot()->get_convoi(depot_frame->get_icnv()));
 	}
 }
 
@@ -1972,6 +2071,10 @@ void gui_convoy_assembler_t::set_vehicles(convoihandle_t cnv)
 		for (uint8 i=0; i<cnv->get_vehicle_count(); i++) {
 			vehicles.append(cnv->get_vehicle(i)->get_desc());
 		}
+		capacity_info.set_convoy(cnv);
+	}
+	else {
+		capacity_info.set_convoy(convoihandle_t());
 	}
 	update_convoi();
 }
@@ -2347,193 +2450,6 @@ void gui_convoy_assembler_t::set_electrified( bool ele )
 	}
 };
 
-
-depot_convoi_capacity_t::depot_convoi_capacity_t()
-{
-	total_pax = 0;
-	total_standing_pax = 0;
-	total_mail = 0;
-	total_goods = 0;
-}
-
-//(total_pax, total_standing_pax, total_mail, total_goods, pax_classes, mail_classes)
-void depot_convoi_capacity_t::set_totals(uint32 pax, uint32 standing_pax, uint32 mail, uint32 goods, uint8 pax_classes, uint8 mail_classes, int good_0, int good_1, int good_2, int good_3, int good_4, uint32 good_0_amount, uint32 good_1_amount, uint32 good_2_amount, uint32 good_3_amount, uint32 good_4_amount, uint32 rest_good, uint8 catering, bool tpo)
-{
-	total_pax = pax;
-	total_standing_pax = standing_pax;
-	total_mail = mail;
-	total_goods = goods;
-	total_pax_classes =  pax_classes ;
-	total_mail_classes =  mail_classes ;
-
-	good_type_0 = good_0;
-	good_type_1 = good_1;
-	good_type_2 = good_2;
-	good_type_3 = good_3;
-	good_type_4 = good_4;
-
-	good_type_0_amount = good_0_amount;
-	good_type_1_amount = good_1_amount;
-	good_type_2_amount = good_2_amount;
-	good_type_3_amount = good_3_amount;
-	good_type_4_amount = good_4_amount;
-	rest_good_amount = rest_good;
-
-	highest_catering = catering;
-	is_tpo = tpo;
-}
-
-
-void depot_convoi_capacity_t::draw(scr_coord offset)
-{
-	cbuffer_t cbuf;
-
-	int w_icon = 0;
-	int w_text = 16;
-	sint16 y = 0;
-	char classes[32];
-
-	if (total_pax > 0)
-	{
-		if (total_pax_classes >= 2)
-		{
-			sprintf(classes, "classes");
-		}
-		else
-		{
-			sprintf(classes, "class");
-		}
-		cbuf.clear();
-		cbuf.printf("%d %s: %d (%d)", total_pax_classes, translator::translate(classes), total_pax, total_standing_pax);
-		display_color_img(skinverwaltung_t::passengers->get_image_id(0), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-		display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-		y += LINESPACE + 1;
-	}
-	if (total_mail > 0)
-	{
-		if (total_mail_classes >= 2)
-		{
-			sprintf(classes, "classes");
-		}
-		else
-		{
-			sprintf(classes, "class");
-		}
-		cbuf.clear();
-		cbuf.printf("%d %s: %d", total_mail_classes, translator::translate(classes), total_mail);
-		display_color_img(skinverwaltung_t::mail->get_image_id(0), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-		display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-		y += LINESPACE + 1;
-	}
-	if (total_pax > 0 && highest_catering > 0 && total_goods == 0)
-	{
-		cbuf.clear();
-		cbuf.printf(translator::translate("Catering level: %i"), highest_catering);
-		display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-		y += LINESPACE + 1;
-	}
-	if (total_mail > 0 && is_tpo && total_goods == 0)
-	{
-		cbuf.clear();
-		cbuf.printf("%s", translator::translate("traveling_post_office"));
-		display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-		y += LINESPACE + 1;
-	}
-	if (total_goods > 0)
-	{
-		if (total_pax == 0 && total_mail == 0)
-		{
-			y = -LINESPACE - 1; // To make the text appear in line with the other text //Ves
-		}
-		if ((total_pax > 0 && total_mail > 0) && good_type_2 > 0)
-		{
-			cbuf.clear();
-			cbuf.printf("%s: %d", translator::translate("good_units"), total_goods);
-			display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-			display_color_img(skinverwaltung_t::goods->get_image_id(0), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-			y += LINESPACE + 1;
-		}
-		else
-		{
-			if (good_type_0 > 0)
-			{
-				cbuf.clear();
-				cbuf.printf("%d%s %s", good_type_0_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_0)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_0)->get_catg_name()));
-				display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				display_color_img(goods_manager_t::get_info_catg_index(good_type_0)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-				y += LINESPACE + 1;
-			}
-			if (good_type_1 > 0)
-			{
-				cbuf.clear();
-				cbuf.printf("%d%s %s", good_type_1_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_1)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_1)->get_catg_name()));
-				display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				display_color_img(goods_manager_t::get_info_catg_index(good_type_1)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-				y += LINESPACE + 1;
-			}
-			if (total_pax > 0 || total_mail > 0)
-			{
-				if (good_type_3 > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d %s", rest_good_amount + good_type_4_amount + good_type_3_amount + good_type_2_amount, translator::translate("more_units"));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					y += LINESPACE + 1;
-				}
-				else if (good_type_2 > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d%s %s", good_type_2_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_2)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_2)->get_catg_name()));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					display_color_img(goods_manager_t::get_info_catg_index(good_type_2)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-					y += LINESPACE + 1;
-				}
-			}
-			if (total_pax == 0 && total_mail == 0)
-			{
-				if (good_type_2 > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d%s %s", good_type_2_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_2)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_2)->get_catg_name()));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					display_color_img(goods_manager_t::get_info_catg_index(good_type_2)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-					y += LINESPACE + 1;
-				}
-				if (good_type_3 > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d%s %s", good_type_3_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_3)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_3)->get_catg_name()));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					display_color_img(goods_manager_t::get_info_catg_index(good_type_3)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-					y += LINESPACE + 1;
-				}
-				if (rest_good_amount > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d %s", rest_good_amount + good_type_4_amount, translator::translate("more_units"));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					y += LINESPACE + 1;
-				}
-				else if (good_type_4 > 0)
-				{
-					cbuf.clear();
-					cbuf.printf("%d%s %s", good_type_4_amount, translator::translate(goods_manager_t::get_info_catg_index(good_type_4)->get_mass()), translator::translate(goods_manager_t::get_info_catg_index(good_type_4)->get_catg_name()));
-					display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-					display_color_img(goods_manager_t::get_info_catg_index(good_type_4)->get_catg_symbol(), pos.x + offset.x + w_icon, pos.y + offset.y + y + FIXED_SYMBOL_YOFF, 0, false, false);
-					y += LINESPACE + 1;
-				}
-			}
-		}
-	}
-	if (total_pax == 0 && total_standing_pax == 0 && total_mail == 0 && total_goods == 0)
-	{
-		y = -LINESPACE - 1; // To make the text appear in line with the other text //Ves
-		cbuf.clear();
-		cbuf.printf(translator::translate("no_cargo_capacity"));
-		display_proportional_clip_rgb(pos.x + offset.x + w_text, pos.y + offset.y + y, cbuf, ALIGN_LEFT, SYSCOL_TEXT, true);
-		y += LINESPACE + 1;
-	}
-}
 
 //#define VEHICLE_BAR_COLORS 9
 /*

@@ -163,6 +163,7 @@ public:
 
 	/// image to clarify the function of buttons
 	static const skin_desc_t *open_window;
+	static const skin_desc_t *search;
 
 
 	/// @name cursors

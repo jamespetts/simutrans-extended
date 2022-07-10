@@ -19,9 +19,10 @@
 #include "gui_tab_panel.h"
 #include "gui_speedbar.h"
 #include "../gui_theme.h"
+#include "../vehicle_class_manager.h"
 
 #include "gui_container.h"
-//#include "gui_vehicle_capacitybar.h"
+#include "gui_vehicle_capacitybar.h"
 
 #include "../../convoihandle_t.h"
 
@@ -57,38 +58,25 @@ public:
 };
 
 
-class depot_convoi_capacity_t : public gui_container_t
+class gui_vehicles_capacity_info_t : public gui_aligned_container_t
 {
-private:
-	uint32 total_pax;
-	uint32 total_standing_pax;
-	uint32 total_mail;
-	uint32 total_goods;
-
-	uint8 total_pax_classes;
-	uint8 total_mail_classes;
-
-	int good_type_0 = -1;
-	int good_type_1 = -1;
-	int good_type_2 = -1;
-	int good_type_3 = -1;
-	int good_type_4 = -1;
-
-	uint32 good_type_0_amount;
-	uint32 good_type_1_amount;
-	uint32 good_type_2_amount;
-	uint32 good_type_3_amount;
-	uint32 good_type_4_amount;
-	uint32 rest_good_amount;
-
-	uint8 highest_catering;
-	bool is_tpo;
+	accommodation_summary_t accommodations;
+	uint8 old_vehicle_count = 0;
+	vector_tpl<const vehicle_desc_t *> *vehicles;
 
 public:
-	depot_convoi_capacity_t();
-	void set_totals(uint32 pax, uint32 standing_pax, uint32 mail, uint32 goods, uint8 pax_classes, uint8 mail_classes, int good_0, int good_1, int good_2, int good_3, int good_4, uint32 good_0_amount, uint32 good_1_amount, uint32 good_2_amount, uint32 good_3_amount, uint32 good_4_amount, uint32 rest_good, uint8 catering, bool tpo);
-	void draw(scr_coord offset);
+	gui_vehicles_capacity_info_t(vector_tpl<const vehicle_desc_t *> *vehicles);
+
+	void update_accommodations();
+
+	void init_table();
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	using gui_aligned_container_t::get_min_size;
+	scr_size get_max_size() const OVERRIDE { return scr_size::inf; }
 };
+
 
 class gui_vehicle_bar_legends_t : public gui_aligned_container_t
 {
@@ -133,7 +121,7 @@ private:
 	gui_scrollpane_t scrollx_convoi, scrolly_convoi_capacity;
 
 	button_t bt_class_management;
-	//gui_convoy_loading_info_t capacity_info;
+	gui_convoy_loading_info_t capacity_info;
 
 	gui_label_buf_t lb_convoi_count;
 	gui_label_buf_t lb_convoi_count_fluctuation;

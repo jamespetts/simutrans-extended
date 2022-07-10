@@ -29,6 +29,7 @@
 #include "gui/convoi_info_t.h"
 #include "gui/schedule_gui.h"
 #include "gui/depot_frame.h"
+#include "gui/replace_frame.h"
 #include "gui/messagebox.h"
 #include "gui/convoi_detail_t.h"
 #include "gui/vehicle_class_manager.h"
@@ -771,6 +772,10 @@ void convoi_t::set_name(const char *name, bool with_new_id)
 		tstrncpy(name_and_id, buf, lengthof(name_and_id));
 	}
 	// now tell the windows that we were renamed
+	replace_frame_t *repl = dynamic_cast<replace_frame_t*>(win_get_magic(magic_replace + self.get_id()));
+	if (repl) {
+		repl->set_title();
+	}
 	convoi_detail_t *detail = dynamic_cast<convoi_detail_t*>(win_get_magic( magic_convoi_detail+self.get_id()));
 	if (detail) {
 		detail->update_data();

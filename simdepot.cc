@@ -893,6 +893,11 @@ void depot_t::set_name(const char* value)
 		dbg->error("void depot_t::set_name(char* value)", "Name too long");
 	}
 	strcpy(name, value);
+
+	depot_frame_t *win = dynamic_cast<depot_frame_t *>(win_get_magic((ptrdiff_t)this));
+	if (win) {
+		win->reset_depot_name();
+	}
 }
 
 const char* depot_t::get_name() const

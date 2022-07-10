@@ -13,6 +13,7 @@
 
 #include "simwin.h"
 #include "../simconvoi.h"
+#include "../simdepot.h"
 #include "../simworld.h"
 #include "../unicode.h"
 #include "../descriptor/goods_desc.h"
@@ -35,6 +36,7 @@ static uint8 cl_display_mode = gui_convoy_formation_t::appearance;
 const char *convoi_frame_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_name",
 	"Line",
+	"Home depot",
 	"cl_btn_sort_income",
 	"cl_btn_sort_type",
 	"cl_btn_sort_id",
@@ -46,7 +48,7 @@ const char *convoi_frame_t::sort_text[SORT_MODES] = {
 };
 
 const slist_tpl<const goods_desc_t*>* convoi_frame_t::waren_filter = NULL;
-const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,2,0,0,4,5,6,7,8 };
+const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,9,2,0,0,4,5,6,7,8 };
 /**
  * Scrolled list of gui_convoiinfo_ts.
  * Filters (by setting visibility) and sorts.
@@ -147,6 +149,35 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 		case by_line:
 			result = cnv1->get_line().get_id() - cnv2->get_line().get_id();
 			break;
+		case by_home_depot:
+		{
+			char a_name[256] = "\0";
+			char b_name[256] = "\0";
+			const koord3d a_coord = cnv1->get_home_depot();
+			const koord3d b_coord = cnv2->get_home_depot();
+			if( a_coord !=koord3d::invalid ) {
+				if( grund_t* gr = welt->lookup(a_coord) ) {
+					if( depot_t* dep = gr->get_depot() ) {
+						tstrncpy(a_name, dep->get_name(), lengthof(a_name) );
+					}
+				}
+			}
+			if( b_coord !=koord3d::invalid ) {
+				if( grund_t* gr = welt->lookup(b_coord) ) {
+					if( depot_t* dep = gr->get_depot() ) {
+						tstrncpy(b_name, dep->get_name(), lengthof(b_name) );
+					}
+				}
+			}
+			result = strcmp(a_name, b_name);
+			if( result==0  &&  a_coord!=koord3d::invalid  &&  b_coord!=koord3d::invalid ) {
+				result = a_coord.x - b_coord.x;
+				if (result == 0) {
+					result = a_coord.y - b_coord.y;
+				}
+			}
+			break;
+		}
 		case by_profit:
 			result = sgn(cnv1->get_jahresgewinn() - cnv2->get_jahresgewinn());
 			break;
@@ -229,12 +260,16 @@ convoi_frame_t::convoi_frame_t() :
 
 	add_table(4,2);
 	{
-		new_component<gui_label_t>("cl_txt_sort");
-		name_filter_input.set_text(name_filter, lengthof(name_filter));
+		if( skinverwaltung_t::search ) {
+			new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+		}
+		else {
+			new_component<gui_label_t>("Filter:");
+		}		name_filter_input.set_text(name_filter, lengthof(name_filter));
 		add_component(&name_filter_input);
 
 		filter_details.init(button_t::roundbox, "cl_btn_filter_settings");
-		if (skinverwaltung_t::open_window) {
+		if( skinverwaltung_t::open_window ) {
 			filter_details.set_image(skinverwaltung_t::open_window->get_image_id(0));
 			filter_details.set_image_position_right(true);
 		}

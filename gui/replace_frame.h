@@ -78,7 +78,7 @@ private:
 	gui_convoy_assembler_t convoy_assembler;
 
 	// Some helper functions
-	//bool replace_convoy(convoihandle_t cnv, bool mark);
+	bool replace_convoy(convoihandle_t cnv, bool mark);
 	inline void start_replacing() {state=state_replace; replaced_so_far=0;}
 	uint8 get_present_state();
 
@@ -91,12 +91,20 @@ private:
 	void set_vehicles(bool init=false);
 
 public:
-	replace_frame_t(convoihandle_t cnv, const char *name);
+	replace_frame_t(convoihandle_t cnv = convoihandle_t());
+
+	// This is also called when the convoy name is changed.
+	void set_title();
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
 	 */
 	void update_data();
+
+	/**
+	 * Set the window size
+	 */
+	void set_windowsize(scr_size size) OVERRIDE;
 
 	/**
 	 * Set the window associated helptext
@@ -114,11 +122,11 @@ public:
 
 	virtual ~replace_frame_t();
 
-	// TODO:
-	//void set_convoy(convoihandle_t cnv) { this->cnv=cnv; init(); }
-	//uint32 get_rdwr_id() OVERRIDE;
+	// for reload from the save
+	void set_convoy(convoihandle_t cnv) { this->cnv=cnv; init(); }
+	uint32 get_rdwr_id() OVERRIDE;
 
-	//void rdwr(loadsave_t *) OVERRIDE;
+	void rdwr(loadsave_t *) OVERRIDE;
 };
 
 #endif

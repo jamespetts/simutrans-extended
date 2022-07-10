@@ -66,6 +66,7 @@
 #endif
 #include "scenario_info.h"
 #include "depot_frame.h"
+#include "replace_frame.h"
 #include "depotlist_frame.h"
 #include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
@@ -673,6 +674,9 @@ void rdwr_all_win(loadsave_t *file)
 						}
 						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000) {
 							w = new halt_info_t();
+						}
+						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
+							w = new replace_frame_t();
 						}
 						else {
 							dbg->error( "rdwr_all_win()", "No idea how to restore magic 0x%X", id );

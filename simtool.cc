@@ -10716,7 +10716,6 @@ bool tool_rename_t::init(player_t *player)
 		case 'h':
 		case 'l':
 		case 'c':
-		case 'd':
 		case 't':
 		case 'p':
 		case 'A':
@@ -10725,6 +10724,7 @@ bool tool_rename_t::init(player_t *player)
 			while(  *p>0  &&  *p++!=','  ) {
 			}
 			break;
+		case 'd':
 		case 'm':
 		case 'f': {
 			koord pos2d;
@@ -10849,6 +10849,7 @@ bool tool_rename_t::init(player_t *player)
 					}
 				}
 			}
+			break;
 		}
 
 		case 'd':
@@ -10863,6 +10864,7 @@ bool tool_rename_t::init(player_t *player)
 					}
 				}
 			}
+			break;
 		}
 	}
 	// we are only getting here, if we could not process this request

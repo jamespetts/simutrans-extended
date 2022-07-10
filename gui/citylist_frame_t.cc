@@ -180,7 +180,12 @@ citylist_frame_t::citylist_frame_t() :
 
 		list.add_table(3,1);
 		{
-			list.new_component<gui_label_t>("Filter:");
+			if( skinverwaltung_t::search ) {
+				list.new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+			}
+			else {
+				list.new_component<gui_label_t>("Filter:");
+			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
 			name_filter_input.set_width(D_BUTTON_WIDTH);
 			list.add_component(&name_filter_input);

@@ -67,12 +67,58 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 	}
 }
 
+void accommodation_summary_t::add_vehicle_desc(const vehicle_desc_t *veh_type)
+{
+	const uint8 catg_index = veh_type->get_freight_type()->get_catg_index();
+	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(catg_index);
+
+		if ((veh_type->get_total_capacity()+veh_type->get_overcrowded_capacity())>0) {
+		bool already_show_catg_symbol = false;
+		for (uint8 ac=0; ac<number_of_classes; ac++) {
+			if (!veh_type->get_capacity(ac)) continue;
+
+			// append accommo capacity
+			accommodation_t accommo;
+			accommo.catg_index = catg_index;
+			accommo.accommo_class = ac;
+			accommo.name = veh_type->get_accommodation_name(ac);
+
+			bool found=false;
+			FOR(slist_tpl<accommodation_info_t>, &info, accommo_list) {
+				if ( accommo.is_match(info.accommodation)  &&  info.assingned_class==ac ) {
+					info.capacity += veh_type->get_capacity(ac);
+					info.count++;
+					if (catg_index == goods_manager_t::INDEX_PAS) {
+						info.min_comfort = min(info.min_comfort, veh_type->get_comfort(ac));
+						info.max_comfort = max(info.max_comfort, veh_type->get_comfort(ac));
+					}
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				accommodation_info_t temp;
+				temp.accommodation = accommo;
+				temp.count = 1;
+				temp.assingned_class = ac;
+				temp.capacity = veh_type->get_capacity(ac);
+				if (catg_index == goods_manager_t::INDEX_PAS) {
+					temp.min_comfort = veh_type->get_comfort(ac);
+					temp.max_comfort = veh_type->get_comfort(ac);
+				}
+
+				accommo_list.append(temp);
+			}
+		}
+	}
+}
+
 void accommodation_summary_t::add_convoy(convoihandle_t cnv)
 {
 	for (uint8 v=0; v<cnv->get_vehicle_count(); v++) {
 		add_vehicle(cnv->get_vehicle(v));
 	}
-	accommo_list.sort(accommodation_info_t::compare);
+	sort();
 }
 
 
@@ -84,9 +130,13 @@ void accommodation_summary_t::add_line(linehandle_t line)
 			add_vehicle(cnv->get_vehicle(v));
 		}
 	}
-	accommo_list.sort(accommodation_info_t::compare);
+	sort();
 }
 
+void accommodation_summary_t::sort()
+{
+	accommo_list.sort(accommodation_info_t::compare);
+}
 
 gui_accommodation_fare_manager_t::gui_accommodation_fare_manager_t(linehandle_t line)
 {
