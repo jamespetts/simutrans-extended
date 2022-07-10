@@ -184,7 +184,7 @@ public:
 	*/
 	uint16 max_speed_kmh = 65535;
 
-	bool is_flag_set(schedule_entry_flag flag) const { return flag & flags; }
+	bool is_flag_set(schedule_entry_flag flag) const { return flags & flag; }
 
 	void set_flag(schedule_entry_flag flag) { flags |= flag; }
 

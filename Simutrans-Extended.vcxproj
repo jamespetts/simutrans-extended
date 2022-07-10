@@ -1931,6 +1931,7 @@
     <ClCompile Include="boden\pier_deck.cc" />
     <ClCompile Include="dataobj\rect.cc" />
     <ClCompile Include="dataobj\consist_order_t.cc" />
+    <ClCompile Include="gui\consist_order_gui.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
     <ClCompile Include="descriptor\pier_desc.cc" />
@@ -2563,6 +2564,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dataobj\consist_order_t.h" />
+    <ClInclude Include="gui\consist_order_gui.h" />
     <ClInclude Include="bauer\pier_builder.h" />
     <ClInclude Include="boden\pier_deck.h" />
     <ClInclude Include="dataobj\environment.h" />

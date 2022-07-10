@@ -374,6 +374,7 @@ SOURCES += gui/citybuilding_edit.cc
 SOURCES += gui/citylist_frame_t.cc
 SOURCES += gui/citylist_stats_t.cc
 SOURCES += gui/climates.cc
+SOURCES += gui/consist_order_gui.cc
 SOURCES += gui/display_settings.cc
 SOURCES += gui/components/gui_aligned_container.cc
 SOURCES += gui/components/gui_building.cc
