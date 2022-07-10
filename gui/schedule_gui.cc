@@ -1488,8 +1488,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::lay_over);
 			}
 
-			const bool TEST_set = schedule->entries[schedule->get_current_stop()].is_flag_set(schedule_entry_t::lay_over);
-
 			update_selection();
 		}
 		else if (comp == &bt_range_stop) {
