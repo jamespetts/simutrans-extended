@@ -164,12 +164,12 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	}
 	lb_traction_types.update();
 
-	//set_windowsize(size);
 	convoy_assembler.update_convoi();
 
 	line_selector.set_width(convoy_selector.get_size().w);
 	line_selector.set_width_fixed(true);
 	set_resizemode( diagonal_resize );
+	set_windowsize(get_min_windowsize());
 	resize(scr_size(0,0));
 
 	depot->clear_command_pending();
