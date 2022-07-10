@@ -228,7 +228,7 @@ public:
 	void update_label()
 	{
 		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-		wait_loading->init_data(entry.flags, entry.minimum_loading);
+		//wait_loading->init_data(entry.flags, entry.minimum_loading); // Commented out for TESTing
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
@@ -1487,6 +1487,9 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::lay_over);
 			}
+
+			const bool TEST_set = schedule->entries[schedule->get_current_stop()].is_flag_set(schedule_entry_t::lay_over);
+
 			update_selection();
 		}
 		else if (comp == &bt_range_stop) {
