@@ -228,7 +228,7 @@ public:
 	void update_label()
 	{
 		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-		//wait_loading->init_data(entry.flags, entry.minimum_loading); // Commented out for TESTing
+		wait_loading->init_data(entry.flags, entry.minimum_loading); 
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
