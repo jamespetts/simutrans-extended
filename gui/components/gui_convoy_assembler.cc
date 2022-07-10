@@ -934,7 +934,7 @@ void gui_convoy_assembler_t::update_tabs()
 }
 
 // free memory: all the image_data_t
-/*
+
 gui_convoy_assembler_t::~gui_convoy_assembler_t()
 {
 	clear_vectors();
@@ -950,7 +950,7 @@ void gui_convoy_assembler_t::clear_vectors()
 	clear_ptr_vector(waggons_vec);
 }
 
-*/
+
 scr_coord gui_convoy_assembler_t::get_placement(waytype_t wt)
 {
 	if (wt==road_wt) {
@@ -1245,15 +1245,7 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 		update_tabs();
 		return;
 	}
-
-	// free vectors
-	clear_ptr_vector(pas_vec);
-	clear_ptr_vector(pas2_vec);
-	clear_ptr_vector(electrics_vec);
-	clear_ptr_vector(locos_vec);
-	clear_ptr_vector(waggons_vec);
-	// clear map
-	vehicle_map.clear();
+	clear_vectors();
 
 	// we do not allow to built electric vehicle in a depot without electrification (way_electrified)
 

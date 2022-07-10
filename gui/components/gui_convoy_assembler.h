@@ -241,6 +241,9 @@ public:
 	gui_convoy_assembler_t(depot_frame_t *frame);
 	gui_convoy_assembler_t(replace_frame_t *frame);
 
+	void clear_vectors();
+	virtual ~gui_convoy_assembler_t();
+
 	void init(waytype_t wt, signed char player_nr, bool electrified = true);
 
 	/**
