@@ -3488,7 +3488,7 @@ sint64 haltestelle_t::calc_maintenance() const
 			if(desc->get_base_maintenance() == PRICE_MAGIC)
 			{
 				// Default value - no specific maintenance set. Use the old method
-				maintenance += welt->get_settings().maint_building * desc->get_level();
+				maintenance += welt->get_settings().get_maint_building() * desc->get_level();
 			}
 			else
 			{
@@ -3524,7 +3524,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				if(desc->get_base_maintenance() == PRICE_MAGIC)
 				{
 					// Default value - no specific maintenance set. Use the old method
-					costs = welt->get_settings().maint_building * desc->get_level();
+					costs = welt->get_settings().get_maint_building() * desc->get_level();
 				}
 				else
 				{
@@ -3564,7 +3564,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				if(desc->get_base_maintenance() == PRICE_MAGIC)
 				{
 					// Default value - no specific maintenance set. Use the old method
-					costs = welt->get_settings().maint_building * desc->get_level();
+					costs = welt->get_settings().get_maint_building() * desc->get_level();
 				}
 				else
 				{
@@ -3649,7 +3649,7 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 					if(gb->get_tile()->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 					{
 						// Default value - no specific maintenance set. Use the old method
-						costs = welt->get_settings().maint_building * gb->get_tile()->get_desc()->get_level();
+						costs = welt->get_settings().get_maint_building() * gb->get_tile()->get_desc()->get_level();
 					}
 					else
 					{

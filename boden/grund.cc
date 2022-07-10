@@ -1995,7 +1995,7 @@ sint64 grund_t::remove_trees()
 		// we must mark it by hand, since we want to join costs
 		d->mark_image_dirty( get_image(), 0 );
 		delete d;
-		cost -= welt->get_settings().cst_remove_tree;
+		cost -= welt->get_settings().get_cost_remove_tree();
 	}
 	// remove all groundobjs ...
 	while (groundobj_t* const d = find<groundobj_t>(0)) {

@@ -3706,14 +3706,114 @@ sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const
 	};
 }
 
-sint64 settings_t::get_cost_reclaim_land() const
+sint64 settings_t::get_maint_building() const
 {
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_reclaim_land, infrastructure);
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), maint_building, buildings);
+}
+
+sint64 settings_t::get_cost_multiply_dock() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_dock, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_station() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_station, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_roadstop() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_roadstop, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_airterminal() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_airterminal, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_post() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_post, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_headquarter() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_headquarter, buildings);
+}
+
+sint64 settings_t::get_cost_depot_rail() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_rail, buildings);
+}
+
+sint64 settings_t::get_cost_depot_road() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_road, buildings);
+}
+
+sint64 settings_t::get_cost_depot_ship() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_ship, buildings);
+}
+
+sint64 settings_t::get_cost_depot_air() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_air, buildings);
 }
 
 sint64 settings_t::get_cost_alter_land() const
 {
 	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_alter_land, infrastructure);
+}
+
+sint64 settings_t::get_cost_reclaim_land() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_reclaim_land, infrastructure);
+}
+
+sint64 settings_t::get_cost_alter_climate() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_alter_climate, infrastructure);
+}
+
+sint64 settings_t::get_cost_set_slope() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_set_slope, infrastructure);
+}
+
+sint64 settings_t::get_cost_found_city() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_found_city, buildings);
+}
+
+sint64 settings_t::get_cost_multiply_found_industry() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_found_industry, buildings);
+}
+
+sint64 settings_t::get_cost_remove_tree() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_remove_tree, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_remove_house() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_remove_haus, buildings);
+}
+
+sint64 settings_t::get_cost_mutliply_remove_field() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_remove_field, buildings);
+}
+
+sint64 settings_t::get_cost_transformer() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_transformer, buildings);
+}
+
+sint64 settings_t::get_cost_maintain_transformer() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_maintain_transformer, buildings);
 }
 
 void settings_t::calc_job_replenishment_ticks()

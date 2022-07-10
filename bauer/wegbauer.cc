@@ -1317,7 +1317,7 @@ void way_builder_t::do_terraforming()
 
 		grund_t *to = welt->lookup(route[i+1]);
 		uint8 to_slope = to->get_grund_hang();
-		sint64 cost = welt->get_settings().cst_set_slope;
+		sint64 cost = welt->get_settings().get_cost_set_slope();
 		// Check whether this is an attempt at land reclamation from the sea.
 		if (to->is_water() || from->is_water())
 		{
@@ -2325,12 +2325,12 @@ sint64 way_builder_t::calc_costs() {
 		// change slope of from
 		if (from_slope != from->get_grund_hang()) {
 			if (last_terraformed != i) {
-				costs -= welt->get_settings().cst_set_slope;
+				costs -= welt->get_settings().get_cost_set_slope();
 			}
 		}
 		// change slope of to
 		if (to_slope != to->get_grund_hang()) {
-			costs -= welt->get_settings().cst_set_slope;
+			costs -= welt->get_settings().get_cost_set_slope();
 			last_terraformed = i+1; // do not pay twice for terraforming one tile
 		}
 	}
@@ -2415,7 +2415,7 @@ sint64 way_builder_t::calc_costs() {
 				obj_t *obj = gr->obj_bei(i);
 				switch(obj->get_typ()) {
 					case obj_t::baum:
-						costs -= welt->get_settings().cst_remove_tree;
+						costs -= welt->get_settings().get_cost_remove_tree();
 						break;
 					case obj_t::groundobj:
 						costs += ((groundobj_t *)obj)->get_desc()->get_value();

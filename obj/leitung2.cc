@@ -581,7 +581,7 @@ pumpe_t::pumpe_t(koord3d pos, player_t *player) :
 {
 	fab = NULL;
 	supply = 0;
-	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
+	player_t::book_construction_costs(player, welt->get_settings().get_cost_transformer(), get_pos().get_2d(), powerline_wt);
 }
 
 
@@ -592,7 +592,7 @@ pumpe_t::~pumpe_t()
 		fab = NULL;
 	}
 	pumpe_list.remove( this );
-	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 }
 
 void pumpe_t::step(uint32 delta_t)
@@ -629,7 +629,7 @@ void pumpe_t::step(uint32 delta_t)
 void pumpe_t::finish_rd()
 {
 	leitung_t::finish_rd();
-	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), -welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 
 	assert(get_net());
 
@@ -734,7 +734,7 @@ senke_t::senke_t(koord3d pos, player_t *player, stadt_t* c) :
 	delta_t_sum = 0;
 	last_power_demand = 0;
 	power_load = 0;
-	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
+	player_t::book_construction_costs(player, welt->get_settings().get_cost_transformer(), get_pos().get_2d(), powerline_wt);
 
 	welt->sync.add(this);
 }
@@ -759,7 +759,7 @@ senke_t::~senke_t()
 			}
 		}
 	}
-	player_t::add_maintenance(get_owner(), welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 }
 
 void senke_t::step(uint32 delta_t)
@@ -1064,7 +1064,7 @@ sync_result senke_t::sync_step(uint32 delta_t)
 void senke_t::finish_rd()
 {
 	leitung_t::finish_rd();
-	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), -welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 
 	check_industry_connexion();
 #ifdef MULTI_THREAD

@@ -912,8 +912,8 @@ void money_frame_t::update_stats()
 		if (depot->get_owner_nr() == player->get_player_nr()) {
 			const uint8 tt_idx = finance_t::translate_waytype_to_tt(depot->get_waytype())-1;
 			tt_depot_counts[tt_idx]++;
-			total_depot_maintenance += welt->get_settings().maint_building * depot->get_tile()->get_desc()->get_level();
-			tt_depot_maint[tt_idx] += welt->get_settings().maint_building * depot->get_tile()->get_desc()->get_level();
+			total_depot_maintenance += welt->get_settings().get_maint_building() * depot->get_tile()->get_desc()->get_level();
+			tt_depot_maint[tt_idx] += welt->get_settings().get_maint_building() * depot->get_tile()->get_desc()->get_level();
 			total_depots++;
 			// all vehicles stored in depot not part of a convoi
 			tt_vehicle_counts[tt_idx] += depot->get_vehicle_list().get_count();

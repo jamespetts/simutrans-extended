@@ -652,7 +652,7 @@ public:
 
 	// alter landscape
 	sint64 cst_buy_land;
-	sint64 cst_alter_land;
+	sint64 cst_alter_land; 
 	sint64 cst_reclaim_land;
 	sint64 cst_alter_climate;
 	sint64 cst_set_slope;
@@ -1277,8 +1277,30 @@ public:
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
 
 	// These apply inflation
+	sint64 get_maint_building() const;
+
+	sint64 get_cost_multiply_dock() const;
+	sint64 get_cost_multiply_station() const;
+	sint64 get_cost_multiply_roadstop() const;
+	sint64 get_cost_multiply_airterminal() const;
+	sint64 get_cost_multiply_post() const;
+	sint64 get_cost_multiply_headquarter() const;
+	sint64 get_cost_depot_rail() const;
+	sint64 get_cost_depot_road() const;
+	sint64 get_cost_depot_ship() const;
+	sint64 get_cost_depot_air() const;
+
 	sint64 get_cost_reclaim_land() const;
 	sint64 get_cost_alter_land() const;
+	sint64 get_cost_alter_climate() const;
+	sint64 get_cost_set_slope() const;
+	sint64 get_cost_found_city() const;
+	sint64 get_cost_multiply_found_industry() const;
+	sint64 get_cost_remove_tree() const;
+	sint64 get_cost_multiply_remove_house() const;
+	sint64 get_cost_mutliply_remove_field() const;
+	sint64 get_cost_transformer() const;
+	sint64 get_cost_maintain_transformer() const;
 
 	uint32 get_max_diversion_tiles() const { return max_diversion_tiles; }
 

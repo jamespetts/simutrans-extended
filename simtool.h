@@ -174,7 +174,7 @@ public:
 	 * @param slope the slope type
 	 */
 	static const char *tool_set_slope_work( player_t *player, koord3d pos, int slope );
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Built artifical slopes", welt->get_settings().cst_set_slope); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Built artifical slopes", welt->get_settings().get_cost_set_slope()); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* work(player_t* const player, koord3d const k) OVERRIDE { return tool_set_slope_work(player, k, atoi(default_param)); }
@@ -183,7 +183,7 @@ public:
 class tool_restoreslope_t : public tool_t {
 public:
 	tool_restoreslope_t() : tool_t(TOOL_RESTORESLOPE | GENERAL_TOOL) {}
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Restore natural slope", welt->get_settings().cst_set_slope); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Restore natural slope", welt->get_settings().get_cost_set_slope()); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* work(player_t* const player, koord3d const k) OVERRIDE { return tool_setslope_t::tool_set_slope_work(player, k, RESTORE_SLOPE); }
@@ -192,7 +192,7 @@ public:
 class tool_marker_t : public kartenboden_tool_t {
 public:
 	tool_marker_t() : kartenboden_tool_t(TOOL_MARKER | GENERAL_TOOL) {}
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Marker", welt->get_settings().cst_buy_land); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Marker", welt->get_land_value(koord3d(0,0,0))); }
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_network_safe() const OVERRIDE { return true; }
 };
@@ -225,7 +225,7 @@ public:
 class tool_add_city_t : public kartenboden_tool_t {
 public:
 	tool_add_city_t() : kartenboden_tool_t(TOOL_ADD_CITY | GENERAL_TOOL) {}
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Found new city", welt->get_settings().cst_found_city); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Found new city", welt->get_settings().get_cost_found_city()); }
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_network_safe() const OVERRIDE { return true; }
 };
