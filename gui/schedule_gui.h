@@ -33,16 +33,16 @@ class loadsave_t;
 class gui_schedule_entry_t;
 
 
-class gui_wait_loading_schedule_t : public gui_container_t
+class gui_wait_loading_schedule_t : public gui_component_t
 {
-	uint8 val = 0;
+	uint16 val = 0;
 	uint32 flags;
 public:
-	gui_wait_loading_schedule_t(uint32 flags, uint8 val=0);
+	gui_wait_loading_schedule_t(uint32 flags, uint16 val=0);
 
 	void draw(scr_coord offset);
 
-	void init(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
+	void init_data(uint32 flags_, uint16 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
@@ -207,11 +207,6 @@ public:
 	 * Draw the Frame
 	 */
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
-
-	/**
-	 * Set window size and adjust component sizes and/or positions accordingly
-	 */
-	void set_windowsize(scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 

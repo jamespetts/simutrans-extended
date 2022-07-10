@@ -9281,6 +9281,10 @@ void convoi_t::book_salaries()
 
 uint32 convoi_t::get_salaries(sint64 percentage_of_month)
 {
+	if (!get_vehicle_count()) {
+		return 0;
+	}
+
 	uint32 sum=0;
 
 	for (uint8 i = 0; i < 255; i++)

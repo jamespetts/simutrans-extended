@@ -31,12 +31,14 @@
 #include "../tpl/vector_tpl.h"
 
 #include "depot_frame.h"
+#include "gui_theme.h"
 #include "schedule_gui.h"
 #include "line_item.h"
 
 #include "components/gui_button.h"
 #include "components/gui_textarea.h"
 #include "minimap.h"
+#include "consist_order_gui.h"
 
 static karte_ptr_t welt;
 
@@ -45,7 +47,7 @@ static karte_ptr_t welt;
 #define L_ENTRY_NO_WIDTH (proportional_string_width("88")+6)
 
 // helper class
-gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint32 flags_, uint8 val_)
+gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint32 flags_, uint16 val_)
 {
 	val = val_;
 	flags = flags_;
@@ -75,7 +77,6 @@ void gui_wait_loading_schedule_t::draw(scr_coord offset)
 		else if(flags & schedule_entry_t::set_down_only){
 			left += display_fluctuation_triangle_rgb(pos.x+offset.x+left+1, pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(7, size.h), 7, false, -1);
 		}
-		gui_container_t::draw(offset);
 		size.w = left+1;
 		set_size(size);
 	}
@@ -227,7 +228,7 @@ public:
 	void update_label()
 	{
 		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-		wait_loading->init(entry.flags, entry.minimum_loading);
+		wait_loading->init_data(entry.flags, entry.minimum_loading);
 		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
@@ -290,7 +291,7 @@ public:
 
 	void set_speed_limit(uint32 speed)
 	{
-		if (speed) {
+		if (speed!=65535) {
 			lb_speed_limit.buf().printf("%u %s", speed, "km/h");
 		}
 		lb_speed_limit.update();
@@ -416,7 +417,7 @@ schedule_gui_stats_t::~schedule_gui_stats_t()
 void schedule_gui_stats_t::update_schedule()
 {
 	// compare schedules
-	bool ok = (last_schedule != NULL) && last_schedule->entries.get_count() == schedule->entries.get_count();
+	bool ok = (last_schedule != NULL) && last_schedule->matches(world(), schedule);
 	for (uint i = 0; ok && i < last_schedule->entries.get_count(); i++) {
 		ok = last_schedule->entries[i] == schedule->entries[i];
 	}
@@ -433,7 +434,9 @@ void schedule_gui_stats_t::update_schedule()
 		buf.clear();
 		buf.append(translator::translate("Please click on the map to add\nwaypoints or stops to this\nschedule."));
 		if (schedule->empty()) {
+			add_table(1,1)->set_margin(scr_size(D_MARGIN_LEFT, D_MARGIN_TOP), scr_size(D_MARGIN_RIGHT, D_MARGIN_BOTTOM));
 			new_component<gui_textarea_t>(&buf);
+			end_table();
 		}
 		else {
 			const uint8 base_line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::line_style::doubled : gui_colored_route_bar_t::line_style::solid;
@@ -442,7 +445,6 @@ void schedule_gui_stats_t::update_schedule()
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt, line_color_index));
 				if (i< schedule->entries.get_count()-1) {
 					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
-					//entries[i]->set_speed_limit(schedule->entries[i+1].maximum_speed); // UI TODO:
 					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
 					}
@@ -453,6 +455,7 @@ void schedule_gui_stats_t::update_schedule()
 						entries[i]->set_line_style(base_line_style);
 					}
 				}
+				entries[i]->set_speed_limit(schedule->entries[i].max_speed_kmh);
 				entries.back()->add_listener(this);
 			}
 			if (schedule->entries.get_count()>1) {
@@ -479,9 +482,10 @@ void schedule_gui_stats_t::update_schedule()
 void schedule_gui_stats_t::draw(scr_coord offset)
 {
 	update_schedule();
-
+	if (size!=get_min_size()) {
+		set_size(get_min_size()); // This is necessary to display the component in the correct position immediately after opening the dialog
+	}
 	gui_aligned_container_t::draw(offset);
-	set_size(get_min_size()); // This is necessary to display the component in the correct position immediately after opening the dialog
 }
 
 bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
@@ -495,7 +499,7 @@ bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
 schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle_t cnv_) :
 	gui_frame_t("", NULL),
 	stats(new schedule_gui_stats_t()),
-	scroll(stats)
+	scroll(stats, true, true)
 {
 	schedule = NULL;
 	player = NULL;
@@ -708,8 +712,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			scroll.set_show_scroll_x(true);
-			scroll.set_min_width(250);
+			scroll.set_maximize(true);
 			scroll.set_scroll_amount_y(LINESPACE*2 + 1);
 			add_component(&scroll);
 		}
@@ -728,13 +731,6 @@ void schedule_gui_t::build_table()
 				add_component(&bt_same_spacing_shift);
 			}
 
-			// Modify convoy button
-			bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(0, 0), scr_size(D_WIDE_BUTTON_SIZE));
-			bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
-			bt_consist_order.add_listener(this);
-			bt_consist_order.pressed = false;
-			add_component(&bt_consist_order);
-
 			add_table(2,1);
 			{
 				entry_no = new_component<gui_schedule_entry_number_t>(-1, player->get_player_nr(), 0);
@@ -745,9 +741,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			// station info ?
-
-			add_table(2,0);
+			add_table(2,0)->set_spacing(scr_size(0,0));
 			{
 				// Minimum loading
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::goods->get_image_id(0), true);
@@ -788,7 +782,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			add_table(5,0);
+			add_table(5,0)->set_spacing(scr_size(0,0));
 			{
 				if (!cnv.is_bound()) {
 					// Wait for time
@@ -845,7 +839,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 			if (!cnv.is_bound()) {
-				add_table(5,2);
+				add_table(5,2)->set_spacing(scr_size(0,0));
 				{
 					// Spacing
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
@@ -901,7 +895,37 @@ void schedule_gui_t::build_table()
 				}
 				end_table();
 			}
-			add_table(3,0);
+
+			// Speed limit
+			add_table(4,2)->set_spacing(scr_size(0,0));
+			{
+				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
+				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
+				bt_speed_limit.add_listener(this);
+				add_component(&bt_speed_limit,3);
+
+				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
+				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
+				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+				numimp_speed_limit.add_listener(this);
+				add_component(&numimp_speed_limit);
+
+				new_component<gui_label_t>(" km/h");
+			}
+			end_table();
+
+			new_component<gui_border_t>();
+
+			// Modify convoy button
+			bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0,0));
+			bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+			bt_consist_order.add_listener(this);
+			bt_consist_order.pressed = false;
+			add_component(&bt_consist_order);
+
+			add_table(3,0)->set_spacing(scr_size(0,0));
 			{
 				// Issuing Lay over
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0): IMG_EMPTY, true);
@@ -952,26 +976,6 @@ void schedule_gui_t::build_table()
 				add_component(&condition_broadcast);
 			}
 			end_table();
-
-			// Speed limit
-			add_table(4,2);
-			{
-				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
-				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
-				bt_speed_limit.add_listener(this);
-				add_component(&bt_speed_limit,3);
-
-				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
-				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
-				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
-				numimp_speed_limit.add_listener(this);
-				add_component(&numimp_speed_limit);
-
-				new_component<gui_label_t>(" km/h");
-			}
-			end_table();
 		}
 		end_table();
 	}
@@ -986,6 +990,10 @@ void schedule_gui_t::build_table()
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
+
+	if( cnv.is_bound() ) {
+		line_selector.set_width_fixed(true);
+	}
 }
 
 
@@ -1020,6 +1028,8 @@ void schedule_gui_t::update_tool(bool set)
 
 void schedule_gui_t::update_selection()
 {
+	// UI TODO: update components only when needed
+
 	old_line_count = player->simlinemgmt.get_line_count();
 	last_schedule_count = schedule->get_count();
 
@@ -1051,6 +1061,9 @@ void schedule_gui_t::update_selection()
 		bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
 		bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
 		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
+		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+		numimp_speed_limit.enable(bt_speed_limit.pressed);
 		entry_no->set_visible(true);
 		lb_entry_pos.set_visible(true);
 		lb_entry_pos.buf().printf("(%s)", schedule->entries[current_stop].pos.get_str());
@@ -1139,7 +1152,6 @@ void schedule_gui_t::update_selection()
 				entry_no->init(0, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
 			}
 		}
-		resize(scr_coord(0,0)); // UI TODO: Refresh(resize) the screen only when needed
 	}
 	lb_load.set_color(numimp_load.enabled() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 	lb_wait.set_color(bt_wait_prev.enabled() ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
@@ -1166,6 +1178,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 		stats->highlight_schedule(schedule, false);
 
 		update_tool( false );
+		destroy_win(magic_consist_order); // it may creates data conflicts
 		schedule->cleanup();
 		schedule->finish_editing();
 		// now apply the changes
@@ -1355,36 +1368,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 		}
 	}
-	else if(comp == &bt_wait_for_time)
-	{
-		if(!schedule->empty())
-		{
-			if (bt_wait_for_time.pressed)
-			{
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
-			}
-			else
-			{
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
-			}
-		}
-		update_selection();
-	}
-	else if (comp == &bt_ignore_choose)
-	{
-		if (!schedule->empty())
-		{
-			if (bt_ignore_choose.pressed)
-			{
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
-			}
-			else
-			{
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
-			}
-			update_selection();
-		}
-	}
 	else if (comp == &line_selector) {
 // 		uint32 selection = p.i;
 //DBG_MESSAGE("schedule_gui_t::action_triggered()","line selection=%i",selection);
@@ -1442,39 +1425,59 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			update_selection();
 		}
 	}
-	else if (comp == &bt_consist_order) {
-		// Opens new window to alter the consist order
-	}
-	else if (comp == &conditional_depart){
-		schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
-		update_selection();
-	}
-	else if (comp == &condition_broadcast) {
-		schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
-		update_selection();
-	}
-	else if (comp == &bt_speed_limit) {
-		bt_speed_limit.pressed = !bt_speed_limit.pressed;
-		if (bt_speed_limit.pressed==false) {
-			schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
+	else if (!schedule->empty()) {
+		if (comp == &bt_wait_for_time)
+		{
+			if (bt_wait_for_time.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
+			}
+			update_selection();
 		}
-		else {
-			// set convoy max speed
-			numimp_speed_limit.set_value(get_min_top_speed_kmh());
+		else if (comp == &bt_ignore_choose)
+		{
+			if (bt_ignore_choose.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			}
+			update_selection();
+		}
+		else if (comp == &conditional_depart){
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+			update_selection();
+		}
+		else if (comp == &condition_broadcast) {
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+			update_selection();
+		}
+		else if (comp == &bt_speed_limit) {
+			bt_speed_limit.pressed = !bt_speed_limit.pressed;
+			if (bt_speed_limit.pressed==false) {
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
+			}
+			else {
+				// set convoy max speed
+				numimp_speed_limit.set_value(get_min_top_speed_kmh());
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
+			}
+			numimp_speed_limit.enable(bt_speed_limit.pressed);
+		}
+		else if (comp == &numimp_speed_limit) {
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
+			if (numimp_speed_limit.get_value()==65535) {
+				bt_speed_limit.pressed = false;
+			}
+			update_selection();
 		}
-		numimp_speed_limit.enable(bt_speed_limit.pressed);
-	}
-	else if (comp == &numimp_speed_limit) {
-		schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
-		if (numimp_speed_limit.get_value()==65535) {
-			bt_speed_limit.pressed = false;
-			numimp_speed_limit.disable();
-		}
-		update_selection();
-	}
-	else if (comp == &bt_lay_over) {
-		if (!schedule->empty())
+		else if (comp == &bt_lay_over)
 		{
 			if (bt_lay_over.pressed)
 			{
@@ -1486,10 +1489,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_selection();
 		}
-	}
-	else if (comp == &bt_range_stop) {
-		if (!schedule->empty())
-		{
+		else if (comp == &bt_range_stop) {
 			if (bt_range_stop.pressed)
 			{
 				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::force_range_stop);
@@ -1499,6 +1499,16 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
 			}
 			update_selection();
+		}
+		else if (comp == &bt_consist_order) {
+			// Opens new window to alter the consist order
+			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
+			if (!win) {
+				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+			}
+			else {
+				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+			}
 		}
 	}
 
@@ -1612,25 +1622,10 @@ void schedule_gui_t::draw(scr_coord pos, scr_size size)
 		cnv->call_convoi_tool( 's', "1" );
 	}
 
-
-
 	// always dirty, to cater for shortening of halt names and change of selections
 	set_dirty();
+	resize(scr_coord(0,0));
 	gui_frame_t::draw(pos,size);
-}
-
-
-
-/**
- * Set window size and adjust component sizes and/or positions accordingly
- */
-void schedule_gui_t::set_windowsize(scr_size size)
-{
-	gui_frame_t::set_windowsize(size);
-
-	// make scroll take all of space
-	const scr_coord_val h = cnv.is_bound() ? get_client_windowsize().h - scroll.get_pos().y - D_V_SPACE*3 - D_BUTTON_HEIGHT: get_client_windowsize().h - scroll.get_pos().y - D_V_SPACE;
-	scroll.set_size(scr_size(scroll.get_size().w, h));
 }
 
 
