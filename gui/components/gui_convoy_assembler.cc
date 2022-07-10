@@ -609,6 +609,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(replace_frame_t *frame) :
 void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool electrified)
 {
 	way_type = wt;
+	way_electrified = electrified;
 	new_vehicle_length = 0;
 	old_veh_type = NULL;
 	tile_occupancy.set_new_veh_length(new_vehicle_length);
