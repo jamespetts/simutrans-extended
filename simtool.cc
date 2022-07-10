@@ -1139,11 +1139,11 @@ const char * tool_flatten_path_t::tile_work(player_t *player, const koord3d &pos
 	tool_raise_lower_base_t::drag(player,pos.get_2d()+koord(1,0),start.z,n,player->is_public_service());
 	tool_raise_lower_base_t::drag(player,pos.get_2d()+koord(1,1),start.z,n,player->is_public_service());
 	if(n>0){
-		sint64 cost = welt->get_settings().cst_alter_land * n;
+		sint64 cost = welt->get_settings().get_cost_alter_land() * n;
 		// Check whether this is an attempt at land reclamation from the sea.
 		if (welt->lookup(pos) == nullptr)
 		{
-			cost += welt->get_settings().cst_reclaim_land * n;
+			cost += welt->get_settings().get_cost_reclaim_land() * n;
 		}
 		player_t::book_construction_costs(player, cost, pos.get_2d(), ignore_wt);
 	}
@@ -1257,12 +1257,12 @@ const char *tool_raise_t::check_pos(player_t *player, koord3d pos )
 	if(  h > grund_t::underground_level  ) {
 		return "Terraforming not possible\nhere in underground view";
 	}
-	sint64 cost = welt->get_settings().cst_alter_land;
+	sint64 cost = welt->get_settings().get_cost_alter_land();
 
 	// Check whether this is an attempt at land reclamation from the sea.
 	if (welt->is_water(pos.get_2d(), koord(1,1)))
 	{
-		cost += welt->get_settings().cst_reclaim_land;
+		cost += welt->get_settings().get_cost_reclaim_land();
 	}
 
 	if(! player_t::can_afford(player, -cost) )
@@ -1308,15 +1308,15 @@ const char *tool_raise_t::work(player_t* player, koord3d pos )
 			if(n == 0 && water)
 			{
 				// Reclamation without raising/lowering
-				player_t::book_construction_costs(player, welt->get_settings().cst_reclaim_land, pos.get_2d(), ignore_wt);
+				player_t::book_construction_costs(player, welt->get_settings().get_cost_reclaim_land(), pos.get_2d(), ignore_wt);
 			}
 			if(n>0)
 			{
-				sint64 cost = welt->get_settings().cst_alter_land * n;
+				sint64 cost = welt->get_settings().get_cost_alter_land() * n;
 				// Check whether this is an attempt at land reclamation from the sea.
 				if (welt->is_water(pos.get_2d(), koord(1, 1)))
 				{
-					cost += welt->get_settings().cst_reclaim_land * n;
+					cost += welt->get_settings().get_cost_reclaim_land() * n;
 				}
 				player_t::book_construction_costs(player, cost, pos.get_2d(), ignore_wt);
 				// update image
@@ -1368,7 +1368,7 @@ const char *tool_lower_t::check_pos( player_t *player, koord3d pos )
 			return "Terraforming not possible\nhere in underground view";
 	}
 
-	const sint64 cost = welt->get_settings().cst_alter_land;
+	const sint64 cost = welt->get_settings().get_cost_alter_land();
 
 	if(!player_t::can_afford(player, -cost))
 	{
@@ -1406,7 +1406,7 @@ const char *tool_lower_t::work( player_t *player, koord3d pos )
 				n = welt->grid_lower(player, k, err);
 			}
 			if(n>0) {
-				player_t::book_construction_costs(player, welt->get_settings().cst_alter_land * n, k, ignore_wt);
+				player_t::book_construction_costs(player, welt->get_settings().get_cost_alter_land() * n, k, ignore_wt);
 			}
 			return err == NULL ? (n ? NULL : "")
 			                   : (*err == 0 ? NOTICE_TILE_FULL : err);
@@ -1834,7 +1834,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 			}
 			settings_t const& s = welt->get_settings();
 
-			player_t::book_construction_costs(player, new_slope == RESTORE_SLOPE ? s.cst_alter_land : s.cst_set_slope, k, ignore_wt);
+			player_t::book_construction_costs(player, new_slope == RESTORE_SLOPE ? s.get_cost_alter_land() : s.cst_set_slope, k, ignore_wt);
 		}
 		// update limits
 		if(  welt->min_height > gr1->get_hoehe()  ) {

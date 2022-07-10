@@ -1321,7 +1321,7 @@ void way_builder_t::do_terraforming()
 		// Check whether this is an attempt at land reclamation from the sea.
 		if (to->is_water() || from->is_water())
 		{
-			cost += welt->get_settings().cst_reclaim_land;
+			cost += welt->get_settings().get_cost_reclaim_land();
 		}
 		// calculate new slopes
 		check_terraforming(from, to, &from_slope, &to_slope);

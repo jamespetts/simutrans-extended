@@ -140,7 +140,7 @@ public:
 class tool_raise_t : public tool_raise_lower_base_t {
 public:
 	tool_raise_t() : tool_raise_lower_base_t(TOOL_RAISE_LAND) {}
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Anheben", welt->get_settings().cst_alter_land); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Anheben", welt->get_settings().get_cost_alter_land()); }
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	sint16 get_drag_height(koord k) OVERRIDE;
@@ -149,7 +149,7 @@ public:
 class tool_lower_t : public tool_raise_lower_base_t {
 public:
 	tool_lower_t() : tool_raise_lower_base_t(TOOL_LOWER_LAND) {}
-	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Absenken", welt->get_settings().cst_alter_land); }
+	char const* get_tooltip(player_t const*) const OVERRIDE { return tooltip_with_price("Absenken", welt->get_settings().get_cost_alter_land()); }
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	sint16 get_drag_height(koord k) OVERRIDE;

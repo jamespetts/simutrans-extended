@@ -4096,7 +4096,7 @@ bool karte_t::flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water
 	// was changed => pay for it
 	if(n>0) {
 		n = (n+3) >> 2;
-		player_t::book_construction_costs(player, n * settings.cst_alter_land, k, ignore_wt);
+		player_t::book_construction_costs(player, n * settings.get_cost_alter_land(), k, ignore_wt);
 	}
 	return ok;
 }

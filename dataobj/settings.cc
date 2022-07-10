@@ -3706,6 +3706,16 @@ sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const
 	};
 }
 
+sint64 settings_t::get_cost_reclaim_land() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_reclaim_land, infrastructure);
+}
+
+sint64 settings_t::get_cost_alter_land() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_alter_land, infrastructure);
+}
+
 void settings_t::calc_job_replenishment_ticks()
 {
 	job_replenishment_ticks = ((1LL << bits_per_month) * (sint64)get_job_replenishment_per_hundredths_of_months()) / 100ll;

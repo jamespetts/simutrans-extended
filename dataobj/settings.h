@@ -1276,6 +1276,10 @@ public:
 	sint64 get_forge_cost(waytype_t wt) const;
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
 
+	// These apply inflation
+	sint64 get_cost_reclaim_land() const;
+	sint64 get_cost_alter_land() const;
+
 	uint32 get_max_diversion_tiles() const { return max_diversion_tiles; }
 
 	uint8 get_way_height_clearance() const { return way_height_clearance; }
