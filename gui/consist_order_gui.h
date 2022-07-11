@@ -11,7 +11,9 @@
 #include "simwin.h"
 #include "components/gui_aligned_container.h"
 #include "components/gui_button.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
+#include "components/gui_label.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_scrolled_list.h"
 #include "components/gui_label.h"
@@ -23,6 +25,38 @@
 #include "../dataobj/consist_order_t.h"
 
 class consist_order_t;
+
+struct own_vehicle_t
+{
+	uint32 count = 0;
+	const vehicle_desc_t* veh_type;
+};
+
+
+class gui_own_vehicle_label_t : public gui_label_t, public gui_scrolled_list_t::scrollitem_t
+{
+	own_vehicle_t own_veh;
+
+	gui_label_buf_t label;
+	gui_vehicle_bar_t colorbar;
+
+public:
+	gui_own_vehicle_label_t(own_vehicle_t own_veh);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	char const* get_text() const OVERRIDE { return own_veh.veh_type->get_name(); }
+
+	const vehicle_desc_t* get_vehicle() const { return own_veh.veh_type; }
+
+	using gui_component_t::infowin_event;
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, LINESPACE); }
+
+	//static bool compare(const gui_component_t *a, const gui_component_t *b);
+};
+
 
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
