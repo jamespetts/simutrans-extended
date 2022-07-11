@@ -793,7 +793,7 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 			p++;
 		}
 		// ok, now we have a complete entry
-		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (bool)values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15]));
+		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
 	}
 	return true;
 }
