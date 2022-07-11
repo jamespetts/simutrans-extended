@@ -7,6 +7,7 @@
 #include "../bauer/goods_manager.h"
 #include "../descriptor/goods_desc.h"
 #include "../simhalt.h"
+#include "../simworld.h"
 
 
 #define L_OWN_VEHICLE_COUNT_WIDTH (proportional_string_width("8,888") + D_H_SPACE)
