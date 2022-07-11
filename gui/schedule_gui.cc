@@ -1509,6 +1509,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else {
 				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
 			}
+			top_win(win);
 		}
 	}
 
