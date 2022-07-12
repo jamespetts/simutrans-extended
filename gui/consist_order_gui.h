@@ -60,7 +60,7 @@ public:
 
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
-	uint16 unique_entry_id;
+	uint16 unique_entry_id=-1;
 	player_t* player;
 	schedule_t *schedule;
 

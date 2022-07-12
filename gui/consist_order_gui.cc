@@ -59,8 +59,10 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 {
 	this->player = player;
 	this->schedule = schedule;
-	unique_entry_id = entry_id;
-	init_table();
+	if (unique_entry_id != entry_id) {
+		unique_entry_id = entry_id;
+		init_table();
+	}
 }
 
 
@@ -68,13 +70,15 @@ void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 
 {
 	this->player = player;
 	this->schedule = schedule;
-	unique_entry_id = entry_id;
-
-	init_table();
+	if (unique_entry_id != entry_id) {
+		unique_entry_id = entry_id;
+		init_table();
+	}
 }
 
 void consist_order_frame_t::init_table()
 {
+	remove_all();
 	old_entry_count = schedule->get_count();
 	order=schedule->orders.get(unique_entry_id);
 	halt = schedule->get_halt(player, unique_entry_id);
@@ -113,9 +117,11 @@ void consist_order_frame_t::init_table()
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
+	resize(scr_size(0,0));
 	set_resizemode(diagonal_resize);
 }
 
+// copy selected convoy's order
 void consist_order_frame_t::set_convoy(convoihandle_t cnv)
 {
 }
@@ -126,11 +132,11 @@ void consist_order_frame_t::update()
 	scl.clear_elements();
 	scl.set_selection(-1);
 	resize(scr_size(0,0));
-
 }
 
 void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 {
+	if (player != welt->get_active_player()) { destroy_win(this); }
 	if( schedule->get_count() != old_entry_count ) {
 		// Check if the entry has been deleted
 		halt = schedule->get_halt(player, unique_entry_id);
