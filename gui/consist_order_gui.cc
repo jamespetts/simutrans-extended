@@ -13,7 +13,7 @@
 #define L_OWN_VEHICLE_COUNT_WIDTH (proportional_string_width("8,888") + D_H_SPACE)
 #define L_OWN_VEHICLE_LABEL_OFFSET_LEFT (L_OWN_VEHICLE_COUNT_WIDTH + VEHICLE_BAR_HEIGHT*4+D_H_SPACE)
 
-gui_own_vehicle_label_t::gui_own_vehicle_label_t(own_vehicle_t own_veh_)
+vehicle_scrollitem_t::vehicle_scrollitem_t(own_vehicle_t own_veh_)
 	: gui_label_t(own_veh_.veh_type->get_name(), SYSCOL_TEXT)
 {
 	own_veh = own_veh_;
@@ -34,13 +34,13 @@ gui_own_vehicle_label_t::gui_own_vehicle_label_t(own_vehicle_t own_veh_)
 }
 
 
-scr_size gui_own_vehicle_label_t::get_min_size() const
+scr_size vehicle_scrollitem_t::get_min_size() const
 {
 	return scr_size(L_OWN_VEHICLE_LABEL_OFFSET_LEFT + gui_label_t::get_min_size().w,LINESPACE);
 }
 
 
-void gui_own_vehicle_label_t::draw(scr_coord offset)
+void vehicle_scrollitem_t::draw(scr_coord offset)
 {
 	if (selected) {
 		display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, get_size().w, get_size().h+1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);

@@ -33,7 +33,7 @@ struct own_vehicle_t
 };
 
 
-class gui_own_vehicle_label_t : public gui_label_t, public gui_scrolled_list_t::scrollitem_t
+class vehicle_scrollitem_t : public gui_label_t, public gui_scrolled_list_t::scrollitem_t
 {
 	own_vehicle_t own_veh;
 
@@ -41,7 +41,7 @@ class gui_own_vehicle_label_t : public gui_label_t, public gui_scrolled_list_t::
 	gui_vehicle_bar_t colorbar;
 
 public:
-	gui_own_vehicle_label_t(own_vehicle_t own_veh);
+	vehicle_scrollitem_t(own_vehicle_t own_veh);
 
 	void draw(scr_coord offset) OVERRIDE;
 
