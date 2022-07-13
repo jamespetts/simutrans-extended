@@ -141,7 +141,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		offset.x += grid_width;
 	}
 
-	scr_size size(grid_width*cnv->get_vehicle_count() + D_MARGIN_LEFT * 2, LINESPACE + VEHICLE_BAR_HEIGHT + 10 + D_SCROLLBAR_HEIGHT);
+	scr_size size(grid_width*cnv->get_vehicle_count() + D_MARGIN_LEFT * 2, LINESPACE + VEHICLE_BAR_HEIGHT + 10 + D_V_SPACE + D_SCROLLBAR_HEIGHT);
 	return scr_size(size.w, max(get_size().h, size.h));
 }
 
