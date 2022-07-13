@@ -27,7 +27,7 @@ gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv, bool show_loa
 {
 	this->cnv = cnv;
 	this->show_loading_state = show_loading_state;
-	size = scr_size(D_LABEL_WIDTH, get_base_tile_raster_width()/4);
+	size = scr_size(D_LABEL_WIDTH, max(LINESPACE*3,get_base_tile_raster_width()/4));
 }
 
 void gui_convoy_formation_t::draw(scr_coord offset)

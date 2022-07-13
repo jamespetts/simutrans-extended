@@ -40,6 +40,7 @@ public:
 	scr_size draw_capacities(scr_coord offset) const;
 
 	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, size.h); }
 };
 
 #endif
