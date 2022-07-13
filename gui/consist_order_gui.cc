@@ -14,7 +14,7 @@
 #define L_OWN_VEHICLE_LABEL_OFFSET_LEFT (L_OWN_VEHICLE_COUNT_WIDTH + VEHICLE_BAR_HEIGHT*4+D_H_SPACE)
 
 vehicle_scrollitem_t::vehicle_scrollitem_t(own_vehicle_t own_veh_)
-	: gui_label_t(own_veh_.veh_type->get_name(), SYSCOL_TEXT)
+	: gui_label_t(own_veh_.veh_type == nullptr ? "Vehicle not found" : own_veh_.veh_type->get_name(), SYSCOL_TEXT)
 {
 	own_veh = own_veh_;
 
@@ -22,15 +22,20 @@ vehicle_scrollitem_t::vehicle_scrollitem_t(own_vehicle_t own_veh_)
 	focused = false;
 	selected = false;
 
-	label.buf().printf("%5u", own_veh.count);
-	label.update();
-	label.set_fixed_width(proportional_string_width("8,888"));
+	if( own_veh.veh_type!=nullptr ) {
+		label.buf().printf("%5u", own_veh.count);
+		label.update();
+		label.set_fixed_width(proportional_string_width("8,888"));
 
-	// vehicle color bar
-	uint16 month_now = world()->get_current_month();
-	const PIXVAL veh_bar_color = own_veh.veh_type->is_obsolete(month_now) ? COL_OBSOLETE : (own_veh.veh_type->is_future(month_now) || own_veh.veh_type->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
-	colorbar.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
-	colorbar.init(veh_bar_color);
+		// vehicle color bar
+		uint16 month_now = world()->get_current_month();
+		const PIXVAL veh_bar_color = own_veh.veh_type->is_obsolete(month_now) ? COL_OBSOLETE : (own_veh.veh_type->is_future(month_now) || own_veh.veh_type->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+		colorbar.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
+		colorbar.init(veh_bar_color);
+	}
+	else {
+		set_color(SYSCOL_EDIT_TEXT_DISABLED);
+	}
 }
 
 
@@ -42,13 +47,17 @@ scr_size vehicle_scrollitem_t::get_min_size() const
 
 void vehicle_scrollitem_t::draw(scr_coord offset)
 {
-	if (selected) {
-		display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, get_size().w, get_size().h+1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
-	}
+	scr_coord_val left = D_H_SPACE;
+	if( own_veh.veh_type!=nullptr ) {
+		if (selected) {
+			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, get_size().w, get_size().h+1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+		}
 
-	label.draw(pos+offset + scr_coord(D_H_SPACE,0));
-	colorbar.draw(pos+offset + scr_coord(L_OWN_VEHICLE_COUNT_WIDTH, D_GET_CENTER_ALIGN_OFFSET(colorbar.get_size().h, get_size().h)));
-	gui_label_t::draw(offset+scr_coord(L_OWN_VEHICLE_LABEL_OFFSET_LEFT,0));
+		label.draw(pos+offset + scr_coord(left,0));
+		colorbar.draw(pos+offset + scr_coord(L_OWN_VEHICLE_COUNT_WIDTH, D_GET_CENTER_ALIGN_OFFSET(colorbar.get_size().h, get_size().h)));
+		left = L_OWN_VEHICLE_LABEL_OFFSET_LEFT;
+	}
+	gui_label_t::draw(offset+scr_coord(left,0));
 }
 
 

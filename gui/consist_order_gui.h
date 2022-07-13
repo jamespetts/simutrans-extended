@@ -29,7 +29,7 @@ class consist_order_t;
 struct own_vehicle_t
 {
 	uint32 count = 0;
-	const vehicle_desc_t* veh_type;
+	const vehicle_desc_t* veh_type=nullptr;
 };
 
 
@@ -45,7 +45,7 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	char const* get_text() const OVERRIDE { return own_veh.veh_type->get_name(); }
+	char const* get_text() const OVERRIDE { return own_veh.veh_type==nullptr ? "Vehicle not found" : own_veh.veh_type->get_name(); }
 
 	const vehicle_desc_t* get_vehicle() const { return own_veh.veh_type; }
 
