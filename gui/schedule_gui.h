@@ -98,6 +98,8 @@ public:
 	void update_schedule();
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	scr_size get_max_size() const OVERRIDE { return scr_size::inf; }
 };
 
 

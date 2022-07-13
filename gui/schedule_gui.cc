@@ -713,7 +713,6 @@ void schedule_gui_t::build_table()
 			end_table();
 
 			scroll.set_maximize(true);
-			scroll.set_scroll_amount_y(LINESPACE*2 + 1);
 			add_component(&scroll);
 		}
 		end_table();
