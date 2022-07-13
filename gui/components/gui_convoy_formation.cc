@@ -23,9 +23,11 @@ const char *gui_convoy_formation_t::cnvlist_mode_button_texts[CONVOY_OVERVIEW_MO
 
 
 // component for vehicle display
-gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv)
+gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv, bool show_loading_state)
 {
 	this->cnv = cnv;
+	this->show_loading_state = show_loading_state;
+	size = scr_size(D_LABEL_WIDTH, get_base_tile_raster_width()/4);
 }
 
 void gui_convoy_formation_t::draw(scr_coord offset)
@@ -74,33 +76,35 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 
 			// drawing the color bar
 			int found = 0;
-			for (int i = 0; i < v->get_desc()->get_number_of_classes(); i++) {
-				if (v->get_accommodation_capacity(i) > 0) {
-					color = COL_GREEN;
-					if (!v->get_total_cargo_by_class(i)) {
-						color = COL_YELLOW; // empty
-					}
-					else if (v->get_fare_capacity(v->get_reassigned_class(i)) == v->get_total_cargo_by_class(i)) {
-						color = COL_ORANGE;
-					}
-					else if (v->get_fare_capacity(v->get_reassigned_class(i)) < v->get_total_cargo_by_class(i)) {
-						color = COL_OVERCROWD;
-					}
-					// [loading indicator]
-					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
-					bar_offset_left += bar_width + 1;
-					found++;
-					if (found == v->get_number_of_fare_classes()) {
-						break;
+			if (show_loading_state) {
+				for (uint8 i = 0; i < v->get_desc()->get_number_of_classes(); i++) {
+					if ( v->get_accommodation_capacity(i)>0) {
+						color = COL_GREEN;
+						if (!v->get_total_cargo_by_class(i)) {
+							color = COL_YELLOW; // empty
+						}
+						else if (v->get_fare_capacity(v->get_reassigned_class(i)) == v->get_total_cargo_by_class(i)) {
+							color = COL_ORANGE;
+						}
+						else if (v->get_fare_capacity(v->get_reassigned_class(i)) < v->get_total_cargo_by_class(i)) {
+							color = COL_OVERCROWD;
+						}
+						// [loading indicator]
+						display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
+						bar_offset_left += bar_width + 1;
+						found++;
+						if (found == v->get_number_of_fare_classes()) {
+							break;
+						}
 					}
 				}
 			}
 
 			// [goods symbol]
 			// assume that the width of the goods symbol is 10px
-			display_color_img(v->get_cargo_type()->get_catg_symbol(), offset.x + grid_width / 2 - 5, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 8, 0, false, false);
+			display_color_img(v->get_cargo_type()->get_catg_symbol(), offset.x + grid_width / 2 - 5, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + show_loading_state*5 + 3, 0, false, false);
 		}
-		else {
+		else if (show_loading_state) {
 			// [loading indicator]
 			display_fillbox_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, grid_width - 4, 3, color_idx_to_rgb(MN_GREY0), true);
 		}
