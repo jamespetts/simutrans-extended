@@ -17,8 +17,9 @@ class convoy_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
 {
 private:
 	convoihandle_t cnv;
+	bool use_convoy_status_color;
 public:
-	convoy_scrollitem_t( convoihandle_t c ) : gui_scrolled_list_t::const_text_scrollitem_t( NULL, color_idx_to_rgb(COL_ORANGE) ) { cnv = c; }
+	convoy_scrollitem_t( convoihandle_t c, bool auto_text_color=true ) : gui_scrolled_list_t::const_text_scrollitem_t( NULL, SYSCOL_TEXT ) { cnv = c; use_convoy_status_color = auto_text_color; }
 	PIXVAL get_color() const OVERRIDE;
 	convoihandle_t get_convoy() const { return cnv; }
 	char const* get_text() const OVERRIDE;
