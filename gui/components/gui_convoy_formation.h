@@ -15,11 +15,28 @@
 #include "../simwin.h"
 
 
+class gui_convoi_images_t : public gui_component_t
+{
+protected:
+	convoihandle_t cnv;
+public:
+	gui_convoi_images_t(convoihandle_t cnv) { this->cnv = cnv; }
+
+	void set_cnv(convoihandle_t cnv) { this->cnv = cnv; }
+
+	scr_size draw_vehicles(scr_coord offset, bool display_images) const;
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
 // content of convoy formation
-class gui_convoy_formation_t : public gui_component_t
+class gui_convoy_formation_t : public gui_convoi_images_t
 {
 private:
-	convoihandle_t cnv;
 	uint8 mode= formation;
 	bool show_loading_state;
 
@@ -31,12 +48,10 @@ public:
 
 	gui_convoy_formation_t(convoihandle_t cnv, bool show_loading_state = true);
 
-	void set_cnv(convoihandle_t c) { cnv = c; }
 	void set_mode(uint8 m) { mode = m; }
 
 	void draw(scr_coord offset) OVERRIDE;
 	scr_size draw_formation(scr_coord offset) const;
-	scr_size draw_vehicles(scr_coord offset, bool display_images) const;
 	scr_size draw_capacities(scr_coord offset) const;
 
 	scr_size get_min_size() const OVERRIDE { return size; }

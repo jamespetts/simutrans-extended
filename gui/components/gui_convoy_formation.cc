@@ -15,6 +15,38 @@
 #include "../../player/simplay.h"
 
 
+scr_size gui_convoi_images_t::get_min_size() const
+{
+	return draw_vehicles( scr_coord(0,0), false);
+}
+
+scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_images) const
+{
+	scr_coord p = offset + get_pos();
+	p.y += get_size().h/2;
+	// we will use their images offsets and width to shift them to their correct position
+	// this should work with any vehicle size ...
+	scr_size s(0,0);
+	unsigned count = cnv.is_bound() ? cnv->get_vehicle_count() : 0;
+	for(unsigned i=0; i<count; i++) {
+		scr_coord_val x, y, w, h;
+		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
+		display_get_base_image_offset(image, &x, &y, &w, &h );
+		if (display_images) {
+			display_base_img(image, p.x + s.w - x, p.y - y - h/2, cnv->get_owner()->get_player_nr(), false, true);
+		}
+		s.w += (w*2)/3;
+		s.h = max(s.h, h);
+	}
+	return s;
+}
+
+void gui_convoi_images_t::draw( scr_coord offset )
+{
+	draw_vehicles( offset, true);
+}
+
+
 const char *gui_convoy_formation_t::cnvlist_mode_button_texts[CONVOY_OVERVIEW_MODES] = {
 	"cl_btn_general",
 	"cl_btn_payload",
@@ -24,8 +56,8 @@ const char *gui_convoy_formation_t::cnvlist_mode_button_texts[CONVOY_OVERVIEW_MO
 
 // component for vehicle display
 gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv, bool show_loading_state)
+	: gui_convoi_images_t(cnv)
 {
-	this->cnv = cnv;
 	this->show_loading_state = show_loading_state;
 	size = scr_size(D_LABEL_WIDTH, max(LINESPACE*3,get_base_tile_raster_width()/4));
 }
@@ -145,25 +177,6 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 	return scr_size(size.w, max(get_size().h, size.h));
 }
 
-scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_images) const
-{
-	scr_coord p = offset + get_pos();
-	p.y += get_size().h/2;
-	// we will use their images offsets and width to shift them to their correct position
-	// this should work with any vehicle size ...
-	scr_size s(D_H_SPACE*2, D_V_SPACE*2);
-	for(unsigned i=0; i<cnv->get_vehicle_count();i++) {
-		scr_coord_val x, y, w, h;
-		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
-		display_get_base_image_offset(image, &x, &y, &w, &h );
-		if (display_images) {
-			display_base_img(image, p.x + s.w - x, p.y - y - h/2, cnv->get_owner()->get_player_nr(), false, true);
-		}
-		s.w += (w*2)/3;
-		s.h = max(s.h, h);
-	}
-	return scr_size(s.w, max(get_size().h, s.h));
-}
 
 scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 {
