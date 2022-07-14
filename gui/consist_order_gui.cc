@@ -7,6 +7,7 @@
 #include "convoi_detail_t.h"
 #include "convoy_item.h"
 #include "../bauer/goods_manager.h"
+#include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
 #include "../simhalt.h"
 #include "../simconvoi.h"
@@ -242,7 +243,7 @@ void gui_simple_vehicle_spec_t::init_table()
 
 
 consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
-	: gui_frame_t("", player),
+	: gui_frame_t(translator::translate("consist_order"), player),
 	halt_number(-1),
 	veh_specs(player->get_player_nr()),
 	scl(gui_scrolled_list_t::listskin),
@@ -255,6 +256,7 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 {
 	this->player = player;
 	this->schedule = schedule;
+
 	bt_filter_halt_convoy.pressed = true;
 	bt_filter_single_vehicle.pressed = true;
 	cont_convoy_filter.set_visible(false);
@@ -286,7 +288,6 @@ void consist_order_frame_t::init_table()
 	update();
 
 	set_table_layout(1,0);
-	gui_frame_t::set_name("consist_order"); // TODO: (move to update)
 
 
 	//debug
@@ -496,8 +497,6 @@ void consist_order_frame_t::init_table()
 	tabs.add_tab(&cont_convoy_copier, translator::translate("Convoy copier"));
 	add_component(&tabs);
 
-	new_component<gui_divider_t>();
-	//update();
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
 	resize(scr_size(0,0));
@@ -597,6 +596,18 @@ void consist_order_frame_t::update_convoy_info()
 		resize(scr_size(0,0));
 	}
 }
+
+// returns position of depot on the map
+koord3d consist_order_frame_t::get_weltpos(bool)
+{
+	return halt_number.get_entry_pos();
+}
+
+bool consist_order_frame_t::is_weltpos()
+{
+	return (world()->get_viewport()->is_on_center(get_weltpos(false)));
+}
+
 
 void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 {

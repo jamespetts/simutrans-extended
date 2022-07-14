@@ -162,6 +162,10 @@ public:
 
 	const char * get_help_filename() const OVERRIDE { return "consist_order.txt"; }
 
+	koord3d get_weltpos(bool) OVERRIDE;
+
+	bool is_weltpos() OVERRIDE;
+
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
 	void set_convoy(convoihandle_t cnv = convoihandle_t());
