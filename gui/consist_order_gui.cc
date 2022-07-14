@@ -114,7 +114,7 @@ void gui_simple_vehicle_spec_t::init_table()
 	tbl->set_table_frame(true, true);
 	tbl->set_margin(scr_size(3,3), scr_size(3,3));
 	tbl->set_spacing(scr_size(D_H_SPACE, 2));
-	tbl->set_alignment(ALIGN_TOP);
+	tbl->set_alignment(ALIGN_CENTER_V);
 	{
 		for( uint8 i=1; i<MAX_VEH_SPECS; ++i ) {
 			new_component<gui_table_header_t>(vehicle_spec_texts[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
@@ -181,7 +181,7 @@ void gui_simple_vehicle_spec_t::init_table()
 	tbl->set_table_frame(true, true);
 	tbl->set_margin(scr_size(3,3), scr_size(3,3));
 	tbl->set_spacing(scr_size(D_H_SPACE, 2));
-	tbl->set_alignment(ALIGN_TOP);
+	tbl->set_alignment(ALIGN_CENTER_V);
 	{
 		new_component<gui_table_header_t>("is_bidirectional", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
 		gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
@@ -342,7 +342,7 @@ void consist_order_frame_t::init_table()
 
 	// TODO: filter, sort
 
-	freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("No capacity"), SYSCOL_TEXT);
+	freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------"), SYSCOL_TEXT);
 	freight_type_c.set_selection(0);
 	for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
 		if (i==goods_manager_t::INDEX_NONE) {
@@ -434,7 +434,7 @@ void consist_order_frame_t::init_table()
 				bt_show_hide_convoy_filter.set_width(display_get_char_width('+') + D_BUTTON_PADDINGS_X);
 				bt_show_hide_convoy_filter.add_listener(this);
 				cont_convoy_copier.add_component(&bt_show_hide_convoy_filter);
-				cont_convoy_copier.add_table(1,3);
+				cont_convoy_copier.add_table(1,3)->set_spacing(scr_size(0,0));
 				{
 					lb_open_convoy_filter.init("open_convoy_filter_option");
 					lb_open_convoy_filter.set_rigid(false);
