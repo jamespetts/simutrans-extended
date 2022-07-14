@@ -752,7 +752,7 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 			continue;  // skip travering offce row
 		}
 
-		new_component<gui_table_header_t>(payload_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		new_component<gui_table_header_t>(payload_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
 			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
 
