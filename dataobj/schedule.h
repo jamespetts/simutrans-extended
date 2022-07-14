@@ -195,9 +195,6 @@ public:
 	 */
 	halthandle_t get_prev_halt( player_t *player ) const;
 
-	// ui purpose
-	halthandle_t get_halt( player_t *player, uint16 unique_index  ) const;
-
 	/**
 	* Inserts a coordinate at current_stop into the schedule.
 	*/
