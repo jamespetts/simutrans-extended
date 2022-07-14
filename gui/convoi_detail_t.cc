@@ -450,6 +450,10 @@ void gui_convoy_spec_table_t::insert_spec_rows()
 		}
 #endif
 
+		if( i==SPEC_AXLE_LOAD && cnv->front()->get_waytype()==water_wt ) {
+			continue;
+		}
+
 		new_component<gui_table_header_t>(spec_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
 
