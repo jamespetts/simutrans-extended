@@ -53,7 +53,9 @@ vehicle_scrollitem_t::vehicle_scrollitem_t(own_vehicle_t own_veh_)
 		uint16 month_now = world()->get_current_month();
 		const PIXVAL veh_bar_color = own_veh.veh_type->is_obsolete(month_now) ? COL_OBSOLETE : (own_veh.veh_type->is_future(month_now) || own_veh.veh_type->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
 		colorbar.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
+		colorbar_edge.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
 		colorbar.init(veh_bar_color);
+		colorbar_edge.init(SYSCOL_LIST_TEXT_SELECTED_FOCUS, colorbar.get_size()+scr_size(2,2));
 	}
 	else {
 		set_color(SYSCOL_EDIT_TEXT_DISABLED);
@@ -73,6 +75,13 @@ void vehicle_scrollitem_t::draw(scr_coord offset)
 	if( own_veh.veh_type!=nullptr ) {
 		if (selected) {
 			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, get_size().w, get_size().h+1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+			color = SYSCOL_LIST_TEXT_SELECTED_FOCUS;
+			label.set_color(SYSCOL_LIST_TEXT_SELECTED_FOCUS);
+			colorbar_edge.draw(pos + offset + scr_coord(L_OWN_VEHICLE_COUNT_WIDTH-1, D_GET_CENTER_ALIGN_OFFSET(colorbar.get_size().h, get_size().h)-1));
+		}
+		else {
+			color = SYSCOL_TEXT;
+			label.set_color(SYSCOL_TEXT);
 		}
 
 		label.draw(pos+offset + scr_coord(left,0));
@@ -216,7 +225,7 @@ void gui_simple_vehicle_spec_t::init_table()
 		lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
 		const uint8 constraint_next_bits = veh_type->get_basic_constraint_next();
 		if( (constraint_next_bits&vehicle_desc_t::only_at_end) == vehicle_desc_t::only_at_end) {
-			lb->buf().printf("Cannot connect %u", constraint_next_bits);
+			lb->buf().append("Cannot connect");
 			lb->set_color(COL_DANGER);
 		}
 		else if( (constraint_next_bits&vehicle_desc_t::intermediate_unique) > 0 ) {

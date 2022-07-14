@@ -45,7 +45,7 @@ class vehicle_scrollitem_t : public gui_label_t, public gui_scrolled_list_t::scr
 	own_vehicle_t own_veh;
 
 	gui_label_buf_t label;
-	gui_vehicle_bar_t colorbar;
+	gui_vehicle_bar_t colorbar, colorbar_edge;
 
 public:
 	vehicle_scrollitem_t(own_vehicle_t own_veh);
