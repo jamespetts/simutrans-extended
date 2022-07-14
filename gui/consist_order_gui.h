@@ -9,17 +9,24 @@
 
 #include "gui_frame.h"
 #include "simwin.h"
+#include "linelist_stats_t.h"
 #include "components/gui_aligned_container.h"
 #include "components/gui_button.h"
 #include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
+#include "components/gui_convoy_formation.h"
+#include "components/gui_image.h"
 #include "components/gui_label.h"
+#include "components/gui_schedule_item.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_scrolled_list.h"
-#include "components/gui_label.h"
+#include "components/gui_tab_panel.h"
+
+#include "../tpl/slist_tpl.h"
 
 #include "../convoihandle_t.h"
 #include "../halthandle_t.h"
+#include "../player/simplay.h"
 
 #include "../dataobj/schedule.h"
 #include "../dataobj/consist_order_t.h"
@@ -57,6 +64,30 @@ public:
 	//static bool compare(const gui_component_t *a, const gui_component_t *b);
 };
 
+// Show vehicle image with 7 parameters that related to the constist order
+class gui_simple_vehicle_spec_t : public gui_aligned_container_t
+{
+	const vehicle_desc_t* veh_type = nullptr;
+	uint8 player_nr;
+
+public:
+
+	enum {
+		SPEC_PAYLOADS,
+		SPEC_POWER,
+		SPEC_TRACTIVE_FORCE,
+		SPEC_BRAKE_FORCE,
+		SPEC_SPEED,
+		SPEC_RUNNING_COST,
+		SPEC_FIXED_COST,
+		MAX_VEH_SPECS
+	};
+
+	gui_simple_vehicle_spec_t(uint8 player_nr) { this->player_nr=player_nr; }
+	void set_vehicle(const vehicle_desc_t* desc) { veh_type = desc; init_table(); }
+	void init_table();
+};
+
 
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
@@ -65,23 +96,63 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	schedule_t *schedule;
 
 	uint8 old_entry_count = 0;
+	sint64 old_vehicle_assets; // init in init_table()
 
 	halthandle_t halt;
 
 	consist_order_t order;
 
 	cbuffer_t title_buf;
+	gui_schedule_entry_number_t halt_number;
+	gui_label_buf_t lb_halt;
 
 	gui_scrolled_list_t scl;
 
-	button_t bt_new, bt_edit, bt_delete;
+	button_t bt_new, bt_delete;
 
+	// [ORDER]
+	gui_aligned_container_t cont_order;
+	gui_scrollpane_t scrollx_order;
+	uint32 old_order_count=0;
+	void update_order_list();
 
-	uint8 selected;
+	// filter (common)
+	uint8 filter_catg=goods_manager_t::INDEX_NONE;
+	gui_combobox_t freight_type_c;
 
+	// [VEHICLE PICKER]
 	const vehicle_desc_t* selected_vehicle = nullptr;
+	slist_tpl<own_vehicle_t> own_vehicles;
+	button_t bt_add_vehicle, bt_sort_order_veh, bt_show_hide_vehicle_filter;
+	gui_label_t lb_open_vehicle_filter;
+	gui_simple_vehicle_spec_t veh_specs;
+	gui_aligned_container_t cont_picker_frame, cont_vehicle_filter;
+	gui_scrolled_list_t scl_vehicles;
+	void update_vehicle_info();
+	void build_vehicle_list(); // also update convoy list
+
+	// [CONVOY COPIER]
+	convoihandle_t selected_convoy = convoihandle_t();
+	slist_tpl<convoihandle_t> own_convoys;
+	// filter
+	gui_label_t lb_open_convoy_filter;
+	button_t bt_filter_halt_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
+	gui_aligned_container_t cont_convoy_filter;
+	//
+	button_t bt_sort_order_cnv, bt_copy_convoy, bt_convoy_detail;
+	gui_label_buf_t lb_vehicle_count;
+	gui_line_label_t line_label;
+	gui_convoi_images_t img_convoy;
+	gui_convoy_formation_t formation;
+	gui_scrollpane_t scrollx_formation;
+	gui_aligned_container_t cont_convoy_copier;
+	gui_scrolled_list_t scl_convoys;
+	void update_convoy_info();
+
+	gui_tab_panel_t tabs;
 
 	void init_table();
+	void update();
 
 public:
 	consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
@@ -91,11 +162,9 @@ public:
 
 	const char * get_help_filename() const OVERRIDE { return "consist_order.txt"; }
 
-	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
 	void set_convoy(convoihandle_t cnv = convoihandle_t());
-
-	void update();
 
 	//void rdwr(loadsave_t *file) OVERRIDE;
 
