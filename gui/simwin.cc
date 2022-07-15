@@ -651,7 +651,7 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
