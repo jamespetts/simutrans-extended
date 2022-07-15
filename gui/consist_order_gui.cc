@@ -924,7 +924,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	}
 	schedule->rdwr(file);
 
-if (file->is_loading()) {
+	if (file->is_loading()) {
 		init(world()->get_active_player(), schedule, unique_entry_id);
 		init_table();
 	}
