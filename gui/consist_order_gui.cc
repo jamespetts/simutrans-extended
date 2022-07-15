@@ -26,10 +26,13 @@
 const char *vehicle_spec_texts[gui_simple_vehicle_spec_t::MAX_VEH_SPECS] =
 {
 	"Payload",
+	"Range",
 	"Power:",
 	"Tractive force:",
 	"Max. brake force:",
 	"Max. speed:",
+	"Gewicht",
+	"Axle load:",
 	"Running costs per km", // "Operation" Vehicle running costs per km
 	"Fixed cost per month"
 };
@@ -126,12 +129,26 @@ void gui_simple_vehicle_spec_t::init_table()
 	tbl->set_alignment(ALIGN_CENTER_V);
 	{
 		for( uint8 i=1; i<MAX_VEH_SPECS; ++i ) {
+			if( (i==SPEC_POWER || i== SPEC_TRACTIVE_FORCE) && !veh_type->get_power() ) {
+				continue;
+			}
+			if( i==SPEC_AXLE_LOAD && veh_type->get_waytype()==water_wt ) {
+				continue;
+			}
 			new_component<gui_table_header_t>(vehicle_spec_texts[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
 
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
 			switch (i)
 			{
-				case SPEC_POWER: // power
+				case SPEC_RANGE:
+					if (veh_type->get_range() == 0) {
+						lb->buf().append(translator::translate("unlimited"));
+					}
+					else {
+						lb->buf().printf("%u km", veh_type->get_range());
+					}
+					break;
+				case SPEC_POWER:
 					if (!veh_type->get_power()) {
 						lb->buf().append("-");
 						lb->set_color(SYSCOL_TEXT_INACTIVE);
@@ -157,6 +174,16 @@ void gui_simple_vehicle_spec_t::init_table()
 					break;
 				case SPEC_SPEED:
 					lb->buf().printf("%i km/h", veh_type->get_topspeed());
+					break;
+				case SPEC_WEIGHT:
+					lb->buf().printf("%.1f t", veh_type->get_weight() / 1000.0);
+					if (veh_type->get_total_capacity() || veh_type->get_overcrowded_capacity()) {
+						lb->buf().printf("- %.1f", veh_type->get_max_loading_weight() / 1000.0);
+					}
+					lb->buf().append(" t");
+					break;
+				case SPEC_AXLE_LOAD:
+					lb->buf().printf("%u t", veh_type->get_axle_load());
 					break;
 				case SPEC_RUNNING_COST:
 					if (veh_type->get_running_cost()) {
