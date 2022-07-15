@@ -176,9 +176,9 @@ void gui_simple_vehicle_spec_t::init_table()
 					lb->buf().printf("%i km/h", veh_type->get_topspeed());
 					break;
 				case SPEC_WEIGHT:
-					lb->buf().printf("%.1f t", veh_type->get_weight() / 1000.0);
+					lb->buf().printf("%.1f", veh_type->get_weight() / 1000.0);
 					if (veh_type->get_total_capacity() || veh_type->get_overcrowded_capacity()) {
-						lb->buf().printf("- %.1f", veh_type->get_max_loading_weight() / 1000.0);
+						lb->buf().printf(" - %.1f", veh_type->get_max_loading_weight() / 1000.0);
 					}
 					lb->buf().append(" t");
 					break;
