@@ -68,7 +68,7 @@ public:
 class gui_simple_vehicle_spec_t : public gui_aligned_container_t
 {
 	const vehicle_desc_t* veh_type = nullptr;
-	uint8 player_nr;
+	uint8 player_nr=1;
 
 public:
 
@@ -86,7 +86,8 @@ public:
 		MAX_VEH_SPECS
 	};
 
-	gui_simple_vehicle_spec_t(uint8 player_nr) { this->player_nr=player_nr; }
+	gui_simple_vehicle_spec_t() { }
+	void set_player_nr(uint8 player_nr) { this->player_nr=player_nr; }
 	void set_vehicle(const vehicle_desc_t* desc) { veh_type = desc; init_table(); }
 	void init_table();
 };
@@ -158,7 +159,8 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void update();
 
 public:
-	consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
+	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
+
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
@@ -173,7 +175,7 @@ public:
 
 	void set_convoy(convoihandle_t cnv = convoihandle_t());
 
-	//void rdwr(loadsave_t *file) OVERRIDE;
+	void rdwr(loadsave_t *file) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
 };

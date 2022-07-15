@@ -279,9 +279,8 @@ void gui_simple_vehicle_spec_t::init_table()
 
 
 consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
-	: gui_frame_t(translator::translate("consist_order"), player),
+	: gui_frame_t(translator::translate("consist_order")),
 	halt_number(-1),
-	veh_specs(player->get_player_nr()),
 	scl(gui_scrolled_list_t::listskin),
 	scl_vehicles(gui_scrolled_list_t::listskin),
 	scl_convoys(gui_scrolled_list_t::listskin),
@@ -290,14 +289,11 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	formation(convoihandle_t(), false),
 	scrollx_formation(&formation, true, false)
 {
-	this->player = player;
-	this->schedule = schedule;
-
-	bt_filter_halt_convoy.pressed = true;
-	bt_filter_single_vehicle.pressed = true;
-	cont_convoy_filter.set_visible(false);
-	if (unique_entry_id != entry_id) {
-		unique_entry_id = entry_id;
+	if (player && schedule) {
+		init(player, schedule, entry_id);
+		bt_filter_halt_convoy.pressed = true;
+		bt_filter_single_vehicle.pressed = true;
+		cont_convoy_filter.set_visible(false);
 		init_table();
 	}
 }
@@ -308,6 +304,8 @@ void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 
 	this->player = player;
 	this->schedule = schedule;
 	unique_entry_id = entry_id;
+	veh_specs.set_player_nr(player->get_player_nr());
+	set_owner(player);
 	update();
 }
 
@@ -909,4 +907,25 @@ void consist_order_frame_t::build_vehicle_list()
 	}
 	reset_min_windowsize();
 	resize(scr_size(0,0));
+}
+
+
+void consist_order_frame_t::rdwr(loadsave_t *file)
+{
+	scr_size size = get_windowsize();
+	size.rdwr(file);
+
+	file->rdwr_short(unique_entry_id);
+
+	// schedules
+	if (file->is_loading()) {
+		// dummy types
+		schedule = new truck_schedule_t();
+	}
+	schedule->rdwr(file);
+
+if (file->is_loading()) {
+		init(world()->get_active_player(), schedule, unique_entry_id);
+		init_table();
+	}
 }
