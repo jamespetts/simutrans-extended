@@ -291,9 +291,6 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 {
 	if (player && schedule) {
 		init(player, schedule, entry_id);
-		bt_filter_halt_convoy.pressed = true;
-		bt_filter_single_vehicle.pressed = true;
-		cont_convoy_filter.set_visible(false);
 		init_table();
 	}
 }
@@ -319,6 +316,10 @@ void consist_order_frame_t::init_table()
 
 	old_entry_count = schedule->get_count();
 	order=schedule->orders.get(unique_entry_id);
+
+	bt_filter_halt_convoy.pressed = true;
+	bt_filter_single_vehicle.pressed = true;
+	cont_convoy_filter.set_visible(false);
 	update();
 
 	set_table_layout(1,0);
