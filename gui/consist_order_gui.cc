@@ -389,7 +389,6 @@ void consist_order_frame_t::init_table()
 		freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(info->get_catg_name()), SYSCOL_TEXT, info->get_catg_symbol());
 	}
 	freight_type_c.add_listener(this);
-	freight_type_c.set_size(freight_type_c.get_min_size());
 	freight_type_c.set_size(scr_size(D_BUTTON_WIDTH*2, D_EDIT_HEIGHT));
 	freight_type_c.set_width_fixed(true);
 
