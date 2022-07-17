@@ -42,8 +42,6 @@ class gui_vehicle_spec_t : public gui_aligned_container_t
 	const vehicle_desc_t *veh_type;
 	cbuffer_t comfort_tooltip_buf;
 
-	scr_coord_val min_h;
-
 	// update spac
 	void update(uint8 mode, uint32 value);
 public:
@@ -51,8 +49,6 @@ public:
 
 	// NULL=clear, resale value is used only in va_sell mode
 	void set_vehicle(const vehicle_desc_t* v = NULL, uint8 mode = 0, uint32 resale_value=0) { veh_type = v; update(mode, resale_value); }
-
-	scr_size get_min_size() const OVERRIDE;
 
 	scr_size get_max_size() const OVERRIDE;
 };
@@ -100,6 +96,15 @@ class gui_convoy_assembler_t : public gui_aligned_container_t, public gui_action
 	static scr_coord get_placement(waytype_t wt);
 public:
 	static scr_coord get_grid(waytype_t wt);
+
+	static bool show_all;               // show available vehicles (same for all depot)
+	static bool show_outdated_vehicles; // shoe vehicled that production is stopped but not increase maintenance yet.
+	static bool show_obsolete_vehicles; // (same for all depot)
+
+	static sint16 sort_by_action;
+	static bool sort_reverse;
+
+	uint8 veh_action = va_append;
 
 private:
 	waytype_t way_type;
@@ -175,16 +180,15 @@ private:
 	gui_textinput_t name_filter_input;
 
 	gui_combobox_t vehicle_filter;
-	static bool show_all;               // show available vehicles (same for all depot)
-	static bool show_outdated_vehicles; // shoe vehicled that production is stopped but not increase maintenance yet.
-	static bool show_obsolete_vehicles; // (same for all depot)
+
 	button_t bt_show_all;
 	button_t bt_outdated;
 	button_t bt_obsolete;
 
+	gui_combobox_t sort_by;
+	button_t sort_order;
 
 	// [MODE SELECTOR]
-	uint8 veh_action;
 	gui_combobox_t action_selector;
 
 	/**
@@ -281,6 +285,10 @@ public:
 	void set_electrified(bool ele);
 
 	static uint16 get_livery_scheme_index() { return livery_scheme_index; }
+
+	// for save and reload
+	int get_current_tab_index() const { return tabs.get_active_tab_index(); }
+	void set_current_tab_index(int idx) { tabs.set_active_tab_index(idx); }
 };
 
 #endif

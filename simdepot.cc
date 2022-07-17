@@ -876,7 +876,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 15)
+	if (file->is_version_ex_atleast(14, 56))
 	{
 		file->rdwr_str(name, lengthof(name));
 	}
@@ -939,12 +939,6 @@ const char * depot_t::is_deletable(const player_t *player)
 		}
 	}
 	return NULL;
-}
-
-
-slist_tpl<vehicle_desc_t*> const & depot_t::get_vehicle_type()
-{
-	return vehicle_builder_t::get_info(get_waytype());
 }
 
 

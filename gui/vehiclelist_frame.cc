@@ -24,9 +24,7 @@
 #include "../utils/simstring.h"
 
 
-enum sort_mode_t { best, by_name, by_value, by_running_cost, by_capacity, by_speed, by_power, by_tractive_force, by_axle_load, by_intro, by_retire, SORT_MODES };
-
-int vehiclelist_stats_t::sort_mode = by_intro;
+int vehiclelist_stats_t::sort_mode = vehicle_builder_t::sb_intro_date;
 bool vehiclelist_stats_t::reverse = false;
 
 // for having uniform spaced columns
@@ -176,103 +174,10 @@ const char *vehiclelist_stats_t::get_text() const
 
 bool vehiclelist_stats_t::compare(const gui_component_t *aa, const gui_component_t *bb)
 {
-	const vehiclelist_stats_t* fa = dynamic_cast<const vehiclelist_stats_t*>(aa);
-	const vehiclelist_stats_t* fb = dynamic_cast<const vehiclelist_stats_t*>(bb);
-	// good luck with mixed lists
-	assert(fa != NULL  &&  fb != NULL);
-	const vehicle_desc_t*a=fa->veh, *b=fb->veh;
-
-	int cmp = 0;
-	switch( sort_mode ) {
-	default:
-	case best:
-		return 0;
-
-	case by_intro:
-		cmp = a->get_intro_year_month() - b->get_intro_year_month();
-		break;
-
-	case by_retire:
-		if (world()->get_settings().get_show_future_vehicle_info()) {
-			cmp = a->get_retire_year_month() - b->get_retire_year_month();
-		}
-		else {
-			uint32 month = world()->get_current_month();
-			int a_date = a->is_future(month) ? 65535 : a->get_retire_year_month();
-			int b_date = b->is_future(month) ? 65535 : b->get_retire_year_month();
-			cmp = a_date - b_date;
-		}
-		break;
-
-	case by_value:
-		cmp = a->get_value() - b->get_value();
-		break;
-
-	case by_running_cost:
-		cmp = a->get_running_cost(world()) - b->get_running_cost(world());
-		break;
-
-	case by_speed:
-		cmp = a->get_topspeed() - b->get_topspeed();
-		break;
-
-	case by_power:
-		cmp = a->get_power() - b->get_power();
-		if (cmp == 0) {
-			cmp = a->get_tractive_effort() - b->get_tractive_effort();
-		}
-		break;
-
-	case by_tractive_force:
-		cmp = a->get_tractive_effort() - b->get_tractive_effort();
-		if (cmp == 0) {
-			cmp = a->get_power() - b->get_power();
-		}
-		break;
-
-	case by_axle_load:
-	{
-		const uint16 a_axle_load = a->get_waytype() == water_wt ? 0 : a->get_axle_load();
-		const uint16 b_axle_load = b->get_waytype() == water_wt ? 0 : b->get_axle_load();
-		cmp = a_axle_load - b_axle_load;
-		if (cmp == 0) {
-			cmp = a->get_weight() - b->get_weight();
-		}
-		break;
-	}
-
-	case by_capacity:
-		cmp = a->get_total_capacity() - b->get_total_capacity();
-		if (cmp == 0) {
-			cmp = a->get_overcrowded_capacity() - b->get_overcrowded_capacity();
-		}
-		break;
-
-	case by_name:
-		break;
-
-	}
-	if(  cmp == 0  ) {
-		cmp = strcmp( translator::translate(a->get_name()), translator::translate(b->get_name()) );
-	}
-	return reverse ? cmp > 0 : cmp < 0;
+	bool result = vehicle_builder_t::compare_vehicles( dynamic_cast<const vehiclelist_stats_t*>(aa)->veh, dynamic_cast<const vehiclelist_stats_t*>(bb)->veh, (vehicle_builder_t::sort_mode_t)vehiclelist_stats_t::sort_mode );
+	return vehiclelist_stats_t::reverse ? !result : result;
 }
 
-
-
-static const char *sort_text[SORT_MODES] = {
-	"Unsorted",
-	"Name",
-	"Price",
-	"Maintenance:",
-	"Capacity:",
-	"Max. speed:",
-	"Power:",
-	"Tractive Force:",
-	"Axle load:",
-	"Intro. date:",
-	"Retire. date:"
-};
 
 vehiclelist_frame_t::vehiclelist_frame_t() :
 	gui_frame_t( translator::translate("vh_title") ),
@@ -294,8 +199,8 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 				add_table(3,1);
 				{
 					sort_by.clear_elements();
-					for(int i = 0; i < SORT_MODES; i++) {
-						sort_by.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
+					for(int i = 0; i < vehicle_builder_t::sb_length; i++) {
+						sort_by.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::vehicle_sort_by[i]), SYSCOL_TEXT);
 					}
 					sort_by.set_selection( vehiclelist_stats_t::sort_mode );
 					sort_by.set_width_fixed( true );

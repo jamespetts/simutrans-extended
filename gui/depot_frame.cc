@@ -801,7 +801,7 @@ void depot_frame_t::draw(scr_coord pos, scr_size size)
 				break;
 			}
 			case 1: {
-				lb_vehicle_count.buf().append("1 Einzelfahrzeug im Depot");
+				lb_vehicle_count.buf().append(translator::translate("1 Einzelfahrzeug im Depot"));
 				break;
 			}
 			default: {
@@ -911,6 +911,17 @@ void depot_frame_t::rdwr(loadsave_t *file)
 	scr_size size = get_windowsize();
 	size.rdwr( file );
 
+	file->rdwr_byte(convoy_assembler.veh_action);
+	file->rdwr_short(convoy_assembler.sort_by_action);
+	//file->rdwr_long(convoy_assembler.selected_filter); // not working
+	file->rdwr_bool(convoy_assembler.show_all);
+	file->rdwr_bool(convoy_assembler.show_outdated_vehicles);
+	file->rdwr_bool(convoy_assembler.show_obsolete_vehicles);
+	file->rdwr_bool(convoy_assembler.sort_reverse);
+
+	int current_tab_index = convoy_assembler.get_current_tab_index();
+	file->rdwr_long(current_tab_index);
+
 	if(  file->is_loading()  ) {
 		depot_t *dep = welt->lookup(pos)->get_depot();
 		if (dep) {
@@ -925,6 +936,7 @@ void depot_frame_t::rdwr(loadsave_t *file)
 		set_windowsize(size);
 
 		win_set_magic(this, (ptrdiff_t)depot);
+		convoy_assembler.set_current_tab_index(current_tab_index);
 	}
 
 	if (depot == NULL) {

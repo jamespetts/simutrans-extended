@@ -3624,13 +3624,31 @@ helptxt_powered_vehicle
 helptxt_unpowered_vehicle
 非動力車
 helptxt_one_direction
-折り返し時に方向転換を必要とする先頭車両
+折り返し時に方向転換が必要な先頭車両
 helptxt_cab_head
 先頭車両
 helptxt_can_be_at_rear
 最後尾車両
 helptxt_intermediate
 中間車両
+hlptxt_vh_normal_state
+選択可能/正常（現役車両）
+need to connect vehicle
+車両の追加が必要
+out of production
+生産が終了した車両
+become obsolete
+陳腐化し維持費が上昇している車両
+cannot select
+連結不可/選択不可
+lack of money
+購入不可(所持金不足)
+axle weight is excessive
+購入不可(軸重超過)
+appears only in upgrades
+アップグレード専用
+cannot upgrade
+アップグレード専用(選択不可)
 %i month
 %iヶ月
 %i months
@@ -4341,6 +4359,14 @@ fare_management_by_vehicle
 車両別
 fare_management_by_accommo
 客室(区画)グレード別
+Only this convoy
+この編成のみ置き換え
+waytype
+乗り物タイプ
+convoys stored
+留置編成数
+vehicles stored
+保管車両数
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month
