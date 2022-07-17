@@ -713,7 +713,6 @@ void schedule_gui_t::build_table()
 			end_table();
 
 			scroll.set_maximize(true);
-			scroll.set_scroll_amount_y(LINESPACE*2 + 1);
 			add_component(&scroll);
 		}
 		end_table();
@@ -1234,6 +1233,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 
 bool schedule_gui_t::action_triggered( gui_action_creator_t *comp, value_t p)
 {
+	if( player!=welt->get_active_player() || welt->get_active_player()->is_locked()) { return true; }
 DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_selector);
 	if(comp == &bt_add) {
 		mode = adding;
@@ -1509,6 +1509,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else {
 				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
 			}
+			top_win(win);
 		}
 	}
 

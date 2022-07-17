@@ -450,6 +450,10 @@ void gui_convoy_spec_table_t::insert_spec_rows()
 		}
 #endif
 
+		if( i==SPEC_AXLE_LOAD && cnv->front()->get_waytype()==water_wt ) {
+			continue;
+		}
+
 		new_component<gui_table_header_t>(spec_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
 
@@ -748,7 +752,7 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 			continue;  // skip travering offce row
 		}
 
-		new_component<gui_table_header_t>(payload_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		new_component<gui_table_header_t>(payload_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
 			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
 
@@ -1027,11 +1031,9 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 
 void gui_convoy_spec_table_t::insert_constraints_rows()
 {
-
-		for (uint8 i = SPECS_CONSTRAINTS_START; i < MAX_SPECS; i++) {
-		uint32 total = 0;
-
+	for (uint8 i = SPECS_CONSTRAINTS_START; i < MAX_SPECS; i++) {
 		new_component<gui_table_header_t>(spec_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
+
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
 			const vehicle_desc_t *veh_type = cnv->get_vehicle(j)->get_desc();
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
@@ -1799,7 +1801,6 @@ gui_vehicle_maintenance_t::gui_vehicle_maintenance_t(vehicle_t *v)
 {
 	vehicle = v;
 	const vehicle_desc_t *veh_type = vehicle->get_desc();
-	const uint16 month_now = world()->get_timeline_year_month();
 
 	set_table_layout(1,0);
 	set_alignment(ALIGN_LEFT | ALIGN_TOP);
@@ -2087,7 +2088,7 @@ void gui_vehicle_maintenance_t::draw(scr_coord offset)
 	gui_aligned_container_t::draw(offset);
 }
 
-bool gui_vehicle_maintenance_t::action_triggered(gui_action_creator_t *comp, value_t v)
+bool gui_vehicle_maintenance_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
 	if (world()->get_active_player()==vehicle->get_owner()) {
 		if( comp==&bt_do_not_overhaul ) {

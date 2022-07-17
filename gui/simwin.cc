@@ -47,6 +47,7 @@
 #include "money_frame.h"
 #include "halt_detail.h"
 #include "halt_info.h"
+#include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoi_frame.h"
 #include "convoi_info_t.h"
@@ -653,7 +654,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
+					case magic_consist_order:  w = new consist_order_frame_t(); break;
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
