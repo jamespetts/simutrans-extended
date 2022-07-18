@@ -215,7 +215,8 @@ void replace_frame_t::init_table()
 	new_component<gui_border_t>();
 	add_table(5,1)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(D_MARGIN_RIGHT, 0));
 	{
-		new_component<gui_label_t>("To be replaced by:");
+		new_component<gui_heading_t>("To be replaced by:",
+			SYSCOL_TEXT, get_titlecolor(), 2)->set_width(proportional_string_width(translator::translate("To be replaced by:")) + D_HEADING_HEIGHT*2);
 		lb_money.init(SYSCOL_TEXT, gui_label_t::money_right);
 		lb_money.set_fixed_width(D_LABEL_WIDTH);
 		add_component(&lb_money);

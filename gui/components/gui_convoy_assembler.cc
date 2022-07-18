@@ -548,7 +548,6 @@ void gui_vehicles_capacity_info_t::init_table()
 			lb->update();
 		}
 	}
-
 }
 
 void gui_vehicles_capacity_info_t::draw(scr_coord offset)
@@ -728,42 +727,34 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 
 		add_table(3,1)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(D_MARGIN_RIGHT,0));
 		{
-			add_table(1,2);
+			add_table(3,2);
 			{
-				add_table(2,1);
-				{
-					// mode
-					new_component<gui_label_t>("Fahrzeuge:");
-					static const char *txt_veh_action[4] = { "anhaengen", "voranstellen", "verkaufen", "Upgrade" };
-					action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[0]), SYSCOL_TEXT);
-					action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[1]), SYSCOL_TEXT);
-					action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[2]), SYSCOL_TEXT);
-					action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[3]), SYSCOL_TEXT);
-					action_selector.set_selection(veh_action);
-					action_selector.add_listener(this);
-					add_component(&action_selector);
-				}
-				end_table();
+				// mode
+				new_component<gui_label_t>("Fahrzeuge:");
+				static const char *txt_veh_action[4] = { "anhaengen", "voranstellen", "verkaufen", "Upgrade" };
+				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[0]), SYSCOL_TEXT);
+				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[1]), SYSCOL_TEXT);
+				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[2]), SYSCOL_TEXT);
+				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[3]), SYSCOL_TEXT);
+				action_selector.set_selection(veh_action);
+				action_selector.add_listener(this);
+				add_component(&action_selector);
+				new_component<gui_empty_t>();
 
 				// sort
-				add_table(3,1);
-				{
-					// mode
-					new_component<gui_label_t>("hl_txt_sort");
-					for (int i = 0; i < vehicle_builder_t::sb_length; i++) {
-						sort_by.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::vehicle_sort_by[i]), SYSCOL_TEXT);
-					}
-					sort_by.add_listener(this);
-					sort_by.set_selection(sort_by_action);
-					add_component(&sort_by);
-
-					sort_order.init(button_t::sortarrow_state, "");
-					sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
-					sort_order.pressed = sort_reverse;
-					sort_order.add_listener(this);
-					add_component(&sort_order);
+				new_component<gui_label_t>("hl_txt_sort");
+				for (int i = 0; i < vehicle_builder_t::sb_length; i++) {
+					sort_by.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::vehicle_sort_by[i]), SYSCOL_TEXT);
 				}
-				end_table();
+				sort_by.add_listener(this);
+				sort_by.set_selection(sort_by_action);
+				add_component(&sort_by);
+
+				sort_order.init(button_t::sortarrow_state, "");
+				sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+				sort_order.pressed = sort_reverse;
+				sort_order.add_listener(this);
+				add_component(&sort_order);
 			}
 			end_table();
 			new_component<gui_margin_t>(D_H_SPACE);
@@ -835,6 +826,7 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 			new_component<gui_label_t>("Livery scheme:");
 			livery_selector.add_listener(this);
 			add_component(&livery_selector);
+			lb_livery_counter.set_rigid(true);
 			lb_livery_counter.set_color(SYSCOL_TEXT_HIGHLIGHT);
 			lb_livery_counter.set_fixed_width(proportional_string_width("(888)"));
 			add_component(&lb_livery_counter);

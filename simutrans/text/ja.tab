@@ -3100,13 +3100,13 @@ renewal_costs
 Replace
 交換
 replace all
-すべて交換
+同一構成の編成全て
 Replace all convoys like this
 所有する同じ構成の編成すべてを対象にします。
 Replace all convoys like this belonging to this line
 同一路線内の、同じ構成の編成すべてを対象にします。
 replace all in line
-同一路線のみ、すべて交換
+所属路線の同一構成の編成
 Replace but stay
 交換後待機
 Replace cycle:
