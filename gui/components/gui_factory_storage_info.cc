@@ -302,7 +302,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 
 	uint32 sel = line_selected;
-	FORX(const vector_tpl<koord>, k, fab_list, yoff += LINESPACE + 1) {
+	for(auto k : fab_list){
 		fabrik_t *target_fab = fabrik_t::get_fab(k);
 
 		if (target_fab) {
@@ -468,7 +468,9 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);
 			}
 		}
+		yoff += LINESPACE + 1;
 	}
+	yoff += LINESPACE + 1;
 	set_size(scr_size(400, yoff));
 }
 

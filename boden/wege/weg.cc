@@ -1416,13 +1416,12 @@ bool weg_t::renew()
 		bool default_way_is_better_than_current_way = false;
 		if(way_desc)
 		{
-			default_way_is_better_than_current_way |= way_desc->get_topspeed() > desc->get_topspeed();
+			default_way_is_better_than_current_way == way_desc->get_topspeed() > desc->get_topspeed();
 			default_way_is_better_than_current_way &= way_desc->get_max_axle_load() >= desc->get_max_axle_load();
 
 			bool no_worse_stats = way_desc->get_topspeed() >= desc->get_topspeed() && way_desc->get_max_axle_load() >= desc->get_max_axle_load();
-			bool current_way_better_cost = (way_desc->get_maintenance() > desc->get_maintenance()) || (way_desc->get_base_cost() > desc->get_base_cost()) || (way_desc->get_wear_capacity() < desc->get_wear_capacity());
 
-			default_way_is_better_than_current_way &= !(no_worse_stats && current_way_better_cost);
+			default_way_is_better_than_current_way &= !no_worse_stats;
 		}
 		set_desc(way_desc && (!owner || default_way_is_better_than_current_way) ? way_desc : desc);
 		success = true;

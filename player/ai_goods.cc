@@ -143,7 +143,7 @@ bool ai_goods_t::get_factory_tree_lowest_missing( fabrik_t *fab )
 			continue;
 		}
 
-		FOR(vector_tpl<koord>, const& q, fab->get_suppliers()) {
+		for(auto q : fab->get_suppliers()) {
 			fabrik_t* const qfab = fabrik_t::get_fab(q);
 			const factory_desc_t* const fd = qfab->get_desc();
 			for(  uint qq = 0;  qq < fd->get_product_count();  qq++  ) {
@@ -199,7 +199,7 @@ int ai_goods_t::get_factory_tree_missing_count( fabrik_t *fab )
 		{
 			complete = false;
 		}
-		FOR(vector_tpl<koord>, const& q, fab->get_suppliers()) {
+		for(auto q : fab->get_suppliers()) {
 			fabrik_t* const qfab = fabrik_t::get_fab(q);
 			if(!qfab) {
 				dbg->error("fabrik_t::get_fab()","fab %s at %s does not find supplier at %s.", fab->get_name(), fab->get_pos().get_str(), q.get_str());

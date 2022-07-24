@@ -151,7 +151,7 @@ void gui_accommodation_fare_manager_t::update()
 		}
 
 		gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-		lb->buf().append(acm.accommodation.name);
+		lb->buf().append(translator::translate(acm.accommodation.name));
 		lb->update();
 
 		// total compartments of this accommodation

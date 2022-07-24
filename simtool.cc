@@ -2736,7 +2736,7 @@ static const char *tool_schedule_insert_aux(karte_t *welt, player_t *player, koo
 			w = bd->get_weg( track_wt );
 		}
 		if(  !bd->is_halt()  ) {
-			if(w != NULL && w->get_owner() && !w->get_owner()->allows_access_to(player->get_player_nr()))
+			if(w != NULL && w->get_owner() && !w->get_owner()->allows_access_to(player->get_player_nr()) && !w->is_public_right_of_way())
 			{
 				return NOTICE_OWNED_BY_OTHER_PLAYER;
 			}
