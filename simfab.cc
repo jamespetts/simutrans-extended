@@ -3768,10 +3768,44 @@ void fabrik_t::calc_max_intransit_percentages()
 			index ++;
 			continue;
 		}
-		const uint32 time_to_consume = max(1u, get_time_to_consume_stock(index));
-		const sint32 ratio = ((sint32)lead_time * 1000 / (sint32)time_to_consume);
-		const sint32 modified_max_intransit_percentage = (ratio * (sint64)base_max_intransit_percentage) / 1000;
-		input[index].max_transit = max(1, (modified_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
+		const factory_supplier_desc_t* flb = desc->get_supplier(index);
+		const uint32 vb = flb ? flb->get_consumption() : 0;
+		const sint32 base_production = get_current_production();
+		uint64 consumed_per_month = max((uint64)base_production * (uint64)vb, 256);
+
+		if(desc->is_consumer_only())
+		{
+			// Consumer industries adjust their consumption according to the number of visitors. Adjust for this.
+			// We cannot use actual consumption figures, as this could lead to deadlocks.
+
+			// Do not use the current month, as this is not complete yet, and the number of visitors will therefore be low.
+			sint64 average_consumers = 0;
+			if(get_stat(3, FAB_CONSUMER_ARRIVED))
+			{
+				average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) + get_stat(3, FAB_CONSUMER_ARRIVED)) / 3ll;
+			}
+			else if(get_stat(2, FAB_CONSUMER_ARRIVED))
+			{
+				average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) / 2ll);
+			}
+			else
+			{
+				average_consumers = get_stat(1, FAB_CONSUMER_ARRIVED);
+			}
+			// Only make the adjustment if we have data.
+			if (average_consumers)
+			{
+				const sint64 visitor_demand = (sint64)building->get_adjusted_visitor_demand();
+				const sint64 percentage = std::max(100ll, (average_consumers * 100ll) / visitor_demand);
+				consumed_per_month = (consumed_per_month * percentage) / 100;
+			}
+		}
+		uint64 max_transit = max(consumed_per_month,256);
+		max_transit *= base_max_intransit_percentage;
+		max_transit *= lead_time;
+		max_transit *= 16384;
+		max_transit /= 3 * (uint64)welt->get_settings().meters_per_tile * welt->ticks_per_world_month;
+		input[index].max_transit = max_transit;
 		index ++;
 	}
 }
@@ -3940,65 +3974,6 @@ uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
 	}
 
 	return longest_lead_time;
-}
-
-uint32 fabrik_t::get_time_to_consume_stock(uint32 index)
-{
-	// This should work in principle, but as things currently stand,
-	// rounding errors result in monthly consumption that is too high
-	// in some cases (especially where the base production figure is low).
-	const factory_supplier_desc_t* flb = desc->get_supplier(index);
-	const uint32 vb = flb ? flb->get_consumption() : 0;
-	const sint32 base_production = get_current_production();
-	sint32 consumed_per_month = max(((base_production * vb) >> 8), 1);
-
-	if(desc->is_consumer_only())
-	{
-		// Consumer industries adjust their consumption according to the number of visitors. Adjust for this.
-		// We cannot use actual consumption figures, as this could lead to deadlocks.
-
-		// Do not use the current month, as this is not complete yet, and the number of visitors will therefore be low.
-		sint64 average_consumers = 0;
-		if(get_stat(3, FAB_CONSUMER_ARRIVED))
-		{
-			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) + get_stat(3, FAB_CONSUMER_ARRIVED)) / 3ll;
-		}
-		else if(get_stat(2, FAB_CONSUMER_ARRIVED))
-		{
-			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) / 2ll);
-		}
-		else
-		{
-			average_consumers = get_stat(1, FAB_CONSUMER_ARRIVED);
-		}
-		// Only make the adjustment if we have data.
-		if (average_consumers)
-		{
-			const sint64 visitor_demand = (sint64)building->get_adjusted_visitor_demand();
-			const sint64 percentage = std::max(100ll, (average_consumers * 100ll) / visitor_demand);
-			consumed_per_month = (consumed_per_month * (sint32)percentage) / 100;
-		}
-	}
-
-	const sint32 input_capacity = max((input[index].max >> fabrik_t::precision_bits), 1);
-
-	const sint64 tick_units = input_capacity * welt->ticks_per_world_month;
-
-	const sint32 ticks_to_consume = tick_units / max(1, consumed_per_month);
-	return welt->ticks_to_tenths_of_minutes(ticks_to_consume);
-
-	/*
-
-	100 ticks per month
-	20 units per month
-	60 minutes per month
-	600 10ths of a minute per month
-	storage of 40 units
-
-	40 units * 100 ticks = 4,000 tick units
-	4,000 tick units / 20 units per month = 200 ticks
-
-	*/
 }
 
 uint32 fabrik_t::get_monthly_pax_demand() const

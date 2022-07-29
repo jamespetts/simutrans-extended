@@ -1006,8 +1006,6 @@ public:
 
 	// Average journey time to delivery goods of this type
 	uint32 get_lead_time (const goods_desc_t* wtype);
-	// Time to consume the full input store of these goods at full capacity
-	uint32 get_time_to_consume_stock(uint32 index);
 
 	int get_passenger_level_jobs() const;
 	int get_passenger_level_visitors() const;
