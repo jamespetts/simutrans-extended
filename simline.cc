@@ -764,7 +764,7 @@ void simline_t::recalc_status()
 						if (v->get_desc()->get_upgrades(k) && !v->get_desc()->get_upgrades(k)->is_future(month_now))
 						{
 							state |= line_has_upgradeable_vehicles;
-							if (!skinverwaltung_t::upgradable) state_color = COL_UPGRADEABLE;
+							if (!skinverwaltung_t::upgradable) state_color = SYSCOL_UPGRADEABLE;
 						}
 					}
 				}
@@ -774,7 +774,7 @@ void simline_t::recalc_status()
 			{
 				state |= line_has_obsolete_vehicles;
 				// obsolete has priority over upgradeable (only for color)
-				state_color = COL_OBSOLETE;
+				state_color = SYSCOL_OBSOLETE;
 			}
 
 			if (i->get_state() == convoi_t::NO_ROUTE || i->get_state() == convoi_t::NO_ROUTE_TOO_COMPLEX || i->get_state() == convoi_t::OUT_OF_RANGE)

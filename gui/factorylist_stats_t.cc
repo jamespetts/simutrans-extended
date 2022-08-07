@@ -104,7 +104,7 @@ gui_factory_stats_t::gui_factory_stats_t(fabrik_t *fab) :
 
 	staffing_bar.add_color_value(&staff_shortage_factor, COL_CAUTION);
 	staffing_bar.add_color_value(&staffing_level, goods_manager_t::passengers->get_color());
-	staffing_bar.add_color_value(&staffing_level2, COL_STAFF_SHORTAGE);
+	staffing_bar.add_color_value(&staffing_level2, SYSCOL_STAFF_SHORTAGE);
 	staffing_bar.set_width(100);
 
 	update_table();
@@ -422,7 +422,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 			}
 			if (staff_shortage && !forwarding_score) {
 				// Is the reason why it's not working is staff shortage?
-				forwarding_status.set_color(COL_STAFF_SHORTAGE);
+				forwarding_status.set_color(SYSCOL_STAFF_SHORTAGE);
 			}
 			else {
 				forwarding_status.set_color(color_idx_to_rgb(severity_color[(forwarding_score+19)/20]));
@@ -439,7 +439,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 		const PIXVAL producing_status_color = color_idx_to_rgb(severity_color[avtivity_score]);
 		if (staff_shortage && !avtivity_score) {
 			// Is the reason why it's not working is staff shortage?
-			producing_status.set_color(COL_STAFF_SHORTAGE);
+			producing_status.set_color(SYSCOL_STAFF_SHORTAGE);
 		}
 		else {
 			producing_status.set_color(producing_status_color);

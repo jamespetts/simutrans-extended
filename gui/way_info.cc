@@ -33,7 +33,7 @@
 static char const* const speed_resticted_text = "speed_restricted";
 const uint8 severity_color[6] =
 {
-	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_OVERCROWD
+	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_PURPLE-1
 };
 
 gui_way_detail_info_t::gui_way_detail_info_t(weg_t *way)
@@ -307,12 +307,12 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 					}
 					else {
 						replacement_way = latest_city_road;
-						new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+						new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 						new_component_span<gui_label_t>(replacement_way->get_name(), 3);
 					}
 				}
 				else if (way->get_desc() != replacement_way){
-					new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+					new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 					if( !is_current ) {
 						replacement_way = way_builder_t::weg_search(replacement_way->get_waytype(), replacement_way->get_topspeed(), (sint32)replacement_way->get_axle_load(), time, (systemtype_t)replacement_way->get_styp(), replacement_way->get_wear_capacity());
 					}

@@ -179,7 +179,7 @@ void gui_times_history_t::build_table()
 		cnv_route_index_left = convoy->get_route()->get_count() - cnv_route_index;
 		old_route_index = cnv_route_index;
 		if (convoy->has_obsolete_vehicles()) {
-			convoy_state_col = COL_OBSOLETE;
+			convoy_state_col = SYSCOL_OBSOLETE;
 		}
 		min_range = convoy->get_min_range();
 	}

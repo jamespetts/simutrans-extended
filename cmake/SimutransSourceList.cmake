@@ -113,7 +113,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_convoiinfo.cc
 	gui/components/gui_convoy_assembler.cc
 	gui/components/gui_convoy_formation.cc
-	gui/components/gui_convoy_label.cc
 	gui/components/gui_convoy_payloadinfo.cc
 	gui/components/gui_divider.cc
 	gui/components/gui_factory_storage_info.cc

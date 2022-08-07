@@ -139,13 +139,13 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		name_colval = SYSCOL_EMPTY;
 	}
 	else if (veh->is_available_only_as_upgrade()) {
-		name_colval = COL_UPGRADEABLE;
+		name_colval = SYSCOL_UPGRADEABLE;
 	}
 	else if (veh->is_obsolete(month)) {
-		name_colval = COL_OBSOLETE;
+		name_colval = SYSCOL_OBSOLETE;
 	}
 	else if (veh->is_retired(month)) {
-		name_colval = COL_OUT_OF_PRODUCTION;
+		name_colval = SYSCOL_OUT_OF_PRODUCTION;
 	}
 	int dx = display_proportional_rgb(
 		offset.x, offset.y,

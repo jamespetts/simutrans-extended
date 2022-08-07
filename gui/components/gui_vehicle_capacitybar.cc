@@ -107,7 +107,7 @@ void gui_convoy_loading_info_t::update_list()
 
 					// 4: capacity bar
 					if (show_loading) {
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), color_idx_to_rgb(COL_OVERCROWD))->set_value(overcrowded_capacity, get_overcrowded());
+						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), SYSCOL_OVERCROWDED)->set_value(overcrowded_capacity, get_overcrowded());
 					}
 					new_component<gui_fill_t>();
 				}

@@ -335,7 +335,7 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 			// [status color bar]
 			if (fab->is_staff_shortage()) {
-				display_ddd_box_clip_rgb(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 2, D_INDICATOR_WIDTH / 2, D_INDICATOR_HEIGHT + 2, COL_STAFF_SHORTAGE, COL_STAFF_SHORTAGE);
+				display_ddd_box_clip_rgb(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 2, D_INDICATOR_WIDTH / 2, D_INDICATOR_HEIGHT + 2, SYSCOL_STAFF_SHORTAGE, SYSCOL_STAFF_SHORTAGE);
 			}
 			PIXVAL col_val = color_idx_to_rgb(fabrik_t::status_to_color[target_fab->get_status()]);
 			display_fillbox_wh_clip_rgb(offset.x + xoff + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH / 2 - 1, D_INDICATOR_HEIGHT, col_val, true);

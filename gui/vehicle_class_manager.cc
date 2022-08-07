@@ -525,7 +525,7 @@ void vehicle_class_manager_t::update_list()
 		else {
 			lb->buf().append(car_number);
 		}
-		lb->set_color(veh->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK);
+		lb->set_color(veh->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ? SYSCOL_UPGRADEABLE : SYSCOL_TEXT_WEAK);
 		lb->set_fixed_width((D_BUTTON_WIDTH*3)>>3);
 		lb->update();
 		cont_by_vehicle.new_component_span<gui_label_t>(veh->get_desc()->get_name(),7);

@@ -2129,7 +2129,7 @@ zooming out
 %s\nCost: %s\nMaint.: %1.2f$/km, %1.2f$/month\nPower: %dkW, %dkN\nTop Speed: %dkm/h\nWeight: %dt\nAxle load: %dt\nMax. brake force: %dkN\nRolling resistance: %.1fN\n
 %s\nСтоимость: %s ₵\nОбслуж.: %1.2f ₵/км, %1.2f ₵/мес\nМощность: %d кВт, %d кН\nМакс. скорость: %d км/ч\nМасса: %d т\nНагр. на ось: %d т\nМакс. тормозное усилие: %d кН\nСила трения: %.1f Н\n
 (Max. comfortable journey time: 
-(Макс. комфортное время в пути:
+Макс. комфортное время в пути:
 ; brakes from max. speed in %i - %i m
 ; дистанция торможения с макс. скорости: %i - %i м
 ; brakes from max. speed in %i m

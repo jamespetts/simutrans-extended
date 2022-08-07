@@ -14,7 +14,6 @@
 #include "components/action_listener.h"
 #include "components/gui_button.h"
 #include "components/gui_convoy_assembler.h"
-//#include "components/gui_convoy_label.h"
 #include "components/gui_label.h"
 #include "components/gui_numberinput.h"
 

@@ -37,18 +37,27 @@
 #define VEHICLE_FILTER_RELEVANT 1
 #define VEHICLE_FILTER_GOODS_OFFSET 2
 
-class gui_vehicle_spec_t : public gui_aligned_container_t
+class gui_vehicle_spec_t : public gui_aligned_container_t, private action_listener_t
 {
 	const vehicle_desc_t *veh_type;
-	cbuffer_t comfort_tooltip_buf;
+
+	bool is_secondary_view = false;
+	button_t bt_main_view, bt_secondary_view;
+	void build_secondary_view(uint16 current_livery);
 
 	// update spac
-	void update(uint8 mode, uint32 value);
+	// current_livery=65535 means not convoy vehicle => use depot's value
+	void update(uint8 action, uint32 value, uint16 current_livery=65535);
 public:
 	gui_vehicle_spec_t(const vehicle_desc_t* v=NULL);
 
 	// NULL=clear, resale value is used only in va_sell mode
-	void set_vehicle(const vehicle_desc_t* v = NULL, uint8 mode = 0, uint32 resale_value=0) { veh_type = v; update(mode, resale_value); }
+	void set_vehicle(const vehicle_desc_t* v = NULL, uint8 action = 0, uint16 current_livery = 65535, uint32 resale_value=0)
+	{
+		veh_type = v; update(action, resale_value, current_livery);
+	}
+
+	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
 
 	scr_size get_max_size() const OVERRIDE;
 };
@@ -105,6 +114,7 @@ public:
 	static bool sort_reverse;
 
 	uint8 veh_action = va_append;
+	static uint16 livery_scheme_index;
 
 private:
 	waytype_t way_type;
@@ -220,7 +230,6 @@ private:
 
 	gui_vehicle_spec_t cont_vspec;
 
-	static uint16 livery_scheme_index;
 	vector_tpl<uint16> livery_scheme_indices;
 	gui_combobox_t livery_selector;
 	gui_label_buf_t lb_livery_counter;
@@ -270,7 +279,7 @@ private:
 public:
 	/* Getter/setter methods */
 
-	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() {return &vehicles;}
+	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() { return &vehicles; }
 	inline const vector_tpl<gui_image_list_t::image_data_t* >* get_convoi_pics() const { return &convoi_pics; }
 	void set_vehicles(convoihandle_t cnv);
 	void set_vehicles(const vector_tpl<const vehicle_desc_t *>* vv);
@@ -289,6 +298,8 @@ public:
 	// for save and reload
 	int get_current_tab_index() const { return tabs.get_active_tab_index(); }
 	void set_current_tab_index(int idx) { tabs.set_active_tab_index(idx); }
+
+	void set_spec(const vehicle_desc_t *veh_type) { cont_vspec.set_vehicle(veh_type, 0, 0); }
 };
 
 #endif

@@ -74,7 +74,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	all_depots.append(this);
 	last_selected_line = linehandle_t();
 	command_pending = false;
-	strcpy(name, t->get_desc()->get_name());
+	strcpy(name, "unnamed");
 	add_to_world_list();
 	welt->sync.add(this);
 }
@@ -908,7 +908,7 @@ const char* depot_t::get_name() const
 	}
 	else
 	{
-		return gebaeude_t::get_name();
+		return translator::translate(gebaeude_t::get_name());
 	}
 }
 

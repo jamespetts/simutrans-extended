@@ -194,6 +194,7 @@ void depot_frame_t::init_table()
 			img_bolt.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
 			img_bolt.set_rigid(true);
 			add_component(&img_bolt);
+			lb_traction_types.set_color(SYSCOL_TRACTION_TYPE);
 			add_component(&lb_traction_types);
 		}
 		end_table();

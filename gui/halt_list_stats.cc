@@ -65,7 +65,7 @@ void gui_halt_stats_t::update_table()
 				if (halt->get_pax_enabled()) {
 					buf.clear();
 					buf.printf("%4u", halt->get_capacity(0));
-					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::passengers->get_image_id(0), halt->get_status_color(0)==color_idx_to_rgb(COL_OVERCROWD) ? color_idx_to_rgb(COL_OVERCROWD):SYSCOL_TEXT )->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
+					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::passengers->get_image_id(0), halt->get_status_color(0)==SYSCOL_OVERCROWDED ? SYSCOL_OVERCROWDED:SYSCOL_TEXT )->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
 				}
 				else {
 					new_component<gui_margin_t>(L_HALT_CAPACITY_LABEL_WIDTH+14);
@@ -73,7 +73,7 @@ void gui_halt_stats_t::update_table()
 				if (halt->get_mail_enabled()) {
 					buf.clear();
 					buf.printf("%4u", halt->get_capacity(1));
-					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::mail->get_image_id(0), halt->get_status_color(1)==color_idx_to_rgb(COL_OVERCROWD) ? color_idx_to_rgb(COL_OVERCROWD):SYSCOL_TEXT)->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
+					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::mail->get_image_id(0), halt->get_status_color(1)==SYSCOL_OVERCROWDED ? SYSCOL_OVERCROWDED:SYSCOL_TEXT)->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
 				}
 				else {
 					new_component<gui_margin_t>(L_HALT_CAPACITY_LABEL_WIDTH+14);
@@ -81,7 +81,7 @@ void gui_halt_stats_t::update_table()
 				if (halt->get_ware_enabled()) {
 					buf.clear();
 					buf.printf("%4u", halt->get_capacity(2));
-					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::goods->get_image_id(0), halt->get_status_color(2)==color_idx_to_rgb(COL_OVERCROWD) ? color_idx_to_rgb(COL_OVERCROWD):SYSCOL_TEXT)->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
+					new_component<gui_label_with_symbol_t>(buf,skinverwaltung_t::goods->get_image_id(0), halt->get_status_color(2)==SYSCOL_OVERCROWDED ? SYSCOL_OVERCROWDED:SYSCOL_TEXT)->set_fixed_width(L_HALT_CAPACITY_LABEL_WIDTH);
 				}
 				else {
 					new_component<gui_margin_t>(L_HALT_CAPACITY_LABEL_WIDTH+14);
@@ -129,7 +129,7 @@ void gui_halt_stats_t::update_table()
 
 				bandgraph.clear();
 				bandgraph.add_color_value(&num[0], colval, true);
-				bandgraph.add_color_value(&num[1], color_idx_to_rgb(COL_OVERCROWD), true);
+				bandgraph.add_color_value(&num[1], SYSCOL_OVERCROWDED, true);
 				add_component(&bandgraph);
 				bandgraph.set_size(scr_size(min(256, (waiting_sum + (WAITINGBAR_SCALE_FACTOR-1)) / WAITINGBAR_SCALE_FACTOR), D_LABEL_HEIGHT*2/3));
 
@@ -137,7 +137,7 @@ void gui_halt_stats_t::update_table()
 				new_component<gui_capped_arrow_t>()->set_visible(waiting_sum > 1024);
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
 				lb->buf().append(waiting_sum, 0);
-				lb->init(waiting_sum > capacity ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT, gui_label_t::left);
+				lb->init(waiting_sum > capacity ? SYSCOL_OVERCROWDED : SYSCOL_TEXT, gui_label_t::left);
 				lb->update();
 
 				end_table();
@@ -231,7 +231,7 @@ void gui_halt_stats_t::update_table()
 
 			bandgraph.clear();
 			bandgraph.add_color_value(&num[0], color_idx_to_rgb(COL_HAPPY));
-			bandgraph.add_color_value(&num[1], color_idx_to_rgb(COL_OVERCROWD));
+			bandgraph.add_color_value(&num[1], SYSCOL_OVERCROWDED);
 			bandgraph.add_color_value(&num[2], color_idx_to_rgb(COL_TOO_WAITNG));
 			bandgraph.add_color_value(&num[3], color_idx_to_rgb(COL_TOO_SLOW));
 			bandgraph.add_color_value(&num[4], color_idx_to_rgb(COL_NO_ROUTE));
@@ -572,8 +572,8 @@ void halt_list_stats_t::draw(scr_coord offset)
 				if (halt->get_status_color(i) == COL_INACTIVE) {
 					img_enabled[i].set_transparent((TRANSPARENT25_FLAG | OUTLINE_FLAG | SYSCOL_TEXT));
 				}
-				else if(halt->get_status_color(i) == color_idx_to_rgb(COL_OVERCROWD)) {
-					img_enabled[i].set_transparent( (TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_OVERCROWD)) );
+				else if(halt->get_status_color(i) == SYSCOL_OVERCROWDED) {
+					img_enabled[i].set_transparent( (TRANSPARENT75_FLAG | OUTLINE_FLAG | SYSCOL_OVERCROWDED) );
 				}
 				else {
 					img_enabled[i].set_transparent(0);

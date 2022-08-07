@@ -122,9 +122,9 @@ void replace_frame_t::init_table()
 	current_convoi.set_grid(grid);
 	//set_placement(scr_coord(placement.x - placement_dx, placement.y));
 	current_convoi.set_player_nr( cnv->get_owner()->get_player_nr() );
-	// dont set the listner // TODO: pass veh_type to assembler and show info
 
 	scrollx_convoi.set_maximize(true);
+	scrollx_convoi.set_min_height(scrollx_convoi.get_max_size().h);
 	add_component(&scrollx_convoi);
 
 	add_table(2,1)->set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(D_MARGIN_RIGHT, 0));
@@ -266,7 +266,7 @@ void replace_frame_t::set_vehicles(bool init)
 			current_convoi_pics.append(img_data);
 			// set color bar
 			PIXVAL base_col = (!veh_type->is_future(month_now) && !veh_type->is_retired(month_now)) ? COL_SAFETY :
-				(veh_type->is_obsolete(month_now)) ? COL_OBSOLETE : COL_OUT_OF_PRODUCTION;
+				(veh_type->is_obsolete(month_now)) ? SYSCOL_OBSOLETE : SYSCOL_OUT_OF_PRODUCTION;
 
 			// change green into blue for retired vehicles
 			if (i!=0) {
@@ -395,7 +395,9 @@ void replace_frame_t::update_data()
 	}
 	lb_money.update();
 	reset_min_windowsize();
-	set_windowsize(scr_size(max(get_min_size().w, convoy_assembler.get_min_size().w), max(get_min_windowsize().h, get_windowsize().h)));
+	if( get_size().w < get_min_size().w ) {
+		set_windowsize(scr_size(get_min_size().w, get_size().h));
+	}
 	resize(scr_size(0,0));
 }
 
