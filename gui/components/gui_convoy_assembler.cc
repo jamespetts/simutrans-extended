@@ -524,7 +524,7 @@ void gui_vehicle_spec_t::build_secondary_view(uint16 current_livery)
 				bool too_many_liveries=false;
 				add_table(3,1)->set_alignment(ALIGN_TOP); // livery preview table
 				{
-					ITERATE_PTR(schemes, i)
+					for (uint32 i = 0; i < schemes->get_count(); i++)
 					{
 						livery_scheme_t* scheme = schemes->get_element(i);
 						if( !scheme->is_available(month_now) ) {

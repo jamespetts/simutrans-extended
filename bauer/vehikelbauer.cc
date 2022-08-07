@@ -509,15 +509,8 @@ const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const 
 
 	if(  !typ_fahrzeuge[0][GET_WAYTYPE_INDEX(wt)].empty()  )
 	{
-<<<<<<< HEAD
-		for(auto const test_desc : typ_fahrzeuge[GET_WAYTYPE_INDEX(wt)])
-		{
-			if(target_power>0  &&  test_desc->get_power()==0)
-			{
-=======
 		for(vehicle_desc_t const* const test_desc : typ_fahrzeuge[0][GET_WAYTYPE_INDEX(wt)]) {
 			if(target_power>0  &&  test_desc->get_power()==0) {
->>>>>>> refs/remotes/origin/2207-depot-veh-sorting
 				continue;
 			}
 

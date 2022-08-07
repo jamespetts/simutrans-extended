@@ -54,7 +54,7 @@ vehicle_scrollitem_t::vehicle_scrollitem_t(own_vehicle_t own_veh_)
 
 		// vehicle color bar
 		uint16 month_now = world()->get_current_month();
-		const PIXVAL veh_bar_color = own_veh.veh_type->is_obsolete(month_now) ? COL_OBSOLETE : (own_veh.veh_type->is_future(month_now) || own_veh.veh_type->is_retired(month_now)) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+		const PIXVAL veh_bar_color = own_veh.veh_type->is_obsolete(month_now) ? SYSCOL_OBSOLETE : (own_veh.veh_type->is_future(month_now) || own_veh.veh_type->is_retired(month_now)) ? SYSCOL_OUT_OF_PRODUCTION : COL_SAFETY;
 		colorbar.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
 		colorbar_edge.set_flags(own_veh.veh_type->get_basic_constraint_prev(), own_veh.veh_type->get_basic_constraint_next(), own_veh.veh_type->get_interactivity());
 		colorbar.init(veh_bar_color);
