@@ -1116,7 +1116,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(l);
 				const goods_desc_t* input_type = supplier_type->get_input_type();
 				missing_goods.append_unique(input_type);
-				const vector_tpl<koord> suppliers = fab->get_suppliers();
+				auto suppliers = fab->get_suppliers(input_type);
 
 				// Check how much of this product that the current factory needs
 				consumption_level = fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1);
@@ -1130,54 +1130,41 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					}
 
 					// Check whether the factory's actual suppliers supply any of this product.
-					const fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
+					fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
 					if(!supplier)
 					{
 						continue;
 					}
 
-					for(uint p = 0; p < supplier->get_desc()->get_product_count(); p ++)
+					if(auto consumer_type = supplier->get_desc()->get_product(input_type))
 					{
-						const factory_product_desc_t* consumer_type = supplier->get_desc()->get_product(p);
-						const goods_desc_t* supplier_output_type = consumer_type->get_output_type();
-
-						if(supplier_output_type == input_type)
+						// Check to see whether this existing supplier is able to supply *enough* of this product
+						const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
+						sint32 used_output = 0;
+						for(auto competing_consumers : supplier->get_consumers(input_type))
 						{
-							// Check to see whether this existing supplier is able to supply *enough* of this product
-							const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
-							sint32 used_output = 0;
-							vector_tpl<koord> competing_consumers = supplier->get_consumers();
-							for(uint32 n = 0; n < competing_consumers.get_count(); n ++)
-							{
-								const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers.get_element(n));
-								for(int x = 0; x < competing_consumer->get_desc()->get_supplier_count(); x ++)
-								{
-									const goods_desc_t* consumer_output_type = consumer_type->get_output_type();
-									if(consumer_output_type == supplier_output_type)
-									{
-										const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(x);
-										used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
-									}
-								}
-								const sint32 remaining_output = total_output_supplier - used_output;
-								if(remaining_output > 0)
-								{
-									available_for_consumption += remaining_output;
-								}
+							if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
+								const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
+								used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
 							}
-
-							if(available_for_consumption >= consumption_level)
+							const sint32 remaining_output = total_output_supplier - used_output;
+							if(remaining_output > 0)
 							{
-								// If the suppliers between them do supply enough of the product, do not list it as missing.
-								missing_goods.remove(input_type);
-
-								if (oversupplied_goods.is_contained(input_type))
-								{
-									// Avoid duplication
-									oversupplied_goods.remove(input_type);
-								}
-								oversupplied_goods.append(input_type, available_for_consumption - consumption_level);
+								available_for_consumption += remaining_output;
 							}
+						}
+
+						if(available_for_consumption >= consumption_level)
+						{
+							// If the suppliers between them do supply enough of the product, do not list it as missing.
+							missing_goods.remove(input_type);
+
+							if (oversupplied_goods.is_contained(input_type))
+							{
+								// Avoid duplication
+								oversupplied_goods.remove(input_type);
+							}
+							oversupplied_goods.append(input_type, available_for_consumption - consumption_level);
 						}
 					}
 				} // Actual suppliers
@@ -1199,9 +1186,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				for(uint16 i=0;  i < unlinked_consumer->get_desc()->get_supplier_count();  i++)
 				{
 					goods_desc_t const* const w = unlinked_consumer->get_desc()->get_supplier(i)->get_input_type();
-					for(uint32 j = 0; j < unlinked_consumer->get_suppliers().get_count(); j++)
-					{
-						fabrik_t *sup = fabrik_t::get_fab(unlinked_consumer->get_suppliers()[j]);
+					for(auto k : unlinked_consumer->get_suppliers(w)){
+						fabrik_t *sup = fabrik_t::get_fab(k);
 						const factory_desc_t* const fd = sup->get_desc();
 						for (uint32 k = 0; k < fd->get_product_count(); k++)
 						{

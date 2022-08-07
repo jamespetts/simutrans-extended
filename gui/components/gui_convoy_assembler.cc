@@ -2758,7 +2758,7 @@ gui_vehicle_bar_legends_t::gui_vehicle_bar_legends_t()
 		{
 			new_component<gui_margin_t>(D_MARGIN_LEFT);
 			new_component<gui_image_t>(skinverwaltung_t::comfort ? skinverwaltung_t::comfort->get_image_id(0) : IMG_EMPTY, 0, ALIGN_NONE, true);
-			new_component<gui_label_t>("(Max.comfortable journey time : ", SYSCOL_TEXT_WEAK);
+			new_component<gui_label_t>("(Max. comfortable journey time: ", SYSCOL_TEXT_WEAK);
 			new_component<gui_fill_t>();
 		}
 		end_table();

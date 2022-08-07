@@ -247,9 +247,25 @@ public:
 	{
 		return i < supplier_count ? get_child<factory_supplier_desc_t>(2 + i) : 0;
 	}
+	const factory_supplier_desc_t *get_supplier(const goods_desc_t* ware_type) const {
+		for(uint16 i = 0; i < get_supplier_count(); i++){
+			if(get_supplier(i)->get_input_type()==ware_type){
+				return get_supplier(i);
+			}
+		}
+		return 0;
+	}
 	const factory_product_desc_t *get_product(uint16 i) const
 	{
 		return i < product_count ? get_child<factory_product_desc_t>(2 + supplier_count + i) : 0;
+	}
+	const factory_product_desc_t *get_product(const goods_desc_t* ware_type) const{
+		for(uint16 i = 0; i < get_product_count(); i++){
+			if(get_product(i)->get_output_type()==ware_type){
+				return get_product(i);
+			}
+		}
+		return 0;
 	}
 	const field_group_desc_t *get_field_group() const {
 		if(!fields) {

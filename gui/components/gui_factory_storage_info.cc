@@ -302,7 +302,9 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 
 	uint32 sel = line_selected;
-	FORX(const vector_tpl<koord>, k, fab_list, yoff += LINESPACE + 1) {
+	for(auto it = fab_list.begin(); it!=fab_list.end(); ++it){
+		auto k = *it;
+
 		fabrik_t *target_fab = fabrik_t::get_fab(k);
 
 		if (target_fab) {
@@ -314,24 +316,8 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 			xoff = D_POS_BUTTON_WIDTH + D_H_SPACE;
 
 			const goods_desc_t *transport_goods = goods_manager_t::none;
-			if (!is_input_display) {
-				FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
-					const goods_desc_t *inquiry_goods = product.get_typ();
-					if (target_fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
-						transport_goods = inquiry_goods;
-						break;
-					}
-				}
-			}
-			else {
-				FOR(array_tpl<ware_production_t>, const& product, target_fab->get_output()) {
-					const goods_desc_t *inquiry_goods = product.get_typ();
-					if (fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
-						transport_goods = inquiry_goods;
-						break;
-					}
-				}
-			}
+
+			transport_goods=it.get_ware().get_typ();
 
 			// [status color bar]
 			if (fab->is_staff_shortage()) {
@@ -468,7 +454,9 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 				display_blend_wh_rgb(offset.x, offset.y + yoff, size.w, LINESPACE, SYSCOL_TEXT, 20);
 			}
 		}
+		yoff += LINESPACE + 1;
 	}
+	yoff += LINESPACE + 1;
 	set_size(scr_size(400, yoff));
 }
 
