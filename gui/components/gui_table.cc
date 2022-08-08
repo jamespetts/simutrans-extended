@@ -17,7 +17,7 @@ void gui_table_cell_t::draw(scr_coord offset)
 	// border
 	if (border_bottom_right) {
 		display_fillbox_wh_clip_rgb(pos.x + offset.x, pos.y + offset.y+get_size().h-1, get_size().w, 1, border_color, true);
-		display_fillbox_wh_clip_rgb(pos.x + offset.x+ get_size().w, pos.y + offset.y, 1, get_size().h, border_color, true);
+		display_fillbox_wh_clip_rgb(pos.x + offset.x+ get_size().w-1, pos.y + offset.y, 1, get_size().h, border_color, true);
 	}
 
 	gui_label_t::draw(offset);
@@ -51,7 +51,7 @@ void gui_table_cell_buf_t::draw(scr_coord offset)
 	// border
 	if (border_bottom_right) {
 		display_fillbox_wh_clip_rgb(pos.x + offset.x, pos.y + offset.y+get_size().h-1, get_size().w, 1, border_color, true);
-		display_fillbox_wh_clip_rgb(pos.x + offset.x+ get_size().w, pos.y + offset.y, 1, get_size().h, border_color, true);
+		display_fillbox_wh_clip_rgb(pos.x + offset.x+ get_size().w-1, pos.y + offset.y, 1, get_size().h, border_color, true);
 	}
 
 	gui_label_buf_t::draw(offset);
