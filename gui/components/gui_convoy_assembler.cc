@@ -11,6 +11,7 @@
 
 #include "gui_convoy_assembler.h"
 #include "gui_colorbox.h"
+#include "gui_table.h"
 
 #include "../depot_frame.h"
 #include "../replace_frame.h"
@@ -746,8 +747,8 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				convoi.set_max_rows(1);
 				scrollx_convoi.set_maximize(true);
 				add_component(&scrollx_convoi);
+
 				cont_convoi_spec.set_table_layout(1,2);
-				cont_convoi_spec.set_margin(scr_size(0,0), scr_size(0,0));
 				// convoy length
 				cont_convoi_spec.add_table(5,1);
 				{
@@ -765,14 +766,17 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				cont_convoi_spec.end_table();
 
 				// convoy specs
-				cont_convoi_spec.add_table(4,0)->set_spacing(scr_size(D_H_SPACE, 1));
+				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
+				tbl->set_table_frame(true, true);
+				tbl->set_spacing(scr_size(D_H_SPACE,1));
+				tbl->set_margin(scr_size(2,2), scr_size(2,2));
 				{
-					cont_convoi_spec.new_component<gui_label_t>("Cost:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Cost:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_cost);
-					cont_convoi_spec.new_component<gui_label_t>("maintenance");
+					cont_convoi_spec.new_component<gui_table_header_t>("maintenance", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_maintenance);
 
-					cont_convoi_spec.new_component<gui_label_t>("Max. speed:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. speed:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_table(2,1);
 					{
 						cont_convoi_spec.add_component(&img_alert_speed);
@@ -780,10 +784,10 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 						cont_convoi_spec.add_component(&lb_convoi_speed);
 					}
 					cont_convoi_spec.end_table();
-					cont_convoi_spec.new_component<gui_label_t>("Weight:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Weight:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_weight);
 
-					cont_convoi_spec.new_component<gui_label_t>("Power:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Power:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_table(2,1);
 					{
 						img_alert_power.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4) : IMG_EMPTY, true);
@@ -791,16 +795,16 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 						cont_convoi_spec.add_component(&lb_convoi_power);
 					}
 					cont_convoi_spec.end_table();
-					cont_convoi_spec.new_component<gui_label_t>("Max. axle load:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. axle load:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_axle_load);
 
-					cont_convoi_spec.new_component<gui_label_t>("Max. brake force:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. brake force:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_brake_force);
-					cont_convoi_spec.new_component<gui_label_t>("Way wear factor");
+					cont_convoi_spec.new_component<gui_table_header_t>("Way wear factor", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_way_wear);
 
 					cont_convoi_spec.add_component(&lb_convoi_brake_distance,2);
-					cont_convoi_spec.new_component<gui_label_t>("Rolling resistance:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Rolling resistance:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_rolling_resistance);
 				}
 				cont_convoi_spec.end_table();
