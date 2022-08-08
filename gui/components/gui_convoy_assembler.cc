@@ -11,7 +11,6 @@
 
 #include "gui_convoy_assembler.h"
 #include "gui_colorbox.h"
-#include "gui_table.h"
 
 #include "../depot_frame.h"
 #include "../replace_frame.h"
@@ -768,7 +767,7 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				// convoy specs
 				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
 				tbl->set_table_frame(true, true);
-				tbl->set_spacing(scr_size(D_H_SPACE,1));
+				tbl->set_spacing(scr_size(1,1));
 				tbl->set_margin(scr_size(2,2), scr_size(2,2));
 				{
 					cont_convoi_spec.new_component<gui_table_header_t>("Cost:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
