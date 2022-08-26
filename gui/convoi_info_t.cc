@@ -668,7 +668,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 		}
 		button.enable();
 		line_button.enable();
-		details_button.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
 
 		if (!cnv->get_schedule()->empty()) {
 			const grund_t* g = welt->lookup(cnv->get_schedule()->get_current_entry().pos);
@@ -934,7 +933,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		}
 
 		if(  comp == &replace_button  )	{
-			create_win(20, 20, new replace_frame_t(cnv, get_name()), w_info, magic_replace + cnv.get_id() );
+			create_win(20, 20, new replace_frame_t(cnv), w_info, magic_replace + cnv.get_id() );
 			return true;
 		}
 

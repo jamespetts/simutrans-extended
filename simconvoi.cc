@@ -29,6 +29,7 @@
 #include "gui/convoi_info_t.h"
 #include "gui/schedule_gui.h"
 #include "gui/depot_frame.h"
+#include "gui/replace_frame.h"
 #include "gui/messagebox.h"
 #include "gui/convoi_detail_t.h"
 #include "gui/vehicle_class_manager.h"
@@ -765,6 +766,10 @@ void convoi_t::set_name(const char *name, bool with_new_id)
 		tstrncpy(name_and_id, buf, lengthof(name_and_id));
 	}
 	// now tell the windows that we were renamed
+	replace_frame_t *repl = dynamic_cast<replace_frame_t*>(win_get_magic(magic_replace + self.get_id()));
+	if (repl) {
+		repl->set_title();
+	}
 	convoi_detail_t *detail = dynamic_cast<convoi_detail_t*>(win_get_magic( magic_convoi_detail+self.get_id()));
 	if (detail) {
 		detail->update_data();
@@ -2635,7 +2640,7 @@ void convoi_t::enter_depot(depot_t *dep)
 	if(reversed)
 	{
 		// Put the convoy back into "forward" position
-		reversable = get_terminal_shunt_mode() == change_direction ? true : false;
+		reversable = get_terminal_shunt_mode(vehicle, vehicle_count) == change_direction ? true : false;
 		reverse_order(reversable);
 	}
 
@@ -3460,7 +3465,7 @@ void convoi_t::vorfahren()
 					default:
 
 
-						reversable = get_terminal_shunt_mode() == change_direction ? true : false;
+						reversable = get_terminal_shunt_mode(vehicle, vehicle_count) == change_direction ? true : false;
 
 						reverse_delay = calc_reverse_delay();
 
@@ -3754,15 +3759,6 @@ void convoi_t::reverse_order(bool rev)
 	// http://www.cprogramming.com/snippets/show.php?tip=15&count=30&page=0
 	// by John Shao (public domain work)
 
-	uint8 a = 0;
-    vehicle_t* reverse;
-	uint8 b  = vehicle_count;
-	uint8 loco_a = 0;
-	uint8 loco_b = get_front_loco_count();
-	uint8 back_a = check_new_tail(get_front_loco_count());
-	uint8 back_b = vehicle_count;
-	//bool reverse_loco = false; // If true, the locomotive number will be reverced. i.e. not using turntable
-
 	working_method_t wm = drive_by_sight;
 	if(front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
 	{
@@ -3770,69 +3766,7 @@ void convoi_t::reverse_order(bool rev)
 		wm = w->get_working_method();
 	}
 
-	front()->set_leading(false);
-	back()->set_last(false);
-
-	if (!rev)
-	{
-		//back()->set_last(false);
-		switch (get_terminal_shunt_mode()) {
-			case change_direction:
-				break;
-			case shunting_loco:
-				a = get_front_loco_count();
-				// reverse loco
-				if (!check_need_turntable()) {
-					for (; loco_a < --loco_b; loco_a++)
-					{
-						reverse = vehicle[loco_a];
-						vehicle[loco_a] = vehicle[loco_b];
-						vehicle[loco_b] = reverse;
-					}
-				}
-				break;
-			case rearrange:
-				a = get_front_loco_count();
-				b = back_a;
-				// reverse back end chunk
-				if (back_a < back_b) {
-					for (; back_a < --back_b; back_a++)
-					{
-						reverse = vehicle[back_a];
-						vehicle[back_a] = vehicle[back_b];
-						vehicle[back_b] = reverse;
-					}
-				}
-
-				// reverse loco
-				if (!check_need_turntable() && loco_b > 0) {
-					for (; loco_a < --loco_b; loco_a++)
-					{
-						reverse = vehicle[loco_a];
-						vehicle[loco_a] = vehicle[loco_b];
-						vehicle[loco_b] = reverse;
-					}
-				}
-				break;
-			case wye:
-			default:
-				// Do not change the order at all if reverse the whole convoy. i.e. consider as using wye
-				front()->set_leading(true);
-				back()->set_last(true);
-				return;
-				break;
-		}
-	}
-
-	for( ; a<--b; a++) //increment a and decrement b until they meet each other
-	{
-		reverse = vehicle[a]; //put what's in a into swap spacekarte_t::load(
-		vehicle[a] = vehicle[b]; //put what's in b into a
-		vehicle[b] = reverse; //put what's in the swap (a) into b
-	}
-
-	front()->set_leading(true);
-	back()->set_last(true);
+	execute_reverse_order(vehicle, vehicle_count, rev);
 
 	reversed = !reversed;
 	if (rev)
@@ -3840,13 +3774,91 @@ void convoi_t::reverse_order(bool rev)
 		re_ordered = !re_ordered;
 	}
 
+	set_working_method(wm);
+
+	welt->set_dirty();
+}
+
+void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev)
+{
+	uint8 a = 0;
+	vehicle_t* reverse;
+	uint8 b = vehicle_count;
+	uint8 loco_a = 0;
+	uint8 loco_b = get_front_loco_count(vehicles, vehicle_count);
+	uint8 back_a = check_new_tail(vehicles, loco_b, vehicle_count);
+	uint8 back_b = vehicle_count;
+
+	vehicles[0]->set_leading(false);
+	vehicles[vehicle_count-1]->set_last(false);
+
+	if (!rev)
+	{
+		//back()->set_last(false);
+		switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
+			case change_direction:
+				break;
+			case shunting_loco:
+				a = get_front_loco_count(vehicles, vehicle_count);
+				// reverse loco
+				if (!check_need_turntable(vehicles, vehicle_count)) {
+					for (; loco_a < --loco_b; loco_a++)
+					{
+						reverse = vehicles[loco_a];
+						vehicles[loco_a] = vehicles[loco_b];
+						vehicles[loco_b] = reverse;
+					}
+				}
+				break;
+			case rearrange:
+				a = get_front_loco_count(vehicles, vehicle_count);
+				b = back_a;
+				// reverse back end chunk
+				if (back_a < back_b) {
+					for (; back_a < --back_b; back_a++)
+					{
+						reverse = vehicles[back_a];
+						vehicles[back_a] = vehicles[back_b];
+						vehicles[back_b] = reverse;
+					}
+				}
+
+				// reverse loco
+				if (!check_need_turntable(vehicles, vehicle_count) && loco_b > 0) {
+					for (; loco_a < --loco_b; loco_a++)
+					{
+						reverse = vehicles[loco_a];
+						vehicles[loco_a] = vehicles[loco_b];
+						vehicles[loco_b] = reverse;
+					}
+				}
+				break;
+			case wye:
+			default:
+				// Do not change the order at all if reverse the whole convoy. i.e. consider as using wye
+				vehicles[0]->set_leading(true);
+				vehicles[vehicle_count-1]->set_last(true);
+				return;
+				break;
+		}
+	}
+
+	for( ; a<--b; a++) //increment a and decrement b until they meet each other
+	{
+		reverse = vehicles[a]; //put what's in a into swap spacekarte_t::load(
+		vehicles[a] = vehicles[b]; //put what's in b into a
+		vehicles[b] = reverse; //put what's in the swap (a) into b
+	}
+
+	vehicles[0]->set_leading(true);
+	vehicles[vehicle_count-1]->set_last(true);
 
 	int start = 0;
-	switch (get_terminal_shunt_mode()) {
+	switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
 		case shunting_loco:
 		case rearrange:
-			if (check_need_turntable()) {
-				start = get_front_loco_count();
+			if (check_need_turntable(vehicles, vehicle_count)) {
+				start = get_front_loco_count(vehicles, vehicle_count);
 			}
 			break;
 		case change_direction:
@@ -3855,13 +3867,12 @@ void convoi_t::reverse_order(bool rev)
 			break;
 	}
 
-	for (int i=start; i < vehicle_count; i++) {
-		vehicle[i]->set_reversed(reversed);
+	// reverse the vehicle direction
+	for (int i = start; i < vehicle_count; i++) {
+		bool reversed = vehicles[i]->is_reversed();
+		vehicles[i]->set_reversed(!reversed);
 	}
 
-	set_working_method(wm);
-
-	welt->set_dirty();
 }
 
 void convoi_t::set_working_method(working_method_t value)
@@ -7811,9 +7822,9 @@ uint32 convoi_t::calc_reverse_delay() const
 	}
 
 	uint32 reverse_delay;
-	uint8 last_loco = get_front_loco_count() - 1;
+	uint8 last_loco = get_front_loco_count(vehicle, vehicle_count) - 1;
 
-	switch (get_terminal_shunt_mode()) {
+	switch (get_terminal_shunt_mode(vehicle, vehicle_count)) {
 		case change_direction:
 			// Multiple unit or similar: quick reverse
 			reverse_delay = welt->get_settings().get_unit_reverse_time();
@@ -7823,7 +7834,7 @@ uint32 convoi_t::calc_reverse_delay() const
 			if (!(front()->get_desc()->is_bidirectional()) ||
 				(vehicle[last_loco]->get_desc()->get_basic_constraint_next(vehicle[last_loco]->is_reversed()) & vehicle_desc_t::can_be_head)==0)
 			{
-				reverse_delay = welt->get_settings().get_turntable_reverse_time()*check_need_turntable();
+				reverse_delay = welt->get_settings().get_turntable_reverse_time()*check_need_turntable(vehicle, vehicle_count);
 			}
 			else {
 				// Loco hauled, no turntable.
@@ -8596,21 +8607,23 @@ bool convoi_t::all_vehicles_are_buildable() const
 }
 
 // count the number of the front side powered chunk
-uint8 convoi_t::get_front_loco_count() const
+uint8 convoi_t::get_front_loco_count(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
 {
 	uint8 loco_count = 0;
 	bool this_group_has_power = false;
 
 	for (uint32 i = 0; i < vehicle_count; ++i)
 	{
-		if (vehicle[i]->get_desc()->get_power()) {
+		if (vehicles[i] == NULL) break;
+		const vehicle_desc_t *veh_type = vehicles[i]->get_desc();
+		if (veh_type->get_power()) {
 			this_group_has_power = true;
 		}
 		// not a locomotive group
-		if (loco_count && (vehicle[i]->get_desc()->get_capacity() || vehicle[i]->get_desc()->get_overcrowded_capacity())) {
+		if (loco_count && (veh_type->get_capacity() || veh_type->get_overcrowded_capacity())) {
 			return loco_count;
 		}
-		if ((vehicle[i]->get_desc()->get_basic_constraint_next(vehicle[i]->is_reversed()) & vehicle_desc_t::can_be_tail) && this_group_has_power) {
+		if ((veh_type->get_basic_constraint_next(vehicles[i]->is_reversed()) & vehicle_desc_t::can_be_tail) && this_group_has_power) {
 			// seems independent locomotive group. check next group...
 			loco_count = i+1;
 			this_group_has_power = false;
@@ -8620,30 +8633,32 @@ uint8 convoi_t::get_front_loco_count() const
 }
 
 
-uint8 convoi_t::get_terminal_shunt_mode() const
+
+uint8 convoi_t::get_terminal_shunt_mode(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
 {
-	if (!back()->get_desc()->is_bidirectional()) {
+	const uint8 last = vehicle_count-1;
+	if (!vehicles[last]->get_desc()->is_bidirectional()) {
 		return wye;
 	}
 
-	const bool need_turn_table = !front()->get_desc()->is_bidirectional();
+	const bool need_turn_table = !vehicles[0]->get_desc()->is_bidirectional();
 
-	if (front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
+	if (vehicles[0]->get_waytype() == track_wt || vehicles[0]->get_waytype() == tram_wt || vehicles[0]->get_waytype() == narrowgauge_wt || vehicles[0]->get_waytype() == maglev_wt || vehicles[0]->get_waytype() == monorail_wt)
 	{
 
-		if (!need_turn_table && back()->get_desc()->get_basic_constraint_next(back()->is_reversed()) & vehicle_desc_t::can_be_head)
+		if (!need_turn_table && vehicles[last]->get_desc()->get_basic_constraint_next(vehicles[last]->is_reversed()) & vehicle_desc_t::can_be_head)
 		{
 			return change_direction; // has a cab on both side. = no shunting
 		}
-		if (check_new_tail(get_front_loco_count())==0) {
+		if (check_new_tail(vehicles, get_front_loco_count(vehicles, vehicle_count), vehicle_count)==0) {
 			// can not headshunt because convoy does not have a new tail car candidate
 			return wye;
 		}
 		// well, determine the headshunting type...
 
 		// check loco's next side
-		uint8 next_loco = get_front_loco_count();
-		if (vehicle[next_loco]->get_desc()->get_basic_constraint_prev(vehicle[next_loco]->is_reversed()) & vehicle_desc_t::can_be_tail)
+		const uint8 next_loco = get_front_loco_count(vehicles, vehicle_count);
+		if (vehicles[next_loco]->get_desc()->get_basic_constraint_prev(vehicles[next_loco]->is_reversed()) & vehicle_desc_t::can_be_tail)
 		{
 			// Both sides of remain coaces/wagons are can be at the tail end
 			return shunting_loco;
@@ -8663,14 +8678,15 @@ uint8 convoi_t::get_terminal_shunt_mode() const
 // Find the next "tail" vehicle other than the locomotive, and return that car's current position(number from front).
 // Pass the number of locomotives in the argument.
 // If it returns 0, it indicates that there is no existence. @Ranran
-uint8 convoi_t::check_new_tail(uint8 start = 1) const
+uint8 convoi_t::check_new_tail(array_tpl<vehicle_t*> const &vehicles, uint8 start, uint8 vehicle_count)
 {
 	for (uint32 i = start; i < vehicle_count; ++i)
 	{
-		if (!vehicle[i]->get_desc()->is_bidirectional()) {
+		if (vehicles[i] == NULL) break;
+		if (!vehicles[i]->get_desc()->is_bidirectional()) {
 			continue;
 		}
-		if (vehicle[i]->get_desc()->get_basic_constraint_prev(vehicle[i]->is_reversed()) & vehicle_desc_t::can_be_tail) {
+		if (vehicles[i]->get_desc()->get_basic_constraint_prev(vehicles[i]->is_reversed()) & vehicle_desc_t::can_be_tail) {
 			return i;
 		}
 	}
@@ -8780,22 +8796,24 @@ uint8 convoi_t::check_couple_constraint_level(uint8 car_no, bool rear_side) cons
 
 // return powered vehicle count if the front side locomotives need a turntable. Also supports double heading.
 // 0 = turtable is not necessary
-uint8 convoi_t::check_need_turntable() const
+uint8 convoi_t::check_need_turntable(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
 {
-	if (get_terminal_shunt_mode() == wye || get_terminal_shunt_mode() == change_direction) { return 0; }
+	if (get_terminal_shunt_mode(vehicles, vehicle_count) == wye || get_terminal_shunt_mode(vehicles, vehicle_count) == change_direction) { return 0; }
 
 	uint8 one_directional_powered_veh = 0;
-	if (front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
+	if (vehicles[0]->get_waytype() == track_wt || vehicles[0]->get_waytype() == tram_wt || vehicles[0]->get_waytype() == narrowgauge_wt || vehicles[0]->get_waytype() == maglev_wt || vehicles[0]->get_waytype() == monorail_wt)
 	{
-		for (uint32 i = 0; i < get_front_loco_count(); ++i)
+		for (uint32 i = 0; i < get_front_loco_count(vehicles, vehicle_count); ++i)
 		{
-			if (!vehicle[i]->get_desc()->is_bidirectional() && vehicle[i]->get_desc()->get_power()) {
+			if (vehicles[i] == NULL) break;
+			if (!vehicles[i]->get_desc()->is_bidirectional() && vehicles[i]->get_desc()->get_power()) {
 				one_directional_powered_veh++;
 			}
 		}
 	}
 	return one_directional_powered_veh;
 }
+
 
 sint16 convoi_t::get_car_numbering(uint8 car_no) const
 {
@@ -8815,7 +8833,7 @@ sint16 convoi_t::get_car_numbering(uint8 car_no) const
 		else {
 			// Check the front side connection..
 			// It is the same group if each other's intermediate side.
-			if (normal_car_cnt || get_front_loco_count() <= veh) {
+			if (normal_car_cnt || get_front_loco_count(vehicle, vehicle_count) <= veh) {
 				// NOTE: unpowered chunk is not considered locomotive group
 				normal_car_cnt++;
 			}
@@ -8826,8 +8844,8 @@ sint16 convoi_t::get_car_numbering(uint8 car_no) const
 	}
 
 	if (loco_cnt == car_no) {
-		if (reversed && !check_need_turntable()) {
-			return -(get_front_loco_count()-car_no+1);
+		if (reversed && !check_need_turntable(vehicle, vehicle_count)) {
+			return -(get_front_loco_count(vehicle, vehicle_count)-car_no+1);
 		}
 		return -loco_cnt;
 	}

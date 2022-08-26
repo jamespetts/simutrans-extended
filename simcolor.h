@@ -106,13 +106,6 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define COL_INACTIVE        color_idx_to_rgb(COL_GREY3)
 
 #define COL_IN_TRANSIT      color_idx_to_rgb(COL_YELLOW)
-#define COL_STAFF_SHORTAGE  color_idx_to_rgb(COL_DARK_ORCHID)
-
-// used in vehicle status
-#define COL_UPGRADEABLE       color_idx_to_rgb(COL_PURPLE)
-#define COL_OBSOLETE          SYSCOL_OBSOLETE
-#define COL_OUT_OF_PRODUCTION SYSCOL_OUT_OF_PRODUCTION
-//#define COL_OVERCROWDED     color_idx_to_rgb(COL_DARK_PURPLE)
 
 // used in many dialogues' graphs
 #define COL_REVENUE         142
@@ -197,8 +190,14 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_SHADOW                       gui_theme_t::gui_shadow_color
 #define SYSCOL_LOADINGBAR_INNER             gui_theme_t::gui_color_loadingbar_inner
 #define SYSCOL_LOADINGBAR_PROGRESS          gui_theme_t::gui_color_loadingbar_progress
+#define SYSCOL_LIVERY_SCHEME                gui_theme_t::gui_color_livery_scheme
+#define SYSCOL_MIXLOAD_PROHIBITION          gui_theme_t::gui_color_mixload_prohibition
 #define SYSCOL_OBSOLETE                     gui_theme_t::gui_color_obsolete
 #define SYSCOL_OUT_OF_PRODUCTION            gui_theme_t::gui_color_out_of_production
+#define SYSCOL_OVERCROWDED                  gui_theme_t::gui_color_overcrowded
+#define SYSCOL_STAFF_SHORTAGE               gui_theme_t::gui_color_staff_shortage
+#define SYSCOL_TRACTION_TYPE                gui_theme_t::gui_color_traction_type
+#define SYSCOL_UPGRADEABLE                  gui_theme_t::gui_color_upgradeable
 #define SYSCOL_EMPTY                        gui_theme_t::gui_color_empty
 #define SYSCOL_UP_TRIANGLE                  gui_theme_t::gui_color_up_pointing_triangle
 #define SYSCOL_DOWN_TRIANGLE                gui_theme_t::gui_color_down_pointing_triangle

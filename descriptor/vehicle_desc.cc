@@ -243,7 +243,7 @@ void vehicle_desc_t::fix_number_of_classes()
 	fix_basic_constraint();
 	// We can call this safely since we fixed the number of classes
 	// stored in the good desc earlier when registering it.
-	uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
 
 	if (actual_number_of_classes == 0)
 	{
@@ -454,6 +454,30 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 		}
 	}
 	return upgrade_state;
+}
+
+uint8 vehicle_desc_t::get_min_accommodation_class() const
+{
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	for (uint8 i = 0; i < actual_number_of_classes; i++)
+	{
+		if (capacity[i]>0) {
+			return i+1;
+		}
+	}
+	return 0;
+}
+
+uint8 vehicle_desc_t::get_max_accommodation_class() const
+{
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	for (uint8 i = 0; i < actual_number_of_classes; i++)
+	{
+		if (capacity[actual_number_of_classes-i-1] > 0) {
+			return (actual_number_of_classes-i-1);
+		}
+	}
+	return 0;
 }
 
 const char* vehicle_desc_t::get_accommodation_name(uint8 a_class) const

@@ -65,6 +65,8 @@
 #include "loadsoundfont_frame.h"
 #endif
 #include "scenario_info.h"
+#include "depot_frame.h"
+#include "replace_frame.h"
 #include "depotlist_frame.h"
 #include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
@@ -642,7 +644,7 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_soundfont:      w = new loadsoundfont_frame_t(); break;
 #endif
 					case magic_scenario_info:  w = new scenario_info_t(); break;
-					//case magic_depot:          w = new depot_frame_t(); break;
+					case magic_depot:          w = new depot_frame_t(); break;
 					case magic_convoi_list:    w = new convoi_frame_t(); break;
 					case magic_depotlist:      w = new depotlist_frame_t(); break;
 					case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
@@ -668,6 +670,9 @@ void rdwr_all_win(loadsave_t *file)
 						}
 						else if (id >= magic_depotlist && id < magic_depotlist + MAX_PLAYER_COUNT) {
 							w = new depotlist_frame_t(wl->get_player(id - magic_depotlist));
+						}
+						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
+							w = new replace_frame_t();
 						}
 						else {
 							dbg->error( "rdwr_all_win()", "No idea how to restore magic 0x%X", id );

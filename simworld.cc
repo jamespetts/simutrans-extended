@@ -5483,7 +5483,7 @@ void karte_t::recalc_average_speed(bool skip_messages)
 					{
 						cbuffer_t buf;
 						buf.printf(translator::translate("The following %s has become obsolete:\n%s\n"), vehicle_type, translator::translate(info->get_name()));
-						msg->add_message(buf, koord::invalid, message_t::new_vehicle, COL_OBSOLETE, info->get_base_image());
+						msg->add_message(buf, koord::invalid, message_t::new_vehicle, SYSCOL_OBSOLETE, info->get_base_image());
 					}
 				}
 			}

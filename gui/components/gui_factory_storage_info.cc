@@ -302,7 +302,9 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 
 
 	uint32 sel = line_selected;
-	for(auto k : fab_list){
+	for(auto it = fab_list.begin(); it!=fab_list.end(); ++it){
+		auto k = *it;
+
 		fabrik_t *target_fab = fabrik_t::get_fab(k);
 
 		if (target_fab) {
@@ -314,28 +316,12 @@ void gui_factory_connection_stat_t::draw(scr_coord offset)
 			xoff = D_POS_BUTTON_WIDTH + D_H_SPACE;
 
 			const goods_desc_t *transport_goods = goods_manager_t::none;
-			if (!is_input_display) {
-				FOR(array_tpl<ware_production_t>, const& product, fab->get_output()) {
-					const goods_desc_t *inquiry_goods = product.get_typ();
-					if (target_fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
-						transport_goods = inquiry_goods;
-						break;
-					}
-				}
-			}
-			else {
-				FOR(array_tpl<ware_production_t>, const& product, target_fab->get_output()) {
-					const goods_desc_t *inquiry_goods = product.get_typ();
-					if (fab->get_desc()->get_accepts_these_goods(inquiry_goods)) {
-						transport_goods = inquiry_goods;
-						break;
-					}
-				}
-			}
+
+			transport_goods=it.get_ware().get_typ();
 
 			// [status color bar]
 			if (fab->is_staff_shortage()) {
-				display_ddd_box_clip_rgb(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 2, D_INDICATOR_WIDTH / 2, D_INDICATOR_HEIGHT + 2, COL_STAFF_SHORTAGE, COL_STAFF_SHORTAGE);
+				display_ddd_box_clip_rgb(offset.x + xoff, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 2, D_INDICATOR_WIDTH / 2, D_INDICATOR_HEIGHT + 2, SYSCOL_STAFF_SHORTAGE, SYSCOL_STAFF_SHORTAGE);
 			}
 			PIXVAL col_val = color_idx_to_rgb(fabrik_t::status_to_color[target_fab->get_status()]);
 			display_fillbox_wh_clip_rgb(offset.x + xoff + 1, offset.y + yoff + GOODS_COLOR_BOX_YOFF + 3, D_INDICATOR_WIDTH / 2 - 1, D_INDICATOR_HEIGHT, col_val, true);

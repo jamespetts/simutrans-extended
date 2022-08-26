@@ -4893,9 +4893,9 @@ Settings
 remove channels
 Remove waterways
 replace all in line
-Replace all in line
+Replace all of this type in line
 replace all
-Replace all
+Replace all of this type
 Abspanntransformator
 Downstream substation
 Aufspanntransformator
@@ -6404,6 +6404,10 @@ Path Remove
 Remove path
 Flatten Path
 Flatten path
+\nMUST USE: 
+MUST USE:
+\nMAY USE: 
+MAY USE:
 Low bridge
 Low bridge/tunnel
 Depth Limit
@@ -6442,3 +6446,33 @@ fare_management_by_vehicle
 By vehicle
 fare_management_by_accommo
 By accommodation
+hlptxt_vh_normal_state
+Ready and available
+need to connect vehicle
+Coupling required
+out of production
+No longer in production
+became obsolete
+Obsolete
+cannot select
+Cannot be selected
+lack of money
+Cannot afford this
+axle weight is excessive
+Exceeds axle weight limit
+appears only in upgrades
+Only available as an upgrade
+cannot upgrade
+Cannot upgrade
+Only this convoy
+Only this convoy
+(Max. comfortable journey time: 
+Max. comfortable journey time: 
+switch_spec_display_mode
+Show 
+basic_spec
+Specifications
+secondary_spec
+Livery schemes
+Do not add vehicles over maximum length!
+Maximum length reached

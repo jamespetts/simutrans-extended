@@ -32,6 +32,7 @@ public:
 	enum sort_mode_t {
 		by_name = 0,
 		by_line,
+		by_home_depot,
 		by_profit,
 		by_type,
 		by_id,

@@ -332,6 +332,11 @@ Image[0]=> symbols.4.2
 #################################################################
 -------
 Obj=menu
+name=Search
+copyright=Ranran
+Image[0]=> symbols.6.1
+-------
+Obj=menu
 name=OpenWindow
 copyright=Ranran
 Image[0]=> button-symbols.0.0

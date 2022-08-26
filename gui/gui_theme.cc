@@ -61,9 +61,15 @@ PIXVAL gui_theme_t::gui_highlight_color;
 PIXVAL gui_theme_t::gui_shadow_color;
 PIXVAL gui_theme_t::gui_color_loadingbar_inner;
 PIXVAL gui_theme_t::gui_color_loadingbar_progress;
+PIXVAL gui_theme_t::gui_color_livery_scheme;
+PIXVAL gui_theme_t::gui_color_mixload_prohibition;
 PIXVAL gui_theme_t::gui_color_obsolete;
-PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_out_of_production;
+PIXVAL gui_theme_t::gui_color_overcrowded;
+PIXVAL gui_theme_t::gui_color_staff_shortage;
+PIXVAL gui_theme_t::gui_color_traction_type;
+PIXVAL gui_theme_t::gui_color_upgradeable;
+PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_empty;
 PIXVAL gui_theme_t::gui_color_up_pointing_triangle;
 PIXVAL gui_theme_t::gui_color_down_pointing_triangle;
@@ -196,8 +202,14 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_loadingbar_inner             = color_idx_to_rgb(COL_GREY5);
 	gui_color_loadingbar_progress          = color_idx_to_rgb(COL_SOFT_BLUE);
 
+	gui_color_livery_scheme                = color_idx_to_rgb(51);
+	gui_color_mixload_prohibition          = color_idx_to_rgb(COL_BRONZE);
 	gui_color_obsolete                     = color_idx_to_rgb(COL_DARK_BLUE);
 	gui_color_out_of_production            = color_idx_to_rgb(COL_SOFT_BLUE);
+	gui_color_overcrowded                  = color_idx_to_rgb(COL_PURPLE-1);
+	gui_color_staff_shortage               = color_idx_to_rgb(COL_DARK_ORCHID);
+	gui_color_upgradeable                  = color_idx_to_rgb(COL_PURPLE);
+	gui_color_traction_type                = color_idx_to_rgb(149);
 	gui_color_empty                        = color_idx_to_rgb(COL_WHITE);
 
 	gui_color_up_pointing_triangle         = color_idx_to_rgb(COL_LIGHT_TURQUOISE);
@@ -588,8 +600,14 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_shadow_color                       = (PIXVAL)contents.get_color("gui_shadow_color", SYSCOL_SHADOW);
 	gui_theme_t::gui_color_loadingbar_inner             = (PIXVAL)contents.get_color("gui_color_loadingbar_inner", SYSCOL_LOADINGBAR_INNER);
 	gui_theme_t::gui_color_loadingbar_progress          = (PIXVAL)contents.get_color("gui_color_loadingbar_progress", SYSCOL_LOADINGBAR_PROGRESS);
+	gui_theme_t::gui_color_livery_scheme                = (PIXVAL)contents.get_color("gui_color_livery_scheme", SYSCOL_LIVERY_SCHEME);
+	gui_theme_t::gui_color_mixload_prohibition          = (PIXVAL)contents.get_color("gui_color_mixload_prohibition", SYSCOL_MIXLOAD_PROHIBITION);
 	gui_theme_t::gui_color_obsolete                     = (PIXVAL)contents.get_color("gui_color_obsolete", SYSCOL_OBSOLETE);
 	gui_theme_t::gui_color_out_of_production            = (PIXVAL)contents.get_color("gui_color_out_of_production", SYSCOL_OUT_OF_PRODUCTION);
+	gui_theme_t::gui_color_overcrowded                  = (PIXVAL)contents.get_color("gui_color_overcrowded", SYSCOL_OVERCROWDED);
+	gui_theme_t::gui_color_staff_shortage               = (PIXVAL)contents.get_color("gui_color_staff_shortage", SYSCOL_STAFF_SHORTAGE);
+	gui_theme_t::gui_color_traction_type                = (PIXVAL)contents.get_color("gui_color_traction_type", SYSCOL_TRACTION_TYPE);
+	gui_theme_t::gui_color_upgradeable                  = (PIXVAL)contents.get_color("gui_color_upgradeable", SYSCOL_UPGRADEABLE);
 	gui_theme_t::gui_color_empty                        = (PIXVAL)contents.get_color("gui_color_empty", SYSCOL_EMPTY);
 	gui_theme_t::gui_color_chat_window_network_transparency = (PIXVAL)contents.get_color("gui_color_chat_window_network_transparency", gui_color_chat_window_network_transparency);
 	gui_theme_t::gui_color_up_pointing_triangle         = (PIXVAL)contents.get_color("gui_color_up_pointing_triangle", SYSCOL_UP_TRIANGLE);

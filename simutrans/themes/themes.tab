@@ -177,6 +177,7 @@ gui_color_obsolete       = #0000F8
 #gui_color_edit_background_selected         = #000000
 # blinking cursor
 #gui_color_edit_beam                        = #000000
+gui_color_text_placeholder                  = #CCCCCC
 
 #gui_color_list_text_selected_focus         = #000000
 #gui_color_list_text_selected_nofocus       = #000000

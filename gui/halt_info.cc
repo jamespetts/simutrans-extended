@@ -278,7 +278,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 	}
 	else {
 		bool got_one = false;
-		bool overcrowded = (halt->get_status_color(catg_index==goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2)==color_idx_to_rgb(COL_OVERCROWD));
+		bool overcrowded = (halt->get_status_color(catg_index==goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2)==SYSCOL_OVERCROWDED);
 
 		for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
 			const goods_desc_t *wtyp = goods_manager_t::get_info(j);
@@ -295,7 +295,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				buf.clear();
 				buf.printf("%d ", sum);
-				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT, true);
+				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT, true);
 				xoff += D_H_SPACE;
 				got_one = true;
 			}
@@ -421,7 +421,7 @@ void gui_halt_capacity_bar_t::draw(scr_coord offset)
 	// transferring (to this station) bar
 	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min(100, (transship_in_sum + wainting_sum) * 100 / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
 
-	const PIXVAL col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : COL_CLEAR;
+	const PIXVAL col = overcrowded ? SYSCOL_OVERCROWDED : COL_CLEAR;
 	uint8 waiting_factor = min(100, wainting_sum * 100 / capacity);
 
 	display_cylinderbar_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH * waiting_factor / 100, 6, col, true);
@@ -1296,7 +1296,7 @@ void halt_info_t::update_cont_departure()
 					}
 				}
 				else {
-					const PIXVAL textcol = hi.cnv->get_no_load() ? SYSCOL_TEXT_INACTIVE : hi.cnv->has_obsolete_vehicles() ? COL_OBSOLETE : hi.cnv->get_overcrowded() ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT;
+					const PIXVAL textcol = hi.cnv->get_no_load() ? SYSCOL_TEXT_INACTIVE : hi.cnv->has_obsolete_vehicles() ? SYSCOL_OBSOLETE : hi.cnv->get_overcrowded() ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 					cont_departure.new_component<gui_label_t>(hi.cnv->get_internal_name(), textcol);
 				}
 

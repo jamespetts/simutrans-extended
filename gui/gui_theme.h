@@ -255,8 +255,14 @@ public:
 	static PIXVAL gui_shadow_color;                       //@< Color to draw shadowed dividers (tabs)
 	static PIXVAL gui_color_loadingbar_inner;
 	static PIXVAL gui_color_loadingbar_progress;
+	static PIXVAL gui_color_livery_scheme;                //@< Color for livery scheme
+	static PIXVAL gui_color_mixload_prohibition;          //@< Color for mixload prohibition
 	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
 	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
+	static PIXVAL gui_color_overcrowded;                  //@< Color for overcrowded halt/convoy/vehicle
+	static PIXVAL gui_color_staff_shortage;               //@< Color for staff shortage
+	static PIXVAL gui_color_traction_type;                //@< Color for vehicle/depot traction type
+	static PIXVAL gui_color_upgradeable;                  //@< Color for vehicles with available upgrades
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
 	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number

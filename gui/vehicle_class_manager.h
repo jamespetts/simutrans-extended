@@ -76,8 +76,12 @@ class accommodation_summary_t
 public:
 	void clear() { accommo_list.clear(); }
 	void add_vehicle(vehicle_t *veh);
+	void add_vehicle_desc(const vehicle_desc_t* veh_type);
 	void add_convoy(convoihandle_t cnv);
 	void add_line(linehandle_t line);
+
+	// execute sorting by catg_index
+	void sort();
 
 	const slist_tpl<accommodation_info_t>& get_accommodations() const { return accommo_list; }
 };

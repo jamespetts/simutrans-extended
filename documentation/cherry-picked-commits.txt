@@ -1,7 +1,12 @@
 *=partially
+8344
+
+8569
+
+8922
 
 9404
-
+====Not exactly checked before here====
 9700
 9701
 9705

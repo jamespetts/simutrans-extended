@@ -23,7 +23,7 @@ void gui_convoy_payloadinfo_t::draw(scr_coord offset)
 		uint16 left = 0;
 		cbuffer_t buf;
 		const bool overcrowded = cnv->get_overcrowded() ? true : false;
-		PIXVAL text_col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD - 1) : SYSCOL_TEXT;
+		PIXVAL text_col = overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 
 		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
 		{

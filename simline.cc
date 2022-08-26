@@ -752,7 +752,7 @@ void simline_t::recalc_status()
 						if (v->get_desc()->get_upgrades(k) && !v->get_desc()->get_upgrades(k)->is_future(month_now))
 						{
 							state |= line_has_upgradeable_vehicles;
-							if (!skinverwaltung_t::upgradable) state_color = COL_UPGRADEABLE;
+							if (!skinverwaltung_t::upgradable) state_color = SYSCOL_UPGRADEABLE;
 						}
 					}
 				}
@@ -762,7 +762,7 @@ void simline_t::recalc_status()
 			{
 				state |= line_has_obsolete_vehicles;
 				// obsolete has priority over upgradeable (only for color)
-				state_color = COL_OBSOLETE;
+				state_color = SYSCOL_OBSOLETE;
 			}
 
 			if (i->get_state() == convoi_t::NO_ROUTE || i->get_state() == convoi_t::NO_ROUTE_TOO_COMPLEX || i->get_state() == convoi_t::OUT_OF_RANGE)
@@ -903,6 +903,19 @@ void simline_t::calc_classes_carried()
 	}
 }
 
+
+uint16 simline_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
+{
+	uint16 capacity = 0;
+	for (uint32 i = 0; i < line_managed_convoys.get_count(); i++) {
+		convoihandle_t const convoy = line_managed_convoys[i];
+		// we do not want to count the capacity of depot convois
+		if (!convoy->in_depot()) {
+			capacity += convoy->get_unique_fare_capacity(catg, g_class);
+		}
+	}
+	return capacity;
+}
 
 // recalc what good this line is moving
 void simline_t::recalc_catg_index()

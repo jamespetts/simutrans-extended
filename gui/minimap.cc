@@ -1757,7 +1757,7 @@ void minimap_t::draw(scr_coord pos)
 		}
 
 		int radius = 0;
-		PIXVAL color;
+		PIXVAL color = is_dark_color(SYSCOL_OVERCROWDED) ? display_blend_colors(SYSCOL_OVERCROWDED, color_idx_to_rgb(COL_WHITE), 10) : SYSCOL_OVERCROWDED;
 		int diagonal_dist = 0;
 		scr_coord temp_stop = map_to_screen_coord( station->get_basis_pos() );
 		temp_stop = temp_stop + pos;
@@ -1779,7 +1779,6 @@ void minimap_t::draw(scr_coord pos)
 			color = calc_severity_color_log( waiting*9, max(10, station->get_capacity(0)*10) );
 			if(  waiting*10 > max(10, station->get_capacity(0)*11) ) {
 				// When the rate exceeds 110%, it turns purple.
-				color = color_idx_to_rgb(COL_OVERCROWD+1);
 			}
 			radius = number_to_radius( waiting );
 		}
@@ -1788,9 +1787,8 @@ void minimap_t::draw(scr_coord pos)
 			if(  waiting > max_waiting_mail  ) {
 				max_waiting_mail = waiting;
 			}
-			color = calc_severity_color_log( waiting*9, max(10, station->get_capacity(1)*10) );
-			if(  waiting*10 > max(10, station->get_capacity(1)*11) ) {
-				color = color_idx_to_rgb(COL_OVERCROWD+1);
+			if(  waiting*10 <= max(10, station->get_capacity(1)*11) ) {
+				color = calc_severity_color_log( waiting*9, max(10, station->get_capacity(1)*10) );
 			}
 			radius = number_to_radius( waiting );
 		}
@@ -1799,9 +1797,8 @@ void minimap_t::draw(scr_coord pos)
 			if(  waiting_goods > max_waiting_goods  ) {
 				max_waiting_goods = waiting_goods;
 			}
-			color = calc_severity_color_log( waiting_goods*9, max(10, station->get_capacity(2)*10) );
-			if(  waiting_goods*10 > max(10, station->get_capacity(2)*11) ) {
-				color = color_idx_to_rgb(COL_OVERCROWD+1);
+			if(  waiting_goods*10 <= max(10, station->get_capacity(2)*11) ) {
+				color = calc_severity_color_log( waiting_goods*9, max(10, station->get_capacity(2)*10) );
 			}
 			radius = number_to_radius( waiting_goods*3 );
 		}

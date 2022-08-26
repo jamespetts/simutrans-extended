@@ -605,6 +605,11 @@ public:
 	bool can_follow_any() const { return trailer_count==0; }
 
 	uint8 get_number_of_classes() const { return classes; }
+
+	// for sorting. 0=no seat capacity
+	uint8 get_min_accommodation_class() const;
+	uint8 get_max_accommodation_class() const;
+
 	uint16 get_capacity(uint32 g_class = 0) const { return classes == 0 ? 0 : g_class >= classes ? capacity[0] : capacity[g_class]; }
 	uint16 get_total_capacity() const
 	{

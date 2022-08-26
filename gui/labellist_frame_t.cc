@@ -9,6 +9,7 @@
 #include "../dataobj/translator.h"
 #include "../obj/label.h"
 #include "../simworld.h"
+#include "components/gui_image.h"
 
 char labellist_frame_t::name_filter[256];
 
@@ -36,8 +37,14 @@ labellist_frame_t::labellist_frame_t() :
 
 		add_table(2, 1);
 		{
-			new_component<gui_label_t>("Filter:");
+			if( skinverwaltung_t::search ) {
+				new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+			}
+			else {
+				new_component<gui_label_t>("Filter:");
+			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			name_filter_input.set_search_box(true);
 			add_component(&name_filter_input);
 		}
 		end_table();

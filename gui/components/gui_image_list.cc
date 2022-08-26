@@ -81,7 +81,7 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 
 	if (focus >= 0) {
 		// This need to draw first because it will overlap the left vehicle
-		display_blend_wh_rgb(xpos + grid.x*focus + 1, ypos + 1, grid.x - 2, grid.y - 2, COL_UPGRADEABLE, 25);
+		display_blend_wh_rgb(xpos + grid.x*focus + 1, ypos + 1, grid.x - 2, grid.y - 2, SYSCOL_UPGRADEABLE, 25);
 	}
 
 	FOR(vector_tpl<image_data_t*>, const& iptr, *images) {

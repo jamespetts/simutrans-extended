@@ -74,11 +74,11 @@ jobs:
         - os: linux
           buildtype: linux
           backend: sdl2
-        - os: macos
-          buildtype: mac
-          backend: sdl2
+#        - os: macos
+#          buildtype: mac
+#          backend: sdl2
         - os: windows
-          buildtype: mingw
+          buildtype: windows
           backend: sdl2
           suffix: .exe
     steps:
@@ -92,10 +92,10 @@ jobs:
       - name: Prepare Deployment
         run: |
           mkdir ./${{matrix.os}}
-          cp ./artifacts/sim-${{matrix.buildtype}}-${{matrix.backend}}-nightly/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
-          cp ./artifacts/sim-${{matrix.buildtype}}-posix-nightly/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
-          cp ./artifacts/makeobj-${{matrix.buildtype}}-nightly/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
-          cp ./artifacts/nettool-${{matrix.buildtype}}-nightly/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
+          cp ./artifacts/simutrans-${{matrix.buildtype}}-${{matrix.backend}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
+          cp ./artifacts/simutrans-${{matrix.buildtype}}-posix/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
+          cp ./artifacts/makeobj-${{matrix.buildtype}}/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
+          cp ./artifacts/nettool-${{matrix.buildtype}}/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
 
       - run: zip -r ./${{matrix.os}}.zip ./${{matrix.os}}/
 
@@ -111,7 +111,6 @@ jobs:
   update-paks:
     runs-on: ubuntu-latest
     needs: check-updates #paksets pulling makeobj directly from the artifacts, no need to wait for deploy-bin
-    #if: always() #Wait for deploy-bin to have finished, no matter if successful, failed or skipped
     strategy:
       matrix:
         include:

@@ -90,56 +90,6 @@ public:
 
 class gui_halt_service_info_t : public gui_aligned_container_t, public action_listener_t
 {
-	/**
-     * Button to open line window
-     */
-	class gui_line_button_t : public button_t, public action_listener_t
-	{
-		linehandle_t line;
-	public:
-		gui_line_button_t(linehandle_t line) : button_t()
-		{
-			this->line = line;
-			init(button_t::posbutton, NULL);
-			add_listener(this);
-		}
-
-		bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE
-		{
-			player_t *player = world()->get_active_player();
-			if (player == line->get_owner()) {
-				player->simlinemgmt.show_lineinfo(player, line);
-			}
-			return true;
-		}
-
-		void draw(scr_coord offset) OVERRIDE
-		{
-			if (line->get_owner() == world()->get_active_player()) {
-				button_t::draw(offset);
-			}
-		}
-	};
-	/**
-	 * Button to open convoi window
-	 */
-	class gui_convoi_button_t : public button_t, public action_listener_t
-	{
-		convoihandle_t convoi;
-	public:
-		gui_convoi_button_t(convoihandle_t convoi) : button_t() {
-			this->convoi = convoi;
-			init(button_t::posbutton, NULL);
-			add_listener(this);
-		}
-
-		bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE {
-			convoi->show_info();
-			return true;
-		}
-	};
-
-private:
 	gui_aligned_container_t container;
 	gui_scrollpane_t scrolly;
 

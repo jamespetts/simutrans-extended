@@ -4,7 +4,7 @@ target_sources(simutrans-extended PRIVATE
 	bauer/goods_manager.cc
 	bauer/hausbauer.cc
 	bauer/pier_builder.cc
-  bauer/tunnelbauer.cc
+	bauer/tunnelbauer.cc
 	bauer/tree_builder.cc
 	bauer/vehikelbauer.cc
 	bauer/wegbauer.cc
@@ -13,7 +13,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/fundament.cc
 	boden/grund.cc
 	boden/monorailboden.cc
-  boden/pier_deck.cc
+	boden/pier_deck.cc
 	boden/tunnelboden.cc
 	boden/wasser.cc
 	boden/wege/kanal.cc
@@ -53,7 +53,7 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/ground_desc.cc
 	descriptor/image.cc
 	descriptor/obj_base_desc.cc
-  descriptor/pier_desc.cc
+	descriptor/pier_desc.cc
 	descriptor/reader/bridge_reader.cc
 	descriptor/reader/building_reader.cc
 	descriptor/reader/citycar_reader.cc
@@ -69,7 +69,7 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/reader/obj_reader.cc
 	descriptor/reader/pedestrian_reader.cc
 	descriptor/reader/pier_reader.cc
-  descriptor/reader/roadsign_reader.cc
+	descriptor/reader/roadsign_reader.cc
 	descriptor/reader/root_reader.cc
 	descriptor/reader/sim_reader.cc
 	descriptor/reader/skin_reader.cc
@@ -112,7 +112,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_convoiinfo.cc
 	gui/components/gui_convoy_assembler.cc
 	gui/components/gui_convoy_formation.cc
-	gui/components/gui_convoy_label.cc
 	gui/components/gui_convoy_payloadinfo.cc
 	gui/components/gui_divider.cc
 	gui/components/gui_factory_storage_info.cc
@@ -175,6 +174,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
+	gui/linelist_stats_t.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
@@ -195,7 +195,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/pakselector.cc
 	gui/password_frame.cc
 	gui/pier_rotation_select.cc
-  gui/player_frame_t.cc
+	gui/player_frame_t.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc
@@ -257,7 +257,7 @@ target_sources(simutrans-extended PRIVATE
 	obj/label.cc
 	obj/leitung2.cc
 	obj/pier.cc
-  obj/pillar.cc
+	obj/pillar.cc
 	obj/roadsign.cc
 	obj/signal.cc
 	obj/simobj.cc

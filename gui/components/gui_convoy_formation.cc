@@ -60,7 +60,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 	const uint16 month_now = welt->get_timeline_year_month();
 	const uint16 grid_width = D_BUTTON_WIDTH / 3;
 
-	uint8 color;
+	PIXVAL colval;
 	cbuffer_t buf;
 
 	for (unsigned veh = 0; veh < cnv->get_vehicle_count(); ++veh) {
@@ -76,18 +76,18 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 			int found = 0;
 			for (int i = 0; i < v->get_desc()->get_number_of_classes(); i++) {
 				if (v->get_accommodation_capacity(i) > 0) {
-					color = COL_GREEN;
+					colval = COL_SAFETY;
 					if (!v->get_total_cargo_by_class(i)) {
-						color = COL_YELLOW; // empty
+						colval = COL_CAUTION; // empty
 					}
 					else if (v->get_fare_capacity(v->get_reassigned_class(i)) == v->get_total_cargo_by_class(i)) {
-						color = COL_ORANGE;
+						colval = COL_WARNING;
 					}
 					else if (v->get_fare_capacity(v->get_reassigned_class(i)) < v->get_total_cargo_by_class(i)) {
-						color = COL_OVERCROWD;
+						colval = SYSCOL_OVERCROWDED;
 					}
 					// [loading indicator]
-					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
+					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, colval, true);
 					bar_offset_left += bar_width + 1;
 					found++;
 					if (found == v->get_number_of_fare_classes()) {
@@ -115,7 +115,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 			buf.append(car_number);
 		}
 
-		scr_coord_val left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
+		scr_coord_val left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? SYSCOL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
 #ifdef DEBUG
 		if (v->is_reversed()) {
 			display_proportional_clip_rgb(offset.x + 2 + left, offset.y - 2, "*", ALIGN_LEFT, COL_CAUTION, true);
@@ -127,9 +127,9 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		(void)left;
 #endif
 
-		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? SYSCOL_OUT_OF_PRODUCTION : COL_SAFETY;
 		if (v->get_desc()->is_obsolete(month_now)) {
-			col_val = COL_OBSOLETE;
+			col_val = SYSCOL_OBSOLETE;
 		}
 		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
 		display_veh_form_wh_clip_rgb(offset.x + (grid_width-6)/2 + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
@@ -174,7 +174,7 @@ scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 		cbuffer_t buf;
 
 		const bool overcrowded = cnv->get_overcrowded() ? true : false;
-		PIXVAL text_col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD - 1) : SYSCOL_TEXT;
+		PIXVAL text_col = overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 
 		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
 		{

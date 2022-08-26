@@ -234,6 +234,7 @@ public:
 		bool operator ==(iterator const& o) const {return ware_iterator==o.ware_iterator && koord_iterator==o.koord_iterator;}
 		bool operator !=(iterator const& o) const {return ware_iterator!=o.ware_iterator || koord_iterator!=o.koord_iterator;}
 
+		ware_production_t& get_ware() {return *ware_iterator;}
 
 	private:
 		array_tpl<ware_production_t>::iterator ware_iterator;

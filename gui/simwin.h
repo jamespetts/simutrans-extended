@@ -129,6 +129,7 @@ enum magic_numbers {
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
 	magic_signalboxlist,
 	magic_pier_rotation_select,
+	magic_depot, // only used to load/save
 	magic_max
 };
 

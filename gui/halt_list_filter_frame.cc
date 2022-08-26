@@ -80,6 +80,7 @@ halt_list_filter_frame_t::halt_list_filter_frame_t(player_t *player, halt_list_f
 
 		name_filter_input.set_text(main_frame->access_name_filter(), 30);
 		name_filter_input.add_listener(this);
+		name_filter_input.set_search_box(true);
 		add_component(&name_filter_input);
 
 		// type and special buttons

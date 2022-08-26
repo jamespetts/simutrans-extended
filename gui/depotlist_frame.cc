@@ -24,9 +24,9 @@
 #include "../boden/wege/strasse.h"
 #include "../bauer/vehikelbauer.h"
 
-enum sort_mode_t { by_waytype, by_convoys, by_vehicle, by_coord, by_region, SORT_MODES };
+enum sort_mode_t { by_name, by_waytype, by_convoys, by_vehicle, by_coord, by_region, SORT_MODES };
 
-uint8 depotlist_stats_t::sort_mode = by_waytype;
+uint8 depotlist_stats_t::sort_mode = by_name;
 bool depotlist_stats_t::reverse = false;
 uint16 depotlist_stats_t::name_width = D_LABEL_WIDTH;
 uint8 depotlist_frame_t::selected_tab = 0;
@@ -204,8 +204,15 @@ bool depotlist_stats_t::compare(const gui_component_t *aa, const gui_component_t
 		}
 		break;
 
+	case by_name:
+		cmp = strcmp(a->get_name(), b->get_name());
+		break;
+
 	case by_waytype:
 		cmp = a->get_waytype() - b->get_waytype();
+		if (cmp == 0) {
+			cmp = strcmp(a->get_name(), b->get_name());
+		}
 		break;
 
 	case by_convoys:
@@ -236,6 +243,7 @@ bool depotlist_stats_t::compare(const gui_component_t *aa, const gui_component_t
 
 
 static const char *sort_text[SORT_MODES] = {
+	"hl_btn_sort_name",
 	"waytype",
 	"convoys stored",
 	"vehicles stored",
@@ -369,10 +377,8 @@ void depotlist_frame_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(sort_order.pressed);
 	uint8 s = depotlist_stats_t::sort_mode;
 	file->rdwr_byte(s);
-	if( file->is_version_ex_atleast(14,41) ) {
-		file->rdwr_byte(player_nr);
-		size.rdwr(file);
-	}
+	file->rdwr_byte(player_nr);
+	size.rdwr(file);
 
 	if (file->is_loading()) {
 		player = welt->get_player(player_nr);
@@ -383,8 +389,6 @@ void depotlist_frame_t::rdwr(loadsave_t *file)
 		depotlist_stats_t::reverse = sort_order.pressed;
 		tabs.set_active_tab_index(selected_tab<tabs.get_count() ? selected_tab:0);
 		fill_list();
-		if (file->is_version_ex_atleast(14, 43)) {
-			set_windowsize(size);
-		}
+		set_windowsize(size);
 	}
 }

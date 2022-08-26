@@ -82,6 +82,7 @@ const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service 
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
 const skin_desc_t* skinverwaltung_t::comfort            = NULL;
 
+const skin_desc_t* skinverwaltung_t::search             = NULL;
 const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 
 // cursors
@@ -139,6 +140,7 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::input_output,       "InputOutput"    },
 	{ &skinverwaltung_t::in_transit,         "InTransit"      },
 	{ &skinverwaltung_t::reverse_arrows,     "ReverseArrows"  },
+	{ &skinverwaltung_t::search,             "Search"         },
 	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
 	{ NULL, NULL }
 };

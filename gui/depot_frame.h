@@ -41,22 +41,24 @@ private:
 	 */
 	int icnv;
 
+	// initialize everything
+	void init(depot_t *depot);
+
 	void init_table();
 
 	/**
 	 * Gui elements
 	 */
-	gui_label_buf_t lb_convois;
+	gui_label_buf_t lb_convois, lb_vehicle_count, lb_traction_types;
+
+	char name[256], old_name[256];
+	gui_textinput_t name_input;
 
 	/// contains the current translation of "new convoi"
 	const char* new_convoy_text;
 	gui_combobox_t convoy_selector;
 
 	button_t line_button; // goto line ...
-
-//	gui_speedbar_t sb_convoi_length;
-//	sint32 convoi_length_ok_sb, convoi_length_slower_sb, convoi_length_too_slow_sb, convoi_tile_length_sb, new_vehicle_length_sb;
-
 	button_t bt_start;
 	button_t bt_schedule;
 	button_t bt_sell;
@@ -92,7 +94,7 @@ private:
 
 	gui_convoy_assembler_t convoy_assembler;
 
-	//gui_image_t img_bolt; // This has been broken for a long time in extended
+	gui_image_t img_bolt;
 
 	linehandle_t selected_line, last_selected_line;
 
@@ -104,7 +106,13 @@ private:
 	 */
 	sint64 calc_sale_value(const vehicle_desc_t *veh_type);
 
+	// cache old values
+	uint32 old_vehicle_count;
+
 	static bool compare_line(linehandle_t const& l1, linehandle_t const& l2);
+
+	/// Renames the depot to the name given in the text input field
+	void rename_depot();
 
 public:
 	// the next two are only needed for depot_t update notifications
@@ -113,32 +121,19 @@ public:
 	int get_icnv() const { return icnv; }
 
 	/**
-	 * Do the dynamic dialog layout
-	 */
-	void layout(scr_size *);
-
-	/**
 	 * Update texts, image lists and buttons according to the current state.
 	 */
 	void update_data();
 
+	void reset_depot_name();
+
 	// more general functions ...
-	depot_frame_t(depot_t* depot);
+	depot_frame_t(depot_t* depot = NULL);
 
 	/**
 	 * Set the window size
 	 */
 	void set_windowsize(scr_size size) OVERRIDE;
-
-	/**
-	 * Create and fill loks_vec and waggons_vec.
-	 */
-	inline void build_vehicle_lists() { convoy_assembler.build_vehicle_lists(); }
-
-	/**
-	 * Will update the tabs (don't show empty ones).
-	 */
-	//void update_tabs();
 
 	/**
 	 * Set the window associated helptext
@@ -171,11 +166,18 @@ public:
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 	inline depot_t *get_depot() const {return depot;}
 	inline convoihandle_t get_convoy() const {return depot->get_convoi(icnv);}
-	inline void update_convoy() {icnv<0?convoy_assembler.clear_convoy():convoy_assembler.set_vehicles(get_convoy());}
+
+	// set convoy and update assembler
+	void set_convoy();
+
 	// Check the electrification
 	bool check_way_electrified(bool init = false);
 
 	void set_resale_value(uint32 nominal_cost = 0, sint64 resale_value = 0);
+
+	uint32 get_rdwr_id() OVERRIDE;
+
+	void rdwr(loadsave_t *) OVERRIDE;
 };
 
 #endif

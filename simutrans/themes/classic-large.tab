@@ -66,6 +66,7 @@ gui_color_edit_text_selected = #A8ACA8
 gui_color_edit_text_disabled = #606060
 gui_color_edit_background_selected = #404040
 gui_color_edit_beam          = #F8FCF8
+gui_color_text_placeholder   = #CCCCCC
 
 gui_color_chart_background  = #989898
 gui_color_chart_lines_zero  = #D8DCD8

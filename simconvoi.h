@@ -546,6 +546,11 @@ private:
 	// Reverses the order of the convoy.
 	// @author: jamespetts
 	void reverse_order(bool rev);
+public:
+	// Reorder the vehicle array
+	// Can be executed even with a vehicle array that does not belong to convoy for UI
+	static void execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev);
+private:
 	bool reversable;
 	bool reversed;
 
@@ -1510,7 +1515,14 @@ public:
 	}
 
 	// Returns this convoy's reversing method. (v14.8 - Jan, 2020 @Ranran)
-	uint8 get_terminal_shunt_mode() const;
+	static uint8 get_terminal_shunt_mode(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	uint8 get_terminal_shunt_mode() const {
+		return get_terminal_shunt_mode(vehicle, vehicle_count);
+	}
+	// Train formation checks
+	static uint8 get_front_loco_count(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	static uint8 check_new_tail(const array_tpl<vehicle_t*> &vehicles, uint8 start=1, uint8 end=1);
+	static uint8 check_need_turntable(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
 
 	// return a number numbered by position in convoy. This is affected by the number of locomotives and reversals.
 	// The locomotive on the front side is returned a negative value.
@@ -1521,13 +1533,6 @@ public:
 	uint8 get_auto_removal_vehicle_count(uint8 car_no) const;
 
 private:
-	/** Train formation checks
-	 *  v14.8 - Jan, 2020 @Ranran
-	 */
-	uint8 get_front_loco_count() const;
-	uint8 check_new_tail(uint8 start) const;
-	uint8 check_need_turntable() const;
-
 	// returns level of coupling constraints between vehicles
 	uint8 check_couple_constraint_level(uint8 car_no, bool rear_side) const;
 };

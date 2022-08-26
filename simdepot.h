@@ -42,6 +42,8 @@ protected:
 
 	static slist_tpl<depot_t *> all_depots;
 
+	char name[128];
+
 public:
 	/**
 	 * Is this depot suitable for this vehicle?
@@ -158,11 +160,6 @@ public:
 	void sell_vehicle(vehicle_t* veh);
 
 	/**
-	 * Access to vehicle types which can be bought in the depot.
-	 */
-	slist_tpl<vehicle_desc_t*> const & get_vehicle_type();
-
-	/**
 	 * Returns the waytype for a certain vehicle; only way to distinguish differnt depots ...
 	 */
 	virtual waytype_t get_wegtyp() const { return invalid_wt; }
@@ -222,6 +219,9 @@ public:
 	inline unsigned get_max_convoi_length() const { return get_max_convoy_length(get_wegtyp()); }
 
 	void add_to_world_list(bool lock = false);
+
+	void set_name(const char* value);
+	const char* get_name() const;
 
 private:
 	linehandle_t last_selected_line;

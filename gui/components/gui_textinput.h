@@ -22,6 +22,8 @@ class gui_textinput_t :
 	public gui_action_creator_t,
 	public gui_component_t
 {
+	bool is_search_box = false;
+
 protected:
 
 	/**
@@ -128,6 +130,9 @@ public:
 
 	// to set text color
 	void set_color(PIXVAL col){ textcol = col;}
+
+	// set this textinput is search box or not
+	void set_search_box(bool yesno) { is_search_box = yesno; }
 
 	scr_size get_max_size() const OVERRIDE;
 
