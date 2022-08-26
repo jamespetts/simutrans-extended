@@ -11,10 +11,20 @@
 #include "get_next.h"
 #include "../api_class.h"
 #include "../api_function.h"
-#include "../../simtool.h"
-#include "../../simworld.h"
+#include "../../tool/simmenu.h"
+#include "../../world/simworld.h"
+#include "../../ground/wasser.h"
+
+#include "../../simconvoi.h"
+#include "../../vehicle/vehicle.h"
+
+namespace script_api {
+	declare_enum_param(grund_t::flag_values, uint8, "flags");
+	declare_specialized_param(depot_t*, "t|x|y", "depot_x");
+};
 
 using namespace script_api;
+
 
 SQInteger get_next_object(HSQUIRRELVM vm)
 {
@@ -35,19 +45,17 @@ SQInteger get_object_index(HSQUIRRELVM vm)
 	return param<obj_t*>::push(vm, obj);
 }
 
-
-const char* tile_remove_object(grund_t* gr, player_t* player, obj_t::typ type)
+SQInteger get_object_count(HSQUIRRELVM vm)
 {
-	if (gr == NULL  ||  player == NULL) {
-		return "";
-	}
-	tool_remover_t w;
-	// default param is object type
-	char buf[5];
-	sprintf(buf, "%d", (int)type);
-	w.set_default_param(buf);
+	grund_t *gr = param<grund_t*>::get(vm, 1);
+	return param<uint8>::push(vm, gr ? gr->get_top() : 0);
+}
 
-	return w.work(player, gr->get_pos());
+call_tool_work tile_remove_object(grund_t* gr, player_t* player, obj_t::typ type)
+{
+	cbuffer_t buf;
+	buf.printf("%d", (int)type);
+	return call_tool_work(TOOL_REMOVER | GENERAL_TOOL, (const char*)buf, 0, player, gr->get_pos());
 }
 
 // return way ribis, have to implement a wrapper, to correctly rotate ribi
@@ -59,23 +67,33 @@ static SQInteger get_way_ribi(HSQUIRRELVM vm)
 
 	ribi_t::ribi ribi = gr ? (masked ? gr->get_weg_ribi(wt) : gr->get_weg_ribi_unmasked(wt) ) : 0;
 
-	return push_ribi(vm, ribi);
+	return param<my_ribi_t>::push(vm, ribi);
+}
+
+static SQInteger get_canal_ribi(HSQUIRRELVM vm)
+{
+	grund_t *gr = param<grund_t*>::get(vm, 1);
+	ribi_t::ribi ribi = gr  &&  gr->is_water() ?  ((wasser_t*)gr)->get_canal_ribi() : (ribi_t::ribi)0;
+
+	return param<my_ribi_t>::push(vm, ribi);
 }
 
 
 // we have to implement a wrapper, to correctly rotate ribi
-SQInteger get_neighbour(HSQUIRRELVM vm)
+grund_t* get_neighbour(grund_t *gr, waytype_t wt, my_ribi_t ribi)
 {
-	grund_t *gr  = param<grund_t*>::get(vm, 1);
-	waytype_t wt = param<waytype_t>::get(vm, 2);
-	ribi_t::ribi ribi = get_ribi(vm, 3);
-
 	grund_t *to = NULL;
 	if (gr  &&  ribi_t::is_single(ribi)) {
 		gr->get_neighbour(to, wt, ribi);
 	}
-	return param<grund_t*>::push(vm, to);
+	return to;
 }
+
+my_slope_t get_slope(grund_t *gr)
+{
+	return gr->get_grund_hang();
+}
+
 
 halthandle_t get_first_halt_on_square(planquadrat_t* plan)
 {
@@ -87,14 +105,30 @@ vector_tpl<halthandle_t> const& square_get_halt_list(planquadrat_t *plan)
 	static vector_tpl<halthandle_t> list;
 	list.clear();
 	if (plan) {
-		const nearby_halt_t* haltlist = plan->get_haltlist();
+		const halthandle_t* haltlist = plan->get_haltlist();
 		for(uint8 i=0, end = plan->get_haltlist_count(); i < end; i++) {
-			list.append(haltlist[i].halt);
+			list.append(haltlist[i]);
 		}
 	}
 	return list;
 }
 
+vector_tpl<convoihandle_t> const get_convoy_list(grund_t* gr)
+{
+	static vector_tpl<convoihandle_t> list;
+	list.clear();
+
+	for( uint8 n = 0; n<gr->get_top(); n++) {
+		obj_t* obj = gr->obj_bei( n );
+		if( vehicle_t* veh = dynamic_cast<vehicle_t*>(obj) ) {
+			convoihandle_t cnv;
+			if( veh->get_convoi() ) {
+				list.append_unique( veh->get_convoi()->self );
+			}
+		}
+	}
+	return list;
+}
 
 void export_tiles(HSQUIRRELVM vm)
 {
@@ -109,7 +143,7 @@ void export_tiles(HSQUIRRELVM vm)
 	 * }
 	 * @endcode
 	 */
-	begin_class(vm, "tile_x", "extend_get,coord3d");
+	begin_class(vm, "tile_x", "extend_get,coord3d,ingame_object");
 
 	/**
 	 * Constructor. Returns tile at particular 3d coordinate.
@@ -120,10 +154,13 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @param z z-coordinate
 	 * @typemask (integer,integer,integer)
 	 */
-	// actually defined simutrans/script/scenario_base.nut
+	// actually defined in simutrans/script/script_base.nut
 	// register_function(..., "constructor", ...);
 
-
+	/**
+	 * @returns if object is still valid.
+	 */
+	export_is_valid<grund_t*>(vm); //register_function("is_valid")
 	/**
 	 * Search for a given object type on the tile.
 	 * @return some instance or null if not found
@@ -131,10 +168,14 @@ void export_tiles(HSQUIRRELVM vm)
 	register_method(vm, &grund_t::suche_obj, "find_object");
 	/**
 	 * Remove object of given type from the tile.
+	 * Type @p type must be one of the following: ::mo_label, ::mo_pedestrian, ::mo_city_car, ::mo_powerline, ::mo_transformer_s,
+	 *  ::mo_transformer_c, ::mo_signal, ::mo_roadsign, ::mo_wayobj, ::mo_tunnel, ::mo_bridge, ::mo_field, ::mo_building, ::mo_depot_rail.
+	 * Setting @p type to ::mo_depot_rail deletes depots of every type.
 	 * @param pl player that pays for removal
 	 * @param type object type
 	 * @returns null upon success, an error message otherwise
-	 * @warning Cannot be used in network games. Does not work with all object types.
+	 * @warning Does not work with all object types.
+	 * @ingroup game_cmd
 	 */
 	register_method(vm, &tile_remove_object, "remove_object", true);
 	/**
@@ -177,7 +218,7 @@ void export_tiles(HSQUIRRELVM vm)
 	 * Returns encoded slope of tile, zero means flat tile.
 	 * @returns slope
 	 */
-	register_method(vm, &grund_t::get_grund_hang, "get_slope");
+	register_method(vm, &get_slope, "get_slope", true);
 
 	/**
 	 * Returns text of a sign on this tile (station sign, city name, label).
@@ -203,7 +244,12 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @returns true if there is are two ways on the tile
 	 */
 	register_method<bool (grund_t::*)() const>(vm, &grund_t::has_two_ways, "has_two_ways");
-
+	/**
+	 * Returns way_x object on this tile of way type @p wt if present
+	 * @param wt waytype
+	 * @returns way object or null
+	 */
+	register_method(vm, &grund_t::get_weg, "get_way");
 	/**
 	 * Return directions in which ways on this tile go. One-way signs are ignored here.
 	 * @param wt waytype
@@ -218,15 +264,50 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @typemask dir(waytypes)
 	 */
 	register_function_fv(vm, &get_way_ribi, "get_way_dirs_masked", 2, "xi", freevariable<bool>(true) );
-
+	/**
+	 * Return directions in which canals branch off from water tiles.
+	 * Used for jps pathfinding on water tiles.
+	 * @returns direction
+	 * @typemask dir()
+	 */
+	register_function(vm, &get_canal_ribi, "get_canal_ribi", 1, "x");
 	/**
 	 * Returns neighbour if one follows way in the given direction.
 	 * @param wt waytype, if equal to @ref wt_all then ways are ignored.
 	 * @param d direction
 	 * @return neighbour tile or null
-	 * @typemask tile_x(waytypes,dir)
 	 */
-	register_function(vm, &get_neighbour, "get_neighbour", 3, "xii");
+	register_method(vm, &get_neighbour, "get_neighbour", true);
+	/**
+	 * Returns depot_x object on this tile if any depot is present.
+	 * @returns depot object or null
+	 */
+	register_method(vm, &grund_t::get_depot, "get_depot");
+	/**
+	 * Checks whether player can delete all objects on the tile.
+	 * @param pl player
+	 * @return error message or null if player can delete everything
+	 */
+	register_method(vm, &grund_t::kann_alle_obj_entfernen, "can_remove_all_objects");
+
+	/** @name Functions to mark tiles.
+	 * Methods to mark, unmark, and check mark-status of tiles.
+	 * Mark flag can be reset by cursor movement.
+	 * @warning In network games, they only work on server.
+	 */
+	//@{
+	/// Check if tile is marked.
+	register_method_fv(vm, &grund_t::get_flag, "is_marked", freevariable<uint8>(grund_t::marked));
+	/// Unmark tile.
+	register_method_fv(vm, &grund_t::clear_flag, "unmark", freevariable<uint8>(grund_t::marked));
+	/// Mark tile.
+	register_method_fv(vm, &grund_t::set_flag, "mark", freevariable<uint8>(grund_t::marked));
+	//@}
+
+	/**
+	 * @return convoy list by tile
+	 */
+	register_method(vm, &get_convoy_list, "get_convoys", true);
 
 #ifdef SQAPI_DOC // document members
 	/**
@@ -257,13 +338,18 @@ void export_tiles(HSQUIRRELVM vm)
 	 * Meta-method to be used in foreach loops to loop over all objects on the tile. Do not call it directly.
 	 */
 	register_function(vm, get_object_index, "_get",    2, "x i|s");
+	/**
+	 * Returns number of objects on the tile.
+	 * @typemask integer()
+	 */
+	register_function(vm, get_object_count, "get_count",  1, "x");
 
 	end_class(vm);
 
 	/**
 	 * Class to map squares, which holds all the tiles on one particular coordinate.
 	 */
-	begin_class(vm, "square_x", "extend_get,coord");
+	begin_class(vm, "square_x", "extend_get,coord,ingame_object");
 
 	/**
 	 * Constructor. Returns map square at particular 2d coordinate.
@@ -272,9 +358,13 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @param y z-coordinate
 	 * @typemask (integer,integer)
 	 */
-	// actually defined simutrans/script/scenario_base.nut
+	// actually defined in simutrans/script/script_base.nut
 	// register_function(..., "constructor", ...);
 
+	/**
+	 * @returns if object is still valid.
+	 */
+	export_is_valid<planquadrat_t*>(vm); //register_function("is_valid")
 	/**
 	 * Access some halt at this square.
 	 * @deprecated Use square_x::get_player_halt or tile_x::get_halt instead!
@@ -307,6 +397,11 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @typemask array<halt_x>
 	 */
 	register_method(vm, &square_get_halt_list, "get_halt_list", true);
+
+	/**
+	 * Returns climate of ground tile.
+	 */
+	register_method(vm, &planquadrat_t::get_climate, "get_climate");
 
 	end_class(vm);
 }

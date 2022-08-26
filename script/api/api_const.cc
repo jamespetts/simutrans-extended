@@ -10,6 +10,7 @@
 #include "../api_param.h"
 #include "../../obj/simobj.h"
 #include "../../simmenu.h"
+#include "../../simunits.h"
 
 using namespace script_api;
 
@@ -97,6 +98,14 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "tool_change_water_height", TOOL_CHANGE_WATER_HEIGHT | GENERAL_TOOL);
 	/// change climate of tiles
 	enum_slot(vm, "tool_set_climate", TOOL_SET_CLIMATE | GENERAL_TOOL);
+	/// rotate a building
+	enum_slot(vm, "tool_rotate_building", TOOL_ROTATE_BUILDING | GENERAL_TOOL);
+	/// merge two stops
+	enum_slot(vm, "tool_merge_stop", TOOL_MERGE_STOP | GENERAL_TOOL);
+	/// scripted tool (one-click)
+	enum_slot(vm, "tool_exec_script", TOOL_EXEC_SCRIPT | GENERAL_TOOL);
+	/// scripted tool (two-click)
+	enum_slot(vm, "tool_exec_two_click_script", TOOL_EXEC_TWO_CLICK_SCRIPT | GENERAL_TOOL);
 
 	// simple tools
 	/// increase industry density
@@ -112,16 +121,24 @@ void export_global_constants(HSQUIRRELVM vm)
 
 	// tools to open certain windows
 	/// open factory editor window
-	enum_slot(vm, "dialog_edit_factory", DIALOG_EDIT_FACTORY | DIALOG_TOOL);
+	enum_slot(vm, "dialog_edit_factory", DIALOG_EDIT_FACTORY | DIALOGE_TOOL);
 	/// open tourist attraction editor window
-	enum_slot(vm, "dialog_edit_attraction", DIALOG_EDIT_ATTRACTION | DIALOG_TOOL);
+	enum_slot(vm, "dialog_edit_attraction", DIALOG_EDIT_ATTRACTION | DIALOGE_TOOL);
 	/// open house editor window
-	enum_slot(vm, "dialog_edit_house", DIALOG_EDIT_HOUSE | DIALOG_TOOL);
+	enum_slot(vm, "dialog_edit_house", DIALOG_EDIT_HOUSE | DIALOGE_TOOL);
 	/// open tree editor window
-	enum_slot(vm, "dialog_edit_tree", DIALOG_EDIT_TREE | DIALOG_TOOL);
+	enum_slot(vm, "dialog_edit_tree", DIALOG_EDIT_TREE | DIALOGE_TOOL);
 	/// open map enlargement window
-	enum_slot(vm, "dialog_enlarge_map", DIALOG_ENLARGE_MAP | DIALOG_TOOL);
+	enum_slot(vm, "dialog_enlarge_map", DIALOG_ENLARGE_MAP | DIALOGE_TOOL);
 
+	end_enum();
+
+	/**
+	 * Flags for scripted tools.
+	 */
+	begin_enum("tool_flags");
+	enum_slot(vm, "shift_pressed", tool_t::WFL_SHIFT);
+	enum_slot(vm, "ctrl_pressed",  tool_t::WFL_CTRL);
 	end_enum();
 
 	/**
@@ -181,7 +198,7 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "mo_tree", obj_t::baum);
 	/// pointer (bulldozers etc)
 	enum_slot(vm, "mo_pointer", obj_t::zeiger);
-	/// cloude and smoke
+	/// cloud and smoke
 	enum_slot(vm, "mo_cloud", obj_t::wolke);
 	/// building (houses, halts, factories ...)
 	enum_slot(vm, "mo_building", obj_t::gebaeude);
@@ -250,6 +267,30 @@ void export_global_constants(HSQUIRRELVM vm)
 	/// moving object (sheep ...)
 	enum_slot(vm, "mo_moving_object", obj_t::movingobj);
 
+	end_enum();
+
+	/**
+	 * Internal units.
+	 */
+	begin_enum("units");
+	/// The length of one side of a tile in car units. @see vehicle_desc_x::get_length
+	enum_slot(vm, "CARUNITS_PER_TILE", (uint32)CARUNITS_PER_TILE);
+
+	end_enum();
+
+	/**
+	 * Climate zones. Their naming may differ from the graphical representation and
+	 * translation in some paksets.
+	 */
+	begin_enum("climates");
+	enum_slot(vm, "cl_water", water_climate);
+	enum_slot(vm, "cl_desert", desert_climate);
+	enum_slot(vm, "cl_tropic", tropic_climate);
+	enum_slot(vm, "cl_mediterran", mediterran_climate);
+	enum_slot(vm, "cl_temperate", temperate_climate);
+	enum_slot(vm, "cl_tundra", tundra_climate);
+	enum_slot(vm, "cl_rocky", rocky_climate);
+	enum_slot(vm, "cl_arctic", arctic_climate);
 	end_enum();
 
 }

@@ -7,14 +7,14 @@
 #include "script.h"
 
 #include "../sys/simsys.h"
-#include "../simworld.h"
+#include "../world/simworld.h"
 #include "../network/network.h"
 #include "../network/network_cmd_scenario.h"
 #include "../dataobj/environment.h"
 #include "../dataobj/loadsave.h"
 #include "../player/simplay.h"
 #include "../tpl/plainstringhashtable_tpl.h"
-#include "../utils/cbuffer_t.h"
+#include "../utils/cbuffer.h"
 #include "../utils/simstring.h"
 
 uint32 const CACHE_TIME = 10000; // 10s
@@ -38,7 +38,7 @@ struct cached_string_t {
 	}
 };
 
-static plainstringhashtable_tpl<cached_string_t*, N_BAGS_LARGE> cached_results;
+static plainstringhashtable_tpl<cached_string_t*> cached_results;
 
 
 cached_string_t* get_cached_result(const char* function, uint32 cache_time)
@@ -72,6 +72,7 @@ void dynamic_string::init(script_vm_t *script)
 	script->register_callback(&dynamic_string::record_result, "dynamicstring_record_result");
 }
 
+
 void dynamic_string::rdwr_cache(loadsave_t *file)
 {
 	uint32 count = cached_results.get_count();
@@ -79,10 +80,10 @@ void dynamic_string::rdwr_cache(loadsave_t *file)
 
 	if (file->is_loading()) {
 		// clear list
-		while (!cached_results.empty()) {
+		while(!cached_results.empty()) {
 			delete cached_results.remove_first();
 		}
-		for (uint32 i = 0; i<count; i++) {
+		for(uint32 i=0; i<count; i++) {
 			plainstring key;
 			file->rdwr_str(key);
 			cached_results.set(key, new cached_string_t(file));
@@ -114,7 +115,7 @@ void dynamic_string::update(script_vm_t *script, player_t *player, bool force_up
 			s = entry->result.c_str();
 		}
 		else {
-			script->prepare_callback("dynamicstring_record_result", 2, (const char*)buf, "");
+			script->prepare_callback("dynamicstring_record_result", 2, (const char*)buf, (const char*)"");
 
 			// call script
 			const char* err = script->call_function(script_vm_t::QUEUE, method, s, (uint8)(player ? player->get_player_nr() : PLAYER_UNOWNED));
@@ -143,7 +144,7 @@ void dynamic_string::update(script_vm_t *script, player_t *player, bool force_up
 	}
 	else {
 		if (env_t::networkmode  &&  !env_t::server) {
-			s = dynamic_string::fetch_result( function, script, this, force_update);
+			s = dynamic_string::fetch_result( function, NULL, this, force_update);
 			if ( s == NULL) {
 				s = "Waiting for server response...";
 			}
@@ -174,7 +175,8 @@ const char* dynamic_string::fetch_result(const char* function, script_vm_t *scri
 		else {
 			if (entry == NULL) {
 				cached_string_t *old = cached_results.set(function, new cached_string_t(NULL, dr_time(), listener));
-				assert(old == NULL); (void)old;
+				assert(old == NULL);
+				(void)old;
 			}
 			// send request
 			nwc_scenario_t *nwc = new nwc_scenario_t();

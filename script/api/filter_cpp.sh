@@ -6,4 +6,4 @@
 #
 
 # Filter for Doxygen input files
-gawk -f squirrel_types.awk -f export.awk -v mode=cpp $1
+gawk -f squirrel_types_scenario.awk -f squirrel_types_ai.awk -f export.awk -v mode=cpp $1
