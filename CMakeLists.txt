@@ -312,13 +312,14 @@ endif (APPLE)
 #
 add_custom_target(test
 	$<TARGET_FILE:simutrans-extended>
-		-set_workdir ${CMAKE_CURRENT_SOURCE_DIR}/simutrans
-		-objects pak
+		-use_workdir
+		-objects pak128.britain-ex-nightly
 		-scenario automated-tests
 		-debug 2
 		-lang en
 		-fps 100
 	DEPENDS simutrans
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/simutrans
 )
 
 
