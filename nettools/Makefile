@@ -72,7 +72,7 @@ ifneq ($(PROFILE),)
 endif
 
 CFLAGS   += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wstrict-prototypes $(OS_INC) $(OS_OPT) $(FLAGS)
-CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -std=c++11 $(OS_INC) $(OS_OPT) $(FLAGS)
+CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -std=c++14 $(OS_INC) $(OS_OPT) $(FLAGS)
 
 # SOLO_SOURCES contains files which are unique to nettool;
 # SHARED_SOURCES contains those with the exact same object code in nettool and simutrans;

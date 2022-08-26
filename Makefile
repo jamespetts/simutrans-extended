@@ -72,7 +72,7 @@ else
 endif
 
 ifeq ($(OSTYPE),mac)
-  CFLAGS +=  -std=c++11 -stdlib=libc++
+  CFLAGS  += -stdlib=libc++
   LDFLAGS += -stdlib=libc++
 endif
 
@@ -84,13 +84,9 @@ else
   SOURCES += sys/clipboard_internal.cc
 endif
 
-ifeq ($(OSTYPE),openbsd)
-  CXXFLAGS +=  -std=c++11
-endif
-
 LIBS += -lbz2 -lz -lpng
 
-CXXFLAGS +=  -std=gnu++11
+CXXFLAGS += -std=c++14
 
 ifneq ($(OSTYPE),mingw)
  LIBS += -lbz2 -lz
