@@ -44,21 +44,6 @@ function test_depot_build_invalid_params()
 		}
 	}
 
-	// build as public player
-	{
-		local error_caught = false
-		try {
-			command_x.build_depot(public_pl, coord3d(0, 0, 0), get_depot_by_wt(wt_road))
-		}
-		catch (e) {
-			error_caught = true;
-			ASSERT_EQUAL(e, "Error during initializing tool")
-		}
-
-		ASSERT_TRUE(error_caught)
-		ASSERT_EQUAL(depot_x.get_depot_list(pl, wt_road).len(), 0)
-	}
-
 	RESET_ALL_PLAYER_FUNDS()
 }
 
@@ -85,9 +70,13 @@ function test_depot_build_invalid_pos()
 	ASSERT_TRUE(road_desc != null)
 	ASSERT_TRUE(rail_desc != null)
 
+	ASSERT_TRUE(road_depot != null)
+	ASSERT_TRUE(hangar != null)
+	ASSERT_TRUE(shipyard != null)
+
 	// invalid pos
 	{
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(-1, -1, 0), road_depot), "")
+		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(-1, -1, 0), road_depot), "That would exceed\nyour credit limit.")
 	}
 
 	// no shipyards on land
@@ -147,6 +136,35 @@ function test_depot_build_invalid_pos()
 
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), "" + wt_rail), null)
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_as_public_player()
+{
+	local public_pl = player_x(1)
+	local default_depot = get_depot_by_wt(wt_road)
+	local way_desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+
+	// preconditions
+	ASSERT_TRUE(default_depot != null)
+	ASSERT_EQUAL(depot_x.get_depot_list(pl, wt_road).len(), 0)
+	ASSERT_TRUE(way_desc != null)
+
+	ASSERT_EQUAL(command_x.build_way(public_pl, coord3d(4, 2, 0), coord3d(4, 3, 0), way_desc, true), null)
+
+	// build as public player; this is impossible in Standard but allowed in Extended
+	{
+		command_x.build_depot(public_pl, coord3d(4, 2 , 0), default_depot)
+
+		ASSERT_TRUE(depot_x(4, 2, 0).is_valid())
+		ASSERT_EQUAL(depot_x.get_depot_list(pl, wt_road).len(), 1)
+	}
+
+	// clean up
+	ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(4, 2, 0)), null)
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 3, 0), "" + wt_road), null)
+
 	RESET_ALL_PLAYER_FUNDS()
 }
 
