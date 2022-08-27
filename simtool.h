@@ -417,7 +417,7 @@ private:
 		bool check_next_tile(const grund_t *) const override;
 		waytype_t get_waytype() const override {return invalid_wt;}
 		ribi_t::ribi get_ribi(const grund_t *) const override {return ribi_t::all;}
-		int get_cost(const grund_t *, const sint32, koord from_pos) override;
+		int get_cost(const grund_t *, const sint32, ribi_t::ribi from) override;
 		bool is_target(const grund_t *, const grund_t *) override;
 	};
 
