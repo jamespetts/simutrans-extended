@@ -3,7 +3,7 @@ set -e
 
 
 pushd simutrans
-../sim -use_workdir -objects pak -lang en -scenario automated-tests -debug 2 2>&1 | ts -s | tee output.log &
+../simutrans-extended -use_workdir -objects pak128.britain-ex-nightly -lang en -scenario automated-tests -debug 2 2>&1 | ts -s | tee output.log &
 pid=$!
 
 result=1
@@ -29,7 +29,9 @@ do
 		break
 	fi
 
-	if [[ -n "$(grep 'error \[Call function failed\] calling' output.log)" ]]
+	if [[ -n "$(grep 'error \[Call function failed\] calling' output.log)" ||
+	      -n "$(grep 'error \[Reading / compiling script failed] calling' output.log)" ||
+	      -n "$(grep '</error>' output.log)" ]]
 	then
 		# kill
 		echo "Killing process (test failed)"
