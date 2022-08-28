@@ -11,7 +11,8 @@
 function build_factory(pl, pos, ignore_climates, rotation, base_prod, name)
 {
 	local factory_builder = command_x(tool_build_factory)
-	return factory_builder.work(pl, pos, "" + ignore_climates.tointeger() + rotation + base_prod + "," + name)
+	local ignore_regions = "1"
+	return factory_builder.work(pl, pos, "" + ignore_climates.tointeger() + ignore_regions + rotation + base_prod + "," + name)
 }
 
 
