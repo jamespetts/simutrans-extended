@@ -1355,15 +1355,21 @@ void haltestelle_t::step()
 								passengers_walked = true;
 							}
 
-							const uint32 distance_to_transfer = shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos()));
-							if(tmp.get_zwischenziel().is_bound() && distance_to_transfer <= max_walking_distance)
+							uint32 distance_to_transfer = 0;
+
+							if (tmp.get_zwischenziel().is_bound())
 							{
-								// Passengers can walk to their next transfer.
-								const uint32 walking_time = welt->walking_time_tenths_from_distance(distance_to_transfer);
-								pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge, world()->get_seconds_to_ticks(walking_time * 6));
-								tmp.set_last_transfer(self);
-								tmp.get_zwischenziel()->liefere_an(tmp, 1);
-								passengers_walked = true;
+								distance_to_transfer = shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos()));
+
+								if (distance_to_transfer <= max_walking_distance)
+								{
+									// Passengers can walk to their next transfer.
+									const uint32 walking_time = welt->walking_time_tenths_from_distance(distance_to_transfer);
+									pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge, world()->get_seconds_to_ticks(walking_time * 6));
+									tmp.set_last_transfer(self);
+									tmp.get_zwischenziel()->liefere_an(tmp, 1);
+									passengers_walked = true;
+								}
 							}
 
 							// Passengers - use unhappy graph. Even passengers able to walk to their destination or

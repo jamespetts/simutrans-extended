@@ -146,7 +146,7 @@ public:
 		if (base_cost && !price) price = 1;
 		maintenance = set_scale_generic<sint32>(base_maintenance, scale_factor);
 		if (base_maintenance && !maintenance) maintenance = 1;
-		way_only_cost = set_scale_generic<sint32>(base_way_only_cost, scale_factor);
+		way_only_cost = set_scale_generic<uint64>(base_way_only_cost, scale_factor);
 		if (base_way_only_cost && !way_only_cost) way_only_cost = 1;
 	}
 

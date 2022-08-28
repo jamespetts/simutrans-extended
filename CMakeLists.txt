@@ -287,7 +287,7 @@ if (SIMUTRANS_STEAM_BUILT)
 	target_compile_definitions(simutrans-extended PRIVATE STEAM_BUILT=1)
 endif ()
 
-if (NOT SIMUTRANS_ENABLE_RANDOMNESS)
+if (SIMUTRANS_DISABLE_RANDOMNESS)
 	target_compile_definitions(simutrans-extended PRIVATE DISABLE_RANDOMNESS=1)
 endif ()
 
