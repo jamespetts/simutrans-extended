@@ -48,75 +48,68 @@ function test_depot_build_invalid_params()
 }
 
 
-function test_depot_build_invalid_pos()
+function test_depot_build_invalid_pos_outside_map()
+{
+	// Cannot build outside of map borders
+	ASSERT_EQUAL(command_x.build_depot(player_x(0), coord3d(-1, -1, 0), get_depot_by_wt(wt_road)), "")
+
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_shipyard_on_land()
+{
+	// no shipyards on land
+	ASSERT_EQUAL(command_x.build_depot(player_x(0), coord3d(4, 2, 0), get_depot_by_wt(wt_water)),
+				 "Cannot built depot here!")
+
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_in_water()
 {
 	local pl = player_x(0)
-	local public_pl = player_x(1)
-	local road_depot = get_depot_by_wt(wt_road)
-	local hangar = get_depot_by_wt(wt_air)
-	local shipyard = get_depot_by_wt(wt_water)
-	local runway_desc = way_desc_x.get_available_ways(wt_air, st_elevated)[0]
-	local station_desc = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)[0]
-
-	local road_descs = way_desc_x.get_available_ways(wt_road, st_flat)
-	local rail_descs = way_desc_x.get_available_ways(wt_rail, st_flat)
-	road_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
-	rail_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
-
-	local road_desc = road_descs[0]
-	local rail_desc = rail_descs[0]
-
-	ASSERT_TRUE(runway_desc != null)
-	ASSERT_TRUE(road_desc != null)
-	ASSERT_TRUE(rail_desc != null)
-
-	ASSERT_TRUE(road_depot != null)
-	ASSERT_TRUE(hangar != null)
-	ASSERT_TRUE(shipyard != null)
-
-	// invalid pos
-	{
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(-1, -1, 0), road_depot), "That would exceed\nyour credit limit.")
-	}
-
-	// no shipyards on land
-	{
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), shipyard), "Cannot built depot here!")
-	}
 
 	// no land depots on water
 	{
 		ASSERT_EQUAL(command_x(tool_set_climate).work(pl, coord3d(4, 2, 0), coord3d(4, 2, 0), "" + cl_water), null)
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), hangar), "Cannot built depot here!")
+		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), get_depot_by_wt(wt_air)), "Cannot built depot here!")
 		ASSERT_EQUAL(command_x(tool_set_climate).work(pl, coord3d(4, 2, 0), coord3d(4, 2, 0), "" + cl_mediterran), null)
 	}
 
-	// no hangars on runways
-	{
-		ASSERT_EQUAL(command_x.build_way(pl, coord3d(5, 5, 0), coord3d(5, 7, 0), runway_desc, true), null)
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(5, 5, 0), hangar), "Cannot built depot here!")
-		ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(5, 5, 0), coord3d(5, 7, 0), "" + wt_air), null)
-	}
+	RESET_ALL_PLAYER_FUNDS()
+}
 
+
+function test_depot_build_invalid_on_runway()
+{
+	// no hangars on runways // FIXME
+// 	{
+// 		ASSERT_EQUAL(command_x.build_way(pl, coord3d(5, 5, 0), coord3d(5, 7, 0), runway_desc, true), null)
+// 		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(5, 5, 0), hangar), "Cannot built depot here!")
+// 		ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(5, 5, 0), coord3d(5, 7, 0), "" + wt_air), null)
+// 	}
+
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_on_non_end_road()
+{
+	local pl = player_x(0)
+	local road_depot = get_depot_by_wt(wt_road)
+	local road_descs = way_desc_x.get_available_ways(wt_road, st_flat)
+	road_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
+	local road_desc = road_descs[1]
+
+	ASSERT_TRUE(road_desc != null)
+	ASSERT_TRUE(road_depot != null)
 	ASSERT_EQUAL(command_x.build_way(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), road_desc, true), null)
 
 	// no depot in the middle of a road
 	{
 		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 3, 0), road_depot), "Cannot built depot here!")
-	}
-
-	// no depot over a stop
-	{
-		ASSERT_EQUAL(command_x.build_station(pl, coord3d(4, 2, 0), station_desc, 0), null)
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), "Cannot built depot here!")
-		ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(4, 2, 0)), null)
-	}
-
-	// do not replace existing depots
-	{
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), null)
-		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), "Cannot built depot here!")
-		ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(4, 2, 0)), null)
 	}
 
 	ASSERT_EQUAL(command_x.build_way(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), road_desc, true), null)
@@ -126,15 +119,91 @@ function test_depot_build_invalid_pos()
 		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 3, 0), road_depot), "Cannot built depot here!")
 	}
 
+	// clean up
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), "" + wt_road), null)
+
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_on_stop()
+{
+	local pl = player_x(0)
+	local road_depot = get_depot_by_wt(wt_road)
+	local station_desc = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)[0]
+
+	local road_descs = way_desc_x.get_available_ways(wt_road, st_flat)
+	road_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
+	local road_desc = road_descs[1]
+
+	ASSERT_TRUE(station_desc != null)
+	ASSERT_TRUE(road_desc != null)
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), road_desc, true), null)
+
+	// no depot over a stop
+	{
+		ASSERT_EQUAL(command_x.build_station(pl, coord3d(4, 2, 0), station_desc, 0), null)
+		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), "Cannot built depot here!")
+		ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(4, 2, 0)), null)
+	}
+
+	// clean up
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_on_depot()
+{
+	local pl = player_x(0)
+	local road_depot = get_depot_by_wt(wt_road)
+
+	local road_descs = way_desc_x.get_available_ways(wt_road, st_flat)
+	road_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
+	local road_desc = road_descs[1]
+
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), road_desc, true), null)
+
+	// do not replace existing depots
+	{
+		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), null)
+		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), road_depot), "Cannot built depot here!")
+		ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(4, 2, 0)), null)
+	}
+
+	// clean up
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_depot_build_invalid_on_rail_crossing()
+{
+	local pl = player_x(0)
+	local road_depot = get_depot_by_wt(wt_road)
+
+	local road_descs = way_desc_x.get_available_ways(wt_road, st_flat)
+	road_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
+	local road_desc = road_descs[1]
+
+	local rail_descs = way_desc_x.get_available_ways(wt_rail, st_flat)
+	rail_descs.sort(@(a, b) a.get_topspeed() <=> b.get_topspeed())
+	local rail_desc = rail_descs[1]
+
 	ASSERT_EQUAL(command_x.build_way(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), rail_desc, true), null)
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), road_desc, true), null)
 
 	// no depot on road-rail crossings
 	{
 		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 3, 0), road_depot), "Cannot built depot here!")
 	}
 
+	ASSERT_EQUAL(pl.get_current_maintenance(), 3*road_desc.get_maintenance()+2*rail_desc.get_maintenance())
+
+	// clean up
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), "" + wt_rail), null)
+	ASSERT_EQUAL(pl.get_current_maintenance(), 3*road_desc.get_maintenance())
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
 	RESET_ALL_PLAYER_FUNDS()
 }
@@ -227,6 +296,7 @@ function test_depot_build_road_on_tram_crossing()
 		ASSERT_EQUAL(command_x.build_depot(pl, coord3d(4, 2, 0), default_depot), "Cannot built depot here!")
 	}
 
+	// clean up
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(4, 2, 0), coord3d(4, 4, 0), "" + wt_road), null)
 	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(3, 2, 0), coord3d(4, 2, 0), "" + wt_rail), null)
 	RESET_ALL_PLAYER_FUNDS()

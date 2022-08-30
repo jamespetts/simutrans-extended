@@ -55,35 +55,83 @@ function test_way_road_build_single_tile()
 }
 
 
-function test_way_road_build_straight()
+function test_way_road_build_remove_straight()
 {
-	local default_cash = 200000 * 100
-	local current_cash = default_cash
+	local default_cash = 33*1000*1000 * 100
 
 	local pl   = player_x(0)
-	local desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
-	ASSERT_TRUE(desc != null)
+	local road_desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	ASSERT_TRUE(road_desc != null)
 
 	//prerequisites
 	ASSERT_EQUAL(pl.get_current_maintenance(), 0)
 
-	local tool_result = command_x.build_way(pl, coord3d(2, 1, 0), coord3d(2, 6, 0), desc, true)
-	ASSERT_EQUAL(tool_result, null)
-	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
-		[
-			"........",
-			"..4.....",
-			"..5.....",
-			"..5.....",
-			"..5.....",
-			"..5.....",
-			"..1.....",
-			"........"
-		])
+	{
+		ASSERT_EQUAL(command_x.build_way(pl, coord3d(2, 1, 0), coord3d(2, 3, 0), road_desc, true), null)
+		ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
+			[
+				"........",
+				"..4.....",
+				"..5.....",
+				"..1.....",
+				"........",
+				"........",
+				"........",
+				"........"
+			])
 
-	ASSERT_TRUE(pl.get_current_net_wealth() < current_cash)
-	ASSERT_TRUE(pl.get_current_maintenance() > 0)
-	ASSERT_TRUE(pl.get_current_cash() < default_cash / 100)
+// 		ASSERT_EQUAL(pl.get_current_maintenance(), 3*road_desc.get_maintenance()) // FIXME
+		ASSERT_TRUE(pl.get_current_net_wealth() < default_cash)
+		ASSERT_TRUE(pl.get_current_cash() < default_cash / 100)
+
+		// now remove
+		ASSERT_TRUE(command_x(tool_remove_way).work(pl, tile_x(2, 1, 0), tile_x(2, 3, 0), "" + wt_road) == null)
+		ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
+			[
+				"........",
+				"........",
+				"........",
+				"........",
+				"........",
+				"........",
+				"........",
+				"........"
+			])
+	}
+
+	// clean up
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_way_road_build_t_junction()
+{
+	 local pl = player_x(0)
+	 current_cash = pl.get_current_net_wealth()
+
+
+	 ASSERT_EQUAL(command_x.build_way(pl, coord3d(2, 2, 0), coord3d(2, 4, 0), desc, true) == null)
+
+	 {
+		ASSERT_EQUAL(command_x.build_way(pl, coord3d(2, 3, 0), coord3d(3, 3, 0), desc, true) == null)
+		ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
+			[
+				"........",
+				"..4.....",
+				"..7AAA8.",
+				"..5.....",
+				"..5.....",
+				"..5.....",
+				"..1.....",
+				"........"
+			])
+	 }
+}
+
+
+function test_way_road_build_straight()
+{
+	local pl = player_x(0)
 	current_cash = pl.get_current_net_wealth()
 	local maintenance_per_tile = pl.get_current_maintenance() / 6
 

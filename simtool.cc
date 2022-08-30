@@ -10563,6 +10563,16 @@ bool tool_change_player_t::init( player_t *player_in)
 				player->set_player_color( c1, c2 );
 			}
 			break;
+
+		case '$': // change bank account
+			if(  player  &&  player_in==welt->get_public_player() ) {
+				int delta;
+				if (sscanf(p, "%c,%i,%i", &tool, &id, &delta) == 3) {
+					player->get_finance()->book_account(delta);
+				}
+			}
+			break;
+
 		case 'n': // WAS: new player with type state
 		case 'f': // WAS: activate/deactivate freeplay
 			dbg->error( "tool_change_player_t::init()", "deprecated command called" );

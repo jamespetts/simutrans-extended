@@ -65,9 +65,14 @@ bool are_equal(const obj_named_desc_t* a, const obj_named_desc_t* b)
 }
 
 
+sint64 get_scaled_base_maintenance(const obj_desc_transport_related_t* desc)
+{
+	return desc ? welt->calc_adjusted_monthly_figure(desc->get_base_maintenance()) : 0;
+}
+
 sint64 get_scaled_maintenance(const obj_desc_transport_related_t* desc)
 {
-	return desc ? welt->scale_with_month_length(desc->get_maintenance()) : 0;
+	return desc ? welt->calc_adjusted_monthly_figure(desc->get_maintenance()) : 0;
 }
 
 sint64 get_scaled_maintenance_vehicle(const vehicle_desc_t* desc)
@@ -393,11 +398,16 @@ void export_goods_desc(HSQUIRRELVM vm)
 	/**
 	 * @returns monthly maintenance cost [in 1/100 credits] of one object of this type.
 	 */
+	register_local_method(vm, &get_scaled_base_maintenance, "get_base_maintenance");
+
+	/**
+	 * @returns monthly maintenance cost [in 1/100 credits] of one km object of this type.
+	 */
 	register_local_method(vm, &get_scaled_maintenance, "get_maintenance");
-// 	/**
-// 	 * @returns cost [in 1/100 credits] to buy or build one piece or tile of this thing.
-// 	 */
-// 	register_method(vm, &obj_desc_transport_related_t::get_price, "get_cost");
+	/**
+	 * @returns cost [in 1/100 credits] to buy or build one piece or tile of this thing.
+	 */
+	register_method(vm, &obj_desc_transport_related_t::get_value, "get_cost");
 	/**
 	 * @returns way type, can be @ref wt_invalid.
 	 */

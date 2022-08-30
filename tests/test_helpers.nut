@@ -40,13 +40,14 @@ function SET_PLAYER_FUNDS(pl, amount)
 
 function RESET_ALL_PLAYER_FUNDS()
 {
-	local default_cash = 200000 * 100
+	local default_cash = 33 * 1000 * 1000 * 100
 
 	for (local i = 0; i < 8; ++i) {
 		local pl = player_x(i)
 		if (pl.is_valid()) {
-			ASSERT_EQUAL(pl.get_current_maintenance(), 0)
 			SET_PLAYER_FUNDS(pl, default_cash)
+			ASSERT_EQUAL(pl.get_current_cash(), default_cash / 100)
+			ASSERT_EQUAL(pl.get_current_maintenance(), 0)
 		}
 	}
 }
@@ -143,7 +144,7 @@ function get_depot_by_wt(waytype)
 	local list = building_desc_x.get_building_list(building_desc_x.depot)
 
 	foreach (building in list) {
-		if (building.get_type() == building_desc_x.depot && building.get_waytype() == waytype) {
+		if (building.get_type() == building_desc_x.depot && building.get_waytype() == waytype && building.is_available(world.get_time())) {
 			return building
 		}
 	}
