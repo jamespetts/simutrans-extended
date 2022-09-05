@@ -26,7 +26,6 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(catg_index);
 
 	if ((veh->get_desc()->get_total_capacity()+veh->get_desc()->get_overcrowded_capacity())>0) {
-		bool already_show_catg_symbol = false;
 		for (uint8 ac=0; ac<number_of_classes; ac++) {
 			if (!veh->get_accommodation_capacity(ac)) continue;
 
@@ -73,7 +72,6 @@ void accommodation_summary_t::add_vehicle_desc(const vehicle_desc_t *veh_type)
 	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(catg_index);
 
 		if ((veh_type->get_total_capacity()+veh_type->get_overcrowded_capacity())>0) {
-		bool already_show_catg_symbol = false;
 		for (uint8 ac=0; ac<number_of_classes; ac++) {
 			if (!veh_type->get_capacity(ac)) continue;
 
@@ -425,10 +423,10 @@ void gui_accommo_fare_changer_t::change_convoy_fare_class(convoihandle_t cnv_, u
 
 vehicle_class_manager_t::vehicle_class_manager_t(convoihandle_t cnv)
 	: gui_frame_t("", cnv->get_owner()),
+	capacity_info(linehandle_t(), cnv, false),
 	cont_by_accommo(cnv),
 	scrolly_by_vehicle(&cont_by_vehicle, true, true),
-	scrolly_by_accommo(&cont_by_accommo, true, true),
-	capacity_info(linehandle_t(), cnv, false)
+	scrolly_by_accommo(&cont_by_accommo, true, true)
 {
 	if (cnv.is_bound()) {
 		init(cnv);
@@ -723,10 +721,10 @@ bool vehicle_class_manager_t::action_triggered(gui_action_creator_t *comp, value
 // dummy for loading
 vehicle_class_manager_t::vehicle_class_manager_t()
 	: gui_frame_t("", NULL),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	cont_by_accommo(convoihandle_t()),
 	scrolly_by_vehicle(&cont_by_vehicle, true, true),
-	scrolly_by_accommo(&cont_by_accommo, true, true),
-	capacity_info(linehandle_t(), convoihandle_t(), false)
+	scrolly_by_accommo(&cont_by_accommo, true, true)
 {
 	cnv = convoihandle_t();
 }

@@ -427,8 +427,6 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end, koord zv, const tunnel_desc_t *desc, overtaking_mode_t overtaking_mode, const way_desc_t *way_desc)
 {
 	ribi_t::ribi ribi = 0;
-	weg_t *weg = NULL;
-	leitung_t *lt = NULL;
 	koord3d pos = start;
 	sint64 cost = 0;
 	waytype_t waytyp = desc->get_waytype();

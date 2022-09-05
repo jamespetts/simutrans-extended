@@ -1416,7 +1416,7 @@ bool weg_t::renew()
 		bool default_way_is_better_than_current_way = false;
 		if(way_desc)
 		{
-			default_way_is_better_than_current_way == way_desc->get_topspeed() > desc->get_topspeed();
+			default_way_is_better_than_current_way  = way_desc->get_topspeed() > desc->get_topspeed();
 			default_way_is_better_than_current_way &= way_desc->get_max_axle_load() >= desc->get_max_axle_load();
 
 			bool no_worse_stats = way_desc->get_topspeed() >= desc->get_topspeed() && way_desc->get_max_axle_load() >= desc->get_max_axle_load();

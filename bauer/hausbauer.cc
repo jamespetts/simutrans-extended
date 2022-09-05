@@ -943,7 +943,8 @@ const building_tile_desc_t *hausbauer_t::find_tile(const char *name, int org_idx
 
 	if(!desc) {
 		// DBG_MESSAGE("hausbauer_t::find_tile()","\"%s\" not in hashtable",name);
-		return NULL;	}
+		return NULL;
+	}
 
 	const int size = desc->get_y()*desc->get_x();
 	int idx = org_idx;

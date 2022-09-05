@@ -314,7 +314,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 	int precision = 0;
 
 	bool convert_kmph = false; // for speed chart. Converts the scale from simspeed to km/h.
-	bool convert_n_to_kn = false; // for force chart
+// 	bool convert_n_to_kn = false; // for force chart
 	bool convert_time = false; // for comfort chart. dont use this with other units
 
 	FOR(slist_tpl<curve_t>, const& c, curves) {
@@ -334,7 +334,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 					precision = 0;
 				}
 				else if (  c.type == FORCE  ) {
-					convert_n_to_kn = true;
+// 					convert_n_to_kn = true;
 					// precision does not need to be changed. The running resistance is so small (in kN) that we need to display the decimal point.
 				}
 				if (min > tmp) {

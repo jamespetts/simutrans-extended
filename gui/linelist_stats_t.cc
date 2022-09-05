@@ -31,7 +31,6 @@ void gui_line_handle_catg_img_t::draw(scr_coord offset)
 	size.w = line->get_goods_catg_index().get_count() * D_FIXED_SYMBOL_WIDTH+4;
 	offset += pos;
 	FOR(minivec_tpl<uint8>, const catg_index, line->get_goods_catg_index()) {
-		uint8 temp = catg_index;
 		display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), offset.x + offset_x + 2, offset.y + 3, 0, false, true);
 		offset_x += D_FIXED_SYMBOL_WIDTH+2;
 	}

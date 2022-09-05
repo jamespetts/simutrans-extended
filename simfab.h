@@ -259,13 +259,15 @@ public:
 		return iterator();
 	}
 
-	const koord operator[](uint32 i) const{
+	const koord operator[](uint32 i) const {
 		for(auto ware : *ware_list){
 			if(i < ware.link_count()){
 				return ware.link_from_index(i);
 			}
 			i-= ware.link_count();
 		}
+
+		return koord::invalid;
 	}
 
 	uint32 index_of(koord k) const {
@@ -376,6 +378,8 @@ public:
 			}
 			i-= ware.link_count();
 		}
+
+		return koord::invalid;
 	}
 
 	uint32 index_of(koord k) const {

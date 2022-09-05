@@ -42,10 +42,10 @@ static bool _is_electrified(const karte_t* welt, const convoihandle_t& cnv)
 
 replace_frame_t::replace_frame_t(convoihandle_t cnv) :
 	gui_frame_t("", NULL),
-	current_convoi(&current_convoi_pics),
-	scrollx_convoi(&current_convoi, true, false),
 	replace_line(false), replace_all(false), depot(false),
 	state(state_replace), replaced_so_far(0),
+	current_convoi(&current_convoi_pics),
+	scrollx_convoi(&current_convoi, true, false),
 	convoy_assembler(this)
 {
 	this->cnv = cnv;

@@ -32,14 +32,14 @@ size_t compare_file_rd_stream_t::read(void *buf, size_t len)
 {
 	if (len > our_len) {
 		free(our_buf);
-		our_buf = (char*)malloc(len);
+		our_buf = (uint8 *)malloc(len);
 		our_len = len;
 	}
 
 	assert(!is_writing());
 
-	size_t r1 = stream1->read(buf, len);
-	size_t r2 = stream2->read(our_buf, len);
+	const size_t r1 = stream1->read(buf, len);
+	const size_t r2 = stream2->read(our_buf, len);
 
 	bool ok = (r1 == r2)  &&  memcmp(buf, our_buf, r1)==0;
 
@@ -47,12 +47,12 @@ size_t compare_file_rd_stream_t::read(void *buf, size_t len)
 	if (!ok) {
 		printf("File 1: ");
 		for(int i=0; i<min(r1, 256); i++) {
-			printf("0x%02x ", ((char*)buf)[i]);
+			printf("0x%02hhx ", ((uint8 *)buf)[i]);
 		}
 		printf("\n");
 		printf("File 2: ");
 		for(int i=0; i<min(r2, 256); i++) {
-			printf("0x%02x ", our_buf[i]);
+			printf("0x%02hhx ", our_buf[i]);
 		}
 		printf("\n");
 	}

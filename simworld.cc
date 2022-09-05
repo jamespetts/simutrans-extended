@@ -8854,7 +8854,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			bool read_pak_simuconf = env_t::default_settings.get_pak_overrides_savegame_settings();
 			bool read_userdir_simuconf = env_t::default_settings.get_userdir_overrides_savegame_settings();
 			tabfile_t simuconf;
-			string dummy;
+			std::string dummy;
 
 			if (read_progdir_simuconf) {
 				dr_chdir( env_t::data_dir );

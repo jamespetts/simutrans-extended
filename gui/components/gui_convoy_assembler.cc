@@ -683,8 +683,8 @@ void gui_vehicles_capacity_info_t::draw(scr_coord offset)
 gui_convoy_assembler_t::gui_convoy_assembler_t(depot_frame_t *frame) :
 	convoi(&convoi_pics),
 	scrollx_convoi(&cont_convoi, true, false),
-	capacity_info(linehandle_t(), convoihandle_t(), false),
 	scrolly_convoi_capacity(&cont_convoi_capacity, false, true),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	pas(&pas_vec),
 	pas2(&pas2_vec),
 	electrics(&electrics_vec),
@@ -703,8 +703,8 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(depot_frame_t *frame) :
 gui_convoy_assembler_t::gui_convoy_assembler_t(replace_frame_t *frame) :
 	convoi(&convoi_pics),
 	scrollx_convoi(&cont_convoi, true, false),
-	capacity_info(linehandle_t(), convoihandle_t(), false),
 	scrolly_convoi_capacity(&cont_convoi_capacity, false, true),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	pas(&pas_vec),
 	pas2(&pas2_vec),
 	electrics(&electrics_vec),
@@ -1773,8 +1773,8 @@ void gui_convoy_assembler_t::update_convoi()
 		lb_convoi_brake_force.buf().printf("%4.2f kN", convoy.get_braking_force().to_double() / 1000.0);
 		lb_convoi_brake_force.update();
 
-		const sint32 brake_distance_min = convoy.calc_min_braking_distance(weight_summary_t(min_weight, friction), kmh2ms * max_speed);
-		const sint32 brake_distance_max = convoy.calc_min_braking_distance(weight_summary_t(max_weight, friction), kmh2ms * max_speed);
+		const sint32 brake_distance_min = convoy.calc_min_braking_distance(weight_summary_t(min_weight, friction), kmh2ms * max_speed).to_sint32();
+		const sint32 brake_distance_max = convoy.calc_min_braking_distance(weight_summary_t(max_weight, friction), kmh2ms * max_speed).to_sint32();
 		lb_convoi_brake_distance.buf().printf(
 			brake_distance_min == brake_distance_max ? translator::translate("brakes from max. speed in %i m") : translator::translate("brakes from max. speed in %i - %i m"),
 			brake_distance_min, brake_distance_max);
@@ -2137,8 +2137,9 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 				{
 					uint8 count;
 					uint32 n = 0;
-					for (auto vehicle : vehicles)
+					for (const vehicle_desc_t *vehicle : vehicles)
 					{
+						(void)vehicle;
 						count = vehicles[n]->get_upgrades_count();
 						for(int i = 0; i < count; i++)
 						{
@@ -2718,7 +2719,6 @@ gui_vehicle_bar_legends_t::gui_vehicle_bar_legends_t()
 
 	add_table(6,0)->set_spacing( scr_size(D_H_SPACE,1) );
 	{
-		const scr_size color_box_size=scr_size(VEHICLE_BAR_HEIGHT*2-2, VEHICLE_BAR_HEIGHT);
 		new_component<gui_margin_t>(D_MARGIN_LEFT);
 		new_component<gui_vehicle_bar_t>(COL_SAFETY, scr_size(VEHICLE_BAR_HEIGHT*2-2, VEHICLE_BAR_HEIGHT))->set_flags(vehicle_desc_t::unknown_constraint, vehicle_desc_t::unknown_constraint, 2/*has_power*/);
 		new_component<gui_label_t>(bar_color_helptexts[0], SYSCOL_TEXT_WEAK);

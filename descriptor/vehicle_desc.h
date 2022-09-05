@@ -678,10 +678,10 @@ public:
 
 	float32e8_t get_power_force_ratio() const;
 	uint32 calc_max_force(const uint32 power) const {
-		return power ? (uint32)(power / get_power_force_ratio() + float32e8_t::half) : 0;
+		return power ? (uint32)(power / get_power_force_ratio() + float32e8_t::half).to_sint32() : 0;
 	}
 	uint32 calc_max_power(const uint32 force) const {
-		return force ? (uint32)(force * get_power_force_ratio()) : 0;
+		return force ? (uint32)(force * get_power_force_ratio()).to_sint32() : 0;
 	}
 	uint32 get_power() const {
 		return power ? power : calc_max_power(tractive_effort);

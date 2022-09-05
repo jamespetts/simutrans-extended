@@ -8310,7 +8310,7 @@ float32e8_t convoi_t::get_brake_summary(/*const float32e8_t &speed*/ /* in m/s *
 float32e8_t convoi_t::get_force_summary(const float32e8_t &speed /* in m/s */)
 {
 	sint64 force = 0;
-	sint32 v = speed;
+	sint32 v = speed.to_sint32();
 
 	for (const_iterator i = begin(); i != end(); ++i )
 	{
@@ -8327,7 +8327,7 @@ float32e8_t convoi_t::get_force_summary(const float32e8_t &speed /* in m/s */)
 float32e8_t convoi_t::get_power_summary(const float32e8_t &speed /* in m/s */)
 {
 	sint64 power = 0;
-	sint32 v = speed;
+	sint32 v = speed.to_sint32();
 	for (const_iterator i = begin(); i != end(); ++i )
 	{
 		power += (*i)->get_desc()->get_effective_power_index(v);

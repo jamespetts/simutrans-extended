@@ -1137,20 +1137,20 @@ void settings_t::rdwr(loadsave_t *file)
 				}
 			}
 
-			float32e8_t distance_per_tile(meters_per_tile, 1000);
+			const float32e8_t distance_per_tile(meters_per_tile, 1000);
 
 			if(file->get_extended_version() < 6)
 			{
 				// Scale the costs to match the scale factor.
 				// Note that this will fail for attempts to save in the old format.
-				cst_multiply_dock *= distance_per_tile;
-				cst_multiply_station *= distance_per_tile;
-				cst_multiply_roadstop *= distance_per_tile;
-				cst_multiply_airterminal *= distance_per_tile;
-				cst_multiply_post *= distance_per_tile;
-				maint_building *= distance_per_tile;
-				cst_buy_land *= distance_per_tile;
-				cst_remove_tree *= distance_per_tile;
+				cst_multiply_dock        = (cst_multiply_dock        * distance_per_tile).to_sint32();
+				cst_multiply_station     = (cst_multiply_station     * distance_per_tile).to_sint32();
+				cst_multiply_roadstop    = (cst_multiply_roadstop    * distance_per_tile).to_sint32();
+				cst_multiply_airterminal = (cst_multiply_airterminal * distance_per_tile).to_sint32();
+				cst_multiply_post        = (cst_multiply_post        * distance_per_tile).to_sint32();
+				maint_building           = (maint_building           * distance_per_tile).to_sint32();
+				cst_buy_land             = (cst_buy_land             * distance_per_tile).to_sint32();
+				cst_remove_tree          = (cst_remove_tree          * distance_per_tile).to_sint32();
 			}
 
 			file->rdwr_short(obsolete_running_cost_increase_percent);
@@ -2485,7 +2485,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	sint64 new_maintenance_building = contents.get_int64("maintenance_building", -1);
 	if (new_maintenance_building > 0) {
-		maint_building = new_maintenance_building * distance_per_tile;
+		maint_building = (new_maintenance_building * distance_per_tile).to_sint32();
 	}
 
 	numbered_stations = contents.get_int( "numbered_stations", numbered_stations );
@@ -2563,24 +2563,24 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// Stations.  (Overridden by specific prices in pak files.)
 	sint64 new_cost_multiply_dock = contents.get_int64("cost_multiply_dock", -1);
 	if (new_cost_multiply_dock > 0) {
-		cst_multiply_dock = new_cost_multiply_dock * -100 * distance_per_tile;
+		cst_multiply_dock = (new_cost_multiply_dock * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_station = contents.get_int64("cost_multiply_station", -1);
 	if (new_cost_multiply_station > 0) {
-		cst_multiply_station = new_cost_multiply_station * -100 * distance_per_tile;
+		cst_multiply_station = (new_cost_multiply_station * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_roadstop = contents.get_int64("cost_multiply_roadstop", -1);
 	if (new_cost_multiply_roadstop > 0) {
-		cst_multiply_roadstop = new_cost_multiply_roadstop * -100 * distance_per_tile;
+		cst_multiply_roadstop = (new_cost_multiply_roadstop * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_airterminal = contents.get_int64("cost_multiply_airterminal", -1);
 	if (new_cost_multiply_airterminal > 0) {
-		cst_multiply_airterminal = new_cost_multiply_airterminal * -100 * distance_per_tile;
+		cst_multiply_airterminal = (new_cost_multiply_airterminal * -100 * distance_per_tile).to_sint32();
 	}
 	// "mail" is auxiliary station buildings
 	sint64 new_cost_multiply_post = contents.get_int64("cost_multiply_post", -1);
 	if (new_cost_multiply_post > 0) {
-		cst_multiply_post = new_cost_multiply_post * -100 * distance_per_tile;
+		cst_multiply_post = (new_cost_multiply_post * -100 * distance_per_tile).to_sint32();
 	}
 
 	// Depots & HQ are a bit simpler because not adjusted for distance per tile (not distance based).
@@ -2599,26 +2599,26 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	sint64 new_cost_alter_land = contents.get_int64("cost_alter_land", -1);
 	if (new_cost_alter_land > 0)
 	{
-		cst_alter_land = new_cost_alter_land * -100 * distance_per_tile;
+		cst_alter_land = (new_cost_alter_land * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_reclaim_land = contents.get_int64("cost_reclaim_land", -1);
 	if (new_cost_reclaim_land > 0)
 	{
-		cst_reclaim_land = new_cost_reclaim_land * -100 * distance_per_tile;
+		cst_reclaim_land = (new_cost_reclaim_land * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_set_slope = contents.get_int64("cost_set_slope", -1);
 	if (new_cost_set_slope > 0) {
-		cst_set_slope = new_cost_set_slope * -100 * distance_per_tile;
+		cst_set_slope = (new_cost_set_slope * -100 * distance_per_tile).to_sint32();
 	}
 	// Remove trees.  Probably distance based (if we're clearing a long area).
 	sint64 new_cost_remove_tree = contents.get_int64("cost_remove_tree", -1);
 	if (new_cost_remove_tree > 0) {
-		cst_remove_tree = new_cost_remove_tree * -100 * distance_per_tile;
+		cst_remove_tree = (new_cost_remove_tree * -100 * distance_per_tile).to_sint32();
 	}
 	// Purchase land (often a house).  Distance-based, adjust for distance_per_tile.
 	sint64 new_cost_buy_land = contents.get_int64("cost_buy_land", -1);
 	if (new_cost_buy_land > 0) {
-		cst_buy_land = new_cost_buy_land * -100 * distance_per_tile;
+		cst_buy_land = (new_cost_buy_land * -100 * distance_per_tile).to_sint32();
 	}
 	// Delete house or field.  Both are definitely distance based.
 	// (You're usually trying to drive a railway line through a field.)
@@ -2627,11 +2627,11 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// with that game.  A save game can be changed using the override options.
 	sint64 new_cost_multiply_remove_haus = contents.get_int64("cost_multiply_remove_haus", -1);
 	if (new_cost_multiply_remove_haus > 0) {
-		cst_multiply_remove_haus = new_cost_multiply_remove_haus * -100 * distance_per_tile;
+		cst_multiply_remove_haus = (new_cost_multiply_remove_haus * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_remove_field = contents.get_int64("cost_multiply_remove_field", -1);
 	if (new_cost_multiply_remove_field > 0) {
-		cst_multiply_remove_field = new_cost_multiply_remove_field * -100 * distance_per_tile;
+		cst_multiply_remove_field = (new_cost_multiply_remove_field * -100 * distance_per_tile).to_sint32();
 	}
 
 	// Found city or industry chain.  Not distance based.
@@ -3487,9 +3487,6 @@ void settings_t::set_player_color_to_default(player_t* const player) const
 void settings_t::set_allow_routing_on_foot(bool value)
 {
 	allow_routing_on_foot = value;
-#ifdef MULTI_THREAD
-	world()->await_path_explorer();
-#endif
 	path_explorer_t::refresh_category(0);
 }
 

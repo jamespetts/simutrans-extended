@@ -221,7 +221,7 @@ public:
 	void add_to_world_list(bool lock = false);
 
 	void set_name(const char* value);
-	const char* get_name() const;
+	const char* get_name() const OVERRIDE;
 
 private:
 	linehandle_t last_selected_line;

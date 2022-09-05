@@ -974,7 +974,7 @@ public:
 	/**
 	 * @return total power of this convoi
 	 */
-	inline uint32 get_sum_power() {return get_continuous_power();}
+	inline uint32 get_sum_power() { return get_continuous_power().to_sint32(); }
 	inline sint32 get_min_top_speed() {return get_vehicle_summary().max_sim_speed;}
 	inline sint32 get_max_power_speed() OVERRIDE {return get_min_top_speed();}
 

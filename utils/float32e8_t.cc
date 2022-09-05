@@ -5,16 +5,20 @@
  *      Author: Bernd Gabriel
  */
 
-#include <stdlib.h>
 #include "float32e8_t.h"
+
 #include "../simdebug.h"
 #include "../dataobj/loadsave.h"
 
-ostream & operator << (ostream &out, const float32e8_t &x)
+#include <cstdlib>
+
+
+std::ostream & operator << (std::ostream &out, const float32e8_t &x)
 {
 	out << x.to_double();
 	return out;
 }
+
 
 //remember: most significant bit is always set except for 0.
 //after any operation the mantissa is shifted and the exponent is in-/decremented accordingly.

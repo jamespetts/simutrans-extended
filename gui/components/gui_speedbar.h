@@ -82,7 +82,7 @@ public:
 
 	void set_assembling_incomplete(bool incomplete);
 
-	void draw(scr_coord offset);
+	void draw(scr_coord offset) OVERRIDE;
 
 	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, D_LABEL_HEIGHT); }
 };

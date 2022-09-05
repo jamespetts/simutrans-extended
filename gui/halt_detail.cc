@@ -660,7 +660,6 @@ void halt_detail_pas_t::draw_class_table(scr_coord offset, const uint8 class_nam
 	uint base_capacity = halt->get_capacity(good_category->get_catg_index()) ? max(halt->get_capacity(good_category->get_catg_index()), 10) : 10; // Note that capacity may have 0 even if pax_enabled
 	uint transferring_sum = 0;
 	bool served = false;
-	int left = 0;
 
 	display_color_img(good_category == goods_manager_t::mail ? skinverwaltung_t::mail->get_image_id(0) : skinverwaltung_t::passengers->get_image_id(0), offset.x, y + FIXED_SYMBOL_YOFF, 0, false, false);
 	for (uint8 i = 0; i < good_category->get_number_of_classes(); i++)
@@ -705,7 +704,7 @@ void halt_detail_pas_t::draw_class_table(scr_coord offset, const uint8 class_nam
 		else {
 			pas_info.append("-");
 		}
-		left += display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, y, pas_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
+		display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, y, pas_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
 		pas_info.clear();
 
 		// color bar
@@ -741,12 +740,12 @@ void halt_detail_pas_t::draw_class_table(scr_coord offset, const uint8 class_nam
 	pas_info.clear();
 
 	pas_info.append(transferring_sum);
-	left += display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, y, pas_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
+	display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, y, pas_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
 	pas_info.clear();
 
 	pas_info.printf("  %u ", halt->get_ware_summe(good_category) + transferring_sum);
 	pas_info.printf(translator::translate("(max: %u)"), halt->get_capacity(good_category->get_catg_index()));
-	left += display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 10, y, pas_info, ALIGN_LEFT, SYSCOL_TEXT, true);
+	display_proportional_clip_rgb(offset.x + class_name_cell_width + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 10, y, pas_info, ALIGN_LEFT, SYSCOL_TEXT, true);
 	pas_info.clear();
 }
 
@@ -995,7 +994,6 @@ void halt_detail_goods_t::draw(scr_coord offset)
 	int x_size = get_size().w - 51 - pos.x;
 	int top = D_MARGIN_TOP;
 	offset.x += D_MARGIN_LEFT;
-	int left = GOODS_SYMBOL_CELL_WIDTH;
 
 	//goods_info.clear();
 	if (halt.is_bound()) {
@@ -1088,7 +1086,7 @@ void halt_detail_goods_t::draw(scr_coord offset)
 					//transfer
 					goods_info.printf("%4u/%4u", transship_in_catg, leaving_sum_catg);
 					//goods_info.append(transship_sum_catg);
-					left += display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, offset.y + top, goods_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
+					display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, offset.y + top, goods_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
 					goods_info.clear();
 					top += LINESPACE + GOODS_LEAVING_BAR_HEIGHT + 1;
 					active_freight_catg++;
@@ -1121,12 +1119,12 @@ void halt_detail_goods_t::draw(scr_coord offset)
 			goods_info.clear();
 
 			goods_info.append(transship_sum);
-			left += display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, offset.y + top, goods_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
+			display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 5, offset.y + top, goods_info, ALIGN_RIGHT, SYSCOL_TEXT, true);
 			goods_info.clear();
 
 			goods_info.printf("  %u ", waiting_sum + transship_sum);
 			goods_info.printf(translator::translate("(max: %u)"), halt->get_capacity(2));
-			left += display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 10, offset.y + top, goods_info, ALIGN_LEFT, SYSCOL_TEXT, true);
+			display_proportional_clip_rgb(offset.x + D_BUTTON_WIDTH + GOODS_SYMBOL_CELL_WIDTH + GOODS_WAITING_CELL_WIDTH * 2 + 10, offset.y + top, goods_info, ALIGN_LEFT, SYSCOL_TEXT, true);
 			goods_info.clear();
 
 			top += LINESPACE * 2;

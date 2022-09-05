@@ -571,7 +571,6 @@ const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const 
 						difference += (desc->get_power()*desc->get_gear())/64 < power ? -10 : 10;
 					}
 
-					sint32 difference=0;	// smaller is better
 					// it is faster? (although we support only up to 120km/h for goods)
 					difference += (desc->get_topspeed() < test_desc->get_topspeed())? -10 : 10;
 					// it is cheaper? (not so important)

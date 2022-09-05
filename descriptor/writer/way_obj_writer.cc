@@ -28,7 +28,6 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 		"nse1", "new1", "nsw1", "sew1", "nsew1", // different crossings: northwest/southeast is oneway
 		"nse2", "new2", "nsw2", "sew2", "nsew2",
 	};
-	int ribi, slope;
 
 	obj_node_t node(this, 23, &parent);
 
@@ -111,7 +110,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	slist_tpl<string> front_list;
 	slist_tpl<string> back_list;
 
-	for (ribi = 0; ribi < lengthof(ribi_codes); ribi++) {
+	for (ribi_t::ribi ribi = 0; ribi < lengthof(ribi_codes); ribi++) {
 		char buf[40];
 		sprintf(buf, "frontimage[%s]", ribi_codes[ribi]);
 		string str = obj.get(buf);
@@ -126,7 +125,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	front_list.clear();
 	back_list.clear();
 
-	for(  slope = 3;  slope <= 12;  slope += 3  ) {
+	for(  int slope = 3;  slope <= 12;  slope += 3  ) {
 		char buf[40];
 		sprintf( buf, "frontimageup[%d]", slope );
 		string str = obj.get(buf);
@@ -135,7 +134,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 		string str2 = obj.get(buf);
 		back_list.append(str2);
 	}
-	for(  slope = 3;  slope <= 12;  slope += 3  ) {
+	for(  int slope = 3;  slope <= 12;  slope += 3  ) {
 		char buf[40];
 		sprintf( buf, "frontimageup2[%d]", slope );
 		string str = obj.get(buf);
@@ -154,7 +153,7 @@ void way_obj_writer_t::write_obj(FILE* outfp, obj_node_t& parent, tabfileobj_t& 
 	front_list.clear();
 	back_list.clear();
 
-	for (ribi = 3; ribi <= 12; ribi += 3) {
+	for (ribi_t::ribi ribi = 3; ribi <= 12; ribi += 3) {
 		char buf[40];
 		sprintf(buf, "frontdiagonal[%s]", ribi_codes[ribi]);
 		string str = obj.get(buf);

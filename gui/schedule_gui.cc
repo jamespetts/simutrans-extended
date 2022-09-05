@@ -863,10 +863,9 @@ void schedule_gui_t::init_line_selector()
 			new_line = linehandle_t();
 		}
 	}
-	int offset = 0;
+
 	if(  !new_line.is_bound()  ) {
 		selection = 0;
-		offset = 1;
 		line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>( translator::translate("<no line>"), SYSCOL_TEXT );
 	}
 

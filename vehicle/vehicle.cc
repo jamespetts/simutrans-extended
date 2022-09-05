@@ -2477,8 +2477,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		saved_number_of_classes = 1;
 	}
 
-	sint32 total_fracht_count = 0;
-	sint32* fracht_count = new sint32[saved_number_of_classes];
+	uint32 total_fracht_count = 0;
+	uint32* fracht_count = new uint32[saved_number_of_classes];
 	bool create_dummy_ware = false;
 
 	if (file->is_saving())
@@ -2494,7 +2494,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		if (total_fracht_count == 0 && (desc->get_freight_type() != goods_manager_t::none) && desc->get_total_capacity() > 0)
 		{
 			total_fracht_count = 1;
-			fracht_count[0] = 1;
+			fracht_count[0] = 1u;
 			create_dummy_ware = true;
 		}
 	}
@@ -2925,12 +2925,12 @@ uint32 vehicle_t::calc_sale_value() const
 	// after 20 years, it has only half value
 	// Multiply by .997**number of months
 	// Make sure to use OUR version of pow().
-	float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
+	const float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
 	static const float32e8_t base_of_exponent(997, 1000);
 	value *= pow(base_of_exponent, age_in_months);
 
 	// Convert back to integer
-	return (uint32) value;
+	return value.to_sint32();
 }
 
 void

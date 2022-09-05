@@ -913,7 +913,6 @@ bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, in
 {
 	char lanaddr[64] = "unset"; /* my ip address on the LAN */
 	int error = 0;
-	const char *rootdescurl = 0;
 	const char *multicastif = 0;
 	const char *minissdpdpath = 0;
 	int localport = UPNP_LOCAL_PORT_ANY;
@@ -1007,14 +1006,12 @@ void remove_port_forwarding( int port )
 	char lanaddr[64] = "unset"; /* my ip address on the LAN */
 	char externalIPAddress[64];
 	int error = 0;
-	const char *rootdescurl = 0;
 	const char *multicastif = 0;
 	const char *minissdpdpath = 0;
 	int localport = UPNP_LOCAL_PORT_ANY;
 	int ipv6 = 0; // probably not needed for IPv6 ever ...
 	unsigned char ttl = 2; (void)ttl; /* defaulting to 2 */
 	struct UPNPDev *devlist = 0;
-	bool has_IP = false;
 
 	if(  (devlist = upnpDiscover( 2000, multicastif, minissdpdpath, localport, ipv6, ttl, &error ))  ) {
 		struct UPNPUrls urls;
@@ -1025,7 +1022,6 @@ void remove_port_forwarding( int port )
 		if(  UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress) ==  UPNPCOMMAND_SUCCESS  ) {
 			// this is our ID (at least the routes tells us this)
 			char eport[19];
-			char *iport = eport;
 			sprintf( eport, "%d", port );
 			// setting up tcp redirect forever (last parameter "0")
 			UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, eport, "TCP", NULL);

@@ -64,7 +64,7 @@ private:
 	 */
 	sint16 number_of_convoys;
 
-	bool clearing;
+	bool clearing = false;
 
 public:
 	sint16 get_number_of_convoys() const { return number_of_convoys; }
