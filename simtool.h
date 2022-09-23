@@ -1183,6 +1183,7 @@ public:
 };
 
 class tool_quit_t : public tool_t {
+	// default_parameter not empty: start new game
 public:
 	tool_quit_t() : tool_t(TOOL_QUIT | SIMPLE_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("Beenden"); }
@@ -1270,6 +1271,7 @@ public:
 		welt->set_dirty();
 		return false;
 	}
+	bool exit(player_t* s) OVERRIDE { return init(s); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	bool is_work_network_safe() const OVERRIDE { return true; }
 };
@@ -1298,6 +1300,7 @@ public:
 		welt->set_dirty();
 		return false;
 	}
+	bool exit(player_t* s) OVERRIDE { return init(s); }
 	bool is_init_network_safe() const OVERRIDE { return true; }
 	bool is_work_network_safe() const OVERRIDE { return true; }
 };

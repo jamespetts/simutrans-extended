@@ -301,8 +301,15 @@ void interaction_t::interactive_event( const event_t &ev )
 bool interaction_t::process_event( event_t &ev )
 {
 	if(ev.ev_class==EVENT_SYSTEM  &&  ev.ev_code==SYSTEM_QUIT) {
-		// quit the program if this window is closed
-		env_t::quit_simutrans = true;
+		// since we run in a sync_step, quitting may be needed to be delagated to a tool
+		if(  (LOAD_RANDOM | MAP_CREATE_RANDOM | MODAL_RANDOM) & get_random_mode()  ) {
+			// next sync step would take tool long
+			env_t::quit_simutrans = true;
+		}
+		else {
+			// we call the proper tool for quitting
+			world->set_tool(tool_t::simple_tool[TOOL_QUIT], NULL);
+		}
 
 		// we may be requested to save the game before exit
 		if(  env_t::server  &&  env_t::server_save_game_on_quit  ) {
