@@ -127,7 +127,8 @@ bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		welt->stop(false);
 	}
 	else if(  comp == option_buttons + BUTTON_QUIT  ) {
-		welt->stop(true);
+		// we call the proper tool for quitting
+		welt->set_tool(tool_t::simple_tool[TOOL_QUIT], NULL);
 	}
 	else {
 		// not our?
