@@ -6,11 +6,11 @@ on: [push]
 name: Automated Tests
 
 jobs:
-  run-tests-linux:
+  run-tests-asan-ubsan:
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
     - name: Install dependencies
       run: |
         sudo apt-get -y update
@@ -52,5 +52,51 @@ jobs:
         export UBSAN_OPTIONS="print_stacktrace=1 abort_on_error=1"
         cp scripts/run-automated-tests.sh .
         chmod +x run-automated-tests.sh
-        ulimit -St 600 # 10 minutes ought to be enough for anybody.
-        ./run-automated-tests.sh
+        timeout 10m ./run-automated-tests.sh # 10 minutes ought to be enough for anybody.
+
+  run-tests-tsan:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: ~/.ccache
+        key: ccache:${{ github.job }}:${{ github.ref }}:${{ github.sha }}
+        restore-keys: |
+          ccache:${{ github.job }}:${{ github.ref }}
+          ccache:${{ github.job }}
+    - name: Configure Simutrans Build
+      run: |
+        autoconf
+        CC="ccache clang-14" CXX="ccache clang++-14" ./configure
+        echo "FLAGS   += -fsanitize=thread" >> config.default
+        echo "LDFLAGS += -fsanitize=thread" >> config.default
+    - name: Build Simutrans
+      run: |
+        CC="ccache clang-14" CXX="ccache clang++-14" make -j$(nproc)
+    - name: Install pak128.britain-ex-nightly
+      run: |
+        pushd simutrans
+        printf '2\ni\ny\n' | ../get_pak.sh
+        popd
+    - name: Link tests as scenario
+      run: |
+        mkdir -p ./simutrans/pak128.britain-ex-nightly/scenario
+        ln -sT $GITHUB_WORKSPACE/tests ./simutrans/pak128.britain-ex-nightly/scenario/automated-tests
+    - name: Create simuconf
+      run: |
+        mkdir -p ~/simutrans/
+        echo "frames_per_second = 100"              >> ~/simutrans/simuconf.tab
+        echo "fast_forward_frames_per_second = 100" >> ~/simutrans/simuconf.tab
+    - name: Run tests
+      run: |
+        export TSAN_OPTIONS="print_stacktrace=1 second_deadlock_stack=1 history_size=7 verbose=2"
+        cp scripts/run-automated-tests.sh .
+        chmod +x run-automated-tests.sh
+        timeout 10m ./run-automated-tests.sh # 10 minutes ought to be enough for anybody.
