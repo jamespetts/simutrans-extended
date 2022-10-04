@@ -7,25 +7,15 @@
 #define UTILS_FLOAT32E8_T_H
 
 
+#include "../simtypes.h"
+
 #include <iostream>
-using namespace std;
-
+#include <cmath>
 #include <string>
-#include <math.h>
 
-#ifndef NO_SIMUTRANS
-	#include "../simtypes.h"
-#else
-	typedef unsigned	long long	uint64;
-	typedef 			long long	sint64;
-	typedef unsigned	long		uint32;
-	typedef 			long		sint32;
-	typedef unsigned	short		uint16;
-	typedef 			short		sint16;
-	typedef unsigned	char  		uint8;
-#endif
 
 class loadsave_t;
+
 
 class float32e8_t
 {
@@ -326,17 +316,17 @@ private:
 #ifdef USE_DOUBLE
 public:
 #else
-	friend ostream & operator << (ostream &out, const float32e8_t &x);
+	friend std::ostream &operator << (std::ostream &out, const float32e8_t &x);
 #endif
 public:
 	double to_double() const;
 	sint32 to_sint32() const;
 	//const string to_string() const;
 
-	inline operator sint32 () const { return to_sint32(); }
+	explicit inline operator sint32 () const { return to_sint32(); }
 };
 
-ostream & operator << (ostream &out, const float32e8_t &x);
+std::ostream &operator << (std::ostream &out, const float32e8_t &x);
 
 inline const float32e8_t operator + (const uint8 x, const float32e8_t &y) {return float32e8_t(x) + y; }
 inline const float32e8_t operator - (const uint8 x, const float32e8_t &y) {return float32e8_t(x) - y; }

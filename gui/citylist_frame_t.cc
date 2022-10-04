@@ -188,6 +188,7 @@ citylist_frame_t::citylist_frame_t() :
 			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
 			name_filter_input.set_width(D_BUTTON_WIDTH);
+			name_filter_input.set_search_box(true);
 			list.add_component(&name_filter_input);
 
 			filter_within_network.init(button_t::square_state, "Within own network");

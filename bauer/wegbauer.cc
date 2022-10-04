@@ -2494,10 +2494,10 @@ bool way_builder_t::build_tunnel_tile()
 
 		grund_t* gr = welt->lookup(route[i]);
 
-		tunnelboden_t* tunnel_ground;
-		tunnel_t* tunnel;
-		sint64 old_maintenance;
-		sint64 new_maintenance;
+		tunnelboden_t* tunnel_ground = nullptr;
+		tunnel_t* tunnel = nullptr;
+		sint64 old_maintenance = 0;
+		sint64 new_maintenance = 0;
 
 		if(gr==NULL){
 			tunnel_ground = new tunnelboden_t(route[i],0);
@@ -2515,6 +2515,8 @@ bool way_builder_t::build_tunnel_tile()
 			old_maintenance = tunnel_builder_t::get_total_maintenance(gr->get_pos(),tunnel->get_desc());
 			tunnel->set_desc(tunnel_desc);
 		}
+
+		assert(tunnel_ground != nullptr); // non-tunnel tile below ground ??!
 		new_maintenance = tunnel_builder_t::get_total_maintenance(tunnel_ground->get_pos(),tunnel_desc);
 		player_t::add_maintenance(player_builder,new_maintenance-old_maintenance,tunnel_desc->get_waytype());
 	}

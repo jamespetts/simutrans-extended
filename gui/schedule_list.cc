@@ -249,9 +249,9 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	gui_frame_t(translator::translate("Line Management"), player_),
 	player(player_),
 	lc_preview(0),
+	cont_by_accommo(linehandle_t()),
 	cont_haltlist(linehandle_t()),
 	cont_line_capacity_by_catg(linehandle_t(), convoihandle_t()),
-	cont_by_accommo(linehandle_t()),
 	scrolly_convois(&cont),
 	scrolly_haltestellen(&cont_tab_haltlist, true, true),
 	scroll_times_history(&cont_times_history, true, true),
@@ -415,6 +415,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	inp_filter.set_size( scr_size( D_BUTTON_WIDTH*2- D_BUTTON_HEIGHT *3, D_EDIT_HEIGHT ) );
 	inp_filter.set_text( schedule_filter, lengthof(schedule_filter) );
 //	inp_filter.set_tooltip("Only show lines containing");
+	inp_filter.set_search_box(true);
 	inp_filter.add_listener(this);
 	add_component(&inp_filter);
 

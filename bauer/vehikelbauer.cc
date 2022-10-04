@@ -347,12 +347,13 @@ bool vehicle_builder_t::successfully_loaded()
 			vehicle_desc_t** const tmp_end = tmp + count;
 			for(  vehicle_desc_t** tmpptr = tmp;  tmpptr != tmp_end;  tmpptr++  ) {
 				*tmpptr = typ_liste.remove_first();
+				(*tmpptr)->fix_number_of_classes();
 			}
+
 			std::sort(tmp, tmp_end, compare);
+
 			for(  vehicle_desc_t** tmpptr = tmp;  tmpptr != tmp_end;  tmpptr++  ) {
 				typ_liste.append(*tmpptr);
-
-				(*tmpptr)->fix_number_of_classes();
 			}
 			delete [] tmp;
 		}
@@ -571,7 +572,6 @@ const vehicle_desc_t *vehicle_builder_t::get_best_matching( waytype_t wt, const 
 						difference += (desc->get_power()*desc->get_gear())/64 < power ? -10 : 10;
 					}
 
-					sint32 difference=0;	// smaller is better
 					// it is faster? (although we support only up to 120km/h for goods)
 					difference += (desc->get_topspeed() < test_desc->get_topspeed())? -10 : 10;
 					// it is cheaper? (not so important)

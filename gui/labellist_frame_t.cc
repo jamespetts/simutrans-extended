@@ -44,6 +44,7 @@ labellist_frame_t::labellist_frame_t() :
 				new_component<gui_label_t>("Filter:");
 			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			name_filter_input.set_search_box(true);
 			add_component(&name_filter_input);
 		}
 		end_table();

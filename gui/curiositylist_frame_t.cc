@@ -51,6 +51,7 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 				new_component<gui_label_t>("Filter:");
 			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
+			name_filter_input.set_search_box(true);
 			add_component(&name_filter_input);
 
 			if (!welt->get_settings().regions.empty()) {

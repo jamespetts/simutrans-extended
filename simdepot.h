@@ -241,7 +241,7 @@ public:
 	sync_result sync_step(uint32 delta_t);
 
 	void set_name(const char* value);
-	const char* get_name() const;
+	const char* get_name() const OVERRIDE;
 
 private:
 	linehandle_t last_selected_line;

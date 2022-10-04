@@ -420,6 +420,10 @@ void path_explorer_t::refresh_all_categories(const bool reset_working_set)
 
 void path_explorer_t::refresh_category(uint8 category)
 {
+#ifdef MULTI_THREAD
+	world->await_path_explorer();
+#endif
+
 	uint8 number_of_classes = goods_manager_t::get_classes_catg_index(category);
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{

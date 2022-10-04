@@ -153,9 +153,6 @@ void root_writer_t::writer_init(const char *i, const char *arg){
 
 void root_writer_t::write_CSV(const char *filename, int argc, char *argv[]){
 	searchfolder_t find;
-	FILE* outfp = NULL;
-	obj_node_t* node = NULL;
-	bool separate = false;
 
 	CSV_file_t csv;
 

@@ -1705,7 +1705,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 				}
 			}
 		}
-		sint64 dummy;
+		sint64 dummy = 0;
 		file->rdwr_longlong( dummy );
 		file->rdwr_longlong( dummy );
 		file->rdwr_longlong( dummy );

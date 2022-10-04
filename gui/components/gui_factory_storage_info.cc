@@ -546,8 +546,6 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(halt->get_owner()->get_player_color1() + env_t::gui_player_color_dark), true);
 			xoff += D_H_SPACE * 2;
 
-			bool has_active_freight_connection = false;
-
 			// [capacity]
 			uint32 wainting_sum = 0;
 			uint32 transship_sum = 0;
@@ -577,10 +575,6 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 			display_color_img_with_tooltip(skinverwaltung_t::goods->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("station_capacity_freight"));
 			xoff += 14;
 
-			if (wainting_sum || transship_sum) {
-				has_active_freight_connection = true;
-			}
-
 			buf.clear();
 			buf.printf("%u", wainting_sum);
 			if (transship_sum) {
@@ -603,7 +597,6 @@ void gui_factory_nearby_halt_info_t::draw(scr_coord offset)
 				{
 					display_color_img_with_tooltip(goods_manager_t::get_info_catg_index(i)->get_catg_symbol(), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate(goods_manager_t::get_info_catg_index(i)->get_catg_name()));
 					xoff += 14;
-					has_active_freight_connection = true;
 				}
 			}
 

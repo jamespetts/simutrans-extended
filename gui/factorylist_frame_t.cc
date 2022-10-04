@@ -80,6 +80,7 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
 			name_filter_input.set_width(D_BUTTON_WIDTH);
+			name_filter_input.set_search_box(true);
 			add_component(&name_filter_input);
 
 

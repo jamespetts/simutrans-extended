@@ -84,8 +84,6 @@ static void fill_event(event_t* const ev)
 	// for autorepeat buttons we track button state, press time and a repeat time
 
 	static int  pressed_buttons = 0; // assume: at startup no button pressed (needed for some backends)
-	static unsigned long lb_time = 0;
-	static long repeat_time = 500;
 
 	ev->ev_class = EVENT_NONE;
 

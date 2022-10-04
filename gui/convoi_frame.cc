@@ -103,8 +103,6 @@ bool convoi_frame_t::passes_filter(convoihandle_t cnv)
 		return false;
 	}
 
-	vehicle_t const* const tdriver = cnv->front();
-
 	if(  get_filter(convoi_filter_frame_t::special_filter)  ) {
 		if ((!get_filter(convoi_filter_frame_t::noroute_filter)  || cnv->get_state() != convoi_t::NO_ROUTE) &&
 				(!get_filter(convoi_filter_frame_t::stucked_filter)    || (cnv->get_state() != convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS && cnv->get_state() != convoi_t::CAN_START_TWO_MONTHS)) &&
@@ -266,6 +264,7 @@ convoi_frame_t::convoi_frame_t() :
 		else {
 			new_component<gui_label_t>("Filter:");
 		}		name_filter_input.set_text(name_filter, lengthof(name_filter));
+		name_filter_input.set_search_box(true);
 		add_component(&name_filter_input);
 
 		filter_details.init(button_t::roundbox, "cl_btn_filter_settings");

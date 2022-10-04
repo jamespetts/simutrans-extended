@@ -517,7 +517,7 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 
 	control_towers = 0;
 
-	transfer_time = 0;
+	transfer_time = 0u;
 
 	for(sint32 i = 0; i < 4; i ++)
 	{
@@ -662,6 +662,7 @@ haltestelle_t::~haltestelle_t()
 			{
 				reset_connexions(i, j);
 			}
+
 			path_explorer_t::refresh_category(i);
 		}
 	}
@@ -1357,15 +1358,21 @@ void haltestelle_t::step()
 								passengers_walked = true;
 							}
 
-							const uint32 distance_to_transfer = shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos()));
-							if(tmp.get_zwischenziel().is_bound() && distance_to_transfer <= max_walking_distance)
+							uint32 distance_to_transfer = 0;
+
+							if (tmp.get_zwischenziel().is_bound())
 							{
-								// Passengers can walk to their next transfer.
-								const uint32 walking_time = welt->walking_time_tenths_from_distance(distance_to_transfer);
-								pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge, world()->get_seconds_to_ticks(walking_time * 6));
-								tmp.set_last_transfer(self);
-								tmp.get_zwischenziel()->liefere_an(tmp, 1);
-								passengers_walked = true;
+								distance_to_transfer = shortest_distance(get_next_pos(tmp.get_zwischenziel()->get_basis_pos()), get_next_pos(tmp.get_zwischenziel()->get_basis_pos()));
+
+								if (distance_to_transfer <= max_walking_distance)
+								{
+									// Passengers can walk to their next transfer.
+									const uint32 walking_time = welt->walking_time_tenths_from_distance(distance_to_transfer);
+									pedestrian_t::generate_pedestrians_at(get_basis_pos3d(), tmp.menge, world()->get_seconds_to_ticks(walking_time * 6));
+									tmp.set_last_transfer(self);
+									tmp.get_zwischenziel()->liefere_an(tmp, 1);
+									passengers_walked = true;
+								}
 							}
 
 							// Passengers - use unhappy graph. Even passengers able to walk to their destination or
@@ -2016,12 +2023,6 @@ void haltestelle_t::refresh_routing(const schedule_t *const sched, const minivec
 	if(sched && player)
 	{
 		const uint8 catg_count = categories.get_count();
-#ifdef MULTI_THREAD
-		if (!welt->is_destroying())
-		{
-			world()->await_path_explorer();
-		}
-#endif
 
 		for (uint8 i = 0; i < catg_count; i++)
 		{
@@ -4425,9 +4426,9 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 		else
 		{
-			uint16 old_tt = min(transfer_time, 65535u);
+			uint16 old_tt = std::min(transfer_time, 0xFFFFu);
 			file->rdwr_short(old_tt);
-			if (old_tt == 65535)
+			if (old_tt == 0xFFFFu)
 			{
 				transfer_time = UINT32_MAX_VALUE;
 			}
@@ -5312,10 +5313,8 @@ void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 
 
 	// status color box below
-	bool dirty = false;
 	if(  get_status_farbe() != last_status_color  ) {
 		last_status_color = get_status_farbe();
-		dirty = true;
 	}
 	display_fillbox_wh_clip_rgb( x - 1 - 4, ypos, count * D_WAITINGBAR_WIDTH + 12 - 2, D_WAITINGBAR_WIDTH, get_status_farbe(), true );
 }
@@ -6271,10 +6270,8 @@ void haltestelle_t::check_nearby_halts()
 			}
 		}
 	}
+
 	// Must refresh here, but only passengers can walk, so only refresh passengers.
-#ifdef MULTI_THREAD
-	world()->await_path_explorer();
-#endif
 	path_explorer_t::refresh_category(0);
 }
 
@@ -6377,11 +6374,11 @@ void haltestelle_t::calc_transfer_time()
 	const uint32 walking_around = welt->walking_time_tenths_from_distance(length_around);
 	// Guess that someone has to walk roughly from the middle to one end, so divide by *4*.
 	// Finally, round down to a uint16 (just in case).
-	transfer_time = min(walking_around / 4u, UINT32_MAX_VALUE);
+	transfer_time = std::min(walking_around / 4u, UINT32_MAX_VALUE);
 
 	// Repeat the process for the transshipment time.  (This is all inlined.)
 	const uint32 hauling_around = welt->walk_haulage_time_tenths_from_distance(length_around);
-	transshipment_time = min(hauling_around / 4u, UINT32_MAX_VALUE);
+	transshipment_time = std::min(hauling_around / 4u, UINT32_MAX_VALUE);
 
 	// Adjust for overcrowding - transfer time increases with a more crowded stop.
 	// TODO: Better separate waiting times for different types of goods.

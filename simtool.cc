@@ -836,7 +836,8 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 	uint8 num_obj = gr->obj_count();
 	if(num_obj>0) {
 		msg = gr->kann_alle_obj_entfernen(player);
-		if(return_ok = ((msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden)))){
+		return_ok = msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden);
+		if(return_ok) {
 			return_ok = gr->obj_loesche_alle(player);
 		}
 		DBG_MESSAGE("tool_remover()",  "removing everything from %d,%d,%d",gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
@@ -1150,7 +1151,7 @@ const char * tool_flatten_path_t::tile_work(player_t *player, const koord3d &pos
 	return NULL;
 }
 
-void tool_flatten_path_t::tile_mark(player_t *player, const koord3d &pos, const koord3d &start){
+void tool_flatten_path_t::tile_mark(player_t */*player*/, const koord3d &pos, const koord3d &/*start*/){
 	if(grund_t *gr = welt->lookup_kartenboden( pos.get_2d() )){
 		zeiger_t *marker = new zeiger_t(gr->get_pos(), NULL);
 		uint8 ground_slope=gr->get_grund_hang();
@@ -4094,7 +4095,7 @@ bool tool_build_tunnel_t::vent_checker_t::check_next_tile(const grund_t *gr) con
 	return true;
 }
 
-int tool_build_tunnel_t::vent_checker_t::get_cost(const grund_t *gr, const sint32, koord from_pos){
+int tool_build_tunnel_t::vent_checker_t::get_cost(const grund_t */*gr*/, const sint32, koord /*from_pos*/){
 	return welt->get_settings().get_meters_per_tile();
 }
 
@@ -4435,6 +4436,7 @@ const char *tool_wayremover_t::do_work( player_t *player, const koord3d &start, 
 							gr = gr_new;
 						}
 
+						weg = gr->get_weg(wt);
 						if(weg)
 						{
 							weg->count_sign();
@@ -7728,10 +7730,16 @@ image_id tool_build_depot_t::get_icon(player_t *player) const
 
 bool tool_build_depot_t::init( player_t * )
 {
-	building_desc_t const* desc = hausbauer_t::find_tile(default_param, 0)->get_desc();
+	if (default_param == NULL) {
+		return false;
+	}
+
+	const building_tile_desc_t *tile_desc = hausbauer_t::find_tile(default_param, 0);
+	building_desc_t const* desc = tile_desc ? tile_desc->get_desc() : NULL;
 	if (desc == NULL) {
 		return false;
 	}
+
 	// no depots for player 1
 	if(true /*player!=welt->get_public_player()*/) {
 		cursor = desc->get_cursor()->get_image_id(0);
@@ -7829,6 +7837,10 @@ const char *tool_build_depot_t::work( player_t *player, koord3d pos )
  */
 bool tool_build_house_t::init( player_t * )
 {
+	if (default_param && strlen(default_param) < 4) {
+		return false;
+	}
+
 	if (is_local_execution() && !strempty(default_param)) {
 		const char *c = default_param+3;
 		const building_tile_desc_t *tile = hausbauer_t::find_tile(c,0);

@@ -169,8 +169,8 @@ void gui_times_history_t::build_table()
 	const minivec_tpl<schedule_entry_t>& entries = schedule->entries;
 
 	// for convoy loacation
-	sint32 cnv_route_index;
-	sint32 cnv_route_index_left;
+	sint32 cnv_route_index = 0;
+	sint32 cnv_route_index_left = 0;
 	PIXVAL convoy_state_col = COL_SAFETY;
 	uint16 min_range; // in km
 	bool found_location = false;
