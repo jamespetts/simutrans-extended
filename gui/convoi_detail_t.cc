@@ -1554,7 +1554,7 @@ void convoi_detail_t::update_labels()
 					force_chart.set_x_axis_span(display_interval);
 					for (i = 0; i < max_speed; i++) {
 						if (i % display_interval == 0) {
-							force_curves[SPEED_RECORDS-i / display_interval-1][0] = cnv->get_force_summary(i*kmh2ms);
+							force_curves[SPEED_RECORDS-i / display_interval-1][0] = cnv->get_force_summary(i*kmh2ms).to_sint32();
 							force_curves[SPEED_RECORDS-i / display_interval-1][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
 						}
 					}
@@ -1564,7 +1564,7 @@ void convoi_detail_t::update_labels()
 					force_chart.set_x_axis_span(0 - display_interval);
 					for (int i = 0; i < max_speed; i++) {
 						if (i % display_interval == 0) {
-							force_curves[i/display_interval][0] = cnv->get_force_summary(i*kmh2ms);
+							force_curves[i/display_interval][0] = cnv->get_force_summary(i*kmh2ms).to_sint32();
 							force_curves[i/display_interval][1] = cnv->calc_speed_holding_force(i*kmh2ms, rolling_resistance).to_sint32();
 						}
 					}
