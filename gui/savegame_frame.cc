@@ -476,7 +476,7 @@ bool savegame_frame_t::check_file(const char *filename, const char *suffix)
  * @retval true      This function always returns true to stop
  *                   the event propagation.
  */
-bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t p)
+bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t )
 {
 	char buf[PATH_MAX] = {};
 
