@@ -27,6 +27,7 @@ class gui_table_cell_t : public gui_label_t
 {
 protected:
 	bool border_bottom_right;
+	bool fixed_height = false;
 	PIXVAL bgcolor;
 	PIXVAL border_color = SYSCOL_TD_BORDER;
 public:
@@ -38,6 +39,7 @@ public:
 	}
 
 	void set_border_color(PIXVAL color) { border_bottom_right = true; border_color = color; }
+	void set_flexible(bool horizontally, bool vertically=true) { fixed_width = !horizontally; fixed_height = !vertically; }
 
 	void draw(scr_coord offset) OVERRIDE;
 
@@ -64,6 +66,7 @@ class gui_table_cell_buf_t: public gui_label_buf_t
 {
 protected:
 	bool border_bottom_right;
+	bool fixed_height = false;
 	PIXVAL bgcolor;
 	PIXVAL border_color=SYSCOL_TD_BORDER;
 public:
@@ -78,6 +81,7 @@ public:
 	}
 
 	void set_border_color(PIXVAL color) { border_bottom_right = true; border_color = color; }
+	void set_flexible(bool horizontally, bool vertically = true) { fixed_width = !horizontally; fixed_height = !vertically; }
 
 	void draw(scr_coord offset) OVERRIDE;
 
