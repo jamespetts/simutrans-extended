@@ -118,7 +118,6 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 
 	set_cityfilter(city);
 
-	set_alignment(ALIGN_STRETCH_V | ALIGN_STRETCH_H);
 	add_component(&scrolly);
 	fill_list();
 

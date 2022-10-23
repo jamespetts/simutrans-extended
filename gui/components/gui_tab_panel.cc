@@ -145,15 +145,15 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 	}
 
 	// navigate among the tabs using Ctrl-PgUp and Ctrl-PgDn
-	if(  ev->ev_class==EVENT_KEYBOARD  &&  IS_CONTROL_PRESSED(ev)  ) {
-		if(  ev->ev_code==SIM_KEY_PGUP  ) {
+	if(  ev->ev_class==EVENT_KEYBOARD  &&  ev->ev_code == SIM_KEY_TAB  ) {
+		if(  IS_SHIFT_PRESSED(ev)  ) {
 			// Ctrl-PgUp -> go to the previous tab
 			const int next_tab_idx = active_tab - 1;
 			active_tab = next_tab_idx<0 ? max(0, (int)tabs.get_count()-1) : next_tab_idx;
 			call_listeners((long)active_tab);
 			return true;
 		}
-		else if(  ev->ev_code==SIM_KEY_PGDN  ) {
+		else {
 			// Ctrl-PgDn -> go to the next tab
 			const int next_tab_idx = active_tab + 1;
 			active_tab = next_tab_idx>=(int)tabs.get_count() ? 0 : next_tab_idx;
@@ -220,7 +220,7 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 					scr_coord_val const y = ypos   - iter.img->get_pic()->y + required_size.h / 2 - iter.img->get_pic()->h / 2 + 1;
 					scr_coord_val const x = text_x - iter.img->get_pic()->x + iter.width / 2      - iter.img->get_pic()->w / 2;
 //					display_img_blend(iter.img->get_id(), x, y, TRANSPARENT50_FLAG, false, true);
-					display_base_img(iter.img->get_id(), x, y, world()->get_active_player_nr(), false, true);
+					display_base_img(iter.img->get_id(), x, y, 1, false, true);
 				}
 			}
 			else {
@@ -236,7 +236,7 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 				else {
 					scr_coord_val const y = ypos   - iter.img->get_pic()->y + required_size.h / 2 - iter.img->get_pic()->h / 2 - 1;
 					scr_coord_val const x = text_x - iter.img->get_pic()->x + iter.width / 2      - iter.img->get_pic()->w / 2;
-					display_color_img(iter.img->get_id(), x, y, 0, false, true);
+					display_color_img(iter.img->get_id(), x, y, 1, false, true);
 				}
 			}
 			text_x += iter.width;

@@ -6459,13 +6459,13 @@ void convoi_t::calc_loading()
 
 
 // return the current average speed
-uint32 convoi_t::get_average_kmh()
-{
-	halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
-	id_pair idp(last_stop_id, halt.get_id());
-	average_tpl<uint32>* avr = get_average_journey_times().access(idp);
-	return avr ? avr->get_average() : get_vehicle_summary().max_speed;
-}
+//uint32 convoi_t::get_average_kmh()
+//{
+//	halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
+//	id_pair idp(last_stop_id, halt.get_id());
+//	average_tpl<uint32>* avr = get_average_journey_times().access(idp);
+//	return avr ? avr->get_average() : get_vehicle_summary().max_speed;
+//}
 
 
 /**

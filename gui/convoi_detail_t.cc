@@ -1401,7 +1401,7 @@ void convoi_detail_t::update_labels()
 	lb_vehicle_count.update();
 
 	// update the convoy overview panel
-	formation.set_mode(overview_selctor.get_selection());
+	formation.set_mode(overview_selector.get_selection());
 
 	// update contents of tabs
 	switch (tabstate)
@@ -1636,7 +1636,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			create_win(20, 40, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 			return true;
 		}
-		else if (comp == &overview_selctor) {
+		else if (comp == &overview_selector) {
 			update_labels();
 			return true;
 		}

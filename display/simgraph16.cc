@@ -4675,7 +4675,10 @@ int display_calc_proportional_string_len_width(const char *text, size_t len)
 	// decode char
 	const char *const end = text + len;
 	while(  text < end  ) {
-		const utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		const utf8 *p = reinterpret_cast<const utf8 *>(text);
+		const utf32 iUnicode = utf8_decoder_t::decode(p);
+		text = reinterpret_cast<const char *>(p);
+
 		if(  iUnicode == UNICODE_NUL ||  iUnicode == '\n') {
 			return width;
 		}
@@ -4700,7 +4703,10 @@ void display_calc_proportional_multiline_string_len_width(int &xw, int &yh, cons
 	// decode char
 	const char *const end = text + len;
 	while(  text < end  ) {
-		utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		const utf8 *p = reinterpret_cast<const utf8 *>(text);
+		const utf32 iUnicode = utf8_decoder_t::decode(p);
+		text = reinterpret_cast<const char *>(p);
+
 		if(  iUnicode == '\n'  ) {
 			// new line: record max width
 			xw = max( xw, width );
@@ -5648,7 +5654,8 @@ void draw_bezier_rgb(scr_coord_val Ax, scr_coord_val Ay, scr_coord_val Bx, scr_c
 		const sint32 oldy = ry;
 		rx = Ax*b*b*b + 3*Cx*b*b*a + 3*Dx*b*a*a + Bx*a*a*a;
 		ry = Ay*b*b*b + 3*Cy*b*b*a + 3*Dy*b*a*a + By*a*a*a;
-		//fixed point: due to cycling between 0 and 32 (2<<5), we divide by 32^3=2>>15 because of cubic interpolation
+
+		// fixed point: due to cycling between 0 and 32 (1<<5), we divide by 32^3 == 1<<15 because of cubic interpolation
 		if(  !draw  &&  !dontDraw  ) {
 			display_direct_line_rgb( rx>>15, ry>>15, oldx>>15, oldy>>15, colore );
 		}
@@ -5662,17 +5669,25 @@ void draw_bezier_rgb(scr_coord_val Ax, scr_coord_val Ay, scr_coord_val Bx, scr_c
 // ------------------- other support routines that actually interface with the OS -----------------
 
 
-/**
- * copies only the changed areas to the screen using the "tile dirty buffer"
- * To get large changes, actually the current and the previous one is used.
- */
-void display_flush_buffer()
+/// Returns the index of the least significant set bit of a number, e.g. returns 2 for @p val == 12.
+/// Returns 0 for @p val == 0.
+static inline uint32 get_lowest_set_bit(uint32 val)
 {
 	static const uint8 MultiplyDeBruijnBitPosition[32] =
 	{
 		0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
 	};
 
+	return MultiplyDeBruijnBitPosition[(((val & -val) * 0x077CB531U)) >> 27];
+}
+
+
+/**
+ * copies only the changed areas to the screen using the "tile dirty buffer"
+ * To get large changes, actually the current and the previous one is used.
+ */
+void display_flush_buffer()
+{
 #ifdef USE_SOFTPOINTER
 	ex_ord_update_mx_my();
 
@@ -5736,13 +5751,12 @@ void display_flush_buffer()
 						word_x2--; // masks already set in while loop above
 					}
 					else { // dirty block ends in word_x2
-						const uint32 tv = ~tile_dirty_old[word_x2];
-						x2 = MultiplyDeBruijnBitPosition[(((tv & -tv) * 0x077CB531U)) >> 27];
+						x2 = get_lowest_set_bit(~tile_dirty_old[word_x2]);
 						masks[word_x2-word_x1] = 0xFFFFFFFF >> (32 - x2);
 					}
 				}
 				else { // dirty block is all within one word - word_x1
-					x2 = MultiplyDeBruijnBitPosition[(((testval & -testval) * 0x077CB531U)) >> 27];
+					x2 = get_lowest_set_bit(testval);
 					masks[0] = (0xFFFFFFFF << (32 - x2 + (x1 & 31))) >> (32 - x2);
 				}
 

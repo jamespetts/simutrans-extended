@@ -1373,7 +1373,7 @@ public:
 	void must_recalc_data() { invalidate_adverse_summary(); }
 
 	// just a guess of the speed
-	uint32 get_average_kmh();
+	//uint32 get_average_kmh();
 
 	// Overtaking for convois
 	virtual bool can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other) OVERRIDE;
