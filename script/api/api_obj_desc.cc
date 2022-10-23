@@ -708,7 +708,7 @@ void export_goods_desc(HSQUIRRELVM vm)
 // 	/**
 // 	 * Returns a list with available bridge types.
 // 	 */
-// 	STATIC register_method(vm, bridge_builder_t::get_available_bridges, "get_available_bridges", false, true);
+	STATIC register_method(vm, bridge_builder_t::get_available_bridges, "get_available_bridges", false, true);
 
 	end_class(vm);
 

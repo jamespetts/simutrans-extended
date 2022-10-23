@@ -1,5 +1,5 @@
 //
-// This file is part of the Simutrans project under the Artistic License.
+// This file is part of the Simutrans-Extended project under the Artistic License.
 // (see LICENSE.txt)
 //
 
@@ -7,17 +7,46 @@
 //
 // Test helpers
 //
+function make_assertion_str(val)
+{
+	if (typeof val == "string") {
+		return "\"" + val + "\""
+	}
+	else {
+		return "" + val
+	}
+}
+
 
 function ASSERT_EQUAL(act, exp)
 {
-	if (act != exp) {
-		local err = ttext("Assertion failed, {act} != {exp}")
-		err.act = act
-		err.exp = exp
+	if (!(act == exp)) {
+		local err = ttext("Assertion failed, '{act} == {exp}' was not true")
+		err.act = make_assertion_str(act)
+		err.exp = make_assertion_str(exp)
 		throw err.tostring()
 	}
 }
 
+function ASSERT_LESS(lhs, rhs)
+{
+	if (!(lhs < rhs)) {
+		local err = ttext("Assertion failed, '{lhs} &lt; {rhs}' was not true")
+		err.lhs = make_assertion_str(lhs)
+		err.rhs = make_assertion_str(rhs)
+		throw err.tostring()
+	}
+}
+
+function ASSERT_GREATER(lhs, rhs)
+{
+	if (!(lhs > rhs)) {
+		local err = ttext("Assertion failed, '{lhs} &gt; {rhs}' was not true")
+		err.lhs = make_assertion_str(lhs)
+		err.rhs = make_assertion_str(rhs)
+		throw err.tostring()
+	}
+}
 
 function ASSERT_TRUE(a)
 {
@@ -48,14 +77,13 @@ function SET_PLAYER_FUNDS(pl, amount)
 
 function RESET_ALL_PLAYER_FUNDS()
 {
-	local default_cash = 33 * 1000 * 1000 * 100
+	local default_cash = 33*1000*1000 * 100
 
 	for (local i = 0; i < 8; ++i) {
 		local pl = player_x(i)
 		if (pl.is_valid()) {
-			SET_PLAYER_FUNDS(pl, default_cash)
-			ASSERT_EQUAL(pl.get_current_cash(), default_cash / 100)
 			ASSERT_EQUAL(pl.get_current_maintenance(), 0)
+			SET_PLAYER_FUNDS(pl, default_cash)
 		}
 	}
 }

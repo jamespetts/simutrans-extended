@@ -54,8 +54,8 @@ function test_slope_can_set()
 			ASSERT_TRUE(tile != null && tile.is_valid())
 			ASSERT_EQUAL(tile.get_slope(), sl)
 
-			ASSERT_EQUAL(pl.get_current_cash(),        200000)     // get_current_cash is in credits (returns float)
-			ASSERT_EQUAL(pl.get_current_net_wealth(),  200000*100) // get_current_net_wealth is in 1/100 credits
+			ASSERT_EQUAL(pl.get_current_cash(),        33*1000*1000)       // get_current_cash is in credits (returns float)
+			ASSERT_EQUAL(pl.get_current_net_wealth(),  33*1000*1000 * 100) // get_current_net_wealth is in 1/100 credits
 		}
 	}
 
@@ -67,8 +67,8 @@ function test_slope_can_set()
 	ASSERT_EQUAL(command_x.can_set_slope(pl, pos + coord3d(0, 0, 1), slope.all_up_slope), "")
 	ASSERT_EQUAL(command_x.can_set_slope(pl, pos - coord3d(0, 0, 1), slope.all_down_slope), "")
 
-	ASSERT_EQUAL(pl.get_current_cash(),        200000)     // get_current_cash is in credits (returns float)
-	ASSERT_EQUAL(pl.get_current_net_wealth(),  200000*100) // get_current_net_wealth is in 1/100 credits
+	ASSERT_EQUAL(pl.get_current_cash(),        33*1000*1000)       // get_current_cash is in credits (returns float)
+	ASSERT_EQUAL(pl.get_current_net_wealth(),  33*1000*1000 * 100) // get_current_net_wealth is in 1/100 credits
 
 	RESET_ALL_PLAYER_FUNDS()
 }
@@ -179,13 +179,13 @@ function test_slope_get_price()
 {
 	local pl = player_x(0)
 	for (local sl = 0; sl < slope.raised; ++sl) {
-		ASSERT_EQUAL(command_x.slope_get_price(slope.flat), 2000 * 100)
+		ASSERT_EQUAL(command_x.slope_get_price(slope.flat), 3125 * 100)
 	}
 
 	local restore_slope = 84
-	ASSERT_EQUAL(command_x.slope_get_price(restore_slope), 1500 * 100)
+	ASSERT_EQUAL(command_x.slope_get_price(restore_slope), 1000 * 100)
 
-	ASSERT_EQUAL(pl.get_current_cash(),        200000)     // get_current_cash is in credits (returns float)
-	ASSERT_EQUAL(pl.get_current_net_wealth(),  200000*100) // get_current_net_wealth is in 1/100 credits
+	ASSERT_EQUAL(pl.get_current_cash(),        33*1000*1000)       // get_current_cash is in credits (returns float)
+	ASSERT_EQUAL(pl.get_current_net_wealth(),  33*1000*1000 * 100) // get_current_net_wealth is in 1/100 credits
 	RESET_ALL_PLAYER_FUNDS()
 }

@@ -82,6 +82,7 @@ function test_terraform_raise_lower_land_at_water_center()
 		ASSERT_TRUE(tile_x(3, 3, 0).is_water())
 	}
 
+
 	{
 		clim.work(player_x(0), coord3d(2, 3, 0), coord3d(3, 2, 0), "" + cl_water)
 
@@ -95,6 +96,8 @@ function test_terraform_raise_lower_land_at_water_center()
 		ASSERT_TRUE(tile_x(3, 3, 0).is_water())
 	}
 
+	// clean up
+	ASSERT_EQUAL(clim.work(player_x(0), coord3d(3, 2, 0), coord3d(2, 3, 0), "" + cl_mediterran), null)
 	RESET_ALL_PLAYER_FUNDS()
 }
 

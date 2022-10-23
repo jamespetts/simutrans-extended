@@ -813,7 +813,7 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 	if(zeiger) {
 		gr->obj_remove(zeiger);
 	}
-	// do not delete other players label
+	// do not delete other players labelcr
 	label_t *label = gr->find<label_t>();
 	if(label) {
 		gr->obj_remove(label);

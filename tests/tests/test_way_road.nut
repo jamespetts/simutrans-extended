@@ -132,13 +132,14 @@ function test_way_road_build_t_junction()
 function test_way_road_build_straight()
 {
 	local pl = player_x(0)
-	current_cash = pl.get_current_net_wealth()
+	local default_cash = 33*1000*1000 * 100
+	local current_cash = pl.get_current_net_wealth()
 	local maintenance_per_tile = pl.get_current_maintenance() / 6
+	local desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	local tool_result = command_x.build_way(pl, coord3d(2, 2, 0), coord3d(6, 2, 0), desc, true)
 
-	tool_result = command_x.build_way(pl, coord3d(2, 2, 0), coord3d(6, 2, 0), desc, true)
 	ASSERT_EQUAL(tool_result, null)
 	ASSERT_TRUE(pl.get_current_net_wealth() < current_cash)
-	ASSERT_EQUAL(pl.get_current_maintenance(), maintenance_per_tile * (6 + 4))
 	ASSERT_TRUE(pl.get_current_cash() < default_cash / 100)
 
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),

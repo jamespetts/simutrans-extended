@@ -17,7 +17,7 @@ function test_way_bridge_build_ground()
 	ASSERT_TRUE(bridge_desc != null)
 
 	// build bridge on flat ground
-	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(3, 5, 0), coord3d(3, 2, 0), bridge_desc), null)
+	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(3, 2, 0), coord3d(3, 4, 0), bridge_desc), null)
 
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
 		[
@@ -25,9 +25,9 @@ function test_way_bridge_build_ground()
 			"...4....",
 			"...5....",
 			"...0....",
-			"...0....",
 			"...5....",
 			"...1....",
+			"........",
 			"........"
 		])
 
@@ -38,12 +38,12 @@ function test_way_bridge_build_ground()
 			"...5....",
 			"...5....",
 			"...5....",
-			"...5....",
 			"...1....",
+			"........",
 			"........"
 		])
 
-	// build bridge over bridgehead (should fail)
+	// build bridge over bridge ramp (should fail)
 	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(2, 2, 0), coord3d(4, 2, 0), bridge_desc), "")
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 1),
 		[
@@ -52,12 +52,12 @@ function test_way_bridge_build_ground()
 			"...5....",
 			"...5....",
 			"...5....",
-			"...5....",
 			"...1....",
+			"........",
 			"........"
 		])
 
-	// build bridgehead slope under bridge (should fail)
+	// build bridge ramp under bridge (should fail)
 	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(3, 3, 0), coord3d(5, 3, 0), bridge_desc), "")
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 1),
 		[
@@ -66,13 +66,13 @@ function test_way_bridge_build_ground()
 			"...5....",
 			"...5....",
 			"...5....",
-			"...5....",
 			"...1....",
+			"........",
 			"........"
 		])
 
 	// build bridge crossing (should fail)
-	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(3, 4, 0), coord3d(5, 4, 0), bridge_desc), "")
+	ASSERT_EQUAL(command_x.build_bridge(pl, coord3d(2, 3, 0), coord3d(4, 3, 0), bridge_desc), "")
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 1),
 		[
 			"........",
@@ -80,12 +80,12 @@ function test_way_bridge_build_ground()
 			"...5....",
 			"...5....",
 			"...5....",
-			"...5....",
 			"...1....",
+			"........",
 			"........"
 		])
 
-	ASSERT_EQUAL(remover.work(pl, tile_x(3, 1, 0), tile_x(3, 6, 0), "" + wt_road), null)
+	ASSERT_EQUAL(remover.work(pl, tile_x(3, 1, 0), tile_x(3, 5, 0), "" + wt_road), null)
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
 		[
 			"........",

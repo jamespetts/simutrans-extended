@@ -78,14 +78,14 @@ function test_player_name()
 {
 	local pl = player_x(0)
 
-	ASSERT_EQUAL(pl.get_name(), "Human player")
+	ASSERT_EQUAL(pl.get_name(), "Default player")
 	ASSERT_TRUE(pl.set_name("Foo"))
 	ASSERT_EQUAL(pl.get_name(), "Foo")
 	ASSERT_TRUE(pl.set_name("Foo"))
 	ASSERT_EQUAL(pl.get_name(), "Foo")
 
 	// clean up
-	ASSERT_TRUE(pl.set_name("Human player"))
+	ASSERT_TRUE(pl.set_name("Default player"))
 
 	RESET_ALL_PLAYER_FUNDS()
 }
