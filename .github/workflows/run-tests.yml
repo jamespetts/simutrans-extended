@@ -16,7 +16,7 @@ jobs:
         sudo apt-get -y update
         sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.ccache
         key: ccache:${{ github.job }}:${{ github.ref }}:${{ github.sha }}
@@ -64,7 +64,7 @@ jobs:
         sudo apt-get -y update
         sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.ccache
         key: ccache:${{ github.job }}:${{ github.ref }}:${{ github.sha }}
