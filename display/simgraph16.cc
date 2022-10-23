@@ -5432,6 +5432,11 @@ int display_fluctuation_triangle_rgb(scr_coord_val x, scr_coord_val y, uint8 hei
 
 void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val raster_width, uint8 way_dir, uint8 sig_dir, uint8 state, bool is_diagonal, uint8 open_dir, sint8 slope)
 {
+	assert(raster_width < 768);
+	uint8 width = is_diagonal ? raster_width / 6 * 0.353 : raster_width / 6;
+	const uint8 height = is_diagonal ? raster_width / 6 * 0.353 : raster_width / 12;
+	const uint8 thickness = max(raster_width / 36, 2);
+
 	PIXVAL col1      = color_idx_to_rgb(COL_RED+2);
 	PIXVAL col1_dark = color_idx_to_rgb(COL_RED);
 	PIXVAL col2      = color_idx_to_rgb(COL_RED+2);
@@ -5462,6 +5467,16 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 			col1      = color_idx_to_rgb(COL_GREY5+1);
 			col1_dark = color_idx_to_rgb(COL_GREY4+2);
 			break;
+		case 253: /* one-way display for road */
+			col1 = color_idx_to_rgb(COL_WHITE);
+			col1_dark = color_idx_to_rgb(COL_BLUE);
+			// draw on center
+			x -= width/2;
+			if (is_diagonal && (way_dir == ribi_t::northeast || way_dir == ribi_t::southwest)) {
+				// vertical
+				x -= raster_width/8;
+			}
+			break;
 		case 254: /* drive by sight */
 			col1 =      color_idx_to_rgb(COL_ORANGE + 2);
 			col1_dark = color_idx_to_rgb(COL_DARK_ORANGE);
@@ -5481,11 +5496,6 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 		col2 = col1;
 		col2_dark = col1_dark;
 	}
-
-	assert(raster_width<768);
-	uint8 width  = is_diagonal ? raster_width/6*0.353 : raster_width/6;
-	const uint8 height = is_diagonal ? raster_width/6*0.353 : raster_width/12;
-	const uint8 thickness = max(raster_width/36, 2);
 
 	if (is_diagonal) {
 		if (open_dir != ribi_t::all) {

@@ -3462,7 +3462,7 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 		way->set_after_image(desc->get_foreground(desc->get_straight(ribi_mark,height-slope_t::max_diff(kb->get_grund_hang())), 0));
 		marked.insert( way );
 		way->mark_image_dirty( way->get_image(), 0 );
-		if (desc->get_wtyp() == road_wt && get_overtaking_mode() <= oneway_mode) {
+		if (desc->get_wtyp() == road_wt  &&  get_overtaking_mode() <= oneway_mode  &&  skinverwaltung_t::ribi_arrow  ) {
 			way->set_after_image(skinverwaltung_t::ribi_arrow->get_image_id(ribi_mark));
 		}
 		pos = pos + zv;
@@ -8338,8 +8338,8 @@ const char *tool_link_factory_t::do_work( player_t *, const koord3d &start, cons
 		else {
 			// remove connections
 			fab->remove_supplier(last_fab->get_pos().get_2d());
-			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_supplier(fab->get_pos().get_2d());
+			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_consumer(fab->get_pos().get_2d());
 			return NULL;
 		}

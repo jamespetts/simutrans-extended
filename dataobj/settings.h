@@ -194,6 +194,8 @@ private:
 	 * 0 : Classic (no flow control?)
 	 * 1 : JIT Classic (maximum transit and storage limited)
 	 * 2 : JIT Version 2 (demand buffers with better consumption model)
+	 * 5 : Contract based JIT
+	 * WARNING do not change outside accessors
 	 */
 	uint8 just_in_time;
 
@@ -888,8 +890,11 @@ public:
 
 	bool get_beginner_mode() const {return beginner_mode;}
 
-	void set_just_in_time(uint8 b) { just_in_time = b; }
+	void set_just_in_time(uint8 b);
 	uint8 get_just_in_time() const {return just_in_time;}
+
+	bool using_fab_contracts(uint8 b) const { return b==5;}
+	bool using_fab_contracts() const { return using_fab_contracts(just_in_time);}
 
 	void set_default_climates();
 	const sint16 *get_climate_borders() const { return climate_borders; }

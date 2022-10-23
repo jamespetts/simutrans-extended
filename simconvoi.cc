@@ -3581,6 +3581,10 @@ bool convoi_t::can_go_alte_direction()
 	// we just check, whether we go back (i.e. route tiles other than zero have convoi vehicles on them)
 	for( int index=1;  index<length;  index++ ) {
 		grund_t *gr=welt->lookup(route.at(index));
+		if (!gr) {
+			return false; // recalculate route
+		}
+
 		// now check, if we are already here ...
 		for(unsigned i=0; i<vehicle_count; i++) {
 			if (gr->obj_ist_da(vehicle[i])) {

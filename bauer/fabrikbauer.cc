@@ -545,6 +545,16 @@ fabrik_t* factory_builder_t::build_factory(koord3d* parent, const factory_desc_t
 {
 	fabrik_t * fab = new fabrik_t(pos, owner, info, initial_prod_base);
 
+	if(welt->get_settings().using_fab_contracts()){
+		for(auto &output : fab->get_output()){
+			output.set_using_contracts();
+			output.reset_total_contracts();
+		}
+		for(auto &input : fab->get_input()){
+			input.reset_total_contracts();
+		}
+	}
+
 	// now build factory
 	fab->build(rotate, true /*add fields*/, initial_prod_base != -1 /* force initial prodbase ? */);
 	welt->add_fab(fab);
@@ -894,18 +904,22 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 				const factory_desc_t* const fab_desc = fab->get_desc();
 				for (uint product_num = 0; product_num < fab_desc->get_product_count(); product_num++) {
 					const factory_product_desc_t *const product_desc = fab_desc->get_product(product_num);
-					if (product_desc->get_output_type() == ware && fab->get_consumers().get_count() < 10) { // does not make sense to split into more ...
+					if (product_desc->get_output_type() == ware && (fab->get_consumers().get_count() < 10 || welt->get_settings().using_fab_contracts())) { // does not make sense to split into more ...
 						sint32 production_left = fab->get_base_production() * product_desc->get_factor();
 
 						// decrease remaining production by supplier demand
-						for(auto const & consumer_pos : fab->get_consumers()) {
-							if (production_left <= 0) break;
-							fabrik_t* const consumer = fabrik_t::get_fab(consumer_pos);
-							for(int supplier_num=0; supplier_num < consumer->get_desc()->get_supplier_count(); supplier_num++) {
-								const factory_supplier_desc_t *this_supplier = consumer->get_desc()->get_supplier(supplier_num);
-								if(this_supplier->get_input_type() == ware) {
-									production_left -= consumer->get_base_production() * this_supplier->get_consumption();
-									break;
+						if(welt->get_settings().using_fab_contracts()){
+							production_left-=fab->get_output(ware)->get_total_contracts();
+						}else{
+							for(auto const & consumer_pos : fab->get_consumers()) {
+								if (production_left <= 0) break;
+								fabrik_t* const consumer = fabrik_t::get_fab(consumer_pos);
+								for(int supplier_num=0; supplier_num < consumer->get_desc()->get_supplier_count(); supplier_num++) {
+									const factory_supplier_desc_t *this_supplier = consumer->get_desc()->get_supplier(supplier_num);
+									if(this_supplier->get_input_type() == ware) {
+										production_left -= consumer->get_base_production() * this_supplier->get_consumption();
+										break;
+									}
 								}
 							}
 						}
@@ -915,7 +929,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 
 							if(production_left>0) {
 								consumption -= production_left;
-								fab->add_consumer(origin_fab->get_pos().get_2d());
+								fab->add_consumer(origin_fab->get_pos().get_2d(),ware,production_left);
 								DBG_MESSAGE("factory_builder_t::build_link", "supplier %s can supply approx %i of %s to us", fab_desc->get_name(), production_left, ware->get_name());
 							}
 							else {
@@ -1096,86 +1110,128 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	if(!power_stations_only && !welt->get_fab_list().empty())
 	{
 		// A collection of all consumer industries that are not fully linked to suppliers.
-		slist_tpl<fabrik_t*> unlinked_consumers;
-		slist_tpl<const goods_desc_t*> missing_goods;
+		struct unlinked_consumer_t{
+			fabrik_t* fab;
+			uint32 idx;
+			unlinked_consumer_t(fabrik_t *f,uint32 i){fab=f; idx=i;}
+			fabrik_t* operator->(){return fab;}
+			bool operator!=(unlinked_consumer_t b){return fab!=b.fab;}
+		};
 
-		for(auto fab : welt->get_fab_list())
-		{
-			// First, re-link industries as necessary without building new.
-			if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
-			{
-				force_add_consumer = false;
-			}
-			fab->disconnect_consumer(koord::invalid); // This does not remove anything, but checks for missing consumers
+		slist_tpl<unlinked_consumer_t> unlinked_consumers;
 
-			sint32 available_for_consumption;
-			sint32 consumption_level;
-			for(uint16 l = 0; l < fab->get_desc()->get_supplier_count(); l ++)
-			{
-				// Check the list of possible suppliers for this factory type.
-				const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(l);
-				const goods_desc_t* input_type = supplier_type->get_input_type();
-				missing_goods.append_unique(input_type);
-				auto suppliers = fab->get_suppliers(input_type);
-
-				// Check how much of this product that the current factory needs
-				consumption_level = fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1);
-				available_for_consumption = 0;
-
-				for(auto supplier_koord : suppliers)
+		if(welt->get_settings().using_fab_contracts()){
+			for(auto fab : welt->get_fab_list()){
+				// First, re-link industries as necessary without building new.
+				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
 				{
-					if (available_for_consumption >= consumption_level)
-					{
-						break;
+					force_add_consumer = false;
+				}
+				fab->disconnect_consumer(koord::invalid); // This does not remove anything, but checks for missing consumers
+
+				//renegotiate contracts before checking for oversupply or under consumption
+				fab->negotiate_contracts();
+
+				for(uint32 i = 0; i < fab->get_input().get_count(); i++){
+					const sint64 pfactor=fab->get_desc()->get_supplier(i)->get_consumption();
+					const sint32 monthly_prod=fab->get_monthly_production(pfactor);
+					const sint32 monthly_cont=fab->get_input()[i].get_total_contracts();
+					if(monthly_cont * 9 < monthly_prod * 8){
+						unlinked_consumers.append(unlinked_consumer_t(fab,i));
 					}
+				}
 
-					// Check whether the factory's actual suppliers supply any of this product.
-					fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
-					if(!supplier)
-					{
-						continue;
+				for(uint32 i = 0; i < fab->get_output().get_count(); i++){
+					const sint64 pfactor=fab->get_desc()->get_product(i)->get_factor();
+					const sint32 monthly_prod=fab->get_monthly_production(pfactor);
+					const sint32 monthly_cont=fab->get_output()[i].get_total_contracts();
+					if(monthly_prod * 9 > monthly_cont * 8){
+						oversupplied_goods.append_unique(fab->get_output()[i].get_typ(),monthly_prod-monthly_cont);
 					}
+				}
 
-					if(auto consumer_type = supplier->get_desc()->get_product(input_type))
-					{
-						// Check to see whether this existing supplier is able to supply *enough* of this product
-						const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
-						sint32 used_output = 0;
-						for(auto competing_consumers : supplier->get_consumers(input_type))
-						{
-							if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
-								const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
-								used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
-							}
-							const sint32 remaining_output = total_output_supplier - used_output;
-							if(remaining_output > 0)
-							{
-								available_for_consumption += remaining_output;
-							}
-						}
-
-						if(available_for_consumption >= consumption_level)
-						{
-							// If the suppliers between them do supply enough of the product, do not list it as missing.
-							missing_goods.remove(input_type);
-
-							if (oversupplied_goods.is_contained(input_type))
-							{
-								// Avoid duplication
-								oversupplied_goods.remove(input_type);
-							}
-							oversupplied_goods.append(input_type, available_for_consumption - consumption_level);
-						}
-					}
-				} // Actual suppliers
-			} // Possible suppliers
-
-			if(!missing_goods.empty())
-			{
-				unlinked_consumers.append_unique(fab);
 			}
-			missing_goods.clear();
-		} // All industries
+		}else{
+			slist_tpl<const goods_desc_t*> missing_goods;
+
+			for(auto fab : welt->get_fab_list())
+			{
+				// First, re-link industries as necessary without building new.
+				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
+				{
+					force_add_consumer = false;
+				}
+				fab->disconnect_consumer(koord::invalid); // This does not remove anything, but checks for missing consumers
+
+				sint32 available_for_consumption;
+				sint32 consumption_level;
+				for(uint16 l = 0; l < fab->get_desc()->get_supplier_count(); l ++)
+				{
+					// Check the list of possible suppliers for this factory type.
+					const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(l);
+					const goods_desc_t* input_type = supplier_type->get_input_type();
+					missing_goods.append_unique(input_type);
+					auto suppliers = fab->get_suppliers(input_type);
+
+					// Check how much of this product that the current factory needs
+					consumption_level = fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1);
+					available_for_consumption = 0;
+
+					for(auto supplier_koord : suppliers)
+					{
+						if (available_for_consumption >= consumption_level)
+						{
+							break;
+						}
+
+						// Check whether the factory's actual suppliers supply any of this product.
+						fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
+						if(!supplier)
+						{
+							continue;
+						}
+
+						if(auto consumer_type = supplier->get_desc()->get_product(input_type))
+						{
+							// Check to see whether this existing supplier is able to supply *enough* of this product
+							const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
+							sint32 used_output = 0;
+							for(auto competing_consumers : supplier->get_consumers(input_type))
+							{
+								if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
+									const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
+									used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
+								}
+								const sint32 remaining_output = total_output_supplier - used_output;
+								if(remaining_output > 0)
+								{
+									available_for_consumption += remaining_output;
+								}
+							}
+
+							if(available_for_consumption >= consumption_level)
+							{
+								// If the suppliers between them do supply enough of the product, do not list it as missing.
+								missing_goods.remove(input_type);
+
+								if (oversupplied_goods.is_contained(input_type))
+								{
+									// Avoid duplication
+									oversupplied_goods.remove(input_type);
+								}
+								oversupplied_goods.append(input_type, available_for_consumption - consumption_level);
+							}
+						}
+					} // Actual suppliers
+				} // Possible suppliers
+
+				if(!missing_goods.empty())
+				{
+					unlinked_consumers.append_unique(unlinked_consumer_t(fab,0));
+				}
+				missing_goods.clear();
+			} // All industries
+		}
 
 		// ok, found consumer
 		if(!force_add_consumer && !unlinked_consumers.empty())
@@ -1183,24 +1239,28 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			for(auto unlinked_consumer : unlinked_consumers)
 			{
 				uint16 missing_goods_index = 0;
-				for(uint16 i=0;  i < unlinked_consumer->get_desc()->get_supplier_count();  i++)
-				{
-					goods_desc_t const* const w = unlinked_consumer->get_desc()->get_supplier(i)->get_input_type();
-					for(auto k : unlinked_consumer->get_suppliers(w)){
-						fabrik_t *sup = fabrik_t::get_fab(k);
-						const factory_desc_t* const fd = sup->get_desc();
-						for (uint32 k = 0; k < fd->get_product_count(); k++)
-						{
-							if (fd->get_product(k)->get_output_type() == w)
+				if(welt->get_settings().using_fab_contracts()){
+					missing_goods_index=unlinked_consumer.idx;
+				}else{
+					for(uint16 i=0;  i < unlinked_consumer->get_desc()->get_supplier_count();  i++)
+					{
+						goods_desc_t const* const w = unlinked_consumer->get_desc()->get_supplier(i)->get_input_type();
+						for(auto k : unlinked_consumer->get_suppliers(w)){
+							fabrik_t *sup = fabrik_t::get_fab(k);
+							const factory_desc_t* const fd = sup->get_desc();
+							for (uint32 k = 0; k < fd->get_product_count(); k++)
 							{
-								missing_goods_index = i + 1;
-								goto next_ware_check;
+								if (fd->get_product(k)->get_output_type() == w)
+								{
+									missing_goods_index = i + 1;
+									goto next_ware_check;
+								}
 							}
 						}
+	next_ware_check:
+						// ok, found something, text next
+						;
 					}
-next_ware_check:
-					// ok, found something, text next
-					;
 				}
 
 				// First: do we have to continue unfinished factory chains?
@@ -1219,12 +1279,16 @@ next_ware_check:
 					}
 
 					const uint32 last_suppliers = unlinked_consumer->get_suppliers().get_count();
-					do
-					{
-						nr += build_chain_link(unlinked_consumer, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player(), do_not_add_beyond_target_density && welt->get_actual_industry_density() >= welt->get_target_industry_density());
-						missing_goods_index ++;
-					} while(missing_goods_index < unlinked_consumer->get_desc()->get_supplier_count() && unlinked_consumer->get_suppliers().get_count()==last_suppliers);
 
+					if(welt->get_settings().using_fab_contracts()){
+						nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player(), do_not_add_beyond_target_density && welt->get_actual_industry_density() >= welt->get_target_industry_density());
+					}else{
+						do
+						{
+							nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player(), do_not_add_beyond_target_density && welt->get_actual_industry_density() >= welt->get_target_industry_density());
+							missing_goods_index ++;
+						} while(missing_goods_index < unlinked_consumer->get_desc()->get_supplier_count() && unlinked_consumer->get_suppliers().get_count()==last_suppliers);
+					}
 					// must rotate back?
 					if(org_rotation>=0) {
 						for (int i = 0; i < 4 && welt->get_settings().get_rotation() != org_rotation; ++i) {
@@ -1234,7 +1298,7 @@ next_ware_check:
 					}
 
 					// only return, if successful
-					if(unlinked_consumer->get_suppliers().get_count() > last_suppliers)
+					if((welt->get_settings().using_fab_contracts() && nr) || unlinked_consumer->get_suppliers().get_count() > last_suppliers)
 					{
 						DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "added ware %i to factory %s", missing_goods_index, unlinked_consumer->get_name() );
 						// tell the player

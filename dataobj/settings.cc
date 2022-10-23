@@ -3541,6 +3541,23 @@ void settings_t::set_scale()
 	}
 }
 
+void settings_t::set_just_in_time(uint8 b){
+	if(using_fab_contracts(b) == using_fab_contracts()){
+		just_in_time=b;
+		return;
+	}
+	karte_ptr_t welt;
+	if(using_fab_contracts(b)){
+		welt->fab_init_contracts();
+		just_in_time=b;
+		return;
+	}
+	if(using_fab_contracts()){
+		welt->fab_remove_contracts();
+	}
+
+	just_in_time=b;
+}
 
 /**
  * Reload the linear interpolation tables for catering from the settings.

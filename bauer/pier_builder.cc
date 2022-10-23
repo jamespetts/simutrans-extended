@@ -969,7 +969,7 @@ const char *pier_builder_t::remove(player_t *player, koord3d pos){
 
     const char *msg=0;
     uint8 pier_cnt=0;
-    pier_t *p;
+    pier_t *p = NULL;
     for(uint8 i = 0; i < gr->get_top(); i++){
         obj_t *ob = gr->obj_bei(i);
         if(ob->get_typ()==obj_t::pier){

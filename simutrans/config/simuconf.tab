@@ -354,6 +354,15 @@ allow_underground_transformers = 1
 # At 2, industries will demand only enough goods to keep up with the demand of their consumers without trying to fill their internal storage first, but will not demand so many goods that their internal storage is likely to overflow.
 # At 3, industries behave as in 2, save that the internal storage of consumer industries is ignored.
 # At 4, industries will demand goods whenever their internal storage does not have sufficient stock to last until the next delivery is estimated to arrive if the goods were to leave the producing factory now.
+# At 5, production contracts will be used. Production contracts work as follows:
+# For each industry, it is has production capabilities and production contracts for more than its production capacity, it will evenly reduce the contracts to its linked consumers with the aim of having the 
+# total contracts being equal to its production capacity. If that producing industry's total contracts is less than one eighth of its production capacity, it solicits contracts to its linked consumers. 
+# If the industry consumes goods, it calculates its expected consumption using past consumer data (for consumers), current staffing levels, current production contracts (for manufacturers), and current amount 
+# of goods in transit and in stock (which only reduces, not halts, the expected consumption).  If the total contracts is less than the expected consumption or more than 10 percent of expected consumption, it 
+# tries to adjust the contracts to existing links in two rounds, one concentrating on active and staffed producers, then all producers.  Such adjustments are done evenly with slight weight towards more nearby producers.
+# If that fails to produce a total number of contracts above the expected consumption, a third round is performed more aggressively such that it saturates the supply of each producer, starting with the nearest, until
+# the total exceeds the expected consumption.  If it still cannot meet the expected consumption with existing links, it then will attempt to connect to other suppliers to fill the void. Also, when production contracts
+# are used, industries that have had no production contracts for 12 consecutive months or has been unproductive for 60 consecutive months will close.
 just_in_time = 2
 
 # How much amount in transport is sent before further distribution stops

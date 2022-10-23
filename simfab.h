@@ -94,12 +94,17 @@ private:
 
 	///factory links to supplier or consumer
 	vector_tpl<koord> links;
+	vector_tpl<sint32> link_aux;
+
+	sint32 total_contracts;
 
 	/// clears statistics, transit, and weighted_sum_storage
 	void init_stats();
 
+	bool using_contracts;
+
 public:
-	ware_production_t() : type(NULL), menge(0), max(0)/*, transit(statistics[0][FAB_GOODS_TRANSIT])*/,
+	ware_production_t() : type(NULL), total_contracts(0), using_contracts(0), menge(0), max(0)/*, transit(statistics[0][FAB_GOODS_TRANSIT])*/,
 		max_transit(0), index_offset(0)
 	{
 		init_stats();
@@ -110,7 +115,7 @@ public:
 
 	// functions for manipulating goods statistics
 	void roll_stats(uint32 factor);
-	void rdwr(loadsave_t *file);
+	void rdwr(loadsave_t *file, uint8 sub_version=0);
 	const sint64* get_stats() const { return *statistics; }
 	void book_stat(sint64 value, int stat_type) { assert(stat_type<MAX_FAB_GOODS_STAT); statistics[0][stat_type] += value; }
 	void book_stat_no_negative(sint64 value, int stat_type) { assert(stat_type < MAX_FAB_GOODS_STAT); statistics[0][stat_type] += (std::max(value, -statistics[0][stat_type])); }
@@ -153,9 +158,69 @@ public:
 
 	const vector_tpl<koord>& get_links() const {return links;}
 
+	void set_using_contracts(sint32 default_contracts=0){
+		link_aux.set_count(links.get_count());
+		for(uint32 i = 0; i < link_aux.get_count(); i++){
+			link_aux[i]=default_contracts;
+		}
+		using_contracts=true;
+	}
+
+	void reset_using_contracts(){
+		link_aux.clear();
+		link_aux.resize(0);
+		using_contracts=false;
+	}
+
+	bool get_using_contracts(){
+		return using_contracts;
+	}
+
+	void verify_contracts(){
+		assert(!using_contracts || link_aux.get_count()==links.get_count());
+	}
+
+	sint32 get_contract(uint32 idx){ return using_contracts ? link_aux[idx] : 0;}
+	void set_contract(uint32 idx, sint32 contract){
+		link_aux[idx]=contract;
+	}
+	void add_contract(uint32 idx, sint32 diff){
+		link_aux[idx]+=diff;
+	}
+	void sub_contract(uint32 idx, sint32 diff){
+		link_aux[idx]-=diff;
+	}
+
+	static void add_contracts(sint32 additon, ware_production_t& ware_in, ware_production_t& ware_out, uint32 output_index, sint32 max_output);
+
+	void reset_total_contracts(){total_contracts=0;}
+	void add_total_contracts(sint32 diff){
+		total_contracts+=diff;
+	}
+	void sub_total_contracts(sint32 diff){
+		total_contracts-=diff;
+	}
+
+	sint32 get_total_contracts() const {return total_contracts;}
+
 	template<class StrictWeakOrdering>
-	void link_add(koord pos, StrictWeakOrdering T ){
-		links.insert_unique_ordered(pos, T);
+	void link_add(koord pos, StrictWeakOrdering T, sint64 aux = 0 ){
+		//Note this is simular to vector<>::insert_unique_ordered but for two vectors
+		sint32 low = -1, high = links.get_count();
+		while( high - low > 1){
+			const sint32 mid = ((uint32)(low + high)) / 2;
+			if( links[mid] == pos ){
+				return;
+			}else if( T(pos,links[mid])){
+				high=mid;
+			}else{
+				low=mid;
+			}
+		}
+		links.insert_at(high,pos);
+		if(using_contracts){
+			link_aux.insert_at(high,aux);
+		}
 	}
 
 	bool link_contained(koord pos) const{
@@ -163,7 +228,33 @@ public:
 	}
 
 	bool link_remove(koord pos){
-		return links.remove(pos);
+		for(uint32 i = 0; i < links.get_count(); i++){
+			if(links[i]==pos){
+				links.remove_at(i);
+				if(using_contracts){
+					link_aux.remove_at(i);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool link_remove(uint32 idx){
+		links.remove_at(idx);
+		if(using_contracts){
+			link_aux.remove_at(idx);
+		}
+		return true;
+	}
+
+	uint32 link_index(koord pos){
+		for(uint32 i = 0; i < links.get_count(); i++){
+			if(links[i]==pos){
+				return i;
+			}
+		}
+		return UINT32_MAX_VALUE;
 	}
 
 	uint32 link_count() const{
@@ -235,6 +326,7 @@ public:
 		bool operator !=(iterator const& o) const {return ware_iterator!=o.ware_iterator || koord_iterator!=o.koord_iterator;}
 
 		ware_production_t& get_ware() {return *ware_iterator;}
+		uint32 get_ware_index(){return koord_iterator - ware_iterator->link_begin();}
 
 	private:
 		array_tpl<ware_production_t>::iterator ware_iterator;
@@ -454,7 +546,13 @@ private:
 	/// Possible destinations for produced goods
 	/// Deprecated, only used for read/write
 	vector_tpl <koord> consumers;
+	vector_tpl <sint32> contracts;
 	vector_tpl<uint32> consumers_active_this_month;
+
+	///number of months without any production
+	uint32 months_unproductive;
+	///number of months where ware total contract(s) are zero
+	uint32 months_missing_contracts;
 
 	/**
 	 * fields of this factory (only for farms etc.)
@@ -661,7 +759,7 @@ private:
 
 protected:
 
-	void delete_all_fields();
+	void delete_all_fields(bool destructor=false);
 
 public:
 	fabrik_t(loadsave_t *file);
@@ -743,6 +841,10 @@ public:
 		return null_vector;
 	}
 
+	void init_contracts();
+	void remove_contracts();
+
+	void negotiate_contracts();
 
 	const vector_tpl<nearby_halt_t>& get_nearby_freight_halts() const { return nearby_freight_halts; }
 
@@ -771,17 +873,17 @@ public:
 	/**
 	 * Adds a new delivery goal
 	 */
-	void add_consumer(koord ziel, const goods_desc_t *desc=0);
+	void add_consumer(koord ziel, const goods_desc_t *desc=0, const sint64 contract=0);
 	void remove_consumer(koord consumer_pos);
 
 	bool disconnect_consumer(koord consumer_pos);
-	bool disconnect_supplier(koord supplier_pos);
+	bool disconnect_supplier(koord supplier_pos, fabrik_t *supplier=0);
 
 	/**
 	 * adds a supplier
 	 */
 	void  add_supplier(koord pos, const goods_desc_t* desc=0);
-	void  remove_supplier(koord supplier_pos);
+	void  remove_supplier(koord supplier_pos, fabrik_t *supplier=0);
 
 	/**
 	 * @return counts amount of ware of typ
@@ -852,6 +954,12 @@ public:
 	bool out_of_stock_selective();
 
 	void step(uint32 delta_t);                  // factory muss auch arbeiten ("factory must also work")
+	void step_contracts(uint32 delta_t);
+
+	void distribute_contracts(uint32 delta_t);
+
+	void rescale_delta();
+	void advance_slot(uint32 delta_t);
 
 	void new_month();
 
@@ -920,6 +1028,33 @@ public:
 	const array_tpl<ware_production_t>& get_output() const { return output; }
 	array_tpl<ware_production_t>& get_output() { return output; }
 
+	ware_production_t* get_input(const goods_desc_t* ware){
+		for(uint32 i = 0; i < input.get_count(); i++){
+			if(input[i].get_typ()==ware){
+				return &(input[i]);
+			}
+		}
+		return NULL;
+	}
+
+	const ware_production_t* get_input(const goods_desc_t* ware) const{
+		for(uint32 i = 0; i < input.get_count(); i++){
+			if(input[i].get_typ()==ware){
+				return &(input[i]);
+			}
+		}
+		return NULL;
+	}
+
+	ware_production_t* get_output(const goods_desc_t* ware){
+		for(uint32 i = 0; i < output.get_count(); i++){
+			if(output[i].get_typ()==ware){
+				return &(output[i]);
+			}
+		}
+		return NULL;
+	}
+
 	/**
 	 * Production multipliers
 	 */
@@ -939,6 +1074,11 @@ public:
 	sint32 get_current_productivity() const { return welt->calc_adjusted_monthly_figure(prodbase) ? get_current_production() * 100 / welt->calc_adjusted_monthly_figure(prodbase) : 0; }
 	// returns the current productivity including the effect of staff shortage
 	sint32 get_actual_productivity() const { return status == inactive ? 0 : is_staff_shortage() ? get_current_productivity() * get_staffing_level_percentage() / 100 : get_current_productivity(); }
+
+	//TODO fix rounding
+	sint32 get_monthly_production(const sint32 pfactor=256) const {
+		return (uint32)(get_current_production()*pfactor << (fabrik_t::precision_bits - DEFAULT_PRODUCTION_FACTOR_BITS));
+	}
 
 	/* returns the status of the current factory, as well as output */
 	enum {
@@ -1008,6 +1148,8 @@ public:
 	inline uint32 get_base_mail_demand() const { return arrival_stats_mail.get_scaled_demand(); }
 
 	void calc_max_intransit_percentages();
+
+	sint64 adjust_consumption_by_passenger_level(sint64 original_consumption);
 
 	// Average journey time to delivery goods of this type
 	uint32 get_lead_time (const goods_desc_t* wtype);

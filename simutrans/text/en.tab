@@ -3883,7 +3883,7 @@ Freight
 Frame time:
 Frame Time:
 Free Capacity
-Vacant seat
+Spare passenger km
 Friction:
 Current friction:
 fuel_cell
@@ -6480,3 +6480,9 @@ secondary_spec
 Livery schemes
 Do not add vehicles over maximum length!
 Maximum length reached
+line_network
+Network diagram
+Unproductive: %d Mo.
+Unproductive: %d Mo.
+Contractless: %d Mo.
+Missing contracts: %d Mo.
