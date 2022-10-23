@@ -97,7 +97,7 @@ all_tests <- [
 // 	test_halt_make_public_multi_tile,
 // 	test_halt_make_public_underground,
 // 	test_headquarters_build_flat,
-// 	test_label,
+	test_label,
 // 	test_player_cash,
 // 	test_player_isactive,
 // 	test_player_headquarters,

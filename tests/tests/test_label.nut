@@ -43,7 +43,7 @@ function test_label()
 	// build label on existing label, should fail
 	{
 		ASSERT_EQUAL(label_x.create(coord3d(5, 1,  0), pl, "Foo3"), null)
-		ASSERT_EQUAL(label_x.create(coord3d(5, 1,  0), pl, "Foo4"), "Das Feld gehoert\neinem anderen Spieler\n")
+		ASSERT_EQUAL(label_x.create(coord3d(5, 1,  0), pl, "Foo4"), "There is already a marker here.\n")
 		ASSERT_EQUAL(remover.work(pl, coord3d(5, 1, 0)), null)
 	}
 
