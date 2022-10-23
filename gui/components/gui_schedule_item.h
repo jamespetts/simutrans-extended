@@ -19,6 +19,7 @@ class gui_colored_route_bar_t : public gui_component_t
 	uint8 style;
 	uint8 alert_level=0;
 	PIXVAL base_color;
+	bool flexible_height;
 
 public:
 	enum line_style {
@@ -31,8 +32,8 @@ public:
 		none
 	};
 
-	gui_colored_route_bar_t(uint8 p_color_idx, uint8 style_ = line_style::solid);
-	gui_colored_route_bar_t(PIXVAL line_color, uint8 style_ = line_style::solid);
+	gui_colored_route_bar_t(uint8 p_color_idx, uint8 style_ = line_style::solid, bool flexible_height=false);
+	gui_colored_route_bar_t(PIXVAL line_color, uint8 style_ = line_style::solid, bool flexible_height=false);
 
 	void draw(scr_coord offset) OVERRIDE;
 
@@ -42,8 +43,8 @@ public:
 	// Color the edges of the line according to the warning level.  0=ok(none), 1=yellow, 2=orange, 3=red
 	void set_alert_level(uint8 level) { alert_level = level; }
 
-	scr_size get_min_size() const OVERRIDE { return size; }
-	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+	scr_size get_min_size() const OVERRIDE { return scr_size(D_ENTRY_NO_WIDTH, LINESPACE); }
+	scr_size get_max_size() const OVERRIDE { return flexible_height ? scr_size(get_min_size().w, scr_size::inf.h) : get_min_size(); }
 };
 
 

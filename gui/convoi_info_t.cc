@@ -32,6 +32,7 @@
 #include "convoi_detail_t.h"
 
 #include "../obj/roadsign.h"
+#include "components/gui_waytype_image_box.h"
 
 #define CHART_HEIGHT (100)
 
@@ -124,8 +125,10 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	loading_bar(cnv),
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),
+	cont_line_network(cnv),
 	scroll_freight(&container_freight, true, true),
 	scroll_times_history(&cont_times_history, true),
+	scroll_line_network(&cont_line_network, true, true),
 	lc_preview(0)
 {
 	if (cnv.is_bound()) {
@@ -141,6 +144,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	gui_frame_t::set_name(cnv->get_name());
 	gui_frame_t::set_owner(cnv->get_owner());
 	cont_times_history.set_convoy(cnv);
+	cont_line_network.set_convoy(cnv);
 
 	minimap_t::get_instance()->set_selected_cnv(cnv);
 	set_table_layout(1,0);
@@ -150,10 +154,17 @@ void convoi_info_t::init(convoihandle_t cnv)
 	{
 		container_top = add_table(1,0);
 		{
-			input.add_listener(this);
-			input.set_size(input.get_min_size());
-			reset_cnv_name();
-			add_component(&input);
+			gui_aligned_container_t *tbl = add_table(2,1);
+			tbl->set_alignment(ALIGN_CENTER_V);
+			tbl->set_spacing(scr_size(0,0));
+			{
+				new_component<gui_waytype_image_box_t>(cnv->front()->get_waytype());
+				input.add_listener(this);
+				input.set_size(input.get_min_size());
+				reset_cnv_name();
+				add_component(&input);
+			}
+			end_table();
 
 			add_table(2,0);
 			{
@@ -321,6 +332,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	container_stats.end_table();
 
 	switch_mode.add_tab(&scroll_times_history, translator::translate("times_history"));
+	switch_mode.add_tab(&scroll_line_network, translator::translate("line_network"));
 
 	cnv->set_sortby( env_t::default_sortmode );
 
@@ -819,6 +831,22 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 	route_bar.set_base(cnv->get_route()->get_count()-1);
 	cnv_route_index = cnv->front()->get_route_index() - 1;
 
+	// Hide the x-scrollbar to not hide the tab header.
+	switch (switch_mode.get_active_tab_index()) {
+		case 0: // loaded detail
+			scroll_freight.set_show_scroll_x( scroll_freight.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+		default:
+		case 1: // chart
+			break;
+		case 2: // times history
+			scroll_times_history.set_show_scroll_x( scroll_times_history.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+		case 3: // notwork
+			scroll_line_network.set_show_scroll_x(scroll_line_network.get_size().h > D_SCROLLBAR_HEIGHT);
+			break;
+	}
+
 	// all gui stuff set => display it
 	gui_frame_t::draw(pos, size);
 }
@@ -850,21 +878,27 @@ void convoi_info_t::set_tab_opened()
 {
 	tabstate = switch_mode.get_active_tab_index();
 
-	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT;
+	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT-1;
 
+	scr_coord_val height = 0;
 	switch (tabstate)
 	{
 		case 0: // loaded detail
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + scroll_freight.get_size().h)));
+			height = container_freight.get_size().h;
 			break;
 		case 1: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_stats.get_size().h)));
+			height = chart.get_size().h+D_BUTTON_HEIGHT*3+D_V_SPACE*2+D_MARGINS_Y;
 			break;
 		case 2: // times history
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_times_history.get_size().h)));
+			height = cont_times_history.get_size().h + D_MARGINS_Y;
 			break;
-
+		case 3: // line networks
+			height = cont_line_network.get_size().h + D_MARGINS_Y;
+			break;
+	}
+	if( (get_windowsize().h-margin_above_tab) < height ) {
+		set_windowsize( scr_size(get_windowsize().w, min(display_get_height()-margin_above_tab, margin_above_tab+height)+1) );
 	}
 }
 
@@ -875,7 +909,7 @@ void convoi_info_t::set_tab_opened()
 bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	minimap_t::get_instance()->set_selected_cnv(cnv);
-	if(  comp == &switch_mode  &&  get_windowsize().h == get_min_windowsize().h  ) {
+	if( comp == &switch_mode  &&  (tabstate!=switch_mode.get_active_tab_index() ||  (get_windowsize().h-get_min_windowsize().h<LINESPACE*5)) ) {
 		set_tab_opened();
 		return true;
 	}

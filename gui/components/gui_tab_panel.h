@@ -29,7 +29,7 @@ class gui_tab_panel_t :
 private:
 	struct tab
 	{
-		tab(gui_component_t* c, const char *name, const image_t *b, const char *tool) : component(c), title(name), img(b), tooltip(tool), x_offset(4) {}
+		tab(gui_component_t* c, const char *name, const image_t *b, const char *tool, PIXVAL col) : component(c), title(name), img(b), tooltip(tool), x_offset(4), color(col) {}
 
 		gui_component_t* component;
 		const char *title;
@@ -37,6 +37,7 @@ private:
 		const char *tooltip;
 		sint16 x_offset;
 		sint16 width;
+		PIXVAL color;
 	};
 
 	slist_tpl<tab> tabs;
@@ -55,7 +56,7 @@ public:
 	 * @param c is tab component
 	 * @param name is name for tab component
 	 */
-	void add_tab(gui_component_t *c, const char *name, const skin_desc_t *b=NULL, const char *tooltip=NULL );
+	void add_tab(gui_component_t *c, const char *name, const skin_desc_t *b=NULL, const char *tooltip=NULL, PIXVAL color=0 );
 
 	/**
 	 * Get the active component/active tab

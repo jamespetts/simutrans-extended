@@ -4367,6 +4367,12 @@ convoys stored
 留置編成数
 vehicles stored
 保管車両数
+-->
+→
+<=>
+⇔
+line_network
+接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
 100 km/h = %i tiles/month

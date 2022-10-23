@@ -251,6 +251,10 @@ void display_linear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val,
 {
 }
 
+void display_vlinear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, int, int)
+{
+}
+
 void display_color_img_with_tooltip(const image_id, scr_coord_val, scr_coord_val, sint8, const int, const int, const char* CLIP_NUM_DEF_NOUSE)
 {
 }
@@ -471,6 +475,10 @@ void draw_bezier_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val,
 }
 
 void display_signal_direction_rgb(scr_coord_val, scr_coord_val, scr_coord_val, uint8, uint8, uint8, bool, uint8, sint8)
+{
+}
+
+void display_depot_symbol_rgb(scr_coord_val, scr_coord_val, scr_coord_val, const PIXVAL, const bool)
 {
 }
 

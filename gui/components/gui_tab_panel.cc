@@ -32,9 +32,9 @@ gui_tab_panel_t::gui_tab_panel_t() :
 
 
 
-void gui_tab_panel_t::add_tab(gui_component_t *c, const char *name, const skin_desc_t *desc, const char *tooltip )
+void gui_tab_panel_t::add_tab(gui_component_t *c, const char *name, const skin_desc_t *desc, const char *tooltip, PIXVAL color )
 {
-	tabs.append( tab(c, desc?NULL:name, desc?desc->get_image(0):NULL, tooltip) );
+	tabs.append( tab(c, desc?NULL:name, desc?desc->get_image(0):NULL, tooltip, color) );
 	// only call set_size, if size was already assigned
 	if (size.w > 0  && size.h > 0) {
 		set_size( get_size() );
@@ -207,6 +207,9 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 
 			if (i != active_tab) {
 				// Non active tabs
+				if (iter.color!=0) {
+					display_fillbox_wh_clip_rgb(text_x + 1, ypos + 2, iter.width - 2, required_size.h - 3, iter.color, true);
+				}
 				display_fillbox_wh_clip_rgb(text_x+1, ypos+2, iter.width-2, 1, SYSCOL_HIGHLIGHT, true);
 				display_fillbox_wh_clip_rgb(text_x, ypos+required_size.h-1, iter.width-2, 1, SYSCOL_HIGHLIGHT, true);
 
@@ -219,12 +222,16 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 				else {
 					scr_coord_val const y = ypos   - iter.img->get_pic()->y + required_size.h / 2 - iter.img->get_pic()->h / 2 + 1;
 					scr_coord_val const x = text_x - iter.img->get_pic()->x + iter.width / 2      - iter.img->get_pic()->w / 2;
-//					display_img_blend(iter.img->get_id(), x, y, TRANSPARENT50_FLAG, false, true);
+
 					display_base_img(iter.img->get_id(), x, y, 1, false, true);
 				}
 			}
 			else {
 				// Active tab
+				if (iter.color!=0) {
+					display_fillbox_wh_clip_rgb(text_x+1, ypos+2-1, iter.width-2, 3, iter.color, true);
+					display_vlinear_gradient_wh_rgb(text_x+1, ypos+2+2, iter.width-2, required_size.h-5, iter.color, 75, 10);
+				}
 				display_fillbox_wh_clip_rgb(text_x+1, ypos, iter.width-2, 1, SYSCOL_HIGHLIGHT, true);
 
 				display_vline_wh_clip_rgb(text_x, ypos+1, required_size.h-2, SYSCOL_HIGHLIGHT, true);

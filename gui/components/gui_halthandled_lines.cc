@@ -4,7 +4,7 @@
  */
 
 #include "gui_halthandled_lines.h"
-#include "gui_image.h"
+#include "gui_waytype_image_box.h"
 
 #include "../../simcolor.h"
 #include "../../simworld.h"
@@ -63,7 +63,7 @@ void gui_halthandled_lines_t::update_table()
 						if (!found) {
 							found = true;
 							add_table(MAX_PLAYER_COUNT*2+2,1)->set_spacing(scr_size(2,0)); // waytypespce(1) + line"s" + convoy"s" + end_margin
-							new_component<gui_image_t>(skinverwaltung_t::get_waytype_skin(halt->registered_lines[line_idx]->get_schedule()->get_waytype())->get_image_id(0), 0, ALIGN_CENTER_V, true);
+							new_component<gui_waytype_image_box_t>(simline_t::linetype_to_waytype(halt->registered_lines[line_idx]->get_linetype()));
 						}
 					}
 				}
@@ -83,7 +83,7 @@ void gui_halthandled_lines_t::update_table()
 						if (!found) {
 							found = true;
 							add_table(MAX_PLAYER_COUNT*2+1,1); // waytypespce(1) + line"s"-1 + convoy"s" + end_margin
-							new_component<gui_image_t>(skinverwaltung_t::get_waytype_skin(halt->registered_convoys[c]->get_schedule()->get_waytype())->get_image_id(0), 0, ALIGN_CENTER_V, true);
+							new_component<gui_waytype_image_box_t>(halt->registered_convoys[c]->get_schedule()->get_waytype());
 						}
 					}
 				}

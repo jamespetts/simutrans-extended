@@ -3525,6 +3525,15 @@ void display_linear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coor
 	}
 }
 
+void display_vlinear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL colval, int percent_blend_start, int percent_blend_end)
+{
+	uint8 transparency = 0;
+	for (uint16 i = 0; i < h; i++) {
+		transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / h * i;
+		display_blend_wh_rgb(xp, yp + i, w, 1, colval, transparency);
+	}
+}
+
 static void display_img_blend_wc(scr_coord_val h, const scr_coord_val xp, const scr_coord_val yp, const PIXVAL *sp, int colour, blend_proc p  CLIP_NUM_DEF )
 {
 	if(  h > 0  ) {
@@ -5587,25 +5596,33 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 }
 
 
-void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width, const uint8 darkest_pcol_idx, const bool dirty)
+void display_depot_symbol_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val width, const PIXVAL colval, const bool dirty)
 {
 	if (width < 6) { return; } // too small to draw!
 	// first, draw the roof (upper triangle)
 	for (uint8 i = 0; i < width/4; i++) {
 		const scr_coord_val w = i*4 + 2;
-		display_fillbox_wh_clip_rgb(x + (width-w) / 2, y+i, w, 1, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+		display_fillbox_wh_clip_rgb(x + (width-w) / 2, y+i, w, 1, colval, dirty);
 	}
-	display_fillbox_wh_clip_rgb(x, y+width/4, width, width-width/3-1, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+	display_fillbox_wh_clip_rgb(x, y+width/4, width, width-width/3-1, colval, dirty);
 	// draw the door
 	const scr_coord_val y_start = width/4+1;
-	display_vline_wh_rgb(x+1,             y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
-	display_vline_wh_rgb(x+(width/2)*2-2, y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+	const PIXVAL decoration_col = display_blend_colors(colval, color_idx_to_rgb(COL_WHITE), 60);
+
+	display_vline_wh_clip_rgb(x+1,       y+y_start, width-width/3-2, decoration_col, dirty);
+	display_vline_wh_clip_rgb(x+width-2, y+y_start, width-width/3-2, decoration_col, dirty);
 	if (width < 8) { return; } // too small to draw!
 	for (uint8 i=y_start; i < width-3; i+=2) {
-		const scr_coord_val w = i==y_start ? (width/2)*2-4 : (width/2)*2-6;
-		display_fillbox_wh_clip_rgb(x+3-(i==y_start), y+i, w, 1, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+		const scr_coord_val w = i==y_start ? width-4 : width-6;
+		display_fillbox_wh_clip_rgb(x+3-(i==y_start), y+i, w, 1, decoration_col, dirty);
 	}
 }
+
+void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width, const uint8 darkest_pcol_idx, const bool dirty)
+{
+	display_depot_symbol_rgb(x, y, width, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+}
+
 
 /**
  * Print a bezier curve between points A and B

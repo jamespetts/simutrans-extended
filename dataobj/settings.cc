@@ -293,6 +293,10 @@ settings_t::settings_t() :
 	// default: joined capacities
 	separate_halt_capacities = false;
 
+	for (uint8 i = 0; i < 10; i++) {
+		waytype_color[i] = 0;
+	}
+
 	// Cornering settings
 	// @author: jamespetts
 	corner_force_divider[waytype_t(road_wt)] = 5;
@@ -2713,6 +2717,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	always_prefer_car_percent = contents.get_int("always_prefer_car_percent", always_prefer_car_percent);
 	congestion_density_factor = contents.get_int("congestion_density_factor", congestion_density_factor);
+
+	for (uint8 i = 0; i < 10; i++) {
+		char str[256];
+		sprintf(str, "waytype_color[%i]", i);
+		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
+			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+		}
+	}
 
 	// Cornering settings
 	corner_force_divider[waytype_t(road_wt)] = contents.get_int("corner_force_divider_road", corner_force_divider[waytype_t(road_wt)]);

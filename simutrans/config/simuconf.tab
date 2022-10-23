@@ -601,6 +601,27 @@ show_delete_buttons = 1
 # Should either account (default) or net wealth be shown below the screen?
 player_finance_display_account = 1
 
+# Waytype color
+# All
+#waytype_color[0] = #aaaaaa
+# road
+#waytype_color[1] = #b551d6
+# rail
+#waytype_color[2] = #ffa22a
+# ship
+#waytype_color[3] = #0079ff
+# monorail
+#waytype_color[5] = #b52021
+# maglev
+#waytype_color[6] = #ff61bd
+# tram
+#waytype_color[7] = #6bd310
+# narrowgauge
+#waytype_color[8] = #b58200
+# air
+#waytype_color[9] = #31cbff
+
+
 ################################### Finance settings ##################################
 #
 # These values are usually set in the pak files

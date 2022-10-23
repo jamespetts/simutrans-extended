@@ -743,11 +743,13 @@ void  way_info_t::init_tabs()
 	tabs.clear();
 	cont_way2.set_way(NULL);
 	cont_way1.set_way(way1);
-	;
-	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype()));
+
+	waytype_t wt = way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	if (has_way==2) {
 		cont_way2.set_way(way2);
-		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(way2->get_desc()->get_styp() == type_tram ? tram_wt : way2->get_waytype()));
+		wt = way2->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	}
 }
 

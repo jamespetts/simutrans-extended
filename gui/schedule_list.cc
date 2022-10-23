@@ -250,13 +250,15 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	player(player_),
 	lc_preview(0),
 	cont_by_accommo(linehandle_t()),
+	cont_line_network(linehandle_t()),
 	cont_haltlist(linehandle_t()),
 	cont_line_capacity_by_catg(linehandle_t(), convoihandle_t()),
 	scrolly_convois(&cont),
-	scrolly_haltestellen(&cont_tab_haltlist, true, true),
+	scroll_halt_waiting(&cont_tab_haltlist, true, true),
 	scroll_times_history(&cont_times_history, true, true),
-	scrolly_line_info(&cont_line_info, true, true),
-	scrolly_fare_manager(&cont_tab_fare_manager, true, true),
+	scroll_line_info(&cont_line_info, true, true),
+	scroll_fare_manager(&cont_tab_fare_manager, true, true),
+	scroll_line_network(&cont_line_network, true, true),
 	scl(gui_scrolled_list_t::listskin, line_scrollitem_t::compare),
 	lbl_filter("Line Filter"),
 	convoy_infos(),
@@ -281,50 +283,51 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	// tab panel
 	tabs.set_pos(scr_coord(11,5));
 	tabs.set_size(scr_size(LINE_NAME_COLUMN_WIDTH-11-4, SCL_HEIGHT));
-	tabs.add_tab(&scl, translator::translate("All"));
+	tabs.add_tab(&scl, translator::translate("All"), 0, translator::translate("All"), world()->get_settings().get_waytype_color(ignore_wt));
 	max_idx = 0;
 	tabs_to_lineindex[max_idx++] = simline_t::line;
 
 	// now add all specific tabs
 	if(maglev_t::default_maglev) {
-		tabs.add_tab(&scl, translator::translate("Maglev"), skinverwaltung_t::maglevhaltsymbol, translator::translate("Maglev"));
+		tabs.add_tab(&scl, translator::translate("Maglev"), skinverwaltung_t::maglevhaltsymbol, translator::translate("Maglev"), world()->get_settings().get_waytype_color(maglev_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::maglevline;
 	}
 	if(monorail_t::default_monorail) {
-		tabs.add_tab(&scl, translator::translate("Monorail"), skinverwaltung_t::monorailhaltsymbol, translator::translate("Monorail"));
+		tabs.add_tab(&scl, translator::translate("Monorail"), skinverwaltung_t::monorailhaltsymbol, translator::translate("Monorail"), world()->get_settings().get_waytype_color(monorail_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::monorailline;
 	}
 	if(schiene_t::default_schiene) {
-		tabs.add_tab(&scl, translator::translate("Train"), skinverwaltung_t::zughaltsymbol, translator::translate("Train"));
+		tabs.add_tab(&scl, translator::translate("Train"), skinverwaltung_t::zughaltsymbol, translator::translate("Train"), world()->get_settings().get_waytype_color(track_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::trainline;
 	}
 	if(narrowgauge_t::default_narrowgauge) {
-		tabs.add_tab(&scl, translator::translate("Narrowgauge"), skinverwaltung_t::narrowgaugehaltsymbol, translator::translate("Narrowgauge"));
+		tabs.add_tab(&scl, translator::translate("Narrowgauge"), skinverwaltung_t::narrowgaugehaltsymbol, translator::translate("Narrowgauge"), world()->get_settings().get_waytype_color(narrowgauge_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::narrowgaugeline;
 	}
 	if (!vehicle_builder_t::get_info(tram_wt).empty()) {
-		tabs.add_tab(&scl, translator::translate("Tram"), skinverwaltung_t::tramhaltsymbol, translator::translate("Tram"));
+		tabs.add_tab(&scl, translator::translate("Tram"), skinverwaltung_t::tramhaltsymbol, translator::translate("Tram"), world()->get_settings().get_waytype_color(tram_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::tramline;
 	}
 	if(strasse_t::default_strasse) {
-		tabs.add_tab(&scl, translator::translate("Truck"), skinverwaltung_t::autohaltsymbol, translator::translate("Truck"));
+		tabs.add_tab(&scl, translator::translate("Truck"), skinverwaltung_t::autohaltsymbol, translator::translate("Truck"), world()->get_settings().get_waytype_color(road_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::truckline;
 	}
 	if (!vehicle_builder_t::get_info(water_wt).empty()) {
-		tabs.add_tab(&scl, translator::translate("Ship"), skinverwaltung_t::schiffshaltsymbol, translator::translate("Ship"));
+		tabs.add_tab(&scl, translator::translate("Ship"), skinverwaltung_t::schiffshaltsymbol, translator::translate("Ship"), world()->get_settings().get_waytype_color(water_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::shipline;
 	}
 	if(runway_t::default_runway) {
-		tabs.add_tab(&scl, translator::translate("Air"), skinverwaltung_t::airhaltsymbol, translator::translate("Air"));
+		tabs.add_tab(&scl, translator::translate("Air"), skinverwaltung_t::airhaltsymbol, translator::translate("Air"), world()->get_settings().get_waytype_color(air_wt));
 		tabs_to_lineindex[max_idx++] = simline_t::airline;
 	}
 	tabs.add_listener(this);
 	add_component(&tabs);
 
-	cont_line_name.set_table_layout(2,1);
+	cont_line_name.set_table_layout(3,1);
 	cont_line_name.set_spacing(scr_size(0,0));
 	cont_line_name.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH, D_MARGIN_TOP));
 
+	cont_line_name.add_component(&wt_symbol);
 	cont_line_name.add_component(&lc_preview);
 
 	// editable line name
@@ -352,7 +355,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	scrolly_convois.set_visible(false);
 	cont_convoys.add_component(&scrolly_convois);
 
-	scrolly_line_info.set_visible(false);
+	scroll_line_info.set_visible(false);
 	cont_line_info.set_table_layout(1,0);
 
 	cont_line_info.add_table(2,0)->set_spacing(scr_size(D_H_SPACE, 0));
@@ -404,8 +407,8 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	cont_transport_density.set_table_layout(4,0);
 	cont_line_info.add_component(&cont_transport_density);
 
-	scrolly_line_info.set_pos(scr_coord(0, 8 + SCL_HEIGHT + D_BUTTON_HEIGHT + D_BUTTON_HEIGHT + 2));
-	add_component(&scrolly_line_info);
+	scroll_line_info.set_pos(scr_coord(0, 8 + SCL_HEIGHT + D_BUTTON_HEIGHT + D_BUTTON_HEIGHT + 2));
+	add_component(&scroll_line_info);
 
 	// filter lines by
 	lbl_filter.set_pos( scr_coord( 11, 7+SCL_HEIGHT+2 ) );
@@ -551,7 +554,9 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_show_halt_name.add_listener(this);
 	cont_tab_haltlist.add_component(&bt_show_halt_name);
 	cont_tab_haltlist.add_component(&cont_haltlist);
-	info_tabs.add_tab(&scrolly_haltestellen, translator::translate("waiting_status"));
+	info_tabs.add_tab(&scroll_halt_waiting, translator::translate("waiting_status"));
+
+	info_tabs.add_tab(&scroll_line_network, translator::translate("line_network"));
 
 	cont_tab_fare_manager.set_table_layout(1,0);
 	cont_tab_fare_manager.add_table(2,1);
@@ -581,7 +586,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	cont_tab_fare_manager.new_component<gui_empty_t>();
 	cont_tab_fare_manager.add_component(&cont_by_accommo);
 
-	info_tabs.add_tab(&scrolly_fare_manager, translator::translate("line_class_manager"));
+	info_tabs.add_tab(&scroll_fare_manager, translator::translate("line_class_manager"));
 
 	// recover last selected line
 	int index = 0;
@@ -1088,7 +1093,7 @@ void schedule_list_gui_t::set_windowsize(scr_size size)
 	int button_per_row=max(1,rest_width/(D_BUTTON_WIDTH+D_H_SPACE));
 	int button_rows= MAX_LINE_COST/button_per_row + ((MAX_LINE_COST%button_per_row)!=0);
 
-	scrolly_line_info.set_size( scr_size(LINE_NAME_COLUMN_WIDTH-4, get_client_windowsize().h - scrolly_line_info.get_pos().y-1) );
+	scroll_line_info.set_size( scr_size(LINE_NAME_COLUMN_WIDTH-4, get_client_windowsize().h - scroll_line_info.get_pos().y-1) );
 
 	info_tabs.set_size( scr_size(rest_width+2, get_windowsize().h-info_tabs.get_pos().y-D_TITLEBAR_HEIGHT-1) );
 	scrolly_convois.set_size( scr_size(info_tabs.get_size().w+1, info_tabs.get_size().h - scrolly_convois.get_pos().y - D_H_SPACE-1) );
@@ -1139,9 +1144,10 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		// ok, this line is visible
 		cont_line_name.set_visible(true);
 		scrolly_convois.set_visible(true);
-		scrolly_haltestellen.set_visible(true);
-		scrolly_line_info.set_visible(new_line->get_schedule()->get_count()>0);
+		scroll_halt_waiting.set_visible(true);
+		scroll_line_info.set_visible(new_line->get_schedule()->get_count()>0);
 		//inp_name.set_visible(true);
+		wt_symbol.set_waytype(new_line->get_schedule()->get_waytype());
 		lc_preview.set_line(new_line);
 		lc_preview.set_base_color( new_line->get_line_color() );
 		lc_preview.set_visible(new_line->get_line_color_index()!=255);
@@ -1156,6 +1162,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		}
 		cont_line_capacity_by_catg.set_line(new_line);
 		cont_by_accommo.set_line(new_line);
+		cont_line_network.set_line(new_line);
 
 		cont_times_history.set_visible(true);
 		cont_times_history.remove_all();
@@ -1367,12 +1374,13 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		cont_transport_density.remove_all();
 		cont_line_capacity_by_catg.set_line(linehandle_t());
 		cont_by_accommo.set_line();
+		cont_line_network.set_line(linehandle_t());
 		cont_line_name.set_visible(false);
 		scrolly_convois.set_visible(false);
-		scrolly_haltestellen.set_visible(false);
+		scroll_halt_waiting.set_visible(false);
 		livery_selector.set_visible(false);
 		bt_line_color_editor.set_visible(false);
-		scrolly_line_info.set_visible(false);
+		scroll_line_info.set_visible(false);
 		lc_preview.set_visible(false);
 		cont_times_history.set_visible(false);
 		cont_transport_density.set_visible(false);
@@ -1500,8 +1508,8 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 		size = get_windowsize();
 		cont_xoff = scrolly_convois.get_scroll_x();
 		cont_yoff = scrolly_convois.get_scroll_y();
-		halt_xoff = scrolly_haltestellen.get_scroll_x();
-		halt_yoff = scrolly_haltestellen.get_scroll_y();
+		halt_xoff = scroll_halt_waiting.get_scroll_x();
+		halt_yoff = scroll_halt_waiting.get_scroll_y();
 	}
 	size.rdwr( file );
 	simline_t::rdwr_linehandle_t(file, line);
@@ -1525,6 +1533,6 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 		set_windowsize( size );
 		resize( scr_coord(0,0) );
 		scrolly_convois.set_scroll_position( cont_xoff, cont_yoff );
-		scrolly_haltestellen.set_scroll_position( halt_xoff, halt_yoff );
+		scroll_halt_waiting.set_scroll_position( halt_xoff, halt_yoff );
 	}
 }

@@ -14,7 +14,7 @@
 #include "livery_scheme.h"
 #include "../tpl/piecewise_linear_tpl.h" // for various revenue tables
 #include "../dataobj/koord.h"
-
+#include "../simcolor.h"
 
 class player_t;
 class loadsave_t;
@@ -396,13 +396,13 @@ private:
 	*/
 	uint32 industry_density_proportion_override = 0;
 
-public:
-	//Cornering settings
-	//@author: jamespetts
-
 	//The array index corresponds
 	//to the waytype index.
 
+	PIXVAL waytype_color[10];
+
+	//Cornering settings
+	//@author: jamespetts
 	sint32 corner_force_divider[10];
 
 	uint8 curve_friction_factor[10];
@@ -426,6 +426,7 @@ public:
 
 	uint16 meters_per_tile;
 
+private:
 	uint32 base_meters_per_tile;
 	uint32 base_bits_per_month;
 	uint32 job_replenishment_per_hundredths_of_months;
@@ -433,7 +434,6 @@ public:
 	// We need it often(every vehicle_base_t::do_drive call), so we cache it.
 	uint32 steps_per_km;
 
-private:
 	// The public version of these is exposed via tables below --neroden
 	uint8 tolerable_comfort_short;
 	uint8 tolerable_comfort_median_short;
@@ -1036,6 +1036,16 @@ public:
 	uint8 get_always_prefer_car_percent() const { return always_prefer_car_percent; }
 	uint8 get_congestion_density_factor () const { return congestion_density_factor; }
 	void set_congestion_density_factor (uint8 value)  { congestion_density_factor = value; }
+
+	PIXVAL get_waytype_color(waytype_t waytype) const {
+		switch (waytype)
+		{
+			case air_wt:
+				return waytype_color[9];
+			default:
+				return waytype < 10 ? waytype_color[waytype]:0;
+		}
+	}
 
 	uint8 get_curve_friction_factor (waytype_t waytype) const { assert((int)waytype < 10); return curve_friction_factor[waytype]; }
 

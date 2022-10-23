@@ -170,6 +170,20 @@ void gui_capacity_bar_t::draw(scr_coord offset)
 	}
 }
 
+gui_depotbox_t::gui_depotbox_t(PIXVAL c, uint8 w)
+{
+	width = w;
+	color = c;
+	tooltip = NULL;
+	gui_component_t::set_size(scr_size(w, w));
+}
+
+void gui_depotbox_t::draw(scr_coord offset)
+{
+	offset += pos;
+	display_depot_symbol_rgb(offset.x, offset.y, width, color, true);
+}
+
 
 gui_fluctuation_triangle_t::gui_fluctuation_triangle_t(sint64 value_, uint8 height_)
 {
