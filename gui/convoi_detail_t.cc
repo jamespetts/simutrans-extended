@@ -1144,13 +1144,13 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		new_component_span<gui_empty_t>(2);
 
 		for (uint8 i = 0; i < gui_convoy_formation_t::CONVOY_OVERVIEW_MODES; i++) {
-			overview_selctor.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(gui_convoy_formation_t::cnvlist_mode_button_texts[i]), SYSCOL_TEXT);
+			overview_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(gui_convoy_formation_t::cnvlist_mode_button_texts[i]), SYSCOL_TEXT);
 		}
-		overview_selctor.set_selection(gui_convoy_formation_t::convoy_overview_t::formation);
-		overview_selctor.set_width_fixed(true);
-		overview_selctor.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
-		overview_selctor.add_listener(this);
-		add_component(&overview_selctor);
+		overview_selector.set_selection(gui_convoy_formation_t::convoy_overview_t::formation);
+		overview_selector.set_width_fixed(true);
+		overview_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+		overview_selector.add_listener(this);
+		add_component(&overview_selector);
 	}
 	end_table();
 
