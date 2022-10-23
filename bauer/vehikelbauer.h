@@ -41,6 +41,7 @@ public:
 		sb_axle_load,
 		sb_intro_date,
 		sb_retire_date,
+		sb_min_comfort,
 		sb_length // MAX
 	};
 	static const char *vehicle_sort_by[sb_length];
