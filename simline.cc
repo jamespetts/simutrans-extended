@@ -580,6 +580,18 @@ void simline_t::rdwr(loadsave_t *file)
 		file->rdwr_str(linecode_l, lengthof(linecode_l));
 		file->rdwr_str(linecode_r, lengthof(linecode_r));
 	}
+
+	// discard old incompatible datum
+	if( file->is_loading() ) {
+		if( file->is_version_ex_less(14,57) ) {
+			for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+				financial_history[k][LINE_CAPACITY] = 0;
+				if( file->is_version_ex_less(14,48) ) {
+					financial_history[k][LINE_PAX_DISTANCE] = 0;
+				}
+			}
+		}
+	}
 }
 
 

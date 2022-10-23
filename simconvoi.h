@@ -71,7 +71,7 @@ class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {
 public:
 	enum convoi_cost_t {            // Ext|Std|Description
-		CONVOI_CAPACITY = 0,        //  0 | 0 | the amount of ware that could be transported, theoretically
+		CONVOI_CAPACITY = 0,        //  0 |   | the distance (km) travelled by vacant seats
 		CONVOI_PAX_DISTANCE,        //  1 |   | the distance (km) travelled by passengers
 		CONVOI_AVERAGE_SPEED,       //  2 |   | the average speed of the convoy per rolling month
 		CONVOI_COMFORT,             //  3 |   | the aggregate comfort rating of this convoy

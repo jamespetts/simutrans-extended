@@ -40,7 +40,7 @@ sint16 convoi_info_t::tabstate = -1;
 
 static const char cost_type[BUTTON_COUNT][64] =
 {
-	"Free Capacity",
+	"Free Capacity", // empty seats * km
 	"Pax-km",
 	"Mail-km",
 	"Freight-km", // ton-km
@@ -72,7 +72,7 @@ static const uint8 cost_type_color[BUTTON_COUNT] =
 
 static const uint8 cost_type_money[BUTTON_COUNT] =
 {
-	gui_chart_t::STANDARD,
+	gui_chart_t::PAX_KM,
 	gui_chart_t::PAX_KM,
 	gui_chart_t::KG_KM,
 	gui_chart_t::TON_KM,
