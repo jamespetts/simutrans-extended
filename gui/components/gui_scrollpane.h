@@ -25,11 +25,6 @@ private:
 	scr_size cached_min_size;
 	scr_size cached_max_size;
 
-	/**
-	 * Scrollbar X/Y
-	 */
-	scrollbar_t scroll_x, scroll_y;
-
 	bool b_show_scroll_x:1;
 	bool b_show_scroll_y:1;
 	bool b_has_size_corner:1;
@@ -41,9 +36,6 @@ private:
 	// start of dragging
 	scr_coord origin;
 
-	// for oversized entries
-	scr_coord_val max_width;
-
 	// set fixed height for x-scroll(invisible y), and min_height for visible yscroll. 0=disable
 	scr_coord_val min_height=0;
 
@@ -52,6 +44,15 @@ protected:
 	 * The scrolling component
 	 */
 	gui_component_t *comp;
+
+	/**
+	 * Scrollbar X/Y
+	 */
+	scrollbar_t scroll_x, scroll_y;
+
+	// for oversized entries
+	scr_coord_val max_width;
+	scr_coord_val max_height;
 
 	void recalc_sliders(scr_size size);
 
