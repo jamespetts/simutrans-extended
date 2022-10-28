@@ -2137,7 +2137,7 @@ void gui_convoy_maintenance_info_t::update_list()
 		}
 
 		vector_tpl<livery_scheme_t*>* schemes = world()->get_settings().get_livery_schemes();
-		livery_scheme_t* convoy_scheme = schemes->get_element(cnv->get_livery_scheme_index());
+		livery_scheme_t* convoy_scheme = schemes->get_count() ? schemes->get_element(cnv->get_livery_scheme_index()) : NULL;
 		const uint16 month_now = world()->get_timeline_year_month();
 
 		add_table(2,0)->set_alignment(ALIGN_TOP);
@@ -2178,7 +2178,7 @@ void gui_convoy_maintenance_info_t::update_list()
 				add_table(1,2);
 				{
 					// livery scheme info
-					if (veh->get_desc()->get_livery_count() > 1) {
+					if( convoy_scheme  &&  veh->get_desc()->get_livery_count() > 1) {
 						if (!strcmp(veh->get_current_livery(), "default")) {
 							if (convoy_scheme->is_contained(veh->get_current_livery(), month_now)) {
 								// current livery belongs to convoy applied livery scheme and active
