@@ -27,7 +27,7 @@ jobs:
       run: |
         autoconf
         CC="ccache clang-14" CXX="ccache clang++-14" ./configure
-        echo "FLAGS += -fsanitize=address,undefined -fno-sanitize=shift,function" >> config.default
+        echo "FLAGS += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=shift,function" >> config.default
         echo "LDFLAGS += -fsanitize=address,undefined" >> config.default
     - name: Build Simutrans
       run: |
