@@ -22,6 +22,8 @@
 #include "../dataobj/loadsave.h"
 #include "../simfab.h"
 
+#include "components/gui_colorbox.h"
+#include "depotlist_frame.h"
 
 static koord old_ij=koord::invalid;
 
@@ -413,12 +415,52 @@ map_frame_t::map_frame_t() :
 	update_buttons();
 
 	// scale container
-	scale_container.set_table_layout(3,0);
+	scale_container.set_table_layout(1,0);
 	scale_container.set_visible(false);
+	scale_container.add_table(3,1);
+	{
+		scale_container.new_component<gui_label_t>("min");
+		scale_container.new_component<gui_scale_t>();
+		scale_container.new_component<gui_label_t>("max");
+	}
+	scale_container.end_table();
+	// depot color container
+	cont_depot_color_legend.set_table_layout(12,2);
+	{
+		cont_depot_color_legend.set_alignment(ALIGN_CENTER_V);
+		cont_depot_color_legend.set_visible((env_t::default_mapmode & minimap_t::MAP_DEPOT) != 0);
+		cont_depot_color_legend.set_rigid(false);
+		cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::bahndepot));
+		cont_depot_color_legend.new_component<gui_label_t>("Bahndepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::strassendepot));
+		cont_depot_color_legend.new_component<gui_label_t>("Strassendepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		if (depotlist_frame_t::is_available_wt(water_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::schiffdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Schiffdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(air_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::airdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Hangar"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(monorail_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::monoraildepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Monoraildepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(tram_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::tramdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Tramdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(maglev_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::maglevdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Maglevdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(narrowgauge_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::narrowgaugedepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Narrowgaugedepot");
+		}
+	}
+	scale_container.add_component(&cont_depot_color_legend);
 	add_component(&scale_container);
-	scale_container.new_component<gui_label_t>("min");
-	scale_container.new_component<gui_scale_t>();
-	scale_container.new_component<gui_label_t>("max");
 
 	// map scrolly
 	scrolly.set_show_scroll_x(true);
@@ -615,6 +657,10 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 					env_t::default_mapmode |= button_init[i].mode;
 				}
 				filter_buttons[i].pressed ^= 1;
+				if (button_init[i].mode == minimap_t::MAP_DEPOT) {
+					cont_depot_color_legend.set_visible((env_t::default_mapmode & minimap_t::MAP_DEPOT) != 0);
+					reset_min_windowsize();
+				}
 				break;
 			}
 		}

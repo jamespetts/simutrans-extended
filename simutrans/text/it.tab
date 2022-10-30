@@ -2138,7 +2138,7 @@ via %s
 (catering_levels: %s)
 (livello catering: %s)
 (Max. comfortable journey time: 
-(Tempo max per viaggio confortevole:
+Tempo max per viaggio confortevole:
 (speed_restricted_by_bridge)
 (velocitÅElimitata da ponte)
 (speed_restricted_by_city)
@@ -2158,9 +2158,9 @@ via %s
 \nMax. weight:
 \nPeso massimo:
 \nMAY USE: 
-\nPuÅEusare:
+PuÅEusare:
 \nMUST USE: 
-\nDeve usare:
+Deve usare:
 \nNetwork ID:
 \nID rete:
 \nNo postboxes within walking distance

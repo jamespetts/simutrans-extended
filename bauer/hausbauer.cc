@@ -375,7 +375,6 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 		for(k.y = 0; k.y < size.y; k.y ++) {
 			for(k.x = 0; k.x < size.x; k.x ++) {
 				const grund_t *gr = welt->lookup(koord3d(k,0)+pos);
-				assert(gr);
 
 				// for buildings with holes the hole could be on a different height ->gr==NULL
 				if (gr) {
@@ -945,7 +944,8 @@ const building_tile_desc_t *hausbauer_t::find_tile(const char *name, int org_idx
 
 	if(!desc) {
 		// DBG_MESSAGE("hausbauer_t::find_tile()","\"%s\" not in hashtable",name);
-		return NULL;	}
+		return NULL;
+	}
 
 	const int size = desc->get_y()*desc->get_x();
 	int idx = org_idx;

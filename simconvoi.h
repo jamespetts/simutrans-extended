@@ -71,7 +71,7 @@ class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {
 public:
 	enum convoi_cost_t {            // Ext|Std|Description
-		CONVOI_CAPACITY = 0,        //  0 | 0 | the amount of ware that could be transported, theoretically
+		CONVOI_CAPACITY = 0,        //  0 |   | the distance (km) travelled by vacant seats
 		CONVOI_PAX_DISTANCE,        //  1 |   | the distance (km) travelled by passengers
 		CONVOI_AVERAGE_SPEED,       //  2 |   | the average speed of the convoy per rolling month
 		CONVOI_COMFORT,             //  3 |   | the aggregate comfort rating of this convoy
@@ -551,6 +551,11 @@ private:
 	// Reverses the order of the convoy.
 	// @author: jamespetts
 	void reverse_order(bool rev);
+public:
+	// Reorder the vehicle array
+	// Can be executed even with a vehicle array that does not belong to convoy for UI
+	static void execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev);
+private:
 	bool reversable;
 	bool reversed;
 
@@ -983,7 +988,7 @@ public:
 	/**
 	 * @return total power of this convoi
 	 */
-	inline uint32 get_sum_power() {return get_continuous_power();}
+	inline uint32 get_sum_power() { return get_continuous_power().to_sint32(); }
 	inline sint32 get_min_top_speed() {return get_vehicle_summary().max_sim_speed;}
 	inline sint32 get_max_power_speed() OVERRIDE {return get_min_top_speed();}
 
@@ -1368,7 +1373,7 @@ public:
 	void must_recalc_data() { invalidate_adverse_summary(); }
 
 	// just a guess of the speed
-	uint32 get_average_kmh();
+	//uint32 get_average_kmh();
 
 	// Overtaking for convois
 	virtual bool can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other) OVERRIDE;
@@ -1530,7 +1535,14 @@ public:
 	}
 
 	// Returns this convoy's reversing method. (v14.8 - Jan, 2020 @Ranran)
-	uint8 get_terminal_shunt_mode() const;
+	static uint8 get_terminal_shunt_mode(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	uint8 get_terminal_shunt_mode() const {
+		return get_terminal_shunt_mode(vehicle, vehicle_count);
+	}
+	// Train formation checks
+	static uint8 get_front_loco_count(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	static uint8 check_new_tail(const array_tpl<vehicle_t*> &vehicles, uint8 start=1, uint8 end=1);
+	static uint8 check_need_turntable(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
 
 	// return a number numbered by position in convoy. This is affected by the number of locomotives and reversals.
 	// The locomotive on the front side is returned a negative value.
@@ -1541,13 +1553,6 @@ public:
 	uint8 get_auto_removal_vehicle_count(uint8 car_no) const;
 
 private:
-	/** Train formation checks
-	 *  v14.8 - Jan, 2020 @Ranran
-	 */
-	uint8 get_front_loco_count() const;
-	uint8 check_new_tail(uint8 start) const;
-	uint8 check_need_turntable() const;
-
 	// returns level of coupling constraints between vehicles
 	uint8 check_couple_constraint_level(uint8 car_no, bool rear_side) const;
 

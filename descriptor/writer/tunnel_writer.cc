@@ -44,8 +44,8 @@ void tunnel_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj)
 
 	flags |= obj.get_int("half_height",0) ? 0x01 : 0;
 
-	uint32 subsea_cost;
-	uint32 subsea_maintenance;
+	uint32 subsea_cost = 0xFFFFFFFF;
+	uint32 subsea_maintenance = 0;
 	if(((subsea_cost=obj.get_int("subsea_cost",0xFFFFFFFF))!=0xFFFFFFFF) || obj.get_int("allow_subsea",0)){
 		flags|=0x02;
 		if(subsea_cost==0xFFFFFFFF){

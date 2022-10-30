@@ -242,10 +242,10 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 	const grund_t* gr = NULL;
 	sint32 bridge_tile_count = 0;
 
-	fabrik_t* destination_industry;
-	const gebaeude_t* destination_attraction;
-	const stadt_t* destination_city;
-	const stadt_t* current_city;
+	fabrik_t* destination_industry = NULL;
+	const gebaeude_t* destination_attraction = NULL;
+	const stadt_t* destination_city = NULL;
+	const stadt_t* current_city = NULL;
 	stadt_t* origin_city = NULL;
 	bool reached_target = false;
 
@@ -983,7 +983,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 					check_axle_load:
 						bridge_tile_count = 0;
 						const uint32 way_max_axle_load = w->get_max_axle_load();
-						max_axle_load = min(max_axle_load, way_max_axle_load);
+						max_axle_load = std::min(max_axle_load, way_max_axle_load);
 						if (axle_load > way_max_axle_load)
 						{
 							switch (enforce_weight_limits)

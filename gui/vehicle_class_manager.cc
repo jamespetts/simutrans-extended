@@ -26,7 +26,6 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(catg_index);
 
 	if ((veh->get_desc()->get_total_capacity()+veh->get_desc()->get_overcrowded_capacity())>0) {
-		bool already_show_catg_symbol = false;
 		for (uint8 ac=0; ac<number_of_classes; ac++) {
 			if (!veh->get_accommodation_capacity(ac)) continue;
 
@@ -67,12 +66,57 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 	}
 }
 
+void accommodation_summary_t::add_vehicle_desc(const vehicle_desc_t *veh_type)
+{
+	const uint8 catg_index = veh_type->get_freight_type()->get_catg_index();
+	const uint8 number_of_classes = goods_manager_t::get_classes_catg_index(catg_index);
+
+		if ((veh_type->get_total_capacity()+veh_type->get_overcrowded_capacity())>0) {
+		for (uint8 ac=0; ac<number_of_classes; ac++) {
+			if (!veh_type->get_capacity(ac)) continue;
+
+			// append accommo capacity
+			accommodation_t accommo;
+			accommo.catg_index = catg_index;
+			accommo.accommo_class = ac;
+			accommo.name = veh_type->get_accommodation_name(ac);
+
+			bool found=false;
+			FOR(slist_tpl<accommodation_info_t>, &info, accommo_list) {
+				if ( accommo.is_match(info.accommodation)  &&  info.assingned_class==ac ) {
+					info.capacity += veh_type->get_capacity(ac);
+					info.count++;
+					if (catg_index == goods_manager_t::INDEX_PAS) {
+						info.min_comfort = min(info.min_comfort, veh_type->get_comfort(ac));
+						info.max_comfort = max(info.max_comfort, veh_type->get_comfort(ac));
+					}
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				accommodation_info_t temp;
+				temp.accommodation = accommo;
+				temp.count = 1;
+				temp.assingned_class = ac;
+				temp.capacity = veh_type->get_capacity(ac);
+				if (catg_index == goods_manager_t::INDEX_PAS) {
+					temp.min_comfort = veh_type->get_comfort(ac);
+					temp.max_comfort = veh_type->get_comfort(ac);
+				}
+
+				accommo_list.append(temp);
+			}
+		}
+	}
+}
+
 void accommodation_summary_t::add_convoy(convoihandle_t cnv)
 {
 	for (uint8 v=0; v<cnv->get_vehicle_count(); v++) {
 		add_vehicle(cnv->get_vehicle(v));
 	}
-	accommo_list.sort(accommodation_info_t::compare);
+	sort();
 }
 
 
@@ -84,9 +128,13 @@ void accommodation_summary_t::add_line(linehandle_t line)
 			add_vehicle(cnv->get_vehicle(v));
 		}
 	}
-	accommo_list.sort(accommodation_info_t::compare);
+	sort();
 }
 
+void accommodation_summary_t::sort()
+{
+	accommo_list.sort(accommodation_info_t::compare);
+}
 
 gui_accommodation_fare_manager_t::gui_accommodation_fare_manager_t(linehandle_t line)
 {
@@ -375,10 +423,10 @@ void gui_accommo_fare_changer_t::change_convoy_fare_class(convoihandle_t cnv_, u
 
 vehicle_class_manager_t::vehicle_class_manager_t(convoihandle_t cnv)
 	: gui_frame_t("", cnv->get_owner()),
+	capacity_info(linehandle_t(), cnv, false),
 	cont_by_accommo(cnv),
 	scrolly_by_vehicle(&cont_by_vehicle, true, true),
-	scrolly_by_accommo(&cont_by_accommo, true, true),
-	capacity_info(linehandle_t(), cnv, false)
+	scrolly_by_accommo(&cont_by_accommo, true, true)
 {
 	if (cnv.is_bound()) {
 		init(cnv);
@@ -475,7 +523,7 @@ void vehicle_class_manager_t::update_list()
 		else {
 			lb->buf().append(car_number);
 		}
-		lb->set_color(veh->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK);
+		lb->set_color(veh->get_desc()->has_available_upgrade(world()->get_timeline_year_month()) ? SYSCOL_UPGRADEABLE : SYSCOL_TEXT_WEAK);
 		lb->set_fixed_width((D_BUTTON_WIDTH*3)>>3);
 		lb->update();
 		cont_by_vehicle.new_component_span<gui_label_t>(veh->get_desc()->get_name(),7);
@@ -681,10 +729,10 @@ bool vehicle_class_manager_t::action_triggered(gui_action_creator_t *comp, value
 // dummy for loading
 vehicle_class_manager_t::vehicle_class_manager_t()
 	: gui_frame_t("", NULL),
+	capacity_info(linehandle_t(), convoihandle_t(), false),
 	cont_by_accommo(convoihandle_t()),
 	scrolly_by_vehicle(&cont_by_vehicle, true, true),
-	scrolly_by_accommo(&cont_by_accommo, true, true),
-	capacity_info(linehandle_t(), convoihandle_t(), false)
+	scrolly_by_accommo(&cont_by_accommo, true, true)
 {
 	cnv = convoihandle_t();
 }

@@ -343,3 +343,14 @@ void strasse_t::rotate90() {
 	weg_t::rotate90();
 	ribi_mask_oneway = ribi_t::rotate90( ribi_mask_oneway );
 }
+
+
+void strasse_t::display_overlay(int xpos, int ypos) const
+{
+	if (!skinverwaltung_t::ribi_arrow  &&  show_masked_ribi && overtaking_mode <= oneway_mode) {
+		const int raster_width = get_current_tile_raster_width();
+		const grund_t* gr = welt->lookup(get_pos());
+		uint8 dir = get_ribi() ? ribi_t::backward(get_ribi()):0;
+		display_signal_direction_rgb(xpos + ((raster_width*5)>>3), ypos + ((raster_width*5)>>3), get_current_tile_raster_width(), get_ribi_unmasked(), dir, 253, is_diagonal(), ribi_t::all, gr->get_weg_hang());
+	}
+}

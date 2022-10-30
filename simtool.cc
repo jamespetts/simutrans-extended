@@ -515,8 +515,9 @@ DBG_MESSAGE("tool_remover_intern()","at (%s)", pos.get_str());
 			return true;
 		}
 	}
-	// pedestrians?
-	if (type == obj_t::pedestrian  ||  type == obj_t::undefined) {
+
+	// pedestrians only delete on demand!
+	if (type == obj_t::pedestrian) {
 		if (pedestrian_t* pedestrian = gr->find<pedestrian_t>()) {
 			delete pedestrian;
 			return true;
@@ -835,11 +836,19 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 	bool return_ok = false;
 	uint8 num_obj = gr->obj_count();
 	if(num_obj>0) {
-		msg = gr->kann_alle_obj_entfernen(player);
-		if(return_ok = ((msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden)))){
-			return_ok = gr->obj_loesche_alle(player);
+		// cout all pedestrians and ignore them
+		int num_pedestrians = 0;
+		for (int i = 1; i < num_obj; i++) {
+			if (gr->obj_bei(i)->get_typ() == obj_t::pedestrian) {
+				num_pedestrians++;
+			}
 		}
-		DBG_MESSAGE("tool_remover()",  "removing everything from %d,%d,%d",gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
+		// only delete everything if there is more than pedestrians to delete
+		if (num_obj > num_pedestrians) {
+			msg = gr->kann_alle_obj_entfernen(player);
+			return_ok = msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden);
+			DBG_MESSAGE("tool_remover()", "removing everything from %d,%d,%d", gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
+		}
 	}
 
 	for(uint8 i = 0; i < piers.get_count(); i++){
@@ -1150,7 +1159,7 @@ const char * tool_flatten_path_t::tile_work(player_t *player, const koord3d &pos
 	return NULL;
 }
 
-void tool_flatten_path_t::tile_mark(player_t *player, const koord3d &pos, const koord3d &start){
+void tool_flatten_path_t::tile_mark(player_t */*player*/, const koord3d &pos, const koord3d &/*start*/){
 	if(grund_t *gr = welt->lookup_kartenboden( pos.get_2d() )){
 		zeiger_t *marker = new zeiger_t(gr->get_pos(), NULL);
 		uint8 ground_slope=gr->get_grund_hang();
@@ -2736,7 +2745,7 @@ static const char *tool_schedule_insert_aux(karte_t *welt, player_t *player, koo
 			w = bd->get_weg( track_wt );
 		}
 		if(  !bd->is_halt()  ) {
-			if(w != NULL && w->get_owner() && !w->get_owner()->allows_access_to(player->get_player_nr()))
+			if(w != NULL && w->get_owner() && !w->get_owner()->allows_access_to(player->get_player_nr()) && !w->is_public_right_of_way())
 			{
 				return NOTICE_OWNED_BY_OTHER_PLAYER;
 			}
@@ -3453,7 +3462,7 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 		way->set_after_image(desc->get_foreground(desc->get_straight(ribi_mark,height-slope_t::max_diff(kb->get_grund_hang())), 0));
 		marked.insert( way );
 		way->mark_image_dirty( way->get_image(), 0 );
-		if (desc->get_wtyp() == road_wt && get_overtaking_mode() <= oneway_mode) {
+		if (desc->get_wtyp() == road_wt  &&  get_overtaking_mode() <= oneway_mode  &&  skinverwaltung_t::ribi_arrow  ) {
 			way->set_after_image(skinverwaltung_t::ribi_arrow->get_image_id(ribi_mark));
 		}
 		pos = pos + zv;
@@ -4094,7 +4103,7 @@ bool tool_build_tunnel_t::vent_checker_t::check_next_tile(const grund_t *gr) con
 	return true;
 }
 
-int tool_build_tunnel_t::vent_checker_t::get_cost(const grund_t *gr, const sint32, koord from_pos){
+int tool_build_tunnel_t::vent_checker_t::get_cost(const grund_t */*gr*/, const sint32, koord /*from_pos*/){
 	return welt->get_settings().get_meters_per_tile();
 }
 
@@ -4435,6 +4444,7 @@ const char *tool_wayremover_t::do_work( player_t *player, const koord3d &start, 
 							gr = gr_new;
 						}
 
+						weg = gr->get_weg(wt);
 						if(weg)
 						{
 							weg->count_sign();
@@ -7729,10 +7739,16 @@ image_id tool_build_depot_t::get_icon(player_t *player) const
 
 bool tool_build_depot_t::init( player_t * )
 {
-	building_desc_t const* desc = hausbauer_t::find_tile(default_param, 0)->get_desc();
+	if (default_param == NULL) {
+		return false;
+	}
+
+	const building_tile_desc_t *tile_desc = hausbauer_t::find_tile(default_param, 0);
+	building_desc_t const* desc = tile_desc ? tile_desc->get_desc() : NULL;
 	if (desc == NULL) {
 		return false;
 	}
+
 	// no depots for player 1
 	if(true /*player!=welt->get_public_player()*/) {
 		cursor = desc->get_cursor()->get_image_id(0);
@@ -7830,6 +7846,10 @@ const char *tool_build_depot_t::work( player_t *player, koord3d pos )
  */
 bool tool_build_house_t::init( player_t * )
 {
+	if (default_param && strlen(default_param) < 4) {
+		return false;
+	}
+
 	if (is_local_execution() && !strempty(default_param)) {
 		const char *c = default_param+3;
 		const building_tile_desc_t *tile = hausbauer_t::find_tile(c,0);
@@ -8319,8 +8339,8 @@ const char *tool_link_factory_t::do_work( player_t *, const koord3d &start, cons
 		else {
 			// remove connections
 			fab->remove_supplier(last_fab->get_pos().get_2d());
-			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_supplier(fab->get_pos().get_2d());
+			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_consumer(fab->get_pos().get_2d());
 			return NULL;
 		}
@@ -10717,7 +10737,6 @@ bool tool_rename_t::init(player_t *player)
 		case 'h':
 		case 'l':
 		case 'c':
-		case 'd':
 		case 't':
 		case 'p':
 		case 'A':
@@ -10726,6 +10745,7 @@ bool tool_rename_t::init(player_t *player)
 			while(  *p>0  &&  *p++!=','  ) {
 			}
 			break;
+		case 'd':
 		case 'm':
 		case 'f': {
 			koord pos2d;
@@ -10850,6 +10870,7 @@ bool tool_rename_t::init(player_t *player)
 					}
 				}
 			}
+			break;
 		}
 
 		case 'd':
@@ -10864,6 +10885,7 @@ bool tool_rename_t::init(player_t *player)
 					}
 				}
 			}
+			break;
 		}
 	}
 	// we are only getting here, if we could not process this request

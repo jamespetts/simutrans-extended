@@ -243,7 +243,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	staffing_level = fab->get_staffing_level_percentage();
 	staffing_bar.add_color_value(&staffing_level, goods_manager_t::passengers->get_color());
 	staffing_level2 = staff_shortage_factor > staffing_level ? staffing_level : 0;
-	staffing_bar.add_color_value(&staffing_level2, COL_STAFF_SHORTAGE);
+	staffing_bar.add_color_value(&staffing_level2, SYSCOL_STAFF_SHORTAGE);
 
 	int left = D_MARGIN_LEFT + D_INDICATOR_WIDTH + D_H_SPACE;
 	int top = pos.y + view.get_pos().y + D_TITLEBAR_HEIGHT;
@@ -259,7 +259,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 
 	// status color bar
 	if (fab->is_staff_shortage()) {
-		display_ddd_box_clip_rgb(pos.x + D_MARGIN_LEFT - 1, top + 1, D_INDICATOR_WIDTH + 2, D_INDICATOR_HEIGHT + 2, COL_STAFF_SHORTAGE, COL_STAFF_SHORTAGE);
+		display_ddd_box_clip_rgb(pos.x + D_MARGIN_LEFT - 1, top + 1, D_INDICATOR_WIDTH + 2, D_INDICATOR_HEIGHT + 2, SYSCOL_STAFF_SHORTAGE, SYSCOL_STAFF_SHORTAGE);
 	}
 	PIXVAL indikatorfarbe = color_idx_to_rgb(fabrik_t::status_to_color[fab->get_status()]);
 	display_fillbox_wh_clip_rgb(pos.x + D_MARGIN_LEFT, top + 2, D_INDICATOR_WIDTH, D_INDICATOR_HEIGHT, indikatorfarbe, true);
@@ -318,7 +318,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 	if (fab->is_staff_shortage()) {
 		factory_status.append(translator::translate("staff_shortage"));
 	}
-	lbl_factory_status.set_color(COL_STAFF_SHORTAGE);
+	lbl_factory_status.set_color(SYSCOL_STAFF_SHORTAGE);
 }
 
 

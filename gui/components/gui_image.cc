@@ -30,7 +30,7 @@ scr_size gui_image_t::get_min_size() const
 		}
 		else {
 			// FIXME
-			assert(0);
+			//assert(0); // somehow this assert cause crash for air vehicles
 			return scr_size(x+w, y+h);
 		}
 	}

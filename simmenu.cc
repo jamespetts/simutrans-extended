@@ -1295,6 +1295,7 @@ void toolbar_last_used_t::append( tool_t *t, player_t *sp )
 		TOOL_CHANGE_LINE|SIMPLE_TOOL,
 		TOOL_CHANGE_DEPOT|SIMPLE_TOOL,
 		UNUSED_WKZ_PWDHASH_TOOL|SIMPLE_TOOL,
+		TOOL_CHANGE_PLAYER|SIMPLE_TOOL,
 		TOOL_RENAME|SIMPLE_TOOL
 	};
 
@@ -1309,16 +1310,18 @@ void toolbar_last_used_t::append( tool_t *t, player_t *sp )
 		}
 	}
 
-	if(  all_tools[sp->get_player_nr()].is_contained(t)  ) {
-		all_tools[sp->get_player_nr()].remove( t );
+	slist_tpl<tool_t *> &players_tools = all_tools[sp->get_player_nr()];
+
+	if(  players_tools.is_contained(t)  ) {
+		players_tools.remove( t );
 	}
 	else {
-		while( all_tools[sp->get_player_nr()].get_count() >= MAX_LAST_TOOLS  ) {
-			all_tools[sp->get_player_nr()].remove(tools.back() );
+		while(  players_tools.get_count() >= MAX_LAST_TOOLS  ) {
+			players_tools.remove( players_tools.back() );
 		}
 	}
 
-	all_tools[sp->get_player_nr()].insert( t );
+	players_tools.insert( t );
 	// if current => update
 	if(  sp == world()->get_active_player()  ) {
 		update( sp );

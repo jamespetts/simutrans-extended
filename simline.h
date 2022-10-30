@@ -24,7 +24,7 @@
 
                                 // Ext|Std|Description
 enum line_cost_t {
-	LINE_CAPACITY = 0,          //  0 | 0 | the amount of ware that could be transported, theoretically
+	LINE_CAPACITY = 0,          //  0 |   | the distance (km) travelled by vacant seats
 	//LINE_TRANSPORTED_GOODS,   //    | 1 | the amount of ware that has been transported
 	LINE_PAX_DISTANCE,          //  1 |   | the distance (km) travelled by passenger
 	LINE_AVERAGE_SPEED,         //  2 |   | average speed of all convoys in the line
@@ -291,6 +291,8 @@ public:
 	}
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
+
+	uint16 get_unique_fare_capacity(uint8 catg, uint8 g_class) const;
 
 	// recalculates the good transported by this line and (in case of changes) will start schedule recalculation
 	void recalc_catg_index();

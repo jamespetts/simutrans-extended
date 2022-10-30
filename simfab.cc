@@ -67,6 +67,7 @@ static const sint32 FAB_PRODFACT_UNIT_HALF = ((sint32)1 << (DEFAULT_PRODUCTION_F
 
 karte_ptr_t fabrik_t::welt;
 
+const vector_tpl<koord> fabrik_t::null_vector = vector_tpl<koord>();
 
 /**
  * Convert internal values to displayed values
@@ -105,18 +106,12 @@ void ware_production_t::init_stats()
 			statistics[m][s] = 0;
 		}
 	}
-	weighted_sum_storage = 0;
 	max_transit = 0;
 }
 
 
-void ware_production_t::roll_stats(uint32 factor, sint64 aggregate_weight)
+void ware_production_t::roll_stats(uint32 factor)
 {
-	// calculate weighted average storage first
-	if(  aggregate_weight>0  ) {
-		set_stat( weighted_sum_storage / aggregate_weight, FAB_GOODS_STORAGE );
-	}
-
 	for(  int s=0;  s<MAX_FAB_GOODS_STAT;  ++s  ) {
 		for(  int m=MAX_MONTH-1;  m>0;  --m  ) {
 			statistics[m][s] = statistics[m-1][s];
@@ -129,14 +124,13 @@ void ware_production_t::roll_stats(uint32 factor, sint64 aggregate_weight)
 			statistics[0][s] = 0;
 		}
 	}
-	weighted_sum_storage = 0;
 
 	// restore current storage level
 	set_stat((sint64)menge * (sint64)factor, FAB_GOODS_STORAGE);
 }
 
 
-void ware_production_t::rdwr(loadsave_t *file)
+void ware_production_t::rdwr(loadsave_t *file, uint8)
 {
 	if(  file->is_loading()  ) {
 		init_stats();
@@ -152,13 +146,14 @@ void ware_production_t::rdwr(loadsave_t *file)
 		}
 	}
 
+	sint64 dummy=0;
 	if(  file->is_version_atleast(112, 1)  ) {
 		for(  int s=0;  s<MAX_FAB_GOODS_STAT;  ++s  ) {
 			for(  int m=0;  m<MAX_MONTH;  ++m  ) {
 				file->rdwr_longlong( statistics_buf[m][s] );
 			}
 		}
-		file->rdwr_longlong( weighted_sum_storage );
+		file->rdwr_longlong( dummy );
 	}
 	else if(  file->is_version_atleast(110, 5)  ) {
 		// save/load statistics
@@ -167,7 +162,7 @@ void ware_production_t::rdwr(loadsave_t *file)
 				file->rdwr_longlong( statistics_buf[m][s] );
 			}
 		}
-		file->rdwr_longlong( weighted_sum_storage );
+		file->rdwr_longlong( dummy );
 	}
 
 	if (file->is_loading()) {
@@ -190,13 +185,44 @@ void ware_production_t::rdwr(loadsave_t *file)
 }
 
 
-void ware_production_t::book_weighted_sum_storage(uint32 factor, sint64 delta_time)
+void ware_production_t::book_weighted_sum_storage(uint32 factor)
 {
 	const sint64 amount = (sint64)menge * (sint64)factor;
-	weighted_sum_storage += amount * delta_time;
 	set_stat(amount, FAB_GOODS_STORAGE);
 }
 
+void ware_production_t::add_contracts(sint32 add, ware_production_t &ware_in, ware_production_t &ware_out, uint32 index, sint32 max_output){
+	const sint32 min_cont=256;
+
+	sint32 cont = ware_out.get_contract(index);
+	sint32 total_in = ware_in.get_total_contracts();
+	sint32 total_out = ware_out.get_total_contracts();
+
+	//avoid adding contracts beyond current production
+	if(add>0 && total_out + add > max_output){
+		add = max_output - total_out;
+	}
+
+	//total contracts must remain above zero
+	if(add<-total_in){
+		add=-total_in;
+	}
+	if(add<-total_out){
+		add=-total_out;
+	}
+
+	//contract must be zero or greater than min contract
+	if(cont+add < min_cont/2){
+		add = -cont;
+	}else if(cont + add < min_cont){
+		add = min_cont - cont;
+	}
+
+	//adjust the contract documents
+	ware_in.add_total_contracts(add);
+	ware_out.add_contract(index,add);
+	ware_out.add_total_contracts(add);
+}
 
 void fabrik_t::arrival_statistics_t::init()
 {
@@ -306,38 +332,26 @@ void fabrik_t::init_stats()
 			statistics[m][s] = 0;
 		}
 	}
-	weighted_sum_production = 0;
-	weighted_sum_boost_electric = 0;
-	weighted_sum_boost_pax = 0;
-	weighted_sum_boost_mail = 0;
-	weighted_sum_power = 0;
-	aggregate_weight = 0;
 }
 
 
-void fabrik_t::book_weighted_sums(sint64 delta_time)
+void fabrik_t::book_weighted_sums()
 {
-	aggregate_weight += delta_time;
-
 	// storage level of input/output stores
 	for (uint32 in = 0; in < input.get_count(); in++) {
-		input[in].book_weighted_sum_storage(desc->get_supplier(in)->get_consumption(), delta_time);
+		input[in].book_weighted_sum_storage(welt->get_settings().using_fab_contracts() ? (DEFAULT_PRODUCTION_FACTOR) : desc->get_supplier(in)->get_consumption());
 	}
 	for (uint32 out = 0; out < output.get_count(); out++) {
-		output[out].book_weighted_sum_storage(desc->get_product(out)->get_factor(), delta_time);
+		output[out].book_weighted_sum_storage(welt->get_settings().using_fab_contracts() ? (DEFAULT_PRODUCTION_FACTOR) : desc->get_product(out)->get_factor());
 	}
 
 	// production rate
 	set_stat(calc_operation_rate(0), FAB_PRODUCTION);
 
 	// electricity, pax and mail boosts
-	weighted_sum_boost_electric += prodfactor_electric * delta_time;
 	set_stat(prodfactor_electric, FAB_BOOST_ELECTRIC);
-	weighted_sum_boost_pax += prodfactor_pax * delta_time;
-	weighted_sum_boost_mail += prodfactor_mail * delta_time;
 
 	// power produced or consumed
-	weighted_sum_power += power * delta_time;
 	if (!desc->is_electricity_producer()) {
 		set_stat(power*1000, FAB_POWER); // convert MW to KW
 	}
@@ -571,24 +585,18 @@ void fabrik_t::recalc_storage_capacities()
 			const sint32 share = (sint32)(((sint64)field_capacities << precision_bits) / (sint64)ware_types);
 			// first, for input goods
 			FOR(array_tpl<ware_production_t>, &g, input) {
-				for (int b = 0; b<desc->get_supplier_count(); ++b) {
-					const factory_supplier_desc_t *const input = desc->get_supplier(b);
-					if (g.get_typ() == input->get_input_type()) {
-						// Inputs are now normalized to factory production.
-						uint32 prod_factor = input->get_consumption();
-						g.max = (sint32)(welt->scale_for_distance_only((((sint64)((input->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
-					}
+				if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
+					// Inputs are now normalized to factory production.
+					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
+					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((input->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
 				}
 			}
 			// then, for output goods
 			FOR(array_tpl<ware_production_t>, &g, output) {
-				for (uint b = 0; b<desc->get_product_count(); ++b) {
-					const factory_product_desc_t *const output = desc->get_product(b);
-					if (g.get_typ() == output->get_output_type()) {
-						// Outputs are now normalized to factory production.
-						uint32 prod_factor = output->get_factor();
-						g.max = (sint32)(welt->scale_for_distance_only((((sint64)((output->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
-					}
+				if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
+					// Outputs are now normalized to factory production.
+					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
+					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((output->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
 				}
 			}
 		}
@@ -597,24 +605,18 @@ void fabrik_t::recalc_storage_capacities()
 		// without fields -> scaling based on prodbase
 		// first, for input goods
 		FOR(array_tpl<ware_production_t>, &g, input) {
-			for (int b = 0; b<desc->get_supplier_count(); ++b) {
-				const factory_supplier_desc_t *const input = desc->get_supplier(b);
-				if (g.get_typ() == input->get_input_type()) {
-					// Inputs are now normalized to factory production.
-					uint32 prod_factor = input->get_consumption();
-					g.max = (sint32)(welt->scale_for_distance_only(((((sint64)input->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
-				}
+			if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
+				// Inputs are now normalized to factory production.
+				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
+				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)input->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
 			}
 		}
 		// then, for output goods
 		FOR(array_tpl<ware_production_t>, &g, output) {
-			for (uint b = 0; b<desc->get_product_count(); ++b) {
-				const factory_product_desc_t *const output = desc->get_product(b);
-				if (g.get_typ() == output->get_output_type()) {
-					// Outputs are now normalized to factory production.
-					uint32 prod_factor = output->get_factor();
-					g.max = (sint32)(welt->scale_for_distance_only(((((sint64)output->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
-				}
+			if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
+				// Outputs are now normalized to factory production.
+				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
+				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)output->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
 			}
 		}
 	}
@@ -646,14 +648,27 @@ fabrik_t *fabrik_t::get_fab(const koord &pos)
 }
 
 
-void fabrik_t::add_consumer(koord ziel)
+void fabrik_t::add_consumer(koord ziel, const goods_desc_t *desc, const sint64 contract)
 {
-	if(  !consumers.is_contained(ziel)  ) {
-		consumers.insert_ordered(ziel, RelativeDistanceOrdering(pos.get_2d()) );
-		// now tell factory too
-		fabrik_t * fab = fabrik_t::get_fab(ziel);
-		if (fab) {
-			fab->add_supplier(get_pos().get_2d());
+	for( auto& ware : get_output()){
+		if(ware.get_typ()==desc){
+			if(fabrik_t *fab = get_fab( ziel )){
+				if(auto dest_ware = fab->get_input(ware.get_typ())){
+					ware.link_add(ziel, RelativeDistanceOrdering(pos.get_2d()),contract);
+					ware.add_total_contracts(contract);
+					dest_ware->add_total_contracts(contract);
+					fab->add_supplier(get_pos().get_2d(),desc);
+				}
+			}
+		}else if(!desc){
+			if(fabrik_t *fab = get_fab( ziel )){
+				if(auto dest_ware = fab->get_input(ware.get_typ())){
+					ware.link_add(ziel, RelativeDistanceOrdering(pos.get_2d()),contract);
+					ware.add_total_contracts(contract);
+					dest_ware->add_total_contracts(contract);
+					fab->add_supplier(get_pos().get_2d(),ware.get_typ());
+				}
+			}
 		}
 	}
 }
@@ -661,7 +676,16 @@ void fabrik_t::add_consumer(koord ziel)
 
 void fabrik_t::remove_consumer(koord consumer_pos)
 {
-	consumers.remove(consumer_pos);
+	for(auto &ware : get_output()){
+		uint32 idx=ware.link_index(consumer_pos);
+		if(idx!=UINT32_MAX_VALUE){
+			if(welt->get_settings().using_fab_contracts()){
+				sint32 contract=ware.get_contract(idx);
+				ware.sub_total_contracts(contract);
+			}
+			ware.link_remove(consumer_pos);
+		}
+	}
 }
 
 bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be destroyed.
@@ -671,41 +695,12 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 		remove_consumer(consumer_pos);
 	}
 
-	vector_tpl<const goods_desc_t*> available_consumers(desc->get_product_count());
-	for (const koord other_consumer_pos : consumers)
-	{
-		if(const fabrik_t* consumer_factory = fabrik_t::get_fab(other_consumer_pos))
-		{
-			if(const factory_desc_t* consumer_factory_desc = consumer_factory->get_desc())
-			{
-				for (uint32 i = 0; i < consumer_factory_desc->get_supplier_count(); i++)
-				{
-					if(const goods_desc_t* product = consumer_factory_desc->get_supplier(i)->get_input_type())
-					{
-						available_consumers.append_unique(product);
-					}
-				}
-			}
-		}
-	}
-
 	vector_tpl<const goods_desc_t*> unfulfilled_requirements;
 	// Check to ensure that all supply types are still connected
-	for (const ware_production_t &output_type : output)
-	{
-		bool fulfilled = false;
-		const goods_desc_t* output_goods_type = output_type.get_typ();
-		for (const goods_desc_t* available_consumer_type : available_consumers)
-		{
-			if (available_consumer_type == output_goods_type)
-			{
-				fulfilled = true;
-				break;
-			}
-		}
-		if (!fulfilled)
-		{
-			unfulfilled_requirements.append(output_goods_type);
+
+	for(auto &ware : output){
+		if(!ware.link_count()){
+			unfulfilled_requirements.append(ware.get_typ());
 		}
 	}
 
@@ -718,19 +713,19 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 
 		for(sint16 i = welt->get_fab_list().get_count() - 1; i >= 0; i --)
 		{
-			if(fabrik_t* fab = welt->get_fab_list()[i]){
-				if(add_customer(fab))
+			fabrik_t* fab = welt->get_fab_list()[i];
+			const factory_desc_t* fab_desc = fab->get_desc();
+
+			for(uint32 k = 0; k < unfulfilled_requirements.get_count(); k++){
+				auto unfilled_product = unfulfilled_requirements[k];
+				for (uint32 j = 0; j < fab_desc->get_supplier_count(); j++)
 				{
-					// Check which consumer, if any, that we are still short of.
-					for (uint32 j = 0; j < fab->get_desc()->get_supplier_count(); j++)
-					{
-						if(const goods_desc_t* product = fab->get_desc()->get_supplier(j)->get_input_type()) {
-							unfulfilled_requirements.remove(product);
-						}
+					if(unfilled_product == fab_desc->get_supplier(j)->get_input_type()) {
+						add_customer(fab,unfilled_product);
+						unfulfilled_requirements.remove(unfilled_product);
+						k--;
 					}
-					if (unfulfilled_requirements.empty())
-					{
-						// Keep connecting until we are not short of anything
+					if(unfulfilled_requirements.empty()){
 						return false;
 					}
 				}
@@ -742,48 +737,33 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 	return false;
 }
 
-bool fabrik_t::disconnect_supplier(koord supplier_pos) //Returns true if must be destroyed.
+bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier) //Returns true if must be destroyed.
 {
 	if (supplier_pos != koord::invalid)
 	{
-		remove_supplier(supplier_pos);
+		remove_supplier(supplier_pos, supplier);
 	}
 
-	vector_tpl<const goods_desc_t*> available_inputs(desc->get_supplier_count());
-	for (const koord other_supplier_pos : suppliers)
-	{
-		if(const fabrik_t* supplier_factory = fabrik_t::get_fab(other_supplier_pos))
-		{
-			if(const factory_desc_t* supplier_factory_desc = supplier_factory->get_desc())
-			{
-				for (uint32 i = 0; i < supplier_factory_desc->get_product_count(); i++)
-				{
-					if(const factory_product_desc_t* product = supplier_factory_desc->get_product(i))
-					{
-						available_inputs.append_unique(product->get_output_type());
-					}
-				}
+	//try to connect with a supplier capable of supplying the goods
+	if(welt->get_settings().using_fab_contracts()){
+		for(uint32 i = 0; i < input.get_count(); i++){
+			auto &ware=input[i];
+			if(!ware.link_count()){
+				factory_builder_t::build_chain_link(this,this->get_desc(),i,welt->get_public_player(),true);
 			}
 		}
 	}
 
 	vector_tpl<const goods_desc_t*> unfulfilled_requirements;
 	// Check to ensure that all supply types are still connected
-	for (const ware_production_t& input_type : input)
-	{
-		bool fulfilled = false;
-		const goods_desc_t* input_goods_type = input_type.get_typ();
-		for (const goods_desc_t* available_supply_type : available_inputs)
-		{
-			if (available_supply_type == input_goods_type)
-			{
-				fulfilled = true;
-				break;
+
+	for(uint32 i = 0; i < input.get_count(); i++){
+		auto &ware=input[i];
+		if(!ware.link_count()){
+			unfulfilled_requirements.append(ware.get_typ());
+			if(welt->get_settings().using_fab_contracts()){
+
 			}
-		}
-		if (!fulfilled)
-		{
-			unfulfilled_requirements.append(input_goods_type);
 		}
 	}
 
@@ -797,20 +777,20 @@ bool fabrik_t::disconnect_supplier(koord supplier_pos) //Returns true if must be
 		for(sint16 i = welt->get_fab_list().get_count() - 1; i >= 0; i --)
 		{
 			fabrik_t* fab = welt->get_fab_list()[i];
-			if(add_supplier(fab))
-			{
-				const factory_desc_t* fab_desc = fab->get_desc();
-				// Check which supplies, if any, that we are still short of.
+			const factory_desc_t* fab_desc = fab->get_desc();
+
+			for(uint32 k = 0; k < unfulfilled_requirements.get_count(); k++){
+				auto unfilled_product = unfulfilled_requirements[k];
 				for (uint32 j = 0; j < fab_desc->get_product_count(); j++)
 				{
-					if(const factory_product_desc_t* product = fab_desc->get_product(j)) {
-						unfulfilled_requirements.remove(product->get_output_type());
+					if(unfilled_product == fab_desc->get_product(j)->get_output_type()) {
+						add_supplier(fab,unfilled_product);
+						unfulfilled_requirements.remove(unfilled_product);
+						k--;
 					}
-				}
-				if (unfulfilled_requirements.empty())
-				{
-					// Keep connecting until we are not short of anything
-					return false;
+					if(unfulfilled_requirements.empty()){
+						return false;
+					}
 				}
 			}
 		}
@@ -828,10 +808,11 @@ fabrik_t::fabrik_t(loadsave_t* file) :
 	power = 0;
 	power_demand = 0;
 	prodfactor_electric = 0;
-	consumers_active_last_month = 0;
 	city = NULL;
 	building = NULL;
 	pos = koord3d::invalid;
+	months_unproductive=0;
+	months_missing_contracts=0;
 
 	rdwr(file);
 
@@ -901,8 +882,9 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 	total_input = total_transit = total_output = 0;
 	sector = unknown;
 	status = nothing;
-	consumers_active_last_month = 0;
 	city = check_local_city();
+	months_unproductive=0;
+	months_missing_contracts=0;
 
 	if(desc->get_placement() == 2 && city && desc->get_product_count() == 0 && !desc->is_electricity_producer())
 	{
@@ -968,6 +950,8 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 		const factory_product_desc_t *const product = desc->get_product(g);
 		output[g].set_typ( product->get_output_type() );
 	}
+
+	reset_consumer_active();
 
 	recalc_storage_capacities();
 	if (input.empty()) {
@@ -1035,8 +1019,9 @@ void fabrik_t::mark_connected_roads(bool del)
 	}
 }
 
-void fabrik_t::delete_all_fields()
+void fabrik_t::delete_all_fields(bool destructor)
 {
+	bool adjust=false;
 	while(!fields.empty())
 	{
 		planquadrat_t *plan = welt->access( fields.back().location );
@@ -1044,13 +1029,18 @@ void fabrik_t::delete_all_fields()
 		if (plan) {
 			grund_t *gr = plan->get_kartenboden();
 			if (field_t* f = gr->find<field_t>()) {
+				f->pre_delete();
 				delete f; // implicitly removes the field from fields
 				plan->boden_ersetzen( gr, new boden_t(gr->get_pos(), slope_t::flat ) );
 				plan->get_kartenboden()->calc_image();
+				adjust=true;
 				continue;
 			}
 		}
 		fields.pop_back();
+	}
+	if(!destructor && adjust){
+		adjust_production_for_fields();
 	}
 	// destroy chart window, if present
 	destroy_win((ptrdiff_t)this);
@@ -1062,7 +1052,7 @@ fabrik_t::~fabrik_t()
 	{
 		mark_connected_roads(true);
 	}
-	delete_all_fields();
+	delete_all_fields(true);
 
 	if(!welt->is_destroying())
 	{
@@ -1080,8 +1070,8 @@ fabrik_t::~fabrik_t()
 
 		// Disconnect this factory from all chains.
 		// @author: jamespetts
-		uint32 number_of_customers = consumers.get_count();
-		uint32 number_of_suppliers = suppliers.get_count();
+		uint32 number_of_customers = get_consumers().get_count();
+		uint32 number_of_suppliers = get_suppliers().get_count();
 		const weighted_vector_tpl<stadt_t*>& staedte = welt->get_cities();
 		for(weighted_vector_tpl<stadt_t*>::const_iterator j = staedte.begin(), end = staedte.end(); j != end; ++j)
 		{
@@ -1091,25 +1081,28 @@ fabrik_t::~fabrik_t()
 		char buf[192];
 		sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
 		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, color_idx_to_rgb(COL_DARK_RED), skinverwaltung_t::neujahrsymbol->get_image_id(0));
-		for(sint32 i = number_of_customers - 1; i >= 0; i --)
-		{
-			fabrik_t* tmp = get_fab(consumers[i]);
-			if(tmp && tmp->disconnect_supplier(pos.get_2d()))
+		for(auto &ware : get_output()){
+			for(sint32 i = ware.link_count() - 1; i >= 0; i --)
 			{
-				// Orphaned, must be deleted.
-				gebaeude_t* gb = tmp->get_building();
-				hausbauer_t::remove(welt->get_public_player(), gb, false);
+				fabrik_t* tmp = get_fab(ware.link_from_index(i));
+				if(tmp && tmp->disconnect_supplier(pos.get_2d(),this))
+				{
+					// Orphaned, must be deleted.
+					gebaeude_t* gb = tmp->get_building();
+					hausbauer_t::remove(welt->get_public_player(), gb, false);
+				}
 			}
 		}
-
-		for(sint32 i = number_of_suppliers - 1; i >= 0; i --)
-		{
-			fabrik_t* tmp = get_fab(suppliers[i]);
-			if(tmp && tmp->disconnect_consumer(pos.get_2d()))
+		for(auto &ware : get_input()){
+			for(sint32 i = ware.link_count() - 1; i >= 0; i --)
 			{
-				// Orphaned, must be deleted.
-				gebaeude_t* gb = tmp->get_building();
-				hausbauer_t::remove(welt->get_public_player(), gb, false);
+				fabrik_t* tmp = get_fab(ware.link_from_index(i));
+				if(tmp && tmp->disconnect_consumer(pos.get_2d()))
+				{
+					// Orphaned, must be deleted.
+					gebaeude_t* gb = tmp->get_building();
+					hausbauer_t::remove(welt->get_public_player(), gb, false);
+				}
 			}
 		}
 		if(transformer_connected)
@@ -1209,6 +1202,7 @@ void fabrik_t::build(sint32 rotate, bool build_fields, bool, bool from_saved)
 					break;
 				}*/
 			}
+			adjust_production_for_fields();
 		}
 	}
 	else
@@ -1286,7 +1280,6 @@ bool fabrik_t::add_random_field(uint16 probability)
 		welt->access(k)->boden_ersetzen(gr, gr2);
 		gr2->obj_add( new field_t(gr2->get_pos(), owner, field_class, this ) );
 		// adjust production base and storage capacities
-		adjust_production_for_fields();
 		if(lt) {
 			gr2->obj_add( lt );
 		}
@@ -1332,7 +1325,7 @@ vector_tpl<fabrik_t *> &fabrik_t::sind_da_welche(koord min_pos, koord max_pos)
  */
 char const* fabrik_t::get_name() const
 {
-	return name ? name.c_str() : translator::translate(desc->get_name(), welt->get_settings().get_name_language_id());
+    return name ? name.c_str() : translator::translate(desc->get_name(), welt->get_settings().get_name_language_id());
 }
 
 
@@ -1360,13 +1353,30 @@ void fabrik_t::rdwr(loadsave_t *file)
 	sint32 input_count;
 	sint32 output_count;
 	sint32 consumers_count;
-
+	uint8 sub_version=1; //4 bit local version number
+	uint8 contract_version=1;
 	if(  file->is_saving()  ) {
+		if(welt->get_settings().using_fab_contracts()){
+			sub_version|=6;
+		}
+
 		input_count = input.get_count();
 		output_count = output.get_count();
+		consumers.clear();
+		contracts.clear();
+		for(auto &ware : output){
+			for(uint32 i = 0; i < ware.link_count(); i++){
+				consumers.append(ware.link_from_index(i));
+				if(sub_version & 2){
+					contracts.append(ware.get_contract(i));
+				}
+			}
+		}
+
 		consumers_count = consumers.get_count();
 		const char *s = desc->get_name();
 		file->rdwr_str(s);
+
 	}
 	else {
 		char s[256];
@@ -1384,8 +1394,16 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 	}
 	pos_origin.rdwr(file);
+
+	//hide version information in upper nibble of rotate
+	rotate &= 0xF;
+	rotate |= sub_version << 4;
+
 	// pos will be assigned after call to hausbauer_t::build
 	file->rdwr_byte(rotate);
+
+	sub_version = rotate >> 4;
+	rotate &= 0xF;
 
 	// now rebuilt information for received goods
 	file->rdwr_long(input_count);
@@ -1419,7 +1437,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		}
 		*/
 
-		ware.rdwr( file );
+		ware.rdwr( file, sub_version );
 
 		if(  file->is_loading()  ) {
 			if (!ware_name) {
@@ -1535,7 +1553,7 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 			file->rdwr_long(abgabe_sum);
 			file->rdwr_long(abgabe_letzt);
 		}
-		ware.rdwr( file );
+		ware.rdwr( file, sub_version );
 		if(  file->is_loading()  ) {
 			if (ware_name && goods_manager_t::get_info(ware_name)) {
 				ware.set_typ( goods_manager_t::get_info(ware_name));
@@ -1646,17 +1664,39 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 	for(int i=0; i < consumers_count; i++) {
 		if(file->is_loading()) {
 			consumers.append(koord::invalid);
+			if(sub_version & 2){
+				contracts.append(0);
+			}
 		}
 		consumers[i].rdwr(file);
+		if(sub_version & 2){
+			file->rdwr_long(contracts[i]);
+		}
 	}
 
-	if(  file->is_version_atleast(112, 2)  ) {
-		file->rdwr_long(consumers_active_last_month );
+	if(sub_version>=1){
+		uint32 consumers_active_this_month_count=consumers_active_this_month.get_count();
+		file->rdwr_long(consumers_active_this_month_count);
+		for(uint32 i = 0; i < consumers_active_this_month_count; i++){
+		if(file->is_loading()){
+			consumers_active_this_month.append(0);
+		}
+		file->rdwr_long(consumers_active_this_month[i]);
+		}
+	}else if(  file->is_version_atleast(112, 2)  ) {
+		uint32 dummy=0; //old consumers_active_last_month
+		file->rdwr_long(dummy);
 	}
 
 	// suppliers / consumers will be recalculated in finish_rd
 	if (file->is_loading()  &&  welt->get_settings().is_crossconnect_factories()) {
 		consumers.clear();
+		consumers.resize(0);
+	}
+
+	if(file->is_saving()){
+		consumers.clear();
+		consumers.resize(0);
 	}
 
 	// information on fields ...
@@ -1750,12 +1790,13 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 				}
 			}
 		}
-		file->rdwr_longlong( weighted_sum_production );
-		file->rdwr_longlong( weighted_sum_boost_electric );
-		file->rdwr_longlong( weighted_sum_boost_pax );
-		file->rdwr_longlong( weighted_sum_boost_mail );
-		file->rdwr_longlong( weighted_sum_power );
-		file->rdwr_longlong( aggregate_weight );
+		sint64 dummy = 0;
+		file->rdwr_longlong( dummy );
+		file->rdwr_longlong( dummy );
+		file->rdwr_longlong( dummy );
+		file->rdwr_longlong( dummy );
+		file->rdwr_longlong( dummy );
+		file->rdwr_longlong( dummy );
 		file->rdwr_long( delta_slot );
 	}
 	else if(  file->is_loading()  ) {
@@ -1797,6 +1838,14 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 		else // Saving
 		{
 			building->rdwr(file);
+		}
+	}
+
+	if(sub_version & 4){
+		file->rdwr_byte(contract_version);
+		if(contract_version>=1){
+			file->rdwr_long(months_unproductive);
+			file->rdwr_long(months_missing_contracts);
 		}
 	}
 
@@ -1919,6 +1968,23 @@ sint32 fabrik_t::liefere_an(const goods_desc_t *typ, sint32 menge)
 	}
 	else {
 		// case : freight
+		if(welt->get_settings().using_fab_contracts()){
+			if(ware_production_t *ware = get_input(typ)){
+				ware->menge+=menge<<fabrik_t::precision_bits;
+				ware->book_stat_no_negative(-menge, FAB_GOODS_TRANSIT);
+
+				//do not overflow
+				if(ware->menge > (FAB_MAX_INPUT << fabrik_t::precision_bits)){
+					menge-=FAB_MAX_INPUT - (ware->menge >> fabrik_t::precision_bits);
+					ware->menge = (FAB_MAX_INPUT << fabrik_t::precision_bits);
+				}
+
+				ware->book_stat(menge, FAB_GOODS_RECEIVED);
+				return menge;
+			}
+			return -1;
+		}
+
 		for (uint32 in = 0; in < input.get_count(); in++) {
 			ware_production_t& ware = input[in];
 			if(  ware.get_typ() == typ  ) {
@@ -2141,13 +2207,63 @@ sint32 fabrik_t::goods_needed(const goods_desc_t *typ) const
 
 bool fabrik_t::is_consumer_active_at(koord consumer_pos ) const
 {
-	if ( consumers.is_contained(consumer_pos) ) {
-		return 0 < (( 1 << consumers.index_of(consumer_pos) ) & consumers_active_last_month );
+	uint32 idx=get_consumers().index_of(consumer_pos);
+
+	if(idx>>5 >= consumers_active_this_month.get_count()){
+		return false;
 	}
-	return false;
+
+	return 0 < ( ( 1 << (idx & 0x1F ) ) & consumers_active_this_month[idx>>5] );
+}
+
+void fabrik_t::set_consumer_active_at(koord consumer_pos){
+	uint32 idx=get_consumers().index_of(consumer_pos);
+	if(idx>>5 >= consumers_active_this_month.get_count()){
+		return;
+	}
+	consumers_active_this_month[idx>>5] |= 1 << (idx & 0x1F ) ;
 }
 
 
+void fabrik_t::reset_consumer_active(){
+	consumers_active_this_month.resize((get_consumers().get_count()>>5) + 1);
+	consumers_active_this_month.set_count((get_consumers().get_count()>>5) + 1);
+	for(auto& i : consumers_active_this_month){
+		i=0;
+	}
+}
+
+void fabrik_t::init_contracts(){
+	for(uint32 i = 0; i < get_output().get_count(); i++){
+		output[i].set_using_contracts();
+		output[i].reset_total_contracts();
+		const uint32 prod_factor = desc->get_product(i)->get_factor();
+		output[i].menge = (sint32)(((sint64)output[i].menge * (sint64)(prod_factor)) >> (sint64)(DEFAULT_PRODUCTION_FACTOR_BITS));
+	}
+	for(uint32 i = 0; i < get_input().get_count(); i++){
+		input[i].reset_total_contracts();
+		const uint32 prod_factor = desc->get_supplier(i)->get_consumption();
+		input[i].menge = (sint32)(((sint64)input[i].menge * (sint64)(prod_factor)) >> (sint64)(DEFAULT_PRODUCTION_FACTOR_BITS));
+	}
+	recalc_nearby_halts();
+	recalc_storage_capacities();
+}
+
+void fabrik_t::remove_contracts(){
+	for(uint32 i = 0; i < get_output().get_count(); i++){
+		output[i].reset_using_contracts();
+		const uint32 prod_factor = desc->get_product(i)->get_factor();
+		output[i].menge = (sint32)((((sint64)output[i].menge << (sint64)DEFAULT_PRODUCTION_FACTOR_BITS) + prod_factor-1) / prod_factor);
+	}
+
+	for(uint32 i = 0; i < get_input().get_count(); i++){
+		const uint32 prod_factor = desc->get_supplier(i)->get_consumption();
+		input[i].menge = (sint32)((((sint64)input[i].menge << (sint64)DEFAULT_PRODUCTION_FACTOR_BITS) + prod_factor-1) / prod_factor);
+	}
+	recalc_nearby_halts();
+	recalc_storage_capacities();
+	calc_max_intransit_percentages();
+}
 
 void fabrik_t::step(uint32 delta_t)
 {
@@ -2159,6 +2275,11 @@ void fabrik_t::step(uint32 delta_t)
 	}
 
 	if(  delta_t==0  ) {
+		return;
+	}
+
+	if(welt->get_settings().using_fab_contracts()){
+		step_contracts(delta_t);
 		return;
 	}
 
@@ -2355,7 +2476,7 @@ void fabrik_t::step(uint32 delta_t)
 	}
 
 	// increment weighted sums for average statistics
-	book_weighted_sums(delta_t);
+	book_weighted_sums();
 
 	// not a power station => then consume all electricity ...
 	if(  !desc->is_electricity_producer()  ) {
@@ -2381,39 +2502,195 @@ void fabrik_t::step(uint32 delta_t)
 
 		recalc_factory_status();
 
-		// rescale delta_amount here: all products should be produced at least once
-		// (if consumer only: all supplements should be consumed once)
-		const uint32 min_change = output.empty() ? input.get_count() : output.get_count();
+		rescale_delta();
+	}
 
-		if(  (delta_amount>>fabrik_t::precision_bits)>min_change  ) {
+	advance_slot(delta_t);
+}
 
-			// we produced some real quantity => smoke
-			smoke();
 
-			// chance to expand every 256 rounds of activities, after which activity count will return to 0 (overflow behaviour)
-			if(  (++activity_count)==0  ) {
-				if(  desc->get_field_group()  ) {
-					if(  fields.get_count()<desc->get_field_group()->get_max_fields()  ) {
-						// spawn new field with given probability
-						add_random_field(desc->get_field_group()->get_probability());
-					}
+void fabrik_t::step_contracts(uint32 delta_t){
+	// produce nothing/consumes nothing ...
+	if(  input.empty()  &&  output.empty()  ) {
+		// power station? => produce power
+		if(  desc->is_electricity_producer()  ) {
+			currently_producing = true;
+			power = (uint32)( ((sint64)scaled_electric_demand * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS );
+		}
+
+		// produced => trigger smoke
+		delta_amount = 1 << fabrik_t::precision_bits;
+	}else{
+		// not a producer => then consume electricity ...
+		if(  !desc->is_electricity_producer()  &&  scaled_electric_demand>0  ) {
+			// TODO: Consider linking this to actual production only
+			prodfactor_electric = (sint32)( ( (sint64)(desc->get_electric_boost()) * (sint64)power + (sint64)(scaled_electric_demand >> 1) ) / (sint64)scaled_electric_demand );
+
+		}
+
+		uint64 monthly_production=get_monthly_production(); //kilos / month
+		if(is_staff_shortage()){
+			monthly_production = monthly_production * building->get_staffing_level_percentage() / 100;
+		}
+		const uint64 kilo_per_quarter=DEFAULT_PRODUCTION_FACTOR;
+		uint32 step_production_max=(monthly_production * (uint64)delta_t + delta_amount_remainder) / (welt->ticks_per_world_month * kilo_per_quarter); //quarters this step;
+		delta_amount_remainder=(monthly_production * (uint64)delta_t + delta_amount_remainder) % (welt->ticks_per_world_month * kilo_per_quarter);
+
+		power_demand = 0;
+
+		//consume and/or produce stock based on industry type
+		if(output.empty() && (desc->is_electricity_producer() || desc->get_building()->get_population_and_visitor_demand_capacity() == 0)){
+			//power plant or utility
+
+			if(step_production_max){
+				if (desc->is_electricity_producer()) {
+					// power station => start with no production
+					power = 0;
+					currently_producing = false;
 				}
-				else {
-					if(  times_expanded<desc->get_expand_times()  ) {
-						if(  simrand(10000, "fabrik_t::step (expand 1)")<desc->get_expand_probability()  ) {
-							set_base_production( prodbase + desc->get_expand_minumum() + simrand( desc->get_expand_range(), "fabrik_t::step (expand 2)" ) );
-							++times_expanded;
+
+				//consume each good type
+				for(uint32 i = 0; i < input.get_count(); i++){
+					uint32 this_consumption;
+					uint32 step_production;
+					uint32 pfactor=desc->get_supplier(i)->get_consumption();
+					if((uint32)input[i].menge >= step_production_max * pfactor){
+						step_production=step_production_max;
+						currently_producing=true;
+					}else{
+						step_production=input[i].menge / pfactor;
+						if(step_production){
+							currently_producing=true;
 						}
 					}
+					this_consumption=step_production * pfactor;
+
+					input[i].menge-=this_consumption;
+					input[i].book_stat(this_consumption << DEFAULT_PRODUCTION_FACTOR_BITS,FAB_GOODS_CONSUMED);
+					delta_amount+=step_production;
 				}
 			}
 
-			INT_CHECK("simfab 558");
-			// reset for next cycle
-			delta_amount = 0;
+			//produce power
+			if (currently_producing && desc->is_electricity_producer())
+			{
+				power = (uint32)( ((sint64)scaled_electric_demand * (sint64)(DEFAULT_PRODUCTION_FACTOR + prodfactor_pax + prodfactor_mail)) >> DEFAULT_PRODUCTION_FACTOR_BITS );
+			}
+		}else if(output.empty()){
+			//consumer only, consumption in received goods code
+			//check if operative though
+			currently_producing = false;
+			for(uint32 i = 0; i < input.get_count(); i++){
+				if((uint32)input[i].menge >= step_production_max * desc->get_supplier(i)->get_consumption()){
+					currently_producing=true;
+					break;
+				}
+			}
+		}else{
+			//producer or manufacturer
+			currently_producing = false;
+
+			//reduce max_production_step to corespond with input
+			for(uint32 i = 0; i < input.get_count(); i++){
+				const uint32 pfactor=desc->get_supplier(i)->get_consumption();
+				const uint32 step_production=input[i].menge / pfactor;
+				if(step_production < step_production_max){
+					step_production_max=step_production;
+				}
+			}
+
+			uint32 step_consumption=0;
+			//produce good(s)
+			for(uint32 i = 0; i < output.get_count(); i++){
+				if(output[i].menge >= output[i].max){
+					continue;
+				}
+				const uint32 pfactor=desc->get_product(i)->get_factor();
+				uint32 step_production=(output[i].max - output[i].menge) / pfactor;
+				if(step_production > step_production_max){
+					step_production = step_production_max;
+				}
+				if(step_production>step_consumption){
+					step_consumption=step_production;
+				}
+				delta_amount+=step_production;
+				uint32 this_production=step_production * pfactor;
+				output[i].book_stat(this_production << DEFAULT_PRODUCTION_FACTOR_BITS, FAB_GOODS_PRODUCED);
+				output[i].menge+=this_production;
+				// if less than 3/4 filled we neary always consume power
+				currently_producing |= (output[i].menge * 4 < output[i].max * 3);
+			}
+			if(step_consumption){
+				for(uint32 i = 0; i < input.get_count(); i++){
+					const uint32 pfactor=desc->get_supplier(i)->get_consumption();
+					uint32 this_consumption=step_consumption * pfactor;
+					input[i].menge-=this_consumption;
+					input[i].book_stat(this_consumption << DEFAULT_PRODUCTION_FACTOR_BITS,FAB_GOODS_CONSUMED);
+				}
+			}
+		}
+		if( ( currently_producing || desc->get_product_count() == 0 ) && !desc->is_electricity_producer() ) {
+			// Pure consumers (i.e., those that do not produce anything) should require full power at all times
+			// requires full power even if runs out of raw material next cycle
+			power_demand = scaled_electric_demand;
 		}
 	}
 
+	book_weighted_sums();
+
+	// not a power station => then consume all electricity ...
+	if(  !desc->is_electricity_producer()  ) {
+		power = 0;
+	}
+
+	distribute_contracts(delta_t);
+
+	delta_t_sum += delta_t;
+	if(delta_t_sum > PRODUCTION_DELTA_T){
+		delta_t_sum %= PRODUCTION_DELTA_T;
+		recalc_factory_status();
+		rescale_delta();
+	}
+
+	advance_slot(delta_t);
+}
+
+void fabrik_t::rescale_delta(){
+	// rescale delta_amount here: all products should be produced at least once
+	// (if consumer only: all supplements should be consumed once)
+	const uint32 min_change = output.empty() ? input.get_count() : output.get_count();
+
+	if(  (delta_amount>>fabrik_t::precision_bits)>min_change  ) {
+
+		// we produced some real quantity => smoke
+		smoke();
+
+		// chance to expand every 256 rounds of activities, after which activity count will return to 0 (overflow behaviour)
+		if(  (++activity_count)==0  ) {
+			if(  desc->get_field_group()  ) {
+				if(  fields.get_count()<desc->get_field_group()->get_max_fields()  ) {
+					// spawn new field with given probability
+					add_random_field(desc->get_field_group()->get_probability());
+					adjust_production_for_fields();
+				}
+			}
+			else {
+				if(  times_expanded<desc->get_expand_times()  ) {
+					if(  simrand(10000, "fabrik_t::step (expand 1)")<desc->get_expand_probability()  ) {
+						set_base_production( prodbase + desc->get_expand_minumum() + simrand( desc->get_expand_range(), "fabrik_t::step (expand 2)" ) );
+						++times_expanded;
+					}
+				}
+			}
+		}
+
+		INT_CHECK("simfab 558");
+		// reset for next cycle
+		delta_amount = 0;
+	}
+}
+
+void fabrik_t::advance_slot(uint32 delta_t){
 	/// advance arrival slot at calculated interval and recalculate boost where necessary
 	delta_slot += delta_t;
 	const sint32 periods = welt->get_settings().get_factory_arrival_periods();
@@ -2431,6 +2708,78 @@ void fabrik_t::step(uint32 delta_t)
 	}
 }
 
+void fabrik_t::distribute_contracts(uint32 delta_t){
+	uint64 current_ticks=welt->get_ticks();
+	uint64 last_ticks=welt->get_ticks()-delta_t;
+
+	for(uint32 j = 0; j < output.get_count(); j++){
+		for(uint32 i = 0; i < output[j].link_count(); i++){
+			uint64 monthly_contract=output[j].get_contract(i);
+			uint64 current_tonnes=current_ticks * monthly_contract / (welt->ticks_per_world_month << fabrik_t::precision_bits);
+			current_tonnes-=last_ticks * monthly_contract / (welt->ticks_per_world_month << fabrik_t::precision_bits);
+			if(current_tonnes && output[j].menge >= (sint32)(current_tonnes << fabrik_t::precision_bits)){
+				koord consumer_pos=output[j].link_from_index(i);
+				if (shortest_distance(consumer_pos, pos.get_2d()) <= welt->get_settings().get_station_coverage_factories()
+						&& get_fab(consumer_pos)
+						&& get_desc()->get_placement() != factory_desc_t::Water)
+				{
+					//walk toods to destination
+					fabrik_t* consumer=get_fab(consumer_pos);
+					if(ware_production_t* input_ware=consumer->get_input(output[j].get_typ())){
+						if(input_ware->menge > input_ware->max){
+							//destination full
+							continue;
+						}
+						ware_t ware(output[j].get_typ());
+						ware.menge=current_tonnes;
+						ware.set_zielpos(consumer_pos);
+
+						world()->add_to_waiting_list(ware, get_pos().get_2d());
+						fabrik_t::update_transit( ware, true );
+						// add as active destination
+						set_consumer_active_at(ware.get_zielpos());
+
+						output[j].menge-=ware.menge << fabrik_t::precision_bits;
+						output[j].book_stat(ware.menge, FAB_GOODS_DELIVERED);
+					}
+				}else{
+					//send to station
+
+					//find station with most free space that has path to destination
+					sint32 max_freespace_ratio=-1;
+					ware_t best_ware;
+					halthandle_t best_halt;
+					for(auto nearby_halt : nearby_freight_halts){
+						ware_t ware(output[j].get_typ(),nearby_halt.halt);
+						ware.menge=current_tonnes;
+						ware.set_zielpos(output[j].link_from_index(i));
+
+						if(nearby_halt.halt->find_route(ware) != UINT32_MAX_VALUE){
+							const sint32 halt_capacity = nearby_halt.halt->get_capacity(2);
+							const sint32 halt_left = halt_capacity - (sint32)nearby_halt.halt->get_ware_summe(ware.get_desc());
+							sint32 halt_freespace_ratio = halt_capacity ? (halt_left << fabrik_t::precision_bits) / halt_capacity : 0;
+							if(halt_freespace_ratio > max_freespace_ratio){
+								max_freespace_ratio=halt_freespace_ratio;
+								best_ware=ware;
+								best_halt=nearby_halt.halt;
+							}
+						}
+					}
+
+					//if halt found with free space, send the goods
+					if(max_freespace_ratio>=0){
+						best_halt->starte_mit_route(best_ware, get_pos().get_2d());
+						best_halt->recalc_status();
+						fabrik_t::update_transit( best_ware, true );
+						set_consumer_active_at(best_ware.get_zielpos());
+						output[j].menge-=best_ware.menge << fabrik_t::precision_bits;
+						output[j].book_stat(best_ware.menge, FAB_GOODS_DELIVERED);
+					}
+				}
+			}
+		}
+	}
+}
 
 class distribute_ware_t
 {
@@ -2469,7 +2818,7 @@ public:
 void fabrik_t::verteile_waren(const uint32 product)
 {
 	// Check consumers
-	if(  consumers.empty()  )
+	if(  !get_output()[product].link_count()  )
 	{
 		return;
 	}
@@ -2496,10 +2845,10 @@ void fabrik_t::verteile_waren(const uint32 product)
 	sint32 needed = 0;
 	sint32 needed_base_units = 0;
 
-	for (uint32 consumer_num = 0; consumer_num < consumers.get_count(); consumer_num++)
+	for (uint32 consumer_num = 0; consumer_num < get_output()[product].link_count(); consumer_num++)
 	{
 		// Check whether these can be carted to their destination.
-		const koord consumer_pos = consumers[(consumer_num + output[product].index_offset) % consumers.get_count()];
+		const koord consumer_pos = get_output()[product].link_from_index((consumer_num + output[product].index_offset) % get_output()[product].link_count());
 		const uint32 distance_to_consumer = shortest_distance(consumer_pos, pos.get_2d());
 		if (distance_to_consumer <= welt->get_settings().get_station_coverage_factories())
 		{
@@ -2566,9 +2915,9 @@ void fabrik_t::verteile_waren(const uint32 product)
 		nearby_halt_t nearby_halt = nearby_freight_halts[(nearby_halt_num + output[product].index_offset) % nearby_halts_count];
 
 		// Iterate over all targets
-		for(uint32 consumer_num=0; consumer_num < consumers.get_count(); consumer_num++  ) {
+		for(uint32 consumer_num=0; consumer_num < get_output()[product].link_count(); consumer_num++  ) {
 			// this way, the halt, that is tried first, will change. As a result, if all destinations are empty, it will be spread evenly
-			const koord consumer_pos = consumers[(consumer_num + output[product].index_offset) % consumers.get_count()];
+			const koord consumer_pos = get_output()[product].link_from_index((consumer_num + output[product].index_offset) % get_output()[product].link_count());
 			fabrik_t * this_consumer = get_fab(consumer_pos);
 
 			if(this_consumer)
@@ -2712,7 +3061,7 @@ void fabrik_t::verteile_waren(const uint32 product)
 		}
 		fabrik_t::update_transit( best_ware, true );
 		// add as active destination
-		consumers_active_last_month |= (1 << consumers.index_of(best_ware.get_zielpos()));
+		set_consumer_active_at(best_ware.get_zielpos());
 		output[product].book_stat(best_ware.menge, FAB_GOODS_DELIVERED);
 	}
 }
@@ -2752,26 +3101,12 @@ void fabrik_t::new_month()
 {
 	// update statistics for input and output goods
 	for (uint32 in = 0; in < input.get_count(); in++) {
-		input[in].roll_stats(desc->get_supplier(in)->get_consumption(), aggregate_weight);
+		input[in].roll_stats(welt->get_settings().using_fab_contracts() ? DEFAULT_PRODUCTION_FACTOR : desc->get_supplier(in)->get_consumption());
 	}
 	for (uint32 out = 0; out < output.get_count(); out++) {
-		output[out].roll_stats(desc->get_product(out)->get_factor(), aggregate_weight);
+		output[out].roll_stats(welt->get_settings().using_fab_contracts() ? DEFAULT_PRODUCTION_FACTOR : desc->get_product(out)->get_factor());
 	}
-	consumers_active_last_month = 0;
-
-	// calculate weighted averages
-	if(  aggregate_weight>0  ) {
-		set_stat(calc_operation_rate(1), FAB_PRODUCTION );
-		set_stat( weighted_sum_boost_electric / aggregate_weight, FAB_BOOST_ELECTRIC );
-		set_stat( weighted_sum_boost_pax / aggregate_weight, FAB_BOOST_PAX );
-		set_stat( weighted_sum_boost_mail / aggregate_weight, FAB_BOOST_MAIL );
-		if (!desc->is_electricity_producer()) {
-			set_stat(weighted_sum_power*1000 / aggregate_weight, FAB_POWER);
-		}
-		else {
-			set_stat(weighted_sum_power / aggregate_weight, FAB_POWER);
-		}
-	}
+	reset_consumer_active();
 
 	// update statistics
 	for(  int s=0;  s<MAX_FAB_STAT;  ++s  ) {
@@ -2780,12 +3115,6 @@ void fabrik_t::new_month()
 		}
 		statistics[0][s] = 0;
 	}
-	weighted_sum_production = 0;
-	weighted_sum_boost_electric = 0;
-	weighted_sum_boost_pax = 0;
-	weighted_sum_boost_mail = 0;
-	weighted_sum_power = 0;
-	aggregate_weight = 0;
 
 	// restore the current values
 	set_stat(calc_operation_rate(0), FAB_PRODUCTION);
@@ -2793,6 +3122,48 @@ void fabrik_t::new_month()
 	set_stat( prodfactor_pax, FAB_BOOST_PAX );
 	set_stat( prodfactor_mail, FAB_BOOST_MAIL );
 	set_stat( power, FAB_POWER );
+
+	if(welt->get_settings().using_fab_contracts()){
+		// Check whether this industry has been idle too long
+		// TODO: This may need substantial reworking when the new town growth/industry code ends up being added.
+		if(get_stat(1,FAB_PRODUCTION)==0){
+			months_unproductive++;
+		}else{
+			months_unproductive=0;
+		}
+		if(output.get_count()){
+			uint32 missing_contracts=0;
+			bool reset_missing_contracts=false;
+			//check if not outputing anything
+			for(uint32 i = 0; i < output.get_count(); i++){
+				if(output[i].get_total_contracts()==0){
+					missing_contracts++;
+				}
+			}
+			if(missing_contracts!=output.get_count()){
+				reset_missing_contracts=true;
+			}
+			//or are missing a good type
+			for(uint32 i = 0; i < input.get_count(); i++){
+				if(input[i].get_total_contracts()==0){
+					reset_missing_contracts=false;
+					missing_contracts++;
+				}
+			}
+			if(reset_missing_contracts){
+				months_missing_contracts=0;
+			}else{
+				months_missing_contracts+=missing_contracts;
+			}
+		}else{
+			months_missing_contracts=0;
+		}
+
+		//should close factories that were missing contracts for more than 12 months or unproductive for 60 months
+		if(months_unproductive>12*5 || months_missing_contracts>12){
+			welt->should_close_factories_this_month.append(this,months_unproductive+months_missing_contracts);
+		}
+	}
 
 	// This needs to be re-checked regularly, as cities grow, occasionally shrink and can be deleted.
 	stadt_t* c = check_local_city();
@@ -2930,6 +3301,7 @@ void fabrik_t::new_month()
 					{
 						add_random_field(10000u);
 					}
+					adjust_production_for_fields();
 					// Re-set the expansion counter: an upgraded factory may expand further.
 					times_expanded = 0;
 					// Re-calculate production/consumption
@@ -2984,37 +3356,60 @@ void fabrik_t::new_month()
 
 					prodbase = prodbase > 0 ? prodbase : 1;
 
-					slist_tpl<const goods_desc_t*> input_products;
-
-					// create input information
-					input.resize(desc->get_supplier_count());
-					for (int g = 0; g < desc->get_supplier_count(); ++g) {
-						const factory_supplier_desc_t* const input_fac = desc->get_supplier(g);
-						input[g].set_typ(input_fac->get_input_type());
-						input_products.append(input_fac->get_input_type());
-					}
-
-					// The upgraded factory might not have the same inputs as its predecessor.
-					// Remove redundant inputs
 					bool disconnect_supplier_checked = false;
 					bool must_close = false;
-					FOR(vector_tpl<koord>, k, suppliers)
-					{
-						fabrik_t* supplier = fabrik_t::get_fab(k);
-						bool match = false;
-						FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
-						{
-							if (input_products.is_contained(sw.get_typ()))
-							{
-								match = true;
+					array_tpl<ware_production_t> new_array;
+					new_array.resize(desc->get_supplier_count());
+
+					vector_tpl<uint32> kept_ware_indexes;
+					//find and unlink obsolete input ware types, backup existing types
+					for(uint32 j = 0; j < input.get_count(); j++){
+						auto &ware = input[j];
+						bool keep_ware=false;
+
+						for(uint16 i = 0; i < desc->get_supplier_count(); i++){
+							if(ware.get_typ()==desc->get_supplier(i)->get_input_type()){
+								keep_ware=true;
+								new_array[i]=input[j];
+								kept_ware_indexes.append(i);
 								break;
 							}
 						}
-						if (!match)
-						{
-							must_close = disconnect_supplier(k);
-							disconnect_supplier_checked = true;
+						if(!keep_ware){
+							for(uint32 i = ware.link_count()-1; i < ware.link_count(); i--){
+								fabrik_t* affected_fab = get_fab(ware.link_from_index(i));
+								if(affected_fab){
+									affected_fab->disconnect_consumer(get_pos().get_2d());
+								}
+								must_close = disconnect_supplier(ware.link_from_index(i));
+								disconnect_supplier_checked=true;
+							}
 						}
+					}
+					//find which input ware types are new
+					vector_tpl<uint16> new_ware_indexes;
+					for(uint16 i = 0; i < desc->get_supplier_count(); i++){
+						bool is_new=true;
+						for(uint32 j = 0; j < input.get_count(); j++){
+							if(input[j].get_typ()==desc->get_supplier(i)->get_input_type()){
+								is_new=false;
+							}
+						}
+						if(is_new){
+							new_ware_indexes.append(i);
+						}
+					}
+
+					//initialize new items
+					input.resize(desc->get_supplier_count());
+					for(auto i : new_ware_indexes){
+						input[i]=ware_production_t();
+						input[i].set_typ(desc->get_supplier(i)->get_input_type());
+					}
+
+					//transfer old items
+					for(auto i : kept_ware_indexes){
+						input[i]=new_array[i];
 					}
 
 					if (!disconnect_supplier_checked)
@@ -3027,11 +3422,55 @@ void fabrik_t::new_month()
 
 					if (!must_close)
 					{
-						// create output information
+						//find and unlink obsolete output ware types, backup existing types
+						new_array.resize(desc->get_product_count());
+						kept_ware_indexes.clear();
+						for(uint32 j = 0; j < output.get_count(); j++){
+							auto &ware = output[j];
+							bool keep_ware=false;
+
+							for(uint16 i = 0; i < desc->get_product_count(); i++){
+								if(ware.get_typ()==desc->get_product(i)->get_output_type()){
+									keep_ware=true;
+									new_array[i]=output[j];
+									kept_ware_indexes.append(i);
+									break;
+								}
+							}
+							if(!keep_ware){
+								for(uint32 i = ware.link_count()-1; i < ware.link_count(); i--){
+									if(fabrik_t* affected_fab = get_fab(ware.link_from_index(i))){
+										affected_fab->disconnect_supplier(get_pos().get_2d(),this);
+									}
+									must_close = disconnect_consumer(ware.link_from_index(i));
+									disconnect_supplier_checked=true;
+								}
+							}
+						}
+						new_ware_indexes.clear();
+						//find which output ware types are new
+						for(uint16 i = 0; i < desc->get_product_count(); i++){
+							bool is_new=true;
+							for(uint32 j = 0; j < output.get_count(); j++){
+								if(output[j].get_typ()==desc->get_product(i)->get_output_type()){
+									is_new=false;
+								}
+							}
+							if(is_new){
+								new_ware_indexes.append(i);
+							}
+						}
+
+						//initialize new items
 						output.resize(desc->get_product_count());
-						for (uint g = 0; g < desc->get_product_count(); ++g) {
-							const factory_product_desc_t* const product = desc->get_product(g);
-							output[g].set_typ(product->get_output_type());
+						for(auto i : new_ware_indexes){
+							output[i]=ware_production_t();
+							output[i].set_typ(desc->get_product(i)->get_output_type());
+						}
+
+						//transfer old items
+						for(auto i : kept_ware_indexes){
+							output[i]=new_array[i];
 						}
 
 						recalc_storage_capacities();
@@ -3052,8 +3491,155 @@ void fabrik_t::new_month()
 		}
 
 		welt->closed_factories_this_month.append(this);
+	}else if(welt->get_settings().using_fab_contracts()){
+		negotiate_contracts();
 	}
 	// NOTE: No code should come after this part, as the closing down code may cause this object to be deleted.
+}
+
+void fabrik_t::negotiate_contracts(){
+	//first check output and reduce contracts that cannot be filled
+	for(uint32 i = 0; i < output.get_count(); i++){
+		const sint64 pfactor = (sint64)get_desc()->get_product(i)->get_factor();
+		const sint32 monthly_prod = get_monthly_production(pfactor);
+		const sint32 monthly_cont = output[i].get_total_contracts();
+		//check for too many output contracts
+		if(monthly_prod < monthly_cont){
+			//reduce contracts starting with furthest factory
+			for(uint32 j = output[i].link_count()-1; j < output[i].link_count(); j--){
+				sint32 contract_diff=output[i].get_total_contracts() - monthly_prod;
+				sint32 average_removal=(((sint32)j+1)/2 + contract_diff) / ((sint32)j+1);
+				sint32 this_removal;
+				if(output[i].get_contract(j) > average_removal){
+					this_removal=average_removal;
+				}else{
+					this_removal=output[i].get_contract(j);
+				}
+				if(fabrik_t* affected_fab = get_fab(output[i].link_from_index(j))){
+					if(auto affected_ware = affected_fab->get_input(output[i].get_typ())){
+						const sint64 affected_pfactor=affected_fab->get_desc()->get_supplier(affected_ware->get_typ())->get_consumption();
+						const sint32 affected_prod=affected_fab->get_monthly_production(affected_pfactor);
+						const sint32 affected_cont=affected_ware->get_total_contracts();
+						if(affected_cont - this_removal > affected_prod){
+							this_removal = affected_cont - affected_prod;
+						}
+						ware_production_t::add_contracts(-this_removal,*affected_ware,output[i],j,monthly_prod);
+					}
+				}
+			}
+		}
+	}
+	//for manufacturers determine determine factor of used output for input to be adjusted acordingly
+	sint32 manufacturing_factor=0;
+	if(input.get_count() && output.get_count()){
+		for(uint32 i = 0; i < output.get_count(); i++){
+			const sint64 pfactor = (sint64)get_desc()->get_product(i)->get_factor();
+			sint32 monthly_prod = get_monthly_production(pfactor);
+			sint32 this_factor = (DEFAULT_PRODUCTION_FACTOR * output[i].get_total_contracts()) / monthly_prod;
+			if(this_factor>manufacturing_factor){
+				manufacturing_factor=this_factor;
+			}
+		}
+	}
+	//check input to increase or decrease contracts as needed
+	for(uint32 i = 0; i < input.get_count(); i++){
+		const sint64 pfactor = (sint64)get_desc()->get_supplier(i)->get_consumption();
+		sint32 monthly_prod = get_monthly_production(pfactor);
+		monthly_prod = max(adjust_consumption_by_passenger_level(monthly_prod),1 << fabrik_t::precision_bits); //scale consumption by customers
+		//manufacturers only need enough input to supply for their output
+		if(manufacturing_factor && manufacturing_factor<DEFAULT_PRODUCTION_FACTOR){
+			monthly_prod=(monthly_prod * manufacturing_factor) / DEFAULT_PRODUCTION_FACTOR;
+		}
+		//scale down used monthly production figure when intransit levels are too high
+		if(input[i].get_in_transit() + input[i].menge > input[i].max_transit){
+			monthly_prod=(monthly_prod * input[i].max_transit) / (input[i].get_in_transit() + input[i].menge);
+		}
+		sint32 monthly_cont = input[i].get_total_contracts();
+		if(monthly_prod * 8 < monthly_cont * 9 || monthly_prod * 7 > monthly_cont * 8){
+			//too little or too much input
+			//start by adding to active staffed supliers or removing from unstaffed or inactive supliers
+			for(uint32 j = input[i].link_count()-1; j < input[i].link_count(); j--){
+				sint32 contract_diff=monthly_prod - input[i].get_total_contracts();
+				if(contract_diff==0){
+					break;
+				}
+				sint32 average_addition=(contract_diff + ((sint32)j+1)/2) / ((sint32)j+1);
+				sint32 this_addition=average_addition;
+				//verify that contract exists in first place and add to or reduce from it
+				if(fabrik_t* affected_fab = get_fab(input[i].link_from_index(j))){
+					if((this_addition>0 ? 1 : 0) ^ ((affected_fab->get_status()==fabrik_t::inactive || affected_fab->is_staff_shortage()) ? 1 : 0)){
+						if(auto affected_ware = affected_fab->get_output(input[i].get_typ())){
+							for(uint32 k = 0; k < affected_ware->link_count(); k++){
+								if(affected_ware->link_from_index(k) == get_pos().get_2d()){
+									//check for maximum output
+									const sint64 affected_pfactor=affected_fab->get_desc()->get_product(affected_ware->get_typ())->get_factor();
+									const sint32 affected_prod=affected_fab->get_monthly_production(affected_pfactor);
+									ware_production_t::add_contracts(this_addition,input[i],*affected_ware,k,affected_prod);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+			monthly_cont = input[i].get_total_contracts();
+			//then add or remove from all linked suppliers
+			sint32 untapped_sources=0;
+			for(uint32 j = input[i].link_count()-1; j < input[i].link_count(); j--){
+				sint32 contract_diff=monthly_prod - input[i].get_total_contracts();
+				if(contract_diff==0){
+					break;
+				}
+				sint32 average_addition=(contract_diff + ((sint32)j+1)/2) / ((sint32)j+1);
+				sint32 this_addition=average_addition;
+				//verify that contract exists in first place and add to or reduce from it
+				if(fabrik_t* affected_fab = get_fab(input[i].link_from_index(j))){
+					if(auto affected_ware = affected_fab->get_output(input[i].get_typ())){
+						for(uint32 k = 0; k < affected_ware->link_count(); k++){
+							if(affected_ware->link_from_index(k) == get_pos().get_2d()){
+								//check for maximum output
+								const sint64 affected_pfactor=affected_fab->get_desc()->get_product(affected_ware->get_typ())->get_factor();
+								const sint32 affected_prod=affected_fab->get_monthly_production(affected_pfactor);
+								ware_production_t::add_contracts(this_addition,input[i],*affected_ware,k,affected_prod);
+								untapped_sources+=affected_prod - affected_ware->get_total_contracts();
+								break;
+							}
+						}
+					}
+				}
+			}
+			monthly_cont = input[i].get_total_contracts();
+			if(monthly_prod * 7 > monthly_cont * 8 && untapped_sources){
+				//Still too little, try to fill more agressively
+				for(uint32 j = 0; j < input[i].link_count(); j++){
+					sint32 contract_diff=monthly_prod - input[i].get_total_contracts();
+					if(contract_diff<=0){
+						break;
+					}
+					sint32 this_addition=contract_diff;
+					if(fabrik_t* affected_fab = get_fab(input[i].link_from_index(j))){
+						if(auto affected_ware = affected_fab->get_output(input[i].get_typ())){
+							for(uint32 k = 0; k < affected_ware->link_count(); k++){
+								if(affected_ware->link_from_index(k) == get_pos().get_2d()){
+									//check for maximum output
+									const sint64 affected_pfactor=affected_fab->get_desc()->get_product(affected_ware->get_typ())->get_factor();
+									const sint32 affected_prod=affected_fab->get_monthly_production(affected_pfactor);
+									ware_production_t::add_contracts(this_addition,input[i],*affected_ware,k,affected_prod);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+			monthly_cont = input[i].get_total_contracts();
+			if(monthly_prod * 7 > monthly_cont * 8){
+				//still too little, but all linked supliers exausted
+				//Call functions to try to find another suplier(s) to link to
+				factory_builder_t::build_chain_link(this,this->get_desc(),i,welt->get_public_player(),true);
+			}
+		}
+	}
 }
 
 // static !
@@ -3101,26 +3687,7 @@ void fabrik_t::recalc_factory_status()
 				status_ein |= FL_WARE_FEHLT_WAS;
 			}
 			// Does each input goods have one or more suppliers? If not, this factory will not be operational.
-			bool found = false;
-			FOR(vector_tpl<koord>, k, suppliers)
-			{
-				const fabrik_t* supplier = fabrik_t::get_fab(k);
-				if (supplier->get_status() == missing_connections || supplier->get_status() == material_not_available) {
-					// An inoperable factory is synonymous with non-existence => skip!
-					continue;
-				}
-				FOR(array_tpl<ware_production_t>, sw, supplier->get_output())
-				{
-					if (sw.get_typ() == j.get_typ())
-					{
-						found = true;
-						break;
-					}
-				}
-				if (found) {
-					break; // same goods count only once
-				}
-			}
+			bool found = j.link_count() ? true : false;
 
 			if (found || (!found && (j.get_in_transit() || j.menge))) {
 				active_input_count++;
@@ -3175,7 +3742,7 @@ void fabrik_t::recalc_factory_status()
 	// At least one must have a normal downstream industry
 	if( !output.empty() ) {
 		bool has_any_consumer = false;
-		FOR(vector_tpl<koord>, k, consumers) {
+		for(auto k : get_consumers()) {
 			const fabrik_t* consumer = fabrik_t::get_fab(k);
 			// Focus on incomplete connections between manufacturers rather than missing end consumer's connection
 			if (consumer->get_sector()==end_consumer) {
@@ -3198,11 +3765,9 @@ void fabrik_t::recalc_factory_status()
 			}
 		}
 	}
-	if (sector==marine_resource && !consumers.get_count()) {
-		if (!add_customer(this)) {
-			status = missing_consumer;
-			return;
-		}
+	if (sector==marine_resource && !get_consumers().get_count()) {
+		status = missing_consumer;
+		return;
 	}
 
 	// now calculate status bar for sane factory
@@ -3374,6 +3939,20 @@ void fabrik_t::info_prod(cbuffer_t& buf) const
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), building->get_adjusted_mail_demand());
 
 	}
+
+	if(welt->get_settings().using_fab_contracts()){
+		if(months_unproductive || months_missing_contracts){
+			buf.append("\n");
+		}
+		if(months_unproductive){
+			buf.printf(translator::translate("Unproductive: %d Mo."),months_unproductive);
+		}
+		buf.append("\n");
+		if(months_missing_contracts){
+			buf.printf(translator::translate("Contractless: %d Mo."),months_missing_contracts);
+		}
+		buf.append("\n\n");
+	}
 }
 
 /**
@@ -3494,6 +4073,12 @@ void fabrik_t::finish_rd()
 {
 	recalc_nearby_halts();
 
+	if(welt->get_settings().using_fab_contracts()){
+		for(auto &ware : output){
+			ware.set_using_contracts();
+		}
+	}
+
 	// now we have a valid storage limit
 	if(  welt->get_settings().is_crossconnect_factories()  ) {
 		FOR(  vector_tpl<fabrik_t*>,  const fab,  welt->get_fab_list()  ) {
@@ -3503,18 +4088,19 @@ void fabrik_t::finish_rd()
 	else {
 		// add as supplier to target(s)
 		for(uint32 i=0; i < consumers.get_count(); i++) {
-			fabrik_t * fab2 = fabrik_t::get_fab(consumers[i]);
-			if(fab2) {
-				fab2->add_supplier(pos.get_2d());
-				consumers[i] = fab2->get_pos().get_2d();
+			sint32 contract=0;
+			if(welt->get_settings().using_fab_contracts() && i < contracts.get_count()){
+				contract=contracts[i];
 			}
-			else {
-				// remove this ...
-				dbg->warning("fabrik_t::finish_rd()", "No factory at expected position %s!", consumers[i].get_str() );
-				consumers.remove_at(i);
-				i--;
-			}
+			add_consumer(consumers[i],0,contract);
 		}
+	}
+	consumers.clear();
+	consumers.resize(0);
+	contracts.clear();
+	contracts.resize(0);
+	if(consumers_active_this_month.empty()){
+		reset_consumer_active();
 	}
 
 	// Set field production
@@ -3528,6 +4114,20 @@ void fabrik_t::finish_rd()
 
 	mark_connected_roads(false);
 	add_to_world_list();
+
+
+	//check that things loaded correctly
+	for(auto &ware : output){
+		ware.verify_contracts();
+	}
+
+	//check that the settings did not change prior to load
+	if(welt->get_settings().using_fab_contracts() && output.get_count() && !output[0].get_using_contracts()){
+		init_contracts();
+	}else if(!welt->get_settings().using_fab_contracts() && output.get_count() && output[0].get_using_contracts()){
+		//this will not correct for unit change but will potentially prevent a crash
+		remove_contracts();
+	}
 }
 
 void fabrik_t::adjust_production_for_fields(bool is_from_saved_game)
@@ -3572,10 +4172,10 @@ void fabrik_t::rotate90( const sint16 y_size )
 	pos_origin.x -= desc->get_building()->get_x(rotate)-1;
 	pos.rotate90( y_size );
 
-	FOR(vector_tpl<koord>, & i, consumers) {
+	for(auto i : get_consumers()) {
 		i.rotate90(y_size);
 	}
-	FOR(vector_tpl<koord>, & i, suppliers) {
+	for(auto i : get_suppliers()) {
 		i.rotate90(y_size);
 	}
 	FOR(vector_tpl<field_data_t>, & i, fields) {
@@ -3586,31 +4186,53 @@ void fabrik_t::rotate90( const sint16 y_size )
 }
 
 
-void fabrik_t::add_supplier(koord ziel)
+void fabrik_t::add_supplier(koord ziel, const goods_desc_t *desc)
 {
-	if(  welt->get_settings().get_factory_maximum_intransit_percentage()  &&  !suppliers.is_contained(ziel)  ) {
-		if(  fabrik_t *fab = get_fab( ziel )  ) {
-			for(  uint32 i=0;  i < fab->get_output().get_count();  i++   ) {
-				const ware_production_t &w_out = fab->get_output()[i];
-				// now update transit limits
-				FOR(  array_tpl<ware_production_t>,  &w,  input ) {
-					if(  w_out.get_typ() == w.get_typ()  )
-					{
-						calc_max_intransit_percentages();
-						break;
+	for(auto &ware : get_input()){
+		if(ware.get_typ()==desc){
+			ware.link_add(ziel, RelativeDistanceOrdering(pos.get_2d()));
+			calc_max_intransit_percentages();
+		}else if(!desc){
+			if(fabrik_t *fab = get_fab( ziel )){
+				bool calc_needed=false;
+				for(auto &source_ware : fab->get_output()){
+					if(source_ware.get_typ() == ware.get_typ()){
+						ware.link_add(ziel, RelativeDistanceOrdering(pos.get_2d()));
+						calc_needed=true;
 					}
 				}
+				if(calc_needed){
+					calc_max_intransit_percentages();
+				}
 			}
-			// since there could be more than one good, we have to iterate over all of them
 		}
 	}
-	suppliers.insert_unique_ordered( ziel, RelativeDistanceOrdering(pos.get_2d()) );
 }
 
 
-void fabrik_t::remove_supplier(koord supplier_pos)
+void fabrik_t::remove_supplier(koord supplier_pos, fabrik_t* supplier)
 {
-	suppliers.remove(supplier_pos);
+	for(auto& ware : get_input()){
+		uint32 idx=ware.link_index(supplier_pos);
+		if(idx!=UINT32_MAX_VALUE){
+			if(welt->get_settings().using_fab_contracts()){
+				fabrik_t* affected_fab = supplier;
+				if(!affected_fab){
+					affected_fab = get_fab(supplier_pos);
+				}
+				if(affected_fab){
+					if(auto affected_ware = affected_fab->get_output(ware.get_typ())){
+						uint32 affected_idx=affected_ware->link_index(this->get_pos().get_2d());
+						if(affected_idx!=UINT32_MAX_VALUE){
+							sint32 contract=affected_ware->get_contract(affected_idx);
+							ware.sub_total_contracts(contract);
+						}
+					}
+				}
+			}
+			ware.link_remove(idx);
+		}
+	}
 
 	if(  welt->get_settings().get_factory_maximum_intransit_percentage()  ) {
 		// set to zero
@@ -3618,20 +4240,7 @@ void fabrik_t::remove_supplier(koord supplier_pos)
 			w.max_transit = 0;
 		}
 
-		// unfortunately we have to bite the bullet and recalc the values from scratch ...
-		FOR( vector_tpl<koord>, ziel, suppliers ) {
-			if(  fabrik_t *fab = get_fab( ziel )  ) {
-				for(  uint32 i=0;  i < fab->get_output().get_count();  i++   ) {
-					// now update transit limits
-					FOR(  array_tpl<ware_production_t>,  &w,  input )
-					{
-						(void)w;
-						calc_max_intransit_percentages();
-					}
-				}
-				// since there could be more than one good, we have to iterate over all of them
-			}
-		}
+		calc_max_intransit_percentages();
 	}
 }
 
@@ -3658,7 +4267,7 @@ void fabrik_t::add_all_suppliers()
 /* adds a new supplier to this factory
  * fails if no matching goods are there
  */
-bool fabrik_t::add_supplier(fabrik_t* fab)
+bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
 {
 	for(int i=0; i < desc->get_supplier_count(); i++) {
 		const factory_supplier_desc_t *supplier = desc->get_supplier(i);
@@ -3667,9 +4276,13 @@ bool fabrik_t::add_supplier(fabrik_t* fab)
 			// connect to an existing one, if this is an producer
 			if(  fab!=this  && fab->get_output_stock(ware) > -1  ) {
 				// add us to this factory
-				fab->add_consumer(pos.get_2d());
+				fab->add_consumer(pos.get_2d(),product);
 				cbuffer_t buf;
-				buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
+				if(product){
+					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
+				}else{
+					buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
+				}
 				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
 				return true;
 			}
@@ -3681,18 +4294,16 @@ bool fabrik_t::add_supplier(fabrik_t* fab)
  * fails if no matching goods are accepted
  */
 
-bool fabrik_t::add_customer(fabrik_t* fab)
+bool fabrik_t::add_customer(fabrik_t* fab, const goods_desc_t* product)
 {
-	for(int i=0; i < fab->get_desc()->get_supplier_count(); i++) {
-		const factory_supplier_desc_t *supplier = fab->get_desc()->get_supplier(i);
-		const goods_desc_t *ware = supplier->get_input_type();
-
-			// connect to an existing one, if it is a consumer
-			if(fab!=this && get_output_stock(ware) > -1) {
-				// add this factory
-				add_consumer(fab->pos.get_2d());
-				return true;
-			}
+	if(fab==this){
+		return false;
+	}
+	// connect to an existing one, if it is a consumer
+	if(fab->get_desc()->get_supplier(product)) {
+		// add this factory
+		add_consumer(fab->pos.get_2d(),product);
+		return true;
 	}
 	return false;
 }
@@ -3761,8 +4372,6 @@ gebaeude_t* fabrik_t::get_building()
 
 void fabrik_t::calc_max_intransit_percentages()
 {
-	max_intransit_percentages.clear();
-
 	if(!path_explorer_t::get_paths_available(path_explorer_t::get_current_compartment_category()))
 	{
 		has_calculated_intransit_percentages = false;
@@ -3770,51 +4379,92 @@ void fabrik_t::calc_max_intransit_percentages()
 	}
 
 	has_calculated_intransit_percentages = true;
+
+
 	const uint16 base_max_intransit_percentage = welt->get_settings().get_factory_maximum_intransit_percentage();
+
+	if(base_max_intransit_percentage == 0)
+	{
+		// Zero is code for the feature being disabled, so do not attempt to modify this value.
+		return;
+	}
 
 	uint32 index = 0;
 	FOR(array_tpl<ware_production_t>, &w, input)
 	{
-		const uint8 catg = w.get_typ()->get_catg();
-		if(base_max_intransit_percentage == 0)
-		{
-			// Zero is code for the feature being disabled, so do not attempt to modify this value.
-			max_intransit_percentages.put(catg, base_max_intransit_percentage);
-			index ++;
-			continue;
-		}
-
 		const uint32 lead_time = get_lead_time(w.get_typ());
 		if(lead_time == UINT32_MAX_VALUE)
 		{
 			// No factories connected; use the default intransit percentage for now.
-			max_intransit_percentages.put(catg, base_max_intransit_percentage);
 			input[index].max_transit = max(1, ((sint64)base_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
 			index ++;
 			continue;
 		}
-		const uint32 time_to_consume = max(1u, get_time_to_consume_stock(index));
-		const sint32 ratio = ((sint32)lead_time * 1000 / (sint32)time_to_consume);
-		const sint32 modified_max_intransit_percentage = (ratio * (sint64)base_max_intransit_percentage) / 1000;
-		max_intransit_percentages.put(catg, (uint16)modified_max_intransit_percentage);
-		input[index].max_transit = max(1, (modified_max_intransit_percentage * input[index].max) / 100); // This puts max_transit in internal units
+		if(welt->get_settings().using_fab_contracts()){
+			sint64 max_transit;
+			max_transit = base_max_intransit_percentage; //percentage
+			max_transit *= lead_time; //tenths of a minute
+			sint64 pfactor = desc->get_supplier(index)->get_consumption();
+			max_transit *= get_monthly_production(pfactor); //goods * precision / month
+			max_transit /= welt->ticks_to_tenths_of_minutes(welt->ticks_per_world_month);
+			max_transit /= 100;
+			input[index].max_transit=max(1,max_transit); //goods * precision
+			index++;
+			continue;
+		}
+
+		const factory_supplier_desc_t* flb = desc->get_supplier(index);
+		const uint32 vb = flb ? flb->get_consumption() : 0;
+
+		const sint32 base_production = get_current_production();
+		uint64 consumed_per_month = max((uint64)base_production, 1);
+
+		consumed_per_month = adjust_consumption_by_passenger_level(consumed_per_month);
+		uint64 max_transit = max(consumed_per_month,256);
+		max_transit *= base_max_intransit_percentage;
+		max_transit *= lead_time;
+		max_transit *= 16384*256;
+		max_transit /= 3 * (uint64)welt->get_settings().meters_per_tile * welt->ticks_per_world_month;
+		input[index].max_transit = max_transit;
 		index ++;
 	}
 }
 
-uint16 fabrik_t::get_max_intransit_percentage(uint32 index)
-{
-	if (!input.get_count() || input.get_count() < index ) {
-		return 0;
+sint64 fabrik_t::adjust_consumption_by_passenger_level(sint64 consumed_per_month){
+	if(desc->is_consumer_only())
+	{
+		// Consumer industries adjust their consumption according to the number of visitors. Adjust for this.
+		// We cannot use actual consumption figures, as this could lead to deadlocks.
+
+		// Do not use the current month, as this is not complete yet, and the number of visitors will therefore be low.
+		sint64 average_consumers = 0;
+		if(get_stat(3, FAB_CONSUMER_ARRIVED))
+		{
+			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) + get_stat(3, FAB_CONSUMER_ARRIVED)) / 3ll;
+		}
+		else if(get_stat(2, FAB_CONSUMER_ARRIVED))
+		{
+			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) / 2ll);
+		}
+		else
+		{
+			average_consumers = get_stat(1, FAB_CONSUMER_ARRIVED);
+		}
+		// Only make the adjustment if we have data.
+		if (average_consumers)
+		{
+			const sint64 visitor_demand = (sint64)building->get_adjusted_visitor_demand();
+			const sint64 percentage = std::max(100ll, (average_consumers * 100ll) / visitor_demand);
+			consumed_per_month = (consumed_per_month * percentage) / 100;
+		}
 	}
-	return max_intransit_percentages.get(input[index].get_typ()->get_catg());
+	return consumed_per_month;
 }
 
 uint32 fabrik_t::get_total_input_capacity() const
 {
 	uint32 i = 0;
 	uint32 capacity_sum = 0;
-	uint32 stock_sum = 0;
 	FORX(array_tpl<ware_production_t>, const& goods, input, i++) {
 		const sint64 pfactor =desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
 		const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
@@ -3917,124 +4567,64 @@ void fabrik_t::display_status(sint16 xpos, sint16 ypos)
 
 uint32 fabrik_t::get_lead_time(const goods_desc_t* wtype)
 {
-	if(suppliers.empty())
-	{
-		return UINT32_MAX_VALUE;
-	}
-
 	// Tenths of minutes.
 	uint32 longest_lead_time = UINT32_MAX_VALUE;
 
-	FOR(vector_tpl<koord>, const& supplier, suppliers)
-	{
-		const fabrik_t *fab = get_fab(supplier);
-		if(!fab)
-		{
-			continue;
-		}
-		for (uint i = 0; i < fab->get_desc()->get_product_count(); i++)
-		{
-			const factory_product_desc_t *product = fab->get_desc()->get_product(i);
-			if(product->get_output_type() == wtype)
-			{
-				uint32 best_journey_time = UINT32_MAX_VALUE;
-				const uint32 transfer_journey_time_factor = ((uint32)welt->get_settings().get_meters_per_tile() * 6) * 10;
-
-				FOR(vector_tpl<nearby_halt_t>, const& nearby_halt, fab->nearby_freight_halts)
+	for(auto &ware : input){
+		if(ware.get_typ()==wtype){
+			for(auto supplier : ware.get_links()){
+				const fabrik_t *fab = get_fab(supplier);
+				if(!fab)
 				{
-					// now search route
-					const uint32 origin_transfer_time = (((uint32)nearby_halt.distance * transfer_journey_time_factor) / 100) + nearby_halt.halt->get_transshipment_time();
-					ware_t tmp;
-					tmp.set_desc(wtype);
-					tmp.set_zielpos(pos.get_2d());
-					tmp.set_origin(nearby_halt.halt);
-					uint32 current_journey_time = (uint32)nearby_halt.halt->find_route(tmp, best_journey_time);
-					if (current_journey_time < UINT32_MAX_VALUE)
+					continue;
+				}
+				for (uint i = 0; i < fab->get_desc()->get_product_count(); i++)
+				{
+					const factory_product_desc_t *product = fab->get_desc()->get_product(i);
+					if(product->get_output_type() == wtype)
 					{
-						current_journey_time += origin_transfer_time;
-						if (tmp.get_ziel().is_bound())
+						uint32 best_journey_time = UINT32_MAX_VALUE;
+						const uint32 transfer_journey_time_factor = ((uint32)welt->get_settings().get_meters_per_tile() * 6) * 10;
+
+						FOR(vector_tpl<nearby_halt_t>, const& nearby_halt, fab->nearby_freight_halts)
 						{
-							const uint32 destination_distance_to_stop = shortest_distance(tmp.get_zielpos(), tmp.get_ziel()->get_basis_pos());
-							const uint32 destination_transfer_time = ((destination_distance_to_stop * transfer_journey_time_factor) / 100) + tmp.get_ziel()->get_transshipment_time();
-							current_journey_time += destination_transfer_time;
+							// now search route
+							const uint32 origin_transfer_time = (((uint32)nearby_halt.distance * transfer_journey_time_factor) / 100) + nearby_halt.halt->get_transshipment_time();
+							ware_t tmp;
+							tmp.set_desc(wtype);
+							tmp.set_zielpos(pos.get_2d());
+							tmp.set_origin(nearby_halt.halt);
+							uint32 current_journey_time = (uint32)nearby_halt.halt->find_route(tmp, best_journey_time);
+							if (current_journey_time < UINT32_MAX_VALUE)
+							{
+								current_journey_time += origin_transfer_time;
+								if (tmp.get_ziel().is_bound())
+								{
+									const uint32 destination_distance_to_stop = shortest_distance(tmp.get_zielpos(), tmp.get_ziel()->get_basis_pos());
+									const uint32 destination_transfer_time = ((destination_distance_to_stop * transfer_journey_time_factor) / 100) + tmp.get_ziel()->get_transshipment_time();
+									current_journey_time += destination_transfer_time;
+								}
+
+								if (current_journey_time < best_journey_time)
+								{
+									best_journey_time = current_journey_time;
+								}
+							}
 						}
 
-						if (current_journey_time < best_journey_time)
+						if(best_journey_time < UINT32_MAX_VALUE && (best_journey_time > longest_lead_time || longest_lead_time == UINT32_MAX_VALUE))
 						{
-							best_journey_time = current_journey_time;
+							longest_lead_time = best_journey_time;
 						}
+						break;
 					}
 				}
-
-				if(best_journey_time < UINT32_MAX_VALUE && (best_journey_time > longest_lead_time || longest_lead_time == UINT32_MAX_VALUE))
-				{
-					longest_lead_time = best_journey_time;
-				}
-				break;
 			}
+			break;
 		}
 	}
 
 	return longest_lead_time;
-}
-
-uint32 fabrik_t::get_time_to_consume_stock(uint32 index)
-{
-	// This should work in principle, but as things currently stand,
-	// rounding errors result in monthly consumption that is too high
-	// in some cases (especially where the base production figure is low).
-	const factory_supplier_desc_t* flb = desc->get_supplier(index);
-	const uint32 vb = flb ? flb->get_consumption() : 0;
-	const sint32 base_production = get_current_production();
-	sint32 consumed_per_month = max(((base_production * vb) >> 8), 1);
-
-	if(desc->is_consumer_only())
-	{
-		// Consumer industries adjust their consumption according to the number of visitors. Adjust for this.
-		// We cannot use actual consumption figures, as this could lead to deadlocks.
-
-		// Do not use the current month, as this is not complete yet, and the number of visitors will therefore be low.
-		sint64 average_consumers = 0;
-		if(get_stat(3, FAB_CONSUMER_ARRIVED))
-		{
-			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) + get_stat(3, FAB_CONSUMER_ARRIVED)) / 3ll;
-		}
-		else if(get_stat(2, FAB_CONSUMER_ARRIVED))
-		{
-			average_consumers = (get_stat(1, FAB_CONSUMER_ARRIVED) + get_stat(2, FAB_CONSUMER_ARRIVED) / 2ll);
-		}
-		else
-		{
-			average_consumers = get_stat(1, FAB_CONSUMER_ARRIVED);
-		}
-		// Only make the adjustment if we have data.
-		if (average_consumers)
-		{
-			const sint64 visitor_demand = (sint64)building->get_adjusted_visitor_demand();
-			const sint64 percentage = std::max(100ll, (average_consumers * 100ll) / visitor_demand);
-			consumed_per_month = (consumed_per_month * (sint32)percentage) / 100;
-		}
-	}
-
-	const sint32 input_capacity = max((input[index].max >> fabrik_t::precision_bits), 1);
-
-	const sint64 tick_units = input_capacity * welt->ticks_per_world_month;
-
-	const sint32 ticks_to_consume = tick_units / max(1, consumed_per_month);
-	return welt->ticks_to_tenths_of_minutes(ticks_to_consume);
-
-	/*
-
-	100 ticks per month
-	20 units per month
-	60 minutes per month
-	600 10ths of a minute per month
-	storage of 40 units
-
-	40 units * 100 ticks = 4,000 tick units
-	4,000 tick units / 20 units per month = 200 ticks
-
-	*/
 }
 
 uint32 fabrik_t::get_monthly_pax_demand() const

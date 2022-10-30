@@ -132,6 +132,14 @@ void button_t::set_typ(enum type t)
 			b_no_translate = false;
 			break;
 		}
+		case depot:
+		{
+			b_no_translate = false;
+			text_color = color_idx_to_rgb(91); // brown
+			targetpos = koord3d::invalid;
+			break;
+		}
+
 
 		default:
 			break;
@@ -210,8 +218,8 @@ scr_size button_t::get_min_size() const
 			scr_coord_val x = 0, y = 0, w = 0, h = 0;
 			display_get_image_offset(img, &x, &y, &w, &h);
 			scr_size size(gui_theme_t::gui_pos_button_size);
-			size.w = max(size.w, w+2);
-			size.h = max(size.h, h+2);
+			size.w = max(size.w, w+4);
+			size.h = max(size.h, h+4);
 			return size;
 		}
 
@@ -220,6 +228,11 @@ scr_size button_t::get_min_size() const
 			const uint8 block_height = max(size.h/7,2);
 			const uint8 bars_height = uint8((size.h-block_height-4)/4) * block_height*2 + block_height;
 			return scr_size( max( D_BUTTON_HEIGHT, (gui_theme_t::gui_color_button_text_offset.w+4)*2 + 6/*arrow width(5)+margin(1)*/+block_height + (bars_height-2)/2 ), max(D_BUTTON_HEIGHT, LINESPACE) );
+		}
+
+		case depot:
+		{
+			return scr_size( max(18, D_BUTTON_HEIGHT), max(D_BUTTON_HEIGHT, LINESPACE));
 		}
 
 		default:
@@ -310,9 +323,9 @@ bool button_t::infowin_event(const event_t *ev)
 	}
 
 	if(IS_LEFTRELEASE(ev)) {
-		if(  (type & TYPE_MASK)==posbutton  ) {
+		if(  (type & TYPE_MASK)==posbutton  ||  type==depot_automatic  ) {
 			call_listeners( &targetpos );
-			if (type == posbutton_automatic) {
+			if( type==posbutton_automatic  ||  type==depot_automatic ) {
 				welt->get_viewport()->change_world_position( targetpos );
 				welt->get_zeiger()->change_pos( targetpos );
 			}
@@ -336,6 +349,11 @@ bool button_t::infowin_event(const event_t *ev)
 			call_listeners( (long)1 );
 			button_click_time = cur_time;
 			return true;
+		}
+	}
+	else if( IS_RIGHTRELEASE(ev) ) {
+		if( (type&TYPE_MASK)==depot  &&  targetpos!=koord3d::invalid ) {
+			world()->get_viewport()->change_world_position( targetpos );
 		}
 	}
 	return false;
@@ -371,9 +389,11 @@ void button_t::draw(scr_coord offset)
 		case roundbox_left:
 		case roundbox_middle:
 		case roundbox_right:
+		case imagebox:
 			{
 				switch (type&TYPE_MASK) {
 					case box:
+					case imagebox:
 						display_img_stretch(gui_theme_t::button_tiles[get_state_offset()], area);
 						display_img_stretch_blend(gui_theme_t::button_color_tiles[b_enabled && pressed], area, background_color | TRANSPARENT75_FLAG | OUTLINE_FLAG);
 						break;
@@ -435,15 +455,6 @@ void button_t::draw(scr_coord offset)
 			}
 			break;
 
-		case imagebox:
-			display_img_stretch(gui_theme_t::button_tiles[get_state_offset()], area);
-			display_img_stretch_blend(gui_theme_t::button_color_tiles[b_enabled && pressed], area, (pressed ? text_color: background_color) | TRANSPARENT75_FLAG | OUTLINE_FLAG);
-			display_img_aligned(img, area, ALIGN_CENTER_H | ALIGN_CENTER_V, true);
-			if (win_get_focus() == this) {
-				draw_focus_rect(area);
-			}
-			break;
-
 		case sortarrow:
 			{
 				display_img_stretch(gui_theme_t::button_tiles[0], area);
@@ -480,6 +491,17 @@ void button_t::draw(scr_coord offset)
 				if(  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)  ) {
 					translated_tooltip = translator::translate(tooltip);
 				}
+			}
+			break;
+
+		case depot:
+			{
+				display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
+				if (background_color != color_idx_to_rgb(COL_WHITE)) {
+					display_img_stretch_blend(gui_theme_t::button_color_tiles[b_enabled && pressed], area, background_color | TRANSPARENT75_FLAG | OUTLINE_FLAG);
+				}
+				const PIXVAL depot_color = b_enabled ? this->text_color : SYSCOL_BUTTON_TEXT_DISABLED;
+				display_depot_symbol_rgb(area.x+3, area.y+2+(pressed&&gui_theme_t::pressed_button_sinks), size.w-6, depot_color, false);
 			}
 			break;
 

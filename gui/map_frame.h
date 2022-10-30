@@ -71,7 +71,7 @@ private:
 
 	vector_tpl<const goods_desc_t *> viewable_freight_types;
 
-	gui_aligned_container_t filter_container, network_filter_container, scale_container, *zoom_row;
+	gui_aligned_container_t filter_container, network_filter_container, scale_container, *zoom_row, cont_depot_color_legend;
 
 	gui_scrollpane_map_t* p_scrolly;
 

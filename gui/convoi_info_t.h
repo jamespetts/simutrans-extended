@@ -31,6 +31,8 @@
 #include "times_history_container.h"
 #include "components/gui_colorbox.h"
 #include "components/gui_line_lettercode.h"
+#include "components/gui_line_network.h"
+
 
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
 
@@ -79,7 +81,6 @@ private:
 	button_t go_home_button;
 	button_t no_load_button;
 	button_t replace_button;
-	int statistics_height;
 
 	button_t details_button;
 	button_t reverse_button;
@@ -88,11 +89,12 @@ private:
 	gui_schedule_entry_number_t next_halt_number;
 
 	gui_times_history_t cont_times_history;
+	gui_line_network_t cont_line_network;
 
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
 	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
-	gui_scrollpane_t scroll_freight, scroll_times_history;
+	gui_scrollpane_t scroll_freight, scroll_times_history, scroll_line_network;
 
 	gui_combobox_t freight_sort_selector;
 	button_t line_button; // goto line ...

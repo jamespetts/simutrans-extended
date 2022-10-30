@@ -47,6 +47,7 @@
 #include "money_frame.h"
 #include "halt_detail.h"
 #include "halt_info.h"
+#include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoi_frame.h"
 #include "convoi_info_t.h"
@@ -65,6 +66,8 @@
 #include "loadsoundfont_frame.h"
 #endif
 #include "scenario_info.h"
+#include "depot_frame.h"
+#include "replace_frame.h"
 #include "depotlist_frame.h"
 #include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
@@ -640,7 +643,7 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_soundfont:      w = new loadsoundfont_frame_t(); break;
 #endif
 					case magic_scenario_info:  w = new scenario_info_t(); break;
-					//case magic_depot:          w = new depot_frame_t(); break;
+					case magic_depot:          w = new depot_frame_t(); break;
 					case magic_convoi_list:    w = new convoi_frame_t(); break;
 					case magic_depotlist:      w = new depotlist_frame_t(); break;
 					case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
@@ -651,7 +654,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
+					case magic_consist_order:  w = new consist_order_frame_t(); break;
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
@@ -671,6 +675,15 @@ void rdwr_all_win(loadsave_t *file)
 							w = new convoi_info_t();
 						}
 						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000) {
+							w = new halt_info_t();
+						}
+						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
+							w = new replace_frame_t();
+						}
+						else if( id>=magic_convoi_info && id<magic_convoi_info+0x10000  ) {
+							w = new convoi_info_t();
+						}
+						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000  ) {
 							w = new halt_info_t();
 						}
 						else {

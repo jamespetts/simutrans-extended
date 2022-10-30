@@ -45,6 +45,9 @@ void gui_times_history_t::init()
 		mirrored = schedule->is_mirrored();
 		build_table();
 	}
+	else {
+		remove_all();
+	}
 }
 
 void gui_times_history_t::construct_data(slist_tpl<uint8> *schedule_indices, slist_tpl<departure_point_t *> *time_keys) {
@@ -168,9 +171,9 @@ void gui_times_history_t::build_table()
 
 	const minivec_tpl<schedule_entry_t>& entries = schedule->entries;
 
-	// for convoy loacation
-	sint32 cnv_route_index;
-	sint32 cnv_route_index_left;
+	// for convoy location
+	sint32 cnv_route_index = 0;
+	sint32 cnv_route_index_left = 0;
 	PIXVAL convoy_state_col = COL_SAFETY;
 	uint16 min_range; // in km
 	bool found_location = false;
@@ -179,7 +182,7 @@ void gui_times_history_t::build_table()
 		cnv_route_index_left = convoy->get_route()->get_count() - cnv_route_index;
 		old_route_index = cnv_route_index;
 		if (convoy->has_obsolete_vehicles()) {
-			convoy_state_col = COL_OBSOLETE;
+			convoy_state_col = SYSCOL_OBSOLETE;
 		}
 		min_range = convoy->get_min_range();
 	}
@@ -415,7 +418,10 @@ void gui_times_history_t::build_table()
 
 void gui_times_history_t::draw(scr_coord offset)
 {
-	if (convoy.is_bound()){
+	if (schedule==NULL) {
+		init();
+	}
+	else if (convoy.is_bound()){
 		if (!convoy->get_schedule()->matches(world(), schedule)) {
 			init();
 		}

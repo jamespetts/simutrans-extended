@@ -207,21 +207,21 @@ void vehicle_desc_t::loaded()
 
 	static const float32e8_t gear_factor((uint32)GEAR_FACTOR);
 	float32e8_t power_force_ratio = get_power_force_ratio();
-	force_threshold_speed = (uint16)(power_force_ratio + float32e8_t::half);
+	force_threshold_speed = (uint16)(power_force_ratio + float32e8_t::half).to_sint32();
 	float32e8_t g_power = float32e8_t(power) * (/*(uint32) 1000L * */ (uint32)gear);
 	float32e8_t g_force = float32e8_t(tractive_effort) * (/*(uint32) 1000L * */ (uint32)gear);
 	if (g_power != 0)
 	{
 		if (g_force == 0)
 		{
-			g_force = max(gear_factor, g_power / power_force_ratio);
+			g_force = fl_max(gear_factor, g_power / power_force_ratio);
 		}
 	}
 	else
 	{
 		if (g_force != 0)
 		{
-			g_power = max(gear_factor, g_force * power_force_ratio);
+			g_power = fl_max(gear_factor, g_force * power_force_ratio);
 		}
 	}
 
@@ -232,20 +232,20 @@ void vehicle_desc_t::loaded()
 	 */
 	if (g_power != 0 || g_force != 0)
 	{
-		uint32 speed = (uint32)topspeed * kmh2ms + float32e8_t::half;
+		uint32 speed = (topspeed * kmh2ms + float32e8_t::half).to_sint32();
 		max_speed = speed;
 		geared_power = new uint32[speed+1];
 		geared_force = new uint32[speed+1];
 
 		for (; speed > force_threshold_speed; --speed)
 		{
-			geared_force[speed] = g_power / speed + float32e8_t::half;
-			geared_power[speed] = g_power + float32e8_t::half;
+			geared_force[speed] = (g_power / speed + float32e8_t::half).to_sint32();
+			geared_power[speed] = (g_power         + float32e8_t::half).to_sint32();
 		}
 		for (; speed <= force_threshold_speed; --speed)
 		{
-			geared_force[speed] = g_force + float32e8_t::half;
-			geared_power[speed] = g_force * speed + float32e8_t::half;
+			geared_force[speed] = (g_force         + float32e8_t::half).to_sint32();
+			geared_power[speed] = (g_force * speed + float32e8_t::half).to_sint32();
 		}
 	}
 }
@@ -297,7 +297,7 @@ void vehicle_desc_t::fix_number_of_classes()
 	fix_basic_constraint();
 	// We can call this safely since we fixed the number of classes
 	// stored in the good desc earlier when registering it.
-	uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
 
 	if (actual_number_of_classes == 0)
 	{
@@ -475,8 +475,8 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(brake_force);
 	chk->input(minimum_runway_length);
 	chk->input(range);
-	const uint16 ar = air_resistance * float32e8_t((uint32)100);
-	const uint16 rr = rolling_resistance * float32e8_t((uint32)100);
+	const uint16 ar = (air_resistance     * float32e8_t((uint32)100)).to_sint32();
+	const uint16 rr = (rolling_resistance * float32e8_t((uint32)100)).to_sint32();
 	chk->input(ar);
 	chk->input(rr);
 	chk->input(livery_image_type);
@@ -533,6 +533,30 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 	return upgrade_state;
 }
 
+uint8 vehicle_desc_t::get_min_accommodation_class() const
+{
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	for (uint8 i = 0; i < actual_number_of_classes; i++)
+	{
+		if (capacity[i]>0) {
+			return i+1;
+		}
+	}
+	return 0;
+}
+
+uint8 vehicle_desc_t::get_max_accommodation_class() const
+{
+	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();
+	for (uint8 i = 0; i < actual_number_of_classes; i++)
+	{
+		if (capacity[actual_number_of_classes-i-1] > 0) {
+			return (actual_number_of_classes-i-1);
+		}
+	}
+	return 0;
+}
+
 const char* vehicle_desc_t::get_accommodation_name(uint8 a_class) const
 {
 	if (a_class > classes || !capacity[a_class]) {
@@ -555,6 +579,8 @@ const char* vehicle_desc_t::get_accommodation_name(uint8 a_class) const
 			count++;
 		}
 	}
+
+	return NULL;
 }
 
 // The old pak doesn't have a basic constraint, so add a value referring to the constraint.

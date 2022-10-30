@@ -113,7 +113,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_convoiinfo.cc
 	gui/components/gui_convoy_assembler.cc
 	gui/components/gui_convoy_formation.cc
-	gui/components/gui_convoy_label.cc
 	gui/components/gui_convoy_payloadinfo.cc
 	gui/components/gui_divider.cc
 	gui/components/gui_factory_storage_info.cc
@@ -124,6 +123,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
 	gui/components/gui_line_lettercode.cc
+	gui/components/gui_line_network.cc
 	gui/components/gui_map_preview.cc
 	gui/components/gui_numberinput.cc
 	gui/components/gui_obj_view_t.cc
@@ -138,6 +138,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_textinput.cc
 	gui/components/gui_vehicle_capacitybar.cc
 	gui/components/gui_vehicle_cargoinfo.cc
+	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
 	gui/consist_order_gui.cc
@@ -178,6 +179,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
+	gui/linelist_stats_t.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc

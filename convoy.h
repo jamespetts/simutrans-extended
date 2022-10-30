@@ -228,7 +228,7 @@ public:
 	 */
 	inline float32e8_t calc_speed_holding_force(const float32e8_t &v /* in m/s */, const float32e8_t &Frs /* in N */)
 	{
-		return min(get_force(v), adverse.cf * v * v + Frs); /* in N */
+		return fl_min(get_force(v), adverse.cf * v * v + Frs); /* in N */
 	}
 protected:
 	vehicle_summary_t vehicle_summary;

@@ -69,7 +69,7 @@ const uint8 hist_type_color[MAX_CITY_HISTORY] =
 	COL_BROWN,
 	COL_ELECTRICITY+2,
 	COL_ELECTRICITY-1,
-	COL_OVERCROWD
+	COL_PURPLE-1
 };
 
 
@@ -338,7 +338,7 @@ void city_info_t::init()
 	cont_destination_map.add_table(3,1)->set_alignment(ALIGN_TOP);
 	{
 		bt_show_hide_legend.init(button_t::roundbox_state, "+");
-		bt_show_hide_legend.set_width(display_get_char_width('+') + gui_theme_t::gui_button_text_offset.w + gui_theme_t::gui_button_text_offset_right.x);
+		bt_show_hide_legend.set_width(display_get_char_width('+') + D_BUTTON_PADDINGS_X);
 		bt_show_hide_legend.add_listener(this);
 		cont_destination_map.add_component(&bt_show_hide_legend);
 

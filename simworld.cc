@@ -4700,6 +4700,18 @@ bool karte_t::rem_fab(fabrik_t *fab)
 	return true;
 }
 
+void karte_t::fab_init_contracts(){
+	for(fabrik_t* fab : fab_list){
+		fab->init_contracts();
+	}
+}
+
+void karte_t::fab_remove_contracts(){
+	for(fabrik_t* fab : fab_list){
+		fab->remove_contracts();
+	}
+}
+
 /*----------------------------------------------------------------------------------------------------------------------*/
 /* same procedure for tourist attractions */
 
@@ -5204,6 +5216,7 @@ void karte_t::new_month()
 	uint32 total_electric_demand = 1;
 	uint32 electric_productivity = 0;
 	closed_factories_this_month.clear();
+	should_close_factories_this_month.clear();
 	uint32 closed_factories_count = 0;
 	for (auto const fab : fab_list)
 	{
@@ -5238,6 +5251,16 @@ void karte_t::new_month()
 		}
 	}
 
+	if(should_close_factories_this_month.get_count()){
+		for(uint32 i = 0; i < 16 && i < should_close_factories_this_month.get_count(); i++){
+			fabrik_t* fab = pick_any_weighted(should_close_factories_this_month);
+			if(fab_list.is_contained(fab)){
+				gebaeude_t* gb = fab->get_building();
+				hausbauer_t::remove(get_public_player(), gb, false);
+			}
+		}
+	}
+
 	// Check to see whether more factories need to be added
 	// to replace ones that have closed.
 	// @author: jamespetts
@@ -5257,7 +5280,7 @@ void karte_t::new_month()
 	}
 	const uint32 target_industry_density = get_target_industry_density();
 	uint32 count = 0;
-	while(actual_industry_density < target_industry_density && count < 4)
+	while(actual_industry_density < target_industry_density && count < 8)
 	{
 		// Only add up to four chains per month, and randomise (with a minimum of 8% distribution_weight to ensure that any industry deficiency is, on average, remedied in about a year).
 		const uint32 percentage = max((((target_industry_density - actual_industry_density) * 100u) / target_industry_density), 8u);
@@ -5519,7 +5542,7 @@ void karte_t::recalc_average_speed(bool skip_messages)
 					{
 						cbuffer_t buf;
 						buf.printf(translator::translate("The following %s has become obsolete:\n%s\n"), vehicle_type, translator::translate(info->get_name()));
-						msg->add_message(buf, koord::invalid, message_t::new_vehicle, COL_OBSOLETE, info->get_base_image());
+						msg->add_message(buf, koord::invalid, message_t::new_vehicle, SYSCOL_OBSOLETE, info->get_base_image());
 					}
 				}
 			}
@@ -6493,7 +6516,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	destination first_destination;
 	first_destination.location = koord::invalid;
 	uint32 time_per_tile;
-	uint32 tolerance;
+	uint32 tolerance = 0;
 
 	halthandle_t start_halt;
 	halthandle_t current_halt;
@@ -8894,7 +8917,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			bool read_pak_simuconf = env_t::default_settings.get_pak_overrides_savegame_settings();
 			bool read_userdir_simuconf = env_t::default_settings.get_userdir_overrides_savegame_settings();
 			tabfile_t simuconf;
-			string dummy;
+			std::string dummy;
 
 			if (read_progdir_simuconf) {
 				dr_chdir( env_t::data_dir );
@@ -12039,27 +12062,18 @@ void karte_t::update_weight_of_building_in_world_list(gebaeude_t *gb)
 		return;
 	}
 
-	if(passenger_origins.is_contained(gb))
-	{
-		passenger_origins.update_at(passenger_origins.index_of(gb), gb->get_adjusted_population());
+	if(passenger_origins.update(gb, gb->get_adjusted_population())){
 		passenger_step_interval = calc_adjusted_step_interval(passenger_origins.get_sum_weight(), get_settings().get_passenger_trips_per_month_hundredths());
 	}
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		if (commuter_targets[i].is_contained(gb))
-		{
-			commuter_targets[i].update_at(commuter_targets[i].index_of(gb), (gb->get_tile()->get_desc()->get_class_proportions_sum_jobs() > 0 ? (gb->get_adjusted_jobs() * gb->get_tile()->get_desc()->get_class_proportion_jobs(i)) / gb->get_tile()->get_desc()->get_class_proportions_sum_jobs() : gb->get_adjusted_jobs()));
-		}
+		commuter_targets[i].update(gb, (gb->get_tile()->get_desc()->get_class_proportions_sum_jobs() > 0 ? (gb->get_adjusted_jobs() * gb->get_tile()->get_desc()->get_class_proportion_jobs(i)) / gb->get_tile()->get_desc()->get_class_proportions_sum_jobs() : gb->get_adjusted_jobs()));
 
-		if (visitor_targets[i].is_contained(gb))
-		{
-			visitor_targets[i].update_at(visitor_targets[i].index_of(gb), (gb->get_tile()->get_desc()->get_class_proportions_sum() > 0 ? (gb->get_adjusted_visitor_demand() * gb->get_tile()->get_desc()->get_class_proportion(i)) / gb->get_tile()->get_desc()->get_class_proportions_sum() : gb->get_adjusted_visitor_demand()));
-		}
+		visitor_targets[i].update(gb, (gb->get_tile()->get_desc()->get_class_proportions_sum() > 0 ? (gb->get_adjusted_visitor_demand() * gb->get_tile()->get_desc()->get_class_proportion(i)) / gb->get_tile()->get_desc()->get_class_proportions_sum() : gb->get_adjusted_visitor_demand()));
 	}
-	if(mail_origins_and_targets.is_contained(gb))
-	{
-		mail_origins_and_targets.update_at(mail_origins_and_targets.index_of(gb), gb->get_adjusted_mail_demand());
+
+	if(mail_origins_and_targets.update(gb, gb->get_adjusted_mail_demand())){
 		mail_step_interval = calc_adjusted_step_interval(mail_origins_and_targets.get_sum_weight(), get_settings().get_mail_packets_per_month_hundredths());
 	}
 }

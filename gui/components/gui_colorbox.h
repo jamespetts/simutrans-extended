@@ -202,6 +202,20 @@ public:
 };
 
 
+class gui_depotbox_t : public gui_colorbox_t
+{
+	uint8 width;
+
+public:
+	gui_depotbox_t(PIXVAL c = SYSCOL_TEXT, uint8 width = 10);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
 class gui_fluctuation_triangle_t : public gui_colorbox_t
 {
 protected:

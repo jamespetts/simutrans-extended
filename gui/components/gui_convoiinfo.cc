@@ -11,6 +11,7 @@
 
 #include "../../simworld.h"
 #include "../../vehicle/vehicle.h"
+#include "../../simdepot.h"
 #include "../../simconvoi.h"
 #include "../../simcolor.h"
 #include "../../display/simgraph.h"
@@ -242,6 +243,22 @@ void gui_convoiinfo_t::update_label()
 			}
 			else {
 				switchable_label_value.buf().printf("%u km", cnv->get_min_range());
+			}
+			switchable_label_title.set_visible(true);
+			switchable_label_value.set_visible(true);
+			break;
+		case 9: // home depot
+			switchable_label_title.buf().printf("%s: ", translator::translate("Home depot"));
+			if( cnv->get_home_depot()!=koord3d::invalid ) {
+				switchable_label_value.buf().append(cnv->get_home_depot().get_2d().get_fullstr());
+				if (grund_t* gr = world()->lookup(cnv->get_home_depot())) {
+					if (depot_t* dep = gr->get_depot()) {
+						switchable_label_title.buf().append(dep->get_name());
+					}
+				}
+			}
+			else {
+				switchable_label_title.buf().append(translator::translate("unknown"));
 			}
 			switchable_label_title.set_visible(true);
 			switchable_label_value.set_visible(true);

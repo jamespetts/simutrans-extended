@@ -2509,8 +2509,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		saved_number_of_classes = 1;
 	}
 
-	sint32 total_fracht_count = 0;
-	sint32* fracht_count = new sint32[saved_number_of_classes];
+	uint32 total_fracht_count = 0;
+	uint32* fracht_count = new uint32[saved_number_of_classes];
 	bool create_dummy_ware = false;
 
 	if (file->is_saving())
@@ -2526,7 +2526,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		if (total_fracht_count == 0 && (desc->get_freight_type() != goods_manager_t::none) && desc->get_total_capacity() > 0)
 		{
 			total_fracht_count = 1;
-			fracht_count[0] = 1;
+			fracht_count[0] = 1u;
 			create_dummy_ware = true;
 		}
 	}
@@ -3001,12 +3001,12 @@ uint32 vehicle_t::calc_sale_value() const
 	// after 20 years, it has only half value
 	// Multiply by .997**number of months
 	// Make sure to use OUR version of pow().
-	float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
+	const float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
 	static const float32e8_t base_of_exponent(997, 1000);
 	value *= pow(base_of_exponent, age_in_months);
 
 	// Convert back to integer
-	return (uint32) value;
+	return value.to_sint32();
 }
 
 void
@@ -3387,7 +3387,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 			else {
 				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
 			}
-			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
+			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
 
 			// overcrowding
 			if (cnv->get_overcrowded() && skinverwaltung_t::pax_evaluation_icons) {
@@ -3685,4 +3685,38 @@ void vehicle_t::book_fuel_consumption()
 	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
 
 	fuel_used_this_trip = 0;
+}
+
+void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const convoi_t *cnv, bool draw_background)
+{
+	if (cnv) {
+		scr_coord_val offset_x = 2;
+		const PIXVAL base_color = color_idx_to_rgb(cnv->get_owner()->get_player_color1()+4);
+		PIXVAL bg_color, frame_color;
+		if (draw_background) {
+			bg_color    = display_blend_colors(color_idx_to_rgb(COL_WHITE), base_color, 25);
+			frame_color = display_blend_colors(base_color, color_idx_to_rgb(COL_WHITE), 25);
+		}
+		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+			if (!cnv->get_goods_catg_index().is_contained(catg_index)) {
+				continue;
+			}
+			// draw background
+			if (draw_background) {
+				display_fillbox_wh_rgb(xp+offset_x, yp+2, D_FIXED_SYMBOL_WIDTH+2, D_FIXED_SYMBOL_WIDTH+2, bg_color, true);
+			}
+
+			display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), xp+offset_x+2, yp+3, 0, false, true);
+			offset_x += 12;
+			if (!skinverwaltung_t::goods_categories && (catg_index!=goods_manager_t::INDEX_PAS && catg_index!=goods_manager_t::INDEX_MAIL)) {
+				// pakset cannot distinguish the type of freight catgs => Exit when one is found
+				break;
+			}
+		}
+		// draw border
+		if (draw_background && offset_x > 2) {
+			display_ddd_box_rgb(xp,   yp,   offset_x+3, D_FIXED_SYMBOL_WIDTH+4, frame_color, frame_color, true);
+			display_ddd_box_rgb(xp+1, yp+1, offset_x+1, D_FIXED_SYMBOL_WIDTH+2, base_color,  base_color,  true);
+		}
+	}
 }

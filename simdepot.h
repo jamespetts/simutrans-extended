@@ -162,11 +162,6 @@ public:
 	void sell_vehicle(vehicle_t* veh);
 
 	/**
-	 * Access to vehicle types which can be bought in the depot.
-	 */
-	slist_tpl<vehicle_desc_t*> const & get_vehicle_type();
-
-	/**
 	 * Returns the waytype for a certain vehicle; only way to distinguish differnt depots ...
 	 */
 	virtual waytype_t get_wegtyp() const { return invalid_wt; }
@@ -246,8 +241,7 @@ public:
 	sync_result sync_step(uint32 delta_t);
 
 	void set_name(const char* value);
-	const char* get_name() const;
-
+	const char* get_name() const OVERRIDE;
 
 private:
 	linehandle_t last_selected_line;

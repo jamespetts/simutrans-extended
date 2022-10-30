@@ -533,6 +533,7 @@ void gui_textinput_t::display_with_cursor(scr_coord offset, bool cursor_active, 
 {
 	display_img_stretch( gui_theme_t::editfield, scr_rect( pos+offset, size ) );
 
+	const int y_offset = pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(LINESPACE,size.h);
 	if(  text  ) {
 		// recalculate scroll offset
 		const int text_width = proportional_string_width(text);
@@ -576,7 +577,6 @@ void gui_textinput_t::display_with_cursor(scr_coord offset, bool cursor_active, 
 		PUSH_CLIP_FIT(text_clip_x, text_clip_y, text_clip_w, text_clip_h);
 
 		const int x_base_offset = pos.x+offset.x+2-scroll_offset;
-		const int y_offset = pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(LINESPACE,size.h);
 
 		// display text (before composition)
 		display_text_proportional_len_clip_rgb(x_base_offset, y_offset, text, ALIGN_LEFT | DT_CLIP, textcol, true, head_cursor_pos);
@@ -619,6 +619,9 @@ void gui_textinput_t::display_with_cursor(scr_coord offset, bool cursor_active, 
 			if(  cursor_visible  ) {
 				display_fillbox_wh_clip_rgb(x_base_offset+cursor_offset-1, y_offset, 1, LINESPACE, SYSCOL_CURSOR_BEAM, true);
 			}
+		}
+		else if ( is_search_box  &&  !text_width ){
+			display_text_proportional_len_clip_rgb(x_base_offset + 2, y_offset, translator::translate("Search ..."), ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT_PLACEHOLDER, true, max);
 		}
 
 		// reset clipping

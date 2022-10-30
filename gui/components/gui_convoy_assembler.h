@@ -19,8 +19,10 @@
 #include "gui_tab_panel.h"
 #include "gui_speedbar.h"
 #include "../gui_theme.h"
+#include "../vehicle_class_manager.h"
 
 #include "gui_container.h"
+#include "gui_vehicle_capacitybar.h"
 
 #include "../../convoihandle_t.h"
 
@@ -35,38 +37,51 @@
 #define VEHICLE_FILTER_RELEVANT 1
 #define VEHICLE_FILTER_GOODS_OFFSET 2
 
-class depot_convoi_capacity_t : public gui_container_t
+class gui_vehicle_spec_t : public gui_aligned_container_t, private action_listener_t
 {
-private:
-	uint32 total_pax;
-	uint32 total_standing_pax;
-	uint32 total_mail;
-	uint32 total_goods;
+	const vehicle_desc_t *veh_type;
 
-	uint8 total_pax_classes;
-	uint8 total_mail_classes;
+	bool is_secondary_view = false;
+	button_t bt_main_view, bt_secondary_view;
+	void build_secondary_view(uint16 current_livery);
 
-	int good_type_0 = -1;
-	int good_type_1 = -1;
-	int good_type_2 = -1;
-	int good_type_3 = -1;
-	int good_type_4 = -1;
+	// update spac
+	// current_livery=65535 means not convoy vehicle => use depot's value
+	void update(uint8 action, uint32 value, uint16 current_livery=65535);
+public:
+	gui_vehicle_spec_t(const vehicle_desc_t* v=NULL);
 
-	uint32 good_type_0_amount;
-	uint32 good_type_1_amount;
-	uint32 good_type_2_amount;
-	uint32 good_type_3_amount;
-	uint32 good_type_4_amount;
-	uint32 rest_good_amount;
+	// NULL=clear, resale value is used only in va_sell mode
+	void set_vehicle(const vehicle_desc_t* v = NULL, uint8 action = 0, uint16 current_livery = 65535, uint32 resale_value=0)
+	{
+		veh_type = v; update(action, resale_value, current_livery);
+	}
 
-	uint8 highest_catering;
-	bool is_tpo;
+	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
+
+	scr_size get_max_size() const OVERRIDE;
+};
+
+
+class gui_vehicles_capacity_info_t : public gui_aligned_container_t
+{
+	accommodation_summary_t accommodations;
+	uint8 old_vehicle_count = 0;
+	vector_tpl<const vehicle_desc_t *> *vehicles;
 
 public:
-	depot_convoi_capacity_t();
-	void set_totals(uint32 pax, uint32 standing_pax, uint32 mail, uint32 goods, uint8 pax_classes, uint8 mail_classes, int good_0, int good_1, int good_2, int good_3, int good_4, uint32 good_0_amount, uint32 good_1_amount, uint32 good_2_amount, uint32 good_3_amount, uint32 good_4_amount, uint32 rest_good, uint8 catering, bool tpo);
-	void draw(scr_coord offset);
+	gui_vehicles_capacity_info_t(vector_tpl<const vehicle_desc_t *> *vehicles);
+
+	void update_accommodations();
+
+	void init_table();
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	using gui_aligned_container_t::get_min_size;
+	scr_size get_max_size() const OVERRIDE { return scr_size::inf; }
 };
+
 
 class gui_vehicle_bar_legends_t : public gui_aligned_container_t
 {
@@ -81,32 +96,29 @@ public:
  * The author markers of the original code have been preserved when
  *   possible.
  */
-class gui_convoy_assembler_t :
-	public gui_container_t,
-	public gui_action_creator_t,
-	public action_listener_t
+class gui_convoy_assembler_t : public gui_aligned_container_t, public gui_action_creator_t, private action_listener_t
 {
-	// show retired vehicles (same for all depot)
-	static bool show_retired_vehicles;
-
-	// show retired vehicles (same for all depot)
-	static bool show_all;
-
-	/* show outdated vehicles (same for all depot)
-	*  outdated means production is stopped but not increase maintenance yet.
-	*/
-	static bool show_outdated_vehicles;
-
 	/**
 	 * Parameters to determine layout and behaviour of convoy images.
 	 * Originally in simdepot.h.  Based in the code of:
 	 */
 	static scr_coord get_placement(waytype_t wt);
+public:
 	static scr_coord get_grid(waytype_t wt);
 
+	static bool show_all;               // show available vehicles (same for all depot)
+	static bool show_outdated_vehicles; // shoe vehicled that production is stopped but not increase maintenance yet.
+	static bool show_obsolete_vehicles; // (same for all depot)
+
+	static sint16 sort_by_action;
+	static bool sort_reverse;
+
+	uint8 veh_action = va_append;
+	static uint16 livery_scheme_index;
+
+private:
 	waytype_t way_type;
 	bool way_electrified;
-	static class karte_ptr_t welt;
 
 	// The selected convoy so far...
 	vector_tpl<const vehicle_desc_t *> vehicles;
@@ -115,20 +127,26 @@ class gui_convoy_assembler_t :
 	class depot_frame_t *depot_frame;
 	class replace_frame_t *replace_frame;
 
-	/* Gui parameters */
-	scr_coord placement;	// ...of first vehicle image
-	sint32 placement_dx;
-	scr_coord grid;		    // Offsets for adjacent vehicle images
-	sint32 grid_dx;		// Horizontal offset adjustment for vehicles in convoy
-	uint32 max_convoy_length;
-	sint32 panel_rows;
-	sint32 convoy_tabs_skip;
+	// [CONVOI]
+	vector_tpl<gui_image_list_t::image_data_t*> convoi_pics;
+	gui_image_list_t convoi;
+	gui_label_t lb_makeup;
 
-	/* Gui elements */
-	gui_label_t lb_convoi_count;
-	gui_label_buf_t lb_convoi_number;
+	gui_aligned_container_t cont_convoi, cont_convoi_capacity;
+	gui_scrollpane_t scrollx_convoi, scrolly_convoi_capacity;
+
+	button_t bt_class_management;
+	gui_convoy_loading_info_t capacity_info;
+
+	gui_label_buf_t lb_convoi_count;
 	gui_label_buf_t lb_convoi_count_fluctuation;
 	gui_label_buf_t lb_convoi_tiles;
+	gui_tile_occupancybar_t tile_occupancy;
+	sint8 new_vehicle_length;
+
+	// convoy spec
+	gui_image_t img_alert_speed, img_alert_power;
+	gui_aligned_container_t cont_convoi_spec;
 	gui_label_buf_t lb_convoi_speed;
 	gui_label_buf_t lb_convoi_cost;
 	gui_label_buf_t lb_convoi_maintenance;
@@ -137,74 +155,28 @@ class gui_convoy_assembler_t :
 	gui_label_buf_t lb_convoi_brake_force;
 	gui_label_buf_t lb_convoi_brake_distance;
 	gui_label_buf_t lb_convoi_axle_load;
-	// Specifies the traction types handled by
-	// this depot.
-	// @author: jamespetts, April 2010
-	gui_label_buf_t lb_traction_types;
-	gui_label_buf_t lb_vehicle_count;
-	// Display the load
-	//gui_container_t cont_convoi_capacity;
+	gui_label_buf_t lb_convoi_rolling_resistance;
+	gui_label_buf_t lb_convoi_way_wear;
 
-	depot_convoi_capacity_t cont_convoi_capacity;
 
-	gui_tile_occupancybar_t tile_occupancy;
-	sint8 new_vehicle_length;
-	//sint32 convoi_length_ok_sb, convoi_length_slower_sb, convoi_length_too_slow_sb, convoi_tile_length_sb, new_vehicle_length_sb;
-
-	button_t bt_outdated;
-	button_t bt_obsolete;
-	button_t bt_show_all;
-
+	// [VEHICLE LIST]
 	gui_tab_panel_t tabs;
-	gui_divider_t   div_tabbottom;
-
-	gui_label_t lb_veh_action;
-	gui_combobox_t action_selector;
-
-	gui_label_t lb_too_heavy_notice;
-
-	gui_label_t lb_livery_selector;
-	gui_label_buf_t lb_livery_counter;
-	gui_combobox_t livery_selector;
-
-	button_t bt_class_management;
-
-	vector_tpl<gui_image_list_t::image_data_t*> convoi_pics;
-	gui_image_list_t convoi;
-	gui_container_t cont_convoi;
-	gui_scrollpane_t scrolly_convoi;
-
 	vector_tpl<gui_image_list_t::image_data_t*> pas_vec;
 	vector_tpl<gui_image_list_t::image_data_t*> pas2_vec;
 	vector_tpl<gui_image_list_t::image_data_t*> electrics_vec;
-	vector_tpl<gui_image_list_t::image_data_t*> loks_vec;
+	vector_tpl<gui_image_list_t::image_data_t*> locos_vec;
 	vector_tpl<gui_image_list_t::image_data_t*> waggons_vec;
 
 	gui_image_list_t pas;
 	gui_image_list_t pas2;
 	gui_image_list_t electrics;
-	gui_image_list_t loks;
+	gui_image_list_t locos;
 	gui_image_list_t waggons;
 	gui_scrollpane_t scrolly_pas;
 	gui_scrollpane_t scrolly_pas2;
 	gui_scrollpane_t scrolly_electrics;
-	gui_scrollpane_t scrolly_loks;
+	gui_scrollpane_t scrolly_locos;
 	gui_scrollpane_t scrolly_waggons;
-
-	gui_combobox_t vehicle_filter;
-	gui_label_t lb_vehicle_filter;
-
-	cbuffer_t txt_convoi_count;
-	cbuffer_t tooltip_convoi_rolling_resistance;
-	cbuffer_t txt_convoi_way_wear_factor;
-	cbuffer_t tooltip_convoi_speed;
-
-	gui_vehicle_bar_legends_t cont_vehicle_bar_legends;
-
-	scr_coord_val second_column_x; // x position of the second text column
-
-	enum { va_append, va_insert, va_sell, va_upgrade };
-	uint8 veh_action;
 
 	// text for the tabs is defaulted to the train names
 	static const char * get_electrics_name(waytype_t wt);
@@ -212,6 +184,22 @@ class gui_convoy_assembler_t :
 	static const char * get_zieher_name(waytype_t wt);
 	static const char * get_haenger_name(waytype_t wt);
 	static const char * get_passenger2_name(waytype_t wt);
+
+	// [FILTER]
+	static char name_filter_value[64];
+	gui_textinput_t name_filter_input;
+
+	gui_combobox_t vehicle_filter;
+
+	button_t bt_show_all;
+	button_t bt_outdated;
+	button_t bt_obsolete;
+
+	gui_combobox_t sort_by;
+	button_t sort_order;
+
+	// [MODE SELECTOR]
+	gui_combobox_t action_selector;
 
 	/**
 	 * A helper map to update loks_vec and waggons_Vec. All entries from
@@ -221,109 +209,97 @@ class gui_convoy_assembler_t :
 	vehicle_image_map vehicle_map;
 
 	/**
-	 * Draw the info text for the vehicle the mouse is over - if any.
+	 * Update the info text for the vehicle the mouse is over - if any.
 	 */
-	void draw_vehicle_info_text(const scr_coord& pos);
+	void update_vehicle_info_text(scr_coord pos);
+	//void update_vehicle_info_text() { update_vehicle_info_text(pos); }
 
-	// for convoi image
-	void image_from_convoi_list(uint nr);
-
-	void image_from_storage_list(gui_image_list_t::image_data_t* image_data);
+	// cache old values
+	const vehicle_desc_t *old_veh_type;
 
 	// add a single vehicle (helper function)
 	void add_to_vehicle_list(const vehicle_desc_t *info);
 
-	//static const sint16 VINFO_HEIGHT = 186 + 14;
-	const scr_coord_val VINFO_HEIGHT = 23 * LINESPACE + D_BUTTON_HEIGHT * 3 + D_EDIT_HEIGHT + 3 * D_V_SPACE;
+	// for convoi image
+	void image_from_convoi_list(uint nr);
 
-	static uint16 livery_scheme_index;
+	void image_from_storage_list(gui_image_list_t::image_data_t *image_data);
+
+	// [UNDER TABS]
+	gui_label_t lb_too_heavy_notice;
+
+	gui_vehicle_spec_t cont_vspec;
+
 	vector_tpl<uint16> livery_scheme_indices;
+	gui_combobox_t livery_selector;
+	gui_label_buf_t lb_livery_counter;
 
 	/* color bars for current convoi: */
-	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);
 	void set_vehicle_bar_shape(gui_image_list_t::image_data_t *pic, const vehicle_desc_t *v);
 
+	// Reflects changes when upgrading to the target vehicle
+	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);
+
 public:
+	enum {
+		va_append,
+		va_insert,
+		va_sell,
+		va_upgrade
+	};
+
 	// Last selected vehicle filter
 	static int selected_filter;
 
-	// Used for listeners to know what has happened
-	enum { clear_convoy_action, remove_vehicle_action, insert_vehicle_in_front_action, append_vehicle_action };
+	gui_convoy_assembler_t(depot_frame_t *frame);
+	gui_convoy_assembler_t(replace_frame_t *frame);
 
-	enum { u_buy, u_upgrade };
-
-	gui_convoy_assembler_t(waytype_t wt, signed char player_nr, bool electrified = true);
 	void clear_vectors();
 	virtual ~gui_convoy_assembler_t();
-	/**
-	 * Create and fill loks_vec and waggons_vec.
-	 */
-	void build_vehicle_lists();
 
-	/**
-	 * Do the dynamic component layout
-	 */
-	void layout();
-
-	bool action_triggered( gui_action_creator_t *comp, value_t extra) OVERRIDE;
+	void init(waytype_t wt, signed char player_nr, bool electrified = true);
 
 	/**
 	 * Update texts, image lists and buttons according to the current state.
 	 */
+	// update [CONVOI] data
+	void update_convoi();
+
+private:
+	// update vehicles colorbar
+	// ** do not call this from depot frame! ** //
 	void update_data();
 	void update_tabs();
 
-	/* The gui_component_t interface */
-	virtual void draw(scr_coord offset);
+	/**
+	 * Create and fill vehicle vectors (for all tabs)
+	 */
+	void build_vehicle_lists();
 
-	bool infowin_event(const event_t *ev) OVERRIDE;
-
-	inline void clear_convoy() {vehicles.clear();}
-
-	inline void remove_vehicle_at(sint32 n) {vehicles.remove_at(n);}
-	inline void append_vehicle(const vehicle_desc_t* vb, bool in_front) {vehicles.insert_at(in_front?0:vehicles.get_count(),vb);}
-
+public:
 	/* Getter/setter methods */
 
-	inline void set_depot_frame(depot_frame_t *df) {depot_frame=df;}
-	inline void set_replace_frame(replace_frame_t *rf) {replace_frame=rf;}
-
-	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() {return &vehicles;}
+	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() { return &vehicles; }
 	inline const vector_tpl<gui_image_list_t::image_data_t* >* get_convoi_pics() const { return &convoi_pics; }
 	void set_vehicles(convoihandle_t cnv);
 	void set_vehicles(const vector_tpl<const vehicle_desc_t *>* vv);
 
-	inline void set_convoy_tabs_skip(sint32 skip) {convoy_tabs_skip=skip;}
+	void set_panel_width();
 
-	inline sint16 get_convoy_clist_width() const { return vehicles.get_count() * (grid.x - grid_dx) + 2 * gui_image_list_t::BORDER; } // = CLIST_WIDTH
+	void draw(scr_coord offset) OVERRIDE;
 
-	inline sint16 get_convoy_image_width() const {return convoi.get_max_size().w + placement_dx;}
+	bool action_triggered(gui_action_creator_t *comp, value_t extra) OVERRIDE;
+	bool infowin_event(const event_t *ev) OVERRIDE;
 
-	inline sint16 get_convoy_image_height() const { return grid.y + 2 * gui_image_list_t::BORDER + 5; } // = CLIST_HEIGHT
-
-	inline sint16 get_convoy_height() const {return get_convoy_image_height() + D_SCROLLBAR_HEIGHT * (get_convoy_clist_width() >= size.w-D_MARGIN_LEFT-D_MARGIN_RIGHT);}
-	//	inline sint16 get_convoy_height() const {return get_convoy_image_height() + LINESPACE * 5 + 6;}
-
-	inline sint16 get_vinfo_height() const { return VINFO_HEIGHT; }
-
-	void set_panel_rows(sint32 dy);
-
-	inline sint16 get_panel_height() const {return (panel_rows * grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER + VEHICLE_BAR_HEIGHT);}
-
-	inline sint16 get_min_panel_height() const {return grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER + VEHICLE_BAR_HEIGHT;}
-
-	inline int get_height() const {return get_convoy_height() + convoy_tabs_skip + 8 + get_vinfo_height() + 23 + get_panel_height();}
-
-	inline int get_min_height() const {return get_convoy_height() + convoy_tabs_skip + 8 + get_vinfo_height() + 23 + get_min_panel_height();}
-
-	void set_electrified( bool ele );
-
-	inline uint8 get_upgrade() const { return veh_action == va_upgrade; }
-	inline uint8 get_action() const { return veh_action; }
+	void set_electrified(bool ele);
 
 	static uint16 get_livery_scheme_index() { return livery_scheme_index; }
 
-	void set_traction_types(const char *traction_types_text) { lb_traction_types.buf().append(traction_types_text); lb_traction_types.update(); }
+	// for save and reload
+	int get_current_tab_index() const { return tabs.get_active_tab_index(); }
+	void set_current_tab_index(int idx) { tabs.set_active_tab_index(idx); }
+
+	void set_spec(const vehicle_desc_t *veh_type) { cont_vspec.set_vehicle(veh_type, 0, 0); }
 };
 
 #endif

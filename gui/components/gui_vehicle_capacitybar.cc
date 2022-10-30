@@ -38,11 +38,11 @@ void gui_convoy_loading_info_t::update_list()
 
 				bool is_lowest_class = true; // for display catgroy symbol
 				for (uint8 i = 0; i < g_classes; i++) {
+					const goods_desc_t* ware = goods_manager_t::get_info_catg_index(catg_index);
 					const uint16 capacity = get_unique_fare_capacity(catg_index,i);
 					if (!capacity) {
 						continue;
 					}
-					const goods_desc_t* ware = goods_manager_t::get_info_catg_index(catg_index);
 					// 1: goods category symbol
 					if (is_lowest_class) {
 						new_component<gui_image_t>(ware->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
@@ -53,20 +53,20 @@ void gui_convoy_loading_info_t::update_list()
 					}
 
 					// 2: fare class name / category name
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
-					if (g_classes==1) {
-						// no classes => show the category name
-						lb->buf().printf("%s", translator::translate(ware->get_catg_name()));
+					if (g_classes>1) {
+						// "fare" class name
+						gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+						lb->buf().printf("%s", ( goods_manager_t::get_translated_fare_class_name(catg_index,i) ));
+						lb->update();
 					}
 					else {
-						// "fare" class name
-						lb->buf().printf("%s", ( goods_manager_t::get_translated_fare_class_name(catg_index,i) ));
+						// no classes => show the category name
+						new_component<gui_label_t>(ware->get_catg_name());
 					}
-					lb->update();
 
 					// 3: capacity text
 					const uint16 cargo_sum = get_total_cargo_by_fare_class(catg_index,i);
-					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 					if (show_loading) {
 						lb->buf().printf(" %4d/%3d", min(capacity, cargo_sum), capacity);
 					}
@@ -107,7 +107,7 @@ void gui_convoy_loading_info_t::update_list()
 
 					// 4: capacity bar
 					if (show_loading) {
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), color_idx_to_rgb(COL_OVERCROWD))->set_value(overcrowded_capacity, get_overcrowded());
+						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), SYSCOL_OVERCROWDED)->set_value(overcrowded_capacity, get_overcrowded());
 					}
 					new_component<gui_fill_t>();
 				}
@@ -115,25 +115,18 @@ void gui_convoy_loading_info_t::update_list()
 		}
 		end_table();
 	}
-	set_size(get_size());
+	set_size(get_min_size());
 }
 
 uint16 gui_convoy_loading_info_t::get_unique_fare_capacity(uint8 catg_index, uint8 g_class)
 {
-	uint16 capacity=0;
 	if (cnv.is_bound()) {
 		return cnv->get_unique_fare_capacity(catg_index, g_class);
 	}
 	else if (line.is_bound()) {
-		for (uint32 i = 0; i < line->count_convoys(); i++) {
-			convoihandle_t const convoy = line->get_convoy(i);
-			// we do not want to count the capacity of depot convois
-			if (!convoy->in_depot()) {
-				capacity += convoy->get_unique_fare_capacity(catg_index, g_class);
-			}
-		}
+		return line->get_unique_fare_capacity(catg_index, g_class);
 	}
-	return capacity;
+	return 0;
 }
 
 uint16 gui_convoy_loading_info_t::get_overcrowded_capacity()

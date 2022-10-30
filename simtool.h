@@ -1257,13 +1257,8 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE { return translator::translate("view masked ribi"); }
 	bool is_selected() const OVERRIDE { return strasse_t::show_masked_ribi; }
 	bool init( player_t * ) OVERRIDE {
-		if(  skinverwaltung_t::ribi_arrow  ) {
-			strasse_t::show_masked_ribi ^= 1;
-			welt->set_dirty();
-		} else {
-			// no ribi_arrow pak.
-			dbg->warning("tool_show_ribi_t::init()", "the ribi_arrow pak is not installed!");
-		}
+		strasse_t::show_masked_ribi ^= 1;
+		welt->set_dirty();
 		return false;
 	}
 	bool is_init_network_safe() const OVERRIDE { return true; }

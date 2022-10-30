@@ -164,6 +164,8 @@ public:
 
 	void rdwr(loadsave_t* file);
 
+	uint32 get_count() const { return orders.get_count(); }
+
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	void sscanf_consist_order(const char* ptr);
 };

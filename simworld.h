@@ -1149,6 +1149,7 @@ public:
 	void announce_server(int status);
 
 	vector_tpl<fabrik_t*> closed_factories_this_month;
+	weighted_vector_tpl<fabrik_t*> should_close_factories_this_month;
 
 	/// cache the current maximum and minimum height on the map
 	sint8 max_height, min_height;
@@ -2375,6 +2376,10 @@ public:
 	fabrik_t* get_fab(unsigned index) const { return index < fab_list.get_count() ? fab_list[index] : NULL; }
 	const vector_tpl<fabrik_t*>& get_fab_list() const { return fab_list; }
 	vector_tpl<fabrik_t*>& access_fab_list() { return fab_list; }
+
+	void fab_init_contracts();
+	void fab_remove_contracts();
+
 
 	/**
 	 * Returns a list of goods produced by factories that exist in current game.

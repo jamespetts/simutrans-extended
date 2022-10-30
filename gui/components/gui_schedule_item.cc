@@ -13,16 +13,18 @@
 #include "../../display/simgraph.h"
 #include "../../display/viewport.h"
 
-gui_colored_route_bar_t::gui_colored_route_bar_t(uint8 p_col, uint8 style_)
+gui_colored_route_bar_t::gui_colored_route_bar_t(uint8 p_col, uint8 style_, bool flexible_h)
 {
 	style = style_;
+	flexible_height = flexible_h;
 	base_color = color_idx_to_rgb(p_col - p_col%8 + 3);
 	size = scr_size(D_ENTRY_NO_WIDTH, LINESPACE);
 }
 
-gui_colored_route_bar_t::gui_colored_route_bar_t(PIXVAL line_color, uint8 style_)
+gui_colored_route_bar_t::gui_colored_route_bar_t(PIXVAL line_color, uint8 style_, bool flexible_h)
 {
 	style = style_;
+	flexible_height = flexible_h;
 	base_color = line_color;
 	size = scr_size(D_ENTRY_NO_WIDTH, LINESPACE);
 }
@@ -32,18 +34,20 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 	offset += pos + scr_coord(2,0);
 	const uint8 width = (D_ENTRY_NO_WIDTH-4)/2;
 	scr_coord_val offset_x = D_ENTRY_NO_WIDTH/4-1;
-	size = scr_size(D_ENTRY_NO_WIDTH, LINESPACE);
+	if (!flexible_height) {
+		size = scr_size(D_ENTRY_NO_WIDTH, LINESPACE);
+	}
 
 	const PIXVAL alert_colval = (alert_level==1) ? COL_CAUTION : (alert_level==2) ? COL_WARNING : color_idx_to_rgb(COL_RED+1);
 	// edge lines
 	if (alert_level) {
 		switch (style) {
 		default:
-			display_blend_wh_rgb(offset.x + offset_x-2, offset.y, width+4, LINESPACE, alert_colval, 60);
+			display_blend_wh_rgb(offset.x + offset_x-2, offset.y, width+4, size.h, alert_colval, 60);
 			break;
 		case line_style::dashed:
 		case line_style::thin:
-			display_blend_wh_rgb(offset.x + offset_x,   offset.y, width,   LINESPACE, alert_colval, 60);
+			display_blend_wh_rgb(offset.x + offset_x,   offset.y, width,   size.h, alert_colval, 60);
 			break;
 		case line_style::reversed:
 		case line_style::none:
@@ -55,28 +59,28 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 	switch (style) {
 		case line_style::solid:
 		default:
-			display_fillbox_wh_clip_rgb(offset.x + offset_x, offset.y, width, LINESPACE, base_color, true);
+			display_fillbox_wh_clip_rgb(offset.x + offset_x, offset.y, width, size.h, base_color, true);
 			break;
 		case line_style::thin:
 		{
 			const uint8 border_width = 2 + D_ENTRY_NO_WIDTH % 2;
-			display_fillbox_wh_clip_rgb(offset.x + D_ENTRY_NO_WIDTH/2-3, offset.y, border_width, LINESPACE, base_color, true);
+			display_fillbox_wh_clip_rgb(offset.x + D_ENTRY_NO_WIDTH/2-3, offset.y, border_width, size.h, base_color, true);
 			break;
 		}
 		case line_style::doubled:
 		{
 			const uint8 border_width = width > 6 ? 3 : 2;
-			display_fillbox_wh_clip_rgb(offset.x + offset_x, offset.y, border_width, LINESPACE, base_color, true);
-			display_fillbox_wh_clip_rgb(offset.x + D_ENTRY_NO_WIDTH-4-offset_x-border_width, offset.y, border_width, LINESPACE, base_color, true);
+			display_fillbox_wh_clip_rgb(offset.x + offset_x, offset.y, border_width, size.h, base_color, true);
+			display_fillbox_wh_clip_rgb(offset.x + D_ENTRY_NO_WIDTH-4-offset_x-border_width, offset.y, border_width, size.h, base_color, true);
 			break;
 		}
 		case line_style::downward:
 			for (uint8 i = 0; i < width; i++) {
-				display_vline_wh_clip_rgb(offset.x+offset_x+i, offset.y, LINESPACE-abs(width/2-i), base_color, true);
+				display_vline_wh_clip_rgb(offset.x+offset_x+i, offset.y, size.h -abs(width/2-i), base_color, true);
 			}
 			break;
 		case line_style::dashed:
-			for (uint8 h=1; h+2 < LINESPACE; h+=4) {
+			for (uint8 h=1; h+2 < size.h; h+=4) {
 				display_fillbox_wh_clip_rgb(offset.x + offset_x+1, offset.y + h, width-2, 2, base_color, true);
 			}
 			break;

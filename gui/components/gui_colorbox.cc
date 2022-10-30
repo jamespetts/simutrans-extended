@@ -161,13 +161,27 @@ void gui_capacity_bar_t::draw(scr_coord offset)
 		}
 		if (overcrowded_width) {
 			if (cylinder_style) {
-				display_cylinderbar_wh_clip_rgb(offset.x+width-1- overcrowded_width, offset.y + 1, overcrowded_width, height - 2, color_idx_to_rgb(COL_OVERCROWD), true);
+				display_cylinderbar_wh_clip_rgb(offset.x+width-1- overcrowded_width, offset.y + 1, overcrowded_width, height - 2, SYSCOL_OVERCROWDED, true);
 			}
 			else {
-				display_fillbox_wh_clip_rgb(offset.x+width-1- overcrowded_width, offset.y + 1, overcrowded_width, height - 2, color_idx_to_rgb(COL_OVERCROWD), true);
+				display_fillbox_wh_clip_rgb(offset.x+width-1- overcrowded_width, offset.y + 1, overcrowded_width, height - 2, SYSCOL_OVERCROWDED, true);
 			}
 		}
 	}
+}
+
+gui_depotbox_t::gui_depotbox_t(PIXVAL c, uint8 w)
+{
+	width = w;
+	color = c;
+	tooltip = NULL;
+	gui_component_t::set_size(scr_size(w, w));
+}
+
+void gui_depotbox_t::draw(scr_coord offset)
+{
+	offset += pos;
+	display_depot_symbol_rgb(offset.x, offset.y, width, color, true);
 }
 
 

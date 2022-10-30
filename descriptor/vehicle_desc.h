@@ -722,6 +722,11 @@ public:
 	bool can_follow_any() const { return trailer_count==0; }
 
 	uint8 get_number_of_classes() const { return classes; }
+
+	// for sorting. 0=no seat capacity
+	uint8 get_min_accommodation_class() const;
+	uint8 get_max_accommodation_class() const;
+
 	uint16 get_capacity(uint32 g_class = 0) const { return classes == 0 ? 0 : g_class >= classes ? capacity[0] : capacity[g_class]; }
 	uint16 get_total_capacity() const
 	{
@@ -825,10 +830,10 @@ public:
 
 	float32e8_t get_power_force_ratio() const;
 	uint32 calc_max_force(const uint32 power) const {
-		return power ? (uint32)(power / get_power_force_ratio() + float32e8_t::half) : 0;
+		return power ? (uint32)(power / get_power_force_ratio() + float32e8_t::half).to_sint32() : 0;
 	}
 	uint32 calc_max_power(const uint32 force) const {
-		return force ? (uint32)(force * get_power_force_ratio()) : 0;
+		return force ? (uint32)(force * get_power_force_ratio()).to_sint32() : 0;
 	}
 	uint32 get_power() const {
 		return power ? power : calc_max_power(tractive_effort);

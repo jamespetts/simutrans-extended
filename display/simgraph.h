@@ -52,7 +52,7 @@ extern int default_font_linespace;
 #define MAX_LINE_COLOR_PALETTE 56
 
 /**
-* Alignment enum to align controls against each other
+* Alignment enum to align controls against each other.
 * Vertical and horizontal alignment can be masked together
 * Unused bits are reserved for future use, set to 0.
 */
@@ -63,21 +63,14 @@ enum control_alignments_t {
 	ALIGN_TOP        = 0x01,
 	ALIGN_CENTER_V   = 0x02,
 	ALIGN_BOTTOM     = 0x03,
-	ALIGN_INTERIOR_V = 0x00,
-	ALIGN_EXTERIOR_V = 0x10,
-	ALIGN_STRETCH_V  = 0x20,
 
 	ALIGN_LEFT       = 0x04,
 	ALIGN_CENTER_H   = 0x08,
 	ALIGN_RIGHT      = 0x0C,
-	ALIGN_INTERIOR_H = 0x00,
-	ALIGN_EXTERIOR_H = 0x40,
-	ALIGN_STRETCH_H  = 0x80,
 
 	// These flags does not belong in here but
 	// are defined here until we sorted this out.
 	// They are only used in display_text_proportional_len_clip_rgb()
-//	DT_DIRTY         = 0x8000,
 	DT_CLIP          = 0x4000
 };
 typedef uint16 control_alignment_t;
@@ -287,6 +280,7 @@ PIXVAL display_blend_colors(PIXVAL background, PIXVAL foreground, int percent_bl
 void display_blend_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, int percent_blend);
 
 void display_linear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, int percent_blend_start, int percent_blend_end);
+void display_vlinear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, int percent_blend_start, int percent_blend_end);
 
 void display_fillbox_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty);
 
@@ -415,6 +409,7 @@ void display_right_pointer_rgb(scr_coord_val x, scr_coord_val y, uint8 height, c
 void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val raster_width, uint8 way_dir, uint8 sig_dir, uint8 state, bool is_diagonal=false, uint8 open_dir=15/* all */, sint8 slope=type_flat);
 
 void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width=12, const uint8 darkest_pcol_idx=88/*brown*/, const bool dirty=true);
+void display_depot_symbol_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val width, const PIXVAL colval, const bool dirty = true);
 
 void display_set_clip_wh(scr_coord_val x, scr_coord_val y, scr_coord_val w, scr_coord_val h  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO, bool fit = false);
 clip_dimension display_get_clip_wh(CLIP_NUM_DEF0 CLIP_NUM_DEFAULT_ZERO);

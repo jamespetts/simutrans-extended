@@ -23,7 +23,7 @@ void gui_convoy_payloadinfo_t::draw(scr_coord offset)
 		uint16 left = 0;
 		cbuffer_t buf;
 		const bool overcrowded = cnv->get_overcrowded() ? true : false;
-		PIXVAL text_col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD - 1) : SYSCOL_TEXT;
+		PIXVAL text_col = overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 
 		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
 		{
@@ -164,4 +164,30 @@ scr_size gui_loadingbar_t::get_min_size() const
 scr_size gui_loadingbar_t::get_max_size() const
 {
 	return scr_size(size_fixed ? LOADINGBAR_WIDTH+2 : scr_size::inf.w, LOADINGBAR_HEIGHT + WAITINGBAR_HEIGHT);
+}
+
+
+gui_convoy_handle_catg_img_t::gui_convoy_handle_catg_img_t(convoihandle_t cnv)
+{
+	this->cnv = cnv;
+}
+
+void gui_convoy_handle_catg_img_t::draw(scr_coord offset)
+{
+	if (!cnv.is_bound()) {
+		return;
+	}
+	size.w = cnv->get_goods_catg_index().get_count()*D_FIXED_SYMBOL_WIDTH+4;
+	offset += pos;
+	display_convoy_handle_catg_imgs(offset.x, offset.y, cnv.get_rep());
+}
+
+scr_size gui_convoy_handle_catg_img_t::get_min_size() const
+{
+	return scr_size(size.w, D_FIXED_SYMBOL_WIDTH+2);
+}
+
+scr_size gui_convoy_handle_catg_img_t::get_max_size() const
+{
+	return scr_size(scr_size::inf.w, D_FIXED_SYMBOL_WIDTH+2);
 }

@@ -254,7 +254,16 @@ goods_frame_t::goods_frame_t() :
 
 	update_fare_charts();
 
+
+	tabs_chart.add_tab(&cont_fare_short, translator::translate("fare_short"));
+	tabs_chart.add_tab(&cont_fare_long,  translator::translate("fare_long"));
+	cont_fare_chart.add_component(&tabs_chart);
+
+	tabs.add_tab(&cont_goods_list, translator::translate("Goods list"));
+	tabs.add_tab(&cont_fare_chart, translator::translate("fare_chart"));
+
 	// comfort chart
+#ifdef DEBUG
 	cont_comfort_chart.set_table_layout(1,0);
 	cont_comfort_chart.new_component<gui_label_t>("(Max. comfortable journey time: ");
 	cont_comfort_chart.new_component<gui_margin_t>(1,LINEASCENT>>1);
@@ -269,14 +278,9 @@ goods_frame_t::goods_frame_t() :
 		comfort_curve[i] = world()->get_settings().max_tolerable_journey(i*5);
 	}
 	comfort_chart.add_curve(15911, (sint64*)comfort_curve, 1, 0, COMFORT_RECORDS, gui_chart_t::TIME, true, false, 0);
-
-	tabs_chart.add_tab(&cont_fare_short, translator::translate("fare_short"));
-	tabs_chart.add_tab(&cont_fare_long,  translator::translate("fare_long"));
-	cont_fare_chart.add_component(&tabs_chart);
-
-	tabs.add_tab(&cont_goods_list, translator::translate("Goods list"));
-	tabs.add_tab(&cont_fare_chart, translator::translate("fare_chart"));
 	tabs.add_tab(&cont_comfort_chart, translator::translate("comfort_chart"));
+#endif
+
 	add_component(&tabs);
 
 	reset_min_windowsize();

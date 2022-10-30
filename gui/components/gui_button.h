@@ -44,6 +44,7 @@ public:
 		roundbox_middle,
 		roundbox_right,
 		imagebox,
+		depot,
 		sortarrow,
 		arrowleft,
 		arrowright,
@@ -62,6 +63,7 @@ public:
 		roundbox_middle_state = roundbox_middle | state,
 		roundbox_right_state  = roundbox_right  | state,
 		imagebox_state   = imagebox   | state,
+		depot_state      = depot      | state,
 		sortarrow_state  = sortarrow  | state,
 		arrowright_state = arrowright | state,
 		arrowup_state    = arrowup    | state,
@@ -72,6 +74,7 @@ public:
 		imagebox_automatic  = imagebox     | automatic,
 		sortarrow_automatic = sortarrow    | automatic,
 		posbutton_automatic = posbutton    | automatic,
+		depot_automatic     = depot        | automatic,
 
 		flexible = 1 << 9
 	};

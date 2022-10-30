@@ -33,7 +33,7 @@
 static char const* const speed_resticted_text = "speed_restricted";
 const uint8 severity_color[6] =
 {
-	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_OVERCROWD
+	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_PURPLE-1
 };
 
 gui_way_detail_info_t::gui_way_detail_info_t(weg_t *way)
@@ -308,12 +308,12 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 					}
 					else {
 						replacement_way = latest_city_road;
-						new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+						new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 						new_component_span<gui_label_t>(replacement_way->get_name(), 3);
 					}
 				}
 				else if (way->get_desc() != replacement_way){
-					new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+					new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 					if( !is_current ) {
 						replacement_way = way_builder_t::weg_search(replacement_way->get_waytype(), replacement_way->get_topspeed(), (sint32)replacement_way->get_axle_load(), time, (systemtype_t)replacement_way->get_styp(), replacement_way->get_wear_capacity());
 					}
@@ -744,11 +744,13 @@ void  way_info_t::init_tabs()
 	tabs.clear();
 	cont_way2.set_way(NULL);
 	cont_way1.set_way(way1);
-	;
-	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype()));
+
+	waytype_t wt = way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	if (has_way==2) {
 		cont_way2.set_way(way2);
-		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(way2->get_desc()->get_styp() == type_tram ? tram_wt : way2->get_waytype()));
+		wt = way2->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	}
 }
 

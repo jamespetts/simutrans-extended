@@ -45,6 +45,8 @@ public:
 
 	scr_size get_text_size();
 
+	scr_coord_val get_required_text_width() { return required_width; }
+
 	/**
 	 * Paints the component
 	 */
@@ -59,6 +61,7 @@ private:
 	scr_size output(scr_coord pos, bool doit, bool return_max_width=true);
 
 	scr_size preferred_size; ///< set by set_text
+	scr_coord_val required_width; ///< set by set_text
 
 	enum attributes
 	{
@@ -355,7 +358,7 @@ void gui_flowtext_intern_t::draw(scr_coord offset)
 
 scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_max_width)
 {
-	const int width = size.w-D_MARGIN_LEFT-D_MARGIN_RIGHT;
+	const int width = size.w-D_MARGINS_X;
 
 	slist_tpl<hyperlink_t>::iterator link = links.begin();
 
@@ -371,11 +374,13 @@ scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_
 	int text_width   = width;
 	const int space_width = proportional_string_width(" ");
 
+	required_width = 0;
 	FOR(slist_tpl<node_t>, const& i, nodes) {
 		switch (i.att) {
 			case ATT_NONE:
 			case ATT_NO_SPACE: {
 				int nxpos = xpos + proportional_string_width(i.text.c_str());
+				required_width = max(nxpos, required_width);
 
 				if (nxpos >= text_width) {
 					text_width = nxpos;
@@ -513,7 +518,7 @@ scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_
 		mark_rect_dirty_wc( offset.x + D_MARGIN_LEFT, offset.y, offset.x+max_width + D_MARGIN_LEFT, offset.y+ypos );
 		dirty = false;
 	}
-	return scr_size( (return_max_width ? max_width : text_width)+D_MARGIN_LEFT+D_MARGIN_RIGHT, ypos);
+	return scr_size( (return_max_width ? max_width : text_width)+D_MARGINS_X, ypos);
 }
 
 
@@ -597,6 +602,11 @@ void gui_flowtext_t::set_size(scr_size size_par)
 scr_size gui_flowtext_t::get_preferred_size()
 {
 	return flowtext->get_preferred_size();
+}
+
+scr_coord_val gui_flowtext_t::get_required_text_width()
+{
+	return flowtext->get_required_text_width()+D_MARGINS_X;
 }
 
 

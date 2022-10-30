@@ -1,0 +1,58 @@
+name: msvc-build
+on:
+  workflow_call:
+    inputs:
+      backend:
+        required: false
+        type: string
+        default: posix
+      target:
+        required: false
+        type: string
+        default: simutrans
+      build_type:
+        required: false
+        type: string
+        default: Release
+      additional_dependencies:
+        required: false
+        type: string
+        default: ""
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Init variables
+        shell: bash
+        run: python ./.github/init_env.py "${{inputs.target}}" "${{inputs.backend}}" "${{inputs.build_type}}" "linux"
+
+      - name: Setup build environment
+        run: |
+          sudo apt-get -y update
+          sudo apt-get install -y --no-install-recommends build-essential cmake clang++-10  
+
+      - name: Install dependencies
+        run: sudo apt-get install -y --no-install-recommends zlib1g-dev libbz2-dev ${{inputs.additional_dependencies}}
+
+      - name: Create build directory
+        run: mkdir build
+      - name: Configure Simutrans
+        run: CC=clang-14 CXX=clang++-14 cmake .. -DCMAKE_BUILD_TYPE="${{inputs.build_type}}" -DSIMUTRANS_BACKEND=${{inputs.backend}}
+        working-directory: ./build
+
+      - name: Build Simutrans
+        run: cmake --build . --target ${{inputs.target}}-extended -- -j $(nproc)
+        working-directory: ./build
+
+      - name: Upload Artifact (CI)
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.st_artifact_name}}
+          path: ${{env.st_artifact_path}}
+          if-no-files-found: error

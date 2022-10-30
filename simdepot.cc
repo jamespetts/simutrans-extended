@@ -74,7 +74,7 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 	all_depots.append(this);
 	last_selected_line = linehandle_t();
 	command_pending = false;
-	strcpy(name, t->get_desc()->get_name());
+	strcpy(name, "unnamed");
 	add_to_world_list();
 	welt->sync.add(this);
 }
@@ -876,7 +876,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 		}
 	}
 
-	if (file->get_extended_version() >= 15)
+	if (file->is_version_ex_atleast(14, 56))
 	{
 		file->rdwr_str(name, lengthof(name));
 	}
@@ -893,6 +893,11 @@ void depot_t::set_name(const char* value)
 		dbg->error("void depot_t::set_name(char* value)", "Name too long");
 	}
 	strcpy(name, value);
+
+	depot_frame_t *win = dynamic_cast<depot_frame_t *>(win_get_magic((ptrdiff_t)this));
+	if (win) {
+		win->reset_depot_name();
+	}
 }
 
 const char* depot_t::get_name() const
@@ -903,7 +908,7 @@ const char* depot_t::get_name() const
 	}
 	else
 	{
-		return gebaeude_t::get_name();
+		return translator::translate(gebaeude_t::get_name());
 	}
 }
 
@@ -934,12 +939,6 @@ const char * depot_t::is_deletable(const player_t *player)
 		}
 	}
 	return NULL;
-}
-
-
-slist_tpl<vehicle_desc_t*> const & depot_t::get_vehicle_type()
-{
-	return vehicle_builder_t::get_info(get_waytype());
 }
 
 
@@ -975,7 +974,7 @@ void depot_t::update_win()
 {
 	depot_frame_t *depot_frame = dynamic_cast<depot_frame_t *>(win_get_magic( (ptrdiff_t)this ));
 	if(depot_frame) {
-		depot_frame->build_vehicle_lists();
+		depot_frame->set_convoy();
 	}
 }
 

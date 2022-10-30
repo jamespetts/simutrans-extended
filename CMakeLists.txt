@@ -37,6 +37,7 @@ endif ()
 if (APPLE)
 	set(CMAKE_PREFIX_PATH "/usr/local/opt/readline")
 	link_directories(/usr/local/lib)
+    link_directories(/opt/homebrew/lib)
 	set(CMAKE_EXE_LINKER_FLAGS "-framework Cocoa")
 endif ()
 
@@ -287,7 +288,7 @@ if (SIMUTRANS_STEAM_BUILT)
 	target_compile_definitions(simutrans-extended PRIVATE STEAM_BUILT=1)
 endif ()
 
-if (NOT SIMUTRANS_ENABLE_RANDOMNESS)
+if (SIMUTRANS_DISABLE_RANDOMNESS)
 	target_compile_definitions(simutrans-extended PRIVATE DISABLE_RANDOMNESS=1)
 endif ()
 
