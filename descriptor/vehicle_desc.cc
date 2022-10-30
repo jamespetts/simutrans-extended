@@ -11,7 +11,7 @@
 
 uint32 vehicle_desc_t::get_running_cost() const
 {
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), running_cost, vehicle_maintenance);
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), running_cost, vehicle_maintenance) : running_cost;
 }
 
 uint32 vehicle_desc_t::get_max_running_cost() const
@@ -36,7 +36,7 @@ sint64 vehicle_desc_t::get_value() const
 
 sint64 vehicle_desc_t::get_base_price() const
 {
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_price(), vehicle_purchase);
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_price(), vehicle_purchase) : obj_desc_transport_related_t::get_base_price();
 }
 
 uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
