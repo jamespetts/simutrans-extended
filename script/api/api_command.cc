@@ -13,9 +13,9 @@
 #include "../api_param.h"
 #include "../api_class.h"
 #include "../api_function.h"
-#include "../../tool/simmenu.h"
-#include "../../tool/simtool.h"
-#include "../../world/simworld.h"
+#include "../../simmenu.h"
+#include "../../simtool.h"
+#include "../../simworld.h"
 #include "../../dataobj/environment.h"
 #include "../../script/script.h"
 #include "../../descriptor/bridge_desc.h"
@@ -212,7 +212,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 	uint8 flags = tool->flags; // might be reset by init()
 
 	// call init before work (but check network safety)
-	if (!tool->is_init_keeps_game_state()) {
+	if (!tool->is_init_network_safe()) {
 		return sq_raise_error(vm, "Initializing tool has side effects");
 	}
 	if (!tool->init(player)) {
@@ -221,7 +221,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 	// set flags
 	tool->flags = flags;
 	// test work
-	if (tool->is_work_keeps_game_state()  ||  (!v.twoclick  &&  tool->is_work_here_keeps_game_state(player, v.start))) {
+	if (tool->is_work_network_safe()  ||  (!v.twoclick  &&  tool->is_work_here_network_safe(player, v.start))) {
 		return sq_raise_error(vm, "Tool has no effects");
 	}
 	// two-click tool
@@ -229,7 +229,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 		if (dynamic_cast<two_click_tool_t*>(tool)==NULL) {
 			return sq_raise_error(vm, "Cannot call this tool with two coordinates");
 		}
-		if (!tool->is_work_here_keeps_game_state(player, v.start)) {
+		if (!tool->is_work_here_network_safe(player, v.start)) {
 			return sq_raise_error(vm, "First click has side effects");
 		}
 	}
@@ -406,7 +406,7 @@ call_tool_work restore_slope(player_t* pl, koord3d start)
 
 const char* can_set_slope(player_t* pl, koord3d pos, my_slope_t slope)
 {
-	return tool_setslope_t::tool_set_slope_work(pl, pos, slope, false /* compatibility */, true /* check */);
+	return tool_setslope_t::tool_set_slope_work(pl, pos, slope);
 }
 
 sint64 set_slope_get_price(my_slope_t slope)

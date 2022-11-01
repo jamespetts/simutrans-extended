@@ -158,11 +158,11 @@ namespace script_api {
 	/**
 	 * Implementation of stringhashtable_tpl specialization
 	 */
-	template<class T> struct param< stringhashtable_tpl<T> > {
+	template<class T, size_t N> struct param< stringhashtable_tpl<T, N> > {
 		/**
 		 * Creates table, uses string-keys as table keys.
 		 */
-		static SQInteger push(HSQUIRRELVM vm, stringhashtable_tpl<T> const& v)
+		static SQInteger push(HSQUIRRELVM vm, stringhashtable_tpl<T, N> const& v)
 		{
 			sq_newtable(vm);
 

@@ -20,7 +20,7 @@ halthandle_t get_halt_from_koord3d(koord3d pos, const player_t *player ); // api
 namespace script_api {
 
 	declare_specialized_param(haltestelle_t::tile_t, "t|x|y", "tile_x");
-	declare_specialized_param(haltestelle_t::connection_t, "t|x|y", "halt_x");
+// 	declare_specialized_param(haltestelle_t::connection_t, "t|x|y", "halt_x");
 
 
 	SQInteger param<haltestelle_t::tile_t>::push(HSQUIRRELVM vm, haltestelle_t::tile_t const& v)
@@ -28,10 +28,10 @@ namespace script_api {
 		return param<grund_t*>::push(vm, v.grund);
 	}
 
-	SQInteger param<haltestelle_t::connection_t>::push(HSQUIRRELVM vm, haltestelle_t::connection_t const& v)
-	{
-		return param<halthandle_t>::push(vm, v.halt);
-	}
+// 	SQInteger param<haltestelle_t::connection_t>::push(HSQUIRRELVM vm, haltestelle_t::connection_t const& v)
+// 	{
+// 		return param<halthandle_t>::push(vm, v.halt);
+// 	}
 };
 
 
@@ -129,12 +129,12 @@ SQInteger halt_compare(halthandle_t a, halthandle_t b)
 }
 
 
-vector_tpl<haltestelle_t::connection_t> const& halt_get_connections(const haltestelle_t *halt, const goods_desc_t* freight)
-{
-	static vector_tpl<haltestelle_t::connection_t> dummy;
-	dummy.clear();
-	return freight ? halt->get_connections(freight->get_catg_index()) : dummy;
-}
+// vector_tpl<haltestelle_t::connection_t> const& halt_get_connections(const haltestelle_t *halt, const goods_desc_t* freight)
+// {
+// 	static vector_tpl<haltestelle_t::connection_t> dummy;
+// 	dummy.clear();
+// 	return freight ? halt->get_connections(freight->get_catg_index()) : dummy;
+// }
 
 
 void export_halt(HSQUIRRELVM vm)
@@ -214,12 +214,12 @@ void export_halt(HSQUIRRELVM vm)
 	 * Get monthly statistics of number of arrived goods.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_halt_stat, "get_arrived", freevariable<sint32>(HALT_ARRIVED), true);
-	/**
-	 * Get monthly statistics of number of departed goods.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_halt_stat, "get_departed", freevariable<sint32>(HALT_DEPARTED), true);
+	register_method_fv(vm, &get_halt_stat, "get_arrived", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
+// 	/**
+// 	 * Get monthly statistics of number of departed goods.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_halt_stat, "get_departed", freevariable<sint32>(HALT_DEPARTED), true);
 	/**
 	 * Get monthly statistics of number of waiting goods.
 	 * @returns array, index [0] corresponds to current month
@@ -249,11 +249,11 @@ void export_halt(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_convoys", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
-	/**
-	 * Get monthly statistics of number of passengers that could walk to their destination.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_halt_stat, "get_walked", freevariable<sint32>(HALT_WALKED), true);
+// 	/**
+// 	 * Get monthly statistics of number of passengers that could walk to their destination.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_halt_stat, "get_walked", freevariable<sint32>(HALT_WALKED), true);
 	/**
 	 * Exports list of convoys that stop at this halt.
 	 * @typemask convoy_list_x()
@@ -278,22 +278,22 @@ void export_halt(HSQUIRRELVM vm)
 	 * @param target coordinate of target
 	 */
 	register_method(vm, &haltestelle_t::get_ware_fuer_zielpos, "get_freight_to_dest");
-	/**
-	 * Returns amount of @p freight at this halt that scheduled to @p stop
-	 * @param freight freight type
-	 * @param stop next transfer stop
-	 */
-	register_method(vm, &haltestelle_t::get_ware_fuer_zwischenziel, "get_freight_to_halt");
+// 	/**
+// 	 * Returns amount of @p freight at this halt that scheduled to @p stop
+// 	 * @param freight freight type
+// 	 * @param stop next transfer stop
+// 	 */
+// 	register_method(vm, &haltestelle_t::get_ware_fuer_zwischenziel, "get_freight_to_halt");
 	/**
 	 * Returns capacity of this halt for the given @p freight
 	 * @param freight freight type
 	 */
 	register_method(vm, &halt_get_capacity, "get_capacity", true);
-	/**
-	 * Returns list of connected halts for the specific @p freight type.
-	 * @param freight freight type
-	 */
-	register_method(vm, &halt_get_connections, "get_connections", true);
+// 	/**
+// 	 * Returns list of connected halts for the specific @p freight type.
+// 	 * @param freight freight type
+// 	 */
+// 	register_method(vm, &halt_get_connections, "get_connections", true);
 	/**
 	 * Returns halt at given position.
 	 * @param pos coordinate

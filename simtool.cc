@@ -1139,7 +1139,7 @@ void tool_path_remover_t::tile_mark(player_t *, const koord3d &pos, const koord3
 const char * tool_flatten_path_t::tile_work(player_t *player, const koord3d &pos, const koord3d &start){
 
 	if(is_shift_pressed()){
-		tool_setslope_t::tool_set_slope_work(player,koord3d(pos.get_2d(),welt->lookup_hgt(pos.get_2d())),RESTORE_SLOPE);
+		tool_setslope_t::tool_set_slope_work(player,koord3d(pos.get_2d(), welt->lookup_hgt(pos.get_2d())), RESTORE_SLOPE);
 	}
 
 	int n=0;
@@ -1459,7 +1459,7 @@ const char *tool_restoreslope_t::check_pos( player_t *, koord3d pos)
 	return NULL;
 }
 
-const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos, int new_slope )
+const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos, int new_slope)
 {
 	if(  !ground_desc_t::double_grounds  ) {
 		// translate old single slope parameter to new double slope
@@ -1518,10 +1518,8 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 		}
 
 		// finally: empty enough
-		if(  gr1->get_grund_hang()!=gr1->get_weg_hang()  ||  gr1->get_halt().is_bound()  ||  gr1->kann_alle_obj_entfernen(player)
-			 || gr1->find<gebaeude_t>()  ||  gr1->get_depot() || gr1->get_signalbox()
-			 || (gr1->get_leitung() && gr1->hat_wege())  ||  gr1->get_weg(air_wt)  ||  gr1->find<label_t>()
-			 ||  gr1->get_typ()==grund_t::brueckenboden || gr1->find<pier_t>() || gr1->get_typ()==grund_t::pierdeck) {
+		if(  gr1->get_grund_hang()!=gr1->get_weg_hang()  ||  gr1->get_halt().is_bound()  ||  gr1->kann_alle_obj_entfernen(player)  ||
+				   gr1->find<gebaeude_t>()  ||  gr1->get_depot()  ||  (gr1->get_leitung() && gr1->hat_wege())  ||  gr1->get_weg(air_wt)  ||  gr1->find<label_t>()  ||  gr1->get_typ()==grund_t::brueckenboden) {
 			return NOTICE_TILE_FULL;
 		}
 
@@ -1549,6 +1547,9 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				// has the wrong tilt
 				return NOTICE_TILE_FULL;
 			}
+			// reverse ribis: up to here was direction leaving the tile,
+			// now it will be the direction on the tile when moving onto the slope
+			ribis = ribi_t::reverse_single(ribis);
 			/* new things getting tricky:
 			 * A single way on an all up or down slope will result in
 			 * a slope with the way as hinge.
@@ -1612,25 +1613,6 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				}
 				else {
 					return "Maximum tile height difference reached.";
-				}
-				if(tunnel_t *tunnel=gr1->find<tunnel_t>()){
-					if(!tunnel->get_desc()->get_subwaterline_allowed()){
-						if(  tunnel_builder_t::get_is_below_waterline(new_pos)) {
-							return "This tunnel cannot be brought below the waterline";
-						}
-					}
-					if(tunnel->get_desc()->get_depth_limit()){
-						if(welt->lookup_hgt(new_pos.get_2d()) - new_pos.z > (sint8)tunnel->get_desc()->get_depth_limit()){
-							return "This tunnel cannot be brought any deeper";
-						}
-					}
-					if(tunnel->get_desc()->get_underwater_limit()){
-						if(const grund_t* gr = welt->lookup_kartenboden(new_pos.get_2d())){
-							if(gr->is_water() && gr->get_pos().z - new_pos.z > (sint8)tunnel->get_desc()->get_underwater_limit()){
-								return "This tunnel cannot be bround any further below the water surface";
-							}
-						}
-					}
 				}
 			}
 		}
@@ -1740,8 +1722,8 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 		ok |= slope_changed;
 
 		if(ok) {
+			// check if clear
 			if(  gr1->kann_alle_obj_entfernen(player)  ) {
-				// not empty ...
 				return NOTICE_TILE_FULL;
 			}
 
@@ -1750,7 +1732,22 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				if(gr1->get_weg_nr(0)->is_deletable(player)!=NULL) {
 					return NOTICE_TILE_FULL;
 				}
-				if(gr1->has_two_ways()  &&  gr1->get_weg_nr(1)-> is_deletable(player)!=NULL) {
+				if(gr1->has_two_ways()  &&  gr1->get_weg_nr(1)->is_deletable(player)!=NULL) {
+					return NOTICE_TILE_FULL;
+				}
+			}
+
+			// check funds
+			settings_t const& s = welt->get_settings();
+			sint64 const cost = new_slope == RESTORE_SLOPE ? s.cst_alter_land : s.cst_set_slope;
+			if(  !player->can_afford(cost)  ) {
+				return NOTICE_INSUFFICIENT_FUNDS;
+			}
+
+			// one last check
+			if (  gr1->is_water()  &&  (new_pos.z > water_hgt  ||  new_slope != 0)  ) {
+				// we have to build underwater hill first
+				if(  !welt->can_flatten_tile( player, k, water_hgt, false, true )  ) {
 					return NOTICE_TILE_FULL;
 				}
 			}
@@ -1841,7 +1838,6 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 
 				welt->calc_climate( k, true );
 			}
-			settings_t const& s = welt->get_settings();
 
 			player_t::book_construction_costs(player, new_slope == RESTORE_SLOPE ? s.get_cost_alter_land() : s.get_cost_set_slope(), k, ignore_wt);
 		}
@@ -1855,6 +1851,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 	}
 	return ok ? NULL : "";
 }
+
 
 
 

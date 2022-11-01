@@ -20,18 +20,18 @@
 #include "../../descriptor/roadsign_desc.h"
 #include "../../descriptor/way_obj_desc.h"
 #include "../../descriptor/factory_desc.h"
-#include "../../builder/brueckenbauer.h"
-#include "../../builder/hausbauer.h"
-#include "../../builder/fabrikbauer.h"
-#include "../../builder/tunnelbauer.h"
-#include "../../builder/vehikelbauer.h"
-#include "../../builder/goods_manager.h"
-#include "../../builder/wegbauer.h"
+#include "../../bauer/brueckenbauer.h"
+#include "../../bauer/hausbauer.h"
+#include "../../bauer/fabrikbauer.h"
+#include "../../bauer/tunnelbauer.h"
+#include "../../bauer/vehikelbauer.h"
+#include "../../bauer/goods_manager.h"
+#include "../../bauer/wegbauer.h"
 #include "../../obj/roadsign.h"
 #include "../../obj/wayobj.h"
 #include "../../simhalt.h"
 #include "../../simware.h"
-#include "../../world/simworld.h"
+#include "../../simworld.h"
 
 #define begin_enum(name)
 #define end_enum()
@@ -77,7 +77,7 @@ sint64 get_scaled_maintenance_vehicle(const vehicle_desc_t* desc)
 
 sint64 get_scaled_maintenance_building(const building_desc_t* desc)
 {
-	return desc ? welt->scale_with_month_length(desc->get_maintenance(welt)) : 0;
+	return desc ? welt->scale_with_month_length(desc->get_maintenance()) : 0;
 }
 
 
@@ -175,7 +175,7 @@ const vector_tpl<const building_desc_t*>& get_available_stations(building_desc_t
 
 sint64 building_get_cost(const building_desc_t* desc)
 {
-	return desc->get_price(welt) * desc->get_x() * desc->get_y();
+	return desc->get_price() * desc->get_x() * desc->get_y();
 }
 
 bool building_is_terminus(const building_desc_t *desc)
@@ -230,9 +230,9 @@ const vector_tpl<const vehicle_desc_t*>& get_available_vehicles(waytype_t wt)
 	uint16 time = welt->get_timeline_year_month();
 
 	dummy.clear();
-	slist_tpl<vehicle_desc_t const*> const& list = vehicle_builder_t::get_info(wt);
+	slist_tpl<vehicle_desc_t *> const& list = vehicle_builder_t::get_info(wt);
 
-	for(vehicle_desc_t const* const i : list) {
+	for(vehicle_desc_t * const i : list) {
 		if (!i->is_retired(time)  ||  use_obsolete) {
 			if (!i->is_future(time)) {
 				dummy.append(i);
@@ -276,12 +276,12 @@ const vector_tpl<const way_obj_desc_t*>& get_available_wayobjs(waytype_t wt)
 	uint16 time = welt->get_timeline_year_month();
 
 	dummy.clear();
-	for(auto i : wayobj_t::get_list()) {
-		const way_obj_desc_t* desc = i.value;
-		if (desc->get_waytype()==wt  &&  desc->is_available(time)) {
-			dummy.append(desc);
-		}
-	}
+// 	for(auto i : wayobj_t::get_list()) {
+// 		const way_obj_desc_t* desc = i.value;
+// 		if (desc->get_waytype()==wt  &&  desc->is_available(time)) {
+// 			dummy.append(desc);
+// 		}
+// 	}
 	return dummy;
 }
 
@@ -394,10 +394,10 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns monthly maintenance cost [in 1/100 credits] of one object of this type.
 	 */
 	register_local_method(vm, &get_scaled_maintenance, "get_maintenance");
-	/**
-	 * @returns cost [in 1/100 credits] to buy or build one piece or tile of this thing.
-	 */
-	register_method(vm, &obj_desc_transport_related_t::get_price, "get_cost");
+// 	/**
+// 	 * @returns cost [in 1/100 credits] to buy or build one piece or tile of this thing.
+// 	 */
+// 	register_method(vm, &obj_desc_transport_related_t::get_price, "get_cost");
 	/**
 	 * @returns way type, can be @ref wt_invalid.
 	 */
@@ -451,10 +451,10 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns capacity
 	 */
 	register_method(vm, &vehicle_desc_t::get_capacity, "get_capacity");
-	/**
-	 * @returns running cost in 1/100 credits per tile
-	 */
-	register_method(vm, &vehicle_desc_t::get_running_cost, "get_running_cost");
+// 	/**
+// 	 * @returns running cost in 1/100 credits per tile
+// 	 */
+// 	register_method(vm, &vehicle_desc_t::get_running_cost, "get_running_cost");
 	/**
 	 * @returns fixed cost in 1/100 credits per month
 	 */
@@ -669,10 +669,10 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * Object descriptors for tunnels.
 	 */
 	begin_desc_class(vm, "tunnel_desc_x", "obj_desc_transport_x", (GETDESCFUNC)param<const tunnel_desc_t*>::getfunc());
-	/**
-	 * Returns a list with available tunnel types.
-	 */
-	STATIC register_method(vm, tunnel_builder_t::get_available_tunnels, "get_available_tunnels", false, true);
+// 	/**
+// 	 * Returns a list with available tunnel types.
+// 	 */
+// 	STATIC register_method(vm, tunnel_builder_t::get_available_tunnels, "get_available_tunnels", false, true);
 	end_class(vm);
 
 	/**
@@ -695,10 +695,10 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @return maximal bridge height
 	 */
 	register_method(vm, &bridge_desc_t::get_max_height, "get_max_height");
-	/**
-	 * Returns a list with available bridge types.
-	 */
-	STATIC register_method(vm, bridge_builder_t::get_available_bridges, "get_available_bridges", false, true);
+// 	/**
+// 	 * Returns a list with available bridge types.
+// 	 */
+// 	STATIC register_method(vm, bridge_builder_t::get_available_bridges, "get_available_bridges", false, true);
 
 	end_class(vm);
 
@@ -759,16 +759,16 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 */
 	register_method(vm, &goods_desc_t::get_weight_per_unit, "get_weight_per_unit"); // in kg
 
-	/**
-	 * Calculates transport revenue per tile and freight unit.
-	 * Takes speedbonus into account.
-	 * Value contains an additional factor of 3000. Don't ask.
-	 * Divide by 3000 *after* calculating revenue for a loaded convoy.
-	 * @param wt waytype of vehicle
-	 * @param speedkmh actual achieved speed in km/h
-	 * @returns revenue
-	 */
-	register_method(vm, &ware_t::calc_revenue, "calc_revenue", true);
+// 	/**
+// 	 * Calculates transport revenue per tile and freight unit.
+// 	 * Takes speedbonus into account.
+// 	 * Value contains an additional factor of 3000. Don't ask.
+// 	 * Divide by 3000 *after* calculating revenue for a loaded convoy.
+// 	 * @param wt waytype of vehicle
+// 	 * @param speedkmh actual achieved speed in km/h
+// 	 * @returns revenue
+// 	 */
+// 	register_method(vm, &ware_t::calc_revenue, "calc_revenue", true);
 	end_class(vm);
 
 	/**
@@ -792,18 +792,18 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns true if sign is choose sign
 	 */
 	register_method(vm, &roadsign_desc_t::is_choose_sign, "is_choose_sign");
-	/**
-	 * @returns true if sign is signal
-	 */
-	register_method(vm, &roadsign_desc_t::is_simple_signal, "is_signal");
+// 	/**
+// 	 * @returns true if sign is signal
+// 	 */
+// 	register_method(vm, &roadsign_desc_t::is_simple_signal, "is_signal");
 	/**
 	 * @returns true if sign is pre signal (distant signal)
 	 */
 	register_method(vm, &roadsign_desc_t::is_pre_signal, "is_pre_signal");
-	/**
-	 * @returns true if sign is priority signal
-	 */
-	register_method(vm, &roadsign_desc_t::is_priority_signal, "is_priority_signal");
+// 	/**
+// 	 * @returns true if sign is priority signal
+// 	 */
+// 	register_method(vm, &roadsign_desc_t::is_priority_signal, "is_priority_signal");
 	/**
 	 * @returns true if sign is long-block signal
 	 */
@@ -812,11 +812,11 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns true if sign is end-of-choose sign
 	 */
 	register_method(vm, &roadsign_desc_t::is_end_choose_signal, "is_end_choose_signal");
-	/**
-	 * Returns a list with available sign types.
-	 * @param wt waytype
-	 */
-	STATIC register_method(vm, roadsign_t::get_available_signs, "get_available_signs", false, true);
+// 	/**
+// 	 * Returns a list with available sign types.
+// 	 * @param wt waytype
+// 	 */
+// 	STATIC register_method(vm, roadsign_t::get_available_signs, "get_available_signs", false, true);
 
 	end_class(vm);
 	/**

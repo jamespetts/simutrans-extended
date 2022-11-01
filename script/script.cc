@@ -21,7 +21,7 @@
 // for error popups
 #include "../gui/help_frame.h"
 #include "../gui/simwin.h"
-#include "../utils/cbuffer.h"
+#include "../utils/cbuffer_t.h"
 #include "../utils/plainstring.h"
 
 
@@ -738,7 +738,7 @@ void script_vm_t::set_my_player(uint8 player_nr)
 
 /* -------- management of suspended scripts that wait for return value ----------- */
 
-inthashtable_tpl<uint32,HSQUIRRELVM> suspended_scripts_t::suspended_scripts;
+inthashtable_tpl<uint32, HSQUIRRELVM, N_BAGS_MEDIUM> suspended_scripts_t::suspended_scripts;
 
 
 uint32 suspended_scripts_t::get_unique_key(void* ptr)
@@ -771,7 +771,7 @@ HSQUIRRELVM suspended_scripts_t::remove_suspended_script(uint32 key)
 
 void suspended_scripts_t::remove_vm(HSQUIRRELVM vm)
 {
-	inthashtable_tpl<uint32,HSQUIRRELVM>::iterator iter=suspended_scripts.begin(), end=suspended_scripts.end();
+	inthashtable_tpl<uint32, HSQUIRRELVM, N_BAGS_MEDIUM>::iterator iter=suspended_scripts.begin(), end=suspended_scripts.end();
 	for(; iter != end; ) {
 		if ( (*iter).value == vm) {
 			iter = suspended_scripts.erase(iter);

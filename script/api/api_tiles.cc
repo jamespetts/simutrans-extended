@@ -11,9 +11,9 @@
 #include "get_next.h"
 #include "../api_class.h"
 #include "../api_function.h"
-#include "../../tool/simmenu.h"
-#include "../../world/simworld.h"
-#include "../../ground/wasser.h"
+#include "../../simmenu.h"
+#include "../../simworld.h"
+#include "../../boden/wasser.h"
 
 #include "../../simconvoi.h"
 #include "../../vehicle/vehicle.h"
@@ -105,9 +105,9 @@ vector_tpl<halthandle_t> const& square_get_halt_list(planquadrat_t *plan)
 	static vector_tpl<halthandle_t> list;
 	list.clear();
 	if (plan) {
-		const halthandle_t* haltlist = plan->get_haltlist();
+		const nearby_halt_t *haltlist = plan->get_haltlist();
 		for(uint8 i=0, end = plan->get_haltlist_count(); i < end; i++) {
-			list.append(haltlist[i]);
+			list.append(haltlist[i].halt);
 		}
 	}
 	return list;

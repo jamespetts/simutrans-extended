@@ -12,7 +12,7 @@
 #include "../../dataobj/schedule.h"
 #include "../../simhalt.h"
 #include "../../simintr.h"
-#include "../../world/simworld.h"
+#include "../../simworld.h"
 
 using namespace script_api;
 
@@ -25,13 +25,14 @@ halthandle_t get_halt_from_koord3d(koord3d pos, const player_t *player )
 	return haltestelle_t::get_halt(pos, player);
 }
 
-SQInteger waiting_time_to_string(HSQUIRRELVM vm)
-{
-	schedule_entry_t entry(koord3d::invalid, 0, 0);
-	get_slot(vm, "wait", entry.waiting_time, -1);
-	plainstring str = difftick_to_string(entry.get_waiting_ticks(), false);
-	return param<plainstring>::push(vm, str);
-}
+// SQInteger waiting_time_to_string(HSQUIRRELVM vm)
+// {
+// 	assert(false && "FIXME");
+// 	schedule_entry_t entry(koord3d::invalid, 0, 0, 0, 0, false);
+// 	get_slot(vm, "wait", entry.waiting_time_shift, -1);
+// 	plainstring str = difftick_to_string(0 /*entry.get_waiting_ticks()*/, false);
+// 	return param<plainstring>::push(vm, str);
+// }
 
 SQInteger schedule_constructor(HSQUIRRELVM vm) // instance, wt, entries
 {
@@ -51,7 +52,7 @@ SQInteger schedule_constructor(HSQUIRRELVM vm) // instance, wt, entries
 			case road_wt:        sched = new truck_schedule_t(); break;
 			case track_wt:       sched = new train_schedule_t(); break;
 			case water_wt:       sched = new ship_schedule_t(); break;
-			case air_wt:         sched = new airplane_schedule_t(); break;
+			case air_wt:         sched = new airplane_schedule_(); break;
 			case monorail_wt:    sched = new monorail_schedule_t(); break;
 			case tram_wt:        sched = new tram_schedule_t(); break;
 			case maglev_wt:      sched = new maglev_schedule_t(); break;
@@ -143,7 +144,7 @@ void export_schedule(HSQUIRRELVM vm)
 	 * Returns waiting time formatted as string.
 	 * @typemask string()
 	 */
-	register_function(vm, waiting_time_to_string, "waiting_time_to_string", 1, "x" );
+// 	register_function(vm, waiting_time_to_string, "waiting_time_to_string", 1, "x" );
 
 	end_class(vm);
 

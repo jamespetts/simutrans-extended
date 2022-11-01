@@ -11,12 +11,13 @@
 #include "api_simple.h"
 #include "../api_class.h"
 #include "../api_function.h"
-#include "../../builder/brueckenbauer.h"
-#include "../../builder/wegbauer.h"
+#include "../../bauer/brueckenbauer.h"
+#include "../../bauer/wegbauer.h"
 #include "../../descriptor/bridge_desc.h"
 #include "../../descriptor/way_desc.h"
 #include "../../tpl/binary_heap_tpl.h"
-#include "../../world/simworld.h"
+#include "../../simworld.h"
+
 
 using namespace script_api;
 

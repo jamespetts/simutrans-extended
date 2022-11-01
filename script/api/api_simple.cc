@@ -11,7 +11,7 @@
 #include "../api_class.h"
 #include "../api_function.h"
 #include "../../dataobj/ribi.h"
-#include "../../world/simworld.h"
+#include "../../simworld.h"
 #include "../../dataobj/scenario.h"
 
 using namespace script_api;

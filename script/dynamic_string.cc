@@ -7,14 +7,14 @@
 #include "script.h"
 
 #include "../sys/simsys.h"
-#include "../world/simworld.h"
+#include "../simworld.h"
 #include "../network/network.h"
 #include "../network/network_cmd_scenario.h"
 #include "../dataobj/environment.h"
 #include "../dataobj/loadsave.h"
 #include "../player/simplay.h"
 #include "../tpl/plainstringhashtable_tpl.h"
-#include "../utils/cbuffer.h"
+#include "../utils/cbuffer_t.h"
 #include "../utils/simstring.h"
 
 uint32 const CACHE_TIME = 10000; // 10s
@@ -38,7 +38,7 @@ struct cached_string_t {
 	}
 };
 
-static plainstringhashtable_tpl<cached_string_t*> cached_results;
+static plainstringhashtable_tpl<cached_string_t*, N_BAGS_MEDIUM> cached_results;
 
 
 cached_string_t* get_cached_result(const char* function, uint32 cache_time)

@@ -6,9 +6,9 @@
 #include "api_param.h"
 #include "api_class.h"
 
-#include "../world/simcity.h"
+#include "../simcity.h"
 #include "../simfab.h"
-#include "../builder/goods_manager.h"
+#include "../bauer/goods_manager.h"
 #include "../dataobj/schedule.h"
 #include "../dataobj/loadsave.h"
 #include "../dataobj/scenario.h"
@@ -552,12 +552,24 @@ namespace script_api {
 		return welt->get_scenario();
 	}
 
-
 	SQInteger param<schedule_entry_t>::push(HSQUIRRELVM vm, schedule_entry_t const& v)
 	{
-		return push_instance(vm, "schedule_entry_x", v.pos, v.minimum_loading, v.waiting_time);
+		return push_instance(vm, "schedule_entry_x",
+			v.pos,
+			v.minimum_loading,
+			v.waiting_time_shift,
+			v.spacing_shift,
+			v.reverse,
+			v.flags,
+			v.unique_entry_id,
+			v.condition_bitfield_broadcaster,
+			v.condition_bitfield_receiver,
+			v.target_id_condition_trigger,
+			v.target_id_couple,
+			v.target_id_uncouple,
+			v.target_unique_entry_uncouple,
+			v.max_speed_kmh);
 	}
-
 
 	SQInteger param<schedule_t*>::push(HSQUIRRELVM vm, schedule_t* const& v)
 	{

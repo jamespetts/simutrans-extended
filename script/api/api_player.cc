@@ -14,8 +14,8 @@
 
 // for creation of lines
 #include "../../simline.h"
-#include "../../tool/simmenu.h"
-#include "../../world/simworld.h"
+#include "../../simmenu.h"
+#include "../../simworld.h"
 
 
 using namespace script_api;
@@ -152,11 +152,11 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 		 */
 		STATIC register_function(vm, &player_get_my_player, "self", 0, "", true);
 	}
-	/**
-	 * Return headquarters level.
-	 * @returns level, level is zero if no headquarters was built
-	 */
-	register_method(vm, &player_t::get_headquarter_level, "get_headquarter_level");
+// 	/**
+// 	 * Return headquarters level.
+// 	 * @returns level, level is zero if no headquarters was built
+// 	 */
+// 	register_method(vm, &player_t::get_headquarter_level, "get_headquarter_level");
 	/**
 	 * Return headquarters position.
 	 * @returns coordinate, (-1,-1) if no headquarters was built

@@ -17,7 +17,7 @@
 #include <string>
 
 class log_t;
-template<class key_t, class value_t> class inthashtable_tpl;
+template<class key_t, class value_t, size_t n_bags> class inthashtable_tpl;
 void sq_setwakeupretvalue(HSQUIRRELVM v); //sq_extensions
 
 /**
@@ -228,7 +228,7 @@ private:
  */
 class suspended_scripts_t {
 private:
-	static inthashtable_tpl<uint32,HSQUIRRELVM> suspended_scripts;
+	static inthashtable_tpl<uint32,HSQUIRRELVM,N_BAGS_MEDIUM> suspended_scripts;
 
 	static HSQUIRRELVM remove_suspended_script(uint32 key);
 

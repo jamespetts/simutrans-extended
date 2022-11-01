@@ -14,11 +14,11 @@
 #include "../api_function.h"
 #include "../../simhalt.h"
 #include "../../simline.h"
-#include "../../world/simworld.h"
+#include "../../simworld.h"
 #include "../../player/simplay.h"
 
 // for manipulation of lines
-#include "../../tool/simmenu.h"
+#include "../../simmenu.h"
 #include "../../dataobj/schedule.h"
 
 // template<> schedule_t* script_api::param<schedule_t*>::get(HSQUIRRELVM, SQInteger);
@@ -62,7 +62,7 @@ call_tool_init line_change_schedule(simline_t* line, player_t *player, schedule_
 		cbuffer_t buf;
 		// make a copy, and perform validation on it
 		schedule_t *copy = sched->copy();
-		copy->make_valid();
+// 		copy->make_valid();
 		if (copy->get_count() >= 2) {
 			// build param string (see line_management_gui_t::apply_schedule)
 			buf.printf( "g,%i,", line->get_handle().get_id() );
@@ -219,11 +219,11 @@ void export_line(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_line_stat, "get_capacity",          freevariable<sint32>(LINE_CAPACITY), true);
-	/**
-	 * Get monthly statistics of number of transported goods.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_TRANSPORTED_GOODS), true );
+// 	/**
+// 	 * Get monthly statistics of number of transported goods.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_TRANSPORTED_GOODS), true );
 	/**
 	 * Get monthly statistics of number of convoys in this line.
 	 * @returns array, index [0] corresponds to current month

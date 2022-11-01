@@ -8,14 +8,14 @@
 #include "api/api.h"
 #include "export_objs.h"
 #include "../dataobj/environment.h"
-#include "../utils/cbuffer.h"
+#include "../utils/cbuffer_t.h"
 
 
 
 bool script_loader_t::load_base_script(script_vm_t *script, const char* base)
 {
 	cbuffer_t buf;
-	buf.printf("%sscript/%s", env_t::base_dir, base);
+	buf.printf("%sscript/%s", env_t::data_dir, base);
 	if (const char* err = script->call_script(buf)) {
 		// should not happen
 		dbg->error("load_base_script", "error [%s] calling %s", err, (const char*)buf);

@@ -39,7 +39,7 @@ vector_tpl<sint64> const& get_convoy_stat(convoi_t* cnv, sint32 INDEX)
 	v.clear();
 	if (cnv  &&  0<=INDEX  &&  INDEX<convoi_t::MAX_CONVOI_COST) {
 		for(uint16 i = 0; i < MAX_MONTHS; i++) {
-			v.append(cnv->get_stat_converted(i, INDEX));
+			v.append(cnv->get_stat_converted(i, (convoi_t::convoi_cost_t)INDEX));
 		}
 	}
 	return v;
@@ -116,7 +116,9 @@ SQInteger generic_get_convoy_by_index(HSQUIRRELVM vm)
 
 uint32 calc_max_kmh(uint32 power, uint32 weight, sint32 speed_limit)
 {
-	return speed_to_kmh(convoi_t::calc_max_speed(power, weight, kmh_to_speed(speed_limit)) );
+	// FIXME
+	return 0;
+// 	return speed_to_kmh(convoi_t::calc_max_speed(power, weight, kmh_to_speed(speed_limit)) );
 }
 
 uint32 kmh_to_tiles_per_month(uint32 kmh)
@@ -170,7 +172,7 @@ call_tool_init convoy_change_schedule(convoi_t *cnv, player_t *player, schedule_
 		cbuffer_t buf;
 		// make a copy, and perform validation on it
 		schedule_t *copy = sched->copy();
-		copy->make_valid();
+// 		copy->make_valid();
 		if (copy->get_count() >= 2) {
 			// build param string (see convoi_info_t::apply_schedule and convoi_t::call_convoi_tool())
 			buf.printf("g,%u,", cnv->self.get_id());
@@ -273,11 +275,11 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_convoy_stat, "get_capacity",          freevariable<sint32>(convoi_t::CONVOI_CAPACITY), true);
-	/**
-	 * Get monthly statistics of number of transported goods.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_convoy_stat, "get_transported_goods", freevariable<sint32>(convoi_t::CONVOI_TRANSPORTED_GOODS), true );
+// 	/**
+// 	 * Get monthly statistics of number of transported goods.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_convoy_stat, "get_transported_goods", freevariable<sint32>(convoi_t::CONVOI_TRANSPORTED_GOODS), true );
 	/**
 	 * Get monthly statistics of revenue.
 	 * @returns array, index [0] corresponds to current month

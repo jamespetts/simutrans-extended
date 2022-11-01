@@ -100,8 +100,8 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "tool_set_climate", TOOL_SET_CLIMATE | GENERAL_TOOL);
 	/// rotate a building
 	enum_slot(vm, "tool_rotate_building", TOOL_ROTATE_BUILDING | GENERAL_TOOL);
-	/// merge two stops
-	enum_slot(vm, "tool_merge_stop", TOOL_MERGE_STOP | GENERAL_TOOL);
+// 	/// merge two stops
+// 	enum_slot(vm, "tool_merge_stop", TOOL_MERGE_STOP | GENERAL_TOOL);
 	/// scripted tool (one-click)
 	enum_slot(vm, "tool_exec_script", TOOL_EXEC_SCRIPT | GENERAL_TOOL);
 	/// scripted tool (two-click)
@@ -121,15 +121,15 @@ void export_global_constants(HSQUIRRELVM vm)
 
 	// tools to open certain windows
 	/// open factory editor window
-	enum_slot(vm, "dialog_edit_factory", DIALOG_EDIT_FACTORY | DIALOGE_TOOL);
+	enum_slot(vm, "dialog_edit_factory", DIALOG_EDIT_FACTORY | DIALOG_TOOL);
 	/// open tourist attraction editor window
-	enum_slot(vm, "dialog_edit_attraction", DIALOG_EDIT_ATTRACTION | DIALOGE_TOOL);
+	enum_slot(vm, "dialog_edit_attraction", DIALOG_EDIT_ATTRACTION | DIALOG_TOOL);
 	/// open house editor window
-	enum_slot(vm, "dialog_edit_house", DIALOG_EDIT_HOUSE | DIALOGE_TOOL);
+	enum_slot(vm, "dialog_edit_house", DIALOG_EDIT_HOUSE | DIALOG_TOOL);
 	/// open tree editor window
-	enum_slot(vm, "dialog_edit_tree", DIALOG_EDIT_TREE | DIALOGE_TOOL);
+	enum_slot(vm, "dialog_edit_tree", DIALOG_EDIT_TREE | DIALOG_TOOL);
 	/// open map enlargement window
-	enum_slot(vm, "dialog_enlarge_map", DIALOG_ENLARGE_MAP | DIALOGE_TOOL);
+	enum_slot(vm, "dialog_enlarge_map", DIALOG_ENLARGE_MAP | DIALOG_TOOL);
 
 	end_enum();
 

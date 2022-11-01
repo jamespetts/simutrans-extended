@@ -114,10 +114,12 @@ vector_tpl<halthandle_t> const& factory_get_halt_list(fabrik_t *fab)
 	return square_get_halt_list(plan);
 }
 
- leitung_t* factory_get_transformer( fabrik_t* fab )
- {
-	 return fab->get_transformers().empty() ? NULL :fab->get_transformers().front();
- }
+leitung_t *factory_get_transformer( fabrik_t* fab )
+{
+	 // FIXME
+	return NULL;
+// 	 return fab->get_transformers().empty() ? NULL :fab->get_transformers().front();
+}
 
 call_tool_init factory_set_name(fabrik_t *fab, const char* name)
 {
@@ -250,12 +252,11 @@ void export_factory(HSQUIRRELVM vm)
 	//FIXTHIS?
 	//register_method(vm, &fabrik_t::get_consumers, "get_consumers");
 
-	/**
-	 * Get list of consumers of this factory.
-	 * @returns array of coordinates of suppliers
-	 */
-	//FIXTHIS
-	//register_method(vm, &fabrik_t::get_suppliers, "get_suppliers");
+// 	/**
+// 	 * Get list of consumers of this factory.
+// 	 * @returns array of coordinates of suppliers
+// 	 */
+// 	register_method(vm, &fabrik_t::get_suppliers, "get_suppliers");
 
 	/**
 	 * Get (translated or custom) name of factory.
@@ -367,10 +368,10 @@ void export_factory(HSQUIRRELVM vm)
 	 * @returns number of fields belonging to this factory
 	 */
 	register_method(vm, &fabrik_t::get_field_count, "get_field_count");
-	/**
-	 * @returns minimum number of fields required
-	 */
-	register_method(vm, &fabrik_t::get_min_field_count, "get_min_field_count");
+// 	/**
+// 	 * @returns minimum number of fields required
+// 	 */
+// 	register_method(vm, &fabrik_t::get_min_field_count, "get_min_field_count");
 	/**
 	 * @returns factory descriptor
 	 */

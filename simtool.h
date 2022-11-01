@@ -166,7 +166,12 @@ public:
 /* slope tool definitions */
 class tool_setslope_t : public tool_t {
 public:
-	tool_setslope_t() : tool_t(TOOL_SETSLOPE | GENERAL_TOOL) {}
+	tool_setslope_t() : tool_t(TOOL_SETSLOPE | GENERAL_TOOL), old_slope_compatibility_mode(true) {}
+
+	// if true then slope by default_param will be translated to new double-height system
+	// true by default, can be set to false (used for scripts)
+	bool old_slope_compatibility_mode;
+
 	/**
 	 * Create an artificial slope
 	 * @param player the player doing the task
