@@ -2,14 +2,15 @@
 #ifndef _SQVM_H_
 #define _SQVM_H_
 
-#include <stdarg.h>
 #include "sqopcodes.h"
 #include "sqobject.h"
 #define MAX_NATIVE_CALLS 100
 #define MIN_STACK_OVERHEAD 15
 
 #define SQ_SUSPEND_FLAG -666
+#define SQ_TAILCALL_FLAG -777
 #define DONT_FALL_BACK 666
+//#define EXISTS_FALL_BACK -1
 
 #define GET_FLAG_RAW                0x00000001
 #define GET_FLAG_DO_NOT_RAISE_ERROR 0x00000002
@@ -19,7 +20,6 @@ void sq_base_register(HSQUIRRELVM v);
 struct SQExceptionTrap{
 	SQExceptionTrap() {}
 	SQExceptionTrap(SQInteger ss, SQInteger stackbase,SQInstruction *ip, SQInteger ex_target){ _stacksize = ss; _stackbase = stackbase; _ip = ip; _extarget = ex_target;}
-	SQExceptionTrap(const SQExceptionTrap &et) { (*this) = et;  }
 	SQInteger _stackbase;
 	SQInteger _stacksize;
 	SQInstruction *_ip;
@@ -27,9 +27,6 @@ struct SQExceptionTrap{
 };
 
 #define _INLINE
-
-#define STK(a) _stack._vals[_stackbase+(a)]
-#define TARGET _stack._vals[_stackbase+arg0]
 
 typedef sqvector<SQExceptionTrap> ExceptionsTraps;
 
@@ -59,7 +56,8 @@ public:
 	bool Init(SQVM *friendvm, SQInteger stacksize);
 	bool Execute(SQObjectPtr &func, SQInteger nargs, SQInteger stackbase, SQObjectPtr &outres, SQBool raiseerror, ExecutionType et = ET_CALL, SQBool can_suspend = false);
 	//starts a native call return when the NATIVE closure returns
-	bool CallNative(SQNativeClosure *nclosure, SQInteger nargs, SQInteger newbase, SQObjectPtr &retval,bool &suspend);
+	bool CallNative(SQNativeClosure *nclosure, SQInteger nargs, SQInteger newbase, SQObjectPtr &retval, SQInt32 target, bool &suspend,bool &tailcall);
+	bool TailCall(SQClosure *closure, SQInteger firstparam, SQInteger nparams);
 	//starts a SQUIRREL call in the same "Execution loop"
 	bool StartCall(SQClosure *closure, SQInteger target, SQInteger nargs, SQInteger stackbase, bool tailcall);
 	bool CreateClassInstance(SQClass *theclass, SQObjectPtr &inst, SQObjectPtr &constructor);
@@ -183,6 +181,7 @@ public:
 
 	SQInteger _ops_remaining;    /// number of ops the vm can do till break
 	SQInteger _ops_grace_amount; /// raise error if _ops_remaining is less than  -_ops_grace_amount for pure native calls
+	SQInteger _ops_total;        /// total number of ops performed
 	bool _throw_if_no_ops;       /// is no-ops an error or can call suspended? default: true
 };
 
