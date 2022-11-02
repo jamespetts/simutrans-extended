@@ -152,11 +152,23 @@ protected:
 	vector_tpl<vehicle_description_element> vehicle_description;
 
 public:
+	uint32 get_count() const { return vehicle_description.get_count(); }
+
 	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
 
 	void clear_vehicles()
 	{
 		vehicle_description.clear();
+	}
+
+	void remove_vehicle_description_at(uint32 description_index)
+	{
+		vehicle_description.remove_at(description_index, false);
+	}
+
+	const vehicle_description_element get_vehicle_description(uint32 description_index) const
+	{
+		return vehicle_description.get_element(description_index);
 	}
 };
 
