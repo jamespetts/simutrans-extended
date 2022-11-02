@@ -37,7 +37,7 @@ void consist_order_t::set_convoy_order(uint32 element_number, convoihandle_t cnv
 	}
 
 	orders[element_number].clear_vehicles();
-	for (uint8 i; i < cnv->get_vehicle_count(); i++) {
+	for (uint8 i=0; i < cnv->get_vehicle_count(); i++) {
 		orders[element_number].append_vehicle(cnv->get_vehicle(i)->get_desc(), specific);
 	}
 }
