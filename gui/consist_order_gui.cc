@@ -6,6 +6,8 @@
 #include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoy_item.h"
+#include "simwin.h"
+#include "messagebox.h"
 #include "../bauer/goods_manager.h"
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
@@ -507,6 +509,11 @@ void consist_order_frame_t::init_table()
 			bt_copy_convoy.add_listener(this);
 			cont_convoy_copier.add_component(&bt_copy_convoy);
 
+			bt_copy_convoy_vehicle.init(button_t::square_state, "bt_same_vehicle");
+			bt_copy_convoy_vehicle.set_tooltip(translator::translate("Limited to the same vehicle"));
+			bt_copy_convoy_vehicle.add_listener(this);
+			cont_convoy_copier.add_component(&bt_copy_convoy_vehicle);
+
 			cont_convoy_copier.add_component(&line_label);
 			cont_convoy_copier.add_component(&img_convoy);
 			scrollx_formation.set_maximize(true);
@@ -621,6 +628,7 @@ void consist_order_frame_t::update_convoy_info()
 		}
 	}
 	bt_copy_convoy.enable(selected_convoy.is_bound());
+	bt_copy_convoy_vehicle.enable(selected_convoy.is_bound());
 	bt_convoy_detail.enable(selected_convoy.is_bound());
 	lb_vehicle_count.update();
 
@@ -736,6 +744,22 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if( comp==&bt_filter_single_vehicle){
 		bt_filter_single_vehicle.pressed = !bt_filter_single_vehicle.pressed;
 		build_vehicle_list();
+	}
+	else if(  comp==&bt_copy_convoy  ) {
+		if( scl.get_selection()==-1 ){
+			create_win(new news_img("Select copy destination!"), w_no_overlap, magic_none);
+		}
+		else {
+			if( !selected_convoy.is_bound() ) {
+				create_win(new news_img("No valid convoy selected!"), w_no_overlap, magic_none);
+			}
+			else {
+				order.set_convoy_order(scl.get_selection(), selected_convoy, bt_copy_convoy_vehicle.pressed);
+			}
+		}
+	}
+	else if(  comp==&bt_copy_convoy_vehicle  ) {
+		bt_copy_convoy_vehicle.pressed = !bt_copy_convoy_vehicle.pressed;
 	}
 	else if(  comp == &bt_convoy_detail  ) {
 		if (selected_convoy.is_bound()) {
