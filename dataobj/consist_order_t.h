@@ -166,6 +166,12 @@ public:
 
 	uint32 get_count() const { return orders.get_count(); }
 
+	void append(consist_order_element_t elem)
+	{
+		orders.append(elem);
+		return;
+	}
+
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	void sscanf_consist_order(const char* ptr);
 };

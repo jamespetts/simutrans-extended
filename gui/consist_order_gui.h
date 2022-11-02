@@ -158,6 +158,9 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void init_table();
 	void update();
 
+	// add an empty order to orders
+	void append_new_order();
+
 public:
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
 

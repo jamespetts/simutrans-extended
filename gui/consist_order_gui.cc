@@ -343,8 +343,8 @@ void consist_order_frame_t::init_table()
 		scl.clear_elements();
 		scl.set_size(scr_size(D_LABEL_WIDTH<<1, LINESPACE*4));
 		scl.set_maximize(true);
-		scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>("New order", SYSCOL_TEXT);
 		scl.add_listener(this);
+		update_order_list();
 		add_component(&scl);
 
 		add_table(2, 1);
@@ -575,7 +575,10 @@ void consist_order_frame_t::set_convoy(convoihandle_t cnv)
 void consist_order_frame_t::update_order_list()
 {
 	scl.clear_elements();
-	scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>("New order", SYSCOL_TEXT);
+	if( !order.get_count() ) {
+		// Need an empty order to edit
+		append_new_order();
+	}
 	old_order_count = order.get_count();
 	for( uint32 i=0; i<old_order_count; ++i ) {
 		cbuffer_t buf;
@@ -663,6 +666,13 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 	gui_frame_t::draw(pos, size);
 }
 
+
+void consist_order_frame_t::append_new_order()
+{
+	order.append(consist_order_element_t());
+}
+
+
 bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
 	if( comp==&scl_vehicles ) {
@@ -685,13 +695,10 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if( comp==&bt_new ) {
 		scl.set_selection(-1);
 
-		// TODO: append new order slot
-		cbuffer_t buf;
-		buf.printf("(dummy)%s #%u", translator::translate("Consist order"), order.get_count()+1);
-		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
-
+		// append new order slot
+		append_new_order();
 		resize(scr_size(0,0));
-		//update_order_list();
+		update_order_list();
 	}
 	else if( comp==&bt_delete ) {
 		// ignore "New order"
