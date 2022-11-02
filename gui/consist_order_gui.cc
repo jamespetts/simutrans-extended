@@ -510,6 +510,7 @@ void consist_order_frame_t::init_table()
 			cont_convoy_copier.add_component(&bt_copy_convoy);
 
 			bt_copy_convoy_vehicle.init(button_t::square_state, "bt_same_vehicle");
+			bt_copy_convoy_vehicle.pressed = true;
 			bt_copy_convoy_vehicle.set_tooltip(translator::translate("Limited to the same vehicle"));
 			bt_copy_convoy_vehicle.add_listener(this);
 			cont_convoy_copier.add_component(&bt_copy_convoy_vehicle);
