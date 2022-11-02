@@ -172,6 +172,12 @@ public:
 		return;
 	}
 
+	void remove_order(uint32 element_number)
+	{
+		orders.remove_at(element_number);
+		return;
+	}
+
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	void sscanf_consist_order(const char* ptr);
 };

@@ -701,11 +701,10 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		update_order_list();
 	}
 	else if( comp==&bt_delete ) {
-		// ignore "New order"
-		if (scl.get_selection() == 0) { return true; }
+		if (scl.get_selection()<0 || (uint32)scl.get_selection()>=order.get_count() ) { return true; }
 
-		// TODO: delete selected order
-
+		// delete selected order
+		order.remove_order( (uint32)scl.get_selection() );
 		update_order_list();
 	}
 	else if( comp==&bt_sort_order_veh ) {
