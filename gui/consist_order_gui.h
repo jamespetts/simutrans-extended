@@ -68,7 +68,7 @@ public:
 class gui_simple_vehicle_spec_t : public gui_aligned_container_t
 {
 	const vehicle_desc_t* veh_type = nullptr;
-	uint8 player_nr=1;
+	sint8 player_nr=1;
 
 public:
 
@@ -87,7 +87,7 @@ public:
 	};
 
 	gui_simple_vehicle_spec_t() { }
-	void set_player_nr(uint8 player_nr) { this->player_nr=player_nr; }
+	void set_player_nr(sint8 player_nr) { this->player_nr=player_nr; }
 	void set_vehicle(const vehicle_desc_t* desc) { veh_type = desc; init_table(); }
 	void init_table();
 };
