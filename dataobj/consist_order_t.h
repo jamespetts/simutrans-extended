@@ -154,6 +154,10 @@ protected:
 public:
 	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
 
+	void clear_vehicles()
+	{
+		vehicle_description.clear();
+	}
 };
 
 class consist_order_t
