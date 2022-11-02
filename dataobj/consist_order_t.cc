@@ -21,11 +21,11 @@ void consist_order_element_t::append_vehicle(const vehicle_desc_t *v, bool is_sp
 	vehicle_description_element v_elem;
 	if (is_specific) {
 		v_elem.specific_vehicle = v;
-		vehicle_description.append(v_elem);
 	}
 	else {
 		v_elem.set_vehicle_spec(v);
 	}
+	vehicle_description.append(v_elem);
 }
 
 
