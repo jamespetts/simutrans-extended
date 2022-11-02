@@ -918,11 +918,13 @@ void schedule_gui_t::build_table()
 			new_component<gui_border_t>();
 
 			// Modify convoy button
-			bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0,0));
-			bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
-			bt_consist_order.add_listener(this);
-			bt_consist_order.pressed = false;
-			add_component(&bt_consist_order);
+			if( !cnv.is_bound() ) {
+				bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0,0));
+				bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+				bt_consist_order.add_listener(this);
+				bt_consist_order.pressed = false;
+				add_component(&bt_consist_order);
+			}
 
 			add_table(3,0)->set_spacing(scr_size(0,0));
 			{
