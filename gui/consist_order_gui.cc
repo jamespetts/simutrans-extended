@@ -400,6 +400,7 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 
 consist_order_frame_t::~consist_order_frame_t()
 {
+	schedule->orders.remove(unique_entry_id);
 	schedule->orders.put(unique_entry_id, order);
 }
 
@@ -409,6 +410,7 @@ void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 
 	this->player = player;
 	this->schedule = schedule;
 	unique_entry_id = entry_id;
+	order=schedule->orders.get(unique_entry_id);
 	veh_specs.set_player_nr(player->get_player_nr());
 	set_owner(player);
 	update();
@@ -423,7 +425,6 @@ void consist_order_frame_t::init_table()
 	tabs.clear();
 
 	old_entry_count = schedule->get_count();
-	order=schedule->orders.get(unique_entry_id);
 
 	bt_filter_halt_convoy.pressed = true;
 	bt_filter_single_vehicle.pressed = true;
