@@ -447,17 +447,11 @@ void consist_order_frame_t::init_table()
 		update_order_list();
 		add_component(&scl);
 
-		add_table(2, 1);
-		{
-			cont_order.set_table_layout(1,0);
-			cont_order.add_component(&cont_order_overview);
-			scrolly_order.set_maximize(true);
-			add_component(&scrolly_order);
-			cont_order.set_size(cont_order.get_min_size());
-
-			cont_order.new_component<gui_label_t>("(dummy)order description table here");
-		}
-		end_table();
+		cont_order.set_table_layout(1,0);
+		cont_order.add_component(&cont_order_overview);
+		scrolly_order.set_maximize(true);
+		add_component(&scrolly_order);
+		cont_order.set_size(cont_order.get_min_size());
 	}
 	end_table();
 
@@ -809,7 +803,10 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		update_order_list();
 	}
 	else if( comp==&bt_delete ) {
-		if (scl.get_selection()<0 || (uint32)scl.get_selection()>=order.get_count() ) { return true; }
+		if (scl.get_selection()<0 || (uint32)scl.get_selection()>=order.get_count() ) {
+			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
+			return true;
+		}
 
 		// delete selected order
 		order.remove_order( (uint32)scl.get_selection() );
@@ -834,8 +831,17 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_add_vehicle ) {
-		// TODO: check total own count
-
+		uint32 sel = (uint32)scl.get_selection();
+		if (scl.get_selection() < 0 || sel >= order.get_count()) {
+			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
+			return true;
+		}
+		if (!selected_vehicle) {
+			create_win(new news_img("No vehicle selected!"), w_no_overlap, magic_none);
+		}
+		consist_order_element_t *order_element = &order.get_order(sel);
+		order_element->append_vehicle(selected_vehicle);
+		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
