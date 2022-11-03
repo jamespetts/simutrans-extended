@@ -475,7 +475,6 @@ void consist_order_frame_t::init_table()
 			scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
 			scl.set_maximize(true);
 			scl.add_listener(this);
-			update_order_list();
 			add_component(&scl);
 
 			gui_aligned_container_t *tbl = add_table(2,1);
@@ -486,13 +485,13 @@ void consist_order_frame_t::init_table()
 				bt_new.add_listener(this);
 				add_component(&bt_new);
 				bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
-				bt_delete.enable(order.get_count());
 				bt_delete.add_listener(this);
 				add_component(&bt_delete);
 			}
 			end_table();
 		}
 		end_table();
+		update_order_list();
 
 		cont_order.set_table_layout(1,0);
 		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
@@ -738,7 +737,7 @@ void consist_order_frame_t::update_order_list(sint32 reselect_index)
 	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
 	cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
 
-	bt_delete.enable(old_order_count);
+	bt_delete.enable( old_order_count  &&  scl.get_selection()!=-1 );
 	resize(scr_size(0,0));
 }
 
@@ -846,6 +845,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if( comp==&scl ) {
 		cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+		bt_delete.enable();
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_new ) {
