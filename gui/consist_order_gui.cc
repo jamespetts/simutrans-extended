@@ -299,7 +299,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 
 	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
 	lb->buf().printf("%3u", description_index+1);
-	lb->set_fixed_width(lb->get_min_size().w);
+	lb->set_fixed_width(proportional_string_width("888"));
 	lb->update();
 
 	const consist_order_element_t order_element = order->get_order(order_element_index);
