@@ -306,7 +306,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
 	if( element.specific_vehicle ) {
 		new_component<gui_image_t>(element.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
-		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_northeast, goods_manager_t::none), player_nr, 0, true);
+		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_southwest, goods_manager_t::none), player_nr, 0, true);
 		new_component<gui_label_t>(element.specific_vehicle->get_name(), SYSCOL_TEXT_STRONG);
 	}
 	else {
