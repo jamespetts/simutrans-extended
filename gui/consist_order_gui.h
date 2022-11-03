@@ -112,7 +112,7 @@ class cont_order_overview_t : public gui_aligned_container_t
 {
 	consist_order_t *order;
 	sint8 player_nr=-1; // Required for player color in vehicle images
-	uint32 order_element_index = 0;
+	uint32 order_element_index = -1;
 
 	uint32 old_count=0; // reflesh flag
 
@@ -120,9 +120,11 @@ public:
 	cont_order_overview_t(consist_order_t *order);
 
 	void set_element(uint32 element_idx, sint8 player_nr) {
-		order_element_index = element_idx;
 		this->player_nr = player_nr;
-		init_table();
+		if (order_element_index != element_idx) {
+			order_element_index = element_idx;
+			init_table();
+		}
 	}
 
 	void init_table();
@@ -157,7 +159,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	cont_order_overview_t cont_order_overview;
 	gui_scrollpane_t scrolly_order;
 	uint32 old_order_count=0;
-	void update_order_list();
+	void update_order_list(sint32 reselect_index=-1);
 
 	// filter (common)
 	uint8 filter_catg=goods_manager_t::INDEX_NONE;

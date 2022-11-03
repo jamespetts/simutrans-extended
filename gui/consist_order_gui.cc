@@ -685,8 +685,9 @@ void consist_order_frame_t::set_convoy(convoihandle_t cnv)
 {
 }
 
-void consist_order_frame_t::update_order_list()
+void consist_order_frame_t::update_order_list(sint32 reselect_index)
 {
+	sint32 current_selection = scl.get_selection();
 	scl.clear_elements();
 	if( !order.get_count() ) {
 		// Need an empty order to edit
@@ -698,6 +699,11 @@ void consist_order_frame_t::update_order_list()
 		buf.printf("%s #%u (%u)", translator::translate("Consist order"), i+1, order.get_order(i).get_count() );
 		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
 	}
+
+	// reselect the selection
+	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
+	cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+
 	bt_delete.enable(old_order_count);
 	resize(scr_size(0,0));
 }
@@ -790,14 +796,12 @@ void consist_order_frame_t::append_new_order()
 bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
 	if( comp==&scl_vehicles ) {
-		sint32 e = scl_vehicles.get_selection();
 		scl_vehicles.get_selection();
 		vehicle_scrollitem_t *item = (vehicle_scrollitem_t*)scl_vehicles.get_element(v.i);
 		selected_vehicle = item->get_vehicle();
 		update_vehicle_info();
 	}
 	else if( comp==&scl_convoys  &&  own_convoys.get_count() ) {
-		sint32 e = scl_convoys.get_selection();
 		scl_convoys.get_selection();
 		convoy_scrollitem_t *item = (convoy_scrollitem_t*)scl_convoys.get_element(v.i);
 		selected_convoy = item->get_convoy();
@@ -808,22 +812,22 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_new ) {
-		scl.set_selection(-1);
-
 		// append new order slot
+		const sint32 sel = scl.get_selection();
 		append_new_order();
+		update_order_list(sel);
 		resize(scr_size(0,0));
-		update_order_list();
 	}
 	else if( comp==&bt_delete ) {
-		if (scl.get_selection()<0 || (uint32)scl.get_selection()>=order.get_count() ) {
+		const sint32 sel = scl.get_selection();
+		if( scl.get_selection()<0  ||  (uint32)sel>=order.get_count() ) {
 			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
 			return true;
 		}
 
 		// delete selected order
-		order.remove_order( (uint32)scl.get_selection() );
-		update_order_list();
+		order.remove_order( (uint32)sel);
+		update_order_list(sel-1);
 	}
 	else if( comp==&bt_sort_order_veh ) {
 		bt_sort_order_veh.pressed = !bt_sort_order_veh.pressed;
@@ -844,17 +848,17 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_add_vehicle ) {
-		uint32 sel = (uint32)scl.get_selection();
-		if (scl.get_selection() < 0 || sel >= order.get_count()) {
+		const sint32 sel = scl.get_selection();
+		if (scl.get_selection() < 0 || (uint32)sel >= order.get_count()) {
 			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
 			return true;
 		}
 		if (!selected_vehicle) {
 			create_win(new news_img("No vehicle selected!"), w_no_overlap, magic_none);
 		}
-		consist_order_element_t *order_element = &order.get_order(sel);
+		consist_order_element_t *order_element = &order.get_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
-		update_order_list();
+		update_order_list(sel);
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
@@ -873,8 +877,9 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 				create_win(new news_img("No valid convoy selected!"), w_no_overlap, magic_none);
 			}
 			else {
+				const sint32 sel = scl.get_selection();
 				order.set_convoy_order(scl.get_selection(), selected_convoy, bt_copy_convoy_limit_vehicle.pressed);
-				update_order_list();
+				update_order_list(sel);
 			}
 		}
 	}
