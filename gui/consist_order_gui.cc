@@ -469,12 +469,30 @@ void consist_order_frame_t::init_table()
 	// [OVERVIEW] (orders)
 	add_table(3,1);
 	{
-		scl.clear_elements();
-		scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
-		scl.set_maximize(true);
-		scl.add_listener(this);
-		update_order_list();
-		add_component(&scl);
+		add_table(1,2);
+		{
+			scl.clear_elements();
+			scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
+			scl.set_maximize(true);
+			scl.add_listener(this);
+			update_order_list();
+			add_component(&scl);
+
+			gui_aligned_container_t *tbl = add_table(2,1);
+			tbl->set_force_equal_columns(true);
+			tbl->set_spacing(scr_size(0,0));
+			{
+				bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
+				bt_new.add_listener(this);
+				add_component(&bt_new);
+				bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
+				bt_delete.enable(order.get_count());
+				bt_delete.add_listener(this);
+				add_component(&bt_delete);
+			}
+			end_table();
+		}
+		end_table();
 
 		cont_order.set_table_layout(1,0);
 		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
@@ -486,17 +504,6 @@ void consist_order_frame_t::init_table()
 	}
 	end_table();
 
-	add_table(2,1)->set_force_equal_columns(true);
-	{
-		bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
-		bt_new.add_listener(this);
-		add_component(&bt_new);
-		bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
-		bt_delete.enable(order.get_count());
-		bt_delete.add_listener(this);
-		add_component(&bt_delete);
-	}
-	end_table();
 
 	new_component<gui_divider_t>();
 
