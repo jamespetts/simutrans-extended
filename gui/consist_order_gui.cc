@@ -685,7 +685,7 @@ void consist_order_frame_t::update_order_list()
 	old_order_count = order.get_count();
 	for( uint32 i=0; i<old_order_count; ++i ) {
 		cbuffer_t buf;
-		buf.printf("%s #%u", translator::translate("Consist order"), i+1); // TODO: add vehicle count
+		buf.printf("%s #%u (%u)", translator::translate("Consist order"), i+1, order.get_order(i).get_count() );
 		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
 	}
 	bt_delete.enable(old_order_count);
@@ -844,7 +844,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 		consist_order_element_t *order_element = &order.get_order(sel);
 		order_element->append_vehicle(selected_vehicle);
-		resize(scr_size(0,0));
+		update_order_list();
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
@@ -864,7 +864,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			}
 			else {
 				order.set_convoy_order(scl.get_selection(), selected_convoy, bt_copy_convoy_vehicle.pressed);
-				resize(scr_size(0,0));
+				update_order_list();
 			}
 		}
 	}
