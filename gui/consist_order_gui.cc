@@ -288,10 +288,6 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 
 	// no., image, name - UI TODO: this is a temporary design
 	set_table_layout(6,0);
-	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
-	lb->buf().printf("%u", description_index+1);
-	lb->update();
-
 	bt_down.init(button_t::arrowdown, NULL);
 	bt_down.enable(description_index<order->get_order(order_element_index).get_count()-1);
 	bt_up.init(button_t::arrowup, NULL);
@@ -300,6 +296,11 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	bt_up.add_listener(this);
 	add_component(&bt_up);
 	add_component(&bt_down);
+
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+	lb->buf().printf("%3u", description_index+1);
+	lb->set_fixed_width(lb->get_min_size().w);
+	lb->update();
 
 	const consist_order_element_t order_element = order->get_order(order_element_index);
 	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
