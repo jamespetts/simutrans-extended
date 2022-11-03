@@ -552,10 +552,12 @@ void consist_order_frame_t::init_table()
 		cont_picker_frame.add_table(2,1);
 		{
 			bt_add_vehicle.init(button_t::roundbox, "Add vehicle");
+			bt_add_vehicle.enable( selected_vehicle!=NULL );
 			bt_add_vehicle.add_listener(this);
 			cont_picker_frame.add_component(&bt_add_vehicle);
 
 			bt_add_vehicle_limit_vehicle.init(button_t::square_state, "limit_to_same_vehicle");
+			bt_add_vehicle_limit_vehicle.enable( selected_vehicle!=NULL );
 			bt_add_vehicle_limit_vehicle.pressed = true;
 			bt_add_vehicle_limit_vehicle.set_tooltip(translator::translate("Limited to the same vehicle"));
 			bt_add_vehicle_limit_vehicle.add_listener(this);
