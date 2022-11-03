@@ -821,7 +821,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if( comp==&bt_delete ) {
 		const sint32 sel = scl.get_selection();
 		if( scl.get_selection()<0  ||  (uint32)sel>=order.get_count() ) {
-			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
+			create_win(new news_img("Select a target order!"), w_time_delete, magic_none);
 			return true;
 		}
 
@@ -850,11 +850,11 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if( comp==&bt_add_vehicle ) {
 		const sint32 sel = scl.get_selection();
 		if (scl.get_selection() < 0 || (uint32)sel >= order.get_count()) {
-			create_win(new news_img("Select a target order!"), w_no_overlap, magic_none);
+			create_win(new news_img("Select a target order!"), w_time_delete, magic_none);
 			return true;
 		}
 		if (!selected_vehicle) {
-			create_win(new news_img("No vehicle selected!"), w_no_overlap, magic_none);
+			create_win(new news_img("No vehicle selected!"), w_time_delete, magic_none);
 		}
 		consist_order_element_t *order_element = &order.get_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
@@ -870,11 +870,11 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if(  comp==&bt_copy_convoy  ) {
 		if( scl.get_selection()==-1 ){
-			create_win(new news_img("Select copy destination!"), w_no_overlap, magic_none);
+			create_win(new news_img("Select copy destination!"), w_time_delete, magic_none);
 		}
 		else {
 			if( !selected_convoy.is_bound() ) {
-				create_win(new news_img("No valid convoy selected!"), w_no_overlap, magic_none);
+				create_win(new news_img("No valid convoy selected!"), w_time_delete, magic_none);
 			}
 			else {
 				const sint32 sel = scl.get_selection();
