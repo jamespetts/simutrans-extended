@@ -701,8 +701,9 @@ void consist_order_frame_t::update_order_list(sint32 reselect_index)
 	old_order_count = order.get_count();
 	for( uint32 i=0; i<old_order_count; ++i ) {
 		cbuffer_t buf;
-		buf.printf("%s #%u (%u)", translator::translate("Consist order"), i+1, order.get_order(i).get_count() );
-		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
+		const uint32 v_description_count = order.get_order(i).get_count();
+		buf.printf("%s #%u (%u)", translator::translate("Consist order"), i+1, v_description_count);
+		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, v_description_count ? SYSCOL_TEXT : SYSCOL_EMPTY);
 	}
 
 	// reselect the selection
