@@ -477,6 +477,7 @@ void consist_order_frame_t::init_table()
 		add_component(&scl);
 
 		cont_order.set_table_layout(1,0);
+		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
 		cont_order.add_component(&cont_order_overview);
 		cont_order.new_component<gui_fill_t>();
 		scrolly_order.set_maximize(true);
