@@ -29,6 +29,14 @@ void consist_order_element_t::append_vehicle(const vehicle_desc_t *v, bool is_sp
 }
 
 
+void consist_order_element_t::increment_index(uint32 description_index)
+{
+	if( (description_index>=vehicle_description.get_count()-1)  ||  vehicle_description.get_count()<2 ) { return; }
+	vehicle_description.insert_at(description_index+2, vehicle_description.get_element(description_index));
+	vehicle_description.remove_at(description_index);
+}
+
+
 void consist_order_t::set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific)
 {
 	if( !cnv.is_bound() ) { return; }

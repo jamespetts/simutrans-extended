@@ -167,6 +167,8 @@ public:
 		vehicle_description.remove_at(description_index, false);
 	}
 
+	void increment_index(uint32 description_index);
+
 	const vehicle_description_element get_vehicle_description(uint32 description_index) const
 	{
 		return vehicle_description.get_element(description_index);

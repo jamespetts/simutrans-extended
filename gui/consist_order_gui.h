@@ -205,6 +205,10 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void save_order();
 
 public:
+	// Flag for the need to update the UI locally
+	static bool need_reflesh_descriptions;
+	static bool need_reflesh_order_list;
+
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
 	~consist_order_frame_t();
 

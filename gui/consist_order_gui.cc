@@ -24,6 +24,8 @@
 #define L_OWN_VEHICLE_COUNT_WIDTH (proportional_string_width("8,888") + D_H_SPACE)
 #define L_OWN_VEHICLE_LABEL_OFFSET_LEFT (L_OWN_VEHICLE_COUNT_WIDTH + VEHICLE_BAR_HEIGHT*4+D_H_SPACE)
 
+bool consist_order_frame_t::need_reflesh_descriptions = false;
+bool consist_order_frame_t::need_reflesh_order_list = false;
 
 const char *vehicle_spec_texts[gui_simple_vehicle_spec_t::MAX_VEH_SPECS] =
 {
@@ -323,15 +325,19 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
 	if(  comp==&bt_up  ) {
-		// TODO:
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->increment_index(description_index-1);
+		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_down  ) {
-		// TODO:
-
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->increment_index(description_index);
+		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_remove  ) {
 		consist_order_element_t *order_element = &order->get_order(order_element_index);
 		order_element->remove_vehicle_description_at(description_index);
+		consist_order_frame_t::need_reflesh_order_list = true;
 	}
 	return true;
 }
@@ -345,6 +351,7 @@ cont_order_overview_t::cont_order_overview_t(consist_order_t *order)
 
 void cont_order_overview_t::init_table()
 {
+	consist_order_frame_t::need_reflesh_descriptions = false;
 	remove_all();
 	set_table_layout(1,0);
 	if (!order->get_count() || order_element_index >= order->get_count() ) {
@@ -373,6 +380,9 @@ void cont_order_overview_t::draw(scr_coord offset)
 	if (order) {
 		const uint32 description_count = order->get_order(order_element_index).get_count();
 		if (description_count != old_count) {
+			init_table();
+		}
+		else if (consist_order_frame_t::need_reflesh_descriptions == true) {
 			init_table();
 		}
 		gui_aligned_container_t::draw(offset);
@@ -704,6 +714,7 @@ void consist_order_frame_t::set_convoy(convoihandle_t cnv)
 
 void consist_order_frame_t::update_order_list(sint32 reselect_index)
 {
+	need_reflesh_order_list = false;
 	sint32 current_selection = scl.get_selection();
 	scl.clear_elements();
 	if( !order.get_count() ) {
@@ -792,6 +803,9 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 	}
 	else if( order.get_count()!=old_order_count ) {
 		update_order_list();
+	}
+	else if (need_reflesh_order_list==true) {
+		update_order_list(scl.get_selection());
 	}
 
 	// update when player purchases or sells this waytype's vehicle
