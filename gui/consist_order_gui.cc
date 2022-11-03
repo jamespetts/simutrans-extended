@@ -398,10 +398,17 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	}
 }
 
-consist_order_frame_t::~consist_order_frame_t()
+
+void consist_order_frame_t::save_order()
 {
 	schedule->orders.remove(unique_entry_id);
 	schedule->orders.put(unique_entry_id, order);
+}
+
+
+consist_order_frame_t::~consist_order_frame_t()
+{
+	save_order();
 }
 
 
@@ -409,6 +416,9 @@ void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 
 {
 	this->player = player;
 	this->schedule = schedule;
+	if( unique_entry_id!=-1  &&  unique_entry_id != entry_id) {
+		save_order();
+	}
 	unique_entry_id = entry_id;
 	order=schedule->orders.get(unique_entry_id);
 	veh_specs.set_player_nr(player->get_player_nr());
