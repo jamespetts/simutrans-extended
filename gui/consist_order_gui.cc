@@ -287,7 +287,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	this->description_index= description_index;
 
 	// no., image, name - UI TODO: this is a temporary design
-	set_table_layout(6,0);
+	set_table_layout(7,0);
 	bt_down.init(button_t::arrowdown, NULL);
 	bt_down.enable(description_index<order->get_order(order_element_index).get_count()-1);
 	bt_up.init(button_t::arrowup, NULL);
@@ -305,11 +305,13 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	const consist_order_element_t order_element = order->get_order(order_element_index);
 	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
 	if( element.specific_vehicle ) {
+		new_component<gui_image_t>(element.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
 		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_northeast, goods_manager_t::none), player_nr, 0, true);
 		new_component<gui_label_t>(element.specific_vehicle->get_name(), SYSCOL_TEXT_STRONG);
 	}
 	else {
-		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK);
+		new_component<gui_margin_t>(1); // TODO: category?
+		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK); // TODO: vehicle bar?
 		new_component<gui_label_t>("(FIXME: dummy label)");
 	}
 	bt_remove.init(button_t::roundbox, "Remove");
