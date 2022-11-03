@@ -204,6 +204,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 public:
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
+	~consist_order_frame_t();
 
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
 

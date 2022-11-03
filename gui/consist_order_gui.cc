@@ -398,6 +398,11 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	}
 }
 
+consist_order_frame_t::~consist_order_frame_t()
+{
+	schedule->orders.put(unique_entry_id, order);
+}
+
 
 void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 entry_id)
 {
