@@ -166,7 +166,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// [VEHICLE PICKER]
 	const vehicle_desc_t* selected_vehicle = nullptr;
 	slist_tpl<own_vehicle_t> own_vehicles;
-	button_t bt_add_vehicle, bt_sort_order_veh, bt_show_hide_vehicle_filter;
+	button_t bt_add_vehicle, bt_add_vehicle_limit_vehicle, bt_sort_order_veh, bt_show_hide_vehicle_filter;
 	gui_label_t lb_open_vehicle_filter;
 	gui_simple_vehicle_spec_t veh_specs;
 	gui_aligned_container_t cont_picker_frame, cont_vehicle_filter;
@@ -182,7 +182,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	button_t bt_filter_halt_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
 	gui_aligned_container_t cont_convoy_filter;
 	//
-	button_t bt_sort_order_cnv, bt_copy_convoy, bt_copy_convoy_vehicle, bt_convoy_detail;
+	button_t bt_sort_order_cnv, bt_copy_convoy, bt_copy_convoy_limit_vehicle, bt_convoy_detail;
 	gui_label_buf_t lb_vehicle_count;
 	gui_line_label_t line_label;
 	gui_convoi_images_t img_convoy;
