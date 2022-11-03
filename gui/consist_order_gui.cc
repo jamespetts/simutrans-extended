@@ -890,6 +890,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 		if (!selected_vehicle) {
 			create_win(new news_img("No vehicle selected!"), w_time_delete, magic_none);
+			return true;
 		}
 		consist_order_element_t *order_element = &order.get_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
