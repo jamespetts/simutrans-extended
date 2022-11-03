@@ -485,7 +485,7 @@ void consist_order_frame_t::init_table()
 	}
 	end_table();
 
-	add_table(3,1)->set_force_equal_columns(true);
+	add_table(2,1)->set_force_equal_columns(true);
 	{
 		bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
 		bt_new.add_listener(this);
@@ -706,11 +706,6 @@ void consist_order_frame_t::update()
 	update_order_list();
 }
 
-
-// copy selected convoy's order
-void consist_order_frame_t::set_convoy(convoihandle_t cnv)
-{
-}
 
 void consist_order_frame_t::update_order_list(sint32 reselect_index)
 {

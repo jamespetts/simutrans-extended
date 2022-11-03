@@ -224,8 +224,6 @@ public:
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
-	void set_convoy(convoihandle_t cnv = convoihandle_t());
-
 	void rdwr(loadsave_t *file) OVERRIDE;
 
 	uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
