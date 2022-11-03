@@ -93,6 +93,44 @@ public:
 };
 
 
+class gui_vehicle_description_t : public gui_aligned_container_t, private action_listener_t
+{
+	consist_order_t *order;
+	uint32 order_element_index;
+	uint32 description_index;
+	button_t bt_up, bt_down, bt_remove;
+	//button_t bt_edit; // TODO
+
+public:
+	gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index);
+
+	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
+};
+
+
+class cont_order_overview_t : public gui_aligned_container_t
+{
+	consist_order_t *order;
+	sint8 player_nr=-1; // Required for player color in vehicle images
+	uint32 order_element_index = 0;
+
+	uint32 old_count=0; // reflesh flag
+
+public:
+	cont_order_overview_t(consist_order_t *order);
+
+	void set_element(uint32 element_idx, sint8 player_nr) {
+		order_element_index = element_idx;
+		this->player_nr = player_nr;
+		init_table();
+	}
+
+	void init_table();
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
+
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
 	uint16 unique_entry_id=-1;
@@ -116,7 +154,8 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	// [ORDER]
 	gui_aligned_container_t cont_order;
-	gui_scrollpane_t scrollx_order;
+	cont_order_overview_t cont_order_overview;
+	gui_scrollpane_t scrolly_order;
 	uint32 old_order_count=0;
 	void update_order_list();
 

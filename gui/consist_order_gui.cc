@@ -280,13 +280,111 @@ void gui_simple_vehicle_spec_t::init_table()
 }
 
 
+gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index)
+{
+	this->order = order;
+	this->order_element_index = order_element_index;
+	this->description_index= description_index;
+
+	// no., image, name - UI TODO: this is a temporary design
+	set_table_layout(6,0);
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+	lb->buf().printf("%u", description_index+1);
+	lb->update();
+
+	bt_down.init(button_t::arrowdown, NULL);
+	bt_down.enable(description_index<order->get_order(order_element_index).get_count()-1);
+	bt_up.init(button_t::arrowup, NULL);
+	bt_up.enable(description_index>0);
+	bt_down.add_listener(this);
+	bt_up.add_listener(this);
+	add_component(&bt_up);
+	add_component(&bt_down);
+
+	const consist_order_element_t order_element = order->get_order(order_element_index);
+	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
+	if( element.specific_vehicle ) {
+		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_northeast, goods_manager_t::none), player_nr, 0, true);
+		new_component<gui_label_t>(element.specific_vehicle->get_name(), SYSCOL_TEXT_STRONG);
+	}
+	else {
+		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK);
+		new_component<gui_label_t>("(FIXME: dummy label)");
+	}
+	bt_remove.init(button_t::roundbox, "Remove");
+	bt_remove.add_listener(this);
+	add_component(&bt_remove);
+}
+
+
+bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if(  comp==&bt_up  ) {
+		// TODO:
+	}
+	else if(  comp==&bt_down  ) {
+		// TODO:
+
+	}
+	else if(  comp==&bt_remove  ) {
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->remove_vehicle_description_at(description_index);
+	}
+	return true;
+}
+
+
+cont_order_overview_t::cont_order_overview_t(consist_order_t *order)
+{
+	this->order = order;
+	init_table();
+}
+
+void cont_order_overview_t::init_table()
+{
+	remove_all();
+	set_table_layout(1,0);
+	if (!order->get_count() || order_element_index >= order->get_count() ) {
+		old_count = 0;
+		// empty or invalid element index
+		new_component<gui_label_t>("Select a consist order", SYSCOL_TEXT_WEAK);
+	}
+	else{
+		consist_order_element_t elem= order->get_order(order_element_index);
+		old_count=elem.get_count();
+		if( !old_count ) {
+			new_component<gui_label_t>("Set vehicle descriptions", SYSCOL_TEXT_WEAK);
+		}
+		else {
+			for (uint8 i = 0; i < old_count; i++) {
+				new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, i);
+			}
+		}
+	}
+	set_size(get_min_size());
+}
+
+
+void cont_order_overview_t::draw(scr_coord offset)
+{
+	if (order) {
+		const uint32 description_count = order->get_order(order_element_index).get_count();
+		if (description_count != old_count) {
+			init_table();
+		}
+		gui_aligned_container_t::draw(offset);
+	}
+}
+
+
 consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
 	: gui_frame_t(translator::translate("consist_order")),
 	halt_number(-1),
+	cont_order_overview(&order),
 	scl(gui_scrolled_list_t::listskin),
 	scl_vehicles(gui_scrolled_list_t::listskin),
 	scl_convoys(gui_scrolled_list_t::listskin),
-	scrollx_order(&cont_order, true, false),
+	scrolly_order(&cont_order, false, true),
 	img_convoy(convoihandle_t()),
 	formation(convoihandle_t(), false),
 	scrollx_formation(&formation, true, false)
@@ -352,9 +450,9 @@ void consist_order_frame_t::init_table()
 		add_table(2, 1);
 		{
 			cont_order.set_table_layout(1,0);
-			cont_order.new_component<gui_label_t>("(dummy)order overview with controller here");
-			scrollx_order.set_maximize(true);
-			add_component(&scrollx_order);
+			cont_order.add_component(&cont_order_overview);
+			scrolly_order.set_maximize(true);
+			add_component(&scrolly_order);
 			cont_order.set_size(cont_order.get_min_size());
 
 			cont_order.new_component<gui_label_t>("(dummy)order description table here");
@@ -698,8 +796,9 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		selected_convoy = item->get_convoy();
 		update_convoy_info();
 	}
-	else if( comp == &scl ) {
-		scl.get_selection();
+	else if( comp==&scl ) {
+		cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_new ) {
 		scl.set_selection(-1);
@@ -756,6 +855,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			}
 			else {
 				order.set_convoy_order(scl.get_selection(), selected_convoy, bt_copy_convoy_vehicle.pressed);
+				resize(scr_size(0,0));
 			}
 		}
 	}
