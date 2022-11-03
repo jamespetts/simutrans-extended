@@ -163,6 +163,7 @@ public:
 
 	void remove_vehicle_description_at(uint32 description_index)
 	{
+		if (description_index >= vehicle_description.get_count()) { return; }
 		vehicle_description.remove_at(description_index, false);
 	}
 
