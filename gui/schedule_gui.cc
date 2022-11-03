@@ -919,11 +919,17 @@ void schedule_gui_t::build_table()
 
 			// Modify convoy button
 			if( !cnv.is_bound() ) {
-				bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy", scr_coord(0,0));
-				bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
-				bt_consist_order.add_listener(this);
-				bt_consist_order.pressed = false;
-				add_component(&bt_consist_order);
+				add_table(2,0)->set_spacing(scr_size(D_H_SPACE,1));
+				{
+					bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy");
+					bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+					bt_consist_order.add_listener(this);
+					bt_consist_order.pressed = false;
+					add_component(&bt_consist_order);
+					lb_consist_order_modified.init("(*)", scr_coord(0,0), SYSCOL_TEXT_HIGHLIGHT);
+					add_component(&lb_consist_order_modified);
+				}
+				end_table();
 			}
 
 			add_table(3,0)->set_spacing(scr_size(0,0));
@@ -1074,6 +1080,7 @@ void schedule_gui_t::update_selection()
 			condition_broadcast.enable();
 			conditional_depart.enable();
 			bt_consist_order.enable();
+			lb_consist_order_modified.set_visible(schedule->orders.get(schedule->entries[schedule->get_current_stop()].unique_entry_id).get_count());
 			bt_setdown_only.enable();
 			bt_lay_over.enable();
 			bt_range_stop.enable();
@@ -1144,6 +1151,7 @@ void schedule_gui_t::update_selection()
 			bt_pickup_only.disable();
 			bt_wait_for_time.disable();
 			bt_consist_order.disable();
+			lb_consist_order_modified.set_visible(false);
 			conditional_depart.disable();
 			condition_broadcast.disable();
 			if (is_depot) {

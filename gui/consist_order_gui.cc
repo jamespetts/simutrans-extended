@@ -460,7 +460,7 @@ void consist_order_frame_t::init_table()
 	add_table(2,1);
 	{
 		scl.clear_elements();
-		scl.set_size(scr_size(D_LABEL_WIDTH<<1, LINESPACE*4));
+		scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
 		scl.set_maximize(true);
 		scl.add_listener(this);
 		update_order_list();
@@ -468,6 +468,7 @@ void consist_order_frame_t::init_table()
 
 		cont_order.set_table_layout(1,0);
 		cont_order.add_component(&cont_order_overview);
+		cont_order.new_component<gui_fill_t>();
 		scrolly_order.set_maximize(true);
 		add_component(&scrolly_order);
 		cont_order.set_size(cont_order.get_min_size());
