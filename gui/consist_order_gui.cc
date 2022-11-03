@@ -467,7 +467,7 @@ void consist_order_frame_t::init_table()
 	end_table();
 
 	// [OVERVIEW] (orders)
-	add_table(2,1);
+	add_table(3,1);
 	{
 		scl.clear_elements();
 		scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
@@ -481,7 +481,7 @@ void consist_order_frame_t::init_table()
 		cont_order.add_component(&cont_order_overview);
 		cont_order.new_component<gui_fill_t>();
 		scrolly_order.set_maximize(true);
-		add_component(&scrolly_order);
+		add_component(&scrolly_order,2);
 		cont_order.set_size(cont_order.get_min_size());
 	}
 	end_table();
