@@ -4105,6 +4105,34 @@ if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
 次の運用時刻まで非営業車扱いで待機します
 Last overhauled:
 最終全検：
+bt_pickup_only
+乗車／積込み限定
+help_txt_pickup_only
+乗車と積み込みだけを行い、降車と積み降ろしを行わないように設定します。
+bt_setdown_only
+降車／積降し限定
+help_txt_setdown_only
+降車と積み降ろしだけを行い、乗車と積み込みを行わないように設定します。
+bt_discharge_payload
+全ての積み荷を降ろす
+help_txt_discharge_payload
+この駅で全ての乗客・荷物を降ろします。
+enable_speed_limit
+速度制限
+Speed limit:
+制限速度：
+help_txt_speed_limit_between_two_points
+次の区間までの制限速度を指定。※速度が抑制された場合は、それに応じて燃費が低下します
+modify_convoy
+編成構成を指定
+#modify_the_convoy_at_this_schedule_entrance
+#
+[LO] 
+[Zzz]
+[RS] 
+[給]
+[IC] 
+[誘]
 by_waiting_passengers
 旅客待機数
 by_waiting_mails
