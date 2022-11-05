@@ -226,7 +226,7 @@ void finance_t::book_interest_monthly()
 			interest = 0;
 		}
 
-		book_interest(interest); 
+		book_interest(interest);
 	}
 }
 
@@ -240,7 +240,7 @@ void finance_t::book_corporation_tax_monthly()
 
 	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT];
 
-	// Divide by months and 100s 
+	// Divide by months and 100s
 	sint64 tax_payable = (taxable_profit_last_year * tax_rate) / 1200ll;
 
 	if (tax_payable < 0)
@@ -249,7 +249,7 @@ void finance_t::book_corporation_tax_monthly()
 	}
 
 	book_tax(-tax_payable);
-	world->get_public_player()->book_tax(tax_payable); 
+	world->get_public_player()->book_tax(tax_payable);
 }
 
 void finance_t::calc_credit_limits()
