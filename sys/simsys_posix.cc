@@ -29,11 +29,18 @@ static bool sigterm_received = false;
 #error "Posix only compiles with color depth=0"
 #endif
 
-// no autoscaling as we have no display ...
-bool dr_auto_scale(bool)
+bool dr_set_screen_scale(sint16)
 {
+	// no autoscaling as we have no display ...
 	return false;
 }
+
+
+sint16 dr_get_screen_scale()
+{
+	return 100;
+}
+
 
 bool dr_os_init(const int*)
 {
@@ -50,7 +57,7 @@ resolution dr_query_screen_resolution()
 }
 
 // open the window
-int dr_os_open(int, int, bool)
+int dr_os_open(int, int, sint16)
 {
 	return 1;
 }
@@ -179,6 +186,24 @@ const char* dr_get_locale()
 	return "";
 }
 
+sint16 dr_get_fullscreen()
+{
+	return 0;
+}
+
+sint16 dr_toggle_borderless()
+{
+	return 0;
+}
+
+sint16 dr_suspend_fullscreen()
+{
+	return 0;
+}
+
+void dr_restore_fullscreen(sint16) {}
+
+
 
 int main(int argc, char **argv)
 {
@@ -195,3 +220,5 @@ int CALLBACK WinMain(HINSTANCE const hInstance, HINSTANCE, LPSTR, int)
 	return 0;
 }
 #endif
+
+

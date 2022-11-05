@@ -93,6 +93,9 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->price = decode_uint32(p);
 			desc->maintenance = decode_uint32(p);
 			desc->topspeed = decode_uint32(p);
+			if (!extended) {
+				desc->axle_load = decode_uint32(p);
+			}
 			desc->intro_date = decode_uint16(p);
 			desc->retire_date = decode_uint16(p);
 			desc->axle_load = decode_uint16(p); // new
@@ -128,7 +131,7 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			// Versioned node, version 4+5
 			desc->price = decode_uint32(p);
 			desc->maintenance = decode_uint32(p);
-			desc->topspeed = decode_sint32(p);
+			desc->topspeed = extended ? decode_sint32(p) : desc->topspeed = decode_uint32(p);
 			desc->axle_load = decode_uint32(p);
 			desc->intro_date = decode_uint16(p);
 			desc->retire_date = decode_uint16(p);
@@ -259,5 +262,5 @@ obj_desc_t * way_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->get_way_constraints().get_permissive(),
 		desc->get_way_constraints().get_prohibitive());
 
-  return desc;
+	return desc;
 }

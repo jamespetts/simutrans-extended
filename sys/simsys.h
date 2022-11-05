@@ -65,12 +65,24 @@ struct sys_event_t
 	unsigned int key_mod; /* key mod, like ALT, CTRL, SHIFT */
 };
 
+enum { WINDOWED, FULLSCREEN, BORDERLESS };
+
 extern sys_event_t sys_event;
 
 extern char const PATH_SEPARATOR[];
 
-// scale according to dpi setting
-bool dr_auto_scale(bool);
+
+/// @param scale_percent
+///   Possible values:
+///     -1:    auto (scale according to screen DPI setting)
+///      0:    off (default 1:1 scale)
+///     other: specific scaling, in percent
+///     < -1:  invalid
+bool dr_set_screen_scale(sint16 scale_percent);
+
+/// @returns Relative size of the virtual display, in percent
+sint16 dr_get_screen_scale();
+
 
 bool dr_os_init(int const* parameter);
 
@@ -82,7 +94,7 @@ struct resolution
 };
 resolution dr_query_screen_resolution();
 
-int dr_os_open(int w, int h, bool fullscreen);
+int dr_os_open(scr_size window_size, sint16 fullscreen);
 void dr_os_close();
 
 // returns the locale; NULL if unknown
@@ -212,6 +224,24 @@ void dr_notify_input_pos(int x, int y);
 
 ///  returns current two byte languange ID
 const char* dr_get_locale();
+
+/**
+ * @return
+ *  0: if windowed
+ *  1: if fullscreen
+ *  2: if borderless fullscreen
+ */
+sint16 dr_get_fullscreen();
+
+/**
+ * Toggle between borderless and windowed mode
+ * @return the fullscreen state after the toggle
+ */
+sint16 dr_toggle_borderless();
+
+/* temparily minimizes window and restore it */
+sint16 dr_suspend_fullscreen();
+void dr_restore_fullscreen(sint16 old_fullscreen);
 
 int sysmain(int argc, char** argv);
 

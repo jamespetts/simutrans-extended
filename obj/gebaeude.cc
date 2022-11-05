@@ -1016,7 +1016,7 @@ void gebaeude_t::info(cbuffer_t & buf) const
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
-        buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
+		buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
 
 		building_desc_t const& h = *tile->get_desc();
 

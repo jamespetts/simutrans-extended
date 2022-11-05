@@ -151,7 +151,7 @@ sint32 weg_t::get_max_speed(bool needs_electrification) const
 
 void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 {
-	if(desc)
+	if(desc && desc != b)
 	{
 		// Remove the old maintenance cost
 		sint32 old_maint = get_desc()->get_maintenance();
@@ -166,7 +166,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 
 	desc = b;
 
-	if (!from_saved_game)
+	if (!from_saved_game && desc != b)
 	{
 		// Add the new maintenance cost
 		// Do not set this here if loading a saved game,
@@ -1415,6 +1415,9 @@ bool weg_t::renew()
 
 void weg_t::degrade()
 {
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	if(public_right_of_way)
 	{
 		// Do not degrade public rights of way, as these should remain passable.
@@ -1797,7 +1800,11 @@ void weg_t::add_travel_time_update(weg_t* w, uint32 actual, uint32 ideal)
 	pending_road_travel_time_updates.append(std::make_tuple(w, actual, ideal));
 }
 
-void weg_t::apply_travel_time_updates() {
+void weg_t::apply_travel_time_updates()
+{
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	while(!pending_road_travel_time_updates.empty() ) {
 		weg_t* str;
 		uint32 actual;

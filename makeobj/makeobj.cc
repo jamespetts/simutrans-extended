@@ -115,27 +115,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (argc && !STRICMP(argv[0], "tocsv")) {
-		argv++; argc--;
-
-		try {
-			const char* dest;
-			if (argc) {
-				dest = argv[0];
-				argv++; argc--;
-			}
-			else {
-				dest = 0;
-			}
-			root_writer_t::instance()->write_CSV(dest, argc, argv);
-		}
-		catch (const obj_pak_exception_t& e) {
-			dbg->error( e.get_class(), e.get_info() );
-			return 1;
-		}
-		return 0;
-	}
-
 	if (argc && !STRICMP(argv[0], "expand")) {
 		argv++; argc--;
 

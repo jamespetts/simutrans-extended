@@ -188,7 +188,7 @@ void factory_edit_frame_t::fill_list()
 				// timeline allows for this, and so does climates setting
 
 				if( ( city_chain  &&  ((desc->get_placement() == factory_desc_t::City || desc->get_placement() == factory_desc_t::shore_city || desc->get_placement() == factory_desc_t::river_city) && desc->is_consumer_only() ) )
-				||  ( land_chain  &&  ((desc->get_placement() == factory_desc_t::City || desc->get_placement() == factory_desc_t::shore_city || desc->get_placement() == factory_desc_t::river_city) && desc->is_consumer_only() ) )
+				||  ( land_chain  &&  ((desc->get_placement() != factory_desc_t::City && desc->get_placement() != factory_desc_t::shore_city && desc->get_placement() != factory_desc_t::river_city) && desc->is_consumer_only() ) )
 				||  (!city_chain  &&  !land_chain) ) {
 					switch(sortedby) {
 						case gui_sorting_item_t::BY_NAME_TRANSLATED:     factory_list.insert_ordered( desc, compare_factory_desc_name );           break;
@@ -209,7 +209,7 @@ void factory_edit_frame_t::fill_list()
 	// now build scrolled list
 	scl.clear_elements();
 	scl.set_selection(-1);
-	FOR(vector_tpl<factory_desc_t const*>, const i, factory_list) {
+	for(factory_desc_t const* const i : factory_list) {
 		PIXVAL const color =
 			i->is_consumer_only() ? color_idx_to_rgb(COL_DARK_BLUE + env_t::gui_player_color_dark) :
 			i->is_producer_only() ? color_idx_to_rgb(40 + env_t::gui_player_color_dark)            :

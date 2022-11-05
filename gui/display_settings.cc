@@ -18,6 +18,7 @@
 #include "../simmenu.h"
 #include "../player/simplay.h"
 #include "../utils/simstring.h"
+#include "../sys/simsys.h"
 
 #include "gui_theme.h"
 #include "themeselector.h"
@@ -111,6 +112,27 @@ gui_settings_t::gui_settings_t()
 	}
 	add_component( buttons + IDBTN_CHANGE_FONT );
 
+	// screen scale number input
+	add_table(3,1)->set_spacing(scr_size(0,0));
+	{
+		new_component<gui_label_t>("Screen scale:");
+
+		add_table(2,0);
+		{
+			screen_scale_numinp.init(dr_get_screen_scale(), 25, 400, 25, false);
+			screen_scale_numinp.add_listener(this);
+			add_component(&screen_scale_numinp);
+
+			screen_scale_auto.init(button_t::roundbox_state, "Auto");
+			screen_scale_auto.add_listener(this);
+			add_component(&screen_scale_auto);
+		}
+		end_table();
+
+		new_component<gui_fill_t>();
+	}
+	end_table();
+
 	// position of menu
 	add_table(5,1)->set_spacing(scr_size(0,0));
 	{
@@ -136,6 +158,15 @@ gui_settings_t::gui_settings_t()
 	reselect_closes_tool.init( button_t::square_state, "Reselect closes tools" );
 	reselect_closes_tool.pressed = env_t::reselect_closes_tool;
 	add_component( &reselect_closes_tool, 2 );
+
+	fullscreen.init( button_t::square_state, "Fullscreen (changed after restart)" );
+	fullscreen.pressed = ( dr_get_fullscreen() == FULLSCREEN );
+	add_component( &fullscreen, 2 );
+
+	borderless.init( button_t::square_state, "Borderless (disabled on fullscreen)" );
+	borderless.enable ( dr_get_fullscreen() != FULLSCREEN );
+	borderless.pressed = ( dr_get_fullscreen() == BORDERLESS );
+	add_component( &borderless, 2 );
 
 	new_component<gui_divider_t>();
 
@@ -346,6 +377,21 @@ void gui_settings_t::draw(scr_coord offset)
 
 	// All components are updated, now draw them...
 	gui_aligned_container_t::draw(offset);
+}
+
+
+bool gui_settings_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if (comp == &screen_scale_numinp) {
+		const sint16 new_value = screen_scale_numinp.get_value();
+		dr_set_screen_scale(new_value);
+	}
+	else if (comp == &screen_scale_auto) {
+		dr_set_screen_scale(-1);
+		screen_scale_numinp.set_value(dr_get_screen_scale());
+	}
+
+	return true;
 }
 
 
@@ -766,8 +812,7 @@ void label_settings_t::draw(scr_coord offset)
 
 traffic_settings_t::traffic_settings_t()
 {
-	set_table_layout( 1, 0 );
-	add_table( 2, 0 );
+	set_table_layout( 2, 0 );
 
 	// Pedestrians in towns checkbox
 	buttons[IDBTN_PEDESTRIANS_IN_TOWNS].init(button_t::square_state, "6LIGHT_CHOOSE");
@@ -805,8 +850,6 @@ traffic_settings_t::traffic_settings_t()
 	buttons[IDBTN_SHOW_SCHEDULES_STOP].init( button_t::square_state ,  "Highlite schedule" );
 	buttons[IDBTN_SHOW_SCHEDULES_STOP].set_tooltip("Highlight the locations of stops on the current schedule");
 	add_component(buttons+IDBTN_SHOW_SCHEDULES_STOP, 2);
-
-	end_table();
 }
 
 bool traffic_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
@@ -861,12 +904,14 @@ color_gui_t::color_gui_t() :
 	for (uint8 i = 0; i < 8; i++) {
 		gui_settings.info_window_toggler[i].add_listener(this);
 	}
+	gui_settings.fullscreen.add_listener( this );
+	gui_settings.borderless.add_listener( this );
 	gui_settings.reselect_closes_tool.add_listener(this);
 
 	set_resizemode(diagonal_resize);
-	set_min_windowsize( scr_size(D_DEFAULT_WIDTH, max(get_min_windowsize().h, traffic_settings.get_size().h)) );
-	// It is assumed that the map view tab is the tab with the most lines.
-	set_windowsize( scr_size(D_DEFAULT_WIDTH, map_settings.get_size().h+D_TAB_HEADER_HEIGHT+D_TITLEBAR_HEIGHT+D_MARGINS_Y) );
+	set_min_windowsize( scr_size(gui_settings.get_min_size().w, map_settings.get_min_size().h+D_TAB_HEADER_HEIGHT+D_TITLEBAR_HEIGHT) );
+	// GUI settings tab is the tab with the most lines in Extended.
+	set_windowsize( gui_settings.get_min_size()+scr_size(0,D_TAB_HEADER_HEIGHT+D_TITLEBAR_HEIGHT) );
 	resize( scr_coord( 0, 0 ) );
 }
 
@@ -891,6 +936,20 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t)
 		for(  uint8 i=0; i<4; i++  ) {
 			gui_settings.toolbar_pos[i].pressed = (env_t::menupos == i);
 		}
+		return true;
+	}
+
+	if(  comp == &gui_settings.fullscreen  ) {
+		gui_settings.fullscreen.pressed = !gui_settings.fullscreen.pressed;
+		env_t::fullscreen = gui_settings.fullscreen.pressed;
+		gui_settings.borderless.pressed = false;
+		return true;
+	}
+
+	if(  comp == &gui_settings.borderless  ) {
+		env_t::fullscreen = dr_toggle_borderless();
+		gui_settings.borderless.pressed = dr_get_fullscreen();
+		gui_settings.fullscreen.pressed = false;
 		return true;
 	}
 

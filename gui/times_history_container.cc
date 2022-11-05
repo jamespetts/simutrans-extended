@@ -422,7 +422,7 @@ void gui_times_history_t::draw(scr_coord offset)
 		init();
 	}
 	else if (convoy.is_bound()){
-		if (!convoy->get_schedule()->matches(world(), schedule)) {
+		if (!convoy->get_schedule()->empty() && !convoy->get_schedule()->matches(world(), schedule)) {
 			init();
 		}
 		else {
@@ -436,7 +436,7 @@ void gui_times_history_t::draw(scr_coord offset)
 		}
 	}
 	else if(line.is_bound()) {
-		if (!line->get_schedule()->matches(world(), schedule)) {
+		if (!line->get_schedule()->empty() && !line->get_schedule()->matches(world(), schedule)) {
 			init();
 		}
 		else if(world()->get_ticks() - update_time > 10000) {
