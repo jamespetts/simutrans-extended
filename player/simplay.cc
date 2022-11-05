@@ -175,6 +175,11 @@ void player_t::book_revenue(const sint64 amount, const koord k, const waytype_t 
 	add_money_message(amount, k);
 }
 
+void player_t::book_tax(const sint64 amount)
+{
+	finance->book_tax(amount); 
+}
+
 void player_t::book_way_renewal(const sint64 amount, const waytype_t wt)
 {
 	finance->book_way_renewal(-amount, wt);

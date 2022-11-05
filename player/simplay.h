@@ -193,6 +193,11 @@ public:
 	void book_revenue(const sint64 amount, const koord k, const waytype_t wt=ignore_wt, sint32 cathegory=2);
 
 	/**
+	* Adds tax to accounting statistics.
+	*/
+	void book_tax(const sint64 amount); 
+
+	/**
 	 * Adds running costs to accounting statistics.
 	 * @param amount How much does it cost
 	 * @param wt type of transport used for accounting statistics

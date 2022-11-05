@@ -193,6 +193,11 @@ void finance_t::new_month()
 	// subtract interest (before subtracting infrastructure maintenance)
 	book_interest_monthly();
 
+	if (!player->is_public_service())
+	{
+		book_corporation_tax_monthly();
+	}
+
 	// subtract infrastructure maintenance
 	for(int i=0; i<TT_MAX; ++i){
 		veh_month[i][0][ATV_INFRASTRUCTURE_MAINTENANCE] -= get_maintenance_with_bits((transport_type)i);
@@ -221,10 +226,30 @@ void finance_t::book_interest_monthly()
 			interest = 0;
 		}
 
-		com_year[0][ATC_INTEREST] += interest;
-		com_month[0][ATC_INTEREST] += interest;
-		account_balance += interest;
+		book_interest(interest); 
 	}
+}
+
+void finance_t::book_corporation_tax_monthly()
+{
+	const sint64 tax_rate = world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::corporation_tax);
+
+	// Corporation tax has generous capital allowances, so players are taxed on their previous year's gross profit. Thus, new players
+	// do not have to pay any tax for the first year. In each month, players then pay corporation tax on 1/12th of the gross profit.
+	// from the previous year. The tax is given to the public player.
+
+	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT];
+
+	// Divide by months and 100s 
+	sint64 tax_payable = (taxable_profit_last_year * tax_rate) / 1200ll;
+
+	if (tax_payable < 0)
+	{
+		tax_payable = 0;
+	}
+
+	book_tax(-tax_payable);
+	world->get_public_player()->book_tax(tax_payable); 
 }
 
 void finance_t::calc_credit_limits()
