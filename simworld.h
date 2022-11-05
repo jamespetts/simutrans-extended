@@ -2745,6 +2745,8 @@ public:
 
 	void calc_max_vehicle_speeds();
 
+	sint16 get_overdraft_rate_percent() const;
+
 private:
 
 	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(NULL); }
@@ -2759,7 +2761,7 @@ private:
 
 	void refresh_private_car_routes();
 
-	static void clear_private_car_routes() ;
+	static void clear_private_car_routes();
 };
 
 

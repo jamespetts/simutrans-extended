@@ -202,34 +202,19 @@ void finance_t::new_month()
 }
 
 /**
- * Books interest expense or profit.
+ * Books all interest.
+ * Currently only overdraft interest
+ * TODO: Add other kinds of borrowing
  */
 void finance_t::book_interest_monthly()
 {
-	// This handles both interest on cash balance and interest on loans.
-	// Rate is yearly rate for debt; rate for credit is 1/4 of that.  (Fix this.)
-	const sint64 interest_rate = (sint64)world->get_settings().get_interest_rate_percent();
-	if (interest_rate > 0)
+	const sint64 overdraft_rate = (sint64)world->get_overdraft_rate_percent();
+	if (overdraft_rate > 0)
 	{
-		/*float32e8_t interest (interest_rate);
-		interest /= (float32e8_t)100; // percent
-		interest /= (float32e8_t)12; // monthly
-		if (get_account_balance() >= 0) {
-			// Credit interest rate is 1/4 of debt interest rate.
-			interest /= (float32e8_t)4;
-		}
-		// Apply to the current account balance, only if in debt.
-		// Credit interest, which applied in earlier versions, unbalanced the game.
-		interest *= (float32e8_t)get_account_balance();
-		// Due to the limitations of float32e8, interest can only go up to +-2^31 per month.
-		// Hopefully this won't be an issue.  It will report errors if it is.
-		// This would require an account balance of over +-257 billion.
-		sint32 booked_interest = interest;*/
-
 		sint64 interest;
 		if(get_account_balance() < 0)
 		{
-			interest = (interest_rate * get_account_balance()) / 1200ll;
+			interest = (overdraft_rate * get_account_balance()) / 1200ll;
 		}
 		else
 		{
@@ -288,9 +273,9 @@ sint64 finance_t::credit_limit_by_profits() const
 		// This is before interst and before construction costs.
 		profit_total += get_history_veh_month(TT_ALL, month, ATV_OPERATING_PROFIT);
     }
-	sint64 interest_rate = world->get_settings().get_interest_rate_percent();
+	sint64 overdraft_interest_rate = (sint64)world->get_overdraft_rate_percent();
 
-	if(interest_rate == 0)
+	if(overdraft_interest_rate == 0)
 	{
 		return 0;
 	}
@@ -298,7 +283,7 @@ sint64 finance_t::credit_limit_by_profits() const
 	// *Divide* by the interest rate: if all the profits went to interest,
 	// this tells us how much debt (principal) we could pay interest on
 	// Does not account for compound interest, so generous to the player
-	sint64 hard_limit_by_profits = - (profit_total * 100ll) / interest_rate;
+	sint64 hard_limit_by_profits = - (profit_total * 100ll) / overdraft_interest_rate;
 	// The following deals with recurring losses;
 	// It also deals (badly) with overflow errors.
 	if (hard_limit_by_profits > 0) {

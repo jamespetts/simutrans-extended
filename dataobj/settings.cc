@@ -386,7 +386,7 @@ settings_t::settings_t() :
 
 	//@author: jamespetts
 	// Insolvency and debt settings
-	interest_rate_percent = 10;
+	overdraft_percent_above_base_rate = 2;
 	allow_insolvency  = 0;
 	allow_purchases_when_insolvent  = 0;
 
@@ -1323,8 +1323,16 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 
 			file->rdwr_short(factory_max_years_obsolete);
-
-			file->rdwr_byte(interest_rate_percent);
+			if (file->get_extended_version() < 15)
+			{
+				uint8 legacy_interest_rate_percent;
+				file->rdwr_byte(legacy_interest_rate_percent);
+				overdraft_percent_above_base_rate = max(0, legacy_interest_rate_percent - 8);
+			}
+			else
+			{
+				file->rdwr_short(overdraft_percent_above_base_rate); 
+			}
 			file->rdwr_bool(allow_insolvency);
 			file->rdwr_bool(allow_purchases_when_insolvent);
 
@@ -2746,7 +2754,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	// @author: jamespetts
 	// Insolvency and debt settings
-	interest_rate_percent = contents.get_int("interest_rate_percent", interest_rate_percent);
+
+	sint16 interest_rate_percent = contents.get_int("interest_rate_percent", 0);
+	if (interest_rate_percent)
+	{
+		// Adapt legacy data.
+		overdraft_percent_above_base_rate = max(0, interest_rate_percent - 8); 
+	}
+	overdraft_percent_above_base_rate = contents.get_int("overdraft_percent_above_base_rate", overdraft_percent_above_base_rate);
 	// Check for misspelled version
 	allow_insolvency = contents.get_int("allow_bankruptsy", allow_insolvency);
 	// Check for deprecated version
@@ -3844,3 +3859,4 @@ void settings_t::calc_job_replenishment_ticks()
 {
 	job_replenishment_ticks = ((1LL << bits_per_month) * (sint64)get_job_replenishment_per_hundredths_of_months()) / 100ll;
 }
+

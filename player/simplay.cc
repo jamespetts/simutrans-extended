@@ -413,9 +413,10 @@ bool player_t::new_month()
 					{
 						buf.printf("%s", translator::translate("You have been overdrawn\nfor one month"));
 					}
-					if (welt->get_settings().get_interest_rate_percent() > 0)
+					const sint16 overdraft_interest_rate_percent = welt->get_overdraft_rate_percent();
+					if (overdraft_interest_rate_percent > 0)
 					{
-						buf.printf(translator::translate("\n\nInterest on your debt is\naccumulating at %i %%"), welt->get_settings().get_interest_rate_percent());
+						buf.printf(translator::translate("\n\nInterest on your debt is\naccumulating at %i %%"), overdraft_interest_rate_percent);
 					}
 				}
 				else if(ss == player_t::in_administration)

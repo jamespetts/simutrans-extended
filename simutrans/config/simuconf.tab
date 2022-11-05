@@ -712,6 +712,32 @@ cst_make_public_months = 60
 # Preserves accuracy without requiring very high absolute figures (only rounds down at the end of each trip).
 fuel_unit_cost_divider = 1000
 
+# This gives the number of percentage points above the base rate at which players are charged interest on overdrafts.
+# Default: 2%
+# The base rate is set in prices.tab.
+overdraft_percent_above_base_rate = 2
+
+# Insolvency settings
+#
+# These settings allow what happens when the player runs out of money and goes
+# into the red to be customised. 
+# 
+# "allow_bankruptcy" determines whether, when the player is deemed to have been
+# insolvent for more than a certain period, the player should be declared
+# bankrupt and the game over. 0 = no, 1 = yes.
+# 
+# "allow_purchases_when_insolvent" determines whether, if the player's bank
+# balance falls below the player's credit limit (shown in the finance window),
+# the player will be unable to spend any new money on capital items (excluding
+# bulldozing) until the player has come back within the credit limit again.
+# 0 = no, 1 = yes.
+#
+# To revert to the behaviour of Simutrans standard, set interest_rate_percent to
+# 0, set allow_bankruptsy to 1, and set allow_purchases_when_insolvent to 1.
+
+allow_bankruptcyallow_bankruptcy = 1
+allow_purchases_when_insolvent = 0	
+
 ################################### Miscellaneous settings ##################################
 #
 # also pak dependent
