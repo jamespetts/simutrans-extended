@@ -6504,3 +6504,5 @@ wait_for_trigger
 Wait for trigger
 broadcast_trigger_on_arrival
 Broadcast trigger on arrival
+modify_convoy
+Modify consist
