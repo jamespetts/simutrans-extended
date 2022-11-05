@@ -68,7 +68,7 @@ public:
 class gui_simple_vehicle_spec_t : public gui_aligned_container_t
 {
 	const vehicle_desc_t* veh_type = nullptr;
-	uint8 player_nr=1;
+	sint8 player_nr=1;
 
 public:
 
@@ -87,9 +87,49 @@ public:
 	};
 
 	gui_simple_vehicle_spec_t() { }
-	void set_player_nr(uint8 player_nr) { this->player_nr=player_nr; }
+	void set_player_nr(sint8 player_nr) { this->player_nr=player_nr; }
 	void set_vehicle(const vehicle_desc_t* desc) { veh_type = desc; init_table(); }
 	void init_table();
+};
+
+
+class gui_vehicle_description_t : public gui_aligned_container_t, private action_listener_t
+{
+	consist_order_t *order;
+	uint32 order_element_index;
+	uint32 description_index;
+	button_t bt_up, bt_down, bt_remove;
+	//button_t bt_edit; // TODO
+
+public:
+	gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index);
+
+	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
+};
+
+
+class cont_order_overview_t : public gui_aligned_container_t
+{
+	consist_order_t *order;
+	sint8 player_nr=-1; // Required for player color in vehicle images
+	uint32 order_element_index = -1;
+
+	uint32 old_count=0; // reflesh flag
+
+public:
+	cont_order_overview_t(consist_order_t *order);
+
+	void set_element(uint32 element_idx, sint8 player_nr) {
+		this->player_nr = player_nr;
+		if (order_element_index != element_idx) {
+			order_element_index = element_idx;
+			init_table();
+		}
+	}
+
+	void init_table();
+
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 
@@ -116,9 +156,10 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	// [ORDER]
 	gui_aligned_container_t cont_order;
-	gui_scrollpane_t scrollx_order;
+	cont_order_overview_t cont_order_overview;
+	gui_scrollpane_t scrolly_order;
 	uint32 old_order_count=0;
-	void update_order_list();
+	void update_order_list(sint32 reselect_index=-1);
 
 	// filter (common)
 	uint8 filter_catg=goods_manager_t::INDEX_NONE;
@@ -127,7 +168,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// [VEHICLE PICKER]
 	const vehicle_desc_t* selected_vehicle = nullptr;
 	slist_tpl<own_vehicle_t> own_vehicles;
-	button_t bt_add_vehicle, bt_sort_order_veh, bt_show_hide_vehicle_filter;
+	button_t bt_add_vehicle, bt_add_vehicle_limit_vehicle, bt_sort_order_veh, bt_show_hide_vehicle_filter;
 	gui_label_t lb_open_vehicle_filter;
 	gui_simple_vehicle_spec_t veh_specs;
 	gui_aligned_container_t cont_picker_frame, cont_vehicle_filter;
@@ -143,7 +184,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	button_t bt_filter_halt_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
 	gui_aligned_container_t cont_convoy_filter;
 	//
-	button_t bt_sort_order_cnv, bt_copy_convoy, bt_convoy_detail;
+	button_t bt_sort_order_cnv, bt_copy_convoy, bt_copy_convoy_limit_vehicle, bt_convoy_detail;
 	gui_label_buf_t lb_vehicle_count;
 	gui_line_label_t line_label;
 	gui_convoi_images_t img_convoy;
@@ -158,8 +199,18 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void init_table();
 	void update();
 
+	// add an empty order to orders
+	void append_new_order();
+
+	void save_order();
+
 public:
+	// Flag for the need to update the UI locally
+	static bool need_reflesh_descriptions;
+	static bool need_reflesh_order_list;
+
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
+	~consist_order_frame_t();
 
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
 
@@ -172,8 +223,6 @@ public:
 	bool is_weltpos() OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
-
-	void set_convoy(convoihandle_t cnv = convoihandle_t());
 
 	void rdwr(loadsave_t *file) OVERRIDE;
 

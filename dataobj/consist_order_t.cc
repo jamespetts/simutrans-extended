@@ -5,14 +5,51 @@
 */
 
 #include "consist_order_t.h"
+#include "../simconvoi.h"
 
 #include "../utils/cbuffer_t.h"
 
 #include "loadsave.h"
 #include "translator.h"
 
-#include "../descriptor/vehicle_desc.h"
 #include "../bauer/vehikelbauer.h"
+#include "../vehicle/vehicle.h"
+
+
+void consist_order_element_t::append_vehicle(const vehicle_desc_t *v, bool is_specific)
+{
+	vehicle_description_element v_elem;
+	if (is_specific) {
+		v_elem.specific_vehicle = v;
+	}
+	else {
+		v_elem.set_vehicle_spec(v);
+	}
+	vehicle_description.append(v_elem);
+}
+
+
+void consist_order_element_t::increment_index(uint32 description_index)
+{
+	if( (description_index>=vehicle_description.get_count()-1)  ||  vehicle_description.get_count()<2 ) { return; }
+	vehicle_description.insert_at(description_index+2, vehicle_description.get_element(description_index));
+	vehicle_description.remove_at(description_index);
+}
+
+
+void consist_order_t::set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific)
+{
+	if( !cnv.is_bound() ) { return; }
+	if( element_number >= orders.get_count() ) {
+		dbg->warning("consist_order_t::set_convoy_order", "Invalid element_number. elem=%u total_orders=%u", element_number, orders.get_count()); return;
+	}
+
+	orders[element_number].clear_vehicles();
+	for (uint8 i=0; i < cnv->get_vehicle_count(); i++) {
+		orders[element_number].append_vehicle(cnv->get_vehicle(i)->get_desc(), specific);
+	}
+}
+
 
 void consist_order_t::rdwr(loadsave_t* file)
 {

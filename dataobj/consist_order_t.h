@@ -9,6 +9,8 @@
 
 
 #include "../bauer/goods_manager.h"
+#include "../convoihandle_t.h"
+#include "../descriptor/vehicle_desc.h"
 
 class vehicle_desc_t;
 class loadsave_t;
@@ -105,6 +107,19 @@ struct vehicle_description_element
 	static const uint8 max_rule_flags = 14;
 
 	uint16 rule_flags[max_rule_flags] { prefer_high_capacity, prefer_high_power, prefer_high_tractive_effort, prefer_high_speed, prefer_high_running_cost, prefer_high_fixed_cost, prefer_low_capacity, prefer_low_power, prefer_low_tractive_effort, prefer_low_speed, prefer_low_running_cost, prefer_low_fixed_cost };
+
+	void set_vehicle_spec(const vehicle_desc_t *v)
+	{
+		engine_type  = v->get_engine_type();
+		min_catering = v->get_catering_level();
+		//must_carry_class
+		//min_range
+		min_brake_force = v->get_brake_force();
+		min_power = v->get_power();
+		//min_tractive_effort;
+		min_topspeed = v->get_calibration_speed();
+		min_capacity = v->get_total_capacity();
+	}
 };
 
 class consist_order_element_t
@@ -135,6 +150,29 @@ protected:
 	uint16 tags_to_set = 0;
 
 	vector_tpl<vehicle_description_element> vehicle_description;
+
+public:
+	uint32 get_count() const { return vehicle_description.get_count(); }
+
+	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
+
+	void clear_vehicles()
+	{
+		vehicle_description.clear();
+	}
+
+	void remove_vehicle_description_at(uint32 description_index)
+	{
+		if (description_index >= vehicle_description.get_count()) { return; }
+		vehicle_description.remove_at(description_index, false);
+	}
+
+	void increment_index(uint32 description_index);
+
+	const vehicle_description_element get_vehicle_description(uint32 description_index) const
+	{
+		return vehicle_description.get_element(description_index);
+	}
 };
 
 class consist_order_t
@@ -165,6 +203,22 @@ public:
 	void rdwr(loadsave_t* file);
 
 	uint32 get_count() const { return orders.get_count(); }
+
+	void append(consist_order_element_t elem)
+	{
+		orders.append(elem);
+		return;
+	}
+
+	void remove_order(uint32 element_number)
+	{
+		orders.remove_at(element_number);
+		return;
+	}
+
+	// Copy order from specific convoy
+	// specific_vehicle option: restrict specific vehicle or copy required specs.
+	void set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific_vehicle=true);
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	void sscanf_consist_order(const char* ptr);

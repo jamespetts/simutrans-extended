@@ -6,6 +6,8 @@
 #include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoy_item.h"
+#include "simwin.h"
+#include "messagebox.h"
 #include "../bauer/goods_manager.h"
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
@@ -22,6 +24,8 @@
 #define L_OWN_VEHICLE_COUNT_WIDTH (proportional_string_width("8,888") + D_H_SPACE)
 #define L_OWN_VEHICLE_LABEL_OFFSET_LEFT (L_OWN_VEHICLE_COUNT_WIDTH + VEHICLE_BAR_HEIGHT*4+D_H_SPACE)
 
+bool consist_order_frame_t::need_reflesh_descriptions = false;
+bool consist_order_frame_t::need_reflesh_order_list = false;
 
 const char *vehicle_spec_texts[gui_simple_vehicle_spec_t::MAX_VEH_SPECS] =
 {
@@ -278,13 +282,122 @@ void gui_simple_vehicle_spec_t::init_table()
 }
 
 
+gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index)
+{
+	this->order = order;
+	this->order_element_index = order_element_index;
+	this->description_index= description_index;
+
+	// no., image, name - UI TODO: this is a temporary design
+	set_table_layout(7,0);
+	bt_down.init(button_t::arrowdown, NULL);
+	bt_down.enable(description_index<order->get_order(order_element_index).get_count()-1);
+	bt_up.init(button_t::arrowup, NULL);
+	bt_up.enable(description_index>0);
+	bt_down.add_listener(this);
+	bt_up.add_listener(this);
+	add_component(&bt_up);
+	add_component(&bt_down);
+
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
+	lb->buf().printf("%3u", description_index+1);
+	lb->set_fixed_width(proportional_string_width("888"));
+	lb->update();
+
+	const consist_order_element_t order_element = order->get_order(order_element_index);
+	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
+	if( element.specific_vehicle ) {
+		new_component<gui_image_t>(element.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
+		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_southwest, goods_manager_t::none), player_nr, 0, true);
+		new_component<gui_label_t>(element.specific_vehicle->get_name(), SYSCOL_TEXT_STRONG);
+	}
+	else {
+		new_component<gui_margin_t>(1); // TODO: category?
+		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK); // TODO: vehicle bar?
+		new_component<gui_label_t>("(FIXME: dummy label)");
+	}
+	bt_remove.init(button_t::roundbox, "Remove");
+	bt_remove.add_listener(this);
+	add_component(&bt_remove);
+}
+
+
+bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if(  comp==&bt_up  ) {
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->increment_index(description_index-1);
+		consist_order_frame_t::need_reflesh_descriptions = true;
+	}
+	else if(  comp==&bt_down  ) {
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->increment_index(description_index);
+		consist_order_frame_t::need_reflesh_descriptions = true;
+	}
+	else if(  comp==&bt_remove  ) {
+		consist_order_element_t *order_element = &order->get_order(order_element_index);
+		order_element->remove_vehicle_description_at(description_index);
+		consist_order_frame_t::need_reflesh_order_list = true;
+	}
+	return true;
+}
+
+
+cont_order_overview_t::cont_order_overview_t(consist_order_t *order)
+{
+	this->order = order;
+	init_table();
+}
+
+void cont_order_overview_t::init_table()
+{
+	consist_order_frame_t::need_reflesh_descriptions = false;
+	remove_all();
+	set_table_layout(1,0);
+	if (!order->get_count() || order_element_index >= order->get_count() ) {
+		old_count = 0;
+		// empty or invalid element index
+		new_component<gui_label_t>("Select a consist order", SYSCOL_TEXT_WEAK);
+	}
+	else{
+		consist_order_element_t elem= order->get_order(order_element_index);
+		old_count=elem.get_count();
+		if( !old_count ) {
+			new_component<gui_label_t>("Set vehicle descriptions", SYSCOL_TEXT_WEAK);
+		}
+		else {
+			for (uint8 i = 0; i < old_count; i++) {
+				new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, i);
+			}
+		}
+	}
+	set_size(get_min_size());
+}
+
+
+void cont_order_overview_t::draw(scr_coord offset)
+{
+	if (order) {
+		const uint32 description_count = order->get_order(order_element_index).get_count();
+		if (description_count != old_count) {
+			init_table();
+		}
+		else if (consist_order_frame_t::need_reflesh_descriptions == true) {
+			init_table();
+		}
+		gui_aligned_container_t::draw(offset);
+	}
+}
+
+
 consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
 	: gui_frame_t(translator::translate("consist_order")),
 	halt_number(-1),
+	cont_order_overview(&order),
 	scl(gui_scrolled_list_t::listskin),
 	scl_vehicles(gui_scrolled_list_t::listskin),
 	scl_convoys(gui_scrolled_list_t::listskin),
-	scrollx_order(&cont_order, true, false),
+	scrolly_order(&cont_order, false, true),
 	img_convoy(convoihandle_t()),
 	formation(convoihandle_t(), false),
 	scrollx_formation(&formation, true, false)
@@ -296,11 +409,28 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 }
 
 
+void consist_order_frame_t::save_order()
+{
+	schedule->orders.remove(unique_entry_id);
+	schedule->orders.put(unique_entry_id, order);
+}
+
+
+consist_order_frame_t::~consist_order_frame_t()
+{
+	save_order();
+}
+
+
 void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 entry_id)
 {
 	this->player = player;
 	this->schedule = schedule;
+	if( unique_entry_id!=-1  &&  unique_entry_id != entry_id) {
+		save_order();
+	}
 	unique_entry_id = entry_id;
+	order=schedule->orders.get(unique_entry_id);
 	veh_specs.set_player_nr(player->get_player_nr());
 	set_owner(player);
 	update();
@@ -315,7 +445,6 @@ void consist_order_frame_t::init_table()
 	tabs.clear();
 
 	old_entry_count = schedule->get_count();
-	order=schedule->orders.get(unique_entry_id);
 
 	bt_filter_halt_convoy.pressed = true;
 	bt_filter_single_vehicle.pressed = true;
@@ -338,40 +467,42 @@ void consist_order_frame_t::init_table()
 	end_table();
 
 	// [OVERVIEW] (orders)
-	add_table(2,1);
+	add_table(3,1);
 	{
-		scl.clear_elements();
-		scl.set_size(scr_size(D_LABEL_WIDTH<<1, LINESPACE*4));
-		scl.set_maximize(true);
-		scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>("New order", SYSCOL_TEXT);
-		scl.add_listener(this);
-		add_component(&scl);
-
-		add_table(2, 1);
+		add_table(1,2);
 		{
-			cont_order.set_table_layout(1,0);
-			cont_order.new_component<gui_label_t>("(dummy)order overview with controller here");
-			scrollx_order.set_maximize(true);
-			add_component(&scrollx_order);
-			cont_order.set_size(cont_order.get_min_size());
+			scl.clear_elements();
+			scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
+			scl.set_maximize(true);
+			scl.add_listener(this);
+			add_component(&scl);
 
-			cont_order.new_component<gui_label_t>("(dummy)order description table here");
+			gui_aligned_container_t *tbl = add_table(2,1);
+			tbl->set_force_equal_columns(true);
+			tbl->set_spacing(scr_size(0,0));
+			{
+				bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
+				bt_new.add_listener(this);
+				add_component(&bt_new);
+				bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
+				bt_delete.add_listener(this);
+				add_component(&bt_delete);
+			}
+			end_table();
 		}
 		end_table();
+		update_order_list();
+
+		cont_order.set_table_layout(1,0);
+		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
+		cont_order.add_component(&cont_order_overview);
+		cont_order.new_component<gui_fill_t>();
+		scrolly_order.set_maximize(true);
+		add_component(&scrolly_order,2);
+		cont_order.set_size(cont_order.get_min_size());
 	}
 	end_table();
 
-	add_table(3,1)->set_force_equal_columns(true);
-	{
-		bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
-		bt_new.add_listener(this);
-		add_component(&bt_new);
-		bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
-		bt_delete.enable(order.get_count());
-		bt_delete.add_listener(this);
-		add_component(&bt_delete);
-	}
-	end_table();
 
 	new_component<gui_divider_t>();
 
@@ -417,9 +548,21 @@ void consist_order_frame_t::init_table()
 		}
 		cont_picker_frame.end_table();
 
-		bt_add_vehicle.init(button_t::roundbox, "Add vehicle");
-		bt_add_vehicle.add_listener(this);
-		cont_picker_frame.add_component(&bt_add_vehicle);
+		cont_picker_frame.add_table(2,1);
+		{
+			bt_add_vehicle.init(button_t::roundbox, "Add vehicle");
+			bt_add_vehicle.enable( selected_vehicle!=NULL );
+			bt_add_vehicle.add_listener(this);
+			cont_picker_frame.add_component(&bt_add_vehicle);
+
+			bt_add_vehicle_limit_vehicle.init(button_t::square_state, "limit_to_same_vehicle");
+			bt_add_vehicle_limit_vehicle.enable( selected_vehicle!=NULL );
+			bt_add_vehicle_limit_vehicle.pressed = true;
+			bt_add_vehicle_limit_vehicle.set_tooltip(translator::translate("Limited to the same vehicle"));
+			bt_add_vehicle_limit_vehicle.add_listener(this);
+			cont_picker_frame.add_component(&bt_add_vehicle_limit_vehicle);
+		}
+		cont_picker_frame.end_table();
 
 		scl_vehicles.set_maximize(true);
 		scl_vehicles.add_listener(this);
@@ -507,6 +650,12 @@ void consist_order_frame_t::init_table()
 			bt_copy_convoy.add_listener(this);
 			cont_convoy_copier.add_component(&bt_copy_convoy);
 
+			bt_copy_convoy_limit_vehicle.init(button_t::square_state, "limit_to_same_vehicle");
+			bt_copy_convoy_limit_vehicle.pressed = true;
+			bt_copy_convoy_limit_vehicle.set_tooltip(translator::translate("Limited to the same vehicle"));
+			bt_copy_convoy_limit_vehicle.add_listener(this);
+			cont_convoy_copier.add_component(&bt_copy_convoy_limit_vehicle);
+
 			cont_convoy_copier.add_component(&line_label);
 			cont_convoy_copier.add_component(&img_convoy);
 			scrollx_formation.set_maximize(true);
@@ -567,22 +716,28 @@ void consist_order_frame_t::update()
 }
 
 
-// copy selected convoy's order
-void consist_order_frame_t::set_convoy(convoihandle_t cnv)
+void consist_order_frame_t::update_order_list(sint32 reselect_index)
 {
-}
-
-void consist_order_frame_t::update_order_list()
-{
+	need_reflesh_order_list = false;
+	sint32 current_selection = scl.get_selection();
 	scl.clear_elements();
-	scl.new_component<gui_scrolled_list_t::const_text_scrollitem_t>("New order", SYSCOL_TEXT);
+	if( !order.get_count() ) {
+		// Need an empty order to edit
+		append_new_order();
+	}
 	old_order_count = order.get_count();
 	for( uint32 i=0; i<old_order_count; ++i ) {
 		cbuffer_t buf;
-		buf.printf("%s #%u", translator::translate("Consist order"), i+1); // TODO: add vehicle count
-		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
+		const uint32 v_description_count = order.get_order(i).get_count();
+		buf.printf("%s #%u (%u)", translator::translate("Consist order"), i+1, v_description_count);
+		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, v_description_count ? SYSCOL_TEXT : SYSCOL_EMPTY);
 	}
-	bt_delete.enable(old_order_count);
+
+	// reselect the selection
+	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
+	cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+
+	bt_delete.enable( old_order_count  &&  scl.get_selection()!=-1 );
 	resize(scr_size(0,0));
 }
 
@@ -618,6 +773,7 @@ void consist_order_frame_t::update_convoy_info()
 		}
 	}
 	bt_copy_convoy.enable(selected_convoy.is_bound());
+	bt_copy_convoy_limit_vehicle.enable(selected_convoy.is_bound());
 	bt_convoy_detail.enable(selected_convoy.is_bound());
 	lb_vehicle_count.update();
 
@@ -652,6 +808,9 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 	else if( order.get_count()!=old_order_count ) {
 		update_order_list();
 	}
+	else if (need_reflesh_order_list==true) {
+		update_order_list(scl.get_selection());
+	}
 
 	// update when player purchases or sells this waytype's vehicle
 	const sint64 temp_veh_assets = player->get_finance()->get_history_veh_year(finance_t::translate_waytype_to_tt(schedule->get_waytype()), 0, ATV_NEW_VEHICLE);
@@ -663,43 +822,49 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 	gui_frame_t::draw(pos, size);
 }
 
+
+void consist_order_frame_t::append_new_order()
+{
+	order.append(consist_order_element_t());
+}
+
+
 bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
 	if( comp==&scl_vehicles ) {
-		sint32 e = scl_vehicles.get_selection();
 		scl_vehicles.get_selection();
 		vehicle_scrollitem_t *item = (vehicle_scrollitem_t*)scl_vehicles.get_element(v.i);
 		selected_vehicle = item->get_vehicle();
 		update_vehicle_info();
 	}
 	else if( comp==&scl_convoys  &&  own_convoys.get_count() ) {
-		sint32 e = scl_convoys.get_selection();
 		scl_convoys.get_selection();
 		convoy_scrollitem_t *item = (convoy_scrollitem_t*)scl_convoys.get_element(v.i);
 		selected_convoy = item->get_convoy();
 		update_convoy_info();
 	}
-	else if( comp == &scl ) {
-		scl.get_selection();
+	else if( comp==&scl ) {
+		cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+		bt_delete.enable();
+		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_new ) {
-		scl.set_selection(-1);
-
-		// TODO: append new order slot
-		cbuffer_t buf;
-		buf.printf("(dummy)%s #%u", translator::translate("Consist order"), order.get_count()+1);
-		scl.new_component<gui_scrolled_list_t::buf_text_scrollitem_t>(buf, SYSCOL_TEXT);
-
+		// append new order slot
+		const sint32 sel = scl.get_selection();
+		append_new_order();
+		update_order_list(sel);
 		resize(scr_size(0,0));
-		//update_order_list();
 	}
 	else if( comp==&bt_delete ) {
-		// ignore "New order"
-		if (scl.get_selection() == 0) { return true; }
+		const sint32 sel = scl.get_selection();
+		if( scl.get_selection()<0  ||  (uint32)sel>=order.get_count() ) {
+			create_win(new news_img("Select a target order!"), w_time_delete, magic_none);
+			return true;
+		}
 
-		// TODO: delete selected order
-
-		update_order_list();
+		// delete selected order
+		order.remove_order( (uint32)sel);
+		update_order_list(sel-1);
 	}
 	else if( comp==&bt_sort_order_veh ) {
 		bt_sort_order_veh.pressed = !bt_sort_order_veh.pressed;
@@ -720,8 +885,18 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_add_vehicle ) {
-		// TODO: check total own count
-
+		const sint32 sel = scl.get_selection();
+		if (scl.get_selection() < 0 || (uint32)sel >= order.get_count()) {
+			create_win(new news_img("Select a target order!"), w_time_delete, magic_none);
+			return true;
+		}
+		if (!selected_vehicle) {
+			create_win(new news_img("No vehicle selected!"), w_time_delete, magic_none);
+			return true;
+		}
+		consist_order_element_t *order_element = &order.get_order((uint32)sel);
+		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
+		update_order_list(sel);
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
@@ -730,6 +905,27 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if( comp==&bt_filter_single_vehicle){
 		bt_filter_single_vehicle.pressed = !bt_filter_single_vehicle.pressed;
 		build_vehicle_list();
+	}
+	else if(  comp==&bt_copy_convoy  ) {
+		if( scl.get_selection()==-1 ){
+			create_win(new news_img("Select copy destination!"), w_time_delete, magic_none);
+		}
+		else {
+			if( !selected_convoy.is_bound() ) {
+				create_win(new news_img("No valid convoy selected!"), w_time_delete, magic_none);
+			}
+			else {
+				const sint32 sel = scl.get_selection();
+				order.set_convoy_order(scl.get_selection(), selected_convoy, bt_copy_convoy_limit_vehicle.pressed);
+				update_order_list(sel);
+			}
+		}
+	}
+	else if(  comp==&bt_copy_convoy_limit_vehicle  ) {
+		bt_copy_convoy_limit_vehicle.pressed = !bt_copy_convoy_limit_vehicle.pressed;
+	}
+	else if(  comp==&bt_add_vehicle_limit_vehicle  ) {
+		bt_add_vehicle_limit_vehicle.pressed = !bt_add_vehicle_limit_vehicle.pressed;
 	}
 	else if(  comp == &bt_convoy_detail  ) {
 		if (selected_convoy.is_bound()) {
