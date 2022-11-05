@@ -215,7 +215,7 @@ goods_frame_t::goods_frame_t() :
 	cont_fare_chart.add_table(3,1);
 	{
 		// goods selector
-		FOR(vector_tpl<goods_desc_t const*>, const i, world()->get_goods_list()) {
+		for(goods_desc_t const* const i : world()->get_goods_list()) {
 			goods_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(i->get_name()), SYSCOL_TEXT);
 		}
 		goods_selector.set_selection(0);

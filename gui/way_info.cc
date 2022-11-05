@@ -735,10 +735,6 @@ bool way_info_t::is_weltpos()
 	return ( welt->get_viewport()->is_on_center( gr->get_pos() ) );
 }
 
-void  way_info_t::init()
-{
-}
-
 void  way_info_t::init_tabs()
 {
 	tabs.clear();
@@ -861,7 +857,9 @@ void way_info_t::update()
 		else {
 			cont.new_component<gui_label_t>("Open countryside");
 		}
-		cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		if (!region.empty()) {
+			cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		}
 		cont.new_component<gui_fill_t>();
 	}
 	cont.end_table();

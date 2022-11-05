@@ -240,6 +240,9 @@ private:
 	// Reflects changes when upgrading to the target vehicle
 	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);
 
+	// returns the image_id of the latest available livery of the vehicle
+	image_id get_latest_available_livery_image_id(const vehicle_desc_t *vinfo);
+
 public:
 	enum {
 		va_append,
@@ -270,6 +273,9 @@ private:
 	// ** do not call this from depot frame! ** //
 	void update_data();
 	void update_tabs();
+
+	// just update vehicle livery image
+	void update_livery();
 
 	/**
 	 * Create and fill vehicle vectors (for all tabs)

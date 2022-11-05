@@ -3097,7 +3097,7 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 		{
 			player_t* owner = weg->get_owner();
 			koord3d pos = weg->get_pos();
-			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land.
+			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land. This gives a *negative* number.
 			const bool public_right_of_way = weg->is_public_right_of_way(); // We must capture this before deleting the way object.
 			const bool is_main_way = get_weg_nr(0) == weg;
 			const bool are_other_ways = get_weg_nr(1);
@@ -3122,7 +3122,7 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 				}
 			}
 
-			costs -= weg_entfernen(wt, true);
+			costs += weg_entfernen(wt, true);
 
 			if(flags&is_kartenboden) {
 				// remove ribis from sea tiles
@@ -3142,7 +3142,7 @@ DBG_MESSAGE("tool_wayremover()","change remaining way to ribi %d",add);
 		}
 		// we have to pay?
 		if(costs) {
-			player_t::book_construction_costs(player, costs, here, finance_wt);
+			player_t::book_construction_costs(player, -costs, here, finance_wt);
 		}
 	}
 	return true;

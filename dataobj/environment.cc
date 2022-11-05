@@ -10,6 +10,7 @@
 #include "../simversion.h"
 #include "../simconst.h"
 #include "../simtypes.h"
+#include "../sys/simsys.h"
 #include "../simmesg.h"
 #include "../display/simgraph.h"
 
@@ -17,6 +18,8 @@
 void rdwr_win_settings(loadsave_t *file); // simwin
 
 sint16 env_t::menupos = MENU_TOP;
+sint16 env_t::fullscreen = WINDOWED;
+sint16 env_t::display_scale_percent = 100;
 bool env_t::reselect_closes_tool = true;
 
 sint8 env_t::pak_tile_height_step = 16;
@@ -622,9 +625,17 @@ void env_t::rdwr(loadsave_t *file)
 	if( file->is_version_ex_atleast(14, 44) ) {
 		file->rdwr_bool( env_t::show_depot_names );
 		file->rdwr_byte( show_factory_storage_bar );
+
+		if (file->is_version_atleast(123, 1)) {
+			file->rdwr_short(fullscreen);
+		}
 	}
 	if( file->is_version_ex_atleast(14, 55) ) {
 		file->rdwr_bool(scroll_infinite);
+	}
+
+	if( file->is_version_atleast(123, 1) ) {
+		file->rdwr_short(display_scale_percent);
 	}
 
 	// server settings are not saved, since they are server specific

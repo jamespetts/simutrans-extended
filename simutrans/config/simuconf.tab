@@ -1113,6 +1113,9 @@ autosave = 0
 #display_height = 560
 
 # show full screen
+# 0: disable fullscreen
+# 1: enable fullscreen
+# 2: enable borderless fullscreen emulation (frameless window, screen size cannot be altered)
 fullscreen = 0
 
 # For versions of Simutrans compiled to work in a multithreaded system (which will improve

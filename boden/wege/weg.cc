@@ -1415,6 +1415,9 @@ bool weg_t::renew()
 
 void weg_t::degrade()
 {
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	if(public_right_of_way)
 	{
 		// Do not degrade public rights of way, as these should remain passable.
@@ -1797,7 +1800,11 @@ void weg_t::add_travel_time_update(weg_t* w, uint32 actual, uint32 ideal)
 	pending_road_travel_time_updates.append(std::make_tuple(w, actual, ideal));
 }
 
-void weg_t::apply_travel_time_updates() {
+void weg_t::apply_travel_time_updates()
+{
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	while(!pending_road_travel_time_updates.empty() ) {
 		weg_t* str;
 		uint32 actual;

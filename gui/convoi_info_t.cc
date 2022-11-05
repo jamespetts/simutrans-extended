@@ -768,14 +768,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 				display_proportional_rgb(pos_x, pos_y, state_text, ALIGN_LEFT, SYSCOL_TEXT, true);
 				debug_row++;
 			}
-			if (runway_too_short)
-			{
-				const int pos_y = pos_y0 + debug_row * LINESPACE;
-				char runway_too_short[32];
-				sprintf(runway_too_short, "air->runway_too_short");
-				display_proportional_rgb(pos_x, pos_y, runway_too_short, ALIGN_LEFT, SYSCOL_TEXT, true);
-				debug_row++;
-			}
 			if (cnv->front()->get_is_overweight() == true) // This doesnt flag!
 			{
 				const int pos_y = pos_y0 + debug_row * LINESPACE;

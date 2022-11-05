@@ -23,7 +23,7 @@
 #include "../display/viewport.h"
 
 class stadt_t;
-template <class T, typename IDX> class sparse_tpl;
+template <class T> class sparse_tpl;
 class gui_city_minimap_t;
 
 #define PAX_DEST_MIN_SIZE (16)      ///< minimum width/height of the minimap

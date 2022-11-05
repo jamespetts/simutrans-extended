@@ -42,7 +42,7 @@ void gui_speedbar_t::draw(scr_coord offset)
 
 	if(vertical) {
 		sint32 from = size.h;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(info_t const& i : values) {
 			sint32 const to = size.h - min(*i.value, base) * size.h / base;
 			if(to < from) {
 				display_fillbox_wh_clip_rgb(offset.x, offset.y + to, size.w, from - to, i.color, true);
@@ -55,7 +55,7 @@ void gui_speedbar_t::draw(scr_coord offset)
 	}
 	else {
 		sint32 from = 0;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(info_t const& i : values) {
 			sint32 const to = min(*i.value, base) * size.w / base;
 			if(to > from) {
 				display_fillbox_wh_clip_rgb(offset.x + from, offset.y, to - from, size.h, i.color, true);
@@ -196,7 +196,7 @@ void gui_routebar_t::draw(scr_coord offset)
 	PIXVAL col;
 	for (uint8 i = 0; i<5; i++) {
 		col = i % 2 ? COL_GREY4-1 : MN_GREY0;
-		display_vline_wh_rgb(offset.x + h/2 + w*i/4, offset.y+i%2, h-(i%2)*2, color_idx_to_rgb(col), true);
+		display_vline_wh_clip_rgb(offset.x + h/2 + w*i/4, offset.y+i%2, h-(i%2)*2, color_idx_to_rgb(col), true);
 	}
 	sint32 const to = min(*value, base) * w / base;
 	if (reserve_value  &&  *reserve_value) {

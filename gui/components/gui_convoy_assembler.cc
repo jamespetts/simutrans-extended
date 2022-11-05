@@ -1262,7 +1262,7 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 				livery_selection = 0;
 			}
 			livery_scheme_index = livery_scheme_indices.empty() ? 0 : livery_scheme_indices[livery_selection];
-			build_vehicle_lists();
+			update_livery();
 		}
 		else
 		{
@@ -1272,6 +1272,34 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 	return true;
 }
 
+
+image_id gui_convoy_assembler_t::get_latest_available_livery_image_id(const vehicle_desc_t *info)
+{
+	const uint16 month_now = world()->get_timeline_year_month();
+	const livery_scheme_t* const scheme = world()->get_settings().get_livery_scheme(livery_scheme_index);
+	if(scheme)
+	{
+		const char* livery = scheme->get_latest_available_livery(month_now, info);
+		if(livery)
+		{
+			return info->get_base_image(livery);
+		}
+		else
+		{
+			for(uint32 j = 0; j < world()->get_settings().get_livery_schemes()->get_count(); j ++)
+			{
+				const livery_scheme_t* const new_scheme = world()->get_settings().get_livery_scheme(j);
+				const char* new_livery = new_scheme->get_latest_available_livery(month_now, info);
+				if(new_livery)
+				{
+					return info->get_base_image(new_livery);
+				}
+			}
+			return info->get_base_image();
+		}
+	}
+	return info->get_base_image();
+}
 
 
 // add a single vehicle (helper function)
@@ -1313,41 +1341,7 @@ void gui_convoy_assembler_t::add_to_vehicle_list(const vehicle_desc_t *info)
 		livery_scheme_index = 0;
 	}
 
-	const uint16 month_now = world()->get_timeline_year_month();
-	const livery_scheme_t* const scheme = world()->get_settings().get_livery_scheme(livery_scheme_index);
-	image_id image;
-	if(scheme)
-	{
-		const char* livery = scheme->get_latest_available_livery(month_now, info);
-		if(livery)
-		{
-			image = info->get_base_image(livery);
-		}
-		else
-		{
-			bool found = false;
-			for(uint32 j = 0; j < world()->get_settings().get_livery_schemes()->get_count(); j ++)
-			{
-				const livery_scheme_t* const new_scheme = world()->get_settings().get_livery_scheme(j);
-				const char* new_livery = new_scheme->get_latest_available_livery(month_now, info);
-				if(new_livery)
-				{
-					image = info->get_base_image(new_livery);
-					found = true;
-					break;
-				}
-			}
-			if(!found)
-			{
-				image =info->get_base_image();
-			}
-		}
-	}
-	else
-	{
-		image = info->get_base_image();
-	}
-	gui_image_list_t::image_data_t* img_data = new gui_image_list_t::image_data_t(info->get_name(), image);
+	gui_image_list_t::image_data_t* img_data = new gui_image_list_t::image_data_t(info->get_name(), get_latest_available_livery_image_id(info));
 
 	// since they come "pre-sorted" for the vehiclebauer, we have to do nothing to keep them sorted
 	if (info->get_freight_type() == goods_manager_t::passengers || info->get_freight_type() == goods_manager_t::mail) {
@@ -2069,6 +2063,18 @@ DBG_DEBUG("gui_convoy_assembler_t::update_data()","current %s with colors %i,%i"
 			}
 		}
 		capacity_info.set_convoy(depot_frame->get_depot()->get_convoi(depot_frame->get_icnv()));
+	}
+}
+
+
+void gui_convoy_assembler_t::update_livery()
+{
+	for (auto const& i : vehicle_map) {
+		vehicle_desc_t const* const info = i.key;
+		if (info->get_livery_count()>1) {
+			gui_image_list_t::image_data_t& img = *i.value;
+			img.image = get_latest_available_livery_image_id(info);
+		}
 	}
 }
 

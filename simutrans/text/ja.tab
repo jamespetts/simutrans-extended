@@ -585,6 +585,8 @@ Arrived
 到着
 Assets
 資産
+Auto
+自動
 Aufloesen
 編成解除
 Aufspanntransformator
@@ -625,6 +627,8 @@ Bonusspeed: %i km/h
 可能な最大速度：%i km/h
 Boost (%)
 増産率 (%)
+Borderless (disabled on fullscreen)
+全画面表示 (ソフトウェアモード)
 bridge is too high for its type!
 この型の橋梁で架橋できる\n橋脚の高さ制限を超えています。
 Bruecke
@@ -699,6 +703,8 @@ Cash
 現金
 Change player
 プレイヤー変更
+Changing direction. %s left
+折返し作業中... (残り: %s)
 Chart
 グラフ
 Chat_msg
@@ -1026,7 +1032,9 @@ Friction:
 fuel_cell
 燃料電池
 Full load
-積むまで待機
+積むまで待機(％):
+Fullscreen (changed after restart)
+全画面表示 (ハードウェアモード、変更は再起動が必要)
 Fundament
 土地
 Fussgaenger
@@ -1217,8 +1225,6 @@ Jump to
 指定座標へ移動
 June
 6月
-Kein Besitzer\n
-\n
 keine
 無し
 Keine Einzelfahrzeuge im Depot
@@ -1291,6 +1297,8 @@ loaded passenger/freight
 乗車中の旅客/貨物
 Loading (%i->%i%%)!
 積載(%i->%i%%)
+Loading (%i->%i%%), %s left!
+積込中(%i->%i%%、出発時刻まで:%s)
 Loading addon paks ...
 アドオンを読み込み中 ...
 Loading map ...
@@ -1397,6 +1405,8 @@ Mountain height
 起伏の高さ：
 Movingobj
 動物
+Move the map
+マップをスクロールする
 Music playing disabled/not available
 BGMは演奏できません。
 Music volume:
@@ -1745,6 +1755,8 @@ Schleppkahn_tab
 バージ
 Screenshot
 スクリーンショット
+Screen scale:
+表示倍率（%）：
 Search:
 検索:
 Seasons
@@ -1833,6 +1845,10 @@ Shows consumer/suppliers for factories
 産業施設のクリック[shift+クリック]で、需要先[供給元]を表示します
 Shows the currently selected schedule
 編集中の路線経路を表示します
+Shows option buttons about networks.
+路線図表示オプションを開閉します
+Show networks
+路線図表示
 Shrink city
 都市の人口を減らす
 shuffle midis
@@ -2690,7 +2706,7 @@ Electrical output:
 Emergency stop
 緊急停止
 emergency_stop %s left
-緊急停止 残り%s
+緊急停止中：運行再開まで %s
 end_of_choose_sign
 振分終端標識
 equipped_with
@@ -3152,7 +3168,7 @@ reversed_unidirectional_order
 Reversing
 折り返し中
 Reversing. %s left
-折り返し中 残り %s
+方向転換中... (残り: %s)
 Road
 道路
 Rolling resistance:
@@ -3239,6 +3255,8 @@ Shows the borderlines of each tile in the main game window. Can be useful for co
 マップのグリッドを表示します。#キーで切り替え可能です。
 Shows the names of the individual stations in the main game window.
 駅やラベル名の表示形式を変更します。
+Shunting. %s left
+組換作業中... (残り: %s)
 signale bauen
 OK
 Signals
@@ -3415,6 +3433,8 @@ Transfers
 乗降客数
 Transformer only next to factory or in city!
 変電所は産業の隣接マスか市域内にのみ建設できます。
+transparent background
+背景を透明化
 Transshipment time:
 駅構内の移動時間:
 traveling_post_office
@@ -3488,7 +3508,7 @@ Visitor demand
 Wait for time
 ダイヤを設定する
 Waiting for schedule. %s left
-発車時刻まで 残り%s
+出発時刻待ち(残り %s)
 waiting time unknown
 待ち時間不明)
 waiting\ntolerance\nmax. min
@@ -4209,6 +4229,8 @@ Municipal way
 市道
 Private way
 私道
+Road routes from here:
+ルート一覧
 %u cities
 都市へのルート(%u)：
 %u buildings
@@ -4395,6 +4417,14 @@ convoys stored
 留置編成数
 vehicles stored
 保管車両数
+switch_spec_display_mode
+車両情報表示: 
+basic_spec
+主要諸元
+secondary_spec
+塗装スキーム
+Do not add vehicles over maximum length!
+これ以上車両を追加できません！
 -->
 →
 <=>
@@ -4421,6 +4451,8 @@ The number of passengers who have left because of overcrowding or excess waiting
 混雑や駅での待ち時間のため旅行を取り止めた旅客の人数を表します。
 Arbeiter aus:
 労働者居住地:
+Kein Besitzer\n
+\n
 No Route
 経路無し
 Usage/Output

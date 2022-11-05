@@ -188,6 +188,8 @@ public:
 		width = size.w; height = size.h;
 		set_size_fixed(size_fixed);
 		bg_col = color_idx_to_rgb(COL_GREY4);
+		capacity = width;
+		loading  = capacity;
 	}
 
 	void set_value(uint16 capacity, uint16 loading_amount) {

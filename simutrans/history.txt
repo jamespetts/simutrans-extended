@@ -1,9 +1,9 @@
 	CHG: lang files are loaded if their name is *XX.tab or XX*.tab The first is preferred to avoid confusion by name like ja-taken.tab
 	ADD: selected convoi in minimap now magenta. Also network display properly updated when activating or closing windows
 	CHG: Infinite mouse scrolling can be activated manually in the display settings; but it will fail with certain touch devices
+	ADD: Option to adjust screen scaling manually (either via display settings or '-screen_scale' command line option)
 
-
-Release of 123.0 (r10137 on 30-Dec-2021):
+Release of 123.0 (r10317 on 30-Dec-2021):
 	KNOWN BUG: ugly movement of pedestrians on diagonals/curves
 	FIX: Wrong tooltip when building something with the finance window opened
 	ADD: map only moves when numlock off, new tool to move to map view (simple_tool[36]=,keybinding,-1|0)
@@ -5178,7 +5178,7 @@ You can use this version with the 0.81.35exp base package.
 
 23-Jan-03 FIX: overhead lines on bridges are now (again) loaded correctly
                from saved games
-          FIX: signals on bridges are now laoded correctly from saved games
+          FIX: signals on bridges are now loaded correctly from saved games
           CHANGE: city building tool now included in toolbar
           FIX: city building cursor now has proper size
           FIX: removing roads and railroad track now costs 100 Cr

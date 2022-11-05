@@ -2735,6 +2735,7 @@ public:
 	void remove_queued_city(stadt_t* stadt);
 	void add_queued_city(stadt_t* stadt);
 
+	///  Returns the land value as a *negative* number.
 	sint64 get_land_value(koord3d k);
 	double get_forge_cost(waytype_t waytype, koord3d position);
 	bool is_forge_cost_reduced(waytype_t waytype, koord3d position);
