@@ -6506,3 +6506,19 @@ broadcast_trigger_on_arrival
 Broadcast trigger on arrival
 modify_convoy
 Modify consist
+time shift
+Time offset
+help_txt_departure_time_shift
+Use the time offset so that services do not all arrive/leave at the same time.
+help_txt_departure_per_month
+Use this to schedule the frequency of services. The editable number is the number of departures per year; the clock time is the frequency.
+if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
+If this is set, the consist will enter a layover state at this stop.
+if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop
+If this is set, the consist will always replenish at this stop.
+help_txt_pickup_only
+If this is set, goods/mail/passengers will be able to load but not unload at this stop.
+help_text_setdown_only
+If this is set, goods/mail/passengers will be able to unload but not load at this stop.
+help_txt_discharge_payload
+If this is set, all goods/mail/passengers must alight/be discharged at this stop.
