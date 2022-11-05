@@ -1331,7 +1331,7 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 			else
 			{
-				file->rdwr_short(overdraft_percent_above_base_rate); 
+				file->rdwr_short(overdraft_percent_above_base_rate);
 			}
 			file->rdwr_bool(allow_insolvency);
 			file->rdwr_bool(allow_purchases_when_insolvent);
@@ -2759,7 +2759,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	if (interest_rate_percent)
 	{
 		// Adapt legacy data.
-		overdraft_percent_above_base_rate = max(0, interest_rate_percent - 8); 
+		overdraft_percent_above_base_rate = max(0, interest_rate_percent - 8);
 	}
 	overdraft_percent_above_base_rate = contents.get_int("overdraft_percent_above_base_rate", overdraft_percent_above_base_rate);
 	// Check for misspelled version
