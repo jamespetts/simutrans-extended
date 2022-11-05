@@ -6486,3 +6486,21 @@ Unproductive: %d Mo.
 Unproductive: %d Mo.
 Contractless: %d Mo.
 Missing contracts: %d Mo.
+bt_pickup_only
+Pickup only
+bt_setdown_only
+Set down only
+bt_discharge_payload
+Discharge payload
+enable_speed_limit
+Enable speed limit
+lay_over
+Lay over
+force_range_stop
+Force range stop
+ignore_choose_on_arrival
+Ignore choose signal on arrival
+wait_for_trigger
+Wait for trigger
+broadcast_trigger_on_arrival
+Broadcast trigger on arrival
