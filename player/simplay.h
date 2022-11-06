@@ -195,7 +195,7 @@ public:
 	/**
 	* Adds tax to accounting statistics.
 	*/
-	void book_tax(const sint64 amount); 
+	void book_tax(const sint64 amount);
 
 	/**
 	 * Adds running costs to accounting statistics.
