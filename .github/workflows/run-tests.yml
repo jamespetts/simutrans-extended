@@ -2,7 +2,7 @@
 # CI for running tests
 #
 
-on: [push]
+on: [push, pull_request]
 name: Automated Tests
 
 jobs:
