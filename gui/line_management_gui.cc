@@ -5,6 +5,7 @@
 
 #include "../dataobj/schedule.h"
 #include "../dataobj/loadsave.h"
+#include "../dataobj/consist_order_t.h"
 #include "minimap.h"
 #include "../simline.h"
 #include "simwin.h"
@@ -63,6 +64,17 @@ bool line_management_gui_t::infowin_event(const event_t *ev)
 					schedule->sprintf_schedule( buf );
 					tool->set_default_param(buf);
 					welt->set_tool( tool, line->get_owner() );
+					// since init always returns false, it is save to delete immediately
+					delete tool;
+
+				}
+				for (auto order : schedule->orders) {
+					tool_t *tool = create_tool(TOOL_CHANGE_LINE | SIMPLE_TOOL);
+					cbuffer_t buf;
+					buf.printf("g,%i,", line.get_id());
+					order.value.sprintf_consist_order(buf);
+					tool->set_default_param(buf);
+					welt->set_tool(tool, line->get_owner());
 					// since init always returns false, it is save to delete immediately
 					delete tool;
 				}
