@@ -112,7 +112,7 @@ class cont_order_overview_t : public gui_aligned_container_t
 {
 	consist_order_t *order;
 	sint8 player_nr=-1; // Required for player color in vehicle images
-	uint32 order_element_index = -1;
+	uint32 order_element_index = UINT32_MAX_VALUE;
 
 	uint32 old_count=0; // reflesh flag
 
@@ -135,7 +135,7 @@ public:
 
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
-	uint16 unique_entry_id=-1;
+	uint16 unique_entry_id=65535;
 	player_t* player;
 	schedule_t *schedule;
 
@@ -209,7 +209,7 @@ public:
 	static bool need_reflesh_descriptions;
 	static bool need_reflesh_order_list;
 
-	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=-1);
+	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=65535);
 	~consist_order_frame_t();
 
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
