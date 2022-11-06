@@ -736,7 +736,7 @@ void consist_order_frame_t::update_order_list(sint32 reselect_index)
 
 	// reselect the selection
 	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
-	cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+	cont_order_overview.set_element((uint32)scl.get_selection(), player->get_player_nr());
 
 	bt_delete.enable( old_order_count  &&  scl.get_selection()!=-1 );
 	resize(scr_size(0,0));
