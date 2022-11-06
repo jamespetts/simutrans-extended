@@ -542,7 +542,7 @@ public:
 
 	//@author: jamespetts
 	// Insolvency and debt settings
-	uint8 interest_rate_percent;
+	sint16 overdraft_percent_above_base_rate;
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
@@ -1059,7 +1059,7 @@ public:
 
 	uint16 get_factory_max_years_obsolete() const { return factory_max_years_obsolete; }
 
-	uint8 get_interest_rate_percent() const { return interest_rate_percent; }
+	sint16 get_overdraft_percent_above_base_rate() const { return overdraft_percent_above_base_rate; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
 

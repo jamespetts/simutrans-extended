@@ -591,13 +591,13 @@ void consist_order_frame_t::init_table()
 			cont_convoy_filter.set_table_layout(1,0);
 			cont_convoy_filter.set_table_frame(true);
 			{
-				bt_filter_halt_convoy.init(button_t::square_state, "filter_halt_convoy");
-				bt_filter_halt_convoy.set_tooltip(translator::translate("Narrow down to convoys that using this stop"));
+				bt_filter_halt_convoy.init(button_t::square_state, "filter_halt_consist");
+				bt_filter_halt_convoy.set_tooltip(translator::translate("Narrow down to consists that use this stop"));
 				bt_filter_halt_convoy.add_listener(this);
 				cont_convoy_filter.add_component(&bt_filter_halt_convoy);
 
-				bt_filter_single_vehicle.init(button_t::square_state, "filter_single_vehicle_convoy");
-				bt_filter_single_vehicle.set_tooltip(translator::translate("Exclude convoys made up of one vehicle"));
+				bt_filter_single_vehicle.init(button_t::square_state, "filter_single_vehicle_consist");
+				bt_filter_single_vehicle.set_tooltip(translator::translate("Exclude consists made up of one vehicle"));
 				bt_filter_single_vehicle.add_listener(this);
 				cont_convoy_filter.add_component(&bt_filter_single_vehicle);
 
@@ -616,7 +616,7 @@ void consist_order_frame_t::init_table()
 				cont_convoy_copier.add_component(&bt_show_hide_convoy_filter);
 				cont_convoy_copier.add_table(1,3)->set_spacing(scr_size(0,0));
 				{
-					lb_open_convoy_filter.init("open_convoy_filter_option");
+					lb_open_convoy_filter.init("open_consist_filter_option");
 					lb_open_convoy_filter.set_rigid(false);
 					cont_convoy_copier.add_component(&lb_open_convoy_filter);
 					cont_convoy_copier.add_component(&cont_convoy_filter);
@@ -648,8 +648,8 @@ void consist_order_frame_t::init_table()
 		// details (right)
 		cont_convoy_copier.add_table(1,0);
 		{
-			bt_copy_convoy.init(button_t::roundbox, "copy_convoy_order");
-			bt_copy_convoy.set_tooltip(translator::translate("Set the order of this convoy to the selected order"));
+			bt_copy_convoy.init(button_t::roundbox, "copy_consist_order");
+			bt_copy_convoy.set_tooltip(translator::translate("Set the order of this consist to the selected order"));
 			bt_copy_convoy.add_listener(this);
 			cont_convoy_copier.add_component(&bt_copy_convoy);
 
@@ -683,7 +683,7 @@ void consist_order_frame_t::init_table()
 	init_editor();
 
 	tabs.add_tab(&cont_picker_frame, translator::translate("Vehicle picker"));
-	tabs.add_tab(&cont_convoy_copier, translator::translate("Convoy copier"));
+	tabs.add_tab(&cont_convoy_copier, translator::translate("Consist copier"));
 	tabs.add_tab(&scroll_editor, translator::translate("desc_editor"));
 	add_component(&tabs);
 

@@ -151,7 +151,7 @@ sint32 weg_t::get_max_speed(bool needs_electrification) const
 
 void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 {
-	if(desc)
+	if(desc && desc != b)
 	{
 		// Remove the old maintenance cost
 		sint32 old_maint = get_desc()->get_maintenance();
@@ -166,7 +166,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 
 	desc = b;
 
-	if (!from_saved_game)
+	if (!from_saved_game && desc != b)
 	{
 		// Add the new maintenance cost
 		// Do not set this here if loading a saved game,

@@ -310,3 +310,89 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 		orders.append(element);
 	}
 }
+
+bool consist_order_t::operator== (const consist_order_t& other) const
+{
+	if (tags_to_clear == other.tags_to_clear && orders.get_count() == other.orders.get_count())
+	{
+		// Check each individual element
+		for(uint32 i = 0; i < orders.get_count(); i ++)
+		{
+			const consist_order_element_t this_element = orders.get_element(i);
+			const consist_order_element_t other_element = other.orders.get_element(i);
+			if (this_element != other_element)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool consist_order_element_t::operator!= (const consist_order_element_t& other) const
+{
+	if (catg_index == other.catg_index && clear_all_tags == other.clear_all_tags && tags_required == other.tags_required && tags_to_set == other.tags_to_set && vehicle_description.get_count() == other.vehicle_description.get_count())
+	{
+		// Check each individual vehicle description element
+		// ...
+		for (uint32 i = 0; i < vehicle_description.get_count(); i++)
+		{
+			const vehicle_description_element this_element = vehicle_description.get_element(i);
+			const vehicle_description_element other_element = other.vehicle_description.get_element(i);
+			if (this_element != other_element)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+
+}
+
+bool vehicle_description_element::operator!= (const vehicle_description_element& other) const
+{
+	bool return_value =
+		specific_vehicle != other.specific_vehicle ||
+		empty != other.empty ||
+		engine_type != other.engine_type ||
+		min_catering != other.min_catering ||
+		max_catering != other.max_catering ||
+		must_carry_class != other.must_carry_class ||
+		min_range != other.min_range ||
+		max_range != other.max_range ||
+		min_brake_force != other.min_brake_force ||
+		max_brake_force != other.max_brake_force ||
+		min_power != other.min_power ||
+		max_power != other.max_power ||
+		min_tractive_effort != other.min_tractive_effort ||
+		max_tractive_effort != other.max_tractive_effort ||
+		max_weight != other.max_weight ||
+		min_weight != other.min_weight ||
+		max_axle_load != other.max_axle_load ||
+		min_axle_load != other.min_axle_load ||
+		min_capacity != other.min_capacity ||
+		max_capacity != other.max_capacity ||
+		max_running_cost != other.max_running_cost ||
+		min_running_cost != other.min_running_cost ||
+		max_fixed_cost != other.max_fixed_cost ||
+		min_fixed_cost != other.min_fixed_cost;
+
+	for (uint32 i = 0; i < max_rule_flags; i++)
+	{
+		if (rule_flags[i] != other.rule_flags[i])
+		{
+			return true;
+		}
+	}
+
+	return return_value;
+}

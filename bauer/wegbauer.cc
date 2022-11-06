@@ -2125,6 +2125,7 @@ void way_builder_t::calc_straight_route(koord3d start, const koord3d ziel)
 		intern_calc_straight_route(start,ziel);
 		if (route.empty()) {
 			intern_calc_straight_route(ziel,start);
+			route_reversed = true;
 		}
 	}
 }
@@ -2167,7 +2168,7 @@ uint32 ms = dr_time();
 		}
 	}
 	else {
-		route_reversed = true;
+		route_reversed = false;
 		keep_existing_city_roads |= (bautyp&bot_flag)!=0;
 		sint32 cost2 = intern_calc_route(start, ziel);
 		INT_CHECK("wegbauer 1165");
@@ -2175,7 +2176,7 @@ uint32 ms = dr_time();
 		if(cost2<0) {
 			// not successful: try backwards
 			intern_calc_route(ziel,start);
-			route_reversed = false;
+			route_reversed = true;
 			return route_reversed;
 		}
 
@@ -2184,15 +2185,15 @@ uint32 ms = dr_time();
 		vector_tpl<uint32> terraform_index2(0);
 		swap(route, route2);
 		swap(terraform_index, terraform_index2);
-		route_reversed = false;
-		long cost = intern_calc_route(ziel, start);
+		route_reversed = true;
+		long cost = intern_calc_route(start, ziel);
 		INT_CHECK("wegbauer 1165");
 
 		// the cheaper will survive ...
 		if(  cost2 < cost  ||  cost < 0  ) {
 			swap(route, route2);
 			swap(terraform_index, terraform_index2);
-			route_reversed = true;
+			route_reversed = false;
 		}
 #endif
 	}

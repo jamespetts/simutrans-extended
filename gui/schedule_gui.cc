@@ -928,8 +928,8 @@ void schedule_gui_t::build_table()
 			if( !cnv.is_bound() ) {
 				add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
 				{
-					bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
-					bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+					bt_consist_order.init(button_t::roundbox_state, "modify_consist", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+					bt_consist_order.set_tooltip("modify_the_consist_at_this_schedule_entry");
 					if (skinverwaltung_t::open_window) {
 						bt_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
 						bt_consist_order.set_image_position_right(true);

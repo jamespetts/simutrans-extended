@@ -12697,6 +12697,8 @@ sint64 karte_t::get_inflation_adjusted_price(sint32 monthyear, sint64 base_price
 		else
 		{
 			// Interpolate linear
+			const sint64 TEST_1 = (sint64)prices[pt][i].index;
+			const sint64 TEST_2 = (sint64)prices[pt][i - 1].index;
 			const sint64 delta_index = (sint64)prices[pt][i].index - (sint64)prices[pt][i - 1].index;
 			const sint64 delta_years = (sint64)prices[pt][i].year - (sint64)prices[pt][i - 1].year;
 			index = ((delta_index * (monthyear - prices[pt][i - 1].year)) / delta_years) + (sint64)prices[pt][i - 1].index;
@@ -13047,4 +13049,11 @@ uint32 karte_t::get_gamestate_hash()
 
 	rdwr_gamestate(&ls, NULL);
 	return stream->get_hash();
+}
+
+sint16 karte_t::get_overdraft_rate_percent() const
+{
+	sint64 base_rate = get_inflation_adjusted_price(get_timeline_year_month(), 100, price_type::base_rate);
+	sint16 overdraft_rate = (sint16)base_rate + get_settings().get_overdraft_percent_above_base_rate();
+	return overdraft_rate;
 }

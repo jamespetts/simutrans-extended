@@ -17,6 +17,7 @@
 #include "gui_label.h"
 #include "gui_scrollpane.h"
 #include "gui_tab_panel.h"
+#include "gui_table.h"
 #include "gui_speedbar.h"
 #include "../gui_theme.h"
 #include "../vehicle_class_manager.h"
@@ -147,16 +148,16 @@ private:
 	// convoy spec
 	gui_image_t img_alert_speed, img_alert_power;
 	gui_aligned_container_t cont_convoi_spec;
-	gui_label_buf_t lb_convoi_speed;
-	gui_label_buf_t lb_convoi_cost;
-	gui_label_buf_t lb_convoi_maintenance;
-	gui_label_buf_t lb_convoi_power;
-	gui_label_buf_t lb_convoi_weight;
-	gui_label_buf_t lb_convoi_brake_force;
-	gui_label_buf_t lb_convoi_brake_distance;
-	gui_label_buf_t lb_convoi_axle_load;
-	gui_label_buf_t lb_convoi_rolling_resistance;
-	gui_label_buf_t lb_convoi_way_wear;
+	gui_table_cell_buf_t lb_convoi_speed;
+	gui_table_cell_buf_t lb_convoi_cost;
+	gui_table_cell_buf_t lb_convoi_maintenance;
+	gui_table_cell_buf_t lb_convoi_power;
+	gui_table_cell_buf_t lb_convoi_weight;
+	gui_table_cell_buf_t lb_convoi_brake_force;
+	gui_table_cell_buf_t lb_convoi_brake_distance;
+	gui_table_cell_buf_t lb_convoi_axle_load;
+	gui_table_cell_buf_t lb_convoi_rolling_resistance;
+	gui_table_cell_buf_t lb_convoi_way_wear;
 
 
 	// [VEHICLE LIST]

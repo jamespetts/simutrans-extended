@@ -40,6 +40,13 @@ void schedule_t::copy_from(const schedule_t *src)
 	FOR(minivec_tpl<schedule_entry_t>, const& i, src->entries) {
 		entries.append(i);
 	}
+
+	// Copy consist orders
+	for (auto &order : src->orders)
+	{
+		orders.put(order.key, order.value);
+	}
+
 	set_current_stop( src->get_current_stop() );
 
 	editing_finished = src->is_editing_finished();
@@ -519,7 +526,7 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 	uint32 f1=0, f2=0;
 	while(  f1+f2<entries.get_count()+schedule->entries.get_count()  ) {
 
-		if(		f1<entries.get_count()  &&  f2<schedule->entries.get_count()
+		if (f1 < entries.get_count() && f2 < schedule->entries.get_count()
 			&& schedule->entries[(uint8)f2].pos == entries[(uint8)f1].pos
 			&& schedule->entries[(uint16)f2].minimum_loading == entries[(uint16)f1].minimum_loading
 			&& schedule->entries[(uint8)f2].waiting_time_shift == entries[(uint8)f1].waiting_time_shift
@@ -532,8 +539,8 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 			&& schedule->entries[(uint16)f2].target_id_couple == entries[(uint16)f1].target_id_couple
 			&& schedule->entries[(uint16)f2].target_id_uncouple == entries[(uint16)f1].target_id_uncouple
 			&& schedule->entries[(uint16)f2].target_unique_entry_uncouple == entries[(uint16)f1].target_unique_entry_uncouple
+			&& check_consist_orders_for_match((uint16)f1, schedule, (uint16)f2)
 		  ) {
-			// minimum_loading/waiting ignored: identical
 			f1++;
 			f2++;
 		}
@@ -564,6 +571,21 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 		}
 	}
 	return f1==entries.get_count()  &&  f2==schedule->entries.get_count();
+}
+
+bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const schedule_t* other_schedule, uint16 entry_id_other_schedule) const
+{
+	if (orders.is_contained(entry_id_this) && other_schedule->orders.is_contained(entry_id_other_schedule))
+	{
+		consist_order_t this_order = orders.get(entry_id_this);
+		consist_order_t other_order = other_schedule->orders.get(entry_id_other_schedule);
+
+		return this_order == other_order;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
