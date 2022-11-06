@@ -905,17 +905,20 @@ void schedule_gui_t::build_table()
 				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
 				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
+				bt_speed_limit.set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
 				bt_speed_limit.add_listener(this);
 				add_component(&bt_speed_limit,3);
 
 				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-				new_component<gui_label_t>("Speed limit:")->set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
+				lb_speed_limit.init("Speed limit:", scr_coord(0,0), bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED );
+				add_component(&lb_speed_limit);
 				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
 				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
 				numimp_speed_limit.add_listener(this);
 				add_component(&numimp_speed_limit);
 
-				new_component<gui_label_t>(" km/h");
+				lb_speed_limit_kmh.init(" km/h", scr_coord(0,0), bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+				add_component(&lb_speed_limit_kmh);
 			}
 			end_table();
 
@@ -1079,6 +1082,8 @@ void schedule_gui_t::update_selection()
 		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
 		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
 		numimp_speed_limit.enable(bt_speed_limit.pressed);
+		lb_speed_limit.set_color( bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+		lb_speed_limit_kmh.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 		entry_no->set_visible(true);
 		lb_entry_pos.set_visible(true);
 		lb_entry_pos.buf().printf("(%s)", schedule->entries[current_stop].pos.get_str());
@@ -1487,6 +1492,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
 			}
 			numimp_speed_limit.enable(bt_speed_limit.pressed);
+			lb_speed_limit.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+			lb_speed_limit_kmh.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 		}
 		else if (comp == &numimp_speed_limit) {
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();

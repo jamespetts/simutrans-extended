@@ -147,6 +147,7 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	gui_schedule_entry_number_t *entry_no;
 	gui_label_buf_t lb_entry_pos;
 
+	gui_label_t lb_speed_limit, lb_speed_limit_kmh;
 	gui_label_t lb_consist_order_modified;
 
 	char str_parts_month[32];
