@@ -294,7 +294,7 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
+int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, ribi_t::ribi from)
 {
 	// first favor faster ways
 	const weg_t *w = gr->get_weg(get_waytype());
@@ -315,9 +315,8 @@ int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
 		// check if the slope is upwards relative to the previous tile
-		from_pos -= gr->get_pos().get_2d();
 		// 125 hardcoded, see get_cost_upslope()
-		costs += 125 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
+		costs += 125 * get_sloping_upwards( gr->get_weg_hang(), from );
 	}
 
 	// Strongly prefer routes for which the vehicle is not overweight.

@@ -1160,6 +1160,7 @@ void weg_t::finish_rd()
 		check_diagonal();
 		if(is_diagonal())
 		{
+			// maint /= sqrt(2)
 			maint *= 10;
 			maint /= 14;
 		}

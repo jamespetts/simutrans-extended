@@ -158,7 +158,7 @@ const vector_tpl<const way_desc_t *>&  way_builder_t::get_way_list(const waytype
 	const uint16 time = welt->get_timeline_year_month();
 	for(auto const& i : desc_table) {
 		way_desc_t const* const test = i.value;
-		if (test->get_wtyp() == wtyp  &&  test->get_styp() == styp  &&  test->is_available(time) && test->get_builder()) {
+		if (test->get_wtyp() == wtyp  &&  test->get_styp() == styp  &&  test->is_available(time) && test->get_builder() && !test->is_mothballed()) {
 			dummy.append(test);
 		}
 	}
@@ -2946,7 +2946,7 @@ class fluss_test_driver_t : public test_driver_t
 	bool check_next_tile(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt)!=0; }
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt); }
 	waytype_t get_waytype() const OVERRIDE { return invalid_wt; }
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; }
+	int get_cost(const grund_t *, const sint32, ribi_t::ribi) OVERRIDE { return 1; }
 	bool is_target(const grund_t *cur,const grund_t *) OVERRIDE { return cur->is_water()  &&  cur->get_grund_hang()==slope_t::flat; }
 };
 

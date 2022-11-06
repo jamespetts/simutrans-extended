@@ -35,7 +35,7 @@
 #PROFILE = 2  # Enable profiling with optimisation flags, can be used with `OPTIMISE = 1'
 #LTO = 1 # enable link time optimizations
 #TUNE_NATIVE = 1 # enable tuning for this machine (makes binary not portable)
-#GCC_POPCOUNT = 1 # use gcc builtin popcount to speed up on modern machines (makes binary not portable) 
+#GCC_POPCOUNT = 1 # use gcc builtin popcount to speed up on modern machines (makes binary not portable)
 
 #AV_FOUNDATION = 1  # Use AVFoundation instead of QTKit. If you are using macOS 10.12 or later, this must be enabled.
 
@@ -110,5 +110,4 @@ USE_ZSTD = 1
 # For compiling on Linux with SDL2, use -I/usr/include/SDL2
 # For compiling on Linux with Freetype 2, use -I/usr/include/freetype2
 # For compiling on Linux with miniupnpc, use -I/usr/includeude/miniupnpc
-FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing -std=c++11
-
+FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing -std=c++14

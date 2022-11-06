@@ -1379,7 +1379,7 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	}
 
 	for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++  ) {
-		set_tool(tool_t::general_tool[TOOL_QUERY], get_player(i));
+		selected_tool[i] = tool_t::general_tool[TOOL_QUERY];
 	}
 	if(is_display_init()) {
 		display_show_pointer(false);
@@ -4214,58 +4214,46 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 }
 
 
-void karte_t::set_tool( tool_t *tool_in, player_t *player )
+void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended, bool called_from_script)
 {
+	suspended = false;
 	if(  get_random_mode()&LOAD_RANDOM  ) {
-		dbg->warning("karte_t::set_tool", "Ignored tool %s during loading.", tool_in->get_name() );
+		dbg->warning("karte_t::set_tool_api", "Ignored tool %s during loading.", tool_in->get_name() );
 		return;
 	}
-	bool scripted_call = tool_in->is_scripted();
+	bool needs_check = !tool_in->no_check();
 	// check for scenario conditions
-	if(  !scripted_call  &&  (scenario && !scenario->is_tool_allowed(player, tool_in->get_id(), tool_in->get_waytype()))  ) {
+	if(  needs_check  &&  !scenario->is_tool_allowed(player, tool_in->get_id(), tool_in->get_waytype())  ) {
 		return;
 	}
-
-	player_t* action_player = player;
-	if(tool_in->get_id() == (TOOL_ACCESS_TOOL | SIMPLE_TOOL))
-	{
-		uint16 id_setting_player;
-		uint16 id_receiving_player;
-		sint16 allow_access;
-
-		if(3 != sscanf(tool_in->get_default_param(), "g%hi,%hi,%hi", &id_setting_player, &id_receiving_player, &allow_access))
-		{
-			dbg->error( "karte_t::set_tool", "could not perform (%s)", tool_in->get_default_param() );
-			return;
-		}
-		action_player = this->get_player(id_setting_player);
-	}
-
 	// check for password-protected players
-	if(  (!tool_in->is_init_network_safe()  ||  !tool_in->is_work_network_safe())  &&  !scripted_call  &&
-		 !(tool_in->get_id()==(TOOL_CHANGE_PLAYER|SIMPLE_TOOL)  ||  tool_in->get_id()==(TOOL_ADD_MESSAGE| GENERAL_TOOL))  &&
-		 action_player  &&  action_player->is_locked()  ) {
+	if(  (!tool_in->is_init_network_safe()  ||  !tool_in->is_work_network_safe())  &&  needs_check  &&
+		 !(tool_in->get_id()==(TOOL_CHANGE_PLAYER|SIMPLE_TOOL)  ||  tool_in->get_id()==(TOOL_ADD_MESSAGE | GENERAL_TOOL))  &&
+		 player  &&  player->is_locked()  ) {
 		// player is currently password protected => request unlock first
-		create_win( -1, -1, new password_frame_t(action_player), w_info, magic_pwd_t + action_player->get_player_nr() );
+		create_win( -1, -1, new password_frame_t(player), w_info, magic_pwd_t + player->get_player_nr() );
 		return;
 	}
 	tool_in->flags |= event_get_last_control_shift();
 	if(!env_t::networkmode  ||  tool_in->is_init_network_safe()  ) {
-		if (tool_in->is_init_network_safe()) {
+		if (called_from_script  ||  tool_in->is_init_network_safe()) {
 			local_set_tool(tool_in, player);
 		}
 		else {
 			// queue tool for execution
 			nwc_tool_t* nwc = new nwc_tool_t(player, tool_in, zeiger->get_pos(), steps, map_counter, true);
 			command_queue_append(nwc);
+			suspended = true;
 		}
 	}
 	else {
 		// queue tool for network
 		nwc_tool_t *nwc = new nwc_tool_t(player, tool_in, zeiger->get_pos(), steps, map_counter, true);
 		network_send_server(nwc);
+		suspended = true;
 	}
 }
+
 
 
 // set a new tool on our client, calls init
@@ -9499,7 +9487,7 @@ void karte_t::switch_server( bool start_server, bool port_forwarding )
 		}
 		else {
 			// now start a server with defaults
-			env_t::networkmode = network_init_server( env_t::server_port );
+			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen );
 			if(  env_t::networkmode  ) {
 
 				// query IP and try to open ports on router
@@ -11126,6 +11114,50 @@ const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool
 		}
 		else {
 			suspended = false;
+		}
+	}
+	else {
+		// queue tool for network
+		nwc_tool_t *nwc = new nwc_tool_t(player, tool, pos, get_steps(), get_map_counter(), false);
+		network_send_server(nwc);
+		suspended = true;
+		// reset tool
+		tool->init(player);
+	}
+	return err;
+}
+
+
+const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended, bool called_from_api )
+{
+	suspended = false;
+	const char *err = NULL;
+	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_network_safe(player, pos);
+	if(  !env_t::networkmode  ||  network_safe_tool  ) {
+		// do the work
+		tool->flags |= tool_t::WFL_LOCAL;
+		// check allowance by scenario
+		if ( (tool->flags & tool_t::WFL_NO_CHK) == 0  &&  get_scenario()->is_scripted()) {
+			if (!get_scenario()->is_tool_allowed(player, tool->get_id(), tool->get_waytype()) ) {
+				err = "";
+			}
+			else {
+				err = get_scenario()->is_work_allowed_here(player, tool->get_id(), tool->get_waytype(), pos);
+			}
+		}
+		if (err == NULL) {
+			if (called_from_api  ||  network_safe_tool) {
+				err = tool->work(player, pos);
+				suspended = false;
+			}
+			else {
+				// queue tool for execution (will be only done when NOT in networkmode!)
+				nwc_tool_t* nwc = new nwc_tool_t(player, tool, pos, get_steps(), get_map_counter(), false);
+				command_queue_append(nwc);
+				// reset tool
+				tool->init(player);
+				suspended = true;
+			}
 		}
 	}
 	else {

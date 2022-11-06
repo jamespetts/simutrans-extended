@@ -23,14 +23,22 @@ void script_api::register_function(HSQUIRRELVM vm, SQFUNCTION funcptr, const cha
 }
 
 static FILE* file = NULL;
+static const char* suffix = NULL;
 
-void script_api::start_squirrel_type_logging()
+void script_api::start_squirrel_type_logging(const char* s)
 {
 	if (env_t::verbose_debug < 2) {
 		return;
 	}
-	file = dr_fopen("squirrel_types.awk", "w");
+	suffix = s;
+	cbuffer_t buf;
+	buf.printf("squirrel_types_%s.awk", suffix);
+	file = dr_fopen(buf, "w");
 	if (file) {
+		fprintf(file, "#\n");
+		fprintf(file, "# This file is part of the Simutrans-Extended project under the Artistic License.\n");
+		fprintf(file, "# (see LICENSE.txt)\n");
+		fprintf(file, "#\n");
 		fprintf(file, "# file used to generate doxygen documentation of squirrel API\n");
 		fprintf(file, "# needs to be copied to trunk/script/api\n");
 		fprintf(file, "BEGIN {\n");
@@ -43,14 +51,23 @@ void script_api::end_squirrel_type_logging()
 		fprintf(file, "}\n");
 		fclose(file);
 		file = NULL;
+		suffix = NULL;
 	}
+}
+
+static plainstring current_class;
+
+void script_api::set_squirrel_type_class(const char* classname)
+{
+	current_class = classname;
 }
 
 void script_api::log_squirrel_type(std::string classname, const char* name, std::string squirrel_type)
 {
 	if (file) {
-		fprintf(file, "\texport_types[\"%s::%s\"] = \"%s\"\n",
-			classname.compare(param<script_api::void_t>::squirrel_type()) == 0 ? "" : classname.c_str(),
+		fprintf(file, "\texport_types_%s[\"%s::%s\"] = \"%s\"\n",
+			suffix ? suffix : "",
+			classname.empty() ? current_class.c_str() : classname.c_str(),
 			name,
 			squirrel_type.c_str()
 		);

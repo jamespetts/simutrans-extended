@@ -21,8 +21,8 @@ project(simutrans-extended LANGUAGES C CXX)
 
 include(SimutransCommitInfo)
 
-# Force C++11 everywhere
-set(CMAKE_CXX_STANDARD 11)
+# Force C++14 everywhere
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -304,6 +304,23 @@ endif ()
 if (APPLE)
 	target_compile_definitions(simutrans-extended PRIVATE ALT_SDL_DIR=1)
 endif (APPLE)
+
+
+
+#
+# Tests
+#
+add_custom_target(test
+	$<TARGET_FILE:simutrans-extended>
+		-use_workdir
+		-objects pak128.britain-ex-nightly
+		-scenario automated-tests
+		-debug 2
+		-lang en
+		-fps 100
+	DEPENDS simutrans
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/simutrans
+)
 
 
 #

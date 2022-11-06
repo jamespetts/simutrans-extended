@@ -137,7 +137,7 @@ ribi_t::ribi air_vehicle_t::get_ribi(const grund_t *gr) const
 
 
 // how expensive to go here (for way search)
-int air_vehicle_t::get_cost(const grund_t *gr, const sint32, koord)
+int air_vehicle_t::get_cost(const grund_t *gr, const sint32, ribi_t::ribi)
 {
 	// first favor faster ways
 	const weg_t *w=gr->get_weg(air_wt);

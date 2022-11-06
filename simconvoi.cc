@@ -7211,9 +7211,9 @@ public:
 	{
 		return master->get_ribi(gr);
 	};
-	virtual int get_cost( const grund_t* gr, const sint32, koord from_pos)
+	virtual int get_cost( const grund_t* gr, const sint32, ribi_t::ribi from)
 	{
-		return master->get_cost(gr, 0, from_pos);
+		return master->get_cost(gr, 0, from);
 	};
 };
 

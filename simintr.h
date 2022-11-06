@@ -18,7 +18,8 @@ bool reduce_frame_time();
 
 /// Try to decrease fps
 bool increase_frame_time();
-sint32 get_frame_time();
+
+uint32 get_frame_time();
 void set_frame_time(uint32 ms);
 
 
@@ -47,9 +48,15 @@ void interrupt_check(const char* caller_info = "0");
 		#define INT_CHECK(info) do { interrupt_check( __FILE__ ":" QUOTEME(__LINE__) ); } while(false)
 	#endif
 #endif
-#endif
-
 
 // returns a time string in the desired format
 // Returns an empty string if called before the world model defining time is initalized.
 char const *tick_to_string( sint64 ticks, bool show_full );
+
+
+// returns a time difference string in the desired format
+// assume the month has 31 days
+// round will reduce presion to qrater or less (depending on month length)
+char const *difftick_to_string( sint32 ticks, bool round );
+
+#endif
