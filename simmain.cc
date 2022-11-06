@@ -60,6 +60,7 @@
 #include "dataobj/loadsave.h"
 #include "dataobj/environment.h"
 #include "dataobj/tabfile.h"
+#include "dataobj/scenario.h"
 #include "dataobj/settings.h"
 #include "dataobj/translator.h"
 #include "network/pakset_info.h"
@@ -1573,10 +1574,18 @@ int simu_main(int argc, char** argv)
 			// no addon scenario, look in pakset
 			err = scen->init((env_t::data_dir + env_t::objfilename + "scenario/").c_str(), scen_name, welt);
 		}
-		// create a default map
-		DBG_MESSAGE("simu_main()", "Init with default map (failing will be a pak error!)");
+		if(  err  ) {
+			dbg->error("simu_main()", "Could not load scenario %s%s: %s", env_t::objfilename.c_str(), scen_name, err);
+			delete scen;
+			scen = NULL;
+		}
+		else {
+			new_world = false;
+		}
+	}
 
-		// no autosave on initial map during the first six month ...
+	if(  scen == NULL && (loadgame==""  ||  !welt->load(loadgame.c_str()))  ) {
+		// no autosave on initial map during the first six months
 		loadgame = "";
 		new_world = true;
 
