@@ -17,6 +17,7 @@
 #include "components/gui_convoy_formation.h"
 #include "components/gui_image.h"
 #include "components/gui_label.h"
+#include "components/gui_numberinput.h"
 #include "components/gui_schedule_item.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_scrolled_list.h"
@@ -193,6 +194,19 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_aligned_container_t cont_convoy_copier;
 	gui_scrolled_list_t scl_convoys;
 	void update_convoy_info();
+
+	// [VEHICLE DESCRIPTION EDITOR]
+	vehicle_description_element new_vdesc_element;
+	uint16 edit_target_index;
+	gui_numberinput_t numimp_edit_target;
+	gui_combobox_t edit_action_selector, engine_type_rule;
+	button_t bt_commit, bt_reset_editor;
+	button_t bt_enable_rules[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
+	gui_numberinput_t rules_imp_min[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
+	gui_numberinput_t rules_imp_max[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
+	gui_aligned_container_t cont_vdesc_editor;
+	gui_scrollpane_t scroll_editor;
+	void init_editor();
 
 	gui_tab_panel_t tabs;
 

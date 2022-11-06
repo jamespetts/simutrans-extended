@@ -9,6 +9,7 @@
 #include "simwin.h"
 #include "messagebox.h"
 #include "../bauer/goods_manager.h"
+#include "../bauer/vehikelbauer.h"
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
 #include "../simhalt.h"
@@ -400,7 +401,8 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	scrolly_order(&cont_order, false, true),
 	img_convoy(convoihandle_t()),
 	formation(convoihandle_t(), false),
-	scrollx_formation(&formation, true, false)
+	scrollx_formation(&formation, true, false),
+	scroll_editor(&cont_vdesc_editor, true, true)
 {
 	if (player && schedule) {
 		init(player, schedule, entry_id);
@@ -677,8 +679,12 @@ void consist_order_frame_t::init_table()
 		cont_convoy_copier.end_table();
 	}
 
+	// [VEHICLE DESCRIPTION EDITOR]
+	init_editor();
+
 	tabs.add_tab(&cont_picker_frame, translator::translate("Vehicle picker"));
 	tabs.add_tab(&cont_convoy_copier, translator::translate("Convoy copier"));
+	tabs.add_tab(&scroll_editor, translator::translate("desc_editor"));
 	add_component(&tabs);
 
 	reset_min_windowsize();
@@ -687,6 +693,78 @@ void consist_order_frame_t::init_table()
 	set_resizemode(diagonal_resize);
 }
 
+
+void consist_order_frame_t::init_editor()
+{
+	cont_vdesc_editor.remove_all();
+	cont_vdesc_editor.set_table_layout(1,0);
+	cont_vdesc_editor.add_table(5,1);
+	{
+		edit_action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("anhaengen"), SYSCOL_TEXT); // append
+		edit_action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("voranstellen"), SYSCOL_TEXT); // insert
+		edit_action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Overwrite"), SYSCOL_TEXT);
+		edit_action_selector.set_selection(0);
+		edit_action_selector.add_listener(this);
+		cont_vdesc_editor.add_component(&edit_action_selector);
+
+		cont_vdesc_editor.add_component(&numimp_edit_target);
+
+		bt_commit.init(button_t::roundbox, "Commit");
+		bt_commit.add_listener(this);
+		cont_vdesc_editor.add_component(&bt_commit);
+
+		bt_reset_editor.init(button_t::roundbox, "reset");
+		bt_reset_editor.add_listener(this);
+		cont_vdesc_editor.add_component(&bt_reset_editor);
+
+		cont_vdesc_editor.new_component<gui_fill_t>();
+	}
+	cont_vdesc_editor.end_table();
+
+	// edit table
+	gui_aligned_container_t *edit_table = cont_vdesc_editor.add_table(5,0);
+	edit_table->set_table_frame(true, true);
+	edit_table->set_margin(scr_size(3, 3), scr_size(3, 3));
+	edit_table->set_spacing(scr_size(D_H_SPACE, 2));
+	edit_table->set_alignment(ALIGN_CENTER_V);
+	{
+		cont_vdesc_editor.new_component<gui_table_header_t>(vehicle_spec_texts[0], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
+		bt_enable_rules[0].init(button_t::square_automatic, "");
+		bt_enable_rules[0].add_listener(this);
+		cont_vdesc_editor.add_component(&bt_enable_rules[0]);
+		rules_imp_min[0].disable();
+		cont_vdesc_editor.add_component(&rules_imp_min[0]);
+		cont_vdesc_editor.new_component<gui_label_t>(" - ");
+		rules_imp_max[0].disable();
+		cont_vdesc_editor.add_component(&rules_imp_max[0]);
+
+		cont_vdesc_editor.new_component<gui_table_header_t>("engine_type", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
+		engine_type_rule.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All traction types"), SYSCOL_TEXT);
+		for (int i = 0; i < vehicle_desc_t::MAX_TRACTION_TYPE; i++) {
+			engine_type_rule.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::engine_type_names[(vehicle_desc_t::engine_t)i]), SYSCOL_TEXT);
+		}
+		engine_type_rule.add_listener(this);
+		engine_type_rule.set_size(scr_size(D_WIDE_BUTTON_WIDTH, D_EDIT_HEIGHT));
+		engine_type_rule.set_width_fixed(true);
+		cont_vdesc_editor.add_component(&engine_type_rule,4);
+
+		for (uint8 i = 1; i< gui_simple_vehicle_spec_t::MAX_VEH_SPECS;i++) {
+			cont_vdesc_editor.new_component<gui_table_header_t>(vehicle_spec_texts[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
+			bt_enable_rules[i].init(button_t::square_automatic, "");
+			bt_enable_rules[i].add_listener(this);
+			cont_vdesc_editor.add_component(&bt_enable_rules[i]);
+			rules_imp_min[i].disable();
+			cont_vdesc_editor.add_component(&rules_imp_min[i]);
+			cont_vdesc_editor.new_component<gui_label_t>(" - ");
+			rules_imp_max[i].disable();
+			cont_vdesc_editor.add_component(&rules_imp_max[i]);
+		}
+	}
+	cont_vdesc_editor.end_table();
+
+
+	cont_vdesc_editor.set_size(cont_vdesc_editor.get_min_size());
+}
 
 // reflesh labels, call when entry changed
 void consist_order_frame_t::update()
@@ -909,7 +987,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if(  comp==&bt_copy_convoy  ) {
 		if( scl.get_selection()==-1 ){
-			create_win(new news_img("Select copy destination!"), w_time_delete, magic_none);
+			create_win(new news_img("Select valid consist order slot!"), w_time_delete, magic_none);
 		}
 		else {
 			if( !selected_convoy.is_bound() ) {
@@ -921,6 +999,17 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 				update_order_list(sel);
 			}
 		}
+	}
+	else if(  comp==&bt_commit  ) {
+		if( scl.get_selection()==-1 ){
+			create_win(new news_img("Select valid consist order slot!"), w_time_delete, magic_none);
+		}
+		// TODO:
+
+	}
+	else if(  comp==&bt_reset_editor  ) {
+		// TODO:
+
 	}
 	else if(  comp==&bt_copy_convoy_limit_vehicle  ) {
 		bt_copy_convoy_limit_vehicle.pressed = !bt_copy_convoy_limit_vehicle.pressed;
@@ -951,6 +1040,14 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 				break;
 		}
 		build_vehicle_list();
+	}
+	else {
+		for( uint8 i=0; i<gui_simple_vehicle_spec_t::MAX_VEH_SPECS; i++ ) {
+			if( comp==&bt_enable_rules[i] ) {
+				rules_imp_min[i].enable(bt_enable_rules[i].pressed);
+				rules_imp_max[i].enable(bt_enable_rules[i].pressed);
+			}
+		}
 	}
 
 	return false;
