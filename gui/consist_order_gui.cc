@@ -392,7 +392,7 @@ void cont_order_overview_t::draw(scr_coord offset)
 
 consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
 	: gui_frame_t(translator::translate("consist_order")),
-	halt_number(-1),
+	halt_number(255),
 	cont_order_overview(&order),
 	scl(gui_scrolled_list_t::listskin),
 	scl_vehicles(gui_scrolled_list_t::listskin),
@@ -426,7 +426,7 @@ void consist_order_frame_t::init(player_t* player, schedule_t *schedule, uint16 
 {
 	this->player = player;
 	this->schedule = schedule;
-	if( unique_entry_id!=-1  &&  unique_entry_id != entry_id) {
+	if( unique_entry_id!=65535  &&  unique_entry_id != entry_id) {
 		save_order();
 	}
 	unique_entry_id = entry_id;
@@ -498,11 +498,12 @@ void consist_order_frame_t::init_table()
 		cont_order.add_component(&cont_order_overview);
 		cont_order.new_component<gui_fill_t>();
 		scrolly_order.set_maximize(true);
+
 		add_component(&scrolly_order,2);
+
 		cont_order.set_size(cont_order.get_min_size());
 	}
 	end_table();
-
 
 	new_component<gui_divider_t>();
 
@@ -692,7 +693,7 @@ void consist_order_frame_t::update()
 {
 	halt = halthandle_t();
 	// serach entry and halt
-	uint8 entry_idx = -1;
+	uint8 entry_idx = 255;
 	for (uint i = 0; i < schedule->entries.get_count(); i++) {
 		if( unique_entry_id==schedule->entries[i].unique_entry_id ) {
 			entry_idx = i;
@@ -735,7 +736,7 @@ void consist_order_frame_t::update_order_list(sint32 reselect_index)
 
 	// reselect the selection
 	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
-	cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
+	cont_order_overview.set_element((uint32)scl.get_selection(), player->get_player_nr());
 
 	bt_delete.enable( old_order_count  &&  scl.get_selection()!=-1 );
 	resize(scr_size(0,0));

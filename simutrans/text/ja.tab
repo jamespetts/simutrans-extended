@@ -1032,7 +1032,7 @@ Friction:
 fuel_cell
 燃料電池
 Full load
-積むまで待機
+積むまで待機(％):
 Fullscreen (changed after restart)
 全画面表示 (ハードウェアモード、変更は再起動が必要)
 Fundament

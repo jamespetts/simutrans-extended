@@ -593,7 +593,7 @@ void schedule_gui_t::build_table()
 	stats->add_listener(this);
 
 	set_table_layout(1,0);
-	set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
+	set_margin(scr_size(0,D_V_SPACE), scr_size(D_H_SPACE,0));
 
 	if (cnv.is_bound()) {
 		add_table(4,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
@@ -713,7 +713,11 @@ void schedule_gui_t::build_table()
 			end_table();
 
 			scroll.set_maximize(true);
-			add_component(&scroll);
+			add_table(1,1)->set_table_frame(true,true);
+			{
+				add_component(&scroll);
+			}
+			end_table();
 		}
 		end_table();
 
@@ -919,10 +923,14 @@ void schedule_gui_t::build_table()
 
 			// Modify convoy button
 			if( !cnv.is_bound() ) {
-				add_table(2,0)->set_spacing(scr_size(D_H_SPACE,1));
+				add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
 				{
-					bt_consist_order.init(button_t::roundbox_state | button_t::flexible, "modify_convoy");
+					bt_consist_order.init(button_t::roundbox_state, "modify_convoy", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
 					bt_consist_order.set_tooltip("modify_the_convoy_at_this_schedule_entrance");
+					if (skinverwaltung_t::open_window) {
+						bt_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
+						bt_consist_order.set_image_position_right(true);
+					}
 					bt_consist_order.add_listener(this);
 					bt_consist_order.pressed = false;
 					add_component(&bt_consist_order);

@@ -135,6 +135,29 @@ gui_color_chat_window_network_transparency = #D6ECF7
 gui_color_text_inactive = #696969
 gui_color_text_weak     = #555555
 
+# Color for table
+gui_color_table_frame               = #63798c
+gui_color_table_background_head_row = #7392a5
+gui_color_table_header_border       = #63798c
+gui_color_table_cell_border         = #8c9aad
+gui_color_table_background_left_col = #cedbe7
+gui_color_table_background_data_sum = #c6d3de
+gui_color_table_background_data     = #bdcbd6
+gui_color_table_background          = #adbac6
+gui_color_text_head_row             = #ffffff
+gui_color_text_left_col             = #000000
+
+#gui_color_table_frame               = #5a829c
+#gui_color_table_background_head_row = #7392a5
+#gui_color_table_header_border       = #5a829c
+#gui_color_table_cell_border         = #8c9aad
+#gui_color_table_background_left_col = #9cb2c6
+#gui_color_table_background_data_sum = #a5bace
+#gui_color_table_background_data     = #b1bfce
+#gui_color_table_background          = #c6d3de
+#gui_color_text_head_row             = #ffffff
+#gui_color_text_left_col             = #000000
+
 ################################## Size settings ##################################
 
 # size of tools
