@@ -71,6 +71,8 @@ struct vehicle_description_element
 	uint32 max_fixed_cost = UINT32_MAX_VALUE;
 	uint32 min_fixed_cost = 0;
 
+	// TODO: Add new economic parameters here (staff cost, fuel cost)
+
 	/*
 	* These rules define which of available
 	* vehicles are to be preferred, and do
@@ -120,6 +122,8 @@ struct vehicle_description_element
 		min_topspeed = v->get_calibration_speed();
 		min_capacity = v->get_total_capacity();
 	}
+
+	bool operator!= (const vehicle_description_element& other) const;
 };
 
 class consist_order_element_t
@@ -173,6 +177,8 @@ public:
 	{
 		return vehicle_description.get_element(description_index);
 	}
+
+	bool operator!= (const consist_order_element_t& other) const;
 };
 
 class consist_order_t
@@ -223,6 +229,8 @@ public:
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	void sscanf_consist_order(const char* ptr);
+
+	bool operator== (const consist_order_t& other) const;
 };
 
 #endif

@@ -262,6 +262,8 @@ public:
 	 */
 	bool is_contained(koord3d pos);
 
+	bool check_consist_orders_for_match(uint16 entry_id_this, const schedule_t* other_schedule, uint16 entry_id_other_schedule) const;
+
 	image_id get_schedule_type_symbol() const
 	{
 		switch (get_type())
