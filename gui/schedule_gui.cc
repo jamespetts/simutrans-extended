@@ -785,7 +785,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 
-			add_table(5,0)->set_spacing(scr_size(0,0));
+			add_table(5,0)->set_spacing(scr_size(D_H_SPACE,0));
 			{
 				if (!cnv.is_bound()) {
 					// Wait for time
@@ -842,7 +842,7 @@ void schedule_gui_t::build_table()
 			}
 			end_table();
 			if (!cnv.is_bound()) {
-				add_table(5,2)->set_spacing(scr_size(0,0));
+				add_table(5,2)->set_spacing(scr_size(D_H_SPACE,0));
 				{
 					// Spacing
 					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
@@ -900,7 +900,7 @@ void schedule_gui_t::build_table()
 			}
 
 			// Speed limit
-			add_table(4,2)->set_spacing(scr_size(0,0));
+			add_table(4,2)->set_spacing(scr_size(D_H_SPACE,0));
 			{
 				new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
 				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
