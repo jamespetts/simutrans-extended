@@ -498,9 +498,9 @@ void consist_order_frame_t::init_table()
 		cont_order.add_component(&cont_order_overview);
 		cont_order.new_component<gui_fill_t>();
 		scrolly_order.set_maximize(true);
-	/*
+
 		add_component(&scrolly_order,2);
-	*/
+
 		cont_order.set_size(cont_order.get_min_size());
 	}
 	end_table();
