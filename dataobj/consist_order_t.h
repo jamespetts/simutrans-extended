@@ -71,7 +71,13 @@ struct vehicle_description_element
 	uint32 max_fixed_cost = UINT32_MAX_VALUE;
 	uint32 min_fixed_cost = 0;
 
-	// TODO: Add new economic parameters here (staff cost, fuel cost)
+	uint32 max_fuel_per_km = UINT32_MAX_VALUE;
+	uint32 min_fuel_per_km = 0;
+
+	uint32 max_staff_hundredths = UINT32_MAX_VALUE;
+	uint32 min_staff_hundredths = 0;
+	uint32 max_drivers = UINT32_MAX_VALUE;
+	uint32 min_drivers = 0;
 
 	/*
 	* These rules define which of available
@@ -97,18 +103,43 @@ struct vehicle_description_element
 		prefer_high_speed				= (1u << 4),
 		prefer_high_running_cost		= (1u << 5),
 		prefer_high_fixed_cost			= (1u << 6),
-		prefer_low_capacity				= (1u << 7),
-		prefer_low_power				= (1u << 8),
-		prefer_low_tractive_effort		= (1u << 9),
-		prefer_low_brake_force			= (1u << 10),
-		prefer_low_speed				= (1u << 11),
-		prefer_low_running_cost			= (1u << 12),
-		prefer_low_fixed_cost			= (1u << 13)
+		prefer_high_fuel_consumption	= (1u << 7),
+		prefer_high_driver_numbers		= (1u << 8),
+		prefer_high_staff_hundredths	= (1u << 9),
+		prefer_low_capacity				= (1u << 10),
+		prefer_low_power				= (1u << 11),
+		prefer_low_tractive_effort		= (1u << 12),
+		prefer_low_brake_force			= (1u << 13),
+		prefer_low_speed				= (1u << 14),
+		prefer_low_running_cost			= (1u << 15),
+		prefer_low_fixed_cost			= (1u << 16),
+		prefer_low_fuel_consumption		= (1u << 17),
+		prefer_low_driver_numbers		= (1u << 18),
+		prefer_low_staff_hundredths		= (1u << 19)
 	};
 
-	static const uint8 max_rule_flags = 14;
+	static const uint8 max_rule_flags = 20u;
 
-	uint16 rule_flags[max_rule_flags] { prefer_high_capacity, prefer_high_power, prefer_high_tractive_effort, prefer_high_speed, prefer_high_running_cost, prefer_high_fixed_cost, prefer_low_capacity, prefer_low_power, prefer_low_tractive_effort, prefer_low_speed, prefer_low_running_cost, prefer_low_fixed_cost };
+	uint32 rule_flags[max_rule_flags]
+	{ prefer_high_capacity,
+		prefer_high_power,
+		prefer_high_tractive_effort,
+		prefer_high_speed,
+		prefer_high_running_cost,
+		prefer_high_fixed_cost,
+		prefer_high_fuel_consumption,
+		prefer_high_driver_numbers,
+		prefer_high_staff_hundredths,
+		prefer_low_capacity,
+		prefer_low_power,
+		prefer_low_tractive_effort,
+		prefer_low_speed,
+		prefer_low_running_cost,
+		prefer_low_fixed_cost,
+		prefer_low_fuel_consumption,
+		prefer_low_driver_numbers,
+		prefer_low_staff_hundredths
+	};
 
 	void set_vehicle_spec(const vehicle_desc_t *v)
 	{
