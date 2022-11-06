@@ -101,6 +101,12 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_long(vehicle_description.min_running_cost);
 				file->rdwr_long(vehicle_description.max_fixed_cost);
 				file->rdwr_long(vehicle_description.min_fixed_cost);
+				file->rdwr_long(vehicle_description.max_fuel_per_km);
+				file->rdwr_long(vehicle_description.min_fuel_per_km);
+				file->rdwr_long(vehicle_description.max_staff_hundredths);
+				file->rdwr_long(vehicle_description.min_staff_hundredths);
+				file->rdwr_long(vehicle_description.max_drivers);
+				file->rdwr_long(vehicle_description.min_drivers);
 
 				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 				{
@@ -215,6 +221,13 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 			buf.append_fixed(desc.min_running_cost);
 			buf.append_fixed(desc.max_fixed_cost);
 			buf.append_fixed(desc.min_fixed_cost);
+			buf.append_fixed(desc.max_fuel_per_km);
+			buf.append_fixed(desc.min_fuel_per_km);
+			buf.append_fixed(desc.max_staff_hundredths);
+			buf.append_fixed(desc.min_staff_hundredths);
+			buf.append_fixed(desc.max_drivers);
+			buf.append_fixed(desc.min_drivers);
+
 			for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 			{
 				buf.append_fixed(desc.rule_flags[i]);
@@ -300,6 +313,13 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 			desc.min_running_cost = cbuffer_t::decode_uint32(p);
 			desc.max_fixed_cost = cbuffer_t::decode_uint32(p);
 			desc.min_fixed_cost = cbuffer_t::decode_uint32(p);
+			desc.max_fuel_per_km = cbuffer_t::decode_uint32(p);
+			desc.min_fuel_per_km = cbuffer_t::decode_uint32(p);
+			desc.max_staff_hundredths = cbuffer_t::decode_uint32(p);
+			desc.min_staff_hundredths = cbuffer_t::decode_uint32(p);
+			desc.max_drivers = cbuffer_t::decode_uint32(p);
+			desc.min_drivers = cbuffer_t::decode_uint32(p);
+
 			for (uint32 k = 0; k < vehicle_description_element::max_rule_flags; k++)
 			{
 				desc.rule_flags[k] = cbuffer_t::decode_uint32(p);
@@ -384,7 +404,13 @@ bool vehicle_description_element::operator!= (const vehicle_description_element&
 		max_running_cost != other.max_running_cost ||
 		min_running_cost != other.min_running_cost ||
 		max_fixed_cost != other.max_fixed_cost ||
-		min_fixed_cost != other.min_fixed_cost;
+		min_fixed_cost != other.min_fixed_cost ||
+		max_fuel_per_km != other.max_fuel_per_km ||
+		min_fuel_per_km != other.min_fuel_per_km ||
+		max_staff_hundredths != other.max_staff_hundredths ||
+		min_staff_hundredths != other.min_staff_hundredths ||
+		max_drivers != other.max_drivers ||
+		min_drivers != other.min_drivers;
 
 	for (uint32 i = 0; i < max_rule_flags; i++)
 	{
