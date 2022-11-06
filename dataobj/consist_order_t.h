@@ -197,6 +197,7 @@ public:
 
 	consist_order_element_t& get_order(uint32 element_number)
 	{
+		if (element_number > orders.get_count()) { return consist_order_element_t(); }
 		return orders[element_number];
 	}
 
