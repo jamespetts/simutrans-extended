@@ -44,7 +44,7 @@ void schedule_t::copy_from(const schedule_t *src)
 	// Copy consist orders
 	for (auto &order : src->orders)
 	{
-		orders.put(order.key, order.value); 
+		orders.put(order.key, order.value);
 	}
 
 	set_current_stop( src->get_current_stop() );
@@ -580,7 +580,7 @@ bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const sche
 		consist_order_t this_order = orders.get(entry_id_this);
 		consist_order_t other_order = other_schedule->orders.get(entry_id_other_schedule);
 
-		return this_order == other_order; 
+		return this_order == other_order;
 	}
 	else
 	{
