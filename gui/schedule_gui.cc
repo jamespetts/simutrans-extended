@@ -713,7 +713,11 @@ void schedule_gui_t::build_table()
 			end_table();
 
 			scroll.set_maximize(true);
-			add_component(&scroll);
+			add_table(1,1)->set_table_frame(true,true);
+			{
+				add_component(&scroll);
+			}
+			end_table();
 		}
 		end_table();
 
