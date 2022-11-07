@@ -191,15 +191,17 @@ public:
 
 	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
 
-	void clear_vehicles()
-	{
-		vehicle_description.clear();
-	}
-
+	void append_vehicle_description(vehicle_description_element v_elem) { vehicle_description.append(v_elem); }
+	void insert_vehicle_description_at(uint32 description_index, vehicle_description_element v_elem) { vehicle_description.insert_at(description_index, v_elem); }
 	void remove_vehicle_description_at(uint32 description_index)
 	{
 		if (description_index >= vehicle_description.get_count()) { return; }
 		vehicle_description.remove_at(description_index, false);
+	}
+
+	void clear_vehicles()
+	{
+		vehicle_description.clear();
 	}
 
 	void increment_index(uint32 description_index);

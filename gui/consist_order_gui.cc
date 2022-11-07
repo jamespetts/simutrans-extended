@@ -1004,11 +1004,36 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 	}
 	else if(  comp==&bt_commit  ) {
-		if( scl.get_selection()==-1 ){
+		const sint32 sel = scl.get_selection();
+		if (scl.get_selection() < 0 || (uint32)sel >= order.get_count()) {
 			create_win(new news_img("Select valid consist order slot!"), w_time_delete, magic_none);
+			return true;
 		}
-		// TODO:
-
+		consist_order_element_t *order_element = &order.get_order((uint32)sel);
+		switch (edit_action_selector.get_selection())
+		{
+			default:
+			case 0: // append
+				order_element->append_vehicle_description(new_vdesc_element);
+				consist_order_frame_t::need_reflesh_order_list = true;
+				break;
+			case 1: // insert
+				if (edit_target_index >= order_element->get_count()) {
+					edit_target_index = order_element->get_count()-1;
+				}
+				order_element->insert_vehicle_description_at(edit_target_index, new_vdesc_element);
+				consist_order_frame_t::need_reflesh_order_list = true;
+				break;
+			case 2: // overwrite
+				if( edit_target_index >= order_element->get_count() ){
+					create_win(new news_img("Invalid target!"), w_time_delete, magic_none);
+					return true;
+				}
+				order_element->remove_vehicle_description_at(edit_target_index);
+				order_element->insert_vehicle_description_at(edit_target_index, new_vdesc_element);
+				break;
+		}
+		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_reset_editor  ) {
 		set_vehicle_description();
