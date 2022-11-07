@@ -478,7 +478,8 @@ void consist_order_frame_t::init_table()
 
 	old_entry_count = schedule->get_count();
 
-	bt_filter_halt_convoy.pressed = true;
+	bt_filter_halt_convoy.pressed = false;
+	bt_filter_line_convoy.pressed = true;
 	bt_filter_single_vehicle.pressed = false;
 	cont_convoy_filter.set_visible(false);
 	update();
@@ -628,6 +629,11 @@ void consist_order_frame_t::init_table()
 				bt_filter_halt_convoy.set_tooltip(translator::translate("Narrow down to consists that use this stop"));
 				bt_filter_halt_convoy.add_listener(this);
 				cont_convoy_filter.add_component(&bt_filter_halt_convoy);
+
+				bt_filter_line_convoy.init(button_t::square_state, "filter_line_consist");
+				bt_filter_line_convoy.set_tooltip(translator::translate("Narrow down to only consists belonging to this line"));
+				bt_filter_line_convoy.add_listener(this);
+				cont_convoy_filter.add_component(&bt_filter_line_convoy);
 
 				bt_filter_single_vehicle.init(button_t::square_state, "filter_single_vehicle_consist");
 				bt_filter_single_vehicle.set_tooltip(translator::translate("Exclude consists made up of one vehicle"));
@@ -1017,6 +1023,12 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
+		bt_filter_line_convoy.pressed = !bt_filter_halt_convoy.pressed;
+		build_vehicle_list();
+	}
+	else if( comp==&bt_filter_line_convoy){
+		bt_filter_line_convoy.pressed = !bt_filter_line_convoy.pressed;
+		bt_filter_halt_convoy.pressed = !bt_filter_line_convoy.pressed;
 		build_vehicle_list();
 	}
 	else if( comp==&bt_filter_single_vehicle){
@@ -1203,6 +1215,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 void consist_order_frame_t::build_vehicle_list()
 {
 	const bool search_only_halt_convoy = bt_filter_halt_convoy.pressed;
+	const bool search_only_line_convoy = bt_filter_line_convoy.pressed;
 
 	own_vehicles.clear();
 	scl_vehicles.clear_elements();
@@ -1246,7 +1259,7 @@ void consist_order_frame_t::build_vehicle_list()
 			if( bt_filter_single_vehicle.pressed  &&  cnv->get_vehicle_count()<2 ) {
 				continue;
 			}
-			if (!search_only_halt_convoy) {
+			if (!search_only_halt_convoy && !search_only_line_convoy) {
 				// filter
 				if( filter_catg!=255  &&  filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
 					continue;
@@ -1284,11 +1297,14 @@ void consist_order_frame_t::build_vehicle_list()
 		}
 	}
 
-	if (search_only_halt_convoy) {
-		// line
+	if( search_only_halt_convoy || search_only_line_convoy ) {
+		// halt line
 		for (uint32 i=0; i < halt->registered_lines.get_count(); ++i) {
 			const linehandle_t line = halt->registered_lines[i];
 			if( line->get_owner()==player  &&  line->get_schedule()->get_waytype()==schedule->get_waytype() ) {
+				if (search_only_line_convoy && !schedule->matches(world(),line->get_schedule())) {
+					continue;
+				}
 				for( uint32 j=0; j < line->count_convoys(); ++j ) {
 					convoihandle_t const cnv = line->get_convoy(j);
 					if (cnv->in_depot()) {
@@ -1305,8 +1321,9 @@ void consist_order_frame_t::build_vehicle_list()
 				}
 			}
 		}
-
-		// convoy
+	}
+	if (search_only_halt_convoy) {
+		// halt convoy
 		for (uint32 i=0; i < halt->registered_convoys.get_count(); ++i) {
 			const convoihandle_t cnv = halt->registered_convoys[i];
 			if( cnv->get_owner()==player  &&cnv->front()->get_waytype()==schedule->get_waytype() ) {

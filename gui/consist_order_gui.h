@@ -185,7 +185,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	slist_tpl<convoihandle_t> own_convoys;
 	// filter
 	gui_label_t lb_open_convoy_filter;
-	button_t bt_filter_halt_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
+	button_t bt_filter_halt_convoy, bt_filter_line_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
 	gui_aligned_container_t cont_convoy_filter;
 	//
 	button_t bt_sort_order_cnv, bt_copy_convoy, bt_copy_convoy_limit_vehicle, bt_convoy_detail;
