@@ -19,6 +19,7 @@
 #include "../vehicle/vehicle.h"
 #include "components/gui_divider.h"
 #include "components/gui_table.h"
+#include "components/gui_waytype_image_box.h"
 #include "../player/finance.h"
 
 
@@ -494,8 +495,9 @@ void consist_order_frame_t::init_table()
 
 	new_component<gui_label_t>("Select the vehicles that you want to make up this consist at this stop and onwards on this schedule.");
 
-	add_table(2,1);
+	add_table(3,1);
 	{
+		new_component<gui_waytype_image_box_t>(schedule->get_waytype());
 		add_component(&halt_number);
 		add_component(&lb_halt);
 	}

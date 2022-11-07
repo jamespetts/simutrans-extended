@@ -37,6 +37,7 @@
 
 #include "components/gui_button.h"
 #include "components/gui_textarea.h"
+#include "components/gui_waytype_image_box.h"
 #include "minimap.h"
 #include "consist_order_gui.h"
 
@@ -645,7 +646,7 @@ void schedule_gui_t::build_table()
 			// buttons
 			add_table(3,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 			{
-				new_component<gui_image_t>()->set_image(schedule->get_schedule_type_symbol(), true);
+				new_component<gui_waytype_image_box_t>(schedule->get_waytype());
 				img_electric.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
 				img_electric.set_tooltip(translator::translate("This line/convoy needs electrification"));
 				img_electric.set_rigid(false);
