@@ -520,7 +520,7 @@ void gui_convoy_spec_table_t::insert_spec_rows()
 					break;
 				case SPEC_FUEL_PER_KM:
 					if( veh_type->get_power() ) {
-						lb->buf().printf("%u", veh_type->get_fuel_per_km()); // TODO: add fuel unit such as km/L
+						lb->buf().printf("%u %s", veh_type->get_fuel_per_km(), translator::translate("km/L"));
 					}
 					break;
 				case SPEC_RATED_SPEED:

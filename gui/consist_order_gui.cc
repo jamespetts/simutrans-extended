@@ -212,13 +212,31 @@ void gui_simple_vehicle_spec_t::init_table()
 					}
 					break;
 				case SPEC_FUEL_PER_KM:
-					// TODO
+					if (veh_type->get_power()) {
+						lb->buf().printf("%u %s", veh_type->get_fuel_per_km(), translator::translate("km/L") );
+					}
+					else {
+						lb->buf().append("-");
+						lb->set_color(SYSCOL_TEXT_WEAK);
+					}
 					break;
 				case SPEC_STAFF_FACTOR:
-					// TODO
+					if (veh_type->get_total_staff_hundredths()) {
+						lb->buf().printf("%u", veh_type->get_total_staff_hundredths());
+					}
+					else {
+						lb->buf().append("-");
+						lb->set_color(SYSCOL_TEXT_WEAK);
+					}
 					break;
 				case SPEC_DRIVERS:
-					// TODO
+					if (veh_type->get_total_drivers()) {
+						lb->buf().printf("%u", veh_type->get_total_drivers());
+					}
+					else {
+						lb->buf().append("-");
+						lb->set_color(SYSCOL_TEXT_WEAK);
+					}
 					break;
 				default:
 					new_component<gui_empty_t>();
