@@ -841,11 +841,13 @@ void consist_order_frame_t::update_vehicle_info()
 	if( selected_vehicle==NULL ) {
 		veh_specs.set_visible(false);
 		bt_add_vehicle.disable();
+		bt_add_vehicle_limit_vehicle.disable();
 	}
 	else {
 		veh_specs.set_vehicle(selected_vehicle);
 		veh_specs.set_visible(true);
 		bt_add_vehicle.enable();
+		bt_add_vehicle_limit_vehicle.enable();
 	}
 	cont_picker_frame.set_size(cont_picker_frame.get_min_size());
 	// adjust the size if the tab is open
