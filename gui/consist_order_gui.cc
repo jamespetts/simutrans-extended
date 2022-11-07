@@ -491,6 +491,8 @@ void consist_order_frame_t::init_table()
 	lb->buf().printf("(debug)entry-id: %u", unique_entry_id);
 	lb->update();
 
+	new_component<gui_label_t>("Select the vehicles that you want to make up this consist at this stop and onwards on this schedule.");
+
 	add_table(2,1);
 	{
 		add_component(&halt_number);
