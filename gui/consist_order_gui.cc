@@ -39,7 +39,10 @@ const char *vehicle_spec_texts[gui_simple_vehicle_spec_t::MAX_VEH_SPECS] =
 	"Gewicht",
 	"Axle load:",
 	"Running costs per km", // "Operation" Vehicle running costs per km
-	"Fixed cost per month"
+	"Fixed cost per month",
+	"Fuel per km",
+	"Staff factor",
+	"Drivers"
 };
 
 
@@ -207,6 +210,15 @@ void gui_simple_vehicle_spec_t::init_table()
 						lb->buf().append("-");
 						lb->set_color(SYSCOL_TEXT_WEAK);
 					}
+					break;
+				case SPEC_FUEL_PER_KM:
+					// TODO
+					break;
+				case SPEC_STAFF_FACTOR:
+					// TODO
+					break;
+				case SPEC_DRIVERS:
+					// TODO
 					break;
 				default:
 					new_component<gui_empty_t>();
@@ -1090,6 +1102,72 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			if( comp==&bt_enable_rules[i] ) {
 				rules_imp_min[i].enable(bt_enable_rules[i].pressed);
 				rules_imp_max[i].enable(bt_enable_rules[i].pressed);
+
+				// set or disable description value
+				switch (i)
+				{
+					case gui_simple_vehicle_spec_t::SPEC_PAYLOADS:
+						new_vdesc_element.min_capacity = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_capacity = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : 65535;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_RANGE:
+						new_vdesc_element.min_range = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_range = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_POWER:
+						new_vdesc_element.min_power = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_power = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_TRACTIVE_FORCE:
+						new_vdesc_element.min_tractive_effort = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_tractive_effort = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_BRAKE_FORCE:
+						new_vdesc_element.min_brake_force = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_brake_force = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : 65535;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_SPEED:
+						new_vdesc_element.min_topspeed = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_topspeed = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_WEIGHT:
+						new_vdesc_element.min_weight = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_weight = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_AXLE_LOAD:
+						new_vdesc_element.min_axle_load = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_axle_load = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_RUNNING_COST:
+						new_vdesc_element.min_running_cost = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_running_cost = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_FIXED_COST:
+						new_vdesc_element.min_fixed_cost = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_fixed_cost = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_FUEL_PER_KM:
+						new_vdesc_element.min_fuel_per_km = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_fuel_per_km = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_STAFF_FACTOR:
+						new_vdesc_element.min_staff_hundredths = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_staff_hundredths = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_DRIVERS:
+						new_vdesc_element.min_drivers = bt_enable_rules[i].pressed ? rules_imp_min[i].get_value() : 0;
+						new_vdesc_element.max_drivers = bt_enable_rules[i].pressed ? rules_imp_max[i].get_value() : UINT32_MAX_VALUE;
+						break;
+					default:
+							break;
+				}
+			}
+
+			if ( comp==&rules_imp_min[i] ) {
+				rules_imp_min[i].set_value(  min( v.i,rules_imp_max[i].get_value() )  );
+			}
+			if ( comp==&rules_imp_max[i] ) {
+				rules_imp_max[i].set_value(  max( v.i,rules_imp_min[i].get_value() )  );
 			}
 		}
 	}
