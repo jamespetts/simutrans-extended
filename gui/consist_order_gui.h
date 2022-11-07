@@ -206,6 +206,10 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_numberinput_t rules_imp_max[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
 	gui_aligned_container_t cont_vdesc_editor;
 	gui_scrollpane_t scroll_editor;
+	void set_vehicle_description(vehicle_description_element vdesc = vehicle_description_element())
+	{
+		new_vdesc_element = vdesc; init_editor();
+	}
 	void init_editor();
 
 	gui_tab_panel_t tabs;

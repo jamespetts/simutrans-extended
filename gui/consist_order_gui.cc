@@ -1011,8 +1011,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 
 	}
 	else if(  comp==&bt_reset_editor  ) {
-		// TODO:
-
+		set_vehicle_description();
 	}
 	else if(  comp==&edit_action_selector  ) {
 		// mode==append => disable target input
