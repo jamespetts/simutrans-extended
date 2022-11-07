@@ -163,7 +163,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void update_order_list(sint32 reselect_index=-1);
 
 	// filter (common)
-	uint8 filter_catg=goods_manager_t::INDEX_NONE;
+	uint8 filter_catg=255; // all
 	gui_combobox_t freight_type_c;
 
 	// [VEHICLE PICKER]

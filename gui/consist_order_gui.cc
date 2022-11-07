@@ -521,6 +521,7 @@ void consist_order_frame_t::init_table()
 		const goods_desc_t* info = goods_manager_t::get_info_catg_index(i);
 		freight_type_c.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(info->get_catg_name()), SYSCOL_TEXT, info->get_catg_symbol());
 	}
+	freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("none"), SYSCOL_TEXT);
 	freight_type_c.add_listener(this);
 	freight_type_c.set_size(scr_size(D_BUTTON_WIDTH*2, D_EDIT_HEIGHT));
 	freight_type_c.set_width_fixed(true);
@@ -1061,20 +1062,26 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		return true;
 	}
 	else if( comp==&freight_type_c ) {
-		switch( freight_type_c.get_selection() )
-		{
-			case 0:
-				filter_catg = goods_manager_t::INDEX_NONE;
-				break;
-			case 1:
-				filter_catg = goods_manager_t::INDEX_PAS;
-				break;
-			case 2:
-				filter_catg = goods_manager_t::INDEX_MAIL;
-				break;
-			default:
-				filter_catg = freight_type_c.get_selection();
-				break;
+		const int selection_temp = freight_type_c.get_selection();
+		if (selection_temp == freight_type_c.count_elements()-1) {
+			filter_catg = goods_manager_t::INDEX_NONE;
+		}
+		else {
+			switch( selection_temp )
+			{
+				case 0:
+					filter_catg = 255; // all
+					break;
+				case 1:
+					filter_catg = goods_manager_t::INDEX_PAS;
+					break;
+				case 2:
+					filter_catg = goods_manager_t::INDEX_MAIL;
+					break;
+				default:
+					filter_catg = freight_type_c.get_selection();
+					break;
+			}
 		}
 		build_vehicle_list();
 	}
@@ -1114,7 +1121,7 @@ void consist_order_frame_t::build_vehicle_list()
 				const vehicle_desc_t *veh_type = cnv->get_vehicle(i)->get_desc();
 				//TODO: filter speed power, type
 				// filter
-				if( veh_type->get_freight_type()->get_catg_index() != filter_catg) {
+				if( filter_catg!=255  &&  veh_type->get_freight_type()->get_catg_index() != filter_catg) {
 					continue;
 				}
 
@@ -1141,7 +1148,7 @@ void consist_order_frame_t::build_vehicle_list()
 			}
 			if (!search_only_halt_convoy) {
 				// filter
-				if( filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
+				if( filter_catg!=255  &&  filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
 					continue;
 				}
 				own_convoys.append(cnv);
@@ -1154,7 +1161,7 @@ void consist_order_frame_t::build_vehicle_list()
 			for( auto const veh : depot->get_vehicle_list() ) {
 				const vehicle_desc_t *veh_type = veh->get_desc();
 				// filter
-				if (veh_type->get_freight_type()->get_catg_index() != filter_catg) {
+				if( filter_catg!=255  &&  veh_type->get_freight_type()->get_catg_index() != filter_catg) {
 					continue;
 				}
 
@@ -1188,7 +1195,7 @@ void consist_order_frame_t::build_vehicle_list()
 						continue;
 					}
 					// filter
-					if (filter_catg != goods_manager_t::INDEX_NONE && !cnv->get_goods_catg_index().is_contained(filter_catg)) {
+					if( filter_catg!=255  &&  filter_catg != goods_manager_t::INDEX_NONE && !cnv->get_goods_catg_index().is_contained(filter_catg)) {
 						continue;
 					}
 					if( bt_filter_single_vehicle.pressed  &&  cnv->get_vehicle_count()<2 ) {
@@ -1204,7 +1211,7 @@ void consist_order_frame_t::build_vehicle_list()
 			const convoihandle_t cnv = halt->registered_convoys[i];
 			if( cnv->get_owner()==player  &&cnv->front()->get_waytype()==schedule->get_waytype() ) {
 				// filter
-				if( filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
+				if( filter_catg!=255  &&  filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
 					continue;
 				}
 				own_convoys.append(cnv);
