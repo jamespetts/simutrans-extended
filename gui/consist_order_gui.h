@@ -197,7 +197,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	// [VEHICLE DESCRIPTION EDITOR]
 	vehicle_description_element new_vdesc_element;
-	uint16 edit_target_index;
+	uint16 edit_target_index=1;
 	gui_numberinput_t numimp_edit_target;
 	gui_combobox_t edit_action_selector, engine_type_rule;
 	button_t bt_commit, bt_reset_editor;

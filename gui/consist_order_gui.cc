@@ -707,6 +707,9 @@ void consist_order_frame_t::init_editor()
 		edit_action_selector.add_listener(this);
 		cont_vdesc_editor.add_component(&edit_action_selector);
 
+		numimp_edit_target.disable();
+		numimp_edit_target.set_limits(1, 255);
+		numimp_edit_target.set_value(edit_target_index);
 		cont_vdesc_editor.add_component(&numimp_edit_target);
 
 		bt_commit.init(button_t::roundbox, "Commit");
@@ -1010,6 +1013,13 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	else if(  comp==&bt_reset_editor  ) {
 		// TODO:
 
+	}
+	else if(  comp==&edit_action_selector  ) {
+		// mode==append => disable target input
+		numimp_edit_target.enable(edit_action_selector.get_selection()!=0);
+	}
+	else if(  comp==&numimp_edit_target  ) {
+		edit_target_index = v.i;
 	}
 	else if(  comp==&bt_copy_convoy_limit_vehicle  ) {
 		bt_copy_convoy_limit_vehicle.pressed = !bt_copy_convoy_limit_vehicle.pressed;
