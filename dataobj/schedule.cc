@@ -528,18 +528,18 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 
 		if (f1 < entries.get_count() && f2 < schedule->entries.get_count()
 			&& schedule->entries[(uint8)f2].pos == entries[(uint8)f1].pos
-			&& schedule->entries[(uint16)f2].minimum_loading == entries[(uint16)f1].minimum_loading
+			&& schedule->entries[(uint8)f2].minimum_loading == entries[(uint8)f1].minimum_loading
 			&& schedule->entries[(uint8)f2].waiting_time_shift == entries[(uint8)f1].waiting_time_shift
 			&& schedule->entries[(uint8)f2].spacing_shift == entries[(uint8)f1].spacing_shift
-			&& schedule->entries[(uint32)f2].flags == entries[(uint32)f1].flags
-			&& schedule->entries[(uint16)f2].unique_entry_id == entries[(uint16)f1].unique_entry_id
-			&& schedule->entries[(uint16)f2].condition_bitfield_broadcaster == entries[(uint16)f1].condition_bitfield_broadcaster
-			&& schedule->entries[(uint16)f2].condition_bitfield_receiver == entries[(uint16)f1].condition_bitfield_receiver
-			&& schedule->entries[(uint16)f2].target_id_condition_trigger == entries[(uint16)f1].target_id_condition_trigger
-			&& schedule->entries[(uint16)f2].target_id_couple == entries[(uint16)f1].target_id_couple
-			&& schedule->entries[(uint16)f2].target_id_uncouple == entries[(uint16)f1].target_id_uncouple
-			&& schedule->entries[(uint16)f2].target_unique_entry_uncouple == entries[(uint16)f1].target_unique_entry_uncouple
-			&& check_consist_orders_for_match((uint16)f1, schedule, (uint16)f2)
+			&& schedule->entries[(uint8)f2].flags == entries[(uint8)f1].flags
+			&& schedule->entries[(uint8)f2].unique_entry_id == entries[(uint8)f1].unique_entry_id
+			&& schedule->entries[(uint8)f2].condition_bitfield_broadcaster == entries[(uint8)f1].condition_bitfield_broadcaster
+			&& schedule->entries[(uint8)f2].condition_bitfield_receiver == entries[(uint8)f1].condition_bitfield_receiver
+			&& schedule->entries[(uint8)f2].target_id_condition_trigger == entries[(uint8)f1].target_id_condition_trigger
+			&& schedule->entries[(uint8)f2].target_id_couple == entries[(uint8)f1].target_id_couple
+			&& schedule->entries[(uint8)f2].target_id_uncouple == entries[(uint8)f1].target_id_uncouple
+			&& schedule->entries[(uint8)f2].target_unique_entry_uncouple == entries[(uint8)f1].target_unique_entry_uncouple
+			&& check_consist_orders_for_match(entries[(uint8)f1].unique_entry_id, schedule, entries[(uint8)f2].unique_entry_id)
 		  ) {
 			f1++;
 			f2++;
@@ -581,6 +581,10 @@ bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const sche
 		consist_order_t other_order = other_schedule->orders.get(entry_id_other_schedule);
 
 		return this_order == other_order;
+	}
+	else if (!orders.is_contained(entry_id_this) && !other_schedule->orders.is_contained(entry_id_other_schedule))
+	{
+		return true;
 	}
 	else
 	{
