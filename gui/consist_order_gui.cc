@@ -1012,6 +1012,9 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if(  comp==&bt_reset_editor  ) {
 		set_vehicle_description();
+		edit_target_index = 1;
+		edit_action_selector.set_selection(0);
+		numimp_edit_target.disable();
 	}
 	else if(  comp==&edit_action_selector  ) {
 		// mode==append => disable target input
