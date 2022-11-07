@@ -493,7 +493,7 @@ void consist_order_frame_t::init_table()
 			end_table();
 		}
 		end_table();
-		update_order_list();
+		update_order_list(0);
 
 		cont_order.set_table_layout(1,0);
 		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
