@@ -479,7 +479,7 @@ void consist_order_frame_t::init_table()
 	old_entry_count = schedule->get_count();
 
 	bt_filter_halt_convoy.pressed = true;
-	bt_filter_single_vehicle.pressed = true;
+	bt_filter_single_vehicle.pressed = false;
 	cont_convoy_filter.set_visible(false);
 	update();
 
@@ -715,8 +715,8 @@ void consist_order_frame_t::init_table()
 	// [VEHICLE DESCRIPTION EDITOR]
 	init_editor();
 
-	tabs.add_tab(&cont_picker_frame, translator::translate("Vehicle picker"));
 	tabs.add_tab(&cont_convoy_copier, translator::translate("Consist copier"));
+	tabs.add_tab(&cont_picker_frame, translator::translate("Vehicle picker"));
 	tabs.add_tab(&scroll_editor, translator::translate("desc_editor"));
 	add_component(&tabs);
 
