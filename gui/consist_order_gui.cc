@@ -1107,11 +1107,11 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		update_order_list(sel-1);
 	}
 	else if( comp==&bt_sort_order_veh ) {
-		bt_sort_order_veh.pressed = !bt_sort_order_veh.pressed;
+		bt_sort_order_veh.pressed ^= 1;
 		// TODO: execute sorting
 	}
 	else if( comp==&bt_sort_order_cnv ) {
-		bt_sort_order_cnv.pressed = !bt_sort_order_cnv.pressed;
+		bt_sort_order_cnv.pressed ^= 1;
 		// TODO: execute sorting
 	}
 	else if( comp==&bt_show_hide_vehicle_filter ) {
