@@ -162,7 +162,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// [ORDER]
 	gui_aligned_container_t cont_order;
 	cont_order_overview_t cont_order_overview;
-	gui_scrollpane_t scrollx_order;
+	gui_scrollpane_t scroll_order;
 	uint32 old_order_count=0;
 	void update_order_list(sint32 reselect_index=-1);
 

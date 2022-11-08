@@ -324,7 +324,8 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	set_table_layout(1,0);
 	set_alignment(ALIGN_CENTER_H);
 
-	bt_remove.init(button_t::roundbox, "Remove");
+	bt_remove.init(button_t::box, "X");
+	bt_remove.background_color=color_idx_to_rgb(COL_RED);
 	bt_remove.add_listener(this);
 	add_component(&bt_remove);
 
@@ -409,7 +410,7 @@ void cont_order_overview_t::init_table()
 	consist_order_frame_t::need_reflesh_descriptions = false;
 	remove_all();
 	uint8 total_vehicles = order->get_count();
-	set_table_layout(1,0);
+	set_table_layout(2,0);
 	if (!order->get_count() || order_element_index >= order->get_count() ) {
 		old_count = 0;
 		// empty or invalid element index
@@ -422,15 +423,63 @@ void cont_order_overview_t::init_table()
 			new_component<gui_label_t>("Set vehicle descriptions", SYSCOL_TEXT_WEAK);
 		}
 		else {
-			add_table(old_count+1,1);
+			uint8 max_rows = 2; // FIXME
+			add_table(old_count+1, max_rows);
 			{
-				for (uint8 i = 0; i < old_count; i++) {
-					{
-						new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, i);
+				for (uint8 row = 0; row < max_rows; row++) {
+					for (uint8 col = 0; col < old_count+1; col++) {
+						if (col==0) {
+							// header
+							switch (row) {
+								case 0:
+									new_component<gui_empty_t>();
+									break;
+								case 1:
+									new_component<gui_table_header_t>(vehicle_spec_texts[0], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+									break;
+								default:
+									break;
+							}
+						}
+						else {
+							// vehicle data
+							if (row==0) {
+								new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, col - 1);
+								continue;
+							}
+							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
+							td->set_flexible(true,false);
+							const vehicle_description_element vde = elem.get_vehicle_description(col-1);
+							switch (row) {
+								case 1:
+									if (vde.specific_vehicle) {
+										td->buf().append(vde.specific_vehicle->get_capacity(), 0);
+									}
+									else {
+										if (vde.min_capacity>0) {
+											td->buf().append(vde.min_capacity, 0);
+										}
+										if (vde.min_capacity>0 || vde.max_capacity<65535) {
+											td->buf().append(" - ");
+											td->set_color(SYSCOL_TEXT_STRONG);
+										}
+										if (vde.max_capacity<65535) {
+											td->buf().append(vde.max_capacity, 0);
+										}
+									}
+									break;
+								case 0:
+								default:
+									break;
+							}
+							td->update();
+						}
 					}
 				}
 			}
 			end_table();
+			new_component<gui_fill_t>();
+			new_component<gui_fill_t>(false, true);
 		}
 	}
 	set_size(get_min_size());
@@ -459,7 +508,7 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	scl(gui_scrolled_list_t::listskin),
 	scl_vehicles(gui_scrolled_list_t::listskin),
 	scl_convoys(gui_scrolled_list_t::listskin),
-	scrollx_order(&cont_order, true, false),
+	scroll_order(&cont_order, true, true),
 	img_convoy(convoihandle_t()),
 	formation(convoihandle_t(), false),
 	scrollx_formation(&formation, true, false),
@@ -560,9 +609,9 @@ void consist_order_frame_t::init_table()
 		cont_order.set_margin(scr_size(0,D_V_SPACE), scr_size(D_SCROLLBAR_WIDTH,0));
 		cont_order.add_component(&cont_order_overview);
 		cont_order.new_component<gui_fill_t>();
-		scrollx_order.set_maximize(true);
+		scroll_order.set_maximize(true);
 
-		add_component(&scrollx_order,2);
+		add_component(&scroll_order,2);
 
 		cont_order.set_size(cont_order.get_min_size());
 	}
@@ -1416,7 +1465,6 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	scr_size size = get_windowsize();
 	size.rdwr(file);
 
-	
 	// These are required for restore
 	uint8 player_nr;		// player that edits
 	uint8 schedule_type;	// enum schedule_type
