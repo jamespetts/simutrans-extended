@@ -341,7 +341,6 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 		// TODO: reverse image or not
 		new_component<gui_fill_t>(false,true);
 		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_south, goods_manager_t::none), player_nr, 0, true)->set_tooltip(translator::translate(element.specific_vehicle->get_name()));
-		new_component<gui_image_t>(element.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
 	}
 	else {
 		new_component<gui_fill_t>(false,true);
@@ -435,8 +434,8 @@ void cont_order_overview_t::init_table()
 			new_component<gui_label_t>("Set vehicle descriptions", SYSCOL_TEXT_WEAK);
 		}
 		else {
-			uint8 max_rows = 2; // FIXME
-			add_table(old_count+1, max_rows);
+			uint8 max_rows = 3; // FIXME
+			add_table(old_count+1, max_rows)->set_alignment(ALIGN_CENTER_H);
 			{
 				for (uint8 row = 0; row < max_rows; row++) {
 					for (uint8 col = 0; col < old_count+1; col++) {
@@ -447,6 +446,9 @@ void cont_order_overview_t::init_table()
 									new_component<gui_empty_t>();
 									break;
 								case 1:
+									new_component<gui_table_header_t>("Freight", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+									break;
+								case 2:
 									new_component<gui_table_header_t>(vehicle_spec_texts[0], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
 									break;
 								default:
@@ -459,11 +461,15 @@ void cont_order_overview_t::init_table()
 								new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, col - 1);
 								continue;
 							}
+							const vehicle_description_element vde = elem.get_vehicle_description(col-1);
+							if (row==1) {
+								new_component<gui_image_t>(vde.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V | ALIGN_CENTER_H, true);
+								continue;
+							}
 							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
 							td->set_flexible(true,false);
-							const vehicle_description_element vde = elem.get_vehicle_description(col-1);
 							switch (row) {
-								case 1:
+								case 2:
 									if (vde.specific_vehicle) {
 										td->buf().append(vde.specific_vehicle->get_capacity(), 0);
 									}
@@ -481,7 +487,9 @@ void cont_order_overview_t::init_table()
 									}
 									break;
 								case 0:
+								case 1:
 								default:
+									/* skip */
 									break;
 							}
 							td->update();
