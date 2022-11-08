@@ -103,7 +103,8 @@ class gui_vehicle_description_t : public gui_aligned_container_t, private action
 	uint32 order_element_index;
 	uint32 description_index;
 	button_t bt_up, bt_down, bt_remove;
-	//button_t bt_edit; // TODO
+	button_t /*bt_inverse,*/ bt_edit, bt_can_empty;
+	gui_vehicle_bar_t vehicle_bar;
 
 public:
 	gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index);
@@ -161,7 +162,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// [ORDER]
 	gui_aligned_container_t cont_order;
 	cont_order_overview_t cont_order_overview;
-	gui_scrollpane_t scrolly_order;
+	gui_scrollpane_t scrollx_order;
 	uint32 old_order_count=0;
 	void update_order_list(sint32 reselect_index=-1);
 
