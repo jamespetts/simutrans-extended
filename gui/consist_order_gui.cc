@@ -352,9 +352,9 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 
 	add_table(2,1)->set_spacing(scr_size(0,0));
 	{
-		bt_up.init(button_t::button_t::roundbox_left, "<");
+		bt_up.init(button_t::roundbox_left, "<");
 		bt_up.enable(description_index>0);
-		bt_down.init(button_t::button_t::roundbox_right, ">");
+		bt_down.init(button_t::roundbox_right, ">");
 		bt_down.enable(description_index < order->get_order(order_element_index).get_count() - 1);
 		bt_down.add_listener(this);
 		bt_up.add_listener(this);
@@ -370,7 +370,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	bt_can_empty.add_listener(this);
 	add_component(&bt_can_empty);
 
-	bt_edit.init(button_t::button_t::roundbox, "Edit");
+	bt_edit.init(button_t::roundbox, "Edit");
 	bt_edit.set_tooltip(translator::translate("Manually defines the description of vehicles that can occupy this slot."));
 	bt_edit.add_listener(this);
 	bt_edit.enable(!element.specific_vehicle);
