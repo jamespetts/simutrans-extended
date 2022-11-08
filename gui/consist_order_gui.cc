@@ -525,7 +525,9 @@ void consist_order_frame_t::save_order()
 {
 	if (player) {
 		schedule->orders.remove(unique_entry_id);
-		schedule->orders.put(unique_entry_id, order);
+		if (order.get_count()) {
+			schedule->orders.put(unique_entry_id, order);
+		}
 	}
 }
 
