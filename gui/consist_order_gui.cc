@@ -1384,7 +1384,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	scr_size size = get_windowsize();
 	size.rdwr(file);
 
-	
+
 	// These are required for restore
 	uint8 player_nr;		// player that edits
 	uint8 schedule_type;	// enum schedule_type
