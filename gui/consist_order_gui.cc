@@ -378,23 +378,29 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 
 bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
+	consist_order_element_t *order_element = &order->get_order(order_element_index);
 	if(  comp==&bt_up  ) {
 		// FIXME
-		consist_order_element_t *order_element = &order->get_order(order_element_index);
 		order_element->increment_index(description_index-1);
 		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_down  ) {
 		// FIXME
-		consist_order_element_t *order_element = &order->get_order(order_element_index);
 		order_element->increment_index(description_index);
 		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_remove  ) {
-		consist_order_element_t *order_element = &order->get_order(order_element_index);
 		order_element->remove_vehicle_description_at(description_index);
 		consist_order_frame_t::need_reflesh_order_list = true;
 	}
+	else if(  comp==&bt_edit  ) {
+		// access editor
+		consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
+		if (win) {
+			win->open_description_editor(description_index);
+		}
+	}
+
 	return true;
 }
 
@@ -885,6 +891,20 @@ void consist_order_frame_t::init_editor()
 
 
 	cont_vdesc_editor.set_size(cont_vdesc_editor.get_min_size());
+}
+
+
+void consist_order_frame_t::open_description_editor(uint8 vdesc_index)
+{
+	tabs.set_active_tab_index(2);
+	numimp_edit_target.set_value(vdesc_index+1);
+	edit_action_selector.set_selection(2); // overwrite mode
+	consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
+	new_vdesc_element = order_element->get_vehicle_description(vdesc_index);
+
+	// set data
+	// TODO:
+
 }
 
 // reflesh labels, call when entry changed
