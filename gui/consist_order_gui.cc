@@ -366,6 +366,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	//add_component(&bt_inverse);
 	bt_can_empty.init(button_t::button_t::square_state, NULL);
 	bt_can_empty.set_tooltip(translator::translate("This slot is skippable and no vehicles are allowed."));
+	bt_can_empty.pressed = element.empty;
 	bt_can_empty.add_listener(this);
 	add_component(&bt_can_empty);
 
