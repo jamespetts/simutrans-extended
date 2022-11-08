@@ -444,14 +444,10 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 
 void consist_order_frame_t::save_order()
 {
-	schedule->orders.remove(unique_entry_id);
-	schedule->orders.put(unique_entry_id, order);
-}
-
-
-consist_order_frame_t::~consist_order_frame_t()
-{
-	save_order();
+	if (player) {
+		schedule->orders.remove(unique_entry_id);
+		schedule->orders.put(unique_entry_id, order);
+	}
 }
 
 
@@ -476,8 +472,6 @@ void consist_order_frame_t::init_table()
 	cont_picker_frame.remove_all();
 	cont_convoy_copier.remove_all();
 	tabs.clear();
-
-	old_entry_count = schedule->get_count();
 
 	bt_filter_halt_convoy.pressed = false;
 	bt_filter_line_convoy.pressed = true;
@@ -814,25 +808,28 @@ void consist_order_frame_t::init_editor()
 void consist_order_frame_t::update()
 {
 	halt = halthandle_t();
+	old_entry_count = schedule->get_count();
 	// serach entry and halt
 	uint8 entry_idx = 255;
-	for (uint i = 0; i < schedule->entries.get_count(); i++) {
-		if( unique_entry_id==schedule->entries[i].unique_entry_id ) {
-			entry_idx = i;
-			halt = haltestelle_t::get_halt(schedule->entries[i].pos, player);
-			if( halt.is_bound() ) {
-				uint8 halt_symbol_style = 0;
-				if ((halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1) {
-					halt_symbol_style = gui_schedule_entry_number_t::number_style::interchange;
+	if (old_entry_count) {
+		for (uint i = 0; i < schedule->entries.get_count(); i++) {
+			if( unique_entry_id==schedule->entries[i].unique_entry_id ) {
+				entry_idx = i;
+				halt = haltestelle_t::get_halt(schedule->entries[i].pos, player);
+				if( halt.is_bound() ) {
+					uint8 halt_symbol_style = 0;
+					if ((halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1) {
+						halt_symbol_style = gui_schedule_entry_number_t::number_style::interchange;
+					}
+					halt_number.init(i, halt->get_owner()->get_player_color1(), halt_symbol_style, schedule->entries[i].pos);
 				}
-				halt_number.init(i, halt->get_owner()->get_player_color1(), halt_symbol_style, schedule->entries[i].pos);
+				break;
 			}
-			break;
 		}
-	}
-	if( !halt.is_bound() ) { destroy_win(this); }
+		if( !halt.is_null() ) { destroy_win(this); }
 
-	lb_halt.buf().append(halt->get_name());
+		lb_halt.buf().append(halt->get_name());
+	}
 	lb_halt.update();
 
 	update_order_list();
@@ -926,7 +923,7 @@ bool consist_order_frame_t::is_weltpos()
 
 void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 {
-	if (player != welt->get_active_player()) { destroy_win(this); }
+	if (player != welt->get_active_player() || !schedule->get_count()) { destroy_win(this); }
 	if( schedule->get_count() != old_entry_count ) {
 		update();
 	}
@@ -951,6 +948,16 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 void consist_order_frame_t::append_new_order()
 {
 	order.append(consist_order_element_t());
+}
+
+
+bool consist_order_frame_t::infowin_event(const event_t *ev)
+{
+	if (ev->ev_class == INFOWIN && ev->ev_code == WIN_CLOSE) {
+		save_order();
+		return false;
+	}
+	return gui_frame_t::infowin_event(ev);
 }
 
 
@@ -1377,17 +1384,54 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	scr_size size = get_windowsize();
 	size.rdwr(file);
 
+	
+	// These are required for restore
+	uint8 player_nr;		// player that edits
+	uint8 schedule_type;	// enum schedule_type
+
+	if (file->is_saving()) {
+		player_nr = player->get_player_nr();
+		schedule_type = schedule->get_type();
+		save_order();
+	}
+	file->rdwr_byte(player_nr);
+	file->rdwr_byte(schedule_type);
+
 	file->rdwr_short(unique_entry_id);
 
 	// schedules
 	if (file->is_loading()) {
-		// dummy types
-		schedule = new truck_schedule_t();
+		player = welt->get_player(player_nr);
+		switch (schedule_type) {
+			case schedule_t::truck_schedule:
+				schedule = new truck_schedule_t(); break;
+			case schedule_t::train_schedule:
+				schedule = new train_schedule_t(); break;
+			case schedule_t::ship_schedule:
+				schedule = new ship_schedule_t(); break;
+			case schedule_t::airplane_schedule:
+				schedule = new airplane_schedule_(); break;
+			case schedule_t::monorail_schedule:
+				schedule = new monorail_schedule_t(); break;
+			case schedule_t::tram_schedule:
+				schedule = new tram_schedule_t(); break;
+			case schedule_t::maglev_schedule:
+				schedule = new maglev_schedule_t(); break;
+			case schedule_t::narrowgauge_schedule:
+				schedule = new narrowgauge_schedule_t(); break;
+			default:
+				dbg->fatal("consist_order_frame_t::rdwr", "Cannot create default schedule!");
+		}
 	}
 	schedule->rdwr(file);
 
 	if (file->is_loading()) {
-		init(world()->get_active_player(), schedule, unique_entry_id);
-		init_table();
+		// now we can open the window ...
+		scr_coord const& pos = win_get_pos(this);
+		schedule_t *save_schedule = schedule->copy();
+		create_win(pos.x, pos.y, new consist_order_frame_t(player, save_schedule, save_schedule->entries[save_schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order_rdwr_dummy);
+		player = NULL;
+		delete schedule;
+		destroy_win(this);
 	}
 }

@@ -231,7 +231,6 @@ public:
 	static bool need_reflesh_order_list;
 
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=65535);
-	~consist_order_frame_t();
 
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
 
@@ -242,6 +241,8 @@ public:
 	koord3d get_weltpos(bool) OVERRIDE;
 
 	bool is_weltpos() OVERRIDE;
+
+	bool infowin_event(event_t const*) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
