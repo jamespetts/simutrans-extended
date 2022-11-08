@@ -154,6 +154,8 @@ struct vehicle_description_element
 		min_capacity = v->get_total_capacity();
 	}
 
+	void set_empty(bool yesno) { empty=yesno; }
+
 	bool operator!= (const vehicle_description_element& other) const;
 };
 
@@ -206,7 +208,7 @@ public:
 
 	void increment_index(uint32 description_index);
 
-	const vehicle_description_element get_vehicle_description(uint32 description_index) const
+	vehicle_description_element &get_vehicle_description(uint32 description_index)
 	{
 		return vehicle_description.get_element(description_index);
 	}

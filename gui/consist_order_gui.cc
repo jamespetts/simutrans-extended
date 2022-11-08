@@ -335,8 +335,8 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	lb->set_fixed_width(proportional_string_width("888"));
 	lb->update();
 
-	const consist_order_element_t order_element = order->get_order(order_element_index);
-	const vehicle_description_element element = order_element.get_vehicle_description(description_index);
+	consist_order_element_t order_element = order->get_order(order_element_index);
+	vehicle_description_element element = order_element.get_vehicle_description(description_index);
 	if( element.specific_vehicle ) {
 		// TODO: reverse image or not
 		new_component<gui_fill_t>(false,true);
@@ -364,7 +364,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	end_table();
 
 	//add_component(&bt_inverse);
-	bt_can_empty.init(button_t::button_t::square, NULL);
+	bt_can_empty.init(button_t::button_t::square_state, NULL);
 	bt_can_empty.set_tooltip(translator::translate("This slot is skippable and no vehicles are allowed."));
 	bt_can_empty.add_listener(this);
 	add_component(&bt_can_empty);
@@ -401,7 +401,11 @@ bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, val
 			win->open_description_editor(description_index);
 		}
 	}
-
+	else if(  comp==&bt_can_empty  ) {
+		bt_can_empty.pressed ^= 1;
+		order_element->get_vehicle_description(description_index).set_empty(bt_can_empty.pressed);
+		consist_order_frame_t::need_reflesh_descriptions = true; // because changes may occur in the connectabale status
+	}
 	return true;
 }
 

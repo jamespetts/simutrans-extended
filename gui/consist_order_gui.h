@@ -109,6 +109,8 @@ class gui_vehicle_description_t : public gui_aligned_container_t, private action
 public:
 	gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index);
 
+	void check_constraint();
+
 	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
 };
 
