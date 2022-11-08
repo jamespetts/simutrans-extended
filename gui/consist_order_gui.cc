@@ -326,6 +326,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 
 	bt_remove.init(button_t::box, "X");
 	bt_remove.background_color=color_idx_to_rgb(COL_RED);
+	bt_remove.set_tooltip(translator::translate("Remove this vehicle from consist."));
 	bt_remove.add_listener(this);
 	add_component(&bt_remove);
 
