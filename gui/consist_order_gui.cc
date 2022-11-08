@@ -1025,15 +1025,19 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if( comp==&bt_filter_halt_convoy ){
 		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
-		bt_filter_line_convoy.pressed = !bt_filter_halt_convoy.pressed;
+		if( bt_filter_halt_convoy.pressed ) {
+			bt_filter_line_convoy.pressed = false;
+		}
 		build_vehicle_list();
 	}
 	else if( comp==&bt_filter_line_convoy){
 		bt_filter_line_convoy.pressed = !bt_filter_line_convoy.pressed;
-		bt_filter_halt_convoy.pressed = !bt_filter_line_convoy.pressed;
+		if( bt_filter_line_convoy.pressed ) {
+			bt_filter_halt_convoy.pressed = false;
+		}
 		build_vehicle_list();
 	}
-	else if( comp==&bt_filter_single_vehicle){
+	else if( comp==&bt_filter_single_vehicle ){
 		bt_filter_single_vehicle.pressed = !bt_filter_single_vehicle.pressed;
 		build_vehicle_list();
 	}
