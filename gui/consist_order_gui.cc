@@ -1219,6 +1219,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		if( bt_connectable_vehicle_filter.pressed ) {
 			// Vehicle list needs to be updated
 			build_vehicle_list();
+			update_vehicle_info();
 		}
 	}
 	else if( comp==&bt_connectable_vehicle_filter ) {
