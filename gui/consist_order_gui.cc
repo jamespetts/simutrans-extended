@@ -728,17 +728,12 @@ void consist_order_frame_t::init_table()
 	cont_picker_frame.set_table_layout(2,2);
 	cont_picker_frame.set_alignment(ALIGN_TOP);
 	{
-		cont_picker_frame.add_table(3,2);
-		{
-			cont_picker_frame.new_component<gui_label_t>("cl_txt_sort");
-			cont_picker_frame.new_component<gui_label_t>("dummy sort combobox");
-			bt_sort_order_veh.init(button_t::sortarrow_state, "");
-			bt_sort_order_veh.set_tooltip(translator::translate("hl_btn_sort_order"));
-			bt_sort_order_veh.add_listener(this);
-			bt_sort_order_veh.pressed = false;
-			cont_picker_frame.add_component(&bt_sort_order_veh);
-		}
-		cont_picker_frame.end_table();
+		// TODO: Place show/hide option when filter option is increased
+		bt_connectable_vehicle_filter.init(button_t::square_state, "show_only_appendable");
+		bt_connectable_vehicle_filter.set_tooltip(translator::translate("Show only vehicles that can be added to the end of the selected order."));
+		bt_connectable_vehicle_filter.pressed = true;
+		bt_connectable_vehicle_filter.add_listener(this);
+		cont_picker_frame.add_component(&bt_connectable_vehicle_filter);
 
 		cont_picker_frame.add_table(2,1);
 		{
@@ -756,9 +751,26 @@ void consist_order_frame_t::init_table()
 		}
 		cont_picker_frame.end_table();
 
-		scl_vehicles.set_maximize(true);
-		scl_vehicles.add_listener(this);
-		cont_picker_frame.add_component(&scl_vehicles);
+		cont_picker_frame.add_table(1,2)->set_alignment(ALIGN_TOP);
+		{
+			cont_picker_frame.add_table(3, 2);
+			{
+				cont_picker_frame.new_component<gui_label_t>("cl_txt_sort");
+				cont_picker_frame.new_component<gui_label_t>("dummy sort combobox");
+				bt_sort_order_veh.init(button_t::sortarrow_state, "");
+				bt_sort_order_veh.set_tooltip(translator::translate("hl_btn_sort_order"));
+				bt_sort_order_veh.add_listener(this);
+				bt_sort_order_veh.pressed = false;
+				cont_picker_frame.add_component(&bt_sort_order_veh);
+			}
+			cont_picker_frame.end_table();
+
+			scl_vehicles.set_maximize(true);
+			scl_vehicles.add_listener(this);
+			cont_picker_frame.add_component(&scl_vehicles);
+		}
+		cont_picker_frame.end_table();
+
 
 		cont_picker_frame.add_table(2,1)->set_alignment(ALIGN_TOP);
 		{
@@ -1202,16 +1214,24 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		consist_order_element_t *order_element = &order.get_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
 		update_order_list(sel);
+		if( bt_connectable_vehicle_filter.pressed ) {
+			// Vehicle list needs to be updated
+			build_vehicle_list();
+		}
+	}
+	else if( comp==&bt_connectable_vehicle_filter ) {
+		bt_connectable_vehicle_filter.pressed ^= 1;
+		build_vehicle_list();
 	}
 	else if( comp==&bt_filter_halt_convoy ){
-		bt_filter_halt_convoy.pressed = !bt_filter_halt_convoy.pressed;
+		bt_filter_halt_convoy.pressed ^= 1;
 		if( bt_filter_halt_convoy.pressed ) {
 			bt_filter_line_convoy.pressed = false;
 		}
 		build_vehicle_list();
 	}
 	else if( comp==&bt_filter_line_convoy){
-		bt_filter_line_convoy.pressed = !bt_filter_line_convoy.pressed;
+		bt_filter_line_convoy.pressed ^= 1;
 		if( bt_filter_line_convoy.pressed ) {
 			bt_filter_halt_convoy.pressed = false;
 		}
@@ -1402,6 +1422,7 @@ void consist_order_frame_t::build_vehicle_list()
 {
 	const bool search_only_halt_convoy = bt_filter_halt_convoy.pressed;
 	const bool search_only_line_convoy = bt_filter_line_convoy.pressed;
+	const bool search_only_appendable_vehicle = bt_connectable_vehicle_filter.pressed;
 
 	own_vehicles.clear();
 	scl_vehicles.clear_elements();
@@ -1412,16 +1433,29 @@ void consist_order_frame_t::build_vehicle_list()
 	scl_convoys.clear_elements();
 	scl_convoys.set_selection(-1);
 
+	const vehicle_desc_t *conect_target = NULL;
+	if( search_only_appendable_vehicle ) {
+		consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
+		if( order_element->get_count() ) {
+			vehicle_description_element last_vde = order_element->get_vehicle_description( order_element->get_count()-1 );
+			conect_target = last_vde.specific_vehicle;
+		}
+	}
+
 	// list only own vehicles
 	for (auto const cnv : world()->convoys()) {
 		if(  cnv->get_owner()==player  &&  cnv->front()->get_waytype()==schedule->get_waytype()) {
 			// count own vehicle
 			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
 				const vehicle_desc_t *veh_type = cnv->get_vehicle(i)->get_desc();
-				//TODO: filter speed power, type
+				// TODO: filter speed power, type
 				// filter
 				if( filter_catg!=255  &&  veh_type->get_freight_type()->get_catg_index() != filter_catg) {
 					continue;
+				}
+				// TODO: Consider vehicle reversal
+				if( conect_target!=NULL  &&  !conect_target->can_lead(veh_type) ) {
+					continue;  // cannot append
 				}
 
 				// serach for already own
