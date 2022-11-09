@@ -341,10 +341,12 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 		// TODO: reverse image or not
 		new_component<gui_fill_t>(false,true);
 		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_south, goods_manager_t::none), player_nr, 0, true)->set_tooltip(translator::translate(element.specific_vehicle->get_name()));
+		vehicle_bar.set_flags(element.specific_vehicle->get_basic_constraint_prev(false), element.specific_vehicle->get_basic_constraint_next(false), element.specific_vehicle->get_interactivity());
 	}
 	else {
 		new_component<gui_fill_t>(false,true);
 		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK);
+		vehicle_bar.set_flags(vehicle_desc_t::unknown_constraint, vehicle_desc_t::unknown_constraint, (element.min_power>0||element.min_tractive_effort>0) ? 2:0);
 	}
 
 	check_constraint();
