@@ -132,6 +132,7 @@ enum magic_numbers {
 	magic_depot, // only used to load/save
 	magic_consist_order,
 	magic_consist_order_rdwr_dummy, // only used to load/save
+	magic_script_error,
 	magic_max
 };
 

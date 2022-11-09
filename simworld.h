@@ -1978,10 +1978,12 @@ private:
 public:
 	void flood_to_depth(sint8 new_water_height, sint8 *stage);
 
+	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended, bool called_from_api );
+
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
 	 */
-	void set_tool( tool_t *tool_in, player_t * player );
+	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b, false); }
 
 	/**
 	 * Set a new tool on our client, calls init.
@@ -2210,6 +2212,13 @@ public:
 
 	inline void decrease_actual_industry_density(uint32 value) { actual_industry_density -= value; }
 	inline void increase_actual_industry_density(uint32 value) { actual_industry_density += value; }
+
+	/**
+	 * Calls the work method of the tool.
+	 * Takes network and scenarios into account.
+	 * (There is the flags for scripted calls in the tool structure, but it seems not used so far?!)
+	 */
+	const char *call_work_api(tool_t *t, player_t *pl, koord3d pos, bool &suspended, bool called_from_api);
 
 	 /**
 	  * Initialize map.
