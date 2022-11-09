@@ -238,6 +238,7 @@ public:
 
 	consist_order_element_t& get_order(uint32 element_number)
 	{
+		assert(element_number < orders.get_count());
 		if (element_number > orders.get_count()) { element_number=0; }
 		return orders[element_number];
 	}
