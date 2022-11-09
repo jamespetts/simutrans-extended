@@ -1728,7 +1728,6 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 			default:
 				dbg->fatal("consist_order_frame_t::rdwr", "Cannot create default schedule!");
 		}
-		tabs.set_active_tab_index(selected_tab);
 	}
 	schedule->rdwr(file);
 
@@ -1736,7 +1735,10 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 		// now we can open the window ...
 		scr_coord const& pos = win_get_pos(this);
 		schedule_t *save_schedule = schedule->copy();
-		create_win(pos.x, pos.y, new consist_order_frame_t(player, save_schedule, save_schedule->entries[save_schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order_rdwr_dummy);
+		consist_order_frame_t *w = new consist_order_frame_t(player, save_schedule, save_schedule->entries[save_schedule->get_current_stop()].unique_entry_id);
+		create_win(pos.x, pos.y, w, w_info, magic_consist_order_rdwr_dummy);
+		w->set_windowsize(size);
+		w->tabs.set_active_tab_index(selected_tab);
 		player = NULL;
 		delete schedule;
 		destroy_win(this);
