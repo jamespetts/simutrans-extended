@@ -943,11 +943,16 @@ void consist_order_frame_t::init_editor()
 		bt_enable_rules[0].init(button_t::square_automatic, "");
 		bt_enable_rules[0].add_listener(this);
 		cont_vdesc_editor.add_component(&bt_enable_rules[0]);
-		rules_imp_min[0].disable();
 		cont_vdesc_editor.add_component(&rules_imp_min[0]);
 		cont_vdesc_editor.new_component<gui_label_t>(" - ");
-		rules_imp_max[0].disable();
 		cont_vdesc_editor.add_component(&rules_imp_max[0]);
+		bt_enable_rules[0].pressed = (new_vdesc_element.min_capacity != 0 || new_vdesc_element.max_capacity != 65535);
+		if (bt_enable_rules[0].pressed) {
+			rules_imp_min[0].set_value(new_vdesc_element.min_capacity);
+			rules_imp_max[0].set_value(new_vdesc_element.max_capacity);
+		}
+		rules_imp_min[0].enable(bt_enable_rules[0].pressed);
+		rules_imp_max[0].enable(bt_enable_rules[0].pressed);
 
 		cont_vdesc_editor.new_component<gui_table_header_t>("engine_type", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
 		engine_type_rule.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All traction types"), SYSCOL_TEXT);
@@ -969,6 +974,101 @@ void consist_order_frame_t::init_editor()
 			cont_vdesc_editor.new_component<gui_label_t>(" - ");
 			rules_imp_max[i].disable();
 			cont_vdesc_editor.add_component(&rules_imp_max[i]);
+
+			// read new_vdesc_element
+			switch (i) {
+					case gui_simple_vehicle_spec_t::SPEC_RANGE:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_range != 0 || new_vdesc_element.max_range != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_range);
+							rules_imp_max[i].set_value(new_vdesc_element.max_range);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_POWER:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_power != 0 || new_vdesc_element.max_power != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_power);
+							rules_imp_max[i].set_value(new_vdesc_element.max_power);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_TRACTIVE_FORCE:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_tractive_effort != 0 || new_vdesc_element.max_tractive_effort != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_tractive_effort);
+							rules_imp_max[i].set_value(new_vdesc_element.max_tractive_effort);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_BRAKE_FORCE:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_brake_force != 0 || new_vdesc_element.max_brake_force != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_brake_force);
+							rules_imp_max[i].set_value(new_vdesc_element.max_brake_force);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_SPEED:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_topspeed != 0 || new_vdesc_element.max_topspeed != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_topspeed);
+							rules_imp_max[i].set_value(new_vdesc_element.max_topspeed);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_WEIGHT:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_weight != 0 || new_vdesc_element.max_weight != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_weight);
+							rules_imp_max[i].set_value(new_vdesc_element.max_weight);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_AXLE_LOAD:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_axle_load != 0 || new_vdesc_element.max_axle_load != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_axle_load);
+							rules_imp_max[i].set_value(new_vdesc_element.max_axle_load);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_RUNNING_COST:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_running_cost != 0 || new_vdesc_element.max_running_cost != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_running_cost);
+							rules_imp_max[i].set_value(new_vdesc_element.max_running_cost);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_FIXED_COST:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_fixed_cost != 0 || new_vdesc_element.max_fixed_cost != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_fixed_cost);
+							rules_imp_max[i].set_value(new_vdesc_element.max_fixed_cost);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_FUEL_PER_KM:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_fuel_per_km != 0 || new_vdesc_element.max_fuel_per_km != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_fuel_per_km);
+							rules_imp_max[i].set_value(new_vdesc_element.max_fuel_per_km);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_STAFF_FACTOR:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_staff_hundredths != 0 || new_vdesc_element.max_staff_hundredths != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_staff_hundredths);
+							rules_imp_max[i].set_value(new_vdesc_element.max_staff_hundredths);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_DRIVERS:
+						bt_enable_rules[i].pressed = (new_vdesc_element.min_drivers != 0 || new_vdesc_element.max_drivers != UINT32_MAX_VALUE);
+						if (bt_enable_rules[i].pressed) {
+							rules_imp_min[i].set_value(new_vdesc_element.min_drivers);
+							rules_imp_max[i].set_value(new_vdesc_element.max_drivers);
+						}
+						break;
+					case gui_simple_vehicle_spec_t::SPEC_PAYLOADS:
+					default:
+							break;
+			}
+			if (bt_enable_rules[i].pressed) {
+				rules_imp_min[i].enable();
+				rules_imp_max[i].enable();
+			}
 		}
 	}
 	cont_vdesc_editor.end_table();
@@ -980,15 +1080,11 @@ void consist_order_frame_t::init_editor()
 
 void consist_order_frame_t::open_description_editor(uint8 vdesc_index)
 {
-	tabs.set_active_tab_index(2);
+	consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
+	set_vehicle_description(order_element->get_vehicle_description(vdesc_index));
 	numimp_edit_target.set_value(vdesc_index+1);
 	edit_action_selector.set_selection(2); // overwrite mode
-	consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
-	new_vdesc_element = order_element->get_vehicle_description(vdesc_index);
-
-	// set data
-	// TODO:
-
+	tabs.set_active_tab_index(2);
 }
 
 // reflesh labels, call when entry changed
