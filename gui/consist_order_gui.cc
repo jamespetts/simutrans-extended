@@ -347,6 +347,7 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 		new_component<gui_label_t>("(???)", SYSCOL_TEXT_WEAK);
 	}
 
+	check_constraint();
 	add_component(&vehicle_bar);
 
 	add_table(2,1)->set_spacing(scr_size(0,0));
@@ -374,6 +375,55 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	bt_edit.add_listener(this);
 	bt_edit.enable(!element.specific_vehicle);
 	add_component(&bt_edit);
+}
+
+void gui_vehicle_description_t::check_constraint()
+{
+	bool dummy;
+
+	bool is_reversed = false; // TODO: When considering vehicle reversal
+	PIXVAL col_front_state = 0;
+	PIXVAL col_rear_state  = 0;
+
+	consist_order_element_t order_element = order->get_order(order_element_index);
+	vehicle_description_element element = order_element.get_vehicle_description(description_index);
+
+	// front side
+	if( element.specific_vehicle ){
+		// vehicle at front
+		if (description_index==0) {
+			// front vehicle => as it is
+			col_front_state = element.specific_vehicle->get_can_be_at_front(is_reversed) ? COL_SAFETY : COL_DANGER;
+		}
+		else {
+			// TODO:
+
+		}
+
+	}
+	else {
+		// TODO:
+
+	}
+
+	// rear side
+	if (element.specific_vehicle) {
+		// vehicle at end
+		if (description_index == order_element.get_count()-1) {
+			col_rear_state = element.specific_vehicle->get_can_be_at_rear(is_reversed) ? COL_SAFETY : COL_DANGER;
+		}
+		else {
+			// TODO:
+
+		}
+	}
+	else {
+		// TODO:
+
+	}
+
+	// update color
+	vehicle_bar.set_color(col_front_state, col_rear_state);
 }
 
 
