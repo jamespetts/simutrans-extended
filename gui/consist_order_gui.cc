@@ -1510,7 +1510,6 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			}
 		}
 	}
-
 	return false;
 }
 
@@ -1693,6 +1692,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	// These are required for restore
 	uint8 player_nr;		// player that edits
 	uint8 schedule_type;	// enum schedule_type
+	uint8 selected_tab = tabs.get_active_tab_index();
 
 	if (file->is_saving()) {
 		player_nr = player->get_player_nr();
@@ -1701,6 +1701,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 	}
 	file->rdwr_byte(player_nr);
 	file->rdwr_byte(schedule_type);
+	file->rdwr_byte(selected_tab);
 
 	file->rdwr_short(unique_entry_id);
 
@@ -1727,6 +1728,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 			default:
 				dbg->fatal("consist_order_frame_t::rdwr", "Cannot create default schedule!");
 		}
+		tabs.set_active_tab_index(selected_tab);
 	}
 	schedule->rdwr(file);
 
