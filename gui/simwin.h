@@ -122,17 +122,17 @@ enum magic_numbers {
 	magic_halt_detail         = magic_halt_info           + 0x10000,
 	magic_replace             = magic_halt_detail         + 0x10000,
 	magic_toolbar             = magic_replace             + 0x10000,
-	magic_info_pointer        = magic_toolbar             + 0x100,
-	magic_class_manager       = magic_info_pointer        + 0x10000,
+	magic_class_manager       = magic_toolbar             + 0x100,
 	magic_line_class_manager  = magic_class_manager       + 0x10000,
-	magic_depotlist           = magic_line_class_manager  + 843,
+	magic_depot               = magic_line_class_manager  + 843, // only used to load/save
+	magic_depotlist           = magic_depot               + MAX_PLAYER_COUNT,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
 	magic_signalboxlist,
 	magic_pier_rotation_select,
-	magic_depot, // only used to load/save
 	magic_consist_order,
 	magic_consist_order_rdwr_dummy, // only used to load/save
 	magic_script_error,
+	//magic_info_pointer, //unused
 	magic_max
 };
 
