@@ -213,7 +213,7 @@ void gui_simple_vehicle_spec_t::init_table()
 					}
 					break;
 				case SPEC_FUEL_PER_KM:
-					if (veh_type->get_power()) {
+					if( veh_type->get_power() && veh_type->get_fuel_per_km() ) {
 						lb->buf().printf("%u %s", veh_type->get_fuel_per_km(), translator::translate("km/L") );
 					}
 					else {
