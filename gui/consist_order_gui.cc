@@ -513,7 +513,13 @@ void cont_order_overview_t::init_table()
 							}
 							const vehicle_description_element vde = elem.get_vehicle_description(col-1);
 							if (row==1) {
-								new_component<gui_image_t>(vde.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V | ALIGN_CENTER_H, true);
+								if (vde.specific_vehicle) {
+									new_component<gui_image_t>(vde.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V | ALIGN_CENTER_H, true);
+								}
+								else {
+									// TODO? : When category can be specified in description
+									new_component<gui_empty_t>();
+								}
 								continue;
 							}
 							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
