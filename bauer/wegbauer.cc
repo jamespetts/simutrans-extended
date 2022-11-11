@@ -158,7 +158,7 @@ const vector_tpl<const way_desc_t *>&  way_builder_t::get_way_list(const waytype
 	const uint16 time = welt->get_timeline_year_month();
 	for(auto const& i : desc_table) {
 		way_desc_t const* const test = i.value;
-		if (test->get_wtyp() == wtyp  &&  test->get_styp() == styp  &&  test->is_available(time) && test->get_builder()) {
+		if (test->get_wtyp() == wtyp  &&  test->get_styp() == styp  &&  test->is_available(time) && test->get_builder() && !test->is_mothballed()) {
 			dummy.append(test);
 		}
 	}
@@ -1317,11 +1317,11 @@ void way_builder_t::do_terraforming()
 
 		grund_t *to = welt->lookup(route[i+1]);
 		uint8 to_slope = to->get_grund_hang();
-		sint64 cost = welt->get_settings().cst_set_slope;
+		sint64 cost = welt->get_settings().get_cost_set_slope();
 		// Check whether this is an attempt at land reclamation from the sea.
 		if (to->is_water() || from->is_water())
 		{
-			cost += welt->get_settings().cst_reclaim_land;
+			cost += welt->get_settings().get_cost_reclaim_land();
 		}
 		// calculate new slopes
 		check_terraforming(from, to, &from_slope, &to_slope);
@@ -2326,12 +2326,12 @@ sint64 way_builder_t::calc_costs() {
 		// change slope of from
 		if (from_slope != from->get_grund_hang()) {
 			if (last_terraformed != i) {
-				costs -= welt->get_settings().cst_set_slope;
+				costs -= welt->get_settings().get_cost_set_slope();
 			}
 		}
 		// change slope of to
 		if (to_slope != to->get_grund_hang()) {
-			costs -= welt->get_settings().cst_set_slope;
+			costs -= welt->get_settings().get_cost_set_slope();
 			last_terraformed = i+1; // do not pay twice for terraforming one tile
 		}
 	}
@@ -2416,7 +2416,7 @@ sint64 way_builder_t::calc_costs() {
 				obj_t *obj = gr->obj_bei(i);
 				switch(obj->get_typ()) {
 					case obj_t::baum:
-						costs -= welt->get_settings().cst_remove_tree;
+						costs -= welt->get_settings().get_cost_remove_tree();
 						break;
 					case obj_t::groundobj:
 						costs += ((groundobj_t *)obj)->get_desc()->get_value();
@@ -2946,7 +2946,7 @@ class fluss_test_driver_t : public test_driver_t
 	bool check_next_tile(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt)!=0; }
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt); }
 	waytype_t get_waytype() const OVERRIDE { return invalid_wt; }
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; }
+	int get_cost(const grund_t *, const sint32, ribi_t::ribi) OVERRIDE { return 1; }
 	bool is_target(const grund_t *cur,const grund_t *) OVERRIDE { return cur->is_water()  &&  cur->get_grund_hang()==slope_t::flat; }
 };
 

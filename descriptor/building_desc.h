@@ -156,7 +156,7 @@ class building_desc_t : public obj_desc_timelined_t {
 				 * These will be converted in building_reader_t::register_obj to a valid btype.
 				 */
 			enum old_building_types_t {
-			// from here on only old style flages
+			// from here on only old style flags
 			bahnhof           =  8,
 			bushalt           =  9,
 			ladebucht         = 10,
@@ -248,6 +248,8 @@ class building_desc_t : public obj_desc_timelined_t {
 	uint32 pier_sub_2_mask; //piers prexisting for sencond floor
 	uint8  pier_sub_needed : 1; //building needs to be placed within matching pier
 
+	uint16 max_vehicles_under_maintenance = 4; // The maximum number of vehicles that can simultaneously be maintained in this building (for depots only)
+
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
 	}
@@ -297,6 +299,7 @@ public:
 	bool is_city_building() const { return is_type(city_res) || is_type(city_com) || is_type(city_ind); }
 	bool is_transport_building() const { return type > headquarters  && type <= flat_dock; }
 	bool is_signalbox() const { return is_type(signalbox); }
+	bool is_depot() const { return is_type(depot); }
 
 	bool is_connected_with_town() const;
 
@@ -385,13 +388,15 @@ public:
 	  * recalculation of the prices, which is unnecessary work.
 	  */
 
-	sint32 get_maintenance() const { return scaled_maintenance; }
+	// We do not adjust for inflation here since the total maintenance is stored in the player object.
+	// We must instead adjust for inflation when we debit the player's account with the monthly maintenance.
+	sint64 get_maintenance() const { return scaled_maintenance; }
 
-	sint32 get_base_maintenance() const { return maintenance; }
+	sint64 get_base_maintenance() const { return maintenance; }
 
-	sint32 get_price() const { return scaled_price; }
+	sint64 get_price() const;
 
-	sint32 get_base_price() const { return  price; }
+	sint64 get_base_price() const;
 
 	uint16 get_capacity() const { return capacity; }
 
@@ -446,7 +451,9 @@ public:
 		return floor==0 ? pier_sub_1_mask : pier_sub_2_mask;
 	}
 
-	bool get_pier_needed() const { return pier_sub_needed;}
+	bool get_pier_needed() const { return pier_sub_needed; }
+
+	uint16 get_max_vehicles_under_maintenance() const { return max_vehicles_under_maintenance; }
 };
 
 

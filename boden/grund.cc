@@ -577,7 +577,8 @@ void grund_t::finish_rotate90()
 	}
 	ground_texts.clear();
 	// then transfer all rotated texts
-	FOR(text_map, const& iter, ground_texts_rotating) {
+	for(auto const iter : ground_texts_rotating)
+	{
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_rotating.clear();
@@ -589,13 +590,15 @@ void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_enlarged;
 	// we have recalculate the keys
-	FOR(text_map, iter, ground_texts) {
+	for(auto iter : ground_texts)
+	{
 		koord3d k = get_ground_koord3d_key( iter.key );
 		ground_texts_enlarged.put( get_ground_text_key(k), iter.value );
 	}
 	ground_texts.clear();
 	// then transfer all texts back
-	FOR(text_map, const& iter, ground_texts_enlarged) {
+	for(auto const iter : ground_texts_enlarged)
+	{
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_enlarged.clear();
@@ -1992,7 +1995,7 @@ sint64 grund_t::remove_trees()
 		// we must mark it by hand, since we want to join costs
 		d->mark_image_dirty( get_image(), 0 );
 		delete d;
-		cost -= welt->get_settings().cst_remove_tree;
+		cost -= welt->get_settings().get_cost_remove_tree();
 	}
 	// remove all groundobjs ...
 	while (groundobj_t* const d = find<groundobj_t>(0)) {
@@ -2383,7 +2386,8 @@ bool grund_t::remove_excessive_roads()
 	bool ret = remove_excessive_roads(road_tiles);
 
 	if (ret) {
-		FOR(grund_t::road_network_plan_t, i, road_tiles) {
+		for(auto i : road_tiles)
+		{
 			koord k = i.key;
 			grund_t *gr = welt->lookup_kartenboden(k);
 			if (!i.value) {
@@ -2418,7 +2422,8 @@ int grund_t::count_neighbouring_roads(road_network_plan_t &road_tiles)
 
 bool grund_t::fixup_road_network_plan(road_network_plan_t &road_tiles)
 {
-	FOR(road_network_plan_t, i, road_tiles) {
+	for(auto i : road_tiles)
+	{
 		if (i.value == true) {
 			grund_t *gr = welt->lookup_kartenboden(i.key);
 
@@ -2561,7 +2566,7 @@ public:
 
 	virtual ribi_t::ribi get_ribi(const grund_t* gr) const { return other->get_ribi(gr); }
 	virtual waytype_t get_waytype() const { return other->get_waytype(); }
-	virtual int get_cost(const grund_t *gr, const sint32 c, koord p) { return other->get_cost(gr,c,p); }
+	virtual int get_cost(const grund_t *gr, const sint32 c, ribi_t::ribi from) { return other->get_cost(gr,c,from); }
 	virtual bool  is_target(const grund_t *gr,const grund_t *gr2) { return other-> is_target(gr,gr2); }
 };
 
@@ -2837,7 +2842,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			}
 		}
 
-		FOR(minivec_tpl<route_t>, const& diversionary_route, diversionary_routes)
+		for(auto const diversionary_route : diversionary_routes)
 		{
 			for(uint32 n = 1; n < diversionary_route.get_count()-1; n++)
 			{

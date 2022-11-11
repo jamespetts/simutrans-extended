@@ -528,23 +528,6 @@ void weg_t::rdwr(loadsave_t *file)
 		bool prow = public_right_of_way;
 		file->rdwr_bool(prow);
 		public_right_of_way = prow;
-#ifdef SPECIAL_RESCUE_12_3
-		if(file->is_saving())
-		{
-			uint32 rwc = remaining_wear_capacity;
-			file->rdwr_long(rwc);
-			remaining_wear_capacity = rwc;
-			uint16 cmy = creation_month_year;
-			file->rdwr_short(cmy);
-			creation_month_year = cmy;
-			uint16 lrmy = last_renewal_month_year;
-			file->rdwr_short(lrmy);
-			last_renewal_month_year = lrmy;
-			bool deg = degraded;
-			file->rdwr_bool(deg);
-			degraded = deg;
-		}
-#else
 		uint32 rwc = remaining_wear_capacity;
 		file->rdwr_long(rwc);
 		remaining_wear_capacity = rwc;
@@ -557,55 +540,54 @@ void weg_t::rdwr(loadsave_t *file)
 		bool deg = degraded;
 		file->rdwr_bool(deg);
 		degraded = deg;
-#endif
+	}
 
-		if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 19))
+	{
+		const uint32 route_array_number = file->get_extended_version() >= 15 || file->get_extended_revision() >= 20 ? 2 : 1;
+
+		if (file->is_saving())
 		{
-			const uint32 route_array_number = file->get_extended_version() >= 15 || file->get_extended_revision() >= 20 ? 2 : 1;
-
-			if (file->is_saving())
+			for (uint32 i = 0; i < route_array_number; i++)
 			{
-				for (uint32 i = 0; i < route_array_number; i++)
-				{
-					for(uint32 j=0; j<5; j++) {
-						private_car_routes[i][j].rdwr(file);
-					}
+				for (uint32 j = 0; j < 5; j++) {
+					private_car_routes[i][j].rdwr(file);
 				}
 			}
-			else // Loading
+		}
+		else // Loading
+		{
+			for (uint32 i = 0; i < route_array_number; i++)
 			{
-				for (uint32 i = 0; i < route_array_number; i++)
-				{
-					// Unfortunately, the way private car routes are stored has changed a number of times in an effort to save memory.
-					if((file->get_extended_version()==14 && file->get_extended_revision() >= 19) || file->get_extended_version() > 14) {
-						if(file->get_extended_version() == 14 && file->get_extended_revision() < 37) {
-							uint32 private_car_routes_count = 0;
-							file->rdwr_long(private_car_routes_count);
-							for (uint32 j = 0; j < private_car_routes_count; j++) {
-								koord destination;
-								destination.rdwr(file);
-								if (file->get_extended_revision() < 33) {
-									// Koord3d representation
-									koord3d next_tile;
-									next_tile.rdwr(file);
-									private_car_routes[i][get_map_idx(next_tile)].insert_unique(destination);
-								} else {
-									// Integer-neighbour representation
-									uint8 next_tile_neighbour;
-									file->rdwr_byte(next_tile_neighbour);
-									private_car_routes[i][get_map_idx(private_car_t::neighbour_from_int(get_pos(), next_tile_neighbour))].insert_unique(destination);
-								}
+				// Unfortunately, the way private car routes are stored has changed a number of times in an effort to save memory.
+				if((file->get_extended_version()==14 && file->get_extended_revision() >= 19) || file->get_extended_version() > 14) {
+					if(file->get_extended_version() == 14 && file->get_extended_revision() < 37) {
+						uint32 private_car_routes_count = 0;
+						file->rdwr_long(private_car_routes_count);
+						for (uint32 j = 0; j < private_car_routes_count; j++) {
+							koord destination;
+							destination.rdwr(file);
+							if (file->get_extended_revision() < 33) {
+								// Koord3d representation
+								koord3d next_tile;
+								next_tile.rdwr(file);
+								private_car_routes[i][get_map_idx(next_tile)].insert_unique(destination);
+							} else {
+								// Integer-neighbour representation
+								uint8 next_tile_neighbour;
+								file->rdwr_byte(next_tile_neighbour);
+								private_car_routes[i][get_map_idx(private_car_t::neighbour_from_int(get_pos(), next_tile_neighbour))].insert_unique(destination);
 							}
-						} else {
-							// Container membership representation
-							for(uint8 j=0; j<5; j++) {
-								private_car_routes[i][j].rdwr(file);
-							}
+						}
+					} else {
+						// Container membership representation
+						for(uint8 j=0; j<5; j++) {
+							private_car_routes[i][j].rdwr(file);
+						}
 
-							if(file->is_version_ex_less(14,39)) {
-								// Correct for nsew->nesw change
-								std::swap(private_car_routes[i][1],private_car_routes[i][2]);
-							}
+						if(file->is_version_ex_less(14,39)) {
+							// Correct for nsew->nesw change
+							std::swap(private_car_routes[i][1],private_car_routes[i][2]);
 						}
 					}
 				}
@@ -1178,6 +1160,7 @@ void weg_t::finish_rd()
 		check_diagonal();
 		if(is_diagonal())
 		{
+			// maint /= sqrt(2)
 			maint *= 10;
 			maint /= 14;
 		}
@@ -1420,6 +1403,7 @@ bool weg_t::renew()
 			default_way_is_better_than_current_way &= way_desc->get_max_axle_load() >= desc->get_max_axle_load();
 
 			bool no_worse_stats = way_desc->get_topspeed() >= desc->get_topspeed() && way_desc->get_max_axle_load() >= desc->get_max_axle_load();
+			bool current_way_better_cost = (way_desc->get_maintenance() > desc->get_maintenance()) || (way_desc->get_base_price() > desc->get_base_price()) || (way_desc->get_wear_capacity() < desc->get_wear_capacity());
 
 			default_way_is_better_than_current_way &= !no_worse_stats;
 		}

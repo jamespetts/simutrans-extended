@@ -113,7 +113,6 @@ gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint8 number_, uint8 p_
 
 	lb_number.set_align(gui_label_t::centered);
 	lb_number.set_size(size);
-	lb_number.set_pos(scr_coord(0,(size.h-D_LABEL_HEIGHT)/2));
 	add_component(&lb_number);
 }
 

@@ -20,38 +20,6 @@
 
 using std::string;
 
-/**
- * Calculate numeric engine type from engine type string
- */
-static vehicle_desc_t::engine_t get_engine_type(const char* engine_type)
-{
-	if (!STRICMP(engine_type, "diesel")) {
-		return vehicle_desc_t::diesel;
-	} else if (!STRICMP(engine_type, "electric")) {
-		return vehicle_desc_t::electric;
-	} else if (!STRICMP(engine_type, "steam")) {
-		return vehicle_desc_t::steam;
-	} else if (!STRICMP(engine_type, "bio")) {
-		return vehicle_desc_t::bio;
-	} else if (!STRICMP(engine_type, "sail")) {
-		return vehicle_desc_t::sail;
-	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		return vehicle_desc_t::fuel_cell;
-	} else if (!STRICMP(engine_type, "hydrogene")) {
-		return vehicle_desc_t::hydrogene;
-	} else if (!STRICMP(engine_type, "battery")) {
-		return vehicle_desc_t::battery;
-	} else if (!STRICMP(engine_type, "petrol")) {
-		return vehicle_desc_t::petrol;
-	} else if (!STRICMP(engine_type, "turbine")) {
-		return vehicle_desc_t::turbine;
-	} else if (!STRICMP(engine_type, "unknown")) {
-		return vehicle_desc_t::unknown;
-	}
-
-	return vehicle_desc_t::diesel;
-}
-
 void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seasons,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& backkeys,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& frontkeys
@@ -316,7 +284,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 					engaged = true;
 					enables = 0;
 				}
-				traction_type = get_engine_type(engine_type.c_str());
+				traction_type = vehicle_desc_t::get_engine_type(engine_type.c_str());
 				const uint16 shifter = 1 << traction_type;
 				enables |= shifter;
 				traction_type_count++;
@@ -332,7 +300,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint16 mail_demand_and_production_capacity = obj.get_int("mail_demand", 65535);
 	mail_demand_and_production_capacity = obj.get_int("mail_demand_and_production_capacity", mail_demand_and_production_capacity);
 
-	total_len = 51;
+	uint16 max_vehicles_under_maintenance = obj.get_int("max_vehicles_under_maintenance", 4);
+
+	total_len = 53;
 
 	uint16 current_class_proportion;
 	vector_tpl<uint16> class_proportions(2);
@@ -505,7 +475,8 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x400: Unused due to versioning errors
 	// 0x500: Class proportions
 	// 0x600: Pier System
-	version += 0x700;
+	// 0x700: 15x - depot maintenance capacity
+	version += 0x800;
 
 	int pos = 0;
 
@@ -616,6 +587,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	node.write_uint8(fp, pier_sub_needed, pos);
 	pos+=sizeof(uint8);
+
+	node.write_uint16(fp, max_vehicles_under_maintenance, pos);
+	pos += sizeof(max_vehicles_under_maintenance);
 
 	// probably add some icons, if defined
 	slist_tpl<string> cursorkeys;

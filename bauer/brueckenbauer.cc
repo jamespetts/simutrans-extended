@@ -170,8 +170,22 @@ void bridge_builder_t::fill_menu(tool_selector_t *tool_selector, const waytype_t
 }
 
 
+const vector_tpl<const bridge_desc_t *>&  bridge_builder_t::get_available_bridges(const waytype_t wtyp)
+{
+	static vector_tpl<const bridge_desc_t *> dummy;
+	dummy.clear();
+	const uint16 time = welt->get_timeline_year_month();
+	for(auto const& i : desc_table) {
+		bridge_desc_t const* const b = i.value;
+		if (  b->get_waytype()==wtyp  &&  b->is_available(time)  ) {
+			dummy.append(b);
+		}
+	}
+	return dummy;
+}
 
-inline bool ribi_check( ribi_t::ribi ribi, ribi_t::ribi check_ribi )
+
+static inline bool ribi_check( ribi_t::ribi ribi, ribi_t::ribi check_ribi )
 {
 	// either check for single (if nothing given) otherwise ensure exact match
 	return check_ribi ? ribi == check_ribi : ribi_t::is_single( ribi );

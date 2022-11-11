@@ -910,10 +910,10 @@ void minimap_t::calc_map_pixel(const koord k)
 				// maximum two ways for one ground
 				const weg_t *w=gr->get_weg_nr(0);
 				if(w) {
-					cargo = w->get_statistics(WAY_STAT_GOODS);
+					cargo = w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_GOODS);
 					const weg_t *w=gr->get_weg_nr(1);
 					if(w) {
-						cargo += w->get_statistics(WAY_STAT_GOODS);
+						cargo += w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_GOODS);
 					}
 					if(  cargo > max_cargo  ) {
 						max_cargo = cargo;
@@ -937,9 +937,9 @@ void minimap_t::calc_map_pixel(const koord k)
 				// maximum two ways for one ground
 				const weg_t *w=gr->get_weg_nr(0);
 				if(w) {
-					passed = w->get_statistics(WAY_STAT_CONVOIS);
+					passed = w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS);
 					if(  weg_t *w=gr->get_weg_nr(1)  ) {
-						passed += w->get_statistics(WAY_STAT_CONVOIS);
+						passed += w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS);
 					}
 					if(  passed > max_passed  ) {
 						max_passed = passed;

@@ -84,7 +84,9 @@ gui_line_label_t::gui_line_label_t(linehandle_t l)
 	set_spacing(scr_size(D_H_SPACE,0));
 	set_margin( scr_size(0,0), scr_size(0,0) );
 
-	update_check();
+	if( line.is_bound() ) {
+		update_check();
+	}
 }
 
 void gui_line_label_t::update_check()

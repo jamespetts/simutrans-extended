@@ -84,6 +84,10 @@ const skin_desc_t* skinverwaltung_t::comfort            = NULL;
 
 const skin_desc_t* skinverwaltung_t::search             = NULL;
 const skin_desc_t* skinverwaltung_t::open_window        = NULL;
+const skin_desc_t* skinverwaltung_t::layover            = NULL;
+const skin_desc_t* skinverwaltung_t::refuel             = NULL;
+const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
+const skin_desc_t* skinverwaltung_t::staff_cost         = NULL;
 
 // cursors
 const skin_desc_t* skinverwaltung_t::cursor_general     = NULL; // new cursors
@@ -142,6 +146,10 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::reverse_arrows,     "ReverseArrows"  },
 	{ &skinverwaltung_t::search,             "Search"         },
 	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
+
+	{ &skinverwaltung_t::layover,            "Layover"        },
+	{ &skinverwaltung_t::refuel,             "Refuel"         },
+	{ &skinverwaltung_t::ignore_choose,      "IgnoreChoose"   },
 	{ NULL, NULL }
 };
 
@@ -187,6 +195,7 @@ static special_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
 	{ &skinverwaltung_t::mail_evaluation_icons, "MailEvaluation" },
 	{ &skinverwaltung_t::goods_categories,   "GoodsCategories"},
 	{ &skinverwaltung_t::ind_sector_symbol,  "IndustrySectors" },
+	{ &skinverwaltung_t::staff_cost,         "StaffCost"      },
 	{ NULL, NULL }
 };
 
@@ -254,7 +263,8 @@ bool skinverwaltung_t::register_desc(skintyp_t type, const skin_desc_t* desc)
 // return the extra_obj with this name
 const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 {
-	FOR(slist_tpl<skin_desc_t const*>, const s, skinverwaltung_t::extra_obj) {
+	for(auto const s : skinverwaltung_t::extra_obj)
+	{
 		if (strncmp(str, s->get_name(), len) == 0) {
 			return s;
 		}

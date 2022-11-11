@@ -91,7 +91,7 @@ public:
 	enum { max_vehicle=8, max_rail_vehicle = 64 };
 
 	enum states {
-		INITIAL,
+		INITIAL, // INITIAL means stored in the depot
 		EDIT_SCHEDULE,
 		ROUTING_1,
 		ROUTING_2,
@@ -115,6 +115,11 @@ public:
 		NO_ROUTE_TOO_COMPLEX,
 		WAITING_FOR_LOADING_THREE_MONTHS,
 		WAITING_FOR_LOADING_FOUR_MONTHS,
+		REPLENISHING,
+		MAINTENANCE,
+		OVERHAUL,
+		AWAITING_TRIGGER,
+		LAYOVER,
 		MAX_STATES
 	};
 
@@ -649,6 +654,7 @@ private:
 	* @author yobbobandana
 	*/
 	void advance_schedule();
+	void advance_schedule_internal();
 
 	/**
 	 * Measure and record the times that
@@ -691,6 +697,11 @@ private:
 	minivec_tpl<uint8> passenger_classes_carried;
 	minivec_tpl<uint8> mail_classes_carried;
 
+	/*
+	* A bitfield of up to 16 conditions that have been
+	* triggered for this convoy.
+	*/
+	uint16 conditions_bitfield;
 	/**
 	 * the route index of the point to quit yielding lane
 	 * == -1 means this convoi isn't yielding.
@@ -713,6 +724,9 @@ private:
 	// more than once in a step on the same tile
 	koord3d checked_tile_this_step = koord3d::invalid;
 
+	// The last time that salary was paid on staff in this convoy.
+	// Add layover, maintenance and overhaul ticks to this number to discount layover time.
+	sint64 last_salary_point_ticks = 0;
 
 public:
 	/**
@@ -933,7 +947,7 @@ public:
 	/**
 	* Called if a vehicle enters a depot
 	*/
-	void enter_depot(depot_t *dep);
+	void enter_depot(depot_t *dep, uint16 flags = 0);
 
 	/**
 	* Return the internal name of the convois
@@ -1148,6 +1162,7 @@ public:
 	void reserve_own_tiles(bool unreserve = false);
 
 	bool has_tall_vehicles();
+	bool has_tilting_vehicles();
 
 	inline bool get_allow_clear_reservation() const { return allow_clear_reservation; }
 
@@ -1156,6 +1171,9 @@ public:
 	bool check_way_constraints_of_all_vehicles(const weg_t& way) const;
 
 	void set_working_method(working_method_t value);
+
+	// Instigates a replacement according to the attached replace data.
+	bool replace_now();
 
 private:
 	journey_times_map average_journey_times;
@@ -1183,6 +1201,9 @@ public:
 	* Control loading and unloading
 	*/
 	void laden();
+
+	// Book fuel consumption of individual vehicles
+	void book_fuel_consumption();
 
 	/**
 	* Setup vehicles before starting to move
@@ -1337,13 +1358,13 @@ public:
 
 	bool get_depot_when_empty() const { return depot_when_empty; }
 
-	void set_depot_when_empty(bool new_dwe);
+	void set_depot_when_empty(bool new_dwe, bool manually_sent = false);
 
 	// True if the convoy has the same vehicles
 	bool has_same_vehicles(convoihandle_t other) const;
 
 	// Go to depot, if possible
-	bool go_to_depot(bool show_success = true, bool use_home_depot = false);
+	bool go_to_depot(bool show_success, bool use_home_depot = false, bool maintain = false, bool manually_sent = false);
 
 	// True if convoy has no cargo
 	//@author: isidoro
@@ -1381,8 +1402,9 @@ public:
 
 	virtual void reflesh(sint8,sint8) OVERRIDE;
 
-	//Returns the maximum catering level of the category type given in the convoy.
-	//@author: jamespetts
+	// Returns the maximum catering level of the category type given in the convoy.
+	// NOTE: This does not give the value of any vehicles with self-contained catering.
+	// @author: jamespetts
 	uint8 get_catering_level(uint8 type) const;
 
 	//@author: jamespetts
@@ -1424,10 +1446,8 @@ public:
 	// taking into account any catering.
 	uint8 get_comfort(uint8 g_class, bool check_reassigned = false) const;
 
-	/** The new revenue calculation method for per-leg
-	 * based revenue calculation, rather than per-hop
-	 * based revenue calculation. This method calculates
-	 * the revenue of a ware packet as it is unloaded.
+	/** This method calculates the revenue of each
+	 * ware packet as it is unloaded.
 	 *
 	 * It also calculates allocations of revenue to different
 	 * players based on track usage.
@@ -1469,7 +1489,7 @@ public:
 	/** For going to a depot automatically
 	 *  when stuck - will teleport if necessary.
 	 */
-	void emergency_go_to_depot(bool show_success = true);
+	void emergency_go_to_depot(bool show_success = true, bool maintain = false);
 
 	journey_times_map& get_average_journey_times();
 	inline const journey_times_map& get_average_journey_times_this_convoy_only() const { return average_journey_times; }
@@ -1535,6 +1555,29 @@ public:
 private:
 	// returns level of coupling constraints between vehicles
 	uint8 check_couple_constraint_level(uint8 car_no, bool rear_side) const;
+
+protected:
+
+	// Run this (1) monthly; and (2) on re-combination. Books staff salaries.
+	void book_salaries();
+
+public:
+
+	// Also used in UI as a reference value
+	uint32 get_salaries(sint64 percentage_of_month);
+
+	bool check_triggered_condition(uint16 value) const { return value & conditions_bitfield; }
+	void set_triggered_conditions(uint16 value) { conditions_bitfield |= value; }
+	void clear_triggered_conditions(uint16 value) { conditions_bitfield &= ~value; }
+	void reset_all_triggers() { conditions_bitfield = 0; }
+
+	bool is_maintenance_needed() const;
+	bool is_maintenance_urgently_needed() const;
+	bool is_overhaul_needed() const;
+
+	void check_departure(halthandle_t halt = halthandle_t());
+
+	sint64 get_arrival_time() const { return arrival_time; }
 };
 
 #endif

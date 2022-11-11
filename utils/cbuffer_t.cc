@@ -444,6 +444,150 @@ void cbuffer_t::extend(unsigned int min_free_space)
 	}
 }
 
+void cbuffer_t::append_fixed(uint8 n)
+{
+	uint32 zeros = 0;
+
+	if(n < 10)
+	{
+		zeros = 2;
+	}
+	else if(n < 100)
+	{
+		zeros = 1;
+	}
+	while(zeros > 0)
+	{
+		append("0");
+		zeros--;
+	}
+
+	append(n);
+}
+
+
+void cbuffer_t::append_fixed(uint16 n)
+{
+	uint32 zeros = 0;
+
+	if(n < 10)
+	{
+		zeros = 4;
+	}
+	else if(n < 100)
+	{
+		zeros = 3;
+	}
+	else if(n < 1000)
+	{
+		zeros = 2;
+	}
+	else if(n < 10000)
+	{
+		zeros = 1;
+	}
+	while(zeros > 0)
+	{
+		append("0");
+		zeros--;
+	}
+
+	append(n);
+}
+
+void cbuffer_t::append_fixed(uint32 n)
+{
+	uint32 zeros = 0;
+
+	if(n < 10)
+	{
+		zeros = 9;
+	}
+	else if(n < 100)
+	{
+		zeros = 8;
+	}
+	else if(n < 1000)
+	{
+		zeros = 7;
+	}
+	else if(n < 10000)
+	{
+		zeros = 6;
+	}
+	else if(n < 100000)
+	{
+		zeros = 5;
+	}
+	else if(n < 1000000)
+	{
+		zeros = 4;
+	}
+	else if(n < 10000000)
+	{
+		zeros = 3;
+	}
+	else if(n < 100000000)
+	{
+		zeros = 2;
+	}
+	else if(n < 1000000000)
+	{
+		zeros = 1;
+	}
+	while(zeros > 0)
+	{
+		append("0");
+		zeros--;
+	}
+
+	append(n);
+}
+
+
+void cbuffer_t::append_bool(bool value)
+{
+	append(value ? '1' : '0');
+}
+
+uint8 cbuffer_t::decode_uint8(const char* p)
+{
+	char number_string[4];
+	for(uint32 i = 0; i < 3; i ++)
+	{
+		number_string[i] = *p++;
+	}
+	number_string[3] = 0;
+	return (uint8)atoi(number_string);
+}
+
+uint16 cbuffer_t::decode_uint16(const char* p)
+{
+	char number_string[6];
+	for(uint32 i = 0; i < 5; i ++)
+	{
+		number_string[i] = *p++;
+	}
+	number_string[5] = 0;
+	return (uint16)atoi(number_string);
+}
+
+uint32 cbuffer_t::decode_uint32(const char* p)
+{
+	char number_string[11];
+	for(uint32 i = 0; i < 10; i ++)
+	{
+		number_string[i] = *p++;
+	}
+	number_string[10] = 0;
+	return (uint32)atoi(number_string);
+}
+
+bool cbuffer_t::decode_bool(const char* p)
+{
+	char bool_char = *p;
+	return (bool)atoi(&bool_char);
+}
 
 // remove whitespace and unprinatable characters
 void cbuffer_t::trim()

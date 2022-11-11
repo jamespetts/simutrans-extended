@@ -2057,7 +2057,7 @@ void path_explorer_t::compartment_t::reset_connexion_entry(const uint16 halt_id)
 {
 	if ( !connexion_list[halt_id].connexion_table->empty() )
 	{
-		FOR(haltestelle_t::connexions_map, const& iter, (*(connexion_list[halt_id].connexion_table)))
+		for(auto const iter : (*(connexion_list[halt_id].connexion_table)))
 		{
 			delete iter.value;
 		}
@@ -2448,7 +2448,7 @@ void path_explorer_t::compartment_t::connection_t::rdwr(loadsave_t* file)
 	{
 		uint32 cluster_map_count = cluster_map.get_count();
 		file->rdwr_long(cluster_map_count);
-		FOR(cluster_map_type, iter, cluster_map)
+		for(auto iter : cluster_map)
 		{
 			file->rdwr_short(iter.key);
 			iter.value->rdwr(file);

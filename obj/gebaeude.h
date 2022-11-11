@@ -23,7 +23,7 @@ class planquadrat_t;
 /**
  * Asynchronous or synchronous animations for buildings.
  */
-class gebaeude_t : public obj_t, sync_steppable
+class gebaeude_t : public obj_t, public sync_steppable
 {
 private:
 	const building_tile_desc_t *tile;
@@ -226,6 +226,10 @@ public:
 	bool is_city_building() const;
 
 	bool is_signalbox() const;
+
+	/// fills vector with a list of all tiles with this building
+	/// @return number of actual tiles
+	uint32 get_tile_list( vector_tpl<grund_t *>& list ) const;
 
 	/// @copydoc obj_t::info
 	void info(cbuffer_t & buf) const OVERRIDE;

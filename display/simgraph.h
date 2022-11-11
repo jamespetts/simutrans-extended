@@ -35,7 +35,8 @@ extern int default_font_linespace;
 #define FIXED_SYMBOL_YOFF ((LINESPACE-D_FIXED_SYMBOL_WIDTH)/2)
 
 #define D_HEADING_HEIGHT (LINESPACE+4)
-#define GOODS_COLOR_BOX_HEIGHT 8
+#define GOODS_COLOR_BOX_HEIGHT (max(8,(LINEASCENT>>1)+2))
+#define GOODS_COLOR_BOX_SIZE (scr_size(GOODS_COLOR_BOX_HEIGHT,GOODS_COLOR_BOX_HEIGHT))
 #define GOODS_COLOR_BOX_YOFF ((LINESPACE-GOODS_COLOR_BOX_HEIGHT)/2)
 
 #define VEHICLE_BAR_HEIGHT 7
@@ -386,7 +387,7 @@ int display_line_lettercode_rgb(scr_coord_val xpos, scr_coord_val ypos, PIXVAL l
 
 /// Display a string that is abbreviated by the (language specific) ellipsis character if too wide
 /// If enough space is given, it just display the full string
-void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0 );
+void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed = false, PIXVAL shadow_color = 0, bool underlined = false );
 
 void display_ddd_proportional(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty);
 

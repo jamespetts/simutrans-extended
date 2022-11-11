@@ -54,7 +54,6 @@ void runway_t::rdwr(loadsave_t *file)
 		file->rdwr_str(bname, lengthof(bname));
 		const way_desc_t *desc = way_builder_t::get_desc(bname);
 
-#ifndef SPECIAL_RESCUE_12_3
 		const way_desc_t* loaded_replacement_way = NULL;
 		if(file->get_extended_version() >= 12)
 		{
@@ -62,7 +61,6 @@ void runway_t::rdwr(loadsave_t *file)
 			file->rdwr_str(rbname, lengthof(rbname));
 			loaded_replacement_way = way_builder_t::get_desc(rbname);
 		}
-#endif
 
 		int old_max_speed=get_max_speed();
 		if(desc==NULL) {
@@ -78,12 +76,10 @@ void runway_t::rdwr(loadsave_t *file)
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);
-#ifndef SPECIAL_RESCUE_12_3
 		if(file->get_extended_version() >= 12)
 		{
 			replacement_way = loaded_replacement_way;
 		}
-#endif
 	}
 
 	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 20)

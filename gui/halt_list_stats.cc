@@ -93,7 +93,7 @@ void gui_halt_stats_t::update_table()
 					halt->get_tiles().get_count() > 1 ? translator::translate("tiles") : translator::translate("tile"));
 				lb->set_fixed_width(proportional_string_width("188") + proportional_string_width(translator::translate("tiles,")));
 				lb->update();
-				new_component<gui_label_buf_t>()->buf().printf("%.2f$/%s", (double)world()->calc_adjusted_monthly_figure(halt->calc_maintenance()) / 100.0, translator::translate("month"));
+				new_component<gui_label_buf_t>()->buf().printf("%.2f$/%s", (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(halt->calc_maintenance()), buildings) / 100.0, translator::translate("month"));
 			}
 			end_table();
 			break;
@@ -340,7 +340,7 @@ void gui_halt_stats_t::update_table()
 		{
 			if (halt->get_pax_enabled()) {
 				add_table(7,1);
-				new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));
+				new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
 				const uint32 visitor_generated = halt->get_around_visitor_generated();
 				lb->buf().printf("%.1f%%", visitor_generated ? 100.0*halt->get_around_succeeded_visiting() / visitor_generated : 0.0);
@@ -349,7 +349,7 @@ void gui_halt_stats_t::update_table()
 				lb->set_tooltip(translator::translate("visiting_trip_success_rete"));
 				lb->update();
 
-				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));
+				new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(GOODS_COLOR_BOX_SIZE);
 				lb = new_component<gui_label_buf_t>();
 				const uint32 commuter_generated = halt->get_around_commuter_generated();
 				lb->buf().printf("%.1f%%", commuter_generated ? 100.0*halt->get_around_succeeded_commuting() / commuter_generated : 0.0);

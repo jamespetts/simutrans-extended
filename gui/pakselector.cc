@@ -83,25 +83,6 @@ bool pakselector_t::check_file(const char *filename, const char *)
 }
 
 
-// Check if there's only one option, and if there is,
-// (a) load the pak, (b) return true.
-bool pakselector_t::check_only_one_option() const
-{
-	if (file_table.get_size().h == 1) {
-		gui_file_table_row_t* file_row = (gui_file_table_row_t*) file_table.get_row(0);
-		if ( !file_row->get_delete_enabled() ) {
-			// This means "no private pak addon options" (overloading of meaning)
-			// Invoke the automatic load feature
-			env_t::objfilename = get_filename(file_row->get_name()) + "/";
-			env_t::default_settings.set_with_private_paks( false );
-			return true;
-		}
-	}
-	// More than one option or private pak addon option.
-	return false;
-}
-
-
 void pakselector_t::fill_list()
 {
 	cbuffer_t path;

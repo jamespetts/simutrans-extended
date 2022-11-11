@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -352,7 +352,7 @@ void depotlist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
 	uint32 p_total = 0;
-	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
+	for( auto const depot : depot_t::get_depot_list() ) {
 		if( depot->get_owner() == player ) {
 			if(  tabs.get_active_tab_index() == 0  ||  depot->get_waytype() == tabs.get_active_tab_waytype()  ) {
 				scrolly.new_component<depotlist_stats_t>(depot);

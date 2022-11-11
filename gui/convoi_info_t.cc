@@ -418,7 +418,7 @@ void convoi_info_t::update_labels()
 
 			char waiting_time[64];
 			cnv->snprintf_remaining_loading_time(waiting_time, sizeof(waiting_time));
-			if (cnv->get_schedule()->get_current_entry().wait_for_time)
+			if (cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 			{
 				speed_label.buf().printf(translator::translate("Waiting for schedule. %s left"), waiting_time);
 				speed_label.set_color(COL_CAUTION);

@@ -19,6 +19,8 @@
 #include "tpl/slist_tpl.h"
 #include "tpl/koordhashtable_tpl.h"
 
+#include "descriptor/vehicle_desc.h"
+
 #include "dataobj/settings.h"
 #include "network/pwd_hash.h"
 #include "dataobj/loadsave.h"
@@ -104,17 +106,74 @@ class loadingscreen_t;
 // (But much of this code is adapted from the speed bonus code,
 // written by Prissi).
 
+enum price_type : uint8 {
+	general,
+	passenger_fare,
+	mail_rate,
+	goods_rate,
+	vehicle_purchase,
+	vehicle_maintenance,
+	buildings,
+	infrastructure,
+	city_land,
+	country_land,
+	corporation_tax,
+	base_rate,
+	MAX_PRICE_TYPE
+};
+
 class car_ownership_record_t
 {
 public:
 	sint64 year;
 	sint16 ownership_percent;
+
 	car_ownership_record_t( sint64 y = 0, sint16 ownership = 0 )
 	{
 		year = y * 12;
 		ownership_percent = ownership;
 	};
 };
+
+class staff_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 salary; // Per game month, but using the short time scale, so scaled
+
+	staff_cost_record_t(sint64 y = 0, sint64 sal = 0)
+	{
+		year = y * 12;
+		salary = sal;
+	};
+};
+
+class fuel_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 cost; // Per unit defined by the pakset
+
+	fuel_cost_record_t(sint64 y = 0, sint64 cst = 0)
+	{
+		year = y * 12;
+		cost = cst;
+	};
+};
+
+class price_record_t
+{
+public :
+	sint64 year;
+	uint32 index; // A figure in % defining the index of the price. 100% = same price as in .dat files
+
+	price_record_t(sint64 y = 0, uint32 idx = 0)
+	{
+		year = y * 12;
+		index = idx;
+	}
+};
+
 
 class transferring_cargo_t
 {
@@ -144,6 +203,49 @@ class karte_t
 	friend class karte_ptr_t; // to access the single instance
 
 	static karte_t* world; ///< static single instance
+
+	static const char* get_price_type_string(uint8 uv8)
+	{
+		switch (uv8)
+		{
+		default:
+		case price_type::general:
+			return "general";
+
+		case price_type::passenger_fare:
+			return "passenger fare";
+
+		case price_type::mail_rate:
+			return "mail rate";
+
+		case price_type::goods_rate:
+			return "goods rate";
+
+		case price_type::vehicle_purchase:
+			return "vehicle purchase";
+
+		case price_type::vehicle_maintenance:
+			return "vehicle maintenance";
+
+		case price_type::buildings:
+			return "buildings";
+
+		case price_type::infrastructure:
+			return "infrastructure";
+
+		case price_type::city_land:
+			return "city land";
+
+		case price_type::country_land:
+			return "country land";
+
+		case price_type::corporation_tax:
+			return "corporation tax";
+
+		case price_type::base_rate:
+			return "base rate";
+		}
+	}
 
 public:
 	/**
@@ -986,6 +1088,12 @@ public:
 
 	static void privatecar_init(const std::string &objfilename);
 
+	static void staff_init(const std::string &objfilename);
+
+	static void fuel_init(const std::string &objfilename);
+
+	static void prices_init(const std::string& objfilename);
+
 private:
 
 	static const sint16 default_car_ownership_percent = 25;
@@ -996,7 +1104,37 @@ private:
 	sint16 get_private_car_ownership(sint32 monthyear, uint8 g_class) const;
 	void privatecar_rdwr(loadsave_t *file);
 
+	// A hashtable, indexed by staff type number, of vectors containing temporally interpolated salary amounts for each type of staff.
+	typedef vector_tpl<staff_cost_record_t> staff_cost_map;
+	static inthashtable_tpl<uint8, staff_cost_map, N_BAGS_MEDIUM> salaries;
+
+	void staff_rdwr(loadsave_t* file);
+
 public:
+
+	sint64 get_staff_salary(sint32 monthyear, uint8 staff_type) const;
+
+private:
+
+	// This is an array of fuel costs per traction type.
+	static vector_tpl<fuel_cost_record_t> fuel[vehicle_desc_t::MAX_TRACTION_TYPE];
+
+	void fuel_rdwr(loadsave_t* file);
+
+public:
+
+	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
+
+private:
+
+	// This is an array of indexed prices in % per price type
+	static vector_tpl<price_record_t> prices[MAX_PRICE_TYPE];
+
+	void prices_rdwr(loadsave_t* file);
+
+public:
+
+	sint64 get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const;
 
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }
@@ -1840,10 +1978,12 @@ private:
 public:
 	void flood_to_depth(sint8 new_water_height, sint8 *stage);
 
+	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended, bool called_from_api );
+
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
 	 */
-	void set_tool( tool_t *tool_in, player_t * player );
+	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b, false); }
 
 	/**
 	 * Set a new tool on our client, calls init.
@@ -2072,6 +2212,13 @@ public:
 
 	inline void decrease_actual_industry_density(uint32 value) { actual_industry_density -= value; }
 	inline void increase_actual_industry_density(uint32 value) { actual_industry_density += value; }
+
+	/**
+	 * Calls the work method of the tool.
+	 * Takes network and scenarios into account.
+	 * (There is the flags for scripted calls in the tool structure, but it seems not used so far?!)
+	 */
+	const char *call_work_api(tool_t *t, player_t *pl, koord3d pos, bool &suspended, bool called_from_api);
 
 	 /**
 	  * Initialize map.
@@ -2607,6 +2754,8 @@ public:
 
 	void calc_max_vehicle_speeds();
 
+	sint16 get_overdraft_rate_percent() const;
+
 private:
 
 	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(NULL); }
@@ -2621,7 +2770,7 @@ private:
 
 	void refresh_private_car_routes();
 
-	static void clear_private_car_routes() ;
+	static void clear_private_car_routes();
 };
 
 

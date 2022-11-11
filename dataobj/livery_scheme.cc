@@ -21,9 +21,9 @@ const char* livery_scheme_t::get_latest_available_livery(uint16 date, const vehi
 		// No liveries available at all
 		return NULL;
 	}
-	const char* livery = NULL;
+	const char* livery_name = NULL;
 	uint16 latest_valid_intro_date = 0;
-	ITERATE(liveries, i)
+	for(uint32 i = 0; i < liveries.get_count(); i ++)
 	{
 		if (!date && desc->check_livery(liveries.get_element(i).name.c_str())) {
 			return liveries.get_element(i).name.c_str();
@@ -31,11 +31,11 @@ const char* livery_scheme_t::get_latest_available_livery(uint16 date, const vehi
 		else if(date >= liveries.get_element(i).intro_date && desc->check_livery(liveries.get_element(i).name.c_str()) && liveries.get_element(i).intro_date > latest_valid_intro_date)
 		{
 			// This returns the most recent livery available for this vehicle that is not in the future.
-			latest_valid_intro_date = liveries.get_element(i).intro_date;
-			livery = liveries.get_element(i).name.c_str();
+			latest_valid_intro_date = liveries[i].intro_date;
+			livery_name = liveries[i].name.c_str();
 		}
 	}
-	return livery;
+	return livery_name;
 }
 
 
@@ -47,10 +47,6 @@ void livery_scheme_t::rdwr(loadsave_t *file)
 	if(file->is_saving())
 	{
 		count = liveries.get_count();
-	}
-	else
-	{
-		liveries.clear();
 	}
 
 	file->rdwr_short(count);
@@ -79,7 +75,39 @@ void livery_scheme_t::rdwr(loadsave_t *file)
 			livery_t liv;
 			liv.name = n;
 			liv.intro_date = date;
-			liveries.append(liv);
+			liveries.append_unique(liv);
 		}
 	}
+}
+
+bool livery_scheme_t::operator == (livery_scheme_t comparator) const
+{
+	if(comparator.scheme_name != scheme_name)
+	{
+		return false;
+	}
+
+	return true;
+
+	// The below allows duplication, which is not desirable.
+	/*
+	if(comparator.retire_date != retire_date)
+	{
+		return false;
+	}
+
+	if(liveries.get_count() != comparator.liveries.get_count())
+	{
+		return false;
+	}
+
+	for(uint32 i = 0; i < liveries.get_count(); i ++)
+	{
+		if((const livery_t)liveries[i] != comparator.liveries[i])
+		{
+			return false;
+		}
+	}
+
+	return true;*/
 }

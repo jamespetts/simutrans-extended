@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -56,7 +56,7 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 	// column 1
 	part1.clear();
 	part1.append(" ");
-	if( sint64 fix_cost = world()->scale_with_month_length( veh->get_maintenance() ) ) {
+	if( sint64 fix_cost = world()->scale_with_month_length( veh->get_fixed_cost() ) ) {
 		char tmp[ 128 ];
 		money_to_string( tmp, veh->get_value() / 100.0, false );
 		part1.printf( translator::translate( "Cost: %8s (%.2f$/km %.2f$/m)\n" ), tmp, veh->get_running_cost() / 100.0, fix_cost / 100.0 );

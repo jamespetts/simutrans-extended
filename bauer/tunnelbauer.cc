@@ -130,7 +130,8 @@ void tunnel_builder_t::fill_menu(tool_selector_t* tool_selector, const waytype_t
 		}
 	}
 	// now sorted ...
-	FOR(vector_tpl<tunnel_desc_t const*>, const i, matching) {
+	for(auto const i : matching)
+	{
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }
@@ -409,7 +410,7 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 // TODO: this is rather hackish as 4 seems to come from nowhere but works most of the time
 // feel free to change if you have a better idea!
 		n = (raise.raise_all()+lower.lower_all())/4;
-		player_t::book_construction_costs(player, welt->get_settings().cst_alter_land * n, end.get_2d(), desc->get_waytype());
+		player_t::book_construction_costs(player, welt->get_settings().get_cost_alter_land() * n, end.get_2d(), desc->get_waytype());
 	}
 
 	if(!build_tunnel(player, gr->get_pos(), end, zv, desc, overtaking_mode, way_desc)) {

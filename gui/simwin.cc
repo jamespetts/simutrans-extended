@@ -47,6 +47,7 @@
 #include "money_frame.h"
 #include "halt_detail.h"
 #include "halt_info.h"
+#include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoi_frame.h"
 #include "convoi_info_t.h"
@@ -594,7 +595,7 @@ bool win_is_top(const gui_frame_t *ig)
 // save/restore all dialogues
 void rdwr_all_win(loadsave_t *file)
 {
-	if( file->is_version_ex_atleast(14, 32) ) {
+	if( file->is_version_ex_atleast(15,0) ) {
 		if(  file->is_saving()  ) {
 			FOR(vector_tpl<simwin_t>, & i, wins) {
 				uint32 id = i.gui->get_rdwr_id();
@@ -653,7 +654,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
+					case magic_consist_order:  w = new consist_order_frame_t(); break;
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
@@ -668,6 +670,12 @@ void rdwr_all_win(loadsave_t *file)
 						}
 						else if (id >= magic_depotlist && id < magic_depotlist + MAX_PLAYER_COUNT) {
 							w = new depotlist_frame_t(wl->get_player(id - magic_depotlist));
+						}
+						else if( id>=magic_convoi_info && id < magic_convoi_info+0x10000) {
+							w = new convoi_info_t();
+						}
+						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000) {
+							w = new halt_info_t();
 						}
 						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
 							w = new replace_frame_t();

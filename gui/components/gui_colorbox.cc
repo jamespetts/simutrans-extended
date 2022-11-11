@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -73,7 +73,7 @@ gui_operation_status_t::gui_operation_status_t(PIXVAL c, uint8 height_)
 	height = height_;
 	color = c;
 	tooltip = NULL;
-	gui_component_t::set_size(scr_size(height, height));
+	gui_component_t::set_size(GOODS_COLOR_BOX_SIZE);
 }
 
 void gui_operation_status_t::draw(scr_coord offset)
@@ -100,7 +100,8 @@ void gui_operation_status_t::draw(scr_coord offset)
 
 gui_vehicle_bar_t::gui_vehicle_bar_t(PIXVAL c, scr_size size)
 {
-	color = c;
+	front_color = c;
+	rear_color  = c;
 	set_size(size);
 }
 
@@ -114,8 +115,8 @@ void gui_vehicle_bar_t::set_flags(uint8 flags_left_, uint8 flags_right_, uint8 i
 void gui_vehicle_bar_t::draw(scr_coord offset)
 {
 	offset += pos;
-	display_veh_form_wh_clip_rgb(offset.x,          offset.y, (size.w+1)/2, size.h, color, true, false, flags_left,  interactivity);
-	display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y, (size.w+1)/2, size.h, color, true, true,  flags_right, interactivity);
+	display_veh_form_wh_clip_rgb(offset.x,          offset.y, (size.w+1)/2, size.h, front_color, true, false, flags_left,  interactivity);
+	display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y, (size.w+1)/2, size.h, rear_color,  true, true,  flags_right, interactivity);
 }
 
 
@@ -132,8 +133,8 @@ void gui_vehicle_number_t::draw(scr_coord offset)
 		display_veh_form_wh_clip_rgb(offset.x,          offset.y, size.w/2, size.h, color_idx_to_rgb(COL_WHITE), false, false, flags_left, interactivity);
 		display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y, size.w/2, size.h, color_idx_to_rgb(COL_WHITE), false, true,  flags_right, interactivity);
 	}
-	display_veh_form_wh_clip_rgb(offset.x+1,        offset.y+1, size.w/2-1, size.h-2, color, false, false, flags_left, interactivity);
-	display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y+1, size.w/2-1, size.h-2, color, false, true,  flags_right, interactivity);
+	display_veh_form_wh_clip_rgb(offset.x+1,        offset.y+1, size.w/2-1, size.h-2, front_color, false, false, flags_left,  interactivity);
+	display_veh_form_wh_clip_rgb(offset.x+size.w/2, offset.y+1, size.w/2-1, size.h-2, rear_color,  false, true,  flags_right, interactivity);
 	display_proportional_clip_rgb(offset.x+(size.w - proportional_string_width(buf))/2, offset.y+2, buf, ALIGN_LEFT, color_idx_to_rgb(COL_WHITE), false);
 }
 

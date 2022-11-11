@@ -302,6 +302,18 @@ public:
 	static scr_coord_val gui_vspace;
 	static scr_coord_val gui_waitingbar_width;
 
+	// table color
+	static PIXVAL gui_color_table_frame;               // table border color
+	static PIXVAL gui_color_table_background;          // table background color
+	static PIXVAL gui_color_table_header_border;       // table header border color
+	static PIXVAL gui_color_table_cell_border;         // table cell border color
+	static PIXVAL gui_color_table_background_head_row; //@< Color to draw background of header cell on top row
+	static PIXVAL gui_color_table_background_left_col; //@< Color to draw background of header cell on left column
+	static PIXVAL gui_color_table_background_data_sum; //@< Color to draw background of data cell for sum (bottom/right)
+	static PIXVAL gui_color_table_background_data;     //@< Color to draw background of normal data cell
+	static PIXVAL gui_color_text_head_row;       //@< Color to draw on header cell at top
+	static PIXVAL gui_color_text_left_col;       //@< Color to draw on header cell at left
+
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
 	static scr_coord_val gui_filelist_vspace;
 	/// @}

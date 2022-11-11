@@ -29,10 +29,6 @@ public:
 	const char *get_help_filename ( void ) const OVERRIDE { return ""; }
 	bool        has_title         ( void ) const OVERRIDE { return false; }
 	bool        has_pak           ( void ) const          { return !entries.empty(); }
-
-	// If there is only one option, this will set the pak name and return true.
-	// Otherwise it will return false.  (Note, it's const but it modifies global data.)
-	bool check_only_one_option() const;
 };
 
 #endif

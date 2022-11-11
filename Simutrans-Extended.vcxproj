@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug (command-line server)|Win32">
@@ -1932,6 +1932,8 @@
     <ClCompile Include="bauer\pier_builder.cc" />
     <ClCompile Include="boden\pier_deck.cc" />
     <ClCompile Include="dataobj\rect.cc" />
+    <ClCompile Include="dataobj\consist_order_t.cc" />
+    <ClCompile Include="gui\consist_order_gui.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
     <ClCompile Include="descriptor\pier_desc.cc" />
@@ -2103,6 +2105,7 @@
     <ClCompile Include="descriptor\reader\building_reader.cc" />
     <ClCompile Include="player\finance.cc" />
     <ClCompile Include="script\api\api_city.cc" />
+    <ClCompile Include="script\api\api_command.cc" />
     <ClCompile Include="script\api\api_const.cc" />
     <ClCompile Include="script\api\api_control.cc" />
     <ClCompile Include="script\api\api_convoy.cc" />
@@ -2112,8 +2115,9 @@
     <ClCompile Include="script\api\api_include.cc" />
     <ClCompile Include="script\api\api_line.cc" />
     <ClCompile Include="script\api\api_map_objects.cc" />
-    <ClCompile Include="script\api\api_obj_desc.cc" />
     <ClCompile Include="script\api\api_obj_desc_base.cc" />
+    <ClCompile Include="script\api\api_obj_desc.cc" />
+    <ClCompile Include="script\api\api_pathfinding.cc" />
     <ClCompile Include="script\api\api_player.cc" />
     <ClCompile Include="script\api\api_scenario.cc" />
     <ClCompile Include="script\api\api_schedule.cc" />
@@ -2129,6 +2133,7 @@
     <ClCompile Include="script\dynamic_string.cc" />
     <ClCompile Include="script\export_objs.cc" />
     <ClCompile Include="script\script.cc" />
+    <ClCompile Include="script\script_loader.cc" />
     <ClCompile Include="siminteraction.cc" />
     <ClCompile Include="simloadingscreen.cc" />
     <ClCompile Include="simsignalbox.cc" />
@@ -2339,6 +2344,7 @@
     <ClCompile Include="gui\components\gui_textarea.cc" />
     <ClCompile Include="gui\components\gui_textinput.cc" />
     <ClCompile Include="gui\components\gui_vehicle_capacitybar.cc" />
+    <ClCompile Include="gui\components\gui_vehicle_cargoinfo.cc" />
     <ClCompile Include="gui\components\gui_waytype_image_box.cc" />
     <ClCompile Include="gui\components\gui_waytype_tab_panel.cc" />
     <ClCompile Include="gui\components\gui_world_view_t.cc" />
@@ -2563,6 +2569,8 @@
     <ClCompile Include="descriptor\reader\xref_reader.cc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dataobj\consist_order_t.h" />
+    <ClInclude Include="gui\consist_order_gui.h" />
     <ClInclude Include="bauer\pier_builder.h" />
     <ClInclude Include="boden\pier_deck.h" />
     <ClInclude Include="dataobj\environment.h" />
@@ -2822,6 +2830,7 @@
     <ClInclude Include="gui\components\gui_textarea.h" />
     <ClInclude Include="gui\components\gui_textinput.h" />
     <ClInclude Include="gui\components\gui_vehicle_capacitybar.h" />
+    <ClInclude Include="gui\components\gui_vehicle_cargoinfo.h" />
     <ClInclude Include="gui\components\gui_waytype_image_box.h" />
     <ClInclude Include="gui\components\gui_waytype_tab_panel.h" />
     <ClInclude Include="gui\components\gui_world_view_t.h" />
@@ -3040,6 +3049,7 @@
     <None Include="base-texts-missing-feb-2018.dat" />
     <None Include="base-texts-missing-march-2018.dat" />
     <None Include="base-texts-new-convoy-debug-information.dat" />
+    <None Include="base-texts-vehicle-management.dat" />
     <None Include="base_texts_extended-passenger-generation.dat" />
     <None Include="base_texts_bridge-change.dat" />
     <None Include="base_texts_extended_10.0.dat" />
