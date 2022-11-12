@@ -37,7 +37,7 @@ public:
 		sb_range,
 		sb_power,
 		sb_tractive_force,
-		//sb_weight,
+		sb_weight,
 		sb_axle_load,
 		sb_intro_date,
 		sb_retire_date,

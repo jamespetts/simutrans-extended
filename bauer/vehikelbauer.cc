@@ -54,6 +54,7 @@ const char *vehicle_builder_t::vehicle_sort_by[vehicle_builder_t::sb_length] =
 	"Range",
 	"Power:",
 	"Tractive Force:",
+	"curb_weight",
 	"Axle load:",
 	"Intro. date:",
 	"Retire. date:",
@@ -282,9 +283,12 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			const uint16 a_axle_load = a->get_waytype() == water_wt ? 0 : a->get_axle_load();
 			const uint16 b_axle_load = b->get_waytype() == water_wt ? 0 : b->get_axle_load();
 			cmp = a_axle_load - b_axle_load;
-			if (cmp == 0) {
-				cmp = a->get_weight() - b->get_weight();
-			}
+			if (cmp != 0) return cmp < 0;
+		}
+		/* FALLTHROUGH */
+		case sb_weight:
+		{
+			cmp = a->get_weight() - b->get_weight();
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
