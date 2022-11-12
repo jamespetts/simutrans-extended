@@ -591,7 +591,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					uint8 direction90 = ribi_type(get_pos(), pos_next);
 					if (rs && (!route_index_beyond_end_of_route)) {
 						// Check whether if we reached a choose point
-						if (rs->get_desc()->is_choose_sign())
+						if (rs->get_desc()->is_choose_sign() && !cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
 						{
 							// route position after road sign
 							const koord3d pos_next_next = r.at(route_index + 1u);

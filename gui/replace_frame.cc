@@ -528,6 +528,12 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 		set_vehicles();
 	}
 
+	if (comp == &bt_mark)
+	{
+		// HACK: This is intended to be temporary until the "mark for replacing" button can be replaced with
+		// a more fitting UI element for these purposes that allows the setting of all the possible values of "replace at".
+		rpl->set_replace_at(replace_data_t::manual);
+	}
 	else if(comp == &bt_autostart || comp == &bt_depot || comp == &bt_mark)
 	{
 		depot=(comp==&bt_depot);

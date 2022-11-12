@@ -330,13 +330,18 @@ void simline_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t s( file, "simline_t" );
 
+	DBG_MESSAGE("simline_t::rdwr","start");
 	assert(schedule);
 
 	file->rdwr_str(name);
+	DBG_MESSAGE("simline_t::rdwr","name=%s",name.c_str());
 
 	rdwr_linehandle_t(file, self);
+	DBG_MESSAGE("simline_t::rdwr","linehandle, id=%u",self.get_id());
 
 	schedule->rdwr(file);
+	DBG_MESSAGE("simline_t::rdwr","schedule, count=%u",schedule->get_count());
+
 
 	//financial history
 	if(  file->is_version_less(102, 3) || (file->is_version_less(103, 0) && file->get_extended_version() < 7) ) {
@@ -413,11 +418,13 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(  file->is_version_atleast(102, 2)  ) {
 		file->rdwr_bool(withdraw);
+		DBG_MESSAGE("simline_t::rdwr","withdraw=%i",withdraw);
 	}
 
 	if(file->get_extended_version() >= 9)
 	{
 		file->rdwr_bool(start_reversed);
+		DBG_MESSAGE("simline_t::rdwr","start_reversed=%i",start_reversed);
 	}
 
 	// otherwise initialized to zero if loading ...
@@ -425,25 +432,26 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_extended_version() >= 2)
 	{
-#ifdef SPECIAL_RESCUE_12_2
-		const uint8 counter = file->is_version_less(103, 0) ? LINE_DISTANCE : file->get_extended_version() < 12 || file->is_loading() ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
-#else
-		const uint8 counter = file->is_version_less(103, 0) ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : LINE_WAYTOLL;
-#endif
+		const uint8 counter = file->is_version_less(103, 0) ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : file->get_extended_version() < 15 ? LINE_WAYTOLL : MAX_LINE_COST;
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average[%i]=%i",i,rolling_average[i]);
 			file->rdwr_short(rolling_average_count[i]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average_count[%i]=%i",i,rolling_average_count[i]);
 		}
 		if (file->get_extended_version() > 14 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 25))
 		{
 			file->rdwr_long(rolling_average[LINE_WAYTOLL]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average[LINE_WAYTOLL=%i]=%i",LINE_WAYTOLL,rolling_average[LINE_WAYTOLL]);
 			file->rdwr_short(rolling_average_count[LINE_WAYTOLL]);
+			DBG_MESSAGE("simline_t::rdwr","rolling_average_count[LINE_WAYTOLL=%i]=%i",LINE_WAYTOLL,rolling_average_count[LINE_WAYTOLL]);
 		}
 	}
 
 	if(  file->is_version_atleast(110, 6) && file->get_extended_version() >= 9  ) {
 		file->rdwr_short(livery_scheme_index);
+		DBG_MESSAGE("simline_t::rdwr","livery_scheme_index=%i",livery_scheme_index);
 	}
 	else
 	{
@@ -457,7 +465,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = average_journey_times.get_count();
 			file->rdwr_long(count);
 
-			FOR(journey_times_map, const& iter, average_journey_times)
+			for(auto const iter : average_journey_times)
 			{
 				id_pair idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -472,6 +480,7 @@ void simline_t::rdwr(loadsave_t *file)
 		{
 			uint32 count = 0;
 			file->rdwr_long(count);
+			DBG_MESSAGE("simline_t::rdwr","journey times, count=%u",count);
 			average_journey_times.clear();
 			for(uint32 i = 0; i < count; i ++)
 			{
@@ -499,7 +508,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = journey_times_history.get_count();
 			file->rdwr_long(count);
 
-			FOR(times_history_map, const& iter, journey_times_history)
+			for(auto iter : journey_times_history)
 			{
 				departure_point_t idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -606,7 +615,8 @@ void simline_t::finish_rd()
 void simline_t::register_stops(schedule_t * schedule)
 {
 	DBG_DEBUG("simline_t::register_stops()", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
-	FOR(minivec_tpl<schedule_entry_t>,const &i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			//DBG_DEBUG("simline_t::register_stops()", "halt not null");
@@ -635,7 +645,7 @@ void simline_t::unregister_stops()
 
 	// It is necessary to clear all departure data,
 	// which might be out of date on a change of schedule.
-	FOR(vector_tpl<convoihandle_t>, & i, line_managed_convoys)
+	for(auto i : line_managed_convoys)
 	{
 		i->clear_departures();
 	}
@@ -645,7 +655,8 @@ void simline_t::unregister_stops()
 
 void simline_t::unregister_stops(schedule_t * schedule)
 {
-	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			halt->remove_line(self);
@@ -690,7 +701,8 @@ void simline_t::set_line_color(uint8 color_idx, uint8 style)
 
 void simline_t::check_freight()
 {
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		i->check_freight();
 	}
 }
@@ -752,7 +764,7 @@ void simline_t::recalc_status()
 	{
 		const uint16 month_now = welt->get_timeline_year_month();
 
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			for (uint16 j = 0; j < i->get_vehicle_count(); j++)
 			{
@@ -819,9 +831,9 @@ void simline_t::recalc_status()
 
 bool simline_t::has_overcrowded() const
 {
-	ITERATE(line_managed_convoys,i)
+	for(auto line_managed_convoy : line_managed_convoys)
 	{
-		if(line_managed_convoys[i]->get_overcrowded() > 0)
+		if(line_managed_convoy->get_overcrowded() > 0)
 		{
 			return true;
 		}
@@ -854,6 +866,15 @@ uint16 simline_t::get_min_range() const
 	return min_range == UINT16_MAX ? 0 : min_range;
 }
 
+uint16 simline_t::get_min_top_speed_kmh() const
+{
+	uint16 min_top_speed = 65535;
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		min_top_speed = min(speed_to_kmh(line_managed_convoy->get_min_top_speed()), min_top_speed);
+	}
+	return min_top_speed;
+}
 
 void simline_t::calc_classes_carried()
 {
@@ -864,13 +885,13 @@ void simline_t::calc_classes_carried()
 
 	passenger_classes_carried.clear();
 	mail_classes_carried.clear();
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+	for(auto const i : line_managed_convoys)
 	{
 		convoi_t const& cnv = *i;
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
+			for(auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
 			{
 				passenger_classes_carried.append_unique(g_class);
 			}
@@ -878,7 +899,7 @@ void simline_t::calc_classes_carried()
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
+			for (auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
 			{
 				mail_classes_carried.append_unique(g_class);
 			}
@@ -934,18 +955,21 @@ void simline_t::recalc_catg_index()
 {
 	// first copy old
 	minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index) {
+	for(auto const i : goods_catg_index)
+	{
 		old_goods_catg_index.append(i);
 	}
 	goods_catg_index.clear();
 	withdraw = !line_managed_convoys.empty();
 	// then recreate current
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		// what goods can this line transport?
 		convoi_t const& cnv = *i;
 		withdraw &= cnv.get_withdraw();
 
-		FOR(minivec_tpl<uint8>, const catg_index, cnv.get_goods_catg_index()) {
+		for(auto const catg_index : cnv.get_goods_catg_index())
+		{
 			goods_catg_index.append_unique( catg_index );
 		}
 	}
@@ -983,7 +1007,7 @@ void simline_t::recalc_catg_index()
 	}
 
 	// added categories : present in new category list but not in old category list
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index)
+	for(auto const i : goods_catg_index)
 	{
 		if (!old_goods_catg_index.is_contained(i))
 		{
@@ -1065,7 +1089,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	// Check whether a lower class is carried, as passengers may board vehicles of a lower, but not a higher, class
 	if (catg == goods_manager_t::INDEX_PAS)
 	{
-		FOR(vector_tpl<uint8>, i, passenger_classes_carried)
+		for(auto const i : passenger_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1075,7 +1099,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	}
 	else
 	{
-		FOR(vector_tpl<uint8>, i, mail_classes_carried)
+		for(auto const i : mail_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1100,10 +1124,10 @@ void simline_t::set_withdraw( bool yes_no )
 
 void simline_t::propogate_livery_scheme()
 {
-	ITERATE(line_managed_convoys, i)
+	for (auto line_managed_convoy : line_managed_convoys)
 	{
-		line_managed_convoys[i]->set_livery_scheme_index(livery_scheme_index);
-		line_managed_convoys[i]->apply_livery_scheme();
+		line_managed_convoy->set_livery_scheme_index(livery_scheme_index);
+		line_managed_convoy->apply_livery_scheme();
 	}
 }
 
@@ -1122,7 +1146,7 @@ sint64 simline_t::calc_departures_scheduled()
 	sint64 timed_departure_points_count = 0ll;
 	for(int i = 0; i < schedule->get_count(); i++)
 	{
-		if(schedule->entries[i].wait_for_time || schedule->entries[i].minimum_loading > 0)
+		if(schedule->entries[i].is_flag_set(schedule_entry_t::wait_for_time) || schedule->entries[i].minimum_loading > 0)
 		{
 			timed_departure_points_count ++;
 		}
@@ -1131,17 +1155,102 @@ sint64 simline_t::calc_departures_scheduled()
 	return timed_departure_points_count * (sint64) schedule->get_spacing();
 }
 
+void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
+{
+	if (!trigger_one_only)
+	{
+		for(auto const i : line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				i->set_triggered_conditions(triggers);
+			}
+		}
+	}
+	else
+	{
+		// Find the most suitable convoy to trigger
+
+		sint64 earliest_arrival_time = welt->get_ticks();
+		convoi_t* cnv_to_trigger = NULL;
+		uint16 trigger;
+
+		// First, check for all convoys that are actually waiting for this conditional trigger.
+		for(auto const i : line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				if(i->get_state() == convoi_t::AWAITING_TRIGGER)
+				{
+					trigger = i->get_schedule()->get_current_entry().condition_bitfield_receiver & triggers;
+					if(i->get_schedule()->get_current_entry().condition_bitfield_receiver == triggers || i->get_schedule()->get_current_entry().condition_bitfield_receiver == trigger)
+					{
+						// This trigger would allow the convoy to depart
+						if(i->get_arrival_time() < earliest_arrival_time)
+						{
+							earliest_arrival_time = i->get_arrival_time();
+							cnv_to_trigger = i.get_rep();
+						}
+					}
+				}
+			}
+		}
+
+		if(cnv_to_trigger != NULL)
+		{
+			cnv_to_trigger->set_triggered_conditions(triggers);
+			return;
+		}
+
+		// Second, check again with partial triggering
+		for (auto const i : line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				if(i->get_state() == convoi_t::AWAITING_TRIGGER)
+				{
+					if(i->get_schedule()->get_current_entry().condition_bitfield_receiver & triggers)
+					{
+						// This trigger would not allow the convoy to depart alone, but might in combination with others.
+						if(i->get_arrival_time() < earliest_arrival_time)
+						{
+							earliest_arrival_time = i->get_arrival_time();
+							cnv_to_trigger = i.get_rep();
+						}
+					}
+				}
+			}
+		}
+
+		if(cnv_to_trigger != NULL)
+		{
+			cnv_to_trigger->set_triggered_conditions(triggers);
+			return;
+		}
+
+		// Third, just pick one at random.
+		for (auto const i : line_managed_convoys)
+		{
+			if (i.is_bound())
+			{
+				i->set_triggered_conditions(triggers);
+				return;
+			}
+		}
+	}
+}
+
 sint64 simline_t::get_stat_converted(int month, int cost_type) const
 {
 	sint64 value = financial_history[month][cost_type];
-	switch(cost_type) {
-		case LINE_REVENUE:
-		case LINE_OPERATIONS:
-		case LINE_PROFIT:
-		case LINE_WAYTOLL:
-			value = convert_money(value);
-			break;
-		default: ;
+	switch (cost_type) {
+	case LINE_REVENUE:
+	case LINE_OPERATIONS:
+	case LINE_PROFIT:
+	case LINE_WAYTOLL: // UI TODO: Check whether this should remain commented out
+		value = convert_money(value);
+		break;
+	default:;
 	}
 	return value;
 }

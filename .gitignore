@@ -29,6 +29,8 @@ simutrans/
 *.iobj
 *.ipdb
 *.TMP
+*.idb
+*.tlog
 settings-experimental-debug.xml
 settings-extended-debug.xml
 ipch
@@ -51,6 +53,7 @@ pak*
 PAK*
 settings.xml
 /simutrans-experimental
+/Debug-new
 /simutrans-extended
 /Debug-makeobj
 simutrans-experimental*

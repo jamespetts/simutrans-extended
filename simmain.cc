@@ -1298,6 +1298,12 @@ int simu_main(int argc, char** argv)
 
 	dbg->message("simu_main()","Reading private car ownership configuration ...");
 	karte_t::privatecar_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading staff salary configuration ...");
+	karte_t::staff_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading fuel cost configuration ...");
+	karte_t::fuel_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading prices/inflation configuration ...");
+	karte_t::prices_init(env_t::objfilename);
 
 #if COLOUR_DEPTH != 0
 	// reread theme

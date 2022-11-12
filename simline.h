@@ -314,6 +314,9 @@ public:
 
 	uint16 get_min_range() const;
 
+	// for UI purpose
+	uint16 get_min_top_speed_kmh() const;
+
 	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
 
 	void set_withdraw( bool yes_no );
@@ -351,6 +354,8 @@ public:
 	}
 
 	sint64 calc_departures_scheduled();
+
+	void propagate_triggers(uint16 triggers, bool trigger_one_only);
 };
 
 

@@ -26,7 +26,7 @@ void intr_refresh_display(bool dirty);
 
 void intr_set_view(main_view_t *view);
 
-void intr_set_last_time(sint32 time);
+void intr_set_last_time(sint64 time);
 
 
 void intr_enable();

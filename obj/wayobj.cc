@@ -549,7 +549,7 @@ bool wayobj_t::register_desc(way_obj_desc_t *desc)
 		delete old_desc;
 	}
 
-	if(  desc->get_cursor()->get_image_id(1)!=IMG_EMPTY  ) {
+	if(!desc->get_cursor() || desc->get_cursor()->get_image_id(1)!=IMG_EMPTY  ) {
 		// only add images for wayobjexts with cursor ...
 		tool_build_wayobj_t *tool = new tool_build_wayobj_t();
 		tool->set_icon( desc->get_cursor()->get_image_id(1) );

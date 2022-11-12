@@ -97,14 +97,15 @@ void interrupt_check(const char* caller_info)
 		return;
 	}
 
-	static uint32 last_ms = 0;
+	static sint64 last_ms = 0;
+
 	if(  !world()->is_fast_forward()  ||  world()->get_ticks() != last_ms  ) {
 		const uint32 now = dr_time();
-		if((now-last_time)*FRAME_TIME_MULTI < frame_time) {
+		if(((sint64)now-last_time)*(sint64)FRAME_TIME_MULTI < frame_time) {
 			return;
 		}
 
-		const sint32 diff = (( (sint32)now - (sint32)last_time)*world()->get_time_multiplier())/16;
+		const sint64 diff = (((sint64)now - last_time) * (sint64)world()->get_time_multiplier()) / 16ll;
 		if(  diff>0  ) {
 			enabled = false;
 			last_time = now;
@@ -124,7 +125,7 @@ void intr_set_view(main_view_t *view)
 	enabled = true;
 }
 
-void intr_set_last_time(sint32 time)
+void intr_set_last_time(sint64 time)
 {
 	last_time = time;
 }

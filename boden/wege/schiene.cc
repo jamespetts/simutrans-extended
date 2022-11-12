@@ -197,7 +197,6 @@ void schiene_t::rdwr(loadsave_t *file)
 		char bname[128];
 		file->rdwr_str(bname, lengthof(bname));
 
-#ifndef SPECIAL_RESCUE_12_3
 		const way_desc_t* loaded_replacement_way = NULL;
 		if(file->get_extended_version() >= 12)
 		{
@@ -205,7 +204,6 @@ void schiene_t::rdwr(loadsave_t *file)
 			file->rdwr_str(rbname, lengthof(rbname));
 			loaded_replacement_way = way_builder_t::get_desc(rbname);
 		}
-#endif
 
 		sint32 old_max_speed = get_max_speed();
 		uint32 old_max_axle_load = get_max_axle_load();
@@ -226,12 +224,10 @@ void schiene_t::rdwr(loadsave_t *file)
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);
-#ifndef SPECIAL_RESCUE_12_3
 		if(file->get_extended_version() >= 12)
 		{
 			replacement_way = loaded_replacement_way;
 		}
-#endif
 		if (old_max_speed > 0)
 		{
 			if (is_degraded() && old_max_speed == desc->get_topspeed())
@@ -250,6 +246,7 @@ void schiene_t::rdwr(loadsave_t *file)
 			{
 				set_max_speed(old_max_speed);
 			}
+
 		}
 //		DBG_MESSAGE("schiene_t::rdwr","track %s at (%i,%i) max_speed %i",bname,get_pos().get_str(), old_max_speed);
 		if(old_max_axle_load > 0)
@@ -262,11 +259,7 @@ void schiene_t::rdwr(loadsave_t *file)
 		}
 //		DBG_MESSAGE("schiene_t::rdwr","track %s at (%s) max_speed %i", bname, get_pos().get_str(), old_max_speed);
 	}
-#ifdef SPECIAL_RESCUE_12_6
-	if(file->is_saving() && file->get_extended_version() >= 12)
-#else
 	if(file->get_extended_version() >= 12)
-#endif
 	{
 		uint16 reserved_index = reserved.get_id();
 		if (file->is_saving())

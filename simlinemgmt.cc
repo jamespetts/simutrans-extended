@@ -89,7 +89,7 @@ void simlinemgmt_t::update_line(linehandle_t line, bool do_not_renew_stops)
 void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 {
 	xml_tag_t l( file, "simlinemgmt_t" );
-
+	DBG_MESSAGE("simlinemgmt_t::rdwr", "player=%s",player->get_name());
 	if(file->is_saving()) {
 		// on old versions
 		if(  file->is_version_less(101, 0)  ) {
@@ -101,7 +101,8 @@ void simlinemgmt_t::rdwr(loadsave_t *file, player_t *player)
 
 		uint32 count = all_managed_lines.get_count();
 		file->rdwr_long(count);
-		FOR(vector_tpl<linehandle_t>, const i, all_managed_lines) {
+		for (auto const i : all_managed_lines)
+		{
 			simline_t::linetype lt = i->get_linetype();
 			file->rdwr_enum(lt);
 			i->rdwr(file);
@@ -126,6 +127,7 @@ DBG_MESSAGE("simlinemgmt_t::rdwr()","number of lines=%i",totalLines);
 		for (int i = 0; i<totalLines; i++) {
 			simline_t::linetype lt=simline_t::line;
 			file->rdwr_enum(lt);
+		DBG_MESSAGE("simlinemgmt_t::rdwr","linetype=%s",simline_t::get_linetype_name(lt));
 
 			if(lt < simline_t::truckline  ||  lt > simline_t::narrowgaugeline) {
 					dbg->fatal( "simlinemgmt_t::rdwr()", "Cannot create default line!" );
@@ -180,7 +182,8 @@ void simlinemgmt_t::sort_lines()
 
 void simlinemgmt_t::finish_rd()
 {
-	FOR(vector_tpl<linehandle_t>, const i, all_managed_lines) {
+	for (auto const i : all_managed_lines)
+	{
 		i->finish_rd();
 	}
 	sort_lines();
@@ -189,7 +192,8 @@ void simlinemgmt_t::finish_rd()
 
 void simlinemgmt_t::rotate90( sint16 y_size )
 {
-	FOR(vector_tpl<linehandle_t>, const i, all_managed_lines) {
+	for (auto const i : all_managed_lines)
+	{
 		if (schedule_t* const schedule = i->get_schedule()) {
 			schedule->rotate90( y_size );
 		}
@@ -199,7 +203,8 @@ void simlinemgmt_t::rotate90( sint16 y_size )
 
 void simlinemgmt_t::new_month()
 {
-	FOR(vector_tpl<linehandle_t>, const i, all_managed_lines) {
+	for (auto const i : all_managed_lines)
+	{
 		i->new_month();
 	}
 }
@@ -232,7 +237,8 @@ linehandle_t simlinemgmt_t::create_line(int ltype, player_t * player, schedule_t
 void simlinemgmt_t::get_lines(int type, vector_tpl<linehandle_t>* lines, uint8 freight_type_bits, bool show_empty_line) const
 {
 	lines->clear();
-	FOR(vector_tpl<linehandle_t>, const line, all_managed_lines) {
+	for (auto const line : all_managed_lines)
+	{
 		if (type == simline_t::line || line->get_linetype() == simline_t::line || line->get_linetype() == type) {
 			if (!show_empty_line && !line->get_convoys().get_count()) {
 				continue;

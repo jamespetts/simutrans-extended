@@ -532,7 +532,6 @@ compass_map_position = 13
 #visualize_schedule = 1
 
 
-
 ############################### Further Display settings ###############################
 #These cannot be set in the Display settings UI, so simuconf is the only way to set these
 
@@ -709,6 +708,36 @@ beginner_price_factor = 1500
  # The number of months of maintainance that the make public tool costs to use
 cst_make_public_months = 60
 
+# Allows fuel units to be set in, for example, grammes whilst fuel costs are calibrated for, for example, tonnes.
+# Preserves accuracy without requiring very high absolute figures (only rounds down at the end of each trip).
+fuel_unit_cost_divider = 1000
+
+# This gives the number of percentage points above the base rate at which players are charged interest on overdrafts.
+# Default: 2%
+# The base rate is set in prices.tab.
+overdraft_percent_above_base_rate = 2
+
+# Insolvency settings
+#
+# These settings allow what happens when the player runs out of money and goes
+# into the red to be customised. 
+# 
+# "allow_bankruptcy" determines whether, when the player is deemed to have been
+# insolvent for more than a certain period, the player should be declared
+# bankrupt and the game over. 0 = no, 1 = yes.
+# 
+# "allow_purchases_when_insolvent" determines whether, if the player's bank
+# balance falls below the player's credit limit (shown in the finance window),
+# the player will be unable to spend any new money on capital items (excluding
+# bulldozing) until the player has come back within the credit limit again.
+# 0 = no, 1 = yes.
+#
+# To revert to the behaviour of Simutrans standard, set interest_rate_percent to
+# 0, set allow_bankruptsy to 1, and set allow_purchases_when_insolvent to 1.
+
+allow_bankruptcyallow_bankruptcy = 1
+allow_purchases_when_insolvent = 0	
+
 ################################### Miscellaneous settings ##################################
 #
 # also pak dependent
@@ -875,9 +904,24 @@ new_height_map_conversion = 0
 # does not affect public service provider player
 disable_make_way_public = 0
 
+# This determines whether vehicles need to visit depots periodically.
+# If enabled (1), the vehicles do not need to visit depots periodically.
+# This is enabled by default when loading older saved games in which
+# periodic depot vists were neither necessary nor possible, irrespective
+# of the setting here. This applies only to new games.
+simplified_maintenance = 0
+
 # This setting alters the revenue for electricity transmission.
 # The figure is a percentage of the default revenue. Default: 100.
 power_revenue_factor_percentage = 100
+
+# These settings govern the frequency with which vehicles that do not have a distance based
+# maintenance interval set in their individual .dat files must return to the depot for maintenance.
+# After maintenance_interval_months, the vehicle will return to the depot on its next scheduled
+# depot visit. After extended_maintenance_interval_months, the vehicle will return to the depot
+# after its next stop irrespective of its schedule.
+maintenance_interval_months = 12
+extended_maintenance_interval_months = 18
 
 ############################## Private car settings ##############################
 
@@ -969,6 +1013,7 @@ do_not_record_private_car_routes_to_distant_non_consumer_industries = 1
 do_not_record_private_car_routes_to_city_buildings = 1
 
 ############################### Landscape settings ###############################
+
 #  please be careful in changing them, I spent lot of time finding optimals.
 #  those values have impact on no. of spawned trees -> memory consumption
 #

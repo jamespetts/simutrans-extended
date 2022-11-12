@@ -553,7 +553,8 @@ void pumpe_t::new_world()
 
 void pumpe_t::step_all(uint32 delta_t)
 {
-	FOR(slist_tpl<pumpe_t*>, const p, pumpe_list) {
+	for(auto const p : pumpe_list)
+	{
 		p->step(delta_t);
 	}
 }
@@ -580,7 +581,7 @@ pumpe_t::pumpe_t(koord3d pos, player_t *player) :
 {
 	fab = NULL;
 	supply = 0;
-	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
+	player_t::book_construction_costs(player, welt->get_settings().get_cost_transformer(), get_pos().get_2d(), powerline_wt);
 }
 
 
@@ -591,7 +592,7 @@ pumpe_t::~pumpe_t()
 		fab = NULL;
 	}
 	pumpe_list.remove( this );
-	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 }
 
 void pumpe_t::step(uint32 delta_t)
@@ -628,7 +629,7 @@ void pumpe_t::step(uint32 delta_t)
 void pumpe_t::finish_rd()
 {
 	leitung_t::finish_rd();
-	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), -welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 
 	assert(get_net());
 
@@ -687,7 +688,8 @@ void senke_t::new_world()
 
 void senke_t::step_all(uint32 delta_t)
 {
-	FOR(slist_tpl<senke_t*>, const s, senke_list) {
+	for(auto const s : senke_list)
+	{
 		s->step(delta_t);
 	}
 }
@@ -732,7 +734,7 @@ senke_t::senke_t(koord3d pos, player_t *player, stadt_t* c) :
 	delta_t_sum = 0;
 	last_power_demand = 0;
 	power_load = 0;
-	player_t::book_construction_costs(player, welt->get_settings().cst_transformer, get_pos().get_2d(), powerline_wt);
+	player_t::book_construction_costs(player, welt->get_settings().get_cost_transformer(), get_pos().get_2d(), powerline_wt);
 
 	welt->sync.add(this);
 }
@@ -751,13 +753,13 @@ senke_t::~senke_t()
 		if(city && !welt->is_destroying())
 		{
 			city->remove_substation(this);
-			FOR(vector_tpl<fabrik_t*>, factory, city->get_city_factories())
+			for(auto const factory : city->get_city_factories())
 			{
 				factory->set_transformer_connected( NULL );
 			}
 		}
 	}
-	player_t::add_maintenance(get_owner(), welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 }
 
 void senke_t::step(uint32 delta_t)
@@ -798,7 +800,7 @@ void senke_t::step(uint32 delta_t)
 
 	if(city)
 	{
-		FOR(vector_tpl<fabrik_t*>, city_fab, city->get_city_factories())
+		for(auto city_fab : city->get_city_factories())
 		{
 			if(city_fab->get_desc()->is_electricity_producer())
 			{
@@ -824,7 +826,7 @@ void senke_t::step(uint32 delta_t)
 
 		uint64 supply;
 		vector_tpl<senke_t*> checked_substations;
-		FOR(vector_tpl<senke_t*>, substation, *city_substations)
+		for(auto substation : *city_substations)
 		{
 			// Must use two passes here: first, check all those that don't have enough to supply
 			// an equal share, then check those that do.
@@ -850,7 +852,7 @@ void senke_t::step(uint32 delta_t)
 
 		uint32 demand_distribution;
 		uint8 count = 0;
-		FOR(vector_tpl<senke_t*>, sub, *city_substations)
+		for(auto sub : *city_substations)
 		{
 			// Now check those that have more than enough power.
 
@@ -926,7 +928,7 @@ void senke_t::step(uint32 delta_t)
 	if(city)
 	{
 		// Everyone else splits power on a proportional basis -- brownouts!
-		FOR(vector_tpl<fabrik_t*>, factory, city->get_city_factories())
+		for(auto factory : city->get_city_factories())
 		{
 			//city_factories[i]->set_transformer_connected(this);
 			const uint32 current_factory_demand = (factory->step_power_demand() * load_proportion) / 100;
@@ -1062,7 +1064,7 @@ sync_result senke_t::sync_step(uint32 delta_t)
 void senke_t::finish_rd()
 {
 	leitung_t::finish_rd();
-	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
+	player_t::add_maintenance(get_owner(), -welt->get_settings().get_cost_maintain_transformer(), powerline_wt);
 
 	check_industry_connexion();
 #ifdef MULTI_THREAD

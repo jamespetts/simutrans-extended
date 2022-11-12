@@ -14,6 +14,7 @@
 #include "../simware.h"
 #include "../bauer/vehikelbauer.h"
 #include "../dataobj/schedule.h"
+#include "../utils/simrandom.h"
 
 
 // this routine is called by find_route, to determined if we reached a destination
@@ -1143,6 +1144,15 @@ void air_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	file->rdwr_long(search_for_stop);
 	file->rdwr_long(touchdown);
 	file->rdwr_long(takeoff);
+
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_long(number_of_takeoffs);
+	}
+	else
+	{
+		number_of_takeoffs = 0;
+	}
 	if (file->is_version_ex_atleast(14, 54))
 	{
 		file->rdwr_longlong(go_on_ticks);
@@ -1205,6 +1215,7 @@ void air_vehicle_t::hop(grund_t* gr)
 			) {
 				state = flying;
 				play_sound();
+				number_of_takeoffs ++;
 				new_friction = 1;
 				block_reserver( takeoff, takeoff+100, false );
 				calc_altitude_level( desc->get_topspeed() );
@@ -1371,12 +1382,12 @@ void air_vehicle_t::display_overlay(int xpos_org, int ypos_org) const
 		vehicle_t::display_overlay( xpos_org, ypos_org - tile_raster_scale_y( current_flughohe - get_hoff() - 2, raster_width ) );
 	}
 #endif
-	else if(  is_on_ground()  ) {
+	else if (is_on_ground()) {
 		// show loading tooltips on ground
 #ifdef MULTI_THREAD
-		vehicle_t::display_overlay( xpos_org, ypos_org );
+		vehicle_t::display_overlay(xpos_org, ypos_org);
 #else
-		vehicle_t::display_after( xpos_org, ypos_org, is_global );
+		vehicle_t::display_after(xpos_org, ypos_org, is_global);
 #endif
 	}
 }
@@ -1388,4 +1399,37 @@ const char *air_vehicle_t::is_deletable(const player_t *player)
 		return vehicle_t::is_deletable(player);
 	}
 	return NULL;
+}
+
+bool air_vehicle_t::is_overhaul_needed() const
+{
+	if (desc->get_max_takeoffs() > 0)
+	{
+		return number_of_takeoffs > desc->get_max_takeoffs() || vehicle_t::is_overhaul_needed();
+	}
+	return vehicle_t::is_overhaul_needed();
+}
+
+uint8 air_vehicle_t::get_availability() const
+{
+	if (desc->get_max_takeoffs() > 0)
+	{
+		const uint8 base_availability = desc->get_starting_availability();
+		if (number_of_takeoffs <= desc->get_availability_decay_start_takeoffs());
+		{
+			return base_availability;
+		}
+
+		const uint8 min_availability = desc->get_minimum_availability();
+
+		if (number_of_takeoffs >= desc->get_availability_decay_start_takeoffs())
+		{
+			return min_availability;
+		}
+
+		const uint64 availability_sigmoid = sigmoid(100000ll * (number_of_takeoffs - desc->get_availability_decay_start_takeoffs()), 100000ll * desc->get_availability_decay_start_takeoffs());
+		const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+		return base_availability - (uint8)availability_loss;
+	}
+	return vehicle_t::get_availability();
 }

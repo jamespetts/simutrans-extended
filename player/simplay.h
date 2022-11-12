@@ -18,6 +18,7 @@
 
 #include "../tpl/slist_tpl.h"
 #include "../tpl/vector_tpl.h"
+#include "../tpl/inthashtable_tpl.h"
 
 #include "../simworld.h"
 
@@ -151,6 +152,12 @@ protected:
 	/// this evaluates to true.
 	bool allow_voluntary_takeover;
 
+	/// Staff costs accrued this month per player.
+	/// Key: pay grade
+	/// Value: ticks of time employed
+	typedef inthashtable_tpl<uint8, sint64, N_BAGS_SMALL> staff_map_player;
+	staff_map_player staff_costs_this_month;
+
 public:
 	/**
 	 * Sums up "count" with number of convois in statistics,
@@ -184,6 +191,11 @@ public:
 	 *  2 ... good (and powerlines revenue)
 	 */
 	void book_revenue(const sint64 amount, const koord k, const waytype_t wt=ignore_wt, sint32 cathegory=2);
+
+	/**
+	* Adds tax to accounting statistics.
+	*/
+	void book_tax(const sint64 amount);
 
 	/**
 	 * Adds running costs to accounting statistics.

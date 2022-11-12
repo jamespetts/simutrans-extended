@@ -25,6 +25,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/wege/strasse.cc
 	boden/wege/weg.cc
 	convoy.cc
+	dataobj/consist_order_t.cc
 	dataobj/crossing_logic.cc
 	dataobj/environment.cc
 	dataobj/freelist.cc
@@ -140,6 +141,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
+	gui/consist_order_gui.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc
 	gui/convoi_frame.cc

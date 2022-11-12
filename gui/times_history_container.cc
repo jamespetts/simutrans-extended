@@ -264,7 +264,7 @@ void gui_times_history_t::build_table()
 				}
 				end_table();
 				add_table(2,1)->set_alignment(ALIGN_RIGHT); {
-					new_component<gui_image_t>()->set_image(entry.wait_for_time && skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
+					new_component<gui_image_t>()->set_image(entry.is_flag_set(schedule_entry_t::wait_for_time) && skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
 					new_component<gui_image_t>()->set_image(entry.minimum_loading>0 ? skinverwaltung_t::goods->get_image_id(0) : IMG_EMPTY, true);
 				}
 				end_table();
