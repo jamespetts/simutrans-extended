@@ -59,6 +59,8 @@ const char *vehicle_builder_t::vehicle_sort_by[vehicle_builder_t::sb_length] =
 	"Intro. date:",
 	"Retire. date:",
 	"Comfort"
+	//,"hd_category"
+	//,"engine_type"
 	//,"role"
 };
 
@@ -230,10 +232,6 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 {
 	int cmp = 0;
 	switch(mode) {
-		//case sb_freight:
-		//	cmp = compare_freight(a, b);
-		//	if (cmp != 0) return cmp < 0;
-		//	break;
 		case sb_name:
 			cmp = strcmp(translator::translate(a->get_name()), translator::translate(b->get_name()));
 			if (cmp != 0) return cmp < 0;
@@ -268,6 +266,10 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
+		case sb_enigine_type:
+			cmp = (int)a->get_engine_type() - (int)b->get_engine_type();
+			if (cmp != 0) return cmp < 0;
+			/* FALLTHROUGH */
 		case sb_role:
 			cmp = a->get_basic_constraint_prev() - b->get_basic_constraint_prev();
 			if (cmp != 0) return cmp < 0;
@@ -301,6 +303,10 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
+		case sb_freight:
+			cmp = compare_freight(a, b);
+			if (cmp != 0) return cmp < 0;
+		/* FALLTHROUGH */
 		case sb_capacity:
 			cmp = a->get_total_capacity() - b->get_total_capacity();
 			if (cmp == 0) {

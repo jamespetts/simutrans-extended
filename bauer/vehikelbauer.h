@@ -44,6 +44,8 @@ public:
 		sb_min_comfort,
 		sb_length, // MAX for depot
 		// -- Below are vehicle list only --
+		sb_freight,
+		sb_enigine_type,
 		sb_role
 	};
 	static const char *vehicle_sort_by[sb_length];
