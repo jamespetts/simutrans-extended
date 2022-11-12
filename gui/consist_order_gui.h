@@ -237,7 +237,7 @@ public:
 
 	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
 
-	// chenge editor tab and set the description data 
+	// chenge editor tab and set the description data
 	void open_description_editor(uint8 vdesc_index);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
