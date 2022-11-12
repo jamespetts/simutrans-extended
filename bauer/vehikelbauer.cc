@@ -59,6 +59,7 @@ const char *vehicle_builder_t::vehicle_sort_by[vehicle_builder_t::sb_length] =
 	"Intro. date:",
 	"Retire. date:",
 	"Comfort"
+	//,"role"
 };
 
 static stringhashtable_tpl< vehicle_desc_t*, N_BAGS_SMALL> name_fahrzeuge;
@@ -267,6 +268,14 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
+		case sb_role:
+			cmp = a->get_basic_constraint_prev() - b->get_basic_constraint_prev();
+			if (cmp != 0) return cmp < 0;
+			cmp = a->get_basic_constraint_next() - b->get_basic_constraint_next();
+			if (cmp != 0) return cmp < 0;
+			cmp = a->is_bidirectional() - b->is_bidirectional();
+			if (cmp != 0) return cmp < 0;
+			/* FALLTHROUGH */
 		case sb_power:
 			cmp = compare_power(a, b);
 			if (cmp != 0) return cmp < 0;

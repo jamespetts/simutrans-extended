@@ -42,7 +42,9 @@ public:
 		sb_intro_date,
 		sb_retire_date,
 		sb_min_comfort,
-		sb_length // MAX
+		sb_length, // MAX for depot
+		// -- Below are vehicle list only --
+		sb_role
 	};
 	static const char *vehicle_sort_by[sb_length];
 
