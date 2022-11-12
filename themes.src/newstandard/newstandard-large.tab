@@ -143,6 +143,7 @@ gui_color_table_background_left_col = #cedbe7
 gui_color_table_background_data_sum = #c6d3de
 gui_color_table_background_data     = #bdcbd6
 gui_color_table_background          = #adbac6
+gui_color_table_background_highlight= #DEE5AD
 gui_color_text_head_row             = #ffffff
 gui_color_text_left_col             = #000000
 
