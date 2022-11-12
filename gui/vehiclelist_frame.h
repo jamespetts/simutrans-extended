@@ -67,8 +67,8 @@ public:
 
 	char const* get_text() const OVERRIDE;
 	scr_size get_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
-	scr_size get_min_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
-	scr_size get_max_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
+	scr_size get_min_size() const OVERRIDE { return get_size(); };
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 
 	static bool compare(const gui_component_t *a, const gui_component_t *b );
 
