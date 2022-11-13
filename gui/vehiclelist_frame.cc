@@ -5,6 +5,7 @@
 
 #include "gui_theme.h"
 #include "vehiclelist_frame.h"
+#include "vehicle_detail.h"
 
 #include "../bauer/goods_manager.h"
 #include "../bauer/vehikelbauer.h"
@@ -280,6 +281,22 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		offset.x += vehiclelist_frame_t::cell_width[col];
 	}
 }
+
+
+bool vehiclelist_stats_t::infowin_event(const event_t *ev)
+{
+	if(  IS_LEFTRELEASE(ev)  &&  getroffen(ev->mx+pos.x, ev->my+pos.y) ) {
+		vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
+		if (!win) {
+			create_win(new vehicle_detail_t(veh), w_info, magic_vehicle_detail);
+		}
+		else {
+			win->set_vehicle(veh);
+		}
+	}
+	return false;
+}
+
 
 const char *vehiclelist_stats_t::get_text() const
 {

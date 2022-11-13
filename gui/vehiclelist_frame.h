@@ -107,6 +107,8 @@ public:
 
 	static bool compare(const gui_component_t *a, const gui_component_t *b );
 
+	bool infowin_event(event_t const *ev) OVERRIDE;
+
 	void draw( scr_coord offset ) OVERRIDE;
 };
 
