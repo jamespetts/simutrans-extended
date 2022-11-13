@@ -6600,3 +6600,7 @@ do_not_auto_upgrade
 Do not auto upgrade
 Select a target order!
 Select a target order first
+desc_editor
+Vehicle rules
+show_only_appendable
+Hide incompatible vehicles
