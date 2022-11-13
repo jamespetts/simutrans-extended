@@ -533,6 +533,16 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 	return upgrade_state;
 }
 
+bool vehicle_desc_t::has_upgrade_to(const vehicle_desc_t *v) const
+{
+	for (uint8 i = 0; i < upgrades; i++) {
+		if (v == get_child<vehicle_desc_t>(get_add_to_node() + trailer_count + leader_count + i)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 uint8 vehicle_desc_t::get_min_accommodation_class() const
 {
 	const uint8 actual_number_of_classes = get_freight_type()->get_number_of_classes();

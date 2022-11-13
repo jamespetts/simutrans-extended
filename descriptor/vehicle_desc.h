@@ -719,6 +719,9 @@ public:
 	// 1 = near future, 2 = already available
 	uint8 has_available_upgrade(const uint16 month_now) const;
 
+	// Returns whether upgrades are available for the passed vehicle
+	bool has_upgrade_to(const vehicle_desc_t *v) const;
+
 	bool can_follow_any() const { return trailer_count==0; }
 
 	uint8 get_number_of_classes() const { return classes; }
