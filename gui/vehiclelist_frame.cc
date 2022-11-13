@@ -98,7 +98,13 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	offset.x += D_H_SPACE;
 	const int text_offset_y = (height-1-LINEASCENT)>>1;
 
+	vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
+	bool selected = win ? (win->get_vehicle()==veh) : false;
+
 	if (vehiclelist_frame_t::side_view_mode) {
+		if( selected ) {
+			display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, SYSCOL_TR_BACKGROUND_SELECTED, false);
+		}
 		// show side view image
 		scr_coord_val x, y, w, h;
 		const image_id image = veh->get_image_id( ribi_t::dir_southwest, veh->get_freight_type() );
@@ -120,7 +126,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		else if (veh->is_retired(month)) {
 			name_colval = SYSCOL_OUT_OF_PRODUCTION;
 		}
-		display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, SYSCOL_TH_BACKGROUND_LEFT, false);
+		display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, selected ? SYSCOL_TR_BACKGROUND_SELECTED:SYSCOL_TH_BACKGROUND_LEFT, false);
 		display_proportional_rgb(
 			offset.x, offset.y + text_offset_y,
 			translator::translate( veh->get_name(), world()->get_settings().get_name_language_id() ),
@@ -132,7 +138,9 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 	offset.x += MAX_IMG_WIDTH;
 	for (uint8 col = 1; col<vehiclelist_frame_t::VL_MAX_SPECS; col++) {
-		const PIXVAL bg_color = ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&(1<<0)) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&(1<<1))) ? SYSCOL_TD_HIGHLIGHT : SYSCOL_TD_BACKGROUND;
+		const PIXVAL bg_color = selected ? SYSCOL_TR_BACKGROUND_SELECTED
+			: ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&(1<<0)) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&(1<<1))) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
+			: SYSCOL_TD_BACKGROUND;
 		PIXVAL text_color = SYSCOL_TEXT;
 		display_fillbox_wh_clip_rgb( offset.x, offset.y, vehiclelist_frame_t::cell_width[col]-1, height-1, bg_color, false );
 

@@ -28,6 +28,8 @@ public:
 
 	void set_vehicle(const vehicle_desc_t *v) { veh = v; init_table(); }
 
+	const vehicle_desc_t* get_vehicle() { return veh; }
+
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;

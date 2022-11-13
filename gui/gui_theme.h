@@ -313,6 +313,7 @@ public:
 	static PIXVAL gui_color_table_background_data_sum; //@< Color to draw background of data cell for sum (bottom/right)
 	static PIXVAL gui_color_table_background_data;     //@< Color to draw background of normal data cell
 	static PIXVAL gui_color_table_background_highlight; //@< Color to draw background of highlighted cell
+	static PIXVAL gui_color_table_background_selected;  //@< Color to draw background of selected row
 	static PIXVAL gui_color_text_head_row;             //@< Color to draw on header cell at top
 	static PIXVAL gui_color_text_head_selected;        //@< Color to draw on header cell at top (selected)
 	static PIXVAL gui_color_text_left_col;             //@< Color to draw on header cell at left
