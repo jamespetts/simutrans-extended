@@ -86,6 +86,13 @@ protected:
 	 */
 	using gui_component_t::init;
 
+	/**
+	 * The displayed text of the button
+	 * direct access provided to avoid translations
+	 */
+	const char *text;
+	const char *translated_text;
+
 private:
 	/**
 	 * Tooltip for this button
@@ -99,13 +106,6 @@ private:
 	 */
 	uint8 b_enabled:1;
 	uint8 b_no_translate:1;
-
-	/**
-	 * The displayed text of the button
-	 * direct access provided to avoid translations
-	 */
-	const char *text;
-	const char *translated_text;
 
 	union {
 		koord3d targetpos;
@@ -145,7 +145,7 @@ public:
 	/**
 	 * Set the displayed text of the button
 	 */
-	void set_text(const char * text);
+	virtual void set_text(const char * text);
 
 	/**
 	 * Set position for posbuttons, will be returned on calling listener
