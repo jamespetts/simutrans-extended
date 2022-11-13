@@ -286,38 +286,6 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 
 					// Capacity information:
 					new_component<gui_vehicle_capacity_t>(veh_type);
-					new_component<gui_margin_t>(1,D_V_SPACE);
-
-					// Loading time is only relevant if there is something to load.
-					if( veh_type->get_max_loading_time() ) {
-						add_table(2,0)->set_spacing(scr_size(D_H_SPACE,1));
-						{
-							char min_loading_time_as_clock[32];
-							char max_loading_time_as_clock[32];
-							world()->sprintf_ticks(min_loading_time_as_clock, sizeof(min_loading_time_as_clock), veh_type->get_min_loading_time());
-							world()->sprintf_ticks(max_loading_time_as_clock, sizeof(max_loading_time_as_clock), veh_type->get_max_loading_time());
-							new_component<gui_label_t>("Loading time:");
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-							lb->buf().printf("%s - %s", min_loading_time_as_clock, max_loading_time_as_clock);
-							lb->update();
-							new_component<gui_margin_t>(1, D_V_SPACE);
-						}
-						end_table();
-					}
-
-					// catering
-					if (veh_type->get_catering_level() > 0) {
-						if (veh_type->get_freight_type() == goods_manager_t::mail) {
-							//Catering vehicles that carry mail are treated as TPOs.
-							new_component<gui_label_t>("This is a travelling post office");
-						}
-						else {
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-							lb->buf().printf(translator::translate("Catering level: %i"), veh_type->get_catering_level());
-							lb->update();
-						}
-						new_component<gui_margin_t>(1, D_V_SPACE);
-					}
 
 					add_table(2,0)->set_spacing(scr_size(D_H_SPACE, 1));
 					{
