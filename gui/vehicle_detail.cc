@@ -106,7 +106,7 @@ gui_vehicle_capacity_t::gui_vehicle_capacity_t(const vehicle_desc_t *veh_type)
 vehicle_detail_t::vehicle_detail_t(const vehicle_desc_t *v) :
 	gui_frame_t("")
 {
-	veh = v;
+	veh_type = v;
 
 	gui_frame_t::set_name("vehicle_details");
 	init_table();
@@ -115,13 +115,18 @@ vehicle_detail_t::vehicle_detail_t(const vehicle_desc_t *v) :
 
 void vehicle_detail_t::init_table()
 {
-	if (veh == NULL) {
+	if (veh_type == NULL) {
 		destroy_win(this);
 	}
 	remove_all();
 	set_table_layout(1,0);
-	new_component<gui_label_t>(veh->get_name());
-	new_component<gui_image_t>(veh->get_image_id(ribi_t::dir_south, veh->get_freight_type()), 0, ALIGN_NONE, true);
+	new_component<gui_label_t>(veh_type->get_name());
+	add_table(2,1)->set_alignment(ALIGN_TOP);
+	{
+		new_component<gui_image_t>(veh_type->get_image_id(ribi_t::dir_south, veh_type->get_freight_type()), 0, ALIGN_NONE, true);
+		// capacity
+		new_component<gui_vehicle_capacity_t>(veh_type);
+	}
 	reset_min_windowsize();
 }
 

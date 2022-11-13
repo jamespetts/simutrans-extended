@@ -27,14 +27,14 @@ public:
 class vehicle_detail_t : public gui_frame_t, private action_listener_t
 {
 private:
-	const vehicle_desc_t *veh;
+	const vehicle_desc_t *veh_type;
 
 	void init_table();
 
 public:
 	vehicle_detail_t(const vehicle_desc_t *v);
 
-	const vehicle_desc_t* get_vehicle() { return veh; }
+	const vehicle_desc_t* get_vehicle() { return veh_type; }
 
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }
 
