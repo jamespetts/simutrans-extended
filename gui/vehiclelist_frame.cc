@@ -5,7 +5,6 @@
 
 #include "gui_theme.h"
 #include "vehiclelist_frame.h"
-#include "components/gui_table.h"
 
 #include "../bauer/goods_manager.h"
 #include "../bauer/vehikelbauer.h"
@@ -119,7 +118,8 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		else if (veh->is_retired(month)) {
 			name_colval = SYSCOL_OUT_OF_PRODUCTION;
 		}
-		int dx = display_proportional_rgb(
+		display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, SYSCOL_TH_BACKGROUND_LEFT, false);
+		display_proportional_rgb(
 			offset.x, offset.y + text_offset_y,
 			translator::translate( veh->get_name(), world()->get_settings().get_name_language_id() ),
 			ALIGN_LEFT|DT_CLIP,
@@ -302,7 +302,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 
 	// init table sort buttons
 	for (uint8 i=0; i<VL_MAX_SPECS; ++i) {
-		bt_table_sort[i].init(button_t::roundbox_middle_state, translator::translate(vl_header_text[i]));
+		bt_table_sort[i].set_text(translator::translate(vl_header_text[i]));
 		bt_table_sort[i].add_listener(this);
 	}
 
@@ -489,12 +489,22 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 	else {
 		for( uint8 i=0; i<VL_MAX_SPECS; ++i ) {
 			if (comp == &bt_table_sort[i]) {
+				bt_table_sort[i].pressed = true;
 				if (vehiclelist_stats_t::sort_mode == col_to_sort_mode[i]) {
 					vehiclelist_stats_t::reverse = !vehiclelist_stats_t::reverse;
+					bt_table_sort[i].set_reverse(vehiclelist_stats_t::reverse);
 					scrolly.sort(0);
+				}
+				else {
+					vehiclelist_stats_t::reverse = false;
+					bt_table_sort[i].set_reverse();
 				}
 				vehiclelist_stats_t::sort_mode = col_to_sort_mode[i];
 				fill_list();
+			}
+			else {
+				bt_table_sort[i].set_reverse();
+				bt_table_sort[i].pressed = false;
 			}
 		}
 	}

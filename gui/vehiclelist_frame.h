@@ -15,6 +15,7 @@
 #include "components/gui_label.h"
 #include "components/gui_image.h"
 #include "components/gui_waytype_tab_panel.h"
+#include "components/gui_table.h"
 
 class vehicle_desc_t;
 class goods_desc_t;
@@ -64,7 +65,7 @@ private:
 	uint32 count;
 
 	button_t bt_show_name, bt_show_side_view;
-	button_t bt_table_sort[VL_MAX_SPECS];
+	table_sort_button_t bt_table_sort[VL_MAX_SPECS];
 
 public:
 	vehiclelist_frame_t();
