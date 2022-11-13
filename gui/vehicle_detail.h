@@ -34,6 +34,7 @@ private:
 public:
 	vehicle_detail_t(const vehicle_desc_t *v);
 
+	void set_vehicle(const vehicle_desc_t *v) { veh_type = v; init_table(); }
 	const vehicle_desc_t* get_vehicle() { return veh_type; }
 
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }

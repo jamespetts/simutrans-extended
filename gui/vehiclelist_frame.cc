@@ -299,10 +299,8 @@ bool vehiclelist_stats_t::infowin_event(const event_t *ev)
 			create_win(new vehicle_detail_t(veh), w_info, magic_vehicle_detail);
 		}
 		else {
-			// Re-open window to bring it to the forefront. Otherwise this window is forefront...
-			scr_coord tmp_pos = win_get_pos(win);
-			destroy_win(win);
-			create_win(tmp_pos.x, tmp_pos.y, new vehicle_detail_t(veh), w_info, magic_vehicle_detail);
+			win->set_vehicle(veh);
+			top_win(win, false);
 		}
 	}
 	return false;
