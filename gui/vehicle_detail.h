@@ -16,6 +16,14 @@
 class vehicle_desc_t;
 
 
+// draw vehicle capacity table
+class gui_vehicle_capacity_t : public gui_aligned_container_t
+{
+public:
+	gui_vehicle_capacity_t(const vehicle_desc_t *veh_type);
+};
+
+
 class vehicle_detail_t : public gui_frame_t, private action_listener_t
 {
 private:
