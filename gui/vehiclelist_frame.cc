@@ -29,6 +29,7 @@ bool vehiclelist_stats_t::reverse = false;
 
 uint8 vehiclelist_frame_t::filter_flag=0;
 bool vehiclelist_frame_t::side_view_mode = true;
+char vehiclelist_frame_t::name_filter[256] = "";
 
 int vehiclelist_frame_t::cell_width[vehiclelist_frame_t::VL_MAX_SPECS] = {};
 #define MAX_IMG_WIDTH vehiclelist_frame_t::cell_width[vehiclelist_frame_t::VL_IMAGE]
@@ -296,6 +297,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	scrolly(gui_scrolled_list_t::windowskin, vehiclelist_stats_t::compare),
 	scrollx_tab(&cont_list_table,true,false)
 {
+	last_name_filter[0] = 0;
 	scrolly.set_cmp( vehiclelist_stats_t::compare );
 	// Scrolling in x direction should not be possible due to fixed header
 	scrolly.set_show_scroll_x(false);
@@ -339,10 +341,20 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 
 	set_table_layout(1,0);
 
-	add_table(3,1);
+	add_table(5,1);
 	{
-		// TODO: add search box
-		new_component<gui_label_t>("Filter:");
+		if( skinverwaltung_t::search ) {
+			new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+		}
+		else {
+			new_component<gui_label_t>("Filter:");
+		}
+
+		name_filter_input.set_text(name_filter, lengthof(name_filter));
+		name_filter_input.set_search_box(true);
+		add_component(&name_filter_input);
+		name_filter_input.add_listener(this);
+		new_component<gui_margin_t>(D_H_SPACE);
 
 		engine_filter.clear_elements();
 		engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All traction types"), SYSCOL_TEXT);
@@ -432,6 +444,15 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 }
 
 
+void vehiclelist_frame_t::draw(scr_coord pos, scr_size size)
+{
+	if( strcmp(last_name_filter, name_filter) ) {
+		fill_list();
+	}
+	gui_frame_t::draw(pos, size);
+}
+
+
 /**
  * This method is called if an action is triggered
  */
@@ -515,6 +536,7 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 void vehiclelist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
+	strcpy(last_name_filter, name_filter);
 	count = 0;
 	MAX_IMG_WIDTH = 32; // reset col1 width
 	uint32 month = world()->get_current_month();
@@ -538,6 +560,11 @@ void vehiclelist_frame_t::fill_list()
 							continue;
 						}
 						break;
+				}
+
+				// name filter
+				if( last_name_filter[0]!=0 && !utf8caseutf8( veh->get_name(),name_filter )  &&  !utf8caseutf8(translator::translate(veh->get_name()), name_filter) ) {
+					continue;
 				}
 
 				// timeline status filter
@@ -585,6 +612,11 @@ void vehiclelist_frame_t::fill_list()
 						continue;
 					}
 					break;
+			}
+
+			// name filter
+			if( last_name_filter[0]!=0 && !utf8caseutf8( veh->get_name(),name_filter )  &&  !utf8caseutf8(translator::translate(veh->get_name()), name_filter) ) {
+				continue;
 			}
 
 			// timeline status filter

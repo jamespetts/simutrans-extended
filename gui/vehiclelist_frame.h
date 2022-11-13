@@ -67,12 +67,18 @@ private:
 	button_t bt_show_name, bt_show_side_view;
 	table_sort_button_t bt_table_sort[VL_MAX_SPECS];
 
+	static char name_filter[256];
+	char last_name_filter[256];
+	gui_textinput_t name_filter_input;
+
 public:
 	vehiclelist_frame_t();
 
 	const char *get_help_filename() const OVERRIDE {return "vehiclelist.txt"; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	void rdwr(loadsave_t* file) OVERRIDE;
 
