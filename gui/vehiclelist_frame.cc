@@ -394,6 +394,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 			engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::engine_type_names[(vehicle_desc_t::engine_t)i]), SYSCOL_TEXT);
 		}
 		engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Trailers"), SYSCOL_TEXT);
+		filter_flag = 0;
 		engine_filter.set_selection( 0 );
 		engine_filter.add_listener( this );
 		add_component( &engine_filter );
@@ -491,21 +492,9 @@ void vehiclelist_frame_t::draw(scr_coord pos, scr_size size)
 bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 {
 	if( comp==&engine_filter ) {
-		if( engine_filter.get_selection()==0 ) {
-			vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FUEL;
-		}
-		else {
-			vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FUEL;
-		}
 		fill_list();
 	}
 	else if(comp == &ware_filter) {
-		if( ware_filter.get_selection()==0 ) {
-			vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FREIGHT;
-		}
-		else {
-			vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FREIGHT;
-		}
 		fill_list();
 	}
 	else if(comp == &bt_obsolete) {
@@ -567,6 +556,19 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 
 void vehiclelist_frame_t::fill_list()
 {
+	if( engine_filter.get_selection()==0 ) {
+		vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FUEL;
+	}
+	else {
+		vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FUEL;
+	}
+	if( ware_filter.get_selection()==0 ) {
+		vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FREIGHT;
+	}
+	else {
+		vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FREIGHT;
+	}
+
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
 	count = 0;
