@@ -752,6 +752,18 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 			(int)i.max_speed_kmh
 		);
 	}
+
+	// Next, write the consist orders, if any
+
+	// First, check the number
+	// FIXME: This causes incomprehensible corruption of the schedule data in some cases but not others.
+	//buf.printf("!%i", orders.get_count());
+
+	for (auto& order : orders)
+	{
+		buf.printf(",%i", order.key);
+		order.value.sprintf_consist_order(buf); 
+	}
 }
 
 
@@ -808,26 +820,70 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 	}
 	p++;
 	const uint32 number_of_data_per_entry = 14 + 2; // +2 is necessary as a koord3d takes 3 values
+	bool entries_read = false;
+	bool consist_order_count_read = false;
 	// now scan the entries
-	while(  *p>0  ) {
-		sint32 values[number_of_data_per_entry];
-		for(  sint8 i=0;  i<number_of_data_per_entry;  i++  ) {
-			values[i] = atoi( p );
-			while(  *p  &&  (*p!=','  &&  *p!='|')  ) {
+	while (*p > 0)
+	{
+		if (!entries_read) // Entry phase
+		{
+			sint32 values[number_of_data_per_entry];
+			for (sint8 i = 0; i < number_of_data_per_entry; i++)
+			{
+				values[i] = atoi(p);
+				while (*p && (*p != ',' && *p != '|' && *p != '!'))
+				{
+					p++;
+				}
+				if (i < number_of_data_per_entry - 1 && *p != ',')
+				{
+					if (*p == '!')
+					{
+						// We have reached the end of the entries - now it is time to read the consist orders.
+						entries_read = true;
+						p++;
+						break;
+					}
+					else
+					{
+						dbg->error("schedule_t::sscanf_schedule()", "incomplete string!");
+						return false;
+					}
+				}
+				if (i == number_of_data_per_entry - 1 && *p != '|')
+				{
+					dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
+					return false;
+				}
 				p++;
 			}
-			if(  i<number_of_data_per_entry - 1  &&  *p!=','  ) {
-				dbg->error( "schedule_t::sscanf_schedule()","incomplete string!" );
-				return false;
-			}
-			if(  i==number_of_data_per_entry - 1  &&  *p!='|'  ) {
-				dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
-				return false;
-			}
-			p++;
+			// ok, now we have a complete entry
+			entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
 		}
-		// ok, now we have a complete entry
-		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
+		else // Consist order phase
+		{
+			while (*p && (*p != ',' && *p != '|'))
+			{
+				p++;
+			}
+
+			uint32 consist_order_count = 0;
+			if (consist_order_count_read == false)
+			{
+				consist_order_count = atoi(p);
+				p++;
+				consist_order_count_read = true;
+			}
+
+			for (uint32 i = 0; i < consist_order_count; i++)
+			{
+				const uint32 index = *p + i;
+				consist_order_t order;
+				order.sscanf_consist_order(p + i);
+				orders.put(index, order); 
+			}
+			break;
+		}
 	}
 	return true;
 }
