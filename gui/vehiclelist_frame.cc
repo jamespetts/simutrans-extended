@@ -139,7 +139,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	offset.x += MAX_IMG_WIDTH;
 	for (uint8 col = 1; col<vehiclelist_frame_t::VL_MAX_SPECS; col++) {
 		const PIXVAL bg_color = selected ? SYSCOL_TR_BACKGROUND_SELECTED
-			: ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&(1<<0)) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&(1<<1))) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
+			: ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FUEL) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FREIGHT)) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
 			: SYSCOL_TD_BACKGROUND;
 		PIXVAL text_color = SYSCOL_TEXT;
 		display_fillbox_wh_clip_rgb( offset.x, offset.y, vehiclelist_frame_t::cell_width[col]-1, height-1, bg_color, false );
@@ -492,19 +492,19 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 {
 	if( comp==&engine_filter ) {
 		if( engine_filter.get_selection()==0 ) {
-			vehiclelist_frame_t::filter_flag &= ~(1<<0);
+			vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FUEL;
 		}
 		else {
-			vehiclelist_frame_t::filter_flag |= (1<<0);
+			vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FUEL;
 		}
 		fill_list();
 	}
 	else if(comp == &ware_filter) {
 		if( ware_filter.get_selection()==0 ) {
-			vehiclelist_frame_t::filter_flag &= ~(1<<1);
+			vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FREIGHT;
 		}
 		else {
-			vehiclelist_frame_t::filter_flag |= (1<<1);
+			vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FREIGHT;
 		}
 		fill_list();
 	}

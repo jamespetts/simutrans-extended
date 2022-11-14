@@ -44,6 +44,11 @@ public:
 	static int stats_width;
 
 	// 1=fuel filer on, 2=freight type fiter on
+	enum {
+		VL_NO_FILTER      = 0,
+		VL_FILTER_FUEL    = 1<<0,
+		VL_FILTER_FREIGHT = 1<<1
+	};
 	static uint8 filter_flag;
 
 	// false=show name, true=show side view
