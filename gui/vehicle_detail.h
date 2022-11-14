@@ -9,6 +9,7 @@
 
 #include "simwin.h"
 #include "gui_frame.h"
+#include "components/gui_button.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
 #include "components/gui_image.h"
@@ -46,6 +47,8 @@ private:
 
 	gui_tab_panel_t tabs;
 
+	button_t bt_prev, bt_next;
+
 	gui_aligned_container_t cont_spec, cont_maintenance, cont_upgrade, cont_livery;
 	gui_scrollpane_t scroll_livery, scroll_upgrade;
 
@@ -64,7 +67,7 @@ public:
 
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }
 
-	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 };

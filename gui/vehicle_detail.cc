@@ -240,7 +240,7 @@ void vehicle_detail_t::init_table()
 	add_table(2,1)->set_alignment(ALIGN_TOP);
 	{
 
-		add_table(1,2)->set_alignment(ALIGN_TOP);
+		add_table(1,3)->set_alignment(ALIGN_TOP|ALIGN_CENTER_H);
 		{
 			new_component<gui_image_t>(veh_type->get_image_id(ribi_t::dir_south, veh_type->get_freight_type()), 0, ALIGN_NONE, true);
 			month_now = world()->get_timeline_year_month();
@@ -254,6 +254,39 @@ void vehicle_detail_t::init_table()
 			else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 			else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
 			new_component<gui_vehicle_bar_t>(col_val)->set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
+
+			gui_aligned_container_t *tbl = add_table(2,1);
+			tbl->set_spacing(scr_size(0,0));
+			tbl->set_force_equal_columns(true);
+			tbl->set_alignment(ALIGN_CENTER_H|ALIGN_CENTER_V);
+			{
+				bt_prev.init(button_t::roundbox_left, "<");
+				bt_next.init(button_t::roundbox_right, ">");
+				// front side constraint
+				if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::unconnectable) {
+					tbl->new_component<gui_label_t>(" - ", COL_DANGER)->set_fixed_width(bt_prev.get_min_size().w);
+				}
+				else if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::intermediate_unique) {
+					bt_prev.add_listener(this);
+					tbl->add_component(&bt_prev);
+				}
+				else {
+					tbl->new_component<gui_empty_t>();
+				}
+
+				// rear side constraint
+				if (veh_type->get_basic_constraint_next()&vehicle_desc_t::unconnectable) {
+					tbl->new_component<gui_label_t>(" - ", COL_DANGER)->set_fixed_width(bt_prev.get_min_size().w);
+				}
+				else if (veh_type->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+					bt_next.add_listener(this);
+					tbl->add_component(&bt_next);
+				}
+				else {
+					tbl->new_component<gui_empty_t>();
+				}
+			}
+			end_table();
 		}
 		end_table();
 		// capacity, loading time, catering
@@ -505,7 +538,13 @@ void vehicle_detail_t::draw(scr_coord pos, scr_size size)
 	gui_frame_t::draw(pos, size);
 }
 
-bool vehicle_detail_t::action_triggered(gui_action_creator_t*, value_t)
+bool vehicle_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
+	if( comp==&bt_prev  &&  veh_type->get_leader_count() ) {
+		set_vehicle(veh_type->get_leader(0));
+	}
+	if( comp==&bt_next  &&  veh_type->get_trailer_count()  ) {
+		set_vehicle(veh_type->get_trailer(0));
+	}
 	return true;
 }
