@@ -9,9 +9,11 @@
 
 #include "simwin.h"
 #include "gui_frame.h"
+#include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
 #include "components/gui_image.h"
 #include "components/gui_table.h"
+#include "components/gui_tab_panel.h"
 
 class vehicle_desc_t;
 
@@ -24,22 +26,47 @@ public:
 };
 
 
+// A simple vehicle information display component for accessing details
+class gui_vehicle_detail_access_t : public gui_aligned_container_t
+{
+	const vehicle_desc_t *veh_type;
+public:
+	gui_vehicle_detail_access_t(const vehicle_desc_t *veh_type);
+
+	bool infowin_event(event_t const*) OVERRIDE;
+};
+
+
 class vehicle_detail_t : public gui_frame_t, private action_listener_t
 {
 private:
 	const vehicle_desc_t *veh_type;
+
+	uint16 month_now; // auto update flag
+
+	gui_tab_panel_t tabs;
+
+	gui_aligned_container_t cont_spec, cont_maintenance, cont_upgrade, cont_livery;
+	gui_scrollpane_t scroll_livery, scroll_upgrade;
 
 	void init_table();
 
 public:
 	vehicle_detail_t(const vehicle_desc_t *v);
 
-	void set_vehicle(const vehicle_desc_t *v) { veh_type = v; init_table(); }
+	// Inability to command gui_flame to update immediately from components on the flame
+	// because the order kills component itself
+	// thus leaving the update flag
+	static bool need_update;
+
+	void set_vehicle(const vehicle_desc_t *v) { need_update=true; veh_type = v; }
 	const vehicle_desc_t* get_vehicle() { return veh_type; }
 
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
 };
 
 
