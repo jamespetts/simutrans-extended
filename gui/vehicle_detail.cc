@@ -318,7 +318,7 @@ void vehicle_detail_t::init_table()
 
 		if (veh_type->get_power()) {
 			cont_spec.new_component<gui_table_header_t>("Power:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
-			gui_label_buf_t *td = cont_spec.new_component<gui_table_cell_buf_t>();
+			gui_table_cell_buf_t *td = cont_spec.new_component<gui_table_cell_buf_t>();
 			td->buf().printf("%u kW", veh_type->get_power());
 
 			cont_spec.new_component<gui_table_header_t>("Tractive force:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(D_WIDE_BUTTON_WIDTH);
