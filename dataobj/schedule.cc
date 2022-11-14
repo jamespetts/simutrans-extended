@@ -762,7 +762,7 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	for (auto& order : orders)
 	{
 		buf.printf(",%i", order.key);
-		order.value.sprintf_consist_order(buf); 
+		order.value.sprintf_consist_order(buf);
 	}
 }
 
@@ -880,7 +880,7 @@ bool schedule_t::sscanf_schedule( const char *ptr )
 				const uint32 index = *p + i;
 				consist_order_t order;
 				order.sscanf_consist_order(p + i);
-				orders.put(index, order); 
+				orders.put(index, order);
 			}
 			break;
 		}
