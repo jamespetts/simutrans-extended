@@ -864,6 +864,10 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
+			if (atoi(p) == '!')
+			{
+				p++;
+			}
 			const uint32 index = *p + i;
 			consist_order_t order;
 			order.sscanf_consist_order(p + i);
