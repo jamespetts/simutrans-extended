@@ -730,7 +730,7 @@ bool schedule_t::similar( const schedule_t *schedule, const player_t *player )
 void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 {
 	buf.append( current_stop );
-	buf.printf( ",%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift) ;
+	buf.printf( ",%i,%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift, orders.get_count()) ;
 	buf.append( "|" );
 	buf.append( (int)get_type() );
 	buf.append( "|" );
@@ -752,12 +752,9 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 			(int)i.max_speed_kmh
 		);
 	}
+	buf.append('!'); // This terminates if there are consist orders
 
 	// Next, write the consist orders, if any
-
-	// First, check the number
-	// FIXME: This causes incomprehensible corruption of the schedule data in some cases but not others.
-	//buf.printf("!%i", orders.get_count());
 
 	for (auto& order : orders)
 	{
@@ -767,124 +764,113 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 }
 
 
-bool schedule_t::sscanf_schedule( const char *ptr )
+bool schedule_t::sscanf_schedule(const char* ptr)
 {
-	const char *p = ptr;
+	const char* p = ptr;
 	// first: clear current schedule
 	while (!entries.empty()) {
 		remove();
 	}
-	if ( p == NULL  ||  *p == 0) {
+	if (p == NULL || *p == 0) {
 		// empty string
 		return false;
 	}
 	//  first get current_stop pointer
-	current_stop = atoi( p );
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	current_stop = atoi(p);
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	//bidirectional flag
-	if( *p && (*p!=','  &&  *p!='|') ) { bidirectional = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { bidirectional = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// mirrored flag
-	if( *p && (*p!=','  &&  *p!='|') ) { mirrored = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { mirrored = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// spacing
-	if( *p && (*p!=','  &&  *p!='|') ) { spacing = atoi(p); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { spacing = atoi(p); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// same_spacing_shift flag
-	if( *p && (*p!=','  &&  *p!='|') ) { same_spacing_shift = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { same_spacing_shift = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
+	// Consist order count
+	uint32 consist_order_count = 0;
+	if (*p && (*p != ',' && *p != '|')) { consist_order_count = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 
-	if(  *p!='|'  ) {
-		dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
+	if (*p != '|') {
+		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
 		return false;
 	}
 	p++;
 	//  then schedule type
-	int type = atoi( p );
+	int type = atoi(p);
 	//  .. check for correct type
-	if(  type != (int)get_type()) {
-		dbg->error( "schedule_t::sscanf_schedule()","schedule has wrong type (%d)! should have been %d.", type, get_type() );
+	if (type != (int)get_type()) {
+		dbg->error("schedule_t::sscanf_schedule()", "schedule has wrong type (%d)! should have been %d.", type, get_type());
 		return false;
 	}
-	while(  *p  &&  *p!='|'  ) {
+	while (*p && *p != '|') {
 		p++;
 	}
-	if(  *p!='|'  ) {
-		dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
+	if (*p != '|') {
+		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
 		return false;
 	}
 	p++;
 	const uint32 number_of_data_per_entry = 14 + 2; // +2 is necessary as a koord3d takes 3 values
-	bool entries_read = false;
-	bool consist_order_count_read = false;
 	// now scan the entries
 	while (*p > 0)
 	{
-		if (!entries_read) // Entry phase
+		if (atoi(p) == '!')
 		{
-			sint32 values[number_of_data_per_entry];
-			for (sint8 i = 0; i < number_of_data_per_entry; i++)
-			{
-				values[i] = atoi(p);
-				while (*p && (*p != ',' && *p != '|' && *p != '!'))
-				{
-					p++;
-				}
-				if (i < number_of_data_per_entry - 1 && *p != ',')
-				{
-					if (*p == '!')
-					{
-						// We have reached the end of the entries - now it is time to read the consist orders.
-						entries_read = true;
-						p++;
-						break;
-					}
-					else
-					{
-						dbg->error("schedule_t::sscanf_schedule()", "incomplete string!");
-						return false;
-					}
-				}
-				if (i == number_of_data_per_entry - 1 && *p != '|')
-				{
-					dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
-					return false;
-				}
-				p++;
-			}
-			// ok, now we have a complete entry
-			entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
+			break;
 		}
-		else // Consist order phase
+		sint32 values[number_of_data_per_entry];
+		for (sint8 i = 0; i < number_of_data_per_entry; i++)
 		{
+			values[i] = atoi(p);
 			while (*p && (*p != ',' && *p != '|'))
 			{
 				p++;
 			}
-
-			uint32 consist_order_count = 0;
-			if (consist_order_count_read == false)
+			if (i < number_of_data_per_entry - 1 && *p != ',')
 			{
-				consist_order_count = atoi(p);
-				p++;
-				consist_order_count_read = true;
+				dbg->error("schedule_t::sscanf_schedule()", "incomplete string!");
+				return false;
 			}
-
-			for (uint32 i = 0; i < consist_order_count; i++)
+			if (i == number_of_data_per_entry - 1 && *p != '|')
 			{
-				const uint32 index = *p + i;
-				consist_order_t order;
-				order.sscanf_consist_order(p + i);
-				orders.put(index, order); 
+				dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
+				return false;
 			}
-			break;
+			p++;
+		}
+		// ok, now we have a complete entry
+		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
+	}
+
+	if (consist_order_count > 0)
+	{
+		/*
+		while (*p && (*p != ',' && *p != '|'))
+		{
+			p++;
+		}
+		*/
+
+		for (uint32 i = 0; i < consist_order_count; i++)
+		{
+			const uint32 index = *p + i;
+			consist_order_t order;
+			order.sscanf_consist_order(p + i);
+			orders.put(index, order);
 		}
 	}
+
 	return true;
 }
 
