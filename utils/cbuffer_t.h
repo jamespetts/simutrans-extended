@@ -83,9 +83,14 @@ public:
 	const char* get_str() const;
 
 	/**
-	 * Appends a number. Buffer will be extended if it does not have enough capacity.
+	 * Appends a signed 32 bit integer. Buffer will be extended if it does not have enough capacity.
 	 */
 	void append(long n);
+
+	/**
+ * Appends an unsigned 32 bit integer. Buffer will be extended if it does not have enough capacity.
+ */
+	void append_u(uint32 n);
 
 	/**
 	* Append a number represented by a fixed number of

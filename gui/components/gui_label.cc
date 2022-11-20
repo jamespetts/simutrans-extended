@@ -255,7 +255,7 @@ void gui_data_bar_t::draw(scr_coord offset)
 	text.clear();
 	uint32 tmp = 10000 * value / max;
 	if (show_value) {
-		text.append(value);
+		text.append((sint32)value);
 	}
 	if (show_percentage) {
 		if (show_value) {

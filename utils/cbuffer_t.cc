@@ -105,6 +105,19 @@ void cbuffer_t::append(long n)
 	append(p);
 }
 
+void cbuffer_t::append_u(uint32 n)
+{
+	char tmp[32];
+	char* p = tmp + 31;
+	*p = '\0';
+
+	do {
+		*--p = '0' + (n % 10);
+	} while ((n /= 10) > 0);
+
+	append(p);
+}
+
 
 void cbuffer_t::append(const char* text, size_t maxchars)
 {
@@ -541,7 +554,7 @@ void cbuffer_t::append_fixed(uint32 n)
 		zeros--;
 	}
 
-	append(n);
+	append_u(n);
 }
 
 
