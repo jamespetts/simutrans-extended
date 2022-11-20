@@ -758,7 +758,7 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 
 	for (auto& order : orders)
 	{
-		buf.printf(",%i", order.key);
+		buf.printf(",%i,", order.key);
 		order.value.sprintf_consist_order(buf);
 	}
 }
@@ -827,6 +827,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 	{
 		if (atoi(p) == '!')
 		{
+			p += 3;
 			break;
 		}
 		sint32 values[number_of_data_per_entry];
@@ -855,23 +856,27 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 
 	if (consist_order_count > 0)
 	{
-		/*
+		
 		while (*p && (*p != ',' && *p != '|'))
 		{
 			p++;
-		}
-		*/
+		}	
 
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
-			if (atoi(p) == '!')
+			const uint32 index = atoi(p + i);
+			uint8 index_buffer_incrementer = 1;
+			/*while (*p + index_buffer_incrementer && (*p + index_buffer_incrementer != ',' && *p + index_buffer_incrementer != '|'))
 			{
-				p++;
-			}
-			const uint32 index = *p + i;
+				index_buffer_incrementer++;
+			}*/
+
 			consist_order_t order;
-			order.sscanf_consist_order(p + i);
-			orders.put(index, order);
+			order.sscanf_consist_order(p + i + index_buffer_incrementer);
+			if (order.orders.get_count() > 0)
+			{
+				orders.put(index, order);
+			}
 		}
 	}
 

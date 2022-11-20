@@ -139,10 +139,10 @@ public:
 	/// checks whether format specifiers in @p translated match those in @p master
 	static bool check_format_strings(const char* master, const char* translated);
 
-	static uint8 decode_uint8(const char* p);
-	static uint16 decode_uint16(const char* p);
-	static uint32 decode_uint32(const char* p);
-	static bool decode_bool(const char* p);
+	static uint8 decode_uint8(const char* &p);
+	static uint16 decode_uint16(const char* &p);
+	static uint32 decode_uint32(const char* &p);
+	static bool decode_bool(const char* &p);
 };
 
 #endif

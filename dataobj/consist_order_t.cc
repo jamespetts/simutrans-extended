@@ -190,14 +190,15 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 	for (auto order : orders)
 	{
 		buf.append_fixed(order.catg_index);
-		buf.append_bool(order.clear_all_tags);
+		buf.append_fixed(order.clear_all_tags == true ? (uint8)1 : (uint8)0);
 		buf.append_fixed(order.tags_required);
 		buf.append_fixed(order.tags_to_set);
 		buf.append_fixed(order.vehicle_description.get_count());
 		for(auto desc : order.vehicle_description)
 		{
 			buf.append(desc.specific_vehicle ? desc.specific_vehicle->get_name() : "NULL");
-			buf.append_bool(desc.empty);
+			buf.append("|");
+			buf.append_fixed(desc.empty == true ? (uint8)1 : (uint8)0);
 			buf.append_fixed(desc.engine_type);
 			buf.append_fixed(desc.min_catering);
 			buf.append_fixed(desc.must_carry_class);
@@ -252,7 +253,7 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 		consist_order_element_t element;
 
 		element.catg_index = cbuffer_t::decode_uint8(p);
-		element.clear_all_tags = cbuffer_t::decode_bool(p);
+		element.clear_all_tags = cbuffer_t::decode_uint8(p);
 		element.tags_required = cbuffer_t::decode_uint16(p);
 		element.tags_to_set = cbuffer_t::decode_uint16(p);
 
