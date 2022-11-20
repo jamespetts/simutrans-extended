@@ -856,11 +856,11 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 
 	if (consist_order_count > 0)
 	{
-		
+
 		while (*p && (*p != ',' && *p != '|'))
 		{
 			p++;
-		}	
+		}
 
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
