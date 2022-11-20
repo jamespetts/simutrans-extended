@@ -759,7 +759,7 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	for (auto& order : orders)
 	{
 		buf.printf(",%i", order.key);
-		order.value.sprintf_consist_order(buf); 
+		order.value.sprintf_consist_order(buf);
 	}
 }
 
