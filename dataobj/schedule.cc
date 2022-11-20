@@ -856,20 +856,10 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 
 	if (consist_order_count > 0)
 	{
-
-		while (*p && (*p != ',' && *p != '|'))
-		{
-			p++;
-		}
-
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
 			const uint32 index = atoi(p + i);
-			uint8 index_buffer_incrementer = 1;
-			/*while (*p + index_buffer_incrementer && (*p + index_buffer_incrementer != ',' && *p + index_buffer_incrementer != '|'))
-			{
-				index_buffer_incrementer++;
-			}*/
+			const uint8 index_buffer_incrementer = 2;
 
 			consist_order_t order;
 			order.sscanf_consist_order(p + i + index_buffer_incrementer);
