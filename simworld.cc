@@ -3569,7 +3569,7 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 }
 
 
-void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended, bool called_from_script)
+void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended)
 {
 	suspended = false;
 	if(  get_random_mode()&LOAD_RANDOM  ) {
@@ -10506,7 +10506,7 @@ const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool
 }
 
 
-const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended, bool called_from_api )
+const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended)
 {
 	suspended = false;
 	const char *err = NULL;
