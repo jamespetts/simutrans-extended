@@ -10506,7 +10506,7 @@ const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool
 }
 
 
-const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended, bool called_from_api )
+const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended)
 {
 	suspended = false;
 	const char *err = NULL;
