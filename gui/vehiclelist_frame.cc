@@ -59,6 +59,11 @@ static const char *const vl_header_text[vehiclelist_frame_t::VL_MAX_SPECS] =
 	"Max. speed", "curb_weight", "Axle load:", "Intro. date","Retire date"
 };
 
+static const char *const timeline_filter_button_text[vehiclelist_frame_t::VL_MAX_STATUS_FILTER] =
+{
+	"Show future", "Show available", "Show outdated", "Show obsolete"
+};
+
 vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 {
 	veh = v;
@@ -426,27 +431,26 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	}
 	end_table();
 
-	add_table(4,1);
+	// timeline filter
+	const PIXVAL timeline_filter_button_colors[vehiclelist_frame_t::VL_MAX_STATUS_FILTER] =
 	{
-		bt_obsolete.init(button_t::square_state, "Show obsolete");
-		bt_obsolete.add_listener(this);
-		add_component(&bt_obsolete);
-
-		bt_outdated.init(button_t::square_state, "Show outdated");
-		bt_outdated.add_listener(this);
-		add_component(&bt_outdated);
-
-		bt_future.init(button_t::square_state, "Show future");
-		bt_future.add_listener(this);
-		if (!welt->get_settings().get_show_future_vehicle_info()) {
-			bt_future.set_visible(false);
+		color_idx_to_rgb(MN_GREY0), COL_SAFETY, SYSCOL_OUT_OF_PRODUCTION, SYSCOL_OBSOLETE
+	};
+	add_table(3, 1);
+	{
+		new_component<gui_label_t>("Status filter:");
+		add_table(VL_MAX_STATUS_FILTER,1)->set_force_equal_columns(true);
+		{
+			bt_timeline_filters[VL_SHOW_AVAILABLE].pressed = true;
+			for( uint8 i=0; i<VL_MAX_STATUS_FILTER; ++i ) {
+				bt_timeline_filters[i].init(button_t::box_state|button_t::flexible, timeline_filter_button_text[i]);
+				bt_timeline_filters[i].background_color = timeline_filter_button_colors[i];
+				bt_timeline_filters[i].add_listener(this);
+				add_component(&bt_timeline_filters[i]);
+			}
 		}
-		bt_future.pressed = false;
-		add_component(&bt_future);
-
-		bt_only_upgrade.init(button_t::square_state, "Show upgraded");
-		bt_only_upgrade.add_listener(this);
-		add_component(&bt_only_upgrade);
+		end_table();
+		new_component<gui_fill_t>();
 	}
 	end_table();
 
@@ -497,18 +501,6 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 	else if(comp == &ware_filter) {
 		fill_list();
 	}
-	else if(comp == &bt_obsolete) {
-		bt_obsolete.pressed ^= 1;
-		fill_list();
-	}
-	else if (comp == &bt_outdated) {
-		bt_outdated.pressed ^= 1;
-		fill_list();
-	}
-	else if (comp == &bt_future) {
-		bt_future.pressed ^= 1;
-		fill_list();
-	}
 	else if (comp == &bt_only_upgrade) {
 		bt_only_upgrade.pressed ^= 1;
 		fill_list();
@@ -529,6 +521,14 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 		fill_list();
 	}
 	else {
+		for( uint8 i=0; i<VL_MAX_STATUS_FILTER; ++i ) {
+			if(  comp==&bt_timeline_filters[i]  ) {
+				bt_timeline_filters[i].pressed ^= 1;
+				fill_list();
+				return true;
+			}
+		}
+
 		for( uint8 i=0; i<VL_MAX_SPECS; ++i ) {
 			if (comp == &bt_table_sort[i]) {
 				bt_table_sort[i].pressed = true;
@@ -601,19 +601,32 @@ void vehiclelist_frame_t::fill_list()
 					continue;
 				}
 
-				// timeline status filter
 				if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
 					continue;
 				}
-				if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month))) {
+
+				// timeline status filter
+				bool timeline_matches = false;
+				if( bt_timeline_filters[VL_SHOW_AVAILABLE].pressed  &&  veh->is_available(month) ) {
+					timeline_matches = true; // show green ones
+				}
+				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed  &&  !veh->is_obsolete(month)  &&  veh->is_retired(month) ) {
+					timeline_matches = true; // show royalblue ones
+				}
+				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed  &&  veh->is_obsolete(month) ) {
+					timeline_matches = true; // show blue ones
+				}
+				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
+					if( welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+						// Do not show vehicles in the distant future with this setting
+						continue;
+					}
+					timeline_matches = true; // show blue ones
+				}
+				if( !timeline_matches ) {
 					continue;
 				}
-				if (!bt_obsolete.pressed && veh->is_obsolete(month)) {
-					continue;
-				}
-				if (!bt_future.pressed && veh->is_future(month)) {
-					continue;
-				}
+
 				// goods category filter
 				if( ware ) {
 					const goods_desc_t *vware = veh->get_freight_type();
@@ -653,19 +666,32 @@ void vehiclelist_frame_t::fill_list()
 				continue;
 			}
 
-			// timeline status filter
 			if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
 				continue;
 			}
-			if (!bt_outdated.pressed && (veh->is_retired(month) && !veh->is_obsolete(month))) {
+
+			// timeline status filter
+			bool timeline_matches = false;
+			if( bt_timeline_filters[VL_SHOW_AVAILABLE].pressed  &&  veh->is_available(month) ) {
+				timeline_matches = true; // show green ones
+			}
+			if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed  &&  !veh->is_obsolete(month)  &&  veh->is_retired(month) ) {
+				timeline_matches = true; // show royalblue ones
+			}
+			if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed  &&  veh->is_obsolete(month) ) {
+				timeline_matches = true; // show blue ones
+			}
+			if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
+				if( welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+					// Do not show vehicles in the distant future with this setting
+					continue;
+				}
+				timeline_matches = true; // show blue ones
+			}
+			if( !timeline_matches ) {
 				continue;
 			}
-			if (!bt_obsolete.pressed && veh->is_obsolete(month)) {
-				continue;
-			}
-			if (!bt_future.pressed && veh->is_future(month)) {
-				continue;
-			}
+
 			// goods category filter
 			if( ware ) {
 				const goods_desc_t *vware = veh->get_freight_type();
@@ -736,9 +762,9 @@ void vehiclelist_frame_t::rdwr(loadsave_t* file)
 	}
 	engine_filter.rdwr(file);
 	file->rdwr_bool(vehiclelist_stats_t::reverse);
-	file->rdwr_bool(bt_obsolete.pressed);
-	file->rdwr_bool(bt_future.pressed);
-	file->rdwr_bool(bt_outdated.pressed);
+	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed);
+	file->rdwr_bool(bt_timeline_filters[VL_SHOW_FUTURE].pressed);
+	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed);
 	file->rdwr_bool(bt_only_upgrade.pressed);
 
 	if (file->is_loading()) {

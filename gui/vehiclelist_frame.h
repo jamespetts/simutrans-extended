@@ -43,6 +43,15 @@ public:
 	static int cell_width[vehiclelist_frame_t::VL_MAX_SPECS];
 	static int stats_width;
 
+	// vehicle timeline filter bits
+	enum timeline_filter_t {
+		VL_SHOW_FUTURE,       // gray
+		VL_SHOW_AVAILABLE,    // green
+		VL_SHOW_OUT_OF_PROD,  // royalblue
+		VL_SHOW_OUT_OBSOLETE, // blue
+		VL_MAX_STATUS_FILTER,
+	};
+
 	// 1=fuel filer on, 2=freight type fiter on
 	enum {
 		VL_NO_FILTER      = 0,
@@ -55,7 +64,8 @@ public:
 	static bool side_view_mode;
 
 private:
-	button_t bt_obsolete, bt_outdated, bt_only_upgrade, bt_future;
+	button_t bt_timeline_filters[VL_MAX_STATUS_FILTER];
+	button_t bt_only_upgrade;
 	gui_aligned_container_t cont_list_table;
 	gui_scrolled_list_t scrolly;
 	gui_scrollpane_t scrollx_tab;
