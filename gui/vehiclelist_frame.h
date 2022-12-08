@@ -43,12 +43,13 @@ public:
 	static int cell_width[vehiclelist_frame_t::VL_MAX_SPECS];
 	static int stats_width;
 
-	// vehicle timeline filter bits
-	enum timeline_filter_t {
-		VL_SHOW_FUTURE,       // gray
+	// vehicle status(mainly timeline) filter index
+	enum status_filter_t {
+		VL_SHOW_FUTURE =0,    // gray
 		VL_SHOW_AVAILABLE,    // green
 		VL_SHOW_OUT_OF_PROD,  // royalblue
 		VL_SHOW_OUT_OBSOLETE, // blue
+		VL_SHOW_UPGRADE_ONLY, // purple
 		VL_MAX_STATUS_FILTER,
 	};
 
@@ -65,7 +66,7 @@ public:
 
 private:
 	button_t bt_timeline_filters[VL_MAX_STATUS_FILTER];
-	button_t bt_only_upgrade, bt_upgradable;
+	button_t bt_upgradable;
 	gui_aligned_container_t cont_list_table;
 	gui_scrolled_list_t scrolly;
 	gui_scrollpane_t scrollx_tab;

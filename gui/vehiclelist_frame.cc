@@ -61,7 +61,7 @@ static const char *const vl_header_text[vehiclelist_frame_t::VL_MAX_SPECS] =
 
 static const char *const timeline_filter_button_text[vehiclelist_frame_t::VL_MAX_STATUS_FILTER] =
 {
-	"Show future", "Show available", "Show outdated", "Show obsolete"
+	"Show future", "Show available", "Show outdated", "Show obsolete", "Show upgraded"
 };
 
 vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
@@ -440,12 +440,13 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	// timeline filter
 	const PIXVAL timeline_filter_button_colors[vehiclelist_frame_t::VL_MAX_STATUS_FILTER] =
 	{
-		color_idx_to_rgb(MN_GREY0), COL_SAFETY, SYSCOL_OUT_OF_PRODUCTION, SYSCOL_OBSOLETE
+		color_idx_to_rgb(MN_GREY0), COL_SAFETY, SYSCOL_OUT_OF_PRODUCTION, SYSCOL_OBSOLETE, SYSCOL_UPGRADEABLE
 	};
 	add_table(3, 1);
 	{
 		new_component<gui_label_t>("Status filter:");
-		add_table(VL_MAX_STATUS_FILTER,1)->set_force_equal_columns(true);
+		gui_aligned_container_t *tbl = add_table(VL_MAX_STATUS_FILTER,1);
+		tbl->set_force_equal_columns(true);
 		{
 			bt_timeline_filters[VL_SHOW_AVAILABLE].pressed = true;
 			for( uint8 i=0; i<VL_MAX_STATUS_FILTER; ++i ) {
@@ -505,10 +506,6 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 		fill_list();
 	}
 	else if(comp == &ware_filter) {
-		fill_list();
-	}
-	else if (comp == &bt_only_upgrade) {
-		bt_only_upgrade.pressed ^= 1;
 		fill_list();
 	}
 	else if (comp == &bt_upgradable) {
@@ -611,7 +608,7 @@ void vehiclelist_frame_t::fill_list()
 					continue;
 				}
 
-				if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
+				if( !bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed && veh->is_available_only_as_upgrade() ) {
 					continue;
 				}
 				if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
@@ -679,7 +676,7 @@ void vehiclelist_frame_t::fill_list()
 				continue;
 			}
 
-			if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
+			if( !bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed && veh->is_available_only_as_upgrade() ) {
 				continue;
 			}
 			if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
@@ -781,7 +778,7 @@ void vehiclelist_frame_t::rdwr(loadsave_t* file)
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed);
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_FUTURE].pressed);
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed);
-	file->rdwr_bool(bt_only_upgrade.pressed);
+	file->rdwr_bool(bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed);
 	if( file->is_version_ex_atleast(14,59) ) { // TODO: recheck version
 		file->rdwr_bool(bt_upgradable.pressed);
 	}
