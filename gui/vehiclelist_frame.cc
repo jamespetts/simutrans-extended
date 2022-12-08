@@ -155,8 +155,8 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 					else { col_val = SYSCOL_UPGRADEABLE; }
 				}
 				else if (veh->is_future(month)) { col_val = color_idx_to_rgb(MN_GREY0); }
-				else if (veh->is_retired(month)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 				else if (veh->is_obsolete(month)) { col_val = SYSCOL_OBSOLETE; }
+				else if (veh->is_retired(month)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 
 				display_veh_form_wh_clip_rgb(offset.x+D_H_SPACE, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, col_val, true, false, veh->get_basic_constraint_prev(), veh->get_interactivity());
 				display_veh_form_wh_clip_rgb(offset.x+D_H_SPACE + VEHICLE_BAR_HEIGHT*2, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, col_val, true, true, veh->get_basic_constraint_next(), veh->get_interactivity());
