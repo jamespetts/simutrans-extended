@@ -88,6 +88,7 @@ PIXVAL gui_theme_t::gui_color_table_background_selected;
 PIXVAL gui_theme_t::gui_color_text_head_row;
 PIXVAL gui_theme_t::gui_color_text_head_selected;
 PIXVAL gui_theme_t::gui_color_text_left_col;
+PIXVAL gui_theme_t::gui_color_text_table_cell_selected;
 
 
 /**
@@ -241,6 +242,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_text_head_row                = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_left_col                = gui_color_statusbar_text;
+	gui_color_text_table_cell_selected     = gui_color_colored_button_text_selected;
 
 
 	env_t::gui_player_color_bright = 4;
@@ -654,6 +656,7 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_text_head_row                = (PIXVAL)contents.get_color("gui_color_text_head_row", SYSCOL_TH_TEXT_TOP);
 	gui_theme_t::gui_color_text_head_selected           = (PIXVAL)contents.get_color("gui_color_text_head_selected", SYSCOL_TH_TEXT_SELECTED);
 	gui_theme_t::gui_color_text_left_col                = (PIXVAL)contents.get_color("gui_color_text_left_col", SYSCOL_TH_TEXT_LEFT);
+	gui_theme_t::gui_color_text_table_cell_selected     = (PIXVAL)contents.get_color("gui_color_text_table_cell_selected", SYSCOL_TD_TEXT_SELECTED);
 
 
 	gui_theme_t::gui_waitingbar_width = (uint32)contents.get_int("gui_waitingbar_width", gui_theme_t::gui_waitingbar_width);

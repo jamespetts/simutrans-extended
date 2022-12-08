@@ -212,8 +212,9 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TD_BACKGROUND_SUM            gui_theme_t::gui_color_table_background_data_sum
 #define SYSCOL_TD_BACKGROUND                gui_theme_t::gui_color_table_background_data
 #define SYSCOL_TD_BACKGROUND_HIGHLIGHT      gui_theme_t::gui_color_table_background_highlight
-#define SYSCOL_TH_TEXT_TOP                  gui_theme_t::gui_color_text_head_row
+#define SYSCOL_TD_TEXT_SELECTED             gui_theme_t::gui_color_text_table_cell_selected
 #define SYSCOL_TH_TEXT_SELECTED             gui_theme_t::gui_color_text_head_selected
+#define SYSCOL_TH_TEXT_TOP                  gui_theme_t::gui_color_text_head_row
 #define SYSCOL_TH_TEXT_LEFT                 gui_theme_t::gui_color_text_left_col
 
 // Customer evaluation colors

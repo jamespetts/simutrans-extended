@@ -118,7 +118,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	}
 	else {
 		// show name
-		PIXVAL name_colval = SYSCOL_TEXT;
+		PIXVAL name_colval = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
 		if (veh->is_future(month)) {
 			name_colval = color_idx_to_rgb(MN_GREY0);
 		}
@@ -146,7 +146,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		const PIXVAL bg_color = selected ? SYSCOL_TR_BACKGROUND_SELECTED
 			: ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FUEL) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FREIGHT)) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
 			: SYSCOL_TD_BACKGROUND;
-		PIXVAL text_color = SYSCOL_TEXT;
+		PIXVAL text_color = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
 		display_fillbox_wh_clip_rgb( offset.x, offset.y, vehiclelist_frame_t::cell_width[col]-1, height-1, bg_color, false );
 
 		buf.clear();
@@ -181,7 +181,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 				const uint8 et = (uint8)veh->get_engine_type() + 1;
 				if( et ) {
 					sprintf( str, "%s", translator::translate( vehicle_builder_t::engine_type_names[et] ) );
-					display_proportional_rgb( offset.x+D_H_SPACE, offset.y+text_offset_y, str, ALIGN_LEFT|DT_CLIP, SYSCOL_TEXT, false );
+					display_proportional_rgb( offset.x+D_H_SPACE, offset.y+text_offset_y, str, ALIGN_LEFT|DT_CLIP, text_color, false );
 				}
 				break;
 			}
@@ -275,7 +275,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 				break;
 			case vehiclelist_frame_t::VL_INTRO_DATE:
 				buf.append( translator::get_short_date(veh->get_intro_year_month()/12, veh->get_intro_year_month()%12) );
-				display_proportional_rgb(offset.x + D_H_SPACE, offset.y + text_offset_y, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, false);
+				display_proportional_rgb(offset.x + D_H_SPACE, offset.y + text_offset_y, buf, ALIGN_LEFT | DT_CLIP, text_color, false);
 				break;
 			case vehiclelist_frame_t::VL_RETIRE_DATE:
 				if (veh->get_retire_year_month() != DEFAULT_RETIRE_DATE * 12 &&
@@ -285,7 +285,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 				{
 					buf.append( translator::get_short_date(veh->get_retire_year_month()/12, veh->get_retire_year_month()%12) );
 				}
-				display_proportional_rgb(offset.x + D_H_SPACE, offset.y + text_offset_y, buf, ALIGN_LEFT | DT_CLIP, SYSCOL_TEXT, false);
+				display_proportional_rgb(offset.x + D_H_SPACE, offset.y + text_offset_y, buf, ALIGN_LEFT | DT_CLIP, text_color, false);
 				break;
 
 			default:
