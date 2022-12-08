@@ -349,6 +349,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	cell_width[VL_IMAGE] = max(cell_width[VL_IMAGE], bt_table_sort[VL_IMAGE].get_min_size().w);
 	cell_width[VL_STATUSBAR] = VEHICLE_BAR_HEIGHT*4+D_H_SPACE*2+1;
 	cell_width[VL_COST] = max(proportional_string_width("88,888,888$"), bt_table_sort[VL_COST].get_min_size().w) + D_H_SPACE*2+1;
+	cell_width[VL_ENGINE_TYPE] = 0; // need initialization for refresh
 	for (uint8 i = 0; i < 11; i++) {
 		cell_width[VL_ENGINE_TYPE]=max(cell_width[VL_ENGINE_TYPE], proportional_string_width( translator::translate( vehicle_builder_t::engine_type_names[i] )));
 	}
@@ -362,6 +363,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	cell_width[VL_SPEED] = max(proportional_string_width("8,888 km/h"), bt_table_sort[VL_SPEED].get_min_size().w) + D_H_SPACE*2+1;
 	cell_width[VL_WEIGHT] = max(proportional_string_width("888.8t"), bt_table_sort[VL_WEIGHT].get_min_size().w) + D_H_SPACE*2+1;
 	cell_width[VL_AXLE_LOAD] = max(proportional_string_width("888t"), bt_table_sort[VL_AXLE_LOAD].get_min_size().w) + D_H_SPACE*2+1;
+	cell_width[VL_INTRO_DATE] = 0; // need initialization for refresh
 	for (uint8 i = 0; i < 11; i++) {
 		cell_width[VL_INTRO_DATE] = max(cell_width[VL_INTRO_DATE], proportional_string_width(translator::get_short_month_name(i)));
 	}
