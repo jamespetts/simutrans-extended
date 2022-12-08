@@ -149,17 +149,21 @@ gui_color_text_left_col             = #000000
 
 #gui_color_table_frame               = #5a829c
 #gui_color_table_background_head_row = #7392a5
+gui_color_table_background_head_selected = #73b2de
 #gui_color_table_header_border       = #5a829c
 #gui_color_table_cell_border         = #8c9aad
 #gui_color_table_background_left_col = #9cb2c6
 #gui_color_table_background_data_sum = #a5bace
 #gui_color_table_background_data     = #b1bfce
 #gui_color_table_background          = #c6d3de
+#gui_color_table_background_highlight= #DEE5AD
+gui_color_table_background_selected  = #73b2de
 #gui_color_text_head_row             = #ffffff
 #gui_color_text_left_col             = #000000
+gui_color_text_head_selected         = #ffffff
+gui_color_text_table_cell_selected   = #ffffff
 
-##################################size stuff##################################
-
+################################## Size settings ##################################
 # size of tools
 icon_width = 48
 

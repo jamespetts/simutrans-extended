@@ -121,9 +121,23 @@ gui_color_loadingbar_inner = #868c86
 
 gui_player_color_dark = 5	
 gui_player_color_bright = 5
-gui_titlebar_player_color_background_brightness = 2
 
-gui_color_table_background_highlight= #737152
+gui_color_table_header_border            = #596163
+#gui_color_table_background_head_row      =
+gui_color_table_background_head_selected = #AD9239
+gui_color_table_frame                    = #6b7173
+gui_color_table_background_head_row      = #000000
+gui_color_table_cell_border              = #4a5152
+gui_color_table_background_left_col      = #333333
+gui_color_table_background_data_sum      = #333333
+gui_color_table_background_data          = #222222
+gui_color_table_background               = #42494a
+gui_color_table_background_highlight     = #737152
+gui_color_table_background_selected      = #5A92A5
+gui_color_text_head_row                  = #FFFFFF
+gui_color_text_left_col                  = #c6cbce
+#gui_color_text_head_selected            = #737152
+gui_color_text_table_cell_selected       = #eff3f7
 
 ##################################size stuff##################################
 
