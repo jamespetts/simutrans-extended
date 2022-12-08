@@ -115,7 +115,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		// show name
 		PIXVAL name_colval = SYSCOL_TEXT;
 		if (veh->is_future(month)) {
-			name_colval = SYSCOL_EMPTY;
+			name_colval = color_idx_to_rgb(MN_GREY0);
 		}
 		else if (veh->is_available_only_as_upgrade()) {
 			name_colval = SYSCOL_UPGRADEABLE;
