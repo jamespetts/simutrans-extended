@@ -65,7 +65,7 @@ public:
 
 private:
 	button_t bt_timeline_filters[VL_MAX_STATUS_FILTER];
-	button_t bt_only_upgrade;
+	button_t bt_only_upgrade, bt_upgradable;
 	gui_aligned_container_t cont_list_table;
 	gui_scrolled_list_t scrolly;
 	gui_scrollpane_t scrollx_tab;

@@ -380,7 +380,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 
 	set_table_layout(1,0);
 
-	add_table(5,1);
+	add_table(6,1);
 	{
 		if( skinverwaltung_t::search ) {
 			new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
@@ -430,6 +430,10 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 		ware_filter.set_selection(0);
 		ware_filter.add_listener(this);
 		add_component(&ware_filter);
+
+		bt_upgradable.init(button_t::square_state, "Upgradable");
+		bt_upgradable.add_listener(this);
+		add_component(&bt_upgradable);
 	}
 	end_table();
 
@@ -505,6 +509,10 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 	}
 	else if (comp == &bt_only_upgrade) {
 		bt_only_upgrade.pressed ^= 1;
+		fill_list();
+	}
+	else if (comp == &bt_upgradable) {
+		bt_upgradable.pressed ^= 1;
 		fill_list();
 	}
 	else if(comp == &tabs) {
@@ -606,6 +614,9 @@ void vehiclelist_frame_t::fill_list()
 				if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
 					continue;
 				}
+				if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
+					continue;
+				}
 
 				// timeline status filter
 				bool timeline_matches = false;
@@ -669,6 +680,9 @@ void vehiclelist_frame_t::fill_list()
 			}
 
 			if (!bt_only_upgrade.pressed && veh->is_available_only_as_upgrade()) {
+				continue;
+			}
+			if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
 				continue;
 			}
 
@@ -768,6 +782,9 @@ void vehiclelist_frame_t::rdwr(loadsave_t* file)
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_FUTURE].pressed);
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed);
 	file->rdwr_bool(bt_only_upgrade.pressed);
+	if( file->is_version_ex_atleast(14,59) ) { // TODO: recheck version
+		file->rdwr_bool(bt_upgradable.pressed);
+	}
 
 	if (file->is_loading()) {
 		fill_list();
