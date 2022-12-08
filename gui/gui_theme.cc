@@ -233,12 +233,12 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_table_header_border          = gui_highlight_color;
 	gui_color_table_cell_border            = gui_color_statusbar_divider;
 	gui_color_table_background_head_row    = gui_color_statusbar_background;
-	gui_color_table_background_head_selected = gui_color_statusbar_background;
+	gui_color_table_background_head_selected = color_idx_to_rgb(COL_LIGHT_BLUE);
 	gui_color_table_background_left_col    = gui_color_ticker_background;
 	gui_color_table_background_data_sum    = color_idx_to_rgb(COL_GREY5);
 	gui_color_table_background_data        = color_idx_to_rgb(COL_WHITE);
 	gui_color_table_background_highlight   = 57141; // cream
-	gui_color_table_background_selected    = gui_color_list_background_selected_nf;
+	gui_color_table_background_selected    = 30107; // light skyblue 
 	gui_color_text_head_row                = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_left_col                = gui_color_statusbar_text;
