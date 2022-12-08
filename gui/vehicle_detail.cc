@@ -168,8 +168,8 @@ gui_vehicle_detail_access_t::gui_vehicle_detail_access_t(const vehicle_desc_t *v
 					else { col_val = SYSCOL_UPGRADEABLE; }
 				}
 				else if (veh_type->is_future(month_now)) { col_val = color_idx_to_rgb(MN_GREY0); }
-				else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 				else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
+				else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 				new_component<gui_vehicle_bar_t>(col_val)->set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
 
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
@@ -251,8 +251,8 @@ void vehicle_detail_t::init_table()
 				else { col_val = SYSCOL_UPGRADEABLE; }
 			}
 			else if (veh_type->is_future(month_now)) { col_val = color_idx_to_rgb(MN_GREY0); }
-			else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 			else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
+			else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 			new_component<gui_vehicle_bar_t>(col_val)->set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
 
 			gui_aligned_container_t *tbl = add_table(2,1);
