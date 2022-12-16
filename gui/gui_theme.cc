@@ -238,7 +238,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_table_background_data_sum    = color_idx_to_rgb(COL_GREY5);
 	gui_color_table_background_data        = color_idx_to_rgb(COL_WHITE);
 	gui_color_table_background_highlight   = 57141; // cream
-	gui_color_table_background_selected    = 30107; // light skyblue 
+	gui_color_table_background_selected    = 30107; // light skyblue
 	gui_color_text_head_row                = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_left_col                = gui_color_statusbar_text;
