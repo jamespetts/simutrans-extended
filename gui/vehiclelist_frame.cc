@@ -640,15 +640,12 @@ void vehiclelist_frame_t::fill_list()
 				// goods category filter
 				if( ware ) {
 					const goods_desc_t *vware = veh->get_freight_type();
-					if(  (ware->get_catg_index() > 0  &&  vware->get_catg_index() == ware->get_catg_index())  ||  vware->get_index() == ware->get_index()  ) {
-						scrolly.new_component<vehiclelist_stats_t>( veh );
-						count++;
+					if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+						continue;
 					}
 				}
-				else {
-					scrolly.new_component<vehiclelist_stats_t>( veh );
-					count++;
-				}
+				scrolly.new_component<vehiclelist_stats_t>( veh );
+				count++;
 			}
 		}
 	}
@@ -708,15 +705,12 @@ void vehiclelist_frame_t::fill_list()
 			// goods category filter
 			if( ware ) {
 				const goods_desc_t *vware = veh->get_freight_type();
-				if(  (ware->get_catg_index() > 0  &&  vware->get_catg_index() == ware->get_catg_index())  ||  vware->get_index() == ware->get_index()  ) {
-					scrolly.new_component<vehiclelist_stats_t>( veh );
-					count++;
+				if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+					continue;
 				}
 			}
-			else {
-				scrolly.new_component<vehiclelist_stats_t>( veh );
-				count++;
-			}
+			scrolly.new_component<vehiclelist_stats_t>( veh );
+			count++;
 		}
 	}
 	if( vehiclelist_stats_t::sort_mode != 0 ) {
