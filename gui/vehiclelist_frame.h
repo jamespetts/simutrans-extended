@@ -49,7 +49,7 @@ public:
 		VL_SHOW_AVAILABLE,    // green
 		VL_SHOW_OUT_OF_PROD,  // royalblue
 		VL_SHOW_OUT_OBSOLETE, // blue
-		VL_SHOW_UPGRADE_ONLY, // purple
+		VL_FILTER_UPGRADE_ONLY, // purple
 		VL_MAX_STATUS_FILTER,
 	};
 
@@ -57,7 +57,8 @@ public:
 	enum {
 		VL_NO_FILTER      = 0,
 		VL_FILTER_FUEL    = 1<<0,
-		VL_FILTER_FREIGHT = 1<<1
+		VL_FILTER_FREIGHT = 1<<1,
+		VL_FILTER_UPGRADABLE = 1<<2
 	};
 	static uint8 filter_flag;
 
@@ -79,6 +80,8 @@ private:
 
 	// may waytypes available
 	uint32 count;
+
+	static char status_counts_text[10][VL_MAX_STATUS_FILTER];
 
 	button_t bt_show_name, bt_show_side_view;
 	table_sort_button_t bt_table_sort[VL_MAX_SPECS];

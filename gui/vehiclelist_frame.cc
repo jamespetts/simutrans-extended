@@ -31,6 +31,7 @@ bool vehiclelist_stats_t::reverse = false;
 uint8 vehiclelist_frame_t::filter_flag=0;
 bool vehiclelist_frame_t::side_view_mode = true;
 char vehiclelist_frame_t::name_filter[256] = "";
+char vehiclelist_frame_t::status_counts_text[10][VL_MAX_STATUS_FILTER] = {};
 
 int vehiclelist_frame_t::cell_width[vehiclelist_frame_t::VL_MAX_SPECS] = {};
 #define MAX_IMG_WIDTH vehiclelist_frame_t::cell_width[vehiclelist_frame_t::VL_IMAGE]
@@ -61,7 +62,7 @@ static const char *const vl_header_text[vehiclelist_frame_t::VL_MAX_SPECS] =
 
 static const char *const timeline_filter_button_text[vehiclelist_frame_t::VL_MAX_STATUS_FILTER] =
 {
-	"Show future", "Show available", "Show outdated", "Show obsolete", "Show upgraded"
+	"Show future", "Show available", "Show outdated", "Show obsolete", "upgrade_only"
 };
 
 vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
@@ -98,7 +99,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, get_mouse_y() + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
 	}
 
-	uint32 month = world()->get_current_month();
+	const uint32 month = world()->get_current_month();
 	offset += pos;
 	offset.x += D_H_SPACE;
 	const int text_offset_y = (height-1-LINEASCENT)>>1;
@@ -118,18 +119,17 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	}
 	else {
 		// show name
-		PIXVAL name_colval = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
-		if (veh->is_future(month)) {
-			name_colval = color_idx_to_rgb(MN_GREY0);
+		PIXVAL name_colval = veh->get_vehicle_status_color();
+		if (veh->is_available_only_as_upgrade()) {
+			if (name_colval == SYSCOL_OBSOLETE) {
+				name_colval = color_idx_to_rgb(COL_DARK_PURPLE);
+			}
+			else {
+				name_colval = SYSCOL_UPGRADEABLE;
+			}
 		}
-		else if (veh->is_available_only_as_upgrade()) {
-			name_colval = SYSCOL_UPGRADEABLE;
-		}
-		else if (veh->is_obsolete(month)) {
-			name_colval = SYSCOL_OBSOLETE;
-		}
-		else if (veh->is_retired(month)) {
-			name_colval = SYSCOL_OUT_OF_PRODUCTION;
+		if (name_colval==COL_SAFETY) {
+			name_colval = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
 		}
 		display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, selected ? SYSCOL_TR_BACKGROUND_SELECTED:SYSCOL_TH_BACKGROUND_LEFT, false);
 		display_proportional_rgb(
@@ -143,28 +143,41 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 	offset.x += MAX_IMG_WIDTH;
 	for (uint8 col = 1; col<vehiclelist_frame_t::VL_MAX_SPECS; col++) {
+
+		// first, draw the table cell background
 		const PIXVAL bg_color = selected ? SYSCOL_TR_BACKGROUND_SELECTED
-			: ((col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FUEL) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FREIGHT)) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
+			: (( col==vehiclelist_frame_t::VL_STATUSBAR && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_UPGRADABLE)) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
+			: (( col==vehiclelist_frame_t::VL_ENGINE_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FUEL) || (col==vehiclelist_frame_t::VL_FREIGHT_TYPE && vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_FREIGHT)) ? SYSCOL_TD_BACKGROUND_HIGHLIGHT
 			: SYSCOL_TD_BACKGROUND;
-		PIXVAL text_color = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
 		display_fillbox_wh_clip_rgb( offset.x, offset.y, vehiclelist_frame_t::cell_width[col]-1, height-1, bg_color, false );
 
 		buf.clear();
+		PIXVAL text_color = selected ? SYSCOL_TD_TEXT_SELECTED : SYSCOL_TEXT;
 		switch (col) {
 			case vehiclelist_frame_t::VL_STATUSBAR:
 			{
-				PIXVAL col_val = COL_SAFETY;
+				PIXVAL status_color = veh->get_vehicle_status_color();
 				if (veh->is_available_only_as_upgrade()) {
-					if (veh->is_retired(month)) { col_val = color_idx_to_rgb(COL_DARK_PURPLE); }
-					else if (veh->is_obsolete(month)) { col_val = SYSCOL_OBSOLETE; }
-					else { col_val = SYSCOL_UPGRADEABLE; }
+					if (status_color == SYSCOL_OBSOLETE) {
+						status_color = color_idx_to_rgb(COL_DARK_PURPLE);
+					}
+					else {
+						status_color = SYSCOL_UPGRADEABLE;
+					}
 				}
-				else if (veh->is_future(month)) { col_val = color_idx_to_rgb(MN_GREY0); }
-				else if (veh->is_obsolete(month)) { col_val = SYSCOL_OBSOLETE; }
-				else if (veh->is_retired(month)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 
-				display_veh_form_wh_clip_rgb(offset.x+D_H_SPACE, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, col_val, true, false, veh->get_basic_constraint_prev(), veh->get_interactivity());
-				display_veh_form_wh_clip_rgb(offset.x+D_H_SPACE + VEHICLE_BAR_HEIGHT*2, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, col_val, true, true, veh->get_basic_constraint_next(), veh->get_interactivity());
+				scr_coord_val xoff= offset.x + D_H_SPACE;
+				display_veh_form_wh_clip_rgb(xoff, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, status_color, true, false, veh->get_basic_constraint_prev(), veh->get_interactivity());
+				xoff += VEHICLE_BAR_HEIGHT * 2;
+				display_veh_form_wh_clip_rgb(xoff, offset.y + D_GET_CENTER_ALIGN_OFFSET(VEHICLE_BAR_HEIGHT, height-1), VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT, status_color, true, true, veh->get_basic_constraint_next(), veh->get_interactivity());
+
+				const uint8 upgradable_state = veh->has_available_upgrade(month);
+				if( vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_UPGRADABLE  &&  upgradable_state && skinverwaltung_t::upgradable ) {
+					if (world()->get_settings().get_show_future_vehicle_info() || (!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) != 2)) {
+						xoff = xoff + VEHICLE_BAR_HEIGHT * 2 - D_FIXED_SYMBOL_WIDTH;
+						display_color_img(skinverwaltung_t::upgradable->get_image_id(upgradable_state - 1), xoff, offset.y + height - D_FIXED_SYMBOL_WIDTH, 0, false, false);
+					}
+				}
 				break;
 			}
 			case vehiclelist_frame_t::VL_COST:
@@ -445,12 +458,16 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	add_table(3, 1);
 	{
 		new_component<gui_label_t>("Status filter:");
-		gui_aligned_container_t *tbl = add_table(VL_MAX_STATUS_FILTER,1);
-		tbl->set_force_equal_columns(true);
+		const scr_coord_val button_width = proportional_string_width("888888") + D_BUTTON_PADDINGS_X;
+		gui_aligned_container_t *tbl = add_table(VL_MAX_STATUS_FILTER+1,1);
+		//tbl->set_force_equal_columns(true);
 		{
 			bt_timeline_filters[VL_SHOW_AVAILABLE].pressed = true;
 			for( uint8 i=0; i<VL_MAX_STATUS_FILTER; ++i ) {
-				bt_timeline_filters[i].init(button_t::box_state|button_t::flexible, timeline_filter_button_text[i]);
+				if (i==VL_FILTER_UPGRADE_ONLY) new_component<gui_margin_t>(LINESPACE);
+				bt_timeline_filters[i].init( button_t::box_state|button_t::flexible, "");
+				bt_timeline_filters[i].set_tooltip( translator::translate(timeline_filter_button_text[i]) );
+				bt_timeline_filters[i].set_width(button_width);
 				bt_timeline_filters[i].background_color = timeline_filter_button_colors[i];
 				bt_timeline_filters[i].add_listener(this);
 				add_component(&bt_timeline_filters[i]);
@@ -563,6 +580,7 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 
 void vehiclelist_frame_t::fill_list()
 {
+	uint16 status_counts[VL_MAX_STATUS_FILTER] = {};
 	if( engine_filter.get_selection()==0 ) {
 		vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_FUEL;
 	}
@@ -575,6 +593,12 @@ void vehiclelist_frame_t::fill_list()
 	else {
 		vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_FREIGHT;
 	}
+	if( bt_upgradable.pressed ) {
+		vehiclelist_frame_t::filter_flag |= vehiclelist_frame_t::VL_FILTER_UPGRADABLE;
+	}
+	else {
+		vehiclelist_frame_t::filter_flag &= ~vehiclelist_frame_t::VL_FILTER_UPGRADABLE;
+	}
 
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
@@ -582,6 +606,11 @@ void vehiclelist_frame_t::fill_list()
 	MAX_IMG_WIDTH = 32; // reset col1 width
 	uint32 month = world()->get_current_month();
 	const goods_desc_t *ware = idx_to_ware[ max( 0, ware_filter.get_selection() ) ];
+	const bool show_all_upgrade_only_vehicle = bt_timeline_filters[VL_FILTER_UPGRADE_ONLY].pressed
+		&& !bt_timeline_filters[VL_SHOW_FUTURE].pressed
+		&& !bt_timeline_filters[VL_SHOW_AVAILABLE].pressed
+		&& !bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed
+		&& !bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed;
 	if(  tabs.get_active_tab_waytype() == ignore_wt) {
 		// adding all vehiles, i.e. iterate over all available waytypes
 		for(  uint32 i=1;  i<tabs.get_count();  i++  ) {
@@ -608,7 +637,7 @@ void vehiclelist_frame_t::fill_list()
 					continue;
 				}
 
-				if( !bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed && veh->is_available_only_as_upgrade() ) {
+				if( bt_timeline_filters[VL_FILTER_UPGRADE_ONLY].pressed && !veh->is_available_only_as_upgrade() && !show_all_upgrade_only_vehicle ) {
 					continue;
 				}
 				if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
@@ -633,6 +662,9 @@ void vehiclelist_frame_t::fill_list()
 					}
 					timeline_matches = true; // show blue ones
 				}
+				if( show_all_upgrade_only_vehicle && veh->is_available_only_as_upgrade() ) {
+					timeline_matches = true;
+				}
 				if( !timeline_matches ) {
 					continue;
 				}
@@ -645,6 +677,23 @@ void vehiclelist_frame_t::fill_list()
 					}
 				}
 				scrolly.new_component<vehiclelist_stats_t>( veh );
+				if( veh->is_available_only_as_upgrade() ){
+					status_counts[VL_FILTER_UPGRADE_ONLY]++;
+				}
+				const PIXVAL status_color = veh->get_vehicle_status_color();
+				// count vehicle status
+				if (status_color==COL_SAFETY) {
+					status_counts[VL_SHOW_AVAILABLE]++;
+				}
+				else if (status_color == SYSCOL_OBSOLETE) {
+					status_counts[VL_SHOW_OUT_OBSOLETE]++;
+				}
+				else if (status_color == SYSCOL_OUT_OF_PRODUCTION) {
+					status_counts[VL_SHOW_OUT_OF_PROD]++;
+				}
+				else if (status_color == color_idx_to_rgb(MN_GREY0)) {
+					status_counts[VL_SHOW_FUTURE]++;
+				}
 				count++;
 			}
 		}
@@ -673,7 +722,7 @@ void vehiclelist_frame_t::fill_list()
 				continue;
 			}
 
-			if( !bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed && veh->is_available_only_as_upgrade() ) {
+			if( bt_timeline_filters[VL_FILTER_UPGRADE_ONLY].pressed && !veh->is_available_only_as_upgrade() && !show_all_upgrade_only_vehicle ) {
 				continue;
 			}
 			if( bt_upgradable.pressed  &&  !veh->has_available_upgrade(month) ) {
@@ -698,6 +747,9 @@ void vehiclelist_frame_t::fill_list()
 				}
 				timeline_matches = true; // show blue ones
 			}
+			if( show_all_upgrade_only_vehicle && veh->is_available_only_as_upgrade() ) {
+				timeline_matches = true;
+			}
 			if( !timeline_matches ) {
 				continue;
 			}
@@ -710,6 +762,23 @@ void vehiclelist_frame_t::fill_list()
 				}
 			}
 			scrolly.new_component<vehiclelist_stats_t>( veh );
+			if( veh->is_available_only_as_upgrade() ){
+				status_counts[VL_FILTER_UPGRADE_ONLY]++;
+			}
+			const PIXVAL status_color = veh->get_vehicle_status_color();
+			// count vehicle status
+			if (status_color == COL_SAFETY) {
+				status_counts[VL_SHOW_AVAILABLE]++;
+			}
+			else if (status_color == SYSCOL_OBSOLETE) {
+				status_counts[VL_SHOW_OUT_OBSOLETE]++;
+			}
+			else if (status_color == SYSCOL_OUT_OF_PRODUCTION) {
+				status_counts[VL_SHOW_OUT_OF_PROD]++;
+			}
+			else if (status_color == color_idx_to_rgb(MN_GREY0)) {
+				status_counts[VL_SHOW_FUTURE]++;
+			}
 			count++;
 		}
 	}
@@ -734,6 +803,18 @@ void vehiclelist_frame_t::fill_list()
 			break;
 	}
 	lb_count.update();
+
+	for( uint8 i=0; i<VL_MAX_STATUS_FILTER; ++i ) {
+		if( bt_timeline_filters[i].pressed ){
+			sprintf(status_counts_text[i], "%u", status_counts[i]);
+			bt_timeline_filters[i].set_text(status_counts_text[i]);
+		}
+		else {
+			bt_timeline_filters[i].set_text("off");
+		}
+	}
+
+
 	cont_list_table.remove_all();
 	cont_list_table.set_table_layout(1,0);
 	cont_list_table.add_table(VL_MAX_SPECS+1,1)->set_spacing(scr_size(0,0));
@@ -772,7 +853,7 @@ void vehiclelist_frame_t::rdwr(loadsave_t* file)
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OBSOLETE].pressed);
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_FUTURE].pressed);
 	file->rdwr_bool(bt_timeline_filters[VL_SHOW_OUT_OF_PROD].pressed);
-	file->rdwr_bool(bt_timeline_filters[VL_SHOW_UPGRADE_ONLY].pressed);
+	file->rdwr_bool(bt_timeline_filters[VL_FILTER_UPGRADE_ONLY].pressed);
 	if( file->is_version_ex_atleast(14,59) ) { // TODO: recheck version
 		file->rdwr_bool(bt_upgradable.pressed);
 	}
