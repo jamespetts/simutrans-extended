@@ -22,11 +22,39 @@ class goods_desc_t;
 
 class vehiclelist_frame_t : public gui_frame_t, private action_listener_t
 {
+public:
+	enum veh_spec_col_t {
+		VL_IMAGE,
+		VL_STATUSBAR,
+		VL_COST,
+		VL_ENGINE_TYPE,
+		VL_POWER,
+		VL_TRACTIVE_FORCE,
+		VL_FREIGHT_TYPE,
+		VL_CAPACITY,
+		VL_SPEED,
+		VL_WEIGHT,
+		VL_AXLE_LOAD,
+		VL_INTRO_DATE,
+		VL_RETIRE_DATE,
+		VL_MAX_SPECS
+	};
+	static int cell_width[vehiclelist_frame_t::VL_MAX_SPECS];
+	static int stats_width;
+
+	// 1=fuel filer on, 2=freight type fiter on
+	static uint8 filter_flag;
+
+	// false=show name, true=show side view
+	static bool side_view_mode;
+
 private:
-	button_t bt_obsolete, bt_outdated, bt_only_upgrade, bt_future, sort_order;
+	button_t bt_obsolete, bt_outdated, bt_only_upgrade, bt_future;
+	gui_aligned_container_t cont_list_table;
 	gui_scrolled_list_t scrolly;
+	gui_scrollpane_t scrollx_tab;
 	gui_waytype_tab_panel_t tabs;
-	gui_combobox_t sort_by, ware_filter, engine_filter;
+	gui_combobox_t ware_filter, engine_filter;
 	vector_tpl<const goods_desc_t *>idx_to_ware;
 	gui_label_buf_t lb_count;
 
@@ -34,6 +62,9 @@ private:
 
 	// may waytypes available
 	uint32 count;
+
+	button_t bt_show_name, bt_show_side_view;
+	button_t bt_table_sort[VL_MAX_SPECS];
 
 public:
 	vehiclelist_frame_t();
@@ -52,21 +83,18 @@ class vehiclelist_stats_t : public gui_scrolled_list_t::scrollitem_t
 {
 private:
 	const vehicle_desc_t *veh;
-	cbuffer_t part1, part2;
-	int name_width;
-	int col1_width;
-	int col2_width;
+	cbuffer_t tooltip_buf;
+	cbuffer_t buf;
 	int height;
 
 public:
 	static int sort_mode;
 	static bool reverse;
-	static int img_width;
 
 	vehiclelist_stats_t(const vehicle_desc_t *);
 
 	char const* get_text() const OVERRIDE;
-	scr_size get_size() const OVERRIDE { return scr_size( D_MARGIN_LEFT+img_width+max(col1_width+col2_width,name_width)+D_MARGIN_RIGHT, height ); }
+	scr_size get_size() const OVERRIDE;
 	scr_size get_min_size() const OVERRIDE { return get_size(); };
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 
