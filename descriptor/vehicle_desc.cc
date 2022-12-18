@@ -8,6 +8,7 @@
 #include "../network/checksum.h"
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
+#include "../gui/gui_theme.h"
 
 uint32 vehicle_desc_t::get_running_cost() const
 {
@@ -418,6 +419,21 @@ uint8 vehicle_desc_t::get_auto_connection_vehicle_count(bool rear_side) const
 	}
 
 	return cnt;
+}
+
+PIXVAL vehicle_desc_t::get_vehicle_status_color() const
+{
+	const uint32 month = world()->get_current_month();
+	if (is_future(month)) {
+		return color_idx_to_rgb(MN_GREY0);
+	}
+	else if (is_obsolete(month)) {
+		return SYSCOL_OBSOLETE;
+	}
+	else if (is_retired(month)) {
+		return SYSCOL_OUT_OF_PRODUCTION;
+	}
+	return COL_SAFETY;
 }
 
 
