@@ -474,7 +474,7 @@ void vehicle_detail_t::init_table()
 		cont_livery.set_table_layout(2,0);
 		vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
 		uint8 available_liveries = 0;
-		ITERATE_PTR(schemes, i)
+		for (uint32 i = 0; i < schemes->get_count(); i++)
 		{
 			livery_scheme_t* scheme = schemes->get_element(i);
 			if (!scheme->is_available(month_now)) {
