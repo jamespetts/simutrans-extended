@@ -291,7 +291,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 			}
 			p++;
 
-			desc.empty = cbuffer_t::decode_uint8(p); 
+			desc.empty = cbuffer_t::decode_uint8(p);
 			desc.engine_type = cbuffer_t::decode_uint8(p);
 			desc.min_catering = cbuffer_t::decode_uint8(p);
 			desc.must_carry_class = cbuffer_t::decode_uint8(p);
