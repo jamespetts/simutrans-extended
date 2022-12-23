@@ -797,7 +797,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 	if (*p && *p == ',') { p++; }
 	// Consist order count
 	uint32 consist_order_count = 0;
-	if (*p && (*p != ',' && *p != '|')) { consist_order_count = bool(atoi(p)); }
+	if (*p && (*p != ',' && *p != '|')) { consist_order_count = atoi(p); }
 	while (*p && isdigit(*p)) { p++; }
 	if (*p && *p == ',') { p++; }
 
@@ -858,11 +858,11 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 	{
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
-			const uint32 index = atoi(p + i);
+			const uint32 index = atoi(p);
 			const uint8 index_buffer_incrementer = 2;
 
 			consist_order_t order;
-			order.sscanf_consist_order(p + i + index_buffer_incrementer);
+			p = order.sscanf_consist_order(p + index_buffer_incrementer) + 1;
 			if (order.orders.get_count() > 0)
 			{
 				orders.put(index, order);

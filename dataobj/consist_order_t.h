@@ -264,7 +264,7 @@ public:
 	void set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific_vehicle=true);
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
-	void sscanf_consist_order(const char* ptr);
+	const char* sscanf_consist_order(const char* ptr);
 
 	bool operator== (const consist_order_t& other) const;
 };

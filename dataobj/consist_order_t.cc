@@ -237,7 +237,7 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 	}
 }
 
-void consist_order_t::sscanf_consist_order(const char* ptr)
+const char* consist_order_t::sscanf_consist_order(const char* ptr)
 {
 	const char *p = ptr;
 	orders.clear();
@@ -245,7 +245,7 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 	tags_to_clear = cbuffer_t::decode_uint16(p);
 
 	// Retrieve the count
-	uint32 order_count = cbuffer_t::decode_uint32(p);
+	const uint32 order_count = cbuffer_t::decode_uint32(p);
 
 	// Now use the count to determine the number of orders retrieved
 	for(uint32 i = 0;  i < order_count; i ++)
@@ -263,7 +263,7 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 			vehicle_description_element desc;
 			char vehicle_name[256];
 			uint8 n = 0;
-			while(*p!='|')
+			while(*p!='|' && *p!='\0')
 			{
 				vehicle_name[n++] = *p++;
 			}
@@ -331,6 +331,8 @@ void consist_order_t::sscanf_consist_order(const char* ptr)
 		}
 		orders.append(element);
 	}
+
+	return p;
 }
 
 bool consist_order_t::operator== (const consist_order_t& other) const
