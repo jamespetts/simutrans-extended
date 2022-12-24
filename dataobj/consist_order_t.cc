@@ -169,6 +169,12 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_long(vehicle_description.min_running_cost);
 				file->rdwr_long(vehicle_description.max_fixed_cost);
 				file->rdwr_long(vehicle_description.min_fixed_cost);
+				file->rdwr_long(vehicle_description.max_fuel_per_km);
+				file->rdwr_long(vehicle_description.min_fuel_per_km);
+				file->rdwr_long(vehicle_description.max_staff_hundredths);
+				file->rdwr_long(vehicle_description.min_staff_hundredths);
+				file->rdwr_long(vehicle_description.max_drivers);
+				file->rdwr_long(vehicle_description.min_drivers);
 
 				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
 				{
