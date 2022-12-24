@@ -54,10 +54,14 @@ const char *vehicle_builder_t::vehicle_sort_by[vehicle_builder_t::sb_length] =
 	"Range",
 	"Power:",
 	"Tractive Force:",
+	"curb_weight",
 	"Axle load:",
 	"Intro. date:",
 	"Retire. date:",
 	"Comfort"
+	//,"hd_category"
+	//,"engine_type"
+	//,"role"
 };
 
 static stringhashtable_tpl< vehicle_desc_t*, N_BAGS_SMALL> name_fahrzeuge;
@@ -228,10 +232,6 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 {
 	int cmp = 0;
 	switch(mode) {
-		//case sb_freight:
-		//	cmp = compare_freight(a, b);
-		//	if (cmp != 0) return cmp < 0;
-		//	break;
 		case sb_name:
 			cmp = strcmp(translator::translate(a->get_name()), translator::translate(b->get_name()));
 			if (cmp != 0) return cmp < 0;
@@ -266,6 +266,18 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
+		case sb_enigine_type:
+			cmp = (int)a->get_engine_type() - (int)b->get_engine_type();
+			if (cmp != 0) return cmp < 0;
+			/* FALLTHROUGH */
+		case sb_role:
+			cmp = a->get_basic_constraint_prev() - b->get_basic_constraint_prev();
+			if (cmp != 0) return cmp < 0;
+			cmp = a->get_basic_constraint_next() - b->get_basic_constraint_next();
+			if (cmp != 0) return cmp < 0;
+			cmp = a->is_bidirectional() - b->is_bidirectional();
+			if (cmp != 0) return cmp < 0;
+			/* FALLTHROUGH */
 		case sb_power:
 			cmp = compare_power(a, b);
 			if (cmp != 0) return cmp < 0;
@@ -282,12 +294,19 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			const uint16 a_axle_load = a->get_waytype() == water_wt ? 0 : a->get_axle_load();
 			const uint16 b_axle_load = b->get_waytype() == water_wt ? 0 : b->get_axle_load();
 			cmp = a_axle_load - b_axle_load;
-			if (cmp == 0) {
-				cmp = a->get_weight() - b->get_weight();
-			}
+			if (cmp != 0) return cmp < 0;
+		}
+		/* FALLTHROUGH */
+		case sb_weight:
+		{
+			cmp = a->get_weight() - b->get_weight();
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
+		case sb_freight:
+			cmp = compare_freight(a, b);
+			if (cmp != 0) return cmp < 0;
+		/* FALLTHROUGH */
 		case sb_capacity:
 			cmp = a->get_total_capacity() - b->get_total_capacity();
 			if (cmp == 0) {

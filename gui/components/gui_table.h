@@ -9,8 +9,10 @@
 
 #include "gui_component.h"
 #include "gui_label.h"
+#include "gui_table.h"
 #include "../../simcolor.h"
 #include "../gui_theme.h"
+#include "gui_button.h"
 
 
 /**
@@ -103,6 +105,26 @@ public:
 	}
 
 	void draw(scr_coord offset) OVERRIDE;
+};
+
+
+class table_sort_button_t : public button_t {
+	bool reversed = false;
+
+public:
+	table_sort_button_t() {
+		init(button_t::roundbox_middle_state, "");
+	}
+
+	void set_reverse(bool yesno = false) { reversed=yesno; }
+
+	// set text and set size (including sort arrow space)
+	void set_text(const char * text) OVERRIDE;
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
 

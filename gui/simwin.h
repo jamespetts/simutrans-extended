@@ -127,6 +127,7 @@ enum magic_numbers {
 	magic_depot               = magic_line_class_manager  + 843, // only used to load/save
 	magic_depotlist           = magic_depot               + MAX_PLAYER_COUNT,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
+	magic_vehicle_detail,
 	magic_signalboxlist,
 	magic_pier_rotation_select,
 	magic_consist_order,

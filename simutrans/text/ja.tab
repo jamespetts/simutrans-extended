@@ -3467,6 +3467,8 @@ Upgrade price:
 改造/更新費:
 upgradeable_vehicles
 改造/更新可能な車両
+upgrade_only
+改造専用
 Usage: %u %%
 電力使用率 %u %%
 Use any vehicles already present in the depot, if available, instead of buying new ones or upgrading.
