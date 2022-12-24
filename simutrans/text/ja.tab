@@ -4419,6 +4419,32 @@ convoys stored
 留置編成数
 vehicles stored
 保管車両数
+Boarding from:
+乗車駅：
+Loaded at:
+積込駅：
+Origin:
+出発駅：
+origin
+出発駅
+Shipped from:
+発送駅：
+Loaded stop
+乗車駅
+Origin stop
+出発駅
+separate_by_fare_class
+運賃クラス容量別
+divide_by_wealth_class
+積載貨物クラス表示
+Separate cargo information display by fare class of this convoy.
+貨物カテゴリ・運賃ランク容量ごとに積載貨物情報を表示します。
+Cargoes are divided and displayed according to the wealth class.
+所得クラスまたは移動目的が異なる旅客／貨物を区別します。
+info_depth_from:
+出発地情報：
+info_depth_to:
+目的地情報：
 switch_spec_display_mode
 車両情報表示: 
 basic_spec

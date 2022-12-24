@@ -194,7 +194,6 @@ void convoi_t::init(player_t *player)
 	name_offset = 0;
 
 	freight_info_resort = true;
-	freight_info_order = 0;
 	loading_level = 0;
 	loading_limit = 0;
 	free_seats = 0;
@@ -5442,148 +5441,22 @@ void convoi_t::info(cbuffer_t & buf) const
 }
 #endif
 
-// sort order of convoi
-void convoi_t::set_sortby(uint8 sort_order)
+
+void convoi_t::force_update_fare_related_dialogs()
 {
-	freight_info_order = sort_order;
-	freight_info_resort = true;
-}
-
-
-// caches the last info; resorts only when needed
-// since the sorting of the classes is done here, we simply have two get_freight_info's...
-void convoi_t::get_freight_info(cbuffer_t & buf)
-{
-
-	if (freight_info_resort) {
-		freight_info_resort = false;
-		// rebuilt the list with goods ...
-		vector_tpl<ware_t> total_fracht;
-		vector_tpl<ware_t> pass_fracht[255];
-		vector_tpl<ware_t> mail_fracht[255];
-
-		size_t const n = goods_manager_t::get_count();
-		ALLOCA(uint32, max_loaded_waren, n);
-		MEMZERON(max_loaded_waren, n);
-
-		size_t const pass_classes = goods_manager_t::passengers->get_number_of_classes();
-		size_t const mail_classes = goods_manager_t::mail->get_number_of_classes();
-
-		ALLOCA(uint32, max_loaded_pass, pass_classes);
-		MEMZERON(max_loaded_pass, pass_classes);
-
-		ALLOCA(uint32, max_loaded_mail, mail_classes);
-		MEMZERON(max_loaded_mail, mail_classes);
-
-		bool sort_by_accommodation = env_t::default_sortmode == convoi_info_t::sort_mode_t::by_accommodation_detail || env_t::default_sortmode == convoi_info_t::sort_mode_t::by_accommodation_via ? true : false;
-
-		for (uint32 i = 0; i != vehicle_count; ++i) {
-
-			const vehicle_t* v = vehicle[i];
-
-
-			bool pass_veh = v->get_cargo_type() == goods_manager_t::passengers;
-			bool mail_veh = v->get_cargo_type() == goods_manager_t::mail;
-			const goods_desc_t* ware_desc = v->get_desc()->get_freight_type();
-			const uint16 menge = v->get_desc()->get_total_capacity();
-			const uint8 classes_to_check = v->get_desc()->get_number_of_classes();
-
-			// first add to capacity indicator
-			if (sort_by_accommodation)
-			{
-				if (pass_veh)
-				{
-					for (uint8 j = 0; j < pass_classes; j++)
-					{
-						max_loaded_pass[v->get_reassigned_class(j)] += v->get_accommodation_capacity(j);
-					}
-				}
-				else if (mail_veh)
-				{
-					for (uint8 j = 0; j < mail_classes; j++)
-					{
-						max_loaded_mail[v->get_reassigned_class(j)] += v->get_accommodation_capacity(j);
-					}
-				}
-				else if (menge > 0 && ware_desc != goods_manager_t::none) {
-					max_loaded_waren[ware_desc->get_index()] += menge;
-				}
-			}
-			else
-			{
-				if (menge > 0 && ware_desc != goods_manager_t::none) {
-					max_loaded_waren[ware_desc->get_index()] += menge;
-				}
-			}
-
-			//
-			for (uint8 j = 0; j < classes_to_check; j++)
-			{
-				// then add the actual load
-				for (auto ware : v->get_cargo(j))
-				{
-					// if != 0 we could not join it to existing => load it
-					if (ware.menge != 0)
-					{
-						if (sort_by_accommodation && pass_veh)
-						{
-							pass_fracht[v->get_reassigned_class(j)].append(ware);
-						}
-						else if (sort_by_accommodation && mail_veh)
-						{
-							mail_fracht[v->get_reassigned_class(j)].append(ware);
-						}
-						else
-						{
-							total_fracht.append(ware);
-						}
-					}
-				}
-			}
-			INT_CHECK("simconvoi 2643");
-		}
-		buf.clear();
-
-		// apend info on total capacity
-		slist_tpl <ware_t>capacity;
-		for (uint16 i = 0; i != n; ++i) {
-			if(max_loaded_waren[i]>0  &&  i!=goods_manager_t::INDEX_NONE) {
-				ware_t ware(goods_manager_t::get_info(i));
-				ware.menge = max_loaded_waren[i];
-				// append to category?
-				slist_tpl<ware_t>::iterator j = capacity.begin();
-				slist_tpl<ware_t>::iterator end = capacity.end();
-				while (j != end && j->get_desc()->get_catg_index() < ware.get_desc()->get_catg_index()) ++j;
-				if (j != end && j->get_desc()->get_catg_index() == ware.get_desc()->get_catg_index()) {
-					j->menge += max_loaded_waren[i];
-				}
-				else {
-					// not yet there
-					capacity.insert(j, ware);
-				}
-			}
-		}
-		// show new info
-		if (sort_by_accommodation)
-		{
-			ware_t ware;
-			for (uint8 i = 0; i < pass_classes; i++)
-			{
-				// We pass on details of all classes - freight_list_sorter will ignore the unused ones (unless they are incorrectly occupied!)
-				// Display from highest class to lowest class
-				uint8 j = pass_classes - i - 1;
-				ware = goods_manager_t::passengers;
-				freight_list_sorter_t::sort_freight(pass_fracht[j], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", j, max_loaded_pass[j], &ware);
-			}
-			for (uint8 i = 0; i < mail_classes; i++)
-			{
-				uint8 j = mail_classes - i - 1;
-				ware = goods_manager_t::mail;
-				freight_list_sorter_t::sort_freight(mail_fracht[j], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", j, max_loaded_mail[j], &ware);
-			}
-		}
-		freight_list_sorter_t::sort_freight(total_fracht, buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL);
+	// info
+	convoi_info_t *info = dynamic_cast<convoi_info_t*>(win_get_magic(magic_convoi_info + self.get_id()));
+	if (info) {
+		info->update_cargo_info();
 	}
+
+	// detail
+	//convoi_detail_t *detail = dynamic_cast<convoi_detail_t*>(win_get_magic(magic_convoi_detail + self.get_id()));
+	//if (detail) {
+	//	detail->update_cargo_info();
+	//}
+
+	return;
 }
 
 
@@ -7068,10 +6941,6 @@ void convoi_t::set_next_reservation_index(uint16 n)
 
 uint16 convoi_t::get_current_schedule_order() const
 {
-	if( in_depot() ) {
-		return -1;
-	}
-
 	if (reverse_schedule) {
 		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
 	}

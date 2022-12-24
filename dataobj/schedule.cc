@@ -1043,6 +1043,30 @@ bool schedule_t::is_contained (koord3d pos)
 }
 
 
+uint8 schedule_t::get_entry_index(halthandle_t halt, player_t *player, bool reverse) const
+{
+	if( !halt.is_bound() ) return -1;
+	for (uint8 i = 0; i < entries.get_count(); i++) {
+		// For schedules with station overlap we have to do a search from current convoy location
+		uint8 check_index = current_stop;
+		if (reverse) {
+			check_index = (check_index+entries.get_count()-i)%entries.get_count();
+		}
+		else {
+			check_index = (check_index+i)%entries.get_count();
+		}
+
+		halthandle_t entry_halt = haltestelle_t::get_halt(entries[check_index].pos, player);
+		if( !entry_halt.is_bound() ) continue;
+
+		if( halt==entry_halt ) {
+			return check_index;
+		}
+	}
+	return -1;
+}
+
+
 times_history_data_t::times_history_data_t() {
 	for (uint16 i = 0; i < TIMES_HISTORY_SIZE; i++) {
 		history[i] = 0;

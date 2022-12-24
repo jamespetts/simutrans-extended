@@ -377,6 +377,7 @@ private:
 	/**
 	* the convoi caches its freight info; it is only recalculation after loading or resorting
 	*/
+	// TODO: Not currently used but could be used for another flag. Delete if not used.
 	bool freight_info_resort;
 
 	// true, if at least one vehicle of a convoi is obsolete
@@ -388,11 +389,6 @@ private:
 	// True if this is on token block working and the route has been
 	// renewed during the journey.
 	bool needs_full_route_flush;
-
-	/**
-	* the convoi caches its freight info; it is only recalculation after loading or resorting
-	*/
-	uint8 freight_info_order;
 
 	/**
 	* Number of vehicles in this convoi.
@@ -1179,12 +1175,8 @@ private:
 	journey_times_map average_journey_times;
 public:
 
-	/**
-	* @param[out] buf Filled with freight description
-	*/
-	void get_freight_info(cbuffer_t & buf);
-	void set_sortby(uint8 order);
-	inline uint8 get_sortby() const { return freight_info_order; }
+	// we need to detect the change in the dialog that is already open when the fare class changes
+	void force_update_fare_related_dialogs();
 
 	/**
 	* Opens the schedule window
