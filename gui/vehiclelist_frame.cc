@@ -559,7 +559,6 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 				if (vehiclelist_stats_t::sort_mode == col_to_sort_mode[i]) {
 					vehiclelist_stats_t::reverse = !vehiclelist_stats_t::reverse;
 					bt_table_sort[i].set_reverse(vehiclelist_stats_t::reverse);
-					scrolly.sort(0);
 				}
 				else {
 					vehiclelist_stats_t::reverse = false;
