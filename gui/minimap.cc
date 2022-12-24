@@ -598,23 +598,23 @@ PIXVAL minimap_t::get_depot_color(obj_t::typ depot_type)
 {
 	switch (depot_type) {
 		case obj_t::bahndepot:
-			return world->get_settings().get_waytype_color(track_wt) ? world->get_settings().get_waytype_color(track_wt) : 64448;
+			return world->get_settings().get_waytype_color(track_wt);
 		case obj_t::strassendepot:
-			return world->get_settings().get_waytype_color(road_wt) ? world->get_settings().get_waytype_color(road_wt) : 39455;
+			return world->get_settings().get_waytype_color(road_wt);
 		case obj_t::schiffdepot:
-			return world->get_settings().get_waytype_color(water_wt) ? world->get_settings().get_waytype_color(water_wt) : 536;
+			return world->get_settings().get_waytype_color(water_wt);
 		case obj_t::airdepot:
-			return world->get_settings().get_waytype_color(air_wt) ? world->get_settings().get_waytype_color(air_wt) : 13919;
+			return world->get_settings().get_waytype_color(air_wt);
 		case obj_t::monoraildepot:
-			return world->get_settings().get_waytype_color(monorail_wt) ? world->get_settings().get_waytype_color(monorail_wt) : 45316;
+			return world->get_settings().get_waytype_color(monorail_wt);
 		case obj_t::tramdepot:
-			return world->get_settings().get_waytype_color(tram_wt) ? world->get_settings().get_waytype_color(tram_wt) : 15911;
+			return world->get_settings().get_waytype_color(tram_wt);
 		case obj_t::maglevdepot:
-			return world->get_settings().get_waytype_color(maglev_wt) ? world->get_settings().get_waytype_color(maglev_wt) : 61916;
+			return world->get_settings().get_waytype_color(maglev_wt);
 		case obj_t::narrowgaugedepot:
-			return world->get_settings().get_waytype_color(narrowgauge_wt) ? world->get_settings().get_waytype_color(narrowgauge_wt) : 37702;
+			return world->get_settings().get_waytype_color(narrowgauge_wt);
 		default:
-			return 37702;
+			return 44373; // gray
 	}
 	return 0;
 }
