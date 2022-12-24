@@ -3743,16 +3743,17 @@ void fabrik_t::recalc_factory_status()
 	if( !output.empty() ) {
 		bool has_any_consumer = false;
 		for(auto k : get_consumers()) {
-			const fabrik_t* consumer = fabrik_t::get_fab(k);
-			// Focus on incomplete connections between manufacturers rather than missing end consumer's connection
-			if (consumer->get_sector()==end_consumer) {
-				has_any_consumer = true;
-				break;
-			}
-			const uint8 consumer_status = consumer->get_status();
-			if (consumer_status!= missing_connections && consumer_status != missing_consumer && consumer_status != material_not_available) {
-				has_any_consumer = true;
-				break;
+			if (const fabrik_t* consumer = fabrik_t::get_fab(k)) {
+				// Focus on incomplete connections between manufacturers rather than missing end consumer's connection
+				if (consumer->get_sector()==end_consumer) {
+					has_any_consumer = true;
+					break;
+				}
+				const uint8 consumer_status = consumer->get_status();
+				if (consumer_status!= missing_connections && consumer_status != missing_consumer && consumer_status != material_not_available) {
+					has_any_consumer = true;
+					break;
+				}
 			}
 		}
 		if (!has_any_consumer) {
