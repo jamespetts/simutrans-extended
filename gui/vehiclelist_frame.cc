@@ -105,7 +105,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	const int text_offset_y = (height-1-LINEASCENT)>>1;
 
 	vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
-	bool selected = win ? (win->get_vehicle()==veh) : false;
+	const bool selected = win ? (win->get_vehicle()==veh) : false;
 
 	if (vehiclelist_frame_t::side_view_mode) {
 		if( selected ) {
