@@ -27,6 +27,7 @@
 #include "../vehicle/road_vehicle.h"
 #include "../vehicle/water_vehicle.h"
 
+#include "../simline.h"
 
 const char* vehicle_builder_t::engine_type_names[11] =
 {
@@ -130,6 +131,7 @@ vehicle_t* vehicle_builder_t::build(koord3d k, player_t* player, convoi_t* cnv, 
 		if(livery)
 		{
 			v->set_current_livery(livery);
+			player->set_favorite_livery_scheme_index((uint8)simline_t::waytype_to_linetype(vb->get_waytype()), livery_scheme_index);
 		}
 		else
 		{

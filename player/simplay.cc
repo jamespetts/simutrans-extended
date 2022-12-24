@@ -101,6 +101,10 @@ player_t::player_t(uint8 nr) :
 	// access in any event, but this is relevant to whether private
 	// cars may use player roads.
 	access[1] = true;
+
+	for( uint8 i=0; i < simline_t::MAX_LINE_TYPE; ++i ) {
+		favorite_livery_scheme[i]=UINT16_MAX;
+	}
 }
 
 
@@ -351,7 +355,7 @@ void player_t::step()
 {
 	/*
 	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen m�Esen die Fahrpl�ne rgelmaessig pruefen
+	// die haltestellen m?Esen die Fahrpl?ne rgelmaessig pruefen
 	uint8 i = (uint8)(welt->get_steps()+player_nr);
 	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
 	//while(iter.next()) {
@@ -983,6 +987,12 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	else
 	{
 		allow_voluntary_takeover = false;
+	}
+
+	if( file->is_version_ex_atleast(14,58) ) {
+		for( uint8 i=0; i < simline_t::MAX_LINE_TYPE; ++i ) {
+			file->rdwr_short(favorite_livery_scheme[i]);
+		}
 	}
 
 	if (file->is_version_ex_atleast(15, 0))

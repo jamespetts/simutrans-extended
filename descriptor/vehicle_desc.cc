@@ -352,10 +352,12 @@ void vehicle_desc_t::fix_number_of_classes()
 
 uint16 vehicle_desc_t::get_available_livery_count(karte_t *welt) const
 {
+	if( !livery_image_type ) return 0;
+
 	uint16 livery_count = 0;
 	const uint16 month_now = welt->get_timeline_year_month();
 	if (!welt->use_timeline()) {
-		return get_livery_count();
+		return livery_image_type;
 	}
 
 	vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();

@@ -603,7 +603,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				}
 				else if(  !welt->use_timeline()  ||  welt->get_settings().get_allow_buying_obsolete_vehicles()  ||  depot->check_obsolete_inventory( cnv )  )
 				{
-					depot->call_depot_tool('c', cnv, NULL, gui_convoy_assembler_t::get_livery_scheme_index());
+					depot->call_depot_tool('c', cnv, NULL, cnv->get_livery_scheme_index());
 					update_data();
 				}
 				else
@@ -654,6 +654,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				if(  selection == 2  ) { // last selected line
 					selected_line = last_selected_line;
 					apply_line();
+					convoy_assembler.check_livery_scheme_index(last_selected_line->get_livery_scheme_index());
 					return true;
 				}
 			}
@@ -665,6 +666,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				depot->set_last_selected_line( selected_line );
 				last_selected_line = selected_line;
 				apply_line();
+				convoy_assembler.check_livery_scheme_index(last_selected_line->get_livery_scheme_index());
 				return true;
 			}
 			line_selector.set_focusable( false );
