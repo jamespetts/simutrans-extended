@@ -1025,15 +1025,13 @@ void gebaeude_t::info(cbuffer_t & buf) const
 			buf.printf("%s%u", translator::translate("\nBauzeit bis"), h.get_retire_year_month() / 12);
 		}
 		buf.append("\n");
-		if (get_owner() == NULL) {
-			buf.append(translator::translate("Wert"));
-			buf.append(": ");
-			// The land value calculation below will need modifying if multi-tile city buildings are ever introduced.
-			sint64 cost = welt->get_settings().cst_multiply_remove_haus*2 * tile->get_desc()->get_level()*tile->get_desc()->get_size().x*tile->get_desc()->get_size().y;
-			cost += welt->get_land_value(get_pos());
-			buf.append(-(cost/100.0),2);
-			buf.append("$\n");
-		}
+		buf.append(translator::translate("Wert"));
+		buf.append(": ");
+		// The land value calculation below will need modifying if multi-tile city buildings are ever introduced.
+		sint64 cost = welt->get_settings().cst_multiply_remove_haus*2 * tile->get_desc()->get_level()*tile->get_desc()->get_size().x*tile->get_desc()->get_size().y;
+		cost += welt->get_land_value(get_pos());
+		buf.append(-(cost/100.0),2);
+		buf.append("$\n");
 
 		if (char const* const maker = tile->get_desc()->get_copyright()) {
 			buf.printf(translator::translate("Constructed by %s"), maker);

@@ -2202,15 +2202,16 @@ const char *tool_buy_house_t::work( player_t *player, koord3d pos)
 		return NOTICE_OWNED_BY_OTHER_PLAYER;
 	}
 
-	if(  gb->get_owner()==player  ) {
-		// I bought this already ...
-		return "";
-	}
-
 	player_t *old_owner = gb->get_owner();
 	const building_tile_desc_t *tile  = gb->get_tile();
 	const building_desc_t * bdsc = tile->get_desc();
 	koord size = bdsc->get_size( tile->get_layout() );
+
+	if(  gb->get_owner()==player  ) {
+          // Sell the property back to "unowned"
+          old_owner = player;
+          player = NULL;
+	}
 
 	koord k;
 	for(k.y = 0; k.y < size.y; k.y ++) {
@@ -2219,7 +2220,7 @@ const char *tool_buy_house_t::work( player_t *player, koord3d pos)
 			if(gr) {
 				gebaeude_t *gb_part = gr->find<gebaeude_t>();
 				// there may be buildings with holes
-				if(  gb_part  &&  gb_part->get_tile()->get_desc()==bdsc  &&  player_t::check_owner(gb_part->get_owner(),player)  ) {
+				if(  gb_part  &&  gb_part->get_tile()->get_desc()==bdsc  && (player == NULL || player_t::check_owner(gb_part->get_owner(),player))  ) {
 					const sint64 cost = welt->get_land_value(gr->get_pos()) + welt->get_settings().cst_multiply_remove_haus * tile->get_desc()->get_level() * 2; // Developed land is more valuable than undeveloped land.
 					if(!player_t::can_afford(player, -cost))
 					{
@@ -2229,7 +2230,11 @@ const char *tool_buy_house_t::work( player_t *player, koord3d pos)
 					player_t::add_maintenance(old_owner, -maint, gb->get_waytype());
 					player_t::add_maintenance(player, +maint, gb->get_waytype());
 					gb->set_owner(player);
-					player_t::book_construction_costs(player, cost, k + pos.get_2d(), gb->get_waytype());
+                                        if (player == NULL) {
+                                          player_t::book_construction_costs(old_owner, -cost, k + pos.get_2d(), gb->get_waytype());
+                                        } else {
+                                          player_t::book_construction_costs(player, cost, k + pos.get_2d(), gb->get_waytype());
+                                        }
 				}
 			}
 		}
