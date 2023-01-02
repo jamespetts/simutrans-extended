@@ -69,7 +69,7 @@ class convoi_info_t : public gui_frame_t, private action_listener_t
 	bool divide_by_wealth = false;
 	bool separate_by_fare = true;
 	gui_combobox_t selector_ci_depth_from, selector_ci_depth_to, freight_sort_selector;
-	button_t bt_divide_by_wealth, bt_separate_by_fare;
+	button_t bt_divide_by_wealth, bt_separate_by_fare, sort_order;
 	gui_aligned_container_t cont_tab_cargo_info;
 	void init_cargo_info_controller(); // build cont_tab_cargo_info table
 	gui_convoy_cargo_info_t cargo_info;

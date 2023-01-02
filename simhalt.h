@@ -711,6 +711,7 @@ public:
 	* True if we accept/deliver this kind of good
 	*/
 	bool gibt_ab(const goods_desc_t *warentyp) const { return cargo[warentyp->get_catg_index()] != NULL; }
+	bool accepts_goods_catg(uint8 goods_catg) const  { return cargo[goods_catg] != NULL; }
 
 	/**
 	 * retrieves a ware packet for any destination in the list
@@ -948,6 +949,11 @@ public:
 	bool check_access(const player_t* player) const;
 
 	bool has_available_network(const player_t* player, uint8 catg_index=goods_manager_t::INDEX_NONE) const;
+
+	// Check if passed waytype's service is active
+	// This is not affected by dummy bus stops intended to increase capacity,
+	// so it's a more accurate judgment than checking facilities.
+	bool has_waytype_service(waytype_t wt) const;
 
 	bool has_no_control_tower() const;
 

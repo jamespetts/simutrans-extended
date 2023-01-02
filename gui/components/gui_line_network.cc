@@ -153,8 +153,10 @@ void gui_transfer_line_t::draw(scr_coord offset)
 		char as_clock[32];
 		world()->sprintf_ticks(as_clock, sizeof(as_clock), service_frequency);
 		lb_service_frequency.buf().printf(" %s", as_clock);
-		lb_service_frequency.set_color(line->get_state() & simline_t::line_missing_scheduled_slots ? color_idx_to_rgb(COL_DARK_TURQUOISE) : SYSCOL_TEXT);
-		lb_service_frequency.set_tooltip(line->get_state() & simline_t::line_missing_scheduled_slots ? translator::translate("line_missing_scheduled_slots") : "");
+		if( line.is_bound() ) {
+			lb_service_frequency.set_color(line->get_state() & simline_t::line_missing_scheduled_slots ? color_idx_to_rgb(COL_DARK_TURQUOISE) : SYSCOL_TEXT);
+			lb_service_frequency.set_tooltip(line->get_state() & simline_t::line_missing_scheduled_slots ? translator::translate("line_missing_scheduled_slots") : "");
+		}
 	}
 	else {
 		lb_service_frequency.buf().append("--:--");
@@ -175,7 +177,7 @@ bool gui_transfer_line_t::action_triggered(gui_action_creator_t *comp, value_t)
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
 		win->activate_individual_network_mode(transfer_pos);
-		if (line->count_convoys() > 0) {
+		if( line.is_bound()  &&  line->count_convoys()>0 ) {
 			minimap_t::get_instance()->set_selected_cnv(line->get_convoy(0));
 		}
 		else {
@@ -185,7 +187,7 @@ bool gui_transfer_line_t::action_triggered(gui_action_creator_t *comp, value_t)
 		return true;
 	}
 	// TODO:
-	// This behavior destroys itself and can only be achieved if the line waits for a window individually (ad standard).
+	// This behavior destroys itself and can only be achieved if the line waits for a window individually (as standard).
 	/*
 	if( comp==&bt_access_info ) {
 		schedule_list_gui_t *sl = dynamic_cast<schedule_list_gui_t*>(win_get_magic((ptrdiff_t)(magic_line_management_t + line->get_owner()->get_player_nr())));

@@ -24,10 +24,11 @@
 
 #define HALT_WAITING_BAR_MAX_WIDTH 80
 
+bool gui_cargo_info_t::sort_reverse = false;
 
 static int compare_amount(const ware_t &a, const ware_t &b) {
 	int comp = b.menge - a.menge;
-	return comp;
+	return gui_cargo_info_t::sort_reverse ? -comp : comp;
 }
 
 static int compare_index(const ware_t &a, const ware_t &b) {
@@ -38,7 +39,7 @@ static int compare_index(const ware_t &a, const ware_t &b) {
 	if (comp == 0) {
 		comp = b.menge - a.menge;
 	}
-	return comp;
+	return gui_cargo_info_t::sort_reverse ? -comp : comp;
 }
 
 static int compare_via(const ware_t &a, const ware_t &b) {
@@ -49,7 +50,7 @@ static int compare_via(const ware_t &a, const ware_t &b) {
 	if (comp == 0) {
 		comp = b.menge - a.menge;
 	}
-	return comp;
+	return gui_cargo_info_t::sort_reverse ? -comp : comp;
 }
 
 static int compare_last_transfer(const ware_t &a, const ware_t &b) {
@@ -57,7 +58,7 @@ static int compare_last_transfer(const ware_t &a, const ware_t &b) {
 	if (comp == 0) {
 		comp = b.menge - a.menge;
 	}
-	return comp;
+	return gui_cargo_info_t::sort_reverse ? -comp : comp;
 }
 
 
@@ -918,10 +919,15 @@ void gui_convoy_cargo_info_t::update()
 			const uint8 g_classes = goods_manager_t::get_classes_catg_index(catg_index);
 			for (uint8 i = 0; i < g_classes; i++) {
 				if (cnv->get_unique_fare_capacity(catg_index,i)) {
-					add_table(2,1);
+					add_table(4,1);
 					{
 						new_component<gui_image_t>(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(),0,0, true);
-						gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT);
+
+						const uint16 fare_capacity = cnv->get_unique_fare_capacity(catg_index, i);
+						const uint16 total_cargo   = cnv->get_total_cargo_by_fare_class(catg_index, i);
+						const uint16 loading_rate  = fare_capacity ? 1000*total_cargo/fare_capacity : 0;
+
+						gui_label_buf_t *lb = new_component<gui_label_buf_t>();
 						if( g_classes > 1 ) {
 							lb->buf().append(goods_manager_t::get_translated_fare_class_name(catg_index,i));
 						}
@@ -929,15 +935,25 @@ void gui_convoy_cargo_info_t::update()
 							lb->buf().append(translator::translate(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name()));
 						}
 
-						lb->buf().printf(": %i/%i ", cnv->get_total_cargo_by_fare_class(catg_index,i),cnv->get_unique_fare_capacity(catg_index,i));
-						if (cnv->get_total_cargo_by_fare_class(catg_index,i)) {
-							lb->buf().append(translator::translate("loaded"));
+						lb->buf().printf(": %i/%i ", total_cargo, fare_capacity);
+						if( total_cargo ) {
+							lb->buf().printf("%s ", translator::translate("loaded"));
 						}
 						lb->update();
 
-						// UI TODO:
-						// add loading rate
+						if( loading_rate>1000  &&  SYMBOL_OVERCROWDING) {
+							new_component<gui_image_t>(SYMBOL_OVERCROWDING, 0, ALIGN_CENTER_V, true);
+						}
 
+						// loading rate
+						lb = new_component<gui_label_buf_t>(total_cargo > fare_capacity ? SYSCOL_OVERCROWDED : SYSCOL_TEXT);
+						if (loading_rate>0) {
+							lb->buf().printf("(%.1f%%)", (float)loading_rate/10.0);
+						}
+						else {
+							lb->buf().append("(0%)");
+						}
+						lb->update();
 					}
 					end_table();
 

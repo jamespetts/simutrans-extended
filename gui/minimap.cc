@@ -20,6 +20,7 @@
 #include "../dataobj/schedule.h"
 #include "../dataobj/powernet.h"
 
+#include "../bauer/wegbauer.h"
 #include "../boden/wege/schiene.h"
 #include "../obj/leitung2.h"
 #include "../obj/gebaeude.h"
@@ -620,14 +621,15 @@ PIXVAL minimap_t::get_depot_color(obj_t::typ depot_type)
 }
 
 
-PIXVAL minimap_t::calc_severity_color(sint32 amount, sint32 max_value)
+PIXVAL minimap_t::calc_severity_color(sint32 amount, sint32 max_value, bool inverse)
 {
 	if(max_value!=0) {
 		// color array goes from light blue to red
 		sint32 severity = amount * MAX_SEVERITY_COLORS / (max_value+1);
-		return color_idx_to_rgb( minimap_t::severity_color[ clamp( severity, 0, MAX_SEVERITY_COLORS-1 ) ]);
+		const uint8 color_index = clamp(severity, 0, MAX_SEVERITY_COLORS-1);
+		return color_idx_to_rgb( minimap_t::severity_color[ inverse ? MAX_SEVERITY_COLORS-color_index-1 : color_index]);
 	}
-	return color_idx_to_rgb( minimap_t::severity_color[0]);
+	return color_idx_to_rgb( minimap_t::severity_color[inverse ? MAX_SEVERITY_COLORS-1:0]);
 }
 
 
@@ -907,13 +909,25 @@ void minimap_t::calc_map_pixel(const koord k)
 				// now calc again ...
 				sint32 cargo=0;
 
-				// maximum two ways for one ground
-				const weg_t *w=gr->get_weg_nr(0);
+				const weg_t* w = transport_type_showed_on_map == simline_t::line ? gr->get_weg_nr(0) : gr->get_weg(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
 				if(w) {
-					cargo = w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_GOODS);
-					const weg_t *w=gr->get_weg_nr(1);
-					if(w) {
-						cargo += w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_GOODS);
+					// owner filter
+					if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+						if( w->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  w->get_owner_nr()!=PLAYER_UNOWNED  ) {
+							break;
+						}
+					}
+					else if(  player_showed_on_map!=-1 &&  player_showed_on_map!=w->get_owner_nr()  ) {
+						break;
+					}
+
+					cargo = w->get_statistics(WAY_STAT_GOODS);
+					// maximum two ways for one ground
+					if(  transport_type_showed_on_map==simline_t::line ) {
+						const weg_t *w=gr->get_weg_nr(1);
+						if(w) {
+							cargo += w->get_statistics(WAY_STAT_GOODS);
+						}
 					}
 					if(  cargo > max_cargo  ) {
 						max_cargo = cargo;
@@ -934,12 +948,24 @@ void minimap_t::calc_map_pixel(const koord k)
 				// now calc again ...
 				sint32 passed=0;
 
-				// maximum two ways for one ground
-				const weg_t *w=gr->get_weg_nr(0);
+				const weg_t* w = transport_type_showed_on_map == simline_t::line ? gr->get_weg_nr(0) : gr->get_weg(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
 				if(w) {
-					passed = w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS);
-					if(  weg_t *w=gr->get_weg_nr(1)  ) {
-						passed += w->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS);
+					// owner filter
+					if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+						if( w->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  w->get_owner_nr()!=PLAYER_UNOWNED  ) {
+							break;
+						}
+					}
+					else if(  player_showed_on_map!=-1 &&  player_showed_on_map!=w->get_owner_nr()  ) {
+						break;
+					}
+
+					passed = w->get_statistics(WAY_STAT_CONVOIS);
+					// maximum two ways for one ground
+					if(  transport_type_showed_on_map==simline_t::line ){
+						if( weg_t *w = gr->get_weg_nr(1) ) {
+							passed += w->get_statistics(WAY_STAT_CONVOIS);
+						}
 					}
 					if(  passed > max_passed  ) {
 						max_passed = passed;
@@ -956,7 +982,20 @@ void minimap_t::calc_map_pixel(const koord k)
 			if(gr->hat_wege())
 			{
 				// maximum two ways for one ground
-				const weg_t *way = gr->get_weg_nr(0);
+				const weg_t* way = transport_type_showed_on_map == simline_t::line ? gr->get_weg_nr(0) : gr->get_weg(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
+				if( way==NULL ) {
+					break;
+				}
+				// owner filter
+				if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+					if( way->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  way->get_owner_nr()!=PLAYER_UNOWNED  ) {
+						break;
+					}
+				}
+				else if(  player_showed_on_map!=-1 &&  player_showed_on_map!=way->get_owner_nr()  ) {
+					break;
+				}
+
 				condition_percent = way->get_condition_percent();
 				if (way->get_desc()->is_mothballed()) {
 					set_map_color(k, MAP_COL_NODATA);
@@ -980,6 +1019,16 @@ void minimap_t::calc_map_pixel(const koord k)
 				const weg_t* road = gr->get_weg(road_wt);
 				if (road)
 				{
+					// owner filter
+					if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+						if( road->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  road->get_owner_nr()!=PLAYER_UNOWNED  ) {
+							break;
+						}
+					}
+					else if(  player_showed_on_map!=-1 &&  player_showed_on_map!=road->get_owner_nr()  ) {
+						break;
+					}
+
 					// Because it is possible for congestion to be >100% (as 100% merely means that traffic
 					// takes 100% longer than the uncongested time to traverse the tile), set the colour range
 					// based on a maximum of 250% to allow more granularity in congested places.
@@ -992,15 +1041,25 @@ void minimap_t::calc_map_pixel(const koord k)
 		case MAP_TRACKS:
 			// show track
 			if (gr->hat_weg(track_wt)) {
-				const schiene_t * sch = (const schiene_t *) (gr->get_weg(track_wt));
-				if(sch->is_electrified()) {
+				const schiene_t * rail = (const schiene_t *) (gr->get_weg(track_wt));
+				// owner filter
+				if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+					if( rail->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  rail->get_owner_nr()!=PLAYER_UNOWNED  ) {
+						break;
+					}
+				}
+				else if(  player_showed_on_map!=-1 &&  player_showed_on_map!=rail->get_owner_nr()  ) {
+					break;
+				}
+
+				if( rail->is_electrified() ) {
 					set_map_color(k, color_idx_to_rgb(COL_RED));
 				}
 				else {
 					set_map_color(k, color_idx_to_rgb(COL_WHITE));
 				}
 				// show signals
-				if(sch->has_sign()  ||  sch->has_signal()) {
+				if( rail->has_sign()  ||  rail->has_signal() ) {
 					set_map_color(k, color_idx_to_rgb(COL_YELLOW));
 				}
 			}
@@ -1009,13 +1068,35 @@ void minimap_t::calc_map_pixel(const koord k)
 		// show max speed (if there)
 		case MAX_SPEEDLIMIT:
 			{
-				if (gr->hat_wege() && gr->get_weg_nr(0)->get_desc()->is_mothballed()) {
+				const weg_t* way = transport_type_showed_on_map == simline_t::line ? gr->get_weg_nr(0) : gr->get_weg(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
+				if( way==NULL ) {
+					break;
+				}
+				// owner filter
+				if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+					if( way->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  way->get_owner_nr()!=PLAYER_UNOWNED  ) {
+						break;
+					}
+				}
+				else if(  player_showed_on_map!=-1  ) {
+					if(  way->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  way->get_owner_nr()!=PLAYER_UNOWNED  &&  !way->get_owner()->allows_access_to( world->get_active_player_nr() )  ) {
+						break;
+					}
+				}
+
+				if (way->get_desc()->is_mothballed()) {
 					set_map_color(k, MAP_COL_NODATA);
 					break;
 				}
-				const sint32 speed_factor = 450-gr->get_max_speed() > 0 ? 450 - gr->get_max_speed() : 0;
-				if(gr->get_max_speed()) {
-					set_map_color(k, calc_severity_color(pow(speed_factor,2.0)/100, 2025));
+
+				if(  transport_type_showed_on_map==simline_t::line ) {
+					const sint32 speed_factor = 450-gr->get_max_speed() > 0 ? 450 - gr->get_max_speed() : 0;
+					if(gr->get_max_speed()) {
+						set_map_color(k, calc_severity_color(pow(speed_factor,2.0)/100, 2025));
+					}
+				}
+				else if (gr->get_max_speed()) {
+					set_map_color(k, calc_severity_color(gr->get_max_speed(), (sint32)max_world_value, true));
 				}
 			}
 			break;
@@ -1025,7 +1106,22 @@ void minimap_t::calc_map_pixel(const koord k)
 			{
 				if(gr->hat_wege())
 				{
-					const weg_t* way =  gr->get_weg_nr(0);
+					const weg_t* way = transport_type_showed_on_map == simline_t::line ? gr->get_weg_nr(0) : gr->get_weg(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
+					if( way==NULL ) {
+						break;
+					}
+					// owner filter
+					if( player_showed_on_map==PUBLIC_PLAYER_NR ) {
+						if( way->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  way->get_owner_nr()!=PLAYER_UNOWNED  ) {
+							break;
+						}
+					}
+					else if(  player_showed_on_map!=-1  ) {
+						if(  way->get_owner_nr()!=PUBLIC_PLAYER_NR  &&  way->get_owner_nr()!=PLAYER_UNOWNED  &&  !way->get_owner()->allows_access_to( world->get_active_player_nr() )  ) {
+							break;
+						}
+					}
+
 					if (way->get_desc()->is_mothballed()) {
 						set_map_color(k, MAP_COL_NODATA);
 						break;
@@ -1034,13 +1130,15 @@ void minimap_t::calc_map_pixel(const koord k)
 					{
 						break;
 					}
-					if(gr->ist_bruecke())
+					if(gr->ist_bruecke()  &&  transport_type_showed_on_map==simline_t::line )
 					{
+						// Prioritize axle load if waytype filter is enabled.
 						set_map_color(k, calc_severity_color(350-way->get_bridge_weight_limit()>0 ? 350-way->get_bridge_weight_limit() : 0, 350));
 					}
 					else
 					{
-						set_map_color(k, calc_severity_color(30-way->get_max_axle_load()>0 ? 30-way->get_max_axle_load() : 0, 30));
+						const uint32 world_max_axle_load = transport_type_showed_on_map==simline_t::line ? 30 : max_world_value;
+						set_map_color(k, calc_severity_color((sint32)way->get_max_axle_load(), (sint32)world_max_axle_load, true));
 					}
 				}
 			}
@@ -1484,7 +1582,21 @@ void minimap_t::draw(scr_coord pos)
 			last_schedule_counter = world->get_schedule_counter()-1;
 		}
 
+		max_world_value = 0;
 		last_mode = mode;
+	}
+
+	if ((mode & MAP_WEIGHTLIMIT)) {
+		if (transport_type_showed_on_map != simline_t::line  &&  (!max_world_value || transport_type_showed_on_map != old_waytype) ) {
+			old_waytype = transport_type_showed_on_map;
+			max_world_value = way_builder_t::get_world_max_axle_load(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
+		}
+	}
+	if ((mode & MAX_SPEEDLIMIT)) {
+		if (transport_type_showed_on_map != simline_t::line  && (!max_world_value || transport_type_showed_on_map != old_waytype)) {
+			old_waytype = transport_type_showed_on_map;
+			max_world_value = (uint32)way_builder_t::get_world_max_way_speed(simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map));
+		}
 	}
 
 	if(  needs_redraw  ||  cur_off!=new_off  ||  cur_size!=new_size  ) {
@@ -1640,6 +1752,7 @@ void minimap_t::draw(scr_coord pos)
 	koord last_start(0,0), last_end(0,0);
 	bool diagonal = false;
 	if(  showing_schedule  ) {
+		const int transparency = ( mode & (MAP_MODE_WAY_FLAGS|MAP_MODE_BUILDING_FLAGS|MAP_OWNER) ) ? 50:75;
 		// lighten background
 		if(  isometric  ) {
 			// isometric => lighten in three parts
@@ -1652,24 +1765,24 @@ void minimap_t::draw(scr_coord pos)
 			// top and bottom part
 			const int toplines = min( p4.y, p2.y );
 			for( scr_coord_val y = 0;  y < toplines;  y++  ) {
-				display_blend_wh_rgb( pos.x+p1.x-2*y, pos.y+y, 4*y+4, 1, color_idx_to_rgb(COL_WHITE), 75 );
-				display_blend_wh_rgb( pos.x+p3.x-2*y, pos.y+p3.y-y-1, 4*y+4, 1, color_idx_to_rgb(COL_WHITE), 75 );
+				display_blend_wh_rgb( pos.x+p1.x-2*y, pos.y+y, 4*y+4, 1, color_idx_to_rgb(COL_WHITE), transparency );
+				display_blend_wh_rgb( pos.x+p3.x-2*y, pos.y+p3.y-y-1, 4*y+4, 1, color_idx_to_rgb(COL_WHITE), transparency );
 			}
 			// center area
 			if(  p1.x < p3.x  ) {
 				for( scr_coord_val y = toplines;  y < p3.y-toplines;  y++  ) {
-					display_blend_wh_rgb( pos.x+(y-toplines)*2, pos.y+y, 4*toplines+4, 1, color_idx_to_rgb(COL_WHITE), 75 );
+					display_blend_wh_rgb( pos.x+(y-toplines)*2, pos.y+y, 4*toplines+4, 1, color_idx_to_rgb(COL_WHITE), transparency );
 				}
 			}
 			else {
 				for( scr_coord_val y = toplines;  y < p3.y-toplines;  y++  ) {
-					display_blend_wh_rgb( pos.x+(y-toplines)*2, pos.y+p3.y-y-1, 4*toplines+4, 1, color_idx_to_rgb(COL_WHITE), 75 );
+					display_blend_wh_rgb( pos.x+(y-toplines)*2, pos.y+p3.y-y-1, 4*toplines+4, 1, color_idx_to_rgb(COL_WHITE), transparency );
 				}
 			}
 		}
 		else {
 			// easier with rectangular maps ...
-			display_blend_wh_rgb( cur_off.x+pos.x, cur_off.y+pos.y, map_data->get_width(), map_data->get_height(), color_idx_to_rgb(COL_WHITE), 75 );
+			display_blend_wh_rgb( cur_off.x+pos.x, cur_off.y+pos.y, map_data->get_width(), map_data->get_height(), color_idx_to_rgb(COL_WHITE), transparency );
 		}
 
 		scr_coord k1,k2;
@@ -1733,15 +1846,13 @@ void minimap_t::draw(scr_coord pos)
 	halthandle_t display_station;
 	// only fill cache if needed
 	if(  mode & MAP_MODE_HALT_FLAGS  &&  stop_cache.empty()  ) {
-		if(  mode & MAP_ORIGIN  ) {
-			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
-				if(  halt->get_pax_enabled()  ||  halt->get_mail_enabled()  ) {
+		for( auto halt : haltestelle_t::get_alle_haltestellen() ) {
+			if(  mode & MAP_ORIGIN  ) {
+				if(  halt->get_pax_enabled()  ) {
 					stop_cache.append( halt );
 				}
 			}
-		}
-		else if(  mode&MAP_TRANSFER  ||  mode&MAP_MAIL_HANDLING_VOLUME  ||  mode&MAP_GOODS_HANDLING_VOLUME    ) {
-			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
+			else if(  mode&MAP_TRANSFER  ||  mode&MAP_MAIL_HANDLING_VOLUME  ||  mode&MAP_GOODS_HANDLING_VOLUME    ) {
 				if(  mode & MAP_TRANSFER  ){
 					if( !halt->get_pax_enabled() ) {
 						continue;
@@ -1772,9 +1883,7 @@ void minimap_t::draw(scr_coord pos)
 					}
 				}
 			}
-		}
-		else if(  mode&MAP_PAX_WAITING  ||  mode&MAP_MAIL_WAITING  ||  mode&MAP_GOODS_WAITING  ||  mode&MAP_SERVICE  ) {
-			FOR( const vector_tpl<halthandle_t>, halt, haltestelle_t::get_alle_haltestellen() ) {
+			else if(  mode&MAP_PAX_WAITING  ||  mode&MAP_MAIL_WAITING  ||  mode&MAP_GOODS_WAITING  ||  mode&MAP_SERVICE  ) {
 				if(  mode&MAP_PAX_WAITING && !halt->get_pax_enabled()  ) {
 					continue;
 				}
@@ -1795,6 +1904,35 @@ void minimap_t::draw(scr_coord pos)
 		if(  !station.is_bound()  ) {
 			// maybe deleted in the meanwhile
 			continue;
+		}
+
+		// These filters are effective only when network mode is off
+		if( (mode&MAP_LINES)==0 ) {
+			// freight type filter
+			if(  mode&MAP_SERVICE  &&  freight_type_group_index_showed_on_map) {
+				// stop accepts freight or not
+				if (freight_type_group_index_showed_on_map == goods_manager_t::none) {
+					if (!station->get_ware_enabled()) continue;
+				}
+				else {
+					if (!station->accepts_goods_catg(freight_type_group_index_showed_on_map->get_catg_index())) continue;
+				}
+			}
+
+			// player filter, include mutual use
+			if( player_showed_on_map!=-1 ) {
+				const player_t *selected_player = world->get_player(player_showed_on_map);
+				if( (selected_player!=station->get_owner()) && !station->has_available_network(selected_player) ) {
+					continue;
+				}
+			}
+
+			// station service type filter
+			if(  transport_type_showed_on_map != simline_t::line  ) {
+				if(  !station->has_waytype_service( simline_t::linetype_to_waytype((simline_t::linetype)transport_type_showed_on_map) )  ) {
+					continue;
+				}
+			}
 		}
 
 		int radius = 0;
@@ -1844,7 +1982,7 @@ void minimap_t::draw(scr_coord pos)
 			radius = number_to_radius( waiting_goods*3 );
 		}
 		else if( mode & MAP_ORIGIN  ) {
-			if(  !station->get_pax_enabled()  &&  !station->get_mail_enabled()  ) {
+			if(  !station->get_pax_enabled()  ) {
 				continue;
 			}
 			const sint32 pax_origin = (sint32)(station->get_finance_history( 1, HALT_HAPPY ) + station->get_finance_history( 1, HALT_UNHAPPY ) + station->get_finance_history(1, HALT_TOO_WAITING) + station->get_finance_history(1, HALT_NOROUTE) + station->get_finance_history( 1, HALT_TOO_SLOW ));

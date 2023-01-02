@@ -309,6 +309,35 @@ bool way_builder_t::waytype_available( const waytype_t wtyp, uint16 time )
 }
 
 
+// Returns the maximum axle load of the available ways. This is used for map color scaling
+uint32 way_builder_t::get_world_max_axle_load(const waytype_t wtyp)
+{
+	uint32 world_max = 0;
+	const uint16 time = world()->get_timeline_year_month();
+	for (auto const& i : desc_table) {
+		way_desc_t const* const test = i.value;
+		if (test->get_wtyp() == wtyp && test->is_available(time) && test->get_builder()) {
+			world_max = max(world_max,test->get_max_axle_load());
+		}
+	}
+	return world_max;
+}
+
+
+// Returns the maximum axle load of the available ways. This is used for map color scaling
+sint32 way_builder_t::get_world_max_way_speed(const waytype_t wtyp)
+{
+	sint32 world_max = 0;
+	const uint16 time = world()->get_timeline_year_month();
+	for (auto const& i : desc_table) {
+		way_desc_t const* const test = i.value;
+		if (test->get_wtyp() == wtyp && test->is_available(time) && test->get_builder()) {
+			world_max = max(world_max,test->get_topspeed());
+		}
+	}
+	return world_max;
+}
+
 
 const way_desc_t * way_builder_t::get_desc(const char * way_name, const uint16 time)
 {

@@ -339,9 +339,9 @@ void convoi_info_t::init_cargo_info_controller()
 	{
 		bool enable_cargo_detail = (cargo_info_depth_from + cargo_info_depth_to);
 		// col1: sort option
-		cont_tab_cargo_info.add_table(1, 2)->set_spacing(scr_size(0, 0));
+		cont_tab_cargo_info.add_table(2, 2)->set_spacing(scr_size(0, 0));
 		{
-			cont_tab_cargo_info.new_component<gui_label_t>("Sort by");
+			cont_tab_cargo_info.new_component_span<gui_label_t>("Sort by",2);
 			for( uint8 i=0; i<gui_cargo_info_t::SORT_MODES; ++i ) {
 				freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
 			}
@@ -349,6 +349,12 @@ void convoi_info_t::init_cargo_info_controller()
 			freight_sort_selector.enable(enable_cargo_detail);
 			freight_sort_selector.add_listener(this);
 			cont_tab_cargo_info.add_component(&freight_sort_selector);
+
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.pressed = !gui_cargo_info_t::sort_reverse;
+			sort_order.add_listener(this);
+			cont_tab_cargo_info.add_component(&sort_order);
 		}
 		cont_tab_cargo_info.end_table();
 
@@ -1024,6 +1030,11 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		env_t::default_sortmode = (uint8)freight_sort_selector.get_selection();
 		cargo_info_controll = true;
 	}
+	else if(  comp==&sort_order  ) {
+		gui_cargo_info_t::sort_reverse = !gui_cargo_info_t::sort_reverse;
+		sort_order.pressed = !gui_cargo_info_t::sort_reverse;
+		cargo_info_controll = true;
+	}
 	else if(  comp==&bt_divide_by_wealth  ) {
 		divide_by_wealth = !divide_by_wealth;
 		bt_divide_by_wealth.pressed = divide_by_wealth;
@@ -1050,8 +1061,13 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 
 bool convoi_info_t::infowin_event(const event_t *ev)
 {
-	if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  ) {
-		minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
+	if(  ev->ev_code == INFOWIN  ) {
+		if( ev->ev_code == WIN_CLOSE) {
+			minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
+		}
+		else if ((ev->ev_code == WIN_OPEN || ev->ev_code == WIN_TOP)) {
+			minimap_t::get_instance()->set_selected_cnv(cnv);
+		}
 	}
 	return gui_frame_t::infowin_event(ev);
 }

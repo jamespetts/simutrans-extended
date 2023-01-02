@@ -92,6 +92,8 @@ public:
 		SORT_MODES  = 4
 	};
 
+	static bool sort_reverse;
+
 private:
 	convoihandle_t cnv;
 

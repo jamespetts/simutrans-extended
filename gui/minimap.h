@@ -70,6 +70,13 @@ public:
 		MAP_MAIL_HANDLING_VOLUME    = 1u << 30u,
 		MAP_GOODS_HANDLING_VOLUME   = 1u << 31u,
 
+		// orange buttons
+		MAP_MODE_WAY_FLAGS = (MAP_TRACKS|MAP_FREIGHT|MAP_TRAFFIC|MAP_CONDITION|MAP_CONGESTION|MAX_SPEEDLIMIT|MAP_WEIGHTLIMIT|MAP_POWERLINES),
+
+		// blue buttons
+		MAP_MODE_BUILDING_FLAGS = (MAP_STATION_COVERAGE|MAP_PAX_DEST|MAP_LEVEL|MAP_ACCESSIBILITY_COMMUTING|MAP_ACCESSIBILITY_TRIP|MAP_STAFF_FULFILLMENT|MAP_MAIL_DELIVERY),
+
+		// red buttons
 		MAP_MODE_HALT_FLAGS = (MAP_SERVICE|MAP_ORIGIN|MAP_TRANSFER|MAP_PAX_WAITING|MAP_MAIL_WAITING|MAP_GOODS_WAITING|MAP_MAIL_HANDLING_VOLUME|MAP_GOODS_HANDLING_VOLUME),
 		MAP_MODE_FLAGS = (MAP_TOWN|MAP_CITYLIMIT|MAP_SERVICE|MAP_PAX_WAITING|MAP_MAIL_WAITING|MAP_GOODS_WAITING|MAP_TRANSFER|MAP_LINES|MAP_FACTORIES|MAP_ORIGIN|MAP_DEPOT|MAP_TOURIST|MAP_CONVOYS|MAP_MAIL_HANDLING_VOLUME|MAP_GOODS_HANDLING_VOLUME)
 	};
@@ -185,6 +192,10 @@ private:
 	static sint32 max_cargo;
 	static sint32 max_passed;
 
+	// waytype filter
+	uint32 max_world_value = 0;
+	sint8 old_waytype = 0;
+
 	/// the zoom factors
 	sint16 zoom_out{1};
 	sint16 zoom_in{1};
@@ -215,7 +226,7 @@ public:
 	/**
 	 * returns a color based on an amount (high amount/scale -> color shifts from green to red)
 	 */
-	static PIXVAL calc_severity_color(sint32 amount, sint32 scale);
+	static PIXVAL calc_severity_color(sint32 amount, sint32 scale, bool inverse=false);
 
 	/**
 	 * returns a color based on an amount (high amount/scale -> color shifts from green to red)
