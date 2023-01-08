@@ -999,7 +999,9 @@ void settings_t::rdwr(loadsave_t *file)
 		if(file->is_version_atleast(102, 2)) {
 			bool dummy = false;
 			file->rdwr_bool(dummy);
-			file->rdwr_bool( with_private_paks );
+			if (file->is_version_less(123, 2) || file->is_version_ex_less(14, 59)) {
+				file->rdwr_bool( with_private_paks );
+			}
 		}
 		if(file->is_version_atleast(102, 3)) {
 			// network stuff

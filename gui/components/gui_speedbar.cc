@@ -253,29 +253,32 @@ scr_size gui_bandgraph_t::get_max_size() const
 
 void gui_bandgraph_t::draw(scr_coord offset)
 {
-	offset += pos;
+	offset = offset+pos+padding;
 	total = 0;
 	FOR(slist_tpl<info_t>, const& i, values) {
 		total += *i.value;
 	}
 
+	const scr_coord_val bar_width  = size.w - padding.w - padding.w;
+	const scr_coord_val bar_height = size.h - padding.h - padding.h;
 	if (total==0) {
-		display_fillbox_wh_clip_rgb(offset.x, offset.y, size.w, size.h, COL_INACTIVE, true);
+		display_fillbox_wh_clip_rgb(offset.x, offset.y, bar_width, bar_height, COL_INACTIVE, true);
 	}
 	else{
+		offset.x += bar_width;
 		sint32 temp = 0;
 		scr_coord_val end = 0;
 		FOR(slist_tpl<info_t>, const& i, values) {
 			if (*i.value>0) {
 				temp += (*i.value);
-				const scr_coord_val from = size.w * temp / total + 0.5;
+				const scr_coord_val from = bar_width * temp / total + 0.5;
 				const scr_coord_val width = from-end;
 				if (width) {
 					if (i.cylinder_style) {
-						display_cylinderbar_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+						display_cylinderbar_wh_clip_rgb(offset.x - from, offset.y, width, bar_height, i.color, true);
 					}
 					else {
-						display_fillbox_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+						display_fillbox_wh_clip_rgb(offset.x - from, offset.y, width, bar_height, i.color, true);
 					}
 				}
 				end += width;

@@ -18,6 +18,7 @@
 #include "components/gui_button.h"
 #include "components/gui_button_to_chart.h"
 #include "components/gui_tab_panel.h"
+#include "components/gui_table.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_speedbar.h"
 #include "../display/viewport.h"
@@ -193,7 +194,8 @@ private:
 	button_t allow_growth;         ///< Checkbox to enable/disable city growth
 	button_t bt_show_contour, bt_show_hide_legend, bt_city_attractions, bt_city_stops, bt_city_factories;
 	gui_label_t lb_collapsed;
-	gui_label_buf_t lb_size, lb_buildings, lb_border, lb_powerdemand;
+	gui_label_buf_t lb_border;
+	gui_table_cell_buf_t lb_size, lb_buildings, lb_powerdemand;
 	gui_label_with_symbol_t lb_allow_growth;
 
 	gui_tab_panel_t year_month_tabs, tabs;

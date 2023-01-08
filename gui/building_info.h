@@ -14,6 +14,7 @@
 #include "components/gui_location_view_t.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_tab_panel.h"
+#include "components/gui_table.h"
 
 #include "../utils/cbuffer_t.h"
 #include "../descriptor/goods_desc.h"
@@ -25,9 +26,8 @@ class gui_building_stats_t : public gui_aligned_container_t
 {
 	const gebaeude_t *building;
 	PIXVAL frame_color;
-	gui_label_buf_t p_class_names[5];
-	gui_label_buf_t lb_visitor_arrivals[2], lb_commuter_arrivals[2], lb_mail_sent[2]; // for trip record
-	gui_label_buf_t lb_commuting_success_rate[2], lb_visiting_success_rate[2], lb_mail_success_rate[2]; // for achievement rate
+	gui_table_cell_buf_t lb_visitor_arrivals[2], lb_commuter_arrivals[2], lb_mail_sent[2]; // for trip record
+	gui_table_cell_buf_t lb_commuting_success_rate[2], lb_visiting_success_rate[2], lb_mail_success_rate[2]; // for achievement rate
 
 
 public:

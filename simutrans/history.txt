@@ -1,3 +1,7 @@
+	ADD: new tool (and button in signal dialog) for removing signals only
+	CHG: a go-to-coordinate action will change view to underground/normal view if target is invisible
+
+Release of 123.0.1 (r10421 on 29-Jan-2022):
 	CHG: lang files are loaded if their name is *XX.tab or XX*.tab The first is preferred to avoid confusion by name like ja-taken.tab
 	ADD: selected convoi in minimap now magenta. Also network display properly updated when activating or closing windows
 	CHG: Infinite mouse scrolling can be activated manually in the display settings; but it will fail with certain touch devices

@@ -720,12 +720,6 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		create_win(20, 20, new line_color_gui_t(line), w_info, magic_line_color_gui_t);
 		return true;
 	}
-	else if (comp == &bt_line_color_editor) {
-		if (line.is_bound()) {
-			destroy_win( magic_line_color_gui_t );
-			create_win(20, 20, new line_color_gui_t(line), w_info, magic_line_color_gui_t);
-		}
-	}
 	else if (comp == &sortedby) {
 		int tmp = sortedby.get_selection();
 		if (tmp >= 0 && tmp < sortedby.count_elements())

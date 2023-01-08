@@ -4057,18 +4057,6 @@ void fabrik_t::recalc_nearby_halts()
 #endif // DEBUG
 }
 
-void fabrik_t::info_conn(cbuffer_t& buf) const
-{
-	buf.clear();
-	if (building)
-	{
-		buf.printf("\n");
-		buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(building->get_purchase_time()));
-		buf.printf("\n");
-		buf.printf(translator::translate("Constructed by %s"), get_fab(building->get_pos().get_2d())->get_desc()->get_copyright());
-	}
-}
-
 
 void fabrik_t::finish_rd()
 {
