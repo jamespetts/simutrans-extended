@@ -1581,6 +1581,10 @@ void settings_t::rdwr(loadsave_t *file)
 			{
 				livery_schemes_count = livery_schemes.get_count();
 			}
+			else
+			{
+				livery_schemes.clear();
+			}
 
 			file->rdwr_short(livery_schemes_count);
 
