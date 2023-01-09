@@ -16,6 +16,7 @@
 #include "components/gui_convoy_assembler.h"
 #include "components/gui_label.h"
 #include "components/gui_numberinput.h"
+#include "components/gui_textarea.h"
 
 #include "../dataobj/replace_data.h"
 
@@ -33,10 +34,19 @@ private:
 	 */
 	convoihandle_t cnv;
 
+	// UI acts as "line replace dialog" if valid line is assigned
+	linehandle_t target_line;
+
 	cbuffer_t title_buf;
 
-	bool replace_line;	// True if all convoys like this in its line are to be replaced
-	bool replace_all;	// True if all convoys like this are to be replaced
+	enum replace_mode_t {
+		only_this_convoy = 0,
+		same_consist_for_player,
+		same_consist_for_this_line,
+		all_convoys_of_this_line
+	};
+	replace_mode_t replace_mode;
+
 	bool depot;		// True if convoy is to be sent to depot only
 	replace_data_t *rpl;
 	enum {state_replace=0, state_sell, state_skip, n_states};
@@ -76,12 +86,19 @@ private:
 	//gui_numberinput_t	numinp[n_states];
 	gui_convoy_assembler_t convoy_assembler;
 
+	// current convoy info
+	gui_label_buf_t lb_vehicle_count;
+	gui_label_buf_t lb_station_tiles;
+
+	cbuffer_t buf_line_help;
+	gui_textarea_t txt_line_replacing;
+
 	// Some helper functions
 	bool replace_convoy(convoihandle_t cnv, bool mark);
 	inline void start_replacing() {state=state_replace; replaced_so_far=0;}
 	uint8 get_present_state();
 
-	sint64 calc_total_cost();
+	sint64 calc_total_cost(convoihandle_t current_cnv);
 
 	void init();
 	void init_table();
@@ -91,6 +108,7 @@ private:
 
 public:
 	replace_frame_t(convoihandle_t cnv = convoihandle_t());
+	replace_frame_t(linehandle_t line);
 
 	// This is also called when the convoy name is changed.
 	void set_title();
@@ -119,10 +137,13 @@ public:
 
 	const convoihandle_t get_convoy() const { return cnv; }
 
+	uint8 get_player_nr() const;
+
 	virtual ~replace_frame_t();
 
 	// for reload from the save
 	void set_convoy(convoihandle_t cnv) { this->cnv=cnv; init(); }
+	void set_line(linehandle_t line) { target_line = line; cnv=convoihandle_t(); init(); }
 	uint32 get_rdwr_id() OVERRIDE;
 
 	void rdwr(loadsave_t *) OVERRIDE;
