@@ -76,7 +76,7 @@ std::string env_t::nickname = "";
 // this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
 sint16 env_t::scroll_multi = 2;
-bool env_t::scroll_infinite = true; // since it fails with touch devices
+bool env_t::scroll_infinite = false;
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
@@ -213,7 +213,7 @@ void env_t::init()
 	message_flags[2] = 0x00A0;
 	message_flags[3] = 0;
 
-	night_shift = true;
+	night_shift = false;
 
 	hide_with_transparency = true;
 	hide_trees = false;
