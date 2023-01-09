@@ -13,6 +13,7 @@
 #include "gui_action_creator.h"
 #include "gui_button.h"
 #include "gui_label.h"
+#include "gui_scrollpane.h"
 #include "../simwin.h"
 
 #include "../../simhalt.h"
@@ -112,6 +113,9 @@ private:
 	button_t bt_own_network;
 	uint8 filter_catg=goods_manager_t::INDEX_NONE;
 
+	gui_aligned_container_t cont_diagram;
+	gui_scrollpane_t scroll;
+
 public:
 	gui_line_network_t(linehandle_t line);
 	gui_line_network_t(convoihandle_t cnv);
@@ -120,10 +124,11 @@ public:
 	void set_convoy(convoihandle_t cnv_) { line=linehandle_t(); cnv=cnv_; init_table(); }
 
 	void init_table();
-
-	void draw(scr_coord offset) OVERRIDE;
+	void init_diagram();
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
+
+	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, get_min_size().h); }
 };
 
 #endif

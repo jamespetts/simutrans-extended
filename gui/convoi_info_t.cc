@@ -120,7 +120,6 @@ convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	cont_line_network(cnv),
 	scroll_freight(&cargo_info, true, true),
 	scroll_times_history(&cont_times_history, true),
-	scroll_line_network(&cont_line_network, true, true),
 	lc_preview(0)
 {
 	if (cnv.is_bound()) {
@@ -309,7 +308,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	container_stats.end_table();
 
 	switch_mode.add_tab(&scroll_times_history, translator::translate("times_history"));
-	switch_mode.add_tab(&scroll_line_network, translator::translate("line_network"));
+	switch_mode.add_tab(&cont_line_network, translator::translate("line_network"));
 
 	speed_bar.set_base(max_convoi_speed);
 	speed_bar.set_vertical(false);
@@ -873,12 +872,10 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 			break;
 		default:
 		case 1: // chart
+		case 3: // notwork
 			break;
 		case 2: // times history
 			scroll_times_history.set_show_scroll_x( scroll_times_history.get_size().h > D_SCROLLBAR_HEIGHT );
-			break;
-		case 3: // notwork
-			scroll_line_network.set_show_scroll_x(scroll_line_network.get_size().h > D_SCROLLBAR_HEIGHT);
 			break;
 	}
 

@@ -222,6 +222,7 @@ gui_line_transfer_guide_t::gui_line_transfer_guide_t(halthandle_t transfer_halt,
 	cnv  = convoihandle_t();
 	filter_same_company = yesno;
 	filter_catg = catg_index;
+	update();
 }
 
 gui_line_transfer_guide_t::gui_line_transfer_guide_t(halthandle_t transfer_halt, convoihandle_t cnv_, bool yesno, uint8 catg_index)
@@ -231,6 +232,7 @@ gui_line_transfer_guide_t::gui_line_transfer_guide_t(halthandle_t transfer_halt,
 	cnv  = cnv_;
 	filter_same_company = yesno;
 	filter_catg = catg_index;
+	update();
 }
 
 void gui_line_transfer_guide_t::update()
@@ -318,6 +320,7 @@ void gui_line_transfer_guide_t::update()
 		}
 	}
 	end_table();
+	set_size(gui_aligned_container_t::get_min_size());
 }
 
 void gui_line_transfer_guide_t::draw(scr_coord offset)
@@ -328,14 +331,14 @@ void gui_line_transfer_guide_t::draw(scr_coord offset)
 			seed = seed_temp;
 			update();
 		}
-		set_size(gui_aligned_container_t::get_min_size());
 
 		gui_aligned_container_t::draw(offset);
 	}
 }
 
 
-gui_line_network_t::gui_line_network_t(linehandle_t line)
+gui_line_network_t::gui_line_network_t(linehandle_t line) :
+	scroll(&cont_diagram, true, true)
 {
 	this->line = line;
 	cnv = convoihandle_t();
@@ -345,7 +348,8 @@ gui_line_network_t::gui_line_network_t(linehandle_t line)
 	}
 }
 
-gui_line_network_t::gui_line_network_t(convoihandle_t cnv)
+gui_line_network_t::gui_line_network_t(convoihandle_t cnv) :
+	scroll(&cont_diagram, true, true)
 {
 	this->cnv = cnv;
 	line = linehandle_t();
@@ -358,66 +362,51 @@ gui_line_network_t::gui_line_network_t(convoihandle_t cnv)
 void gui_line_network_t::init_table()
 {
 	remove_all();
-	set_table_layout(5,0);
+	set_table_layout(1,0);
 	set_alignment(ALIGN_TOP);
-	set_spacing( scr_size(0,0) );
-	if (!line.is_bound() && !cnv.is_bound()) return;
-
-	const minivec_tpl<uint8> &goods_catg_index = cnv.is_bound() ? cnv->get_goods_catg_index() : line->get_goods_catg_index();
-	if( goods_catg_index.get_count()==1 ) {
-		// Force the filter to be disabled
-		filter_catg = goods_manager_t::INDEX_NONE;
-	}
-	// filter controller
-	new_component_span<gui_empty_t>(3);
 	add_table(3,1);
 	{
-		if( goods_catg_index.get_count()>1 ) {
-			filter_goods_catg.clear_elements();
-			filter_goods_catg.set_width(LINEASCENT*20);
-			filter_goods_catg.set_width_fixed(true);
-			filter_goods_catg.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All freight types"), SYSCOL_TEXT);
-			filter_goods_catg.set_selection(0);
-			for (uint8 catg_idx = 0; catg_idx < goods_manager_t::get_max_catg_index(); catg_idx++)
-			{
-				if (!goods_catg_index.is_contained(catg_idx)) {
-					continue;
-				}
-				filter_goods_catg.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(goods_manager_t::get_info_catg_index(catg_idx)->get_catg_name()), SYSCOL_TEXT, goods_manager_t::get_info_catg_index(catg_idx)->get_catg_symbol());
-				if (filter_catg==catg_idx) {
-					filter_goods_catg.set_selection(filter_goods_catg.count_elements()-1);
-				}
-			}
+		filter_goods_catg.add_listener(this);
+		add_component(&filter_goods_catg);
 
-			filter_goods_catg.add_listener(this);
-			add_component(&filter_goods_catg);
-		}
-
-		bt_own_network.init(button_t::square_state, "Show only own network"); // TODO: add translation
-		bt_own_network.pressed = filter_own_network;
+		bt_own_network.init(button_t::square_state, "Show only own network");
 		bt_own_network.add_listener(this);
-
 		add_component(&bt_own_network);
 
 		new_component<gui_fill_t>();
 	}
 	end_table();
-	new_component<gui_empty_t>();
+	scroll.set_maximize(true);
+	add_component(&scroll);
 
-	new_component_span<gui_border_t>(5);
+	init_diagram();
+}
 
+void gui_line_network_t::init_diagram()
+{
+	cont_diagram.remove_all();
+	filter_goods_catg.set_visible(false);
+
+	if (!line.is_bound() && !cnv.is_bound()) return;
 	schedule_t *schedule = cnv.is_bound() ? cnv->get_schedule() : line->get_schedule();
+	if (schedule->empty()) return;
+
+	cont_diagram.set_table_layout(5,0);
+	cont_diagram.set_spacing( scr_size(0,0) );
+	cont_diagram.set_alignment(ALIGN_TOP);
+	cont_diagram.set_table_frame(true,true);
+
 	const player_t *player = line.is_bound() ? line->get_owner() : cnv->get_owner();
 	uint8 entry_idx = 0;
 	FORX(minivec_tpl<schedule_entry_t>, const& i, schedule->entries, ++entry_idx) {
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if (!halt.is_bound()) { continue; }
 
-		add_table(2,1);
+		cont_diagram.add_table(2,1);
 		{
-			new_component<gui_fill_t>();
+			cont_diagram.new_component<gui_fill_t>();
 			const bool can_serve = line.is_bound() ? halt->can_serve(line) : halt->can_serve(cnv);
-			gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE, gui_label_t::right);
+			gui_label_buf_t *lb = cont_diagram.new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE, gui_label_t::right);
 			if (!can_serve) {
 				lb->buf().printf("(%s)", halt->get_name());
 			}
@@ -427,14 +416,14 @@ void gui_line_network_t::init_table()
 			lb->update();
 			lb->set_fixed_width(lb->get_min_size().w);
 		}
-		end_table();
-		new_component<gui_margin_t>(5);
+		cont_diagram.end_table();
+		cont_diagram.new_component<gui_margin_t>(5);
 
 		const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
 
-		add_table(1,2)->set_spacing(scr_size(0,0));
+		cont_diagram.add_table(1,2)->set_spacing(scr_size(0,0));
 		{
-			new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
+			cont_diagram.new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
 				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
 				scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
 				halt->get_basis_pos3d()
@@ -462,41 +451,62 @@ void gui_line_network_t::init_table()
 					base_color = display_blend_colors(base_color, color_idx_to_rgb(COL_BLACK), 15);
 				}
 
-				new_component<gui_colored_route_bar_t>(base_color, line_style, true);
+				cont_diagram.new_component<gui_colored_route_bar_t>(base_color, line_style, true);
 			}
 		}
-		end_table();
+		cont_diagram.end_table();
 
 		if(is_interchange) {
 			if (line.is_bound()) {
-				new_component<gui_line_transfer_guide_t>(halt, line, filter_own_network, filter_catg);
+				cont_diagram.new_component<gui_line_transfer_guide_t>(halt, line, filter_own_network, filter_catg);
 			}
 			else {
-				new_component<gui_line_transfer_guide_t>(halt, cnv, filter_own_network, filter_catg);
+				cont_diagram.new_component<gui_line_transfer_guide_t>(halt, cnv, filter_own_network, filter_catg);
 			}
 		}
 		else {
-			new_component<gui_empty_t>();
+			cont_diagram.new_component<gui_empty_t>();
 		}
-		new_component<gui_fill_t>();
+		cont_diagram.new_component<gui_fill_t>();
 	}
+
+	const minivec_tpl<uint8> &goods_catg_index = cnv.is_bound() ? cnv->get_goods_catg_index() : line->get_goods_catg_index();
+	if( goods_catg_index.get_count()==1 ) {
+		// Force the filter to be disabled
+		filter_catg = goods_manager_t::INDEX_NONE;
+	}
+	// filter controller
+	if( goods_catg_index.get_count()>1 ) {
+		filter_goods_catg.clear_elements();
+		filter_goods_catg.set_width(LINEASCENT*20);
+		filter_goods_catg.set_width_fixed(true);
+		filter_goods_catg.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All freight types"), SYSCOL_TEXT);
+		filter_goods_catg.set_selection(0);
+		for (uint8 catg_idx = 0; catg_idx < goods_manager_t::get_max_catg_index(); catg_idx++)
+		{
+			if (!goods_catg_index.is_contained(catg_idx)) {
+				continue;
+			}
+			filter_goods_catg.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(goods_manager_t::get_info_catg_index(catg_idx)->get_catg_name()), SYSCOL_TEXT, goods_manager_t::get_info_catg_index(catg_idx)->get_catg_symbol());
+			if (filter_catg==catg_idx) {
+				filter_goods_catg.set_selection(filter_goods_catg.count_elements()-1);
+			}
+		}
+		filter_goods_catg.set_visible(true);
+	}
+	bt_own_network.pressed = filter_own_network;
+
+	// size needs to be recalculated
+	cont_diagram.set_size(cont_diagram.get_min_size());
+	set_size(get_size());
 }
 
-
-void gui_line_network_t::draw(scr_coord offset)
-{
-	// The size of the component may change automatically
-	// as the number of connecting routes increases or decreases.
-	gui_aligned_container_t::set_size(gui_aligned_container_t::get_min_size());
-
-	gui_aligned_container_t::draw(offset);
-}
 
 bool gui_line_network_t::action_triggered(gui_action_creator_t *comp, value_t v)
 {
 	if( comp==&bt_own_network ) {
 		filter_own_network = !filter_own_network;
-		init_table();
+		init_diagram();
 		return true;
 	}
 	if( comp==&filter_goods_catg ) {
@@ -517,7 +527,7 @@ bool gui_line_network_t::action_triggered(gui_action_creator_t *comp, value_t v)
 				count++;
 			}
 		}
-		init_table();
+		init_diagram();
 		return true;
 	}
 

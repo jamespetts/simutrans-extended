@@ -83,7 +83,7 @@ class convoi_info_t : public gui_frame_t, private action_listener_t
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
 	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
-	gui_scrollpane_t scroll_freight, scroll_times_history, scroll_line_network;
+	gui_scrollpane_t scroll_freight, scroll_times_history;
 
 	button_t line_button; // goto line ...
 	bool line_bound;

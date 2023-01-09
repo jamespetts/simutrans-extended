@@ -33,6 +33,9 @@ class signal_t;
 class gebaeude_t;
 class stadt_t;
 class unordered_map;
+class grund_t;
+class bruecke_t;
+class tunnel_t;
 template <class T> class vector_tpl;
 
 
@@ -410,6 +413,8 @@ public:
 	*/
 	void set_desc(const way_desc_t *b, bool from_saved_game = false);
 	const way_desc_t *get_desc() const { return desc; }
+
+	void calc_speed_limit(grund_t* gr, const bruecke_t* bridge = nullptr, const tunnel_t* tunnel = nullptr);
 
 	// returns a way with the matching type
 	static weg_t *alloc(waytype_t wt);

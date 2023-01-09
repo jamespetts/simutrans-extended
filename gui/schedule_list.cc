@@ -258,7 +258,6 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	scroll_times_history(&cont_times_history, true, true),
 	scroll_line_info(&cont_line_info, true, true),
 	scroll_fare_manager(&cont_tab_fare_manager, true, true),
-	scroll_line_network(&cont_line_network, true, true),
 	scl(gui_scrolled_list_t::listskin, line_scrollitem_t::compare),
 	lbl_filter("Line Filter"),
 	convoy_infos(),
@@ -556,7 +555,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	cont_tab_haltlist.add_component(&cont_haltlist);
 	info_tabs.add_tab(&scroll_halt_waiting, translator::translate("waiting_status"));
 
-	info_tabs.add_tab(&scroll_line_network, translator::translate("line_network"));
+	info_tabs.add_tab(&cont_line_network, translator::translate("line_network"));
 
 	cont_tab_fare_manager.set_table_layout(1,0);
 	cont_tab_fare_manager.add_table(2,1);

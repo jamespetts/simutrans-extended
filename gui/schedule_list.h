@@ -75,7 +75,7 @@ private:
 	gui_line_waiting_status_t cont_haltlist;
 	gui_line_network_t cont_line_network;
 	gui_convoy_loading_info_t cont_line_capacity_by_catg;
-	gui_scrollpane_t scrolly_convois, scroll_halt_waiting, scroll_times_history, scroll_line_info, scroll_fare_manager, scroll_line_network;
+	gui_scrollpane_t scrolly_convois, scroll_halt_waiting, scroll_times_history, scroll_line_info, scroll_fare_manager;
 	gui_scrolled_list_t scl;
 	gui_waytype_image_box_t wt_symbol;
 	gui_textinput_t inp_name, inp_filter;
