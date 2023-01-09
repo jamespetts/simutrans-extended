@@ -213,7 +213,7 @@ void env_t::init()
 	message_flags[2] = 0x00A0;
 	message_flags[3] = 0;
 
-	night_shift = true;
+	night_shift = false;
 
 	hide_with_transparency = true;
 	hide_trees = false;
