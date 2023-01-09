@@ -6638,3 +6638,11 @@ hd_sv_mode_catg
 Show category
 hd_sv_mode_route
 Show route
+replace_line_convoys
+Replace vehicles
+helptxt_replace_all_convoys_of_this_line
+Replace all convoys in this line, no matter the type, with a specified type of convoy
+multiline_helptext_replace_all_line_convoys
+Replace all convoys in this line
+error_text_invalid_replace_cycle
+Invalid replacement cycle
