@@ -163,6 +163,8 @@ Die Bruecke ist nicht frei!\n
 橋梁上が空ではないか、\n他社の所有物です。\n
 Diese Zusammenstellung kann nicht fahren!\n
 編成の構成エラー：\n構成が不完全か出力が不足しています。
+error_text_invalid_replace_cycle
+置き換え周期に関する入力値が正しくありません。\n(置き換え数と売却数が0の場合、置き換えを実行できません)
 Flugzeughalt muss auf\nRunway liegen!\n
 飛行機は滑走路上にのみ\n降りることができます！
 Hier kann dieses\nFlughafengebaeude nicht\ngebaut werden!\n
@@ -3114,23 +3116,25 @@ remove interm. signals
 renewal_costs
 更新費
 Replace
-交換
+編成の置換
 replace all
 同一構成の編成全て
 Replace all convoys like this
 所有する同じ構成の編成すべてを対象にします。
 Replace all convoys like this belonging to this line
-同一路線内の、同じ構成の編成すべてを対象にします。
+同一路線内の、同じ車両構成の編成すべてを対象にします。
 replace all in line
-所属路線の同一構成の編成
+所属路線の同一車両構成の編成
 Replace but stay
-交換後待機
+置換後待機
 Replace cycle:
-交換比率:
+置き換え周期:
 replace other signals
 他の信号を置換
+replace_line_convoys
+編成の一括置き換え
 Replacing
-交換中
+置換準備中
 Replacing\nvehicles of\n%-20s\ncompleted
 %-20sの車両の置き換えが完了しました。
 requires
@@ -3176,11 +3180,11 @@ Rolling resistance:
 Routes will update instantly after any changes to lines/schedules. Can make the game respond slowly on big maps.
 路線やダイヤの変更後、直ちに路線を更新します。大きいマップでは応答が遅くなる可能性があります。
 rpl_cnv_replace
-交換
+置換
 rpl_cnv_sell
-売却
+引退
 rpl_cnv_skip
-非交換
+存置
 Runway too short
 滑走路が短すぎます
 runway_09/27
@@ -3655,6 +3659,10 @@ helptxt_intermediate
 中間車両
 hlptxt_vh_normal_state
 選択可能/正常（現役車両）
+helptxt_replace_all_convoys_of_this_line
+この路線に所属する編成を指定した構成に置き換えます。
+multiline_helptext_replace_all_line_convoys
+路線に所属している全ての編成を\n設定した構成で置き換えます。
 need to connect vehicle
 車両の追加が必要
 out of production

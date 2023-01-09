@@ -246,7 +246,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 		go_home_button.add_listener(this);
 		add_component(&go_home_button);
 
-		replace_button.init(button_t::roundbox | button_t::flexible, "Replace");
+		replace_button.init(button_t::roundbox | button_t::flexible, "Replace type");
 		replace_button.set_tooltip("Automatically replace this convoy.");
 		add_component(&replace_button);
 		replace_button.add_listener(this);

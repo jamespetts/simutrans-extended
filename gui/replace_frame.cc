@@ -42,28 +42,53 @@ static bool _is_electrified(const karte_t* welt, const convoihandle_t& cnv)
 
 replace_frame_t::replace_frame_t(convoihandle_t cnv) :
 	gui_frame_t("", NULL),
-	replace_line(false), replace_all(false), depot(false),
+	replace_mode(only_this_convoy), depot(false),
 	state(state_replace), replaced_so_far(0),
+	txt_line_replacing(&buf_line_help),
 	current_convoi(&current_convoi_pics),
 	scrollx_convoi(&current_convoi, true, false),
 	convoy_assembler(this)
 {
 	this->cnv = cnv;
+	target_line=linehandle_t();
 	if( cnv.is_bound() ) {
+		init();
+	}
+}
+
+replace_frame_t::replace_frame_t(linehandle_t line) :
+	gui_frame_t("", NULL),
+	replace_mode(all_convoys_of_this_line), depot(false),
+	state(state_replace), replaced_so_far(0),
+	txt_line_replacing(&buf_line_help),
+	current_convoi(&current_convoi_pics),
+	scrollx_convoi(&current_convoi, true, false),
+	convoy_assembler(this)
+{
+	target_line = line;
+	cnv=convoihandle_t();
+	if( line.is_bound() ) {
 		init();
 	}
 }
 
 void replace_frame_t::init()
 {
-	if( cnv.is_null() ) return; // Reload measures
+	if( cnv.is_null()  &&  !target_line.is_bound()) return; // Reload measures
 
 	set_title();
-	set_owner(cnv->get_owner());
+	if( target_line.is_bound() ){
+		set_owner(target_line->get_owner());
+		convoy_assembler.init(target_line->get_schedule()->get_waytype(), target_line->get_owner()->get_player_nr(), target_line->needs_electrification());
+		convoy_assembler.set_vehicles(cnv);
+		rpl = new replace_data_t();
+	}
+	else {
+		set_owner(cnv->get_owner());
+		convoy_assembler.init(cnv->front()->get_desc()->get_waytype(), cnv->get_owner()->get_player_nr(), _is_electrified(welt, cnv));
+		rpl = cnv->get_replace() ? new replace_data_t(cnv->get_replace()) : new replace_data_t();
+	}
 
-	convoy_assembler.init(cnv->front()->get_desc()->get_waytype(), cnv->get_owner()->get_player_nr(), _is_electrified(welt, cnv));
-
-	rpl = cnv->get_replace() ? new replace_data_t(cnv->get_replace()) : new replace_data_t();
 	copy = false;
 
 	init_table();
@@ -77,8 +102,15 @@ void replace_frame_t::init()
 
 void replace_frame_t::set_title()
 {
-	if (cnv.is_null()) return; // Reload measures
-	title_buf.printf("%s > %s", translator::translate("Replace"), cnv->get_name());
+	if( target_line.is_bound() ){
+		title_buf.printf("%s > %s", translator::translate("replace_line_convoys"), target_line->get_name());
+	}
+	else if( cnv.is_bound() ){
+		title_buf.printf("%s > %s", translator::translate("Replace"), cnv->get_name());
+	}
+	else {
+		return; // Reload measures
+	}
 	set_name(title_buf);
 }
 
@@ -90,42 +122,47 @@ void replace_frame_t::init_table()
 	set_table_layout(1,0);
 	set_margin(scr_size(0,D_MARGIN_TOP), scr_size(0,0));
 
-	linehandle_t line = cnv->get_line();
+	linehandle_t line = cnv.is_bound() ? cnv->get_line() : target_line;
 
 	// [LINK BUTTON]
 	add_table(7,1);
 	{
 		new_component<gui_margin_t>(D_H_SPACE);
-		new_component<gui_convoi_button_t>(cnv);
-		new_component<gui_label_t>("Current convoy:");
-		bt_details.init(button_t::roundbox_state, "Details");
-		if (skinverwaltung_t::open_window) {
-			bt_details.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			bt_details.set_image_position_right(true);
+		if( cnv.is_bound() ) {
+			new_component<gui_convoi_button_t>(cnv);
+			new_component<gui_label_t>("Current convoy:");
+			bt_details.init(button_t::roundbox_state, "Details");
+			if (skinverwaltung_t::open_window) {
+				bt_details.set_image(skinverwaltung_t::open_window->get_image_id(0));
+				bt_details.set_image_position_right(true);
+			}
+			bt_details.add_listener(this);
+			bt_details.set_tooltip("Open the convoy detail window");
+			add_component(&bt_details);
 		}
-		bt_details.add_listener(this);
-		bt_details.set_tooltip("Open the convoy detail window");
-		add_component(&bt_details);
 		if( line.is_bound() ) {
 			new_component<gui_line_button_t>(line);
 			new_component<gui_line_label_t>(line);
+			add_component(&lb_vehicle_count);
 		}
 		new_component<gui_fill_t>();
 	}
 	end_table();
 
 	// [CURRENT CONVOY]
-	current_convoi.set_max_rows(1);
-	scr_coord grid = convoy_assembler.get_grid(cnv->front()->get_waytype());
-	grid.x = grid.x>>1;
-	grid.y = (grid.y*3)>>2;
-	current_convoi.set_grid(grid);
-	//set_placement(scr_coord(placement.x - placement_dx, placement.y));
-	current_convoi.set_player_nr( cnv->get_owner()->get_player_nr() );
+	if( cnv.is_bound() ) {
+		current_convoi.set_max_rows(1);
+		scr_coord grid = convoy_assembler.get_grid(cnv->front()->get_waytype());
+		grid.x = grid.x>>1;
+		grid.y = (grid.y*3)>>2;
+		current_convoi.set_grid(grid);
+		//set_placement(scr_coord(placement.x - placement_dx, placement.y));
+		current_convoi.set_player_nr( cnv->get_owner()->get_player_nr() );
 
-	scrollx_convoi.set_maximize(true);
-	scrollx_convoi.set_min_height(scrollx_convoi.get_max_size().h);
-	add_component(&scrollx_convoi);
+		scrollx_convoi.set_maximize(true);
+		scrollx_convoi.set_min_height(scrollx_convoi.get_max_size().h);
+		add_component(&scrollx_convoi);
+	}
 
 	add_table(2,1)->set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(D_MARGIN_RIGHT, 0));
 	{
@@ -154,14 +191,18 @@ void replace_frame_t::init_table()
 
 				new_component<gui_margin_t>(D_H_SPACE);
 
-				cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Only this convoy"), SYSCOL_TEXT);
-				cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("replace all"), SYSCOL_TEXT);
-				if( line.is_bound() ) {
-					cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("replace all in line"), SYSCOL_TEXT);
+				if( cnv.is_bound() ) {
+					// "replace all" and "replace all in line" are confusing, but are left for backward compatibility of the translation files.
+					cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Only this convoy"), SYSCOL_TEXT);
+					cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("replace all"), SYSCOL_TEXT);
+					if( line.is_bound() ) {
+						cb_replace_target.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("replace all in line"), SYSCOL_TEXT);
+					}
+					cb_replace_target.add_listener(this);
+
+					cb_replace_target.set_selection(replace_mode);
+					add_component(&cb_replace_target);
 				}
-				cb_replace_target.add_listener(this);
-				cb_replace_target.set_selection( replace_all + replace_line*2 );
-				add_component(&cb_replace_target);
 			}
 			end_table();
 
@@ -196,9 +237,10 @@ void replace_frame_t::init_table()
 			new_component_span<gui_label_t>("Replace cycle:",3);
 			// | label | input | number(text) |
 			for( uint8 i=0; i<n_states; ++i ) {
+				numinp[i].set_value(i==0 ? 1:0); // init value first
+				if( target_line.is_bound() && i>0 ) continue;
 				lb_inp[i].init(rpl_label_texts[i]);
 				add_component(&lb_inp[i]);
-				numinp[i].set_value(i==0 ? 1:0);
 				numinp[i].set_increment_mode(1);
 				numinp[i].set_limits(0, 999);
 				numinp[i].add_listener(this);
@@ -221,10 +263,13 @@ void replace_frame_t::init_table()
 		lb_money.set_fixed_width(D_LABEL_WIDTH);
 		add_component(&lb_money);
 
-		bt_reset.init(button_t::roundbox, "reset", scr_coord(0,0), D_BUTTON_SIZE);
-		bt_reset.set_tooltip("Reset this replacing operation");
-		bt_reset.add_listener(this);
-		add_component(&bt_reset);
+		if( cnv.is_bound() ) {
+			bt_reset.init(button_t::roundbox, "reset", scr_coord(0,0), D_BUTTON_SIZE);
+			bt_reset.set_tooltip("Reset this replacing operation");
+			bt_reset.add_listener(this);
+			add_component(&bt_reset);
+		}
+
 		bt_clear.init(button_t::roundbox, "Clear", scr_coord(0,0), D_BUTTON_SIZE);
 		bt_clear.set_tooltip("Clear this replacing operation");
 		bt_clear.add_listener(this);
@@ -236,28 +281,30 @@ void replace_frame_t::init_table()
 
 	// [ASSEMBLER]
 	add_component(&convoy_assembler);
-
 }
 
 void replace_frame_t::set_vehicles(bool init)
 {
-	const uint8 vehicle_count = cnv->get_vehicle_count();
+	uint8 vehicle_count=0;
 	array_tpl<vehicle_t*> veh_tmp_list; // To restore the order of vehicles that are reversing
-	veh_tmp_list.resize(vehicle_count, NULL);
-	for (uint8 i = 0; i < vehicle_count; i++) {
-		vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), cnv->get_owner(), NULL, cnv->get_vehicle(i)->get_desc());
-		dummy_veh->set_current_livery(cnv->get_vehicle(i)->get_current_livery());
-		dummy_veh->set_reversed(cnv->get_vehicle(i)->is_reversed());
-		veh_tmp_list[i] = dummy_veh;
-	}
-	// If convoy is reversed, reorder it
-	if( cnv->is_reversed() ) {
-		// reverse_order
-		bool reversable = convoi_t::get_terminal_shunt_mode(veh_tmp_list, vehicle_count) == convoi_t::change_direction ? true : false;
-		convoi_t::execute_reverse_order(veh_tmp_list, vehicle_count, reversable);
+	if (cnv.is_bound()) {
+		vehicle_count = cnv->get_vehicle_count();
+		veh_tmp_list.resize(vehicle_count, NULL);
+		for (uint8 i = 0; i < vehicle_count; i++) {
+			vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), cnv->get_owner(), NULL, cnv->get_vehicle(i)->get_desc());
+			dummy_veh->set_current_livery(cnv->get_vehicle(i)->get_current_livery());
+			dummy_veh->set_reversed(cnv->get_vehicle(i)->is_reversed());
+			veh_tmp_list[i] = dummy_veh;
+		}
+		// If convoy is reversed, reorder it
+		if( cnv->is_reversed() ) {
+			// reverse_order
+			bool reversable = convoi_t::get_terminal_shunt_mode(veh_tmp_list, vehicle_count) == convoi_t::change_direction ? true : false;
+			convoi_t::execute_reverse_order(veh_tmp_list, vehicle_count, reversable);
+		}
 	}
 
-	if (init) {
+	if (init  &&  cnv.is_bound() ) {
 		const uint16 month_now = world()->get_timeline_year_month();
 		// TODO: reversing?
 		for(  uint8 i=0;  i < vehicle_count;  i++  ) {
@@ -294,13 +341,8 @@ void replace_frame_t::set_vehicles(bool init)
 		{
 			add_table(3,1);
 			{
-				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-				lb->buf().printf("%s %u", translator::translate("Fahrzeuge:"), vehicle_count);
-				lb->update();
-
-				lb = new_component<gui_label_buf_t>();
-				lb->buf().printf("%s %i", translator::translate("Station tiles:"), cnv->get_tile_length());
-				lb->update();
+				add_component(&lb_vehicle_count);
+				add_component(&lb_station_tiles);
 
 				gui_tile_occupancybar_t *tile_bar = new_component<gui_tile_occupancybar_t>();
 				tile_bar->set_base_convoy_length(cnv->get_length(), veh_tmp_list[vehicle_count-1]->get_desc()->get_length());
@@ -308,6 +350,13 @@ void replace_frame_t::set_vehicles(bool init)
 			end_table();
 		}
 		end_table();
+	}
+
+	if( init  &&  target_line.is_bound() ) {
+		// line replacing help text
+		buf_line_help.printf(translator::translate("multiline_helptext_replace_all_line_convoys"));
+		txt_line_replacing.recalc_size();
+		add_component(&txt_line_replacing);
 	}
 
 	// update assembler
@@ -334,49 +383,93 @@ void replace_frame_t::update_data()
 	n[1] = 0;
 	n[2] = 0;
 	money = 0;
-	sint64 base_total_cost = calc_total_cost();
-	if (replace_line || replace_all) {
+	const sint64 base_total_cost = cnv.is_bound() ? calc_total_cost(cnv):0;
+	if (replace_mode != only_this_convoy) {
 		start_replacing();
 	} else {
 		money -= base_total_cost;
 	}
-	if (replace_line) {
-		linehandle_t line=cnv.is_bound()?cnv->get_line():linehandle_t();
-		if (line.is_bound()) {
-			for (uint32 i=0; i<line->count_convoys(); i++)
-			{
-				convoihandle_t cnv_aux=line->get_convoy(i);
-				if (cnv->has_same_vehicles(cnv_aux))
-				{
-					uint8 present_state=get_present_state();
-					if (present_state==(uint8)(-1))
-					{
-						continue;
-					}
 
-					money -= base_total_cost;
-					n[present_state]++;
-				}
-			}
+	switch (replace_mode)
+	{
+		case only_this_convoy:
+		{
+			// none
+			break;
 		}
-	} else if (replace_all) {
-		for (uint32 i=0; i<welt->convoys().get_count(); i++) {
-			convoihandle_t cnv_aux=welt->convoys()[i];
-			if (cnv_aux.is_bound() && cnv_aux->get_owner()==cnv->get_owner() && cnv->has_same_vehicles(cnv_aux))
+		case same_consist_for_player:
+		{
+			for (uint32 i=0; i<welt->convoys().get_count(); i++)
 			{
+				convoihandle_t cnv_aux=welt->convoys()[i];
+				if (!cnv.is_bound() || cnv_aux->get_owner() != cnv->get_owner() || !cnv->has_same_vehicles(cnv_aux)) continue;
+
 				uint8 present_state=get_present_state();
-				if (present_state==(uint8)(-1))
-				{
-					continue;
-				}
+				if (present_state==(uint8)(-1)) continue;
 
 				money -= base_total_cost;
 				n[present_state]++;
 			}
+			break;
+		}
+		case same_consist_for_this_line:
+		{
+			linehandle_t line=cnv.is_bound()?cnv->get_line():linehandle_t();
+			if (!line.is_bound()) break;
+
+			for (uint32 i=0; i<line->count_convoys(); i++)
+			{
+				convoihandle_t cnv_aux=line->get_convoy(i);
+				if (!cnv->has_same_vehicles(cnv_aux)) continue;
+
+				uint8 present_state=get_present_state();
+				if (present_state==(uint8)(-1)) continue;
+
+				money -= base_total_cost;
+				n[present_state]++;
+			}
+			break;
+		}
+		case all_convoys_of_this_line:
+		{
+			if (!target_line.is_bound()) break;
+			uint16 total_vehicles=0;
+
+			for (uint32 i=0; i<target_line->count_convoys(); i++)
+			{
+				uint8 present_state=get_present_state();
+				if (present_state==(uint8)(-1)) continue;
+
+				money -= calc_total_cost(target_line->get_convoy(i));
+				n[present_state]++;
+				total_vehicles += target_line->get_convoy(i)->get_vehicle_count();
+			}
+
+			// line convoy count
+			lb_vehicle_count.buf().append(", ");
+			if( target_line->count_convoys()==1 ) {
+				lb_vehicle_count.buf().append( translator::translate( "1 convoi" ) );
+			}
+			else {
+				lb_vehicle_count.buf().printf( translator::translate("%d convois") , target_line->count_convoys());
+			}
+
+			// line vehicle count
+			lb_vehicle_count.buf().append(", ");
+			if (total_vehicles == 1) {
+				lb_vehicle_count.buf().append(translator::translate("1 vehicle"));
+			}
+			else {
+				lb_vehicle_count.buf().printf(translator::translate("%d vehicles"), total_vehicles);
+			}
+
+			lb_vehicle_count.update();
+			break;
 		}
 	}
+
 	for (uint8 i = 0; i < n_states; ++i) {
-		if (replace_all || replace_line) {
+		if (replace_mode != only_this_convoy) {
 			numinp[i].enable();
 			lb_inp[i].set_color(SYSCOL_TEXT);
 			lb_text[i].buf().append(n[i],0);
@@ -387,6 +480,14 @@ void replace_frame_t::update_data()
 			lb_inp[i].set_color(SYSCOL_BUTTON_TEXT_DISABLED);
 		}
 		lb_text[i].update();
+	}
+
+	if (cnv.is_bound()) {
+		lb_vehicle_count.buf().printf("%s %u", translator::translate("Fahrzeuge:"), cnv->get_vehicle_count());
+		lb_vehicle_count.update();
+
+		lb_station_tiles.buf().printf("%s %u", translator::translate("Station tiles:"), cnv->get_tile_length());
+		lb_station_tiles.update();
 	}
 
 	if (convoy_assembler.get_vehicles()->get_count()>0) {
@@ -489,13 +590,12 @@ bool replace_frame_t::replace_convoy(convoihandle_t cnv_rpl, bool mark)
 
 bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/)
 {
-	if (welt->get_active_player() != cnv->get_owner()) {
+	if (welt->get_active_player()->get_player_nr() != get_player_nr()) {
 		return false;
 	}
 
 	if( comp==&cb_replace_target ) {
-		replace_all = (cb_replace_target.get_selection() == 1);
-		replace_line = (cb_replace_target.get_selection() == 2);
+		replace_mode = (replace_mode_t)cb_replace_target.get_selection();
 		update_data();
 	}
 	else if (comp == &bt_retain_in_depot)
@@ -515,7 +615,9 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 	}
 	else if (comp == &bt_clear)
 	{
-		cnv->call_convoi_tool('X', NULL);
+		if (cnv.is_bound()) {
+			cnv->call_convoi_tool('X', NULL);
+		}
 		rpl = new replace_data_t();
 		convoy_assembler.set_vehicles(convoihandle_t());
 		bt_retain_in_depot.pressed = rpl->get_retain_in_depot();
@@ -536,62 +638,74 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 	}
 	else if(comp == &bt_autostart || comp == &bt_depot || comp == &bt_mark)
 	{
+		if( (replace_mode==same_consist_for_player || replace_mode==same_consist_for_this_line) ) {
+			// check replace cycle input value
+			if( !numinp[state_replace].get_value()  &&  !numinp[state_sell].get_value() ){
+				create_win(new news_img("error_text_invalid_replace_cycle"), w_time_delete, magic_none);
+				return false;
+			}
+		}
 		depot=(comp==&bt_depot);
 		rpl->set_autostart((comp==&bt_autostart));
 
 		start_replacing();
-		if (!replace_line && !replace_all)
+
+		switch (replace_mode)
 		{
-			replace_convoy(cnv, comp == &bt_mark);
-		}
-		else if (replace_line)
-		{
-			linehandle_t line = cnv.is_bound() ? cnv->get_line() : linehandle_t();
-			if (line.is_bound())
-			{
-				bool first_success = false;
-				for (uint32 i = 0; i < line->count_convoys(); i++)
-				{
-					convoihandle_t cnv_aux = line->get_convoy(i);
-					if (cnv->has_same_vehicles(cnv_aux))
-					{
-						first_success = replace_convoy(cnv_aux, comp == &bt_mark);
-						if(copy == false)
-						{
-							master_convoy = cnv_aux;
-						}
-						if(first_success)
-						{
-							copy = true;
-						}
-					}
-				}
-			}
-			else
+			case only_this_convoy:
 			{
 				replace_convoy(cnv, comp == &bt_mark);
+				break;
 			}
-		}
-		else if (replace_all)
-		{
-			bool first_success = false;
-			for (uint32 i=0; i<welt->convoys().get_count(); i++)
+			case same_consist_for_player:
 			{
-				convoihandle_t cnv_aux=welt->convoys()[i];
-				if (cnv_aux.is_bound() && cnv_aux->get_owner()==cnv->get_owner() && cnv->has_same_vehicles(cnv_aux))
+				bool first_success = false;
+				for (uint32 i=0; i<welt->convoys().get_count(); i++)
 				{
+					convoihandle_t cnv_aux = welt->convoys()[i];
+					if (!cnv_aux.is_bound() || cnv_aux->get_owner() != cnv->get_owner() || !cnv->has_same_vehicles(cnv_aux)) continue;
+
 					first_success = replace_convoy(cnv_aux, comp == &bt_mark);
-					if(copy == false)
-					{
-						master_convoy = cnv_aux;
-					}
-					if(first_success)
-					{
-						copy = true;
-					}
+					if (!copy) master_convoy = cnv_aux;
+					if (first_success) copy = true;
 				}
+				break;
+			}
+			case same_consist_for_this_line:
+			{
+				linehandle_t line = cnv.is_bound() ? cnv->get_line() : linehandle_t();
+				if (!line.is_bound()) break;
+
+				bool first_success = false;
+				for (uint32 i = 0; i<line->count_convoys(); i++)
+				{
+					convoihandle_t cnv_aux = line->get_convoy(i);
+					if (!cnv->has_same_vehicles(cnv_aux)) continue;
+
+					first_success = replace_convoy(cnv_aux, comp == &bt_mark);
+					if (!copy) master_convoy = cnv_aux;
+					if (first_success) copy = true;
+				}
+				break;
+			}
+			case all_convoys_of_this_line:
+			{
+				if (!target_line.is_bound()) break;
+
+				bool first_success = false;
+				for (uint32 i = 0; i< target_line->count_convoys(); i++)
+				{
+					convoihandle_t cnv_aux = target_line->get_convoy(i);
+					if (!cnv_aux.is_bound() || cnv_aux->get_owner() != target_line->get_owner()) continue;
+
+					first_success = replace_convoy(cnv_aux, comp == &bt_mark);
+					if (!copy) master_convoy = cnv_aux;
+					if (first_success) copy = true;
+				}
+				break;
 			}
 		}
+
 //#ifndef DEBUG
 		//// FIXME: Oddly, this line causes crashes in 10.13 and over when
 		//// the replace window is closed automatically with "full replace".
@@ -609,7 +723,7 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 		return true;
 	}
 
-	if (replace_all || replace_line) {
+	if (replace_mode != only_this_convoy) {
 		for (uint8 i = 0; i < n_states; ++i) {
 			if( comp==&numinp[i] ) {
 				update_data();
@@ -622,14 +736,21 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 }
 
 
+uint8 replace_frame_t::get_player_nr() const
+{
+	return target_line.is_bound() ?	target_line->get_owner()->get_player_nr() : cnv->get_owner()->get_player_nr();
+}
+
+
 void replace_frame_t::draw(scr_coord pos, scr_size size)
 {
-	if (welt->get_active_player() != cnv->get_owner()) {
+	player_t *owner = target_line.is_bound() ? target_line->get_owner() : cnv->get_owner();
+	if (welt->get_active_player() != owner) {
 		destroy_win(this);
 		return;
 	}
 
-	bt_details.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
+	if(cnv.is_bound()) bt_details.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
 
 	if (convoy_assembler.get_min_size().w>get_min_size().w) {
 		reset_min_windowsize();
@@ -638,14 +759,14 @@ void replace_frame_t::draw(scr_coord pos, scr_size size)
 	gui_frame_t::draw(pos, size);
 }
 
-sint64 replace_frame_t::calc_total_cost()
+sint64 replace_frame_t::calc_total_cost(convoihandle_t current_cnv)
 {
 	sint64 total_cost = 0;
 	vector_tpl<const vehicle_t*> current_vehicles;
 	vector_tpl<uint16> keep_vehicles;
-	for(uint8 i = 0; i < cnv->get_vehicle_count(); i ++)
+	for(uint8 i = 0; i < current_cnv->get_vehicle_count(); i ++)
 	{
-		current_vehicles.append(cnv->get_vehicle(i));
+		current_vehicles.append(current_cnv->get_vehicle(i));
 	}
 
 	for(auto vehicle : *convoy_assembler.get_vehicles())
@@ -725,7 +846,7 @@ replace_frame_t::~replace_frame_t()
 
 uint32 replace_frame_t::get_rdwr_id()
 {
-	return magic_replace + cnv.get_id();
+	return target_line.is_bound() ? magic_replace_line + target_line.get_id() : magic_replace + cnv.get_id();
 }
 
 void replace_frame_t::rdwr(loadsave_t *file)
@@ -744,7 +865,7 @@ void replace_frame_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(use_home_depot);
 	bool use_existing_vehicles = bt_allow_using_existing_vehicles.pressed;
 	file->rdwr_bool(use_existing_vehicles);
-	sint32 selectet_target = cb_replace_target.get_selection();
+	sint32 selectet_target = (sint32)replace_mode; // sint32 for save backward compatibility
 	file->rdwr_long(selectet_target);
 	sint32 num_temp[n_states];
 	for (uint8 i = 0; i < n_states; ++i) {
@@ -752,10 +873,22 @@ void replace_frame_t::rdwr(loadsave_t *file)
 		file->rdwr_long(num_temp[i]);
 	}
 
+	// TODO: remove this if statement in ex-15branch
+	if( file->is_version_ex_atleast(14, 59) ) {
+		simline_t::rdwr_linehandle_t(file, target_line);
+	}
 
 	// init window
-	if(  file->is_loading() && cnv.is_bound() ) {
-		set_convoy(cnv);
+	if(  file->is_loading()  ) {
+		if (replace_mode == all_convoys_of_this_line) {
+			set_line(target_line);
+			replace_mode = all_convoys_of_this_line;
+		}
+		else if (cnv.is_bound()) {
+			set_convoy(cnv);
+			cb_replace_target.set_selection(selectet_target);
+			replace_mode = (replace_mode_t)selectet_target;
+		}
 		set_windowsize(size);
 
 		// Overwrite with changes
@@ -766,9 +899,6 @@ void replace_frame_t::rdwr(loadsave_t *file)
 		bt_use_home_depot.pressed  = use_home_depot;
 		bt_allow_using_existing_vehicles.pressed = use_existing_vehicles;
 
-		cb_replace_target.set_selection(selectet_target);
-		replace_all  = (selectet_target == 1);
-		replace_line = (selectet_target == 2);
 		for (uint8 i = 0; i < n_states; ++i) {
 			numinp[i].set_value(num_temp[i]);
 		}
@@ -776,8 +906,9 @@ void replace_frame_t::rdwr(loadsave_t *file)
 	}
 
 	// convoy vanished
-	if (!cnv.is_bound()) {
-		dbg->error("replace_frame_t::rdwr()", "Could not restore replace window of (%d)", cnv.get_id());
+	if (!cnv.is_bound() && !target_line.is_bound()) {
+		if(!cnv.is_bound())         dbg->error("replace_frame_t::rdwr()", "Could not restore replace window of convoy(%d)", cnv.get_id());
+		if(!target_line.is_bound()) dbg->error("replace_frame_t::rdwr()", "Could not restore replace window of line(%d)",   target_line.get_id());
 		destroy_win(this);
 		return;
 	}

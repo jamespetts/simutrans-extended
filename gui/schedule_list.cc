@@ -13,6 +13,7 @@
 #include "components/gui_divider.h"
 #include "line_item.h"
 #include "simwin.h"
+#include "replace_frame.h"
 
 #include "../simcolor.h"
 #include "../simdepot.h"
@@ -483,6 +484,16 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_access_minimap.add_listener(this);
 	add_component(&bt_access_minimap);
 
+	bt_replace.init(button_t::roundbox, "replace_line_convoys", scr_coord(LINE_NAME_COLUMN_WIDTH+D_WIDE_BUTTON_WIDTH*2, offset_y), D_WIDE_BUTTON_SIZE);
+	if (skinverwaltung_t::open_window) {
+		bt_replace.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_replace.set_image_position_right(true);
+	}
+	bt_replace.set_tooltip("helptxt_replace_all_convoys_of_this_line");
+	bt_replace.set_visible(false);
+	bt_replace.add_listener(this);
+	add_component(&bt_replace);
+
 	offset_y += D_BUTTON_HEIGHT;
 	// Select livery
 	livery_selector.set_pos(scr_coord(LINE_NAME_COLUMN_WIDTH, offset_y));
@@ -713,6 +724,10 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 			minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
 		}
 		top_win(win);
+		return true;
+	}
+	else if (comp == &bt_replace && line.is_bound() && line->count_convoys()) {
+		create_win(20, 20, new replace_frame_t(line), w_info, magic_replace_line + line.get_id());
 		return true;
 	}
 	else if (comp == &bt_line_color_editor && line.is_bound()) {
@@ -1147,6 +1162,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		lc_preview.set_visible(new_line->get_line_color_index()!=255);
 		livery_selector.set_visible(true);
 		bt_line_color_editor.set_visible(true);
+		bt_replace.set_visible(true);
 
 		if( goods_manager_t::passengers->get_number_of_classes()>1 ) {
 			reset_all_pass_button.set_visible(new_line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS));
@@ -1374,6 +1390,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		scroll_halt_waiting.set_visible(false);
 		livery_selector.set_visible(false);
 		bt_line_color_editor.set_visible(false);
+		bt_replace.set_visible(false);
 		scroll_line_info.set_visible(false);
 		lc_preview.set_visible(false);
 		cont_times_history.set_visible(false);
