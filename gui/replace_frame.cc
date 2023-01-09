@@ -873,10 +873,7 @@ void replace_frame_t::rdwr(loadsave_t *file)
 		file->rdwr_long(num_temp[i]);
 	}
 
-	// TODO: remove this if statement in ex-15branch
-	if( file->is_version_ex_atleast(14, 59) ) {
-		simline_t::rdwr_linehandle_t(file, target_line);
-	}
+	simline_t::rdwr_linehandle_t(file, target_line);
 
 	// init window
 	if(  file->is_loading()  ) {
