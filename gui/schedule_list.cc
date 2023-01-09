@@ -359,6 +359,32 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	scroll_line_info.set_visible(false);
 	cont_line_info.set_table_layout(1,0);
 
+	cont_line_info.add_table(2,1);
+	{
+		cont_line_info.add_component(&lb_convoy_count);
+		bt_withdraw_line.init(button_t::box_state, "Withdraw All", scr_coord(0, 0), scr_size(D_BUTTON_WIDTH+18,D_BUTTON_HEIGHT));
+		bt_withdraw_line.set_tooltip("Convoi is sold when all wagons are empty.");
+		if (skinverwaltung_t::alerts) {
+			bt_withdraw_line.set_image(skinverwaltung_t::alerts->get_image_id(2));
+		}
+		bt_withdraw_line.add_listener(this);
+		cont_line_info.add_table(1,2);
+		{
+			cont_line_info.add_component(&bt_withdraw_line);
+			bt_replace.init(button_t::roundbox, "replace_line_convoys", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+			if (skinverwaltung_t::open_window) {
+				bt_replace.set_image(skinverwaltung_t::open_window->get_image_id(0));
+				bt_replace.set_image_position_right(true);
+			}
+			bt_replace.set_tooltip("helptxt_replace_all_convoys_of_this_line");
+			bt_replace.set_visible(false);
+			bt_replace.add_listener(this);
+			cont_line_info.add_component(&bt_replace);
+		}
+		cont_line_info.end_table();
+	}
+	cont_line_info.end_table();
+
 	cont_line_info.add_table(2,0)->set_spacing(scr_size(D_H_SPACE, 0));
 	{
 		cont_line_info.add_component(&halt_entry_origin);
@@ -383,19 +409,6 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 			cont_line_info.new_component<gui_label_t>("Service frequency");
 		}
 		cont_line_info.add_component(&lb_service_frequency);
-	}
-	cont_line_info.end_table();
-
-	cont_line_info.add_table(2,1);
-	{
-		cont_line_info.add_component(&lb_convoy_count);
-		bt_withdraw_line.init(button_t::box_state, "Withdraw All", scr_coord(0, 0), scr_size(D_BUTTON_WIDTH+18,D_BUTTON_HEIGHT));
-		bt_withdraw_line.set_tooltip("Convoi is sold when all wagons are empty.");
-		if (skinverwaltung_t::alerts) {
-			bt_withdraw_line.set_image(skinverwaltung_t::alerts->get_image_id(2));
-		}
-		bt_withdraw_line.add_listener(this);
-		cont_line_info.add_component(&bt_withdraw_line);
 	}
 	cont_line_info.end_table();
 
@@ -483,16 +496,6 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_access_minimap.set_visible(false);
 	bt_access_minimap.add_listener(this);
 	add_component(&bt_access_minimap);
-
-	bt_replace.init(button_t::roundbox, "replace_line_convoys", scr_coord(LINE_NAME_COLUMN_WIDTH+D_WIDE_BUTTON_WIDTH*2, offset_y), D_WIDE_BUTTON_SIZE);
-	if (skinverwaltung_t::open_window) {
-		bt_replace.set_image(skinverwaltung_t::open_window->get_image_id(0));
-		bt_replace.set_image_position_right(true);
-	}
-	bt_replace.set_tooltip("helptxt_replace_all_convoys_of_this_line");
-	bt_replace.set_visible(false);
-	bt_replace.add_listener(this);
-	add_component(&bt_replace);
 
 	offset_y += D_BUTTON_HEIGHT;
 	// Select livery
