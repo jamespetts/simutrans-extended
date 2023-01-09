@@ -358,7 +358,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 
 	scroll_line_info.set_visible(false);
 	cont_line_info.set_table_layout(1,0);
-	cont_line_info.set_margin(scr_size(0,D_V_SPACE),scr_size(0,D_MARGIN_BOTTOM));
+	cont_line_info.set_margin(scr_size(D_MARGIN_LEFT,D_V_SPACE),scr_size(0,D_MARGIN_BOTTOM));
 
 	cont_line_info.add_table(2,3)->set_spacing(scr_size(0,0));
 	{
