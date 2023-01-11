@@ -412,7 +412,7 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 	}
 
 	if (desc->get_wtyp() == road_wt)
-	{	
+	{
 		if (hat_gehweg())
 		{
 			const sint32 city_road_topspeed = welt->get_city_road()->get_topspeed();
