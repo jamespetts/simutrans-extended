@@ -21,18 +21,22 @@ class loadsave_t;
 class tabfile_t;
 class way_desc_t;
 
+
 struct road_timeline_t
 {
-	char name[64];
-	uint16 intro;
-	uint16 retire;
+	char name[64] = { 0 };
+	uint16 intro = 0;
+	uint16 retire = 0;
 };
+
+
 struct region_definition_t
 {
 	std::string name;
 	koord top_left = koord::invalid;
 	koord bottom_right = koord::invalid;
 };
+
 
 template <class T>
 class vector_with_ptr_ownership_tpl : public vector_tpl<T*>

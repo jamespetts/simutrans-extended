@@ -27,8 +27,11 @@ ware_t::ware_t() :
 	index(0),
 	is_commuting_trip(false),
 	g_class(0),
+	comfort_preference_percentage(0),
 	ziel(),
 	zwischenziel(),
+	origin(halthandle_t()),
+	last_transfer(halthandle_t()),
 	zielpos(-1, -1),
 	arrival_time(0)
 {
@@ -40,8 +43,11 @@ ware_t::ware_t(const goods_desc_t *wtyp) :
 	index(wtyp->get_index()),
 	is_commuting_trip(false),
 	g_class(0),
+	comfort_preference_percentage(0),
 	ziel(),
 	zwischenziel(),
+	origin(halthandle_t()),
+	last_transfer(halthandle_t()),
 	zielpos(-1, -1),
 	arrival_time(0)
 {
@@ -55,9 +61,11 @@ ware_t::ware_t(const goods_desc_t *wtyp, halthandle_t o) :
 	index(wtyp->get_index()),
 	is_commuting_trip(false),
 	g_class(0),
+	comfort_preference_percentage(0),
 	ziel(),
 	zwischenziel(),
 	origin(o),
+	last_transfer(halthandle_t()),
 	zielpos(-1, -1),
 	arrival_time(0)
 {

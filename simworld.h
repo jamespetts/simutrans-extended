@@ -730,7 +730,7 @@ private:
 	 * Current accumulated month number, counting January of year 0 as 0.
 	 * @note last_month + (last_year*12);
 	 */
-	sint32 current_month;
+	sint32 current_month = 0;
 
 	/**
 	 * Last month 0..11
