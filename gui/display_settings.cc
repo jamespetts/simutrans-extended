@@ -551,7 +551,7 @@ bool map_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
 	}
 	// Scroll speed edit
 	else if( &scrollspeed == comp ) {
-		env_t::scroll_multi = (sint16)(buttons[ IDBTN_SCROLL_INVERSE ].pressed ? -v.i : v.i);
+		env_t::scroll_multi = (sint16)(buttons[IDBTN_SCROLL_INVERSE].pressed ? v.i : -v.i);
 	}
 	// underground slice edit
 	else if( comp == &inp_underground_level ) {
@@ -1128,7 +1128,7 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 	buttons[IDBTN_SHOW_SCHEDULES_STOP].pressed = env_t::visualize_schedule;
 	buttons[IDBTN_SIMPLE_DRAWING].pressed = env_t::simple_drawing;
 	buttons[IDBTN_SIMPLE_DRAWING].enable(welt->is_paused());
-	buttons[IDBTN_SCROLL_INVERSE].pressed = env_t::scroll_multi < 0;
+	buttons[IDBTN_SCROLL_INVERSE].pressed = env_t::scroll_multi > 0;
 	buttons[IDBTN_INFINITE_SCROLL].pressed = env_t::scroll_infinite;
 	buttons[IDBTN_DAY_NIGHT_CHANGE].pressed = env_t::night_shift;
 	buttons[IDBTN_SHOW_SLICE_MAP_VIEW].pressed = grund_t::underground_mode == grund_t::ugm_level;

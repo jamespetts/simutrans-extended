@@ -4827,7 +4827,7 @@ Destinations
 Passenger destinations
 Passenger destinations
 The main game window can be scrolled by right-clicking and dragging the ground.
-The main game window can be scrolled by clicking and dragging the ground.
+Scrolling in the main game window is effected by moving the mouse in the direction in which you want to scroll, as in some classic tycoon games.
 Pedestrians will appear near stops whenver a passenger vehicle unloads there.
 Pedestrians will appear near stops whenver a passenger vehicle unloads there.
 Pedestrians will appear randomly in towns.
