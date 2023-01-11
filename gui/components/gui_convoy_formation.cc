@@ -29,7 +29,7 @@ scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_image
 	scr_size s(0,0);
 	unsigned count = cnv.is_bound() ? cnv->get_vehicle_count() : 0;
 	for(unsigned i=0; i<count; i++) {
-		scr_coord_val x, y, w, h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		if (display_images) {

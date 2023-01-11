@@ -76,7 +76,7 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 	// calculate first column width
 	if( vehiclelist_frame_t::side_view_mode ) {
 		// width of image
-		scr_coord_val x, y, w, h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		const image_id image = veh->get_image_id( ribi_t::dir_southwest, veh->get_freight_type() );
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		if( w > MAX_IMG_WIDTH ) {
@@ -112,7 +112,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 			display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, SYSCOL_TR_BACKGROUND_SELECTED, false);
 		}
 		// show side view image
-		scr_coord_val x, y, w, h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		const image_id image = veh->get_image_id( ribi_t::dir_southwest, veh->get_freight_type() );
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		display_base_img(image, offset.x - x, offset.y - y + D_GET_CENTER_ALIGN_OFFSET(h, height-1), world()->get_active_player_nr(), false, true);

@@ -1415,7 +1415,7 @@ uint8 air_vehicle_t::get_availability() const
 	if (desc->get_max_takeoffs() > 0)
 	{
 		const uint8 base_availability = desc->get_starting_availability();
-		if (number_of_takeoffs <= desc->get_availability_decay_start_takeoffs());
+		if (number_of_takeoffs <= desc->get_availability_decay_start_takeoffs())
 		{
 			return base_availability;
 		}
