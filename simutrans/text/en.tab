@@ -5285,15 +5285,15 @@ This way cannot be used by any vehicle.
 km/h
 km/h
 (speed_restricted_by_tunnel)
-(The speed is restricted by the tunnel)
+The speed is restricted by the tunnel
 (speed_restricted_by_bridge)
-(The speed is restricted by the bridge)
+The speed is restricted by the bridge
 (speed_restricted_by_wayobj)
-(The speed is limited by a way asset)
+The speed is limited by a way asset
 (speed_restricted_by_city)
-(The speed is limited on account of being in a built-up area)
+The speed is limited on account of being in a built-up area
 (speed_restricted_by_degradation)
-(The speed is limited because this way is degraded)
+The speed is limited because this way is degraded
 runway_36/18
 Runway 36/18
 runway_09/27

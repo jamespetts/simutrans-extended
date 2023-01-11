@@ -300,15 +300,16 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 	}
 
 	const sint32 old_max_speed = get_max_speed();
+	const sint32 way_max_speed = desc->get_topspeed();
 
 	if (old_max_speed > 0)
 	{
-		if (is_degraded() && old_max_speed == desc->get_topspeed())
+		if (is_degraded() && old_max_speed == way_max_speed)
 		{
-			// The maximum speed has to be reduced on account of the degridation.
+			// The maximum speed has to be reduced on account of the degradation.
 			if (get_remaining_wear_capacity() > 0)
 			{
-				set_max_speed(old_max_speed / 2);
+				set_max_speed(way_max_speed / 2);
 			}
 			else
 			{
@@ -317,7 +318,7 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 		}
 		else
 		{
-			set_max_speed(old_max_speed);
+			set_max_speed(way_max_speed);
 		}
 	}
 
@@ -375,7 +376,7 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 			}
 			else
 			{
-				set_max_speed(desc->get_topspeed_gradient_2());
+				set_max_speed(gradient_speed);
 			}
 		}
 	}
@@ -405,17 +406,17 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 			}
 			else
 			{
-				set_max_speed(desc->get_topspeed());
+				set_max_speed(way_max_speed);
 			}
 		}
 	}
 
 	if (desc->get_wtyp() == road_wt)
-	{
-		const sint32 city_road_topspeed = welt->get_city_road()->get_topspeed();
+	{	
 		if (hat_gehweg())
 		{
-			max_speed = min(max_speed, city_road_topspeed);
+			const sint32 city_road_topspeed = welt->get_city_road()->get_topspeed();
+			set_max_speed(min(max_speed, city_road_topspeed));
 		}
 	}
 }
