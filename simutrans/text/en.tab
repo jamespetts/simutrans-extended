@@ -3435,7 +3435,7 @@ Size (%d MB):
 4extern
 %s outer %s
 4LIGHT_CHOOSE
-Scroll Inverse
+Retro scrolling
 5center
 %s transfer %s
 5LIGHT_CHOOSE
