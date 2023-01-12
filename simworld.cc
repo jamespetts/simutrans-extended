@@ -12488,7 +12488,12 @@ void karte_t::staff_rdwr(loadsave_t* file)
 		{
 			salaries.clear();
 
-			for (uint8 i = 0; i < 255; i++)
+			uint32 count;
+			file->rdwr_long(count);
+
+			vector_tpl<staff_cost_record_t> salary_record;
+
+			for (uint32 j = 0; j < count; j++)
 			{
 				sint64 year;
 				sint64 salary;
@@ -12497,8 +12502,9 @@ void karte_t::staff_rdwr(loadsave_t* file)
 				file->rdwr_longlong(salary);
 
 				staff_cost_record_t scr(year / 12, salary);
-				salaries.access(i)->append(scr);
+				salary_record.append(scr);
 			}
+			salaries.put(i, salary_record);
 		}
 	}
 }
@@ -12600,11 +12606,15 @@ void karte_t::fuel_rdwr(loadsave_t* file)
 		}
 		else
 		{
+			fuel[i].clear();
 
-			for (uint8 i = 0; i < vehicle_desc_t::MAX_TRACTION_TYPE; i++)
+			uint32 count;
+			file->rdwr_long(count);
+
+			fuel[i].resize(count);
+
+			for (uint32 j = 0; j < count; j++)
 			{
-				fuel[i].clear();
-
 				sint64 year;
 				sint64 cost;
 
@@ -12675,10 +12685,15 @@ void karte_t::prices_rdwr(loadsave_t* file)
 		}
 		else
 		{
-			for (uint8 i = 0; i < vehicle_desc_t::MAX_TRACTION_TYPE; i++)
-			{
-				fuel[i].clear();
+			prices[i].clear();
 
+			uint32 count;
+			file->rdwr_long(count);
+
+			prices[i].resize(count);
+
+			for (uint32 j = 0; j < count; j++)
+			{
 				sint64 year;
 				uint32 index;
 
