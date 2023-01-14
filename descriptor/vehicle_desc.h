@@ -196,6 +196,7 @@ private:
 	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
 												// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)
 												// against which the fuel consumption per unit of distance is calibrated.
+
 	uint32 cut_off_speed = 0;					// The minimum speed below which fuel consumption per km does not reduce (km/h)
 
 	uint32 fuel_per_km = 0;						// Fuel cost calibrated according to the above. Not all powered vehicles (e.g. sailing ships) use fuel. The traction type records the fuel type.
