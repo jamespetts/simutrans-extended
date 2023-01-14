@@ -3074,7 +3074,7 @@ void way_builder_t::build_river()
 					if(  type>0  ) {
 						// thus we enlarge
 						w->set_desc( desc_table.get(env_t::river_type[type-1]) );
-						if(w->get_desc()->get_max_axle_load() > 0)
+						if(w->get_desc()->get_max_axle_load() > 0 && w->get_desc()->get_topspeed() > 0)
 						{
 							// It does not make sense for unnavigable rivers to be public rights of way.
 							w->set_public_right_of_way();

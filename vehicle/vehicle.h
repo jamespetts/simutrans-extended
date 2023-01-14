@@ -751,9 +751,9 @@ public:
 	const vehicle_desc_t* get_auto_upgrade() const;
 
 	uint16 get_tags() const { return tags; }
-	bool is_tag_set(uint16 tag) const { return tag & tags; }
-	void set_tag(uint16 tag) { tag |= tags; }
-	void clear_tag(uint16 tag) { tag &= ~tags; }
+	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
+	void set_tag(uint16 tag) { tags |= tag; }
+	void clear_tag(uint16 tag) { tags &= ~tag; }
 };
 
 

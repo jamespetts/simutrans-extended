@@ -49,7 +49,7 @@ void gui_waytype_image_box_t::set_size( scr_size size_par )
 {
 	if( id  !=  IMG_EMPTY ) {
 
-		scr_coord_val x,y,w,h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
 
 		remove_offset = scr_coord(-x,-y);

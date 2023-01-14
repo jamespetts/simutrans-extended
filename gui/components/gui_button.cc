@@ -411,7 +411,7 @@ void button_t::draw(scr_coord offset)
 						break;
 				}
 
-				scr_coord_val x=0, y=0, w=0, h=0;
+				scr_coord_val x = 0, y = 0, w = 0, h = 0;
 				if(  img  ) {
 					display_get_image_offset(img, &x, &y, &w, &h);
 				}
