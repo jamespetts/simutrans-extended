@@ -2813,6 +2813,8 @@ latest_3
 過去3回の実測値
 line_class_manager
 運賃等級管理
+line_has_multiple_traction_types
+複数の動力タイプが混在しています
 line_has_obsolete_vehicles
 生産中止した車両があります
 line_has_obsolete_vehicles_with_upgrades
@@ -3659,6 +3661,8 @@ helptxt_intermediate
 中間車両
 hlptxt_vh_normal_state
 選択可能/正常（現役車両）
+helptxt_warning_replacing_line_has_multiple_traction_types
+路線の既存編成に『複数の動力タイプ』があるため、正常に全ての編成を置き換えできない可能性があります。
 helptxt_replace_all_convoys_of_this_line
 この路線に所属する編成を指定した構成に置き換えます。
 multiline_helptext_replace_all_line_convoys

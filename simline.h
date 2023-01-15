@@ -295,6 +295,9 @@ public:
 
 	void new_month();
 
+	// Returns bits of traction types that this line's vehicles have
+	uint16 get_traction_types() const;
+
 	linetype get_linetype() { return type; }
 
 	static waytype_t linetype_to_waytype(const linetype lt);
