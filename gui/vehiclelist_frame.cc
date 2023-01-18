@@ -105,7 +105,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 	const int text_offset_y = (height-1-LINEASCENT)>>1;
 
 	vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
-	bool selected = win ? (win->get_vehicle()==veh) : false;
+	const bool selected = win ? (win->get_vehicle()==veh) : false;
 
 	if (vehiclelist_frame_t::side_view_mode) {
 		if( selected ) {
@@ -559,7 +559,6 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 				if (vehiclelist_stats_t::sort_mode == col_to_sort_mode[i]) {
 					vehiclelist_stats_t::reverse = !vehiclelist_stats_t::reverse;
 					bt_table_sort[i].set_reverse(vehiclelist_stats_t::reverse);
-					scrolly.sort(0);
 				}
 				else {
 					vehiclelist_stats_t::reverse = false;
