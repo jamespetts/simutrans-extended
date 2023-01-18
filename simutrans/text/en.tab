@@ -6658,3 +6658,7 @@ show_name
 Name
 show_side_view
 Image
+vehicle_details
+Detailed vehicle information
+TF_
+Tractive effort
