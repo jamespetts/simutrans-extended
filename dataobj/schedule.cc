@@ -539,7 +539,7 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 			&& schedule->entries[(uint8)f2].target_id_couple == entries[(uint8)f1].target_id_couple
 			&& schedule->entries[(uint8)f2].target_id_uncouple == entries[(uint8)f1].target_id_uncouple
 			&& schedule->entries[(uint8)f2].target_unique_entry_uncouple == entries[(uint8)f1].target_unique_entry_uncouple
-			&& check_consist_orders_for_match(entries[(uint8)f1].unique_entry_id, schedule, entries[(uint8)f2].unique_entry_id)
+			&& check_consist_orders_for_match(entries[(uint8)f1].unique_entry_id, schedule, schedule->entries[(uint8)f2].unique_entry_id)
 		  ) {
 			f1++;
 			f2++;
