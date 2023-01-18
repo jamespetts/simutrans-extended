@@ -65,7 +65,7 @@ private:
 
 	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_mode_convois, bt_show_halt_name;
 	button_t sort_order;
-	button_t bt_access_minimap, bt_line_color_editor;
+	button_t bt_access_minimap, bt_line_color_editor, bt_replace;
 	button_t reset_all_pass_button, reset_all_mail_button;
 	gui_line_lettercode_t lc_preview;
 	gui_container_t cont, cont_charts, cont_convoys;

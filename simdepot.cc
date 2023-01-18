@@ -1053,6 +1053,11 @@ void depot_t::update_all_win()
 	}
 }
 
+uint16 depot_t::get_traction_types() const
+{
+	return this->get_tile()->get_desc()->get_enabled();
+}
+
 /**
  * Is this depot suitable for this vehicle?
  * Must be same waytype, same owner, suitable traction, etc.
@@ -1061,7 +1066,8 @@ void depot_t::update_all_win()
  *   - 0 if we don't want to filter by traction type
  *   - a bitmask of possible traction types; we need only match one
  */
-bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const {
+bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const
+{
 	assert(test_vehicle != NULL);
 
 	// Owner must be the same
@@ -1082,7 +1088,7 @@ bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 trac
 	if (traction_types != 0 ) {
 		// If traction types were specified, then *one* of them must match
 		// *one* of the types supported by this depot
-		if ( ! (traction_types & get_tile()->get_desc()->get_enabled()) ) {
+		if ( ! (traction_types & get_traction_types()) ) {
 			return false;
 		}
 	}

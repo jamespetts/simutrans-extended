@@ -758,6 +758,8 @@ public:
 	uint32 get_upgrade_price() const;
 	bool is_available_only_as_upgrade() const { return available_only_as_upgrade; }
 
+	uint16 get_traction_type() const { return (uint16)(1<<engine_type); }
+
 	uint8 get_multiple_working_type() const { return multiple_working_type; }
 	bool get_self_contained_catering() const { return self_contained_catering; }
 	uint32 get_calibration_speed() const { return calibration_speed; }

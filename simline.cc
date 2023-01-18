@@ -161,6 +161,16 @@ simline_t::linetype simline_t::waytype_to_linetype(const waytype_t wt)
 }
 
 
+uint16 simline_t::get_traction_types() const
+{
+	uint16 traction_types = 0;
+	for (auto line_managed_convoy : line_managed_convoys) {
+		traction_types |= line_managed_convoy->get_traction_types();
+	}
+	return traction_types;
+}
+
+
 const char *simline_t::get_linetype_name(const simline_t::linetype lt)
 {
 	return translator::translate( schedule_type_text[lt] );

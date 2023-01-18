@@ -7049,6 +7049,15 @@ bool convoi_t::has_same_vehicles(convoihandle_t other) const
 	return false;
 }
 
+uint16 convoi_t::get_traction_types() const
+{
+	uint16 traction_types = 0;
+	for (uint8 i = 0; i < vehicle_count; i++) {
+		traction_types |= vehicle[i]->get_desc()->get_traction_type();
+	}
+	return traction_types;
+}
+
 /*
  * Will find a depot for the vehicle "master".
  */
@@ -7072,9 +7081,9 @@ public:
 	{
 		return master->check_next_tile(gr);
 	};
-	virtual bool  is_target( const grund_t* gr, const grund_t* )
+	virtual bool is_target( const grund_t* gr, const grund_t* )
 	{
-		return gr->get_depot() && gr->get_depot()->get_owner() == master->get_owner() && gr->get_depot()->get_tile()->get_desc()->get_enabled() & traction_type;
+		return gr->get_depot() && gr->get_depot()->get_owner() == master->get_owner() && gr->get_depot()->get_traction_types() & traction_type;
 	};
 	virtual ribi_t::ribi get_ribi( const grund_t* gr) const
 	{

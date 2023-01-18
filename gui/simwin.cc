@@ -680,6 +680,9 @@ void rdwr_all_win(loadsave_t *file)
 						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
 							w = new replace_frame_t();
 						}
+						else if(  id>=magic_replace_line && id < magic_replace_line +0x10000  ) {
+							w = new replace_frame_t(linehandle_t());
+						}
 						else if( id>=magic_convoi_info && id<magic_convoi_info+0x10000  ) {
 							w = new convoi_info_t();
 						}
