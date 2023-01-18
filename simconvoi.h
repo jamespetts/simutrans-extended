@@ -1065,6 +1065,9 @@ public:
 	 */
 	inline vehicle_t* get_vehicle(uint16 i) const { return vehicle[i]; }
 
+	// Returns bits of traction types that this convoy has
+	uint16 get_traction_types() const;
+
 	// Upgrades a vehicle in the convoy.
 	// @author: jamespetts, February 2010
 	void upgrade_vehicle(uint16 i, vehicle_t* v);

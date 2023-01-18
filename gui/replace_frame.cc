@@ -11,6 +11,7 @@
 #include "../player/simplay.h"
 #include "../player/finance.h" // NOTICE_INSUFFICIENT_FUNDS
 #include "../simline.h"
+#include "../simdepot.h"
 
 #include "../dataobj/translator.h"
 #include "../dataobj/replace_data.h"
@@ -90,7 +91,7 @@ void replace_frame_t::init()
 	}
 
 	copy = false;
-
+	init_traction_types();
 	init_table();
 
 	update_data();
@@ -112,6 +113,18 @@ void replace_frame_t::set_title()
 		return; // Reload measures
 	}
 	set_name(title_buf);
+}
+
+void replace_frame_t::init_traction_types()
+{
+	traction_types = 0;
+	last_depot_count = depot_t::get_depot_list().get_count();
+	const waytype_t wt = target_line.is_bound() ? target_line->get_schedule()->get_waytype() : cnv->front()->get_desc()->get_waytype();
+	for (auto const depot : depot_t::get_depot_list()) {
+		if (depot->get_owner()->get_player_nr() != get_player_nr()) continue;
+		if (depot->get_waytype() != wt) continue;
+		traction_types |= depot->get_traction_types();
+	}
 }
 
 // Construct the framework of the entire of this UI.
@@ -143,7 +156,24 @@ void replace_frame_t::init_table()
 		if( line.is_bound() ) {
 			new_component<gui_line_button_t>(line);
 			new_component<gui_line_label_t>(line);
-			add_component(&lb_vehicle_count);
+			if( !cnv.is_bound() ) {
+				add_table(3,1);
+				{
+					add_component(&lb_vehicle_count);
+					if (uint16 traction_type_count = line->get_traction_types()) {
+						traction_type_count = (traction_type_count & 0x55555555) + (traction_type_count >> 1 & 0x55555555);
+						traction_type_count = (traction_type_count & 0x33333333) + (traction_type_count >> 2 & 0x33333333);
+						traction_type_count = (traction_type_count & 0x0f0f0f0f) + (traction_type_count >> 4 & 0x0f0f0f0f);
+						traction_type_count = (traction_type_count & 0x00ff00ff) + (traction_type_count >> 8 & 0x00ff00ff);
+						traction_type_count = (traction_type_count & 0x0000ffff) + (traction_type_count >> 16 & 0x0000ffff);
+						if (traction_type_count>1) {
+							new_component<gui_margin_t>(LINEASCENT);
+							new_component<gui_label_with_symbol_t>("line_has_multiple_traction_types", skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2):IMG_EMPTY)->set_tooltip(translator::translate("helptxt_warning_replacing_line_has_multiple_traction_types"));
+						}
+					}
+				}
+				end_table();
+			}
 		}
 		new_component<gui_fill_t>();
 	}
@@ -750,7 +780,13 @@ void replace_frame_t::draw(scr_coord pos, scr_size size)
 		return;
 	}
 
-	if(cnv.is_bound()) bt_details.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
+	if (last_depot_count != depot_t::get_depot_list().get_count()) {
+		// update the assembler
+		init_traction_types();
+		convoy_assembler.build_vehicle_lists();
+	}
+
+	if (cnv.is_bound()) bt_details.pressed = win_get_magic(magic_convoi_detail + cnv.get_id());
 
 	if (convoy_assembler.get_min_size().w>get_min_size().w) {
 		reset_min_windowsize();

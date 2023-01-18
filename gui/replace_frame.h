@@ -103,6 +103,11 @@ private:
 	void init();
 	void init_table();
 
+	// Used to filter vehicles that are not available for replacing
+	uint16 traction_types   = 0; // traction types bits of depots of this waytype owned by the player
+	uint32 last_depot_count = 0; // for traction_types auto update
+	void init_traction_types();
+
 	// registered convoy vehicles to assembler and convoy(only init).
 	void set_vehicles(bool init=false);
 
@@ -117,6 +122,10 @@ public:
 	 * Update texts, image lists and buttons according to the current state.
 	 */
 	void update_data();
+
+	// for vehicle filter
+	// Returns the traction types bits of depots of this waytype owned by the player
+	uint16 get_traction_types() const { return traction_types; }
 
 	/**
 	 * Set the window size

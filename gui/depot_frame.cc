@@ -132,11 +132,11 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	init_table();
 	set_convoy();
 
-	if(depot->get_tile()->get_desc()->get_enabled() == 0)
+	if(depot->get_traction_types() == 0)
 	{
 		lb_traction_types.buf().printf("%s", translator::translate("Unpowered vehicles only"));
 	}
-	else if(depot->get_tile()->get_desc()->get_enabled() == 65535)
+	else if(depot->get_traction_types() == 65535)
 	{
 		lb_traction_types.buf().printf("%s", translator::translate("All traction types"));
 	}
@@ -147,7 +147,7 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 		for(uint16 i = 0; i < (vehicle_desc_t::MAX_TRACTION_TYPE); i ++)
 		{
 			shifter = 1 << i;
-			if((shifter & depot->get_tile()->get_desc()->get_enabled()))
+			if((shifter & depot->get_traction_types()))
 			{
 				if(first)
 				{

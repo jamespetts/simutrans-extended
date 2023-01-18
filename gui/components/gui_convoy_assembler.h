@@ -279,12 +279,12 @@ private:
 	// just update vehicle livery image
 	void update_livery();
 
+public:
 	/**
 	 * Create and fill vehicle vectors (for all tabs)
 	 */
 	void build_vehicle_lists();
 
-public:
 	/* Getter/setter methods */
 
 	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() { return &vehicles; }
