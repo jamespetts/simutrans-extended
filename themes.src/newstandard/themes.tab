@@ -128,7 +128,7 @@ gui_chat_window_network_transparency = 0
 gui_color_chat_window_network_transparency = #D6ECF7
 
 # Extended unique color settings
-gui_color_up_pointing_triangle   = #008000
+#gui_color_up_pointing_triangle   = #008000
 #gui_color_down_pointing_triangle = #FF0000
 #gui_color_out_of_production      = #
 # Recommended brightness: gui_color_text < gui_color_text_weak < gui_color_text_inactive   (reversed on dark themes)
@@ -165,7 +165,6 @@ gui_color_text_head_selected         = #ffffff
 gui_color_text_table_cell_selected   = #ffffff
 
 ################################## Size settings ##################################
-
 # size of tools
 icon_width = 32
 
