@@ -168,7 +168,7 @@ void replace_frame_t::init_table()
 						traction_type_count = (traction_type_count & 0x0000ffff) + (traction_type_count >> 16 & 0x0000ffff);
 						if (traction_type_count>1) {
 							new_component<gui_margin_t>(LINEASCENT);
-							new_component<gui_label_with_symbol_t>("line_has_multiple_traction_types", skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2):IMG_EMPTY)->set_tooltip(translator::translate("helptxt_warning_replacing_line_has_multiple_traction_types"));
+							new_component<gui_label_with_symbol_t>(translator::translate("line_has_multiple_traction_types"), skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2):IMG_EMPTY)->set_tooltip(translator::translate("helptxt_warning_replacing_line_has_multiple_traction_types"));
 						}
 					}
 				}
