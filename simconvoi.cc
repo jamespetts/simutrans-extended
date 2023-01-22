@@ -2546,13 +2546,13 @@ void convoi_t::enter_layover(halthandle_t halt)
 	state = LAYOVER;
 	wait_lock = seconds_to_ticks(welt->get_settings().get_min_layover_overhead_seconds(), welt->get_settings().get_meters_per_tile());
 
-	halt->add_laid_over(self); 
+	halt->add_laid_over(self);
 }
 
 void convoi_t::exit_layover()
 {
 	halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
-	halt->remove_laid_over(self); 
+	halt->remove_laid_over(self);
 }
 
 void convoi_t::advance_schedule()
@@ -6201,7 +6201,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	}
 
 	const bool can_enter_layover_here = halt->can_lay_over();
-	
+
 	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
 	{
 		enter_layover(halt);
