@@ -568,9 +568,15 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(3);
 			break;
 
+		case convoi_t::LAYOVER:
+			speed_label.buf().append(translator::translate("layover"));
+			speed_label.set_color(COL_CAUTION);
+			route_bar.set_state(1);
+			break;
+
 		case convoi_t::DRIVING:
 			route_bar.set_state(0);
-
+		
 		default:
 			if (runway_too_short)
 			{
