@@ -4744,7 +4744,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 			for (auto c : laid_over)
 			{
 				uint16 id = c.get_id();
-				file->rdwr_short(id); 
+				file->rdwr_short(id);
 			}
 		}
 		else // Loading
@@ -6718,10 +6718,10 @@ void haltestelle_t::set_all_building_tiles()
 
 void haltestelle_t::add_laid_over(convoihandle_t cnv)
 {
-	laid_over.append_unique(cnv); 
+	laid_over.append_unique(cnv);
 }
 
 void haltestelle_t::remove_laid_over(convoihandle_t cnv)
 {
-	laid_over.remove(cnv); 
+	laid_over.remove(cnv);
 }
