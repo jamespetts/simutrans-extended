@@ -6193,7 +6193,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	}
 
 	const bool can_enter_layover_here = true; // TODO: Add an algorithm and data structures to check whether a stop's facilities allow this.
-	
+
 	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
 	{
 		enter_layover();
