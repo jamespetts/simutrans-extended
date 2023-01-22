@@ -666,11 +666,11 @@ void vehiclelist_frame_t::fill_list()
 					timeline_matches = true; // show blue ones
 				}
 				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
-					if( welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+					if( !welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
 						// Do not show vehicles in the distant future with this setting
 						continue;
 					}
-					timeline_matches = true; // show blue ones
+					timeline_matches = true; // show gray ones
 				}
 				if( show_all_upgrade_only_vehicle && veh->is_available_only_as_upgrade() ) {
 					timeline_matches = true;
