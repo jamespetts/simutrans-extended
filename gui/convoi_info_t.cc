@@ -576,7 +576,7 @@ void convoi_info_t::update_labels()
 
 		case convoi_t::DRIVING:
 			route_bar.set_state(0);
-		
+
 		default:
 			if (runway_too_short)
 			{
