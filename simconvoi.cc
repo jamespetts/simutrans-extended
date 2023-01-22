@@ -2538,13 +2538,21 @@ void convoi_t::step()
 	}
 }
 
-void convoi_t::enter_layover()
+void convoi_t::enter_layover(halthandle_t halt)
 {
 	// We assume that we have already checked whether the station/stop in question can support a layover state
 
 	state = LAYOVER;
 	const sint32 min_layover_overhead = seconds_to_ticks(120, welt->get_settings().get_meters_per_tile()); // TODO: Set the minimum layover overhead in simuconf.tab
 	wait_lock = min_layover_overhead;
+
+	halt->add_laid_over(self); 
+}
+
+void convoi_t::exit_layover()
+{
+	halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
+	halt->remove_laid_over(self); 
 }
 
 void convoi_t::advance_schedule()
@@ -6192,11 +6200,11 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		}
 	}
 
-	const bool can_enter_layover_here = true; // TODO: Add an algorithm and data structures to check whether a stop's facilities allow this.
+	const bool can_enter_layover_here = halt->can_lay_over();
 	
 	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
 	{
-		enter_layover();
+		enter_layover(halt);
 	}
 
 	if(no_load || state == LAYOVER)
@@ -7140,6 +7148,11 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 	if(!schedule->is_editing_finished())
 	{
 		return false;
+	}
+
+	if (state = LAYOVER)
+	{
+		exit_layover();
 	}
 
 	if (schedule)
@@ -8817,6 +8830,10 @@ void convoi_t::check_departure(halthandle_t halt)
 	if(can_go) {
 		// Advance schedule
 		advance_schedule();
+		if (state == LAYOVER)
+		{
+			exit_layover();
+		}
 		state = ROUTING_1;
 		//dbg->message("void convoi_t::hat_gehalten(halthandle_t halt)", "Convoy %s departing from stop %s at step %i. Its departure time is calculated as %ll", get_name(), halt.is_bound() ? halt->get_name() : "unknown", welt->get_steps(), go_on_ticks);
 	}
@@ -8828,13 +8845,14 @@ void convoi_t::check_departure(halthandle_t halt)
 	}
 	else if (state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS)
 	{
+		const sint64 divider = state == LAYOVER ? 1ll : 2ll;
 		if (loading_limit > 0 && !wait_for_time)
 		{
-			wait_lock = (sint32) ((earliest_departure_time - now) / 2ll);
+			wait_lock = (sint32) ((earliest_departure_time - now) / divider);
 		}
 		else
 		{
-			wait_lock = (sint32) ((go_on_ticks - now) / 2ll);
+			wait_lock = (sint32) ((go_on_ticks - now) / divider);
 		}
 		// The random extra wait here is designed to avoid processing every convoy at once
 		wait_lock += (sint32)(self.get_id()) % 1024;

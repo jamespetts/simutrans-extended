@@ -4734,6 +4734,34 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save laid over vehicles
+		if (file->is_saving())
+		{
+			uint32 laid_over_count = laid_over.get_count();
+			file->rdwr_long(laid_over_count);
+			for (auto c : laid_over)
+			{
+				uint16 id = c.get_id();
+				file->rdwr_short(id); 
+			}
+		}
+		else // Loading
+		{
+			uint32 laid_over_count;
+			file->rdwr_long(laid_over_count);
+			for (uint32 i = 0; i < laid_over_count; i++)
+			{
+				uint16 id;
+				file->rdwr_short(id);
+				convoihandle_t cnv;
+				cnv.set_id(id);
+				laid_over.append(cnv);
+			}
+		}
+	}
+
 	// We do not need to save/load the service interval,
 	// because this is re-set when the convoys are loaded
 	// in any event. However, just to be on the safe side,
@@ -6686,4 +6714,14 @@ void haltestelle_t::set_all_building_tiles()
 			}
 		}
 	}
+}
+
+void haltestelle_t::add_laid_over(convoihandle_t cnv)
+{
+	laid_over.append_unique(cnv); 
+}
+
+void haltestelle_t::remove_laid_over(convoihandle_t cnv)
+{
+	laid_over.remove(cnv); 
 }

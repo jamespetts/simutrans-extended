@@ -1574,7 +1574,9 @@ public:
 
 	sint64 get_arrival_time() const { return arrival_time; }
 
-	void enter_layover();
+	void enter_layover(halthandle_t halt);
+
+	void exit_layover();
 };
 
 #endif

@@ -433,6 +433,11 @@ private:
 	*/
 	vector_tpl<koord3d> station_signals;
 
+	/**
+	* The convoys that are laid over at this stop
+	*/
+	vector_tpl<convoihandle_t> laid_over;
+
 #ifdef USE_QUOTE
 	// for station rating
 	//const char * quote_bezeichnung(int quote, convoihandle_t cnv) const;
@@ -538,7 +543,6 @@ public:
 
 	// Re-routing goods of a single ware category
 	uint32 reroute_goods(uint8 catg);
-
 
 	/**
 	 * getter/setter for sortby
@@ -1031,6 +1035,11 @@ public:
 	bool is_station_signal_contained(koord3d pos) const { return station_signals.is_contained(pos); }
 
 	void set_all_building_tiles();
+
+	void add_laid_over(convoihandle_t cnv);
+	void remove_laid_over(convoihandle_t cnv);
+
+	bool can_lay_over() { return true; } // TODO: Have this set based on actual featuers
 };
 
 ENUM_BITSET(haltestelle_t::stationtyp)
