@@ -390,6 +390,17 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 
 	cont_list_table.set_margin(scr_size(0,0), scr_size(0,0));
 	cont_list_table.set_spacing(scr_size(0,0));
+	cont_list_table.set_table_layout(1,0);
+	cont_list_table.add_table(VL_MAX_SPECS+1,1)->set_spacing(scr_size(0,0));
+	{
+		cont_list_table.new_component<gui_margin_t>(D_H_SPACE<<1);
+		for( uint8 i=0; i<VL_MAX_SPECS; ++i ) {
+			bt_table_sort[i].set_width(cell_width[i]);
+			cont_list_table.add_component(&bt_table_sort[i]);
+		}
+	}
+	cont_list_table.end_table();
+	cont_list_table.add_component(&scrolly);
 
 	set_table_layout(1,0);
 
@@ -813,19 +824,9 @@ void vehiclelist_frame_t::fill_list()
 		}
 	}
 
-
-	cont_list_table.remove_all();
-	cont_list_table.set_table_layout(1,0);
-	cont_list_table.add_table(VL_MAX_SPECS+1,1)->set_spacing(scr_size(0,0));
-	{
-		cont_list_table.new_component<gui_margin_t>(D_H_SPACE<<1);
-		for( uint8 i=0; i<VL_MAX_SPECS; ++i ) {
-			bt_table_sort[i].set_width(cell_width[i]);
-			cont_list_table.add_component(&bt_table_sort[i]);
-		}
+	for( uint8 i=0; i<VL_MAX_SPECS; ++i ) {
+		bt_table_sort[i].set_width(cell_width[i]);
 	}
-	cont_list_table.end_table();
-	cont_list_table.add_component(&scrolly);
 
 	// recalc stats table width
 	stats_width = 0;
