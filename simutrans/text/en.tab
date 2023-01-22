@@ -6666,3 +6666,5 @@ Status filter(count):
 Status filter (count):
 upgrade_only
 Show vehicles only available as an upgrade
+filter_line_consist
+This line only

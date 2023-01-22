@@ -8706,7 +8706,7 @@ void convoi_t::check_departure(halthandle_t halt)
 {
 	// The schedule has not yet been advanced.
 
-	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
+	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing(); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
 
 	const sint64 now = welt->get_ticks();
 	if(arrival_time > now || arrival_time == WAIT_INFINITE)
