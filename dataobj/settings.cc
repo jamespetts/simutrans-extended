@@ -1836,6 +1836,7 @@ void settings_t::rdwr(loadsave_t *file)
 		if (file->get_extended_version() >= 15)
 		{
 			file->rdwr_bool(simplified_maintenance);
+			file->rdwr_long(min_layover_overhead_seconds); 
 		}
 		else if (file->is_loading())
 		{
@@ -2973,6 +2974,8 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_route_tiles_to_process_in_a_step_paused_background = contents.get_int("max_route_tiles_to_process_in_a_step_paused_background", max_route_tiles_to_process_in_a_step_paused_background);
 
 	simplified_maintenance = contents.get_int("simplified_maintenance", simplified_maintenance);
+
+	min_layover_overhead_seconds = contents.get_int("min_layover_overhead_seconds", min_layover_overhead_seconds); 
 
 	fuel_unit_cost_divider = contents.get_int("fuel_unit_cost_divider", fuel_unit_cost_divider);
 	if (fuel_unit_cost_divider == 0)

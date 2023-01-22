@@ -2083,6 +2083,11 @@ void convoi_t::step()
 		case DUMMY5:
 		break;
 
+		case LAYOVER:
+			check_departure(haltestelle_t::get_halt(get_pos(), owner));
+			// We will only get here if wait_lock == 0
+			break;
+
 		case REVERSING:
 
 			if (true) // Necessary for compiling only due to the need to define variables in a single case.
@@ -2524,16 +2529,13 @@ void convoi_t::step()
 			wait_lock = 2500;
 			break;
 
-		case LAYOVER:
-			check_departure(haltestelle_t::get_halt(get_pos(), owner));
-			// We will only get here if wait_lock == 0
-			break;
-
 		case OVERHAUL:
 		case MAINTENANCE:
 			// We will only get here if wait_lock == 0
 			state = LEAVING_DEPOT;
 			break;
+
+		case LAYOVER:
 		default: ;
 	}
 }
@@ -2541,10 +2543,8 @@ void convoi_t::step()
 void convoi_t::enter_layover(halthandle_t halt)
 {
 	// We assume that we have already checked whether the station/stop in question can support a layover state
-
 	state = LAYOVER;
-	const sint32 min_layover_overhead = seconds_to_ticks(120, welt->get_settings().get_meters_per_tile()); // TODO: Set the minimum layover overhead in simuconf.tab
-	wait_lock = min_layover_overhead;
+	wait_lock = seconds_to_ticks(welt->get_settings().get_min_layover_overhead_seconds(), welt->get_settings().get_meters_per_tile());
 
 	halt->add_laid_over(self); 
 }
@@ -6359,7 +6359,11 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
-	check_departure(halt);
+	if (state != LAYOVER)
+	{
+		// This is done in the layover state after the minimum layover time has expired.
+		check_departure(halt);
+	}
 }
 
 
