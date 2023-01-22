@@ -264,7 +264,7 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 		{
 			const uint16 a_range = a->get_range()==0 ? 65535 : a->get_range();
 			const uint16 b_range = b->get_range()==0 ? 65535 : b->get_range();
-			cmp = a_range - b_range;
+			cmp = (int)a_range - (int)b_range;
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
@@ -273,11 +273,11 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 			/* FALLTHROUGH */
 		case sb_role:
-			cmp = a->get_basic_constraint_prev() - b->get_basic_constraint_prev();
+			cmp = (int)a->get_basic_constraint_prev() - (int)b->get_basic_constraint_prev();
 			if (cmp != 0) return cmp < 0;
-			cmp = a->get_basic_constraint_next() - b->get_basic_constraint_next();
+			cmp = (int)a->get_basic_constraint_next() - (int)b->get_basic_constraint_next();
 			if (cmp != 0) return cmp < 0;
-			cmp = a->is_bidirectional() - b->is_bidirectional();
+			cmp = (int)a->is_bidirectional() - (int)b->is_bidirectional();
 			if (cmp != 0) return cmp < 0;
 			/* FALLTHROUGH */
 		case sb_power:
@@ -295,13 +295,13 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 		{
 			const uint16 a_axle_load = a->get_waytype() == water_wt ? 0 : a->get_axle_load();
 			const uint16 b_axle_load = b->get_waytype() == water_wt ? 0 : b->get_axle_load();
-			cmp = a_axle_load - b_axle_load;
+			cmp = (int)a_axle_load - (int)b_axle_load;
 			if (cmp != 0) return cmp < 0;
 		}
 		/* FALLTHROUGH */
 		case sb_weight:
 		{
-			cmp = a->get_weight() - b->get_weight();
+			cmp = (int)a->get_weight() - (int)b->get_weight();
 			if (cmp != 0) return cmp < 0;
 			break;
 		}
@@ -310,9 +310,9 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (cmp != 0) return cmp < 0;
 		/* FALLTHROUGH */
 		case sb_capacity:
-			cmp = a->get_total_capacity() - b->get_total_capacity();
+			cmp = (int)a->get_total_capacity() - (int)b->get_total_capacity();
 			if (cmp == 0) {
-				cmp = a->get_overcrowded_capacity() - b->get_overcrowded_capacity();
+				cmp = (int)a->get_overcrowded_capacity() - (int)b->get_overcrowded_capacity();
 			}
 			if (cmp != 0) return cmp < 0;
 			break;
@@ -336,9 +336,9 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 					}
 				}
 			}
-			cmp = a_comfort - b_comfort;
+			cmp = (int)a_comfort - (int)b_comfort;
 			if( cmp == 0) {
-				cmp = a->get_catering_level() - b->get_catering_level();
+				cmp = (int)a->get_catering_level() - (int)b->get_catering_level();
 			}
 			if (cmp != 0) return cmp < 0;
 			break;
