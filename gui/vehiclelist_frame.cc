@@ -468,7 +468,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	};
 	add_table(3, 1);
 	{
-		new_component<gui_label_t>("Status filter:");
+		new_component<gui_label_t>("Status filter(count):");
 		const scr_coord_val button_width = proportional_string_width("888888") + D_BUTTON_PADDINGS_X;
 		gui_aligned_container_t *tbl = add_table(VL_MAX_STATUS_FILTER+1,1);
 		//tbl->set_force_equal_columns(true);

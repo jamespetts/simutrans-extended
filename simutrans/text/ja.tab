@@ -3303,6 +3303,8 @@ stations
 停留所/駅
 Status:
 状態:
+Status filter(count):
+状態別フィルター(該当数)：
 Stops potentially within walking distance:
 徒歩で移動可能な駅/停留所:
 That would exceed\nyour credit limit.
