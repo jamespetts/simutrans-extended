@@ -120,7 +120,8 @@ static const char * state_names[convoi_t::MAX_STATES] =
 	"JUST_FOUND_ROUTE",
 	"NO_ROUTE_TOO_COMPLEX",
 	"WAITING_FOR_LOADING_THREE_MONTHS",
-	"WAITING_FOR_LOADING_FOUR_MONTHS"
+	"WAITING_FOR_LOADING_FOUR_MONTHS",
+	"LAYOVER"
 };
 
 
@@ -2523,6 +2524,11 @@ void convoi_t::step()
 			wait_lock = 2500;
 			break;
 
+		case LAYOVER:
+			check_departure(haltestelle_t::get_halt(get_pos(), owner));
+			// We will only get here if wait_lock == 0
+			break;
+
 		case OVERHAUL:
 		case MAINTENANCE:
 			// We will only get here if wait_lock == 0
@@ -2530,6 +2536,15 @@ void convoi_t::step()
 			break;
 		default: ;
 	}
+}
+
+void convoi_t::enter_layover()
+{
+	// We assume that we have already checked whether the station/stop in question can support a layover state
+
+	state = LAYOVER;
+	const sint32 min_layover_overhead = seconds_to_ticks(120, welt->get_settings().get_meters_per_tile()); // TODO: Set the minimum layover overhead in simuconf.tab
+	wait_lock = min_layover_overhead;
 }
 
 void convoi_t::advance_schedule()
@@ -6096,7 +6111,9 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		set_no_load(true);
 	}
 
+	const uint16 old_last_stop_id = last_stop_id;
 	last_stop_id = halt.get_id();
+	const bool first_run = old_last_stop_id != last_stop_id;
 
 	halt->update_alternative_seats(self);
 	// only load vehicles in station
@@ -6174,7 +6191,15 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			book(revenue_cents_from_unloading, CONVOI_REVENUE);
 		}
 	}
-	if(no_load)
+
+	const bool can_enter_layover_here = true; // TODO: Add an algorithm and data structures to check whether a stop's facilities allow this.
+	
+	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
+	{
+		enter_layover();
+	}
+
+	if(no_load || state == LAYOVER)
 	{
 		for(int i = 0; i < vehicles_loading ; i++)
 		{
@@ -8706,7 +8731,7 @@ void convoi_t::check_departure(halthandle_t halt)
 {
 	// The schedule has not yet been advanced.
 
-	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing(); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
+	const bool wait_for_time = state == LAYOVER || (schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing()); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
 
 	const sint64 now = welt->get_ticks();
 	if(arrival_time > now || arrival_time == WAIT_INFINITE)

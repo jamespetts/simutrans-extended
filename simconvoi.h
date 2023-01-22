@@ -1573,6 +1573,8 @@ public:
 	void check_departure(halthandle_t halt = halthandle_t());
 
 	sint64 get_arrival_time() const { return arrival_time; }
+
+	void enter_layover();
 };
 
 #endif
