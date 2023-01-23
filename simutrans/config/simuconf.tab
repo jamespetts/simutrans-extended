@@ -736,7 +736,7 @@ overdraft_percent_above_base_rate = 2
 # 0, set allow_bankruptsy to 1, and set allow_purchases_when_insolvent to 1.
 
 allow_bankruptcyallow_bankruptcy = 1
-allow_purchases_when_insolvent = 0	
+allow_purchases_when_insolvent = 0
 
 ################################### Miscellaneous settings ##################################
 #
@@ -906,9 +906,12 @@ disable_make_way_public = 0
 
 # This determines whether vehicles need to visit depots periodically.
 # If enabled (1), the vehicles do not need to visit depots periodically.
+# 
 # This is enabled by default when loading older saved games in which
 # periodic depot vists were neither necessary nor possible, irrespective
 # of the setting here. This applies only to new games.
+#
+# Default: 0 (except for loading games saved in versions older than 15)
 simplified_maintenance = 0
 
 # This setting alters the revenue for electricity transmission.
@@ -922,6 +925,10 @@ power_revenue_factor_percentage = 100
 # after its next stop irrespective of its schedule.
 maintenance_interval_months = 12
 extended_maintenance_interval_months = 18
+
+# The number of seconds (in game time) that is the minimum amount of time that a consist
+# can be in the layover state.
+min_layover_overhead_seconds = 120
 
 ############################## Private car settings ##############################
 

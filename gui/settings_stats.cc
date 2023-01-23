@@ -271,6 +271,8 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 
 	INIT_NUM("fuel_unit_cost_divider", sets->get_fuel_unit_cost_divider(), 1, 1000000, gui_numberinput_t::AUTOLINEAR, false);
 
+	INIT_NUM("min_layover_overhead_seconds", sets->get_min_layover_overhead_seconds(), 1, 100000000, gui_numberinput_t::AUTOLINEAR, false);
+
 	INIT_END
 }
 
@@ -386,6 +388,8 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->extended_maintenance_interval_months);
 
 	READ_NUM_VALUE(sets->fuel_unit_cost_divider);
+
+	READ_NUM_VALUE(sets->min_layover_overhead_seconds);
 
 	path_explorer_t::set_absolute_limits_external();
 }

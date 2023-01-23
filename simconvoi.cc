@@ -120,7 +120,8 @@ static const char * state_names[convoi_t::MAX_STATES] =
 	"JUST_FOUND_ROUTE",
 	"NO_ROUTE_TOO_COMPLEX",
 	"WAITING_FOR_LOADING_THREE_MONTHS",
-	"WAITING_FOR_LOADING_FOUR_MONTHS"
+	"WAITING_FOR_LOADING_FOUR_MONTHS",
+	"LAYOVER"
 };
 
 
@@ -2082,6 +2083,11 @@ void convoi_t::step()
 		case DUMMY5:
 		break;
 
+		case LAYOVER:
+			check_departure(haltestelle_t::get_halt(get_pos(), owner));
+			// We will only get here if wait_lock == 0
+			break;
+
 		case REVERSING:
 
 			if (true) // Necessary for compiling only due to the need to define variables in a single case.
@@ -2528,8 +2534,25 @@ void convoi_t::step()
 			// We will only get here if wait_lock == 0
 			state = LEAVING_DEPOT;
 			break;
+
+		case LAYOVER:
 		default: ;
 	}
+}
+
+void convoi_t::enter_layover(halthandle_t halt)
+{
+	// We assume that we have already checked whether the station/stop in question can support a layover state
+	state = LAYOVER;
+	wait_lock = seconds_to_ticks(welt->get_settings().get_min_layover_overhead_seconds(), welt->get_settings().get_meters_per_tile());
+
+	halt->add_laid_over(self);
+}
+
+void convoi_t::exit_layover()
+{
+	halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
+	halt->remove_laid_over(self);
 }
 
 void convoi_t::advance_schedule()
@@ -6096,7 +6119,9 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		set_no_load(true);
 	}
 
+	const uint16 old_last_stop_id = last_stop_id;
 	last_stop_id = halt.get_id();
+	const bool first_run = old_last_stop_id != last_stop_id;
 
 	halt->update_alternative_seats(self);
 	// only load vehicles in station
@@ -6174,7 +6199,15 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			book(revenue_cents_from_unloading, CONVOI_REVENUE);
 		}
 	}
-	if(no_load)
+
+	const bool can_enter_layover_here = halt->can_lay_over();
+
+	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
+	{
+		enter_layover(halt);
+	}
+
+	if(no_load || state == LAYOVER)
 	{
 		for(int i = 0; i < vehicles_loading ; i++)
 		{
@@ -6326,7 +6359,11 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
-	check_departure(halt);
+	if (state != LAYOVER)
+	{
+		// This is done in the layover state after the minimum layover time has expired.
+		check_departure(halt);
+	}
 }
 
 
@@ -7115,6 +7152,11 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 	if(!schedule->is_editing_finished())
 	{
 		return false;
+	}
+
+	if (state = LAYOVER)
+	{
+		exit_layover();
 	}
 
 	if (schedule)
@@ -8706,7 +8748,7 @@ void convoi_t::check_departure(halthandle_t halt)
 {
 	// The schedule has not yet been advanced.
 
-	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing(); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
+	const bool wait_for_time = state == LAYOVER || (schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing()); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
 
 	const sint64 now = welt->get_ticks();
 	if(arrival_time > now || arrival_time == WAIT_INFINITE)
@@ -8792,6 +8834,10 @@ void convoi_t::check_departure(halthandle_t halt)
 	if(can_go) {
 		// Advance schedule
 		advance_schedule();
+		if (state == LAYOVER)
+		{
+			exit_layover();
+		}
 		state = ROUTING_1;
 		//dbg->message("void convoi_t::hat_gehalten(halthandle_t halt)", "Convoy %s departing from stop %s at step %i. Its departure time is calculated as %ll", get_name(), halt.is_bound() ? halt->get_name() : "unknown", welt->get_steps(), go_on_ticks);
 	}
@@ -8803,13 +8849,14 @@ void convoi_t::check_departure(halthandle_t halt)
 	}
 	else if (state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS)
 	{
+		const sint64 divider = state == LAYOVER ? 1ll : 2ll;
 		if (loading_limit > 0 && !wait_for_time)
 		{
-			wait_lock = (sint32) ((earliest_departure_time - now) / 2ll);
+			wait_lock = (sint32) ((earliest_departure_time - now) / divider);
 		}
 		else
 		{
-			wait_lock = (sint32) ((go_on_ticks - now) / 2ll);
+			wait_lock = (sint32) ((go_on_ticks - now) / divider);
 		}
 		// The random extra wait here is designed to avoid processing every convoy at once
 		wait_lock += (sint32)(self.get_id()) % 1024;
