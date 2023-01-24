@@ -949,9 +949,21 @@ void schedule_gui_t::build_table()
 				// Issuing Lay over
 				new_component<gui_image_t>()->set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0): IMG_EMPTY, true);
 				bt_lay_over.init(button_t::square_automatic, "lay_over");
-				bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop");
-				bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+
+				// Check whether the station has layover facilities and disable the button if so.
+				halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
 				bt_lay_over.add_listener(this);
+				bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+				if (!halt.is_bound() || !halt->can_lay_over())
+				{
+					bt_lay_over.disable();
+					bt_lay_over.set_tooltip("helptxt_no_layover_enabled_at_stop");
+				}
+				else
+				{
+					bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop");
+				}
+
 				add_component(&bt_lay_over);
 				new_component<gui_empty_t>();
 
@@ -1096,7 +1108,14 @@ void schedule_gui_t::update_selection()
 			bt_consist_order.enable();
 			lb_consist_order_modified.set_visible(schedule->orders.get(schedule->entries[schedule->get_current_stop()].unique_entry_id).get_count());
 			bt_setdown_only.enable();
-			bt_lay_over.enable();
+			if (halt->can_lay_over())
+			{
+				bt_lay_over.enable();
+			}
+			else
+			{
+				bt_lay_over.disable();
+			}
 			bt_range_stop.enable();
 			bt_discharge_payload.enable();
 			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;

@@ -6656,3 +6656,5 @@ filter_line_consist
 This line only
 layover
 Layover
+helptxt_no_layover_enabled_at_stop
+Cannot layover here: stop lacks layover facilities
