@@ -846,8 +846,8 @@ void schedule_gui_t::build_table()
 				add_table(5,2)->set_spacing(scr_size(D_H_SPACE,0));
 				{
 					// Spacing
-					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
-					lb_spacing.set_text("Spacing cnv/month, shift");
+					new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+					lb_spacing.set_text("Spacing cnv/month");
 					lb_spacing.set_tooltip(translator::translate("help_txt_departure_per_month"));
 					add_component(&lb_spacing);
 
@@ -856,7 +856,7 @@ void schedule_gui_t::build_table()
 					numimp_spacing.add_listener(this);
 					add_component(&numimp_spacing);
 
-					lb_spacing_as_clock.init(SYSCOL_TEXT, gui_label_t::right);
+					lb_spacing_as_clock.init(SYSCOL_TEXT);
 					lb_spacing_as_clock.buf().append(str_spacing_as_clock);
 					lb_spacing_as_clock.set_fixed_width(proportional_string_width("--:--:--"));
 					lb_spacing_as_clock.update();
@@ -864,7 +864,7 @@ void schedule_gui_t::build_table()
 					new_component<gui_empty_t>();
 
 					// Spacing shift
-					new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+					new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
 					lb_shift.init(translator::translate("time shift"), scr_coord(0, 0));
 					lb_shift.set_tooltip(translator::translate("help_txt_departure_time_shift"));
 					add_component(&lb_shift);

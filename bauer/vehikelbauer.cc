@@ -204,29 +204,29 @@ bool vehicle_builder_t::register_desc(vehicle_desc_t *desc)
 // compare funcions to sort vehicle in the list
 static int compare_freight(const vehicle_desc_t* a, const vehicle_desc_t* b)
 {
-	int cmp = a->get_freight_type()->get_catg() - b->get_freight_type()->get_catg();
+	int cmp = (int)a->get_freight_type()->get_catg() - (int)b->get_freight_type()->get_catg();
 	if (cmp != 0) return cmp;
 	if (a->get_freight_type()->get_catg() == 0) {
-		cmp = a->get_freight_type()->get_index() - b->get_freight_type()->get_index();
+		cmp = (int)a->get_freight_type()->get_index() - (int)b->get_freight_type()->get_index();
 	}
 	if (cmp==0) {
-		cmp = a->get_min_accommodation_class() - b->get_min_accommodation_class();
+		cmp = (int)a->get_min_accommodation_class() - (int)b->get_min_accommodation_class();
 	}
 	if (cmp==0) {
-		cmp = a->get_max_accommodation_class() - b->get_max_accommodation_class();
+		cmp = (int)a->get_max_accommodation_class() - (int)b->get_max_accommodation_class();
 	}
 	return cmp;
 }
-static int compare_capacity(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_capacity() - b->get_capacity(); }
+static int compare_capacity(const vehicle_desc_t* a, const vehicle_desc_t* b) { return (int)a->get_capacity() - (int)b->get_capacity(); }
 static int compare_engine(const vehicle_desc_t* a, const vehicle_desc_t* b) {
-	return (a->get_capacity() + a->get_power() == 0 ? (uint8)vehicle_desc_t::steam : a->get_engine_type()) - (b->get_capacity() + b->get_power() == 0 ? (uint8)vehicle_desc_t::steam : b->get_engine_type());
+	return (a->get_capacity() + a->get_power() == 0 ? (int)vehicle_desc_t::steam : (int)a->get_engine_type()) - (b->get_capacity() + b->get_power() == 0 ? (int)vehicle_desc_t::steam : (int)b->get_engine_type());
 }
 static int compare_price(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_base_price() - b->get_base_price(); }
 static int compare_topspeed(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_topspeed() - b->get_topspeed(); }
-static int compare_power(const vehicle_desc_t* a, const vehicle_desc_t* b) {return (a->get_power() == 0 ? 0x7FFFFFF : a->get_power()) - (b->get_power() == 0 ? 0x7FFFFFF : b->get_power());}
-static int compare_tractive_effort(const vehicle_desc_t* a, const vehicle_desc_t* b) { return (a->get_power() == 0 ? 0x7FFFFFF : a->get_tractive_effort()) - (b->get_power() == 0 ? 0x7FFFFFF : b->get_tractive_effort()); }
-static int compare_intro_year_month(const vehicle_desc_t* a, const vehicle_desc_t* b) {return a->get_intro_year_month() - b->get_intro_year_month();}
-static int compare_retire_year_month(const vehicle_desc_t* a, const vehicle_desc_t* b) {return a->get_retire_year_month() - b->get_retire_year_month();}
+static int compare_power(const vehicle_desc_t* a, const vehicle_desc_t* b) {return (a->get_power() == 0 ? 0x7FFFFFF : (int)a->get_power()) - (b->get_power() == 0 ? 0x7FFFFFF : (int)b->get_power());}
+static int compare_tractive_effort(const vehicle_desc_t* a, const vehicle_desc_t* b) { return (a->get_power() == 0 ? 0x7FFFFFF : (int)a->get_tractive_effort()) - (b->get_power() == 0 ? 0x7FFFFFF : (int)b->get_tractive_effort()); }
+static int compare_intro_year_month(const vehicle_desc_t* a, const vehicle_desc_t* b) {return (int)a->get_intro_year_month() - (int)b->get_intro_year_month();}
+static int compare_retire_year_month(const vehicle_desc_t* a, const vehicle_desc_t* b) {return (int)a->get_retire_year_month() - (int)b->get_retire_year_month();}
 
 
 // default compare function with mode parameter
