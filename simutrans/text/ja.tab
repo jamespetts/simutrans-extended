@@ -3286,9 +3286,7 @@ south_east
 south_west
 南西
 Spacing cnv/month
-1ヶ月あたり発車許可本数
-Spacing cnv/month, shift
-1ヶ月あたり発車許可本数, シフト時間
+出発回数/月
 sq. km.
 平方km
 staff_shortage
@@ -4475,6 +4473,8 @@ line_network
 接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+Spacing cnv/month, shift
+1ヶ月あたり発車許可本数, シフト時間
 100 km/h = %i tiles/month
 100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
