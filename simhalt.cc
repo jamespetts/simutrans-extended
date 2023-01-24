@@ -6725,3 +6725,19 @@ void haltestelle_t::remove_laid_over(convoihandle_t cnv)
 {
 	laid_over.remove(cnv);
 }
+
+bool haltestelle_t::can_lay_over() const
+{
+	if (!tiles.empty())
+	{
+		for (auto i : tiles)
+		{
+			gebaeude_t* building = i.grund->get_building();
+			if (building && building->get_tile()->get_desc()->layover_enable())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}

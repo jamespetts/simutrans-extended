@@ -6200,9 +6200,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		}
 	}
 
-	const bool can_enter_layover_here = halt->can_lay_over();
-
-	if (first_run && can_enter_layover_here && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over))
+	if (first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over())
 	{
 		enter_layover(halt);
 	}
@@ -8823,6 +8821,12 @@ void convoi_t::check_departure(halthandle_t halt)
 
 	// loading is finished => maybe drive on
 	bool can_go = false;
+
+	// We must exit the layover if this is a timed layover long enough in advance to allow loading to occur (otherwise this is an exploit)
+	if (state == LAYOVER && wait_for_time && (running_late && now > arrival_time + (std::max((sint64)current_loading_time, reversing_time)) || (now > go_on_ticks - (std::max((sint64)current_loading_time, reversing_time)))))
+	{
+		exit_layover();
+	}
 
 	can_go = loading_level >= loading_limit && (now >= go_on_ticks || !wait_for_time);
 	//can_go = can_go || (now >= go_on_ticks_waiting && !wait_for_time); // This is pre-14 August 2016 code

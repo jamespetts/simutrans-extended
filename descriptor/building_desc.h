@@ -138,16 +138,18 @@ class building_desc_t : public obj_desc_timelined_t {
 			city_res          = 37, ///< residential city buildings
 			city_com          = 38, ///< commercial  city buildings
 			city_ind          = 39, ///< industrial  city buildings
-			signalbox         = 70  // Signalbox. 70 to allow for plenty more Standard ones in between.
+			signalbox         = 70 ///< Signalbox. 70 to allow for plenty more Standard types in between.
 		};
 
 
 		enum flag_t {
-			FLAG_NULL        = 0,
-			FLAG_NO_INFO     = 1 << 0, ///< do not show info window
-			FLAG_NO_PIT      = 1 << 1, ///< do not show construction pit
-			FLAG_NEED_GROUND = 1 << 2, ///< needs ground drawn below
-			FLAG_HAS_CURSOR  = 1 << 3  ///< there is cursor/icon for this
+			FLAG_NULL				= 0,
+			FLAG_NO_INFO			= 1 << 0, ///< do not show info window
+			FLAG_NO_PIT				= 1 << 1, ///< do not show construction pit
+			FLAG_NEED_GROUND		= 1 << 2, ///< needs ground drawn below
+			FLAG_HAS_CURSOR			= 1 << 3, ///< there is cursor/icon for this
+			FLAG_LAYOVER_ENABLE		= 1 << 4, ///< If a station extension, enable layovers at this stop
+			FLAG_REPLENISH_ENABLE	= 1 << 5  ///< If this is a station extension, allow replenishing at this stop
 		};
 
 	private:
@@ -288,6 +290,10 @@ public:
 
 	// do not open info for this
 	bool no_info_window() const { return (flags & FLAG_NO_INFO) != 0; }
+
+	bool layover_enable() const { return (flags & FLAG_LAYOVER_ENABLE) != 0; }
+
+	bool replenish_enable() const { return (flags & FLAG_REPLENISH_ENABLE) != 0; }
 
 	// see gebaeude_t and hausbauer for the different types
 	building_desc_t::btype get_type() const { return type; }

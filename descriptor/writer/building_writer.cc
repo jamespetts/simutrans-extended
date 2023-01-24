@@ -93,10 +93,12 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint16					   allowed_regions = 65535; // This allows up to 16 regions to be defined. By default (at 65535), the building can be built in all regions.
 	uint16                     enables          = 0;
 	uint16                     level            = obj.get_int("level", 1);
-	building_desc_t::flag_t const flags            =
-		(obj.get_int("noinfo",         0) > 0 ? building_desc_t::FLAG_NO_INFO  : building_desc_t::FLAG_NULL) |
+	building_desc_t::flag_t const flags =
+		(obj.get_int("noinfo", 0) > 0 ? building_desc_t::FLAG_NO_INFO : building_desc_t::FLAG_NULL) |
 		(obj.get_int("noconstruction", 0) > 0 ? building_desc_t::FLAG_NO_PIT : building_desc_t::FLAG_NULL) |
-		(obj.get_int("needs_ground",   0) > 0 ? building_desc_t::FLAG_NEED_GROUND : building_desc_t::FLAG_NULL);
+		(obj.get_int("needs_ground", 0) > 0 ? building_desc_t::FLAG_NEED_GROUND : building_desc_t::FLAG_NULL) |
+		(obj.get_int("layover_enable", 0) > 0 ? building_desc_t::FLAG_LAYOVER_ENABLE : building_desc_t::FLAG_NULL) |
+		(obj.get_int("replenish_enable", 0) > 0 ? building_desc_t::FLAG_REPLENISH_ENABLE : building_desc_t::FLAG_NULL);
 	uint16               const animation_time   = obj.get_int("animation_time", 300);
 
 	level = obj.get_int("pax_level", level); // Needed for conversion from old factories.
@@ -475,7 +477,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x400: Unused due to versioning errors
 	// 0x500: Class proportions
 	// 0x600: Pier System
-	// 0x700: 15x - depot maintenance capacity
+	// 0x700: 15x - depot maintenance capacity and extension layover capability
 	version += 0x800;
 
 	int pos = 0;
