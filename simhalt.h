@@ -1039,7 +1039,7 @@ public:
 	void add_laid_over(convoihandle_t cnv);
 	void remove_laid_over(convoihandle_t cnv);
 
-	bool can_lay_over() { return true; } // TODO: Have this set based on actual featuers
+	bool can_lay_over() const;
 };
 
 ENUM_BITSET(haltestelle_t::stationtyp)
