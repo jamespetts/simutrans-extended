@@ -823,11 +823,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 	}
 }
 
-/**
- * Unload freight to halt
- * @return sum of unloaded goods
- */
-uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> & apportioned_revenues)
+uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool layover)
 {
 	uint16 sum_menge = 0, sum_delivered = 0, index = 0;
 
@@ -856,7 +852,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 						sum_weight -= tmp.menge * tmp.get_desc()->get_weight_per_unit();
 						i = fracht[j].erase(i);
 					}
-					else if (end_halt == halt || via_halt == halt)
+					else if (layover || end_halt == halt || via_halt == halt)
 					{
 						// here, only ordinary goods should be processed
 

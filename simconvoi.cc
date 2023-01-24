@@ -6160,6 +6160,8 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	// It will be added to by the load_cargo method for each vehicle
 	array_tpl<sint64> apportioned_revenues (MAX_PLAYER_COUNT, 0);
 
+	const bool will_layover = first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over();
+
 	for(int i = 0; i < vehicles_loading ; i++)
 	{
 		vehicle_t* v = vehicle[i];
@@ -6180,7 +6182,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		{
 			//Unload
 			sint64 revenue_from_unloading = 0;
-			uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues);
+			uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover);
 			changed_loading_level += amount_unloaded;
 
 			// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
@@ -6200,7 +6202,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		}
 	}
 
-	if (first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over())
+	if (will_layover)
 	{
 		enter_layover(halt);
 	}
