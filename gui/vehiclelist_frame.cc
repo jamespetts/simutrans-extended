@@ -337,8 +337,10 @@ scr_size vehiclelist_stats_t::get_size() const
 
 bool vehiclelist_stats_t::compare(const gui_component_t *aa, const gui_component_t *bb)
 {
-	bool result = vehicle_builder_t::compare_vehicles( dynamic_cast<const vehiclelist_stats_t*>(aa)->veh, dynamic_cast<const vehiclelist_stats_t*>(bb)->veh, (vehicle_builder_t::sort_mode_t)vehiclelist_stats_t::sort_mode );
-	return vehiclelist_stats_t::reverse ? !result : result;
+	if (reverse) {
+		return vehicle_builder_t::compare_vehicles(dynamic_cast<const vehiclelist_stats_t*>(bb)->veh, dynamic_cast<const vehiclelist_stats_t*>(aa)->veh, (vehicle_builder_t::sort_mode_t)vehiclelist_stats_t::sort_mode);
+	}
+	return vehicle_builder_t::compare_vehicles( dynamic_cast<const vehiclelist_stats_t*>(aa)->veh, dynamic_cast<const vehiclelist_stats_t*>(bb)->veh, (vehicle_builder_t::sort_mode_t)vehiclelist_stats_t::sort_mode );
 }
 
 
