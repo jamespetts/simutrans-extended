@@ -592,6 +592,67 @@ bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const sche
 	}
 }
 
+bool schedule_t::entry_has_consist_order(uint16 unique_id) const
+{
+	if (orders.empty())
+	{
+		return false;
+	}
+
+	if (orders.is_contained(unique_id))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+const consist_order_t& schedule_t::get_consist_order(uint16 unique_id)
+{
+	const consist_order_t &order = orders.get(unique_id);
+	return order;
+}
+
+convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt)
+{
+	convoihandle_t cnv;
+	schedule_entry_t* entry = nullptr;
+
+	for (auto e : entries)
+	{
+		if (e.unique_entry_id == unique_id)
+		{
+			entry = &e;
+			break;
+		}
+	}
+
+	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple))
+	{
+		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv) && halt.is_bound())
+		{
+			// Line
+			linehandle_t line;
+			line.set_id(entry->target_id_couple);
+
+			for (auto c : halt->get_loading_convois())
+			{
+				if (c.is_bound() && c->get_line() == line)
+				{
+					return c;
+				}
+			}
+		}
+		else
+		{
+			// Convoy
+			cnv.set_id(entry->target_id_couple);
+		}
+	}
+
+	return cnv;
+}
+
 
 /*
  * Increment or decrement the given index according to the given direction.

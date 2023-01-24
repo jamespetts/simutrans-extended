@@ -267,6 +267,13 @@ public:
 
 	bool check_consist_orders_for_match(uint16 entry_id_this, const schedule_t* other_schedule, uint16 entry_id_other_schedule) const;
 
+	bool entry_has_consist_order(uint16 unique_id) const;
+
+	const consist_order_t& get_consist_order(uint16 unique_id);
+
+	convoihandle_t get_couple_target(uint16 unique_id, halthandle_t halt);
+	// TODO: Implement get_uncouple_target
+
 
 	image_id get_schedule_type_symbol() const
 	{

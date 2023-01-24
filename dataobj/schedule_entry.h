@@ -191,6 +191,7 @@ public:
 	void set_flag(schedule_entry_flag flag) { flags |= flag; }
 
 	void clear_flag(schedule_entry_flag flag) { flags &= ~flag; }
+
 };
 
 inline bool operator == (const schedule_entry_t &a, const schedule_entry_t &b)

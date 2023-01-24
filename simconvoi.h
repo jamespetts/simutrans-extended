@@ -1577,6 +1577,8 @@ public:
 	void enter_layover(halthandle_t halt);
 
 	void exit_layover();
+
+	void process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy);
 };
 
 #endif

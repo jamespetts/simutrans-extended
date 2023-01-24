@@ -6207,6 +6207,15 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		enter_layover(halt);
 	}
 
+	if (first_run && schedule->entry_has_consist_order(schedule->get_current_entry().unique_entry_id))
+	{
+		const consist_order_t& order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
+		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt); 
+		process_consist_order(order, halt, cnv);
+
+		// TODO: Implement logic for dividing
+	}
+
 	if(no_load || state == LAYOVER)
 	{
 		for(int i = 0; i < vehicles_loading ; i++)
@@ -9295,5 +9304,32 @@ void convoi_t::book_fuel_consumption()
 		{
 			vehicle[i]->book_fuel_consumption();
 		}
+	}
+}
+
+void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy)
+{
+	if (joining_convoy.is_bound())
+	{
+		// Process a case where there is a consist order *and* a joining consist.
+		// (A joining convoy without a consist order should join both without re-arranging)
+
+		// TODO: Consider whether this should take loose vehicles as in the simplier case
+
+		// TODO: Implement this
+		dbg->fatal("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Joining consists not yet implemented. This should not be reached.");
+	}
+	else if (!halt.is_bound())
+	{
+		dbg->warning("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Deleted halt on processing a consist order.");
+		return;
+	}
+	else
+	{
+		// Simple consist order: no joining consist. Use vehicles from liad over consists only.
+		// TODO: Should we implement a system where depots can be annexed to stops and allow picking vehicles from depots too?
+
+		// TODO: Implement logic.
+		dbg->debug("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Simple consist orders not yet implemented.");
 	}
 }
