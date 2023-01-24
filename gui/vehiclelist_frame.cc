@@ -173,7 +173,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 				const uint8 upgradable_state = veh->has_available_upgrade(month);
 				if( vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_UPGRADABLE  &&  upgradable_state && skinverwaltung_t::upgradable ) {
-					if (world()->get_settings().get_show_future_vehicle_info() || (!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) != 2)) {
+					if (world()->get_settings().get_show_future_vehicle_info() || veh->is_future(month) != future_state::far_future) {
 						xoff = xoff + VEHICLE_BAR_HEIGHT * 2 - D_FIXED_SYMBOL_WIDTH;
 						display_color_img(skinverwaltung_t::upgradable->get_image_id(upgradable_state - 1), xoff, offset.y + height - D_FIXED_SYMBOL_WIDTH, 0, false, false);
 					}
@@ -668,7 +668,7 @@ void vehiclelist_frame_t::fill_list()
 					timeline_matches = true; // show blue ones
 				}
 				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
-					if( !welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+					if(!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) == future_state::far_future) {
 						// Do not show vehicles in the distant future with this setting
 						continue;
 					}
@@ -753,7 +753,7 @@ void vehiclelist_frame_t::fill_list()
 				timeline_matches = true; // show blue ones
 			}
 			if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
-				if( welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+				if(!welt->get_settings().get_show_future_vehicle_info()  && veh->is_future(month) == future_state::far_future) {
 					// Do not show vehicles in the distant future with this setting
 					continue;
 				}

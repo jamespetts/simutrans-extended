@@ -544,7 +544,7 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 		{
 			return 2;
 		}
-		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now)==2) {
+		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now) == future_state::far_future) {
 			upgrade_state = 1;
 		}
 	}
