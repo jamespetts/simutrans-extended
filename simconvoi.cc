@@ -6210,7 +6210,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	if (first_run && schedule->entry_has_consist_order(schedule->get_current_entry().unique_entry_id))
 	{
 		const consist_order_t& order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
-		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt); 
+		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
 		process_consist_order(order, halt, cnv);
 
 		// TODO: Implement logic for dividing
