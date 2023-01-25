@@ -9310,7 +9310,7 @@ void convoi_t::book_fuel_consumption()
 void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy)
 {
 	// First, create a list of missing vehicles from the current consist not present in the ordered consist
-	// The missing vehicle list must be in the form of consist order elements, since we do not necessarily know which specific vehicle 
+	// The missing vehicle list must be in the form of consist order elements, since we do not necessarily know which specific vehicle
 	// that we want in the case where consist order elements are made up of rules.
 	slist_tpl<const consist_order_element_t> missing_vehicles; // A (Simutrans) vector will not work here for some reason that is unclear but related to its internal workings.
 	vector_tpl<vehicle_t*> matched_vehicles;
