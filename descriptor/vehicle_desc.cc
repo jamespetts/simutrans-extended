@@ -771,7 +771,7 @@ const vehicle_desc_t* vehicle_desc_t::get_auto_upgrade_type() const
 }
 
 bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const
-{	
+{
 	if (priority >= element.get_count())
 	{
 		return false;
