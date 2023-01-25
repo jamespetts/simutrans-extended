@@ -431,7 +431,7 @@ void gui_vehicle_description_t::check_constraint()
 
 bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
-	consist_order_element_t *order_element = &order->get_order(order_element_index);
+	consist_order_element_t *order_element = &order->access_order(order_element_index);
 	if(  comp==&bt_up  ) {
 		// FIXME
 		order_element->increment_index(description_index-1);
@@ -455,7 +455,7 @@ bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, val
 	}
 	else if(  comp==&bt_can_empty  ) {
 		bt_can_empty.pressed ^= 1;
-		order_element->get_vehicle_description(description_index).set_empty(bt_can_empty.pressed);
+		order_element->access_vehicle_description(description_index).set_empty(bt_can_empty.pressed);
 		consist_order_frame_t::need_reflesh_descriptions = true; // because changes may occur in the connectabale status
 	}
 	return true;
@@ -1080,7 +1080,7 @@ void consist_order_frame_t::init_editor()
 
 void consist_order_frame_t::open_description_editor(uint8 vdesc_index)
 {
-	consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
+	consist_order_element_t *order_element = &order.access_order((uint32)scl.get_selection());
 	set_vehicle_description(order_element->get_vehicle_description(vdesc_index));
 	numimp_edit_target.set_value(vdesc_index+1);
 	edit_action_selector.set_selection(2); // overwrite mode
@@ -1309,7 +1309,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			create_win(new news_img("No vehicle selected!"), w_time_delete, magic_none);
 			return true;
 		}
-		consist_order_element_t *order_element = &order.get_order((uint32)sel);
+		consist_order_element_t *order_element = &order.access_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
 		update_order_list(sel);
 		if( bt_connectable_vehicle_filter.pressed ) {
@@ -1361,7 +1361,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			create_win(new news_img("Select valid consist order slot!"), w_time_delete, magic_none);
 			return true;
 		}
-		consist_order_element_t *order_element = &order.get_order((uint32)sel);
+		consist_order_element_t *order_element = &order.access_order((uint32)sel);
 		switch (edit_action_selector.get_selection())
 		{
 			default:
@@ -1533,7 +1533,7 @@ void consist_order_frame_t::build_vehicle_list()
 
 	const vehicle_desc_t *conect_target = NULL;
 	if( search_only_appendable_vehicle ) {
-		consist_order_element_t *order_element = &order.get_order((uint32)scl.get_selection());
+		consist_order_element_t *order_element = &order.access_order((uint32)scl.get_selection());
 		if( order_element->get_count() ) {
 			vehicle_description_element last_vde = order_element->get_vehicle_description( order_element->get_count()-1 );
 			conect_target = last_vde.specific_vehicle;

@@ -9309,6 +9309,45 @@ void convoi_t::book_fuel_consumption()
 
 void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy)
 {
+	// First, create a list of missing vehicles from the current consist not present in the ordered consist
+	// The missing vehicle list must be in the form of consist order elements, since we do not necessarily know which specific vehicle 
+	// that we want in the case where consist order elements are made up of rules.
+	slist_tpl<const consist_order_element_t> missing_vehicles; // A (Simutrans) vector will not work here for some reason that is unclear but related to its internal workings.
+	vector_tpl<vehicle_t*> matched_vehicles;
+
+	// This starts as a list of all vehicles in the consist and then becomes a list of surplus vehicles.
+	vector_tpl<vehicle_t*> remaining_vehicles;
+
+	for (vehicle_t* v : vehicle)
+	{
+		remaining_vehicles.append(v);
+	}
+
+	const uint32 element_count = order.get_count(); // FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
+	for (uint32 i = 0; i < element_count; i++)
+	{
+		// Check whether there is exactly one vehicle in the current consist matching the description of each consist order element.
+
+		bool any_matched = false;
+		const consist_order_element_t& element = order.get_order(i);
+		for (vehicle_t* v : remaining_vehicles)
+		{
+			if (v->get_desc()->matches_consist_order_element(element))
+			{
+				matched_vehicles.append(v);
+				remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
+				any_matched = true;
+				break;
+			}
+		}
+		if (!any_matched)
+		{
+			missing_vehicles.append(element);
+		}
+	}
+
+	// remaining_vehicles is now a list of surplus vehicles.
+
 	if (joining_convoy.is_bound())
 	{
 		// Process a case where there is a consist order *and* a joining consist.
@@ -9326,7 +9365,7 @@ void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t 
 	}
 	else
 	{
-		// Simple consist order: no joining consist. Use vehicles from liad over consists only.
+		// Simple consist order: no joining consist. Use vehicles from laid over consists only.
 		// TODO: Should we implement a system where depots can be annexed to stops and allow picking vehicles from depots too?
 
 		// TODO: Implement logic.

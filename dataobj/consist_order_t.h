@@ -208,7 +208,12 @@ public:
 
 	void increment_index(uint32 description_index);
 
-	vehicle_description_element &get_vehicle_description(uint32 description_index)
+	vehicle_description_element &access_vehicle_description(uint32 description_index)
+	{
+		return vehicle_description.get_element(description_index);
+	}
+
+	const vehicle_description_element& get_vehicle_description(uint32 description_index) const
 	{
 		return vehicle_description.get_element(description_index);
 	}
@@ -236,10 +241,17 @@ protected:
 
 public:
 
-	consist_order_element_t& get_order(uint32 element_number)
+	consist_order_element_t& access_order(uint32 element_number)
 	{
 		assert(element_number < orders.get_count());
 		if (element_number > orders.get_count()) { element_number=0; }
+		return orders[element_number];
+	}
+
+	const consist_order_element_t& get_order(uint32 element_number) const
+	{
+		assert(element_number < orders.get_count());
+		if (element_number > orders.get_count()) { element_number = 0; }
 		return orders[element_number];
 	}
 

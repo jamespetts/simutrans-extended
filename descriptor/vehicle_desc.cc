@@ -9,6 +9,7 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 #include "../gui/gui_theme.h"
+#include "../dataobj/consist_order_t.h"
 
 uint32 vehicle_desc_t::get_running_cost() const
 {
@@ -767,4 +768,23 @@ const vehicle_desc_t* vehicle_desc_t::get_auto_upgrade_type() const
 	}
 
 	return vehicle_type;
+}
+
+bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t& element) const
+{
+	const uint32 description_count = element.get_count();
+	for (uint32 i = 0; i < description_count; i++)
+	{
+		const vehicle_description_element& vde = element.get_vehicle_description(i);
+		if (vde.specific_vehicle == this)
+		{
+			// TODO: Consider the case where an existing consist contains a vehicle that is a lower priority
+			// than a vehicle available at a stop - it will return true here, but it should swap out the vehicles.
+			return true;
+		}
+
+		// TODO: Implement logic for rules
+	}
+
+	return false;
 }
