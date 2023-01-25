@@ -9327,22 +9327,27 @@ void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t 
 	for (uint32 i = 0; i < element_count; i++)
 	{
 		// Check whether there is exactly one vehicle in the current consist matching the description of each consist order element.
+		// TODO: Run this for each priority for each vehicle slot. This will involve some refactoring.
 
 		bool any_matched = false;
 		const consist_order_element_t& element = order.get_order(i);
-		for (vehicle_t* v : remaining_vehicles)
+		const uint32 description_count = element.get_count();
+		for (uint32 j = 0; j < description_count; j++)
 		{
-			if (v->get_desc()->matches_consist_order_element(element))
+			for (vehicle_t* v : remaining_vehicles)
 			{
-				matched_vehicles.append(v);
-				remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
-				any_matched = true;
-				break;
+				if (v && v->get_desc()->matches_consist_order_element(element, j))
+				{
+					matched_vehicles.append(v);
+					remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
+					any_matched = true;
+					break;
+				}
 			}
-		}
-		if (!any_matched)
-		{
-			missing_vehicles.append(element);
+			if (!any_matched)
+			{
+				missing_vehicles.append(element);
+			}
 		}
 	}
 
