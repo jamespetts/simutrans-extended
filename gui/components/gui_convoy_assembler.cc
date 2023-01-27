@@ -612,7 +612,7 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 		add_table(2,1)->set_alignment(ALIGN_TOP);
 		{
 			// top left
-			add_table(1,2)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
+			add_table(1,3)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
 			{
 				cont_convoi.set_table_layout(2,2);
 				cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
@@ -625,24 +625,24 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				scrollx_convoi.set_maximize(true);
 				add_component(&scrollx_convoi);
 
-				cont_convoi_spec.set_table_layout(1,2);
 				// convoy length
-				cont_convoi_spec.add_table(5,1);
+				add_table(5,1);
 				{
-					cont_convoi_spec.new_component<gui_label_t>("Fahrzeuge:");
+					new_component<gui_label_t>("Fahrzeuge:");
 					lb_convoi_count.set_fixed_width(proportional_string_width("888"));
-					cont_convoi_spec.add_component(&lb_convoi_count);
+					add_component(&lb_convoi_count);
 					lb_convoi_count_fluctuation.set_fixed_width(proportional_string_width("888"));
 					lb_convoi_count_fluctuation.set_rigid(true);
-					cont_convoi_spec.add_component(&lb_convoi_count_fluctuation);
+					add_component(&lb_convoi_count_fluctuation);
 					if (wt != water_wt && wt != air_wt) {
-						cont_convoi_spec.add_component(&lb_convoi_tiles);
-						cont_convoi_spec.add_component(&tile_occupancy);
+						add_component(&lb_convoi_tiles);
+						add_component(&tile_occupancy);
 					}
 				}
-				cont_convoi_spec.end_table();
+				end_table();
 
 				// convoy specs
+				cont_convoi_spec.set_table_layout(1,2);
 				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
 				tbl->set_table_frame(true, true);
 				tbl->set_spacing(scr_size(1,1));
@@ -2239,7 +2239,14 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	uint32 resale_value = UINT32_MAX_VALUE;
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
 	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, x, y - tabs.get_required_size().h);
+
 	sint8 vehicle_fluctuation = 0;
+	// init convoy/station tile count
+	if (!vehicles.get_count()) {
+		lb_convoi_count.update();
+		lb_convoi_tiles.update();
+		tile_occupancy.set_base_convoy_length(0,0);
+	}
 
 	if(  (sel_index != -1)  &&  (tabs.getroffen(x - pos.x, y - pos.y)) ) {
 		// cursor over a vehicle in the selection list
