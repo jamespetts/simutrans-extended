@@ -2244,6 +2244,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	// init convoy/station tile count
 	if (!vehicles.get_count()) {
 		lb_convoi_count.update();
+		lb_convoi_tiles.buf().printf("%s", translator::translate("Station tiles:"));
 		lb_convoi_tiles.update();
 		tile_occupancy.set_base_convoy_length(0,0);
 	}
