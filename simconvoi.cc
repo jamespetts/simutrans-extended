@@ -1275,6 +1275,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case SELF_DESTRUCT:
 		case EMERGENCY_STOP:
 		case REPLENISHING:
+		case SHUNTING:
 			break;
 
 		case OVERHAUL:
@@ -2079,6 +2080,7 @@ void convoi_t::step()
 			}
 			break;
 
+		case SHUNTING:
 		case ROUTING_2:
 		case DUMMY5:
 		break;
@@ -6211,7 +6213,13 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	{
 		const consist_order_t& order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
 		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
-		process_consist_order(order, halt, cnv);
+		convoi_t::consist_order_process_result result = process_consist_order(order, halt, nullptr, cnv);
+
+		if (result == convoi_t::succeed)
+		{
+			state = SHUNTING;
+			wait_lock = 2000; // TODO: Add simuconf.tab setting for this. This is the time that it takes to shunt. Should this vary?
+		}
 
 		// TODO: Implement logic for dividing
 	}
@@ -6245,7 +6253,6 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 				}
 			}
 		}
-
 
 		// Three passes at loading vehicles:
 		// (1) without overcrowding, and only to the correct class;
@@ -7163,7 +7170,7 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 		return false;
 	}
 
-	if (state = LAYOVER)
+	if (state == LAYOVER)
 	{
 		exit_layover();
 	}
@@ -9307,8 +9314,10 @@ void convoi_t::book_fuel_consumption()
 	}
 }
 
-void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy)
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy)
 {
+	convoi_t::consist_order_process_result success = fail;
+
 	// First, create a list of missing vehicles from the current consist not present in the ordered consist
 	// The missing vehicle list must be in the form of consist order elements, since we do not necessarily know which specific vehicle
 	// that we want in the case where consist order elements are made up of rules.
@@ -9326,29 +9335,25 @@ void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t 
 	const uint32 element_count = order.get_count(); // FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
 	for (uint32 i = 0; i < element_count; i++)
 	{
-		// Check whether there is exactly one vehicle in the current consist matching the description of each consist order element.
-		// TODO: Run this for each priority for each vehicle slot. This will involve some refactoring.
+		// Check whether there is exactly one vehicle in the current consist matching the highest priority description of each consist order element.
 
 		bool any_matched = false;
 		const consist_order_element_t& element = order.get_order(i);
-		const uint32 description_count = element.get_count();
-		for (uint32 j = 0; j < description_count; j++)
+		
+		for (vehicle_t* v : remaining_vehicles)
 		{
-			for (vehicle_t* v : remaining_vehicles)
+			if (v && v->get_desc()->matches_consist_order_element(element, 0)) // Check highest priority only.
 			{
-				if (v && v->get_desc()->matches_consist_order_element(element, j))
-				{
-					matched_vehicles.append(v);
-					remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
-					any_matched = true;
-					break;
-				}
-			}
-			if (!any_matched)
-			{
-				missing_vehicles.append(element);
+				matched_vehicles.append(v);
+				remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
+				any_matched = true;
+				break;
 			}
 		}
+		if (!any_matched)
+		{
+			missing_vehicles.append(element);
+		}	
 	}
 
 	// remaining_vehicles is now a list of surplus vehicles.
@@ -9358,22 +9363,75 @@ void convoi_t::process_consist_order(const consist_order_t &order, halthandle_t 
 		// Process a case where there is a consist order *and* a joining consist.
 		// (A joining convoy without a consist order should join both without re-arranging)
 
-		// TODO: Consider whether this should take loose vehicles as in the simplier case
+		// TODO: Consider whether this should take loose vehicles as in the simplier case.
+		// Maybe we use whether we are passed a halt as a way of switching this on and off?
 
 		// TODO: Implement this
-		dbg->fatal("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Joining consists not yet implemented. This should not be reached.");
+		dbg->fatal("void convoi_t::process_consist_order()", "Joining consists not yet implemented. This should not be reached.");
 	}
 	else if (!halt.is_bound())
 	{
-		dbg->warning("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Deleted halt on processing a consist order.");
-		return;
+		if (dep)
+		{
+			// TODO: Add logic for processing consist orders in a depot
+		}
+		else
+		{
+			dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
+			return fail;
+		}
 	}
 	else
 	{
 		// Simple consist order: no joining consist. Use vehicles from laid over consists only.
-		// TODO: Should we implement a system where depots can be annexed to stops and allow picking vehicles from depots too?
 
-		// TODO: Implement logic.
-		dbg->debug("void convoi_t::process_consist_order(convoihandle_t joining_convoy)", "Simple consist orders not yet implemented.");
+		// Check whether there is anything to do.
+		if (missing_vehicles.empty())
+		{
+			if (remaining_vehicles.empty())
+			{
+				// No need to do any work.
+				return no_change_needed;
+			}
+		}
+
+		// Find out the maximum number of priorities for any vehicle in this consist order.
+		const uint32 element_count = order.get_count();
+		uint32 max_desc_count = 1;
+		for (uint32 i = 0; i < element_count; i++)
+		{
+			const consist_order_element_t& element = order.get_order(i);
+			max_desc_count = max(max_desc_count, element.get_count());
+		}
+
+		// Make up a list of matching vehicles for missing slots
+		// Firstly, the simple algorithm for the highest priority
+		slist_tpl<vehicle_t*> matched_vehicles;
+		vector_tpl<convoihandle_t>& laid_over_convoys = halt->get_laid_over();
+
+		for (uint32 i = 0; i < max_desc_count; i++)
+		{
+			// Once for each priority
+			for (auto v : missing_vehicles)
+			{	
+				for (auto c : laid_over_convoys)
+				{
+					const uint32 count = c->get_vehicle_count();
+					for (uint32 j = 0; j < count; j++)
+					{
+						vehicle_t* veh = c->get_vehicle(j);
+						if (veh->get_desc()->matches_consist_order_element(v, i))
+						{
+							matched_vehicles.append_unique(veh);
+						}
+					}
+				}
+			}
+		}
+
+		// TODO: Finish implementing logic.
+		dbg->debug("void convoi_t::process_consist_order()", "Simple consist orders not yet fully implemented.");
 	}
+
+	return success;
 }

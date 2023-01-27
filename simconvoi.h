@@ -120,6 +120,7 @@ public:
 		OVERHAUL,
 		AWAITING_TRIGGER,
 		LAYOVER,
+		SHUNTING,
 		MAX_STATES
 	};
 
@@ -1578,7 +1579,11 @@ public:
 
 	void exit_layover();
 
-	void process_consist_order(const consist_order_t &order, halthandle_t halt, convoihandle_t joining_convoy);
+	enum consist_order_process_result { fail, succeed, no_change_needed };
+
+	// The return value is whether the consist order can be processed at the current time (i.e., whether there are
+	// sufficient of the right number of vehicles to do so).
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
 };
 
 #endif

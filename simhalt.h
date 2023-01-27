@@ -1038,6 +1038,7 @@ public:
 
 	void add_laid_over(convoihandle_t cnv);
 	void remove_laid_over(convoihandle_t cnv);
+	vector_tpl<convoihandle_t>& get_laid_over() { return laid_over; }
 
 	bool can_lay_over() const;
 };

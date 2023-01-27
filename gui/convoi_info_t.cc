@@ -574,6 +574,12 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(1);
 			break;
 
+		case convoi_t::SHUNTING:
+			speed_label.buf().append(translator::translate("shunting"));
+			speed_label.set_color(COL_CAUTION);
+			route_bar.set_state(1);
+			break;
+
 		case convoi_t::DRIVING:
 			route_bar.set_state(0);
 

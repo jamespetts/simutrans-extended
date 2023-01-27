@@ -6741,3 +6741,4 @@ bool haltestelle_t::can_lay_over() const
 	}
 	return false;
 }
+
