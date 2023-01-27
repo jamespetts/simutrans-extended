@@ -9339,7 +9339,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 		bool any_matched = false;
 		const consist_order_element_t& element = order.get_order(i);
-		
+
 		for (vehicle_t* v : remaining_vehicles)
 		{
 			if (v && v->get_desc()->matches_consist_order_element(element, 0)) // Check highest priority only.
@@ -9353,7 +9353,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		if (!any_matched)
 		{
 			missing_vehicles.append(element);
-		}	
+		}
 	}
 
 	// remaining_vehicles is now a list of surplus vehicles.
@@ -9413,7 +9413,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		{
 			// Once for each priority
 			for (auto v : missing_vehicles)
-			{	
+			{
 				for (auto c : laid_over_convoys)
 				{
 					const uint32 count = c->get_vehicle_count();
