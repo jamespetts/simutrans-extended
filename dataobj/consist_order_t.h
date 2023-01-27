@@ -219,6 +219,7 @@ public:
 	}
 
 	bool operator!= (const consist_order_element_t& other) const;
+	bool operator== (const consist_order_element_t& other) const;
 };
 
 class consist_order_t

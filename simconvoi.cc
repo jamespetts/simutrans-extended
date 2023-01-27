@@ -9340,12 +9340,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		bool any_matched = false;
 		const consist_order_element_t& element = order.get_order(i);
 		
-		for (vehicle_t* v : remaining_vehicles)
+		FOR(vector_tpl<vehicle_t*>, v, remaining_vehicles)
 		{
 			if (v && v->get_desc()->matches_consist_order_element(element, 0)) // Check highest priority only.
 			{
 				matched_vehicles.append(v);
-				remaining_vehicles.remove(v); // Can we do this safely in a C++11 for(..:..) list, or do we need the old FOR macro?
+				remaining_vehicles.remove(v); 
 				any_matched = true;
 				break;
 			}
@@ -9412,7 +9412,11 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		for (uint32 i = 0; i < max_desc_count; i++)
 		{
 			// Once for each priority
-			for (auto v : missing_vehicles)
+
+			// TODO: Check whether this logic allows for anomalies where using the highest priority vehicle earlier
+			// in the re-arranged consist will prevent us from fulfilling anything later in the consist even if we
+			// could fulfil a later slot if we were to use a lower priority item. However, is this really likely?
+			FOR(const slist_tpl<const consist_order_element_t>, v, missing_vehicles) // We have to use the FOR macro because we remove things from this collection object during the iteration.
 			{	
 				for (auto c : laid_over_convoys)
 				{
@@ -9423,13 +9427,28 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 						if (veh->get_desc()->matches_consist_order_element(v, i))
 						{
 							matched_vehicles.append_unique(veh);
+							missing_vehicles.remove(v);
 						}
 					}
+				}
+				for (auto rv : remaining_vehicles)
+				{
+					if(rv && rv->get_desc()->matches_consist_order_element(v, i))
+					{
+						matched_vehicles.append_unique(rv);
+						missing_vehicles.remove(v);
+					}
+				}
+				if (missing_vehicles.empty())
+				{
+					// This should not be necessary but the FOR macro apparently cannot cope with this.
+					break;
 				}
 			}
 		}
 
 		// TODO: Finish implementing logic.
+		// Remember to check at the end whether any missing vehicle slots are a problem or whether a lower priority slot in the consist order is fulfilled by the existing vehicle.
 		dbg->debug("void convoi_t::process_consist_order()", "Simple consist orders not yet fully implemented.");
 	}
 

@@ -385,7 +385,11 @@ bool consist_order_element_t::operator!= (const consist_order_element_t& other) 
 	{
 		return true;
 	}
+}
 
+bool consist_order_element_t::operator== (const consist_order_element_t& other) const
+{
+	return !(other != *this);
 }
 
 bool vehicle_description_element::operator!= (const vehicle_description_element& other) const
