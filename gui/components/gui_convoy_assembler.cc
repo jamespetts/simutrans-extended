@@ -2036,10 +2036,26 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 					if(veh_action == va_insert)
 					{
 						vehicles.insert_at(0, info);
+						slist_tpl<const vehicle_desc_t *>new_vehicle_info;
+						const vehicle_desc_t *prev_veh = info;
+						while (((prev_veh->get_leader_count() == 1 && prev_veh->get_leader(0) != NULL))
+							&& !new_vehicle_info.is_contained(prev_veh->get_leader(0))) {
+							prev_veh = prev_veh->get_leader(0);
+							new_vehicle_info.insert(prev_veh);
+							vehicles.insert_at(0, prev_veh);
+						}
 					}
 					else if(veh_action == va_append)
 					{
 						vehicles.append(info);
+						slist_tpl<const vehicle_desc_t *>new_vehicle_info;
+						const vehicle_desc_t *next_veh = info;
+						while (((next_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique))
+							&& !new_vehicle_info.is_contained(next_veh->get_trailer(0))) {
+							next_veh = next_veh->get_trailer(0);
+							new_vehicle_info.insert(next_veh);
+							vehicles.append(next_veh);
+						}
 					}
 				}
 				// No action for sell - not available in the replacer window.
@@ -2080,8 +2096,28 @@ void gui_convoy_assembler_t::image_from_convoi_list(uint nr)
 	}
 	else
 	{
-		// We're in a replacer.  Less work.
+		// We're in a replacer.
 		vehicles.remove_at(nr);
+
+		// Check backward connections first.
+		const vehicle_desc_t *removed_veh = vehicles[nr];
+		const vehicle_desc_t *last_veh = nr == 0 ? NULL : vehicles[nr-1];
+		while (nr < vehicles.get_count()
+			   && removed_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique
+			   && !vehicles[nr]->can_follow(last_veh)
+			)
+		{
+			removed_veh = vehicles[nr];
+			vehicles.remove_at(nr);
+		}
+
+		// Check frontward connections
+		if (nr>0) {
+			uint chk_nr = nr;
+			while (chk_nr>0 && vehicles[chk_nr-1]->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+				vehicles.remove_at(--chk_nr);
+			}
+		}
 		update_convoi();
 	}
 }
