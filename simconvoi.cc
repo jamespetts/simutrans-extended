@@ -9332,13 +9332,13 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 		bool any_matched = false;
 		const consist_order_element_t& element = order.get_order(i);
-		
+
 		FOR(vector_tpl<vehicle_t*>, v, remaining_vehicles)
 		{
 			if (v && v->get_desc()->matches_consist_order_element(element, 0)) // Check highest priority only.
 			{
 				matched_vehicles.append(v);
-				remaining_vehicles.remove(v); 
+				remaining_vehicles.remove(v);
 				any_matched = true;
 				break;
 			}
@@ -9346,7 +9346,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		if (!any_matched)
 		{
 			missing_vehicles.append(element);
-		}	
+		}
 	}
 
 	// remaining_vehicles is now a list of surplus vehicles.
@@ -9410,7 +9410,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			// in the re-arranged consist will prevent us from fulfilling anything later in the consist even if we
 			// could fulfil a later slot if we were to use a lower priority item. However, is this really likely?
 			FOR(const slist_tpl<const consist_order_element_t>, v, missing_vehicles) // We have to use the FOR macro because we remove things from this collection object during the iteration.
-			{	
+			{
 				for (auto c : laid_over_convoys)
 				{
 					const uint32 count = c->get_vehicle_count();
