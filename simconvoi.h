@@ -1084,12 +1084,15 @@ public:
 	/**
 	* Adds a vehicle at the start or end of the convoi.
 	*/
-	bool add_vehicle(vehicle_t *v, bool infront = false);
+	bool add_vehicle(vehicle_t *v, uint8 pos = 255);
 
 	/**
 	* Removes vehicles at position i
 	*/
 	vehicle_t * remove_vehicle_at(unsigned short i);
+
+
+	void remove_vehicle(vehicle_t* v);
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 

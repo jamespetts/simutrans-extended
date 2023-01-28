@@ -3120,26 +3120,31 @@ void convoi_t::warten_bis_weg_frei(sint32 restart_speed)
 }
 
 
-bool convoi_t::add_vehicle(vehicle_t *v, bool infront)
+bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
 {
-DBG_MESSAGE("convoi_t::add_vehicle()","at pos %i of %i totals.",vehicle_count,max_vehicle);
-	// extend array if requested (only needed for trains)
-	if(vehicle_count == max_vehicle) {
-DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_vehicle);
-		//vehicle.resize(max_rail_vehicle, NULL);
+	pos = min(pos, vehicle_count);
+
+	if(vehicle_count == max_vehicle)
+	{
 		vehicle.resize(max_rail_vehicle);
 	}
-	// now append
-	if (vehicle_count < vehicle.get_count()) {
+
+	// Now append/insert
+	if (vehicle_count < vehicle.get_count())
+	{
 		v->set_convoi(this);
 
-		if(infront) {
-			for(unsigned i = vehicle_count; i > 0; i--) {
+		if(pos == vehicle_count) // Append
+		{
+			vehicle[vehicle_count] = v;
+		}
+		else // Insert
+		{
+			for (unsigned i = vehicle_count; i > pos; i--)
+			{
 				vehicle[i] = vehicle[i - 1];
 			}
-			vehicle[0] = v;
-		} else {
-			vehicle[vehicle_count] = v;
+			vehicle[pos] = v;
 		}
 		vehicle_count ++;
 
@@ -3147,16 +3152,7 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 		if(info->get_power()) {
 			is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
 		}
-		//sum_power += info->get_power();
-		//if(info->get_engine_type() == vehicle_desc_t::steam)
-		//{
-		//	power_from_steam += info->get_power();
-		//	power_from_steam_with_gear += info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor();
-		//}
-		//sum_gear_and_power += (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-		//sum_weight += info->get_weight();
-		//min_top_speed = min( min_top_speed, kmh_to_speed( v->get_desc()->get_topspeed() ) );
-		//sum_gesamtweight = sum_weight;
+
 		calc_loading();
 		invalidate_vehicle_summary();
 		freight_info_resort = true;
@@ -3189,7 +3185,6 @@ DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_
 	longest_max_loading_time = calc_longest_max_loading_time();
 	calc_direction_steps();
 
-DBG_MESSAGE("convoi_t::add_vehicle()","now %i of %i total vehicles.",vehicle_count,max_vehicle);
 	return true;
 }
 
@@ -3250,20 +3245,6 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 		is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
 	}
 
-	//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
-
-	// Add power and weight of the new vehicle
-	//sum_power += info->get_power();
-	//sum_gear_and_power += (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-	//sum_weight += info->get_weight();
-	//sum_gesamtweight = sum_weight;
-
-	// Remove power and weight of the old vehicle
-	//info = old_vehicle->get_desc();
-	//sum_power -= info->get_power();
-	//sum_gear_and_power -= (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-	//sum_weight -= info->get_weight();
-
 	calc_loading();
 	invalidate_vehicle_summary();
 	freight_info_resort = true;
@@ -3288,6 +3269,18 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 	delete old_vehicle;
 
 DBG_MESSAGE("convoi_t::upgrade_vehicle()","now %i of %i total vehicles.",i,max_vehicle);
+}
+
+void convoi_t::remove_vehicle(vehicle_t* v)
+{
+	for(uint32 i = 0; i < vehicle_count; i ++)
+	{
+		if (vehicle[i] == v)
+		{
+			remove_vehicle_at(i);
+			break;
+		}
+	}
 }
 
 vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
@@ -9413,7 +9406,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		{
 			// Once for each priority
 
-			// TODO: Check whether this logic allows for anomalies where using the highest priority vehicle earlier
+			// TODO: Check whether this logic causes anomalies where using the highest priority vehicle earlier
 			// in the re-arranged consist will prevent us from fulfilling anything later in the consist even if we
 			// could fulfil a later slot if we were to use a lower priority item. However, is this really likely?
 			FOR(const slist_tpl<const consist_order_element_t>, v, missing_vehicles) // We have to use the FOR macro because we remove things from this collection object during the iteration.
@@ -9447,8 +9440,59 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			}
 		}
 
+		if (!missing_vehicles.empty())
+		{
+			return fail;
+		}
+
+		vector_tpl<uint32> satisfied_elements;
+
+		for (uint32 i = 0; i < max_desc_count; i++)
+		{
+			for (uint32 j = 0; j < element_count; j++)
+			{
+				if (satisfied_elements.is_contained(j))
+				{
+					continue;
+				}
+
+				vehicle_t* v = j < vehicle_count ? get_vehicle(j) : nullptr;
+				const consist_order_element_t& element = order.get_order(j);
+				if (v && v->get_desc()->matches_consist_order_element(element, i))
+				{
+					satisfied_elements.append(j);
+					continue;
+				}
+
+				for (vehicle_t* matched_vehicle : matched_vehicles)
+				{
+					if (matched_vehicle->get_desc()->matches_consist_order_element(element, i))
+					{
+						convoi_t* cnv = matched_vehicle->get_convoi();
+						if (cnv)
+						{
+							cnv->remove_vehicle(matched_vehicle);
+						}
+
+						if (v)
+						{
+							remove_vehicle_at(j);
+							remaining_vehicles.append(v);
+						}
+
+						add_vehicle(matched_vehicle, j);
+
+						satisfied_elements.append(j);
+						matched_vehicles.remove(matched_vehicle);
+						break;
+					}
+				}
+			}
+		}
+
 		// TODO: Finish implementing logic.
 		// Remember to check at the end whether any missing vehicle slots are a problem or whether a lower priority slot in the consist order is fulfilled by the existing vehicle.
+		// Also at the end, process all the spare vehicles in remaining_vehicles
 		dbg->debug("void convoi_t::process_consist_order()", "Simple consist orders not yet fully implemented.");
 	}
 

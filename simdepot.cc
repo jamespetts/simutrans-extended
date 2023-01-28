@@ -384,7 +384,7 @@ void depot_t::append_vehicle(convoihandle_t &cnv, vehicle_t* veh, bool infront, 
 		cnv = add_convoi( local_execution );
 	}
 	veh->set_pos(get_pos());
-	cnv->add_vehicle(veh, infront);
+	cnv->add_vehicle(veh, infront ? 0 : cnv->get_vehicle_count());
 	vehicles.remove(veh);
 }
 
