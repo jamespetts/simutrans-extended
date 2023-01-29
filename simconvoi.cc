@@ -5486,6 +5486,11 @@ bool convoi_t::check_validity()
 	return ok;
 }
 
+bool convoi_t::is_powered()
+{
+	return get_sum_power() == 0 || calc_max_speed(get_weight_summary()) == 0;
+}
+
 
 /**
  * Kontrolliert Be- und Entladen

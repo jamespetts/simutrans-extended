@@ -1207,6 +1207,12 @@ public:
 	*/
 	bool check_validity();
 
+	// If false, this consist cannot move.
+	bool is_powered();
+
+	// True if this consist is valid and powered - this is sufficient for it to be driven
+	bool is_valid_and_powered() { return check_validity() && is_powered(); }
+
 	/**
 	* Control loading and unloading
 	*/

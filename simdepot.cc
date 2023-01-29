@@ -683,7 +683,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			cur_pos = cnv->get_schedule()->get_current_entry().pos;
 		}
 
-		bool convoy_unpowered = cnv->get_sum_power() == 0 || cnv->calc_max_speed(cnv->get_weight_summary()) == 0;
+		bool convoy_unpowered = cnv->is_powered();
 
 		if(convoy_unpowered)
 		{
