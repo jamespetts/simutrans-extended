@@ -1166,6 +1166,61 @@ image_id gui_convoy_assembler_t::get_latest_available_livery_image_id(const vehi
 }
 
 
+int gui_convoy_assembler_t::remove_vehicle_at(uint8 nr, bool execute)
+{
+	if (!vehicles.get_count() || nr >= vehicles.get_count()) {
+		dbg->fatal("gui_convoy_assembler_t::remove_vehicle_at()", "Invalid vehicle index");
+	}
+
+	int removed_count = 0;
+	// Check backward connections first.
+	const vehicle_desc_t *removed_veh = vehicles[nr];
+	const vehicle_desc_t *last_veh = nr == 0 ? NULL : vehicles[nr-1];
+	uint8 chk_nr = nr;
+	uint8 removed_len= 0;
+
+	do {
+		removed_veh = vehicles[chk_nr];
+		if (execute) {
+			vehicles.remove_at(chk_nr);
+		}
+		else {
+			chk_nr++;
+			removed_count++;
+			removed_len += removed_veh->get_length();
+		}
+	}
+	while (chk_nr < vehicles.get_count()
+		&& removed_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique
+		&& !vehicles[chk_nr]->can_follow(last_veh)
+	);
+
+	// Check frontward connections
+	if (nr > 0) {
+		chk_nr = nr;
+		while (chk_nr > 0 && vehicles[chk_nr - 1]->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+			chk_nr--;
+			if (execute) {
+				vehicles.remove_at(chk_nr);
+			}
+			removed_count++;
+			removed_len += removed_veh->get_length();
+		}
+	}
+
+	if (!execute) {
+		// update tile occupancy bar
+		const uint32 total_vehicles = vehicles.get_count();
+		const uint8 new_last_veh_length = (nr == total_vehicles - 1 && total_vehicles > 1) ?
+			vehicles[total_vehicles-2]->get_length() :
+			vehicles[total_vehicles-1]->get_length();
+		tile_occupancy.set_new_veh_length(0 - removed_len, false, new_last_veh_length);
+	}
+
+	return removed_count;
+}
+
+
 // add a single vehicle (helper function)
 void gui_convoy_assembler_t::add_to_vehicle_list(const vehicle_desc_t *info)
 {
@@ -2097,27 +2152,7 @@ void gui_convoy_assembler_t::image_from_convoi_list(uint nr)
 	else
 	{
 		// We're in a replacer.
-		vehicles.remove_at(nr);
-
-		// Check backward connections first.
-		const vehicle_desc_t *removed_veh = vehicles[nr];
-		const vehicle_desc_t *last_veh = nr == 0 ? NULL : vehicles[nr-1];
-		while (nr < vehicles.get_count()
-			   && removed_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique
-			   && !vehicles[nr]->can_follow(last_veh)
-			)
-		{
-			removed_veh = vehicles[nr];
-			vehicles.remove_at(nr);
-		}
-
-		// Check frontward connections
-		if (nr>0) {
-			uint chk_nr = nr;
-			while (chk_nr>0 && vehicles[chk_nr-1]->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
-				vehicles.remove_at(--chk_nr);
-			}
-		}
+		remove_vehicle_at(nr);
 		update_convoi();
 	}
 }
@@ -2276,7 +2311,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
 	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, x, y - tabs.get_required_size().h);
 
-	sint8 vehicle_fluctuation = 0;
+	int vehicle_fluctuation = 0;
 	// init convoy/station tile count
 	if (!vehicles.get_count()) {
 		lb_convoi_count.update();
@@ -2497,7 +2532,12 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 			}
 			else {
 				veh_type =vehicles[sel_index];
+				// update station tiles info
+				if (way_type != water_wt && way_type != air_wt) {
+					vehicle_fluctuation = -remove_vehicle_at(sel_index, false);
+				}
 			}
+
 		}
 	}
 
