@@ -3137,7 +3137,7 @@ vehicle_t* convoi_t::move_vehicle(uint8 old_pos, uint8 new_pos, bool swap)
 
 	if (!swap)
 	{
-		remove_vehicle_at(old_pos); 
+		remove_vehicle_at(old_pos);
 	}
 
 	recalc_metrics();
@@ -3228,7 +3228,7 @@ uint8 convoi_t::get_vehicle_index(vehicle_t* v) const
 
 void convoi_t::remove_vehicle(vehicle_t* v)
 {
-	remove_vehicle_at(get_vehicle_index(v)); 
+	remove_vehicle_at(get_vehicle_index(v));
 }
 
 vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
@@ -3249,7 +3249,7 @@ vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 			--vehicle_count;
 			vehicle[vehicle_count] = NULL;
 		}
-	
+
 	}
 
 	recalc_metrics();
@@ -6158,7 +6158,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
 		convoi_t::consist_order_process_result result = process_consist_order(order, halt, nullptr, cnv);
 
-		vehicles_loading = min(vehicles_loading, vehicle_count); 
+		vehicles_loading = min(vehicles_loading, vehicle_count);
 
 		if (result == convoi_t::succeed)
 		{
@@ -9440,7 +9440,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 							vehicle_t* displaced_vehicle = move_vehicle(get_vehicle_index(matched_vehicle), j, false);
 							displaced_vehicles.append_unique(displaced_vehicle);
 						}
-						
+
 						satisfied_elements.append(j);
 						matched_vehicles.remove(matched_vehicle);
 						break;
