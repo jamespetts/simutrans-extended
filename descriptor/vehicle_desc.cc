@@ -792,7 +792,7 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 	// Check the rules
 	// TODO: Add this
 	//if(vde.)
-	
+
 
 	return false;
 }
