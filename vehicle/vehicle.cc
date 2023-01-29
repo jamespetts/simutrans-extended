@@ -1399,6 +1399,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, hop_count(0)
 	, do_not_overhaul(false)
 	, do_not_auto_upgrade(false)
+	, is_mothballed(false)
 	, last_stop_pos(koord3d::invalid)
 	, km_since_new(0u)
 	, km_since_last_overhaul(0u)
@@ -2969,6 +2970,10 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 		file->rdwr_short(overhauls);
 		file->rdwr_long(fuel_used_this_trip);
+
+		bool moth = is_mothballed;
+		file->rdwr_bool(moth);
+		is_mothballed = moth;
 	}
 	else
 	{
@@ -2981,6 +2986,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		last_overhaul_month = welt->get_current_month();
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
+		is_mothballed = false;
 		tags = 0u;
 		ticks_at_last_departure = 0ll;
 		overhauls = 0u;
@@ -3430,7 +3436,10 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 // BG, 06.06.2009: added
 void vehicle_t::finish_rd()
 {
-	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
+	if (!is_mothballed)
+	{
+		player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
+	}
 }
 
 // BG, 06.06.2009: added
@@ -3727,4 +3736,33 @@ void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const c
 			display_ddd_box_rgb(xp+1, yp+1, offset_x+1, D_FIXED_SYMBOL_WIDTH+2, base_color,  base_color,  true);
 		}
 	}
+}
+
+void vehicle_t::mothball()
+{
+	// Assumptions: the vehicle will be in a depot.
+
+	if (is_mothballed || get_convoi())
+	{
+		return;
+	}
+
+	is_mothballed = true;
+
+	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt),get_waytype()); // Take this vehicle out of paying monthly maintenance...
+	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // ...but charge the player one month's maintenance for doing so.
+}
+
+void vehicle_t::un_mothball()
+{
+	// Assumptions: the vehicle will be in a depot.
+	if (!is_mothballed)
+	{
+		return;
+	}
+
+	is_mothballed = false;
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype()); 
+	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
 }

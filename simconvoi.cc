@@ -9343,7 +9343,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
 			for (uint8 i = 0; i < cnv_vehicle_count; i++)
 			{
-				if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING)
+				if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed())
 				{
 					available_vehicles.append(cnv->get_vehicle(i));
 				}

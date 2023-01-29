@@ -385,6 +385,7 @@ protected:
 
 	bool do_not_overhaul : 1;
 	bool do_not_auto_upgrade : 1;
+	bool is_mothballed : 1;
 
 	uint32 km_since_new;
 	uint32 km_since_last_overhaul;
@@ -755,6 +756,10 @@ public:
 	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
 	void set_tag(uint16 tag) { tags |= tag; }
 	void clear_tag(uint16 tag) { tags &= ~tag; }
+
+	bool get_is_mothballed() const { return is_mothballed; }
+	void mothball();
+	void un_mothball();
 };
 
 
