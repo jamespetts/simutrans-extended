@@ -13,14 +13,17 @@
 #include "../descriptor/vehicle_desc.h"
 #include "../descriptor/intro_dates.h"
 #include "../utils/simstring.h"
-#include "components/gui_colorbox.h"
 #include "components/gui_divider.h"
 
 
-bool vehicle_detail_t::need_update = false;
-
 gui_vehicle_capacity_t::gui_vehicle_capacity_t(const vehicle_desc_t *veh_type)
 {
+	init_table(veh_type);
+}
+
+void gui_vehicle_capacity_t::init_table(const vehicle_desc_t *veh_type)
+{
+	remove_all();
 	set_table_layout(1,0);
 	if (veh_type->get_total_capacity() > 0 || veh_type->get_overcrowded_capacity() > 0) {
 		// total capacity
@@ -200,7 +203,6 @@ bool gui_vehicle_detail_access_t::infowin_event(const event_t *ev)
 			vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
 			if( win ) {
 				win->set_vehicle(veh_type);
-				vehicle_detail_t::need_update = true;
 				swallowed = true;
 			}
 			else {
@@ -214,6 +216,7 @@ bool gui_vehicle_detail_access_t::infowin_event(const event_t *ev)
 
 vehicle_detail_t::vehicle_detail_t(const vehicle_desc_t *v) :
 	gui_frame_t(""),
+	cont_capacity(v),
 	scroll_livery(&cont_livery,true,true),
 	scroll_upgrade(&cont_upgrade, true, true)
 
@@ -233,66 +236,99 @@ void vehicle_detail_t::init_table()
 	remove_all();
 	tabs.clear();
 	set_table_layout(1,0);
-	new_component<gui_label_t>(veh_type->get_name());
+	add_component(&lb_name);
+
+	bt_prev.init(button_t::roundbox_left, "<");
+	bt_next.init(button_t::roundbox_right, ">");
+	bt_prev.set_rigid(true);
+	bt_next.set_rigid(true);
+	bt_prev.add_listener(this);
+	bt_next.add_listener(this);
+
 	add_table(2,1)->set_alignment(ALIGN_TOP);
 	{
 
 		add_table(1,3)->set_alignment(ALIGN_TOP|ALIGN_CENTER_H);
 		{
-			new_component<gui_image_t>(veh_type->get_image_id(ribi_t::dir_south, veh_type->get_freight_type()), 0, ALIGN_NONE, true);
-			month_now = world()->get_timeline_year_month();
-			PIXVAL col_val = COL_SAFETY;
-			if (veh_type->is_available_only_as_upgrade()) {
-				if (veh_type->is_retired(month_now)) { col_val = color_idx_to_rgb(COL_DARK_PURPLE); }
-				else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
-				else { col_val = SYSCOL_UPGRADEABLE; }
-			}
-			else if (veh_type->is_future(month_now)) { col_val = color_idx_to_rgb(MN_GREY0); }
-			else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
-			else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
-			new_component<gui_vehicle_bar_t>(col_val)->set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
+			add_component(&img_vehicle);
+			add_component(&colorbar);
 
 			gui_aligned_container_t *tbl = add_table(2,1);
 			tbl->set_spacing(scr_size(0,0));
 			tbl->set_force_equal_columns(true);
 			tbl->set_alignment(ALIGN_CENTER_H|ALIGN_CENTER_V);
 			{
-				bt_prev.init(button_t::roundbox_left, "<");
-				bt_next.init(button_t::roundbox_right, ">");
 				// front side constraint
-				if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::unconnectable) {
-					tbl->new_component<gui_label_t>(" - ", COL_DANGER)->set_fixed_width(bt_prev.get_min_size().w);
-				}
-				else if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::intermediate_unique) {
-					bt_prev.add_listener(this);
-					tbl->add_component(&bt_prev);
-				}
-				else {
-					tbl->new_component<gui_empty_t>();
-				}
-
+				tbl->add_component(&bt_prev);
 				// rear side constraint
-				if (veh_type->get_basic_constraint_next()&vehicle_desc_t::unconnectable) {
-					tbl->new_component<gui_label_t>(" - ", COL_DANGER)->set_fixed_width(bt_prev.get_min_size().w);
-				}
-				else if (veh_type->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
-					bt_next.add_listener(this);
-					tbl->add_component(&bt_next);
-				}
-				else {
-					tbl->new_component<gui_empty_t>();
-				}
+				tbl->add_component(&bt_next);
 			}
 			end_table();
 		}
 		end_table();
 		// capacity, loading time, catering
-		new_component<gui_vehicle_capacity_t>(veh_type);
+		add_component(&cont_capacity);
 	}
 	end_table();
 
 	// TODO: MUST_USE/MAY_USE here
 
+
+
+	update_components();
+
+	tabs.add_listener(this);
+	reset_min_windowsize();
+}
+
+
+void vehicle_detail_t::update_components()
+{
+	lb_name.buf().append(veh_type->get_name());
+	lb_name.update();
+
+	img_vehicle.set_image(veh_type->get_image_id(ribi_t::dir_south, veh_type->get_freight_type()), true);
+
+	month_now = world()->get_timeline_year_month();
+	PIXVAL col_val = COL_SAFETY;
+	if (veh_type->is_available_only_as_upgrade()) {
+		if (veh_type->is_retired(month_now)) { col_val = color_idx_to_rgb(COL_DARK_PURPLE); }
+		else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
+		else { col_val = SYSCOL_UPGRADEABLE; }
+	}
+	else if (veh_type->is_future(month_now)) { col_val = color_idx_to_rgb(MN_GREY0); }
+	else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
+	else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
+
+	colorbar.set_color(col_val);
+	colorbar.set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
+
+	if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::unconnectable) {
+		bt_prev.set_text("-");
+		bt_prev.set_visible(true);
+		bt_prev.disable();
+	}
+	else if (veh_type->get_basic_constraint_prev()&vehicle_desc_t::intermediate_unique) {
+		bt_prev.set_text("<");
+		bt_prev.set_visible(true);
+		bt_prev.enable();
+	}
+	else {
+		bt_prev.set_visible(false);
+	}
+	if (veh_type->get_basic_constraint_next()&vehicle_desc_t::unconnectable) {
+		bt_next.set_text("-");
+		bt_next.set_visible(true);
+		bt_next.disable();
+	}
+	else if (veh_type->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+		bt_next.set_text(">");
+		bt_next.set_visible(true);
+		bt_next.enable();
+	}
+	else {
+		bt_next.set_visible(false);
+	}
 
 	// init main specs table
 	{
@@ -511,6 +547,7 @@ void vehicle_detail_t::init_table()
 		show_upgrade_info = true;
 	}
 
+	tabs.clear();
 	tabs.add_tab(&cont_spec, translator::translate("basic_spec"));
 	tabs.add_tab(&cont_maintenance, translator::translate("cd_maintenance_tab"));
 	if (has_available_liveries) {
@@ -520,17 +557,14 @@ void vehicle_detail_t::init_table()
 		// in the simutrans(standard) specification, the image with number 0 is used for the icon
 		tabs.add_tab(&scroll_upgrade, translator::translate("ug"), skinverwaltung_t::upgradable);
 	}
-	tabs.add_listener(this);
 	add_component(&tabs);
-	reset_min_windowsize();
-	need_update = false;
 }
 
 
 void vehicle_detail_t::draw(scr_coord pos, scr_size size)
 {
-	if( need_update==true  ||  (welt->use_timeline()  &&  month_now != world()->get_timeline_year_month()) ) {
-		init_table();
+	if( welt->use_timeline()  &&  month_now != world()->get_timeline_year_month() ) {
+		update_components();
 	}
 	gui_frame_t::draw(pos, size);
 }
