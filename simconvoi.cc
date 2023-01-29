@@ -9424,6 +9424,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 								remaining_vehicles.append(v);
 
 								cnv->add_vehicle(removed_vehicle); // We can do this if we have a laid over consist or a consist in a depot
+								removed_vehicle->set_pos(cnv->get_pos());
 							}
 
 							add_vehicle(matched_vehicle, j);
@@ -9460,11 +9461,9 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			cnv->set_home_depot(get_home_depot()); // TODO: Add code to find a suitable home depot and use this here
 			cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());
 			cnv->enter_layover(halt);
-			// FIXME: Create a schedule for this or this will crash.
+			cnv->create_schedule();
 		}
 
-		// TODO: Finish implementing logic.
-		// Remember to check at the end whether any missing vehicle slots are a problem or whether a lower priority slot in the consist order is fulfilled by the existing vehicle.
 		success = succeed;
 	}
 
