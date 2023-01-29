@@ -391,7 +391,7 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->fuel_unit_cost_divider);
 
 	READ_NUM_VALUE(sets->min_layover_overhead_seconds);
-	READ_NUM_VALUE(sets->shunting_time_seconds); 
+	READ_NUM_VALUE(sets->shunting_time_seconds);
 
 	path_explorer_t::set_absolute_limits_external();
 }

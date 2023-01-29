@@ -6205,7 +6205,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		{
 			state = SHUNTING;
 			const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
-			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile()); 
+			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
 		}
 
 		// TODO: Implement logic for dividing

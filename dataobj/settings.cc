@@ -1837,7 +1837,7 @@ void settings_t::rdwr(loadsave_t *file)
 		{
 			file->rdwr_bool(simplified_maintenance);
 			file->rdwr_long(min_layover_overhead_seconds);
-			file->rdwr_long(shunting_time_seconds); 
+			file->rdwr_long(shunting_time_seconds);
 		}
 		else if (file->is_loading())
 		{
@@ -2979,7 +2979,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	min_layover_overhead_seconds = contents.get_int("min_layover_overhead_seconds", min_layover_overhead_seconds);
 	shunting_time_seconds = contents.get_int("shunting_time_seconds", shunting_time_seconds);
 
-	fuel_unit_cost_divider = contents.get_int("fuel_unit_cost_divider", fuel_unit_cost_divider);	
+	fuel_unit_cost_divider = contents.get_int("fuel_unit_cost_divider", fuel_unit_cost_divider);
 
 	if (fuel_unit_cost_divider == 0)
 	{
