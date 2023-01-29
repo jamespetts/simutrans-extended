@@ -96,7 +96,9 @@ public:
 
 	convoihandle_t add_convoi(bool local_execution);
 
-	slist_tpl<convoihandle_t> const& get_convoy_list() { return convois; }
+	slist_tpl<convoihandle_t> const& get_convoy_list() const { return convois; }
+
+	slist_tpl<convoihandle_t>& access_convoy_list() { return convois; }
 
 	// checks if cnv can be copied by using only stored vehicles and non-obsolete purchased vehicles
 	bool check_obsolete_inventory(convoihandle_t cnv);

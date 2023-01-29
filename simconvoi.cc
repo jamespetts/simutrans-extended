@@ -2080,7 +2080,6 @@ void convoi_t::step()
 			}
 			break;
 
-		case SHUNTING:
 		case ROUTING_2:
 		case DUMMY5:
 		break;
@@ -2533,8 +2532,17 @@ void convoi_t::step()
 
 		case OVERHAUL:
 		case MAINTENANCE:
-			// We will only get here if wait_lock == 0
-			state = LEAVING_DEPOT;
+			if (wait_lock <= 0)
+			{
+				state = LEAVING_DEPOT;
+			}
+			break;
+
+		case SHUNTING:
+			if (wait_lock <= 0)
+			{
+				state = CAN_START;
+			}
 			break;
 
 		case LAYOVER:
@@ -3119,6 +3127,23 @@ void convoi_t::warten_bis_weg_frei(sint32 restart_speed)
 	}
 }
 
+vehicle_t* convoi_t::move_vehicle(uint8 old_pos, uint8 new_pos, bool swap)
+{
+	new_pos = min(new_pos, vehicle_count);
+
+	vehicle_t* new_pos_vehicle = new_pos < vehicle_count ? vehicle[new_pos] : nullptr;
+	vehicle[new_pos] = vehicle[old_pos];
+	vehicle[old_pos] = new_pos_vehicle;
+
+	if (!swap)
+	{
+		remove_vehicle_at(old_pos); 
+	}
+
+	recalc_metrics();
+	return new_pos_vehicle;
+}
+
 
 bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
 {
@@ -3147,54 +3172,19 @@ bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
 			vehicle[pos] = v;
 		}
 		vehicle_count ++;
-
-		const vehicle_desc_t *info = v->get_desc();
-		if(info->get_power()) {
-			is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-		}
-
-		calc_loading();
-		invalidate_vehicle_summary();
-		freight_info_resort = true;
-		// Add good_catg_index:
-		if(v->get_cargo_max() > 0 || (v->get_cargo_type() == goods_manager_t::passengers && v->get_desc()->get_overcrowded_capacity() > 0))
-		{
-			const goods_desc_t *ware=v->get_cargo_type();
-			if(ware!=goods_manager_t::none  )
-			{
-				goods_catg_index.append_unique( ware->get_catg_index() );
-				calc_classes_carried();
-			}
-		}
-		// check for obsolete
-		if(!has_obsolete  &&  welt->use_timeline()) {
-			has_obsolete = info->is_obsolete( welt->get_timeline_year_month() );
-		}
-		player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 	}
-	else {
+	else
+	{
 		return false;
 	}
 
-	// der convoi hat jetzt ein neues ende
-	set_erstes_letztes();
-
-	calc_min_range();
-	highest_axle_load = calc_highest_axle_load();
-	longest_min_loading_time = calc_longest_min_loading_time();
-	longest_max_loading_time = calc_longest_max_loading_time();
-	calc_direction_steps();
+	recalc_metrics();
 
 	return true;
 }
 
 void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 {
-	// Adapted from the add/remove vehicle functions
-	// @author: jamespetts, February 2010
-
-	DBG_MESSAGE("convoi_t::upgrade_vehicle()","at pos %i of %i totals.",i,max_vehicle);
-
 	if (i >= vehicle.get_count())
 	{
 		dbg->error("convoi_t::upgrade_vehicle()", "Attempting to append beyond end of convoy");
@@ -3208,7 +3198,6 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 
 	// Amend the name if the name is the default name and it is the first vehicle
 	// being replaced.
-
 	if(i == 0)
 	{
 		char buf[128];
@@ -3220,76 +3209,38 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 		}
 	}
 
-	// Added by		: Knightly
-	// Adapted from : simline_t
-	// Purpose		: Try to update supported goods category of this convoy
-	if (v->get_cargo_max() > 0 || (v->get_cargo_type() == goods_manager_t::passengers && v->get_desc()->get_overcrowded_capacity() > 0))
-	{
-		const goods_desc_t *ware_type = v->get_cargo_type();
-		if (ware_type != goods_manager_t::none)
-			goods_catg_index.append_unique(ware_type->get_catg_index(), 1);
-	}
-
-	const vehicle_desc_t *info = v->get_desc();
-	// still requires electrification?
-	if(is_electric) {
-		is_electric = false;
-		for(unsigned i=0; i<vehicle_count; i++) {
-			if(vehicle[i]->get_desc()->get_power()) {
-				is_electric |= vehicle[i]->get_desc()->get_engine_type()==vehicle_desc_t::electric;
-			}
-		}
-	}
-
-	if(info->get_power()) {
-		is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-	}
-
-	calc_loading();
-	invalidate_vehicle_summary();
-	freight_info_resort = true;
-	recalc_catg_index();
-	calc_classes_carried();
-
-	// check for obsolete
-	if(has_obsolete)
-	{
-		has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
-	}
-
-	// der convoi hat jetzt ein neues ende
-	set_erstes_letztes();
-
-	calc_min_range();
-	highest_axle_load = calc_highest_axle_load();
-	longest_min_loading_time = calc_longest_min_loading_time();
-	longest_max_loading_time = calc_longest_max_loading_time();
-	calc_direction_steps();
+	recalc_metrics();
 
 	delete old_vehicle;
+}
 
-DBG_MESSAGE("convoi_t::upgrade_vehicle()","now %i of %i total vehicles.",i,max_vehicle);
+uint8 convoi_t::get_vehicle_index(vehicle_t* v) const
+{
+	for (uint32 i = 0; i < vehicle_count; i++)
+	{
+		if (vehicle[i] == v)
+		{
+			return i;
+		}
+	}
+	return 255;
 }
 
 void convoi_t::remove_vehicle(vehicle_t* v)
 {
-	for(uint32 i = 0; i < vehicle_count; i ++)
-	{
-		if (vehicle[i] == v)
-		{
-			remove_vehicle_at(i);
-			break;
-		}
-	}
+	remove_vehicle_at(get_vehicle_index(v)); 
 }
 
 vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 {
 	vehicle_t *v = NULL;
-	if(i<vehicle_count) {
+	if(i < vehicle_count)
+	{
 		v = vehicle[i];
-		if(v != NULL) {
-			for(unsigned j=i; j<vehicle_count-1u; j++) {
+		if(v != NULL)
+		{
+			for(unsigned j=i; j<vehicle_count-1u; j++)
+			{
 				vehicle[j] = vehicle[j + 1];
 			}
 
@@ -3297,61 +3248,61 @@ vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 
 			--vehicle_count;
 			vehicle[vehicle_count] = NULL;
-
-			// Added by		: Knightly
-			// Purpose		: To recalculate the list of supported goods category
-			recalc_catg_index();
-			calc_classes_carried();
-
-			//const vehicle_desc_t *info = v->get_desc();
-			//sum_power -= info->get_power();
-			//sum_gear_and_power -= (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-			//sum_weight -= info->get_weight();
-			//sum_running_costs += info->get_operating_cost();
-			//player_t::add_maintenance( get_owner(), -info->get_maintenance(), info->get_waytype() );
 		}
-		//sum_gesamtweight = sum_weight;
-		calc_loading();
-		invalidate_vehicle_summary();
-		freight_info_resort = true;
+	
+	}
 
-		// der convoi hat jetzt ein neues ende
-		if(vehicle_count > 0) {
-			set_erstes_letztes();
-		}
+	recalc_metrics();
 
-		// calculate new minimum top speed
-		//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
+	return v;
+}
 
-		// check for obsolete
-		if(has_obsolete) {
-			has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
-		}
+void convoi_t::recalc_metrics()
+{
+	// Added by		: Knightly
+	// Purpose		: To recalculate the list of supported goods category
+	recalc_catg_index();
+	calc_classes_carried();
 
-		recalc_catg_index();
-		calc_classes_carried();
+	calc_loading();
+	invalidate_vehicle_summary();
+	freight_info_resort = true;
 
-		// still requires electrifications?
-		if(is_electric) {
-			is_electric = false;
-			for(unsigned i=0; i<vehicle_count; i++) {
-				if(vehicle[i]->get_desc()->get_power()) {
-					is_electric |= vehicle[i]->get_desc()->get_engine_type()==vehicle_desc_t::electric;
-				}
+	// der convoi hat jetzt ein neues ende
+	if (vehicle_count > 0)
+	{
+		set_erstes_letztes();
+	}
+
+	// check for obsolete
+	if (has_obsolete)
+	{
+		has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
+	}
+
+	recalc_catg_index();
+	calc_classes_carried();
+
+	// still requires electrifications?
+	if (is_electric)
+	{
+		is_electric = false;
+		for (unsigned i = 0; i < vehicle_count; i++)
+		{
+			if (vehicle[i]->get_desc()->get_power())
+			{
+				is_electric |= vehicle[i]->get_desc()->get_engine_type() == vehicle_desc_t::electric;
 			}
 		}
 	}
-
 	calc_min_range();
 	highest_axle_load = calc_highest_axle_load();
 	longest_min_loading_time = calc_longest_min_loading_time();
 	longest_max_loading_time = calc_longest_max_loading_time();
-	if(!vehicle.empty() && vehicle[0])
+	if (!vehicle.empty() && vehicle[0])
 	{
 		calc_direction_steps();
 	}
-
-	return v;
 }
 
 // recalc what good this convoy is moving
@@ -4373,7 +4324,6 @@ void convoi_t::rdwr(loadsave_t *file)
 				//sum_weight += info->get_weight();
 				has_obsolete |= welt->use_timeline()  &&  info->is_retired( welt->get_timeline_year_month() );
 				is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-				player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 			}
 
 			// some versions save vehicles after leaving depot with koord3d::invalid
@@ -6208,6 +6158,8 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
 		convoi_t::consist_order_process_result result = process_consist_order(order, halt, nullptr, cnv);
 
+		vehicles_loading = min(vehicles_loading, vehicle_count); 
+
 		if (result == convoi_t::succeed)
 		{
 			state = SHUNTING;
@@ -6485,7 +6437,6 @@ void convoi_t::destroy()
 			vehicle[i]->set_flag( obj_t::not_on_map );
 
 		}
-		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_fixed_cost(), vehicle[i]->get_desc()->get_waytype());
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];
@@ -9362,17 +9313,10 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		// TODO: Implement this
 		dbg->fatal("void convoi_t::process_consist_order()", "Joining consists not yet implemented. This should not be reached.");
 	}
-	else if (!halt.is_bound())
+	else if (!halt.is_bound() && !dep)
 	{
-		if (dep)
-		{
-			// TODO: Add logic for processing consist orders in a depot
-		}
-		else
-		{
-			dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
-			return fail;
-		}
+		dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
+		return fail;
 	}
 	else
 	{
@@ -9400,7 +9344,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		// Make up a list of matching vehicles for missing slots
 		// Firstly, the simple algorithm for the highest priority
 		slist_tpl<vehicle_t*> matched_vehicles;
-		vector_tpl<convoihandle_t>& laid_over_convoys = halt->get_laid_over();
+		slist_tpl<convoihandle_t>& available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
 
 		for (uint32 i = 0; i < max_desc_count; i++)
 		{
@@ -9411,7 +9355,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			// could fulfil a later slot if we were to use a lower priority item. However, is this really likely?
 			FOR(const slist_tpl<const consist_order_element_t>, v, missing_vehicles) // We have to use the FOR macro because we remove things from this collection object during the iteration.
 			{
-				for (auto c : laid_over_convoys)
+				for (auto c : available_convoys)
 				{
 					const uint32 count = c->get_vehicle_count();
 					for (uint32 j = 0; j < count; j++)
@@ -9446,6 +9390,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		}
 
 		vector_tpl<uint32> satisfied_elements;
+		vector_tpl<vehicle_t*> displaced_vehicles;
 
 		for (uint32 i = 0; i < max_desc_count; i++)
 		{
@@ -9466,22 +9411,35 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 				for (vehicle_t* matched_vehicle : matched_vehicles)
 				{
-					if (matched_vehicle->get_desc()->matches_consist_order_element(element, i))
+					if (matched_vehicle->get_desc()->matches_consist_order_element(element, i) && v != matched_vehicle) // Do not add/remove the vehicle if this is already the right vehicle in the right place.
 					{
 						convoi_t* cnv = matched_vehicle->get_convoi();
-						if (cnv)
+						if (cnv && cnv != this)
 						{
 							cnv->remove_vehicle(matched_vehicle);
-						}
 
-						if (v)
+							if (v)
+							{
+								vehicle_t* removed_vehicle = remove_vehicle_at(j);
+								remaining_vehicles.append(v);
+
+								cnv->add_vehicle(removed_vehicle); // We can do this if we have a laid over consist or a consist in a depot
+							}
+
+							add_vehicle(matched_vehicle, j);
+						}
+						else if (!cnv)
 						{
-							remove_vehicle_at(j);
-							remaining_vehicles.append(v);
+							// Depot vehicles
+							add_vehicle(matched_vehicle, j);
 						}
-
-						add_vehicle(matched_vehicle, j);
-
+						else
+						{
+							// We are re-arranging vehicles in the same consist
+							vehicle_t* displaced_vehicle = move_vehicle(get_vehicle_index(matched_vehicle), j, false);
+							displaced_vehicles.append_unique(displaced_vehicle);
+						}
+						
 						satisfied_elements.append(j);
 						matched_vehicles.remove(matched_vehicle);
 						break;
@@ -9490,10 +9448,24 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			}
 		}
 
+		// Deal with vehicles displaced from the consist that cannot simply be appended to an existing laid over consist
+		if (!displaced_vehicles.empty())
+		{
+			convoi_t* cnv = new convoi_t(owner); // Create a new cnv and lay it over in situ
+			for (auto v : displaced_vehicles)
+			{
+				cnv->add_vehicle(v);
+			}
+
+			cnv->set_home_depot(get_home_depot()); // TODO: Add code to find a suitable home depot and use this here
+			cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());
+			cnv->enter_layover(halt);
+			// FIXME: Create a schedule for this or this will crash.
+		}
+
 		// TODO: Finish implementing logic.
 		// Remember to check at the end whether any missing vehicle slots are a problem or whether a lower priority slot in the consist order is fulfilled by the existing vehicle.
-		// Also at the end, process all the spare vehicles in remaining_vehicles
-		dbg->debug("void convoi_t::process_consist_order()", "Simple consist orders not yet fully implemented.");
+		success = succeed;
 	}
 
 	return success;

@@ -204,7 +204,7 @@ void gui_simple_vehicle_spec_t::init_table()
 					}
 					break;
 				case SPEC_FIXED_COST:
-					if (veh_type->get_fixed_cost()) {
+					if (veh_type->get_fixed_cost(world())) {
 						lb->buf().printf("%1.2f$", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
 					}
 					else {

@@ -95,7 +95,7 @@ uint32 vehicle_desc_t::get_max_running_cost(const karte_t* world) const
 	return calc_running_cost(get_max_running_cost());
 }
 
-uint32 vehicle_desc_t::get_fixed_cost(karte_t *) const
+uint32 vehicle_desc_t::get_fixed_cost(karte_t*) const
 {
 	return calc_running_cost(get_fixed_cost());
 }

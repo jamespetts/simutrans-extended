@@ -1419,6 +1419,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 		// Initialise these with default values.
 		class_reassignments[i] = i;
 	}
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
 }
 
 
@@ -1466,7 +1468,7 @@ void vehicle_t::set_desc(const vehicle_desc_t* value)
 	// Used when upgrading vehicles.
 
 	// Empty the vehicle (though it should already be empty).
-	// We would otherwise have to check passengers occupied valid accommodation.
+	// We would otherwise have to check that passengers occupy valid accommodation.
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
 		if (!fracht[i].empty())
@@ -1479,7 +1481,11 @@ void vehicle_t::set_desc(const vehicle_desc_t* value)
 		}
 	}
 
+	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+
 	desc = value;
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
 }
 
 
@@ -2249,14 +2255,14 @@ bool vehicle_t::is_stuck()
 
 void vehicle_t::update_bookkeeping(uint32 steps)
 {
-	   // Only the first vehicle in a convoy does this,
-	   // or else there is double counting.
-	   // NOTE: increment_odometer() also adds running costs for *all* vehicles in the convoy.
-		if (leading) cnv->increment_odometer(steps);
-		if (desc->get_power() > 0)
-		{
-			consume_fuel(steps);
-		}
+	// Only the first vehicle in a convoy does this,
+	// or else there is double counting.
+	// NOTE: increment_odometer() also adds running costs for *all* vehicles in the convoy.
+	if (leading) cnv->increment_odometer(steps);
+	if (desc->get_power() > 0)
+	{
+		consume_fuel(steps);
+	}
 }
 
 ribi_t::ribi vehicle_t::get_direction_of_travel() const
@@ -3067,9 +3073,14 @@ bool vehicle_t::check_access(const weg_t* way) const
 
 vehicle_t::~vehicle_t()
 {
-	if(!welt->is_destroying()) {
+	if(!welt->is_destroying())
+	{
 		// remove vehicle's marker from the minimap
 		minimap_t::get_instance()->calc_map_pixel(get_pos().get_2d());
+		if (desc)
+		{
+			player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+		}
 	}
 
 	delete[] class_reassignments;
@@ -3419,6 +3430,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 // BG, 06.06.2009: added
 void vehicle_t::finish_rd()
 {
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
 }
 
 // BG, 06.06.2009: added

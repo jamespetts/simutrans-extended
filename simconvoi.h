@@ -1070,8 +1070,19 @@ public:
 	uint16 get_traction_types() const;
 
 	// Upgrades a vehicle in the convoy.
-	// @author: jamespetts, February 2010
 	void upgrade_vehicle(uint16 i, vehicle_t* v);
+
+	// Moves a vehicle in this consist to a new position.
+	// Returns the vehicle, if any, that was already at that position.
+	// If swap is true, the vehicle positions are switched.
+	vehicle_t* move_vehicle(uint8 old_pos, uint8 new_pos, bool swap);
+
+	// Returns the index of the passed vehicle.
+	// 255 = not in cnv
+	uint8 get_vehicle_index(vehicle_t*) const;
+
+	// Helper method for adding/removing/upgrading vehicles
+	void recalc_metrics();
 
 	vehicle_t* front() const { return *vehicle.begin(); }
 
@@ -1089,9 +1100,9 @@ public:
 	/**
 	* Removes vehicles at position i
 	*/
-	vehicle_t * remove_vehicle_at(unsigned short i);
+	vehicle_t* remove_vehicle_at(unsigned short i);
 
-
+	// Removes the specified vehicle
 	void remove_vehicle(vehicle_t* v);
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
