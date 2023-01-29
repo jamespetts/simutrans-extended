@@ -1763,10 +1763,7 @@ void gui_convoy_assembler_t::update_data()
 		vehicle_desc_t const* const    info = i.key;
 		gui_image_list_t::image_data_t& img  = *i.value;
 
-		PIXVAL ok_color = info->is_future(month_now) || info->is_retired(month_now) ? SYSCOL_OUT_OF_PRODUCTION : COL_SAFETY;
-		if (info->is_obsolete(month_now)) {
-			ok_color = SYSCOL_OBSOLETE;
-		}
+		PIXVAL ok_color = info->get_vehicle_status_color();
 
 		img.count = 0;
 		img.lcolor = ok_color;
@@ -2181,23 +2178,12 @@ void gui_convoy_assembler_t::init_convoy_color_bars(vector_tpl<const vehicle_des
 	const uint16 month_now = world()->get_timeline_year_month();
 	uint32 i=0;
 	// change green into blue for retired vehicles
-	PIXVAL base_col = (!vehs->get_element(i)->is_future(month_now) && !vehs->get_element(i)->is_retired(month_now)) ? COL_SAFETY :
-		(vehicles[i]->is_obsolete(month_now)) ? SYSCOL_OBSOLETE : SYSCOL_OUT_OF_PRODUCTION;
+	PIXVAL base_col = vehs->get_element(i)->get_vehicle_status_color();
 	uint32 end = vehs->get_count();
 	set_vehicle_bar_shape(convoi_pics[0], vehs->get_element(0));
 	convoi_pics[0]->lcolor = vehs->get_element(0)->can_follow(NULL) ? base_col : COL_CAUTION;
 	for (i = 1; i < end; i++) {
-		if (vehs->get_element(i)->is_future(month_now) || vehs->get_element(i)->is_retired(month_now)) {
-			if (vehicles[i]->is_obsolete(month_now)) {
-				base_col = SYSCOL_OBSOLETE;
-			}
-			else {
-				base_col = SYSCOL_OUT_OF_PRODUCTION;
-			}
-		}
-		else {
-			base_col = COL_SAFETY;
-		}
+		base_col = vehs->get_element(i)->get_vehicle_status_color();
 		convoi_pics[i-1]->rcolor = vehs->get_element(i-1)->can_lead(vehs->get_element(i)) ?   base_col : COL_DANGER;
 		convoi_pics[i]->lcolor   = vehs->get_element(i)->can_follow(vehs->get_element(i-1)) ? base_col : COL_DANGER;
 		set_vehicle_bar_shape(convoi_pics[i], vehs->get_element(i));

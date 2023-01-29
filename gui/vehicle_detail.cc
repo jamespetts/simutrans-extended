@@ -161,15 +161,12 @@ gui_vehicle_detail_access_t::gui_vehicle_detail_access_t(const vehicle_desc_t *v
 			add_table(2,1);
 			{
 				const uint16 month_now = world()->get_timeline_year_month();
-				PIXVAL col_val = COL_SAFETY;
+				PIXVAL col_val = veh_type->get_vehicle_status_color();
 				if (veh_type->is_available_only_as_upgrade()) {
 					if (veh_type->is_retired(month_now)) { col_val = color_idx_to_rgb(COL_DARK_PURPLE); }
 					else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
 					else { col_val = SYSCOL_UPGRADEABLE; }
 				}
-				else if (veh_type->is_future(month_now)) { col_val = color_idx_to_rgb(MN_GREY0); }
-				else if (veh_type->is_obsolete(month_now)) { col_val = SYSCOL_OBSOLETE; }
-				else if (veh_type->is_retired(month_now)) { col_val = SYSCOL_OUT_OF_PRODUCTION; }
 				new_component<gui_vehicle_bar_t>(col_val)->set_flags(veh_type->get_basic_constraint_prev(), veh_type->get_basic_constraint_next(), veh_type->get_interactivity());
 
 				gui_label_buf_t *lb = new_component<gui_label_buf_t>();
