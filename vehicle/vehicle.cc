@@ -3763,6 +3763,6 @@ void vehicle_t::un_mothball()
 
 	is_mothballed = false;
 
-	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype()); 
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype());
 	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
 }
