@@ -3155,7 +3155,7 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 
 	if (index == 0)
 	{
-		update_default_name(old_vehicle); 
+		update_default_name(old_vehicle);
 	}
 
 	recalc_metrics();
@@ -9388,7 +9388,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 					if (get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
 					{
 						// The existing vehicle in its existing position is a match - no change needed
-						final_consist.append(vehicle); 
+						final_consist.append(vehicle);
 						existing_vehicle_count++;
 						matched_this_element = true;
 						break;
@@ -9451,12 +9451,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 	if (success == succeed)
 	{
-		commit_recombined_consist(final_consist, halt); 
+		commit_recombined_consist(final_consist, halt);
 	}
 
 	if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 	{
-		joining_convoy->set_state(SELF_DESTRUCT); 
+		joining_convoy->set_state(SELF_DESTRUCT);
 	}
 
 	return success;
@@ -9494,13 +9494,13 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
 				new_lead_cnv->add_vehicle(removed_vehicle);
-				removed_vehicle->set_pos(new_lead_cnv->get_pos()); 
+				removed_vehicle->set_pos(new_lead_cnv->get_pos());
 			}
 			else
 			{
 				displaced_vehicles.append(removed_vehicle);
 			}
-			
+
 			continue;
 		}
 
@@ -9512,7 +9512,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 
 			if (previous_cnv)
 			{
-				previous_cnv->remove_vehicle(new_vehicle); 
+				previous_cnv->remove_vehicle(new_vehicle);
 			}
 			add_vehicle(new_vehicle);
 			new_vehicle->set_pos(rear_pos);
@@ -9536,7 +9536,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			new_vehicle_cnv->remove_vehicle(new_vehicle);
 			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
 			new_vehicle->set_pos(removed_vehicle->get_pos());
-			
+
 			if (new_vehicle_cnv)
 			{
 				new_vehicle_cnv->remove_vehicle(new_vehicle);
