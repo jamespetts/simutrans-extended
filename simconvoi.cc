@@ -9421,10 +9421,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 							if (v)
 							{
 								vehicle_t* removed_vehicle = remove_vehicle_at(j);
+								const koord3d removed_vehicle_pos = removed_vehicle->get_pos();
 								remaining_vehicles.append(v);
 
 								cnv->add_vehicle(removed_vehicle); // We can do this if we have a laid over consist or a consist in a depot
 								removed_vehicle->set_pos(cnv->get_pos());
+								matched_vehicle->set_pos(removed_vehicle_pos);
 							}
 
 							add_vehicle(matched_vehicle, j);
