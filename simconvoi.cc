@@ -9398,7 +9398,11 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
 					}
-					if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
+					if (element.get_vehicle_description(j).empty)
+					{
+						final_consist.append(nullptr);
+					}
+					else if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
 					{
 						// Check whether this can couple to the previous vehicle.
 						const vehicle_desc_t* previous_vehicle = nullptr;
@@ -9474,6 +9478,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 
 	const uint32 new_vehicle_count = vehicles.get_count();
 	const uint8 old_vehicle_count = vehicle_count;
+	uint8 index_offset = 0;
 	for(uint32 i = 0; i < max(new_vehicle_count, (uint32)old_vehicle_count); i ++)
 	{
 		vehicle_t* new_vehicle = i < new_vehicle_count ? vehicles[i] : nullptr;
@@ -9486,11 +9491,21 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 
 		if (!new_vehicle)
 		{
-			// We have reached the end of the new vehicles but there are still vehicles left in the consist.
-			// Remove them. Note that what will happen is that the number of vehicles in the consist will reduce,
-			// so we need to remove the rear vehicle not the vehicle at position i.
-
-			vehicle_t* removed_vehicle = remove_vehicle_at(vehicle_count - 1);
+			uint8 remove_index;
+			if (i >= new_vehicle_count)
+			{
+				// We have reached the end of the new vehicles but there are still vehicles left in the consist.
+				// Remove them. Note that what will happen is that the number of vehicles in the consist will reduce,
+				// so we need to remove the rear vehicle not the vehicle at position i.
+				remove_index = vehicle_count - 1u;
+			}
+			else
+			{
+				// We have encountered an empty vehicle description element.
+				remove_index = i;
+				index_offset++;
+			}
+			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
 			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
 				new_lead_cnv->add_vehicle(removed_vehicle);

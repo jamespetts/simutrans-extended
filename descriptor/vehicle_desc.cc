@@ -777,12 +777,22 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 		return false;
 	}
 	const vehicle_description_element& vde = element.get_vehicle_description(priority);
+
+	if (vde.empty)
+	{
+		// There are no requirements for this.
+		return true;
+	}
+
 	if (vde.specific_vehicle == this)
 	{
 		return true;
 	}
 
-	// TODO: Implement logic for rules
+	// Check the rules
+	// TODO: Add this
+	//if(vde.)
+	
 
 	return false;
 }
