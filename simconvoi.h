@@ -1203,9 +1203,9 @@ public:
 	void open_schedule_window( bool show );
 
 	/**
-	* pruefe ob Beschraenkungen fuer alle Fahrzeuge erfuellt sind
+	* Check whether this consist is valid
 	*/
-	bool pruefe_alle();
+	bool check_validity();
 
 	/**
 	* Control loading and unloading

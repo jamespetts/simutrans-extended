@@ -716,7 +716,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 
 		// check if convoy is complete
-		if(convoy_unpowered || !cnv->pruefe_alle())
+		if(convoy_unpowered || !cnv->check_validity())
 		{
 			if (local_execution)
 			{

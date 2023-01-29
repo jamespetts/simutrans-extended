@@ -5467,10 +5467,7 @@ void convoi_t::open_schedule_window( bool show )
 }
 
 
-bool convoi_t::pruefe_alle() //"examine all" (Babelfish)
-/**
- * Check validity of convoi with respect to vehicle constraints
- */
+bool convoi_t::check_validity()
 {
 	bool ok = vehicle_count == 0  ||  front()->get_desc()->can_follow(NULL);
 	unsigned i;
