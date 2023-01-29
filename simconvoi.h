@@ -814,7 +814,6 @@ public:
 	 */
 	void unreserve_route();
 
-
 	route_t* get_route() { return &route; }
 	route_t* access_route() { return &route; }
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed);
@@ -1105,6 +1104,18 @@ public:
 	// Removes the specified vehicle
 	void remove_vehicle(vehicle_t* v);
 
+	// Replaces vehicle at the set position with the specified vehicle.
+	// Returns the old vehicle
+	vehicle_t* substitute_vehicle(vehicle_t* new_vehicle, uint8 index);
+
+private:
+
+	// Updates the name of the consist if it has the name of the pevious leading vehicle
+	// The new name will be that of the current leading vehicle.
+	void update_default_name(vehicle_t* previous_lead_vehicle);
+
+public:
+
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
 	// recalculates the good transported by this convoy and (in case of changes) will start schedule recalculation
@@ -1208,10 +1219,10 @@ public:
 	bool check_validity();
 
 	// If false, this consist cannot move.
-	bool is_powered();
+	bool is_unpowered();
 
 	// True if this consist is valid and powered - this is sufficient for it to be driven
-	bool is_valid_and_powered() { return check_validity() && is_powered(); }
+	bool is_valid_and_powered() { return check_validity() && !is_unpowered(); }
 
 	/**
 	* Control loading and unloading
@@ -1492,6 +1503,8 @@ public:
 
 	route_infos_t& get_route_infos();
 
+	void set_blank_route();
+
 	void set_akt_speed(sint32 akt_speed) {
 		this->akt_speed = akt_speed;
 #ifndef NETTOOL
@@ -1604,6 +1617,9 @@ public:
 	// The return value is whether the consist order can be processed at the current time (i.e., whether there are
 	// sufficient of the right number of vehicles to do so).
 	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
+
+	private:
+		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt);
 };
 
 #endif

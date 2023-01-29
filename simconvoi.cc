@@ -3144,10 +3144,31 @@ vehicle_t* convoi_t::move_vehicle(uint8 old_pos, uint8 new_pos, bool swap)
 	return new_pos_vehicle;
 }
 
+vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
+{
+	vehicle_t* old_vehicle = vehicle[index];
+	vehicle[index] = new_vehicle;
+
+	new_vehicle->set_pos(old_vehicle->get_pos());
+	new_vehicle->set_convoi(this);
+	old_vehicle->set_convoi(nullptr);
+
+	if (index == 0)
+	{
+		update_default_name(old_vehicle); 
+	}
+
+	recalc_metrics();
+
+	return old_vehicle;
+}
+
 
 bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
 {
 	pos = min(pos, vehicle_count);
+
+	vehicle_t* const previous_leading_vehicle = front();
 
 	if(vehicle_count == max_vehicle)
 	{
@@ -3178,6 +3199,11 @@ bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
 		return false;
 	}
 
+	if (pos == 0 && previous_leading_vehicle)
+	{
+		update_default_name(previous_leading_vehicle);
+	}
+
 	recalc_metrics();
 
 	return true;
@@ -3200,18 +3226,23 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 	// being replaced.
 	if(i == 0)
 	{
-		char buf[128];
-		name_offset = sprintf(buf,"(%i) ",self.get_id() );
-		tstrncpy(buf + name_offset, translator::translate(old_vehicle->get_desc()->get_name()), 116);
-		if(!strcmp(get_name(), buf))
-		{
-			set_name(v->get_desc()->get_name());
-		}
+		update_default_name(old_vehicle);
 	}
 
 	recalc_metrics();
 
 	delete old_vehicle;
+}
+
+void convoi_t::update_default_name(vehicle_t* previous_lead_vehicle)
+{
+	char buf[256];
+	name_offset = sprintf(buf, "(%i) ", self.get_id());
+	tstrncpy(buf + name_offset, translator::translate(previous_lead_vehicle->get_desc()->get_name()), 116);
+	if (!strcmp(get_name(), buf))
+	{
+		set_name(front()->get_desc()->get_name());
+	}
 }
 
 uint8 convoi_t::get_vehicle_index(vehicle_t* v) const
@@ -3233,6 +3264,9 @@ void convoi_t::remove_vehicle(vehicle_t* v)
 
 vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 {
+	const bool update_name = i == vehicle_count - 1;
+	vehicle_t* previous_leading_vehicle = front();
+
 	vehicle_t *v = NULL;
 	if(i < vehicle_count)
 	{
@@ -3250,6 +3284,11 @@ vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 			vehicle[vehicle_count] = NULL;
 		}
 
+	}
+
+	if (update_name)
+	{
+		update_default_name(previous_leading_vehicle);
 	}
 
 	recalc_metrics();
@@ -5486,7 +5525,7 @@ bool convoi_t::check_validity()
 	return ok;
 }
 
-bool convoi_t::is_powered()
+bool convoi_t::is_unpowered()
 {
 	return get_sum_power() == 0 || calc_max_speed(get_weight_summary()) == 0;
 }
@@ -9264,6 +9303,169 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 {
 	convoi_t::consist_order_process_result success = fail;
 
+	// FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
+
+	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
+	// then if, and only if driveable and complete, commit the result.
+
+	vector_tpl<vehicle_t*> final_consist;
+	vector_tpl<vehicle_t*> available_vehicles;
+
+	// First, produce a vector of vehicles available for recombination.
+	// The vehicles of the current consist are always available.
+
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		available_vehicles.append(vehicle[i]);
+	}
+
+	if (joining_convoy.is_bound())
+	{
+		// If joining a consist, only vehicles of this and the joining consist are available.
+		// To use laid over vehicles also, multiple consist orders are required.
+		const uint8 joining_vehicle_count = joining_convoy->get_vehicle_count();
+		for (uint8 i = 0; i < joining_vehicle_count; i++)
+		{
+			available_vehicles.append(joining_convoy->get_vehicle(i));
+		}
+	}
+	else if (!halt.is_bound() && !dep)
+	{
+		dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
+		return fail;
+	}
+	else
+	{
+		slist_tpl<convoihandle_t>& available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
+
+		for (auto cnv : available_convoys)
+		{
+			const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
+			for (uint8 i = 0; i < cnv_vehicle_count; i++)
+			{
+				if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING)
+				{
+					available_vehicles.append(cnv->get_vehicle(i));
+				}
+			}
+		}
+
+		if (dep)
+		{
+			slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
+			for (auto v : depot_vehicles)
+			{
+				available_vehicles.append(v);
+			}
+		}
+	}
+
+	const uint32 element_count = order.get_count();
+	uint32 existing_vehicle_count = 0;
+
+	for (uint32 k = 0; k < element_count && (k == 0 || k < element_count - 1u) && final_consist.get_count() < element_count; k++)
+	{
+		// Run this recursively in case combinations are available that do not work in the first run.
+		vehicle_t* pass_over_vehicle = nullptr;
+		existing_vehicle_count = 0;
+		if (k > 0)
+		{
+			pass_over_vehicle = final_consist[k];
+			// Start again
+			final_consist.clear();
+		}
+
+		for (uint32 i = 0; i < element_count; i++)
+		{
+			const consist_order_element_t& element = order.get_order(i);
+			const uint32 priority_count = element.get_count();
+			bool matched_this_element = false;
+
+			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
+			{
+				for (auto vehicle : available_vehicles)
+				{
+					if (get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
+					{
+						// The existing vehicle in its existing position is a match - no change needed
+						final_consist.append(vehicle); 
+						existing_vehicle_count++;
+						matched_this_element = true;
+						break;
+					}
+					if (i > 0 && i - 1 == k && pass_over_vehicle == vehicle)
+					{
+						// Skip putting this vehicle into this slot if the last run did not work
+						continue;
+					}
+					if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
+					{
+						// Check whether this can couple to the previous vehicle.
+						const vehicle_desc_t* previous_vehicle = nullptr;
+						if (!final_consist.empty())
+						{
+							previous_vehicle = final_consist.back()->get_desc();
+						}
+
+						if (vehicle->get_desc()->can_lead(previous_vehicle))
+						{
+							if (!previous_vehicle || previous_vehicle->can_follow(vehicle->get_desc()))
+							{
+								final_consist.append(vehicle);
+								matched_this_element = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (final_consist.get_count() == element_count)
+	{
+		if (existing_vehicle_count == element_count == vehicle_count)
+		{
+			success = no_change_needed;
+		}
+		else
+		{
+			// Check whether the new consist has power. If not, it should not be used.
+			// The player needs to be responsible for ensuring that all possible combinations provided for by the order are powered.
+			bool has_power = false;
+			for (auto v : final_consist)
+			{
+				if (v->get_desc()->get_power() > 0)
+				{
+					has_power = true;
+					break;
+				}
+			}
+
+			if (has_power)
+			{
+				success = succeed;
+			}
+		}
+	}
+
+	if (success == succeed)
+	{
+		commit_recombined_consist(final_consist, halt); 
+	}
+
+	if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
+	{
+		joining_convoy->set_state(SELF_DESTRUCT); 
+	}
+
+	return success;
+	/// Old code below here. Refactored code above.
+
+	/*
+
+	/// ****************************************************************************************************
+
 	// First, create a list of missing vehicles from the current consist not present in the ordered consist
 	// The missing vehicle list must be in the form of consist order elements, since we do not necessarily know which specific vehicle
 	// that we want in the case where consist order elements are made up of rules.
@@ -9278,7 +9480,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		remaining_vehicles.append(v);
 	}
 
-	const uint32 element_count = order.get_count(); // FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
+	const uint32 element_count = order.get_count(); 
 	for (uint32 i = 0; i < element_count; i++)
 	{
 		// Check whether there is exactly one vehicle in the current consist matching the highest priority description of each consist order element.
@@ -9471,5 +9673,128 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		success = succeed;
 	}
 
-	return success;
+	return success;*/
+}
+
+void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt)
+{
+	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
+	// The vehicles may include vehicles already present in the consist, but will always include
+	// at least one change from the current arrangement.
+
+	vector_tpl<vehicle_t*> displaced_vehicles;
+	convoi_t* new_lead_cnv = vehicles[0]->get_convoi();
+	koord3d rear_pos = back()->get_pos();
+
+	const uint32 new_vehicle_count = vehicles.get_count();
+	const uint8 old_vehicle_count = vehicle_count;
+	for(uint32 i = 0; i < max(new_vehicle_count, (uint32)old_vehicle_count); i ++)
+	{
+		vehicle_t* new_vehicle = i < new_vehicle_count ? vehicles[i] : nullptr;
+		vehicle_t* existing_vehicle = i < old_vehicle_count ? get_vehicle((uint8)i) : nullptr;
+		if (new_vehicle == existing_vehicle && existing_vehicle)
+		{
+			// The new vehicle matches the existing vehicle. Do nothing.
+			continue;
+		}
+
+		if (!new_vehicle)
+		{
+			// We have reached the end of the new vehicles but there are still vehicles left in the consist.
+			// Remove them. Note that what will happen is that the number of vehicles in the consist will reduce,
+			// so we need to remove the rear vehicle not the vehicle at position i.
+
+			vehicle_t* removed_vehicle = remove_vehicle_at(vehicle_count - 1);
+			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
+			{
+				new_lead_cnv->add_vehicle(removed_vehicle);
+				removed_vehicle->set_pos(new_lead_cnv->get_pos()); 
+			}
+			else
+			{
+				displaced_vehicles.append(removed_vehicle);
+			}
+			
+			continue;
+		}
+
+		if (!existing_vehicle)
+		{
+			// We have reached the end of the existing vehicles in the consist, but there are more vehicles to add.
+			// Add them.
+			convoi_t* previous_cnv = new_vehicle->get_convoi();
+
+			if (previous_cnv)
+			{
+				previous_cnv->remove_vehicle(new_vehicle); 
+			}
+			add_vehicle(new_vehicle);
+			new_vehicle->set_pos(rear_pos);
+			continue;
+		}
+
+		// Reaching here, we should have both new and existing vehicles.
+		// Substitute the new for the old.
+
+		convoi_t* new_vehicle_cnv = new_vehicle->get_convoi();
+		if (new_vehicle_cnv == this)
+		{
+			// We are just moving vehicles within the same consist.
+			// Swap if the new vehicle is from later in the consist and is thus yet to be processed.
+
+			const uint8 new_vehicle_index = get_vehicle_index(new_vehicle);
+			move_vehicle(new_vehicle_index, i, new_vehicle_index > i);
+		}
+		else if (new_vehicle_cnv)
+		{
+			new_vehicle_cnv->remove_vehicle(new_vehicle);
+			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
+			new_vehicle->set_pos(removed_vehicle->get_pos());
+			
+			if (new_vehicle_cnv)
+			{
+				new_vehicle_cnv->remove_vehicle(new_vehicle);
+			}
+			if (new_vehicle_cnv && new_vehicle_cnv->get_state() == LAYOVER)
+			{
+				new_vehicle_cnv->add_vehicle(removed_vehicle);
+			}
+			else
+			{
+				displaced_vehicles.append(removed_vehicle);
+			}
+		}
+	}
+
+	unreserve_route();
+	reserve_own_tiles();
+
+	// Deal with vehicles displaced from the consist that cannot simply be appended to an existing laid over consist
+	if (!displaced_vehicles.empty())
+	{
+		convoi_t* cnv = new convoi_t(owner); // Create a new cnv and lay it over in situ
+		for (auto v : displaced_vehicles)
+		{
+			if (v)
+			{
+				cnv->add_vehicle(v);
+			}
+		}
+
+		cnv->set_home_depot(get_home_depot()); // TODO: Add code to find a suitable home depot and use this here
+		cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());
+		cnv->set_blank_route();
+		cnv->reserve_own_tiles();
+		cnv->enter_layover(halt);
+		cnv->create_schedule();
+	}
+}
+
+void convoi_t::set_blank_route()
+{
+	route.clear();
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		route.append(vehicle[i]->get_pos());
+	}
 }
