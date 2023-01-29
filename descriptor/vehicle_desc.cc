@@ -790,9 +790,46 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 	}
 
 	// Check the rules
-	// TODO: Add this
-	//if(vde.)
-	
+	if (vde.engine_type == engine_type &&
+		vde.min_catering <= catering_level && vde.max_catering >= catering_level &&
+
+		vde.must_carry_class == 255 || vde.must_carry_class <= get_min_accommodation_class() && vde.must_carry_class >= get_max_accommodation_class() &&
+
+		vde.min_brake_force <= brake_force && vde.max_brake_force >= brake_force &&
+		vde.min_range <= range && vde.max_range >= range &&
+		vde.min_power <= power && vde.max_power >= power &&
+		vde.min_tractive_effort <= tractive_effort && vde.max_tractive_effort >= tractive_effort &&
+		vde.min_topspeed <= topspeed && vde.max_topspeed >= topspeed &&
+
+		vde.min_weight <= weight && vde.max_weight >= weight &&
+		vde.max_axle_load <= axle_load && vde.max_axle_load &&
+
+		vde.min_capacity <= get_total_capacity() && vde.max_capacity >= get_total_capacity() &&
+
+		vde.min_running_cost <= running_cost && vde.max_running_cost >= running_cost &&
+		vde.min_fixed_cost <= fixed_cost && vde.max_fixed_cost >= fixed_cost &&
+
+		vde.min_fuel_per_km <= fuel_per_km && vde.max_fuel_per_km >= fuel_per_km)
+	{
+		// Staff need special treatment.
+
+		sint32 total_staff_hundredths = 0;
+		for (auto n : staff_hundredths)
+		{
+			total_staff_hundredths += n.value;
+		}
+
+		sint32 total_drivers = 0;
+		for (auto n : drivers)
+		{
+			total_drivers += n.value;
+		}
+
+		return
+			vde.min_staff_hundredths <= total_staff_hundredths && vde.max_staff_hundredths >= total_staff_hundredths &&
+			vde.min_drivers <= total_drivers && vde.max_drivers >= total_drivers;
+
+	}
 
 	return false;
 }

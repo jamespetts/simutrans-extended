@@ -92,6 +92,11 @@ struct vehicle_description_element
 	* the elements are arranged above.
 	*
 	* + Where the vehicle is a goods carrying vehicle: otherwise, this is ignored
+	*
+	* NOTE: This feature is currently unimplemented. This seems to conflict with the
+	* priority order of vehicle description elements in the consist order elements.
+	* It is hard to imagine how this might be implemented.
+	* Query whether this should be removed.
 	*/
 
 	enum rule_flag
