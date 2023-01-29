@@ -151,10 +151,10 @@ struct vehicle_description_element
 		engine_type  = v->get_engine_type();
 		min_catering = v->get_catering_level();
 		//must_carry_class
-		//min_range
+		min_range = v->get_range();
 		min_brake_force = v->get_brake_force();
 		min_power = v->get_power();
-		//min_tractive_effort;
+		min_tractive_effort = v->get_tractive_effort();
 		min_topspeed = v->get_calibration_speed();
 		min_capacity = v->get_total_capacity();
 	}

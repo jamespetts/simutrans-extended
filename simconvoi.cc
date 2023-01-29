@@ -6204,7 +6204,8 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		if (result == convoi_t::succeed)
 		{
 			state = SHUNTING;
-			wait_lock = 2000; // TODO: Add simuconf.tab setting for this. This is the time that it takes to shunt. Should this vary?
+			const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
+			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile()); 
 		}
 
 		// TODO: Implement logic for dividing
@@ -6361,7 +6362,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
-	if (state != LAYOVER)
+	if (state != LAYOVER && state != SHUNTING)
 	{
 		// This is done in the layover state after the minimum layover time has expired.
 		check_departure(halt);
@@ -7828,12 +7829,7 @@ void convoi_t::snprintf_remaining_loading_time(char *p, size_t size) const
 /**
  * Format remaining loading time from go_on_ticks
  */
-void convoi_t::snprintf_remaining_reversing_time(char *p, size_t size) const
-{
-	welt->sprintf_ticks(p, size, wait_lock);
-}
-
-void convoi_t::snprintf_remaining_emergency_stop_time(char *p, size_t size) const
+void convoi_t::snprintf_remaining_wait_lock(char *p, size_t size) const
 {
 	welt->sprintf_ticks(p, size, wait_lock);
 }

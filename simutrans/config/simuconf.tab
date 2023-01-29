@@ -930,6 +930,9 @@ extended_maintenance_interval_months = 18
 # can be in the layover state.
 min_layover_overhead_seconds = 120
 
+# The length of time in seconds that it takes a consist to be shunted into a new consist
+shunting_time_seconds = 60
+
 ############################## Private car settings ##############################
 
 # How many private car routes tiles to process in a step.

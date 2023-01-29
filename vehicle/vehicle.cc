@@ -3148,7 +3148,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 
 				if (tooltip_display_level > 0) {
 					char emergency_stop_time[64];
-					cnv->snprintf_remaining_emergency_stop_time(emergency_stop_time, sizeof(emergency_stop_time));
+					cnv->snprintf_remaining_wait_lock(emergency_stop_time, sizeof(emergency_stop_time));
 					sprintf(tooltip_text, translator::translate("emergency_stop %s left"), emergency_stop_time/*, lengthof(tooltip_text) */);
 					color = color_idx_to_rgb(COL_RED);
 				}
@@ -3223,7 +3223,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 				if( tooltip_display_level >=3 )
 				{
 					char reversing_time[64];
-					cnv->snprintf_remaining_reversing_time(reversing_time, sizeof(reversing_time));
+					cnv->snprintf_remaining_wait_lock(reversing_time, sizeof(reversing_time));
 					switch (cnv->get_terminal_shunt_mode()) {
 						case convoi_t::rearrange:
 						case convoi_t::shunting_loco:
@@ -3239,6 +3239,13 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 					color = color_idx_to_rgb(COL_YELLOW);
 				}
 				break;
+
+				case convoi_t::SHUNTING:
+					char shunting_time[64];
+					cnv->snprintf_remaining_wait_lock(shunting_time, sizeof(shunting_time));
+					sprintf(tooltip_text, translator::translate("Shunting. %s left"), shunting_time);
+					color = color_idx_to_rgb(COL_YELLOW);
+					break;
 
 			case convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS:
 			case convoi_t::CAN_START_TWO_MONTHS:

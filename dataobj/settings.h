@@ -804,6 +804,9 @@ public:
 	// The minimum number of seconds between a vehicle entering layover and leaving it.
 	uint32 min_layover_overhead_seconds = 120;
 
+	// The number of seconds that it takes to reconstitute a consist.
+	uint32 shunting_time_seconds = 60;
+
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
 	 * Set to empty string in order to avoid loading.
@@ -1365,6 +1368,9 @@ public:
 
 	uint32 get_min_layover_overhead_seconds() const { return min_layover_overhead_seconds; }
 	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = min_layover_overhead_seconds = value; }
+
+	uint32 get_shunting_time_seconds() const { return shunting_time_seconds; }
+	void set_shunting_time_seconds(uint32 value) { shunting_time_seconds = value; }
 
 	uint32 get_path_explorer_time_midpoint() const { return path_explorer_time_midpoint; }
 	bool get_save_path_explorer_data() const { return save_path_explorer_data; }
