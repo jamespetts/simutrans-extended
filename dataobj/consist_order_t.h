@@ -42,9 +42,11 @@ struct vehicle_description_element
 	uint8 min_catering = 0;
 	uint8 max_catering = 255;
 
-	// If this is 255, then this vehicle may carry
-	// any class of mail/passengers.
-	uint8 must_carry_class = 255;
+	// Note that this is the *minimum* class that the vehicle carries.
+	// In other words, if the vehicle carries more than one class,
+	// the higher class is ignored.
+	// This stipulation is necessary for the path explorer.
+	uint8 must_carry_class = 0;
 
 	uint32 min_range = 0;
 	uint32 max_range = UINT32_MAX_VALUE;
@@ -150,7 +152,7 @@ struct vehicle_description_element
 	{
 		engine_type  = v->get_engine_type();
 		min_catering = v->get_catering_level();
-		//must_carry_class
+		must_carry_class = v->get_min_accommodation_class();
 		min_range = v->get_range();
 		min_brake_force = v->get_brake_force();
 		min_power = v->get_power();
@@ -170,6 +172,7 @@ class consist_order_element_t
 protected:
 	/*
 	* The goods category of the vehicle that must occupy this slot.
+	* COMPULSORY
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
 
@@ -195,6 +198,8 @@ protected:
 
 public:
 	uint32 get_count() const { return vehicle_description.get_count(); }
+
+	uint8 get_catg_index() const { return catg_index; }
 
 	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
 

@@ -789,11 +789,16 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 		return true;
 	}
 
+	if (element.get_catg_index() != get_freight_type()->get_catg_index())
+	{
+		return false;
+	}
+
 	// Check the rules
 	if (vde.engine_type == engine_type &&
 		vde.min_catering <= catering_level && vde.max_catering >= catering_level &&
 
-		vde.must_carry_class == 255 || vde.must_carry_class <= get_min_accommodation_class() && vde.must_carry_class >= get_max_accommodation_class() &&
+		vde.must_carry_class <= get_min_accommodation_class() &&
 
 		vde.min_brake_force <= brake_force && vde.max_brake_force >= brake_force &&
 		vde.min_range <= range && vde.max_range >= range &&
