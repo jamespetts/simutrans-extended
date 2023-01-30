@@ -1023,7 +1023,7 @@ void path_explorer_t::compartment_t::step()
 						}
 						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
 						{
-							set_flag(flag, pick_up_only); 
+							set_flag(flag, pick_up_only);
 						}
 						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
 						{
