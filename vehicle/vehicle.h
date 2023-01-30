@@ -664,7 +664,7 @@ public:
 	 * @return sum of unloaded goods
 	 * If the layover parameter is true, unload all goods irrespective of the destination.
 	 */
-	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool layover = false );
+	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all = false );
 
 	/**
 	 * Load freight from halt

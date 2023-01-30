@@ -6148,43 +6148,46 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 	const bool will_layover = first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over();
 
-	for(int i = 0; i < vehicles_loading ; i++)
+	if (!schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only))
 	{
-		vehicle_t* v = vehicle[i];
+		for (int i = 0; i < vehicles_loading; i++)
+		{
+			vehicle_t* v = vehicle[i];
 
-		// Reset last_stop_pos for all vehicles.
-		koord3d pos = v->get_pos();
-		if(haltestelle_t::get_halt(pos, v->get_owner()).is_bound())
-		{
-			v->last_stop_pos = pos;
-		}
-		else
-		{
-			v->last_stop_pos = halt->get_basis_pos3d();
-		}
-		// hat_gehalten can be called when the convoy hasn't moved... at all.
-		// We should avoid the unloading code when this happens (for speed).
-		if(old_last_stop_pos != front()->get_pos())
-		{
-			//Unload
-			sint64 revenue_from_unloading = 0;
-			uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover);
-			changed_loading_level += amount_unloaded;
-
-			// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
-			sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
-			if (amount_unloaded && revenue_cents_from_unloading == 0)
+			// Reset last_stop_pos for all vehicles.
+			koord3d pos = v->get_pos();
+			if (haltestelle_t::get_halt(pos, v->get_owner()).is_bound())
 			{
-				// if we unloaded something, provide some minimum revenue.  But not if we unloaded nothing.
-				revenue_cents_from_unloading = 1;
+				v->last_stop_pos = pos;
 			}
-			// This call needs to be here, per-vehicle, in order to record different freight types properly.
-			owner->book_revenue( revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index() );
-			// The finance code will add up the on-screen messages
-			// But add up the total for the port and station use charges
-			accumulated_revenue += revenue_cents_from_unloading;
-			book(revenue_cents_from_unloading, CONVOI_PROFIT);
-			book(revenue_cents_from_unloading, CONVOI_REVENUE);
+			else
+			{
+				v->last_stop_pos = halt->get_basis_pos3d();
+			}
+			// hat_gehalten can be called when the convoy hasn't moved... at all.
+			// We should avoid the unloading code when this happens (for speed).
+			if (old_last_stop_pos != front()->get_pos())
+			{
+				//Unload
+				sint64 revenue_from_unloading = 0;
+				uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload));
+				changed_loading_level += amount_unloaded;
+
+				// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
+				sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
+				if (amount_unloaded && revenue_cents_from_unloading == 0)
+				{
+					// if we unloaded something, provide some minimum revenue. But not if we unloaded nothing.
+					revenue_cents_from_unloading = 1;
+				}
+				// This call needs to be here, per-vehicle, in order to record different freight types properly.
+				owner->book_revenue(revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index());
+				// The finance code will add up the on-screen messages
+				// But add up the total for the port and station use charges
+				accumulated_revenue += revenue_cents_from_unloading;
+				book(revenue_cents_from_unloading, CONVOI_PROFIT);
+				book(revenue_cents_from_unloading, CONVOI_REVENUE);
+			}
 		}
 	}
 
@@ -6211,7 +6214,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		// TODO: Implement logic for dividing
 	}
 
-	if(no_load || state == LAYOVER)
+	if(no_load || state == LAYOVER || schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only))
 	{
 		for(int i = 0; i < vehicles_loading ; i++)
 		{
