@@ -335,3 +335,10 @@ scr_size gui_label_with_symbol_t::get_max_size() const
 	}
 	return align == left ? scr_size(max(get_min_size().w, size.w), get_min_size().h) : scr_size(scr_size::inf.w, get_min_size().h);
 }
+
+
+void gui_colored_label_t::draw(scr_coord offset)
+{
+	display_fillbox_wh_clip_rgb( pos.x+offset.x, pos.y+offset.y, size.w, size.h, background_color, false);
+	gui_label_buf_t::draw(offset);
+}

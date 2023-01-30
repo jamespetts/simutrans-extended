@@ -293,4 +293,16 @@ public:
 	scr_size get_max_size() const OVERRIDE;
 };
 
+class gui_colored_label_t : public gui_label_buf_t
+{
+	PIXVAL background_color;
+public:
+	gui_colored_label_t(PIXVAL color = SYSCOL_TEXT, align_t align = left, PIXVAL bgcolor = SYSCOL_TH_BACKGROUND_SELECTED) : gui_label_buf_t(color, align)
+	{
+		this->background_color = bgcolor;
+	}
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 #endif
