@@ -401,7 +401,9 @@ private:
 		{
 			recurrence = (1u << 0),
 			pick_up_only = (1u << 1),
-			set_down_only = (1u << 2)
+			set_down_only = (1u << 2),
+			layover = (1u << 3),
+			discharge_payload = (1u << 4)
 		};
 
 		bool is_flag_set(uint8& data, schedule_flags flag) const { return data & flag; }

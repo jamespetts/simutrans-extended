@@ -1025,6 +1025,14 @@ void path_explorer_t::compartment_t::step()
 						{
 							set_flag(flag, pick_up_only); 
 						}
+						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
+						{
+							set_flag(flag, layover);
+						}
+						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
+						{
+							set_flag(flag, discharge_payload);
+						}
 
 						// Assign to halt list only if current halt supports this compartment's goods category
 						halt_list.append(current_halt, 64);
@@ -1079,6 +1087,13 @@ void path_explorer_t::compartment_t::step()
 						// Fallback to convoy's general average speed if a point-to-point average is not available.
 						const uint32 distance = shortest_distance(halt_list[i]->get_basis_pos(), halt_list[(i+1)%entry_count]->get_basis_pos());
 						journey_time = world->travel_time_tenths_from_distance(distance, current_average_speed);
+					}
+
+					if (is_flag_set(flag_list[i], layover) || is_flag_set(flag_list[i], discharge_payload))
+					{
+						// If the previous stop is a layover, assume that we will always need to board the consist here even
+						// if we were already onboard. Thus, add the transfer time. Should we also add the waiting time?
+						journey_time += catg != goods_manager_t::passengers->get_catg_index() ? halt_list[i]->get_transshipment_time() : halt_list[i]->get_transfer_time();
 					}
 
 					// journey time from halt 0 to halt 1 is stored in journey_time_list[1]
