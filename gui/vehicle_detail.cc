@@ -545,6 +545,7 @@ void vehicle_detail_t::update_components()
 		show_upgrade_info = true;
 	}
 
+	int old_tab_index = tabs.get_active_tab_index(); // Keep the selected tab as much as possible even if the vehicle is switched
 	tabs.clear();
 	tabs.add_tab(&cont_spec, translator::translate("basic_spec"));
 	tabs.add_tab(&cont_maintenance, translator::translate("cd_maintenance_tab"));
@@ -555,7 +556,11 @@ void vehicle_detail_t::update_components()
 		// in the simutrans(standard) specification, the image with number 0 is used for the icon
 		tabs.add_tab(&scroll_upgrade, translator::translate("ug"), skinverwaltung_t::upgradable);
 	}
-	add_component(&tabs);
+	if (old_tab_index<tabs.get_count()) {
+		tabs.set_active_tab_index(old_tab_index);
+	}
+	reset_min_windowsize();
+	resize(scr_size(0,0));
 }
 
 
