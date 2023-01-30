@@ -124,7 +124,7 @@ void gui_label_t::draw(scr_coord offset)
 					display_text_proportional_len_clip_rgb(right.x, right.y, text, ALIGN_RIGHT | DT_CLIP, color, true, separator-text );
 				}
 				if (underlined) {
-					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(separator)+2, 1, color, true);
+					display_fillbox_wh_clip_rgb(right.x-1, right.y + LINEASCENT + 1, proportional_string_width(separator)+2, 1, color, true);
 				}
 			}
 			else {
@@ -134,7 +134,7 @@ void gui_label_t::draw(scr_coord offset)
 				}
 				display_proportional_clip_rgb(right.x, right.y, text, ALIGN_RIGHT, color, true);
 				if (underlined) {
-					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(text)+2, 1, color, true);
+					display_fillbox_wh_clip_rgb(right.x-1, right.y + LINEASCENT + 1, proportional_string_width(text)+2, 1, color, true);
 				}
 			}
 		}
