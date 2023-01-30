@@ -193,7 +193,10 @@ void path_explorer_t::rdwr(loadsave_t* file)
 			uint16 tmp_best_line_idx;
 			uint16 tmp_best_convoy_idx;
 			uint16 tmp_alternative_seats;
-			// TODO: Consider whether to add comfort
+			// TODO: Consider whether to add comfort.
+			// Probably the best thing to do with comfort is have it modify the journey, waiting and transfer times:
+			// these would then be weights instead of times and be a composite value if comfort influenced routing
+			// were enabled.
 
 			uint32 connexion_table_count = compartment_t::connexion_list[i].connexion_table->get_count();
 			file->rdwr_long(connexion_table_count);
@@ -959,7 +962,7 @@ void path_explorer_t::compartment_t::step()
 
 			minivec_tpl<halthandle_t> halt_list(64);
 			minivec_tpl<uint32> journey_time_list(64);
-			minivec_tpl<bool> recurrence_list(64);		// an array indicating whether certain halts have been processed already
+			minivec_tpl<uint8> flag_list(64); // an array indicating whether certain halts have been processed already as well as other flags
 
 			uint32 accumulated_journey_time;
 			haltestelle_t::connexions_map *catg_connexions;
@@ -1002,7 +1005,7 @@ void path_explorer_t::compartment_t::step()
 				bool reverse = false;
 				entry_count = current_schedule->is_mirrored() ? (current_schedule->get_count() * 2) - 2 : current_schedule->get_count();
 				halt_list.clear();
-				recurrence_list.clear();
+				flag_list.clear();
 
 				uint8 index = 0;
 
@@ -1013,10 +1016,20 @@ void path_explorer_t::compartment_t::step()
 					// Make sure that the halt found was built before refresh started and that it supports current goods category
 					if ( current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type) )
 					{
+						uint8 flag = 0;
+						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
+						{
+							set_flag(flag, set_down_only);
+						}
+						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
+						{
+							set_flag(flag, pick_up_only); 
+						}
+
 						// Assign to halt list only if current halt supports this compartment's goods category
 						halt_list.append(current_halt, 64);
-						// Initialise the corresponding recurrence list entry to false
-						recurrence_list.append(false, 64);
+						// Initialise the corresponding flag list entry without the recurrence flag set
+						flag_list.append(flag, 64);
 					}
 
 					current_schedule->increment_index(&index, &reverse);
@@ -1081,7 +1094,7 @@ void path_explorer_t::compartment_t::step()
 				// for each origin halt
 				for (uint8 h = 0; h < entry_count; ++h)
 				{
-					if ( recurrence_list[h] )
+					if (is_flag_set(flag_list[h], recurrence))
 					{
 						// skip this halt if it has already been processed
 						continue;
@@ -1095,18 +1108,18 @@ void path_explorer_t::compartment_t::step()
 					++connexion_list[ halt_list[h].get_id() ].serving_transport;
 
 					// for each target halt (origin halt is excluded)
-					for (uint8 i = 1,		t = (h + 1) % entry_count;
-						 i < entry_count;
-						 ++i,				t = (t + 1) % entry_count)
+					for (uint8 i = 1, t = (h + 1) % entry_count;
+						i < entry_count;
+						++i, t = (t + 1) % entry_count)
 					{
 
 						// Case : origin halt is encountered again
-						if ( halt_list[t] == halt_list[h] )
+						if (halt_list[t] == halt_list[h])
 						{
 							// reset and process the next
 							accumulated_journey_time = 0;
 							// mark this halt in the recurrence list to avoid duplicated processing
-							recurrence_list[t] = true;
+							set_flag(flag_list[t], recurrence);
 							continue;
 						}
 
@@ -1115,59 +1128,67 @@ void path_explorer_t::compartment_t::step()
 
 						// Check the journey times to the connexion
 						id_pair halt_pair(halt_list[h].get_id(), halt_list[t].get_id());
-						new_connexion = new haltestelle_t::connexion;
-						new_connexion->waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
-						new_connexion->transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
-						if(current_linkage.line.is_bound())
+						if (is_flag_set(flag_list[h], set_down_only) || is_flag_set(flag_list[t], pick_up_only))
 						{
-							average_tpl<uint32>* ave = current_linkage.line->get_average_journey_times().access(halt_pair);
-							if(ave && ave->count > 0)
-							{
-								new_connexion->journey_time = ave->reduce();
-							}
-							else
-							{
-								// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-								new_connexion->journey_time = accumulated_journey_time;
-							}
-						}
-						else if(current_linkage.convoy.is_bound())
-						{
-							average_tpl<uint32>* ave = current_linkage.convoy->get_average_journey_times().access(halt_pair);
-							if(ave && ave->count > 0)
-							{
-								new_connexion->journey_time = ave->reduce();
-							}
-							else
-							{
-								// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-								new_connexion->journey_time = accumulated_journey_time;
-							}
-						}
-						new_connexion->best_convoy = current_linkage.convoy;
-						new_connexion->best_line = current_linkage.line;
-						new_connexion->alternative_seats = 0;
-
-						// Check whether this is the best connexion so far, and, if so, add it.
-						if( !catg_connexions->put(halt_list[t], new_connexion) )
-						{
-							// The key exists in the hashtable already - check whether this entry is better.
-							haltestelle_t::connexion* existing_connexion = catg_connexions->get(halt_list[t]);
-							if( existing_connexion->journey_time > new_connexion->journey_time )
-							{
-								// The new connexion is better - replace it.
-								new_connexion->alternative_seats = existing_connexion->alternative_seats;
-								delete existing_connexion;
-								catg_connexions->set(halt_list[t], new_connexion);
-							}
-							else
-							{
-								delete new_connexion;
-							}
+							// Skip this connexion
+							dbg->message("void path_explorer_t::compartment_t::step()", "Skipping step owing to schedule settings");
 						}
 						else
 						{
-							halt_list[h]->prepare_goods_list(catg);
+							new_connexion = new haltestelle_t::connexion;
+							new_connexion->waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
+							new_connexion->transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
+							if (current_linkage.line.is_bound())
+							{
+								average_tpl<uint32>* ave = current_linkage.line->get_average_journey_times().access(halt_pair);
+								if (ave && ave->count > 0)
+								{
+									new_connexion->journey_time = ave->reduce();
+								}
+								else
+								{
+									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
+									new_connexion->journey_time = accumulated_journey_time;
+								}
+							}
+							else if (current_linkage.convoy.is_bound())
+							{
+								average_tpl<uint32>* ave = current_linkage.convoy->get_average_journey_times().access(halt_pair);
+								if (ave && ave->count > 0)
+								{
+									new_connexion->journey_time = ave->reduce();
+								}
+								else
+								{
+									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
+									new_connexion->journey_time = accumulated_journey_time;
+								}
+							}
+							new_connexion->best_convoy = current_linkage.convoy;
+							new_connexion->best_line = current_linkage.line;
+							new_connexion->alternative_seats = 0;
+
+							// Check whether this is the best connexion so far, and, if so, add it.
+							if (!catg_connexions->put(halt_list[t], new_connexion))
+							{
+								// The key exists in the hashtable already - check whether this entry is better.
+								haltestelle_t::connexion* existing_connexion = catg_connexions->get(halt_list[t]);
+								if (existing_connexion->journey_time > new_connexion->journey_time)
+								{
+									// The new connexion is better - replace it.
+									new_connexion->alternative_seats = existing_connexion->alternative_seats;
+									delete existing_connexion;
+									catg_connexions->set(halt_list[t], new_connexion);
+								}
+								else
+								{
+									delete new_connexion;
+								}
+							}
+							else
+							{
+								halt_list[h]->prepare_goods_list(catg);
+							}
 						}
 					}
 				}

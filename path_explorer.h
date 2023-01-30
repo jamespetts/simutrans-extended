@@ -397,6 +397,19 @@ private:
 		void enumerate_all_paths(const path_element_t *const *const matrix, const halthandle_t *const halt_list,
 								 const uint16 *const halt_map, const uint16 halt_count);
 
+		enum schedule_flags
+		{
+			recurrence = (1u << 0),
+			pick_up_only = (1u << 1),
+			set_down_only = (1u << 2)
+		};
+
+		bool is_flag_set(uint8& data, schedule_flags flag) const { return data & flag; }
+
+		void set_flag(uint8& data, schedule_flags flag) { data |= flag; }
+
+		void clear_flag(uint8& data, schedule_flags flag) { data &= ~flag; }
+
 	public:
 
 		compartment_t();
