@@ -234,7 +234,6 @@ void vehicle_detail_t::init_table()
 		destroy_win(this);
 	}
 	remove_all();
-	tabs.clear();
 	set_table_layout(1,0);
 	add_component(&lb_name);
 
@@ -274,11 +273,10 @@ void vehicle_detail_t::init_table()
 	// TODO: MUST_USE/MAY_USE here
 
 
+	tabs.add_listener(this);
+	add_component(&tabs);
 
 	update_components();
-
-	tabs.add_listener(this);
-	reset_min_windowsize();
 }
 
 
