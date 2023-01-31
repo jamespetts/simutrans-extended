@@ -778,7 +778,7 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 	}
 	const vehicle_description_element& vde = element.get_vehicle_description(priority);
 
-	if (vde.empty)
+	if (vde.empty && !vde.specific_vehicle)
 	{
 		// There are no requirements for this.
 		return true;

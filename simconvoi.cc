@@ -9335,7 +9335,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	}
 	else
 	{
-		slist_tpl<convoihandle_t>& available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
+		slist_tpl<convoihandle_t> &available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
 
 		for (auto cnv : available_convoys)
 		{
@@ -9354,7 +9354,10 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
 			for (auto v : depot_vehicles)
 			{
-				available_vehicles.append(v);
+				if (!v->get_is_mothballed())
+				{
+					available_vehicles.append(v);
+				}
 			}
 		}
 	}
@@ -9382,25 +9385,25 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
-				for (auto vehicle : available_vehicles)
+				if (get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
 				{
-					if (get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
-					{
-						// The existing vehicle in its existing position is a match - no change needed
-						final_consist.append(vehicle);
-						existing_vehicle_count++;
-						matched_this_element = true;
-						break;
-					}
+					// The existing vehicle in its existing position is a match - no change needed
+					final_consist.append(get_vehicle(i));
+					existing_vehicle_count++;
+					break;
+				}
+				if (element.get_vehicle_description(j).empty)
+				{
+					final_consist.append(nullptr);
+					break;
+				}
+				for (auto vehicle : available_vehicles)
+				{		
 					if (i > 0 && i - 1 == k && pass_over_vehicle == vehicle)
 					{
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
-					}
-					if (element.get_vehicle_description(j).empty)
-					{
-						final_consist.append(nullptr);
-					}
+					}				
 					else if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
 					{
 						// Check whether this can couple to the previous vehicle.
@@ -9427,7 +9430,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 	if (final_consist.get_count() == element_count)
 	{
-		if (existing_vehicle_count == element_count == vehicle_count)
+		if (existing_vehicle_count == element_count && element_count == vehicle_count)
 		{
 			success = no_change_needed;
 		}
