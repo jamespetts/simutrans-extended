@@ -9385,7 +9385,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
-				if (get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
+				if (get_vehicle(i) && get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
 				{
 					// The existing vehicle in its existing position is a match - no change needed
 					final_consist.append(get_vehicle(i));
