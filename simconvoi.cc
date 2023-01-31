@@ -9398,12 +9398,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 					break;
 				}
 				for (auto vehicle : available_vehicles)
-				{		
+				{
 					if (i > 0 && i - 1 == k && pass_over_vehicle == vehicle)
 					{
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
-					}				
+					}
 					else if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
 					{
 						// Check whether this can couple to the previous vehicle.
