@@ -4029,10 +4029,6 @@ void convoi_t::vorfahren()
 
 void convoi_t::reverse_order(bool rev)
 {
-	// Code snippet obtained and adapted from:
-	// http://www.cprogramming.com/snippets/show.php?tip=15&count=30&page=0
-	// by John Shao (public domain work)
-
 	working_method_t wm = drive_by_sight;
 	if(front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
 	{
@@ -4040,7 +4036,7 @@ void convoi_t::reverse_order(bool rev)
 		wm = w->get_working_method();
 	}
 
-	execute_reverse_order(vehicle, vehicle_count, rev);
+	execute_reverse_order(vehicle, vehicle_count, rev, false);
 
 	reversed = !reversed;
 	if (rev)
@@ -4053,8 +4049,12 @@ void convoi_t::reverse_order(bool rev)
 	welt->set_dirty();
 }
 
-void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev)
+template <typename vehicle_collection> void convoi_t::execute_reverse_order(vehicle_collection &vehicles, uint8 vehicle_count, bool rev, bool dry_run)
 {
+	// Code snippet obtained and adapted from:
+	// http://www.cprogramming.com/snippets/show.php?tip=15&count=30&page=0
+	// by John Shao (public domain work)
+
 	uint8 a = 0;
 	vehicle_t* reverse;
 	uint8 b = vehicle_count;
@@ -4063,12 +4063,14 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 	uint8 back_a = check_new_tail(vehicles, loco_b, vehicle_count);
 	uint8 back_b = vehicle_count;
 
-	vehicles[0]->set_leading(false);
-	vehicles[vehicle_count-1]->set_last(false);
+	if(!dry_run)
+	{
+		vehicles[0]->set_leading(false);
+		vehicles[vehicle_count - 1]->set_last(false);
+	}
 
 	if (!rev)
 	{
-		//back()->set_last(false);
 		switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
 			case change_direction:
 				break;
@@ -4110,8 +4112,11 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 			case wye:
 			default:
 				// Do not change the order at all if reverse the whole convoy. i.e. consider as using wye
-				vehicles[0]->set_leading(true);
-				vehicles[vehicle_count-1]->set_last(true);
+				if (!dry_run)
+				{
+					vehicles[0]->set_leading(true);
+					vehicles[vehicle_count - 1]->set_last(true);
+				}
 				return;
 				break;
 		}
@@ -4124,11 +4129,13 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 		vehicles[b] = reverse; //put what's in the swap (a) into b
 	}
 
-	vehicles[0]->set_leading(true);
-	vehicles[vehicle_count-1]->set_last(true);
+	if (!dry_run)
+	{
+		vehicles[0]->set_leading(true);
+		vehicles[vehicle_count - 1]->set_last(true);
 
-	int start = 0;
-	switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
+		int start = 0;
+		switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
 		case shunting_loco:
 		case rearrange:
 			if (check_need_turntable(vehicles, vehicle_count)) {
@@ -4139,14 +4146,14 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 		case wye:
 		default:
 			break;
-	}
+		}
 
-	// reverse the vehicle direction
-	for (int i = start; i < vehicle_count; i++) {
-		bool reversed = vehicles[i]->is_reversed();
-		vehicles[i]->set_reversed(!reversed);
+		// reverse the vehicle direction
+		for (int i = start; i < vehicle_count; i++) {
+			bool reversed = vehicles[i]->is_reversed();
+			vehicles[i]->set_reversed(!reversed);
+		}
 	}
-
 }
 
 void convoi_t::set_working_method(working_method_t value)
@@ -8981,7 +8988,7 @@ bool convoi_t::all_vehicles_are_buildable() const
 }
 
 // count the number of the front side powered chunk
-uint8 convoi_t::get_front_loco_count(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::get_front_loco_count(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	uint8 loco_count = 0;
 	bool this_group_has_power = false;
@@ -9006,9 +9013,7 @@ uint8 convoi_t::get_front_loco_count(array_tpl<vehicle_t*> const &vehicles, uint
 	return loco_count;
 }
 
-
-
-uint8 convoi_t::get_terminal_shunt_mode(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::get_terminal_shunt_mode(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	const uint8 last = vehicle_count-1;
 	if (!vehicles[last]->get_desc()->is_bidirectional()) {
@@ -9052,7 +9057,7 @@ uint8 convoi_t::get_terminal_shunt_mode(array_tpl<vehicle_t*> const &vehicles, u
 // Find the next "tail" vehicle other than the locomotive, and return that car's current position(number from front).
 // Pass the number of locomotives in the argument.
 // If it returns 0, it indicates that there is no existence. @Ranran
-uint8 convoi_t::check_new_tail(array_tpl<vehicle_t*> const &vehicles, uint8 start, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::check_new_tail(vehicle_collection const &vehicles, uint8 start, uint8 vehicle_count)
 {
 	for (uint32 i = start; i < vehicle_count; ++i)
 	{
@@ -9170,7 +9175,7 @@ uint8 convoi_t::check_couple_constraint_level(uint8 car_no, bool rear_side) cons
 
 // return powered vehicle count if the front side locomotives need a turntable. Also supports double heading.
 // 0 = turtable is not necessary
-uint8 convoi_t::check_need_turntable(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::check_need_turntable(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	if (get_terminal_shunt_mode(vehicles, vehicle_count) == wye || get_terminal_shunt_mode(vehicles, vehicle_count) == change_direction) { return 0; }
 
@@ -9365,6 +9370,25 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	const uint32 element_count = order.get_count();
 	uint32 existing_vehicle_count = 0;
 
+	// This consist may be reversed - so we have to create a shadow un-reversed version to compare 
+	// and then re-reverse the re-arranged consist at the end.
+	// 
+	// Assumption: the consist order GUI will always present the consist in a forward direction,
+	// both to the user and in its data structure. The principle is always that vehicle coupling
+	// validity checks are valid for the forward direction, and that there is a specific, limited
+	// reversing algorithm. 
+
+	vector_tpl<vehicle_t*> shadow_consist;
+	for(uint8 i = 0; i < vehicle_count; i ++)
+	{
+		shadow_consist.append(vehicle[i]);
+	}
+
+	if (reversed)
+	{
+		execute_reverse_order(shadow_consist, shadow_consist.get_count(), false, true);
+	}
+
 	for (uint32 k = 0; k < element_count && (k == 0 || k < element_count - 1u) && final_consist.get_count() < element_count; k++)
 	{
 		// Run this recursively in case combinations are available that do not work in the first run.
@@ -9372,6 +9396,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		existing_vehicle_count = 0;
 		if (k > 0)
 		{
+			if (final_consist.empty() || k >= final_consist.get_count())
+			{
+				// There is no point in trying again here.
+				break;
+			}
+
 			pass_over_vehicle = final_consist[k];
 			// Start again
 			final_consist.clear();
@@ -9385,26 +9415,25 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
-				if (get_vehicle(i) && get_vehicle(i)->get_desc()->matches_consist_order_element(element, j))
+				if (shadow_consist[i] && shadow_consist[i]->get_desc()->matches_consist_order_element(element, j))
 				{
 					// The existing vehicle in its existing position is a match - no change needed
-					final_consist.append(get_vehicle(i));
+					final_consist.append(shadow_consist[i]);
 					existing_vehicle_count++;
 					break;
 				}
 				if (element.get_vehicle_description(j).empty)
 				{
-					final_consist.append(nullptr);
 					break;
 				}
-				for (auto vehicle : available_vehicles)
+				for (auto veh : available_vehicles)
 				{
-					if (i > 0 && i - 1 == k && pass_over_vehicle == vehicle)
+					if (i > 0 && i - 1 == k && pass_over_vehicle == veh)
 					{
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
 					}
-					else if (vehicle->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(vehicle))
+					else if (veh->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(veh))
 					{
 						// Check whether this can couple to the previous vehicle.
 						const vehicle_desc_t* previous_vehicle = nullptr;
@@ -9413,11 +9442,11 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 							previous_vehicle = final_consist.back()->get_desc();
 						}
 
-						if (vehicle->get_desc()->can_lead(previous_vehicle))
+						if (veh->get_desc()->can_lead(previous_vehicle))
 						{
-							if (!previous_vehicle || previous_vehicle->can_follow(vehicle->get_desc()))
+							if (!previous_vehicle || previous_vehicle->can_follow(veh->get_desc()))
 							{
-								final_consist.append(vehicle);
+								final_consist.append(veh);
 								matched_this_element = true;
 								break;
 							}
@@ -9434,7 +9463,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		{
 			success = no_change_needed;
 		}
-		else
+		else if(!final_consist.empty())
 		{
 			// Check whether the new consist has power. If not, it should not be used.
 			// The player needs to be responsible for ensuring that all possible combinations provided for by the order are powered.
@@ -9457,12 +9486,18 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 	if (success == succeed)
 	{
-		commit_recombined_consist(final_consist, halt);
-	}
+		// Now re-reverse the consist if it had been un-reversed for matching
+		if (reversed)
+		{
+			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
+		}
 
-	if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
-	{
-		joining_convoy->set_state(SELF_DESTRUCT);
+		commit_recombined_consist(final_consist, halt);
+
+		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
+		{
+			joining_convoy->set_state(SELF_DESTRUCT);
+		}
 	}
 
 	return success;
@@ -9473,6 +9508,9 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
 	// at least one change from the current arrangement.
+
+	vehicle[0]->set_leading(false);
+	vehicle[vehicle_count - 1]->set_last(false);
 
 	vector_tpl<vehicle_t*> displaced_vehicles;
 	convoi_t* new_lead_cnv = vehicles[0]->get_convoi();
@@ -9568,6 +9606,9 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			}
 		}
 	}
+
+	vehicle[0]->set_leading(true);
+	vehicle[vehicle_count - 1]->set_last(true);
 
 	unreserve_route();
 	reserve_own_tiles();
