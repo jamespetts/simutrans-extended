@@ -833,7 +833,6 @@ bool vehicle_desc_t::matches_consist_order_element(const consist_order_element_t
 		return
 			vde.min_staff_hundredths <= total_staff_hundredths && vde.max_staff_hundredths >= total_staff_hundredths &&
 			vde.min_drivers <= total_drivers && vde.max_drivers >= total_drivers;
-
 	}
 
 	return false;

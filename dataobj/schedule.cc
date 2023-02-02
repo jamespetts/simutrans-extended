@@ -475,6 +475,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				consist_order_t order;
 				order.rdwr(file);
 				orders.put(schedule_id, order);
+				parse_orders();
 			}
 		}
 	}
@@ -931,6 +932,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 		}
 	}
 
+	parse_orders();
 	return true;
 }
 
@@ -1200,4 +1202,116 @@ uint16 schedule_t::get_next_free_unique_id() const
 	}
 
 	return next_free_unique_id;
+}
+
+bool schedule_t::has_consist_orders() const
+{
+	return !orders.empty();
+}
+
+uint8 schedule_t::get_entry_from_unique_id(uint16 unique_id) const
+{
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (entries[i].unique_entry_id == unique_id)
+		{
+			return i;
+		}
+	}
+
+	return 255;
+}
+
+void schedule_t::parse_orders()
+{
+	catg_carried_to.clear();
+	catg_carried_from.clear();
+
+	if (orders.empty())
+	{
+		return;
+	}
+
+	for (auto order : orders)
+	{
+		const uint8 unique_id = order.key;
+		vector_tpl<uint8> category_vector;
+		for (uint32 i = 0; i < order.value.get_count(); i++)
+		{
+			const uint8 catg_index = order.value.get_order(i).get_catg_index();
+			category_vector.append(catg_index);
+		}
+		catg_carried_from.put(unique_id, category_vector);
+	}
+
+	if (catg_carried_from.empty())
+	{
+		// There is no point in processing the rest of this
+		return;
+	}
+
+	vector_tpl<uint8> categories;
+	vector_tpl<uint8> missing_categories;
+	uint8 first_order = 255;
+
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (orders.is_contained(entries[i].unique_entry_id))
+		{
+			if (first_order == 255)
+			{
+				first_order = i;
+			}
+			if (!categories.empty())
+			{
+				// Find categories carried in the previous entry not carried in this entry.
+				for (auto c : categories)
+				{
+					if (!catg_carried_from.get(entries[i].unique_entry_id).is_contained(c))
+					{
+						missing_categories.append(c);
+					}
+				}
+				catg_carried_to.put(entries[i].unique_entry_id, missing_categories);
+			}
+
+			categories = catg_carried_from.get(entries[i].unique_entry_id);
+			missing_categories.clear();
+		}
+	}
+
+	// And now go back to the beginning of the schedule
+	if (orders.is_contained(entries[first_order].unique_entry_id))
+	{
+		if (!categories.empty())
+		{
+			// Find categories carried in the previous entry not carried in this entry.
+			for (auto c : categories)
+			{
+				if (!catg_carried_from.get(entries[first_order].unique_entry_id).is_contained(c))
+				{
+					missing_categories.append(c);
+				}
+			}
+			if (!missing_categories.empty())
+			{
+				catg_carried_to.put(entries[first_order].unique_entry_id, missing_categories);
+			}
+		}
+	}
+}
+
+bool schedule_t::carries_catg(uint8 catg) const
+{
+	for (auto c_collection : catg_carried_from)
+	{
+		for (auto c : c_collection.value)
+		{
+			if (c == catg)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }

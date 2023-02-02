@@ -968,7 +968,7 @@ void path_explorer_t::compartment_t::step()
 			haltestelle_t::connexions_map *catg_connexions;
 			haltestelle_t::connexion *new_connexion;
 
-			start = dr_time();	// start timing. Note that this was originally dr_time()
+			start = dr_time();	// start timing
 
 			// for each schedule of line / lineless convoy
 			while (phase_counter < linkages->get_count())

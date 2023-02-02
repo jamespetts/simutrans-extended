@@ -6218,6 +6218,8 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
 		}
 
+		// TODO: Consider what happens if we fail. Error message? Wait? Continue?
+
 		// TODO: Implement logic for dividing
 	}
 
