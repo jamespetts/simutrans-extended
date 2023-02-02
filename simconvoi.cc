@@ -9372,13 +9372,13 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	const uint32 element_count = order.get_count();
 	uint32 existing_vehicle_count = 0;
 
-	// This consist may be reversed - so we have to create a shadow un-reversed version to compare 
+	// This consist may be reversed - so we have to create a shadow un-reversed version to compare
 	// and then re-reverse the re-arranged consist at the end.
-	// 
+	//
 	// Assumption: the consist order GUI will always present the consist in a forward direction,
 	// both to the user and in its data structure. The principle is always that vehicle coupling
 	// validity checks are valid for the forward direction, and that there is a specific, limited
-	// reversing algorithm. 
+	// reversing algorithm.
 
 	vector_tpl<vehicle_t*> shadow_consist;
 	for(uint8 i = 0; i < vehicle_count; i ++)
