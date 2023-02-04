@@ -284,6 +284,12 @@ public:
 	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_to;
 	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_from;
 
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_to;
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_from;
+
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_to;
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_from;
+
 	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_to() const { return catg_carried_to; }
 	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_from() const { return catg_carried_from; }
 
@@ -340,6 +346,9 @@ public:
 
 	// True if any consist order provides for this category of goods to be carried anywhere along this schedule's route
 	bool carries_catg(uint8 catg) const;
+
+	// Returns the lowest class carried for this category (mail/passengers) provided by any consist order along this schedule's route.
+	uint8 min_class_carried(uint8 catg) const;
 
 private:
 	bool bidirectional;

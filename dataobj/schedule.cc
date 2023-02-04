@@ -1236,12 +1236,25 @@ void schedule_t::parse_orders()
 	{
 		const uint8 unique_id = order.key;
 		vector_tpl<uint8> category_vector;
+		uint8 min_class_passenger = goods_manager_t::passengers->get_number_of_classes();
+		uint8 min_class_mail = goods_manager_t::mail->get_number_of_classes();
 		for (uint32 i = 0; i < order.value.get_count(); i++)
 		{
 			const uint8 catg_index = order.value.get_order(i).get_catg_index();
 			category_vector.append(catg_index);
+
+			if (goods_manager_t::passengers->get_catg_index() == catg_index)
+			{
+				min_class_passenger = min(min_class_passenger, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
+			else if (goods_manager_t::mail->get_catg_index() == catg_index)
+			{
+				min_class_mail = min(min_class_mail, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
 		}
 		catg_carried_from.put(unique_id, category_vector);
+		passenger_min_class_carried_from.put(unique_id, min_class_passenger);
+		mail_min_class_carried_from.put(unique_id, min_class_mail);
 	}
 
 	if (catg_carried_from.empty())
@@ -1250,8 +1263,14 @@ void schedule_t::parse_orders()
 		return;
 	}
 
+	uint8 min_passenger_class = 0;
+	uint8 min_mail_class = 0;
 	vector_tpl<uint8> categories;
+
 	vector_tpl<uint8> missing_categories;
+	uint8 new_min_passenger_class = min_passenger_class;
+	uint8 new_min_mail_class = min_mail_class;
+
 	uint8 first_order = 255;
 
 	for (uint8 i = 0; i < entries.get_count(); i++)
@@ -1277,6 +1296,27 @@ void schedule_t::parse_orders()
 
 			categories = catg_carried_from.get(entries[i].unique_entry_id);
 			missing_categories.clear();
+
+			if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+			{
+				new_min_passenger_class = passenger_min_class_carried_from.get(entries[i].unique_entry_id);
+
+				if (min_passenger_class < new_min_passenger_class)
+				{
+					passenger_min_class_carried_to.put(entries[i].unique_entry_id, min_passenger_class);
+				}
+				min_passenger_class = new_min_passenger_class;
+			}
+
+			if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+			{
+				new_min_mail_class = mail_min_class_carried_from.get(entries[i].unique_entry_id);
+				if (min_mail_class < new_min_mail_class)
+				{
+					mail_min_class_carried_to.put(entries[i].unique_entry_id, min_mail_class);
+				}
+				min_mail_class = new_min_mail_class;
+			}
 		}
 	}
 
@@ -1298,6 +1338,25 @@ void schedule_t::parse_orders()
 				catg_carried_to.put(entries[first_order].unique_entry_id, missing_categories);
 			}
 		}
+
+		if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+		{
+			new_min_passenger_class = passenger_min_class_carried_from.get(entries[first_order].unique_entry_id);
+
+			if (min_passenger_class < new_min_passenger_class)
+			{
+				passenger_min_class_carried_to.put(entries[first_order].unique_entry_id, min_passenger_class);
+			}
+		}
+
+		if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+		{
+			new_min_mail_class = mail_min_class_carried_from.get(entries[first_order].unique_entry_id);
+			if (min_mail_class < new_min_mail_class)
+			{
+				mail_min_class_carried_to.put(entries[first_order].unique_entry_id, min_mail_class);
+			}
+		}
 	}
 }
 
@@ -1314,4 +1373,38 @@ bool schedule_t::carries_catg(uint8 catg) const
 		}
 	}
 	return false;
+}
+
+uint8 schedule_t::min_class_carried(uint8 catg) const
+{
+	if (catg == goods_manager_t::passengers->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::passengers->get_number_of_classes();
+
+		for (auto cl: passenger_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else if (catg == goods_manager_t::mail->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::mail->get_number_of_classes();
+
+		for (auto cl : mail_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else
+	{
+		return 0;
+	}
 }
