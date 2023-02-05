@@ -8732,7 +8732,7 @@ bool convoi_t::carries_this_category(uint8 catg_index) const
 {
 	if (schedule->has_consist_orders())
 	{
-		return schedule->carries_catg(catg_index); 
+		return schedule->carries_catg(catg_index);
 	}
 	else
 	{
