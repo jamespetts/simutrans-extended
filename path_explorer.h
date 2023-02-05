@@ -403,7 +403,9 @@ private:
 			pick_up_only = (1u << 1),
 			set_down_only = (1u << 2),
 			layover = (1u << 3),
-			discharge_payload = (1u << 4)
+			discharge_payload = (1u << 4),
+			does_not_carry_from = (1u << 5),
+			does_not_carry_to = (1u << 6)
 		};
 
 		bool is_flag_set(uint8& data, schedule_flags flag) const { return data & flag; }

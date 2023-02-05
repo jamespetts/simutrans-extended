@@ -284,16 +284,23 @@ public:
 	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_to;
 	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_from;
 
+	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_to() const { return catg_carried_to; }
+	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_from() const { return catg_carried_from; }
+
 	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_to;
 	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_from;
+
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_passenger_min_class_carried_to() const { return passenger_min_class_carried_to; }
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_passenger_min_class_carried_from() const { return passenger_min_class_carried_from; }
 
 	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_to;
 	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_from;
 
-	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_to() const { return catg_carried_to; }
-	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_from() const { return catg_carried_from; }
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_mail_min_class_carried_to() const { return mail_min_class_carried_to; }
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_mail_min_class_carried_from() const { return mail_min_class_carried_from; }
 
 	uint8 get_entry_from_unique_id(uint16 unique_id) const;
+	uint16 get_unique_id_from_entry(uint8 entry) const;
 
 	image_id get_schedule_type_symbol() const
 	{

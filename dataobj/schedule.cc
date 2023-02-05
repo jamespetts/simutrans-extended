@@ -1222,6 +1222,11 @@ uint8 schedule_t::get_entry_from_unique_id(uint16 unique_id) const
 	return 255;
 }
 
+uint16 schedule_t::get_unique_id_from_entry(uint8 entry) const
+{
+	return entries[entry].unique_entry_id;
+}
+
 void schedule_t::parse_orders()
 {
 	catg_carried_to.clear();
