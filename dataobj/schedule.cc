@@ -1360,13 +1360,13 @@ void schedule_t::parse_orders()
 	}
 }
 
-bool schedule_t::carries_catg(uint8 catg) const
+bool schedule_t::carries_catg(uint8 catg_index) const
 {
 	for (auto c_collection : catg_carried_from)
 	{
 		for (auto c : c_collection.value)
 		{
-			if (c == catg)
+			if (c == catg_index)
 			{
 				return true;
 			}
@@ -1375,9 +1375,9 @@ bool schedule_t::carries_catg(uint8 catg) const
 	return false;
 }
 
-uint8 schedule_t::min_class_carried(uint8 catg) const
+uint8 schedule_t::min_class_carried(uint8 catg_index) const
 {
-	if (catg == goods_manager_t::passengers->get_catg_index())
+	if (catg_index == goods_manager_t::passengers->get_catg_index())
 	{
 		uint8 min_class = goods_manager_t::passengers->get_number_of_classes();
 
@@ -1390,7 +1390,7 @@ uint8 schedule_t::min_class_carried(uint8 catg) const
 		}
 		return min_class;
 	}
-	else if (catg == goods_manager_t::mail->get_catg_index())
+	else if (catg_index == goods_manager_t::mail->get_catg_index())
 	{
 		uint8 min_class = goods_manager_t::mail->get_number_of_classes();
 

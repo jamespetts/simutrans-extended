@@ -345,10 +345,10 @@ public:
 	void parse_orders();
 
 	// True if any consist order provides for this category of goods to be carried anywhere along this schedule's route
-	bool carries_catg(uint8 catg) const;
+	bool carries_catg(uint8 catg_index) const;
 
 	// Returns the lowest class carried for this category (mail/passengers) provided by any consist order along this schedule's route.
-	uint8 min_class_carried(uint8 catg) const;
+	uint8 min_class_carried(uint8 catg_index) const;
 
 private:
 	bool bidirectional;

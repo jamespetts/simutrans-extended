@@ -1601,6 +1601,8 @@ public:
 
 	bool is_maintenance_needed() const;
 	bool is_maintenance_urgently_needed() const;
+
+	// Returns true if any vehicle in this consist requires an overhaul.
 	bool is_overhaul_needed() const;
 
 	void check_departure(halthandle_t halt = halthandle_t());

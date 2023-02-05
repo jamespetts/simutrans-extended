@@ -8677,24 +8677,34 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 		return true;
 	}
 
-	// Passengers may board vehicles of a lower, but not a higher, class
-	if (catg == goods_manager_t::INDEX_PAS)
+	// If there are consist orders, read the data for this from the consist orders,
+	// not this individual consist.
+
+	if (schedule->has_consist_orders())
 	{
-		for (auto i : passenger_classes_carried)
+		return schedule->min_class_carried(catg) <= g_class;
+	}
+	else // If there are no consist orders, use the actual current consist
+	{
+		// Passengers may board vehicles of a lower, but not a higher, class
+		if (catg == goods_manager_t::INDEX_PAS)
 		{
-			if (i <= g_class)
+			for (auto i : passenger_classes_carried)
 			{
-				return true;
+				if (i <= g_class)
+				{
+					return true;
+				}
 			}
 		}
-	}
-	else
-	{
-		for(auto i : mail_classes_carried)
+		else
 		{
-			if (i <= g_class)
+			for (auto i : mail_classes_carried)
 			{
-				return true;
+				if (i <= g_class)
+				{
+					return true;
+				}
 			}
 		}
 	}
