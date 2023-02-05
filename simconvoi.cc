@@ -328,6 +328,16 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 		delete schedule;
 	}
 
+	if (state == LAYOVER)
+	{
+		// We must remove ourselves from any halt at which we are registered.
+		halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
+		if (halt.is_bound())
+		{
+			halt->remove_laid_over(self);
+		}
+	}
+
 	clear_replace();
 
 	// deregister from line (again)
@@ -9356,12 +9366,15 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 		for (auto cnv : available_convoys)
 		{
-			const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
-			for (uint8 i = 0; i < cnv_vehicle_count; i++)
+			if (cnv.is_bound())
 			{
-				if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed())
+				const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
+				for (uint8 i = 0; i < cnv_vehicle_count; i++)
 				{
-					available_vehicles.append(cnv->get_vehicle(i));
+					if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed())
+					{
+						available_vehicles.append(cnv->get_vehicle(i));
+					}
 				}
 			}
 		}
