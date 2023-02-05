@@ -1229,6 +1229,9 @@ public:
 	*/
 	void laden();
 
+	// Unloads the payload from a single vehicle in this consist
+	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over);
+
 	// Book fuel consumption of individual vehicles
 	void book_fuel_consumption();
 

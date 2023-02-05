@@ -6156,13 +6156,6 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 	// First, unload vehicles.
 
-	sint64 accumulated_revenue = 0;
-
-	// This holds the revenues as apportioned to different players by track
-	// Initialize it to the correct size and blank out all entries
-	// It will be added to by the load_cargo method for each vehicle
-	array_tpl<sint64> apportioned_revenues (MAX_PLAYER_COUNT, 0);
-
 	const bool will_layover = first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over();
 
 	if (!schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only))
@@ -6185,25 +6178,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			// We should avoid the unloading code when this happens (for speed).
 			if (old_last_stop_pos != front()->get_pos())
 			{
-				//Unload
-				sint64 revenue_from_unloading = 0;
-				uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload));
-				changed_loading_level += amount_unloaded;
-
-				// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
-				sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
-				if (amount_unloaded && revenue_cents_from_unloading == 0)
-				{
-					// if we unloaded something, provide some minimum revenue. But not if we unloaded nothing.
-					revenue_cents_from_unloading = 1;
-				}
-				// This call needs to be here, per-vehicle, in order to record different freight types properly.
-				owner->book_revenue(revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index());
-				// The finance code will add up the on-screen messages
-				// But add up the total for the port and station use charges
-				accumulated_revenue += revenue_cents_from_unloading;
-				book(revenue_cents_from_unloading, CONVOI_PROFIT);
-				book(revenue_cents_from_unloading, CONVOI_REVENUE);
+				changed_loading_level += unload_individual_vehicle_at(i, halt, will_layover);
 			}
 		}
 	}
@@ -6318,67 +6293,6 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		current_loading_time = calc_current_loading_time(changed_loading_level);
 	}
 
-	if(accumulated_revenue)
-	{
-		jahresgewinn += accumulated_revenue;
-
-		// Check the apportionment of revenue.
-		// The proportion paid to other players is
-		// not deducted from revenue, but rather
-		// added as a "WAY_TOLL" cost.
-
-		for(int i = 0; i < MAX_PLAYER_COUNT; i ++)
-		{
-			if(i == owner->get_player_nr())
-			{
-				continue;
-			}
-			player_t* player = welt->get_player(i);
-			// Only pay tolls to players who actually exist
-			if(player && apportioned_revenues[i])
-			{
-				// This is the screwy factor of 3000 -- fix this sometime
-				sint64 modified_apportioned_revenue = (apportioned_revenues[i] + 1500ll) / 3000ll;
-				modified_apportioned_revenue *= welt->get_settings().get_way_toll_revenue_percentage();
-				modified_apportioned_revenue /= 100;
-				if(welt->get_active_player() == player)
-				{
-					player->add_money_message(modified_apportioned_revenue, front()->get_pos().get_2d());
-				}
-				player->book_toll_received(modified_apportioned_revenue, get_schedule()->get_waytype() );
-				owner->book_toll_paid(-modified_apportioned_revenue, get_schedule()->get_waytype() );
-				book(-modified_apportioned_revenue, CONVOI_PROFIT);
-				book(-modified_apportioned_revenue, CONVOI_WAYTOLL);
-			}
-		}
-
-		//  Apportion revenue for air/sea ports
-		if(halt.is_bound() && halt->get_owner() != owner)
-		{
-			sint64 port_charge = 0;
-			if(gr->is_water())
-			{
-				// This must be a sea port.
-				port_charge = (accumulated_revenue * welt->get_settings().get_seaport_toll_revenue_percentage()) / 100;
-			}
-			else if(front()->get_desc()->get_waytype() == air_wt)
-			{
-				// This is an aircraft - this must be an airport.
-				port_charge = (accumulated_revenue * welt->get_settings().get_airport_toll_revenue_percentage()) / 100;
-			}
-			if (port_charge != 0) {
-				if(welt->get_active_player() == halt->get_owner())
-				{
-					halt->get_owner()->add_money_message(port_charge, front()->get_pos().get_2d());
-				}
-				halt->get_owner()->book_toll_received(port_charge, get_schedule()->get_waytype() );
-				owner->book_toll_paid(-port_charge, get_schedule()->get_waytype() );
-				book(-port_charge, CONVOI_PROFIT);
-				book(-port_charge, CONVOI_WAYTOLL);
-			}
-		}
-	}
-
 	if(state == REVERSING)
 	{
 		return;
@@ -6389,6 +6303,98 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		// This is done in the layover state after the minimum layover time has expired.
 		check_departure(halt);
 	}
+}
+
+uint16 convoi_t::unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_layover)
+{
+	sint64 accumulated_revenue = 0;
+	vehicle_t* v = vehicle[index];
+
+	// This holds the revenues as apportioned to different players by track
+	// Initialize it to the correct size and blank out all entries
+	// It will be added to by the load_cargo method for each vehicle
+	array_tpl<sint64> apportioned_revenues(MAX_PLAYER_COUNT, 0);
+
+	sint64 revenue_from_unloading = 0;
+	uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload));
+
+	// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
+	sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
+	if (amount_unloaded && revenue_cents_from_unloading == 0)
+	{
+		// if we unloaded something, provide some minimum revenue. But not if we unloaded nothing.
+		revenue_cents_from_unloading = 1;
+	}
+	// This call needs to be here, per-vehicle, in order to record different freight types properly.
+	owner->book_revenue(revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index());
+	// The finance code will add up the on-screen messages
+	// But add up the total for the port and station use charges
+	accumulated_revenue += revenue_cents_from_unloading;
+	book(revenue_cents_from_unloading, CONVOI_PROFIT);
+	book(revenue_cents_from_unloading, CONVOI_REVENUE);
+
+	if (accumulated_revenue)
+	{
+		jahresgewinn += accumulated_revenue;
+
+		// Check the apportionment of revenue.
+		// The proportion paid to other players is
+		// not deducted from revenue, but rather
+		// added as a "WAY_TOLL" cost.
+
+		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+		{
+			if (i == owner->get_player_nr())
+			{
+				continue;
+			}
+			player_t* player = welt->get_player(i);
+			// Only pay tolls to players who actually exist
+			if (player && apportioned_revenues[i])
+			{
+				// This is the screwy factor of 3000 -- fix this sometime
+				sint64 modified_apportioned_revenue = (apportioned_revenues[i] + 1500ll) / 3000ll;
+				modified_apportioned_revenue *= welt->get_settings().get_way_toll_revenue_percentage();
+				modified_apportioned_revenue /= 100;
+				if (welt->get_active_player() == player)
+				{
+					player->add_money_message(modified_apportioned_revenue, front()->get_pos().get_2d());
+				}
+				player->book_toll_received(modified_apportioned_revenue, get_schedule()->get_waytype());
+				owner->book_toll_paid(-modified_apportioned_revenue, get_schedule()->get_waytype());
+				book(-modified_apportioned_revenue, CONVOI_PROFIT);
+				book(-modified_apportioned_revenue, CONVOI_WAYTOLL);
+			}
+		}
+
+		//  Apportion revenue for air/sea ports
+		if (halt.is_bound() && halt->get_owner() != owner)
+		{
+			sint64 port_charge = 0;
+			if (welt->lookup(front()->get_pos())->is_water())
+			{
+				// This must be a sea port.
+				port_charge = (accumulated_revenue * welt->get_settings().get_seaport_toll_revenue_percentage()) / 100;
+			}
+			else if (front()->get_desc()->get_waytype() == air_wt)
+			{
+				// This is an aircraft - this must be an airport.
+				port_charge = (accumulated_revenue * welt->get_settings().get_airport_toll_revenue_percentage()) / 100;
+			}
+			if (port_charge != 0) {
+				if (welt->get_active_player() == halt->get_owner())
+				{
+					halt->get_owner()->add_money_message(port_charge, front()->get_pos().get_2d());
+				}
+				halt->get_owner()->book_toll_received(port_charge, get_schedule()->get_waytype());
+				owner->book_toll_paid(-port_charge, get_schedule()->get_waytype());
+				book(-port_charge, CONVOI_PROFIT);
+				book(-port_charge, CONVOI_WAYTOLL);
+			}
+		}
+	}
+
+	return amount_unloaded;
 }
 
 
@@ -9582,6 +9588,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 				remove_index = i;
 				index_offset++;
 			}
+			unload_individual_vehicle_at(i, halt, true); 
 			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
 			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
