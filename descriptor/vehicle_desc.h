@@ -975,8 +975,6 @@ public:
 	bool get_mixed_load_prohibition() const { return mixed_load_prohibition; }
 	bool get_override_way_speed() const { return override_way_speed; }
 
-	bool matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const;
-
 	void set_scale(uint16 scale_factor, uint32 way_wear_factor_rail, uint32 way_wear_factor_road, uint16 standard_axle_load)
 	{
 		obj_desc_transport_related_t::set_scale(scale_factor);

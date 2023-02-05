@@ -9417,7 +9417,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
-				if (shadow_consist[i] && shadow_consist[i]->get_desc()->matches_consist_order_element(element, j))
+				if (shadow_consist[i] && shadow_consist[i]->matches_consist_order_element(element, j))
 				{
 					// The existing vehicle in its existing position is a match - no change needed
 					final_consist.append(shadow_consist[i]);
@@ -9435,7 +9435,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
 					}
-					else if (veh->get_desc()->matches_consist_order_element(element, j) && !final_consist.is_contained(veh))
+					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh))
 					{
 						// Check whether this can couple to the previous vehicle.
 						const vehicle_desc_t* previous_vehicle = nullptr;

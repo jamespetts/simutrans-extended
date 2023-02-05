@@ -532,6 +532,11 @@ public:
 
 	inline koord3d get_last_stop_pos() const { return last_stop_pos;  }
 
+	// True if this vehicle matches a consist order element. This mostly just calls the
+	// equivalent method in the vehicle_desc object, but we need to check the actual
+	// classes of this vehicle as they may have been reassigned.
+	bool matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const;
+
 #ifdef INLINE_OBJ_TYPE
 protected:
 	vehicle_t(typ type);
@@ -589,6 +594,10 @@ public:
 	uint8 get_reassigned_class(uint8 a_class) const;
 
 	uint8 get_number_of_fare_classes() const;
+
+	// Returns the minimum class carried by this vehicle,
+	// taking into account reassigned classes.
+	uint8 get_min_class() const;
 
 	/**
 	* Calculate transported cargo total weight in KG

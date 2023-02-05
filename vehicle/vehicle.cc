@@ -2353,7 +2353,6 @@ uint8 vehicle_t::get_number_of_fare_classes() const
 	return fare_classes;
 }
 
-
 uint16 vehicle_t::get_overcrowded_capacity(uint8 g_class) const
 {
 	if (g_class >= number_of_classes)
@@ -2405,6 +2404,28 @@ uint16 vehicle_t::get_fare_capacity(uint8 fare_class, bool include_lower_classes
 	}
 
 	return cap;
+}
+
+uint8 vehicle_t::get_min_class() const
+{
+	if (get_cargo_type() == goods_manager_t::passengers || get_cargo_type() == goods_manager_t::mail)
+	{
+		uint8 min_class = get_cargo_type() == goods_manager_t::passengers ? goods_manager_t::passengers->get_number_of_classes() : goods_manager_t::mail->get_number_of_classes();
+
+		for (uint8 i = 0; i < desc->get_number_of_classes(); i++)
+		{
+			if (class_reassignments[i] < min_class)
+			{
+				min_class = class_reassignments[i];
+			}
+		}
+
+		return min_class;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
@@ -3772,4 +3793,59 @@ void vehicle_t::un_mothball()
 
 	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype());
 	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
+}
+
+bool vehicle_t::matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const
+{
+	if (priority >= element.get_count())
+	{
+		return false;
+	}
+	const vehicle_description_element& vde = element.get_vehicle_description(priority);
+
+	if (vde.empty && !vde.specific_vehicle)
+	{
+		// There are no requirements for this.
+		return true;
+	}
+
+	if (vde.specific_vehicle == desc)
+	{
+		return true;
+	}
+
+	if (element.get_catg_index() != desc->get_freight_type()->get_catg_index())
+	{
+		return false;
+	}
+
+	// Check the rules
+	if (vde.engine_type == desc->get_engine_type() &&
+		vde.min_catering <= desc->get_catering_level() && vde.max_catering >= desc->get_catering_level() &&
+
+		vde.must_carry_class <= get_min_class() &&
+
+		vde.min_brake_force <= desc->get_brake_force() && vde.max_brake_force >= desc->get_brake_force() &&
+		vde.min_range <= desc->get_range() && vde.max_range >= desc->get_range() &&
+		vde.min_power <= desc->get_power() && vde.max_power >= desc->get_power() &&
+		vde.min_tractive_effort <= desc->get_tractive_effort() && vde.max_tractive_effort >= desc->get_tractive_effort() &&
+		vde.min_topspeed <= desc->get_topspeed() && vde.max_topspeed >= desc->get_topspeed() &&
+
+		vde.min_weight <= desc->get_weight() && vde.max_weight >= desc->get_weight() &&
+		vde.max_axle_load <= desc->get_axle_load() && vde.max_axle_load &&
+
+		vde.min_capacity <= desc->get_total_capacity() && vde.max_capacity >= desc->get_total_capacity() &&
+
+		vde.min_running_cost <= desc->get_running_cost() && vde.max_running_cost >= desc->get_running_cost() &&
+		vde.min_fixed_cost <= desc->get_fixed_cost() && vde.max_fixed_cost >= desc->get_fixed_cost() &&
+
+		vde.min_fuel_per_km <= desc->get_fuel_per_km() && vde.max_fuel_per_km >= desc->get_fuel_per_km() &&
+
+		vde.min_staff_hundredths <= desc->get_total_staff_hundredths() && vde.max_staff_hundredths >= desc->get_total_staff_hundredths() &&
+		vde.min_drivers <= desc->get_total_drivers() && vde.max_drivers >= desc->get_total_drivers())
+	{
+		return true;
+	}
+
+	return false;
 }
