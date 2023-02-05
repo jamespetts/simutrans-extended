@@ -9588,7 +9588,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 				remove_index = i;
 				index_offset++;
 			}
-			unload_individual_vehicle_at(i, halt, true); 
+			unload_individual_vehicle_at(i, halt, true);
 			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
 			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
