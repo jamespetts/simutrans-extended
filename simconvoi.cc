@@ -3249,7 +3249,7 @@ void convoi_t::update_default_name(vehicle_t* previous_lead_vehicle)
 	char buf[256];
 	name_offset = sprintf(buf, "(%i) ", self.get_id());
 	tstrncpy(buf + name_offset, translator::translate(previous_lead_vehicle->get_desc()->get_name()), 116);
-	if (!strcmp(get_name(), buf))
+	if (!strcmp(get_name(), buf) && front())
 	{
 		set_name(front()->get_desc()->get_name());
 	}
