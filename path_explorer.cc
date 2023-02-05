@@ -888,7 +888,7 @@ void path_explorer_t::compartment_t::step()
 			{
 				current_convoy = *i;
 				// only consider lineless convoys which support this compartment's goods catetory which are not in the depot
-				if (!current_convoy->in_depot() && !current_convoy->get_line().is_bound() && (catg >= 2 || current_convoy->carries_this_or_lower_class(catg, g_class)) && current_convoy->get_goods_catg_index().is_contained(catg) )
+				if (!current_convoy->in_depot() && !current_convoy->get_line().is_bound() && (catg >= 2 || current_convoy->carries_this_or_lower_class(catg, g_class)) && current_convoy->carries_this_category(catg) )
 				{
 					temp_linkage.convoy = current_convoy;
 					linkages->append(temp_linkage);
@@ -913,7 +913,7 @@ void path_explorer_t::compartment_t::step()
 				{
 					current_line = *j;
 					// only consider lines which support this compartment's goods category and, where applicable, class
-					if ( current_line->get_goods_catg_index().is_contained(catg) && (catg >= 2 || current_line->carries_this_or_lower_class(catg, g_class)) && current_line->count_convoys() > 0)
+					if ( current_line->carries_this_category(catg) && (catg >= 2 || current_line->carries_this_or_lower_class(catg, g_class)) && current_line->count_convoys() > 0)
 					{
 						temp_linkage.line = current_line;
 						linkages->append(temp_linkage);
@@ -962,7 +962,7 @@ void path_explorer_t::compartment_t::step()
 
 			minivec_tpl<halthandle_t> halt_list(64);
 			minivec_tpl<uint32> journey_time_list(64);
-			minivec_tpl<uint8> flag_list(64); // an array indicating whether certain halts have been processed already as well as other flags
+			minivec_tpl<uint8> flag_list(64); // A vector indicating whether certain halts have been processed already as well as other flags
 
 			uint32 accumulated_journey_time;
 			haltestelle_t::connexions_map *catg_connexions;
@@ -1036,6 +1036,7 @@ void path_explorer_t::compartment_t::step()
 
 						// Assign to halt list only if current halt supports this compartment's goods category
 						halt_list.append(current_halt, 64);
+
 						// Initialise the corresponding flag list entry without the recurrence flag set
 						flag_list.append(flag, 64);
 					}

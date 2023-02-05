@@ -8722,6 +8722,18 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 	return false;
 }
 
+bool convoi_t::carries_this_category(uint8 catg_index) const
+{
+	if (schedule->has_consist_orders())
+	{
+		return schedule->carries_catg(catg_index); 
+	}
+	else
+	{
+		get_goods_catg_index().is_contained(catg_index);
+	}
+}
+
 bool convoi_t::is_maintenance_needed() const
 {
 	if(welt->get_settings().get_simplified_maintenance())
