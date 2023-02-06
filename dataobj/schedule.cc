@@ -1326,7 +1326,7 @@ void schedule_t::parse_orders()
 	}
 
 	// And now go back to the beginning of the schedule
-	if (orders.is_contained(entries[first_order].unique_entry_id))
+	if (first_order < entries.get_count() && orders.is_contained(entries[first_order].unique_entry_id))
 	{
 		if (!categories.empty())
 		{
