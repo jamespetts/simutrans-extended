@@ -1027,7 +1027,7 @@ void path_explorer_t::compartment_t::step()
 							(ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class) ||
 							(ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class))
 						{
-							set_flag(flag, does_not_carry_to); 
+							set_flag(flag, does_not_carry_to);
 						}
 						else
 						{
@@ -1040,7 +1040,7 @@ void path_explorer_t::compartment_t::step()
 
 				while (entry_count-- && index < current_schedule->get_count())
 				{
-					current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);							
+					current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);
 
 					// Make sure that the halt found was built before refresh started and that it supports current goods category
 					if ( current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type) )
@@ -1136,7 +1136,7 @@ void path_explorer_t::compartment_t::step()
 										set_flag(flag, does_not_carry_from);
 									}
 								}
-							}					
+							}
 
 							if (previous_is_carried_from_here == false && is_flag_set(flag, does_not_carry_from))
 							{
@@ -1155,8 +1155,8 @@ void path_explorer_t::compartment_t::step()
 							{
 								previous_is_carried_from_here = true;
 							}
-						}		
-						
+						}
+
 						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
 						{
 							set_flag(flag, set_down_only);
