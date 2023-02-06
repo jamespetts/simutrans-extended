@@ -2022,28 +2022,41 @@ void haltestelle_t::refresh_routing(const schedule_t *const sched, const minivec
 
 	if(sched && player)
 	{
-		const uint8 catg_count = categories.get_count();
-
-		for (uint8 i = 0; i < catg_count; i++)
+		if (sched->has_consist_orders())
 		{
-			path_explorer_t::refresh_category(categories[i]);
-		}
-
-		if ((passenger_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_PAS))
-		{
-			// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
-			for(auto const g_class : *passenger_classes)
+			for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++)
 			{
-				path_explorer_t::refresh_class_category(goods_manager_t::INDEX_PAS, g_class);
+				if (sched->carries_catg(i))
+				{
+					path_explorer_t::refresh_category(i);
+				}
 			}
 		}
-
-		if ((mail_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_MAIL))
+		else
 		{
-			// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
-			for(auto const g_class : *mail_classes)
+			const uint8 catg_count = categories.get_count();
+
+			for (uint8 i = 0; i < catg_count; i++)
 			{
-				path_explorer_t::refresh_class_category(goods_manager_t::INDEX_MAIL, g_class);
+				path_explorer_t::refresh_category(categories[i]);
+			}
+
+			if ((passenger_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_PAS))
+			{
+				// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
+				for (auto const g_class : *passenger_classes)
+				{
+					path_explorer_t::refresh_class_category(goods_manager_t::INDEX_PAS, g_class);
+				}
+			}
+
+			if ((mail_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_MAIL))
+			{
+				// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
+				for (auto const g_class : *mail_classes)
+				{
+					path_explorer_t::refresh_class_category(goods_manager_t::INDEX_MAIL, g_class);
+				}
 			}
 		}
 	}
