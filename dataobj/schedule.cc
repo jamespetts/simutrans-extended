@@ -242,12 +242,14 @@ void schedule_t::cleanup()
 		if(  entries[i].pos == lastpos  ) {
 			// ignore double entries just one after the other
 			entries.remove_at(i);
+			orders.remove(entries[i].unique_entry_id);
 			if(  i<current_stop  ) {
 				current_stop --;
 			}
 			i--;
 		} else if(  entries[i].pos == koord3d::invalid  ) {
 			// ignore double entries just one after the other
+			orders.remove(entries[i].unique_entry_id);
 			entries.remove_at(i);
 		}
 		else {
@@ -268,7 +270,20 @@ void schedule_t::cleanup()
 
 bool schedule_t::remove()
 {
+	uint8 unique_entry_id = 255;
+
+	if (current_stop < entries.get_count())
+	{
+		unique_entry_id = entries[current_stop].unique_entry_id;
+	}
+
 	bool ok = entries.remove_at(current_stop);
+
+	if (ok)
+	{
+		orders.remove(unique_entry_id);
+	}
+
 	make_current_stop_valid();
 	return ok;
 }
