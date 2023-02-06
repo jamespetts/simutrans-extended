@@ -1138,11 +1138,14 @@ void path_explorer_t::compartment_t::step()
 								}
 							}
 
+							/*
+							// This does not work - we cannot tolerate unbound halthandles in the halt list and we add the halt below anyway.
 							if (previous_is_carried_from_here == false && is_flag_set(flag, does_not_carry_from))
 							{
 								// Do not add stops to/from which this category/class is not carried
 								halt_list.append(halthandle_t()); // Add a dummy element so as not to mess up the indices
 							}
+							*/
 						}
 
 						if (is_flag_set(flag, does_not_carry_from))
