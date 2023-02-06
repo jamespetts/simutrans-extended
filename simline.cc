@@ -1112,6 +1112,11 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 		return true;
 	}
 
+	if (schedule->has_consist_orders())
+	{
+		return schedule->min_class_carried(catg) <= g_class;
+	}
+
 	const bool carries_this_class = catg == goods_manager_t::INDEX_PAS ? passenger_classes_carried.is_contained(g_class) : mail_classes_carried.is_contained(g_class);
 	if (carries_this_class)
 	{
