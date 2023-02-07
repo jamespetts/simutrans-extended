@@ -1048,11 +1048,12 @@ void path_explorer_t::compartment_t::step()
 					{
 						if (this_compartment_affected_by_consist_orders)
 						{
-							if (!previous_is_carried_from_here)
+							if (!previous_is_carried_from_here) // FIXME: This does not trigger when the schedule starts with an implicit does_not_carry_from that is added at the end.
 							{
 								if (!reverse)
 								{
-									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id))
+									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+										current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 									{
 										if (ware_type == goods_manager_t::passengers)
 										{
@@ -1077,7 +1078,8 @@ void path_explorer_t::compartment_t::step()
 								else
 								{
 									// Swap from and to for reverse.
-									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id))
+									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+										current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 									{
 										if (ware_type == goods_manager_t::passengers)
 										{
@@ -1104,25 +1106,8 @@ void path_explorer_t::compartment_t::step()
 							{
 								if (!reverse)
 								{
-									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id))
-									{
-										// This cannot be an origin halt for this category
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										// This cannot be an origin halt for this class
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										set_flag(flag, does_not_carry_from);
-									}
-								}
-								else
-								{
-									// Swap from and to for reverse.
-									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id))
+									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+										current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 									{
 										// This cannot be an origin halt for this category
 										set_flag(flag, does_not_carry_from);
@@ -1133,6 +1118,25 @@ void path_explorer_t::compartment_t::step()
 										set_flag(flag, does_not_carry_from);
 									}
 									else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+									{
+										set_flag(flag, does_not_carry_from);
+									}
+								}
+								else
+								{
+									// Swap from and to for reverse.
+									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+										current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+									{
+										// This cannot be an origin halt for this category
+										set_flag(flag, does_not_carry_from);
+									}
+									else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+									{
+										// This cannot be an origin halt for this class
+										set_flag(flag, does_not_carry_from);
+									}
+									else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
 									{
 										set_flag(flag, does_not_carry_from);
 									}
