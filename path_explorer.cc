@@ -1037,8 +1037,6 @@ void path_explorer_t::compartment_t::step()
 						}
 					}
 				}
-				
-
 
 				for (uint32 k = 0; k < (this_compartment_affected_by_consist_orders ? 2 : 1); k++)
 				{
@@ -1164,25 +1162,25 @@ void path_explorer_t::compartment_t::step()
 								}
 							}
 
-							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
-							{
-								set_flag(flag, set_down_only);
-							}
-							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
-							{
-								set_flag(flag, pick_up_only);
-							}
-							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
-							{
-								set_flag(flag, layover);
-							}
-							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
-							{
-								set_flag(flag, discharge_payload);
-							}
-
 							if (k == 0)
 							{
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
+								{
+									set_flag(flag, set_down_only);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
+								{
+									set_flag(flag, pick_up_only);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
+								{
+									set_flag(flag, layover);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
+								{
+									set_flag(flag, discharge_payload);
+								}
+						
 								// Assign to halt list only if current halt supports this compartment's goods category
 								halt_list.append(current_halt, 64);
 
@@ -1194,7 +1192,7 @@ void path_explorer_t::compartment_t::step()
 								// Second run - only update flags
 								if (flag_list.get_count() > index)
 								{
-									flag_list[index] &= flag;
+									flag_list[index] |= flag;
 								}
 							}
 						}
@@ -1293,8 +1291,8 @@ void path_explorer_t::compartment_t::step()
 					// any serving line/lineless convoy increments serving transport count
 					++connexion_list[ halt_list[h].get_id() ].serving_transport;
 
-					uint8 last_consist_order_stop_point_t = 255;
-					uint8 last_consist_order_start_point_t = 255;
+					uint8 last_consist_order_stop_point_t = last_consist_order_stop_point_h;
+					uint8 last_consist_order_start_point_t = last_consist_order_start_point_h;
 
 					// for each target halt (origin halt is excluded)
 					for (uint8 i = 1, t = (h + 1) % entry_count;
@@ -1330,16 +1328,24 @@ void path_explorer_t::compartment_t::step()
 									// The origin is in the invalid zone.
 									continue;
 								}
-								if ((last_consist_order_start_point_t == 255 || last_consist_order_stop_point_t > last_consist_order_start_point_t))
+								else if ((last_consist_order_start_point_t == 255 || last_consist_order_stop_point_t > last_consist_order_start_point_t))
 								{
 									// The destination is in the invalid zone.
 									continue;
 								}
-								if (h < last_consist_order_start_point_t)
+								else if (h < last_consist_order_start_point_t)
 								{
 									// The start point is in a different validity zone to the end point.
 									continue;
 								}
+								else
+								{
+									uint8 TEST = 1 + 1;
+								}
+							}
+							else
+							{
+								uint8 TEST = 1 + 1;
 							}
 						}
 
