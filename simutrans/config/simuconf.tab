@@ -143,7 +143,7 @@ reload_and_save_on_quit = 1
 # less responsive to user input on larger maps. 
 #
 # Note that, in an online game, this setting is dictated by the server.
-path_explorer_time_midpoint = 64
+path_explorer_time_midpoint = 128
 
 # If the below setting should be enabled, the pathing data representing all the routes
 # between all the various stops are saved. This greatly reduces the time that it takes
