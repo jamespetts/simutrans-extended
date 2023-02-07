@@ -1003,8 +1003,7 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// create a list of reachable halts
-				bool reverse = false;
-				entry_count = current_schedule->is_mirrored() ? (current_schedule->get_count() * 2) - 2 : current_schedule->get_count();
+				bool reverse = false;			
 				halt_list.clear();
 				flag_list.clear();
 
@@ -1018,6 +1017,7 @@ void path_explorer_t::compartment_t::step()
 
 				bool previous_is_carried_from_here = true;
 
+				
 				// If the schedule has consist orders that change what category/class that this schedule carries, check whether this category and class can be carried from the point of the first entry.
 				if(this_compartment_affected_by_consist_orders)
 				{
@@ -1037,158 +1037,171 @@ void path_explorer_t::compartment_t::step()
 						}
 					}
 				}
+				
 
-				while (entry_count-- && index < current_schedule->get_count())
+
+				for (uint32 k = 0; k < (this_compartment_affected_by_consist_orders ? 2 : 1); k++)
 				{
-					flag = 0;
-					current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);
+					index = 0;
+					reverse = false;
+					entry_count = current_schedule->is_mirrored() ? (current_schedule->get_count() * 2) - 2 : current_schedule->get_count();
 
-					// Make sure that the halt found was built before refresh started and that it supports current goods category
-					if ( current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type) )
+					while (entry_count-- && index < current_schedule->get_count())
 					{
-						if (this_compartment_affected_by_consist_orders)
+						flag = 0;
+						current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);
+
+						// Make sure that the halt found was built before refresh started and that it supports current goods category
+						if (current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type))
 						{
-							if (!previous_is_carried_from_here) // FIXME: This does not trigger when the schedule starts with an implicit does_not_carry_from that is added at the end.
+							if (this_compartment_affected_by_consist_orders)
 							{
-								if (!reverse)
+								if (!previous_is_carried_from_here)
 								{
-									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
-										current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+									if (!reverse)
 									{
-										if (ware_type == goods_manager_t::passengers)
+										if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 										{
-											if (current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+											if (ware_type == goods_manager_t::passengers)
+											{
+												if (current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else if (ware_type == goods_manager_t::mail)
+											{
+												if (current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else
 											{
 												set_flag(flag, does_not_carry_to);
 											}
 										}
-										else if (ware_type == goods_manager_t::mail)
+									}
+									else
+									{
+										// Swap from and to for reverse.
+										if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 										{
-											if (current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+											if (ware_type == goods_manager_t::passengers)
+											{
+												if (current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else if (ware_type == goods_manager_t::mail)
+											{
+												if (current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else
 											{
 												set_flag(flag, does_not_carry_to);
 											}
-										}
-										else
-										{
-											set_flag(flag, does_not_carry_to);
 										}
 									}
 								}
 								else
 								{
-									// Swap from and to for reverse.
-									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
-										current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+									if (!reverse)
 									{
-										if (ware_type == goods_manager_t::passengers)
+										if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
 										{
-											if (current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
-											{
-												set_flag(flag, does_not_carry_to);
-											}
+											// This cannot be an origin halt for this category
+											set_flag(flag, does_not_carry_from);
 										}
-										else if (ware_type == goods_manager_t::mail)
+										else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
 										{
-											if (current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
-											{
-												set_flag(flag, does_not_carry_to);
-											}
+											// This cannot be an origin halt for this class
+											set_flag(flag, does_not_carry_from);
 										}
-										else
+										else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
 										{
-											set_flag(flag, does_not_carry_to);
+											set_flag(flag, does_not_carry_from);
+										}
+									}
+									else
+									{
+										// Swap from and to for reverse.
+										if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+										{
+											// This cannot be an origin halt for this category
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											// This cannot be an origin halt for this class
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											set_flag(flag, does_not_carry_from);
 										}
 									}
 								}
+							}
+
+							if (is_flag_set(flag, does_not_carry_from))
+							{
+								previous_is_carried_from_here = false;
+							}
+							else if (!previous_is_carried_from_here)
+							{
+								if (is_flag_set(flag, does_not_carry_to))
+								{
+									previous_is_carried_from_here = true;
+								}
+							}
+
+							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
+							{
+								set_flag(flag, set_down_only);
+							}
+							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
+							{
+								set_flag(flag, pick_up_only);
+							}
+							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
+							{
+								set_flag(flag, layover);
+							}
+							if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
+							{
+								set_flag(flag, discharge_payload);
+							}
+
+							if (k == 0)
+							{
+								// Assign to halt list only if current halt supports this compartment's goods category
+								halt_list.append(current_halt, 64);
+
+								// Initialise the corresponding flag list entry without the recurrence flag set
+								flag_list.append(flag, 64);
 							}
 							else
 							{
-								if (!reverse)
+								// Second run - only update flags
+								if (flag_list.get_count() > index)
 								{
-									if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
-										current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
-									{
-										// This cannot be an origin halt for this category
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										// This cannot be an origin halt for this class
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										set_flag(flag, does_not_carry_from);
-									}
-								}
-								else
-								{
-									// Swap from and to for reverse.
-									if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
-										current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
-									{
-										// This cannot be an origin halt for this category
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										// This cannot be an origin halt for this class
-										set_flag(flag, does_not_carry_from);
-									}
-									else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
-									{
-										set_flag(flag, does_not_carry_from);
-									}
+									flag_list[index] &= flag;
 								}
 							}
 						}
 
-						if (is_flag_set(flag, does_not_carry_from))
-						{
-							previous_is_carried_from_here = false;
-						}
-						else if (!previous_is_carried_from_here)
-						{
-							if (is_flag_set(flag, does_not_carry_to))
-							{
-								previous_is_carried_from_here = true;
-							}
-						}
-
-						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
-						{
-							set_flag(flag, set_down_only);
-						}
-						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
-						{
-							set_flag(flag, pick_up_only);
-						}
-						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
-						{
-							set_flag(flag, layover);
-						}
-						if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
-						{
-							set_flag(flag, discharge_payload);
-						}
-
-						// Assign to halt list only if current halt supports this compartment's goods category
-						halt_list.append(current_halt, 64);
-
-						// Initialise the corresponding flag list entry without the recurrence flag set
-						flag_list.append(flag, 64);
+						current_schedule->increment_index(&index, &reverse);
 					}
-
-					current_schedule->increment_index(&index, &reverse);
-				}
-
-
-				// Check for incomplete pair of points between which this category cannot travel and complete it around the end of the schedule
-				if ((!previous_is_carried_from_here || is_flag_set(flag, does_not_carry_from)) && !is_flag_set(flag_list[0], does_not_carry_to))
-				{
-					set_flag(flag_list[0], does_not_carry_from);
-				}
+				}		
 
 				// precalculate journey times between consecutive halts
 				// This is now only a fallback in case the point to point journey time data are not available.
