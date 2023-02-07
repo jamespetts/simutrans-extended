@@ -1003,7 +1003,7 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// create a list of reachable halts
-				bool reverse = false;			
+				bool reverse = false;
 				halt_list.clear();
 				flag_list.clear();
 
@@ -1017,7 +1017,7 @@ void path_explorer_t::compartment_t::step()
 
 				bool previous_is_carried_from_here = true;
 
-				
+
 				// If the schedule has consist orders that change what category/class that this schedule carries, check whether this category and class can be carried from the point of the first entry.
 				if(this_compartment_affected_by_consist_orders)
 				{
@@ -1037,7 +1037,7 @@ void path_explorer_t::compartment_t::step()
 						}
 					}
 				}
-				
+
 
 
 				for (uint32 k = 0; k < (this_compartment_affected_by_consist_orders ? 2 : 1); k++)
@@ -1201,7 +1201,7 @@ void path_explorer_t::compartment_t::step()
 
 						current_schedule->increment_index(&index, &reverse);
 					}
-				}		
+				}
 
 				// precalculate journey times between consecutive halts
 				// This is now only a fallback in case the point to point journey time data are not available.
