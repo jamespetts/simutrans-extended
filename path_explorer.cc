@@ -1180,7 +1180,7 @@ void path_explorer_t::compartment_t::step()
 								{
 									set_flag(flag, discharge_payload);
 								}
-						
+
 								// Assign to halt list only if current halt supports this compartment's goods category
 								halt_list.append(current_halt, 64);
 
