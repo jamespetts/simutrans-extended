@@ -1267,21 +1267,54 @@ void path_explorer_t::compartment_t::step()
 				uint8 last_consist_order_stop_point_h = 255;
 				uint8 last_consist_order_start_point_h = 255;
 
+				if (this_compartment_affected_by_consist_orders)
+				{
+					// Deal with wrapping around the ends of schedules.
+					for (uint8 h = 0; h < entry_count; ++h)
+					{
+						if (is_flag_set(flag_list[h], does_not_carry_from))
+						{
+							last_consist_order_stop_point_h = h;
+						}
+						else if (is_flag_set(flag_list[h], does_not_carry_to))
+						{
+							last_consist_order_start_point_h = h;
+						}
+					}
+
+					if (last_consist_order_stop_point_h > last_consist_order_start_point_h)
+					{
+						last_consist_order_stop_point_h = 0;
+					}
+				}
+
 				for (uint8 h = 0; h < entry_count; ++h)
 				{
-					if (is_flag_set(flag_list[h], does_not_carry_from))
+					if (this_compartment_affected_by_consist_orders)
 					{
-						last_consist_order_stop_point_h = h;
-					}
-					else if (is_flag_set(flag_list[h], does_not_carry_to))
-					{
-						last_consist_order_start_point_h = h;
+						if (is_flag_set(flag_list[h], does_not_carry_from))
+						{
+							last_consist_order_stop_point_h = h;
+						}
+						else if (is_flag_set(flag_list[h], does_not_carry_to))
+						{
+							last_consist_order_start_point_h = h;
+						}
 					}
 
 					if (is_flag_set(flag_list[h], recurrence))
 					{
 						// skip this halt if it has already been processed
 						continue;
+					}
+
+					// Is the origin in the invalid zone?
+					if (this_compartment_affected_by_consist_orders)
+					{
+						if (h >= last_consist_order_stop_point_h && h < last_consist_order_start_point_h)
+						{
+							continue;
+						}
 					}
 
 					accumulated_journey_time = 0;
@@ -1299,13 +1332,16 @@ void path_explorer_t::compartment_t::step()
 						i < entry_count;
 						++i, t = (t + 1) % entry_count)
 					{
-						if (is_flag_set(flag_list[t], does_not_carry_from))
+						if (this_compartment_affected_by_consist_orders)
 						{
-							last_consist_order_stop_point_t = t;
-						}
-						else if (is_flag_set(flag_list[t], does_not_carry_to))
-						{
-							last_consist_order_start_point_t = t;
+							if (is_flag_set(flag_list[t], does_not_carry_from))
+							{
+								last_consist_order_stop_point_t = t;
+							}
+							else if (is_flag_set(flag_list[t], does_not_carry_to))
+							{
+								last_consist_order_start_point_t = t;
+							}
 						}
 
 						// Case: origin halt is encountered again
@@ -1323,17 +1359,14 @@ void path_explorer_t::compartment_t::step()
 						{
 							if (last_consist_order_stop_point_h < 255)
 							{
-								if ((last_consist_order_start_point_h == 255 || last_consist_order_stop_point_h > last_consist_order_start_point_h))
+								if ((t > last_consist_order_stop_point_t && (t < last_consist_order_start_point_t || last_consist_order_start_point_t < last_consist_order_stop_point_t)) ||
+									(last_consist_order_start_point_t < last_consist_order_stop_point_t && t < last_consist_order_start_point_t)) // Wrap around
 								{
-									// The origin is in the invalid zone.
+									// The destination is in the invalid zone
 									continue;
 								}
-								else if ((last_consist_order_start_point_t == 255 || last_consist_order_stop_point_t > last_consist_order_start_point_t))
-								{
-									// The destination is in the invalid zone.
-									continue;
-								}
-								else if (h < last_consist_order_start_point_t)
+								else if ((h < last_consist_order_start_point_t && t > h && last_consist_order_start_point_t < last_consist_order_stop_point_t) ||
+									(t < h && last_consist_order_start_point_t < last_consist_order_stop_point_t)) // Wrap around
 								{
 									// The start point is in a different validity zone to the end point.
 									continue;
