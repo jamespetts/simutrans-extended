@@ -1371,14 +1371,6 @@ void path_explorer_t::compartment_t::step()
 									// The start point is in a different validity zone to the end point.
 									continue;
 								}
-								else
-								{
-									uint8 TEST = 1 + 1;
-								}
-							}
-							else
-							{
-								uint8 TEST = 1 + 1;
 							}
 						}
 
