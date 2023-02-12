@@ -3175,7 +3175,7 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 	old_vehicle->set_pos_next(new_vehicle_pos_next);
 	old_vehicle->set_pos_prev(new_vehicle_pos_prev);
 	new_vehicle->set_pos_next(old_vehicle_pos_next);
-	new_vehicle->set_pos_prev(new_vehicle_pos_prev); 
+	new_vehicle->set_pos_prev(new_vehicle_pos_prev);
 
 	if (index == 0)
 	{
@@ -3183,7 +3183,7 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 	}
 
 	recalc_metrics();
-	
+
 	// We handle the repositioning of the old vehicle elsewhere.
 	return old_vehicle;
 }
@@ -9648,15 +9648,15 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			move_vehicle(new_vehicle_index, i, new_vehicle_index > i);
 		}
 		else if (new_vehicle_cnv)
-		{		
+		{
 			new_vehicle_cnv->remove_vehicle(new_vehicle);
-			grund_t* const gr = welt->lookup(new_vehicle->get_pos()); 
+			grund_t* const gr = welt->lookup(new_vehicle->get_pos());
 			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
 			removed_vehicle->reposition_vehicle(gr);
 
 			if (new_vehicle_cnv->get_state() == LAYOVER)
-			{			
-				new_vehicle_cnv->add_vehicle(removed_vehicle);		
+			{
+				new_vehicle_cnv->add_vehicle(removed_vehicle);
 			}
 			else
 			{
