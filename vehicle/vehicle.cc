@@ -1634,6 +1634,20 @@ void vehicle_t::enter_tile(grund_t* gr)
 	}
 }
 
+void vehicle_t::reposition_vehicle(grund_t* gr)
+{
+	leave_tile();
+	set_pos(gr->get_pos());
+	enter_tile(gr);
+	calc_image();
+	gr->set_all_obj_dirty();
+	if (cnv)
+	{
+		cnv->must_recalc_data();
+	}
+	calc_drag_coefficient(gr);
+}
+
 
 void vehicle_t::hop(grund_t* gr)
 {

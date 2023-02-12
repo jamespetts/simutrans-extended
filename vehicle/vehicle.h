@@ -524,6 +524,9 @@ public:
 	 */
 	void initialise_journey( uint16 start_route_index, bool recalc );
 
+	void set_pos_next(const koord3d pos) { pos_next = pos; }
+	void set_pos_prev(const koord3d pos) { pos_prev = pos; }
+
 	void set_direction_steps(sint16 value) { direction_steps = value; }
 
 	void step_km(uint32 km) { km_since_new += km; km_since_last_overhaul += km; km_since_last_maintenance += km; km_since_last_replenish += km; }
@@ -769,6 +772,9 @@ public:
 	bool get_is_mothballed() const { return is_mothballed; }
 	void mothball();
 	void un_mothball();
+
+	// Allows for repositioning a vehicle for shunting without moving the vehicle as part of its journey.
+	void reposition_vehicle(grund_t* gr);
 };
 
 
