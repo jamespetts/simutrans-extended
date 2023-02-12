@@ -9465,7 +9465,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 					existing_vehicle_count++;
 					break;
 				}
-				if (element.get_vehicle_description(j).empty)
+				if (element.get_vehicle_description(j).empty && !element.get_vehicle_description(j).specific_vehicle)
 				{
 					break;
 				}
