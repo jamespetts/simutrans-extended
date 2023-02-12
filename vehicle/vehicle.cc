@@ -3770,8 +3770,9 @@ void vehicle_t::mothball()
 {
 	// Assumptions: the vehicle will be in a depot.
 
-	if (is_mothballed || get_convoi())
+	if (is_mothballed || get_convoi() || get_desc()->get_engine_type() == vehicle_desc_t::engine_t::bio)
 	{
+		// Horses cannot be mothballed
 		return;
 	}
 
