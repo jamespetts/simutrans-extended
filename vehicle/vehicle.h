@@ -231,7 +231,7 @@ public:
 	ribi_t::ribi calc_set_direction(const koord3d& start, const koord3d& ende);
 	uint16 get_tile_steps(const koord &start, const koord &ende, /*out*/ ribi_t::ribi &direction) const;
 
-	ribi_t::ribi get_direction() const {return direction;}
+	ribi_t::ribi get_direction() const { return direction; }
 
 	ribi_t::ribi get_90direction() const {return ribi_type(get_pos(), get_pos_next());}
 

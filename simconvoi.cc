@@ -2551,7 +2551,7 @@ void convoi_t::step()
 		case SHUNTING:
 			if (wait_lock <= 0)
 			{
-				state = CAN_START;
+				state = ROUTING_1;
 			}
 			break;
 
@@ -3160,7 +3160,6 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 	vehicle[index] = new_vehicle;
 
 	grund_t* const gr = welt->lookup(old_vehicle->get_pos());
-
 
 	old_vehicle->leave_tile();
 
