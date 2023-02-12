@@ -3160,10 +3160,7 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 	vehicle[index] = new_vehicle;
 
 	grund_t* const gr = welt->lookup(old_vehicle->get_pos());
-	const koord3d old_vehicle_pos_next = old_vehicle->get_pos_next();
-	const koord3d old_vehicle_pos_prev = old_vehicle->get_pos_prev();
-	const koord3d new_vehicle_pos_next = new_vehicle->get_pos_next();
-	const koord3d new_vehicle_pos_prev = new_vehicle->get_pos_prev();
+
 
 	old_vehicle->leave_tile();
 
@@ -3172,10 +3169,6 @@ vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
 
 	old_vehicle->set_convoi(nullptr);
 
-	old_vehicle->set_pos_next(new_vehicle_pos_next);
-	old_vehicle->set_pos_prev(new_vehicle_pos_prev);
-	new_vehicle->set_pos_next(old_vehicle_pos_next);
-	new_vehicle->set_pos_prev(new_vehicle_pos_prev);
 
 	if (index == 0)
 	{
