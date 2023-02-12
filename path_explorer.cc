@@ -1016,7 +1016,8 @@ void path_explorer_t::compartment_t::step()
 						(ware_type == goods_manager_t::mail && !current_schedule->get_mail_min_class_carried_to().empty()));
 
 				bool previous_is_carried_from_here = true;
-
+				bool previous_discharge_payload_and_set_down_only = false;
+				bool fragmented_schedule = false;
 
 				// If the schedule has consist orders that change what category/class that this schedule carries, check whether this category and class can be carried from the point of the first entry.
 				if(this_compartment_affected_by_consist_orders)
@@ -1179,6 +1180,29 @@ void path_explorer_t::compartment_t::step()
 								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
 								{
 									set_flag(flag, discharge_payload);
+									if (is_flag_set(flag, set_down_only) && !is_flag_set(flag, does_not_carry_from))
+									{
+										// If both discharge payload and set down only are engaged, we cannot route past this point.
+										set_flag(flag, does_not_carry_from);
+										previous_discharge_payload_and_set_down_only = true;
+										fragmented_schedule = true;
+									}
+									else if (!is_flag_set(flag, set_down_only))
+									{		
+										if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
+										{
+											set_flag(flag, does_not_carry_to); 
+										}
+										previous_discharge_payload_and_set_down_only = false;
+									}
+								}
+								else if(!is_flag_set(flag, set_down_only))
+								{
+									if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
+									{
+										set_flag(flag, does_not_carry_to); 
+									}
+									previous_discharge_payload_and_set_down_only = false;
 								}
 
 								// Assign to halt list only if current halt supports this compartment's goods category
@@ -1200,6 +1224,8 @@ void path_explorer_t::compartment_t::step()
 						current_schedule->increment_index(&index, &reverse);
 					}
 				}
+
+				fragmented_schedule |= this_compartment_affected_by_consist_orders;
 
 				// precalculate journey times between consecutive halts
 				// This is now only a fallback in case the point to point journey time data are not available.
@@ -1267,7 +1293,7 @@ void path_explorer_t::compartment_t::step()
 				uint8 last_consist_order_stop_point_h = 255;
 				uint8 last_consist_order_start_point_h = 255;
 
-				if (this_compartment_affected_by_consist_orders)
+				if (fragmented_schedule)
 				{
 					// Deal with wrapping around the ends of schedules.
 					for (uint8 h = 0; h < entry_count; ++h)
@@ -1309,7 +1335,7 @@ void path_explorer_t::compartment_t::step()
 					}
 
 					// Is the origin in the invalid zone?
-					if (this_compartment_affected_by_consist_orders)
+					if (fragmented_schedule)
 					{
 						if (h >= last_consist_order_stop_point_h && h < last_consist_order_start_point_h)
 						{
@@ -1332,7 +1358,7 @@ void path_explorer_t::compartment_t::step()
 						i < entry_count;
 						++i, t = (t + 1) % entry_count)
 					{
-						if (this_compartment_affected_by_consist_orders)
+						if (fragmented_schedule)
 						{
 							if (is_flag_set(flag_list[t], does_not_carry_from))
 							{
@@ -1354,8 +1380,8 @@ void path_explorer_t::compartment_t::step()
 							continue;
 						}
 
-						// Case: consist orders mean that this destination halt is unreachable from this origin halt for this category/class
-						if (this_compartment_affected_by_consist_orders)
+						// Case: this destination halt is unreachable from this origin halt for this category/class
+						if (fragmented_schedule)
 						{
 							if (last_consist_order_stop_point_h < 255)
 							{
@@ -1365,8 +1391,8 @@ void path_explorer_t::compartment_t::step()
 									// The destination is in the invalid zone
 									continue;
 								}
-								else if ((h < last_consist_order_start_point_t && t > h && last_consist_order_start_point_t < last_consist_order_stop_point_t) ||
-									(t < h && last_consist_order_start_point_t < last_consist_order_stop_point_t)) // Wrap around
+								else if ((h < last_consist_order_start_point_t && t > h && t > last_consist_order_stop_point_t) ||
+									(t < h && (last_consist_order_start_point_t < last_consist_order_stop_point_t || h < last_consist_order_start_point_h))) // Wrap around
 								{
 									// The start point is in a different validity zone to the end point.
 									continue;
