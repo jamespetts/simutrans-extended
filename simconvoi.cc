@@ -9650,7 +9650,6 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			{
 				new_vehicle_cnv->add_vehicle(removed_vehicle);
 				new_vehicle_cnv->update_default_name(new_vehicle);
-
 			}
 			else
 			{

@@ -6674,3 +6674,7 @@ shunting
 Shunting
 helptxt_no_layover_enabled_at_stop
 Cannot layover here: stop lacks layover facilities
+fuel_cost
+Fuel cost:
+staff_cost
+Staff cost:

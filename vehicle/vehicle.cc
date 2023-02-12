@@ -3686,7 +3686,7 @@ uint32 vehicle_t::calc_fuel_consumption(sint32 steps) const
 
 	const uint32 calibration_speed = desc->get_calibration_speed();
 
-	const uint32 current_speed_kmh =  speed_to_kmh(cnv->get_akt_speed());
+	const uint32 current_speed_kmh = speed_to_kmh(cnv->get_akt_speed());
 
 	if (current_speed_kmh == 0)
 	{
