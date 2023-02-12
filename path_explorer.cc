@@ -1188,10 +1188,10 @@ void path_explorer_t::compartment_t::step()
 										fragmented_schedule = true;
 									}
 									else if (!is_flag_set(flag, set_down_only))
-									{		
+									{
 										if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
 										{
-											set_flag(flag, does_not_carry_to); 
+											set_flag(flag, does_not_carry_to);
 										}
 										previous_discharge_payload_and_set_down_only = false;
 									}
@@ -1200,7 +1200,7 @@ void path_explorer_t::compartment_t::step()
 								{
 									if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
 									{
-										set_flag(flag, does_not_carry_to); 
+										set_flag(flag, does_not_carry_to);
 									}
 									previous_discharge_payload_and_set_down_only = false;
 								}
