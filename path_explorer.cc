@@ -1272,7 +1272,7 @@ void path_explorer_t::compartment_t::step()
 						journey_time = world->travel_time_tenths_from_distance(distance, current_average_speed);
 					}
 
-					if (is_flag_set(flag_list[i], layover) || is_flag_set(flag_list[i], discharge_payload))
+					if (is_flag_set(flag_list[i], layover) || (is_flag_set(flag_list[i], discharge_payload) && !is_flag_set(flag_list[i], set_down_only)))
 					{
 						// If the previous stop is a layover, assume that we will always need to board the consist here even
 						// if we were already onboard. Thus, add the transfer time. Should we also add the waiting time?
