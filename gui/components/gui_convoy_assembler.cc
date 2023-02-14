@@ -183,7 +183,7 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
 					sint64 total_staff_cost = 0;
 					for (uint8 i = 0; i < 255; i++)
-					{					
+					{
 						const uint32 staff_hundredths_this_type = veh_type->get_staff_hundredths(i);
 						const uint32 drivers_this_type = veh_type->get_drivers(i);
 						const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
