@@ -194,6 +194,11 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					td->buf().printf("%1.2f$/month", (double)total_staff_cost / 100.0);
 					td->update();
 
+					new_component<gui_table_header_t>("availability", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					td = new_component<gui_table_cell_buf_t>();
+					td->buf().printf("%3d %s", veh_type->get_starting_availability(), "%");
+					td->update();
+
 					// Physics information:
 					new_component<gui_table_header_t>("Max. speed:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					td = new_component<gui_table_cell_buf_t>();
