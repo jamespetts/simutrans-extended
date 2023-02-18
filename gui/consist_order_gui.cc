@@ -660,28 +660,7 @@ void consist_order_frame_t::init_table()
 	add_table(3,1);
 	{
 		add_table(1,3)->set_alignment(ALIGN_TOP);
-		{
-			scl.clear_elements();
-			scl.set_size(scr_size(D_LABEL_WIDTH, LINESPACE*4));
-			scl.set_maximize(true);
-			scl.add_listener(this);
-			add_component(&scl);
 
-			gui_aligned_container_t *tbl = add_table(2,1);
-			tbl->set_force_equal_columns(true);
-			tbl->set_spacing(scr_size(0,0));
-			{
-				bt_new.init(   button_t::roundbox | button_t::flexible, "New order");
-				bt_new.add_listener(this);
-				add_component(&bt_new);
-				bt_delete.init(button_t::roundbox | button_t::flexible, "Delete order");
-				bt_delete.add_listener(this);
-				add_component(&bt_delete);
-			}
-			end_table();
-
-			new_component<gui_fill_t>(false,true);
-		}
 		end_table();
 		update_order_list(0);
 
@@ -1262,24 +1241,6 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
 		bt_delete.enable();
 		resize(scr_size(0,0));
-	}
-	else if( comp==&bt_new ) {
-		// append new order slot
-		const sint32 sel = scl.get_selection();
-		append_new_order();
-		update_order_list(sel);
-		resize(scr_size(0,0));
-	}
-	else if( comp==&bt_delete ) {
-		const sint32 sel = scl.get_selection();
-		if( scl.get_selection()<0  ||  (uint32)sel>=order.get_count() ) {
-			create_win(new news_img("Select a target order!"), w_time_delete, magic_none);
-			return true;
-		}
-
-		// delete selected order
-		order.remove_order( (uint32)sel);
-		update_order_list(sel-1);
 	}
 	else if( comp==&bt_sort_order_veh ) {
 		bt_sort_order_veh.pressed ^= 1;
