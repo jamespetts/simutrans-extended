@@ -1542,7 +1542,8 @@ void consist_order_frame_t::build_vehicle_list()
 
 	// list only own vehicles
 	for (auto const cnv : world()->convoys()) {
-		if(  cnv->get_owner()==player  &&  cnv->front()->get_waytype()==schedule->get_waytype()) {
+		if((cnv->get_owner() == player || cnv->get_owner()->allows_access_to(player->get_player_nr()) && player->allows_access_to(cnv->get_owner()->get_player_nr())) && cnv->front()->get_waytype()==schedule->get_waytype())
+		{
 			// count own vehicle
 			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
 				const vehicle_desc_t *veh_type = cnv->get_vehicle(i)->get_desc();
@@ -1552,6 +1553,7 @@ void consist_order_frame_t::build_vehicle_list()
 					continue;
 				}
 				// TODO: Consider vehicle reversal
+				// NOTE: The execution of consist orders entails, for reversed consists, de-reversing it, adding the new vehicle and then reversing it again.
 				if( conect_target!=NULL  &&  !conect_target->can_lead(veh_type) ) {
 					continue;  // cannot append
 				}
