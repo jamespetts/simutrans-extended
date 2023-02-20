@@ -734,20 +734,18 @@ bool way_info_t::is_weltpos()
 	return ( welt->get_viewport()->is_on_center( gr->get_pos() ) );
 }
 
-void  way_info_t::init()
-{
-}
-
 void  way_info_t::init_tabs()
 {
 	tabs.clear();
 	cont_way2.set_way(NULL);
 	cont_way1.set_way(way1);
-	;
-	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype()));
+
+	waytype_t wt = way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	if (has_way==2) {
 		cont_way2.set_way(way2);
-		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(way2->get_desc()->get_styp() == type_tram ? tram_wt : way2->get_waytype()));
+		wt = way2->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	}
 }
 
@@ -858,7 +856,9 @@ void way_info_t::update()
 		else {
 			cont.new_component<gui_label_t>("Open countryside");
 		}
-		cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		if (!region.empty()) {
+			cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		}
 		cont.new_component<gui_fill_t>();
 	}
 	cont.end_table();

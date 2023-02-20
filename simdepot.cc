@@ -410,7 +410,8 @@ convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution
 	{
 		convoihandle_t new_cnv = add_convoi( false );
 		new_cnv->set_name(old_cnv->get_internal_name());
-		new_cnv->set_livery_scheme_index(old_cnv->get_livery_scheme_index());
+		const uint16 convoy_livery_index = old_cnv->get_livery_scheme_index();
+		new_cnv->set_livery_scheme_index(convoy_livery_index);
 		int vehicle_count = old_cnv->get_vehicle_count();
 		for (int i = 0; i < vehicle_count; i++)
 		{
@@ -442,7 +443,37 @@ convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution
 
 					}
 					// buy new vehicle
-					new_vehicle = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, old_cnv->get_livery_scheme_index());
+					uint16 vehicle_livery_index = convoy_livery_index;
+					if (info->get_livery_count() > 1) {
+						// check livery
+						vector_tpl<livery_scheme_t*>* schemes = world()->get_settings().get_livery_schemes();
+						if (schemes->get_count()) {
+							livery_scheme_t* convoy_scheme = schemes->get_element(convoy_livery_index);
+							if (convoy_scheme->is_contained(old_cnv->get_vehicle(i)->get_current_livery())) {
+								// Copy the livery of the old vehicle as it is
+								// If it is old it will be replaced with new one
+							}
+							else {
+								const char *livery_name = old_cnv->get_vehicle(i)->get_current_livery();
+								// The player intentionally set a different livery scheme for this vehicle
+								// =>should copy it if it is available
+								for (uint32 j = 0; j < schemes->get_count(); j++) {
+									livery_scheme_t* scheme = schemes->get_element(j);
+									if (scheme->is_contained(livery_name)) {
+										// This livery scheme has vehicle's livery => Check if this is available now
+										if (scheme->is_available(welt->get_timeline_year_month())) {
+											if (!strcmp(livery_name, scheme->get_latest_available_livery(welt->get_timeline_year_month(), info))) {
+												// This is the latest livery so it can be copied
+												vehicle_livery_index = j;
+												break;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					new_vehicle = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, vehicle_livery_index);
 				}
 
 				// Reassign the classes:
@@ -881,6 +912,11 @@ void depot_t::update_all_win()
 	}
 }
 
+uint16 depot_t::get_traction_types() const
+{
+	return this->get_tile()->get_desc()->get_enabled();
+}
+
 /**
  * Is this depot suitable for this vehicle?
  * Must be same waytype, same owner, suitable traction, etc.
@@ -889,7 +925,8 @@ void depot_t::update_all_win()
  *   - 0 if we don't want to filter by traction type
  *   - a bitmask of possible traction types; we need only match one
  */
-bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const {
+bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const
+{
 	assert(test_vehicle != NULL);
 
 	// Owner must be the same
@@ -910,7 +947,7 @@ bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 trac
 	if (traction_types != 0 ) {
 		// If traction types were specified, then *one* of them must match
 		// *one* of the types supported by this depot
-		if ( ! (traction_types & this->get_tile()->get_desc()->get_enabled()) ) {
+		if ( ! (traction_types & get_traction_types()) ) {
 			return false;
 		}
 	}

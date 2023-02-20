@@ -476,7 +476,7 @@ bool savegame_frame_t::check_file(const char *filename, const char *suffix)
  * @retval true      This function always returns true to stop
  *                   the event propagation.
  */
-bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t p)
+bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t )
 {
 	char buf[PATH_MAX] = {};
 
@@ -507,59 +507,6 @@ bool savegame_frame_t::action_triggered(gui_action_creator_t *component, value_t
 		//----------------------------
 		cancel_action(buf);
 		destroy_win(this);
-	}
-	else if (component == &file_table) {
-		const gui_table_event_t *event = (const gui_table_event_t *) p.p;
-		if (event->is_cell_hit) {
-			const event_t *ev = event->get_event();
-			if (file_table_button_pressed && event->cell != pressed_file_table_button) {
-				release_file_table_button();
-			}
-			switch (ev->ev_code) {
-				case MOUSE_LEFTBUTTON: {
-					coordinate_t x = event->cell.get_x();
-					if (x < 2) {
-						const bool action_btn = x == 1;
-						coordinate_t y = event->cell.get_y();
-						gui_file_table_row_t *row = (gui_file_table_row_t*) file_table.get_row(y);
-						switch (ev->ev_class) {
-							case EVENT_CLICK:
-								press_file_table_button(event->cell);
-								break;
-
-							case EVENT_RELEASE:
-								if (row->get_pressed())
-								{
-									if(action_btn) {
-										if (item_action(row->get_name())) {
-											destroy_win(this);
-										}
-									}
-									else {
-										if( del_action(row->get_name()) ) {
-											destroy_win(this);
-										}
-										else {
-											file_table.remove_row(y);
-										}
-									}
-								}
-								break;
-							default:
-								break;
-						}
-					}
-					else {
-						release_file_table_button();
-						//qsort();
-					}
-					break;
-				}
-			}
-		}
-		else if (file_table_button_pressed) {
-			release_file_table_button();
-		}
 	}
 	else {
 		// File in list selected
@@ -641,138 +588,6 @@ void savegame_frame_t::set_filename(const char *file_name)
 			tstrncpy(ibuf, file_name, len-3);
 		}
 		input.set_text(ibuf, 128);
-	}
-}
-
-void savegame_frame_t::press_file_table_button(const coordinates_t &cell)
-{
-	pressed_file_table_button = cell;
-	file_table_button_pressed = true;
-	for (coordinate_t i = file_table.get_grid_size().get_x(); i > 0; ) {
-		--i;
-		((gui_file_table_column_t*)file_table.get_column(i))->set_pressed(i == cell.get_x());
-	}
-	for (coordinate_t i = file_table.get_grid_size().get_y(); i > 0; ) {
-		--i;
-		((gui_file_table_row_t*)file_table.get_row(i))->set_pressed(i == cell.get_y());
-	}
-}
-
-void savegame_frame_t::release_file_table_button()
-{
-	file_table_button_pressed = false;
-	for (coordinate_t i = file_table.get_grid_size().get_x(); i > 0; ) {
-		--i;
-		((gui_file_table_column_t*)file_table.get_column(i))->set_pressed(false);
-	}
-	for (coordinate_t i = file_table.get_grid_size().get_y(); i > 0; ) {
-		--i;
-		((gui_file_table_row_t*)file_table.get_row(i))->set_pressed(false);
-	}
-}
-
-
-// BG, 26.03.2010
-void gui_file_table_button_column_t::paint_cell(const scr_coord& offset, coordinate_t /*x*/, coordinate_t /*y*/, const gui_table_row_t &row)
-{
-	const gui_file_table_row_t &file_row = (const gui_file_table_row_t&)row;
-	scr_size size = scr_size(get_width(), row.get_height());
-	scr_coord mouse(get_mouse_x() - offset.x, get_mouse_y() - offset.y);
-	if (0 <= mouse.x && mouse.x < size.w && 0 <= mouse.y && mouse.y < size.h){
-		btn.set_typ(button_t::roundbox);
-	}
-	else
-	{
-		btn.set_typ(button_t::box);
-	}
-	btn.pressed = pressed && file_row.pressed;
-	// set size after type as type sets size to a default size as well.
-	btn.set_size(size);
-	btn.draw(offset);
-}
-
-
-// BG, 06.04.2010
-void gui_file_table_delete_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row)
-{
-	const gui_file_table_row_t &file_row = (const gui_file_table_row_t&)row;
-	if (file_row.delete_enabled) {
-		gui_file_table_button_column_t::paint_cell(offset, x, y, row);
-	}
-
-}
-
-
-// BG, 26.03.2010
-void gui_file_table_label_column_t::paint_cell(const scr_coord& offset, coordinate_t /*x*/, coordinate_t /*y*/, const gui_table_row_t &row)
-{
-	lbl.set_pos(scr_coord(2, 2));
-	lbl.set_size(scr_size(get_width() - 2, row.get_height() - 2));
-	lbl.draw(offset);
-}
-
-
-// BG, 26.03.2010
-const char *gui_file_table_action_column_t::get_text(const gui_table_row_t &row) const
-{
-	const gui_file_table_row_t &file_row = (const gui_file_table_row_t &)row;
-	return file_row.text.c_str();
-}
-
-
-// BG, 26.03.2010
-void gui_file_table_action_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
-	btn.set_text(get_text(row));
-	gui_file_table_button_column_t::paint_cell(offset, x, y, row);
-}
-
-
-// BG, 26.03.2010
-time_t gui_file_table_time_column_t::get_time(const gui_table_row_t &row) const
-{
-	return static_cast<const gui_file_table_row_t &>(row).info.st_mtime;
-}
-
-
-// BG, 26.03.2010
-void gui_file_table_time_column_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y, const gui_table_row_t &row) {
-	time_t time = get_time(row);
-	struct tm *tm = localtime(&time);
-	char date[64];
-	if(tm) {
-		strftime(date, 18, "%Y-%m-%d %H:%M", tm);
-	}
-	else {
-		tstrncpy(date, "???\?-?\?-?? ??:??", 16); // note: ??- is the trigraph for a tilde, so one ? is escaped.
-	}
-	lbl.set_text(date);
-	gui_file_table_label_column_t::paint_cell(offset, x, y, row);
-}
-
-
-// BG, 26.03.2010
-gui_file_table_row_t::gui_file_table_row_t(const char *pathname, const char *buttontext, bool delete_enabled) : gui_table_row_t()
-{
-	this->pressed = false;
-	this->delete_enabled = delete_enabled;
-	this->name = pathname;
-	this->text = buttontext;
-
-	// first get pak name
-	if (stat(name.c_str(), &info)) {
-		this->error = "failed opening file";
-	}
-}
-
-
-// BG, 26.03.2010
-void gui_file_table_t::paint_cell(const scr_coord& offset, coordinate_t x, coordinate_t y)
-{
-	gui_file_table_column_t *column_def = (gui_file_table_column_t *)get_column(x);
-	gui_table_row_t *row_def = get_row(y);
-	if (column_def && row_def)
-	{
-		column_def->paint_cell(offset, x, y, *row_def);
 	}
 }
 

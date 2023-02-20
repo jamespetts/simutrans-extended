@@ -629,7 +629,7 @@ private:
 	 * Current accumulated month number, counting January of year 0 as 0.
 	 * @note last_month + (last_year*12);
 	 */
-	sint32 current_month;
+	sint32 current_month = 0;
 
 	/**
 	 * Last month 0..11
@@ -1012,6 +1012,7 @@ public:
 	void announce_server(int status);
 
 	vector_tpl<fabrik_t*> closed_factories_this_month;
+	weighted_vector_tpl<fabrik_t*> should_close_factories_this_month;
 
 	/// cache the current maximum and minimum height on the map
 	sint8 max_height, min_height;
@@ -2241,6 +2242,10 @@ public:
 	const vector_tpl<fabrik_t*>& get_fab_list() const { return fab_list; }
 	vector_tpl<fabrik_t*>& access_fab_list() { return fab_list; }
 
+	void fab_init_contracts();
+	void fab_remove_contracts();
+
+
 	/**
 	 * Returns a list of goods produced by factories that exist in current game.
 	 */
@@ -2600,6 +2605,7 @@ public:
 	void remove_queued_city(stadt_t* stadt);
 	void add_queued_city(stadt_t* stadt);
 
+	///  Returns the land value as a *negative* number.
 	sint64 get_land_value(koord3d k);
 	double get_forge_cost(waytype_t waytype, koord3d position);
 	bool is_forge_cost_reduced(waytype_t waytype, koord3d position);

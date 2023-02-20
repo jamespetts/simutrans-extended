@@ -27,6 +27,7 @@
 #include "../vehicle/road_vehicle.h"
 #include "../vehicle/water_vehicle.h"
 
+#include "../simline.h"
 
 const char* vehicle_builder_t::engine_type_names[11] =
 {
@@ -56,7 +57,8 @@ const char *vehicle_builder_t::vehicle_sort_by[vehicle_builder_t::sb_length] =
 	"Tractive Force:",
 	"Axle load:",
 	"Intro. date:",
-	"Retire. date:"
+	"Retire. date:",
+	"Comfort"
 };
 
 static stringhashtable_tpl< vehicle_desc_t*, N_BAGS_SMALL> name_fahrzeuge;
@@ -125,6 +127,7 @@ vehicle_t* vehicle_builder_t::build(koord3d k, player_t* player, convoi_t* cnv, 
 		if(livery)
 		{
 			v->set_current_livery(livery);
+			player->set_favorite_livery_scheme_index((uint8)simline_t::waytype_to_linetype(vb->get_waytype()), livery_scheme_index);
 		}
 		else
 		{
@@ -294,6 +297,33 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			}
 			if (cmp != 0) return cmp < 0;
 			break;
+		case sb_min_comfort:
+		{
+			uint16 a_comfort = 65535;
+			uint16 b_comfort = 65535;
+			if (a->get_freight_type() == goods_manager_t::passengers) {
+				for (uint8 i = 0; i < a->get_number_of_classes(); i++) {
+					if (a->get_capacity(i)>0) {
+						a_comfort = a->get_comfort(i);
+						break;
+					}
+				}
+			}
+			if (b->get_freight_type() == goods_manager_t::passengers) {
+				for (uint8 i = 0; i < b->get_number_of_classes(); i++) {
+					if (b->get_capacity(i) > 0) {
+						b_comfort = b->get_comfort(i);
+						break;
+					}
+				}
+			}
+			cmp = a_comfort - b_comfort;
+			if( cmp == 0) {
+				cmp = a->get_catering_level() - b->get_catering_level();
+			}
+			if (cmp != 0) return cmp < 0;
+			break;
+		}
 		default:
 		case best:
 			break;

@@ -61,41 +61,63 @@ const uint simline_t::linetype_to_stationtype[simline_t::MAX_LINE_TYPE] = {
 karte_ptr_t simline_t::welt;
 
 
-simline_t::simline_t(player_t* player, linetype type)
+simline_t::simline_t(player_t* player, linetype type) :
+	schedule(NULL),
+	player(player),
+	type(type),
+	withdraw(false),
+	self(linehandle_t(this)),
+	state_color(SYSCOL_TEXT),
+	start_reversed(false),
+	livery_scheme_index(0),
+	state(line_normal_state)
 {
-	self = linehandle_t(this);
 	char printname[128];
 	sprintf(printname, "(%i) %s", self.get_id(), translator::translate("Line", welt->get_settings().get_name_language_id()));
 	name = printname;
 
-	init_financial_history();
-	this->type = type;
-	this->schedule = NULL;
-	this->player = player;
-	withdraw = false;
-	state_color = SYSCOL_TEXT;
+	for (uint32 j = 0; j< MAX_LINE_COST; ++j) {
+		for (uint32 i = 0; i < MAX_MONTHS; ++i) {
+			financial_history[i][j] = 0;
+		}
+	}
 
 	for(uint8 i = 0; i < MAX_LINE_COST; i ++)
 	{
 		rolling_average[i] = 0;
 		rolling_average_count[i] = 0;
 	}
-	start_reversed = false;
-	livery_scheme_index = 0;
 
 	create_schedule();
 }
 
 
-simline_t::simline_t(player_t* player, linetype type, loadsave_t *file)
+simline_t::simline_t(player_t* player, linetype type, loadsave_t *file) :
+	schedule(NULL),
+	player(player),
+	type(type),
+	withdraw(false),
+	name(""),
+	self(linehandle_t()), // id will be read and assigned during rdwr
+	state_color(SYSCOL_TEXT),
+	start_reversed(false),
+	livery_scheme_index(0),
+	state(line_normal_state)
 {
-	// id will be read and assigned during rdwr
-	self = linehandle_t();
-	this->type = type;
-	this->schedule = NULL;
-	this->player = player;
-	withdraw = false;
+	for (uint32 j = 0; j< MAX_LINE_COST; ++j) {
+		for (uint32 i = 0; i < MAX_MONTHS; ++i) {
+			financial_history[i][j] = 0;
+		}
+	}
+
+	for(uint8 i = 0; i < MAX_LINE_COST; i ++)
+	{
+		rolling_average[i] = 0;
+		rolling_average_count[i] = 0;
+	}
+
 	create_schedule();
+
 	rdwr(file);
 
 	// now self has the right id but the this-pointer is not assigned to the quickstone handle yet
@@ -136,6 +158,16 @@ simline_t::linetype simline_t::waytype_to_linetype(const waytype_t wt)
 		case air_wt: return simline_t::airline;
 		default: return simline_t::MAX_LINE_TYPE;
 	}
+}
+
+
+uint16 simline_t::get_traction_types() const
+{
+	uint16 traction_types = 0;
+	for (auto line_managed_convoy : line_managed_convoys) {
+		traction_types |= line_managed_convoy->get_traction_types();
+	}
+	return traction_types;
 }
 
 
@@ -570,6 +602,18 @@ void simline_t::rdwr(loadsave_t *file)
 		file->rdwr_byte(line_lettercode_style);
 		file->rdwr_str(linecode_l, lengthof(linecode_l));
 		file->rdwr_str(linecode_r, lengthof(linecode_r));
+	}
+
+	// discard old incompatible datum
+	if( file->is_loading() ) {
+		if( file->is_version_ex_less(14,57) ) {
+			for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+				financial_history[k][LINE_CAPACITY] = 0;
+				if( file->is_version_ex_less(14,48) ) {
+					financial_history[k][LINE_PAX_DISTANCE] = 0;
+				}
+			}
+		}
 	}
 }
 

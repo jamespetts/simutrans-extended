@@ -1016,14 +1016,8 @@ void gebaeude_t::info(cbuffer_t & buf) const
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
-        buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
-
 		building_desc_t const& h = *tile->get_desc();
 
-		buf.printf("%s%u", translator::translate("\nBauzeit von"), h.get_intro_year_month() / 12);
-		if (h.get_retire_year_month() != DEFAULT_RETIRE_DATE * 12) {
-			buf.printf("%s%u", translator::translate("\nBauzeit bis"), h.get_retire_year_month() / 12);
-		}
 		buf.append("\n");
 		if (get_owner() == NULL) {
 			buf.append(translator::translate("Wert"));
@@ -1034,11 +1028,6 @@ void gebaeude_t::info(cbuffer_t & buf) const
 			buf.append(-(cost/100.0),2);
 			buf.append("$\n");
 		}
-
-		if (char const* const maker = tile->get_desc()->get_copyright()) {
-			buf.printf(translator::translate("Constructed by %s"), maker);
-		}
-
 	}
 }
 

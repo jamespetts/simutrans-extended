@@ -114,11 +114,12 @@ public:
 	static bool sort_reverse;
 
 	uint8 veh_action = va_append;
-	static uint16 livery_scheme_index;
 
 private:
 	waytype_t way_type;
 	bool way_electrified;
+
+	uint16 livery_scheme_index=UINT16_MAX;
 
 	// The selected convoy so far...
 	vector_tpl<const vehicle_desc_t *> vehicles;
@@ -240,6 +241,9 @@ private:
 	// Reflects changes when upgrading to the target vehicle
 	void init_convoy_color_bars(vector_tpl<const vehicle_desc_t *>*vehs);
 
+	// returns the image_id of the latest available livery of the vehicle
+	image_id get_latest_available_livery_image_id(const vehicle_desc_t *vinfo);
+
 public:
 	enum {
 		va_append,
@@ -271,12 +275,15 @@ private:
 	void update_data();
 	void update_tabs();
 
+	// just update vehicle livery image
+	void update_livery();
+
+public:
 	/**
 	 * Create and fill vehicle vectors (for all tabs)
 	 */
 	void build_vehicle_lists();
 
-public:
 	/* Getter/setter methods */
 
 	inline vector_tpl<const vehicle_desc_t *>* get_vehicles() { return &vehicles; }
@@ -293,7 +300,10 @@ public:
 
 	void set_electrified(bool ele);
 
-	static uint16 get_livery_scheme_index() { return livery_scheme_index; }
+	// update selectors and lists if available
+	void check_livery_scheme_index(uint16 test_index);
+
+	uint16 get_livery_scheme_index() { return livery_scheme_index; }
 
 	// for save and reload
 	int get_current_tab_index() const { return tabs.get_active_tab_index(); }

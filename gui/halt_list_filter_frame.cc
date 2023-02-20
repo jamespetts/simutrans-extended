@@ -136,7 +136,7 @@ halt_list_filter_frame_t::halt_list_filter_frame_t(player_t *player, halt_list_f
 		for(  int i=0;  i<goods_manager_t::get_count();  i++  ) {
 			const goods_desc_t *ware = goods_manager_t::get_info(i);
 			if(  ware != goods_manager_t::none  ) {
-				ware_cont_an.new_component<gui_colorbox_t>()->init(ware->get_color(),scr_size(LINESPACE/2+2, LINESPACE/2+2),true);
+				ware_cont_an.new_component<gui_colorbox_t>()->init(ware->get_color(), GOODS_COLOR_BOX_SIZE,true);
 				ware_item_t *item = ware_cont_an.new_component<ware_item_t>(this, (const goods_desc_t*)NULL, ware);
 				item->init(button_t::square, translator::translate(ware->get_name()));
 				ware_cont_an.new_component<gui_fill_t>();
@@ -178,7 +178,7 @@ halt_list_filter_frame_t::halt_list_filter_frame_t(player_t *player, halt_list_f
 		for(  int i=0;  i<goods_manager_t::get_count();  i++  ) {
 			const goods_desc_t *ware = goods_manager_t::get_info(i);
 			if(  ware != goods_manager_t::none  ) {
-				ware_cont_ab.new_component<gui_colorbox_t>()->init(ware->get_color(), scr_size(LINESPACE/2+2, LINESPACE/2+2), true);
+				ware_cont_ab.new_component<gui_colorbox_t>()->init(ware->get_color(), scr_size(GOODS_COLOR_BOX_SIZE), true);
 				ware_item_t *item = ware_cont_ab.new_component<ware_item_t>(this, ware, (const goods_desc_t*)NULL);
 				item->init(button_t::square, translator::translate(ware->get_name()));
 				ware_cont_ab.new_component<gui_fill_t>();

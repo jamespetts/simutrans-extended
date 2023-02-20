@@ -23,8 +23,8 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 #define SIM_BUILD_RELEASE_CANDIDATE 1
 #define SIM_BUILD_RELEASE           2
 
-#define SIM_VERSION_MAJOR 120
-#define SIM_VERSION_MINOR   4
+#define SIM_VERSION_MAJOR 123
+#define SIM_VERSION_MINOR   0
 #define SIM_VERSION_PATCH   1
 #define SIM_VERSION_BUILD SIM_BUILD_NIGHTLY
 
@@ -35,7 +35,7 @@ extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 #define EX_VERSION_MAJOR	14
 #define EX_VERSION_MINOR	20
-#define EX_SAVE_MINOR		56
+#define EX_SAVE_MINOR		60
 
 // Do not forget to increment the save game versions in settings_stats.cc when changing this
 

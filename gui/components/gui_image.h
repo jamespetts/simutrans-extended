@@ -18,13 +18,15 @@
 class gui_image_t : public gui_component_t
 {
 		control_alignment_t alignment;
-		image_id            id;
 		uint16              player_nr;
-		scr_coord           remove_offset;
 		bool                remove_enabled;
-		FLAGGED_PIXVAL      color_index;
 
 		const char * tooltip;
+
+protected:
+		image_id            id;
+		scr_coord           remove_offset;
+		FLAGGED_PIXVAL      color_index;
 
 	public:
 		gui_image_t( const image_id i=IMG_EMPTY, const uint8 p=0, control_alignment_t alignment_par = ALIGN_NONE, bool remove_offset = false );

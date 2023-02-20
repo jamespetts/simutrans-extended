@@ -132,11 +132,11 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	init_table();
 	set_convoy();
 
-	if(depot->get_tile()->get_desc()->get_enabled() == 0)
+	if(depot->get_traction_types() == 0)
 	{
 		lb_traction_types.buf().printf("%s", translator::translate("Unpowered vehicles only"));
 	}
-	else if(depot->get_tile()->get_desc()->get_enabled() == 65535)
+	else if(depot->get_traction_types() == 65535)
 	{
 		lb_traction_types.buf().printf("%s", translator::translate("All traction types"));
 	}
@@ -147,7 +147,7 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 		for(uint16 i = 0; i < (vehicle_desc_t::MAX_TRACTION_TYPE); i ++)
 		{
 			shifter = 1 << i;
-			if((shifter & depot->get_tile()->get_desc()->get_enabled()))
+			if((shifter & depot->get_traction_types()))
 			{
 				if(first)
 				{
@@ -603,7 +603,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				}
 				else if(  !welt->use_timeline()  ||  welt->get_settings().get_allow_buying_obsolete_vehicles()  ||  depot->check_obsolete_inventory( cnv )  )
 				{
-					depot->call_depot_tool('c', cnv, NULL, gui_convoy_assembler_t::get_livery_scheme_index());
+					depot->call_depot_tool('c', cnv, NULL, cnv->get_livery_scheme_index());
 					update_data();
 				}
 				else
@@ -654,6 +654,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				if(  selection == 2  ) { // last selected line
 					selected_line = last_selected_line;
 					apply_line();
+					convoy_assembler.check_livery_scheme_index(last_selected_line->get_livery_scheme_index());
 					return true;
 				}
 			}
@@ -665,6 +666,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				depot->set_last_selected_line( selected_line );
 				last_selected_line = selected_line;
 				apply_line();
+				convoy_assembler.check_livery_scheme_index(last_selected_line->get_livery_scheme_index());
 				return true;
 			}
 			line_selector.set_focusable( false );

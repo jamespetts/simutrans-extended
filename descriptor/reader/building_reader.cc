@@ -29,7 +29,6 @@ struct old_btyp
 	};
 };
 
-
 obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 {
 	ALLOCA(char, desc_buf, node.size);
@@ -77,6 +76,8 @@ obj_desc_t * tile_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	return desc;
 }
+
+
 
 
 void building_reader_t::register_obj(obj_desc_t *&data)
@@ -170,8 +171,8 @@ void building_reader_t::register_obj(obj_desc_t *&data)
 		// compatibility stuff
 		static uint16 old_to_new_waytype[16] = { track_wt, road_wt, road_wt, water_wt, water_wt, air_wt, monorail_wt, 0, track_wt, road_wt, road_wt, 0 , water_wt, air_wt, monorail_wt, 0 };
 		uint8 type = desc->type;
-		desc->extra_data = type <= building_desc_t::monorail_geb ? old_to_new_waytype[type - building_desc_t::bahnhof] : 0;
-		if (type != building_desc_t::dock) {
+		desc->extra_data = type <= building_desc_t::monorail_geb ? old_to_new_waytype[type-building_desc_t::bahnhof] : 0;
+		if(  type !=building_desc_t::dock  ) {
 			desc->type = type < building_desc_t::bahnhof_geb ? building_desc_t::generic_stop : building_desc_t::generic_extension;
 		}
 	}
@@ -268,8 +269,30 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 
 	old_btyp::typ btyp = old_btyp::unknown;
 
-	if (version == 8 || version == 9)
-	{
+	if(version == 10) {
+		// preservation date added
+		btyp = (old_btyp::typ)decode_uint8(p);
+		desc->type = (building_desc_t::btype)decode_uint8(p);
+		desc->level = decode_uint16(p);
+		desc->extra_data = decode_uint32(p);
+		desc->size.x = decode_uint16(p);
+		desc->size.y = decode_uint16(p);
+		desc->layouts = decode_uint8(p);
+		desc->allowed_climates = (climate_bits)(decode_uint16(p) & ALL_CLIMATES);
+		desc->enables = decode_uint8(p);
+		desc->flags = (building_desc_t::flag_t)decode_uint8(p);
+		desc->distribution_weight = decode_uint8(p);
+		desc->intro_date = decode_uint16(p);
+		desc->retire_date = decode_uint16(p);
+		desc->animation_time = decode_uint16(p);
+		desc->capacity = decode_uint16(p);
+		desc->maintenance = decode_sint32(p);
+		desc->price = decode_sint32(p);
+		desc->allow_underground = decode_uint8(p);
+		uint16 dummy = decode_uint16(p);
+		//desc->preservation_year_month = decode_uint16(p);
+	}
+	else if(version == 8  ||  version == 9) {
 		// Versioned node, version 8
 		// station price, maintenance and capacity added
 		btyp = (old_btyp::typ)decode_uint8(p);
@@ -374,8 +397,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->class_proportions_sum = 0;
 		}
 	}
-	else if(version == 7)
-	{
+	else if(version == 7) {
 		// Versioned node, version 7
 		// underground mode added
 		btyp = (old_btyp::typ)decode_uint8(p);
@@ -669,8 +691,8 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		dbg->warning("building_reader_t::read_node()","level was 65535, intended was probably 0 => changed." );
 	}
 
-	if (version < 9) {
-		switch (btyp) {
+	if (  version < 9  ) {
+		switch(btyp) {
 			case old_btyp::wohnung:    desc->type = building_desc_t::city_res; break;
 			case old_btyp::gewerbe:    desc->type = building_desc_t::city_com; break;
 			case old_btyp::industrie:  desc->type = building_desc_t::city_ind; break;
@@ -679,9 +701,13 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	}
 
 	DBG_DEBUG("building_reader_t::read_node()",
-		"version=%d"
-		" gtyp=%d"
-		" type=%d"
+		"version=%d,"
+		" ex-version=%d,"
+		" btyp=%d,"
+		" type=%d,"
+		" price=%d,"
+		" maintenance=%d,"
+		" capacity=%d,"
 		" level=%d"
 		" extra_data=%d"
 		" size.x=%d"
@@ -695,6 +721,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		" intro=%d"
 		" retire=%d",
 		version,
+		extended_version,
 		btyp,
 		desc->type,
 		desc->price,

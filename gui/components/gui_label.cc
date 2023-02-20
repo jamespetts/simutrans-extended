@@ -41,23 +41,23 @@ gui_label_t::gui_label_t(const char* text, PIXVAL color_, align_t align_) :
 
 void gui_label_t::set_min_size(scr_size s)
 {
-	min_size = s;
+	min_size = s+padding+padding;
 }
 
 
 void gui_label_t::set_fixed_width(const scr_coord_val width)
 {
-	set_min_size(scr_size(width, size.h));
-	fixed_width = width;
+	set_min_size(scr_size(width+padding.w*2, size.h));
+	fixed_width = width + padding.w*2;
 }
 
 
 scr_size gui_label_t::get_min_size() const
 {
 	if (fixed_width) {
-		return scr_size(fixed_width, D_LABEL_HEIGHT);
+		return scr_size(fixed_width, D_LABEL_HEIGHT + padding.h*2);
 	}
-	return scr_size( max(min_size.w, text ? display_calc_proportional_string_len_width(text,strlen(text)) : D_BUTTON_WIDTH), D_LABEL_HEIGHT );
+	return scr_size( max(min_size.w, (text ? display_calc_proportional_string_len_width(text,strlen(text)) : D_BUTTON_WIDTH)+padding.w*2), D_LABEL_HEIGHT+padding.h*2);
 }
 
 scr_size gui_label_t::get_max_size() const
@@ -85,7 +85,7 @@ void gui_label_t::set_text_pointer(const char *text_par, bool autosize)
 	text = text_par;
 
 	if (autosize && text && *text != '\0') {
-		set_size( scr_size( display_calc_proportional_string_len_width(text,strlen(text)),size.h ) );
+		set_size( scr_size( display_calc_proportional_string_len_width(text,strlen(text))+padding.w*2,size.h ) );
 	}
 }
 
@@ -97,7 +97,7 @@ void gui_label_t::draw(scr_coord offset)
 			const char *separator = NULL;
 			const bool not_a_number = atol(text)==0  &&  !isdigit(*text)  &&  *text != '-';
 
-			scr_coord right = pos + offset;
+			scr_coord right = pos + offset - padding;
 
 			if(  !not_a_number  ) {
 				// find first letter of large_money_width in text
@@ -123,6 +123,9 @@ void gui_label_t::draw(scr_coord offset)
 					}
 					display_text_proportional_len_clip_rgb(right.x, right.y, text, ALIGN_RIGHT | DT_CLIP, color, true, separator-text );
 				}
+				if (underlined) {
+					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(separator)+2, 1, color, true);
+				}
 			}
 			else {
 				// integer or normal text
@@ -130,14 +133,18 @@ void gui_label_t::draw(scr_coord offset)
 					display_proportional_clip_rgb(right.x + 1, right.y + 1, text, ALIGN_RIGHT | DT_CLIP, color_shadow, true);
 				}
 				display_proportional_clip_rgb(right.x, right.y, text, ALIGN_RIGHT, color, true);
+				if (underlined) {
+					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(text)+2, 1, color, true);
+				}
 			}
 		}
 	}
 
 	else if(text) {
-		const scr_rect area( offset+pos, size );
+		const scr_coord offset_left = scr_coord((align==left) ? padding.w:0, 0);
+		const scr_rect area( offset+pos+offset_left, size );
 		int a = align == left ? ALIGN_LEFT : ( align == right ? ALIGN_RIGHT : ALIGN_CENTER_H);
-		display_proportional_ellipsis_rgb( area, text,  a | DT_CLIP, color, true, shadowed, color_shadow );
+		display_proportional_ellipsis_rgb( area, text,  a | DT_CLIP| ALIGN_CENTER_V, color, true, shadowed, color_shadow, underlined );
 	}
 
 	if ( tooltip  &&  getroffen(get_mouse_x()-offset.x, get_mouse_y()-offset.y) ) {

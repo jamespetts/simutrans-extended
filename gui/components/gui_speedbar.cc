@@ -42,7 +42,7 @@ void gui_speedbar_t::draw(scr_coord offset)
 
 	if(vertical) {
 		sint32 from = size.h;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(info_t const& i : values) {
 			sint32 const to = size.h - min(*i.value, base) * size.h / base;
 			if(to < from) {
 				display_fillbox_wh_clip_rgb(offset.x, offset.y + to, size.w, from - to, i.color, true);
@@ -55,7 +55,7 @@ void gui_speedbar_t::draw(scr_coord offset)
 	}
 	else {
 		sint32 from = 0;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(info_t const& i : values) {
 			sint32 const to = min(*i.value, base) * size.w / base;
 			if(to > from) {
 				display_fillbox_wh_clip_rgb(offset.x + from, offset.y, to - from, size.h, i.color, true);
@@ -196,7 +196,7 @@ void gui_routebar_t::draw(scr_coord offset)
 	PIXVAL col;
 	for (uint8 i = 0; i<5; i++) {
 		col = i % 2 ? COL_GREY4-1 : MN_GREY0;
-		display_vline_wh_rgb(offset.x + h/2 + w*i/4, offset.y+i%2, h-(i%2)*2, color_idx_to_rgb(col), true);
+		display_vline_wh_clip_rgb(offset.x + h/2 + w*i/4, offset.y+i%2, h-(i%2)*2, color_idx_to_rgb(col), true);
 	}
 	sint32 const to = min(*value, base) * w / base;
 	if (reserve_value  &&  *reserve_value) {
@@ -253,29 +253,32 @@ scr_size gui_bandgraph_t::get_max_size() const
 
 void gui_bandgraph_t::draw(scr_coord offset)
 {
-	offset += pos;
+	offset = offset+pos+padding;
 	total = 0;
 	FOR(slist_tpl<info_t>, const& i, values) {
 		total += *i.value;
 	}
 
+	const scr_coord_val bar_width  = size.w - padding.w - padding.w;
+	const scr_coord_val bar_height = size.h - padding.h - padding.h;
 	if (total==0) {
-		display_fillbox_wh_clip_rgb(offset.x, offset.y, size.w, size.h, COL_INACTIVE, true);
+		display_fillbox_wh_clip_rgb(offset.x, offset.y, bar_width, bar_height, COL_INACTIVE, true);
 	}
 	else{
+		offset.x += bar_width;
 		sint32 temp = 0;
 		scr_coord_val end = 0;
 		FOR(slist_tpl<info_t>, const& i, values) {
 			if (*i.value>0) {
 				temp += (*i.value);
-				const scr_coord_val from = size.w * temp / total + 0.5;
+				const scr_coord_val from = bar_width * temp / total + 0.5;
 				const scr_coord_val width = from-end;
 				if (width) {
 					if (i.cylinder_style) {
-						display_cylinderbar_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+						display_cylinderbar_wh_clip_rgb(offset.x - from, offset.y, width, bar_height, i.color, true);
 					}
 					else {
-						display_fillbox_wh_clip_rgb(offset.x + size.w - from, offset.y, width, size.h, i.color, true);
+						display_fillbox_wh_clip_rgb(offset.x - from, offset.y, width, bar_height, i.color, true);
 					}
 				}
 				end += width;

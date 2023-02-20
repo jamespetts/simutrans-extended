@@ -293,6 +293,18 @@ settings_t::settings_t() :
 	// default: joined capacities
 	separate_halt_capacities = false;
 
+	// waytype color setting
+	waytype_color[0] = 44373;
+	waytype_color[waytype_t(road_wt)]  = 39455;
+	waytype_color[waytype_t(track_wt)] = 64448;
+	waytype_color[waytype_t(water_wt)] = 536;
+	waytype_color[4] = 0;
+	waytype_color[waytype_t(monorail_wt)] = 45316;
+	waytype_color[waytype_t(maglev_wt)]   = 61916;
+	waytype_color[waytype_t(tram_wt)]     = 15911;
+	waytype_color[waytype_t(narrowgauge_wt)] = 37702;
+	waytype_color[9] = 13919; // air
+
 	// Cornering settings
 	// @author: jamespetts
 	corner_force_divider[waytype_t(road_wt)] = 5;
@@ -985,7 +997,9 @@ void settings_t::rdwr(loadsave_t *file)
 		if(file->is_version_atleast(102, 2)) {
 			bool dummy = false;
 			file->rdwr_bool(dummy);
-			file->rdwr_bool( with_private_paks );
+			if (file->is_version_less(123, 2) || file->is_version_ex_less(14, 59)) {
+				file->rdwr_bool( with_private_paks );
+			}
 		}
 		if(file->is_version_atleast(102, 3)) {
 			// network stuff
@@ -1949,7 +1963,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 
 // read the settings from this file
-void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool &fullscreen, std::string& objfilename )
+void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, sint16 &fullscreen, std::string& objfilename )
 {
 	tabfileobj_t contents;
 
@@ -2007,13 +2021,11 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 #endif
 
 	// check for fontname, must be a valid name!
-	if( !env_t::fontname.compare( FONT_PATH_X "prop.fnt" ) ) {
-		// will be only changed if default!
-		std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
-		if( FILE* f = fopen( fname.c_str(), "r" ) ) {
-			fclose( f );
-			env_t::fontname = fname;
-		}
+	// will be only changed if default!
+	std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
+	if( FILE* f = fopen( fname.c_str(), "r" ) ) {
+		fclose( f );
+		env_t::fontname = fname;
 	}
 	env_t::fontsize  = contents.get_int( "fontsize", env_t::fontsize );
 
@@ -2720,6 +2732,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	always_prefer_car_percent = contents.get_int("always_prefer_car_percent", always_prefer_car_percent);
 	congestion_density_factor = contents.get_int("congestion_density_factor", congestion_density_factor);
 
+	for (uint8 i = 0; i < 10; i++) {
+		char str[256];
+		sprintf(str, "waytype_color[%i]", i);
+		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
+			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+		}
+	}
+
 	// Cornering settings
 	corner_force_divider[waytype_t(road_wt)] = contents.get_int("corner_force_divider_road", corner_force_divider[waytype_t(road_wt)]);
 	corner_force_divider[waytype_t(track_wt)] = contents.get_int("corner_force_divider_track", corner_force_divider[waytype_t(track_wt)]);
@@ -3171,7 +3191,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	 */
 	disp_width  = contents.get_int_clamped("display_width",  disp_width,  0, 0x7FFF );
 	disp_height = contents.get_int_clamped("display_height", disp_height, 0, 0x7FFF );
-	fullscreen  = contents.get_int("fullscreen", fullscreen ) != 0;
+	fullscreen  = contents.get_int_clamped("fullscreen", fullscreen, 0, 2 );
 
 	with_private_paks = contents.get_int("with_private_paks", with_private_paks)!=0;
 
@@ -3526,6 +3546,23 @@ void settings_t::set_scale()
 	}
 }
 
+void settings_t::set_just_in_time(uint8 b){
+	if(using_fab_contracts(b) == using_fab_contracts()){
+		just_in_time=b;
+		return;
+	}
+	karte_ptr_t welt;
+	if(using_fab_contracts(b)){
+		welt->fab_init_contracts();
+		just_in_time=b;
+		return;
+	}
+	if(using_fab_contracts()){
+		welt->fab_remove_contracts();
+	}
+
+	just_in_time=b;
+}
 
 /**
  * Reload the linear interpolation tables for catering from the settings.

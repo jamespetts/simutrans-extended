@@ -622,6 +622,7 @@ public:
 	}
 	void fix_number_of_classes();
 	uint32 get_weight() const { return weight; }
+	uint32 get_max_loading_weight() const;
 	uint16 get_running_cost() const { return running_cost; }
 	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
 	uint32 get_fixed_cost() const { return fixed_cost; }
@@ -635,6 +636,8 @@ public:
 	uint32 get_max_loading_time() const { return get_total_capacity() > 0 ? max_loading_time : 0; }
 	uint32 get_upgrade_price() const { return upgrade_price; }
 	bool is_available_only_as_upgrade() const { return available_only_as_upgrade; }
+
+	uint16 get_traction_type() const { return (uint16)(1<<engine_type); }
 
 	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
 	{

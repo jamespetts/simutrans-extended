@@ -105,6 +105,21 @@ cursor_overlay_color     = #F88000
 tooltip_background_color = #7094B8
 tooltip_text_color       = #000000
 
+# Extended unique color settings
+gui_color_text_inactive  = #5A595A
+gui_color_text_weak      = #424142
+
+#gui_color_table_frame               = #
+#gui_color_table_background_head_row = #
+gui_color_table_header_border       = #6B6B6B
+gui_color_table_cell_border         = #A5A2A5
+gui_color_table_background_left_col = #ABAAAB
+gui_color_table_background_data_sum = #B5B2B5
+gui_color_table_background_data     = #BDBBBD
+#gui_color_table_background          = #
+#gui_color_text_head_row             = #
+#gui_color_text_left_col             = #
+
 ##################################window stuff##################################
 
 # when moving, you can use windows to snap onto each other seamlessly

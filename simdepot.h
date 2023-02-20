@@ -53,6 +53,7 @@ public:
 	 *   - 0 if we don't want to filter by traction type
 	 *   - a bitmask of possible traction types; we need only match one
 	 */
+	uint16 get_traction_types() const;
 	bool is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types = 0) const;
 
 	// finds the next/previous depot relative to the current position

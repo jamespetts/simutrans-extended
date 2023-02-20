@@ -101,6 +101,10 @@ player_t::player_t(uint8 nr) :
 	// access in any event, but this is relevant to whether private
 	// cars may use player roads.
 	access[1] = true;
+
+	for( uint8 i=0; i < simline_t::MAX_LINE_TYPE; ++i ) {
+		favorite_livery_scheme[i]=UINT16_MAX;
+	}
 }
 
 
@@ -965,6 +969,12 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	else
 	{
 		allow_voluntary_takeover = false;
+	}
+
+	if( file->is_version_ex_atleast(14,58) ) {
+		for( uint8 i=0; i < simline_t::MAX_LINE_TYPE; ++i ) {
+			file->rdwr_short(favorite_livery_scheme[i]);
+		}
 	}
 }
 

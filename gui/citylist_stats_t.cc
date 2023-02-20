@@ -243,7 +243,7 @@ void gui_city_stats_t::update_table()
 						FOR(slist_tpl<const goods_desc_t*>, &goods, city_goods) {
 							add_table(3,1);
 							{
-								new_component<gui_colorbox_t>(goods->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));;
+								new_component<gui_colorbox_t>(goods->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 								new_component<gui_label_t>(goods->get_name());
 								new_component<gui_margin_t>(D_H_SPACE);
 							}

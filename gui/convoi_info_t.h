@@ -31,6 +31,9 @@
 #include "times_history_container.h"
 #include "components/gui_colorbox.h"
 #include "components/gui_line_lettercode.h"
+#include "components/gui_line_network.h"
+#include "components/gui_vehicle_cargoinfo.h"
+
 
 #define BUTTON_COUNT convoi_t::MAX_CONVOI_COST
 
@@ -40,29 +43,6 @@
  */
 class convoi_info_t : public gui_frame_t, private action_listener_t
 {
-public:
-	enum sort_mode_t {
-		by_destination          = 0,
-		by_via                  = 1,
-		by_amount_via           = 2,
-		by_amount               = 3,
-		by_origin               = 4,
-		by_origin_sum           = 5,
-		by_destination_detail   = 6,
-		by_wealth_detail        = 7,
-		by_wealth_via           = 8,
-		by_accommodation_detail = 9,
-		by_accommodation_via    = 10,
-		SORT_MODES              = 11
-	};
-
-private:
-	/**
-	* Buffer for freight info text string.
-	*/
-	cbuffer_t freight_info;
-
-	gui_textarea_t text;
 	obj_view_t view;
 	gui_label_buf_t speed_label, profit_label, running_cost_label, weight_label, target_label, line_label;
 	gui_label_buf_t distance_label, lb_working_method;
@@ -83,17 +63,28 @@ private:
 	button_t details_button;
 	button_t reverse_button;
 
+	// new cargo detail
+	uint8 cargo_info_depth_from=0;
+	uint8 cargo_info_depth_to=1;
+	bool divide_by_wealth = false;
+	bool separate_by_fare = true;
+	gui_combobox_t selector_ci_depth_from, selector_ci_depth_to, freight_sort_selector;
+	button_t bt_divide_by_wealth, bt_separate_by_fare, sort_order;
+	gui_aligned_container_t cont_tab_cargo_info;
+	void init_cargo_info_controller(); // build cont_tab_cargo_info table
+	gui_convoy_cargo_info_t cargo_info;
+
 	gui_aligned_container_t next_halt_cells;
 	gui_schedule_entry_number_t next_halt_number;
 
 	gui_times_history_t cont_times_history;
+	gui_line_network_t cont_line_network;
 
 	static sint16 tabstate;
 	gui_tab_panel_t switch_mode;
 	gui_aligned_container_t container_freight, container_stats, container_line, *container_top;
 	gui_scrollpane_t scroll_freight, scroll_times_history;
 
-	gui_combobox_t freight_sort_selector;
 	button_t line_button; // goto line ...
 	bool line_bound;
 	gui_line_lettercode_t lc_preview;
@@ -119,7 +110,7 @@ private:
 
 	//static bool route_search_in_progress;
 
-	static const char *sort_text[SORT_MODES];
+	static const char *sort_text[gui_cargo_info_t::SORT_MODES];
 
 	gui_button_to_chart_array_t button_to_chart;
 
@@ -156,11 +147,14 @@ public:
 	 */
 	void update_data() { reset_cnv_name(); set_dirty(); }
 
+	// called when fare class was changed
+	void update_cargo_info() { cargo_info.update(); }
+
 	bool infowin_event(const event_t *ev) OVERRIDE;
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 
-	uint32 get_rdwr_id() OVERRIDE { return magic_convoi_info; }
+	uint32 get_rdwr_id() OVERRIDE { return magic_convoi_info+cnv.get_id(); }
 };
 
 #endif

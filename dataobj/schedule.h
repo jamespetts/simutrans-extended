@@ -167,6 +167,10 @@ public:
 	 */
 	halthandle_t get_prev_halt( player_t *player ) const;
 
+	// This is used to display the outline the schedule.
+	halthandle_t get_origin_halt(player_t *player) const;
+	halthandle_t get_destination_halt(player_t *player) const;
+
 	/**
 	 * Inserts a coordinate at current_stop into the schedule.
 	 */
@@ -228,6 +232,9 @@ public:
 	 * @author: jamespetts, September 2011
 	 */
 	bool is_contained(koord3d pos);
+
+	// for GUI: To get the station number of the destination of the cargo
+	uint8 get_entry_index(halthandle_t halt, player_t *player, bool reverse) const;
 
 	image_id get_schedule_type_symbol() const
 	{

@@ -168,7 +168,7 @@ private:
 	button_t class_management_button;
 	button_t display_detail_button;
 
-	gui_combobox_t overview_selctor;
+	gui_combobox_t overview_selector;
 	gui_label_buf_t
 		lb_vehicle_count,                   // for main frame
 		lb_loading_time, lb_catering_level, // for payload tab

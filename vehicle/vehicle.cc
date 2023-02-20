@@ -2287,15 +2287,15 @@ void vehicle_t::set_reversed(bool value)
 	}
 }
 
-uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
+uint16 vehicle_t::get_total_cargo_by_class(uint8 a_class) const
 {
 	uint16 carried = 0;
-	if (g_class >= number_of_classes)
+	if (a_class >= number_of_classes)
 	{
 		return 0;
 	}
 
-	FOR(slist_tpl<ware_t>, const& ware, fracht[g_class])
+	FOR(slist_tpl<ware_t>, const& ware, fracht[a_class])
 	{
 		carried += ware.menge;
 	}
@@ -2303,10 +2303,9 @@ uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
 	return carried;
 }
 
-uint16 vehicle_t::get_reassigned_class(uint8 g_class) const
+uint8 vehicle_t::get_reassigned_class(uint8 a_class) const
 {
-	uint16 reassigned_class = class_reassignments[g_class];
-	return reassigned_class;
+	return class_reassignments[a_class];
 }
 
 
@@ -2349,27 +2348,27 @@ uint16 vehicle_t::get_overcrowding(uint8 g_class) const
 	return carried - capacity > 0 ? carried - capacity : 0;
 }
 
-uint16 vehicle_t::get_accommodation_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_accommodation_capacity(uint8 a_class, bool include_lower_classes) const
 {
 	if (!include_lower_classes) {
-		return desc->get_capacity(g_class);
+		return desc->get_capacity(a_class);
 	}
 
 	uint16 cap = 0;
-	for (uint i=0; i <= g_class; i++)
+	for (uint i=0; i <= a_class; i++)
 	{
 		cap += desc->get_capacity(i);
 	}
 	return cap;
 }
 
-uint16 vehicle_t::get_fare_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_fare_capacity(uint8 fare_class, bool include_lower_classes) const
 {
 	// Take into account class reassignments.
 	uint16 cap = 0;
 	for (uint8 i = 0; i < desc->get_number_of_classes(); i++)
 	{
-		if (class_reassignments[i] == g_class || (include_lower_classes && class_reassignments[i] < g_class))
+		if (class_reassignments[i] == fare_class || (include_lower_classes && class_reassignments[i] < fare_class))
 		{
 			cap += desc->get_capacity(i);
 		}
@@ -3311,7 +3310,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 			else {
 				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
 			}
-			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
+			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
 
 			// overcrowding
 			if (cnv->get_overcrowded() && skinverwaltung_t::pax_evaluation_icons) {
@@ -3354,3 +3353,36 @@ void vehicle_t::before_delete()
 {
 }
 
+void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const convoi_t *cnv, bool draw_background)
+{
+	if (cnv) {
+		scr_coord_val offset_x = 2;
+		const PIXVAL base_color = color_idx_to_rgb(cnv->get_owner()->get_player_color1()+4);
+		PIXVAL bg_color, frame_color;
+		if (draw_background) {
+			bg_color    = display_blend_colors(color_idx_to_rgb(COL_WHITE), base_color, 25);
+			frame_color = display_blend_colors(base_color, color_idx_to_rgb(COL_WHITE), 25);
+		}
+		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+			if (!cnv->get_goods_catg_index().is_contained(catg_index)) {
+				continue;
+			}
+			// draw background
+			if (draw_background) {
+				display_fillbox_wh_rgb(xp+offset_x, yp+2, D_FIXED_SYMBOL_WIDTH+2, D_FIXED_SYMBOL_WIDTH+2, bg_color, true);
+			}
+
+			display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), xp+offset_x+2, yp+3, 0, false, true);
+			offset_x += 12;
+			if (!skinverwaltung_t::goods_categories && (catg_index!=goods_manager_t::INDEX_PAS && catg_index!=goods_manager_t::INDEX_MAIL)) {
+				// pakset cannot distinguish the type of freight catgs => Exit when one is found
+				break;
+			}
+		}
+		// draw border
+		if (draw_background && offset_x > 2) {
+			display_ddd_box_rgb(xp,   yp,   offset_x+3, D_FIXED_SYMBOL_WIDTH+4, frame_color, frame_color, true);
+			display_ddd_box_rgb(xp+1, yp+1, offset_x+1, D_FIXED_SYMBOL_WIDTH+2, base_color,  base_color,  true);
+		}
+	}
+}

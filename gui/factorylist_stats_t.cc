@@ -180,7 +180,7 @@ void gui_factory_stats_t::update_table()
 					add_component(&input_bar);
 				}
 				else {
-					new_component<gui_margin_t>(LINESPACE*6);
+					new_component<gui_margin_t>(LINESPACE*5);
 				}
 
 				add_component(&producing_status);
@@ -222,7 +222,7 @@ void gui_factory_stats_t::update_table()
 										FOR(array_tpl<ware_production_t>, const& material, storage_index ? fab->get_output() : fab->get_input()) {
 											goods_desc_t const* const ware = material.get_typ();
 											if (catg_index == ware->get_catg_index()) {
-												new_component<gui_colorbox_t>(ware->get_color())->set_size(scr_size(LINESPACE / 2 + 2, LINESPACE / 2 + 2));
+												new_component<gui_colorbox_t>(ware->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 												gui_label_buf_t *lb = new_component<gui_label_buf_t>();
 												lb->buf().append(translator::translate( ware->get_name() ));
 												lb->buf().append(" ");

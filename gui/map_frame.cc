@@ -22,6 +22,8 @@
 #include "../dataobj/loadsave.h"
 #include "../simfab.h"
 
+#include "components/gui_colorbox.h"
+#include "depotlist_frame.h"
 
 static koord old_ij=koord::invalid;
 
@@ -174,8 +176,8 @@ map_button_t button_init[MAP_MAX_BUTTONS] = {
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_passengers", "Show how many people/much is waiting at halts", minimap_t::MAP_PAX_WAITING },
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_mails", "Show how many mails are waiting at halts", minimap_t::MAP_MAIL_WAITING },
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "by_waiting_goods", "Show how many goods are waiting at halts", minimap_t::MAP_GOODS_WAITING },
-	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Service", "Show how many convoi reach a station", minimap_t::MAP_SERVICE },
 	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Origin", "Show initial passenger departure", minimap_t::MAP_ORIGIN },
+	{ COL_LIGHT_PURPLE, COL_DARK_PURPLE, "Service", "Show how many convoi reach a station", minimap_t::MAP_SERVICE },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "map_btn_freight", "Show transported freight/freight network", minimap_t::MAP_FREIGHT },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Traffic", "Show usage of network", minimap_t::MAP_TRAFFIC },
 	{ COL_LIGHT_ORANGE, COL_DARK_ORANGE, "Wear", "Show the condition of ways", minimap_t::MAP_CONDITION },
@@ -228,7 +230,7 @@ map_frame_t::map_frame_t() :
 	set_table_layout(1,0);
 
 	// first row of controls
-	zoom_row = add_table(7,0);
+	zoom_row = add_table(8,1);
 	{
 		// zoom levels label
 		new_component<gui_label_t>("map zoom");
@@ -257,6 +259,12 @@ map_frame_t::map_frame_t() :
 		b_rotate45.add_listener(this);
 		b_rotate45.pressed = karte->is_isometric();
 		add_component(&b_rotate45);
+
+		b_overlay_networks.init(button_t::square_state, "Networks");
+		b_overlay_networks.set_tooltip("Overlay schedules/network");
+		b_overlay_networks.add_listener(this);
+		b_overlay_networks.pressed = (env_t::default_mapmode & minimap_t::MAP_LINES)!=0;
+		add_component( &b_overlay_networks );
 
 		// show contour
 		b_show_contour.init(button_t::square_state, "Show contour");
@@ -315,13 +323,8 @@ map_frame_t::map_frame_t() :
 	network_filter_container.set_visible(false);
 	add_component(&network_filter_container);
 
-	network_filter_container.set_table_layout(5,1);
-	// insert selections: show networks, in filter container
-	b_overlay_networks.init(button_t::square_state, "Networks");
-	b_overlay_networks.set_tooltip("Overlay schedules/network");
-	b_overlay_networks.add_listener(this);
-	b_overlay_networks.pressed = (env_t::default_mapmode & minimap_t::MAP_LINES)!=0;
-	network_filter_container.add_component( &b_overlay_networks );
+	network_filter_container.set_table_layout(4,1);
+	// insert selections: in filter container
 
 	// player combo for network overlay
 	viewed_player_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All"), SYSCOL_TEXT);
@@ -409,16 +412,57 @@ map_frame_t::map_frame_t() :
 	filter_buttons[9].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_buttons[10].set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_buttons[11].set_image(skinverwaltung_t::goods->get_image_id(0));
+	filter_buttons[12].set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_container.end_table();
 	update_buttons();
 
 	// scale container
-	scale_container.set_table_layout(3,0);
+	scale_container.set_table_layout(1,0);
 	scale_container.set_visible(false);
+	scale_container.add_table(3,1);
+	{
+		scale_container.new_component<gui_label_t>("min");
+		scale_container.new_component<gui_scale_t>();
+		scale_container.new_component<gui_label_t>("max");
+	}
+	scale_container.end_table();
+	// depot color container
+	cont_depot_color_legend.set_table_layout(12,2);
+	{
+		cont_depot_color_legend.set_alignment(ALIGN_CENTER_V);
+		cont_depot_color_legend.set_visible((env_t::default_mapmode & minimap_t::MAP_DEPOT) != 0);
+		cont_depot_color_legend.set_rigid(false);
+		cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::bahndepot));
+		cont_depot_color_legend.new_component<gui_label_t>("Bahndepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::strassendepot));
+		cont_depot_color_legend.new_component<gui_label_t>("Strassendepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		if (depotlist_frame_t::is_available_wt(water_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::schiffdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Schiffdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(air_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::airdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Hangar"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(monorail_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::monoraildepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Monoraildepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(tram_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::tramdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Tramdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(maglev_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::maglevdepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Maglevdepot"); cont_depot_color_legend.new_component<gui_empty_t>();
+		}
+		if (depotlist_frame_t::is_available_wt(narrowgauge_wt)) {
+			cont_depot_color_legend.new_component<gui_depotbox_t>(minimap_t::get_depot_color(obj_t::narrowgaugedepot));
+			cont_depot_color_legend.new_component<gui_label_t>("Narrowgaugedepot");
+		}
+	}
+	scale_container.add_component(&cont_depot_color_legend);
 	add_component(&scale_container);
-	scale_container.new_component<gui_label_t>("min");
-	scale_container.new_component<gui_scale_t>();
-	scale_container.new_component<gui_label_t>("max");
 
 	// map scrolly
 	scrolly.set_show_scroll_x(true);
@@ -615,6 +659,10 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 					env_t::default_mapmode |= button_init[i].mode;
 				}
 				filter_buttons[i].pressed ^= 1;
+				if (button_init[i].mode == minimap_t::MAP_DEPOT) {
+					cont_depot_color_legend.set_visible((env_t::default_mapmode & minimap_t::MAP_DEPOT) != 0);
+					reset_min_windowsize();
+				}
 				break;
 			}
 		}

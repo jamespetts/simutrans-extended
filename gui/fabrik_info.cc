@@ -57,7 +57,6 @@ fabrik_info_t::fabrik_info_t(fabrik_t* fab_, const gebaeude_t* gb) :
 	lbl_factory_status(factory_status),
 	view(gb, scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
 	prod(&prod_buf),
-	txt(&info_buf),
 	storage(fab_),
 	container_details(gb, get_titlecolor()),
 	scrolly_info(&container_info),
@@ -120,7 +119,6 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 
 	// tab4 - building info
 	container_details.set_pos(scr_coord(0, D_MARGIN_TOP));
-	txt.set_pos(scr_coord(D_MARGIN_LEFT, 0));
 
 	update_info();
 
@@ -132,7 +130,6 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 	container_info.add_component(&all_consumers);
 	container_info.add_component(&lb_nearby_halts);
 	container_info.add_component(&nearby_halts);
-	container_details.add_component(&txt);
 
 	// Hajo: "About" button only if translation is available
 	char key[256];
@@ -426,7 +423,6 @@ void fabrik_info_t::update_components()
 {
 	// update texts
 	fab->info_prod( prod_buf );
-	fab->info_conn( info_buf );
 
 	// tab1 - connections
 	scr_coord_val y = D_V_SPACE; // calc for layout

@@ -71,7 +71,7 @@ class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {
 public:
 	enum convoi_cost_t {            // Ext|Std|Description
-		CONVOI_CAPACITY = 0,        //  0 | 0 | the amount of ware that could be transported, theoretically
+		CONVOI_CAPACITY = 0,        //  0 |   | the distance (km) travelled by vacant seats
 		CONVOI_PAX_DISTANCE,        //  1 |   | the distance (km) travelled by passengers
 		CONVOI_AVERAGE_SPEED,       //  2 |   | the average speed of the convoy per rolling month
 		CONVOI_COMFORT,             //  3 |   | the aggregate comfort rating of this convoy
@@ -372,6 +372,7 @@ private:
 	/**
 	* the convoi caches its freight info; it is only recalculation after loading or resorting
 	*/
+	// TODO: Not currently used but could be used for another flag. Delete if not used.
 	bool freight_info_resort;
 
 	// true, if at least one vehicle of a convoi is obsolete
@@ -383,11 +384,6 @@ private:
 	// True if this is on token block working and the route has been
 	// renewed during the journey.
 	bool needs_full_route_flush;
-
-	/**
-	* the convoi caches its freight info; it is only recalculation after loading or resorting
-	*/
-	uint8 freight_info_order;
 
 	/**
 	* Number of vehicles in this convoi.
@@ -700,7 +696,7 @@ private:
 
 	// 0: not fixed, -1: fixed to traffic lane, 1: fixed to passing lane
 	sint8 lane_affinity;
-	uint32 lane_affinity_end_index;
+	uint32 lane_affinity_end_index = INVALID_INDEX;
 
 	// true, if this vehicle will cross lane and block other vehicles.
 	bool next_cross_lane;
@@ -1055,6 +1051,9 @@ public:
 	 */
 	inline vehicle_t* get_vehicle(uint16 i) const { return vehicle[i]; }
 
+	// Returns bits of traction types that this convoy has
+	uint16 get_traction_types() const;
+
 	// Upgrades a vehicle in the convoy.
 	// @author: jamespetts, February 2010
 	void upgrade_vehicle(uint16 i, vehicle_t* v);
@@ -1161,12 +1160,8 @@ private:
 	journey_times_map average_journey_times;
 public:
 
-	/**
-	* @param[out] buf Filled with freight description
-	*/
-	void get_freight_info(cbuffer_t & buf);
-	void set_sortby(uint8 order);
-	inline uint8 get_sortby() const { return freight_info_order; }
+	// we need to detect the change in the dialog that is already open when the fare class changes
+	void force_update_fare_related_dialogs();
 
 	/**
 	* Opens the schedule window
@@ -1352,7 +1347,7 @@ public:
 	void must_recalc_data() { invalidate_adverse_summary(); }
 
 	// just a guess of the speed
-	uint32 get_average_kmh();
+	//uint32 get_average_kmh();
 
 	// Overtaking for convois
 	virtual bool can_overtake(overtaker_t *other_overtaker, sint32 other_speed, sint16 steps_other) OVERRIDE;

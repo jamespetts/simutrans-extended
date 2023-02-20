@@ -192,7 +192,6 @@ void convoi_t::init(player_t *player)
 	name_offset = 0;
 
 	freight_info_resort = true;
-	freight_info_order = 0;
 	loading_level = 0;
 	loading_limit = 0;
 	free_seats = 0;
@@ -3318,6 +3317,10 @@ bool convoi_t::can_go_alte_direction()
 	// we just check, whether we go back (i.e. route tiles other than zero have convoi vehicles on them)
 	for( int index=1;  index<length;  index++ ) {
 		grund_t *gr=welt->lookup(route.at(index));
+		if (!gr) {
+			return false; // recalculate route
+		}
+
 		// now check, if we are already here ...
 		for(unsigned i=0; i<vehicle_count; i++) {
 			if (gr->obj_ist_da(vehicle[i])) {
@@ -4213,6 +4216,7 @@ void convoi_t::rdwr(loadsave_t *file)
 			}
 		}
 		for (size_t k = MAX_MONTHS; k-- != 0;) {
+			financial_history[k][CONVOI_CAPACITY] = 0;
 			financial_history[k][CONVOI_DISTANCE] = 0;
 			//financial_history[k][CONVOI_WAYTOLL] = 0;
 		}
@@ -4245,6 +4249,9 @@ void convoi_t::rdwr(loadsave_t *file)
 			{
 				financial_history[k][j] = 0;
 			}
+		}
+		for (size_t k = MAX_MONTHS; k-- != 0;) {
+			financial_history[k][CONVOI_CAPACITY] = 0;
 		}
 	}
 	else
@@ -4359,6 +4366,16 @@ void convoi_t::rdwr(loadsave_t *file)
 				for (int k = MAX_MONTHS-1; k >= 0; k--)
 				{
 					file->rdwr_longlong(dummy);
+				}
+			}
+
+			// discard old incompatible datum
+			if(  file->is_version_ex_less(14,57)  ) {
+				for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+					financial_history[k][CONVOI_CAPACITY] = 0;
+					if( file->is_version_ex_less(14,48) ) {
+						financial_history[k][CONVOI_PAX_DISTANCE] = 0;
+					}
 				}
 			}
 		}
@@ -5136,148 +5153,22 @@ void convoi_t::info(cbuffer_t & buf) const
 }
 #endif
 
-// sort order of convoi
-void convoi_t::set_sortby(uint8 sort_order)
+
+void convoi_t::force_update_fare_related_dialogs()
 {
-	freight_info_order = sort_order;
-	freight_info_resort = true;
-}
-
-
-// caches the last info; resorts only when needed
-// since the sorting of the classes is done here, we simply have two get_freight_info's...
-void convoi_t::get_freight_info(cbuffer_t & buf)
-{
-
-	if (freight_info_resort) {
-		freight_info_resort = false;
-		// rebuilt the list with goods ...
-		vector_tpl<ware_t> total_fracht;
-		vector_tpl<ware_t> pass_fracht[255];
-		vector_tpl<ware_t> mail_fracht[255];
-
-		size_t const n = goods_manager_t::get_count();
-		ALLOCA(uint32, max_loaded_waren, n);
-		MEMZERON(max_loaded_waren, n);
-
-		size_t const pass_classes = goods_manager_t::passengers->get_number_of_classes();
-		size_t const mail_classes = goods_manager_t::mail->get_number_of_classes();
-
-		ALLOCA(uint32, max_loaded_pass, pass_classes);
-		MEMZERON(max_loaded_pass, pass_classes);
-
-		ALLOCA(uint32, max_loaded_mail, mail_classes);
-		MEMZERON(max_loaded_mail, mail_classes);
-
-		bool sort_by_accommodation = env_t::default_sortmode == convoi_info_t::sort_mode_t::by_accommodation_detail || env_t::default_sortmode == convoi_info_t::sort_mode_t::by_accommodation_via ? true : false;
-
-		for (uint32 i = 0; i != vehicle_count; ++i) {
-
-			const vehicle_t* v = vehicle[i];
-
-
-			bool pass_veh = v->get_cargo_type() == goods_manager_t::passengers;
-			bool mail_veh = v->get_cargo_type() == goods_manager_t::mail;
-			const goods_desc_t* ware_desc = v->get_desc()->get_freight_type();
-			const uint16 menge = v->get_desc()->get_total_capacity();
-			const uint8 classes_to_check = v->get_desc()->get_number_of_classes();
-
-			// first add to capacity indicator
-			if (sort_by_accommodation)
-			{
-				if (pass_veh)
-				{
-					for (uint8 j = 0; j < pass_classes; j++)
-					{
-						max_loaded_pass[v->get_reassigned_class(j)] += v->get_accommodation_capacity(j);
-					}
-				}
-				else if (mail_veh)
-				{
-					for (uint8 j = 0; j < mail_classes; j++)
-					{
-						max_loaded_mail[v->get_reassigned_class(j)] += v->get_accommodation_capacity(j);
-					}
-				}
-				else if (menge > 0 && ware_desc != goods_manager_t::none) {
-					max_loaded_waren[ware_desc->get_index()] += menge;
-				}
-			}
-			else
-			{
-				if (menge > 0 && ware_desc != goods_manager_t::none) {
-					max_loaded_waren[ware_desc->get_index()] += menge;
-				}
-			}
-
-			//
-			for (uint8 j = 0; j < classes_to_check; j++)
-			{
-				// then add the actual load
-				FOR(slist_tpl<ware_t>, ware, v->get_cargo(j))
-				{
-					// if != 0 we could not join it to existing => load it
-					if (ware.menge != 0)
-					{
-						if (sort_by_accommodation && pass_veh)
-						{
-							pass_fracht[v->get_reassigned_class(j)].append(ware);
-						}
-						else if (sort_by_accommodation && mail_veh)
-						{
-							mail_fracht[v->get_reassigned_class(j)].append(ware);
-						}
-						else
-						{
-							total_fracht.append(ware);
-						}
-					}
-				}
-			}
-			INT_CHECK("simconvoi 2643");
-		}
-		buf.clear();
-
-		// apend info on total capacity
-		slist_tpl <ware_t>capacity;
-		for (uint16 i = 0; i != n; ++i) {
-			if(max_loaded_waren[i]>0  &&  i!=goods_manager_t::INDEX_NONE) {
-				ware_t ware(goods_manager_t::get_info(i));
-				ware.menge = max_loaded_waren[i];
-				// append to category?
-				slist_tpl<ware_t>::iterator j = capacity.begin();
-				slist_tpl<ware_t>::iterator end = capacity.end();
-				while (j != end && j->get_desc()->get_catg_index() < ware.get_desc()->get_catg_index()) ++j;
-				if (j != end && j->get_desc()->get_catg_index() == ware.get_desc()->get_catg_index()) {
-					j->menge += max_loaded_waren[i];
-				}
-				else {
-					// not yet there
-					capacity.insert(j, ware);
-				}
-			}
-		}
-		// show new info
-		if (sort_by_accommodation)
-		{
-			ware_t ware;
-			for (uint8 i = 0; i < pass_classes; i++)
-			{
-				// We pass on details of all classes - freight_list_sorter will ignore the unused ones (unless they are incorrectly occupied!)
-				// Display from highest class to lowest class
-				uint8 j = pass_classes - i - 1;
-				ware = goods_manager_t::passengers;
-				freight_list_sorter_t::sort_freight(pass_fracht[j], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", j, max_loaded_pass[j], &ware);
-			}
-			for (uint8 i = 0; i < mail_classes; i++)
-			{
-				uint8 j = mail_classes - i - 1;
-				ware = goods_manager_t::mail;
-				freight_list_sorter_t::sort_freight(mail_fracht[j], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", j, max_loaded_mail[j], &ware);
-			}
-		}
-		freight_list_sorter_t::sort_freight(total_fracht, buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL);
+	// info
+	convoi_info_t *info = dynamic_cast<convoi_info_t*>(win_get_magic(magic_convoi_info + self.get_id()));
+	if (info) {
+		info->update_cargo_info();
 	}
+
+	// detail
+	//convoi_detail_t *detail = dynamic_cast<convoi_detail_t*>(win_get_magic(magic_convoi_detail + self.get_id()));
+	//if (detail) {
+	//	detail->update_cargo_info();
+	//}
+
+	return;
 }
 
 
@@ -5529,6 +5420,18 @@ void convoi_t::laden() //"load" (Babelfish)
 				}
 			}
 		}
+
+
+		// Calculate the transport distance for "vacant seats".
+		// This is used to determine utilization relative to actual passenger traffic.
+		for (uint8 i = 0; i < vehicle_count; i++) {
+			const vehicle_t* v = vehicle[i];
+			if (v->get_cargo_type() == goods_manager_t::passengers) {
+				// Standing passengers count as negative
+				book( (v->get_cargo_max()-v->get_total_cargo()) * journey_distance_meters/100, CONVOI_CAPACITY );
+			}
+		}
+
 
 		// Recalculate comfort
 		// This is an average of comfort for all classes,
@@ -6207,11 +6110,6 @@ station_tile_search_ready: ;
 	can_go = can_go && state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS;
 	can_go = can_go && now > earliest_departure_time;
 	if(can_go) {
-		// add available capacity after loading(!) to statistics
-		for (unsigned i = 0; i<vehicle_count; i++) {
-			book(get_vehicle(i)->get_cargo_max()-get_vehicle(i)->get_total_cargo(), CONVOI_CAPACITY);
-		}
-
 		// Advance schedule
 		advance_schedule();
 		state = ROUTING_1;
@@ -6283,13 +6181,13 @@ void convoi_t::calc_loading()
 
 
 // return the current average speed
-uint32 convoi_t::get_average_kmh()
-{
-	halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
-	id_pair idp(last_stop_id, halt.get_id());
-	average_tpl<uint32>* avr = get_average_journey_times().access(idp);
-	return avr ? avr->get_average() : get_vehicle_summary().max_speed;
-}
+//uint32 convoi_t::get_average_kmh()
+//{
+//	halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
+//	id_pair idp(last_stop_id, halt.get_id());
+//	average_tpl<uint32>* avr = get_average_journey_times().access(idp);
+//	return avr ? avr->get_average() : get_vehicle_summary().max_speed;
+//}
 
 
 /**
@@ -6956,6 +6854,15 @@ bool convoi_t::has_same_vehicles(convoihandle_t other) const
 	return false;
 }
 
+uint16 convoi_t::get_traction_types() const
+{
+	uint16 traction_types = 0;
+	for (uint8 i = 0; i < vehicle_count; i++) {
+		traction_types |= vehicle[i]->get_desc()->get_traction_type();
+	}
+	return traction_types;
+}
+
 /*
  * Will find a depot for the vehicle "master".
  */
@@ -6979,9 +6886,9 @@ public:
 	{
 		return master->check_next_tile(gr);
 	};
-	virtual bool  is_target( const grund_t* gr, const grund_t* )
+	virtual bool is_target( const grund_t* gr, const grund_t* )
 	{
-		return gr->get_depot() && gr->get_depot()->get_owner() == master->get_owner() && gr->get_depot()->get_tile()->get_desc()->get_enabled() & traction_type;
+		return gr->get_depot() && gr->get_depot()->get_owner() == master->get_owner() && gr->get_depot()->get_traction_types() & traction_type;
 	};
 	virtual ribi_t::ribi get_ribi( const grund_t* gr) const
 	{
@@ -7138,7 +7045,7 @@ DBG_MESSAGE("convoi_t::go_to_depot()","convoi state %i => cannot change schedule
 		}
 	}
 
-	if(((aircraft && !aircraft->is_on_ground()) || use_home_depot) && home_depot_valid)
+	if(aircraft && (!aircraft->is_on_ground() || use_home_depot) && home_depot_valid)
 	{
 		// Flying aircraft cannot find a route using the normal means: send to their home depot instead.
 		aircraft->calc_route(get_pos(), home_depot, speed_to_kmh(get_min_top_speed()), has_tall_vehicles(), &route);

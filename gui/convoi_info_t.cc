@@ -32,6 +32,7 @@
 #include "convoi_detail_t.h"
 
 #include "../obj/roadsign.h"
+#include "components/gui_waytype_image_box.h"
 
 #define CHART_HEIGHT (100)
 
@@ -39,7 +40,7 @@ sint16 convoi_info_t::tabstate = -1;
 
 static const char cost_type[BUTTON_COUNT][64] =
 {
-	"Free Capacity",
+	"Free Capacity", // empty seats * km
 	"Pax-km",
 	"Mail-km",
 	"Freight-km", // ton-km
@@ -71,7 +72,7 @@ static const uint8 cost_type_color[BUTTON_COUNT] =
 
 static const uint8 cost_type_money[BUTTON_COUNT] =
 {
-	gui_chart_t::STANDARD,
+	gui_chart_t::PAX_KM,
 	gui_chart_t::PAX_KM,
 	gui_chart_t::KG_KM,
 	gui_chart_t::TON_KM,
@@ -95,36 +96,29 @@ static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
 
 /**
  * This variable defines by which column the table is sorted
- * Values: 0 = destination
- *                 1 = via
- *                 2 = via_amount
- *                 3 = amount
+ * Values: 0 = amount
+ *         1 = via
+ *         2 = from
+ *         3 = goods
  */
-const char *convoi_info_t::sort_text[SORT_MODES] =
+const char *convoi_info_t::sort_text[gui_cargo_info_t::SORT_MODES] =
 {
-	"Zielort",
-	"via",
-	"via Menge",
 	"Menge",
-	"origin (detail)",
-	"origin (amount)",
-	"destination (detail)",
-	"wealth (detail)",
-	"wealth (via)",
-	"accommodation (detail)",
-	"accommodation (via)"
+	"via",
+	"origin",
+	"hd_category"
 };
 
 
 
 convoi_info_t::convoi_info_t(convoihandle_t cnv) :
 	gui_frame_t(""),
-	text(&freight_info),
 	view(scr_size(max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width() * 7) / 8))),
 	loading_bar(cnv),
 	next_halt_number(-1),
 	cont_times_history(linehandle_t(), cnv),
-	scroll_freight(&container_freight, true, true),
+	cont_line_network(cnv),
+	scroll_freight(&cargo_info, true, true),
 	scroll_times_history(&cont_times_history, true),
 	lc_preview(0)
 {
@@ -141,6 +135,8 @@ void convoi_info_t::init(convoihandle_t cnv)
 	gui_frame_t::set_name(cnv->get_name());
 	gui_frame_t::set_owner(cnv->get_owner());
 	cont_times_history.set_convoy(cnv);
+	cont_line_network.set_convoy(cnv);
+	cargo_info.set_convoy(cnv);
 
 	minimap_t::get_instance()->set_selected_cnv(cnv);
 	set_table_layout(1,0);
@@ -150,10 +146,17 @@ void convoi_info_t::init(convoihandle_t cnv)
 	{
 		container_top = add_table(1,0);
 		{
-			input.add_listener(this);
-			input.set_size(input.get_min_size());
-			reset_cnv_name();
-			add_component(&input);
+			gui_aligned_container_t *tbl = add_table(2,1);
+			tbl->set_alignment(ALIGN_CENTER_V);
+			tbl->set_spacing(scr_size(0,0));
+			{
+				new_component<gui_waytype_image_box_t>(cnv->front()->get_waytype());
+				input.add_listener(this);
+				input.set_size(input.get_min_size());
+				reset_cnv_name();
+				add_component(&input);
+			}
+			end_table();
 
 			add_table(2,0);
 			{
@@ -242,7 +245,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 		go_home_button.add_listener(this);
 		add_component(&go_home_button);
 
-		replace_button.init(button_t::roundbox | button_t::flexible, "Replace");
+		replace_button.init(button_t::roundbox | button_t::flexible, "Replace type");
 		replace_button.set_tooltip("Automatically replace this convoy.");
 		add_component(&replace_button);
 		replace_button.add_listener(this);
@@ -274,26 +277,10 @@ void convoi_info_t::init(convoihandle_t cnv)
 	// tab panel: connections, chart panels
 	switch_mode.add_listener(this);
 	add_component(&switch_mode);
-	switch_mode.add_tab(&scroll_freight, translator::translate("cd_payload_tab"));
+	switch_mode.add_tab(&cont_tab_cargo_info, translator::translate("cd_payload_tab"));
 
-	container_freight.set_table_layout(1,0);
-	container_freight.add_table(2,1);
-	{
-		container_freight.new_component<gui_label_t>("loaded passenger/freight");
-		freight_sort_selector.clear_elements();
-		for (int i = 0; i < SORT_MODES; i++)
-		{
-			freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
-		}
-		freight_sort_selector.set_focusable(true);
-		freight_sort_selector.set_selection(env_t::default_sortmode);
-		freight_sort_selector.set_width_fixed(true);
-		freight_sort_selector.set_size(scr_size(D_BUTTON_WIDTH*2, D_EDIT_HEIGHT));
-		freight_sort_selector.add_listener(this);
-		container_freight.add_component(&freight_sort_selector);
-	}
-	container_freight.end_table();
-	container_freight.add_component(&text);
+	init_cargo_info_controller();
+	scroll_freight.set_maximize(true);
 
 	switch_mode.add_tab(&container_stats, translator::translate("Chart"));
 
@@ -321,8 +308,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 	container_stats.end_table();
 
 	switch_mode.add_tab(&scroll_times_history, translator::translate("times_history"));
-
-	cnv->set_sortby( env_t::default_sortmode );
+	switch_mode.add_tab(&cont_line_network, translator::translate("line_network"));
 
 	speed_bar.set_base(max_convoi_speed);
 	speed_bar.set_vertical(false);
@@ -344,6 +330,82 @@ void convoi_info_t::init(convoihandle_t cnv)
 	set_resizemode(diagonal_resize);
 }
 
+void convoi_info_t::init_cargo_info_controller()
+{
+	cont_tab_cargo_info.set_table_layout(1,0);
+	// top
+	cont_tab_cargo_info.add_table(5,1);
+	{
+		bool enable_cargo_detail = (cargo_info_depth_from + cargo_info_depth_to);
+		// col1: sort option
+		cont_tab_cargo_info.add_table(2, 2)->set_spacing(scr_size(0, 0));
+		{
+			cont_tab_cargo_info.new_component_span<gui_label_t>("Sort by",2);
+			for( uint8 i=0; i<gui_cargo_info_t::SORT_MODES; ++i ) {
+				freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
+			}
+			freight_sort_selector.set_selection( env_t::default_sortmode<gui_cargo_info_t::SORT_MODES ? env_t::default_sortmode : 0 );
+			freight_sort_selector.enable(enable_cargo_detail);
+			freight_sort_selector.add_listener(this);
+			cont_tab_cargo_info.add_component(&freight_sort_selector);
+
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.pressed = !gui_cargo_info_t::sort_reverse;
+			sort_order.add_listener(this);
+			cont_tab_cargo_info.add_component(&sort_order);
+		}
+		cont_tab_cargo_info.end_table();
+
+		cont_tab_cargo_info.new_component<gui_margin_t>(LINEASCENT>>1);
+
+		// col3
+		cont_tab_cargo_info.add_table(2,2)->set_spacing(scr_size(0,0));
+		{
+			cont_tab_cargo_info.new_component<gui_label_t>("info_depth_from:");
+			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("-"), SYSCOL_TEXT);
+			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Loaded stop"), SYSCOL_TEXT);
+			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Origin stop"), SYSCOL_TEXT);
+			selector_ci_depth_from.set_selection(cargo_info_depth_from);
+			selector_ci_depth_from.add_listener(this);
+			cont_tab_cargo_info.add_component(&selector_ci_depth_from);
+
+			cont_tab_cargo_info.new_component<gui_label_t>("info_depth_to:");
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("-"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("via"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Destination halt"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Destination"), SYSCOL_TEXT);
+			selector_ci_depth_to.set_selection(cargo_info_depth_to);
+			selector_ci_depth_to.add_listener(this);
+			cont_tab_cargo_info.add_component(&selector_ci_depth_to);
+		}
+		cont_tab_cargo_info.end_table();
+
+		// col4
+		cont_tab_cargo_info.add_table(1,2);
+		{
+			bt_separate_by_fare.init(button_t::square_state, "separate_by_fare_class");
+			bt_separate_by_fare.set_tooltip("Separate cargo information display by fare class of this convoy.");
+			bt_separate_by_fare.pressed = separate_by_fare;
+			bt_separate_by_fare.enable(enable_cargo_detail);
+			bt_separate_by_fare.add_listener(this);
+			cont_tab_cargo_info.add_component(&bt_separate_by_fare);
+
+			bt_divide_by_wealth.init(button_t::square_state, "divide_by_wealth_class");
+			bt_divide_by_wealth.set_tooltip("Cargoes are divided and displayed according to the wealth class.");
+			bt_divide_by_wealth.pressed=divide_by_wealth;
+			bt_divide_by_wealth.enable(enable_cargo_detail);
+			bt_divide_by_wealth.add_listener(this);
+			cont_tab_cargo_info.add_component(&bt_divide_by_wealth);
+		}
+		cont_tab_cargo_info.end_table();
+
+
+		cont_tab_cargo_info.new_component<gui_fill_t>();
+	}
+	cont_tab_cargo_info.end_table();
+	cont_tab_cargo_info.add_component(&scroll_freight);
+}
 
 // only handle a pending renaming ...
 convoi_info_t::~convoi_info_t()
@@ -627,14 +689,6 @@ void convoi_info_t::update_labels()
 	}
 	lb_working_method.update();
 
-	// buffer update now only when needed by convoi itself => dedicated buffer for this
-	const int old_len=freight_info.len();
-	cnv->get_freight_info(freight_info);
-	if(  old_len!=freight_info.len()  ) {
-		text.recalc_size();
-		scroll_freight.set_size( scroll_freight.get_size() );
-	}
-
 	if (skinverwaltung_t::reverse_arrows) {
 		img_reverse_route.set_image(cnv->get_schedule()->is_mirrored() ? skinverwaltung_t::reverse_arrows->get_image_id(0) : skinverwaltung_t::reverse_arrows->get_image_id(1), true);
 		img_reverse_route.set_visible(cnv->get_reverse_schedule());
@@ -756,14 +810,6 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 				display_proportional_rgb(pos_x, pos_y, state_text, ALIGN_LEFT, SYSCOL_TEXT, true);
 				debug_row++;
 			}
-			if (runway_too_short)
-			{
-				const int pos_y = pos_y0 + debug_row * LINESPACE;
-				char runway_too_short[32];
-				sprintf(runway_too_short, "air->runway_too_short");
-				display_proportional_rgb(pos_x, pos_y, runway_too_short, ALIGN_LEFT, SYSCOL_TEXT, true);
-				debug_row++;
-			}
 			if (cnv->front()->get_is_overweight() == true) // This doesnt flag!
 			{
 				const int pos_y = pos_y0 + debug_row * LINESPACE;
@@ -819,6 +865,20 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 	route_bar.set_base(cnv->get_route()->get_count()-1);
 	cnv_route_index = cnv->front()->get_route_index() - 1;
 
+	// Hide the x-scrollbar to not hide the tab header.
+	switch (switch_mode.get_active_tab_index()) {
+		case 0: // loaded detail
+			scroll_freight.set_show_scroll_x( scroll_freight.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+		default:
+		case 1: // chart
+		case 3: // notwork
+			break;
+		case 2: // times history
+			scroll_times_history.set_show_scroll_x( scroll_times_history.get_size().h > D_SCROLLBAR_HEIGHT );
+			break;
+	}
+
 	// all gui stuff set => display it
 	gui_frame_t::draw(pos, size);
 }
@@ -850,21 +910,27 @@ void convoi_info_t::set_tab_opened()
 {
 	tabstate = switch_mode.get_active_tab_index();
 
-	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT;
+	const scr_coord_val margin_above_tab = switch_mode.get_pos().y + D_TAB_HEADER_HEIGHT + D_TITLEBAR_HEIGHT-1;
 
+	scr_coord_val height = 0;
 	switch (tabstate)
 	{
 		case 0: // loaded detail
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + scroll_freight.get_size().h)));
+			height = D_EDIT_HEIGHT*2 + D_ENTRY_NO_HEIGHT*12 + D_V_SPACE + D_MARGINS_Y;
 			break;
 		case 1: // chart
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + container_stats.get_size().h)));
+			height = chart.get_size().h+D_BUTTON_HEIGHT*3+D_V_SPACE*2+D_MARGINS_Y;
 			break;
 		case 2: // times history
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_times_history.get_size().h)));
+			height = cont_times_history.get_size().h + D_MARGINS_Y;
 			break;
-
+		case 3: // line networks
+			height = cont_line_network.get_size().h + D_MARGINS_Y;
+			break;
+	}
+	if( (get_windowsize().h-margin_above_tab) < height ) {
+		set_windowsize( scr_size(get_windowsize().w, min(display_get_height()-margin_above_tab, margin_above_tab+height)+1) );
 	}
 }
 
@@ -875,7 +941,7 @@ void convoi_info_t::set_tab_opened()
 bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
 	minimap_t::get_instance()->set_selected_cnv(cnv);
-	if(  comp == &switch_mode  &&  get_windowsize().h == get_min_windowsize().h  ) {
+	if( comp == &switch_mode  &&  (tabstate!=switch_mode.get_active_tab_index() ||  (get_windowsize().h-get_min_windowsize().h<LINESPACE*5)) ) {
 		set_tab_opened();
 		return true;
 	}
@@ -905,17 +971,6 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	else if(  comp == &input  ) {
 		// rename if necessary
 		rename_cnv();
-	}
-	// sort by what
-	else if(  comp == &freight_sort_selector  ) {
-		sint32 sort_mode = freight_sort_selector.get_selection();
-		if (sort_mode < 0)
-		{
-			freight_sort_selector.set_selection(0);
-			sort_mode = 0;
-		}
-		env_t::default_sortmode = (sort_mode_t)((int)(sort_mode)%(int)SORT_MODES);
-		cnv->set_sortby( env_t::default_sortmode );
 	}
 
 	// some actions only allowed, when I am the player
@@ -957,14 +1012,59 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		}
 	}
 
+	// cargo info controll
+	bool cargo_info_controll = false;
+	if(  comp==&selector_ci_depth_from  ) {
+		cargo_info_depth_from = selector_ci_depth_from.get_selection();
+		cargo_info_controll = true;
+	}
+	else if(  comp==&selector_ci_depth_to  ) {
+		cargo_info_depth_to = selector_ci_depth_to.get_selection();
+		cargo_info_controll = true;
+	}
+	// sort by what
+	else if(  comp==&freight_sort_selector  ) {
+		env_t::default_sortmode = (uint8)freight_sort_selector.get_selection();
+		cargo_info_controll = true;
+	}
+	else if(  comp==&sort_order  ) {
+		gui_cargo_info_t::sort_reverse = !gui_cargo_info_t::sort_reverse;
+		sort_order.pressed = !gui_cargo_info_t::sort_reverse;
+		cargo_info_controll = true;
+	}
+	else if(  comp==&bt_divide_by_wealth  ) {
+		divide_by_wealth = !divide_by_wealth;
+		bt_divide_by_wealth.pressed = divide_by_wealth;
+		cargo_info_controll = true;
+	}
+	else if(  comp==&bt_separate_by_fare  ) {
+		separate_by_fare = !separate_by_fare;
+		bt_separate_by_fare.pressed = separate_by_fare;
+		cargo_info_controll = true;
+	}
+	if( cargo_info_controll ) {
+		bool enable_cargo_detail = (cargo_info_depth_from + cargo_info_depth_to);
+		bt_divide_by_wealth.enable(enable_cargo_detail);
+		bt_separate_by_fare.enable(enable_cargo_detail);
+		freight_sort_selector.enable(enable_cargo_detail);
+
+		cargo_info.set_mode(cargo_info_depth_from, cargo_info_depth_to, (enable_cargo_detail&&divide_by_wealth), (enable_cargo_detail&&separate_by_fare), enable_cargo_detail ? env_t::default_sortmode :0);
+		return true;
+	}
+
 	return false;
 }
 
 
 bool convoi_info_t::infowin_event(const event_t *ev)
 {
-	if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  ) {
-		minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
+	if(  ev->ev_code == INFOWIN  ) {
+		if( ev->ev_code == WIN_CLOSE) {
+			minimap_t::get_instance()->set_selected_cnv(convoihandle_t());
+		}
+		else if ((ev->ev_code == WIN_OPEN || ev->ev_code == WIN_TOP)) {
+			minimap_t::get_instance()->set_selected_cnv(cnv);
+		}
 	}
 	return gui_frame_t::infowin_event(ev);
 }

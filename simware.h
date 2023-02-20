@@ -73,6 +73,12 @@ private:
 	 */
 	koord zielpos;
 
+public:
+	// The time at which this packet arrived at the current station
+	// @author: jamespetts
+	sint64 arrival_time;
+
+private:
 	/**
 	 * Update target (zielpos) for factory-going goods (after loading or rotating)
 	 */
@@ -121,10 +127,6 @@ public:
 	inline bool is_passenger() const { return index == 0; }
 	inline bool is_mail() const { return index == 1; }
 	inline bool is_freight() const { return index > 2; }
-
-	// The time at which this packet arrived at the current station
-	// @author: jamespetts
-	sint64 arrival_time;
 
 	int operator==(const ware_t &w) {
 		return	menge == w.menge &&

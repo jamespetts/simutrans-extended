@@ -281,10 +281,8 @@ void help_frame_t::set_text(const char * buf, bool resize_frame )
 
 		if(  generaltext.is_visible()  ) {
 			generaltext.set_pos( scr_coord(D_MARGIN_LEFT, D_MARGIN_TOP) );
-			generaltext.set_size( scr_size( min(180,display_get_width()/3), 0 ) );
-			int generalwidth = min( display_get_width()/3, generaltext.get_preferred_size().w );
-			generaltext.set_size( scr_size( generalwidth, helptext.get_size().h ) );
-			generaltext.set_size( generaltext.get_preferred_size() );
+			int generalwidth = generaltext.get_required_text_width() + D_SCROLLBAR_WIDTH;
+			generaltext.set_size( scr_size( generalwidth, get_client_windowsize().h  - D_MARGIN_BOTTOM) );
 		}
 		else {
 			generaltext.set_size( scr_size(D_MARGIN_LEFT, D_MARGIN_TOP) );
@@ -548,11 +546,9 @@ void help_frame_t::resize(const scr_coord delta)
 
 	scr_coord_val generalwidth = 0;
 	if(  generaltext.is_visible()  ) {
-		// do not use more than 1/3 for the general infomations
-		generalwidth = min( get_windowsize().w/3, generaltext.get_preferred_size().w ) + D_SCROLLBAR_WIDTH;
+		generalwidth = generaltext.get_required_text_width() + D_SCROLLBAR_WIDTH + D_H_SPACE;
 		generaltext.set_size( scr_size( generalwidth, get_client_windowsize().h  - D_MARGIN_BOTTOM) );
 
-		generalwidth += D_H_SPACE;
 		helptext.set_pos( generaltext.get_pos() + scr_size( generalwidth, 0 ) );
 	}
 

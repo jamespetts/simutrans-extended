@@ -284,7 +284,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		bt_promote_to_line.add_listener(this);
 		add_component(&bt_promote_to_line);
 
-		lb_line.align_to( &bt_promote_to_line, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
+		lb_line.set_pos( scr_coord( D_MARGIN_LEFT, ypos) );
 		add_component( &lb_line );
 
 		ypos += D_BUTTON_HEIGHT+1;
@@ -341,7 +341,7 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 	add_component(&bt_bidirectional);
 
 	lb_load.set_width( label_width );
-	lb_load.align_to( &numimp_load, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
+	lb_load.set_pos( scr_coord( D_MARGIN_LEFT, ypos) );
 	add_component( &lb_load );
 
 	ypos += D_BUTTON_HEIGHT;
@@ -361,25 +361,25 @@ schedule_gui_t::schedule_gui_t(schedule_t* sch_, player_t* player_, convoihandle
 		welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
 	}
 
-	lb_waitlevel_as_clock.set_text_pointer(str_parts_month_as_clock, false);
-	lb_waitlevel_as_clock.set_size( numimp_load.get_size() - scr_size( D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH, 0 ) );
-	lb_waitlevel_as_clock.set_pos( scr_coord(bt_wait_prev.get_pos().x, ypos + 2));
-	lb_waitlevel_as_clock.align_to( &numimp_load, ALIGN_EXTERIOR_V | ALIGN_TOP | ALIGN_LEFT, scr_coord( gui_theme_t::gui_arrow_left_size.w, 0 ) );
-	add_component(&lb_waitlevel_as_clock);
-
 	bt_wait_prev.set_typ( button_t::arrowleft );
-	bt_wait_prev.align_to( &lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_RIGHT | ALIGN_CENTER_V );
+	bt_wait_prev.set_pos( scr_coord(numimp_load.get_pos().x, ypos) );
 	bt_wait_prev.add_listener(this);
 	add_component( &bt_wait_prev );
 
+	lb_waitlevel_as_clock.set_text_pointer(str_parts_month_as_clock, false);
+	lb_waitlevel_as_clock.set_size( numimp_load.get_size() - scr_size( D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH, 0 ) );
+	lb_waitlevel_as_clock.set_pos( scr_coord(D_MARGIN_LEFT, ypos) );
+	lb_waitlevel_as_clock.align_to( &bt_wait_prev );
+	add_component(&lb_waitlevel_as_clock);
+
 	bt_wait_next.set_typ( button_t::arrowright );
-	bt_wait_next.align_to( &lb_waitlevel_as_clock, ALIGN_EXTERIOR_H | ALIGN_LEFT | ALIGN_CENTER_V );
+	bt_wait_next.set_pos( scr_coord(numimp_load.get_pos().x+ numimp_load.get_size().w - bt_wait_next.get_size().w, ypos));
 	bt_wait_next.add_listener(this);
 	lb_waitlevel_as_clock.set_width( bt_wait_next.get_pos().x-bt_wait_prev.get_pos().x-bt_wait_prev.get_size().w );
 	add_component( &bt_wait_next );
 
 	lb_wait.set_width( label_width );
-	lb_wait.align_to( &lb_waitlevel_as_clock, ALIGN_CENTER_V, scr_coord( D_MARGIN_LEFT, 0 ) );
+	lb_wait.set_pos(scr_coord(D_MARGIN_LEFT, ypos));
 	add_component( &lb_wait );
 
 	if(!cnv.is_bound())

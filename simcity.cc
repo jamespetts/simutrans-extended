@@ -6010,7 +6010,7 @@ bool private_car_destination_finder_t::is_target(const grund_t* gr, const grund_
 	}
 
 	const weg_t* way = gr->get_weg(road_wt);
-	if(way->connected_buildings.get_count() > 0)
+	if(way && way->connected_buildings.get_count() > 0)
 	{
 		return true;
 	}

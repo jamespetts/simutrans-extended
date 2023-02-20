@@ -122,6 +122,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
 	gui/components/gui_line_lettercode.cc
+	gui/components/gui_line_network.cc
 	gui/components/gui_map_preview.cc
 	gui/components/gui_numberinput.cc
 	gui/components/gui_obj_view_t.cc
@@ -135,6 +136,8 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_textarea.cc
 	gui/components/gui_textinput.cc
 	gui/components/gui_vehicle_capacitybar.cc
+	gui/components/gui_vehicle_cargoinfo.cc
+	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
 	gui/convoi_detail_t.cc

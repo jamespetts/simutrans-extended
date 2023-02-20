@@ -188,6 +188,8 @@ public:
 		width = size.w; height = size.h;
 		set_size_fixed(size_fixed);
 		bg_col = color_idx_to_rgb(COL_GREY4);
+		capacity = width;
+		loading  = capacity;
 	}
 
 	void set_value(uint16 capacity, uint16 loading_amount) {
@@ -199,6 +201,20 @@ public:
 
 	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); }
 	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); }
+};
+
+
+class gui_depotbox_t : public gui_colorbox_t
+{
+	uint8 width;
+
+public:
+	gui_depotbox_t(PIXVAL c = SYSCOL_TEXT, uint8 width = 10);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
 

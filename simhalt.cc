@@ -6291,6 +6291,18 @@ bool haltestelle_t::has_available_network(const player_t* player, uint8 catg_ind
 	return false;
 }
 
+bool haltestelle_t::has_waytype_service(waytype_t wt) const
+{
+	for( uint32 i=0; i<registered_lines.get_count(); ++i ) {
+		if( registered_lines[i]->get_schedule()->get_waytype()==wt) return true;
+	}
+
+	for( uint32 i=0; i<registered_convoys.get_count(); ++i ) {
+		if( registered_convoys[i]->get_schedule()->get_waytype()==wt) return true;
+	}
+	return false;
+}
+
 bool haltestelle_t::has_no_control_tower() const
 {
 	return welt->get_settings().get_allow_airports_without_control_towers() ? false : control_towers == 0;

@@ -28,17 +28,21 @@ const way_desc_t *schiene_t::default_schiene=NULL;
 bool schiene_t::show_reservations = false;
 
 
-schiene_t::schiene_t(waytype_t waytype) : weg_t (waytype)
+schiene_t::schiene_t(waytype_t waytype) :
+	weg_t(waytype),
+	reserved(convoihandle_t()),
+	type(block),
+	direction(ribi_t::none)
 {
-	reserved = convoihandle_t();
 }
 
 
-schiene_t::schiene_t() : weg_t(track_wt)
+schiene_t::schiene_t() :
+	weg_t(track_wt),
+	reserved(convoihandle_t()),
+	type(block),
+	direction(ribi_t::none)
 {
-	reserved = convoihandle_t();
-	type = block;
-
 	if (schiene_t::default_schiene) {
 		set_desc(schiene_t::default_schiene);
 	}
@@ -48,10 +52,12 @@ schiene_t::schiene_t() : weg_t(track_wt)
 }
 
 
-schiene_t::schiene_t(loadsave_t *file) : weg_t(track_wt)
+schiene_t::schiene_t(loadsave_t *file) :
+	weg_t(track_wt),
+	reserved(convoihandle_t()),
+	type(block),
+	direction(ribi_t::none)
 {
-	reserved = convoihandle_t();
-	type = block;
 	rdwr(file);
 }
 

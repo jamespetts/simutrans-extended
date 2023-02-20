@@ -152,6 +152,8 @@ city_info_t::city_info_t(stadt_t* city) :
 	lb_allow_growth(""),
 	pax_map(city),
 	location_map(city),
+	transportation_last_year(scr_size(D_INDICATOR_BOX_WIDTH, GOODS_COLOR_BOX_HEIGHT), false),
+	transportation_this_year(scr_size(D_INDICATOR_BOX_WIDTH, GOODS_COLOR_BOX_HEIGHT), false),
 	scrolly_stats(&cont_city_stats, true)
 {
 	if (city) {
@@ -168,48 +170,57 @@ void city_info_t::init()
 	add_table(2,1)->set_alignment(ALIGN_TOP);
 	{
 		// top left
-		add_table(1,0);
+		add_table(1,2);
 		{
 			// add city name input field
 			name_input.add_listener( this );
 			add_component(&name_input);
 
-			add_table(4, 3);
+			add_table(2,1)->set_alignment(ALIGN_TOP);
 			{
-				// area
-				new_component<gui_label_t>("City size");
-				add_component(&lb_size);
-				add_component(&lb_border);
-				new_component<gui_fill_t>();
+				add_table(2,3)->set_spacing(scr_size(1,1));
+				{
+					// area
+					new_component<gui_table_header_t>("City size", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+					lb_size.set_flexible(true, false);
+					lb_size.set_align(gui_label_t::right);
+					add_component(&lb_size);
 
-				new_component<gui_label_t>("Population density");
-				add_component(&lb_buildings);
-				new_component<gui_empty_t>();
-				new_component<gui_fill_t>();
+					new_component<gui_table_header_t>("Population density", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+					lb_buildings.set_flexible(true, false);
+					lb_buildings.set_align(gui_label_t::right);
+					add_component(&lb_buildings);
 
-				new_component<gui_label_t>("Power demand");
-				add_component(&lb_powerdemand);
-				new_component<gui_empty_t>();
-				new_component<gui_fill_t>();
-			}
-			end_table();
+					new_component<gui_table_header_t>("Power demand", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+					lb_powerdemand.set_flexible(true, false);
+					lb_powerdemand.set_align(gui_label_t::right);
+					add_component(&lb_powerdemand);
+				}
+				end_table();
 
-			// minimap link buttons
-			add_table(3, 1);
-			{
-				add_component(&bt_city_stops);
-				add_component(&bt_city_factories);
-				add_component(&bt_city_attractions);
+				// minimap link buttons
+				add_table(1,3);
+				{
+					add_component(&bt_city_stops);
+					add_component(&bt_city_factories);
+					add_component(&bt_city_attractions);
+				}
+				end_table();
 			}
 			end_table();
 		}
 		end_table();
 
 		// top right
-		add_table(1,2);
+		add_table(1,3)->set_alignment(ALIGN_TOP|ALIGN_CENTER_H);
 		{
 			// city location map
 			add_component(&location_map);
+
+			// city pos
+			lb_border.set_align(gui_label_t::centered);
+			add_component(&lb_border);
+
 			// region
 			if (!world()->get_settings().regions.empty()) {
 				new_component<gui_label_buf_t>()->buf().append(translator::translate(world()->get_region_name(city->get_pos()).c_str()));
@@ -314,8 +325,8 @@ void city_info_t::init()
 
 	// City statistics
 	cont_city_stats.set_table_layout(1, 0);
-	transportation_this_year.set_size(scr_size(100, (D_INDICATOR_HEIGHT+LINESPACE)/2));
-	transportation_last_year.set_size(scr_size(100, (D_INDICATOR_HEIGHT+LINESPACE)/2));
+	transportation_this_year.set_padding(scr_size(D_H_SPACE, 0));
+	transportation_last_year.set_padding(scr_size(D_H_SPACE, 0));
 	transportation_this_year.add_color_value(&transportation_pas[0], color_idx_to_rgb(hist_type_color[HIST_PAS_TRANSPORTED]));
 	transportation_this_year.add_color_value(&transportation_pas[1], color_idx_to_rgb(hist_type_color[HIST_CITYCARS]));
 	transportation_this_year.add_color_value(&transportation_pas[2], color_idx_to_rgb(hist_type_color[HIST_PAS_WALKED]));
@@ -338,7 +349,7 @@ void city_info_t::init()
 	cont_destination_map.add_table(3,1)->set_alignment(ALIGN_TOP);
 	{
 		bt_show_hide_legend.init(button_t::roundbox_state, "+");
-		bt_show_hide_legend.set_width(display_get_char_width('+') + gui_theme_t::gui_button_text_offset.w + gui_theme_t::gui_button_text_offset_right.x);
+		bt_show_hide_legend.set_width(display_get_char_width('+') + D_BUTTON_PADDINGS_X);
 		bt_show_hide_legend.add_listener(this);
 		cont_destination_map.add_component(&bt_show_hide_legend);
 
@@ -471,8 +482,8 @@ void city_info_t::update_labels()
 	stadt_t* const c = city;
 
 	// display city stats
-	lb_size.buf().printf("%.2f %s", c->get_land_area(), translator::translate("sq. km.")); lb_size.update();
-	lb_buildings.buf().printf("%d/%s", c->get_population_density(), translator::translate("sq. km.")); lb_buildings.update();
+	lb_size.buf().printf("%.2f %s ", c->get_land_area(), translator::translate("sq. km.")); lb_size.update();
+	lb_buildings.buf().printf("%d/%s ", c->get_population_density(), translator::translate("sq. km.")); lb_buildings.update();
 
 	const koord ul = c->get_linksoben();
 	const koord lr = c->get_rechtsunten();
@@ -482,17 +493,17 @@ void city_info_t::update_labels()
 	if(power_demand == 0)
 	{
 		lb_powerdemand.buf().append((c->get_power_demand() * 1000)>>POWER_TO_MW);
-		lb_powerdemand.buf().append(" KW");
+		lb_powerdemand.buf().append(" KW ");
 	}
 	else if(power_demand < 1000)
 	{
 		lb_powerdemand.buf().append(power_demand);
-		lb_powerdemand.buf().append(" MW");
+		lb_powerdemand.buf().append(" MW ");
 	}
 	else
 	{
 		lb_powerdemand.buf().append(power_demand / 1000);
-		lb_powerdemand.buf().append(" GW");
+		lb_powerdemand.buf().append(" GW ");
 	}
 	lb_powerdemand.update();
 
@@ -518,39 +529,52 @@ void city_info_t::update_stats()
 	}
 	cont_city_stats.end_table();
 
-	cont_city_stats.new_component<gui_heading_t>("Statistics", SYSCOL_TEXT, env_t::default_window_title_color, 1)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
-	cont_city_stats.add_table(6,0)->set_spacing(scr_size(D_H_SPACE*2,1));
+	cont_city_stats.new_component<gui_heading_t>("Statistics", SYSCOL_TEXT, env_t::default_window_title_color, 3)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
+	gui_aligned_container_t *tbl = cont_city_stats.add_table(4,0);
+	tbl->set_spacing(scr_size(1,1));
+	tbl->set_table_frame(true, true);
 	{
 		// header
-		cont_city_stats.new_component<gui_empty_t>();
-		cont_city_stats.new_component<gui_empty_t>();
-		cont_city_stats.new_component<gui_label_t>("citicens", SYSCOL_TEXT, gui_label_t::centered);
-		cont_city_stats.new_component<gui_label_t>("Passagierrate", SYSCOL_TEXT, gui_label_t::centered);
-		cont_city_stats.new_component<gui_label_t>("Jobs", SYSCOL_TEXT, gui_label_t::centered);
-		cont_city_stats.new_component<gui_fill_t>();
+		cont_city_stats.new_component<gui_table_header_t>("")->set_flexible(true, false);
+		cont_city_stats.new_component<gui_table_header_t>("citicens")->set_flexible(true, false);
+		cont_city_stats.new_component<gui_table_header_t>("Passagierrate")->set_flexible(true, false);
+		cont_city_stats.new_component<gui_table_header_t>("Jobs")->set_flexible(true, false);
 
 		// data
-		cont_city_stats.new_component_span<gui_label_t>("Total", 2);
-		cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered)->buf().append(city->get_city_population());
-		cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered)->buf().append(city->get_city_visitor_demand());
-		cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered)->buf().append(city->get_city_jobs());
-		cont_city_stats.new_component<gui_empty_t>();
+		cont_city_stats.new_component<gui_table_header_t>("Total", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+		gui_table_cell_buf_t *td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->buf().append(city->get_city_population());
+		td->set_flexible(true, false);
+		td->update();
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->buf().append(city->get_city_visitor_demand());
+		td->set_flexible(true, false);
+		td->update();
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->buf().append(city->get_city_jobs());
+		td->set_flexible(true, false);
+		td->update();
 
 		// demand
-		cont_city_stats.new_component_span<gui_label_t>("(ci_demands)", 2);
-		cont_city_stats.new_component<gui_label_buf_t>(city->get_homeless() < 0 ? SYSCOL_DOWN_TRIANGLE : SYSCOL_UP_TRIANGLE, gui_label_t::centered)->buf().append(city->get_homeless());
-		cont_city_stats.new_component<gui_label_t>("-", SYSCOL_TEXT_WEAK, gui_label_t::centered);
-		cont_city_stats.new_component<gui_label_buf_t>(city->get_unemployed()<0 ? SYSCOL_DOWN_TRIANGLE : SYSCOL_UP_TRIANGLE, gui_label_t::centered)->buf().append(city->get_unemployed());
-		cont_city_stats.new_component<gui_empty_t>();
+		cont_city_stats.new_component<gui_table_header_t>("(ci_demands)", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_flexible(true, false);
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->buf().append(city->get_homeless());
+		td->set_color(city->get_homeless()<0 ? SYSCOL_DOWN_TRIANGLE : SYSCOL_UP_TRIANGLE);
+		td->set_flexible(true, false);
+		td->update();
+		cont_city_stats.new_component<gui_table_cell_t>("-", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true)->set_flexible(true, false);
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->buf().append(city->get_unemployed());
+		td->set_color(city->get_unemployed()<0 ? SYSCOL_DOWN_TRIANGLE : SYSCOL_UP_TRIANGLE);
+		td->set_flexible(true, false);
+		td->update();
 
 		// classes
 		for (uint8 c = 0; c < goods_manager_t::passengers->get_number_of_classes(); c++) {
-			cont_city_stats.new_component<gui_margin_t>(D_MARGIN_LEFT);
-			cont_city_stats.new_component<gui_label_t>(goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_PAS, c));
+			cont_city_stats.new_component<gui_table_header_t>(goods_manager_t::get_translated_wealth_name(goods_manager_t::INDEX_PAS, c), SYSCOL_TD_BACKGROUND, gui_label_t::left)->set_flexible(true, false);
 			cont_city_stats.new_component<gui_data_bar_t>()->init((sint64)city->get_population_by_class(c),     city->get_city_population(),     value_cell_width*2, color_idx_to_rgb(COL_DARK_GREEN+1),       false, true);
 			cont_city_stats.new_component<gui_data_bar_t>()->init((sint64)city->get_visitor_demand_by_class(c), city->get_city_visitor_demand(), value_cell_width*2, goods_manager_t::passengers->get_color(), false, true);
 			cont_city_stats.new_component<gui_data_bar_t>()->init((sint64)city->get_jobs_by_class(c),           city->get_city_jobs(),           value_cell_width*2, color_idx_to_rgb(COL_COMMUTER),           false, true);
-			cont_city_stats.new_component<gui_fill_t>();
 		}
 	}
 	cont_city_stats.end_table();
@@ -558,93 +582,102 @@ void city_info_t::update_stats()
 
 
 	// city transportation network quality
-	cont_city_stats.new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, env_t::default_window_title_color, 1)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
-	cont_city_stats.add_table(5, 0)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
-	{
+	cont_city_stats.new_component<gui_heading_t>("Success rate", SYSCOL_TEXT, env_t::default_window_title_color, 3)->set_width(D_DEFAULT_WIDTH - D_MARGINS_X - D_H_SPACE);
+	tbl = cont_city_stats.add_table(4,0);
+	tbl->set_spacing(scr_size(1, 1));
+	tbl->set_table_frame(true, true); {
 		// header
-		cont_city_stats.new_component<gui_margin_t>(8);
-		cont_city_stats.new_component<gui_margin_t>(D_BUTTON_WIDTH);
-		cont_city_stats.new_component<gui_label_t>("This Year");
-		cont_city_stats.new_component<gui_label_t>("Last Year");
-		cont_city_stats.new_component<gui_fill_t>();
+		gui_table_header_t *th = cont_city_stats.new_component<gui_table_header_t>("");
+		th->set_flexible(true, false);
+		th->set_fixed_width(D_FIXED_SYMBOL_WIDTH);
+		cont_city_stats.new_component<gui_table_header_t>("")->set_flexible(true, false);
+		cont_city_stats.new_component<gui_table_header_t>("This Year")->set_flexible(true, false);
+		cont_city_stats.new_component<gui_table_header_t>("Last Year")->set_flexible(true, false);
 
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0,0, true);
-		cont_city_stats.new_component<gui_label_t>("ratio_pax");
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true);
+		th = cont_city_stats.new_component<gui_table_header_t>("ratio_pax", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		th->set_flexible(true, false);
 
-		gui_label_buf_t *lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
+		gui_table_cell_buf_t *td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
 		sint64 sum = city->get_finance_history_year(0, HIST_PAS_TRANSPORTED)+city->get_finance_history_year(0, HIST_CITYCARS)+city->get_finance_history_year(0, HIST_PAS_WALKED);
-		lb->set_fixed_width(value_cell_width);
-		lb->buf().printf("%.1f%%",
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
+		td->buf().printf("%.1f%%",
 			city->get_finance_history_year(0, HIST_PAS_GENERATED) > 0 ?
 			(float)(100.0*sum / city->get_finance_history_year(0, HIST_PAS_GENERATED)) : 0.0);
-		lb->update();
+		td->update();
 
 		sum = city->get_finance_history_year(1, HIST_PAS_TRANSPORTED) + city->get_finance_history_year(1, HIST_CITYCARS) + city->get_finance_history_year(1, HIST_PAS_WALKED);
-		lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->set_fixed_width(value_cell_width);
-		lb->buf().printf("%.1f%%",
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
+		td->buf().printf("%.1f%%",
 			city->get_finance_history_year(1, HIST_PAS_GENERATED) > 0 ?
 			(float)(100.0*sum / city->get_finance_history_year(1, HIST_PAS_GENERATED)) : 0.0);
-		lb->update();
-		cont_city_stats.new_component<gui_fill_t>();
+		td->update();
 
 		cont_city_stats.new_component<gui_empty_t>();
-		cont_city_stats.new_component<gui_label_t>("pax_transportation_ratio")->set_tooltip("helptxt_pax_transportation_ratio");
+		th = cont_city_stats.new_component<gui_table_header_t>("pax_transportation_ratio", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		th->set_flexible(true, false);
+		th->set_tooltip("helptxt_pax_transportation_ratio");
 		cont_city_stats.add_component(&transportation_this_year);
 		cont_city_stats.add_component(&transportation_last_year);
-		cont_city_stats.new_component<gui_fill_t>();
 
 		// mail
 		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::mail->get_image_id(0), 0, 0, true);
-		cont_city_stats.new_component<gui_label_t>("ratio_mail");
-		lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->set_fixed_width(value_cell_width);
-		lb->buf().printf("%.1f%%",
+		th = cont_city_stats.new_component<gui_table_header_t>("ratio_mail", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		th->set_flexible(true, false);
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
+		td->buf().printf("%.1f%%",
 			city->get_finance_history_year(0, HIST_MAIL_GENERATED) > 0 ?
 			(float)(100.0*city->get_finance_history_year(0, HIST_MAIL_TRANSPORTED) / city->get_finance_history_year(0, HIST_MAIL_GENERATED)) : 0.0);
-		lb->update();
-		lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->set_fixed_width(value_cell_width);
-		lb->buf().printf("%.1f%%",
+		td->update();
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
+		td->buf().printf("%.1f%%",
 			city->get_finance_history_year(1, HIST_MAIL_GENERATED) > 0 ?
 			(float)(100.0*city->get_finance_history_year(1, HIST_MAIL_TRANSPORTED)/city->get_finance_history_year(1, HIST_MAIL_GENERATED)) : 0.0);
-		lb->update();
-		cont_city_stats.new_component<gui_fill_t>();
+		td->update();
 
 		// goods
 		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, 0, true);
-		cont_city_stats.new_component<gui_label_t>("ratio_goods");
-		lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->set_fixed_width(value_cell_width);
+		th = cont_city_stats.new_component<gui_table_header_t>("ratio_goods", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		th->set_flexible(true, false);
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
 		sint64 goods_needed = city->get_finance_history_year(0, HIST_GOODS_NEEDED);
 		if (goods_needed>0) {
-			lb->buf().printf("%.1f%%",
+			td->buf().printf("%.1f%%",
 				(float)(100.0*city->get_finance_history_year(0, HIST_GOODS_RECEIVED) / goods_needed));
 		}
 		else {
-			lb->buf().append("-");
+			td->buf().append("-");
 		}
-		lb->update();
+		td->update();
 
-		lb = cont_city_stats.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->set_fixed_width(value_cell_width);
+		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
+		td->set_fixed_width(value_cell_width);
+		td->set_flexible(true, false);
 		goods_needed = city->get_finance_history_year(1, HIST_GOODS_NEEDED);
 		if (goods_needed > 0) {
-			lb->buf().printf("%.1f%%",
+			td->buf().printf("%.1f%%",
 				(float)(100.0*city->get_finance_history_year(1, HIST_GOODS_RECEIVED) / goods_needed));
 		}
 		else {
-			lb->buf().append("-");
+			td->buf().append("-");
 		}
-		lb->update();
-		cont_city_stats.new_component<gui_fill_t>();
-
+		td->update();
 	}
 	cont_city_stats.end_table();
 
 	// legend of passenger transportaion
 	cont_city_stats.add_table(9,1)->set_margin(scr_size(D_MARGIN_LEFT,D_V_SPACE), scr_size(0,D_V_SPACE));
 	{
+		cont_city_stats.new_component<gui_fill_t>();
 		cont_city_stats.new_component<gui_colorbox_t>(color_idx_to_rgb(hist_type_color[HIST_PAS_TRANSPORTED]))->set_size(scr_size((D_INDICATOR_HEIGHT+LINESPACE)/2+2, (D_INDICATOR_HEIGHT+LINESPACE)/2+2));
 		cont_city_stats.new_component<gui_label_t>(hist_type[HIST_PAS_TRANSPORTED]);
 		cont_city_stats.new_component<gui_margin_t>(D_H_SPACE*2);
@@ -653,9 +686,9 @@ void city_info_t::update_stats()
 		cont_city_stats.new_component<gui_margin_t>(D_H_SPACE*2);
 		cont_city_stats.new_component<gui_colorbox_t>(color_idx_to_rgb(hist_type_color[HIST_PAS_WALKED]))->set_size(scr_size((D_INDICATOR_HEIGHT+LINESPACE)/2+2, (D_INDICATOR_HEIGHT+LINESPACE)/2+2));
 		cont_city_stats.new_component<gui_label_t>(hist_type[HIST_PAS_WALKED]);
-		cont_city_stats.new_component<gui_fill_t>();
 	}
 	cont_city_stats.end_table();
+	cont_city_stats.set_size(cont_city_stats.get_min_size());
 
 	reset_min_windowsize();
 }

@@ -286,13 +286,13 @@ void convoi_detail_t::init(convoihandle_t cnv)
 		new_component_span<gui_empty_t>(2);
 
 		for (uint8 i = 0; i < gui_convoy_formation_t::CONVOY_OVERVIEW_MODES; i++) {
-			overview_selctor.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(gui_convoy_formation_t::cnvlist_mode_button_texts[i]), SYSCOL_TEXT);
+			overview_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(gui_convoy_formation_t::cnvlist_mode_button_texts[i]), SYSCOL_TEXT);
 		}
-		overview_selctor.set_selection(gui_convoy_formation_t::convoy_overview_t::formation);
-		overview_selctor.set_width_fixed(true);
-		overview_selctor.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
-		overview_selctor.add_listener(this);
-		add_component(&overview_selctor);
+		overview_selector.set_selection(gui_convoy_formation_t::convoy_overview_t::formation);
+		overview_selector.set_width_fixed(true);
+		overview_selector.set_size(scr_size(D_BUTTON_WIDTH*1.5, D_EDIT_HEIGHT));
+		overview_selector.add_listener(this);
+		add_component(&overview_selector);
 	}
 	end_table();
 
@@ -513,7 +513,7 @@ void convoi_detail_t::update_labels()
 	lb_vehicle_count.update();
 
 	// update the convoy overview panel
-	formation.set_mode(overview_selctor.get_selection());
+	formation.set_mode(overview_selector.get_selection());
 
 	// contents of payload tab
 	{
@@ -726,7 +726,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			create_win(20, 40, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 			return true;
 		}
-		else if (comp == &overview_selctor) {
+		else if (comp == &overview_selector) {
 			update_labels();
 			return true;
 		}

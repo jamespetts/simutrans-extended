@@ -49,8 +49,8 @@ void gui_numberinput_t::set_size(scr_size size_par) {
 	textinp.set_size( scr_size( size_par.w - bt_left.get_size().w - bt_right.get_size().w - D_H_SPACE, size_par.h) );
 
 	bt_left.set_pos( scr_coord(0,(size.h-D_ARROW_LEFT_HEIGHT)/2) );
-	textinp.align_to( &bt_left, ALIGN_LEFT | ALIGN_EXTERIOR_H | ALIGN_CENTER_V, scr_coord( D_H_SPACE / 2, 0) );
-	bt_right.align_to( &textinp, ALIGN_LEFT | ALIGN_EXTERIOR_H | ALIGN_CENTER_V, scr_coord( D_H_SPACE / 2, 0) );
+	textinp.align_to( &bt_left, scr_coord( D_H_SPACE / 2, 0) );
+	bt_right.align_to( &textinp, scr_coord( D_H_SPACE / 2, 0) );
 }
 
 scr_size gui_numberinput_t::get_max_size() const
@@ -242,6 +242,9 @@ void gui_numberinput_t::init( sint32 value, sint32 min, sint32 max, sint32 mode,
 
 bool gui_numberinput_t::infowin_event(const event_t *ev)
 {
+	if (!b_enabled) {
+		return false;
+	}
 	// buttons pressed
 	if(  bt_left.getroffen(ev->cx, ev->cy)  &&  ev->ev_code == MOUSE_LEFTBUTTON  ) {
 		event_t ev2 = *ev;

@@ -151,7 +151,7 @@ sint32 weg_t::get_max_speed(bool needs_electrification) const
 
 void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 {
-	if(desc)
+	if(desc && desc != b)
 	{
 		// Remove the old maintenance cost
 		sint32 old_maint = get_desc()->get_maintenance();
@@ -164,35 +164,35 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 		player_t::add_maintenance(get_owner(), -old_maint, get_desc()->get_finance_waytype());
 	}
 
-	desc = b;
-
-	if (!from_saved_game)
+	if (!from_saved_game && desc != b)
 	{
 		// Add the new maintenance cost
 		// Do not set this here if loading a saved game,
 		// as this is already set in finish_rd
-		sint32 maint = get_desc()->get_maintenance();
+		sint32 maint = b->get_maintenance();
 		if (is_diagonal())
 		{
 			maint *= 10;
 			maint /= 14;
 		}
-		player_t::add_maintenance(get_owner(), maint, get_desc()->get_finance_waytype());
+		player_t::add_maintenance(get_owner(), maint, b->get_finance_waytype());
 	}
 
+	desc = b;
+
+	// NOTE: When loading from a saved game, gr is always uninitialised.
 	grund_t* gr = welt->lookup(get_pos());
 	if(!gr)
 	{
 		gr = welt->lookup_kartenboden(get_pos().get_2d());
 	}
-	const bruecke_t *bridge = gr ? gr->find<bruecke_t>() : NULL;
-	const tunnel_t *tunnel = gr ? gr->find<tunnel_t>() : NULL;
-	bool on_pier = gr ? gr->get_typ()==grund_t::pierdeck : false;
 
-	const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
+	const bruecke_t* bridge = gr ? gr->find<bruecke_t>() : NULL;
+	const tunnel_t* tunnel = gr ? gr->find<tunnel_t>() : NULL;
+	bool on_pier = gr ? gr->get_typ() == grund_t::pierdeck : false;
 
 #ifdef MULTI_THREAD_CONVOYS
-	if (env_t::networkmode)
+	if (!from_saved_game && env_t::networkmode)
 	{
 		// In network mode, we cannot have set_desc running concurrently with
 		// convoy path-finding because  whether the convoy path-finder is called
@@ -214,65 +214,10 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 		}
 	}
 
-	if(hang != slope_t::flat)
+	// We do this separately if we are loading from a saved game.
+	if (!from_saved_game)
 	{
-		const uint slope_height = (hang & 7) ? 1 : 2;
-		if(slope_height == 1)
-		{
-			if(bridge)
-			{
-				max_speed = min(desc->get_topspeed_gradient_1(), bridge->get_desc()->get_topspeed_gradient_1());
-			}
-			else if(tunnel)
-			{
-				max_speed = min(desc->get_topspeed_gradient_1(), tunnel->get_desc()->get_topspeed_gradient_1());
-			}
-			else
-			{
-				max_speed = desc->get_topspeed_gradient_1();
-			}
-		}
-		else
-		{
-			if(bridge)
-			{
-				max_speed = min(desc->get_topspeed_gradient_2(), bridge->get_desc()->get_topspeed_gradient_2());
-			}
-			else if(tunnel)
-			{
-				max_speed = min(desc->get_topspeed_gradient_2(), tunnel->get_desc()->get_topspeed_gradient_2());
-			}
-			else
-			{
-				max_speed = desc->get_topspeed_gradient_2();
-			}
-		}
-	}
-	else
-	{
-		if(bridge)
-			{
-				max_speed = min(desc->get_topspeed(), bridge->get_desc()->get_topspeed());
-			}
-		else if(tunnel)
-			{
-				max_speed = min(desc->get_topspeed(), tunnel->get_desc()->get_topspeed());
-			}
-		else if(on_pier)
-			{
-				max_speed = pier_t::get_speed_limit_deck_total(gr,desc->get_topspeed());
-			}
-			else
-			{
-				max_speed = desc->get_topspeed();
-			}
-	}
-
-	const sint32 city_road_topspeed = welt->get_city_road()->get_topspeed();
-
-	if(hat_gehweg() && desc->get_wtyp() == road_wt)
-	{
-		max_speed = min(max_speed, city_road_topspeed);
+		calc_speed_limit(gr, bridge, tunnel);
 	}
 
 	max_axle_load = desc->get_max_axle_load();
@@ -336,6 +281,142 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 				// Upgrade obsolete signals and signs when upgrading the underlying way if possible.
 				rs->upgrade(welt->lookup_kartenboden(get_pos().get_2d())->get_hoehe() != get_pos().z);
 			}
+		}
+	}
+}
+
+void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_t* tunnel)
+{
+	const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
+
+	if (!bridge)
+	{
+		bridge = gr ? gr->find<bruecke_t>() : nullptr;
+	}
+
+	if (!tunnel)
+	{
+		tunnel = gr ? gr->find<tunnel_t>() : nullptr;
+	}
+
+	const sint32 old_max_speed = get_max_speed();
+	const sint32 way_max_speed = desc->get_topspeed();
+
+	if (old_max_speed > 0)
+	{
+		if (is_degraded() && old_max_speed == way_max_speed)
+		{
+			// The maximum speed has to be reduced on account of the degradation.
+			if (get_remaining_wear_capacity() > 0)
+			{
+				set_max_speed(way_max_speed / 2);
+			}
+			else
+			{
+				set_max_speed(0);
+			}
+		}
+		else
+		{
+			set_max_speed(way_max_speed);
+		}
+	}
+
+	if (hang != slope_t::flat)
+	{
+		const uint slope_height = (hang & 7) ? 1 : 2;
+		if (slope_height == 1)
+		{
+			uint32 gradient_speed = desc->get_topspeed_gradient_1();
+			if (is_degraded())
+			{
+				if (get_remaining_wear_capacity() > 0)
+				{
+					gradient_speed /= 2;
+				}
+				else
+				{
+					gradient_speed = 0;
+				}
+			}
+			if (bridge)
+			{
+				set_max_speed(min(gradient_speed, bridge->get_desc()->get_topspeed_gradient_1()));
+			}
+			else if (tunnel)
+			{
+				set_max_speed(min(gradient_speed, tunnel->get_desc()->get_topspeed_gradient_1()));
+			}
+			else
+			{
+				set_max_speed(gradient_speed);
+			}
+		}
+		else
+		{
+			uint32 gradient_speed = desc->get_topspeed_gradient_2();
+			if (is_degraded())
+			{
+				if (get_remaining_wear_capacity() > 0)
+				{
+					gradient_speed /= 2;
+				}
+				else
+				{
+					gradient_speed = 0;
+				}
+			}
+			if (bridge)
+			{
+				set_max_speed(min(gradient_speed, bridge->get_desc()->get_topspeed_gradient_2()));
+			}
+			else if (tunnel)
+			{
+				set_max_speed(min(gradient_speed, tunnel->get_desc()->get_topspeed_gradient_2()));
+			}
+			else
+			{
+				set_max_speed(gradient_speed);
+			}
+		}
+	}
+	else
+	{
+		if (bridge)
+		{
+			set_max_speed(min(desc->get_topspeed(), bridge->get_desc()->get_topspeed()));
+		}
+		else if (tunnel)
+		{
+			set_max_speed(min(desc->get_topspeed(), tunnel->get_desc()->get_topspeed()));
+		}
+		else if (old_max_speed == 0)
+		{
+			if (is_degraded())
+			{
+				// The maximum speed has to be reduced on account of the degradation.
+				if (get_remaining_wear_capacity() > 0)
+				{
+					set_max_speed(desc->get_topspeed() / 2);
+				}
+				else
+				{
+					set_max_speed(0);
+				}
+			}
+			else
+			{
+				set_max_speed(way_max_speed);
+			}
+		}
+	}
+
+	if (desc->get_wtyp() == road_wt)
+	{
+		if (hat_gehweg())
+		{
+			const sint32 city_road_topspeed = welt->get_city_road()->get_topspeed();
+			set_max_speed(min(max_speed, city_road_topspeed));
 		}
 	}
 }
@@ -613,6 +694,8 @@ void weg_t::rdwr(loadsave_t *file)
 		}
 	}
 }
+
+
 
 void weg_t::private_car_route_map::rdwr(loadsave_t *file){
 	if(file->is_saving()){
@@ -1432,6 +1515,9 @@ bool weg_t::renew()
 
 void weg_t::degrade()
 {
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	if(public_right_of_way)
 	{
 		// Do not degrade public rights of way, as these should remain passable.
@@ -1814,7 +1900,11 @@ void weg_t::add_travel_time_update(weg_t* w, uint32 actual, uint32 ideal)
 	pending_road_travel_time_updates.append(std::make_tuple(w, actual, ideal));
 }
 
-void weg_t::apply_travel_time_updates() {
+void weg_t::apply_travel_time_updates()
+{
+#ifdef MULTI_THREAD
+	welt->await_private_car_threads();
+#endif
 	while(!pending_road_travel_time_updates.empty() ) {
 		weg_t* str;
 		uint32 actual;

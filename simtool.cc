@@ -515,8 +515,9 @@ DBG_MESSAGE("tool_remover_intern()","at (%s)", pos.get_str());
 			return true;
 		}
 	}
-	// pedestrians?
-	if (type == obj_t::pedestrian  ||  type == obj_t::undefined) {
+
+	// pedestrians only delete on demand!
+	if (type == obj_t::pedestrian) {
 		if (pedestrian_t* pedestrian = gr->find<pedestrian_t>()) {
 			delete pedestrian;
 			return true;
@@ -835,12 +836,19 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 	bool return_ok = false;
 	uint8 num_obj = gr->obj_count();
 	if(num_obj>0) {
-		msg = gr->kann_alle_obj_entfernen(player);
-		return_ok = msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden);
-		if(return_ok) {
-			return_ok = gr->obj_loesche_alle(player);
+		// cout all pedestrians and ignore them
+		int num_pedestrians = 0;
+		for (int i = 1; i < num_obj; i++) {
+			if (gr->obj_bei(i)->get_typ() == obj_t::pedestrian) {
+				num_pedestrians++;
+			}
 		}
-		DBG_MESSAGE("tool_remover()",  "removing everything from %d,%d,%d",gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
+		// only delete everything if there is more than pedestrians to delete
+		if (num_obj > num_pedestrians) {
+			msg = gr->kann_alle_obj_entfernen(player);
+			return_ok = msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden);
+			DBG_MESSAGE("tool_remover()", "removing everything from %d,%d,%d", gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
+		}
 	}
 
 	for(uint8 i = 0; i < piers.get_count(); i++){
@@ -3454,7 +3462,7 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 		way->set_after_image(desc->get_foreground(desc->get_straight(ribi_mark,height-slope_t::max_diff(kb->get_grund_hang())), 0));
 		marked.insert( way );
 		way->mark_image_dirty( way->get_image(), 0 );
-		if (desc->get_wtyp() == road_wt && get_overtaking_mode() <= oneway_mode) {
+		if (desc->get_wtyp() == road_wt  &&  get_overtaking_mode() <= oneway_mode  &&  skinverwaltung_t::ribi_arrow  ) {
 			way->set_after_image(skinverwaltung_t::ribi_arrow->get_image_id(ribi_mark));
 		}
 		pos = pos + zv;
@@ -8330,8 +8338,8 @@ const char *tool_link_factory_t::do_work( player_t *, const koord3d &start, cons
 		else {
 			// remove connections
 			fab->remove_supplier(last_fab->get_pos().get_2d());
-			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_supplier(fab->get_pos().get_2d());
+			fab->remove_consumer(last_fab->get_pos().get_2d());
 			last_fab->remove_consumer(fab->get_pos().get_2d());
 			return NULL;
 		}
@@ -9909,6 +9917,7 @@ bool tool_change_convoi_t::init( player_t *player )
 				}
 				if (changed) {
 					cnv->calc_classes_carried();
+					cnv->force_update_fare_related_dialogs();
 					linehandle_t line = cnv->get_line();
 					if (line.is_bound())
 					{
@@ -9934,6 +9943,7 @@ bool tool_change_convoi_t::init( player_t *player )
 
 			veh->set_class_reassignment(accommo_class, fare_class);
 			cnv->calc_classes_carried();
+			cnv->force_update_fare_related_dialogs();
 			linehandle_t line = cnv->get_line();
 			if (line.is_bound())
 			{
@@ -9967,6 +9977,7 @@ bool tool_change_convoi_t::init( player_t *player )
 				}
 			}
 			cnv->calc_classes_carried();
+			cnv->force_update_fare_related_dialogs();
 			linehandle_t line = cnv->get_line();
 			if(line.is_bound())
 			{

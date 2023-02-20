@@ -141,6 +141,7 @@ protected:
 	 */
 	bool access[MAX_PLAYER_COUNT];
 
+	uint16 favorite_livery_scheme[9/*simline_t::MAX_LINE_TYPE*/];
 
 	/* This flag is set if the player has already been
 	 * warned this month that there is insufficient money
@@ -462,6 +463,13 @@ public:
 
 	bool allows_access_to(uint8 other_player_nr) const { return player_nr == other_player_nr || access[other_player_nr]; }
 	void set_allow_access_to(uint8 other_player_nr, bool allow) { access[other_player_nr] = allow; }
+
+	uint16 get_favorite_livery_scheme_index(uint8 linetype = 0) const { assert(linetype<9/*simline_t::MAX_LINE_TYPE*/); return favorite_livery_scheme[linetype]; }
+	void set_favorite_livery_scheme_index(uint8 linetype = 0, uint16 livery_scheme_index = UINT16_MAX)
+	{
+		if (linetype >= 9/*simline_t::MAX_LINE_TYPE*/) { linetype = 0; }
+		favorite_livery_scheme[linetype] = livery_scheme_index;
+	}
 
 	bool get_allow_voluntary_takeover() const { return allow_voluntary_takeover; }
 	void set_allow_voluntary_takeover(bool value) { allow_voluntary_takeover = value; }

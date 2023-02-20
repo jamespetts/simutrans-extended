@@ -14,25 +14,29 @@
 #include "livery_scheme.h"
 #include "../tpl/piecewise_linear_tpl.h" // for various revenue tables
 #include "../dataobj/koord.h"
-
+#include "../simcolor.h"
 
 class player_t;
 class loadsave_t;
 class tabfile_t;
 class way_desc_t;
 
+
 struct road_timeline_t
 {
-	char name[64];
-	uint16 intro;
-	uint16 retire;
+	char name[64] = { 0 };
+	uint16 intro = 0;
+	uint16 retire = 0;
 };
+
+
 struct region_definition_t
 {
 	std::string name;
 	koord top_left = koord::invalid;
 	koord bottom_right = koord::invalid;
 };
+
 
 template <class T>
 class vector_with_ptr_ownership_tpl : public vector_tpl<T*>
@@ -193,6 +197,8 @@ private:
 	 * 0 : Classic (no flow control?)
 	 * 1 : JIT Classic (maximum transit and storage limited)
 	 * 2 : JIT Version 2 (demand buffers with better consumption model)
+	 * 5 : Contract based JIT
+	 * WARNING do not change outside accessors
 	 */
 	uint8 just_in_time;
 
@@ -395,13 +401,13 @@ private:
 	*/
 	uint32 industry_density_proportion_override = 0;
 
-public:
-	//Cornering settings
-	//@author: jamespetts
-
 	//The array index corresponds
 	//to the waytype index.
 
+	PIXVAL waytype_color[10];
+
+	//Cornering settings
+	//@author: jamespetts
 	sint32 corner_force_divider[10];
 
 	uint8 curve_friction_factor[10];
@@ -425,6 +431,7 @@ public:
 
 	uint16 meters_per_tile;
 
+private:
 	uint32 base_meters_per_tile;
 	uint32 base_bits_per_month;
 	uint32 job_replenishment_per_hundredths_of_months;
@@ -432,7 +439,6 @@ public:
 	// We need it often(every vehicle_base_t::do_drive call), so we cache it.
 	uint32 steps_per_km;
 
-private:
 	// The public version of these is exposed via tables below --neroden
 	uint8 tolerable_comfort_short;
 	uint8 tolerable_comfort_median_short;
@@ -802,15 +808,14 @@ public:
 	void copy_city_road(settings_t const& other);
 
 	// init from this file ...
-	void parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool& fullscreen, std::string& objfilename);
+	void parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, sint16& fullscreen, std::string& objfilename);
 
 	// init without screen parameters ...
 	void parse_simuconf(tabfile_t& simuconf) {
 		sint16 idummy = 0;
-		bool bdummy = false;
 		std::string sdummy;
 
-		parse_simuconf(simuconf, idummy, idummy, bdummy, sdummy);
+		parse_simuconf(simuconf, idummy, idummy, idummy, sdummy);
 	}
 
 	void parse_colours(tabfile_t& simuconf);
@@ -878,8 +883,11 @@ public:
 
 	bool get_beginner_mode() const {return beginner_mode;}
 
-	void set_just_in_time(uint8 b) { just_in_time = b; }
+	void set_just_in_time(uint8 b);
 	uint8 get_just_in_time() const {return just_in_time;}
+
+	bool using_fab_contracts(uint8 b) const { return b==5;}
+	bool using_fab_contracts() const { return using_fab_contracts(just_in_time);}
 
 	void set_default_climates();
 	const sint16 *get_climate_borders() const { return climate_borders; }
@@ -1026,6 +1034,16 @@ public:
 	uint8 get_always_prefer_car_percent() const { return always_prefer_car_percent; }
 	uint8 get_congestion_density_factor () const { return congestion_density_factor; }
 	void set_congestion_density_factor (uint8 value)  { congestion_density_factor = value; }
+
+	PIXVAL get_waytype_color(waytype_t waytype) const {
+		switch (waytype)
+		{
+			case air_wt:
+				return waytype_color[9];
+			default:
+				return waytype < 10 ? waytype_color[waytype]:0;
+		}
+	}
 
 	uint8 get_curve_friction_factor (waytype_t waytype) const { assert((int)waytype < 10); return curve_friction_factor[waytype]; }
 

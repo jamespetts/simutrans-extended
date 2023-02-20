@@ -5,6 +5,7 @@
 
 #include "depotlist_frame.h"
 #include "gui_theme.h"
+#include "minimap.h"
 
 #include "../player/simplay.h"
 
@@ -62,14 +63,9 @@ bool depotlist_frame_t::is_available_wt(waytype_t wt)
 depotlist_stats_t::depotlist_stats_t(depot_t *d)
 {
 	this->depot = d;
-	// pos button
-	set_table_layout(8,1);
-	gotopos.set_typ(button_t::posbutton_automatic);
-	gotopos.set_targetpos3d(depot->get_pos());
-	add_component(&gotopos);
+	set_table_layout(7,1);
+	new_component<gui_margin_t>(0);
 	const waytype_t wt = d->get_wegtyp();
-	waytype_symbol.set_image(skinverwaltung_t::get_waytype_skin(wt)->get_image_id(0), true);
-	add_component(&waytype_symbol);
 
 	const weg_t *w = welt->lookup(depot->get_pos())->get_weg(wt != tram_wt ? wt : track_wt);
 	const bool way_electrified = w ? w->is_electrified() : false;
@@ -95,20 +91,33 @@ depotlist_stats_t::depotlist_stats_t(depot_t *d)
 	lb_vh_count.set_fixed_width(proportional_string_width(translator::translate("%d vehicles")));
 	add_component(&lb_vh_count);
 
-	lb_region.buf().printf( " %s ", depot->get_pos().get_2d().get_fullstr() );
-	stadt_t* c = welt->get_city(depot->get_pos().get_2d());
-	if (c) {
-		lb_region.buf().append("- ");
-		lb_region.buf().append( c->get_name() );
-	}
-	if (!welt->get_settings().regions.empty()) {
-		if (!c) {
-			lb_region.buf().append("-");
+	add_table(2,1)->set_spacing(scr_size(0,0));
+	{
+		// pos button (depot type)
+		//// Change the symbol size in the button depending on the depot level
+		////const uint8 symbol_width = LINEASCENT-2 + min(2,d->get_tile()->get_desc()->get_level()/3)*2;
+		//gotopos.set_typ(button_t::posbutton_automatic);
+		gotopos.set_typ(button_t::depot_automatic);
+		gotopos.set_targetpos3d(depot->get_pos());
+		gotopos.text_color = minimap_t::get_depot_color(depot->get_typ());
+		add_component(&gotopos);
+
+		lb_region.buf().printf( " %s ", depot->get_pos().get_2d().get_fullstr() );
+		stadt_t* c = welt->get_city(depot->get_pos().get_2d());
+		if (c) {
+			lb_region.buf().append("- ");
+			lb_region.buf().append( c->get_name() );
 		}
-		lb_region.buf().printf(" (%s)", translator::translate(welt->get_region_name(depot->get_pos().get_2d()).c_str()));
+		if (!welt->get_settings().regions.empty()) {
+			if (!c) {
+				lb_region.buf().append("-");
+			}
+			lb_region.buf().printf(" (%s)", translator::translate(welt->get_region_name(depot->get_pos().get_2d()).c_str()));
+		}
+		lb_region.update();
+		add_component(&lb_region);
 	}
-	lb_region.update();
-	add_component(&lb_region);
+	end_table();
 	update_label();
 
 	new_component<gui_fill_t>();
@@ -256,11 +265,28 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 	scrolly(gui_scrolled_list_t::windowskin, depotlist_stats_t::compare)
 {
 	this->player = player;
+
+	init_table();
+}
+
+
+depotlist_frame_t::depotlist_frame_t() :
+	gui_frame_t(translator::translate("dp_title"), NULL),
+	scrolly(gui_scrolled_list_t::windowskin, depotlist_stats_t::compare)
+{
+	player = NULL;
+
+	init_table();
+}
+
+
+void depotlist_frame_t::init_table()
+{
 	last_depot_count = 0;
 
 	set_table_layout(1,0);
 
-	add_table(2,1);
+	add_table(3,1);
 	{
 		new_component<gui_label_t>("hl_txt_sort");
 		add_table(3,1);
@@ -285,6 +311,9 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 			new_component<gui_margin_t>(D_H_SPACE*2);
 		}
 		end_table();
+
+		lb_depot_counter.set_fixed_width(proportional_string_width("8888/8888"));
+		add_component(&lb_depot_counter);
 	}
 	end_table();
 
@@ -295,26 +324,6 @@ depotlist_frame_t::depotlist_frame_t(player_t *player) :
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
-	reset_min_windowsize();
-}
-
-
-depotlist_frame_t::depotlist_frame_t() :
-	gui_frame_t(translator::translate("dp_title"), NULL),
-	scrolly(gui_scrolled_list_t::windowskin, depotlist_stats_t::compare)
-{
-	player = NULL;
-	last_depot_count = 0;
-
-	set_table_layout(1, 0);
-
-	scrolly.set_maximize(true);
-	tabs.init_tabs(&scrolly);
-	tabs.add_listener(this);
-	add_component(&tabs);
-	fill_list();
-
-	set_resizemode(diagonal_resize);
 	reset_min_windowsize();
 }
 
@@ -342,13 +351,17 @@ bool depotlist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 void depotlist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
+	uint32 p_total = 0;
 	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
 		if( depot->get_owner() == player ) {
 			if(  tabs.get_active_tab_index() == 0  ||  depot->get_waytype() == tabs.get_active_tab_waytype()  ) {
 				scrolly.new_component<depotlist_stats_t>(depot);
 			}
+			p_total++;
 		}
 	}
+	lb_depot_counter.buf().printf("%u/%u", scrolly.get_count(), p_total);
+	lb_depot_counter.update();
 	scrolly.sort(0);
 	scrolly.set_size( scrolly.get_size());
 

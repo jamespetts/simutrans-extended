@@ -448,7 +448,13 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		if (!extended)
 		{
 			// Extended has this as a 32-bit integer, and reads it later.
-			desc->base_fixed_cost = decode_uint16(p);
+			if (version > 10) {
+				// standard11: fix cost as uint32
+				desc->base_fixed_cost = decode_uint32(p);
+			}
+			else {
+				desc->base_fixed_cost = decode_uint16(p);
+			}
 		}
 
 		desc->intro_date = decode_uint16(p);
@@ -715,7 +721,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 	}
 
-	if (version < 11 || (version == 11 && extended && extended_version < 7)) {
+	if (!extended || version < 11 || (version == 11 && extended && extended_version < 7)) {
 		desc->accommodation_classes = 0;
 	}
 

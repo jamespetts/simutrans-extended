@@ -309,6 +309,35 @@ bool way_builder_t::waytype_available( const waytype_t wtyp, uint16 time )
 }
 
 
+// Returns the maximum axle load of the available ways. This is used for map color scaling
+uint32 way_builder_t::get_world_max_axle_load(const waytype_t wtyp)
+{
+	uint32 world_max = 0;
+	const uint16 time = world()->get_timeline_year_month();
+	for (auto const& i : desc_table) {
+		way_desc_t const* const test = i.value;
+		if (test->get_wtyp() == wtyp && test->is_available(time) && test->get_builder()) {
+			world_max = max(world_max,test->get_max_axle_load());
+		}
+	}
+	return world_max;
+}
+
+
+// Returns the maximum axle load of the available ways. This is used for map color scaling
+sint32 way_builder_t::get_world_max_way_speed(const waytype_t wtyp)
+{
+	sint32 world_max = 0;
+	const uint16 time = world()->get_timeline_year_month();
+	for (auto const& i : desc_table) {
+		way_desc_t const* const test = i.value;
+		if (test->get_wtyp() == wtyp && test->is_available(time) && test->get_builder()) {
+			world_max = max(world_max,test->get_topspeed());
+		}
+	}
+	return world_max;
+}
+
 
 const way_desc_t * way_builder_t::get_desc(const char * way_name, const uint16 time)
 {
@@ -2125,6 +2154,7 @@ void way_builder_t::calc_straight_route(koord3d start, const koord3d ziel)
 		intern_calc_straight_route(start,ziel);
 		if (route.empty()) {
 			intern_calc_straight_route(ziel,start);
+			route_reversed = true;
 		}
 	}
 }
@@ -2167,7 +2197,7 @@ uint32 ms = dr_time();
 		}
 	}
 	else {
-		route_reversed = true;
+		route_reversed = false;
 		keep_existing_city_roads |= (bautyp&bot_flag)!=0;
 		sint32 cost2 = intern_calc_route(start, ziel);
 		INT_CHECK("wegbauer 1165");
@@ -2175,7 +2205,7 @@ uint32 ms = dr_time();
 		if(cost2<0) {
 			// not successful: try backwards
 			intern_calc_route(ziel,start);
-			route_reversed = false;
+			route_reversed = true;
 			return route_reversed;
 		}
 
@@ -2184,15 +2214,15 @@ uint32 ms = dr_time();
 		vector_tpl<uint32> terraform_index2(0);
 		swap(route, route2);
 		swap(terraform_index, terraform_index2);
-		route_reversed = false;
-		long cost = intern_calc_route(ziel, start);
+		route_reversed = true;
+		long cost = intern_calc_route(start, ziel);
 		INT_CHECK("wegbauer 1165");
 
 		// the cheaper will survive ...
 		if(  cost2 < cost  ||  cost < 0  ) {
 			swap(route, route2);
 			swap(terraform_index, terraform_index2);
-			route_reversed = true;
+			route_reversed = false;
 		}
 #endif
 	}
@@ -3044,7 +3074,7 @@ void way_builder_t::build_river()
 					if(  type>0  ) {
 						// thus we enlarge
 						w->set_desc( desc_table.get(env_t::river_type[type-1]) );
-						if(w->get_desc()->get_max_axle_load() > 0)
+						if(w->get_desc()->get_max_axle_load() > 0 && w->get_desc()->get_topspeed() > 0)
 						{
 							// It does not make sense for unnavigable rivers to be public rights of way.
 							w->set_public_right_of_way();

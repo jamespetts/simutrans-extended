@@ -122,6 +122,8 @@ class gui_bandgraph_t : public gui_component_t
 private:
 	sint32 total = 0;
 	bool size_fixed;
+	scr_size padding = scr_size(0,0);
+
 	struct info_t {
 		PIXVAL color;
 		const sint32 *value;
@@ -133,6 +135,8 @@ public:
 	gui_bandgraph_t(scr_size size = D_INDICATOR_SIZE, bool size_fixed_ = true) { set_size(size); size_fixed=size_fixed_; }
 
 	void add_color_value(const sint32 *value, PIXVAL color, bool cylinder_style=false);
+
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	void clear() { values.clear(); }
 

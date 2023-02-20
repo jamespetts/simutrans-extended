@@ -64,7 +64,6 @@ class way_info_t : public gui_frame_t, public action_listener_t
 	gui_label_buf_t lb_city_count;
 	vector_tpl<koord> building_list;
 
-	void init();
 	void init_tabs();
 	void update();
 	void update_way_info();

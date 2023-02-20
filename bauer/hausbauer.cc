@@ -373,7 +373,6 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 		for(k.y = 0; k.y < size.y; k.y ++) {
 			for(k.x = 0; k.x < size.x; k.x ++) {
 				const grund_t *gr = welt->lookup(koord3d(k,0)+pos);
-				assert(gr);
 
 				// for buildings with holes the hole could be on a different height ->gr==NULL
 				if (gr) {

@@ -20,7 +20,14 @@ class vehicle_t;
 class schiene_t : public weg_t
 {
 public:
-	enum reservation_type : uint8 	{ block, directional, priority, stale_block, end };
+	enum reservation_type : uint8
+	{
+		block,
+		directional,
+		priority,
+		stale_block,
+		end
+	};
 
 protected:
 	/**
@@ -35,8 +42,6 @@ protected:
 	ribi_t::ribi direction;
 
 	schiene_t(waytype_t waytype);
-
-	mutable uint8 textlines_in_info_window;
 
 	bool is_type_rail_type(waytype_t wt) { return wt == track_wt || wt == monorail_wt || wt == maglev_wt || wt == tram_wt || wt == narrowgauge_wt; }
 

@@ -130,6 +130,7 @@ enum magic_numbers {
 	magic_signalboxlist,
 	magic_pier_rotation_select,
 	magic_depot, // only used to load/save
+	magic_replace_line,
 	magic_max
 };
 

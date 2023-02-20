@@ -76,7 +76,7 @@ ki_kontroll_t::ki_kontroll_t() :
 		if(  i >= 2  ) {
 			// AI button (small square)
 			player_active[i-2].init(button_t::square_state, "", cursor);
-			player_active[i-2].align_to( &player_get_finances[i], ALIGN_CENTER_V );
+			player_active[i-2].align_to( &player_get_finances[i] );
 			player_active[i-2].add_listener(this);
 			if(player  &&  player->get_ai_id()!=player_t::HUMAN  &&  player_tools_allowed) {
 				add_component( player_active+(i-2) );
@@ -171,12 +171,12 @@ ki_kontroll_t::ki_kontroll_t() :
 		// Income label
 		account_str[i][0] = 0;
 		ai_income[i] = new gui_label_t(account_str[i], MONEY_PLUS, gui_label_t::money_right);
-		ai_income[i]->align_to(&player_select[i],ALIGN_CENTER_V);
+		ai_income[i]->align_to(&player_select[i]);
 		add_component( ai_income[i] );
 
-		player_change_to[i].align_to( &player_lock[i], ALIGN_CENTER_V );
+		player_change_to[i].set_pos( scr_coord(D_MARGIN_LEFT, cursor.y+ D_GET_CENTER_ALIGN_OFFSET(player_change_to[i].get_size().h, player_get_finances[i].get_size().h)) );
 		if(  i >= 2  ) {
-			player_active[i-2].align_to( &player_lock[i], ALIGN_CENTER_V );
+			player_active[i-2].align_to( &player_lock[i] );
 		}
 	}
 
@@ -428,7 +428,7 @@ void ki_kontroll_t::update_data()
 		}
 		cursor.x += D_CHECKBOX_WIDTH + D_H_SPACE;
 
-		player_change_to[i].set_pos( cursor );
+		player_change_to[i].set_pos(scr_coord(D_MARGIN_LEFT, cursor.y + D_GET_CENTER_ALIGN_OFFSET(player_change_to[i].get_size().h, player_get_finances[i].get_size().h)));
 		cursor.x += D_ARROW_RIGHT_WIDTH + D_H_SPACE;
 
 		player_get_finances[i].set_pos(cursor);
@@ -448,10 +448,9 @@ void ki_kontroll_t::update_data()
 		cursor.x += D_CHECKBOX_WIDTH + D_H_SPACE;
 
 		ai_income[i]->set_pos(cursor);
-		ai_income[i]->align_to(&player_select[i], ALIGN_CENTER_V);
-		player_change_to[i].align_to(&player_lock[i], ALIGN_CENTER_V);
+		ai_income[i]->align_to(&player_select[i]);
 		if (i >= 2) {
-			player_active[i - 2].align_to(&player_lock[i], ALIGN_CENTER_V);
+			player_active[i - 2].align_to(&player_lock[i]);
 		}
 	}
 	cursor.y += D_EDIT_HEIGHT + D_V_SPACE;

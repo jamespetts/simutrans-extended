@@ -3525,6 +3525,15 @@ void display_linear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coor
 	}
 }
 
+void display_vlinear_gradient_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL colval, int percent_blend_start, int percent_blend_end)
+{
+	uint8 transparency = 0;
+	for (uint16 i = 0; i < h; i++) {
+		transparency = percent_blend_start + (percent_blend_end - percent_blend_start) / h * i;
+		display_blend_wh_rgb(xp, yp + i, w, 1, colval, transparency);
+	}
+}
+
 static void display_img_blend_wc(scr_coord_val h, const scr_coord_val xp, const scr_coord_val yp, const PIXVAL *sp, int colour, blend_proc p  CLIP_NUM_DEF )
 {
 	if(  h > 0  ) {
@@ -4675,7 +4684,10 @@ int display_calc_proportional_string_len_width(const char *text, size_t len)
 	// decode char
 	const char *const end = text + len;
 	while(  text < end  ) {
-		const utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		const utf8 *p = reinterpret_cast<const utf8 *>(text);
+		const utf32 iUnicode = utf8_decoder_t::decode(p);
+		text = reinterpret_cast<const char *>(p);
+
 		if(  iUnicode == UNICODE_NUL ||  iUnicode == '\n') {
 			return width;
 		}
@@ -4700,7 +4712,10 @@ void display_calc_proportional_multiline_string_len_width(int &xw, int &yh, cons
 	// decode char
 	const char *const end = text + len;
 	while(  text < end  ) {
-		utf32 iUnicode = utf8_decoder_t::decode((utf8 const *&)text);
+		const utf8 *p = reinterpret_cast<const utf8 *>(text);
+		const utf32 iUnicode = utf8_decoder_t::decode(p);
+		text = reinterpret_cast<const char *>(p);
+
 		if(  iUnicode == '\n'  ) {
 			// new line: record max width
 			xw = max( xw, width );
@@ -4891,7 +4906,7 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 
 /// Displays a string which is abbreviated by the (language specific) ellipsis character if too wide
 /// If enough space is given then it just displays the full string
-void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed, PIXVAL shadow_color)
+void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align, const PIXVAL color, const bool dirty, bool shadowed, PIXVAL shadow_color, bool underlined)
 {
 	const scr_coord_val ellipsis_width = translator::get_lang()->ellipsis_width;
 	const scr_coord_val max_screen_width = r.w;
@@ -4961,6 +4976,9 @@ void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align,
 		display_text_proportional_len_clip_rgb( r.x+1, r.y+1, text, ALIGN_LEFT | DT_CLIP, shadow_color, dirty, -1  CLIP_NUM_DEFAULT);
 	}
 	display_text_proportional_len_clip_rgb( r.x, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
+	if (underlined){
+		display_fillbox_wh_clip_rgb( r.x-1, r.y + LINEASCENT - 1, proportional_string_width(text) + 2, 1, color, dirty);
+	}
 }
 
 
@@ -5414,6 +5432,11 @@ int display_fluctuation_triangle_rgb(scr_coord_val x, scr_coord_val y, uint8 hei
 
 void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val raster_width, uint8 way_dir, uint8 sig_dir, uint8 state, bool is_diagonal, uint8 open_dir, sint8 slope)
 {
+	assert(raster_width < 768);
+	uint8 width = is_diagonal ? raster_width / 6 * 0.353 : raster_width / 6;
+	const uint8 height = is_diagonal ? raster_width / 6 * 0.353 : raster_width / 12;
+	const uint8 thickness = max(raster_width / 36, 2);
+
 	PIXVAL col1      = color_idx_to_rgb(COL_RED+2);
 	PIXVAL col1_dark = color_idx_to_rgb(COL_RED);
 	PIXVAL col2      = color_idx_to_rgb(COL_RED+2);
@@ -5444,6 +5467,16 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 			col1      = color_idx_to_rgb(COL_GREY5+1);
 			col1_dark = color_idx_to_rgb(COL_GREY4+2);
 			break;
+		case 253: /* one-way display for road */
+			col1 = color_idx_to_rgb(COL_WHITE);
+			col1_dark = color_idx_to_rgb(COL_BLUE);
+			// draw on center
+			x -= width/2;
+			if (is_diagonal && (way_dir == ribi_t::northeast || way_dir == ribi_t::southwest)) {
+				// vertical
+				x -= raster_width/8;
+			}
+			break;
 		case 254: /* drive by sight */
 			col1 =      color_idx_to_rgb(COL_ORANGE + 2);
 			col1_dark = color_idx_to_rgb(COL_DARK_ORANGE);
@@ -5463,11 +5496,6 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 		col2 = col1;
 		col2_dark = col1_dark;
 	}
-
-	assert(raster_width<768);
-	uint8 width  = is_diagonal ? raster_width/6*0.353 : raster_width/6;
-	const uint8 height = is_diagonal ? raster_width/6*0.353 : raster_width/12;
-	const uint8 thickness = max(raster_width/36, 2);
 
 	if (is_diagonal) {
 		if (open_dir != ribi_t::all) {
@@ -5578,25 +5606,33 @@ void display_signal_direction_rgb(scr_coord_val x, scr_coord_val y, scr_coord_va
 }
 
 
-void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width, const uint8 darkest_pcol_idx, const bool dirty)
+void display_depot_symbol_rgb(scr_coord_val x, scr_coord_val y, scr_coord_val width, const PIXVAL colval, const bool dirty)
 {
 	if (width < 6) { return; } // too small to draw!
 	// first, draw the roof (upper triangle)
 	for (uint8 i = 0; i < width/4; i++) {
 		const scr_coord_val w = i*4 + 2;
-		display_fillbox_wh_clip_rgb(x + (width-w) / 2, y+i, w, 1, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+		display_fillbox_wh_clip_rgb(x + (width-w) / 2, y+i, w, 1, colval, dirty);
 	}
-	display_fillbox_wh_clip_rgb(x, y+width/4, width, width-width/3-1, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+	display_fillbox_wh_clip_rgb(x, y+width/4, width, width-width/3-1, colval, dirty);
 	// draw the door
 	const scr_coord_val y_start = width/4+1;
-	display_vline_wh_rgb(x+1,             y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
-	display_vline_wh_rgb(x+(width/2)*2-2, y+y_start, width-width/3-2, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+	const PIXVAL decoration_col = display_blend_colors(colval, color_idx_to_rgb(COL_WHITE), 60);
+
+	display_vline_wh_clip_rgb(x+1,       y+y_start, width-width/3-2, decoration_col, dirty);
+	display_vline_wh_clip_rgb(x+width-2, y+y_start, width-width/3-2, decoration_col, dirty);
 	if (width < 8) { return; } // too small to draw!
 	for (uint8 i=y_start; i < width-3; i+=2) {
-		const scr_coord_val w = i==y_start ? (width/2)*2-4 : (width/2)*2-6;
-		display_fillbox_wh_clip_rgb(x+3-(i==y_start), y+i, w, 1, color_idx_to_rgb(darkest_pcol_idx+6), dirty);
+		const scr_coord_val w = i==y_start ? width-4 : width-6;
+		display_fillbox_wh_clip_rgb(x+3-(i==y_start), y+i, w, 1, decoration_col, dirty);
 	}
 }
+
+void display_depot_symbol(scr_coord_val x, scr_coord_val y, scr_coord_val width, const uint8 darkest_pcol_idx, const bool dirty)
+{
+	display_depot_symbol_rgb(x, y, width, color_idx_to_rgb(darkest_pcol_idx+3), dirty);
+}
+
 
 /**
  * Print a bezier curve between points A and B
@@ -5645,7 +5681,8 @@ void draw_bezier_rgb(scr_coord_val Ax, scr_coord_val Ay, scr_coord_val Bx, scr_c
 		const sint32 oldy = ry;
 		rx = Ax*b*b*b + 3*Cx*b*b*a + 3*Dx*b*a*a + Bx*a*a*a;
 		ry = Ay*b*b*b + 3*Cy*b*b*a + 3*Dy*b*a*a + By*a*a*a;
-		//fixed point: due to cycling between 0 and 32 (2<<5), we divide by 32^3=2>>15 because of cubic interpolation
+
+		// fixed point: due to cycling between 0 and 32 (1<<5), we divide by 32^3 == 1<<15 because of cubic interpolation
 		if(  !draw  &&  !dontDraw  ) {
 			display_direct_line_rgb( rx>>15, ry>>15, oldx>>15, oldy>>15, colore );
 		}
@@ -5659,17 +5696,25 @@ void draw_bezier_rgb(scr_coord_val Ax, scr_coord_val Ay, scr_coord_val Bx, scr_c
 // ------------------- other support routines that actually interface with the OS -----------------
 
 
-/**
- * copies only the changed areas to the screen using the "tile dirty buffer"
- * To get large changes, actually the current and the previous one is used.
- */
-void display_flush_buffer()
+/// Returns the index of the least significant set bit of a number, e.g. returns 2 for @p val == 12.
+/// Returns 0 for @p val == 0.
+static inline uint32 get_lowest_set_bit(uint32 val)
 {
 	static const uint8 MultiplyDeBruijnBitPosition[32] =
 	{
 		0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
 	};
 
+	return MultiplyDeBruijnBitPosition[(((val & -val) * 0x077CB531U)) >> 27];
+}
+
+
+/**
+ * copies only the changed areas to the screen using the "tile dirty buffer"
+ * To get large changes, actually the current and the previous one is used.
+ */
+void display_flush_buffer()
+{
 #ifdef USE_SOFTPOINTER
 	ex_ord_update_mx_my();
 
@@ -5733,13 +5778,12 @@ void display_flush_buffer()
 						word_x2--; // masks already set in while loop above
 					}
 					else { // dirty block ends in word_x2
-						const uint32 tv = ~tile_dirty_old[word_x2];
-						x2 = MultiplyDeBruijnBitPosition[(((tv & -tv) * 0x077CB531U)) >> 27];
+						x2 = get_lowest_set_bit(~tile_dirty_old[word_x2]);
 						masks[word_x2-word_x1] = 0xFFFFFFFF >> (32 - x2);
 					}
 				}
 				else { // dirty block is all within one word - word_x1
-					x2 = MultiplyDeBruijnBitPosition[(((testval & -testval) * 0x077CB531U)) >> 27];
+					x2 = get_lowest_set_bit(testval);
 					masks[0] = (0xFFFFFFFF << (32 - x2 + (x1 & 31))) >> (32 - x2);
 				}
 
@@ -5836,7 +5880,7 @@ void display_show_load_pointer(int loading)
 /**
  * Initialises the graphics module
  */
-bool simgraph_init(scr_size window_size, bool full_screen)
+bool simgraph_init(scr_size window_size, sint16 full_screen)
 {
 	disp_actual_width = window_size.w;
 	disp_height = window_size.h;
@@ -5856,7 +5900,7 @@ bool simgraph_init(scr_size window_size, bool full_screen)
 	}
 
 	// get real width from os-dependent routines
-	disp_width = dr_os_open(window_size.w, window_size.h, full_screen);
+	disp_width = dr_os_open(window_size, full_screen);
 	if(  disp_width<=0  ) {
 		dr_fatal_notify( "Cannot open window!" );
 		return false;
