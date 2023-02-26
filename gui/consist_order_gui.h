@@ -159,8 +159,6 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	gui_scrolled_list_t scl;
 
-	button_t bt_new, bt_delete;
-
 	// [ORDER]
 	gui_aligned_container_t cont_order;
 	cont_order_overview_t cont_order_overview;

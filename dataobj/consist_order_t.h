@@ -128,7 +128,8 @@ struct vehicle_description_element
 	static const uint8 max_rule_flags = 20u;
 
 	uint32 rule_flags[max_rule_flags]
-	{ prefer_high_capacity,
+	{
+		prefer_high_capacity,
 		prefer_high_power,
 		prefer_high_tractive_effort,
 		prefer_high_speed,

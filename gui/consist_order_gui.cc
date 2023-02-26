@@ -331,13 +331,13 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	add_component(&bt_remove);
 
 	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
-	lb->buf().printf("%u", description_index + 1);
+	lb->buf().printf("%u", order_element_index + 1);
 	lb->set_fixed_width(proportional_string_width("888"));
 	lb->update();
 
 	consist_order_element_t order_element = order->get_order(order_element_index);
-	vehicle_description_element element = order_element.get_vehicle_description(description_index);
-	if( element.specific_vehicle ) {
+	vehicle_description_element element = order_element.get_vehicle_description(0); // TODO: Add the capability to have stacked vehicle description slots by priority here
+	if(order_element.get_vehicle_description(0).specific_vehicle ) {
 		// TODO: reverse image or not
 		new_component<gui_fill_t>(false,true);
 		new_component<gui_image_t>(element.specific_vehicle->get_image_id(ribi_t::dir_south, goods_manager_t::none), player_nr, 0, true)->set_tooltip(translator::translate(element.specific_vehicle->get_name()));
@@ -355,9 +355,9 @@ gui_vehicle_description_t::gui_vehicle_description_t(consist_order_t *order, sin
 	add_table(2,1)->set_spacing(scr_size(0,0));
 	{
 		bt_up.init(button_t::roundbox_left, "<");
-		bt_up.enable(description_index>0);
+		bt_up.enable(order_element_index >0);
 		bt_down.init(button_t::roundbox_right, ">");
-		bt_down.enable(description_index < order->get_order(order_element_index).get_count() - 1);
+		bt_down.enable(order_element_index < order->get_order(order_element_index).get_count() - 1);
 		bt_down.add_listener(this);
 		bt_up.add_listener(this);
 		add_component(&bt_up);
@@ -387,13 +387,13 @@ void gui_vehicle_description_t::check_constraint()
 	PIXVAL col_front_state = 0;
 	PIXVAL col_rear_state  = 0;
 
-	consist_order_element_t order_element = order->get_order(order_element_index);
-	vehicle_description_element element = order_element.get_vehicle_description(description_index);
+	consist_order_element_t order_element = order->get_order(description_index);
+	vehicle_description_element element = order_element.get_vehicle_description(0);
 
 	// front side
 	if( element.specific_vehicle ){
 		// vehicle at front
-		if (description_index==0) {
+		if (order_element_index == 0) {
 			// front vehicle => as it is
 			col_front_state = element.specific_vehicle->get_can_be_at_front(is_reversed) ? COL_SAFETY : COL_DANGER;
 		}
@@ -411,7 +411,7 @@ void gui_vehicle_description_t::check_constraint()
 	// rear side
 	if (element.specific_vehicle) {
 		// vehicle at end
-		if (description_index == order_element.get_count()-1) {
+		if (order_element_index == order_element.get_count()-1) {
 			col_rear_state = element.specific_vehicle->get_can_be_at_rear(is_reversed) ? COL_SAFETY : COL_DANGER;
 		}
 		else {
@@ -431,7 +431,7 @@ void gui_vehicle_description_t::check_constraint()
 
 bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, value_t)
 {
-	consist_order_element_t *order_element = &order->access_order(order_element_index);
+	consist_order_element_t *order_element = &order->access_order(description_index);
 	if(  comp==&bt_up  ) {
 		// FIXME
 		order_element->increment_index(description_index-1);
@@ -443,19 +443,19 @@ bool gui_vehicle_description_t::action_triggered(gui_action_creator_t *comp, val
 		consist_order_frame_t::need_reflesh_descriptions = true;
 	}
 	else if(  comp==&bt_remove  ) {
-		order_element->remove_vehicle_description_at(description_index);
+		order_element->remove_vehicle_description_at(0); // TODO: Add the capability to have stacked vehicle description slots by priority here
 		consist_order_frame_t::need_reflesh_order_list = true;
 	}
 	else if(  comp==&bt_edit  ) {
 		// access editor
 		consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 		if (win) {
-			win->open_description_editor(description_index);
+			win->open_description_editor(0); // TODO: Add the capability to have stacked vehicle description slots by priority here
 		}
 	}
 	else if(  comp==&bt_can_empty  ) {
 		bt_can_empty.pressed ^= 1;
-		order_element->access_vehicle_description(description_index).set_empty(bt_can_empty.pressed);
+		order_element->access_vehicle_description(0).set_empty(bt_can_empty.pressed); // TODO: Add the capability to have stacked vehicle description slots by priority here
 		consist_order_frame_t::need_reflesh_descriptions = true; // because changes may occur in the connectabale status
 	}
 	return true;
@@ -480,17 +480,17 @@ void cont_order_overview_t::init_table()
 		new_component<gui_label_t>("Select a consist order", SYSCOL_TEXT_WEAK);
 	}
 	else{
-		consist_order_element_t elem= order->get_order(order_element_index);
-		old_count=elem.get_count();
-		if( !old_count ) {
+		consist_order_element_t elem = order->get_order(order_element_index);
+		old_count = elem.get_count();
+		if( !total_vehicles || !old_count) {
 			new_component<gui_label_t>("Set vehicle descriptions", SYSCOL_TEXT_WEAK);
 		}
 		else {
 			uint8 max_rows = 3; // FIXME
-			add_table(old_count+1, max_rows)->set_alignment(ALIGN_CENTER_H);
+			add_table(total_vehicles +1, max_rows)->set_alignment(ALIGN_CENTER_H);
 			{
 				for (uint8 row = 0; row < max_rows; row++) {
-					for (uint8 col = 0; col < old_count+1; col++) {
+					for (uint8 col = 0; col < total_vehicles +1; col++) {
 						if (col==0) {
 							// header
 							switch (row) {
@@ -510,10 +510,10 @@ void cont_order_overview_t::init_table()
 						else {
 							// vehicle data
 							if (row==0) {
-								new_component<gui_vehicle_description_t>(order, player_nr, order_element_index, col - 1);
+								new_component<gui_vehicle_description_t>(order, player_nr, col - 1, 0); // TODO: Allow for stacked vehicle description elements
 								continue;
 							}
-							const vehicle_description_element vde = elem.get_vehicle_description(col-1);
+							const vehicle_description_element vde = order->get_order(col - 1).get_vehicle_description(0); // TODO: Allow for stacked vehicle description elements
 							if (row==1) {
 								if (vde.specific_vehicle) {
 									new_component<gui_image_t>(vde.specific_vehicle->get_freight_type()->get_catg_symbol(), 0, ALIGN_CENTER_V | ALIGN_CENTER_H, true);
@@ -660,6 +660,8 @@ void consist_order_frame_t::init_table()
 	add_table(3,1);
 	{
 		add_table(1,3)->set_alignment(ALIGN_TOP);
+
+		new_component<gui_fill_t>(false, true);
 
 		end_table();
 		update_order_list(0);
@@ -1059,8 +1061,8 @@ void consist_order_frame_t::init_editor()
 
 void consist_order_frame_t::open_description_editor(uint8 vdesc_index)
 {
-	consist_order_element_t *order_element = &order.access_order((uint32)scl.get_selection());
-	set_vehicle_description(order_element->get_vehicle_description(vdesc_index));
+	consist_order_element_t *order_element = &order.access_order(vdesc_index);
+	set_vehicle_description(order_element->get_vehicle_description(0)); // TODO: Add the capability to have stacked vehicle description slots by priority here
 	numimp_edit_target.set_value(vdesc_index+1);
 	edit_action_selector.set_selection(2); // overwrite mode
 	tabs.set_active_tab_index(2);
@@ -1118,8 +1120,6 @@ void consist_order_frame_t::update_order_list(sint32 reselect_index)
 	// reselect the selection
 	scl.set_selection(reselect_index >=(sint32)old_order_count ? -1 : reselect_index);
 	cont_order_overview.set_element((uint32)scl.get_selection(), player->get_player_nr());
-
-	bt_delete.enable( old_order_count  &&  scl.get_selection()!=-1 );
 	resize(scr_size(0,0));
 }
 
@@ -1239,7 +1239,6 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if( comp==&scl ) {
 		cont_order_overview.set_element(scl.get_selection(), player->get_player_nr());
-		bt_delete.enable();
 		resize(scr_size(0,0));
 	}
 	else if( comp==&bt_sort_order_veh ) {
@@ -1270,8 +1269,16 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 			create_win(new news_img("No vehicle selected!"), w_time_delete, magic_none);
 			return true;
 		}
+		// The below is wrong: it adds another *alternative* vehicle description to the existing order element rather than adding a new order element.
+		/*
 		consist_order_element_t *order_element = &order.access_order((uint32)sel);
 		order_element->append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
+		*/
+
+		consist_order_element_t new_element;
+		new_element.append_vehicle(selected_vehicle, bt_add_vehicle_limit_vehicle.pressed);
+		order.append(new_element); 
+
 		update_order_list(sel);
 		if( bt_connectable_vehicle_filter.pressed ) {
 			// Vehicle list needs to be updated
@@ -1496,14 +1503,14 @@ void consist_order_frame_t::build_vehicle_list()
 	if( search_only_appendable_vehicle ) {
 		consist_order_element_t *order_element = &order.access_order((uint32)scl.get_selection());
 		if( order_element->get_count() ) {
-			vehicle_description_element last_vde = order_element->get_vehicle_description( order_element->get_count()-1 );
+			vehicle_description_element last_vde = order_element->get_vehicle_description(0); // TODO: Allow for stacked vehicle description elements
 			conect_target = last_vde.specific_vehicle;
 		}
 	}
 
 	// list only own vehicles
 	for (auto const cnv : world()->convoys()) {
-		if((cnv->get_owner() == player || cnv->get_owner()->allows_access_to(player->get_player_nr()) && player->allows_access_to(cnv->get_owner()->get_player_nr())) && cnv->front()->get_waytype()==schedule->get_waytype())
+		if((cnv->get_owner() == player || (cnv->get_owner()->allows_access_to(player->get_player_nr()) && player->allows_access_to(cnv->get_owner()->get_player_nr()))) && cnv->front()->get_waytype()==schedule->get_waytype())
 		{
 			// count own vehicle
 			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
@@ -1551,7 +1558,7 @@ void consist_order_frame_t::build_vehicle_list()
 	}
 	// also count vehicles that stored at depots
 	for( auto const depot : depot_t::get_depot_list() ) {
-		if( depot->get_owner() == player ) {
+		if((depot->get_owner() == player || (depot->get_owner()->allows_access_to(player->get_player_nr()) && player->allows_access_to(depot->get_owner()->get_player_nr()))) && depot->get_waytype() == schedule->get_waytype()) {
 			for( auto const veh : depot->get_vehicle_list() ) {
 				const vehicle_desc_t *veh_type = veh->get_desc();
 				// filter
