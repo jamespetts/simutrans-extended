@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -109,7 +109,6 @@ void gui_building_stats_t::init_class_table()
 
 void gui_building_stats_t::init_stats_table()
 {
-	//get_tile()->get_desc()
 	if (building->get_tile()->get_desc()->get_type() != building_desc_t::city_res || building->get_adjusted_mail_demand()) {
 		new_component<gui_heading_t>("Trip data", SYSCOL_TEXT, frame_color, 3)->set_width(D_DEFAULT_WIDTH-D_MARGINS_X-D_H_SPACE);
 
@@ -265,10 +264,12 @@ void gui_building_stats_t::init_stats_table()
 		lb->update();
 
 		// painted by
-		new_component<gui_fill_t>();
-		lb = new_component<gui_label_buf_t>();
-		lb->buf().printf(translator::translate("Constructed by %s"), building->get_tile()->get_desc()->get_copyright());
-		lb->update();
+		if (char const* const maker = building->get_tile()->get_desc()->get_copyright()) {
+			new_component<gui_fill_t>();
+			lb = new_component<gui_label_buf_t>();
+			lb->buf().printf(translator::translate("Constructed by %s"), maker);
+			lb->update();
+		}
 	}
 	end_table();
 

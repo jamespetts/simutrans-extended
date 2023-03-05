@@ -732,7 +732,7 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 		add_table(2,1)->set_alignment(ALIGN_TOP);
 		{
 			// top left
-			add_table(1,2)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
+			add_table(1,3)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
 			{
 				cont_convoi.set_table_layout(2,2);
 				cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
@@ -744,26 +744,28 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				convoi.set_max_rows(1);
 				scrollx_convoi.set_maximize(true);
 				add_component(&scrollx_convoi);
-				cont_convoi_spec.set_table_layout(1,2);
-				cont_convoi_spec.set_margin(scr_size(0,0), scr_size(0,0));
+
 				// convoy length
-				cont_convoi_spec.add_table(5,1);
+				add_table(5,1);
 				{
-					cont_convoi_spec.new_component<gui_label_t>("Fahrzeuge:");
+					new_component<gui_label_t>("Fahrzeuge:");
 					lb_convoi_count.set_fixed_width(proportional_string_width("888"));
-					cont_convoi_spec.add_component(&lb_convoi_count);
+					add_component(&lb_convoi_count);
 					lb_convoi_count_fluctuation.set_fixed_width(proportional_string_width("888"));
 					lb_convoi_count_fluctuation.set_rigid(true);
-					cont_convoi_spec.add_component(&lb_convoi_count_fluctuation);
+					add_component(&lb_convoi_count_fluctuation);
 					if (wt != water_wt && wt != air_wt) {
-						cont_convoi_spec.add_component(&lb_convoi_tiles);
-						cont_convoi_spec.add_component(&tile_occupancy);
+						add_component(&lb_convoi_tiles);
+						add_component(&tile_occupancy);
 					}
 				}
-				cont_convoi_spec.end_table();
+				end_table();
 
 				// convoy specs
-				cont_convoi_spec.add_table(4,0)->set_spacing(scr_size(D_H_SPACE, 1));
+				cont_convoi_spec.set_table_layout(1,2);
+				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
+				tbl->set_spacing(scr_size(1,1));
+				tbl->set_margin(scr_size(2,2), scr_size(2,2));
 				{
 					cont_convoi_spec.new_component<gui_label_t>("Cost:");
 					cont_convoi_spec.add_component(&lb_convoi_cost);
@@ -1280,6 +1282,61 @@ image_id gui_convoy_assembler_t::get_latest_available_livery_image_id(const vehi
 		}
 	}
 	return info->get_base_image();
+}
+
+
+int gui_convoy_assembler_t::remove_vehicle_at(uint8 nr, bool execute)
+{
+	if (!vehicles.get_count() || nr >= vehicles.get_count()) {
+		dbg->fatal("gui_convoy_assembler_t::remove_vehicle_at()", "Invalid vehicle index");
+	}
+
+	int removed_count = 0;
+	// Check backward connections first.
+	const vehicle_desc_t *removed_veh = vehicles[nr];
+	const vehicle_desc_t *last_veh = nr == 0 ? NULL : vehicles[nr-1];
+	uint8 chk_nr = nr;
+	uint8 removed_len= 0;
+
+	do {
+		removed_veh = vehicles[chk_nr];
+		if (execute) {
+			vehicles.remove_at(chk_nr);
+		}
+		else {
+			chk_nr++;
+			removed_count++;
+			removed_len += removed_veh->get_length();
+		}
+	}
+	while (chk_nr < vehicles.get_count()
+		&& removed_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique
+		&& !vehicles[chk_nr]->can_follow(last_veh)
+	);
+
+	// Check frontward connections
+	if (nr > 0) {
+		chk_nr = nr;
+		while (chk_nr > 0 && vehicles[chk_nr - 1]->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+			chk_nr--;
+			if (execute) {
+				vehicles.remove_at(chk_nr);
+			}
+			removed_count++;
+			removed_len += removed_veh->get_length();
+		}
+	}
+
+	if (!execute) {
+		// update tile occupancy bar
+		const uint32 total_vehicles = vehicles.get_count();
+		const uint8 new_last_veh_length = (nr == total_vehicles - 1 && total_vehicles > 1) ?
+			vehicles[total_vehicles-2]->get_length() :
+			vehicles[total_vehicles-1]->get_length();
+		tile_occupancy.set_new_veh_length(0 - removed_len, false, new_last_veh_length);
+	}
+
+	return removed_count;
 }
 
 
@@ -2153,10 +2210,26 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 					if(veh_action == va_insert)
 					{
 						vehicles.insert_at(0, info);
+						slist_tpl<const vehicle_desc_t *>new_vehicle_info;
+						const vehicle_desc_t *prev_veh = info;
+						while (((prev_veh->get_leader_count() == 1 && prev_veh->get_leader(0) != NULL))
+							&& !new_vehicle_info.is_contained(prev_veh->get_leader(0))) {
+							prev_veh = prev_veh->get_leader(0);
+							new_vehicle_info.insert(prev_veh);
+							vehicles.insert_at(0, prev_veh);
+						}
 					}
 					else if(veh_action == va_append)
 					{
 						vehicles.append(info);
+						slist_tpl<const vehicle_desc_t *>new_vehicle_info;
+						const vehicle_desc_t *next_veh = info;
+						while (((next_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique))
+							&& !new_vehicle_info.is_contained(next_veh->get_trailer(0))) {
+							next_veh = next_veh->get_trailer(0);
+							new_vehicle_info.insert(next_veh);
+							vehicles.append(next_veh);
+						}
 					}
 				}
 				// No action for sell - not available in the replacer window.
@@ -2197,8 +2270,8 @@ void gui_convoy_assembler_t::image_from_convoi_list(uint nr)
 	}
 	else
 	{
-		// We're in a replacer.  Less work.
-		vehicles.remove_at(nr);
+		// We're in a replacer.
+		remove_vehicle_at(nr);
 		update_convoi();
 	}
 }
@@ -2356,7 +2429,15 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	uint32 resale_value = UINT32_MAX_VALUE;
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
 	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, x, y - tabs.get_required_size().h);
-	sint8 vehicle_fluctuation = 0;
+
+	int vehicle_fluctuation = 0;
+	// init convoy/station tile count
+	if (!vehicles.get_count()) {
+		lb_convoi_count.update();
+		lb_convoi_tiles.buf().printf("%s", translator::translate("Station tiles:"));
+		lb_convoi_tiles.update();
+		tile_occupancy.set_base_convoy_length(0,0);
+	}
 
 	if(  (sel_index != -1)  &&  (tabs.getroffen(x - pos.x, y - pos.y)) ) {
 		// cursor over a vehicle in the selection list
@@ -2570,7 +2651,12 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 			}
 			else {
 				veh_type =vehicles[sel_index];
+				// update station tiles info
+				if (way_type != water_wt && way_type != air_wt) {
+					vehicle_fluctuation = -remove_vehicle_at(sel_index, false);
+				}
 			}
+
 		}
 	}
 

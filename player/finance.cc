@@ -248,7 +248,7 @@ void finance_t::calc_credit_limits()
 	sint64 hard_limit_by_assets = credit_limit_by_assets();
 
 	// The player gets the better of the two credit limits.  Remember that they are negative.
-	sint64 hard_credit_limit = min(hard_limit_by_profits, hard_limit_by_assets);
+	sint64 hard_credit_limit = std::min(hard_limit_by_profits, hard_limit_by_assets);
 	assert(hard_credit_limit <= 0);
 
 	// Soft credit limit is a percentage of the hard credit limit
