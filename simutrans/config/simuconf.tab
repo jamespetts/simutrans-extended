@@ -382,9 +382,6 @@ first_beginner = 0
 # value can range from 1 to 16, inclusive; 1 means no averaging; default is 4
 factory_arrival_periods = 4
 
-# whether factory's pax/mail demands are enforced or not; default is on
-factory_enforce_demand = 1
-
 # The following settings determine the thresholds for deciding whether an industry is short
 # of staff. 
 # 
@@ -401,6 +398,12 @@ factory_enforce_demand = 1
 
 minimum_staffing_percentage_consumer_industry = 66
 minimum_staffing_percentage_full_production_producer_industry = 80
+
+# If this is disabled, all industries will continue to operate fully despite having no staff.
+# If this is enabled, industries will cease to operate if they are short of staff (subject to
+# the setting in rural_industries_no_staff_shortage).
+# Default: 1 (enabled)
+factory_enforce_demand = 1
 
 # If the below setting is enabled, industries situated outside a town will continue
 # to function as normal even if they are short of staff. It is recommended to enable
