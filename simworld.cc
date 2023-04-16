@@ -1553,22 +1553,22 @@ void karte_t::recalc_passenger_destination_weights()
 	// This averages the weight over all classes.
 	// TODO: Consider whether to have separate numbers of alternative destinations
 	// for each different class.
-	uint64 total_sum_wieght_commuter_targets = 0;
+	uint64 total_sum_weight_commuter_targets = 0;
 	uint64 total_sum_weight_visitor_targets = 0;
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		total_sum_wieght_commuter_targets += commuter_targets[i].get_sum_weight();
+		total_sum_weight_commuter_targets += commuter_targets[i].get_sum_weight();
 		total_sum_weight_visitor_targets += visitor_targets[i].get_sum_weight();
 	}
 
-	total_sum_wieght_commuter_targets /= goods_manager_t::passengers->get_number_of_classes();
+	total_sum_weight_commuter_targets /= goods_manager_t::passengers->get_number_of_classes();
 	total_sum_weight_visitor_targets /= goods_manager_t::passengers->get_number_of_classes();
 
-	settings.update_min_alternative_destinations_commuting(total_sum_wieght_commuter_targets);
+	settings.update_min_alternative_destinations_commuting(total_sum_weight_commuter_targets);
 	settings.update_min_alternative_destinations_visiting(total_sum_weight_visitor_targets);
 
-	settings.update_max_alternative_destinations_commuting(total_sum_wieght_commuter_targets);
+	settings.update_max_alternative_destinations_commuting(total_sum_weight_commuter_targets);
 	settings.update_max_alternative_destinations_visiting(total_sum_weight_visitor_targets);
 }
 
