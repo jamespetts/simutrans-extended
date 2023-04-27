@@ -662,8 +662,6 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				scrollx_convoi.set_maximize(true);
 				add_component(&scrollx_convoi);
 
-				cont_convoi_spec.set_table_layout(1,2);
-				// convoy length
 				add_table(5,1);
 				{
 					new_component<gui_label_t>("Fahrzeuge:");
@@ -680,8 +678,8 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				end_table();
 
 				// convoy specs
+				cont_convoi_spec.set_table_layout(1,2);
 				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
-				tbl->set_table_frame(true, true);
 				tbl->set_spacing(scr_size(1,1));
 				tbl->set_margin(scr_size(2,2), scr_size(2,2));
 				{

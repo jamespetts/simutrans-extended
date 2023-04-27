@@ -141,6 +141,8 @@ public:
 
 	static uint32 get_minimum_city_distance();
 	static void set_minimum_city_distance(uint32 s);
+	static sint16 get_edge_avoidance();
+	static void set_edge_avoidance(sint16 s);
 
 	/**
 	 * Reads/writes city configuration data from/to a savegame

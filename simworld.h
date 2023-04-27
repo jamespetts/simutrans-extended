@@ -2589,7 +2589,7 @@ public:
 	 * @return A list of all buildable squares with size w, h.
 	 * @note Only used for town creation at the moment.
 	 */
-	slist_tpl<koord> * find_squares(sint16 w, sint16 h, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const;
+	slist_tpl<koord> * find_squares(sint16 w, sint16 h, sint16 edge_avoidance, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const;
 
 	/**
 	 * Plays the sound when the position is inside the visible region.
