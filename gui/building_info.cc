@@ -264,10 +264,12 @@ void gui_building_stats_t::init_stats_table()
 		lb->update();
 
 		// painted by
-		new_component<gui_fill_t>();
-		lb = new_component<gui_label_buf_t>();
-		lb->buf().printf(translator::translate("Constructed by %s"), building->get_tile()->get_desc()->get_copyright());
-		lb->update();
+		if (char const* const maker = building->get_tile()->get_desc()->get_copyright()) {
+			new_component<gui_fill_t>();
+			lb = new_component<gui_label_buf_t>();
+			lb->buf().printf(translator::translate("Constructed by %s"), maker);
+			lb->update();
+		}
 	}
 	end_table();
 

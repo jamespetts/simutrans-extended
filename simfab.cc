@@ -2094,20 +2094,23 @@ void fabrik_t::add_consuming_passengers(sint32 number_of_passengers)
 
 bool fabrik_t::out_of_stock_selective()
 {
+	if (welt->get_settings().get_factory_enforce_demand())
+	{
+		if ( !(city == NULL && welt->get_settings().get_rural_industries_no_staff_shortage()) )
+		{
+			const sint32 staffing_percentage = building->get_staffing_level_percentage();
+			if (staffing_percentage < welt->get_settings().get_minimum_staffing_percentage_consumer_industry()) {
+				// If the shop has insufficient staff, it cannot open and
+				// therefore nobody can buy anything.
+				return true;
+			}
+		}
+	}
+
 	if (input.get_count() == 1)
 	{
 		// Very simple if only one thing is sold: save CPU time
 		return input[0].menge <= 0;
-	}
-
-	// If the shop has insufficient staff, it cannot open and
-	// therefore nobody can buy anything.
-
-	const sint32 staffing_percentage = building->get_staffing_level_percentage();
-
-	if (staffing_percentage < welt->get_settings().get_minimum_staffing_percentage_consumer_industry() && !(welt->get_settings().get_rural_industries_no_staff_shortage() && city == NULL))
-	{
-		return true;
 	}
 
 	// Passengers want a particular good. If the good is unavailable, they
@@ -4645,6 +4648,9 @@ void fabrik_t::set_sector()
 
 bool fabrik_t::is_staff_shortage() const
 {
+	if ( !(welt->get_settings().get_factory_enforce_demand()) ) {
+		return false;
+	}
 	const sint32 staffing_level_percentage = building->get_staffing_level_percentage();
 	switch (sector) {
 		//TODO: when power_plant or unknown ?
