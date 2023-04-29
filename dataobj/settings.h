@@ -1367,7 +1367,7 @@ public:
 	bool get_simplified_maintenance() const { return simplified_maintenance; }
 
 	uint32 get_min_layover_overhead_seconds() const { return min_layover_overhead_seconds; }
-	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = min_layover_overhead_seconds = value; }
+	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = value; }
 
 	uint32 get_shunting_time_seconds() const { return shunting_time_seconds; }
 	void set_shunting_time_seconds(uint32 value) { shunting_time_seconds = value; }
