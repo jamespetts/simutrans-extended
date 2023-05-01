@@ -1965,7 +1965,7 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 	const minivec_tpl<koord>* diagonal_neighbor_koords = get_diagonal_neighbor_koords();
 	// First look for a road on a rectangular side
 	if (!start_found) {
-		FOR(const minivec_tpl<koord>, const test_pos, *rectangular_neighbor_koords) {
+		for (auto test_pos : *rectangular_neighbor_koords) {
 			// Only look for roads of the same height as building
 			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
 			gr = welt->lookup(test_pos_3d);
@@ -1978,7 +1978,7 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 	}
 	// Second: look for a road on a diagonal corner
 	if (!start_found) {
-		FOR(const minivec_tpl<koord>, const test_pos, *diagonal_neighbor_koords) {
+		for (auto test_pos : *diagonal_neighbor_koords) {
 			// Only look for roads of the same height as building
 			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
 			gr = welt->lookup(test_pos_3d);
@@ -2004,7 +2004,7 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 	// One random try failed?  Don't overwork the random number engine:
 	// search systematically through the rectangular neighors.
 	if (!start_found) {
-		FOR(const minivec_tpl<koord>, const test_pos, *rectangular_neighbor_koords) {
+		for (auto test_pos : *rectangular_neighbor_koords) {
 			// Only look for roads of the same height as building
 			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
 			gr = welt->lookup(test_pos_3d);
@@ -2017,7 +2017,7 @@ void gebaeude_t::connect_by_road_to_nearest_city()
 	}
 	// Fourth: try the diagonal neighbors if we absolutely must.
 	if (!start_found) {
-		FOR(const minivec_tpl<koord>, const test_pos, *diagonal_neighbor_koords) {
+		for (auto test_pos : *diagonal_neighbor_koords) {
 			// Only look for roads of the same height as building
 			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
 			gr = welt->lookup(test_pos_3d);
