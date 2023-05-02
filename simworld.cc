@@ -6751,12 +6751,13 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					/**
 					* As there are no jobs, this is not a destination for commuting
 					*/
-					if (n < destination_count - 1)
+					if (n < destination_count + extend_count - 1)
 					{
 						current_destination = find_destination(trip, pax.get_class());
-
-						if (extend_count < destination_count * 4)
+						if (extend_count < destination_count * 1024)
 						{
+							// Keep looking for jobs.  This is important in early game on large maps
+							// when towns are small, the network is disconnected, and travel times are long.
 							extend_count++;
 						}
 					}
@@ -6835,6 +6836,13 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				if (n < destination_count + extend_count - 1)
 				{
 					current_destination = find_destination(trip, pax.get_class());
+					if (trip == commuting_trip && extend_count < destination_count * 1024)
+					{
+						// Keep looking for jobs in the case of a commuting trip.
+						// This is critically important in early game on a large map
+						// with a disconnected network and slow travel times.
+						extend_count++;
+					}
 				}
 				continue;
 			}
