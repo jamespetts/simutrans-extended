@@ -8365,22 +8365,45 @@ bool karte_t::square_is_free(koord k, sint16 w, sint16 h, int *last_y, climate_b
 }
 
 
-slist_tpl<koord> *karte_t::find_squares(sint16 w, sint16 h, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const
+slist_tpl<koord> *karte_t::find_squares(sint16 w, sint16 h, sint16 edge_avoidance, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const
 {
 	slist_tpl<koord> * list = new slist_tpl<koord>();
 	koord start;
 	int last_y;
 
+	// The parameter edge_avoidance is a number of tiles to keep away from the edge of the map.
+	// The entire square must not be within the "buffer zone" at the edge of the map.
+	// This is because it can be annoying to have cities crushed against the game border.
+	//
+	// Note that the parameters old_x and old_y are used only for enlarge_map (otherwise they're 0)
+	//
+	// -- Nathanael Nerode
+
+	// Need to do SIGNED math.
+	// Note: may be larger than map size, this is OK, caught by the for loop condition
+	sint16 lowest_x = (sint16)0 + edge_avoidance;
+	sint16 lowest_y = (sint16)0 + edge_avoidance;
+	// Note: may be negative, this is OK, caught by the for loop condition
+	sint16 highest_x_plus_one = get_size().x - edge_avoidance - w;
+	sint16 highest_y_plus_one = get_size().y - edge_avoidance - h;
+
+	// Expansion: areas formerly avoided because at map lower/right edge, aren't at map edge any more
+	// So it's OK to add new cities to this former-edge part of the map *now*
+	// However, don't find spaces in the left/top buffer zone of the map
+	sint16 lowest_expansion_x = (sint16) max(old_x - edge_avoidance, lowest_x);
+	sint16 lowest_expansion_y = (sint16) max(old_y - edge_avoidance, lowest_y);
+
+
 DBG_DEBUG("karte_t::finde_plaetze()","for size (%i,%i) in map (%i,%i)",w,h,get_size().x,get_size().y );
-	for(start.x=0; start.x<get_size().x-w; start.x++) {
-		for(start.y=start.x<old_x?old_y:0; start.y<get_size().y-h; start.y++) {
+	for(start.x = lowest_x; start.x < highest_x_plus_one; start.x++) {
+		for(start.y = start.x < lowest_expansion_x ? lowest_expansion_y : lowest_y; start.y < highest_y_plus_one; start.y++) {
 			if(square_is_free(start, w, h, &last_y, cl, regions_allowed)) {
 				list->insert(start);
 			}
 			else {
-				// Optimiert fuer groessere Felder, hehe!
-				// Die Idee: wenn bei 2x2 die untere Reihe nicht geht, koennen
-				// wir gleich 2 tiefer weitermachen! V. Meyer
+				// Optimized for larger fields
+				// The idea: if the bottom row doesn't work in 2x2,
+				// we can continue 2 deeper - V. Meyer
 				start.y = last_y;
 			}
 		}

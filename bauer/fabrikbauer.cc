@@ -17,6 +17,7 @@
 #include "../player/simplay.h"
 
 #include "../boden/grund.h"
+#include "../boden/wege/runway.h" // for avoiding building next to runways
 
 #include "../dataobj/settings.h"
 #include "../dataobj/environment.h"
@@ -119,22 +120,52 @@ public:
 
 	bool is_area_ok(koord pos, sint16 w, sint16 h, climate_bits cl, uint16 allowed_regions) const OVERRIDE
 	{
-		if(  !building_placefinder_t::is_area_ok(pos, w, h, cl, allowed_regions)  ) {
-			// We need a clear space to build, first of all
-			return false;
+		if (  site != factory_desc_t::Water  ) {
+			// If this is not a water site factory, then
+			if ( !building_placefinder_t::is_area_ok(pos, w, h, cl, allowed_regions)  ) {
+				// We need a clear space to build, first of all
+				return false;
+			}
 		}
+
+		// Whether we've found a suitable road, shore, or river.
+		// Consider counting the number we find instead.
+		bool road_found = false;
+		if (site != factory_desc_t::City) {
+			// Don't look for the road if we don't care.
+			road_found = true;
+		}
+		bool shore_found = false;
+		if (site != factory_desc_t::shore && site != factory_desc_t::shore_city) {
+			// Don't look for the shore if we don't care.
+			shore_found = true;
+		}
+		bool river_found = false;
+		if (site != factory_desc_t::river && site != factory_desc_t::river_city) {
+			// Don't look for the river if we don't care.
+			river_found = true;
+		}
+		if(  welt->get_settings().get_river_number() <= 0  ) {
+			// On a map with no rivers, don't restrict to spaces near rivers
+			river_found = true;
+		}
+
+		// For forests, count the trees.
 		uint16 mincond = 0;
 		uint16 condmet = 0;
-		switch(site) {
-			case factory_desc_t::forest:
-				mincond = w*h+w+h; // at least w*h+w+h trees, i.e. few tiles with more than one tree
-				break;
+		if (!welt->get_settings().get_no_trees() && site == factory_desc_t::forest) {
+			// check for trees unless the map was generated without trees
+			mincond = w*h+w+h; // at least w*h+w+h trees, i.e. few tiles with more than one tree
+		}
 
-			case factory_desc_t::shore:
-			case factory_desc_t::river:
-			case factory_desc_t::City:
-			default:
-				mincond = 1;
+		// Keep away from the edge of the map.
+		sint16 edge_avoidance = stadt_t::get_edge_avoidance();
+		if ( pos.x < edge_avoidance || pos.x + w > welt->get_size().x - edge_avoidance) {
+			// Too close to the map edge left or right
+			return false;
+		} else if (pos.y < edge_avoidance || pos.y + h > welt->get_size().y - edge_avoidance) {
+			// Too close to the map edge top or bottom
+			return false;
 		}
 
 		// needs to run one tile wider than the factory on all sides
@@ -151,15 +182,22 @@ public:
 					return false;
 				}
 				if(  0 <= x  &&  x < w  &&  0 <= y  &&  y < h  ) {
-					// Inside the target for factory.
+					// Inside the target for factory building itself.
+					// For water factories, check for water (no shore in sight!)
+					if(site==factory_desc_t::Water) {
+						if( !gr->is_water()  ||  gr->get_grund_hang()!=slope_t::flat) {
+							return false;
+						}
+					}
 					// Don't build under bridges, powerlines, etc.
-					// actual factorz tile: is there something top like elevated monorails?
+					// Is there something top like elevated monorails?
 					if(  gr->get_leitung()!=NULL  ||  welt->lookup(gr->get_pos()+koord3d(0,0,1)  )!=NULL) {
 						// something on top (monorail or power lines)
+						// Note: consider loosening this requirement to allow building under very tall elevateds
 						return false;
 					}
-					// check for trees unless the map was generated without trees
-					if(  site==factory_desc_t::forest  &&  !welt->get_settings().get_no_trees()  &&  condmet < mincond  ) {
+					// count the trees on the tiles the factory will be built on top of, for forest factories
+					if(  site==factory_desc_t::forest  &&  condmet < mincond  ) {
 						for(uint8 i=0; i< gr->get_top(); i++) {
 							if (gr->obj_bei(i)->get_typ() == obj_t::baum) {
 								condmet++;
@@ -167,60 +205,61 @@ public:
 						}
 					}
 				}
-				else {
-					// border tile: check for road, shore, river
-					if(  condmet < mincond  &&  (-1==x  ||  x==w)  &&  (-1==y  ||  y==h)  ) {
-						switch (site) {
-							case factory_desc_t::City:
-								condmet += gr->hat_weg(road_wt);
-								break;
-							case factory_desc_t::shore:
-							case factory_desc_t::shore_city:
-								if (welt->get_climate(k) == water_climate)
-								{
-									if (site == factory_desc_t::shore_city)
-									{
-										condmet += gr->hat_weg(road_wt);
-									}
-									else
-									{
-										condmet++;
-									}
-								}
-								break;
-							case factory_desc_t::river:
-							case factory_desc_t::river_city:
-							if(  welt->get_settings().get_river_number() >0  ) {
-								weg_t* river = gr->get_weg(water_wt);
-								if (river  &&  river->get_desc()->get_styp()==type_river)
-								{
-									if (site == factory_desc_t::river_city)
-									{
-										condmet += gr->hat_weg(road_wt);
-									}
-									else
-									{
-										condmet++;
-									}
-									DBG_DEBUG("factory_site_searcher_t::is_area_ok()", "Found river near %s", pos.get_str());
-								}
-								break;
-							}
-							else {
-								// always succeeds on maps without river ...
-								condmet++;
-								break;
-							}
-							default: ;
-						}
+				else if ( (-1==x  ||  x==w)  &&  (-1==y  ||  y==h)  ) {
+					// corner tile
+					// Stay away from the corner of runways (yes, even for water industries):
+					runway_t* rw = (runway_t*)gr->get_weg(air_wt);
+			    if (rw && rw->get_desc()->get_styp() == type_runway && !(rw->get_owner_nr() == PLAYER_UNOWNED && rw->is_degraded() && rw->get_max_speed() == 0)) {
+						// Do not care about degraded, unowned runways, but stay away from the side of others
+						return false;
+					}
+					// we do NOT want to count a corner tile match as a match for road, shore, or river!
+					continue;
+				}
+				else if (  -1==x || x==w || -1==y || y==h  ) {
+					// border tile, and not corner (we checked corners first)
+					// Stay away from the side of runways (yes, even for water industries):
+					runway_t* rw = (runway_t*)gr->get_weg(air_wt);
+			    if (rw && rw->get_desc()->get_styp() == type_runway && !(rw->get_owner_nr() == PLAYER_UNOWNED && rw->is_degraded() && rw->get_max_speed() == 0)) {
+						// Do not care about degraded, unowned runways, but stay away from the side of others
+						return false;
+					}
+					// check for road, shore, river
+					// short-circuit if we have already found road, shore, river, or don't care
+					road_found = road_found || gr->hat_weg(road_wt);
+					shore_found = shore_found || welt->get_climate(k) == water_climate;
+					if (!river_found) {
+						weg_t* river = gr->get_weg(water_wt);
+						river_found = river_found || (river  &&  river->get_desc()->get_styp()==type_river);
 					}
 				}
 			}
 		}
-		if(  site==factory_desc_t::forest  &&  condmet>=3  ) {
-			dbg->message("", "found %d at %s", condmet, pos.get_str() );
+		// For a city building we require a pre-existing road,
+		// but for river_city and shore_city we don't, we'll build the road afterwards.
+		switch (site) {
+			case factory_desc_t::City:
+				return road_found;
+				break;
+			case factory_desc_t::shore:
+			case factory_desc_t::shore_city:
+				return shore_found;
+				break;
+			case factory_desc_t::river:
+			case factory_desc_t::river_city:
+				return river_found;
+				break;
+			case factory_desc_t::forest:
+				// Enough trees?
+				return condmet >= mincond;
+				break;
+			case factory_desc_t::Land:
+			case factory_desc_t::Water:
+			default:
+				return true;
+				break;
 		}
-		return condmet >= mincond;
+		return true;
 	}
 };
 
@@ -373,38 +412,11 @@ void factory_builder_t::find_producer(weighted_vector_tpl<const factory_desc_t *
 
 bool factory_builder_t::check_construction_site(koord pos, koord size, factory_desc_t::site_t site, bool is_factory, climate_bits cl, uint16 regions_allowed)
 {
-	// check for water (no shore in sight!)
-	if(site==factory_desc_t::Water) {
-		for(int y=0;y<size.y;y++) {
-			for(int x=0;x<size.x;x++) {
-				const grund_t *gr=welt->lookup_kartenboden(pos+koord(x,y));
-				if(gr==NULL  ||  !gr->is_water()  ||  gr->get_grund_hang()!=slope_t::flat) {
-					return false;
-				}
-			}
-		}
-	}
-	else {
-		if (is_factory  &&  site!=factory_desc_t::Land) {
-			return factory_site_searcher_t(welt, site).is_area_ok(pos, size.x, size.y, cl, regions_allowed);
-		}
-		else {
-			// check on land
-			// do not build too close or on an existing factory
-			if( is_factory_at(pos.x, pos.y)  ) {
-				return false;
-			}
-			return welt->square_is_free(pos, size.x, size.y, NULL, cl, regions_allowed);
-		}
-	}
-	// Check for runways
-	karte_t::runway_info ri = welt->check_nearby_runways(pos);
-	if (ri.pos != koord::invalid)
-	{
-		return false;
-	}
-
-	return true;
+	// We used to check is_factory here, but the code ended up being identical.
+	// This gets called for factories and for attractions.
+	// Attractions will get called with the "Land" site type from distribute_attractions
+	// (though consider implementing whale-watching, etc.?)
+	return factory_site_searcher_t(welt, site).is_area_ok(pos, size.x, size.y, cl, regions_allowed);
 }
 
 
@@ -676,8 +688,10 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 		return 0;
 	}
 
+	factory_desc_t::site_t site = info->get_placement();
+
 	// no cities at all?
-	if ((info->get_placement() == factory_desc_t::City || info->get_placement() == factory_desc_t::shore_city || info->get_placement() == factory_desc_t::river_city) &&  welt->get_cities().empty()) {
+	if ((site == factory_desc_t::City || site == factory_desc_t::shore_city || site == factory_desc_t::river_city) &&  welt->get_cities().empty()) {
 		return 0;
 	}
 
@@ -692,7 +706,7 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 	}
 
 	// Industries in town needs different place search
-	if (info->get_placement() == factory_desc_t::City || info->get_placement() == factory_desc_t::shore_city || info->get_placement() == factory_desc_t::river_city) {
+	if (site == factory_desc_t::City || site == factory_desc_t::shore_city || site == factory_desc_t::river_city) {
 
 		koord size=info->get_building()->get_size(0);
 
@@ -711,12 +725,12 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 		 */
 		bool is_rotate=info->get_building()->get_all_layouts()>1  &&  size.x!=size.y  &&  info->get_building()->can_rotate();
 		// first try with standard orientation
-		koord k = factory_site_searcher_t(welt, factory_desc_t::City).find_place(city->get_pos(), size.x, size.y, cl, regions_allowed);
+		koord k = factory_site_searcher_t(welt, site).find_place(city->get_pos(), size.x, size.y, cl, regions_allowed);
 
 		// second try: rotated
 		koord k1 = koord::invalid;
 		if (is_rotate  &&  (k == koord::invalid  ||  simrand(256, " factory_builder_t::build_link")<128)) {
-			k1 = factory_site_searcher_t(welt, factory_desc_t::City).find_place(city->get_pos(), size.y, size.x, cl, regions_allowed);
+			k1 = factory_site_searcher_t(welt, site).find_place(city->get_pos(), size.y, size.x, cl, regions_allowed);
 		}
 
                 int streetdir = 0;
@@ -990,7 +1004,8 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 
 			INT_CHECK("fabrikbauer 697");
 			const int max_distance_to_consumer = producer_d->get_max_distance_to_consumer() == 0 ? max_factory_spacing_general : producer_d->get_max_distance_to_consumer();
-			koord3d build_pos = find_random_construction_site(origin_fab->get_pos().get_2d(), min(max_distance_to_supplier, min(max_factory_spacing_general, max_distance_to_consumer)), producer_d->get_building()->get_size(rotate), producer_d->get_placement(), producer_d->get_building(), ignore_climates, 20000 );
+			const int max_distance = min(max_distance_to_supplier, min(max_factory_spacing_general, max_distance_to_consumer));
+			koord3d build_pos = find_random_construction_site(origin_fab->get_pos().get_2d(), max_distance, producer_d->get_building()->get_size(rotate), producer_d->get_placement(), producer_d->get_building(), ignore_climates, 200000 );
 			if(build_pos == koord3d::invalid  ) {
 				// this factory cannot build in the desired vincinity
 				producer.remove( producer_d );
@@ -1377,7 +1392,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						continue;
 					}
 				}
-				const bool in_city = consumer->get_placement() == factory_desc_t::City || consumer->get_placement() == factory_desc_t::shore_city || consumer->get_placement() == factory_desc_t::river_city;
+				const factory_desc_t::site_t site = consumer->get_placement();
+				const bool in_city = site == factory_desc_t::City || site == factory_desc_t::shore_city || site == factory_desc_t::river_city;
 				if (in_city && welt->get_cities().empty())
 				{
 					// we cannot build this factory here

@@ -366,6 +366,9 @@ public:
 	const minivec_tpl<const planquadrat_t*> &get_tiles() { return building_tiles; }
 	void set_building_tiles();
 
+	const minivec_tpl<koord>* get_rectangular_neighbor_koords();
+	const minivec_tpl<koord>* get_diagonal_neighbor_koords();
+
 	void connect_by_road_to_nearest_city();
 
 private:
