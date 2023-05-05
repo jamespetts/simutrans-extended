@@ -632,9 +632,9 @@ const consist_order_t& schedule_t::get_consist_order(uint16 unique_id)
 convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt)
 {
 	convoihandle_t cnv;
-	schedule_entry_t* entry = nullptr;
+	const schedule_entry_t* entry = nullptr;
 
-	for (auto e : entries)
+	for (const schedule_entry_t &e : entries)
 	{
 		if (e.unique_entry_id == unique_id)
 		{

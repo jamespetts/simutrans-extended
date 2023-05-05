@@ -32,6 +32,8 @@ class ware_t;
 class schiene_t;
 class strasse_t;
 //class karte_ptr_t;
+class consist_order_element_t;
+
 
 // for aircraft:
 // length of the holding pattern.

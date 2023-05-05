@@ -45,10 +45,10 @@ replace_frame_t::replace_frame_t(convoihandle_t cnv) :
 	gui_frame_t("", NULL),
 	replace_mode(only_this_convoy), depot(false),
 	state(state_replace), replaced_so_far(0),
-	txt_line_replacing(&buf_line_help),
 	current_convoi(&current_convoi_pics),
 	scrollx_convoi(&current_convoi, true, false),
-	convoy_assembler(this)
+	convoy_assembler(this),
+	txt_line_replacing(&buf_line_help)
 {
 	this->cnv = cnv;
 	target_line=linehandle_t();
@@ -61,10 +61,10 @@ replace_frame_t::replace_frame_t(linehandle_t line) :
 	gui_frame_t("", NULL),
 	replace_mode(all_convoys_of_this_line), depot(false),
 	state(state_replace), replaced_so_far(0),
-	txt_line_replacing(&buf_line_help),
 	current_convoi(&current_convoi_pics),
 	scrollx_convoi(&current_convoi, true, false),
-	convoy_assembler(this)
+	convoy_assembler(this),
+	txt_line_replacing(&buf_line_help)
 {
 	target_line = line;
 	cnv=convoihandle_t();

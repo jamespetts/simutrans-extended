@@ -1156,7 +1156,7 @@ bool simline_t::carries_this_category(uint8 catg_index) const
 	}
 	else
 	{
-		get_goods_catg_index().is_contained(catg_index);
+		return get_goods_catg_index().is_contained(catg_index);
 	}
 }
 

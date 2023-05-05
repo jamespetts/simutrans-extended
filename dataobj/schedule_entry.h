@@ -95,7 +95,7 @@ public:
 	/*
 	* A bitfield of flags of the type schedule_entry_flag (supra)
 	*/
-	uint32 flags;
+	uint32 flags = 0;
 //public:
 
 	/**
