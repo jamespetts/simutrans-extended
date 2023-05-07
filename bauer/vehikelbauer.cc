@@ -215,7 +215,9 @@ static int compare_freight(const vehicle_desc_t* a, const vehicle_desc_t* b)
 }
 static int compare_capacity(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_capacity() - b->get_capacity(); }
 static int compare_engine(const vehicle_desc_t* a, const vehicle_desc_t* b) {
-	return (a->get_capacity() + a->get_power() == 0 ? (uint8)vehicle_desc_t::steam : a->get_engine_type()) - (b->get_capacity() + b->get_power() == 0 ? (uint8)vehicle_desc_t::steam : b->get_engine_type());
+	const vehicle_desc_t::engine_t a_engine = (a->get_capacity() + a->get_power() == 0) ? vehicle_desc_t::steam : a->get_engine_type();
+	const vehicle_desc_t::engine_t b_engine = (b->get_capacity() + b->get_power() == 0) ? vehicle_desc_t::steam : b->get_engine_type();
+	return (int)a_engine - (int)b_engine;
 }
 static int compare_price(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_base_price() - b->get_base_price(); }
 static int compare_topspeed(const vehicle_desc_t* a, const vehicle_desc_t* b) { return a->get_topspeed() - b->get_topspeed(); }

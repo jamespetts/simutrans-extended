@@ -1674,7 +1674,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				// do not lower tiles when it will be below water level
 				return NOTICE_TILE_FULL;
 			}
-			welt->set_water_hgt( k, water_table );
+			welt->set_water_hgt_nocheck( k, water_table );
 			water_hgt = water_table;
 		}
 		else if(  new_slope == ALL_UP_SLOPE  ) {
@@ -1770,7 +1770,7 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				gr1->obj_loesche_alle(player);
 				welt->access(k)->kartenboden_setzen( new boden_t(new_pos,new_slope) );
 				gr1 = welt->lookup_kartenboden(k);
-				welt->set_water_hgt(k, welt->get_groundwater()-4);
+				welt->set_water_hgt_nocheck(k, welt->get_groundwater()-4);
 			}
 			else {
 				gr1->set_grund_hang(new_slope);
@@ -1832,10 +1832,10 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 				// correct the grid height
 				if(  gr1->is_water()  ) {
 					sint8 grid_hgt = min( water_hgt, welt->lookup_hgt( k ) );
-					welt->set_grid_hgt(k, grid_hgt );
+					welt->set_grid_hgt_nocheck(k, grid_hgt );
 				}
 				else {
-					welt->set_grid_hgt(k, gr1->get_hoehe()+ corner_nw(gr1->get_grund_hang()) );
+					welt->set_grid_hgt_nocheck(k, gr1->get_hoehe()+ corner_nw(gr1->get_grund_hang()) );
 				}
 				minimap_t::get_instance()->calc_map_pixel(k);
 
@@ -2350,7 +2350,7 @@ const char *tool_set_climate_t::do_work( player_t *player, const koord3d &start,
 						}
 						if(  ok  ) {
 							gr->obj_loesche_alle( NULL );
-							welt->set_water_hgt( k, hgt - 1 );
+							welt->set_water_hgt_nocheck( k, hgt - 1 );
 							welt->access(k)->correct_water();
 						}
 					}
@@ -2370,7 +2370,7 @@ const char *tool_set_climate_t::do_work( player_t *player, const koord3d &start,
 					}
 					if(  ok  ) {
 						gr->obj_loesche_alle( NULL );
-						welt->set_water_hgt( k, gr->get_pos().z );
+						welt->set_water_hgt_nocheck( k, gr->get_pos().z );
 						welt->access(k)->correct_water();
 						welt->set_climate( k, water_climate, true );
 						minimap_t::get_instance()->calc_map_pixel( k );
@@ -2596,7 +2596,7 @@ const char *tool_change_water_height_t::work( player_t *, koord3d pos )
 				const uint8 sneu = (hneu_sw - hneu > 2 ? 2 : hneu_sw - hneu) + ((hneu_se - hneu > 2 ? 2 : hneu_se-hneu) * 3) + ((hneu_ne - hneu > 2 ? 2 : hneu_ne - hneu) * 9) + ((hneu_nw - hneu > 2 ? 2 : hneu_nw - hneu) * 27);
 				gr2->set_grund_hang( sneu );
 
-				welt->set_water_hgt(x, y, new_water_height );
+				welt->set_water_hgt_nocheck(x, y, new_water_height );
 				welt->access(x, y)->correct_water();
 				welt->calc_climate( koord( x, y ), true );
 			}

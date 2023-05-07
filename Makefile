@@ -617,6 +617,7 @@ SOURCES += vehicle/road_vehicle.cc
 SOURCES += vehicle/simroadtraffic.cc
 SOURCES += vehicle/vehicle.cc
 SOURCES += vehicle/water_vehicle.cc
+SOURCES += world/terraformer.cc
 SOURCES += simunits.cc
 SOURCES += convoy.cc
 SOURCES += utils/float32e8_t.cc

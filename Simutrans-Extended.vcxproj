@@ -2562,6 +2562,7 @@
     <ClCompile Include="gui\welt.cc" />
     <ClCompile Include="gui\tool_selector.cc" />
     <ClCompile Include="descriptor\reader\xref_reader.cc" />
+    <ClCompile Include="world\terraformer.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bauer\pier_builder.h" />
@@ -3029,6 +3030,7 @@
     <ClInclude Include="descriptor\xref_desc.h" />
     <ClInclude Include="descriptor\reader\xref_reader.h" />
     <ClInclude Include="descriptor\writer\xref_writer.h" />
+    <ClInclude Include="world\terraformer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\Simutrans\simu-server.log" />

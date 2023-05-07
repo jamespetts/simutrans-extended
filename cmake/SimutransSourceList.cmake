@@ -369,4 +369,5 @@ target_sources(simutrans-extended PRIVATE
 	vehicle/rail_vehicle.cc
 	vehicle/road_vehicle.cc
 	vehicle/water_vehicle.cc
+	world/terraformer.cc
 )
