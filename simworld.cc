@@ -5875,6 +5875,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	{
 		// Permit onward journeys - but only for successful journeys
 		const uint32 destination_count = simrand(max_destinations, "void stadt_t::generate_passengers_and_mail() (number of destinations?)") + min_destinations;
+		uint32 extend_count = 0;
 		// Split passengers between commuting trips and other trips.
 		if(trip_count == 0)
 		{
@@ -6107,7 +6108,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 		too_slow_already_set = false;
 		overcrowded_already_set = false;
 
-		for (int n = 0; n < destination_count && route_status != public_transport && route_status != private_car && route_status != on_foot; n++)
+		for (int n = 0; n < destination_count + extend_count && route_status != public_transport && route_status != private_car && route_status != on_foot; n++)
 		{
 			destination_pos = current_destination.location;
 			if (trip == commuting_trip)
@@ -6128,9 +6129,15 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					/**
 					* As there are no jobs, this is not a destination for commuting
 					*/
-					if (n < destination_count - 1)
+					if (n < destination_count + extend_count - 1)
 					{
 						current_destination = find_destination(trip, pax.get_class());
+						if (extend_count < destination_count * 1024)
+						{
+							// Keep looking for jobs.  This is important in early game on large maps
+							// when towns are small, the network is disconnected, and travel times are long.
+							extend_count++;
+						}
 					}
 					continue;
 				}
@@ -6159,7 +6166,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 							route_status = destination_unavailable;
 						}
 
-						if (n < destination_count - 1)
+						if (n < destination_count + extend_count - 1)
 						{
 							current_destination = find_destination(trip, pax.get_class());
 						}
@@ -6204,9 +6211,16 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				* facilities and the journey is too long on foot, or if the implicit minimum speed is too high,
 				* do not continue to check other things.
 				*/
-				if (n < destination_count - 1)
+				if (n < destination_count + extend_count - 1)
 				{
 					current_destination = find_destination(trip, pax.get_class());
+					if (trip == commuting_trip && extend_count < destination_count * 1024)
+					{
+						// Keep looking for jobs in the case of a commuting trip.
+						// This is critically important in early game on a large map
+						// with a disconnected network and slow travel times.
+						extend_count++;
+					}
 				}
 				continue;
 			}
@@ -6600,7 +6614,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				}
 			}
 
-			if((route_status == no_route || route_status == too_slow || route_status == overcrowded || route_status == destination_unavailable) && n < destination_count - 1)
+			if((route_status == no_route || route_status == too_slow || route_status == overcrowded || route_status == destination_unavailable) && n < destination_count + extend_count - 1)
 			{
 				// Do not get a new destination if there is a good status,
 				// or if this is the last destination to be assigned,
