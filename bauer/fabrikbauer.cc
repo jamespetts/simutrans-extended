@@ -677,6 +677,7 @@ bool factory_builder_t::can_factory_tree_rotate( const factory_desc_t *desc )
  * @p pos is suitable for factory construction and number of chains
  * is the maximum number of good types for which suppliers chains are built
  * (meaning there are no unfinished factory chains).
+ * number_of_chains < 0 means make ALL the chains.
  */
 int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates)
 {
@@ -816,8 +817,8 @@ int factory_builder_t::build_link(koord3d* parent, const factory_desc_t* info, s
 
 	INT_CHECK("fabrikbauer 596");
 
-	// now build supply chains for all products
-	for(int i=0; i<info->get_supplier_count()  &&  i<number_of_chains; i++) {
+	// now build supply chains for all products (if number_of_chains<0) or some (if it's 1 or more)
+	for(int i=0; i<info->get_supplier_count()  &&  (number_of_chains<0 || i<number_of_chains); i++) {
 		n += build_chain_link( our_fab, info, i, player);
 	}
 
@@ -1415,7 +1416,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				}
 				if(welt->lookup(pos)) {
 					// Space found...
-					nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 1, ignore_climates);
+					nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), -1, ignore_climates);
 					if(nr>0) {
 						fabrik_t *our_fab = fabrik_t::get_fab( pos.get_2d() );
 						minimap_t::get_instance()->calc_map_size();
