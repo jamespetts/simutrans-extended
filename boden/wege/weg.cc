@@ -1613,6 +1613,10 @@ bool weg_t::private_car_route_map::contains(koord elem) const{
 		bool result= single_koord==elem;
 		return result;
 	}
+	if (route_maps[route_map_elem].get_count() <= idx)
+	{
+		return false;
+	}
 	bool result=route_maps[route_map_elem][idx].contains(elem);
 	return result;
 }
@@ -1700,6 +1704,10 @@ uint32 weg_t::private_car_route_map::get_count() const {
 	if(link_mode==link_mode_single){
 		return 1;
 	}
+	if (route_maps[route_map_elem].get_count() <= idx)
+	{
+		return false;
+	}
 	const uint32 result = route_maps[route_map_elem][idx].get_count();
 	return result;
 }
@@ -1709,6 +1717,10 @@ bool weg_t::private_car_route_map::is_empty() const {
 		return true;
 	}
 	if(link_mode==link_mode_single){
+		return false;
+	}
+	if (route_maps[route_map_elem].get_count() <= idx)
+	{
 		return false;
 	}
 	const bool result = route_maps[route_map_elem][idx].is_empty();
@@ -1725,6 +1737,10 @@ bool weg_t::private_car_route_map::remove(koord elem){
 			link_mode=link_mode_NULL;
 			return true;
 		}
+		return false;
+	}
+	if (route_maps[route_map_elem].get_count() <= idx)
+	{
 		return false;
 	}
 	bool result = route_maps[route_map_elem][idx].remove(elem);

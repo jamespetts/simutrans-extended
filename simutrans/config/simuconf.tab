@@ -396,7 +396,7 @@ factory_arrival_periods = 4
 # its default value of 80, if the industry has 81% of staff, it produces at full capacity.
 # If the industry has 75% of staff, it produces at 75% of capacity, and so forth.
 
-minimum_staffing_percentage_consumer_industry = 66
+minimum_staffing_percentage_consumer_industry = 66 
 minimum_staffing_percentage_full_production_producer_industry = 80
 
 # If this is disabled, all industries will continue to operate fully despite having no staff.

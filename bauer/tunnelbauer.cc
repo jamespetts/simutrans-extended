@@ -36,6 +36,7 @@
 #include "wegbauer.h"
 #include "../tpl/stringhashtable_tpl.h"
 #include "../tpl/vector_tpl.h"
+#include "../world/terraformer.h"
 
 
 karte_ptr_t tunnel_builder_t::welt;
@@ -167,16 +168,15 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 			sint8 hse = pos.z + corner_se(new_slope);
 			sint8 hne = pos.z + corner_ne(new_slope);
 			sint8 hnw = pos.z + corner_nw(new_slope);
-			karte_t::terraformer_t raise(welt);
-			raise.add_raise_node(pos.x, pos.y, hsw, hse, hne, hnw);
-			raise.iterate(true);
-			if (raise.can_raise_all(player, player->is_public_service())) {
-				// returned true therefore error reported
-				return koord3d::invalid;
-			}
+
+			terraformer_t raise(terraformer_t::raise, welt);
+			raise.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+			raise.generate_affected_tile_list();
+
 			// if we can adjust height here we can build an entrance so don't need checks below
 			return pos;
 		}
+
 		if(  gr->get_hoehe() < pos.z  ){
 			return koord3d::invalid;
 		}
@@ -226,15 +226,21 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 				sint8 hse = pos.z + corner_se(new_slope);
 				sint8 hne = pos.z + corner_ne(new_slope);
 				sint8 hnw = pos.z + corner_nw(new_slope);
-				karte_t::terraformer_t raise(welt), lower(welt);
-				raise.add_raise_node(pos.x, pos.y, hsw, hse, hne, hnw);
-				raise.iterate(false);
-				lower.add_lower_node(pos.x, pos.y, hsw, hse, hne, hnw);
-				lower.iterate(false);
-				if (!player || (raise.can_lower_all(player, player->is_public_service()) || lower.can_lower_all(player, player->is_public_service()))) {
-					// returned true therefore error reported
+
+				terraformer_t raise(terraformer_t::raise, welt);
+				terraformer_t lower(terraformer_t::lower, welt);
+
+				raise.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+				lower.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+
+				raise.generate_affected_tile_list();
+				lower.generate_affected_tile_list();
+
+				if (!player || raise.can_raise_all(player, player->is_public_service())!= NULL || lower.can_lower_all(player, player->is_public_service())!=NULL) {
+					// returned non-null therefore error reported
 					return koord3d::invalid;
 				}
+
 				// if we can adjust height here we can build an entrance so don't need checks below
 				return pos;
 			}
@@ -397,18 +403,20 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 
 		int n = 0;
 
-		karte_t::terraformer_t raise(welt),lower(welt);
-		raise.add_raise_node(end.x, end.y, hsw, hse, hne, hnw);
-		lower.add_lower_node(end.x, end.y, hsw, hse, hne, hnw);
-		raise.iterate(true);
-		lower.iterate(false);
-		err = raise.can_raise_all(player, player ? player->is_public_service() : false);
-		if (!err) err = lower.can_lower_all(player, player->is_public_service());
+		terraformer_t raise(terraformer_t::raise, welt);
+		terraformer_t lower(terraformer_t::lower, welt);
+
+		raise.add_node(end.x, end.y, hsw, hse, hne, hnw);
+		lower.add_node(end.x, end.y, hsw, hse, hne, hnw);
+
+		raise.generate_affected_tile_list();
+		lower.generate_affected_tile_list();
+
 		if (err) return 0;
 
 // TODO: this is rather hackish as 4 seems to come from nowhere but works most of the time
 // feel free to change if you have a better idea!
-		n = (raise.raise_all()+lower.lower_all())/4;
+		n = (raise.apply() + lower.apply()) / 4;
 		player_t::book_construction_costs(player, welt->get_settings().cst_alter_land * n, end.get_2d(), desc->get_waytype());
 	}
 

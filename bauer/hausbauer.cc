@@ -534,7 +534,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 									gr->calc_image();
 								}
 							}
-							welt->set_grid_hgt( newk, new_hgt+corner_nw(new_slope) );
+							welt->set_grid_hgt_nocheck( newk, new_hgt+corner_nw(new_slope) );
 						}
 					}
 					else if (wasser_t* sea = dynamic_cast<wasser_t*>(gr)) {
