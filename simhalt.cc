@@ -3459,7 +3459,9 @@ void haltestelle_t::show_info()
 
 void haltestelle_t::show_detail()
 {
-	create_win(new halt_detail_t(self), w_info, magic_halt_detail + self.get_id());
+	if (enables) {
+		create_win( new halt_detail_t(self), w_info, magic_halt_detail + self.get_id() );
+	}
 }
 
 
@@ -3705,7 +3707,7 @@ void haltestelle_t::add_to_station_type( grund_t *gr )
 		capacity[0] = 0;
 		capacity[1] = 0;
 		capacity[2] = 0;
-		enables &= CROWDED;	// clear flags
+		enables = 0;
 		station_type = invalid;
 	}
 
@@ -3809,7 +3811,7 @@ void haltestelle_t::recalc_station_type()
 	capacity[0] = 0;
 	capacity[1] = 0;
 	capacity[2] = 0;
-	enables &= CROWDED;	// clear flags
+	enables = 0;
 	station_type = invalid;
 
 	// iterate over all tiles
@@ -4910,6 +4912,11 @@ void haltestelle_t::init_financial_history()
  */
 void haltestelle_t::recalc_status()
 {
+	if (!enables) {
+		// This halt does not handle any goods
+		status_color = COL_INACTIVE;
+		return;
+	}
 	status_color = color_idx_to_rgb( financial_history[0][HALT_CONVOIS_ARRIVED] > 0 ? COL_GREEN : COL_YELLOW );
 
 	// since the status is ordered ...
@@ -4976,7 +4983,7 @@ void haltestelle_t::recalc_status()
 			total_freight += ware_sum;
 			if((ware_sum + transferring_total) > max_ware)
 			{
-				status_bits |= (ware_sum + transferring_total) > max_ware + 32 || enables & CROWDED ? 2 : 1;
+				status_bits |= (ware_sum + transferring_total) > max_ware + 32 ? 2 : 1;
 				overcrowded[wtyp->get_index()/8] |= 1<<(wtyp->get_index()%8);
 				status_color_freight = SYSCOL_OVERCROWDED;
 			}
