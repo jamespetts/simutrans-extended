@@ -98,7 +98,6 @@ public:
 		PAX         = 1 << 0,
 		POST        = 1 << 1,
 		WARE        = 1 << 2,
-		CROWDED     = 1 << 3,
 	};
 
 	// can be combined with or!
@@ -623,6 +622,12 @@ public:
 			return enables&POST;
 		}
 		return enables&WARE;
+	}
+
+	// The stop does not handle any goods. only possible to stop
+	bool is_not_enabled() const
+	{
+		return enables == NOT_ENABLED;
 	}
 
 	// for gui purpose

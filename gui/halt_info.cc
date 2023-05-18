@@ -1118,6 +1118,9 @@ void halt_info_t::update_components()
 
 	container_top->set_size(container_top->get_size());
 
+	// detail button: stops that don't handle any goods don't have a detail dialog
+	detail_button.set_visible(!halt->is_not_enabled());
+
 	// chart buttons
 	activate_chart_buttons();
 
@@ -1409,7 +1412,7 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 
 	if (comp == &detail_button) {
-		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
+		halt->show_detail();
 	}
 	else if (comp == &freight_sort_selector) {
 		sint32 sort_mode = freight_sort_selector.get_selection();
