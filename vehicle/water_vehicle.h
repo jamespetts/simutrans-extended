@@ -37,6 +37,9 @@ public:
 	// returns true for the way search to an unknown target.
 	bool is_target(const grund_t *,const grund_t *) OVERRIDE {return 0;}
 
+	// Use special route checks for oceangoing water vehicles
+	route_t::route_result_t calc_route(koord3d start, koord3d end, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
+
 	water_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
 	water_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cnv);
 

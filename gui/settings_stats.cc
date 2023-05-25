@@ -136,7 +136,15 @@ static const char *revision_ex[] =
 	"50",
 	"51",
 	"52",
-	"53"
+	"53",
+	"54",
+	"55",
+	"56",
+	"57",
+	"58",
+	"59",
+	"60",
+	"61"
 };
 
 
@@ -390,14 +398,14 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	INIT_NUM("max_onward_trips", sets->get_max_onward_trips(), 0, 32, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("onward_trip_chance_percent", sets->get_onward_trip_chance_percent(), 0, 100, gui_numberinput_t::PROGRESS, false );
 	INIT_NUM("commuting_trip_chance_percent", sets->get_commuting_trip_chance_percent(), 0, 100, gui_numberinput_t::PROGRESS, false );
-	INIT_NUM( "max_alternative_destinations_visiting", sets->get_max_alternative_destinations_visiting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_commuting", sets->get_max_alternative_destinations_commuting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_per_visitor_demand_millionths", sets->get_max_alternative_destinations_per_visitor_demand_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_per_job_millionths", sets->get_max_alternative_destinations_per_job_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM("min_alternative_destinations_visiting", sets->get_min_alternative_destinations_visiting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_commuting", sets->get_min_alternative_destinations_commuting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_per_visitor_demand_millionths", sets->get_min_alternative_destinations_per_visitor_demand_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_per_job_millionths", sets->get_min_alternative_destinations_per_job_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM( "max_alternative_destinations_visiting", sets->get_max_alternative_destinations_visiting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_commuting", sets->get_max_alternative_destinations_commuting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_per_visitor_demand_millionths", sets->get_max_alternative_destinations_per_visitor_demand_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_per_job_millionths", sets->get_max_alternative_destinations_per_job_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM("min_alternative_destinations_visiting", sets->get_min_alternative_destinations_visiting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_commuting", sets->get_min_alternative_destinations_commuting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_per_visitor_demand_millionths", sets->get_min_alternative_destinations_per_visitor_demand_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_per_job_millionths", sets->get_min_alternative_destinations_per_job_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("passenger_max_wait", sets->get_passenger_max_wait(), 0, 311040, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("min_wait_airport", sets->get_min_wait_airport(), 0, 311040, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("random_mode_commuting", sets->get_random_mode_commuting(), 0, 16, gui_numberinput_t::AUTOLINEAR, false );

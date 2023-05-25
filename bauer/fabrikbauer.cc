@@ -435,6 +435,20 @@ koord3d factory_builder_t::find_random_construction_site(koord pos, int radius, 
 		//site = factory_desc_t::Land;
 	}
 
+	koord central_pos = pos;
+	// If the radius is VERY LARGE, then this code can be quite slow, and may test the same
+	// locations multiple times, most of which are not actually on the map.  Reduce chances of this.
+	koord grid_size = welt->get_size();
+	if (     (sint32) central_pos.x - radius < 0 && (sint32) central_pos.x + radius >= grid_size.x
+	      && (sint32) central_pos.y - radius < 0 && (sint32) central_pos.y + radius >= grid_size.y )
+	{
+		// We're searching the whole map.  Pick a tile in the center (rounded right/down)
+		// and shrink the radius to cover the whole map but not much more.
+		central_pos.x = grid_size.x / 2;
+		central_pos.y = grid_size.y / 2;
+		radius = welt->get_size_max() / 2;
+	}
+
 	uint32 diam   = 2*radius + 1;
 	uint32 area   = diam * diam;
 	uint32 index  = simrand(area, "find_random_construction_site");
@@ -448,7 +462,12 @@ koord3d factory_builder_t::find_random_construction_site(koord pos, int radius, 
 	for(  uint32 i = 0;  i<max_iterations; i++,  index = (a*index+c) % area  ) {
 
 		// so it is guaranteed that the iteration hits all tiles and does not repeat itself
-		k = koord( pos.x - radius + (index % diam), pos.y - radius + (index / diam) );
+		k = koord( central_pos.x - radius + (index % diam), central_pos.y - radius + (index / diam) );
+
+		if (!welt->is_within_limits(k)) {
+			// Fast path if we're off the map, which can be nearly 3/4 of the time
+			continue;
+		}
 
 		// check place (it will actually check an grosse.x/y size rectangle, so we can iterate over less tiles)
 		if(  factory_builder_t::check_construction_site(k, size, site, is_factory, climates, desc->get_allowed_region_bits())  ) {
