@@ -259,7 +259,7 @@ void gui_vehicle_description_element_t::update()
 	clear_ptr_vector(vde_vec);
 	if (slot_index < order->get_count()) {
 		//uint16 livery_scheme_index = world()->get_player(player_nr)->get_favorite_livery_scheme_index((uint8)simline_t::waytype_to_linetype(way_type));
-		consist_order_element_t elem = order->get_order(slot_index);
+		consist_order_element_t elem = order->access_order(slot_index);
 		old_count = elem.get_count();
 		//bt_can_empty.pressed = elem.empty;
 
@@ -292,7 +292,7 @@ void gui_vehicle_description_element_t::update()
 void gui_vehicle_description_element_t::show_vehicle_detail(uint32 index)
 {
 	if (slot_index < order->get_count()) {
-		consist_order_element_t elem = order->get_order(slot_index);
+		consist_order_element_t elem = order->access_order(slot_index);
 		if (const vehicle_desc_t* veh_type = elem.get_vehicle_description(index).specific_vehicle) {
 			vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail_for_consist_order));
 			if (!win) {
@@ -309,7 +309,7 @@ void gui_vehicle_description_element_t::show_vehicle_detail(uint32 index)
 void gui_vehicle_description_element_t::draw(scr_coord offset)
 {
 	if (slot_index < order->get_count()) {
-		consist_order_element_t elem = order->get_order(slot_index);
+		consist_order_element_t elem = order->access_order(slot_index);
 		if (elem.get_count() != old_count) {
 			update();
 		}
@@ -324,7 +324,7 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 	if (comp == &vde && slot_index < order->get_count()) {
 		if (p.i<0) {
 			uint32 index = -1 - p.i;
-			consist_order_element_t &elem = order->get_order(slot_index);
+			consist_order_element_t &elem = order->access_order(slot_index);
 			if(index<elem.get_count()){
 				elem.remove_vehicle_description_at(index);
 			}
@@ -1006,6 +1006,8 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 
 // TODO: filter, consider connection
 // v-shape filter, catg filter
+// TODO: Consider vehicle reversal
+// NOTE: The execution of consist orders entails, for reversed consists, de-reversing it, adding the new vehicle and then reversing it again.
 void consist_order_frame_t::build_vehicle_list()
 {
 	const bool search_only_halt_convoy = bt_filter_halt_convoy.pressed;
@@ -1030,7 +1032,8 @@ void consist_order_frame_t::build_vehicle_list()
 
 	// list only own vehicles
 	for (auto const cnv : world()->convoys()) {
-		if(  cnv->get_owner()==player  &&  cnv->front()->get_waytype()==schedule->get_waytype()) {
+		if((cnv->get_owner() == player || cnv->get_owner()->allows_access_to(player->get_player_nr()) && player->allows_access_to(cnv->get_owner()->get_player_nr())) && cnv->front()->get_waytype()==schedule->get_waytype())
+		{
 			// count own vehicle
 			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
 				const vehicle_desc_t *veh_type = cnv->get_vehicle(i)->get_desc();

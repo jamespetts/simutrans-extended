@@ -42,9 +42,11 @@ struct vehicle_description_element
 	uint8 min_catering = 0;
 	uint8 max_catering = 255;
 
-	// If this is 255, then this vehicle may carry
-	// any class of mail/passengers.
-	uint8 must_carry_class = 255;
+	// Note that this is the *minimum* class that the vehicle carries.
+	// In other words, if the vehicle carries more than one class,
+	// the higher class is ignored.
+	// This stipulation is necessary for the path explorer.
+	uint8 must_carry_class = 0;
 
 	uint32 min_range = 0;
 	uint32 max_range = UINT32_MAX_VALUE;
@@ -92,6 +94,11 @@ struct vehicle_description_element
 	* the elements are arranged above.
 	*
 	* + Where the vehicle is a goods carrying vehicle: otherwise, this is ignored
+	*
+	* NOTE: This feature is currently unimplemented. This seems to conflict with the
+	* priority order of vehicle description elements in the consist order elements.
+	* It is hard to imagine how this might be implemented.
+	* Query whether this should be removed.
 	*/
 
 	enum rule_flag
@@ -152,6 +159,7 @@ class consist_order_element_t
 protected:
 	/*
 	* The goods category of the vehicle that must occupy this slot.
+	* COMPULSORY
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
 
@@ -180,6 +188,8 @@ public:
 
 	uint32 get_count() const { return vehicle_description.get_count(); }
 
+	uint8 get_catg_index() const { return catg_index; }
+
 	void append_vehicle(const vehicle_desc_t *v);
 
 	void remove_vehicle_description_at(uint32 description_index)
@@ -193,7 +203,12 @@ public:
 		vehicle_description.clear();
 	}
 
-	vehicle_description_element &get_vehicle_description(uint32 description_index)
+	vehicle_description_element &access_vehicle_description(uint32 description_index)
+	{
+		return vehicle_description.get_element(description_index);
+	}
+
+	const vehicle_description_element& get_vehicle_description(uint32 description_index) const
 	{
 		return vehicle_description.get_element(description_index);
 	}
@@ -205,6 +220,7 @@ public:
 	bool has_same_vehicle(const vehicle_desc_t *v) const;
 
 	bool operator!= (const consist_order_element_t& other) const;
+	bool operator== (const consist_order_element_t& other) const;
 };
 
 class consist_order_t
@@ -227,8 +243,15 @@ protected:
 
 public:
 
-	consist_order_element_t& get_order(uint32 element_number)
+	consist_order_element_t& access_order(uint32 element_number)
 	{
+		return orders[element_number];
+	}
+
+	const consist_order_element_t& get_order(uint32 element_number) const
+	{
+		assert(element_number < orders.get_count());
+		if (element_number > orders.get_count()) { element_number = 0; }
 		return orders[element_number];
 	}
 

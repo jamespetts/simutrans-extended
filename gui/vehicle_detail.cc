@@ -223,7 +223,7 @@ vehicle_detail_t::vehicle_detail_t(const vehicle_desc_t *v) :
 {
 	veh_type = v;
 
-	gui_frame_t::set_name("vehicle_details");
+	gui_frame_t::set_name(translator::translate("vehicle_details"));
 	init_table();
 }
 

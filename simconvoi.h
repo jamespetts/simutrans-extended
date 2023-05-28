@@ -120,6 +120,7 @@ public:
 		OVERHAUL,
 		AWAITING_TRIGGER,
 		LAYOVER,
+		SHUNTING,
 		MAX_STATES
 	};
 
@@ -550,7 +551,7 @@ private:
 public:
 	// Reorder the vehicle array
 	// Can be executed even with a vehicle array that does not belong to convoy for UI
-	static void execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev);
+	template <typename vehicle_collection> static void execute_reverse_order(vehicle_collection &vehicles, uint8 vehicle_count, bool rev, bool dry_run = false);
 private:
 	bool reversable;
 	bool reversed;
@@ -813,7 +814,6 @@ public:
 	 */
 	void unreserve_route();
 
-
 	route_t* get_route() { return &route; }
 	route_t* access_route() { return &route; }
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed);
@@ -1069,8 +1069,19 @@ public:
 	uint16 get_traction_types() const;
 
 	// Upgrades a vehicle in the convoy.
-	// @author: jamespetts, February 2010
 	void upgrade_vehicle(uint16 i, vehicle_t* v);
+
+	// Moves a vehicle in this consist to a new position.
+	// Returns the vehicle, if any, that was already at that position.
+	// If swap is true, the vehicle positions are switched.
+	vehicle_t* move_vehicle(uint8 old_pos, uint8 new_pos, bool swap);
+
+	// Returns the index of the passed vehicle.
+	// 255 = not in cnv
+	uint8 get_vehicle_index(vehicle_t*) const;
+
+	// Helper method for adding/removing/upgrading vehicles
+	void recalc_metrics();
 
 	vehicle_t* front() const { return *vehicle.begin(); }
 
@@ -1083,12 +1094,27 @@ public:
 	/**
 	* Adds a vehicle at the start or end of the convoi.
 	*/
-	bool add_vehicle(vehicle_t *v, bool infront = false);
+	bool add_vehicle(vehicle_t *v, uint8 pos = 255);
 
 	/**
 	* Removes vehicles at position i
 	*/
-	vehicle_t * remove_vehicle_at(unsigned short i);
+	vehicle_t* remove_vehicle_at(unsigned short i);
+
+	// Removes the specified vehicle
+	void remove_vehicle(vehicle_t* v);
+
+	// Replaces vehicle at the set position with the specified vehicle.
+	// Returns the old vehicle
+	vehicle_t* substitute_vehicle(vehicle_t* new_vehicle, uint8 index);
+
+private:
+
+	// Updates the name of the consist if it has the name of the pevious leading vehicle
+	// The new name will be that of the current leading vehicle.
+	void update_default_name(vehicle_t* previous_lead_vehicle);
+
+public:
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
@@ -1188,14 +1214,23 @@ public:
 	void open_schedule_window( bool show );
 
 	/**
-	* pruefe ob Beschraenkungen fuer alle Fahrzeuge erfuellt sind
+	* Check whether this consist is valid
 	*/
-	bool pruefe_alle();
+	bool check_validity();
+
+	// If false, this consist cannot move.
+	bool is_unpowered();
+
+	// True if this consist is valid and powered - this is sufficient for it to be driven
+	bool is_valid_and_powered() { return check_validity() && !is_unpowered(); }
 
 	/**
 	* Control loading and unloading
 	*/
 	void laden();
+
+	// Unloads the payload from a single vehicle in this consist
+	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over);
 
 	// Book fuel consumption of individual vehicles
 	void book_fuel_consumption();
@@ -1239,8 +1274,7 @@ public:
 	/**
 	 * Format remaining reversing and emergency stop time from go_on_ticks
 	 */
-	void snprintf_remaining_reversing_time(char *p, size_t size) const;
-	void snprintf_remaining_emergency_stop_time(char *p, size_t size) const;
+	void snprintf_remaining_wait_lock(char *p, size_t size) const;
 
 	/**
 	 * How many free seats for passengers in convoy? Used in overcrowded loading
@@ -1471,6 +1505,8 @@ public:
 
 	route_infos_t& get_route_infos();
 
+	void set_blank_route();
+
 	void set_akt_speed(sint32 akt_speed) {
 		this->akt_speed = akt_speed;
 #ifndef NETTOOL
@@ -1513,6 +1549,8 @@ public:
 
 	bool carries_this_or_lower_class(uint8 catg, uint8 g_class) const;
 
+	bool carries_this_category(uint8 catg_index) const;
+
 	const minivec_tpl<uint8>* get_classes_carried(uint8 catg) const
 	{
 		if (catg == goods_manager_t::INDEX_PAS)
@@ -1530,14 +1568,14 @@ public:
 	}
 
 	// Returns this convoy's reversing method. (v14.8 - Jan, 2020 @Ranran)
-	static uint8 get_terminal_shunt_mode(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	template <typename vehicle_collection> static uint8 get_terminal_shunt_mode(const vehicle_collection &vehicles, uint8 vehicle_count);
 	uint8 get_terminal_shunt_mode() const {
 		return get_terminal_shunt_mode(vehicle, vehicle_count);
 	}
 	// Train formation checks
-	static uint8 get_front_loco_count(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
-	static uint8 check_new_tail(const array_tpl<vehicle_t*> &vehicles, uint8 start=1, uint8 end=1);
-	static uint8 check_need_turntable(const array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count);
+	template <typename vehicle_collection> static uint8 get_front_loco_count(const vehicle_collection &vehicles, uint8 vehicle_count);
+	template <typename vehicle_collection> static uint8 check_new_tail(const vehicle_collection &vehicles, uint8 start=1, uint8 end=1);
+	template <typename vehicle_collection> static uint8 check_need_turntable(const vehicle_collection &vehicles, uint8 vehicle_count);
 
 	// return a number numbered by position in convoy. This is affected by the number of locomotives and reversals.
 	// The locomotive on the front side is returned a negative value.
@@ -1568,11 +1606,26 @@ public:
 
 	bool is_maintenance_needed() const;
 	bool is_maintenance_urgently_needed() const;
+
+	// Returns true if any vehicle in this consist requires an overhaul.
 	bool is_overhaul_needed() const;
 
 	void check_departure(halthandle_t halt = halthandle_t());
 
 	sint64 get_arrival_time() const { return arrival_time; }
+
+	void enter_layover(halthandle_t halt);
+
+	void exit_layover();
+
+	enum consist_order_process_result { fail, succeed, no_change_needed };
+
+	// The return value is whether the consist order can be processed at the current time (i.e., whether there are
+	// sufficient of the right number of vehicles to do so).
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
+
+	private:
+		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt);
 };
 
 #endif

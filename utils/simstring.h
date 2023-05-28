@@ -114,5 +114,7 @@ char const* strstart(char const* str, char const* start);
  */
 static inline bool strempty(char const* const s) { return !s || s[0] == '\0'; }
 
+enum future_state { current, near_future, far_future };
+
 
 #endif

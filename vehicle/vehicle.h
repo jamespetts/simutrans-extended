@@ -32,6 +32,8 @@ class ware_t;
 class schiene_t;
 class strasse_t;
 //class karte_ptr_t;
+class consist_order_element_t;
+
 
 // for aircraft:
 // length of the holding pattern.
@@ -231,7 +233,7 @@ public:
 	ribi_t::ribi calc_set_direction(const koord3d& start, const koord3d& ende);
 	uint16 get_tile_steps(const koord &start, const koord &ende, /*out*/ ribi_t::ribi &direction) const;
 
-	ribi_t::ribi get_direction() const {return direction;}
+	ribi_t::ribi get_direction() const { return direction; }
 
 	ribi_t::ribi get_90direction() const {return ribi_type(get_pos(), get_pos_next());}
 
@@ -385,6 +387,7 @@ protected:
 
 	bool do_not_overhaul : 1;
 	bool do_not_auto_upgrade : 1;
+	bool is_mothballed : 1;
 
 	uint32 km_since_new;
 	uint32 km_since_last_overhaul;
@@ -523,6 +526,9 @@ public:
 	 */
 	void initialise_journey( uint16 start_route_index, bool recalc );
 
+	void set_pos_next(const koord3d pos) { pos_next = pos; }
+	void set_pos_prev(const koord3d pos) { pos_prev = pos; }
+
 	void set_direction_steps(sint16 value) { direction_steps = value; }
 
 	void step_km(uint32 km) { km_since_new += km; km_since_last_overhaul += km; km_since_last_maintenance += km; km_since_last_replenish += km; }
@@ -530,6 +536,11 @@ public:
 	void fix_class_accommodations();
 
 	inline koord3d get_last_stop_pos() const { return last_stop_pos;  }
+
+	// True if this vehicle matches a consist order element. This mostly just calls the
+	// equivalent method in the vehicle_desc object, but we need to check the actual
+	// classes of this vehicle as they may have been reassigned.
+	bool matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const;
 
 #ifdef INLINE_OBJ_TYPE
 protected:
@@ -588,6 +599,10 @@ public:
 	uint8 get_reassigned_class(uint8 a_class) const;
 
 	uint8 get_number_of_fare_classes() const;
+
+	// Returns the minimum class carried by this vehicle,
+	// taking into account reassigned classes.
+	uint8 get_min_class() const;
 
 	/**
 	* Calculate transported cargo total weight in KG
@@ -661,8 +676,9 @@ public:
 	/**
 	 * Unload freight to halt
 	 * @return sum of unloaded goods
+	 * If the layover parameter is true, unload all goods irrespective of the destination.
 	 */
-	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> & apportioned_revenues );
+	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all = false );
 
 	/**
 	 * Load freight from halt
@@ -754,6 +770,13 @@ public:
 	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
 	void set_tag(uint16 tag) { tags |= tag; }
 	void clear_tag(uint16 tag) { tags &= ~tag; }
+
+	bool get_is_mothballed() const { return is_mothballed; }
+	void mothball();
+	void un_mothball();
+
+	// Allows for repositioning a vehicle for shunting without moving the vehicle as part of its journey.
+	void reposition_vehicle(grund_t* gr);
 };
 
 

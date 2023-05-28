@@ -120,7 +120,8 @@ static const char * state_names[convoi_t::MAX_STATES] =
 	"JUST_FOUND_ROUTE",
 	"NO_ROUTE_TOO_COMPLEX",
 	"WAITING_FOR_LOADING_THREE_MONTHS",
-	"WAITING_FOR_LOADING_FOUR_MONTHS"
+	"WAITING_FOR_LOADING_FOUR_MONTHS",
+	"LAYOVER"
 };
 
 
@@ -325,6 +326,16 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 			haltestelle_t::refresh_routing(schedule, goods_catg_index, NULL, NULL, owner); // NULL because if we are refreshing all goods categories, there is no need to refresh the classes, too, as these are subsets.
 		}
 		delete schedule;
+	}
+
+	if (state == LAYOVER)
+	{
+		// We must remove ourselves from any halt at which we are registered.
+		halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
+		if (halt.is_bound())
+		{
+			halt->remove_laid_over(self);
+		}
 	}
 
 	clear_replace();
@@ -1274,6 +1285,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case SELF_DESTRUCT:
 		case EMERGENCY_STOP:
 		case REPLENISHING:
+		case SHUNTING:
 			break;
 
 		case OVERHAUL:
@@ -2082,6 +2094,11 @@ void convoi_t::step()
 		case DUMMY5:
 		break;
 
+		case LAYOVER:
+			check_departure(haltestelle_t::get_halt(get_pos(), owner));
+			// We will only get here if wait_lock == 0
+			break;
+
 		case REVERSING:
 
 			if (true) // Necessary for compiling only due to the need to define variables in a single case.
@@ -2525,11 +2542,37 @@ void convoi_t::step()
 
 		case OVERHAUL:
 		case MAINTENANCE:
-			// We will only get here if wait_lock == 0
-			state = LEAVING_DEPOT;
+			if (wait_lock <= 0)
+			{
+				state = LEAVING_DEPOT;
+			}
 			break;
+
+		case SHUNTING:
+			if (wait_lock <= 0)
+			{
+				state = ROUTING_1;
+			}
+			break;
+
+		case LAYOVER:
 		default: ;
 	}
+}
+
+void convoi_t::enter_layover(halthandle_t halt)
+{
+	// We assume that we have already checked whether the station/stop in question can support a layover state
+	state = LAYOVER;
+	wait_lock = seconds_to_ticks(welt->get_settings().get_min_layover_overhead_seconds(), welt->get_settings().get_meters_per_tile());
+
+	halt->add_laid_over(self);
+}
+
+void convoi_t::exit_layover()
+{
+	halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
+	halt->remove_laid_over(self);
 }
 
 void convoi_t::advance_schedule()
@@ -3094,87 +3137,97 @@ void convoi_t::warten_bis_weg_frei(sint32 restart_speed)
 	}
 }
 
-
-bool convoi_t::add_vehicle(vehicle_t *v, bool infront)
+vehicle_t* convoi_t::move_vehicle(uint8 old_pos, uint8 new_pos, bool swap)
 {
-DBG_MESSAGE("convoi_t::add_vehicle()","at pos %i of %i totals.",vehicle_count,max_vehicle);
-	// extend array if requested (only needed for trains)
-	if(vehicle_count == max_vehicle) {
-DBG_MESSAGE("convoi_t::add_vehicle()","extend array_tpl to %i totals.",max_rail_vehicle);
-		//vehicle.resize(max_rail_vehicle, NULL);
+	new_pos = min(new_pos, vehicle_count);
+
+	vehicle_t* new_pos_vehicle = new_pos < vehicle_count ? vehicle[new_pos] : nullptr;
+	vehicle[new_pos] = vehicle[old_pos];
+	vehicle[old_pos] = new_pos_vehicle;
+
+	if (!swap)
+	{
+		remove_vehicle_at(old_pos);
+	}
+
+	recalc_metrics();
+	return new_pos_vehicle;
+}
+
+vehicle_t* convoi_t::substitute_vehicle(vehicle_t* new_vehicle, uint8 index)
+{
+	vehicle_t* old_vehicle = vehicle[index];
+	vehicle[index] = new_vehicle;
+
+	grund_t* const gr = welt->lookup(old_vehicle->get_pos());
+
+	old_vehicle->leave_tile();
+
+	new_vehicle->set_convoi(this);
+	new_vehicle->reposition_vehicle(gr);
+
+	old_vehicle->set_convoi(nullptr);
+
+
+	if (index == 0)
+	{
+		update_default_name(old_vehicle);
+	}
+
+	recalc_metrics();
+
+	// We handle the repositioning of the old vehicle elsewhere.
+	return old_vehicle;
+}
+
+
+bool convoi_t::add_vehicle(vehicle_t *v, uint8 pos)
+{
+	pos = min(pos, vehicle_count);
+
+	vehicle_t* const previous_leading_vehicle = front();
+
+	if(vehicle_count == max_vehicle)
+	{
 		vehicle.resize(max_rail_vehicle);
 	}
-	// now append
-	if (vehicle_count < vehicle.get_count()) {
+
+	// Now append/insert
+	if (vehicle_count < vehicle.get_count())
+	{
 		v->set_convoi(this);
 
-		if(infront) {
-			for(unsigned i = vehicle_count; i > 0; i--) {
-				vehicle[i] = vehicle[i - 1];
-			}
-			vehicle[0] = v;
-		} else {
+		if(pos == vehicle_count) // Append
+		{
 			vehicle[vehicle_count] = v;
 		}
-		vehicle_count ++;
-
-		const vehicle_desc_t *info = v->get_desc();
-		if(info->get_power()) {
-			is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-		}
-		//sum_power += info->get_power();
-		//if(info->get_engine_type() == vehicle_desc_t::steam)
-		//{
-		//	power_from_steam += info->get_power();
-		//	power_from_steam_with_gear += info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor();
-		//}
-		//sum_gear_and_power += (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-		//sum_weight += info->get_weight();
-		//min_top_speed = min( min_top_speed, kmh_to_speed( v->get_desc()->get_topspeed() ) );
-		//sum_gesamtweight = sum_weight;
-		calc_loading();
-		invalidate_vehicle_summary();
-		freight_info_resort = true;
-		// Add good_catg_index:
-		if(v->get_cargo_max() > 0 || (v->get_cargo_type() == goods_manager_t::passengers && v->get_desc()->get_overcrowded_capacity() > 0))
+		else // Insert
 		{
-			const goods_desc_t *ware=v->get_cargo_type();
-			if(ware!=goods_manager_t::none  )
+			for (unsigned i = vehicle_count; i > pos; i--)
 			{
-				goods_catg_index.append_unique( ware->get_catg_index() );
-				calc_classes_carried();
+				vehicle[i] = vehicle[i - 1];
 			}
+			vehicle[pos] = v;
 		}
-		// check for obsolete
-		if(!has_obsolete  &&  welt->use_timeline()) {
-			has_obsolete = info->is_obsolete( welt->get_timeline_year_month() );
-		}
-		player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
+		vehicle_count ++;
 	}
-	else {
+	else
+	{
 		return false;
 	}
 
-	// der convoi hat jetzt ein neues ende
-	set_erstes_letztes();
+	if (pos == 0 && previous_leading_vehicle)
+	{
+		update_default_name(previous_leading_vehicle);
+	}
 
-	calc_min_range();
-	highest_axle_load = calc_highest_axle_load();
-	longest_min_loading_time = calc_longest_min_loading_time();
-	longest_max_loading_time = calc_longest_max_loading_time();
-	calc_direction_steps();
+	recalc_metrics();
 
-DBG_MESSAGE("convoi_t::add_vehicle()","now %i of %i total vehicles.",vehicle_count,max_vehicle);
 	return true;
 }
 
 void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 {
-	// Adapted from the add/remove vehicle functions
-	// @author: jamespetts, February 2010
-
-	DBG_MESSAGE("convoi_t::upgrade_vehicle()","at pos %i of %i totals.",i,max_vehicle);
-
 	if (i >= vehicle.get_count())
 	{
 		dbg->error("convoi_t::upgrade_vehicle()", "Attempting to append beyond end of convoy");
@@ -3188,90 +3241,57 @@ void convoi_t::upgrade_vehicle(uint16 i, vehicle_t* v)
 
 	// Amend the name if the name is the default name and it is the first vehicle
 	// being replaced.
-
 	if(i == 0)
 	{
-		char buf[128];
-		name_offset = sprintf(buf,"(%i) ",self.get_id() );
-		tstrncpy(buf + name_offset, translator::translate(old_vehicle->get_desc()->get_name()), 116);
-		if(!strcmp(get_name(), buf))
-		{
-			set_name(v->get_desc()->get_name());
-		}
+		update_default_name(old_vehicle);
 	}
 
-	// Added by		: Knightly
-	// Adapted from : simline_t
-	// Purpose		: Try to update supported goods category of this convoy
-	if (v->get_cargo_max() > 0 || (v->get_cargo_type() == goods_manager_t::passengers && v->get_desc()->get_overcrowded_capacity() > 0))
-	{
-		const goods_desc_t *ware_type = v->get_cargo_type();
-		if (ware_type != goods_manager_t::none)
-			goods_catg_index.append_unique(ware_type->get_catg_index(), 1);
-	}
-
-	const vehicle_desc_t *info = v->get_desc();
-	// still requires electrification?
-	if(is_electric) {
-		is_electric = false;
-		for(unsigned i=0; i<vehicle_count; i++) {
-			if(vehicle[i]->get_desc()->get_power()) {
-				is_electric |= vehicle[i]->get_desc()->get_engine_type()==vehicle_desc_t::electric;
-			}
-		}
-	}
-
-	if(info->get_power()) {
-		is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-	}
-
-	//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
-
-	// Add power and weight of the new vehicle
-	//sum_power += info->get_power();
-	//sum_gear_and_power += (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-	//sum_weight += info->get_weight();
-	//sum_gesamtweight = sum_weight;
-
-	// Remove power and weight of the old vehicle
-	//info = old_vehicle->get_desc();
-	//sum_power -= info->get_power();
-	//sum_gear_and_power -= (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-	//sum_weight -= info->get_weight();
-
-	calc_loading();
-	invalidate_vehicle_summary();
-	freight_info_resort = true;
-	recalc_catg_index();
-	calc_classes_carried();
-
-	// check for obsolete
-	if(has_obsolete)
-	{
-		has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
-	}
-
-	// der convoi hat jetzt ein neues ende
-	set_erstes_letztes();
-
-	calc_min_range();
-	highest_axle_load = calc_highest_axle_load();
-	longest_min_loading_time = calc_longest_min_loading_time();
-	longest_max_loading_time = calc_longest_max_loading_time();
-	calc_direction_steps();
+	recalc_metrics();
 
 	delete old_vehicle;
+}
 
-DBG_MESSAGE("convoi_t::upgrade_vehicle()","now %i of %i total vehicles.",i,max_vehicle);
+void convoi_t::update_default_name(vehicle_t* previous_lead_vehicle)
+{
+	char buf[256];
+	name_offset = sprintf(buf, "(%i) ", self.get_id());
+	tstrncpy(buf + name_offset, translator::translate(previous_lead_vehicle->get_desc()->get_name()), 116);
+	if (!strcmp(get_name(), buf) && front())
+	{
+		set_name(front()->get_desc()->get_name());
+	}
+}
+
+uint8 convoi_t::get_vehicle_index(vehicle_t* v) const
+{
+	for (uint32 i = 0; i < vehicle_count; i++)
+	{
+		if (vehicle[i] == v)
+		{
+			return i;
+		}
+	}
+	return 255;
+}
+
+void convoi_t::remove_vehicle(vehicle_t* v)
+{
+	remove_vehicle_at(get_vehicle_index(v));
 }
 
 vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 {
+	const bool update_name = i == vehicle_count - 1;
+	vehicle_t* previous_leading_vehicle = front();
+
 	vehicle_t *v = NULL;
-	if(i<vehicle_count) {
+	if(i < vehicle_count)
+	{
 		v = vehicle[i];
-		if(v != NULL) {
-			for(unsigned j=i; j<vehicle_count-1u; j++) {
+		if(v != NULL)
+		{
+			for(unsigned j=i; j<vehicle_count-1u; j++)
+			{
 				vehicle[j] = vehicle[j + 1];
 			}
 
@@ -3279,61 +3299,66 @@ vehicle_t *convoi_t::remove_vehicle_at(uint16 i)
 
 			--vehicle_count;
 			vehicle[vehicle_count] = NULL;
-
-			// Added by		: Knightly
-			// Purpose		: To recalculate the list of supported goods category
-			recalc_catg_index();
-			calc_classes_carried();
-
-			//const vehicle_desc_t *info = v->get_desc();
-			//sum_power -= info->get_power();
-			//sum_gear_and_power -= (info->get_power() * info->get_gear() *welt->get_settings().get_global_power_factor_percent() + 50) / 100;
-			//sum_weight -= info->get_weight();
-			//sum_running_costs += info->get_operating_cost();
-			//player_t::add_maintenance( get_owner(), -info->get_maintenance(), info->get_waytype() );
-		}
-		//sum_gesamtweight = sum_weight;
-		calc_loading();
-		invalidate_vehicle_summary();
-		freight_info_resort = true;
-
-		// der convoi hat jetzt ein neues ende
-		if(vehicle_count > 0) {
-			set_erstes_letztes();
 		}
 
-		// calculate new minimum top speed
-		//min_top_speed = calc_min_top_speed(tdriver, vehicle_count);
+	}
 
-		// check for obsolete
-		if(has_obsolete) {
-			has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
-		}
+	if (update_name)
+	{
+		update_default_name(previous_leading_vehicle);
+	}
 
-		recalc_catg_index();
-		calc_classes_carried();
+	recalc_metrics();
 
-		// still requires electrifications?
-		if(is_electric) {
-			is_electric = false;
-			for(unsigned i=0; i<vehicle_count; i++) {
-				if(vehicle[i]->get_desc()->get_power()) {
-					is_electric |= vehicle[i]->get_desc()->get_engine_type()==vehicle_desc_t::electric;
-				}
+	return v;
+}
+
+void convoi_t::recalc_metrics()
+{
+	// Added by		: Knightly
+	// Purpose		: To recalculate the list of supported goods category
+	recalc_catg_index();
+	calc_classes_carried();
+
+	calc_loading();
+	invalidate_vehicle_summary();
+	freight_info_resort = true;
+
+	// der convoi hat jetzt ein neues ende
+	if (vehicle_count > 0)
+	{
+		set_erstes_letztes();
+	}
+
+	// check for obsolete
+	if (has_obsolete)
+	{
+		has_obsolete = calc_obsolescence(welt->get_timeline_year_month());
+	}
+
+	recalc_catg_index();
+	calc_classes_carried();
+
+	// still requires electrifications?
+	if (is_electric)
+	{
+		is_electric = false;
+		for (unsigned i = 0; i < vehicle_count; i++)
+		{
+			if (vehicle[i]->get_desc()->get_power())
+			{
+				is_electric |= vehicle[i]->get_desc()->get_engine_type() == vehicle_desc_t::electric;
 			}
 		}
 	}
-
 	calc_min_range();
 	highest_axle_load = calc_highest_axle_load();
 	longest_min_loading_time = calc_longest_min_loading_time();
 	longest_max_loading_time = calc_longest_max_loading_time();
-	if(!vehicle.empty() && vehicle[0])
+	if (!vehicle.empty() && vehicle[0])
 	{
 		calc_direction_steps();
 	}
-
-	return v;
 }
 
 // recalc what good this convoy is moving
@@ -4021,10 +4046,6 @@ void convoi_t::vorfahren()
 
 void convoi_t::reverse_order(bool rev)
 {
-	// Code snippet obtained and adapted from:
-	// http://www.cprogramming.com/snippets/show.php?tip=15&count=30&page=0
-	// by John Shao (public domain work)
-
 	working_method_t wm = drive_by_sight;
 	if(front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt)
 	{
@@ -4032,7 +4053,7 @@ void convoi_t::reverse_order(bool rev)
 		wm = w->get_working_method();
 	}
 
-	execute_reverse_order(vehicle, vehicle_count, rev);
+	execute_reverse_order(vehicle, vehicle_count, rev, false);
 
 	reversed = !reversed;
 	if (rev)
@@ -4045,8 +4066,12 @@ void convoi_t::reverse_order(bool rev)
 	welt->set_dirty();
 }
 
-void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehicle_count, bool rev)
+template <typename vehicle_collection> void convoi_t::execute_reverse_order(vehicle_collection &vehicles, uint8 vehicle_count, bool rev, bool dry_run)
 {
+	// Code snippet obtained and adapted from:
+	// http://www.cprogramming.com/snippets/show.php?tip=15&count=30&page=0
+	// by John Shao (public domain work)
+
 	uint8 a = 0;
 	vehicle_t* reverse;
 	uint8 b = vehicle_count;
@@ -4055,12 +4080,14 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 	uint8 back_a = check_new_tail(vehicles, loco_b, vehicle_count);
 	uint8 back_b = vehicle_count;
 
-	vehicles[0]->set_leading(false);
-	vehicles[vehicle_count-1]->set_last(false);
+	if(!dry_run)
+	{
+		vehicles[0]->set_leading(false);
+		vehicles[vehicle_count - 1]->set_last(false);
+	}
 
 	if (!rev)
 	{
-		//back()->set_last(false);
 		switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
 			case change_direction:
 				break;
@@ -4102,8 +4129,11 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 			case wye:
 			default:
 				// Do not change the order at all if reverse the whole convoy. i.e. consider as using wye
-				vehicles[0]->set_leading(true);
-				vehicles[vehicle_count-1]->set_last(true);
+				if (!dry_run)
+				{
+					vehicles[0]->set_leading(true);
+					vehicles[vehicle_count - 1]->set_last(true);
+				}
 				return;
 				break;
 		}
@@ -4116,11 +4146,13 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 		vehicles[b] = reverse; //put what's in the swap (a) into b
 	}
 
-	vehicles[0]->set_leading(true);
-	vehicles[vehicle_count-1]->set_last(true);
+	if (!dry_run)
+	{
+		vehicles[0]->set_leading(true);
+		vehicles[vehicle_count - 1]->set_last(true);
 
-	int start = 0;
-	switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
+		int start = 0;
+		switch (get_terminal_shunt_mode(vehicles, vehicle_count)) {
 		case shunting_loco:
 		case rearrange:
 			if (check_need_turntable(vehicles, vehicle_count)) {
@@ -4131,14 +4163,14 @@ void convoi_t::execute_reverse_order(array_tpl<vehicle_t*> &vehicles, uint8 vehi
 		case wye:
 		default:
 			break;
-	}
+		}
 
-	// reverse the vehicle direction
-	for (int i = start; i < vehicle_count; i++) {
-		bool reversed = vehicles[i]->is_reversed();
-		vehicles[i]->set_reversed(!reversed);
+		// reverse the vehicle direction
+		for (int i = start; i < vehicle_count; i++) {
+			bool reversed = vehicles[i]->is_reversed();
+			vehicles[i]->set_reversed(!reversed);
+		}
 	}
-
 }
 
 void convoi_t::set_working_method(working_method_t value)
@@ -4355,7 +4387,6 @@ void convoi_t::rdwr(loadsave_t *file)
 				//sum_weight += info->get_weight();
 				has_obsolete |= welt->use_timeline()  &&  info->is_retired( welt->get_timeline_year_month() );
 				is_electric |= info->get_engine_type()==vehicle_desc_t::electric;
-				player_t::add_maintenance( get_owner(), info->get_fixed_cost(), info->get_waytype() );
 			}
 
 			// some versions save vehicles after leaving depot with koord3d::invalid
@@ -5499,10 +5530,7 @@ void convoi_t::open_schedule_window( bool show )
 }
 
 
-bool convoi_t::pruefe_alle() //"examine all" (Babelfish)
-/**
- * Check validity of convoi with respect to vehicle constraints
- */
+bool convoi_t::check_validity()
 {
 	bool ok = vehicle_count == 0  ||  front()->get_desc()->can_follow(NULL);
 	unsigned i;
@@ -5519,6 +5547,11 @@ bool convoi_t::pruefe_alle() //"examine all" (Babelfish)
 	}
 
 	return ok;
+}
+
+bool convoi_t::is_unpowered()
+{
+	return get_sum_power() == 0 || calc_max_speed(get_weight_summary()) == 0;
 }
 
 
@@ -6096,7 +6129,9 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		set_no_load(true);
 	}
 
+	const uint16 old_last_stop_id = last_stop_id;
 	last_stop_id = halt.get_id();
+	const bool first_run = old_last_stop_id != last_stop_id;
 
 	halt->update_alternative_seats(self);
 	// only load vehicles in station
@@ -6128,53 +6163,59 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 	// First, unload vehicles.
 
-	sint64 accumulated_revenue = 0;
+	const bool will_layover = first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over();
 
-	// This holds the revenues as apportioned to different players by track
-	// Initialize it to the correct size and blank out all entries
-	// It will be added to by the load_cargo method for each vehicle
-	array_tpl<sint64> apportioned_revenues (MAX_PLAYER_COUNT, 0);
-
-	for(int i = 0; i < vehicles_loading ; i++)
+	if (!schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only))
 	{
-		vehicle_t* v = vehicle[i];
+		for (int i = 0; i < vehicles_loading; i++)
+		{
+			vehicle_t* v = vehicle[i];
 
-		// Reset last_stop_pos for all vehicles.
-		koord3d pos = v->get_pos();
-		if(haltestelle_t::get_halt(pos, v->get_owner()).is_bound())
-		{
-			v->last_stop_pos = pos;
-		}
-		else
-		{
-			v->last_stop_pos = halt->get_basis_pos3d();
-		}
-		// hat_gehalten can be called when the convoy hasn't moved... at all.
-		// We should avoid the unloading code when this happens (for speed).
-		if(old_last_stop_pos != front()->get_pos())
-		{
-			//Unload
-			sint64 revenue_from_unloading = 0;
-			uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues);
-			changed_loading_level += amount_unloaded;
-
-			// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
-			sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
-			if (amount_unloaded && revenue_cents_from_unloading == 0)
+			// Reset last_stop_pos for all vehicles.
+			koord3d pos = v->get_pos();
+			if (haltestelle_t::get_halt(pos, v->get_owner()).is_bound())
 			{
-				// if we unloaded something, provide some minimum revenue.  But not if we unloaded nothing.
-				revenue_cents_from_unloading = 1;
+				v->last_stop_pos = pos;
 			}
-			// This call needs to be here, per-vehicle, in order to record different freight types properly.
-			owner->book_revenue( revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index() );
-			// The finance code will add up the on-screen messages
-			// But add up the total for the port and station use charges
-			accumulated_revenue += revenue_cents_from_unloading;
-			book(revenue_cents_from_unloading, CONVOI_PROFIT);
-			book(revenue_cents_from_unloading, CONVOI_REVENUE);
+			else
+			{
+				v->last_stop_pos = halt->get_basis_pos3d();
+			}
+			// hat_gehalten can be called when the convoy hasn't moved... at all.
+			// We should avoid the unloading code when this happens (for speed).
+			if (old_last_stop_pos != front()->get_pos())
+			{
+				changed_loading_level += unload_individual_vehicle_at(i, halt, will_layover);
+			}
 		}
 	}
-	if(no_load)
+
+	if (will_layover)
+	{
+		enter_layover(halt);
+	}
+
+	if (first_run && schedule->entry_has_consist_order(schedule->get_current_entry().unique_entry_id))
+	{
+		const consist_order_t& order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
+		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
+		convoi_t::consist_order_process_result result = process_consist_order(order, halt, nullptr, cnv);
+
+		vehicles_loading = min(vehicles_loading, vehicle_count);
+
+		if (result == convoi_t::succeed)
+		{
+			state = SHUNTING;
+			const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
+			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
+		}
+
+		// TODO: Consider what happens if we fail. Error message? Wait? Continue?
+
+		// TODO: Implement logic for dividing
+	}
+
+	if(no_load || state == LAYOVER || schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only))
 	{
 		for(int i = 0; i < vehicles_loading ; i++)
 		{
@@ -6203,7 +6244,6 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 				}
 			}
 		}
-
 
 		// Three passes at loading vehicles:
 		// (1) without overcrowding, and only to the correct class;
@@ -6260,7 +6300,47 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		current_loading_time = calc_current_loading_time(changed_loading_level);
 	}
 
-	if(accumulated_revenue)
+	if(state == REVERSING)
+	{
+		return;
+	}
+
+	if (state != LAYOVER && state != SHUNTING)
+	{
+		// This is done in the layover state after the minimum layover time has expired.
+		check_departure(halt);
+	}
+}
+
+uint16 convoi_t::unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_layover)
+{
+	sint64 accumulated_revenue = 0;
+	vehicle_t* v = vehicle[index];
+
+	// This holds the revenues as apportioned to different players by track
+	// Initialize it to the correct size and blank out all entries
+	// It will be added to by the load_cargo method for each vehicle
+	array_tpl<sint64> apportioned_revenues(MAX_PLAYER_COUNT, 0);
+
+	sint64 revenue_from_unloading = 0;
+	uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload));
+
+	// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
+	sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
+	if (amount_unloaded && revenue_cents_from_unloading == 0)
+	{
+		// if we unloaded something, provide some minimum revenue. But not if we unloaded nothing.
+		revenue_cents_from_unloading = 1;
+	}
+	// This call needs to be here, per-vehicle, in order to record different freight types properly.
+	owner->book_revenue(revenue_cents_from_unloading, front()->get_pos().get_2d(), get_schedule()->get_waytype(), v->get_cargo_type()->get_index());
+	// The finance code will add up the on-screen messages
+	// But add up the total for the port and station use charges
+	accumulated_revenue += revenue_cents_from_unloading;
+	book(revenue_cents_from_unloading, CONVOI_PROFIT);
+	book(revenue_cents_from_unloading, CONVOI_REVENUE);
+
+	if (accumulated_revenue)
 	{
 		jahresgewinn += accumulated_revenue;
 
@@ -6269,64 +6349,59 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		// not deducted from revenue, but rather
 		// added as a "WAY_TOLL" cost.
 
-		for(int i = 0; i < MAX_PLAYER_COUNT; i ++)
+		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
 		{
-			if(i == owner->get_player_nr())
+			if (i == owner->get_player_nr())
 			{
 				continue;
 			}
 			player_t* player = welt->get_player(i);
 			// Only pay tolls to players who actually exist
-			if(player && apportioned_revenues[i])
+			if (player && apportioned_revenues[i])
 			{
 				// This is the screwy factor of 3000 -- fix this sometime
 				sint64 modified_apportioned_revenue = (apportioned_revenues[i] + 1500ll) / 3000ll;
 				modified_apportioned_revenue *= welt->get_settings().get_way_toll_revenue_percentage();
 				modified_apportioned_revenue /= 100;
-				if(welt->get_active_player() == player)
+				if (welt->get_active_player() == player)
 				{
 					player->add_money_message(modified_apportioned_revenue, front()->get_pos().get_2d());
 				}
-				player->book_toll_received(modified_apportioned_revenue, get_schedule()->get_waytype() );
-				owner->book_toll_paid(-modified_apportioned_revenue, get_schedule()->get_waytype() );
+				player->book_toll_received(modified_apportioned_revenue, get_schedule()->get_waytype());
+				owner->book_toll_paid(-modified_apportioned_revenue, get_schedule()->get_waytype());
 				book(-modified_apportioned_revenue, CONVOI_PROFIT);
 				book(-modified_apportioned_revenue, CONVOI_WAYTOLL);
 			}
 		}
 
 		//  Apportion revenue for air/sea ports
-		if(halt.is_bound() && halt->get_owner() != owner)
+		if (halt.is_bound() && halt->get_owner() != owner)
 		{
 			sint64 port_charge = 0;
-			if(gr->is_water())
+			if (welt->lookup(front()->get_pos())->is_water())
 			{
 				// This must be a sea port.
 				port_charge = (accumulated_revenue * welt->get_settings().get_seaport_toll_revenue_percentage()) / 100;
 			}
-			else if(front()->get_desc()->get_waytype() == air_wt)
+			else if (front()->get_desc()->get_waytype() == air_wt)
 			{
 				// This is an aircraft - this must be an airport.
 				port_charge = (accumulated_revenue * welt->get_settings().get_airport_toll_revenue_percentage()) / 100;
 			}
 			if (port_charge != 0) {
-				if(welt->get_active_player() == halt->get_owner())
+				if (welt->get_active_player() == halt->get_owner())
 				{
 					halt->get_owner()->add_money_message(port_charge, front()->get_pos().get_2d());
 				}
-				halt->get_owner()->book_toll_received(port_charge, get_schedule()->get_waytype() );
-				owner->book_toll_paid(-port_charge, get_schedule()->get_waytype() );
+				halt->get_owner()->book_toll_received(port_charge, get_schedule()->get_waytype());
+				owner->book_toll_paid(-port_charge, get_schedule()->get_waytype());
 				book(-port_charge, CONVOI_PROFIT);
 				book(-port_charge, CONVOI_WAYTOLL);
 			}
 		}
 	}
 
-	if(state == REVERSING)
-	{
-		return;
-	}
-
-	check_departure(halt);
+	return amount_unloaded;
 }
 
 
@@ -6439,7 +6514,6 @@ void convoi_t::destroy()
 			vehicle[i]->set_flag( obj_t::not_on_map );
 
 		}
-		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_fixed_cost(), vehicle[i]->get_desc()->get_waytype());
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];
@@ -7117,6 +7191,11 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 		return false;
 	}
 
+	if (state == LAYOVER)
+	{
+		exit_layover();
+	}
+
 	if (schedule)
 	{
 		old_schedule = schedule->copy();
@@ -7785,12 +7864,7 @@ void convoi_t::snprintf_remaining_loading_time(char *p, size_t size) const
 /**
  * Format remaining loading time from go_on_ticks
  */
-void convoi_t::snprintf_remaining_reversing_time(char *p, size_t size) const
-{
-	welt->sprintf_ticks(p, size, wait_lock);
-}
-
-void convoi_t::snprintf_remaining_emergency_stop_time(char *p, size_t size) const
+void convoi_t::snprintf_remaining_wait_lock(char *p, size_t size) const
 {
 	welt->sprintf_ticks(p, size, wait_lock);
 }
@@ -8626,29 +8700,51 @@ bool convoi_t::carries_this_or_lower_class(uint8 catg, uint8 g_class) const
 		return true;
 	}
 
-	// Passengers may board vehicles of a lower, but not a higher, class
-	if (catg == goods_manager_t::INDEX_PAS)
+	// If there are consist orders, read the data for this from the consist orders,
+	// not this individual consist.
+
+	if (schedule->has_consist_orders())
 	{
-		for (auto i : passenger_classes_carried)
+		return schedule->min_class_carried(catg) <= g_class;
+	}
+	else // If there are no consist orders, use the actual current consist
+	{
+		// Passengers may board vehicles of a lower, but not a higher, class
+		if (catg == goods_manager_t::INDEX_PAS)
 		{
-			if (i <= g_class)
+			for (auto i : passenger_classes_carried)
 			{
-				return true;
+				if (i <= g_class)
+				{
+					return true;
+				}
 			}
 		}
-	}
-	else
-	{
-		for(auto i : mail_classes_carried)
+		else
 		{
-			if (i <= g_class)
+			for (auto i : mail_classes_carried)
 			{
-				return true;
+				if (i <= g_class)
+				{
+					return true;
+				}
 			}
 		}
 	}
 
 	return false;
+}
+
+bool convoi_t::carries_this_category(uint8 catg_index) const
+{
+	if (schedule->has_consist_orders())
+	{
+		return schedule->carries_catg(catg_index);
+	}
+	else
+	{
+		return get_goods_catg_index().is_contained(catg_index);
+	}
 }
 
 bool convoi_t::is_maintenance_needed() const
@@ -8706,7 +8802,7 @@ void convoi_t::check_departure(halthandle_t halt)
 {
 	// The schedule has not yet been advanced.
 
-	const bool wait_for_time = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
+	const bool wait_for_time = state == LAYOVER || (schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time) && schedule->get_spacing()); // The last condition is necessary because it is possible in principle for a convoy on a line to diverge in its schedule from that line.
 
 	const sint64 now = welt->get_ticks();
 	if(arrival_time > now || arrival_time == WAIT_INFINITE)
@@ -8782,6 +8878,12 @@ void convoi_t::check_departure(halthandle_t halt)
 	// loading is finished => maybe drive on
 	bool can_go = false;
 
+	// We must exit the layover if this is a timed layover long enough in advance to allow loading to occur (otherwise this is an exploit)
+	if (state == LAYOVER && wait_for_time && (running_late && now > arrival_time + (std::max((sint64)current_loading_time, reversing_time)) || (now > go_on_ticks - (std::max((sint64)current_loading_time, reversing_time)))))
+	{
+		exit_layover();
+	}
+
 	can_go = loading_level >= loading_limit && (now >= go_on_ticks || !wait_for_time);
 	//can_go = can_go || (now >= go_on_ticks_waiting && !wait_for_time); // This is pre-14 August 2016 code
 	can_go = can_go || (now >= go_on_ticks && !wait_for_time);
@@ -8792,6 +8894,10 @@ void convoi_t::check_departure(halthandle_t halt)
 	if(can_go) {
 		// Advance schedule
 		advance_schedule();
+		if (state == LAYOVER)
+		{
+			exit_layover();
+		}
 		state = ROUTING_1;
 		//dbg->message("void convoi_t::hat_gehalten(halthandle_t halt)", "Convoy %s departing from stop %s at step %i. Its departure time is calculated as %ll", get_name(), halt.is_bound() ? halt->get_name() : "unknown", welt->get_steps(), go_on_ticks);
 	}
@@ -8803,13 +8909,14 @@ void convoi_t::check_departure(halthandle_t halt)
 	}
 	else if (state != WAITING_FOR_CLEARANCE && state != WAITING_FOR_CLEARANCE_ONE_MONTH && state != WAITING_FOR_CLEARANCE_TWO_MONTHS)
 	{
+		const sint64 divider = state == LAYOVER ? 1ll : 2ll;
 		if (loading_limit > 0 && !wait_for_time)
 		{
-			wait_lock = (sint32) ((earliest_departure_time - now) / 2ll);
+			wait_lock = (sint32) ((earliest_departure_time - now) / divider);
 		}
 		else
 		{
-			wait_lock = (sint32) ((go_on_ticks - now) / 2ll);
+			wait_lock = (sint32) ((go_on_ticks - now) / divider);
 		}
 		// The random extra wait here is designed to avoid processing every convoy at once
 		wait_lock += (sint32)(self.get_id()) % 1024;
@@ -8928,7 +9035,7 @@ bool convoi_t::all_vehicles_are_buildable() const
 }
 
 // count the number of the front side powered chunk
-uint8 convoi_t::get_front_loco_count(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::get_front_loco_count(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	uint8 loco_count = 0;
 	bool this_group_has_power = false;
@@ -8953,9 +9060,7 @@ uint8 convoi_t::get_front_loco_count(array_tpl<vehicle_t*> const &vehicles, uint
 	return loco_count;
 }
 
-
-
-uint8 convoi_t::get_terminal_shunt_mode(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::get_terminal_shunt_mode(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	const uint8 last = vehicle_count-1;
 	if (!vehicles[last]->get_desc()->is_bidirectional()) {
@@ -8999,7 +9104,7 @@ uint8 convoi_t::get_terminal_shunt_mode(array_tpl<vehicle_t*> const &vehicles, u
 // Find the next "tail" vehicle other than the locomotive, and return that car's current position(number from front).
 // Pass the number of locomotives in the argument.
 // If it returns 0, it indicates that there is no existence. @Ranran
-uint8 convoi_t::check_new_tail(array_tpl<vehicle_t*> const &vehicles, uint8 start, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::check_new_tail(vehicle_collection const &vehicles, uint8 start, uint8 vehicle_count)
 {
 	for (uint32 i = start; i < vehicle_count; ++i)
 	{
@@ -9117,7 +9222,7 @@ uint8 convoi_t::check_couple_constraint_level(uint8 car_no, bool rear_side) cons
 
 // return powered vehicle count if the front side locomotives need a turntable. Also supports double heading.
 // 0 = turtable is not necessary
-uint8 convoi_t::check_need_turntable(array_tpl<vehicle_t*> const &vehicles, uint8 vehicle_count)
+template <typename vehicle_collection> uint8 convoi_t::check_need_turntable(vehicle_collection const &vehicles, uint8 vehicle_count)
 {
 	if (get_terminal_shunt_mode(vehicles, vehicle_count) == wye || get_terminal_shunt_mode(vehicles, vehicle_count) == change_direction) { return 0; }
 
@@ -9242,5 +9347,349 @@ void convoi_t::book_fuel_consumption()
 		{
 			vehicle[i]->book_fuel_consumption();
 		}
+	}
+}
+
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy)
+{
+	convoi_t::consist_order_process_result success = fail;
+
+	// FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
+
+	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
+	// then if, and only if driveable and complete, commit the result.
+
+	vector_tpl<vehicle_t*> final_consist;
+	vector_tpl<vehicle_t*> available_vehicles;
+
+	// First, produce a vector of vehicles available for recombination.
+	// The vehicles of the current consist are always available.
+
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		available_vehicles.append(vehicle[i]);
+	}
+
+	if (joining_convoy.is_bound())
+	{
+		// If joining a consist, only vehicles of this and the joining consist are available.
+		// To use laid over vehicles also, multiple consist orders are required.
+		const uint8 joining_vehicle_count = joining_convoy->get_vehicle_count();
+		for (uint8 i = 0; i < joining_vehicle_count; i++)
+		{
+			available_vehicles.append(joining_convoy->get_vehicle(i));
+		}
+	}
+	else if (!halt.is_bound() && !dep)
+	{
+		dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
+		return fail;
+	}
+	else
+	{
+		slist_tpl<convoihandle_t> &available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
+
+		for (auto cnv : available_convoys)
+		{
+			if (cnv.is_bound())
+			{
+				const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
+				for (uint8 i = 0; i < cnv_vehicle_count; i++)
+				{
+					if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed())
+					{
+						available_vehicles.append(cnv->get_vehicle(i));
+					}
+				}
+			}
+		}
+
+		if (dep)
+		{
+			slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
+			for (auto v : depot_vehicles)
+			{
+				if (!v->get_is_mothballed())
+				{
+					available_vehicles.append(v);
+				}
+			}
+		}
+	}
+
+	const uint32 element_count = order.get_count();
+	uint32 existing_vehicle_count = 0;
+
+	// This consist may be reversed - so we have to create a shadow un-reversed version to compare
+	// and then re-reverse the re-arranged consist at the end.
+	//
+	// Assumption: the consist order GUI will always present the consist in a forward direction,
+	// both to the user and in its data structure. The principle is always that vehicle coupling
+	// validity checks are valid for the forward direction, and that there is a specific, limited
+	// reversing algorithm.
+
+	vector_tpl<vehicle_t*> shadow_consist;
+	for(uint8 i = 0; i < vehicle_count; i ++)
+	{
+		shadow_consist.append(vehicle[i]);
+	}
+
+	if (reversed)
+	{
+		execute_reverse_order(shadow_consist, shadow_consist.get_count(), false, true);
+	}
+
+	for (uint32 k = 0; k < element_count && (k == 0 || k < element_count - 1u) && final_consist.get_count() < element_count; k++)
+	{
+		// Run this recursively in case combinations are available that do not work in the first run.
+		vehicle_t* pass_over_vehicle = nullptr;
+		existing_vehicle_count = 0;
+		if (k > 0)
+		{
+			if (final_consist.empty() || k >= final_consist.get_count())
+			{
+				// There is no point in trying again here.
+				break;
+			}
+
+			pass_over_vehicle = final_consist[k];
+			// Start again
+			final_consist.clear();
+		}
+
+		for (uint32 i = 0; i < element_count; i++)
+		{
+			const consist_order_element_t& element = order.get_order(i);
+			const uint32 priority_count = element.get_count();
+			bool matched_this_element = false;
+
+			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
+			{
+				if (shadow_consist[i] && shadow_consist[i]->matches_consist_order_element(element, j))
+				{
+					// The existing vehicle in its existing position is a match - no change needed
+					final_consist.append(shadow_consist[i]);
+					existing_vehicle_count++;
+					break;
+				}
+				if (element.get_vehicle_description(j).empty && !element.get_vehicle_description(j).specific_vehicle)
+				{
+					break;
+				}
+				for (auto veh : available_vehicles)
+				{
+					if (i > 0 && i - 1 == k && pass_over_vehicle == veh)
+					{
+						// Skip putting this vehicle into this slot if the last run did not work
+						continue;
+					}
+					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh))
+					{
+						// Check whether this can couple to the previous vehicle.
+						const vehicle_desc_t* previous_vehicle = nullptr;
+						if (!final_consist.empty())
+						{
+							previous_vehicle = final_consist.back()->get_desc();
+						}
+
+						if (veh->get_desc()->can_lead(previous_vehicle))
+						{
+							if (!previous_vehicle || previous_vehicle->can_follow(veh->get_desc()))
+							{
+								final_consist.append(veh);
+								matched_this_element = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (final_consist.get_count() == element_count)
+	{
+		if (existing_vehicle_count == element_count && element_count == vehicle_count)
+		{
+			success = no_change_needed;
+		}
+		else if(!final_consist.empty())
+		{
+			// Check whether the new consist has power. If not, it should not be used.
+			// The player needs to be responsible for ensuring that all possible combinations provided for by the order are powered.
+			bool has_power = false;
+			for (auto v : final_consist)
+			{
+				if (v->get_desc()->get_power() > 0)
+				{
+					has_power = true;
+					break;
+				}
+			}
+
+			if (has_power)
+			{
+				success = succeed;
+			}
+		}
+	}
+
+	if (success == succeed)
+	{
+		// Now re-reverse the consist if it had been un-reversed for matching
+		if (reversed)
+		{
+			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
+		}
+
+		commit_recombined_consist(final_consist, halt);
+
+		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
+		{
+			joining_convoy->set_state(SELF_DESTRUCT);
+		}
+	}
+
+	return success;
+}
+
+void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt)
+{
+	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
+	// The vehicles may include vehicles already present in the consist, but will always include
+	// at least one change from the current arrangement.
+
+	vehicle[0]->set_leading(false);
+	vehicle[vehicle_count - 1]->set_last(false);
+
+	vector_tpl<vehicle_t*> displaced_vehicles;
+	convoi_t* new_lead_cnv = vehicles[0]->get_convoi();
+	koord3d rear_pos = back()->get_pos();
+
+	const uint32 new_vehicle_count = vehicles.get_count();
+	const uint8 old_vehicle_count = vehicle_count;
+	uint8 index_offset = 0;
+	for(uint32 i = 0; i < max(new_vehicle_count, (uint32)old_vehicle_count); i ++)
+	{
+		vehicle_t* new_vehicle = i < new_vehicle_count ? vehicles[i] : nullptr;
+		vehicle_t* existing_vehicle = i < old_vehicle_count ? get_vehicle((uint8)i) : nullptr;
+		if (new_vehicle == existing_vehicle && existing_vehicle)
+		{
+			// The new vehicle matches the existing vehicle. Do nothing.
+			continue;
+		}
+
+		if (!new_vehicle)
+		{
+			uint8 remove_index;
+			if (i >= new_vehicle_count)
+			{
+				// We have reached the end of the new vehicles but there are still vehicles left in the consist.
+				// Remove them. Note that what will happen is that the number of vehicles in the consist will reduce,
+				// so we need to remove the rear vehicle not the vehicle at position i.
+				remove_index = vehicle_count - 1u;
+			}
+			else
+			{
+				// We have encountered an empty vehicle description element.
+				remove_index = i;
+				index_offset++;
+			}
+			unload_individual_vehicle_at(i, halt, true);
+			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
+			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
+			{
+				new_lead_cnv->add_vehicle(removed_vehicle);
+				grund_t* const gr = welt->lookup(new_lead_cnv->get_pos());
+				removed_vehicle->reposition_vehicle(gr);
+			}
+			else
+			{
+				displaced_vehicles.append(removed_vehicle);
+			}
+
+			continue;
+		}
+
+		if (!existing_vehicle)
+		{
+			// We have reached the end of the existing vehicles in the consist, but there are more vehicles to add.
+			// Add them.
+			convoi_t* previous_cnv = new_vehicle->get_convoi();
+
+			if (previous_cnv)
+			{
+				previous_cnv->remove_vehicle(new_vehicle);
+			}
+			add_vehicle(new_vehicle);
+			grund_t* const gr = welt->lookup(rear_pos);
+			new_vehicle->reposition_vehicle(gr);
+			continue;
+		}
+
+		// Reaching here, we should have both new and existing vehicles.
+		// Substitute the new for the old.
+
+		convoi_t* new_vehicle_cnv = new_vehicle->get_convoi();
+		if (new_vehicle_cnv == this)
+		{
+			// We are just moving vehicles within the same consist.
+			// Swap if the new vehicle is from later in the consist and is thus yet to be processed.
+
+			const uint8 new_vehicle_index = get_vehicle_index(new_vehicle);
+			move_vehicle(new_vehicle_index, i, new_vehicle_index > i);
+		}
+		else if (new_vehicle_cnv)
+		{
+			new_vehicle_cnv->remove_vehicle(new_vehicle);
+			grund_t* const gr = welt->lookup(new_vehicle->get_pos());
+			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
+			removed_vehicle->reposition_vehicle(gr);
+
+			if (new_vehicle_cnv->get_state() == LAYOVER)
+			{
+				new_vehicle_cnv->add_vehicle(removed_vehicle);
+				new_vehicle_cnv->update_default_name(new_vehicle);
+			}
+			else
+			{
+				displaced_vehicles.append(removed_vehicle);
+			}
+		}
+	}
+
+	vehicle[0]->set_leading(true);
+	vehicle[vehicle_count - 1]->set_last(true);
+
+	unreserve_route();
+	reserve_own_tiles();
+
+	// Deal with vehicles displaced from the consist that cannot simply be appended to an existing laid over consist
+	if (!displaced_vehicles.empty())
+	{
+		convoi_t* cnv = new convoi_t(owner); // Create a new cnv and lay it over in situ
+		for (auto v : displaced_vehicles)
+		{
+			if (v)
+			{
+				cnv->add_vehicle(v);
+			}
+		}
+
+		cnv->set_home_depot(get_home_depot()); // TODO: Add code to find a suitable home depot and use this here
+		cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());
+		cnv->set_blank_route();
+		cnv->reserve_own_tiles();
+		cnv->enter_layover(halt);
+		cnv->create_schedule();
+	}
+}
+
+void convoi_t::set_blank_route()
+{
+	route.clear();
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		route.append(vehicle[i]->get_pos());
 	}
 }

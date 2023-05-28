@@ -95,7 +95,7 @@ public:
 	/*
 	* A bitfield of flags of the type schedule_entry_flag (supra)
 	*/
-	uint32 flags;
+	uint32 flags = 0;
 //public:
 
 	/**
@@ -191,6 +191,7 @@ public:
 	void set_flag(schedule_entry_flag flag) { flags |= flag; }
 
 	void clear_flag(schedule_entry_flag flag) { flags &= ~flag; }
+
 };
 
 inline bool operator == (const schedule_entry_t &a, const schedule_entry_t &b)

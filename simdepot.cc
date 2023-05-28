@@ -384,7 +384,7 @@ void depot_t::append_vehicle(convoihandle_t &cnv, vehicle_t* veh, bool infront, 
 		cnv = add_convoi( local_execution );
 	}
 	veh->set_pos(get_pos());
-	cnv->add_vehicle(veh, infront);
+	cnv->add_vehicle(veh, infront ? 0 : cnv->get_vehicle_count());
 	vehicles.remove(veh);
 }
 
@@ -683,7 +683,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			cur_pos = cnv->get_schedule()->get_current_entry().pos;
 		}
 
-		bool convoy_unpowered = cnv->get_sum_power() == 0 || cnv->calc_max_speed(cnv->get_weight_summary()) == 0;
+		bool convoy_unpowered = cnv->is_unpowered();
 
 		if(convoy_unpowered)
 		{
@@ -716,7 +716,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 
 		// check if convoy is complete
-		if(convoy_unpowered || !cnv->pruefe_alle())
+		if(convoy_unpowered || !cnv->check_validity())
 		{
 			if (local_execution)
 			{

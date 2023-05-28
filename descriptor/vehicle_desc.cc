@@ -9,6 +9,7 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 #include "../gui/gui_theme.h"
+#include "../dataobj/consist_order_t.h"
 
 uint32 vehicle_desc_t::get_running_cost() const
 {
@@ -94,7 +95,7 @@ uint32 vehicle_desc_t::get_max_running_cost(const karte_t* world) const
 	return calc_running_cost(get_max_running_cost());
 }
 
-uint32 vehicle_desc_t::get_fixed_cost(karte_t *) const
+uint32 vehicle_desc_t::get_fixed_cost(karte_t*) const
 {
 	return calc_running_cost(get_fixed_cost());
 }
@@ -544,7 +545,7 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 		{
 			return 2;
 		}
-		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now)==2) {
+		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now) == future_state::far_future) {
 			upgrade_state = 1;
 		}
 	}

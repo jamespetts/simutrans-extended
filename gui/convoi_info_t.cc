@@ -457,7 +457,7 @@ void convoi_info_t::update_labels()
 		case convoi_t::EMERGENCY_STOP:
 
 			char emergency_stop_time[64];
-			cnv->snprintf_remaining_emergency_stop_time(emergency_stop_time, sizeof(emergency_stop_time));
+			cnv->snprintf_remaining_wait_lock(emergency_stop_time, sizeof(emergency_stop_time));
 
 			speed_label.buf().printf(translator::translate("emergency_stop %s left"), emergency_stop_time);
 			speed_label.set_color(COL_DANGER);
@@ -505,7 +505,7 @@ void convoi_info_t::update_labels()
 		case convoi_t::REVERSING:
 
 			char reversing_time[64];
-			cnv->snprintf_remaining_reversing_time(reversing_time, sizeof(reversing_time));
+			cnv->snprintf_remaining_wait_lock(reversing_time, sizeof(reversing_time));
 			switch (cnv->get_terminal_shunt_mode()) {
 			case convoi_t::rearrange:
 			case convoi_t::shunting_loco:
@@ -518,6 +518,15 @@ void convoi_info_t::update_labels()
 				speed_label.buf().printf(translator::translate("Reversing. %s left"), reversing_time);
 				break;
 			}
+			speed_label.set_color(SYSCOL_TEXT);
+			route_bar.set_state(1);
+			break;
+
+		case convoi_t::SHUNTING:
+
+			char shunting_time[64];
+			cnv->snprintf_remaining_wait_lock(reversing_time, sizeof(shunting_time));
+			speed_label.buf().printf(translator::translate("Shunting. %s left"), reversing_time);
 			speed_label.set_color(SYSCOL_TEXT);
 			route_bar.set_state(1);
 			break;
@@ -554,8 +563,7 @@ void convoi_info_t::update_labels()
 			break;
 
 		case convoi_t::NO_ROUTE_TOO_COMPLEX:
-			//speed_label.buf().append(translator::translate("no_route_too_complex_message"));
-			speed_label.buf().append(translator::translate("clf_chk_noroute"));
+			speed_label.buf().append(translator::translate("no_route_too_complex_message"));
 			speed_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
 			break;
@@ -566,6 +574,12 @@ void convoi_info_t::update_labels()
 			speed_label.buf().printf("%s (%s %i%s)", translator::translate("out of range"), translator::translate("max"), cnv->front()->get_desc()->get_range(), translator::translate("km"));
 			speed_label.set_color(COL_DANGER);
 			route_bar.set_state(3);
+			break;
+
+		case convoi_t::LAYOVER:
+			speed_label.buf().append(translator::translate("layover"));
+			speed_label.set_color(COL_INACTIVE);
+			route_bar.set_state(1);
 			break;
 
 		case convoi_t::DRIVING:

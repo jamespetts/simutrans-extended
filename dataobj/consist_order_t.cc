@@ -21,6 +21,8 @@ void consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
 	vehicle_description_element v_elem;
 	v_elem.specific_vehicle = v;
 	vehicle_description.append(v_elem);
+
+	catg_index = v->get_freight_type()->get_catg_index(); // HACK: This is temporary for testing. The UI should automatically enforce the same category index for each vehicle description element in this order element.
 }
 
 
@@ -475,7 +477,11 @@ bool consist_order_element_t::operator!= (const consist_order_element_t& other) 
 	{
 		return true;
 	}
+}
 
+bool consist_order_element_t::operator== (const consist_order_element_t& other) const
+{
+	return !(other != *this);
 }
 
 bool vehicle_description_element::operator!= (const vehicle_description_element& other) const

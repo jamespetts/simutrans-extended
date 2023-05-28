@@ -242,12 +242,14 @@ void schedule_t::cleanup()
 		if(  entries[i].pos == lastpos  ) {
 			// ignore double entries just one after the other
 			entries.remove_at(i);
+			orders.remove(entries[i].unique_entry_id);
 			if(  i<current_stop  ) {
 				current_stop --;
 			}
 			i--;
 		} else if(  entries[i].pos == koord3d::invalid  ) {
 			// ignore double entries just one after the other
+			orders.remove(entries[i].unique_entry_id);
 			entries.remove_at(i);
 		}
 		else {
@@ -268,7 +270,20 @@ void schedule_t::cleanup()
 
 bool schedule_t::remove()
 {
+	uint8 unique_entry_id = 255;
+
+	if (current_stop < entries.get_count())
+	{
+		unique_entry_id = entries[current_stop].unique_entry_id;
+	}
+
 	bool ok = entries.remove_at(current_stop);
+
+	if (ok)
+	{
+		orders.remove(unique_entry_id);
+	}
+
 	make_current_stop_valid();
 	return ok;
 }
@@ -475,6 +490,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				consist_order_t order;
 				order.rdwr(file);
 				orders.put(schedule_id, order);
+				parse_orders();
 			}
 		}
 	}
@@ -590,6 +606,67 @@ bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const sche
 	{
 		return false;
 	}
+}
+
+bool schedule_t::entry_has_consist_order(uint16 unique_id) const
+{
+	if (orders.empty())
+	{
+		return false;
+	}
+
+	if (orders.is_contained(unique_id))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+const consist_order_t& schedule_t::get_consist_order(uint16 unique_id)
+{
+	const consist_order_t &order = orders.get(unique_id);
+	return order;
+}
+
+convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt)
+{
+	convoihandle_t cnv;
+	const schedule_entry_t* entry = nullptr;
+
+	for (const schedule_entry_t &e : entries)
+	{
+		if (e.unique_entry_id == unique_id)
+		{
+			entry = &e;
+			break;
+		}
+	}
+
+	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple))
+	{
+		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv) && halt.is_bound())
+		{
+			// Line
+			linehandle_t line;
+			line.set_id(entry->target_id_couple);
+
+			for (auto c : halt->get_loading_convois())
+			{
+				if (c.is_bound() && c->get_line() == line)
+				{
+					return c;
+				}
+			}
+		}
+		else
+		{
+			// Convoy
+			cnv.set_id(entry->target_id_couple);
+		}
+	}
+
+	return cnv;
 }
 
 
@@ -870,6 +947,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 		}
 	}
 
+	parse_orders();
 	return true;
 }
 
@@ -1139,4 +1217,214 @@ uint16 schedule_t::get_next_free_unique_id() const
 	}
 
 	return next_free_unique_id;
+}
+
+bool schedule_t::has_consist_orders() const
+{
+	return !orders.empty();
+}
+
+uint8 schedule_t::get_entry_from_unique_id(uint16 unique_id) const
+{
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (entries[i].unique_entry_id == unique_id)
+		{
+			return i;
+		}
+	}
+
+	return 255;
+}
+
+uint16 schedule_t::get_unique_id_from_entry(uint8 entry) const
+{
+	return entries[entry].unique_entry_id;
+}
+
+void schedule_t::parse_orders()
+{
+	catg_carried_to.clear();
+	catg_carried_from.clear();
+
+	if (orders.empty())
+	{
+		return;
+	}
+
+	for (auto order : orders)
+	{
+		const uint8 unique_id = order.key;
+		vector_tpl<uint8> category_vector;
+		uint8 min_class_passenger = goods_manager_t::passengers->get_number_of_classes();
+		uint8 min_class_mail = goods_manager_t::mail->get_number_of_classes();
+		for (uint32 i = 0; i < order.value.get_count(); i++)
+		{
+			const uint8 catg_index = order.value.get_order(i).get_catg_index();
+			category_vector.append(catg_index);
+
+			if (goods_manager_t::passengers->get_catg_index() == catg_index)
+			{
+				min_class_passenger = min(min_class_passenger, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
+			else if (goods_manager_t::mail->get_catg_index() == catg_index)
+			{
+				min_class_mail = min(min_class_mail, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
+		}
+		catg_carried_from.put(unique_id, category_vector);
+		passenger_min_class_carried_from.put(unique_id, min_class_passenger);
+		mail_min_class_carried_from.put(unique_id, min_class_mail);
+	}
+
+	if (catg_carried_from.empty())
+	{
+		// There is no point in processing the rest of this
+		return;
+	}
+
+	uint8 min_passenger_class = 0;
+	uint8 min_mail_class = 0;
+	vector_tpl<uint8> categories;
+
+	vector_tpl<uint8> missing_categories;
+	uint8 new_min_passenger_class = min_passenger_class;
+	uint8 new_min_mail_class = min_mail_class;
+
+	uint8 first_order = 255;
+
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (orders.is_contained(entries[i].unique_entry_id))
+		{
+			if (first_order == 255)
+			{
+				first_order = i;
+			}
+			if (!categories.empty())
+			{
+				// Find categories carried in the previous entry not carried in this entry.
+				for (auto c : categories)
+				{
+					if (!catg_carried_from.get(entries[i].unique_entry_id).is_contained(c))
+					{
+						missing_categories.append(c);
+					}
+				}
+				catg_carried_to.put(entries[i].unique_entry_id, missing_categories);
+			}
+
+			categories = catg_carried_from.get(entries[i].unique_entry_id);
+			missing_categories.clear();
+
+			if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+			{
+				new_min_passenger_class = passenger_min_class_carried_from.get(entries[i].unique_entry_id);
+
+				if (min_passenger_class < new_min_passenger_class)
+				{
+					passenger_min_class_carried_to.put(entries[i].unique_entry_id, min_passenger_class);
+				}
+				min_passenger_class = new_min_passenger_class;
+			}
+
+			if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+			{
+				new_min_mail_class = mail_min_class_carried_from.get(entries[i].unique_entry_id);
+				if (min_mail_class < new_min_mail_class)
+				{
+					mail_min_class_carried_to.put(entries[i].unique_entry_id, min_mail_class);
+				}
+				min_mail_class = new_min_mail_class;
+			}
+		}
+	}
+
+	// And now go back to the beginning of the schedule
+	if (first_order < entries.get_count() && orders.is_contained(entries[first_order].unique_entry_id))
+	{
+		if (!categories.empty())
+		{
+			// Find categories carried in the previous entry not carried in this entry.
+			for (auto c : categories)
+			{
+				if (!catg_carried_from.get(entries[first_order].unique_entry_id).is_contained(c))
+				{
+					missing_categories.append(c);
+				}
+			}
+			if (!missing_categories.empty())
+			{
+				catg_carried_to.put(entries[first_order].unique_entry_id, missing_categories);
+			}
+		}
+
+		if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+		{
+			new_min_passenger_class = passenger_min_class_carried_from.get(entries[first_order].unique_entry_id);
+
+			if (min_passenger_class < new_min_passenger_class)
+			{
+				passenger_min_class_carried_to.put(entries[first_order].unique_entry_id, min_passenger_class);
+			}
+		}
+
+		if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+		{
+			new_min_mail_class = mail_min_class_carried_from.get(entries[first_order].unique_entry_id);
+			if (min_mail_class < new_min_mail_class)
+			{
+				mail_min_class_carried_to.put(entries[first_order].unique_entry_id, min_mail_class);
+			}
+		}
+	}
+}
+
+bool schedule_t::carries_catg(uint8 catg_index) const
+{
+	for (auto c_collection : catg_carried_from)
+	{
+		for (auto c : c_collection.value)
+		{
+			if (c == catg_index)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+uint8 schedule_t::min_class_carried(uint8 catg_index) const
+{
+	if (catg_index == goods_manager_t::passengers->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::passengers->get_number_of_classes();
+
+		for (auto cl: passenger_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else if (catg_index == goods_manager_t::mail->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::mail->get_number_of_classes();
+
+		for (auto cl : mail_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else
+	{
+		return 0;
+	}
 }

@@ -2022,28 +2022,41 @@ void haltestelle_t::refresh_routing(const schedule_t *const sched, const minivec
 
 	if(sched && player)
 	{
-		const uint8 catg_count = categories.get_count();
-
-		for (uint8 i = 0; i < catg_count; i++)
+		if (sched->has_consist_orders())
 		{
-			path_explorer_t::refresh_category(categories[i]);
-		}
-
-		if ((passenger_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_PAS))
-		{
-			// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
-			for(auto const g_class : *passenger_classes)
+			for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++)
 			{
-				path_explorer_t::refresh_class_category(goods_manager_t::INDEX_PAS, g_class);
+				if (sched->carries_catg(i))
+				{
+					path_explorer_t::refresh_category(i);
+				}
 			}
 		}
-
-		if ((mail_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_MAIL))
+		else
 		{
-			// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
-			for(auto const g_class : *mail_classes)
+			const uint8 catg_count = categories.get_count();
+
+			for (uint8 i = 0; i < catg_count; i++)
 			{
-				path_explorer_t::refresh_class_category(goods_manager_t::INDEX_MAIL, g_class);
+				path_explorer_t::refresh_category(categories[i]);
+			}
+
+			if ((passenger_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_PAS))
+			{
+				// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
+				for (auto const g_class : *passenger_classes)
+				{
+					path_explorer_t::refresh_class_category(goods_manager_t::INDEX_PAS, g_class);
+				}
+			}
+
+			if ((mail_classes != NULL) && categories.is_contained(goods_manager_t::INDEX_MAIL))
+			{
+				// These minivecs should only have anything in them if their respective categories have not been refreshed entirely.
+				for (auto const g_class : *mail_classes)
+				{
+					path_explorer_t::refresh_class_category(goods_manager_t::INDEX_MAIL, g_class);
+				}
 			}
 		}
 	}
@@ -4736,6 +4749,34 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 	}
 
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save laid over vehicles
+		if (file->is_saving())
+		{
+			uint32 laid_over_count = laid_over.get_count();
+			file->rdwr_long(laid_over_count);
+			for (auto c : laid_over)
+			{
+				uint16 id = c.get_id();
+				file->rdwr_short(id);
+			}
+		}
+		else // Loading
+		{
+			uint32 laid_over_count;
+			file->rdwr_long(laid_over_count);
+			for (uint32 i = 0; i < laid_over_count; i++)
+			{
+				uint16 id;
+				file->rdwr_short(id);
+				convoihandle_t cnv;
+				cnv.set_id(id);
+				laid_over.append(cnv);
+			}
+		}
+	}
+
 	// We do not need to save/load the service interval,
 	// because this is re-set when the convoys are loaded
 	// in any event. However, just to be on the safe side,
@@ -6694,3 +6735,30 @@ void haltestelle_t::set_all_building_tiles()
 		}
 	}
 }
+
+void haltestelle_t::add_laid_over(convoihandle_t cnv)
+{
+	laid_over.append_unique(cnv);
+}
+
+void haltestelle_t::remove_laid_over(convoihandle_t cnv)
+{
+	laid_over.remove(cnv);
+}
+
+bool haltestelle_t::can_lay_over() const
+{
+	if (!tiles.empty())
+	{
+		for (auto i : tiles)
+		{
+			gebaeude_t* building = i.grund->get_building();
+			if (building && building->get_tile()->get_desc()->layover_enable())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+

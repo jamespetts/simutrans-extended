@@ -162,9 +162,46 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					}
 					end_table();
 
+					new_component<gui_table_header_t>("fuel_cost", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					add_table(1, 2)->set_spacing(scr_size(0, 0));
+					{
+						gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_fuel_per_km() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						const sint64 fuel_cost_per_unit = world()->get_fuel_cost(world()->get_timeline_year_month(), veh_type->get_engine_type());
+						const sint64 fuel_cost_per_km = (fuel_cost_per_unit * veh_type->get_fuel_per_km()) / world()->get_settings().get_fuel_unit_cost_divider();
+						td->buf().printf("%1.2f$/km", (double)fuel_cost_per_km / 100.0);
+						td->update();
+						td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_calibration_speed() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						td->buf().printf("%s %3d %s", "@", veh_type->get_calibration_speed(), "km/h");
+						td->update();
+					}
+					end_table();
+
+					// TODO: Find a more sophisticated way of representing fractional staff. Currently, they are not accounted for at all.
+					new_component<gui_table_header_t>("staff_cost", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
+					sint64 total_staff_cost = 0;
+					for (uint8 i = 0; i < 255; i++)
+					{
+						const uint32 staff_hundredths_this_type = veh_type->get_staff_hundredths(i);
+						const uint32 drivers_this_type = veh_type->get_drivers(i);
+						const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
+						total_staff_cost += ((sint64)world()->get_staff_salary(world()->get_timeline_year_month(), i) * staff_this_type);
+					}
+
+					total_staff_cost = world()->calc_adjusted_monthly_figure(total_staff_cost);
+					td->buf().printf("%1.2f$/month", (double)total_staff_cost / 100.0);
+					td->update();
+
+					new_component<gui_table_header_t>("availability", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					td = new_component<gui_table_cell_buf_t>();
+					td->buf().printf("%3d %s", veh_type->get_starting_availability(), "%");
+					td->update();
+
 					// Physics information:
 					new_component<gui_table_header_t>("Max. speed:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
-					gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
+					td = new_component<gui_table_cell_buf_t>();
 					td->buf().printf("%3d %s", veh_type->get_topspeed(), "km/h");
 					td->update();
 

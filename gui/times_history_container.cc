@@ -42,7 +42,7 @@ void gui_times_history_t::init()
 		schedule = convoy->get_schedule();
 		map = &convoy->get_journey_times_history();
 		player = convoy->get_owner();
-		mirrored = schedule->is_mirrored();
+		mirrored = schedule ? schedule->is_mirrored() : false;
 		build_table();
 	}
 	else {
