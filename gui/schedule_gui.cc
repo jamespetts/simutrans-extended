@@ -1534,7 +1534,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
 			}
 			else {
-				win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+				//win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+				//win->init(schedule->entries[schedule->get_current_stop()].unique_entry_id);
 			}
 			top_win(win);
 		}

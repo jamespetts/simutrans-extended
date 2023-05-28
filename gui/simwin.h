@@ -128,6 +128,7 @@ enum magic_numbers {
 	magic_depotlist           = magic_depot               + MAX_PLAYER_COUNT,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
 	magic_vehicle_detail,
+	magic_vehicle_detail_for_consist_order,
 	magic_signalboxlist,
 	magic_pier_rotation_select,
 	magic_replace_line,

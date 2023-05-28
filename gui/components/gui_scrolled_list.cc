@@ -243,11 +243,19 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 
 	event_t ev2 = *ev;
 	// translate key up/down to tab/shift-tab
-	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_UP  &&  get_selection()>0) {
+	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_UP  ) {
+		if(  get_selection() < 1  ) {
+			// do nothing. (do not scroll the map)
+			return true;
+		}
 		ev2.ev_code = SIM_KEY_TAB;
 		ev2.ev_key_mod |= SIM_MOD_SHIFT;
 	}
-	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_DOWN  &&  (uint32)(get_selection()+1) < item_list.get_count()) {
+	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_DOWN  ) {
+		if( (uint32)(get_selection()+1) == item_list.get_count() ) {
+			// do nothing. (do not scroll the map)
+			return true;
+		}
 		ev2.ev_code = SIM_KEY_TAB;
 		ev2.ev_key_mod &= ~SIM_MOD_SHIFT;
 	}

@@ -55,7 +55,7 @@ static int col_to_sort_mode[vehiclelist_frame_t::VL_MAX_SPECS] = {
 
 static const char *const vl_header_text[vehiclelist_frame_t::VL_MAX_SPECS] =
 {
-	"Name", "", "Wert", "engine_type",
+	"Side view", "", "Wert", "engine_type",
 	"Leistung", "TF_", "", "Capacity",
 	"Max. speed", "curb_weight", "Axle load:", "Intro. date","Retire date"
 };
@@ -549,12 +549,14 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 		bt_show_name.pressed      = true;
 		bt_show_side_view.pressed = false;
 		side_view_mode = false;
+		bt_table_sort[0].set_text(translator::translate("Name"));
 		fill_list();
 	}
 	else if( comp == &bt_show_side_view) {
 		bt_show_name.pressed      = false;
 		bt_show_side_view.pressed = true;
 		side_view_mode = true;
+		bt_table_sort[0].set_text(translator::translate(vl_header_text[0]));
 		fill_list();
 	}
 	else {

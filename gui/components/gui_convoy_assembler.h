@@ -99,12 +99,12 @@ public:
  */
 class gui_convoy_assembler_t : public gui_aligned_container_t, public gui_action_creator_t, private action_listener_t
 {
+public:
 	/**
 	 * Parameters to determine layout and behaviour of convoy images.
 	 * Originally in simdepot.h.  Based in the code of:
 	 */
 	static scr_coord get_placement(waytype_t wt);
-public:
 	static scr_coord get_grid(waytype_t wt);
 
 	static bool show_all;               // show available vehicles (same for all depot)

@@ -16,38 +16,128 @@
 #include "../vehicle/vehicle.h"
 
 
-void consist_order_element_t::append_vehicle(const vehicle_desc_t *v, bool is_specific)
+void consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
 {
 	vehicle_description_element v_elem;
-	if (is_specific) {
-		v_elem.specific_vehicle = v;
-	}
-	else {
-		v_elem.set_vehicle_spec(v);
-	}
+	v_elem.specific_vehicle = v;
 	vehicle_description.append(v_elem);
 }
 
 
-void consist_order_element_t::increment_index(uint32 description_index)
+bool consist_order_element_t::can_connect(const vehicle_desc_t *v, bool to_rear) const
 {
-	if( (description_index>=vehicle_description.get_count()-1)  ||  vehicle_description.get_count()<2 ) { return; }
-	vehicle_description.insert_at(description_index+2, vehicle_description.get_element(description_index));
-	vehicle_description.remove_at(description_index);
+	if (!get_count()) {
+		// empty slot
+		return to_rear ? v->can_lead(NULL) : v->can_follow(NULL);
+	}
+	uint32 test = vehicle_description.get_count(); //
+	uint32 test2 = get_count(); //
+	for (uint32 i = 0; i < vehicle_description.get_count(); i++) {
+		const vehicle_desc_t *veh_type = vehicle_description[i].specific_vehicle;
+		bool can_connect = to_rear ? v->can_follow(veh_type) : v->can_lead(veh_type);
+		if (!can_connect) return false;
+		if (veh_type) {
+			// must be connectable to each other
+			can_connect = to_rear ? veh_type->can_lead(v) : veh_type->can_follow(v);
+			if (!can_connect) return false;
+		}
+	}
+	return true;
 }
 
 
-void consist_order_t::set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific)
+bool consist_order_element_t::has_same_vehicle(const vehicle_desc_t *v) const
 {
+	for (uint32 i = 0; i < get_count(); i++) {
+		if (vehicle_description[i].specific_vehicle == v) return true;
+	}
+	return false;
+}
+
+void consist_order_t::set_convoy_order(convoihandle_t cnv)
+{
+	orders.clear();
 	if( !cnv.is_bound() ) { return; }
-	if( element_number >= orders.get_count() ) {
-		dbg->warning("consist_order_t::set_convoy_order", "Invalid element_number. elem=%u total_orders=%u", element_number, orders.get_count()); return;
+
+	// similar code in replace_frame_t::set_vehicles()
+	array_tpl<vehicle_t*> veh_tmp_list; // To restore the order of vehicles that are reversing
+	const uint8 vehicle_count = cnv->get_vehicle_count();
+	veh_tmp_list.resize(vehicle_count, NULL);
+	for (uint8 i = 0; i < vehicle_count; i++) {
+		vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), cnv->get_owner(), NULL, cnv->get_vehicle(i)->get_desc());
+		//dummy_veh->set_current_livery(cnv->get_vehicle(i)->get_current_livery()); // Copying liverys schemes is not supported
+		dummy_veh->set_reversed(cnv->get_vehicle(i)->is_reversed());
+		veh_tmp_list[i] = dummy_veh;
+	}
+	// If convoy is reversed, reorder it
+	if (cnv->is_reversed()) {
+		// reverse_order
+		bool reversable = convoi_t::get_terminal_shunt_mode(veh_tmp_list, vehicle_count) == convoi_t::change_direction ? true : false;
+		convoi_t::execute_reverse_order(veh_tmp_list, vehicle_count, reversable);
 	}
 
-	orders[element_number].clear_vehicles();
-	for (uint8 i=0; i < cnv->get_vehicle_count(); i++) {
-		orders[element_number].append_vehicle(cnv->get_vehicle(i)->get_desc(), specific);
+	for (uint8 i=0; i < vehicle_count; i++) {
+		consist_order_element_t new_elem;
+		new_elem.append_vehicle(veh_tmp_list[i]->get_desc());
+		orders.append(new_elem);
 	}
+}
+
+
+PIXVAL consist_order_t::get_constraint_state_color(uint32 element_number, bool rear_side)
+{
+	uint16 vechicle_count = 0;
+	uint16 ok_count = 0;
+	uint16 missing_count = 0;
+
+	for (uint32 i = 0; i<orders[element_number].get_count(); i++) {
+		const vehicle_desc_t *veh_type = orders[element_number].get_vehicle_description(i).specific_vehicle;
+		if (veh_type) {
+			const vehicle_desc_t *next_veh_type = NULL;
+			if ((!rear_side && element_number == 0) || (rear_side && element_number ==orders.get_count()-1)) {
+				vechicle_count++;
+				// edge side constraint
+				// => check can be at tail/head.
+				const uint8 next_constraint_bits = rear_side ? veh_type->get_basic_constraint_next() : veh_type->get_basic_constraint_prev();
+				if (next_constraint_bits & vehicle_desc_t::intermediate_unique) {
+					missing_count++;
+				}
+				else if (rear_side  && (next_constraint_bits & vehicle_desc_t::can_be_tail)) ok_count++;
+				else if (!rear_side && (next_constraint_bits & vehicle_desc_t::can_be_head)) ok_count++;
+			}
+			else {
+				// check next element's vehicles
+				uint32 next_index = rear_side ? element_number + 1: element_number - 1;
+				for (uint32 j = 0; j<orders[next_index].get_count(); j++) {
+					vechicle_count++;
+					next_veh_type = orders[next_index].get_vehicle_description(j).specific_vehicle;
+					if (rear_side && veh_type->can_lead(next_veh_type)) {
+						ok_count++;
+					}
+					if (!rear_side && veh_type->can_follow(next_veh_type)) {
+						ok_count++;
+					}
+				}
+			}
+		}
+	}
+
+	if (!vechicle_count) {
+		return 0; // black
+	}
+	else if (vechicle_count == ok_count) {
+		return COL_SAFETY;
+	}
+	else if (vechicle_count == (ok_count+missing_count)) {
+		return COL_CAUTION;
+	}
+	else if (ok_count>0) {
+		return COL_WARNING;
+	}
+	else if (vechicle_count) {
+		return COL_DANGER;
+	}
+	return 0; // black
 }
 
 

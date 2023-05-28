@@ -16,6 +16,7 @@
 #include "components/gui_combobox.h"
 #include "components/gui_convoy_formation.h"
 #include "components/gui_image.h"
+#include "components/gui_image_list.h"
 #include "components/gui_label.h"
 #include "components/gui_numberinput.h"
 #include "components/gui_schedule_item.h"
@@ -49,6 +50,18 @@ class vehicle_scrollitem_t : public gui_label_t, public gui_scrolled_list_t::scr
 	gui_vehicle_bar_t colorbar, colorbar_edge;
 
 public:
+	static int sort_mode;
+	static bool sortreverse;
+	enum sort_mode_t {
+		by_name = 0,
+		by_own,
+		by_power,
+		by_max_speed,
+		by_intro_date,
+		by_role,
+		SORT_MODES
+	};
+
 	vehicle_scrollitem_t(own_vehicle_t own_veh);
 
 	void draw(scr_coord offset) OVERRIDE;
@@ -62,81 +75,90 @@ public:
 	scr_size get_min_size() const OVERRIDE;
 	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, LINESPACE); }
 
-	//static bool compare(const gui_component_t *a, const gui_component_t *b);
+	static bool compare(const gui_component_t *a, const gui_component_t *b);
 };
 
-// Show vehicle image with 7 parameters that related to the constist order
-class gui_simple_vehicle_spec_t : public gui_aligned_container_t
+
+
+class gui_vehicle_element_list_t : public gui_image_list_t
 {
-	const vehicle_desc_t* veh_type = nullptr;
-	sint8 player_nr=1;
-
 public:
-
-	enum {
-		SPEC_PAYLOADS,
-		SPEC_RANGE,
-		SPEC_POWER,
-		SPEC_TRACTIVE_FORCE,
-		SPEC_BRAKE_FORCE,
-		SPEC_SPEED,
-		SPEC_WEIGHT,
-		SPEC_AXLE_LOAD,
-		SPEC_RUNNING_COST,
-		SPEC_FIXED_COST,
-		SPEC_FUEL_PER_KM,
-		SPEC_STAFF_FACTOR,
-		SPEC_DRIVERS,
-		MAX_VEH_SPECS
-	};
-
-	gui_simple_vehicle_spec_t() { }
-	void set_player_nr(sint8 player_nr) { this->player_nr=player_nr; }
-	void set_vehicle(const vehicle_desc_t* desc) { veh_type = desc; init_table(); }
-	void init_table();
+	gui_vehicle_element_list_t(vector_tpl<image_data_t*> *images) :	gui_image_list_t(images) { }
+	bool infowin_event(event_t const*) OVERRIDE;
 };
 
-
-class gui_vehicle_description_t : public gui_aligned_container_t, private action_listener_t
+class gui_consist_order_shifter_t : public gui_aligned_container_t, private action_listener_t
 {
 	consist_order_t *order;
-	uint32 order_element_index;
-	uint32 description_index;
-	button_t bt_up, bt_down, bt_remove;
-	button_t /*bt_inverse,*/ bt_edit, bt_can_empty;
-	gui_vehicle_bar_t vehicle_bar;
+	uint32 slot_index;
+
+	button_t bt_remove, bt_forward, bt_backward;
 
 public:
-	gui_vehicle_description_t(consist_order_t *order, sint8 player_nr, uint32 order_element_index, uint32 description_index);
-
-	void check_constraint();
+	gui_consist_order_shifter_t(consist_order_t *order, uint32 index);
 
 	bool action_triggered(gui_action_creator_t *comp, value_t) OVERRIDE;
+};
+
+// gui_vehicle_description_element_t
+class gui_vehicle_description_element_t : public gui_aligned_container_t, private action_listener_t
+{
+	consist_order_t *order;
+	uint32 slot_index = 0;
+	waytype_t way_type; // use for grid size and (player favorite) livery scheme
+
+	gui_colorbox_t state_prev, state_next;
+	//button_t bt_can_empty;
+
+	uint32 old_count = 0;
+	vector_tpl<gui_image_list_t::image_data_t*> vde_vec;
+	gui_vehicle_element_list_t vde;
+	void show_vehicle_detail(uint32 index);
+
+	gui_scrollpane_t scrolly;
+
+public:
+	gui_vehicle_description_element_t(consist_order_t *order, uint32 index, waytype_t wt);
+
+	void update();
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	bool action_triggered(gui_action_creator_t *comp, value_t p) OVERRIDE;
+};
+
+
+class gui_consist_order_element_t : public gui_aligned_container_t
+{
+	bool selected;
+public:
+	gui_consist_order_element_t(consist_order_t *order, uint32 index, waytype_t wt, bool selected);
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 
 class cont_order_overview_t : public gui_aligned_container_t
 {
 	consist_order_t *order;
-	sint8 player_nr=-1; // Required for player color in vehicle images
-	uint32 order_element_index = UINT32_MAX_VALUE;
+	waytype_t way_type;
 
 	uint32 old_count=0; // reflesh flag
 
-public:
-	cont_order_overview_t(consist_order_t *order);
+	sint16 selected_index = 0; // target index from consist_order_frame_t
 
-	void set_element(uint32 element_idx, sint8 player_nr) {
-		this->player_nr = player_nr;
-		if (order_element_index != element_idx) {
-			order_element_index = element_idx;
-			init_table();
-		}
-	}
+	cbuffer_t buf;
+
+public:
+	cont_order_overview_t(consist_order_t *order, waytype_t wt);
 
 	void init_table();
 
 	void draw(scr_coord offset) OVERRIDE;
+
+	void set_selected_index(sint16 new_index = 0) {
+		selected_index = new_index;
+		init_table();
+	}
 };
 
 
@@ -157,16 +179,11 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_schedule_entry_number_t halt_number;
 	gui_label_buf_t lb_halt;
 
-	gui_scrolled_list_t scl;
-
-	button_t bt_new, bt_delete;
-
 	// [ORDER]
 	gui_aligned_container_t cont_order;
 	cont_order_overview_t cont_order_overview;
 	gui_scrollpane_t scroll_order;
-	uint32 old_order_count=0;
-	void update_order_list(sint32 reselect_index=-1);
+	uint32 old_order_count = 0;
 
 	// filter (common)
 	uint8 filter_catg=255; // all
@@ -175,14 +192,21 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// [VEHICLE PICKER]
 	const vehicle_desc_t* selected_vehicle = nullptr;
 	slist_tpl<own_vehicle_t> own_vehicles;
+
+	gui_numberinput_t numimp_append_target;
+	gui_combobox_t edit_action_selector;
+	void init_input_value_range();
+	button_t bt_add_vehicle;
+
 	button_t bt_sort_order_veh, bt_show_hide_vehicle_filter, bt_connectable_vehicle_filter;
-	button_t bt_add_vehicle, bt_add_vehicle_limit_vehicle;
+	button_t bt_outdated, bt_obsolete, bt_show_unidirectional;
 	gui_label_t lb_open_vehicle_filter;
-	gui_simple_vehicle_spec_t veh_specs;
 	gui_aligned_container_t cont_picker_frame, cont_vehicle_filter;
+	gui_combobox_t vp_powered_filter, engine_filter, vp_sortedby;
 	gui_scrolled_list_t scl_vehicles;
-	void update_vehicle_info();
 	void build_vehicle_list(); // also update convoy list
+	// Check if the vehicle is filtered by UI options
+	bool is_filtered(const vehicle_desc_t *veh_type);
 
 	// [CONVOY COPIER]
 	convoihandle_t selected_convoy = convoihandle_t();
@@ -190,9 +214,10 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// filter
 	gui_label_t lb_open_convoy_filter;
 	button_t bt_filter_halt_convoy, bt_filter_line_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
+	gui_combobox_t cc_sortedby;
 	gui_aligned_container_t cont_convoy_filter;
 	//
-	button_t bt_sort_order_cnv, bt_copy_convoy, bt_copy_convoy_limit_vehicle, bt_convoy_detail;
+	button_t bt_sort_order_cnv, bt_copy_convoy, bt_convoy_detail;
 	gui_label_buf_t lb_vehicle_count;
 	gui_line_label_t line_label;
 	gui_convoi_images_t img_convoy;
@@ -202,60 +227,30 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_scrolled_list_t scl_convoys;
 	void update_convoy_info();
 
-	// [VEHICLE DESCRIPTION EDITOR]
-	vehicle_description_element new_vdesc_element;
-	uint16 edit_target_index=1;
-	gui_numberinput_t numimp_edit_target;
-	gui_combobox_t edit_action_selector, engine_type_rule;
-	button_t bt_commit, bt_reset_editor;
-	button_t bt_enable_rules[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
-	gui_numberinput_t rules_imp_min[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
-	gui_numberinput_t rules_imp_max[gui_simple_vehicle_spec_t::MAX_VEH_SPECS];
-	gui_aligned_container_t cont_vdesc_editor;
-	gui_scrollpane_t scroll_editor;
-	void set_vehicle_description(vehicle_description_element vdesc = vehicle_description_element())
-	{
-		new_vdesc_element = vdesc; init_editor();
-	}
-	void init_editor();
-
 	gui_tab_panel_t tabs;
 
+	// place the components
 	void init_table();
-	void update();
 
-	// add an empty order to orders
-	void append_new_order();
+	// update components
+	void update();
 
 	void save_order();
 
 public:
-	// Flag for the need to update the UI locally
-	static bool need_reflesh_descriptions;
-	static bool need_reflesh_order_list;
-
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=65535);
 
-	void init(player_t* player, schedule_t *schedule, uint16 unique_entry_id);
-
-	// chenge editor tab and set the description data
-	void open_description_editor(uint8 vdesc_index);
+	void init(schedule_t *schedule, uint16 unique_entry_id);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
-
-	const char * get_help_filename() const OVERRIDE { return "consist_order.txt"; }
-
-	koord3d get_weltpos(bool) OVERRIDE;
-
-	bool is_weltpos() OVERRIDE;
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 
-	void rdwr(loadsave_t *file) OVERRIDE;
+	void open_vehicle_detail(const vehicle_desc_t* veh_type) const;
 
-	uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
+	//uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
 };
 
 #endif

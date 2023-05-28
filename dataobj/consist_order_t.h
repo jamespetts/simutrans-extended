@@ -141,19 +141,6 @@ struct vehicle_description_element
 		prefer_low_staff_hundredths
 	};
 
-	void set_vehicle_spec(const vehicle_desc_t *v)
-	{
-		engine_type  = v->get_engine_type();
-		min_catering = v->get_catering_level();
-		//must_carry_class
-		//min_range
-		min_brake_force = v->get_brake_force();
-		min_power = v->get_power();
-		//min_tractive_effort;
-		min_topspeed = v->get_calibration_speed();
-		min_capacity = v->get_total_capacity();
-	}
-
 	void set_empty(bool yesno) { empty=yesno; }
 
 	bool operator!= (const vehicle_description_element& other) const;
@@ -189,12 +176,12 @@ protected:
 	vector_tpl<vehicle_description_element> vehicle_description;
 
 public:
+	consist_order_element_t() { vehicle_description.clear(); }
+
 	uint32 get_count() const { return vehicle_description.get_count(); }
 
-	void append_vehicle(const vehicle_desc_t *v, bool is_specific=true);
+	void append_vehicle(const vehicle_desc_t *v);
 
-	void append_vehicle_description(vehicle_description_element v_elem) { vehicle_description.append(v_elem); }
-	void insert_vehicle_description_at(uint32 description_index, vehicle_description_element v_elem) { vehicle_description.insert_at(description_index, v_elem); }
 	void remove_vehicle_description_at(uint32 description_index)
 	{
 		if (description_index >= vehicle_description.get_count()) { return; }
@@ -206,12 +193,16 @@ public:
 		vehicle_description.clear();
 	}
 
-	void increment_index(uint32 description_index);
-
 	vehicle_description_element &get_vehicle_description(uint32 description_index)
 	{
 		return vehicle_description.get_element(description_index);
 	}
+
+	// Returns whether the passed vehicle can be connected to the rear or front of this element
+	bool can_connect(const vehicle_desc_t *v, bool to_rear=true) const;
+
+	// True if the vehicle_description has the same vehicles
+	bool has_same_vehicle(const vehicle_desc_t *v) const;
 
 	bool operator!= (const consist_order_element_t& other) const;
 };
@@ -238,8 +229,6 @@ public:
 
 	consist_order_element_t& get_order(uint32 element_number)
 	{
-		assert(element_number < orders.get_count());
-		if (element_number > orders.get_count()) { element_number=0; }
 		return orders[element_number];
 	}
 
@@ -253,6 +242,30 @@ public:
 		return;
 	}
 
+	void insert_at(uint32 pos, consist_order_element_t elem)
+	{
+		if (!get_count() || pos >= get_count()) {
+			orders.append(elem);
+		}
+		else {
+			orders.insert_at(pos, elem);
+		}
+		return;
+	}
+
+	void append_vehicle_at(uint32 element_number, const vehicle_desc_t *v)
+	{
+		if (element_number < orders.get_count()) {
+			orders[element_number].append_vehicle(v);
+		}
+		else {
+			consist_order_element_t new_elem;
+			new_elem.append_vehicle(v);
+			orders.append(new_elem);
+		}
+		return;
+	}
+
 	void remove_order(uint32 element_number)
 	{
 		orders.remove_at(element_number);
@@ -260,8 +273,10 @@ public:
 	}
 
 	// Copy order from specific convoy
-	// specific_vehicle option: restrict specific vehicle or copy required specs.
-	void set_convoy_order(uint32 element_number, convoihandle_t cnv, bool specific_vehicle=true);
+	void set_convoy_order(convoihandle_t cnv);
+
+	// Determine if a combination of vehicles in consecutive order elements is possible
+	PIXVAL get_constraint_state_color(uint32 element_number, bool rear_side = true);
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	const char* sscanf_consist_order(const char* ptr);
