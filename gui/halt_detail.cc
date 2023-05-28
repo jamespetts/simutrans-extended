@@ -54,7 +54,7 @@ halt_detail_t::halt_detail_t(halthandle_t halt_) :
 	nearby_factory(halt_),
 	destinations(halt_, selected_route_catg_index)
 {
-	if (halt.is_bound()) {
+	if (halt.is_bound() && !halt->is_not_enabled()) {
 		init();
 	}
 }
@@ -666,6 +666,10 @@ void halt_detail_t::set_tab_opened()
 
 void halt_detail_t::draw(scr_coord pos, scr_size size)
 {
+	if (halt->is_not_enabled()) {
+		destroy_win( this );
+		return;
+	}
 	update_components();
 	gui_frame_t::draw( pos, size );
 }

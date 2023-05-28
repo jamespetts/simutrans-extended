@@ -155,9 +155,38 @@ public:
 
 	/**
 	 * Appends a straight line to the @p target.
-	 * Will return fals if fails
+	 * Will return false if fails
+	 * Used for airplanes
 	 */
 	bool append_straight_route( karte_t *w, koord3d target);
+
+protected:
+	/**
+	 * Appends a straight line to the @p target, but only if it's mostly ocean.
+	 * If it encounters a run of land less than or equal to num, stop at the last ocean tile and return the
+	 * first water after the gap in gap_end.  A run of land more than num results in failure.
+	 */
+	route_result_t append_straight_route_mostly_ocean( karte_t* w, koord3d target, sint32 num, koord3d& gap_end, bool is_tall = false);
+
+	/**
+	 * Attempts to assemble an ocean route based on making a straight line, and
+	 * doing "detours" around short stretches of land.
+	 * Returns true if fully successful, false if not.
+	 */
+	route_result_t assemble_ocean_route( karte_t* w, koord3d target, test_driver_t* tdriver, sint32 max_speed = 0, bool is_tall = false);
+
+	/**
+	 * Clear this route, then fill this route from a "reversed" route by using the same tiles
+	 * in the opposite order.
+   */
+	void assign_from_reversed_route(const route_t& input);
+
+public:
+	/**
+	 * Tries the ocean route in both directions.
+	 * Returns a route_result_t value.
+	 */
+	route_result_t calc_ocean_route( karte_t* w, koord3d start, koord3d end, test_driver_t* tdriver, sint32 max_speed = 0, bool is_tall = false);
 
 	/**
 	 * Finds route to a location, where @p tdriver->is_target becomes true.

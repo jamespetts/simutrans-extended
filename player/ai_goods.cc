@@ -659,7 +659,7 @@ bool ai_goods_t::create_simple_rail_transport()
 		// ensure is land
 		grund_t* bd = welt->lookup_kartenboden(k);
 		if (bd->get_typ() == grund_t::wasser) {
-			welt->set_water_hgt(k, bd->get_hoehe()-1);
+			welt->set_water_hgt_nocheck(k, bd->get_hoehe()-1);
 			welt->access(k)->correct_water();
 			welt->set_climate(k, c, true);
 		}
@@ -679,7 +679,7 @@ bool ai_goods_t::create_simple_rail_transport()
 		// ensure is land
 		grund_t* bd = welt->lookup_kartenboden(k);
 		if (bd->get_typ() == grund_t::wasser) {
-			welt->set_water_hgt(k, bd->get_hoehe()-1);
+			welt->set_water_hgt_nocheck(k, bd->get_hoehe()-1);
 			welt->access(k)->correct_water();
 			welt->set_climate(k, c, true);
 		}

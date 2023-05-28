@@ -83,6 +83,7 @@ void route_t::remove_koord_to(uint32 i)
 	}
 }
 
+
 /**
  * Appends a straight line from the last koord3d in route to the desired target.
  * Will return false if failed
@@ -118,6 +119,228 @@ bool route_t::append_straight_route(karte_t *welt, koord3d dest )
 }
 
 
+/**
+ * Attempts a straight line by sea from the last koord3d in route to the desired target.
+ * If it encounters land, stops appending at the land, but keeps following the line across land to the next point of water,
+ * if the amount of land is less than or equal to num, and returns that in gap_end.
+ * This is designed as an assist to create a straight line which detours around small peninsulas.
+ *
+ * Will return valid_route if it got a PARTIAL or complete route,
+ * route_too_complex if there's too much land in the way,
+ * no_route if it failed completely for other reasons such as no water tile start or end,
+ * no_route or route_too_complex if the attempts to patch around land gaps returned that.
+ * Check for partial routes by checking the value of gap_end, which is koord3d::invalid if we didn't span a gap
+ *
+ * Checks for low bridges if is_tall is true.
+ */
+route_t::route_result_t route_t::append_straight_route_mostly_ocean(karte_t *welt, koord3d dest, sint32 num, koord3d& gap_end, bool is_tall)
+{
+	gap_end = koord3d::invalid; // default return if there is no gap found
+
+	const koord dest_2d=dest.get_2d();
+	koord pos = back().get_2d();
+
+	if(  !welt->is_within_limits(dest_2d)  ) {
+		return no_route;
+	}
+
+	// Must start and end on water.
+	const grund_t* start_gr = welt->lookup_kartenboden(pos);
+	if (  !start_gr || !start_gr->is_water()  ) {
+		return no_route;
+	}
+	const grund_t* end_gr = welt->lookup_kartenboden(dest_2d);
+	if (  !end_gr || !end_gr->is_water()  ) {
+		return no_route;
+	}
+
+	sint32 land_count = 0;
+	bool land_started_flag = false;
+	bool land_ended_flag = false;
+	koord last_water_before_land = koord::invalid;
+	koord first_water_after_land = koord::invalid;
+
+	// then try to calculate direct route
+	route.resize( route.get_count()+koord_distance(pos,dest_2d)+2 );
+	DBG_DEBUG("route_t::append_straight_route_mostly_ocean()","start from (%i,%i) to (%i,%i)",pos.x,pos.y,dest.x,dest.y);
+	while(  pos != dest_2d  ) {
+		// shortest way
+		if(abs(pos.x-dest_2d.x)>=abs(pos.y-dest_2d.y)) {
+			pos.x += (pos.x>dest_2d.x) ? -1 : 1;
+		}
+		else {
+			pos.y += (pos.y>dest_2d.y) ? -1 : 1;
+		}
+		if(!welt->is_within_limits(pos)) {
+			// Should not happen
+			return no_route;
+		}
+		const grund_t* gr = welt->lookup_kartenboden(pos);
+
+		bool water = gr->is_water();
+		// For tall ships, treat low bridges like land.
+		if (is_tall && gr->is_height_restricted()) {
+			water = false;
+		}
+		if (  !water && land_count>=num ) {
+			// Too much land.
+		  DBG_DEBUG("route_t::append_straight_route_mostly_ocean()","Too much land at (%i, %i)",pos.x,pos.y);
+			return route_too_complex;
+		} else if (  !water && !land_started_flag  ) {
+			// Start of land.
+			land_started_flag = true;
+			last_water_before_land = back().get_2d();
+			land_count++;
+		} else if (  !water  ) {
+			// More land.
+			land_count++;
+		} else if (  water && land_started_flag ) {
+			// We've passed the land gap.  Return with that information and a partial route.
+			gap_end = gr->get_pos();
+			return valid_route;
+		} else if (  water  ) {
+			route.append(gr->get_pos());
+		}
+	}
+	// Normal exit from loop means complete success.
+	return valid_route;
+}
+
+
+/**
+ * Attempt to assemble an ocean route.
+ *
+ * Will try a straight line and attempt to span gaps of up to 2048 tiles with the regular route finder.
+ * 1024 tiles diagonal is about 90 km in pak128.britain, 128 km on the straight.
+ * The regular routefinder usually fails for ships at around 60-80 km, so this should work it about as hard
+ * as it can reasonably be asked to go.
+ */
+route_t::route_result_t route_t::assemble_ocean_route(karte_t* welt, const koord3d dest, test_driver_t* tdriver, sint32 max_speed, bool is_tall)
+{
+	const koord dest_2d=dest.get_2d();
+	koord pos = back().get_2d();
+
+	if(  !welt->is_within_limits(dest_2d)  ) {
+		return no_route;
+	}
+	// Must start and end on water.
+	const grund_t* start_gr = welt->lookup_kartenboden(pos);
+	if (  !start_gr || !start_gr->is_water()  ) {
+		return no_route;
+	}
+	const grund_t* end_gr = welt->lookup_kartenboden(dest_2d);
+	if (  !end_gr || !end_gr->is_water()  ) {
+		return no_route;
+	}
+	DBG_DEBUG("route_t::assemble_ocean_route","Target is %s", dest.get_str() );
+
+	koord3d gap_end;
+	while(  back().get_2d() != dest_2d  ) {
+		// Try the straight route, with land gap of up to 1024 tiles.
+		// This is about as far as the regular routefinder can find around, and maybe slightly further.
+		//
+		// Note that this will fail if the straight line has sea, land, lake, land, sea.  Oh well.
+		// It's still an improvement.
+		DBG_DEBUG("route_t::assemble_ocean_route","searching straight from %s", back().get_str());
+		route_t::route_result_t main_result = append_straight_route_mostly_ocean(welt, dest, 1024, gap_end, is_tall);
+		DBG_DEBUG("route_t::assemble_ocean_route","finished straight-line search at %s", back().get_str());
+		// Did we run into land?
+		if (main_result == valid_route && gap_end != koord3d::invalid) {
+			route_t detour;
+			DBG_DEBUG("route_t::assemble_ocean_route","searching from %s", back().get_str());
+			DBG_DEBUG("route_t::assemble_ocean_route","finding detour to %s", gap_end.get_str());
+			// It's remarkably easy to get the arguments scrambled on this
+			// Note we have to use simple_cost to avoid dividing by zero max speed
+			// We make a lot of assumptions!
+			find_route_flags flags = none;
+			if (max_speed == 0) {
+				// Necessary to avoid divide-by-zero errors
+				flags = simple_cost;
+			}
+			route_result_t detour_result = detour.intern_calc_route(welt, back(), gap_end, tdriver,
+				max_speed, SINT64_MAX_VALUE /* max cost, MUST BE HIGH */, 0 /* axle load */, 0 /* convoy weight */,
+				is_tall, 0 /* tile_length */, koord3d::invalid /* avoid_tile */, ribi_t::all /* start_dir */,
+				flags);
+			if (detour_result != route_t::valid_route && detour_result != route_t::valid_route_halt_too_short) {
+				DBG_DEBUG("route_t::assemble_ocean_route","did not find detour, route length %i", detour.get_count());
+				// Did not find detour around land.  Give up.
+				return detour_result;
+			}
+			DBG_DEBUG("assemble_ocean_route","found detour");
+			// This is supposed to avoid duplicating the last/first tile:
+			append(&detour);
+			// And cycle back to the top of the loop
+		} else if (main_result == valid_route && back().get_2d() == dest_2d) {
+			// We have arrived
+			DBG_DEBUG("assemble_ocean_route","found destination on straight line path");
+			return valid_route;
+		} else if (main_result == valid_route) {
+			// Should never happen
+			dbg->error("assemble_ocean_route","impossible code path triggered");
+		} else {
+			// Not at destination and no gap found... failed.
+			// This probably means there was too much land found in append_straight_route_mostly_ocean.
+			DBG_DEBUG("assemble_ocean_route","failed to find destination with straight line, last tile %s", back().get_str());
+			return main_result;
+		}
+	}
+	// Clean loop exit: The final detour got us to our destination
+	return valid_route;
+}
+
+
+/**
+ *  First clear this route, then fill it from a "reversed" route,
+ *  using the same tiles in the opposite order.
+ *
+ *  Since most routes are slightly asymmetrical this should be used with caution,
+ *  but it's used by the ocean routefinder (calc_ocean_route) to avoid duplicating code
+ *  for the two possible "straight line" paths.
+ *
+ *  Caller needs to supply an allocated route_t to fill as output (this avoids allocation issues).
+ */
+void route_t::assign_from_reversed_route(const route_t& input) {
+	clear();
+	const koord3d_vector_t& input_vector = input.get_route();
+	for (int i = input_vector.get_count() - 1; i >= 0 ; i--) {
+		append(input_vector[i]);
+	}
+}
+
+
+/**
+ * Attempt to assemble an ocean route two ways.
+ * If the "straight line" forwards (diagonal, then straight) doesn't work,
+ * try the straight line backwards (straight, then diagonal)
+ */
+route_t::route_result_t route_t::calc_ocean_route(karte_t* welt, const koord3d start, const koord3d end, test_driver_t* tdriver, sint32 max_speed, bool is_tall)
+{
+	clear();
+	append(start);
+	// This does straight then diagonal
+	route_t::route_result_t forward_result = assemble_ocean_route(welt, end, tdriver, max_speed, is_tall);
+	if (forward_result == route_t::valid_route) {
+		return route_t::valid_route;
+	}
+	// Try running the route backwards; there's an asymmetry
+	// (so this will do diagonal then straight, often very different)
+	route_t reversed;
+	reversed.clear();
+	reversed.append(end);
+	route_t::route_result_t reverse_result = reversed.assemble_ocean_route(welt, start, tdriver, max_speed, is_tall);
+	if (reverse_result == route_t::valid_route) {
+	// Reverse the route.
+		assign_from_reversed_route(reversed);
+		return route_t::valid_route;
+	}
+	// No luck either way.  Distinguish between no_route and too_complex.
+	route.clear();
+	if (forward_result == route_too_complex || reverse_result == route_too_complex) {
+		return route_too_complex;
+	} else {
+		return no_route;
+	}
+}
 
 // node arrays
 thread_local uint32 route_t::MAX_STEP=0;
