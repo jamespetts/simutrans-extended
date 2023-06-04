@@ -369,6 +369,12 @@ const char *dr_query_fontpath(int which)
 	static char buffer[PATH_MAX];
 #ifdef _WIN32
 	if(  which>0  ) {
+		if (!which) {
+			// Build full font file path
+			CHAR winDir[MAX_PATH];
+			GetWindowsDirectoryA(winDir, MAX_PATH);
+			strcat(winDir, "\\Fonts\\");
+		}
 		return NULL;
 	}
 
@@ -458,6 +464,77 @@ const char *dr_query_fontpath(int which)
 	return NULL;
 #endif
 }
+
+
+
+std::string dr_get_system_font()
+{
+#if COLOUR_DEPTH != 0
+#ifdef WIN32
+#define DEFAULT_FONT "arial.ttf"
+
+	NONCLIENTMETRICS ncm;
+	ncm.cbSize = sizeof(NONCLIENTMETRICS);
+	SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncm, 0);
+	std::wstring faceName(ncm.lfMessageFont.lfFaceName);
+	const LPWSTR fontRegistryPath = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
+	HKEY hKey;
+	LONG result;
+	std::wstring wsFaceName(faceName.begin(), faceName.end());
+	// Open Windows font registry key
+	result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, fontRegistryPath, 0, KEY_READ, &hKey);
+	if (result != ERROR_SUCCESS) {
+		return "";
+	}
+	DWORD maxValueNameSize, maxValueDataSize;
+	result = RegQueryInfoKeyW(hKey, 0, 0, 0, 0, 0, 0, 0, &maxValueNameSize, &maxValueDataSize, 0, 0);
+	if (result != ERROR_SUCCESS) {
+		return "";
+	}
+	DWORD valueIndex = 0;
+	LPWSTR valueName = new WCHAR[maxValueNameSize];
+	LPBYTE valueData = new BYTE[maxValueDataSize];
+	DWORD valueNameSize, valueDataSize, valueType;
+	std::wstring wsFontFile;
+	// Look for a matching font name
+	do {
+		wsFontFile.clear();
+		valueDataSize = maxValueDataSize;
+		valueNameSize = maxValueNameSize;
+		result = RegEnumValueW(hKey, valueIndex, valueName, &valueNameSize, 0, &valueType, valueData, &valueDataSize);
+		valueIndex++;
+		if (result != ERROR_SUCCESS || valueType != REG_SZ) {
+			continue;
+		}
+		std::wstring wsValueName(valueName, valueNameSize);
+		// Found a match
+		if (_wcsnicmp(wsFaceName.c_str(), wsValueName.c_str(), wsFaceName.length()) == 0) {
+			wsFontFile.assign((LPWSTR)valueData, valueDataSize);
+			break;
+		}
+	} while (result != ERROR_NO_MORE_ITEMS);
+	delete[] valueName;
+	delete[] valueData;
+	RegCloseKey(hKey);
+	if (wsFontFile.empty()) {
+		return "";
+	}
+	// Build full font file path
+	CHAR winDir[MAX_PATH];
+	GetWindowsDirectoryA(winDir, MAX_PATH);
+	strcat(winDir, "\\Fonts\\");
+	return (std::string)winDir + std::string(wsFontFile.begin(), wsFontFile.end());
+#elif defined(ANDROID)
+	std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
+	return fontname;
+#else
+	return FONT_PATH_X "cyr.bdf";
+#endif
+#else
+	return "";
+#endif
+}
+
 
 
 /* this retrieves the 2 byte string for the default language
