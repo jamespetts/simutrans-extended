@@ -160,8 +160,9 @@ private:
 	bool mark_way_for_upgrade_only;
 
 	/**
-	* If set, the way builder will not build crossings over
-	* ways other than unowned and fully degraded ways.
+	* If set, the way builder will not build crossings except:
+	* fords over non-navigable rivers,
+	* and crossings over ways which are both unowned and fully degraded.
 	*/
 	bool forbid_crossings = false;
 
