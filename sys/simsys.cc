@@ -116,21 +116,9 @@ char const PATH_SEPARATOR[] = "/";
 
 
 
-/**
- * Get Mouse X-Position
- */
-int get_mouse_x()
+scr_coord get_mouse_pos()
 {
-	return sys_event.mx;
-}
-
-
-/**
- * Get Mouse y-Position
- */
-int get_mouse_y()
-{
-	return sys_event.my;
+	return { sys_event.mx, sys_event.my };
 }
 
 

@@ -99,8 +99,8 @@ public:
 		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, fac_desc->get_color(), false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
 
-		if (link_item  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
-			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h, translator::translate(link_item->get_name()), this);
+		if (link_item  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
+			win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h, translator::translate(link_item->get_name()), this);
 		}
 	}
 

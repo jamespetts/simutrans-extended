@@ -112,11 +112,11 @@ void gui_image_t::draw( scr_coord offset ) {
 			display_base_img( id, pos.x+offset.x+remove_offset.x+padding.w, pos.y+offset.y+remove_offset.y+padding.h, (sint8)player_nr, false, true );
 		}
 
-		if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+		if (tooltip  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
 			const scr_coord_val by = offset.y + pos.y;
 			const scr_coord_val bh = size.h;
 
-			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+			win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
 		}
 	}
 }

@@ -147,11 +147,11 @@ void gui_label_t::draw(scr_coord offset)
 		display_proportional_ellipsis_rgb( area, text,  a | DT_CLIP| ALIGN_CENTER_V, color, true, shadowed, color_shadow, underlined );
 	}
 
-	if ( tooltip  &&  getroffen(get_mouse_x()-offset.x, get_mouse_y()-offset.y) ) {
+	if ( tooltip  &&  getroffen(get_mouse_pos().x-offset.x, get_mouse_pos().y-offset.y) ) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
 	}
 }
 
@@ -250,11 +250,11 @@ void gui_label_updown_t::draw(scr_coord offset)
 		display_proportional_ellipsis_rgb(area, text, a | DT_CLIP, color, true);
 	}
 
-	if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+	if (tooltip  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
 	}
 }
 
@@ -283,11 +283,11 @@ void gui_data_bar_t::draw(scr_coord offset)
 	const scr_rect area(offset + pos, size);
 	display_proportional_ellipsis_rgb(area, text, ALIGN_RIGHT | DT_CLIP, color, true);
 
-	if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+	if (tooltip  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
 	}
 }
 
@@ -304,11 +304,11 @@ void gui_heading_t::draw(scr_coord offset)
 	if (text) {
 		display_heading_rgb(pos.x + offset.x, pos.y + offset.y, get_size().w, get_size().h, text_color, frame_color, text, true, style);
 	}
-	if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+	if (tooltip  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
 	}
 }
 

@@ -2833,8 +2833,8 @@ void display_color_img(const image_id n, scr_coord_val xp, scr_coord_val yp, sin
 void display_color_img_with_tooltip(const image_id n, scr_coord_val xp, scr_coord_val yp, sint8 player_nr_raw, const int daynight, const int dirty, const char *text  CLIP_NUM_DEF_NOUSE)
 {
 	display_color_img(n, xp, yp, player_nr_raw, daynight, dirty);
-	if (text && n < anz_images && ( xp <= get_mouse_x() && yp <= get_mouse_y() && (xp+ images[n].w) > get_mouse_x() && (yp+ images[n].h) > get_mouse_y())) {
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + images[n].y + images[n].h + TOOLTIP_MOUSE_OFFSET_Y/2 + D_V_SPACE, text);
+	if (text && n < anz_images && ( xp <= get_mouse_pos().x && yp <= get_mouse_pos().y && (xp+ images[n].w) > get_mouse_pos().x && (yp+ images[n].h) > get_mouse_pos().y)) {
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + images[n].y + images[n].h + TOOLTIP_MOUSE_OFFSET_Y/2 + D_V_SPACE, text);
 	}
 }
 
@@ -3694,8 +3694,8 @@ void display_colorbox_with_tooltip(scr_coord_val xp, scr_coord_val yp, scr_coord
 	//display_fb_internal(xp+1, yp+1, w-2, h-2, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
 	display_fillbox_wh_clip_rgb(xp + 1, yp + 1, w - 2, h - 2, color, dirty);
 	if (text) {
-		if (text && (xp <= get_mouse_x() && yp <= get_mouse_y() && (xp + w) > get_mouse_x() && (yp + h) > get_mouse_y())) {
-			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + h + h / 2 + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE, text);
+		if (text && (xp <= get_mouse_pos().x && yp <= get_mouse_pos().y && (xp + w) > get_mouse_pos().x && (yp + h) > get_mouse_pos().y)) {
+			win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + h + h / 2 + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE, text);
 		}
 	}
 }

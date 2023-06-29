@@ -36,11 +36,11 @@ gui_convoy_access_arrow_t::gui_convoy_access_arrow_t(convoihandle_t cnv_)
 
 void gui_convoy_access_arrow_t::draw(scr_coord offset)
 {
-	if (getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
+	if (getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
+		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
 	}
 	gui_aligned_container_t::draw(offset);
 }

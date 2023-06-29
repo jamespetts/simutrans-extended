@@ -169,8 +169,7 @@ void set_pointer(int loading);
 
 bool move_pointer(int x, int y);
 
-int get_mouse_x();
-int get_mouse_y();
+scr_coord get_mouse_pos();
 
 void ex_ord_update_mx_my();
 

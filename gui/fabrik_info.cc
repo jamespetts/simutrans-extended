@@ -247,7 +247,7 @@ void fabrik_info_t::draw(scr_coord pos, scr_size size)
 
 	display_ddd_box_clip_rgb(pos.x + view.get_pos().x, top + view.get_size().h, view.get_size().w, D_INDICATOR_HEIGHT + 2, color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4));
 	// tooltip for staffing_bar
-	if (abs((int)(pos.x + view.get_pos().x + view.get_size().h/2 - get_mouse_x())) < view.get_size().h/2 && abs((int)(top + view.get_size().h + (D_INDICATOR_HEIGHT+2)/2 - get_mouse_y())) < (D_INDICATOR_HEIGHT+2)/2) {
+	if (abs((int)(pos.x + view.get_pos().x + view.get_size().h/2 - get_mouse_pos().x)) < view.get_size().h/2 && abs((int)(top + view.get_size().h + (D_INDICATOR_HEIGHT+2)/2 - get_mouse_pos().y)) < (D_INDICATOR_HEIGHT+2)/2) {
 		prod_buf.append(translator::translate("staffing_bar_tooltip_help"));
 		win_set_tooltip(pos.x + view.get_pos().x, top + view.get_size().h + D_INDICATOR_HEIGHT + 2, prod_buf);
 		prod_buf.clear();
