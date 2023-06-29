@@ -89,8 +89,8 @@ bool gui_scrollpane_map_t::infowin_event(event_t const* ev)
 		int y = get_scroll_y();
 		const int scroll_direction = (env_t::scroll_multi > 0 ? 1 : -1);
 
-		x += (ev->mx - ev->cx) * scroll_direction * 2;
-		y += (ev->my - ev->cy) * scroll_direction * 2;
+		x += (ev->mouse_pos.x - ev->click_pos.x) * scroll_direction * 2;
+		y += (ev->mouse_pos.y - ev->click_pos.y) * scroll_direction * 2;
 
 		is_dragging = true;
 
@@ -98,8 +98,8 @@ bool gui_scrollpane_map_t::infowin_event(event_t const* ev)
 #if 0
 		// Move the mouse pointer back to starting location
 		// To prevent a infinite mouse event loop, we just do it when needed.
-		if ((ev->mx - ev->cx) != 0 || (ev->my - ev->cy) != 0) {
-			move_pointer(map_frame_t::screenpos.x + ev->cx, map_frame_t::screenpos.y + ev->cy);
+		if ((ev->mouse_pos.x - ev->click_pos.x) != 0 || (ev->mouse_pos.y - ev->click_pos.y) != 0) {
+			move_pointer(map_frame_t::screenpos.x + ev->click_pos.x, map_frame_t::screenpos.y + ev->click_pos.y);
 		}
 #endif
 		return true;

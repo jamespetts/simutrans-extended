@@ -206,7 +206,7 @@ bool gui_transfer_line_t::infowin_event(const event_t *ev)
 	bool swallowed = gui_aligned_container_t::infowin_event(ev);
 
 	//access line info
-	if (!swallowed  &&  ev->my > 0 && ev->my < size.h &&  line.is_bound()) {
+	if (!swallowed  &&  ev->mouse_pos.y > 0 && ev->mouse_pos.y < size.h &&  line.is_bound()) {
 		if ( IS_LEFTRELEASE(ev) ) {
 		}
 		return false;

@@ -232,17 +232,17 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 				DBG_DEBUG4("modal_dialogue", "calling win_poll_event");
 				win_poll_event(&ev);
 
-				x = ev.mx;
-				y = ev.my;
+				x = ev.mouse_pos.x;
+				y = ev.mouse_pos.y;
 				win_clamp_xywh_position(x, y, scr_size(1, 1), false );
-				ev.mx = x;
-				ev.my = y;
+				ev.mouse_pos.x = x;
+				ev.mouse_pos.y = y;
 
-				x = ev.cx;
-				y = ev.cy;
+				x = ev.click_pos.x;
+				y = ev.click_pos.y;
 				win_clamp_xywh_position(x, y, scr_size(1, 1), false);
-				ev.cx = x;
-				ev.cy = y;
+				ev.click_pos.x = x;
+				ev.click_pos.y = y;
 
 				if(  ev.ev_class == EVENT_KEYBOARD  &&  ev.ev_code == SIM_KEY_F1  ) {
 					if(  gui_frame_t *win = win_get_top()  ) {

@@ -30,7 +30,7 @@ gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
  */
 bool gui_image_list_t::infowin_event(const event_t *ev)
 {
-	int sel_index = index_at(scr_coord(0,0)-pos, ev->mx, ev->my);
+	int sel_index = index_at(scr_coord(0,0)-pos, ev->mouse_pos.x, ev->mouse_pos.y);
 	if(  sel_index != -1  &&  (IS_LEFTCLICK(ev)  ||  IS_LEFTDBLCLK(ev))  ) {
 		value_t p;
 		p.i = sel_index;

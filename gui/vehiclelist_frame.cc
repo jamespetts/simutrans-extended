@@ -312,7 +312,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 bool vehiclelist_stats_t::infowin_event(const event_t *ev)
 {
-	if(  IS_LEFTRELEASE(ev)  &&  getroffen(ev->mx+pos.x, ev->my+pos.y) ) {
+	if(  IS_LEFTRELEASE(ev)  &&  getroffen(ev->mouse_pos.x+pos.x, ev->mouse_pos.y+pos.y) ) {
 		vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
 		if (!win) {
 			create_win(new vehicle_detail_t(veh), w_info, magic_vehicle_detail);

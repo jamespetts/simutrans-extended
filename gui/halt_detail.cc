@@ -1052,7 +1052,7 @@ void gui_halt_nearby_factory_info_t::draw(scr_coord offset)
 
 bool gui_halt_nearby_factory_info_t::infowin_event(const event_t * ev)
 {
-	const unsigned int line = (ev->cy) / (LINESPACE + 1);
+	const unsigned int line = (ev->click_pos.y) / (LINESPACE + 1);
 	line_selected = 0xFFFFFFFFu;
 	if (line >= halt->get_fab_list().get_count()) {
 		return false;
@@ -1067,7 +1067,7 @@ bool gui_halt_nearby_factory_info_t::infowin_event(const event_t * ev)
 	}
 
 	if (IS_LEFTRELEASE(ev)) {
-		if (ev->cx > 0 && ev->cx < 15) {
+		if (ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 			welt->get_viewport()->change_world_position(fab_pos);
 		}
 		else {
@@ -1461,7 +1461,7 @@ void gui_halt_route_info_t::build_halt_list(uint8 catg_index, uint8 g_class, boo
 bool gui_halt_route_info_t::infowin_event(const event_t * ev)
 {
 	if (!station_display_mode) {
-		const unsigned int line = (ev->cy) / (LINESPACE + 1);
+		const unsigned int line = (ev->click_pos.y) / (LINESPACE + 1);
 		line_selected = 0xFFFFFFFFu;
 		if (line >= halt_list.get_count()) {
 			return false;
@@ -1475,7 +1475,7 @@ bool gui_halt_route_info_t::infowin_event(const event_t * ev)
 		}
 
 		if (IS_LEFTRELEASE(ev)) {
-			if (ev->cx > 0 && ev->cx < 15) {
+			if (ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 				welt->get_viewport()->change_world_position(halt_pos);
 			}
 			else if (IS_SHIFT_PRESSED(ev)) {

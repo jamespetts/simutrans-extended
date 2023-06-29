@@ -2236,7 +2236,7 @@ bool gui_convoy_assembler_t::infowin_event(const event_t *ev)
 {
 	bool swallowed = gui_aligned_container_t::infowin_event(ev);
 
-	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen(ev->cx, ev->cy-16)) {
+	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen(ev->click_pos.x, ev->click_pos.y-16)) {
 	//	// close combo box; we must do it ourselves, since the box does not recieve outside events ...
 	//	action_selector.close_box();
 	//	return true;

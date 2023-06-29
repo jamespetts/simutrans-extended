@@ -137,8 +137,8 @@ bool city_location_map_t::infowin_event(const event_t *ev)
 {
 	if (ev->ev_code == MOUSE_LEFTBUTTON) {
 		const koord p = koord(
-			(ev->mx * world()->get_size().x) / (size.w),
-			(ev->my * world()->get_size().y) / (size.h));
+			(ev->mouse_pos.x * world()->get_size().x) / (size.w),
+			(ev->mouse_pos.y * world()->get_size().y) / (size.h));
 		world()->get_viewport()->change_world_position(p);
 	}
 	return false;

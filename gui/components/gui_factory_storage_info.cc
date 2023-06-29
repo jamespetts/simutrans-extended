@@ -279,7 +279,7 @@ gui_factory_connection_stat_t::gui_factory_connection_stat_t(fabrik_t *factory, 
 
 bool gui_factory_connection_stat_t::infowin_event(const event_t * ev)
 {
-	const unsigned int line = (ev->cy) / (LINESPACE + 1);
+	const unsigned int line = (ev->click_pos.y) / (LINESPACE + 1);
 	line_selected = 0xFFFFFFFFu;
 	if (line >= fab_list.get_count()) {
 		return false;
@@ -292,12 +292,12 @@ bool gui_factory_connection_stat_t::infowin_event(const event_t * ev)
 	const koord3d target_pos = target_fab->get_pos();
 
 	// un-press goto button
-	if (ev->button_state > 0 && ev->cx > 0 && ev->cx < 15) {
+	if (ev->button_state > 0 && ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 		line_selected = line;
 	}
 
 	if (IS_LEFTRELEASE(ev)) {
-		if (ev->cx > 0 && ev->cx < 15) {
+		if (ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 			welt->get_viewport()->change_world_position(target_pos);
 		}
 		else {
@@ -542,7 +542,7 @@ gui_factory_nearby_halt_info_t::gui_factory_nearby_halt_info_t(fabrik_t *factory
 
 bool gui_factory_nearby_halt_info_t::infowin_event(const event_t * ev)
 {
-	const unsigned int line = (ev->cy) / (LINESPACE + 1);
+	const unsigned int line = (ev->click_pos.y) / (LINESPACE + 1);
 	line_selected = 0xFFFFFFFFu;
 	if (line >= halt_list.get_count()) {
 		return false;
@@ -556,7 +556,7 @@ bool gui_factory_nearby_halt_info_t::infowin_event(const event_t * ev)
 	}
 
 	if (IS_LEFTRELEASE(ev)) {
-		if (ev->cx > 0 && ev->cx < 15) {
+		if (ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 			welt->get_viewport()->change_world_position(halt_pos);
 		}
 		else {

@@ -393,7 +393,7 @@ bool gui_chart_t::infowin_event(const event_t *ev)
 {
 	if(ev->button_state==1) {
 		// tooptip to show?
-		tooltipcoord = scr_coord(ev->mx,ev->my);
+		tooltipcoord = scr_coord(ev->mouse_pos.x,ev->mouse_pos.y);
 	}
 	else {
 		tooltipcoord = scr_coord::invalid;

@@ -1638,7 +1638,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 
 bool convoi_detail_t::infowin_event(const event_t *ev)
 {
-	if (cnv.is_bound() && formation.getroffen(ev->cx - formation.get_pos().x, ev->cy - D_TITLEBAR_HEIGHT  - scrollx_formation.get_pos().y)) {
+	if (cnv.is_bound() && formation.getroffen(ev->click_pos.x - formation.get_pos().x, ev->click_pos.y - D_TITLEBAR_HEIGHT  - scrollx_formation.get_pos().y)) {
 		if (IS_LEFTRELEASE(ev)) {
 			cnv->show_info();
 			return true;

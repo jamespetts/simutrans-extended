@@ -1464,7 +1464,7 @@ void minimap_t::invalidate_map_lines_cache()
 // handle event
 bool minimap_t::infowin_event(const event_t *ev)
 {
-	scr_coord c( ev->mx, ev->my );
+	scr_coord c( ev->mouse_pos.x, ev->mouse_pos.y );
 	koord k = screen_to_map_coord(c);
 
 	// get factory under mouse cursor

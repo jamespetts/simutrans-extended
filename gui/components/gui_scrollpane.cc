@@ -143,17 +143,17 @@ scr_size gui_scrollpane_t::request_size(scr_size request)
 bool gui_scrollpane_t::infowin_event(const event_t *ev)
 {
 	bool swallow = false;
-	if(   (b_show_scroll_y  &&  scroll_y.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_y.getroffen(ev->mx, ev->my) || scroll_y.getroffen(ev->cx, ev->cy)) ) {
+	if(   (b_show_scroll_y  &&  scroll_y.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_y.getroffen(ev->mouse_pos.x, ev->mouse_pos.y) || scroll_y.getroffen(ev->click_pos.x, ev->click_pos.y)) ) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_y.get_pos());
 		return scroll_y.infowin_event(&ev2);
 	}
-	else if(  (b_show_scroll_x  &&  scroll_x.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_x.getroffen(ev->mx, ev->my) || scroll_x.getroffen(ev->cx, ev->cy))) {
+	else if(  (b_show_scroll_x  &&  scroll_x.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_x.getroffen(ev->mouse_pos.x, ev->mouse_pos.y) || scroll_x.getroffen(ev->click_pos.x, ev->click_pos.y))) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_x.get_pos());
 		return scroll_x.infowin_event(&ev2);
 	}
-	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mx>=0 &&  ev->my>=0  &&  ev->mx<=size.w  &&  ev->my<=size.h)  ) {
+	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mouse_pos.x>=0 &&  ev->mouse_pos.y>=0  &&  ev->mouse_pos.x<=size.w  &&  ev->mouse_pos.y<=size.h)  ) {
 		// since we get can grab the focus to get keyboard events, we must make sure to handle mouse events only if we are hit
 
 		// translate according to scrolled position
