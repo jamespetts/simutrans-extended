@@ -96,7 +96,7 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 void vehiclelist_stats_t::draw( scr_coord offset )
 {
 	// show tooltip
-	if (getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
+	if (getroffen(get_mouse_pos() - offset)) {
 		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, get_mouse_pos().y + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
 	}
 
@@ -312,7 +312,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 bool vehiclelist_stats_t::infowin_event(const event_t *ev)
 {
-	if(  IS_LEFTRELEASE(ev)  &&  getroffen(ev->mouse_pos.x+pos.x, ev->mouse_pos.y+pos.y) ) {
+	if(  IS_LEFTRELEASE(ev)  &&  getroffen( ev->mouse_pos+pos )  ) {
 		vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
 		if (!win) {
 			create_win(new vehicle_detail_t(veh), w_info, magic_vehicle_detail);

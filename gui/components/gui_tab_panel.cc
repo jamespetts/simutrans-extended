@@ -114,12 +114,12 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 {
 	if(  (required_size.w>size.w  ||  offset_tab > 0)  &&  ev->ev_class!=EVENT_KEYBOARD  &&  ev->ev_code==MOUSE_LEFTBUTTON  ) {
 		// buttons pressed
-		if(  left.getroffen(ev->click_pos.x, ev->click_pos.y)  ) {
+		if(  left.getroffen( ev->click_pos)  ) {
 			event_t ev2 = *ev;
 			ev2.move_origin(left.get_pos());
 			return left.infowin_event(&ev2);
 		}
-		else if(  right.getroffen(ev->click_pos.x, ev->click_pos.y)  ) {
+		else if(  right.getroffen( ev->click_pos)  ) {
 			event_t ev2 = *ev;
 			ev2.move_origin(right.get_pos());
 			return right.infowin_event(&ev2);
@@ -163,7 +163,7 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 		}
 	}
 
-	if(  ev->ev_class == EVENT_KEYBOARD  ||  DOES_WINDOW_CHILDREN_NEED(ev)  ||  get_aktives_tab()->getroffen(ev->mouse_pos.x, ev->mouse_pos.y)  ||  get_aktives_tab()->getroffen(ev->click_pos.x, ev->click_pos.y)) {
+	if(  ev->ev_class == EVENT_KEYBOARD  ||  DOES_WINDOW_CHILDREN_NEED(ev)  ||  get_aktives_tab()->getroffen(ev->mouse_pos)  ||  get_aktives_tab()->getroffen( ev->click_pos)) {
 		// active tab was hit
 		event_t ev2 = *ev;
 		ev2.move_origin(get_aktives_tab()->get_pos());

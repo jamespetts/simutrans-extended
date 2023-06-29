@@ -36,7 +36,7 @@ gui_convoy_access_arrow_t::gui_convoy_access_arrow_t(convoihandle_t cnv_)
 
 void gui_convoy_access_arrow_t::draw(scr_coord offset)
 {
-	if (getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
+	if (getroffen(get_mouse_pos() - offset)) {
 		const scr_coord_val by = offset.y + pos.y;
 		const scr_coord_val bh = size.h;
 

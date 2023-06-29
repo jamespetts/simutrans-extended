@@ -132,6 +132,7 @@ void button_t::set_typ(enum type t)
 			b_no_translate = false;
 			break;
 		}
+
 		case depot:
 		{
 			b_no_translate = false;
@@ -272,9 +273,9 @@ void button_t::set_tooltip(const char * t)
 }
 
 
-bool button_t::getroffen(int x,int y)
+bool button_t::getroffen(scr_coord p)
 {
-	bool hit=gui_component_t::getroffen(x, y);
+	bool hit=gui_component_t::getroffen(p);
 	if(  pressed  &&  !hit  &&  ( (type & STATE_BIT) == 0)  ) {
 		// moved away
 		pressed = 0;
@@ -491,7 +492,7 @@ void button_t::draw(scr_coord offset)
 					tooltip = "hl_btn_sort_asc";
 				}
 
-				if(  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)  ) {
+				if(  getroffen(get_mouse_pos() - offset)  ) {
 					translated_tooltip = translator::translate(tooltip);
 				}
 			}
@@ -577,7 +578,7 @@ void button_t::draw(scr_coord offset)
 		default: ;
 	}
 
-	if(  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)  ) {
+	if(  getroffen(get_mouse_pos() - offset)  ) {
 		win_set_tooltip( get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, area.get_bottom() + TOOLTIP_MOUSE_OFFSET_Y, translated_tooltip, this);
 	}
 }

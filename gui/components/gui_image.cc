@@ -112,7 +112,7 @@ void gui_image_t::draw( scr_coord offset ) {
 			display_base_img( id, pos.x+offset.x+remove_offset.x+padding.w, pos.y+offset.y+remove_offset.y+padding.h, (sint8)player_nr, false, true );
 		}
 
-		if (tooltip  &&  getroffen(get_mouse_pos().x - offset.x, get_mouse_pos().y - offset.y)) {
+		if (tooltip  &&  getroffen(get_mouse_pos() - offset)) {
 			const scr_coord_val by = offset.y + pos.y;
 			const scr_coord_val bh = size.h;
 

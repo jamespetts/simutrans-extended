@@ -2236,7 +2236,7 @@ bool gui_convoy_assembler_t::infowin_event(const event_t *ev)
 {
 	bool swallowed = gui_aligned_container_t::infowin_event(ev);
 
-	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen(ev->click_pos.x, ev->click_pos.y-16)) {
+	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen( ev->click_pos-16)) {
 	//	// close combo box; we must do it ourselves, since the box does not recieve outside events ...
 	//	action_selector.close_box();
 	//	return true;
@@ -2313,7 +2313,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		tile_occupancy.set_base_convoy_length(0,0);
 	}
 
-	if(  (sel_index != -1)  &&  (tabs.getroffen(x - pos.x, y - pos.y)) ) {
+	if(  (sel_index != -1)  &&  (tabs.getroffen(get_mouse_pos() - pos)) ) {
 		// cursor over a vehicle in the selection list
 		const vector_tpl<gui_image_list_t::image_data_t*>& vec = (lst == &electrics ? electrics_vec : (lst == &pas ? pas_vec : (lst == &pas2 ? pas2_vec : (lst == &locos ? locos_vec : waggons_vec))));
 		veh_type = vehicle_builder_t::get_info(vec[sel_index]->text);
