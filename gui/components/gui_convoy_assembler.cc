@@ -2292,8 +2292,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		tab == &scrolly_electrics ? &electrics :
 		tab == &scrolly_locos     ? &locos     :
 		&waggons;
-	int x = get_mouse_pos().x;
-	int y = get_mouse_pos().y;
+	const scr_coord mouse_pos = get_mouse_pos();
 
 	//double resale_value = -1.0;
 	const vehicle_desc_t *veh_type = NULL;
@@ -2302,7 +2301,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	uint16 selected_livery_index= livery_scheme_index;
 	uint32 resale_value = UINT32_MAX_VALUE;
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
-	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, x, y - tabs.get_required_size().h);
+	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, mouse_pos.x, mouse_pos.y - tabs.get_required_size().h);
 
 	int vehicle_fluctuation = 0;
 	// init convoy/station tile count
@@ -2477,7 +2476,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		relpos = scr_coord(scrollx_convoi.get_scroll_x(), 0);
 
 		//sel_index = convoi.index_at(pos, x, y);
-		convoi_number = sel_index = convoi.index_at(pos - relpos + scrollx_convoi.get_pos(), x, y);
+		convoi_number = sel_index = convoi.index_at(pos - relpos + scrollx_convoi.get_pos(), mouse_pos.x, mouse_pos.y);
 		if(  sel_index != -1  ) {
 			if (depot_frame)
 			{
