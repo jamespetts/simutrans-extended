@@ -1392,7 +1392,7 @@ void move_win(int win, event_t *ev)
 		wl->set_background_dirty();
 	}
 
-	change_drag_start( delta.x, delta.y );
+	change_drag_start( delta );
 }
 
 
