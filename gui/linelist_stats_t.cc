@@ -154,7 +154,7 @@ void gui_line_label_t::draw(scr_coord offset)
 
 	if (getroffen(get_mouse_pos() - offset)) {
 		if( tooltip_buf ) {
-			win_set_tooltip(offset.x + pos.x + size.w - 2, offset.y + pos.y + size.h - 2, tooltip_buf, this);
+			win_set_tooltip(offset + pos + size - scr_coord(2,2), tooltip_buf, this);
 		}
 	}
 

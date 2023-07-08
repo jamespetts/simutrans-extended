@@ -97,7 +97,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 {
 	// show tooltip
 	if (getroffen(get_mouse_pos() - offset)) {
-		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, get_mouse_pos().y + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
+		win_set_tooltip(get_mouse_pos() + TOOLTIP_MOUSE_OFFSET, tooltip_buf, this);
 	}
 
 	const uint32 month = world()->get_current_month();

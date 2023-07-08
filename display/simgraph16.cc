@@ -2834,7 +2834,8 @@ void display_color_img_with_tooltip(const image_id n, scr_coord_val xp, scr_coor
 {
 	display_color_img(n, xp, yp, player_nr_raw, daynight, dirty);
 	if (text && n < anz_images && ( xp <= get_mouse_pos().x && yp <= get_mouse_pos().y && (xp+ images[n].w) > get_mouse_pos().x && (yp+ images[n].h) > get_mouse_pos().y)) {
-		win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + images[n].y + images[n].h + TOOLTIP_MOUSE_OFFSET_Y/2 + D_V_SPACE, text);
+		const scr_coord tooltip_pos{ get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + images[n].y + images[n].h + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE };
+		win_set_tooltip(tooltip_pos, text);
 	}
 }
 
@@ -3695,7 +3696,8 @@ void display_colorbox_with_tooltip(scr_coord_val xp, scr_coord_val yp, scr_coord
 	display_fillbox_wh_clip_rgb(xp + 1, yp + 1, w - 2, h - 2, color, dirty);
 	if (text) {
 		if (text && (xp <= get_mouse_pos().x && yp <= get_mouse_pos().y && (xp + w) > get_mouse_pos().x && (yp + h) > get_mouse_pos().y)) {
-			win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + h + h / 2 + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE, text);
+			const scr_coord tooltip_pos{ get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X + D_H_SPACE, yp + h + h / 2 + TOOLTIP_MOUSE_OFFSET_Y / 2 + D_V_SPACE };
+			win_set_tooltip(tooltip_pos, text);
 		}
 	}
 }

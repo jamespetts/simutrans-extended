@@ -100,7 +100,8 @@ public:
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
 
 		if (link_item  &&  getroffen(get_mouse_pos() - offset)) {
-			win_set_tooltip(get_mouse_pos().x + TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h, translator::translate(link_item->get_name()), this);
+			const scr_coord tooltip_pos{ get_mouse_pos().x+ TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h };
+			win_set_tooltip(tooltip_pos, translator::translate(link_item->get_name()), this);
 		}
 	}
 
