@@ -748,7 +748,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_attractions  ) {
 		curiositylist_frame_t *win = dynamic_cast<curiositylist_frame_t*>( win_get_magic(magic_curiositylist) );
 		if (!win) {
-			create_win(-1, -1, new curiositylist_frame_t(city), w_info, magic_curiositylist);
+			create_win({ -1, -1 }, new curiositylist_frame_t(city), w_info, magic_curiositylist);
 		}
 		else {
 			win->set_cityfilter(city);
@@ -759,7 +759,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_factories  ) {
 		factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>( win_get_magic(magic_factorylist) );
 		if (!win) {
-			create_win(-1, -1, new factorylist_frame_t(city), w_info, magic_factorylist);
+			create_win({ -1, -1 }, new factorylist_frame_t(city), w_info, magic_factorylist);
 		}
 		else {
 			win->set_cityfilter(city);
@@ -770,7 +770,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_stops  ) {
 		halt_list_frame_t *win = dynamic_cast<halt_list_frame_t*>( win_get_magic( magic_halt_list + 1/* public player*/ ) );
 		if (!win) {
-			create_win(-1, -1, new halt_list_frame_t(city), w_info, magic_halt_list+1/* public player*/);
+			create_win({ -1, -1 }, new halt_list_frame_t(city), w_info, magic_halt_list + 1/* public player*/);
 		}
 		else {
 			win->set_cityfilter(city);

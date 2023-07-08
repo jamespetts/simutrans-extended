@@ -961,7 +961,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 
 	// details?
 	if(  comp == &details_button  ) {
-		create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail+cnv.get_id() );
+		create_win({ 20, 20 }, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());
 		return true;
 	}
 
@@ -989,7 +989,7 @@ bool convoi_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		}
 
 		if(  comp == &replace_button  )	{
-			create_win(20, 20, new replace_frame_t(cnv), w_info, magic_replace + cnv.get_id() );
+			create_win({ 20, 20 }, new replace_frame_t(cnv), w_info, magic_replace + cnv.get_id());
 			return true;
 		}
 

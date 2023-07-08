@@ -173,7 +173,7 @@ bool gui_transfer_line_t::action_triggered(gui_action_creator_t *comp, value_t)
 	if( comp==&bt_access_minimap ) {
 		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		if (!win) {
-			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			create_win({ -1, -1 }, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
 		win->activate_individual_network_mode(transfer_pos);

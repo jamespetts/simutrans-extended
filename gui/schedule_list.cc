@@ -671,7 +671,7 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 	else if (  comp==&bt_access_minimap  ) {
 		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		if (!win) {
-			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			create_win({ -1, -1 }, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
 		win->activate_individual_network_mode(origin_halt.is_bound() ? origin_halt->get_basis_pos() : koord::invalid);
@@ -685,12 +685,12 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		return true;
 	}
 	else if (comp == &bt_replace && line.is_bound() && line->count_convoys()) {
-		create_win(20, 20, new replace_frame_t(line), w_info, magic_replace_line + line.get_id());
+		create_win({ 20, 20 }, new replace_frame_t(line), w_info, magic_replace_line + line.get_id());
 		return true;
 	}
 	else if (comp == &bt_line_color_editor && line.is_bound()) {
 		destroy_win( magic_line_color_gui_t );
-		create_win(20, 20, new line_color_gui_t(line), w_info, magic_line_color_gui_t);
+		create_win({ 20, 20 }, new line_color_gui_t(line), w_info, magic_line_color_gui_t);
 		return true;
 	}
 	else if (comp == &sortedby) {

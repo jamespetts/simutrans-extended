@@ -578,7 +578,7 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		if (new_dialog_pos_x >= display_get_width()) {
 			new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
 		}
-		create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
+		create_win({ new_dialog_pos_x, get_pos().y }, new factory_legend_t(this), w_info, magic_factory_legend);
 	}
 	else if(comp==zoom_buttons+1) {
 		// zoom out
@@ -809,7 +809,7 @@ void map_frame_t::rdwr( loadsave_t *file )
 			if (new_dialog_pos_x >= display_get_width()) {
 				new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
 			}
-			create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
+			create_win({ new_dialog_pos_x, get_pos().y }, new factory_legend_t(this), w_info, magic_factory_legend);
 		}
 	}
 }

@@ -306,7 +306,7 @@ void log_t::fatal(const char *who, const char *format, ...)
 		scr_coord xy( display_get_width()/2 - sel->get_windowsize().w/2, display_get_height()/2 - sel->get_windowsize().h/2 );
 		event_t ev;
 
-		create_win( xy.x, xy.y, sel, w_info, magic_none );
+		create_win( xy, sel, w_info, magic_none );
 
 		while(win_is_top(sel)) {
 			// do not move, do not close it!

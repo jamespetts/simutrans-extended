@@ -114,7 +114,7 @@ public:
 		if (IS_RIGHTRELEASE(ev)) {
 			factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
 			if (!win) {
-				create_win(-1, -1, new factorylist_frame_t(), w_info, magic_factorylist);
+				create_win({ -1, -1 }, new factorylist_frame_t(), w_info, magic_factorylist);
 				win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
 			}
 			win->set_text_filter( translator::translate(fac_desc->get_name()) );

@@ -3587,7 +3587,7 @@ void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended, 
 		 !(tool_in->get_id()==(TOOL_CHANGE_PLAYER|SIMPLE_TOOL)  ||  tool_in->get_id()==(TOOL_ADD_MESSAGE | GENERAL_TOOL))  &&
 		 player  &&  player->is_locked()  ) {
 		// player is currently password protected => request unlock first
-		create_win( -1, -1, new password_frame_t(player), w_info, magic_pwd_t + player->get_player_nr() );
+		create_win(new password_frame_t(player), w_info, magic_pwd_t + player->get_player_nr() );
 		return;
 	}
 	tool_in->flags |= event_get_last_control_shift();
@@ -10298,7 +10298,8 @@ void karte_t::remove_player(uint8 player_nr)
 			active_player_nr = 0;
 			active_player = players[0];
 			if(  !env_t::server  ) {
-				create_win( display_get_width()/2-128, 40, new news_img("Bankrott:\n\nDu bist bankrott.\n"), w_info, magic_none);
+				const scr_coord pos{ display_get_width()/2-128, 40 };
+				create_win( pos, new news_img("Bankrott:\n\nDu bist bankrott.\n"), w_info, magic_none);
 			}
 		}
 	}
@@ -11122,7 +11123,7 @@ void karte_t::network_disconnect()
 	step_mode = NORMAL;
 	reset_timer();
 	clear_command_queue();
-	create_win( display_get_width()/2-128, 40, new news_img("Lost synchronisation\nwith server."), w_info, magic_none);
+	create_win({ display_get_width()/2-128, 40 }, new news_img("Lost synchronisation\nwith server."), w_info, magic_none);
 	ticker::add_msg( translator::translate("Lost synchronisation\nwith server."), koord::invalid, SYSCOL_TEXT );
 	last_active_player_nr = active_player_nr;
 	set_pause(true);

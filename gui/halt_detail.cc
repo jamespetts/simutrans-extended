@@ -524,7 +524,7 @@ bool halt_detail_t::action_triggered( gui_action_creator_t *comp, value_t /*extr
 	else if (comp == &bt_access_minimap) {
 		map_frame_t *win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		if (!win) {
-			create_win(-1, -1, new map_frame_t(), w_info, magic_reliefmap);
+			create_win({ -1, -1 }, new map_frame_t(), w_info, magic_reliefmap);
 			win = dynamic_cast<map_frame_t*>(win_get_magic(magic_reliefmap));
 		}
 		win->set_halt(halt);
@@ -692,7 +692,7 @@ void halt_detail_t::rdwr(loadsave_t *file)
 		// now we can open the window ...
 		scr_coord const& pos = win_get_pos(this);
 		halt_detail_t *w = new halt_detail_t(halt);
-		create_win(pos.x, pos.y, w, w_info, magic_halt_detail + halt.get_id());
+		create_win(pos, w, w_info, magic_halt_detail + halt.get_id());
 		w->set_windowsize( size );
 		w->tabs.set_active_tab_index(selected_tab);
 		destroy_win( this );
