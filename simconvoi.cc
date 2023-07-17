@@ -6244,7 +6244,7 @@ void convoi_t::destroy()
 	owner->book_new_vehicle( calc_sale_value(), get_pos().get_2d(), wt);
 
 	for(  uint8 i = vehicle_count;  i-- != 0;  ) {
-		if(  !vehicle[i]->get_flag( obj_t::not_on_map )  ) {
+		if(  !vehicle[i]->get_flag( obj_t::not_on_map ) && !world()->is_destroying() ) {
 			// remove from rails/roads/crossings
 			grund_t *gr = welt->lookup(vehicle[i]->get_pos());
 			vehicle[i]->set_last( true );

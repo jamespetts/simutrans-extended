@@ -1940,6 +1940,7 @@
     <ClCompile Include="descriptor\vehicle_desc.cc" />
     <ClCompile Include="descriptor\way_desc.cc" />
     <ClCompile Include="gui\pier_rotation_select.cc" />
+    <ClCompile Include="gui\vehicle_detail.cc" />
     <ClCompile Include="io\classify_file.cc" />
     <ClCompile Include="io\raw_image.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
@@ -2618,6 +2619,7 @@
     <ClInclude Include="gui\slim_obj_info.h" />
     <ClInclude Include="gui\privatesign_info.h" />
     <ClInclude Include="gui\scenario_info.h" />
+    <ClInclude Include="gui\vehicle_detail.h" />
     <ClInclude Include="gui\water_info.h" />
     <ClInclude Include="gui\server_frame.h" />
     <ClInclude Include="gui\signal_connector_gui.h" />

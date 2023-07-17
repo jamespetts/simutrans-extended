@@ -3303,6 +3303,8 @@ stations
 停留所/駅
 Status:
 状態:
+Status filter(count):
+状態別フィルター(該当数)：
 Stops potentially within walking distance:
 徒歩で移動可能な駅/停留所:
 That would exceed\nyour credit limit.
@@ -3473,6 +3475,8 @@ Upgrade price:
 改造/更新費:
 upgradeable_vehicles
 改造/更新可能な車両
+upgrade_only
+改造専用
 Usage: %u %%
 電力使用率 %u %%
 Use any vehicles already present in the depot, if available, instead of buying new ones or upgrading.

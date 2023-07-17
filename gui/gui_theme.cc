@@ -79,11 +79,16 @@ PIXVAL gui_theme_t::gui_color_table_background;
 PIXVAL gui_theme_t::gui_color_table_header_border;
 PIXVAL gui_theme_t::gui_color_table_cell_border;
 PIXVAL gui_theme_t::gui_color_table_background_head_row;
+PIXVAL gui_theme_t::gui_color_table_background_head_selected;
 PIXVAL gui_theme_t::gui_color_table_background_left_col;
 PIXVAL gui_theme_t::gui_color_table_background_data_sum;
 PIXVAL gui_theme_t::gui_color_table_background_data;
+PIXVAL gui_theme_t::gui_color_table_background_highlight;
+PIXVAL gui_theme_t::gui_color_table_background_selected;
 PIXVAL gui_theme_t::gui_color_text_head_row;
+PIXVAL gui_theme_t::gui_color_text_head_selected;
 PIXVAL gui_theme_t::gui_color_text_left_col;
+PIXVAL gui_theme_t::gui_color_text_table_cell_selected;
 
 
 /**
@@ -228,11 +233,16 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_table_header_border          = gui_highlight_color;
 	gui_color_table_cell_border            = gui_color_statusbar_divider;
 	gui_color_table_background_head_row    = gui_color_statusbar_background;
+	gui_color_table_background_head_selected = color_idx_to_rgb(COL_LIGHT_BLUE);
 	gui_color_table_background_left_col    = gui_color_ticker_background;
 	gui_color_table_background_data_sum    = color_idx_to_rgb(COL_GREY5);
 	gui_color_table_background_data        = color_idx_to_rgb(COL_WHITE);
+	gui_color_table_background_highlight   = 57141; // cream
+	gui_color_table_background_selected    = 30107; // light skyblue
 	gui_color_text_head_row                = color_idx_to_rgb(COL_WHITE);
+	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_left_col                = gui_color_statusbar_text;
+	gui_color_text_table_cell_selected     = gui_color_colored_button_text_selected;
 
 
 	env_t::gui_player_color_bright = 4;
@@ -637,11 +647,16 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_table_header_border          = (PIXVAL)contents.get_color("gui_color_table_header_border", SYSCOL_TH_BORDER);
 	gui_theme_t::gui_color_table_cell_border            = (PIXVAL)contents.get_color("gui_color_table_cell_border", SYSCOL_TD_BORDER);
 	gui_theme_t::gui_color_table_background_head_row    = (PIXVAL)contents.get_color("gui_color_table_background_head_row", SYSCOL_TH_BACKGROUND_TOP);
+	gui_theme_t::gui_color_table_background_head_selected = (PIXVAL)contents.get_color("gui_color_table_background_head_selected", SYSCOL_TH_BACKGROUND_SELECTED);
 	gui_theme_t::gui_color_table_background_left_col    = (PIXVAL)contents.get_color("gui_color_table_background_left_col", SYSCOL_TH_BACKGROUND_LEFT);
 	gui_theme_t::gui_color_table_background_data_sum    = (PIXVAL)contents.get_color("gui_color_table_background_data_sum", SYSCOL_TD_BACKGROUND_SUM);
 	gui_theme_t::gui_color_table_background_data        = (PIXVAL)contents.get_color("gui_color_table_background_data", SYSCOL_TD_BACKGROUND);
+	gui_theme_t::gui_color_table_background_highlight   = (PIXVAL)contents.get_color("gui_color_table_background_highlight", SYSCOL_TD_BACKGROUND_HIGHLIGHT);
+	gui_theme_t::gui_color_table_background_selected    = (PIXVAL)contents.get_color("gui_color_table_background_selected", SYSCOL_TR_BACKGROUND_SELECTED);
 	gui_theme_t::gui_color_text_head_row                = (PIXVAL)contents.get_color("gui_color_text_head_row", SYSCOL_TH_TEXT_TOP);
+	gui_theme_t::gui_color_text_head_selected           = (PIXVAL)contents.get_color("gui_color_text_head_selected", SYSCOL_TH_TEXT_SELECTED);
 	gui_theme_t::gui_color_text_left_col                = (PIXVAL)contents.get_color("gui_color_text_left_col", SYSCOL_TH_TEXT_LEFT);
+	gui_theme_t::gui_color_text_table_cell_selected     = (PIXVAL)contents.get_color("gui_color_text_table_cell_selected", SYSCOL_TD_TEXT_SELECTED);
 
 
 	gui_theme_t::gui_waitingbar_width = (uint32)contents.get_int("gui_waitingbar_width", gui_theme_t::gui_waitingbar_width);

@@ -8,6 +8,7 @@
 #include "../network/checksum.h"
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
+#include "../gui/gui_theme.h"
 
 uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
@@ -385,6 +386,21 @@ uint8 vehicle_desc_t::get_auto_connection_vehicle_count(bool rear_side) const
 	return cnt;
 }
 
+PIXVAL vehicle_desc_t::get_vehicle_status_color() const
+{
+	const uint32 month = world()->get_current_month();
+	if (is_future(month)) {
+		return color_idx_to_rgb(MN_GREY0);
+	}
+	else if (is_obsolete(month)) {
+		return SYSCOL_OBSOLETE;
+	}
+	else if (is_retired(month)) {
+		return SYSCOL_OUT_OF_PRODUCTION;
+	}
+	return COL_SAFETY;
+}
+
 
 void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 {
@@ -473,6 +489,16 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 		}
 	}
 	return upgrade_state;
+}
+
+bool vehicle_desc_t::has_upgrade_to(const vehicle_desc_t *v) const
+{
+	for (uint8 i = 0; i < upgrades; i++) {
+		if (v == get_child<vehicle_desc_t>(get_add_to_node() + trailer_count + leader_count + i)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 uint8 vehicle_desc_t::get_min_accommodation_class() const

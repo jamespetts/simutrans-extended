@@ -602,6 +602,9 @@ public:
 	// 1 = near future, 2 = already available
 	uint8 has_available_upgrade(const uint16 month_now) const;
 
+	// Returns whether upgrades are available for the passed vehicle
+	bool has_upgrade_to(const vehicle_desc_t *v) const;
+
 	bool can_follow_any() const { return trailer_count==0; }
 
 	uint8 get_number_of_classes() const { return classes; }
@@ -795,6 +798,10 @@ public:
 	// return basic coupling constraint flags
 	uint8 get_basic_constraint_next(bool reversed = false) const { return reversed ? basic_constraint_prev : basic_constraint_next; }
 	uint8 get_basic_constraint_prev(bool reversed = false) const { return reversed ? basic_constraint_next : basic_constraint_prev; }
+
+	// returns status color by TIMELINE.
+	// does not consider is_available_only_as_upgrade because it is a different framework than the timeline
+	PIXVAL get_vehicle_status_color() const;
 
 	float32e8_t get_air_resistance() const { return air_resistance; }
 	float32e8_t get_rolling_resistance() const { return rolling_resistance; }

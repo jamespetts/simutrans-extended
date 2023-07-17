@@ -6528,3 +6528,13 @@ line_has_multiple_traction_types
 The line has multiple traction types
 helptxt_warning_replacing_line_has_multiple_traction_types
 Because this line has vehicles of different traction types, only those with a matching type to the replacement vehicles will be replaced. 
+show_name
+Name
+show_side_view
+Image
+engine_type
+Traction type
+TF_
+Tractive effort
+curb_weight
+Weight
