@@ -138,6 +138,12 @@ char *tooltip_with_price_and_distance(const char * tip, sint64 price, uint32 dis
 // TODO: merge this into building_layout defined in simcity.cc
 static int const building_layout[] = { 0, 0, 1, 4, 2, 0, 5, 1, 3, 7, 1, 0, 6, 3, 2, 0 };
 
+// Convert 'neighbours' indices to SENW bits
+static int const neighbours_to_senw[] = { 0x0c, 0x08, 0x09, 0x01, 0x03, 0x02, 0x06, 0x04 };
+
+// Which are the 'neighbours' to a diagonal?
+static int const neighbours_of_diag[] = { 4, 8, 1, 8, 1, 2, 4, 2 };
+
 /**
  * Creates a tooltip from tip text and money value
  */
@@ -7900,20 +7906,7 @@ const char *tool_build_house_t::work( player_t *player, koord3d pos )
 	else if(  default_param[2]=='A'  ) {
 		if(  desc->get_type()!=building_desc_t::attraction_land  &&  desc->get_type()!=building_desc_t::attraction_city  ) {
 			// auto rotation only valid for city buildings
-			int streetdir = 0;
-			for(  int i = 1;  i < 8;  i+=2  ) {
-				grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
-				if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
-					// update directions - note this is SENW, conversion from neighbours to SENW is
-					// neighbours SENW
-					// 3          0
-					// 5          1
-					// 7          2
-					// 1          3
-					streetdir += (1 << (((i-3)/2)&3));
-				}
-			}
-			rotation = building_layout[streetdir];
+                        rotation = welt->find_nearest_city(k)->get_best_layout(desc, k);
 		}
 		else {
 			rotation = simrand(desc->get_all_layouts(), "const char *tool_build_house_t::work");
@@ -8028,8 +8021,6 @@ const char *tool_build_land_chain_t::work( player_t *player, koord3d pos )
 	}
 	else if(  default_param[2]=='A'  ) {
 		int streetdir = 0;
-                // Convert 'neighbors' indices to SENW bits
-                static int const neighbours_to_senw[] = { 0x0c, 0x08, 0x09, 0x01, 0x03, 0x02, 0x06, 0x04 };
 		for(  int i = 1;  i < 8;  i+=2  ) {
 			grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
 			if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
@@ -8220,21 +8211,18 @@ const char *tool_build_factory_t::work( player_t *player, koord3d pos )
 	}
 	else if(  default_param[2]=='A'  ) {
 		int streetdir = 0;
-                // Convert 'neighbors' indices to SENW bits
-		static int const neighbours_to_senw[] = { 0x0c, 0x08, 0x09, 0x01, 0x03, 0x02, 0x06, 0x04 };
-                static int const neighbours_to_diag[] = { 4, 8, 1, 8, 1, 2, 4, 2 };
 		for(  int i = 1;  i < 8;  i+=2  ) {
 			grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
 			if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
                           streetdir |= neighbours_to_senw[i];
 			}
 		}
-                if (streetdir == 0) { // No adjacent streets; check diagonally
+                if (streetdir == 0) { // No adjacent streets; check diagonally and conform building to closest street
                   for(  int i = 0;  i < 8;  i+=2  ) {
                     grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
                     if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  gr2->get_weg(road_wt) != NULL  ) {
                       int ribi_ns = ((int)gr2->get_weg_ribi_unmasked(road_wt) & 0x05) ? 1 : 0;
-                      streetdir |= neighbours_to_diag[ i + ribi_ns ];
+                      streetdir |= neighbours_of_diag[ i + ribi_ns ];
                     }
                   }
                 }

@@ -392,7 +392,6 @@ private:
 	// Subroutines for build_city_building and renovate_city_buiding
 	// @author neroden
 	const gebaeude_t* get_citybuilding_at(const koord k) const;
-	int get_best_layout(const building_desc_t* h, const koord & k) const;
 	void get_available_building_size(const koord k, vector_tpl<koord> &sizes) const;
 	gebaeude_t* check_tiles_height(gebaeude_t* building, koord pos, uint8 layout, bool map_generation);
 
@@ -463,6 +462,8 @@ public:
 	* ordered for multithreaded loading.
 	*/
 	void add_gebaeude_to_stadt(gebaeude_t *gb, bool ordered = false, bool do_not_add_to_world_list = false, bool do_not_update_stats = false);
+
+	int get_best_layout(const building_desc_t* h, const koord & k) const;
 
 	static bool compare_gebaeude_pos(const gebaeude_t* a, const gebaeude_t* b)
 	{
