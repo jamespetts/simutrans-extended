@@ -7,6 +7,9 @@
 #define SIMCOLOR_H
 
 
+#include "simtypes.h"
+
+
 #define LIGHT_COUNT         (15)
 #define SPECIAL_COLOR_COUNT (224)
 
@@ -240,5 +243,12 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define MAP_COL_OVERCROWDED COL_PURPLE
 #define MAP_COL_NOROUTE     COL_RED+3
 #define MAP_COL_UNAVAILABLE COL_DARK_RED
+
+
+struct rgb888_t
+{
+	uint8 r, g, b;
+};
+
 
 #endif

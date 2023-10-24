@@ -2014,12 +2014,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		int *c = contents.get_ints( str );
 		if( c[ 0 ] >= 6 ) {
 			// now update RGB values
-			for( int j = 0; j < 3; j++ ) {
-				display_day_lights[ i * 3 + j ] = c[ j + 1 ];
-			}
-			for( int j = 0; j < 3; j++ ) {
-				display_night_lights[ i * 3 + j ] = c[ j + 4 ];
-			}
+			display_day_lights[i].r = c[0];
+			display_day_lights[i].g = c[1];
+			display_day_lights[i].b = c[2];
+			display_night_lights[i].r = c[3];
+			display_night_lights[i].g = c[4];
+			display_night_lights[i].b = c[5];
 		}
 		delete[] c;
 	}
