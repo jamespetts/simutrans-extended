@@ -505,7 +505,7 @@ void karte_t::destroy()
 		visitor_targets[i].clear();
 	}
 
-	uint32 max_display_progress = 256+stadt.get_count()*10 + haltestelle_t::get_alle_haltestellen().get_count() + convoi_array.get_count() + (cached_size.x*cached_size.y)*2;
+	uint32 max_display_progress = 256+cities.get_count()*10 + haltestelle_t::get_alle_haltestellen().get_count() + convoi_array.get_count() + (cached_size.x*cached_size.y)*2;
 	uint32 old_progress = 0;
 
 	loadingscreen_t ls( translator::translate("Destroying map ..."), max_display_progress, true );
@@ -569,8 +569,8 @@ void karte_t::destroy()
 	// delete towns first (will also delete all their houses)
 	// for the next game we need to remember the desired number ...
 	sint32 const no_of_cities = settings.get_city_count();
-	for(  uint32 i=0;  !stadt.empty();  i++  ) {
-		remove_city(stadt.front());
+	for(  uint32 i=0;  !cities.empty();  i++  ) {
+		remove_city(cities.front());
 		old_progress += 10;
 		if(  (i&0x00F) == 0  ) {
 			ls.set_progress( old_progress );
@@ -668,13 +668,13 @@ void karte_t::rem_convoi(convoihandle_t const &cnv)
 void karte_t::add_city(stadt_t *s)
 {
 	settings.set_city_count(settings.get_city_count() + 1);
-	stadt.append(s, s->get_einwohner());
+	cities.append(s, s->get_einwohner());
 }
 
 
 bool karte_t::remove_city(stadt_t *s)
 {
-	if(s == NULL  ||  stadt.empty()) {
+	if(s == NULL  || cities.empty()) {
 		// no town there to delete ...
 		return false;
 	}
@@ -683,7 +683,7 @@ bool karte_t::remove_city(stadt_t *s)
 	if(s->get_name()) {
 		DBG_MESSAGE("karte_t::remove_city()", "%s", s->get_name());
 	}
-	stadt.remove(s);
+	cities.remove(s);
 	DBG_DEBUG4("karte_t::remove_city()", "reduce city to %i", settings.get_city_count() - 1);
 	settings.set_city_count(settings.get_city_count() - 1);
 
@@ -886,7 +886,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 	dbg->message("simmain()","Creating cities ...");
 	DBG_DEBUG("karte_t::distribute_groundobjs_cities()", "prepare cities sizes");
 
-	const sint32 city_population_target_count = stadt.empty() ? new_city_count : new_city_count + stadt.get_count() + 1;
+	const sint32 city_population_target_count = cities.empty() ? new_city_count : new_city_count + cities.get_count() + 1;
 
 	vector_tpl<sint32> city_population(city_population_target_count);
 	sint32 median_population = abs(sets->get_mean_citizen_count());
@@ -933,12 +933,12 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		if (pos) {
 			delete pos;
 		}
-		settings.set_city_count(stadt.get_count()); // new number of towns (if we did not find enough positions)
+		settings.set_city_count(cities.get_count()); // new number of towns (if we did not find enough positions)
 		return;
 	}
 	// Extra indentation here is to allow for better diff files; it used to be in a block
 
-	const sint32 old_city_count = stadt.get_count();
+	const sint32 old_city_count = cities.get_count();
 	if (pos->get_count() < new_city_count) {
 		new_city_count = pos->get_count();
 		// Under no circumstances increase the number of new cities!
@@ -992,15 +992,15 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		uint32 original_industry_growth = settings.get_industry_increase_every();
 		settings.set_industry_increase_every(0);
 
-		for (uint32 i = old_city_count; i < stadt.get_count(); i++) {
+		for (uint32 i = old_city_count; i < cities.get_count(); i++) {
 			// Hajo: do final init after world was loaded/created
-			stadt[i]->finish_rd();
+			cities[i]->finish_rd();
 
 			const uint32 citizens = city_population.get_count() > i ? city_population[i] : city_population.get_element(simrand(city_population.get_count() - 1, "void karte_t::distribute_groundobjs_cities"));
 
 			sint32 diff = (original_start_year - game_start) / 2;
 			sint32 growth = 32;
-			sint32 current_bev = stadt[i]->get_einwohner();
+			sint32 current_bev = cities[i]->get_einwohner();
 
 			/* grow gradually while aging
 			 * the difference to the current end year will be halved,
@@ -1011,8 +1011,8 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 			bool new_town = true;
 			while (current_bev < citizens) {
 				growth = min(citizens - current_bev, growth * 2);
-				current_bev = stadt[i]->get_einwohner();
-				stadt[i]->change_size(growth, new_town, true);
+				current_bev = cities[i]->get_einwohner();
+				cities[i]->change_size(growth, new_town, true);
 				// Only "new" for the first change_size call
 				new_town = false;
 				if (current_bev > citizens / 2 && not_updated) {
@@ -1032,12 +1032,12 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		msg->clear();
 	}
 
-	finance_history_year[0][WORLD_TOWNS] = finance_history_month[0][WORLD_TOWNS] = stadt.get_count();
+	finance_history_year[0][WORLD_TOWNS] = finance_history_month[0][WORLD_TOWNS] = cities.get_count();
 	finance_history_year[0][WORLD_CITIZENS] = finance_history_month[0][WORLD_CITIZENS] = 0;
 	finance_history_year[0][WORLD_JOBS] = finance_history_month[0][WORLD_JOBS] = 0;
 	finance_history_year[0][WORLD_VISITOR_DEMAND] = finance_history_month[0][WORLD_VISITOR_DEMAND] = 0;
 
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	FOR(weighted_vector_tpl<stadt_t*>, const city, cities)
 	{
 		finance_history_year[0][WORLD_CITIZENS] += city->get_finance_history_month(0, HIST_CITIZENS);
 		finance_history_month[0][WORLD_CITIZENS] += city->get_finance_history_year(0, HIST_CITIZENS);
@@ -1075,16 +1075,16 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		// find townhall of city i and road in front of it
 		vector_tpl<koord3d> k;
 		for (int i = 0; i < settings.get_city_count(); ++i) {
-			koord k1(stadt[i]->get_townhall_road());
+			koord k1(cities[i]->get_townhall_road());
 			if (lookup_kartenboden(k1) && lookup_kartenboden(k1)->hat_weg(road_wt)) {
 				k.append(lookup_kartenboden(k1)->get_pos());
 			}
 			else {
 				// look for a road near the townhall
-				gebaeude_t const* const gb = obj_cast<gebaeude_t>(lookup_kartenboden(stadt[i]->get_pos())->first_obj());
+				gebaeude_t const* const gb = obj_cast<gebaeude_t>(lookup_kartenboden(cities[i]->get_pos())->first_obj());
 				bool ok = false;
 				if (gb  &&  gb->is_townhall()) {
-					koord k_check = stadt[i]->get_pos() + koord(-1, -1);
+					koord k_check = cities[i]->get_pos() + koord(-1, -1);
 					const koord size = gb->get_tile()->get_desc()->get_size(gb->get_tile()->get_layout());
 					koord inc(1, 0);
 					// scan all adjacent tiles, take the first that has a road
@@ -1428,7 +1428,7 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 
 	recalc_season_snowline(false);
 
-	stadt.clear();
+	cities.clear();
 
 DBG_DEBUG("karte_t::init()","hausbauer_t::new_world()");
 	// Call this before building cities
@@ -2726,7 +2726,7 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 				new_grid_hgts[nnr] = grid_hgts[nr];
 			}
 		}
-		max_display_progress = 16 + sets->get_city_count()*2 + stadt.get_count()*4;
+		max_display_progress = 16 + sets->get_city_count()*2 + cities.get_count()*4;
 	}
 	else {
 		max_display_progress = 16 + sets->get_city_count() * 4 + settings.get_factory_count();
@@ -2905,7 +2905,7 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 	// to save the time taken by constantly adding and
 	// removing them during the iterative renovation that
 	// is involved in map generation/enlargement.
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	FOR(weighted_vector_tpl<stadt_t*>, const city, cities)
 	{
 		city->add_all_buildings_to_world_list();
 		city->reset_tiles_for_all_buildings();
@@ -3033,7 +3033,7 @@ karte_t::karte_t() :
 	settings(env_t::default_settings),
 	convoi_array(0),
 	world_attractions(16),
-	stadt(0),
+	cities(0),
 	idle_time(0),
 	speed_factors_are_set(false)
 {
@@ -3815,7 +3815,7 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	}
 
 	// Rotate cities first so that the private car routes can be removed
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 		i->rotate90(cached_size.y);
 	}
 
@@ -3928,7 +3928,7 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	}
 
 	// Recheck city tiles
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 		i->check_city_tiles(false);
 	}
 
@@ -4084,7 +4084,7 @@ stadt_t *karte_t::find_nearest_city(const koord k, uint32 rank) const
 	slist_tpl<uint32> ordered_distances;
 
 	if(  is_within_limits(k)  ) {
-		FOR(  weighted_vector_tpl<stadt_t*>,  const s,  stadt  ) {
+		FOR(  weighted_vector_tpl<stadt_t*>,  const s,  cities  ) {
 			if(  k.x >= s->get_linksoben().x  &&  k.y >= s->get_linksoben().y  &&  k.x < s->get_rechtsunten().x  &&  k.y < s->get_rechtsunten().y  ) {
 				const uint32 dist = koord_distance( k, s->get_center() );
 				if(  !contains  ) {
@@ -4140,13 +4140,12 @@ stadt_t *karte_t::get_city(const koord pos) const
 
 	if(is_within_limits(pos))
 	{
-		int cities = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const c, stadt)
-		{
+		int city_count = 0;
+		for (stadt_t* const c : cities) {
 			if(c->is_within_city_limits(pos))
 			{
-				cities ++;
-				if(cities > 1)
+				city_count++;
+				if(city_count > 1)
 				{
 					// We have a city within a city. Make sure to return the *inner* city.
 					if(city->is_within_city_limits(c->get_pos()))
@@ -4634,8 +4633,8 @@ void karte_t::new_month()
 
 
 	//	DBG_MESSAGE("karte_t::new_month()","cities");
-	stadt.update_weights(get_population);
-	FOR(weighted_vector_tpl<stadt_t*>, const s, stadt)
+	cities.update_weights(get_population);
+	FOR(weighted_vector_tpl<stadt_t*>, const s, cities)
 	{
 		s->new_month();
 		//INT_CHECK("simworld 3117");
@@ -4929,7 +4928,7 @@ void karte_t::pause_step()
 #ifdef MULTI_THREAD
 		// This cannot be started at the end of the step, as we will not know at that point whether we need to call this at all.
 		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
-		//cities_to_process = stadt.get_count() > 64 ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
+		//cities_to_process = cities.get_count() > 64 ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		//cities_to_process = 1;
 		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
 		{
@@ -5056,7 +5055,7 @@ void karte_t::step()
 
 	// Check the private car routes. In multi-threaded mode, this can be running in the background whilst a number of other steps are processed.
 	// This is computationally intensive, but intermittently. The computational intensity increases exponentially with the size of the map.
-	//const uint32 check_frequency = max(stadt.get_count() / 6, 1);
+	//const uint32 check_frequency = max(cities.get_count() / 6, 1);
 	//const bool check_city_routes = (steps % check_frequency) == 0;
 	const bool check_city_routes = true;
 	if (check_city_routes)
@@ -5180,7 +5179,7 @@ void karte_t::step()
 #ifndef CONCURRENT_ROUTE_PROCESSING
 	uint32 step_cities_count = 0;
 #endif
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt)
+	FOR(weighted_vector_tpl<stadt_t*>, const i, cities)
 	{
 		i->step(delta_t);
 	}
@@ -5273,7 +5272,7 @@ void karte_t::step()
 	finance_history_year[0][WORLD_JOBS] = finance_history_month[0][WORLD_JOBS] = 0;
 	finance_history_year[0][WORLD_VISITOR_DEMAND] = finance_history_month[0][WORLD_VISITOR_DEMAND] = 0;
 
-	FOR(weighted_vector_tpl<stadt_t*>, const city, stadt)
+	FOR(weighted_vector_tpl<stadt_t*>, const city, cities)
 	{
 		finance_history_year[0][WORLD_CITIZENS] += city->get_finance_history_month(0, HIST_CITIZENS);
 		finance_history_month[0][WORLD_CITIZENS] += city->get_finance_history_year(0, HIST_CITIZENS);
@@ -5488,7 +5487,7 @@ void karte_t::refresh_private_car_routes() {
 #endif
 	weg_t::swap_private_car_routes_currently_reading_element();
 	clear_private_car_routes();
-	for(auto & city : stadt) {
+	for(auto & city : cities) {
 		cities_awaiting_private_car_route_check.insert(city);
 	}
 }
@@ -7323,7 +7322,7 @@ void karte_t::restore_history()
 		sint64 total_pas = 1, trans_pas = 0;
 		sint64 total_mail = 1, trans_mail = 0;
 		sint64 total_goods = 1, supplied_goods = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 			bev            += i->get_finance_history_month(m, HIST_CITIZENS);
 			trans_pas      += i->get_finance_history_month(m, HIST_PAS_TRANSPORTED);
 			trans_pas      += i->get_finance_history_month(m, HIST_PAS_WALKED);
@@ -7364,7 +7363,7 @@ void karte_t::restore_history()
 		sint64 total_pas_year = 1, trans_pas_year = 0;
 		sint64 total_mail_year = 1, trans_mail_year = 0;
 		sint64 total_goods_year = 1, supplied_goods_year = 0;
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 			bev                 += i->get_finance_history_year(y, HIST_CITIZENS);
 			trans_pas_year      += i->get_finance_history_year(y, HIST_PAS_TRANSPORTED);
 			trans_pas_year      += i->get_finance_history_year(y, HIST_PAS_WALKED);
@@ -7416,7 +7415,7 @@ void karte_t::update_history()
 	sint64 total_pas_year = 1, trans_pas_year = 0;
 	sint64 total_mail_year = 1, trans_mail_year = 0;
 	sint64 total_goods_year = 1, supplied_goods_year = 0;
-	FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+	FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 		bev							+= i->get_finance_history_month(0, HIST_CITIZENS);
 		jobs						+= i->get_finance_history_month(0, HIST_JOBS);
 		visitor_demand				+= i->get_finance_history_month(0, HIST_VISITOR_DEMAND);
@@ -7442,7 +7441,7 @@ void karte_t::update_history()
 	finance_history_year[0][WORLD_GROWTH] = bev - (finance_history_year[1][WORLD_CITIZENS]==0 ? finance_history_month[0][WORLD_CITIZENS] : finance_history_year[1][WORLD_CITIZENS]);
 
 	// the inhabitants stuff
-	finance_history_year[0][WORLD_TOWNS] = finance_history_month[0][WORLD_TOWNS] = stadt.get_count();
+	finance_history_year[0][WORLD_TOWNS] = finance_history_month[0][WORLD_TOWNS] = cities.get_count();
 	finance_history_year[0][WORLD_CITIZENS] = finance_history_month[0][WORLD_CITIZENS] = bev;
 	finance_history_year[0][WORLD_JOBS] = finance_history_month[0][WORLD_JOBS] = jobs;
 	finance_history_year[0][WORLD_VISITOR_DEMAND] = finance_history_month[0][WORLD_VISITOR_DEMAND] = visitor_demand;
@@ -8508,16 +8507,16 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 
 	if (file->is_loading()) {
 		DBG_DEBUG("karte_t::load", "init %i cities", settings.get_city_count());
-		stadt.clear();
-		stadt.resize(settings.get_city_count());
+		cities.clear();
+		cities.resize(settings.get_city_count());
 		for (int i = 0; i < settings.get_city_count(); ++i) {
 			stadt_t *s = new stadt_t(file);
 			const sint32 population = s->get_einwohner();
-			stadt.append(s, population > 0 ? population : 1); // This has to be at least 1, or else the weighted vector will not add it. TODO: Remove this check once the population checking method is improved.
+			cities.append(s, population > 0 ? population : 1); // This has to be at least 1, or else the weighted vector will not add it. TODO: Remove this check once the population checking method is improved.
 		}
 	}
 	else {
-		FOR(weighted_vector_tpl<stadt_t*>, const i, stadt) {
+		FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
 			i->rdwr(file);
 			if(!ls) {
 				INT_CHECK("saving");
@@ -9255,13 +9254,13 @@ DBG_MESSAGE("karte_t::load()", "%d ways loaded",weg_t::get_alle_wege().get_count
 DBG_MESSAGE("karte_t::load()", "laden_abschliesen for tiles finished" );
 
 	// must finish loading cities first before cleaning up factories
-	weighted_vector_tpl<stadt_t*> new_weighted_stadt(stadt.get_count() + 1);
-	FOR(weighted_vector_tpl<stadt_t*>, const s, stadt) {
+	weighted_vector_tpl<stadt_t*> new_weighted_cities(cities.get_count() + 1);
+	FOR(weighted_vector_tpl<stadt_t*>, const s, cities) {
 		s->finish_rd();
-		new_weighted_stadt.append(s, s->get_einwohner());
+		new_weighted_cities.append(s, s->get_einwohner());
 		INT_CHECK("simworld 1278");
 	}
-	swap(stadt, new_weighted_stadt);
+	swap(cities, new_weighted_cities);
 	DBG_MESSAGE("karte_t::load()", "cities initialized");
 
 	ls.set_progress( (get_size().y*3)/2+256+get_size().y/4 );
@@ -11109,8 +11108,8 @@ void karte_t::announce_server(server_announce_type_t status)
 		buf.printf( "&active=%u",    active );
 		buf.printf( "&locked=%u",    locked );
 		buf.printf( "&clients=%u",   socket_list_t::get_playing_clients() );
-		buf.printf( "&towns=%u",     stadt.get_count() );
-		buf.printf( "&citizens=%u",  stadt.get_sum_weight() );
+		buf.printf( "&towns=%u",     cities.get_count() );
+		buf.printf( "&citizens=%u",  cities.get_sum_weight() );
 		buf.printf( "&factories=%u", fab_list.get_count() );
 		buf.printf( "&convoys=%u",   convoys().get_count());
 		buf.printf( "&stops=%u",     haltestelle_t::get_alle_haltestellen().get_count() );
