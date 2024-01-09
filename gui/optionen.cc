@@ -18,30 +18,34 @@
 #include "kennfarbe.h"
 #include "sound_frame.h"
 #include "scenario_info.h"
+#include "banner.h"
 #include "../dataobj/scenario.h"
 #include "../dataobj/translator.h"
 
 enum BUTTONS {
 	BUTTON_LANGUAGE = 0,
-	BUTTON_NEW_GAME,
 	BUTTON_PLAYERS,
 	BUTTON_LOAD_GAME,
 	BUTTON_PLAYER_COLORS,
 	BUTTON_SAVE_GAME,
 	BUTTON_DISPLAY,
-	BUTTON_LOAD_SCENARIO,
 	BUTTON_SOUND,
 	BUTTON_SCENARIO_INFO,
+	BUTTON_MENU,
 	BUTTON_QUIT
 };
 
 static char const *const option_buttons_text[] =
 {
-	"Sprache", "Neue Karte",
-	"Spieler(mz)", "Load game",
-	"Farbe", "Speichern",
-	"Helligk.", "Load scenario",
-	"Sound", "Scenario",
+	"Sprache",
+	"Spieler(mz)",
+	"Load game",
+	"Farbe",
+	"Speichern",
+	"Helligk.",
+	"Sound",
+	"Scenario",
+	"Return to menu",
 	"Beenden"
 };
 
@@ -56,7 +60,6 @@ optionen_gui_t::optionen_gui_t() :
 
 	for(  uint i=0;  i<lengthof(option_buttons);  i++  ) {
 
-		add_component(option_buttons + i);
 		option_buttons[i].init(button_t::roundbox | button_t::flexible, option_buttons_text[i]);
 		option_buttons[i].add_listener(this);
 
@@ -66,10 +69,9 @@ optionen_gui_t::optionen_gui_t() :
 				option_buttons[BUTTON_SCENARIO_INFO].disable();
 			}
 			// Squeeze in divider
+			add_component(option_buttons + i);
 			new_component_span<gui_divider_t>(2);
-			// empty cell left of quit button
-			new_component<gui_empty_t>();
-		}
+		} else add_component(option_buttons + i);
 	}
 
 	reset_min_windowsize();
@@ -108,13 +110,6 @@ bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		// since init always returns false, it is safe to delete immediately
 		delete tmp_tool;
 	}
-	else if(  comp == option_buttons + BUTTON_LOAD_SCENARIO  ) {
-		destroy_win(this);
-		tool_t *tmp_tool = create_tool( DIALOG_SCENARIO | DIALOG_TOOL );
-		welt->set_tool( tmp_tool, welt->get_active_player() );
-		// since init always returns false, it is safe to delete immediately
-		delete tmp_tool;
-	}
 	else if(  comp == option_buttons + BUTTON_SAVE_GAME  ) {
 		destroy_win(this);
 		tool_t *tmp_tool = create_tool( DIALOG_SAVE | DIALOG_TOOL );
@@ -122,9 +117,9 @@ bool optionen_gui_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		// since init always returns false, it is safe to delete immediately
 		delete tmp_tool;
 	}
-	else if (comp == option_buttons + BUTTON_NEW_GAME) {
-		destroy_all_win(true);
-		welt->stop(false);
+	else if (comp == option_buttons + BUTTON_MENU) {
+		// return to menu
+		banner_t::show_banner();
 	}
 	else if(  comp == option_buttons + BUTTON_QUIT  ) {
 		// we call the proper tool for quitting
