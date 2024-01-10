@@ -42,7 +42,7 @@ static char const *const option_buttons_text[] =
 	"Load game",
 	"Farbe",
 	"Speichern",
-	"Helligk.",
+	"Display settings",
 	"Sound",
 	"Scenario",
 	"Return to menu",
