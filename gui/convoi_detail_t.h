@@ -211,7 +211,7 @@ public:
 	enum { // spec table index
 		SPEC_TABLE_PHYSICS     = 0,
 		SPEC_TABLE_PAYLOAD     = 1,
-		SPEC_TABLE_MAiNTENANCE = 2,
+		SPEC_TABLE_MAINTENANCE = 2,
 		SPEC_TABLE_CONSTRAINTS = 3,
 		MAX_SPEC_TABLE_MODE    = 4
 	};

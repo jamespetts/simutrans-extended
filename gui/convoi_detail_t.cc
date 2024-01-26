@@ -423,7 +423,7 @@ void gui_convoy_spec_table_t::update()
 		case SPEC_TABLE_PAYLOAD:
 			insert_payload_rows();
 			break;
-		case SPEC_TABLE_MAiNTENANCE:
+		case SPEC_TABLE_MAINTENANCE:
 			insert_maintenance_rows();
 			break;
 		case SPEC_TABLE_CONSTRAINTS:
