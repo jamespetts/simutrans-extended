@@ -584,19 +584,29 @@ void fabrik_t::recalc_storage_capacities()
 			}
 			const sint32 share = (sint32)(((sint64)field_capacities << precision_bits) / (sint64)ware_types);
 			// first, for input goods
+			// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+			uint32 min_in = welt->get_settings().get_minimum_industry_input_storage_raw();
 			FOR(array_tpl<ware_production_t>, &g, input) {
 				if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
 					// Inputs are now normalized to factory production.
 					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
 					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((input->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
+					if (g.get_capacity(prod_factor) < min_in) {
+						g.max = (sint32)( ( (sint64)min_in << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 				}
 			}
 			// then, for output goods
+			// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+			uint32 min_out = welt->get_settings().get_minimum_industry_output_storage_raw();
 			FOR(array_tpl<ware_production_t>, &g, output) {
 				if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
 					// Outputs are now normalized to factory production.
 					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
 					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((output->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
+					if (g.get_capacity(prod_factor) < min_out) {
+						g.max = (sint32)( ( (sint64)min_out << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 				}
 			}
 		}
@@ -604,19 +614,29 @@ void fabrik_t::recalc_storage_capacities()
 	else {
 		// without fields -> scaling based on prodbase
 		// first, for input goods
+		// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+		uint32 min_in = welt->get_settings().get_minimum_industry_input_storage_raw();
 		FOR(array_tpl<ware_production_t>, &g, input) {
 			if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
 				// Inputs are now normalized to factory production.
 				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
 				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)input->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
+					if (g.get_capacity(prod_factor) < min_in) {
+						g.max = (sint32)( ( (sint64)min_in << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 			}
 		}
 		// then, for output goods
+		// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+		uint32 min_out = welt->get_settings().get_minimum_industry_output_storage_raw();
 		FOR(array_tpl<ware_production_t>, &g, output) {
 			if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
 				// Outputs are now normalized to factory production.
 				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
 				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)output->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
+					if (g.get_capacity(prod_factor) < min_out) {
+						g.max = (sint32)( ( (sint64)min_out << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 			}
 		}
 	}
@@ -1079,7 +1099,19 @@ fabrik_t::~fabrik_t()
 		}
 
 		char buf[192];
-		sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+		// Tell the players about this, including a city name if possible
+		if(city) {
+			sprintf(buf, translator::translate("Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected."), translator::translate(get_name()), city->get_name(), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+		}
+		else {
+			const stadt_t* nearby_city = welt->find_nearest_city(pos.get_2d());
+			if(nearby_city) {
+				sprintf(buf, translator::translate("Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected."), translator::translate(get_name()), nearby_city->get_name(), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+			}
+			else {
+				sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+			}
+		}
 		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, color_idx_to_rgb(COL_DARK_RED), skinverwaltung_t::neujahrsymbol->get_image_id(0));
 		for(auto &ware : get_output()){
 			for(sint32 i = ware.link_count() - 1; i >= 0; i --)
@@ -3472,14 +3504,27 @@ void fabrik_t::new_month()
 
 						recalc_storage_capacities();
 						adjust_production_for_fields();
-						// Re-calculate electricity conspumption, mail and passenger demand, etc.
+						// Re-calculate electricity consumption, mail and passenger demand, etc.
 						update_scaled_electric_demand();
 						update_scaled_pax_demand();
 						update_scaled_mail_demand();
 						update_prodfactor_pax();
 						update_prodfactor_mail();
 						welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
-						sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
+						// Message to tell players about upgrade, preferably with city name
+						if(city) {
+							sprintf(buf, translator::translate("Industry: %s in %s has been upgraded to industry: %s."), translator::translate(old_name), city->get_name(), translator::translate(new_name));
+						}
+						else {
+							const stadt_t* nearby_city = welt->find_nearest_city(pos.get_2d());
+							if (nearby_city) {
+								sprintf(buf, translator::translate("Industry: %s near to %s has been upgraded to industry: %s."), translator::translate(old_name), nearby_city->get_name(), translator::translate(new_name));
+							}
+							// Fallback if no cities exist
+							else {
+								sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
+							}
+						}
 						welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI, skinverwaltung_t::neujahrsymbol->get_image_id(0));
 						return;
 					}
@@ -4265,8 +4310,22 @@ bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
 				fab->add_consumer(pos.get_2d(),product);
 				cbuffer_t buf;
 				if(product){
+					// Message if the factory is in a city
+					stadt_t* factorys_city = fab->get_city();
+					if(factorys_city) {
+						buf.printf(translator::translate("New shipping destination added to Factory %s in %s for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
+					}
+					// Message if the factory is near a city
+					else {
+						 factorys_city = welt->find_nearest_city((fab->get_pos()).get_2d());
+						if(factorys_city) {
+							buf.printf(translator::translate("New shipping destination added to Factory %s (near to %s) for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
+						}
+					// Fallback if there are no cities
 					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
+					}
 				}else{
+					// TODO: Duplicate city-specific messages if this message appears often
 					buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
 				}
 				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));

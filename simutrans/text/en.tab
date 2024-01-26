@@ -6680,3 +6680,21 @@ staff_cost
 Staff cost:
 availability
 Availability: 
+engine_type
+Traction type
+TF_
+Tractive effort
+curb_weight
+Weight
+Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s in %s has been upgraded to industry: %s.
+Industry: %s in %s has been upgraded to industry: %s.
+Industry: %s near to %s has been upgraded to industry: %s.
+Industry: %s near to %s has been upgraded to industry: %s.
+New shipping destination added to Factory %s in %s for %s.
+New shipping destination added to Factory %s in %s for %s.
+New shipping destination added to Factory %s (near to %s) for %s.
+New shipping destination added to Factory %s (near to %s) for %s.

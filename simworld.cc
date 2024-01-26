@@ -11246,7 +11246,16 @@ sint32 karte_t::calc_generic_road_time_per_tile(const way_desc_t* desc)
 	}
 	else if(city_road)
 	{
-		const sint32 road_speed_limit = min(settings.get_town_road_speed_limit(), city_road->get_topspeed());
+		sint32 road_speed_limit;
+		if (get_settings().get_town_road_speed_limit())
+		{
+			road_speed_limit = min(get_settings().get_town_road_speed_limit(), city_road->get_topspeed());
+		}
+		else
+		{
+			road_speed_limit = city_road->get_topspeed();
+		}
+
 		if (speed_average > road_speed_limit)
 		{
 			speed_average = road_speed_limit;

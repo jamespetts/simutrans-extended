@@ -1552,7 +1552,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			steps_so_far += VEHICLE_STEPS_PER_TILE;
 		}
 
-		if((working_method == drive_by_sight && (i - (start_index - 1)) > modified_sighting_distance_tiles) && (!this_halt.is_bound() || (haltestelle_t::get_halt(pos, get_owner())) != this_halt))
+		if((working_method == drive_by_sight && (steps_so_far > brake_steps + (VEHICLE_STEPS_PER_TILE * 2) || (i - (start_index - 1)) > modified_sighting_distance_tiles)) && (!this_halt.is_bound() || (haltestelle_t::get_halt(pos, get_owner())) != this_halt))
 		{
 			// In drive by sight mode, do not reserve further than can be seen (taking account of obstacles);
 			// but treat signals at the end of the platform as a signal at which the train is now standing.
@@ -1560,10 +1560,13 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			break;
 		}
 
-		if(working_method == moving_block && !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
+		if (working_method == moving_block && !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
 		{
 			next_signal_index = i;
+		}
 
+		if(working_method == moving_block & !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
+		{
 			// Do not reserve further than the braking distance in moving block mode.
 			if(steps_so_far > brake_steps + (VEHICLE_STEPS_PER_TILE * 2))
 			{

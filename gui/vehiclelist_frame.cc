@@ -848,7 +848,7 @@ void vehiclelist_frame_t::rdwr(loadsave_t* file)
 	tabs.rdwr(file);
 	scrolly.rdwr(file);
 	ware_filter.rdwr(file);
-	if( file->is_loading()  &&  file->is_version_ex_less(14,59) ) { // TODO: recheck version
+	if( file->is_loading()  &&  file->is_version_ex_less(14,62) ) {
 		gui_combobox_t dummy_sort_by;
 		dummy_sort_by.rdwr(file);
 	}

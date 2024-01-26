@@ -429,6 +429,12 @@ auto_connect_industries_and_attractions_by_road = 4
 #  
 #industry_density_proportion_override = 0
 
+# Sanity check: overrides to deal with problem settings in individual factory buildings in paks which round down too low.
+# Minimum storage size for industries should be set at the size of a small vehicle which is expected to
+# be usable economically during the game.  This is always at least 1, but usually more like 5 or 7.
+minimum_industry_input_storage_raw = 1
+minimum_industry_output_storage_raw = 1
+
 ################################# Display settings  ################################
 # Use with care
 # These settings can and should be meade in the Display settings dialogue in game.

@@ -35,6 +35,8 @@
 
 #include "../gui/minimap.h" // to update map after construction of new industry
 
+#include "../ifc/simtestdriver.h" // for verifying suitable locations for water factories
+#include "../dataobj/route.h" // for verifying suitable locations for water factories
 
 karte_ptr_t factory_builder_t::welt;
 
@@ -420,20 +422,78 @@ bool factory_builder_t::check_construction_site(koord pos, koord size, factory_d
 }
 
 
+/**
+ * This can only drive in the ocean.  This version triggers the jps behavior intentionally.
+ */
+class ocean_test_driver_t : public test_driver_t
+{
+public:
+	bool check_next_tile(const grund_t* gr) const OVERRIDE { return gr->is_water(); };
+	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt); };
+	waytype_t get_waytype() const OVERRIDE { return water_wt; }; // To trigger jps "jump" behavior; otherwise use invalid_wt
+	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; };
+	bool is_target(const grund_t *, const grund_t *) OVERRIDE { return false; }; // unused
+};
+
+
+/**
+ * Is there a way to take a ship from start_pos to end_pos?
+ * For computational reasons, this will often report "false" when there actually is a way,
+ * when the routefinder can't find it.
+ * However, it should never report "true" when there isn't a way.
+ */
+bool factory_builder_t::has_ocean_route(const koord start_pos, const koord end_pos) {
+		const grund_t* start_gr = welt->lookup_kartenboden(start_pos);
+		const grund_t* end_gr = welt->lookup_kartenboden(end_pos);
+		if (  !start_gr || !start_gr->is_water() || !end_gr || !end_gr->is_water()  ) {
+			return false;
+		}
+		const koord3d start_pos_3d = start_gr->get_pos();
+		const koord3d end_pos_3d = end_gr->get_pos();
+
+		route_t water_route;
+		ocean_test_driver_t ocean_test_driver;
+
+		// Use the special ocean route finder.  This only works if the start and end are both water tiles.
+		// It attempts to find a route in a straight line, and uses the regular route finder to go around "short" land gaps.
+		route_t::route_result_t result = water_route.calc_ocean_route(welt, start_pos_3d, end_pos_3d, &ocean_test_driver);
+
+		// Succeed if the result was a valid route.  Otherwise return false.
+		return (result == route_t::valid_route);
+}
+
+
 koord3d factory_builder_t::find_random_construction_site(koord pos, int radius, koord size, factory_desc_t::site_t site, const building_desc_t *desc, bool ignore_climates, uint32 max_iterations)
 {
 	bool is_factory = desc->get_type()==building_desc_t::factory;
-	bool wasser = site == factory_desc_t::Water;
 
-	if(wasser) {
+	// These variables are used only for water factories such as fisheries
+	bool water = site == factory_desc_t::Water;
+    bool found_water = false;
+	koord water_start_pos = koord::invalid;
+
+	if(water) {
 		// to ensure at least 3x3 water around (maybe this should be the station catchment area+1?)
 		size += koord(6,6);
+
+		// We want to make sure there is a WATER path from the water factory being built (e.g. fishery)
+		// to its destination factory already existing at pos (e.g. fishing port)
+		// This requires that the already-existing destination factory has a water tile adjacent to it.  So find one.
+        //
+        // This works great for fisheries, but not for oil rigs.
+        // To allow oil rigs to work, we don't do the water path check if the destination factory isn't water-adjacent.
+		for(int i = 0; i < 8; i++) {
+			water_start_pos = pos + koord::neighbours[i];
+			const grund_t* water_start_gr = welt->lookup_kartenboden(water_start_pos);
+			if (water_start_gr && water_start_gr->is_water()) {
+				// Found a water tile.
+				found_water = true;
+				break;
+			}
+		}
 	}
 
 	climate_bits climates = !ignore_climates ? desc->get_allowed_climate_bits() : ALL_CLIMATES;
-	if (ignore_climates  &&  site != factory_desc_t::Water) {
-		//site = factory_desc_t::Land;
-	}
 
 	koord central_pos = pos;
 	// If the radius is VERY LARGE, then this code can be quite slow, and may test the same
@@ -475,22 +535,26 @@ koord3d factory_builder_t::find_random_construction_site(koord pos, int radius, 
 			if (site != factory_desc_t::Water && site != factory_desc_t::Land) {
 				DBG_MESSAGE("factory_builder_t::find_random_construction_site","Found spot for %d at %s / %d\n", site, k.get_str(), max_iterations);
 			}
-			// we accept first hit
-			goto finish;
+			if (!water || !found_water) {
+				// Success, return
+				return welt->lookup_kartenboden(k)->get_pos();
+			}
+			// Special checks for water factories connecting to coastal factories
+			if (water && found_water) {
+				// Make sure there is a OCEAN path from the water factory (e.g. fishery) to its destination factory (e.g. fishing port)
+				// Find the 3d location of our proposed water factory tile (remember the 3-tile offset)
+				koord water_end_pos = k + koord(3,3);
+				if (  has_ocean_route(water_start_pos, water_end_pos)  ) {
+					return welt->lookup_kartenboden(water_end_pos)->get_pos();
+				}
+			}
 		}
 	}
 	// nothing found
-	if (site != factory_desc_t::Water  &&  site != factory_desc_t::Land) {
+	if (site != factory_desc_t::Land) {
 		DBG_MESSAGE("factory_builder_t::find_random_construction_site","No spot found for location %d of %s near %s / %d\n", site, desc->get_name(), pos.get_str(), max_iterations);
 	}
 	return koord3d::invalid;
-
-finish:
-	if(wasser) {
-		// take care of offset
-		return welt->lookup_kartenboden(k+koord(3, 3))->get_pos();
-	}
-	return welt->lookup_kartenboden(k)->get_pos();
 }
 
 
@@ -927,9 +991,40 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		// connect to an existing one if this is a producer
 		if(fab->get_output_stock(ware) > -1)
 		{
-			const uint32 distance = shortest_distance(fab->get_pos().get_2d(), origin_fab->get_pos().get_2d());
+			// The water connectivity check.  Prevent fishing ports from linking to fisheries in the wrong ocean.
+			bool water_connect_check_ok = true;
+			if (fab->get_desc()->get_placement() == factory_desc_t::Water) {
+				koord water_start_pos = koord::invalid;
+				// Find a water tile next to the consumer (e.g. fishing port)
+				bool found_water = false;
+				koord pos = origin_fab->get_pos().get_2d();
+				for(int i = 0; i < 8; i++) {
+					water_start_pos = pos + koord::neighbours[i];
+					const grund_t* water_start_gr = welt->lookup_kartenboden(water_start_pos);
+					if (water_start_gr && water_start_gr->is_water()) {
+						// Found a water tile.
+						found_water = true;
+						break;
+					}
+				}
+				if (!found_water) {
+					// Destination factory isn't next to the water, so don't worry about it and connect anyway.
+					goto past_water_connect_check;
+				}
+				if (found_water) {
+					// Fail the water connect check if we don't find an ocean path.
+					// This will force the fishing port to build its own fishery instead of cross-connecting.
+					bool ocean_path_found = has_ocean_route(water_start_pos, fab->get_pos().get_2d());
+					water_connect_check_ok = ocean_path_found;
+				}
+			}
+			past_water_connect_check:
 
-			if(distance >= (uint32)welt->get_settings().get_min_factory_spacing() && distance <= fab->get_desc()->get_max_distance_to_consumer() && distance <= max_distance_to_supplier)
+			// The distance checks
+			const uint32 distance = shortest_distance(fab->get_pos().get_2d(), origin_fab->get_pos().get_2d());
+			bool distance_long_enough = distance >= (uint32)welt->get_settings().get_min_factory_spacing();
+			bool distance_short_enough = distance <= fab->get_desc()->get_max_distance_to_consumer() && distance <= max_distance_to_supplier;
+			if(water_connect_check_ok && distance_long_enough && distance_short_enough)
 			{
 				// ok, this would match
 				// but can she supply enough?

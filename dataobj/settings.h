@@ -215,6 +215,11 @@ private:
 	/*no goods will put in route, when stored>gemax_storage and goods_in_transit*maximum_intransit_percentage/100>max_storage  */
 	uint16 factory_maximum_intransit_percentage;
 
+	// minimum capacities for factories (in case of individual problem .dat files rounding down too low)
+	// necessary to avoid the maximum_intransit_percentage throttling traffic to nothing
+	uint32 minimum_industry_input_storage_raw = 1;
+	uint32 minimum_industry_output_storage_raw = 1;
+
 	/* crossconnect all factories (like OTTD and similar games) */
 	bool crossconnect_factories;
 
@@ -1145,6 +1150,9 @@ public:
 	bool get_factory_enforce_demand() const { return factory_enforce_demand; }
 
 	uint16 get_factory_maximum_intransit_percentage() const { return factory_maximum_intransit_percentage; }
+
+	uint32 get_minimum_industry_input_storage_raw() const { return minimum_industry_input_storage_raw; }
+	uint32 get_minimum_industry_output_storage_raw() const { return minimum_industry_output_storage_raw; }
 
 	// disallow using obsolete vehicles in depot
 	uint8 get_allow_buying_obsolete_vehicles() const { return allow_buying_obsolete_vehicles; }

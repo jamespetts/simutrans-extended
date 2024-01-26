@@ -116,7 +116,7 @@ bool way_builder_t::successfully_loaded()
 	set_default(schiene_t::default_schiene,         track_wt,       type_flat, 80);
 	set_default(monorail_t::default_monorail,       monorail_wt,    type_elevated); // Only elevated?
 	set_default(maglev_t::default_maglev,           maglev_wt,      type_elevated); // Only elevated?
-	set_default(narrowgauge_t::default_narrowgauge, narrowgauge_wt);
+	set_default(narrowgauge_t::default_narrowgauge, narrowgauge_wt,	type_flat, 40);
 	set_default(kanal_t::default_kanal,             water_wt,       type_all); // Also find hidden rivers.
 	set_default(runway_t::default_runway,           air_wt);
 	set_default(way_builder_t::leitung_desc,          powerline_wt);

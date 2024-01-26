@@ -144,7 +144,9 @@ static const char *revision_ex[] =
 	"58",
 	"59",
 	"60",
-	"61"
+	"61",
+	"62",
+	"63"
 };
 
 
@@ -282,6 +284,11 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_NUM("min_layover_overhead_seconds", sets->get_min_layover_overhead_seconds(), 1, 100000000, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("shunting_time_seconds", sets->get_shunting_time_seconds(), 1, 100000, gui_numberinput_t::PLAIN, false);
 
+	SEPERATOR;
+
+	INIT_NUM("minimum_industry_input_storage_raw", sets->get_minimum_industry_input_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("minimum_industry_output_storage_raw", sets->get_minimum_industry_output_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
+
 	INIT_END
 }
 
@@ -400,6 +407,9 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 
 	READ_NUM_VALUE(sets->min_layover_overhead_seconds);
 	READ_NUM_VALUE(sets->shunting_time_seconds);
+
+	READ_NUM_VALUE(sets->minimum_industry_input_storage_raw);
+	READ_NUM_VALUE(sets->minimum_industry_output_storage_raw);
 
 	path_explorer_t::set_absolute_limits_external();
 }
