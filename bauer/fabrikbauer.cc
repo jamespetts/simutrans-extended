@@ -431,7 +431,7 @@ public:
 	bool check_next_tile(const grund_t* gr) const OVERRIDE { return gr->is_water(); };
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi_unmasked(water_wt); };
 	waytype_t get_waytype() const OVERRIDE { return water_wt; }; // To trigger jps "jump" behavior; otherwise use invalid_wt
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; };
+	int get_cost(const grund_t *, const sint32, ribi_t::ribi) OVERRIDE { return 1; };
 	bool is_target(const grund_t *, const grund_t *) OVERRIDE { return false; }; // unused
 };
 
