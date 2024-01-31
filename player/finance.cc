@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <algorithm>
 
 #include "../utils/float32e8_t.h"
 #include "../simworld.h"
