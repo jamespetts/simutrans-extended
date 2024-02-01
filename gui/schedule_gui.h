@@ -16,6 +16,7 @@
 #include "components/gui_combobox.h"
 #include "components/gui_button.h"
 #include "components/gui_image.h"
+#include "components/gui_tab_panel.h"
 
 #include "components/gui_scrollpane.h"
 #include "components/gui_schedule_item.h"
@@ -66,6 +67,25 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
+
+class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+{
+	uint8 index;
+
+public:
+	uint16 unique_entry_id;
+	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, color_idx_to_rgb(SYSCOL_TEXT)) {
+		index=entry_index;
+		unique_entry_id = entry.unique_entry_id;
+	}
+
+	char const* get_text() const OVERRIDE
+	{
+		static char str[3];
+		sprintf(str, "%u", index+1);
+		return str;
+	}
+};
 
 class schedule_gui_stats_t : public gui_aligned_container_t, action_listener_t, public gui_action_creator_t
 {
@@ -158,6 +178,21 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	schedule_gui_stats_t *stats;
 	gui_scrollpane_t scroll;
+
+	button_t bt_couple_is_line, bt_couple_is_cnv;
+	button_t bt_uncouple_is_line, bt_uncouple_is_cnv;
+	gui_combobox_t condition_line_selector;
+	gui_combobox_t couple_target_selector;
+	gui_combobox_t uncouple_target_selector;
+	void disable_couple_target_selector(bool is_uncouple=false);
+	void update_target_line_selection(bool condition, bool couple, bool uncouple);
+	void update_target_convoy_selection(bool couple, bool uncouple);
+
+	gui_combobox_t cb_uncouple_target_entry;
+	void update_uncouple_target_entries(schedule_t* sch);
+
+	gui_aligned_container_t cont_settings_1, cont_settings_2;
+	gui_tab_panel_t tabs;
 
 	// to add new lines automatically
 	uint32 old_line_count;
