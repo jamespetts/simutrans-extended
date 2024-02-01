@@ -128,212 +128,193 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 
 
 
-/**
- * One entry in the list of schedule entries.
- */
-class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t
+gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt, uint8 line_color_index)
 {
-	schedule_entry_t entry;
-	bool is_current;
-	bool is_air_wt;
-	uint number;
-	player_t* player;
-	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
-	gui_label_buf_t stop;
-	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
-	gui_schedule_entry_number_t *entry_no;
-	gui_colored_route_bar_t *route_bar;
-	gui_wait_loading_schedule_t *wait_loading;
-	gui_schedule_couple_order_t *couple_order;
+	player = pl;
+	entry  = e;
+	number = n;
+	is_current = false;
+	is_air_wt = air_wt;
+	set_table_layout(7,0);
+	set_spacing(scr_size(1,0));
 
-public:
-	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index=254)
+	new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
+
+	img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
+	img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
+	img_layover.set_rigid(true); // false breaks the layout
+	img_layover.set_visible(false);
+	add_component(&img_layover); //1
+
+	img_hourglass.set_image(skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
+	img_hourglass.set_rigid(true);
+	img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
+	add_component(&img_hourglass); //2
+
+	wait_loading = new_component<gui_wait_loading_schedule_t>(entry.flags, entry.minimum_loading); // 3
+
+	entry_no = new_component<gui_schedule_entry_number_t>(number, player->get_player_nr(), 0); // 4
+
+	add_table(7,1); //5
 	{
-		player = pl;
-		entry  = e;
-		number = n;
-		is_current = false;
-		is_air_wt = air_wt;
-		set_table_layout(7,0);
-		set_spacing(scr_size(1,0));
+		img_nc_alert.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4) : IMG_EMPTY, true);
+		img_nc_alert.set_tooltip(translator::translate("NO CONTROL TOWER"));
+		img_nc_alert.set_visible(false);
+		add_component(&img_nc_alert); // 5-1
 
-		new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
+		couple_order = new_component<gui_schedule_couple_order_t>(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster); // 5-2
+		//new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
 
-		img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
-		img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
-		img_layover.set_rigid(true); // false breaks the layout
-		img_layover.set_visible(false);
-		add_component(&img_layover); //1
+		img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(1) : IMG_EMPTY, true);
+		img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
+		img_refuel.set_rigid(false);
+		img_refuel.set_visible(false);
+		add_component(&img_refuel); //5-3
+		add_component(&stop); // 5-4
 
-		img_hourglass.set_image(skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
-		img_hourglass.set_rigid(true);
-		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
-		add_component(&img_hourglass); //2
+		img_ignore_choose.set_image(skinverwaltung_t::ignore_choose ? skinverwaltung_t::ignore_choose->get_image_id(0) : skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
+		img_ignore_choose.set_tooltip(translator::translate("If this is set, choose signals will be ignored while this convoy is heading to this destination."));
+		img_ignore_choose.set_rigid(false);
+		img_ignore_choose.set_visible(false);
+		add_component(&img_ignore_choose); //5-5
 
-		wait_loading = new_component<gui_wait_loading_schedule_t>(entry.flags, entry.minimum_loading); // 3
+		lb_pos.buf().printf("(%s)", entry.pos.get_str());
+		lb_pos.update();
+		add_component(&lb_pos); // 5-6
 
-		entry_no = new_component<gui_schedule_entry_number_t>(number, player->get_player_nr(), 0); // 4
-
-		add_table(7,1); //5
-		{
-			img_nc_alert.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4) : IMG_EMPTY, true);
-			img_nc_alert.set_tooltip(translator::translate("NO CONTROL TOWER"));
-			img_nc_alert.set_visible(false);
-			add_component(&img_nc_alert); // 5-1
-
-			couple_order = new_component<gui_schedule_couple_order_t>(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster); // 5-2
-			//new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
-
-			img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(1) : IMG_EMPTY, true);
-			img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
-			img_refuel.set_rigid(false);
-			img_refuel.set_visible(false);
-			add_component(&img_refuel); //5-3
-			add_component(&stop); // 5-4
-
-			img_ignore_choose.set_image(skinverwaltung_t::ignore_choose ? skinverwaltung_t::ignore_choose->get_image_id(0) : skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
-			img_ignore_choose.set_tooltip(translator::translate("If this is set, choose signals will be ignored while this convoy is heading to this destination."));
-			img_ignore_choose.set_rigid(false);
-			img_ignore_choose.set_visible(false);
-			add_component(&img_ignore_choose); //5-5
-
-			lb_pos.buf().printf("(%s)", entry.pos.get_str());
-			lb_pos.update();
-			add_component(&lb_pos); // 5-6
-
-			lb_reverse.set_visible(true);
-			lb_reverse.buf().append("[<<]");
-			lb_reverse.set_color(SYSCOL_TEXT_STRONG);
-			lb_reverse.update();
-			add_component(&lb_reverse); // 5-7
-		}
-		end_table();
-		new_component<gui_fill_t>(); // 6
-
-		// 2nd row
-		lb_distance.set_fixed_width(proportional_string_width("(0000km) "));
-		lb_distance.set_align(gui_label_t::right);
-		lb_distance.set_rigid(true);
-		lb_distance.buf().append("");
-		lb_distance.update();
-		add_component(&lb_distance, 4); // 5
-
-		route_bar = new_component<gui_colored_route_bar_t>(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index),0); // 6
-		route_bar->set_visible(true);
-
-		lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
-		add_component(&lb_speed_limit); // 7
-		new_component<gui_fill_t>();  //8
-		update_label();
+		lb_reverse.set_visible(true);
+		lb_reverse.buf().append("[<<]");
+		lb_reverse.set_color(SYSCOL_TEXT_STRONG);
+		lb_reverse.update();
+		add_component(&lb_reverse); // 5-7
 	}
+	end_table();
+	new_component<gui_fill_t>(); // 6
 
-	void update_label()
-	{
-		halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-		wait_loading->init_data(entry.flags, entry.minimum_loading);
-		couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
+	// 2nd row
+	lb_distance.set_fixed_width(proportional_string_width("(0000km) "));
+	lb_distance.set_align(gui_label_t::right);
+	lb_distance.set_rigid(true);
+	lb_distance.buf().append("");
+	lb_distance.update();
+	add_component(&lb_distance, 4); // 5
 
-		bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
-		if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
-			// Depot check must come first, as depot and dock tiles can overlap at sea
-			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
-			entry_no->set_color(player->get_player_color1());
-		}
-		else if (halt.is_bound()) {
-			const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
-			entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
-			entry_no->set_color(halt->get_owner()->get_player_color1());
+	route_bar = new_component<gui_colored_route_bar_t>(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index),0); // 6
+	route_bar->set_visible(true);
 
-			if (is_air_wt) {
-				img_nc_alert.set_visible(halt->has_no_control_tower());
-				if (!halt->has_no_control_tower() && !skinverwaltung_t::alerts) {
-					no_control_tower = true;
-				}
+	lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
+	add_component(&lb_speed_limit); // 7
+	new_component<gui_fill_t>();  //8
+	update_label();
+}
+
+void gui_schedule_entry_t::update_label()
+{
+	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
+	wait_loading->init_data(entry.flags, entry.minimum_loading);
+	couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
+
+	bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
+	if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
+		// Depot check must come first, as depot and dock tiles can overlap at sea
+		entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
+		entry_no->set_color(player->get_player_color1());
+	}
+	else if (halt.is_bound()) {
+		const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
+		entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
+		entry_no->set_color(halt->get_owner()->get_player_color1());
+
+		if (is_air_wt) {
+			img_nc_alert.set_visible(halt->has_no_control_tower());
+			if (!halt->has_no_control_tower() && !skinverwaltung_t::alerts) {
+				no_control_tower = true;
 			}
 		}
+	}
+	else {
+		entry_no->set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
+		entry_no->set_color(player->get_player_color1()); // can't get the owner of the way without passing the value of waytype
+	}
+
+	img_layover.set_visible(entry.is_flag_set(schedule_entry_t::lay_over));
+	img_refuel.set_visible(entry.is_flag_set(schedule_entry_t::force_range_stop));
+
+	if (entry.is_flag_set(schedule_entry_t::ignore_choose)) {
+		lb_pos.set_color(color_idx_to_rgb(COL_BLUE));
+		img_ignore_choose.set_visible(true);
+	}
+	else {
+		lb_pos.set_color(SYSCOL_TEXT);
+		img_ignore_choose.set_visible(false);
+	}
+
+	schedule_t::gimme_stop_name(stop.buf(), world(), player, entry, no_control_tower); // UI TODO: After porting the function, remove this function
+	stop.update();
+
+	img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
+	lb_reverse.set_visible(entry.reverse == 1);
+}
+
+void gui_schedule_entry_t::set_distance(koord3d next_pos, uint32 distance_to_next_halt, uint16 range_limit)
+{
+	// uint32 distance_to_next_pos;
+	const uint32 distance_to_next_pos = shortest_distance(next_pos.get_2d(), entry.pos.get_2d()) * world()->get_settings().get_meters_per_tile();
+	if (distance_to_next_pos != distance_to_next_halt || !welt->lookup(entry.pos)->get_halt().is_bound()) {
+		// Either is not a station
+		lb_distance.buf().printf("(%.1f%s)", (double)(distance_to_next_pos/1000.0), "km");
+	}
+	else {
+		lb_distance.buf().printf("%4.1f%s", (double)(distance_to_next_pos / 1000.0), "km");
+	}
+	lb_distance.set_color(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? COL_DANGER : SYSCOL_TEXT);
+	route_bar->set_alert_level(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? 3 : 0);
+	lb_distance.update();
+}
+
+void gui_schedule_entry_t::set_speed_limit(uint32 speed)
+{
+	if (speed!=65535) {
+		lb_speed_limit.buf().printf("%u %s", speed, "km/h");
+	}
+	lb_speed_limit.update();
+}
+
+void gui_schedule_entry_t::set_line_style(uint8 s)
+{
+	route_bar->set_line_style(s);
+}
+
+void gui_schedule_entry_t::set_active(bool yesno)
+{
+	is_current = yesno;
+	stop.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
+}
+
+void gui_schedule_entry_t::draw(scr_coord offset)
+{
+	update_label();
+	if (is_current) {
+		display_blend_wh_rgb(pos.x+offset.x, pos.y+offset.y-1, size.w, L_ENTRY_NO_HEIGHT+2, SYSCOL_LIST_BACKGROUND_SELECTED_F, 75);
+	}
+	gui_aligned_container_t::draw(offset);
+}
+
+bool gui_schedule_entry_t::infowin_event(const event_t *ev)
+{
+	if( ev->ev_class == EVENT_CLICK ) {
+		if(  IS_RIGHTCLICK(ev)  ||  (ev->mx < entry_no->get_pos().x+L_ENTRY_NO_WIDTH && ev->mx > entry_no->get_pos().x) ) {
+			// just center on it
+			welt->get_viewport()->change_world_position( entry.pos );
+		}
 		else {
-			entry_no->set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
-			entry_no->set_color(player->get_player_color1()); // can't get the owner of the way without passing the value of waytype
+			call_listeners(number);
 		}
-
-		img_layover.set_visible(entry.is_flag_set(schedule_entry_t::lay_over));
-		img_refuel.set_visible(entry.is_flag_set(schedule_entry_t::force_range_stop));
-
-		if (entry.is_flag_set(schedule_entry_t::ignore_choose)) {
-			lb_pos.set_color(color_idx_to_rgb(COL_BLUE));
-			img_ignore_choose.set_visible(true);
-		}
-		else {
-			lb_pos.set_color(SYSCOL_TEXT);
-			img_ignore_choose.set_visible(false);
-		}
-
-		schedule_t::gimme_stop_name(stop.buf(), world(), player, entry, no_control_tower); // UI TODO: After porting the function, remove this function
-		stop.update();
-
-		img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
-		lb_reverse.set_visible(entry.reverse == 1);
+		return true;
 	}
+	return false;
+}
 
-	void set_distance(koord3d next_pos, uint32 distance_to_next_halt = 0, uint16 range_limit = 0)
-	{
-		// uint32 distance_to_next_pos;
-		const uint32 distance_to_next_pos = shortest_distance(next_pos.get_2d(), entry.pos.get_2d()) * world()->get_settings().get_meters_per_tile();
-		if (distance_to_next_pos != distance_to_next_halt || !welt->lookup(entry.pos)->get_halt().is_bound()) {
-			// Either is not a station
-			lb_distance.buf().printf("(%.1f%s)", (double)(distance_to_next_pos/1000.0), "km");
-		}
-		else {
-			lb_distance.buf().printf("%4.1f%s", (double)(distance_to_next_pos / 1000.0), "km");
-		}
-		lb_distance.set_color(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? COL_DANGER : SYSCOL_TEXT);
-		route_bar->set_alert_level(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? 3 : 0);
-		lb_distance.update();
-	}
-
-	void set_speed_limit(uint32 speed)
-	{
-		if (speed!=65535) {
-			lb_speed_limit.buf().printf("%u %s", speed, "km/h");
-		}
-		lb_speed_limit.update();
-	}
-
-	void set_line_style(uint8 s)
-	{
-		route_bar->set_line_style(s);
-	}
-
-	void draw(scr_coord offset) OVERRIDE
-	{
-		update_label();
-		if (is_current) {
-			display_blend_wh_rgb(pos.x+offset.x, pos.y+offset.y-1, size.w, L_ENTRY_NO_HEIGHT+2, SYSCOL_LIST_BACKGROUND_SELECTED_F, 75);
-		}
-		gui_aligned_container_t::draw(offset);
-	}
-
-	void set_active(bool yesno)
-	{
-		is_current = yesno;
-		stop.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
-	}
-
-	bool infowin_event(const event_t *ev) OVERRIDE
-	{
-		if( ev->ev_class == EVENT_CLICK ) {
-			if(  IS_RIGHTCLICK(ev)  ||  (ev->mx < entry_no->get_pos().x+L_ENTRY_NO_WIDTH && ev->mx > entry_no->get_pos().x) ) {
-				// just center on it
-				welt->get_viewport()->change_world_position( entry.pos );
-			}
-			else {
-				call_listeners(number);
-			}
-			return true;
-		}
-		return false;
-	}
-};
 
 // shows/deletes highlighting of tiles
 void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )

@@ -68,6 +68,38 @@ public:
 };
 
 
+/**
+ * One entry in the list of schedule entries.
+ */
+class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t
+{
+	schedule_entry_t entry;
+	bool is_current;
+	bool is_air_wt;
+	uint number;
+	player_t* player;
+	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
+	gui_label_buf_t stop;
+	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
+	gui_schedule_entry_number_t *entry_no;
+	gui_colored_route_bar_t *route_bar;
+	gui_wait_loading_schedule_t *wait_loading;
+	gui_schedule_couple_order_t *couple_order;
+
+public:
+	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index = 254);
+
+	void update_label();
+	void set_distance(koord3d next_pos, uint32 distance_to_next_halt = 0, uint16 range_limit = 0);
+	void set_speed_limit(uint32 speed);
+	void set_line_style(uint8 s);
+	void set_active(bool yesno);
+
+	void draw(scr_coord offset) OVERRIDE;
+	bool infowin_event(const event_t *ev) OVERRIDE;
+};
+
+
 class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
 {
 	uint8 index;
