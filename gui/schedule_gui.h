@@ -95,6 +95,11 @@ public:
 	void set_line_style(uint8 s);
 	void set_active(bool yesno);
 
+	void update_entry(schedule_entry_t e) {
+		entry = e;
+		update_label();
+	}
+
 	void draw(scr_coord offset) OVERRIDE;
 	bool infowin_event(const event_t *ev) OVERRIDE;
 };
@@ -148,6 +153,8 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 
 	void update_schedule();
+
+	void update_current_entry() { entries[schedule->get_current_stop()]->update_entry(schedule->get_current_entry()); }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
@@ -238,6 +245,8 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	// pas=1, mail=2, freight=3
 	uint8 line_type_flags = 0;
+
+	void update_current_entry() { stats->update_current_entry(); }
 
 protected:
 	schedule_t *schedule;
