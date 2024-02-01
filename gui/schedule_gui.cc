@@ -254,6 +254,11 @@ void gui_schedule_entry_t::update_label()
 
 	img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
 	lb_reverse.set_visible(entry.reverse == 1);
+
+	if (entry.max_speed_kmh != 65535) {
+		lb_speed_limit.buf().printf("%u %s", entry.max_speed_kmh, "km/h");
+	}
+	lb_speed_limit.update();
 }
 
 void gui_schedule_entry_t::set_distance(koord3d next_pos, uint32 distance_to_next_halt, uint16 range_limit)
@@ -1917,7 +1922,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			if (numimp_speed_limit.get_value()==65535) {
 				bt_speed_limit.pressed = false;
 			}
-			update_selection();
+			update_current_entry();
 		}
 		else if (comp == &bt_lay_over)
 		{
