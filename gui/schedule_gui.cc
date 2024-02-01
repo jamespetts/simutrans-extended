@@ -1577,104 +1577,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		bt_remove.pressed = true;
 		update_tool( false );
 	}
-	else if(comp == &numimp_load) {
-		if (!schedule->empty()) {
-			schedule->entries[schedule->get_current_stop()].minimum_loading = (uint16)p.i;
-			if (schedule->entries[schedule->get_current_stop()].minimum_loading > 0) {
-				bt_setdown_only.pressed = false;
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
-			}
-			update_selection();
-		}
-	}
-	else if (comp == &bt_pickup_only) {
-		if (!schedule->empty()) {
-			if (bt_pickup_only.pressed) {
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::pick_up_only);
-				bt_setdown_only.pressed = false;
-				bt_discharge_payload.pressed = false;
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
-			}
-			else {
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
-			}
-		}
-	}
-	else if (comp == &bt_setdown_only) {
-		if (!schedule->empty()) {
-			if (bt_setdown_only.pressed) {
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::set_down_only);
-				bt_pickup_only.pressed = false;
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
-			}
-			else {
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
-			}
-			update_selection();
-		}
-	}
-	else if (comp == &bt_discharge_payload) {
-		if (!schedule->empty()) {
-			if (bt_discharge_payload.pressed) {
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::discharge_payload);
-				bt_pickup_only.pressed = false;
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
-			}
-			else {
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
-			}
-		}
-	}
-	else if(comp == &bt_wait_prev) {
-		if(!schedule->empty()) {
-			sint8& wait = schedule->entries[schedule->get_current_stop()].waiting_time_shift;
-			if(wait>7) {
-				wait --;
-			}
-			else if(  wait>0  ) {
-				wait = 0;
-			}
-			else {
-				wait = 16;
-			}
-			update_selection();
-		}
-	}
-	else if(comp == &bt_wait_next) {
-		if(!schedule->empty()) {
-			sint8& wait = schedule->entries[schedule->get_current_stop()].waiting_time_shift;
-			if(wait==0) {
-				wait = 7;
-			}
-			else if(wait<16) {
-				wait ++;
-			}
-			else {
-				wait = 0;
-			}
-			update_selection();
-		}
-	}
-	else if (comp == &numimp_spacing) {
-		schedule->set_spacing(p.i);
-		update_selection();
-	}
-	else if(comp == &numimp_spacing_shift) {
-		if (!schedule->empty()) {
-			if ( schedule->is_same_spacing_shift() ) {
-			    for(  uint8 i=0;  i<schedule->entries.get_count();  i++  ) {
-					schedule->entries[i].spacing_shift = p.i;
-				}
-			} else {
-				schedule->entries[schedule->get_current_stop()].spacing_shift = p.i;
-			}
-			update_selection();
-		}
-	}
 	else if (comp == &bt_mirror) {
 		schedule->set_mirrored(bt_mirror.pressed);
-		update_selection();
 	}
 	else if (comp == &bt_bidirectional) {
 		schedule->set_bidirectional(bt_bidirectional.pressed);
@@ -1730,130 +1634,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		// since init always returns false, it is safe to delete immediately
 		delete tool;
 	}
-	else if (comp == &bt_couple_is_line) {
-		bt_couple_is_line.pressed = !bt_couple_is_line.pressed;
-		schedule->entries[schedule->get_current_stop()].target_id_couple=0;
-		schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-		if (bt_couple_is_line.pressed) {
-			bt_couple_is_cnv.pressed = false;
-			update_target_line_selection(false,true,false);
-		}
-		else {
-			disable_couple_target_selector();
-		}
-	}
-	else if (comp == &bt_couple_is_cnv) {
-		bt_couple_is_cnv.pressed = !bt_couple_is_cnv.pressed;
-		schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
-		schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-		if (bt_couple_is_cnv.pressed) {
-			bt_couple_is_line.pressed = false;
-			update_target_convoy_selection(true, false);
-		}
-		else {
-			disable_couple_target_selector();
-		}
-	}
-	else if (comp == &bt_uncouple_is_line) {
-		bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
-		schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-		schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-		if (bt_uncouple_is_line.pressed) {
-			bt_uncouple_is_cnv.pressed = false;
-			update_target_line_selection(false, false,true);
-		}
-		else {
-			disable_couple_target_selector(true);
-		}
-	}
-	else if (comp == &bt_uncouple_is_cnv) {
-		bt_uncouple_is_cnv.pressed = !bt_uncouple_is_cnv.pressed;
-		bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
-		schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-		if (bt_uncouple_is_cnv.pressed) {
-			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-			bt_uncouple_is_line.pressed = false;
-			update_target_convoy_selection(false, true);
-		}
-		else {
-			disable_couple_target_selector(true);
-		}
-	}
-	else if (comp == &condition_line_selector) {
-		int selection = p.i;
-		if (selection == 0) {
-			schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = 0;
-			return true;
-		}
-		else {
-			line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
-			if (item) {
-				schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
-				return true;
-			}
-		}
-	}
-	else if (comp == &couple_target_selector) {
-		int selection = p.i;
-		if (selection == 0) {
-			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
-			return true;
-		}
-		else {
-			if (bt_couple_is_line.pressed) {
-				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(couple_target_selector.get_element(selection));
-				if (item) {
-					schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_line().get_id();
-					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-					return true;
-				}
-			}
-			else if (bt_couple_is_cnv.pressed) {
-				convoy_scrollitem_t *item = (convoy_scrollitem_t*)couple_target_selector.get_element(selection);
-				if (item) {
-					schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_convoy().get_id();
-					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-					return true;
-				}
-			}
-		}
-	}
-	else if (comp == &uncouple_target_selector) {
-		int selection = p.i;
-		if (selection == 0) {
-			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-			cb_uncouple_target_entry.set_visible(false);
-			return true;
-		}
-		else {
-			if (bt_uncouple_is_line.pressed) {
-				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(uncouple_target_selector.get_element(selection));
-				if (item) {
-					schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_line().get_id();
-					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-					update_uncouple_target_entries(item->get_line()->get_schedule());
-					return true;
-				}
-			}
-			else if (bt_uncouple_is_cnv.pressed) {
-				convoy_scrollitem_t *item = (convoy_scrollitem_t*)uncouple_target_selector.get_element(selection);
-				if (item) {
-					schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_convoy().get_id();
-					schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-					update_uncouple_target_entries(item->get_convoy()->get_schedule());
-					return true;
-				}
-			}
-		}
-	}
-	else if (comp == &cb_uncouple_target_entry) {
-		int selection = p.i;
-		entry_index_scrollitem_t *item = dynamic_cast<entry_index_scrollitem_t*>(cb_uncouple_target_entry.get_element(selection));
-		if (item) {
-			schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = item->unique_entry_id;
-			return true;
-		}
-	}
 	else if (comp == stats) {
 		// click on one of the schedule entries
 		const int line = p.i;
@@ -1881,22 +1661,86 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_selection();
 		}
-		else if (comp == &bt_ignore_choose)
-		{
-			if (bt_ignore_choose.pressed)
-			{
-				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+		else if (comp == &numimp_load) {
+			schedule->entries[schedule->get_current_stop()].minimum_loading = (uint16)p.i;
+			if (schedule->entries[schedule->get_current_stop()].minimum_loading > 0) {
+				bt_setdown_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
 			}
-			else
-			{
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			update_selection();
+		}
+		else if (comp == &bt_pickup_only) {
+			if (bt_pickup_only.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::pick_up_only);
+				bt_setdown_only.pressed = false;
+				bt_discharge_payload.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
 			}
 		}
-		else if (comp == &conditional_depart){
-			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+		else if (comp == &bt_setdown_only) {
+			if (bt_setdown_only.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::set_down_only);
+				bt_pickup_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
+			}
 		}
-		else if (comp == &condition_broadcast) {
-			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+		else if (comp == &bt_discharge_payload) {
+			if (bt_discharge_payload.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::discharge_payload);
+				bt_pickup_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
+			}
+		}
+		else if (comp == &bt_wait_prev) {
+			sint8& wait = schedule->entries[schedule->get_current_stop()].waiting_time_shift;
+			if (wait > 7) {
+				wait--;
+			}
+			else if (wait > 0) {
+				wait = 0;
+			}
+			else {
+				wait = 16;
+			}
+			update_selection();
+		}
+		else if (comp == &bt_wait_next) {
+			sint8& wait = schedule->entries[schedule->get_current_stop()].waiting_time_shift;
+			if (wait == 0) {
+				wait = 7;
+			}
+			else if (wait < 16) {
+				wait++;
+			}
+			else {
+				wait = 0;
+			}
+			update_selection();
+		}
+		else if (comp == &numimp_spacing) {
+			schedule->set_spacing(p.i);
+			update_selection();
+		}
+		else if (comp == &numimp_spacing_shift) {
+			if (schedule->is_same_spacing_shift()) {
+				for (uint8 i = 0; i < schedule->entries.get_count(); i++) {
+					schedule->entries[i].spacing_shift = p.i;
+				}
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].spacing_shift = p.i;
+			}
+			update_selection();
 		}
 		else if (comp == &bt_speed_limit) {
 			bt_speed_limit.pressed = !bt_speed_limit.pressed;
@@ -1919,6 +1763,23 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_current_entry();
 		}
+		else if (comp == &bt_ignore_choose)
+		{
+			if (bt_ignore_choose.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			}
+		}
+		else if (comp == &conditional_depart){
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+		}
+		else if (comp == &condition_broadcast) {
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+		}
 		else if (comp == &bt_lay_over)
 		{
 			if (bt_lay_over.pressed)
@@ -1938,6 +1799,130 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
+			}
+		}
+		else if (comp == &bt_couple_is_line) {
+			bt_couple_is_line.pressed = !bt_couple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+			if (bt_couple_is_line.pressed) {
+				bt_couple_is_cnv.pressed = false;
+				update_target_line_selection(false, true, false);
+			}
+			else {
+				disable_couple_target_selector();
+			}
+		}
+		else if (comp == &bt_couple_is_cnv) {
+			bt_couple_is_cnv.pressed = !bt_couple_is_cnv.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+			if (bt_couple_is_cnv.pressed) {
+				bt_couple_is_line.pressed = false;
+				update_target_convoy_selection(true, false);
+			}
+			else {
+				disable_couple_target_selector();
+			}
+		}
+		else if (comp == &bt_uncouple_is_line) {
+			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+			if (bt_uncouple_is_line.pressed) {
+				bt_uncouple_is_cnv.pressed = false;
+				update_target_line_selection(false, false, true);
+			}
+			else {
+				disable_couple_target_selector(true);
+			}
+		}
+		else if (comp == &bt_uncouple_is_cnv) {
+			bt_uncouple_is_cnv.pressed = !bt_uncouple_is_cnv.pressed;
+			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+			if (bt_uncouple_is_cnv.pressed) {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+				bt_uncouple_is_line.pressed = false;
+				update_target_convoy_selection(false, true);
+			}
+			else {
+				disable_couple_target_selector(true);
+			}
+		}
+		else if (comp == &condition_line_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = 0;
+				return true;
+			}
+			else {
+				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
+				if (item) {
+					schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
+					return true;
+				}
+			}
+		}
+		else if (comp == &couple_target_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				return true;
+			}
+			else {
+				if (bt_couple_is_line.pressed) {
+					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(couple_target_selector.get_element(selection));
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						return true;
+					}
+				}
+				else if (bt_couple_is_cnv.pressed) {
+					convoy_scrollitem_t *item = (convoy_scrollitem_t*)couple_target_selector.get_element(selection);
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						return true;
+					}
+				}
+			}
+		}
+		else if (comp == &uncouple_target_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				cb_uncouple_target_entry.set_visible(false);
+				return true;
+			}
+			else {
+				if (bt_uncouple_is_line.pressed) {
+					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(uncouple_target_selector.get_element(selection));
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						update_uncouple_target_entries(item->get_line()->get_schedule());
+						return true;
+					}
+				}
+				else if (bt_uncouple_is_cnv.pressed) {
+					convoy_scrollitem_t *item = (convoy_scrollitem_t*)uncouple_target_selector.get_element(selection);
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						update_uncouple_target_entries(item->get_convoy()->get_schedule());
+						return true;
+					}
+				}
+			}
+		}
+		else if (comp == &cb_uncouple_target_entry) {
+			int selection = p.i;
+			entry_index_scrollitem_t *item = dynamic_cast<entry_index_scrollitem_t*>(cb_uncouple_target_entry.get_element(selection));
+			if (item) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = item->unique_entry_id;
+				return true;
 			}
 		}
 		else if (comp == &bt_consist_order) {
