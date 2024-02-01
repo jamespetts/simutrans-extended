@@ -1599,7 +1599,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else {
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
 			}
-			update_selection();
 		}
 	}
 	else if (comp == &bt_setdown_only) {
@@ -1625,7 +1624,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else {
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
 			}
-			update_selection();
 		}
 	}
 	else if(comp == &bt_wait_prev) {
@@ -1893,15 +1891,12 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
 			}
-			update_selection();
 		}
 		else if (comp == &conditional_depart){
 			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
-			update_selection();
 		}
 		else if (comp == &condition_broadcast) {
 			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
-			update_selection();
 		}
 		else if (comp == &bt_speed_limit) {
 			bt_speed_limit.pressed = !bt_speed_limit.pressed;
@@ -1934,8 +1929,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::lay_over);
 			}
-
-			update_selection();
 		}
 		else if (comp == &bt_range_stop) {
 			if (bt_range_stop.pressed)
@@ -1946,7 +1939,6 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
 			}
-			update_selection();
 		}
 		else if (comp == &bt_consist_order) {
 			// Opens new window to alter the consist order
