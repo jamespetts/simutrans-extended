@@ -319,6 +319,8 @@ public:
 	static PIXVAL gui_color_text_left_col;              //@< Color to draw text in table header cell at left
 	static PIXVAL gui_color_text_table_cell_selected;   //@< Color to draw text in table cell of selected
 
+	static PIXVAL gui_color_class_insignia_dots;
+
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
 	static scr_coord_val gui_filelist_vspace;
 	/// @}

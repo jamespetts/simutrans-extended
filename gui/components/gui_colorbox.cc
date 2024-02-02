@@ -43,6 +43,8 @@ void gui_colorbox_t::set_tooltip(const char * t)
 void gui_colorbox_t::draw(scr_coord offset)
 {
 	offset += pos;
+	offset += padding;
+
 	if (show_frame) {
 		display_colorbox_with_tooltip(offset.x, offset.y, width, height, color, true, tooltip);
 	}

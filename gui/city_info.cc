@@ -594,7 +594,7 @@ void city_info_t::update_stats()
 		cont_city_stats.new_component<gui_table_header_t>("This Year")->set_flexible(true, false);
 		cont_city_stats.new_component<gui_table_header_t>("Last Year")->set_flexible(true, false);
 
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true)->set_padding(scr_size(4,0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_pax", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 
@@ -624,7 +624,7 @@ void city_info_t::update_stats()
 		cont_city_stats.add_component(&transportation_last_year);
 
 		// mail
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::mail->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::mail->get_image_id(0), 0, 0, true)->set_padding(scr_size(4, 0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_mail", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
@@ -643,7 +643,7 @@ void city_info_t::update_stats()
 		td->update();
 
 		// goods
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, 0, true)->set_padding(scr_size(4, 0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_goods", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);

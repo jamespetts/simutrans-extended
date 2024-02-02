@@ -224,7 +224,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 							if( veh->get_capacity(a_class) ) {
 								int xoff = (vehiclelist_frame_t::cell_width[col]>>1)-(int)(a_class*3/2)-1;
 								for( uint8 n=0; n<a_class+1; ++n ){
-									display_fillbox_wh_clip_rgb(offset.x+xoff, offset.y+yoff, 2, 2, COL_CAUTION, false);
+									display_fillbox_wh_clip_rgb(offset.x+xoff, offset.y+yoff, 2, 2, SYSCOL_CLASS_INSIGNIA, false);
 									xoff += 3;
 								}
 								yoff+=3;
@@ -686,7 +686,7 @@ void vehiclelist_frame_t::fill_list()
 				// goods category filter
 				if( ware ) {
 					const goods_desc_t *vware = veh->get_freight_type();
-					if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+					if( ( ware->get_catg_index()!=goods_manager_t::INDEX_NONE  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
 						continue;
 					}
 				}
@@ -771,7 +771,7 @@ void vehiclelist_frame_t::fill_list()
 			// goods category filter
 			if( ware ) {
 				const goods_desc_t *vware = veh->get_freight_type();
-				if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+				if( ( ware->get_catg_index()!=goods_manager_t::INDEX_NONE  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
 					continue;
 				}
 			}

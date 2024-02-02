@@ -26,6 +26,7 @@ protected:
 	scr_coord_val width = D_INDICATOR_WIDTH;
 	bool size_fixed = false;
 	bool show_frame = true;
+	scr_size padding = scr_size(0, 0);
 
 	scr_size max_size;
 
@@ -55,6 +56,7 @@ public:
 	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h; max_size =size; }
 	void set_size_fixed(bool yesno) { size_fixed = yesno; }
 	void set_show_frame(bool yesno) { show_frame = yesno; }
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	void set_tooltip(const char * t);
 

@@ -971,6 +971,18 @@ void simline_t::calc_classes_carried()
 
 uint16 simline_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
 {
+	if (catg == goods_manager_t::INDEX_PAS) {
+		if (g_class >= goods_manager_t::passengers->get_number_of_classes()) { return 0; }
+		if (!passenger_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (catg == goods_manager_t::INDEX_MAIL) {
+		if (g_class >= goods_manager_t::mail->get_number_of_classes()) { return 0; }
+		if (!mail_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (g_class > 0) {
+		return 0; // freight does not have classes
+	}
+
 	uint16 capacity = 0;
 	for (uint32 i = 0; i < line_managed_convoys.get_count(); i++) {
 		convoihandle_t const convoy = line_managed_convoys[i];

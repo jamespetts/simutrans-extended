@@ -217,6 +217,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TH_TEXT_TOP                  gui_theme_t::gui_color_text_head_row
 #define SYSCOL_TH_TEXT_LEFT                 gui_theme_t::gui_color_text_left_col
 
+#define SYSCOL_CLASS_INSIGNIA               gui_theme_t::gui_color_class_insignia_dots
+
 // Customer evaluation colors
 // TODO: These colors can be changed by theme or pakset (Should be considered together with the symbol design)
 #define COL_HAPPY           COL_DARK_GREEN

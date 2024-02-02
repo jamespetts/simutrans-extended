@@ -13,6 +13,7 @@ gui_image_t::gui_image_t( const image_id i, const uint8 p, control_alignment_t a
 	alignment = alignment_par;
 	remove_enabled = remove_offset_enabled;
 	remove_offset  = scr_coord(0,0);
+	padding        = scr_size(0, 0);
 	color_index = 0;
 	tooltip = NULL;
 	set_image(i,remove_offset_enabled);
@@ -24,6 +25,8 @@ scr_size gui_image_t::get_min_size() const
 	if( id  !=  IMG_EMPTY ) {
 		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
+		w += padding.w * 2;
+		h += padding.h * 2;
 
 		if (remove_enabled) {
 			return scr_size(w, h);
@@ -44,6 +47,8 @@ void gui_image_t::set_size( scr_size size_par )
 
 		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
+		w += padding.w * 2;
+		h += padding.h * 2;
 
 		if( remove_enabled ) {
 			remove_offset = scr_coord(-x,-y);
@@ -101,10 +106,10 @@ void gui_image_t::draw( scr_coord offset ) {
 
 		}
 		if (color_index) {
-			display_base_img_blend(id , pos.x+offset.x+remove_offset.x, pos.y+offset.y+remove_offset.y, player_nr, color_index, false, true);
+			display_base_img_blend(id , pos.x+offset.x+remove_offset.x+padding.w, pos.y+offset.y+remove_offset.y+padding.h, player_nr, color_index, false, true);
 		}
 		else {
-			display_base_img( id, pos.x+offset.x+remove_offset.x, pos.y+offset.y+remove_offset.y, (sint8)player_nr, false, true );
+			display_base_img( id, pos.x+offset.x+remove_offset.x+padding.w, pos.y+offset.y+remove_offset.y+padding.h, (sint8)player_nr, false, true );
 		}
 
 		if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {

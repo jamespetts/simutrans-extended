@@ -23,6 +23,8 @@ class gui_image_t : public gui_component_t
 
 		const char * tooltip;
 
+		scr_size padding = scr_size(0, 0);
+
 protected:
 		image_id            id;
 		scr_coord           remove_offset;
@@ -47,6 +49,8 @@ protected:
 		scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 
 		void set_tooltip(const char * tooltip);
+
+		void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 };
 
 #endif
