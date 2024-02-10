@@ -40,7 +40,9 @@ field_t::~field_t()
 	// mark field image area as dirty for removal
 	mark_image_dirty( get_image(), 0 );
 
-	fab->remove_field_at( get_pos().get_2d() );
+	if(fab){
+		fab->remove_field_at( get_pos().get_2d() );
+	}
 }
 
 
@@ -56,7 +58,7 @@ const char *field_t::is_deletable(const player_t *)
 // remove costs
 void field_t::cleanup(player_t *player)
 {
-	player_t::book_construction_costs(player, welt->get_settings().cst_multiply_remove_field, get_pos().get_2d(), ignore_wt);
+	player_t::book_construction_costs(player, welt->get_settings().get_cost_mutliply_remove_field(), get_pos().get_2d(), ignore_wt);
 	mark_image_dirty( get_image(), 0 );
 }
 

@@ -72,9 +72,15 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 		new_component<gui_label_t>("hl_txt_sort");
 		add_table(3,1);
 		{
-			new_component<gui_label_t>("Filter:");
+			if( skinverwaltung_t::search ) {
+				new_component<gui_image_t>(skinverwaltung_t::search->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Filter:"));
+			}
+			else {
+				new_component<gui_label_t>("Filter:");
+			}
 			name_filter_input.set_text(name_filter, lengthof(name_filter));
 			name_filter_input.set_width(D_BUTTON_WIDTH);
+			name_filter_input.set_search_box(true);
 			add_component(&name_filter_input);
 
 
@@ -350,6 +356,20 @@ void factorylist_frame_t::set_cityfilter(stadt_t *city)
 	}
 	resize(scr_size(0, 0));
 	fill_list();
+}
+
+void factorylist_frame_t::set_text_filter(const char * text)
+{
+	if (text) {
+		sprintf(name_filter, "%s", text);
+		name_filter_input.set_text(name_filter, lengthof(name_filter));
+	}
+	if (filter_city) {
+		set_cityfilter(NULL);
+	}
+	else {
+		fill_list();
+	}
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -39,7 +39,7 @@ void gui_border_t::draw(scr_coord offset)
 
 scr_size gui_border_t::get_min_size() const
 {
-	return scr_size(gui_theme_t::gui_divider_size.w, LINEASCENT/2);
+	return scr_size(gui_component_t::get_min_size().w, LINEASCENT/2);
 }
 
 scr_size gui_border_t::get_max_size() const

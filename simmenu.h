@@ -77,7 +77,7 @@ enum {
 	TOOL_EXEC_SCRIPT,
 	TOOL_EXEC_TWO_CLICK_SCRIPT,
 	TOOL_PLANT_GROUNDOBJ,
-	TOOL_ADD_MESSAGE_, // TODO: merge r9550
+	TOOL_ADD_MESSAGE,
 	TOOL_REMOVE_SIGNAL,
 	GENERAL_TOOL_STANDARD_COUNT,
 	// Extended entries from here:
@@ -125,7 +125,7 @@ enum {
 	TOOL_CHANGE_TRAFFIC_LIGHT,
 	TOOL_CHANGE_CITY,
 	TOOL_RENAME,
-	TOOL_ADD_MESSAGE,
+	UNUSED_TOOL_ADD_MESSAGE,
 	TOOL_TOGGLE_RESERVATION,
 	TOOL_VIEW_OWNER,
 	TOOL_HIDE_UNDER_CURSOR,
@@ -241,6 +241,9 @@ public:
 
 	sint16 ok_sound;
 
+	/// a script is waiting for a call-back
+	uint32 callback_id;
+
 	enum {
 		WFL_SHIFT  = 1 << 0, ///< shift-key was pressed when mouse-click happened
 		WFL_CTRL   = 1 << 1, ///< ctrl-key was pressed when mouse-click happened
@@ -288,6 +291,7 @@ public:
 		command_key = 0;
 		cursor_centered = false;
 		flags = 0;
+		callback_id = 0;
 	}
 
 	virtual ~tool_t() {}

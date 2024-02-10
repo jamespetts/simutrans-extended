@@ -32,6 +32,8 @@ class ware_t;
 class schiene_t;
 class strasse_t;
 //class karte_ptr_t;
+class consist_order_element_t;
+
 
 // for aircraft:
 // length of the holding pattern.
@@ -231,7 +233,7 @@ public:
 	ribi_t::ribi calc_set_direction(const koord3d& start, const koord3d& ende);
 	uint16 get_tile_steps(const koord &start, const koord &ende, /*out*/ ribi_t::ribi &direction) const;
 
-	ribi_t::ribi get_direction() const {return direction;}
+	ribi_t::ribi get_direction() const { return direction; }
 
 	ribi_t::ribi get_90direction() const {return ribi_type(get_pos(), get_pos_next());}
 
@@ -294,6 +296,10 @@ private:
 	 * Date of last overhaul in months
 	 */
 	sint32 overhaul_time;
+
+
+	// The number of times that this vehicle has been overhauled.
+	uint16 overhauls = 0u;
 
 	/**
 	 * For the more physical acceleration model friction is introduced
@@ -381,12 +387,19 @@ protected:
 
 	bool do_not_overhaul : 1;
 	bool do_not_auto_upgrade : 1;
+	bool is_mothballed : 1;
 
 	uint32 km_since_new;
 	uint32 km_since_last_overhaul;
 	uint32 km_since_last_maintenance;
 	uint32 km_since_last_replenish;
+	uint32 last_maintenance_month;
+	uint32 last_overhaul_month;
 	sint64 last_maintenance_time;
+
+	uint32 fuel_used_this_trip = 0;
+
+	sint64 ticks_at_last_departure;
 
 	uint16 tags;
 
@@ -438,17 +451,17 @@ public:
 	*/
 	ribi_t::ribi get_ribi(const grund_t* gr) const OVERRIDE { return gr->get_weg_ribi(get_waytype()); }
 
-	/*
+	/**
 	 * The date (months) when this vehicle was first purchased.
 	 */
 	sint32 get_purchase_time() const {return purchase_time;}
 
-	/*
+	/**
 	 * The date (months) when this vehicle was last overhauled.
 	 */
 	sint32 get_overhaul_time() const { return overhaul_time; }
 
-	void get_smoke(bool yesno ) { smoke = yesno;}
+	void set_allow_smoke(bool yesno ) { smoke = yesno; }
 
 	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed_kmh, bool is_tall, route_t* route);
 	uint16 get_route_index() const {return route_index;}
@@ -474,10 +487,25 @@ public:
 	void set_desc(const vehicle_desc_t* value);
 
 	/**
-	* @return die running_cost in Cr/100Km
+	* Running cost in Simucents/km.
+	* Takes into account obsolescence and distance since last overhaul.
 	*/
-	int get_running_cost() const { return desc->get_running_cost(); }
-	int get_running_cost(const karte_t* welt) const { return desc->get_running_cost(welt); }
+	sint32 get_running_cost(const karte_t* welt) const;
+
+	// Calculates the fuel cost and accumulates this
+	// Accumulate rather than charge immediately to reduce rounding down errors
+	void consume_fuel(sint32 steps);
+
+	// Convert the fuel consumption in the most recent trip to money
+	// and charge to the player.
+	void book_fuel_consumption();
+
+	// Calculate the fuel consumption for the given number of steps
+	uint32 calc_fuel_consumption(sint32 steps) const;
+
+	// True if the running cost is greater or availability lower on account of distance since last overhaul.
+	// Intended for UI use.
+	bool is_wear_affecting_vehicle() const;
 
 	/**
 	* @return fixed maintenance costs in Cr/100months
@@ -498,6 +526,9 @@ public:
 	 */
 	void initialise_journey( uint16 start_route_index, bool recalc );
 
+	void set_pos_next(const koord3d pos) { pos_next = pos; }
+	void set_pos_prev(const koord3d pos) { pos_prev = pos; }
+
 	void set_direction_steps(sint16 value) { direction_steps = value; }
 
 	void step_km(uint32 km) { km_since_new += km; km_since_last_overhaul += km; km_since_last_maintenance += km; km_since_last_replenish += km; }
@@ -505,6 +536,11 @@ public:
 	void fix_class_accommodations();
 
 	inline koord3d get_last_stop_pos() const { return last_stop_pos;  }
+
+	// True if this vehicle matches a consist order element. This mostly just calls the
+	// equivalent method in the vehicle_desc object, but we need to check the actual
+	// classes of this vehicle as they may have been reassigned.
+	bool matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const;
 
 #ifdef INLINE_OBJ_TYPE
 protected:
@@ -522,6 +558,8 @@ public:
 	void set_class_reassignment(uint8 original_class, uint8 new_class);
 
 	void make_smoke() const;
+
+	inline bool is_at_full_power() const;
 
 	void show_info() OVERRIDE;
 
@@ -544,7 +582,7 @@ public:
 	sint32 get_speed_limit() const { return speed_limit; }
 	static inline sint32 speed_unlimited() {return (std::numeric_limits<sint32>::max)(); }
 
-	const slist_tpl<ware_t> & get_cargo(uint8 g_class) const { return fracht[g_class];}   // list of goods being transported (indexed by accommodation class)
+	const slist_tpl<ware_t> & get_cargo(uint8 a_class) const { return fracht[a_class];}   // list of goods being transported (indexed by accommodation class)
 
 	/**
 	 * Rotate freight target coordinates, has to be called after rotating factories.
@@ -556,11 +594,15 @@ public:
 	*/
 	uint16 get_total_cargo() const { return total_freight; }
 
-	uint16 get_total_cargo_by_class(uint8 g_class) const;
+	uint16 get_total_cargo_by_class(uint8 a_class) const;
 
-	uint16 get_reassigned_class(uint8 g_class) const;
+	uint8 get_reassigned_class(uint8 a_class) const;
 
 	uint8 get_number_of_fare_classes() const;
+
+	// Returns the minimum class carried by this vehicle,
+	// taking into account reassigned classes.
+	uint8 get_min_class() const;
 
 	/**
 	* Calculate transported cargo total weight in KG
@@ -634,8 +676,9 @@ public:
 	/**
 	 * Unload freight to halt
 	 * @return sum of unloaded goods
+	 * If the layover parameter is true, unload all goods irrespective of the destination.
 	 */
-	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> & apportioned_revenues );
+	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all = false );
 
 	/**
 	 * Load freight from halt
@@ -688,8 +731,8 @@ public:
 	// @author: jamespetts
 	uint8 get_comfort(uint8 catering_level = 0, uint8 g_class = 0) const;
 
-	uint16 get_accommodation_capacity(uint8 g_class, bool include_lower_classes = false) const;
-	uint16 get_fare_capacity(uint8 g_class, bool include_lower_classes = false) const;
+	uint16 get_accommodation_capacity(uint8 a_class, bool include_lower_classes = false) const;
+	uint16 get_fare_capacity(uint8 fare_class, bool include_lower_classes = false) const;
 
 	// update player's fixed maintenance
 	void finish_rd() OVERRIDE;
@@ -697,31 +740,43 @@ public:
 
 	void set_current_livery(const char* liv) { current_livery = liv; }
 	const char* get_current_livery() const { return current_livery.c_str(); }
+	void update_livery(); // Helper method for overhauls
 
 	virtual sint32 get_takeoff_route_index() const { return INVALID_INDEX; }
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
 
-	// TODO: Implement proper logic for this. Aircraft need different logic to other vehicles, hence
-	// virtual. Query: do we need different logic for other vehicles, too?
-	// This should always return true when is_maintenance_urgently_needed() would be true.
-	virtual bool is_maintenance_needed() const { return false; }
-	virtual bool is_maintenance_urgently_needed() const { return false; }
-	virtual bool is_overhaul_needed() const { return false; }
+	bool is_maintenance_needed() const;
+	bool is_maintenance_urgently_needed() const;
+	// Aircraft need different logic to other vehicles, hence virtual.
+	virtual bool is_overhaul_needed() const;
+	uint16 get_overhaul_count() const { return overhauls; }
+	uint32 get_km_since_last_overhaul() const { return km_since_last_overhaul; }
 
-	void replenish() { km_since_last_replenish = 0; }
-	void maintain() { replenish(); km_since_last_maintenance = 0; }
-	void overhaul() { maintain(); km_since_last_overhaul = 0; } // TODO: Add code here for updating the livery.
+	virtual uint8 get_availability() const;
+
+	void replenish();
+	void maintain();
+	virtual void overhaul();
+	sint64 get_overhaul_cost() const;
 
 	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
 	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }
 
 	bool get_do_not_overhaul() const { return do_not_overhaul; }
 	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
+	const vehicle_desc_t* get_auto_upgrade() const;
 
 	uint16 get_tags() const { return tags; }
-	bool is_tag_set(uint16 tag) const { return tag & tags; }
-	void set_tag(uint16 tag) { tag |= tags; }
-	void clear_tag(uint16 tag) { tag &= ~tags; }
+	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
+	void set_tag(uint16 tag) { tags |= tag; }
+	void clear_tag(uint16 tag) { tags &= ~tag; }
+
+	bool get_is_mothballed() const { return is_mothballed; }
+	void mothball();
+	void un_mothball();
+
+	// Allows for repositioning a vehicle for shunting without moving the vehicle as part of its journey.
+	void reposition_vehicle(grund_t* gr);
 };
 
 
@@ -732,5 +787,7 @@ template<> inline vehicle_t* obj_cast<vehicle_t>(obj_t* const d)
 
 
 sint16 get_friction_of_waytype(waytype_t waytype);
+
+void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const convoi_t *cnv, bool draw_background = false);
 
 #endif

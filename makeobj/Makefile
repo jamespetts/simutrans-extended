@@ -83,7 +83,7 @@ ifneq ($(PROFILE),)
 endif
 
 CFLAGS   += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wstrict-prototypes -Wpadded $(OS_INC) $(OS_OPT) $(FLAGS)
-CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wpadded -std=c++11 $(OS_INC) $(OS_OPT) $(FLAGS)
+CXXFLAGS += -Wall -Wextra -Wcast-qual -Wpointer-arith -Wcast-align -Wpadded -std=c++14 $(OS_INC) $(OS_OPT) $(FLAGS)
 
 # SOLO_SOURCES contains files which are unique to makeobj;
 # SHARED_SOURCES contains those with the exact same object code in makeobj and simutrans;
@@ -128,8 +128,6 @@ SHARED_SOURCES += ../simmem.cc
 SHARED_SOURCES += ../utils/simstring.cc
 SHARED_SOURCES += ../utils/searchfolder.cc
 SHARED_SOURCES += ../utils/float32e8_t.cc
-SHARED_SOURCES += ../utils/csv.cc
-SHARED_SOURCES += ../utils/cbuffer_t.cc
 VARIANT_SOURCES += ../utils/simrandom.cc
 VARIANT_SOURCES += ../dataobj/tabfile.cc
 VARIANT_SOURCES += ../utils/log.cc

@@ -14,25 +14,29 @@
 #include "livery_scheme.h"
 #include "../tpl/piecewise_linear_tpl.h" // for various revenue tables
 #include "../dataobj/koord.h"
-
+#include "../simcolor.h"
 
 class player_t;
 class loadsave_t;
 class tabfile_t;
 class way_desc_t;
 
+
 struct road_timeline_t
 {
-	char name[64];
-	uint16 intro;
-	uint16 retire;
+	char name[64] = { 0 };
+	uint16 intro = 0;
+	uint16 retire = 0;
 };
+
+
 struct region_definition_t
 {
 	std::string name;
 	koord top_left = koord::invalid;
 	koord bottom_right = koord::invalid;
 };
+
 
 template <class T>
 class vector_with_ptr_ownership_tpl : public vector_tpl<T*>
@@ -194,6 +198,8 @@ private:
 	 * 0 : Classic (no flow control?)
 	 * 1 : JIT Classic (maximum transit and storage limited)
 	 * 2 : JIT Version 2 (demand buffers with better consumption model)
+	 * 5 : Contract based JIT
+	 * WARNING do not change outside accessors
 	 */
 	uint8 just_in_time;
 
@@ -208,6 +214,11 @@ private:
 
 	/*no goods will put in route, when stored>gemax_storage and goods_in_transit*maximum_intransit_percentage/100>max_storage  */
 	uint16 factory_maximum_intransit_percentage;
+
+	// minimum capacities for factories (in case of individual problem .dat files rounding down too low)
+	// necessary to avoid the maximum_intransit_percentage throttling traffic to nothing
+	uint32 minimum_industry_input_storage_raw = 1;
+	uint32 minimum_industry_output_storage_raw = 1;
 
 	/* crossconnect all factories (like OTTD and similar games) */
 	bool crossconnect_factories;
@@ -396,13 +407,13 @@ private:
 	*/
 	uint32 industry_density_proportion_override = 0;
 
-public:
-	//Cornering settings
-	//@author: jamespetts
-
 	//The array index corresponds
 	//to the waytype index.
 
+	PIXVAL waytype_color[10];
+
+	//Cornering settings
+	//@author: jamespetts
 	sint32 corner_force_divider[10];
 
 	uint8 curve_friction_factor[10];
@@ -426,6 +437,7 @@ public:
 
 	uint16 meters_per_tile;
 
+private:
 	uint32 base_meters_per_tile;
 	uint32 base_bits_per_month;
 	uint32 job_replenishment_per_hundredths_of_months;
@@ -433,7 +445,6 @@ public:
 	// We need it often(every vehicle_base_t::do_drive call), so we cache it.
 	uint32 steps_per_km;
 
-private:
 	// The public version of these is exposed via tables below --neroden
 	uint8 tolerable_comfort_short;
 	uint8 tolerable_comfort_median_short;
@@ -540,7 +551,7 @@ public:
 
 	//@author: jamespetts
 	// Insolvency and debt settings
-	uint8 interest_rate_percent;
+	sint16 overdraft_percent_above_base_rate;
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
@@ -629,6 +640,11 @@ private:
 
 	// true if companies can make ways public
 	bool disable_make_way_public;
+
+	//The number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 maintenance_interval_months = 12;
+	// The maximum number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 extended_maintenance_interval_months = 18;
 
 public:
 	/* the big cost section */
@@ -787,6 +803,15 @@ public:
 	// If false, only information up to one year ahead
 	bool show_future_vehicle_info;
 
+	// For allowing sensibly small per unit costs of fuel (e.g., using the per tonne cost for coal when the prices are calibrated per gramme)
+	uint32 fuel_unit_cost_divider = 1000;
+
+	// The minimum number of seconds between a vehicle entering layover and leaving it.
+	uint32 min_layover_overhead_seconds = 120;
+
+	// The number of seconds that it takes to reconstitute a consist.
+	uint32 shunting_time_seconds = 60;
+
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
 	 * Set to empty string in order to avoid loading.
@@ -804,15 +829,14 @@ public:
 	void copy_city_road(settings_t const& other);
 
 	// init from this file ...
-	void parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool& fullscreen, std::string& objfilename);
+	void parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, sint16& fullscreen, std::string& objfilename);
 
 	// init without screen parameters ...
 	void parse_simuconf(tabfile_t& simuconf) {
 		sint16 idummy = 0;
-		bool bdummy = false;
 		std::string sdummy;
 
-		parse_simuconf(simuconf, idummy, idummy, bdummy, sdummy);
+		parse_simuconf(simuconf, idummy, idummy, idummy, sdummy);
 	}
 
 	void parse_colours(tabfile_t& simuconf);
@@ -880,8 +904,11 @@ public:
 
 	bool get_beginner_mode() const {return beginner_mode;}
 
-	void set_just_in_time(uint8 b) { just_in_time = b; }
+	void set_just_in_time(uint8 b);
 	uint8 get_just_in_time() const {return just_in_time;}
+
+	bool using_fab_contracts(uint8 b) const { return b==5;}
+	bool using_fab_contracts() const { return using_fab_contracts(just_in_time);}
 
 	void set_default_climates();
 	const sint16 *get_climate_borders() const { return climate_borders; }
@@ -1029,6 +1056,16 @@ public:
 	uint8 get_congestion_density_factor () const { return congestion_density_factor; }
 	void set_congestion_density_factor (uint8 value)  { congestion_density_factor = value; }
 
+	PIXVAL get_waytype_color(waytype_t waytype) const {
+		switch (waytype)
+		{
+			case air_wt:
+				return waytype_color[9];
+			default:
+				return waytype < 10 ? waytype_color[waytype]:0;
+		}
+	}
+
 	uint8 get_curve_friction_factor (waytype_t waytype) const { assert((int)waytype < 10); return curve_friction_factor[waytype]; }
 
 	sint32 get_corner_force_divider(waytype_t waytype) const { assert((int)waytype < 10); return corner_force_divider[waytype]; }
@@ -1037,7 +1074,7 @@ public:
 
 	uint16 get_factory_max_years_obsolete() const { return factory_max_years_obsolete; }
 
-	uint8 get_interest_rate_percent() const { return interest_rate_percent; }
+	sint16 get_overdraft_percent_above_base_rate() const { return overdraft_percent_above_base_rate; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
 
@@ -1113,6 +1150,9 @@ public:
 	bool get_factory_enforce_demand() const { return factory_enforce_demand; }
 
 	uint16 get_factory_maximum_intransit_percentage() const { return factory_maximum_intransit_percentage; }
+
+	uint32 get_minimum_industry_input_storage_raw() const { return minimum_industry_input_storage_raw; }
+	uint32 get_minimum_industry_output_storage_raw() const { return minimum_industry_output_storage_raw; }
 
 	// disallow using obsolete vehicles in depot
 	uint8 get_allow_buying_obsolete_vehicles() const { return allow_buying_obsolete_vehicles; }
@@ -1268,6 +1308,32 @@ public:
 	sint64 get_forge_cost(waytype_t wt) const;
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
 
+	// These apply inflation
+	sint64 get_maint_building() const;
+
+	sint64 get_cost_multiply_dock() const;
+	sint64 get_cost_multiply_station() const;
+	sint64 get_cost_multiply_roadstop() const;
+	sint64 get_cost_multiply_airterminal() const;
+	sint64 get_cost_multiply_post() const;
+	sint64 get_cost_multiply_headquarter() const;
+	sint64 get_cost_depot_rail() const;
+	sint64 get_cost_depot_road() const;
+	sint64 get_cost_depot_ship() const;
+	sint64 get_cost_depot_air() const;
+
+	sint64 get_cost_reclaim_land() const;
+	sint64 get_cost_alter_land() const;
+	sint64 get_cost_alter_climate() const;
+	sint64 get_cost_set_slope() const;
+	sint64 get_cost_found_city() const;
+	sint64 get_cost_multiply_found_industry() const;
+	sint64 get_cost_remove_tree() const;
+	sint64 get_cost_multiply_remove_house() const;
+	sint64 get_cost_mutliply_remove_field() const;
+	sint64 get_cost_transformer() const;
+	sint64 get_cost_maintain_transformer() const;
+
 	uint32 get_max_diversion_tiles() const { return max_diversion_tiles; }
 
 	uint8 get_way_height_clearance() const { return way_height_clearance; }
@@ -1308,6 +1374,12 @@ public:
 
 	bool get_simplified_maintenance() const { return simplified_maintenance; }
 
+	uint32 get_min_layover_overhead_seconds() const { return min_layover_overhead_seconds; }
+	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = value; }
+
+	uint32 get_shunting_time_seconds() const { return shunting_time_seconds; }
+	void set_shunting_time_seconds(uint32 value) { shunting_time_seconds = value; }
+
 	uint32 get_path_explorer_time_midpoint() const { return path_explorer_time_midpoint; }
 	bool get_save_path_explorer_data() const { return save_path_explorer_data; }
 
@@ -1327,6 +1399,14 @@ public:
 	void set_do_not_record_private_car_routes_to_distant_non_consumer_industries(bool value) { do_not_record_private_car_routes_to_distant_non_consumer_industries = value; }
 	bool get_do_not_record_private_car_routes_to_city_buildings() const { return do_not_record_private_car_routes_to_city_buildings; }
 	void set_do_not_record_private_car_routes_to_city_buildings(bool value) { do_not_record_private_car_routes_to_city_buildings = value; }
+
+	uint32 get_maintenance_interval_months() const { return maintenance_interval_months; }
+	void set_maintenance_interval_months(uint32 value) { maintenance_interval_months = value; }
+	uint32 get_extended_maintenance_interval_months() const { return extended_maintenance_interval_months; }
+	void set_extended_maintenance_interval_months(uint32 value) { extended_maintenance_interval_months = value; }
+
+	uint32 get_fuel_unit_cost_divider() const { return fuel_unit_cost_divider; }
+	void set_fuel_unit_cost_divider(uint32 value) { fuel_unit_cost_divider = value; }
 };
 
 #endif

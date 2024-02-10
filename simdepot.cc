@@ -26,6 +26,7 @@
 #include "dataobj/schedule.h"
 #include "dataobj/loadsave.h"
 #include "dataobj/translator.h"
+#include "dataobj/replace_data.h"
 
 #include "bauer/hausbauer.h"
 #include "obj/gebaeude.h"
@@ -56,7 +57,7 @@ depot_t::depot_t(loadsave_t *file) : gebaeude_t()
 		set_yoff(0);
 	}
 	all_depots.append(this);
-	selected_filter = VEHICLE_FILTER_RELEVANT;
+	welt->sync.add(this);
 	last_selected_line = linehandle_t();
 	command_pending = false;
 }
@@ -71,10 +72,11 @@ depot_t::depot_t(koord3d pos, player_t *player, const building_tile_desc_t *t) :
 #endif
 {
 	all_depots.append(this);
-	selected_filter = VEHICLE_FILTER_RELEVANT;
 	last_selected_line = linehandle_t();
 	command_pending = false;
+	strcpy(name, "unnamed");
 	add_to_world_list();
+	welt->sync.add(this);
 }
 
 
@@ -88,6 +90,7 @@ depot_t::~depot_t()
 		welt->remove_building_from_world_list(this);
 		// No need to remove this from the city statistics here, as this will be done by the gebaeude_t parent object.
 	}
+	welt->sync.remove(this);
 }
 
 
@@ -98,7 +101,8 @@ depot_t *depot_t::find_depot( koord3d start, const obj_t::typ depot_type, const 
 	koord3d found_pos = forward ? koord3d(welt->get_size().x+1,welt->get_size().y+1,welt->get_groundwater()) : koord3d(-1,-1,-1);
 	sint32 found_hash = forward ? 0x7FFFFFF : -1;
 	sint32 start_hash = start.x + (8192 * start.y);
-	FOR(slist_tpl<depot_t*>, const d, all_depots) {
+	for(auto const d : all_depots)
+	{
 		if(d->get_typ()==depot_type  &&  d->get_owner()==player) {
 			// ok, the right type of depot
 			const koord3d pos = d->get_pos();
@@ -204,7 +208,8 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 	}
 
-	bool overhaul = false;
+	vector_tpl<vehicle_t*> vehicles_to_overhaul;
+	vector_tpl<vehicle_t*> vehicles_to_maintain;
 
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
 	for(unsigned i=0; i<acnv->get_vehicle_count(); i++)
@@ -223,28 +228,64 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		{
 			if(v->is_overhaul_needed() && !v->get_do_not_overhaul())
 			{
-				v->overhaul();
-				overhaul = true;
+				vehicles_to_overhaul.append(v);
 			}
 			else
 			{
-				v->maintain();
+				vehicles_to_maintain.append(v);
 			}
 		}
 	}
 
-	if (flags & schedule_entry_t::maintain_or_overhaul)
+	const replace_data_t* rpl = acnv->get_replace();
+	if (rpl && ((!rpl->get_use_home_depot() || acnv->get_home_depot() == get_pos())))
 	{
-		if(overhaul)
+		// If the home depot is required and this is not it, do not replace.
+
+		if (flags & schedule_entry_t::maintain_or_overhaul &&
+			(rpl->get_replace_at() == replace_data_t::on_maintenance && !vehicles_to_maintain.empty()) ||
+			(rpl->get_replace_at() == replace_data_t::on_overhaul && !vehicles_to_overhaul.empty()))
 		{
-			acnv->set_state(convoi_t::OVERHAUL);
-			acnv->set_wait_lock(2000); // TODO: Use a proper value here. This is temporary.
+			acnv->replace_now();
+			vehicles_to_overhaul.clear();
+			vehicles_to_maintain.clear();
+
+			// We must repeat this as replacing will probably have invalidated the vectors
+			for (unsigned i = 0; i < acnv->get_vehicle_count(); i++)
+			{
+				vehicle_t* v = acnv->get_vehicle(i);
+
+				if (v->is_overhaul_needed() && !v->get_do_not_overhaul())
+				{
+					vehicles_to_overhaul.append(v);
+				}
+				else
+				{
+					vehicles_to_maintain.append(v);
+				}
+			}
 		}
-		else
-		{
-			acnv->set_state(convoi_t::MAINTENANCE);
-			acnv->set_wait_lock(1000); // TODO: Use a proper value here. This is temporary.
-		}
+	}
+
+	for (auto veh : vehicles_to_overhaul)
+	{
+		veh->overhaul();
+	}
+
+	for (auto veh : vehicles_to_maintain)
+	{
+		veh->maintain();
+	}
+
+	if(!vehicles_to_overhaul.empty())
+	{
+		acnv->set_state(convoi_t::OVERHAUL);
+		register_for_maintenance(acnv);
+	}
+	else if (!vehicles_to_maintain.empty())
+	{
+		acnv->set_state(convoi_t::MAINTENANCE);
+		register_for_maintenance(acnv);
 	}
 
 	// this part stores the convoi in the depot
@@ -343,7 +384,7 @@ void depot_t::append_vehicle(convoihandle_t &cnv, vehicle_t* veh, bool infront, 
 		cnv = add_convoi( local_execution );
 	}
 	veh->set_pos(get_pos());
-	cnv->add_vehicle(veh, infront);
+	cnv->add_vehicle(veh, infront ? 0 : cnv->get_vehicle_count());
 	vehicles.remove(veh);
 }
 
@@ -381,7 +422,7 @@ void depot_t::sell_vehicle(vehicle_t* veh)
 vehicle_t* depot_t::find_oldest_newest(const vehicle_desc_t* desc, bool old, vector_tpl<vehicle_t*> *avoid)
 {
 	vehicle_t* found_veh = NULL;
-	FOR(slist_tpl<vehicle_t*>, const veh, vehicles)
+	for (auto const veh : vehicles)
 	{
 		if(veh != NULL && veh->get_desc() == desc)
 		{
@@ -454,7 +495,8 @@ convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution
 	{
 		convoihandle_t new_cnv = add_convoi( false );
 		new_cnv->set_name(old_cnv->get_internal_name());
-		new_cnv->set_livery_scheme_index(old_cnv->get_livery_scheme_index());
+		const uint16 convoy_livery_index = old_cnv->get_livery_scheme_index();
+		new_cnv->set_livery_scheme_index(convoy_livery_index);
 		int vehicle_count = old_cnv->get_vehicle_count();
 		for (int i = 0; i < vehicle_count; i++)
 		{
@@ -486,7 +528,37 @@ convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution
 
 					}
 					// buy new vehicle
-					new_vehicle = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, old_cnv->get_livery_scheme_index());
+					uint16 vehicle_livery_index = convoy_livery_index;
+					if (info->get_livery_count() > 1) {
+						// check livery
+						vector_tpl<livery_scheme_t*>* schemes = world()->get_settings().get_livery_schemes();
+						if (schemes->get_count()) {
+							livery_scheme_t* convoy_scheme = schemes->get_element(convoy_livery_index);
+							if (convoy_scheme->is_contained(old_cnv->get_vehicle(i)->get_current_livery())) {
+								// Copy the livery of the old vehicle as it is
+								// If it is old it will be replaced with new one
+							}
+							else {
+								const char *livery_name = old_cnv->get_vehicle(i)->get_current_livery();
+								// The player intentionally set a different livery scheme for this vehicle
+								// =>should copy it if it is available
+								for (uint32 j = 0; j < schemes->get_count(); j++) {
+									livery_scheme_t* scheme = schemes->get_element(j);
+									if (scheme->is_contained(livery_name)) {
+										// This livery scheme has vehicle's livery => Check if this is available now
+										if (scheme->is_available(welt->get_timeline_year_month())) {
+											if (!strcmp(livery_name, scheme->get_latest_available_livery(welt->get_timeline_year_month(), info))) {
+												// This is the latest livery so it can be copied
+												vehicle_livery_index = j;
+												break;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					new_vehicle = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, vehicle_livery_index);
 				}
 
 				// Reassign the classes:
@@ -591,7 +663,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 	}
 
 	// convoi not in depot anymore, maybe user double-clicked on start-button
-	if(local_execution && !convois.is_contained(cnv)) {
+	if(/*local_execution &&*/ !convois.is_contained(cnv)) { // The local_execution condition caused timebase issues and excessive speeds of vehicles
 		return false;
 	}
 
@@ -611,7 +683,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			cur_pos = cnv->get_schedule()->get_current_entry().pos;
 		}
 
-		bool convoy_unpowered = cnv->get_sum_power() == 0 || cnv->calc_max_speed(cnv->get_weight_summary()) == 0;
+		bool convoy_unpowered = cnv->is_unpowered();
 
 		if(convoy_unpowered)
 		{
@@ -644,7 +716,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 
 		// check if convoy is complete
-		if(convoy_unpowered || !cnv->pruefe_alle())
+		if(convoy_unpowered || !cnv->check_validity())
 		{
 			if (local_execution)
 			{
@@ -711,10 +783,12 @@ void depot_t::remove_convoi( convoihandle_t cnv )
 	else {
 		convois.remove( cnv );
 	}
+
+	under_maintenance.remove(cnv);
 }
 
 
-// attention! this will not be used for railway depots! They will be loaded by hand ...
+// attention! this will not be used for railway depots when loading! They will be loaded by hand ...
 void depot_t::rdwr(loadsave_t *file)
 {
 	gebaeude_t::rdwr(file);
@@ -724,6 +798,42 @@ void depot_t::rdwr(loadsave_t *file)
 		// wagons are stored extra, just add them to vehicles
 		assert(file->is_loading());
 		rdwr_vehicle(vehicles, file);
+	}
+
+	rdwr_maintenance_queue(file);
+}
+
+void depot_t::rdwr_maintenance_queue(loadsave_t* file)
+{
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save the queue of maintained vehicles in order
+		if (file->is_saving())
+		{
+			uint32 under_maintenance_count = under_maintenance.get_count();
+			file->rdwr_long(under_maintenance_count);
+
+			for (uint32 i = 0; i < under_maintenance_count; i++)
+			{
+				uint16 cnv_id = under_maintenance[i].get_id();
+				file->rdwr_short(cnv_id);
+			}
+		}
+		else if (file->is_loading())
+		{
+			uint32 under_maintenance_count;
+			file->rdwr_long(under_maintenance_count);
+
+			convoihandle_t cnv = convoihandle_t();
+			for (uint32 i = 0; i < under_maintenance_count; i++)
+			{
+				uint16 cnv_id;
+				file->rdwr_short(cnv_id);
+				cnv.set_id(cnv_id);
+				under_maintenance.append(cnv);
+			}
+		}
+
 	}
 }
 
@@ -788,18 +898,55 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			}
 		}
 	}
-	else {
-		FOR(slist_tpl<vehicle_t*>, const v, list) {
+	else
+	{
+		for (auto const v : list)
+		{
 			file->wr_obj_id(v->get_typ());
 			v->rdwr_from_convoi(file);
 		}
+	}
+
+	if (file->is_version_ex_atleast(14, 56))
+	{
+		file->rdwr_str(name, lengthof(name));
+	}
+	else
+	{
+		strcpy(name, "unnamed");
+	}
+}
+
+void depot_t::set_name(const char* value)
+{
+	if (sizeof(*value) > sizeof(name))
+	{
+		dbg->error("void depot_t::set_name(char* value)", "Name too long");
+	}
+	strcpy(name, value);
+
+	depot_frame_t *win = dynamic_cast<depot_frame_t *>(win_get_magic((ptrdiff_t)this));
+	if (win) {
+		win->reset_depot_name();
+	}
+}
+
+const char* depot_t::get_name() const
+{
+	if (strcmp(name, "unnamed"))
+	{
+		return name;
+	}
+	else
+	{
+		return translator::translate(gebaeude_t::get_name());
 	}
 }
 
 /**
  * @return NULL when OK, otherwise an error message
  */
-const char * depot_t:: is_deletable(const player_t *player)
+const char * depot_t::is_deletable(const player_t *player)
 {
 	if(player!=get_owner()  &&  player!=welt->get_public_player()) {
 		return NOTICE_OWNED_BY_OTHER_PLAYER;
@@ -808,8 +955,17 @@ const char * depot_t:: is_deletable(const player_t *player)
 		return "There are still vehicles\nstored in this depot!\n";
 	}
 
-	FOR(slist_tpl<convoihandle_t>, const c, convois) {
+	for (auto const c : convois)
+	{
 		if (c.is_bound() && c->get_vehicle_count() > 0) {
+			return "There are still vehicles\nstored in this depot!\n";
+		}
+	}
+
+	for (auto const c : under_maintenance)
+	{
+		if (c.is_bound() && c->get_vehicle_count() > 0)
+		{
 			return "There are still vehicles\nstored in this depot!\n";
 		}
 	}
@@ -817,16 +973,11 @@ const char * depot_t:: is_deletable(const player_t *player)
 }
 
 
-slist_tpl<vehicle_desc_t*> const & depot_t::get_vehicle_type()
-{
-	return vehicle_builder_t::get_info(get_waytype());
-}
-
-
 vehicle_t* depot_t::get_oldest_vehicle(const vehicle_desc_t* desc)
 {
 	vehicle_t* oldest_veh = NULL;
-	FOR(slist_tpl<vehicle_t*>, const veh, get_vehicle_list()) {
+	for(auto const veh : get_vehicle_list())
+	{
 		if (veh->get_desc() == desc) {
 			if (oldest_veh == NULL ||
 					oldest_veh->get_purchase_time() > veh->get_purchase_time()) {
@@ -841,7 +992,8 @@ vehicle_t* depot_t::get_oldest_vehicle(const vehicle_desc_t* desc)
 // true if already stored here
 bool depot_t::is_contained(const vehicle_desc_t *info)
 {
-	FOR(slist_tpl<vehicle_t*>, const v, get_vehicle_list()) {
+	for (auto const v :get_vehicle_list())
+	{
 		if (v->get_desc() == info) {
 			return true;
 		}
@@ -853,7 +1005,7 @@ void depot_t::update_win()
 {
 	depot_frame_t *depot_frame = dynamic_cast<depot_frame_t *>(win_get_magic( (ptrdiff_t)this ));
 	if(depot_frame) {
-		depot_frame->build_vehicle_lists();
+		depot_frame->set_convoy();
 	}
 }
 
@@ -868,7 +1020,7 @@ void depot_t::new_month()
 	sint64 fixed_cost_costs = 0;
 	if (vehicle_count() > 0)
 	{
-		FOR(slist_tpl<vehicle_t*>, const v, get_vehicle_list())
+		for(auto const v : get_vehicle_list())
 		{
 			fixed_cost_costs += v->get_desc()->get_fixed_cost(welt);
 		}
@@ -895,9 +1047,15 @@ void depot_t::new_month()
 
 void depot_t::update_all_win()
 {
-	FOR(slist_tpl<depot_t*>, const d, all_depots) {
+	for (auto const d : all_depots)
+	{
 		d->update_win();
 	}
+}
+
+uint16 depot_t::get_traction_types() const
+{
+	return this->get_tile()->get_desc()->get_enabled();
 }
 
 /**
@@ -908,7 +1066,8 @@ void depot_t::update_all_win()
  *   - 0 if we don't want to filter by traction type
  *   - a bitmask of possible traction types; we need only match one
  */
-bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const {
+bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const
+{
 	assert(test_vehicle != NULL);
 
 	// Owner must be the same
@@ -929,7 +1088,7 @@ bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 trac
 	if (traction_types != 0 ) {
 		// If traction types were specified, then *one* of them must match
 		// *one* of the types supported by this depot
-		if ( ! (traction_types & this->get_tile()->get_desc()->get_enabled()) ) {
+		if ( ! (traction_types & get_traction_types()) ) {
 			return false;
 		}
 	}
@@ -949,3 +1108,80 @@ void depot_t::add_to_world_list(bool)
 	}
 }
 
+void depot_t::register_for_maintenance(convoihandle_t cnv)
+{
+	under_maintenance.append(cnv);
+
+	if (cnv->get_vehicle_count() > get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	{
+		// Must account for multiple vehicles in a convoy.
+		const sint32 time_multiplier = ((sint32)cnv->get_vehicle_count() * 100) / (sint32)get_tile()->get_desc()->get_max_vehicles_under_maintenance();
+		cnv->set_wait_lock((cnv->get_wait_lock() * time_multiplier) / 100);
+	}
+}
+
+void depot_t::prioritise_for_maintenance(convoihandle_t cnv)
+{
+	if (!under_maintenance.remove(cnv))
+	{
+		return;
+	}
+	under_maintenance.insert_at(0, cnv);
+}
+
+void depot_t::depriortise_for_maintenance(convoihandle_t cnv)
+{
+	if (!under_maintenance.remove(cnv))
+	{
+		return;
+	}
+	under_maintenance.append(cnv);
+}
+
+bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
+{
+	if (!under_maintenance.is_contained(cnv))
+	{
+		dbg->error("bool depot_t::is_awaiting_attention(convoihandle_t cnv) const", "Convoy %s not in maintenance queue where it is expected to be", cnv->get_name());
+		return false;
+	}
+
+	if (under_maintenance.index_of(cnv) == 0)
+	{
+		return true;
+	}
+
+	uint32 queue_pos = 0;
+	bool our_cnv = false;
+
+	for (auto cnv_mnt : under_maintenance)
+	{
+		if (cnv_mnt == cnv)
+		{
+			our_cnv = true;
+		}
+		else if (our_cnv)
+		{
+			// Finish counting only after we get to the end of the cnv in question.
+			break;
+		}
+		queue_pos += cnv_mnt->get_vehicle_count();
+	}
+
+	if (queue_pos >= get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+sync_result depot_t::sync_step(uint32 delta_t)
+{
+	for (auto c : under_maintenance)
+	{
+		c->sync_step(delta_t);
+	}
+
+	return sync_result::SYNC_OK;
+}

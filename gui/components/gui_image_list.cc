@@ -9,7 +9,7 @@
 #include "../../simevent.h"
 #include "../../simworld.h"
 
-
+#include "../../dataobj/translator.h"
 
 
 gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
@@ -19,6 +19,8 @@ gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
 	this->images = images;
 	player_nr = 0;
 	focus = -1;
+	max_rows = -1;
+	max_width = -1;
 }
 
 
@@ -79,12 +81,12 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 
 	if (focus >= 0) {
 		// This need to draw first because it will overlap the left vehicle
-		display_blend_wh_rgb(xpos + grid.x*focus + 1, ypos + 1, grid.x - 2, grid.y - 2, COL_UPGRADEABLE, 25);
+		display_blend_wh_rgb(xpos + grid.x*focus + 1, ypos + 1, grid.x - 2, grid.y - 2, SYSCOL_UPGRADEABLE, 25);
 	}
 
 	FOR(vector_tpl<image_data_t*>, const& iptr, *images) {
 		image_data_t const& idata = *iptr;
-		if(idata.count>=0) {
+		if(idata.count!=-32768) {
 
 			// display mark
 			if(idata.lcolor!=EMPTY_IMAGE_BAR) {
@@ -98,7 +100,7 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 			}
 
 			// Get image data
-			scr_coord_val x,y,w,h;
+			scr_coord_val x = 0, y = 0, w = 0, h = 0;
 			display_get_base_image_offset( idata.image, &x, &y, &w, &h );
 
 			// calculate image offsets
@@ -108,19 +110,24 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 			display_base_img(idata.image, xpos + x, ypos + y, player_nr, false, true);
 
 			// If necessary, display a number:
-			if(idata.count > 0) {
+			if(idata.count != 0) {
 				char text[20];
 
-				sprintf(text, "%d", idata.count);
+				if (idata.count<0) {
+					sprintf(text, "%s%d", translator::translate("LOCO_SYM"), abs(idata.count));
+				}
+				else {
+					sprintf(text, "%d", idata.count);
+				}
 
 				// Let's make a black background to ensure visibility
 				for(int iy = -3; iy < 0; iy++) {
 					for(int ix = 1; ix < 4; ix++) {
-						display_proportional_clip_rgb(xpos + ix, ypos + iy + 1, text, ALIGN_LEFT, color_idx_to_rgb(COL_BLACK), true);
+						display_proportional_clip_rgb(xpos + ix, ypos + iy + 1, text, ALIGN_LEFT, SYSCOL_TEXT_SHADOW, true);
 					}
 				}
 				// Display the number white on black
-				display_proportional_clip_rgb(xpos + 2, ypos - 1, text, ALIGN_LEFT, color_idx_to_rgb(COL_WHITE), true);
+				display_proportional_clip_rgb(xpos + 2, ypos - 1, text, ALIGN_LEFT, SYSCOL_TEXT_HIGHLIGHT, true);
 			}
 
 			// If necessary, display upgradable symbol: 1=upgradeable, 2=has available upgrade target
@@ -141,13 +148,20 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 }
 
 
+scr_size gui_image_list_t::get_min_size() const { return get_max_size(); }
 
-void gui_image_list_t::recalc_size()
+scr_size gui_image_list_t::get_max_size() const
 {
-	const int columns = (size.w - 2 * BORDER) / grid.x;
-	int rows = (images->get_count() + columns-1) / columns;
-	if(rows== 0) {
-		rows = 1;
+	if (max_rows > 0) {
+		// this many images per column
+		sint32 cols = (images->get_count() + max_rows - 1) / max_rows;
+		return scr_size(cols*grid.x + 2*BORDER, max_rows*grid.y + 2*BORDER);
 	}
-	set_size(scr_size(size.w, rows * grid.y + 2*BORDER));
+	else if (max_width > 0) {
+		sint32 cols = (max_width - 2*BORDER) / grid.x;
+		sint32 rows = (images->get_count() + cols - 1) / cols;
+		return scr_size(cols*grid.x + 2*BORDER, rows*grid.y + 2*BORDER);
+
+	}
+	return scr_size((images->get_count()+1)*grid.x + 2*BORDER, grid.y + 2*BORDER);
 }

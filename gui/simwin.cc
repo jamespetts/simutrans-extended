@@ -47,6 +47,7 @@
 #include "money_frame.h"
 #include "halt_detail.h"
 #include "halt_info.h"
+#include "consist_order_gui.h"
 #include "convoi_detail_t.h"
 #include "convoi_frame.h"
 #include "convoi_info_t.h"
@@ -65,6 +66,8 @@
 #include "loadsoundfont_frame.h"
 #endif
 #include "scenario_info.h"
+#include "depot_frame.h"
+#include "replace_frame.h"
 #include "depotlist_frame.h"
 #include "vehiclelist_frame.h"
 #include "halt_list_frame.h"
@@ -73,6 +76,7 @@
 #include "labellist_frame_t.h"
 #include "display_settings.h"
 #include "optionen.h"
+#include "vehicle_class_manager.h"
 
 #include "../simversion.h"
 
@@ -591,7 +595,7 @@ bool win_is_top(const gui_frame_t *ig)
 // save/restore all dialogues
 void rdwr_all_win(loadsave_t *file)
 {
-	if( file->is_version_ex_atleast(14, 32) ) {
+	if( file->is_version_ex_atleast(15,0) ) {
 		if(  file->is_saving()  ) {
 			FOR(vector_tpl<simwin_t>, & i, wins) {
 				uint32 id = i.gui->get_rdwr_id();
@@ -621,10 +625,9 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_none: return;
 
 					// actual dialogues to restore
-					case magic_convoi_info:    w = new convoi_info_t(); break;
 					case magic_convoi_detail:  w = new convoi_detail_t(); break;
+					case magic_class_manager:  w = new vehicle_class_manager_t(); break;
 					case magic_themes:         w = new themeselector_t(); break;
-					case magic_halt_info:      w = new halt_info_t(); break;
 					case magic_halt_detail:    w = new halt_detail_t(); break;
 					case magic_reliefmap:      w = new map_frame_t(); break;
 					case magic_ki_kontroll_t:  w = new ki_kontroll_t(); break;
@@ -640,7 +643,7 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_soundfont:      w = new loadsoundfont_frame_t(); break;
 #endif
 					case magic_scenario_info:  w = new scenario_info_t(); break;
-					//case magic_depot:          w = new depot_frame_t(); break;
+					case magic_depot:          w = new depot_frame_t(); break;
 					case magic_convoi_list:    w = new convoi_frame_t(); break;
 					case magic_depotlist:      w = new depotlist_frame_t(); break;
 					case magic_vehiclelist:    w = new vehiclelist_frame_t(); break;
@@ -651,7 +654,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
+					//case magic_consist_order:  w = new consist_order_frame_t(); break; // not yet support rdwr
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
@@ -666,6 +670,24 @@ void rdwr_all_win(loadsave_t *file)
 						}
 						else if (id >= magic_depotlist && id < magic_depotlist + MAX_PLAYER_COUNT) {
 							w = new depotlist_frame_t(wl->get_player(id - magic_depotlist));
+						}
+						else if( id>=magic_convoi_info && id < magic_convoi_info+0x10000) {
+							w = new convoi_info_t();
+						}
+						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000) {
+							w = new halt_info_t();
+						}
+						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
+							w = new replace_frame_t();
+						}
+						else if(  id>=magic_replace_line && id < magic_replace_line +0x10000  ) {
+							w = new replace_frame_t(linehandle_t());
+						}
+						else if( id>=magic_convoi_info && id<magic_convoi_info+0x10000  ) {
+							w = new convoi_info_t();
+						}
+						else if( id>=magic_halt_info  &&  id<magic_halt_info+0x10000  ) {
+							w = new halt_info_t();
 						}
 						else {
 							dbg->error( "rdwr_all_win()", "No idea how to restore magic 0x%X", id );

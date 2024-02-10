@@ -61,12 +61,36 @@ PIXVAL gui_theme_t::gui_highlight_color;
 PIXVAL gui_theme_t::gui_shadow_color;
 PIXVAL gui_theme_t::gui_color_loadingbar_inner;
 PIXVAL gui_theme_t::gui_color_loadingbar_progress;
+PIXVAL gui_theme_t::gui_color_livery_scheme;
+PIXVAL gui_theme_t::gui_color_mixload_prohibition;
 PIXVAL gui_theme_t::gui_color_obsolete;
-PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_out_of_production;
+PIXVAL gui_theme_t::gui_color_overcrowded;
+PIXVAL gui_theme_t::gui_color_staff_shortage;
+PIXVAL gui_theme_t::gui_color_traction_type;
+PIXVAL gui_theme_t::gui_color_upgradeable;
+PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_empty;
 PIXVAL gui_theme_t::gui_color_up_pointing_triangle;
 PIXVAL gui_theme_t::gui_color_down_pointing_triangle;
+
+PIXVAL gui_theme_t::gui_color_table_frame;
+PIXVAL gui_theme_t::gui_color_table_background;
+PIXVAL gui_theme_t::gui_color_table_header_border;
+PIXVAL gui_theme_t::gui_color_table_cell_border;
+PIXVAL gui_theme_t::gui_color_table_background_head_row;
+PIXVAL gui_theme_t::gui_color_table_background_head_selected;
+PIXVAL gui_theme_t::gui_color_table_background_left_col;
+PIXVAL gui_theme_t::gui_color_table_background_data_sum;
+PIXVAL gui_theme_t::gui_color_table_background_data;
+PIXVAL gui_theme_t::gui_color_table_background_highlight;
+PIXVAL gui_theme_t::gui_color_table_background_selected;
+PIXVAL gui_theme_t::gui_color_text_head_row;
+PIXVAL gui_theme_t::gui_color_text_head_selected;
+PIXVAL gui_theme_t::gui_color_text_left_col;
+PIXVAL gui_theme_t::gui_color_text_table_cell_selected;
+
+PIXVAL gui_theme_t::gui_color_class_insignia_dots;
 
 /**
  * Max Kielland
@@ -178,10 +202,6 @@ void gui_theme_t::init_gui_defaults()
 
 	gui_color_colored_button_text          = color_idx_to_rgb(COL_BLACK);
 	gui_color_colored_button_text_selected = color_idx_to_rgb(COL_WHITE);
-	gui_color_button_text_disabled         = color_idx_to_rgb(MN_GREY0);
-	gui_color_button_text_selected         = color_idx_to_rgb(COL_BLACK);
-	gui_color_colored_button_text          = color_idx_to_rgb(COL_BLACK);
-	gui_color_colored_button_text_selected = color_idx_to_rgb(COL_WHITE);
 	gui_color_checkbox_text                = color_idx_to_rgb(COL_BLACK);
 	gui_color_checkbox_text_disabled       = color_idx_to_rgb(MN_GREY0);
 	gui_color_ticker_background            = color_idx_to_rgb(MN_GREY2);
@@ -196,12 +216,37 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_loadingbar_inner             = color_idx_to_rgb(COL_GREY5);
 	gui_color_loadingbar_progress          = color_idx_to_rgb(COL_SOFT_BLUE);
 
+	gui_color_livery_scheme                = color_idx_to_rgb(51);
+	gui_color_mixload_prohibition          = color_idx_to_rgb(COL_BRONZE);
 	gui_color_obsolete                     = color_idx_to_rgb(COL_DARK_BLUE);
 	gui_color_out_of_production            = color_idx_to_rgb(COL_SOFT_BLUE);
+	gui_color_overcrowded                  = color_idx_to_rgb(COL_PURPLE-1);
+	gui_color_staff_shortage               = color_idx_to_rgb(COL_DARK_ORCHID);
+	gui_color_upgradeable                  = color_idx_to_rgb(COL_PURPLE);
+	gui_color_traction_type                = color_idx_to_rgb(149);
 	gui_color_empty                        = color_idx_to_rgb(COL_WHITE);
 
 	gui_color_up_pointing_triangle         = color_idx_to_rgb(COL_LIGHT_TURQUOISE-1);
 	gui_color_down_pointing_triangle       = color_idx_to_rgb(COL_LIGHT_ORANGE-2);
+
+	gui_color_table_frame                  = gui_shadow_color;
+	gui_color_table_background             = gui_color_chart_background;
+	gui_color_table_header_border          = gui_highlight_color;
+	gui_color_table_cell_border            = gui_color_statusbar_divider;
+	gui_color_table_background_head_row    = gui_color_statusbar_background;
+	gui_color_table_background_head_selected = color_idx_to_rgb(COL_LIGHT_BLUE);
+	gui_color_table_background_left_col    = gui_color_ticker_background;
+	gui_color_table_background_data_sum    = color_idx_to_rgb(COL_GREY5);
+	gui_color_table_background_data        = color_idx_to_rgb(COL_WHITE);
+	gui_color_table_background_highlight   = 57141; // cream
+	gui_color_table_background_selected    = 30107; // light skyblue
+	gui_color_text_head_row                = color_idx_to_rgb(COL_WHITE);
+	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
+	gui_color_text_left_col                = gui_color_statusbar_text;
+	gui_color_text_table_cell_selected     = gui_color_colored_button_text_selected;
+
+	gui_color_class_insignia_dots          = color_idx_to_rgb(COL_YELLOW);
+
 
 	env_t::gui_player_color_bright = 4;
 	env_t::gui_player_color_dark   = 1;
@@ -588,12 +633,36 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_shadow_color                       = (PIXVAL)contents.get_color("gui_shadow_color", SYSCOL_SHADOW);
 	gui_theme_t::gui_color_loadingbar_inner             = (PIXVAL)contents.get_color("gui_color_loadingbar_inner", SYSCOL_LOADINGBAR_INNER);
 	gui_theme_t::gui_color_loadingbar_progress          = (PIXVAL)contents.get_color("gui_color_loadingbar_progress", SYSCOL_LOADINGBAR_PROGRESS);
+	gui_theme_t::gui_color_livery_scheme                = (PIXVAL)contents.get_color("gui_color_livery_scheme", SYSCOL_LIVERY_SCHEME);
+	gui_theme_t::gui_color_mixload_prohibition          = (PIXVAL)contents.get_color("gui_color_mixload_prohibition", SYSCOL_MIXLOAD_PROHIBITION);
 	gui_theme_t::gui_color_obsolete                     = (PIXVAL)contents.get_color("gui_color_obsolete", SYSCOL_OBSOLETE);
 	gui_theme_t::gui_color_out_of_production            = (PIXVAL)contents.get_color("gui_color_out_of_production", SYSCOL_OUT_OF_PRODUCTION);
+	gui_theme_t::gui_color_overcrowded                  = (PIXVAL)contents.get_color("gui_color_overcrowded", SYSCOL_OVERCROWDED);
+	gui_theme_t::gui_color_staff_shortage               = (PIXVAL)contents.get_color("gui_color_staff_shortage", SYSCOL_STAFF_SHORTAGE);
+	gui_theme_t::gui_color_traction_type                = (PIXVAL)contents.get_color("gui_color_traction_type", SYSCOL_TRACTION_TYPE);
+	gui_theme_t::gui_color_upgradeable                  = (PIXVAL)contents.get_color("gui_color_upgradeable", SYSCOL_UPGRADEABLE);
 	gui_theme_t::gui_color_empty                        = (PIXVAL)contents.get_color("gui_color_empty", SYSCOL_EMPTY);
 	gui_theme_t::gui_color_chat_window_network_transparency = (PIXVAL)contents.get_color("gui_color_chat_window_network_transparency", gui_color_chat_window_network_transparency);
 	gui_theme_t::gui_color_up_pointing_triangle         = (PIXVAL)contents.get_color("gui_color_up_pointing_triangle", SYSCOL_UP_TRIANGLE);
 	gui_theme_t::gui_color_down_pointing_triangle       = (PIXVAL)contents.get_color("gui_color_down_pointing_triangle", SYSCOL_DOWN_TRIANGLE);
+	gui_theme_t::gui_color_table_frame                  = (PIXVAL)contents.get_color("gui_color_table_frame", SYSCOL_TABLE_FRAME);
+	gui_theme_t::gui_color_table_background             = (PIXVAL)contents.get_color("gui_color_table_background", SYSCOL_TABLE_BACKGROUND);
+	gui_theme_t::gui_color_table_header_border          = (PIXVAL)contents.get_color("gui_color_table_header_border", SYSCOL_TH_BORDER);
+	gui_theme_t::gui_color_table_cell_border            = (PIXVAL)contents.get_color("gui_color_table_cell_border", SYSCOL_TD_BORDER);
+	gui_theme_t::gui_color_table_background_head_row    = (PIXVAL)contents.get_color("gui_color_table_background_head_row", SYSCOL_TH_BACKGROUND_TOP);
+	gui_theme_t::gui_color_table_background_head_selected = (PIXVAL)contents.get_color("gui_color_table_background_head_selected", SYSCOL_TH_BACKGROUND_SELECTED);
+	gui_theme_t::gui_color_table_background_left_col    = (PIXVAL)contents.get_color("gui_color_table_background_left_col", SYSCOL_TH_BACKGROUND_LEFT);
+	gui_theme_t::gui_color_table_background_data_sum    = (PIXVAL)contents.get_color("gui_color_table_background_data_sum", SYSCOL_TD_BACKGROUND_SUM);
+	gui_theme_t::gui_color_table_background_data        = (PIXVAL)contents.get_color("gui_color_table_background_data", SYSCOL_TD_BACKGROUND);
+	gui_theme_t::gui_color_table_background_highlight   = (PIXVAL)contents.get_color("gui_color_table_background_highlight", SYSCOL_TD_BACKGROUND_HIGHLIGHT);
+	gui_theme_t::gui_color_table_background_selected    = (PIXVAL)contents.get_color("gui_color_table_background_selected", SYSCOL_TR_BACKGROUND_SELECTED);
+	gui_theme_t::gui_color_text_head_row                = (PIXVAL)contents.get_color("gui_color_text_head_row", SYSCOL_TH_TEXT_TOP);
+	gui_theme_t::gui_color_text_head_selected           = (PIXVAL)contents.get_color("gui_color_text_head_selected", SYSCOL_TH_TEXT_SELECTED);
+	gui_theme_t::gui_color_text_left_col                = (PIXVAL)contents.get_color("gui_color_text_left_col", SYSCOL_TH_TEXT_LEFT);
+	gui_theme_t::gui_color_text_table_cell_selected     = (PIXVAL)contents.get_color("gui_color_text_table_cell_selected", SYSCOL_TD_TEXT_SELECTED);
+
+	gui_theme_t::gui_color_class_insignia_dots          = (PIXVAL)contents.get_color("gui_color_class_insignia_dots", SYSCOL_CLASS_INSIGNIA);
+
 
 	gui_theme_t::gui_waitingbar_width = (uint32)contents.get_int("gui_waitingbar_width", gui_theme_t::gui_waitingbar_width);
 

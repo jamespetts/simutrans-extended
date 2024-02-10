@@ -52,7 +52,7 @@ void gui_city_stats_t::update_table()
 					img->set_tooltip(translator::translate("City growth is restrained"));
 				}
 
-				gui_label_buf_t *lb = new_component<gui_label_buf_t>(city->get_citygrowth() ? SYSCOL_TEXT : COL_OBSOLETE, gui_label_t::right);
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>(city->get_citygrowth() ? SYSCOL_TEXT : SYSCOL_OBSOLETE, gui_label_t::right);
 				const uint32 population = city->get_finance_history_month(0, HIST_CITIZENS);
 				lb->buf().append(population, 0);
 				lb->set_fixed_width(L_VALUE_CELL_WIDTH);
@@ -89,7 +89,7 @@ void gui_city_stats_t::update_table()
 		case citylist_stats_t::cl_population:
 			add_table(3,1);
 			{
-				gui_label_buf_t *lb = new_component<gui_label_buf_t>(city->get_citygrowth() ? SYSCOL_TEXT:COL_OBSOLETE, gui_label_t::right);
+				gui_label_buf_t *lb = new_component<gui_label_buf_t>(city->get_citygrowth() ? SYSCOL_TEXT:SYSCOL_OBSOLETE, gui_label_t::right);
 				const uint32 population = city->get_finance_history_month(0, HIST_CITIZENS);
 				lb->buf().append(population,0);
 				lb->set_fixed_width( L_VALUE_CELL_WIDTH );
@@ -243,7 +243,7 @@ void gui_city_stats_t::update_table()
 						FOR(slist_tpl<const goods_desc_t*>, &goods, city_goods) {
 							add_table(3,1);
 							{
-								new_component<gui_colorbox_t>(goods->get_color())->set_size(scr_size(LINESPACE/2+2, LINESPACE/2+2));;
+								new_component<gui_colorbox_t>(goods->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 								new_component<gui_label_t>(goods->get_name());
 								new_component<gui_margin_t>(D_H_SPACE);
 							}

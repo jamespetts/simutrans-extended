@@ -14,12 +14,16 @@ const slope_t::type pier_desc_t::auto_tool_cursor_image=79;
 const slope_t::type pier_desc_t::auto_tool_icon_image=80;
 
 slope_t::type pier_desc_t::get_above_slope(uint8 rotation) const{
-    switch (rotation&3) {
-    case 0: return above_slope;
-    case 1: return slope_t::rotate270(above_slope);
-    case 2: return slope_t::rotate180(above_slope);
-    case 3: return slope_t::rotate90(above_slope);
-    }
+	switch (rotation&3) {
+	case 0: return above_slope;
+	case 1: return slope_t::rotate270(above_slope);
+	case 2: return slope_t::rotate180(above_slope);
+	case 3: return slope_t::rotate90(above_slope);
+	}
+
+	// should not reach here
+	assert(false);
+	return slope_t::flat;
 }
 
 image_id pier_desc_t::get_background(slope_t::type slope, uint8 rotation, uint8 season) const{

@@ -143,7 +143,7 @@ reload_and_save_on_quit = 1
 # less responsive to user input on larger maps. 
 #
 # Note that, in an online game, this setting is dictated by the server.
-path_explorer_time_midpoint = 64
+path_explorer_time_midpoint = 128
 
 # If the below setting should be enabled, the pathing data representing all the routes
 # between all the various stops are saved. This greatly reduces the time that it takes
@@ -354,6 +354,15 @@ allow_underground_transformers = 1
 # At 2, industries will demand only enough goods to keep up with the demand of their consumers without trying to fill their internal storage first, but will not demand so many goods that their internal storage is likely to overflow.
 # At 3, industries behave as in 2, save that the internal storage of consumer industries is ignored.
 # At 4, industries will demand goods whenever their internal storage does not have sufficient stock to last until the next delivery is estimated to arrive if the goods were to leave the producing factory now.
+# At 5, production contracts will be used. Production contracts work as follows:
+# For each industry, it is has production capabilities and production contracts for more than its production capacity, it will evenly reduce the contracts to its linked consumers with the aim of having the 
+# total contracts being equal to its production capacity. If that producing industry's total contracts is less than one eighth of its production capacity, it solicits contracts to its linked consumers. 
+# If the industry consumes goods, it calculates its expected consumption using past consumer data (for consumers), current staffing levels, current production contracts (for manufacturers), and current amount 
+# of goods in transit and in stock (which only reduces, not halts, the expected consumption).  If the total contracts is less than the expected consumption or more than 10 percent of expected consumption, it 
+# tries to adjust the contracts to existing links in two rounds, one concentrating on active and staffed producers, then all producers.  Such adjustments are done evenly with slight weight towards more nearby producers.
+# If that fails to produce a total number of contracts above the expected consumption, a third round is performed more aggressively such that it saturates the supply of each producer, starting with the nearest, until
+# the total exceeds the expected consumption.  If it still cannot meet the expected consumption with existing links, it then will attempt to connect to other suppliers to fill the void. Also, when production contracts
+# are used, industries that have had no production contracts for 12 consecutive months or has been unproductive for 60 consecutive months will close.
 just_in_time = 2
 
 # How much amount in transport is sent before further distribution stops
@@ -373,9 +382,6 @@ first_beginner = 0
 # value can range from 1 to 16, inclusive; 1 means no averaging; default is 4
 factory_arrival_periods = 4
 
-# whether factory's pax/mail demands are enforced or not; default is on
-factory_enforce_demand = 1
-
 # The following settings determine the thresholds for deciding whether an industry is short
 # of staff. 
 # 
@@ -390,8 +396,14 @@ factory_enforce_demand = 1
 # its default value of 80, if the industry has 81% of staff, it produces at full capacity.
 # If the industry has 75% of staff, it produces at 75% of capacity, and so forth.
 
-minimum_staffing_percentage_consumer_industry = 66
+minimum_staffing_percentage_consumer_industry = 66 
 minimum_staffing_percentage_full_production_producer_industry = 80
+
+# If this is disabled, all industries will continue to operate fully despite having no staff.
+# If this is enabled, industries will cease to operate if they are short of staff (subject to
+# the setting in rural_industries_no_staff_shortage).
+# Default: 1 (enabled)
+factory_enforce_demand = 1
 
 # If the below setting is enabled, industries situated outside a town will continue
 # to function as normal even if they are short of staff. It is recommended to enable
@@ -416,6 +428,12 @@ auto_connect_industries_and_attractions_by_road = 4
 # or else industry generation might not work properly.
 #  
 #industry_density_proportion_override = 0
+
+# Sanity check: overrides to deal with problem settings in individual factory buildings in paks which round down too low.
+# Minimum storage size for industries should be set at the size of a small vehicle which is expected to
+# be usable economically during the game.  This is always at least 1, but usually more like 5 or 7.
+minimum_industry_input_storage_raw = 1
+minimum_industry_output_storage_raw = 1
 
 ################################# Display settings  ################################
 # Use with care
@@ -523,7 +541,6 @@ compass_map_position = 13
 #visualize_schedule = 1
 
 
-
 ############################### Further Display settings ###############################
 #These cannot be set in the Display settings UI, so simuconf is the only way to set these
 
@@ -602,6 +619,27 @@ show_delete_buttons = 1
 # Should either account (default) or net wealth be shown below the screen?
 player_finance_display_account = 1
 
+# Waytype color
+# All
+#waytype_color[0] = #aaaaaa
+# road
+#waytype_color[1] = #b551d6
+# rail
+#waytype_color[2] = #ffa22a
+# ship
+#waytype_color[3] = #0079ff
+# monorail
+#waytype_color[5] = #b52021
+# maglev
+#waytype_color[6] = #ff61bd
+# tram
+#waytype_color[7] = #6bd310
+# narrowgauge
+#waytype_color[8] = #b58200
+# air
+#waytype_color[9] = #31cbff
+
+
 ################################### Finance settings ##################################
 #
 # These values are usually set in the pak files
@@ -678,6 +716,36 @@ beginner_price_factor = 1500
 
  # The number of months of maintainance that the make public tool costs to use
 cst_make_public_months = 60
+
+# Allows fuel units to be set in, for example, grammes whilst fuel costs are calibrated for, for example, tonnes.
+# Preserves accuracy without requiring very high absolute figures (only rounds down at the end of each trip).
+fuel_unit_cost_divider = 1000
+
+# This gives the number of percentage points above the base rate at which players are charged interest on overdrafts.
+# Default: 2%
+# The base rate is set in prices.tab.
+overdraft_percent_above_base_rate = 2
+
+# Insolvency settings
+#
+# These settings allow what happens when the player runs out of money and goes
+# into the red to be customised. 
+# 
+# "allow_bankruptcy" determines whether, when the player is deemed to have been
+# insolvent for more than a certain period, the player should be declared
+# bankrupt and the game over. 0 = no, 1 = yes.
+# 
+# "allow_purchases_when_insolvent" determines whether, if the player's bank
+# balance falls below the player's credit limit (shown in the finance window),
+# the player will be unable to spend any new money on capital items (excluding
+# bulldozing) until the player has come back within the credit limit again.
+# 0 = no, 1 = yes.
+#
+# To revert to the behaviour of Simutrans standard, set interest_rate_percent to
+# 0, set allow_bankruptsy to 1, and set allow_purchases_when_insolvent to 1.
+
+allow_bankruptcyallow_bankruptcy = 1
+allow_purchases_when_insolvent = 0
 
 ################################### Miscellaneous settings ##################################
 #
@@ -845,17 +913,34 @@ new_height_map_conversion = 0
 # does not affect public service provider player
 disable_make_way_public = 0
 
-
 # This determines whether vehicles need to visit depots periodically.
 # If enabled (1), the vehicles do not need to visit depots periodically.
+# 
 # This is enabled by default when loading older saved games in which
 # periodic depot vists were neither necessary nor possible, irrespective
 # of the setting here. This applies only to new games.
+#
+# Default: 0 (except for loading games saved in versions older than 15)
 simplified_maintenance = 0
 
 # This setting alters the revenue for electricity transmission.
 # The figure is a percentage of the default revenue. Default: 100.
 power_revenue_factor_percentage = 100
+
+# These settings govern the frequency with which vehicles that do not have a distance based
+# maintenance interval set in their individual .dat files must return to the depot for maintenance.
+# After maintenance_interval_months, the vehicle will return to the depot on its next scheduled
+# depot visit. After extended_maintenance_interval_months, the vehicle will return to the depot
+# after its next stop irrespective of its schedule.
+maintenance_interval_months = 12
+extended_maintenance_interval_months = 18
+
+# The number of seconds (in game time) that is the minimum amount of time that a consist
+# can be in the layover state.
+min_layover_overhead_seconds = 120
+
+# The length of time in seconds that it takes a consist to be shunted into a new consist
+shunting_time_seconds = 60
 
 ############################## Private car settings ##############################
 
@@ -1073,6 +1158,9 @@ autosave = 0
 #display_height = 560
 
 # show full screen
+# 0: disable fullscreen
+# 1: enable fullscreen
+# 2: enable borderless fullscreen emulation (frameless window, screen size cannot be altered)
 fullscreen = 0
 
 # For versions of Simutrans compiled to work in a multithreaded system (which will improve

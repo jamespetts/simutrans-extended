@@ -1,5 +1,5 @@
 #
-# This file is part of the Simutrans project under the artistic licence.
+# This file is part of the Simutrans-Extended project under the artistic licence.
 # (see licence.txt)
 #
 
@@ -68,8 +68,6 @@ target_sources(makeobj-extended PRIVATE
 	../simmem.cc
 	../utils/simstring.cc
 	../utils/searchfolder.cc
-	../utils/csv.cc
-	../utils/cbuffer_t.cc
 )
 
 # These source files produce different object code in makeobj-extended and simutrans

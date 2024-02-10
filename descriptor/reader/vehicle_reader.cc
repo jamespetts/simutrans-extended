@@ -448,7 +448,13 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		if (!extended)
 		{
 			// Extended has this as a 32-bit integer, and reads it later.
-			desc->base_fixed_cost = decode_uint16(p);
+			if (version > 10) {
+				// standard11: fix cost as uint32
+				desc->base_fixed_cost = decode_uint32(p);
+			}
+			else {
+				desc->base_fixed_cost = decode_uint16(p);
+			}
 		}
 
 		desc->intro_date = decode_uint16(p);
@@ -471,7 +477,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 8)
+			if(extended_version < 9)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -566,6 +572,57 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				{
 					desc->override_way_speed = false;
 				}
+				if (extended && extended_version >= 8)
+				{
+					desc->multiple_working_type = decode_uint8(p);
+					desc->self_contained_catering = decode_uint8(p);
+					desc->calibration_speed = decode_uint32(p);
+					desc->cut_off_speed = decode_uint32(p);
+					desc->fuel_per_km = decode_uint32(p);
+
+					const uint8 total_staff_types = decode_uint8(p);
+
+					for (uint32 i = 0; i < total_staff_types; i++)
+					{
+						uint8 key = decode_uint8(p);
+						uint32 value = decode_uint32(p);
+						desc->staff_hundredths.put(key, value);
+					}
+
+					const uint8 total_driver_types = decode_uint8(p);
+
+					for (uint32 i = 0; i < total_driver_types; i++)
+					{
+						uint8 key = decode_uint8(p);
+						uint32 value = decode_uint32(p);
+						desc->drivers.put(key, value);
+					}
+
+					desc->base_initial_overhaul_cost = decode_uint32(p);
+					if (desc->base_initial_overhaul_cost == UINT32_MAX_VALUE)
+					{
+						desc->base_initial_overhaul_cost = desc->base_cost / 5u;
+					}
+					desc->base_max_overhaul_cost = decode_uint32(p);
+					if (desc->base_max_overhaul_cost == 65535)
+					{
+						desc->base_max_overhaul_cost = desc->base_initial_overhaul_cost;
+					}
+
+					desc->overhauls_before_max_cost = decode_uint16(p);
+					desc->max_distance_between_overhauls = decode_uint32(p);
+					desc->max_takeoffs = decode_uint32(p);
+					desc->availability_decay_start_km = decode_uint32(p);
+					desc->starting_availability = decode_uint8(p);
+					desc->minimum_availability = decode_uint8(p);
+					desc->replenishment_seconds = decode_uint32(p);
+					desc->max_running_cost = decode_uint16(p);
+					desc->auto_upgrade_index = decode_uint8(p);
+					desc->maintenance_interval_km = decode_uint32(p);
+					desc->overhaul_month_tenths = decode_uint8(p);
+					desc->availability_decay_start_takeoffs = decode_uint32(p);
+				}
+				// We do not need the "else", as all of the new values are header initialised.
 			}
 			else
 			{
@@ -593,6 +650,15 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->intro_date = DEFAULT_INTRO_DATE*16;
 		desc->retire_date = (DEFAULT_RETIRE_DATE*16);
 		desc->gear = 64;
+	}
+
+	if (desc->max_running_cost == 65535)
+	{
+		desc->max_running_cost = desc->running_cost * 3u;
+		if (desc->max_running_cost < desc->running_cost) // Detect integer overflow
+		{
+			desc->max_running_cost = 65535;
+		}
 	}
 
 	// correct the engine type for old vehicles
@@ -715,7 +781,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		}
 	}
 
-	if (version < 11 || (version == 11 && extended && extended_version < 7)) {
+	if (!extended || version < 11 || (version == 11 && extended && extended_version < 7)) {
 		desc->accommodation_classes = 0;
 	}
 

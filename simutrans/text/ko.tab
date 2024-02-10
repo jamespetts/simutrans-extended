@@ -312,7 +312,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \nBauzeit bis
 까지
 \nBauzeit von
-\n로부터 나타남
+로부터 나타남
 \nCan't open heightfield file.\n
 \nheightmap을 열수 없습니다.\n
 \ndirection:
@@ -1766,7 +1766,7 @@ Zu nah am Kartenrand
 ; brakes from max. speed in %i m
 ; 최고속도로 부터 멈춤 까지의 거리 %i 미터
 (Max. comfortable journey time: 
-(편안하게 이동 할수있는 시간:
+편안하게 이동 할수있는 시간:
 [R]
 [뒤돌림]
 NO CONTROL TOWER

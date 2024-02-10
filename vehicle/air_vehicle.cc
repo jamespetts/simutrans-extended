@@ -14,6 +14,7 @@
 #include "../simware.h"
 #include "../bauer/vehikelbauer.h"
 #include "../dataobj/schedule.h"
+#include "../utils/simrandom.h"
 
 
 // this routine is called by find_route, to determined if we reached a destination
@@ -136,7 +137,7 @@ ribi_t::ribi air_vehicle_t::get_ribi(const grund_t *gr) const
 
 
 // how expensive to go here (for way search)
-int air_vehicle_t::get_cost(const grund_t *gr, const sint32, koord)
+int air_vehicle_t::get_cost(const grund_t *gr, const sint32, ribi_t::ribi)
 {
 	// first favor faster ways
 	const weg_t *w=gr->get_weg(air_wt);
@@ -283,7 +284,7 @@ route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, s
 			block_reserver( takeoff, takeoff+100, false );
 		}
 		else if(route_index>=touchdown-1  &&  state!=taxiing) {
-			block_reserver( touchdown - landing_distance, search_for_stop+1, false );
+			block_reserver( touchdown - landing_distance, search_for_stop + 1, false );
 		}
 	}
 	target_halt = halthandle_t(); // no block reserved
@@ -646,7 +647,7 @@ int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) cons
 
 	int success = runway_meters >= min_runway_length_meters ? 1 : 2;
 
-	for(  uint32 i=start;  success  &&  i<end  &&  i<route->get_count();  i++) {
+	for(  uint32 i=start;  (success || !reserve)  &&  i<end  &&  i<route->get_count();  i++) {
 		grund_t *gr = welt->lookup(route->at(i));
 		runway_t * sch1 = gr ? (runway_t *)gr->get_weg(air_wt) : NULL;
 
@@ -698,15 +699,9 @@ int air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) cons
 					return success;
 				}
 			}
-			else if(!sch1->unreserve(cnv->self)) {
-				if(start_now) {
-					// reached a reserved or free track => finished
-					return success;
-				}
-			}
-			else {
-				// un-reserve from here (only used during sale, since there might be reserved tiles not freed)
-				start_now = true;
+			else
+			{
+				success &= sch1->unreserve(cnv->self);
 			}
 		}
 	}
@@ -1387,12 +1382,12 @@ void air_vehicle_t::display_overlay(int xpos_org, int ypos_org) const
 		vehicle_t::display_overlay( xpos_org, ypos_org - tile_raster_scale_y( current_flughohe - get_hoff() - 2, raster_width ) );
 	}
 #endif
-	else if(  is_on_ground()  ) {
+	else if (is_on_ground()) {
 		// show loading tooltips on ground
 #ifdef MULTI_THREAD
-		vehicle_t::display_overlay( xpos_org, ypos_org );
+		vehicle_t::display_overlay(xpos_org, ypos_org);
 #else
-		vehicle_t::display_after( xpos_org, ypos_org, is_global );
+		vehicle_t::display_after(xpos_org, ypos_org, is_global);
 #endif
 	}
 }
@@ -1404,4 +1399,37 @@ const char *air_vehicle_t::is_deletable(const player_t *player)
 		return vehicle_t::is_deletable(player);
 	}
 	return NULL;
+}
+
+bool air_vehicle_t::is_overhaul_needed() const
+{
+	if (desc->get_max_takeoffs() > 0)
+	{
+		return number_of_takeoffs > desc->get_max_takeoffs() || vehicle_t::is_overhaul_needed();
+	}
+	return vehicle_t::is_overhaul_needed();
+}
+
+uint8 air_vehicle_t::get_availability() const
+{
+	if (desc->get_max_takeoffs() > 0)
+	{
+		const uint8 base_availability = desc->get_starting_availability();
+		if (number_of_takeoffs <= desc->get_availability_decay_start_takeoffs())
+		{
+			return base_availability;
+		}
+
+		const uint8 min_availability = desc->get_minimum_availability();
+
+		if (number_of_takeoffs >= desc->get_availability_decay_start_takeoffs())
+		{
+			return min_availability;
+		}
+
+		const uint64 availability_sigmoid = sigmoid(100000ll * (number_of_takeoffs - desc->get_availability_decay_start_takeoffs()), 100000ll * desc->get_availability_decay_start_takeoffs());
+		const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+		return base_availability - (uint8)availability_loss;
+	}
+	return vehicle_t::get_availability();
 }

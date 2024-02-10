@@ -228,7 +228,7 @@ public:
 	 */
 	inline float32e8_t calc_speed_holding_force(const float32e8_t &v /* in m/s */, const float32e8_t &Frs /* in N */)
 	{
-		return min(get_force(v), adverse.cf * v * v + Frs); /* in N */
+		return fl_min(get_force(v), adverse.cf * v * v + Frs); /* in N */
 	}
 protected:
 	vehicle_summary_t vehicle_summary;
@@ -320,6 +320,12 @@ public:
 	 * Depends on vehicle, adverse and given weight.
 	 */
 	sint32 calc_max_speed(const weight_summary_t &weight);
+
+	/**
+	 * Get maximum possible speed of convoy in km/h according to weight, power/force, inclination, etc.
+	 * Depends on vehicle, adverse and given weight, ignoring any extrinsic speed restrictions.
+	 */
+	sint32 calc_max_physical_speed(const weight_summary_t& weight);
 
 	/**
 	 * Get maximum pullable weight at given inclination of convoy in kg according to maximum force, allowed maximum speed and continuous power.

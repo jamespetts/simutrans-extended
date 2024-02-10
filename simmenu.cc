@@ -282,6 +282,7 @@ tool_t *create_general_tool(int toolnr)
 		case TOOL_SET_CLIMATE:                 tool = new tool_set_climate_t();         break;
 		case TOOL_ROTATE_BUILDING:             tool = new tool_rotate_building_t();     break;
 		case TOOL_PLANT_GROUNDOBJ:             tool = new tool_plant_groundobj_t();     break;
+		case TOOL_ADD_MESSAGE:                 tool = new tool_add_message_t();         break;
 		case TOOL_REMOVE_SIGNAL:               tool = new tool_remove_signal_t();       break;
 		case TOOL_REASSIGN_SIGNAL_DEPRECATED:
 		case TOOL_REASSIGN_SIGNAL:             tool = new tool_reassign_signal_t();     break;
@@ -343,7 +344,6 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_CHANGE_TRAFFIC_LIGHT: tool = new tool_change_traffic_light_t(); break;
 		case TOOL_CHANGE_CITY:          tool = new tool_change_city_t();          break;
 		case TOOL_RENAME:               tool = new tool_rename_t();               break;
-		case TOOL_ADD_MESSAGE:          tool = new tool_add_message_t();          break;
 		case TOOL_TOGGLE_RESERVATION:   tool = new tool_toggle_reservation_t();   break;
 		case TOOL_VIEW_OWNER:           tool = new tool_view_owner_t();           break;
 		case TOOL_HIDE_UNDER_CURSOR:    tool = new tool_hide_under_cursor_t();    break;
@@ -1035,7 +1035,8 @@ void tool_t::update_toolbars()
 	// iterate twice, to get correct icons if a toolbar changes between empty and non-empty
 	for(uint j=0; j<2; j++) {
 		bool change = false;
-		FOR(vector_tpl<toolbar_t*>, const i, toolbar_tool) {
+		for(auto const i : toolbar_tool)
+		{
 			bool old_icon_empty = i->get_icon(welt->get_active_player()) == IMG_EMPTY;
 			i->update(welt->get_active_player());
 			change |= old_icon_empty ^ (i->get_icon(welt->get_active_player()) == IMG_EMPTY);
@@ -1147,7 +1148,8 @@ void toolbar_t::update(player_t *player)
 
 	tool_selector->reset_tools();
 	// now (re)fill it
-	FOR(slist_tpl<tool_t*>, const w, tools) {
+	for(auto const w : tools)
+	{
 		// no way to call this tool? => then it is most likely a metatool
 		if(w->command_key==1  &&  w->get_icon(player)==IMG_EMPTY) {
 
@@ -1293,6 +1295,7 @@ void toolbar_last_used_t::append( tool_t *t, player_t *sp )
 		TOOL_CHANGE_LINE|SIMPLE_TOOL,
 		TOOL_CHANGE_DEPOT|SIMPLE_TOOL,
 		UNUSED_WKZ_PWDHASH_TOOL|SIMPLE_TOOL,
+		TOOL_CHANGE_PLAYER|SIMPLE_TOOL,
 		TOOL_RENAME|SIMPLE_TOOL
 	};
 
@@ -1307,16 +1310,18 @@ void toolbar_last_used_t::append( tool_t *t, player_t *sp )
 		}
 	}
 
-	if(  all_tools[sp->get_player_nr()].is_contained(t)  ) {
-		all_tools[sp->get_player_nr()].remove( t );
+	slist_tpl<tool_t *> &players_tools = all_tools[sp->get_player_nr()];
+
+	if(  players_tools.is_contained(t)  ) {
+		players_tools.remove( t );
 	}
 	else {
-		while( all_tools[sp->get_player_nr()].get_count() >= MAX_LAST_TOOLS  ) {
-			all_tools[sp->get_player_nr()].remove(tools.back() );
+		while(  players_tools.get_count() >= MAX_LAST_TOOLS  ) {
+			players_tools.remove( players_tools.back() );
 		}
 	}
 
-	all_tools[sp->get_player_nr()].insert( t );
+	players_tools.insert( t );
 	// if current => update
 	if(  sp == world()->get_active_player()  ) {
 		update( sp );

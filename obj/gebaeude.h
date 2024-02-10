@@ -23,7 +23,7 @@ class planquadrat_t;
 /**
  * Asynchronous or synchronous animations for buildings.
  */
-class gebaeude_t : public obj_t, sync_steppable
+class gebaeude_t : public obj_t, public sync_steppable
 {
 private:
 	const building_tile_desc_t *tile;
@@ -227,6 +227,10 @@ public:
 
 	bool is_signalbox() const;
 
+	/// fills vector with a list of all tiles with this building
+	/// @return number of actual tiles
+	uint32 get_tile_list( vector_tpl<grund_t *>& list ) const;
+
 	/// @copydoc obj_t::info
 	void info(cbuffer_t & buf) const OVERRIDE;
 
@@ -365,6 +369,9 @@ public:
 
 	const minivec_tpl<const planquadrat_t*> &get_tiles() { return building_tiles; }
 	void set_building_tiles();
+
+	const minivec_tpl<koord>* get_rectangular_neighbor_koords();
+	const minivec_tpl<koord>* get_diagonal_neighbor_koords();
 
 	void connect_by_road_to_nearest_city();
 

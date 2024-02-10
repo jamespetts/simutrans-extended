@@ -72,7 +72,7 @@ else
 endif
 
 ifeq ($(OSTYPE),mac)
-  CFLAGS +=  -std=c++11 -stdlib=libc++
+  CFLAGS  += -stdlib=libc++
   LDFLAGS += -stdlib=libc++
 endif
 
@@ -84,13 +84,9 @@ else
   SOURCES += sys/clipboard_internal.cc
 endif
 
-ifeq ($(OSTYPE),openbsd)
-  CXXFLAGS +=  -std=c++11
-endif
-
 LIBS += -lbz2 -lz -lpng
 
-CXXFLAGS +=  -std=gnu++11
+CXXFLAGS += -std=c++14
 
 ifneq ($(OSTYPE),mingw)
  LIBS += -lbz2 -lz
@@ -374,6 +370,7 @@ SOURCES += gui/citybuilding_edit.cc
 SOURCES += gui/citylist_frame_t.cc
 SOURCES += gui/citylist_stats_t.cc
 SOURCES += gui/climates.cc
+SOURCES += gui/consist_order_gui.cc
 SOURCES += gui/display_settings.cc
 SOURCES += gui/components/gui_aligned_container.cc
 SOURCES += gui/components/gui_building.cc
@@ -395,6 +392,7 @@ SOURCES += gui/components/gui_image_list.cc
 SOURCES += gui/components/gui_component.cc
 SOURCES += gui/components/gui_label.cc
 SOURCES += gui/components/gui_line_lettercode.cc
+SOURCES += gui/components/gui_line_network.cc
 SOURCES += gui/components/gui_map_preview.cc
 SOURCES += gui/components/gui_numberinput.cc
 SOURCES += gui/components/gui_schedule_item.cc
@@ -406,6 +404,8 @@ SOURCES += gui/components/gui_tab_panel.cc
 SOURCES += gui/components/gui_textarea.cc
 SOURCES += gui/components/gui_textinput.cc
 SOURCES += gui/components/gui_vehicle_capacitybar.cc
+SOURCES += gui/components/gui_vehicle_cargoinfo.cc
+SOURCES += gui/components/gui_waytype_image_box.cc
 SOURCES += gui/components/gui_waytype_tab_panel.cc
 SOURCES += gui/components/gui_world_view_t.cc
 SOURCES += gui/convoi_detail_t.cc
@@ -423,6 +423,7 @@ SOURCES += gui/extend_edit.cc
 SOURCES += gui/fabrik_info.cc
 SOURCES += gui/factory_chart.cc
 SOURCES += gui/factory_edit.cc
+SOURCES += gui/factory_legend.cc
 SOURCES += gui/factorylist_frame_t.cc
 SOURCES += gui/factorylist_stats_t.cc
 SOURCES += gui/schedule_gui.cc
@@ -445,7 +446,7 @@ SOURCES += gui/kennfarbe.cc
 SOURCES += gui/label_info.cc
 SOURCES += gui/labellist_frame_t.cc
 SOURCES += gui/labellist_stats_t.cc
-SOURCES += gui/line_class_manager.cc
+SOURCES += gui/linelist_stats_t.cc
 SOURCES += gui/line_color_gui.cc
 SOURCES += gui/line_item.cc
 SOURCES += gui/line_management_gui.cc
@@ -489,6 +490,7 @@ SOURCES += gui/vehiclelist_frame.cc
 SOURCES += gui/obj_info.cc
 SOURCES += gui/slim_obj_info.cc
 SOURCES += gui/vehicle_class_manager.cc
+SOURCES += gui/vehicle_detail.cc
 SOURCES += gui/water_info.cc
 SOURCES += gui/way_info.cc
 SOURCES += gui/welt.cc
@@ -526,6 +528,7 @@ SOURCES += script/api_class.cc
 SOURCES += script/api_function.cc
 SOURCES += script/api_param.cc
 SOURCES += script/api/api_city.cc
+SOURCES += script/api/api_command.cc
 SOURCES += script/api/api_const.cc
 SOURCES += script/api/api_control.cc
 SOURCES += script/api/api_convoy.cc
@@ -537,6 +540,7 @@ SOURCES += script/api/api_line.cc
 SOURCES += script/api/api_map_objects.cc
 SOURCES += script/api/api_obj_desc.cc
 SOURCES += script/api/api_obj_desc_base.cc
+SOURCES += script/api/api_pathfinding.cc
 SOURCES += script/api/api_player.cc
 SOURCES += script/api/api_scenario.cc
 SOURCES += script/api/api_schedule.cc
@@ -549,6 +553,7 @@ SOURCES += script/api/get_next.cc
 SOURCES += script/dynamic_string.cc
 SOURCES += script/export_objs.cc
 SOURCES += script/script.cc
+SOURCES += script/script_loader.cc
 SOURCES += squirrel/sq_extensions.cc
 SOURCES += squirrel/squirrel/sqapi.cc
 SOURCES += squirrel/squirrel/sqclass.cc
@@ -614,13 +619,13 @@ SOURCES += vehicle/road_vehicle.cc
 SOURCES += vehicle/simroadtraffic.cc
 SOURCES += vehicle/vehicle.cc
 SOURCES += vehicle/water_vehicle.cc
+SOURCES += world/terraformer.cc
 SOURCES += simunits.cc
 SOURCES += convoy.cc
 SOURCES += utils/float32e8_t.cc
 SOURCES += path_explorer.cc
 SOURCES += gui/components/gui_table.cc
 SOURCES += gui/components/gui_convoy_assembler.cc
-SOURCES += gui/components/gui_convoy_label.cc
 SOURCES += gui/components/gui_convoy_formation.cc
 SOURCES += gui/components/gui_convoy_payloadinfo.cc
 SOURCES += gui/replace_frame.cc
@@ -785,3 +790,6 @@ makeobj:
 
 nettool:
 	$(Q)$(MAKE) -e -C nettools FLAGS="$(FLAGS)"
+test: simutrans
+	$(BUILDDIR)/$(PROG) -set_workdir $(shell pwd)/simutrans -objects pak -scenario automated-tests -debug 2 -lang en -fps 100
+

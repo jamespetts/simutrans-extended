@@ -21,8 +21,8 @@ project(simutrans-extended LANGUAGES C CXX)
 
 include(SimutransCommitInfo)
 
-# Force C++11 everywhere
-set(CMAKE_CXX_STANDARD 11)
+# Force C++14 everywhere
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -37,6 +37,7 @@ endif ()
 if (APPLE)
 	set(CMAKE_PREFIX_PATH "/usr/local/opt/readline")
 	link_directories(/usr/local/lib)
+    link_directories(/opt/homebrew/lib)
 	set(CMAKE_EXE_LINKER_FLAGS "-framework Cocoa")
 endif ()
 
@@ -287,7 +288,7 @@ if (SIMUTRANS_STEAM_BUILT)
 	target_compile_definitions(simutrans-extended PRIVATE STEAM_BUILT=1)
 endif ()
 
-if (NOT SIMUTRANS_ENABLE_RANDOMNESS)
+if (SIMUTRANS_DISABLE_RANDOMNESS)
 	target_compile_definitions(simutrans-extended PRIVATE DISABLE_RANDOMNESS=1)
 endif ()
 
@@ -303,6 +304,23 @@ endif ()
 if (APPLE)
 	target_compile_definitions(simutrans-extended PRIVATE ALT_SDL_DIR=1)
 endif (APPLE)
+
+
+
+#
+# Tests
+#
+add_custom_target(test
+	$<TARGET_FILE:simutrans-extended>
+		-use_workdir
+		-objects pak128.britain-ex-nightly
+		-scenario automated-tests
+		-debug 2
+		-lang en
+		-fps 100
+	DEPENDS simutrans
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/simutrans
+)
 
 
 #

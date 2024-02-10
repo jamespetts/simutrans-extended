@@ -134,6 +134,10 @@ else (MSVC) # Assume GCC/Clang
 		-Wcast-align
 		-Walloca
 		-Wduplicated-cond
+		-Werror=unused-comparison
+		-Werror=return-type
+		-Werror=unused-private-field
+		-Werror=maybe-uninitialized
 	)
 
 	SIMUTRANS_CHECK_CXX_COMPILER_FLAGS(SIMUTRANS_COMMON_COMPILE_OPTIONS

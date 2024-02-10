@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -16,7 +16,7 @@
 class compare_file_rd_stream_t : public rdwr_stream_t
 {
 	size_t our_len;
-	char  *our_buf;
+	uint8 *our_buf;
 public:
 	/// Takes two streams, does not take ownership
 	compare_file_rd_stream_t(rdwr_stream_t *s1, rdwr_stream_t* s2);

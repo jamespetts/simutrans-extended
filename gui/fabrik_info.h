@@ -49,7 +49,7 @@ class fabrik_info_t : public gui_frame_t, public action_listener_t
 private:
 	fabrik_t *fab;
 
-	cbuffer_t info_buf, prod_buf;
+	cbuffer_t prod_buf;
 	cbuffer_t factory_status;
 
 	gui_tab_panel_t tabs;
@@ -73,7 +73,7 @@ private:
 
 	//button_t *stadtbuttons;
 
-	gui_textarea_t prod, txt;
+	gui_textarea_t prod;
 
 	gui_factory_storage_info_t storage;
 

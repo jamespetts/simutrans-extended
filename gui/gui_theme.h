@@ -255,8 +255,14 @@ public:
 	static PIXVAL gui_shadow_color;                       //@< Color to draw shadowed dividers (tabs)
 	static PIXVAL gui_color_loadingbar_inner;
 	static PIXVAL gui_color_loadingbar_progress;
+	static PIXVAL gui_color_livery_scheme;                //@< Color for livery scheme
+	static PIXVAL gui_color_mixload_prohibition;          //@< Color for mixload prohibition
 	static PIXVAL gui_color_obsolete;                     //@< Color for obsolete convois/server entries
 	static PIXVAL gui_color_out_of_production;            //@< (EX unique) Color for convoy that is no longer in production (but not obsolete)
+	static PIXVAL gui_color_overcrowded;                  //@< Color for overcrowded halt/convoy/vehicle
+	static PIXVAL gui_color_staff_shortage;               //@< Color for staff shortage
+	static PIXVAL gui_color_traction_type;                //@< Color for vehicle/depot traction type
+	static PIXVAL gui_color_upgradeable;                  //@< Color for vehicles with available upgrades
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
 	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
@@ -295,6 +301,25 @@ public:
 	static scr_coord_val gui_hspace;
 	static scr_coord_val gui_vspace;
 	static scr_coord_val gui_waitingbar_width;
+
+	// table color
+	static PIXVAL gui_color_table_frame;               // table border color
+	static PIXVAL gui_color_table_background;          // table background color
+	static PIXVAL gui_color_table_header_border;       // table header border color
+	static PIXVAL gui_color_table_cell_border;         // table cell border color
+	static PIXVAL gui_color_table_background_head_row; //@< Color to draw background of header cell on top row
+	static PIXVAL gui_color_table_background_head_selected; //@< Color to draw background of header cell on top row (selected)
+	static PIXVAL gui_color_table_background_left_col; //@< Color to draw background of header cell on left column
+	static PIXVAL gui_color_table_background_data_sum; //@< Color to draw background of data cell for sum (bottom/right)
+	static PIXVAL gui_color_table_background_data;     //@< Color to draw background of normal data cell
+	static PIXVAL gui_color_table_background_highlight; //@< Color to draw background of highlighted cell
+	static PIXVAL gui_color_table_background_selected;  //@< Color to draw background of selected row
+	static PIXVAL gui_color_text_head_row;              //@< Color to draw text in table header cell at top
+	static PIXVAL gui_color_text_head_selected;         //@< Color to draw text in table header cell at top (selected)
+	static PIXVAL gui_color_text_left_col;              //@< Color to draw text in table header cell at left
+	static PIXVAL gui_color_text_table_cell_selected;   //@< Color to draw text in table cell of selected
+
+	static PIXVAL gui_color_class_insignia_dots;
 
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
 	static scr_coord_val gui_filelist_vspace;

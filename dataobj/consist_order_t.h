@@ -9,6 +9,8 @@
 
 
 #include "../bauer/goods_manager.h"
+#include "../convoihandle_t.h"
+#include "../descriptor/vehicle_desc.h"
 
 class vehicle_desc_t;
 class loadsave_t;
@@ -40,9 +42,11 @@ struct vehicle_description_element
 	uint8 min_catering = 0;
 	uint8 max_catering = 255;
 
-	// If this is 255, then this vehicle may carry
-	// any class of mail/passengers.
-	uint8 must_carry_class = 255;
+	// Note that this is the *minimum* class that the vehicle carries.
+	// In other words, if the vehicle carries more than one class,
+	// the higher class is ignored.
+	// This stipulation is necessary for the path explorer.
+	uint8 must_carry_class = 0;
 
 	uint32 min_range = 0;
 	uint32 max_range = UINT32_MAX_VALUE;
@@ -69,6 +73,14 @@ struct vehicle_description_element
 	uint32 max_fixed_cost = UINT32_MAX_VALUE;
 	uint32 min_fixed_cost = 0;
 
+	uint32 max_fuel_per_km = UINT32_MAX_VALUE;
+	uint32 min_fuel_per_km = 0;
+
+	uint32 max_staff_hundredths = UINT32_MAX_VALUE;
+	uint32 min_staff_hundredths = 0;
+	uint32 max_drivers = UINT32_MAX_VALUE;
+	uint32 min_drivers = 0;
+
 	/*
 	* These rules define which of available
 	* vehicles are to be preferred, and do
@@ -82,6 +94,11 @@ struct vehicle_description_element
 	* the elements are arranged above.
 	*
 	* + Where the vehicle is a goods carrying vehicle: otherwise, this is ignored
+	*
+	* NOTE: This feature is currently unimplemented. This seems to conflict with the
+	* priority order of vehicle description elements in the consist order elements.
+	* It is hard to imagine how this might be implemented.
+	* Query whether this should be removed.
 	*/
 
 	enum rule_flag
@@ -93,18 +110,47 @@ struct vehicle_description_element
 		prefer_high_speed				= (1u << 4),
 		prefer_high_running_cost		= (1u << 5),
 		prefer_high_fixed_cost			= (1u << 6),
-		prefer_low_capacity				= (1u << 7),
-		prefer_low_power				= (1u << 8),
-		prefer_low_tractive_effort		= (1u << 9),
-		prefer_low_brake_force			= (1u << 10),
-		prefer_low_speed				= (1u << 11),
-		prefer_low_running_cost			= (1u << 12),
-		prefer_low_fixed_cost			= (1u << 13)
+		prefer_high_fuel_consumption	= (1u << 7),
+		prefer_high_driver_numbers		= (1u << 8),
+		prefer_high_staff_hundredths	= (1u << 9),
+		prefer_low_capacity				= (1u << 10),
+		prefer_low_power				= (1u << 11),
+		prefer_low_tractive_effort		= (1u << 12),
+		prefer_low_brake_force			= (1u << 13),
+		prefer_low_speed				= (1u << 14),
+		prefer_low_running_cost			= (1u << 15),
+		prefer_low_fixed_cost			= (1u << 16),
+		prefer_low_fuel_consumption		= (1u << 17),
+		prefer_low_driver_numbers		= (1u << 18),
+		prefer_low_staff_hundredths		= (1u << 19)
 	};
 
-	static const uint8 max_rule_flags = 14;
+	static const uint8 max_rule_flags = 20u;
 
-	uint16 rule_flags[max_rule_flags] { prefer_high_capacity, prefer_high_power, prefer_high_tractive_effort, prefer_high_speed, prefer_high_running_cost, prefer_high_fixed_cost, prefer_low_capacity, prefer_low_power, prefer_low_tractive_effort, prefer_low_speed, prefer_low_running_cost, prefer_low_fixed_cost };
+	uint32 rule_flags[max_rule_flags]
+	{ prefer_high_capacity,
+		prefer_high_power,
+		prefer_high_tractive_effort,
+		prefer_high_speed,
+		prefer_high_running_cost,
+		prefer_high_fixed_cost,
+		prefer_high_fuel_consumption,
+		prefer_high_driver_numbers,
+		prefer_high_staff_hundredths,
+		prefer_low_capacity,
+		prefer_low_power,
+		prefer_low_tractive_effort,
+		prefer_low_speed,
+		prefer_low_running_cost,
+		prefer_low_fixed_cost,
+		prefer_low_fuel_consumption,
+		prefer_low_driver_numbers,
+		prefer_low_staff_hundredths
+	};
+
+	void set_empty(bool yesno) { empty=yesno; }
+
+	bool operator!= (const vehicle_description_element& other) const;
 };
 
 class consist_order_element_t
@@ -113,6 +159,7 @@ class consist_order_element_t
 protected:
 	/*
 	* The goods category of the vehicle that must occupy this slot.
+	* COMPULSORY
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
 
@@ -135,6 +182,45 @@ protected:
 	uint16 tags_to_set = 0;
 
 	vector_tpl<vehicle_description_element> vehicle_description;
+
+public:
+	consist_order_element_t() { vehicle_description.clear(); }
+
+	uint32 get_count() const { return vehicle_description.get_count(); }
+
+	uint8 get_catg_index() const { return catg_index; }
+
+	void append_vehicle(const vehicle_desc_t *v);
+
+	void remove_vehicle_description_at(uint32 description_index)
+	{
+		if (description_index >= vehicle_description.get_count()) { return; }
+		vehicle_description.remove_at(description_index, false);
+	}
+
+	void clear_vehicles()
+	{
+		vehicle_description.clear();
+	}
+
+	vehicle_description_element &access_vehicle_description(uint32 description_index)
+	{
+		return vehicle_description.get_element(description_index);
+	}
+
+	const vehicle_description_element& get_vehicle_description(uint32 description_index) const
+	{
+		return vehicle_description.get_element(description_index);
+	}
+
+	// Returns whether the passed vehicle can be connected to the rear or front of this element
+	bool can_connect(const vehicle_desc_t *v, bool to_rear=true) const;
+
+	// True if the vehicle_description has the same vehicles
+	bool has_same_vehicle(const vehicle_desc_t *v) const;
+
+	bool operator!= (const consist_order_element_t& other) const;
+	bool operator== (const consist_order_element_t& other) const;
 };
 
 class consist_order_t
@@ -157,15 +243,68 @@ protected:
 
 public:
 
-	consist_order_element_t& get_order(uint32 element_number)
+	consist_order_element_t& access_order(uint32 element_number)
 	{
+		return orders[element_number];
+	}
+
+	const consist_order_element_t& get_order(uint32 element_number) const
+	{
+		assert(element_number < orders.get_count());
+		if (element_number > orders.get_count()) { element_number = 0; }
 		return orders[element_number];
 	}
 
 	void rdwr(loadsave_t* file);
 
+	uint32 get_count() const { return orders.get_count(); }
+
+	void append(consist_order_element_t elem)
+	{
+		orders.append(elem);
+		return;
+	}
+
+	void insert_at(uint32 pos, consist_order_element_t elem)
+	{
+		if (!get_count() || pos >= get_count()) {
+			orders.append(elem);
+		}
+		else {
+			orders.insert_at(pos, elem);
+		}
+		return;
+	}
+
+	void append_vehicle_at(uint32 element_number, const vehicle_desc_t *v)
+	{
+		if (element_number < orders.get_count()) {
+			orders[element_number].append_vehicle(v);
+		}
+		else {
+			consist_order_element_t new_elem;
+			new_elem.append_vehicle(v);
+			orders.append(new_elem);
+		}
+		return;
+	}
+
+	void remove_order(uint32 element_number)
+	{
+		orders.remove_at(element_number);
+		return;
+	}
+
+	// Copy order from specific convoy
+	void set_convoy_order(convoihandle_t cnv);
+
+	// Determine if a combination of vehicles in consecutive order elements is possible
+	PIXVAL get_constraint_state_color(uint32 element_number, bool rear_side = true);
+
 	void sprintf_consist_order(cbuffer_t &buf) const;
-	void sscanf_consist_order(const char* ptr);
+	const char* sscanf_consist_order(const char* ptr);
+
+	bool operator== (const consist_order_t& other) const;
 };
 
 #endif

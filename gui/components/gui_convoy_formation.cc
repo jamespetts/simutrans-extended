@@ -15,6 +15,38 @@
 #include "../../player/simplay.h"
 
 
+scr_size gui_convoi_images_t::get_min_size() const
+{
+	return draw_vehicles( scr_coord(0,0), false);
+}
+
+scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_images) const
+{
+	scr_coord p = offset + get_pos();
+	p.y += get_size().h/2;
+	// we will use their images offsets and width to shift them to their correct position
+	// this should work with any vehicle size ...
+	scr_size s(0,0);
+	unsigned count = cnv.is_bound() ? cnv->get_vehicle_count() : 0;
+	for(unsigned i=0; i<count; i++) {
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
+		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
+		display_get_base_image_offset(image, &x, &y, &w, &h );
+		if (display_images) {
+			display_base_img(image, p.x + s.w - x, p.y - y - h/2, cnv->get_owner()->get_player_nr(), false, true);
+		}
+		s.w += (w*2)/3;
+		s.h = max(s.h, h);
+	}
+	return s;
+}
+
+void gui_convoi_images_t::draw( scr_coord offset )
+{
+	draw_vehicles( offset, true);
+}
+
+
 const char *gui_convoy_formation_t::cnvlist_mode_button_texts[CONVOY_OVERVIEW_MODES] = {
 	"cl_btn_general",
 	"cl_btn_payload",
@@ -23,9 +55,11 @@ const char *gui_convoy_formation_t::cnvlist_mode_button_texts[CONVOY_OVERVIEW_MO
 
 
 // component for vehicle display
-gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv)
+gui_convoy_formation_t::gui_convoy_formation_t(convoihandle_t cnv, bool show_loading_state)
+	: gui_convoi_images_t(cnv)
 {
-	this->cnv = cnv;
+	this->show_loading_state = show_loading_state;
+	size = scr_size(D_LABEL_WIDTH, max(LINESPACE*3,get_base_tile_raster_width()/4));
 }
 
 void gui_convoy_formation_t::draw(scr_coord offset)
@@ -60,7 +94,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 	const uint16 month_now = welt->get_timeline_year_month();
 	const uint16 grid_width = D_BUTTON_WIDTH / 3;
 
-	uint8 color;
+	PIXVAL colval;
 	cbuffer_t buf;
 
 	for (unsigned veh = 0; veh < cnv->get_vehicle_count(); ++veh) {
@@ -74,33 +108,35 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 
 			// drawing the color bar
 			int found = 0;
-			for (int i = 0; i < v->get_desc()->get_number_of_classes(); i++) {
-				if (v->get_accommodation_capacity(i) > 0) {
-					color = COL_GREEN;
-					if (!v->get_total_cargo_by_class(i)) {
-						color = COL_YELLOW; // empty
-					}
-					else if (v->get_fare_capacity(v->get_reassigned_class(i)) == v->get_total_cargo_by_class(i)) {
-						color = COL_ORANGE;
-					}
-					else if (v->get_fare_capacity(v->get_reassigned_class(i)) < v->get_total_cargo_by_class(i)) {
-						color = COL_OVERCROWD;
-					}
-					// [loading indicator]
-					display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(color), true);
-					bar_offset_left += bar_width + 1;
-					found++;
-					if (found == v->get_number_of_fare_classes()) {
-						break;
+			if (show_loading_state) {
+				for (uint8 i = 0; i < v->get_desc()->get_number_of_classes(); i++) {
+					if ( v->get_accommodation_capacity(i)>0) {
+						colval = COL_GREEN;
+						if (!v->get_total_cargo_by_class(i)) {
+							colval = COL_YELLOW; // empty
+						}
+						else if (v->get_fare_capacity(v->get_reassigned_class(i)) == v->get_total_cargo_by_class(i)) {
+							colval = COL_ORANGE;
+						}
+						else if (v->get_fare_capacity(v->get_reassigned_class(i)) < v->get_total_cargo_by_class(i)) {
+							colval = COL_OVERCROWD;
+						}
+						// [loading indicator]
+						display_fillbox_wh_clip_rgb(offset.x + 2 + bar_offset_left, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, bar_width, 3, color_idx_to_rgb(colval), true);
+						bar_offset_left += bar_width + 1;
+						found++;
+						if (found == v->get_number_of_fare_classes()) {
+							break;
+						}
 					}
 				}
 			}
 
 			// [goods symbol]
 			// assume that the width of the goods symbol is 10px
-			display_color_img(v->get_cargo_type()->get_catg_symbol(), offset.x + grid_width / 2 - 5, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 8, 0, false, false);
+			display_color_img(v->get_cargo_type()->get_catg_symbol(), offset.x + grid_width / 2 - 5, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + show_loading_state*5 + 3, 0, false, false);
 		}
-		else {
+		else if (show_loading_state) {
 			// [loading indicator]
 			display_fillbox_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT + 3, grid_width - 4, 3, color_idx_to_rgb(MN_GREY0), true);
 		}
@@ -115,7 +151,7 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 			buf.append(car_number);
 		}
 
-		scr_coord_val left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? COL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
+		scr_coord_val left = display_proportional_clip_rgb(offset.x + 2, offset.y, buf, ALIGN_LEFT, v->get_desc()->has_available_upgrade(month_now) ? SYSCOL_UPGRADEABLE : SYSCOL_TEXT_WEAK, true);
 #ifdef DEBUG
 		if (v->is_reversed()) {
 			display_proportional_clip_rgb(offset.x + 2 + left, offset.y - 2, "*", ALIGN_LEFT, COL_CAUTION, true);
@@ -127,9 +163,9 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		(void)left;
 #endif
 
-		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? COL_OUT_OF_PRODUCTION : COL_SAFETY;
+		PIXVAL col_val = v->get_desc()->is_future(month_now) || v->get_desc()->is_retired(month_now) ? SYSCOL_OUT_OF_PRODUCTION : COL_SAFETY;
 		if (v->get_desc()->is_obsolete(month_now)) {
-			col_val = COL_OBSOLETE;
+			col_val = SYSCOL_OBSOLETE;
 		}
 		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
 		display_veh_form_wh_clip_rgb(offset.x + (grid_width-6)/2 + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
@@ -137,29 +173,10 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		offset.x += grid_width;
 	}
 
-	scr_size size(grid_width*cnv->get_vehicle_count() + D_MARGIN_LEFT * 2, LINESPACE + VEHICLE_BAR_HEIGHT + 10 + D_SCROLLBAR_HEIGHT);
+	scr_size size(grid_width*cnv->get_vehicle_count() + D_MARGIN_LEFT * 2, LINESPACE + VEHICLE_BAR_HEIGHT + 10 + D_V_SPACE + D_SCROLLBAR_HEIGHT);
 	return scr_size(size.w, max(get_size().h, size.h));
 }
 
-scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_images) const
-{
-	scr_coord p = offset + get_pos();
-	p.y += get_size().h/2;
-	// we will use their images offsets and width to shift them to their correct position
-	// this should work with any vehicle size ...
-	scr_size s(D_H_SPACE*2, D_V_SPACE*2);
-	for(unsigned i=0; i<cnv->get_vehicle_count();i++) {
-		scr_coord_val x, y, w, h;
-		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
-		display_get_base_image_offset(image, &x, &y, &w, &h );
-		if (display_images) {
-			display_base_img(image, p.x + s.w - x, p.y - y - h/2, cnv->get_owner()->get_player_nr(), false, true);
-		}
-		s.w += (w*2)/3;
-		s.h = max(s.h, h);
-	}
-	return scr_size(s.w, max(get_size().h, s.h));
-}
 
 scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 {
@@ -174,7 +191,7 @@ scr_size gui_convoy_formation_t::draw_capacities(scr_coord offset) const
 		cbuffer_t buf;
 
 		const bool overcrowded = cnv->get_overcrowded() ? true : false;
-		PIXVAL text_col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD - 1) : SYSCOL_TEXT;
+		PIXVAL text_col = overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 
 		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++)
 		{

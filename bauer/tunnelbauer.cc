@@ -36,6 +36,7 @@
 #include "wegbauer.h"
 #include "../tpl/stringhashtable_tpl.h"
 #include "../tpl/vector_tpl.h"
+#include "../world/terraformer.h"
 
 
 karte_ptr_t tunnel_builder_t::welt;
@@ -130,7 +131,8 @@ void tunnel_builder_t::fill_menu(tool_selector_t* tool_selector, const waytype_t
 		}
 	}
 	// now sorted ...
-	FOR(vector_tpl<tunnel_desc_t const*>, const i, matching) {
+	for(auto const i : matching)
+	{
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }
@@ -167,16 +169,15 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 			sint8 hse = pos.z + corner_se(new_slope);
 			sint8 hne = pos.z + corner_ne(new_slope);
 			sint8 hnw = pos.z + corner_nw(new_slope);
-			karte_t::terraformer_t raise(welt);
-			raise.add_raise_node(pos.x, pos.y, hsw, hse, hne, hnw);
-			raise.iterate(true);
-			if (raise.can_raise_all(player, player->is_public_service())) {
-				// returned true therefore error reported
-				return koord3d::invalid;
-			}
+
+			terraformer_t raise(terraformer_t::raise, welt);
+			raise.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+			raise.generate_affected_tile_list();
+
 			// if we can adjust height here we can build an entrance so don't need checks below
 			return pos;
 		}
+
 		if(  gr->get_hoehe() < pos.z  ){
 			return koord3d::invalid;
 		}
@@ -226,15 +227,21 @@ koord3d tunnel_builder_t::find_end_pos(player_t *player, koord3d pos, koord zv, 
 				sint8 hse = pos.z + corner_se(new_slope);
 				sint8 hne = pos.z + corner_ne(new_slope);
 				sint8 hnw = pos.z + corner_nw(new_slope);
-				karte_t::terraformer_t raise(welt), lower(welt);
-				raise.add_raise_node(pos.x, pos.y, hsw, hse, hne, hnw);
-				raise.iterate(false);
-				lower.add_lower_node(pos.x, pos.y, hsw, hse, hne, hnw);
-				lower.iterate(false);
-				if (!player || (raise.can_lower_all(player, player->is_public_service()) || lower.can_lower_all(player, player->is_public_service()))) {
-					// returned true therefore error reported
+
+				terraformer_t raise(terraformer_t::raise, welt);
+				terraformer_t lower(terraformer_t::lower, welt);
+
+				raise.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+				lower.add_node(pos.x, pos.y, hsw, hse, hne, hnw);
+
+				raise.generate_affected_tile_list();
+				lower.generate_affected_tile_list();
+
+				if (!player || raise.can_raise_all(player, player->is_public_service())!= NULL || lower.can_lower_all(player, player->is_public_service())!=NULL) {
+					// returned non-null therefore error reported
 					return koord3d::invalid;
 				}
+
 				// if we can adjust height here we can build an entrance so don't need checks below
 				return pos;
 			}
@@ -397,19 +404,21 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 
 		int n = 0;
 
-		karte_t::terraformer_t raise(welt),lower(welt);
-		raise.add_raise_node(end.x, end.y, hsw, hse, hne, hnw);
-		lower.add_lower_node(end.x, end.y, hsw, hse, hne, hnw);
-		raise.iterate(true);
-		lower.iterate(false);
-		err = raise.can_raise_all(player, player ? player->is_public_service() : false);
-		if (!err) err = lower.can_lower_all(player, player->is_public_service());
+		terraformer_t raise(terraformer_t::raise, welt);
+		terraformer_t lower(terraformer_t::lower, welt);
+
+		raise.add_node(end.x, end.y, hsw, hse, hne, hnw);
+		lower.add_node(end.x, end.y, hsw, hse, hne, hnw);
+
+		raise.generate_affected_tile_list();
+		lower.generate_affected_tile_list();
+
 		if (err) return 0;
 
 // TODO: this is rather hackish as 4 seems to come from nowhere but works most of the time
 // feel free to change if you have a better idea!
-		n = (raise.raise_all()+lower.lower_all())/4;
-		player_t::book_construction_costs(player, welt->get_settings().cst_alter_land * n, end.get_2d(), desc->get_waytype());
+		n = (raise.apply() + lower.apply()) / 4;
+		player_t::book_construction_costs(player, welt->get_settings().get_cost_alter_land() * n, end.get_2d(), desc->get_waytype());
 	}
 
 	if(!build_tunnel(player, gr->get_pos(), end, zv, desc, overtaking_mode, way_desc)) {
@@ -427,8 +436,6 @@ const char *tunnel_builder_t::build( player_t *player, koord pos, const tunnel_d
 bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end, koord zv, const tunnel_desc_t *desc, overtaking_mode_t overtaking_mode, const way_desc_t *way_desc)
 {
 	ribi_t::ribi ribi = 0;
-	weg_t *weg = NULL;
-	leitung_t *lt = NULL;
 	koord3d pos = start;
 	sint64 cost = 0;
 	waytype_t waytyp = desc->get_waytype();
@@ -475,61 +482,6 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		return true;
 	}
 
-	// Now we build the invisible part
-	while(pos.get_2d()!=end.get_2d()) {
-		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
-		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		if(waytyp != powerline_wt) {
-			const uint32 max_speed = min(desc->get_topspeed(), way_desc->get_topspeed());
-			const uint32 max_axle_load = min(desc->get_axle_load(), way_desc->get_axle_load());
-			weg = weg_t::alloc(desc->get_waytype());
-			weg->set_desc(way_desc);
-
-			const grund_t* gr = welt->lookup(pos);
-			const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
-			if(hang != slope_t::flat)
-			{
-				const uint slope_height = (hang & 7) ? 1 : 2;
-				if(slope_height == 1)
-				{
-					weg->set_max_speed(min(desc->get_topspeed_gradient_1(), way_desc->get_topspeed_gradient_1()));
-				}
-				else
-				{
-					weg->set_max_speed(min(desc->get_topspeed_gradient_2(), way_desc->get_topspeed_gradient_2()));
-				}
-			}
-			else
-			{
-				weg->set_max_speed(max_speed);
-			}
-			weg->set_max_axle_load(max_axle_load);
-			if(  waytyp==road_wt  ) {
-				strasse_t* str = (strasse_t*) weg;
-				assert(str);
-				str->set_overtaking_mode(overtaking_mode, player);
-				str->set_ribi_mask_oneway(ribi_type(-zv));
-			}
-
-			tunnel->neuen_weg_bauen(weg, ribi_t::doubles(ribi), player);
-		}
-		else {
-			lt = new leitung_t(tunnel->get_pos(), player);
-			lt->set_desc(way_desc);
-			tunnel->obj_add( lt );
-			lt->finish_rd();
-			player_t::add_maintenance( player, -way_desc->get_maintenance(), powerline_wt );
-		}
-		tunnel->obj_add(new tunnel_t(pos, player, desc));
-		tunnel->calc_image();
-		tunnel->set_flag(grund_t::dirty);
-		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player, get_total_maintenance(pos,desc), desc->get_finance_waytype() );
-		cost += get_total_cost(pos,desc);
-		cost += way_desc->get_value();
-		pos = pos + zv;
-	}
-
 	// if end is tunnel then connect
 	grund_t *gr_end = welt->lookup(end);
 	if (gr_end) {
@@ -538,7 +490,7 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 		}
 		else if (gr_end->ist_karten_boden()) {
 			// if end is above ground construct an exit
-			build_tunnel_portal(player, pos, -zv, desc, way_desc, cost, true, overtaking_mode, false);
+			build_tunnel_portal(player, end, -zv, desc, way_desc, cost, true, overtaking_mode, false);
 			gr_end = NULL; // invalid - replaced by tunnel ground
 			// calc new back image for the ground
 			if (end!=start && grund_t::underground_mode) {
@@ -552,51 +504,15 @@ bool tunnel_builder_t::build_tunnel(player_t *player, koord3d start, koord3d end
 			assert(0);
 		}
 	}
-	else {
-		// construct end tunnel tile
-		tunnelboden_t *tunnel = new tunnelboden_t( pos, 0);
-		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		if(waytyp != powerline_wt) {
-			weg = weg_t::alloc(desc->get_waytype());
-			weg->set_desc(way_desc);
-			const grund_t* gr = welt->lookup(pos);
-			const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
-			if(hang != slope_t::flat)
-			{
-				const uint slope_height = (hang & 7) ? 1 : 2;
-				if(slope_height == 1)
-				{
-					weg->set_max_speed(desc->get_topspeed_gradient_1());
-				}
-				else
-				{
-					weg->set_max_speed(desc->get_topspeed_gradient_2());
-				}
-			}
-			else
-			{
-				weg->set_max_speed(desc->get_topspeed());
-			}
-			weg->set_max_axle_load(desc->get_max_axle_load());
-			tunnel->neuen_weg_bauen(weg, ribi, player);
-		}
-		else {
-			lt = new leitung_t(tunnel->get_pos(), player);
-			lt->set_desc(way_desc);
-			tunnel->obj_add( lt );
-			lt->finish_rd();
-			player_t::add_maintenance( player, -way_desc->get_maintenance(), powerline_wt );
-		}
-		tunnel->obj_add(new tunnel_t(pos, player, desc));
-		tunnel->calc_image();
-		tunnel->set_flag(grund_t::dirty);
-		assert(!tunnel->ist_karten_boden());
-		player_t::add_maintenance( player,  get_total_maintenance(pos,desc), desc->get_finance_waytype() );
-		cost += get_total_cost(pos,desc);
-		cost += way_desc->get_value();
-	}
 
-	player_t::book_construction_costs(player, -cost, start.get_2d(), desc->get_waytype());
+	//build way in tunnel
+	way_builder_t builder(player);
+	builder.init_builder((way_builder_t::bautyp_t)desc->get_waytype()  | way_builder_t::tunnel_flag | (desc->get_is_half_height() ? way_builder_t::low_clearence_flag : (way_builder_t::bautyp_t)0),way_desc,desc);
+	builder.calc_straight_route(start,end);
+	builder.set_overtaking_mode(overtaking_mode);
+	builder.build();
+
+	player_t::book_construction_costs(player, -cost, (start-zv).get_2d(), desc->get_waytype());
 	return true;
 }
 

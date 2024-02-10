@@ -48,6 +48,9 @@ public:
 	 */
 	scr_size get_preferred_size();
 
+	// preferred with. Not affected by current width.
+	scr_coord_val get_required_text_width();
+
 	bool action_triggered(gui_action_creator_t *comp, value_t extra) OVERRIDE;
 };
 

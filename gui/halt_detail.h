@@ -88,64 +88,15 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
-class gui_halt_service_info_t : public gui_aligned_container_t, public action_listener_t
+class gui_halt_service_info_t : public gui_aligned_container_t
 {
-	/**
-     * Button to open line window
-     */
-	class gui_line_button_t : public button_t, public action_listener_t
-	{
-		linehandle_t line;
-	public:
-		gui_line_button_t(linehandle_t line) : button_t()
-		{
-			this->line = line;
-			init(button_t::posbutton, NULL);
-			add_listener(this);
-		}
-
-		bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE
-		{
-			player_t *player = world()->get_active_player();
-			if (player == line->get_owner()) {
-				player->simlinemgmt.show_lineinfo(player, line);
-			}
-			return true;
-		}
-
-		void draw(scr_coord offset) OVERRIDE
-		{
-			if (line->get_owner() == world()->get_active_player()) {
-				button_t::draw(offset);
-			}
-		}
-	};
-	/**
-	 * Button to open convoi window
-	 */
-	class gui_convoi_button_t : public button_t, public action_listener_t
-	{
-		convoihandle_t convoi;
-	public:
-		gui_convoi_button_t(convoihandle_t convoi) : button_t() {
-			this->convoi = convoi;
-			init(button_t::posbutton, NULL);
-			add_listener(this);
-		}
-
-		bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE {
-			convoi->show_info();
-			return true;
-		}
-	};
-
-private:
 	gui_aligned_container_t container;
 	gui_scrollpane_t scrolly;
 
 	halthandle_t halt;
 
-	button_t bt_access_minimap;
+	uint8 display_mode = 0; // 0=frequency, 1=catg, 2=route
+	uint8 old_mode = 0;
 
 	uint32 cached_line_count;
 	uint32 cached_convoy_count;
@@ -164,7 +115,7 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+	void set_mode(uint8 mode) { display_mode = mode; update_connections(); }
 
 	// FIXME
 	//scr_size get_min_size() const OVERRIDE { return get_size(); }
@@ -200,6 +151,13 @@ public:
 class halt_detail_t : public gui_frame_t, action_listener_t
 {
 private:
+	// tab name
+	enum {
+		HD_TAB_PAX     = 0,
+		HD_TAB_GOODS   = 1,
+		HD_TAB_SERVICE = 2,
+		HD_TAB_ROUTE   = 3,
+	};
 	halthandle_t halt;
 	player_t *cached_active_player; // So that, if different from current, change line links
 	uint32 cached_line_count;
@@ -214,14 +172,17 @@ private:
 	halt_detail_pas_t pas;
 	halt_detail_goods_t goods;
 	gui_container_t cont_goods, cont_desinations;
-	gui_aligned_container_t cont_route;
+	gui_aligned_container_t cont_route, cont_tab_service;
 	gui_halt_service_info_t cont_service;
-	gui_scrollpane_t scrolly_pas, scrolly_goods, scrolly_service, scrolly_route;
+	gui_scrollpane_t scrolly_pas, scrolly_goods, scroll_service, scrolly_route;
 	gui_label_buf_t lb_selected_route_catg;
 	gui_heading_t lb_nearby_factory, lb_routes, lb_serve_catg;
 
 	gui_halt_nearby_factory_info_t nearby_factory;
 	gui_tab_panel_t tabs;
+
+	// service tab stuffs
+	button_t bt_sv_frequency, bt_sv_route, bt_sv_catg, bt_access_minimap;
 
 	// route tab stuffs
 	uint8 selected_route_catg_index = goods_manager_t::INDEX_NONE;
@@ -237,6 +198,11 @@ private:
 	void update_components();
 
 	void set_tab_opened();
+
+	uint8 get_active_tab_index()
+	{
+		return (uint8)(tabstate + (!show_pas_info) + (!show_freight_info&&tabs.get_active_tab_index()));
+	}
 
 public:
 	halt_detail_t(halthandle_t halt = halthandle_t());

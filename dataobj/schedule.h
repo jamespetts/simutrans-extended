@@ -195,15 +195,19 @@ public:
 	 */
 	halthandle_t get_prev_halt( player_t *player ) const;
 
+	// This is used to display the outline the schedule.
+	halthandle_t get_origin_halt(player_t *player) const;
+	halthandle_t get_destination_halt(player_t *player) const;
+
 	/**
 	* Inserts a coordinate at current_stop into the schedule.
 	*/
-	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, bool show_failure = false);
+	bool insert(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, bool show_failure = false, uint16 max_speed_kmh = 65535);
 
 	/**
 	* Appends a coordinate to the schedule.
 	*/
-	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0);
+	bool append(const grund_t* gr, uint16 minimum_loading = 0, uint8 waiting_time_shift = 0, sint16 spacing_shift = 0, uint32 flags = 0, uint16 condition_bitfield_broadcaster = 0, uint16 condition_bitfield_receiver = 0, uint16 target_id_condition_trigger = 0, uint16 target_id_couple = 0, uint16 target_id_uncouple = 0, uint16 target_unique_entry_uncouple = 0, uint16 max_speed_kmh = 65535);
 
 	/**
 	 * Cleanup a schedule, removes double entries.
@@ -258,6 +262,46 @@ public:
 	 */
 	bool is_contained(koord3d pos);
 
+	// for GUI: To get the station number of the destination of the cargo
+	uint8 get_entry_index(halthandle_t halt, player_t *player, bool reverse) const;
+
+	bool check_consist_orders_for_match(uint16 entry_id_this, const schedule_t* other_schedule, uint16 entry_id_other_schedule) const;
+
+	bool entry_has_consist_order(uint16 unique_id) const;
+
+	const consist_order_t& get_consist_order(uint16 unique_id);
+
+	convoihandle_t get_couple_target(uint16 unique_id, halthandle_t halt);
+	// TODO: Implement get_uncouple_target
+
+	// These hashtables represent what categories of goods are carried
+	// to and from each entry according to this schedule's consist orders.
+	// The key is the unique ID and the value is the category.
+	//
+	// Where this schedule has no consist orders, these are blank, and
+	// the goods that this consist carries are instead determinable
+	// from the actual consists running on this schedule.
+	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_to;
+	inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> catg_carried_from;
+
+	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_to() const { return catg_carried_to; }
+	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL>& get_catg_carried_from() const { return catg_carried_from; }
+
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_to;
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> passenger_min_class_carried_from;
+
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_passenger_min_class_carried_to() const { return passenger_min_class_carried_to; }
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_passenger_min_class_carried_from() const { return passenger_min_class_carried_from; }
+
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_to;
+	inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> mail_min_class_carried_from;
+
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_mail_min_class_carried_to() const { return mail_min_class_carried_to; }
+	const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL>& get_mail_min_class_carried_from() const { return mail_min_class_carried_from; }
+
+	uint8 get_entry_from_unique_id(uint16 unique_id) const;
+	uint16 get_unique_id_from_entry(uint8 entry) const;
+
 	image_id get_schedule_type_symbol() const
 	{
 		switch (get_type())
@@ -300,6 +344,18 @@ public:
 	 */
 	static void gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t const* const player_, const schedule_t *schedule, int i, int max_chars);
 	static void gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t *player_, const schedule_entry_t &entry, bool no_control_tower);
+
+	// True if this schedule has at least 1 consist order
+	bool has_consist_orders() const;
+
+	// A helper method for updating the hashtables of consist orders
+	void parse_orders();
+
+	// True if any consist order provides for this category of goods to be carried anywhere along this schedule's route
+	bool carries_catg(uint8 catg_index) const;
+
+	// Returns the lowest class carried for this category (mail/passengers) provided by any consist order along this schedule's route.
+	uint8 min_class_carried(uint8 catg_index) const;
 
 private:
 	bool bidirectional;

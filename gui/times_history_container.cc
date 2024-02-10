@@ -14,6 +14,7 @@
 #include "../player/simplay.h"
 #include "components/gui_image.h"
 #include "components/gui_divider.h"
+#include "components/gui_table.h"
 
 #include "../vehicle/vehicle.h"
 
@@ -42,8 +43,11 @@ void gui_times_history_t::init()
 		schedule = convoy->get_schedule();
 		map = &convoy->get_journey_times_history();
 		player = convoy->get_owner();
-		mirrored = schedule->is_mirrored();
+		mirrored = schedule ? schedule->is_mirrored() : false;
 		build_table();
+	}
+	else {
+		remove_all();
 	}
 }
 
@@ -168,9 +172,9 @@ void gui_times_history_t::build_table()
 
 	const minivec_tpl<schedule_entry_t>& entries = schedule->entries;
 
-	// for convoy loacation
-	sint32 cnv_route_index;
-	sint32 cnv_route_index_left;
+	// for convoy location
+	sint32 cnv_route_index = 0;
+	sint32 cnv_route_index_left = 0;
 	PIXVAL convoy_state_col = COL_SAFETY;
 	uint16 min_range; // in km
 	bool found_location = false;
@@ -179,7 +183,7 @@ void gui_times_history_t::build_table()
 		cnv_route_index_left = convoy->get_route()->get_count() - cnv_route_index;
 		old_route_index = cnv_route_index;
 		if (convoy->has_obsolete_vehicles()) {
-			convoy_state_col = COL_OBSOLETE;
+			convoy_state_col = SYSCOL_OBSOLETE;
 		}
 		min_range = convoy->get_min_range();
 	}
@@ -187,26 +191,32 @@ void gui_times_history_t::build_table()
 		min_range = line->get_min_range();
 	}
 
-	add_table(8 + convoy.is_bound(),0)->set_spacing(scr_size(D_H_SPACE, 0));
+	gui_aligned_container_t *tbl = add_table(8 + convoy.is_bound(), 0);
+	tbl->set_table_frame(true, true);
+	tbl->set_spacing(scr_size(0, 0));
 	{
 		// header
-		new_component<gui_empty_t>();
-		new_component<gui_empty_t>();
+		new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left)->set_flexible(true, false);
+		gui_table_header_t *th = new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
+		th->set_flexible(true, false);
+		th->set_padding(scr_size(0,2));
+		th->set_fixed_width(D_ENTRY_NO_WIDTH);
+		if (convoy.is_bound()) {
+			th = new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
+			th->set_flexible(true, false);
+			th->set_padding(scr_size(2,2));
+			th->set_fixed_width(LINESPACE*0.7);
+		}
+		new_component<gui_table_header_t>("stations", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left)->set_flexible(true, false);
+		new_component_span<gui_table_header_t>("latest_3", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left, 3)->set_flexible(true, false);
+		new_component_span<gui_table_header_t>("average", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left, 2)->set_flexible(true, false);
+
+		new_component_span<gui_margin_t>(1, D_V_SPACE<<1, 2);
+
 		if (convoy.is_bound()) {
 			new_component<gui_empty_t>();
 		}
-		new_component<gui_label_t>("stations");
-		new_component_span<gui_label_t>("latest_3", 3);
-		new_component_span<gui_label_t>("average", 2);
-
-		new_component<gui_divider_t>();
-		new_component<gui_divider_t>()->init(scr_coord(0,0), D_ENTRY_NO_WIDTH);
-		if (convoy.is_bound()) {
-			new_component<gui_divider_t>()->init(scr_coord(0, 0), LINESPACE*0.7);
-		}
-		new_component<gui_divider_t>();
-		new_component_span<gui_divider_t>(3);
-		new_component_span<gui_divider_t>(2);
+		new_component_span<gui_empty_t>(6);
 
 		for (uint32 i = 0; i < schedule_indices->get_count(); i++) {
 			const uint8 entry_index = min(schedule_indices->at(i), entries.get_count()-1);
@@ -261,7 +271,7 @@ void gui_times_history_t::build_table()
 				}
 				end_table();
 				add_table(2,1)->set_alignment(ALIGN_RIGHT); {
-					new_component<gui_image_t>()->set_image(entry.wait_for_time && skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
+					new_component<gui_image_t>()->set_image(entry.is_flag_set(schedule_entry_t::wait_for_time) && skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
 					new_component<gui_image_t>()->set_image(entry.minimum_loading>0 ? skinverwaltung_t::goods->get_image_id(0) : IMG_EMPTY, true);
 				}
 				end_table();
@@ -292,6 +302,7 @@ void gui_times_history_t::build_table()
 				else {
 					lb->buf().append(halt->get_name());
 				}
+				lb->set_padding(scr_size(D_BUTTON_PADDINGS_X,0));
 				lb->update();
 				if (entry.reverse == 1) {
 					new_component<gui_label_t>("[<<]", SYSCOL_TEXT_STRONG);
@@ -401,6 +412,9 @@ void gui_times_history_t::build_table()
 			}
 			avg_triptime_label->update();
 			new_component<gui_empty_t>();
+
+			new_component<gui_margin_t>(1, D_V_SPACE<<1);
+			new_component_span<gui_empty_t>(8);
 		}
 	}
 	end_table();
@@ -415,8 +429,11 @@ void gui_times_history_t::build_table()
 
 void gui_times_history_t::draw(scr_coord offset)
 {
-	if (convoy.is_bound()){
-		if (!convoy->get_schedule()->matches(world(), schedule)) {
+	if (schedule==NULL) {
+		init();
+	}
+	else if (convoy.is_bound()){
+		if (!convoy->get_schedule()->empty() && !convoy->get_schedule()->matches(world(), schedule)) {
 			init();
 		}
 		else {
@@ -430,7 +447,7 @@ void gui_times_history_t::draw(scr_coord offset)
 		}
 	}
 	else if(line.is_bound()) {
-		if (!line->get_schedule()->matches(world(), schedule)) {
+		if (!line->get_schedule()->empty() && !line->get_schedule()->matches(world(), schedule)) {
 			init();
 		}
 		else if(world()->get_ticks() - update_time > 10000) {

@@ -105,6 +105,19 @@ void cbuffer_t::append(long n)
 	append(p);
 }
 
+void cbuffer_t::append_u(uint32 n)
+{
+	char tmp[32];
+	char* p = tmp + 31;
+	*p = '\0';
+
+	do {
+		*--p = '0' + (n % 10);
+	} while ((n /= 10) > 0);
+
+	append(p);
+}
+
 
 void cbuffer_t::append(const char* text, size_t maxchars)
 {
@@ -541,7 +554,7 @@ void cbuffer_t::append_fixed(uint32 n)
 		zeros--;
 	}
 
-	append(n);
+	append_u(n);
 }
 
 
@@ -550,7 +563,7 @@ void cbuffer_t::append_bool(bool value)
 	append(value ? '1' : '0');
 }
 
-uint8 cbuffer_t::decode_uint8(const char* p)
+uint8 cbuffer_t::decode_uint8(const char* &p)
 {
 	char number_string[4];
 	for(uint32 i = 0; i < 3; i ++)
@@ -561,7 +574,7 @@ uint8 cbuffer_t::decode_uint8(const char* p)
 	return (uint8)atoi(number_string);
 }
 
-uint16 cbuffer_t::decode_uint16(const char* p)
+uint16 cbuffer_t::decode_uint16(const char* &p)
 {
 	char number_string[6];
 	for(uint32 i = 0; i < 5; i ++)
@@ -572,7 +585,7 @@ uint16 cbuffer_t::decode_uint16(const char* p)
 	return (uint16)atoi(number_string);
 }
 
-uint32 cbuffer_t::decode_uint32(const char* p)
+uint32 cbuffer_t::decode_uint32(const char* &p)
 {
 	char number_string[11];
 	for(uint32 i = 0; i < 10; i ++)
@@ -583,7 +596,7 @@ uint32 cbuffer_t::decode_uint32(const char* p)
 	return (uint32)atoi(number_string);
 }
 
-bool cbuffer_t::decode_bool(const char* p)
+bool cbuffer_t::decode_bool(const char* &p)
 {
 	char bool_char = *p;
 	return (bool)atoi(&bool_char);

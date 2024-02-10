@@ -44,6 +44,7 @@ public:
 		roundbox_middle,
 		roundbox_right,
 		imagebox,
+		depot,
 		sortarrow,
 		arrowleft,
 		arrowright,
@@ -62,6 +63,7 @@ public:
 		roundbox_middle_state = roundbox_middle | state,
 		roundbox_right_state  = roundbox_right  | state,
 		imagebox_state   = imagebox   | state,
+		depot_state      = depot      | state,
 		sortarrow_state  = sortarrow  | state,
 		arrowright_state = arrowright | state,
 		arrowup_state    = arrowup    | state,
@@ -72,6 +74,7 @@ public:
 		imagebox_automatic  = imagebox     | automatic,
 		sortarrow_automatic = sortarrow    | automatic,
 		posbutton_automatic = posbutton    | automatic,
+		depot_automatic     = depot        | automatic,
 
 		flexible = 1 << 9
 	};
@@ -82,6 +85,13 @@ protected:
 	 * the extended init() version for buttons.
 	 */
 	using gui_component_t::init;
+
+	/**
+	 * The displayed text of the button
+	 * direct access provided to avoid translations
+	 */
+	const char *text;
+	const char *translated_text;
 
 private:
 	/**
@@ -96,13 +106,6 @@ private:
 	 */
 	uint8 b_enabled:1;
 	uint8 b_no_translate:1;
-
-	/**
-	 * The displayed text of the button
-	 * direct access provided to avoid translations
-	 */
-	const char *text;
-	const char *translated_text;
 
 	union {
 		koord3d targetpos;
@@ -142,7 +145,7 @@ public:
 	/**
 	 * Set the displayed text of the button
 	 */
-	void set_text(const char * text);
+	virtual void set_text(const char * text);
 
 	/**
 	 * Set position for posbuttons, will be returned on calling listener

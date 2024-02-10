@@ -251,6 +251,7 @@
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <PlatformToolset>v142</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Optimised debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -635,6 +636,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>.\simutrans\</OutDir>
     <EmbedManifest>false</EmbedManifest>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Optimised debug|x64'">
     <OutDir>.\simutrans\</OutDir>
@@ -1931,6 +1933,7 @@
     <ClCompile Include="boden\pier_deck.cc" />
     <ClCompile Include="dataobj\rect.cc" />
     <ClCompile Include="dataobj\consist_order_t.cc" />
+    <ClCompile Include="gui\consist_order_gui.cc" />
     <ClCompile Include="descriptor\factory_desc.cc" />
     <ClCompile Include="descriptor\obj_base_desc.cc" />
     <ClCompile Include="descriptor\pier_desc.cc" />
@@ -1939,6 +1942,7 @@
     <ClCompile Include="descriptor\vehicle_desc.cc" />
     <ClCompile Include="descriptor\way_desc.cc" />
     <ClCompile Include="gui\pier_rotation_select.cc" />
+    <ClCompile Include="gui\vehicle_detail.cc" />
     <ClCompile Include="io\classify_file.cc" />
     <ClCompile Include="io\raw_image.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">true</ExcludedFromBuild>
@@ -2032,12 +2036,13 @@
     <ClCompile Include="gui\components\gui_map_preview.cc" />
     <ClCompile Include="gui\components\gui_obj_view_t.cc" />
     <ClCompile Include="gui\components\gui_schedule_item.cc" />
+    <ClCompile Include="gui\components\gui_line_network.cc" />
     <ClCompile Include="gui\convoy_item.cc" />
     <ClCompile Include="gui\display_settings.cc" />
     <ClCompile Include="gui\factory_chart.cc" />
+    <ClCompile Include="gui\factory_legend.cc" />
     <ClCompile Include="gui\gui_theme.cc" />
     <ClCompile Include="gui\loadfont_frame.cc" />
-    <ClCompile Include="gui\line_class_manager.cc" />
     <ClCompile Include="gui\line_color_gui.cc" />
     <ClCompile Include="gui\line_item.cc" />
     <ClCompile Include="gui\onewaysign_info.cc" />
@@ -2101,6 +2106,7 @@
     <ClCompile Include="descriptor\reader\building_reader.cc" />
     <ClCompile Include="player\finance.cc" />
     <ClCompile Include="script\api\api_city.cc" />
+    <ClCompile Include="script\api\api_command.cc" />
     <ClCompile Include="script\api\api_const.cc" />
     <ClCompile Include="script\api\api_control.cc" />
     <ClCompile Include="script\api\api_convoy.cc" />
@@ -2110,8 +2116,9 @@
     <ClCompile Include="script\api\api_include.cc" />
     <ClCompile Include="script\api\api_line.cc" />
     <ClCompile Include="script\api\api_map_objects.cc" />
-    <ClCompile Include="script\api\api_obj_desc.cc" />
     <ClCompile Include="script\api\api_obj_desc_base.cc" />
+    <ClCompile Include="script\api\api_obj_desc.cc" />
+    <ClCompile Include="script\api\api_pathfinding.cc" />
     <ClCompile Include="script\api\api_player.cc" />
     <ClCompile Include="script\api\api_scenario.cc" />
     <ClCompile Include="script\api\api_schedule.cc" />
@@ -2127,6 +2134,7 @@
     <ClCompile Include="script\dynamic_string.cc" />
     <ClCompile Include="script\export_objs.cc" />
     <ClCompile Include="script\script.cc" />
+    <ClCompile Include="script\script_loader.cc" />
     <ClCompile Include="siminteraction.cc" />
     <ClCompile Include="simloadingscreen.cc" />
     <ClCompile Include="simsignalbox.cc" />
@@ -2320,7 +2328,6 @@
     <ClCompile Include="gui\components\gui_colorbox.cc" />
     <ClCompile Include="gui\components\gui_combobox.cc" />
     <ClCompile Include="gui\components\gui_convoy_assembler.cc" />
-    <ClCompile Include="gui\components\gui_convoy_label.cc" />
     <ClCompile Include="gui\components\gui_divider.cc" />
     <ClCompile Include="gui\components\gui_fixedwidth_textarea.cc" />
     <ClCompile Include="gui\components\gui_flowtext.cc" />
@@ -2338,6 +2345,8 @@
     <ClCompile Include="gui\components\gui_textarea.cc" />
     <ClCompile Include="gui\components\gui_textinput.cc" />
     <ClCompile Include="gui\components\gui_vehicle_capacitybar.cc" />
+    <ClCompile Include="gui\components\gui_vehicle_cargoinfo.cc" />
+    <ClCompile Include="gui\components\gui_waytype_image_box.cc" />
     <ClCompile Include="gui\components\gui_waytype_tab_panel.cc" />
     <ClCompile Include="gui\components\gui_world_view_t.cc" />
     <ClCompile Include="gui\halt_detail.cc" />
@@ -2360,6 +2369,7 @@
     <ClCompile Include="gui\label_info.cc" />
     <ClCompile Include="gui\labellist_frame_t.cc" />
     <ClCompile Include="gui\labellist_stats_t.cc" />
+    <ClCompile Include="gui\linelist_stats_t.cc" />
     <ClCompile Include="gui\line_management_gui.cc" />
     <ClCompile Include="gui\load_relief_frame.cc" />
     <ClCompile Include="dataobj\loadsave.cc" />
@@ -2558,9 +2568,11 @@
     <ClCompile Include="gui\welt.cc" />
     <ClCompile Include="gui\tool_selector.cc" />
     <ClCompile Include="descriptor\reader\xref_reader.cc" />
+    <ClCompile Include="world\terraformer.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dataobj\consist_order_t.h" />
+    <ClInclude Include="gui\consist_order_gui.h" />
     <ClInclude Include="bauer\pier_builder.h" />
     <ClInclude Include="boden\pier_deck.h" />
     <ClInclude Include="dataobj\environment.h" />
@@ -2599,13 +2611,13 @@
     <ClInclude Include="gui\components\gui_map_preview.h" />
     <ClInclude Include="gui\components\gui_obj_view_t.h" />
     <ClInclude Include="gui\components\gui_schedule_item.h" />
-    <ClInclude Include="gui\components\location_view_t.h" />
+    <ClInclude Include="gui\components\gui_line_network.h" />
     <ClInclude Include="gui\convoy_item.h" />
     <ClInclude Include="gui\display_settings.h" />
     <ClInclude Include="gui\factory_chart.h" />
+    <ClInclude Include="gui\factory_legend.h" />
     <ClInclude Include="gui\gui_theme.h" />
     <ClInclude Include="gui\loadfont_frame.h" />
-    <ClInclude Include="gui\line_class_manager.h" />
     <ClInclude Include="gui\line_color_gui.h" />
     <ClInclude Include="gui\onewaysign_info.h" />
     <ClInclude Include="gui\overtaking_mode.h" />
@@ -2614,6 +2626,7 @@
     <ClInclude Include="gui\slim_obj_info.h" />
     <ClInclude Include="gui\privatesign_info.h" />
     <ClInclude Include="gui\scenario_info.h" />
+    <ClInclude Include="gui\vehicle_detail.h" />
     <ClInclude Include="gui\water_info.h" />
     <ClInclude Include="gui\server_frame.h" />
     <ClInclude Include="gui\signal_connector_gui.h" />
@@ -2799,8 +2812,8 @@
     <ClInclude Include="gui\components\gui_chart.h" />
     <ClInclude Include="gui\components\gui_colorbox.h" />
     <ClInclude Include="gui\components\gui_combobox.h" />
+    <ClInclude Include="gui\components\gui_convoi_button.h" />
     <ClInclude Include="gui\components\gui_convoy_assembler.h" />
-    <ClInclude Include="gui\components\gui_convoy_label.h" />
     <ClInclude Include="gui\components\gui_divider.h" />
     <ClInclude Include="ifc\gui_fenster.h" />
     <ClInclude Include="gui\components\gui_flowtext.h" />
@@ -2819,6 +2832,8 @@
     <ClInclude Include="gui\components\gui_textarea.h" />
     <ClInclude Include="gui\components\gui_textinput.h" />
     <ClInclude Include="gui\components\gui_vehicle_capacitybar.h" />
+    <ClInclude Include="gui\components\gui_vehicle_cargoinfo.h" />
+    <ClInclude Include="gui\components\gui_waytype_image_box.h" />
     <ClInclude Include="gui\components\gui_waytype_tab_panel.h" />
     <ClInclude Include="gui\components\gui_world_view_t.h" />
     <ClInclude Include="gui\halt_detail.h" />
@@ -2849,6 +2864,7 @@
     <ClInclude Include="gui\label_info.h" />
     <ClInclude Include="gui\labellist_frame_t.h" />
     <ClInclude Include="gui\labellist_stats_t.h" />
+    <ClInclude Include="gui\linelist_stats_t.h" />
     <ClInclude Include="dings\lagerhaus.h" />
     <ClInclude Include="gui\line_item.h" />
     <ClInclude Include="gui\line_management_gui.h" />
@@ -3023,6 +3039,7 @@
     <ClInclude Include="descriptor\xref_desc.h" />
     <ClInclude Include="descriptor\reader\xref_reader.h" />
     <ClInclude Include="descriptor\writer\xref_writer.h" />
+    <ClInclude Include="world\terraformer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\Simutrans\simu-server.log" />

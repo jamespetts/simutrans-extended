@@ -23,6 +23,9 @@
 #include "../simtypes.h"
 
 #define FARE_RECORDS 25
+#ifdef DEBUG
+#define COMFORT_RECORDS 52
+#endif
 
 class goods_desc_t;
 
@@ -78,6 +81,11 @@ private:
 	gui_tab_panel_t tabs, tabs_chart;
 	gui_aligned_container_t cont_goods_list, cont_fare_chart, cont_fare_short, cont_fare_long;
 	gui_chart_t chart_s, chart_l;
+#ifdef DEBUG
+	gui_aligned_container_t cont_comfort_chart;
+	gui_chart_t comfort_chart;
+	sint64 comfort_curve[COMFORT_RECORDS];
+#endif
 
 	gui_combobox_t goods_selector;
 	gui_label_t lb_no_speed_bonus;

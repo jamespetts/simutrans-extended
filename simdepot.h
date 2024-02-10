@@ -37,15 +37,15 @@ protected:
 	 */
 	slist_tpl<vehicle_t *> vehicles;
 	slist_tpl<convoihandle_t> convois;
+	vector_tpl<convoihandle_t> under_maintenance; // Includes maintenance and overhaul, but not replenishment.
 
 	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file);
 
 	static slist_tpl<depot_t *> all_depots;
 
-public:
-	// Last selected vehicle filter
-	int selected_filter;
+	char name[128];
 
+public:
 	/**
 	 * Is this depot suitable for this vehicle?
 	 * Must be same waytype, same owner, suitable traction, etc.
@@ -54,6 +54,7 @@ public:
 	 *   - 0 if we don't want to filter by traction type
 	 *   - a bitmask of possible traction types; we need only match one
 	 */
+	uint16 get_traction_types() const;
 	bool is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types = 0) const;
 
 	// finds the next/previous depot relative to the current position
@@ -77,6 +78,7 @@ public:
 	virtual simline_t::linetype get_line_type() const = 0;
 
 	void rdwr(loadsave_t *file) OVERRIDE;
+	void rdwr_maintenance_queue(loadsave_t* file);
 
 	// text for the tabs is defaulted to the train names
 	virtual const char * get_electrics_name() { return "Electrics_tab"; }
@@ -94,7 +96,9 @@ public:
 
 	convoihandle_t add_convoi(bool local_execution);
 
-	slist_tpl<convoihandle_t> const& get_convoy_list() { return convois; }
+	slist_tpl<convoihandle_t> const& get_convoy_list() const { return convois; }
+
+	slist_tpl<convoihandle_t>& access_convoy_list() { return convois; }
 
 	// checks if cnv can be copied by using only stored vehicles and non-obsolete purchased vehicles
 	bool check_obsolete_inventory(convoihandle_t cnv);
@@ -161,11 +165,6 @@ public:
 	void sell_vehicle(vehicle_t* veh);
 
 	/**
-	 * Access to vehicle types which can be bought in the depot.
-	 */
-	slist_tpl<vehicle_desc_t*> const & get_vehicle_type();
-
-	/**
 	 * Returns the waytype for a certain vehicle; only way to distinguish differnt depots ...
 	 */
 	virtual waytype_t get_wegtyp() const { return invalid_wt; }
@@ -225,6 +224,27 @@ public:
 	inline unsigned get_max_convoi_length() const { return get_max_convoy_length(get_wegtyp()); }
 
 	void add_to_world_list(bool lock = false);
+
+	// Adds a convoy to a depot for maintenance.
+	// Keeps track of how many are in for maintenance at once for the purposes of the maintenance limit.
+	// Includes overhauls.
+	void register_for_maintenance(convoihandle_t cnv);
+
+	// Puts the convoy at the head of the maintenance queue
+	void prioritise_for_maintenance(convoihandle_t cnv);
+
+	// Move to the back of the maintenance queue.
+	void depriortise_for_maintenance(convoihandle_t cnv);
+
+	// True if this convoy is registered for maintenance, but not currently being worked on because there
+	// are too many other convoys being worked on at present.
+	bool is_awaiting_attention(convoihandle_t cnv) const;
+
+	// For advancing the timing of convoys under maintenance
+	sync_result sync_step(uint32 delta_t);
+
+	void set_name(const char* value);
+	const char* get_name() const OVERRIDE;
 
 private:
 	linehandle_t last_selected_line;

@@ -323,7 +323,8 @@ void hausbauer_t::fill_menu(tool_selector_t* tool_selector, building_desc_t::bty
 	const uint16 time = welt->get_timeline_year_month();
 	DBG_DEBUG("hausbauer_t::fill_menu()","maximum %i",station_building.get_count());
 
-	FOR(  vector_tpl<building_desc_t const*>,  const desc,  station_building  ) {
+	for(auto const desc : station_building)
+	{
 //		DBG_DEBUG("hausbauer_t::fill_menu()", "try to add %s (%p)", desc->get_name(), desc);
 		if(  desc->get_type() == btype  &&  desc->get_builder()  &&  ((btype == building_desc_t::headquarters || btype == building_desc_t::signalbox) ||  desc->get_extra()==(uint16)wt)  ) {
 			if(desc->is_available(time) &&
@@ -341,7 +342,8 @@ void hausbauer_t::fill_menu(tool_selector_t* tool_selector, building_desc_t::bty
 void hausbauer_t::new_world()
 {
 	unbuilt_monuments.clear();
-	FOR(vector_tpl<building_desc_t const*>, const i, monuments) {
+	for(auto const i : monuments)
+	{
 		unbuilt_monuments.append(i);
 	}
 }
@@ -373,7 +375,6 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 		for(k.y = 0; k.y < size.y; k.y ++) {
 			for(k.x = 0; k.x < size.x; k.x ++) {
 				const grund_t *gr = welt->lookup(koord3d(k,0)+pos);
-				assert(gr);
 
 				// for buildings with holes the hole could be on a different height ->gr==NULL
 				if (gr) {
@@ -535,7 +536,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 									gr->calc_image();
 								}
 							}
-							welt->set_grid_hgt( newk, new_hgt+corner_nw(new_slope) );
+							welt->set_grid_hgt_nocheck( newk, new_hgt+corner_nw(new_slope) );
 						}
 					}
 					else if (wasser_t* sea = dynamic_cast<wasser_t*>(gr)) {
@@ -943,7 +944,8 @@ const building_tile_desc_t *hausbauer_t::find_tile(const char *name, int org_idx
 
 	if(!desc) {
 		// DBG_MESSAGE("hausbauer_t::find_tile()","\"%s\" not in hashtable",name);
-		return NULL;	}
+		return NULL;
+	}
 
 	const int size = desc->get_y()*desc->get_x();
 	int idx = org_idx;
@@ -971,7 +973,8 @@ const building_desc_t* hausbauer_t::get_random_station(const building_desc_t::bt
 		return NULL;
 	}
 
-	FOR(vector_tpl<building_desc_t const*>, const desc, station_building) {
+	for(auto const desc : station_building)
+	{
 		if(  desc->get_type()== btype  &&  desc->get_extra()==(uint32)wt  &&  (enables==0  ||  (desc->get_enabled()&enables)!=0)  ) {
 			// skip underground stations
 			if(  !desc->can_be_built_aboveground()  ) {
@@ -1002,7 +1005,9 @@ const building_desc_t* hausbauer_t::get_special(uint32 bev, building_desc_t::bty
 		default:
 			return NULL;
 	}
-	FOR(vector_tpl<building_desc_t const*>, const desc, *list) {
+
+	for(auto const desc : *list)
+	{
 		// extra data contains number of inhabitants for building
 		if(  desc->get_extra()==bev  ) {
 			if((cl == MAX_CLIMATES || desc->is_allowed_climate(cl)) && desc->is_allowed_region(region))
@@ -1080,7 +1085,8 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 	const uint16 level_replaced = sum_level;
 	const uint16 area_of_building = size.x*size.y;
 
-	FOR(vector_tpl<building_desc_t const*>, const desc, building_list) {
+	for(auto const desc : building_list)
+	{
 		// only allow buildings of the designated size.
 		if(!is_allowed_size(desc, size)) {
 			continue;
@@ -1148,7 +1154,7 @@ const building_desc_t* hausbauer_t::get_city_building_from_list(const vector_tpl
 
 //	DBG_MESSAGE("hausbauer_t::get_city_building_from_list()","target level %i", level );
 	const building_desc_t *desc_at_least=NULL;
-	FOR(vector_tpl<building_desc_t const*>, const desc, building_list)
+	for(auto const desc : building_list)
 	{
 		const uint16 random = simrand(100, "static const building_desc_t* get_city_building_from_list");
 		if(	desc->is_allowed_climate(cl) && desc->is_allowed_region(region) && is_allowed_size(desc, size)  &&
@@ -1246,7 +1252,9 @@ const building_desc_t* hausbauer_t::get_headquarters(int level, uint16 time)
 	if(  level<0  ) {
 		return NULL;
 	}
-	FOR(vector_tpl<building_desc_t const*>, const desc, hausbauer_t::headquarters) {
+
+	for(auto const desc : hausbauer_t::headquarters)
+	{
 		if(  desc->get_extra()==(uint32)level  &&  desc->is_available(time)  ) {
 			return desc;
 		}
@@ -1261,7 +1269,8 @@ const building_desc_t *hausbauer_t::get_random_desc(vector_tpl<const building_de
 	if (!list.empty()) {
 		// previously just returned a random object; however, now we look at the distribution_weight entry
 		weighted_vector_tpl<const building_desc_t *> auswahl(16);
-		FOR(vector_tpl<building_desc_t const*>, const desc, list) {
+		for(auto const desc : list)
+		{
 			if((cl==MAX_CLIMATES  ||  desc->is_allowed_climate(cl))  &&  desc->get_distribution_weight()>0  &&  (time==0  ||  (desc->get_intro_year_month()<=time  &&  (ignore_retire  ||  desc->get_retire_year_month()>time)  )  )  ) {
 //				DBG_MESSAGE("hausbauer_t::get_random_desc()","appended %s at %i", desc->get_name(), thislevel );
 				auswahl.append(desc, desc->get_distribution_weight());
@@ -1312,7 +1321,7 @@ const vector_tpl<const building_desc_t*>* hausbauer_t::get_citybuilding_list(con
 
 void hausbauer_t::new_month()
 {
-	FOR(vector_tpl<const building_desc_t*>, building, station_building)
+	for(auto const building : station_building)
 	{
 		const uint16 current_month = welt->get_timeline_year_month();
 		const uint16 intro_month = building->get_intro_year_month();

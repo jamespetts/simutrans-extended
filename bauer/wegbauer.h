@@ -64,6 +64,9 @@ public:
 
 	static const vector_tpl<const way_desc_t *>&  get_way_list(waytype_t, systemtype_t system_type);
 
+	static uint32 get_world_max_axle_load(const waytype_t wtyp);
+
+	static sint32 get_world_max_way_speed(const waytype_t wtyp);
 
 	/**
 	 * Fill menu with icons of given waytype
@@ -157,8 +160,9 @@ private:
 	bool mark_way_for_upgrade_only;
 
 	/**
-	* If set, the way builder will not build crossings over
-	* ways other than unowned and fully degraded ways.
+	* If set, the way builder will not build crossings except:
+	* fords over non-navigable rivers,
+	* and crossings over ways which are both unowned and fully degraded.
 	*/
 	bool forbid_crossings = false;
 

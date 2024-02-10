@@ -123,7 +123,7 @@ void goods_desc_t::set_scale(uint16)
  * This is very different from the similarly-named routine in standard
  * @author: jamespetts, neroden
  */
-sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_distance) const
+sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_distance, bool ignore_inflation) const
 {
 	sint64 total_fare = 0;
 	uint16 per_meter_fare;
@@ -151,12 +151,31 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 		}
 		i++;
 	}
+
+	if (!ignore_inflation)
+	{
+		price_type pt;
+		if (get_index() == goods_manager_t::INDEX_PAS)
+		{
+			pt = passenger_fare;
+		}
+		else if (get_index() == goods_manager_t::INDEX_MAIL)
+		{
+			pt = mail_rate;
+		}
+		else
+		{
+			pt = goods_rate;
+		}
+		total_fare = world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), total_fare, pt);
+	}
+
 	return total_fare;
 }
 
 sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_distance, uint8 comfort, uint8 catering_level, uint8 g_class, sint64 journey_tenths) const
 {
-	sint64 fare = get_base_fare(distance_meters, starting_distance);
+	sint64 fare = get_base_fare(distance_meters, starting_distance, true); // We compute inflation at the end here so that we do not need to compute inflation separately for catering revenues, etc..
 
 	// Apply the modifiers for passengers/mail: class, comfort and catering
 	if (get_index() == goods_manager_t::INDEX_PAS || get_index() == goods_manager_t::INDEX_MAIL)
@@ -223,13 +242,26 @@ sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_dist
 
 				// TODO: Consider how to deal with TPO revenue in the future.
 
-				// Use the TPO revenue table.  It is a functional.
+				// Use the TPO revenue table. It is a functional.
 				fare += world()->get_settings().tpo_revenues(journey_tenths);
 			}
 		}
 	}
 
-	// TODO: Add inflation here
+	price_type pt;
+	if (get_index() == goods_manager_t::INDEX_PAS)
+	{
+		pt = passenger_fare;
+	}
+	else if (get_index() == goods_manager_t::INDEX_MAIL)
+	{
+		pt = mail_rate;
+	}
+	else
+	{
+		pt = goods_rate;
+	}
+	fare = world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), fare, pt);
 
 	return fare;
 }

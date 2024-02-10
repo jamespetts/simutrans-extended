@@ -26,6 +26,7 @@ protected:
 	scr_coord_val width = D_INDICATOR_WIDTH;
 	bool size_fixed = false;
 	bool show_frame = true;
+	scr_size padding = scr_size(0, 0);
 
 	scr_size max_size;
 
@@ -55,6 +56,7 @@ public:
 	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h; max_size =size; }
 	void set_size_fixed(bool yesno) { size_fixed = yesno; }
 	void set_show_frame(bool yesno) { show_frame = yesno; }
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	void set_tooltip(const char * t);
 
@@ -121,7 +123,7 @@ public:
 class gui_vehicle_bar_t : public gui_component_t
 {
 protected:
-	PIXVAL color;
+	PIXVAL front_color, rear_color;
 
 	uint8 flags_left;
 	uint8 flags_right;
@@ -139,7 +141,8 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	void set_color(PIXVAL c) { color = c; }
+	void set_color(PIXVAL c) { front_color = c; rear_color = c; }
+	void set_color(PIXVAL left, PIXVAL right) { front_color = left; rear_color = right; }
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return size; }
@@ -188,6 +191,8 @@ public:
 		width = size.w; height = size.h;
 		set_size_fixed(size_fixed);
 		bg_col = color_idx_to_rgb(COL_GREY4);
+		capacity = width;
+		loading  = capacity;
 	}
 
 	void set_value(uint16 capacity, uint16 loading_amount) {
@@ -199,6 +204,39 @@ public:
 
 	scr_size get_min_size() const OVERRIDE { return scr_size(width, height); }
 	scr_size get_max_size() const OVERRIDE { return gui_colorbox_t::get_max_size(); }
+};
+
+
+class gui_depotbox_t : public gui_colorbox_t
+{
+	uint8 width;
+
+public:
+	gui_depotbox_t(PIXVAL c = SYSCOL_TEXT, uint8 width = 10);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+class gui_fluctuation_triangle_t : public gui_colorbox_t
+{
+protected:
+	uint8 height;
+	sint64 value;
+
+public:
+	gui_fluctuation_triangle_t(sint64 value=0, uint8 height_ = (LINESPACE*3)>>2);
+
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	void set_value(sint64 v) { value = v; }
+
+	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
 #endif

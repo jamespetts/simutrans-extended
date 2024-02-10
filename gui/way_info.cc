@@ -33,7 +33,7 @@
 static char const* const speed_resticted_text = "speed_restricted";
 const uint8 severity_color[6] =
 {
-	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_OVERCROWD
+	COL_GREEN, COL_LIGHT_YELLOW, 30, COL_ORANGE, COL_RED, COL_PURPLE-1
 };
 
 gui_way_detail_info_t::gui_way_detail_info_t(weg_t *way)
@@ -92,7 +92,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_margin_t>(10);
 				new_component<gui_label_t>(bridge->get_desc()->get_name(), bridge->get_owner() ? color_idx_to_rgb(bridge->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_bridge = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()), infrastructure) / 100.0;
 				lb_bridge->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb_bridge->update();
 
@@ -106,7 +106,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_margin_t>(10);
 				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()), infrastructure) / 100.0;
 				lb_tunnel->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
 				lb_tunnel->update();
 
@@ -121,7 +121,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_margin_t>(10);
 			new_component<gui_label_t>(way->get_desc()->get_name(), way->get_owner() != NULL ? color_idx_to_rgb(way->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : SYSCOL_TEXT);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(way->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
-			const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()) / 100.0;
+			const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
 			lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 			lb->update();
 
@@ -139,7 +139,8 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				}
 				new_component<gui_label_t>(wayobj->get_desc()->get_name(), color_idx_to_rgb(wayobj->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
 				lb = new_component<gui_label_buf_t>(wayobj->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()), infrastructure) / 100.0;
+
 				lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb->update();
 				lb = new_component<gui_label_buf_t>(way->get_max_speed(true) != way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
@@ -273,7 +274,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			}
 
 			new_component_span<gui_empty_t>(2);
-			new_component<gui_image_t>(skinverwaltung_t::alerts->get_image_id(2), 0, ALIGN_NONE, true);
+			new_component<gui_image_t>(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(2) : 0, 0, ALIGN_NONE, true);
 			new_component<gui_label_t>("Low bridge", SYSCOL_TEXT_STRONG);
 		}
 		if (any_prohibitive) {
@@ -307,12 +308,12 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 					}
 					else {
 						replacement_way = latest_city_road;
-						new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+						new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 						new_component_span<gui_label_t>(replacement_way->get_name(), 3);
 					}
 				}
 				else if (way->get_desc() != replacement_way){
-					new_component<gui_right_pointer_t>(COL_UPGRADEABLE);
+					new_component<gui_right_pointer_t>(SYSCOL_UPGRADEABLE);
 					if( !is_current ) {
 						replacement_way = way_builder_t::weg_search(replacement_way->get_waytype(), replacement_way->get_topspeed(), (sint32)replacement_way->get_axle_load(), time, (systemtype_t)replacement_way->get_styp(), replacement_way->get_wear_capacity());
 					}
@@ -375,7 +376,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				add_table(1,2)->set_spacing(scr_size(0,0));
 				{
 					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::money_right);
-					const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance())/100.0;
+					const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
 					char maintenance_number[64];
 					money_to_string(maintenance_number, way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 					lb->buf().printf("%s", maintenance_number);
@@ -400,7 +401,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 					add_table(1,2)->set_spacing(scr_size(0,1));
 					{
 						lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::money_right);
-						const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(replacement_way->get_maintenance()) / 100.0;
+						const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(replacement_way->get_maintenance()), infrastructure) / 100.0;
 						char maintenance_number[64];
 						money_to_string(maintenance_number, way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 						lb->buf().printf("%s", maintenance_number);
@@ -425,7 +426,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 							change *= 10;
 							change /= 14;
 						}
-						money_to_string(maintenance_number, (double)world()->calc_adjusted_monthly_figure(change) / 100.0);
+						money_to_string(maintenance_number, (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(change), infrastructure) / 100.0);
 						lb->buf().printf("%s", maintenance_number);
 						lb->update();
 						if (change_percentage!=0) {
@@ -734,20 +735,18 @@ bool way_info_t::is_weltpos()
 	return ( welt->get_viewport()->is_on_center( gr->get_pos() ) );
 }
 
-void  way_info_t::init()
-{
-}
-
 void  way_info_t::init_tabs()
 {
 	tabs.clear();
 	cont_way2.set_way(NULL);
 	cont_way1.set_way(way1);
-	;
-	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype()));
+
+	waytype_t wt = way1->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+	tabs.add_tab(&scrolly_way1, way1->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	if (has_way==2) {
 		cont_way2.set_way(way2);
-		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(way2->get_desc()->get_styp() == type_tram ? tram_wt : way2->get_waytype()));
+		wt = way2->get_desc()->get_styp() == type_tram ? tram_wt : way1->get_waytype();
+		tabs.add_tab(&scrolly_way2, way2->get_name(), skinverwaltung_t::get_waytype_skin(wt), 0, world()->get_settings().get_waytype_color(wt));
 	}
 }
 
@@ -858,7 +857,9 @@ void way_info_t::update()
 		else {
 			cont.new_component<gui_label_t>("Open countryside");
 		}
-		cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		if (!region.empty()) {
+			cont.new_component<gui_label_buf_t>()->buf().printf( "(%s)", translator::translate( region.c_str() ) );
+		}
 		cont.new_component<gui_fill_t>();
 	}
 	cont.end_table();
@@ -1054,11 +1055,11 @@ void way_info_t::update()
 
 		cont.new_component<gui_label_t>("convoi passed last month:");
 		lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->buf().printf("%u", way1->get_statistics(WAY_STAT_CONVOIS));
+		lb->buf().printf("%u", way1->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS));
 		lb->update();
 		if (way2) {
 			lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-			lb->buf().printf("%u", way2->get_statistics(WAY_STAT_CONVOIS));
+			lb->buf().printf("%u", way2->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS));
 			lb->update();
 		}
 		else {

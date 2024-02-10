@@ -21,6 +21,7 @@
 #include "simlinemgmt.h"
 #include "gui/simwin.h"
 #include "gui/gui_frame.h"
+#include "gui/schedule_list.h"
 
 
 line_cost_t convoi_to_line_catgory_[convoi_t::MAX_CONVOI_COST] =
@@ -60,41 +61,63 @@ const uint simline_t::linetype_to_stationtype[simline_t::MAX_LINE_TYPE] = {
 karte_ptr_t simline_t::welt;
 
 
-simline_t::simline_t(player_t* player, linetype type)
+simline_t::simline_t(player_t* player, linetype type) :
+	schedule(NULL),
+	player(player),
+	type(type),
+	withdraw(false),
+	self(linehandle_t(this)),
+	state_color(SYSCOL_TEXT),
+	start_reversed(false),
+	livery_scheme_index(0),
+	state(line_normal_state)
 {
-	self = linehandle_t(this);
 	char printname[128];
 	sprintf(printname, "(%i) %s", self.get_id(), translator::translate("Line", welt->get_settings().get_name_language_id()));
 	name = printname;
 
-	init_financial_history();
-	this->type = type;
-	this->schedule = NULL;
-	this->player = player;
-	withdraw = false;
-	state_color = SYSCOL_TEXT;
+	for (uint32 j = 0; j< MAX_LINE_COST; ++j) {
+		for (uint32 i = 0; i < MAX_MONTHS; ++i) {
+			financial_history[i][j] = 0;
+		}
+	}
 
 	for(uint8 i = 0; i < MAX_LINE_COST; i ++)
 	{
 		rolling_average[i] = 0;
 		rolling_average_count[i] = 0;
 	}
-	start_reversed = false;
-	livery_scheme_index = 0;
 
 	create_schedule();
 }
 
 
-simline_t::simline_t(player_t* player, linetype type, loadsave_t *file)
+simline_t::simline_t(player_t* player, linetype type, loadsave_t *file) :
+	schedule(NULL),
+	player(player),
+	type(type),
+	withdraw(false),
+	name(""),
+	self(linehandle_t()), // id will be read and assigned during rdwr
+	state_color(SYSCOL_TEXT),
+	start_reversed(false),
+	livery_scheme_index(0),
+	state(line_normal_state)
 {
-	// id will be read and assigned during rdwr
-	self = linehandle_t();
-	this->type = type;
-	this->schedule = NULL;
-	this->player = player;
-	withdraw = false;
+	for (uint32 j = 0; j< MAX_LINE_COST; ++j) {
+		for (uint32 i = 0; i < MAX_MONTHS; ++i) {
+			financial_history[i][j] = 0;
+		}
+	}
+
+	for(uint8 i = 0; i < MAX_LINE_COST; i ++)
+	{
+		rolling_average[i] = 0;
+		rolling_average_count[i] = 0;
+	}
+
 	create_schedule();
+
 	rdwr(file);
 
 	// now self has the right id but the this-pointer is not assigned to the quickstone handle yet
@@ -135,6 +158,16 @@ simline_t::linetype simline_t::waytype_to_linetype(const waytype_t wt)
 		case air_wt: return simline_t::airline;
 		default: return simline_t::MAX_LINE_TYPE;
 	}
+}
+
+
+uint16 simline_t::get_traction_types() const
+{
+	uint16 traction_types = 0;
+	for (auto line_managed_convoy : line_managed_convoys) {
+		traction_types |= line_managed_convoy->get_traction_types();
+	}
+	return traction_types;
 }
 
 
@@ -464,7 +497,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = average_journey_times.get_count();
 			file->rdwr_long(count);
 
-			FOR(journey_times_map, const& iter, average_journey_times)
+			for(auto const iter : average_journey_times)
 			{
 				id_pair idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -507,7 +540,7 @@ void simline_t::rdwr(loadsave_t *file)
 			uint32 count = journey_times_history.get_count();
 			file->rdwr_long(count);
 
-			FOR(times_history_map, const& iter, journey_times_history)
+			for(auto iter : journey_times_history)
 			{
 				departure_point_t idp = iter.key;
 				file->rdwr_short(idp.x);
@@ -579,6 +612,18 @@ void simline_t::rdwr(loadsave_t *file)
 		file->rdwr_str(linecode_l, lengthof(linecode_l));
 		file->rdwr_str(linecode_r, lengthof(linecode_r));
 	}
+
+	// discard old incompatible datum
+	if( file->is_loading() ) {
+		if( file->is_version_ex_less(14,57) ) {
+			for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+				financial_history[k][LINE_CAPACITY] = 0;
+				if( file->is_version_ex_less(14,48) ) {
+					financial_history[k][LINE_PAX_DISTANCE] = 0;
+				}
+			}
+		}
+	}
 }
 
 
@@ -602,7 +647,8 @@ void simline_t::finish_rd()
 void simline_t::register_stops(schedule_t * schedule)
 {
 	DBG_DEBUG("simline_t::register_stops()", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
-	FOR(minivec_tpl<schedule_entry_t>,const &i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			//DBG_DEBUG("simline_t::register_stops()", "halt not null");
@@ -631,7 +677,7 @@ void simline_t::unregister_stops()
 
 	// It is necessary to clear all departure data,
 	// which might be out of date on a change of schedule.
-	FOR(vector_tpl<convoihandle_t>, & i, line_managed_convoys)
+	for(auto i : line_managed_convoys)
 	{
 		i->clear_departures();
 	}
@@ -641,7 +687,8 @@ void simline_t::unregister_stops()
 
 void simline_t::unregister_stops(schedule_t * schedule)
 {
-	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+	for(auto const i : schedule->entries)
+	{
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			halt->remove_line(self);
@@ -686,7 +733,8 @@ void simline_t::set_line_color(uint8 color_idx, uint8 style)
 
 void simline_t::check_freight()
 {
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		i->check_freight();
 	}
 }
@@ -748,7 +796,7 @@ void simline_t::recalc_status()
 	{
 		const uint16 month_now = welt->get_timeline_year_month();
 
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			for (uint16 j = 0; j < i->get_vehicle_count(); j++)
 			{
@@ -760,7 +808,7 @@ void simline_t::recalc_status()
 						if (v->get_desc()->get_upgrades(k) && !v->get_desc()->get_upgrades(k)->is_future(month_now))
 						{
 							state |= line_has_upgradeable_vehicles;
-							if (!skinverwaltung_t::upgradable) state_color = COL_UPGRADEABLE;
+							if (!skinverwaltung_t::upgradable) state_color = SYSCOL_UPGRADEABLE;
 						}
 					}
 				}
@@ -770,7 +818,7 @@ void simline_t::recalc_status()
 			{
 				state |= line_has_obsolete_vehicles;
 				// obsolete has priority over upgradeable (only for color)
-				state_color = COL_OBSOLETE;
+				state_color = SYSCOL_OBSOLETE;
 			}
 
 			if (i->get_state() == convoi_t::NO_ROUTE || i->get_state() == convoi_t::NO_ROUTE_TOO_COMPLEX || i->get_state() == convoi_t::OUT_OF_RANGE)
@@ -850,6 +898,15 @@ uint16 simline_t::get_min_range() const
 	return min_range == UINT16_MAX ? 0 : min_range;
 }
 
+uint16 simline_t::get_min_top_speed_kmh() const
+{
+	uint16 min_top_speed = 65535;
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		min_top_speed = min(speed_to_kmh(line_managed_convoy->get_min_top_speed()), min_top_speed);
+	}
+	return min_top_speed;
+}
 
 void simline_t::calc_classes_carried()
 {
@@ -860,13 +917,13 @@ void simline_t::calc_classes_carried()
 
 	passenger_classes_carried.clear();
 	mail_classes_carried.clear();
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+	for(auto const i : line_managed_convoys)
 	{
 		convoi_t const& cnv = *i;
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
+			for(auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_PAS))
 			{
 				passenger_classes_carried.append_unique(g_class);
 			}
@@ -874,7 +931,7 @@ void simline_t::calc_classes_carried()
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL))
 		{
-			FOR(const minivec_tpl<uint8>, const& g_class, *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
+			for (auto const g_class : *cnv.get_classes_carried(goods_manager_t::INDEX_MAIL))
 			{
 				mail_classes_carried.append_unique(g_class);
 			}
@@ -904,26 +961,59 @@ void simline_t::calc_classes_carried()
 			}
 		}*/
 	}
+	// update dialog
+	schedule_list_gui_t *sl = dynamic_cast<schedule_list_gui_t*>(win_get_magic((ptrdiff_t)(magic_line_management_t + get_owner()->get_player_nr())));
+	if (sl) {
+		sl->update_data(self);
+	}
 }
 
+
+uint16 simline_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
+{
+	if (catg == goods_manager_t::INDEX_PAS) {
+		if (g_class >= goods_manager_t::passengers->get_number_of_classes()) { return 0; }
+		if (!passenger_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (catg == goods_manager_t::INDEX_MAIL) {
+		if (g_class >= goods_manager_t::mail->get_number_of_classes()) { return 0; }
+		if (!mail_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (g_class > 0) {
+		return 0; // freight does not have classes
+	}
+
+	uint16 capacity = 0;
+	for (uint32 i = 0; i < line_managed_convoys.get_count(); i++) {
+		convoihandle_t const convoy = line_managed_convoys[i];
+		// we do not want to count the capacity of depot convois
+		if (!convoy->in_depot()) {
+			capacity += convoy->get_unique_fare_capacity(catg, g_class);
+		}
+	}
+	return capacity;
+}
 
 // recalc what good this line is moving
 void simline_t::recalc_catg_index()
 {
 	// first copy old
 	minivec_tpl<uint8> old_goods_catg_index(goods_catg_index.get_count());
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index) {
+	for(auto const i : goods_catg_index)
+	{
 		old_goods_catg_index.append(i);
 	}
 	goods_catg_index.clear();
 	withdraw = !line_managed_convoys.empty();
 	// then recreate current
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(auto const i : line_managed_convoys)
+	{
 		// what goods can this line transport?
 		convoi_t const& cnv = *i;
 		withdraw &= cnv.get_withdraw();
 
-		FOR(minivec_tpl<uint8>, const catg_index, cnv.get_goods_catg_index()) {
+		for(auto const catg_index : cnv.get_goods_catg_index())
+		{
 			goods_catg_index.append_unique( catg_index );
 		}
 	}
@@ -961,7 +1051,7 @@ void simline_t::recalc_catg_index()
 	}
 
 	// added categories : present in new category list but not in old category list
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index)
+	for(auto const i : goods_catg_index)
 	{
 		if (!old_goods_catg_index.is_contained(i))
 		{
@@ -1034,6 +1124,11 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 		return true;
 	}
 
+	if (schedule->has_consist_orders())
+	{
+		return schedule->min_class_carried(catg) <= g_class;
+	}
+
 	const bool carries_this_class = catg == goods_manager_t::INDEX_PAS ? passenger_classes_carried.is_contained(g_class) : mail_classes_carried.is_contained(g_class);
 	if (carries_this_class)
 	{
@@ -1043,7 +1138,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	// Check whether a lower class is carried, as passengers may board vehicles of a lower, but not a higher, class
 	if (catg == goods_manager_t::INDEX_PAS)
 	{
-		FOR(vector_tpl<uint8>, i, passenger_classes_carried)
+		for(auto const i : passenger_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1053,7 +1148,7 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	}
 	else
 	{
-		FOR(vector_tpl<uint8>, i, mail_classes_carried)
+		for(auto const i : mail_classes_carried)
 		{
 			if (i < g_class)
 			{
@@ -1065,6 +1160,17 @@ bool simline_t::carries_this_or_lower_class(uint8 catg, uint8 g_class)
 	return false;
 }
 
+bool simline_t::carries_this_category(uint8 catg_index) const
+{
+	if (schedule->has_consist_orders())
+	{
+		return schedule->carries_catg(catg_index);
+	}
+	else
+	{
+		return get_goods_catg_index().is_contained(catg_index);
+	}
+}
 
 void simline_t::set_withdraw( bool yes_no )
 {
@@ -1100,7 +1206,7 @@ sint64 simline_t::calc_departures_scheduled()
 	sint64 timed_departure_points_count = 0ll;
 	for(int i = 0; i < schedule->get_count(); i++)
 	{
-		if(schedule->entries[i].wait_for_time || schedule->entries[i].minimum_loading > 0)
+		if(schedule->entries[i].is_flag_set(schedule_entry_t::wait_for_time) || schedule->entries[i].minimum_loading > 0)
 		{
 			timed_departure_points_count ++;
 		}
@@ -1113,7 +1219,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 {
 	if (!trigger_one_only)
 	{
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1130,7 +1236,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		uint16 trigger;
 
 		// First, check for all convoys that are actually waiting for this conditional trigger.
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for(auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1157,7 +1263,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		}
 
 		// Second, check again with partial triggering
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for (auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{
@@ -1183,7 +1289,7 @@ void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
 		}
 
 		// Third, just pick one at random.
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
+		for (auto const i : line_managed_convoys)
 		{
 			if (i.is_bound())
 			{

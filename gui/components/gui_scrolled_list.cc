@@ -64,6 +64,32 @@ void gui_scrolled_list_t::const_text_scrollitem_t::draw(scr_coord pos)
 }
 
 
+scr_size gui_scrolled_list_t::buf_text_scrollitem_t::get_min_size() const
+{
+	const char* text = get_text();
+	return scr_size(2*D_H_SPACE + (text ? display_calc_proportional_string_len_width(text,strlen(text)) : D_BUTTON_WIDTH), LINESPACE);
+}
+
+scr_size gui_scrolled_list_t::buf_text_scrollitem_t::get_max_size() const
+{
+	return scr_size(scr_size::inf.w, LINESPACE);
+}
+
+// draws a single line of text
+void gui_scrolled_list_t::buf_text_scrollitem_t::draw(scr_coord pos)
+{
+	pos += get_pos();
+	if(selected) {
+		// selected element
+		display_fillbox_wh_clip_rgb( pos.x+D_H_SPACE/2, pos.y-1, get_size().w-D_H_SPACE, get_size().h + 1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+		display_proportional_clip_rgb( pos.x+D_H_SPACE, pos.y, get_text(), ALIGN_LEFT, (focused ? SYSCOL_LIST_TEXT_SELECTED_FOCUS : SYSCOL_LIST_TEXT_SELECTED_NOFOCUS), true);
+	}
+	else {
+		// normal text
+		display_proportional_clip_rgb( pos.x+D_H_SPACE, pos.y, get_text(), ALIGN_LEFT, get_color(), true);
+	}
+}
+
 
 // draws a single line of text
 void gui_scrolled_list_t::img_label_scrollitem_t::draw(scr_coord pos)
@@ -120,7 +146,7 @@ void gui_scrolled_list_t::set_selection(int s)
 	gui_component_t* new_focus = item_list[s];
 
 	// reset selected status
-	FOR(vector_tpl<gui_component_t*>, v, item_list) {
+	for(gui_component_t* v : item_list) {
 		scrollitem_t* item = dynamic_cast<scrollitem_t*>(v);
 		if(  item  ) {
 			item->selected = item==new_focus;
@@ -217,11 +243,19 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 
 	event_t ev2 = *ev;
 	// translate key up/down to tab/shift-tab
-	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_UP  &&  get_selection()>0) {
+	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_UP  ) {
+		if(  get_selection() < 1  ) {
+			// do nothing. (do not scroll the map)
+			return true;
+		}
 		ev2.ev_code = SIM_KEY_TAB;
 		ev2.ev_key_mod |= SIM_MOD_SHIFT;
 	}
-	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_DOWN  &&  (uint32)(get_selection()+1) < item_list.get_count()) {
+	if(  ev->ev_class==EVENT_KEYBOARD  && ev->ev_code == SIM_KEY_DOWN  ) {
+		if( (uint32)(get_selection()+1) == item_list.get_count() ) {
+			// do nothing. (do not scroll the map)
+			return true;
+		}
 		ev2.ev_code = SIM_KEY_TAB;
 		ev2.ev_key_mod &= ~SIM_MOD_SHIFT;
 	}
@@ -230,7 +264,7 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 	scrollitem_t* const new_focus = dynamic_cast<scrollitem_t*>( comp->get_focus() );
 
 	// if different element is focused, calculate selection and call listeners
-	if ( focus != new_focus || (new_focus && IS_LEFTRELEASE(&ev2) && new_focus->getroffen(ev2.mx,ev2.my)) ) {
+	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mx,ev2.my))  ) {
 		calc_selection(focus, new_focus, *ev);
 		int new_selection = get_selection();
 		call_listeners((long)new_selection);
@@ -247,16 +281,16 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 		// do nothing.
 		return;
 	}
-	else if( !multiple_selection || ev.ev_key_mod==0 ) {
+	else if(  !multiple_selection  ||  ev.ev_key_mod==0  ) {
 		// simply select new_focus
-		FOR(vector_tpl<gui_component_t*>, v, item_list) {
+		for(gui_component_t* v : item_list) {
 			scrollitem_t* item = dynamic_cast<scrollitem_t*>(v);
 			if(  item  ) {
 				item->selected = item==new_focus;
 			}
 		}
 	}
-	else if( multiple_selection && IS_CONTROL_PRESSED(&ev) ) {
+	else if(  multiple_selection  &&  IS_CONTROL_PRESSED(&ev)  ) {
 		// control key is pressed. select or deselect the focused one.
 		new_focus->selected = !new_focus->selected;
 	}
@@ -304,7 +338,7 @@ void gui_scrolled_list_t::draw(scr_coord offset)
 	// set focus
 	scrollitem_t* focus = dynamic_cast<scrollitem_t*>( comp->get_focus() );
 	if(  focus  ) {
-		FOR(vector_tpl<gui_component_t*>, v, item_list) {
+		for(gui_component_t* v : item_list) {
 			scrollitem_t* item = dynamic_cast<scrollitem_t*>(v);
 			if(  item  ) {
 				item->focused = item->selected  &&  win_get_focus()==focus;

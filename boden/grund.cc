@@ -282,7 +282,7 @@ void grund_t::rdwr(loadsave_t *file)
 			else {
 				z_southeast += corner_se(slope);
 			}
-			welt->set_grid_hgt( k + koord(1,1), z_southeast );
+			welt->set_grid_hgt_nocheck( k + koord(1,1), z_southeast );
 		}
 		if(  pos.x == welt->get_size().x-1  ) {
 			sint8 z_east = z;
@@ -292,7 +292,7 @@ void grund_t::rdwr(loadsave_t *file)
 			else {
 				z_east += corner_ne(slope);
 			}
-			welt->set_grid_hgt( k + koord(1,0), z_east );
+			welt->set_grid_hgt_nocheck( k + koord(1,0), z_east );
 		}
 		if(  pos.y == welt->get_size().y-1  ) {
 			sint8 z_south = z;
@@ -302,7 +302,7 @@ void grund_t::rdwr(loadsave_t *file)
 			else {
 				z_south += corner_sw(slope);
 			}
-			welt->set_grid_hgt( k + koord(0,1), z_south );
+			welt->set_grid_hgt_nocheck( k + koord(0,1), z_south );
 		}
 
 		if(  get_typ() == grund_t::wasser  &&  z > z_w  ) {
@@ -311,8 +311,8 @@ void grund_t::rdwr(loadsave_t *file)
 		else {
 			z += corner_nw(slope);
 		}
-		welt->set_grid_hgt( k, z );
-		welt->set_water_hgt( k, z_w );
+		welt->set_grid_hgt_nocheck( k, z );
+		welt->set_water_hgt_nocheck( k, z_w );
 	}
 
 	// loading ways from here on
@@ -406,7 +406,8 @@ void grund_t::rdwr(loadsave_t *file)
 						break;
 				}
 
-				if(weg) {
+				if(weg)
+				{
 					if(get_typ()==fundament) {
 						// remove this (but we can not correct the other ways, since possibly not yet loaded)
 						dbg->error("grund_t::rdwr()","removing way from foundation at %i,%i",pos.x,pos.y);
@@ -415,6 +416,7 @@ void grund_t::rdwr(loadsave_t *file)
 					else {
 						assert((flags&has_way2)==0); // maximum two ways on one tile ...
 						weg->set_pos(pos);
+						weg->calc_speed_limit(this); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
 						if(owner_n!=-1) {
 							weg->set_owner(welt->get_player(owner_n));
 						}
@@ -577,7 +579,8 @@ void grund_t::finish_rotate90()
 	}
 	ground_texts.clear();
 	// then transfer all rotated texts
-	FOR(text_map, const& iter, ground_texts_rotating) {
+	for(auto const iter : ground_texts_rotating)
+	{
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_rotating.clear();
@@ -589,13 +592,15 @@ void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_enlarged;
 	// we have recalculate the keys
-	FOR(text_map, iter, ground_texts) {
+	for(auto iter : ground_texts)
+	{
 		koord3d k = get_ground_koord3d_key( iter.key );
 		ground_texts_enlarged.put( get_ground_text_key(k), iter.value );
 	}
 	ground_texts.clear();
 	// then transfer all texts back
-	FOR(text_map, const& iter, ground_texts_enlarged) {
+	for(auto const iter : ground_texts_enlarged)
+	{
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_enlarged.clear();
@@ -1992,7 +1997,7 @@ sint64 grund_t::remove_trees()
 		// we must mark it by hand, since we want to join costs
 		d->mark_image_dirty( get_image(), 0 );
 		delete d;
-		cost -= welt->get_settings().cst_remove_tree;
+		cost -= welt->get_settings().get_cost_remove_tree();
 	}
 	// remove all groundobjs ...
 	while (groundobj_t* const d = find<groundobj_t>(0)) {
@@ -2383,7 +2388,8 @@ bool grund_t::remove_excessive_roads()
 	bool ret = remove_excessive_roads(road_tiles);
 
 	if (ret) {
-		FOR(grund_t::road_network_plan_t, i, road_tiles) {
+		for(auto i : road_tiles)
+		{
 			koord k = i.key;
 			grund_t *gr = welt->lookup_kartenboden(k);
 			if (!i.value) {
@@ -2418,7 +2424,8 @@ int grund_t::count_neighbouring_roads(road_network_plan_t &road_tiles)
 
 bool grund_t::fixup_road_network_plan(road_network_plan_t &road_tiles)
 {
-	FOR(road_network_plan_t, i, road_tiles) {
+	for(auto i : road_tiles)
+	{
 		if (i.value == true) {
 			grund_t *gr = welt->lookup_kartenboden(i.key);
 
@@ -2561,7 +2568,7 @@ public:
 
 	virtual ribi_t::ribi get_ribi(const grund_t* gr) const { return other->get_ribi(gr); }
 	virtual waytype_t get_waytype() const { return other->get_waytype(); }
-	virtual int get_cost(const grund_t *gr, const sint32 c, koord p) { return other->get_cost(gr,c,p); }
+	virtual int get_cost(const grund_t *gr, const sint32 c, ribi_t::ribi from) { return other->get_cost(gr,c,from); }
 	virtual bool  is_target(const grund_t *gr,const grund_t *gr2) { return other-> is_target(gr,gr2); }
 };
 
@@ -2837,7 +2844,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			}
 		}
 
-		FOR(minivec_tpl<route_t>, const& diversionary_route, diversionary_routes)
+		for(auto const diversionary_route : diversionary_routes)
 		{
 			for(uint32 n = 1; n < diversionary_route.get_count()-1; n++)
 			{
@@ -3092,8 +3099,7 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 		{
 			player_t* owner = weg->get_owner();
 			koord3d pos = weg->get_pos();
-			costs -= weg_entfernen(wt, true);
-			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land.
+			const sint64 land_refund_cost = welt->get_land_value(weg->get_pos()); // Refund the land value to the player who owned the way, as by bulldozing, the player is selling the land. This gives a *negative* number.
 			const bool public_right_of_way = weg->is_public_right_of_way(); // We must capture this before deleting the way object.
 			const bool is_main_way = get_weg_nr(0) == weg;
 			const bool are_other_ways = get_weg_nr(1);
@@ -3117,6 +3123,9 @@ bool grund_t::remove_everything_from_way(player_t* player, waytype_t wt, ribi_t:
 					player_t::book_construction_costs(owner, -land_refund_cost, get_pos().get_2d(), wt);
 				}
 			}
+
+			costs += weg_entfernen(wt, true);
+
 			if(flags&is_kartenboden) {
 				// remove ribis from sea tiles
 				if(  wt == water_wt  &&  pos.z == welt->get_water_hgt( here )  &&  slope != slope_t::flat  ) {
@@ -3135,7 +3144,7 @@ DBG_MESSAGE("tool_wayremover()","change remaining way to ribi %d",add);
 		}
 		// we have to pay?
 		if(costs) {
-			player_t::book_construction_costs(player, costs, here, finance_wt);
+			player_t::book_construction_costs(player, -costs, here, finance_wt);
 		}
 	}
 	return true;

@@ -228,8 +228,10 @@ void gui_halt_goods_demand_t::build_goods_list()
 {
 	goods_list.clear();
 	if ( (old_fab_count = halt->get_fab_list().get_count()) ) {
-		FOR(const slist_tpl<fabrik_t*>, const fab, halt->get_fab_list()) {
-			FOR(array_tpl<ware_production_t>, const& i, show_products ? fab->get_output() : fab->get_input()) {
+		for(auto const fab : halt->get_fab_list())
+		{
+			for(auto const i : show_products ? fab->get_output() : fab->get_input())
+			{
 				goods_desc_t const* const ware = i.get_typ();
 				goods_list.append_unique(ware);
 			}
@@ -249,7 +251,8 @@ void gui_halt_goods_demand_t::draw(scr_coord offset)
 		display_color_img(skinverwaltung_t::input_output->get_image_id(show_products ? 1:0), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
 		xoff += 12;
 	}
-	FOR(slist_tpl<goods_desc_t const*>, const good, goods_list) {
+	for(auto const good : goods_list)
+	{
 		display_colorbox_with_tooltip(offset.x + xoff, offset.y + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, good->get_color(), false);
 		xoff += GOODS_COLOR_BOX_HEIGHT+2;
 		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, translator::translate(good->get_name()), ALIGN_LEFT, halt->gibt_ab(good) ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
@@ -278,7 +281,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 	}
 	else {
 		bool got_one = false;
-		bool overcrowded = (halt->get_status_color(catg_index==goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2)==color_idx_to_rgb(COL_OVERCROWD));
+		bool overcrowded = (halt->get_status_color(catg_index==goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2)==SYSCOL_OVERCROWDED);
 
 		for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
 			const goods_desc_t *wtyp = goods_manager_t::get_info(j);
@@ -295,7 +298,7 @@ void gui_halt_waiting_catg_t::draw(scr_coord offset)
 				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
 				buf.clear();
 				buf.printf("%d ", sum);
-				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT, true);
+				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT, true);
 				xoff += D_H_SPACE;
 				got_one = true;
 			}
@@ -421,7 +424,7 @@ void gui_halt_capacity_bar_t::draw(scr_coord offset)
 	// transferring (to this station) bar
 	display_fillbox_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, min(100, (transship_in_sum + wainting_sum) * 100 / capacity), 6, color_idx_to_rgb(MN_GREY1), true);
 
-	const PIXVAL col = overcrowded ? color_idx_to_rgb(COL_OVERCROWD) : COL_CLEAR;
+	const PIXVAL col = overcrowded ? SYSCOL_OVERCROWDED : COL_CLEAR;
 	uint8 waiting_factor = min(100, wainting_sum * 100 / capacity);
 
 	display_cylinderbar_wh_clip_rgb(pos.x+offset.x + 1, pos.y+offset.y + 1, HALT_CAPACITY_BAR_WIDTH * waiting_factor / 100, 6, col, true);
@@ -1118,6 +1121,9 @@ void halt_info_t::update_components()
 
 	container_top->set_size(container_top->get_size());
 
+	// detail button: stops that don't handle any goods don't have a detail dialog
+	detail_button.set_visible(!halt->is_not_enabled());
+
 	// chart buttons
 	activate_chart_buttons();
 
@@ -1185,6 +1191,7 @@ void halt_info_t::update_cont_departure()
 	const uint32 max_listings = 15;
 
 	FOR(arrival_times_map, const& iter, display_mode_bits&SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times())
+	//for(const const iter : display_mode_bits & SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times()) // Does not compile
 	{
 		cnv.set_id(iter.key);
 		if(!cnv.is_bound())
@@ -1253,7 +1260,8 @@ void halt_info_t::update_cont_departure()
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
 
-			FOR(vector_tpl<halt_info_t::dest_info_t>, hi, db_halts) {
+			for (auto hi : db_halts)
+			{
 				gui_label_buf_t *lb = cont_departure.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				if (hi.delta_ticks == SINT32_MAX_VALUE) {
 					lb->buf().append(translator::translate("Unknown"));
@@ -1296,7 +1304,7 @@ void halt_info_t::update_cont_departure()
 					}
 				}
 				else {
-					const PIXVAL textcol = hi.cnv->get_no_load() ? SYSCOL_TEXT_INACTIVE : hi.cnv->has_obsolete_vehicles() ? COL_OBSOLETE : hi.cnv->get_overcrowded() ? color_idx_to_rgb(COL_OVERCROWD) : SYSCOL_TEXT;
+					const PIXVAL textcol = hi.cnv->get_no_load() ? SYSCOL_TEXT_INACTIVE : hi.cnv->has_obsolete_vehicles() ? SYSCOL_OBSOLETE : hi.cnv->get_overcrowded() ? SYSCOL_OVERCROWDED : SYSCOL_TEXT;
 					cont_departure.new_component<gui_label_t>(hi.cnv->get_internal_name(), textcol);
 				}
 
@@ -1409,7 +1417,7 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 
 	if (comp == &detail_button) {
-		create_win( new halt_detail_t(halt), w_info, magic_halt_detail + halt.get_id() );
+		halt->show_detail();
 	}
 	else if (comp == &freight_sort_selector) {
 		sint32 sort_mode = freight_sort_selector.get_selection();

@@ -27,7 +27,7 @@
 
 #include "../tpl/slist_tpl.h"
 
-schedule_entry_t schedule_t::dummy_entry(koord3d::invalid, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0);
+schedule_entry_t schedule_t::dummy_entry(koord3d::invalid, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 65535);
 
 // copy all entries from schedule src to this and adjusts current_stop
 void schedule_t::copy_from(const schedule_t *src)
@@ -40,6 +40,13 @@ void schedule_t::copy_from(const schedule_t *src)
 	FOR(minivec_tpl<schedule_entry_t>, const& i, src->entries) {
 		entries.append(i);
 	}
+
+	// Copy consist orders
+	for (auto &order : src->orders)
+	{
+		orders.put(order.key, order.value);
+	}
+
 	set_current_stop( src->get_current_stop() );
 
 	editing_finished = src->is_editing_finished();
@@ -115,7 +122,30 @@ halthandle_t schedule_t::get_prev_halt( player_t *player ) const
 }
 
 
-bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure)
+halthandle_t schedule_t::get_origin_halt(player_t *player) const
+{
+	for (  uint8 i=0; i<entries.get_count(); i++  ) {
+		halthandle_t h = haltestelle_t::get_halt(entries[i].pos, player);
+		if (h.is_bound()) {
+			return h;
+		}
+	}
+	return halthandle_t();
+}
+
+halthandle_t schedule_t::get_destination_halt(player_t *player) const
+{
+	for (  uint8 i=1; i<entries.get_count(); i++  ) {
+		halthandle_t h = haltestelle_t::get_halt(entries[entries.get_count()-i].pos, player);
+		if (h.is_bound()) {
+			return h;
+		}
+	}
+	return halthandle_t();
+}
+
+
+bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure, uint16 max_speed_kmh)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count() >= 254)
@@ -140,7 +170,7 @@ bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 	}
 
 	if(  is_stop_allowed(gr)  ) {
-		entries.insert_at(current_stop, schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple));
+		entries.insert_at(current_stop, schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, max_speed_kmh));
 		current_stop ++;
 		make_current_stop_valid();
 		return true;
@@ -157,7 +187,7 @@ bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 
 
 
-bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple)
+bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, uint16 target_max_speed_kmh)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count()>=254) {
@@ -178,7 +208,7 @@ bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 	}
 
 	if(is_stop_allowed(gr)) {
-		entries.append(schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple), 4);
+		entries.append(schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, target_max_speed_kmh), 4);
 		return true;
 	}
 	else {
@@ -212,12 +242,14 @@ void schedule_t::cleanup()
 		if(  entries[i].pos == lastpos  ) {
 			// ignore double entries just one after the other
 			entries.remove_at(i);
+			orders.remove(entries[i].unique_entry_id);
 			if(  i<current_stop  ) {
 				current_stop --;
 			}
 			i--;
 		} else if(  entries[i].pos == koord3d::invalid  ) {
 			// ignore double entries just one after the other
+			orders.remove(entries[i].unique_entry_id);
 			entries.remove_at(i);
 		}
 		else {
@@ -238,7 +270,20 @@ void schedule_t::cleanup()
 
 bool schedule_t::remove()
 {
+	uint8 unique_entry_id = 255;
+
+	if (current_stop < entries.get_count())
+	{
+		unique_entry_id = entries[current_stop].unique_entry_id;
+	}
+
 	bool ok = entries.remove_at(current_stop);
+
+	if (ok)
+	{
+		orders.remove(unique_entry_id);
+	}
+
 	make_current_stop_valid();
 	return ok;
 }
@@ -282,7 +327,7 @@ void schedule_t::rdwr(loadsave_t *file)
 			uint32 dummy;
 			pos.rdwr(file);
 			file->rdwr_long(dummy);
-			entries.append(schedule_entry_t(pos, (uint8)dummy, 0, 0, 0, 0, get_next_free_unique_id(), 0, 0, 0, 0, 0, 0));
+			entries.append(schedule_entry_t(pos, (uint8)dummy, 0, 0, 0, 0, get_next_free_unique_id(), 0, 0, 0, 0, 0, 0, 65535));
 		}
 	}
 	else {
@@ -376,7 +421,7 @@ void schedule_t::rdwr(loadsave_t *file)
 					}
 
 				}
-				else // Newer version (>14) with bitfield and new data
+				else // Newer version (>= 15) with bitfield and new data
 				{
 					file->rdwr_long(entries[i].flags);
 					file->rdwr_short(entries[i].unique_entry_id);
@@ -386,6 +431,7 @@ void schedule_t::rdwr(loadsave_t *file)
 					file->rdwr_short(entries[i].target_id_couple);
 					file->rdwr_short(entries[i].target_id_uncouple);
 					file->rdwr_short(entries[i].target_unique_entry_uncouple);
+					file->rdwr_short(entries[i].max_speed_kmh);
 				}
 			}
 
@@ -444,6 +490,7 @@ void schedule_t::rdwr(loadsave_t *file)
 				consist_order_t order;
 				order.rdwr(file);
 				orders.put(schedule_id, order);
+				parse_orders();
 			}
 		}
 	}
@@ -495,21 +542,21 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 	uint32 f1=0, f2=0;
 	while(  f1+f2<entries.get_count()+schedule->entries.get_count()  ) {
 
-		if(		f1<entries.get_count()  &&  f2<schedule->entries.get_count()
+		if (f1 < entries.get_count() && f2 < schedule->entries.get_count()
 			&& schedule->entries[(uint8)f2].pos == entries[(uint8)f1].pos
-			&& schedule->entries[(uint16)f2].minimum_loading == entries[(uint16)f1].minimum_loading
+			&& schedule->entries[(uint8)f2].minimum_loading == entries[(uint8)f1].minimum_loading
 			&& schedule->entries[(uint8)f2].waiting_time_shift == entries[(uint8)f1].waiting_time_shift
 			&& schedule->entries[(uint8)f2].spacing_shift == entries[(uint8)f1].spacing_shift
-			&& schedule->entries[(uint32)f2].flags == entries[(uint32)f1].flags
-			&& schedule->entries[(uint16)f2].unique_entry_id == entries[(uint16)f1].unique_entry_id
-			&& schedule->entries[(uint16)f2].condition_bitfield_broadcaster == entries[(uint16)f1].condition_bitfield_broadcaster
-			&& schedule->entries[(uint16)f2].condition_bitfield_receiver == entries[(uint16)f1].condition_bitfield_receiver
-			&& schedule->entries[(uint16)f2].target_id_condition_trigger == entries[(uint16)f1].target_id_condition_trigger
-			&& schedule->entries[(uint16)f2].target_id_couple == entries[(uint16)f1].target_id_couple
-			&& schedule->entries[(uint16)f2].target_id_uncouple == entries[(uint16)f1].target_id_uncouple
-			&& schedule->entries[(uint16)f2].target_unique_entry_uncouple == entries[(uint16)f1].target_unique_entry_uncouple
+			&& schedule->entries[(uint8)f2].flags == entries[(uint8)f1].flags
+			&& schedule->entries[(uint8)f2].unique_entry_id == entries[(uint8)f1].unique_entry_id
+			&& schedule->entries[(uint8)f2].condition_bitfield_broadcaster == entries[(uint8)f1].condition_bitfield_broadcaster
+			&& schedule->entries[(uint8)f2].condition_bitfield_receiver == entries[(uint8)f1].condition_bitfield_receiver
+			&& schedule->entries[(uint8)f2].target_id_condition_trigger == entries[(uint8)f1].target_id_condition_trigger
+			&& schedule->entries[(uint8)f2].target_id_couple == entries[(uint8)f1].target_id_couple
+			&& schedule->entries[(uint8)f2].target_id_uncouple == entries[(uint8)f1].target_id_uncouple
+			&& schedule->entries[(uint8)f2].target_unique_entry_uncouple == entries[(uint8)f1].target_unique_entry_uncouple
+			&& check_consist_orders_for_match(entries[(uint8)f1].unique_entry_id, schedule, schedule->entries[(uint8)f2].unique_entry_id)
 		  ) {
-			// minimum_loading/waiting ignored: identical
 			f1++;
 			f2++;
 		}
@@ -540,6 +587,86 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 		}
 	}
 	return f1==entries.get_count()  &&  f2==schedule->entries.get_count();
+}
+
+bool schedule_t::check_consist_orders_for_match(uint16 entry_id_this, const schedule_t* other_schedule, uint16 entry_id_other_schedule) const
+{
+	if (orders.is_contained(entry_id_this) && other_schedule->orders.is_contained(entry_id_other_schedule))
+	{
+		consist_order_t this_order = orders.get(entry_id_this);
+		consist_order_t other_order = other_schedule->orders.get(entry_id_other_schedule);
+
+		return this_order == other_order;
+	}
+	else if (!orders.is_contained(entry_id_this) && !other_schedule->orders.is_contained(entry_id_other_schedule))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool schedule_t::entry_has_consist_order(uint16 unique_id) const
+{
+	if (orders.empty())
+	{
+		return false;
+	}
+
+	if (orders.is_contained(unique_id))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+const consist_order_t& schedule_t::get_consist_order(uint16 unique_id)
+{
+	const consist_order_t &order = orders.get(unique_id);
+	return order;
+}
+
+convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt)
+{
+	convoihandle_t cnv;
+	const schedule_entry_t* entry = nullptr;
+
+	for (const schedule_entry_t &e : entries)
+	{
+		if (e.unique_entry_id == unique_id)
+		{
+			entry = &e;
+			break;
+		}
+	}
+
+	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple))
+	{
+		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv) && halt.is_bound())
+		{
+			// Line
+			linehandle_t line;
+			line.set_id(entry->target_id_couple);
+
+			for (auto c : halt->get_loading_convois())
+			{
+				if (c.is_bound() && c->get_line() == line)
+				{
+					return c;
+				}
+			}
+		}
+		else
+		{
+			// Convoy
+			cnv.set_id(entry->target_id_couple);
+		}
+	}
+
+	return cnv;
 }
 
 
@@ -680,91 +807,147 @@ bool schedule_t::similar( const schedule_t *schedule, const player_t *player )
 void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 {
 	buf.append( current_stop );
-	buf.printf( ",%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift) ;
+	buf.printf( ",%i,%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift, orders.get_count()) ;
 	buf.append( "|" );
 	buf.append( (int)get_type() );
 	buf.append( "|" );
 	FOR(minivec_tpl<schedule_entry_t>, const& i, entries)
 	{
-		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(), i.minimum_loading, (int)i.waiting_time_shift, (int)i.spacing_shift, (int)i.reverse, (int)i.flags, (int)i.unique_entry_id, (int)i.condition_bitfield_broadcaster, (int)i.condition_bitfield_receiver, (int)i.target_id_condition_trigger, (int)i.target_id_couple, (int)i.target_id_uncouple, (int)i.target_unique_entry_uncouple);
+		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(),
+			i.minimum_loading,
+			(int)i.waiting_time_shift,
+			(int)i.spacing_shift,
+			(int)i.reverse,
+			(int)i.flags,
+			(int)i.unique_entry_id,
+			(int)i.condition_bitfield_broadcaster,
+			(int)i.condition_bitfield_receiver,
+			(int)i.target_id_condition_trigger,
+			(int)i.target_id_couple,
+			(int)i.target_id_uncouple,
+			(int)i.target_unique_entry_uncouple,
+			(int)i.max_speed_kmh
+		);
+	}
+	buf.append('!'); // This terminates if there are consist orders
+
+	// Next, write the consist orders, if any
+
+	for (auto& order : orders)
+	{
+		buf.printf(",%i,", order.key);
+		order.value.sprintf_consist_order(buf);
 	}
 }
 
 
-bool schedule_t::sscanf_schedule( const char *ptr )
+bool schedule_t::sscanf_schedule(const char* ptr)
 {
-	const char *p = ptr;
+	const char* p = ptr;
 	// first: clear current schedule
 	while (!entries.empty()) {
 		remove();
 	}
-	if ( p == NULL  ||  *p == 0) {
+	if (p == NULL || *p == 0) {
 		// empty string
 		return false;
 	}
 	//  first get current_stop pointer
-	current_stop = atoi( p );
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	current_stop = atoi(p);
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	//bidirectional flag
-	if( *p && (*p!=','  &&  *p!='|') ) { bidirectional = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { bidirectional = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// mirrored flag
-	if( *p && (*p!=','  &&  *p!='|') ) { mirrored = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { mirrored = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// spacing
-	if( *p && (*p!=','  &&  *p!='|') ) { spacing = atoi(p); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { spacing = atoi(p); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 	// same_spacing_shift flag
-	if( *p && (*p!=','  &&  *p!='|') ) { same_spacing_shift = bool(atoi(p)); }
-	while ( *p && isdigit(*p) ) { p++; }
-	if ( *p && *p == ',' ) { p++; }
+	if (*p && (*p != ',' && *p != '|')) { same_spacing_shift = bool(atoi(p)); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
+	// Consist order count
+	uint32 consist_order_count = 0;
+	if (*p && (*p != ',' && *p != '|')) { consist_order_count = atoi(p); }
+	while (*p && isdigit(*p)) { p++; }
+	if (*p && *p == ',') { p++; }
 
-	if(  *p!='|'  ) {
-		dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
+	if (*p != '|') {
+		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
 		return false;
 	}
 	p++;
 	//  then schedule type
-	int type = atoi( p );
+	int type = atoi(p);
 	//  .. check for correct type
-	if(  type != (int)get_type()) {
-		dbg->error( "schedule_t::sscanf_schedule()","schedule has wrong type (%d)! should have been %d.", type, get_type() );
+	if (type != (int)get_type()) {
+		dbg->error("schedule_t::sscanf_schedule()", "schedule has wrong type (%d)! should have been %d.", type, get_type());
 		return false;
 	}
-	while(  *p  &&  *p!='|'  ) {
+	while (*p && *p != '|') {
 		p++;
 	}
-	if(  *p!='|'  ) {
-		dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
+	if (*p != '|') {
+		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
 		return false;
 	}
 	p++;
-	const uint32 number_of_data_per_entry = 13 + 2; // +2 is necessary as a koord3d takes 3 values
+	const uint32 number_of_data_per_entry = 14 + 2; // +2 is necessary as a koord3d takes 3 values
 	// now scan the entries
-	while(  *p>0  ) {
+	while (*p > 0)
+	{
+		if (atoi(p) == '!')
+		{
+			p += 3;
+			break;
+		}
 		sint32 values[number_of_data_per_entry];
-		for(  sint8 i=0;  i<number_of_data_per_entry;  i++  ) {
-			values[i] = atoi( p );
-			while(  *p  &&  (*p!=','  &&  *p!='|')  ) {
+		for (sint8 i = 0; i < number_of_data_per_entry; i++)
+		{
+			values[i] = atoi(p);
+			while (*p && (*p != ',' && *p != '|'))
+			{
 				p++;
 			}
-			if(  i<number_of_data_per_entry - 1  &&  *p!=','  ) {
-				dbg->error( "schedule_t::sscanf_schedule()","incomplete string!" );
+			if (i < number_of_data_per_entry - 1 && *p != ',')
+			{
+				dbg->error("schedule_t::sscanf_schedule()", "incomplete string!");
 				return false;
 			}
-			if(  i==number_of_data_per_entry - 1  &&  *p!='|'  ) {
-				dbg->error( "schedule_t::sscanf_schedule()","incomplete entry termination!" );
+			if (i == number_of_data_per_entry - 1 && *p != '|')
+			{
+				dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
 				return false;
 			}
 			p++;
 		}
 		// ok, now we have a complete entry
-		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (bool)values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14]));
+		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
 	}
+
+	if (consist_order_count > 0)
+	{
+		for (uint32 i = 0; i < consist_order_count; i++)
+		{
+			const uint32 index = atoi(p);
+			const uint8 index_buffer_incrementer = 2;
+
+			consist_order_t order;
+			p = order.sscanf_consist_order(p + index_buffer_incrementer) + 1;
+			if (order.orders.get_count() > 0)
+			{
+				orders.put(index, order);
+			}
+		}
+	}
+
+	parse_orders();
 	return true;
 }
 
@@ -938,6 +1121,30 @@ bool schedule_t::is_contained (koord3d pos)
 }
 
 
+uint8 schedule_t::get_entry_index(halthandle_t halt, player_t *player, bool reverse) const
+{
+	if( !halt.is_bound() ) return -1;
+	for (uint8 i = 0; i < entries.get_count(); i++) {
+		// For schedules with station overlap we have to do a search from current convoy location
+		uint8 check_index = current_stop;
+		if (reverse) {
+			check_index = (check_index+entries.get_count()-i)%entries.get_count();
+		}
+		else {
+			check_index = (check_index+i)%entries.get_count();
+		}
+
+		halthandle_t entry_halt = haltestelle_t::get_halt(entries[check_index].pos, player);
+		if( !entry_halt.is_bound() ) continue;
+
+		if( halt==entry_halt ) {
+			return check_index;
+		}
+	}
+	return -1;
+}
+
+
 times_history_data_t::times_history_data_t() {
 	for (uint16 i = 0; i < TIMES_HISTORY_SIZE; i++) {
 		history[i] = 0;
@@ -1010,4 +1217,214 @@ uint16 schedule_t::get_next_free_unique_id() const
 	}
 
 	return next_free_unique_id;
+}
+
+bool schedule_t::has_consist_orders() const
+{
+	return !orders.empty();
+}
+
+uint8 schedule_t::get_entry_from_unique_id(uint16 unique_id) const
+{
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (entries[i].unique_entry_id == unique_id)
+		{
+			return i;
+		}
+	}
+
+	return 255;
+}
+
+uint16 schedule_t::get_unique_id_from_entry(uint8 entry) const
+{
+	return entries[entry].unique_entry_id;
+}
+
+void schedule_t::parse_orders()
+{
+	catg_carried_to.clear();
+	catg_carried_from.clear();
+
+	if (orders.empty())
+	{
+		return;
+	}
+
+	for (auto order : orders)
+	{
+		const uint8 unique_id = order.key;
+		vector_tpl<uint8> category_vector;
+		uint8 min_class_passenger = goods_manager_t::passengers->get_number_of_classes();
+		uint8 min_class_mail = goods_manager_t::mail->get_number_of_classes();
+		for (uint32 i = 0; i < order.value.get_count(); i++)
+		{
+			const uint8 catg_index = order.value.get_order(i).get_catg_index();
+			category_vector.append(catg_index);
+
+			if (goods_manager_t::passengers->get_catg_index() == catg_index)
+			{
+				min_class_passenger = min(min_class_passenger, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
+			else if (goods_manager_t::mail->get_catg_index() == catg_index)
+			{
+				min_class_mail = min(min_class_mail, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+			}
+		}
+		catg_carried_from.put(unique_id, category_vector);
+		passenger_min_class_carried_from.put(unique_id, min_class_passenger);
+		mail_min_class_carried_from.put(unique_id, min_class_mail);
+	}
+
+	if (catg_carried_from.empty())
+	{
+		// There is no point in processing the rest of this
+		return;
+	}
+
+	uint8 min_passenger_class = 0;
+	uint8 min_mail_class = 0;
+	vector_tpl<uint8> categories;
+
+	vector_tpl<uint8> missing_categories;
+	uint8 new_min_passenger_class = min_passenger_class;
+	uint8 new_min_mail_class = min_mail_class;
+
+	uint8 first_order = 255;
+
+	for (uint8 i = 0; i < entries.get_count(); i++)
+	{
+		if (orders.is_contained(entries[i].unique_entry_id))
+		{
+			if (first_order == 255)
+			{
+				first_order = i;
+			}
+			if (!categories.empty())
+			{
+				// Find categories carried in the previous entry not carried in this entry.
+				for (auto c : categories)
+				{
+					if (!catg_carried_from.get(entries[i].unique_entry_id).is_contained(c))
+					{
+						missing_categories.append(c);
+					}
+				}
+				catg_carried_to.put(entries[i].unique_entry_id, missing_categories);
+			}
+
+			categories = catg_carried_from.get(entries[i].unique_entry_id);
+			missing_categories.clear();
+
+			if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+			{
+				new_min_passenger_class = passenger_min_class_carried_from.get(entries[i].unique_entry_id);
+
+				if (min_passenger_class < new_min_passenger_class)
+				{
+					passenger_min_class_carried_to.put(entries[i].unique_entry_id, min_passenger_class);
+				}
+				min_passenger_class = new_min_passenger_class;
+			}
+
+			if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+			{
+				new_min_mail_class = mail_min_class_carried_from.get(entries[i].unique_entry_id);
+				if (min_mail_class < new_min_mail_class)
+				{
+					mail_min_class_carried_to.put(entries[i].unique_entry_id, min_mail_class);
+				}
+				min_mail_class = new_min_mail_class;
+			}
+		}
+	}
+
+	// And now go back to the beginning of the schedule
+	if (first_order < entries.get_count() && orders.is_contained(entries[first_order].unique_entry_id))
+	{
+		if (!categories.empty())
+		{
+			// Find categories carried in the previous entry not carried in this entry.
+			for (auto c : categories)
+			{
+				if (!catg_carried_from.get(entries[first_order].unique_entry_id).is_contained(c))
+				{
+					missing_categories.append(c);
+				}
+			}
+			if (!missing_categories.empty())
+			{
+				catg_carried_to.put(entries[first_order].unique_entry_id, missing_categories);
+			}
+		}
+
+		if (categories.is_contained(goods_manager_t::passengers->get_catg_index()))
+		{
+			new_min_passenger_class = passenger_min_class_carried_from.get(entries[first_order].unique_entry_id);
+
+			if (min_passenger_class < new_min_passenger_class)
+			{
+				passenger_min_class_carried_to.put(entries[first_order].unique_entry_id, min_passenger_class);
+			}
+		}
+
+		if (categories.is_contained(goods_manager_t::mail->get_catg_index()))
+		{
+			new_min_mail_class = mail_min_class_carried_from.get(entries[first_order].unique_entry_id);
+			if (min_mail_class < new_min_mail_class)
+			{
+				mail_min_class_carried_to.put(entries[first_order].unique_entry_id, min_mail_class);
+			}
+		}
+	}
+}
+
+bool schedule_t::carries_catg(uint8 catg_index) const
+{
+	for (auto c_collection : catg_carried_from)
+	{
+		for (auto c : c_collection.value)
+		{
+			if (c == catg_index)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+uint8 schedule_t::min_class_carried(uint8 catg_index) const
+{
+	if (catg_index == goods_manager_t::passengers->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::passengers->get_number_of_classes();
+
+		for (auto cl: passenger_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else if (catg_index == goods_manager_t::mail->get_catg_index())
+	{
+		uint8 min_class = goods_manager_t::mail->get_number_of_classes();
+
+		for (auto cl : mail_min_class_carried_from)
+		{
+			if (cl.value < min_class)
+			{
+				min_class = cl.value;
+			}
+		}
+		return min_class;
+	}
+	else
+	{
+		return 0;
+	}
 }

@@ -100,7 +100,7 @@ public:
 
 	virtual ribi_t::ribi get_ribi( const grund_t* gr) const;
 
-	virtual int get_cost(const grund_t* gr, const sint32 max_speed, koord from_pos);
+	virtual int get_cost(const grund_t* gr, const sint32 max_speed, ribi_t::ribi from);
 };
 
 /**
@@ -141,6 +141,8 @@ public:
 
 	static uint32 get_minimum_city_distance();
 	static void set_minimum_city_distance(uint32 s);
+	static sint16 get_edge_avoidance();
+	static void set_edge_avoidance(sint16 s);
 
 	/**
 	 * Reads/writes city configuration data from/to a savegame
@@ -390,7 +392,6 @@ private:
 	// Subroutines for build_city_building and renovate_city_buiding
 	// @author neroden
 	const gebaeude_t* get_citybuilding_at(const koord k) const;
-	int get_best_layout(const building_desc_t* h, const koord & k) const;
 	void get_available_building_size(const koord k, vector_tpl<koord> &sizes) const;
 	gebaeude_t* check_tiles_height(gebaeude_t* building, koord pos, uint8 layout, bool map_generation);
 
@@ -461,6 +462,8 @@ public:
 	* ordered for multithreaded loading.
 	*/
 	void add_gebaeude_to_stadt(gebaeude_t *gb, bool ordered = false, bool do_not_add_to_world_list = false, bool do_not_update_stats = false);
+
+	int get_best_layout(const building_desc_t* h, const koord & k) const;
 
 	static bool compare_gebaeude_pos(const gebaeude_t* a, const gebaeude_t* b)
 	{

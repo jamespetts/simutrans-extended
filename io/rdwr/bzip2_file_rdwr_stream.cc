@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -22,11 +22,13 @@ bzip2_file_rdwr_stream_t::bzip2_file_rdwr_stream_t(const std::string &filename, 
 		bzfp = BZ2_bzReadOpen( &bse, fp, 0, 0, NULL, 0 );
 	}
 
+	status = STATUS_OK;
+	if (fp==NULL) {
+		status = STATUS_ERR_NOT_EXISTING;
+	}
 	if(  bse!=BZ_OK  ) {
 		status = STATUS_ERR_CORRUPT;
 	}
-
-	status = STATUS_OK;
 }
 
 
@@ -45,7 +47,9 @@ bzip2_file_rdwr_stream_t::~bzip2_file_rdwr_stream_t()
 		BZ2_bzReadClose( &bse, bzfp );
 	}
 
-	fclose( fp );
+	if (fp) {
+		fclose( fp );
+	}
 }
 
 

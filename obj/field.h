@@ -40,6 +40,8 @@ public:
 	const char * is_deletable(const player_t *) OVERRIDE;
 
 	void cleanup(player_t *player) OVERRIDE;
+
+	void pre_delete(){fab=NULL;}
 };
 
 #endif

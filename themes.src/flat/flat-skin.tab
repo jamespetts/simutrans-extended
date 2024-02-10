@@ -98,6 +98,7 @@ gui_color_edit_text_selected = #FAFAFA
 gui_color_edit_text_disabled = #333333
 gui_color_edit_background_selected = #333333
 gui_color_edit_beam = #333333
+gui_color_text_placeholder = #CCCCCC
 
 gui_color_chart_background = #a3a3a3
 gui_color_chart_lines_zero = #FAFAFA

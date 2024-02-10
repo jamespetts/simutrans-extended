@@ -294,7 +294,7 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
+int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, ribi_t::ribi from)
 {
 	// first favor faster ways
 	const weg_t *w = gr->get_weg(get_waytype());
@@ -315,9 +315,8 @@ int rail_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
 		// check if the slope is upwards relative to the previous tile
-		from_pos -= gr->get_pos().get_2d();
 		// 125 hardcoded, see get_cost_upslope()
-		costs += 125 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
+		costs += 125 * get_sloping_upwards( gr->get_weg_hang(), from );
 	}
 
 	// Strongly prefer routes for which the vehicle is not overweight.
@@ -666,9 +665,10 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 			uint16 modified_route_index = min(route_index + i, route_count - 1u);
 			ribi_t::ribi ribi = ribi_type(cnv->get_route()->at(max(1u, modified_route_index) - 1u), cnv->get_route()->at(min(cnv->get_route()->get_count() - 1u, modified_route_index + 1u)));
-			signal_current = way->get_signal(ribi);
-			if (signal_current)
+			signal_t* sig = way->get_signal(ribi);
+			if (sig)
 			{
+				signal_current = sig;
 				// Check for non-adjacent one train staff cabinets - these should be ignored.
 				const koord3d first_pos = cnv->get_last_signal_pos();
 				if (shortest_distance(get_pos().get_2d(), first_pos.get_2d()) < 3)
@@ -1158,7 +1158,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		// With cab signalling, even if we need do nothing else at this juncture, we may need to change the working method.
 		const uint16 check_route_index = next_block <= 0 ? 0 : next_block - 1u;
 		const uint32 cnv_route_count = cnv->get_route()->get_count() - 1u;
-		ribi_t::ribi ribi = next_block < INVALID_INDEX ? ribi_type(cnv->get_route()->at(max(1u, std::min(cnv_route_count, (uint32)check_route_index)) - 1u), cnv->get_route()->at(std::min((uint32)max_element, min(cnv_route_count - 1u, ((uint32)check_route_index + 1u))))) : ribi_t::all;
+		ribi_t::ribi ribi = next_block < INVALID_INDEX ? ribi_type(cnv->get_route()->at(max(1u, std::min(cnv_route_count, (uint32)check_route_index)) - 1u), cnv->get_route()->at(std::min((uint32)max_element, std::min(cnv_route_count - 1u, ((uint32)check_route_index + 1u))))) : ribi_t::all;
 		signal_t* signal = w_current->get_signal(ribi);
 
 		if (signal && working_method == one_train_staff && starting_from_stand)
@@ -1243,7 +1243,9 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
  				{
 					// Brake for the signal unless we can see it somehow. -1 because this is checked on entering the tile.
 					const bool allow_block_reserver = ((working_method != time_interval && working_method != time_interval_with_telegraph) || !signal->get_no_junctions_to_next_signal() || signal->get_desc()->is_choose_sign() || signal->get_state() != roadsign_t::danger) && ((signal->get_desc()->get_working_method() != one_train_staff && signal->get_desc()->get_working_method() != token_block) || route_index == next_block);
-					if(allow_block_reserver && !block_reserver(cnv->get_route(), next_block, modified_sighting_distance_tiles, next_signal, 0, true, false, cnv->get_is_choosing()))
+					sint32 start_index = next_block >= route_index ? next_block : route_index;
+					start_index = max(start_index - 1, 0);
+					if(allow_block_reserver && !block_reserver(cnv->get_route(), start_index, modified_sighting_distance_tiles, next_signal, 0, true, false, cnv->get_is_choosing()))
 					{
 						restart_speed = 0;
 						signal->set_state(roadsign_t::danger);
@@ -1550,7 +1552,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			steps_so_far += VEHICLE_STEPS_PER_TILE;
 		}
 
-		if((working_method == drive_by_sight && (i - (start_index - 1)) > modified_sighting_distance_tiles) && (!this_halt.is_bound() || (haltestelle_t::get_halt(pos, get_owner())) != this_halt))
+		if((working_method == drive_by_sight && (steps_so_far > brake_steps + (VEHICLE_STEPS_PER_TILE * 2) || (i - (start_index - 1)) > modified_sighting_distance_tiles)) && (!this_halt.is_bound() || (haltestelle_t::get_halt(pos, get_owner())) != this_halt))
 		{
 			// In drive by sight mode, do not reserve further than can be seen (taking account of obstacles);
 			// but treat signals at the end of the platform as a signal at which the train is now standing.
@@ -1558,10 +1560,13 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			break;
 		}
 
-		if(working_method == moving_block && !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
+		if (working_method == moving_block && !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
 		{
 			next_signal_index = i;
+		}
 
+		if(working_method == moving_block & !directional_only && last_choose_signal_index >= INVALID_INDEX && !is_choosing)
+		{
 			// Do not reserve further than the braking distance in moving block mode.
 			if(steps_so_far > brake_steps + (VEHICLE_STEPS_PER_TILE * 2))
 			{

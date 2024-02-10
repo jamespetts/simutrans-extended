@@ -60,6 +60,7 @@
 #include "dataobj/loadsave.h"
 #include "dataobj/environment.h"
 #include "dataobj/tabfile.h"
+#include "dataobj/scenario.h"
 #include "dataobj/settings.h"
 #include "dataobj/translator.h"
 #include "network/pakset_info.h"
@@ -355,10 +356,6 @@ static bool wait_for_key()
 static void ask_objfilename()
 {
 	pakselector_t* sel = new pakselector_t();
-	if(  sel->check_only_one_option()  ) {
-		// If there's only one option, we selected it; don't even show the window
-		delete sel;
-	}
 	// notify gui to load list of paksets
 	event_t ev;
 	ev.ev_class = INFOWIN;
@@ -454,6 +451,7 @@ void print_help()
 		"command line parameters available: \n"
 		" -addons             loads also addons (with -objects)\n"
 		" -async              asynchronous images, only for SDL\n"
+		" -borderless         emulate fullscreen as borderless window\n"
 		" -use_hw             hardware double buffering, only for SDL\n"
 		" -debug NUM          enables debugging (1..5)\n"
 		" -easyserver         set up every for server (query own IP, port forwarding)\n"
@@ -482,7 +480,9 @@ void print_help()
 		" -server [PORT]      starts program as server (for network game)\n"
 		"                     without port specified uses 13353\n"
 		" -announce           Enable server announcements\n"
-		" -autodpi            Scale for high DPI screens\n"
+		" -autodpi            Automatic screen scaling for high DPI screens\n"
+		" -screen_scale N     Manual screen scaling to N percent (0=off)\n"
+		"                     Ignored when -autodpi is specified\n"
 		" -server_dns FQDN/IP FQDN or IP address of server for announcements\n"
 		" -server_name NAME   Name of server for announcements\n"
 		" -server_admin_pw PW password for server administration\n"
@@ -573,11 +573,6 @@ int simu_main(int argc, char** argv)
 
 	args_t args(argc, argv);
 	env_t::init();
-
-	printf("Args\n");
-	for (int i = 1; i < argc; i++) {
-		printf("*%s*\n", argv[i]);
-	}
 
 	// you really want help with this?
 	if (args.has_arg("-h") ||
@@ -746,7 +741,7 @@ int simu_main(int argc, char** argv)
 
 	sint16 disp_width = 0;
 	sint16 disp_height = 0;
-	bool fullscreen = false;
+	sint16 fullscreen = WINDOWED;
 
 	// continue parsing
 	dr_chdir( env_t::data_dir );
@@ -821,7 +816,7 @@ int simu_main(int argc, char** argv)
 		}
 		// will fail fatal on the opening routine ...
 		dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-		env_t::networkmode = network_init_server( env_t::server_port );
+		env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
 		// query IP and try to open ports on router
 		char IP[256], altIP[256];
 		altIP[0] = 0;
@@ -848,7 +843,7 @@ int simu_main(int argc, char** argv)
 			}
 			// will fail fatal on the opening routine ...
 			dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-			env_t::networkmode = network_init_server( env_t::server_port );
+			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
 		}
 		else {
 			// no announce for clients ...
@@ -909,7 +904,15 @@ int simu_main(int argc, char** argv)
 		}
 	}
 
-	fullscreen |= args.has_arg("-fullscreen");
+	if ( !fullscreen ) {
+		fullscreen = args.has_arg("-fullscreen") ? FULLSCREEN : WINDOWED;
+	}
+	if ( !fullscreen ) {
+		fullscreen = args.has_arg("-borderless") ? BORDERLESS : WINDOWED;
+	}
+	if ( !fullscreen ) {
+		fullscreen = env_t::fullscreen;
+	}
 
 	if(args.has_arg("-screensize")) {
 		const char* res_str = args.gimme_arg("-screensize", 1);
@@ -929,7 +932,12 @@ int simu_main(int argc, char** argv)
 	}
 
 	if(  args.has_arg("-autodpi")  ) {
-		dr_auto_scale( true );
+		dr_set_screen_scale( -1 );
+	}
+	else if (const char *scaling = args.gimme_arg("-screen_scale", 1)) {
+		if (scaling[0] >= '0' && scaling[0] <= '9') {
+			dr_set_screen_scale(atoi(scaling));
+		}
 	}
 
 	int parameter[2];
@@ -944,7 +952,7 @@ int simu_main(int argc, char** argv)
 	// Get optimal resolution.
 	if (disp_width == 0 || disp_height == 0) {
 		resolution const res = dr_query_screen_resolution();
-		if (fullscreen) {
+		if (fullscreen != WINDOWED) {
 			disp_width  = res.w;
 			disp_height = res.h;
 		}
@@ -954,8 +962,8 @@ int simu_main(int argc, char** argv)
 		}
 	}
 
-	DBG_MESSAGE("simu_main()", "simgraph_init disp_width=%d, disp_height=%d, fullscreen=%d", disp_width, disp_height, (int)fullscreen);
-	if (!simgraph_init(scr_size(disp_width, disp_height), fullscreen != 0)) {
+	DBG_MESSAGE("simu_main()", "simgraph_init disp_width=%d, disp_height=%d, fullscreen=%d", disp_width, disp_height, fullscreen);
+	if (!simgraph_init(scr_size(disp_width, disp_height), fullscreen)) {
 		dbg->error("simu_main()", "Failed to initialize graphics system.");
 		return EXIT_FAILURE;
 	}
@@ -1291,6 +1299,12 @@ int simu_main(int argc, char** argv)
 
 	dbg->message("simu_main()","Reading private car ownership configuration ...");
 	karte_t::privatecar_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading staff salary configuration ...");
+	karte_t::staff_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading fuel cost configuration ...");
+	karte_t::fuel_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading prices/inflation configuration ...");
+	karte_t::prices_init(env_t::objfilename);
 
 #if COLOUR_DEPTH != 0
 	// reread theme
@@ -1544,11 +1558,34 @@ int simu_main(int argc, char** argv)
 	setsimrand(dr_time(), dr_time());
 	clear_random_mode( 7 ); // allow all
 
-	if(  loadgame==""  ||  !welt->load(loadgame.c_str())  ) {
-		// create a default map
-		DBG_MESSAGE("simu_main()", "Init with default map (failing will be a pak error!)");
+	scenario_t *scen = NULL;
+	if(  const char *scen_name = args.gimme_arg("-scenario", 1)  ) {
+		scen = new scenario_t(welt);
 
-		// no autosave on initial map during the first six month ...
+		intr_set_view(view);
+		win_set_world(welt);
+
+		const char *err = "";
+		if (env_t::default_settings.get_with_private_paks()) {
+			// try addon directory first
+			err = scen->init(("addons/" + env_t::objfilename + "scenario/").c_str(), scen_name, welt);
+		}
+		if (err) {
+			// no addon scenario, look in pakset
+			err = scen->init((env_t::data_dir + env_t::objfilename + "scenario/").c_str(), scen_name, welt);
+		}
+		if(  err  ) {
+			dbg->error("simu_main()", "Could not load scenario %s%s: %s", env_t::objfilename.c_str(), scen_name, err);
+			delete scen;
+			scen = NULL;
+		}
+		else {
+			new_world = false;
+		}
+	}
+
+	if(  scen == NULL && (loadgame==""  ||  !welt->load(loadgame.c_str()))  ) {
+		// no autosave on initial map during the first six months
 		loadgame = "";
 		new_world = true;
 

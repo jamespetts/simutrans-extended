@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -42,6 +42,8 @@ protected:
 
 	button_t unicode_only;
 	gui_numberinput_t fontsize;
+
+	bool is_resizable_font(const char *fontname);
 
 	/**
 	 * Action that's started with a button click

@@ -113,15 +113,14 @@ public:
 		way_only_cost(0)
 	{}
 
-	inline sint32 get_base_maintenance() const { return base_maintenance; }
-	inline sint32 get_maintenance() const { return maintenance; }
+	virtual inline sint64 get_base_maintenance() const { return base_maintenance; }
+	virtual inline sint64 get_maintenance() const { return maintenance; }
 
-	inline sint32 get_base_cost() const { return base_cost; }
-	inline sint32 get_base_price() const { return base_cost; }
-	inline sint32 get_value() const { return price; }
+	virtual inline sint64 get_base_price() const { return base_cost; }
+	virtual inline sint64 get_value() const { return price; }
 
-	inline uint32 get_base_way_only_cost() const { return base_way_only_cost; }
-	inline uint32 get_way_only_cost() const { return way_only_cost; }
+	virtual inline sint64 get_base_way_only_cost() const { return base_way_only_cost; }
+	virtual inline sint64 get_way_only_cost() const { return way_only_cost; }
 
 	inline uint8 get_upgrade_group() const { return upgrade_group; }
 
@@ -146,7 +145,7 @@ public:
 		if (base_cost && !price) price = 1;
 		maintenance = set_scale_generic<sint32>(base_maintenance, scale_factor);
 		if (base_maintenance && !maintenance) maintenance = 1;
-		way_only_cost = set_scale_generic<sint32>(base_way_only_cost, scale_factor);
+		way_only_cost = set_scale_generic<uint64>(base_way_only_cost, scale_factor);
 		if (base_way_only_cost && !way_only_cost) way_only_cost = 1;
 	}
 
@@ -162,6 +161,13 @@ protected:
 	tool_t *builder;  ///< default tool for building
 
 public:
+
+	// Overrides necessary for inflation adjustment to be bespoke per type
+	// Note that we do not override maintenance as this is a consolidated figure and needs to be handled in the player object.
+	sint64 get_base_price() const OVERRIDE;
+	sint64 get_value() const OVERRIDE;
+	sint64 get_base_way_only_cost() const OVERRIDE;
+	sint64 get_way_only_cost() const OVERRIDE;
 
 	tool_t *get_builder() const {
 		return builder;

@@ -163,6 +163,8 @@ Die Bruecke ist nicht frei!\n
 橋梁上が空ではないか、\n他社の所有物です。\n
 Diese Zusammenstellung kann nicht fahren!\n
 編成の構成エラー：\n構成が不完全か出力が不足しています。
+error_text_invalid_replace_cycle
+置き換え周期に関する入力値が正しくありません。\n(置き換え数と売却数が0の場合、置き換えを実行できません)
 Flugzeughalt muss auf\nRunway liegen!\n
 飛行機は滑走路上にのみ\n降りることができます！
 Hier kann dieses\nFlughafengebaeude nicht\ngebaut werden!\n
@@ -398,7 +400,7 @@ With a big festival\n%s built\na new monument.\n%i citicens rejoiced.
 \nBauzeit bis
  ～
 \nBauzeit von
-\n登場する年:
+登場する年:
 \nCan't open heightfield file.\n
 \nマップファイルを\n読み込むことが出来ません。\n
 \ndirection:
@@ -418,7 +420,7 @@ is reserved by:
 \nRibi (unmasked)
 \n接続方向　　　　：
 \nSet phases:
-\n南北（秒間）　東西（秒間）
+\n信号切替周期：
 \nsingle way
 \n一方通行
 \nway1 reserved by
@@ -585,6 +587,8 @@ Arrived
 到着
 Assets
 資産
+Auto
+自動
 Aufloesen
 編成解除
 Aufspanntransformator
@@ -625,6 +629,8 @@ Bonusspeed: %i km/h
 可能な最大速度：%i km/h
 Boost (%)
 増産率 (%)
+Borderless (disabled on fullscreen)
+全画面表示 (ソフトウェアモード)
 bridge is too high for its type!
 この型の橋梁で架橋できる\n橋脚の高さ制限を超えています。
 Bruecke
@@ -699,6 +705,8 @@ Cash
 現金
 Change player
 プレイヤー変更
+Changing direction. %s left
+折返し作業中... (残り: %s)
 Chart
 グラフ
 Chat_msg
@@ -1018,7 +1026,7 @@ Fracht
 Frame time:
 フレーム：
 Free Capacity
- 空席/空荷
+空席
 freeplay mode
 フリープレイ モード
 Friction:
@@ -1026,7 +1034,9 @@ Friction:
 fuel_cell
 燃料電池
 Full load
-積むまで待機
+積むまで待機(％):
+Fullscreen (changed after restart)
+全画面表示 (ハードウェアモード、変更は再起動が必要)
 Fundament
 土地
 Fussgaenger
@@ -1038,7 +1048,7 @@ GAME PAUSED
 Game_msg
 ゲーム
 Gear:
-ギア比:
+効率:
 Gebaeude
 建築物
 General
@@ -1159,6 +1169,8 @@ hlf_chk_waren_annahme
 製品需要:
 hlf_title
 駅一覧フィルター
+Home depot
+所属車庫
 Homeless
 浮浪者
 hydrogene
@@ -1215,8 +1227,6 @@ Jump to
 指定座標へ移動
 June
 6月
-Kein Besitzer\n
-\n
 keine
 無し
 Keine Einzelfahrzeuge im Depot
@@ -1289,6 +1299,8 @@ loaded passenger/freight
 乗車中の旅客/貨物
 Loading (%i->%i%%)!
 積載(%i->%i%%)
+Loading (%i->%i%%), %s left!
+積込中(%i->%i%%、出発時刻まで:%s)
 Loading addon paks ...
 アドオンを読み込み中 ...
 Loading map ...
@@ -1395,6 +1407,8 @@ Mountain height
 起伏の高さ：
 Movingobj
 動物
+Move the map
+マップをスクロールする
 Music playing disabled/not available
 BGMは演奏できません。
 Music volume:
@@ -1743,6 +1757,8 @@ Schleppkahn_tab
 バージ
 Screenshot
 スクリーンショット
+Screen scale:
+表示倍率（%）：
 Search:
 検索:
 Seasons
@@ -1831,6 +1847,10 @@ Shows consumer/suppliers for factories
 産業施設のクリック[shift+クリック]で、需要先[供給元]を表示します
 Shows the currently selected schedule
 編集中の路線経路を表示します
+Shows option buttons about networks.
+フィルターオプションを開閉します
+Show networks
+フィルター
 Shrink city
 都市の人口を減らす
 shuffle midis
@@ -1853,8 +1873,6 @@ Smart hide objects
 カーソル周辺を隠す
 Sort by
 並び替え規則
-Sort by:
-ソート:
 Sort waiting list by
 待機表の並び変え
 Sound
@@ -2230,7 +2248,7 @@ brakes from max. speed in %i m
 (catering_levels: %s)
 (車内サービスレベル: %s)
 (Max. comfortable journey time:
-(快適に移動できる最大時間:
+快適に移動できる最大時間
 (speed_restricted_by_bridge)
 橋梁による速度制限
 (speed_restricted_by_city)
@@ -2250,9 +2268,9 @@ brakes from max. speed in %i m
 \nCity:
 \n都市:
 \nMAY USE:
-\n通行可能:
-\nMUST USE:
-\n必須:
+通行可能:
+\nMUST USE: 
+必須:
 \nNetwork ID:
 \nネットワークID:
 \nOrigin: %s\nDestination: %s
@@ -2516,7 +2534,7 @@ class
 Class
 運賃等級
 class_manager
-旅客/郵便クラスの割当て
+運賃等級管理
 classes
 クラス
 Clear
@@ -2562,15 +2580,13 @@ Cluster size
 combined_signal
 複合信号機(場内信号機+通過信号機)
 Comfort
-快適性
+快適度
 comfort expectance\nfor travelling
-移動中の快適性
+移動中の快適度
 comfort impact\nlimitations
-快適性の収入への影響
+快適度の収入への影響
 Comfort:
-快適性:
-comfort: %i
-快適性: %i
+快適度:
 commuting
 通勤中
 Commuting
@@ -2692,7 +2708,7 @@ Electrical output:
 Emergency stop
 緊急停止
 emergency_stop %s left
-緊急停止 残り%s
+緊急停止中：運行再開まで %s
 end_of_choose_sign
 振分終端標識
 equipped_with
@@ -2796,7 +2812,9 @@ Last renewed
 latest_3
 過去3回の実測値
 line_class_manager
-路線のクラス割当て
+運賃等級管理
+line_has_multiple_traction_types
+複数の動力タイプが混在しています
 line_has_obsolete_vehicles
 生産中止した車両があります
 line_has_obsolete_vehicles_with_upgrades
@@ -3100,23 +3118,25 @@ remove interm. signals
 renewal_costs
 更新費
 Replace
-交換
+編成の置換
 replace all
-すべて交換
+同一構成の編成全て
 Replace all convoys like this
 所有する同じ構成の編成すべてを対象にします。
 Replace all convoys like this belonging to this line
-同一路線内の、同じ構成の編成すべてを対象にします。
+同一路線内の、同じ車両構成の編成すべてを対象にします。
 replace all in line
-同一路線のみ、すべて交換
+所属路線の同一車両構成の編成
 Replace but stay
-交換後待機
+置換後待機
 Replace cycle:
-交換比率:
+置き換え周期:
 replace other signals
 他の信号を置換
+replace_line_convoys
+編成の一括置き換え
 Replacing
-交換中
+置換準備中
 Replacing\nvehicles of\n%-20s\ncompleted
 %-20sの車両の置き換えが完了しました。
 requires
@@ -3154,7 +3174,7 @@ reversed_unidirectional_order
 Reversing
 折り返し中
 Reversing. %s left
-折り返し中 残り %s
+方向転換中... (残り: %s)
 Road
 道路
 Rolling resistance:
@@ -3162,11 +3182,11 @@ Rolling resistance:
 Routes will update instantly after any changes to lines/schedules. Can make the game respond slowly on big maps.
 路線やダイヤの変更後、直ちに路線を更新します。大きいマップでは応答が遅くなる可能性があります。
 rpl_cnv_replace
-交換
+置換
 rpl_cnv_sell
-売却
+引退
 rpl_cnv_skip
-非交換
+存置
 Runway too short
 滑走路が短すぎます
 runway_09/27
@@ -3241,6 +3261,8 @@ Shows the borderlines of each tile in the main game window. Can be useful for co
 マップのグリッドを表示します。#キーで切り替え可能です。
 Shows the names of the individual stations in the main game window.
 駅やラベル名の表示形式を変更します。
+Shunting. %s left
+組換作業中... (残り: %s)
 signale bauen
 OK
 Signals
@@ -3264,9 +3286,7 @@ south_east
 south_west
 南西
 Spacing cnv/month
-1ヶ月あたり発車許可本数
-Spacing cnv/month, shift
-1ヶ月あたり発車許可本数, シフト時間
+出発回数/月
 sq. km.
 平方km
 staff_shortage
@@ -3281,6 +3301,8 @@ stations
 停留所/駅
 Status:
 状態:
+Status filter(count):
+状態別フィルター(該当数)：
 Stops potentially within walking distance:
 徒歩で移動可能な駅/停留所:
 That would exceed\nyour credit limit.
@@ -3417,6 +3439,8 @@ Transfers
 乗降客数
 Transformer only next to factory or in city!
 変電所は産業の隣接マスか市域内にのみ建設できます。
+transparent background
+背景を透明化
 Transshipment time:
 駅構内の移動時間:
 traveling_post_office
@@ -3449,6 +3473,8 @@ Upgrade price:
 改造/更新費:
 upgradeable_vehicles
 改造/更新可能な車両
+upgrade_only
+改造専用
 Usage: %u %%
 電力使用率 %u %%
 Use any vehicles already present in the depot, if available, instead of buying new ones or upgrading.
@@ -3472,7 +3498,9 @@ Vehicle maintenance costs per month
 Vehicle running costs (both fixed and distance related)
 固定維持費と運行経費を含む車両の運行費を表します。
 Vehicle running costs per km
-1kmあたり車両維持費
+車両の運行費用
+Convoy running costs per km
+編成の運行費用
 Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.
 車両がスケジュールの終点に達した後、停留所リストの逆順で停車します。
 view_journey_times_history_of_this_convoy
@@ -3488,7 +3516,7 @@ Visitor demand
 Wait for time
 ダイヤを設定する
 Waiting for schedule. %s left
-発車時刻まで 残り%s
+出発時刻待ち(残り %s)
 waiting time unknown
 待ち時間不明)
 waiting\ntolerance\nmax. min
@@ -3624,13 +3652,37 @@ helptxt_powered_vehicle
 helptxt_unpowered_vehicle
 非動力車
 helptxt_one_direction
-折り返し時に方向転換を必要とする先頭車両
+折り返し時に方向転換が必要な先頭車両
 helptxt_cab_head
 先頭車両
 helptxt_can_be_at_rear
 最後尾車両
 helptxt_intermediate
 中間車両
+hlptxt_vh_normal_state
+選択可能/正常（現役車両）
+helptxt_warning_replacing_line_has_multiple_traction_types
+路線の既存編成に『複数の動力タイプ』があるため、正常に全ての編成を置き換えできない可能性があります。
+helptxt_replace_all_convoys_of_this_line
+この路線に所属する編成を指定した構成に置き換えます。
+multiline_helptext_replace_all_line_convoys
+路線に所属している全ての編成を\n設定した構成で置き換えます。
+need to connect vehicle
+車両の追加が必要
+out of production
+生産が終了した車両
+become obsolete
+陳腐化し維持費が上昇している車両
+cannot select
+連結不可/選択不可
+lack of money
+購入不可(所持金不足)
+axle weight is excessive
+購入不可(軸重超過)
+appears only in upgrades
+アップグレード専用
+cannot upgrade
+アップグレード専用(選択不可)
 %i month
 %iヶ月
 %i months
@@ -4087,6 +4139,34 @@ if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
 次の運用時刻まで非営業車扱いで待機します
 Last overhauled:
 最終全検：
+bt_pickup_only
+乗車／積込み限定
+help_txt_pickup_only
+乗車と積み込みだけを行い、降車と積み降ろしを行わないように設定します。
+bt_setdown_only
+降車／積降し限定
+help_txt_setdown_only
+降車と積み降ろしだけを行い、乗車と積み込みを行わないように設定します。
+bt_discharge_payload
+全ての積み荷を降ろす
+help_txt_discharge_payload
+この駅で全ての乗客・荷物を降ろします。
+enable_speed_limit
+速度制限
+Speed limit:
+制限速度：
+help_txt_speed_limit_between_two_points
+次の区間までの制限速度を指定。※速度が抑制された場合は、それに応じて燃費が低下します
+modify_convoy
+編成構成を指定
+#modify_the_convoy_at_this_schedule_entrance
+#
+[LO] 
+[Zzz]
+[RS] 
+[給]
+[IC] 
+[誘]
 by_waiting_passengers
 旅客待機数
 by_waiting_mails
@@ -4163,6 +4243,8 @@ Municipal way
 市道
 Private way
 私道
+Road routes from here:
+ルート一覧
 %u cities
 都市へのルート(%u)：
 %u buildings
@@ -4333,8 +4415,66 @@ Save your changes and close the dialog.
 変更を保存してダイアログを閉じます
 helptxt_linecode_use_sub_background
 文字の背景に使用される色が基調色とは異なる色に入れ替わります
+Accommodation
+客室グレード
+Compartments
+区画
+fare_management_by_vehicle
+車両別
+fare_management_by_accommo
+客室(区画)グレード別
+Only this convoy
+この編成のみ置き換え
+waytype
+乗り物タイプ
+convoys stored
+留置編成数
+vehicles stored
+保管車両数
+Boarding from:
+乗車駅：
+Loaded at:
+積込駅：
+Origin:
+出発駅：
+origin
+出発駅
+Shipped from:
+発送駅：
+Loaded stop
+乗車駅
+Origin stop
+出発駅
+separate_by_fare_class
+運賃クラス容量別
+divide_by_wealth_class
+積載貨物クラス表示
+Separate cargo information display by fare class of this convoy.
+貨物カテゴリ・運賃ランク容量ごとに積載貨物情報を表示します。
+Cargoes are divided and displayed according to the wealth class.
+所得クラスまたは移動目的が異なる旅客／貨物を区別します。
+info_depth_from:
+出発地情報：
+info_depth_to:
+目的地情報：
+switch_spec_display_mode
+車両情報表示: 
+basic_spec
+主要諸元
+secondary_spec
+塗装スキーム
+Do not add vehicles over maximum length!
+これ以上車両を追加できません！
+-->
+→
+<=>
+⇔
+line_network
+接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+Spacing cnv/month, shift
+1ヶ月あたり発車許可本数, シフト時間
 100 km/h = %i tiles/month
 100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
@@ -4353,6 +4493,8 @@ The number of passengers who have left because of overcrowding or excess waiting
 混雑や駅での待ち時間のため旅行を取り止めた旅客の人数を表します。
 Arbeiter aus:
 労働者居住地:
+Kein Besitzer\n
+\n
 No Route
 経路無し
 Usage/Output
@@ -4417,3 +4559,7 @@ Power: %4d kW\n
 #前月と比べた待機数の増減を表示
 #Queueing
 #待機数の増減
+#Postrate
+#郵便度
+#comfort: %i
+#快適度: %i

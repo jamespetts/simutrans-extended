@@ -293,6 +293,18 @@ settings_t::settings_t() :
 	// default: joined capacities
 	separate_halt_capacities = false;
 
+	// waytype color setting
+	waytype_color[0] = 44373;
+	waytype_color[waytype_t(road_wt)]  = 39455;
+	waytype_color[waytype_t(track_wt)] = 64448;
+	waytype_color[waytype_t(water_wt)] = 536;
+	waytype_color[4] = 0;
+	waytype_color[waytype_t(monorail_wt)] = 45316;
+	waytype_color[waytype_t(maglev_wt)]   = 61916;
+	waytype_color[waytype_t(tram_wt)]     = 15911;
+	waytype_color[waytype_t(narrowgauge_wt)] = 37702;
+	waytype_color[9] = 13919; // air
+
 	// Cornering settings
 	// @author: jamespetts
 	corner_force_divider[waytype_t(road_wt)] = 5;
@@ -382,7 +394,7 @@ settings_t::settings_t() :
 
 	//@author: jamespetts
 	// Insolvency and debt settings
-	interest_rate_percent = 10;
+	overdraft_percent_above_base_rate = 2;
 	allow_insolvency  = 0;
 	allow_purchases_when_insolvent  = 0;
 
@@ -987,7 +999,9 @@ void settings_t::rdwr(loadsave_t *file)
 		if(file->is_version_atleast(102, 2)) {
 			bool dummy = false;
 			file->rdwr_bool(dummy);
-			file->rdwr_bool( with_private_paks );
+			if (file->is_version_less(123, 2) || file->is_version_ex_less(14, 59)) {
+				file->rdwr_bool( with_private_paks );
+			}
 		}
 		if(file->is_version_atleast(102, 3)) {
 			// network stuff
@@ -1139,20 +1153,20 @@ void settings_t::rdwr(loadsave_t *file)
 				}
 			}
 
-			float32e8_t distance_per_tile(meters_per_tile, 1000);
+			const float32e8_t distance_per_tile(meters_per_tile, 1000);
 
 			if(file->get_extended_version() < 6)
 			{
 				// Scale the costs to match the scale factor.
 				// Note that this will fail for attempts to save in the old format.
-				cst_multiply_dock *= distance_per_tile;
-				cst_multiply_station *= distance_per_tile;
-				cst_multiply_roadstop *= distance_per_tile;
-				cst_multiply_airterminal *= distance_per_tile;
-				cst_multiply_post *= distance_per_tile;
-				maint_building *= distance_per_tile;
-				cst_buy_land *= distance_per_tile;
-				cst_remove_tree *= distance_per_tile;
+				cst_multiply_dock        = (cst_multiply_dock        * distance_per_tile).to_sint32();
+				cst_multiply_station     = (cst_multiply_station     * distance_per_tile).to_sint32();
+				cst_multiply_roadstop    = (cst_multiply_roadstop    * distance_per_tile).to_sint32();
+				cst_multiply_airterminal = (cst_multiply_airterminal * distance_per_tile).to_sint32();
+				cst_multiply_post        = (cst_multiply_post        * distance_per_tile).to_sint32();
+				maint_building           = (maint_building           * distance_per_tile).to_sint32();
+				cst_buy_land             = (cst_buy_land             * distance_per_tile).to_sint32();
+				cst_remove_tree          = (cst_remove_tree          * distance_per_tile).to_sint32();
 			}
 
 			file->rdwr_short(obsolete_running_cost_increase_percent);
@@ -1319,8 +1333,16 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 
 			file->rdwr_short(factory_max_years_obsolete);
-
-			file->rdwr_byte(interest_rate_percent);
+			if (file->get_extended_version() < 15)
+			{
+				uint8 legacy_interest_rate_percent;
+				file->rdwr_byte(legacy_interest_rate_percent);
+				overdraft_percent_above_base_rate = max(0, legacy_interest_rate_percent - 8);
+			}
+			else
+			{
+				file->rdwr_short(overdraft_percent_above_base_rate);
+			}
 			file->rdwr_bool(allow_insolvency);
 			file->rdwr_bool(allow_purchases_when_insolvent);
 
@@ -1549,6 +1571,12 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
+		if (file->is_version_ex_atleast(14, 63))
+		{
+			file->rdwr_long(minimum_industry_input_storage_raw);
+			file->rdwr_long(minimum_industry_output_storage_raw);
+		}
+
 		if (  file->is_version_atleast(110, 6) && file->get_extended_version() >= 9  ) {
 			file->rdwr_byte(spacing_shift_mode);
 			file->rdwr_short(spacing_shift_divisor);
@@ -1558,6 +1586,10 @@ void settings_t::rdwr(loadsave_t *file)
 			if(file->is_saving())
 			{
 				livery_schemes_count = livery_schemes.get_count();
+			}
+			else
+			{
+				livery_schemes.clear();
 			}
 
 			file->rdwr_short(livery_schemes_count);
@@ -1700,16 +1732,6 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_short(parallel_ways_forge_cost_percentage_air);
 
 			file->rdwr_long(max_diversion_tiles);
-#ifdef SPECIAL_RESCUE_12_3
-			if(file->is_saving())
-			{
-				file->rdwr_long(way_degradation_fraction);
-				file->rdwr_long(way_wear_power_factor_road_type);
-				file->rdwr_long(way_wear_power_factor_rail_type);
-				file->rdwr_short(standard_axle_load);
-				file->rdwr_long(citycar_way_wear_factor);
-			}
-#else
 			file->rdwr_long(way_degradation_fraction);
 			file->rdwr_long(way_wear_power_factor_road_type);
 			file->rdwr_long(way_wear_power_factor_rail_type);
@@ -1726,7 +1748,6 @@ void settings_t::rdwr(loadsave_t *file)
 				file->rdwr_long(max_speed_drive_by_sight_kmh);
 				max_speed_drive_by_sight = kmh_to_speed(max_speed_drive_by_sight_kmh);
 			}
-#endif
 			if( file->is_version_ex_equal(14, 46) && file->is_loading() ) {
 				// Special rescue for broken setting
 				uint32 dummy = 0;
@@ -1821,6 +1842,8 @@ void settings_t::rdwr(loadsave_t *file)
 		if (file->get_extended_version() >= 15)
 		{
 			file->rdwr_bool(simplified_maintenance);
+			file->rdwr_long(min_layover_overhead_seconds);
+			file->rdwr_long(shunting_time_seconds);
 		}
 		else if (file->is_loading())
 		{
@@ -1928,9 +1951,20 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_bool(do_not_record_private_car_routes_to_city_buildings);
 		}
 		// otherwise the default values of the last one will be used
+
+		if (file->is_version_ex_atleast(15, 0))
+		{
+			file->rdwr_long(maintenance_interval_months);
+			file->rdwr_long(extended_maintenance_interval_months);
+			file->rdwr_long(fuel_unit_cost_divider);
+		}
 	}
 
-
+	if (fuel_unit_cost_divider == 0)
+	{
+		// Prevent divisions by zero
+		fuel_unit_cost_divider = 1;
+	}
 
 #ifdef DEBUG_SIMRAND_CALLS
 	char buf[256];
@@ -1941,7 +1975,7 @@ void settings_t::rdwr(loadsave_t *file)
 
 
 // read the settings from this file
-void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, bool &fullscreen, std::string& objfilename )
+void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16& disp_height, sint16 &fullscreen, std::string& objfilename )
 {
 	tabfileobj_t contents;
 
@@ -1999,13 +2033,11 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 #endif
 
 	// check for fontname, must be a valid name!
-	if( !env_t::fontname.compare( FONT_PATH_X "prop.fnt" ) ) {
-		// will be only changed if default!
-		std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
-		if( FILE* f = fopen( fname.c_str(), "r" ) ) {
-			fclose( f );
-			env_t::fontname = fname;
-		}
+	// will be only changed if default!
+	std::string fname = trim( contents.get_string( "fontname", env_t::fontname.c_str() ) );
+	if( FILE* f = fopen( fname.c_str(), "r" ) ) {
+		fclose( f );
+		env_t::fontname = fname;
 	}
 	env_t::fontsize  = contents.get_int( "fontsize", env_t::fontsize );
 
@@ -2194,10 +2226,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		}
 	}
 
-	drive_on_left                  = contents.get_int( "drive_left",                     drive_on_left ) != 0;
-	signals_on_left                = contents.get_int( "signals_on_left",                signals_on_left ) != 0;
-	allow_underground_transformers = contents.get_int( "allow_underground_transformers", allow_underground_transformers ) != 0;
-	disable_make_way_public        = contents.get_int( "disable_make_way_public",        disable_make_way_public ) != 0;
+	drive_on_left						= contents.get_int( "drive_left",                     drive_on_left ) != 0;
+	signals_on_left						= contents.get_int( "signals_on_left",                signals_on_left ) != 0;
+	allow_underground_transformers		= contents.get_int( "allow_underground_transformers", allow_underground_transformers ) != 0;
+	disable_make_way_public				= contents.get_int( "disable_make_way_public",        disable_make_way_public ) != 0;
+	maintenance_interval_months			= contents.get_int("maintenance_interval_months", maintenance_interval_months);
+	extended_maintenance_interval_months = contents.get_int("extended_maintenance_interval_months", extended_maintenance_interval_months);
 
 	// up to ten rivers are possible
 	for( int i = 0; i < 10; i++ ) {
@@ -2374,6 +2408,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	factory_maximum_intransit_percentage = contents.get_int_clamped( "maximum_intransit_percentage", factory_maximum_intransit_percentage, 0, 0x7FFF );
 	factory_enforce_demand               = contents.get_int( "factory_enforce_demand",       factory_enforce_demand ) != 0;
 
+	// "Sanity check" overrides to deal with problem settings in individual factory buildings in paks which round down too low.
+	// Minimum storage size for industries should be set at the size of a small vehicle which is expected to
+	// be usable economically during the game.  This is always at least 1, but usually more like 5 or 7.
+	minimum_industry_input_storage_raw  = contents.get_int("minimum_industry_input_storage_raw", 1);
+	minimum_industry_output_storage_raw = contents.get_int("minimum_industry_output_storage_raw", 1);
+
 	//tourist_percentage = contents.get_int_clamped( "tourist_percentage", tourist_percentage, 0, 100 );
 
 	// .. read twice: old and right spelling
@@ -2477,7 +2517,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	sint64 new_maintenance_building = contents.get_int64("maintenance_building", -1);
 	if (new_maintenance_building > 0) {
-		maint_building = new_maintenance_building * distance_per_tile;
+		maint_building = (new_maintenance_building * distance_per_tile).to_sint32();
 	}
 
 	numbered_stations = contents.get_int( "numbered_stations", numbered_stations );
@@ -2555,24 +2595,24 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// Stations.  (Overridden by specific prices in pak files.)
 	sint64 new_cost_multiply_dock = contents.get_int64("cost_multiply_dock", -1);
 	if (new_cost_multiply_dock > 0) {
-		cst_multiply_dock = new_cost_multiply_dock * -100 * distance_per_tile;
+		cst_multiply_dock = (new_cost_multiply_dock * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_station = contents.get_int64("cost_multiply_station", -1);
 	if (new_cost_multiply_station > 0) {
-		cst_multiply_station = new_cost_multiply_station * -100 * distance_per_tile;
+		cst_multiply_station = (new_cost_multiply_station * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_roadstop = contents.get_int64("cost_multiply_roadstop", -1);
 	if (new_cost_multiply_roadstop > 0) {
-		cst_multiply_roadstop = new_cost_multiply_roadstop * -100 * distance_per_tile;
+		cst_multiply_roadstop = (new_cost_multiply_roadstop * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_airterminal = contents.get_int64("cost_multiply_airterminal", -1);
 	if (new_cost_multiply_airterminal > 0) {
-		cst_multiply_airterminal = new_cost_multiply_airterminal * -100 * distance_per_tile;
+		cst_multiply_airterminal = (new_cost_multiply_airterminal * -100 * distance_per_tile).to_sint32();
 	}
 	// "mail" is auxiliary station buildings
 	sint64 new_cost_multiply_post = contents.get_int64("cost_multiply_post", -1);
 	if (new_cost_multiply_post > 0) {
-		cst_multiply_post = new_cost_multiply_post * -100 * distance_per_tile;
+		cst_multiply_post = (new_cost_multiply_post * -100 * distance_per_tile).to_sint32();
 	}
 
 	// Depots & HQ are a bit simpler because not adjusted for distance per tile (not distance based).
@@ -2591,26 +2631,26 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	sint64 new_cost_alter_land = contents.get_int64("cost_alter_land", -1);
 	if (new_cost_alter_land > 0)
 	{
-		cst_alter_land = new_cost_alter_land * -100 * distance_per_tile;
+		cst_alter_land = (new_cost_alter_land * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_reclaim_land = contents.get_int64("cost_reclaim_land", -1);
 	if (new_cost_reclaim_land > 0)
 	{
-		cst_reclaim_land = new_cost_reclaim_land * -100 * distance_per_tile;
+		cst_reclaim_land = (new_cost_reclaim_land * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_set_slope = contents.get_int64("cost_set_slope", -1);
 	if (new_cost_set_slope > 0) {
-		cst_set_slope = new_cost_set_slope * -100 * distance_per_tile;
+		cst_set_slope = (new_cost_set_slope * -100 * distance_per_tile).to_sint32();
 	}
 	// Remove trees.  Probably distance based (if we're clearing a long area).
 	sint64 new_cost_remove_tree = contents.get_int64("cost_remove_tree", -1);
 	if (new_cost_remove_tree > 0) {
-		cst_remove_tree = new_cost_remove_tree * -100 * distance_per_tile;
+		cst_remove_tree = (new_cost_remove_tree * -100 * distance_per_tile).to_sint32();
 	}
 	// Purchase land (often a house).  Distance-based, adjust for distance_per_tile.
 	sint64 new_cost_buy_land = contents.get_int64("cost_buy_land", -1);
 	if (new_cost_buy_land > 0) {
-		cst_buy_land = new_cost_buy_land * -100 * distance_per_tile;
+		cst_buy_land = (new_cost_buy_land * -100 * distance_per_tile).to_sint32();
 	}
 	// Delete house or field.  Both are definitely distance based.
 	// (You're usually trying to drive a railway line through a field.)
@@ -2619,11 +2659,11 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// with that game.  A save game can be changed using the override options.
 	sint64 new_cost_multiply_remove_haus = contents.get_int64("cost_multiply_remove_haus", -1);
 	if (new_cost_multiply_remove_haus > 0) {
-		cst_multiply_remove_haus = new_cost_multiply_remove_haus * -100 * distance_per_tile;
+		cst_multiply_remove_haus = (new_cost_multiply_remove_haus * -100 * distance_per_tile).to_sint32();
 	}
 	sint64 new_cost_multiply_remove_field = contents.get_int64("cost_multiply_remove_field", -1);
 	if (new_cost_multiply_remove_field > 0) {
-		cst_multiply_remove_field = new_cost_multiply_remove_field * -100 * distance_per_tile;
+		cst_multiply_remove_field = (new_cost_multiply_remove_field * -100 * distance_per_tile).to_sint32();
 	}
 
 	// Found city or industry chain.  Not distance based.
@@ -2712,6 +2752,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	always_prefer_car_percent = contents.get_int("always_prefer_car_percent", always_prefer_car_percent);
 	congestion_density_factor = contents.get_int("congestion_density_factor", congestion_density_factor);
 
+	for (uint8 i = 0; i < 10; i++) {
+		char str[256];
+		sprintf(str, "waytype_color[%i]", i);
+		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
+			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+		}
+	}
+
 	// Cornering settings
 	corner_force_divider[waytype_t(road_wt)] = contents.get_int("corner_force_divider_road", corner_force_divider[waytype_t(road_wt)]);
 	corner_force_divider[waytype_t(track_wt)] = contents.get_int("corner_force_divider_track", corner_force_divider[waytype_t(track_wt)]);
@@ -2734,7 +2782,14 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 
 	// @author: jamespetts
 	// Insolvency and debt settings
-	interest_rate_percent = contents.get_int("interest_rate_percent", interest_rate_percent);
+
+	sint16 interest_rate_percent = contents.get_int("interest_rate_percent", 0);
+	if (interest_rate_percent)
+	{
+		// Adapt legacy data.
+		overdraft_percent_above_base_rate = max(0, interest_rate_percent - 8);
+	}
+	overdraft_percent_above_base_rate = contents.get_int("overdraft_percent_above_base_rate", overdraft_percent_above_base_rate);
 	// Check for misspelled version
 	allow_insolvency = contents.get_int("allow_bankruptsy", allow_insolvency);
 	// Check for deprecated version
@@ -2932,6 +2987,17 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_route_tiles_to_process_in_a_step_paused_background = contents.get_int("max_route_tiles_to_process_in_a_step_paused_background", max_route_tiles_to_process_in_a_step_paused_background);
 
 	simplified_maintenance = contents.get_int("simplified_maintenance", simplified_maintenance);
+
+	min_layover_overhead_seconds = contents.get_int("min_layover_overhead_seconds", min_layover_overhead_seconds);
+	shunting_time_seconds = contents.get_int("shunting_time_seconds", shunting_time_seconds);
+
+	fuel_unit_cost_divider = contents.get_int("fuel_unit_cost_divider", fuel_unit_cost_divider);
+
+	if (fuel_unit_cost_divider == 0)
+	{
+		// Prevent divisions by zero
+		fuel_unit_cost_divider = 1;
+	}
 
 	// OK, this is a bit complex.  We are at risk of loading the same livery schemes repeatedly, which
 	// gives duplicate livery schemes and utter confusion.
@@ -3165,7 +3231,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	 */
 	disp_width  = contents.get_int_clamped("display_width",  disp_width,  0, 0x7FFF );
 	disp_height = contents.get_int_clamped("display_height", disp_height, 0, 0x7FFF );
-	fullscreen  = contents.get_int("fullscreen", fullscreen ) != 0;
+	fullscreen  = contents.get_int_clamped("fullscreen", fullscreen, 0, 2 );
 
 	with_private_paks = contents.get_int("with_private_paks", with_private_paks)!=0;
 
@@ -3481,9 +3547,6 @@ void settings_t::set_player_color_to_default(player_t* const player) const
 void settings_t::set_allow_routing_on_foot(bool value)
 {
 	allow_routing_on_foot = value;
-#ifdef MULTI_THREAD
-	world()->await_path_explorer();
-#endif
 	path_explorer_t::refresh_category(0);
 }
 
@@ -3523,6 +3586,23 @@ void settings_t::set_scale()
 	}
 }
 
+void settings_t::set_just_in_time(uint8 b){
+	if(using_fab_contracts(b) == using_fab_contracts()){
+		just_in_time=b;
+		return;
+	}
+	karte_ptr_t welt;
+	if(using_fab_contracts(b)){
+		welt->fab_init_contracts();
+		just_in_time=b;
+		return;
+	}
+	if(using_fab_contracts()){
+		welt->fab_remove_contracts();
+	}
+
+	just_in_time=b;
+}
 
 /**
  * Reload the linear interpolation tables for catering from the settings.
@@ -3626,33 +3706,44 @@ void settings_t::cache_comfort_tables() {
 // Returns *scaled* values.
 sint64 settings_t::get_forge_cost(waytype_t wt) const
 {
+	sint64 base_cost = 0;
 	switch(wt)
 	{
 	default:
 	case road_wt:
-		return (forge_cost_road * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_road * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case track_wt:
-		return (forge_cost_track * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_track * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case water_wt:
-		return (forge_cost_water * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_water * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case monorail_wt:
-		return (forge_cost_monorail * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_monorail * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case maglev_wt:
-		return (forge_cost_maglev * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_maglev * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case tram_wt:
-		return (forge_cost_tram * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_tram * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case narrowgauge_wt:
-		return (forge_cost_narrowgauge * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_narrowgauge * (sint64)meters_per_tile) / 1000ll;
+		break;
 
 	case air_wt:
-		return (forge_cost_air * (sint64)meters_per_tile) / 1000ll;
+		base_cost = (forge_cost_air * (sint64)meters_per_tile) / 1000ll;
+		break;
 	};
+
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), base_cost, infrastructure);
 }
 
 sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const
@@ -3686,7 +3777,118 @@ sint64 settings_t::get_parallel_ways_forge_cost_percentage(waytype_t wt) const
 	};
 }
 
+sint64 settings_t::get_maint_building() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), maint_building, buildings);
+}
+
+sint64 settings_t::get_cost_multiply_dock() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_dock, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_station() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_station, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_roadstop() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_roadstop, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_airterminal() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_airterminal, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_post() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_post, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_headquarter() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_headquarter, buildings);
+}
+
+sint64 settings_t::get_cost_depot_rail() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_rail, buildings);
+}
+
+sint64 settings_t::get_cost_depot_road() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_road, buildings);
+}
+
+sint64 settings_t::get_cost_depot_ship() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_ship, buildings);
+}
+
+sint64 settings_t::get_cost_depot_air() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_depot_air, buildings);
+}
+
+sint64 settings_t::get_cost_alter_land() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_alter_land, infrastructure);
+}
+
+sint64 settings_t::get_cost_reclaim_land() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_reclaim_land, infrastructure);
+}
+
+sint64 settings_t::get_cost_alter_climate() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_alter_climate, infrastructure);
+}
+
+sint64 settings_t::get_cost_set_slope() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_set_slope, infrastructure);
+}
+
+sint64 settings_t::get_cost_found_city() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_found_city, buildings);
+}
+
+sint64 settings_t::get_cost_multiply_found_industry() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_found_industry, buildings);
+}
+
+sint64 settings_t::get_cost_remove_tree() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_remove_tree, infrastructure);
+}
+
+sint64 settings_t::get_cost_multiply_remove_house() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_remove_haus, buildings);
+}
+
+sint64 settings_t::get_cost_mutliply_remove_field() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_multiply_remove_field, buildings);
+}
+
+sint64 settings_t::get_cost_transformer() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_transformer, buildings);
+}
+
+sint64 settings_t::get_cost_maintain_transformer() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), cst_maintain_transformer, buildings);
+}
+
 void settings_t::calc_job_replenishment_ticks()
 {
 	job_replenishment_ticks = ((1LL << bits_per_month) * (sint64)get_job_replenishment_per_hundredths_of_months()) / 100ll;
 }
+

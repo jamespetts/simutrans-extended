@@ -104,7 +104,7 @@ gui_factory_stats_t::gui_factory_stats_t(fabrik_t *fab) :
 
 	staffing_bar.add_color_value(&staff_shortage_factor, COL_CAUTION);
 	staffing_bar.add_color_value(&staffing_level, goods_manager_t::passengers->get_color());
-	staffing_bar.add_color_value(&staffing_level2, COL_STAFF_SHORTAGE);
+	staffing_bar.add_color_value(&staffing_level2, SYSCOL_STAFF_SHORTAGE);
 	staffing_bar.set_width(100);
 
 	update_table();
@@ -180,7 +180,7 @@ void gui_factory_stats_t::update_table()
 					add_component(&input_bar);
 				}
 				else {
-					new_component<gui_margin_t>(LINESPACE*6);
+					new_component<gui_margin_t>(LINESPACE*5);
 				}
 
 				add_component(&producing_status);
@@ -222,7 +222,7 @@ void gui_factory_stats_t::update_table()
 										FOR(array_tpl<ware_production_t>, const& material, storage_index ? fab->get_output() : fab->get_input()) {
 											goods_desc_t const* const ware = material.get_typ();
 											if (catg_index == ware->get_catg_index()) {
-												new_component<gui_colorbox_t>(ware->get_color())->set_size(scr_size(LINESPACE / 2 + 2, LINESPACE / 2 + 2));
+												new_component<gui_colorbox_t>(ware->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
 												gui_label_buf_t *lb = new_component<gui_label_buf_t>();
 												lb->buf().append(translator::translate( ware->get_name() ));
 												lb->buf().append(" ");
@@ -422,7 +422,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 			}
 			if (staff_shortage && !forwarding_score) {
 				// Is the reason why it's not working is staff shortage?
-				forwarding_status.set_color(COL_STAFF_SHORTAGE);
+				forwarding_status.set_color(SYSCOL_STAFF_SHORTAGE);
 			}
 			else {
 				forwarding_status.set_color(color_idx_to_rgb(severity_color[(forwarding_score+19)/20]));
@@ -439,7 +439,7 @@ void gui_factory_stats_t::update_operation_status(uint8 target_month)
 		const PIXVAL producing_status_color = color_idx_to_rgb(severity_color[avtivity_score]);
 		if (staff_shortage && !avtivity_score) {
 			// Is the reason why it's not working is staff shortage?
-			producing_status.set_color(COL_STAFF_SHORTAGE);
+			producing_status.set_color(SYSCOL_STAFF_SHORTAGE);
 		}
 		else {
 			producing_status.set_color(producing_status_color);

@@ -1,0 +1,59 @@
+name: msvc-build
+on:
+  workflow_call:
+    inputs:
+      backend:
+        required: false
+        type: string
+        default: posix
+      target:
+        required: false
+        type: string
+        default: simutrans
+      build_type:
+        required: false
+        type: string
+        default: Release
+      additional_dependencies:
+        required: false
+        type: string
+        default: ""
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Init variables
+        shell: bash
+        run: python ./.github/init_env.py "${{inputs.target}}" "${{inputs.backend}}" "${{inputs.build_type}}" "windows"
+
+      - name: Setup msbuild
+        uses: microsoft/setup-msbuild@v1.0.3
+      - name: Setup CMake 3.23.0
+        uses: lukka/get-cmake@v3.23.0
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v7
+        with:
+          vcpkgDirectory: '${{ github.workspace }}/build/vcpkg'
+          vcpkgArguments: '--disable-metrics zlib bzip2 libpng ${{inputs.additional_dependencies}}'
+          vcpkgGitCommitId: 9b22b40c6c61bf0da2d46346dd44a11e90972cc9
+          vcpkgTriplet: x64-windows-static
+
+      - name: Configure Simutrans
+        run: cmake .. -DSIMUTRANS_BACKEND=${{inputs.backend}} -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/build/vcpkg/scripts/buildsystems/vcpkg.cmake
+        working-directory: ${{ github.workspace }}/build
+      - name: Build Simutrans
+        run: cmake --build . --target ${{inputs.target}}-extended --config ${{inputs.build_type}}
+        working-directory: ${{ github.workspace }}/build
+
+      - name: Upload Artifact (CI)
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.st_artifact_name}}
+          path: ${{ github.workspace }}/${{env.st_artifact_path}}
+          if-no-files-found: error

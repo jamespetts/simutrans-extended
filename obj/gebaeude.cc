@@ -144,7 +144,7 @@ gebaeude_t::gebaeude_t(koord3d pos, player_t *player, const building_tile_desc_t
 		sint64 maint;
 		if (tile->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 		{
-			maint = welt->get_settings().maint_building*tile->get_desc()->get_level();
+			maint = welt->get_settings().get_maint_building() * tile->get_desc()->get_level();
 		}
 		else
 		{
@@ -281,7 +281,7 @@ gebaeude_t::~gebaeude_t()
 		sint64 maint;
 		if (tile->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 		{
-			maint = welt->get_settings().maint_building * tile->get_desc()->get_level();
+			maint = welt->get_settings().get_maint_building() * tile->get_desc()->get_level();
 		}
 		else
 		{
@@ -792,6 +792,32 @@ bool gebaeude_t::is_signalbox() const
 }
 
 
+uint32 gebaeude_t::get_tile_list( vector_tpl<grund_t *> &list ) const
+{
+	koord size = get_tile()->get_desc()->get_size( get_tile()->get_layout() );
+	const koord3d pos0 = get_pos() - get_tile()->get_offset(); // get origin
+	koord k;
+
+	list.clear();
+
+	// add all tiles
+	for( k.y = 0; k.y < size.y; k.y++ ) {
+		for( k.x = 0; k.x < size.x; k.x++ ) {
+			if( grund_t* gr = welt->lookup( pos0+k ) ) {
+				if( gebaeude_t* const add_gb = gr->find<gebaeude_t>() ) {
+					if( is_same_building( add_gb ) ) {
+						list.append( gr );
+					}
+				}
+			}
+		}
+	}
+
+	return list.get_count();
+}
+
+
+
 void gebaeude_t::show_info()
 {
 	if (get_fabrik()) {
@@ -1016,29 +1042,18 @@ void gebaeude_t::info(cbuffer_t & buf) const
 #endif
 		buf.printf("%s: %d\n", translator::translate("Mail demand/output"), get_adjusted_mail_demand());
 
-        buf.printf("%s: %s\n", translator::translate("Built in"), translator::get_year_month(purchase_time));
-
 		building_desc_t const& h = *tile->get_desc();
 
-		buf.printf("%s%u", translator::translate("\nBauzeit von"), h.get_intro_year_month() / 12);
-		if (h.get_retire_year_month() != DEFAULT_RETIRE_DATE * 12) {
-			buf.printf("%s%u", translator::translate("\nBauzeit bis"), h.get_retire_year_month() / 12);
-		}
 		buf.append("\n");
 		if (get_owner() == NULL) {
 			buf.append(translator::translate("Wert"));
 			buf.append(": ");
 			// The land value calculation below will need modifying if multi-tile city buildings are ever introduced.
-			sint64 cost = welt->get_settings().cst_multiply_remove_haus*2 * tile->get_desc()->get_level()*tile->get_desc()->get_size().x*tile->get_desc()->get_size().y;
+			sint64 cost = welt->get_settings().get_cost_multiply_remove_house() * 2 * tile->get_desc()->get_level() * tile->get_desc()->get_size().x * tile->get_desc()->get_size().y;
 			cost += welt->get_land_value(get_pos());
 			buf.append(-(cost/100.0),2);
 			buf.append("$\n");
 		}
-
-		if (char const* const maker = tile->get_desc()->get_copyright()) {
-			buf.printf(translator::translate("Constructed by %s"), maker);
-		}
-
 	}
 }
 
@@ -1435,9 +1450,9 @@ void gebaeude_t::finish_rd()
 {
 	calc_image();
 	sint64 maint = tile->get_desc()->get_maintenance();
-	if (maint == PRICE_MAGIC)
+	if (tile->get_desc()->get_base_maintenance() == PRICE_MAGIC)
 	{
-		maint = welt->get_settings().maint_building*tile->get_desc()->get_level();
+		maint = welt->get_settings().get_maint_building() * tile->get_desc()->get_level();
 	}
 	player_t::add_maintenance(get_owner(), maint, tile->get_desc()->get_finance_waytype());
 
@@ -1488,13 +1503,13 @@ void gebaeude_t::cleanup(player_t *player)
 
 	if (desc->is_transport_building() || desc->is_signalbox())
 	{
-		if (desc->get_price() != PRICE_MAGIC)
+		if (desc->get_base_price() != PRICE_MAGIC)
 		{
 			cost = -desc->get_price() / 2;
 		}
 		else
 		{
-			cost = welt->get_settings().cst_multiply_remove_haus * (desc->get_level());
+			cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().get_cost_multiply_remove_house() * (desc->get_level())), buildings);
 		}
 
 		// If the player does not own the building, the land is not bought by bulldozing, so do not add the purchase cost.
@@ -1522,7 +1537,7 @@ void gebaeude_t::cleanup(player_t *player)
 		if (desc->get_base_price() == PRICE_MAGIC)
 		{
 			if (desc->is_city_building()) {
-				cost = welt->get_settings().cst_multiply_remove_haus * desc->get_level();
+				cost = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().get_cost_multiply_remove_house() * (desc->get_level())), buildings);
 			}
 			else {
 				// TODO: find a way of checking what *kind* of stop that this is. This assumes railway.
@@ -1868,44 +1883,180 @@ void gebaeude_t::set_building_tiles()
 	}
 }
 
+
+/**
+ * Return a new minivec_tpl with the 2d coordinates of the neighboring tiles
+ * to this building, but not the corners.
+ *
+ * Caller should delete.
+ *
+ * Heavyweight: currently only used during construction of roads to new factories or attractions.
+ */
+const minivec_tpl<koord>* gebaeude_t::get_rectangular_neighbor_koords() {
+  const koord root_k = get_pos().get_2d();
+	const building_desc_t* bdsc = tile->get_desc();
+	const koord size = bdsc->get_size(tile->get_layout());
+	const sint16 how_many = 2 * (size.x + size.y);
+	minivec_tpl<koord>* result = new minivec_tpl<koord>(how_many);
+	// Top, left to right
+	for (sint16 x = 0; x < size.x; x++) {
+		const koord top_item = root_k + koord(x,-1);
+		result->append(top_item);
+	}
+	// Bottom, left to right
+	for (sint16 x = 0; x < size.x; x++) {
+		const koord bottom_item = root_k + koord(x,size.y);
+		result->append(bottom_item);
+	}
+	// Left, top to bottom
+	for (sint16 y = 0; y < size.y; y++) {
+		const koord left_item = root_k + koord(-1,y);
+		result->append(left_item);
+	}
+	// Right, top to bottom
+	for (sint16 y = 0; y < size.y; y++) {
+		const koord right_item = root_k + koord(size.x,y);
+		result->append(right_item);
+	}
+	return result;
+}
+
+
+/**
+ * Return a new minivec_tpl with the 2d coordinates of the neighboring tiles
+ * which are kitty-corner to this building.
+ *
+ * Caller should delete.
+ *
+ * Heavyweight: currently only used during construction of roads to new factories or attractions.
+ */
+const minivec_tpl<koord>* gebaeude_t::get_diagonal_neighbor_koords() {
+  const koord root_k = get_pos().get_2d();
+	const building_desc_t* bdsc = tile->get_desc();
+	const koord size = bdsc->get_size(tile->get_layout());
+	minivec_tpl<koord>* result = new minivec_tpl<koord>(4);
+
+	const koord top_left = root_k + koord(-1,-1);
+	const koord top_right = root_k + koord(size.x,-1);
+	const koord bottom_left = root_k + koord(-1,size.y);
+	const koord bottom_right = root_k + koord(size.x,size.y);
+	result->append(top_left);
+	result->append(top_right);
+	result->append(bottom_left);
+	result->append(bottom_right);
+	return result;
+}
+
+
 void gebaeude_t::connect_by_road_to_nearest_city()
 {
-	if (get_stadt())
-	{
-		// Assume that this is already connected to a road if in a city.
-		return;
-	}
-	koord3d start = get_pos();
-	koord k = start.get_2d();
-	grund_t* gr;
+	const koord root_k = get_pos().get_2d();
+
+	const building_desc_t* bdsc = tile->get_desc();
+	const koord size = bdsc->get_size(tile->get_layout());
+
+// We find a starting place: a road or empty space next to the factory/attraction/other building.
+	koord3d start;
 	bool start_found = false;
-	for (uint8 i = 0; i < 8; i++)
-	{
-		// Check for connected roads. Only roads in immediately neighbouring tiles
-		// and only those on the same height will register a connexion.
-		start = koord3d(k + k.neighbours[i], get_pos().z);
-		gr = welt->lookup(start);
-		if (!gr)
-		{
-			continue;
-		}
-		if ((!gr->hat_wege() || gr->get_weg(road_wt)) && !gr->get_building() && !gr->is_water())
-		{
-			start_found = true;
-			break;
+	const grund_t* gr;
+
+	// These are heavyweight but aren't called very often.  Need to delete the pointers when done.
+	const minivec_tpl<koord>* rectangular_neighbor_koords = get_rectangular_neighbor_koords();
+	const minivec_tpl<koord>* diagonal_neighbor_koords = get_diagonal_neighbor_koords();
+	// First look for a road on a rectangular side
+	if (!start_found) {
+		for (auto test_pos : *rectangular_neighbor_koords) {
+			// Only look for roads of the same height as building
+			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
+			gr = welt->lookup(test_pos_3d);
+			if (gr != NULL && gr->get_weg(road_wt)) {
+				start_found = true;
+				start = test_pos_3d;
+				break;
+			}
 		}
 	}
-	if (!start_found)
-	{
+	// Second: look for a road on a diagonal corner
+	if (!start_found) {
+		for (auto test_pos : *diagonal_neighbor_koords) {
+			// Only look for roads of the same height as building
+			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
+			gr = welt->lookup(test_pos_3d);
+			if (gr != NULL && gr->get_weg(road_wt)) {
+				start_found = true;
+				start = test_pos_3d;
+				break;
+			}
+		}
+	}
+	// Third: look for a blank space on a rectangular side
+	// But to keep it interesting, pick a random one to start with
+	if (!start_found) {
+		const int random_index = simrand(rectangular_neighbor_koords->get_count());
+		const koord & test_pos = (*rectangular_neighbor_koords)[random_index];
+		const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
+		gr = welt->lookup(test_pos_3d);
+		if (gr != NULL && !gr->hat_wege() && !gr->get_building() && !gr->is_water()) {
+			start_found = true;
+			start = test_pos_3d;
+		}
+	}
+	// One random try failed?  Don't overwork the random number engine:
+	// search systematically through the rectangular neighors.
+	if (!start_found) {
+		for (auto test_pos : *rectangular_neighbor_koords) {
+			// Only look for roads of the same height as building
+			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
+			gr = welt->lookup(test_pos_3d);
+			if (gr != NULL && !gr->hat_wege() && !gr->get_building() && !gr->is_water()) {
+				start_found = true;
+				start = test_pos_3d;
+				break;
+			}
+		}
+	}
+	// Fourth: try the diagonal neighbors if we absolutely must.
+	if (!start_found) {
+		for (auto test_pos : *diagonal_neighbor_koords) {
+			// Only look for roads of the same height as building
+			const koord3d test_pos_3d = koord3d (test_pos, get_pos().z);
+			gr = welt->lookup(test_pos_3d);
+			if (gr != NULL && !gr->hat_wege() && !gr->get_building() && !gr->is_water()) {
+				start_found = true;
+				start = test_pos_3d;
+				break;
+			}
+		}
+	}
+
+	// Clean up after ourselves, delete our minivec_t<koord> things
+	delete rectangular_neighbor_koords;
+	delete diagonal_neighbor_koords;
+
+	// At this point we should have found a starting point.
+	if (!start_found) {
+		// Nowhere to start from; give up.
 		return;
 	}
+
+	// Note: we do not assume that an industry/attraction in a city is already connected by road.
+	// This will allow us to find an industry location near a river in a city,
+	// and connect it by road to the townhall road *afterwards*.
 
 	// Next, find the nearest city
 	const uint32 rank_max = welt->get_settings().get_auto_connect_industries_and_attractions_by_road();
 	const uint32 max_road_length = env_t::networkmode ? 8192 : (uint32)env_t::intercity_road_length; // The env_t:: settings are not transmitted with network games so may diverge between client and server.
 	for (uint32 rank = 1; rank <= rank_max; rank++)
 	{
-		const stadt_t* city = welt->find_nearest_city(get_pos().get_2d(), rank);
+		const stadt_t* my_city;
+		const stadt_t* city;
+		if (rank == 1 && (my_city = get_stadt()) ) {
+			// Special-case the case where we're already IN a city
+			city = my_city;
+		} else {
+			// Otherwise find the closest
+			city = welt->find_nearest_city(get_pos().get_2d(), rank);
+		}
 		if (!city)
 		{
 			return;

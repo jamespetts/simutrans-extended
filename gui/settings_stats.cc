@@ -136,7 +136,17 @@ static const char *revision_ex[] =
 	"50",
 	"51",
 	"52",
-	"53"
+	"53",
+	"54",
+	"55",
+	"56",
+	"57",
+	"58",
+	"59",
+	"60",
+	"61",
+	"62",
+	"63"
 };
 
 
@@ -264,6 +274,20 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_NUM("do_not_record_private_car_routes_to_city_industries", sets->get_do_not_record_private_car_routes_to_city_industries(), 0, 65535, gui_numberinput_t::PLAIN, false);
 	INIT_BOOL("do_not_record_private_car_routes_to_distant_non_consumer_industries ", sets->get_do_not_record_private_car_routes_to_distant_non_consumer_industries());
 	INIT_BOOL("do_not_record_private_car_routes_to_city_buildings", sets->get_do_not_record_private_car_routes_to_city_buildings());
+	INIT_NUM("maintenance_interval_months", sets->get_maintenance_interval_months(), 1, 8192, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("extended_maintenance_interval_months", sets->get_extended_maintenance_interval_months(), 2, 8192, gui_numberinput_t::PLAIN, false);
+
+	SEPERATOR;
+
+	INIT_NUM("fuel_unit_cost_divider", sets->get_fuel_unit_cost_divider(), 1, 1000000, gui_numberinput_t::AUTOLINEAR, false);
+
+	INIT_NUM("min_layover_overhead_seconds", sets->get_min_layover_overhead_seconds(), 1, 100000000, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("shunting_time_seconds", sets->get_shunting_time_seconds(), 1, 100000, gui_numberinput_t::PLAIN, false);
+
+	SEPERATOR;
+
+	INIT_NUM("minimum_industry_input_storage_raw", sets->get_minimum_industry_input_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("minimum_industry_output_storage_raw", sets->get_minimum_industry_output_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
 
 	INIT_END
 }
@@ -376,6 +400,16 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->private_car_route_to_industry_visitor_demand_threshold);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_distant_non_consumer_industries);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_city_buildings);
+	READ_NUM_VALUE(sets->maintenance_interval_months);
+	READ_NUM_VALUE(sets->extended_maintenance_interval_months);
+
+	READ_NUM_VALUE(sets->fuel_unit_cost_divider);
+
+	READ_NUM_VALUE(sets->min_layover_overhead_seconds);
+	READ_NUM_VALUE(sets->shunting_time_seconds);
+
+	READ_NUM_VALUE(sets->minimum_industry_input_storage_raw);
+	READ_NUM_VALUE(sets->minimum_industry_output_storage_raw);
 
 	path_explorer_t::set_absolute_limits_external();
 }
@@ -390,14 +424,14 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	INIT_NUM("max_onward_trips", sets->get_max_onward_trips(), 0, 32, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("onward_trip_chance_percent", sets->get_onward_trip_chance_percent(), 0, 100, gui_numberinput_t::PROGRESS, false );
 	INIT_NUM("commuting_trip_chance_percent", sets->get_commuting_trip_chance_percent(), 0, 100, gui_numberinput_t::PROGRESS, false );
-	INIT_NUM( "max_alternative_destinations_visiting", sets->get_max_alternative_destinations_visiting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_commuting", sets->get_max_alternative_destinations_commuting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_per_visitor_demand_millionths", sets->get_max_alternative_destinations_per_visitor_demand_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "max_alternative_destinations_per_job_millionths", sets->get_max_alternative_destinations_per_job_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM("min_alternative_destinations_visiting", sets->get_min_alternative_destinations_visiting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_commuting", sets->get_min_alternative_destinations_commuting(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_per_visitor_demand_millionths", sets->get_min_alternative_destinations_per_visitor_demand_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
-	INIT_NUM("min_alternative_destinations_per_job_millionths", sets->get_min_alternative_destinations_per_job_millionths(), 0, 65534, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM( "max_alternative_destinations_visiting", sets->get_max_alternative_destinations_visiting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_commuting", sets->get_max_alternative_destinations_commuting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_per_visitor_demand_millionths", sets->get_max_alternative_destinations_per_visitor_demand_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "max_alternative_destinations_per_job_millionths", sets->get_max_alternative_destinations_per_job_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM("min_alternative_destinations_visiting", sets->get_min_alternative_destinations_visiting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_commuting", sets->get_min_alternative_destinations_commuting(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_per_visitor_demand_millionths", sets->get_min_alternative_destinations_per_visitor_demand_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("min_alternative_destinations_per_job_millionths", sets->get_min_alternative_destinations_per_job_millionths(), 0, 2147483647, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("passenger_max_wait", sets->get_passenger_max_wait(), 0, 311040, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("min_wait_airport", sets->get_min_wait_airport(), 0, 311040, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM("random_mode_commuting", sets->get_random_mode_commuting(), 0, 16, gui_numberinput_t::AUTOLINEAR, false );
@@ -833,7 +867,7 @@ void settings_economy_stats_t::init(settings_t const* const sets)
 	INIT_NUM( "ai_construction_speed", sets->get_default_ai_construction_speed(), 0, 1000000000, 1000, false );
 	SEPERATOR
 
-	INIT_NUM( "just_in_time", sets->get_just_in_time(), 0, 255, gui_numberinput_t::PLAIN, false );
+	INIT_NUM( "just_in_time", sets->get_just_in_time(), 0, 5, gui_numberinput_t::PLAIN, false );
 	INIT_NUM( "maximum_intransit_percentage", sets->get_factory_maximum_intransit_percentage(), 0, 32767, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_BOOL( "crossconnect_factories", sets->is_crossconnect_factories() );
 	INIT_NUM( "crossconnect_factories_percentage", sets->get_crossconnect_factor(), 0, 100, gui_numberinput_t::AUTOLINEAR, false );
@@ -891,7 +925,7 @@ void settings_economy_stats_t::read(settings_t* const sets)
 	READ_NUM_VALUE( sets->default_ai_construction_speed );
 	env_t::default_ai_construction_speed = sets->get_default_ai_construction_speed();
 
-	READ_NUM_VALUE( sets->just_in_time );
+	sets->set_just_in_time(GET_NUM_VALUE);
 	READ_NUM_VALUE( sets->factory_maximum_intransit_percentage );
 	READ_BOOL_VALUE( sets->crossconnect_factories );
 	READ_NUM_VALUE( sets->crossconnect_factor );
@@ -1047,7 +1081,7 @@ void settings_climates_stats_t::read(settings_t* const sets)
 	READ_NUM_VALUE_NEW( env_t::pak_height_conversion_factor );
 	READ_NUM_VALUE_NEW( sets->groundwater );
 	READ_NUM_VALUE_NEW( sets->max_mountain_height );
-	double n;
+	double n = 0.0;
 	READ_NUM_VALUE_NEW( n );
 	if(  new_world  ) {
 		sets->map_roughness = (n+8.0)/20.0;

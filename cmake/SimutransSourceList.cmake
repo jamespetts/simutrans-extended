@@ -4,7 +4,7 @@ target_sources(simutrans-extended PRIVATE
 	bauer/goods_manager.cc
 	bauer/hausbauer.cc
 	bauer/pier_builder.cc
-  bauer/tunnelbauer.cc
+	bauer/tunnelbauer.cc
 	bauer/tree_builder.cc
 	bauer/vehikelbauer.cc
 	bauer/wegbauer.cc
@@ -13,7 +13,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/fundament.cc
 	boden/grund.cc
 	boden/monorailboden.cc
-  boden/pier_deck.cc
+	boden/pier_deck.cc
 	boden/tunnelboden.cc
 	boden/wasser.cc
 	boden/wege/kanal.cc
@@ -25,6 +25,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/wege/strasse.cc
 	boden/wege/weg.cc
 	convoy.cc
+	dataobj/consist_order_t.cc
 	dataobj/crossing_logic.cc
 	dataobj/environment.cc
 	dataobj/freelist.cc
@@ -53,7 +54,7 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/ground_desc.cc
 	descriptor/image.cc
 	descriptor/obj_base_desc.cc
-  descriptor/pier_desc.cc
+	descriptor/pier_desc.cc
 	descriptor/reader/bridge_reader.cc
 	descriptor/reader/building_reader.cc
 	descriptor/reader/citycar_reader.cc
@@ -69,7 +70,7 @@ target_sources(simutrans-extended PRIVATE
 	descriptor/reader/obj_reader.cc
 	descriptor/reader/pedestrian_reader.cc
 	descriptor/reader/pier_reader.cc
-  descriptor/reader/roadsign_reader.cc
+	descriptor/reader/roadsign_reader.cc
 	descriptor/reader/root_reader.cc
 	descriptor/reader/sim_reader.cc
 	descriptor/reader/skin_reader.cc
@@ -112,7 +113,6 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_convoiinfo.cc
 	gui/components/gui_convoy_assembler.cc
 	gui/components/gui_convoy_formation.cc
-	gui/components/gui_convoy_label.cc
 	gui/components/gui_convoy_payloadinfo.cc
 	gui/components/gui_divider.cc
 	gui/components/gui_factory_storage_info.cc
@@ -123,6 +123,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
 	gui/components/gui_line_lettercode.cc
+	gui/components/gui_line_network.cc
 	gui/components/gui_map_preview.cc
 	gui/components/gui_numberinput.cc
 	gui/components/gui_obj_view_t.cc
@@ -136,8 +137,11 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_textarea.cc
 	gui/components/gui_textinput.cc
 	gui/components/gui_vehicle_capacitybar.cc
+	gui/components/gui_vehicle_cargoinfo.cc
+	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
+	gui/consist_order_gui.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc
 	gui/convoi_frame.cc
@@ -154,6 +158,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/fabrik_info.cc
 	gui/factory_chart.cc
 	gui/factory_edit.cc
+	gui/factory_legend.cc
 	gui/factorylist_frame_t.cc
 	gui/factorylist_stats_t.cc
 	gui/goods_frame_t.cc
@@ -174,7 +179,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/label_info.cc
 	gui/labellist_frame_t.cc
 	gui/labellist_stats_t.cc
-	gui/line_class_manager.cc
+	gui/linelist_stats_t.cc
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
@@ -195,7 +200,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/pakselector.cc
 	gui/password_frame.cc
 	gui/pier_rotation_select.cc
-  gui/player_frame_t.cc
+	gui/player_frame_t.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc
@@ -221,6 +226,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/trafficlight_info.cc
 	gui/vehiclelist_frame.cc
 	gui/vehicle_class_manager.cc
+	gui/vehicle_detail.cc
 	gui/water_info.cc
 	gui/way_info.cc
 	gui/welt.cc
@@ -257,7 +263,7 @@ target_sources(simutrans-extended PRIVATE
 	obj/label.cc
 	obj/leitung2.cc
 	obj/pier.cc
-  obj/pillar.cc
+	obj/pillar.cc
 	obj/roadsign.cc
 	obj/signal.cc
 	obj/simobj.cc
@@ -273,6 +279,7 @@ target_sources(simutrans-extended PRIVATE
 	player/finance.cc
 	player/simplay.cc
 	script/api/api_city.cc
+	script/api/api_command.cc
 	script/api/api_const.cc
 	script/api/api_control.cc
 	script/api/api_convoy.cc
@@ -284,6 +291,7 @@ target_sources(simutrans-extended PRIVATE
 	script/api/api_map_objects.cc
 	script/api/api_obj_desc_base.cc
 	script/api/api_obj_desc.cc
+	script/api/api_pathfinding.cc
 	script/api/api_player.cc
 	script/api/api_scenario.cc
 	script/api/api_schedule.cc
@@ -299,6 +307,7 @@ target_sources(simutrans-extended PRIVATE
 	script/dynamic_string.cc
 	script/export_objs.cc
 	script/script.cc
+	script/script_loader.cc
 	simcity.cc
 	simconvoi.cc
 	simdebug.cc
@@ -366,4 +375,5 @@ target_sources(simutrans-extended PRIVATE
 	vehicle/rail_vehicle.cc
 	vehicle/road_vehicle.cc
 	vehicle/water_vehicle.cc
+	world/terraformer.cc
 )

@@ -130,7 +130,12 @@ void checklist_t::print(cbuffer_t &buffer, const char *entity) const
 		buffer.printf("%s=[adler32=%08x]", entity, hash);
 	}
 	else {
-		buffer.printf("%s=[ss=%u st=%u nfc=%u  rand=%u halt=%u line=%u cnvy=%u\n\tssr=%u,%u,%u,%u,%u,%u,%u,%u\n\tstr=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n\texr=%u,%u,%u,%u,%u,%u,%u,%u\n\tsums=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",
+		// This string is split over several lines of code to avoid bugs caused by missing format specifiers
+		buffer.printf("%s=[ss=%u st=%u nfc=%u hash=%u rand=%u halt=%u line=%u cnvy=%u\n"
+			"\tssr=%u,%u,%u,%u,%u,%u,%u,%u\n"
+			"\tstr=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n"
+			"\texr=%u,%u,%u,%u,%u,%u,%u,%u\n"
+			"\tsums=%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",
 			entity, ss, st, nfc, hash, random_seed, halt_entry, line_entry, convoy_entry,
 			rand[0], rand[1], rand[2], rand[3], rand[4], rand[5], rand[6], rand[7],
 			rand[8], rand[9], rand[10], rand[11], rand[12], rand[13], rand[14], rand[15], rand[16], rand[17], rand[18], rand[19], rand[20], rand[21], rand[22], rand[23],

@@ -43,7 +43,7 @@ class gui_factory_connection_stat_t : public gui_world_component_t
 {
 private:
 	fabrik_t *fab;
-	vector_tpl<koord> fab_list; // connectable factory list(pos)
+	ware_link_iteratable_t fab_list; // connectable factory list(pos)
 	uint32 line_selected;
 
 	bool is_input_display; // which display is needed? - input or output

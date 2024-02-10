@@ -24,7 +24,7 @@
 
                                 // Ext|Std|Description
 enum line_cost_t {
-	LINE_CAPACITY = 0,          //  0 | 0 | the amount of ware that could be transported, theoretically
+	LINE_CAPACITY = 0,          //  0 |   | the distance (km) travelled by vacant seats
 	//LINE_TRANSPORTED_GOODS,   //    | 1 | the amount of ware that has been transported
 	LINE_PAX_DISTANCE,          //  1 |   | the distance (km) travelled by passenger
 	LINE_AVERAGE_SPEED,         //  2 |   | average speed of all convoys in the line
@@ -64,9 +64,24 @@ public:
 		MAX_LINE_TYPE
 	};
 
-	enum line_fireight_group { all_ftype = 0, all_pas = 1, all_mail = 2, all_freight = 3 };
+	enum line_fireight_group {
+		all_ftype = 0,
+		all_pas = 1,
+		all_mail = 2,
+		all_freight = 3
+	};
 
-	enum states { line_normal_state = 0, line_no_convoys = 1, line_loss_making = 2, line_nothing_moved = 4, line_overcrowded = 8, line_missing_scheduled_slots = 16, line_has_obsolete_vehicles = 32, line_has_upgradeable_vehicles = 64, line_has_stuck_convoy = 128	};
+	enum states {
+		line_normal_state             = 0,
+		line_no_convoys               = 1 << 0,
+		line_loss_making              = 1 << 1,
+		line_nothing_moved            = 1 << 2,
+		line_overcrowded              = 1 << 3,
+		line_missing_scheduled_slots  = 1 << 4,
+		line_has_obsolete_vehicles    = 1 << 5,
+		line_has_upgradeable_vehicles = 1 << 6,
+		line_has_stuck_convoy		  = 1 << 7
+	};
 
 	static const uint linetype_to_stationtype[simline_t::MAX_LINE_TYPE];
 
@@ -127,13 +142,6 @@ private:
 	 */
 	sint64 financial_history[MAX_MONTHS][MAX_LINE_COST];
 
-	/**
-	 * creates empty schedule with type depending on line-type
-	 */
-	void create_schedule();
-
-	void init_financial_history();
-
 	/*
 	 * whether the next convoy applied to this line should have its
 	 * reverse_schedule flag set. Only applies to bidirectional schedules.
@@ -158,11 +166,17 @@ private:
 	uint8 state;
 
 public:
+	// @author: jamespetts
+	uint32 rolling_average[MAX_LINE_COST];
+	uint16 rolling_average_count[MAX_LINE_COST];
+
+public:
 	simline_t(player_t *player, linetype type);
 	simline_t(player_t *player, linetype type, loadsave_t *file);
 
 	~simline_t();
 
+public:
 	linehandle_t get_handle() const { return self; }
 
 	/**
@@ -281,6 +295,9 @@ public:
 
 	void new_month();
 
+	// Returns bits of traction types that this line's vehicles have
+	uint16 get_traction_types() const;
+
 	linetype get_linetype() { return type; }
 
 	static waytype_t linetype_to_waytype(const linetype lt);
@@ -292,6 +309,8 @@ public:
 
 	const minivec_tpl<uint8> &get_goods_catg_index() const { return goods_catg_index; }
 
+	uint16 get_unique_fare_capacity(uint8 catg, uint8 g_class) const;
+
 	// recalculates the good transported by this line and (in case of changes) will start schedule recalculation
 	void recalc_catg_index();
 
@@ -299,11 +318,9 @@ public:
 
 	bool carries_this_or_lower_class(uint8 catg, uint8 g_class);
 
-	int get_replacing_convoys_count() const;
+	bool carries_this_category(uint8 catg_index) const;
 
-	// @author: jamespetts
-	uint32 rolling_average[MAX_LINE_COST];
-	uint16 rolling_average_count[MAX_LINE_COST];
+	int get_replacing_convoys_count() const;
 
 	//@author: jamespetts
 	bool has_overcrowded() const;
@@ -311,6 +328,9 @@ public:
 	bool needs_electrification() const;
 
 	uint16 get_min_range() const;
+
+	// for UI purpose
+	uint16 get_min_top_speed_kmh() const;
 
 	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
 
@@ -351,6 +371,15 @@ public:
 	sint64 calc_departures_scheduled();
 
 	void propagate_triggers(uint16 triggers, bool trigger_one_only);
+
+private:
+	/**
+	 * creates empty schedule with type depending on line-type
+	 */
+	void create_schedule();
+
+	void init_financial_history();
+
 };
 
 

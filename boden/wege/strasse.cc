@@ -130,158 +130,42 @@ void strasse_t::rdwr(loadsave_t *file)
 	else {
 		char bname[128];
 		file->rdwr_str(bname, lengthof(bname));
-		const way_desc_t *desc = way_builder_t::get_desc(bname);
+		const way_desc_t* desc = way_builder_t::get_desc(bname);
 
 		const way_desc_t* loaded_replacement_way = NULL;
-		if(file->get_extended_version() >= 12)
+		if (file->get_extended_version() >= 12)
 		{
 			char rbname[128];
 			file->rdwr_str(rbname, lengthof(rbname));
 			loaded_replacement_way = way_builder_t::get_desc(rbname);
 		}
 
-		const sint32 old_max_speed = get_max_speed();
+		// NOTE: The speed limit is set elsewhere since we do not have access to grund_t here.
 		const uint32 old_max_axle_load = get_max_axle_load();
 		const uint32 old_bridge_weight_limit = get_bridge_weight_limit();
-		if(desc==NULL) {
+		if (desc == NULL) {
 			desc = way_builder_t::get_desc(translator::compatibility_name(bname));
-			if(desc==NULL) {
+			if (desc == NULL) {
 				desc = default_strasse;
-				welt->add_missing_paks( bname, karte_t::MISSING_WAY );
+				welt->add_missing_paks(bname, karte_t::MISSING_WAY);
 			}
-			dbg->warning("strasse_t::rdwr()", "Unknown street %s replaced by %s (old_max_speed %i)", bname, desc->get_name(), old_max_speed );
+			dbg->warning("strasse_t::rdwr()", "Unknown street %s replaced by %s", bname, desc->get_name());
 		}
 
 		set_desc(desc, file->get_extended_version() >= 12);
+
 		if(file->get_extended_version() >= 12)
 		{
 			replacement_way = loaded_replacement_way;
 		}
 
-		if(old_max_speed > 0)
-		{
-			if (is_degraded() && old_max_speed == desc->get_topspeed())
-			{
-				// The maximum speed has to be reduced on account of the degridation.
-				if (get_remaining_wear_capacity() > 0)
-				{
-					set_max_speed(old_max_speed / 2);
-				}
-				else
-				{
-					set_max_speed(0);
-				}
-			}
-			else
-			{
-				set_max_speed(old_max_speed);
-			}
-		}
-		if(old_max_axle_load > 0)
+		if (old_max_axle_load > 0)
 		{
 			set_max_axle_load(old_max_axle_load);
 		}
-		if(old_bridge_weight_limit > 0)
+		if (old_bridge_weight_limit > 0)
 		{
 			set_bridge_weight_limit(old_bridge_weight_limit);
-		}
-		const grund_t* gr = welt->lookup(get_pos());
-		const bruecke_t *bridge = gr ? gr->find<bruecke_t>() : NULL;
-		const tunnel_t *tunnel = gr ? gr->find<tunnel_t>() : NULL;
-		const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
-
-		if(hang != slope_t::flat)
-		{
-			const uint slope_height = (hang & 7) ? 1 : 2;
-			if(slope_height == 1)
-			{
-				uint32 gradient_speed = desc->get_topspeed_gradient_1();
-				if (is_degraded())
-				{
-					if (get_remaining_wear_capacity() > 0)
-					{
-						gradient_speed /= 2;
-					}
-					else
-					{
-						gradient_speed = 0;
-					}
-				}
-				if(bridge)
-				{
-					set_max_speed(min(gradient_speed, bridge->get_desc()->get_topspeed_gradient_1()));
-				}
-				else if(tunnel)
-				{
-					set_max_speed(min(gradient_speed, tunnel->get_desc()->get_topspeed_gradient_1()));
-				}
-				else
-				{
-					set_max_speed(gradient_speed);
-				}
-			}
-			else
-			{
-				uint32 gradient_speed = desc->get_topspeed_gradient_2();
-				if (is_degraded())
-				{
-					if (get_remaining_wear_capacity() > 0)
-					{
-						gradient_speed /= 2;
-					}
-					else
-					{
-						gradient_speed = 0;
-					}
-				}
-				if(bridge)
-				{
-					set_max_speed( min(gradient_speed, bridge->get_desc()->get_topspeed_gradient_2()));
-				}
-				else if(tunnel)
-				{
-					set_max_speed(min(gradient_speed, tunnel->get_desc()->get_topspeed_gradient_2()));
-				}
-				else
-				{
-					set_max_speed(desc->get_topspeed_gradient_2());
-				}
-			}
-		}
-		else
-		{
-			if(bridge)
-				{
-					set_max_speed(min(desc->get_topspeed(), bridge->get_desc()->get_topspeed()));
-				}
-			else if(tunnel)
-				{
-					set_max_speed(min(desc->get_topspeed(), tunnel->get_desc()->get_topspeed()));
-				}
-			else if (old_max_speed == 0)
-			{
-				if (is_degraded())
-				{
-					// The maximum speed has to be reduced on account of the degridation.
-					if (get_remaining_wear_capacity() > 0)
-					{
-						set_max_speed(desc->get_topspeed() / 2);
-					}
-					else
-					{
-						set_max_speed(0);
-					}
-				}
-				else
-				{
-					set_max_speed(desc->get_topspeed());
-				}
-			}
-		}
-
-		if(hat_gehweg() && desc->get_wtyp() == road_wt)
-		{
-			set_max_speed(min(get_max_speed(), 50));
 		}
 	}
 }
@@ -342,4 +226,15 @@ ribi_t::ribi strasse_t::get_ribi() const {
 void strasse_t::rotate90() {
 	weg_t::rotate90();
 	ribi_mask_oneway = ribi_t::rotate90( ribi_mask_oneway );
+}
+
+
+void strasse_t::display_overlay(int xpos, int ypos) const
+{
+	if (!skinverwaltung_t::ribi_arrow  &&  show_masked_ribi && overtaking_mode <= oneway_mode) {
+		const int raster_width = get_current_tile_raster_width();
+		const grund_t* gr = welt->lookup(get_pos());
+		uint8 dir = get_ribi() ? ribi_t::backward(get_ribi()):0;
+		display_signal_direction_rgb(xpos + ((raster_width*5)>>3), ypos + ((raster_width*5)>>3), get_current_tile_raster_width(), get_ribi_unmasked(), dir, 253, is_diagonal(), ribi_t::all, gr->get_weg_hang());
+	}
 }

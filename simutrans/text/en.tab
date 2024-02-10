@@ -3435,7 +3435,7 @@ Size (%d MB):
 4extern
 %s outer %s
 4LIGHT_CHOOSE
-Scroll Inverse
+Retro scrolling
 5center
 %s transfer %s
 5LIGHT_CHOOSE
@@ -3485,7 +3485,7 @@ Freight planes
 Airport
 Airport
 AIRTOOLS
-Airport Tools
+Air transport tools
 All
 All
 Allow player change
@@ -3759,7 +3759,7 @@ Attraction list
 Currently playing:
 Playing:
 Das Feld gehoert\neinem anderen Spieler\n
-This land is not available to purchase.\n\nIt may be owned by another player or be a public building or object.
+This land is not available to purchase or be used.\n\nIt may be owned by another player or be a public building or object.
 December
 December
 Deccelerate time
@@ -3883,7 +3883,7 @@ Freight
 Frame time:
 Frame Time:
 Free Capacity
-Free capacity
+Spare passenger km
 Friction:
 Current friction:
 fuel_cell
@@ -3921,7 +3921,7 @@ Go to depot
 Goods list
 Goods list
 Gross Profit
-Cash Flow
+Gross profit
 Grow city
 Grow city
 Growth
@@ -4077,7 +4077,7 @@ Map legend
 MAGLEVTOOLS
 Maglev tools
 NARROWGAUGETOOLS
-Narrow gauge tools
+Narrow gauge railway tools
 Leistung
 Power
 Leistung: %d kW
@@ -4273,7 +4273,7 @@ Total liquid assets
 Total assets less total liabilities
 Total assets less total liabilities
 Total income less total expenditure
-Total income less total expenditure
+total income less operating and capital expenditure (but not deducting interest or tax)
 Operating revenue less operating expenditure
 Operating revenue less operating expenditure
 Percentage of revenue retained as profit
@@ -4521,7 +4521,7 @@ Sound volume:
 special freight
 Special Freight
 SPECIALTOOLS
-Special Construction Tools
+Special tools
 Speedlimit
 Speed limit
 Speichern
@@ -4625,7 +4625,7 @@ Trolleybuses
 Trams are not available yet!
 Trams are not yet available.
 TRAMTOOLS
-Trams/light rail tools
+Tramway tools
 Travelled
 Transported
 Travellers now\nuse %s's\nbusses between\n%s \nand %s.\n
@@ -4767,7 +4767,7 @@ Hide all buildings
 \nBauzeit bis
  until 
 \nBauzeit von
-\nAppears from 
+Appears from 
 \nCan't open heightfield file.\n
 \nCannot open height map.\n
 \ndirection:
@@ -4827,7 +4827,7 @@ Destinations
 Passenger destinations
 Passenger destinations
 The main game window can be scrolled by right-clicking and dragging the ground.
-The main game window can be scrolled by clicking and dragging the ground.
+Scrolling in the main game window is effected by moving the mouse in the direction in which you want to scroll, as in some classic tycoon games.
 Pedestrians will appear near stops whenver a passenger vehicle unloads there.
 Pedestrians will appear near stops whenver a passenger vehicle unloads there.
 Pedestrians will appear randomly in towns.
@@ -4893,9 +4893,9 @@ Settings
 remove channels
 Remove waterways
 replace all in line
-Replace all in line
+Replace all of this type in line
 replace all
-Replace all
+Replace all of this type
 Abspanntransformator
 Downstream substation
 Aufspanntransformator
@@ -5061,7 +5061,7 @@ Lakes
 The percentage of passengers transported in the region overall
 The percentage of intending passengers making successful journeys in the region overall
 Spacing cnv/month, shift
-Departures/month; shift
+Departures/year
 #-----------------------------
 #-- Signals working methods:--
 drive_by_sight
@@ -5285,15 +5285,15 @@ This way cannot be used by any vehicle.
 km/h
 km/h
 (speed_restricted_by_tunnel)
-(The speed is restricted by the tunnel)
+The speed is restricted by the tunnel
 (speed_restricted_by_bridge)
-(The speed is restricted by the bridge)
+The speed is restricted by the bridge
 (speed_restricted_by_wayobj)
-(The speed is limited by a way asset)
+The speed is limited by a way asset
 (speed_restricted_by_city)
-(The speed is limited on account of being in a built-up area)
+The speed is limited on account of being in a built-up area
 (speed_restricted_by_degradation)
-(The speed is limited because this way is degraded)
+The speed is limited because this way is degraded
 runway_36/18
 Runway 36/18
 runway_09/27
@@ -6404,6 +6404,10 @@ Path Remove
 Remove path
 Flatten Path
 Flatten path
+\nMUST USE: 
+MUST USE:
+\nMAY USE: 
+MAY USE:
 Low bridge
 Low bridge/tunnel
 Depth Limit
@@ -6432,3 +6436,265 @@ Sub-Way
 beneath way cost
 Half Height
 low height
+remove signal
+Remove signal
+Map Editing Tools
+Map editing tools
+\nMUST USE: 
+MUST USE:
+\nMAY USE: 
+MAY USE:
+comfort_chart
+Comfort chart
+fare_management_by_vehicle
+By vehicle
+fare_management_by_accommo
+By accommodation
+hlptxt_vh_normal_state
+Ready and available
+need to connect vehicle
+Coupling required
+out of production
+No longer in production
+become obsolete
+Obsolete
+cannot select
+Cannot be selected
+lack of money
+Cannot afford this
+axle weight is excessive
+Exceeds axle weight limit
+appears only in upgrades
+Only available as an upgrade
+cannot upgrade
+Cannot upgrade
+Only this convoy
+Only this convoy
+(Max. comfortable journey time: 
+Max. comfortable journey time: 
+switch_spec_display_mode
+Show 
+basic_spec
+Specifications
+secondary_spec
+Livery schemes
+Do not add vehicles over maximum length!
+Maximum length reached
+line_network
+Network diagram
+Unproductive: %d Mo.
+Unproductive: %d Mo.
+Contractless: %d Mo.
+Missing contracts: %d Mo.
+bt_pickup_only
+Pickup only
+bt_setdown_only
+Set down only
+bt_discharge_payload
+Discharge payload
+enable_speed_limit
+Enable speed limit
+lay_over
+Lay over
+force_range_stop
+Force range stop
+ignore_choose_on_arrival
+Ignore choose signal on arrival
+wait_for_trigger
+Wait for trigger
+broadcast_trigger_on_arrival
+Broadcast trigger on arrival
+modify_consist
+Modify consist at this stop
+time shift
+Time offset
+help_txt_departure_time_shift
+Use the time offset so that services do not all arrive/leave at the same time.
+help_txt_departure_per_month
+Use this to schedule the frequency of services. The editable number is the number of departures per year; the clock time is the frequency.
+if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
+If this is set, the consist will enter a layover state at this stop.
+if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop
+If this is set, the consist will always replenish at this stop.
+help_txt_pickup_only
+If this is set, goods/mail/passengers will be able to load but not unload at this stop.
+help_txt_setdown_only
+If this is set, goods/mail/passengers will be able to unload but not load at this stop.
+help_txt_discharge_payload
+If this is set, all goods/mail/passengers must alight/be discharged at this stop.
+help_txt_speed_limit_between_two_points
+Limit the speed of this consist on this part of its schedule to save fuel or even out the service
+modify_the_consist_at_this_schedule_entry
+Open a window to set detailed options automatically to modify this consist at this point in its schedule
+consist_order
+Modify consist at this stop
+limit_to_same_vehicle
+Same type only
+copy_consist_order
+Copy consist order
+open_consist_filter_option
+Consist filter options
+Set the order of this consist to the selected order
+Set the order of this consist to the selected order
+Limited to the same vehicle
+Limit to the same type of vehicle
+filter_halt_consist
+This stop only
+filter_single_vehicle_consist
+Multi-vehicle consists only
+Narrow down to consists that use this stop
+Include only consists that use this stop
+Exclude consists made up of one vehicle
+Exclude consists made up of only one vehicle
+Consist copier
+Copy consist
+Vehicle picker
+Pick vehicles
+since_last_overhaul
+kM since last overhaul
+auto_upgrade_to
+Auto upgrade to
+skip_depot_visit
+Skip depot visit
+principal_spec
+Main
+engine_type
+Traction type
+replenishment_seconds
+Time to replenish
+curb_weight
+Tare weight
+show_sideview
+Show images
+convoy_value
+Consist total
+Car no.
+Vehicle no.
+payload_spec
+Payload
+mixed_load_prohibition
+Prohibit mixed loads
+min_loading_time
+Min. loading time
+max_loading_time
+Max. loading time
+maintenance_spec
+Maintenance
+car_age_in_month
+Age (months)
+can_upgrade
+Upgrade available
+maintenance_interval
+Maintenance interval
+max_overhauls_interval
+Overhaul interval
+initial_overhaul_cost
+Overhaul cost (initial)
+Staffing Needs
+Staff cost
+equipments
+Infrastructure
+do_not_overhaul
+Do not overhaul
+do_not_auto_upgrade
+Do not auto upgrade
+Select a target order!
+Select a target order first
+desc_editor
+Vehicle rules
+show_only_appendable
+Hide incompatible vehicles
+info_depth_from:
+Detail (origin)
+info_depth_to:
+Detail (destination)
+separate_by_fare_class
+Divide by accommodation class
+divide_by_wealth_class
+Divide by wealth and type
+Destination halt
+Destination stop
+Loaded stop
+Loaded stop
+Origin stop
+Origin stop
+Boarding from:
+Boarded from:
+Loaded at:
+Loaded at:
+Origin:
+Origin:
+origin
+origin
+Shipped from:
+Shipped from:
+Separate cargo information display by fare class of this convoy.
+Divide the payload information display into categories by accommodation class
+Cargoes are divided and displayed according to the wealth class.
+Divide the payload information display into categories by wealth (passengers) or priority (mail), and also passengers' trip types
+hd_sv_mode_frequency
+Show frequency
+hd_sv_mode_catg
+Show category
+hd_sv_mode_route
+Show route
+replace_line_convoys
+Replace vehicles
+helptxt_replace_all_convoys_of_this_line
+Replace all convoys in this line, no matter the type, with a specified type of convoy
+multiline_helptext_replace_all_line_convoys
+Replace all convoys in this line
+error_text_invalid_replace_cycle
+Invalid replacement cycle
+line_has_multiple_traction_types
+The line has multiple traction types
+helptxt_warning_replacing_line_has_multiple_traction_types
+Because this line has vehicles of different traction types, only those with a matching type to the replacement vehicles will be replaced. 
+km/L
+units
+cl_btn_sort_range
+Range
+show_name
+Name
+show_side_view
+Image
+vehicle_details
+Detailed vehicle information
+TF_
+Tractive effort
+Status filter(count):
+Status filter (count):
+upgrade_only
+Show vehicles only available as an upgrade
+filter_line_consist
+This line only
+layover
+Layover
+shunting
+Shunting
+helptxt_no_layover_enabled_at_stop
+Cannot layover here: stop lacks layover facilities
+fuel_cost
+Fuel cost:
+staff_cost
+Staff cost:
+availability
+Availability: 
+engine_type
+Traction type
+TF_
+Tractive effort
+curb_weight
+Weight
+Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected.
+Industry: %s in %s has been upgraded to industry: %s.
+Industry: %s in %s has been upgraded to industry: %s.
+Industry: %s near to %s has been upgraded to industry: %s.
+Industry: %s near to %s has been upgraded to industry: %s.
+New shipping destination added to Factory %s in %s for %s.
+New shipping destination added to Factory %s in %s for %s.
+New shipping destination added to Factory %s (near to %s) for %s.
+New shipping destination added to Factory %s (near to %s) for %s.

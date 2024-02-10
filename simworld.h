@@ -19,6 +19,8 @@
 #include "tpl/slist_tpl.h"
 #include "tpl/koordhashtable_tpl.h"
 
+#include "descriptor/vehicle_desc.h"
+
 #include "dataobj/settings.h"
 #include "network/pwd_hash.h"
 #include "dataobj/loadsave.h"
@@ -61,6 +63,7 @@ class goods_desc_t;
 class memory_rw_t;
 class viewport_t;
 class loadingscreen_t;
+class terraformer_t;
 
 
 #define CHK_RANDS 32
@@ -104,17 +107,74 @@ class loadingscreen_t;
 // (But much of this code is adapted from the speed bonus code,
 // written by Prissi).
 
+enum price_type : uint8 {
+	general,
+	passenger_fare,
+	mail_rate,
+	goods_rate,
+	vehicle_purchase,
+	vehicle_maintenance,
+	buildings,
+	infrastructure,
+	city_land,
+	country_land,
+	corporation_tax,
+	base_rate,
+	MAX_PRICE_TYPE
+};
+
 class car_ownership_record_t
 {
 public:
 	sint64 year;
 	sint16 ownership_percent;
+
 	car_ownership_record_t( sint64 y = 0, sint16 ownership = 0 )
 	{
 		year = y * 12;
 		ownership_percent = ownership;
 	};
 };
+
+class staff_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 salary; // Per game month, but using the short time scale, so scaled
+
+	staff_cost_record_t(sint64 y = 0, sint64 sal = 0)
+	{
+		year = y * 12;
+		salary = sal;
+	};
+};
+
+class fuel_cost_record_t
+{
+public:
+	sint64 year;
+	sint64 cost; // Per unit defined by the pakset
+
+	fuel_cost_record_t(sint64 y = 0, sint64 cst = 0)
+	{
+		year = y * 12;
+		cost = cst;
+	};
+};
+
+class price_record_t
+{
+public :
+	sint64 year;
+	uint32 index; // A figure in % defining the index of the price. 100% = same price as in .dat files
+
+	price_record_t(sint64 y = 0, uint32 idx = 0)
+	{
+		year = y * 12;
+		index = idx;
+	}
+};
+
 
 class transferring_cargo_t
 {
@@ -144,6 +204,49 @@ class karte_t
 	friend class karte_ptr_t; // to access the single instance
 
 	static karte_t* world; ///< static single instance
+
+	static const char* get_price_type_string(uint8 uv8)
+	{
+		switch (uv8)
+		{
+		default:
+		case price_type::general:
+			return "general";
+
+		case price_type::passenger_fare:
+			return "passenger fare";
+
+		case price_type::mail_rate:
+			return "mail rate";
+
+		case price_type::goods_rate:
+			return "goods rate";
+
+		case price_type::vehicle_purchase:
+			return "vehicle purchase";
+
+		case price_type::vehicle_maintenance:
+			return "vehicle maintenance";
+
+		case price_type::buildings:
+			return "buildings";
+
+		case price_type::infrastructure:
+			return "infrastructure";
+
+		case price_type::city_land:
+			return "city land";
+
+		case price_type::country_land:
+			return "country land";
+
+		case price_type::corporation_tax:
+			return "corporation tax";
+
+		case price_type::base_rate:
+			return "base rate";
+		}
+	}
 
 public:
 	/**
@@ -402,55 +505,7 @@ private:
 	 */
 	interaction_t *eventmanager;
 
-	/**
-	 * Checks whether the heights of the corners of the tile at (@p x, @p y) can be raised.
-	 * If the desired height of a corner is lower than its current height, this corner is ignored.
-	 * @param player player who wants to lower
-	 * @param x coordinate
-	 * @param y coordinate
-	 * @param keep_water returns false if water tiles would be raised above water
-	 * @param hsw desired height of sw-corner
-	 * @param hse desired height of se-corner
-	 * @param hne desired height of ne-corner
-	 * @param hnw desired height of nw-corner
-	 * @returns NULL if raise_to operation can be performed, an error message otherwise
-	 */
-	const char* can_raise_to(const player_t* player, sint16 x, sint16 y, bool keep_water, bool allow_deep_water, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw) const;
-
-	/**
-	 * Raises heights of the corners of the tile at (@p x, @p y).
-	 * New heights for each corner given.
-	 * @pre can_raise_to should be called before this method.
-	 * @see can_raise_to
-	 * @returns count of full raise operations (4 corners raised one level)
-	 * @note Clear tile, reset water/land type, calc minimap pixel.
-	 */
-	int  raise_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-
-	/**
-	 * Checks whether the heights of the corners of the tile at (@p x, @p y) can be lowered.
-	 * If the desired height of a corner is higher than its current height, this corner is ignored.
-	 * @param player player who wants to lower
-	 * @param x coordinate
-	 * @param y coordinate
-	 * @param hsw desired height of sw-corner
-	 * @param hse desired height of se-corner
-	 * @param hne desired height of ne-corner
-	 * @param hnw desired height of nw-corner
-	 * @returns NULL if lower_to operation can be performed, an error message otherwise
-	 */
-	const char* can_lower_to(const player_t* player, sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw, bool allow_deep_water) const;
-
-	/**
-	 * Lowers heights of the corners of the tile at (@p x, @p y).
-	 * New heights for each corner given.
-	 * @pre can_lower_to should be called before this method.
-	 * @see can_lower_to
-	 * @returns count of full lower operations (4 corners lowered one level)
-	 * @note Clear tile, reset water/land type, calc minimap pixel.
-	 */
-	int  lower_to(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-
+public:
 	/**
 	 * Raise grid point (@p x,@p y). Changes grid_hgts only, used during map creation/enlargement.
 	 * @see clean_up
@@ -463,6 +518,7 @@ private:
 	 */
 	void lower_grid_to(sint16 x, sint16 y, sint8 h);
 
+private:
 	/**
 	 * The fractal generation of the map is not perfect.
 	 * cleanup_karte() eliminates errors.
@@ -628,7 +684,7 @@ private:
 	 * Current accumulated month number, counting January of year 0 as 0.
 	 * @note last_month + (last_year*12);
 	 */
-	sint32 current_month;
+	sint32 current_month = 0;
 
 	/**
 	 * Last month 0..11
@@ -986,6 +1042,12 @@ public:
 
 	static void privatecar_init(const std::string &objfilename);
 
+	static void staff_init(const std::string &objfilename);
+
+	static void fuel_init(const std::string &objfilename);
+
+	static void prices_init(const std::string& objfilename);
+
 private:
 
 	static const sint16 default_car_ownership_percent = 25;
@@ -996,7 +1058,37 @@ private:
 	sint16 get_private_car_ownership(sint32 monthyear, uint8 g_class) const;
 	void privatecar_rdwr(loadsave_t *file);
 
+	// A hashtable, indexed by staff type number, of vectors containing temporally interpolated salary amounts for each type of staff.
+	typedef vector_tpl<staff_cost_record_t> staff_cost_map;
+	static inthashtable_tpl<uint8, staff_cost_map, N_BAGS_MEDIUM> salaries;
+
+	void staff_rdwr(loadsave_t* file);
+
 public:
+
+	sint64 get_staff_salary(sint32 monthyear, uint8 staff_type) const;
+
+private:
+
+	// This is an array of fuel costs per traction type.
+	static vector_tpl<fuel_cost_record_t> fuel[vehicle_desc_t::MAX_TRACTION_TYPE];
+
+	void fuel_rdwr(loadsave_t* file);
+
+public:
+
+	sint64 get_fuel_cost(sint32 monthyear, uint8 engine_type) const;
+
+private:
+
+	// This is an array of indexed prices in % per price type
+	static vector_tpl<price_record_t> prices[MAX_PRICE_TYPE];
+
+	void prices_rdwr(loadsave_t* file);
+
+public:
+
+	sint64 get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const;
 
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }
@@ -1011,6 +1103,7 @@ public:
 	void announce_server(int status);
 
 	vector_tpl<fabrik_t*> closed_factories_this_month;
+	weighted_vector_tpl<fabrik_t*> should_close_factories_this_month;
 
 	/// cache the current maximum and minimum height on the map
 	sint8 max_height, min_height;
@@ -1839,10 +1932,12 @@ private:
 public:
 	void flood_to_depth(sint8 new_water_height, sint8 *stage);
 
+	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended, bool called_from_api );
+
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
 	 */
-	void set_tool( tool_t *tool_in, player_t * player );
+	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b, false); }
 
 	/**
 	 * Set a new tool on our client, calls init.
@@ -1857,13 +1952,16 @@ public:
 	const char* call_work(tool_t *t, player_t *pl, koord3d pos, bool &suspended);
 
 	/**
-	 * Returns the (x,y) map size.
-	 * @brief Map size.
+	 * Returns the size in tiles of the map.
 	 * @note Valid coords are (0..x-1,0..y-1)
 	 * @note These values are exactly one less then get_grid_size ones.
 	 * @see get_grid_size()
 	 */
 	inline koord const &get_size() const { return cached_grid_size; }
+
+	/// Returns the maximum possible index when accessing tiles.
+	/// Valid tiles are in the range (0..x, 0..y)
+	inline koord get_max_tile_index() const { return cached_size; }
 
 	/**
 	 * Maximum size for waiting bars etc.
@@ -2030,7 +2128,7 @@ public:
 	}
 
 
-private:
+public:
 	/**
 	 * @return grund at the bottom (where house will be build)
 	 * @note Inline because called very frequently! - nocheck for more speed
@@ -2072,6 +2170,13 @@ public:
 	inline void decrease_actual_industry_density(uint32 value) { actual_industry_density -= value; }
 	inline void increase_actual_industry_density(uint32 value) { actual_industry_density += value; }
 
+	/**
+	 * Calls the work method of the tool.
+	 * Takes network and scenarios into account.
+	 * (There is the flags for scripted calls in the tool structure, but it seems not used so far?!)
+	 */
+	const char *call_work_api(tool_t *t, player_t *pl, koord3d pos, bool &suspended, bool called_from_api);
+
 	 /**
 	  * Initialize map.
 	  * @param sets Game settings.
@@ -2101,18 +2206,6 @@ public:
 	extended_version_t load_version;
 
 	/**
-	 * Checks if the planquadrat (tile) at coordinate (x,y)
-	 * can be lowered at the specified height.
-	 */
-	const char* can_lower_plan_to(const player_t *player, sint16 x, sint16 y, sint8 h) const;
-
-	/**
-	 * Checks if the planquadrat (tile) at coordinate (x,y)
-	 * can be raised at the specified height.
-	 */
-	const char* can_raise_plan_to(const player_t *player, sint16 x, sint16 y, sint8 h) const;
-
-	/**
 	 *Checks if the whole planquadrat (tile) at coordinates (x,y) height can
 	 * be changed ( for example, water height can't be changed ).
 	 */
@@ -2133,72 +2226,6 @@ public:
 	// mostly used by AI: Ask to flatten a tile
 	bool can_flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false);
 	bool flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false, bool justcheck=false);
-
-	/**
-	 * Class to manage terraform operations.
-	 * Can be used for raise only or lower only operations, but not mixed.
-	 */
-	class terraformer_t {
-		/// Structure to save terraforming operations
-		struct node_t {
-			sint16 x;    ///< x-coordinate
-			sint16 y;    ///< y-coordinate
-			sint8  h[4]; ///< height of corners, order: sw se ne nw
-			uint8  changed;
-
-			node_t(sint16 x_, sint16 y_, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw, uint8 c)
-			: x(x_), y(y_), changed(c) { h[0]=hsw; h[1]=hse; h[2]=hne; h[3]=hnw; }
-
-			node_t() : x(-1), y(-1), changed(0) {}
-
-			/// compares position
-			bool operator== (const node_t& a) const { return (a.x==x)  && (a.y==y); }
-
-			/// compares position
-			static bool comp(const node_t& a, const node_t& b);
-		};
-
-		vector_tpl<node_t> list; ///< list of affected tiles
-		uint8 actual_flag;       ///< internal flag to iterate through list
-		bool ready;              ///< internal flag to signal iteration ready
-		karte_t* welt;
-
-		void add_node(bool raise, sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-	public:
-		terraformer_t(karte_t* w) { init(); welt = w; }
-
-		void init() { list.clear(); actual_flag = 1; ready = false; }
-
-		/**
-		 * Add tile to be raised.
-		 */
-		void add_raise_node(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-
-		/**
-		 * Add tile to be lowered.
-		 */
-		void add_lower_node(sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-
-		/**
-		 * Generate list of all tiles that will be affected.
-		 */
-		void iterate(bool raise);
-
-		/// Check whether raise operation would succeed
-		const char* can_raise_all(const player_t *player, bool allow_deep_water, bool keep_water=false) const;
-		/// Check whether lower operation would succeed
-		const char* can_lower_all(const player_t *player, bool allow_deep_water) const;
-
-		/// Do the raise operations
-		int raise_all();
-		/// Do the lower operations
-		int lower_all();
-	};
-
-private:
-	/// Internal functions to be used with terraformer_t to propagate terrain changes to neighbouring tiles
-	void prepare_raise(terraformer_t& digger, sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
-	void prepare_lower(terraformer_t& digger, sint16 x, sint16 y, sint8 hsw, sint8 hse, sint8 hne, sint8 hnw);
 
 public:
 
@@ -2237,6 +2264,10 @@ public:
 	fabrik_t* get_fab(unsigned index) const { return index < fab_list.get_count() ? fab_list[index] : NULL; }
 	const vector_tpl<fabrik_t*>& get_fab_list() const { return fab_list; }
 	vector_tpl<fabrik_t*>& access_fab_list() { return fab_list; }
+
+	void fab_init_contracts();
+	void fab_remove_contracts();
+
 
 	/**
 	 * Returns a list of goods produced by factories that exist in current game.
@@ -2296,6 +2327,7 @@ public:
 	void step();
 
 	/// Tasks undertaken by a server when paused
+public:
 	void pause_step();
 
 //private:
@@ -2336,12 +2368,13 @@ public:
 	 * Sets grid height.
 	 * Never set grid_hgts manually, always use this method!
 	 */
-	void set_grid_hgt(sint16 x, sint16 y, sint8 hgt) { grid_hgts[x + y*(uint32)(cached_grid_size.x+1)] = hgt; }
+	void set_grid_hgt_nocheck(sint16 x, sint16 y, sint8 hgt) { grid_hgts[x + y*(uint32)(cached_grid_size.x+1)] = hgt; }
 
-	inline void set_grid_hgt(koord k, sint8 hgt) { set_grid_hgt(k.x, k.y, hgt); }
+	inline void set_grid_hgt_nocheck(koord k, sint8 hgt) { set_grid_hgt_nocheck(k.x, k.y, hgt); }
 
+public:
 
-private:
+public:
 	/**
 	 * @return water height - versions without checks for speed
 	 */
@@ -2367,9 +2400,9 @@ public:
 	/**
 	 * Sets water height.
 	 */
-	void set_water_hgt(sint16 x, sint16 y, sint8 hgt) { water_hgts[x + y * (cached_grid_size.x)] = (hgt); }
+	void set_water_hgt_nocheck(sint16 x, sint16 y, sint8 hgt) { water_hgts[x + y * (cached_grid_size.x)] = (hgt); }
 
-	inline void set_water_hgt(koord k, sint8 hgt) {  set_water_hgt(k.x, k.y, hgt); }
+	inline void set_water_hgt_nocheck(koord k, sint8 hgt) {  set_water_hgt_nocheck(k.x, k.y, hgt); }
 
 	/**
 	 * Fills array with corner heights of neighbours
@@ -2401,7 +2434,7 @@ public:
 	 */
 	void cleanup_grounds_loop(sint16, sint16, sint16, sint16);
 
-private:
+public:
 	/**
 	 * @return Minimum height of the planquadrats (tile) at i, j. - for speed no checks performed that coordinates are valid
 	 */
@@ -2437,7 +2470,7 @@ public:
 	 * @return A list of all buildable squares with size w, h.
 	 * @note Only used for town creation at the moment.
 	 */
-	slist_tpl<koord> * find_squares(sint16 w, sint16 h, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const;
+	slist_tpl<koord> * find_squares(sint16 w, sint16 h, sint16 edge_avoidance, climate_bits cl, uint16 regions_allowed, sint16 old_x, sint16 old_y) const;
 
 	/**
 	 * Plays the sound when the position is inside the visible region.
@@ -2592,6 +2625,7 @@ public:
 	void remove_queued_city(stadt_t* stadt);
 	void add_queued_city(stadt_t* stadt);
 
+	///  Returns the land value as a *negative* number.
 	sint64 get_land_value(koord3d k);
 	double get_forge_cost(waytype_t waytype, koord3d position);
 	bool is_forge_cost_reduced(waytype_t waytype, koord3d position);
@@ -2600,6 +2634,8 @@ public:
 	inline bool remove_time_interval_signal_to_check(signal_t* sig) { return time_interval_signals_to_check.remove(sig); }
 
 	void calc_max_vehicle_speeds();
+
+	sint16 get_overdraft_rate_percent() const;
 
 private:
 
@@ -2615,7 +2651,7 @@ private:
 
 	void refresh_private_car_routes();
 
-	static void clear_private_car_routes() ;
+	static void clear_private_car_routes();
 };
 
 

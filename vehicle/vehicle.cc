@@ -774,13 +774,12 @@ void vehicle_t::rotate90_freight_destinations(const sint16 y_size)
 	// now rotate the freight
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
-		FOR(slist_tpl<ware_t>, &tmp, fracht[i])
+		for (auto tmp : fracht[i])
 		{
 			tmp.rotate90(y_size);
 		}
 	}
 }
-
 
 
 void vehicle_t::set_convoi(convoi_t *c)
@@ -816,7 +815,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 		// just correct freight destinations
 		for (uint8 i = 0; i < number_of_classes; i++)
 		{
-			FOR(slist_tpl<ware_t>, &c, fracht[i])
+			for(auto c : fracht[i])
 			{
 				c.finish_rd(welt);
 			}
@@ -824,11 +823,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 	}
 }
 
-/**
- * Unload freight to halt
- * @return sum of unloaded goods
- */
-uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> & apportioned_revenues)
+uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all)
 {
 	uint16 sum_menge = 0, sum_delivered = 0, index = 0;
 
@@ -857,7 +852,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 						sum_weight -= tmp.menge * tmp.get_desc()->get_weight_per_unit();
 						i = fracht[j].erase(i);
 					}
-					else if (end_halt == halt || via_halt == halt)
+					else if (discharge_all || end_halt == halt || via_halt == halt)
 					{
 						// here, only ordinary goods should be processed
 
@@ -1055,8 +1050,9 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 		uint8 lowest_class_with_nonzero_capacity = 255;
 
 		*skip_vehicles = true;
-		if (!fracht[0].empty() && desc->get_mixed_load_prohibition()) {
-			FOR(slist_tpl<ware_t>, const& w, fracht[0])
+		if (!fracht[0].empty() && desc->get_mixed_load_prohibition())
+		{
+			for(auto const w : fracht[0])
 			{
 				goods_restriction = w.index;
 				break;
@@ -1084,7 +1080,7 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 				freight_this_class = 0;
 				if (!fracht[i].empty())
 				{
-					FOR(slist_tpl<ware_t>, const& w, fracht[i])
+					for(auto const w : fracht[i])
 					{
 						freight_this_class += w.menge;
 					}
@@ -1112,7 +1108,7 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 						total_freight += ware.menge;
 
 						// could this be joined with existing freight?
-						FOR(slist_tpl<ware_t>, &tmp, fracht[i])
+						for (auto tmp : fracht[i])
 						{
 							// New system: only merges if origins are alike.
 							// @author: jamespetts
@@ -1176,7 +1172,7 @@ void vehicle_t::fix_class_accommodations()
 			lowest_available_class = i;
 			continue;
 		}
-		FOR(slist_tpl<ware_t>, &tmp, fracht[i])
+		for(auto tmp : fracht[i])
 		{
 			load[i] += tmp.menge;
 			if (load[i] > capacity[i])
@@ -1236,14 +1232,15 @@ void vehicle_t::remove_stale_cargo()
 	{
 		if (!fracht[i].empty())
 		{
-			FOR(slist_tpl<ware_t>, &tmp, fracht[i])
+			for (auto tmp : fracht[i])
 			{
 
 				bool found = false;
 
 				if (tmp.get_zwischenziel().is_bound()) {
 					// the original halt exists, but does we still go there?
-					FOR(minivec_tpl<schedule_entry_t>, const& i, cnv->get_schedule()->entries) {
+					for(auto const i : cnv->get_schedule()->entries)
+					{
 						if (haltestelle_t::get_halt(i.pos, cnv->get_owner()) == tmp.get_zwischenziel()) {
 							found = true;
 							break;
@@ -1286,7 +1283,8 @@ void vehicle_t::remove_stale_cargo()
 				}
 			}
 
-			FOR(vector_tpl<ware_t>, const& c, kill_queue) {
+			for(auto const c : kill_queue)
+			{
 				fabrik_t::update_transit(c, false);
 				fracht[i].remove(c);
 				cnv->invalidate_weight_summary();
@@ -1401,12 +1399,15 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, hop_count(0)
 	, do_not_overhaul(false)
 	, do_not_auto_upgrade(false)
+	, is_mothballed(false)
 	, last_stop_pos(koord3d::invalid)
 	, km_since_new(0u)
 	, km_since_last_overhaul(0u)
 	, km_since_last_maintenance(0u)
 	, km_since_last_replenish(0u)
-	, last_maintenance_time(0ll)
+	, last_maintenance_month(welt->get_current_month())
+	, last_overhaul_month(0u)
+	, ticks_at_last_departure(0ll)
 	, tags(0u)
 {
 	set_owner( player );
@@ -1419,6 +1420,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 		// Initialise these with default values.
 		class_reassignments[i] = i;
 	}
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
 }
 
 
@@ -1466,19 +1469,24 @@ void vehicle_t::set_desc(const vehicle_desc_t* value)
 	// Used when upgrading vehicles.
 
 	// Empty the vehicle (though it should already be empty).
-	// We would otherwise have to check passengers occupied valid accommodation.
+	// We would otherwise have to check that passengers occupy valid accommodation.
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
 		if (!fracht[i].empty())
 		{
-			FOR(slist_tpl<ware_t>, &tmp, fracht[i]) {
+			for (auto tmp : fracht[i])
+			{
 				fabrik_t::update_transit(tmp, false);
 			}
 			fracht[i].clear();
 		}
 	}
 
+	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+
 	desc = value;
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
 }
 
 
@@ -1624,6 +1632,20 @@ void vehicle_t::enter_tile(grund_t* gr)
 	if(leading  &&  minimap_t::get_instance()->is_visible  ) {
 		minimap_t::get_instance()->calc_map_pixel( get_pos().get_2d() );
 	}
+}
+
+void vehicle_t::reposition_vehicle(grund_t* gr)
+{
+	leave_tile();
+	set_pos(gr->get_pos());
+	enter_tile(gr);
+	calc_image();
+	gr->set_all_obj_dirty();
+	if (cnv)
+	{
+		cnv->must_recalc_data();
+	}
+	calc_drag_coefficient(gr);
 }
 
 
@@ -2068,7 +2090,7 @@ void vehicle_t::make_smoke() const
 	// does it smoke at all?
 	if(  smoke  &&  desc->get_smoke()  ) {
 		// Hajo: only produce smoke when heavily accelerating or steam engine
-		if(  (cnv->get_akt_speed() < (sint32)((cnv->get_vehicle_summary().max_sim_speed * 7u) >> 3) && (route_index < cnv->get_route_infos().get_count() - 4)) ||  desc->get_engine_type() == vehicle_desc_t::steam  ) {
+		if(desc->get_engine_type() == vehicle_desc_t::steam || is_at_full_power() && (route_index < cnv->get_route_infos().get_count() - 4)) {
 			grund_t* const gr = welt->lookup( get_pos() );
 			if(  gr  ) {
 				wolke_t* const abgas = new wolke_t( get_pos(), get_xoff() + ((dx * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> 8), get_yoff() + ((dy * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> 8) + get_hoff(), desc->get_smoke() );
@@ -2082,6 +2104,17 @@ void vehicle_t::make_smoke() const
 			}
 		}
 	}
+}
+
+bool vehicle_t::is_at_full_power() const
+{
+	const sint32 max_physical_speed = kmh_to_speed(cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction())));
+	const bool at_max_physical_speed = cnv->get_akt_speed() >= max_physical_speed;
+
+	const sint32 extrinsic_speed_limit = cnv->get_akt_speed_soll();
+	const bool accelerating = cnv->get_akt_speed() < extrinsic_speed_limit;
+
+	return at_max_physical_speed || accelerating;
 }
 
 
@@ -2099,7 +2132,7 @@ uint32 vehicle_t::get_cargo_weight() const
 	uint32 weight = 0;
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
-		FOR(slist_tpl<ware_t>, const& c, fracht[i])
+		for(auto const c : fracht[i])
 		{
 			weight += c.menge * c.get_desc()->get_weight_per_unit();
 		}
@@ -2114,7 +2147,7 @@ void vehicle_t::get_cargo_info(cbuffer_t & buf) const
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
 		vector_tpl<ware_t> this_iteration_vector(fracht->get_count());
-		FOR(slist_tpl<ware_t>, w, fracht[i])
+		for(auto w : fracht[i])
 		{
 			this_iteration_vector.append(w);
 		}
@@ -2152,7 +2185,7 @@ void vehicle_t::discard_cargo()
 {
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
-		FOR(slist_tpl<ware_t>, w, fracht[i])
+		for (auto w : fracht[i])
 		{
 			fabrik_t::update_transit(w, false);
 		}
@@ -2237,10 +2270,14 @@ bool vehicle_t::is_stuck()
 
 void vehicle_t::update_bookkeeping(uint32 steps)
 {
-	   // Only the first vehicle in a convoy does this,
-	   // or else there is double counting.
-	   // NOTE: As of 9.0, increment_odometer() also adds running costs for *all* vehicles in the convoy.
-		if (leading) cnv->increment_odometer(steps);
+	// Only the first vehicle in a convoy does this,
+	// or else there is double counting.
+	// NOTE: increment_odometer() also adds running costs for *all* vehicles in the convoy.
+	if (leading) cnv->increment_odometer(steps);
+	if (desc->get_power() > 0)
+	{
+		consume_fuel(steps);
+	}
 }
 
 ribi_t::ribi vehicle_t::get_direction_of_travel() const
@@ -2294,15 +2331,15 @@ void vehicle_t::set_reversed(bool value)
 	}
 }
 
-uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
+uint16 vehicle_t::get_total_cargo_by_class(uint8 a_class) const
 {
 	uint16 carried = 0;
-	if (g_class >= number_of_classes)
+	if (a_class >= number_of_classes)
 	{
 		return 0;
 	}
 
-	FOR(slist_tpl<ware_t>, const& ware, fracht[g_class])
+	for (auto const ware : fracht[a_class])
 	{
 		carried += ware.menge;
 	}
@@ -2310,10 +2347,9 @@ uint16 vehicle_t::get_total_cargo_by_class(uint8 g_class) const
 	return carried;
 }
 
-uint16 vehicle_t::get_reassigned_class(uint8 g_class) const
+uint8 vehicle_t::get_reassigned_class(uint8 a_class) const
 {
-	uint16 reassigned_class = class_reassignments[g_class];
-	return reassigned_class;
+	return class_reassignments[a_class];
 }
 
 
@@ -2330,7 +2366,6 @@ uint8 vehicle_t::get_number_of_fare_classes() const
 	}
 	return fare_classes;
 }
-
 
 uint16 vehicle_t::get_overcrowded_capacity(uint8 g_class) const
 {
@@ -2356,33 +2391,55 @@ uint16 vehicle_t::get_overcrowding(uint8 g_class) const
 	return carried - capacity > 0 ? carried - capacity : 0;
 }
 
-uint16 vehicle_t::get_accommodation_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_accommodation_capacity(uint8 a_class, bool include_lower_classes) const
 {
 	if (!include_lower_classes) {
-		return desc->get_capacity(g_class);
+		return desc->get_capacity(a_class);
 	}
 
 	uint16 cap = 0;
-	for (uint i=0; i <= g_class; i++)
+	for (uint i=0; i <= a_class; i++)
 	{
 		cap += desc->get_capacity(i);
 	}
 	return cap;
 }
 
-uint16 vehicle_t::get_fare_capacity(uint8 g_class, bool include_lower_classes) const
+uint16 vehicle_t::get_fare_capacity(uint8 fare_class, bool include_lower_classes) const
 {
 	// Take into account class reassignments.
 	uint16 cap = 0;
 	for (uint8 i = 0; i < desc->get_number_of_classes(); i++)
 	{
-		if (class_reassignments[i] == g_class || (include_lower_classes && class_reassignments[i] < g_class))
+		if (class_reassignments[i] == fare_class || (include_lower_classes && class_reassignments[i] < fare_class))
 		{
 			cap += desc->get_capacity(i);
 		}
 	}
 
 	return cap;
+}
+
+uint8 vehicle_t::get_min_class() const
+{
+	if (get_cargo_type() == goods_manager_t::passengers || get_cargo_type() == goods_manager_t::mail)
+	{
+		uint8 min_class = get_cargo_type() == goods_manager_t::passengers ? goods_manager_t::passengers->get_number_of_classes() : goods_manager_t::mail->get_number_of_classes();
+
+		for (uint8 i = 0; i < desc->get_number_of_classes(); i++)
+		{
+			if (class_reassignments[i] < min_class)
+			{
+				min_class = class_reassignments[i];
+			}
+		}
+
+		return min_class;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
@@ -2392,6 +2449,12 @@ uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
 	// weighted by capacity.
 	uint32 comfort_sum = 0;
 	uint32 capacity_this_class = 0;
+
+	if (desc->get_self_contained_catering())
+	{
+		// Bespoke comfort adjustment for this vehicle
+		catering_level = max(catering_level, desc->get_catering_level());
+	}
 
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
@@ -2431,7 +2494,7 @@ uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
 	{
 		if (class_reassignments[i] == g_class)
 		{
-			FOR(slist_tpl<ware_t>, const& ware, fracht[i])
+			for(auto const ware : fracht[i])
 			{
 				if(ware.is_passenger())
 				{
@@ -2484,8 +2547,8 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		saved_number_of_classes = 1;
 	}
 
-	sint32 total_fracht_count = 0;
-	sint32* fracht_count = new sint32[saved_number_of_classes];
+	uint32 total_fracht_count = 0;
+	uint32* fracht_count = new uint32[saved_number_of_classes];
 	bool create_dummy_ware = false;
 
 	if (file->is_saving())
@@ -2501,7 +2564,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		if (total_fracht_count == 0 && (desc->get_freight_type() != goods_manager_t::none) && desc->get_total_capacity() > 0)
 		{
 			total_fracht_count = 1;
-			fracht_count[0] = 1;
+			fracht_count[0] = 1u;
 			create_dummy_ware = true;
 		}
 	}
@@ -2663,7 +2726,7 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 		for (uint8 i = 0; i < saved_number_of_classes; i++)
 		{
-			FOR(slist_tpl<ware_t>, ware, fracht[i])
+			for(auto ware : fracht[i])
 			{
 				ware.rdwr(file);
 			}
@@ -2910,14 +2973,14 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 		for (uint8 i = 0; i < number_of_classes; i++)
 		{
-			FOR(slist_tpl<ware_t>, const& c, fracht[i])
+			for(auto const c : fracht[i])
 			{
 				total_freight += c.menge;
 			}
 		}
 	}
 
-	if (file->get_extended_version() >= 15)
+	if (file->is_version_ex_atleast(15, 0))
 	{
 		file->rdwr_long(overhaul_time);
 
@@ -2925,8 +2988,11 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		file->rdwr_long(km_since_last_overhaul);
 		file->rdwr_long(km_since_last_maintenance);
 		file->rdwr_long(km_since_last_replenish);
+		file->rdwr_long(last_maintenance_month);
 		file->rdwr_longlong(last_maintenance_time);
+		file->rdwr_long(last_overhaul_month);
 		file->rdwr_short(tags);
+		file->rdwr_longlong(ticks_at_last_departure);
 
 		bool dno = do_not_overhaul;
 		bool dnau = do_not_auto_upgrade;
@@ -2936,6 +3002,13 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 
 		do_not_overhaul = dno;
 		do_not_auto_upgrade = dnau;
+
+		file->rdwr_short(overhauls);
+		file->rdwr_long(fuel_used_this_trip);
+
+		bool moth = is_mothballed;
+		file->rdwr_bool(moth);
+		is_mothballed = moth;
 	}
 	else
 	{
@@ -2944,9 +3017,14 @@ void vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		km_since_last_maintenance = 0u;
 		km_since_last_replenish = 0u;
 		last_maintenance_time = welt->get_ticks();
+		last_maintenance_month = welt->get_current_month();
+		last_overhaul_month = welt->get_current_month();
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
+		is_mothballed = false;
 		tags = 0u;
+		ticks_at_last_departure = 0ll;
+		overhauls = 0u;
 	}
 }
 
@@ -2966,12 +3044,12 @@ uint32 vehicle_t::calc_sale_value() const
 	// after 20 years, it has only half value
 	// Multiply by .997**number of months
 	// Make sure to use OUR version of pow().
-	float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
+	const float32e8_t age_in_months = welt->get_current_month() - get_purchase_time();
 	static const float32e8_t base_of_exponent(997, 1000);
 	value *= pow(base_of_exponent, age_in_months);
 
 	// Convert back to integer
-	return (uint32) value;
+	return value.to_sint32();
 }
 
 void
@@ -3036,9 +3114,14 @@ bool vehicle_t::check_access(const weg_t* way) const
 
 vehicle_t::~vehicle_t()
 {
-	if(!welt->is_destroying()) {
+	if(!welt->is_destroying())
+	{
 		// remove vehicle's marker from the minimap
 		minimap_t::get_instance()->calc_map_pixel(get_pos().get_2d());
+		if (desc)
+		{
+			player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+		}
 	}
 
 	delete[] class_reassignments;
@@ -3100,7 +3183,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 
 				if (tooltip_display_level > 0) {
 					char emergency_stop_time[64];
-					cnv->snprintf_remaining_emergency_stop_time(emergency_stop_time, sizeof(emergency_stop_time));
+					cnv->snprintf_remaining_wait_lock(emergency_stop_time, sizeof(emergency_stop_time));
 					sprintf(tooltip_text, translator::translate("emergency_stop %s left"), emergency_stop_time/*, lengthof(tooltip_text) */);
 					color = color_idx_to_rgb(COL_RED);
 				}
@@ -3175,7 +3258,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 				if( tooltip_display_level >=3 )
 				{
 					char reversing_time[64];
-					cnv->snprintf_remaining_reversing_time(reversing_time, sizeof(reversing_time));
+					cnv->snprintf_remaining_wait_lock(reversing_time, sizeof(reversing_time));
 					switch (cnv->get_terminal_shunt_mode()) {
 						case convoi_t::rearrange:
 						case convoi_t::shunting_loco:
@@ -3191,6 +3274,13 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 					color = color_idx_to_rgb(COL_YELLOW);
 				}
 				break;
+
+				case convoi_t::SHUNTING:
+					char shunting_time[64];
+					cnv->snprintf_remaining_wait_lock(shunting_time, sizeof(shunting_time));
+					sprintf(tooltip_text, translator::translate("Shunting. %s left"), shunting_time);
+					color = color_idx_to_rgb(COL_YELLOW);
+					break;
 
 			case convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS:
 			case convoi_t::CAN_START_TWO_MONTHS:
@@ -3352,7 +3442,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 			else {
 				display_blend_wh_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, LOADINGBAR_WIDTH, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(MN_GREY2), colored_width ? 65 : 40);
 			}
-			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + extra_y + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
+			display_cylinderbar_wh_clip_rgb(xpos-1, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + 1, colored_width, LOADINGBAR_HEIGHT-2, color_idx_to_rgb(COL_GREEN-1), true);
 
 			// overcrowding
 			if (cnv->get_overcrowded() && skinverwaltung_t::pax_evaluation_icons) {
@@ -3388,6 +3478,10 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 // BG, 06.06.2009: added
 void vehicle_t::finish_rd()
 {
+	if (!is_mothballed)
+	{
+		player_t::add_maintenance(get_owner(), get_fixed_cost(welt), desc->get_waytype());
+	}
 }
 
 // BG, 06.06.2009: added
@@ -3395,3 +3489,378 @@ void vehicle_t::before_delete()
 {
 }
 
+bool vehicle_t::is_maintenance_needed() const
+{
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return last_maintenance_month + welt->get_settings().get_maintenance_interval_months() < welt->get_current_month();
+	}
+	return km_since_last_maintenance > desc->get_maintenance_interval_km();
+}
+
+bool vehicle_t::is_maintenance_urgently_needed() const
+{
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return last_maintenance_month + welt->get_settings().get_extended_maintenance_interval_months() < welt->get_current_month();
+	}
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		return false;
+	}
+	return km_since_last_maintenance > ((desc->get_maintenance_interval_km() * 3) / 2);
+}
+
+bool vehicle_t::is_overhaul_needed() const
+{
+	if (desc->get_max_distance_between_overhauls() == 0)
+	{
+		return false;
+	}
+	return km_since_last_overhaul > desc->get_max_distance_between_overhauls();
+}
+
+void vehicle_t::replenish()
+{
+	cnv->set_state(convoi_t::REPLENISHING);
+	km_since_last_replenish = 0;
+
+	const sint64 replenish_time = welt->get_seconds_to_ticks(desc->get_replenishment_seconds());
+	cnv->set_wait_lock((sint32)replenish_time);
+}
+
+void vehicle_t::maintain()
+{
+	// Do not call replenish() recursively as this will trigger the wait
+	km_since_last_replenish = 0;
+
+	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
+	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time));
+	cnv->set_state(convoi_t::MAINTENANCE);
+
+	last_maintenance_time = welt->get_ticks();
+	km_since_last_maintenance = 0;
+	last_maintenance_month = welt->get_current_month();
+}
+
+void vehicle_t::overhaul()
+{
+	// Do not call maintain() recursively as this will trigger the wait
+	km_since_last_replenish = 0;
+	km_since_last_maintenance = 0;
+	last_maintenance_month = welt->get_current_month();
+	last_maintenance_time = welt->get_ticks();
+
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));
+	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
+	cnv->set_state(convoi_t::OVERHAUL);
+
+	km_since_last_overhaul = 0;
+	overhauls++;
+	last_overhaul_month = welt->get_current_month();
+
+	// TODO: Find a way of integrating the replacement system with this. Perhaps replace overrides overhauls?
+	const vehicle_desc_t* upgrade = get_auto_upgrade();
+
+	sint64 overhaul_cost = upgrade ? upgrade->get_upgrade_price() : get_overhaul_cost(); // TODO: Find the right place to check affordability
+
+	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category. Consider how to treat auto upgrades here.
+	if (upgrade)
+	{
+		if (cnv->front() == this)
+		{
+			const char* cnv_name = cnv->get_name();
+			if (strcmp(cnv_name, desc->get_name()) == 0)
+			{
+				cnv->set_name(upgrade->get_name());
+			}
+		}
+		set_desc(upgrade);
+	}
+
+	update_livery();
+}
+
+const vehicle_desc_t* vehicle_t::get_auto_upgrade() const
+{
+	return do_not_auto_upgrade ? nullptr : desc->get_auto_upgrade_type();
+}
+
+sint64 vehicle_t::get_overhaul_cost() const
+{
+	const sint64 base_overhaul_cost = desc->get_initial_overhaul_cost();
+	const sint64 max_overhaul_cost = desc->get_max_overhaul_cost();
+
+	if (overhauls == 0 || max_overhaul_cost == base_overhaul_cost || max_overhaul_cost == 0)
+	{
+		return base_overhaul_cost;
+	}
+
+	const uint64 overhaul_sigmoid = sigmoid(100000ll * overhauls, 100000ll * desc->get_overhauls_before_max_cost());
+	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / 10000ll) + base_overhaul_cost;
+	return overhaul_cost;
+}
+
+void vehicle_t::update_livery()
+{
+	const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(cnv->get_livery_scheme_index());
+	if (!scheme)
+	{
+		return;
+	}
+	const uint16 date = welt->get_timeline_year_month();
+	const char* liv = scheme->get_latest_available_livery(date, desc);
+	if (liv)
+	{
+		set_current_livery(liv);
+		return;
+	}
+	// We have no current liveries in this scheme
+	if (scheme->is_available(date))
+	{
+		// If the scheme is not obsolete, do not change the scheme
+		return;
+	}
+	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.
+}
+
+uint8 vehicle_t::get_availability() const
+{
+	const uint8 base_availability = desc->get_starting_availability();
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
+	{
+		return base_availability;
+	}
+
+	const uint8 min_availability = desc->get_minimum_availability();
+
+	if (km_since_last_overhaul >= desc->get_max_distance_between_overhauls())
+	{
+		return min_availability;
+	}
+
+	const uint64 availability_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
+	const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+	return base_availability - (uint8) availability_loss;
+}
+
+sint32 vehicle_t::get_running_cost(const karte_t* welt) const
+{
+	const sint32 base_cost = (sint32)desc->get_running_cost(welt); // This includes obsolescence increase
+
+	if (km_since_last_overhaul <= desc->get_availability_decay_start_km() || desc->get_max_distance_between_overhauls() == 0)
+	{
+		return base_cost;
+	}
+
+	const sint32 max_cost = (sint32)desc->get_max_running_cost(welt);
+
+	if (km_since_last_overhaul >= desc->get_max_distance_between_overhauls())
+	{
+		return max_cost;
+	}
+
+	const uint64 cost_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
+	const uint64 cost_increase = (((uint64)max_cost - (uint64)base_cost) * cost_sigmoid) / 100000ll;
+	return base_cost + (sint32)cost_increase;
+}
+
+bool vehicle_t::is_wear_affecting_vehicle() const
+{
+	return km_since_last_overhaul > desc->get_availability_decay_start_km();
+}
+
+uint32 vehicle_t::calc_fuel_consumption(sint32 steps) const
+{
+	// This is called whenever a vehicle travels 1km
+
+	// First, get the base fuel consumption at the calibration speed
+	const uint32 base_fuel_consumption = desc->get_fuel_per_km();
+
+	if (base_fuel_consumption == 0 || cnv->get_akt_speed() == 0)
+	{
+		// No need to calculate this in detail if this has no fuel cost.
+		return 0;
+	}
+
+	const uint32 calibration_speed = desc->get_calibration_speed();
+
+	const uint32 current_speed_kmh = speed_to_kmh(cnv->get_akt_speed());
+
+	if (current_speed_kmh == 0)
+	{
+		return 0;
+	}
+
+	uint32 speed_adjusted_fuel_consumption;
+
+	// The first part of the calculation: adjust for speed assuming maximum power output
+
+	if (current_speed_kmh == calibration_speed)
+	{
+		speed_adjusted_fuel_consumption = base_fuel_consumption;
+	}
+	else
+	{
+		// In conditions of maximum power output (accelerating or maintining maximum physical speed),
+		// higher speed will always equal higher efficiency.
+		speed_adjusted_fuel_consumption = (base_fuel_consumption * calibration_speed) / current_speed_kmh;
+	}
+
+	if (is_at_full_power())
+	{
+		const uint32 fuel_consumption = (speed_adjusted_fuel_consumption * steps) / welt->get_settings().get_steps_per_km();
+		return fuel_consumption;
+	}
+
+	// The second part of the calculation: adjust for power output if not accenerating
+
+	const uint32 max_physical_speed_with_current_load = cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction()));
+	const uint32 adjusted_speed = max(current_speed_kmh, desc->get_cut_off_speed());
+
+	const uint32 promille_proportion = (adjusted_speed * 1000u) / max_physical_speed_with_current_load;
+	const uint32 power_adjusted_fuel_consumption = (speed_adjusted_fuel_consumption * promille_proportion) / 1000u;
+
+	const uint32 fuel_consumption = (power_adjusted_fuel_consumption * steps) / welt->get_settings().get_steps_per_km();
+	return fuel_consumption;
+
+	// TODO: Add logic for bimode vehicles when this feature should come to be implemented.
+}
+
+void vehicle_t::consume_fuel(sint32 steps)
+{
+	// Note that the fuel charging system is unit agnostic.
+	if (cnv->get_akt_speed() > 30) // Necessary to prevent spurious fuel use on reversing.
+	{
+		fuel_used_this_trip += calc_fuel_consumption(steps);
+	}
+}
+
+void vehicle_t::book_fuel_consumption()
+{
+	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_timeline_year_month(), desc->get_engine_type());
+
+	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
+
+	fuel_used_this_trip = 0;
+}
+
+void display_convoy_handle_catg_imgs(scr_coord_val xp, scr_coord_val yp, const convoi_t *cnv, bool draw_background)
+{
+	if (cnv) {
+		scr_coord_val offset_x = 2;
+		const PIXVAL base_color = color_idx_to_rgb(cnv->get_owner()->get_player_color1()+4);
+		PIXVAL bg_color, frame_color;
+		if (draw_background) {
+			bg_color    = display_blend_colors(color_idx_to_rgb(COL_WHITE), base_color, 25);
+			frame_color = display_blend_colors(base_color, color_idx_to_rgb(COL_WHITE), 25);
+		}
+		for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+			if (!cnv->get_goods_catg_index().is_contained(catg_index)) {
+				continue;
+			}
+			// draw background
+			if (draw_background) {
+				display_fillbox_wh_rgb(xp+offset_x, yp+2, D_FIXED_SYMBOL_WIDTH+2, D_FIXED_SYMBOL_WIDTH+2, bg_color, true);
+			}
+
+			display_color_img(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), xp+offset_x+2, yp+3, 0, false, true);
+			offset_x += 12;
+			if (!skinverwaltung_t::goods_categories && (catg_index!=goods_manager_t::INDEX_PAS && catg_index!=goods_manager_t::INDEX_MAIL)) {
+				// pakset cannot distinguish the type of freight catgs => Exit when one is found
+				break;
+			}
+		}
+		// draw border
+		if (draw_background && offset_x > 2) {
+			display_ddd_box_rgb(xp,   yp,   offset_x+3, D_FIXED_SYMBOL_WIDTH+4, frame_color, frame_color, true);
+			display_ddd_box_rgb(xp+1, yp+1, offset_x+1, D_FIXED_SYMBOL_WIDTH+2, base_color,  base_color,  true);
+		}
+	}
+}
+
+void vehicle_t::mothball()
+{
+	// Assumptions: the vehicle will be in a depot.
+
+	if (is_mothballed || get_convoi() || get_desc()->get_engine_type() == vehicle_desc_t::engine_t::bio)
+	{
+		// Horses cannot be mothballed
+		return;
+	}
+
+	is_mothballed = true;
+
+	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt),get_waytype()); // Take this vehicle out of paying monthly maintenance...
+	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // ...but charge the player one month's maintenance for doing so.
+}
+
+void vehicle_t::un_mothball()
+{
+	// Assumptions: the vehicle will be in a depot.
+	if (!is_mothballed)
+	{
+		return;
+	}
+
+	is_mothballed = false;
+
+	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype());
+	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
+}
+
+bool vehicle_t::matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const
+{
+	if (priority >= element.get_count())
+	{
+		return false;
+	}
+	const vehicle_description_element& vde = element.get_vehicle_description(priority);
+
+	if (vde.empty && !vde.specific_vehicle)
+	{
+		// There are no requirements for this.
+		return true;
+	}
+
+	if (vde.specific_vehicle == desc)
+	{
+		return true;
+	}
+
+	if (element.get_catg_index() != desc->get_freight_type()->get_catg_index())
+	{
+		return false;
+	}
+
+	// Check the rules
+	if (vde.engine_type == desc->get_engine_type() &&
+		vde.min_catering <= desc->get_catering_level() && vde.max_catering >= desc->get_catering_level() &&
+
+		vde.must_carry_class <= get_min_class() &&
+
+		vde.min_brake_force <= desc->get_brake_force() && vde.max_brake_force >= desc->get_brake_force() &&
+		vde.min_range <= desc->get_range() && vde.max_range >= desc->get_range() &&
+		vde.min_power <= desc->get_power() && vde.max_power >= desc->get_power() &&
+		vde.min_tractive_effort <= desc->get_tractive_effort() && vde.max_tractive_effort >= desc->get_tractive_effort() &&
+		vde.min_topspeed <= desc->get_topspeed() && vde.max_topspeed >= desc->get_topspeed() &&
+
+		vde.min_weight <= desc->get_weight() && vde.max_weight >= desc->get_weight() &&
+		vde.max_axle_load <= desc->get_axle_load() && vde.max_axle_load &&
+
+		vde.min_capacity <= desc->get_total_capacity() && vde.max_capacity >= desc->get_total_capacity() &&
+
+		vde.min_running_cost <= desc->get_running_cost() && vde.max_running_cost >= desc->get_running_cost() &&
+		vde.min_fixed_cost <= desc->get_fixed_cost() && vde.max_fixed_cost >= desc->get_fixed_cost() &&
+
+		vde.min_fuel_per_km <= desc->get_fuel_per_km() && vde.max_fuel_per_km >= desc->get_fuel_per_km() &&
+
+		vde.min_staff_hundredths <= desc->get_total_staff_hundredths() && vde.max_staff_hundredths >= desc->get_total_staff_hundredths() &&
+		vde.min_drivers <= desc->get_total_drivers() && vde.max_drivers >= desc->get_total_drivers())
+	{
+		return true;
+	}
+
+	return false;
+}

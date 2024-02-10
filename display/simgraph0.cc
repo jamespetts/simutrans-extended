@@ -251,6 +251,10 @@ void display_linear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val,
 {
 }
 
+void display_vlinear_gradient_wh_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, int, int)
+{
+}
+
 void display_color_img_with_tooltip(const image_id, scr_coord_val, scr_coord_val, sint8, const int, const int, const char* CLIP_NUM_DEF_NOUSE)
 {
 }
@@ -410,7 +414,7 @@ void display_show_load_pointer(int)
 {
 }
 
-bool simgraph_init(scr_size, bool)
+bool simgraph_init(scr_size, sint16)
 {
 	return true;
 }
@@ -474,6 +478,10 @@ void display_signal_direction_rgb(scr_coord_val, scr_coord_val, scr_coord_val, u
 {
 }
 
+void display_depot_symbol_rgb(scr_coord_val, scr_coord_val, scr_coord_val, const PIXVAL, const bool)
+{
+}
+
 void display_depot_symbol(scr_coord_val, scr_coord_val, scr_coord_val, const uint8, const bool)
 {
 }
@@ -490,7 +498,7 @@ void display_img_aligned( const image_id, scr_rect, int, bool )
 {
 }
 
-void display_proportional_ellipsis_rgb( scr_rect, const char *, int, PIXVAL, bool, bool, PIXVAL)
+void display_proportional_ellipsis_rgb( scr_rect, const char *, int, PIXVAL, bool, bool, PIXVAL, bool)
 {
 }
 

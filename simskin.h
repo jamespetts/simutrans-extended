@@ -10,6 +10,8 @@
 #include "simcolor.h"
 #include "simtypes.h"
 
+#define SYMBOL_OVERCROWDING (skinverwaltung_t::pax_evaluation_icons ? skinverwaltung_t::pax_evaluation_icons->get_image_id(1) : IMG_EMPTY)
+
 
 // For test purposes themes can be disabled or an alternative theme.tab file can be used.
 //  -1 = No theme, use internal fallback
@@ -120,6 +122,8 @@ public:
 	static const skin_desc_t *mail_evaluation_icons;
 	/// @}
 
+	static const skin_desc_t *staff_cost;
+
 	/// images used to alert in line with message text
 	static const skin_desc_t *alerts;
 
@@ -136,6 +140,8 @@ public:
 	static const skin_desc_t *missing_scheduled_slot;
 	/// image shown in display of travel time to the destination / lead time
 	static const skin_desc_t *travel_time;
+	/// image for comfort value
+	static const skin_desc_t *comfort;
 
 	/// images for the factory information
 	static const skin_desc_t *input_output;
@@ -157,6 +163,7 @@ public:
 
 	/// image to clarify the function of buttons
 	static const skin_desc_t *open_window;
+	static const skin_desc_t *search;
 
 
 	/// @name cursors

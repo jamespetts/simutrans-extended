@@ -16,6 +16,7 @@
 #include "components/gui_combobox.h"
 #include "components/gui_button.h"
 #include "components/gui_image.h"
+#include "components/gui_tab_panel.h"
 
 #include "components/gui_scrollpane.h"
 #include "components/gui_schedule_item.h"
@@ -33,16 +34,16 @@ class loadsave_t;
 class gui_schedule_entry_t;
 
 
-class gui_wait_loading_schedule_t : public gui_container_t
+class gui_wait_loading_schedule_t : public gui_component_t
 {
-	uint8 val = 0;
+	uint16 val = 0;
 	uint32 flags;
 public:
-	gui_wait_loading_schedule_t(uint32 flags, uint8 val=0);
+	gui_wait_loading_schedule_t(uint32 flags, uint16 val=0);
 
 	void draw(scr_coord offset);
 
-	void init(uint32 flags_, uint8 v = 0) { flags = flags_, val = v; };
+	void init_data(uint32 flags_, uint16 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
@@ -66,6 +67,62 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
+
+/**
+ * One entry in the list of schedule entries.
+ */
+class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t
+{
+	schedule_entry_t entry;
+	bool is_current;
+	bool is_air_wt;
+	uint number;
+	player_t* player;
+	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
+	gui_label_buf_t stop;
+	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
+	gui_schedule_entry_number_t *entry_no;
+	gui_colored_route_bar_t *route_bar;
+	gui_wait_loading_schedule_t *wait_loading;
+	gui_schedule_couple_order_t *couple_order;
+
+public:
+	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index = 254);
+
+	void update_label();
+	void set_distance(koord3d next_pos, uint32 distance_to_next_halt = 0, uint16 range_limit = 0);
+	void set_speed_limit(uint32 speed);
+	void set_line_style(uint8 s);
+	void set_active(bool yesno);
+
+	void update_entry(schedule_entry_t e) {
+		entry = e;
+		update_label();
+	}
+
+	void draw(scr_coord offset) OVERRIDE;
+	bool infowin_event(const event_t *ev) OVERRIDE;
+};
+
+
+class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+{
+	uint8 index;
+
+public:
+	uint16 unique_entry_id;
+	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, color_idx_to_rgb(SYSCOL_TEXT)) {
+		index=entry_index;
+		unique_entry_id = entry.unique_entry_id;
+	}
+
+	char const* get_text() const OVERRIDE
+	{
+		static char str[3];
+		sprintf(str, "%u", index+1);
+		return str;
+	}
+};
 
 class schedule_gui_stats_t : public gui_aligned_container_t, action_listener_t, public gui_action_creator_t
 {
@@ -97,7 +154,11 @@ public:
 
 	void update_schedule();
 
+	void update_current_entry() { entries[schedule->get_current_stop()]->update_entry(schedule->get_current_entry()); }
+
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+
+	scr_size get_max_size() const OVERRIDE { return scr_size::inf; }
 };
 
 
@@ -125,7 +186,8 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	// always needed
 	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
-	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only, bt_ignore_choose, bt_lay_over, bt_range_stop;
+	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
+	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
@@ -144,6 +206,9 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	gui_schedule_entry_number_t *entry_no;
 	gui_label_buf_t lb_entry_pos;
 
+	gui_label_t lb_speed_limit, lb_speed_limit_kmh;
+	gui_label_t lb_consist_order_modified;
+
 	char str_parts_month[32];
 	char str_parts_month_as_clock[32];
 
@@ -152,6 +217,21 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	schedule_gui_stats_t *stats;
 	gui_scrollpane_t scroll;
+
+	button_t bt_couple_is_line, bt_couple_is_cnv;
+	button_t bt_uncouple_is_line, bt_uncouple_is_cnv;
+	gui_combobox_t condition_line_selector;
+	gui_combobox_t couple_target_selector;
+	gui_combobox_t uncouple_target_selector;
+	void disable_couple_target_selector(bool is_uncouple=false);
+	void update_target_line_selection(bool condition, bool couple, bool uncouple);
+	void update_target_convoy_selection(bool couple, bool uncouple);
+
+	gui_combobox_t cb_uncouple_target_entry;
+	void update_uncouple_target_entries(schedule_t* sch);
+
+	gui_aligned_container_t cont_settings_1, cont_settings_2;
+	gui_tab_panel_t tabs;
 
 	// to add new lines automatically
 	uint32 old_line_count;
@@ -165,6 +245,8 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	// pas=1, mail=2, freight=3
 	uint8 line_type_flags = 0;
+
+	void update_current_entry() { stats->update_current_entry(); }
 
 protected:
 	schedule_t *schedule;
@@ -180,14 +262,20 @@ protected:
 	uint16 min_range = UINT16_MAX;
 	gui_label_buf_t lb_min_range;
 
-	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv);
+	void build_table();
 
 	inline void set_min_range(uint16 range) { stats->range_limit = range; };
 
 public:
 	schedule_gui_t(schedule_t* schedule = NULL, player_t* player = NULL, convoihandle_t cnv = convoihandle_t());
+	// for convoi
+	void init(schedule_t* schedule, player_t* player, convoihandle_t cnv = convoihandle_t());
+	// for line
+	void init(linehandle_t line);
 
 	virtual ~schedule_gui_t();
+
+	virtual uint16 get_min_top_speed_kmh() { return cnv.is_bound() ? speed_to_kmh(cnv->get_min_top_speed()) : 65535; }
 
 	// for updating info ...
 	void init_line_selector();
@@ -200,11 +288,6 @@ public:
 	 * Draw the Frame
 	 */
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
-
-	/**
-	 * Set window size and adjust component sizes and/or positions accordingly
-	 */
-	void set_windowsize(scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 

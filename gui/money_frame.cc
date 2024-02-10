@@ -45,6 +45,7 @@
 #include "schedule_list.h"
 #include "convoi_frame.h"
 #include "components/gui_divider.h"
+#include "components/gui_waytype_image_box.h"
 #include "signalboxlist_frame.h"
 #include "../simsignalbox.h"
 
@@ -351,11 +352,7 @@ void money_frame_t::init_stats()
 		// symbol
 		for (uint8 i = 0; i < TT_MAX_VEH-1; i++) {
 			if (depotlist_frame_t::is_available_wt( finance_t::translate_tt_to_waytype((transport_type)(i+1)) )) {
-				cont_stats.add_table(3,1);
-				cont_stats.new_component<gui_fill_t>();
-				cont_stats.new_component<gui_image_t>()->set_image(skinverwaltung_t::get_waytype_skin( finance_t::translate_tt_to_waytype((transport_type)(i+1)) )->get_image_id(0), true);
-				cont_stats.new_component<gui_fill_t>();
-				cont_stats.end_table();
+				cont_stats.new_component<gui_waytype_image_box_t>( finance_t::translate_tt_to_waytype((transport_type)(i+1)), true );
 			}
 		}
 		cont_stats.new_component<gui_label_t>("Total", SYSCOL_TEXT_TITLE, gui_label_t::centered);
@@ -888,7 +885,7 @@ void money_frame_t::update_stats()
 	uint32 total_vehicle_maintenance = 0;
 	uint32 total_sign_maintenance = 0;
 	uint16 total_own_signalboxes = 0;
-	uint64 total_signalbox_maintenance = 0;
+	sint64 total_signalbox_maintenance = 0;
 
 	// - stations
 	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
@@ -912,8 +909,8 @@ void money_frame_t::update_stats()
 		if (depot->get_owner_nr() == player->get_player_nr()) {
 			const uint8 tt_idx = finance_t::translate_waytype_to_tt(depot->get_waytype())-1;
 			tt_depot_counts[tt_idx]++;
-			total_depot_maintenance += welt->get_settings().maint_building * depot->get_tile()->get_desc()->get_level();
-			tt_depot_maint[tt_idx] += welt->get_settings().maint_building * depot->get_tile()->get_desc()->get_level();
+			total_depot_maintenance += welt->get_settings().get_maint_building() * depot->get_tile()->get_desc()->get_level();
+			tt_depot_maint[tt_idx] += welt->get_settings().get_maint_building() * depot->get_tile()->get_desc()->get_level();
 			total_depots++;
 			// all vehicles stored in depot not part of a convoi
 			tt_vehicle_counts[tt_idx] += depot->get_vehicle_list().get_count();
@@ -942,7 +939,7 @@ void money_frame_t::update_stats()
 	// - signalboxes
 	FOR(slist_tpl<signalbox_t*>, const sigb, signalbox_t::all_signalboxes) {
 		if (sigb->get_owner() == player && sigb->get_first_tile() == sigb) {
-			total_signalbox_maintenance += (uint32)welt->lookup(sigb->get_pos())->get_building()->get_tile()->get_desc()->get_maintenance();
+			total_signalbox_maintenance += welt->lookup(sigb->get_pos())->get_building()->get_tile()->get_desc()->get_maintenance();
 			total_own_signalboxes++;
 		}
 	}
@@ -1019,7 +1016,7 @@ void money_frame_t::update_stats()
 			// depots
 			if (tt_depot_counts[i]) {
 				lb_depots[i].buf().printf("%u", tt_depot_counts[i]);
-				lb_depots_maint[i].buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(tt_depot_maint[i]) / 100.0);
+				lb_depots_maint[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_depot_maint[i]), buildings) / 100.0);
 			}
 			else {
 				lb_depots[i].buf().append("-");
@@ -1039,7 +1036,7 @@ void money_frame_t::update_stats()
 			// way
 			if (tt_way_length[i]) {
 				lb_way_distances[i].buf().printf("%.1fkm", (double)(tt_way_length[i] * welt->get_settings().get_meters_per_tile()/10000.0));
-				lb_way_maintenances[i].buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(tt_way_maint[i]) / 100.0);
+				lb_way_maintenances[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_way_maint[i]), buildings) / 100.0);
 			}
 			else {
 				lb_way_distances[i].buf().append("-");
@@ -1049,7 +1046,7 @@ void money_frame_t::update_stats()
 			// electrification
 			if (tt_electrified_len[i]) {
 				lb_electrified_distances[i].buf().printf("%.1fkm", (double)(tt_electrified_len[i] * welt->get_settings().get_meters_per_tile() / 10000.0));
-				lb_electrification_maint[i].buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(tt_electrification_maint[i]) / 100.0);
+				lb_electrification_maint[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_electrification_maint[i]), infrastructure) / 100.0);
 			}
 			else {
 				lb_electrified_distances[i].buf().append("-");
@@ -1095,7 +1092,7 @@ void money_frame_t::update_stats()
 			// signs
 			if (tt_sign_counts[i]) {
 				lb_sign_counts[i].buf().printf("%u", tt_sign_counts[i]);
-				lb_sign_maint[i].buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(tt_sign_maint[i]) / 100.0);
+				lb_sign_maint[i].buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(tt_sign_maint[i]), infrastructure) / 100.0);
 				total_sign_maintenance += tt_sign_maint[i];
 			}
 			else {
@@ -1108,18 +1105,18 @@ void money_frame_t::update_stats()
 	// update total values
 	lb_total_halts.buf().append(total_halts,0);
 	lb_total_halts.update();
-	lb_total_halt_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_halt_maint) / 100.0);
+	lb_total_halt_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_halt_maint), infrastructure) / 100.0);
 	lb_total_halt_maint.update();
 
-	lb_total_way_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_way_maintenance) / 100.0);
+	lb_total_way_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_way_maintenance), infrastructure) / 100.0);
 	lb_total_way_maint.update();
 
-	lb_total_electrification_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_electrification_maintenance) / 100.0);
+	lb_total_electrification_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_electrification_maintenance), infrastructure) / 100.0);
 	lb_total_electrification_maint.update();
 
 	lb_total_depots.buf().append(total_depots, 0);
 	lb_total_depots.update();
-	lb_total_depot_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_depot_maintenance) / 100.0);
+	lb_total_depot_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_depot_maintenance), buildings) / 100.0);
 	lb_total_depot_maint.update();
 
 	lb_total_active_lines.buf().append(active_lines, 0);
@@ -1131,15 +1128,15 @@ void money_frame_t::update_stats()
 	lb_own_vehicle_count.buf().append(total_own_vehicles, 0);
 	lb_own_vehicle_count.update();
 
-	lb_total_veh_maint.buf().printf("%.2f$", welt->calc_adjusted_monthly_figure(total_vehicle_maintenance) / 100.0);
+	lb_total_veh_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_vehicle_maintenance) / 100.0);
 	lb_total_veh_maint.update();
 
-	lb_total_sign_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_sign_maintenance) / 100.0);
+	lb_total_sign_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_sign_maintenance), infrastructure) / 100.0);
 	lb_total_sign_maint.update();
 
 	lb_signalbox_count.buf().append(total_own_signalboxes, 0);
 	lb_signalbox_count.update();
-	lb_signalbox_maint.buf().printf("%.2f$", (double)welt->calc_adjusted_monthly_figure(total_signalbox_maintenance) / 100.0);
+	lb_signalbox_maint.buf().printf("%.2f$", (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(total_signalbox_maintenance), buildings) / 100.0);
 	lb_signalbox_maint.update();
 }
 

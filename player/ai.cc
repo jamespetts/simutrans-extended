@@ -341,7 +341,7 @@ bool ai_t::built_update_headquarter()
 	// is the a suitable one?
 	if(desc!=NULL) {
 		// cost is negative!
-		sint64 const cost = welt->get_settings().cst_multiply_headquarter * desc->get_level() * desc->get_x() * desc->get_y();
+		sint64 const cost = welt->get_settings().get_cost_multiply_headquarter() * desc->get_level() * desc->get_x() * desc->get_y();
 		if(  finance->get_account_balance()+cost > finance->get_starting_money() ) {
 			// and enough money left ...
 			koord place = get_headquarter_pos();
@@ -491,13 +491,13 @@ bool ai_t::create_simple_road_transport(koord platz1, koord size1, koord platz2,
 	// ensure is land
 	grund_t* bd = welt->lookup_kartenboden(platz1);
 	if (bd->get_typ() == grund_t::wasser) {
-		welt->set_water_hgt(platz1, bd->get_hoehe()-1);
+		welt->set_water_hgt_nocheck(platz1, bd->get_hoehe()-1);
 		welt->access(platz1)->correct_water();
 		welt->set_climate(platz1, c1, true);
 	}
 	bd = welt->lookup_kartenboden(platz2);
 	if (bd->get_typ() == grund_t::wasser) {
-		welt->set_water_hgt(platz2, bd->get_hoehe()-1);
+		welt->set_water_hgt_nocheck(platz2, bd->get_hoehe()-1);
 		welt->access(platz2)->correct_water();
 		welt->set_climate(platz2, c2, true);
 	}

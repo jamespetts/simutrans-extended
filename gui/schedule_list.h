@@ -21,9 +21,14 @@
 #include "../simline.h"
 
 #include "times_history_container.h"
+#include "vehicle_class_manager.h"
 #include "components/gui_vehicle_capacitybar.h"
 #include "components/gui_schedule_item.h"
 #include "components/gui_line_lettercode.h"
+#include "components/gui_waytype_image_box.h"
+#include "components/gui_line_network.h"
+
+
 
 class player_t;
 
@@ -58,16 +63,21 @@ private:
 
 	static const char *sort_text[SORT_MODES];
 
-	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_line_class_manager, bt_mode_convois, bt_show_halt_name;
+	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_mode_convois, bt_show_halt_name;
 	button_t sort_order;
-	button_t bt_access_minimap, bt_line_color_editor;
+	button_t bt_access_minimap, bt_line_color_editor, bt_replace;
+	button_t reset_all_pass_button, reset_all_mail_button;
 	gui_line_lettercode_t lc_preview;
 	gui_container_t cont, cont_charts, cont_convoys;
-	gui_aligned_container_t cont_times_history, cont_line_info, cont_tab_haltlist, cont_transport_density;
+	gui_aligned_container_t cont_line_name;
+	gui_aligned_container_t cont_times_history, cont_line_info, cont_tab_haltlist, cont_transport_density, cont_tab_fare_manager;
+	gui_accommodation_fare_manager_t cont_by_accommo;
 	gui_line_waiting_status_t cont_haltlist;
+	gui_line_network_t cont_line_network;
 	gui_convoy_loading_info_t cont_line_capacity_by_catg;
-	gui_scrollpane_t scrolly_convois, scrolly_haltestellen, scroll_times_history, scrolly_line_info;
+	gui_scrollpane_t scrolly_convois, scroll_halt_waiting, scroll_times_history, scroll_line_info, scroll_fare_manager;
 	gui_scrolled_list_t scl;
+	gui_waytype_image_box_t wt_symbol;
 	gui_textinput_t inp_name, inp_filter;
 	gui_label_t lbl_filter;
 	gui_label_buf_t lb_line_origin, lb_line_destination, lb_travel_distance, lb_service_frequency, lb_convoy_count;

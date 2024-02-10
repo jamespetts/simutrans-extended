@@ -279,3 +279,25 @@ schedule_t * water_vehicle_t::generate_new_schedule() const
 	return new ship_schedule_t();
 }
 
+
+route_t::route_result_t water_vehicle_t::calc_route(koord3d start, koord3d end, sint32 max_speed, bool is_tall, route_t* route)
+{
+	const grund_t* start_gr = welt->lookup(start);
+	const grund_t* end_gr = welt->lookup(end);
+	if (  desc->get_way_constraints().get_permissive() == 0
+				&& shortest_distance(start.get_2d(), end.get_2d()) >= 512
+				&& start_gr->is_water() && end_gr->is_water()  ) {
+		// Special ocean route search on the oceans for long trips, only for ocean-going vessels (permissive == 0 means ocean-going)
+		// The regular routefinder can generally handle 512 tiles (45-64 km on a diagonal in pak128.britain)
+		// but has trouble with longer routes.
+		// Since this doesn't necessarily give the shortest route, only use this for longer routes.
+		route_t::route_result_t result = route->calc_ocean_route(welt, start, end, this, max_speed, is_tall);
+		if (result == route_t::valid_route) {
+			return result;
+		}
+		// No luck with special ocean route search
+		route->clear();
+	}
+	// Dispatch to parent.
+	return vehicle_t::calc_route(start, end, max_speed, is_tall, route);
+}

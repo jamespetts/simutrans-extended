@@ -80,10 +80,14 @@ const skin_desc_t* skinverwaltung_t::reverse_arrows     = NULL;
 const skin_desc_t* skinverwaltung_t::waiting_time       = NULL; // waiting time at the station
 const skin_desc_t* skinverwaltung_t::service_frequency  = NULL; // line service frequency
 const skin_desc_t* skinverwaltung_t::on_foot            = NULL;
+const skin_desc_t* skinverwaltung_t::comfort            = NULL;
+
+const skin_desc_t* skinverwaltung_t::search             = NULL;
 const skin_desc_t* skinverwaltung_t::open_window        = NULL;
 const skin_desc_t* skinverwaltung_t::layover            = NULL;
 const skin_desc_t* skinverwaltung_t::refuel             = NULL;
 const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
+const skin_desc_t* skinverwaltung_t::staff_cost         = NULL;
 
 // cursors
 const skin_desc_t* skinverwaltung_t::cursor_general     = NULL; // new cursors
@@ -128,28 +132,28 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::tool_icons_simple,  "SimpleTools"  },
 	{ &skinverwaltung_t::tool_icons_dialoge, "DialogeTools" },
 	{ &skinverwaltung_t::tool_icons_toolbars,"BarTools"     },
+
+	{ &skinverwaltung_t::alerts,             "Alerts"         },
+	{ &skinverwaltung_t::waiting_time,       "WaitingTime"    },
+	{ &skinverwaltung_t::travel_time,        "TravelTime"     },
+	{ &skinverwaltung_t::service_frequency,  "ServiceFrequency" },
+	{ &skinverwaltung_t::missing_scheduled_slot, "MissingScheduledSlot" },
+	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
+	{ &skinverwaltung_t::comfort,            "Comfort"        },
+	{ &skinverwaltung_t::upgradable,         "Upgradable"     },
+	{ &skinverwaltung_t::input_output,       "InputOutput"    },
+	{ &skinverwaltung_t::in_transit,         "InTransit"      },
+	{ &skinverwaltung_t::reverse_arrows,     "ReverseArrows"  },
+	{ &skinverwaltung_t::search,             "Search"         },
+	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
+
+	{ &skinverwaltung_t::layover,            "Layover"        },
+	{ &skinverwaltung_t::refuel,             "Refuel"         },
+	{ &skinverwaltung_t::ignore_choose,      "IgnoreChoose"   },
 	{ NULL, NULL }
 };
 
 static special_obj_tpl<skin_desc_t> const symbol_objekte[] = {
-	{ &skinverwaltung_t::missing_scheduled_slot, "MissingScheduledSlot" },
-	{ &skinverwaltung_t::upgradable,         "Upgradable"     },
-	{ &skinverwaltung_t::pax_evaluation_icons, "PassengersEvaluation" },
-	{ &skinverwaltung_t::mail_evaluation_icons, "MailEvaluation" },
-	{ &skinverwaltung_t::alerts,             "Alerts"         },
-	{ &skinverwaltung_t::goods_categories,   "GoodsCategories"},
-	{ &skinverwaltung_t::input_output,       "InputOutput"    },
-	{ &skinverwaltung_t::travel_time,        "TravelTime"     },
-	{ &skinverwaltung_t::in_transit,         "InTransit"      },
-	{ &skinverwaltung_t::ind_sector_symbol,  "IndustrySectors" },
-	{ &skinverwaltung_t::reverse_arrows,     "ReverseArrows"  },
-	{ &skinverwaltung_t::waiting_time,       "WaitingTime"    },
-	{ &skinverwaltung_t::service_frequency,  "ServiceFrequency" },
-	{ &skinverwaltung_t::on_foot,            "OnFoot"         },
-	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
-	{ &skinverwaltung_t::layover,            "Layover"        },
-	{ &skinverwaltung_t::refuel,             "Refuel"         },
-	{ &skinverwaltung_t::ignore_choose,      "IgnoreChoose"   },
 	{ &skinverwaltung_t::seasons_icons,      "Seasons"        },
 	{ &skinverwaltung_t::message_options,    "MessageOptions" },
 	{ &skinverwaltung_t::color_options,      "ColorOptions"   },
@@ -184,9 +188,14 @@ static special_obj_tpl<skin_desc_t> const fakultative_objekte[] = {
 	{ &skinverwaltung_t::fastforwardsymbol,  "fastforwardsym" },
 	{ &skinverwaltung_t::pausesymbol,        "pausesym"       },
 	{ &skinverwaltung_t::station_type,       "station_type"   },
-	{ &skinverwaltung_t::toolbar_background,"ToolsBackground"},
+	{ &skinverwaltung_t::toolbar_background, "ToolsBackground"},
 	{ &skinverwaltung_t::compass_iso,        "CompassIso"     },
 	{ &skinverwaltung_t::compass_map,        "CompassMap"    },
+	{ &skinverwaltung_t::pax_evaluation_icons, "PassengersEvaluation" },
+	{ &skinverwaltung_t::mail_evaluation_icons, "MailEvaluation" },
+	{ &skinverwaltung_t::goods_categories,   "GoodsCategories"},
+	{ &skinverwaltung_t::ind_sector_symbol,  "IndustrySectors" },
+	{ &skinverwaltung_t::staff_cost,         "StaffCost"      },
 	{ NULL, NULL }
 };
 
@@ -204,8 +213,8 @@ bool skinverwaltung_t::successfully_loaded(skintyp_t type)
 	special_obj_tpl<skin_desc_t> const* sd;
 	switch (type) {
 		case menu:    return true; // skins will be handled elsewhere
-		case cursor:  sd = cursor_objekte;     break;
-		case symbol:  sd = symbol_objekte+18;  break;
+		case cursor:  sd = cursor_objekte; break;
+		case symbol:  sd = symbol_objekte; break;
 		case misc:
 			sd = misc_objekte+3;
 			// for compatibility: use sidewalk as tunneltexture
@@ -254,7 +263,8 @@ bool skinverwaltung_t::register_desc(skintyp_t type, const skin_desc_t* desc)
 // return the extra_obj with this name
 const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 {
-	FOR(slist_tpl<skin_desc_t const*>, const s, skinverwaltung_t::extra_obj) {
+	for(auto const s : skinverwaltung_t::extra_obj)
+	{
 		if (strncmp(str, s->get_name(), len) == 0) {
 			return s;
 		}

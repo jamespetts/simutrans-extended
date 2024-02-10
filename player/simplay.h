@@ -18,6 +18,7 @@
 
 #include "../tpl/slist_tpl.h"
 #include "../tpl/vector_tpl.h"
+#include "../tpl/inthashtable_tpl.h"
 
 #include "../simworld.h"
 
@@ -141,6 +142,7 @@ protected:
 	 */
 	bool access[MAX_PLAYER_COUNT];
 
+	uint16 favorite_livery_scheme[9/*simline_t::MAX_LINE_TYPE*/];
 
 	/* This flag is set if the player has already been
 	 * warned this month that there is insufficient money
@@ -150,6 +152,12 @@ protected:
 	/// Any player may take over this company at any time if
 	/// this evaluates to true.
 	bool allow_voluntary_takeover;
+
+	/// Staff costs accrued this month per player.
+	/// Key: pay grade
+	/// Value: ticks of time employed
+	typedef inthashtable_tpl<uint8, sint64, N_BAGS_SMALL> staff_map_player;
+	staff_map_player staff_costs_this_month;
 
 public:
 	/**
@@ -184,6 +192,11 @@ public:
 	 *  2 ... good (and powerlines revenue)
 	 */
 	void book_revenue(const sint64 amount, const koord k, const waytype_t wt=ignore_wt, sint32 cathegory=2);
+
+	/**
+	* Adds tax to accounting statistics.
+	*/
+	void book_tax(const sint64 amount);
 
 	/**
 	 * Adds running costs to accounting statistics.
@@ -462,6 +475,13 @@ public:
 
 	bool allows_access_to(uint8 other_player_nr) const { return player_nr == other_player_nr || access[other_player_nr]; }
 	void set_allow_access_to(uint8 other_player_nr, bool allow) { access[other_player_nr] = allow; }
+
+	uint16 get_favorite_livery_scheme_index(uint8 linetype = 0) const { assert(linetype<9/*simline_t::MAX_LINE_TYPE*/); return favorite_livery_scheme[linetype]; }
+	void set_favorite_livery_scheme_index(uint8 linetype = 0, uint16 livery_scheme_index = UINT16_MAX)
+	{
+		if (linetype >= 9/*simline_t::MAX_LINE_TYPE*/) { linetype = 0; }
+		favorite_livery_scheme[linetype] = livery_scheme_index;
+	}
 
 	bool get_allow_voluntary_takeover() const { return allow_voluntary_takeover; }
 	void set_allow_voluntary_takeover(bool value) { allow_voluntary_takeover = value; }

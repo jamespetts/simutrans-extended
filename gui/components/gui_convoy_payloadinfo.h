@@ -45,4 +45,19 @@ public:
 	void set_size_fixed(bool yesno) { size_fixed = yesno; };
 };
 
+class gui_convoy_handle_catg_img_t : public gui_container_t
+{
+private:
+	convoihandle_t cnv;
+
+public:
+	gui_convoy_handle_catg_img_t(convoihandle_t cnv);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE;
+	scr_size get_max_size() const OVERRIDE;
+};
+
+
 #endif

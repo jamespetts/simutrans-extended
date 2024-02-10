@@ -98,7 +98,6 @@ public:
 		PAX         = 1 << 0,
 		POST        = 1 << 1,
 		WARE        = 1 << 2,
-		CROWDED     = 1 << 3,
 	};
 
 	// can be combined with or!
@@ -414,9 +413,8 @@ private:
 	 * Reconnect and reroute if counter different from welt->get_schedule_counter()
 	 */
 	static uint8 reconnect_counter;
-	// since we do partial routing, we remember the last offset
 
-	// since we do partial routing, we remeber the last offset
+	// since we do partial routing, we remember the last offset
 	uint8 last_catg_index;
 	uint32 last_goods_index;
 
@@ -433,6 +431,11 @@ private:
 	* Used for the time interval system
 	*/
 	vector_tpl<koord3d> station_signals;
+
+	/**
+	* The convoys that are laid over at this stop
+	*/
+	slist_tpl<convoihandle_t> laid_over;
 
 #ifdef USE_QUOTE
 	// for station rating
@@ -540,15 +543,11 @@ public:
 	// Re-routing goods of a single ware category
 	uint32 reroute_goods(uint8 catg);
 
-
 	/**
 	 * getter/setter for sortby
 	 */
 	uint8 get_sortby() { return sortierung; }
 	void set_sortby(uint8 sm) { resort_freight_info =true; sortierung = sm; }
-
-	void force_resort() { resort_freight_info = true; }
-
 
 	/**
 	 * Calculates a status color for status bars
@@ -627,6 +626,12 @@ public:
 			return enables&POST;
 		}
 		return enables&WARE;
+	}
+
+	// The stop does not handle any goods. only possible to stop
+	bool is_not_enabled() const
+	{
+		return enables == NOT_ENABLED;
 	}
 
 	// for gui purpose
@@ -715,6 +720,7 @@ public:
 	* True if we accept/deliver this kind of good
 	*/
 	bool gibt_ab(const goods_desc_t *warentyp) const { return cargo[warentyp->get_catg_index()] != NULL; }
+	bool accepts_goods_catg(uint8 goods_catg) const  { return cargo[goods_catg] != NULL; }
 
 	/**
 	 * retrieves a ware packet for any destination in the list
@@ -769,11 +775,6 @@ public:
 	 * @param[out] buf Goods description text
 	 */
 	void get_freight_info(cbuffer_t & buf);
-
-	/**
-	 * @param[out] buf short list of the waiting goods (i.e. 110 Wood, 15 Coal)
-	 */
-	void get_short_freight_info(cbuffer_t & buf) const;
 
 	/**
 	 * Opens an information window for this station.
@@ -958,6 +959,11 @@ public:
 
 	bool has_available_network(const player_t* player, uint8 catg_index=goods_manager_t::INDEX_NONE) const;
 
+	// Check if passed waytype's service is active
+	// This is not affected by dummy bus stops intended to increase capacity,
+	// so it's a more accurate judgment than checking facilities.
+	bool has_waytype_service(waytype_t wt) const;
+
 	bool has_no_control_tower() const;
 
 	/**
@@ -1034,6 +1040,12 @@ public:
 	bool is_station_signal_contained(koord3d pos) const { return station_signals.is_contained(pos); }
 
 	void set_all_building_tiles();
+
+	void add_laid_over(convoihandle_t cnv);
+	void remove_laid_over(convoihandle_t cnv);
+	slist_tpl<convoihandle_t>& get_laid_over() { return laid_over; }
+
+	bool can_lay_over() const;
 };
 
 ENUM_BITSET(haltestelle_t::stationtyp)
