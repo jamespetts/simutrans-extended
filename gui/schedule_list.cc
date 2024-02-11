@@ -420,6 +420,8 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	// Transport density
 	cont_line_info.new_component<gui_label_t>("Transportation density");
 	cont_transport_density.set_table_layout(4,0);
+	cont_transport_density.set_spacing(scr_size(1,1));
+	cont_transport_density.set_table_frame(true,true);
 	cont_line_info.add_component(&cont_transport_density);
 
 	scroll_line_info.set_pos(scr_coord(0, 8 + SCL_HEIGHT + D_BUTTON_HEIGHT + D_BUTTON_HEIGHT + 2));
