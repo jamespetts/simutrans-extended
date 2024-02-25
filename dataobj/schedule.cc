@@ -1087,7 +1087,7 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 				buf.printf("%s %s ", translator::translate("Depot"), label_text);
 			}
 			else {
-				buf.printf("%s %s ", translator::translate("Wegpunkt"), label_text);
+				buf.printf("%s ", label_text);
 			}
 		}
 		else if(  gr->get_depot() != NULL  ) {

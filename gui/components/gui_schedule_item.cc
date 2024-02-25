@@ -13,6 +13,15 @@
 #include "../../display/simgraph.h"
 #include "../../display/viewport.h"
 
+
+#define L_ROUTEBAR_WIDTH ((D_ENTRY_NO_WIDTH-4)>>1)
+
+void display_framed_circle_rgb(scr_coord_val x0, scr_coord_val  y0, int radius, const PIXVAL base_color, const PIXVAL frame_color)
+{
+	display_filled_circle_rgb(x0 + radius, y0 + radius, radius, frame_color);
+	display_filled_circle_rgb(x0 + radius, y0 + radius, radius - 1, base_color);
+}
+
 gui_colored_route_bar_t::gui_colored_route_bar_t(uint8 p_col, uint8 style_, bool flexible_h)
 {
 	style = style_;
@@ -32,7 +41,7 @@ gui_colored_route_bar_t::gui_colored_route_bar_t(PIXVAL line_color, uint8 style_
 void gui_colored_route_bar_t::draw(scr_coord offset)
 {
 	offset += pos + scr_coord(2,0);
-	const uint8 width = (D_ENTRY_NO_WIDTH-4)/2;
+	const uint8 width = L_ROUTEBAR_WIDTH;
 	scr_coord_val offset_x = D_ENTRY_NO_WIDTH/4-1;
 	if (!flexible_height) {
 		size = scr_size(D_ENTRY_NO_WIDTH, LINESPACE);
@@ -102,6 +111,55 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 }
 
 
+gui_waypoint_box_t::gui_waypoint_box_t(PIXVAL line_color, uint8 line_style, koord3d pos3d, waytype_t wt)
+	: gui_colored_route_bar_t(line_color, line_style, false)
+{
+	entry_pos = pos3d;
+	grund_t *gr = world()->lookup_kartenboden(entry_pos.get_2d());
+	if (gr) {
+		weg_t *weg = gr->get_weg(wt);
+		if (weg) {
+			player_nr = weg->get_owner_nr();
+			if (player_nr==PLAYER_UNOWNED) {
+				player_nr = PUBLIC_PLAYER_NR;
+			}
+		}
+	}
+}
+
+void gui_waypoint_box_t::draw(scr_coord offset)
+{
+	gui_colored_route_bar_t::draw(offset);
+	// draw waypoint symbol on the color bar
+	offset += pos;
+	scr_coord_val radius = L_ROUTEBAR_WIDTH >> 1;
+	display_framed_circle_rgb(offset.x + size.w/2 - radius, offset.y + size.h/2 - radius, radius, color_idx_to_rgb(world()->get_player(player_nr)->get_player_color1() + env_t::gui_player_color_dark), color_idx_to_rgb(COL_WHITE));
+}
+
+bool gui_waypoint_box_t::infowin_event(const event_t *ev)
+{
+	if(entry_pos != koord3d::invalid) {
+		if (IS_LEFTRELEASE(ev)) {
+			halthandle_t halt = haltestelle_t::get_halt(entry_pos, world()->get_public_player());
+			if (halt.is_bound()) {
+				if( IS_SHIFT_PRESSED(ev) ) {
+					halt->show_detail();
+				}
+				else {
+					halt->show_info();
+				}
+				return true;
+			}
+			return false;
+		}
+		else if (IS_RIGHTRELEASE(ev)) {
+			world()->get_viewport()->change_world_position(entry_pos);
+			return true;
+		}
+	}
+	return false;
+}
+
 gui_schedule_entry_number_t::gui_schedule_entry_number_t(uint8 number_, uint8 p_col, uint8 style_, scr_size size_, koord3d pos_)
 {
 	number = number_ + 1;
@@ -146,9 +204,13 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 			display_fillbox_wh_clip_rgb(pos.x+offset.x + size.w/2 - D_ENTRY_NO_WIDTH/4+1, pos.y+offset.y, (D_ENTRY_NO_WIDTH-4)/2, size.h, base_colval, true);
 			break;
 		case number_style::waypoint:
-			display_fillbox_wh_clip_rgb(pos.x+offset.x + size.w/2 - D_ENTRY_NO_WIDTH/4+1, pos.y+offset.y, (D_ENTRY_NO_WIDTH-4)/2, size.h, base_colval, true);
-			display_filled_circle_rgb(  pos.x+offset.x + size.w/2, pos.y+offset.y + size.h/2, size.h/2, base_colval);
+		{
+			const scr_coord_val bar_width = (D_ENTRY_NO_WIDTH-4)/2;
+			const scr_coord_val radius = min(bar_width, size.h)/2;
+			display_fillbox_wh_clip_rgb(pos.x+offset.x + size.w/2 - D_ENTRY_NO_WIDTH/4+1, pos.y+offset.y, bar_width, size.h, base_colval, true);
+			display_framed_circle_rgb( pos.x+offset.x + size.w/2 - radius, pos.y+offset.y+ size.h/2-radius, radius, base_colval, color_idx_to_rgb(COL_WHITE));
 			break;
+		}
 		default:
 			display_fillbox_wh_clip_rgb(pos.x+offset.x, pos.y+offset.y, size.w, size.h, base_colval, false);
 			text_colval = color_idx_to_rgb(COL_WHITE);

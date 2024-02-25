@@ -14,12 +14,20 @@
 #include "../../dataobj/translator.h"
 #include "../../dataobj/koord3d.h"
 
+#include "../../player/simplay.h"
+
+
+void display_framed_circle_rgb(scr_coord_val x0, scr_coord_val  y0, int radius, const PIXVAL base_color, const PIXVAL frame_color);
+
+
 class gui_colored_route_bar_t : public gui_component_t
 {
-	uint8 style;
 	uint8 alert_level=0;
-	PIXVAL base_color;
+
+protected:
 	bool flexible_height;
+	uint8 style;
+	PIXVAL base_color;
 
 public:
 	enum line_style {
@@ -43,8 +51,24 @@ public:
 	// Color the edges of the line according to the warning level.  0=ok(none), 1=yellow, 2=orange, 3=red
 	void set_alert_level(uint8 level) { alert_level = level; }
 
+	void set_flexible_height(bool yesno) { flexible_height=yesno; }
+
 	scr_size get_min_size() const OVERRIDE { return scr_size(D_ENTRY_NO_WIDTH, LINESPACE); }
 	scr_size get_max_size() const OVERRIDE { return flexible_height ? scr_size(get_min_size().w, scr_size::inf.h) : get_min_size(); }
+};
+
+
+class gui_waypoint_box_t : public gui_colored_route_bar_t
+{
+	koord3d entry_pos;
+	uint8 player_nr = PUBLIC_PLAYER_NR;
+
+public:
+	gui_waypoint_box_t(PIXVAL line_color, uint8 line_style, koord3d pos3d, waytype_t wt = ignore_wt);
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	bool infowin_event(event_t const*) OVERRIDE;
 };
 
 
@@ -78,8 +102,8 @@ public:
 		entry_pos = pos_;
 	};
 
-	void set_number_style(uint8 style_) { style = style_; };
-	void set_color(uint8 color_idx) { p_color_idx = color_idx; };
+	void set_number_style(uint8 style_) { style = style_; }
+	void set_color(uint8 color_idx) { p_color_idx = color_idx; }
 
 	koord3d get_entry_pos() const { return entry_pos; }
 

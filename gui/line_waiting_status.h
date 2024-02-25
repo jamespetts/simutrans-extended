@@ -80,6 +80,8 @@ class gui_line_waiting_status_t : public gui_aligned_container_t
 	bool divide_by_class = false;
 	bool filter_by_line = true;
 
+	uint32 update_time;
+
 public:
 	gui_line_waiting_status_t(linehandle_t line);
 

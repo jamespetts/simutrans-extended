@@ -10,6 +10,8 @@
 #include "components/gui_schedule_item.h"
 #include "../player/simplay.h"
 #include "../simworld.h"
+#include "../simdepot.h"
+#include "../obj/gebaeude.h" // depot name
 #include "../vehicle/vehicle.h"  // get_route_index
 #include "../display/viewport.h" // change_world_position
 
@@ -77,8 +79,34 @@ void gui_line_convoy_location_t::check_convoy()
 			continue;
 		}
 
-		const uint8 cnv_section_at = cnv->get_reverse_schedule() ? cnv->get_schedule()->get_current_stop()
-			: cnv->get_schedule()->get_current_stop() == 0 ? cnv->get_schedule()->entries.get_count()-1 : cnv->get_schedule()->get_current_stop() - 1;
+		uint8 cnv_section_at = cnv->get_schedule()->get_current_stop();
+		const uint8 entries= line->get_schedule()->entries.get_count();
+		const player_t *player = line->get_owner();
+		for (uint8 i = 0; i< entries; i++) {
+			if (cnv->get_reverse_schedule()) {
+				cnv_section_at = (cnv->get_schedule()->get_current_stop()+i+1) % entries;
+			}
+			else {
+				cnv_section_at = (entries+cnv->get_schedule()->get_current_stop()-1-i) % entries;
+			}
+			const koord3d check_pos = line->get_schedule()->entries[cnv_section_at].pos;
+			halthandle_t halt = haltestelle_t::get_halt(check_pos, player);
+
+			if (cnv->get_reverse_schedule()) {
+				cnv_section_at = (cnv_section_at-1) % entries;
+			}
+			if (halt.is_bound()) {
+				break;
+			}
+			else {
+				if (!cnv->get_reverse_schedule() && cnv->front()->get_route_index() > cnv->get_route()->index_of(check_pos)) {
+					break; // convoy is in this section
+				}
+				else if (cnv->get_reverse_schedule() && cnv->front()->get_route_index() > cnv->get_route()->index_of(check_pos)) {
+					break; // convoy is in this section
+				}
+			}
+		}
 
 		if (cnv_section_at==section) {
 			located_convoys.append(cnv);
@@ -264,39 +292,79 @@ void gui_line_waiting_status_t::init()
 				}
 
 				uint8 entry_idx = 0;
-				FORX(minivec_tpl<schedule_entry_t>, const& i, schedule->entries, ++entry_idx) {
+				for(auto const& i : schedule->entries){
 					halthandle_t const halt = haltestelle_t::get_halt(i.pos, line->get_owner());
-					if( !halt.is_bound() ) { continue; }
-
+					uint8 line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::doubled : gui_colored_route_bar_t::solid;
 					// 1st row
-					const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
-					new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
-						is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
-						scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
-						halt->get_basis_pos3d()
-					);
+					if( halt.is_bound() ) {
+						const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
+						new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
+							is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+							scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
+							i.pos
+						);
 
-					if (show_name) {
-						const bool can_serve = halt->can_serve(line);
-						gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE);
-						if (!can_serve) {
-							lb->buf().printf("(%s)", halt->get_name());
+						if (show_name) {
+							const bool can_serve = halt->can_serve(line);
+							gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE);
+							if (!can_serve) {
+								lb->buf().printf("(%s)", halt->get_name());
+							}
+							else {
+								lb->buf().append(halt->get_name());
+							}
+							lb->update();
+							lb->set_fixed_width(lb->get_min_size().w);
+						}
+
+						for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
+							if (line->get_goods_catg_index().is_contained(catg_index)) {
+								new_component<gui_halt_waiting_catg_t>(halt, catg_index, filter_by_line ? line : linehandle_t(), divide_by_class);
+							}
+						}
+					}
+					else {
+						// waypoint or depot
+						depot_t *depot = world()->lookup(i.pos)->get_depot();
+						const bool is_waypoint = world()->lookup(i.pos)->get_depot() == NULL;
+						if (is_waypoint) {
+							new_component<gui_waypoint_box_t>(base_color, line_style, i.pos);
 						}
 						else {
-							lb->buf().append(halt->get_name());
+							new_component<gui_schedule_entry_number_t>(entry_idx, base_color, gui_schedule_entry_number_t::depot,
+								scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
+								i.pos);
 						}
-						lb->update();
-						lb->set_fixed_width(lb->get_min_size().w);
-					}
 
-					for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
-						if (line->get_goods_catg_index().is_contained(catg_index)) {
-							new_component<gui_halt_waiting_catg_t>(halt, catg_index, filter_by_line ? line : linehandle_t(), divide_by_class);
+
+						if (show_name) {
+							gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK);
+							if (is_waypoint) {
+								const grund_t* gr = world()->lookup(i.pos);
+								if (gr) {
+									if (const char *label_text = gr->get_text()) {
+										lb->buf().printf(" %s", label_text);
+									}
+									else {
+										lb->buf().printf(" %s %s", translator::translate("Wegpunkt"), i.pos.get_2d().get_fullstr());
+									}
+								}
+								else {
+									lb->buf().printf("%s", translator::translate("Invalid coordinate"));
+								}
+							}
+							else {
+								// depot
+								lb->buf().printf("%s", depot->get_name());
+							}
+							lb->update();
+							lb->set_fixed_width(lb->get_min_size().w);
 						}
+
+						new_component_span<gui_empty_t>(cols - 1 - show_name);
 					}
 
 					// 2nd row
-					uint8 line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::doubled : gui_colored_route_bar_t::solid;
 					if (entry_idx== schedule->entries.get_count()-1) {
 						if (mirrored) {
 							continue;
@@ -307,18 +375,24 @@ void gui_line_waiting_status_t::init()
 					}
 					new_component<gui_colored_route_bar_t>(base_color, line_style, true);
 					new_component_span<gui_line_convoy_location_t>(line, entry_idx, cols-1);
+
+					entry_idx++;
 				}
 			}
 			end_table();
 		}
 		end_table();
+		update_time = world()->get_ticks();
 	}
 }
 
 void gui_line_waiting_status_t::draw(scr_coord offset)
 {
 	if (line.is_bound()) {
-		if (!line->get_schedule()->matches(world(), schedule)) {
+		if (!line->get_schedule()->matches(world(), schedule) || world()->get_ticks() - update_time > 10000) {
+			// We have to deal with changing the stop name and switching between waypoint and stop,
+			// but since it is difficult to constantly monitor changes outside the component,
+			// we deal with it by automatically updating the entire table at regular intervals.
 			init();
 		}
 		// need to recheck child components size
