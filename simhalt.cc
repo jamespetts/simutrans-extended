@@ -2949,7 +2949,7 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, uint8 wealth_clas
 	if (warray != NULL) {
 		for(auto const i : *warray)
 		{
-			if (wtyp->get_index() == i.get_index() && g_class == i.get_class()
+			if (wtyp->get_index() == i.get_index() && wealth_class == i.get_class()
 				&& (!chk_only_commuter || (chk_only_commuter && wtyp == goods_manager_t::passengers && i.is_commuting_trip))) {
 				sum += i.menge;
 			}
