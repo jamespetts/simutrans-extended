@@ -87,7 +87,6 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	gui_schedule_entry_number_t entry_no;
 	gui_waypoint_box_t wpbox;
 	gui_colored_route_bar_t *route_bar;
-	gui_wait_loading_schedule_t *wait_loading;
 	gui_schedule_couple_order_t *couple_order;
 	gui_wait_loading_schedule_t *wait_loading;
 	button_t bt_del;
