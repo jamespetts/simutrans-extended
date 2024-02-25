@@ -91,11 +91,17 @@ public:
 class gui_convoy_arrow_t : public gui_component_t
 {
 	PIXVAL color;
+	bool reverse;
+
+	scr_size padding = scr_size(3, 0);
+
 public:
 
-	gui_convoy_arrow_t(PIXVAL color=COL_SAFETY, scr_size size = scr_size(LINESPACE*0.7, LINESPACE));
+	gui_convoy_arrow_t(PIXVAL color=COL_SAFETY, bool reverse=false, scr_size size = scr_size(LINESPACE*0.7+6/* padding.x*2 */, LINESPACE));
 
 	void draw(scr_coord offset) OVERRIDE;
+
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }

@@ -75,20 +75,6 @@ public:
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
-class gui_halt_waiting_catg_t : public gui_container_t
-{
-	halthandle_t halt;
-	uint8 catg_index;
-	cbuffer_t buf;
-public:
-	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg);
-
-	void draw(scr_coord offset) OVERRIDE;
-
-	scr_size get_min_size() const OVERRIDE { return size; }
-	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
-};
-
 class gui_halt_waiting_summary_t : public gui_container_t
 {
 	halthandle_t halt;

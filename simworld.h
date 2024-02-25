@@ -2464,7 +2464,7 @@ public:
 	/**
 	 * @return true, if square in place (i,j) with size w, h is constructible.
 	 */
-	bool square_is_free(koord k, sint16 w, sint16 h, int *last_y, climate_bits cl, uint16 regions_allowed) const;
+	bool square_is_free(koord k, sint16 w, sint16 h, int *last_y, climate_bits cl, uint16 regions_allowed, uint16 height = 65535) const;
 
 	/**
 	 * @return A list of all buildable squares with size w, h.

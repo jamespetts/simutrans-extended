@@ -78,7 +78,6 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 {
 	scr_size size = get_windowsize();
 	size.rdwr( file );
-	simline_t::rdwr_linehandle_t(file, line);
 	// player that edits
 	uint8 player_nr;
 	if (file->is_saving()) {
@@ -86,6 +85,7 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 	}
 	file->rdwr_byte( player_nr );
 	player = welt->get_player(player_nr);
+	simline_t::rdwr_linehandle_t(file, line);
 
 	// save edited schedule
 	if(  file->is_loading()  ) {

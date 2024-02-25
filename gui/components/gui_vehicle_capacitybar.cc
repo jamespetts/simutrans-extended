@@ -16,7 +16,6 @@ void gui_convoy_loading_info_t::update_list()
 {
 	remove_all();
 	if( cnv.is_bound() || line.is_bound() ) {
-		const scr_coord_val text_width = show_loading ? proportional_string_width(" 18888/18888") : proportional_string_width(" 188888");
 		// update factors
 		if (cnv.is_bound()) {
 			old_vehicle_count = cnv->get_vehicle_count();
@@ -25,7 +24,6 @@ void gui_convoy_loading_info_t::update_list()
 		}
 
 		const minivec_tpl<uint8> &goods_catg_index = cnv.is_bound() ? cnv->get_goods_catg_index() : line->get_goods_catg_index();
-		const uint16 overcrowded_capacity = goods_catg_index.is_contained(goods_manager_t::INDEX_PAS) ? get_overcrowded_capacity() : 0;
 
 		add_table(4+show_loading,0);
 		{
@@ -66,49 +64,36 @@ void gui_convoy_loading_info_t::update_list()
 
 					// 3: capacity text
 					const uint16 cargo_sum = get_total_cargo_by_fare_class(catg_index,i);
+					uint16 overcrowded_capacity = 0;
+					if (catg_index==goods_manager_t::INDEX_PAS) {
+						overcrowded_capacity = get_overcrowded_capacity(i);
+					}
 					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 					if (show_loading) {
-						lb->buf().printf(" %4d/%3d", min(capacity, cargo_sum), capacity);
+						lb->buf().printf("%4d/%3d", cargo_sum, capacity);
 					}
 					else {
 						lb->buf().append(capacity,0);
 					}
-					lb->set_fixed_width(text_width);
+					if (overcrowded_capacity) {
+						lb->buf().printf("(%u)", overcrowded_capacity);
+					}
 					lb->update();
+					lb->set_fixed_width(lb->get_min_size().w);
 
 					// 4: capacity bar
 					if (show_loading) {
-						PIXVAL catg_bar_col = catg_index < goods_manager_t::INDEX_NONE ? ware->get_color() : color_idx_to_rgb(115);
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6+2)), catg_bar_col)->set_value(capacity, cargo_sum);
+						add_table(1,2)->set_spacing(scr_size(0,0));
+						{
+							PIXVAL catg_bar_col = catg_index < goods_manager_t::INDEX_NONE ? ware->get_color() : color_idx_to_rgb(115);
+							new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6+2)), catg_bar_col)->set_value(capacity, min(cargo_sum, capacity));
+							if (overcrowded_capacity) {
+								new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE>>1)), SYSCOL_OVERCROWDED)->set_value(overcrowded_capacity, get_overcrowded(i));
+							}
+						}
+						end_table();
 					}
 
-					new_component<gui_fill_t>();
-				}
-
-				if (catg_index == goods_manager_t::INDEX_PAS && overcrowded_capacity > 0) {
-					if (skinverwaltung_t::pax_evaluation_icons) {
-						new_component<gui_image_t>(skinverwaltung_t::pax_evaluation_icons->get_image_id(1), 0, ALIGN_CENTER_V, true)->set_tooltip(translator::translate("overcrowded_capacity"));
-					}
-					else {
-						new_component<gui_empty_t>();
-					}
-					new_component<gui_label_t>("overcrowded_capacity");
-
-					// 3: capacity text
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-					if (show_loading) {
-						lb->buf().printf(" %4d/%3d", get_overcrowded(), overcrowded_capacity);
-					}
-					else {
-						lb->buf().append(overcrowded_capacity,0);
-					}
-					lb->set_fixed_width(text_width);
-					lb->update();
-
-					// 4: capacity bar
-					if (show_loading) {
-						new_component<gui_capacity_bar_t>(scr_size(102, scr_coord_val(LINESPACE*0.6)), SYSCOL_OVERCROWDED)->set_value(overcrowded_capacity, get_overcrowded());
-					}
 					new_component<gui_fill_t>();
 				}
 			}
@@ -129,23 +114,24 @@ uint16 gui_convoy_loading_info_t::get_unique_fare_capacity(uint8 catg_index, uin
 	return 0;
 }
 
-uint16 gui_convoy_loading_info_t::get_overcrowded_capacity()
+uint16 gui_convoy_loading_info_t::get_overcrowded_capacity(uint8 g_class)
 {
 	uint16 capacity = 0;
 	if (cnv.is_bound()) {
-		return cnv->get_overcrowded_capacity();
+		return cnv->get_overcrowded_capacity(g_class);
 	}
 	else if (line.is_bound()) {
 		for (uint32 i = 0; i < line->count_convoys(); i++) {
 			convoihandle_t const convoy = line->get_convoy(i);
 			// we do not want to count the capacity of depot convois
 			if (!convoy->in_depot()) {
-				capacity += convoy->get_overcrowded_capacity();
+				capacity += convoy->get_overcrowded_capacity(g_class);
 			}
 		}
 	}
 	return capacity;
 }
+
 
 uint16 gui_convoy_loading_info_t::get_total_cargo_by_fare_class(uint8 catg_index, uint8 g_class)
 {
@@ -162,20 +148,21 @@ uint16 gui_convoy_loading_info_t::get_total_cargo_by_fare_class(uint8 catg_index
 	return sum;
 }
 
-uint16 gui_convoy_loading_info_t::get_overcrowded()
+uint16 gui_convoy_loading_info_t::get_overcrowded(uint8 g_class)
 {
 	uint16 sum = 0;
 	if (cnv.is_bound()) {
-		return cnv->get_overcrowded();
+		return cnv->get_overcrowded(g_class);
 	}
 	else if (line.is_bound()) {
 		for (uint32 i = 0; i < line->count_convoys(); i++) {
 			convoihandle_t const convoy = line->get_convoy(i);
-			sum += convoy->get_overcrowded();
+			sum += convoy->get_overcrowded(g_class);
 		}
 	}
 	return sum;
 }
+
 
 gui_convoy_loading_info_t::gui_convoy_loading_info_t(linehandle_t line, convoihandle_t cnv, bool show_loading_info)
 {

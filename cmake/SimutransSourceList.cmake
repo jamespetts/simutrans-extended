@@ -183,6 +183,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
+	gui/line_waiting_status.cc
 	gui/loadfont_frame.cc
 	gui/load_relief_frame.cc
 	gui/loadsave_frame.cc

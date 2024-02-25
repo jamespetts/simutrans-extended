@@ -2939,9 +2939,9 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp) const
 	return sum;
 }
 
-uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, uint8 g_class, bool chk_only_commuter) const
+uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, uint8 wealth_class, bool chk_only_commuter) const
 {
-	if (g_class >= wtyp->get_number_of_classes()) {
+	if (wealth_class >= wtyp->get_number_of_classes()) {
 		return 0;
 	}
 	int sum = 0;
@@ -2957,6 +2957,29 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, uint8 g_class, bo
 	}
 	return sum;
 }
+
+uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, linehandle_t line, uint8 wealth_class) const
+{
+	int sum = 0;
+	const vector_tpl<ware_t> * warray = cargo[wtyp->get_catg_index()];
+	if(warray!=NULL) {
+		FOR(vector_tpl<ware_t>, const& i, *warray) {
+			if (wtyp->get_index() == i.get_index()) {
+				if (wealth_class !=255  &&  wealth_class != i.get_class()) {
+					continue;
+				}
+				halthandle_t const via_halt = i.get_zwischenziel();
+				if ( via_halt.is_bound() ) {
+					if(  line == get_preferred_line(via_halt, wtyp->get_catg_index(), goods_manager_t::get_classes_catg_index(wtyp->get_index())-1)  ) {
+						sum += i.menge;
+					}
+				}
+			}
+		}
+	}
+	return sum;
+}
+
 
 uint32 haltestelle_t::get_transferring_goods_sum(const goods_desc_t *wtyp, uint8 g_class) const
 {

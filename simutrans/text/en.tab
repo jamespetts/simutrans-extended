@@ -6000,6 +6000,8 @@ Divided by class
 Divided by class
 Waiting bars are displayed separately for each class.
 Waiting bars are displayed separately for each class.
+Waiting cargoes are displayed separately for each class.
+Waiting cargoes are displayed separately for each class.
 Unified
 Unified
 Divided by category
@@ -6278,6 +6280,8 @@ A measure of the amount of freight transported, expressed in tonne-kilometre
 A measure of the amount of freight transported, expressed in tonne kilometres
 Transportation density
 Transportation density
+Monthly transportation density
+Monthly transportation density
 Yearly average
 Yearly average
 /mon
@@ -6698,3 +6702,5 @@ New shipping destination added to Factory %s in %s for %s.
 New shipping destination added to Factory %s in %s for %s.
 New shipping destination added to Factory %s (near to %s) for %s.
 New shipping destination added to Factory %s (near to %s) for %s.
+filter_by_line
+Filter by line

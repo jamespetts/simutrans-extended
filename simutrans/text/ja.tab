@@ -233,6 +233,8 @@ Show no revenue messages
 全てのプレイヤーの収益を非表示
 Show only player's revenue
 現在のプレイヤーの収益のみ表示
+Show only cargoes waiting for this line
+この路線を待っている貨物の数量を表示します
 Terraforming not possible\nhere in underground view
 スロープツールは、\n地下では使用できません。
 This tunnel branches. You can try Control+Click to remove.
@@ -3777,6 +3779,8 @@ allow_takeover_of_your_company
 会社の買収を許可
 take_over
 買収
+filter_by_line
+この路線を待っている貨物に絞り込む
 filter_pas_line
 旅客取扱い路線
 filter_mail_line
@@ -3959,6 +3963,8 @@ Divided by class
 クラス毎に分割表示
 Waiting bars are displayed separately for each class.
 待機バーを各クラス毎に分割して表示します。
+Waiting cargoes are displayed separately for each class.
+待機数を各クラス毎に分割して表示します。
 Unified
 全ての貨物をまとめて表示
 Divided by category
@@ -4313,6 +4319,8 @@ A measure of the amount of freight transported, expressed in tonne-kilometre
 貨物の輸送量を示す指標。貨物の重量と輸送距離の積。
 Transportation density
 輸送密度
+Monthly transportation density
+月間輸送密度
 Yearly average
 年間平均
 /mon

@@ -262,57 +262,6 @@ void gui_halt_goods_demand_t::draw(scr_coord offset)
 }
 
 
-gui_halt_waiting_catg_t::gui_halt_waiting_catg_t(halthandle_t h, uint8 catg)
-{
-	halt = h;
-	catg_index = catg;
-	set_size(scr_size(D_H_SPACE, D_LABEL_HEIGHT));
-}
-
-void gui_halt_waiting_catg_t::draw(scr_coord offset)
-{
-	offset += pos;
-	scr_coord_val xoff = D_H_SPACE;
-	uint8 g_class = goods_manager_t::get_classes_catg_index(catg_index) - 1;
-	haltestelle_t::connexions_map *connexions = halt->get_connexions(catg_index, g_class);
-	if (connexions->empty()) {
-		// no connection
-		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, "-", ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
-	}
-	else {
-		bool got_one = false;
-		bool overcrowded = (halt->get_status_color(catg_index==goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2)==SYSCOL_OVERCROWDED);
-
-		for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
-			const goods_desc_t *wtyp = goods_manager_t::get_info(j);
-			if (wtyp->get_catg_index() != catg_index) {
-				continue;
-			}
-			const uint32 sum = halt->get_ware_summe(wtyp);
-			if (sum > 0) {
-				buf.clear();
-				display_colorbox_with_tooltip(offset.x + xoff, offset.y, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, wtyp->get_color(), false, NULL);
-				xoff += GOODS_COLOR_BOX_HEIGHT+2;
-
-				buf.printf("%s ", translator::translate(wtyp->get_name()));
-				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
-				buf.clear();
-				buf.printf("%d ", sum);
-				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, buf, ALIGN_LEFT, overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT, true);
-				xoff += D_H_SPACE;
-				got_one = true;
-			}
-		}
-		if (!got_one) {
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, "0", ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
-		}
-	}
-
-	set_size( scr_size(xoff+D_H_SPACE*2, D_LABEL_HEIGHT) );
-	gui_container_t::draw(offset);
-}
-
-
 gui_halt_waiting_summary_t::gui_halt_waiting_summary_t(halthandle_t h)
 {
 	halt = h;

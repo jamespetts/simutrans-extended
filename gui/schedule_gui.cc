@@ -737,7 +737,7 @@ void schedule_gui_t::build_table()
 
 			cont_settings_1.set_table_frame(true);
 			cont_settings_1.set_table_layout(1,0);
-			cont_settings_1.set_margin(scr_size(0, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
+			cont_settings_1.set_margin(scr_size(D_H_SPACE, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
 			cont_settings_1.add_table(2,0)->set_spacing(scr_size(0,0));
 			{
 				// Minimum loading
