@@ -40,6 +40,9 @@ public:
 public:
 	font_t();
 
+	// returns true if this character is contained in the font
+	static bool is_char_in_freetype_font(const char* fname, utf16 testchar);
+
 public:
 	/// @returns true on success
 	bool load_from_file(const char *fname);
@@ -50,8 +53,7 @@ public:
 	sint16 get_ascent() const { return ascent; }
 
 	/// @returns true if this is a valid (defined) glyph
-	bool is_valid_glyph(utf32 c) const
-	{ return is_loaded() && c < get_num_glyphs() && glyphs[c].advance != 0xFF; }
+	bool is_valid_glyph(utf32 c) const { return  is_loaded()  &&  c < get_num_glyphs()  &&  glyphs[c].advance != 0xFF;  }
 
 	/// @returns size in pixels between the start of this glyph and the next glyph
 	sint16 get_glyph_advance(utf32 c) const;

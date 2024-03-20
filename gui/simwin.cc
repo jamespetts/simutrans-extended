@@ -2165,14 +2165,14 @@ void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*qui
 	// switch off autosave
 	sint32 old_autosave = env_t::autosave;
 	env_t::autosave = 0;
-
+	create_win(scr_coord(0,0), gui, w_info, magic);
 	event_t ev;
 	scr_coord pos{
 		(display_get_width()  - gui->get_windowsize().w) / 2,
 		(display_get_height() - gui->get_windowsize().h) / 2
 	};
 	win_clamp_xywh_position(pos, gui->get_windowsize(), true);
-	create_win(pos, gui, w_info, magic);
+	wins[wins[0].gui!=gui].pos = pos;
 
 	if (welt) {
 		welt->set_pause(false);
