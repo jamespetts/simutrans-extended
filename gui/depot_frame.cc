@@ -734,7 +734,7 @@ bool depot_frame_t::infowin_event(const event_t *ev)
 
 		if(next_dep  &&  next_dep!=this->depot) {
 			//  Replace our depot_frame_t with a new at the same position.
-			const scr_coord const pos = win_get_pos(this);
+			const scr_coord pos = win_get_pos(this);
 			destroy_win( this );
 
 			next_dep->show_info();
