@@ -937,6 +937,7 @@
 10214
 ||
 10218
+10219 (*only simwin)
 10220
 ||
 10225
@@ -1025,8 +1026,12 @@
 10585
 10586
 10589
+10590
 10596
+||
+10598
 10600
+10604
 10607
 10608
 *10613(only gui_scrolled_list.cc)
@@ -1092,7 +1097,11 @@
 10934
 ||
 10937
-10946
+10940
+10945
+||
+10950
+10955
 //11101 don't merge this, reverted later
 11240 - backport from extended player ranking UI
 11241 - backport from extended player ranking UI
