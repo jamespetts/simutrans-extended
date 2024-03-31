@@ -2747,7 +2747,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		char str[256];
 		sprintf(str, "waytype_color[%i]", i);
 		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
-			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+			waytype_color[i] = contents.get_color(str, waytype_color[i]);
 		}
 	}
 
