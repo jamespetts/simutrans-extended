@@ -11,6 +11,7 @@
 #include "components/gui_button.h"
 #include "gui_frame.h"
 
+#include "../utils/cbuffer_t.h"
 
 /*
  * Class to generates the welcome screen with the scrolling
@@ -21,13 +22,15 @@ class banner_t : public gui_frame_t, action_listener_t
 {
 private:
 	button_t
-		//continue_game,
+		continue_game,
 		new_map,
 		load_map,
 		load_scenario,
 		join_map,
 		options,
 		quit;
+
+	cbuffer_t continue_tooltip;
 
 public:
 	banner_t();
