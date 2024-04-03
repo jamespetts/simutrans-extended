@@ -1991,6 +1991,7 @@
     <ClCompile Include="dataobj\livery_scheme.cc" />
     <ClCompile Include="dataobj\objlist.cc" />
     <ClCompile Include="dataobj\settings.cc" />
+    <ClCompile Include="dataobj\sve_cache.cc" />
     <ClCompile Include="display\font.cc" />
     <ClCompile Include="display\simgraph0.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -2582,6 +2583,7 @@
     <ClInclude Include="dataobj\records.h" />
     <ClInclude Include="dataobj\rect.h" />
     <ClInclude Include="dataobj\settings.h" />
+    <ClInclude Include="dataobj\sve_cache.h" />
     <ClInclude Include="descriptor\image_array_3d.h" />
     <ClInclude Include="descriptor\obj_base_desc.h" />
     <ClInclude Include="descriptor\pier_desc.h" />

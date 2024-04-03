@@ -14,6 +14,7 @@
 #include "../macros.h"
 #include "../descriptor/skin_desc.h"
 #include "../dataobj/environment.h"
+#include "../dataobj/sve_cache.h"
 #include "../simmenu.h"
 
 #include "simwin.h"
@@ -71,22 +72,22 @@ banner_t::banner_t() : gui_frame_t("")
 	menubar->set_table_frame(true, false);
 	menubar->set_margin(scr_size(D_MARGIN_LEFT, D_MARGIN_TOP), scr_size(D_MARGIN_RIGHT, D_MARGIN_BOTTOM));
 	{
-		//sve_cache_t::load_cache();
-		//const std::string last_save = sve_cache_t::get_most_recent_compatible_save();
+		sve_cache_t::load_cache();
+		const std::string last_save = sve_cache_t::get_most_recent_compatible_save();
 
 		// Continue game button
-		//continue_game.init(button_t::roundbox | button_t::flexible, "Continue Game");
-		//continue_game.add_listener(this);
-		//continue_game.enable(!last_save.empty());
+		continue_game.init(button_t::roundbox | button_t::flexible, "Continue Game");
+		continue_game.add_listener(this);
+		continue_game.enable(!last_save.empty());
 
-		//if (!last_save.empty()) {
-		//	continue_tooltip.printf("Load '%s'", (last_save.c_str() + 5));
-		//	continue_game.set_tooltip(continue_tooltip.get_str());
-		//}
+		if (!last_save.empty()) {
+			continue_tooltip.printf("Load '%s'", (last_save.c_str() + 5));
+			continue_game.set_tooltip(continue_tooltip.get_str());
+		}
 
-		//add_component(&continue_game);
+		add_component(&continue_game);
 
-		//new_component<gui_divider_t>();
+		new_component<gui_divider_t>();
 
 		// New game button
 		new_map.init( button_t::roundbox | button_t::flexible, "Neue Karte");
@@ -211,6 +212,9 @@ bool banner_t::infowin_event(const event_t *ev)
 	if(  gui_frame_t::is_hit( ev->click_pos.x, ev->click_pos.y  )  ) {
 		gui_frame_t::infowin_event( ev );
 	}
+	if (ev->ev_class == EVENT_SYSTEM && ev->ev_code == SYSTEM_QUIT) {
+		env_t::quit_simutrans = true;
+	}
 	return false;
 }
 
@@ -221,12 +225,12 @@ bool banner_t::action_triggered( gui_action_creator_t *comp, value_t)
 		env_t::quit_simutrans = true;
 		destroy_all_win(true);
 	}
-	//else if(  comp == &continue_game  ) {
-	//	sve_cache_t::load_cache();
-	//	const std::string last_save = sve_cache_t::get_most_recent_compatible_save();
-	//	destroy_all_win(true);
-	//	welt->load(last_save.c_str());
-	//}
+	else if(  comp == &continue_game  ) {
+		sve_cache_t::load_cache();
+		const std::string last_save = sve_cache_t::get_most_recent_compatible_save();
+		destroy_all_win(true);
+		welt->load(last_save.c_str());
+	}
 	else if(  comp == &new_map  ) {
 		destroy_all_win(true);
 		create_win( new welt_gui_t(&env_t::default_settings), w_info, magic_welt_gui_t );

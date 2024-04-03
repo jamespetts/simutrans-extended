@@ -44,6 +44,7 @@ target_sources(simutrans-extended PRIVATE
 	dataobj/scenario.cc
 	dataobj/schedule.cc
 	dataobj/settings.cc
+	dataobj/sve_cache.cc
 	dataobj/tabfile.cc
 	dataobj/translator.cc
 	descriptor/bridge_desc.cc

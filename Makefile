@@ -323,6 +323,7 @@ SOURCES += dataobj/crossing_logic.cc
 SOURCES += dataobj/objlist.cc
 SOURCES += dataobj/settings.cc
 SOURCES += dataobj/schedule.cc
+SOURCES += dataobj/sve_cache.cc
 SOURCES += dataobj/freelist.cc
 SOURCES += dataobj/gameinfo.cc
 SOURCES += dataobj/height_map_loader.cc
