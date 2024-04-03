@@ -103,7 +103,7 @@ public:
 				return i;
 			}
 		}
-		assert(false);
+		//assert(false);
 		return 0xFFFFFFFFu;
 	}
 
