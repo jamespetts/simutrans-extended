@@ -30,7 +30,7 @@ private:
 		options,
 		quit;
 
-	cbuffer_t continue_tooltip;
+	cbuffer_t continue_tooltip, pakname_tooltip;
 
 public:
 	banner_t();

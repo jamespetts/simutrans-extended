@@ -72,6 +72,18 @@ banner_t::banner_t() : gui_frame_t("")
 	menubar->set_table_frame(true, false);
 	menubar->set_margin(scr_size(D_MARGIN_LEFT, D_MARGIN_TOP), scr_size(D_MARGIN_RIGHT, D_MARGIN_BOTTOM));
 	{
+		add_table(3,1);
+		{
+			new_component<gui_fill_t>();
+			gameinfo_t gi(world());
+			pakname_tooltip.append(gi.get_pak_name());
+			new_component<gui_image_t>(skinverwaltung_t::logosymbol->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(pakname_tooltip);
+			new_component<gui_fill_t>();
+		}
+		end_table();
+
+		new_component<gui_divider_t>();
+
 		sve_cache_t::load_cache();
 		const std::string last_save = sve_cache_t::get_most_recent_compatible_save();
 
@@ -144,31 +156,25 @@ banner_t::banner_t() : gui_frame_t("")
 	{
 		new_component<gui_label_t>("Welcome to Simutrans-Extended (formerly Simutrans-Experimental)", SYSCOL_TEXT_TITLE, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-		add_table(2,0);
+		add_table(1,0);
 		{
-			add_table(1,0);
+			add_table(3,0);
 			{
-				add_table(3,0);
-				{
-					new_component<gui_fill_t>();
-					add_table(1,0);
+				new_component<gui_fill_t>();
+				add_table(1,0);
 
-					new_component<gui_label_t>("This is an extended version of Simutrans", SYSCOL_TEXT_TITLE, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("This is an extended version of Simutrans", SYSCOL_TEXT_TITLE, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-					new_component<gui_label_t>("Developed by the Simutrans community", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("Developed by the Simutrans community", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-					new_component<gui_label_t>("under the Artistic Licence; forked", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("under the Artistic Licence; forked", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-					new_component<gui_label_t>("from Simutrans-Standard " QUOTEME(SIM_VERSION_MAJOR), SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("from Simutrans-Standard " QUOTEME(SIM_VERSION_MAJOR), SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-					end_table();
-					new_component<gui_fill_t>();
-				}
 				end_table();
+				new_component<gui_fill_t>();
 			}
 			end_table();
-
-			new_component<gui_image_t>()->set_image(skinverwaltung_t::logosymbol->get_image_id(0), true);
 		}
 		end_table();
 
