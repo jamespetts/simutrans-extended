@@ -167,7 +167,7 @@ banner_t::banner_t() : gui_frame_t("")
 
 				new_component<gui_label_t>("Developed by the Simutrans community", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-				new_component<gui_label_t>("under the Artistic Licence", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("under the Artistic License", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
 				new_component<gui_label_t>("forked from Simutrans-Standard " QUOTEME(SIM_VERSION_MAJOR), SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
