@@ -167,9 +167,9 @@ banner_t::banner_t() : gui_frame_t("")
 
 				new_component<gui_label_t>("Developed by the Simutrans community", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-				new_component<gui_label_t>("under the Artistic Licence; forked", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("under the Artistic Licence", SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
-				new_component<gui_label_t>("from Simutrans-Standard " QUOTEME(SIM_VERSION_MAJOR), SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+				new_component<gui_label_t>("forked from Simutrans-Standard " QUOTEME(SIM_VERSION_MAJOR), SYSCOL_TEXT_HIGHLIGHT, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
 				end_table();
 				new_component<gui_fill_t>();
@@ -180,7 +180,9 @@ banner_t::banner_t() : gui_frame_t("")
 
 		add_table(1,0);
 		{
-			new_component<gui_label_t>("Selling of the program is forbidden.", color_idx_to_rgb(COL_ORANGE), gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
+			gui_label_t *lb = new_component<gui_label_t>("Selling of the program is forbidden.", color_idx_to_rgb(COL_ORANGE), gui_label_t::left);
+			lb->set_shadow(SYSCOL_TEXT_SHADOW, true);
+			lb->set_underline(true);
 			new_component<gui_label_t>("For questions and support please visit:", SYSCOL_TEXT_TITLE, gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 		}
 		end_table();
