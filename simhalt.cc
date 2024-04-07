@@ -6658,7 +6658,7 @@ void haltestelle_t::set_all_building_tiles()
 }
 
 
-bool haltestelle_t::is_same_route(const ware_t &ware, linehandle_t line)
+bool haltestelle_t::is_same_route(const ware_t &ware, linehandle_t line) const
 {
 	if (line.is_bound()) {
 		return (line==get_preferred_line(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index())-1));
@@ -6666,7 +6666,7 @@ bool haltestelle_t::is_same_route(const ware_t &ware, linehandle_t line)
 	return false;
 }
 
-bool haltestelle_t::is_same_route(const ware_t &ware, convoihandle_t cnv)
+bool haltestelle_t::is_same_route(const ware_t &ware, convoihandle_t cnv) const
 {
 	if (cnv.is_bound()) {
 		return (cnv == get_preferred_convoy(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index())-1));
@@ -6710,7 +6710,6 @@ void haltestelle_t::merge_ware(ware_t ware, slist_tpl<ware_t> &warray, uint8 cat
 	if (merge_condition_bits & ignore_ware_data_t::ignore_destination) {
 		ware.set_zielpos(koord::invalid);
 	}
-
 
 	FOR(slist_tpl<ware_t>, j, warray) {
 		// check route

@@ -1049,8 +1049,8 @@ public:
 	};
 
 	// check waiting same line/convoy or not
-	bool is_same_route(const ware_t &ware, convoihandle_t cnv = convoihandle_t());
-	bool is_same_route(const ware_t &ware, linehandle_t line = linehandle_t());
+	bool is_same_route(const ware_t &ware, convoihandle_t cnv = convoihandle_t()) const;
+	bool is_same_route(const ware_t &ware, linehandle_t line = linehandle_t()) const;
 
 	// helper function for get_ware
 	void merge_ware(ware_t ware, slist_tpl<ware_t> &warray, uint8 catg_index, uint8 merge_condition_bits, uint8 ware_state=0);
