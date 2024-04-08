@@ -181,6 +181,8 @@ Kann Spielstand\nnicht speichern.\n
 ゲームを保存できません。\n
 Loading a new game will end the current server session!
 新しいゲームを読み込むと、現在接続されているオンラインのゲームセッションから切断されます！
+Load '%s'
+「%s」を再開します
 Lost connection\nto server!
 サーバーへの接続が\n切断されました
 Lost synchronisation\nwith server.
@@ -917,6 +919,8 @@ Direkt erreichbare Haltestellen
 ここから運行されている　駅・停留所・港
 disable midi
 ミュート
+Display settings
+表示設定
 Distance
 走行距離
 distributing cities
@@ -1019,6 +1023,8 @@ font size
 フォントサイズ
 Forest
 森
+For questions and support please visit:
+質問・サポートは以下のサイトへアクセスしてください：
 Found new city
 新しい街を作る
 FPS:
@@ -1709,6 +1715,8 @@ Retire. date:
 引退年月:
 return ticket
 往復路線
+Return to menu
+メニューに戻る
 Revenue
 収入
 Revision:
@@ -3555,6 +3563,8 @@ Weight limit
 重量制限
 Welcome to Simutrans-Extended (formerly Simutrans-Experimental), a fork of Simutrans-Standard, extended and maintained by the Simutrans community.
 ようこそSimutrans-Extendedへ! Simutrans-StandardはHj. MalthanerとSimutransコミュニティによって開発されました。Simutrans-ExtendedはSimutrans-Standardを元にしてJames E. PettsとSimutransコミュニティによって開発が続けられている派生版です。
+Welcome to Simutrans-Extended (formerly Simutrans-Experimental)
+ようこそ、Simutrans-Extendedへ
 West To East
 東西方向
 When adding convoys to the line, every second convoy will follow it in the reverse direction.
@@ -3999,6 +4009,8 @@ Trailers
 被牽引車
 <p>Continue by ESC, SPACE, or BACKSPACE.<br>
 <p>[ESC] [SPACE] [BACKSPACE]、いずれかのキーでゲームを開始します。<br>
+Continue Game
+前回の続き
 #fl_btn_demand
 #商品需要
 fl_btn_region

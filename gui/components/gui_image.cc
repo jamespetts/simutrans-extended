@@ -13,6 +13,7 @@ gui_image_t::gui_image_t( const image_id i, const uint8 p, control_alignment_t a
 	player_nr(p),
 	remove_offset(0,0),
 	remove_enabled(remove_offset_enabled),
+	tooltip(NULL),
 	color_index(0)
 {
 	set_image(i,remove_offset_enabled);
