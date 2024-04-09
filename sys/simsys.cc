@@ -577,7 +577,7 @@ std::string dr_get_system_font()
 	FcResult result;
 	FcPattern* font = FcFontMatch(config, pat, &result);
 	if (font) {
-		FcChar8* file = NULL; 
+		FcChar8* file = NULL;
 		if (  FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch  ) {
 			fontFile = (char*)file;
 		}
