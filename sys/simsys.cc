@@ -496,14 +496,15 @@ std::string dr_get_system_font()
 #ifdef WIN32
 #define DEFAULT_FONT "arial.ttf"
 
-	NONCLIENTMETRICS ncm;
-	ncm.cbSize = sizeof(NONCLIENTMETRICS);
-	SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncm, 0);
-	std::wstring faceName(ncm.lfMessageFont.lfFaceName);
+	NONCLIENTMETRICSW ncm;
+	ncm.cbSize = sizeof(NONCLIENTMETRICSW);
+	SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &ncm, 0);
+	std::wstring wsFaceName = ncm.lfMessageFont.lfFaceName;
+
 	const LPWSTR fontRegistryPath = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
 	HKEY hKey;
 	LONG result;
-	std::wstring wsFaceName(faceName.begin(), faceName.end());
+
 	// Open Windows font registry key
 	result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, fontRegistryPath, 0, KEY_READ, &hKey);
 	if (result != ERROR_SUCCESS) {
