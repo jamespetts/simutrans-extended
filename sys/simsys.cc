@@ -48,7 +48,9 @@
 #	endif
 #endif
 
-
+#ifdef USE_FONTCONFIG
+#include <fontconfig/fontconfig.h>
+#endif
 
 sys_event_t sys_event;
 
@@ -565,6 +567,26 @@ std::string dr_get_system_font()
 #elif defined(ANDROID)
 	std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
 	return fontname;
+#elif defined(USE_FONTCONFIG)
+	std::string fontFile = FONT_PATH_X "cyr.bdf";
+	FcInit();
+	FcConfig* config = FcInitLoadConfigAndFonts();
+	FcPattern* pat = FcNameParse((const FcChar8*)"Sans");
+	FcConfigSubstitute(config, pat, FcMatchPattern);
+	FcDefaultSubstitute(pat);
+	FcResult result;
+	FcPattern* font = FcFontMatch(config, pat, &result);
+	if (font) {
+		FcChar8* file = NULL; 
+		if (  FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch  ) {
+			fontFile = (char*)file;
+		}
+	}
+	FcPatternDestroy(font);
+	FcPatternDestroy(pat);
+	FcConfigDestroy(config);
+	FcFini();
+	return fontFile;
 #else
 	return FONT_PATH_X "cyr.bdf";
 #endif
