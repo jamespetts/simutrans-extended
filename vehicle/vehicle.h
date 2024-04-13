@@ -623,12 +623,6 @@ public:
 
 	const char * get_cargo_mass() const;
 
-	/**
-	* create an info text for the freight
-	* e.g. to display in a info window
-	*/
-	void get_cargo_info(cbuffer_t & buf) const;
-
 	// Check for straightness of way.
 	//@author jamespetts
 

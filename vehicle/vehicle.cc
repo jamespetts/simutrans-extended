@@ -2141,43 +2141,6 @@ uint32 vehicle_t::get_cargo_weight() const
 }
 
 
-void vehicle_t::get_cargo_info(cbuffer_t & buf) const
-{
-	vector_tpl<vector_tpl<ware_t>> fracht_array(number_of_classes);
-	for (uint8 i = 0; i < number_of_classes; i++)
-	{
-		vector_tpl<ware_t> this_iteration_vector(fracht->get_count());
-		for(auto w : fracht[i])
-		{
-			this_iteration_vector.append(w);
-		}
-		fracht_array.append(this_iteration_vector);
-	}
-
-	INT_CHECK("simconvoi 2643");
-
-	buf.clear();
-
-	if (get_cargo_type() == goods_manager_t::passengers || get_cargo_type() == goods_manager_t::mail)
-	{
-		uint8 freight_info_order = 9; // = by_accommodation_detail
-		ware_t cargo_type = get_cargo_type();
-		for (uint8 i = 0; i < number_of_classes; i++)
-		{
-			freight_list_sorter_t::sort_freight(fracht_array[i], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", get_reassigned_class(i), get_accommodation_capacity(i), &cargo_type, true);
-		}
-	}
-	else
-	{
-		uint8 freight_info_order = 6; // = by_destination_detail
-		slist_tpl <ware_t>capacity;
-		ware_t ware = get_cargo_type();
-		ware.menge = desc->get_total_capacity();
-		capacity.insert(ware);
-		freight_list_sorter_t::sort_freight(fracht_array[0], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL, true);
-	}
-}
-
 /**
  * Delete all vehicle load
  */
