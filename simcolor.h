@@ -199,6 +199,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TRACTION_TYPE                gui_theme_t::gui_color_traction_type
 #define SYSCOL_UPGRADEABLE                  gui_theme_t::gui_color_upgradeable
 #define SYSCOL_EMPTY                        gui_theme_t::gui_color_empty
+//#define SYSCOL_IMAGE_TRANSPARENCY           gui_theme_t::gui_color_image_transparency // NOT USED IN EXTENDED
+#define SYSCOL_OBJECT_HIGHLIGHT             gui_theme_t::gui_color_object_highlight
 #define SYSCOL_UP_TRIANGLE                  gui_theme_t::gui_color_up_pointing_triangle
 #define SYSCOL_DOWN_TRIANGLE                gui_theme_t::gui_color_down_pointing_triangle
 #define SYSCOL_TABLE_FRAME                  gui_theme_t::gui_color_table_frame

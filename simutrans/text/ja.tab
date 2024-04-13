@@ -4099,6 +4099,10 @@ helptxt_acceleration_time
 平坦な直線で最高速度に到達するまでに要する時間
 helptxt_acceleration_distance
 平坦な直線で最高速度に到達するまでに要する距離
+helptxt_swap_schedule_entries
+上下の2地点の並び順を入れ替えます
+can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry
+スケジュールの行を右クリックすることでも座標へ移動できます
 Unreachable
 N/A
 %.2f sec

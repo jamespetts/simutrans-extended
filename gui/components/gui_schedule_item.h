@@ -62,9 +62,12 @@ class gui_waypoint_box_t : public gui_colored_route_bar_t
 {
 	koord3d entry_pos;
 	uint8 player_nr = PUBLIC_PLAYER_NR;
+	bool highlight = false;
 
 public:
 	gui_waypoint_box_t(PIXVAL line_color, uint8 line_style, koord3d pos3d, waytype_t wt = ignore_wt);
+
+	void set_highlight(bool yesno) { highlight = yesno; }
 
 	void draw(scr_coord offset) OVERRIDE;
 
@@ -79,6 +82,8 @@ class gui_schedule_entry_number_t : public gui_container_t, public gui_action_cr
 	uint8 style;
 	gui_label_buf_t lb_number;
 	koord3d entry_pos;
+	bool highlight=false;
+
 public:
 	enum number_style {
 		halt = 0,
@@ -104,6 +109,7 @@ public:
 
 	void set_number_style(uint8 style_) { style = style_; }
 	void set_color(uint8 color_idx) { p_color_idx = color_idx; }
+	void set_highlight(bool yesno)  { highlight = yesno; }
 
 	koord3d get_entry_pos() const { return entry_pos; }
 

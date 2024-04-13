@@ -230,6 +230,9 @@ scr_size button_t::get_min_size() const
 			return scr_size( max( D_BUTTON_HEIGHT, (gui_theme_t::gui_color_button_text_offset.w+4)*2 + 6/*arrow width(5)+margin(1)*/+block_height + (bars_height-2)/2 ), max(D_BUTTON_HEIGHT, LINESPACE) );
 		}
 
+		case swap_vertical:
+			return scr_size(D_BUTTON_PADDINGS_X + 18/*arrow width(5*2)+center margin(3)+padding*/ ,D_LABEL_HEIGHT);
+
 		case depot:
 		{
 			return scr_size( max(18, D_BUTTON_HEIGHT), max(D_BUTTON_HEIGHT, LINESPACE));
@@ -494,6 +497,26 @@ void button_t::draw(scr_coord offset)
 			}
 			break;
 
+		case swap_vertical:
+			{
+				display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
+
+				scr_coord_val xoff = area.x + gui_theme_t::gui_button_text_offset.w + 5;
+				const scr_coord_val yoff = area.y + 2 + (pressed&&gui_theme_t::pressed_button_sinks);
+				// up arrow
+				display_fillbox_wh_clip_rgb(xoff,   yoff,   1, D_LABEL_HEIGHT-4, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-1, yoff+1, 3, 1, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-2, yoff+2, 5, 1, SYSCOL_BUTTON_TEXT, false);
+
+				// down arrow
+				xoff = area.x + size.w - gui_theme_t::gui_button_text_offset.w - 6;
+				display_fillbox_wh_clip_rgb(xoff,   yoff, 1, D_LABEL_HEIGHT-4, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-1, yoff+D_LABEL_HEIGHT-6, 3, 1, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-2, yoff+D_LABEL_HEIGHT-7, 5, 1, SYSCOL_BUTTON_TEXT, false);
+
+			}
+			break;
+
 		case depot:
 			{
 				display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
@@ -573,6 +596,7 @@ void button_t::update_focusability()
 		// those cannot receive focus ...
 		case imagebox:
 		case sortarrow:
+		case swap_vertical:
 		case arrowleft:
 		case repeatarrowleft:
 		case arrowright:

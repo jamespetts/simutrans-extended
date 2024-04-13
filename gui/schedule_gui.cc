@@ -136,7 +136,7 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 	number = n;
 	is_current = false;
 	is_air_wt = air_wt;
-	set_table_layout(7,0);
+	set_table_layout(9,0);
 	set_spacing(scr_size(1,0));
 
 	bt_del.init(button_t::imagebox, NULL);
@@ -195,18 +195,31 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 		img_ignore_choose.set_visible(false);
 		add_component(&img_ignore_choose); //5-5
 
-		lb_pos.buf().printf("(%s)", entry.pos.get_str());
-		lb_pos.update();
-		add_component(&lb_pos); // 5-6
-
 		lb_reverse.set_visible(true);
 		lb_reverse.buf().append("[<<]");
 		lb_reverse.set_color(SYSCOL_TEXT_STRONG);
 		lb_reverse.update();
-		add_component(&lb_reverse); // 5-7
+		add_component(&lb_reverse); // 5-6
+
+		new_component<gui_empty_t>(); // 5-7
 	}
 	end_table();
-	new_component<gui_fill_t>(); // 6
+
+	new_component<gui_fill_t>(); // 7
+	add_table(2,1)->set_spacing(NO_SPACING); //8
+	{
+		// pos button and label
+		bt_pos.set_typ(button_t::posbutton_automatic);
+		bt_pos.set_targetpos3d(entry.pos);
+		add_component(&bt_pos); // 8-1
+		lb_pos.buf().printf("(%s) ", entry.pos.get_str());
+		lb_pos.set_tooltip(translator::translate("can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry"));
+		lb_pos.update();
+		lb_pos.set_fixed_width(lb_pos.get_min_size().w);
+		add_component(&lb_pos); // 8-2
+	}
+	end_table();
+	new_component<gui_empty_t>(); // 9
 
 	// 2nd row
 	lb_distance.set_fixed_width(proportional_string_width("(0000km) "));
@@ -235,6 +248,12 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 	lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
 	add_component(&lb_speed_limit); // 7
 	new_component<gui_fill_t>();  //8
+
+	bt_swap.init(button_t::swap_vertical| button_t::automatic, NULL);
+	bt_swap.set_tooltip("helptxt_swap_schedule_entries");
+	bt_swap.add_listener(this);
+	add_component(&bt_swap); // 9
+
 	update_label();
 }
 
@@ -329,6 +348,8 @@ void gui_schedule_entry_t::set_active(bool yesno)
 	is_current = yesno;
 	stop.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
 	lb_pos.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
+	entry_no.set_highlight(yesno);
+	wpbox.set_highlight(yesno);
 }
 
 void gui_schedule_entry_t::draw(scr_coord offset)
@@ -361,6 +382,11 @@ bool gui_schedule_entry_t::action_triggered(gui_action_creator_t *c, value_t )
 		call_listeners( DELETE_FLAG | number);
 		return true;
 	}
+	else if ( c == &bt_swap ) {
+		call_listeners( DOWN_FLAG | number);
+		return true;
+	}
+
 	return false;
 }
 
@@ -530,6 +556,11 @@ bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
 		highlight_schedule(  schedule, true );
 		call_listeners( schedule->get_current_stop() );
 	}
+	else if( v.i & DOWN_FLAG ) {
+		uint8 down_stop = v.i & 0x00FF;
+		schedule->move_entry_backward( down_stop );
+		call_listeners( schedule->get_current_stop() );
+	}
 	else {
 		call_listeners(v);
 	}
@@ -651,17 +682,17 @@ void schedule_gui_t::init_components()
 	img_electric.set_tooltip(translator::translate("This line/convoy needs electrification"));
 	img_electric.set_rigid(false);
 
-	bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_add.init(button_t::roundbox_state, "Add Stop", scr_coord(0, 0), D_BUTTON_SIZE);
 	bt_add.set_tooltip("Appends stops at the end of the schedule");
 	bt_add.add_listener(this);
 
-	bt_insert.init(button_t::roundbox_state | button_t::flexible, "Ins Stop", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_insert.init(button_t::roundbox_state, "Ins Stop", scr_coord(0, 0), D_BUTTON_SIZE);
 	bt_insert.set_tooltip("Insert stop before the current stop");
 	bt_insert.add_listener(this);
 
-	bt_remove.init(button_t::roundbox_state | button_t::flexible, "Del Stop", scr_coord(0, 0), D_BUTTON_SIZE);
-	bt_remove.set_tooltip("Delete the current stop");
-	bt_remove.add_listener(this);
+	//bt_revert.init(button_t::roundbox, "Revert schedule");
+	//bt_revert.set_tooltip("Revert to original schedule");
+	//bt_revert.add_listener(this);
 
 	lb_min_range.set_fixed_width(proportional_string_width("8888km "));
 	lb_min_range.set_rigid(false);
@@ -737,14 +768,18 @@ void schedule_gui_t::build_table()
 				add_component(&img_electric);
 
 				add_table(3,1)->set_spacing(scr_size(0,0));
-				bt_add.pressed = true;
-				add_component(&bt_add);
+				{
+					bt_add.pressed = true;
+					add_component(&bt_add);
 
-				bt_insert.pressed = false;
-				add_component(&bt_insert);
+					bt_insert.pressed = false;
+					add_component(&bt_insert);
 
-				bt_remove.pressed = false;
-				add_component(&bt_remove);
+					//bt_revert.pressed = false;
+					//bt_revert.enable(false); // schedule was not changed yet
+					//add_component(&bt_revert);
+					new_component<gui_margin_t>(D_BUTTON_WIDTH);
+				}
 				end_table();
 			}
 			end_table();
@@ -1646,23 +1681,17 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		mode = adding;
 		bt_add.pressed = true;
 		bt_insert.pressed = false;
-		bt_remove.pressed = false;
 		update_tool( true );
 	}
 	else if(comp == &bt_insert) {
 		mode = inserting;
 		bt_add.pressed = false;
 		bt_insert.pressed = true;
-		bt_remove.pressed = false;
 		update_tool( true );
 	}
-	else if(comp == &bt_remove) {
-		mode = removing;
-		bt_add.pressed = false;
-		bt_insert.pressed = false;
-		bt_remove.pressed = true;
-		update_tool( false );
-	}
+	/*else if(comp == &bt_revert) {
+		// revert changes and tell listener
+	}*/
 	else if (comp == &bt_mirror) {
 		schedule->set_mirrored(bt_mirror.pressed);
 	}

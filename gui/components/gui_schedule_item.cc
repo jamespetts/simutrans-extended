@@ -133,7 +133,7 @@ void gui_waypoint_box_t::draw(scr_coord offset)
 	// draw waypoint symbol on the color bar
 	offset += pos;
 	scr_coord_val radius = L_ROUTEBAR_WIDTH >> 1;
-	display_framed_circle_rgb(offset.x + size.w/2 - radius, offset.y + size.h/2 - radius, radius, color_idx_to_rgb(world()->get_player(player_nr)->get_player_color1() + env_t::gui_player_color_dark), color_idx_to_rgb(COL_WHITE));
+	display_framed_circle_rgb(offset.x + size.w/2 - radius, offset.y + size.h/2 - radius, radius, color_idx_to_rgb(world()->get_player(player_nr)->get_player_color1() + env_t::gui_player_color_dark), highlight ? color_idx_to_rgb(COL_YELLOW) : color_idx_to_rgb(COL_WHITE));
 }
 
 bool gui_waypoint_box_t::infowin_event(const event_t *ev)
@@ -190,7 +190,7 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 			break;
 		case number_style::interchange:
 			display_filled_roundbox_clip(pos.x+offset.x,   pos.y+offset.y,   size.w,   size.h,   base_colval, false);
-			display_filled_roundbox_clip(pos.x+offset.x+2, pos.y+offset.y+2, size.w-4, size.h-4, color_idx_to_rgb(COL_WHITE), false);
+			display_filled_roundbox_clip(pos.x+offset.x+2, pos.y+offset.y+2, size.w-4, size.h-4, highlight ? color_idx_to_rgb(COL_YELLOW) : color_idx_to_rgb(COL_WHITE), false);
 			break;
 		case number_style::depot:
 			for (uint8 i = 0; i < 3; i++) {
@@ -208,7 +208,7 @@ void gui_schedule_entry_number_t::draw(scr_coord offset)
 			const scr_coord_val bar_width = (D_ENTRY_NO_WIDTH-4)/2;
 			const scr_coord_val radius = min(bar_width, size.h)/2;
 			display_fillbox_wh_clip_rgb(pos.x+offset.x + size.w/2 - D_ENTRY_NO_WIDTH/4+1, pos.y+offset.y, bar_width, size.h, base_colval, true);
-			display_framed_circle_rgb( pos.x+offset.x + size.w/2 - radius, pos.y+offset.y+ size.h/2-radius, radius, base_colval, color_idx_to_rgb(COL_WHITE));
+			display_framed_circle_rgb( pos.x+offset.x + size.w/2 - radius, pos.y+offset.y+ size.h/2-radius, radius, base_colval, highlight ? color_idx_to_rgb(COL_YELLOW) : color_idx_to_rgb(COL_WHITE));
 			break;
 		}
 		default:

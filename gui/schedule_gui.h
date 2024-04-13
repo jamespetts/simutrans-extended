@@ -34,7 +34,7 @@ class loadsave_t;
 class gui_schedule_entry_t;
 
 #define DELETE_FLAG (0x8000)
-#define UP_FLAG (0x4000)
+//#define UP_FLAG (0x4000)
 #define DOWN_FLAG (0x2000)
 
 class gui_wait_loading_schedule_t : public gui_component_t
@@ -89,7 +89,8 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	gui_colored_route_bar_t *route_bar;
 	gui_schedule_couple_order_t *couple_order;
 	gui_wait_loading_schedule_t *wait_loading;
-	button_t bt_del;
+	button_t bt_del, bt_swap;
+	button_t bt_pos;
 
 public:
 	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index = 254);
@@ -191,7 +192,7 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
-	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
+	button_t bt_add, bt_insert, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
 	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
 	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
