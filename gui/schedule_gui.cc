@@ -497,16 +497,21 @@ void schedule_gui_stats_t::update_schedule()
 			end_table();
 		}
 		else {
+			const grund_t* gr_0 = welt->lookup(schedule->entries[0].pos);
 			const uint8 base_line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::line_style::doubled : gui_colored_route_bar_t::line_style::solid;
 			const bool is_air_wt = schedule->get_waytype() == air_wt;
+
 			for (uint i = 0; i < schedule->entries.get_count(); i++) {
+				const grund_t* gr_i = welt->lookup(schedule->entries[i].pos);
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt, line_color_index));
 				if (i< schedule->entries.get_count()-1) {
-					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
+					const grund_t* gr_i1 = welt->lookup(schedule->entries[i+1].pos);
+					entries[i]->set_distance(schedule->entries[i + 1].pos, 0, range_limit);
+					//entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
 					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
 					}
-					else if(welt->lookup(schedule->entries[i].pos)->get_depot() || welt->lookup(schedule->entries[i+1].pos)->get_depot()) {
+					else if((gr_i && gr_i->get_depot()) || (gr_i1 && gr_i1->get_depot())) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 					}
 					else {
@@ -521,7 +526,7 @@ void schedule_gui_stats_t::update_schedule()
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::reversed);
 				}
 				else {
-					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos, 0, range_limit);
+					entries[schedule->entries.get_count()-1]->set_distance((gr_0 && gr_0->get_depot()) ? schedule->entries[1].pos : schedule->entries[0].pos, 0, range_limit);
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 				}
 			}
@@ -1444,7 +1449,8 @@ void schedule_gui_t::update_selection()
 	if (!schedule->empty()) {
 		schedule->set_current_stop(min(schedule->get_count() - 1, schedule->get_current_stop()));
 		const uint8 current_stop = schedule->get_current_stop();
-		const bool is_depot = welt->lookup(schedule->get_current_entry().pos)->get_depot();
+		const grund_t *gr = welt->lookup(schedule->get_current_entry().pos);
+		const bool is_depot = gr ? (welt->lookup(schedule->get_current_entry().pos)->get_depot()!=NULL) : false;
 		bt_wait_for_time.enable(is_depot ? false : true); // ??? waypoint ?
 		bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
 		bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);

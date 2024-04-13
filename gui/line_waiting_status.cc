@@ -325,8 +325,9 @@ void gui_line_waiting_status_t::init()
 					}
 					else {
 						// waypoint or depot
-						depot_t *depot = world()->lookup(i.pos)->get_depot();
-						const bool is_waypoint = world()->lookup(i.pos)->get_depot() == NULL;
+						const grund_t* gr = world()->lookup(i.pos);
+						depot_t *depot = gr ? gr->get_depot() : nullptr;
+						const bool is_waypoint = depot == nullptr;
 						if (is_waypoint) {
 							new_component<gui_waypoint_box_t>(base_color, line_style, i.pos);
 						}
@@ -340,7 +341,7 @@ void gui_line_waiting_status_t::init()
 						if (show_name) {
 							gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK);
 							if (is_waypoint) {
-								const grund_t* gr = world()->lookup(i.pos);
+
 								if (gr) {
 									if (const char *label_text = gr->get_text()) {
 										lb->buf().printf(" %s", label_text);
@@ -361,7 +362,12 @@ void gui_line_waiting_status_t::init()
 							lb->set_fixed_width(lb->get_min_size().w);
 						}
 
-						new_component_span<gui_empty_t>(cols - 1 - show_name);
+						if (cols==3) {
+							new_component<gui_empty_t>();
+						}
+						else if (cols>3) {
+							new_component_span<gui_empty_t>(cols - 2);
+						}
 					}
 
 					// 2nd row
