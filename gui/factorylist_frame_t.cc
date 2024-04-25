@@ -66,6 +66,7 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 	filter_city(city)
 {
 	old_factories_count = 0;
+	scrolly.set_checkered(true);
 
 	set_table_layout(1,0);
 	add_table(2,3);
