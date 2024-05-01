@@ -15,7 +15,7 @@
 #include "../dataobj/scenario.h"
 #include "../dataobj/translator.h"
 
-#include "../gui/simwin.h"
+#include "simwin.h"
 #include "../utils/simstring.h"
 
 #include "money_frame.h" // for the finances
@@ -247,16 +247,16 @@ ki_kontroll_t::~ki_kontroll_t()
 bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 {
 	// Free play button?
-	if(  comp==&freeplay  ) {
+	if(	comp == &freeplay	) {
 		welt->call_change_player_tool(karte_t::toggle_freeplay, 255, 0);
 		return true;
 	}
 
 	// Check the GUI list of buttons
 	for(int i=0; i<MAX_PLAYER_COUNT-1; i++) {
-		if(i>=2  &&  comp==(player_active+i-2)) {
+		if(	i>=2	&&	comp == (player_active+i-2)	) {
 			// switch AI on/off
-			if(  welt->get_player(i)==NULL  ) {
+			if(	welt->get_player(i)==NULL	) {
 				// create new AI
 				welt->call_change_player_tool(karte_t::new_player, i, player_select[i].get_selection());
 			}
@@ -268,7 +268,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		}
 
 		// Finance button pressed
-		if(comp==(player_get_finances+i)) {
+		if(	comp == (player_get_finances+i)	) {
 			// get finances
 			player_get_finances[i].pressed = false;
 			create_win( new money_frame_t(welt->get_player(i)), w_info, magic_finances_t+welt->get_player(i)->get_player_nr() );
@@ -276,20 +276,19 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		}
 
 		// Changed active player
-		if(comp==(player_change_to+i)) {
+		if(	comp == (player_change_to+i)	) {
 			// make active player (if not in liquidation)
 			player_t *const prevplayer = welt->get_active_player();
 			welt->switch_active_player(i,false);
 			// unlocked public service player can change into any company in multiplayer games
 			player_t *const player = welt->get_active_player();
-			if (env_t::networkmode  &&  prevplayer == welt->get_public_player() && !prevplayer->is_locked() && player->is_locked()) {
+			if(	env_t::networkmode	&&	prevplayer == welt->get_public_player()	&&	!prevplayer->is_locked()	&&	player->is_locked()	) {
 				player->unlock(false, true);
 
 				// send unlock command
 				nwc_auth_player_t *nwc = new nwc_auth_player_t();
 				nwc->player_nr = player->get_player_nr();
 				network_send_server(nwc);
-
 			}
 			update_data();
 			break;
@@ -305,7 +304,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		}
 
 		// New player assigned in an empty slot
-		if(comp==(player_select+i)) {
+		if(	comp == (player_select+i)	) {
 
 			// make active player
 			remove_component( player_active+(i-2) );
@@ -314,8 +313,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 				add_component( player_active+(i-2) );
 				welt->get_settings().set_player_type(i, (uint8)p.i);
 			}
-			else
-			{
+			else {
 				player_select[i].set_selection(0);
 				welt->get_settings().set_player_type(i, 0);
 			}
@@ -551,7 +549,7 @@ void ki_kontroll_t::update_data()
 	// Now update the upper Player buttons
 	for(int i=0; i<MAX_PLAYER_COUNT-1; i++) {
 
-		if(  player_t *player = welt->get_player(i)  ) {
+		if(	player_t *player = welt->get_player(i)	) {
 
 			// active player -> remove selection
 			if (player_select[i].is_visible())
@@ -605,8 +603,7 @@ void ki_kontroll_t::update_data()
 			player_lock[i].background_color = color_idx_to_rgb( player->is_locked() ? (player->is_unlock_pending() ? COL_YELLOW : COL_RED) : COL_GREEN );
 
 			// human players cannot be deactivated
-			if (i>1)
-			{
+			if (i>1) {
 				remove_component( player_active+(i-2) );
 				if(  player->get_ai_id()!=player_t::HUMAN  )
 				{
@@ -660,7 +657,6 @@ void ki_kontroll_t::update_data()
 		}
 	}
 }
-
 
 /**
  * Draw the component

@@ -324,6 +324,7 @@ void depotlist_frame_t::init_table()
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 

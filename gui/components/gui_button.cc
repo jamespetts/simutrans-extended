@@ -451,7 +451,7 @@ void button_t::draw(scr_coord offset)
 						area_img=area;
 					}
 					if( pressed && gui_theme_t::pressed_button_sinks ) area_img.y++;
-					display_img_aligned( img, area_img, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true );
+					display_img_aligned( img, (type&TYPE_MASK)==imagebox ? area : area_img, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true );
 				}
 				if(  win_get_focus()==this  ) {
 					draw_focus_rect( area );
