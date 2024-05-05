@@ -88,7 +88,6 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 	game_ends  = min( game_ends,  (way_builder_t::get_latest_way(road_wt)->get_retire_year_month()+11)/12 );
 
 	loaded_heightfield = load_heightfield = false;
-	load = start = close = scenario = quit = false;
 	sets->heightfield = "";
 
 	//******************************************************************
@@ -126,8 +125,9 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 			add_component(&inp_y_size);
 
 			// Map size label
-			size_label.init();
-			size_label.buf().printf(translator::translate("Size (%d MB):"), 9999);
+			size_label.buf().printf(translator::translate("Size (%d MB):"), 99999);
+			size_label.update();
+			size_label.set_min_width(size_label.get_min_size().w); // Make sure to not make the component size too small when the window is opened with a small map size that is increased afterwards
 			size_label.update();
 			add_component( &size_label, 3 );
 
@@ -627,18 +627,6 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 			update_preview();
 		}
 	}
-	return true;
-}
-
-
-bool  welt_gui_t::infowin_event(const event_t *ev)
-{
-	gui_frame_t::infowin_event(ev);
-
-	if(ev->ev_class==INFOWIN  &&  ev->ev_code==WIN_CLOSE) {
-		close = true;
-	}
-
 	return true;
 }
 

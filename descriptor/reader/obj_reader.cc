@@ -150,9 +150,9 @@ DBG_MESSAGE("obj_reader_t::load()","big logo %p", skinverwaltung_t::biglogosymbo
 DBG_MESSAGE("obj_reader_t::load()", "reading from '%s'", name.c_str());
 
 		uint n = 0;
-		FORX(searchfolder_t, const& i, find, ++n) {
+		for(char* const& i : find) {
 			read_file(i);
-			if ((n & step) == 0 && drawing) {
+			if ((n++ & step) == 0 && drawing) {
 				ls.set_progress(n);
 			}
 		}

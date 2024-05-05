@@ -107,7 +107,7 @@ public:
 	virtual ~convoi_frame_t();
 
 	/**
-	 * Events werden hiermit an die GUI-Komponenten gemeldet
+	 * Events are notified to GUI components via this method gemeldet
 	 */
 	bool infowin_event(const event_t *ev) OVERRIDE;
 

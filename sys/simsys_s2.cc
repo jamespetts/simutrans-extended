@@ -34,6 +34,7 @@ extern char **__argv;
 #include "../gui/components/gui_textinput.h"
 #include "../simintr.h"
 #include "../simworld.h"
+#include "../unicode.h"
 
 
 // Maybe Linux is not fine too, had critical bugs...

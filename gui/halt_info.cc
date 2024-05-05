@@ -27,6 +27,7 @@
 #include "../vehicle/vehicle.h"
 
 #include "../utils/simstring.h"
+#include "../unicode.h"
 
 #include "../descriptor/skin_desc.h"
 

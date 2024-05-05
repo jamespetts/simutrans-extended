@@ -230,8 +230,8 @@ void gui_city_stats_t::update_table()
 			}
 			else {
 				slist_tpl<const goods_desc_t*> city_goods;
-				FOR(vector_tpl<fabrik_t*>, city_fab, city->get_city_factories()) {
-					FOR(array_tpl<ware_production_t>, const& goods, mode == citylist_stats_t::goods_demand ? city_fab->get_input(): city_fab->get_output()) {
+				for(fabrik_t* city_fab : city->get_city_factories()) {
+					for(ware_production_t const& goods : mode == citylist_stats_t::goods_demand ? city_fab->get_input() : city_fab->get_output()) {
 						city_goods.append_unique(goods.get_typ());
 					}
 				}
@@ -240,7 +240,7 @@ void gui_city_stats_t::update_table()
 					add_table(city_goods.get_count()+1,1);
 					{
 						new_component<gui_image_t>(skinverwaltung_t::input_output ? skinverwaltung_t::input_output->get_image_id(mode == citylist_stats_t::goods_demand ? 0:1) : IMG_EMPTY, 0, ALIGN_CENTER_V, true);
-						FOR(slist_tpl<const goods_desc_t*>, &goods, city_goods) {
+						for (const goods_desc_t* &goods : city_goods) {
 							add_table(3,1);
 							{
 								new_component<gui_colorbox_t>(goods->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
@@ -462,7 +462,7 @@ void citylist_stats_t::recalc_wold_max()
 #endif // DEBUG
 
 	world_max_value = 0;
-	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
+	for(stadt_t* const city : world()->get_cities()) {
 		switch (display_mode)
 		{
 			case cl_population:

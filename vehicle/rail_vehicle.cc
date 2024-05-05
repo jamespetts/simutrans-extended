@@ -2937,10 +2937,8 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		halthandle_t train_halt = haltestelle_t::get_halt(cnv->get_pos(), cnv->get_owner());
 		halthandle_t signal_halt;
 
-		FOR(slist_tpl<grund_t*>, const g, signs)
-		{
-			if(signal_t* const signal = g->find<signal_t>())
-			{
+		for(grund_t* const g : signs) {
+			if (signal_t* const signal = g->find<signal_t>()) {
 				signal_halt = haltestelle_t::get_halt(g->get_pos(), cnv->get_owner());
 				if(((counter -- > 0 || (pre_signals.empty() && (!starting_at_signal || signs.get_count() == 1)) ||
 					(reached_end_of_loop && (early_platform_index == INVALID_INDEX ||

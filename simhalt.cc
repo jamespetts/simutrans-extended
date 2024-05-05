@@ -1068,13 +1068,13 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 				// allow for names without direction
 				uint8 count_s = count_printf_param( base_name );
 				if(count_s==3) {
-					if (cbuffer_t::check_format_strings("%s %s %s", base_name) ) {
+					if (cbuffer_t::check_and_repair_format_strings("%s %s %s", base_name) ) {
 						// ok, try this name, if free ...
 						buf.printf( base_name, city_name, dirname, stop );
 					}
 				}
 				else {
-					if (cbuffer_t::check_format_strings("%s %s", base_name) ) {
+					if (cbuffer_t::check_and_repair_format_strings("%s %s", base_name) ) {
 						// ok, try this name, if free ...
 						buf.printf( base_name, city_name, stop );
 					}
@@ -1126,7 +1126,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 			// as count % offset != 0 we are guaranteed to test all street names
 			for (uint32 i = 0; i<count; i++) {
 				buf.clear();
-				if (cbuffer_t::check_format_strings("%s %s", street_names[idx])) {
+				if (cbuffer_t::check_and_repair_format_strings("%s %s", street_names[idx])) {
 					buf.printf(street_names[idx], city_name, stop);
 					if (!all_names.get(buf).is_bound()) {
 						return strdup(buf);
@@ -2961,7 +2961,7 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, linehandle_t line
 	int sum = 0;
 	const vector_tpl<ware_t> * warray = cargo[wtyp->get_catg_index()];
 	if(warray!=NULL) {
-		FOR(vector_tpl<ware_t>, const& i, *warray) {
+		for(ware_t const& i : *warray) {
 			if (wtyp->get_index() == i.get_index()) {
 				if (wealth_class !=255  &&  wealth_class != i.get_class()) {
 					continue;
@@ -5493,10 +5493,8 @@ bool haltestelle_t::add_grund(grund_t *gr, bool relink_factories, bool recalc_ne
 	uint8 const pl_min = public_halt ? 0                : get_owner()->get_player_nr();
 	uint8 const pl_max = public_halt ? MAX_PLAYER_COUNT : get_owner()->get_player_nr() + 1;
 	// iterate over all lines (public halt: all lines, other: only player's lines)
-	for(uint8 i = pl_min; i < pl_max; i++)
-	{
-		if(player_t *player = welt->get_player(i))
-		{
+	for( uint8 i=pl_min; i<pl_max; i++ ) {
+		if( player_t *player = welt->get_player(i) ) {
 			player->simlinemgmt.get_lines(simline_t::line, &check_line);
 			for(auto const j : check_line)
 			{

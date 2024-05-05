@@ -222,7 +222,7 @@ void convoi_frame_t::fill_list()
 
 	const bool all = owner->get_player_nr() == 1;
 	scrolly->clear_elements();
-	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
+	for(convoihandle_t const cnv : welt->convoys()) {
 		if(  all  ||  cnv->get_owner()==owner  ) {
 			if(  passes_filter( cnv )  ) {
 				scrolly->new_component<gui_convoiinfo_t>( cnv );
@@ -423,7 +423,7 @@ void convoi_frame_t::rdwr(loadsave_t *file)
 		uint8 good_nr = get_filter(convoi_filter_frame_t::ware_filter) ? waren_filter->get_count() : 0;
 		file->rdwr_byte(good_nr);
 		if (good_nr > 0) {
-			FOR( slist_tpl<const goods_desc_t *>, const i, *waren_filter ) {
+			for(const goods_desc_t * const i : *waren_filter ) {
 				char *name = const_cast<char *>(i->get_name());
 				file->rdwr_str(name,256);
 			}

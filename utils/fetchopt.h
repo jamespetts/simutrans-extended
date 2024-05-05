@@ -7,7 +7,7 @@
 #define UTILS_FETCHOPT_H
 
 
-/*
+/**
 This class can be used to parse unix-style single character
 command line options. It is intended to provide a similar interface to
 the POSIX getopt() function.

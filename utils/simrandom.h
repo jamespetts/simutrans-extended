@@ -14,6 +14,7 @@
 
 class loadsave_t;
 
+
 uint32 get_random_seed();
 
 uint32 setsimrand(uint32 seed, uint32 noise_seed);

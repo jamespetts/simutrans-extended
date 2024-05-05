@@ -204,7 +204,7 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 
 	// draw chart's curves
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if (c.show) {
 			double display_tmp;
 			int start = abort_display_x ? (left_to_right_graph ? c.elements - abort_display_x : 0) : 0;
@@ -317,7 +317,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 // 	bool convert_n_to_kn = false; // for force chart
 	bool convert_time = false; // for comfort chart. dont use this with other units
 
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if(  c.show  ) {
 			for(  int i=0;  i<c.elements;  i++  ) {
 				tmp = c.values[i*c.size+c.offset];
@@ -385,8 +385,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_chart_t::infowin_event(const event_t *ev)
 {

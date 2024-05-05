@@ -102,7 +102,7 @@ void signal_info_t::update_data()
 
 				for (int l = 0; l < max_lines; l++) {
 					char temp_name[1024] = { '\0' };
-					next_char_index = display_fit_proportional(sb_name, max_width, 0);
+					next_char_index = display_fit_proportional(sb_name, max_width);
 
 					if (sb_name[next_char_index] == '\0') {
 						lb_sb_name.buf().append(sb_name);

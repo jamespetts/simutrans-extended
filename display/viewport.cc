@@ -107,7 +107,7 @@ void viewport_t::switch_underground_mode(const koord3d& pos)
 				// position is underground (and not visible), change to sliced mode
 				grund_t::set_underground_mode(grund_t::ugm_level, gr->get_hoehe());
 			}
-			else if (!gr->ist_karten_boden() || grund_t::underground_mode != grund_t::ugm_all) {
+			else if (!gr->ist_karten_boden()  ||  grund_t::underground_mode != grund_t::ugm_all) {
 				// position is overground, change to normal view
 				// but not if we are in full underground view and gr is kartenboden
 				grund_t::set_underground_mode(grund_t::ugm_none, 0);
@@ -208,7 +208,7 @@ grund_t* viewport_t::get_ground_on_screen_coordinate(scr_coord screen_pos, sint3
 		found_j = (base_j + j_off) / rw4;
 
 		gr = world->lookup(koord3d(found_i,found_j,hgt));
-		if(gr != NULL) {
+		if (gr != NULL) {
 			found = /*select_karten_boden ? gr->ist_karten_boden() :*/ gr->is_visible();
 			if( ( gr->get_typ() == grund_t::tunnelboden || gr->get_typ() == grund_t::monorailboden ) && gr->get_weg_nr(0) == NULL && !gr->get_leitung()  &&  gr->find<zeiger_t>()) {
 				// This is only a dummy ground placed by tool_build_tunnel_t or tool_build_way_t as a preview.
@@ -310,7 +310,7 @@ void viewport_t::metrics_updated()
 
 	set_viewport_ij_offset(koord(
 		- cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size,
-		cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size
+		  cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size
 		) );
 }
 

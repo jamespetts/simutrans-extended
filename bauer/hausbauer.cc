@@ -394,6 +394,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 				}
 			}
 		}
+
 		// tell players of the deletion
 		for(uint8 i=0; i<MAX_PLAYER_COUNT; i++) {
 			player_t *player = welt->get_player(i);
@@ -401,6 +402,7 @@ void hausbauer_t::remove( player_t *player, const gebaeude_t *gb, bool map_gener
 				player->notify_factory(player_t::notify_delete, fab);
 			}
 		}
+
 		// remove all transformers
 		// TODO: review this mechanism - it may be unnecessary and cause crashes.
 		for(k.y = -1; k.y < size.y+1;  k.y ++) {

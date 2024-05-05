@@ -81,7 +81,7 @@ void init_fab_map( karte_t *welt )
 	for( int i=0;  i<fab_map_w*welt->get_size().y;  i++ ) {
 		fab_map[i] = 0;
 	}
-	FOR(vector_tpl<fabrik_t*>, const f, welt->get_fab_list()) {
+	for(fabrik_t* const f : welt->get_fab_list()) {
 		add_factory_to_fab_map(welt, f);
 	}
 	if(  welt->get_settings().get_max_factory_spacing_percent()  ) {
@@ -94,7 +94,7 @@ void init_fab_map( karte_t *welt )
 
 
 /**
- * @param x,y world position
+ * @param x,y world position, needs to be valid coordinates
  * @returns true, if factory coordinate
  */
 inline bool is_factory_at(sint16 x, sint16 y)
@@ -966,8 +966,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		weighted_vector_tpl<const factory_desc_t*>producer;
 		find_producer(producer, ware, welt->get_timeline_year_month());
 		bool local_supplier_unavailable = true;
-		FOR(weighted_vector_tpl<const factory_desc_t*>, producer_type, producer)
-		{
+		for(const factory_desc_t* producer_type : producer) {
 			if (producer_type->get_building()->is_allowed_region(origin_region))
 			{
 				local_supplier_unavailable = false;
@@ -1177,8 +1176,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		/* now the cross-connect part:
 		 * connect also the factories we stole from before ...
 		 */
-		FOR(slist_tpl<fabrik_t*>, const fab, new_factories)
-		{
+		for(fabrik_t* const fab : new_factories) {
 			for(slist_tpl<factories_to_crossconnect_t>::iterator fabs_to_correct = factories_to_correct.begin(), end = factories_to_correct.end(); fabs_to_correct != end;)
 			{
 				fabs_to_correct->demand -= 1;

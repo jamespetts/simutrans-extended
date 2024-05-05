@@ -463,8 +463,7 @@ void gui_halt_stats_t::draw(scr_coord offset)
 // main class
 static karte_ptr_t welt;
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool halt_list_stats_t::infowin_event(const event_t *ev)
 {

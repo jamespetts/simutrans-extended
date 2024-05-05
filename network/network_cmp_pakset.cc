@@ -145,7 +145,7 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 		// ie treatall our paks as if they were not present on the server
 		stringhashtable_tpl<checksum_t*, N_BAGS_LARGE> addons;
 		{
-			for(auto const & i : pakset_info_t::get_info()) {
+			for(auto const& i : pakset_info_t::get_info()) {
 				addons.put(i.key, i.value);
 			}
 		}
@@ -256,7 +256,7 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 			msg.append("<h1>");
 			msg.append(translator::translate("Pak(s) not on server:"));
 			msg.append("</h1><br>\n");
-			for(auto const & i : addons) {
+			for(auto const& i : addons) {
 				dbg->warning("network_compare_pakset_with_server", "PAK NOT ON SERVER: %s", i.key);
 				msg.append(translator::translate(i.key+3));
 				msg.append("<br>\n");

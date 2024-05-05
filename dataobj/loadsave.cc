@@ -16,7 +16,6 @@
 #include "../simversion.h"
 #include "../simmem.h"
 #include "../simdebug.h"
-
 #include "../utils/plainstring.h"
 #include "../utils/simstring.h"
 
@@ -27,7 +26,6 @@
 #include "../io/rdwr/zstd_file_rdwr_stream.h"
 #endif
 #include "../io/rdwr/compare_file_rd_stream.h"
-
 
 #define INVALID_RDWR_ID (-1)
 
@@ -148,6 +146,8 @@ void loading_finalize()
 	pthread_cond_broadcast(&readdata_cond);
 	pthread_mutex_unlock(&readdata_mutex);
 }
+
+
 /*
  * Multi-threaded saving:
  *
@@ -155,7 +155,6 @@ void loading_finalize()
  * - end-of-saving is signaled to thread with get_buf_pos(buf)==0,
  *   which is protected by loadsave_mutex
  */
-
 void *save_thread( void *ptr )
 {
 	loadsave_param_t *lsp = reinterpret_cast<loadsave_param_t *>(ptr);
@@ -699,9 +698,9 @@ size_t loadsave_t::fill_buffer( int buf_num )
 
 	const size_t sz = stream->read(buff[ buf_num ].buf, LS_BUF_SIZE);
 
-	#ifdef MULTI_THREAD
+#ifdef MULTI_THREAD
 	pthread_mutex_lock(&loadsave_mutex);
-	#endif
+#endif
 
 	const rdwr_stream_t::status_t status = stream->get_status();
 	const bool stream_ok = (status == rdwr_stream_t::STATUS_EOF || status == rdwr_stream_t::STATUS_OK);
@@ -710,12 +709,11 @@ size_t loadsave_t::fill_buffer( int buf_num )
 	buff[buf_num].pos = 0;
 	buff[buf_num].len = stream_ok ? sz : 0; // buf_len is unsigned, set to zero in case of error
 
-	#ifdef MULTI_THREAD
+#ifdef MULTI_THREAD
 	pthread_mutex_unlock(&loadsave_mutex);
-	#endif
+#endif
 	return sz;
 }
-
 
 
 /*************** High level routines to read/write data types *************
@@ -975,6 +973,7 @@ void loadsave_t::rdwr_xml_number(sint64 &s, const char *typ)
 		if(minus) {
 			s = -s;
 		}
+
 		if(  lsgetc()!='/'  ) {
 			dbg->fatal( "loadsave_t::rdwr_xml_number()", "missing '/' (not closing tag)" );
 		}
