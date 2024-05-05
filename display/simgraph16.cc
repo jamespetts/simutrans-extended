@@ -4273,9 +4273,10 @@ void display_colorbox_with_tooltip(scr_coord_val xp, scr_coord_val yp, scr_coord
 
 void display_convoy_arrow_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool reverse, bool dirty  CLIP_NUM_DEF)
 {
+	if (w % 2 == 0) w--; // odd width is better
 	for (int x = 0; x < w; x++) {
 		if (x < (w + 1) / 2) {
-			const scr_coord_val top = reverse ? yp + (w/2) - x - 1 : yp + x;
+			const scr_coord_val top = reverse ? yp + (w/2) - x : yp + x;
 			display_vline_wh_clip_rgb(xp + x, top, h - w / 2, color, dirty  CLIP_NUM_PAR);
 		}
 		else {

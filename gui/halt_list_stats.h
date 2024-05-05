@@ -21,16 +21,6 @@
 class gui_halt_type_images_t;
 
 
-class gui_capped_arrow_t : public gui_component_t
-{
-public:
-	gui_capped_arrow_t() {};
-
-	void draw(scr_coord offset) OVERRIDE;
-	scr_size get_min_size() const OVERRIDE { return scr_size(5,5); }
-	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
-};
-
 /**
  * Helper class to show a panel whose contents are switched according to the mode
  */

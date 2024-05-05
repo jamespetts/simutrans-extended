@@ -261,5 +261,5 @@ gui_convoy_arrow_t::gui_convoy_arrow_t(PIXVAL col, bool rev, scr_size size_)
 void gui_convoy_arrow_t::draw(scr_coord offset)
 {
 	offset += pos+padding;
-	display_convoy_arrow_wh_clip_rgb(offset.x, offset.y, size.w - (padding.w>>1), size.h - (padding.h>>1), color, reverse, false);
+	display_convoy_arrow_wh_clip_rgb(offset.x, offset.y, size.w - (padding.w<<1), size.h - (padding.h<<1), color, reverse, false);
 }

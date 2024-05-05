@@ -33,7 +33,6 @@
 #include "air_vehicle.h"
 
 #include "../path_explorer.h"
-#include "../freight_list_sorter.h"
 
 void traffic_vehicle_t::flush_travel_times(strasse_t* str)
 {

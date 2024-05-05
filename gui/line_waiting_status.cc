@@ -134,13 +134,17 @@ void gui_line_convoy_location_t::draw(scr_coord offset)
 
 
 
-gui_halt_waiting_catg_t::gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t l, bool yesno)
+gui_halt_waiting_catg_t::gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t l, bool yesno, uint8 start, uint8 this_entry_, uint8 end)
 {
 	halt = h;
 	line = l;
 	catg_index = catg;
 	divide_by_class = yesno;
-	set_table_layout(1,0);
+	start_entry = start;
+	this_entry = this_entry_ ==255 ? end : this_entry_;
+	end_entry = this_entry_==255 ? 255 : end;
+	set_table_layout(1,1);
+	set_size(scr_size(D_LABEL_WIDTH, (line.is_bound() && this_entry && this_entry != end_entry-1 && line->get_schedule()->is_mirrored()) ? D_LABEL_HEIGHT*2+D_V_SPACE : D_LABEL_HEIGHT));
 	update();
 }
 
@@ -150,60 +154,78 @@ void gui_halt_waiting_catg_t::update()
 	haltestelle_t::connexions_map *connexions = halt->get_connexions(catg_index, g_class);
 
 	remove_all();
-	add_table(0,1);
-	{
-		if (connexions->empty()) {
-			new_component<gui_label_t>("-", COL_INACTIVE);
-		}
-		else if (!update_seed) {
+	if (connexions->empty()) {
+		new_component<gui_label_t>("-", COL_INACTIVE);
+	}
+	else if (!update_seed) {
+		add_table(0,1);
+		{
 			new_component<gui_margin_t>(GOODS_COLOR_BOX_HEIGHT);
 			new_component<gui_label_t>("0", SYSCOL_TEXT_WEAK);
 		}
-		else {
-			bool got_one = false;
-			bool overcrowded = (halt->get_status_color(catg_index == goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2) == SYSCOL_OVERCROWDED);
-			for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
-				const goods_desc_t *wtyp = goods_manager_t::get_info(j);
-				if (wtyp->get_catg_index() != catg_index) {
-					continue;
-				}
-				const uint32 sum = line.is_bound() ? halt->get_ware_summe(wtyp, line) : halt->get_ware_summe(wtyp);
-				if (sum > 0) {
-					if (got_one) {
-						new_component<gui_label_t>(", ", SYSCOL_TEXT);
-					}
+		end_table();
+	}
+	else {
+		const bool check_direction = line.is_bound() && end_entry;
+		const bool both_directions = check_direction && line->get_schedule()->is_mirrored() && this_entry && this_entry != end_entry-1;
+		bool overcrowded = (halt->get_status_color(catg_index == goods_manager_t::INDEX_PAS ? 0 : catg_index == goods_manager_t::INDEX_MAIL ? 1 : 2) == SYSCOL_OVERCROWDED);
+		for (uint8 dir = 0; dir < 2; dir++) {
+			if (dir==1 && !both_directions) break;
 
-					const PIXVAL goods_color = wtyp->get_color();
-					new_component<gui_colorbox_t>(goods_color)->set_size(GOODS_COLOR_BOX_SIZE);
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT);
-					const uint8 number_of_classes = wtyp->get_number_of_classes();
-					if (divide_by_class && number_of_classes>1) {
-						bool got_one_class = false;
-						for (uint8 wealth = 0; wealth<number_of_classes; wealth++) {
-							const uint32 csum = line.is_bound() ? halt->get_ware_summe(wtyp, line, number_of_classes ? wealth:255) : halt->get_ware_summe(wtyp, wealth);
-							if (csum) {
-								if (got_one_class) lb->buf().append(", ");
-								lb->buf().printf("%s %d", goods_manager_t::get_translated_wealth_name(catg_index,wealth), csum);
-								got_one_class = true;
+			uint8 to = both_directions ? dir==0 ? this_entry - 1 : end_entry : this_entry;
+			add_table(0, 1)->set_spacing(scr_size(0,D_V_SPACE>>1));
+			{
+				bool got_one = false;
+				for (uint8 j = 0; j < goods_manager_t::get_count(); j++) {
+					const goods_desc_t *wtyp = goods_manager_t::get_info(j);
+					if (wtyp->get_catg_index() != catg_index) {
+						continue;
+					}
+					const uint32 sum = check_direction ? halt->get_ware_summe_for(wtyp, line, 255, dir ? this_entry + 1 : start_entry, to)
+						: line.is_bound() ? halt->get_ware_summe(wtyp, line) : halt->get_ware_summe(wtyp);
+					if (sum > 0) {
+						if (got_one) {
+							new_component<gui_label_t>(", ", SYSCOL_TEXT);
+						}
+						else if (both_directions) {
+							new_component<gui_convoy_arrow_t>(SYSCOL_TEXT, (dir==0));
+							new_component<gui_margin_t>(D_H_SPACE);
+						}
+
+						const PIXVAL goods_color = wtyp->get_color();
+						new_component<gui_colorbox_t>(goods_color)->set_size(GOODS_COLOR_BOX_SIZE);
+						gui_label_buf_t *lb = new_component<gui_label_buf_t>(overcrowded ? SYSCOL_OVERCROWDED : SYSCOL_TEXT);
+						const uint8 number_of_classes = wtyp->get_number_of_classes();
+						if (divide_by_class && number_of_classes>1) {
+							bool got_one_class = false;
+							for (uint8 wealth = 0; wealth<number_of_classes; wealth++) {
+								const uint32 csum = check_direction ? halt->get_ware_summe_for(wtyp, line, number_of_classes ? wealth : 255, dir ? this_entry+1 : start_entry, to)
+									: line.is_bound() ? halt->get_ware_summe(wtyp, line, number_of_classes ? wealth:255) : halt->get_ware_summe(wtyp, wealth);
+								if (csum) {
+									if (got_one_class) lb->buf().append(", ");
+									lb->buf().printf("%s %d", goods_manager_t::get_translated_wealth_name(catg_index,wealth), csum);
+									got_one_class = true;
+								}
 							}
 						}
-					}
-					else {
-						lb->buf().printf("%s %d", translator::translate(wtyp->get_name()), sum);
-					}
-					lb->update();
+						else {
+							lb->buf().printf("%s %d", translator::translate(wtyp->get_name()), sum);
+						}
+						lb->update();
 
-					got_one = true;
+						got_one = true;
+					}
+				}
+				if (!got_one) {
+					scr_coord_val margin = (both_directions ? L_CONVOY_ARROW_WIDTH + D_H_SPACE*2 : 0)+GOODS_COLOR_BOX_HEIGHT;
+					new_component<gui_margin_t>(margin);
+					new_component<gui_label_t>("0", SYSCOL_TEXT_WEAK);
 				}
 			}
-			if (!got_one) {
-				new_component<gui_margin_t>(GOODS_COLOR_BOX_HEIGHT);
-				new_component<gui_label_t>("0", SYSCOL_TEXT_WEAK);
-			}
+			end_table();
 		}
 	}
-	end_table();
-	set_size(get_min_size());
+	set_size(scr_size(gui_aligned_container_t::get_min_size().w, size.h));
 }
 
 void gui_halt_waiting_catg_t::draw(scr_coord offset)
@@ -294,15 +316,63 @@ void gui_line_waiting_status_t::init()
 				uint8 entry_idx = 0;
 				for(auto const& i : schedule->entries){
 					halthandle_t const halt = haltestelle_t::get_halt(i.pos, line->get_owner());
-					uint8 line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::doubled : gui_colored_route_bar_t::solid;
+					uint8 line_style = mirrored ? gui_colored_route_bar_t::doubled : gui_colored_route_bar_t::solid;
 					// 1st row
 					if( halt.is_bound() ) {
-						const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
-						new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
-							is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
-							scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
-							i.pos
-						);
+						const bool both_directions = line_style==gui_colored_route_bar_t::doubled && entry_idx>0 && entry_idx< schedule->entries.get_count()-1;
+						minivec_tpl<uint8> entry_idx_of_this_stop;
+						add_table(1,0)->set_spacing(NO_SPACING);
+						{
+							if (both_directions) {
+								new_component<gui_colored_route_bar_t>(base_color, line_style, true);
+							}
+							const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
+							new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
+								is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+								scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
+								i.pos
+							);
+							if (both_directions) {
+								new_component<gui_colored_route_bar_t>(base_color, line_style, true);
+							}
+						}
+						end_table();
+
+						uint8 start_entry = both_directions ? entry_idx-1:0;
+						uint8 end_entry = both_directions ? entry_idx+1: schedule->entries.get_count();
+						if (both_directions) {
+
+							for (; start_entry > 0; start_entry--) {
+								halthandle_t entry_halt = haltestelle_t::get_halt(schedule->entries[start_entry].pos, line->get_owner());
+								if (entry_halt.is_bound() && halt==entry_halt) {
+									start_entry++;
+									break;
+								}
+							}
+
+							for (; end_entry < schedule->entries.get_count(); end_entry++) {
+								halthandle_t entry_halt = haltestelle_t::get_halt(schedule->entries[end_entry].pos, line->get_owner());
+								if (entry_halt.is_bound() && halt == entry_halt) {
+									end_entry--;
+									break;
+								}
+							}
+						}
+						else if (line_style != gui_colored_route_bar_t::doubled) {
+							start_entry = (entry_idx+1)%schedule->entries.get_count();
+							for (uint8 j = 0; j < schedule->entries.get_count(); j++) {
+								halthandle_t entry_halt = haltestelle_t::get_halt(schedule->entries[j].pos, line->get_owner());
+								if (halt == entry_halt) {
+									entry_idx_of_this_stop.append(j);
+									if (j > entry_idx) {
+										end_entry = min(j, end_entry); break;
+									}
+								}
+							}
+							if (entry_idx_of_this_stop.get_count()>1 && end_entry == schedule->entries.get_count()) {
+								end_entry = (entry_idx_of_this_stop[0]+schedule->entries.get_count()-1)% schedule->entries.get_count();
+							}
+						}
 
 						if (show_name) {
 							const bool can_serve = halt->can_serve(line);
@@ -317,9 +387,11 @@ void gui_line_waiting_status_t::init()
 							lb->set_fixed_width(lb->get_min_size().w);
 						}
 
+
 						for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
 							if (line->get_goods_catg_index().is_contained(catg_index)) {
-								new_component<gui_halt_waiting_catg_t>(halt, catg_index, filter_by_line ? line : linehandle_t(), divide_by_class);
+								new_component<gui_halt_waiting_catg_t>(halt, catg_index, filter_by_line ? line : linehandle_t(), divide_by_class,
+									start_entry, entry_idx_of_this_stop.get_count() > 1 ? 255 : entry_idx, end_entry);
 							}
 						}
 					}
@@ -373,7 +445,7 @@ void gui_line_waiting_status_t::init()
 					// 2nd row
 					if (entry_idx== schedule->entries.get_count()-1) {
 						if (mirrored) {
-							continue;
+							break;
 						}
 						else {
 							line_style = gui_colored_route_bar_t::dashed;
