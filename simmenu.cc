@@ -1035,8 +1035,7 @@ void tool_t::update_toolbars()
 	// iterate twice, to get correct icons if a toolbar changes between empty and non-empty
 	for(uint j=0; j<2; j++) {
 		bool change = false;
-		for(auto const i : toolbar_tool)
-		{
+		for(toolbar_t* const i : toolbar_tool) {
 			bool old_icon_empty = i->get_icon(welt->get_active_player()) == IMG_EMPTY;
 			i->update(welt->get_active_player());
 			change |= old_icon_empty ^ (i->get_icon(welt->get_active_player()) == IMG_EMPTY);
@@ -1148,8 +1147,7 @@ void toolbar_t::update(player_t *player)
 
 	tool_selector->reset_tools();
 	// now (re)fill it
-	for(auto const w : tools)
-	{
+	for(tool_t* const w : tools) {
 		// no way to call this tool? => then it is most likely a metatool
 		if(w->command_key==1  &&  w->get_icon(player)==IMG_EMPTY) {
 

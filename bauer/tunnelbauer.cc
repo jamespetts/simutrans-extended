@@ -131,8 +131,7 @@ void tunnel_builder_t::fill_menu(tool_selector_t* tool_selector, const waytype_t
 		}
 	}
 	// now sorted ...
-	for(auto const i : matching)
-	{
+	for(tunnel_desc_t const* const i : matching) {
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }

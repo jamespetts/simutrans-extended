@@ -59,8 +59,7 @@ void pakset_info_t::calculate_checksum()
 		sorted.insert_ordered(entry_t(i.key, i.value), entry_cmp);
 	}
 	// now loop
-	for(auto const i : sorted)
-	{
+	for(entry_t const& i : sorted) {
 		i.chk->calc_checksum(&general);
 	}
 	general.finish();

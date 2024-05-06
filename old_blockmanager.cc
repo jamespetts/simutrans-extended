@@ -160,8 +160,7 @@ void old_blockmanager_t::finish_rd(karte_t *welt)
 		uint8 directions=0;
 		waytype_t wt=gr->hat_weg(track_wt) ? track_wt : monorail_wt;
 		if(  gr->get_neighbour(to,wt,os1->get_dir())  ) {
-			for(auto const s : signale)
-			{
+			for(oldsignal_t* const s : signale) {
 				if (s->get_pos() == to->get_pos()) {
 					os2 = s;
 					break;

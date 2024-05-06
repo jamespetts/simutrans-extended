@@ -588,8 +588,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 				vector_tpl<linehandle_t> lines;
 				get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
 				new_line = linehandle_t();
-				for(auto const l : lines)
-				{
+				for(linehandle_t const l : lines) {
 					if(  schedule->matches( welt, l->get_schedule() )  ) {
 						// if a line is assigned, set line!
 						new_line = l;
@@ -2483,10 +2482,8 @@ void convoi_t::step()
 		case LEAVING_DEPOT:
 			last_stop_was_depot = true;
 			get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
-			for(auto const l : lines)
-			{
-				if(schedule->matches(welt, l->get_schedule()))
-				{
+			for(linehandle_t const l : lines) {
+				if(  schedule->matches( welt, l->get_schedule() )  ) {
 					// if a line is assigned, set line!
 					set_line(l);
 					line->renew_stops();
@@ -6897,10 +6894,8 @@ end_check:
  */
 void convoi_t::register_stops()
 {
-	if(schedule)
-	{
-		for (auto i : schedule->entries)
-		{
+	if(  schedule  ) {
+		for(schedule_entry_t const& i : schedule->entries) {
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
 			if(  halt.is_bound()  ) {
 				halt->add_convoy(self);
@@ -6916,8 +6911,7 @@ void convoi_t::register_stops()
 void convoi_t::unregister_stops()
 {
 	if(  schedule  ) {
-		for (auto i : schedule->entries)
-		{
+		for(schedule_entry_t const& i : schedule->entries) {
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
 			if(  halt.is_bound()  ) {
 				halt->remove_convoy(self);
