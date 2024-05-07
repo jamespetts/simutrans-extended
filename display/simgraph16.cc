@@ -3387,14 +3387,11 @@ void display_rezoomed_img_alpha(const image_id n, const image_id alpha_n, const 
 			// get the real color
 			const PIXVAL color = color_index & 0xFFFF;
 
-			// use horizontal clipping or skip it?
-			if(  xp >= CR.clip_rect.x  &&  xp + w  <= CR.clip_rect.xx  ) {
-				// marking change?
-				if(  dirty  ) {
-					mark_rect_dirty_wc( xp, yp, xp + w - 1, yp + h - 1 );
-				}
-				display_img_alpha_wc( h, xp, yp, sp, alphamap, get_alpha_mask(alpha_flags), color, alpha  CLIP_NUM_PAR );
+			// marking change?
+			if(  dirty  ) {
+				mark_rect_dirty_wc( xp, yp, xp + w - 1, yp + h - 1 );
 			}
+			display_img_alpha_wc( h, xp, yp, sp, alphamap, get_alpha_mask(alpha_flags), color, alpha  CLIP_NUM_PAR );
 		}
 	}
 }
