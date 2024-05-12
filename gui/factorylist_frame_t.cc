@@ -339,7 +339,7 @@ void factorylist_frame_t::fill_list()
 	lb_factory_counter.buf().printf("%u/%u", count, world()->get_fab_list().get_count());
 	lb_factory_counter.update();
 	scrolly.sort(0);
-	scrolly.set_size(scrolly.get_size());
+	scrolly.set_size(scr_size(get_windowsize().w, scrolly.get_size().h));
 }
 
 void factorylist_frame_t::set_cityfilter(stadt_t *city)
