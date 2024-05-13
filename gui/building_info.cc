@@ -371,14 +371,12 @@ building_info_t::building_info_t(gebaeude_t* gb, player_t* owner) :
 				sint64 maintenance = building->get_tile()->get_desc()->get_maintenance();
 				if (maintenance == PRICE_MAGIC)
 				{
-					maintenance = building->get_tile()->get_desc()->get_level() * welt->get_settings().maint_building;
+					maintenance = building->get_tile()->get_desc()->get_level() * welt->get_settings().get_maint_building();
 				}
 				char maintenance_number[64];
-				money_to_string(maintenance_number, (double)welt->calc_adjusted_monthly_figure(maintenance) / 100.0);
+				money_to_string(maintenance_number, (double)welt->calc_adjusted_monthly_figure(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), maintenance, buildings)) / 100.0);
 				td->buf().printf("%s ", maintenance_number);
-				td->set_flexible(true, false);
 				td->update();
-
 				cont_signalbox_info.new_component<gui_fill_t>();
 			}
 

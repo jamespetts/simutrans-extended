@@ -147,10 +147,12 @@ void stadt_t::electricity_consumption_rdwr(loadsave_t *file)
 	{
 		uint32 count = electricity_consumption[0].get_count();
 		file->rdwr_long(count);
-		ITERATE(electricity_consumption[0], i)
+		uint32 i = 0;
+		for(auto consumption : electricity_consumption[0])
 		{
-			file->rdwr_longlong(electricity_consumption[0].get_element(i).year);
-			file->rdwr_short(electricity_consumption[0].get_element(i).consumption_percent);
+			file->rdwr_longlong(consumption.year);
+			file->rdwr_short(consumption.consumption_percent);
+			i++;
 		}
 	}
 
@@ -2229,7 +2231,7 @@ void stadt_t::rdwr(loadsave_t* file)
 
 		count = connected_cities.get_count();
 		file->rdwr_long(count);
-		FOR(connexion_map, const& city_iter, connected_cities)
+		for(auto const city_iter : connected_cities)
 		{
 			time = city_iter.value;
 			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
@@ -2255,7 +2257,8 @@ void stadt_t::rdwr(loadsave_t* file)
 
 		count = connected_industries.get_count();
 		file->rdwr_long(count);
-		FOR(connexion_map, const& industry_iter, connected_industries)
+
+		for(auto const industry_iter : connected_industries)
 		{
 			time = industry_iter.value;
 			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
@@ -2281,7 +2284,7 @@ void stadt_t::rdwr(loadsave_t* file)
 
 		count = connected_attractions.get_count();
 		file->rdwr_long(count);
-		FOR(connexion_map, const& attraction_iter, connected_attractions)
+		for(auto attraction_iter : connected_attractions)
 		{
 			time = attraction_iter.value;
 			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
@@ -3393,7 +3396,7 @@ void stadt_t::merke_passagier_ziel(koord k, PIXVAL color)
 		}
 	}
 
-	FOR(vector_tpl<koord>, const& position, building_list)
+	for(auto const position : building_list)
 	{
 		pax_destinations_new.set(position, color);
 	}
@@ -3419,13 +3422,15 @@ class building_place_with_road_finder: public building_placefinder_t
 		{
 			const weighted_vector_tpl<gebaeude_t*>& attractions = welt->get_attractions();
 			int dist = welt->get_size().x * welt->get_size().y;
-			FOR(  weighted_vector_tpl<gebaeude_t*>, const i, attractions  ) {
+			for(auto const i : attractions)
+			{
 				int const d = koord_distance(i->get_pos(), pos);
 				if(  d < dist  ) {
 					dist = d;
 				}
 			}
-			FOR(  weighted_vector_tpl<stadt_t *>, const city, welt->get_cities() ) {
+			for(auto const city : welt->get_cities())
+			{
 				int const d = koord_distance(city->get_pos(), pos);
 				if(  d < dist  ) {
 					dist = d;
@@ -3552,7 +3557,8 @@ void stadt_t::check_bau_spezial(bool new_town)
 
 				bool ok=false;
 
-				FOR(grund_t::road_network_plan_t, i, road_tiles) {
+				for(auto i : road_tiles)
+				{
 					if (i.value == true) {
 						ok = ok || welt->access(i.key)->get_kartenboden()->hat_weg(road_wt);
 					}
@@ -3567,7 +3573,8 @@ void stadt_t::check_bau_spezial(bool new_town)
 				if (ok) {
 					// build roads around the monument
 					sint16 h=welt->lookup_kartenboden(best_pos)->get_hoehe();
-					FOR(grund_t::road_network_plan_t, i, road_tiles) {
+					for(auto i : road_tiles)
+					{
 						koord k = i.key;
 						grund_t *gr = welt->lookup_kartenboden(k);
 						if (!i.value) {
@@ -3575,7 +3582,8 @@ void stadt_t::check_bau_spezial(bool new_town)
 						}
 					}
 
-					FOR(grund_t::road_network_plan_t, i, road_tiles) {
+					for(auto i : road_tiles)
+					{
 						koord k = i.key;
 						const grund_t *gr = welt->lookup_kartenboden(k);
 						if (i.value) {
@@ -5298,7 +5306,8 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			}
 		}
 
-		FOR(grund_t::road_network_plan_t, i, road_tiles) {
+		for(auto i : road_tiles)
+		{
 			koord k = i.key;
 			grund_t *gr = welt->lookup_kartenboden(k);
 			if (!i.value) {
@@ -6040,7 +6049,7 @@ bool private_car_destination_finder_t::is_target(const grund_t* gr, const grund_
 	return false;
 }
 
-int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, koord)
+int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, ribi_t::ribi)
 {
 	const weg_t *w = gr->get_weg(road_wt);
 	if(!w)

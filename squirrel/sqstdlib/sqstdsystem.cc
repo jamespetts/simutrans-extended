@@ -19,6 +19,10 @@
 #define scremove remove
 #define screname rename
 #endif
+#ifdef IOS
+	#include <spawn.h>
+	extern char **environ;
+#endif
 
 static SQInteger _system_getenv(HSQUIRRELVM v)
 {
@@ -35,7 +39,13 @@ static SQInteger _system_system(HSQUIRRELVM v)
 {
 	const SQChar *s;
 	if(SQ_SUCCEEDED(sq_getstring(v,2,&s))){
+	#ifdef IOS
+		pid_t pid;
+		posix_spawn(&pid, s, NULL, NULL, NULL, environ);
+		sq_pushinteger(v, 0);
+	#else
 		sq_pushinteger(v,scsystem(s));
+	#endif
 		return 1;
 	}
 	return sq_throwerror(v,_SC("wrong param"));

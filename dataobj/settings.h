@@ -48,8 +48,9 @@ public:
 
 	vector_with_ptr_ownership_tpl( vector_with_ptr_ownership_tpl const& src ) :
 		vector_tpl<T*>( src.get_count() ) {
-		ITERATE( src, i ) {
-			this->append( new T( *src[i] ) );
+		for (auto s : src)
+		{
+			this->append( new T( *s ) );
 		}
 	}
 
@@ -551,7 +552,7 @@ public:
 
 	//@author: jamespetts
 	// Insolvency and debt settings
-	uint8 interest_rate_percent;
+	sint16 overdraft_percent_above_base_rate;
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
@@ -640,6 +641,11 @@ private:
 
 	// true if companies can make ways public
 	bool disable_make_way_public;
+
+	//The number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 maintenance_interval_months = 12;
+	// The maximum number of months between depot visits for vehicles with no distance based maintenance interval set
+	uint32 extended_maintenance_interval_months = 18;
 
 public:
 	/* the big cost section */
@@ -790,12 +796,22 @@ public:
 	bool rural_industries_no_staff_shortage;
 	uint32 auto_connect_industries_and_attractions_by_road;
 
+	bool simplified_maintenance;
 	uint32 path_explorer_time_midpoint;
 	bool save_path_explorer_data;
 
 	// Whether players can know in advance the vehicle production end date and upgrade availability date
 	// If false, only information up to one year ahead
 	bool show_future_vehicle_info;
+
+	// For allowing sensibly small per unit costs of fuel (e.g., using the per tonne cost for coal when the prices are calibrated per gramme)
+	uint32 fuel_unit_cost_divider = 1000;
+
+	// The minimum number of seconds between a vehicle entering layover and leaving it.
+	uint32 min_layover_overhead_seconds = 120;
+
+	// The number of seconds that it takes to reconstitute a consist.
+	uint32 shunting_time_seconds = 60;
 
 	/**
 	 * If map is read from a heightfield, this is the name of the heightfield.
@@ -1059,7 +1075,7 @@ public:
 
 	uint16 get_factory_max_years_obsolete() const { return factory_max_years_obsolete; }
 
-	uint8 get_interest_rate_percent() const { return interest_rate_percent; }
+	sint16 get_overdraft_percent_above_base_rate() const { return overdraft_percent_above_base_rate; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
 
@@ -1293,6 +1309,32 @@ public:
 	sint64 get_forge_cost(waytype_t wt) const;
 	sint64 get_parallel_ways_forge_cost_percentage(waytype_t wt) const;
 
+	// These apply inflation
+	sint64 get_maint_building() const;
+
+	sint64 get_cost_multiply_dock() const;
+	sint64 get_cost_multiply_station() const;
+	sint64 get_cost_multiply_roadstop() const;
+	sint64 get_cost_multiply_airterminal() const;
+	sint64 get_cost_multiply_post() const;
+	sint64 get_cost_multiply_headquarter() const;
+	sint64 get_cost_depot_rail() const;
+	sint64 get_cost_depot_road() const;
+	sint64 get_cost_depot_ship() const;
+	sint64 get_cost_depot_air() const;
+
+	sint64 get_cost_reclaim_land() const;
+	sint64 get_cost_alter_land() const;
+	sint64 get_cost_alter_climate() const;
+	sint64 get_cost_set_slope() const;
+	sint64 get_cost_found_city() const;
+	sint64 get_cost_multiply_found_industry() const;
+	sint64 get_cost_remove_tree() const;
+	sint64 get_cost_multiply_remove_house() const;
+	sint64 get_cost_mutliply_remove_field() const;
+	sint64 get_cost_transformer() const;
+	sint64 get_cost_maintain_transformer() const;
+
 	uint32 get_max_diversion_tiles() const { return max_diversion_tiles; }
 
 	uint8 get_way_height_clearance() const { return way_height_clearance; }
@@ -1331,6 +1373,14 @@ public:
 	bool get_rural_industries_no_staff_shortage() const { return rural_industries_no_staff_shortage; }
 	uint32 get_auto_connect_industries_and_attractions_by_road() const { return auto_connect_industries_and_attractions_by_road; }
 
+	bool get_simplified_maintenance() const { return simplified_maintenance; }
+
+	uint32 get_min_layover_overhead_seconds() const { return min_layover_overhead_seconds; }
+	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = value; }
+
+	uint32 get_shunting_time_seconds() const { return shunting_time_seconds; }
+	void set_shunting_time_seconds(uint32 value) { shunting_time_seconds = value; }
+
 	uint32 get_path_explorer_time_midpoint() const { return path_explorer_time_midpoint; }
 	bool get_save_path_explorer_data() const { return save_path_explorer_data; }
 
@@ -1350,6 +1400,14 @@ public:
 	void set_do_not_record_private_car_routes_to_distant_non_consumer_industries(bool value) { do_not_record_private_car_routes_to_distant_non_consumer_industries = value; }
 	bool get_do_not_record_private_car_routes_to_city_buildings() const { return do_not_record_private_car_routes_to_city_buildings; }
 	void set_do_not_record_private_car_routes_to_city_buildings(bool value) { do_not_record_private_car_routes_to_city_buildings = value; }
+
+	uint32 get_maintenance_interval_months() const { return maintenance_interval_months; }
+	void set_maintenance_interval_months(uint32 value) { maintenance_interval_months = value; }
+	uint32 get_extended_maintenance_interval_months() const { return extended_maintenance_interval_months; }
+	void set_extended_maintenance_interval_months(uint32 value) { extended_maintenance_interval_months = value; }
+
+	uint32 get_fuel_unit_cost_divider() const { return fuel_unit_cost_divider; }
+	void set_fuel_unit_cost_divider(uint32 value) { fuel_unit_cost_divider = value; }
 };
 
 #endif

@@ -126,7 +126,7 @@ public:
 class gui_vehicle_bar_t : public gui_component_t
 {
 protected:
-	PIXVAL color;
+	PIXVAL front_color, rear_color;
 
 	uint8 flags_left;
 	uint8 flags_right;
@@ -144,7 +144,8 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 
-	void set_color(PIXVAL c) { color = c; }
+	void set_color(PIXVAL c) { front_color = c; rear_color = c; }
+	void set_color(PIXVAL left, PIXVAL right) { front_color = left; rear_color = right; }
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return size; }

@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -56,7 +56,7 @@ static int col_to_sort_mode[vehiclelist_frame_t::VL_MAX_SPECS] = {
 
 static const char *const vl_header_text[vehiclelist_frame_t::VL_MAX_SPECS] =
 {
-	"Name", "", "Wert", "engine_type",
+	"Side view", "", "Wert", "engine_type",
 	"Leistung", "TF_", "", "Capacity",
 	"Max. speed", "curb_weight", "Axle load:", "Intro. date","Retire date"
 };
@@ -77,7 +77,7 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 	// calculate first column width
 	if( vehiclelist_frame_t::side_view_mode ) {
 		// width of image
-		scr_coord_val x, y, w, h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		const image_id image = veh->get_image_id( ribi_t::dir_southwest, veh->get_freight_type() );
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		if( w > MAX_IMG_WIDTH ) {
@@ -113,7 +113,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 			display_fillbox_wh_clip_rgb(offset.x, offset.y, MAX_IMG_WIDTH - 1, height - 1, SYSCOL_TR_BACKGROUND_SELECTED, false);
 		}
 		// show side view image
-		scr_coord_val x, y, w, h;
+		scr_coord_val x = 0, y = 0, w = 0, h = 0;
 		const image_id image = veh->get_image_id( ribi_t::dir_southwest, veh->get_freight_type() );
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		display_base_img(image, offset.x - x, offset.y - y + D_GET_CENTER_ALIGN_OFFSET(h, height-1), world()->get_active_player_nr(), false, true);
@@ -174,7 +174,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 				const uint8 upgradable_state = veh->has_available_upgrade(month);
 				if( vehiclelist_frame_t::filter_flag&vehiclelist_frame_t::VL_FILTER_UPGRADABLE  &&  upgradable_state && skinverwaltung_t::upgradable ) {
-					if (world()->get_settings().get_show_future_vehicle_info() || (!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) != 2)) {
+					if (world()->get_settings().get_show_future_vehicle_info() || veh->is_future(month) != future_state::far_future) {
 						xoff = xoff + VEHICLE_BAR_HEIGHT * 2 - D_FIXED_SYMBOL_WIDTH;
 						display_color_img(skinverwaltung_t::upgradable->get_image_id(upgradable_state - 1), xoff, offset.y + height - D_FIXED_SYMBOL_WIDTH, 0, false, false);
 					}
@@ -550,12 +550,14 @@ bool vehiclelist_frame_t::action_triggered( gui_action_creator_t *comp,value_t v
 		bt_show_name.pressed      = true;
 		bt_show_side_view.pressed = false;
 		side_view_mode = false;
+		bt_table_sort[0].set_text(translator::translate("Name"));
 		fill_list();
 	}
 	else if( comp == &bt_show_side_view) {
 		bt_show_name.pressed      = false;
 		bt_show_side_view.pressed = true;
 		side_view_mode = true;
+		bt_table_sort[0].set_text(translator::translate(vl_header_text[0]));
 		fill_list();
 	}
 	else {
@@ -669,7 +671,7 @@ void vehiclelist_frame_t::fill_list()
 					timeline_matches = true; // show blue ones
 				}
 				if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
-					if( !welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+					if(!world()->get_settings().get_show_future_vehicle_info() && veh->is_future(month) == future_state::far_future) {
 						// Do not show vehicles in the distant future with this setting
 						continue;
 					}
@@ -754,7 +756,7 @@ void vehiclelist_frame_t::fill_list()
 				timeline_matches = true; // show blue ones
 			}
 			if( !timeline_matches  &&  bt_timeline_filters[VL_SHOW_FUTURE].pressed  &&  veh->is_future(month) ) {
-				if( welt->get_settings().get_show_future_vehicle_info()  &&  veh->is_future(month)==1 ) {
+				if(!welt->get_settings().get_show_future_vehicle_info()  && veh->is_future(month) == future_state::far_future) {
 					// Do not show vehicles in the distant future with this setting
 					continue;
 				}

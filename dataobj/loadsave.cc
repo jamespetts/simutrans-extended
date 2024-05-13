@@ -366,8 +366,7 @@ loadsave_t::file_status_t loadsave_t::rd_open(const char *filename_utf8)
 		strcpy( finfo.pak_extension, "(unknown)" );
 	}
 
-#ifndef SPECIAL_RESCUE_12_6
-	if (finfo.ext_version.extended_version >= 12)
+	if (finfo.ext_version.extended_version  >= 12)
 	{
 		rdwr_long(finfo.ext_version.extended_revision);
 	}
@@ -375,9 +374,6 @@ loadsave_t::file_status_t loadsave_t::rd_open(const char *filename_utf8)
 	{
 		finfo.ext_version.extended_revision = 0;
 	}
-#else
-	finfo.ext_version.extended_revision = 0;
-#endif
 
 	return FILE_STATUS_OK;
 }

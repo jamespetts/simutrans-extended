@@ -178,7 +178,7 @@ void finance_t::calc_finance_history()
 sint64 finance_t::get_maintenance_with_bits(transport_type tt) const
 {
 	assert(tt<TT_MAX);
-	return world->calc_adjusted_monthly_figure( maintenance[tt] );
+	return world->get_inflation_adjusted_price(world->get_timeline_year_month(), world->calc_adjusted_monthly_figure(maintenance[tt]), infrastructure);
 }
 
 void finance_t::new_month()
@@ -194,6 +194,11 @@ void finance_t::new_month()
 	// subtract interest (before subtracting infrastructure maintenance)
 	book_interest_monthly();
 
+	if (!player->is_public_service())
+	{
+		book_corporation_tax_monthly();
+	}
+
 	// subtract infrastructure maintenance
 	for(int i=0; i<TT_MAX; ++i){
 		veh_month[i][0][ATV_INFRASTRUCTURE_MAINTENANCE] -= get_maintenance_with_bits((transport_type)i);
@@ -203,44 +208,49 @@ void finance_t::new_month()
 }
 
 /**
- * Books interest expense or profit.
+ * Books all interest.
+ * Currently only overdraft interest
+ * TODO: Add other kinds of borrowing
  */
 void finance_t::book_interest_monthly()
 {
-	// This handles both interest on cash balance and interest on loans.
-	// Rate is yearly rate for debt; rate for credit is 1/4 of that.  (Fix this.)
-	const sint64 interest_rate = (sint64)world->get_settings().get_interest_rate_percent();
-	if (interest_rate > 0)
+	const sint64 overdraft_rate = (sint64)world->get_overdraft_rate_percent();
+	if (overdraft_rate > 0)
 	{
-		/*float32e8_t interest (interest_rate);
-		interest /= (float32e8_t)100; // percent
-		interest /= (float32e8_t)12; // monthly
-		if (get_account_balance() >= 0) {
-			// Credit interest rate is 1/4 of debt interest rate.
-			interest /= (float32e8_t)4;
-		}
-		// Apply to the current account balance, only if in debt.
-		// Credit interest, which applied in earlier versions, unbalanced the game.
-		interest *= (float32e8_t)get_account_balance();
-		// Due to the limitations of float32e8, interest can only go up to +-2^31 per month.
-		// Hopefully this won't be an issue.  It will report errors if it is.
-		// This would require an account balance of over +-257 billion.
-		sint32 booked_interest = interest;*/
-
 		sint64 interest;
 		if(get_account_balance() < 0)
 		{
-			interest = (interest_rate * get_account_balance()) / 1200ll;
+			interest = (overdraft_rate * get_account_balance()) / 1200ll;
 		}
 		else
 		{
 			interest = 0;
 		}
 
-		com_year[0][ATC_INTEREST] += interest;
-		com_month[0][ATC_INTEREST] += interest;
-		account_balance += interest;
+		book_interest(interest);
 	}
+}
+
+void finance_t::book_corporation_tax_monthly()
+{
+	const sint64 tax_rate = world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::corporation_tax);
+
+	// Corporation tax has generous capital allowances, so players are taxed on their previous year's gross profit. Thus, new players
+	// do not have to pay any tax for the first year. In each month, players then pay corporation tax on 1/12th of the gross profit.
+	// from the previous year. The tax is given to the public player.
+
+	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT];
+
+	// Divide by months and 100s
+	sint64 tax_payable = (taxable_profit_last_year * tax_rate) / 1200ll;
+
+	if (tax_payable < 0)
+	{
+		tax_payable = 0;
+	}
+
+	book_tax(-tax_payable);
+	world->get_public_player()->book_tax(tax_payable);
 }
 
 void finance_t::calc_credit_limits()
@@ -289,9 +299,9 @@ sint64 finance_t::credit_limit_by_profits() const
 		// This is before interst and before construction costs.
 		profit_total += get_history_veh_month(TT_ALL, month, ATV_OPERATING_PROFIT);
     }
-	sint64 interest_rate = world->get_settings().get_interest_rate_percent();
+	sint64 overdraft_interest_rate = (sint64)world->get_overdraft_rate_percent();
 
-	if(interest_rate == 0)
+	if(overdraft_interest_rate == 0)
 	{
 		return 0;
 	}
@@ -299,7 +309,7 @@ sint64 finance_t::credit_limit_by_profits() const
 	// *Divide* by the interest rate: if all the profits went to interest,
 	// this tells us how much debt (principal) we could pay interest on
 	// Does not account for compound interest, so generous to the player
-	sint64 hard_limit_by_profits = - (profit_total * 100ll) / interest_rate;
+	sint64 hard_limit_by_profits = - (profit_total * 100ll) / overdraft_interest_rate;
 	// The following deals with recurring losses;
 	// It also deals (badly) with overflow errors.
 	if (hard_limit_by_profits > 0) {

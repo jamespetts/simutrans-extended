@@ -494,10 +494,9 @@ public:
 	void book(int amount, way_statistics type) { statistics[WAY_STAT_THIS_MONTH][type] += amount; }
 
 	/**
-	* return statistics value
-	* always returns last month's value
-	*/
-	int get_statistics(int type) const { return statistics[WAY_STAT_LAST_MONTH][type]; }
+	 * return statistics value
+	 */
+	int get_statistics(way_stat_months month, way_statistics type) const { return statistics[(int)month][(int)type]; }
 
 	bool is_disused() const { return statistics[WAY_STAT_LAST_MONTH][WAY_STAT_CONVOIS] == 0 && statistics[WAY_STAT_THIS_MONTH][WAY_STAT_CONVOIS] == 0; }
 

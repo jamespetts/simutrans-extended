@@ -660,7 +660,13 @@ bool replace_frame_t::action_triggered( gui_action_creator_t *comp,value_t /*p*/
 		set_vehicles();
 	}
 
-	else if (comp == &bt_autostart || comp == &bt_depot || comp == &bt_mark)
+	if (comp == &bt_mark)
+	{
+		// HACK: This is intended to be temporary until the "mark for replacing" button can be replaced with
+		// a more fitting UI element for these purposes that allows the setting of all the possible values of "replace at".
+		rpl->set_replace_at(replace_data_t::manual);
+	}
+	else if(comp == &bt_autostart || comp == &bt_depot || comp == &bt_mark)
 	{
 		if( (replace_mode==same_consist_for_player || replace_mode==same_consist_for_this_line) ) {
 			// check replace cycle input value
@@ -903,10 +909,7 @@ void replace_frame_t::rdwr(loadsave_t *file)
 		file->rdwr_long(num_temp[i]);
 	}
 
-	// TODO: remove this if statement in ex-15branch
-	if( file->is_version_ex_atleast(14, 60) ) {
-		simline_t::rdwr_linehandle_t(file, target_line);
-	}
+	simline_t::rdwr_linehandle_t(file, target_line);
 
 	// init window
 	if(  file->is_loading()  ) {

@@ -310,7 +310,7 @@ void roadsign_t::info(cbuffer_t & buf) const
 	if (desc->get_maintenance() > 0)
 	{
 		char maintenance_number[64];
-		money_to_string(maintenance_number, (double)welt->calc_adjusted_monthly_figure(desc->get_maintenance()) / 100.0);
+		money_to_string(maintenance_number, (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(desc->get_maintenance()), infrastructure) / 100.0);
 		buf.printf("%s%s", translator::translate("maintenance"), ": ");
 		buf.append(maintenance_number);
 	}

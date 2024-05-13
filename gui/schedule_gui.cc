@@ -39,6 +39,7 @@
 #include "components/gui_textarea.h"
 #include "components/gui_waytype_image_box.h"
 #include "minimap.h"
+#include "consist_order_gui.h"
 #include "convoy_item.h""
 
 static karte_ptr_t welt;
@@ -48,27 +49,38 @@ static karte_ptr_t welt;
 #define L_ENTRY_NO_WIDTH (proportional_string_width("88")+6)
 
 // helper class
-gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint16 val_)
+gui_wait_loading_schedule_t::gui_wait_loading_schedule_t(uint32 flags_, uint16 val_)
 {
 	val = val_;
+	flags = flags_;
 	size.h = L_ENTRY_NO_HEIGHT;
-	const scr_coord_val img_width = skinverwaltung_t::goods->get_image(0)->get_pic()->w;
-	set_size(scr_size(img_width+9, L_ENTRY_NO_HEIGHT));
 }
 
 void gui_wait_loading_schedule_t::draw(scr_coord offset)
 {
 	const scr_coord_val img_width = skinverwaltung_t::goods->get_image(0)->get_pic()->w;
 	scr_coord_val left = img_width+2;
-	if (val ) {
+	size.w = img_width + 8; // symbol_width + margin + border*2 + bar_width
+	if (val || flags & schedule_entry_t::discharge_payload || flags & schedule_entry_t::pick_up_only || flags & schedule_entry_t::set_down_only) {
 		display_color_img(skinverwaltung_t::goods->get_image_id(0), pos.x+offset.x, pos.y+offset.y + D_GET_CENTER_ALIGN_OFFSET(skinverwaltung_t::goods->get_image(0)->get_pic()->h, size.h), 0, false, false);
-		const PIXVAL bgcolor = val ? color_idx_to_rgb(MN_GREY2) : color_idx_to_rgb(COL_RED+1);
-		display_ddd_box_clip_rgb(   pos.x+offset.x+left,   pos.y+offset.y,   6, size.h,   color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4)); // frame
-		display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+1, 4, size.h-2, bgcolor, true);                                          // background
-		if (val) {
-			const scr_coord_val bar_height = (size.h-2)*val/100;
-			display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+(size.h-2)+1-bar_height, 4, bar_height, COL_IN_TRANSIT, true);       // load limit
+		if (val || flags & schedule_entry_t::discharge_payload) {
+			const PIXVAL bgcolor = val ? color_idx_to_rgb(MN_GREY2) : color_idx_to_rgb(COL_RED+1);
+			display_ddd_box_clip_rgb(   pos.x+offset.x+left,   pos.y+offset.y,   6, size.h,   color_idx_to_rgb(MN_GREY0), color_idx_to_rgb(MN_GREY4)); // frame
+			display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+1, 4, size.h-2, bgcolor, true);                                          // background
+			if (val) {
+				const scr_coord_val bar_height = (size.h-2)*val/100;
+				display_fillbox_wh_clip_rgb(pos.x+offset.x+left+1, pos.y+offset.y+(size.h-2)+1-bar_height, 4, bar_height, COL_IN_TRANSIT, true);       // load limit
+			}
+			left += 6;
 		}
+		if (flags & schedule_entry_t::pick_up_only) {
+			left += display_fluctuation_triangle_rgb(pos.x+offset.x+left+1, pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(7, size.h), 7, false, 1);
+		}
+		else if(flags & schedule_entry_t::set_down_only){
+			left += display_fluctuation_triangle_rgb(pos.x+offset.x+left+1, pos.y+offset.y+D_GET_CENTER_ALIGN_OFFSET(7, size.h), 7, false, -1);
+		}
+		size.w = left+1;
+		set_size(size);
 	}
 }
 
@@ -135,14 +147,18 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 	add_component(&bt_del);
 	//new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
 
-	new_component<gui_margin_t>(1); //add_component(&img_layover); //1
+	img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
+	img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
+	img_layover.set_rigid(true); // false breaks the layout
+	img_layover.set_visible(false);
+	add_component(&img_layover); //1
 
 	img_hourglass.set_image(skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
 	img_hourglass.set_rigid(true);
-	img_hourglass.set_visible(entry.wait_for_time || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
+	img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
 	add_component(&img_hourglass); //2
 
-	wait_loading = new_component<gui_wait_loading_schedule_t>(entry.minimum_loading); // 3
+	wait_loading = new_component<gui_wait_loading_schedule_t>(entry.flags, entry.minimum_loading); // 3
 
 	entry_no.set_visible(true);
 	entry_no.set_rigid(false);
@@ -163,12 +179,21 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 		img_nc_alert.set_visible(false);
 		add_component(&img_nc_alert); // 5-1
 
-		new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
+		couple_order = new_component<gui_schedule_couple_order_t>(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster); // 5-2
+		//new_component<gui_margin_t>(1); //5-2 dummy for prefix // UI TODO
 
-		new_component<gui_margin_t>(1); //5-3
+		img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(1) : IMG_EMPTY, true);
+		img_refuel.set_tooltip(translator::translate("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop"));
+		img_refuel.set_rigid(false);
+		img_refuel.set_visible(false);
+		add_component(&img_refuel); //5-3
 		add_component(&stop); // 5-4
 
-		new_component<gui_margin_t>(1);  //5-5
+		img_ignore_choose.set_image(skinverwaltung_t::ignore_choose ? skinverwaltung_t::ignore_choose->get_image_id(0) : skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
+		img_ignore_choose.set_tooltip(translator::translate("If this is set, choose signals will be ignored while this convoy is heading to this destination."));
+		img_ignore_choose.set_rigid(false);
+		img_ignore_choose.set_visible(false);
+		add_component(&img_ignore_choose); //5-5
 
 		lb_reverse.set_visible(true);
 		lb_reverse.buf().append("[<<]");
@@ -220,10 +245,10 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 	wpbox.set_color(base_color);
 	route_bar->set_visible(true);
 
-	new_component<gui_empty_t>();  // 6
-	new_component<gui_fill_t>();   // 7
+	lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
+	add_component(&lb_speed_limit); // 7
+	new_component<gui_fill_t>();  //8
 
-	new_component<gui_empty_t>(); // 8
 	bt_swap.init(button_t::swap_vertical| button_t::automatic, NULL);
 	bt_swap.set_tooltip("helptxt_swap_schedule_entries");
 	bt_swap.add_listener(this);
@@ -235,7 +260,8 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 void gui_schedule_entry_t::update_label()
 {
 	halthandle_t halt = haltestelle_t::get_halt(entry.pos, player);
-	wait_loading->init_data(entry.wait_for_time ? 0 : entry.minimum_loading);
+	wait_loading->init_data(entry.flags, entry.minimum_loading);
+	couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 	bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
 	wpbox.set_visible(false);
@@ -263,11 +289,28 @@ void gui_schedule_entry_t::update_label()
 	}
 	entry_no.set_visible(!wpbox.is_visible());
 
+	img_layover.set_visible(entry.is_flag_set(schedule_entry_t::lay_over));
+	img_refuel.set_visible(entry.is_flag_set(schedule_entry_t::force_range_stop));
+
+	if (entry.is_flag_set(schedule_entry_t::ignore_choose)) {
+		lb_pos.set_color(color_idx_to_rgb(COL_BLUE));
+		img_ignore_choose.set_visible(true);
+	}
+	else {
+		lb_pos.set_color(SYSCOL_TEXT);
+		img_ignore_choose.set_visible(false);
+	}
+
 	schedule_t::gimme_stop_name(stop.buf(), world(), player, entry, no_control_tower); // UI TODO: After porting the function, remove this function
 	stop.update();
 
-	img_hourglass.set_visible(entry.wait_for_time || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
+	img_hourglass.set_visible(entry.is_flag_set(schedule_entry_t::wait_for_time) || (entry.minimum_loading > 0 && entry.waiting_time_shift > 0));
 	lb_reverse.set_visible(entry.reverse == 1);
+
+	if (entry.max_speed_kmh != 65535) {
+		lb_speed_limit.buf().printf("%u %s", entry.max_speed_kmh, "km/h");
+	}
+	lb_speed_limit.update();
 }
 
 void gui_schedule_entry_t::set_distance(koord3d next_pos, uint32 distance_to_next_halt, uint16 range_limit)
@@ -284,6 +327,14 @@ void gui_schedule_entry_t::set_distance(koord3d next_pos, uint32 distance_to_nex
 	lb_distance.set_color(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? COL_DANGER : SYSCOL_TEXT);
 	route_bar->set_alert_level(range_limit && range_limit < (uint16)distance_to_next_halt/1000 ? 3 : 0);
 	lb_distance.update();
+}
+
+void gui_schedule_entry_t::set_speed_limit(uint32 speed)
+{
+	if (speed!=65535) {
+		lb_speed_limit.buf().printf("%u %s", speed, "km/h");
+	}
+	lb_speed_limit.update();
 }
 
 void gui_schedule_entry_t::set_line_style(uint8 s)
@@ -467,6 +518,7 @@ void schedule_gui_stats_t::update_schedule()
 						entries[i]->set_line_style(base_line_style);
 					}
 				}
+				entries[i]->set_speed_limit(schedule->entries[i].max_speed_kmh);
 				entries.back()->add_listener(this);
 			}
 			if (schedule->entries.get_count()>1) {
@@ -598,6 +650,7 @@ void schedule_gui_t::init(linehandle_t line)
 			lb_min_range.buf().printf("%u km", min_range);
 			lb_min_range.update();
 		}
+		img_refuel.set_visible(min_range>0 && min_range<UINT16_MAX);
 		lb_min_range.set_visible(min_range>0 && min_range<UINT16_MAX);
 	}
 	init_components();
@@ -739,7 +792,11 @@ void schedule_gui_t::build_table()
 			add_table(6,1);
 			{
 				new_component<gui_margin_t>(D_H_SPACE);
-				new_component<gui_margin_t>(1);
+				img_refuel.set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(0) : IMG_EMPTY, true);
+				img_refuel.set_tooltip(translator::translate("This line/convoy needs refueling at the stop."));
+				img_refuel.set_rigid(false);
+				img_refuel.set_visible(min_range && min_range != UINT16_MAX);
+				add_component(&img_refuel);
 
 				if (min_range && min_range != UINT16_MAX) {
 					lb_min_range.buf().printf("%u km", min_range);
@@ -812,6 +869,27 @@ void schedule_gui_t::build_table()
 					cont_settings_1.new_component<gui_empty_t>();
 				}
 				cont_settings_1.end_table();
+
+				cont_settings_1.new_component<gui_margin_t>(D_H_SPACE);
+				bt_pickup_only.init(button_t::square_automatic, "bt_pickup_only");
+				bt_pickup_only.set_tooltip("help_txt_pickup_only");
+				bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
+				bt_pickup_only.add_listener(this);
+				cont_settings_1.add_component(&bt_pickup_only);
+
+				cont_settings_1.new_component<gui_margin_t>(D_H_SPACE);
+				bt_setdown_only.init(button_t::square_automatic, "bt_setdown_only");
+				bt_setdown_only.set_tooltip("help_txt_setdown_only");
+				bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
+				bt_setdown_only.add_listener(this);
+				cont_settings_1.add_component(&bt_setdown_only);
+
+				cont_settings_1.new_component<gui_margin_t>(D_H_SPACE);
+				bt_discharge_payload.init(button_t::square_automatic, "bt_discharge_payload");
+				bt_discharge_payload.set_tooltip("help_txt_discharge_payload");
+				bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+				bt_discharge_payload.add_listener(this);
+				cont_settings_1.add_component(&bt_discharge_payload);
 			}
 			cont_settings_1.end_table();
 
@@ -822,7 +900,7 @@ void schedule_gui_t::build_table()
 					cont_settings_1.new_component<gui_image_t>()->set_image(skinverwaltung_t::waiting_time ? skinverwaltung_t::waiting_time->get_image_id(0) : IMG_EMPTY, true);
 					bt_wait_for_time.init(button_t::square_automatic, "Wait for time");
 					bt_wait_for_time.set_tooltip("If this is set, convoys will wait until one of the specified times before departing, the specified times being fractions of a month.");
-					bt_wait_for_time.pressed = schedule->get_current_entry().wait_for_time;
+					bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
 					bt_wait_for_time.add_listener(this);
 					cont_settings_1.add_component(&bt_wait_for_time,4);
 					//cont_settings_1.new_component<gui_empty_t>();
@@ -883,7 +961,7 @@ void schedule_gui_t::build_table()
 					cont_settings_1.add_component(&lb_spacing);
 
 					// UI TODO: Make it clearer to the player that this is set in increments of 12ths of a fraction of a month.
-					numimp_spacing.init(schedule->get_spacing(), 0, 999, 1);
+					numimp_spacing.init(schedule->get_spacing(), 0, 999, 12);
 					numimp_spacing.add_listener(this);
 					cont_settings_1.add_component(&numimp_spacing);
 
@@ -930,6 +1008,183 @@ void schedule_gui_t::build_table()
 				}
 				cont_settings_1.end_table();
 			}
+
+			// Force range stop
+			cont_settings_1.new_component<gui_image_t>()->set_image(skinverwaltung_t::refuel ? skinverwaltung_t::refuel->get_image_id(1) : IMG_EMPTY, true);
+			bt_range_stop.init(button_t::square_automatic, "force_range_stop");
+			bt_range_stop.set_tooltip("if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop");
+			bt_range_stop.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::force_range_stop);
+			bt_range_stop.add_listener(this);
+			cont_settings_1.add_component(&bt_range_stop);
+			cont_settings_1.new_component<gui_empty_t>();
+
+			// Speed limit
+			cont_settings_1.add_table(4,2)->set_spacing(scr_size(D_H_SPACE,0));
+			{
+				cont_settings_1.new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				bt_speed_limit.init(button_t::square_state, "enable_speed_limit");
+				bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh!=65535);
+				bt_speed_limit.set_tooltip(translator::translate("help_txt_speed_limit_between_two_points"));
+				bt_speed_limit.add_listener(this);
+				cont_settings_1.add_component(&bt_speed_limit,3);
+
+				cont_settings_1.new_component<gui_margin_t>(D_CHECKBOX_WIDTH);
+				lb_speed_limit.init("Speed limit:", scr_coord(0,0), bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED );
+				cont_settings_1.add_component(&lb_speed_limit);
+				numimp_speed_limit.init(schedule->get_current_entry().max_speed_kmh, 0, 65535, 1);
+				numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+				numimp_speed_limit.add_listener(this);
+				cont_settings_1.add_component(&numimp_speed_limit);
+
+				lb_speed_limit_kmh.init(" km/h", scr_coord(0,0), bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+				cont_settings_1.add_component(&lb_speed_limit_kmh);
+			}
+			cont_settings_1.end_table();
+
+			cont_settings_2.set_table_frame(true);
+			cont_settings_2.set_table_layout(1, 0);
+			cont_settings_2.set_margin(scr_size(0, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
+			// Modify convoy button
+			if( !cnv.is_bound() ) {
+				cont_settings_2.add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
+				{
+					bt_consist_order.init(button_t::roundbox_state, "modify_consist", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+					bt_consist_order.set_tooltip("modify_the_consist_at_this_schedule_entry");
+					if (skinverwaltung_t::open_window) {
+						bt_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
+						bt_consist_order.set_image_position_right(true);
+					}
+					bt_consist_order.add_listener(this);
+					bt_consist_order.pressed = false;
+					cont_settings_2.add_component(&bt_consist_order);
+					lb_consist_order_modified.init("(*)", scr_coord(0,0), SYSCOL_TEXT_HIGHLIGHT);
+					cont_settings_2.add_component(&lb_consist_order_modified);
+				}
+				cont_settings_2.end_table();
+			}
+
+			cont_settings_2.add_table(3,0)->set_spacing(scr_size(0,0));
+			{
+				// Issuing Lay over
+				cont_settings_2.new_component<gui_image_t>()->set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0): IMG_EMPTY, true);
+				bt_lay_over.init(button_t::square_automatic, "lay_over");
+
+				// Check whether the station has layover facilities and disable the button if so.
+				halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
+				bt_lay_over.add_listener(this);
+				bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+				if (!halt.is_bound() || !halt->can_lay_over())
+				{
+					bt_lay_over.disable();
+					bt_lay_over.set_tooltip("helptxt_no_layover_enabled_at_stop");
+				}
+				else
+				{
+					bt_lay_over.set_tooltip("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop");
+				}
+
+				cont_settings_2.add_component(&bt_lay_over);
+				cont_settings_2.new_component<gui_empty_t>();
+
+				// Ignore choose sign/signal
+				cont_settings_2.new_component<gui_image_t>()->set_image(skinverwaltung_t::ignore_choose ? skinverwaltung_t::ignore_choose->get_image_id(0) : skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(1) : IMG_EMPTY, true);
+				bt_ignore_choose.init(button_t::square_automatic, "ignore_choose_on_arrival");
+				bt_ignore_choose.set_tooltip("If this is set, choose signals will be ignored while this convoy is heading to this destination.");
+				bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
+				bt_ignore_choose.add_listener(this);
+				cont_settings_2.add_component(&bt_ignore_choose);
+				cont_settings_2.new_component<gui_empty_t>();
+			}
+			cont_settings_2.end_table();
+			// Conditional depart
+			cont_settings_2.add_table(3,2);
+			{
+				cont_settings_2.new_component<gui_vehicle_bar_t>(SYSCOL_UP_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(3, vehicle_desc_t::unknown_constraint, HAS_POWER|BIDIRECTIONAL);
+				cont_settings_2.new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy"));
+				conditional_depart.set_width(numimp_load.get_size().w);
+				conditional_depart.init(schedule->get_current_entry().condition_bitfield_receiver, 0, 15, 1);
+				conditional_depart.add_listener(this);
+				cont_settings_2.add_component(&conditional_depart);
+
+				// Condition broadcast
+				cont_settings_2.new_component<gui_vehicle_bar_t>(SYSCOL_DOWN_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(vehicle_desc_t::unknown_constraint, 3, HAS_POWER|BIDIRECTIONAL);
+				cont_settings_2.new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip(translator::translate("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving"));
+				condition_broadcast.set_width(60);
+				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
+				condition_broadcast.set_limits(0, 15);
+				condition_broadcast.set_increment_mode(1);
+				condition_broadcast.add_listener(this);
+				cont_settings_2.add_component(&condition_broadcast);
+			}
+			cont_settings_2.end_table();
+
+			// trigger
+			cont_settings_2.new_component<gui_divider_t>();
+			cont_settings_2.new_component<gui_label_t>("condition_trigger")->set_tooltip("help_txt_condition_trigger");
+			cont_settings_2.add_table(2,1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
+				condition_line_selector.add_listener(this);
+				cont_settings_2.add_component(&condition_line_selector);
+			}
+			cont_settings_2.end_table();
+
+			cont_settings_2.new_component<gui_divider_t>();
+			cont_settings_2.new_component<gui_label_t>("couple target")->set_tooltip("help_txt_uncouple_target");
+			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0,0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
+				bt_couple_is_line.add_listener(this);
+				bt_couple_is_cnv.add_listener(this);
+				bt_couple_is_line.init(button_t::roundbox_left_state, "Line");
+				bt_couple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
+				cont_settings_2.add_component(&bt_couple_is_line);
+				cont_settings_2.add_component(&bt_couple_is_cnv);
+				cont_settings_2.new_component<gui_fill_t>();
+			}
+			cont_settings_2.end_table();
+			cont_settings_2.add_table(2,1)->set_spacing(scr_size(0,0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				couple_target_selector.add_listener(this);
+				cont_settings_2.add_component(&couple_target_selector);
+			}
+			cont_settings_2.end_table();
+
+			cont_settings_2.new_component<gui_divider_t>();
+
+			cont_settings_2.new_component<gui_label_t>("uncouple target")->set_tooltip("help_txt_uncouple_target");
+
+			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
+				bt_uncouple_is_line.add_listener(this);
+				bt_uncouple_is_cnv.add_listener(this);
+				bt_uncouple_is_line.init(button_t::roundbox_left_state, "Line");
+				bt_uncouple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
+				cont_settings_2.add_component(&bt_uncouple_is_line);
+				cont_settings_2.add_component(&bt_uncouple_is_cnv);
+				cont_settings_2.new_component<gui_fill_t>();
+			}
+			cont_settings_2.end_table();
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				uncouple_target_selector.add_listener(this);
+				cont_settings_2.add_component(&uncouple_target_selector);
+			}
+			cont_settings_2.end_table();
+
+			cb_uncouple_target_entry.add_listener(this);
+			cont_settings_2.add_table(4, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.new_component<gui_label_t>("target_entry_uncouple")->set_tooltip("help_txt_target_entry_uncouple");
+				cont_settings_2.add_component(&cb_uncouple_target_entry);
+				cont_settings_2.new_component<gui_fill_t>();
+			}
+			cont_settings_2.end_table();
+
 		}
 		end_table();
 	}
@@ -980,6 +1235,189 @@ void schedule_gui_t::update_tool(bool set)
 }
 
 
+void schedule_gui_t::update_target_line_selection(bool condition, bool couple, bool uncouple)
+{
+	if (!schedule->empty()) {
+		if(condition) condition_line_selector.clear_elements();
+		if (couple)   couple_target_selector.clear_elements();
+		if (uncouple) uncouple_target_selector.clear_elements();
+		const uint8 current_stop = schedule->get_current_stop();
+		halthandle_t halt = haltestelle_t::get_halt(schedule->entries[current_stop].pos, player);
+		if (halt.is_bound()) {
+			if (condition) {
+				condition_line_selector.enable();
+				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				condition_line_selector.set_selection(0);
+			}
+			if (couple) {
+				couple_target_selector.enable();
+				couple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				couple_target_selector.set_selection(0);
+			}
+			if (uncouple) {
+				uncouple_target_selector.enable();
+				uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				uncouple_target_selector.set_selection(0);
+			}
+
+			waytype_t wt = schedule->get_waytype();
+			for (uint32 i = 0; i < halt->registered_lines.get_count(); i++) {
+				const linehandle_t line = halt->registered_lines[i];
+				if (!line.is_bound() || wt != line->get_schedule()->get_waytype()) {
+					continue;
+				}
+				if (line == old_line) { continue; }
+				if (condition) {
+					condition_line_selector.new_component<line_scrollitem_t>(line);
+					if (line.get_id() == schedule->entries[current_stop].target_id_condition_trigger) {
+						condition_line_selector.set_selection(condition_line_selector.count_elements()-1);
+					}
+				}
+				if (couple && bt_couple_is_line.pressed) {
+					couple_target_selector.new_component<line_scrollitem_t>(line);
+					if (line.get_id() == schedule->entries[current_stop].target_id_couple) {
+						couple_target_selector.set_selection(couple_target_selector.count_elements()-1);
+					}
+				}
+				if (uncouple && bt_uncouple_is_line.pressed) {
+					uncouple_target_selector.new_component<line_scrollitem_t>(line);
+					if (line.get_id() == schedule->entries[current_stop].target_id_uncouple) {
+						uncouple_target_selector.set_selection(uncouple_target_selector.count_elements()-1);
+						update_uncouple_target_entries(line->get_schedule());
+					}
+				}
+			}
+			if ( condition  &&  condition_line_selector.count_elements()==1 ) {
+				condition_line_selector.clear_elements();
+				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("line not found"), SYSCOL_TEXT_INACTIVE);
+				condition_line_selector.set_selection(0);
+				condition_line_selector.disable();
+			}
+			if ( couple  &&  couple_target_selector.count_elements()==1 ) {
+				disable_couple_target_selector();
+			}
+			if ( uncouple  &&  uncouple_target_selector.count_elements()==1 ) {
+				disable_couple_target_selector(true);
+			}
+		}
+		else {
+			condition_line_selector.disable();
+			couple_target_selector.disable();
+			uncouple_target_selector.disable();
+		}
+	}
+}
+
+void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
+{
+	if (!schedule->empty()) {
+		if (couple)   couple_target_selector.clear_elements();
+		if (uncouple) uncouple_target_selector.clear_elements();
+		const uint8 current_stop = schedule->get_current_stop();
+		halthandle_t halt = haltestelle_t::get_halt(schedule->entries[current_stop].pos, player);
+		if (halt.is_bound()) {
+			if (couple) {
+				couple_target_selector.enable();
+				couple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				couple_target_selector.set_selection(0);
+			}
+			if (uncouple) {
+				uncouple_target_selector.enable();
+				uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				uncouple_target_selector.set_selection(0);
+			}
+
+			waytype_t wt = schedule->get_waytype();
+			for (uint32 i = 0; i < halt->registered_convoys.get_count(); i++) {
+				const convoihandle_t connected_cnv = halt->registered_convoys[i];
+				if (wt != connected_cnv->get_schedule()->get_waytype()) {
+					continue;
+				}
+				if ( couple  &&  bt_couple_is_line.pressed ) {
+					couple_target_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
+					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_couple) {
+						couple_target_selector.set_selection(couple_target_selector.count_elements() - 1);
+					}
+				}
+				if ( uncouple  &&  bt_uncouple_is_line.pressed ) {
+					uncouple_target_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
+					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_uncouple) {
+						uncouple_target_selector.set_selection(uncouple_target_selector.count_elements() - 1);
+						update_uncouple_target_entries(connected_cnv->get_schedule());
+					}
+				}
+			}
+			if ( couple  &&  couple_target_selector.count_elements()==1 ) {
+				disable_couple_target_selector();
+			}
+			if ( uncouple  &&  uncouple_target_selector.count_elements()==1 ) {
+				disable_couple_target_selector(true);
+			}
+		}
+		else {
+			couple_target_selector.disable();
+			uncouple_target_selector.disable();
+		}
+	}
+}
+
+void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
+{
+	if (is_uncouple) {
+		uncouple_target_selector.clear_elements();
+		if (!bt_uncouple_is_line.pressed && !bt_uncouple_is_cnv.pressed) {
+			uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("select_line_or_cnv_first"), SYSCOL_TEXT_INACTIVE);
+		}
+		else if (bt_uncouple_is_line.pressed) {
+			uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("line not found"), SYSCOL_TEXT_INACTIVE);
+		}
+		else if (bt_uncouple_is_cnv.pressed) {
+			uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("convoy not found"), SYSCOL_TEXT_INACTIVE);
+		}
+		uncouple_target_selector.set_selection(0);
+		uncouple_target_selector.disable();
+		schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 65535;
+		cb_uncouple_target_entry.clear_elements();
+		cb_uncouple_target_entry.set_visible(false);
+	}
+	else {
+		couple_target_selector.clear_elements();
+		if ( !bt_couple_is_line.pressed  &&  !bt_couple_is_cnv.pressed ) {
+			couple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("select_line_or_cnv_first"), SYSCOL_TEXT_INACTIVE);
+		}
+		else if (bt_couple_is_line.pressed) {
+			couple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("line not found"), SYSCOL_TEXT_INACTIVE);
+		}
+		else if (bt_couple_is_cnv.pressed) {
+			couple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("convoy not found"), SYSCOL_TEXT_INACTIVE);
+		}
+		couple_target_selector.set_selection(0);
+		couple_target_selector.disable();
+	}
+}
+
+void schedule_gui_t::update_uncouple_target_entries(schedule_t* sch)
+{
+	cb_uncouple_target_entry.clear_elements();
+	cb_uncouple_target_entry.set_selection(-1);
+	halthandle_t current_halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
+	for (uint8 i = 0; i < sch->get_count(); i++) {
+		halthandle_t halt = haltestelle_t::get_halt(sch->entries[i].pos, player);
+
+		if (halt.is_bound() && halt == current_halt) {
+			cb_uncouple_target_entry.new_component<entry_index_scrollitem_t>(i, sch->entries[i]);
+			if (schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple==65535) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = sch->entries[i].unique_entry_id;
+				cb_uncouple_target_entry.set_selection( cb_uncouple_target_entry.count_elements()-1 );
+			}
+			else if (schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple == sch->entries[i].unique_entry_id) {
+				cb_uncouple_target_entry.set_selection( cb_uncouple_target_entry.count_elements()-1 );
+			}
+		}
+	}
+	cb_uncouple_target_entry.set_visible(true);
+}
+
 void schedule_gui_t::update_selection()
 {
 	// UI TODO: update components only when needed
@@ -989,6 +1427,8 @@ void schedule_gui_t::update_selection()
 
 	numimp_load.disable();
 	numimp_load.set_value( 0 );
+	conditional_depart.set_value(0);
+	condition_broadcast.set_value(0);
 	bt_wait_prev.disable();
 	numimp_spacing.disable();
 	numimp_spacing_shift.disable();
@@ -1012,7 +1452,18 @@ void schedule_gui_t::update_selection()
 		const grund_t *gr = welt->lookup(schedule->get_current_entry().pos);
 		const bool is_depot = gr ? (welt->lookup(schedule->get_current_entry().pos)->get_depot()!=NULL) : false;
 		bt_wait_for_time.enable(is_depot ? false : true); // ??? waypoint ?
-		bt_wait_for_time.pressed = schedule->get_current_entry().wait_for_time;
+		bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
+		bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
+		bt_lay_over.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::lay_over);
+		bt_range_stop.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::force_range_stop);
+		bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
+		bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
+		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
+		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
+		numimp_speed_limit.enable(bt_speed_limit.pressed);
+		lb_speed_limit.set_color( bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+		lb_speed_limit_kmh.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 		entry_no->set_visible(true);
 		lb_entry_pos.set_visible(true);
 		lb_entry_pos.buf().printf("(%s)", schedule->entries[current_stop].pos.get_str());
@@ -1025,26 +1476,29 @@ void schedule_gui_t::update_selection()
 				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 
 			// tab1 componets
-			if(!schedule->get_current_entry().wait_for_time)
+			if(!schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 			{
 				numimp_load.enable();
 				numimp_load.set_value( schedule->entries[current_stop].minimum_loading );
+				bt_pickup_only.enable();
 			}
 			else if(!schedule->get_spacing())
 			{
 				// Cannot have wait for time without some spacing.
-				schedule->set_spacing(1);
-				numimp_spacing.set_value(1);
+				// 12 because the spacing is in 12ths of a fraction of a month.
+				schedule->set_spacing(12);
+				numimp_spacing.set_value(12);
 			}
 
-			if (schedule->entries[current_stop].minimum_loading > 0 || schedule->entries[current_stop].wait_for_time) {
+			if (schedule->entries[current_stop].minimum_loading > 0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) {
 				bt_wait_prev.enable();
+				bt_setdown_only.disable();
 				numimp_spacing.enable();
 				numimp_spacing_shift.enable();
 				numimp_spacing_shift.set_value(schedule->get_current_entry().spacing_shift);
 				if (schedule->get_spacing() ) {
 					lb_plus.set_visible(true);
-					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), welt->ticks_per_world_month / schedule->get_spacing());
+					welt->sprintf_ticks(str_spacing_as_clock, sizeof(str_spacing_as_clock), (welt->ticks_per_world_month * 12u) / schedule->get_spacing());
 					welt->sprintf_ticks(str_spacing_shift_as_clock, sizeof(str_spacing_as_clock),
 							schedule->entries[current_stop].spacing_shift * welt->ticks_per_world_month / welt->get_settings().get_spacing_shift_divisor() + 1
 							);
@@ -1054,7 +1508,7 @@ void schedule_gui_t::update_selection()
 				}
 				bt_wait_next.enable();
 			}
-			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].wait_for_time) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
+			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
 				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);
@@ -1066,6 +1520,47 @@ void schedule_gui_t::update_selection()
 
 			lb_waitlevel_as_clock.buf().append(str_parts_month_as_clock);
 			lb_waitlevel_as_clock.update();
+			bt_setdown_only.enable();
+			bt_discharge_payload.enable();
+
+			// tab2 componets
+			// If a station is found, tab2 will be hidden, so there is no need to disable these.
+			if (tabs.get_count() == 1) tabs.add_tab(&cont_settings_2, translator::translate("entry_setting_2"));
+			lb_consist_order_modified.set_visible(schedule->orders.get(schedule->entries[schedule->get_current_stop()].unique_entry_id).get_count());
+			bt_lay_over.enable(halt->can_lay_over());
+			bt_range_stop.enable();
+			if (schedule->get_current_entry().condition_bitfield_receiver > 0)
+			{
+				conditional_depart.set_value(schedule->get_current_entry().condition_bitfield_receiver);
+			}
+			if (schedule->get_current_entry().condition_bitfield_broadcaster > 0)
+			{
+				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
+			}
+
+			bt_couple_is_cnv.pressed = false;
+			bt_couple_is_line.pressed = false;
+			if (schedule->get_current_entry().target_id_couple) {
+				bt_couple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
+				bt_couple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
+			}
+			bt_uncouple_is_line.pressed = false;
+			bt_uncouple_is_cnv.pressed = false;
+			if (schedule->get_current_entry().target_id_uncouple) {
+				bt_uncouple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
+				bt_uncouple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
+			}
+
+			update_target_line_selection(true, bt_couple_is_line.pressed, bt_uncouple_is_line.pressed);
+			update_target_convoy_selection(bt_couple_is_cnv.pressed, bt_uncouple_is_cnv.pressed);
+			if (!bt_couple_is_cnv.pressed && !bt_couple_is_line.pressed) {
+				disable_couple_target_selector();
+			}
+			if (!bt_uncouple_is_cnv.pressed && !bt_uncouple_is_line.pressed) {
+				disable_couple_target_selector(true);
+			}
+
+
 		}
 		else {
 			// not a station
@@ -1081,7 +1576,15 @@ void schedule_gui_t::update_selection()
 				tabs.clear();
 				tabs.add_tab(&cont_settings_1, translator::translate("entry_setting_1"));
 			}
+			bt_discharge_payload.disable();
+			bt_setdown_only.disable();
+			bt_pickup_only.disable();
 			bt_wait_for_time.disable();
+
+			// tab2 componets
+			cont_settings_2.set_visible(false);
+			bt_lay_over.disable();
+			bt_range_stop.disable();
 		}
 	}
 
@@ -1110,6 +1613,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 		stats->highlight_schedule(schedule, false);
 
 		update_tool( false );
+		destroy_win(magic_consist_order); // it may creates data conflicts
 		schedule->cleanup();
 		schedule->finish_editing();
 		// now apply the changes
@@ -1268,12 +1772,55 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 	else if (!schedule->empty()) {
 		if (comp == &bt_wait_for_time)
 		{
-			schedule->entries[schedule->get_current_stop()].wait_for_time = bt_wait_for_time.pressed;
+			if (bt_wait_for_time.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::wait_for_time);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::wait_for_time);
+			}
 			update_selection();
 		}
 		else if (comp == &numimp_load) {
 			schedule->entries[schedule->get_current_stop()].minimum_loading = (uint16)p.i;
+			if (schedule->entries[schedule->get_current_stop()].minimum_loading > 0) {
+				bt_setdown_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
+			}
 			update_selection();
+		}
+		else if (comp == &bt_pickup_only) {
+			if (bt_pickup_only.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::pick_up_only);
+				bt_setdown_only.pressed = false;
+				bt_discharge_payload.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
+			}
+		}
+		else if (comp == &bt_setdown_only) {
+			if (bt_setdown_only.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::set_down_only);
+				bt_pickup_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::set_down_only);
+			}
+		}
+		else if (comp == &bt_discharge_payload) {
+			if (bt_discharge_payload.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::discharge_payload);
+				bt_pickup_only.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::pick_up_only);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::discharge_payload);
+			}
 		}
 		else if (comp == &bt_wait_prev) {
 			sint8& wait = schedule->entries[schedule->get_current_stop()].waiting_time_shift;
@@ -1316,6 +1863,201 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			}
 			update_selection();
 		}
+		else if (comp == &bt_speed_limit) {
+			bt_speed_limit.pressed = !bt_speed_limit.pressed;
+			if (bt_speed_limit.pressed==false) {
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = 65535;
+			}
+			else {
+				// set convoy max speed
+				numimp_speed_limit.set_value(get_min_top_speed_kmh());
+				schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
+			}
+			numimp_speed_limit.enable(bt_speed_limit.pressed);
+			lb_speed_limit.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+			lb_speed_limit_kmh.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+		}
+		else if (comp == &numimp_speed_limit) {
+			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
+			if (numimp_speed_limit.get_value()==65535) {
+				bt_speed_limit.pressed = false;
+			}
+			update_current_entry();
+		}
+		else if (comp == &bt_ignore_choose)
+		{
+			if (bt_ignore_choose.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::ignore_choose);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::ignore_choose);
+			}
+		}
+		else if (comp == &conditional_depart){
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_receiver = conditional_depart.get_value();
+		}
+		else if (comp == &condition_broadcast) {
+			schedule->entries[schedule->get_current_stop()].condition_bitfield_broadcaster = condition_broadcast.get_value();
+		}
+		else if (comp == &bt_lay_over)
+		{
+			if (bt_lay_over.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::lay_over);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::lay_over);
+			}
+		}
+		else if (comp == &bt_range_stop) {
+			if (bt_range_stop.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::force_range_stop);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
+			}
+		}
+		else if (comp == &bt_couple_is_line) {
+			bt_couple_is_line.pressed = !bt_couple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+			if (bt_couple_is_line.pressed) {
+				bt_couple_is_cnv.pressed = false;
+				update_target_line_selection(false, true, false);
+			}
+			else {
+				disable_couple_target_selector();
+			}
+		}
+		else if (comp == &bt_couple_is_cnv) {
+			bt_couple_is_cnv.pressed = !bt_couple_is_cnv.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+			if (bt_couple_is_cnv.pressed) {
+				bt_couple_is_line.pressed = false;
+				update_target_convoy_selection(true, false);
+			}
+			else {
+				disable_couple_target_selector();
+			}
+		}
+		else if (comp == &bt_uncouple_is_line) {
+			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+			if (bt_uncouple_is_line.pressed) {
+				bt_uncouple_is_cnv.pressed = false;
+				update_target_line_selection(false, false, true);
+			}
+			else {
+				disable_couple_target_selector(true);
+			}
+		}
+		else if (comp == &bt_uncouple_is_cnv) {
+			bt_uncouple_is_cnv.pressed = !bt_uncouple_is_cnv.pressed;
+			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
+			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+			if (bt_uncouple_is_cnv.pressed) {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+				bt_uncouple_is_line.pressed = false;
+				update_target_convoy_selection(false, true);
+			}
+			else {
+				disable_couple_target_selector(true);
+			}
+		}
+		else if (comp == &condition_line_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = 0;
+				return true;
+			}
+			else {
+				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
+				if (item) {
+					schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
+					return true;
+				}
+			}
+		}
+		else if (comp == &couple_target_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				return true;
+			}
+			else {
+				if (bt_couple_is_line.pressed) {
+					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(couple_target_selector.get_element(selection));
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						return true;
+					}
+				}
+				else if (bt_couple_is_cnv.pressed) {
+					convoy_scrollitem_t *item = (convoy_scrollitem_t*)couple_target_selector.get_element(selection);
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						return true;
+					}
+				}
+			}
+		}
+		else if (comp == &uncouple_target_selector) {
+			int selection = p.i;
+			if (selection == 0) {
+				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				cb_uncouple_target_entry.set_visible(false);
+				return true;
+			}
+			else {
+				if (bt_uncouple_is_line.pressed) {
+					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(uncouple_target_selector.get_element(selection));
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						update_uncouple_target_entries(item->get_line()->get_schedule());
+						return true;
+					}
+				}
+				else if (bt_uncouple_is_cnv.pressed) {
+					convoy_scrollitem_t *item = (convoy_scrollitem_t*)uncouple_target_selector.get_element(selection);
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						update_uncouple_target_entries(item->get_convoy()->get_schedule());
+						return true;
+					}
+				}
+			}
+		}
+		else if (comp == &cb_uncouple_target_entry) {
+			int selection = p.i;
+			entry_index_scrollitem_t *item = dynamic_cast<entry_index_scrollitem_t*>(cb_uncouple_target_entry.get_element(selection));
+			if (item) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = item->unique_entry_id;
+				return true;
+			}
+		}
+		else if (comp == &bt_consist_order) {
+			// Opens new window to alter the consist order
+			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
+			if (!win) {
+				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+			}
+			else {
+				//win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
+				//win->init(schedule->entries[schedule->get_current_stop()].unique_entry_id);
+			}
+			top_win(win);
+		}
 	}
 
 	// recheck lines
@@ -1334,6 +2076,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			min_range = min(new_line->get_min_range() ? new_line->get_min_range() : UINT16_MAX, min_range);
 			stats->range_limit = min_range;
 			img_electric.set_visible(new_line->needs_electrification());
+			img_refuel.set_visible(min_range && min_range != UINT16_MAX);
 			if (min_range && min_range!= UINT16_MAX) {
 				lb_min_range.buf().printf("%u km", min_range);
 				lb_min_range.update();

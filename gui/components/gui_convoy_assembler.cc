@@ -100,11 +100,13 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 		}
 		else {
 			// main spec view
-			add_table(5,1)->set_alignment(ALIGN_TOP);
+			add_table(4,1)->set_alignment(ALIGN_TOP);
 			{
-				new_component<gui_margin_t>(1);
 				// left
-				add_table(2,0)->set_spacing(scr_size(D_H_SPACE,1));
+				gui_aligned_container_t *tbl = add_table(2,0);
+				tbl->set_spacing(scr_size(1,1));
+				tbl->set_table_frame(true, true);
+				tbl->set_margin(scr_size(2,1), scr_size(2,1));
 				{
 					// Cost information:
 					switch (action)
@@ -112,20 +114,23 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 						char tmp[128];
 						case gui_convoy_assembler_t::va_sell:
 						{
-							new_component<gui_label_t>("Resale value:");
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_OUT_OF_PRODUCTION);
+							new_component<gui_table_header_t>("Resale value:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
 							money_to_string(tmp, resale_value / 100.0, false);
-							lb->buf().append(tmp);
-							lb->update();
+							td->buf().append(tmp);
+							td->set_color(SYSCOL_OUT_OF_PRODUCTION);
+							td->set_border_color(COL_DANGER);
+							td->update();
 							break;
 						}
 						case gui_convoy_assembler_t::va_upgrade:
 						{
-							new_component<gui_label_t>("Upgrade price:");
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_UPGRADEABLE);
+							new_component<gui_table_header_t>("Upgrade price:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
+							td->set_color(SYSCOL_UPGRADEABLE);
 							money_to_string(tmp, ((veh_type->is_available_only_as_upgrade() && !veh_type->get_upgrade_price()) ? veh_type->get_value() : veh_type->get_upgrade_price()) / 100.0, false);
-							lb->buf().append(tmp);
-							lb->update();
+							td->buf().append(tmp);
+							td->update();
 							break;
 						}
 						case gui_convoy_assembler_t::va_append:
@@ -133,90 +138,133 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 						default:
 						{
 							// new vehicle
-							gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-							lb->buf().printf("%s:", translator::translate("Price"));
-							lb->update();
-							lb = new_component<gui_label_buf_t>();
+							gui_table_header_buf_t *th = new_component<gui_table_header_buf_t>("", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+							th->buf().printf("%s:", translator::translate("Price"));
+							th->update();
+							gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
 							money_to_string(tmp, veh_type->get_value() / 100.0, false);
-							lb->buf().append(tmp);
-							lb->update();
+							td->buf().append(tmp);
+							td->update();
 							break;
 						}
 					}
 
-
+					new_component<gui_table_header_t>("Maintenance:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					add_table(1,2)->set_spacing(scr_size(0,0));
 					{
-						new_component<gui_label_t>("Maintenance:");
-						new_component<gui_margin_t>(1,D_LABEL_HEIGHT);
-					}
-					end_table();
-					add_table(1,2)->set_spacing(scr_size(0,0));
-					{
-						gui_label_buf_t *lb = new_component<gui_label_buf_t>(veh_type->get_running_cost()>0 ? SYSCOL_TEXT:SYSCOL_TEXT_WEAK);
-						lb->buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
-						lb->update();
-						lb = new_component<gui_label_buf_t>(veh_type->get_adjusted_monthly_fixed_cost()>0 ? SYSCOL_TEXT:SYSCOL_TEXT_WEAK);
-						lb->buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
-						lb->update();
+						gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_running_cost() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						td->buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
+						td->update();
+						td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_adjusted_monthly_fixed_cost() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						td->buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
+						td->update();
 					}
 					end_table();
 
-					new_component_span<gui_border_t>(2);
+					new_component<gui_table_header_t>("fuel_cost", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					add_table(1, 2)->set_spacing(scr_size(0, 0));
+					{
+						gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_fuel_per_km() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						const sint64 fuel_cost_per_unit = world()->get_fuel_cost(world()->get_timeline_year_month(), veh_type->get_engine_type());
+						const sint64 fuel_cost_per_km = (fuel_cost_per_unit * veh_type->get_fuel_per_km()) / world()->get_settings().get_fuel_unit_cost_divider();
+						td->buf().printf("%1.2f$/km", (double)fuel_cost_per_km / 100.0);
+						td->update();
+						td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_calibration_speed() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						td->buf().printf("%s %3d %s", "@", veh_type->get_calibration_speed(), "km/h");
+						td->update();
+					}
+					end_table();
+
+					// TODO: Find a more sophisticated way of representing fractional staff. Currently, they are not accounted for at all.
+					new_component<gui_table_header_t>("staff_cost", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
+					sint64 total_staff_cost = 0;
+					for (uint8 i = 0; i < 255; i++)
+					{
+						const uint32 staff_hundredths_this_type = veh_type->get_staff_hundredths(i);
+						const uint32 drivers_this_type = veh_type->get_drivers(i);
+						const sint64 staff_this_type = (((sint64)staff_hundredths_this_type + 99ll) / 100ll) + (sint64)drivers_this_type;
+						total_staff_cost += ((sint64)world()->get_staff_salary(world()->get_timeline_year_month(), i) * staff_this_type);
+					}
+
+					total_staff_cost = world()->calc_adjusted_monthly_figure(total_staff_cost);
+					td->buf().printf("%1.2f$/month", (double)total_staff_cost / 100.0);
+					td->update();
+
+					new_component<gui_table_header_t>("availability", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					td = new_component<gui_table_cell_buf_t>();
+					td->buf().printf("%3d %s", veh_type->get_starting_availability(), "%");
+					td->update();
 
 					// Physics information:
-					new_component<gui_label_t>("Max. speed:");
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>();
-					lb->buf().printf("%3d %s", veh_type->get_topspeed(), "km/h");
-					lb->update();
+					new_component<gui_table_header_t>("Max. speed:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					td = new_component<gui_table_cell_buf_t>();
+					td->buf().printf("%3d %s", veh_type->get_topspeed(), "km/h");
+					td->update();
 
-					new_component<gui_label_t>("Weight:");
-					lb = new_component<gui_label_buf_t>();
-					lb->buf().printf("%4.1ft", veh_type->get_weight() / 1000.0);
-					lb->update();
+					new_component<gui_table_header_t>("Weight:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+					td = new_component<gui_table_cell_buf_t>();
+					td->buf().printf("%4.1ft", veh_type->get_weight() / 1000.0);
+					td->update();
 
 					if (veh_type->get_waytype() != water_wt) {
-						new_component<gui_label_t>("Axle load:");
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().printf("%it", veh_type->get_axle_load());
-						lb->update();
+						new_component<gui_table_header_t>("Axle load:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().printf("%it", veh_type->get_axle_load());
+						td->update();
 
-						new_component<gui_label_t>("Way wear factor");
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().append(veh_type->get_way_wear_factor() / 10000.0, 4);
-						lb->update();
+						new_component<gui_table_header_t>("Way wear factor", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().append(veh_type->get_way_wear_factor() / 10000.0, 4);
+						td->update();
 
-						new_component<gui_label_t>("Max. brake force:");
-						lb = new_component<gui_label_buf_t>(veh_type->get_brake_force()>0 ? SYSCOL_TEXT:SYSCOL_TEXT_WEAK);
-						lb->buf().printf("%4.1fkN", convoy.get_braking_force().to_double() / 1000.0);
-						lb->update();
+						new_component<gui_table_header_t>("Max. brake force:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						td = new_component<gui_table_cell_buf_t>();
+						td->set_color(veh_type->get_brake_force() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
+						td->buf().printf("%4.1fkN", convoy.get_braking_force().to_double() / 1000.0);
+						td->update();
 
-						new_component<gui_label_t>("Rolling resistance:");
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().printf("%4.3fkN", veh_type->get_rolling_resistance().to_double() * (double)veh_type->get_weight() / 1000.0);
-						lb->update();
+						new_component<gui_table_header_t>("Rolling resistance:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().printf("%4.3fkN", veh_type->get_rolling_resistance().to_double() * (double)veh_type->get_weight() / 1000.0);
+						td->update();
 					}
 
-					new_component<gui_label_t>("Range");
+					new_component<gui_table_header_t>("Range", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					if (veh_type->get_range() == 0) {
-						new_component<gui_label_t>("unlimited");
+						new_component<gui_table_cell_t>("unlimited");
 					}
 					else {
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().printf("%i km", veh_type->get_range());
-						lb->update();
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().printf("%i km", veh_type->get_range());
+						td->update();
 					}
 
 					if (veh_type->get_waytype() == air_wt) {
-						new_component<gui_label_t>("Minimum runway length");
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().printf("%i m", veh_type->get_minimum_runway_length());
-						lb->update();
+						new_component<gui_table_header_t>("Minimum runway length", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().printf("%i m", veh_type->get_minimum_runway_length());
+						td->update();
 					}
 
 					// Engine information:
-					new_component_span<gui_border_t>(2);
 					if (veh_type->get_power() > 0) {
+						new_component<gui_table_header_t>("Power:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+						const uint8 et = (uint8)veh_type->get_engine_type() + 1;
+						td = new_component<gui_table_cell_buf_t>();
+						td->buf().printf("%4d kW / %d kN", veh_type->get_power(), veh_type->get_tractive_effort());
+						td->update();
+
+						if (veh_type->get_gear() != 64) {
+							new_component<gui_table_header_t>("Gear:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+							td = new_component<gui_table_cell_buf_t>();
+							td->buf().printf("%0.2f : 1", veh_type->get_gear() / 64.0);
+							td->update();
+						}
 
 						sint32 friction = convoy.get_current_friction();
 						sint32 max_weight = convoy.calc_max_starting_weight(friction);
@@ -227,25 +275,12 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 							min_weight = convoy.get_vehicle_summary().weight;
 							max_speed = convoy.calc_max_speed(weight_summary_t(min_weight, friction));
 						}
-						lb = new_component_span<gui_label_buf_t>(2);
-						lb->buf().printf("%s:", translator::translate("Pulls"));
-						lb->buf().printf(
+						td = new_component_span<gui_table_cell_buf_t>(2);
+						td->buf().printf("%s:", translator::translate("Pulls"));
+						td->buf().printf(
 							min_speed == max_speed ? translator::translate(" %gt @ %d km/h ") : translator::translate(" %gt @ %dkm/h%s%gt @ %dkm/h"),
 							min_weight * 0.001f, max_speed, translator::translate("..."), max_weight * 0.001f, min_speed);
-						lb->update();
-
-						new_component<gui_label_t>("Power:");
-						const uint8 et = (uint8)veh_type->get_engine_type() + 1;
-						lb = new_component<gui_label_buf_t>();
-						lb->buf().printf("%4d kW / %d kN (%s)", veh_type->get_power(), veh_type->get_tractive_effort(), translator::translate(vehicle_builder_t::engine_type_names[et]));
-						lb->update();
-
-						if (veh_type->get_gear() != 64) {
-							new_component<gui_label_t>("Gear:");
-							lb = new_component<gui_label_buf_t>();
-							lb->buf().printf("%0.2f : 1", veh_type->get_gear() / 64.0);
-							lb->update();
-						}
+						td->update();
 					}
 					else {
 						new_component_span<gui_label_t>("unpowered", 2);
@@ -392,7 +427,7 @@ void gui_vehicle_spec_t::build_secondary_view(uint16 current_livery)
 
 	add_table(5,1)->set_alignment(ALIGN_TOP);
 	{
-		new_component<gui_margin_t>(1, 13*D_LABEL_HEIGHT);
+		new_component<gui_margin_t>(1, 12*(D_LABEL_HEIGHT+4));
 		if( veh_type->get_livery_count()>1 ) {
 			add_table(1,0);
 			{
@@ -647,15 +682,16 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				// convoy specs
 				cont_convoi_spec.set_table_layout(1,2);
 				gui_aligned_container_t *tbl = cont_convoi_spec.add_table(4,0);
+				tbl->set_table_frame(true, true);
 				tbl->set_spacing(scr_size(1,1));
 				tbl->set_margin(scr_size(2,2), scr_size(2,2));
 				{
-					cont_convoi_spec.new_component<gui_label_t>("Cost:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Cost:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_cost);
-					cont_convoi_spec.new_component<gui_label_t>("maintenance");
+					cont_convoi_spec.new_component<gui_table_header_t>("maintenance", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_maintenance);
 
-					cont_convoi_spec.new_component<gui_label_t>("Max. speed:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. speed:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_table(2,1);
 					{
 						cont_convoi_spec.add_component(&img_alert_speed);
@@ -663,10 +699,10 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 						cont_convoi_spec.add_component(&lb_convoi_speed);
 					}
 					cont_convoi_spec.end_table();
-					cont_convoi_spec.new_component<gui_label_t>("Weight:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Weight:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_weight);
 
-					cont_convoi_spec.new_component<gui_label_t>("Power:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Power:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_table(2,1);
 					{
 						img_alert_power.set_image(skinverwaltung_t::alerts ? skinverwaltung_t::alerts->get_image_id(4) : IMG_EMPTY, true);
@@ -674,16 +710,16 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 						cont_convoi_spec.add_component(&lb_convoi_power);
 					}
 					cont_convoi_spec.end_table();
-					cont_convoi_spec.new_component<gui_label_t>("Max. axle load:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. axle load:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_axle_load);
 
-					cont_convoi_spec.new_component<gui_label_t>("Max. brake force:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Max. brake force:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_brake_force);
-					cont_convoi_spec.new_component<gui_label_t>("Way wear factor");
+					cont_convoi_spec.new_component<gui_table_header_t>("Way wear factor", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_way_wear);
 
 					cont_convoi_spec.add_component(&lb_convoi_brake_distance,2);
-					cont_convoi_spec.new_component<gui_label_t>("Rolling resistance:");
+					cont_convoi_spec.new_component<gui_table_header_t>("Rolling resistance:", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					cont_convoi_spec.add_component(&lb_convoi_rolling_resistance);
 				}
 				cont_convoi_spec.end_table();
@@ -1755,10 +1791,7 @@ void gui_convoy_assembler_t::update_data()
 		vehicle_desc_t const* const    info = i.key;
 		gui_image_list_t::image_data_t& img  = *i.value;
 
-		PIXVAL ok_color = info->is_future(month_now) || info->is_retired(month_now) ? SYSCOL_OUT_OF_PRODUCTION : COL_SAFETY;
-		if (info->is_obsolete(month_now)) {
-			ok_color = SYSCOL_OBSOLETE;
-		}
+		PIXVAL ok_color = info->get_vehicle_status_color();
 
 		img.count = 0;
 		img.lcolor = ok_color;
@@ -2174,23 +2207,12 @@ void gui_convoy_assembler_t::init_convoy_color_bars(vector_tpl<const vehicle_des
 	const uint16 month_now = world()->get_timeline_year_month();
 	uint32 i=0;
 	// change green into blue for retired vehicles
-	PIXVAL base_col = (!vehs->get_element(i)->is_future(month_now) && !vehs->get_element(i)->is_retired(month_now)) ? COL_SAFETY :
-		(vehicles[i]->is_obsolete(month_now)) ? SYSCOL_OBSOLETE : SYSCOL_OUT_OF_PRODUCTION;
+	PIXVAL base_col = vehs->get_element(i)->get_vehicle_status_color();
 	uint32 end = vehs->get_count();
 	set_vehicle_bar_shape(convoi_pics[0], vehs->get_element(0));
 	convoi_pics[0]->lcolor = vehs->get_element(0)->can_follow(NULL) ? base_col : COL_CAUTION;
 	for (i = 1; i < end; i++) {
-		if (vehs->get_element(i)->is_future(month_now) || vehs->get_element(i)->is_retired(month_now)) {
-			if (vehicles[i]->is_obsolete(month_now)) {
-				base_col = SYSCOL_OBSOLETE;
-			}
-			else {
-				base_col = SYSCOL_OUT_OF_PRODUCTION;
-			}
-		}
-		else {
-			base_col = COL_SAFETY;
-		}
+		base_col = vehs->get_element(i)->get_vehicle_status_color();
 		convoi_pics[i-1]->rcolor = vehs->get_element(i-1)->can_lead(vehs->get_element(i)) ?   base_col : COL_DANGER;
 		convoi_pics[i]->lcolor   = vehs->get_element(i)->can_follow(vehs->get_element(i-1)) ? base_col : COL_DANGER;
 		set_vehicle_bar_shape(convoi_pics[i], vehs->get_element(i));
@@ -2758,8 +2780,7 @@ gui_vehicle_bar_legends_t::gui_vehicle_bar_legends_t()
 	}
 
 	// Margin for adjusting to the height of the spac table
-	new_component<gui_margin_t>(1, D_LABEL_HEIGHT);
-	new_component<gui_margin_t>(1, D_LABEL_HEIGHT);
+	new_component<gui_margin_t>(1, D_LABEL_HEIGHT*2+4*12);
 
 	set_size(get_min_size());
 }

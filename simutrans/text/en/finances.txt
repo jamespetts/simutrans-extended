@@ -49,7 +49,7 @@ Values (click on name-button to view details on the graph), include:
 - <em>Interest</em> - the amount of interest paid on <a href="insolvency.txt">debt</a>.
 </p>
 <p>
-- <em>Cash Flow</em> - total income less total expenditure (costs).
+- <em>Gross profit</em> - total income less operating and capital expenditure (but not deducting interest or tax).
 </p>
 <p>
 - <em>Travelled</em> - total number of goods, passengers and mail transported.

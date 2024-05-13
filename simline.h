@@ -318,6 +318,8 @@ public:
 
 	bool carries_this_or_lower_class(uint8 catg, uint8 g_class);
 
+	bool carries_this_category(uint8 catg_index) const;
+
 	int get_replacing_convoys_count() const;
 
 	//@author: jamespetts
@@ -369,6 +371,8 @@ public:
 	}
 
 	sint64 calc_departures_scheduled();
+
+	void propagate_triggers(uint16 triggers, bool trigger_one_only);
 
 private:
 	/**

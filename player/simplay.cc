@@ -179,6 +179,11 @@ void player_t::book_revenue(const sint64 amount, const koord k, const waytype_t 
 	add_money_message(amount, k);
 }
 
+void player_t::book_tax(const sint64 amount)
+{
+	finance->book_tax(amount);
+}
+
 void player_t::book_way_renewal(const sint64 amount, const waytype_t wt)
 {
 	finance->book_way_renewal(-amount, wt);
@@ -353,7 +358,7 @@ void player_t::step()
 {
 	/*
 	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen m�Esen die Fahrpl�ne rgelmaessig pruefen
+	// die haltestellen m?Esen die Fahrpl?ne rgelmaessig pruefen
 	uint8 i = (uint8)(welt->get_steps()+player_nr);
 	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
 	//while(iter.next()) {
@@ -420,9 +425,10 @@ bool player_t::new_month()
 					{
 						buf.printf("%s", translator::translate("You have been overdrawn\nfor one month"));
 					}
-					if (welt->get_settings().get_interest_rate_percent() > 0)
+					const sint16 overdraft_interest_rate_percent = welt->get_overdraft_rate_percent();
+					if (overdraft_interest_rate_percent > 0)
 					{
-						buf.printf(translator::translate("\n\nInterest on your debt is\naccumulating at %i %%"), welt->get_settings().get_interest_rate_percent());
+						buf.printf(translator::translate("\n\nInterest on your debt is\naccumulating at %i %%"), overdraft_interest_rate_percent);
 					}
 				}
 				else if(ss == player_t::in_administration)
@@ -692,11 +698,14 @@ void player_t::complete_liquidation()
 			// only concerns public stops tiles
 			for(haltestelle_t::tile_t const& i : halt->get_tiles()) {
 				grund_t const* const gr = i.grund;
-				for(  uint8 wnr=0;  wnr<2;  wnr++  ) {
+				for(  uint8 wnr=0;  wnr<2;  wnr++  )
+				{
 					weg_t *w = gr->get_weg_nr(wnr);
-					if(  w  &&  w->get_owner()==this  ) {
+					if(  w  &&  w->get_owner()==this  )
+					{
 						// take ownership
-						if (wnr>1  ||  (!gr->ist_bruecke()  &&  !gr->ist_tunnel())) {
+						if (wnr>1  ||  (!gr->ist_bruecke()  &&  !gr->ist_tunnel()))
+						{
 							player_t::add_maintenance( this, -w->get_desc()->get_maintenance(), w->get_desc()->get_finance_waytype() );
 						}
 						w->set_owner(NULL); // make unowned
@@ -978,6 +987,42 @@ DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this )
 	if( file->is_version_ex_atleast(14,58) ) {
 		for( uint8 i=0; i < simline_t::MAX_LINE_TYPE; ++i ) {
 			file->rdwr_short(favorite_livery_scheme[i]);
+		}
+	}
+
+	if (file->is_version_ex_atleast(15, 0))
+	{
+		// Load/save staff costs by time
+		if (file->is_saving())
+		{
+			uint32 staff_cost_count = staff_costs_this_month.get_count();
+			file->rdwr_long(staff_cost_count);
+
+			for (auto staff : staff_costs_this_month)
+			{
+				staff.key;
+				file->rdwr_byte(staff.key);
+				file->rdwr_longlong(staff.value);
+			}
+		}
+
+		if (file->is_loading())
+		{
+			staff_costs_this_month.clear();
+
+			uint32 staff_cost_count = 0;
+			file->rdwr_long(staff_cost_count);
+
+			for (uint32 i = 0; i < staff_cost_count; i++)
+			{
+				uint8 key;
+				sint64 value;
+
+				file->rdwr_byte(key);
+				file->rdwr_longlong(value);
+
+				staff_costs_this_month.put(key, value);
+			}
 		}
 	}
 }

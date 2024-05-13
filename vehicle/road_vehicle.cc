@@ -194,7 +194,7 @@ bool road_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
+int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, ribi_t::ribi from)
 {
 	// first favor faster ways
 	const weg_t *w=gr->get_weg(road_wt);
@@ -224,9 +224,8 @@ int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
 		// check if the slope is upwards, relative to the previous tile
-		from_pos -= gr->get_pos().get_2d();
 		// 75 hardcoded, see get_cost_upslope()
-		costs += 75 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
+		costs += 75 * get_sloping_upwards( gr->get_weg_hang(), from );
 	}
 
 	// It is now difficult to calculate here whether the vehicle is overweight, so do this in the route finder instead.
@@ -591,7 +590,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					uint8 direction90 = ribi_type(get_pos(), pos_next);
 					if (rs && (!route_index_beyond_end_of_route)) {
 						// Check whether if we reached a choose point
-						if (rs->get_desc()->is_choose_sign())
+						if (rs->get_desc()->is_choose_sign() && !cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
 						{
 							// route position after road sign
 							const koord3d pos_next_next = r.at(route_index + 1u);

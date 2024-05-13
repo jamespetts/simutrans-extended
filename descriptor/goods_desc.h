@@ -168,8 +168,9 @@ public:
 	/**
 	 * Base fare without speedbonus adjustment (implements fare stages)
 	 * In units of 1/4096 of a simcent, for computational precision
+	 * The ignore inflation flag is used only when called from get_total_fare to avoid counting inflation twice.
 	 */
-	sint64 get_base_fare(uint32 distance_meters, uint32 starting_distance = 0) const;
+	sint64 get_base_fare(uint32 distance_meters, uint32 starting_distance = 0, bool ignore_inflation = false) const;
 
 	/**
 	* @return speed bonus value of the good

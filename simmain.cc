@@ -60,6 +60,7 @@
 #include "dataobj/loadsave.h"
 #include "dataobj/environment.h"
 #include "dataobj/tabfile.h"
+#include "dataobj/scenario.h"
 #include "dataobj/settings.h"
 #include "dataobj/translator.h"
 #include "network/pakset_info.h"
@@ -815,7 +816,7 @@ int simu_main(int argc, char** argv)
 		}
 		// will fail fatal on the opening routine ...
 		dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-		env_t::networkmode = network_init_server( env_t::server_port );
+		env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
 		// query IP and try to open ports on router
 		char IP[256], altIP[256];
 		altIP[0] = 0;
@@ -842,7 +843,7 @@ int simu_main(int argc, char** argv)
 			}
 			// will fail fatal on the opening routine ...
 			dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-			env_t::networkmode = network_init_server( env_t::server_port );
+			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
 		}
 		else {
 			// no announce for clients ...
@@ -1298,6 +1299,12 @@ int simu_main(int argc, char** argv)
 
 	dbg->message("simu_main()","Reading private car ownership configuration ...");
 	karte_t::privatecar_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading staff salary configuration ...");
+	karte_t::staff_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading fuel cost configuration ...");
+	karte_t::fuel_init(env_t::objfilename);
+	dbg->message("simu_main()", "Reading prices/inflation configuration ...");
+	karte_t::prices_init(env_t::objfilename);
 
 #if COLOUR_DEPTH != 0
 	// reread theme
@@ -1551,11 +1558,34 @@ int simu_main(int argc, char** argv)
 	setsimrand(dr_time(), dr_time());
 	clear_random_mode( 7 ); // allow all
 
-	if(  loadgame==""  ||  !welt->load(loadgame.c_str())  ) {
-		// create a default map
-		DBG_MESSAGE("simu_main()", "Init with default map (failing will be a pak error!)");
+	scenario_t *scen = NULL;
+	if(  const char *scen_name = args.gimme_arg("-scenario", 1)  ) {
+		scen = new scenario_t(welt);
 
-		// no autosave on initial map during the first six month ...
+		intr_set_view(view);
+		win_set_world(welt);
+
+		const char *err = "";
+		if (env_t::default_settings.get_with_private_paks()) {
+			// try addon directory first
+			err = scen->init(("addons/" + env_t::objfilename + "scenario/").c_str(), scen_name, welt);
+		}
+		if (err) {
+			// no addon scenario, look in pakset
+			err = scen->init((env_t::data_dir + env_t::objfilename + "scenario/").c_str(), scen_name, welt);
+		}
+		if(  err  ) {
+			dbg->error("simu_main()", "Could not load scenario %s%s: %s", env_t::objfilename.c_str(), scen_name, err);
+			delete scen;
+			scen = NULL;
+		}
+		else {
+			new_world = false;
+		}
+	}
+
+	if(  scen == NULL && (loadgame==""  ||  !welt->load(loadgame.c_str()))  ) {
+		// no autosave on initial map during the first six months
 		loadgame = "";
 		new_world = true;
 

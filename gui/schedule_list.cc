@@ -425,6 +425,17 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	livery_selector.set_max_size(scr_size(D_BUTTON_WIDTH - 8, LINESPACE * 8 + 2 + 16));
 	livery_selector.set_highlight_color(1);
 	livery_selector.clear_elements();
+	livery_scheme_indices.clear();
+	uint32 i = 0;
+	for(auto scheme : *welt->get_settings().get_livery_schemes())
+	{
+		if(scheme->is_available(welt->get_timeline_year_month()))
+		{
+			livery_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(scheme->get_name()), SYSCOL_TEXT);
+			livery_scheme_indices.append(i);
+		}
+		i++;
+	}
 	livery_selector.add_listener(this);
 	add_component(&livery_selector);
 
@@ -1500,12 +1511,10 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 	size.rdwr( file );
 	simline_t::rdwr_linehandle_t(file, line);
 	int chart_records = line_cost_t::MAX_LINE_COST;
-	if (file->is_version_ex_less(14,25)) {
-		chart_records = 12;
-	}
-	else if (file->is_version_ex_less(14,48)) {
-		chart_records = 13;
-	}
+	// If change MAX_LINE_COST, separate the number of records for the previous save.
+	//if (file->is_version_ex_less(15,xx)) {
+	//	chart_records = xx;
+	//}
 	for (int i=0; i<chart_records; i++) {
 		bool b = filterButtons[i].pressed;
 		file->rdwr_bool( b );

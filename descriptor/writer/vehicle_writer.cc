@@ -22,42 +22,6 @@
 
 using std::string;
 
-/**
- * Calculate numeric engine type from engine type string
- */
-static vehicle_desc_t::engine_t get_engine_type(char const* const engine_type)
-{
-	vehicle_desc_t::engine_t uv8 = vehicle_desc_t::unknown;
-
-	if (!STRICMP(engine_type, "diesel")) {
-		uv8 = vehicle_desc_t::diesel;
-	} else if (!STRICMP(engine_type, "electric")) {
-		uv8 = vehicle_desc_t::electric;
-	} else if (!STRICMP(engine_type, "steam")) {
-		uv8 = vehicle_desc_t::steam;
-	} else if (!STRICMP(engine_type, "bio")) {
-		uv8 = vehicle_desc_t::bio;
-	} else if (!STRICMP(engine_type, "sail")) {
-		uv8 = vehicle_desc_t::sail;
-	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		uv8 = vehicle_desc_t::fuel_cell;
-	} else if (!STRICMP(engine_type, "hydrogene")) {
-		uv8 = vehicle_desc_t::hydrogene;
-	} else if (!STRICMP(engine_type, "battery")) {
-		uv8 = vehicle_desc_t::battery;
-	} else if (!STRICMP(engine_type, "petrol")) {
-		uv8 = vehicle_desc_t::petrol;
-	} else if (!STRICMP(engine_type, "turbine")) {
-		uv8 = vehicle_desc_t::turbine;
-	} else if (!STRICMP(engine_type, "unknown")) {
-		uv8 = vehicle_desc_t::unknown;
-	}
-
-	// printf("Engine type %s -> %d\n", engine_type, uv8);
-
-	return uv8;
-}
-
 
 /**
  * Writes vehicle node data to file
@@ -87,7 +51,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 88;
+	int total_len = 144;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -149,6 +113,60 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		}
 	} while (j++ < 255);
 
+	// This must also be done here, as it will affect the length of the header.
+	typedef inthashtable_tpl<uint8, uint32, N_BAGS_SMALL> staff_map;
+	uint32 current_staff_number;
+	staff_map staff_types;
+
+	j = 0;
+
+	do
+	{
+		// Check for multiple staff types with a separate number of workers each
+		char buf[36];
+		sprintf(buf, "staff[%u]", j);
+		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_staff_number != UINT32_MAX_VALUE)
+		{
+			staff_types.put(j, current_staff_number * 100);
+			// Increase the length of the header by 5 for each additional
+			// staff type stored: one for type number and four for the quantity of staff.
+			total_len += 5;
+		}
+
+		sprintf(buf, "staff_hundredths[%u]", j);
+		current_staff_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_staff_number != UINT32_MAX_VALUE)
+		{
+			staff_types.put(j, current_staff_number);
+			// Increase the length of the header by 5 for each additional
+			// staff type stored: one for type number and four for the quantity of staff.
+			total_len += 5;
+		}
+
+	} while (j++ < 255);
+
+	j = 0;
+	uint32 current_driver_number;
+	staff_map driver_types;
+
+	do
+	{
+		// Check for multiple driver types with a separate number of workers each
+		char buf[36];
+		sprintf(buf, "driver[%u]", j);
+		current_driver_number = obj.get_int(buf, UINT32_MAX_VALUE);
+
+		if (current_driver_number != UINT32_MAX_VALUE)
+		{
+			driver_types.put(j, current_driver_number);
+			// Increase the length of the header by 5 for each additional
+			// driver type stored: one for type number and four for the quantity of conductors.
+			total_len += 5;
+		}
+	} while (j++ < 255);
 
 	obj_node_t node(this, total_len, &parent);
 
@@ -178,7 +196,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x600 - prev=any, cab_setting
 	// Standard 11, 0x700 - override_way_speed
 	// Standard 11, 0x800 - accommodation name
-	version += 0x800;
+	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel, overhauls, maintenance
+	version += 0x900;
 
 	node.write_uint16(fp, version, pos);
 
@@ -290,7 +309,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	}
 	else {
 		const char* engine_type = obj.get("engine_type");
-		uv8 = get_engine_type(engine_type);
+		uv8 = vehicle_desc_t::get_engine_type(engine_type);
 	}
 	node.write_uint8(fp, uv8, pos);
 	pos += sizeof(uint8);
@@ -753,7 +772,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	} while (found);
 
 	uint8 accommo_class = 0;
-	FORX(vector_tpl<uint16>, capacity, class_capacities, accommo_class++) {
+	FORX(vector_tpl<uint16>, capacity, class_capacities, accommo_class++)
+	{
 		if (!capacity) { continue; }
 		char buf[128];
 		sprintf(buf, "accommodation_name[%d]", accommo_class);
@@ -958,6 +978,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	//@author: jamespetts
 
 	uint16 default_loading_time;
+	uint8 default_overhaul_month_tenths;
 
 	switch(waytype)
 	{
@@ -965,6 +986,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		case tram_wt:
 		case road_wt:
 			default_loading_time = 2000;
+			default_overhaul_month_tenths = 10;
 			break;
 
 		case monorail_wt:
@@ -972,16 +994,26 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		case narrowgauge_wt:
 		case track_wt:
 			default_loading_time = 4000;
+			default_overhaul_month_tenths = 20;
 			break;
 
 		case water_wt:
 			default_loading_time = 20000;
+			default_overhaul_month_tenths = 25;
 			break;
 
 		case air_wt:
 			default_loading_time = 30000;
+			default_overhaul_month_tenths = 40;
 			break;
 	}
+
+	if (uv8 == vehicle_desc_t::bio)
+	{
+		// Biological engines (e.g. horses) are not overhauled: they die and are replaced.
+		default_overhaul_month_tenths = 1;
+	}
+
 	/**
 	 * This is the old system for storing
 	 * journey times. It is retained only
@@ -1112,6 +1144,109 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 override_way_speed = obj.get_int("override_way_speed", 0);
 	node.write_uint8(fp, override_way_speed, pos);
 	pos += sizeof(override_way_speed);
+
+	uint8 multiple_working_type = obj.get_int("multiple_working_type", 0);
+	node.write_uint8(fp, multiple_working_type, pos);
+	pos += sizeof(multiple_working_type);
+
+	uint8 self_contained_catering = obj.get_int("self_contained_catering", 0);
+	node.write_uint8(fp, self_contained_catering, pos);
+	pos += sizeof(self_contained_catering);
+
+	uint32 calibration_speed = obj.get_int("calibration_speed", 0);
+	node.write_uint32(fp, calibration_speed, pos);
+	pos += sizeof(calibration_speed);
+
+	uint32 cut_off_speed = obj.get_int("cut_off_speed", 0);
+	node.write_uint32(fp, cut_off_speed, pos);
+	pos += sizeof(cut_off_speed);
+
+	uint32 fuel_per_km = obj.get_int("fuel_per_km", 0);
+	node.write_uint32(fp, fuel_per_km, pos);
+	pos += sizeof(fuel_per_km);
+
+	uint8 total_staff_types = staff_types.get_count();
+	node.write_uint8(fp, total_staff_types, pos);
+	pos += sizeof(total_staff_types);
+
+	for(auto staff : staff_types)
+	{
+		node.write_uint8(fp, staff.key, pos);
+		pos += sizeof(staff.key);
+
+		node.write_uint32(fp, staff.value, pos);
+		pos += sizeof(staff.value);
+	}
+
+	uint8 total_driver_types = driver_types.get_count();
+	node.write_uint8(fp, total_driver_types, pos);
+	pos += sizeof(total_driver_types);
+
+	for(auto driver : driver_types)
+	{
+		node.write_uint8(fp, driver.key, pos);
+		pos += sizeof(driver.key);
+
+		node.write_uint32(fp, driver.value, pos);
+		pos += sizeof(driver.value);
+	}
+
+	uint32 initial_overhaul_cost = obj.get_int("initial_overhaul_cost", UINT32_MAX_VALUE); // We encode the default as UINT32_MAX_VALUE so that the default can be changed when the main program reads this.
+	node.write_uint32(fp, initial_overhaul_cost, pos);
+	pos += sizeof(initial_overhaul_cost);
+
+	uint32 max_overhaul_cost = obj.get_int("max_overhaul_cost", UINT32_MAX_VALUE); // We encode the default as UINT32_MAX_VALUE so that the default can be changed when the main program reads this.
+	node.write_uint32(fp, max_overhaul_cost, pos);
+	pos += sizeof(max_overhaul_cost);
+
+	uint16 overhauls_before_max_cost = obj.get_int("overhauls_before_max_cost", 0); // Default of zero for no increase
+	node.write_uint16(fp, overhauls_before_max_cost, pos);
+	pos += sizeof(overhauls_before_max_cost);
+
+	uint32 max_distance_between_overhauls = obj.get_int("max_distance_between_overhauls", 0); // Default of zero means no overhauls required.
+	node.write_uint32(fp, max_distance_between_overhauls, pos);
+	pos += sizeof(max_distance_between_overhauls);
+
+	uint32 max_takeoffs = obj.get_int("max_takeoffs", 0); // Default of zero means unlimited takeoffs
+	node.write_uint32(fp, max_takeoffs, pos);
+	pos += sizeof(max_takeoffs);
+
+	uint32 availability_decay_start_km = obj.get_int("availability_decay_start_km", 0); // Default of zero means no decay.
+	node.write_uint32(fp, availability_decay_start_km, pos);
+	pos += sizeof(availability_decay_start_km);
+
+	uint8 starting_availability = obj.get_int("starting_availability", 100); // Default of 100% availability
+	node.write_uint8(fp, starting_availability, pos);
+	pos += sizeof(starting_availability);
+
+	uint8 minimum_availability = obj.get_int("minimum_availability", 100); // Default of 100% availability
+	node.write_uint8(fp, minimum_availability, pos);
+	pos += sizeof(minimum_availability);
+
+	uint32 replenishment_seconds = obj.get_int("replenishment_seconds", 60); // Default of 60 seconds
+	node.write_uint32(fp, replenishment_seconds, pos);
+	pos += sizeof(replenishment_seconds);
+
+	uint16 max_running_cost = obj.get_int("max_running_cost", 65535); // We encode the default as 65535 so that the default can be changed when the main program reads this.
+	node.write_uint16(fp, max_running_cost, pos);
+	pos += sizeof(max_running_cost);
+
+	uint8 auto_upgrade_index = obj.get_int("auto_upgrade_index", 255); // Default: 255: do not upgrade automatically
+	node.write_uint8(fp, auto_upgrade_index, pos);
+	pos += sizeof(auto_upgrade_index);
+
+	uint32 maintenance_interval_km = obj.get_int("maintenance_interval_km", 0); // Default: 0: use default maintenance interval (1 year)
+	node.write_uint32(fp, maintenance_interval_km, pos);
+	pos += sizeof(maintenance_interval_km);
+
+	uint8 overhaul_month_tenths = obj.get_int("overhaul_month_tenths", default_overhaul_month_tenths); // Default differs per waytype and has a special low value for biological vehicles
+	node.write_uint8(fp, overhaul_month_tenths, pos);
+	pos += sizeof(overhaul_month_tenths);
+
+	uint32 availability_decay_start_takeoffs = obj.get_int("availability_decay_start_takeoffs", 0); // Default 0: no decay
+	node.write_uint32(fp, availability_decay_start_takeoffs, pos);
+	pos += sizeof(availability_decay_start_takeoffs);
+
 
 	sint8 sound_str_len = sound_str.size();
 	if (sound_str_len > 0) {

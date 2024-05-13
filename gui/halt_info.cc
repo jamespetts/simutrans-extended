@@ -222,8 +222,10 @@ void gui_halt_goods_demand_t::build_goods_list()
 {
 	goods_list.clear();
 	if ( (old_fab_count = halt->get_fab_list().get_count()) ) {
-		FOR(const slist_tpl<fabrik_t*>, const fab, halt->get_fab_list()) {
-			FOR(array_tpl<ware_production_t>, const& i, show_products ? fab->get_output() : fab->get_input()) {
+		for(auto const fab : halt->get_fab_list())
+		{
+			for(auto const i : show_products ? fab->get_output() : fab->get_input())
+			{
 				goods_desc_t const* const ware = i.get_typ();
 				goods_list.append_unique(ware);
 			}
@@ -243,7 +245,8 @@ void gui_halt_goods_demand_t::draw(scr_coord offset)
 		display_color_img(skinverwaltung_t::input_output->get_image_id(show_products ? 1:0), offset.x, offset.y + FIXED_SYMBOL_YOFF, 0, false, false);
 		xoff += 12;
 	}
-	FOR(slist_tpl<goods_desc_t const*>, const good, goods_list) {
+	for(auto const good : goods_list)
+	{
 		display_colorbox_with_tooltip(offset.x + xoff, offset.y + GOODS_COLOR_BOX_YOFF, GOODS_COLOR_BOX_HEIGHT, GOODS_COLOR_BOX_HEIGHT, good->get_color(), false);
 		xoff += GOODS_COLOR_BOX_HEIGHT+2;
 		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y, translator::translate(good->get_name()), ALIGN_LEFT, halt->gibt_ab(good) ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK, true);
@@ -1283,6 +1286,7 @@ void halt_info_t::update_cont_departure()
 	const uint32 max_listings = 15;
 
 	FOR(arrival_times_map, const& iter, display_mode_bits&SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times())
+	//for(const const iter : display_mode_bits & SHOW_DEPARTURES ? halt->get_estimated_convoy_departure_times() : halt->get_estimated_convoy_arrival_times()) // Does not compile
 	{
 		cnv.set_id(iter.key);
 		if(!cnv.is_bound())
@@ -1351,7 +1355,8 @@ void halt_info_t::update_cont_departure()
 			cont_departure.new_component<gui_divider_t>();
 			cont_departure.new_component<gui_divider_t>();
 
-			FOR(vector_tpl<halt_info_t::dest_info_t>, hi, db_halts) {
+			for (auto hi : db_halts)
+			{
 				gui_label_buf_t *lb = cont_departure.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				if (hi.delta_ticks == SINT32_MAX_VALUE) {
 					lb->buf().append(translator::translate("Unknown"));

@@ -864,7 +864,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 				k->gr = to;
 				k->count = tmp->count+1;
 				k->f = 0;
-				k->g = tmp->g + tdriver->get_cost(to, max_khm, gr->get_pos().get_2d());
+				k->g = tmp->g + tdriver->get_cost(to, max_khm, ribi_t::nesw[r]);
 				k->ribi_from = ribi_t::nesw[r];
 
 				uint8 current_dir = ribi_t::nesw[r];
@@ -1239,7 +1239,7 @@ route_t::route_result_t route_t::intern_calc_route(karte_t *welt, const koord3d 
 				}
 
 				// new values for cost g (without way it is either in the air or in water => no costs)
-				const int way_cost = flags == simple_cost ? 1 : tdriver->get_cost(to, max_speed, tmp->gr->get_pos().get_2d()) + (is_overweight == slowly_only ? 400 : 0);
+				const int way_cost = flags == simple_cost ? 1 : tdriver->get_cost(to, max_speed, next_ribi[r]) + (is_overweight == slowly_only ? 400 : 0);
 				uint32 new_g = tmp->g + (w ? way_cost : flags == simple_cost ? 1 : 10);
 
 				// check for curves (usually, one would need the lastlast and the last;

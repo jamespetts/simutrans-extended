@@ -20,38 +20,6 @@
 
 using std::string;
 
-/**
- * Calculate numeric engine type from engine type string
- */
-static vehicle_desc_t::engine_t get_engine_type(const char* engine_type)
-{
-	if (!STRICMP(engine_type, "diesel")) {
-		return vehicle_desc_t::diesel;
-	} else if (!STRICMP(engine_type, "electric")) {
-		return vehicle_desc_t::electric;
-	} else if (!STRICMP(engine_type, "steam")) {
-		return vehicle_desc_t::steam;
-	} else if (!STRICMP(engine_type, "bio")) {
-		return vehicle_desc_t::bio;
-	} else if (!STRICMP(engine_type, "sail")) {
-		return vehicle_desc_t::sail;
-	} else if (!STRICMP(engine_type, "fuel_cell")) {
-		return vehicle_desc_t::fuel_cell;
-	} else if (!STRICMP(engine_type, "hydrogene")) {
-		return vehicle_desc_t::hydrogene;
-	} else if (!STRICMP(engine_type, "battery")) {
-		return vehicle_desc_t::battery;
-	} else if (!STRICMP(engine_type, "petrol")) {
-		return vehicle_desc_t::petrol;
-	} else if (!STRICMP(engine_type, "turbine")) {
-		return vehicle_desc_t::turbine;
-	} else if (!STRICMP(engine_type, "unknown")) {
-		return vehicle_desc_t::unknown;
-	}
-
-	return vehicle_desc_t::diesel;
-}
-
 void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seasons,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& backkeys,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& frontkeys
@@ -125,10 +93,12 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint16					   allowed_regions = 65535; // This allows up to 16 regions to be defined. By default (at 65535), the building can be built in all regions.
 	uint16                     enables          = 0;
 	uint16                     level            = obj.get_int("level", 1);
-	building_desc_t::flag_t const flags            =
-		(obj.get_int("noinfo",         0) > 0 ? building_desc_t::FLAG_NO_INFO  : building_desc_t::FLAG_NULL) |
+	building_desc_t::flag_t const flags =
+		(obj.get_int("noinfo", 0) > 0 ? building_desc_t::FLAG_NO_INFO : building_desc_t::FLAG_NULL) |
 		(obj.get_int("noconstruction", 0) > 0 ? building_desc_t::FLAG_NO_PIT : building_desc_t::FLAG_NULL) |
-		(obj.get_int("needs_ground",   0) > 0 ? building_desc_t::FLAG_NEED_GROUND : building_desc_t::FLAG_NULL);
+		(obj.get_int("needs_ground", 0) > 0 ? building_desc_t::FLAG_NEED_GROUND : building_desc_t::FLAG_NULL) |
+		(obj.get_int("layover_enable", 0) > 0 ? building_desc_t::FLAG_LAYOVER_ENABLE : building_desc_t::FLAG_NULL) |
+		(obj.get_int("replenish_enable", 0) > 0 ? building_desc_t::FLAG_REPLENISH_ENABLE : building_desc_t::FLAG_NULL);
 	uint16               const animation_time   = obj.get_int("animation_time", 300);
 
 	level = obj.get_int("pax_level", level); // Needed for conversion from old factories.
@@ -316,7 +286,7 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 					engaged = true;
 					enables = 0;
 				}
-				traction_type = get_engine_type(engine_type.c_str());
+				traction_type = vehicle_desc_t::get_engine_type(engine_type.c_str());
 				const uint16 shifter = 1 << traction_type;
 				enables |= shifter;
 				traction_type_count++;
@@ -332,7 +302,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	uint16 mail_demand_and_production_capacity = obj.get_int("mail_demand", 65535);
 	mail_demand_and_production_capacity = obj.get_int("mail_demand_and_production_capacity", mail_demand_and_production_capacity);
 
-	total_len = 51;
+	uint16 max_vehicles_under_maintenance = obj.get_int("max_vehicles_under_maintenance", 4);
+
+	total_len = 53;
 
 	uint16 current_class_proportion;
 	vector_tpl<uint16> class_proportions(2);
@@ -505,7 +477,8 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x400: Unused due to versioning errors
 	// 0x500: Class proportions
 	// 0x600: Pier System
-	version += 0x700;
+	// 0x700: 15x - depot maintenance capacity and extension layover capability
+	version += 0x800;
 
 	int pos = 0;
 
@@ -616,6 +589,9 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	node.write_uint8(fp, pier_sub_needed, pos);
 	pos+=sizeof(uint8);
+
+	node.write_uint16(fp, max_vehicles_under_maintenance, pos);
+	pos += sizeof(max_vehicles_under_maintenance);
 
 	// probably add some icons, if defined
 	slist_tpl<string> cursorkeys;

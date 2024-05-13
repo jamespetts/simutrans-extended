@@ -297,6 +297,19 @@ copyright=Ranran
 # for goods in transit for industry information
 Image[0]=> symbols.4.2
 -------
+Obj=menu
+name=Refuel
+copyright=Ranran
+# refuel and force range stop
+Image[0]=> symbols.4.3
+Image[1]=> symbols.4.4
+-------
+Obj=menu
+name=Layover
+copyright=Ranran
+Image[0]=> symbols.4.5
+Image[1]=> symbols.4.4
+-------
 #################################################################
 -------
 Obj=menu

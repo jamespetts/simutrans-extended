@@ -54,7 +54,7 @@ signalbox_t::~signalbox_t()
 	}
 
 	// Delete all signals linked to this box
-	FOR(slist_tpl<koord3d>, k, signals)
+	for(auto const k : signals)
 	{
 		grund_t* gr = welt->lookup(k);
 		if(!gr)
@@ -102,7 +102,7 @@ void signalbox_t::rdwr(loadsave_t *file)
 	file->rdwr_long(signals_count);
 	if(file->is_saving())
 	{
-		FOR(slist_tpl<koord3d>, k, signals)
+		for (auto k : signals)
 		{
 			k.rdwr(file);
 		}
@@ -122,7 +122,7 @@ void signalbox_t::rotate90()
 {
 	gebaeude_t::rotate90();
 	slist_tpl<koord3d> temp_list;
-	FOR(slist_tpl<koord3d>, k, signals)
+	for (auto k : signals)
 	{
 		k.rotate90(welt->get_size().y-1);
 		temp_list.append(k);
@@ -233,11 +233,12 @@ koord signalbox_t::transfer_all_signals(signalbox_t* sb)
 	uint16 success = 0;
 	uint16 failure = 0;
 	slist_tpl<koord3d> duplicate_signals_list;
-	FOR(slist_tpl<koord3d>, k1, signals)
+	for (auto k1 : signals)
 	{
 		duplicate_signals_list.append(k1);
 	}
-	FOR(slist_tpl<koord3d>, k, duplicate_signals_list)
+
+	for (auto k : duplicate_signals_list)
 	{
 		grund_t* gr = welt->lookup(k);
 		if(gr)

@@ -25,6 +25,7 @@ target_sources(simutrans-extended PRIVATE
 	boden/wege/strasse.cc
 	boden/wege/weg.cc
 	convoy.cc
+	dataobj/consist_order_t.cc
 	dataobj/crossing_logic.cc
 	dataobj/environment.cc
 	dataobj/freelist.cc
@@ -141,6 +142,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
+	gui/consist_order_gui.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc
 	gui/convoi_frame.cc
@@ -279,6 +281,7 @@ target_sources(simutrans-extended PRIVATE
 	player/finance.cc
 	player/simplay.cc
 	script/api/api_city.cc
+	script/api/api_command.cc
 	script/api/api_const.cc
 	script/api/api_control.cc
 	script/api/api_convoy.cc
@@ -290,6 +293,7 @@ target_sources(simutrans-extended PRIVATE
 	script/api/api_map_objects.cc
 	script/api/api_obj_desc_base.cc
 	script/api/api_obj_desc.cc
+	script/api/api_pathfinding.cc
 	script/api/api_player.cc
 	script/api/api_scenario.cc
 	script/api/api_schedule.cc
@@ -305,6 +309,7 @@ target_sources(simutrans-extended PRIVATE
 	script/dynamic_string.cc
 	script/export_objs.cc
 	script/script.cc
+	script/script_loader.cc
 	simcity.cc
 	simconvoi.cc
 	simdebug.cc

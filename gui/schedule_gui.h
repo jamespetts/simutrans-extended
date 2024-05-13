@@ -40,12 +40,13 @@ class gui_schedule_entry_t;
 class gui_wait_loading_schedule_t : public gui_component_t
 {
 	uint16 val = 0;
+	uint32 flags;
 public:
-	gui_wait_loading_schedule_t(uint16 val=0);
+	gui_wait_loading_schedule_t(uint32 flags, uint16 val=0);
 
 	void draw(scr_coord offset);
 
-	void init_data(uint16 v = 0) { val = v; };
+	void init_data(uint32 flags_, uint16 v = 0) { flags = flags_, val = v; };
 
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
@@ -80,12 +81,13 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	bool is_air_wt;
 	uint number;
 	player_t* player;
-	gui_image_t img_hourglass, img_nc_alert;
+	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
 	gui_label_buf_t stop;
-	gui_label_buf_t lb_reverse, lb_distance, lb_pos;
+	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
 	gui_schedule_entry_number_t entry_no;
 	gui_waypoint_box_t wpbox;
 	gui_colored_route_bar_t *route_bar;
+	gui_schedule_couple_order_t *couple_order;
 	gui_wait_loading_schedule_t *wait_loading;
 	button_t bt_del, bt_swap;
 	button_t bt_pos;
@@ -95,6 +97,7 @@ public:
 
 	void update_label();
 	void set_distance(koord3d next_pos, uint32 distance_to_next_halt = 0, uint16 range_limit = 0);
+	void set_speed_limit(uint32 speed);
 	void set_line_style(uint8 s);
 	void set_active(bool yesno);
 
@@ -115,10 +118,10 @@ class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollit
 	uint8 index;
 
 public:
-	//uint16 unique_entry_id;
+	uint16 unique_entry_id;
 	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, color_idx_to_rgb(SYSCOL_TEXT)) {
 		index=entry_index;
-		//unique_entry_id = entry.unique_entry_id;
+		unique_entry_id = entry.unique_entry_id;
 	}
 
 	char const* get_text() const OVERRIDE
@@ -189,9 +192,10 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
-	button_t bt_add, bt_insert/*, bt_revert*/; // stop management
+	button_t bt_add, bt_insert, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
-	button_t bt_wait_for_time;
+	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
+	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 
 	button_t bt_wait_prev, bt_wait_next;	// waiting in parts of month
@@ -201,12 +205,17 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	gui_label_t lb_spacing, lb_shift, lb_plus;
 	gui_numberinput_t numimp_spacing;
 
+	gui_numberinput_t conditional_depart, condition_broadcast, numimp_speed_limit;
+
 	gui_label_t lb_spacing_shift;
 	gui_numberinput_t numimp_spacing_shift;
 	gui_label_t lb_spacing_shift_as_clock;
 
 	gui_schedule_entry_number_t *entry_no;
 	gui_label_buf_t lb_entry_pos;
+
+	gui_label_t lb_speed_limit, lb_speed_limit_kmh;
+	gui_label_t lb_consist_order_modified;
 
 	char str_parts_month[32];
 	char str_parts_month_as_clock[32];
@@ -217,7 +226,19 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	schedule_gui_stats_t *stats;
 	gui_scrollpane_t scroll;
 
-	gui_aligned_container_t cont_settings_1;
+	button_t bt_couple_is_line, bt_couple_is_cnv;
+	button_t bt_uncouple_is_line, bt_uncouple_is_cnv;
+	gui_combobox_t condition_line_selector;
+	gui_combobox_t couple_target_selector;
+	gui_combobox_t uncouple_target_selector;
+	void disable_couple_target_selector(bool is_uncouple=false);
+	void update_target_line_selection(bool condition, bool couple, bool uncouple);
+	void update_target_convoy_selection(bool couple, bool uncouple);
+
+	gui_combobox_t cb_uncouple_target_entry;
+	void update_uncouple_target_entries(schedule_t* sch);
+
+	gui_aligned_container_t cont_settings_1, cont_settings_2;
 	gui_tab_panel_t tabs;
 
 	// to add new lines automatically
@@ -244,7 +265,7 @@ protected:
 
 	linehandle_t new_line, old_line;
 
-	gui_image_t img_electric;
+	gui_image_t img_electric, img_refuel;
 
 	uint16 min_range = UINT16_MAX;
 	gui_label_buf_t lb_min_range;

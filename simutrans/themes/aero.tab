@@ -142,6 +142,18 @@ gui_color_loadingbar_inner = #D6ECF7
 gui_player_color_dark = 1	
 gui_player_color_bright = 3
 
+# Color for table
+gui_color_table_header_border       = #005C9E
+gui_color_table_frame               = #005C9E
+gui_color_table_background_head_row = #1892ff
+gui_color_table_cell_border         = #73BBF7
+gui_color_table_background_left_col = #73BBF7
+gui_color_table_background_data_sum = #9CCFF7
+gui_color_table_background_data     = #B5D9F7
+gui_color_table_background          = #D6EBF7
+gui_color_text_head_row             = #FFFFFF
+gui_color_text_left_col             = #000000
+
 ##################################size stuff##################################
 
 # force main menu icon size

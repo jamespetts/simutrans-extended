@@ -137,7 +137,6 @@ loadsave_frame_t::loadsave_frame_t(bool do_load) : savegame_frame_t(".sve", fals
 	}
 
 	// load cached entries
-#ifndef SPECIAL_RESCUE_12_6
 	if (cached_info.empty()) {
 		loadsave_t file;
 		/* We rename the old cache file and remove any incomplete read version.
@@ -171,7 +170,6 @@ loadsave_frame_t::loadsave_frame_t(bool do_load) : savegame_frame_t(".sve", fals
 			dr_rename( SAVE_PATH_X "_load_cached_exp.xml", SAVE_PATH_X "_cached_exp.xml" );
 		}
 	}
-#endif
 }
 
 

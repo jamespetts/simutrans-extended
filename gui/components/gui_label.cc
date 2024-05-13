@@ -124,7 +124,7 @@ void gui_label_t::draw(scr_coord offset)
 					display_text_proportional_len_clip_rgb(right.x, right.y, text, ALIGN_RIGHT | DT_CLIP, color, true, separator-text );
 				}
 				if (underlined) {
-					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(separator)+2, 1, color, true);
+					display_fillbox_wh_clip_rgb(right.x-1, right.y + LINEASCENT + 1, proportional_string_width(separator)+2, 1, color, true);
 				}
 			}
 			else {
@@ -134,7 +134,7 @@ void gui_label_t::draw(scr_coord offset)
 				}
 				display_proportional_clip_rgb(right.x, right.y, text, ALIGN_RIGHT, color, true);
 				if (underlined) {
-					display_fillbox_wh_clip_rgb(right.x, right.y + LINEASCENT - 1, proportional_string_width(text)+2, 1, color, true);
+					display_fillbox_wh_clip_rgb(right.x-1, right.y + LINEASCENT + 1, proportional_string_width(text)+2, 1, color, true);
 				}
 			}
 		}
@@ -267,7 +267,7 @@ void gui_data_bar_t::draw(scr_coord offset)
 	text.clear();
 	uint32 tmp = 10000 * value / max;
 	if (show_value) {
-		text.append(value);
+		text.append((sint32)value);
 	}
 	if (show_percentage) {
 		if (show_value) {
@@ -346,4 +346,11 @@ scr_size gui_label_with_symbol_t::get_max_size() const
 		return get_min_size();
 	}
 	return align == left ? scr_size(max(get_min_size().w, size.w), get_min_size().h) : scr_size(scr_size::inf.w, get_min_size().h);
+}
+
+
+void gui_colored_label_t::draw(scr_coord offset)
+{
+	display_fillbox_wh_clip_rgb( pos.x+offset.x, pos.y+offset.y, size.w, size.h, background_color, false);
+	gui_label_buf_t::draw(offset);
 }

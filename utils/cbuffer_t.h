@@ -9,6 +9,8 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include "../simtypes.h"
 /**
  * A character buffer. Main operation is 'append'
  */
@@ -81,9 +83,37 @@ public:
 	const char* get_str() const;
 
 	/**
-	 * Appends a number. Buffer will be extended if it does not have enough capacity.
+	 * Appends a signed 32 bit integer. Buffer will be extended if it does not have enough capacity.
 	 */
 	void append(long n);
+
+	/**
+ * Appends an unsigned 32 bit integer. Buffer will be extended if it does not have enough capacity.
+ */
+	void append_u(uint32 n);
+
+	/**
+	* Append a number represented by a fixed number of
+	* characters sufficient for 8-bit precision (3)
+	*/
+	void append_fixed(uint8 n);
+
+	/**
+	* Append a number represented by a fixed number of
+	* characters sufficient for 16-bit precision (5)
+	*/
+	void append_fixed(uint16 n);
+
+	/**
+	* Append a number represented by a fixed number of
+	* characters sufficient for 32-bit precision (10)
+	*/
+	void append_fixed(uint32 n);
+
+	/**
+	* Appends a 0 if false or 1 if true.
+	*/
+	void append_bool(bool value);
 
 	/**
 	 * Appends a number. Buffer will be extended if it does not have enough capacity.
@@ -113,6 +143,11 @@ public:
 
 	/// checks whether format specifiers in @p translated match those in @p master
 	static bool check_and_repair_format_strings(const char* master, const char* translated, char **repaired = NULL);
+
+	static uint8 decode_uint8(const char* &p);
+	static uint16 decode_uint16(const char* &p);
+	static uint32 decode_uint32(const char* &p);
+	static bool decode_bool(const char* &p);
 };
 
 #endif

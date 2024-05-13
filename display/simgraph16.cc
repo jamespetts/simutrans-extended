@@ -4351,7 +4351,7 @@ void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align,
 	}
 	display_text_proportional_len_clip_rgb( r.x, r.y, text, ALIGN_LEFT | DT_CLIP, color, dirty, -1  CLIP_NUM_DEFAULT);
 	if (underlined){
-		display_fillbox_wh_clip_rgb( r.x-1, r.y + LINEASCENT - 1, proportional_string_width(text) + 2, 1, color, dirty);
+		display_fillbox_wh_clip_rgb( r.x-1, r.y + LINEASCENT + 1, proportional_string_width(text) + 2, 1, color, dirty);
 	}
 }
 
@@ -4665,7 +4665,7 @@ void display_direct_line_dotted_rgb(const scr_coord_val x, const scr_coord_val y
 		}
 		if(  !mustDraw  ) {
 			if(  counter == dontDraw  ) {
-				mustDraw=!mustDraw;
+				mustDraw = !mustDraw;
 				counter=0;
 			}
 		}

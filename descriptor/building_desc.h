@@ -138,16 +138,18 @@ class building_desc_t : public obj_desc_timelined_t {
 			city_res          = 37, ///< residential city buildings
 			city_com          = 38, ///< commercial  city buildings
 			city_ind          = 39, ///< industrial  city buildings
-			signalbox         = 70  // Signalbox. 70 to allow for plenty more Standard ones in between.
+			signalbox         = 70 ///< Signalbox. 70 to allow for plenty more Standard types in between.
 		};
 
 
 		enum flag_t {
-			FLAG_NULL        = 0,
-			FLAG_NO_INFO     = 1 << 0, ///< do not show info window
-			FLAG_NO_PIT      = 1 << 1, ///< do not show construction pit
-			FLAG_NEED_GROUND = 1 << 2, ///< needs ground drawn below
-			FLAG_HAS_CURSOR  = 1 << 3  ///< there is cursor/icon for this
+			FLAG_NULL				= 0,
+			FLAG_NO_INFO			= 1 << 0, ///< do not show info window
+			FLAG_NO_PIT				= 1 << 1, ///< do not show construction pit
+			FLAG_NEED_GROUND		= 1 << 2, ///< needs ground drawn below
+			FLAG_HAS_CURSOR			= 1 << 3, ///< there is cursor/icon for this
+			FLAG_LAYOVER_ENABLE		= 1 << 4, ///< If a station extension, enable layovers at this stop
+			FLAG_REPLENISH_ENABLE	= 1 << 5  ///< If this is a station extension, allow replenishing at this stop
 		};
 
 	private:
@@ -156,7 +158,7 @@ class building_desc_t : public obj_desc_timelined_t {
 				 * These will be converted in building_reader_t::register_obj to a valid btype.
 				 */
 			enum old_building_types_t {
-			// from here on only old style flages
+			// from here on only old style flags
 			bahnhof           =  8,
 			bushalt           =  9,
 			ladebucht         = 10,
@@ -248,6 +250,8 @@ class building_desc_t : public obj_desc_timelined_t {
 	uint32 pier_sub_2_mask; //piers prexisting for sencond floor
 	uint8  pier_sub_needed : 1; //building needs to be placed within matching pier
 
+	uint16 max_vehicles_under_maintenance = 4; // The maximum number of vehicles that can simultaneously be maintained in this building (for depots only)
+
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
 	}
@@ -287,6 +291,10 @@ public:
 	// do not open info for this
 	bool no_info_window() const { return (flags & FLAG_NO_INFO) != 0; }
 
+	bool layover_enable() const { return (flags & FLAG_LAYOVER_ENABLE) != 0; }
+
+	bool replenish_enable() const { return (flags & FLAG_REPLENISH_ENABLE) != 0; }
+
 	// see gebaeude_t and hausbauer for the different types
 	building_desc_t::btype get_type() const { return type; }
 
@@ -297,6 +305,7 @@ public:
 	bool is_city_building() const { return is_type(city_res) || is_type(city_com) || is_type(city_ind); }
 	bool is_transport_building() const { return type > headquarters  && type <= flat_dock; }
 	bool is_signalbox() const { return is_type(signalbox); }
+	bool is_depot() const { return is_type(depot); }
 
 	bool is_connected_with_town() const;
 
@@ -385,13 +394,15 @@ public:
 	  * recalculation of the prices, which is unnecessary work.
 	  */
 
-	sint32 get_maintenance() const { return scaled_maintenance; }
+	// We do not adjust for inflation here since the total maintenance is stored in the player object.
+	// We must instead adjust for inflation when we debit the player's account with the monthly maintenance.
+	sint64 get_maintenance() const { return scaled_maintenance; }
 
-	sint32 get_base_maintenance() const { return maintenance; }
+	sint64 get_base_maintenance() const { return maintenance; }
 
-	sint32 get_price() const { return scaled_price; }
+	sint64 get_price() const;
 
-	sint32 get_base_price() const { return  price; }
+	sint64 get_base_price() const;
 
 	uint16 get_capacity() const { return capacity; }
 
@@ -446,7 +457,9 @@ public:
 		return floor==0 ? pier_sub_1_mask : pier_sub_2_mask;
 	}
 
-	bool get_pier_needed() const { return pier_sub_needed;}
+	bool get_pier_needed() const { return pier_sub_needed; }
+
+	uint16 get_max_vehicles_under_maintenance() const { return max_vehicles_under_maintenance; }
 };
 
 
