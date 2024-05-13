@@ -23,7 +23,6 @@
 #include "simintr.h"
 #include "simlinemgmt.h"
 #include "simline.h"
-#include "freight_list_sorter.h"
 
 #include "gui/minimap.h"
 #include "gui/convoi_info_t.h"

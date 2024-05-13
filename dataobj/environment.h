@@ -98,6 +98,10 @@ public:
 
 	static uint8 chat_window_transparency;
 
+	static uint8 chat_unread_public;
+	static uint8 chat_unread_company;
+	static uint8 chat_unread_whisper;
+
 	/// if true a kill event will save the game under recovery#portnr#.sve
 	static bool server_save_game_on_quit;
 
@@ -170,6 +174,9 @@ public:
 
 	/// enables infinite scrolling with trackball or mouse, by may fail with sytlus
 	static bool scroll_infinite;
+
+	/// scrolling with general tool (like building stops or setting halts) after dragging a threshold
+	static uint16 scroll_threshold;
 
 	/// converts numpad keys to arrows no matter of numlock state
 	static bool numpad_always_moves_map;

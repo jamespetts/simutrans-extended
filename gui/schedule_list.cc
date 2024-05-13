@@ -906,7 +906,7 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 	}
 }
 
-#define GOODS_SYMBOL_CELL_WIDTH 14 // TODO: This will be used in common with halt detail in the future
+
 void schedule_list_gui_t::display(scr_coord pos)
 {
 	uint32 icnv = line->count_convoys();
@@ -1128,7 +1128,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		cont_times_history.set_visible(true);
 		cont_times_history.remove_all();
 		cont_times_history.new_component<gui_times_history_t>(new_line, convoihandle_t(), false);
-		if (!new_line->get_schedule()->is_mirrored()) {
+		if (!new_line->get_schedule()->is_mirrored() && new_line->has_reverse_scheduled_convoy()) {
 			cont_times_history.new_component<gui_times_history_t>(new_line, convoihandle_t(), true);
 		}
 

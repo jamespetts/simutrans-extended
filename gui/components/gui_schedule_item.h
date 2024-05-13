@@ -17,6 +17,10 @@
 #include "../../player/simplay.h"
 
 
+#define L_CONVOY_ARROW_WIDTH (LINESPACE*0.8)
+//#define L_CONVOY_ARROW_HEIGHT (LINESPACE)
+//#define L_CONVOY_ARROW_SIZE (scr_size(L_CONVOY_ARROW_WIDTH, L_CONVOY_ARROW_HEIGHT))
+
 void display_framed_circle_rgb(scr_coord_val x0, scr_coord_val  y0, int radius, const PIXVAL base_color, const PIXVAL frame_color);
 
 
@@ -54,7 +58,7 @@ public:
 	void set_flexible_height(bool yesno) { flexible_height=yesno; }
 
 	scr_size get_min_size() const OVERRIDE { return scr_size(D_ENTRY_NO_WIDTH, LINESPACE); }
-	scr_size get_max_size() const OVERRIDE { return flexible_height ? scr_size(get_min_size().w, scr_size::inf.h) : get_min_size(); }
+	scr_size get_max_size() const OVERRIDE { return flexible_height ? scr_size(get_min_size().w, 255) : get_min_size(); }
 };
 
 
@@ -121,11 +125,11 @@ class gui_convoy_arrow_t : public gui_component_t
 	PIXVAL color;
 	bool reverse;
 
-	scr_size padding = scr_size(3, 0);
+	scr_size padding = scr_size(2, 0);
 
 public:
 
-	gui_convoy_arrow_t(PIXVAL color=COL_SAFETY, bool reverse=false, scr_size size = scr_size(LINESPACE*0.7+6/* padding.x*2 */, LINESPACE));
+	gui_convoy_arrow_t(PIXVAL color=COL_SAFETY, bool reverse=false, scr_size size = scr_size(L_CONVOY_ARROW_WIDTH+4, LINESPACE));
 
 	void draw(scr_coord offset) OVERRIDE;
 

@@ -896,6 +896,19 @@ uint16 simline_t::get_min_top_speed_kmh() const
 	return min_top_speed;
 }
 
+bool simline_t::has_reverse_scheduled_convoy() const
+{
+	if (schedule->is_mirrored()) { return true; }
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		if (line_managed_convoy->get_reverse_schedule()) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void simline_t::calc_classes_carried()
 {
 	if (welt->is_destroying())

@@ -5,8 +5,6 @@
 
 #include <algorithm>
 
-#include "freight_list_sorter.h"
-
 #include "path_explorer.h"
 #include "simcity.h"
 #include "simcolor.h"
@@ -432,7 +430,7 @@ haltestelle_t::haltestelle_t(loadsave_t* file)
 
 	enables = NOT_ENABLED;
 
-	sortierung = freight_list_sorter_t::by_name;
+	sortierung = 0; // by_amount
 	resort_freight_info = true;
 
 	init_financial_history();
@@ -503,7 +501,7 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 	status_color_freight = COL_INACTIVE;
 	last_bar_count = 0;
 
-	sortierung = freight_list_sorter_t::by_name;
+	sortierung = 0; // by_amount
 	resort_freight_info = true;
 	init_financial_history();
 
@@ -2955,6 +2953,44 @@ uint32 haltestelle_t::get_ware_summe(const goods_desc_t *wtyp, linehandle_t line
 	return sum;
 }
 
+uint32 haltestelle_t::get_ware_summe_for(const goods_desc_t *wtyp, linehandle_t line, uint8 wealth_class, uint8 entry_start, uint8 entry_end) const
+{
+	int sum = 0;
+	const vector_tpl<ware_t> * warray = cargo[wtyp->get_catg_index()];
+	if(warray!=NULL) {
+		slist_tpl<halthandle_t> halt_list;
+		const schedule_t *schedule = line.is_bound() ? line->get_schedule() : NULL;
+		if (schedule != NULL) {
+			uint16 to = (uint16)min(entry_end + 1, schedule->entries.get_count());
+			if (to < (uint16)entry_start) {
+				to += schedule->entries.get_count();
+			}
+
+			for (uint16 i = entry_start; i < to; i++) {
+				const uint16 check_index = i % schedule->entries.get_count();
+				const halthandle_t halt = haltestelle_t::get_halt(schedule->entries[check_index].pos, line->get_owner());
+				if (halt.is_bound() && halt != self) {
+					halt_list.append_unique(halt);
+				}
+			}
+		}
+		FOR(vector_tpl<ware_t>, const& i, *warray) {
+			if (wtyp->get_index() == i.get_index()) {
+				if (wealth_class !=255  &&  wealth_class != i.get_class()) {
+					continue;
+				}
+				halthandle_t const via_halt = i.get_zwischenziel();
+				if ( via_halt.is_bound() && halt_list.is_contained(via_halt) ) {
+					if(  line == get_preferred_line(via_halt, wtyp->get_catg_index(), goods_manager_t::get_classes_catg_index(wtyp->get_index())-1)  ) {
+						sum += i.menge;
+					}
+				}
+			}
+		}
+	}
+	return sum;
+}
+
 
 uint32 haltestelle_t::get_transferring_goods_sum(const goods_desc_t *wtyp, uint8 g_class) const
 {
@@ -3447,53 +3483,16 @@ void haltestelle_t::liefere_an(ware_t ware, uint8 walked_between_stations)
 }
 
 
-/**
- * @param[out] buf Goods description text (buf)
- */
-void haltestelle_t::get_freight_info(cbuffer_t & buf)
+bool haltestelle_t::get_freight_info()
 {
 	if (resort_freight_info)
 	{
-		// resort only inf absolutely needed ...
+		// update only inf absolutely needed ...
 		resort_freight_info = false;
-		buf.clear();
-
-		for (unsigned i = 0; i < goods_manager_t::get_max_catg_index(); i++)
-		{
-			const vector_tpl<ware_t> * warray = cargo[i];
-			if (warray)
-			{
-				freight_list_sorter_t::sort_freight(*warray, buf, (freight_list_sorter_t::sort_mode_t)sortierung, NULL, "waiting", 0, 0, NULL);
-			}
-		}
-
-		buf.append("\n");
-		if (get_transferring_cargoes_count() > 0)
-		{
-			buf.printf("%s:\n", translator::translate("transfers"));
-		}
-		vector_tpl<ware_t> ware_transfers;
-		ware_t ware;
-#ifdef MULTI_THREAD
-		sint32 po = world()->get_parallel_operations();
-#else
-		sint32 po = 1;
-#endif
-		for (sint32 i = 0; i < po; i++)
-		{
-			FOR(vector_tpl<transferring_cargo_t>, tc, transferring_cargoes[i])
-			{
-				ware = tc.ware;
-				ware.set_last_transfer(self);
-				ware_transfers.append(ware);
-			}
-		}
-		// show new info
-		freight_list_sorter_t::sort_freight(ware_transfers, buf, (freight_list_sorter_t::sort_mode_t)sortierung, NULL, "transferring", 0, 0, NULL);
+		return true;
 	}
+	return false;
 }
-
-
 
 void haltestelle_t::show_info()
 {
@@ -6680,4 +6679,192 @@ void haltestelle_t::set_all_building_tiles()
 			}
 		}
 	}
+}
+
+
+bool haltestelle_t::is_same_route(const ware_t &ware, linehandle_t line) const
+{
+	if (line.is_bound()) {
+		return (line==get_preferred_line(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index())-1));
+	}
+	return false;
+}
+
+bool haltestelle_t::is_same_route(const ware_t &ware, convoihandle_t cnv) const
+{
+	if (cnv.is_bound()) {
+		return (cnv == get_preferred_convoy(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index())-1));
+	}
+	return false;
+}
+
+
+void haltestelle_t::merge_ware(ware_t ware, slist_tpl<ware_t> &warray, uint8 catg_index, uint8 merge_condition_bits, uint8 ware_state)
+{
+	linehandle_t preferred_line = linehandle_t();
+	convoihandle_t preferred_cnv = convoihandle_t();
+
+	// check route first
+	if (!(merge_condition_bits & ignore_ware_data_t::ignore_route)) {
+		preferred_line = get_preferred_line(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index()) - 1);
+		if (!preferred_line.is_bound()) {
+			preferred_cnv = get_preferred_convoy(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index()) - 1);
+		}
+	}
+
+	// Remove unnecessary data
+	if (merge_condition_bits & ignore_ware_data_t::ignore_goal_stop) {
+		ware.set_ziel(halthandle_t());
+	}
+	if ((merge_condition_bits & ignore_ware_data_t::ignore_route)) {
+		// "Via stop" and "wealth class" are required for displaying the route, so it must not be executed.
+		if (merge_condition_bits & ignore_ware_data_t::ignore_via_stop) {
+			ware.set_zwischenziel(halthandle_t());
+		}
+		if (merge_condition_bits & ignore_ware_data_t::ignore_class) {
+			ware.g_class = 0;
+		}
+	}
+	if (merge_condition_bits & ignore_ware_data_t::ignore_class) {
+		ware.is_commuting_trip = false;
+	}
+	if (merge_condition_bits & ignore_ware_data_t::ignore_origin_stop) {
+		ware.set_origin(halthandle_t());
+	}
+	if (merge_condition_bits & ignore_ware_data_t::ignore_destination) {
+		ware.set_zielpos(koord::invalid);
+	}
+
+	FOR(slist_tpl<ware_t>, j, warray) {
+		// check route
+		if (!(merge_condition_bits & ignore_ware_data_t::ignore_route)) {
+			if (merge_condition_bits & ignore_ware_data_t::ignore_class) {
+				ware.g_class = goods_manager_t::get_classes_catg_index(ware.get_index()) - 1;
+			}
+			if (preferred_line.is_bound()) {
+				if (is_same_route(j, preferred_line)) {
+					// Set the same relay station to merge ware
+					// This is hidden data for displaying routes and is not actually displayed.
+					if ((merge_condition_bits & ignore_ware_data_t::ignore_via_stop)) {
+						ware.set_zwischenziel(j.get_zwischenziel());
+					}
+				}
+				else {
+					continue; // cannot merge
+				}
+			}
+			else if (preferred_cnv.is_bound() && !is_same_route(j, preferred_cnv)) {
+				if (is_same_route(j, preferred_cnv)) {
+					if ((merge_condition_bits & ignore_ware_data_t::ignore_via_stop)) {
+						ware.set_zwischenziel(j.get_zwischenziel());
+					}
+				}
+				else {
+					continue; // cannot merge
+				}
+			}
+		}
+
+		if (j.can_merge_with(ware)) {
+			ware.menge += j.menge;
+			warray.remove(j);
+			break;
+		}
+	}
+	warray.append(ware);
+}
+
+uint32 haltestelle_t::get_ware(slist_tpl<ware_t> &warray, uint8 catg_index, uint8 merge_condition_bits, uint8 ware_state, linehandle_t line, convoihandle_t cnv, uint8 entry_start, uint8 entry_end)
+{
+	uint32 sum=0;
+	if (!ware_state) {
+		// waiting cargoes
+		const vector_tpl<ware_t> * chk_warray = cargo[catg_index];
+		if (chk_warray != NULL) {
+			const schedule_t *schedule = cnv.is_bound() ? cnv->get_schedule() : line.is_bound() ? line->get_schedule() : NULL;
+			const player_t *player = cnv.is_bound() ? cnv->get_owner() : line.is_bound() ? line->get_owner(): NULL;
+			slist_tpl<halthandle_t> halt_list;
+			if (schedule!=NULL) {
+				uint16 to=(uint16)entry_end;
+				to = min(entry_end+1, schedule->entries.get_count());
+				if (to<(uint16)entry_start) {
+					to += schedule->entries.get_count();
+				}
+
+				for (uint16 i = entry_start; i < to; i++) {
+					const uint16 check_index=i%schedule->entries.get_count();
+					const halthandle_t halt = haltestelle_t::get_halt(schedule->entries[check_index].pos, player);
+					if (halt.is_bound() && halt!=self) {
+						halt_list.append_unique(halt);
+					}
+				}
+			}
+
+			FOR(vector_tpl<ware_t>, const& i, *chk_warray) {
+				ware_t ware = i;
+				if (line.is_bound()) {
+					if (!halt_list.is_contained(ware.get_zwischenziel())) {
+						continue;
+					}
+
+					if (line != get_preferred_line(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index()) - 1))
+					{
+						continue;
+					}
+				}
+				if (cnv.is_bound()) {
+					if (cnv != get_preferred_convoy(ware.get_zwischenziel(), ware.get_desc()->get_catg_index(), goods_manager_t::get_classes_catg_index(ware.get_index()) - 1))
+					{
+						continue;
+					}
+				}
+
+				if (ware.menge) {
+					sum += ware.menge;
+					merge_ware(ware, warray, catg_index, merge_condition_bits);
+				}
+				else {
+					// error
+					// For some reason sometimes 0 cargoes are found...
+					dbg->warning("haltestelle_t::get_ware", "%s with quantity 0 is wandering at %s", ware.get_name(),get_name());
+				}
+			}
+		}
+	}
+	else {
+		// transferring cargoes
+#ifdef MULTI_THREAD
+		sint32 po = world()->get_parallel_operations();
+#else
+		sint32 po = 1;
+#endif
+		for (sint32 i = 0; i < po; i++)
+		{
+			FOR(vector_tpl<transferring_cargo_t>, tc, transferring_cargoes[i])
+			{
+				ware_t ware = tc.ware;
+				ware.set_last_transfer(self);
+				if (catg_index == ware.get_desc()->get_catg_index() && ware.menge) {
+					// check transfer in or out
+					if (ware_state==1 && ware.get_zwischenziel()==self) {
+						ware.set_zwischenziel(halthandle_t());
+						// transfer out
+						continue;
+					}
+					else if (ware_state==2 && ware.get_zwischenziel()!=self) {
+						// transfer in
+						continue;
+					}
+					sum += ware.menge;
+					if (ware_state == 2) {
+						merge_condition_bits |= ignore_route;
+						merge_condition_bits |= ignore_goal_stop;
+					}
+					merge_ware(ware, warray, catg_index, merge_condition_bits, ware_state);
+				}
+			}
+		}
+	}
+
+	return sum;
 }

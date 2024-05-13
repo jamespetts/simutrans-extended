@@ -6590,3 +6590,25 @@ Rated speed
 Max. tractive effort to:
 Tractive force:
 Max. tractive effort:
+cargo_list_by_catg
+Sort by category
+cargo_list_by_route
+Sort by line/convoy
+Show route
+Show chosen line/convoy
+Shows the line or convoy where the cargo is waiting
+Shows the line or convoy for which the cargo is waiting. Note that other lines/convoys may be used where this is optimum at the time of boarding/loading.
+Show transfer (in)
+Show transfers (in)
+Shows cargos heading to the platform to depart from this stop
+Shows passengers/mail/goods transferring into this stop
+Show transfer (out)
+Show transfers (out)
+Shows cargos leaving this stop
+Shows passengers/mail/goods transferring out of this stop
+distance_to_via
+distance to next transfer
+distance_to_origin
+distance to origin
+This stop
+This stop

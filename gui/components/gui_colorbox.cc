@@ -199,3 +199,17 @@ void gui_fluctuation_triangle_t::draw(scr_coord offset)
 	offset += pos;
 	display_fluctuation_triangle_rgb(offset.x, offset.y, height, false, value);
 }
+
+
+void gui_capped_arrow_t::draw(scr_coord offset)
+{
+	offset += pos;
+	display_fillbox_wh_clip_rgb(offset.x+left, offset.y+1, L_CAPPED_ARROW_WIDTH-1, 3, color_idx_to_rgb(COL_WHITE), false);
+	display_fillbox_wh_clip_rgb(offset.x+2,    offset.y,   1, 5, color_idx_to_rgb(COL_WHITE), false);
+	if (left) {
+		display_fillbox_wh_clip_rgb(offset.x, offset.y+2, 1, 1, color_idx_to_rgb(COL_WHITE), false);
+	}
+	else {
+		display_fillbox_wh_clip_rgb(offset.x+ L_CAPPED_ARROW_WIDTH-1, offset.y+2, 1, 1, color_idx_to_rgb(COL_WHITE), false);
+	}
+}

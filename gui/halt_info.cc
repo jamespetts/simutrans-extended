@@ -18,9 +18,6 @@
 #include "../display/viewport.h"
 #include "../simmenu.h"
 #include "../simskin.h"
-#include "../simline.h"
-
-#include "../freight_list_sorter.h"
 
 #include "../dataobj/schedule.h"
 #include "../dataobj/environment.h"
@@ -45,19 +42,15 @@
 #define L_WAITING_CELL_WIDTH (proportional_string_width(" 0000000"))
 #define L_CAPACITY_CELL_WIDTH (proportional_string_width("000000"))
 
-static const char *sort_text[halt_info_t::SORT_MODES] = {
-	"Zielort",
+static const char *sort_text[gui_halt_cargoinfo_t::SORT_MODES] = {
+	"Menge", // amount
 	"via",
-	"via Menge",
-	"Menge",
-	"origin (detail)",
-	"origin (amount)",
-	"destination (detail)",
-	"wealth (detail)",
-	"wealth (via)",
-	"Line",
-	"Line to"/*,
-	"transferring time"*/
+	"origin",
+	"hd_category",
+	"distance_to_via",
+	"distance_to_origin",
+	"Zielort", // destination
+	"Line" // route
 };
 
 static const char cost_type[MAX_HALT_COST][64] =
@@ -556,8 +549,10 @@ halt_info_t::halt_info_t(halthandle_t halt) :
 		gui_frame_t("", NULL),
 		lb_evaluation("Evaluation:"),
 		scrolly_departure_board(&cont_departure, true, true),
-		text_freight(&freight_info),
-		scrolly_freight(&text_freight, true, true),
+		cargo_info1(halt),
+		cargo_info2(halt),
+		scroll_freight1(&cargo_info1, true, true),
+		scroll_freight2(&cargo_info2, true, true),
 		waiting_bar(halt, false),
 		view(koord3d::invalid, scr_size(max(64, get_base_tile_raster_width()), max(56, get_base_tile_raster_width() * 7 / 8)))
 {
@@ -701,7 +696,7 @@ void halt_info_t::init(halthandle_t halt)
 		end_table();
 
 		// top right
-		add_table(1,0)->set_spacing(scr_size(0,0));
+		add_table(1,0)->set_spacing(NO_SPACING);
 		{
 			add_component(&view);
 			view.set_location(halt->get_basis_pos3d());
@@ -727,45 +722,20 @@ void halt_info_t::init(halthandle_t halt)
 
 	add_component(&switch_mode);
 	switch_mode.add_listener(this);
-	switch_mode.add_tab(&container_freight, translator::translate("Hier warten/lagern:"));
-
-	text_freight.set_pos(scr_coord(D_MARGIN_LEFT, D_MARGIN_TOP));
+	switch_mode.add_tab(&cont_tab_cargo_info, translator::translate("Hier warten/lagern:"));
 
 	// list of waiting cargo
-	// sort mode
-	container_freight.set_table_layout(1,0);
-	container_freight.set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
-	container_freight.add_table(3,1);
-	container_freight.new_component<gui_margin_t>(D_MARGIN_LEFT);
-	container_freight.new_component<gui_label_t>("Sort waiting list by");
-
-	freight_sort_selector.clear_elements();
-	for (int i = 0; i < SORT_MODES; i++)
-	{
-		freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
-	}
-	uint8 sort_mode = env_t::default_sortmode;
-	// 9 and 10 are sort modes for convoi, but 11 is for halt
-	halt->set_sortby(sort_mode >= by_line ? env_t::default_sortmode + 2 : env_t::default_sortmode);
-	freight_sort_selector.set_selection(sort_mode);
-	freight_sort_selector.set_focusable(true);
-	freight_sort_selector.set_width_fixed(true);
-	freight_sort_selector.set_highlight_color(1);
-	freight_sort_selector.set_size(scr_size(D_BUTTON_WIDTH * 2, D_EDIT_HEIGHT));
-	freight_sort_selector.add_listener(this);
-	container_freight.add_component(&freight_sort_selector);
-	container_freight.end_table();
-
-	scrolly_freight.set_maximize(true);
-	container_freight.add_component(&scrolly_freight);
+	init_cargo_info_controller();
+	scroll_freight1.set_maximize(true);
+	scroll_freight2.set_maximize(true);
 
 	// departure board
 	cont_tab_departure.set_table_layout(1,0);
-	cont_tab_departure.set_margin(scr_size(0,D_V_SPACE), scr_size(0,0));
-	cont_tab_departure.set_spacing(scr_size(0,0));
+	cont_tab_departure.set_margin(scr_size(0,D_V_SPACE), NO_SPACING);
+	cont_tab_departure.set_spacing(NO_SPACING);
 	cont_departure.set_table_layout(2,0);
 	cont_departure.set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, 0));
-	cont_tab_departure.add_table(10,1)->set_spacing(scr_size(0,0));
+	cont_tab_departure.add_table(10,1)->set_spacing(NO_SPACING);
 	{
 		cont_tab_departure.new_component<gui_margin_t>(D_MARGIN_LEFT);
 		bt_arrivals.init(button_t::roundbox_left_state, "Arrivals from\n");
@@ -843,6 +813,179 @@ void halt_info_t::init(halthandle_t halt)
 	set_resizemode(diagonal_resize);
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
+}
+
+void halt_info_t::init_cargo_info_controller()
+{
+	cont_tab_waiting_list1.set_table_layout(1,0);
+	cont_tab_waiting_list1.set_spacing(scr_size(0,D_V_SPACE));
+	cont_tab_waiting_list2.set_table_layout(1, 0);
+	cont_tab_waiting_list2.set_spacing(scr_size(0, D_V_SPACE));
+	// line
+	bt_show_route.init(button_t::square_automatic, "Show route");
+	bt_show_route.set_tooltip("Shows the line or convoy where the cargo is waiting");
+	bt_show_route.pressed=false;
+	bt_show_route.add_listener(this);
+
+	bt_show_transfer_in.init(button_t::square_automatic, "Show transfer (in)");
+	bt_show_transfer_in.set_tooltip("Shows cargos heading to the platform to depart from this stop");
+	bt_show_transfer_in.pressed = false;
+	bt_show_transfer_in.add_listener(this);
+
+	bt_show_transfer_out.init(button_t::square_automatic, "Show transfer (out)");
+	bt_show_transfer_out.set_tooltip("Shows cargos leaving this stop");
+	bt_show_transfer_out.pressed = false;
+	bt_show_transfer_out.add_listener(this);
+
+	cont_tab_waiting_list1.add_table(4,1)->set_spacing(scr_size(D_H_SPACE<<1, 0));
+	{
+		cont_tab_waiting_list1.add_component(&bt_show_route);
+		cont_tab_waiting_list1.add_component(&bt_show_transfer_in);
+		cont_tab_waiting_list1.add_component(&bt_show_transfer_out);
+		cont_tab_waiting_list1.new_component<gui_fill_t>();
+	}
+	cont_tab_waiting_list1.end_table();
+	cont_tab_waiting_list1.add_component(&scroll_freight1);
+
+	cont_tab_waiting_list2.add_table(4, 1)->set_spacing(scr_size(D_H_SPACE << 1, 0));
+	{
+		cont_tab_waiting_list2.new_component<gui_label_t>("Filter:");
+		viewed_player_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All"), SYSCOL_TEXT);
+		viewable_players[0] = -1;
+		for (int np = 0, count = 1; np < MAX_PLAYER_COUNT; np++) {
+			player_t *player = welt->get_player(np);
+			if (player && halt->check_access(welt->get_player(np))) {
+				viewed_player_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(welt->get_player(np)->get_name(), color_idx_to_rgb(welt->get_player(np)->get_player_color1() + env_t::gui_player_color_dark));
+				viewable_players[count++] = np;
+			}
+		}
+		viewed_player_c.set_selection(0);
+		viewed_player_c.set_focusable(true);
+		viewed_player_c.add_listener(this);
+		cont_tab_waiting_list2.add_component(&viewed_player_c);
+		cont_tab_waiting_list2.add_table(simline_t::MAX_LINE_TYPE-1,1)->set_spacing(NO_SPACING);
+		{
+			for (uint8 i = 1; i < simline_t::MAX_LINE_TYPE; i++) {
+				waytype_t wt = simline_t::linetype_to_waytype(simline_t::linetype(i));
+				if (!way_builder_t::is_active_waytype(wt)) {
+					continue;
+				}
+				//bt_waytype_filter[i-1].init(button_t::imagebox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+				//bt_waytype_filter[i-1].background_color= world()->get_settings().get_waytype_color(simline_t::linetype_to_waytype(simline_t::linetype(i)));
+				bt_waytype_filter[i-1].set_waytype(simline_t::linetype_to_waytype(simline_t::linetype(i)));
+				bt_waytype_filter[i-1].set_rigid(false);
+				if ((halt->get_station_type() & simline_t::linetype_to_stationtype[i]) == 0) {
+					//continue;
+					bt_waytype_filter[i-1].pressed = false;
+					bt_waytype_filter[i-1].disable();
+					bt_waytype_filter[i-1].set_visible(false);
+				}
+				else {
+					bt_waytype_filter[i-1].pressed = true;
+				}
+				bt_waytype_filter[i-1].add_listener(this);
+				cont_tab_waiting_list2.add_component(&bt_waytype_filter[i-1]);
+			}
+		}
+		cont_tab_waiting_list2.end_table();
+		cont_tab_waiting_list2.new_component<gui_fill_t>();
+	}
+	cont_tab_waiting_list2.end_table();
+	cont_tab_waiting_list2.add_component(&scroll_freight2);
+
+	cont_tab_cargo_info.set_table_layout(1,0);
+	// top
+	cont_tab_cargo_info.add_table(5,1);
+	{
+		// col1: sort option
+		cont_tab_cargo_info.add_table(2, 2)->set_spacing(NO_SPACING);
+		{
+			cont_tab_cargo_info.new_component_span<gui_label_t>("Sort by", 2);
+			freight_sort_selector.clear_elements();
+			for (uint8 i = 0; i < gui_halt_cargoinfo_t::SORT_MODES; ++i) {
+				freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
+			}
+			freight_sort_selector.set_selection(env_t::default_sortmode < gui_halt_cargoinfo_t::SORT_MODES ? env_t::default_sortmode : 0);
+			freight_sort_selector.add_listener(this);
+			cont_tab_cargo_info.add_component(&freight_sort_selector);
+
+			sort_order.init(button_t::sortarrow_state, "");
+			sort_order.set_tooltip(translator::translate("hl_btn_sort_order"));
+			sort_order.pressed = !gui_halt_cargoinfo_t::sort_reverse;
+			sort_order.add_listener(this);
+			cont_tab_cargo_info.add_component(&sort_order);
+		}
+		cont_tab_cargo_info.end_table();
+
+		cont_tab_cargo_info.new_component<gui_margin_t>(LINEASCENT >> 1);
+
+		// col3
+		cont_tab_cargo_info.add_table(2,2)->set_spacing(NO_SPACING);
+		{
+			cont_tab_cargo_info.new_component<gui_label_t>("info_depth_from:");
+			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("-"), SYSCOL_TEXT);
+			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Origin stop"), SYSCOL_TEXT);
+			selector_ci_depth_from.set_selection(cargo_info_depth_from);
+			selector_ci_depth_from.add_listener(this);
+			cont_tab_cargo_info.add_component(&selector_ci_depth_from);
+
+			cont_tab_cargo_info.new_component<gui_label_t>("info_depth_to:");
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("-"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("via"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Destination halt"), SYSCOL_TEXT);
+			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Destination"), SYSCOL_TEXT);
+			selector_ci_depth_to.set_selection(cargo_info_depth_to);
+			selector_ci_depth_to.add_listener(this);
+			cont_tab_cargo_info.add_component(&selector_ci_depth_to);
+		}
+		cont_tab_cargo_info.end_table();
+
+		// col4
+		cont_tab_cargo_info.add_table(1, 2);
+		{
+			cont_tab_cargo_info.add_table(3,1)->set_spacing(NO_SPACING);
+			{
+				// [freight type filter buttons]
+				filter_btn_all_pas.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+				filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
+				filter_btn_all_pas.set_tooltip("filter_pas_line");
+				filter_btn_all_pas.pressed = true;
+				filter_btn_all_pas.add_listener(this);
+				cont_tab_cargo_info.add_component(&filter_btn_all_pas);
+
+				filter_btn_all_mails.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+				filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
+				filter_btn_all_mails.set_tooltip("filter_mail_line");
+				filter_btn_all_mails.pressed = true;
+				filter_btn_all_mails.add_listener(this);
+				cont_tab_cargo_info.add_component(&filter_btn_all_mails);
+
+				filter_btn_all_freights.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+				filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
+				filter_btn_all_freights.set_tooltip("filter_freight_line");
+				filter_btn_all_freights.pressed = true;
+				filter_btn_all_freights.add_listener(this);
+				cont_tab_cargo_info.add_component(&filter_btn_all_freights);
+			}
+			cont_tab_cargo_info.end_table();
+
+			bt_divide_by_wealth.init(button_t::square_state, "divide_by_wealth_class");
+			bt_divide_by_wealth.set_tooltip("Cargoes are divided and displayed according to the wealth class.");
+			bt_divide_by_wealth.pressed = true;
+			bt_divide_by_wealth.add_listener(this);
+			cont_tab_cargo_info.add_component(&bt_divide_by_wealth);
+		}
+		cont_tab_cargo_info.end_table();
+
+		cont_tab_cargo_info.new_component<gui_fill_t>();
+	}
+	cont_tab_cargo_info.end_table();
+	tab_waiting_list.add_tab(&cont_tab_waiting_list1, translator::translate("cargo_list_by_catg"));
+	tab_waiting_list.add_tab(&cont_tab_waiting_list2, translator::translate("cargo_list_by_route"));
+	tab_waiting_list.add_listener(this);
+	cont_tab_cargo_info.add_component(&tab_waiting_list);
+
+	update_cargo_list();
 }
 
 
@@ -1065,21 +1208,23 @@ void halt_info_t::update_components()
 	// bandgraph
 	evaluation_pax.set_visible(halt->get_pax_enabled());
 	evaluation_mail.set_visible(halt->get_mail_enabled());
+	// cargo list filter
+	filter_btn_all_pas.enable(halt->get_pax_enabled());
+	filter_btn_all_mails.enable(halt->get_mail_enabled());
+	filter_btn_all_freights.enable(halt->get_ware_enabled());
 
 	container_top->set_size(container_top->get_size());
 
 	// detail button: stops that don't handle any goods don't have a detail dialog
 	detail_button.set_visible(!halt->is_not_enabled());
+	detail_button.pressed = win_get_magic(magic_halt_detail + halt.get_id());
 
 	// chart buttons
 	activate_chart_buttons();
 
-	// buffer update now only when needed by halt itself => dedicated buffer for this
-	int old_len = freight_info.len();
-	halt->get_freight_info(freight_info);
-	if (old_len != freight_info.len()) {
-		text_freight.recalc_size();
-		container_freight.set_size(container_freight.get_min_size());
+	// update now only when needed by halt itself
+	if (halt->get_freight_info()) {
+		update_cargo_list((tab_waiting_list.get_active_tab_index()==0),(tab_waiting_list.get_active_tab_index()==1));
 	}
 
 	if (switch_mode.get_aktives_tab() == &cont_tab_departure){
@@ -1108,7 +1253,7 @@ void halt_info_t::set_tab_opened()
 	{
 		case 0:
 		default:
-			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + text_freight.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_tab_cargo_info.get_size().h + D_BUTTON_HEIGHT + D_MARGINS_Y)));
 			break;
 		case 1: // departure board
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_departure.get_size().h + scrolly_departure_board.get_pos().y - D_V_SPACE)));
@@ -1365,13 +1510,11 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		halt->show_detail();
 	}
 	else if (comp == &freight_sort_selector) {
-		sint32 sort_mode = freight_sort_selector.get_selection();
-		if (sort_mode < 0 || sort_mode > SORT_MODES) {
-			freight_sort_selector.set_selection(0);
-			sort_mode = 0;
+		int tmp = freight_sort_selector.get_selection();
+		if (tmp >= 0 && tmp < freight_sort_selector.count_elements()) {
+			env_t::default_sortmode = (uint8)tmp;
 		}
-		env_t::default_sortmode = (sort_mode_t)((int)(sort_mode) % (int)SORT_MODES);
-		halt->set_sortby(sort_mode >= by_line ? env_t::default_sortmode+2 : env_t::default_sortmode);
+		update_cargo_list();
 	}
 	else if(  comp == &input  ) {
 		if( strcmp(halt->get_name(), edit_name)) {
@@ -1410,10 +1553,115 @@ bool halt_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		db_filter_bits ^= DB_SHOW_GOODS;
 		bt_db_filter[2].pressed = db_filter_bits & DB_SHOW_GOODS;
 	}
+	else if (comp == &filter_btn_all_pas) {
+		filter_btn_all_pas.pressed = !filter_btn_all_pas.pressed;
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &filter_btn_all_mails) {
+		filter_btn_all_mails.pressed = !filter_btn_all_mails.pressed;
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &filter_btn_all_freights) {
+		filter_btn_all_freights.pressed = !filter_btn_all_freights.pressed;
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &bt_divide_by_wealth) {
+		bt_divide_by_wealth.pressed = !bt_divide_by_wealth.pressed;
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &selector_ci_depth_from || comp == &selector_ci_depth_to || comp == &viewed_player_c) {
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &bt_show_route || comp == &bt_show_transfer_in || comp == &bt_show_transfer_out) {
+		update_cargo_list(true, false);
+	}
+	else if (comp == &sort_order) {
+		sort_order.pressed = !sort_order.pressed;
+		gui_halt_cargoinfo_t::sort_reverse = !sort_order.pressed;
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (comp == &tab_waiting_list) {
+		update_cargo_list((tab_waiting_list.get_active_tab_index() == 0), (tab_waiting_list.get_active_tab_index() == 1));
+	}
+	else if (tab_waiting_list.get_active_tab_index()==1){
+		for (uint8 i = 0; i < simline_t::MAX_LINE_TYPE-1; i++) {
+			if (comp == &bt_waytype_filter[i]) {
+				bt_waytype_filter[i].pressed = !bt_waytype_filter[i].pressed;
+				update_cargo_list(false, true);
+			}
+		}
+	}
 
 	return true;
 }
 
+
+void halt_info_t::update_cargo_list(bool update_tab1, bool update_tab2)
+{
+	uint8 ft_filter_bits = 0;
+	if (!filter_btn_all_pas.pressed && !filter_btn_all_mails.pressed && !filter_btn_all_freights.pressed) {
+		// reset freght type filter
+		filter_btn_all_pas.pressed = true;
+		filter_btn_all_mails.pressed = true;
+		filter_btn_all_freights.pressed = true;
+	}
+	if (filter_btn_all_pas.pressed)      ft_filter_bits |= gui_halt_cargoinfo_t::SHOW_WAITING_PAX;
+	if (filter_btn_all_mails.pressed)    ft_filter_bits |= gui_halt_cargoinfo_t::SHOW_WAITING_MAIL;
+	if (filter_btn_all_freights.pressed) ft_filter_bits |= gui_halt_cargoinfo_t::SHOW_WAITING_GOODS;
+	if (bt_show_transfer_in.pressed)     ft_filter_bits |= gui_halt_cargoinfo_t::SHOW_TRANSFER_IN;
+	if (bt_show_transfer_out.pressed)    ft_filter_bits |= gui_halt_cargoinfo_t::SHOW_TRANSFER_OUT;
+
+	uint8 merge_condition_bits = 0;
+	if (!bt_divide_by_wealth.pressed) merge_condition_bits |= haltestelle_t::ignore_class;
+	switch (selector_ci_depth_from.get_selection())
+	{
+		case 1:
+			break;
+		default: // 0 or -1
+			merge_condition_bits |= haltestelle_t::ignore_origin_stop;
+			break;
+	}
+
+	switch (selector_ci_depth_to.get_selection())
+	{
+		case -1:
+		case 0:
+			merge_condition_bits |= haltestelle_t::ignore_via_stop;
+			/* FALLTHROUGH */
+		case 1: // via stop
+			merge_condition_bits |= haltestelle_t::ignore_goal_stop;
+			/* FALLTHROUGH */
+		case 2:
+			merge_condition_bits |= haltestelle_t::ignore_destination;
+			/* FALLTHROUGH */
+		case 3:
+			break;
+		default: // 0 or -1
+			break;
+	}
+	if (!bt_show_route.pressed) merge_condition_bits |= haltestelle_t::ignore_route;
+
+	// sort_order
+	uint8 sort_mode=0;
+	int tmp= freight_sort_selector.get_selection();
+	if (tmp >= 0 && tmp < freight_sort_selector.count_elements()) {
+		sort_mode = (uint8)tmp;
+	}
+
+	if (update_tab1) {
+		cargo_info1.update(ft_filter_bits, merge_condition_bits, sort_mode);
+	}
+	if (update_tab2) {
+		uint16 waytype_filterbits=0;
+		for (uint8 i = 0; i < simline_t::MAX_LINE_TYPE - 1; i++) {
+			if (bt_waytype_filter[i].pressed) {
+				waytype_filterbits |= 1 << i;
+			}
+		}
+
+		cargo_info2.update(ft_filter_bits, merge_condition_bits, sort_mode, true, viewable_players[viewed_player_c.get_selection()], waytype_filterbits);
+	}
+}
 
 void halt_info_t::map_rotate90( sint16 new_ysize )
 {
@@ -1436,6 +1684,9 @@ void halt_info_t::rdwr(loadsave_t *file)
 		halt = world()->lookup( halt_pos )->get_halt();
 		if (halt.is_bound()) {
 			init(halt);
+			cargo_info1.set_halt(halt);
+			cargo_info2.set_halt(halt);
+			update_cargo_list();
 			reset_min_windowsize();
 			set_windowsize(size);
 			waiting_bar.set_halt(halt);
@@ -1444,7 +1695,7 @@ void halt_info_t::rdwr(loadsave_t *file)
 	// sort
 	file->rdwr_byte( env_t::default_sortmode );
 
-	scrolly_freight.rdwr(file);
+	scroll_freight1.rdwr(file);
 	scrolly_departure_board.rdwr(file);
 	switch_mode.rdwr(file);
 

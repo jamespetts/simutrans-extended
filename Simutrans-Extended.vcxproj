@@ -2026,6 +2026,7 @@
     <ClCompile Include="gui\ai_option_t.cc" />
     <ClCompile Include="gui\components\gui_container.cc" />
     <ClCompile Include="gui\components\gui_convoiinfo.cc" />
+    <ClCompile Include="gui\components\gui_destination_building_info.cc" />
     <ClCompile Include="gui\components\gui_factory_storage_info.cc" />
     <ClCompile Include="gui\components\gui_convoy_formation.cc" />
     <ClCompile Include="gui\components\gui_convoy_payloadinfo.cc" />
@@ -2306,7 +2307,6 @@
     <ClCompile Include="dataobj\schedule.cc" />
     <ClCompile Include="gui\schedule_gui.cc" />
     <ClCompile Include="dataobj\freelist.cc" />
-    <ClCompile Include="freight_list_sorter.cc" />
     <ClCompile Include="boden\fundament.cc" />
     <ClCompile Include="descriptor\reader\good_reader.cc" />
     <ClCompile Include="gui\goods_frame_t.cc" />
@@ -2333,6 +2333,7 @@
     <ClCompile Include="gui\components\gui_label.cc" />
     <ClCompile Include="gui\components\gui_line_lettercode.cc" />
     <ClCompile Include="gui\components\gui_numberinput.cc" />
+    <ClCompile Include="gui\components\gui_halt_cargoinfo.cc" />
     <ClCompile Include="gui\components\gui_scrollbar.cc" />
     <ClCompile Include="gui\components\gui_scrolled_list.cc" />
     <ClCompile Include="gui\components\gui_scrollpane.cc" />
@@ -2597,6 +2598,7 @@
     <ClInclude Include="gui\components\gui_action_creator.h" />
     <ClInclude Include="gui\components\gui_container.h" />
     <ClInclude Include="gui\components\gui_convoiinfo.h" />
+    <ClInclude Include="gui\components\gui_destination_building_info.h" />
     <ClInclude Include="gui\components\gui_factory_storage_info.h" />
     <ClInclude Include="gui\components\gui_convoy_formation.h" />
     <ClInclude Include="gui\components\gui_convoy_payloadinfo.h" />
@@ -2783,7 +2785,6 @@
     <ClInclude Include="gui\schedule_gui.h" />
     <ClInclude Include="tpl\fixed_list_tpl.h" />
     <ClInclude Include="dataobj\freelist.h" />
-    <ClInclude Include="freight_list_sorter.h" />
     <ClInclude Include="boden\fundament.h" />
     <ClInclude Include="descriptor\pedestrian_desc.h" />
     <ClInclude Include="descriptor\writer\get_climate.h" />
@@ -2820,6 +2821,7 @@
     <ClInclude Include="gui\components\gui_label.h" />
     <ClInclude Include="gui\components\gui_line_lettercode.h" />
     <ClInclude Include="gui\components\gui_numberinput.h" />
+    <ClInclude Include="gui\components\gui_halt_cargoinfo.h" />
     <ClInclude Include="gui\components\gui_scrollbar.h" />
     <ClInclude Include="gui\components\gui_scrolled_list.h" />
     <ClInclude Include="gui\components\gui_scrollpane.h" />

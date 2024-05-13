@@ -183,6 +183,7 @@ void gui_scrolled_list_t::set_size(scr_size size)
 {
 	cleanup_elements();
 
+	container.set_size(size);
 	gui_scrollpane_t::set_size(size);
 
 	// set all elements in list to same width
@@ -326,5 +327,10 @@ void gui_scrolled_list_t::draw(scr_coord offset)
 		}
 	}
 
+	scr_size old_size = container.get_min_size();
 	gui_scrollpane_t::draw(offset);
+	scr_size new_size = container.get_min_size();
+	if (old_size.h != new_size.h) {
+		set_size(get_size());
+	}
 }

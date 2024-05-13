@@ -332,6 +332,8 @@ public:
 
 	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
 
+	bool has_reverse_scheduled_convoy() const;
+
 	void set_withdraw( bool yes_no );
 
 	bool get_withdraw() const { return withdraw; }

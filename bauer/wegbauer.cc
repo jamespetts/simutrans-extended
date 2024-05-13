@@ -65,6 +65,8 @@
 #include "../gui/tool_selector.h"
 #include "../gui/messagebox.h"
 
+#include "vehikelbauer.h"
+
 #ifdef DEBUG_ROUTES
 #include "../sys/simsys.h"
 #endif
@@ -304,6 +306,34 @@ bool way_builder_t::waytype_available( const waytype_t wtyp, uint16 time )
 		if(  test->get_wtyp()==wtyp  &&  test->get_intro_year_month()<=time  &&  test->get_retire_year_month()>time  ) {
 			return true;
 		}
+	}
+	return false;
+}
+
+
+const bool way_builder_t::is_active_waytype(waytype_t wt)
+{
+	switch (wt)
+	{
+		case invalid_wt:
+			return true;
+		case ignore_wt:
+			return true;
+		case road_wt:           return (strasse_t::default_strasse);
+		case track_wt:          return (schiene_t::default_schiene);
+		case water_wt:          return !vehicle_builder_t::get_info(water_wt).empty();
+		case monorail_wt:       return (monorail_t::default_monorail);
+		case maglev_wt:         return (maglev_t::default_maglev);
+		case tram_wt:           return !vehicle_builder_t::get_info(tram_wt).empty();
+		case narrowgauge_wt:    return (narrowgauge_t::default_narrowgauge);
+		case air_wt:            return (runway_t::default_runway);
+
+		case overheadlines_wt:
+		case noise_barrier_wt:
+		case powerline_wt:
+		case any_wt:
+		default:
+			return true;
 	}
 	return false;
 }

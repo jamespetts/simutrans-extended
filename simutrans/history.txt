@@ -5,6 +5,8 @@
 	FIX: Makeobj ignored switch images for tracks with no seasons (e.g. image[new2]=...)
 	FIX: height map conversion version is ignored if it is selected after height map in the height map selection dialogue
 
+	ADD: map view can be changed with any general tool by dragging the pointer above a threshold
+
 
 Release of 123.0.1 (r10421 on 29-Jan-2022):
 	CHG: lang files are loaded if their name is *XX.tab or XX*.tab The first is preferred to avoid confusion by name like ja-taken.tab

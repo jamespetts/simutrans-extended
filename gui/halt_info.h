@@ -22,9 +22,12 @@
 #include "components/gui_colorbox.h"
 #include "components/gui_combobox.h"
 #include "components/gui_speedbar.h"
+#include "components/gui_halt_cargoinfo.h"
+#include "components/gui_waytype_image_box.h"
 
 #include "../utils/cbuffer_t.h"
 #include "../simhalt.h"
+#include "../simline.h"
 #include "simwin.h"
 
 #define HALT_CAPACITY_BAR_WIDTH 100
@@ -146,7 +149,6 @@ private:
 	/**
 	* Buffer for freight info text string.
 	*/
-	cbuffer_t freight_info;
 	cbuffer_t tooltip_buf;
 	gui_label_buf_t joined_buf;
 
@@ -188,9 +190,22 @@ private:
 	void update_cont_departure();
 
 	// other UI definitions
-	gui_aligned_container_t container_freight, container_chart;
-	gui_textarea_t text_freight;
-	gui_scrollpane_t scrolly_freight;
+	gui_aligned_container_t cont_tab_cargo_info, container_chart;
+	// new cargo detail
+	uint8 cargo_info_depth_from = 0;
+	uint8 cargo_info_depth_to = 1;
+	int viewable_players[MAX_PLAYER_COUNT + 1];
+	button_t bt_divide_by_wealth, sort_order;
+	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
+	button_t bt_show_route, bt_show_transfer_in, bt_show_transfer_out;
+	gui_waytype_button_t bt_waytype_filter[simline_t::MAX_LINE_TYPE-1];
+	gui_combobox_t selector_ci_depth_from, selector_ci_depth_to, freight_sort_selector, viewed_player_c;
+	void update_cargo_list(bool update_tab1=true, bool update_tab2=true);
+
+	void init_cargo_info_controller();
+	gui_aligned_container_t cont_tab_waiting_list1, cont_tab_waiting_list2;
+	gui_halt_cargoinfo_t cargo_info1, cargo_info2;
+	gui_scrollpane_t scroll_freight1, scroll_freight2;
 
 	int pax_ev_num[5], mail_ev_num[2];
 	int old_pax_ev_sum, old_mail_ev_sum;
@@ -202,12 +217,11 @@ private:
 	gui_chart_t chart;
 	location_view_t view;
 	button_t detail_button;
-	// button_t sort_button;
-	gui_combobox_t freight_sort_selector;
 
 	gui_button_to_chart_array_t button_to_chart;
 
 	gui_tab_panel_t switch_mode;
+	gui_tab_panel_t tab_waiting_list;
 
 	halthandle_t halt;
 	char edit_name[320];
@@ -225,7 +239,6 @@ private:
 	halthandle_t get_convoy_target_halt(convoihandle_t cnv);
 
 public:
-	enum sort_mode_t { by_destination = 0, by_via = 1, by_amount_via = 2, by_amount = 3, by_origin = 4, by_origin_sum = 5, by_destination_detil = 6, by_class_detail = 7, by_class_via = 8, by_line = 9, by_line_via = 10, SORT_MODES = 11 };
 	enum halt_freight_type_t { // freight capacity type (for chart/list)
 		ft_pax    = 0,
 		ft_mail   = 1,

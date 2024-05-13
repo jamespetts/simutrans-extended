@@ -57,16 +57,23 @@ class gui_halt_waiting_catg_t : public gui_aligned_container_t
 	uint8 catg_index;
 	cbuffer_t buf;
 
+	// for direction
+	uint8 start_entry; // End of upward entry search
+	uint8 this_entry;  // schedule entry number of this stop
+	uint8 end_entry;   // End of downward entry search
+
 	// for update flag.
 	uint32 update_seed = 0;
 	bool divide_by_class;
 
 public:
-	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t line = linehandle_t(), bool divide_by_class = true);
+	gui_halt_waiting_catg_t(halthandle_t h, uint8 catg, linehandle_t line = linehandle_t(), bool divide_by_class = true, uint8 start_entry=0, uint8 this_entry=0, uint8 end_entry = 0);
 
 	void update();
 
 	void draw(scr_coord offset) OVERRIDE;
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
 

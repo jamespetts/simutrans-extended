@@ -705,6 +705,9 @@ public:
 	uint32 get_ware_summe(const goods_desc_t *warentyp, uint8 wealth_class, bool chk_only_commuter = false) const;
 	uint32 get_ware_summe(const goods_desc_t *warentyp, linehandle_t line, uint8 wealth_class=255) const;
 
+	// Specify the section in the schedule entry to distinguish the direction heading out of the station
+	uint32 get_ware_summe_for(const goods_desc_t *warentyp, linehandle_t line, uint8 wealth_class = 255, uint8 entry_start=0, uint8 entry_end=255) const;
+
 	uint32 get_leaving_goods_sum(const goods_desc_t *warentyp, uint8 g_class = 255) const;
 	uint32 get_transferring_goods_sum(const goods_desc_t *warentyp, uint8 g_class = 255) const;
 
@@ -769,9 +772,9 @@ public:
 	uint8 get_empty_lane(const grund_t *gr, convoihandle_t cnv) const;
 
 	/**
-	 * @param[out] buf Goods description text
+	 * return update flag of waiting cargo info.
 	 */
-	void get_freight_info(cbuffer_t & buf);
+	bool get_freight_info();
 
 	/**
 	 * Opens an information window for this station.
@@ -1037,6 +1040,28 @@ public:
 	bool is_station_signal_contained(koord3d pos) const { return station_signals.is_contained(pos); }
 
 	void set_all_building_tiles();
+
+	// for waiting cargo list
+	enum ignore_ware_data_t : uint8 {
+		ignore_class       = 1<<0, // *by wealth, also ignore trip type
+		ignore_goal_stop   = 1<<1, // ziel
+		ignore_via_stop    = 1<<2, // zwischenziel
+		ignore_origin_stop = 1<<3,
+		ignore_destination = 1<<4, // zielpos
+		ignore_route       = 1<<5,  // preferred line/convoy
+	};
+
+	// check waiting same line/convoy or not
+	bool is_same_route(const ware_t &ware, convoihandle_t cnv = convoihandle_t()) const;
+	bool is_same_route(const ware_t &ware, linehandle_t line = linehandle_t()) const;
+
+	// helper function for get_ware
+	void merge_ware(ware_t ware, slist_tpl<ware_t> &warray, uint8 catg_index, uint8 merge_condition_bits, uint8 ware_state=0);
+
+	// Merge cargo according to conditions and store in warray
+	// and returns the total amount of cargo
+	// ware_state: 0=waiting cargoes, 1=transferring in, 2=tranferring out
+	uint32 get_ware(slist_tpl<ware_t> &warray, uint8 catg_index, uint8 merge_condition_bits, uint8 ware_state=0, linehandle_t line = linehandle_t(), convoihandle_t cnv = convoihandle_t(), uint8 entry_start=0, uint8 entry_end = 0);
 };
 
 ENUM_BITSET(haltestelle_t::stationtyp)
