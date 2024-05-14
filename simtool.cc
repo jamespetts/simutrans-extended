@@ -852,7 +852,7 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 		// only delete everything if there is more than pedestrians to delete
 		if (num_obj > num_pedestrians) {
 			msg = gr->kann_alle_obj_entfernen(player);
-			return_ok = msg==NULL  &&  !(gr->get_typ()==grund_t::brueckenboden  ||  gr->get_typ()==grund_t::tunnelboden);
+			return_ok = (msg == NULL && !(gr->get_typ() == grund_t::brueckenboden || gr->get_typ() == grund_t::tunnelboden) && gr->obj_loesche_alle(player));
 			DBG_MESSAGE("tool_remover()", "removing everything from %d,%d,%d", gr->get_pos().x, gr->get_pos().y, gr->get_pos().z);
 		}
 	}

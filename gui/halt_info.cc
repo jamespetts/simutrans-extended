@@ -1220,6 +1220,7 @@ void halt_info_t::update_components()
 
 	// detail button: stops that don't handle any goods don't have a detail dialog
 	detail_button.set_visible(!halt->is_not_enabled());
+	detail_button.pressed = win_get_magic(magic_halt_detail + halt.get_id());
 
 	// chart buttons
 	activate_chart_buttons();
