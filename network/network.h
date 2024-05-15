@@ -23,21 +23,21 @@
 #	ifndef IPV6_V6ONLY
 #		define IPV6_V6ONLY (27)
 #	endif
-#	if WINVER<=0x0500 && !defined(USE_IP4_ONLY)
-// compiling for Windows 2000
+#	if WINVER<=0x0500
+		// compiling for Windows 2000
 #		define USE_IP4_ONLY
 #	endif
 #	define GET_LAST_ERROR() WSAGetLastError()
 #	include <errno.h>
-#	undef  EWOULDBLOCK
-#	define EWOULDBLOCK WSAEWOULDBLOCK
+#	undef  EINPROGRESS
+#	define EINPROGRESS WSAEWOULDBLOCK
 #else
-// beos specific headers
+	// beos specific headers
 #	ifdef  __BEOS__
 #		include <net/netdb.h>
 #		include <net/sockets.h>
 
-// non-beos / non-windows
+	// non-beos / non-windows
 #	else
 #		include <sys/types.h>
 #		include <sys/socket.h>
@@ -55,13 +55,14 @@
 // all non-windows
 #	include <fcntl.h>
 #	include <errno.h>
-// to keep compatibility to MS windows
-typedef int SOCKET;
+	// to keep compatibility to MS windows
+	typedef int SOCKET;
 #	define INVALID_SOCKET -1
 #	define GET_LAST_ERROR() (errno)
 #endif
 
 #include "../tpl/vector_tpl.h"
+#include "../simconst.h"
 #include "../simtypes.h"
 #include "../utils/cbuffer_t.h"
 
@@ -73,9 +74,9 @@ class network_command_t;
 class gameinfo_t;
 class karte_t;
 
-void network_close_socket(SOCKET sock);
+void network_close_socket( SOCKET sock );
 
-void network_set_socket_nodelay(SOCKET sock);
+void network_set_socket_nodelay( SOCKET sock );
 
 // open a socket or give a decent error message
 SOCKET network_open_address(char const* cp, char const*& err);
@@ -84,19 +85,19 @@ SOCKET network_open_address(char const* cp, char const*& err);
 bool network_init_server( int port, const vector_tpl<std::string> &listen_addrs );
 
 /**
-* returns pointer to command or NULL
-*/
+ * returns pointer to command or NULL
+ */
 network_command_t* network_get_received_command();
 
 /**
-* do appropriate action for network games:
-* - server: accept connection to a new client
-* - all: receive commands and puts them to the received_command_queue
-*
-* @param timeout in milliseconds
-* @return pointer to first received command
-* more commands can be obtained by call to network_get_received_command
-*/
+ * do appropriate action for network games:
+ * - server: accept connection to a new client
+ * - all: receive commands and puts them to the received_command_queue
+ *
+ * @param timeout in milliseconds
+ * @return pointer to first received command
+ * more commands can be obtained by call to network_get_received_command
+ */
 network_command_t* network_check_activity(karte_t *welt, int timeout);
 
 /**
@@ -115,27 +116,30 @@ network_command_t* network_check_activity(karte_t *welt, int timeout);
 bool network_send_data( SOCKET dest, const char *buf, const uint16 size, uint16 &count, const int timeout_ms );
 
 /**
-* receive data from sender
-* @param dest the destination buffer
-* @param len length of destination buffer and number of bytes to be received
-* @param received number of received bytes is returned here
-* @param timeout_ms time-out in milliseconds
-* @return true if connection is still valid, false if an error occurs and connection needs to be closed
-*/
-bool network_receive_data(SOCKET sender, void *dest, const uint16 len, uint16 &received, const int timeout_ms);
+ * receive data from sender
+ * @param dest the destination buffer
+ * @param len length of destination buffer and number of bytes to be received
+ * @param received number of received bytes is returned here
+ * @param timeout_ms time-out in milliseconds
+ * @return true if connection is still valid, false if an error occurs and connection needs to be closed
+ */
+bool network_receive_data( SOCKET sender, void *dest, const uint16 len, uint16 &received, const int timeout_ms );
 
 void network_process_send_queues(int timeout);
 
 // true, if I can write on the server connection
 bool network_check_server_connection();
 
-// send data to all clients (even us)
-// nwc is invalid after the call
-void network_send_all(network_command_t* nwc, bool exclude_us);
+/**
+ * send command to all clients (even us).
+ * if @p player_nr is valid, then send only to clients with this player unlocked
+ * @note nwc is invalid after the call
+ */
+void network_send_all(network_command_t* nwc, bool exclude_us, uint8 player_nr = PLAYER_UNOWNED);
 
 // send data to server only
 // nwc is invalid after the call
-void network_send_server(network_command_t* nwc);
+void network_send_server(network_command_t* nwc );
 
 void network_reset_server();
 

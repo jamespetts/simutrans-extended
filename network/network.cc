@@ -5,6 +5,11 @@
 
 /* basic network functionality, borrowed from OpenTTD */
 
+#if defined(__amiga__)
+// warning: IPv6 will only work on Windows XP and up ...
+#define USE_IP4_ONLY
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -41,7 +46,7 @@ address_list_t blacklist;
 
 void clear_command_queue()
 {
-	while (!received_command_queue.empty()) {
+	while(!received_command_queue.empty()) {
 		network_command_t *nwc = received_command_queue.remove_first();
 		delete nwc;
 	}
@@ -71,19 +76,19 @@ uint32 network_get_client_id()
 
 
 /**
-* Initializes the network core (as that is needed for some platforms
-* @return true if the core has been initialized, false otherwise
-*/
+ * Initializes the network core (as that is needed for some platforms
+ * @return true if the core has been initialized, false otherwise
+ */
 static bool network_initialize()
 {
-	if (!network_active) {
+	if(!network_active) {
 		socket_list_t::reset();
 
 #if USE_WINSOCK
 		/* Let's load the network in windows */
 		WSADATA wsa;
-		if (int err = WSAStartup(MAKEWORD(2, 2), &wsa)) {
-			dbg->warning("NetworkInitialize()", "failed loading windows socket library with %i", err);
+		if(int err = WSAStartup( MAKEWORD(2, 2), &wsa)) {
+			dbg->warning("NetworkInitialize()","failed loading windows socket library with %i", err);
 			return false;
 		}
 #endif
@@ -94,10 +99,10 @@ static bool network_initialize()
 
 
 /**
-* Open a socket connected to a remote address
-* In case of failure err is populated with a meaningful error
-* @return a valid socket or INVALID_SOCKET if the connection fails
-*/
+ * Open a socket connected to a remote address
+ * In case of failure err is populated with a meaningful error
+ * @return a valid socket or INVALID_SOCKET if the connection fails
+ */
 SOCKET network_open_address(char const* cp, char const*& err)
 {
 	err = NULL;
@@ -112,17 +117,17 @@ SOCKET network_open_address(char const* cp, char const*& err)
 	char address[1024];
 	static char err_str[256];
 	uint16 port = 13353;
-	const char *cp2 = strrchr(cp, ':');
-	if (cp2 != NULL) {
-		port = atoi(cp2 + 1);
+	const char *cp2 = strrchr(cp,':');
+	if(cp2!=NULL) {
+		port=atoi(cp2+1);
 		// Copy the address part
-		tstrncpy(address, cp, cp2 - cp>sizeof(address) - 1 ? sizeof(address) - 1 : cp2 - cp + 1);
+		tstrncpy(address,cp,cp2-cp>sizeof(address)-1?sizeof(address)-1:cp2-cp+1);
 		cp = address;
 	}
 
 	struct sockaddr_in server_name;
-	memset(&server_name, 0, sizeof(server_name));
-	server_name.sin_family = AF_INET;
+	memset(&server_name,0,sizeof(server_name));
+	server_name.sin_family=AF_INET;
 #if USE_WINSOCK
 	bool ok = true;
 	server_name.sin_addr.s_addr = inet_addr(cp); // for windows we must first try to resolve the number
@@ -135,26 +140,26 @@ SOCKET network_open_address(char const* cp, char const*& err)
 			ok = true;
 		}
 	}
-	if (!ok) {
+	if(!ok) {
 #else
 	/* inet_anon does not work on BeOS; but since gethostbyname() can
-	* do this job on all other systems too, we use it only:
-	* instead of if(inet_aton(cp,&server_name.sin_addr)==0) { // Bad address
-	*/
+	 * do this job on all other systems too, we use it only:
+	 * instead of if(inet_aton(cp,&server_name.sin_addr)==0) { // Bad address
+	 */
 	struct hostent *theHost;
-	theHost = gethostbyname(cp);
-	if (theHost) {
+	theHost = gethostbyname( cp );
+	if(theHost) {
 		server_name.sin_addr = *(struct in_addr *)theHost->h_addr_list[0];
 	}
 	else {// Bad address
 #endif
-		sprintf(err_str, "Bad address %s", cp);
+		sprintf( err_str, "Bad address %s", cp );
 		RET_ERR_STR;
 	}
-	server_name.sin_port = htons(port);
+	server_name.sin_port=htons(port);
 
-	SOCKET my_client_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (my_client_socket == INVALID_SOCKET) {
+	SOCKET my_client_socket = socket(AF_INET,SOCK_STREAM,0);
+	if(my_client_socket==INVALID_SOCKET) {
 		err = "Cannot create socket";
 		return INVALID_SOCKET;
 	}
@@ -170,13 +175,13 @@ SOCKET network_open_address(char const* cp, char const*& err)
 	static char err_str[256];
 
 	// scan address string for key features
-	const char *cp2 = strrchr(cp, ':');
-	const char *ipv6end = strrchr(cp, ']');
-	const char *ipv6start = strchr(cp, '[');
+	const char *cp2 = strrchr( cp, ':' );
+	const char *ipv6end = strrchr( cp, ']' );
+	const char *ipv6start = strchr( cp, '[' );
 
 	// extract port if available
 	std::string cpport;
-	if (cp2 != NULL  &&  cp2 > ipv6end) {
+	if (  cp2 != NULL  &&  cp2 > ipv6end  ) {
 		cpport = std::string(cp2 + 1);
 	}
 	else {
@@ -216,7 +221,7 @@ SOCKET network_open_address(char const* cp, char const*& err)
 		// Set up remote addrinfo
 		struct addrinfo *remote;
 		struct addrinfo remote_hints;
-		memset(&remote_hints, 0, sizeof(struct addrinfo));
+		memset( &remote_hints, 0, sizeof( struct addrinfo ) );
 		remote_hints.ai_socktype = SOCK_STREAM;
 		remote_hints.ai_family = PF_UNSPEC;
 
@@ -234,45 +239,45 @@ SOCKET network_open_address(char const* cp, char const*& err)
 		// Set up local addrinfo
 		struct addrinfo *local;
 		struct addrinfo local_hints;
-		memset(&local_hints, 0, sizeof(struct addrinfo));
+		memset( &local_hints, 0, sizeof( struct addrinfo ) );
 		local_hints.ai_socktype = SOCK_STREAM;
 		local_hints.ai_family = PF_UNSPEC;
 
 		// Insert listen address into local_hints struct to influence local address to bind to
-		DBG_MESSAGE("network_open_address()", "Preparing to bind address: %s", ip.c_str());
-		if ((ret = getaddrinfo(ip.c_str(), 0, &local_hints, &local)) != 0) {
-			dbg->warning("network_open_address()", "Failed to getaddrinfo for %s, error was: %s", ip.c_str(), gai_strerror(ret));
+		DBG_MESSAGE( "network_open_address()", "Preparing to bind address: %s", ip.c_str() );
+		if (  (ret = getaddrinfo( ip.c_str(), 0, &local_hints, &local )) != 0  ) {
+			dbg->warning( "network_open_address()", "Failed to getaddrinfo for %s, error was: %s", ip.c_str(), gai_strerror(ret) );
 #ifndef NETTOOL
-			env_t::listen.remove_at(i);
+			env_t::listen.remove_at( i );
 #endif
-			i--;
+			i --;
 			continue;
 		}
 
 		// Now try and open a socket to communicate with our remote endpoint
 		struct addrinfo *walk_local;
-		for (walk_local = local; !connected && walk_local != NULL; walk_local = walk_local->ai_next) {
+		for(  walk_local = local;  !connected  &&  walk_local != NULL;  walk_local = walk_local->ai_next  ) {
 			char ipstr_local[INET6_ADDRSTRLEN];
 
 			// Validate address + get string representation for logging
-			if ((ret = getnameinfo((walk_local->ai_addr), (socklen_t)walk_local->ai_addrlen, ipstr_local, sizeof(ipstr_local), NULL, 0, NI_NUMERICHOST)) != 0) {
-				dbg->warning("network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+			if (  (ret = getnameinfo( (walk_local->ai_addr), (socklen_t)walk_local->ai_addrlen, ipstr_local, sizeof(ipstr_local), NULL, 0, NI_NUMERICHOST )) !=0  ) {
+				dbg->warning( "network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret) );
 				continue;
 			}
 
-			DBG_MESSAGE("network_open_address()", "Potential local address: %s", ipstr_local);
+			DBG_MESSAGE( "network_open_address()", "Potential local address: %s", ipstr_local );
 
-			my_client_socket = socket(walk_local->ai_family, walk_local->ai_socktype, walk_local->ai_protocol);
+			my_client_socket = socket( walk_local->ai_family, walk_local->ai_socktype, walk_local->ai_protocol );
 
-			if (my_client_socket == INVALID_SOCKET) {
-				DBG_MESSAGE("network_open_address()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
+			if (  my_client_socket == INVALID_SOCKET  ) {
+				DBG_MESSAGE( "network_open_address()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()) );
 				continue;
 			}
 
 			// Bind socket to local IP
-			if (::bind(my_client_socket, walk_local->ai_addr, walk_local->ai_addrlen) == -1) {
-				DBG_MESSAGE("network_open_address()", "Unable to bind socket to local IP address! Error: \"%s\"", strerror(GET_LAST_ERROR()));
-				network_close_socket(my_client_socket);
+			if (  ::bind( my_client_socket, walk_local->ai_addr, walk_local->ai_addrlen )  ) {
+				DBG_MESSAGE( "network_open_address()", "Unable to bind socket to local IP address! Error: \"%s\"", strerror(GET_LAST_ERROR()) );
+				network_close_socket( my_client_socket );
 				my_client_socket = INVALID_SOCKET;
 				continue;
 			}
@@ -283,37 +288,101 @@ SOCKET network_open_address(char const* cp, char const*& err)
 				char ipstr_remote[INET6_ADDRSTRLEN];
 
 				// Validate remote address + get string representation for logging
-				if ((ret = getnameinfo(walk_remote->ai_addr, (socklen_t)walk_remote->ai_addrlen, ipstr_remote, sizeof(ipstr_remote), NULL, 0, NI_NUMERICHOST)) != 0) {
-					dbg->warning("network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+				if (  (ret = getnameinfo( walk_remote->ai_addr, (socklen_t)walk_remote->ai_addrlen, ipstr_remote, sizeof(ipstr_remote), NULL, 0, NI_NUMERICHOST )) !=0  ) {
+					dbg->warning( "network_open_address()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret) );
 					continue;
 				}
 
-				DBG_MESSAGE("network_open_address()", "Potential remote address: %s", ipstr_remote);
+				DBG_MESSAGE( "network_open_address()", "Potential remote address: %s", ipstr_remote );
+
+				// put socked in non-blocking mode...
+#ifdef WIN32
+				u_long block = 1;
+				if(  ioctlsocket(my_client_socket, FIONBIO, &block) != 0  )	{
+					my_client_socket = INVALID_SOCKET;
+					continue;
+				}
+#else
+				if (fcntl(my_client_socket, F_SETFL, fcntl(my_client_socket, F_GETFL, 0) | O_NONBLOCK) != 0) {
+					my_client_socket = INVALID_SOCKET;
+					continue;
+				}
+#endif
 
 				if (connect(my_client_socket, walk_remote->ai_addr, (socklen_t)walk_remote->ai_addrlen) != 0) {
-					DBG_MESSAGE("network_open_address()", "Could not connect using this socket. Error: \"%s\"", strerror(GET_LAST_ERROR()));
-					continue;
+
+					if(  GET_LAST_ERROR() != EINPROGRESS) {
+						// connection failed
+						network_close_socket(my_client_socket);
+						continue;
+					}
+
+					// connection pending
+					fd_set setW, setE;
+
+					FD_ZERO(&setW);
+					FD_SET(my_client_socket, &setW);
+					FD_ZERO(&setE);
+					FD_SET(my_client_socket, &setE);
+
+					timeval time_out;
+					time_out.tv_sec = 2; // 2 seconds or joining a server would not make sense
+					time_out.tv_usec = 0;
+
+					int ret = select(my_client_socket+1, NULL, &setW, &setE, &time_out);
+					if (ret <= 0) {
+						// select() failed or connection timed out
+						DBG_MESSAGE("network_open_address()", "Could not connect using this socket. select() Error: \"%s\"", strerror(GET_LAST_ERROR()));
+						network_close_socket(my_client_socket);
+						continue;
+					}
+
+					if(  FD_ISSET(my_client_socket, &setE)  ) {
+						// connection failed
+						DBG_MESSAGE("network_open_address()", "Could not connect FD_ISSET failed.");
+						network_close_socket(my_client_socket);
+						continue;
+					}
+					// connection successful
+
+					// put socket in blocking mode...
+#ifdef WIN32
+					block = 0;
+					bool blocking_mode = ioctlsocket(my_client_socket, FIONBIO, &block) == 0;
+#else
+					// on linux clear O_NONBLOCK flag
+					const int flags = fcntl(my_client_socket, F_GETFL, 0);
+					bool blocking_mode = fcntl(my_client_socket, F_SETFL, flags & (~O_NONBLOCK)) == 0;
+#endif
+					if (!blocking_mode) {
+						DBG_MESSAGE("network_open_address()", "Could not reset to non-blocking.");
+						network_close_socket(my_client_socket);
+						continue;
+					}
+
+
 				}
+
 				connected = true;
 			}
 			// If no connection throw away this socket and try the next one
-			if (!connected) {
-				network_close_socket(my_client_socket);
+			if (  !connected  ) {
+				network_close_socket( my_client_socket );
 				my_client_socket = INVALID_SOCKET;
 			}
 		}
 
-		freeaddrinfo(local);
-		freeaddrinfo(remote);
+		freeaddrinfo( local );
+		freeaddrinfo( remote );
 	}
 
-	if (my_client_socket == INVALID_SOCKET) {
-		sprintf(err_str, "Could not connect to %s", cp);
+	if (  my_client_socket == INVALID_SOCKET  ) {
+		sprintf( err_str, "Could not connect to %s", cp );
 		RET_ERR_STR;
 	}
 #endif
 	return my_client_socket;
-	}
+}
 
 
 /**
@@ -327,8 +396,8 @@ bool network_init_server( int port, const vector_tpl<std::string> &listen_addrs 
 		dbg->fatal( "network_init_server()", "Cannot host on port 0!" );
 	}
 	// First activate network
-	if (!network_initialize()) {
-		dbg->fatal("network_init_server()", "Failed to initialize network!");
+	if (  !network_initialize()  ) {
+		dbg->fatal( "network_init_server()", "Failed to initialize network!" );
 	}
 	socket_list_t::reset();
 
@@ -343,21 +412,21 @@ bool network_init_server( int port, const vector_tpl<std::string> &listen_addrs 
 
 	struct sockaddr_in name;
 	name.sin_family = AF_INET;
-	name.sin_port = htons(port);
-	name.sin_addr.s_addr = htonl(INADDR_ANY);
+	name.sin_port = htons( port );
+	name.sin_addr.s_addr = htonl( INADDR_ANY );
 
-	if (::bind(my, (struct sockaddr *)&name, sizeof(name)) == -1) {
-		dbg->fatal("network_init_server()", "Bind failed!");
+	if (  bind( my, (struct sockaddr *)&name, sizeof( name ) ) == -1  ) {
+		dbg->fatal( "network_init_server()", "Bind failed!" );
 		return false;
 	}
 
 	/* Max pending connections */
-	if (listen(my, MAX_PLAYER_COUNT) == -1) {
-		dbg->fatal("network_init_server()", "Listen failed for %i sockets!", MAX_PLAYER_COUNT);
+	if (  listen( my, MAX_PLAYER_COUNT ) == -1  ) {
+		dbg->fatal( "network_init_server()", "Listen failed for %i sockets!", MAX_PLAYER_COUNT );
 		return false;
 	}
 
-	socket_list_t::add_server(my);
+	socket_list_t::add_server( my );
 
 #else
 
@@ -365,81 +434,81 @@ bool network_init_server( int port, const vector_tpl<std::string> &listen_addrs 
 	for(std::string const& ip : listen_addrs) {
 		int ret;
 		char port_nr[16];
-		sprintf(port_nr, "%u", port);
+		sprintf( port_nr, "%u", port );
 
 		struct addrinfo *server;
 		struct addrinfo hints;
-		memset(&hints, 0, sizeof(struct addrinfo));
+		memset( &hints, 0, sizeof( struct addrinfo ) );
 		hints.ai_socktype = SOCK_STREAM;
 
 		// Insert potential listen address into hints struct to influence local address to bind to
-		DBG_MESSAGE("network_init_server()", "Preparing to bind address: \"%s\"", ip.c_str());
+		DBG_MESSAGE( "network_init_server()", "Preparing to bind address: \"%s\"", ip.c_str() );
 		hints.ai_family = PF_UNSPEC;
-		if ((ret = getaddrinfo(ip.c_str(), port_nr, &hints, &server)) != 0) {
-			dbg->fatal("network_init_server()", "Call to getaddrinfo() failed for: \"%s\", error was: \"%s\" - check listen directive in simuconf.tab!", ip.c_str(), gai_strerror(ret));
+		if (  (ret = getaddrinfo( ip.c_str(), port_nr, &hints, &server )) != 0  ) {
+			dbg->fatal( "network_init_server()", "Call to getaddrinfo() failed for: \"%s\", error was: \"%s\" - check listen directive in simuconf.tab!", ip.c_str(), gai_strerror(ret) );
 		}
 		else {
-			dbg->message("network_init_server()", "Attempting to bind listening sockets for: \"%s\"\n", ip.c_str());
+			dbg->message( "network_init_server()", "Attempting to bind listening sockets for: \"%s\"\n", ip.c_str() );
 		}
 
 		SOCKET server_socket;
 		struct addrinfo *walk;
 
 		// Open a listen socket for each IP address specified by this entry in the listen list
-		for (walk = server; walk != NULL; walk = walk->ai_next) {
+		for (  walk = server;  walk != NULL;  walk = walk->ai_next  ) {
 			char ipstr[INET6_ADDRSTRLEN];
 
 			// Validate address + get string representation for logging
-			if ((ret = getnameinfo(walk->ai_addr, (socklen_t)walk->ai_addrlen, ipstr, sizeof(ipstr), NULL, 0, NI_NUMERICHOST)) != 0) {
-				dbg->warning("network_init_server()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret));
+			if (  (ret = getnameinfo( walk->ai_addr, (socklen_t)walk->ai_addrlen, ipstr, sizeof(ipstr), NULL, 0, NI_NUMERICHOST )) != 0  ) {
+				dbg->warning( "network_init_server()", "Call to getnameinfo() failed with error: \"%s\"", gai_strerror(ret) );
 				continue;
 			}
 
-			DBG_MESSAGE("network_init_server()", "Potential bind address: %s", ipstr);
+			DBG_MESSAGE( "network_init_server()", "Potential bind address: %s", ipstr );
 
-			server_socket = socket(walk->ai_family, walk->ai_socktype, walk->ai_protocol);
+			server_socket = socket( walk->ai_family, walk->ai_socktype, walk->ai_protocol );
 
-			if (server_socket == INVALID_SOCKET) {
-				dbg->warning("network_init_server()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()));
+			if (  server_socket == INVALID_SOCKET  ) {
+				dbg->warning( "network_init_server()", "Could not create socket! Error: \"%s\"", strerror(GET_LAST_ERROR()) );
 				continue;
 			}
 
 			/* Disable IPv4-mapped IPv6 addresses for this IPv6 listen socket
-			This ensures that we are using separate sockets for dual-stack, one for v4, one for v6 */
-			if (walk->ai_family == AF_INET6) {
+			   This ensures that we are using separate sockets for dual-stack, one for v4, one for v6 */
+			if (  walk->ai_family == AF_INET6  ) {
 				int const on = 1;
-				if (setsockopt(server_socket, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<const char *>(&on), sizeof(on)) != 0) {
-					dbg->warning("network_init_server()", "Call to setsockopt(IPV6_V6ONLY) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
-					network_close_socket(server_socket);
+				if (  setsockopt(server_socket, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<const char *>(&on), sizeof(on)) != 0  ) {
+					dbg->warning( "network_init_server()", "Call to setsockopt(IPV6_V6ONLY) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()) );
+					network_close_socket( server_socket );
 					server_socket = INVALID_SOCKET;
 					continue;
 				}
 			}
 			// Enable reusing of local addresses
 			int const enable = 1;
-			if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&enable), sizeof(enable)) != 0) {
-				dbg->warning("network_init_server()", "Call to setsockopt(SO_REUSEADDR) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()));
+			if (  setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&enable), sizeof(enable)) != 0  ) {
+				dbg->warning( "network_init_server()", "Call to setsockopt(SO_REUSEADDR) failed for: \"%s\", error was: \"%s\"", ip.c_str(), strerror(GET_LAST_ERROR()) );
 			}
 
-			if (::bind(server_socket, walk->ai_addr, walk->ai_addrlen) == -1) {
+			if (  ::bind( server_socket, walk->ai_addr, walk->ai_addrlen )  ) {
 				/* Unable to bind a socket - abort execution as we are supposed to be a server on this interface */
-				dbg->fatal("network_init_server()", "Unable to bind socket to IP address: \"%s\", error was: \"%s\"", ipstr, strerror(GET_LAST_ERROR()));
+				dbg->fatal( "network_init_server()", "Unable to bind socket to IP address: \"%s\", error was: \"%s\"", ipstr, strerror(GET_LAST_ERROR()) );
 			}
 
-			if (listen(server_socket, 32) == -1) {
+			if (  listen( server_socket, 32 ) == -1  ) {
 				/* Unable to listen on bound socket - abort execution as we are supposed to be a server on this interface */
-				dbg->fatal("network_init_server()", "Unable to set socket to listen for incoming connections on: \"%s\"", ipstr);
+				dbg->fatal( "network_init_server()", "Unable to set socket to listen for incoming connections on: \"%s\"", ipstr );
 			}
 
-			dbg->message("network_init_server()", "Added valid listen socket for address: \"%s\"\n", ipstr);
-			socket_list_t::add_server(server_socket);
+			dbg->message( "network_init_server()", "Added valid listen socket for address: \"%s\"\n", ipstr);
+			socket_list_t::add_server( server_socket );
 		}
-		freeaddrinfo(server);
+		freeaddrinfo( server );
 	}
 
 	// Fatal error if no server sockets could be opened, since we're supposed to be a server!
-	if (socket_list_t::get_server_sockets() == 0) {
-		dbg->fatal("network_init_server()", "Unable to add any server sockets!");
+	if (  socket_list_t::get_server_sockets() == 0  ) {
+		dbg->fatal( "network_init_server()", "Unable to add any server sockets!" );
 	}
 	else {
 		dbg->message("network_init_server", "Server started, added %d server sockets", socket_list_t::get_server_sockets());
@@ -455,16 +524,16 @@ bool network_init_server( int port, const vector_tpl<std::string> &listen_addrs 
 }
 
 
-void network_set_socket_nodelay(SOCKET sock)
+void network_set_socket_nodelay( SOCKET sock )
 {
 #if (defined(TCP_NODELAY)  ||  COLOUR_DEPTH == 0)
 	// do not wait to join small (command) packets when sending (may cause 200ms delay!)
 	// force this for dedicated servers
 	int b = 1;
-	setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&b, sizeof(b));
+	setsockopt( sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&b, sizeof(b) );
 #else
-	#warning TCP_NODELAY not defined.Expect multiplayer problems.
-		(void)sock;
+#warning TCP_NODELAY not defined. Expect multiplayer problems.
+	(void)sock;
 #endif
 }
 
@@ -479,9 +548,9 @@ network_command_t* network_get_received_command()
 
 
 /* do appropriate action for network games:
-* - server: accept connection to a new client
-* - all: receive commands and puts them to the received_command_queue
-*/
+ * - server: accept connection to a new client
+ * - all: receive commands and puts them to the received_command_queue
+ */
 network_command_t* network_check_activity(karte_t *, int timeout)
 {
 	fd_set fds;
@@ -494,39 +563,39 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 	tv.tv_sec = timeout / 1000;
 	tv.tv_usec = (timeout % 1000) * 1000ul;
 
-	int action = select(FD_SETSIZE, &fds, NULL, NULL, &tv);
-	if (action <= 0) {
+	int action = select( FD_SETSIZE, &fds, NULL, NULL, &tv );
+	if(  action<=0  ) {
 		// timeout: return command from the queue
 		return network_get_received_command();
 	}
 
 	// accept new connection
 	socket_list_t::server_socket_iterator_t iter_s(&fds);
-	while (iter_s.next()) {
+	while(iter_s.next()) {
 		SOCKET accept_sock = iter_s.get_current();
 
-		if (accept_sock != INVALID_SOCKET) {
+		if(  accept_sock!=INVALID_SOCKET  ) {
 			struct sockaddr_in client_name;
 			socklen_t size = sizeof(client_name);
 			SOCKET s = accept(accept_sock, (struct sockaddr *)&client_name, &size);
-			if (s != INVALID_SOCKET) {
+			if(  s!=INVALID_SOCKET  ) {
 #if USE_WINSOCK
 				uint32 ip = ntohl((uint32)client_name.sin_addr.S_un.S_addr);
 #else
 				uint32 ip = ntohl((uint32)client_name.sin_addr.s_addr);
 #endif
-				if (blacklist.contains(net_address_t(ip))) {
+				if (blacklist.contains(net_address_t( ip ))) {
 					// refuse connection
 					network_close_socket(s);
 					continue;
 				}
 #ifdef  __BEOS__
 				char name[256];
-				sprintf(name, "%lh", client_name.sin_addr.s_addr);
+				sprintf(name, "%lh", client_name.sin_addr.s_addr );
 #else
 				const char *name = inet_ntoa(client_name.sin_addr);
 #endif
-				dbg->message("check_activity()", "Accepted connection from: %s.", name);
+				dbg->message("check_activity()", "Accepted connection from: %s.",  name);
 				socket_list_t::add_client(s, ip);
 			}
 		}
@@ -534,7 +603,7 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 
 	// receive from clients
 	socket_list_t::client_socket_iterator_t iter_c(&fds);
-	while (iter_c.next()) {
+	while(iter_c.next()) {
 		SOCKET sender = iter_c.get_current();
 
 		if (sender != INVALID_SOCKET  &&  socket_list_t::has_client(sender)) {
@@ -542,7 +611,7 @@ network_command_t* network_check_activity(karte_t *, int timeout)
 			network_command_t *nwc = socket_list_t::get_client(client_id).receive_nwc();
 			if (nwc) {
 				received_command_queue.append(nwc);
-				dbg->message( "network_check_activity()", "received cmd %s (id %d) from socket[%d]", nwc->get_name(), nwc->get_id(), sender );
+				dbg->warning( "network_check_activity()", "received cmd %s (id %d) from socket[%d]", nwc->get_name(), nwc->get_id(), sender );
 			}
 			// errors are caught and treated in socket_info_t::receive_nwc
 		}
@@ -563,16 +632,16 @@ void network_process_send_queues(int timeout)
 	tv.tv_sec = timeout / 1000;
 	tv.tv_usec = (timeout % 1000) * 1000ul;
 
-	int action = select(FD_SETSIZE, NULL, &fds, NULL, &tv);
+	int action = select( FD_SETSIZE, NULL, &fds, NULL, &tv );
 
-	if (action <= 0) {
+	if(  action<=0  ) {
 		// timeout: return
 		return;
 	}
 
 	// send to clients
 	socket_list_t::client_socket_iterator_t iter_c(&fds);
-	while (iter_c.next() && action>0) {
+	while(iter_c.next()  &&  action>0) {
 		SOCKET sock = iter_c.get_current();
 
 		if (sock != INVALID_SOCKET  &&  socket_list_t::has_client(sock)) {
@@ -580,18 +649,18 @@ void network_process_send_queues(int timeout)
 			socket_list_t::get_client(client_id).process_send_queue();
 			// errors are caught and treated in socket_info_t::process_send_queue
 		}
-		action--;
+		action --;
 	}
 }
 
 
 bool network_check_server_connection()
 {
-	if (!network_server_port) {
+	if(  !network_server_port  ) {
 		// I am client
 
 		// If I am playing, playing_clients should be at least one.
-		if (socket_list_t::get_playing_clients() == 0) {
+		if( socket_list_t::get_playing_clients()==0 ) {
 			return false;
 		}
 
@@ -604,8 +673,8 @@ bool network_check_server_connection()
 		FD_ZERO(&fds_write);
 		socket_list_t::fill_set(&fds_write);
 
-		int action = select(FD_SETSIZE, &fds_read, &fds_write, NULL, &tv);
-		if (action < 0) {
+		int action = select( FD_SETSIZE, &fds_read, &fds_write, NULL, &tv );
+		if(  action < 0  ) {
 			// error - connection lost
 			return false;
 		}
@@ -616,12 +685,12 @@ bool network_check_server_connection()
 
 // send data to all PLAYING clients
 // nwc is invalid after the call
-void network_send_all(network_command_t* nwc, bool exclude_us)
+void network_send_all(network_command_t* nwc, bool exclude_us, uint8 player_nr)
 {
 	if (nwc) {
 		nwc->prepare_to_send();
-		socket_list_t::send_all(nwc, true);
-		if (!exclude_us  &&  network_server_port) {
+		socket_list_t::send_all(nwc, true, player_nr);
+		if(  !exclude_us  &&  network_server_port  ) {
 			// I am the server
 			nwc->get_packet()->sent_by_server();
 			received_command_queue.append(nwc);
@@ -635,11 +704,11 @@ void network_send_all(network_command_t* nwc, bool exclude_us)
 
 // send data to server
 // nwc is invalid after the call
-void network_send_server(network_command_t* nwc)
+void network_send_server(network_command_t* nwc )
 {
 	if (nwc) {
 		nwc->prepare_to_send();
-		if (!network_server_port) {
+		if(  !network_server_port  ) {
 			// I am client
 			socket_list_t::send_all(nwc, true);
 			delete nwc;
@@ -654,12 +723,12 @@ void network_send_server(network_command_t* nwc)
 
 
 /**
-* send data to dest
-* @param buf the data
-* @param size length of buffer and number of bytes to be sent
-* @return true if data was completely send, false if an error occurs and connection needs to be closed
-*/
-bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &count, const int timeout_ms)
+ * send data to dest
+ * @param buf the data
+ * @param size length of buffer and number of bytes to be sent
+ * @return true if data was completely send, false if an error occurs and connection needs to be closed
+ */
+bool network_send_data( SOCKET dest, const char *buf, const uint16 size, uint16 &count, const int timeout_ms )
 {
 	count = 0;
 
@@ -669,7 +738,7 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 #endif
 
 	while (count < size) {
-		int sent = send(dest, buf + count, size - count, 0);
+		int sent = send(dest, buf+count, size-count, 0);
 		if (sent == -1) {
 			int err = GET_LAST_ERROR();
 			if (err != EWOULDBLOCK) {
@@ -684,7 +753,7 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 				// try again, test whether sending is possible
 				fd_set fds;
 				FD_ZERO(&fds);
-				FD_SET(dest, &fds);
+				FD_SET(dest,&fds);
 				struct timeval tv;
 				tv.tv_sec = timeout_ms / 1000;
 				tv.tv_usec = (timeout_ms % 1000) * 1000ul;
@@ -698,11 +767,11 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 		}
 		if (sent == 0) {
 			// connection closed
-			dbg->warning("network_send_data", "connection [%d] already closed (sent %d of &d)", dest, count, size);
+			dbg->warning("network_send_data", "connection [%d] already closed (sent %hu of %hu)", dest, count, size );
 			return false;
 		}
 		count += sent;
-		DBG_DEBUG4("network_send_data", "sent %d bytes to socket[%d]; size=%d, left=%d", count, dest, size, size - count);
+		DBG_DEBUG4("network_send_data", "sent %d bytes to socket[%d]; size=%d, left=%d", count, dest, size, size-count );
 	}
 
 #if USE_WINSOCK == 0
@@ -715,13 +784,13 @@ bool network_send_data(SOCKET dest, const char *buf, const uint16 size, uint16 &
 
 
 /**
-* receive data from sender
-* @param dest the destination buffer
-* @param len length of destination buffer and number of bytes to be received
-* @param received number of received bytes is returned here
-* @return true if connection is still valid, false if an error occurs and connection needs to be closed
-*/
-bool network_receive_data(SOCKET sender, void *dest, const uint16 len, uint16 &received, const int timeout_ms)
+ * receive data from sender
+ * @param dest the destination buffer
+ * @param len length of destination buffer and number of bytes to be received
+ * @param received number of received bytes is returned here
+ * @return true if connection is still valid, false if an error occurs and connection needs to be closed
+ */
+bool network_receive_data( SOCKET sender, void *dest, const uint16 len, uint16 &received, const int timeout_ms )
 {
 	received = 0;
 	char *ptr = (char *)dest;
@@ -729,16 +798,16 @@ bool network_receive_data(SOCKET sender, void *dest, const uint16 len, uint16 &r
 	do {
 		fd_set fds;
 		FD_ZERO(&fds);
-		FD_SET(sender, &fds);
+		FD_SET(sender,&fds);
 		struct timeval tv;
 		tv.tv_sec = timeout_ms / 1000;
 		tv.tv_usec = (timeout_ms % 1000) * 1000ul;
 		// can we read?
-		if (select(FD_SETSIZE, &fds, NULL, NULL, &tv) != 1) {
+		if(  select( FD_SETSIZE, &fds, NULL, NULL, &tv )!=1  ) {
 			return true;
 		}
 		// now receive
-		int res = recv(sender, ptr + received, len - received, 0);
+		int res = recv( sender, ptr+received, len-received, 0 );
 		if (res == -1) {
 			int err = GET_LAST_ERROR();
 			if (err != EWOULDBLOCK) {
@@ -751,38 +820,35 @@ bool network_receive_data(SOCKET sender, void *dest, const uint16 len, uint16 &r
 		if (res == 0) {
 			// connection closed
 			// output warning / throw fatal error depending on heavy mode setting
-#ifdef NETTOOL
-			const int heavy_mode = 0;
-#else
-			const int heavy_mode = env_t::network_heavy_mode;
-#endif
-			void (log_t::*outfn)(const char*, const char*, ...) = (heavy_mode == 2 ? &log_t::fatal : &log_t::warning);
+#ifndef NETTOOL
+			void (log_t::*outfn)(const char*, const char*, ...) = (env_t::network_heavy_mode == 2 ? &log_t::fatal : &log_t::warning);
 			(dbg->*outfn)("network_receive_data", "Connection [%d] already closed", sender);
+#endif
 			return false;
 		}
 		received += res;
-	} while (received<len);
+	} while(  received<len  );
 
 	return true;
 }
 
 
-void network_close_socket(SOCKET sock)
+void network_close_socket( SOCKET sock )
 {
-	if (sock != INVALID_SOCKET) {
+	if(  sock != INVALID_SOCKET  ) {
 #if USE_WINSOCK || defined __BEOS__
-		closesocket(sock);
+		closesocket( sock );
 #else
-		close(sock);
+		close( sock );
 #endif
 
 #ifndef NETTOOL
 		// reset all the special / static socket variables
-		if (sock == nwc_join_t::pending_join_client) {
+		if(  sock==nwc_join_t::pending_join_client  ) {
 			nwc_join_t::pending_join_client = INVALID_SOCKET;
-			DBG_MESSAGE("network_close_socket()", "Close pending_join_client [%d]", nwc_join_t::pending_join_client);
+			DBG_MESSAGE( "network_close_socket()", "Close pending_join_client [%d]", nwc_join_t::pending_join_client );
 		}
-		if (sock == nwc_pakset_info_t::server_receiver) {
+		if(  sock==nwc_pakset_info_t::server_receiver) {
 			nwc_pakset_info_t::server_receiver = INVALID_SOCKET;
 		}
 #endif
@@ -801,15 +867,15 @@ void network_reset_server()
 
 
 /**
-* Shuts down the network core (since that is needed for some platforms
-*/
+ * Shuts down the network core (since that is needed for some platforms
+ */
 void network_core_shutdown()
 {
 	clear_command_queue();
 
 	socket_list_t::reset();
 
-	if (network_active) {
+	if(network_active) {
 #if USE_WINSOCK
 		WSACleanup();
 #endif
@@ -835,7 +901,7 @@ bool get_external_IP( cbuffer_t &myIPaddr, cbuffer_t &altIPaddr )
 {
 	myIPaddr.clear();
 	altIPaddr.clear();
-	// query "simutrans-forum.de/get_IP.php" for IP (faster than asking router and we can get IP6 too)
+	// query for IP (faster than asking router using uPnP and we can get IP6 too)
 	const char *err = network_http_get( QUERY_ADDR_IP, QUERY_ADDR_URL, altIPaddr );
 	// if we have a dual stack system, IP6 should be preferred, i.e. we have now the IP6
 	if(  err==NULL  &&  strstr(altIPaddr,":")  ) {
@@ -852,7 +918,7 @@ bool get_external_IP( cbuffer_t &myIPaddr, cbuffer_t &altIPaddr )
 		altIPaddr.clear();
 	}
 
-#if 0
+#ifdef LOOKUP_OWN_IP_NAME
 	// enable to try to get a symbolic name for IPv4
 	if(  !err  ) {
 		struct sockaddr_in sin;
@@ -870,6 +936,7 @@ bool get_external_IP( cbuffer_t &myIPaddr, cbuffer_t &altIPaddr )
 		}
 	}
 #endif
+
 	return err==NULL;
 }
 
@@ -884,13 +951,8 @@ extern "C" {
 #define MINIUPNP_LIBSPEC extern
 
 //#define MINIUPNP_STATICLIB
-#ifdef CUSTOM_MINIUPNPC_LOCATION
-#include <miniupnpc.h>
-#include <upnpcommands.h>
-#else
 #include <miniupnpc/miniupnpc.h>
 #include <miniupnpc/upnpcommands.h>
-#endif
 }
 
 #if MINIUPNPC_API_VERSION < 14
@@ -922,6 +984,8 @@ bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, in
 			char eport[19];
 			char *iport = eport;
 			sprintf( eport, "%d", port );
+			// remove anz forwarding
+			UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, eport, "TCP", NULL);
 			// setting up tcp redirect forever (last parameter "0")
 			if(  UPNP_AddPortMapping(urls.controlURL, data.first.servicetype, eport, iport, lanaddr, "simutrans", "TCP", 0, "0")  ==  UPNPCOMMAND_SUCCESS  ) {
 				// ok, we have our ID and redirected a port to us
@@ -937,7 +1001,6 @@ bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, in
 	freeUPNPDevlist(devlist);
 
 	externalAltIPAddress[0] = 0;
-#if 1
 	// use the same routine as later the announce routine, otherwise update with dynamic IP fails
 	cbuffer_t myIPaddr, altIPaddr;
 	if(  get_external_IP( myIPaddr, altIPaddr )  ) {
@@ -947,41 +1010,7 @@ bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, in
 			strcpy( externalAltIPAddress, altIPaddr );
 		}
 	}
-#else
-	// now we have (or have not) the IPv4 at this point (due to the protocol), we check for IP6 too or try to get at least an IP addr
-	cbuffer_t myIPaddr;
-	// lets get IP by query "simutrans-forum.de/get_IP.php" for IP and assume that the redirection is working
-	const char *err = network_http_get( "simutrans-forum.de:80", "/get_IP.php", myIPaddr );
-	if(  !err  ) {
-		if(  has_IP  ) {
-			if(  strcmp(externalIPAddress, myIPaddr.get_str())!=0  ) {
-				strcpy( externalAltIPAddress, myIPaddr.get_str() );
-			}
-		}
-		else {
-			strcpy( externalIPAddress, myIPaddr.get_str() );
-			has_IP = true;
-		}
-	}
 
-	// we have an external IP, let's find if we have a DNS name for it
-	if (!network_initialize()) {
-		return has_IP;
-	}
-
-	struct sockaddr_in sin;
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family      = AF_INET;
-	sin.sin_addr.s_addr = inet_addr(externalIPAddress);
-	sin.sin_port        = 0; // If 0, port is chosen by system
-	char hostname[1024];
-	hostname[0] = 0;
-
-	int failed = getnameinfo((const sockaddr *)&sin, sizeof(sin), hostname, lengthof(hostname), NULL, 0, 0);
-	if(  !failed  &&  *hostname  ) {
-		strcpy( externalIPAddress, hostname );
-	}
-#endif
 	return has_IP;
 }
 
@@ -989,7 +1018,7 @@ bool prepare_for_server( char *externalIPAddress, char *externalAltIPAddress, in
 // removes the redirect (or do nothing)
 void remove_port_forwarding( int port )
 {
-	if(  port <= 0  ) {
+	if(  port <= 0  ||  env_t::easy_server != 1  ) {
 		return;
 	}
 
@@ -1013,7 +1042,6 @@ void remove_port_forwarding( int port )
 			// this is our ID (at least the routes tells us this)
 			char eport[19];
 			sprintf( eport, "%d", port );
-			// setting up tcp redirect forever (last parameter "0")
 			UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, eport, "TCP", NULL);
 		}
 		FreeUPNPUrls(&urls);
@@ -1023,15 +1051,19 @@ void remove_port_forwarding( int port )
 #else
 // or we just get only our IP and hope we are not behind a router ...
 
-bool prepare_for_server(char *externalIPAddress, char *, int)
+bool prepare_for_server(char* externalIPAddress, char* externalAltIPAddress, int port)
 {
-	cbuffer_t myIPaddr;
-	// lets get IP by query "simutrans-forum.de/get_IP.php" for IP and assume that the redirection is working
-	const char *err = network_http_get( "simutrans-forum.de:80", "/get_IP.php", myIPaddr );
-	if(  !err  ) {
-		strcpy( externalIPAddress, myIPaddr.get_str() );
+	externalAltIPAddress[0] = 0;
+	// use the same routine as later the announce routine, otherwise update with dynamic IP fails
+	cbuffer_t myIPaddr, altIPaddr;
+	if (get_external_IP(myIPaddr, altIPaddr)) {
+		strcpy(externalIPAddress, myIPaddr);
+		if (altIPaddr.len()) {
+			strcpy(externalAltIPAddress, altIPaddr);
+		}
 		return true;
 	}
+
 	return false;
 }
 
