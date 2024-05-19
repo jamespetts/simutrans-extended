@@ -133,7 +133,7 @@ const uint8 citylist_frame_t::hist_type_type[karte_t::MAX_WORLD_COST] =
 	gui_chart_t::PERCENT,
 	gui_chart_t::STANDARD,
 	gui_chart_t::PERCENT,
-	gui_chart_t::STANDARD,
+	gui_chart_t::TON_KM,
 	gui_chart_t::PERCENT
 };
 

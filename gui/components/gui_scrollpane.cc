@@ -49,7 +49,9 @@ scr_size gui_scrollpane_t::get_min_size() const
 scr_size gui_scrollpane_t::get_max_size() const
 {
 	scr_size csize = take_cached_size ? cached_max_size : comp->get_max_size();
-	return (!b_show_scroll_y && min_height) ? scr_size(csize.w, min_height) : csize;
+	scr_coord_val c_width = !b_show_scroll_x ? max_width : csize.w;
+	scr_coord_val c_height = (!b_show_scroll_y && min_height) ? min_height : csize.h;
+	return scr_size(c_width, c_height);
 }
 
 

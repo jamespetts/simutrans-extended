@@ -7386,13 +7386,8 @@ void karte_t::restore_history()
 
 	// update total transported, including passenger and mail
 	for(  int m=min(MAX_WORLD_HISTORY_MONTHS,MAX_PLAYER_HISTORY_MONTHS)-1;  m>0;  m--  ) {
-		sint64 transported = 0;
-		for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++ ) {
-			if(  players[i]!=NULL  ) {
-				transported += players[i]->get_finance()->get_history_veh_month( TT_ALL, m, ATV_TRANSPORTED );
-			}
-		}
-		finance_history_month[m][WORLD_TRANSPORTED_GOODS] = transported;
+		// No longer available due to different units
+		finance_history_month[m][WORLD_TRANSPORTED_GOODS] = 0;
 	}
 
 	sint64 bev_last_year = -1;
@@ -7432,13 +7427,8 @@ void karte_t::restore_history()
 	}
 
 	for(  int y=min(MAX_WORLD_HISTORY_YEARS,MAX_CITY_HISTORY_YEARS)-1;  y>0;  y--  ) {
-		sint64 transported_year = 0;
-		for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++ ) {
-			if(  players[i]  ) {
-				transported_year += players[i]->get_finance()->get_history_veh_year( TT_ALL, y, ATV_TRANSPORTED );
-			}
-		}
-		finance_history_year[y][WORLD_TRANSPORTED_GOODS] = transported_year;
+		// No longer available due to different units
+		finance_history_year[y][WORLD_TRANSPORTED_GOODS] = 0;
 	}
 	// fix current month/year
 	update_history();

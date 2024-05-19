@@ -23,6 +23,7 @@
 #include "player_frame_t.h"
 
 #include "components/gui_divider.h"
+#include "player_ranking_gui.h"
 
 
 password_button_t::password_button_t()
@@ -208,6 +209,14 @@ ki_kontroll_t::ki_kontroll_t() :
 	freeplay.pressed = welt->get_settings().is_freeplay();
 	end_table();
 
+	bt_open_ranking.init(button_t::roundbox_state, "Player ranking");
+	if (skinverwaltung_t::open_window) {
+		bt_open_ranking.set_image(skinverwaltung_t::open_window->get_image_id(0));
+		bt_open_ranking.set_image_position_right(true);
+	}	bt_open_ranking.add_listener(this);
+	bt_open_ranking.set_tooltip(translator::translate("Open the player ranking dialog"));
+	add_component(&bt_open_ranking);
+
 	add_component( &freeplay );
 
 	new_component<gui_divider_t>();
@@ -385,6 +394,9 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		delete tool;
 
 		//update_data();
+	}
+	else if ( comp==&bt_open_ranking ) {
+		create_win(new player_ranking_gui_t(), w_info, magic_player_ranking);
 	}
 
 	return true;
@@ -653,6 +665,7 @@ void ki_kontroll_t::draw(scr_coord pos, scr_size size)
 	}
 
 	player_change_to[welt->get_active_player_nr()].pressed = true;
+	bt_open_ranking.pressed = win_get_magic(magic_player_ranking);
 
 	// All controls updated, draw them...
 	gui_frame_t::draw(pos, size);

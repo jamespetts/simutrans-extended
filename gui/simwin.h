@@ -114,6 +114,7 @@ enum magic_numbers {
 	magic_soundfont, // only with USE_FLUIDSYNTH_MIDI
 	magic_edit_groundobj,
 	magic_signal_connector_gui_t,
+	magic_player_ranking,
 
 	// magic numbers with big jumps between them
 	magic_convoi_info,
