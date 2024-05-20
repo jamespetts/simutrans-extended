@@ -23,7 +23,7 @@ static const char* cost_type_name[player_ranking_gui_t::MAX_PLAYER_RANKING_CHART
 {
 	"Revenue",
 	"Ops Profit",
-	"Margin (%%)",
+	"Margin (%)",
 	"Pax-km",
 	"Mail-km",
 	"Freight-km",
@@ -106,7 +106,7 @@ static int compare_revenue(player_button_t* const& a, player_button_t* const& b)
 	return compare_atv(a->get_player_nr(), b->get_player_nr(), ATV_REVENUE);
 }
 static int compare_profit(player_button_t* const& a, player_button_t* const& b) {
-	return compare_atv(a->get_player_nr(), b->get_player_nr(), ATV_PROFIT);
+	return compare_atv(a->get_player_nr(), b->get_player_nr(), ATV_OPERATING_PROFIT);
 }
 static int compare_transport_pax(player_button_t* const& a, player_button_t* const& b) {
 	return compare_atv(a->get_player_nr(), b->get_player_nr(), ATV_TRANSPORTED_PASSENGER);
