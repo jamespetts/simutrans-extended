@@ -68,7 +68,8 @@ private:
 	button_t
 		access_out[MAX_PLAYER_COUNT-1],
 		take_over_player[MAX_PLAYER_COUNT-1],
-		allow_take_over_of_company;
+		allow_take_over_of_company,
+		bt_open_ranking;
 
 	gui_aligned_container_t cont_company_takeovers;
 

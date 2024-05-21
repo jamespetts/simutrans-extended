@@ -36,3 +36,12 @@ click on the tool icon-option to open controls for information, from left to rig
 <p>
 <a href="labellist_filter.txt"><em>Marker list:</em></a> markers.
 </p>
+<p>
+<a href="depotlist.txt"><em>Depot list:</em></a> depots.
+</p>
+<p>
+<a href="vehiclelist.txt"><em>Available vehicle list:</em></a> vehicles that are available for purchase.
+</p>
+<p>
+<a href="signalboxlist.txt"><em>Signal box list:</em></a> signal boxes
+</p>

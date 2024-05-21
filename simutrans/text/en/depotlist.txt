@@ -1,0 +1,17 @@
+<title>Depot list help</title>
+
+<h1><strong>Depot</strong></h1>
+
+<p>
+The <strong>depot list</strong> window lists and gives information about the depots owned by the currently selected company.
+</p>
+<p>
+To open: click on the depot list icon in the <a href="list.txt">List Management</a> toolstrip or press CTRL+D.
+</p>
+
+<p>
+Each depot is shown by name (on the left) and position on the right. Clicking the name of the depot will open a window with information about that <a href="depot.txt">depot</a>, allowing the currently selected company to take action in that depot. Clicking on the depot icon in the list will move the main game window to be centred on that depot. Depots that have access to electrification for electric traction are shown with a red electricity flash on the left of their names.
+</p>
+
+<p>
+The list can be sorted by name, transport mode, consits or vehicles stored, position or region and filtered by transport mode.
