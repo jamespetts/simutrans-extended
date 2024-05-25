@@ -280,7 +280,7 @@ void display_veh_form_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, s
 {
 }
 
-void display_convoy_arrow_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool  CLIP_NUM_DEF_NOUSE)
+void display_convoy_arrow_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool, bool  CLIP_NUM_DEF_NOUSE)
 {
 }
 

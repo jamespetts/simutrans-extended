@@ -51,6 +51,7 @@
 
 #include "../gui/messagebox.h"
 #include "../gui/player_frame_t.h"
+#include "../gui/player_ranking_gui.h"
 
 #include "../utils/cbuffer_t.h"
 #include "../utils/simstring.h"
@@ -253,6 +254,12 @@ void player_t::set_name(const char *new_name)
 	if (ki_kontroll_t *frame = dynamic_cast<ki_kontroll_t *>( win_get_magic(magic_ki_kontroll_t) ) ) {
 		frame->update_data();
 	}
+
+	// update player ranking window
+	if (player_ranking_gui_t *frame = dynamic_cast<player_ranking_gui_t *>( win_get_magic(magic_player_ranking) ) ) {
+		frame->update_buttons();
+	}
+
 }
 
 
@@ -348,6 +355,11 @@ void player_t::set_player_color_no_message(uint8 col1, uint8 col2)
 	player_color_1 = col1;
 	player_color_2 = col2;
 	display_set_player_color_scheme( player_nr, col1, col2 );
+	// update player ranking window
+	if (player_ranking_gui_t *frame = dynamic_cast<player_ranking_gui_t *>( win_get_magic(magic_player_ranking) ) ) {
+		frame->update_buttons();
+		frame->update_chart();
+	}
 }
 
 

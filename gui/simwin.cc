@@ -77,6 +77,7 @@
 #include "display_settings.h"
 #include "optionen.h"
 #include "vehicle_class_manager.h"
+#include "player_ranking_gui.h"
 
 #include "../simversion.h"
 
@@ -654,7 +655,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_labellist:      w = new labellist_frame_t(); break;
 					case magic_color_gui_t:    w = new color_gui_t(); break;
 					case magic_optionen_gui_t: w = new optionen_gui_t(); break;
-					//case magic_signal_connector_gui_t: w = new signal_connector_gui_t(); break; // not yet support rdwr
+					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
+					case magic_player_ranking: w = new player_ranking_gui_t(); break;
 					//case magic_consist_order:  w = new consist_order_frame_t(); break; // not yet support rdwr
 
 					default:

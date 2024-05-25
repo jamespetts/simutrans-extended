@@ -53,6 +53,7 @@ public:
 		posbutton,
 		repeatarrowleft,
 		repeatarrowright,
+		swap_vertical,
 		TYPE_MASK = (1 << 6) - 1,
 
 		state            = 1 << 6,

@@ -128,17 +128,24 @@ void gui_schedule_couple_order_t::draw(scr_coord offset)
 
 
 
-gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt, uint8 line_color_index)
+gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt, uint8 line_color_index) :
+	entry_no(n, pl->get_player_nr(), 0), wpbox(0,0,e.pos) // <-- mod here for EX15
 {
 	player = pl;
 	entry  = e;
 	number = n;
 	is_current = false;
 	is_air_wt = air_wt;
-	set_table_layout(7,0);
+	set_table_layout(9,0);
 	set_spacing(scr_size(1,0));
 
-	new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
+	bt_del.init(button_t::imagebox, NULL);
+	bt_del.set_image(skinverwaltung_t::gadget->get_image_id(SKIN_GADGET_CLOSE));
+	bt_del.set_size(gui_theme_t::gui_arrow_left_size);
+	bt_del.background_color = color_idx_to_rgb(COL_RED);
+	bt_del.add_listener(this);
+	add_component(&bt_del);
+	//new_component<gui_margin_t>(D_H_SPACE); // UI TODO: Use variables to make the right margins
 
 	img_layover.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
 	img_layover.set_tooltip(translator::translate("if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop"));
@@ -153,7 +160,17 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 
 	wait_loading = new_component<gui_wait_loading_schedule_t>(entry.flags, entry.minimum_loading); // 3
 
-	entry_no = new_component<gui_schedule_entry_number_t>(number, player->get_player_nr(), 0); // 4
+	entry_no.set_visible(true);
+	entry_no.set_rigid(false);
+	wpbox.set_visible(false);
+	wpbox.set_rigid(false);
+	wpbox.set_flexible_height(true);
+	add_table(2,1)->set_spacing(scr_size(0,0));
+	{
+		add_component(&entry_no);
+		add_component(&wpbox);
+	}
+	end_table();
 
 	add_table(7,1); //5
 	{
@@ -178,18 +195,31 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 		img_ignore_choose.set_visible(false);
 		add_component(&img_ignore_choose); //5-5
 
-		lb_pos.buf().printf("(%s)", entry.pos.get_str());
-		lb_pos.update();
-		add_component(&lb_pos); // 5-6
-
 		lb_reverse.set_visible(true);
 		lb_reverse.buf().append("[<<]");
 		lb_reverse.set_color(SYSCOL_TEXT_STRONG);
 		lb_reverse.update();
-		add_component(&lb_reverse); // 5-7
+		add_component(&lb_reverse); // 5-6
+
+		new_component<gui_empty_t>(); // 5-7
 	}
 	end_table();
-	new_component<gui_fill_t>(); // 6
+
+	new_component<gui_fill_t>(); // 7
+	add_table(2,1)->set_spacing(NO_SPACING); //8
+	{
+		// pos button and label
+		bt_pos.set_typ(button_t::posbutton_automatic);
+		bt_pos.set_targetpos3d(entry.pos);
+		add_component(&bt_pos); // 8-1
+		lb_pos.buf().printf("(%s) ", entry.pos.get_str());
+		lb_pos.set_tooltip(translator::translate("can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry"));
+		lb_pos.update();
+		lb_pos.set_fixed_width(lb_pos.get_min_size().w);
+		add_component(&lb_pos); // 8-2
+	}
+	end_table();
+	new_component<gui_empty_t>(); // 9
 
 	// 2nd row
 	lb_distance.set_fixed_width(proportional_string_width("(0000km) "));
@@ -199,12 +229,31 @@ gui_schedule_entry_t::gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uin
 	lb_distance.update();
 	add_component(&lb_distance, 4); // 5
 
-	route_bar = new_component<gui_colored_route_bar_t>(line_color_index >= 254 ? color_idx_to_rgb(player->get_player_color1() + 4) : line_color_idx_to_rgb(line_color_index),0); // 6
+	PIXVAL base_color;
+	switch (line_color_index) {
+		case 254:
+			base_color = color_idx_to_rgb(player->get_player_color1()+4);
+			break;
+		case 255:
+			base_color = color_idx_to_rgb(player->get_player_color1()+2);
+			break;
+		default:
+			base_color = line_color_idx_to_rgb(line_color_index);
+			break;
+	}
+	route_bar = new_component<gui_colored_route_bar_t>(base_color, 0); // 6
+	wpbox.set_color(base_color);
 	route_bar->set_visible(true);
 
 	lb_speed_limit.set_color(SYSCOL_TEXT_STRONG);
 	add_component(&lb_speed_limit); // 7
 	new_component<gui_fill_t>();  //8
+
+	bt_swap.init(button_t::swap_vertical| button_t::automatic, NULL);
+	bt_swap.set_tooltip("helptxt_swap_schedule_entries");
+	bt_swap.add_listener(this);
+	add_component(&bt_swap); // 9
+
 	update_label();
 }
 
@@ -215,15 +264,16 @@ void gui_schedule_entry_t::update_label()
 	couple_order->set_value(entry.condition_bitfield_receiver, entry.condition_bitfield_broadcaster);
 
 	bool no_control_tower = false; // This flag is left in case the pakset doesn't have alert symbols. UI TODO: Make this unnecessary
+	wpbox.set_visible(false);
 	if(welt->lookup(entry.pos) && welt->lookup(entry.pos)->get_depot() != NULL){
 		// Depot check must come first, as depot and dock tiles can overlap at sea
-		entry_no->set_number_style(gui_schedule_entry_number_t::number_style::depot);
-		entry_no->set_color(player->get_player_color1());
+		entry_no.set_number_style(gui_schedule_entry_number_t::number_style::depot);
+		entry_no.set_color(player->get_player_color1());
 	}
 	else if (halt.is_bound()) {
 		const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count())>1;
-		entry_no->set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
-		entry_no->set_color(halt->get_owner()->get_player_color1());
+		entry_no.set_number_style(is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
+		entry_no.set_color(halt->get_owner()->get_player_color1());
 
 		if (is_air_wt) {
 			img_nc_alert.set_visible(halt->has_no_control_tower());
@@ -233,9 +283,11 @@ void gui_schedule_entry_t::update_label()
 		}
 	}
 	else {
-		entry_no->set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
-		entry_no->set_color(player->get_player_color1()); // can't get the owner of the way without passing the value of waytype
+		entry_no.set_number_style(gui_schedule_entry_number_t::number_style::waypoint);
+		entry_no.set_color(player->get_player_color1()); // can't get the owner of the way without passing the value of waytype
+		wpbox.set_visible(true);
 	}
+	entry_no.set_visible(!wpbox.is_visible());
 
 	img_layover.set_visible(entry.is_flag_set(schedule_entry_t::lay_over));
 	img_refuel.set_visible(entry.is_flag_set(schedule_entry_t::force_range_stop));
@@ -288,12 +340,16 @@ void gui_schedule_entry_t::set_speed_limit(uint32 speed)
 void gui_schedule_entry_t::set_line_style(uint8 s)
 {
 	route_bar->set_line_style(s);
+	wpbox.set_line_style(s);
 }
 
 void gui_schedule_entry_t::set_active(bool yesno)
 {
 	is_current = yesno;
 	stop.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
+	lb_pos.set_color(yesno ? SYSCOL_TEXT_HIGHLIGHT : SYSCOL_TEXT);
+	entry_no.set_highlight(yesno);
+	wpbox.set_highlight(yesno);
 }
 
 void gui_schedule_entry_t::draw(scr_coord offset)
@@ -308,7 +364,7 @@ void gui_schedule_entry_t::draw(scr_coord offset)
 bool gui_schedule_entry_t::infowin_event(const event_t *ev)
 {
 	if( ev->ev_class == EVENT_CLICK ) {
-		if(  IS_RIGHTCLICK(ev)  ||  (ev->mx < entry_no->get_pos().x+L_ENTRY_NO_WIDTH && ev->mx > entry_no->get_pos().x) ) {
+		if(  IS_RIGHTCLICK(ev)  ) {
 			// just center on it
 			welt->get_viewport()->change_world_position( entry.pos );
 		}
@@ -317,6 +373,20 @@ bool gui_schedule_entry_t::infowin_event(const event_t *ev)
 		}
 		return true;
 	}
+	return gui_aligned_container_t::infowin_event(ev);
+}
+
+bool gui_schedule_entry_t::action_triggered(gui_action_creator_t *c, value_t )
+{
+	if ( c == &bt_del ) {
+		call_listeners( DELETE_FLAG | number);
+		return true;
+	}
+	else if ( c == &bt_swap ) {
+		call_listeners( DOWN_FLAG | number);
+		return true;
+	}
+
 	return false;
 }
 
@@ -427,16 +497,21 @@ void schedule_gui_stats_t::update_schedule()
 			end_table();
 		}
 		else {
+			const grund_t* gr_0 = welt->lookup(schedule->entries[0].pos);
 			const uint8 base_line_style = schedule->is_mirrored() ? gui_colored_route_bar_t::line_style::doubled : gui_colored_route_bar_t::line_style::solid;
 			const bool is_air_wt = schedule->get_waytype() == air_wt;
+
 			for (uint i = 0; i < schedule->entries.get_count(); i++) {
+				const grund_t* gr_i = welt->lookup(schedule->entries[i].pos);
 				entries.append(new_component<gui_schedule_entry_t>(player, schedule->entries[i], i, is_air_wt, line_color_index));
 				if (i< schedule->entries.get_count()-1) {
-					entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
+					const grund_t* gr_i1 = welt->lookup(schedule->entries[i+1].pos);
+					entries[i]->set_distance(schedule->entries[i + 1].pos, 0, range_limit);
+					//entries[i]->set_distance(schedule->entries[i+1].pos, schedule->calc_distance_to_next_halt(player, i), range_limit);
 					if (schedule->entries[i].pos == schedule->entries[i+1].pos) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::thin);
 					}
-					else if(welt->lookup(schedule->entries[i].pos)->get_depot() || welt->lookup(schedule->entries[i+1].pos)->get_depot()) {
+					else if((gr_i && gr_i->get_depot()) || (gr_i1 && gr_i1->get_depot())) {
 						entries[i]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 					}
 					else {
@@ -451,7 +526,7 @@ void schedule_gui_stats_t::update_schedule()
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::reversed);
 				}
 				else {
-					entries[schedule->entries.get_count()-1]->set_distance(welt->lookup(schedule->entries[0].pos)->get_depot() ? schedule->entries[1].pos : schedule->entries[0].pos, 0, range_limit);
+					entries[schedule->entries.get_count()-1]->set_distance((gr_0 && gr_0->get_depot()) ? schedule->entries[1].pos : schedule->entries[0].pos, 0, range_limit);
 					entries[schedule->entries.get_count()-1]->set_line_style(gui_colored_route_bar_t::line_style::dashed);
 				}
 			}
@@ -479,7 +554,21 @@ void schedule_gui_stats_t::draw(scr_coord offset)
 bool schedule_gui_stats_t::action_triggered(gui_action_creator_t *, value_t v)
 {
 	// has to be one of the entries
-	call_listeners(v);
+	if( v.i & DELETE_FLAG ) {
+		uint8 delete_stop = v.i & 0x00FF;
+		highlight_schedule( schedule, false );
+		schedule->remove_entry( delete_stop );
+		highlight_schedule(  schedule, true );
+		call_listeners( schedule->get_current_stop() );
+	}
+	else if( v.i & DOWN_FLAG ) {
+		uint8 down_stop = v.i & 0x00FF;
+		schedule->move_entry_backward( down_stop );
+		call_listeners( schedule->get_current_stop() );
+	}
+	else {
+		call_listeners(v);
+	}
 	return true;
 }
 
@@ -539,7 +628,7 @@ void schedule_gui_t::init(schedule_t* schedule_, player_t* player, convoihandle_
 	}
 	old_line_count = 0;
 
-	build_table();
+	init_components();
 }
 
 
@@ -564,6 +653,67 @@ void schedule_gui_t::init(linehandle_t line)
 		img_refuel.set_visible(min_range>0 && min_range<UINT16_MAX);
 		lb_min_range.set_visible(min_range>0 && min_range<UINT16_MAX);
 	}
+	init_components();
+}
+
+// Initializations that are not required when executing the revert schedule are performed here.
+void schedule_gui_t::init_components()
+{
+	// init frame
+	set_owner(player);
+
+	line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
+
+	filter_btn_all_pas.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
+	filter_btn_all_pas.set_tooltip("filter_pas_line");
+	filter_btn_all_pas.add_listener(this);
+
+	filter_btn_all_mails.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
+	filter_btn_all_mails.set_tooltip("filter_mail_line");
+	filter_btn_all_mails.add_listener(this);
+
+	filter_btn_all_freights.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
+	filter_btn_all_freights.set_tooltip("filter_freight_line");
+	filter_btn_all_freights.add_listener(this);
+
+	bt_promote_to_line.init(button_t::roundbox, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_promote_to_line.set_tooltip("Create a new line based on this schedule");
+	bt_promote_to_line.add_listener(this);
+
+	img_electric.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
+	img_electric.set_tooltip(translator::translate("This line/convoy needs electrification"));
+	img_electric.set_rigid(false);
+
+	bt_add.init(button_t::roundbox_state, "Add Stop", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_add.set_tooltip("Appends stops at the end of the schedule");
+	bt_add.add_listener(this);
+
+	bt_insert.init(button_t::roundbox_state, "Ins Stop", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_insert.set_tooltip("Insert stop before the current stop");
+	bt_insert.add_listener(this);
+
+	//bt_revert.init(button_t::roundbox, "Revert schedule");
+	//bt_revert.set_tooltip("Revert to original schedule");
+	//bt_revert.add_listener(this);
+
+	lb_min_range.set_fixed_width(proportional_string_width("8888km "));
+	lb_min_range.set_rigid(false);
+
+	bt_mirror.init(button_t::square_automatic, "return ticket");
+	bt_mirror.set_tooltip("Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.");
+	bt_mirror.add_listener(this);
+
+	bt_bidirectional.init(button_t::square_automatic, "Alternate directions");
+	bt_bidirectional.set_tooltip("When adding convoys to the line, every second convoy will follow it in the reverse direction.");
+	bt_bidirectional.add_listener(this);
+
+	bt_same_spacing_shift.init(button_t::square_automatic, "Use same shift for all stops.");
+	bt_same_spacing_shift.set_tooltip("Use one spacing shift value for all stops in schedule.");
+	bt_same_spacing_shift.add_listener(this);
+
 	build_table();
 }
 
@@ -572,9 +722,6 @@ void schedule_gui_t::build_table()
 	// prepare editing
 	old_schedule->start_editing();
 	schedule = old_schedule->copy();
-
-	// init frame
-	set_owner(player);
 
 	// init stats
 	stats->player = player;
@@ -590,38 +737,24 @@ void schedule_gui_t::build_table()
 		add_table(4,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 		{
 			new_component<gui_label_t>("Serves Line:");
-			line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
 			line_selector.clear_elements();
 			init_line_selector();
 			line_selector.add_listener(this);
 			add_component(&line_selector);
 
 			add_table(3,1)->set_spacing(scr_size(0,0));
-			filter_btn_all_pas.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-			filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
-			filter_btn_all_pas.set_tooltip("filter_pas_line");
-			filter_btn_all_pas.disable();
-			filter_btn_all_pas.add_listener(this);
-			add_component(&filter_btn_all_pas);
+			{
+				filter_btn_all_pas.disable();
+				add_component(&filter_btn_all_pas);
 
-			filter_btn_all_mails.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-			filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
-			filter_btn_all_mails.set_tooltip("filter_mail_line");
-			filter_btn_all_mails.disable();
-			filter_btn_all_mails.add_listener(this);
-			add_component(&filter_btn_all_mails);
+				filter_btn_all_mails.disable();
+				add_component(&filter_btn_all_mails);
 
-			filter_btn_all_freights.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-			filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
-			filter_btn_all_freights.set_tooltip("filter_freight_line");
-			filter_btn_all_freights.disable();
-			filter_btn_all_freights.add_listener(this);
-			add_component(&filter_btn_all_freights);
+				filter_btn_all_freights.disable();
+				add_component(&filter_btn_all_freights);
+			}
 			end_table();
 
-			bt_promote_to_line.init(button_t::roundbox, "promote to line", scr_coord(0, 0), D_BUTTON_SIZE);
-			bt_promote_to_line.set_tooltip("Create a new line based on this schedule");
-			bt_promote_to_line.add_listener(this);
 			add_component(&bt_promote_to_line);
 		}
 		end_table();
@@ -637,29 +770,21 @@ void schedule_gui_t::build_table()
 			add_table(3,1)->set_margin(scr_size(D_H_SPACE, 0), scr_size(D_H_SPACE, D_V_SPACE));
 			{
 				new_component<gui_waytype_image_box_t>(schedule->get_waytype());
-				img_electric.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
-				img_electric.set_tooltip(translator::translate("This line/convoy needs electrification"));
-				img_electric.set_rigid(false);
 				add_component(&img_electric);
 
 				add_table(3,1)->set_spacing(scr_size(0,0));
-				bt_add.init(button_t::roundbox_state | button_t::flexible, "Add Stop", scr_coord(0,0), D_BUTTON_SIZE);
-				bt_add.set_tooltip("Appends stops at the end of the schedule");
-				bt_add.add_listener(this);
-				bt_add.pressed = true;
-				add_component(&bt_add);
+				{
+					bt_add.pressed = true;
+					add_component(&bt_add);
 
-				bt_insert.init(button_t::roundbox_state | button_t::flexible, "Ins Stop", scr_coord(0,0), D_BUTTON_SIZE);
-				bt_insert.set_tooltip("Insert stop before the current stop");
-				bt_insert.add_listener(this);
-				bt_insert.pressed = false;
-				add_component(&bt_insert);
+					bt_insert.pressed = false;
+					add_component(&bt_insert);
 
-				bt_remove.init(button_t::roundbox_state | button_t::flexible, "Del Stop", scr_coord(0,0), D_BUTTON_SIZE);
-				bt_remove.set_tooltip("Delete the current stop");
-				bt_remove.add_listener(this);
-				bt_remove.pressed = false;
-				add_component(&bt_remove);
+					//bt_revert.pressed = false;
+					//bt_revert.enable(false); // schedule was not changed yet
+					//add_component(&bt_revert);
+					new_component<gui_margin_t>(D_BUTTON_WIDTH);
+				}
 				end_table();
 			}
 			end_table();
@@ -677,9 +802,7 @@ void schedule_gui_t::build_table()
 					lb_min_range.buf().printf("%u km", min_range);
 					lb_min_range.update();
 				}
-				lb_min_range.set_fixed_width(proportional_string_width("8888km "));
 				lb_min_range.set_visible(min_range && min_range != UINT16_MAX);
-				lb_min_range.set_rigid(false);
 				add_component(&lb_min_range);
 
 				new_component<gui_fill_t>();
@@ -687,18 +810,12 @@ void schedule_gui_t::build_table()
 				{
 					new_component<gui_image_t>()->set_image(skinverwaltung_t::reverse_arrows ? skinverwaltung_t::reverse_arrows->get_image_id(0) : IMG_EMPTY, true);
 					// Mirror schedule/alternate directions
-					bt_mirror.init(button_t::square_automatic, "return ticket");
-					bt_mirror.set_tooltip("Vehicles make a round trip between the schedule endpoints, visiting all stops in reverse after reaching the end.");
 					bt_mirror.pressed = schedule->is_mirrored();
-					bt_mirror.add_listener(this);
 					add_component(&bt_mirror);
 				}
 				end_table();
 
-				bt_bidirectional.init(button_t::square_automatic, "Alternate directions");
-				bt_bidirectional.set_tooltip("When adding convoys to the line, every second convoy will follow it in the reverse direction.");
 				bt_bidirectional.pressed = schedule->is_bidirectional();
-				bt_bidirectional.add_listener(this);
 				add_component(&bt_bidirectional);
 			}
 			end_table();
@@ -718,10 +835,7 @@ void schedule_gui_t::build_table()
 			const uint8 spacing_shift_mode = welt->get_settings().get_spacing_shift_mode();
 			if (!cnv.is_bound() && spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE) {
 				//Same spacing button
-				bt_same_spacing_shift.init(button_t::square_automatic, "Use same shift for all stops.");
-				bt_same_spacing_shift.set_tooltip("Use one spacing shift value for all stops in schedule.");
 				bt_same_spacing_shift.pressed = schedule->is_same_spacing_shift();
-				bt_same_spacing_shift.add_listener(this);
 				add_component(&bt_same_spacing_shift);
 			}
 
@@ -737,7 +851,7 @@ void schedule_gui_t::build_table()
 
 			cont_settings_1.set_table_frame(true);
 			cont_settings_1.set_table_layout(1,0);
-			cont_settings_1.set_margin(scr_size(0, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
+			cont_settings_1.set_margin(scr_size(D_H_SPACE, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
 			cont_settings_1.add_table(2,0)->set_spacing(scr_size(0,0));
 			{
 				// Minimum loading
@@ -1335,7 +1449,8 @@ void schedule_gui_t::update_selection()
 	if (!schedule->empty()) {
 		schedule->set_current_stop(min(schedule->get_count() - 1, schedule->get_current_stop()));
 		const uint8 current_stop = schedule->get_current_stop();
-		const bool is_depot = welt->lookup(schedule->get_current_entry().pos)->get_depot();
+		const grund_t *gr = welt->lookup(schedule->get_current_entry().pos);
+		const bool is_depot = gr ? (welt->lookup(schedule->get_current_entry().pos)->get_depot()!=NULL) : false;
 		bt_wait_for_time.enable(is_depot ? false : true); // ??? waypoint ?
 		bt_wait_for_time.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time);
 		bt_ignore_choose.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
@@ -1453,7 +1568,7 @@ void schedule_gui_t::update_selection()
 				entry_no->init(current_stop + 1, 0, gui_schedule_entry_number_t::number_style::depot);
 			}
 			else {
-				entry_no->init(0, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
+				entry_no->init(old_line.is_bound() ? old_line->get_line_color_index() : 255, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
 			}
 
 			// tab1 componets
@@ -1547,6 +1662,18 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 			minimap_t::get_instance()->set_selected_cnv(cnv);
 		}
 	}
+	else if (!line_selector.is_dropped() && ((ev)->ev_code == MOUSE_WHEELUP || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_UP)) && schedule->entries.get_count()>1) {
+		if (schedule->get_current_stop()){
+			schedule->set_current_stop(schedule->get_current_stop()-1);
+			update_selection();
+		}
+		return true;
+	}
+	else if (!line_selector.is_dropped() && ((ev)->ev_code == MOUSE_WHEELDOWN || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_DOWN)) && schedule->entries.get_count()>1 && schedule->get_current_stop() < schedule->entries.get_count()) {
+		schedule->set_current_stop(schedule->get_current_stop()+1);
+		update_selection();
+		return true;
+	}
 
 	return gui_frame_t::infowin_event(ev);
 }
@@ -1560,23 +1687,17 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		mode = adding;
 		bt_add.pressed = true;
 		bt_insert.pressed = false;
-		bt_remove.pressed = false;
 		update_tool( true );
 	}
 	else if(comp == &bt_insert) {
 		mode = inserting;
 		bt_add.pressed = false;
 		bt_insert.pressed = true;
-		bt_remove.pressed = false;
 		update_tool( true );
 	}
-	else if(comp == &bt_remove) {
-		mode = removing;
-		bt_add.pressed = false;
-		bt_insert.pressed = false;
-		bt_remove.pressed = true;
-		update_tool( false );
-	}
+	/*else if(comp == &bt_revert) {
+		// revert changes and tell listener
+	}*/
 	else if (comp == &bt_mirror) {
 		schedule->set_mirrored(bt_mirror.pressed);
 	}

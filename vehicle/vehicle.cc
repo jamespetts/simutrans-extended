@@ -33,7 +33,6 @@
 #include "air_vehicle.h"
 
 #include "../path_explorer.h"
-#include "../freight_list_sorter.h"
 
 void traffic_vehicle_t::flush_travel_times(strasse_t* str)
 {
@@ -2141,43 +2140,6 @@ uint32 vehicle_t::get_cargo_weight() const
 }
 
 
-void vehicle_t::get_cargo_info(cbuffer_t & buf) const
-{
-	vector_tpl<vector_tpl<ware_t>> fracht_array(number_of_classes);
-	for (uint8 i = 0; i < number_of_classes; i++)
-	{
-		vector_tpl<ware_t> this_iteration_vector(fracht->get_count());
-		for(auto w : fracht[i])
-		{
-			this_iteration_vector.append(w);
-		}
-		fracht_array.append(this_iteration_vector);
-	}
-
-	INT_CHECK("simconvoi 2643");
-
-	buf.clear();
-
-	if (get_cargo_type() == goods_manager_t::passengers || get_cargo_type() == goods_manager_t::mail)
-	{
-		uint8 freight_info_order = 9; // = by_accommodation_detail
-		ware_t cargo_type = get_cargo_type();
-		for (uint8 i = 0; i < number_of_classes; i++)
-		{
-			freight_list_sorter_t::sort_freight(fracht_array[i], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, NULL, "loaded", get_reassigned_class(i), get_accommodation_capacity(i), &cargo_type, true);
-		}
-	}
-	else
-	{
-		uint8 freight_info_order = 6; // = by_destination_detail
-		slist_tpl <ware_t>capacity;
-		ware_t ware = get_cargo_type();
-		ware.menge = desc->get_total_capacity();
-		capacity.insert(ware);
-		freight_list_sorter_t::sort_freight(fracht_array[0], buf, (freight_list_sorter_t::sort_mode_t)freight_info_order, &capacity, "loaded", 0, 0, NULL, true);
-	}
-}
-
 /**
  * Delete all vehicle load
  */
@@ -2373,20 +2335,42 @@ uint16 vehicle_t::get_overcrowded_capacity(uint8 g_class) const
 	{
 		return 0;
 	}
-	for (uint8 i = 0; i < number_of_classes; i++)
-	{
-		if (desc->get_capacity(i) > 0)
-		{
-			return i == g_class ? desc->get_overcrowded_capacity() : 0;
+	// The overcrowded capacity class is the lowest fare class of this vehicle.
+	uint8 lowest_fare_class = 0;
+	for (uint8 i = 0; i < number_of_classes; i++) {
+		if (get_fare_capacity(i) > 0) {
+			lowest_fare_class = i;
+			break;
 		}
 	}
-	return 0;
+	if (g_class != lowest_fare_class) return 0;
+
+	return desc->get_overcrowded_capacity();
 }
 
 uint16 vehicle_t::get_overcrowding(uint8 g_class) const
 {
-	const uint16 carried = get_total_cargo_by_class(g_class);
-	const uint16 capacity = get_accommodation_capacity(g_class); // Do not count a vehicle as overcrowded if the higher class passengers can travel in lower class accommodation and still get a seat.
+	if (g_class >= number_of_classes)
+	{
+		return 0;
+	}
+	// The overcrowded capacity class is the lowest fare class of this vehicle.
+	uint8 lowest_fare_class = 0;
+	// Passengers are placed in each accommodation, so the lowest accommodation must be referenced. - fracht[a_class]
+	uint8 lowest_accommodation_class = 0;
+	for (uint8 i = 0; i < number_of_classes; i++) {
+		if (get_fare_capacity(i) > 0 && !lowest_fare_class) {
+			lowest_fare_class = i;
+		}
+		if (get_accommodation_capacity(i) > 0 && !lowest_accommodation_class) {
+			lowest_accommodation_class = i;
+		}
+		if (lowest_fare_class && lowest_accommodation_class) break;
+	}
+	if (g_class != lowest_fare_class) return 0;
+
+	const uint16 carried = get_total_cargo_by_class(lowest_accommodation_class);
+	const uint16 capacity = get_fare_capacity(g_class); // Do not count a vehicle as overcrowded if the higher class passengers can travel in lower class accommodation and still get a seat.
 
 	return carried - capacity > 0 ? carried - capacity : 0;
 }

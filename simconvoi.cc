@@ -23,7 +23,6 @@
 #include "simintr.h"
 #include "simlinemgmt.h"
 #include "simline.h"
-#include "freight_list_sorter.h"
 
 #include "gui/minimap.h"
 #include "gui/convoi_info_t.h"
@@ -2655,6 +2654,8 @@ uint16 convoi_t::get_overcrowded() const
 	uint16 overcrowded = 0;
 	for(uint8 i = 0; i < vehicle_count; i ++)
 	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+
 		for (uint8 j = 0; j < vehicle[i]->get_desc()->get_number_of_classes(); j++)
 		{
 			overcrowded += vehicle[i]->get_overcrowding(j);
@@ -2663,15 +2664,41 @@ uint16 convoi_t::get_overcrowded() const
 	return overcrowded;
 }
 
+uint16 convoi_t::get_overcrowded(uint8 fare_class) const
+{
+	uint16 overcrowded = 0;
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+		if (!vehicle[i]->get_overcrowded_capacity(fare_class)) continue;
+
+		overcrowded += vehicle[i]->get_overcrowding(fare_class);
+	}
+	return overcrowded;
+}
+
+
 uint16 convoi_t::get_overcrowded_capacity() const
 {
 	uint16 standing_capacity = 0;
 	for (uint8 i = 0; i < vehicle_count; i++)
 	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+
 		for (uint8 j = 0; j < vehicle[i]->get_desc()->get_number_of_classes(); j++)
 		{
 			standing_capacity += vehicle[i]->get_overcrowded_capacity(j);
 		}
+	}
+	return standing_capacity;
+}
+
+uint16 convoi_t::get_overcrowded_capacity(uint8 fare_class) const
+{
+	uint16 standing_capacity = 0;
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		standing_capacity += vehicle[i]->get_overcrowded_capacity(fare_class);
 	}
 	return standing_capacity;
 }
@@ -7015,6 +7042,9 @@ void convoi_t::set_next_reservation_index(uint16 n)
 
 uint16 convoi_t::get_current_schedule_order() const
 {
+	if (schedule == NULL) {
+		return UINT16_MAX;
+	}
 	if (reverse_schedule) {
 		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
 	}

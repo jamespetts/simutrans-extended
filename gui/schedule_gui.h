@@ -33,6 +33,9 @@ class cbuffer_t;
 class loadsave_t;
 class gui_schedule_entry_t;
 
+#define DELETE_FLAG (0x8000)
+//#define UP_FLAG (0x4000)
+#define DOWN_FLAG (0x2000)
 
 class gui_wait_loading_schedule_t : public gui_component_t
 {
@@ -71,7 +74,7 @@ public:
 /**
  * One entry in the list of schedule entries.
  */
-class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t
+class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_creator_t, public action_listener_t
 {
 	schedule_entry_t entry;
 	bool is_current;
@@ -81,10 +84,13 @@ class gui_schedule_entry_t : public gui_aligned_container_t, public gui_action_c
 	gui_image_t img_hourglass, img_nc_alert, img_layover, img_refuel, img_ignore_choose;
 	gui_label_buf_t stop;
 	gui_label_buf_t lb_reverse, lb_distance, lb_pos, lb_speed_limit;
-	gui_schedule_entry_number_t *entry_no;
+	gui_schedule_entry_number_t entry_no;
+	gui_waypoint_box_t wpbox;
 	gui_colored_route_bar_t *route_bar;
-	gui_wait_loading_schedule_t *wait_loading;
 	gui_schedule_couple_order_t *couple_order;
+	gui_wait_loading_schedule_t *wait_loading;
+	button_t bt_del, bt_swap;
+	button_t bt_pos;
 
 public:
 	gui_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n, bool air_wt = false, uint8 line_color_index = 254);
@@ -102,6 +108,8 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 	bool infowin_event(const event_t *ev) OVERRIDE;
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };
 
 
@@ -184,7 +192,7 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 
 	// UI TODO: Make the below features work with the new UI (ignore choose, layover, range stop, consist order)
 	// always needed
-	button_t bt_add, bt_insert, bt_remove, bt_consist_order; // stop management
+	button_t bt_add, bt_insert, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
 	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
 	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
@@ -262,6 +270,7 @@ protected:
 	uint16 min_range = UINT16_MAX;
 	gui_label_buf_t lb_min_range;
 
+	void init_components();
 	void build_table();
 
 	inline void set_min_range(uint16 range) { stats->range_limit = range; };

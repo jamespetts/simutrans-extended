@@ -1467,8 +1467,12 @@ public:
 	// @author: jamespetts
 	// Returns the number of standing passengers (etc.) in this convoy.
 	uint16 get_overcrowded() const;
+	uint16 get_overcrowded(uint8 fare_class) const;
 
+	// Returns the total regardless of fare class
 	uint16 get_overcrowded_capacity() const;
+	// Returns only the overcrowded capacity for the specified fare class
+	uint16 get_overcrowded_capacity(uint8 fare_class) const;
 
 	// @author: jamespetts
 	// Returns the average comfort of this convoy,

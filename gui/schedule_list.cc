@@ -157,96 +157,6 @@ const char *schedule_list_gui_t::sort_text[SORT_MODES] = {
 };
 
 
-gui_line_waiting_status_t::gui_line_waiting_status_t(linehandle_t line_)
-{
-	line = line_;
-
-	set_table_layout(1, 0);
-	set_spacing(scr_size(1, 0));
-	init();
-}
-
-void gui_line_waiting_status_t::init()
-{
-	remove_all();
-	if (line.is_bound()) {
-		schedule = line->get_schedule();
-		if( !schedule->get_count() ) return; // nothing to show
-
-		uint8 cols; // table cols
-		cols = line->get_goods_catg_index().get_count()+show_name+1;
-
-		add_table(cols, 0);
-		{
-			// header
-			new_component<gui_empty_t>();
-			if (show_name) {
-				new_component<gui_label_t>("stations");
-			}
-			for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
-				if (line->get_goods_catg_index().is_contained(catg_index) ) {
-					add_table(2,1);
-					{
-						new_component<gui_image_t>(goods_manager_t::get_info_catg_index(catg_index)->get_catg_symbol(), 0, ALIGN_NONE, true);
-						new_component<gui_label_t>(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name());
-					}
-					end_table();
-				}
-			}
-
-			// border
-			new_component<gui_empty_t>();
-			for (uint8 i = 1; i < cols; ++i) {
-				new_component<gui_border_t>();
-			}
-
-			uint8 entry_idx = 0;
-			FORX(minivec_tpl<schedule_entry_t>, const& i, schedule->entries, ++entry_idx) {
-				halthandle_t const halt = haltestelle_t::get_halt(i.pos, line->get_owner());
-				if( !halt.is_bound() ) { continue; }
-
-				const bool is_interchange = (halt->registered_lines.get_count() + halt->registered_convoys.get_count()) > 1;
-				new_component<gui_schedule_entry_number_t>(entry_idx, halt->get_owner()->get_player_color1(),
-					is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
-					scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)),
-					halt->get_basis_pos3d()
-				);
-
-				if (show_name) {
-					const bool can_serve = halt->can_serve(line);
-					gui_label_buf_t *lb = new_component<gui_label_buf_t>(can_serve ? SYSCOL_TEXT : COL_INACTIVE);
-					if (!can_serve) {
-						lb->buf().printf("(%s)", halt->get_name());
-					}
-					else {
-						lb->buf().append(halt->get_name());
-					}
-					lb->update();
-				}
-
-				for (uint8 catg_index = 0; catg_index < goods_manager_t::get_max_catg_index(); catg_index++) {
-					if (line->get_goods_catg_index().is_contained(catg_index)) {
-						new_component<gui_halt_waiting_catg_t>(halt, catg_index);
-					}
-				}
-			}
-		}
-		end_table();
-	}
-}
-
-void gui_line_waiting_status_t::draw(scr_coord offset)
-{
-	if (line.is_bound()) {
-		if (!line->get_schedule()->matches(world(), schedule)) {
-			init();
-		}
-	}
-	set_size(get_size());
-	gui_aligned_container_t::draw(offset);
-}
-
-
 schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	gui_frame_t(translator::translate("Line Management"), player_),
 	player(player_),
@@ -358,7 +268,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 
 	scroll_line_info.set_visible(false);
 	cont_line_info.set_table_layout(1,0);
-	cont_line_info.set_margin(scr_size(D_MARGIN_LEFT,D_V_SPACE),scr_size(0,D_MARGIN_BOTTOM));
+	cont_line_info.set_margin(scr_size(D_MARGIN_LEFT,D_V_SPACE),scr_size(D_H_SPACE,D_MARGIN_BOTTOM));
 
 	cont_line_info.add_table(2,3)->set_spacing(scr_size(0,0));
 	{
@@ -386,23 +296,25 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	}
 	cont_line_info.end_table();
 
-	cont_line_info.add_table(2,0)->set_spacing(scr_size(D_H_SPACE, 0));
+	gui_aligned_container_t *tbl = cont_line_info.add_table(2,0);
+	tbl->set_spacing(scr_size(D_H_SPACE, 0));
+	tbl->set_table_frame(true,true);
+	tbl->set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_LEFT, D_V_SPACE));
 	{
 		cont_line_info.add_component(&halt_entry_origin);
 		cont_line_info.add_component(&lb_line_origin);
 
 		cont_line_info.add_component(&routebar_middle);
-		cont_line_info.new_component<gui_empty_t>();
+		cont_line_info.new_component<gui_fill_t>();
 
 		cont_line_info.add_component(&halt_entry_dest);
 		cont_line_info.add_component(&lb_line_destination);
 	}
 	cont_line_info.end_table();
 
-
-	cont_line_info.add_table(3,1);
+	cont_line_info.add_component(&lb_travel_distance);
+	cont_line_info.add_table(2,1);
 	{
-		cont_line_info.add_component(&lb_travel_distance);
 		if (skinverwaltung_t::service_frequency) {
 			cont_line_info.new_component<gui_image_t>(skinverwaltung_t::service_frequency->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Service frequency"));
 		}
@@ -418,11 +330,16 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 
 	cont_line_info.new_component<gui_divider_t>();
 	// Transport density
-	cont_line_info.new_component<gui_label_t>("Transportation density");
-	cont_transport_density.set_table_layout(4,0);
+	cont_line_info.new_component<gui_label_t>("Monthly transportation density");
+	cont_transport_density.set_table_layout(3,0);
 	cont_transport_density.set_spacing(scr_size(1,1));
 	cont_transport_density.set_table_frame(true,true);
-	cont_line_info.add_component(&cont_transport_density);
+	cont_line_info.add_table(2, 1);
+	{
+		cont_line_info.add_component(&cont_transport_density);
+		cont_line_info.new_component<gui_fill_t>();
+	}
+	cont_line_info.end_table();
 
 	scroll_line_info.set_pos(scr_coord(0, 8 + SCL_HEIGHT + D_BUTTON_HEIGHT + D_BUTTON_HEIGHT + 2));
 	add_component(&scroll_line_info);
@@ -565,11 +482,38 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	info_tabs.add_tab(&scroll_times_history, translator::translate("times_history"));
 
 	cont_tab_haltlist.set_table_layout(1,0);
-	bt_show_halt_name.init(button_t::square_state, "show station names");
-	bt_show_halt_name.set_tooltip("helptxt_show_station_name");
-	bt_show_halt_name.pressed=true;
-	bt_show_halt_name.add_listener(this);
-	cont_tab_haltlist.add_component(&bt_show_halt_name);
+	cont_tab_haltlist.add_table(2,1);
+	{
+		bt_hw_filter_by_line.init(button_t::square_state, "filter_by_line");
+		bt_hw_filter_by_line.set_tooltip("Show only cargoes waiting for this line");
+		bt_hw_filter_by_line.pressed = true;
+		bt_hw_filter_by_line.add_listener(this);
+		cont_tab_haltlist.add_component(&bt_hw_filter_by_line);
+
+		cont_tab_haltlist.new_component<gui_fill_t>();
+	}
+	cont_tab_haltlist.end_table();
+
+	cont_tab_haltlist.add_table(4,1);
+	{
+		bt_hw_show_halt_name.init(button_t::square_state, "show station names");
+		bt_hw_show_halt_name.set_tooltip("helptxt_show_station_name");
+		bt_hw_show_halt_name.pressed=true;
+		bt_hw_show_halt_name.add_listener(this);
+		cont_tab_haltlist.add_component(&bt_hw_show_halt_name);
+
+		cont_tab_haltlist.new_component<gui_margin_t>(LINEASCENT);
+
+		bt_hw_divided_class.init(button_t::square_state, "Divided by class");
+		bt_hw_divided_class.set_tooltip("Waiting cargoes are displayed separately for each class.");
+		bt_hw_divided_class.pressed = false;
+		bt_hw_divided_class.add_listener(this);
+		cont_tab_haltlist.add_component(&bt_hw_divided_class);
+
+		cont_tab_haltlist.new_component<gui_fill_t>();
+	}
+	cont_tab_haltlist.end_table();
+
 	cont_tab_haltlist.add_component(&cont_haltlist);
 	info_tabs.add_tab(&scroll_halt_waiting, translator::translate("waiting_status"));
 
@@ -843,9 +787,17 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		filter_btn_all_freights.pressed = line_type_flags & (1 << simline_t::all_freight);
 		build_line_list(tabs.get_active_tab_index());
 	}
-	else if (comp == &bt_show_halt_name) {
-		bt_show_halt_name.pressed = !bt_show_halt_name.pressed;
-		cont_haltlist.set_show_name( bt_show_halt_name.pressed );
+	else if (comp == &bt_hw_filter_by_line) {
+		bt_hw_filter_by_line.pressed = !bt_hw_filter_by_line.pressed;
+		cont_haltlist.set_filter_by_line( bt_hw_filter_by_line.pressed );
+	}
+	else if (comp == &bt_hw_show_halt_name) {
+		bt_hw_show_halt_name.pressed = !bt_hw_show_halt_name.pressed;
+		cont_haltlist.set_show_name( bt_hw_show_halt_name.pressed );
+	}
+	else if (comp == &bt_hw_divided_class) {
+		bt_hw_divided_class.pressed = !bt_hw_divided_class.pressed;
+		cont_haltlist.set_divided_by_class(bt_hw_divided_class.pressed);
 	}
 	else if (comp == &reset_all_pass_button) {
 		cbuffer_t buf;
@@ -965,7 +917,7 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 	}
 }
 
-#define GOODS_SYMBOL_CELL_WIDTH 14 // TODO: This will be used in common with halt detail in the future
+
 void schedule_list_gui_t::display(scr_coord pos)
 {
 	uint32 icnv = line->count_convoys();
@@ -993,29 +945,33 @@ void schedule_list_gui_t::display(scr_coord pos)
 			halt_symbol_style = gui_schedule_entry_number_t::interchange;
 		}
 		halt_entry_origin.init(halt_entry_idx[0], origin_halt->get_owner()->get_player_color1(), halt_symbol_style, origin_halt->get_basis_pos3d());
+		if (line->get_schedule()->is_mirrored()) {
+			routebar_middle.set_line_style(gui_colored_route_bar_t::doubled);
+		}
+		else {
+			routebar_middle.set_line_style(gui_colored_route_bar_t::downward);
+		}
+		if ( line->get_line_color()==0 ) {
+			routebar_middle.set_color( player->get_player_color1() ); // uint8
+		}
+		else {
+			PIXVAL line_color = line->get_line_color();
+			if (!is_dark_color(line_color)) line_color = display_blend_colors(line_color, color_idx_to_rgb(COL_BLACK), 15);
+			routebar_middle.set_color( line_color );
+		}
 		if (destination_halt.is_bound()) {
+			halt_entry_dest.set_visible(true);
 			halt_symbol_style = gui_schedule_entry_number_t::halt;
 			if ((destination_halt->registered_lines.get_count() + destination_halt->registered_convoys.get_count()) > 1) {
 				halt_symbol_style = gui_schedule_entry_number_t::interchange;
 			}
 			halt_entry_dest.init(halt_entry_idx[1], destination_halt->get_owner()->get_player_color1(), halt_symbol_style, destination_halt->get_basis_pos3d());
-			if (line->get_schedule()->is_mirrored()) {
-				routebar_middle.set_line_style(gui_colored_route_bar_t::doubled);
-			}
-			else {
-				routebar_middle.set_line_style(gui_colored_route_bar_t::downward);
-			}
-			if ( line->get_line_color()==0 ) {
-				routebar_middle.set_color( player->get_player_color1() ); // uint8
-			}
-			else {
-				PIXVAL line_color = line->get_line_color();
-				if (!is_dark_color(line_color)) line_color = display_blend_colors(line_color, color_idx_to_rgb(COL_BLACK), 15);
-				routebar_middle.set_color( line_color );
-			}
 			lb_line_destination.buf().append(destination_halt->get_name());
 			lb_travel_distance.buf().printf("%s: %.1fkm ", translator::translate("travel_distance"), (float)(line->get_travel_distance()*world()->get_settings().get_meters_per_tile()/1000.0));
 			lb_travel_distance.update();
+		}
+		else {
+			halt_entry_dest.set_visible(false);
 		}
 	}
 	lb_line_origin.update();
@@ -1096,7 +1052,7 @@ void schedule_list_gui_t::display(scr_coord pos)
 	if (buf.len() > 0) {
 		display_proportional_clip_rgb(pos.x + left, pos.y + top, buf, ALIGN_LEFT, line->get_state_color(), true);
 	}
-	cont_line_info.set_size(cont_line_info.get_size());
+	cont_line_info.set_size(cont_line_info.get_min_size());
 }
 
 
@@ -1183,14 +1139,13 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		cont_times_history.set_visible(true);
 		cont_times_history.remove_all();
 		cont_times_history.new_component<gui_times_history_t>(new_line, convoihandle_t(), false);
-		if (!new_line->get_schedule()->is_mirrored()) {
+		if (!new_line->get_schedule()->is_mirrored() && new_line->has_reverse_scheduled_convoy()) {
 			cont_times_history.new_component<gui_times_history_t>(new_line, convoihandle_t(), true);
 		}
 
 		cont_haltlist.set_visible(true);
 		cont_haltlist.set_line(new_line);
 
-		resize(scr_size(0,0));
 		livery_selector.set_visible(true);
 
 		// fill container with info of line's convoys
@@ -1323,7 +1278,6 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 			th->set_fixed_width(D_FIXED_SYMBOL_WIDTH);
 			cont_transport_density.new_component<gui_table_header_t>("Last Month")->set_flexible(true, false);
 			cont_transport_density.new_component<gui_table_header_t>("Yearly average")->set_flexible(true, false);
-			cont_transport_density.new_component<gui_table_header_t>("")->set_flexible(true, false);
 
 			for (uint8 j=0; j<3; j++) {
 				// 0=pax, 1=mail, 2=freight
@@ -1351,21 +1305,6 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 				sint64 hist_sum = new_line->get_finance_history(1, j==0? LINE_PAX_DISTANCE : j==1? LINE_MAIL_DISTANCE: LINE_PAYLOAD_DISTANCE);
 				gui_table_cell_buf_t *td = cont_transport_density.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::right, true);
 				td->buf().printf("%.1f ", hist_sum/line_distance);
-				td->set_padding(scr_size(2,2));
-				td->set_flexible(true, false);
-				td->update();
-				for (uint8 i=2; i < MAX_MONTHS; i++) {
-					hist_sum += new_line->get_finance_history(2, j==0 ? LINE_PAX_DISTANCE : j==1 ? LINE_MAIL_DISTANCE : LINE_PAYLOAD_DISTANCE);
-				}
-				// yearly average
-				td = cont_transport_density.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::right, true);
-				td->buf().printf("%.1f ", hist_sum / line_distance / (MAX_MONTHS-1));
-				td->set_padding(scr_size(2,2));
-				td->set_flexible(true, false);
-				td->update();
-
-				td = cont_transport_density.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::left, true);
-				td->buf().append(" ");
 				switch (j)
 				{
 					case 0:
@@ -1378,10 +1317,32 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 						td->buf().append(translator::translate("tonnen"));
 						break;
 				}
-				td->buf().append(translator::translate("/mon"));
-				td->set_padding(scr_size(2, 2));
-				td->set_flexible(false, false);
-				td->set_fixed_width(td->get_size().w);
+				td->buf().append(" ");
+				td->set_padding(scr_size(2,2));
+				td->set_flexible(true, false);
+				td->update();
+
+				for (uint8 i=2; i < MAX_MONTHS; i++) {
+					hist_sum += new_line->get_finance_history(2, j==0 ? LINE_PAX_DISTANCE : j==1 ? LINE_MAIL_DISTANCE : LINE_PAYLOAD_DISTANCE);
+				}
+				// yearly average
+				td = cont_transport_density.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::right, true);
+				td->buf().printf("%.1f ", hist_sum / line_distance / (MAX_MONTHS-1));
+				switch (j)
+				{
+					case 0:
+						td->buf().append(translator::translate(goods_manager_t::get_info(goods_manager_t::INDEX_PAS)->get_mass()));
+						break;
+					case 1:
+						td->buf().append(translator::translate("kg"));
+						break;
+					default:
+						td->buf().append(translator::translate("tonnen"));
+						break;
+				}
+				td->buf().append(" ");
+				td->set_padding(scr_size(2,2));
+				td->set_flexible(true, false);
 				td->update();
 			}
 		}
@@ -1398,6 +1359,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 		delete last_schedule;
 		last_schedule = new_line->get_schedule()->copy();
 		last_vehicle_count = new_line->count_convoys();
+		resize(scr_size(0,0));
 	}
 	else if(  cont_line_name.is_visible()  ) {
 		// previously a line was visible

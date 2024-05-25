@@ -32,6 +32,8 @@ public:
 	haltestelle_t::stationtyp get_active_tab_stationtype() const;
 
 	waytype_t get_tab_waytype(int i) const { return 0<=i  &&  (uint32)i<get_count() ? tabs_to_waytype[i] : invalid_wt; }
+
+	static char const* get_translated_waytype_name(waytype_t wt);
 };
 
 #endif

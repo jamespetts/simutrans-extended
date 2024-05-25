@@ -6099,7 +6099,7 @@ int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_spe
 	// T = d / ((m / 100) * 0.167)
 	// T = (d * 100) / (m * 16.67) -- 100THS OF A MINUTE PER TILE
 
-	const int cost = mpt / ((speed * 167) / 10);
+	const int cost = mpt / std::max(1, ((speed * 167) / 10));
 
 	return cost;
 }

@@ -17,6 +17,11 @@
 class gui_aligned_container_t : virtual public gui_container_t
 {
 private:
+	// Display the frame of the color specified by the theme
+	bool show_frame = false;
+	// Display the background color specified in the theme
+	bool show_back_ground_color = false;
+
 	uint16 columns;     ///< column number, if zero then arbitrary many columns possible
 	uint16 rows;        ///< row number, if zero then arbitrary many rows possible
 
@@ -65,6 +70,11 @@ public:
 	~gui_aligned_container_t();
 
 	void set_table_layout(uint16 columns_=0, uint16 rows_=0);
+
+	void set_table_frame(bool show_border, bool use_background_color=false) {
+		show_frame = show_border;
+		show_back_ground_color = use_background_color;
+	}
 
 	/**
 	 * Components that are smaller than the size of the containing cell,
@@ -124,6 +134,10 @@ public:
 	C* new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4) { C* comp = new C(a1, a2, a3, a4); take_component(comp); return comp; }
 	template<class C, class A1, class A2, class A3, class A4, class A5>
 	C* new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4, const A5& a5) { C* comp = new C(a1, a2, a3, a4, a5); take_component(comp); return comp; }
+	template<class C, class A1, class A2, class A3, class A4, class A5, class A6>
+	C* new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4, const A5& a5, const A6& a6) { C* comp = new C(a1, a2, a3, a4, a5, a6); take_component(comp); return comp; }
+	template<class C, class A1, class A2, class A3, class A4, class A5, class A6, class A7>
+	C* new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4, const A5& a5, const A6& a6, const A7& a7) { C* comp = new C(a1, a2, a3, a4, a5, a6, a7); take_component(comp); return comp; }
 
 	/**
 	 * Creates and appends new component, takes ownership of pointer
@@ -140,6 +154,8 @@ public:
 	C* new_component_span(const A1& a1, const A2& a2, const A3& a3, uint span) { C* comp = new C(a1, a2, a3); take_component(comp, span); return comp; }
 	template<class C, class A1, class A2, class A3, class A4>
 	C* new_component_span(const A1& a1, const A2& a2, const A3& a3, const A4& a4, uint span) { C* comp = new C(a1, a2, a3, a4); take_component(comp, span); return comp; }
+
+	void draw(scr_coord offset) OVERRIDE;
 
 	/**
 	 * Removes all components in the Container.

@@ -6,7 +6,7 @@
 <strong>Finances</strong> provides an overview of the financial status of the currently active player's company.
 </p>
 <p>
-Click on the finances button in the upper button bar in the main game window, or press <a href="keys.txt">[f]</a>, or click on player name in the <a href="players.txt">Players</a> window, to open the <strong>Finances</strong> window.
+Click on the finances button in the upper button bar in the main game window, press <a href="keys.txt">[f]</a>, or click on a player name in the <a href="players.txt">Players</a> window to open the <strong>Finances</strong> window.
 </p>
 <p>
 Values (in Hajo Credits) are listd for present and previous calendar years.<br>

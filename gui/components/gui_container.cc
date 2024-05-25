@@ -258,10 +258,6 @@ void gui_container_t::draw(scr_coord offset)
 	clip_dimension cd = display_get_clip_wh();
 	scr_rect clip_rect(cd.x, cd.y, cd.w, cd.h);
 
-	if( show_back_ground_color ) {
-		display_fillbox_wh_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), SYSCOL_TABLE_BACKGROUND, false);
-	}
-
 	// iterate backwards
 	for(  uint32 iter = components.get_count(); iter > 0; iter--) {
 		gui_component_t*const c = components[iter-1];
@@ -288,14 +284,9 @@ void gui_container_t::draw(scr_coord offset)
 		}
 	}
 	// For debug purpose, draw the container's boundary
-	PIXVAL frame_color = SYSCOL_TABLE_FRAME;
 #ifdef SHOW_BBOX
-	show_frame = true;
-	frame_color = color_idx_to_rgb(COL_RED);
+	display_ddd_box_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), color_idx_to_rgb(COL_RED), color_idx_to_rgb(COL_RED));
 #endif
-	if( show_frame ) {
-		display_ddd_box_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), frame_color, frame_color);
-	}
 	// this allows focussed (selected) components to overlay other components; but focus may subcomponent!
 	if(  redraw_focus  ) {
 		comp_focus->draw(screen_pos);

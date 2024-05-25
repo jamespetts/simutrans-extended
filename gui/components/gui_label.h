@@ -284,6 +284,7 @@ public:
 		imageid = i;
 		set_text(text);
 		buf().append(text);
+		update();
 	}
 
 	void draw(scr_coord offset) OVERRIDE;

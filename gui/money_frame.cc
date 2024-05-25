@@ -48,6 +48,7 @@
 #include "components/gui_waytype_image_box.h"
 #include "signalboxlist_frame.h"
 #include "../simsignalbox.h"
+#include "player_ranking_gui.h"
 
 // remembers last settings
 static vector_tpl<sint32> bFilterStates;
@@ -579,11 +580,10 @@ money_frame_t::money_frame_t(player_t *player) :
 	}
 
 	// select transport type
-	gui_aligned_container_t *top = add_table(4,1);
+	gui_aligned_container_t *top = add_table(5,1);
 	{
 		new_component<gui_label_t>("Show finances for transport type");
 
-		transport_type_c.set_selection(0);
 		transport_type_c.set_focusable( false );
 
 		for(int i=0, count=0; i<TT_MAX; ++i) {
@@ -601,6 +601,14 @@ money_frame_t::money_frame_t(player_t *player) :
 		set_focus(top);
 
 		new_component<gui_fill_t>();
+
+		bt_open_ranking.init(button_t::roundbox_state, "Player ranking");
+		if (skinverwaltung_t::open_window) {
+			bt_open_ranking.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_open_ranking.set_image_position_right(true);
+		}	bt_open_ranking.add_listener(this);
+		bt_open_ranking.set_tooltip(translator::translate("Open the player ranking dialog"));
+		add_component(&bt_open_ranking);
 
 		add_component(&headquarter);
 		headquarter.init(button_t::roundbox, "", scr_coord(0,0), D_BUTTON_SIZE);
@@ -1167,6 +1175,8 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 		update_stats();
 	}
 
+	bt_open_ranking.pressed = win_get_magic(magic_player_ranking);
+
 	gui_frame_t::draw(pos, size);
 }
 
@@ -1222,6 +1232,9 @@ bool money_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if (  comp == &bt_access_signalboxlist) {
 		create_win( new signalboxlist_frame_t(player), w_info, magic_signalboxlist + player->get_player_nr() );
 		return true;
+	}
+	else if ( comp==&bt_open_ranking ) {
+		create_win(new player_ranking_gui_t(player->get_player_nr()), w_info, magic_player_ranking);
 	}
 	return false;
 }

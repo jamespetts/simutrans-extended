@@ -62,6 +62,8 @@ public:
 
 	static bool waytype_available( const waytype_t wtyp, uint16 time );
 
+	static const bool is_active_waytype(const waytype_t wtyp);
+
 	static const vector_tpl<const way_desc_t *>&  get_way_list(waytype_t, systemtype_t system_type);
 
 	static uint32 get_world_max_axle_load(const waytype_t wtyp);

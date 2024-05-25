@@ -286,11 +286,10 @@ bool gui_factory_connection_stat_t::infowin_event(const event_t * ev)
 	}
 
 	fabrik_t* target_fab = fabrik_t::get_fab(fab_list[line]);
-	const koord3d target_pos = target_fab->get_pos();
 	if (!target_fab) {
-		welt->get_viewport()->change_world_position(target_pos);
 		return false;
 	}
+	const koord3d target_pos = target_fab->get_pos();
 
 	// un-press goto button
 	if (ev->button_state > 0 && ev->cx > 0 && ev->cx < 15) {

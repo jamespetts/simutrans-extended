@@ -17,6 +17,8 @@
 //#include "../simworld.h"
 #include "image.h"
 
+#define GOODS_SYMBOL_CELL_WIDTH (14)
+
 class checksum_t;
 
 struct fare_stage_t
