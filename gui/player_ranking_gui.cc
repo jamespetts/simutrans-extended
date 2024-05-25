@@ -293,7 +293,7 @@ void player_ranking_gui_t::sort_player()
 	for (uint i = 0; i < buttons.get_count(); i++) {
 		const uint8 player_nr = buttons.at(i)->get_player_nr();
 		// Exclude players who are not in the competition
-		if( is_chart_table_zero( player_nr ) ) {
+		if( player_nr==PUBLIC_PLAYER_NR || is_chart_table_zero( player_nr ) ) {
 			continue;
 		}
 		count++;
@@ -347,8 +347,7 @@ void player_ranking_gui_t::sort_player()
 
 		}
 		for (int np = 0; np < MAX_PLAYER_COUNT - 1; np++) {
-			player_t* player = welt->get_player(np);
-			if (player) {
+			if( player_t* player = welt->get_player(np) ) {
 				const finance_t* finance = player->get_finance();
 				const bool is_atv = history_type_idx[selected_item * 2];
 				PIXVAL color = SYSCOL_TEXT;
@@ -404,12 +403,14 @@ void player_ranking_gui_t::sort_player()
 bool player_ranking_gui_t::is_chart_table_zero(uint8 player_nr) const
 {
 	// search for any non-zero values
-	const finance_t* finance = world()->get_player(player_nr)->get_finance();
-	const bool is_atv = history_type_idx[selected_item*2];
-	for (int y = 0; y < MAX_PLAYER_HISTORY_MONTHS; y++) {
-		sint64 val = is_atv ? finance->get_history_veh_year((transport_type)player_ranking_gui_t::transport_type_option, y, history_type_idx[selected_item * 2 + 1])
-			: finance->get_history_com_year(y, history_type_idx[selected_item * 2 + 1]);
-		if (val) return false;
+	if( player_t* player = welt->get_player(player_nr) ) {
+		const finance_t* finance = player->get_finance();
+		const bool is_atv = history_type_idx[selected_item*2];
+		for (int y = 0; y < MAX_PLAYER_HISTORY_MONTHS; y++) {
+			sint64 val = is_atv ? finance->get_history_veh_year((transport_type)player_ranking_gui_t::transport_type_option, y, history_type_idx[selected_item * 2 + 1])
+				: finance->get_history_com_year(y, history_type_idx[selected_item * 2 + 1]);
+			if (val) return false;
+		}
 	}
 
 	return true;
@@ -423,8 +424,7 @@ bool player_ranking_gui_t::action_triggered( gui_action_creator_t *comp,value_t 
 	// Check the GUI list of buttons
 	// player filter
 	for(int np=0; np<MAX_PLAYER_COUNT-1; np++) {
-		player_t* player = welt->get_player(np);
-		if(player){
+		if( welt->get_player(np) ){
 			for (auto bt : buttons) {
 				if (comp==bt) {
 					if (bt->pressed) {
@@ -483,8 +483,7 @@ void player_ranking_gui_t::update_chart()
 	chart.remove_curves();
 	for (int np = 0; np < MAX_PLAYER_COUNT - 1; np++) {
 		if (np == PUBLIC_PLAYER_NR) continue;
-		player_t* player = welt->get_player(np);
-		if (player) {
+		if ( player_t* player = welt->get_player(np) ) {
 			if (is_chart_table_zero(np)) continue;
 			// create chart
 			const int curve_type = (int)cost_type[selected_item];
@@ -496,8 +495,7 @@ void player_ranking_gui_t::update_chart()
 
 	const bool is_atv = history_type_idx[selected_item*2];
 	for (int np = 0; np < MAX_PLAYER_COUNT - 1; np++) {
-		player_t* player = welt->get_player(np);
-		if (player) {
+		if ( player_t* player = welt->get_player(np) ) {
 			// update chart records
 			for (int y = 0; y < MAX_PLAYER_HISTORY_YEARS; y++) {
 				const finance_t* finance = player->get_finance();

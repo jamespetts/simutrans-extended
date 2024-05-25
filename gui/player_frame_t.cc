@@ -489,7 +489,7 @@ void ki_kontroll_t::update_data()
 				tooltip_out[i].printf(translator::translate("Allow %s to access your ways and stops"), player->get_name());
 			}
 			access_out[i].set_tooltip(tooltip_out[i]);
-
+			access_out[i].set_visible(i != welt->get_active_player_nr());
 
 			const bool allow_access = player && player->allows_access_to(welt->get_active_player_nr());
 			tooltip_in[i].clear();
