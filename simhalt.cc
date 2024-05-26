@@ -359,6 +359,8 @@ void haltestelle_t::destroy(halthandle_t const halt)
 	// just play safe: restart iterator at zero ...
 	restart_halt_iterator = true;
 
+	halt->get_owner()->book_stop_number(-1);
+
 	delete halt.get_rep();
 }
 
@@ -3639,8 +3641,10 @@ bool haltestelle_t::make_public_and_join(player_t *player)
 				}
 			}
 		}
+		owner->book_stop_number(-1);
 		// transfer ownership
 		owner = public_owner;
+		owner->book_stop_number(1);
 	}
 
 	// set name to name of first public stop

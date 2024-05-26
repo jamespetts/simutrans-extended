@@ -88,6 +88,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 	item_list(container.get_components())
 {
 	container.set_table_layout(1,0);
+	container.set_spacing(NO_SPACING); // Spaces between components create spaces that do not accept clicks
 
 	set_component(&container);
 

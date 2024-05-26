@@ -7364,13 +7364,8 @@ void karte_t::restore_history()
 
 	// update total transported, including passenger and mail
 	for(  int m=min(MAX_WORLD_HISTORY_MONTHS,MAX_PLAYER_HISTORY_MONTHS)-1;  m>0;  m--  ) {
-		sint64 transported = 0;
-		for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++ ) {
-			if(  players[i]!=NULL  ) {
-				transported += players[i]->get_finance()->get_history_veh_month( TT_ALL, m, ATV_TRANSPORTED );
-			}
-		}
-		finance_history_month[m][WORLD_TRANSPORTED_GOODS] = transported;
+		// No longer available due to different units
+		finance_history_month[m][WORLD_TRANSPORTED_GOODS] = 0;
 	}
 
 	sint64 bev_last_year = -1;
@@ -7409,13 +7404,8 @@ void karte_t::restore_history()
 	}
 
 	for(  int y=min(MAX_WORLD_HISTORY_YEARS,MAX_CITY_HISTORY_YEARS)-1;  y>0;  y--  ) {
-		sint64 transported_year = 0;
-		for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++ ) {
-			if(  players[i]  ) {
-				transported_year += players[i]->get_finance()->get_history_veh_year( TT_ALL, y, ATV_TRANSPORTED );
-			}
-		}
-		finance_history_year[y][WORLD_TRANSPORTED_GOODS] = transported_year;
+		// No longer available due to different units
+		finance_history_year[y][WORLD_TRANSPORTED_GOODS] = 0;
 	}
 	// fix current month/year
 	update_history();
@@ -10386,7 +10376,65 @@ void karte_t::switch_active_player(uint8 new_player, bool silent)
 void karte_t::stop(bool exit_game)
 {
 	finish_loop = true;
-	env_t::quit_simutrans = exit_game;
+	if (exit_game) {
+		env_t::quit_simutrans = true;
+
+		DBG_DEBUG("ev=SYSTEM_QUIT", "env_t::reload_and_save_on_quit=%d", env_t::reload_and_save_on_quit);
+
+		// we may be requested to save the game before exit
+		if(  env_t::server  &&  env_t::server_save_game_on_quit  ) {
+
+			// to ensure only one attempt is made
+			env_t::server_save_game_on_quit = false;
+
+			// following code quite similar to nwc_sync_t::do_coomand
+			dr_chdir( env_t::user_dir );
+
+			// first save password hashes
+			char fn[256];
+			sprintf( fn, "server%d-pwdhash.sve", env_t::server );
+			loadsave_t file;
+			if(file.wr_open(fn, loadsave_t::zipped, 1, "hashes", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR) == loadsave_t::FILE_STATUS_OK) {
+				world->rdwr_player_password_hashes( &file );
+				file.close();
+			}
+
+			// remove passwords before transfer on the server and set default client mask
+			// they will be restored in karte_t::load
+			uint16 unlocked_players = 0;
+			for(  int i=0;  i<PLAYER_UNOWNED; i++  ) {
+				player_t *player = world->get_player(i);
+				if(  player==NULL  ||  player->access_password_hash().empty()  ) {
+					unlocked_players |= (1<<i);
+				}
+				else {
+					player->access_password_hash().clear();
+				}
+			}
+
+			// save game
+			sprintf( fn, "server%d-restore.sve", env_t::server );
+			bool old_restore_UI = env_t::restore_UI;
+			env_t::restore_UI = true;
+			world->save( fn, false, SERVER_SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, false);
+			env_t::restore_UI = old_restore_UI;
+		}
+		else if(  env_t::reload_and_save_on_quit  &&  !env_t::networkmode  ) {
+			// save current game, if not online
+			bool old_restore_UI = env_t::restore_UI;
+			env_t::restore_UI = true;
+
+			// construct from pak name an autosave if requested
+			std::string pak_name( "autosave-" );
+			pak_name.append( env_t::objfilename );
+			pak_name.erase( pak_name.length()-1 );
+			pak_name.append( ".sve" );
+
+			world->save( pak_name.c_str(), true, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, false);
+			env_t::restore_UI = old_restore_UI;
+		}
+		destroy_all_win(true);
+	}
 }
 
 

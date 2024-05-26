@@ -5059,7 +5059,7 @@ Passenger success last year (visiting):
 lake
 Lakes
 The percentage of passengers transported in the region overall
-The percentage of intending passengers making successful journeys in the region overall
+The percentage of intending passengers making successful journeys in the world overall
 Spacing cnv/month, shift
 Departures/month; shift
 #-----------------------------
@@ -5603,7 +5603,7 @@ The amount of mail successfully delivered from this stop
 The amount of mail which could not find a route to its destination
 The amount of mail which could not find a route to its destination
 The amount of mail transported in the region overall
-The percentage of mail transported successfully in the region overall
+The percentage of mail transported successfully in the world overall
 Goods needed
 Goods needed
 ratio_mail
@@ -6612,3 +6612,17 @@ distance_to_origin
 distance to origin
 This stop
 This stop
+upgrade_only
+Can only be an upgrade, not a new build
+vehicle_details
+Vehicle details
+Player ranking
+Company rankings
+Transportation results
+Operations
+Infrastructures
+Infrastucture
+Vehicle-km
+Vehicle km
+Way kilometerage
+Way kilometerage

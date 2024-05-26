@@ -1,0 +1,18 @@
+<title>Signal box list help</title>
+
+<h1><strong>Signal box list</strong></h1>
+
+<p>
+The <strong>Signal box list</strong> window lists and gives information about the current company's signal boxes.
+</p>
+<p>
+To open: click on the signal box list icon in the <a href="list.txt">List Management</a> toolstrip or press CTRL+S.
+</p>
+
+<p>
+The <strong>signal box list</strong> window lists each of the current company's signal boxes. Next to each entry is given the number of signals / the maximum number of signals, the radius, the region and the position of the signal box in question. Clicking on an entry in that list will bring up a window with information about that signal box. Clicking on the arrow next to it will move the main game window to centre on that signal box.
+</p>
+
+<p>
+The list can be filtered by whether any signal boxes have vacant slots for more signals to be added and sorted by type, position, signals in use, maximum signals, radius, region, or date of construction. 
+</p>

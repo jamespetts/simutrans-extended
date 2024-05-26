@@ -258,7 +258,6 @@ convoi_t::convoi_t(loadsave_t* file) :
 convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 {
 	self = convoihandle_t(this);
-	player->book_convoi_number(1);
 	init(player);
 	set_name( "Unnamed" );
 	welt->add_convoi( self );
@@ -280,8 +279,6 @@ convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 
 convoi_t::~convoi_t()
 {
-	owner->book_convoi_number( -1);
-
 	assert(self.is_bound());
 	assert(vehicle_count==0);
 
@@ -885,6 +882,7 @@ void convoi_t::increment_odometer(uint32 steps)
 
 	const sint64 km = steps_since_last_odometer_increment / welt->get_settings().get_steps_per_km();
 	book( km, CONVOI_DISTANCE );
+	owner->book_convoy_distance(km, front()->get_waytype(), vehicle_count);
 	total_distance_traveled += km;
 	steps_since_last_odometer_increment -= km * steps_since_last_odometer_increment;
 	koord3d pos = koord3d::invalid;
@@ -1911,6 +1909,7 @@ end_loop:
 							sint64 value = vehicle[a]->calc_sale_value();
 							waytype_t wt = vehicle[a]->get_desc()->get_waytype();
 							owner->book_new_vehicle( value, dep->get_pos().get_2d(),wt );
+							owner->book_vehicle_number(-1, wt);
 							delete vehicle[a];
 							vehicle_count--;
 						}
@@ -1936,6 +1935,7 @@ end_loop:
 					{
 						set_name(front()->get_desc()->get_name());
 					}
+
 
 					clear_replace();
 
@@ -4415,6 +4415,12 @@ void convoi_t::rdwr(loadsave_t *file)
 					}
 				}
 			}
+			// convert to new data (vacant_seats*km to seat-km)
+			if(  !file->is_version_ex_less(14,57) && file->is_version_ex_less(14,64)  ) {
+				for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+					financial_history[k][CONVOI_CAPACITY] += financial_history[k][CONVOI_PAX_DISTANCE];
+				}
+			}
 		}
 	}
 
@@ -5111,16 +5117,19 @@ void convoi_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if ((file->get_extended_version() >= 13 && file->get_extended_revision() >= 5) || file->get_extended_version() >= 14)
+	if (file->is_version_ex_atleast(13, 5))
 	{
 		bool lswd = last_stop_was_depot;
 		file->rdwr_bool(lswd);
 		last_stop_was_depot = lswd;
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 6))
+	if (file->is_version_ex_atleast(14, 6))
 	{
 		checked_tile_this_step.rdwr(file);
+	}
+	if (file->is_version_ex_less(14, 64)) {
+		owner->book_convoy_distance(financial_history[0][CONVOI_DISTANCE], front()->get_waytype(), vehicle_count);
 	}
 
 	// This must come *after* all the loading/saving.
@@ -5459,13 +5468,12 @@ void convoi_t::laden() //"load" (Babelfish)
 		}
 
 
-		// Calculate the transport distance for "vacant seats".
-		// This is used to determine utilization relative to actual passenger traffic.
+		// Available Seat-Kilometers
+		// This is used to find the Load Factor
 		for (uint8 i = 0; i < vehicle_count; i++) {
 			const vehicle_t* v = vehicle[i];
 			if (v->get_cargo_type() == goods_manager_t::passengers) {
-				// Standing passengers count as negative
-				book( (v->get_cargo_max()-v->get_total_cargo()) * journey_distance_meters/100, CONVOI_CAPACITY );
+				book( v->get_cargo_max() * journey_distance_meters/100, CONVOI_CAPACITY );
 			}
 		}
 
@@ -5705,7 +5713,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		// passenger-km(x10 for precision)
 		const sint64 pas_distance = ware.menge*revenue_distance_meters/100;
 		book(pas_distance, convoi_t::CONVOI_PAX_DISTANCE);
-		get_owner()->book_transported(pas_distance, front()->get_waytype(), 0);
+		owner->book_transported(pas_distance, front()->get_waytype(), 0);
 	}
 	else if(ware.is_mail())
 	{
@@ -5719,7 +5727,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		const sint64 mail_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters / 100;
 		book(mail_distance, convoi_t::CONVOI_MAIL_DISTANCE); // in kg-km/10
 		// tonne-kilometre(x10 for precision)
-		get_owner()->book_transported(mail_distance/10, front()->get_waytype(), 1);
+		owner->book_transported(mail_distance/10, front()->get_waytype(), 1);
 	}
 	else
 	{
@@ -5731,7 +5739,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		// tonne-kilometre(x10 for precision)
 		const sint64 payload_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters/100000;
 		book(payload_distance, convoi_t::CONVOI_PAYLOAD_DISTANCE);
-		get_owner()->book_transported(payload_distance, front()->get_waytype(), 2);
+		owner->book_transported(payload_distance, front()->get_waytype(), 2);
 	}
 	// Note that fare comes out in units of 1/4096 of a simcent, for computational precision
 
@@ -6256,6 +6264,7 @@ void convoi_t::destroy()
 {
 	// can be only done here, with a valid convoihandle ...
 	if(front()) {
+		owner->book_convoi_number(-1, front()->get_waytype());
 		front()->set_convoi(NULL);
 	}
 
@@ -6298,6 +6307,7 @@ void convoi_t::destroy()
 
 		}
 		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_maintenance(), vehicle[i]->get_desc()->get_waytype());
+		owner->book_vehicle_number( -1, wt );
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];
@@ -8167,6 +8177,20 @@ sint64 convoi_t::get_stat_converted(int month, convoi_cost_t cost_type) const
 	}
 	return value;
 }
+
+uint32 convoi_t::get_load_factor_pax() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	sint64 total_seat_km=0;
+	sint64 total_pax_km=0;
+	for (uint8 m = 0; m < MAX_MONTHS; m++) {
+		total_seat_km += financial_history[m][CONVOI_CAPACITY];
+		total_pax_km += financial_history[m][CONVOI_PAX_DISTANCE];
+	}
+	return total_seat_km ? (uint32)(1000*total_pax_km / total_seat_km) : 0;
+}
+
 
 // BG, 31.12.2012: virtual methods of lazy_convoy_t:
 // Bernd Gabriel, Dec, 25 2009

@@ -202,6 +202,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/password_frame.cc
 	gui/pier_rotation_select.cc
 	gui/player_frame_t.cc
+	gui/player_ranking_gui.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc

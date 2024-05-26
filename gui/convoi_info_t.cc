@@ -40,7 +40,7 @@ sint16 convoi_info_t::tabstate = -1;
 
 static const char cost_type[BUTTON_COUNT][64] =
 {
-	"Free Capacity", // empty seats * km
+	"Seat-km",
 	"Pax-km",
 	"Mail-km",
 	"Freight-km", // ton-km

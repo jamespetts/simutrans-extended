@@ -39,6 +39,8 @@ cl_btn_sort_type
 タイプ
 cl_btn_sort_loading_lvl
 積載率
+L/F(passenger)
+搭乗率/乗車率
 cl_btn_sort_max_speed
 最高速度
 cl_btn_sort_value
@@ -1045,8 +1047,8 @@ Fracht
 貨物
 Frame time:
 フレーム：
-Free Capacity
-空席
+Seat-km
+座席キロ
 freeplay mode
 フリープレイ モード
 Friction:
@@ -1211,6 +1213,8 @@ increase underground view level
 ハイトカットレベルを上げる
 industrial building
 工場
+Infrastructures
+車両と設備
 Init map ...
 マップを初期化しています ...
 Input
@@ -1279,6 +1283,8 @@ Last used tools
 最後に使用したツール
 Last Year
 前年度:
+Last year's ranking
+前年度順位
 Leaving depot!
 出庫中
 leer
@@ -1537,6 +1543,8 @@ open_signalbox_info
 信号扱所情報
 open_signal_connector_gui
 信号機の接続先を操作する画面を開きます
+Open the player ranking dialog
+プレイヤーランキングを開きます
 Operation
 運行費
 Ops Profit
@@ -1577,6 +1585,8 @@ Passagierziele
 旅客/郵便物の行き先
 Passenger AI
 AI 旅客
+Passenger load factor
+搭乗率/乗車率(年間)
 Passenger Demand %d\n
 労働者/顧客需要: %d\n
 Password
@@ -1625,6 +1635,8 @@ player 8
 プレイヤー 8
 player 9
 プレイヤー 9
+Player ranking
+プレイヤーランキング
 Please choose vehicles first\n
 最初に乗り物を選んでください\n
 Post
@@ -1733,6 +1745,8 @@ Revenue
 運賃収入
 Revision:
 リビジョン:
+Right-click to open the finance dialog.
+右クリックでこのプレイヤーの財務ウィンドウを開きます
 road
 道路
 road vehicle
@@ -2081,6 +2095,8 @@ Vehicle %s is stucked!
 「%s」が\n立ち往生しています！
 Vehicle details
 乗り物の詳細
+Vehicle-km
+車両キロ
 Verbrauch
 消費
 Vergroessere die Karte\n
@@ -3348,7 +3364,7 @@ Stops potentially within walking distance:
 That would exceed\nyour credit limit.
 借入限度額を超えるため、これ以上建設できません。
 The amount of mail transported in the region overall
-マップ全体で輸送された郵便物の総数を表します。
+マップ全域の郵便輸送達成率の推移を表示します
 The charges incurred or revenues earned by running on other players' ways
 他社の軌道や道路を通行したことによる通行料や収入の総和を表します。
 The convoy has been sent\nto its home depot.\n
@@ -3362,47 +3378,47 @@ The following %s has become obsolete:\n%s\n
 The main game window can be scrolled by right-clicking and dragging the ground.
 右ドラッグでゲーム画面の視点を移動することができます。
 The maximum amount that can be borrowed without going bankrupt
-破産することなく借入できる限度額を表します。
+破産することなく借入できる限度額を表します
 The maximum amount that can be borrowed without prohibiting further capital outlays
-維持費などの資本支出を禁止せずに借入できる限度額を表します。
+維持費などの資本支出を禁止せずに借入できる限度額を表します
 The number of convoys that have serviced this stop
-この停留所/駅に停車した編成数を表します。
+この停留所/駅に停車した編成数を表します
 The number of industries in the region
-このマップに存在する産業の総数を表します。
+マップ内の産業施設数の推移を表示します
 The number of inhabitants by which the region has increased
-マップ全体での住民の増加率を表します。
+マップ全域の人口の増加数の推移を表示します
 The number of inhabitants of the region
-マップ全体の住民の総数を表します。
+マップ全域の人口の推移を表示します
 The number of jobs in the region
-このマップ内の雇用数を表します。
+マップ全域の勤め口総数の推移を表示します
 The number of passengers who could not find a route to their destination
-目的地までの経路を見つけられなかった旅客の人数を表します。
+目的地までの経路を見つけられなかった旅客の人数を表します
 The number of passengers who decline to travel because the journey would take too long
-許容できる旅行時間よりも所要時間が長すぎるため、旅行を取り止めた旅客の人数を表します。
+許容できる旅行時間よりも所要時間が長すぎるため、旅行を取り止めた旅客の人数を表します
 The number of passengers who have travelled successfully from this stop
-この停留所/駅からの移動に成功した旅客の人数を表します。
+この停留所/駅からの移動に成功した旅客の人数を表します
 The number of passengers/units of mail/goods waiting at this stop
-駅/停留所で待機している旅客/郵便/貨物の数を表します。
+駅/停留所で待機している旅客/郵便/貨物の数を表します
 The number of private car trips in the region overall
-このマップ全体の自家用車による移動総数を表します。
+自家用車を使って目的地へ移動した人数の推移を表示します
 The number of urban areas in the region
-マップ全体の都市の数を表します。
+マップ内の街の総数の推移を表示します
 The number of visitors demanded in the region
-マップ全体での旅客の需要人数を表します。
+定期外旅客の需要の推移を表示します
 The percentage of available goods that have been transported in the region
-マップ全体で輸送が完了した貨物の割合(%)を表します。
+製品の輸送需要に対する輸送達成率の推移を表示します
 The percentage of passengers transported in the region overall
-マップ全体で移動が成功した旅客の割合(%)を表します。
+マップの住人が目的地へ移動できた割合の推移を表示します。(徒歩/自家用車での移動を含む)
 The percentage of people who have access to a private car
-自家用車を使用した人数の割合(%)を表します。
+自家用車を利用可能な人口の割合の推移を表示します
 The total amount of mail generated in the region
-このマップ全体で生成された郵便の総数を表します。
+マップ全域の郵便物の輸送需要の推移を表示します
 The total number of convoys in the region
-このマップ全体の車両の総数を表します。
+全プレイヤーが所有する編成総数の推移を表示します
 The total number of mail/passengers/goods transported in the region
-このマップ全体で輸送された旅客/郵便/貨物の総数を表します。
+マップ全域の貨物輸送量の推移を表示します
 The total number of passengers wanting to be transported in the region
-マップ全体で、駅等で待機している旅客の人数を表します。
+マップ全域の旅客需要の推移を表示します
 There is already a marker here.\n
 ここには既に他のマーカーがあります。\n
 This can only be built underground.
@@ -4339,6 +4355,8 @@ A measure of the amount of freight transported, expressed in tonne-kilometre
 貨物の輸送量を示す指標。貨物の重量と輸送距離の積。
 Transportation density
 輸送密度
+Transportation results
+輸送実績
 Monthly transportation density
 月間輸送密度
 Yearly average
@@ -4501,6 +4519,8 @@ line_network
 接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+Free Capacity
+空席
 100 km/h = %i tiles/month
 100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n

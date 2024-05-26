@@ -6,6 +6,7 @@
 #include "../simevent.h"
 #include "../simcolor.h"
 #include "../simconvoi.h"
+#include "../simtool.h"
 #include "../vehicle/vehicle.h"
 #include "../simdepot.h"
 #include "../simhalt.h"
@@ -1790,7 +1791,7 @@ void minimap_t::draw(scr_coord pos)
 		// DISPLAY STATIONS AND AIRPORTS: moved here so station spots are not overwritten by lines drawn
 		for(line_segment_t seg : schedule_cache ) {
 			PIXVAL colval = color_idx_to_rgb(seg.colorcount);
-			if(  event_get_last_control_shift()==2  ||  current_cnv.is_bound()  ) {
+			if( (event_get_last_control_shift() ^ tool_t::control_invert)==2 || current_cnv.is_bound() ) {
 				// on control / single convoi use only player colors
 				static PIXVAL last_color = colval;
 				if (current_cnv.is_bound() && current_cnv.get_rep()->get_line().is_bound() && current_cnv.get_rep()->get_line()->get_line_color()!=0) {
@@ -2028,7 +2029,7 @@ void minimap_t::draw(scr_coord pos)
 				}
 			}
 			// with control, show only circles
-			if(  event_get_last_control_shift()!=2  ) {
+			if((event_get_last_control_shift() ^ tool_t::control_invert)==2) {
 				// else elongate them ...
 				const int key = station->get_basis_pos().x + station->get_basis_pos().y * world->get_size().x;
 				diagonal_dist = waypoint_hash.get( key ).get_count();

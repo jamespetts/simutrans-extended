@@ -38,6 +38,7 @@ gui_chart_t::gui_chart_t() : gui_component_t()
 	ltr = 1;
 	x_elements = 0;
 	x_axis_span = 1;
+	highlight_x = -1;
 	min_size = scr_size(0,0);
 
 	// transparent by default
@@ -176,7 +177,8 @@ void gui_chart_t::draw(scr_coord offset)
 	for(  int i = 0;  i < x_elements;  i++  ) {
 		const int j = left_to_right_graph ? x_elements - 1 - i : i;
 		const scr_coord_val x0 = tmpx + factor * (chart_size.w / (x_elements - 1) ) * j;
-		const PIXVAL line_color = (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
+		const bool highlighted = highlight_x<0 ? false : left_to_right_graph ? highlight_x==x_elements-1-i : highlight_x == i;
+		const PIXVAL line_color = highlighted ? SYSCOL_TEXT_STRONG : (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
 			// display x-axis
 			int val = (abort_display_x && left_to_right_graph) ? (abort_display_x - j - 1) * x_axis_span : seed - (j*x_axis_span);

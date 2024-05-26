@@ -162,6 +162,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 			old_maint /= 14;
 		}
 		player_t::add_maintenance(get_owner(), -old_maint, get_desc()->get_finance_waytype());
+		player_t::add_way_length(get_owner(), is_diagonal() ? -7 : -10, get_desc()->get_finance_waytype());
 	}
 
 	if (!from_saved_game && desc != b)
@@ -176,6 +177,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 			maint /= 14;
 		}
 		player_t::add_maintenance(get_owner(), maint, b->get_finance_waytype());
+		player_t::add_way_length(get_owner(), is_diagonal() ? 7 : 10, b->get_finance_waytype());
 	}
 
 	desc = b;
@@ -212,12 +214,6 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 			gr->remove_everything_from_way(get_owner(), track_wt, ribi_t::none);
 			gr->mark_image_dirty();
 		}
-	}
-
-	// We do this separately if we are loading from a saved game.
-	if (!from_saved_game)
-	{
-		calc_speed_limit(gr, bridge, tunnel);
 	}
 
 	max_axle_load = desc->get_max_axle_load();
@@ -268,6 +264,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 		degraded = false;
 		replacement_way = desc;
 		last_renewal_month_year = welt->get_timeline_year_month();
+		calc_speed_limit(gr, from_saved_game, bridge, tunnel);
 		const grund_t* gr = welt->lookup(get_pos());
 		if(gr)
 		{
@@ -285,7 +282,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 	}
 }
 
-void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_t* tunnel)
+void weg_t::calc_speed_limit(grund_t* gr, bool from_saved, const bruecke_t* bridge, const tunnel_t* tunnel)
 {
 	const slope_t::type hang = gr ? gr->get_weg_hang() : slope_t::flat;
 
@@ -302,7 +299,7 @@ void weg_t::calc_speed_limit(grund_t* gr, const bruecke_t* bridge, const tunnel_
 	const sint32 old_max_speed = get_max_speed();
 	const sint32 way_max_speed = desc->get_topspeed();
 
-	if (old_max_speed > 0)
+	if (old_max_speed > 0 || !from_saved)
 	{
 		if (is_degraded() && old_max_speed == way_max_speed)
 		{
@@ -502,6 +499,7 @@ weg_t::~weg_t()
 				maint /= 14;
 			}
 			player_t::add_maintenance(player, -maint, desc->get_finance_waytype());
+			player_t::add_way_length( player, is_diagonal() ? -7 : -10, desc->get_finance_waytype());
 		}
 	}
 
@@ -1271,6 +1269,7 @@ void weg_t::finish_rd()
 			maint /= 14;
 		}
 		player_t::add_maintenance( player,  maint, desc->get_finance_waytype() );
+		player_t::add_way_length( player, is_diagonal() ? 7 : 10, desc->get_finance_waytype());
 	}
 }
 

@@ -911,7 +911,11 @@ int simu_main(int argc, char** argv)
 	if(  !themes_ok  ) {
 		dr_chdir( env_t::data_dir );
 		dr_chdir( "themes" );
+#ifndef __ANDROID__
 		themes_ok = gui_theme_t::themes_init("themes.tab",true,false);
+#else
+		themes_ok = gui_theme_t::themes_init("theme-large.tab", true, false);
+#endif
 	}
 	if(  !themes_ok  ) {
 		dbg->fatal( "simu_main()", "No GUI themes found! Please re-install!" );
@@ -1402,7 +1406,7 @@ int simu_main(int argc, char** argv)
 	main_view_t *view = new main_view_t(welt);
 	welt->set_view( view );
 
-	interaction_t *eventmanager = new interaction_t();
+	interaction_t *eventmanager = new interaction_t(welt->get_viewport());
 	welt->set_eventmanager( eventmanager );
 
 	// some messages about old vehicle may appear ...

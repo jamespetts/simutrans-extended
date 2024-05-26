@@ -11,7 +11,6 @@
 #include "line_management_gui.h"
 #include "components/gui_convoiinfo.h"
 #include "components/gui_divider.h"
-#include "components/gui_table.h"
 #include "line_item.h"
 #include "simwin.h"
 #include "replace_frame.h"
@@ -56,7 +55,7 @@ uint16 schedule_list_gui_t::livery_scheme_index = 0;
 
 static const char *cost_type[MAX_LINE_COST] =
 {
-	"Free Capacity",
+	"Seat-km",
 	"Pax-km",
 	"Mail-km",
 	"Freight-km", // ton-km
@@ -104,7 +103,7 @@ static uint8 statistic[MAX_LINE_COST]={
 };
 
 static uint8 statistic_type[MAX_LINE_COST]={
-	gui_chart_t::STANDARD, gui_chart_t::PAX_KM, gui_chart_t::KG_KM, gui_chart_t::TON_KM,
+	gui_chart_t::PAX_KM, gui_chart_t::PAX_KM, gui_chart_t::KG_KM, gui_chart_t::TON_KM,
 	gui_chart_t::DISTANCE, gui_chart_t::STANDARD, gui_chart_t::STANDARD, gui_chart_t::MONEY,
 	gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::STANDARD, gui_chart_t::STANDARD, gui_chart_t::STANDARD
 };
@@ -118,8 +117,6 @@ static const char * line_alert_helptexts[5] =
   "line_has_upgradeable_vehicles"
 };
 
-
-enum sort_modes_t { SORT_BY_NAME=0, SORT_BY_ID, SORT_BY_PROFIT, SORT_BY_TRANSPORTED, SORT_BY_CONVOIS, SORT_BY_DISTANCE, MAX_SORT_MODES };
 
 static uint8 current_sort_mode = 0;
 
@@ -153,7 +150,8 @@ const char *schedule_list_gui_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_power",
 	"cl_btn_sort_value",
 	"cl_btn_sort_age",
-	"cl_btn_sort_range"
+	"cl_btn_sort_range",
+	"L/F(passenger)"
 };
 
 
@@ -270,7 +268,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	cont_line_info.set_table_layout(1,0);
 	cont_line_info.set_margin(scr_size(D_MARGIN_LEFT,D_V_SPACE),scr_size(D_H_SPACE,D_MARGIN_BOTTOM));
 
-	cont_line_info.add_table(2,3)->set_spacing(scr_size(0,0));
+	cont_line_info.add_table(2,1)->set_spacing(scr_size(0,0));
 	{
 		cont_line_info.add_component(&bt_withdraw_line);
 		bt_replace.init(button_t::roundbox, "replace_line_convoys", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
@@ -289,10 +287,6 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 			bt_withdraw_line.set_image(skinverwaltung_t::alerts->get_image_id(2));
 		}
 		bt_withdraw_line.add_listener(this);
-
-		cont_line_info.new_component_span<gui_margin_t>(0,D_V_SPACE,2);
-
-		cont_line_info.add_component(&lb_convoy_count,2);
 	}
 	cont_line_info.end_table();
 
@@ -325,8 +319,33 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	}
 	cont_line_info.end_table();
 
+	cont_line_info.add_component(&lb_convoy_count);
 	cont_line_info.new_component<gui_divider_t>();
 	cont_line_info.add_component(&cont_line_capacity_by_catg);
+
+	// Passenger Load factor
+	cont_load_factor.set_rigid(false);
+	cont_load_factor.set_table_layout(2, 0);
+	cont_load_factor.new_component<gui_divider_t>();
+	cont_load_factor.new_component<gui_empty_t>();
+	gui_aligned_container_t* tbl2 = cont_load_factor.add_table(3,2);
+	tbl2->set_table_frame(true, true);
+	tbl2->set_spacing(scr_size(1, 1));
+	{
+		cont_load_factor.new_component<gui_table_header_t>("")->set_flexible(true, false);
+		cont_load_factor.new_component<gui_table_header_t>("Last Month")->set_flexible(true, false);
+		cont_load_factor.new_component<gui_table_header_t>("This Year")->set_flexible(true, false);
+
+		cont_load_factor.new_component<gui_table_header_t>("L/F(passenger)", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
+		lb_load_factor_pax_last_month.set_align(gui_label_t::right);
+		lb_load_factor_pax_year.set_align(gui_label_t::right);
+		cont_load_factor.add_component(&lb_load_factor_pax_last_month);
+		cont_load_factor.add_component(&lb_load_factor_pax_year);
+	}
+	cont_load_factor.end_table();
+	cont_load_factor.new_component<gui_fill_t>();
+
+	cont_line_info.add_component(&cont_load_factor);
 
 	cont_line_info.new_component<gui_divider_t>();
 	// Transport density
@@ -1160,7 +1179,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 			scr_size csize = cinfo->get_min_size();
 			cinfo->set_size(scr_size(400, csize.h-D_MARGINS_Y));
 			cinfo->set_mode(selected_cnvlist_mode[player->get_player_nr()]);
-			cinfo->set_switchable_label(sortby);
+			cinfo->set_switchable_label(sortby==by_loadfactor_pax? 10:sortby);
 			convoy_infos.append(cinfo);
 			cont.add_component(cinfo);
 			ypos += csize.h - D_MARGIN_TOP-D_V_SPACE*2;
@@ -1257,6 +1276,20 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 			}
 		}
 		chart.set_visible(true);
+
+		// update passenger load factor
+		cont_load_factor.set_visible(false);
+		if (new_line->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
+			cont_load_factor.set_visible(true);
+			lb_load_factor_pax_year.buf().clear();
+			lb_load_factor_pax_last_month.buf().clear();
+
+			lb_load_factor_pax_year.buf().printf("%.1f%%", new_line->get_load_factor_pax_year()/10.0);
+			lb_load_factor_pax_last_month.buf().printf("%.1f%%", new_line->get_load_factor_pax_last_month() / 10.0);
+
+			lb_load_factor_pax_year.update();
+			lb_load_factor_pax_last_month.update();
+		}
 
 		// update transportation density
 		cont_transport_density.set_visible(true);
@@ -1445,6 +1478,11 @@ bool schedule_list_gui_t::compare_convois(convoihandle_t const cnv1, convoihandl
 			break;
 		case by_value:
 			cmp = sgn(cnv1->get_purchase_cost() - cnv2->get_purchase_cost());
+			break;
+		case by_loadfactor_pax:
+			const sint64 factor_1 = cnv1->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv1->get_load_factor_pax() : -1;
+			const sint64 factor_2 = cnv2->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv2->get_load_factor_pax() : -1;
+			cmp = factor_1 - factor_2;
 			break;
 	}
 

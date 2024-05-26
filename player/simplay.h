@@ -157,7 +157,9 @@ public:
 	 * Sums up "count" with number of convois in statistics,
 	 * supersedes buche( count, COST_ALL_CONVOIS).
 	 */
-	void book_convoi_number(int count);
+	void book_convoi_number(int count, const waytype_t wt);
+
+	void book_stop_number(int count);
 
 	/**
 	 * Adds construction costs to accounting statistics.
@@ -174,6 +176,8 @@ public:
 	 * @param wt type of transport for accounting purpose
 	 */
 	void book_new_vehicle(const sint64 price, const koord k, const waytype_t wt=ignore_wt);
+
+	void book_vehicle_number(const sint64 count, const waytype_t wt);
 
 	/**
 	 * Adds income to accounting statistics.
@@ -194,6 +198,14 @@ public:
 	void book_running_costs(const sint64 amount, const waytype_t wt=ignore_wt);
 
 	/**
+	 * Adds traveled distance of convoy/vehicle to player statistics.
+	 * @param travel distance of convoy
+	 * @param wt type of transport used for accounting statistics
+	 * @param vehicle number of convoy
+	 */
+	void book_convoy_distance(const sint64 distance, const waytype_t wt, uint8 vehicle_count);
+
+	/**
 	 * Adds monthly vehicle maintenance to accounting statistics.
 	 * @param amount (should be negative, will be adjusted for bits_per_month)
 	 * @param wt type of transport for accounting
@@ -207,8 +219,14 @@ public:
 	 * @param wt type of transport for accounting
 	 * @author jamespetts
 	 */
-
 	void book_way_renewal(const sint64 amount, const waytype_t wt = ignore_wt);
+
+	/**
+	 * Adds way length to accounting statistics.
+	 * @param length factor (will be adjusted for meter per tile and is_diagonal)
+	 * @param wt type of transport for accounting
+	 */
+	void book_way_length(const sint64 meter, const waytype_t wt);
 
 	/**
 	 * Books toll paid by our company to someone else.
@@ -231,14 +249,6 @@ public:
 	 * @param index 0 = passenger, 1 = mail, 2 = goods
 	 */
 	void book_transported(const sint64 amount, const waytype_t wt=ignore_wt, int index=2);
-
-	/**
-	 * Add amount of delivered passenger, mail, goods to accounting statistics.
-	 * @param amount sum of money
-	 * @param wt way type
-	 * @param index 0 = passenger, 1 = mail, 2 = goods
-	 */
-	void book_delivered(const sint64 amount, const waytype_t wt=ignore_wt, int index=2);
 
    /**
      * Is player allowed to purchase something of this price, or is player
@@ -331,6 +341,18 @@ public:
 	}
 
 	/**
+	 * Adds way length to accounting statistics.
+	 * @param length factor (will be adjusted for meter per tile and is_diagonal)
+	 * @param wt type of transport for accounting
+	 */
+	static void add_way_length(player_t* player, const sint64 len, const waytype_t wt)
+	{
+		if (player) {
+			player->book_way_length(len, wt);
+		}
+	}
+
+	/**
 	 * Cached value of scenario completion percentage.
 	 * To get correct values for clients call scenario_t::get_completion instead.
 	 */
@@ -349,6 +371,10 @@ public:
 	 * @return true when account balance is overdrawn
 	 */
 	int get_account_overdrawn() const;
+
+
+	// return player age in months
+	uint16 get_player_age() const { return player_age; }
 
 	/**
 	 * Displays messages from the queue of the player on the screen

@@ -470,6 +470,7 @@ SOURCES += gui/overtaking_mode.cc
 SOURCES += gui/pakselector.cc
 SOURCES += gui/password_frame.cc
 SOURCES += gui/player_frame_t.cc
+SOURCES += gui/player_ranking_gui.cc
 SOURCES += gui/privatesign_info.cc
 SOURCES += gui/savegame_frame.cc
 SOURCES += gui/scenario_frame.cc

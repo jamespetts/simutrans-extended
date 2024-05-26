@@ -77,12 +77,10 @@ void interaction_t::move_cursor( const event_t &ev )
 		zeiger->change_pos(pos);
 
 		if (!tool->move_has_effects()) {
-			tool->end_move(world->get_active_player(), pos);
 			is_dragging = false;
-
 		}
 		else {
-			tool->flags = (event_get_last_control_shift()^tool_t::control_invert) | tool_t::WFL_LOCAL;
+			tool->flags = (event_get_last_control_shift() ^ tool_t::control_invert) | tool_t::WFL_LOCAL;
 			if(tool->check_pos( world->get_active_player(), zeiger->get_pos() )==NULL) {
 				if(  ev.button_state == 0  ) {
 					tool->end_move(world->get_active_player(), pos);
@@ -225,7 +223,7 @@ void interaction_t::interactive_event( const event_t &ev )
 		}
 	}
 
-	if(  IS_LEFTRELEASE(&ev)  &&  ev.mouse_pos.y < display_get_height() -16 -(TICKER_HEIGHT*ticker::empty())  ) {
+	if(  !is_dragging  &&  IS_LEFTRELEASE(&ev)  &&  ev.mouse_pos.y < display_get_height() -16 -(TICKER_HEIGHT*ticker::empty())  ) {
 
 		DBG_MESSAGE("interaction_t::interactive_event(event_t &ev)", "calling a tool");
 
@@ -235,7 +233,7 @@ void interaction_t::interactive_event( const event_t &ev )
 			bool suspended = false; // true if execution was suspended, i.e. sent to server
 			tool_t *tool = world->get_tool(world->get_active_player_nr());
 			player_t *player = world->get_active_player();
-			tool->flags = event_get_last_control_shift()^tool_t::control_invert;
+			tool->flags = event_get_last_control_shift() ^ tool_t::control_invert;
 			// first check for visibility etc (needs already right flags)
 			const char *err = tool->check_pos( player, pos );
 			if (err==NULL) {
@@ -311,59 +309,6 @@ bool interaction_t::process_event( event_t &ev )
 			world->set_tool(tool_t::simple_tool[TOOL_QUIT], NULL);
 		}
 
-		// we may be requested to save the game before exit
-		if(  env_t::server  &&  env_t::server_save_game_on_quit  ) {
-
-			// to ensure only one attempt is made
-			env_t::server_save_game_on_quit = false;
-
-			// following code quite similar to nwc_sync_t::do_coomand
-			dr_chdir( env_t::user_dir );
-
-			// first save password hashes
-			char fn[256];
-			sprintf( fn, "server%d-pwdhash.sve", env_t::server );
-			loadsave_t file;
-			if(file.wr_open(fn, loadsave_t::zipped, 1, "hashes", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR) == loadsave_t::FILE_STATUS_OK) {
-				world->rdwr_player_password_hashes( &file );
-				file.close();
-			}
-
-			// remove passwords before transfer on the server and set default client mask
-			// they will be restored in karte_t::load
-			uint16 unlocked_players = 0;
-			for(  int i=0;  i<PLAYER_UNOWNED; i++  ) {
-				player_t *player = world->get_player(i);
-				if(  player==NULL  ||  player->access_password_hash().empty()  ) {
-					unlocked_players |= (1<<i);
-				}
-				else {
-					player->access_password_hash().clear();
-				}
-			}
-
-			// save game
-			sprintf( fn, "server%d-restore.sve", env_t::server );
-			bool old_restore_UI = env_t::restore_UI;
-			env_t::restore_UI = true;
-			world->save( fn, false, SERVER_SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, false);
-			env_t::restore_UI = old_restore_UI;
-		}
-		else if(  env_t::reload_and_save_on_quit  &&  !env_t::networkmode  ) {
-			// save current game, if not online
-			bool old_restore_UI = env_t::restore_UI;
-			env_t::restore_UI = true;
-
-			// construct from pak name an autosave if requested
-			std::string pak_name( "autosave-" );
-			pak_name.append( env_t::objfilename );
-			pak_name.erase( pak_name.length()-1 );
-			pak_name.append( ".sve" );
-
-			world->save( pak_name.c_str(), true, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, false);
-			env_t::restore_UI = old_restore_UI;
-		}
-		destroy_all_win(true);
 		return true;
 	}
 
@@ -381,9 +326,6 @@ bool interaction_t::process_event( event_t &ev )
 	DBG_DEBUG4("interaction_t::process_event", "after check_pos_win");
 
 	// Handle map drag with right-click
-
-	static bool left_drag = false;
-
 	if(IS_RIGHTCLICK(&ev)) {
 		display_show_pointer(false);
 	}
@@ -396,13 +338,13 @@ bool interaction_t::process_event( event_t &ev )
 		catch_dragging();
 		move_view(ev);
 	}
-	else if ((left_drag || (world->get_tool(world->get_active_player_nr())->get_id() & GENERAL_TOOL) != 0) && IS_LEFTDRAG(&ev)) {
+	else if( IS_LEFTDRAG(&ev) && IS_LEFT_BUTTON_PRESSED(&ev) && (is_world_dragging || (!world->get_tool(world->get_active_player_nr())->move_has_effects() && !IS_CONTROL_PRESSED(&ev)) ) ) {
 		/* ok, we have a general tool selected, and we have a left drag or left release event with an actual difference
 		 * => move the map, if we are beyond a threshold */
-		if(  left_drag  ||  abs(ev.click_pos.x - ev.mouse_pos.x)+abs(ev.click_pos.y - ev.mouse_pos.y)>=env_t::scroll_threshold  ) {
-			if (!left_drag) {
+		if(  is_world_dragging  ||  abs(ev.click_pos.x-ev.mouse_pos.x)+abs(ev.click_pos.y-ev.mouse_pos.y)>=max(1,(env_t::scroll_threshold* get_tile_raster_width())/get_base_tile_raster_width())  ) {
+			if (!is_world_dragging) {
 				display_show_pointer(false);
-				left_drag = true;
+				is_world_dragging = true;
 			}
 			world->get_viewport()->set_follow_convoi(convoihandle_t());
 			catch_dragging();
@@ -411,11 +353,11 @@ bool interaction_t::process_event( event_t &ev )
 		}
 	}
 
-	if(  IS_LEFTRELEASE(&ev)  &&  left_drag  ) {
+	if( !IS_LEFT_BUTTON_PRESSED(&ev)  &&  is_world_dragging  ) {
 		// show the mouse and swallow this event if we were dragging before
 		ev.ev_code = IGNORE_EVENT;
 		display_show_pointer(true);
-		left_drag = false;
+		is_world_dragging = false;
 	}
 
 
@@ -494,11 +436,10 @@ void interaction_t::check_events()
 }
 
 
-interaction_t::interaction_t()
+interaction_t::interaction_t(viewport_t* viewport) :
+	viewport(viewport),
+	is_dragging(false),
+	is_world_dragging(false)
 {
-	viewport = world->get_viewport();
-	is_dragging = false;
-
-	// Requires a world with a view already attached!
 	assert(viewport);
 }

@@ -116,7 +116,7 @@ static const char* const transport_type_text[TT_MAX] = {
 enum accounting_type_common {
 	ATC_CASH = 0,				///< Cash
 	ATC_NETWEALTH,				///< Total Cash + Assets
-	ATC_ALL_CONVOIS,			///< Convoy count
+	ATC_HALTS,			        ///< Halt count
 	ATC_SCENARIO_COMPLETED,		///< Scenario success (only useful if there is one ... )
 	ATC_INTEREST,				/// interest received/paid
 	ATC_SOFT_CREDIT_LIMIT,		/// soft credit limit (player cannot spend money)
@@ -143,22 +143,25 @@ enum accounting_type_vehicles {
 	ATV_TOLL_PAID,                  ///< Toll paid by you to another player
 	ATV_EXPENDITURE,                ///< Total expenditure = RUNNING_COSTS+VEHICLE_MAINTENANCE+INFRACTRUCTURE_MAINTENANCE+TOLL_PAID
 	ATV_OPERATING_PROFIT,           ///< ATV_REVENUE - ATV_EXPENDITURE, was: COST_OPERATING_PROFIT
-	ATV_NEW_VEHICLE,                ///< New vehicles
+	ATV_NEW_VEHICLE,                ///< Payment for new vehicles
 	ATV_CONSTRUCTION_COST,          ///< Construction cost, COST_CONSTRUCTION mapped here
 	ATV_PROFIT,                     ///< ATV_OPERATING_PROFIT - (CONSTRUCTION_COST + NEW_VEHICLE) + COST_INTEREST, was: COST_PROFIT
 	ATV_WAY_TOLL,                   ///< = ATV_TOLL_PAID + ATV_TOLL_RECEIVED, was: COST_WAY_TOLLS
 	ATV_NON_FINANCIAL_ASSETS,       ///< Value of vehicles owned by your company, was: COST_ASSETS
 	ATV_PROFIT_MARGIN,              ///< ATV_OPERATING_PROFIT / ATV_REVENUE, was: COST_MARGIN
 
-	ATV_TRANSPORTED_PASSENGER, ///< Number of transported passengers
+	ATV_TRANSPORTED_PASSENGER, ///< Passenger-distance
 	ATV_TRANSPORTED_MAIL,      ///< Number of transported mail
-	ATV_TRANSPORTED_GOOD,      ///< Number of transported goods
-	ATV_TRANSPORTED,           ///< Total number of transported cargo, was COST_ALL_TRANSPORTED
+	ATV_TRANSPORTED_GOOD,      ///< Payload-distance in tonne km
 
-	ATV_DELIVERED_PASSENGER,   ///< Number of delivered passengers, was: COST_TRANSPORTED_PAS
-	ATV_DELIVERED_MAIL,        ///< Number of delivered mail, was: COST_TRANSPORTED_MAIL
-	ATV_DELIVERED_GOOD,        ///< Number of delivered goods, was: COST_TRANSPORTED_GOOD
-	ATV_DELIVERED,             ///< Total number of delivered cargo
+	ATV_CONVOY_DISTANCE,       ///< Travel distance of convoys
+	ATV_VEHICLE_DISTANCE,      ///< Travel distance of vehicles
+
+	// == The records below must carry over the previous month's data to the new month.
+	ATV_CONVOIS,               ///< Number of convois
+	ATV_CARRY_OVER_DATA_TO_NEXT_MON = ATV_CONVOIS,
+	ATV_VEHICLES,              ///< Number of vehicles
+	ATV_WAY_LENGTH,            ///< tile base length for Way kilometreage
 
 	ATV_MAX
 };
@@ -259,9 +262,20 @@ public:
 	/**
 	 * Adds count to number of convois in statistics.
 	 */
-	inline void book_convoi_number( const int count ) {
-		com_year[0][ATC_ALL_CONVOIS] += count;
-		com_month[0][ATC_ALL_CONVOIS] += count;
+	inline void book_convoi_number( const int count, const waytype_t wt) {
+		veh_year[TT_ALL][0][ATV_CONVOIS]  += count;
+		veh_month[TT_ALL][0][ATV_CONVOIS] += count;
+		transport_type tt = translate_waytype_to_tt(wt);
+		veh_year[tt][0][ATV_CONVOIS]  += count;
+		veh_month[tt][0][ATV_CONVOIS] += count;
+	}
+
+	/**
+	 * Adds count to number of stops in statistics.
+	 */
+	inline void book_stop_number( const int count ) {
+		com_year[0][ATC_HALTS]  += count;
+		com_month[0][ATC_HALTS] += count;
 	}
 
 	/**
@@ -292,6 +306,20 @@ public:
 	}
 
 	/**
+	 * Adds way distance for player ranking stats
+	 * @param straight=10, diagonal=7
+	 * @param wt - waytype for accounting purposes
+	 */
+	inline void book_way_length(const sint64 amount, const waytype_t wt)
+	{
+		veh_year[TT_ALL][0][ATV_WAY_LENGTH] += amount;
+		veh_month[TT_ALL][0][ATV_WAY_LENGTH] += amount;
+		transport_type tt = translate_waytype_to_tt(wt);
+		veh_year[tt][0][ATV_WAY_LENGTH] += amount;
+		veh_month[tt][0][ATV_WAY_LENGTH] += amount;
+	}
+
+	/**
 	 * Account purchase of new vehicle: Subtracts money, increases assets.
 	 * @param amount money paid for vehicle (negative)
 	 * @param wt - waytype of vehicle
@@ -308,6 +336,17 @@ public:
 		update_assets(-amount, wt);
 
 		account_balance += amount;
+	}
+
+	/**
+	 * Adds count to number of vehicles in statistics.
+	 */
+	inline void book_vehicle_number(const int count, const waytype_t wt) {
+		veh_year[TT_ALL][0][ATV_VEHICLES] += count;
+		veh_month[TT_ALL][0][ATV_VEHICLES] += count;
+		transport_type tt = translate_waytype_to_tt(wt);
+		veh_year[tt][0][ATV_VEHICLES] += count;
+		veh_month[tt][0][ATV_VEHICLES] += count;
 	}
 
 	/**
@@ -386,24 +425,23 @@ public:
 		veh_month[tt][0][ATV_TRANSPORTED_PASSENGER+index] += amount;
 	}
 
-
 	/**
-	 * Makes stats of amount of delivered passenger, mail and goods
-	 * @param amount sum of money
-	 * @param wt way type
-	 * @param index 0 = passenger, 1 = mail, 2 = goods
+	 * Traveled distance of convoy/vehicle to player statistics.
+	 * @param travel distance of convoy
+	 * @param wt type of transport used for accounting statistics
+	 * @param vehicle number of convoy
 	 */
-	inline void book_delivered(const sint64 amount, const waytype_t wt, int index)
+	inline void book_convoy_distance(const sint64 distance, const waytype_t wt, uint8 vehicle_count)
 	{
+		veh_year[TT_ALL][0][ATV_CONVOY_DISTANCE]   += distance;
+		veh_month[TT_ALL][0][ATV_CONVOY_DISTANCE]  += distance;
+		veh_year[TT_ALL][0][ATV_VEHICLE_DISTANCE]  += distance * vehicle_count;
+		veh_month[TT_ALL][0][ATV_VEHICLE_DISTANCE] += distance * vehicle_count;
 		const transport_type tt = translate_waytype_to_tt(wt);
-
-		// there are: passenger, mail, goods
-		if( (index < 0) || (index > 2)){
-			index = 2;
-		}
-
-		veh_year[ tt][0][ATV_DELIVERED_PASSENGER+index] += amount;
-		veh_month[tt][0][ATV_DELIVERED_PASSENGER+index] += amount;
+		veh_year[tt][0][ATV_CONVOY_DISTANCE]   += distance;
+		veh_month[tt][0][ATV_CONVOY_DISTANCE]  += distance;
+		veh_year[tt][0][ATV_VEHICLE_DISTANCE]  += distance * vehicle_count;
+		veh_month[tt][0][ATV_VEHICLE_DISTANCE] += distance * vehicle_count;
 	}
 
 	/**
@@ -571,7 +609,7 @@ public:
 	/**
 	 * @returns TRUE if there is at least one convoi, otherwise returns false
 	 */
-	bool has_convoi() const { return (com_year[0][ATC_ALL_CONVOIS] > 0); }
+	bool has_convoi() const { return (veh_year[TT_ALL][0][ATV_CONVOIS] > 0); }
 
 	/**
 	 * returns TRUE if net wealth > 0 (but this of course requires that we keep netwealth up to date!)

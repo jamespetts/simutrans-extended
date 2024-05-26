@@ -189,8 +189,13 @@ uint8 env_t::gui_player_color_dark = 1;
 uint8 env_t::gui_player_color_bright = 4;
 uint8 env_t::gui_titlebar_player_color_background_brightness;
 
+#ifndef __ANDROID__
 std::string env_t::fontname = FONT_PATH_X "prop.fnt";
 uint8 env_t::fontsize = 11;
+#else
+std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
+uint8 env_t::fontsize = 17;
+#endif
 
 rgb888_t env_t::front_window_text_color_rgb;
 PIXVAL env_t::front_window_text_color;

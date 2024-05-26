@@ -1263,6 +1263,9 @@ public:
 	inline sint64 get_finance_history(int month, convoi_cost_t cost_type) const { return financial_history[month][cost_type]; }
 	sint64 get_stat_converted(int month, convoi_cost_t cost_type) const;
 
+	// retrun yearly passenger load factor from finance history. up to 1 decimal place
+	uint32 get_load_factor_pax() const;
+
 	/**
 	* only purpose currently is to roll financial history
 	*/

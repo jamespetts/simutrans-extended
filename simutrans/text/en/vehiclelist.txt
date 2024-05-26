@@ -1,0 +1,30 @@
+<title>Available vehicle list help</title>
+
+<h1><strong>Available vehicle</strong></h1>
+
+<p>
+The <strong>Available vehicle list</strong> window lists and gives information about the individual vehicles currently available to purchase.
+</p>
+<p>
+To open: click on the available vehicle list icon in the <a href="list.txt">List Management</a> toolstrip.
+</p>
+
+<p>
+The <strong>available vehicle list</strong> window has colums for the type of vehicle and various data about each vhicle. Clicking on the columns will order the list by rank of the data in that column. 
+</p>
+
+<p>
+The list can be filtered by way type using the tabs at the top, and available, future, past, out of production, obselete and upgradeable vehicles can also be selected for filtering using the status filter buttons.
+</p>
+
+<p>
+The search function can be used to search for the vehicles by name, and the vehicles can also be filtered by traction type and/or fright type using the dropdown boxes at the top centre and top right of the window.
+</p>
+
+<p>
+Vehicles can be listed either by name or image depending on the button selection at the top right of the window.
+</p>
+
+<p>
+Clicking on an individual vehicle will bring up a <a href="vehicle_detail.txt">new window with more details about that vehicle</a>.
+</p>

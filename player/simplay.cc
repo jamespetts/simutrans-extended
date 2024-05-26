@@ -51,6 +51,7 @@
 
 #include "../gui/messagebox.h"
 #include "../gui/player_frame_t.h"
+#include "../gui/player_ranking_gui.h"
 
 #include "../utils/cbuffer_t.h"
 #include "../utils/simstring.h"
@@ -172,6 +173,11 @@ void player_t::book_new_vehicle(const sint64 amount, const koord k, const waytyp
 	add_money_message(amount, k);
 }
 
+void player_t::book_vehicle_number(const sint64 count, const waytype_t wt)
+{
+	finance->book_vehicle_number(count, wt);
+}
+
 
 void player_t::book_revenue(const sint64 amount, const koord k, const waytype_t wt, sint32 index)
 {
@@ -184,10 +190,20 @@ void player_t::book_way_renewal(const sint64 amount, const waytype_t wt)
 	finance->book_way_renewal(-amount, wt);
 }
 
+void player_t::book_way_length(const sint64 len, const waytype_t wt)
+{
+	finance->book_way_length(len, wt);
+}
+
 
 void player_t::book_running_costs(const sint64 amount, const waytype_t wt)
 {
 	finance->book_running_costs(amount, wt);
+}
+
+void player_t::book_convoy_distance(const sint64 distance, const waytype_t wt, uint8 vehicle_count)
+{
+	finance->book_convoy_distance(distance, wt, vehicle_count);
 }
 
 void player_t::book_vehicle_maintenance(const sint64 amount, const waytype_t wt)
@@ -212,11 +228,6 @@ void player_t::book_toll_received(const sint64 amount, const waytype_t wt)
 void player_t::book_transported(const sint64 amount, const waytype_t wt, int index)
 {
 	finance->book_transported(amount, wt, index);
-}
-
-void player_t::book_delivered(const sint64 amount, const waytype_t wt, int index)
-{
-	finance->book_delivered(amount, wt, index);
 }
 
 bool player_t::can_afford(const sint64 price) const
@@ -248,6 +259,12 @@ void player_t::set_name(const char *new_name)
 	if (ki_kontroll_t *frame = dynamic_cast<ki_kontroll_t *>( win_get_magic(magic_ki_kontroll_t) ) ) {
 		frame->update_data();
 	}
+
+	// update player ranking window
+	if (player_ranking_gui_t *frame = dynamic_cast<player_ranking_gui_t *>( win_get_magic(magic_player_ranking) ) ) {
+		frame->update_buttons();
+	}
+
 }
 
 
@@ -346,6 +363,11 @@ void player_t::set_player_color_no_message(uint8 col1, uint8 col2)
 	if (ki_kontroll_t* frame = dynamic_cast<ki_kontroll_t*>(win_get_magic(magic_ki_kontroll_t))) {
 		frame->update_data();
 	}
+	// update player ranking window
+	if (player_ranking_gui_t *frame = dynamic_cast<player_ranking_gui_t *>( win_get_magic(magic_player_ranking) ) ) {
+		frame->update_buttons();
+		frame->update_chart();
+	}
 }
 
 
@@ -353,7 +375,7 @@ void player_t::step()
 {
 	/*
 	NOTE: This would need updating to the new FOR iterators to work now.
-	// die haltestellen m�Esen die Fahrpl�ne rgelmaessig pruefen
+	// die haltestellen m?Esen die Fahrpl?ne rgelmaessig pruefen
 	uint8 i = (uint8)(welt->get_steps()+player_nr);
 	//slist_iterator_tpl <nearby_halt_t> iter( halt_list );
 	//while(iter.next()) {
@@ -502,11 +524,11 @@ bool player_t::new_month()
 			bool no_cnv = true;
 			const uint16 months = min( MAX_PLAYER_HISTORY_MONTHS,  welt->get_settings().get_remove_dummy_player_months() );
 			for(  uint16 m=0;  m<months  &&  no_cnv;  m++  ) {
-				no_cnv &= finance->get_history_com_month(m, ATC_ALL_CONVOIS) ==0;
+				no_cnv &= finance->get_history_veh_month(TT_ALL, m, ATV_CONVOIS)==0;
 			}
 			const uint16 years = max( MAX_PLAYER_HISTORY_YEARS,  (welt->get_settings().get_remove_dummy_player_months() - 1) / 12 );
 			for(  uint16 y=0;  y<years  &&  no_cnv;  y++  ) {
-				no_cnv &= finance->get_history_com_year(y, ATC_ALL_CONVOIS)==0;
+				no_cnv &= finance->get_history_veh_year(TT_ALL, y, ATV_CONVOIS)==0;
 			}
 			// never run a convoi => dummy
 			if(  no_cnv  ) {
@@ -892,6 +914,28 @@ void player_t::rdwr(loadsave_t *file)
 	}
 
 	if(file->is_loading()) {
+		if (file->is_version_ex_less(14, 64)) {
+			for (convoihandle_t const cnv : world()->convoys()) {
+				if (cnv->get_owner() == this) {
+					book_convoi_number(1, cnv->front()->get_waytype());
+					book_vehicle_number(cnv->get_vehicle_count(), cnv->front()->get_waytype());
+				}
+			}
+
+			for (depot_t* const depot : depot_t::get_depot_list()) {
+				if (depot->get_owner_nr() == player_nr) {
+					book_vehicle_number(depot->get_vehicle_list().get_count(), depot->get_waytype());
+				}
+			}
+
+			sint64 count=0;
+			for (halthandle_t const halt : haltestelle_t::get_alle_haltestellen()) {
+				if (halt->get_owner() == this) {
+					count++;
+				}
+			}
+			book_stop_number(count);
+		}
 
 		// halt_count will be zero for newer savegames
 DBG_DEBUG("player_t::rdwr()","player %i: loading %i halts.",welt->sp2num( this ),halt_count);
@@ -1212,10 +1256,16 @@ void player_t::tell_tool_result(tool_t *tool, koord3d, const char *err)
 }
 
 
-void player_t::book_convoi_number(int count)
+void player_t::book_convoi_number(int count, const waytype_t wt)
 {
-	finance->book_convoi_number(count);
+	finance->book_convoi_number(count, wt);
 }
+
+void player_t::book_stop_number(int count)
+{
+	finance->book_stop_number(count);
+}
+
 
 sint64 player_t::get_account_balance() const
 {
@@ -1313,12 +1363,16 @@ void player_t::take_over(player_t* target_player)
 		// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
 	}
 */
-	// Transfer maintenance costs
+	// Transfer finance history of this month
 	for (uint32 i = 0; i < transport_type::TT_MAX; i++)
 	{
 		transport_type tt = (transport_type)i;
 		finance->book_maintenance(target_player->get_finance()->get_maintenance(tt), finance_t::translate_tt_to_waytype(tt));
+		if (i >= TT_MAX_VEH) continue;
+		finance->book_convoi_number(target_player->get_finance()->get_history_veh_month(tt, 0, ATV_CONVOIS), finance_t::translate_tt_to_waytype(tt));
+		finance->book_vehicle_number(target_player->get_finance()->get_history_veh_month(tt,0, ATV_VEHICLES), finance_t::translate_tt_to_waytype(tt));
 	}
+	finance->book_stop_number(target_player->get_finance()->get_history_com_month(0, ATC_HALTS));
 
 	// Transfer fixed assets (adopted from the liquidation algorithm)
 	for (int y = 0; y < welt->get_size().y; y++)

@@ -5333,6 +5333,7 @@ DBG_MESSAGE("tool_build_station_t::tool_station_dock_aux()","building dock from 
 	if(neu) {
 		char* const name = halt->create_name(k, "Dock");
 		halt->set_name( name );
+		halt->get_owner()->book_stop_number(1);
 		free(name);
 	}
 	return NULL;
@@ -5600,6 +5601,7 @@ const char *tool_build_station_t::tool_station_flat_dock_aux(player_t *player, k
 	if(neu) {
 		char* const name = halt->create_name(k, "Dock");
 		halt->set_name( name );
+		halt->get_owner()->book_stop_number(1);
 		free(name);
 	}
 	return NULL;
@@ -5869,6 +5871,7 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 	if(neu) {
 		char* const name = halt->create_name(k, type_name);
 		halt->set_name(name);
+		halt->get_owner()->book_stop_number(1);
 		free(name);
 	}
 
@@ -9257,6 +9260,7 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 				else
 				{
 					player_t::add_maintenance(w->get_owner(), -maintenance_cost, w->get_desc()->get_finance_waytype());
+					player_t::add_way_length(player, -10, w->get_desc()->get_finance_waytype());
 					player_t::book_construction_costs(player, -construction_cost, gr->get_pos().get_2d(), w->get_desc()->get_finance_waytype());
 					if(player == psplayer)
 					{
@@ -10396,7 +10400,10 @@ bool tool_change_depot_t::init( player_t *player )
 					}
 					return false;
 				}
-				depot->copy_convoi( cnv, is_local_execution() );
+				if( (depot->copy_convoi( cnv, is_local_execution() )).is_bound() ) {
+					// copy succeeded
+					player->book_convoi_number(1, cnv->front()->get_waytype());
+				}
 			}
 			break;
 		}
@@ -10412,6 +10419,7 @@ bool tool_change_depot_t::init( player_t *player )
 				if ( cnv.is_bound() ) {
 					int start_nr = atoi(p);
 					int nr = start_nr;
+					waytype_t wt = cnv->front()->get_waytype();
 
 					// find end
 					while(nr<cnv->get_vehicle_count()) {
@@ -10432,6 +10440,9 @@ bool tool_change_depot_t::init( player_t *player )
 						for(  int i=start_nr;  i<nr;  i++  ) {
 							depot->remove_vehicle(cnv, start_nr);
 						}
+					}
+					if (!cnv.is_bound()) {
+						player->book_convoi_number(-1, wt);
 					}
 				}
 			}
@@ -10495,6 +10506,7 @@ bool tool_change_depot_t::init( player_t *player )
 							cnv = depot->add_convoi( is_local_execution() );
 							cnv->set_name( new_vehicle_info.front()->get_name() );
 							cnv->set_livery_scheme_index(livery_scheme_index);
+							player->book_convoi_number(1, info->get_waytype());
 						}
 
 						// now we have a valid cnv

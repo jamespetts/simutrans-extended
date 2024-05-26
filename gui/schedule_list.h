@@ -15,6 +15,7 @@
 #include "components/gui_scrolled_list.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_tab_panel.h"
+#include "components/gui_table.h"
 #include "components/gui_combobox.h"
 #include "components/gui_label.h"
 #include "components/gui_convoiinfo.h"
@@ -37,7 +38,20 @@ class player_t;
 class schedule_list_gui_t : public gui_frame_t, public action_listener_t
 {
 public:
-	enum sort_mode_t { by_name = 0, by_schedule, by_profit, by_loading_lvl, by_max_speed, by_power, by_value, by_age, by_range, SORT_MODES };
+	enum sort_mode_t {
+		by_name = 0,
+		by_schedule,
+		by_profit,
+		by_loading_lvl,
+		by_max_speed,
+		by_power,
+		by_value,
+		by_age,
+		by_range,
+		by_loadfactor_pax,
+		SORT_MODES
+	};
+
 private:
 	player_t *player, *old_player;
 
@@ -50,8 +64,14 @@ private:
 	button_t reset_all_pass_button, reset_all_mail_button;
 	gui_line_lettercode_t lc_preview;
 	gui_container_t cont, cont_charts, cont_convoys;
-	gui_aligned_container_t cont_line_name;
-	gui_aligned_container_t cont_times_history, cont_line_info, cont_tab_haltlist, cont_transport_density, cont_tab_fare_manager;
+	gui_aligned_container_t
+		cont_line_name,
+		cont_times_history,
+		cont_line_info,
+		cont_tab_haltlist,
+		cont_transport_density,
+		cont_load_factor,
+		cont_tab_fare_manager;
 	gui_accommodation_fare_manager_t cont_by_accommo;
 	gui_line_waiting_status_t cont_haltlist;
 	gui_line_network_t cont_line_network;
@@ -61,7 +81,15 @@ private:
 	gui_waytype_image_box_t wt_symbol;
 	gui_textinput_t inp_name, inp_filter;
 	gui_label_t lbl_filter;
-	gui_label_buf_t lb_line_origin, lb_line_destination, lb_travel_distance, lb_service_frequency, lb_convoy_count;
+	gui_label_buf_t
+		lb_line_origin,
+		lb_line_destination,
+		lb_travel_distance,
+		lb_service_frequency,
+		lb_convoy_count;
+	gui_table_cell_buf_t
+		lb_load_factor_pax_year,
+		lb_load_factor_pax_last_month;
 	gui_chart_t chart;
 	button_t filterButtons[MAX_LINE_COST];
 	gui_tab_panel_t tabs; // line selector

@@ -115,8 +115,6 @@ settings_t::settings_t() :
 
 	origin_x = origin_y = 0;
 
-	electric_promille = 1000;
-
 	// town growth factors
 	passenger_multiplier = 40;
 	mail_multiplier = 20;
@@ -139,7 +137,7 @@ settings_t::settings_t() :
 
 	factory_maximum_intransit_percentage = 0;
 
-	electric_promille = 330;
+	electric_promille = 1000;
 
 #ifdef OTTD_LIKE
 	// crossconnect all factories (like OTTD and similar games)
@@ -167,6 +165,7 @@ settings_t::settings_t() :
 
 	num_city_roads = 0;
 	num_intercity_roads = 0;
+	num_industry_roads = 0;
 
 	max_route_steps = 1000000;
 	max_choose_route_steps = 200;
@@ -2565,7 +2564,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_factory_spacing_percentage = contents.get_int_clamped("max_factory_spacing_percentage",    max_factory_spacing_percentage, 0, 100 );
 	crossconnect_factories         = contents.get_int("crossconnect_factories", crossconnect_factories ) != 0;
 	crossconnect_factor            = contents.get_int_clamped("crossconnect_factories_percentage", crossconnect_factor,            0, 100 );
-	electric_promille              = contents.get_int_clamped("electric_promille",                 electric_promille,              0, 1000 );
+	electric_promille              = contents.get_int_clamped("electric_promille",                 electric_promille,              0, 3000 );
 
 	just_in_time = contents.get_int_clamped("just_in_time", just_in_time, 0, 4);
 

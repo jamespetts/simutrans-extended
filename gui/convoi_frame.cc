@@ -44,11 +44,12 @@ const char *convoi_frame_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_power",
 	"cl_btn_sort_value",
 	"cl_btn_sort_age",
-	"cl_btn_sort_range"
+	"cl_btn_sort_range",
+	"L/F(passenger)"
 };
 
 const slist_tpl<const goods_desc_t*>* convoi_frame_t::waren_filter = NULL;
-const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,9,2,0,0,4,5,6,7,8 };
+const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,9,2,0,0,4,5,6,7,8,10 };
 /**
  * Scrolled list of gui_convoiinfo_ts.
  * Filters (by setting visibility) and sorts.
@@ -210,6 +211,11 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 			break;
 		case by_range:
 			result = cnv1->get_min_range() - cnv2->get_min_range();
+			break;
+		case by_loadfactor_pax:
+			const sint64 factor_1 = cnv1->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv1->get_load_factor_pax() : -1;
+			const sint64 factor_2 = cnv2->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv2->get_load_factor_pax() : -1;
+			result = factor_1 - factor_2;
 			break;
 	}
 	return sortreverse ? result > 0 : result < 0;

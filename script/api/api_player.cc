@@ -40,12 +40,12 @@ vector_tpl<sint64> const& get_player_stat(player_t *player, sint32 INDEX, sint32
 			sint64 m = atv ? ( monthly ? finance->get_history_veh_month((transport_type)TTYPE, i, INDEX) : finance->get_history_veh_year((transport_type)TTYPE, i, INDEX) )
 			               : ( monthly ? finance->get_history_com_month(i, INDEX) : finance->get_history_com_year(i, INDEX) );
 			if (atv) {
-				if (INDEX != ATV_TRANSPORTED_PASSENGER  &&  INDEX != ATV_TRANSPORTED_MAIL  &&  INDEX != ATV_TRANSPORTED_GOOD  &&  INDEX !=ATV_TRANSPORTED) {
+				if (INDEX != ATV_TRANSPORTED_PASSENGER  &&  INDEX != ATV_TRANSPORTED_MAIL  &&  INDEX != ATV_TRANSPORTED_GOOD) {
 					m = convert_money(m);
 				}
 			}
 			else {
-				if (INDEX != ATC_ALL_CONVOIS) {
+				if (INDEX != ATC_HALTS) {
 					m = convert_money(m);
 				}
 			}
@@ -167,11 +167,6 @@ void export_player(HSQUIRRELVM vm)
 	 */
 	register_method_fv(vm, &get_player_stat, "get_margin",            freevariable3<sint32,sint32,bool>(ATV_PROFIT_MARGIN, -1, true), true);
 	/**
-	 * Get monthly statistics of all transported goods.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_player_stat, "get_transported",       freevariable3<sint32,sint32,bool>(ATV_TRANSPORTED, TT_ALL, true), true);
-	/**
 	 * Get monthly statistics of income from powerlines.
 	 * @returns array, index [0] corresponds to current month
 	 */
@@ -195,7 +190,7 @@ void export_player(HSQUIRRELVM vm)
 	 * Get monthly statistics of number of convoys.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_player_stat, "get_convoys",           freevariable3<sint32,sint32,bool>(ATC_ALL_CONVOIS, -1, true), true);
+	register_method_fv(vm, &get_player_stat, "get_convoys",           freevariable3<sint32,sint32,bool>(ATV_CONVOIS, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of income/loss due to way tolls.
 	 * @returns array, index [0] corresponds to current month

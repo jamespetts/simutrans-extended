@@ -614,6 +614,12 @@ void simline_t::rdwr(loadsave_t *file)
 				}
 			}
 		}
+		else if( file->is_version_ex_less(14,64) ) {
+			// convert to new data (vacant_seats*km to seat-km)
+			for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+				financial_history[k][LINE_CAPACITY] += financial_history[k][LINE_PAX_DISTANCE];
+			}
+		}
 	}
 }
 
@@ -1208,6 +1214,26 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 		default: ;
 	}
 	return value;
+}
+
+uint32 simline_t::get_load_factor_pax_year() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	sint64 total_seat_km = 0;
+	sint64 total_pax_km = 0;
+	for (uint8 m = 0; m < MAX_MONTHS; m++) {
+		total_seat_km += financial_history[m][LINE_CAPACITY];
+		total_pax_km += financial_history[m][LINE_PAX_DISTANCE];
+	}
+	return total_seat_km ? (uint32)(1000 * total_pax_km / total_seat_km) : 0;
+}
+
+uint32 simline_t::get_load_factor_pax_last_month() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	return financial_history[1][LINE_CAPACITY] ? (uint32)(1000 * financial_history[1][LINE_PAX_DISTANCE] / financial_history[1][LINE_CAPACITY]) : 0;
 }
 
 sint64 simline_t::get_service_frequency()

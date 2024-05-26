@@ -416,7 +416,7 @@ void grund_t::rdwr(loadsave_t *file)
 					else {
 						assert((flags&has_way2)==0); // maximum two ways on one tile ...
 						weg->set_pos(pos);
-						weg->calc_speed_limit(this); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
+						weg->calc_speed_limit(this, true); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
 						if(owner_n!=-1) {
 							weg->set_owner(welt->get_player(owner_n));
 						}
@@ -2187,6 +2187,7 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 				// restore speed limit
 				weg_t* w = (weg_t*)obj_bei(0);
 				w->set_desc(w->get_desc(), true);
+				w->calc_speed_limit(this); // We need this as the above line will not set the speed limit because we call it with "true" because we do not want to overwrite the way wear data.
 				w->count_sign();
 			}
 		}

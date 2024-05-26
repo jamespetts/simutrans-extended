@@ -451,6 +451,7 @@ bool font_t::load_from_file(const char *srcfilename)
 
 #ifdef USE_FREETYPE
 	bool ok = load_from_freetype( fname, env_t::fontsize );
+
 #if MSG_LEVEL>=4
 	if(  ok  ) {
 		print_debug();

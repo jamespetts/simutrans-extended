@@ -10,7 +10,6 @@
 *.opensdf
 *.tar.gz
 *.log
-simutrans/
 *.out
 *.exe
 *.app
@@ -29,6 +28,8 @@ simutrans/
 *.iobj
 *.ipdb
 *.TMP
+*.tlog
+*.idb
 settings-experimental-debug.xml
 settings-extended-debug.xml
 ipch
@@ -95,6 +96,18 @@ bugs-pak128.britain.txt
 UpgradeLog.htm
 *.psess
 *.vsp
+
+temp-load.sve
+motd.txt
+*.lib
+*.exp
+*.dll*
+_cached_exp.xml
+github-recovery-codes.txt
+simutrans/Simutrans-Extended
+
+nightly.sh
+rotate.sh
 
 # Folder config file
 Desktop.ini
@@ -174,11 +187,12 @@ text/citylists/
 # Files:
 simctrl
 envvars
-text/*.*
+#text/*.*
 text/en/Simutrans-Experimental.vcxproj.lnk
 text/en/Simutrans-Extended.vcxproj.lnk
-text/all-help-file-names
+#text/all-help-file-names
 
 /Simutrans-Ex/nbproject/private/
 *.cache
 configure
+
