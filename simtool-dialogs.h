@@ -238,10 +238,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_player_ranking); return false; }
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
-	//bool is_init_keeps_game_state() const OVERRIDE{ return true; }
-	//bool is_work_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // jump to position dialog
