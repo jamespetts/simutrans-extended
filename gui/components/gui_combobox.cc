@@ -71,7 +71,12 @@ DBG_MESSAGE("event","HOWDY!");
 			if(IS_LEFTRELEASE(ev)) {
 				value_t p;
 				bt_prev.pressed = false;
-				set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				if (inverse_sidebutton_action) {
+					set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				}
+				else {
+					set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				}
 				p.i = droplist.get_selection();
 				call_listeners( p );
 			}
@@ -82,7 +87,12 @@ DBG_MESSAGE("event","HOWDY!");
 			if(IS_LEFTRELEASE(ev)) {
 				bt_next.pressed = false;
 				value_t p;
-				set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				if (inverse_sidebutton_action) {
+					set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				}
+				else {
+					set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				}
 				p.i = droplist.get_selection();
 				call_listeners(p);
 			}

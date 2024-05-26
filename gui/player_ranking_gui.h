@@ -39,18 +39,24 @@ class player_ranking_gui_t : public gui_frame_t, private action_listener_t
 public:
 	enum
 	{
+		PR_CASH,
+		PR_NETWEALTH,
 		PR_REVENUE,
 		PR_PROFIT,
 		PR_MARGIN,
 		PR_TRANSPORT_PAX,
 		PR_TRANSPORT_MAIL,
 		PR_TRANSPORT_GOODS,
-		PR_CASH,
-		PR_NETWEALTH,
+		PR_CONVOY_DISTANCE,
+		PR_VEHICLE_DISTANCE,
 		PR_CONVOIS,
+		PR_VEHICLES,
+		PR_HALTS,
+		PR_WAY_KILOMETREAGE,
 		MAX_PLAYER_RANKING_CHARTS
 	};
 	static uint8 transport_type_option;
+	static uint8 selected_year;
 
 private:
 
@@ -63,6 +69,7 @@ private:
 
 	gui_combobox_t
 		player_select[MAX_PLAYER_COUNT-1],
+		cb_year_selector,
 		transport_type_c;
 	uint16 transport_types[TT_OTHER];
 
@@ -76,6 +83,8 @@ private:
 
 	uint8 selected_item= PR_REVENUE;
 	uint8 selected_player;
+
+	char years_str[MAX_PLAYER_HISTORY_YEARS][6];
 
 	void sort_player();
 

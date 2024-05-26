@@ -39,6 +39,8 @@ cl_btn_sort_type
 タイプ
 cl_btn_sort_loading_lvl
 積載率
+L/F(passenger)
+搭乗率/乗車率
 cl_btn_sort_max_speed
 最高速度
 cl_btn_sort_value
@@ -1039,8 +1041,8 @@ Fracht
 貨物
 Frame time:
 フレーム：
-Free Capacity
-空席
+Seat-km
+座席キロ
 freeplay mode
 フリープレイ モード
 Friction:
@@ -1205,6 +1207,8 @@ increase underground view level
 ハイトカットレベルを上げる
 industrial building
 工場
+Infrastructures
+車両と設備
 Init map ...
 マップを初期化しています ...
 Input
@@ -1575,6 +1579,8 @@ Passagierziele
 旅客/郵便物の行き先
 Passenger AI
 AI 旅客
+Passenger load factor
+搭乗率/乗車率(年間)
 Passenger Demand %d\n
 労働者/顧客需要: %d\n
 Password
@@ -2081,6 +2087,8 @@ Vehicle %s is stucked!
 「%s」が\n立ち往生しています！
 Vehicle details
 乗り物の詳細
+Vehicle-km
+車両キロ
 Verbrauch
 消費
 Vergroessere die Karte\n
@@ -4383,6 +4391,8 @@ A measure of the amount of freight transported, expressed in tonne-kilometre
 貨物の輸送量を示す指標。貨物の重量と輸送距離の積。
 Transportation density
 輸送密度
+Transportation results
+輸送実績
 Monthly transportation density
 月間輸送密度
 Yearly average
@@ -4547,6 +4557,8 @@ line_network
 #_______________________________unnecessary_text________________________________
 Spacing cnv/month, shift
 1ヶ月あたり発車許可本数, シフト時間
+Free Capacity
+空席
 100 km/h = %i tiles/month
 100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n

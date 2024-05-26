@@ -41,6 +41,7 @@ public:
 		by_value,
 		by_age,
 		by_range,
+		by_loadfactor_pax,
 		SORT_MODES
 	};
 	static const uint8 sortmode_to_label[SORT_MODES];

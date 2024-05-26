@@ -262,6 +262,17 @@ void gui_convoiinfo_t::update_label()
 			switchable_label_title.set_visible(true);
 			switchable_label_value.set_visible(true);
 			break;
+		case 10: // passenger load factor
+			switchable_label_title.buf().printf("%s: ", translator::translate("Passenger load factor"));
+			if (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
+				switchable_label_title.buf().printf("%.1f%%", cnv->get_load_factor_pax()/10.0);
+			}
+			else {
+				switchable_label_value.buf().append("-");
+			}
+			switchable_label_title.set_visible(true);
+			switchable_label_value.set_visible(true);
+			break;
 		case 0:
 		default:
 			switchable_label_title.set_visible(false);

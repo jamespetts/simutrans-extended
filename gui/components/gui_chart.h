@@ -95,6 +95,8 @@ public:
 	//  2: Does not follow the settings, but the graphs is left to right
 	void set_ltr(uint8 value) { ltr = value; }
 
+	void set_highlight_x(int x_ = -1) { highlight_x = x_; };
+
 	int get_curve_count() { return curves.get_count(); }
 
 	scr_size get_max_size() const OVERRIDE;
@@ -135,6 +137,8 @@ private:
 
 	uint8 ltr;
 	bool show_x_axis, show_y_axis;
+
+	int highlight_x;
 
 	/**
 	 * Background color, -1 for transparent background

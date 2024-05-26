@@ -1075,6 +1075,13 @@ void money_frame_t::update_stats()
 			lb_line_counts[i].update();
 
 			// convoys
+#ifdef DEBUG
+			sint64 temp = player->get_finance()->get_history_veh_month((transport_type)(i + 1), 0, ATV_CONVOIS);
+			if (temp != tt_convoy_counts[i]) {
+				dbg->warning("money_frame_t::update_stats()", "player (tt:%u) convoy count mismatch - %i vs %i", i+1, temp, tt_convoy_counts[i]);
+			}
+#endif // DEBUG
+
 			if (tt_convoy_counts[i]) {
 				lb_convoy_counts[i].buf().printf("%u", tt_convoy_counts[i]);
 				if (tt_inactive_convoy_counts[i]) {
@@ -1130,6 +1137,12 @@ void money_frame_t::update_stats()
 	lb_total_active_lines.buf().append(active_lines, 0);
 	lb_total_active_lines.update();
 
+#ifdef DEBUG
+	sint64 temp = player->get_finance()->get_history_veh_month(TT_ALL, 0, ATV_CONVOIS);
+	if (temp != total_own_convoys) {
+		dbg->warning("money_frame_t::update_stats()", "player total convoy count mismatch - %i vs %i", temp, total_own_convoys);
+	}
+#endif // DEBUG
 	lb_own_convoy_count.buf().append(total_own_convoys, 0);
 	lb_own_convoy_count.update();
 

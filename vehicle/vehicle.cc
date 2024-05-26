@@ -822,7 +822,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 
 uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all)
 {
-	uint16 sum_menge = 0, sum_delivered = 0, index = 0;
+	uint16 sum_menge = 0, index = 0;
 
 	revenue_from_unloading = 0;
 
@@ -921,7 +921,6 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 							// book delivered goods to destination
 							if (end_halt == halt)
 							{
-								sum_delivered += menge;
 								if (tmp.is_passenger())
 								{
 									// New for Extended 7.2 - add happy passengers
@@ -1019,12 +1018,6 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 		}
 	}
 
-	if(  sum_menge  ) {
-		if(  sum_delivered  ) {
-			// book delivered goods to destination
-			get_owner()->book_delivered( sum_delivered, get_desc()->get_waytype(), index );
-		}
-	}
 	return sum_menge;
 }
 
