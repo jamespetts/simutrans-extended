@@ -98,10 +98,6 @@ public:
 
 	static uint8 chat_window_transparency;
 
-	static uint8 chat_unread_public;
-	static uint8 chat_unread_company;
-	static uint8 chat_unread_whisper;
-
 	/// if true a kill event will save the game under recovery#portnr#.sve
 	static bool server_save_game_on_quit;
 
