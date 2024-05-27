@@ -3600,7 +3600,7 @@ void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended, 
 		return;
 	}
 	// check for password-protected players
-	if(  (!tool_in->is_init_keeps_game_state()  ||  !tool_in->is_work_keeps_game_state())  &&  !scripted_call  &&
+	if(  (!tool_in->is_init_keeps_game_state()  ||  !tool_in->is_work_keeps_game_state())  &&  needs_check  &&
 		 !(tool_in->get_id()==(TOOL_CHANGE_PLAYER|SIMPLE_TOOL)  ||  tool_in->get_id()==(TOOL_ADD_MESSAGE| GENERAL_TOOL))  &&
 		 player  &&  player->is_locked()  ) {
 		// player is currently password protected => request unlock first
@@ -4168,7 +4168,7 @@ stadt_t *karte_t::get_city(const koord pos) const
 	if(is_within_limits(pos))
 	{
 		int city_count = 0;
-		for(auto const c : cities)
+		for(auto const c : cities) {
 			if(c->is_within_city_limits(pos))
 			{
 				city_count++;
@@ -10565,7 +10565,7 @@ const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, 
 {
 	suspended = false;
 	const char *err = NULL;
-	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_network_safe(player, pos);
+	bool network_safe_tool = tool->is_work_keeps_game_state() || tool->is_work_here_keeps_game_state(player, pos);
 	if(  !env_t::networkmode  ||  network_safe_tool  ) {
 		// do the work
 		tool->flags |= tool_t::WFL_LOCAL;
