@@ -3034,7 +3034,6 @@ karte_t::karte_t() :
 	convoi_array(0),
 	world_attractions(16),
 	cities(0),
-	idle_time(0),
 	speed_factors_are_set(false)
 {
 	destroying = false;
@@ -3053,9 +3052,9 @@ karte_t::karte_t() :
 	network_frame_count = 0;
 	sync_steps = 0;
 	sync_steps_barrier = sync_steps;
+
 	next_step_passenger = 0;
 	next_step_mail = 0;
-	destroying = false;
 	transferring_cargoes = NULL;
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
@@ -8944,7 +8943,7 @@ bool karte_t::load(const char *filename)
 		create_win(new news_img("WRONGSAVE"), w_info, magic_none);
 	}
 	else {
-DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
+		DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 
 		file.set_buffered(true);
 		load(&file);
@@ -10379,6 +10378,7 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 		steps = sync_steps / settings.get_frames_per_step();
 		network_frame_count = sync_steps % settings.get_frames_per_step();
 		dbg->warning("karte_t::network_game_set_pause", "steps=%d sync_steps=%d pause=%d", steps, sync_steps, pause_);
+
 		if (pause_) {
 			if (!env_t::server) {
 				reset_timer();
@@ -10864,10 +10864,9 @@ bool karte_t::interactive(uint32 quit_month)
 
 		// time for the next step?
 		uint32 time = dr_time(); // - (env_t::server ? 0 : 5000);
-		if ((sint32)next_step_time - (sint32)time <= 0) {
-			if (step_mode&PAUSE_FLAG)
-			{
-					sync_step(0, false, true);
+		if(  (sint32)next_step_time - (sint32)time <= 0  ) {
+			if(  step_mode&PAUSE_FLAG  ) {
+				sync_step(0, false, true);
 					if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
 					{
 						pause_step();
