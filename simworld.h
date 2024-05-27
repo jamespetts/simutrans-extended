@@ -1805,7 +1805,7 @@ public:
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
 	 */
-	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b, false); }
+	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b); }
 
 	/**
 	 * Set a new tool on our client, calls init.
