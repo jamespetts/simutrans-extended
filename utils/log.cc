@@ -344,8 +344,8 @@ void log_t::vmessage(const char *what, const char *who, const char *format, va_l
 {
 	if(debuglevel >= LEVEL_ERROR) {
 		va_list args2;
-
 		va_copy(args2, args);
+
 		if( log ) {                               /* only log when a log */
 			fprintf(log ,"%s: %s:\t", what, who); /* is already open */
 			vfprintf(log, format, args);

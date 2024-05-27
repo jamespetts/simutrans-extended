@@ -38,6 +38,7 @@
 #include "../../player/simplay.h"
 
 #include "../../utils/cbuffer_t.h"
+#include "../../unicode.h"
 #include "../../utils/for.h"
 
 #include "../../dataobj/settings.h"

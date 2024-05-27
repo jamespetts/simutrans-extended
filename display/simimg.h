@@ -9,7 +9,6 @@
 
 #include "../simtypes.h"
 
-
 /*
  * Defines to handle images
  */

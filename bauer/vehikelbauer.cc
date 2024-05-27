@@ -167,6 +167,7 @@ vehicle_t* vehicle_builder_t::build(koord3d k, player_t* player, convoi_t* cnv, 
 	else
 	{
 		price = vb->get_value();
+		player->book_vehicle_number(1, vb->get_waytype());
 	}
 	player->book_new_vehicle(-price, k.get_2d(), vb->get_waytype() );
 

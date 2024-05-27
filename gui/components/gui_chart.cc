@@ -38,6 +38,7 @@ gui_chart_t::gui_chart_t() : gui_component_t()
 	ltr = 1;
 	x_elements = 0;
 	x_axis_span = 1;
+	highlight_x = -1;
 	min_size = scr_size(0,0);
 
 	// transparent by default
@@ -176,7 +177,8 @@ void gui_chart_t::draw(scr_coord offset)
 	for(  int i = 0;  i < x_elements;  i++  ) {
 		const int j = left_to_right_graph ? x_elements - 1 - i : i;
 		const scr_coord_val x0 = tmpx + factor * (chart_size.w / (x_elements - 1) ) * j;
-		const PIXVAL line_color = (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
+		const bool highlighted = highlight_x<0 ? false : left_to_right_graph ? highlight_x==x_elements-1-i : highlight_x == i;
+		const PIXVAL line_color = highlighted ? SYSCOL_TEXT_STRONG : (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
 			// display x-axis
 			int val = (abort_display_x && left_to_right_graph) ? (abort_display_x - j - 1) * x_axis_span : seed - (j*x_axis_span);
@@ -204,7 +206,7 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 
 	// draw chart's curves
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if (c.show) {
 			double display_tmp;
 			int start = abort_display_x ? (left_to_right_graph ? c.elements - abort_display_x : 0) : 0;
@@ -317,7 +319,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 // 	bool convert_n_to_kn = false; // for force chart
 	bool convert_time = false; // for comfort chart. dont use this with other units
 
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if(  c.show  ) {
 			for(  int i=0;  i<c.elements;  i++  ) {
 				tmp = c.values[i*c.size+c.offset];
@@ -385,8 +387,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_chart_t::infowin_event(const event_t *ev)
 {

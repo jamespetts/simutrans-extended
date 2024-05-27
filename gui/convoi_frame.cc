@@ -44,11 +44,12 @@ const char *convoi_frame_t::sort_text[SORT_MODES] = {
 	"cl_btn_sort_power",
 	"cl_btn_sort_value",
 	"cl_btn_sort_age",
-	"cl_btn_sort_range"
+	"cl_btn_sort_range",
+	"L/F(passenger)"
 };
 
 const slist_tpl<const goods_desc_t*>* convoi_frame_t::waren_filter = NULL;
-const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,9,2,0,0,4,5,6,7,8 };
+const uint8 convoi_frame_t::sortmode_to_label[SORT_MODES] = { 0,1,9,2,0,0,4,5,6,7,8,10 };
 /**
  * Scrolled list of gui_convoiinfo_ts.
  * Filters (by setting visibility) and sorts.
@@ -211,6 +212,11 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 		case by_range:
 			result = cnv1->get_min_range() - cnv2->get_min_range();
 			break;
+		case by_loadfactor_pax:
+			const sint64 factor_1 = cnv1->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv1->get_load_factor_pax() : -1;
+			const sint64 factor_2 = cnv2->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ? (sint64)cnv2->get_load_factor_pax() : -1;
+			result = factor_1 - factor_2;
+			break;
 	}
 	return sortreverse ? result > 0 : result < 0;
 }
@@ -222,7 +228,7 @@ void convoi_frame_t::fill_list()
 
 	const bool all = owner->get_player_nr() == 1;
 	scrolly->clear_elements();
-	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
+	for(convoihandle_t const cnv : welt->convoys()) {
 		if(  all  ||  cnv->get_owner()==owner  ) {
 			if(  passes_filter( cnv )  ) {
 				scrolly->new_component<gui_convoiinfo_t>( cnv );
@@ -423,7 +429,7 @@ void convoi_frame_t::rdwr(loadsave_t *file)
 		uint8 good_nr = get_filter(convoi_filter_frame_t::ware_filter) ? waren_filter->get_count() : 0;
 		file->rdwr_byte(good_nr);
 		if (good_nr > 0) {
-			FOR( slist_tpl<const goods_desc_t *>, const i, *waren_filter ) {
+			for(const goods_desc_t * const i : *waren_filter ) {
 				char *name = const_cast<char *>(i->get_name());
 				file->rdwr_str(name,256);
 			}

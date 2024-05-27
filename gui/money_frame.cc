@@ -75,7 +75,7 @@ static const char *cost_type_name[MAX_PLAYER_COST_BUTTON] =
 	"Net Wealth",
 	"Credit Limit",
 	"Solvency Limit",
-	"Margin (%)",
+	"Margin (%%)",
 	"Mail-km",
 	"Freight-km"
 };
@@ -741,14 +741,14 @@ money_frame_t::~money_frame_t()
 {
 	bFilterStates.clear();
 	// save button states
-	FOR(vector_tpl<gui_button_to_chart_t*>, b2c, button_to_chart.list()) {
+	for(gui_button_to_chart_t* b2c : button_to_chart.list()) {
 		bFilterStates.append( b2c->get_button()->pressed ? 1 : 0);
 	}
 }
 
 void money_frame_t::update_labels()
 {
-	FOR(vector_tpl<money_frame_label_t*>, lb, money_labels) {
+	for(money_frame_label_t* lb : money_labels) {
 		lb->update(this);
 	}
 
@@ -896,7 +896,7 @@ void money_frame_t::update_stats()
 	sint64 total_signalbox_maintenance = 0;
 
 	// - stations
-	FOR(vector_tpl<halthandle_t>, const halt, haltestelle_t::get_alle_haltestellen()) {
+	for(halthandle_t const halt :  haltestelle_t::get_alle_haltestellen()) {
 		if (halt->get_owner() == player) {
 			for (uint8 i = 0; i < TT_MAX_VEH-1; i++) {
 				if (finance_t::translate_tt_to_waytype((transport_type)(i+1)) ==road_wt) {
@@ -913,7 +913,7 @@ void money_frame_t::update_stats()
 		}
 	}
 	// - depot & vehicle
-	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
+	for(depot_t* const depot : depot_t::get_depot_list()) {
 		if (depot->get_owner_nr() == player->get_player_nr()) {
 			const uint8 tt_idx = finance_t::translate_waytype_to_tt(depot->get_waytype())-1;
 			tt_depot_counts[tt_idx]++;
@@ -923,14 +923,14 @@ void money_frame_t::update_stats()
 			// all vehicles stored in depot not part of a convoi
 			tt_vehicle_counts[tt_idx] += depot->get_vehicle_list().get_count();
 			total_own_vehicles += depot->get_vehicle_list().get_count();
-			FOR(slist_tpl<vehicle_t*>, vehicle, depot->get_vehicle_list()) {
+			for(vehicle_t* vehicle : depot->get_vehicle_list()) {
 				total_vehicle_maintenance += vehicle->get_fixed_cost(welt);
 				tt_vehicle_maint[tt_idx] += vehicle->get_fixed_cost(welt);
 			}
 		}
 	}
 	// - convoys
-	FOR(vector_tpl<convoihandle_t>, const cnv, welt->convoys()) {
+	for(convoihandle_t const cnv : welt->convoys()) {
 		if (cnv->get_owner() == player) {
 			const uint8 tt_idx = finance_t::translate_waytype_to_tt(cnv->front()->get_desc()->get_waytype())-1;
 			tt_convoy_counts[tt_idx]++;
@@ -945,14 +945,14 @@ void money_frame_t::update_stats()
 		}
 	}
 	// - signalboxes
-	FOR(slist_tpl<signalbox_t*>, const sigb, signalbox_t::all_signalboxes) {
+	for(signalbox_t* const sigb : signalbox_t::all_signalboxes) {
 		if (sigb->get_owner() == player && sigb->get_first_tile() == sigb) {
 			total_signalbox_maintenance += welt->lookup(sigb->get_pos())->get_building()->get_tile()->get_desc()->get_maintenance();
 			total_own_signalboxes++;
 		}
 	}
 	// - way & electrification
-	FOR(vector_tpl<weg_t*>, const way, weg_t::get_alle_wege()) {
+	for(auto & way : weg_t::get_alle_wege()) {
 		const uint8 tt_idx = finance_t::translate_waytype_to_tt(way->get_desc()->get_finance_waytype())-1;
 		if (tt_idx >= TT_MAX_VEH-1) {
 			continue;
@@ -1075,6 +1075,13 @@ void money_frame_t::update_stats()
 			lb_line_counts[i].update();
 
 			// convoys
+#ifdef DEBUG
+			sint64 temp = player->get_finance()->get_history_veh_month((transport_type)(i + 1), 0, ATV_CONVOIS);
+			if (temp != tt_convoy_counts[i]) {
+				dbg->warning("money_frame_t::update_stats()", "player (tt:%u) convoy count mismatch - %i vs %i", i+1, temp, tt_convoy_counts[i]);
+			}
+#endif // DEBUG
+
 			if (tt_convoy_counts[i]) {
 				lb_convoy_counts[i].buf().printf("%u", tt_convoy_counts[i]);
 				if (tt_inactive_convoy_counts[i]) {
@@ -1130,6 +1137,12 @@ void money_frame_t::update_stats()
 	lb_total_active_lines.buf().append(active_lines, 0);
 	lb_total_active_lines.update();
 
+#ifdef DEBUG
+	sint64 temp = player->get_finance()->get_history_veh_month(TT_ALL, 0, ATV_CONVOIS);
+	if (temp != total_own_convoys) {
+		dbg->warning("money_frame_t::update_stats()", "player total convoy count mismatch - %i vs %i", temp, total_own_convoys);
+	}
+#endif // DEBUG
 	lb_own_convoy_count.buf().append(total_own_convoys, 0);
 	lb_own_convoy_count.update();
 

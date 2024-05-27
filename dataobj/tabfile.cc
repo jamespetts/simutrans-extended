@@ -854,5 +854,6 @@ void tabfile_t::format_key(char *key)
 			*t++ = *s;
 		}
 	}
+
 	*t = '\0';
 }

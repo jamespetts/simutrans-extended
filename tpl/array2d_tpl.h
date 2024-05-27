@@ -7,7 +7,9 @@
 #define TPL_ARRAY2D_TPL_H
 
 
-#include <string.h> //for memcpy
+#include <stdio.h>
+#include <string.h>
+
 #include "../dataobj/koord.h"
 #include "../simdebug.h"
 
@@ -48,6 +50,13 @@ public:
 		return h;
 	}
 
+	void clear()
+	{
+		delete [] data;
+		data = 0;
+		w = h = 0;
+	}
+
 	void init( T value )
 	{
 		if(sizeof(T)==1) {
@@ -61,11 +70,52 @@ public:
 		}
 	}
 
-	// YOu will loose all informations in the array
+	// all informations in the array are lost
 	void resize(unsigned resize_x, unsigned resize_y )
 	{
 		if( w*h != resize_x*resize_y  ) {
 			T* new_data = new T[resize_x*resize_y];
+			delete [] data;
+			data = new_data;
+		}
+		w = resize_x;
+		h = resize_y;
+	}
+
+	void rotate90()
+	{
+		if(  w*h > 0  ) {
+			T *new_data = new T[w*h];
+			for(  unsigned y=0;  y<h;  y++  ) {
+				for(  unsigned x=0;  x<w;  x++  ) {
+					const unsigned nr = x+(y*w);
+					const unsigned new_nr = (h-y-1)+(x*h);
+					new_data[new_nr] = data[nr];
+				}
+			}
+			delete [] data;
+			data = new_data;
+			unsigned temp = w;
+			w = h;
+			h = temp;
+		}
+	}
+
+	// keep old information, new cell get default
+	void resize(unsigned resize_x, unsigned resize_y, T default_value )
+	{
+		if( w*h != resize_x*resize_y  ) {
+			T* new_data = new T[resize_x*resize_y];
+			for( uint y = 0; y < resize_y; y++ ) {
+				for( uint x = 0; x < resize_x; x++ ) {
+					if( x < w   &&  y < h  ) {
+						new_data[ x + y*resize_x ] = data[x+y*w];
+					}
+					else {
+						new_data[ x + y*resize_x ] = default_value;
+					}
+				}
+			}
 			delete [] data;
 			data = new_data;
 		}

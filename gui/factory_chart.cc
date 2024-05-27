@@ -92,7 +92,7 @@ static const uint8 ref_color[MAX_FAB_REF_LINE] =
 
 static const char *const label_text[MAX_PROD_LABEL+1] =
 {
-	"(MW)", "Boost (%)", "Max Boost (%)", "Demand", "Arrived", "sended",
+	"(MW)", "Boost (%%)", "Max Boost (%%)", "Demand", "Arrived", "sended",
 	"(KW)" // put this at the end
 };
 

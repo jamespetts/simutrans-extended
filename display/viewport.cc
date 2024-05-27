@@ -107,7 +107,7 @@ void viewport_t::switch_underground_mode(const koord3d& pos)
 				// position is underground (and not visible), change to sliced mode
 				grund_t::set_underground_mode(grund_t::ugm_level, gr->get_hoehe());
 			}
-			else if (!gr->ist_karten_boden() || grund_t::underground_mode != grund_t::ugm_all) {
+			else if (!gr->ist_karten_boden()  ||  grund_t::underground_mode != grund_t::ugm_all) {
 				// position is overground, change to normal view
 				// but not if we are in full underground view and gr is kartenboden
 				grund_t::set_underground_mode(grund_t::ugm_none, 0);
@@ -310,7 +310,7 @@ void viewport_t::metrics_updated()
 
 	set_viewport_ij_offset(koord(
 		- cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size,
-		cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size
+		  cached_disp_width/(2*cached_img_size) - cached_disp_height/cached_img_size
 		) );
 }
 

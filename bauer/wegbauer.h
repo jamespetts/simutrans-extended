@@ -30,6 +30,7 @@ class strasse_t;
 class way_builder_t
 {
 	static karte_ptr_t welt;
+
 public:
 	static const way_desc_t *leitung_desc;
 
@@ -97,7 +98,8 @@ public:
 
 private:
 	/// flags used in intern_calc_route, saved in the otherwise unused route_t::ANode->count
-	enum build_type_t {
+	enum build_type_t
+	{
 		build_straight      = 1 << 0, ///< next step has to be straight
 		terraform           = 1 << 1, ///< terraform this tile
 		build_tunnel_bridge = 1 << 2  ///< bridge/tunnel ends here
@@ -116,32 +118,23 @@ private:
 
 	player_t *player_builder;
 
-	/**
-	 * Type of building operation
-	 */
+	/// Type of building operation
 	bautyp_t bautyp;
 
-	/**
-	 * Type of way to build
-	 */
-	const way_desc_t * desc;
+	/// Which way to build
+	const way_desc_t *desc;
 
-	/**
-	 * Type of bridges to build (zero=>no bridges)
-	 */
-	const bridge_desc_t * bridge_desc;
+	/// Type of bridge to build (null => no bridges)
+	const bridge_desc_t *bridge_desc;
 
-	/**
-	 * Type of tunnels to build (zero=>no bridges)
-	 */
-	const tunnel_desc_t * tunnel_desc;
+	/// Type of tunnel to build (null => no bridges)
+	const tunnel_desc_t *tunnel_desc;
 
 	/**
 	 * Only for road
 	 * @author THLeaderH
 	 */
 	 overtaking_mode_t overtaking_mode;
-
 	/**
 	 * If a way is built on top of another way, should the type
 	 * of the former way be kept or replaced (true == keep)
@@ -173,6 +166,7 @@ private:
 	uint32 maximum;    // hoechste Suchtiefe
 
 	koord3d_vector_t route;
+
 	// index in route with terraformed tiles
 	vector_tpl<uint32> terraform_index;
 

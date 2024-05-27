@@ -29,8 +29,8 @@ simutrans/
 *.iobj
 *.ipdb
 *.TMP
-*.idb
 *.tlog
+*.idb
 settings-experimental-debug.xml
 settings-extended-debug.xml
 ipch

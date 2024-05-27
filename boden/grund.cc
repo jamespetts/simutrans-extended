@@ -579,8 +579,7 @@ void grund_t::finish_rotate90()
 	}
 	ground_texts.clear();
 	// then transfer all rotated texts
-	for(auto const iter : ground_texts_rotating)
-	{
+	for(auto iter : ground_texts_rotating) {
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_rotating.clear();
@@ -592,15 +591,13 @@ void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_enlarged;
 	// we have recalculate the keys
-	for(auto iter : ground_texts)
-	{
+	for(auto iter : ground_texts) {
 		koord3d k = get_ground_koord3d_key( iter.key );
 		ground_texts_enlarged.put( get_ground_text_key(k), iter.value );
 	}
 	ground_texts.clear();
 	// then transfer all texts back
-	for(auto const iter : ground_texts_enlarged)
-	{
+	for(auto iter : ground_texts_enlarged) {
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_enlarged.clear();
@@ -2389,8 +2386,7 @@ bool grund_t::remove_excessive_roads()
 	bool ret = remove_excessive_roads(road_tiles);
 
 	if (ret) {
-		for(auto i : road_tiles)
-		{
+		for(auto i : road_tiles) {
 			koord k = i.key;
 			grund_t *gr = welt->lookup_kartenboden(k);
 			if (!i.value) {
@@ -2425,8 +2421,7 @@ int grund_t::count_neighbouring_roads(road_network_plan_t &road_tiles)
 
 bool grund_t::fixup_road_network_plan(road_network_plan_t &road_tiles)
 {
-	for(auto i : road_tiles)
-	{
+	for(auto i : road_tiles) {
 		if (i.value == true) {
 			grund_t *gr = welt->lookup_kartenboden(i.key);
 
@@ -2845,8 +2840,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			}
 		}
 
-		for(auto const diversionary_route : diversionary_routes)
-		{
+		for(route_t const& diversionary_route : diversionary_routes) {
 			for(uint32 n = 1; n < diversionary_route.get_count()-1; n++)
 			{
 				// All diversionary routes must themselves be set as public rights of way.

@@ -92,8 +92,7 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_convoiinfo_t::infowin_event(const event_t *ev)
 {
@@ -259,6 +258,17 @@ void gui_convoiinfo_t::update_label()
 			}
 			else {
 				switchable_label_title.buf().append(translator::translate("unknown"));
+			}
+			switchable_label_title.set_visible(true);
+			switchable_label_value.set_visible(true);
+			break;
+		case 10: // passenger load factor
+			switchable_label_title.buf().printf("%s: ", translator::translate("Passenger load factor"));
+			if (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
+				switchable_label_title.buf().printf("%.1f%%", cnv->get_load_factor_pax()/10.0);
+			}
+			else {
+				switchable_label_value.buf().append("-");
 			}
 			switchable_label_title.set_visible(true);
 			switchable_label_value.set_visible(true);

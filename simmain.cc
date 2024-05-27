@@ -182,7 +182,7 @@ static void show_times(karte_t *welt, main_view_t *view)
 
 	ms = dr_time();
 	for (i = 0; i < 40000000/(int)weg_t::get_alle_wege().get_count(); i++) {
-		FOR( vector_tpl<weg_t *>, const w, weg_t::get_alle_wege() ) {
+		for(weg_t * const w : weg_t::get_alle_wege() ) {
 			grund_t *dummy;
 			welt->lookup( w->get_pos() )->get_neighbour( dummy, invalid_wt, ribi_t::north );
 		}
@@ -816,7 +816,7 @@ int simu_main(int argc, char** argv)
 		}
 		// will fail fatal on the opening routine ...
 		dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-		env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
+		env_t::networkmode = network_init_server( env_t::server_port, env_t::listen );
 		// query IP and try to open ports on router
 		char IP[256], altIP[256];
 		altIP[0] = 0;
@@ -843,7 +843,7 @@ int simu_main(int argc, char** argv)
 			}
 			// will fail fatal on the opening routine ...
 			dbg->message( "simu_main()", "Server started on port %i", env_t::server_port );
-			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen);
+			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen );
 		}
 		else {
 			// no announce for clients ...

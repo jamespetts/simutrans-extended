@@ -9,6 +9,7 @@
 #include "../display/simgraph.h"
 #include "../simdebug.h"
 #include "../dataobj/translator.h"
+#include "../unicode.h"
 
 #ifndef __APPLE__
 #ifdef ALT_SDL_DIR

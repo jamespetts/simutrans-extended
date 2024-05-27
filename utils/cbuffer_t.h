@@ -142,7 +142,7 @@ public:
 	operator const char *() const {return buf;}
 
 	/// checks whether format specifiers in @p translated match those in @p master
-	static bool check_format_strings(const char* master, const char* translated);
+	static bool check_and_repair_format_strings(const char* master, const char* translated, char **repaired = NULL);
 
 	static uint8 decode_uint8(const char* &p);
 	static uint16 decode_uint16(const char* &p);

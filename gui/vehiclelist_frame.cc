@@ -23,6 +23,7 @@
 #include "../descriptor/vehicle_desc.h"
 
 #include "../utils/simstring.h"
+#include "../unicode.h"
 
 
 int vehiclelist_stats_t::sort_mode = vehicle_builder_t::sb_intro_date;

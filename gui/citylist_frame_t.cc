@@ -8,6 +8,7 @@
 
 
 #include "../dataobj/translator.h"
+#include "../unicode.h"
 #include "../simcolor.h"
 #include "../dataobj/environment.h"
 #include "components/gui_button_to_chart.h"
@@ -131,7 +132,7 @@ const uint8 citylist_frame_t::hist_type_type[karte_t::MAX_WORLD_COST] =
 	gui_chart_t::PERCENT,
 	gui_chart_t::STANDARD,
 	gui_chart_t::PERCENT,
-	gui_chart_t::STANDARD,
+	gui_chart_t::TON_KM,
 	gui_chart_t::PERCENT,
 	gui_chart_t::TON_KM,
 	gui_chart_t::PERCENT
@@ -348,7 +349,7 @@ void citylist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
-	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
+	for(stadt_t* city : world()->get_cities()) {
 		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != world()->get_region(city->get_pos())) {
 			continue;
 		}

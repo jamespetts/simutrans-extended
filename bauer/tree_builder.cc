@@ -232,7 +232,7 @@ bool tree_builder_t::successfully_loaded()
 		DBG_MESSAGE("tree_builder_t::successfully_loaded", "No trees found - feature disabled");
 	}
 
-	for (const auto &i : desc_table) {
+	for(auto const& i : desc_table) {
 		tree_list.insert_ordered(i.value, compare_tree_desc);
 		if(  tree_list.get_count()==255  ) {
 			dbg->error( "tree_builder_t::successfully_loaded", "Maximum tree count exceeded! (%u > 255)", desc_table.get_count() );
@@ -306,12 +306,12 @@ void tree_builder_t::distribute_trees(int dichte, sint16 xtop, sint16 ytop, sint
 	settings_t const& s             = welt->get_settings();
 	sint32     const  x             = welt->get_size().x;
 	sint32     const  y             = welt->get_size().y;
-	unsigned   const t_forest_size  = (unsigned)pow(((double)x * (double)y), 0.25) * s.get_forest_base_size() / 11 + (x + y) / (2 * s.get_forest_map_size_divisor());
-	uint8      const c_forest_count = (unsigned)pow(((double)x * (double)y), 0.5)  / s.get_forest_count_divisor();
+	unsigned   const t_forest_size  = (uint32)pow(((double)x * (double)y), 0.25) * s.get_forest_base_size() / 11 + (x + y) / (2 * s.get_forest_map_size_divisor());
+	uint32     const c_forest_count = (uint32)pow(((double)x * (double)y), 0.5)  / s.get_forest_count_divisor();
 
 	DBG_MESSAGE("tree_builder_t::distribute_trees", "Creating %i forests", c_forest_count);
 
-	for (uint8 c1 = 0 ; c1 < c_forest_count ; c1++) {
+	for (uint32 c1 = 0; c1 < c_forest_count ; c1++) {
 		// to have same execution order for simrand
 		koord const start = koord::koord_random(x, y);
 		koord const size  = koord(t_forest_size,t_forest_size) + koord::koord_random(t_forest_size, t_forest_size);

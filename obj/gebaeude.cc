@@ -327,7 +327,7 @@ void gebaeude_t::check_road_tiles(bool del)
 		}
 	}
 
-	FOR(vector_tpl<gebaeude_t*>, gb, building_list)
+	for(gebaeude_t* gb : building_list)
 	{
 		for (uint8 i = 0; i < 8; i++)
 		{

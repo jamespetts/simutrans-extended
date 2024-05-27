@@ -244,7 +244,7 @@ void freelist_t::free_all_nodes()
 	}
 	printf("freelist_t::free_all_nodes(): zeroing\n");
 	for( int i=0;  i<NUM_LIST;  i++  ) {
-		all_lists[i] = nullptr;
+		all_lists[i] = NULL;
 	}
 	printf("freelist_t::free_all_nodes(): ok\n");
 }

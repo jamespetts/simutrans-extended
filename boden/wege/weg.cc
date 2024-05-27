@@ -162,6 +162,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 			old_maint /= 14;
 		}
 		player_t::add_maintenance(get_owner(), -old_maint, get_desc()->get_finance_waytype());
+		player_t::add_way_length(get_owner(), is_diagonal() ? -7 : -10, get_desc()->get_finance_waytype());
 	}
 
 	if (!from_saved_game && desc != b)
@@ -176,6 +177,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 			maint /= 14;
 		}
 		player_t::add_maintenance(get_owner(), maint, b->get_finance_waytype());
+		player_t::add_way_length(get_owner(), is_diagonal() ? 7 : 10, b->get_finance_waytype());
 	}
 
 	desc = b;
@@ -497,6 +499,7 @@ weg_t::~weg_t()
 				maint /= 14;
 			}
 			player_t::add_maintenance(player, -maint, desc->get_finance_waytype());
+			player_t::add_way_length( player, is_diagonal() ? -7 : -10, desc->get_finance_waytype());
 		}
 	}
 
@@ -1249,6 +1252,7 @@ void weg_t::finish_rd()
 			maint /= 14;
 		}
 		player_t::add_maintenance( player,  maint, desc->get_finance_waytype() );
+		player_t::add_way_length( player, is_diagonal() ? 7 : 10, desc->get_finance_waytype());
 	}
 }
 

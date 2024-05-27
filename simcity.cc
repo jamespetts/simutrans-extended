@@ -663,8 +663,7 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 	//printf("Test for (%s) in rotation %d\n", pos.get_str(), rotation);
 	koord k;
 
-	for(auto const r : regel.rule)
-	{
+	for(rule_entry_t const& r : regel.rule) {
 		uint8 x,y;
 		switch (rotation) {
 			default:
@@ -1493,7 +1492,7 @@ bool stadt_t::is_within_players_network(const player_t* player) const
 	}
 
 	// Check if these stations are in the player's network...
-	for(auto const halt : halts)
+	for(halthandle_t const halt : halts)
 	{
 		if (halt->has_available_network(player))
 		{
@@ -1606,7 +1605,7 @@ stadt_t::~stadt_t()
 	welt->remove_queued_city(this);
 
 	// Remove references to this city from factories.
-	for(auto factory : city_factories)
+	for(fabrik_t* factory : city_factories)
 	{
 		factory->clear_city();
 	}
@@ -1642,13 +1641,13 @@ stadt_t::~stadt_t()
 			// avoid the bookkeeping if world geets destroyed
 		}
 		// Remove substations
-		for(auto sub : substations)
+		for(senke_t* sub : substations)
 		{
 			sub->city = NULL;
 		}
 
 		const weighted_vector_tpl<stadt_t*>& cities = welt->get_cities();
-		for(auto const i : cities)
+		for(stadt_t* const i : cities)
 		{
 			i->remove_connected_city(this);
 		}
@@ -1664,8 +1663,7 @@ stadt_t::~stadt_t()
 
 static bool name_used(weighted_vector_tpl<stadt_t*> const& cities, char const* const name)
 {
-	for(auto const i : cities)
-	{
+	for(stadt_t* const i : cities) {
 		if (strcmp(i->get_name(), name) == 0) {
 			return true;
 		}
@@ -2860,7 +2858,7 @@ void stadt_t::calc_growth()
 	// now iterate over all factories to get the ratio of producing version non-producing factories
 	// we use the incoming storage as a measure and we will only look for end consumers (power stations, markets)
 
-	for(auto const fab : welt->get_fab_list())
+	for(fabrik_t* const fab : welt->get_fab_list())
 	{
 		if(fab && fab->get_city() == this && fab->get_consumers().empty() && !fab->get_suppliers().empty())
 		{
@@ -2917,7 +2915,7 @@ void stadt_t::calc_growth()
 		// Now that we have the percentages, calculate how large that this city is compared to others in the game.
 		uint32 number_of_larger_cities = 0;
 		uint32 number_of_smaller_cities = 0;
-		for(auto const city : welt->get_cities())
+		for(stadt_t* city : world()->get_cities())
 		{
 			if (city == this)
 			{
@@ -4898,9 +4896,7 @@ uint32 stadt_t::get_jobs_by_class(uint8 p_class)
 			sum += building->get_adjusted_jobs_by_class(p_class);
 		}
 	}
-
-	for(auto factory : city_factories)
-	{
+	for(fabrik_t* factory : city_factories) {
 		sum += factory->get_building()->get_adjusted_jobs_by_class(p_class);
 	}
 	return sum;
@@ -4916,8 +4912,7 @@ uint32 stadt_t::get_visitor_demand_by_class(uint8 p_class)
 			sum += building->get_adjusted_visitor_demand_by_class(p_class);
 		}
 	}
-	for (auto factory : city_factories)
-	{
+	for(fabrik_t* factory : city_factories) {
 		sum += factory->get_building()->get_adjusted_visitor_demand_by_class(p_class);
 	}
 	return sum;

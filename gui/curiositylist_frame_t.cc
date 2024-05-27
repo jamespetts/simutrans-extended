@@ -12,6 +12,7 @@
 #include "../simworld.h"
 #include "../obj/gebaeude.h"
 #include "../descriptor/building_desc.h"
+#include "../unicode.h"
 
 
 char curiositylist_frame_t::name_filter[256];
@@ -133,7 +134,7 @@ void curiositylist_frame_t::fill_list()
 	const weighted_vector_tpl<gebaeude_t*>& world_attractions = welt->get_attractions();
 	attraction_count = world_attractions.get_count();
 
-	FOR(const weighted_vector_tpl<gebaeude_t*>, const geb, world_attractions) {
+	for(gebaeude_t* const geb : world_attractions) {
 		if (curiositylist_stats_t::region_filter && (curiositylist_stats_t::region_filter - 1) != welt->get_region(geb->get_pos().get_2d())) {
 			continue;
 		}

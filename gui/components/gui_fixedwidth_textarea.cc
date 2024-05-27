@@ -9,7 +9,7 @@
 #include "gui_fixedwidth_textarea.h"
 #include "../../dataobj/translator.h"
 #include "../../utils/cbuffer_t.h"
-
+#include "../../unicode.h"
 
 
 gui_fixedwidth_textarea_t::gui_fixedwidth_textarea_t(cbuffer_t* buf_, const sint16 width) :
