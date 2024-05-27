@@ -252,7 +252,7 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 	 * Get monthly statistics of number of convoys.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_player_stat, "get_convoys",           freevariable3<sint32,sint32,bool>(ATV_CONVOIS, TT_ALL, true), true);
+	register_method_fv(vm, &get_player_stat, "get_convoys",           freevariable<sint32,sint32,bool>(ATV_CONVOIS, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of income/loss due to way tolls.
 	 * @returns array, index [0] corresponds to current month
