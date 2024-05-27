@@ -73,10 +73,6 @@ bool env_t::server_runs_background_tasks_when_paused = false;
 
 std::string env_t::nickname = "";
 
-uint8 env_t::chat_unread_public = 0;
-uint8 env_t::chat_unread_company = 0;
-uint8 env_t::chat_unread_whisper = 0;
-
 // this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
 sint16 env_t::scroll_multi = -2;
