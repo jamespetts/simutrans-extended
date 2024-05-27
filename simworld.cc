@@ -599,7 +599,7 @@ void karte_t::destroy()
 	delete [] water_hgts;
 	water_hgts = NULL;
 
-	// players aufraeumen
+	// player cleanup
 	for(int i=0; i<MAX_PLAYER_COUNT; i++) {
 		delete players[i];
 		players[i] = NULL;
