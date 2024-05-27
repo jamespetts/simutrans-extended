@@ -2050,7 +2050,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			// Opens new window to alter the consist order
 			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			if (!win) {
-				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+				create_win({ -1, -1 }, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
 			}
 			else {
 				//win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);

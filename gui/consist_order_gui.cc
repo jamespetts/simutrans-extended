@@ -145,7 +145,7 @@ bool vehicle_scrollitem_t::compare(const gui_component_t *aa, const gui_componen
 
 bool gui_vehicle_element_list_t::infowin_event(const event_t *ev)
 {
-	int sel_index = index_at(scr_coord(0,0) - pos, ev->mx, ev->my);
+	int sel_index = index_at(scr_coord(0,0) - pos, ev->mouse_pos.x, ev->mouse_pos.y);
 	if( sel_index != -1 ) {
 		if( (IS_LEFTCLICK(ev) || IS_LEFTDBLCLK(ev)) || (IS_RIGHTCLICK(ev) || IS_RIGHTDBLCLK(ev))) {
 			value_t p;
@@ -873,7 +873,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if(  comp==&bt_convoy_detail  ) {
 		if (selected_convoy.is_bound()) {
-			create_win(20, 20, new convoi_detail_t(selected_convoy), w_info, magic_convoi_detail+ selected_convoy.get_id() );
+			create_win({ 20, 20 }, new convoi_detail_t(selected_convoy), w_info, magic_convoi_detail + selected_convoy.get_id());
 		}
 		return true;
 	}
@@ -1338,7 +1338,7 @@ void consist_order_frame_t::open_vehicle_detail(const vehicle_desc_t* veh_type) 
 			if (lc.x > display_get_width()) {
 				lc.x = max(0, display_get_width() - 100);
 			}
-			create_win(lc.x, lc.y, new vehicle_detail_t(selected_vehicle), w_info, magic_vehicle_detail_for_consist_order, true);
+			create_win(lc, new vehicle_detail_t(selected_vehicle), w_info, magic_vehicle_detail_for_consist_order, true);
 			top_win(this, false); // Keyscroll should be enabled continuously. This window must remain on topmost.
 		}
 		else {
