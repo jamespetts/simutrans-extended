@@ -10866,17 +10866,17 @@ bool karte_t::interactive(uint32 quit_month)
 		uint32 time = dr_time(); // - (env_t::server ? 0 : 5000);
 		if(  (sint32)next_step_time - (sint32)time <= 0  ) {
 			if(  step_mode&PAUSE_FLAG  ) {
+				// only update display
 				sync_step(0, false, true);
-					if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
-					{
-						pause_step();
-					}
-					else
-					{
-						// only update display
-						idle_time = 100;
-						eventmanager->check_events();
-					}
+				if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
+				{
+					pause_step();
+				}
+				else
+				{
+					idle_time = 100;
+					eventmanager->check_events();
+				}
 			}
 			else if (env_t::networkmode && !env_t::server && sync_steps >= sync_steps_barrier) {
 				sync_step(0, false, true);
