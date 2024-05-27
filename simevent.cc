@@ -20,8 +20,8 @@ static slist_tpl<event_t *> queued_events;
 event_t::event_t(event_class_t event_class) :
 	ev_class(event_class),
 	ev_code(0),
-	mx(0), my(0),
-	cx(0), cy(0),
+	mouse_pos(0, 0),
+	click_pos(0, 0),
 	button_state(0),
 	ev_key_mod(SIM_MOD_NONE)
 {
@@ -30,10 +30,8 @@ event_t::event_t(event_class_t event_class) :
 
 void event_t::move_origin(scr_coord delta)
 {
-	mx -= delta.x;
-	cx -= delta.x;
-	my -= delta.y;
-	cy -= delta.y;
+	mouse_pos -= delta;
+	click_pos -= delta;
 }
 
 
@@ -57,10 +55,10 @@ event_class_t last_meta_event_get_class()
  * so the origin keeps pointing to the window top bar.
  *  Mainly to prevent copied, double code.
  */
-void change_drag_start(scr_coord_val x, scr_coord_val y)
+void change_drag_start(scr_coord offset)
 {
-	cx += x;
-	cy += y;
+	cx += offset.x;
+	cy += offset.y;
 }
 
 
@@ -87,10 +85,11 @@ static void fill_event(event_t* const ev)
 
 	ev->ev_class = EVENT_NONE;
 
-	ev->mx = sys_event.mx;
-	ev->my = sys_event.my;
-	ev->cx = cx;
-	ev->cy = cy;
+	ev->mouse_pos.x = sys_event.mx;
+	ev->mouse_pos.y = sys_event.my;
+
+	ev->click_pos.x = cx;
+	ev->click_pos.y = cy;
 
 	// always put key mod code into event
 	ev->ev_key_mod = sys_event.key_mod;
@@ -115,38 +114,38 @@ static void fill_event(event_t* const ev)
 					ev->ev_class = EVENT_CLICK;
 					pressed_buttons |= MOUSE_LEFTBUTTON;
 					ev->ev_code = MOUSE_LEFTBUTTON;
-					ev->cx = cx = sys_event.mx;
-					ev->cy = cy = sys_event.my;
+					ev->click_pos.x = cx = sys_event.mx;
+					ev->click_pos.y = cy = sys_event.my;
 					break;
 
 				case SIM_MOUSE_RIGHTBUTTON:
 					ev->ev_class = EVENT_CLICK;
 					pressed_buttons |= MOUSE_RIGHTBUTTON;
 					ev->ev_code = MOUSE_RIGHTBUTTON;
-					ev->cx = cx = sys_event.mx;
-					ev->cy = cy = sys_event.my;
+					ev->click_pos.x = cx = sys_event.mx;
+					ev->click_pos.y = cy = sys_event.my;
 					break;
 
 				case SIM_MOUSE_MIDBUTTON:
 					ev->ev_class = EVENT_CLICK;
 					pressed_buttons |= MOUSE_MIDBUTTON;
 					ev->ev_code = MOUSE_MIDBUTTON;
-					ev->cx = cx = sys_event.mx;
-					ev->cy = cy = sys_event.my;
+					ev->click_pos.x = cx = sys_event.mx;
+					ev->click_pos.y = cy = sys_event.my;
 					break;
 
 				case SIM_MOUSE_WHEELUP:
 					ev->ev_class = EVENT_CLICK;
 					ev->ev_code = MOUSE_WHEELUP;
-					ev->cx = cx = sys_event.mx;
-					ev->cy = cy = sys_event.my;
+					ev->click_pos.x = cx = sys_event.mx;
+					ev->click_pos.y = cy = sys_event.my;
 					break;
 
 				case SIM_MOUSE_WHEELDOWN:
 					ev->ev_class = EVENT_CLICK;
 					ev->ev_code = MOUSE_WHEELDOWN;
-					ev->cx = cx = sys_event.mx;
-					ev->cy = cy = sys_event.my;
+					ev->click_pos.x = cx = sys_event.mx;
+					ev->click_pos.y = cy = sys_event.my;
 					break;
 
 				case SIM_MOUSE_LEFTUP:

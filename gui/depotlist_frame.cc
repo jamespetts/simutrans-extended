@@ -324,6 +324,7 @@ void depotlist_frame_t::init_table()
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 
@@ -363,7 +364,7 @@ void depotlist_frame_t::fill_list()
 	lb_depot_counter.buf().printf("%u/%u", scrolly.get_count(), p_total);
 	lb_depot_counter.update();
 	scrolly.sort(0);
-	scrolly.set_size( scrolly.get_size());
+	scrolly.set_size(scr_size(get_windowsize().w, scrolly.get_size().h));
 
 	last_depot_count = depot_t::get_depot_list().get_count();
 	resize(scr_coord(0, 0));

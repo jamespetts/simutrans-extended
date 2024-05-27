@@ -34,6 +34,7 @@ extern char **__argv;
 #include "../gui/components/gui_textinput.h"
 #include "../simintr.h"
 #include "../simworld.h"
+#include "../simdebug.h"
 #include "../unicode.h"
 
 
@@ -224,6 +225,7 @@ static int SDLCALL my_event_filter(void* /*userdata*/, SDL_Event* event)
 	if (event->type == SDL_APP_TERMINATING) {
 		// quitting immediate, save settings and game without visual feedback
 		intr_disable();
+		DBG_DEBUG("SDL_APP_TERMINATING", "env_t::reload_and_save_on_quit=%d", env_t::reload_and_save_on_quit);
 		if (env_t::reload_and_save_on_quit && !env_t::networkmode) {
 			// save current game, if not online
 			bool old_restore_UI = env_t::restore_UI;
@@ -235,6 +237,7 @@ static int SDLCALL my_event_filter(void* /*userdata*/, SDL_Event* event)
 			pak_name.erase(pak_name.length() - 1);
 			pak_name.append(".sve");
 
+			dr_chdir(env_t::user_dir);
 			world()->save(pak_name.c_str(), true, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
 			env_t::restore_UI = old_restore_UI;
 		}
@@ -521,11 +524,12 @@ unsigned short *dr_textur_init()
  * Transform a 24 bit RGB color into the system format.
  * @return converted color value
  */
-unsigned int get_system_color(unsigned int r, unsigned int g, unsigned int b)
+PIXVAL get_system_color(rgb888_t col)
 {
 	SDL_PixelFormat *fmt = SDL_AllocFormat( SDL_PIXELFORMAT_RGB565 );
-	unsigned int ret = SDL_MapRGB( fmt, (Uint8)r, (Uint8)g, (Uint8)b );
+	unsigned int ret = SDL_MapRGB(fmt, col.r, col.g, col.b);
 	SDL_FreeFormat( fmt );
+	assert((ret & 0xFFFF0000u) == 0);
 	return ret;
 }
 
@@ -601,7 +605,7 @@ static inline unsigned int ModifierKeys()
 }
 
 
-static int conv_mouse_buttons(Uint8 const state)
+static uint16  conv_mouse_buttons(Uint8 const state)
 {
 	return
 		(state & SDL_BUTTON_LMASK ? MOUSE_LEFTBUTTON  : 0) |
@@ -745,7 +749,7 @@ static void internal_GetEvents()
 					sys_event.my = event.tfinger.y * display_get_height();
 	DBG_MESSAGE("SDL_FINGERMOTION", "SIM_MOUSE_MOVED at %i,%i", sys_event.mx, sys_event.my);
 				}
-				sys_event.mb = 1;
+				sys_event.mb = MOUSE_LEFTBUTTON;
 				sys_event.key_mod = ModifierKeys();
 			}
 			in_finger_handling = true;
@@ -760,7 +764,7 @@ static void internal_GetEvents()
 							// return a press event
 							sys_event.type = SIM_MOUSE_BUTTONS;
 							sys_event.code = SIM_MOUSE_LEFTBUTTON;
-							sys_event.mb = 1;
+							sys_event.mb = MOUSE_LEFTBUTTON;
 							sys_event.key_mod = ModifierKeys();
 							last_mx = sys_event.mx = event.tfinger.x * display_get_width();
 							last_my = sys_event.my = event.tfinger.y * display_get_height();
@@ -811,7 +815,7 @@ static void internal_GetEvents()
 				// any three finger touch is scrolling the map
 				sys_event.type = SIM_MOUSE_MOVE;
 				sys_event.code = SIM_MOUSE_MOVED;
-				sys_event.mb = 2;
+				sys_event.mb = MOUSE_RIGHTBUTTON;
 				sys_event.mx = SCREEN_TO_TEX_X(event.mgesture.x * screen->w);
 				sys_event.my = SCREEN_TO_TEX_Y(event.mgesture.y * screen->h);
 				sys_event.key_mod = ModifierKeys();
@@ -1022,9 +1026,9 @@ void dr_stop_textinput()
 	}
 }
 
-void dr_notify_input_pos(int x, int y)
+void dr_notify_input_pos(scr_coord pos)
 {
-	SDL_Rect rect = { TEX_TO_SCREEN_X(x), TEX_TO_SCREEN_Y(y + LINESPACE), 1, 1};
+	SDL_Rect rect = { TEX_TO_SCREEN_X(pos.x), TEX_TO_SCREEN_Y(pos.y + LINESPACE), 1, 1};
 	SDL_SetTextInputRect( &rect );
 }
 

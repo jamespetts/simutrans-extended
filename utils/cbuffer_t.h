@@ -54,6 +54,8 @@ public:
 	 */
 	cbuffer_t(const cbuffer_t& cbx);
 
+	cbuffer_t(const char*);
+
 	/**
 	 * Copy assignment operator
 	 */

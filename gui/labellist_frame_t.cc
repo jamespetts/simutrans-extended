@@ -31,6 +31,8 @@ labellist_frame_t::labellist_frame_t() :
 	scrolly(gui_scrolled_list_t::windowskin, labellist_stats_t::compare)
 {
 	set_table_layout(1,0);
+	scrolly.set_checkered(true);
+
 	add_table(2,2);
 	{
 		// 1st row

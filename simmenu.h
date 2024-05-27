@@ -143,6 +143,7 @@ enum {
 	TOOL_CONVOY_NAMEPLATES,
 	TOOL_CONVOY_LOADINGBAR,
 	TOOL_SHOW_FACTORY_STORAGE,
+	TOOL_TOGGLE_CONTROL,
 	TOOL_REASSIGN_SIGNAL_INTERNAL,
 	SIMPLE_TOOL_COUNT,
 	SIMPLE_TOOL = 0x2000
@@ -213,6 +214,7 @@ protected:
 	static karte_ptr_t welt;
 
 	const char *default_param;
+
 public:
 	uint16 get_id() const { return id; }
 
@@ -224,6 +226,9 @@ public:
 
 	// for key lookup
 	static vector_tpl<tool_t *>char_to_tool;
+
+	// true, if the control key should be inverted
+	static uint8 control_invert;
 
 	/// cursor image
 	image_id cursor;
@@ -312,14 +317,13 @@ public:
 	virtual bool is_selected() const;
 
 	// when true, local execution would do no harm
-	virtual bool is_init_network_safe() const { return false; }
-	virtual bool is_move_network_safe(player_t *) const { return true; }
+	virtual bool is_init_keeps_game_state() const { return false; }
 
-	// if is_work_network_safe()==false
-	// and is_work_here_network_safe(...)==false
+	// if is_work_keeps_game_state()==false
+	// and is_work_here_keeps_game_state(...)==false
 	// then work-command is sent over network
-	virtual bool is_work_network_safe() const { return false; }
-	virtual bool is_work_here_network_safe(player_t *, koord3d) { return false; }
+	virtual bool is_work_keeps_game_state() const { return false; }
+	virtual bool is_work_here_keeps_game_state(player_t *, koord3d) { return false; }
 
 	// will draw a dark frame, if selected
 	virtual void draw_after(scr_coord pos, bool dirty) const;
@@ -420,7 +424,7 @@ public:
 	char const* move(player_t*, uint16 /* buttonstate */, koord3d) OVERRIDE;
 	bool move_has_effects() const OVERRIDE { return true; }
 
-	bool is_work_here_network_safe(player_t *, koord3d) OVERRIDE;
+	bool is_work_here_keeps_game_state(player_t *, koord3d) OVERRIDE;
 
 	/**
 	 * @returns true if cleanup() needs to be called before another tool can be executed
@@ -494,8 +498,8 @@ public:
 	tool_selector_t *get_tool_selector() const { return tool_selector; }
 	image_id get_icon(player_t*) const OVERRIDE;
 	bool is_selected() const OVERRIDE;
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
+	bool is_init_keeps_game_state() const OVERRIDE { return true; }
+	bool is_work_keeps_game_state() const OVERRIDE { return true; }
 	// show this toolbar
 	bool init(player_t*) OVERRIDE;
 	// close this toolbar

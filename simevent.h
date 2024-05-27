@@ -152,13 +152,13 @@ enum {
  * ev_class and ev_code speak for itself.
  * ev_class = EVENT_NONE:      nothing defined
  * ev_class = EVENT_KEYBOARD:  code = key pressed (released key is ignored)
- * ev_class = EVENT_CLICK:     mx/my/cx/cy point to mouse click place,
+ * ev_class = EVENT_CLICK:     mouse_pos/click_pos point to mouse click place,
  *                             code = pressed mouse button
- * ev_class = EVENT_RELEASE:   cx/cy point to mouse click place,
- *                             mx/my point to mouse release place,
+ * ev_class = EVENT_RELEASE:   click_pos points to mouse click place,
+ *                             mouse_pos points to mouse release place,
  *                             code = mouse release button
- * ev_class = EVENT_MOVE:      cx/cy is last click place, mx/my is to.
- * ev_class = EVENT_DRAG:      cx/cy is last click place, mx/my is to,
+ * ev_class = EVENT_MOVE:      click_pos is last click place, mouse_pos is to.
+ * ev_class = EVENT_DRAG:      click_pos is last click place, mouse_pos is to,
  *                             code = mouse button
  * ev_class = EVENT_REPEAT:    code = button pressed
  */
@@ -182,10 +182,11 @@ public:
 		void *ev_ptr;
 	};
 
-	scr_coord_val mx, my;
+	// Mouse position
+	scr_coord mouse_pos;
 
 	/// position of last mouse click
-	scr_coord_val cx, cy;
+	scr_coord click_pos;
 
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
@@ -203,15 +204,14 @@ void display_poll_event(event_t*);
 
 /// Wait for one event, and return it.
 void display_get_event(event_t*);
-void change_drag_start(int x, int y);
+void change_drag_start(scr_coord offset);
 void set_click_xy(scr_coord_val x, scr_coord_val y);
 
 int event_get_last_control_shift();
 event_class_t last_meta_event_get_class();
 
 /// Get mouse pointer position. Implementation in simsys.cc
-int get_mouse_x();
-int get_mouse_y();
+scr_coord get_mouse_pos();
 
 /// Adds new events to be processed.
 void queue_event(event_t *event);

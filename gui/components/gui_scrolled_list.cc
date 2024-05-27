@@ -210,6 +210,7 @@ void gui_scrolled_list_t::set_size(scr_size size)
 {
 	cleanup_elements();
 
+	container.set_size(size);
 	gui_scrollpane_t::set_size(size);
 
 	// set all elements in list to same width
@@ -263,9 +264,9 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 	scrollitem_t* const new_focus = dynamic_cast<scrollitem_t*>( comp->get_focus() );
 
 	// if different element is focused, calculate selection and call listeners
-	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mx,ev2.my))  ) {
+	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mouse_pos))  ) {
 		calc_selection(focus, new_focus, *ev);
-		int new_selection = get_selection();
+		const int new_selection = get_selection();
 		call_listeners((long)new_selection);
 		swallowed = true;
 	}
@@ -361,5 +362,10 @@ void gui_scrolled_list_t::draw(scr_coord offset)
 		}
 	}
 
+	scr_size old_size = container.get_min_size();
 	gui_scrollpane_t::draw(offset);
+	scr_size new_size = container.get_min_size();
+	if (old_size.h != new_size.h) {
+		set_size(get_size());
+	}
 }

@@ -320,6 +320,7 @@ convoi_frame_t::convoi_frame_t() :
 
 	scrolly = new gui_scrolled_convoy_list_t(this);
 	scrolly->set_maximize( true );
+	scrolly->set_checkered( true );
 
 	tabs.init_tabs(scrolly);
 	tabs.add_listener(this);
@@ -391,7 +392,7 @@ bool convoi_frame_t::action_triggered( gui_action_creator_t *comp, value_t /* */
 			else if ((dialog_pos.x + get_windowsize().w + D_DEFAULT_WIDTH / 2) < display_get_width()) {
 				new_dialog_pos_x = dialog_pos.x + get_windowsize().w / 2;
 			}
-			create_win( new_dialog_pos_x, dialog_pos.y, gui_cff, w_info, magic_convoi_list_filter+owner->get_player_nr() );
+			create_win({ new_dialog_pos_x, dialog_pos.y }, gui_cff, w_info, magic_convoi_list_filter + owner->get_player_nr());
 		}
 	}
 	return true;

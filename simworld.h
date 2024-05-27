@@ -481,7 +481,7 @@ private:
 	/**
 	 * Stores the cities.
 	 */
-	weighted_vector_tpl<stadt_t*> stadt;
+	weighted_vector_tpl<stadt_t*> cities;
 
 	sint64 last_month_bev;
 
@@ -2237,9 +2237,9 @@ public:
 	/**
 	 * To access the cities array.
 	 */
-	const weighted_vector_tpl<stadt_t*>& get_cities() const { return stadt; }
-	stadt_t *get_town_at(const uint32 weight) { return stadt.at_weight(weight); }
-	uint32 get_town_list_weight() const { return stadt.get_sum_weight(); }
+	const weighted_vector_tpl<stadt_t*>& get_cities() const { return cities; }
+	stadt_t *get_town_at(const uint32 weight) { return cities.at_weight(weight); }
+	uint32 get_town_list_weight() const { return cities.get_sum_weight(); }
 
 	void add_city(stadt_t *s);
 

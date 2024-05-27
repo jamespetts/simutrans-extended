@@ -1603,7 +1603,7 @@ void schedule_gui_t::update_selection()
  */
 bool schedule_gui_t::infowin_event(const event_t *ev)
 {
-	if( (ev)->ev_class == EVENT_CLICK  &&  !((ev)->ev_code==MOUSE_WHEELUP  ||  (ev)->ev_code==MOUSE_WHEELDOWN)  &&  !line_selector.getroffen(ev->cx, ev->cy-D_TITLEBAR_HEIGHT)  )  {
+	if( (ev)->ev_class == EVENT_CLICK  &&  !((ev)->ev_code==MOUSE_WHEELUP  ||  (ev)->ev_code==MOUSE_WHEELDOWN)  &&  !line_selector.getroffen( ev->click_pos-scr_coord(0,D_TITLEBAR_HEIGHT) )  )  {
 
 		// close combo box; we must do it ourselves, since the box does not receive outside events ...
 		line_selector.close_box();
@@ -2209,7 +2209,7 @@ void schedule_gui_t::rdwr(loadsave_t *file)
 			// now we can open the window ...
 			scr_coord const& pos = win_get_pos(this);
 			schedule_gui_t *w = new schedule_gui_t( cnv->get_schedule(), cnv->get_owner(), cnv );
-			create_win(pos.x, pos.y, w, w_info, (ptrdiff_t)cnv->get_schedule());
+			create_win(pos, w, w_info, (ptrdiff_t)cnv->get_schedule());
 			w->set_windowsize( size );
 			w->schedule->copy_from( schedule );
 			cnv->get_schedule()->finish_editing();

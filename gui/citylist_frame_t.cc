@@ -312,6 +312,7 @@ citylist_frame_t::citylist_frame_t() :
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 
@@ -323,6 +324,7 @@ void citylist_frame_t::update_label()
 	citizens.update();
 
 	fluctuation_world.set_value(world()->get_finance_history_month(1, karte_t::WORLD_GROWTH));
+	resize(scr_size(0, 0));
 
 #ifdef DEBUG
 	const sint64 world_jobs = world()->get_finance_history_month(0, karte_t::WORLD_JOBS);

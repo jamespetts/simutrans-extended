@@ -2020,12 +2020,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		int *c = contents.get_ints( str );
 		if( c[ 0 ] >= 6 ) {
 			// now update RGB values
-			for( int j = 0; j < 3; j++ ) {
-				display_day_lights[ i * 3 + j ] = c[ j + 1 ];
-			}
-			for( int j = 0; j < 3; j++ ) {
-				display_night_lights[ i * 3 + j ] = c[ j + 4 ];
-			}
+			display_day_lights[i].r = c[0];
+			display_day_lights[i].g = c[1];
+			display_day_lights[i].b = c[2];
+			display_night_lights[i].r = c[3];
+			display_night_lights[i].g = c[4];
+			display_night_lights[i].b = c[5];
 		}
 		delete[] c;
 	}
@@ -2105,7 +2105,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::show_vehicle_states       = contents.get_int( "show_vehicle_states", env_t::show_vehicle_states );
 
 	env_t::follow_convoi_underground   = contents.get_int_clamped( "follow_convoi_underground",      env_t::follow_convoi_underground, 0, 2 );
-	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, INT_MAX );
+	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, 0x7FFF );
 	env_t::fps                         = contents.get_int_clamped( "frames_per_second",              env_t::fps,                       env_t::min_fps, env_t::max_fps );
 	env_t::ff_fps                      = contents.get_int_clamped( "fast_forward_frames_per_second", env_t::ff_fps,                    env_t::min_fps, env_t::max_fps );
 	env_t::num_threads                 = contents.get_int_clamped( "threads",                        env_t::num_threads,               1, MAX_THREADS );
@@ -2755,7 +2755,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		char str[256];
 		sprintf(str, "waytype_color[%i]", i);
 		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
-			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+			waytype_color[i] = contents.get_color(str, waytype_color[i]);
 		}
 	}
 

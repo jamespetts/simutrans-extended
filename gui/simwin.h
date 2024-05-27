@@ -128,6 +128,7 @@ enum magic_numbers {
 	magic_depot               = magic_line_class_manager  + 843, // only used to load/save
 	magic_depotlist           = magic_depot               + MAX_PLAYER_COUNT,
 	magic_vehiclelist         = magic_depotlist           + MAX_PLAYER_COUNT,
+	//magic_pakinstall,
 	magic_vehicle_detail,
 	magic_vehicle_detail_for_consist_order,
 	magic_signalboxlist,
@@ -149,21 +150,19 @@ void rdwr_all_win(loadsave_t *file);
 // save windowsizes in settings
 void rdwr_win_settings(loadsave_t *file);
 
-void win_clamp_xywh_position(scr_coord_val &x, scr_coord_val &y, scr_size wh, bool move_to_full_view);
+void win_clamp_xywh_position(scr_coord &pos, scr_size wh, bool move_to_full_view);
 
-int create_win(gui_frame_t*, wintype, ptrdiff_t magic);
-int create_win(scr_coord_val x, scr_coord_val y, gui_frame_t*, wintype, ptrdiff_t magic, bool move_to_show_full=false);
+int create_win(gui_frame_t *gui, wintype type, ptrdiff_t magic);
+int create_win(scr_coord pos, gui_frame_t *gui, wintype type, ptrdiff_t magic, bool move_to_show_full=false);
 
 // call to avoid the main menu getting mouse events while dragging
 void catch_dragging();
 
 bool check_pos_win(event_t*);
 
-bool win_is_open(gui_frame_t *ig );
-
 
 scr_coord const& win_get_pos(gui_frame_t const*);
-void win_set_pos(gui_frame_t *ig, int x, int y);
+void win_set_pos(gui_frame_t *window, scr_coord new_pos);
 
 gui_frame_t *win_get_top();
 
@@ -201,7 +200,6 @@ void rolldown_all_win();
 bool top_win(const gui_frame_t *ig, bool keep_rollup=false  );
 void display_all_win();
 void win_rotate90( sint16 new_size );
-void move_win(int win);
 
 void win_display_flush(double konto); // draw the frame and all windows
 
@@ -230,12 +228,15 @@ void win_load_font(const char *fname, uint8 fontsize);
  * Sets the tooltip to display.
  * @param owner : owner==NULL disables timing (initial delay and visible duration)
  */
-void win_set_tooltip(scr_coord_val xpos, scr_coord_val ypos, const char *text, const void *const owner = 0, const void *const group = 0);
+void win_set_tooltip(scr_coord pos, const char *text, const void *const owner = NULL, const void *const group = NULL);
 
 /**
  * Sets a static tooltip that follows the mouse
  * *MUST* be explicitly unset!
  */
 void win_set_static_tooltip(const char *text);
+
+// shows a modal dialoge (blocks other interaction)
+void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*quit)(), bool dismissible = false);
 
 #endif

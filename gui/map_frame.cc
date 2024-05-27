@@ -43,7 +43,7 @@ scr_coord map_frame_t::screenpos;
 
 gui_scrollpane_map_t::gui_scrollpane_map_t(gui_component_t* comp) : gui_scrollpane_t(comp)
 {
-	//set_allow_dragging(false);
+	set_allow_dragging(false);
 	is_dragging = false;
 	is_cursor_hidden = false;
 }
@@ -89,8 +89,8 @@ bool gui_scrollpane_map_t::infowin_event(event_t const* ev)
 		int y = get_scroll_y();
 		const int scroll_direction = (env_t::scroll_multi > 0 ? 1 : -1);
 
-		x += (ev->mx - ev->cx) * scroll_direction * 2;
-		y += (ev->my - ev->cy) * scroll_direction * 2;
+		x += (ev->mouse_pos.x - ev->click_pos.x) * scroll_direction * 2;
+		y += (ev->mouse_pos.y - ev->click_pos.y) * scroll_direction * 2;
 
 		is_dragging = true;
 
@@ -98,8 +98,8 @@ bool gui_scrollpane_map_t::infowin_event(event_t const* ev)
 #if 0
 		// Move the mouse pointer back to starting location
 		// To prevent a infinite mouse event loop, we just do it when needed.
-		if ((ev->mx - ev->cx) != 0 || (ev->my - ev->cy) != 0) {
-			move_pointer(map_frame_t::screenpos.x + ev->cx, map_frame_t::screenpos.y + ev->cy);
+		if ((ev->mouse_pos.x - ev->click_pos.x) != 0 || (ev->mouse_pos.y - ev->click_pos.y) != 0) {
+			move_pointer(map_frame_t::screenpos.x + ev->click_pos.x, map_frame_t::screenpos.y + ev->click_pos.y);
 		}
 #endif
 		return true;
@@ -578,7 +578,7 @@ bool map_frame_t::action_triggered( gui_action_creator_t *comp, value_t)
 		if (new_dialog_pos_x >= display_get_width()) {
 			new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
 		}
-		create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
+		create_win({ new_dialog_pos_x, get_pos().y }, new factory_legend_t(this), w_info, magic_factory_legend);
 	}
 	else if(comp==zoom_buttons+1) {
 		// zoom out
@@ -809,7 +809,7 @@ void map_frame_t::rdwr( loadsave_t *file )
 			if (new_dialog_pos_x >= display_get_width()) {
 				new_dialog_pos_x = (display_get_width() + new_dialog_pos_x)>>1;
 			}
-			create_win(new_dialog_pos_x, get_pos().y, new factory_legend_t(this), w_info, magic_factory_legend);
+			create_win({ new_dialog_pos_x, get_pos().y }, new factory_legend_t(this), w_info, magic_factory_legend);
 		}
 	}
 }

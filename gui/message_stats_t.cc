@@ -78,7 +78,7 @@ bool message_stats_t::infowin_event(const event_t * ev)
 		else {
 			news = new news_loc( msg->msg, msg->pos, msg->get_player_color(welt) );
 		}
-		create_win(-1, -1, news, w_info, magic_none);
+		create_win({ -1, -1 }, news, w_info, magic_none);
 		swallowed = true;
 	}
 	else if(  !swallowed  &&  IS_RIGHTRELEASE(ev)  &&  msg->pos!=koord::invalid  ) {

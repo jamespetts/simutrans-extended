@@ -551,7 +551,7 @@ network_command_t* network_get_received_command()
  * - server: accept connection to a new client
  * - all: receive commands and puts them to the received_command_queue
  */
-network_command_t* network_check_activity(karte_t *, int timeout)
+network_command_t *network_check_activity(int timeout)
 {
 	fd_set fds;
 	FD_ZERO(&fds);
@@ -738,13 +738,16 @@ bool network_send_data( SOCKET dest, const char *buf, const uint16 size, uint16 
 #endif
 
 	while (count < size) {
-		int sent = send(dest, buf+count, size-count, 0);
+		const int sent = send(dest, buf+count, size-count, 0);
+
 		if (sent == -1) {
-			int err = GET_LAST_ERROR();
+			const int err = GET_LAST_ERROR();
+
 			if (err != EWOULDBLOCK) {
-				dbg->warning("network_send_data", "error \"%s\" while sending to [%d]", strerror(err), dest);
+				dbg->warning("network_send_data", "Could not send to [%d]: \"%s\"", dest, strerror(err));
 				return false;
 			}
+
 			if (timeout_ms <= 0) {
 				// no timeout, continue sending later
 				return true;
@@ -753,16 +756,19 @@ bool network_send_data( SOCKET dest, const char *buf, const uint16 size, uint16 
 				// try again, test whether sending is possible
 				fd_set fds;
 				FD_ZERO(&fds);
-				FD_SET(dest,&fds);
+				FD_SET(dest, &fds);
+
 				struct timeval tv;
 				tv.tv_sec = timeout_ms / 1000;
 				tv.tv_usec = (timeout_ms % 1000) * 1000ul;
+
 				// can we write?
 				if(  select( FD_SETSIZE, NULL, &fds, NULL, &tv )!=1  ) {
 					dbg->warning("network_send_data", "could not write to socket [%d]", dest);
 					return false;
 				}
 			}
+
 			continue;
 		}
 		if (sent == 0) {
@@ -799,6 +805,7 @@ bool network_receive_data( SOCKET sender, void *dest, const uint16 len, uint16 &
 		fd_set fds;
 		FD_ZERO(&fds);
 		FD_SET(sender,&fds);
+
 		struct timeval tv;
 		tv.tv_sec = timeout_ms / 1000;
 		tv.tv_usec = (timeout_ms % 1000) * 1000ul;
@@ -806,17 +813,21 @@ bool network_receive_data( SOCKET sender, void *dest, const uint16 len, uint16 &
 		if(  select( FD_SETSIZE, &fds, NULL, NULL, &tv )!=1  ) {
 			return true;
 		}
+
 		// now receive
 		int res = recv( sender, ptr+received, len-received, 0 );
+
 		if (res == -1) {
 			int err = GET_LAST_ERROR();
 			if (err != EWOULDBLOCK) {
 				dbg->warning("network_receive_data", "error %d while receiving from [%d]", err, sender);
 				return false;
 			}
+
 			// try again later
 			return true;
 		}
+
 		if (res == 0) {
 			// connection closed
 			// output warning / throw fatal error depending on heavy mode setting
@@ -826,6 +837,7 @@ bool network_receive_data( SOCKET sender, void *dest, const uint16 len, uint16 &
 #endif
 			return false;
 		}
+
 		received += res;
 	} while(  received<len  );
 

@@ -132,6 +132,7 @@ void button_t::set_typ(enum type t)
 			b_no_translate = false;
 			break;
 		}
+
 		case depot:
 		{
 			b_no_translate = false;
@@ -272,9 +273,9 @@ void button_t::set_tooltip(const char * t)
 }
 
 
-bool button_t::getroffen(int x,int y)
+bool button_t::getroffen(scr_coord p)
 {
-	bool hit=gui_component_t::getroffen(x, y);
+	bool hit=gui_component_t::getroffen(p);
 	if(  pressed  &&  !hit  &&  ( (type & STATE_BIT) == 0)  ) {
 		// moved away
 		pressed = 0;
@@ -312,8 +313,8 @@ bool button_t::infowin_event(const event_t *ev)
 	}
 
 	// check if the initial click and the current mouse positions are within the button's boundary
-	bool const cxy_within_boundary = 0 <= ev->cx && ev->cx < get_size().w && 0 <= ev->cy && ev->cy < get_size().h;
-	bool const mxy_within_boundary = 0 <= ev->mx && ev->mx < get_size().w && 0 <= ev->my && ev->my < get_size().h;
+	bool const cxy_within_boundary = 0 <= ev->click_pos.x && ev->click_pos.x < get_size().w && 0 <= ev->click_pos.y && ev->click_pos.y < get_size().h;
+	bool const mxy_within_boundary = 0 <= ev->mouse_pos.x && ev->mouse_pos.x < get_size().w && 0 <= ev->mouse_pos.y && ev->mouse_pos.y < get_size().h;
 
 	// update the button pressed state only when mouse positions are within boundary or when it is mouse release
 	if(  (type & STATE_BIT) == 0  &&  cxy_within_boundary  &&  (  mxy_within_boundary  ||  IS_LEFTRELEASE(ev)  )  ) {
@@ -491,7 +492,7 @@ void button_t::draw(scr_coord offset)
 					tooltip = "hl_btn_sort_asc";
 				}
 
-				if(  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)  ) {
+				if(  getroffen(get_mouse_pos() - offset)  ) {
 					translated_tooltip = translator::translate(tooltip);
 				}
 			}
@@ -577,8 +578,8 @@ void button_t::draw(scr_coord offset)
 		default: ;
 	}
 
-	if(  translated_tooltip  &&  getroffen( get_mouse_x()-offset.x, get_mouse_y()-offset.y )  ) {
-		win_set_tooltip( get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, area.get_bottom() + TOOLTIP_MOUSE_OFFSET_Y, translated_tooltip, this);
+	if(  getroffen(get_mouse_pos() - offset)  ) {
+		win_set_tooltip( scr_coord{ get_mouse_pos().x, area.get_bottom() } + TOOLTIP_MOUSE_OFFSET, translated_tooltip, this);
 	}
 }
 
