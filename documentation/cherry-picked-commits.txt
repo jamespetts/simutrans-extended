@@ -1,18 +1,567 @@
 ====A. Carlotti completed through 7429====
+?-probably irrelevant, not sure though
 7429
 ||
-7445
+7447
+?-7448 -- probably; depot_frame code changed too much to tell for sure
+7449
+||
+7478
 
-====
-*=partially
-8344
+(NOTE: changes to world speed record stuff are being maintained on a branch)
+(NOTE: 7466 is inapplicable but points to a patch which should go from Extended to Standard)
 
-8569
+==== For this section, commits with git-svn-id were found in the log (not hand-checked)
+==== except where noted as done by Ranran
+==== or otherwise noted
+==== *=partially
+7611 -- verified present correct
+7664
+7844
+*7697 -- reverted in c0066fc76f5e9e3d31
 
-8877
+7865 -- verified present correct
+7870 -- verified present correct
+7908 -- verified present correct
+7911 -- verified present correct
+7932
+7937
+7939 -- verified present correct (though the text in standard is... a bug)
+*7963 -- partial, see 0dc7a8a43059754dd7
+*7965 -- incomplete, see 5763e5f2927d532251
+*7997 -- incomplete, see 6151253f95b2549d4bbb
+7973 -- see 03610c9161e391
 
+8044
+*8117 -- partial, see a2b9da11859ca2eff6
+
+8075 -- verified present correct
+8123
+*8125 -- funny stuff going on, need to recheck --
+==== Recheck everything up to 8125 because we don't trust Phystam's work
+==== git log search is done from present back to 8125, not before
+==== Recheck all later ones too because we have already found some which are definitely not included
+8127
+8134 -- fixed, see 191e905c232828d, 101fea42417144c2, and other r8134 commits
+8138
+8151
+8154
+8155
+8159
+*8160 -- partial (see 4b9639947036d1c893 and other r8160 commits)
+
+8169
+8176
+8181
+8187
+8193
+8197
+
+8200
+8203
+||
+8205
+8207
+8210
+8213
+8217
+8221
+8223
+8231
+8242
+8278
+8279
+8287
+
+8303
+8305
+||
+8308
+8314
+||
+8316
+8319
+8320
+8321
+8325
+8335
+8343
+8344 -- done by Ranran
+8345
+8365
+8366
+8373
+8379
+8382
+8384
+*8386 -- partial? (see 37ed851ca9e0d3cb, ea022e0eb6f2bc2ff42, other r8386 commits)
+
+8396
+8399
+||
+8402
+8405
+8423
+8428
+8431
+8433
+||
+8444
+8447
+||
+8451
+8453
+||
+8455
+8457
+8460
+8461
+8466
+8474
+8476
+8478
+8481
+8483
+||
+8485
+8488
+8489
+8491
+8492
+8495
+||
+8497
+*8500 -- possibly merged but NOT with a git-svn-id (5e25dfb755c6692b0)
+8503
+8505
+||
+8507
+8512
+8514
+||
+8516
+8518
+||
+8522
+8524
+8525
+8527
+||
+8531
+8533
+8534
+8536
+8538
+*8539 -- reverted, see e130bc4ec40074c3393
+8540
+||
+8543
+8545
+8546
+8548
+8550
+||
+8553
+8556 -- see 3ee1616876856b8bd9 and 2ab9351fed268406a6e
+8558
+8560
+8564
+||
+8567
+
+8569 -- done by Ranran
+8570
+||
+8574
+8577
+||
+8581
+8583
+8592
+8594
+8599
+8601
+8605
+8606
+8610
+8617
+8620
+8624
+||
+8626
+8628
+||
+8630
+8632
+||
+8639
+8641
+8642
+||
+8646
+8648
+8649
+8651
+8652
+*8653 -- partial? or done now? (see ba60fd1aa7fa12216b4 and more r8653 commits)
+8654
+8657
+8659
+8662
+||
+8664
+*8671 -- recheck, see 4dcc447be8a4b342351, 9919c6e56e203
+8672
+||
+8674
+8676
+8679
+8680
+8684
+8688
+||
+8693
+8695
+||
+8705
+8707
+8709
+8711
+||
+8713
+8722
+8727
+8730
+8733
+8734
+8736
+||
+8738
+8740
+8742
+||
+8745
+8748
+8750
+8753
+8758
+8765
+8768
+||
+8771
+8773
+8774
+||
+8776
+8777
+8779
+||
+8782
+8784
+8788
+8791
+8793
+8794
+
+8801
+8802
+8808
+8810
+*8813 -- recheck -- reverted fef393f268edef
+8816
+||
+8820
+8822
+8823
+8827
+8828
+8830
+8832
+8835
+||
+8838
+8843
+8845
+8848
+||
+8850
+8856
+8857
+8859
+*8863 -- reverted (see 6b913efb33707a7, ea1e3a8c5053ab32cf90)
+8864
+||
+8867
+
+8871
+8873
+8877 -- done by Ranran
+8878
+
+8884
+8887
+||
+8889
+8890 -- possibly merged in e21478f72f0a6 but NOT with a git-svn-id
+
+8892 -- done by Ranran
+
+8895
+8898
+
+8903
+8904
+8906
+8908
+8912
+8914
+||
+8919
+8921
 8922
+||
+8925
+8930
+||
+8932
+8934
+||
+8938
+8940
+8942
+*8941 -- see b34371f28d66ff5f (done now?)
+8943
+8945
+8951
+8952
+||
+8954
+*8956 -- warning squelching only (e596b16977977faecf1ec)
+8961
+8964
+8965
+8968
+||
+8970
+8973
+||
+8975
+8982
+8987
+8991
+*8992 -- commit history for 8991 only (d9769a163ecb02686)
+8996
+8997
+
+9000
+9020
+9022
+9029
+9031
+9033
+9034
+9035
+9039
+||
+9041
+*9042 -- recheck (see ed13aaf5ea8d724, 8e43bc38387b0ce)
+9045
+||
+9048
+9052
+9053
+9055
+9060
+9062
+9064
+9065
+9067
+9068 -- definitely NOT fully committed, even though it's in the log history.
+9070
+||
+9072
+9075
+9078
+||
+9080
+9082
+9084
+9085
+9088
+||
+9090
+9093
+9094
+9097
+9099
+||
+9101
+9105
+9106
+9108
+||
+9112
+9117
+9118
+*9124 -- partial, see 7563cfe254174615
+9128
+*9131 -- possibly merged in 880f8299b510e0e0 but NOT with a git-svn-id
+9132
+9143
+9145
+9146
 *9148 (only arra2d_tpl)
+9154
+||
+9156
+9162
+9165
+9166
+9171
+9174
+*9175 -- mostly, but see 332d269896ac0, see also 8835
+9176
+*9182 -- partially reverted in e981cb7510d6b86c
+9183
+9189
+9197
+9198
+9207
+9211
+9215
+9223
+9224
+9226
+||
+9231
+9235
+9236
+9238
+9242
+9252
+9254
+9257
+*9260 -- reverted by 00a92c3587e75ce8 -- see also 8973
+9261
+9264
+||
+9266
+9268
+9269
+9271
+||
+9273
+9276
+9287
+9290
+||
+9302
+9305
+9309
+||
+9311
+9315
+||
+9317
+9320
+||
+9325
+9327 -- note also commit 3fb75938febc9a19
+9333
+||
+9335
+9343
+9345
+9347
+9348
+9351
+||
+9354
+
+9374
+9376
+||
+9378
+9384
+9386
+9391
+9393
+9394
+
+9400
+9403
+9404 -- done by Ranan
+9405
+9413
+9414
+9416
+||
+9418
+9421
+9424
+||
+9426
+9432
+9433
+9435
+||
+9440
+9442
+||
+9444
+9446
+||
+9449
+9451
+9453
+9454
+9469
+||
+9472
+9475
+9476
+9480
+9493
+
+9500
+9501
+9513
+9535
+9538
+9541
+9544
+||
+9546
+9549
+9551
+9552
+9554
+||
+9560
+9562
+9563
+9565
+9566
+9573
+9574
+9576
+9577
+9582
+9584
+9585
+9587
+||
+9590
+9594
+||
+9601
+9617
+9618
+9621
+9622
+9626
+9631
+
 
 ====Not exactly checked before here====
 9211
@@ -404,6 +953,7 @@
 10280
 10281
 10284
+10285
 10288
 10289
 10293
@@ -578,6 +1128,7 @@
 11051
 11057 (included in commit of r10754)
 11065
+//11101 don't merge this, reverted later
 11106
 11107
 11116
@@ -586,4 +1137,5 @@
 11123
 11124
 11142
-1115011201
+11150
+11201

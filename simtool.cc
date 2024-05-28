@@ -319,7 +319,6 @@ static grund_t *tool_intern_koord_to_weg_grund(player_t *player, karte_t *welt, 
 
 /****************************************** now the actual tools **************************************/
 
-// werkzeuge (tool)
 //// returns ground at pos if visible else NULL
 //// if no grund at pos exists try kartenboden
 //grund_t* get_grund(karte_t *welt, koord3d pos )

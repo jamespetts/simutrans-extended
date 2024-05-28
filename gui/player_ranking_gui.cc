@@ -26,7 +26,7 @@ static const char* cost_type_name[player_ranking_gui_t::MAX_PLAYER_RANKING_CHART
 	"Net Wealth",
 	"Revenue",
 	"Ops Profit",
-	"Margin (%)",
+	"Margin (%%)",
 	"Pax-km",
 	"Mail-km",
 	"Freight-km",

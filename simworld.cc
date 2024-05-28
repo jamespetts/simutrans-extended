@@ -599,7 +599,7 @@ void karte_t::destroy()
 	delete [] water_hgts;
 	water_hgts = NULL;
 
-	// players aufraeumen
+	// player cleanup
 	for(int i=0; i<MAX_PLAYER_COUNT; i++) {
 		delete players[i];
 		players[i] = NULL;
@@ -717,8 +717,8 @@ void karte_t::init_tiles()
 		// old default: AI 3 passenger, other goods
 		players[i] = (i<2) ? new player_t(i) : NULL;
 	}
-	active_player = players[0];
-	active_player_nr = 0;
+	active_player = players[HUMAN_PLAYER_NR];
+	active_player_nr = HUMAN_PLAYER_NR;
 
 	// make timer loop invalid
 	for( int i=0;  i<32;  i++ ) {
@@ -829,7 +829,7 @@ void karte_t::create_rivers( sint16 number )
 		for(  sint32 i=0;  i<512  &&  !valid_water_tiles.empty();  i++  ) {
 			koord const end = pick_any(valid_water_tiles);
 			valid_water_tiles.remove( end );
-			way_builder_t riverbuilder(players[1]);
+			way_builder_t riverbuilder(get_public_player());
 			riverbuilder.init_builder(way_builder_t::river, river_desc);
 			sint16 dist = koord_distance(start,end);
 			riverbuilder.set_maximum( dist*50 );
@@ -963,7 +963,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		const uint32 tbegin = dr_time();
 #endif
 		for (unsigned i = 0; i < new_city_count; i++) {
-			stadt_t* s = new stadt_t(players[1], (*pos)[i], 1);
+			stadt_t* s = new stadt_t(get_public_player(), (*pos)[i], 1);
 			DBG_DEBUG("karte_t::distribute_groundobjs_cities()", "Erzeuge stadt %i with %ld inhabitants", i, (s->get_city_history_month())[HIST_CITIZENS]);
 			if (s->get_buildings() > 0) {
 				add_city(s);
@@ -1141,7 +1141,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		route_t verbindung;
 		vehicle_t* test_driver;
 		vehicle_desc_t test_drive_desc(road_wt, 500, vehicle_desc_t::diesel);
-		test_driver = vehicle_builder_t::build(koord3d(), players[1], NULL, &test_drive_desc);
+		test_driver = vehicle_builder_t::build(koord3d(), get_public_player(), NULL, &test_drive_desc);
 		test_driver->set_flag(obj_t::not_on_map);
 
 		bool ready = false;
@@ -1490,7 +1490,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	}
 
 	// finishes the line preparation and sets id 0 to invalid ...
-	players[0]->simlinemgmt.finish_rd();
+	players[HUMAN_PLAYER_NR]->simlinemgmt.finish_rd();
 
 	set_tool( tool_t::general_tool[TOOL_QUERY], get_active_player() );
 
@@ -1507,8 +1507,8 @@ DBG_DEBUG("karte_t::init()","built timeline");
 		}
 	}
 
-	active_player_nr = 0;
-	active_player = players[0];
+	active_player_nr = HUMAN_PLAYER_NR;
+	active_player = players[HUMAN_PLAYER_NR];
 	tool_t::update_toolbars();
 
 	set_dirty();
@@ -3036,7 +3036,6 @@ karte_t::karte_t() :
 	convoi_array(0),
 	world_attractions(16),
 	cities(0),
-	idle_time(0),
 	speed_factors_are_set(false)
 {
 	destroying = false;
@@ -3055,9 +3054,9 @@ karte_t::karte_t() :
 	network_frame_count = 0;
 	sync_steps = 0;
 	sync_steps_barrier = sync_steps;
+
 	next_step_passenger = 0;
 	next_step_mail = 0;
-	destroying = false;
 	transferring_cargoes = NULL;
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
@@ -3587,7 +3586,7 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 }
 
 
-void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended, bool called_from_script)
+void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended)
 {
 	suspended = false;
 	if(  get_random_mode()&LOAD_RANDOM  ) {
@@ -8464,8 +8463,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			}
 		}
 		// so far, player 1 will be active (may change in future)
-		active_player = players[0];
-		active_player_nr = 0;
+		active_player = players[HUMAN_PLAYER_NR];
+		active_player_nr = HUMAN_PLAYER_NR;
 	}
 
 	// rdwr tree ID mapping to restore tree IDs
@@ -8998,7 +8997,7 @@ bool karte_t::load(const char *filename)
 		create_win(new news_img("WRONGSAVE"), w_info, magic_none);
 	}
 	else {
-DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
+		DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 
 		file.set_buffered(true);
 		load(&file);
@@ -10329,14 +10328,16 @@ const char *karte_t::init_new_player(uint8 new_player_in, uint8 type)
 
 void karte_t::remove_player(uint8 player_nr)
 {
-	if ( player_nr!=1  &&  player_nr<PLAYER_UNOWNED  &&  players[player_nr]!=NULL) {
+	if ( player_nr!=PUBLIC_PLAYER_NR    &&  player_nr<PLAYER_UNOWNED  &&  players[player_nr]!=NULL) {
 		players[player_nr]->complete_liquidation();
 		delete players[player_nr];
-		players[player_nr] = 0;
+		players[player_nr] = NULL;
+
 		nwc_chg_player_t::company_removed(player_nr);
+
 		// if default human, create new instace of it (to avoid crashes)
-		if(  player_nr == 0  ) {
-			players[0] = new player_t( 0 );
+		if(  player_nr == HUMAN_PLAYER_NR   ) {
+			players[0] = new player_t(HUMAN_PLAYER_NR);
 		}
 
 		// Reset all access rights
@@ -10350,8 +10351,8 @@ void karte_t::remove_player(uint8 player_nr)
 
 		// if currently still active => reset to default human
 		if(  player_nr == active_player_nr  ) {
-			active_player_nr = 0;
-			active_player = players[0];
+			active_player_nr = HUMAN_PLAYER_NR;
+			active_player = players[HUMAN_PLAYER_NR];
 			if(  !env_t::server  ) {
 				const scr_coord pos{ display_get_width()/2-128, 40 };
 				create_win( pos, new news_img("Bankrott:\n\nDu bist bankrott.\n"), w_info, magic_none);
@@ -10381,10 +10382,10 @@ void karte_t::switch_active_player(uint8 new_player, bool silent)
 	koord3d old_zeiger_pos = zeiger->get_pos();
 
 	// no cheating allowed?
-	if (!settings.get_allow_player_change() && players[1]->is_locked()) {
-		active_player_nr = 0;
-		active_player = players[0];
-		if(new_player!=0) {
+	if (!settings.get_allow_player_change() && get_public_player()->is_locked()) {
+		active_player_nr = HUMAN_PLAYER_NR;
+		active_player = players[HUMAN_PLAYER_NR];
+		if(new_player!=HUMAN_PLAYER_NR) {
 			create_win( new news_img("On this map, you are not\nallowed to change player!\n"), w_time_delete, magic_none);
 		}
 	}
@@ -10492,6 +10493,7 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 		steps = sync_steps / settings.get_frames_per_step();
 		network_frame_count = sync_steps % settings.get_frames_per_step();
 		dbg->warning("karte_t::network_game_set_pause", "steps=%d sync_steps=%d pause=%d", steps, sync_steps, pause_);
+
 		if (pause_) {
 			if (!env_t::server) {
 				reset_timer();
@@ -10977,20 +10979,19 @@ bool karte_t::interactive(uint32 quit_month)
 
 		// time for the next step?
 		uint32 time = dr_time(); // - (env_t::server ? 0 : 5000);
-		if ((sint32)next_step_time - (sint32)time <= 0) {
-			if (step_mode&PAUSE_FLAG)
-			{
-					sync_step(0, false, true);
-					if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
-					{
-						pause_step();
-					}
-					else
-					{
-						// only update display
-						idle_time = 100;
-						eventmanager->check_events();
-					}
+		if(  (sint32)next_step_time - (sint32)time <= 0  ) {
+			if(  step_mode&PAUSE_FLAG  ) {
+				// only update display
+				sync_step(0, false, true);
+				if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
+				{
+					pause_step();
+				}
+				else
+				{
+					idle_time = 100;
+					eventmanager->check_events();
+				}
 			}
 			else if (env_t::networkmode && !env_t::server && sync_steps >= sync_steps_barrier) {
 				sync_step(0, false, true);
@@ -11386,7 +11387,7 @@ const vector_tpl<const goods_desc_t*> &karte_t::get_goods_list()
 
 player_t *karte_t::get_public_player() const
 {
-	return get_player(1);
+	return get_player(PUBLIC_PLAYER_NR);
 }
 
 

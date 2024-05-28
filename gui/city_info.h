@@ -217,9 +217,9 @@ private:
 	void update_labels();
 
 	// stats table
+	gui_bandgraph_t transportation_last_year, transportation_this_year;
 	gui_aligned_container_t cont_city_stats;
 	gui_scrollpane_t scrolly_stats;
-	gui_bandgraph_t transportation_last_year, transportation_this_year;
 	int transportation_pas[6];
 	// update trigger
 	uint32 old_month = 0;

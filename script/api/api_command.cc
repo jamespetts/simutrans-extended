@@ -92,7 +92,7 @@ SQInteger param<call_tool_init>::push(HSQUIRRELVM vm, call_tool_init v)
 
 	// HACK call karte_t::set_tool
 	bool suspended;
-	welt->set_tool_api(tool, player, suspended, true);
+	welt->set_tool_api(tool, player, suspended);
 	// in networkmode, call is suspended
 
 	if (suspended) {
