@@ -645,7 +645,7 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_short(display_scale_percent);
 	}
 
-	if (file->is_version_atleast(123, 2)) {
+	if (file->is_version_atleast(123, 2) || file->is_version_ex_atleast(14,65) ) {
 		file->rdwr_short(scroll_threshold);
 	}
 
