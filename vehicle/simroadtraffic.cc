@@ -39,7 +39,7 @@
 
 
 /**********************************************************************************************************************/
-/* Road users (Verkehrsteilnehmer) basis class from here on */
+/* Road users (private cars and pedestrians) basis class from here on */
 
 #ifdef INLINE_OBJ_TYPE
 road_user_t::road_user_t(typ type) :

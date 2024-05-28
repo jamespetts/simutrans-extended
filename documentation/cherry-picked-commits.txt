@@ -6,10 +6,18 @@
 ?-7448 -- probably; depot_frame code changed too much to tell for sure
 7449
 ||
-7478
+7490
+?-7491 -- probably; code in convoi_info.cc changed too much to tell for sure
+7492
+||
+7501
+?-7502 -- probably superseded but need to verify
 
-(NOTE: changes to world speed record stuff are being maintained on a branch)
-(NOTE: 7466 is inapplicable but points to a patch which should go from Extended to Standard)
+***NOTES on 7494:
+   -- patch for standard needed for comment in vehicle/movingobj.cc for reference to "fahrer" (now simtestdriver / testdriver_t) 
+   -- patch for standard needed for set_erstes_letztes in simconvoi.cc/h to finish the translation job
+***(NOTE: changes to world speed record stuff are being maintained on a branch)
+***(NOTE: 7480 is missing one piece in pedestrian.cc but it will be overwritten by 10664)
 
 ==== For this section, commits with git-svn-id were found in the log (not hand-checked)
 ==== except where noted as done by Ranran
@@ -318,6 +326,7 @@
 ||
 8919
 8921
+8922
 ||
 8925
 8930
@@ -409,6 +418,7 @@
 9143
 9145
 9146
+*9148 (only arra2d_tpl)
 9154
 ||
 9156
@@ -1083,3 +1093,7 @@
 10937
 10946
 //11101 don't merge this, reverted later
+<<<<<<< HEAD
+=======
+11242 - backport from extended
+>>>>>>> merge-from-standard
