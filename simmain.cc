@@ -130,7 +130,7 @@ static void show_times(karte_t *welt, main_view_t *view)
 
  	long ms = dr_time();
 	for (i = 0;  i < 6000000;  i++) {
-		display_img_aux(img, 50, 50, 1, 0, true  CLIP_NUM_DEFAULT);
+		display_img_aux( img, 50, 50, 1, 0, true  CLIP_NUM_DEFAULT);
 	}
 	dbg->message( "display_img()", "%i iterations took %li ms", i, dr_time() - ms );
 
@@ -159,13 +159,13 @@ static void show_times(karte_t *welt, main_view_t *view)
 	for (i = 0;  i < 300000;  i++) {
 		display_text_proportional_len_clip_rgb(100, 120, "Dies ist ein kurzer Textetxt ...", 0, 0, false, -1);
 	}
-	dbg->message( "display_text_proportional_len_clip()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_text_proportional_len_clip_rgb()", "%i iterations took %li ms", i, dr_time() - ms );
 
 	ms = dr_time();
 	for (i = 0;  i < 300000;  i++) {
 		display_fillbox_wh_rgb(100, 120, 300, 50, 0, false);
 	}
-	dbg->message( "display_fillbox_wh()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_fillbox_wh_rgb()", "%i iterations took %li ms", i, dr_time() - ms );
 
 	ms = dr_time();
 	for (i = 0; i < 2000; i++) {
@@ -322,7 +322,7 @@ void print_help()
 	    "  http://forum.simutrans.com"
 		"\n"
 		"  Based on Simutrans 0.84.21.2\n"
-		"  by Hansj?rg Malthaner et. al.\n"
+		"  by Hansjörg Malthaner et. al.\n"
 		"---------------------------------------\n"
 		"command line parameters available: \n"
 		" -addons             loads also addons (with -objects)\n"
@@ -1349,7 +1349,7 @@ int simu_main(int argc, char** argv)
 #ifdef USE_FLUIDSYNTH_MIDI
 		// Audio is ok, but we failed to find a soundfont
 		if(  strcmp( env_t::soundfont_filename.c_str(), "Error" ) == 0  ) {
-			midi_set_mute( true );
+			midi_set_mute(true);
 		}
 #endif
 	}
@@ -1557,7 +1557,7 @@ int simu_main(int argc, char** argv)
 	// the real fonts for the current language, if not set otherwise
 	sprachengui_t::init_font_from_lang();
 
-	if (!(env_t::reload_and_save_on_quit && !new_world)) {
+	if(   !(env_t::reload_and_save_on_quit  &&  !new_world)  ) {
 		destroy_all_win(true);
 	}
 	env_t::restore_UI = old_restore_UI;
@@ -1567,7 +1567,7 @@ int simu_main(int argc, char** argv)
 	}
 #ifdef USE_FLUIDSYNTH_MIDI
 	if(  strcmp( env_t::soundfont_filename.c_str(), "Error" ) == 0  ) {
-		create_win({ 0,0 }, new news_img("No soundfont found!\n\nMusic won't play until you load a soundfont from the sound options menu."), w_info, magic_none);
+		create_win({ 0,0 }, new news_img("No soundfont found!\n\nMusic won't play until you load a soundfont from the sound options menu."), w_info, magic_none );
 	}
 #endif
 	while(  !env_t::quit_simutrans  ) {
