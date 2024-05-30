@@ -10,9 +10,6 @@
 #include "gui_component.h"
 #include "gui_scrollbar.h"
 
-/*
- * this is a scrolling area in which subcomponents are drawn
- */
 class loadsave_t;
 
 /*
