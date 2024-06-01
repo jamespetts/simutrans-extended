@@ -556,7 +556,7 @@ int simu_main(int argc, char** argv)
 	if(found_simuconf)
 	{
 		tabfileobj_t contents;
-		simuconf.read(contents);
+		simuconf.read( contents );
 		// use different save directories
 		multiuser = !(contents.get_int("singleuser_install", !multiuser)==1  ||  !multiuser);
 		printf("Parsed simuconf.tab for directory layout; multiuser = %i\n", multiuser);
