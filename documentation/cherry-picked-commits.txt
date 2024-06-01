@@ -901,6 +901,7 @@
 10123
 10125
 10127
+10131
 10133
 10135
 ||
@@ -939,9 +940,6 @@
 10218
 10219 (*only simwin)
 10220
-||
-10225
-10227
 ||
 10229
 10231
@@ -996,6 +994,7 @@
 10417
 ||
 10419
+10426
 10429
 10430
 10440
@@ -1011,6 +1010,9 @@
 10495
 10506
 10514
+10518
+10540
+10541
 10545
 10555
 ||
@@ -1033,11 +1035,13 @@
 10598
 10600
 10604
-10607
+10606
+||
 10608
 *10613(only gui_scrolled_list.cc)
 10617
-10618
+||
+10619
 10621
 10622
 10626
@@ -1069,6 +1073,7 @@
 10720
 //10721 reverted: This disables drag road building operations
 10752
+10754
 10759
 10765
 10781
@@ -1111,6 +1116,7 @@
 10982
 10983
 //11101 don't merge this, reverted later
+11142
 11240 - backport from extended player ranking UI
 11241 - backport from extended player ranking UI
 11242 - backport from extended
