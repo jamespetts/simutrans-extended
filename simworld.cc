@@ -10463,7 +10463,7 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool &suspended)
 {
 	const char *err = NULL;
-	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_network_safe(player, pos);
+	bool network_safe_tool = tool->is_work_network_safe() || tool->is_work_here_keeps_game_state(player, pos);
 	if(  !env_t::networkmode  ||  network_safe_tool  ) {
 		// do the work
 		tool->flags |= tool_t::WFL_LOCAL;
