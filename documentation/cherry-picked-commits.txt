@@ -1041,6 +1041,7 @@
 10621
 10622
 10626
+//10627 reverted: This disables drag road building operations
 10640
 ||
 10642
@@ -1066,6 +1067,7 @@
 10716
 10719
 10720
+//10721 reverted: This disables drag road building operations
 10752
 10759
 10765

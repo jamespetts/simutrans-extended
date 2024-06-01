@@ -83,15 +83,27 @@ void interaction_t::move_cursor( const event_t &ev )
 			tool->flags = (event_get_last_control_shift() ^ tool_t::control_invert) | tool_t::WFL_LOCAL;
 			if(tool->check_pos( world->get_active_player(), zeiger->get_pos() )==NULL) {
 				if(  ev.button_state == 0  ) {
+					tool->end_move(world->get_active_player(), pos);
 					is_dragging = false;
 				}
 				else if(ev.ev_class==EVENT_DRAG) {
 					if(!is_dragging  &&  prev_pos != koord3d::invalid  &&  tool->check_pos( world->get_active_player(), prev_pos )==NULL) {
-						is_dragging = true;
+						const char* err = world->get_scenario()->is_work_allowed_here(world->get_active_player(), tool->get_id(), tool->get_waytype(), prev_pos);
+						if (err == NULL) {
+							tool->begin_move(world->get_active_player(), pos);
+							is_dragging = true;
+						}
+						else {
+							tool->end_move(world->get_active_player(), pos);
+							is_dragging = false;
+						}
 					}
 				}
 				if (is_dragging) {
-					world->set_deferred_move_to(pos, tool->flags);
+					const char* err = world->get_scenario()->is_work_allowed_here(world->get_active_player(), tool->get_id(), tool->get_waytype(), pos);
+					if (err == NULL) {
+						tool->move( world->get_active_player(), is_dragging, pos );
+					}
 				}
 			}
 			tool->flags = 0;
@@ -296,6 +308,7 @@ bool interaction_t::process_event( event_t &ev )
 			// we call the proper tool for quitting
 			world->set_tool(tool_t::simple_tool[TOOL_QUIT], NULL);
 		}
+
 		return true;
 	}
 
@@ -423,7 +436,7 @@ void interaction_t::check_events()
 }
 
 
-interaction_t::interaction_t(viewport_t *viewport) :
+interaction_t::interaction_t(viewport_t* viewport) :
 	viewport(viewport),
 	is_dragging(false),
 	is_world_dragging(false)
