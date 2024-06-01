@@ -514,7 +514,7 @@ DBG_MESSAGE("tool_remover_intern()","at (%s)", pos.get_str());
 	}
 
 	// citycar? (we allow always)
-	if (type == obj_t::road_user || type == obj_t::undefined) {
+	if (type == obj_t::road_user  ||  type == obj_t::undefined) {
 		if (private_car_t* citycar = gr->find<private_car_t>()) {
 			delete citycar;
 			return true;
@@ -818,7 +818,7 @@ DBG_MESSAGE("tool_remover()",  "took out powerline");
 	if(zeiger) {
 		gr->obj_remove(zeiger);
 	}
-	// do not delete other players labelcr
+	// do not delete other players label
 	label_t *label = gr->find<label_t>();
 	if(label) {
 		gr->obj_remove(label);
