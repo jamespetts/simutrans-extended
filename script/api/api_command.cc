@@ -221,7 +221,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 	// set flags
 	tool->flags = flags;
 	// test work
-	if (tool->is_work_keeps_game_state()  ||  (!v.twoclick  &&  tool->is_work_here_keeps_game_state(player, v.start))) {
+	if (tool->is_work_network_safe()  ||  (!v.twoclick  &&  tool->is_work_here_keeps_game_state(player, v.start))) {
 		return sq_raise_error(vm, "Tool has no effects");
 	}
 	// two-click tool
