@@ -1800,7 +1800,7 @@ private:
 public:
 	void flood_to_depth(sint8 new_water_height, sint8 *stage);
 
-	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended, bool called_from_api );
+	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended);
 
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
