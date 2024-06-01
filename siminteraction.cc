@@ -296,7 +296,6 @@ bool interaction_t::process_event( event_t &ev )
 			// we call the proper tool for quitting
 			world->set_tool(tool_t::simple_tool[TOOL_QUIT], NULL);
 		}
-
 		return true;
 	}
 
@@ -424,7 +423,7 @@ void interaction_t::check_events()
 }
 
 
-interaction_t::interaction_t(viewport_t* viewport) :
+interaction_t::interaction_t(viewport_t *viewport) :
 	viewport(viewport),
 	is_dragging(false),
 	is_world_dragging(false)
