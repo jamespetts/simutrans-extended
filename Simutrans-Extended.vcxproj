@@ -2107,6 +2107,7 @@
     <ClCompile Include="descriptor\reader\building_reader.cc" />
     <ClCompile Include="player\finance.cc" />
     <ClCompile Include="script\api\api_city.cc" />
+    <ClCompile Include="script\api\api_command.cc" />
     <ClCompile Include="script\api\api_const.cc" />
     <ClCompile Include="script\api\api_control.cc" />
     <ClCompile Include="script\api\api_convoy.cc" />
@@ -2116,8 +2117,9 @@
     <ClCompile Include="script\api\api_include.cc" />
     <ClCompile Include="script\api\api_line.cc" />
     <ClCompile Include="script\api\api_map_objects.cc" />
-    <ClCompile Include="script\api\api_obj_desc.cc" />
     <ClCompile Include="script\api\api_obj_desc_base.cc" />
+    <ClCompile Include="script\api\api_obj_desc.cc" />
+    <ClCompile Include="script\api\api_pathfinding.cc" />
     <ClCompile Include="script\api\api_player.cc" />
     <ClCompile Include="script\api\api_scenario.cc" />
     <ClCompile Include="script\api\api_schedule.cc" />
@@ -2133,6 +2135,7 @@
     <ClCompile Include="script\dynamic_string.cc" />
     <ClCompile Include="script\export_objs.cc" />
     <ClCompile Include="script\script.cc" />
+    <ClCompile Include="script\script_loader.cc" />
     <ClCompile Include="siminteraction.cc" />
     <ClCompile Include="simloadingscreen.cc" />
     <ClCompile Include="simsignalbox.cc" />
@@ -2399,7 +2402,7 @@
     <ClCompile Include="descriptor\reader\pedestrian_reader.cc" />
     <ClCompile Include="finder\placefinder.cc" />
     <ClCompile Include="gui\player_frame_t.cc" />
-    <ClCompile Include="gui\player_ranking_gui.cc" />
+    <ClCompile Include="gui\player_ranking_frame.cc" />
     <ClCompile Include="dataobj\powernet.cc" />
     <ClCompile Include="dataobj\replace_data.cc" />
     <ClCompile Include="gui\replace_frame.cc" />
@@ -2917,7 +2920,7 @@
     <ClInclude Include="descriptor\writer\pedestrian_writer.h" />
     <ClInclude Include="finder\placefinder.h" />
     <ClInclude Include="gui\player_frame_t.h" />
-    <ClInclude Include="gui\player_ranking_gui.h" />
+    <ClInclude Include="gui\player_ranking_frame.h" />
     <ClInclude Include="dataobj\powernet.h" />
     <ClInclude Include="tpl\ptrhashtable_tpl.h" />
     <ClInclude Include="tpl\quickstone_hashtable_tpl.h" />

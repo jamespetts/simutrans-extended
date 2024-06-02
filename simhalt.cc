@@ -2435,14 +2435,21 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 			if(ware->menge > 0)
 			{
 				i++;
+				// This will be called in three passes (in simconvoi.cc, convoi_t::hat_gehalten) for classes & overcrowding.
+				// We know at this stage that we cannot load passengers or mail of a *lower* class into higher class accommodation.
 				if (ware->get_class() >= g_class)
 				{
-					// We know at this stage that we cannot load passengers of a *lower* class into higher class accommodation,
-					// but we cannot yet know whether or not to load passengers of a higher class into lower class accommodation.
-					// Note that this method is called for each class of accommodation in each vehicle in each convoy.
-					goods_to_check.insert(ware);
+					// and if "use_lower_classes" is false (first pass),
+					// we ALSO cannot load passengers or mail of a higher class into lower class accomodation.
+					// This fixes a bug where priority mail would load into a normal mail vehicle in the front even if
+					// there was a priority mail vehicle later in the consist (and similarly for passengers).
+					if(  use_lower_classes || ware->get_class() == g_class  )
+					{
+						goods_to_check.insert(ware);
+					}
 				}
-				else
+				// If the class is a mismatch in any way then there are other classes available
+				if(  ware->get_class() != g_class  )
 				{
 					other_classes_available = true;
 				}

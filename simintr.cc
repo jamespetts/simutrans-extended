@@ -23,13 +23,13 @@
 static main_view_t *main_view = NULL;
 
 
-static long last_time;
+static uint32 last_time;
 static bool enabled = false;
 
 #define FRAME_TIME_MULTI (16)
 
 // pause between two frames
-static long frame_time = 36*FRAME_TIME_MULTI;
+static uint32 frame_time = 36*FRAME_TIME_MULTI;
 
 
 bool reduce_frame_time()
@@ -60,10 +60,12 @@ bool increase_frame_time()
 	}
 }
 
-sint32 get_frame_time()
+
+uint32 get_frame_time()
 {
 	return frame_time/FRAME_TIME_MULTI;
 }
+
 
 void set_frame_time(uint32 time)
 {
@@ -108,8 +110,9 @@ void interrupt_check(const char* caller_info)
 		if(  diff>0  ) {
 			enabled = false;
 			last_time = now;
-			world()->sync_step( diff, !world()->is_fast_forward(), true );
-			// since pause may have been activated in this sync_step
+			world()->sync_step(diff, !world()->is_fast_forward(), true);
+
+			// since pause maz have been activated in this sync_step
 			enabled = !world()->is_paused();
 		}
 	}
@@ -129,6 +132,7 @@ void intr_set_last_time(sint32 time)
 	last_time = time;
 }
 
+
 void intr_disable()
 {
 	enabled = false;
@@ -139,6 +143,7 @@ void intr_enable()
 {
 	enabled = true;
 }
+
 
 char const *tick_to_string( sint64 ticks, bool show_full )
 {
@@ -307,6 +312,103 @@ char const *tick_to_string( sint64 ticks, bool show_full )
 				sprintf(time, "%s% 2d:%02dh", days, hours, minuten);
 				break;
 		}
+	}
+	return time;
+}
+
+
+
+char const *difftick_to_string( sint32 ticks, bool round_to_quaters )
+{
+	static char time [128];
+
+	time[0] = 0;
+
+	// World model might not be initalized if this is called while reading saved windows.
+	if ( world() == NULL) {
+		return time;
+	}
+
+	// suppress as much as possible, assuming this is an relative offset to the current month
+	sint32 num_days = ( ticks * (env_t::show_month==env_t::DATE_FMT_MONTH? 1 : 31) ) >> world()->ticks_per_world_month_shift;
+	char days[64];
+	days[0] = 0;
+	if(  num_days!=0  ) {
+		sprintf( days, "%+i ", num_days );
+	}
+
+	uint32 hours, minuten;
+	if( env_t::show_month > env_t::DATE_FMT_MONTH ) {
+		if( world()->ticks_per_world_month_shift>=16 ) {
+			hours = (((sint64)ticks*31) >> (world()->ticks_per_world_month_shift-16));
+		}
+		else {
+			hours = (((sint64)ticks*31) << (16-world()->ticks_per_world_month_shift));
+		}
+	}
+	else {
+		if( world()->ticks_per_world_month_shift>=16 ) {
+			uint32 precision = round_to_quaters ? 0 : 15;
+			hours = (ticks >> (world()->ticks_per_world_month_shift-16)) + precision;
+		}
+		else {
+			uint32 precision = round_to_quaters ? 0 : 15 >> (16-world()->ticks_per_world_month_shift);
+			hours = (((sint64)ticks) << (16-world()->ticks_per_world_month_shift)) + precision;
+		}
+	}
+	minuten = (((hours * 3) % 8192) * 60) / 8192;
+	hours = ((hours * 3) / 8192) % 24;
+
+	// maybe round minutes
+	if( round_to_quaters ) {
+		int switchtick = world()->ticks_per_world_month_shift;
+		if(  env_t::show_month == env_t::DATE_FMT_MONTH  ) {
+			// since a month is then just three days instead of about 30 ...
+			switchtick += 3;
+		}
+		if(  switchtick <= 19  ) {
+			minuten = ( (minuten + 30 ) / 60 ) * 60;
+			hours += minuten /60;
+			if(  switchtick < 18 ) {
+				// four hour intervals
+				hours = (hours + 3 ) & 0xFFFFC;
+			}
+			else if(  switchtick == 18 ) {
+				// two hour intervals
+				hours = (hours + 1 ) & 0xFFFFE;
+			}
+		}
+		else if(  switchtick == 20  ) {
+			minuten = ( (minuten + 15) / 30 ) * 30;
+		}
+		else if(  switchtick == 21  ) {
+			minuten = ( (minuten + 7) / 15 ) * 15;
+		}
+		else if(  switchtick == 22  ) {
+			minuten = ( (minuten + 2) / 5 ) * 5;
+		}
+	}
+	// take care of overflow
+	hours += (minuten / 60);
+	minuten %= 60;
+	hours %= 24;
+
+	switch(env_t::show_month) {
+	case env_t::DATE_FMT_GERMAN:
+	case env_t::DATE_FMT_GERMAN_NO_SEASON:
+	case env_t::DATE_FMT_US:
+	case env_t::DATE_FMT_US_NO_SEASON:
+		sprintf(time, "%s%2d:%02dh", days, hours, minuten);
+		break;
+
+	case env_t::DATE_FMT_JAPANESE:
+	case env_t::DATE_FMT_JAPANESE_NO_SEASON:
+		sprintf(time, "%s%2d:%02dh", days, hours, minuten);
+		break;
+
+	case env_t::DATE_FMT_MONTH:
+		sprintf(time, "%s%2d:%02dh", days, hours, minuten);
+		break;
 	}
 	return time;
 }

@@ -599,7 +599,7 @@ void karte_t::destroy()
 	delete [] water_hgts;
 	water_hgts = NULL;
 
-	// players aufraeumen
+	// player cleanup
 	for(int i=0; i<MAX_PLAYER_COUNT; i++) {
 		delete players[i];
 		players[i] = NULL;
@@ -716,8 +716,8 @@ void karte_t::init_tiles()
 		// old default: AI 3 passenger, other goods
 		players[i] = (i<2) ? new player_t(i) : NULL;
 	}
-	active_player = players[0];
-	active_player_nr = 0;
+	active_player = players[HUMAN_PLAYER_NR];
+	active_player_nr = HUMAN_PLAYER_NR;
 
 	// make timer loop invalid
 	for( int i=0;  i<32;  i++ ) {
@@ -828,7 +828,7 @@ void karte_t::create_rivers( sint16 number )
 		for(  sint32 i=0;  i<512  &&  !valid_water_tiles.empty();  i++  ) {
 			koord const end = pick_any(valid_water_tiles);
 			valid_water_tiles.remove( end );
-			way_builder_t riverbuilder(players[1]);
+			way_builder_t riverbuilder(get_public_player());
 			riverbuilder.init_builder(way_builder_t::river, river_desc);
 			sint16 dist = koord_distance(start,end);
 			riverbuilder.set_maximum( dist*50 );
@@ -962,7 +962,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		const uint32 tbegin = dr_time();
 #endif
 		for (unsigned i = 0; i < new_city_count; i++) {
-			stadt_t* s = new stadt_t(players[1], (*pos)[i], 1);
+			stadt_t* s = new stadt_t(get_public_player(), (*pos)[i], 1);
 			DBG_DEBUG("karte_t::distribute_groundobjs_cities()", "Erzeuge stadt %i with %ld inhabitants", i, (s->get_city_history_month())[HIST_CITIZENS]);
 			if (s->get_buildings() > 0) {
 				add_city(s);
@@ -1139,7 +1139,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		route_t verbindung;
 		vehicle_t* test_driver;
 		vehicle_desc_t test_drive_desc(road_wt, 500, vehicle_desc_t::diesel);
-		test_driver = vehicle_builder_t::build(koord3d(), players[1], NULL, &test_drive_desc);
+		test_driver = vehicle_builder_t::build(koord3d(), get_public_player(), NULL, &test_drive_desc);
 		test_driver->set_flag(obj_t::not_on_map);
 
 		bool ready = false;
@@ -1379,7 +1379,7 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	}
 
 	for(  uint i=0;  i<MAX_PLAYER_COUNT;  i++  ) {
-		set_tool(tool_t::general_tool[TOOL_QUERY], get_player(i));
+		selected_tool[i] = tool_t::general_tool[TOOL_QUERY];
 	}
 	if(is_display_init()) {
 		display_show_pointer(false);
@@ -1488,7 +1488,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	}
 
 	// finishes the line preparation and sets id 0 to invalid ...
-	players[0]->simlinemgmt.finish_rd();
+	players[HUMAN_PLAYER_NR]->simlinemgmt.finish_rd();
 
 	set_tool( tool_t::general_tool[TOOL_QUERY], get_active_player() );
 
@@ -1505,8 +1505,8 @@ DBG_DEBUG("karte_t::init()","built timeline");
 		}
 	}
 
-	active_player_nr = 0;
-	active_player = players[0];
+	active_player_nr = HUMAN_PLAYER_NR;
+	active_player = players[HUMAN_PLAYER_NR];
 	tool_t::update_toolbars();
 
 	set_dirty();
@@ -3034,7 +3034,6 @@ karte_t::karte_t() :
 	convoi_array(0),
 	world_attractions(16),
 	cities(0),
-	idle_time(0),
 	speed_factors_are_set(false)
 {
 	destroying = false;
@@ -3053,9 +3052,9 @@ karte_t::karte_t() :
 	network_frame_count = 0;
 	sync_steps = 0;
 	sync_steps_barrier = sync_steps;
+
 	next_step_passenger = 0;
 	next_step_mail = 0;
-	destroying = false;
 	transferring_cargoes = NULL;
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
@@ -3570,37 +3569,22 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 }
 
 
-void karte_t::set_tool( tool_t *tool_in, player_t *player )
+void karte_t::set_tool_api( tool_t *tool_in, player_t *player, bool& suspended)
 {
+	suspended = false;
 	if(  get_random_mode()&LOAD_RANDOM  ) {
-		dbg->warning("karte_t::set_tool", "Ignored tool %s during loading.", tool_in->get_name() );
+		dbg->warning("karte_t::set_tool_api", "Ignored tool %s during loading.", tool_in->get_name() );
 		return;
 	}
-	bool scripted_call = tool_in->is_scripted();
+	bool needs_check = !tool_in->no_check();
 	// check for scenario conditions
-	if(  !scripted_call  &&  (scenario && !scenario->is_tool_allowed(player, tool_in->get_id(), tool_in->get_waytype()))  ) {
+	if(  needs_check  &&  !scenario->is_tool_allowed(player, tool_in->get_id(), tool_in->get_waytype())  ) {
 		return;
 	}
-
-	player_t* action_player = player;
-	if(tool_in->get_id() == (TOOL_ACCESS_TOOL | SIMPLE_TOOL))
-	{
-		uint16 id_setting_player;
-		uint16 id_receiving_player;
-		sint16 allow_access;
-
-		if(3 != sscanf(tool_in->get_default_param(), "g%hi,%hi,%hi", &id_setting_player, &id_receiving_player, &allow_access))
-		{
-			dbg->error( "karte_t::set_tool", "could not perform (%s)", tool_in->get_default_param() );
-			return;
-		}
-		action_player = this->get_player(id_setting_player);
-	}
-
 	// check for password-protected players
-	if(  (!tool_in->is_init_keeps_game_state()  ||  !tool_in->is_work_keeps_game_state())  &&  !scripted_call  &&
+	if(  (!tool_in->is_init_keeps_game_state()  ||  !tool_in->is_work_keeps_game_state())  &&  needs_check  &&
 		 !(tool_in->get_id()==(TOOL_CHANGE_PLAYER|SIMPLE_TOOL)  ||  tool_in->get_id()==(TOOL_ADD_MESSAGE| GENERAL_TOOL))  &&
-		 action_player  &&  action_player->is_locked()  ) {
+		 player  &&  player->is_locked()  ) {
 		// player is currently password protected => request unlock first
 		create_win(new password_frame_t(player), w_info, magic_pwd_t + player->get_player_nr() );
 		return;
@@ -3614,14 +3598,17 @@ void karte_t::set_tool( tool_t *tool_in, player_t *player )
 			// queue tool for execution
 			nwc_tool_t* nwc = new nwc_tool_t(player, tool_in, zeiger->get_pos(), 0, map_counter, true);
 			command_queue_append(nwc);
+			suspended = true;
 		}
 	}
 	else {
 		// queue tool for network
 		nwc_tool_t *nwc = new nwc_tool_t(player, tool_in, zeiger->get_pos(), steps, map_counter, true);
 		network_send_server(nwc);
+		suspended = true;
 	}
 }
+
 
 
 // set a new tool on our client, calls init
@@ -4153,7 +4140,7 @@ stadt_t *karte_t::get_city(const koord pos) const
 	if(is_within_limits(pos))
 	{
 		int city_count = 0;
-		for (stadt_t* const c : cities) {
+		for(auto const c : cities) {
 			if(c->is_within_city_limits(pos))
 			{
 				city_count++;
@@ -5461,7 +5448,7 @@ void karte_t::step()
 	if(  env_t::server  &&  last_clients!=socket_list_t::get_playing_clients()  ) {
 		if(  env_t::server_announce  ) {
 			// inform the master server
-			announce_server( 1 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HEARTBEAT );
 		}
 
 		// check if player has left and send message
@@ -8443,8 +8430,8 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			}
 		}
 		// so far, player 1 will be active (may change in future)
-		active_player = players[0];
-		active_player_nr = 0;
+		active_player = players[HUMAN_PLAYER_NR];
+		active_player_nr = HUMAN_PLAYER_NR;
 	}
 
 	// rdwr tree ID mapping to restore tree IDs
@@ -8796,7 +8783,7 @@ void karte_t::switch_server( bool start_server, bool port_forwarding )
 
 		if(  env_t::server  ) {
 			// take down server
-			announce_server(2);
+			announce_server(karte_t::SERVER_ANNOUNCE_GOODBYE);
 			remove_port_forwarding( env_t::server );
 		}
 		network_core_shutdown();
@@ -8821,7 +8808,7 @@ void karte_t::switch_server( bool start_server, bool port_forwarding )
 		}
 		else {
 			// now start a server with defaults
-			env_t::networkmode = network_init_server( env_t::server_port );
+			env_t::networkmode = network_init_server( env_t::server_port, env_t::listen );
 			if(  env_t::networkmode  ) {
 
 				// query IP and try to open ports on router
@@ -8956,7 +8943,7 @@ bool karte_t::load(const char *filename)
 		create_win(new news_img("WRONGSAVE"), w_info, magic_none);
 	}
 	else {
-DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
+		DBG_MESSAGE("karte_t::load()","Savegame version is %u", file.get_version_int());
 
 		file.set_buffered(true);
 		load(&file);
@@ -10284,14 +10271,16 @@ const char *karte_t::init_new_player(uint8 new_player_in, uint8 type)
 
 void karte_t::remove_player(uint8 player_nr)
 {
-	if ( player_nr!=1  &&  player_nr<PLAYER_UNOWNED  &&  players[player_nr]!=NULL) {
+	if ( player_nr!=PUBLIC_PLAYER_NR    &&  player_nr<PLAYER_UNOWNED  &&  players[player_nr]!=NULL) {
 		players[player_nr]->complete_liquidation();
 		delete players[player_nr];
-		players[player_nr] = 0;
+		players[player_nr] = NULL;
+
 		nwc_chg_player_t::company_removed(player_nr);
+
 		// if default human, create new instace of it (to avoid crashes)
-		if(  player_nr == 0  ) {
-			players[0] = new player_t( 0 );
+		if(  player_nr == HUMAN_PLAYER_NR   ) {
+			players[0] = new player_t(HUMAN_PLAYER_NR);
 		}
 
 		// Reset all access rights
@@ -10305,8 +10294,8 @@ void karte_t::remove_player(uint8 player_nr)
 
 		// if currently still active => reset to default human
 		if(  player_nr == active_player_nr  ) {
-			active_player_nr = 0;
-			active_player = players[0];
+			active_player_nr = HUMAN_PLAYER_NR;
+			active_player = players[HUMAN_PLAYER_NR];
 			if(  !env_t::server  ) {
 				const scr_coord pos{ display_get_width()/2-128, 40 };
 				create_win( pos, new news_img("Bankrott:\n\nDu bist bankrott.\n"), w_info, magic_none);
@@ -10336,10 +10325,10 @@ void karte_t::switch_active_player(uint8 new_player, bool silent)
 	koord3d old_zeiger_pos = zeiger->get_pos();
 
 	// no cheating allowed?
-	if (!settings.get_allow_player_change() && players[1]->is_locked()) {
-		active_player_nr = 0;
-		active_player = players[0];
-		if(new_player!=0) {
+	if (!settings.get_allow_player_change() && get_public_player()->is_locked()) {
+		active_player_nr = HUMAN_PLAYER_NR;
+		active_player = players[HUMAN_PLAYER_NR];
+		if(new_player!=HUMAN_PLAYER_NR) {
 			create_win( new news_img("On this map, you are not\nallowed to change player!\n"), w_time_delete, magic_none);
 		}
 	}
@@ -10447,6 +10436,7 @@ void karte_t::network_game_set_pause(bool pause_, uint32 syncsteps_)
 		steps = sync_steps / settings.get_frames_per_step();
 		network_frame_count = sync_steps % settings.get_frames_per_step();
 		dbg->warning("karte_t::network_game_set_pause", "steps=%d sync_steps=%d pause=%d", steps, sync_steps, pause_);
+
 		if (pause_) {
 			if (!env_t::server) {
 				reset_timer();
@@ -10502,6 +10492,50 @@ const char* karte_t::call_work(tool_t *tool, player_t *player, koord3d pos, bool
 		}
 		else {
 			suspended = false;
+		}
+	}
+	else {
+		// queue tool for network
+		nwc_tool_t *nwc = new nwc_tool_t(player, tool, pos, get_steps(), get_map_counter(), false);
+		network_send_server(nwc);
+		suspended = true;
+		// reset tool
+		tool->init(player);
+	}
+	return err;
+}
+
+
+const char* karte_t::call_work_api(tool_t *tool, player_t *player, koord3d pos, bool &suspended, bool called_from_api )
+{
+	suspended = false;
+	const char *err = NULL;
+	bool network_safe_tool = tool->is_work_keeps_game_state() || tool->is_work_here_keeps_game_state(player, pos);
+	if(  !env_t::networkmode  ||  network_safe_tool  ) {
+		// do the work
+		tool->flags |= tool_t::WFL_LOCAL;
+		// check allowance by scenario
+		if ( (tool->flags & tool_t::WFL_NO_CHK) == 0  &&  get_scenario()->is_scripted()) {
+			if (!get_scenario()->is_tool_allowed(player, tool->get_id(), tool->get_waytype()) ) {
+				err = "";
+			}
+			else {
+				err = get_scenario()->is_work_allowed_here(player, tool->get_id(), tool->get_waytype(), pos);
+			}
+		}
+		if (err == NULL) {
+			if (called_from_api  ||  network_safe_tool) {
+				err = tool->work(player, pos);
+				suspended = false;
+			}
+			else {
+				// queue tool for execution (will be only done when NOT in networkmode!)
+				nwc_tool_t* nwc = new nwc_tool_t(player, tool, pos, get_steps(), get_map_counter(), false);
+				command_queue_append(nwc);
+				// reset tool
+				tool->init(player);
+				suspended = true;
+			}
 		}
 	}
 	else {
@@ -10829,7 +10863,7 @@ bool karte_t::interactive(uint32 quit_month)
 
 		// Announce server startup to the listing server
 		if(  env_t::server_announce  ) {
-			announce_server( 0 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HELLO );
 		}
 	}
 
@@ -10888,20 +10922,19 @@ bool karte_t::interactive(uint32 quit_month)
 
 		// time for the next step?
 		uint32 time = dr_time(); // - (env_t::server ? 0 : 5000);
-		if ((sint32)next_step_time - (sint32)time <= 0) {
-			if (step_mode&PAUSE_FLAG)
-			{
-					sync_step(0, false, true);
-					if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
-					{
-						pause_step();
-					}
-					else
-					{
-						// only update display
-						idle_time = 100;
-						eventmanager->check_events();
-					}
+		if(  (sint32)next_step_time - (sint32)time <= 0  ) {
+			if(  step_mode&PAUSE_FLAG  ) {
+				// only update display
+				sync_step(0, false, true);
+				if (env_t::server && env_t::server_runs_background_tasks_when_paused && socket_list_t::get_playing_clients() == 0)
+				{
+					pause_step();
+				}
+				else
+				{
+					idle_time = 100;
+					eventmanager->check_events();
+				}
 			}
 			else if (env_t::networkmode && !env_t::server && sync_steps >= sync_steps_barrier) {
 				sync_step(0, false, true);
@@ -11001,7 +11034,7 @@ bool karte_t::interactive(uint32 quit_month)
 		// Interval-based server announcements
 		if (  env_t::server  &&  env_t::server_announce  &&  env_t::server_announce_interval > 0  &&
 			dr_time() >= server_last_announce_time + (uint32)env_t::server_announce_interval * 1000  ) {
-			announce_server( 1 );
+			announce_server( karte_t::SERVER_ANNOUNCE_HEARTBEAT );
 		}
 
 		DBG_DEBUG4("karte_t::interactive", "point of loop return");
@@ -11013,7 +11046,7 @@ bool karte_t::interactive(uint32 quit_month)
 
 	// On quit announce server as being offline
 	if(  env_t::server  &&  env_t::server_announce  ) {
-		announce_server( 2 );
+		announce_server( karte_t::SERVER_ANNOUNCE_GOODBYE );
 	}
 
 	intr_enable();
@@ -11028,24 +11061,29 @@ bool karte_t::interactive(uint32 quit_month)
 // 0 - startup
 // 1 - interval
 // 2 - shutdown
-void karte_t::announce_server(int status)
+void karte_t::announce_server(server_announce_type_t status)
 {
 	DBG_DEBUG( "announce_server()", "status: %i",  status );
+
 	// Announce game info to server, format is:
 	// st=on&dns=server.com&port=13353&rev=1234&pak=pak128&name=some+name&time=3,1923&size=256,256&active=[0-16]&locked=[0-16]&clients=[0-16]&towns=15&citizens=3245&factories=33&convoys=56&stops=17
 	// (This is the data part of an HTTP POST)
 	if(  env_t::server  &&  env_t::server_announce  ) {
 		// in easy_server mode, we assume the IP may change frequently and thus query it before each announce
 		cbuffer_t buf, altbuf;
+
 		if(  env_t::easy_server  &&  status<2  &&  get_external_IP(buf,altbuf)  ) {
 			// ipdate IP just in case
-			if(  status == 1  &&  (env_t::server_dns.compare( buf )  ||  env_t::server_alt_dns.compare( altbuf ))  ) {
-				announce_server( 2 );
-				status = 0; // since starting with new IP
+			if(  status == SERVER_ANNOUNCE_HEARTBEAT    &&  (env_t::server_dns.compare( buf )  ||  env_t::server_alt_dns.compare( altbuf ))  ) {
+				announce_server( karte_t::SERVER_ANNOUNCE_GOODBYE );
+
+				status = SERVER_ANNOUNCE_HELLO; // since starting with new IP
+
 				// if we had uPnP, we may need to drill another hole in the firewall again; the delay is no problem, since all clients will be lost anyway
 				char IP[256], altIP[256];
 				prepare_for_server( IP, altIP, env_t::server_port );
 			}
+
 			// now update DNS info
 			env_t::server_dns = (const char *)buf;
 			env_t::server_alt_dns = (const char *)altbuf;
@@ -11059,6 +11097,7 @@ void karte_t::announce_server(int status)
 		buf.printf( "&port=%u", env_t::server );
 		// Always send announce interval to allow listing server to predict next announce
 		buf.printf( "&aiv=%u", env_t::server_announce_interval );
+
 		// Always send status, either online or offline
 		if (  status == 0  ||  status == 1  ) {
 			buf.append( "&st=1" );
@@ -11066,6 +11105,7 @@ void karte_t::announce_server(int status)
 		else {
 			buf.append( "&st=0" );
 		}
+
 #ifndef REVISION
 #	define REVISION 0
 #endif
@@ -11078,6 +11118,7 @@ void karte_t::announce_server(int status)
 		buf.printf("&ver=%x", strtol(QUOTEME(REVISION), NULL, 16));
 		// Pakset version
 		buf.append( "&pak=" );
+
 		// Announce pak set, ideally get this from the copyright field of ground.Outside.pak
 		char const* const copyright = ground_desc_t::outside->get_copyright();
 		if (copyright && STRICMP("none", copyright) != 0) {
@@ -11090,6 +11131,7 @@ void karte_t::announce_server(int status)
 			pak_name.erase( pak_name.length() - 1 );
 			encode_URI( buf, pak_name.c_str() );
 		}
+
 		// TODO - change this to be the start date of the current map
 		buf.printf( "&start=%u,%u", settings.get_starting_month() + 1, settings.get_starting_year() );
 		// Add server name for listing
@@ -11118,6 +11160,7 @@ void karte_t::announce_server(int status)
 				}
 			}
 		}
+
 		buf.printf( "&time=%u,%u",   (get_current_month() % 12) + 1, get_current_month() / 12 );
 		buf.printf( "&size=%u,%u",   get_size().x, get_size().y );
 		buf.printf( "&active=%u",    active );
@@ -11150,6 +11193,7 @@ void karte_t::network_disconnect()
 	create_win({ display_get_width()/2-128, 40 }, new news_img("Lost synchronisation\nwith server."), w_info, magic_none);
 	ticker::add_msg( translator::translate("Lost synchronisation\nwith server."), koord::invalid, SYSCOL_TEXT );
 	last_active_player_nr = active_player_nr;
+
 	set_pause(true);
 }
 
@@ -11297,7 +11341,7 @@ const vector_tpl<const goods_desc_t*> &karte_t::get_goods_list()
 
 player_t *karte_t::get_public_player() const
 {
-	return get_player(1);
+	return get_player(PUBLIC_PLAYER_NR);
 }
 
 

@@ -585,10 +585,10 @@ public:
 	* every stop.
 	* @return income total for last hop
 	*/
-	//sint64  calc_gewinn(koord start, koord end, convoi_t* cnv) const;
+	//sint64 calc_revenue(const koord3d& start, const koord3d& end) const;
 
 
-	// sets or querey begin and end of convois
+	// sets or query begin and end of convois
 	void set_leading(bool value) {leading = value;}
 	bool is_leading() const {return leading;}
 

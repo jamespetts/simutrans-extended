@@ -73,10 +73,6 @@ bool env_t::server_runs_background_tasks_when_paused = false;
 
 std::string env_t::nickname = "";
 
-uint8 env_t::chat_unread_public = 0;
-uint8 env_t::chat_unread_company = 0;
-uint8 env_t::chat_unread_whisper = 0;
-
 // this is explicitely and interactively set by user => we do not touch it on init
 const char *env_t::language_iso = "en";
 sint16 env_t::scroll_multi = -2;
@@ -210,8 +206,13 @@ uint16 env_t::compass_screen_position;
 
 uint32 env_t::default_ai_construction_speed;
 
-bool env_t::hide_keyboard = false;
 
+#ifdef __ANDROID__
+// autoshow keyboard on textinput
+bool env_t::hide_keyboard = true;
+#else
+bool env_t::hide_keyboard = false;
+#endif
 
 
 // Define default settings.
@@ -649,7 +650,7 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_short(display_scale_percent);
 	}
 
-	if (file->is_version_atleast(123, 2)) {
+	if (file->is_version_ex_atleast(14,65) ) {
 		file->rdwr_short(scroll_threshold);
 	}
 

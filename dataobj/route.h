@@ -197,7 +197,7 @@ public:
 	/**
 	 * Calculates the route from @p start to @p target
 	 */
-	route_result_t calc_route(karte_t *welt, koord3d start, koord3d ziel, test_driver_t* const tdriver, const sint32 max_speed_kmh, const uint32 axle_load, bool is_tall, sint32 max_tile_len, const sint64 max_cost = SINT64_MAX_VALUE, const uint32 convoy_weight = 0, const koord3d avoid_tile = koord3d::invalid, uint8 direction = ribi_t::all, find_route_flags flags = none);
+	route_result_t calc_route(karte_t *welt, koord3d start, koord3d ziel, test_driver_t* const tdriver, const sint32 max_speed_kmh, const uint32 axle_load, bool is_tall, sint32 convoy_tile_length, const sint64 max_cost = SINT64_MAX_VALUE, const uint32 convoy_weight = 0, const koord3d avoid_tile = koord3d::invalid, uint8 direction = ribi_t::all, find_route_flags flags = none);
 
 	/**
 	 * Load/Save of the route.

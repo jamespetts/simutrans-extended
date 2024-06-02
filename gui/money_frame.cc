@@ -48,7 +48,7 @@
 #include "components/gui_waytype_image_box.h"
 #include "signalboxlist_frame.h"
 #include "../simsignalbox.h"
-#include "player_ranking_gui.h"
+#include "player_ranking_frame.h"
 
 // remembers last settings
 static vector_tpl<sint32> bFilterStates;
@@ -588,7 +588,7 @@ money_frame_t::money_frame_t(player_t *player) :
 
 		for(int i=0, count=0; i<TT_MAX; ++i) {
 			if (!is_chart_table_zero(i)) {
-				transport_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(finance_t::get_transport_type_name((transport_type)i)), SYSCOL_TEXT);
+				transport_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(finance_t::transport_type_values[i]), SYSCOL_TEXT);
 				transport_types[ count++ ] = i;
 			}
 		}
@@ -1247,7 +1247,7 @@ bool money_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 		return true;
 	}
 	else if ( comp==&bt_open_ranking ) {
-		create_win(new player_ranking_gui_t(player->get_player_nr()), w_info, magic_player_ranking);
+		create_win(new player_ranking_frame_t(player->get_player_nr()), w_info, magic_player_ranking);
 	}
 	return false;
 }

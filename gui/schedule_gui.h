@@ -116,7 +116,7 @@ class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollit
 
 public:
 	//uint16 unique_entry_id;
-	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, color_idx_to_rgb(SYSCOL_TEXT)) {
+	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, SYSCOL_TEXT) {
 		index=entry_index;
 		//unique_entry_id = entry.unique_entry_id;
 	}

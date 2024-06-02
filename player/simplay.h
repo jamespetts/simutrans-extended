@@ -373,6 +373,9 @@ public:
 	int get_account_overdrawn() const;
 
 
+	// Returns the player's age (*NOT in month*)
+	// This will increase in January
+	uint16 get_age() const;
 	// return player age in months
 	uint16 get_player_age() const { return player_age; }
 

@@ -56,6 +56,16 @@ char const *const NOTICE_TILE_FULL = "Tile not empty.";
  */
 char const *const NOTICE_DISABLED_PUBLIC_WAY = "Not allowed to make publicly owned ways!";
 
+enum accounting_history_mode {
+	AC_HISTORY_MONTHS,
+	AC_HISTORY_YEARS,
+	MAX_PLAYER_HISTORY_MODES
+};
+static const char* const chart_span_text[MAX_PLAYER_HISTORY_MODES] =
+{
+	"monthly_chart", "yearly_chart"
+};
+
 /// for compatibility with old versions
 /// Must be different in extended!
 #define OLD_MAX_PLAYER_COST (21)
@@ -87,23 +97,6 @@ enum transport_type {
 	TT_MAX_VEH = TT_OTHER,
 	TT_POWERLINE,
 	TT_MAX
-};
-
-
-/* these have to match the strings in schedule_type_text[]!  */
-/* (and it is sad that the order between those do not match ...) */
-static const char* const transport_type_text[TT_MAX] = {
-	"All",
-	"Truck",
-	"Train",
-	"Ship",
-	"Monorail",
-	"Maglev",
-	"Tram",
-	"Narrowgauge",
-	"Air",
-	"tt_Other",
-	"Powerlines",
 };
 
 
@@ -667,11 +660,10 @@ public:
 	 */
 	static transport_type translate_waytype_to_tt(waytype_t wt);
 
-	static waytype_t translate_tt_to_waytype(transport_type tt);
+	// to tranlate back to strings for finances GUI
+	static const char* transport_type_values[TT_MAX];
 
-	inline static char const *get_transport_type_name(transport_type tt) {
-		return transport_type_text[tt];
-	}
+	static waytype_t translate_tt_to_waytype(transport_type tt);
 
 	void update_assets(sint64 delta, waytype_t wt);
 

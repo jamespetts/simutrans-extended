@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "macros.h" // for clamp
 #include "simdebug.h"
 #include "simunits.h"
 #include "simworld.h"
@@ -610,14 +611,14 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 		}
 		else {
 			// since start may have been changed
-			const uint8 v_count = vehicle_count - 1;
-			uint16 last_route_index = vehicle[v_count]->get_route_index();
-			if(last_route_index > route.get_count() - 1 && v_count > 0)
+			const uint8 last_vehicle_index = vehicle_count - 1;
+			uint16 last_vehicle_route_index = vehicle[last_vehicle_index]->get_route_index();
+			if(  last_vehicle_route_index >= route.get_count()  &&  last_vehicle_index > 0  )
 			{
-				last_route_index = 0;
-				dbg->warning("convoi_t::finish_rd()", "Convoy %i's route index is out of range: resetting to zero", self.get_id());
+				dbg->warning("convoi_t::finish_rd()", "Convoy %i's route index is out of range: truncating to nearest", self.get_id());
 			}
-			uint16 start_index = min(max(1u, vehicle[vehicle_count - 1u]->get_route_index() - 1u), route.get_count() - 1u);
+			// This should be last_vehicle_route_index - 1u, but we have to beware of unsigned arithmetic underflow if get_route_index() returns 0
+			uint16 start_index = clamp((unsigned)last_vehicle_route_index, 1u, route.get_count()) - 1u;
 
 			uint32 train_length = move_to(start_index) + 1;
 			const koord3d last_start = front()->get_pos();
@@ -6943,9 +6944,9 @@ public:
 	{
 		return master->get_ribi(gr);
 	};
-	virtual int get_cost( const grund_t* gr, const sint32, koord from_pos)
+	virtual int get_cost( const grund_t* gr, const sint32, ribi_t::ribi from)
 	{
-		return master->get_cost(gr, 0, from_pos);
+		return master->get_cost(gr, 0, from);
 	};
 };
 

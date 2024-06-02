@@ -6040,7 +6040,7 @@ bool private_car_destination_finder_t::is_target(const grund_t* gr, const grund_
 	return false;
 }
 
-int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, koord)
+int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, ribi_t::ribi)
 {
 	const weg_t *w = gr->get_weg(road_wt);
 	if(!w)

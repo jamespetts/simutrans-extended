@@ -525,20 +525,37 @@ waytype_t finance_t::translate_tt_to_waytype(const transport_type tt)
 {
 	switch (tt)
 	{
-		case TT_ROAD:			return road_wt;
-		case TT_RAILWAY:		return track_wt;
-		case TT_SHIP:			return water_wt;
-		case TT_MONORAIL:		return monorail_wt;
-		case TT_MAGLEV:			return maglev_wt;
-		case  TT_TRAM:			return tram_wt;
-		case TT_NARROWGAUGE:	return narrowgauge_wt;
-		case  TT_AIR:			return air_wt;
-		case TT_POWERLINE:		return powerline_wt;
-		case TT_OTHER:			return overheadlines_wt;
-		default:				return ignore_wt;
+		case TT_ROAD:           return road_wt;
+		case TT_RAILWAY:        return track_wt;
+		case TT_SHIP:           return water_wt;
+		case TT_MONORAIL:       return monorail_wt;
+		case TT_MAGLEV:         return maglev_wt;
+		case TT_TRAM:           return tram_wt;
+		case TT_NARROWGAUGE:    return narrowgauge_wt;
+		case TT_AIR:            return air_wt;
+		case TT_POWERLINE:      return powerline_wt;
+		case TT_OTHER:          return overheadlines_wt;
+		default:                return ignore_wt;
 	}
 }
 
+
+/* order has to be same as in enum transport_type in file finance.h */
+/* Also these have to match the strings in simline_t::linetype2name! */
+/* (and it is sad that the order between those do not match ...) */
+const char* finance_t::transport_type_values[TT_MAX] = {
+	"All",
+	"Truck",
+	"Train",
+	"Ship",
+	"Monorail",
+	"Maglev",
+	"Tram",
+	"Narrowgauge",
+	"Aircraft",
+	"tt_Other",
+	"Powerlines",
+};
 
 /** compatibility code follows **/
 

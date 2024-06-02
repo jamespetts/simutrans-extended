@@ -194,7 +194,7 @@ bool road_vehicle_t::check_next_tile(const grund_t *bd) const
 
 
 // how expensive to go here (for way search)
-int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord from_pos)
+int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, ribi_t::ribi from)
 {
 	// first favor faster ways
 	const weg_t *w=gr->get_weg(road_wt);
@@ -224,9 +224,8 @@ int road_vehicle_t::get_cost(const grund_t *gr, const sint32 max_speed, koord fr
 	// effect of slope
 	if(  gr->get_weg_hang()!=0  ) {
 		// check if the slope is upwards, relative to the previous tile
-		from_pos -= gr->get_pos().get_2d();
 		// 75 hardcoded, see get_cost_upslope()
-		costs += 75 * slope_t::get_sloping_upwards( gr->get_weg_hang(), from_pos.x, from_pos.y );
+		costs += 75 * get_sloping_upwards( gr->get_weg_hang(), from );
 	}
 
 	// It is now difficult to calculate here whether the vehicle is overweight, so do this in the route finder instead.
@@ -389,7 +388,9 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 		}
 
-		strasse_t *str = (strasse_t *)gr->get_weg(road_wt);
+		assert(gr);
+
+		const strasse_t *str = (strasse_t *)gr->get_weg(road_wt);
 		if(  !str  ||  gr->get_top() > 250  ) {
 			// too many cars here or no street
 			if(  !second_check_count  &&  !str) {

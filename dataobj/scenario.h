@@ -13,12 +13,14 @@
 #include "../utils/plainstring.h"
 #include "../script/dynamic_string.h"
 #include "../dataobj/ribi.h"
+#include "../convoihandle_t.h"
 
 class loadsave_t;
 class stadt_t;
 class fabrik_t;
 class karte_t;
 class schedule_t;
+class depot_t;
 
 /**
  * @class scenario_t
@@ -46,12 +48,11 @@ private:
 	/// the world we are scripting in
 	karte_t *welt;
 
-
-	/// name of scenario script file (without .nut extension)
+	/// name of scenario, files are searched in scenario_path/scenario_name/...
 	/// e.g. my_scenario
 	plainstring scenario_name;
 
-	/// path to scenario directory (relative to env_t::program_dir)
+	/// path to scenario directory (relative to env_t::user_dir)
 	/// e.g. pak/scenario/my_scenario/
 	plainstring scenario_path;
 
@@ -61,11 +62,6 @@ private:
 	 * @param filename name scenario script file (including .nut extension)
 	 */
 	bool load_script(const char* filename);
-
-	/**
-	 * loads necessary compatibility scripts
-	 */
-	void load_compatibility_script();
 
 	/// is set, if an error occurred during loading of savegame
 	/// e.g. re-starting of scenario failed due to script error
@@ -93,7 +89,7 @@ private:
 		forbid_type type;
 		uint8 player_nr;
 		/// id of tool to be forbidden, as set by constructors of classes derived from
-		/// tool_t, @see simtool.h
+		/// tool_t, @see tool/simtool.h
 		uint16 toolnr;
 		/// waytype of tool, @see waytype_t
 		sint16 waytype;
@@ -162,7 +158,7 @@ private:
 	vector_tpl<forbidden_t*>forbidden_tools;
 
 	/// set to true if rules changed to update toolbars,
-	/// toolbars will be updated in next call to step()
+	/// toolbars and active tools will be updated in next call to step()
 	bool need_toolbar_update;
 
 	/**
@@ -191,11 +187,6 @@ private:
 	 */
 	void call_forbid_tool(forbidden_t *test, bool forbid);
 	/// @}
-
-	/// Stores how many times initial map was rotated.
-	/// Scripts do not take care of rotated maps.
-	/// Coordinates will be translated between in-game coordinates and script coordinates.
-	uint8 rotation;
 
 	/// bit set if player has won / lost
 	uint16 won;
@@ -269,31 +260,11 @@ public:
 
 	void rotate90(const sint16 y_size);
 
-	/// @{
-	/// @name Coordinate and direction transform between script and world
-	/**
-	 * rotate actual world coordinates back
-	 * coordinates after transform are like in the
-	 * scenario's original savegame
-	 */
-	void koord_w2sq(koord &) const;
-
 	/**
 	 * rotate original coordinates to actual world coordinates
+	 * uses the methods in script_api
 	 */
-	void koord_sq2w(koord &);
-
-	/**
-	 * rotate original direction to actual world coordinates direction
-	 */
-	void ribi_w2sq(ribi_t::ribi &r) const;
-
-	/**
-	 * rotate actual world coordinates direction to original direction
-	 */
-	void ribi_sq2w(ribi_t::ribi &r) const;
-
-	/// @}
+	void koord_sq2w(koord &) const;
 
 	/**
 	 * Text to be displayed in the finance info window
@@ -318,9 +289,9 @@ public:
 	void update_scenario_texts();
 
 	/**
-	 * opens scenario info window at result tab
+	 * opens scenario info window at tab @p tab.
 	 */
-	bool open_info_win() const;
+	bool open_info_win(const char* tab = "result") const;
 
 
 	/**
@@ -427,6 +398,12 @@ public:
 	void clear_rules();
 
 	/**
+	 * Toolbars/active tools need an update due to changed rules; update is done in step().
+	 * @ingroup squirrel-api
+	 */
+	void gui_needs_update() { need_toolbar_update = true; }
+
+	/**
 	 * Checks if player can use this tool at all.
 	 * Called for instance in karte_t::local_set_tool to change active tool or when filling toolbars.
 	 * @return true if player can use this tool.
@@ -449,6 +426,26 @@ public:
 	 */
 	const char* is_schedule_allowed(const player_t* player, const schedule_t* schedule);
 
+	/**
+	 * Checks if player can use this convoy.
+	 * Called when player wants to start convoy at depot.
+	 *
+	 * @param player player
+	 * @param cnv convoy
+	 * @param depot depot
+	 *
+	 * @return null if allowed, an error message otherwise
+	 */
+	const char* is_convoy_allowed(const player_t* player, convoihandle_t cnv, depot_t* depot);
+
+	/**
+	 * Called when player click link in scenario windows, after position changed.
+	 *
+	 * @param pos coordinate go to in link
+	 *
+	 * @return an error message otherwise or null
+	 */
+	const char* jump_to_link_executed(koord3d pos);
 
 	/// @return debug dump of forbidden tools
 	const char* get_forbidden_text();

@@ -922,12 +922,12 @@ void minimap_t::calc_map_pixel(const koord k)
 						break;
 					}
 
-					cargo = w->get_statistics(WAY_STAT_GOODS);
+					cargo = w->get_statistics(WAY_STAT_LAST_MONTH,WAY_STAT_GOODS);
 					// maximum two ways for one ground
 					if(  transport_type_showed_on_map==simline_t::line ) {
 						const weg_t *w=gr->get_weg_nr(1);
 						if(w) {
-							cargo += w->get_statistics(WAY_STAT_GOODS);
+							cargo += w->get_statistics(WAY_STAT_LAST_MONTH,WAY_STAT_GOODS);
 						}
 					}
 					if(  cargo > max_cargo  ) {
@@ -961,11 +961,11 @@ void minimap_t::calc_map_pixel(const koord k)
 						break;
 					}
 
-					passed = w->get_statistics(WAY_STAT_CONVOIS);
+					passed = w->get_statistics(WAY_STAT_LAST_MONTH,WAY_STAT_CONVOIS);
 					// maximum two ways for one ground
 					if(  transport_type_showed_on_map==simline_t::line ){
 						if( weg_t *w = gr->get_weg_nr(1) ) {
-							passed += w->get_statistics(WAY_STAT_CONVOIS);
+							passed += w->get_statistics(WAY_STAT_LAST_MONTH,WAY_STAT_CONVOIS);
 						}
 					}
 					if(  passed > max_passed  ) {
