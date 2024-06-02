@@ -50,7 +50,7 @@
 #include "gui/depotlist_frame.h"
 #include "gui/vehiclelist_frame.h"
 #include "gui/signalboxlist_frame.h"
-#include "gui/player_ranking_gui.h"
+#include "gui/player_ranking_frame.h"
 
 #include "obj/baum.h"
 
@@ -70,8 +70,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_mainhelp); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open info/quit dialog
@@ -81,12 +81,12 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("Einstellungen aendern"); }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_optionen_gui_t); }
 	bool init(player_t*) OVERRIDE{
-		create_win(-1, -1, new optionen_gui_t(), w_info, magic_optionen_gui_t, true);
+		create_win({ -1, -1 }, new optionen_gui_t(), w_info, magic_optionen_gui_t, true);
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_optionen_gui_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open minimap
@@ -100,8 +100,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_reliefmap); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open line management
@@ -118,8 +118,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* const player) OVERRIDE{ destroy_win(win_get_magic(magic_line_management_t + player->get_player_nr())); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open messages
@@ -133,8 +133,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_messageframe); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open finance window
@@ -148,8 +148,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* const player) OVERRIDE{ destroy_win(magic_finances_t + player->get_player_nr()); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open player dialog
@@ -159,12 +159,12 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("Spielerliste"); }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_ki_kontroll_t); }
 	bool init(player_t*) OVERRIDE{
-		create_win(272, 160, new ki_kontroll_t(), w_info, magic_ki_kontroll_t);
+		create_win({ 272, 160 }, new ki_kontroll_t(), w_info, magic_ki_kontroll_t);
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_ki_kontroll_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open display options
@@ -178,8 +178,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_color_gui_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open sound dialog
@@ -193,8 +193,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_sound_kontroll_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open language dialog
@@ -208,8 +208,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_sprachengui_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open player color dialog
@@ -223,8 +223,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_farbengui_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open player ranking dialog
@@ -234,14 +234,12 @@ public:
 	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("Player ranking"); }
 	bool is_selected() const OVERRIDE{ return win_get_magic(magic_player_ranking); }
 	bool init(player_t* player) OVERRIDE{
-		create_win(new player_ranking_gui_t(), w_info, magic_player_ranking);
+		create_win(new player_ranking_frame_t(), w_info, magic_player_ranking);
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_player_ranking); return false; }
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
-	//bool is_init_keeps_game_state() const OVERRIDE{ return true; }
-	//bool is_work_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // jump to position dialog
@@ -255,8 +253,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_jump); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // load game dialog
@@ -274,12 +272,12 @@ public:
 			destroy_win(magic_save_t);
 			create_win( new loadsave_frame_t(true), w_info, magic_load_t);
 			scr_coord pos = win_get_pos( win_get_magic(magic_load_t) );
-			create_win( pos.x+20, pos.y+20, new news_img("Loading a new game will end the current server session!"), w_no_overlap, magic_none);
+			create_win( pos + scr_coord{ 20, 20 }, new news_img("Loading a new game will end the current server session!"), w_no_overlap, magic_none);
 		}
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_load_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // save game dialog
@@ -293,7 +291,7 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_save_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open scenario dialog
@@ -311,12 +309,12 @@ public:
 		else {
 			create_win( new scenario_frame_t(), w_info, magic_load_t );
 			scr_coord pos = win_get_pos( win_get_magic(magic_load_t) );
-			create_win( pos.x+20, pos.y+20, new news_img("Loading a new game will end the current server session!"), w_no_overlap, magic_none);
+			create_win( pos + scr_coord{ 20, 20 }, new news_img("Loading a new game will end the current server session!"), w_no_overlap, magic_none);
 		}
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_load_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // open scenario info dialog
@@ -331,7 +329,7 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_scenario_info); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of halt */
@@ -345,8 +343,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* player) OVERRIDE{ destroy_win(magic_halt_list + player->get_player_nr()); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of vehicle */
@@ -360,8 +358,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* const player) OVERRIDE{ destroy_win(magic_convoi_list + player->get_player_nr()); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of depots */
@@ -375,8 +373,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* player) OVERRIDE{ destroy_win(magic_depotlist + player->get_player_nr()); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of vehicles */
@@ -390,8 +388,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_vehiclelist); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of sugnalboxes */
@@ -405,8 +403,8 @@ public:
 		return false;
 	}
 	bool exit(player_t* player) OVERRIDE { destroy_win(magic_signalboxlist + player->get_player_nr()); return false; }
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
+	bool is_init_keeps_game_state() const OVERRIDE { return true; }
+	bool is_work_keeps_game_state() const OVERRIDE { return true; }
 };
 
 /* open the list of towns */
@@ -420,8 +418,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_citylist_frame_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of goods */
@@ -435,8 +433,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_goodslist); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of factories */
@@ -450,8 +448,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_factorylist); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open the list of attraction */
@@ -465,8 +463,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_curiositylist); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* factory building dialog */
@@ -482,8 +480,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_edit_factory); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* attraction building dialog */
@@ -499,8 +497,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_edit_attraction); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* house building dialog */
@@ -516,8 +514,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_edit_house); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* tree placing dialog */
@@ -534,8 +532,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_edit_tree); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* groundobj placing dialog */
@@ -552,8 +550,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_edit_groundobj); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 // to increase map-size
@@ -584,8 +582,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_labellist); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open climate settings */
@@ -631,8 +629,8 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_server_frame_t); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 
 /* open themes selector settings */
@@ -646,7 +644,7 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_themes); return false; }
-	bool is_init_network_safe() const OVERRIDE{ return true; }
-	bool is_work_network_safe() const OVERRIDE{ return true; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };
 #endif

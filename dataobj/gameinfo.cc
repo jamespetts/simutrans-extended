@@ -137,10 +137,11 @@ void gameinfo_t::rdwr(loadsave_t *file)
 					map_rgb.at(x,y) = color_idx_to_rgb(map_idx.at(x,y));
 				}
 			}
+			// TODO: Delete this conditional branch and old conditions after ex15. (= make it the same as Standard)
 			else if(file->is_loading()) {
 				uint8 color_idx;
 				file->rdwr_byte(color_idx);
-				map_rgb.at(x, y) = get_color_rgb(color_idx);
+				map_rgb.at(x, y) = color_idx_to_rgb(color_idx);
 			}
 		}
 	}

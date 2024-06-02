@@ -23,7 +23,7 @@
 #include "player_frame_t.h"
 
 #include "components/gui_divider.h"
-#include "player_ranking_gui.h"
+#include "player_ranking_frame.h"
 
 
 password_button_t::password_button_t()
@@ -312,7 +312,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		if(	comp == (&player_lock[i])	&&	welt->get_player(i)	) {
 			if (!welt->get_player(i)->is_unlock_pending()) {
 				// set password
-				create_win( -1, -1, new password_frame_t(welt->get_player(i)), w_info, magic_pwd_t + i );
+				create_win(new password_frame_t(welt->get_player(i)), w_info, magic_pwd_t + i );
 				player_lock[i].pressed = false;
 			}
 		}
@@ -396,7 +396,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *comp,value_t p )
 		//update_data();
 	}
 	else if ( comp==&bt_open_ranking ) {
-		create_win(new player_ranking_gui_t(), w_info, magic_player_ranking);
+		create_win(new player_ranking_frame_t(), w_info, magic_player_ranking);
 	}
 
 	return true;

@@ -123,7 +123,7 @@ const char *network_gameinfo(const char *cp, gameinfo_t *gi)
 			}
 		}
 		// wait for join command (tolerate some wrong commands)
-		nwc = network_check_activity( NULL, 10000 ); // 10s should be enough for reply ...
+		nwc = network_check_activity(10000); // 10s should be enough for reply ...
 		if (nwc==NULL) {
 			err = "Server did not respond!";
 			goto end;
@@ -145,9 +145,14 @@ const char *network_gameinfo(const char *cp, gameinfo_t *gi)
 			// now into gameinfo
 			const loadsave_t::file_status_t status = fd.rd_open( filename );
 
-			if(  status != loadsave_t::FILE_STATUS_OK  ) {
-				// some more insets, while things may have failed
-				err = (status == loadsave_t::FILE_STATUS_ERR_FUTURE_VERSION) ? "Server version too new" : "Server busy";
+			if(  status == loadsave_t::FILE_STATUS_ERR_FUTURE_VERSION  ) {
+				err = "Server version too new";
+			}
+			else if(  status == loadsave_t::FILE_STATUS_ERR_NO_VERSION  ) {
+				err = "Unknown server version";
+			}
+			else if(  status != loadsave_t::FILE_STATUS_OK  ) {
+				err = "Server busy";
 			}
 			else if (fd.is_version_ex_less(EX_VERSION_MAJOR, EX_SAVE_MINOR)) {
 				err = "Server version too old";
@@ -191,7 +196,7 @@ const char *network_connect(const char *cp, karte_t *world)
 		// wait for join command (tolerate some wrong commands)
 		network_command_t *nwc = NULL;
 		for(uint8 i=0; i<5; i++) {
-			nwc = network_check_activity( NULL, 10000 );
+			nwc = network_check_activity(10000);
 			if (nwc  &&  nwc->get_id() == NWC_JOIN) break;
 		}
 		if (nwc==NULL) {
@@ -214,7 +219,7 @@ const char *network_connect(const char *cp, karte_t *world)
 		// update map counter
 		// wait for sync command (tolerate some wrong commands)
 		for(  uint8 i=0;  i<5;  ++i  ) {
-			nwc = network_check_activity( NULL, 10000 );
+			nwc = network_check_activity(10000);
 			if(  nwc  &&  nwc->get_id()==NWC_SYNC  ) break;
 		}
 		if(  nwc==NULL  ||  nwc->get_id()!=NWC_SYNC  ) {
@@ -232,7 +237,7 @@ const char *network_connect(const char *cp, karte_t *world)
 #ifndef NETTOOL // no display, no translator available
 				ls.set_progress(i);
 #endif
-				nwc = network_check_activity( NULL, 2000 );
+				nwc = network_check_activity(2000);
 				if (nwc  &&  nwc->get_id() == NWC_GAME) {
 					break;
 				}
@@ -252,7 +257,7 @@ const char *network_connect(const char *cp, karte_t *world)
 		// Knightly : update iteration limits
 		// wait for routesearch command (tolerate some wrong commands)
 		for(  uint8 i=0;  i<5;  ++i  ) {
-			nwc = network_check_activity( NULL, 10000 );
+			nwc = network_check_activity(10000);
 			if(  nwc  &&  nwc->get_id()==NWC_ROUTESEARCH  ) break;
 		}
 		if(  nwc==NULL  ||  nwc->get_id()!=NWC_ROUTESEARCH  ) {
@@ -328,7 +333,7 @@ error:
 /// Optionally: Receive response to file localname
 const char *network_http_post( const char *address, const char *name, const char *poststr, const char *localname )
 {
-	DBG_MESSAGE("network_http_post", "");
+	DBG_MESSAGE("network_http_post", address);
 	// Open socket
 	const char *err = NULL;
 	SOCKET const my_client_socket = network_open_address(address, err);
@@ -413,27 +418,27 @@ const char *network_http_post( const char *address, const char *name, const char
 	return err;
 }
 
-const char *network_http_get ( const char* address, const char* name, cbuffer_t& local )
+const char* network_http_get(const char* address, const char* name, cbuffer_t& local)
 {
 	const int REQ_HEADER_LEN = 1024;
 	// open from network
-	const char *err = NULL;
-	SOCKET const my_client_socket = network_open_address( address, err );
-	if (  err==NULL  ) {
+	const char* err = NULL;
+	SOCKET const my_client_socket = network_open_address(address, err);
+	if (err == NULL) {
 #ifndef REVISION
 #	define REVISION 0
 #endif
 		const char* format = "GET %s HTTP/1.1\r\n"
-				"User-Agent: Simutrans/r%s\r\n"
-				"Host: %s\r\n\r\n";
+		"User-Agent: Simutrans/r%s\r\n"
+		"Host: %s\r\n\r\n";
 		if (  (strlen( format ) + strlen( name ) + strlen( address ) + strlen( QUOTEME(REVISION)) ) > ( REQ_HEADER_LEN - 1 )  ) {
 			// We will get a buffer overwrite here if we continue
 			return "Error: String too long";
 		}
 		char request[REQ_HEADER_LEN];
-		int const len = sprintf( request, format, name, QUOTEME(REVISION), address );
+		int const len = sprintf(request, format, name, QUOTEME(REVISION), address);
 		uint16 dummy;
-		if (  !network_send_data( my_client_socket, request, len, dummy, 250 )  ) {
+		if (!network_send_data(my_client_socket, request, len, dummy, 250)) {
 			err = "Server did not respond!";
 		}
 
@@ -441,23 +446,23 @@ const char *network_http_get ( const char* address, const char* name, cbuffer_t&
 		char line[1024], rbuf;
 		unsigned int pos = 0;
 		long length = 0;
-		while(1) {
+		while (1) {
 			// Receive one character at a time the HTTP headers
-			int i = recv( my_client_socket, &rbuf, 1, 0 );
-			if (  i > 0  ) {
-				if (  rbuf >= 32  &&  pos < sizeof(line) - 1  ) {
+			int i = recv(my_client_socket, &rbuf, 1, 0);
+			if (i > 0) {
+				if (rbuf >= 32 && pos < sizeof(line) - 1) {
 					line[pos++] = rbuf;
 				}
-				if (  rbuf == 10  ) {
-					if (  pos == 0  ) {
+				if (rbuf == 10) {
+					if (pos == 0) {
 						// this line was empty => now data will follow
 						break;
 					}
 					line[pos] = 0;
-					DBG_MESSAGE( "network_http_get", "received header: %s", line );
+					DBG_MESSAGE("network_http_get", "received header: %s", line);
 					// Parse out the length tag to get length of content
-					if (  STRNICMP( "Content-Length:", line, 15 ) == 0  ) {
-						length = atol( line + 15 );
+					if (STRNICMP("Content-Length:", line, 15) == 0) {
+						length = atol(line + 15);
 					}
 					pos = 0;
 				}
@@ -468,21 +473,21 @@ const char *network_http_get ( const char* address, const char* name, cbuffer_t&
 		}
 
 		// Make buffer to receive data into
-		char* buffer = new char[length+1];
+		char* buffer = new char[length + 1];
 		uint16 bytesreceived = 0;
 
-		if (  !network_receive_data( my_client_socket, buffer, length, bytesreceived, 10000 )  ) {
+		if (!network_receive_data(my_client_socket, buffer, length, bytesreceived, 10000)) {
 			err = "Error: network_receive_data failed!";
 		}
-		else if (  bytesreceived != length  ) {
+		else if (bytesreceived != length) {
 			err = "Error: Bytes received does not match length!";
 		}
 		else {
 			buffer[length] = 0;
-			local.append( buffer, length );
+			local.append(buffer, length);
 		}
 
-		DBG_MESSAGE( "network_http_get", "received data length: %i", local.len() );
+		DBG_MESSAGE("network_http_get", "received data length: %i", local.len());
 
 		delete [] buffer;
 		network_close_socket( my_client_socket );

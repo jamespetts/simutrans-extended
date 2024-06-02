@@ -106,6 +106,12 @@ USE_ZSTD = 1
 # MAKEOBJ_PROGDIR = $(shell pwd)
 # NETTOOL_PROGDIR = $(shell pwd)
 # PROGDIR  = $(shell pwd)
+#
+# If you want to generate a "ready to install" program, try these settings:
+# MAKEOBJ_PROGDIR = ./../simutrans
+# NETTOOL_PROGDIR = ./../simutrans
+# PROGDIR  = ./simutrans
+
 
 FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing
 

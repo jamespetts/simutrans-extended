@@ -1632,7 +1632,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 			return true;
 		}
 		else if (comp == &class_management_button) {
-			create_win(20, 40, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
+			create_win({ 20, 40 }, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 			return true;
 		}
 		else if (comp == &overview_selector) {
@@ -1667,7 +1667,7 @@ bool convoi_detail_t::action_triggered(gui_action_creator_t *comp, value_t)
 
 bool convoi_detail_t::infowin_event(const event_t *ev)
 {
-	if (cnv.is_bound() && formation.getroffen(ev->cx - formation.get_pos().x, ev->cy - D_TITLEBAR_HEIGHT  - scrollx_formation.get_pos().y)) {
+	if (cnv.is_bound() && formation.getroffen(ev->click_pos - formation.get_pos() - scr_coord(0,D_TITLEBAR_HEIGHT))) {
 		if (IS_LEFTRELEASE(ev)) {
 			cnv->show_info();
 			return true;
@@ -1711,7 +1711,7 @@ void convoi_detail_t::rdwr(loadsave_t *file)
 		// now we can open the window ...
 		scr_coord const& pos = win_get_pos(this);
 		convoi_detail_t *w = new convoi_detail_t(cnv);
-		create_win(pos.x, pos.y, w, w_info, magic_convoi_detail + cnv.get_id());
+		create_win(pos, w, w_info, magic_convoi_detail + cnv.get_id());
 		w->set_windowsize( size );
 		w->scrolly_maintenance.set_scroll_position( xoff, yoff );
 		w->scrollx_formation.set_scroll_position(formation_xoff, formation_yoff);

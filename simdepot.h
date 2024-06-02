@@ -241,7 +241,7 @@ public:
 	bool is_awaiting_attention(convoihandle_t cnv) const;
 
 	// For advancing the timing of convoys under maintenance
-	sync_result sync_step(uint32 delta_t);
+	sync_result sync_step(uint32 delta_t) OVERRIDE;
 
 	void set_name(const char* value);
 	const char* get_name() const OVERRIDE;

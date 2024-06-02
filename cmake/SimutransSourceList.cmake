@@ -45,6 +45,7 @@ target_sources(simutrans-extended PRIVATE
 	dataobj/scenario.cc
 	dataobj/schedule.cc
 	dataobj/settings.cc
+	dataobj/sve_cache.cc
 	dataobj/tabfile.cc
 	dataobj/translator.cc
 	descriptor/bridge_desc.cc
@@ -203,7 +204,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/password_frame.cc
 	gui/pier_rotation_select.cc
 	gui/player_frame_t.cc
-	gui/player_ranking_gui.cc
+	gui/player_ranking_frame.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc

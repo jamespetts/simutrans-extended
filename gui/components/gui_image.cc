@@ -7,15 +7,15 @@
 #include "../gui_frame.h"
 #include "../simwin.h"
 
-gui_image_t::gui_image_t( const image_id i, const uint8 p, control_alignment_t alignment_par, bool remove_offset_enabled )
-: player_nr(p)
+
+gui_image_t::gui_image_t( const image_id i, const uint8 p, control_alignment_t alignment_par, bool remove_offset_enabled ) :
+	alignment(alignment_par),
+	player_nr(p),
+	remove_offset(0,0),
+	remove_enabled(remove_offset_enabled),
+	tooltip(NULL),
+	color_index(0)
 {
-	alignment = alignment_par;
-	remove_enabled = remove_offset_enabled;
-	remove_offset  = scr_coord(0,0);
-	padding        = scr_size(0, 0);
-	color_index = 0;
-	tooltip = NULL;
 	set_image(i,remove_offset_enabled);
 }
 
@@ -23,7 +23,7 @@ gui_image_t::gui_image_t( const image_id i, const uint8 p, control_alignment_t a
 scr_size gui_image_t::get_min_size() const
 {
 	if( id  !=  IMG_EMPTY ) {
-		scr_coord_val x = 0, y = 0, w = 0, h = 0;
+		scr_coord_val x=0, y=0, w=0, h=0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
 		w += padding.w * 2;
 		h += padding.h * 2;
@@ -45,7 +45,7 @@ void gui_image_t::set_size( scr_size size_par )
 {
 	if( id  !=  IMG_EMPTY ) {
 
-		scr_coord_val x = 0, y = 0, w = 0, h = 0;
+		scr_coord_val x=0, y=0, w=0, h=0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
 		w += padding.w * 2;
 		h += padding.h * 2;
@@ -59,7 +59,6 @@ void gui_image_t::set_size( scr_size size_par )
 
 	gui_component_t::set_size(size_par);
 }
-
 
 
 void gui_image_t::set_image( const image_id i, bool remove_offsets ) {
@@ -76,14 +75,13 @@ void gui_image_t::set_image( const image_id i, bool remove_offsets ) {
 }
 
 
-
 /**
  * Draw the component
  */
 void gui_image_t::draw( scr_coord offset ) {
 
 	if(  id!=IMG_EMPTY  ) {
-		scr_coord_val x = 0, y = 0, w = 0, h = 0;
+		scr_coord_val x=0, y=0, w=0, h=0;
 		display_get_base_image_offset( id, &x, &y, &w, &h );
 
 		switch (alignment) {
@@ -112,11 +110,9 @@ void gui_image_t::draw( scr_coord offset ) {
 			display_base_img( id, pos.x+offset.x+remove_offset.x+padding.w, pos.y+offset.y+remove_offset.y+padding.h, (sint8)player_nr, false, true );
 		}
 
-		if (tooltip  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
-			const scr_coord_val by = offset.y + pos.y;
-			const scr_coord_val bh = size.h;
-
-			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, by + bh + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		if (tooltip  &&  getroffen(get_mouse_pos() - offset)) {
+			const scr_coord tooltip_base_pos{ get_mouse_pos().x, offset.y + pos.y + size.h };
+			win_set_tooltip(tooltip_base_pos + TOOLTIP_MOUSE_OFFSET, tooltip, this);
 		}
 	}
 }

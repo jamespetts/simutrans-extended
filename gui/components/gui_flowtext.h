@@ -46,7 +46,7 @@ public:
 	 * Computes and returns preferred size.
 	 * Depends on current width.
 	 */
-	scr_size get_preferred_size();
+	scr_size get_preferred_size() const;
 
 	// preferred with. Not affected by current width.
 	scr_coord_val get_required_text_width();

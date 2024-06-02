@@ -43,6 +43,7 @@
 
 #include "components/gui_divider.h"
 
+#include "banner.h"
 #include "sprachen.h"
 #include "climates.h"
 #include "settings_frame.h"
@@ -272,35 +273,17 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 
 	new_component<gui_divider_t>();
 
-	add_table(2,2)->set_force_equal_columns(true);
+	add_table(2,1)->set_force_equal_columns(true);
 	{
-		// load game
-		load_game.init(button_t::roundbox | button_t::flexible, "Load game");
-		if (skinverwaltung_t::open_window) {
-			load_game.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			load_game.set_image_position_right(true);
-		}
-		load_game.add_listener( this );
-		add_component( &load_game );
-
-		// load scenario
-		load_scenario.init(button_t::roundbox | button_t::flexible,"Load scenario");
-		if (skinverwaltung_t::open_window) {
-			load_scenario.set_image(skinverwaltung_t::open_window->get_image_id(0));
-			load_scenario.set_image_position_right(true);
-		}
-		load_scenario.add_listener( this );
-		add_component( &load_scenario );
-
 		// start game
 		start_game.init(button_t::roundbox | button_t::flexible, "Starte Spiel");
 		start_game.add_listener( this );
 		add_component( &start_game );
 
-		// quit game
-		quit_game.init(button_t::roundbox | button_t::flexible,"Beenden");
-		quit_game.add_listener( this );
-		add_component( &quit_game );
+		// return to menu
+		return_menu.init(button_t::roundbox | button_t::flexible,"Return to menu");
+		return_menu.add_listener( this );
+		add_component( &return_menu );
 	}
 	end_table();
 
@@ -546,7 +529,9 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		sets->heightfield = "";
 		load_relief_frame_t* lrf = new load_relief_frame_t(sets);
 		create_win(lrf, w_info, magic_load_t );
-		win_set_pos(lrf, (display_get_width() - lrf->get_windowsize().w-10), env_t::iconsize.h);
+
+		const scr_coord new_pos{ (display_get_width() - lrf->get_windowsize().w-10), env_t::iconsize.h };
+		win_set_pos(lrf, new_pos);
 		knr = sets->get_map_number(); // otherwise using cancel would not show the normal generated map again
 	}
 	else if(comp==&use_intro_dates) {
@@ -569,7 +554,7 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 			open_setting_gui.pressed = false;
 		}
 		else {
-			create_win(10, 40, new settings_frame_t(sets), w_info, magic_settings_frame_t );
+			create_win({ 10, 40 }, new settings_frame_t(sets), w_info, magic_settings_frame_t);
 			open_setting_gui.pressed = true;
 		}
 	}
@@ -581,23 +566,15 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		}
 		else {
 			climate_gui_t *cg = new climate_gui_t(sets);
-			create_win(win_get_pos(this).x+size.w, win_get_pos(this).y, cg, w_info, magic_climate );
+			const scr_coord pos{ (display_get_width() - cg->get_windowsize().w-10), 40 };
+			create_win(pos, cg, w_info, magic_climate );
 			open_climate_gui.pressed = true;
 		}
-	}
-	else if(comp==&load_game) {
-		welt->get_message()->clear();
-		create_win( new loadsave_frame_t(true), w_info, magic_load_t);
-	}
-	else if(comp==&load_scenario) {
-		destroy_all_win(true);
-		welt->get_message()->clear();
-		create_win( new scenario_frame_t(), w_info, magic_load_t );
 	}
 	else if(comp==&start_game) {
 		destroy_all_win(true);
 		welt->get_message()->clear();
-		create_win(200, 100, new news_img("Erzeuge neue Karte.\n", skinverwaltung_t::neueweltsymbol->get_image_id(0)), w_info, magic_none);
+		create_win({ 200, 100 }, new news_img("Erzeuge neue Karte.\n", skinverwaltung_t::neueweltsymbol->get_image_id(0)), w_info, magic_none);
 		if(loaded_heightfield) {
 			welt->load_heightfield(&env_t::default_settings);
 		}
@@ -616,9 +593,9 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 			file.close();
 		}
 	}
-	else if(comp==&quit_game) {
+	else if(comp==&return_menu) {
 		destroy_all_win(true);
-		env_t::quit_simutrans = true;
+		banner_t::show_banner();
 	}
 
 	if(knr>=0) {

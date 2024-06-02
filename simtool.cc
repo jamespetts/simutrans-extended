@@ -2628,6 +2628,26 @@ char const* tool_plant_tree_t::move(player_t* const player, uint16 const b, koor
 }
 
 
+bool tool_plant_tree_t::init(player_t*)
+{
+	if (!tree_builder_t::has_trees()) {
+		return false;
+	}
+	else if (default_param == NULL || default_param[0] == 0) {
+		return true;
+	}
+
+	char ignore_cl,random_age,dummy;
+	if (std::sscanf(default_param, "%c%c,%c", &ignore_cl, &random_age, &dummy) != 3) {
+		return false;
+	}
+
+	return
+		(ignore_cl == '0' || ignore_cl == '1') &&
+		(random_age == '0' || random_age == '1');
+}
+
+
 const char *tool_plant_tree_t::work( player_t *player, koord3d pos )
 {
 	const koord& k(pos.get_2d());
@@ -2645,7 +2665,8 @@ const char *tool_plant_tree_t::work( player_t *player, koord3d pos )
 		const tree_desc_t *desc = NULL;
 		bool check_climates = true;
 		bool random_age = true;
-		if(default_param==NULL  ||  strlen(default_param)==0) {
+
+		if (strempty(default_param)) {
 			desc = tree_builder_t::random_tree_for_climate( welt->get_climate( k ) );
 		}
 		else {
@@ -2681,6 +2702,22 @@ char const* tool_plant_groundobj_t::move(player_t* const player, uint16 const b,
 }
 
 
+bool tool_plant_groundobj_t::init(player_t *)
+{
+	if (groundobj_t::get_count() == 0) {
+		return false;
+	}
+	else if (strempty(default_param)) {
+		return true;
+	}
+	else if (strlen(default_param) < 4) {
+		return false;
+	}
+
+	return default_param[0] == '0' || default_param[0] == '1';
+}
+
+
 const char *tool_plant_groundobj_t::work( player_t *player, koord3d pos )
 {
 	koord k(pos.get_2d());
@@ -2702,7 +2739,7 @@ const char *tool_plant_groundobj_t::work( player_t *player, koord3d pos )
 		}
 
 		// disable placing groundobj on slopes unless they have extra phases (=moving or for slopes)
-		if( !(gr->get_grund_hang() == sint8(0))  &&  desc->get_phases() == 2 ) {
+		if( gr->get_grund_hang() != slope_t::flat && desc->get_phases() == 2 ) {
 			return NULL;
 		}
 
@@ -5910,24 +5947,31 @@ DBG_MESSAGE("tool_station_aux()", "building %s on square %d,%d for waytype %x", 
 // gives the description and sets the rotation value
 const building_desc_t *tool_build_station_t::get_desc( sint8 &rotation ) const
 {
+	if (strempty(default_param)) {
+		return NULL;
+	}
+
 	char *building = strdup( default_param );
 	const building_tile_desc_t *tdsc = NULL;
+
 	if(  building  ) {
 		char *p = strrchr( building, ',' );
 		if(  p  ) {
 			*p++ = 0;
-			rotation = atoi( p );
+			if (std::sscanf(p, "%hhd", &rotation) != 1 || rotation < -1 || rotation > 15) {
+				free(building);
+				return NULL;
+			}
 		}
 		else {
 			rotation = -1;
 		}
-		tdsc = hausbauer_t::find_tile(building,0);
+
+		tdsc = hausbauer_t::find_tile(building, 0);
 		free( building );
 	}
-	if(  tdsc==NULL  ) {
-		return NULL;
-	}
-	return tdsc->get_desc();
+
+	return tdsc ? tdsc->get_desc() : NULL;
 }
 
 bool tool_build_station_t::init( player_t * )
@@ -9568,7 +9612,7 @@ bool tool_rotate90_t::init( player_t * )
 bool tool_quit_t::init( player_t * )
 {
 	destroy_all_win( true );
-	welt->stop( true );
+	welt->stop( strempty(default_param) );
 	return false;
 }
 

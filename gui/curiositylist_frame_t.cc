@@ -36,6 +36,8 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 	filter_city(city)
 {
 	attraction_count = 0;
+	scrolly.set_checkered(true);
+	scrolly.set_maximize(true);
 
 	set_table_layout(1, 0);
 	add_table(2,2);
@@ -123,7 +125,6 @@ curiositylist_frame_t::curiositylist_frame_t(stadt_t* city) :
 	fill_list();
 
 	set_resizemode(diagonal_resize);
-	scrolly.set_maximize(true);
 	reset_min_windowsize();
 }
 
@@ -155,7 +156,7 @@ void curiositylist_frame_t::fill_list()
 		}
 	}
 	scrolly.sort(0);
-	scrolly.set_size(scrolly.get_size());
+	scrolly.set_size(scr_size(get_windowsize().w, scrolly.get_size().h));
 }
 
 void curiositylist_frame_t::set_cityfilter(stadt_t *city)

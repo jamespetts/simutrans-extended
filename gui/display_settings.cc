@@ -43,7 +43,8 @@ enum {
 	IDBTN_SHOW_STATION_COVERAGE,
 	IDBTN_UNDERGROUND_VIEW,
 	IDBTN_SHOW_GRID,
-	IDBTN_SHOW_STATION_NAMES_ARROW,
+	IDBTN_HIDE_LABELS,
+	IDBTN_LABEL_STYLE_ARROW,
 	IDBTN_SHOW_WAITING_BARS,
 	IDBTN_SHOW_SLICE_MAP_VIEW,
 	IDBTN_HIDE_BUILDINGS,
@@ -456,6 +457,12 @@ map_settings_t::map_settings_t()
 	new_component<gui_label_t>("Map scroll");
 	add_table(3, 0);
 	{
+		// Numpad key
+		new_component<gui_margin_t>(LINESPACE / 2);
+		buttons[IDBTN_IGNORE_NUMLOCK].init(button_t::square_state, "Num pad keys always move map");
+		buttons[IDBTN_IGNORE_NUMLOCK].pressed = env_t::numpad_always_moves_map;
+		add_component(buttons + IDBTN_IGNORE_NUMLOCK, 2);
+
 		// Scroll inverse checkbox
 		new_component<gui_margin_t>(LINESPACE/2);
 		buttons[IDBTN_SCROLL_INVERSE].init(button_t::square_state, "4LIGHT_CHOOSE");
@@ -468,11 +475,12 @@ map_settings_t::map_settings_t()
 		buttons[IDBTN_INFINITE_SCROLL].set_tooltip("Infinite scrolling using mouse");
 		add_component(buttons + IDBTN_INFINITE_SCROLL, 2);
 
-		// Numpad key
+		// scroll with genral tool selected if moved above a threshold
 		new_component<gui_margin_t>(LINESPACE/2);
-		buttons[IDBTN_IGNORE_NUMLOCK].init(button_t::square_state, "Num pad keys always move map");
-		buttons[IDBTN_IGNORE_NUMLOCK].pressed = env_t::numpad_always_moves_map;
-		add_component(buttons + IDBTN_IGNORE_NUMLOCK, 2);
+		new_component<gui_label_t>("Scroll threshold");
+		scroll_threshold.init(env_t::scroll_threshold, 1, 64, 1, false);
+		scroll_threshold.add_listener(this);
+		add_component(&scroll_threshold);
 
 		// Scroll speed label
 		new_component<gui_margin_t>(LINESPACE/2);
@@ -550,8 +558,12 @@ bool map_settings_t::action_triggered( gui_action_creator_t *comp, value_t v )
 		env_t::daynight_level = (sint8)v.i;
 	}
 	// Scroll speed edit
-	else if( &scrollspeed == comp ) {
-		env_t::scroll_multi = (sint16)(buttons[IDBTN_SCROLL_INVERSE].pressed ? v.i : -v.i);
+	else if (&scroll_threshold == comp) {
+		env_t::scroll_threshold = v.i;
+	}
+	// Scroll speed edit
+	else if (&scrollspeed == comp) {
+		env_t::scroll_multi = (sint16)(buttons[IDBTN_SCROLL_INVERSE].pressed ? -v.i : v.i);
 	}
 	// underground slice edit
 	else if( comp == &inp_underground_level ) {
@@ -653,14 +665,19 @@ label_settings_t::label_settings_t()
 	}
 	end_table();
 
+	// Show station coverage
+	buttons[IDBTN_HIDE_LABELS].init(button_t::square_state, "Hide labels");
+	add_component(buttons + IDBTN_HIDE_LABELS, 2);
+
 	// Show station names arrow
 	add_table(3,1);
 	{
 		new_component<gui_margin_t>(LINESPACE/2);
-		buttons[IDBTN_SHOW_STATION_NAMES_ARROW].set_typ(button_t::arrowright);
-		buttons[IDBTN_SHOW_STATION_NAMES_ARROW].set_tooltip("Shows the names of the individual stations in the main game window.");
-		add_component(buttons + IDBTN_SHOW_STATION_NAMES_ARROW);
-		new_component<gui_label_stationname_t>("show station names");
+		buttons[ IDBTN_LABEL_STYLE_ARROW ].set_typ( button_t::arrowright );
+		buttons [IDBTN_LABEL_STYLE_ARROW ].set_tooltip("Shows the names of the individual stations in the main game window.");
+		//buttons[ IDBTN_LABEL_STYLE_ARROW ].set_tooltip( "Change label style" );
+		add_component( buttons + IDBTN_LABEL_STYLE_ARROW );
+		new_component<gui_label_stationname_t>( "Change label style" );
 	}
 	end_table();
 
@@ -1044,23 +1061,18 @@ bool color_gui_t::action_triggered( gui_action_creator_t *comp, value_t)
 	case IDBTN_SHOW_GRID:
 		grund_t::toggle_grid();
 		break;
-	case IDBTN_SHOW_STATION_NAMES_ARROW:
-		if( env_t::show_names & 1 ) {
-			if( (env_t::show_names >> 2) == 2 ) {
-				env_t::show_names &= 2;
-			}
-			else {
-				env_t::show_names += 4;
-			}
-		}
-		else {
-			env_t::show_names &= 2;
-			env_t::show_names |= 1;
+		case IDBTN_LABEL_STYLE_ARROW:
+		{
+			int label_style = ((env_t::show_names >> 2)+1)%3;
+			env_t::show_names = (env_t::show_names & 3) + (label_style << 2);
 		}
 		break;
 	case IDBTN_SHOW_WAITING_BARS:
 		env_t::show_names ^= 2;
 		buttons[IDBTN_CLASSES_WAITING_BAR].enable(env_t::show_names & 2);
+		break;
+	case IDBTN_HIDE_LABELS:
+		env_t::show_names ^= 1;
 		break;
 	case IDBTN_CLASSES_WAITING_BAR:
 		env_t::classes_waiting_bar = !env_t::classes_waiting_bar;
@@ -1123,6 +1135,7 @@ void color_gui_t::draw(scr_coord pos, scr_size size)
 	buttons[IDBTN_UNDERGROUND_VIEW].pressed = grund_t::underground_mode == grund_t::ugm_all;
 	buttons[IDBTN_SHOW_GRID].pressed = grund_t::show_grid;
 	buttons[IDBTN_SHOW_WAITING_BARS].pressed = (env_t::show_names&2)!=0;
+	buttons[IDBTN_HIDE_LABELS].pressed = (env_t::show_names & 1) == 0;
 	buttons[IDBTN_SHOW_DEPOT_NAME].pressed = env_t::show_depot_names;
 	buttons[IDBTN_SHOW_SLICE_MAP_VIEW].pressed = grund_t::underground_mode == grund_t::ugm_level;
 	buttons[IDBTN_SHOW_SCHEDULES_STOP].pressed = env_t::visualize_schedule;

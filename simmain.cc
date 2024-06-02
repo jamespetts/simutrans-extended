@@ -130,7 +130,7 @@ static void show_times(karte_t *welt, main_view_t *view)
 
  	long ms = dr_time();
 	for (i = 0;  i < 6000000;  i++) {
-		display_img_aux(img, 50, 50, 1, 0, true  CLIP_NUM_DEFAULT);
+		display_img_aux( img, 50, 50, 1, 0, true  CLIP_NUM_DEFAULT);
 	}
 	dbg->message( "display_img()", "%i iterations took %li ms", i, dr_time() - ms );
 
@@ -159,13 +159,13 @@ static void show_times(karte_t *welt, main_view_t *view)
 	for (i = 0;  i < 300000;  i++) {
 		display_text_proportional_len_clip_rgb(100, 120, "Dies ist ein kurzer Textetxt ...", 0, 0, false, -1);
 	}
-	dbg->message( "display_text_proportional_len_clip()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_text_proportional_len_clip_rgb()", "%i iterations took %li ms", i, dr_time() - ms );
 
 	ms = dr_time();
 	for (i = 0;  i < 300000;  i++) {
 		display_fillbox_wh_rgb(100, 120, 300, 50, 0, false);
 	}
-	dbg->message( "display_fillbox_wh()", "%i iterations took %li ms", i, dr_time() - ms );
+	dbg->message( "display_fillbox_wh_rgb()", "%i iterations took %li ms", i, dr_time() - ms );
 
 	ms = dr_time();
 	for (i = 0; i < 2000; i++) {
@@ -199,133 +199,6 @@ static void show_times(karte_t *welt, main_view_t *view)
 #endif
 
 
-void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*quit)() )
-{
-	if(  display_get_width()==0  ) {
-		dbg->error( "modal_dialogue", "called without a display driver => nothing will be shown!" );
-		env_t::quit_simutrans = true;
-		// cannot handle this!
-		return;
-	}
-
-	// switch off autosave
-	sint32 old_autosave = env_t::autosave;
-	env_t::autosave = 0;
-
-	event_t ev;
-	scr_coord_val x = (display_get_width() - gui->get_windowsize().w) / 2;
-	scr_coord_val y = (display_get_height() - gui->get_windowsize().h) / 2;
-	win_clamp_xywh_position(x, y, gui->get_windowsize(), true);
-	create_win( x, y, gui, w_info, magic );
-
-	if(  welt  ) {
-		welt->set_pause( false );
-		welt->reset_interaction();
-		welt->reset_timer();
-
-		const uint32 ms_per_frame = 1000/env_t::fps;
-		uint32 last_step = dr_time();
-		uint step_count = 5;
-
-		while(  win_is_open(gui)  &&  !env_t::quit_simutrans  &&  !quit()  ) {
-			do {
-				DBG_DEBUG4("modal_dialogue", "calling win_poll_event");
-				win_poll_event(&ev);
-
-				x = ev.mx;
-				y = ev.my;
-				win_clamp_xywh_position(x, y, scr_size(1, 1), false );
-				ev.mx = x;
-				ev.my = y;
-
-				x = ev.cx;
-				y = ev.cy;
-				win_clamp_xywh_position(x, y, scr_size(1, 1), false);
-				ev.cx = x;
-				ev.cy = y;
-
-				if(  ev.ev_class == EVENT_KEYBOARD  &&  ev.ev_code == SIM_KEY_F1  ) {
-					if(  gui_frame_t *win = win_get_top()  ) {
-						if(  const char *helpfile = win->get_help_filename()  ) {
-							help_frame_t::open_help_on( helpfile );
-							continue;
-						}
-					}
-				}
-				DBG_DEBUG4("modal_dialogue", "calling check_pos_win");
-				check_pos_win(&ev);
-				if(  ev.ev_class == EVENT_SYSTEM  &&  ev.ev_code == SYSTEM_QUIT  ) {
-					env_t::quit_simutrans = true;
-					break;
-				}
-				dr_sleep(5);
-			} while(  dr_time() - last_step < ms_per_frame );
-
-			DBG_DEBUG4("modal_dialogue", "calling welt->sync_step");
-			welt->sync_step( ms_per_frame, true, true );
-
-			if(  step_count--==0  ) {
-				DBG_DEBUG4("modal_dialogue", "calling welt->step");
-				intr_set_last_time(last_step); // do not call sync_step twice unless step takes too long
-				welt->step();
-				step_count = 5;
-			}
-			last_step += ms_per_frame;
-		}
-	}
-	else {
-		display_show_pointer(true);
-		display_show_load_pointer(0);
-		display_fillbox_wh_rgb( 0, 0, display_get_width(), display_get_height(), color_idx_to_rgb(COL_BLACK), true );
-		while(  win_is_open(gui)  &&  !env_t::quit_simutrans  &&  !quit()  ) {
-			// do not move, do not close it!
-			dr_sleep(50);
-			// check for events again after waiting
-			if (quit()) {
-				break;
-			}
-			dr_prepare_flush();
-			gui->draw(win_get_pos(gui), gui->get_windowsize());
-			dr_flush();
-
-			display_poll_event(&ev);
-			if(ev.ev_class==EVENT_SYSTEM) {
-				if (ev.ev_code==SYSTEM_RESIZE) {
-					// main window resized
-					simgraph_resize( ev.new_window_size );
-					dr_prepare_flush();
-					display_fillbox_wh_rgb( 0, 0, ev.new_window_size.w, ev.new_window_size.h, color_idx_to_rgb(COL_BLACK), true );
-					gui->draw(win_get_pos(gui), gui->get_windowsize());
-					dr_flush();
-				}
-				else if (ev.ev_code == SYSTEM_QUIT) {
-					env_t::quit_simutrans = true;
-					break;
-				}
-			}
-			else {
-				// other events
-				check_pos_win(&ev);
-			}
-		}
-		display_show_load_pointer(1);
-		dr_prepare_flush();
-		display_fillbox_wh_rgb( 0, 0, display_get_width(), display_get_height(), color_idx_to_rgb(COL_BLACK), true );
-		dr_flush();
-	}
-
-	// just trigger not another following window => wait for button release
-	if (IS_LEFTCLICK(&ev)) {
-		do {
-			display_poll_event(&ev);
-		} while (!IS_LEFTRELEASE(&ev));
-	}
-
-	// restore autosave
-	env_t::autosave = old_autosave;
-}
-
-
 // some routines for the modal display
 static bool never_quit() { return false; }
 static bool no_language() { return translator::get_language()!=-1; }
@@ -341,6 +214,9 @@ static bool wait_for_key()
 		if(  ev.ev_code==SIM_KEY_ESCAPE  ||  ev.ev_code==SIM_KEY_SPACE  ||  ev.ev_code==SIM_KEY_BACKSPACE  ) {
 			return true;
 		}
+	}
+	if(  IS_LEFTRELEASE(&ev)  ) {
+		return true;
 	}
 	event_t *nev = new event_t();
 	*nev = ev;
@@ -446,7 +322,7 @@ void print_help()
 	    "  http://forum.simutrans.com"
 		"\n"
 		"  Based on Simutrans 0.84.21.2\n"
-		"  by Hansj?rg Malthaner et. al.\n"
+		"  by Hansjörg Malthaner et. al.\n"
 		"---------------------------------------\n"
 		"command line parameters available: \n"
 		" -addons             loads also addons (with -objects)\n"
@@ -1025,7 +901,11 @@ int simu_main(int argc, char** argv)
 	if(  !themes_ok  ) {
 		dr_chdir( env_t::data_dir );
 		dr_chdir( "themes" );
+#ifndef __ANDROID__
 		themes_ok = gui_theme_t::themes_init("themes.tab",true,false);
+#else
+		themes_ok = gui_theme_t::themes_init("theme-large.tab", true, false);
+#endif
 	}
 	if(  !themes_ok  ) {
 		dbg->fatal( "simu_main()", "No GUI themes found! Please re-install!" );
@@ -1415,8 +1295,6 @@ int simu_main(int argc, char** argv)
 	bool old_restore_UI = env_t::restore_UI;
 	if(  new_world  &&  env_t::reload_and_save_on_quit  ) {
 		// construct from pak name an autosave if requested
-		loadsave_t file;
-
 		std::string pak_name( "autosave-" );
 		pak_name.append( env_t::objfilename );
 		pak_name.erase( pak_name.length()-1 );
@@ -1477,7 +1355,7 @@ int simu_main(int argc, char** argv)
 #ifdef USE_FLUIDSYNTH_MIDI
 		// Audio is ok, but we failed to find a soundfont
 		if(  strcmp( env_t::soundfont_filename.c_str(), "Error" ) == 0  ) {
-			midi_set_mute( true );
+			midi_set_mute(true);
 		}
 #endif
 	}
@@ -1508,7 +1386,7 @@ int simu_main(int argc, char** argv)
 	main_view_t *view = new main_view_t(welt);
 	welt->set_view( view );
 
-	interaction_t *eventmanager = new interaction_t();
+	interaction_t *eventmanager = new interaction_t(welt->get_viewport());
 	welt->set_eventmanager( eventmanager );
 
 	// some messages about old vehicle may appear ...
@@ -1685,7 +1563,7 @@ int simu_main(int argc, char** argv)
 	// the real fonts for the current language, if not set otherwise
 	sprachengui_t::init_font_from_lang();
 
-	if (!(env_t::reload_and_save_on_quit && !new_world)) {
+	if(   !(env_t::reload_and_save_on_quit  &&  !new_world)  ) {
 		destroy_all_win(true);
 	}
 	env_t::restore_UI = old_restore_UI;
@@ -1695,22 +1573,19 @@ int simu_main(int argc, char** argv)
 	}
 #ifdef USE_FLUIDSYNTH_MIDI
 	if(  strcmp( env_t::soundfont_filename.c_str(), "Error" ) == 0  ) {
-		create_win( 0,0, new news_img("No soundfont found!\n\nMusic won't play until you load a soundfont from the sound options menu."), w_info, magic_none );
+		create_win({ 0,0 }, new news_img("No soundfont found!\n\nMusic won't play until you load a soundfont from the sound options menu."), w_info, magic_none );
 	}
 #endif
 	while(  !env_t::quit_simutrans  ) {
 		// play next tune?
 		check_midi();
 
-		if(  !env_t::networkmode  &&  new_world  ) {
+		if(  new_world  ) {
 			dbg->message("simu_main()", "Show banner ... " );
 			ticker::add_msg("Welcome to Simutrans-Extended (formerly Simutrans-Experimental), a fork of Simutrans-Standard, extended and maintained by the Simutrans community.", koord::invalid, PLAYER_FLAG | color_idx_to_rgb(COL_SOFT_BLUE));
-				modal_dialogue( new banner_t(), magic_none, welt, never_quit );
+			modal_dialogue( new banner_t(), magic_none, welt, never_quit, true );
 			// only show new world, if no other dialogue is active ...
 			new_world = win_get_open_count()==0;
-		}
-		if(  env_t::quit_simutrans  ) {
-			break;
 		}
 
 		// to purge all previous old messages
@@ -1721,13 +1596,6 @@ int simu_main(int argc, char** argv)
 			pause_after_load = false;
 		}
 
-		if(  new_world  ) {
-			dbg->message("simu_main()","modal_dialogue( new welt_gui_t(&env_t::default_settings), magic_welt_gui_t, welt, never_quit );" );
-			modal_dialogue( new welt_gui_t(&env_t::default_settings), magic_welt_gui_t, welt, never_quit );
-			if(  env_t::quit_simutrans  ) {
-				break;
-			}
-		}
 		dbg->message("simu_main()", "Running world, pause=%i, fast forward=%i ... ", welt->is_paused(), welt->is_fast_forward() );
 		loadgame = ""; // only first time
 

@@ -11,6 +11,7 @@
 #include "gui_button.h"
 
 #include "../../dataobj/loadsave.h"
+#include "../../dataobj/environment.h"
 #include "../../display/simgraph.h"
 #include "../../simcolor.h"
 
@@ -25,33 +26,38 @@ gui_scrollpane_t::gui_scrollpane_t(gui_component_t *comp, bool b_scroll_x, bool 
 	this->comp = comp;
 
 	max_width = D_DEFAULT_WIDTH-D_MARGIN_LEFT-D_MARGIN_RIGHT;
+	max_height = D_DEFAULT_HEIGHT/2-D_MARGIN_TOP-D_MARGIN_BOTTOM;
 
 	b_show_scroll_x = b_scroll_x;
 	b_show_scroll_y = b_scroll_y;
 	b_has_size_corner = true;
+	b_can_drag = true;
+	b_is_dragging = false;
 
 	old_comp_size = scr_size::invalid;
-	take_cached_size = false;
 	maximize = false;
 }
 
 
 scr_size gui_scrollpane_t::get_min_size() const
 {
-	// request width of largest element, but leave enough space for scrollbars
-	scr_size csize = take_cached_size ? cached_min_size : comp->get_min_size();
+	scr_size csize = comp->get_min_scroll_size();
+	if (csize.w > 0  ||  csize.h > 0) {
+		// the component does not have a minimum scroll size
+		// use min_size and limit it with max_width/height
+		csize = comp->get_min_size();
+		csize.w = min( csize.w, max_width );
+		csize.h = min( csize.h, max_height );
+	}
 	csize.w = max( csize.w, scroll_x.get_min_size().w );
-	csize.w = min( csize.w, max_width );
-	csize.h = min_height ? min_height : min( csize.h, scroll_y.get_min_size().h );
+	csize.h = max( csize.h, scroll_y.get_min_size().h );
 	return csize;
+
 }
 
 scr_size gui_scrollpane_t::get_max_size() const
 {
-	scr_size csize = take_cached_size ? cached_max_size : comp->get_max_size();
-	scr_coord_val c_width = !b_show_scroll_x ? max_width : csize.w;
-	scr_coord_val c_height = (!b_show_scroll_y && min_height) ? min_height : csize.h;
-	return scr_size(c_width, c_height);
+	return comp->get_max_size();
 }
 
 
@@ -103,6 +109,7 @@ void gui_scrollpane_t::set_size(scr_size size)
 	scroll_x.set_visible( (k.x > size.w)  &&  b_show_scroll_x  );
 	scroll_y.set_visible(  (k.y > size.h)  &&  b_show_scroll_y  );
 
+	// automatically increase/decrease slider area
 	scr_size c_size = size - comp->get_pos();
 	// resize scrolled component
 	if (scroll_x.is_visible()) {
@@ -112,12 +119,8 @@ void gui_scrollpane_t::set_size(scr_size size)
 		c_size.w -= scroll_y.get_size().w;
 	}
 
-	cached_min_size = comp->get_min_size();
-	cached_max_size = comp->get_max_size();
-	take_cached_size = false; // disabled, there is no proper way to check whether cache is still valid
-
-	c_size.clip_lefttop( cached_min_size );
-	c_size.clip_rightbottom( cached_max_size );
+	c_size.clip_lefttop( comp->get_min_size() );
+	c_size.clip_rightbottom( comp->get_max_size() );
 	comp->set_size(c_size);
 
 	recalc_sliders(size);
@@ -128,7 +131,7 @@ void gui_scrollpane_t::set_size(scr_size size)
 scr_size gui_scrollpane_t::request_size(scr_size request)
 {
 	// do not enlarge past max size of comp
-	scr_size cmax = take_cached_size ? cached_max_size : comp->get_max_size();
+	scr_size cmax = comp->get_max_size();
 	if (cmax.w  < request.w - comp->get_pos().x  &&  cmax.h < request.h - comp->get_pos().y) {
 		request = cmax;
 	}
@@ -138,23 +141,49 @@ scr_size gui_scrollpane_t::request_size(scr_size request)
 
 
 /**
- * Events are notified to GUI components via this method gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_scrollpane_t::infowin_event(const event_t *ev)
 {
 	bool swallow = false;
-	if(   (b_show_scroll_y  &&  scroll_y.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_y.getroffen(ev->mx, ev->my) || scroll_y.getroffen(ev->cx, ev->cy)) ) {
+	if(   (b_show_scroll_y  &&  scroll_y.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_y.getroffen(ev->mouse_pos) || scroll_y.getroffen(ev->click_pos)) ) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_y.get_pos());
+		b_is_dragging = false;
 		return scroll_y.infowin_event(&ev2);
 	}
-	else if(  (b_show_scroll_x  &&  scroll_x.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_x.getroffen(ev->mx, ev->my) || scroll_x.getroffen(ev->cx, ev->cy))) {
+	else if(  (b_show_scroll_x  &&  scroll_x.is_visible())  &&  ev->ev_class!=EVENT_KEYBOARD  &&  (scroll_x.getroffen(ev->mouse_pos) || scroll_x.getroffen(ev->click_pos))) {
 		event_t ev2 = *ev;
 		ev2.move_origin(scroll_x.get_pos());
+		b_is_dragging = false;
 		return scroll_x.infowin_event(&ev2);
 	}
-	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mx>=0 &&  ev->my>=0  &&  ev->mx<=size.w  &&  ev->my<=size.h)  ) {
+	else if(  ev->ev_class<EVENT_CLICK  ||  (ev->mouse_pos.x>=0 &&  ev->mouse_pos.y>=0  &&  ev->mouse_pos.x<=size.w  &&  ev->mouse_pos.y<=size.h)  ||  b_is_dragging  ) {
+
 		// since we get can grab the focus to get keyboard events, we must make sure to handle mouse events only if we are hit
+		if(  ev->ev_class < EVENT_CLICK  ||  IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev)  ) {
+			b_is_dragging = false;
+		}
+
+		// we will handle dragging ourselves inf not prevented
+		if(  b_is_dragging  &&  ev->ev_class < INFOWIN  ) {
+			// now drag: scrollbars are not in pixel, but we will scroll one unit per pixels ...
+			scroll_x.set_knob_offset(scroll_x.get_knob_offset() - (ev->mouse_pos.x - origin.x));
+			scroll_y.set_knob_offset(scroll_y.get_knob_offset() - (ev->mouse_pos.y - origin.y));
+			origin = ev->mouse_pos;
+			// and finally end dragging on release of any button
+			if(  ev->ev_class == EVENT_RELEASE  ) {
+				b_is_dragging = false;
+				if(  abs(ev->mouse_pos.x - ev->click_pos.x) >= 5  || abs(ev->click_pos.x-ev->mouse_pos.x)+abs(ev->click_pos.y-ev->mouse_pos.y) >= env_t::scroll_threshold  ) {
+					// dragged a lot => swallow click
+					return true;
+				}
+			}
+			else {
+				// continue dragging, swallow other events
+				return true;
+			}
+		}
 
 		// translate according to scrolled position
 		event_t ev2 = *ev;
@@ -165,8 +194,28 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		// hand event to component
 		swallow = comp->infowin_event(&ev2);
 
+		// now process wheel-events that are not swallowed by component, scroll the pane
+		if(!swallow) {
+			if(  (IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev))
+				 &&  (((b_show_scroll_y  &&  scroll_y.is_visible())  &&  !IS_SHIFT_PRESSED(ev))  ||  ((b_show_scroll_x  &&  scroll_x.is_visible())  &&  IS_SHIFT_PRESSED(ev)))  ) {
+				// otherwise these events are only registered where directly over the scroll region
+				// (and sometime even not then ... )
+				return IS_SHIFT_PRESSED(ev) ? scroll_x.infowin_event(ev) : scroll_y.infowin_event(ev);
+			}
+		}
+
+		if(  !swallow  &&  b_can_drag  &&  (ev->ev_class == EVENT_CLICK || ev->ev_class == EVENT_DRAG)  ) {
+			// init dragging? (Android SDL starts dragging without preceeding click!)
+			if(!b_is_dragging) {
+				origin = ev->mouse_pos;
+				b_is_dragging = true;
+				return true;
+			}
+		}
+
 		// check if we need to scroll to the focused component
-		if(  get_focus()  &&  focused != get_focus()  ) {
+		gui_component_t *new_focus = get_focus();
+		if(new_focus &&  focused != new_focus) {
 			show_focused();
 		}
 
@@ -175,16 +224,7 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		if(  old_comp_size!=comp->get_size()  ) {
 			recalc_sliders(get_size());
 		}
-	}
 
-	// now process wheel-events that are not swallowed by component, scroll the pane
-	if (!swallow) {
-		if((IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev))
-			&&  (((b_show_scroll_y  &&  scroll_y.is_visible())  &&  !IS_SHIFT_PRESSED(ev))  ||  ((b_show_scroll_x  &&  scroll_x.is_visible())  &&  IS_SHIFT_PRESSED(ev)))) {
-			// otherwise these events are only registered where directly over the scroll region
-			// (and sometime even not then ... )
-			return IS_SHIFT_PRESSED(ev) ? scroll_x.infowin_event(ev) : scroll_y.infowin_event(ev);
-		}
 	}
 	return swallow;
 }
@@ -269,7 +309,7 @@ void gui_scrollpane_t::draw(scr_coord pos)
 	scr_rect client = get_client() + pos;
 
 	PUSH_CLIP_FIT( client.x, client.y, client.w, client.h )
-		comp->draw( client.get_pos()-scr_coord(scroll_x.get_knob_offset(), scroll_y.get_knob_offset()) );
+	comp->draw( client.get_pos()-scr_coord(scroll_x.get_knob_offset(), scroll_y.get_knob_offset()) );
 	POP_CLIP()
 
 	// sliding bar background color is now handled by the scrollbar!

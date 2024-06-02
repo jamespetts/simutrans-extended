@@ -77,6 +77,7 @@ std::string env_t::nickname = "";
 const char *env_t::language_iso = "en";
 sint16 env_t::scroll_multi = -2;
 bool env_t::scroll_infinite = false;
+uint16 env_t::scroll_threshold = 8;
 sint16 env_t::global_volume = 127;
 uint32 env_t::sound_distance_scaling;
 sint16 env_t::midi_volume = 127;
@@ -143,15 +144,15 @@ uint32 env_t::fps;
 uint32 env_t::ff_fps;
 sint16 env_t::max_acceleration;
 bool env_t::show_tooltips;
-uint32 env_t::tooltip_color_rgb;
+rgb888_t env_t::tooltip_color_rgb;
 PIXVAL env_t::tooltip_color;
-uint32 env_t::tooltip_textcolor_rgb;
+rgb888_t env_t::tooltip_textcolor_rgb;
 PIXVAL env_t::tooltip_textcolor;
 sint8 env_t::toolbar_max_width;
 sint8 env_t::toolbar_max_height;
-uint32 env_t::cursor_overlay_color_rgb;
+rgb888_t env_t::cursor_overlay_color_rgb;
 PIXVAL env_t::cursor_overlay_color;
-uint32 env_t::background_color_rgb;
+rgb888_t env_t::background_color_rgb;
 PIXVAL env_t::background_color;
 uint8 env_t::show_vehicle_states;
 bool env_t::visualize_schedule;
@@ -184,14 +185,19 @@ uint8 env_t::gui_player_color_dark = 1;
 uint8 env_t::gui_player_color_bright = 4;
 uint8 env_t::gui_titlebar_player_color_background_brightness;
 
+#ifndef __ANDROID__
 std::string env_t::fontname = FONT_PATH_X "prop.fnt";
 uint8 env_t::fontsize = 11;
+#else
+std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
+uint8 env_t::fontsize = 17;
+#endif
 
-uint32 env_t::front_window_text_color_rgb;
+rgb888_t env_t::front_window_text_color_rgb;
 PIXVAL env_t::front_window_text_color;
-uint32 env_t::bottom_window_text_color_rgb;
+rgb888_t env_t::bottom_window_text_color_rgb;
 PIXVAL env_t::bottom_window_text_color;
-uint32 env_t::default_window_title_color_rgb;
+rgb888_t env_t::default_window_title_color_rgb;
 PIXVAL env_t::default_window_title_color;
 uint8 env_t::bottom_window_darkness;
 
@@ -200,8 +206,13 @@ uint16 env_t::compass_screen_position;
 
 uint32 env_t::default_ai_construction_speed;
 
-bool env_t::hide_keyboard = false;
 
+#ifdef __ANDROID__
+// autoshow keyboard on textinput
+bool env_t::hide_keyboard = true;
+#else
+bool env_t::hide_keyboard = false;
+#endif
 
 
 // Define default settings.
@@ -222,6 +233,7 @@ void env_t::init()
 	cursor_hide_range = 5;
 
 	scroll_infinite = true;
+	scroll_threshold = 16;
 
 	visualize_schedule = true;
 
@@ -294,15 +306,15 @@ void env_t::init()
 	sound_distance_scaling = 10;
 
 	show_tooltips = true;
-	tooltip_color_rgb = 0x3964D0; // COL_SOFT_BLUE
-	tooltip_textcolor_rgb = 0x000000; // COL_BLACK
+	tooltip_color_rgb     = { 0x39, 0x64, 0xD0 }; // COL_SOFT_BLUE
+	tooltip_textcolor_rgb = { 0x00, 0x00, 0x00 }; // COL_BLACK
 
 	toolbar_max_width = 0;
 	toolbar_max_height = 0;
 
-	cursor_overlay_color_rgb = 0xFF8000; // COL_ORANGE
+	cursor_overlay_color_rgb = { 0xFF, 0x80, 0x00 }; // COL_ORANGE
 
-	background_color_rgb = 0x404040; // COL_GREY2
+	background_color_rgb = { 0x40, 0x40, 0x40 }; // COL_GREY2
 	draw_earth_border = true;
 	draw_outside_tile = false;
 
@@ -325,9 +337,9 @@ void env_t::init()
 	tooltip_delay = 500;
 	tooltip_duration = 5000;
 
-	front_window_text_color_rgb = 0xFFFFFF; // COL_WHITE
-	bottom_window_text_color_rgb = 0xDDDDDD;
-	default_window_title_color_rgb = 0xD76B00;
+	front_window_text_color_rgb    = { 0xFF, 0xFF, 0xFF }; // COL_WHITE
+	bottom_window_text_color_rgb   = { 0xDD, 0xDD, 0xDD };
+	default_window_title_color_rgb = { 0xD7, 0x6B, 0x00 };
 	bottom_window_darkness = 25;
 
 	default_ai_construction_speed = 8000;
@@ -401,13 +413,13 @@ void env_t::rdwr(loadsave_t *file)
 
 	file->rdwr_bool( show_tooltips );
 	if (  file->is_version_less(120, 5)  ) {
-		uint8 color = COL_SOFT_BLUE;
-		file->rdwr_byte( color );
-		env_t::tooltip_color_rgb = get_color_rgb(color);
+		uint8 color_idx = COL_SOFT_BLUE;
+		file->rdwr_byte( color_idx );
+		env_t::tooltip_color_rgb = get_color_rgb(color_idx);
 
-		color = COL_BLACK;
-		file->rdwr_byte( color );
-		env_t::tooltip_textcolor_rgb = get_color_rgb(color);
+		color_idx = COL_BLACK;
+		file->rdwr_byte( color_idx );
+		env_t::tooltip_textcolor_rgb = get_color_rgb(color_idx);
 	}
 
 	file->rdwr_long( autosave );
@@ -577,12 +589,12 @@ void env_t::rdwr(loadsave_t *file)
 	}
 
 	if(  file->is_version_atleast(120, 5)  ) {
-		file->rdwr_long( background_color_rgb );
-		file->rdwr_long( tooltip_color_rgb );
-		file->rdwr_long( tooltip_textcolor_rgb );
-		file->rdwr_long( default_window_title_color_rgb );
-		file->rdwr_long( front_window_text_color_rgb );
-		file->rdwr_long( bottom_window_text_color_rgb );
+		file->rdwr_color( background_color_rgb );
+		file->rdwr_color( tooltip_color_rgb );
+		file->rdwr_color( tooltip_textcolor_rgb );
+		file->rdwr_color( default_window_title_color_rgb );
+		file->rdwr_color( front_window_text_color_rgb );
+		file->rdwr_color( bottom_window_text_color_rgb );
 		file->rdwr_byte( bottom_window_darkness );
 	}
 	if(  file->is_version_atleast(120, 6)  ) {
@@ -636,6 +648,10 @@ void env_t::rdwr(loadsave_t *file)
 
 	if( file->is_version_atleast(123, 1) ) {
 		file->rdwr_short(display_scale_percent);
+	}
+
+	if (file->is_version_ex_atleast(14,65) ) {
+		file->rdwr_short(scroll_threshold);
 	}
 
 	// server settings are not saved, since they are server specific

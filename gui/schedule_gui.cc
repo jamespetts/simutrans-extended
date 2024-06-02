@@ -1603,7 +1603,7 @@ void schedule_gui_t::update_selection()
  */
 bool schedule_gui_t::infowin_event(const event_t *ev)
 {
-	if( (ev)->ev_class == EVENT_CLICK  &&  !((ev)->ev_code==MOUSE_WHEELUP  ||  (ev)->ev_code==MOUSE_WHEELDOWN)  &&  !line_selector.getroffen(ev->cx, ev->cy-D_TITLEBAR_HEIGHT)  )  {
+	if( (ev)->ev_class == EVENT_CLICK  &&  !((ev)->ev_code==MOUSE_WHEELUP  ||  (ev)->ev_code==MOUSE_WHEELDOWN)  &&  !line_selector.getroffen( ev->click_pos-scr_coord(0,D_TITLEBAR_HEIGHT) )  )  {
 
 		// close combo box; we must do it ourselves, since the box does not receive outside events ...
 		line_selector.close_box();
@@ -2050,7 +2050,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			// Opens new window to alter the consist order
 			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			if (!win) {
-				create_win(-1, -1, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+				create_win({ -1, -1 }, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
 			}
 			else {
 				//win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
@@ -2209,7 +2209,7 @@ void schedule_gui_t::rdwr(loadsave_t *file)
 			// now we can open the window ...
 			scr_coord const& pos = win_get_pos(this);
 			schedule_gui_t *w = new schedule_gui_t( cnv->get_schedule(), cnv->get_owner(), cnv );
-			create_win(pos.x, pos.y, w, w_info, (ptrdiff_t)cnv->get_schedule());
+			create_win(pos, w, w_info, (ptrdiff_t)cnv->get_schedule());
 			w->set_windowsize( size );
 			w->schedule->copy_from( schedule );
 			cnv->get_schedule()->finish_editing();

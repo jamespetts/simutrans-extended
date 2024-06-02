@@ -92,7 +92,7 @@ SQInteger param<call_tool_init>::push(HSQUIRRELVM vm, call_tool_init v)
 
 	// HACK call karte_t::set_tool
 	bool suspended;
-	welt->set_tool_api(tool, player, suspended, true);
+	welt->set_tool_api(tool, player, suspended);
 	// in networkmode, call is suspended
 
 	if (suspended) {
@@ -212,8 +212,8 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 	uint8 flags = tool->flags; // might be reset by init()
 
 	// call init before work (but check network safety)
-	if (!tool->is_init_network_safe()) {
-		return sq_raise_error(vm, "Initializing tool has side effects");
+	if (const char* blocker = env_t::networkmode ? sq_get_suspend_blocker(vm) : NULL) {
+		return sq_raise_error(vm, "Cannot call this tool from within `%s'.", blocker);
 	}
 	if (!tool->init(player)) {
 		return sq_raise_error(vm, "Error during initializing tool");
@@ -221,7 +221,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 	// set flags
 	tool->flags = flags;
 	// test work
-	if (tool->is_work_network_safe()  ||  (!v.twoclick  &&  tool->is_work_here_network_safe(player, v.start))) {
+	if (tool->is_work_keeps_game_state()  ||  (!v.twoclick  &&  tool->is_work_here_keeps_game_state(player, v.start))) {
 		return sq_raise_error(vm, "Tool has no effects");
 	}
 	// two-click tool
@@ -229,7 +229,7 @@ SQInteger param<call_tool_work>::push(HSQUIRRELVM vm, call_tool_work v)
 		if (dynamic_cast<two_click_tool_t*>(tool)==NULL) {
 			return sq_raise_error(vm, "Cannot call this tool with two coordinates");
 		}
-		if (!tool->is_work_here_network_safe(player, v.start)) {
+		if (!tool->is_work_here_keeps_game_state(player, v.start)) {
 			return sq_raise_error(vm, "First click has side effects");
 		}
 	}

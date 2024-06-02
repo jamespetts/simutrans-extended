@@ -1494,7 +1494,7 @@ void route_t::postprocess_water_route(karte_t *welt)
  * searches route, uses intern_calc_route() for distance between stations
  * handles only driving in stations by itself
  */
- route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 max_len, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction, find_route_flags flags)
+ route_t::route_result_t route_t::calc_route(karte_t *welt, const koord3d start, const koord3d ziel, test_driver_t* const tdriver, const sint32 max_khm, const uint32 axle_load, bool is_tall, sint32 convoy_tile_length, const sint64 max_cost, const uint32 convoy_weight, koord3d avoid_tile, uint8 direction, find_route_flags flags)
 {
 	route.clear();
 	const uint32 distance = shortest_distance(start.get_2d(), ziel.get_2d()) * 600;
@@ -1512,7 +1512,7 @@ void route_t::postprocess_water_route(karte_t *welt)
 	// profiling for routes ...
 	long ms=dr_time();
 #endif
-	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, max_len, avoid_tile, direction, flags);
+	route_result_t ok = intern_calc_route(welt, start, ziel, tdriver, max_khm, max_cost, axle_load, convoy_weight, is_tall, convoy_tile_length, avoid_tile, direction, flags);
 #ifdef DEBUG_ROUTES
 	if(tdriver->get_waytype()==water_wt) {
 		DBG_DEBUG("route_t::calc_route()", "route from %d,%d to %d,%d with %i steps in %u ms found.", start.x, start.y, ziel.x, ziel.y, route.get_count()-1, dr_time()-ms );
@@ -1529,51 +1529,98 @@ void route_t::postprocess_water_route(karte_t *welt)
 		return ok;
 	}
 
+	// Allow four (count 'em, four) different approaches for spotting vehicles within a platform
+	// 1 -- never advance past the marked spot (simple)
+	// 2 -- advance just enough past the marked spot to fit on the platform (same behavior as Simutrans-Standard)
+	// 3 -- advance to middle of platform (the "eye candy" default for Simutrans-Extended)
+	// 4 -- advance to front of platform (the "rail terminal" default for Simutrans-Extended)
+	// Also if there's a SIGNAL on the platform, consider treating it as a platform divider
+	// and not advancing past it unless the train is long enough that it has to do so in order to fit on the platform
+	// --neroden
+
 	// advance so all convoy fits into a halt (only set for trains and cars)
-	bool move_to_end_of_station = max_len >= 8888;
+	bool move_to_end_of_station = convoy_tile_length >= 8888;
 	if(move_to_end_of_station)
 	{
-		max_len -= 8888;
+		convoy_tile_length -= 8888;
 	}
-	if(  max_len > 1  ) {
+	if(  convoy_tile_length > 1  ) {
 		// we need a halt of course ...
 		halthandle_t halt = welt->lookup(ziel)->get_halt();
 		if(  halt.is_bound()  )	{
 			sint32 platform_size = 0;
-			// Count the station size
-			for(sint32 i = route.get_count() - 1; i >= 0 && max_len > 0 && halt == haltestelle_t::get_halt(route[i], NULL); i--)
+			// Count the number of tiles in this station which are already on the route consecutively to the target tile.
+			for(sint32 i = route.get_count() - 1; i >= 0 && haltestelle_t::get_halt(route[i], NULL) == halt; i--)
 			{
 				platform_size++;
  			}
 
-			// Find the end of the station, and append these tiles to the route.
+			// Find the end of the platform, and append these tiles to the route.
+			// but only if we can advance through them and we should advance through them
 			const uint32 max_n = route.get_count() - 1;
 			const koord zv = route[max_n].get_2d() - route[max_n - 1].get_2d();
+			// This is the direction we entered our target tile in.
 			const int ribi = ribi_type(zv);
 
-			const waytype_t wegtyp = tdriver->get_waytype();
-
-			const bool is_rail_type = tdriver->get_waytype() == track_wt || tdriver->get_waytype() == narrowgauge_wt || tdriver->get_waytype() == maglev_wt || tdriver->get_waytype() == tram_wt || tdriver->get_waytype() == monorail_wt;
-			bool first_run = true;
-
 			grund_t *gr = welt->lookup(ziel);
-			bool ribi_check = (tdriver->get_ribi(gr) & ribi) != 0;
-			bool has_signal = gr->get_weg(tdriver->get_waytype())->has_signal();
+			const waytype_t wegtyp = tdriver->get_waytype();
+			ribi_t::ribi way_ribi = tdriver->get_ribi(gr);
+			bool ribi_check = (way_ribi & ribi) != 0;
 
-			while(gr->get_neighbour(gr, wegtyp, ribi) && gr->get_halt() == halt && tdriver->check_next_tile(gr) && ((ribi_check || (first_run && is_rail_type))))
+			const bool is_rail_type = wegtyp == track_wt || wegtyp == narrowgauge_wt || wegtyp == maglev_wt || wegtyp == tram_wt || wegtyp == monorail_wt;
+
+			bool has_signal = gr->get_weg(wegtyp)->has_signal();
+			// This code is the same as that at the bottom of the while loop below, but must be duplicated
+			// to get the first test done right
+			if (is_rail_type && has_signal)
 			{
-				first_run = false;
-				has_signal = gr->get_weg(tdriver->get_waytype())->has_signal();
+				// We cannot use a masked ribi check if there's a signal, due to one-way train signals.
+				// The unmasked ribi check is duplicate to that in get_neighbour, so omit it.
+				// ribi_t::ribi ribi_unmasked = gr->get_weg_ribi_unmasked(wegtyp);
+				// ribi_check = (ribi_unmasked & ribi) != 0;
+				ribi_check = true;
+			}
+			else
+			{
+				// The masked ribi check is not duplicate to that in get_neighbor.
+				ribi_check = (way_ribi & ribi) != 0;
+			}
+
+			// This loop condition checks:
+			// 1 - can we continue on this waytype in the correct direction, even with one-way signs? (ribi_check)
+			// 2 - can we continue on this waytype in the correct direction, disregarding signals? (get_neighbour)
+			// VERY IMPORTANT: get_neighbor also CHANGES the value of gr to the new location
+			// You cannot move conditions from before this to after this or vice versa (this has been the source of past errors)
+			// Note that the waytype (which is the waytype of the test driver) is assumed not to change.
+			while(  ribi_check && gr->get_neighbour(gr, wegtyp, ribi)  )
+			{
+				if(  gr->get_halt() != halt  ) {
+					// This new tile is not in the same station
+					break;
+				}
+				if(  !(  tdriver->check_next_tile(gr)  )  ) {
+					// Test driver cannot enter this tile
+					break;
+				}
+
+				weg_t* wg = gr->get_weg(wegtyp);
+				if (!wg) {
+					// Something has gone wrong; the check in get_neighbour should guarantee that we have a suitable way here.
+					// If this happens anyway, stop.
+					koord3d err_pos = gr->get_pos();
+					dbg->warning("route_t::calc_route()","passed get_neighbour check but found no suitable way at %d %d %d", err_pos.x, err_pos.y, err_pos.z);
+					break;
+				}
+				has_signal = wg->has_signal();
+
 				// Do not go on a tile where a one way sign forbids going.
 				// This saves time and fixed the bug that a one way sign on the final tile was ignored.
-				weg_t* wg = gr->get_weg(wegtyp);
-				ribi_t::ribi go_dir = wg ? wg->get_ribi_maske(): ribi_t::all;
-				if((ribi & go_dir) != 0)
-				{
+				ribi_t::ribi go_dir = wg->get_ribi_maske();
+				if(  (ribi & go_dir)!=0  ) {
 					if(is_rail_type)
 					{
 						// Unidirectional signals allow routing in both directions but only act in one direction. Check whether this is one of those.
-						if(!gr->get_weg(tdriver->get_waytype()) || !has_signal)
+						if(!has_signal)
 						{
 							break;
 						}
@@ -1584,25 +1631,30 @@ void route_t::postprocess_water_route(karte_t *welt)
 					}
 				}
 
+				// OK, add this tile to the route.
 				route.append(gr->get_pos());
 				platform_size++;
 
-				if (has_signal)
+				if (is_rail_type && has_signal)
 				{
-					ribi_t::ribi ribi_unmasked = gr->get_weg_ribi_unmasked(wegtyp);
-					ribi_check = (ribi_unmasked & ribi) != 0;
+					// We cannot use a masked ribi check if there's a signal, due to one-way train signals.
+					// The unmasked ribi check is duplicate to that in get_neighbour.
+					// ribi_t::ribi ribi_unmasked = gr->get_weg_ribi_unmasked(wegtyp);
+					// ribi_check = (ribi_unmasked & ribi) != 0;
+					ribi_check = true;
 				}
 				else
 				{
+					// The masked ribi check is not duplicate to that in get_neighbor.
 					ribi_check = (tdriver->get_ribi(gr) & ribi) != 0;
 				}
 
 			}
 
-			if(!move_to_end_of_station && platform_size > max_len)
+			if(!move_to_end_of_station && platform_size > convoy_tile_length)
 			{
-				// Do not go to the end, but stop part way along the platform.
-				sint32 truncate_from_route = min(((platform_size - max_len) + 1) >> 1, get_count() - 1);
+				// Do not go to the end, but stop roughly in the middle of the platform.
+				sint32 truncate_from_route = min(((platform_size - convoy_tile_length) + 1) >> 1, get_count() - 1);
 				while(truncate_from_route-- > 0)
 				{
 					route.pop_back();
@@ -1610,7 +1662,7 @@ void route_t::postprocess_water_route(karte_t *welt)
 			}
 
 			// station too short => warning!
-			if(  max_len > platform_size  )	{
+			if(  convoy_tile_length > platform_size  )	{
 				return valid_route_halt_too_short;
 			}
 		}

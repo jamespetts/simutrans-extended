@@ -553,7 +553,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 				//first: close schedule (will update schedule on clients)
 				destroy_win( (ptrdiff_t)cnv->get_schedule() );
 				// only then call the tool to start
-				char tool = event_get_last_control_shift() == 2 ? 'B' : 'b'; // start all with CTRL-click
+				char tool = (event_get_last_control_shift() ^ tool_t::control_invert)==2 ? 'B' : 'b'; // start all with CTRL-click
 				depot->call_depot_tool( tool, cnv, NULL);
 				set_convoy();
 			}
@@ -590,7 +590,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 			return true;
 		}
 		else if (comp == &bt_details) {
-			create_win(20, 20, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());
+			create_win({ 20, 20 }, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());
 			return true;
 		}
 		else if(  comp == &bt_copy_convoi  )
@@ -734,11 +734,11 @@ bool depot_frame_t::infowin_event(const event_t *ev)
 
 		if(next_dep  &&  next_dep!=this->depot) {
 			//  Replace our depot_frame_t with a new at the same position.
-			scr_coord const pos = win_get_pos(this);
+			const scr_coord pos = win_get_pos(this);
 			destroy_win( this );
 
 			next_dep->show_info();
-			win_set_pos(win_get_magic((ptrdiff_t)next_dep), pos.x, pos.y);
+			win_set_pos(win_get_magic((ptrdiff_t)next_dep), pos);
 			welt->get_viewport()->change_world_position(next_dep->get_pos());
 		}
 		else {
@@ -752,18 +752,18 @@ bool depot_frame_t::infowin_event(const event_t *ev)
 	}
 	if(0) {
 		if(IS_LEFTCLICK(ev)  ) {
-			if(  !convoy_selector.getroffen(ev->cx, ev->cy-D_TITLEBAR_HEIGHT)  &&  convoy_selector.is_dropped()  ) {
+			if(  !convoy_selector.getroffen( ev->click_pos-scr_coord(0,D_TITLEBAR_HEIGHT) )  &&  convoy_selector.is_dropped()  ) {
 				// close combo box; we must do it ourselves, since the box does not receive outside events ...
 				convoy_selector.close_box();
 			}
-			if(  line_selector.is_dropped()  &&  !line_selector.getroffen(ev->cx, ev->cy-D_TITLEBAR_HEIGHT)  ) {
+			if(  line_selector.is_dropped()  &&  !line_selector.getroffen( ev->click_pos-scr_coord(0,D_TITLEBAR_HEIGHT) )  ) {
 				// close combo box; we must do it ourselves, since the box does not receive outside events ...
 				line_selector.close_box();
 				if(  line_selector.get_selection() < last_selected_line.is_bound()+3  &&  get_focus() == &line_selector  ) {
 					set_focus( NULL );
 				}
 			}
-			//if(  !vehicle_filter.is_hit(ev->cx, ev->cy-D_TITLEBAR_HEIGHT)  &&  vehicle_filter.is_dropped()  ) {
+			//if(  !vehicle_filter.is_hit(ev->click_pos.x, ev->click_pos.y-D_TITLEBAR_HEIGHT)  &&  vehicle_filter.is_dropped()  ) {
 			//	// close combo box; we must do it ourselves, since the box does not receive outside events ...
 			//	vehicle_filter.close_box();
 			//}
@@ -870,7 +870,7 @@ void depot_frame_t::open_schedule_editor()
 	convoihandle_t cnv = depot->get_convoi( icnv );
 
 	if(  cnv.is_bound()  &&  cnv->get_vehicle_count() > 0  ) {
-		if(  selected_line.is_bound()  &&  event_get_last_control_shift() == 2  ) { // update line with CTRL-click
+		if( selected_line.is_bound() && (event_get_last_control_shift() ^ tool_t::control_invert)==2 ) { // update line with CTRL-click
 			create_win( new line_management_gui_t( selected_line, depot->get_owner() ), w_info, (ptrdiff_t)selected_line.get_rep() );
 		}
 		else { // edit individual schedule

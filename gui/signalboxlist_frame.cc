@@ -226,6 +226,7 @@ signalboxlist_frame_t::signalboxlist_frame_t(player_t *player) :
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 

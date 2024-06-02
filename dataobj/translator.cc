@@ -521,19 +521,19 @@ void translator::init_custom_names(int lang)
 /* now on to the translate stuff */
 
 
-static bool is_format_string(const char* str)
+static bool is_special_format_string(const char* str)
 {
 	// %._CITY_SYLL
 	if (*str == '%'  &&  *(str+1)  &&  strcmp(str+2, "_CITY_SYLL")==0) {
-		return false;
+		return true;
 	}
 	// .center, .suburb, .extern
 	if (*str  &&  (strcmp(str+1, "center")==0  ||  strcmp(str+1, "suburb")==0  ||  strcmp(str+1, "extern")==0) ) {
-		return false;
+		return true;
 	}
-
-	return true;
+	return false;
 }
+
 
 static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*, N_BAGS_LARGE>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
 {
@@ -555,18 +555,21 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*,
 				char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
 				char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
 				char *repaired = NULL;
-
 				// check format strings (only for unicode, ignore special strings)
-				if(language_is_utf  &&  (is_format_string(raw)  &&  !cbuffer_t::check_and_repair_format_strings(raw, translated, &repaired) ) ) {
-					free(raw);
-					free(translated);
-					continue;
+				if(language_is_utf) {
+					if (!is_special_format_string(raw)) {
+						// check and possibly repair the format string
+						if (!cbuffer_t::check_and_repair_format_strings(raw, translated, &repaired) ) {
+							free(raw);
+							free(translated);
+							continue;
+						}
+					}
 				}
-				else if (repaired) {
+				if (repaired) {
 					free(translated);
 					translated = repaired;
 				}
-
 				table->set( raw, translated );
 			}
 		}
@@ -609,7 +612,7 @@ void translator::load_language_file(FILE* file)
 	//load up translations, putting them into
 	//language table of index 'lang'
 	load_language_file_body(file, &langs[single_instance.lang_count].texts, true, file_is_utf, langs[single_instance.lang_count].is_latin2_based );
-}
+ }
 
 
 static translator::lang_info* get_lang_by_iso(const char *iso)

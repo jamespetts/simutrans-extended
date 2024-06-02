@@ -18,12 +18,12 @@ class cbuffer_t
 {
 private:
 
-	unsigned int capacity;
+	size_t capacity;
 
 	/**
 	* Number of characters without(!) trailing '\0'
 	*/
-	unsigned int size;
+	size_t size;
 
 	char *buf;
 
@@ -53,6 +53,8 @@ public:
 	 * Copy constructor
 	 */
 	cbuffer_t(const cbuffer_t& cbx);
+
+	cbuffer_t(const char*);
 
 	/**
 	 * Copy assignment operator
