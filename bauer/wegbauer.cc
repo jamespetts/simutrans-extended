@@ -311,7 +311,7 @@ bool way_builder_t::waytype_available( const waytype_t wtyp, uint16 time )
 }
 
 
-const bool way_builder_t::is_active_waytype(waytype_t wt)
+bool way_builder_t::is_active_waytype(waytype_t wt)
 {
 	switch (wt)
 	{

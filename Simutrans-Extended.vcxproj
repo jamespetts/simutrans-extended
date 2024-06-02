@@ -2404,7 +2404,7 @@
     <ClCompile Include="descriptor\reader\pedestrian_reader.cc" />
     <ClCompile Include="finder\placefinder.cc" />
     <ClCompile Include="gui\player_frame_t.cc" />
-    <ClCompile Include="gui\player_ranking_gui.cc" />
+    <ClCompile Include="gui\player_ranking_frame.cc" />
     <ClCompile Include="dataobj\powernet.cc" />
     <ClCompile Include="dataobj\replace_data.cc" />
     <ClCompile Include="gui\replace_frame.cc" />
@@ -2924,7 +2924,7 @@
     <ClInclude Include="descriptor\writer\pedestrian_writer.h" />
     <ClInclude Include="finder\placefinder.h" />
     <ClInclude Include="gui\player_frame_t.h" />
-    <ClInclude Include="gui\player_ranking_gui.h" />
+    <ClInclude Include="gui\player_ranking_frame.h" />
     <ClInclude Include="dataobj\powernet.h" />
     <ClInclude Include="tpl\ptrhashtable_tpl.h" />
     <ClInclude Include="tpl\quickstone_hashtable_tpl.h" />

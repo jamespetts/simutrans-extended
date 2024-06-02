@@ -106,8 +106,15 @@ USE_ZSTD = 1
 # MAKEOBJ_PROGDIR = $(shell pwd)
 # NETTOOL_PROGDIR = $(shell pwd)
 # PROGDIR  = $(shell pwd)
+#
+# If you want to generate a "ready to install" program, try these settings:
+# MAKEOBJ_PROGDIR = ./../simutrans
+# NETTOOL_PROGDIR = ./../simutrans
+# PROGDIR  = ./simutrans
 
-# For compiling on Linux with SDL2, use -I/usr/include/SDL2
-# For compiling on Linux with Freetype 2, use -I/usr/include/freetype2
-# For compiling on Linux with miniupnpc, use -I/usr/includeude/miniupnpc
-FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing -std=c++14
+
+FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing
+
+# For compiling on Linux with SDL2, add FLAGS += -I/usr/include/SDL2
+# For compiling on Linux with Freetype 2, add FLAGS += -I/usr/include/freetype2
+# For compiling on Linux with miniupnpc, add FLAGS += -I/usr/include/miniupnpc

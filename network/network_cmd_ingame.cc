@@ -297,7 +297,7 @@ void nwc_chat_t::rdwr()
 }
 
 
-void nwc_chat_t::add_message (karte_t* welt) const
+void nwc_chat_t::add_message(karte_t* welt) const
 {
 	dbg->warning("nwc_chat_t::add_message", "");
 	cbuffer_t buf;  // Output which will be printed to chat window
@@ -566,7 +566,7 @@ bool nwc_auth_player_t::execute(karte_t *welt)
 
 			// player activated for this client? or admin connection via nettool?
 			socket_info_t &info = socket_list_t::get_client(our_client_id);
-			if (info.is_player_unlocked(player_nr)  || info.state == socket_info_t::admin) {
+			if (info.is_player_unlocked(player_nr)  ||  info.state == socket_info_t::admin) {
 				dbg->message("nwc_auth_player_t::execute","set pwd for plnr = %d", player_nr);
 
 				// change password
@@ -579,7 +579,7 @@ bool nwc_auth_player_t::execute(karte_t *welt)
 			}
 			else if (player_nr < PLAYER_UNOWNED) {
 				// players with public service player access always pass password checks
-				if (info.is_player_unlocked(1)) {
+				if(  info.is_player_unlocked(1)  ) {
 					info.unlock_player(player_nr);
 				}
 				// check password
@@ -1155,6 +1155,7 @@ nwc_tool_t::nwc_tool_t(player_t *player, tool_t *tool_, koord3d pos_, uint32 syn
 	init = init_;
 	tool_client_id = 0;
 	flags = tool_->flags;
+
 	karte_ptr_t welt;
 	last_sync_step = welt->get_last_checklist_sync_step();
 	last_checklist = welt->get_last_checklist();
@@ -1431,7 +1432,7 @@ bool nwc_service_t::execute(karte_t *welt)
 
 		case SRVC_ANNOUNCE_SERVER:
 			// Startup announce, to force full details resend
-			welt->announce_server( 0 );
+			welt->announce_server( karte_t::SERVER_ANNOUNCE_HELLO );
 			break;
 
 		case SRVC_GET_CLIENT_LIST: {

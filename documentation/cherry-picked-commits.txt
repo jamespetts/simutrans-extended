@@ -6,10 +6,18 @@
 ?-7448 -- probably; depot_frame code changed too much to tell for sure
 7449
 ||
-7478
+7490
+?-7491 -- probably; code in convoi_info.cc changed too much to tell for sure
+7492
+||
+7501
+?-7502 -- probably superseded but need to verify
 
-(NOTE: changes to world speed record stuff are being maintained on a branch)
-(NOTE: 7466 is inapplicable but points to a patch which should go from Extended to Standard)
+***NOTES on 7494:
+   -- patch for standard needed for comment in vehicle/movingobj.cc for reference to "fahrer" (now simtestdriver / testdriver_t) 
+   -- patch for standard needed for set_erstes_letztes in simconvoi.cc/h to finish the translation job
+***(NOTE: changes to world speed record stuff are being maintained on a branch)
+***(NOTE: 7480 is missing one piece in pedestrian.cc but it will be overwritten by 10664)
 
 ==== For this section, commits with git-svn-id were found in the log (not hand-checked)
 ==== except where noted as done by Ranran
@@ -700,7 +708,7 @@
 9622
 9624
 9625
-9629
+9628
 ||
 9633
 9637
@@ -826,9 +834,6 @@
 9933
 9939
 ||
-9941
-9942
-||
 9944
 9948
 9953
@@ -893,6 +898,8 @@
 10123
 10125
 10127
+10131
+||
 10133
 10135
 ||
@@ -947,6 +954,7 @@
 ||
 10251
 *10255 (pedestrian)
+10258
 10267
 10268
 10270
@@ -992,8 +1000,11 @@
 10447(mostly)
 ||
 10449
+10459
+10460
 10462
-10463
+||
+10464
 10471
 10488
 10489
@@ -1001,6 +1012,7 @@
 10495
 10498
 10506
+10513
 10514
 10518
 10522
@@ -1129,6 +1141,7 @@
 11057 (included in commit of r10754)
 11065
 //11101 don't merge this, reverted later
+
 11106
 11107
 11116
@@ -1139,3 +1152,11 @@
 11142
 11150
 11201
+11240 - backport from extended player ranking UI
+11241 - backport from extended player ranking UI
+11242 - backport from extended
+//11244 UNNECESSARY - player ranking UI. unique to extended
+11245 - backport from extended player ranking UI
+//11247 maybe UNNECESSARY - player ranking UI.
+11248
+//11250 UNNECESSARY - player ranking UI. unique to extended

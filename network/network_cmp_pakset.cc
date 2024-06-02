@@ -142,7 +142,7 @@ void network_compare_pakset_with_server(const char* cp, std::string &msg)
 			}
 		}
 		// copy our info to addon
-		// ie treatall our paks as if they were not present on the server
+		// ie treat all our paks as if they were not present on the server
 		stringhashtable_tpl<checksum_t*, N_BAGS_LARGE> addons;
 		{
 			for(auto const& i : pakset_info_t::get_info()) {

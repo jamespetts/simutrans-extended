@@ -206,8 +206,13 @@ uint16 env_t::compass_screen_position;
 
 uint32 env_t::default_ai_construction_speed;
 
-bool env_t::hide_keyboard = false;
 
+#ifdef __ANDROID__
+// autoshow keyboard on textinput
+bool env_t::hide_keyboard = true;
+#else
+bool env_t::hide_keyboard = false;
+#endif
 
 
 // Define default settings.
@@ -645,7 +650,7 @@ void env_t::rdwr(loadsave_t *file)
 		file->rdwr_short(display_scale_percent);
 	}
 
-	if (file->is_version_atleast(123, 2) || file->is_version_ex_atleast(14,65) ) {
+	if (file->is_version_ex_atleast(14,65) ) {
 		file->rdwr_short(scroll_threshold);
 	}
 

@@ -1,3 +1,6 @@
+	ADD: (ranran) player ranking frame as dialog tool 37
+
+Release of 124.0 (r11164 on 5-May-2024):
 	ADD: new tool (and button in signal dialog) for removing signals only
 	CHG: a go-to-coordinate action will change view to underground/normal view if target is invisible
 	FIX: Wrong brightness of colours in screenshots

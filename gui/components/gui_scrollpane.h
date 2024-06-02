@@ -10,9 +10,6 @@
 #include "gui_component.h"
 #include "gui_scrollbar.h"
 
-/*
- * this is a scrolling area in which subcomponents are drawn
- */
 class loadsave_t;
 
 /*
@@ -22,8 +19,6 @@ class gui_scrollpane_t : public gui_component_t
 {
 private:
 	scr_size old_comp_size;
-	scr_size cached_min_size;
-	scr_size cached_max_size;
 
 	bool b_show_scroll_x:1;
 	bool b_show_scroll_y:1;
@@ -31,7 +26,6 @@ private:
 	bool maximize:1;
 	bool b_can_drag:1;
 	bool b_is_dragging:1;
-	bool take_cached_size:1;
 
 	// start of dragging
 	scr_coord origin;

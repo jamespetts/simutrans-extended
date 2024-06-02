@@ -321,7 +321,8 @@ void replace_frame_t::set_vehicles(bool init)
 		vehicle_count = cnv->get_vehicle_count();
 		veh_tmp_list.resize(vehicle_count, NULL);
 		for (uint8 i = 0; i < vehicle_count; i++) {
-			vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), cnv->get_owner(), NULL, cnv->get_vehicle(i)->get_desc());
+			vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), world()->get_public_player(), NULL, cnv->get_vehicle(i)->get_desc());
+			dummy_veh->set_flag(obj_t::not_on_map);
 			dummy_veh->set_current_livery(cnv->get_vehicle(i)->get_current_livery());
 			dummy_veh->set_reversed(cnv->get_vehicle(i)->is_reversed());
 			veh_tmp_list[i] = dummy_veh;
@@ -404,6 +405,12 @@ void replace_frame_t::set_vehicles(bool init)
 		}
 		convoy_assembler.set_vehicles(existing_vehicles);
 	}
+	for (uint8 i = vehicle_count; i-- != 0; ) {
+		world()->get_public_player()->book_vehicle_number(-1, cnv->front()->get_waytype());
+		world()->get_public_player()->book_new_vehicle(veh_tmp_list[i]->get_desc()->get_value(), koord::invalid, cnv->front()->get_waytype());
+		delete veh_tmp_list[i];
+	}
+	veh_tmp_list.clear();
 }
 
 void replace_frame_t::update_data()
