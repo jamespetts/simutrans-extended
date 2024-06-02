@@ -112,9 +112,7 @@ server_frame_t::server_frame_t() :
 		add_component( &add );
 
 		new_component_span<gui_divider_t>(3);
-	}
 
-	if(!env_t::networkmode) {
 		add_component(&revision, 2);
 
 		find_mismatch.init(button_t::roundbox, "find mismatch");
