@@ -70,6 +70,14 @@ server_frame_t::server_frame_t() :
 
 	set_table_layout(3,0);
 
+	new_component<gui_label_t>("Nickname:");
+	add_component(&nick, 2);
+	nick.add_listener(this);
+	nick.set_text(nick_buf, lengthof(nick_buf));
+	tstrncpy(nick_buf, env_t::nickname.c_str(), min(lengthof(nick_buf), env_t::nickname.length() + 1));
+
+	new_component_span<gui_divider_t>(3);
+
 	// When in network mode, display only local map info (and nickname changer)
 	// When not in network mode, display server picker
 	if (  !env_t::networkmode  ) {
@@ -146,14 +154,6 @@ server_frame_t::server_frame_t() :
 	}
 	end_table();
 	new_component<gui_fill_t>();
-
-	new_component_span<gui_divider_t>(3);
-
-	new_component<gui_label_t>("Nickname:" );
-	add_component( &nick, 2 );
-	nick.add_listener(this);
-	nick.set_text( nick_buf, lengthof( nick_buf ) );
-	tstrncpy( nick_buf, env_t::nickname.c_str(), min( lengthof( nick_buf ), env_t::nickname.length() + 1 ) );
 
 	if (  !env_t::networkmode  ) {
 		// only update serverlist, when not already in network mode
