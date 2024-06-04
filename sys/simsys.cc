@@ -48,7 +48,9 @@
 #	endif
 #endif
 
-
+#ifdef USE_FONTCONFIG
+#include <fontconfig/fontconfig.h>
+#endif
 
 sys_event_t sys_event;
 
@@ -123,24 +125,44 @@ scr_coord get_mouse_pos()
 
 
 
+// create a directory with all subdirectories needed
 int dr_mkdir(char const* const path)
 {
 #ifdef _WIN32
 	// Perform operation.
-	int const result = CreateDirectoryW(U16View(path), NULL) ? 0 : -1;
+	int const result = SHCreateDirectory(NULL, U16View(path)) ? 0 : -1;
 
 	// Translate error.
-	if(result != 0) {
+	if(result != ERROR_SUCCESS) {
 		DWORD const error = GetLastError();
-		if(error == ERROR_ALREADY_EXISTS) {
+		if (error == ERROR_ALREADY_EXISTS || error == ERROR_FILE_EXISTS) {
 			errno = EEXIST;
-		} else if(error == ERROR_PATH_NOT_FOUND) {
+		}
+		else if(error == ERROR_PATH_NOT_FOUND) {
 			errno = ENOENT;
 		}
 	}
 
 	return result;
 #else
+	// create also intermediate directories
+	char tmp[PATH_MAX];
+	size_t len;
+	snprintf(tmp, sizeof(tmp), "%s", path);
+	// remove trailing director separator
+	len = strnlen(tmp, sizeof(tmp));
+	if (tmp[len - 1] == *PATH_SEPARATOR) {
+		tmp[len - 1] = 0;
+	}
+	// now walk the path
+	for (char *p = tmp + 1; *p; p++ ) {
+		if (*p == '/') {
+			*p = '\0';
+			// mkdir mail fail if already existing, but we continue anyway
+			mkdir(tmp, 0777);
+			*p = '/';
+		}
+	}
 	return mkdir(path, 0777);
 #endif
 }
@@ -370,6 +392,13 @@ const char *dr_query_fontpath(int which)
 	static char buffer[PATH_MAX];
 #ifdef _WIN32
 	if(  which>0  ) {
+		if (!which) {
+			// Build full font file path
+			static CHAR winDir[MAX_PATH];
+			GetWindowsDirectoryA(winDir, MAX_PATH);
+			strcat(winDir, "\\Fonts\\");
+			return winDir;
+		}
 		return NULL;
 	}
 
@@ -459,6 +488,115 @@ const char *dr_query_fontpath(int which)
 	return NULL;
 #endif
 }
+
+
+
+std::string dr_get_system_font()
+{
+#if COLOUR_DEPTH != 0
+#ifdef WIN32
+#define DEFAULT_FONT "arial.ttf"
+
+	NONCLIENTMETRICSW ncm;
+	ncm.cbSize = sizeof(NONCLIENTMETRICSW);
+	SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &ncm, 0);
+	std::wstring wsFaceName = ncm.lfMessageFont.lfFaceName;
+
+	LPWSTR fontRegistryPath = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
+	HKEY hKey;
+	LONG result;
+
+	// Open Windows font registry key
+	result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, fontRegistryPath, 0, KEY_READ, &hKey);
+	if (result != ERROR_SUCCESS) {
+		return DEFAULT_FONT;
+	}
+	DWORD maxValueNameSize, maxValueDataSize;
+	result = RegQueryInfoKeyW(hKey, 0, 0, 0, 0, 0, 0, 0, &maxValueNameSize, &maxValueDataSize, 0, 0);
+	if (result != ERROR_SUCCESS) {
+		return DEFAULT_FONT;
+	}
+	DWORD valueIndex = 0;
+	LPWSTR valueName = new WCHAR[maxValueNameSize];
+	LPBYTE valueData = new BYTE[maxValueDataSize];
+	DWORD valueNameSize, valueDataSize, valueType;
+	std::wstring wsFontFile;
+	// So far best matching font name
+	std::wstring wsBestMatch;
+
+	do {
+		wsFontFile.clear();
+		valueDataSize = maxValueDataSize;
+		valueNameSize = maxValueNameSize;
+		result = RegEnumValueW(hKey, valueIndex, valueName, &valueNameSize, 0, &valueType, valueData, &valueDataSize);
+		valueIndex++;
+		if (result != ERROR_SUCCESS || valueType != REG_SZ) {
+			continue;
+		}
+		std::wstring wsValueName(valueName, valueNameSize);
+		// Found a match
+		if (_wcsnicmp(wsFaceName.c_str(), wsValueName.c_str(), wsFaceName.length()) == 0) {
+			// full match
+			wsFontFile.assign((LPWSTR)valueData, valueDataSize);
+			break;
+		}
+
+		// Sometimes the face name is a family name; then only a partial match will be possible
+		if (wcsstr(wsValueName.c_str(), wsFaceName.c_str())) {
+			wsBestMatch.assign((LPWSTR)valueData, valueDataSize);
+		}
+	} while (result != ERROR_NO_MORE_ITEMS);
+	delete[] valueName;
+	delete[] valueData;
+	RegCloseKey(hKey);
+
+	if (wsFontFile.empty()) {
+		if (wsBestMatch.empty()) {
+			dbg->warning("dr_get_system_font()", "%s not found!", std::string(wsFaceName.begin(), wsFaceName.end()).c_str());
+			return DEFAULT_FONT;
+		}
+		wsFontFile = wsBestMatch;
+		dbg->warning("dr_get_system_font()", "Using %s for %s", std::string(wsFontFile.begin(), wsFontFile.end()).c_str(), std::string(wsFaceName.begin(), wsFaceName.end()).c_str());
+	}
+
+	// Build full font file path
+	CHAR winDir[MAX_PATH];
+	GetWindowsDirectoryA(winDir, MAX_PATH);
+	strcat(winDir, "\\Fonts\\");
+	// luckily any TTF font in windows has an ASCII name ...
+	DBG_MESSAGE("dr_get_system_font()", "Using %s", std::string(wsFontFile.begin(), wsFontFile.end()).c_str());
+	return (std::string)winDir + std::string(wsFontFile.begin(), wsFontFile.end());
+#elif defined(ANDROID)
+	std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
+	return fontname;
+#elif defined(USE_FONTCONFIG)
+	std::string fontFile = FONT_PATH_X "cyr.bdf";
+	FcInit();
+	FcConfig* config = FcInitLoadConfigAndFonts();
+	FcPattern* pat = FcNameParse((const FcChar8*)"Sans");
+	FcConfigSubstitute(config, pat, FcMatchPattern);
+	FcDefaultSubstitute(pat);
+	FcResult result;
+	FcPattern* font = FcFontMatch(config, pat, &result);
+	if (font) {
+		FcChar8* file = NULL;
+		if (  FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch  ) {
+			fontFile = (char*)file;
+		}
+	}
+	FcPatternDestroy(font);
+	FcPatternDestroy(pat);
+	FcConfigDestroy(config);
+	FcFini();
+	return fontFile;
+#else
+	return FONT_PATH_X "cyr.bdf";
+#endif
+#else
+	return "";
+#endif
+}
+
 
 
 /* this retrieves the 2 byte string for the default language

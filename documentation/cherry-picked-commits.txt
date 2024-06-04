@@ -1099,6 +1099,8 @@
 10801
 10802
 10822
+10826
+10827
 10845
 ||
 10853
@@ -1117,6 +1119,10 @@
 ||
 10888
 10891
+10908
+10910
+10925
+10926
 10930
 10932
 10934
@@ -1140,13 +1146,19 @@
 11028
 ||
 11032
+11049
 11051
 11057 (included in commit of r10754)
 11065
-//11101 don't merge this, reverted later
-
+11081
+11091
+11093
+11094
+//11101 unnecessary
 11106
 11107
+11111
+11112
 11116
 11117
 11120
@@ -1154,6 +1166,7 @@
 11124
 11142
 11150
+11162
 11201
 11240 - backport from extended player ranking UI
 11241 - backport from extended player ranking UI
@@ -1162,4 +1175,6 @@
 11245 - backport from extended player ranking UI
 //11247 maybe UNNECESSARY - player ranking UI.
 11248
-//11250 UNNECESSARY - player ranking UI. unique to extended
+//11250 player ranking UI. unique to extended (TODO: backport rdwr() to extended)
+//11252 UNNECESSARY - player ranking UI. unique to extended
+11268

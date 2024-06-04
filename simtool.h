@@ -846,6 +846,7 @@ public:
 	char const* work(player_t*, koord3d) OVERRIDE { return default_param ? default_param : ""; }
 };
 
+
 /********************* one click tools ****************************/
 
 class tool_pause_t : public tool_t {
@@ -949,7 +950,7 @@ public:
 		return factor>0 ? translator::translate("Accelerate time") : translator::translate("Deccelerate time");
 	}
 	bool init( player_t *player ) OVERRIDE {
-		if(  !env_t::networkmode  ||  player->get_player_nr()==1  ) {
+		if(  !env_t::networkmode  ||  player->is_public_service()  ) {
 			// in networkmode only for public player
 			welt->change_time_multiplier( atoi(default_param) );
 		}

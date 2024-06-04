@@ -12,15 +12,6 @@
 
 #include <vector>
 
-
-#define GLYPH_BITMAP_HEIGHT (23u)
-#define GLYPH_BITMAP_WIDTH  (16u)
-#define GLYPH_BITMAP_BPP    (1u) // cannot be changed currently
-
-// Size in bytes of a single row
-#define GLYPH_ROW_PITCH (((GLYPH_BITMAP_WIDTH*GLYPH_BITMAP_BPP)+CHAR_BIT-1)/CHAR_BIT)
-
-
 /**
  * Terminology:
  *  - glyph:        display data of a single character
@@ -38,14 +29,19 @@ public:
 	{
 		glyph_t();
 
-		uint8 bitmap[GLYPH_ROW_PITCH * GLYPH_BITMAP_HEIGHT];
-		uint8 yoff; // = ascent - bearingY
-		uint8 width;
-		uint8 advance;
+		uint8* bitmap;
+		sint16 height;
+		sint16 width;
+		sint16 advance;
+		sint16 top;
+		sint16 left;
 	};
 
 public:
 	font_t();
+
+	// returns true if this character is contained in the font
+	static bool is_char_in_freetype_font(const char* fname, utf16 testchar);
 
 public:
 	/// @returns true on success
@@ -54,33 +50,18 @@ public:
 
 	const char *get_fname() const { return fname; }
 	sint16 get_linespace() const { return linespace; }
-	sint16 get_descent() const { return descent; } ///< Note: Because this value is in grid coordinates, it is NEGATIVE.
-	sint16 get_ascent() const { return linespace + descent; }
+	sint16 get_ascent() const { return ascent; }
 
 	/// @returns true if this is a valid (defined) glyph
-	bool is_valid_glyph(utf32 c) const
-	{ return is_loaded() && c < get_num_glyphs() && glyphs[c].advance != 0xFF; }
+	bool is_valid_glyph(utf32 c) const { return  is_loaded()  &&  c < get_num_glyphs()  &&  glyphs[c].advance != 0xFF;  }
 
 	/// @returns size in pixels between the start of this glyph and the next glyph
-	uint8 get_glyph_advance(utf32 c) const;
+	sint16 get_glyph_advance(utf32 c) const;
 
-	/// @returns width in pixels of the glyph of a character
-	uint8 get_glyph_width(utf32 c) const;
-
-	/// @returns yoffset in pixels of the glyph of a character
-	uint8 get_glyph_yoffset(uint32 c) const;
-
-	/// @returns glyph data of a character
-	/// @sa font_t::glyph_t::bitmap
-	const uint8 *get_glyph_bitmap(utf32 c) const;
+	/// @returns glyph data for this utf32 char
+	const glyph_t& get_glyph(utf32 c) const;
 
 private:
-	/// Load a BDF font
-	bool load_from_bdf(FILE *fin);
-
-	/// Load a .fnt file
-	bool load_from_fnt(FILE *fin);
-
 #ifdef USE_FREETYPE
 	/// Load a freetype font
 	bool load_from_freetype(const char *fname, int pixel_height);
@@ -93,6 +74,7 @@ private:
 private:
 	char fname[PATH_MAX];
 	sint16 linespace;
+	sint16 ascent;
 	sint16 descent;
 public:	// for simgraph has_character()
 	std::vector<glyph_t> glyphs;
