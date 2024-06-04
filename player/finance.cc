@@ -21,7 +21,6 @@
  * initialize finance history arrays
  */
 finance_t::finance_t(player_t * _player, karte_t * _world) :
-	player(_player),
 	world(_world)
 {
 	account_balance = world->get_settings().get_starting_money(world->get_last_year());
