@@ -264,8 +264,8 @@ int default_font_linespace = 0;
 #ifdef RGB555
 #define ONE_OUT (0x3DEF) // mask out bits after applying >>1
 #define TWO_OUT (0x1CE7) // mask out bits after applying >>2
-inline PIXVAL rgb(PIXVAL r, PIXVAL g, PIXVAL b) { return (r << 10) | (g << 5) | b; }
 #define MASK_32 (0x03e0f81f) // mask out bits after transforming to 32bit
+inline PIXVAL rgb(PIXVAL r, PIXVAL g, PIXVAL b) { return (r << 10) | (g << 5) | b; }
 inline PIXVAL red(PIXVAL rgb) { return  rgb >> 10; }
 inline PIXVAL green(PIXVAL rgb) { return (rgb >> 5) & 0x1F; }
 #else
@@ -277,6 +277,7 @@ inline PIXVAL red(PIXVAL rgb) { return rgb >> 11; }
 inline PIXVAL green(PIXVAL rgb) { return (rgb >> 5) & 0x3F; }
 #endif
 inline PIXVAL blue(PIXVAL rgb) { return  rgb & 0x1F; }
+
 /**
  * Implement shift-and-mask for rgb values:
  * shift-right by 1 or 2, and mask it to a valid rgb number.
@@ -325,7 +326,6 @@ static PIXVAL specialcolormap_day_night[256];
  * 16 sets of 16 colors
  */
 PIXVAL specialcolormap_all_day[256];
-
 
 // offsets of first and second company color
 static uint8 player_offsets[MAX_PLAYER_COUNT][2];
@@ -1082,6 +1082,7 @@ static void recode_img_src_target(scr_coord_val h, PIXVAL *src, PIXVAL *target)
 							// expand transparent player color
 							const uint8 alpha   = (*src-0x8020) % 31;
 							const PIXVAL colour = rgbmap_day_night[(*src-0x8020)/31+0x8000];
+
 							*target++ = 0x8020 + 31*31 + pixval_to_rgb343(colour)*31 + alpha;
 							src ++;
 						}
@@ -1736,6 +1737,7 @@ static void calc_base_pal_from_night_shift(const int night)
 		int R = (i & 0x0380) >> 2;
 		int G = (i & 0x0078) << 1;
 		int B = (i & 0x0007) << 5;
+
 		// lines generate all possible colors in 343RGB code - input
 		// however the result is in 888RGB - 8bit per channel
 		R = (int)(R * RG_night_multiplier);
@@ -1972,7 +1974,6 @@ static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const
 }
 
 
-
 /**
  * Copy pixel, replace player color
  */
@@ -1988,6 +1989,7 @@ static inline void colorpixcopy(PIXVAL* dest, const PIXVAL* src, const PIXVAL* c
 			// a semi-transparent pixel
 			uint16 aux   = *src++ - 0x8020;
 			uint16 alpha = (aux % 31) + 1;
+
 			*dest = colors_blend_alpha32(*dest, rgbmap_day_night[0x8000 + aux / 31], alpha);
 			dest++;
 		}
@@ -2775,7 +2777,6 @@ struct blend25_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foregrou
 struct blend50_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foreground) { return rgb_shr1(background) + rgb_shr1(foreground); }     };
 struct blend75_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foreground) { return rgb_shr2(background) + 3 * rgb_shr2(foreground); } };
 
-
 template<class F> void pix_blend_tpl(PIXVAL *dest, const PIXVAL *src, const PIXVAL , const PIXVAL len)
 {
 	const PIXVAL *const end = dest + len;
@@ -2806,7 +2807,6 @@ template<class F> void pix_outline_tpl(PIXVAL *dest, const PIXVAL *, const PIXVA
 	}
 }
 
-
 // save them for easier access
 static blend_proc blend[3] = {
 	pix_blend_tpl<blend25_t>,
@@ -2822,7 +2822,6 @@ static blend_proc outline[3] = {
 	pix_outline_tpl<blend25_t>,
 	pix_outline_tpl<blend50_t>,
 	pix_outline_tpl<blend75_t>};
-
 
 
 /**
@@ -2946,6 +2945,7 @@ static PIXVAL get_alpha_mask(const unsigned alpha_flags)
 	}
 	return mask;
 }
+
 
 typedef void (*alpha_proc)(PIXVAL *dest, const PIXVAL *src, const PIXVAL *alphamap, const PIXVAL alpha_mask, const PIXVAL colour, const PIXVAL len);
 
@@ -3258,7 +3258,7 @@ void display_base_img_blend(const image_id n, scr_coord_val xp, scr_coord_val yp
 			if(  dirty  ) {
 				mark_rect_dirty_wc( x, y, x + w - 1, y + h - 1 );
 			}
-			display_img_blend_wc(h, x, y, sp, color, pix_blend  CLIP_NUM_PAR);
+			display_img_blend_wc( h, x, y, sp, color, pix_blend  CLIP_NUM_PAR );
 		}
 	} // number ok
 }
@@ -3461,8 +3461,9 @@ void display_fillbox_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w,
 
 void display_fillbox_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty  CLIP_NUM_DEF)
 {
-	display_fb_internal(xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
+	display_fb_internal( xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy );
 }
+
 
 void display_filled_roundbox_clip(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty)
 {
@@ -3863,10 +3864,8 @@ int display_calc_proportional_string_len_width(const char *text, size_t len)
 		width += pixel_width;
 		idx += byte_length;
 	}
-
 	return width;
 }
-
 
 
 /* display_calc_proportional_multiline_string_len_width
@@ -3971,20 +3970,24 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 		// get the data from the font
 		const font_t::glyph_t& glyph = fnt->get_glyph(c);
 		const uint8 *p = glyph.bitmap;
+
 		int screen_pos = (y + glyph.top) * disp_width + x + glyph.left;
+
 		// glyph x clipping
 		int g_left  = max(cL - x - glyph.left, 0);
 		int g_right = min(cR - x - glyph.left, glyph.width);
-		// all visible rows
 
-		// currently max character width 16 bit supported by font.h/font.cc
+		// all visible rows
 		for (int h = 0; h < glyph.height; h++) {
 			const int line = y + glyph.top + h;
 			if(line >= cT && line < cB) {
+
 				PIXVAL* dst = textur + screen_pos + g_left;
+
 				// all columns
 				for(int gx=g_left; gx<g_right; gx++) {
 					int alpha = p[h*glyph.width + gx];
+
 					if(alpha > 31) {
 						// opaque
 						*dst++ = color;

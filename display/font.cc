@@ -245,7 +245,7 @@ bool font_t::load_from_bdf(FILE *bdf_file)
 
 bool font_t::load_from_freetype(const char *fname, int pixel_height)
 {
-	dbg->message("font_t::load_from_freetype", "trying to load '%s' in size %d", fname, pixel_height);
+	dbg->message( "font_t::load_from_freetype", "trying to load '%s' in size %d", fname, pixel_height);
 
 	FT_Library ft_library = NULL;
 	if(  FT_Init_FreeType(&ft_library) != FT_Err_Ok  ) {
@@ -264,6 +264,7 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 
 	if(  FT_Set_Pixel_Sizes( face, 0, pixel_height ) != FT_Err_Ok  ) {
 		dbg->warning( "font_t::load_from_freetype", "Cannot set pixel size %d for %s", pixel_height, fname);
+
 		// try to find closest available pixel_height
 		int best = -1;
 		for (int i=0; i<face->num_fixed_sizes; i++) {
@@ -272,6 +273,7 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 				best = h;
 			}
 		}
+
 		if (best == -1) {
 			// failed
 			FT_Done_Face(face);
@@ -351,12 +353,15 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 		glyph.height  = bitmap->rows;
 		glyph.width   = bitmap->width;
 		glyph.advance = (face->glyph->advance.x + 31) / 64;
+
 		// the bitmaps are all top aligned. Bitmap top is the ascent
 		// above the base line
 		// to find the real top position, we must take the font ascent
 		// and reduce it by the glyph ascent
 		glyph.top = ascent - face->glyph->bitmap_top - 1;
+
 		glyph.left = face->glyph->bitmap_left;
+
 		// transform glyph to Simutrans bitmap
 		glyph.bitmap = (uint8*)calloc(glyph.height * glyph.width, 1);
 
@@ -403,6 +408,7 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 		glyphs[0x3000].width = 0;
 		glyphs[0x3000].top = 0;
 	}
+
 	if (glyphs[' '].advance == 0xFF) {
 		glyphs[' '].advance = glyphs['n'].advance;
 	}
@@ -424,7 +430,7 @@ void font_t::print_debug() const
 	dbg->debug("font_t::print_debug", "height: %i, descent: %i", linespace, descent );
 
 	/*
-	for(  uint8 glyph_nr = ' ';  glyph_nr<128; glyph_nr ++  ) {
+	for(uint8 glyph_nr = ' ';  glyph_nr<128; glyph_nr ++) {
 		char msg[128 + GLYPH_BITMAP_HEIGHT * (GLYPH_BITMAP_WIDTH+1)]; // +1 for trailing newline
 
 		char *c = msg + sprintf(msg, "glyph %c: width %i, top %i\n", glyph_nr, get_glyph_width(glyph_nr), get_glyph_yoffset(glyph_nr) );
