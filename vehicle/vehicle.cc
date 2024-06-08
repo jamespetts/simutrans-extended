@@ -3218,7 +3218,6 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 				else {
 					// line/convoy name
 					display_ddd_proportional_clip(xpos, ypos-yoff, col_val, is_dark_color(col_val) ? color_idx_to_rgb(COL_WHITE) : color_idx_to_rgb(COL_BLACK), nameplate_text, true);
-					// (*)display_ddd_proportional_clip's height is LINESPACE/2+1+1
 				}
 			}
 		}
@@ -3295,8 +3294,7 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 		if (tooltip_text[0]) {
 			const int width = proportional_string_width(tooltip_text) + 7;
 			if (ypos > LINESPACE + 32 && ypos + LINESPACE < display_get_clip_wh().yy) {
-				display_ddd_proportional_clip(xpos, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + LINESPACE/2+2 + extra_y, width, 0, color, color_idx_to_rgb(COL_BLACK), tooltip_text, true);
-				// (*)display_ddd_proportional_clip's height is LINESPACE/2+1+1
+				display_ddd_proportional_clip(xpos, ypos - LOADINGBAR_HEIGHT - WAITINGBAR_HEIGHT + LINESPACE/2+2 + extra_y, color, color_idx_to_rgb(COL_BLACK), tooltip_text, true);
 			}
 		}
 	}
