@@ -5147,7 +5147,7 @@ void haltestelle_t::display_status(sint16 xpos, sint16 ypos)
 				break;
 		}
 	}
-	ypos += -D_WAITINGBAR_WIDTH - LINESPACE/6;
+	ypos += -D_WAITINGBAR_WIDTH;
 
 
 	if(  count != last_bar_count  ) {
