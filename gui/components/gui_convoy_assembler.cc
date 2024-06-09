@@ -617,14 +617,15 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 			// top left
 			add_table(1,3)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
 			{
-				cont_convoi.set_table_layout(2,2);
+				cont_convoi.set_table_layout(2,2); // UI TODO: edit after incorporating set_sticky_bottom() r11236
 				cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
 				cont_convoi.set_spacing(scr_size(0,0));
 				cont_convoi.add_component(&convoi);
 				lb_makeup.init("Select vehicles to make up a convoy", scr_coord(0,0), SYSCOL_TEXT_INACTIVE, gui_label_t::centered);
 				cont_convoi.add_component(&lb_makeup);
-				cont_convoi.new_component<gui_margin_t>(0,D_SCROLLBAR_HEIGHT);
+				cont_convoi.new_component<gui_margin_t>(0,D_SCROLLBAR_HEIGHT); // UI TODO: remove after incorporating set_sticky_bottom() r11236
 				convoi.set_max_rows(1);
+				//scrollx_convoi.set_sticky_bottom(); // TODO: enable after incorporating r11236 and related commits
 				scrollx_convoi.set_maximize(true);
 				add_component(&scrollx_convoi);
 
@@ -1724,6 +1725,7 @@ void gui_convoy_assembler_t::update_convoi()
 		lb_convoi_way_wear.buf().printf("%.4f", way_wear_factor/10000.0);
 		lb_convoi_way_wear.update();
 		cont_convoi.set_size(cont_convoi.get_min_size()); // Update the size when the number of vehicles changes
+		scrollx_convoi.set_scroll_position(0, D_SCROLLBAR_HEIGHT);  // UI TODO: remove after incorporating set_sticky_bottom() r11236
 	}
 
 	cont_convoi_capacity.set_size(cont_convoi_capacity.get_min_size());
