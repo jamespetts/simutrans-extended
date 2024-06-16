@@ -1872,20 +1872,20 @@ void win_display_flush(double konto)
 				// display tooltip when current owner is invalid or when it is within visible duration
 				uint32 elapsed_time;
 				if(  !tooltip_owner  ||  ((elapsed_time=dr_time()-tooltip_register_time)>env_t::tooltip_delay  &&  elapsed_time<=env_t::tooltip_delay+env_t::tooltip_duration)  ) {
-					const sint16 width = proportional_string_width(tooltip_text)+7;
+					const sint16 width = proportional_string_width(tooltip_text)+(LINESPACE/2);
 					scr_coord pos{ tooltip_xpos, tooltip_ypos };
 					win_clamp_xywh_position( pos, scr_size( width, (LINESPACE*9)/7 ), true );
-					display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, tooltip_text, true);
+					display_ddd_proportional_clip( pos.x, pos.y, env_t::tooltip_color, env_t::tooltip_textcolor, tooltip_text, true);
 					if(wl) {
 						wl->set_background_dirty();
 					}
 				}
 			}
 			else if(!static_tooltip_text.empty()) {
-				const sint16 width = proportional_string_width(static_tooltip_text.c_str())+7;
+				const sint16 width = proportional_string_width(static_tooltip_text.c_str())+(LINESPACE/2);
 				scr_coord pos = get_mouse_pos();
 				win_clamp_xywh_position(pos, scr_size(width, (LINESPACE*9)/7), true);
-				display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, static_tooltip_text.c_str(), true);
+				display_ddd_proportional_clip( pos.x, pos.y, env_t::tooltip_color, env_t::tooltip_textcolor, static_tooltip_text.c_str(), true);
 				if(wl) {
 					wl->set_background_dirty();
 				}
@@ -2167,14 +2167,14 @@ void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*qui
 	// switch off autosave
 	sint32 old_autosave = env_t::autosave;
 	env_t::autosave = 0;
-
+	create_win(scr_coord(0,0), gui, w_info, magic);
 	event_t ev;
 	scr_coord pos{
 		(display_get_width()  - gui->get_windowsize().w) / 2,
 		(display_get_height() - gui->get_windowsize().h) / 2
 	};
 	win_clamp_xywh_position(pos, gui->get_windowsize(), true);
-	create_win(pos, gui, w_info, magic);
+	wins[wins[0].gui!=gui].pos = pos;
 
 	if (welt) {
 		welt->set_pause(false);

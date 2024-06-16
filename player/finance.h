@@ -189,7 +189,6 @@ inline sint64 convert_money(sint64 value) { return (value + 50) / 100; }
  */
 class finance_t {
 	/** transport company */
-	player_t * player;
 
 	karte_t * world;
 
@@ -648,12 +647,6 @@ public:
 	void set_account_overdrawn(sint32 num) { account_overdrawn = num; }
 
 	void set_starting_money(sint64 amount) {  starting_money = amount; }
-
-	/**
-	 * Translates building_desc_t to transport_type
-	 * Building can be assigned to transport type using utyp
-	 */
-	static transport_type translate_utyp_to_tt(int utyp);
 
 	/**
 	 * Translates waytype_t to transport_type

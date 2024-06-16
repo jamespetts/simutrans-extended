@@ -1817,17 +1817,25 @@ void display_text_label(sint16 xpos, sint16 ypos, const char* text, const player
 {
 	sint16 pc = player ? player->get_player_color1()+4 : SYSCOL_TEXT_HIGHLIGHT;
 	switch( env_t::show_names >> 2 ) {
-		case 0:
-			display_ddd_proportional_clip( xpos, ypos, proportional_string_width(text)+7, 0, color_idx_to_rgb(pc), color_idx_to_rgb(COL_BLACK), text, dirty );
+		case 0: {
+			const PIXVAL bg_color = player ? color_idx_to_rgb(player->get_player_color1()+4) : SYSCOL_TEXT_HIGHLIGHT;
+			display_ddd_proportional_clip( xpos, ypos, bg_color, color_idx_to_rgb(COL_BLACK), text, dirty );
 			break;
-		case 1:
-			display_outline_proportional_rgb( xpos, ypos-(LINESPACE/2), color_idx_to_rgb(pc+3), color_idx_to_rgb(COL_BLACK), text, dirty );
+		}
+		case 1: {
+			const PIXVAL text_color = player ? color_idx_to_rgb(player->get_player_color1()+7) : SYSCOL_TEXT_HIGHLIGHT;
+			display_outline_proportional_rgb( xpos, ypos, text_color, color_idx_to_rgb(COL_BLACK), text, dirty );
 			break;
-		case 2:
-			display_outline_proportional_rgb( xpos + LINESPACE + D_H_SPACE, ypos-(LINESPACE/4),   color_idx_to_rgb(COL_YELLOW), color_idx_to_rgb(COL_BLACK), text, dirty );
-			display_ddd_box_clip_rgb(         xpos,                         ypos-(LINESPACE/2),   LINESPACE,   LINESPACE,   color_idx_to_rgb(pc-2), PLAYER_FLAG|color_idx_to_rgb(pc+2) );
-			display_fillbox_wh_rgb(           xpos+1,                       ypos-(LINESPACE/2)+1, LINESPACE-2, LINESPACE-2, color_idx_to_rgb(pc), dirty );
+		}
+		case 2: {
+			const PIXVAL dark   = player ? color_idx_to_rgb(player->get_player_color1()+2) : SYSCOL_TEXT_HIGHLIGHT;
+			const PIXVAL normal = player ? color_idx_to_rgb(player->get_player_color1()+4) : SYSCOL_TEXT_HIGHLIGHT;
+			const PIXVAL bright = player ? color_idx_to_rgb(player->get_player_color1()+6) : SYSCOL_TEXT_HIGHLIGHT;
+			display_outline_proportional_rgb( xpos + LINESPACE + D_H_SPACE, ypos,   color_idx_to_rgb(COL_YELLOW), color_idx_to_rgb(COL_BLACK), text, dirty );
+			display_ddd_box_clip_rgb(         xpos,                         ypos,   LINESPACE,   LINESPACE,   dark, PLAYER_FLAG|bright );
+			display_fillbox_wh_rgb(           xpos+1,                       ypos+1, LINESPACE-2, LINESPACE-2, normal, dirty );
 			break;
+		}
 	}
 }
 
@@ -1860,7 +1868,7 @@ void grund_t::display_overlay(const sint16 xpos, const sint16 ypos)
 		}
 	}
 
-	if(  env_t::show_factory_storage_bar  ) {
+	if( env_t::show_factory_storage_bar ) {
 		if( get_building() ) {
 			if( env_t::show_factory_storage_bar == 1 || get_building()->get_first_tile()==get_building() ) {
 				if (fabrik_t *fab = get_building()->get_first_tile()->get_fabrik()) {
