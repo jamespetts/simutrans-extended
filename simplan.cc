@@ -237,7 +237,17 @@ void planquadrat_t::boden_ersetzen(grund_t *alt, grund_t *neu)
 		}
 		// transfer all objects
 		while(  alt->get_top()>0  ) {
+#ifdef MULTI_THREAD
+			int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+			assert(error == 0);
+			(void)error;
+#endif
 			neu->obj_add( alt->obj_remove_top() );
+#ifdef MULTI_THREAD
+			error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+			assert(error == 0);
+			(void)error;
+#endif
 		}
 		delete alt;
 	}

@@ -126,7 +126,6 @@ bool tree_builder_t::plant_tree_on_coordinate(koord pos, const tree_desc_t *desc
 				b->geburt = welt->get_current_month() - simrand(baum_t::AGE_LIMIT-1);
 				b->calc_off( welt->lookup( b->get_pos() )->get_grund_hang() );
 			}
-
 			gr->obj_add( b );
 			return true; //tree was planted - currently unused value is not checked
 		}

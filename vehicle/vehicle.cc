@@ -228,13 +228,31 @@ void vehicle_base_t::leave_tile()
 		grund_t *gr2 = welt->lookup(pos_next);
 		if(cr) {
 			if(gr2==NULL  ||  gr2==gr  ||  !gr2->ist_uebergang()  ||  cr->get_logic()!=gr2->find<crossing_t>(2)->get_logic()) {
+#ifdef MULTI_THREAD
+				int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+				assert(error == 0);
+				(void)error;
+#endif
 				cr->release_crossing(this);
+#ifdef MULTI_THREAD
+				error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+				assert(error == 0);
+				(void)error;
+#endif
 			}
 		} else {
 			dbg->warning("vehicle_base_t::leave_tile()", "No crossing found at %s", gr->get_pos().get_str());
 		}
 	}
-
+#ifdef MULTI_THREAD
+	int error = 0;
+	if (!get_flag(not_on_map) && gr)
+	{
+		error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+	}
+	assert(error == 0);
+	(void)error;
+#endif
 	// then remove from ground (or search whole map, if failed)
 	if(!get_flag(not_on_map)  &&  (gr==NULL  ||  !gr->obj_remove(this)) ) {
 
@@ -271,6 +289,11 @@ void vehicle_base_t::leave_tile()
 			dbg->error("vehicle_base_t::leave_tile()","'%s' %p was not found on any map square!",get_name(), this);
 		}
 	}
+#ifdef MULTI_THREAD
+	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+#endif
 	gr = NULL;
 }
 
@@ -282,10 +305,20 @@ void vehicle_base_t::enter_tile(grund_t* gr)
 		gr = welt->lookup_kartenboden(get_pos().get_2d());
 		set_pos( gr->get_pos() );
 	}
+#ifdef MULTI_THREAD
+	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+#endif
 	if(!gr->obj_add(this))
 	{
 		dbg->error("vehicle_base_t::enter_tile()","'%s failed to be added to the object list", get_name());
 	}
+#ifdef MULTI_THREAD
+	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+#endif
 	weg = gr->get_weg(get_waytype());
 }
 
@@ -1726,7 +1759,17 @@ void vehicle_t::hop(grund_t* gr)
 		weg->wear_way(desc->get_way_wear_factor());
 	}
 	hop_count ++;
+#ifdef MULTI_THREAD
+	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+#endif
 	gr->set_all_obj_dirty();
+#ifdef MULTI_THREAD
+	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+#endif
 }
 
 /* Calculates the modified speed limit of the current way,
@@ -2042,7 +2085,13 @@ void vehicle_t::make_smoke() const
 		// only produce smoke when heavily accelerating or steam engine
 		if(  (cnv->get_akt_speed() < (sint32)((cnv->get_vehicle_summary().max_sim_speed * 7u) >> 3) && (route_index < cnv->get_route_infos().get_count() - 4)) ||  desc->get_engine_type() == vehicle_desc_t::steam  ) {
 			grund_t* const gr = welt->lookup( get_pos() );
-			if(  gr  ) {
+#ifdef MULTI_THREAD
+			// We use trylock here as we do not want to block the thread for something that does is just "eye candy".
+			const int can_get_lock = pthread_mutex_trylock(&karte_t::private_car_route_mutex);
+# else
+			const int can_get_lock = 0;
+#endif
+			if(  gr && !can_get_lock) {
 				wolke_t* const abgas = new wolke_t( get_pos(),
 					get_xoff() + ((dx * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> VEHICLE_STEPS_PER_TILE_SHIFT),
 					get_yoff() + ((dy * (sint16)((uint16)steps * OBJECT_OFFSET_STEPS)) >> VEHICLE_STEPS_PER_TILE_SHIFT) + get_hoff(), desc->get_smoke() );
@@ -2054,6 +2103,14 @@ void vehicle_t::make_smoke() const
 					welt->sync_way_eyecandy.add( abgas );
 				}
 			}
+#ifdef MULTI_THREAD
+			if (!can_get_lock)
+			{
+				int error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+				assert(error == 0);
+				(void)error;
+			}
+#endif
 		}
 	}
 }

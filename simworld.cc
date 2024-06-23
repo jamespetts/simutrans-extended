@@ -1316,7 +1316,17 @@ void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint1
 						const groundobj_desc_t *desc = groundobj_t::random_groundobj_for_climate( cl, gr->get_grund_hang() );
 						if(desc) {
 							queried = simrand(env_t::ground_object_probability*2-1, "karte_t::distribute_groundobjs_cities(), distributing groundobjs - 2nd instance");
+#ifdef MULTI_THREAD
+							int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 							gr->obj_add( new groundobj_t( gr->get_pos(), desc ) );
+#ifdef MULTI_THREAD
+							error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+							assert(error == 0);
+							(void)error;
+#endif
 						}
 					}
 				}
@@ -1345,7 +1355,17 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing movingobjs");
 						if(  desc  &&  ( desc->get_waytype() != water_wt  ||  gr->get_hoehe() <= get_water_hgt_nocheck(k) )  ) {
 							if(desc->get_speed()!=0) {
 								queried = simrand(max_queried, "karte_t::distribute_groundobjs_cities()");
+#ifdef MULTI_THREAD
+								int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+								assert(error == 0);
+								(void)error;
+#endif
 								gr->obj_add( new movingobj_t( gr->get_pos(), desc ) );
+#ifdef MULTI_THREAD
+								error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+								assert(error == 0);
+								(void)error;
+#endif
 							}
 						}
 					}

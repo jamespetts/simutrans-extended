@@ -910,7 +910,6 @@ gebaeude_t *hausbauer_t::build_station_extension_depot(player_t *player, koord3d
 		gr->obj_remove(zeiger);
 		zeiger->set_flag(obj_t::not_on_map);
 	}
-
 	gr->obj_add(gb);
 	parapet_t::hide_all(gr->get_pos());
 
