@@ -185,13 +185,12 @@ uint8 env_t::gui_player_color_dark = 1;
 uint8 env_t::gui_player_color_bright = 4;
 uint8 env_t::gui_titlebar_player_color_background_brightness;
 
-#ifndef __ANDROID__
-std::string env_t::fontname = FONT_PATH_X "prop.fnt";
-uint8 env_t::fontsize = 11;
-#else
-std::string env_t::fontname = FONT_PATH_X "Roboto-Regular.ttf";
+#ifdef __ANDROID__
 uint8 env_t::fontsize = 17;
+#else
+uint8 env_t::fontsize = 12;
 #endif
+std::string env_t::fontname;
 
 rgb888_t env_t::front_window_text_color_rgb;
 PIXVAL env_t::front_window_text_color;
@@ -218,6 +217,7 @@ bool env_t::hide_keyboard = false;
 // Define default settings.
 void env_t::init()
 {
+	fontname = dr_get_system_font();
 	// settings for messages
 	message_flags[0] = 0x017F;
 	message_flags[1] = 0x0108;

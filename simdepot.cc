@@ -741,20 +741,20 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			const bool last = false;
 
 			switch (typ) {
-			case old_road_vehicle:
-			case road_vehicle: v = new road_vehicle_t(file, first, last);    break;
-			case old_waggon:
-			case rail_vehicle:    v = new rail_vehicle_t(file, first, last);       break;
-			case old_schiff:
-			case water_vehicle:    v = new water_vehicle_t(file, first, last);       break;
-			case old_aircraft:
-			case air_vehicle: v = new air_vehicle_t(file, first, last);  break;
-			case old_monorail_vehicle:
-			case monorail_vehicle: v = new monorail_rail_vehicle_t(file, first, last);  break;
-			case maglev_vehicle:   v = new maglev_rail_vehicle_t(file, first, last);  break;
-			case narrowgauge_vehicle: v = new narrowgauge_rail_vehicle_t(file, first, last);  break;
-			default:
-				dbg->fatal("depot_t::vehicle_laden()", "invalid vehicle type $%X", typ);
+				case old_road_vehicle:
+				case road_vehicle: v = new road_vehicle_t(file, first, last);    break;
+				case old_waggon:
+				case rail_vehicle:    v = new rail_vehicle_t(file, first, last);       break;
+				case old_schiff:
+				case water_vehicle:    v = new water_vehicle_t(file, first, last);       break;
+				case old_aircraft:
+				case air_vehicle: v = new air_vehicle_t(file, first, last);  break;
+				case old_monorail_vehicle:
+				case monorail_vehicle: v = new monorail_rail_vehicle_t(file, first, last);  break;
+				case maglev_vehicle:   v = new maglev_rail_vehicle_t(file, first, last);  break;
+				case narrowgauge_vehicle: v = new narrowgauge_rail_vehicle_t(file, first, last);  break;
+				default:
+					dbg->fatal("depot_t::vehicle_laden()", "invalid vehicle type $%X", typ);
 			}
 			const vehicle_desc_t* desc = v->get_desc();
 			if (desc) {
