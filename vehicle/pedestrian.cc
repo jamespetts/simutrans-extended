@@ -311,17 +311,7 @@ void pedestrian_t::hop(grund_t *gr)
 	// no need to call enter_tile()
 
 	// if this fails, the target tile is full, but this should already have been checked in hop_check
-#ifdef MULTI_THREAD
-	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
-	assert(error == 0);
-	(void)error;
-#endif
 	const bool ok = gr->obj_add(this);
-#ifdef MULTI_THREAD
-	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-	assert(error == 0);
-	(void)error;
-#endif
 	assert(ok); (void)ok;
 
 	// determine pos_next

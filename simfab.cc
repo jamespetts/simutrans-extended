@@ -1910,18 +1910,7 @@ void fabrik_t::smoke() const
 		const sint8 offsetx = ((rada->get_xy_off(rot).x) * OBJECT_OFFSET_STEPS) / 16;
 		const sint8 offsety = ((rada->get_xy_off(rot).y) * OBJECT_OFFSET_STEPS) / 16;
 		wolke_t* smoke = new wolke_t(gr->get_pos(), offsetx, offsety, rada->get_images());
-#ifdef MULTI_THREAD
-		int can_get_lock = pthread_mutex_trylock(&karte_t::private_car_route_mutex);
-#endif
-		if (!can_get_lock)
-		{
-			gr->obj_add(smoke);
-#ifdef MULTI_THREAD
-			int error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-			assert(error == 0);
-			(void)error;
-#endif
-		}
+		gr->obj_add(smoke);
 		welt->sync_way_eyecandy.add(smoke);
 	}
 	// maybe sound?

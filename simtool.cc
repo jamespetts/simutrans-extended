@@ -7454,6 +7454,7 @@ built_sign:
 // Build signalboxes
 const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost)
 {
+
 	karte_t::runway_info ri = welt->check_nearby_runways(pos.get_2d());
 	const uint8 height = welt->lookup_hgt(pos.get_2d());
 	if (pos.z >= height && ri.pos != koord::invalid && desc->get_allow_underground() != 1)

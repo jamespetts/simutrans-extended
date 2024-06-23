@@ -253,6 +253,12 @@ const char* player_t::get_name() const
 
 void player_t::set_name(const char *new_name)
 {
+	if( env_t::networkmode ) {
+		cbuffer_t buf;
+		buf.printf(translator::translate("%s now known as %s."), player_name_buf, new_name);
+		welt->get_message()->add_message(buf, koord::invalid, message_t::ai, color_idx_to_rgb(player_color_1));
+	}
+
 	tstrncpy( player_name_buf, new_name, lengthof(player_name_buf) );
 
 	// update player window

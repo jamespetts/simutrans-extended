@@ -434,7 +434,6 @@ public:
 	waytype_t get_waytype() const OVERRIDE { return wtyp; }
 
 	inline bool is_rail_type() const { return wtyp == track_wt || wtyp == maglev_wt || wtyp == tram_wt || wtyp == narrowgauge_wt || wtyp == monorail_wt;  }
-	inline bool is_rail_type_or_air() const { return wtyp == track_wt || wtyp == maglev_wt || wtyp == tram_wt || wtyp == narrowgauge_wt || wtyp == monorail_wt || wtyp == air_wt; }
 
 	/**
 	* @return the object type.
