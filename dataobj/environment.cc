@@ -188,7 +188,7 @@ uint8 env_t::gui_titlebar_player_color_background_brightness;
 #ifdef __ANDROID__
 uint8 env_t::fontsize = 17;
 #else
-uint8 env_t::fontsize = 11;
+uint8 env_t::fontsize = 12;
 #endif
 std::string env_t::fontname;
 
