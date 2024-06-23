@@ -97,7 +97,7 @@ depot_t *depot_t::find_depot( koord3d start, const obj_t::typ depot_type, const 
 	koord3d found_pos = forward ? koord3d(welt->get_size().x+1,welt->get_size().y+1,welt->get_groundwater()) : koord3d(-1,-1,-1);
 	sint32 found_hash = forward ? 0x7FFFFFF : -1;
 	sint32 start_hash = start.x + (8192 * start.y);
-	FOR(slist_tpl<depot_t*>, const d, all_depots) {
+	for(depot_t* const d : all_depots) {
 		if(d->get_typ()==depot_type  &&  d->get_owner()==player) {
 			// ok, the right type of depot
 			const koord3d pos = d->get_pos();
@@ -228,6 +228,7 @@ vehicle_t* depot_t::buy_vehicle(const vehicle_desc_t* info, uint16 livery_scheme
 	DBG_DEBUG("depot_t::buy_vehicle()", info->get_name());
 	vehicle_t* veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, info, false, livery_scheme_index);
 	DBG_DEBUG("depot_t::buy_vehicle()", "vehiclebauer %p", veh);
+
 	vehicles.append(veh);
 	DBG_DEBUG("depot_t::buy_vehicle()", "appended %i vehicle", vehicles.get_count());
 	return veh;
@@ -407,18 +408,16 @@ bool depot_t::check_obsolete_inventory(convoihandle_t cnv)
 convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution)
 {
 	if(  old_cnv.is_bound()  &&  !convoihandle_t::is_exhausted()  &&
-		old_cnv->get_vehicle_count() > 0  &&  get_waytype() == old_cnv->front()->get_desc()->get_waytype() )
-	{
+		old_cnv->get_vehicle_count() > 0  &&  get_waytype() == old_cnv->front()->get_desc()->get_waytype() ) {
+
 		convoihandle_t new_cnv = add_convoi( false );
 		new_cnv->set_name(old_cnv->get_internal_name());
 		const uint16 convoy_livery_index = old_cnv->get_livery_scheme_index();
 		new_cnv->set_livery_scheme_index(convoy_livery_index);
 		int vehicle_count = old_cnv->get_vehicle_count();
-		for (int i = 0; i < vehicle_count; i++)
-		{
+		for (int i = 0; i<vehicle_count; i++) {
 			const vehicle_desc_t * info = old_cnv->get_vehicle(i)->get_desc();
-			if (info != NULL)
-			{
+			if (info != NULL) {
 				// search in depot for an existing vehicle of correct type
 				vehicle_t* new_vehicle = get_oldest_vehicle(info);
 				if(new_vehicle == NULL)
@@ -655,6 +654,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 
 			// remove from depot lists
 			remove_convoi( cnv );
+
 			return true;
 		}
 	}
@@ -736,7 +736,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 		for (int i = 0; i < count; i++) {
 			obj_t::typ typ = (obj_t::typ)file->rd_obj_id();
 
-			vehicle_t* v = NULL;
+			vehicle_t *v = NULL;
 			const bool first = false;
 			const bool last = false;
 
@@ -773,7 +773,7 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 		}
 	}
 	else {
-		FOR(slist_tpl<vehicle_t*>, const v, list) {
+		for(vehicle_t* const v : list) {
 			file->wr_obj_id(v->get_typ());
 			v->rdwr_from_convoi(file);
 		}
@@ -827,7 +827,7 @@ const char * depot_t:: is_deletable(const player_t *player)
 		return "There are still vehicles\nstored in this depot!\n";
 	}
 
-	FOR(slist_tpl<convoihandle_t>, const c, convois) {
+	for(convoihandle_t const c : convois) {
 		if (c.is_bound() && c->get_vehicle_count() > 0) {
 			return "There are still vehicles\nstored in this depot!\n";
 		}
@@ -839,7 +839,7 @@ const char * depot_t:: is_deletable(const player_t *player)
 vehicle_t* depot_t::get_oldest_vehicle(const vehicle_desc_t* desc)
 {
 	vehicle_t* oldest_veh = NULL;
-	FOR(slist_tpl<vehicle_t*>, const veh, get_vehicle_list()) {
+	for(vehicle_t* const veh : get_vehicle_list()) {
 		if (veh->get_desc() == desc) {
 			if (oldest_veh == NULL ||
 					oldest_veh->get_purchase_time() > veh->get_purchase_time()) {
@@ -906,9 +906,10 @@ void depot_t::new_month()
 	update_all_win();
 }
 
+
 void depot_t::update_all_win()
 {
-	FOR(slist_tpl<depot_t*>, const d, all_depots) {
+	for(depot_t* const d : all_depots) {
 		d->update_win();
 	}
 }

@@ -593,12 +593,7 @@
     <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug (network)|x64'">(SourcePath)</SourcePath>
     <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug (command-line server)|Win32'">(SourcePath)</SourcePath>
     <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug (command-line server)|x64'">(SourcePath)</SourcePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">C:\Users\James\Documents\Development\sdl2\include;..\OpenTTD\shared\include;..\bzip\include;$(IncludePath);utils\openttd</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|x64'">F:\My Documents\Development\Simutrans\SDL-1.2.13\include;F:\My Documents\Development\Zlib\source;F:\My Documents\Development\Simutrans\Open TTD binaries\OpenTTD essentials\win32\include;F:\My Documents\Development\Zlib\include;F:\My Documents\Development\Simutrans\Open TTD binaries\OpenTTD essentials\shared\include;$(IncludePath);utils\openttd</IncludePath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">C:\Users\James\Documents\Development\sdl2\lib\x86;..\bzip\lib;..\OpenTTD\win32\library;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|x64'">F:\My Documents\Development\Zlib\lib;F:\My Documents\Development\Lib Png\bin;F:\My Documents\Development\Simutrans\Open TTD binaries\OpenTTD essentials\win32\library;F:\My Documents\Development\Simutrans\SDL-1.2.13\lib;$(LibraryPath)</LibraryPath>
     <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">$(SourcePath)</SourcePath>
-    <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|x64'">F:\My Documents\Development\Zlib\source;$(SourcePath)</SourcePath>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|Win32'">$(ProjectName)-debug-SDL</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug (SDL 2)|x64'">$(ProjectName)-debug-SDL</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectName)-Debug32</TargetName>
@@ -1357,7 +1352,7 @@
     </PreBuildEvent>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;DEBUG=3;%(PreprocessorDefinitions);COLOUR_DEPTH=16;MULTI_THREAD;DEBUG_FREELIST</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -1553,7 +1548,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;REVISION_FROM_FILE</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1594,7 +1589,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;MULTI_THREAD=0</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1632,7 +1627,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <OmitFramePointers>false</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;%(PreprocessorDefinitions);COLOUR_DEPTH=16;REVISION_FROM_FILE</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1673,7 +1668,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <OmitFramePointers>false</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;%(PreprocessorDefinitions);COLOUR_DEPTH=16</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1711,7 +1706,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;USE_IP4_ONLY;MULTI_THREAD;REVISION_FROM_FILE</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1752,7 +1747,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;USE_IP4_ONLY;MULTI_THREAD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1789,7 +1784,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=0;MULTI_THREAD;REVISION_FROM_FILE</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -1900,7 +1895,7 @@
     </PreBuildEvent>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>F:\My Documents\Development\Simutrans\SDL-1.2.13\include;F:\My Documents\Development\Zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;DEBUG=3;SDL;%(PreprocessorDefinitions);COLOUR_DEPTH=16</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
