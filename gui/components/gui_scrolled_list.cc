@@ -96,7 +96,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 	compare = cmp;
 	size = scr_size(0,0);
 	pos = scr_coord(0,0);
-	multiple_selection = false;
+	multiple_selection_mode = 0;
 	maximize = false;
 }
 
@@ -249,7 +249,7 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 		// do nothing.
 		return;
 	}
-	else if(  !multiple_selection  ||  ev.ev_key_mod==0  ) {
+	else if(  multiple_selection_mode==0  ||  (ev.ev_key_mod==0 && multiple_selection_mode!=2)  ) {
 		// simply select new_focus
 		for(gui_component_t* v : item_list) {
 			scrollitem_t* item = dynamic_cast<scrollitem_t*>(v);
@@ -258,7 +258,7 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 			}
 		}
 	}
-	else if(  multiple_selection  &&  IS_CONTROL_PRESSED(&ev)  ) {
+	else if(  multiple_selection_mode==2  ||  (multiple_selection_mode==1 && IS_CONTROL_PRESSED(&ev))  ) {
 		// control key is pressed. select or deselect the focused one.
 		new_focus->selected = !new_focus->selected;
 		new_focus->focused = new_focus->selected;
