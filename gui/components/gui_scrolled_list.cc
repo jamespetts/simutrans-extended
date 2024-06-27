@@ -232,8 +232,10 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 	// if different element is focused, calculate selection and call listeners
 	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mouse_pos))  ) {
 		calc_selection(focus, new_focus, *ev);
-		const int new_selection = get_selection();
-		call_listeners((long)new_selection);
+		if (new_focus->selected) {
+			const int new_selection = get_selection();
+			call_listeners((long)new_selection);
+		}
 		swallowed = true;
 	}
 
@@ -259,6 +261,10 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 	else if(  multiple_selection  &&  IS_CONTROL_PRESSED(&ev)  ) {
 		// control key is pressed. select or deselect the focused one.
 		new_focus->selected = !new_focus->selected;
+		new_focus->focused = new_focus->selected;
+		if (!get_selections().get_count()) {
+			container.set_focus(NULL);
+		}
 	}
 	else if(  IS_SHIFT_PRESSED(&ev)  ) {
 		// shift key is pressed.
