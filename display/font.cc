@@ -25,7 +25,8 @@
 font_t::glyph_t::glyph_t() :
 	height(0),
 	width(0),
-	advance(0xFF)
+	advance(0xFF),
+	top(0)
 {
 	bitmap = 0;
 }
@@ -291,6 +292,14 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 	ascent    = face->size->metrics.ascender/64;
 	linespace = face->size->metrics.height/64;
 	descent   = face->size->metrics.descender/64;
+	if (face->face_flags & FT_FACE_FLAG_VERTICAL) {
+		// There are usually two sets of metrics for a single glyph:
+		// Those used to represent glyphs in horizontal text layouts (Latin, Cyrillic, Arabic, Hebrew, etc.),
+		// and those used to represent glyphs in vertical text layouts (Chinese, Japanese, Korean, Mongolian, etc.).
+		// see: https://freetype.org/freetype2/docs/reference/ft2-face_creation.html
+		//      https://freetype.org/freetype2/docs/tutorial/step2.html
+		linespace = ascent - descent;
+	}
 
 	tstrncpy( this->fname, fname, lengthof(this->fname) );
 
@@ -356,9 +365,9 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 
 		// the bitmaps are all top aligned. Bitmap top is the ascent
 		// above the base line
-		// to find the real top position, we must take the font ascent
-		// and reduce it by the glyph ascent
-		glyph.top = ascent - face->glyph->bitmap_top - 1;
+		// to find the real top position
+		// we need to fit the font into the linespace
+		glyph.top = linespace + descent - face->glyph->bitmap_top;
 
 		glyph.left = face->glyph->bitmap_left;
 
