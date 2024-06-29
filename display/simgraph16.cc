@@ -264,8 +264,8 @@ int default_font_linespace = 0;
 #ifdef RGB555
 #define ONE_OUT (0x3DEF) // mask out bits after applying >>1
 #define TWO_OUT (0x1CE7) // mask out bits after applying >>2
-inline PIXVAL rgb(PIXVAL r, PIXVAL g, PIXVAL b) { return (r << 10) | (g << 5) | b; }
 #define MASK_32 (0x03e0f81f) // mask out bits after transforming to 32bit
+inline PIXVAL rgb(PIXVAL r, PIXVAL g, PIXVAL b) { return (r << 10) | (g << 5) | b; }
 inline PIXVAL red(PIXVAL rgb) { return  rgb >> 10; }
 inline PIXVAL green(PIXVAL rgb) { return (rgb >> 5) & 0x1F; }
 #else
@@ -277,6 +277,7 @@ inline PIXVAL red(PIXVAL rgb) { return rgb >> 11; }
 inline PIXVAL green(PIXVAL rgb) { return (rgb >> 5) & 0x3F; }
 #endif
 inline PIXVAL blue(PIXVAL rgb) { return  rgb & 0x1F; }
+
 /**
  * Implement shift-and-mask for rgb values:
  * shift-right by 1 or 2, and mask it to a valid rgb number.
@@ -325,7 +326,6 @@ static PIXVAL specialcolormap_day_night[256];
  * 16 sets of 16 colors
  */
 PIXVAL specialcolormap_all_day[256];
-
 
 // offsets of first and second company color
 static uint8 player_offsets[MAX_PLAYER_COUNT][2];
@@ -1082,6 +1082,7 @@ static void recode_img_src_target(scr_coord_val h, PIXVAL *src, PIXVAL *target)
 							// expand transparent player color
 							const uint8 alpha   = (*src-0x8020) % 31;
 							const PIXVAL colour = rgbmap_day_night[(*src-0x8020)/31+0x8000];
+
 							*target++ = 0x8020 + 31*31 + pixval_to_rgb343(colour)*31 + alpha;
 							src ++;
 						}
@@ -1736,6 +1737,7 @@ static void calc_base_pal_from_night_shift(const int night)
 		int R = (i & 0x0380) >> 2;
 		int G = (i & 0x0078) << 1;
 		int B = (i & 0x0007) << 5;
+
 		// lines generate all possible colors in 343RGB code - input
 		// however the result is in 888RGB - 8bit per channel
 		R = (int)(R * RG_night_multiplier);
@@ -1972,7 +1974,6 @@ static inline void pixcopy(PIXVAL *dest, const PIXVAL *src, const PIXVAL * const
 }
 
 
-
 /**
  * Copy pixel, replace player color
  */
@@ -1988,6 +1989,7 @@ static inline void colorpixcopy(PIXVAL* dest, const PIXVAL* src, const PIXVAL* c
 			// a semi-transparent pixel
 			uint16 aux   = *src++ - 0x8020;
 			uint16 alpha = (aux % 31) + 1;
+
 			*dest = colors_blend_alpha32(*dest, rgbmap_day_night[0x8000 + aux / 31], alpha);
 			dest++;
 		}
@@ -2763,37 +2765,7 @@ PIXVAL display_blend_colors_alpha32(PIXVAL background, PIXVAL foreground, int al
 // Blends two colors
 PIXVAL display_blend_colors(PIXVAL background, PIXVAL foreground, int percent_blend)
 {
-	const PIXVAL alpha = (percent_blend*64)/100;
-
-	switch( alpha ) {
-		case 0: // nothing to do ...
-			return background;
-		case 16:
-			return colors_blend25(background, foreground);
-
-		case 32:
-			return colors_blend50(background, foreground);
-
-		case 48:
-			return colors_blend25(background, foreground);
-
-		case 64:
-			return foreground;
-
-		default:
-			// any percentage blending: SLOW!
-			const PIXVAL r_src = red(background);
-			const PIXVAL g_src = green(background);
-			const PIXVAL b_src = blue(background);
-			const PIXVAL r_dest = red(foreground);
-			const PIXVAL g_dest = green(foreground);
-			const PIXVAL b_dest = blue(foreground);
-			const PIXVAL r = (r_dest * alpha + r_src * (64 - alpha) + 32) >> 6;
-			const PIXVAL g = (g_dest * alpha + g_src * (64 - alpha) + 32) >> 6;
-			const PIXVAL b = (b_dest * alpha + b_src * (64 - alpha) + 32) >> 6;
-			return rgb(r, g, b);
-	}
-	// ??	return display_blend_colors_alpha32(background, foreground, (percent_blend*32)/100);
+	return display_blend_colors_alpha32(background, foreground, (percent_blend*32)/100);
 }
 
 
@@ -2804,7 +2776,6 @@ typedef void (*blend_proc)(PIXVAL *dest, const PIXVAL *src, const PIXVAL colour,
 struct blend25_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foreground) { return 3 * rgb_shr2(background) + rgb_shr2(foreground); } };
 struct blend50_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foreground) { return rgb_shr1(background) + rgb_shr1(foreground); }     };
 struct blend75_t { static inline PIXVAL blend(PIXVAL background, PIXVAL foreground) { return rgb_shr2(background) + 3 * rgb_shr2(foreground); } };
-
 
 template<class F> void pix_blend_tpl(PIXVAL *dest, const PIXVAL *src, const PIXVAL , const PIXVAL len)
 {
@@ -2836,7 +2807,6 @@ template<class F> void pix_outline_tpl(PIXVAL *dest, const PIXVAL *, const PIXVA
 	}
 }
 
-
 // save them for easier access
 static blend_proc blend[3] = {
 	pix_blend_tpl<blend25_t>,
@@ -2852,7 +2822,6 @@ static blend_proc outline[3] = {
 	pix_outline_tpl<blend25_t>,
 	pix_outline_tpl<blend50_t>,
 	pix_outline_tpl<blend75_t>};
-
 
 
 /**
@@ -2976,6 +2945,7 @@ static PIXVAL get_alpha_mask(const unsigned alpha_flags)
 	}
 	return mask;
 }
+
 
 typedef void (*alpha_proc)(PIXVAL *dest, const PIXVAL *src, const PIXVAL *alphamap, const PIXVAL alpha_mask, const PIXVAL colour, const PIXVAL len);
 
@@ -3288,7 +3258,7 @@ void display_base_img_blend(const image_id n, scr_coord_val xp, scr_coord_val yp
 			if(  dirty  ) {
 				mark_rect_dirty_wc( x, y, x + w - 1, y + h - 1 );
 			}
-			display_img_blend_wc(h, x, y, sp, color, pix_blend  CLIP_NUM_PAR);
+			display_img_blend_wc( h, x, y, sp, color, pix_blend  CLIP_NUM_PAR );
 		}
 	} // number ok
 }
@@ -3491,14 +3461,17 @@ void display_fillbox_wh_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w,
 
 void display_fillbox_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty  CLIP_NUM_DEF)
 {
-	display_fb_internal(xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy);
+	display_fb_internal( xp, yp, w, h, color, dirty, CR.clip_rect.x, CR.clip_rect.xx, CR.clip_rect.y, CR.clip_rect.yy );
 }
+
 
 void display_filled_roundbox_clip(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty)
 {
-	display_fillbox_wh_clip_rgb(xp, yp+1, w, h-2, color, dirty);
-	display_fillbox_wh_clip_rgb(xp+1, yp, w-2, 1, color, dirty);
-	display_fillbox_wh_clip_rgb(xp+1, yp + h-1, w-2, 1, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+2,   yp, w-4, h, color, dirty);
+	display_fillbox_wh_clip_rgb(xp,     yp+2, 1, h-4, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+1,   yp+1, 1, h-2, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+w-1, yp+2, 1, h-4, color, dirty);
+	display_fillbox_wh_clip_rgb(xp+w-2, yp+1, 1, h-2, color, dirty);
 }
 
 void display_cylinderbar_wh_clip_rgb(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, bool dirty  CLIP_NUM_DEF)
@@ -3821,17 +3794,7 @@ utf32 get_next_char_with_metrics(const char* &text, unsigned char &byte_length, 
 /* returns true, if this is a valid character */
 bool has_character(utf16 char_code)
 {
-	if(  char_code >= default_font.glyphs.size()  ) {
-		// or we crash when accessing the non-existing char ...
-		return false;
-	}
-	bool b1 = default_font.is_loaded();
-	font_t::glyph_t& gl = default_font.glyphs[char_code];
-	uint8  ad = gl.advance;
-	return b1 && ad != 0xFF;
-
-	// this return false for some reason on CJK for valid characters ?!?
-	// return default_font.is_valid_glyph(char_code);
+	return default_font.is_valid_glyph(char_code);
 }
 
 
@@ -3901,10 +3864,8 @@ int display_calc_proportional_string_len_width(const char *text, size_t len)
 		width += pixel_width;
 		idx += byte_length;
 	}
-
 	return width;
 }
-
 
 
 /* display_calc_proportional_multiline_string_len_width
@@ -3932,35 +3893,6 @@ void display_calc_proportional_multiline_string_len_width(int &xw, int &yh, cons
 	}
 	xw = max( xw, width );
 	yh += LINESPACE;
-}
-
-
-
-/**
- * Helper: calculates 8bit mask for clipping.
- * Calculates mask to fit pixel interval [xRL,xR) to clipping interval [cL, cR).
- */
-static unsigned char get_h_mask(const int xL, const int xR, const int cL, const int cR)
-{
-	// do not mask
-	unsigned char mask = 0xff;
-
-	// check, if there is something to display
-	if (xR <= cL || xL >= cR) return 0;
-	// 8bit masks only
-	assert(xR - xL <= 8);
-
-	// check for left border
-	if (xL < cL) {
-		// left border clipped
-		mask = 0xff >> (cL - xL);
-	}
-	// check for right border
-	if (xR > cR) {
-		// right border clipped
-		mask &= 0xff << (xR - cR);
-	}
-	return mask;
 }
 
 
@@ -4017,18 +3949,6 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 	// store the initial x (for dirty marking)
 	const scr_coord_val x0 = x;
 
-	scr_coord_val y_offset = 0; // real y for display with clipping
-	scr_coord_val glyph_height = fnt->get_linespace();
-	const scr_coord_val yy = y + fnt->get_linespace();
-
-	// calculate vertical y clipping parameters
-	if (y < cT) {
-		y_offset = cT - y;
-	}
-	if (yy > cB) {
-		glyph_height -= yy - cB;
-	}
-
 	// big loop, draw char by char
 	utf8_decoder_t decoder((utf8 const*)txt);
 	size_t iTextPos = 0; // pointer on text position
@@ -4048,48 +3968,37 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 		}
 
 		// get the data from the font
-		int glyph_width = fnt->get_glyph_width(c);
-		const uint8 glyph_yoffset = std::max(fnt->get_glyph_yoffset(c), (uint8)y_offset);
+		const font_t::glyph_t& glyph = fnt->get_glyph(c);
+		const uint8 *p = glyph.bitmap;
 
-		// currently max character width 16 bit supported by font.h/font.cc
-		for(  int i=0;  i<2;  i++  ) {
-			const uint8 bits = std::min(8, glyph_width);
-			uint8 mask = get_h_mask(x + i*8, x + i*8 + bits, cL, cR);
-			glyph_width -= bits;
+		int screen_pos = (y + glyph.top) * disp_width + x + glyph.left;
 
-			const uint8 *p = fnt->get_glyph_bitmap(c) + glyph_yoffset + i*GLYPH_BITMAP_HEIGHT;
-			if(  mask!=0  ) {
-				int screen_pos = (y+glyph_yoffset) * disp_width + x + i*8;
+		// glyph x clipping
+		int g_left  = max(cL - x - glyph.left, 0);
+		int g_right = min(cR - x - glyph.left, glyph.width);
 
-				for (int h = glyph_yoffset; h < glyph_height; h++) {
-					unsigned int dat = *p++ & mask;
-					PIXVAL* dst = textur + screen_pos;
-#if defined LOW_LEVEL
-					// low level c++
-					if (dat != 0) {
-						if (dat & 0x80) dst[0] = color;
-						if (dat & 0x40) dst[1] = color;
-						if (dat & 0x20) dst[2] = color;
-						if (dat & 0x10) dst[3] = color;
-						if (dat & 0x08) dst[4] = color;
-						if (dat & 0x04) dst[5] = color;
-						if (dat & 0x02) dst[6] = color;
-						if (dat & 0x01) dst[7] = color;
+		// all visible rows
+		for (int h = 0; h < glyph.height; h++) {
+			const int line = y + glyph.top + h;
+			if(line >= cT && line < cB) {
+
+				PIXVAL* dst = textur + screen_pos + g_left;
+
+				// all columns
+				for(int gx=g_left; gx<g_right; gx++) {
+					int alpha = p[h*glyph.width + gx];
+
+					if(alpha > 31) {
+						// opaque
+						*dst++ = color;
+					} else {
+						// partially transparent -> blend it
+						PIXVAL old_color = *dst;
+						*dst++ = colors_blend_alpha32(old_color, color, alpha);
 					}
-#else
-
-					// high level c++
-					if(  dat  !=  0  ) {
-						for(  size_t dat_offset = 0 ; dat_offset < 8 ; dat_offset++  ) {
-							if(  (dat & (0x80 >> dat_offset))  ) {
-								dst[dat_offset] = color;
-							}
-						}
-					}
-#endif
-					screen_pos += disp_width;
 				}
 			}
+			screen_pos += disp_width;
 		}
 
 		x += fnt->get_glyph_advance(c);
@@ -4201,9 +4110,9 @@ void display_ddd_box_rgb(scr_coord_val x1, scr_coord_val y1, scr_coord_val w, sc
 void display_outline_proportional_rgb(scr_coord_val xpos, scr_coord_val ypos, PIXVAL text_color, PIXVAL shadow_color, const char *text, int dirty, sint32 len)
 {
 	const int flags = ALIGN_LEFT | DT_CLIP;
-	display_text_proportional_len_clip_rgb(xpos - 1, ypos - 1 + (12 - LINESPACE) / 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
-	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 1 + (12 - LINESPACE) / 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
-	display_text_proportional_len_clip_rgb(xpos, ypos + (12 - LINESPACE) / 2, text, flags, text_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos - 1, ypos    , text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos + 1, ypos + 2, text, flags, shadow_color, dirty, len  CLIP_NUM_DEFAULT);
+	display_text_proportional_len_clip_rgb(xpos, ypos + 1, text, flags, text_color, dirty, len  CLIP_NUM_DEFAULT);
 }
 
 
@@ -4379,22 +4288,25 @@ void display_ddd_proportional(scr_coord_val xpos, scr_coord_val ypos, scr_coord_
 /**
  * display text in 3d box with clipping
  */
-void display_ddd_proportional_clip(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_color, FLAGGED_PIXVAL text_color, const char *text, int dirty  CLIP_NUM_DEF)
+void display_ddd_proportional_clip(scr_coord_val xpos, scr_coord_val ypos, FLAGGED_PIXVAL ddd_color, FLAGGED_PIXVAL text_color, const char *text, int dirty  CLIP_NUM_DEF)
 {
-	const int halfheight = LINESPACE / 2 + 1;
+	const int vpadding = (D_LABEL_HEIGHT+2-LINESPACE)/2;
+	const int hpadding = LINESPACE / 4;
+
+	scr_coord_val width = proportional_string_width(text);
 
 	PIXVAL lighter = display_blend_colors_alpha32(ddd_color, color_idx_to_rgb(COL_WHITE), 8 /* 25% */);
 	PIXVAL darker  = display_blend_colors_alpha32(ddd_color, color_idx_to_rgb(COL_BLACK), 8 /* 25% */);
 
-	display_fillbox_wh_clip_rgb( xpos - 2, ypos - halfheight - 1 - hgt, width, halfheight * 2 + 2, ddd_color, dirty CLIP_NUM_PAR );
+	display_fillbox_wh_clip_rgb( xpos+1, ypos - vpadding + 2, width+2*hpadding-2, LINESPACE+2*vpadding-1, ddd_color, dirty CLIP_NUM_PAR);
 
-	display_fillbox_wh_clip_rgb( xpos - 1, ypos - halfheight - 1 - hgt, width - 2, 1, lighter, dirty );
-	display_fillbox_wh_clip_rgb( xpos - 1, ypos + halfheight - hgt,     width - 2, 1, darker,  dirty );
+	display_fillbox_wh_clip_rgb( xpos, ypos - vpadding + 1, width + 2*hpadding - 1, 1, lighter, dirty );
+	display_fillbox_wh_clip_rgb( xpos, ypos + LINESPACE + vpadding + 1, width + 2*hpadding - 2, 1, darker,  dirty );
 
-	display_vline_wh_clip_rgb( xpos - 2,         ypos - halfheight - 1 - hgt, halfheight * 2 + 2, lighter, dirty );
-	display_vline_wh_clip_rgb( xpos + width - 3, ypos - halfheight - 1 - hgt, halfheight * 2 + 2, darker,  dirty );
+	display_vline_wh_clip_rgb( xpos, ypos - vpadding + 1, LINESPACE + vpadding * 2, lighter, dirty );
+	display_vline_wh_clip_rgb( xpos + width + 2*hpadding - 2, ypos - vpadding + 2, LINESPACE + vpadding * 2, darker,  dirty );
 
-	display_text_proportional_len_clip_rgb( xpos + 2, ypos - 5 + (12 - LINESPACE) / 2, text, ALIGN_LEFT | DT_CLIP, text_color, dirty, -1);
+	display_text_proportional_len_clip_rgb( xpos+hpadding, ypos+1, text, ALIGN_LEFT | DT_CLIP, text_color, dirty, -1);
 }
 
 
@@ -5110,9 +5022,15 @@ bool simgraph_init(scr_size window_size, sint16 full_screen)
 	textur = dr_textur_init();
 
 	// init, load, and check fonts
-	if(  !display_load_font(env_t::fontname.c_str())  &&  !display_load_font(FONT_PATH_X "prop.fnt") ) {
-		dr_fatal_notify("No fonts found!");
-		return false;
+	if (!display_load_font(env_t::fontname.c_str())) {
+		env_t::fontname = dr_get_system_font();
+		if (!display_load_font(env_t::fontname.c_str())) {
+			env_t::fontname = "cyr.bdf";
+			if (!display_load_font(env_t::fontname.c_str())) {
+				dr_fatal_notify("No fonts found!");
+				return false;
+			}
+		}
 	}
 
 	// allocate dirty tile flags

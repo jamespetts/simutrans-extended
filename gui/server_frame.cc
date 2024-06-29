@@ -68,23 +68,38 @@ server_frame_t::server_frame_t() :
 	update_info();
 	map->set_gameinfo(&gi);
 
-	set_table_layout(3,0);
+	set_table_layout(1,0);
+
+	add_table(3,1);
+	new_component<gui_label_t>("Nickname:");
+	add_component(&nick);
+	nick.add_listener(this);
+	nick.set_text(nick_buf, lengthof(nick_buf));
+	tstrncpy(nick_buf, env_t::nickname.c_str(), min(lengthof(nick_buf), env_t::nickname.length() + 1));
+	if (!env_t::networkmode) {
+		join.init(button_t::roundbox, "join game");
+		join.disable();
+		join.add_listener(this);
+		add_component(&join);
+	}
+	end_table();
+
+	new_component<gui_divider_t>();
 
 	// When in network mode, display only local map info (and nickname changer)
 	// When not in network mode, display server picker
 	if (  !env_t::networkmode  ) {
 		new_component<gui_label_t>("Select a server to join:" );
-		new_component<gui_fill_t>();
-		join.init(button_t::roundbox, "join game");
-		join.disable();
-		join.add_listener(this);
-		add_component(&join);
 
 		// Server listing
 		serverlist.set_selection( 0 );
 		serverlist.set_highlight_color( 0 );
-		add_component( &serverlist, 3 );
+		serverlist.set_min_height(LINESPACE*4);
+		serverlist.set_rigid(true);
+		add_component( &serverlist );
 		serverlist.add_listener(this);
+
+		add_table(3,0);
 
 		// Show mismatched checkbox
 		show_mismatched.init( button_t::square_state, "Show mismatched");
@@ -112,50 +127,39 @@ server_frame_t::server_frame_t() :
 		add_component( &add );
 
 		new_component_span<gui_divider_t>(3);
-	}
 
-	if(!env_t::networkmode) {
 		add_component(&revision, 2);
 
 		find_mismatch.init(button_t::roundbox, "find mismatch");
 		find_mismatch.add_listener(this);
 		add_component(&find_mismatch);
+		end_table();
 	}
 	else {
-		add_component(&revision, 3);
+		add_component(&revision);
 	}
 	show_mismatched.pressed = gi.get_game_engine_revision() == 0;
 
-	add_component( &pak_version, 3 );
+	add_component( &pak_version );
 #if DEBUG>=4
-	add_component( &pakset_checksum, 3 );
+	add_component( &pakset_checksum );
 #endif
-	new_component_span<gui_divider_t>(3);
+	new_component<gui_divider_t>();
 
-	add_component(map);
 
-	add_table(1,0)->set_force_equal_columns(true);
+	add_table(2,2);
 	{
-		add_table(3,1);
-		{
-			add_component(&label_size);
-			new_component<gui_fill_t>();
-			add_component( &date );
-		}
-		end_table();
+		add_component(&label_size);
+		add_component( &date );
 
-		add_component(&game_text);
+		add_component(map);
+		//add_table(2,0);
+		//{
+			add_component(&game_text);
+		//}
+		//end_table();
 	}
 	end_table();
-	new_component<gui_fill_t>();
-
-	new_component_span<gui_divider_t>(3);
-
-	new_component<gui_label_t>("Nickname:" );
-	add_component( &nick, 2 );
-	nick.add_listener(this);
-	nick.set_text( nick_buf, lengthof( nick_buf ) );
-	tstrncpy( nick_buf, env_t::nickname.c_str(), min( lengthof( nick_buf ), env_t::nickname.length() + 1 ) );
 
 	if (  !env_t::networkmode  ) {
 		// only update serverlist, when not already in network mode

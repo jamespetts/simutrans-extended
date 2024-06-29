@@ -34,6 +34,7 @@ private:
 	bool is_dragging;
 	bool is_world_dragging;
 
+
 private:
 	/**
 	 * Processes a mouse event that's moving the camera.
@@ -55,7 +56,7 @@ private:
 	 * Processes a single event.
 	 * @return true if we need to stop processing events.
 	 */
-	bool process_event(event_t& ev);
+	bool process_event(event_t &ev);
 
 public:
 	/**
@@ -64,7 +65,7 @@ public:
 	 */
 	void check_events();
 
-	explicit interaction_t(viewport_t* viewport);
+	explicit interaction_t(viewport_t *viewport);
 };
 
 #endif

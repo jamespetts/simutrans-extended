@@ -38,7 +38,7 @@ extern int default_font_linespace;
 #define GOODS_COLOR_BOX_SIZE (scr_size(GOODS_COLOR_BOX_HEIGHT,GOODS_COLOR_BOX_HEIGHT))
 #define GOODS_COLOR_BOX_YOFF ((LINESPACE-GOODS_COLOR_BOX_HEIGHT)/2)
 
-#define VEHICLE_BAR_HEIGHT 7
+#define VEHICLE_BAR_HEIGHT GOODS_COLOR_BOX_HEIGHT
 
 #define LOADINGBAR_HEIGHT 6
 #define WAITINGBAR_HEIGHT 4
@@ -381,7 +381,7 @@ void display_proportional_ellipsis_rgb( scr_rect r, const char *text, int align,
 
 void display_ddd_proportional(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty);
 
-void display_ddd_proportional_clip(scr_coord_val xpos, scr_coord_val ypos, scr_coord_val width, scr_coord_val hgt, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
+void display_ddd_proportional_clip(scr_coord_val xpos, scr_coord_val ypos, FLAGGED_PIXVAL ddd_farbe, FLAGGED_PIXVAL text_farbe, const char *text, int dirty  CLIP_NUM_DEF CLIP_NUM_DEFAULT_ZERO);
 
 
 int display_multiline_text_rgb(scr_coord_val x, scr_coord_val y, const char *inbuf, PIXVAL color);
