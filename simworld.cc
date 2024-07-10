@@ -3517,7 +3517,7 @@ bool karte_t::change_player_tool(uint8 cmd, uint8 player_nr, uint16 param, bool 
 				return false;
 			}
 			if(exec) {
-				init_new_player( player_nr, (uint8) param );
+				init_new_player( player_nr, (uint8) param, false );
 				// activate/deactivate AI immediately
 				player_t *player = get_player(player_nr);
 				if (param != player_t::HUMAN  &&  player) {
@@ -10250,7 +10250,7 @@ koord karte_t::get_closest_coordinate(koord outside_pos)
 
 
 /* creates a new player with this type */
-const char *karte_t::init_new_player(uint8 new_player_in, uint8 type)
+const char *karte_t::init_new_player(uint8 new_player_in, uint8 type, bool new_world)
 {
 	if(  new_player_in>=PLAYER_UNOWNED  ||  get_player(new_player_in)!=NULL  ) {
 		return "Id invalid/already in use!";
@@ -10260,23 +10260,24 @@ const char *karte_t::init_new_player(uint8 new_player_in, uint8 type)
 		case player_t::EMPTY: break;
 		case player_t::HUMAN:
 			players[new_player_in] = new player_t(new_player_in);
-			if( env_t::networkmode ){
-				buf.printf(translator::translate("%s founded new company %s."), env_t::nickname.c_str(), players[new_player_in]->get_name());
-			}
-			else{
+			if (!new_world) {
 				buf.printf(translator::translate("Now %s was founded."), players[new_player_in]->get_name());
+				msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
 			}
-			msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
 			break;
 		case player_t::AI_GOODS:
 			players[new_player_in] = new ai_goods_t(new_player_in);
-			buf.printf(translator::translate("Now %s was founded. (Operating by Goods-AI)"), players[new_player_in]->get_name());
-			msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
+			if (!new_world) {
+				buf.printf(translator::translate("Now %s was founded. (Operating by Goods-AI)"), players[new_player_in]->get_name());
+				msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
+			}
 			break;
 		case player_t::AI_PASSENGER:
 			players[new_player_in] = new ai_passenger_t(new_player_in);
-			buf.printf(translator::translate("Now %s was founded. (Operating by Passenger-AI)"), players[new_player_in]->get_name());
-			msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
+			if (!new_world) {
+				buf.printf(translator::translate("Now %s was founded. (Operating by Passenger-AI)"), players[new_player_in]->get_name());
+				msg->add_message(buf, koord::invalid, message_t::ai, PLAYER_FLAG | new_player_in, IMG_EMPTY);
+			}
 			break;
 		default: return "Unknown AI type!";
 	}
