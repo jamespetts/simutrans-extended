@@ -268,7 +268,7 @@ void gui_vehicle_cargo_info_t::update()
 			if (!total_cargo) {
 				// no cargo => empty
 				new_component<gui_label_t>("leer", SYSCOL_TEXT_WEAK, gui_label_t::left);
-				new_component<gui_empty_t>();
+				new_component<gui_fill_t>();
 			}
 			else {
 				add_table(2,0)->set_spacing(scr_size(0,1));
@@ -788,6 +788,7 @@ void gui_cargo_info_t::init(uint8 info_depth_from, uint8 info_depth_to, bool div
 		else {
 			new_component<gui_margin_t>(LINEASCENT);
 			new_component<gui_label_t>("leer", SYSCOL_TEXT_WEAK);
+			new_component<gui_fill_t>();
 		}
 		set_size(get_min_size());
 	}
