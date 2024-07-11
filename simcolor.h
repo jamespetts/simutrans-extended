@@ -175,6 +175,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_CHART_LINES_EVEN             gui_theme_t::gui_color_chart_lines_even
 #define SYSCOL_LIST_TEXT_SELECTED_FOCUS     gui_theme_t::gui_color_list_text_selected_focus
 #define SYSCOL_LIST_TEXT_SELECTED_NOFOCUS   gui_theme_t::gui_color_list_text_selected_nofocus
+#define SYSCOL_LIST_BACKGROUND_EVEN         gui_theme_t::gui_color_list_background_even
+#define SYSCOL_LIST_BACKGROUND_ODD          gui_theme_t::gui_color_list_background_odd
 #define SYSCOL_LIST_BACKGROUND_SELECTED_F   gui_theme_t::gui_color_list_background_selected_f
 #define SYSCOL_LIST_BACKGROUND_SELECTED_NF  gui_theme_t::gui_color_list_background_selected_nf
 #define SYSCOL_BUTTON_TEXT                  gui_theme_t::gui_color_button_text

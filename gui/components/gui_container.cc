@@ -272,9 +272,9 @@ void gui_container_t::draw(scr_coord offset)
 				continue;
 			}
 
-			if (checkered && (checker_count&1)==0) {
+			if (checkered) {
 				scr_coord c_pos = screen_pos + c->get_pos();
-				display_blend_wh_rgb( c_pos.x, c_pos.y, c->get_size().w, c->get_size().h, color_idx_to_rgb(COL_WHITE), 50 );
+				display_fillbox_wh_clip_rgb( c_pos.x, c_pos.y, c->get_size().w, c->get_size().h, (checker_count&1) ? SYSCOL_LIST_BACKGROUND_EVEN : SYSCOL_LIST_BACKGROUND_ODD, false);
 			}
 
 			if(  c == comp_focus  ) {

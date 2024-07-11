@@ -240,6 +240,8 @@ public:
 	static PIXVAL gui_color_chart_lines_even;             //@< Color to draw in-chart vertical even lines and text
 	static PIXVAL gui_color_list_text_selected_focus;     //@< Colour to draw the selected element text in list when window has focus
 	static PIXVAL gui_color_list_text_selected_nofocus;   //@< Colour to draw the selected element text in list when window is not in focus
+	static PIXVAL gui_color_list_background_even;
+	static PIXVAL gui_color_list_background_odd;
 	static PIXVAL gui_color_list_background_selected_f;   //@< Colour to draw the selected element background in list when window has focus
 	static PIXVAL gui_color_list_background_selected_nf;  //@< Colour to draw the selected element background in list when window is not in focus
 	static PIXVAL gui_color_button_text;                  //@< Color to draw text in normal buttons
