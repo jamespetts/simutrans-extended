@@ -3243,23 +3243,9 @@ void tool_build_way_t::mark_tiles(  player_t *player, const koord3d &start, cons
 				continue;
 			}
 			ribi_t::ribi zeige = gr->get_weg_ribi_unmasked(desc->get_wtyp()) | bauigel.get_route().get_ribi( j );
+			const slope_t::type slope_type = gr->get_weg_hang();
 
-			zeiger_t *way = new zeiger_t(pos, player);
-			if(gr->get_weg_hang()) {
-				way->set_image( desc->get_slope_image_id(gr->get_weg_hang(),0) );
-			}
-			else if(desc->get_wtyp()!=powerline_wt  &&  ribi_t::is_bend(zeige)  &&  desc->has_diagonal_image()) {
-				way->set_image( desc->get_diagonal_image_id(zeige,0) );
-			}
-			else {
-				way->set_image( desc->get_image_id(zeige,0) );
-			}
-			gr->obj_add( way );
-			way->set_yoff(-gr->get_weg_yoff() );
-			marked.insert( way );
-			way->mark_image_dirty( way->get_image(), 0 );
-			if (desc->get_wtyp() == road_wt && (j < bauigel.get_count() - 1) && skinverwaltung_t::ribi_arrow
-				&& (get_overtaking_mode() <= oneway_mode || get_build_way_tool_from_toolbar(desc)->get_overtaking_mode() <= oneway_mode)) {
+			if (desc->get_wtyp() == road_wt && (get_overtaking_mode() <= oneway_mode || get_build_way_tool_from_toolbar(desc)->get_overtaking_mode() <= oneway_mode)) {
 				uint8 dir = 0;
 				if (route_reversed && (j > 1)) {
 					dir = ribi_type(pos, bauigel.get_route()[j - 1]);
@@ -3267,7 +3253,56 @@ void tool_build_way_t::mark_tiles(  player_t *player, const koord3d &start, cons
 				else if(!route_reversed && (j < bauigel.get_count() - 1)) {
 					dir = ribi_type(pos, bauigel.get_route()[j + 1]);
 				}
-				way->set_after_image(skinverwaltung_t::ribi_arrow->get_image_id(dir));
+
+				FLAGGED_PIXVAL outline_colour=0;
+				switch (overtaking_mode)
+				{
+					case halt_mode:
+						outline_colour= (TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_LIGHT_PURPLE - 1));
+						break;
+					case prohibited_mode:
+						outline_colour = (TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(COL_ORANGE + 1));
+						break;
+					case oneway_mode:
+						outline_colour = (TRANSPARENT75_FLAG | OUTLINE_FLAG | color_idx_to_rgb(22));
+						break;
+					case invalid_mode:
+					case twoway_mode:
+					default:
+						break;
+				}
+
+				road_preview_t *way= new road_preview_t(pos, player, zeige, dir ? ribi_t::backward(dir) : 0,
+				(!slope_type && ribi_t::is_bend(zeige) && desc->has_diagonal_image()), slope_type, outline_colour);
+				if (slope_type) {
+					way->set_image(desc->get_slope_image_id(slope_type, 0));
+				}
+				else if (desc->get_wtyp() != powerline_wt && ribi_t::is_bend(zeige) && desc->has_diagonal_image()) {
+					way->set_image(desc->get_diagonal_image_id(zeige, 0));
+				}
+				else {
+					way->set_image(desc->get_image_id(zeige, 0));
+				}
+				gr->obj_add(way);
+				way->set_yoff(-gr->get_weg_yoff());
+				marked.insert(way);
+				way->mark_image_dirty(way->get_image(), 0);
+			}
+			else {
+				zeiger_t *way = new zeiger_t(pos, player);
+				if(slope_type) {
+					way->set_image( desc->get_slope_image_id(slope_type,0) );
+				}
+				else if(desc->get_wtyp()!=powerline_wt  &&  ribi_t::is_bend(zeige)  &&  desc->has_diagonal_image()) {
+					way->set_image( desc->get_diagonal_image_id(zeige,0) );
+				}
+				else {
+					way->set_image( desc->get_image_id(zeige,0) );
+				}
+				gr->obj_add( way );
+				way->set_yoff(-gr->get_weg_yoff() );
+				marked.insert( way );
+				way->mark_image_dirty( way->get_image(), 0 );
 			}
 		}
 	}
@@ -3491,18 +3526,30 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 			welt->access(pos.get_2d())->boden_hinzufuegen(gr);
 		}
 		if (gr->is_water()) {
-				continue;
-			}
-		zeiger_t *way = new zeiger_t(pos, player );
-		gr->obj_add( way );
-		grund_t *kb = welt->lookup_kartenboden(pos.get_2d());
-		sint16 height = pos.z - kb->get_pos().z;
-		way->set_image(desc->get_background(desc->get_straight(ribi_mark,height-slope_t::max_diff(kb->get_grund_hang())),0));
-		way->set_after_image(desc->get_foreground(desc->get_straight(ribi_mark,height-slope_t::max_diff(kb->get_grund_hang())), 0));
-		marked.insert( way );
-		way->mark_image_dirty( way->get_image(), 0 );
-		if (desc->get_wtyp() == road_wt  &&  get_overtaking_mode() <= oneway_mode  &&  skinverwaltung_t::ribi_arrow  ) {
-			way->set_after_image(skinverwaltung_t::ribi_arrow->get_image_id(ribi_mark));
+			continue;
+		}
+
+		const slope_t::type slope_type = gr->get_weg_hang();
+
+		if (desc->get_wtyp() == road_wt && get_overtaking_mode() <= oneway_mode) {
+			FLAGGED_PIXVAL outline_colour = 0;
+			road_preview_t* way = new road_preview_t(pos, player, ribi_mark, ribi_t::backward(ribi_mark), false, slope_type, outline_colour);
+
+			gr->obj_add(way);
+			grund_t* kb = welt->lookup_kartenboden(pos.get_2d());
+			sint16 height = pos.z - kb->get_pos().z;
+			way->set_image(desc->get_background(desc->get_straight(ribi_mark, height - slope_t::max_diff(kb->get_grund_hang())), 0));
+			marked.insert(way);
+			way->mark_image_dirty(way->get_image(), 0);
+		}
+		else{
+			zeiger_t* way = new zeiger_t(pos, player);
+			gr->obj_add(way);
+			grund_t* kb = welt->lookup_kartenboden(pos.get_2d());
+			sint16 height = pos.z - kb->get_pos().z;
+			way->set_image(desc->get_background(desc->get_straight(ribi_mark, height - slope_t::max_diff(kb->get_grund_hang())), 0));
+			marked.insert(way);
+			way->mark_image_dirty(way->get_image(), 0);
 		}
 		pos = pos + zv;
 	}
