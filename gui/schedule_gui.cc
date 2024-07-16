@@ -611,17 +611,17 @@ void schedule_gui_t::init_components()
 
 	line_selector.set_highlight_color(color_idx_to_rgb(player->get_player_color1() + 1));
 
-	filter_btn_all_pas.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_pas.init(button_t::imagebox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
 	filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
 	filter_btn_all_pas.set_tooltip("filter_pas_line");
 	filter_btn_all_pas.add_listener(this);
 
-	filter_btn_all_mails.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_mails.init(button_t::imagebox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
 	filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
 	filter_btn_all_mails.set_tooltip("filter_mail_line");
 	filter_btn_all_mails.add_listener(this);
 
-	filter_btn_all_freights.init(button_t::roundbox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+	filter_btn_all_freights.init(button_t::imagebox_state, NULL, scr_coord(0, 0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
 	filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
 	filter_btn_all_freights.set_tooltip("filter_freight_line");
 	filter_btn_all_freights.add_listener(this);
