@@ -7,19 +7,11 @@ OTRPはOneway Twoway Road Patchの略で、日本語通称は「二車線パッ�
 
 本家フォーラム: https://forum.simutrans.com/index.php/topic,18073.msg171856.html#msg171856
 
-# ダウンロード
-ribi-arrow・信号接続方向制御つきのバイナリのみの提供です。実行には本体の他にribi-arrowが必要なので https://drive.google.com/open?id=0B_rSte9xAhLDanhta1ZsSVcwdzg からDLしてpakセットの中に突っ込んでください。
-本体は下のリンクからどうぞ。  
-win: https://drive.google.com/open?id=1oC8cADnJmKOtxoRH47rlU9aaUnZ6gLvG   
-mac: https://drive.google.com/open?id=1T19F_re1hnP8r-LSHJF07O6BCXww1b94  
-source: https://github.com/teamhimeh/simutrans/tree/ex-OTRP-distribute    
-※makeobjはextendedのやつをそのまま使ってください
-
 # 導入方法
-1. ribi-arrowをDLしてお使いのpakセットに入れる
-2. pakフォルダの中にあるmenuconfでsimpletoolsの37番に適当なキーを割り当てる。例えばmenuconf.tabに`simple_tool[37]=,:`と追記すればコロンを押すとRibiArrowが出現する。
-3. 本体をDLし、simutrans-extended.exeが入ってる所と同じディレクトリに実行ファイルを入れる。
-4. DLした実行ファイルを起動する。元のsveファイルを上書きしないように気をつけましょう。
+1. pakフォルダの中にあるmenuconfでsimpletoolsの37番に適当なキーを割り当てる。例えばmenuconf.tabに`simple_tool[37]=,:`と追記すればコロンを押すとRibiArrowが出現する。
+2. 本体をDLし、simutrans-extended.exeが入ってる所と同じディレクトリに実行ファイルを入れる。
+3. DLした実行ファイルを起動する。元のsveファイルを上書きしないように気をつけましょう。
+※Extended版ではribi_arrow.pakは必要ありません
 
 # 使い方
 [standard版OTRPのドキュメント](https://github.com/teamhimeh/simutrans/blob/OTRP-distribute/documentation/OTRP_v13_information.md)を参照してください。  
