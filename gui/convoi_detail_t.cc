@@ -1026,9 +1026,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 
 void gui_convoy_spec_table_t::insert_constraints_rows()
 {
-
-		for (uint8 i = SPECS_CONSTRAINTS_START; i < MAX_SPECS; i++) {
-		uint32 total = 0;
+	for (uint8 i = SPECS_CONSTRAINTS_START; i < MAX_SPECS; i++) {
 
 		new_component<gui_table_header_t>(spec_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
 		for (uint8 j=0; j < cnv->get_vehicle_count(); j++) {
