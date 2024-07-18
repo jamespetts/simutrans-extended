@@ -15,7 +15,6 @@
 #include "components/gui_label.h"
 #include "components/gui_image.h"
 #include "components/gui_waytype_tab_panel.h"
-#include "components/gui_table.h"
 #include "components/sortable_table_vehicle.h"
 #include "components/sortable_table_header.h"
 
