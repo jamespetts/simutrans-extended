@@ -123,5 +123,49 @@ public:
 	static bool compare(const gui_component_t* aa, const gui_component_t* bb);
 };
 
+// Generate list based on vehicle_t instead of vehicle_desc
+class vehicle_row_t : public gui_sort_table_row_t
+{
+public:
+	//VD_xxx : Fields that reference vehicle_desc
+	//VH_xxx : Fields that reference vehicle_t
+	enum sort_mode_t {
+		VD_LENGTH, // image with livery
+		VD_STATUSBAR,
+		VH_COST,
+		VD_ENGINE_TYPE,
+		VD_POWER,
+		VD_TRACTIVE_FORCE,
+		VD_SPEED,
+		VD_FREIGHT_TYPE,
+		VD_CAPACITY,
+		VD_WEIGHT,
+		VD_AXLE_LOAD,
+		VH_PURCHASE_DATE,
+		VD_INTRO_DATE,
+		MAX_COLS
+	};
+
+	static int sort_mode;
+	static bool sortreverse;
+
+private:
+	vehicle_t* veh;
+	cbuffer_t tooltip_buf;
+
+public:
+	vehicle_row_t(vehicle_t* v);
+
+	vehicle_t* get_vehicle() const { return veh; }
+
+	char const* get_text() const OVERRIDE { return veh->get_desc()->get_name(); }
+
+	bool infowin_event(event_t const* ev) OVERRIDE;
+
+	void draw(scr_coord offset) OVERRIDE;
+
+	static bool compare(const gui_component_t* aa, const gui_component_t* bb);
+};
+
 
 #endif

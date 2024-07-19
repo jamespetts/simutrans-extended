@@ -150,6 +150,10 @@ void depotlist_stats_t::update_label()
 	else {
 		lb_vh_count.buf().printf( translator::translate( "%d vehicles" ), vhls );
 	}
+	if(uint32 for_sale_cnt=depot->get_vehicles_for_sale().get_count()){
+		lb_vh_count.buf().printf("(%u)", for_sale_cnt);
+	}
+
 	lb_vh_count.update();
 }
 

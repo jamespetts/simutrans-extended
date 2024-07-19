@@ -1450,4 +1450,12 @@ public:
 	bool is_init_keeps_game_state() const OVERRIDE { return false; }
 };
 
+// internal tool: Transfer a vehicle from one depot to another in order to give it away
+class tool_transfer_vehicle_t : public tool_t {
+public:
+	tool_transfer_vehicle_t() : tool_t(TOOL_TRANSFER_VEHICLE | SIMPLE_TOOL) {}
+	bool init(player_t* player) OVERRIDE;
+	bool is_init_keeps_game_state() const OVERRIDE { return false; }
+};
+
 #endif

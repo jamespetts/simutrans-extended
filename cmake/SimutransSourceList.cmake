@@ -232,6 +232,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/vehiclelist_frame.cc
 	gui/vehicle_class_manager.cc
 	gui/vehicle_detail.cc
+	gui/vehicle_manager.cc
 	gui/water_info.cc
 	gui/way_info.cc
 	gui/welt.cc

@@ -89,6 +89,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 {
 	container.set_table_layout(1,0);
 	container.set_spacing(NO_SPACING); // Spaces between components create spaces that do not accept clicks
+	container.set_margin(scr_size(D_H_SPACE, 0), scr_size(D_SCROLLBAR_HEIGHT, D_SCROLLBAR_WIDTH));
 
 	set_component(&container);
 
@@ -202,8 +203,8 @@ void gui_scrolled_list_t::set_size(scr_size size)
 void gui_scrolled_list_t::reset_container_size()
 {
 	// reset element positioning
-	container.set_margin( scr_size( D_H_SPACE, 0 ), scr_size( D_H_SPACE, 0 ) );
-	container.set_spacing( scr_size( D_H_SPACE, 0 ) );
+	container.set_margin( scr_size( D_H_SPACE, 0 ), scr_size( D_SCROLLBAR_HEIGHT, D_SCROLLBAR_WIDTH ) );
+	container.set_spacing( NO_SPACING ); // Spaces between components create spaces that do not accept clicks
 
 	scr_size csize = container.get_min_size();
 

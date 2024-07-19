@@ -121,6 +121,8 @@ private:
 
 	uint16 livery_scheme_index=UINT16_MAX;
 
+	uint32 old_stored_vehicles = 0; // update vehicle list triggar
+
 	// The selected convoy so far...
 	vector_tpl<const vehicle_desc_t *> vehicles;
 

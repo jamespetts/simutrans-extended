@@ -496,6 +496,7 @@ SOURCES += gui/obj_info.cc
 SOURCES += gui/slim_obj_info.cc
 SOURCES += gui/vehicle_class_manager.cc
 SOURCES += gui/vehicle_detail.cc
+SOURCES += gui/vehicle_manager.cc
 SOURCES += gui/water_info.cc
 SOURCES += gui/way_info.cc
 SOURCES += gui/welt.cc

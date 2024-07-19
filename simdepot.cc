@@ -201,7 +201,7 @@ void depot_t::convoi_arrived(convoihandle_t acnv, bool fpl_adjust)
 		vehicle_t *v = acnv->get_vehicle(i);
 		// Hajo: reset vehicle data
 		v->discard_cargo();
-		v->set_pos( koord3d::invalid );
+		v->set_pos( get_pos() );
 		v->set_leading( i==0 );
 		v->set_last( i+1==acnv->get_vehicle_count() );
 	}
@@ -330,6 +330,43 @@ void depot_t::sell_vehicle(vehicle_t* veh)
 	DBG_MESSAGE("depot_t::sell_vehicle()", "this=%p sells %p", this, veh);
 	veh->before_delete();
 	delete veh;
+}
+
+void depot_t::set_vehicle_for_sale(vehicle_t* veh)
+{
+	vehicles.remove(veh);
+	vehicles_for_sale.insert(veh);
+	veh->set_pos(get_pos()); // to identify this depot;
+}
+
+void depot_t::cancel_vehicle_for_sale(vehicle_t* veh)
+{
+	vehicles_for_sale.remove(veh);
+	vehicles.append(veh);
+}
+
+void depot_t::takeover_vehicle(vehicle_t* veh)
+{
+	if (grund_t* gr = welt->lookup(veh->get_pos())) {
+		if (depot_t* seller_dep = gr->get_depot()) {
+			veh->set_owner(get_owner());
+			veh->set_pos(get_pos());
+			vehicles.append(veh);
+			player_t *seller= seller_dep->get_owner();
+			const sint64 cost = (sint64)veh->calc_sale_value();
+			get_owner()->book_vehicle_number(1, get_waytype());
+			seller->book_vehicle_number(-1, get_waytype());
+			get_owner()->book_new_vehicle(-cost, get_pos().get_2d(), get_waytype());
+			seller->book_new_vehicle(cost, get_pos().get_2d(), get_waytype());
+
+			seller_dep->remove_vehicle_from_listed(veh);
+		}
+	}
+}
+
+void depot_t::remove_vehicle_from_listed(vehicle_t* veh)
+{
+	vehicles_for_sale.remove(veh);
 }
 
 
@@ -707,12 +744,22 @@ void depot_t::rdwr(loadsave_t *file)
 	if (file->is_version_less(81, 33)) {
 		// wagons are stored extra, just add them to vehicles
 		assert(file->is_loading());
-		rdwr_vehicle(vehicles, file);
+		rdwr_vehicle(vehicles, file, true);
+	}
+	if (file->is_version_ex_atleast(14, 67)){
+		DBG_MESSAGE("depot_t::rdwr_vehicles_for_sale", "loading %d vehicles", vehicles_for_sale.get_count());
+		rdwr_vehicle(vehicles_for_sale, file, true);
+		if (file->is_loading()) {
+			welt->add_listed_vehicle_count(vehicles_for_sale.get_count(), get_wegtyp());
+		}
+	}
+	else {
+		vehicles_for_sale.clear();
 	}
 }
 
 
-void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
+void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file, bool skip_depot_name)
 {
 // read/write vehicles in the depot, which are not part of a convoi.
 
@@ -741,20 +788,20 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 			const bool last = false;
 
 			switch (typ) {
-			case old_road_vehicle:
-			case road_vehicle: v = new road_vehicle_t(file, first, last);    break;
-			case old_waggon:
-			case rail_vehicle:    v = new rail_vehicle_t(file, first, last);       break;
-			case old_schiff:
-			case water_vehicle:    v = new water_vehicle_t(file, first, last);       break;
-			case old_aircraft:
-			case air_vehicle: v = new air_vehicle_t(file, first, last);  break;
-			case old_monorail_vehicle:
-			case monorail_vehicle: v = new monorail_rail_vehicle_t(file, first, last);  break;
-			case maglev_vehicle:   v = new maglev_rail_vehicle_t(file, first, last);  break;
-			case narrowgauge_vehicle: v = new narrowgauge_rail_vehicle_t(file, first, last);  break;
-			default:
-				dbg->fatal("depot_t::vehicle_laden()", "invalid vehicle type $%X", typ);
+				case old_road_vehicle:
+				case road_vehicle: v = new road_vehicle_t(file, first, last);    break;
+				case old_waggon:
+				case rail_vehicle:    v = new rail_vehicle_t(file, first, last);       break;
+				case old_schiff:
+				case water_vehicle:    v = new water_vehicle_t(file, first, last);       break;
+				case old_aircraft:
+				case air_vehicle: v = new air_vehicle_t(file, first, last);  break;
+				case old_monorail_vehicle:
+				case monorail_vehicle: v = new monorail_rail_vehicle_t(file, first, last);  break;
+				case maglev_vehicle:   v = new maglev_rail_vehicle_t(file, first, last);  break;
+				case narrowgauge_vehicle: v = new narrowgauge_rail_vehicle_t(file, first, last);  break;
+				default:
+					dbg->fatal("depot_t::vehicle_laden()", "invalid vehicle type $%X", typ);
 			}
 			const vehicle_desc_t* desc = v->get_desc();
 			if (desc) {
@@ -779,6 +826,8 @@ void depot_t::rdwr_vehicle(slist_tpl<vehicle_t *> &list, loadsave_t *file)
 		}
 	}
 
+	// depot name
+	if(skip_depot_name) return;
 	if (file->is_version_ex_atleast(14, 56))
 	{
 		file->rdwr_str(name, lengthof(name));
@@ -823,7 +872,7 @@ const char * depot_t:: is_deletable(const player_t *player)
 	if(player!=get_owner()  &&  player!=welt->get_public_player()) {
 		return NOTICE_OWNED_BY_OTHER_PLAYER;
 	}
-	if (!vehicles.empty()) {
+	if (!vehicles.empty() || !vehicles_for_sale.empty()) {
 		return "There are still vehicles\nstored in this depot!\n";
 	}
 
@@ -926,12 +975,12 @@ uint16 depot_t::get_traction_types() const
  *   - 0 if we don't want to filter by traction type
  *   - a bitmask of possible traction types; we need only match one
  */
-bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */ ) const
+bool depot_t::is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types /* = 0 */, bool ignore_owner ) const
 {
 	assert(test_vehicle != NULL);
 
-	// Owner must be the same
-	if (  this->get_owner() != test_vehicle->get_owner()  ) {
+	// When transferring vehicles between players, the owner must be ignored.
+	if (  !ignore_owner  &&  this->get_owner() != test_vehicle->get_owner()  ) {
 		return false;
 	}
 

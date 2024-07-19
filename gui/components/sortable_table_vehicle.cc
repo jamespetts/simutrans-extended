@@ -27,6 +27,9 @@
 #include "../vehicle_detail.h"
 #include "../../descriptor/intro_dates.h"
 
+int vehicle_row_t::sort_mode = vehicle_row_t::VH_PURCHASE_DATE;
+bool vehicle_row_t::sortreverse = false;
+
 int vehicle_desc_row_t::sort_mode = vehicle_desc_row_t::VD_SPEED;
 bool vehicle_desc_row_t::sortreverse = false;
 bool vehicle_desc_row_t::side_view_mode = true;
@@ -267,6 +270,77 @@ void vehicle_desc_row_t::draw(scr_coord offset)
 }
 
 
+vehicle_row_t::vehicle_row_t(vehicle_t* v)
+{
+	veh = v;
+	const vehicle_desc_t* veh_type = veh->get_desc();
+
+	tooltip_buf.printf(veh_type->get_name());
+
+	// 1. image
+	new_component<vehicle_side_image_cell_t>(veh_type->get_image_id(ribi_t::dir_southwest, goods_manager_t::none, veh->get_current_livery()), veh_type->get_name());
+	// 2. color bar
+	new_component<vehicle_status_bar_t>(veh_type);
+	// 3. value
+	new_component<value_cell_t>((sint64)veh->calc_sale_value(), gui_chart_t::MONEY, table_cell_item_t::right);
+	// 4. enigine type
+	new_component<engine_type_cell_t>(veh_type->get_engine_type());
+	// 5. power
+	new_component<value_cell_t>((sint64)veh_type->get_power(), gui_chart_t::KW, table_cell_item_t::right);
+	// 6. force
+	new_component<value_cell_t>((sint64)veh_type->get_tractive_effort(), gui_chart_t::FORCE, table_cell_item_t::right);
+	// 7. speed
+	new_component<value_cell_t>((sint64)veh_type->get_topspeed(), gui_chart_t::KMPH, table_cell_item_t::right);
+	// 8. catg
+	new_component<vehicle_class_cell_t>(veh_type);
+	// 9. capacity
+	new_component<values_cell_t>((sint64)veh_type->get_total_capacity(), veh_type->get_overcrowded_capacity());
+	// 10. weight
+	new_component<value_cell_t>((sint64)veh_type->get_weight(), gui_chart_t::TONNEN, table_cell_item_t::right);
+	// 11. axle load
+	new_component<value_cell_t>(veh_type->get_waytype()==water_wt ? 0: (sint64)veh_type->get_axle_load()*1000, gui_chart_t::TONNEN, table_cell_item_t::right);
+	// 12. purchase date
+	new_component<value_cell_t>((sint64)veh->get_purchase_time(), gui_chart_t::TIME, table_cell_item_t::right);
+	// 13. intro date
+	PIXVAL status_color = veh_type->get_vehicle_status_color();
+	new_component<value_cell_t>((sint64)veh_type->get_intro_year_month(), gui_chart_t::TIME, table_cell_item_t::right, status_color==COL_SAFETY ? SYSCOL_TEXT : status_color);
+	// owner
+	//new_component<text_cell_t>(veh->get_owner()->get_name());
+
+	//init cell height
+	for (auto& cell : owned_cells) {
+		cell->set_height(row_height);
+	}
+}
+
+
+bool vehicle_row_t::infowin_event(const event_t* ev)
+{
+	bool swallowed = gui_scrolled_list_t::scrollitem_t::infowin_event(ev);
+	if( !swallowed &&  veh && IS_RIGHTRELEASE(ev) ) {
+		vehicle_detail_t* win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
+		if (!win) {
+			create_win(new vehicle_detail_t(veh->get_desc()), w_info, magic_vehicle_detail);
+		}
+		else {
+			win->set_vehicle(veh->get_desc());
+			top_win(win, false);
+		}
+		return false;
+	}
+	return swallowed;
+}
+
+void vehicle_row_t::draw(scr_coord offset)
+{
+	gui_sort_table_row_t::draw(offset);
+	// show tooltip
+	if (getroffen(get_mouse_pos() - offset)) {
+		win_set_tooltip(get_mouse_pos() + TOOLTIP_MOUSE_OFFSET, tooltip_buf, this);
+	}
+}
+
+
 bool vehicle_desc_row_t::compare(const gui_component_t* aa, const gui_component_t* bb)
 {
 	const vehicle_desc_row_t* row_a = dynamic_cast<const vehicle_desc_row_t*>(aa);
@@ -280,6 +354,26 @@ bool vehicle_desc_row_t::compare(const gui_component_t* aa, const gui_component_
 	const table_cell_item_t* b = row_b->get_element(sort_mode);
 	if (a == NULL || b == NULL) {
 		dbg->warning("vehicle_desc_row_t::compare()", "Could not get table_cell_item_t successfully");
+		return false;
+	}
+
+	int cmp = gui_sort_table_row_t::compare(a, b);
+	return sortreverse ? cmp < 0 : cmp > 0; // Do not include 0
+}
+
+bool vehicle_row_t::compare(const gui_component_t* aa, const gui_component_t* bb)
+{
+	const vehicle_row_t* row_a = dynamic_cast<const vehicle_row_t*>(aa);
+	const vehicle_row_t* row_b = dynamic_cast<const vehicle_row_t*>(bb);
+	if (row_a == NULL || row_b == NULL) {
+		dbg->warning("vehicle_row_t::compare()", "row data error");
+		return false;
+	}
+
+	const table_cell_item_t* a = row_a->get_element(sort_mode);
+	const table_cell_item_t* b = row_b->get_element(sort_mode);
+	if (a == NULL || b == NULL) {
+		dbg->warning("vehicle_row_t::compare()", "Could not get table_cell_item_t successfully");
 		return false;
 	}
 
