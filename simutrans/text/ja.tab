@@ -2267,6 +2267,38 @@ Zu nah am Kartenrand
 %s大通り%s
 #___________________________Simutrans Extended Texts____________________________
 #___________________________Simutrans Extended Texts____________________________
+You put %s up for sale.
+「%s」を出品しました。
+You have cancelled the listing for %s.
+「%s」の出品を中止しました。
+You purchased %s from %s.
+%2$sから「%1$s」を購入しました。
+%s offer %s for sale.
+%sは「%s」の買い手を探しています。
+%s cancelled the listing for %s."
+%sは「%s」の出品を中止しました。
+%s purchased %s that you had listed.
+%sがあなたが出品中の「%s」を購入しました。
+Stored
+入庫中
+1 vehicle
+1台(両)
+Listed
+出品中
+veh_mgr
+車庫名変更／車両売買
+Open the vehicle management window
+ここから車庫名の変更と車両の売買が行えます
+execute_scrap
+廃車解体する
+execute_listing
+出品する
+cancel_the_listing
+出品を中止する
+execute_purchase
+中古車両を購入
+Cancel the listing request for the selected vehicles
+選択した車両の出品を取り下げます
 hd_sv_mode_frequency
 運行頻度、編成数
 hd_sv_mode_catg
@@ -2427,6 +2459,10 @@ building
 建築物
 Built
 建設年月
+Built date
+製造年月
+Buy
+中古車の購入
 Buy/sell
 購入/売却
 cab_signalling
@@ -3794,7 +3830,7 @@ map_btn_building_level
 sort_pas_arrived
 旅客輸送実績
 Scrap
-車両を解体
+廃車解体
 Scrap all vehicles in the convoy.
 編成中の車両を全て解体します。車両購入費用は一切戻ってきません。
 Return the vehicle(s) for a full refund.
