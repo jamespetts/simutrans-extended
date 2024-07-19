@@ -35,7 +35,7 @@ void sortable_header_cell_t::draw(scr_coord offset)
 		display_fillbox_wh_clip_rgb(pos.x + offset.x + 1, pos.y + offset.y + 1, get_size().w - 2, get_size().h - 2, SYSCOL_TH_BACKGROUND_SELECTED, false);
 	}
 	PIXVAL text_color = selected ? SYSCOL_TH_TEXT_SELECTED : SYSCOL_TH_TEXT_TOP;
-	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, get_size().w, get_size().h, SYSCOL_TH_BORDER, SYSCOL_TH_BORDER);
+	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, get_size().w+1, get_size().h, SYSCOL_TH_BORDER, SYSCOL_TH_BORDER);
 
 	// draw text
 	const scr_rect area(offset + pos, size-scr_size(5,0));
