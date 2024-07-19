@@ -64,6 +64,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	cont_sortable.set_margin(NO_SPACING, NO_SPACING);
 	cont_sortable.set_spacing(NO_SPACING);
 	cont_sortable.set_table_layout(1,2);
+	cont_sortable.set_alignment(ALIGN_TOP); // Without this, the layout will be broken if the height is small.
 	cont_sortable.add_component(&table_header);
 	cont_sortable.add_component(&scrolly);
 
