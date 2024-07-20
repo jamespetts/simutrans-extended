@@ -53,7 +53,7 @@ public:
 
 	scr_coord_val check_height(scr_coord_val new_height);
 
-	virtual const uint8 get_type() const { return cell_text; }
+	virtual const uint8 get_type() const { return cell_no_sorting; }
 
 	bool is_focusable() OVERRIDE { return false; }
 
@@ -76,6 +76,19 @@ public:
 
 	void draw(scr_coord offset) OVERRIDE;
 };
+
+
+// Hold the coordinates and click a cell to jump to the coordinates.
+class coord_cell_t : public text_cell_t
+{
+	koord coord;
+
+public:
+	coord_cell_t(const char* text = NULL, koord coord=koord::invalid, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+
+	koord get_coord() const { return coord; }
+};
+
 
 // The cell holds a single value for sorting
 // Can specify a suffix.

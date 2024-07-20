@@ -25,14 +25,14 @@ sortable_header_cell_t::sortable_header_cell_t(char const* const text_, bool yes
 {
 	enabled=yesno;
 	text = text_;
-	min_width = proportional_string_width(translator::translate(text)) + 7 /* arrow width */;
+	min_width = proportional_string_width(translator::translate(text)) + 10 /* arrow width */;
 	size.h=D_BUTTON_HEIGHT;
 }
 
 void sortable_header_cell_t::draw(scr_coord offset)
 {
 	if (selected) {
-		display_fillbox_wh_clip_rgb(pos.x + offset.x + 1, pos.y + offset.y + 1, get_size().w - 2, get_size().h - 2, SYSCOL_TH_BACKGROUND_SELECTED, false);
+		display_fillbox_wh_clip_rgb(pos.x + offset.x + 1, pos.y + offset.y + 1, get_size().w - 1, get_size().h - 2, SYSCOL_TH_BACKGROUND_SELECTED, false);
 	}
 	PIXVAL text_color = selected ? SYSCOL_TH_TEXT_SELECTED : SYSCOL_TH_TEXT_TOP;
 	display_ddd_box_clip_rgb(pos.x + offset.x, pos.y + offset.y, get_size().w+1, get_size().h, SYSCOL_TH_BORDER, SYSCOL_TH_BORDER);

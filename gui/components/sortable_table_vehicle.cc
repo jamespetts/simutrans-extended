@@ -213,7 +213,7 @@ vehicle_desc_row_t::vehicle_desc_row_t(const vehicle_desc_t* desc)
 	new_component<value_cell_t>(veh_type->get_waytype() == water_wt ? 0 : (sint64)veh_type->get_axle_load() * 1000, gui_chart_t::TONNEN, table_cell_item_t::right);
 	// 12. intro date
 	PIXVAL status_color = veh_type->get_vehicle_status_color();
-	new_component<value_cell_t>((sint64)veh_type->get_intro_year_month(), gui_chart_t::TIME, table_cell_item_t::right, status_color == COL_SAFETY ? SYSCOL_TEXT : status_color);
+	new_component<value_cell_t>((sint64)veh_type->get_intro_year_month(), gui_chart_t::DATE, table_cell_item_t::right, status_color == COL_SAFETY ? SYSCOL_TEXT : status_color);
 	// 13. retire date
 	sint64 retire_date= DEFAULT_RETIRE_DATE * 12;
 	if (veh_type->get_retire_year_month() != DEFAULT_RETIRE_DATE * 12 &&
@@ -224,7 +224,7 @@ vehicle_desc_row_t::vehicle_desc_row_t(const vehicle_desc_t* desc)
 		retire_date = (sint64)veh_type->get_retire_year_month();
 
 	}
-	new_component<value_cell_t>(retire_date, gui_chart_t::TIME, table_cell_item_t::right);
+	new_component<value_cell_t>(retire_date, gui_chart_t::DATE, table_cell_item_t::right);
 
 	//init cell height
 	for (auto& cell : owned_cells) {
