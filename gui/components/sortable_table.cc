@@ -53,7 +53,7 @@ void table_cell_item_t::draw(scr_coord offset)
 {
 	offset+=pos;
 	if (highlight) { // for filter
-		display_fillbox_wh_clip_rgb(offset.x, offset.y, size.w, size.h, SYSCOL_TD_BACKGROUND_HIGHLIGHT, false);
+		display_fillbox_wh_clip_rgb(offset.x+1, offset.y, size.w, size.h, SYSCOL_TD_BACKGROUND_HIGHLIGHT, false);
 	}
 	// draw border
 	display_ddd_box_clip_rgb(offset.x, offset.y-1, size.w+1, size.h+1, SYSCOL_TD_BORDER, SYSCOL_TD_BORDER);
