@@ -845,8 +845,6 @@ convoi passed last month:
 前月交通量:
 Convois
 編成数
-Convois: %d\nProfit: %s
-就役編成: %d\n利益: %s
 Convoys
 編成
 Copy Convoi
@@ -2463,8 +2461,6 @@ Built date
 製造年月
 Buy
 中古車の購入
-Buy/sell
-購入/売却
 cab_signalling
 車内信号閉塞式
 call_on
@@ -4555,6 +4551,10 @@ line_network
 接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+Buy/sell
+購入/売却
+Convois: %d\nProfit: %s
+就役編成: %d\n利益: %s
 Free Capacity
 空席
 100 km/h = %i tiles/month
