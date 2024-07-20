@@ -78,6 +78,15 @@ void text_cell_t::draw(scr_coord offset)
 	display_proportional_clip_rgb(offset.x+ draw_offset.x, offset.y+ draw_offset.y, translator::translate(text), ALIGN_LEFT, color, false);
 }
 
+coord_cell_t::coord_cell_t(const char* text, koord coord_, PIXVAL color, align_t align)
+	: text_cell_t((text==NULL && coord_!=koord::invalid) ? coord.get_fullstr() : text, color, align)
+{
+	coord = coord_;
+	min_size = scr_size(proportional_string_width(translator::translate(get_text())), LINESPACE);
+	set_size(min_size);
+}
+
+
 value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, align_t align_, PIXVAL col)
 {
 	color = col;

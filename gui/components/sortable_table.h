@@ -77,6 +77,19 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
+
+// Hold the coordinates and click a cell to jump to the coordinates.
+class coord_cell_t : public text_cell_t
+{
+	koord coord;
+
+public:
+	coord_cell_t(const char* text = NULL, koord coord=koord::invalid, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+
+	koord get_coord() const { return coord; }
+};
+
+
 // The cell holds a single value for sorting
 // Can specify a suffix.
 class value_cell_t : public table_cell_item_t
