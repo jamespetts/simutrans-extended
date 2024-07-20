@@ -300,10 +300,10 @@ vehicle_row_t::vehicle_row_t(vehicle_t* v)
 	// 11. axle load
 	new_component<value_cell_t>(veh_type->get_waytype()==water_wt ? 0: (sint64)veh_type->get_axle_load()*1000, gui_chart_t::TONNEN, table_cell_item_t::right);
 	// 12. purchase date
-	new_component<value_cell_t>((sint64)veh->get_purchase_time(), gui_chart_t::TIME, table_cell_item_t::right);
+	new_component<value_cell_t>((sint64)veh->get_purchase_time(), gui_chart_t::DATE, table_cell_item_t::right);
 	// 13. intro date
 	PIXVAL status_color = veh_type->get_vehicle_status_color();
-	new_component<value_cell_t>((sint64)veh_type->get_intro_year_month(), gui_chart_t::TIME, table_cell_item_t::right, status_color==COL_SAFETY ? SYSCOL_TEXT : status_color);
+	new_component<value_cell_t>((sint64)veh_type->get_intro_year_month(), gui_chart_t::DATE, table_cell_item_t::right, status_color==COL_SAFETY ? SYSCOL_TEXT : status_color);
 	// owner
 	//new_component<text_cell_t>(veh->get_owner()->get_name());
 
