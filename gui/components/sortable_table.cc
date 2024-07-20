@@ -119,7 +119,7 @@ value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, al
 				buf.printf("%.1ft", (float)value/1000.0);
 			}
 			break;
-		case gui_chart_t::TIME: // as date
+		case gui_chart_t::DATE:
 			if (value == DEFAULT_RETIRE_DATE*12) {
 				// empty cell
 				////buf.append("-");
@@ -129,6 +129,19 @@ value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, al
 				buf.append(translator::get_short_date((uint16)value / 12, (uint16)value % 12));
 			}
 			break;
+		case gui_chart_t::TIME:
+		{
+			if (value==0) {
+				buf.append("--:--:--");
+				color = COL_INACTIVE;
+			}
+			else {
+				char as_clock[32];
+				world()->sprintf_ticks(as_clock, sizeof(as_clock), value);
+				buf.printf("%s", as_clock);
+			}
+			break;
+		}
 		case gui_chart_t::FORCE:
 			if (value == 0) {
 				buf.append("-");
@@ -140,7 +153,11 @@ value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, al
 				buf.append(" kN");
 			}
 			break;
-		case gui_chart_t::DISTANCE: // currentry not used
+		case gui_chart_t::DISTANCE:
+		{
+			buf.printf("%.1fkm", (float)(value*world()->get_settings().get_meters_per_tile()/1000.0));
+			break;
+		}
 		case gui_chart_t::STANDARD:
 		default:
 			buf.append(value);

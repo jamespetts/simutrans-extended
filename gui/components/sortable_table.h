@@ -53,7 +53,7 @@ public:
 
 	scr_coord_val check_height(scr_coord_val new_height);
 
-	virtual const uint8 get_type() const { return cell_text; }
+	virtual const uint8 get_type() const { return cell_no_sorting; }
 
 	bool is_focusable() OVERRIDE { return false; }
 
