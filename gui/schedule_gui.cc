@@ -1100,12 +1100,7 @@ void schedule_gui_t::update_selection()
  */
 bool schedule_gui_t::infowin_event(const event_t *ev)
 {
-	if( (ev)->ev_class == EVENT_CLICK  &&  !((ev)->ev_code==MOUSE_WHEELUP  ||  (ev)->ev_code==MOUSE_WHEELDOWN)  &&  !line_selector.getroffen( ev->click_pos-scr_coord(0,D_TITLEBAR_HEIGHT) )  )  {
-
-		// close combo box; we must do it ourselves, since the box does not receive outside events ...
-		line_selector.close_box();
-	}
-	else if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  &&  schedule!=NULL  ) {
+	if(  ev->ev_class == INFOWIN  &&  ev->ev_code == WIN_CLOSE  &&  schedule!=NULL  ) {
 
 		stats->highlight_schedule(schedule, false);
 
