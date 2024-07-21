@@ -129,7 +129,7 @@ bool gui_sort_table_header_t::infowin_event(const event_t* ev)
 {
 	bool swallowed = gui_container_t::infowin_event(ev);
 
-	if (IS_LEFTRELEASE(ev) && getroffen(ev->mouse_pos)) {
+	if (!swallowed && IS_LEFTRELEASE(ev) && getroffen(ev->mouse_pos)) {
 		uint idx=0;
 		for (auto& cell : owned_cells) {
 			if (cell->getroffen(ev->mouse_pos)) {

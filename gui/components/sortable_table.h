@@ -26,7 +26,8 @@ public:
 		cell_no_sorting = 0,
 		cell_value      = 1,
 		cell_values     = 2,
-		cell_text       = 3
+		cell_text       = 3,
+		cell_coord      = 4
 	};
 
 	enum align_t {
@@ -87,6 +88,8 @@ public:
 	coord_cell_t(const char* text = NULL, koord coord=koord::invalid, PIXVAL color = SYSCOL_TEXT, align_t align = left);
 
 	koord get_coord() const { return coord; }
+
+	const uint8 get_type() const OVERRIDE { return cell_coord; }
 };
 
 
