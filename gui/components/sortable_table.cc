@@ -61,11 +61,12 @@ void table_cell_item_t::draw(scr_coord offset)
 
 
 
-text_cell_t::text_cell_t(const char* text_, PIXVAL col, align_t align_)
+text_cell_t::text_cell_t(const char* text_, PIXVAL col, align_t align_, bool underlined_)
 {
 	text= text_;
 	color= col;
 	align=align_;
+	underlined = underlined_;
 	min_size = scr_size(proportional_string_width(translator::translate(text)), LINESPACE);
 	set_size(min_size);
 }
@@ -76,10 +77,13 @@ void text_cell_t::draw(scr_coord offset)
 
 	offset+=pos;
 	display_proportional_clip_rgb(offset.x+ draw_offset.x, offset.y+ draw_offset.y, translator::translate(text), ALIGN_LEFT, color, false);
+	if (underlined) {
+		display_fillbox_wh_clip_rgb(offset.x + draw_offset.x, offset.y + draw_offset.y + LINESPACE-1, min_size.w, 1, color, false);
+	}
 }
 
 coord_cell_t::coord_cell_t(const char* text, koord coord_, PIXVAL color, align_t align)
-	: text_cell_t((text==NULL && coord_!=koord::invalid) ? coord.get_fullstr() : text, color, align)
+	: text_cell_t((text==NULL && coord_!=koord::invalid) ? coord.get_fullstr() : text, color, align, coord_ == koord::invalid ? false : true)
 {
 	coord = coord_;
 	min_size = scr_size(proportional_string_width(translator::translate(get_text())), LINESPACE);

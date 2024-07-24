@@ -66,10 +66,11 @@ class text_cell_t : public table_cell_item_t
 {
 	const char* text; // only for direct access of non-translatable things. Do not use!
 	PIXVAL color;
+	bool underlined;
 	// bool is_bold;
 
 public:
-	text_cell_t(const char* text = NULL, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+	text_cell_t(const char* text = NULL, PIXVAL color = SYSCOL_TEXT, align_t align = left, bool underlined = false);
 
 	const uint8 get_type() const OVERRIDE { return cell_text; }
 
