@@ -189,7 +189,7 @@ void value_cell_t::draw(scr_coord offset)
 }
 
 
-values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
+values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col, bool single_line_)
 	: value_cell_t(value_)
 {
 	buf.clear();
@@ -198,10 +198,9 @@ values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
 	color = col;
 	min_size.h = LINESPACE;
 	align = centered;
+	single_line = single_line_;
 
 	sub_value=sub_value_;
-
-	bool two_lines = false;
 
 	if (value==0 && sub_value==0) {
 		buf.append("-");
@@ -212,20 +211,22 @@ values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
 	}
 	if (sub_value != 0) {
 		if (value != 0) {
-			// display two lines
-			sub_buf.printf("(%i)", sub_value);
-			min_size.h += LINESPACE;
-			two_lines = true;
+			if (single_line) {
+				buf.printf(" (%i)", sub_value);
+			}
+			else {
+				// display two lines
+				sub_buf.printf("(%i)", sub_value);
+				min_size.h += LINESPACE;
+				sub_draw_offset_x = proportional_string_width(sub_buf) / 2;
+				min_size.w = max(proportional_string_width(buf), sub_draw_offset_x * 2 + 1);
+			}
 		}
 		else {
 			buf.printf("(%i)", sub_value);
 		}
 	}
-	if (two_lines) {
-		sub_draw_offset_x = proportional_string_width(sub_buf) / 2;
-		min_size.w = max(proportional_string_width(buf), sub_draw_offset_x * 2 + 1);
-	}
-	else {
+	if (single_line) {
 		min_size.w = proportional_string_width(buf);
 	}
 	set_size(min_size);
@@ -233,10 +234,14 @@ values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
 
 void values_cell_t::set_width(scr_coord_val new_width)
 {
-	const scr_coord_val row1_width = proportional_string_width(buf);
-
 	size.w = new_width + L_CELL_PADDING * 2;
-	draw_offset.x = (size.w - row1_width) / 2;
+	if (single_line) {
+		draw_offset.x = (size.w - min_size.w) / 2;
+	}
+	else {
+		draw_offset.x = (size.w - proportional_string_width(buf)) / 2;
+	}
+
 }
 
 void values_cell_t::draw(scr_coord offset)

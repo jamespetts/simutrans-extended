@@ -122,9 +122,11 @@ protected:
 	cbuffer_t sub_buf;
 	sint64 sub_value;
 	scr_coord_val sub_draw_offset_x = 0;
+	bool single_line;
 
 public:
-	values_cell_t(sint64 value, sint64 sub_value, PIXVAL color = SYSCOL_TEXT);
+	// single_line: Displaying two values ​​on the same line
+	values_cell_t(sint64 value, sint64 sub_value, PIXVAL color = SYSCOL_TEXT, bool single_line=false);
 
 	void set_width(scr_coord_val new_width) OVERRIDE;
 
