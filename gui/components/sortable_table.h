@@ -98,6 +98,7 @@ public:
 // Can specify a suffix.
 class value_cell_t : public table_cell_item_t
 {
+	gui_chart_t::chart_suffix_t suffix;
 protected:
 	cbuffer_t buf;
 	PIXVAL color;
@@ -106,6 +107,9 @@ protected:
 
 public:
 	value_cell_t(sint64 value, gui_chart_t::chart_suffix_t suffix= gui_chart_t::STANDARD, align_t align = left, PIXVAL color = SYSCOL_TEXT);
+
+	// When resetting the value, care must be taken not to increase the column width.
+	void set_value(sint64 value);
 
 	sint64 get_value() const { return value; }
 
@@ -116,11 +120,12 @@ public:
 
 // The cell holds two values for sorting
 // There is no suffix
-class values_cell_t : public value_cell_t
+class values_cell_t : public table_cell_item_t
 {
 protected:
-	cbuffer_t sub_buf;
-	sint64 sub_value;
+	cbuffer_t buf, sub_buf;
+	PIXVAL color;
+	sint64 value, sub_value;
 	scr_coord_val sub_draw_offset_x = 0;
 	bool single_line;
 
@@ -130,6 +135,10 @@ public:
 
 	void set_width(scr_coord_val new_width) OVERRIDE;
 
+	// When resetting the value, care must be taken not to increase the column width.
+	void set_values(sint64 value, sint64 sub_value=0);
+
+	sint64 get_value() const { return value; }
 	sint64 get_sub_value() const { return sub_value; }
 
 	const uint8 get_type() const OVERRIDE { return cell_values; }

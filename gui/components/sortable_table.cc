@@ -91,11 +91,20 @@ coord_cell_t::coord_cell_t(const char* text, koord coord_, PIXVAL color, align_t
 }
 
 
-value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, align_t align_, PIXVAL col)
+value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix_, align_t align_, PIXVAL col)
 {
 	color = col;
 	align = align_;
-	value=value_;
+	suffix= suffix_;
+
+	set_value(value_);
+	set_size(min_size);
+}
+
+void value_cell_t::set_value(sint64 value_)
+{
+	value = value_;
+	buf.clear();
 
 	switch(suffix)
 	{
@@ -177,7 +186,10 @@ value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, al
 			break;
 	}
 	min_size = scr_size(proportional_string_width(buf), LINESPACE);
-	set_size(min_size);
+	if (min_size.w> (size.w - L_CELL_PADDING*2) ) {
+		dbg->warning("value_cell_t::set_value", "Cell's text width has been changed to %i, exceeding the column width of %i.", min_size.w, size.w);
+	}
+	set_width(size.w - L_CELL_PADDING*2); // recalc draw_offset.x
 }
 
 void value_cell_t::draw(scr_coord offset)
@@ -190,19 +202,26 @@ void value_cell_t::draw(scr_coord offset)
 
 
 values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col, bool single_line_)
-	: value_cell_t(value_)
 {
-	buf.clear();
-	sub_buf.clear();
-
 	color = col;
 	min_size.h = LINESPACE;
 	align = centered;
 	single_line = single_line_;
 
-	sub_value=sub_value_;
+	set_values(value_, sub_value_);
 
-	if (value==0 && sub_value==0) {
+	set_size(min_size);
+}
+
+void values_cell_t::set_values(sint64 value_, sint64 sub_value_)
+{
+	value = value_;
+	sub_value = sub_value_;
+
+	buf.clear();
+	sub_buf.clear();
+
+	if (value == 0 && sub_value == 0) {
 		buf.append("-");
 		color = SYSCOL_TEXT_WEAK;
 	}
@@ -229,7 +248,10 @@ values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col, bool 
 	if (single_line) {
 		min_size.w = proportional_string_width(buf);
 	}
-	set_size(min_size);
+	if (min_size.w > (size.w - L_CELL_PADDING * 2)) {
+		dbg->warning("values_cell_t::set_value", "Cell's text width has been changed to %i, exceeding the column width of %i.", min_size.w, size.w);
+	}
+	set_width(size.w - L_CELL_PADDING * 2); // recalc draw_offset.x
 }
 
 void values_cell_t::set_width(scr_coord_val new_width)
