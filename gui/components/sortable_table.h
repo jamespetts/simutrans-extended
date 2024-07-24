@@ -141,6 +141,7 @@ public:
 	static sint64 compare_value(const table_cell_item_t* a, const table_cell_item_t* b);
 	static sint64 compare_values(const table_cell_item_t* a, const table_cell_item_t* b);
 	static int compare_text(const table_cell_item_t* a, const table_cell_item_t* b);
+	static int compare_coord(const table_cell_item_t* a, const table_cell_item_t* b);
 
 
 protected:

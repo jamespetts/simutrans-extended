@@ -320,6 +320,19 @@ int gui_sort_table_row_t::compare_text(const table_cell_item_t* a, const table_c
 	return STRICMP(a_text, b_text);
 }
 
+int gui_sort_table_row_t::compare_coord(const table_cell_item_t* a, const table_cell_item_t* b)
+{
+	int cmp = 0;
+	const coord_cell_t* cell_a = dynamic_cast<const coord_cell_t*>(a);
+	const coord_cell_t* cell_b = dynamic_cast<const coord_cell_t*>(b);
+	cmp = cell_a->get_coord().x - cell_b->get_coord().x;
+	if (cmp == 0) {
+		cmp = cell_a->get_coord().y - cell_b->get_coord().y;
+	}
+	return cmp;
+}
+
+
 int gui_sort_table_row_t::compare(const table_cell_item_t* a, const table_cell_item_t* b)
 {
 	sint64 cmp = 0;
@@ -335,6 +348,9 @@ int gui_sort_table_row_t::compare(const table_cell_item_t* a, const table_cell_i
 			break;
 		case table_cell_item_t::cell_text:
 			cmp = gui_sort_table_row_t::compare_text(a, b);
+			break;
+		case table_cell_item_t::cell_coord:
+			cmp = gui_sort_table_row_t::compare_coord(a, b);
 			break;
 		case table_cell_item_t::cell_no_sorting:
 		default:
