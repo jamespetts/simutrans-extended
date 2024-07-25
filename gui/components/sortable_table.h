@@ -109,9 +109,11 @@ public:
 	value_cell_t(sint64 value, gui_chart_t::chart_suffix_t suffix= gui_chart_t::STANDARD, align_t align = left, PIXVAL color = SYSCOL_TEXT);
 
 	// When resetting the value, care must be taken not to increase the column width.
-	void set_value(sint64 value);
+	virtual void set_value(sint64 value);
 
 	sint64 get_value() const { return value; }
+
+	void set_color(PIXVAL color_) { color = color_; }
 
 	const uint8 get_type() const OVERRIDE { return cell_value; }
 
