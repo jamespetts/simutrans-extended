@@ -22,6 +22,7 @@
 
 #include "gui/depot_frame.h"
 #include "gui/messagebox.h"
+#include "gui/depotlist_frame.h"
 
 #include "dataobj/schedule.h"
 #include "dataobj/loadsave.h"
@@ -849,6 +850,10 @@ void depot_t::set_name(const char* value)
 	depot_frame_t *win = dynamic_cast<depot_frame_t *>(win_get_magic((ptrdiff_t)this));
 	if (win) {
 		win->reset_depot_name();
+	}
+	depotlist_frame_t *win2 = dynamic_cast<depotlist_frame_t*>(win_get_magic(magic_depotlist+get_owner_nr()));
+	if (win2) {
+		win2->fill_list();
 	}
 }
 
