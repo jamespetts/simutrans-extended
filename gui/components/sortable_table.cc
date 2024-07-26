@@ -12,6 +12,7 @@
 #include "../../simworld.h"
 #include "../../simcolor.h"
 #include "../../display/simgraph.h"
+#include "../../display/viewport.h"
 
 #include "../../dataobj/translator.h"
 
@@ -82,12 +83,52 @@ void text_cell_t::draw(scr_coord offset)
 	}
 }
 
-coord_cell_t::coord_cell_t(const char* text, koord coord_, PIXVAL color, align_t align)
-	: text_cell_t((text==NULL && coord_!=koord::invalid) ? coord.get_fullstr() : text, color, align, coord_ == koord::invalid ? false : true)
+
+coord_cell_t::coord_cell_t(const char* alt_text, koord coord_, align_t align_)
 {
 	coord = coord_;
-	min_size = scr_size(proportional_string_width(translator::translate(get_text())), LINESPACE);
+	align = align_;
+	if (alt_text != NULL) {
+		buf.printf("%s", alt_text);
+	}
+	else {
+		buf.append("-");
+	}
+	min_size = scr_size(proportional_string_width(buf), LINESPACE);
 	set_size(min_size);
+}
+
+coord_cell_t::coord_cell_t(koord coord_, align_t align_)
+{
+	coord = coord_;
+	align = align_;
+	if (coord != koord::invalid) {
+		buf.printf("%s", coord.get_str());
+		show_posicon = true;
+	}
+	else {
+		buf.append("-");
+	}
+	min_size = scr_size(proportional_string_width(buf) + (D_POS_BUTTON_WIDTH + 2) * show_posicon, show_posicon ? max(LINESPACE, D_POS_BUTTON_HEIGHT) : LINESPACE);
+	set_size(min_size);
+}
+
+void coord_cell_t::draw(scr_coord offset)
+{
+	table_cell_item_t::draw(offset);
+
+	offset += pos;
+	PIXVAL text_col= SYSCOL_TEXT;
+	if (world()->get_viewport()->get_world_position() == coord) {
+		text_col=SYSCOL_TEXT_HIGHLIGHT;
+		if (show_posicon){
+			display_color_img(skinverwaltung_t::posbutton->get_image_id(SKIN_BUTTON_POS_PRESSED), offset.x + draw_offset.x, offset.y + (size.h-D_POS_BUTTON_HEIGHT)/2, 0, false, false);
+		}
+	}
+	display_proportional_clip_rgb(offset.x + draw_offset.x + (D_POS_BUTTON_WIDTH+2) * show_posicon, offset.y + draw_offset.y, buf, ALIGN_LEFT, text_col, false);
+	if (coord != koord::invalid) {
+		display_fillbox_wh_clip_rgb(offset.x + draw_offset.x + (D_POS_BUTTON_WIDTH + 2) * show_posicon, offset.y + draw_offset.y + LINESPACE - 1, min_size.w - (D_POS_BUTTON_WIDTH + 2) * show_posicon, 1, text_col, false);
+	}
 }
 
 

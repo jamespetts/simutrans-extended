@@ -81,16 +81,21 @@ public:
 
 
 // Hold the coordinates and click a cell to jump to the coordinates.
-class coord_cell_t : public text_cell_t
+class coord_cell_t : public table_cell_item_t
 {
 	koord coord;
+	cbuffer_t buf;
+	bool show_posicon=false;
 
 public:
-	coord_cell_t(const char* text = NULL, koord coord=koord::invalid, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+	coord_cell_t(const char* alt_text = NULL, koord coord=koord::invalid, align_t align = left);
+	coord_cell_t(koord coord = koord::invalid, align_t align = left);
 
 	koord get_coord() const { return coord; }
 
 	const uint8 get_type() const OVERRIDE { return cell_coord; }
+
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 
