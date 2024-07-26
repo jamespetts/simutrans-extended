@@ -26,7 +26,8 @@ public:
 		cell_no_sorting = 0,
 		cell_value      = 1,
 		cell_values     = 2,
-		cell_text       = 3
+		cell_text       = 3,
+		cell_coord      = 4
 	};
 
 	enum align_t {
@@ -65,10 +66,11 @@ class text_cell_t : public table_cell_item_t
 {
 	const char* text; // only for direct access of non-translatable things. Do not use!
 	PIXVAL color;
+	bool underlined;
 	// bool is_bold;
 
 public:
-	text_cell_t(const char* text = NULL, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+	text_cell_t(const char* text = NULL, PIXVAL color = SYSCOL_TEXT, align_t align = left, bool underlined = false);
 
 	const uint8 get_type() const OVERRIDE { return cell_text; }
 
@@ -79,14 +81,21 @@ public:
 
 
 // Hold the coordinates and click a cell to jump to the coordinates.
-class coord_cell_t : public text_cell_t
+class coord_cell_t : public table_cell_item_t
 {
 	koord coord;
+	cbuffer_t buf;
+	bool show_posicon=false;
 
 public:
-	coord_cell_t(const char* text = NULL, koord coord=koord::invalid, PIXVAL color = SYSCOL_TEXT, align_t align = left);
+	coord_cell_t(const char* alt_text = NULL, koord coord=koord::invalid, align_t align = left);
+	coord_cell_t(koord coord = koord::invalid, align_t align = left);
 
 	koord get_coord() const { return coord; }
+
+	const uint8 get_type() const OVERRIDE { return cell_coord; }
+
+	void draw(scr_coord offset) OVERRIDE;
 };
 
 
@@ -94,6 +103,7 @@ public:
 // Can specify a suffix.
 class value_cell_t : public table_cell_item_t
 {
+	gui_chart_t::chart_suffix_t suffix;
 protected:
 	cbuffer_t buf;
 	PIXVAL color;
@@ -103,7 +113,12 @@ protected:
 public:
 	value_cell_t(sint64 value, gui_chart_t::chart_suffix_t suffix= gui_chart_t::STANDARD, align_t align = left, PIXVAL color = SYSCOL_TEXT);
 
+	// When resetting the value, care must be taken not to increase the column width.
+	virtual void set_value(sint64 value);
+
 	sint64 get_value() const { return value; }
+
+	void set_color(PIXVAL color_) { color = color_; }
 
 	const uint8 get_type() const OVERRIDE { return cell_value; }
 
@@ -112,18 +127,25 @@ public:
 
 // The cell holds two values for sorting
 // There is no suffix
-class values_cell_t : public value_cell_t
+class values_cell_t : public table_cell_item_t
 {
 protected:
-	cbuffer_t sub_buf;
-	sint64 sub_value;
+	cbuffer_t buf, sub_buf;
+	PIXVAL color;
+	sint64 value, sub_value;
 	scr_coord_val sub_draw_offset_x = 0;
+	bool single_line;
 
 public:
-	values_cell_t(sint64 value, sint64 sub_value, PIXVAL color = SYSCOL_TEXT);
+	// single_line: Displaying two values ​​on the same line
+	values_cell_t(sint64 value, sint64 sub_value, PIXVAL color = SYSCOL_TEXT, bool single_line=false);
 
 	void set_width(scr_coord_val new_width) OVERRIDE;
 
+	// When resetting the value, care must be taken not to increase the column width.
+	void set_values(sint64 value, sint64 sub_value=0);
+
+	sint64 get_value() const { return value; }
 	sint64 get_sub_value() const { return sub_value; }
 
 	const uint8 get_type() const OVERRIDE { return cell_values; }
@@ -138,6 +160,7 @@ public:
 	static sint64 compare_value(const table_cell_item_t* a, const table_cell_item_t* b);
 	static sint64 compare_values(const table_cell_item_t* a, const table_cell_item_t* b);
 	static int compare_text(const table_cell_item_t* a, const table_cell_item_t* b);
+	static int compare_coord(const table_cell_item_t* a, const table_cell_item_t* b);
 
 
 protected:

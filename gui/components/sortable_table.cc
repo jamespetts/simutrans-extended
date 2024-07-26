@@ -12,6 +12,7 @@
 #include "../../simworld.h"
 #include "../../simcolor.h"
 #include "../../display/simgraph.h"
+#include "../../display/viewport.h"
 
 #include "../../dataobj/translator.h"
 
@@ -61,11 +62,12 @@ void table_cell_item_t::draw(scr_coord offset)
 
 
 
-text_cell_t::text_cell_t(const char* text_, PIXVAL col, align_t align_)
+text_cell_t::text_cell_t(const char* text_, PIXVAL col, align_t align_, bool underlined_)
 {
 	text= text_;
 	color= col;
 	align=align_;
+	underlined = underlined_;
 	min_size = scr_size(proportional_string_width(translator::translate(text)), LINESPACE);
 	set_size(min_size);
 }
@@ -76,22 +78,74 @@ void text_cell_t::draw(scr_coord offset)
 
 	offset+=pos;
 	display_proportional_clip_rgb(offset.x+ draw_offset.x, offset.y+ draw_offset.y, translator::translate(text), ALIGN_LEFT, color, false);
+	if (underlined) {
+		display_fillbox_wh_clip_rgb(offset.x + draw_offset.x, offset.y + draw_offset.y + LINESPACE-1, min_size.w, 1, color, false);
+	}
 }
 
-coord_cell_t::coord_cell_t(const char* text, koord coord_, PIXVAL color, align_t align)
-	: text_cell_t((text==NULL && coord_!=koord::invalid) ? coord.get_fullstr() : text, color, align)
+
+coord_cell_t::coord_cell_t(const char* alt_text, koord coord_, align_t align_)
 {
 	coord = coord_;
-	min_size = scr_size(proportional_string_width(translator::translate(get_text())), LINESPACE);
+	align = align_;
+	if (alt_text != NULL) {
+		buf.printf("%s", alt_text);
+	}
+	else {
+		buf.append("-");
+	}
+	min_size = scr_size(proportional_string_width(buf), LINESPACE);
 	set_size(min_size);
 }
 
+coord_cell_t::coord_cell_t(koord coord_, align_t align_)
+{
+	coord = coord_;
+	align = align_;
+	if (coord != koord::invalid) {
+		buf.printf("%s", coord.get_str());
+		show_posicon = true;
+	}
+	else {
+		buf.append("-");
+	}
+	min_size = scr_size(proportional_string_width(buf) + (D_POS_BUTTON_WIDTH + 2) * show_posicon, show_posicon ? max(LINESPACE, D_POS_BUTTON_HEIGHT) : LINESPACE);
+	set_size(min_size);
+}
 
-value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, align_t align_, PIXVAL col)
+void coord_cell_t::draw(scr_coord offset)
+{
+	table_cell_item_t::draw(offset);
+
+	offset += pos;
+	PIXVAL text_col= SYSCOL_TEXT;
+	if (world()->get_viewport()->get_world_position() == coord) {
+		text_col=SYSCOL_TEXT_HIGHLIGHT;
+		if (show_posicon){
+			display_color_img(skinverwaltung_t::posbutton->get_image_id(SKIN_BUTTON_POS_PRESSED), offset.x + draw_offset.x, offset.y + (size.h-D_POS_BUTTON_HEIGHT)/2, 0, false, false);
+		}
+	}
+	display_proportional_clip_rgb(offset.x + draw_offset.x + (D_POS_BUTTON_WIDTH+2) * show_posicon, offset.y + draw_offset.y, buf, ALIGN_LEFT, text_col, false);
+	if (coord != koord::invalid) {
+		display_fillbox_wh_clip_rgb(offset.x + draw_offset.x + (D_POS_BUTTON_WIDTH + 2) * show_posicon, offset.y + draw_offset.y + LINESPACE - 1, min_size.w - (D_POS_BUTTON_WIDTH + 2) * show_posicon, 1, text_col, false);
+	}
+}
+
+
+value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix_, align_t align_, PIXVAL col)
 {
 	color = col;
 	align = align_;
-	value=value_;
+	suffix= suffix_;
+
+	set_value(value_);
+	set_size(min_size);
+}
+
+void value_cell_t::set_value(sint64 value_)
+{
+	value = value_;
+	buf.clear();
 
 	switch(suffix)
 	{
@@ -173,7 +227,10 @@ value_cell_t::value_cell_t(sint64 value_, gui_chart_t::chart_suffix_t suffix, al
 			break;
 	}
 	min_size = scr_size(proportional_string_width(buf), LINESPACE);
-	set_size(min_size);
+	if (min_size.w> (size.w - L_CELL_PADDING*2) ) {
+		dbg->warning("value_cell_t::set_value", "Cell's text width has been changed to %i, exceeding the column width of %i.", min_size.w, size.w);
+	}
+	set_width(size.w - L_CELL_PADDING*2); // recalc draw_offset.x
 }
 
 void value_cell_t::draw(scr_coord offset)
@@ -185,21 +242,27 @@ void value_cell_t::draw(scr_coord offset)
 }
 
 
-values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
-	: value_cell_t(value_)
+values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col, bool single_line_)
 {
-	buf.clear();
-	sub_buf.clear();
-
 	color = col;
 	min_size.h = LINESPACE;
 	align = centered;
+	single_line = single_line_;
 
-	sub_value=sub_value_;
+	set_values(value_, sub_value_);
 
-	bool two_lines = false;
+	set_size(min_size);
+}
 
-	if (value==0 && sub_value==0) {
+void values_cell_t::set_values(sint64 value_, sint64 sub_value_)
+{
+	value = value_;
+	sub_value = sub_value_;
+
+	buf.clear();
+	sub_buf.clear();
+
+	if (value == 0 && sub_value == 0) {
 		buf.append("-");
 		color = SYSCOL_TEXT_WEAK;
 	}
@@ -208,31 +271,40 @@ values_cell_t::values_cell_t(sint64 value_, sint64 sub_value_, PIXVAL col)
 	}
 	if (sub_value != 0) {
 		if (value != 0) {
-			// display two lines
-			sub_buf.printf("(%i)", sub_value);
-			min_size.h += LINESPACE;
-			two_lines = true;
+			if (single_line) {
+				buf.printf(" (%i)", sub_value);
+			}
+			else {
+				// display two lines
+				sub_buf.printf("(%i)", sub_value);
+				min_size.h += LINESPACE;
+				sub_draw_offset_x = proportional_string_width(sub_buf) / 2;
+				min_size.w = max(proportional_string_width(buf), sub_draw_offset_x * 2 + 1);
+			}
 		}
 		else {
 			buf.printf("(%i)", sub_value);
 		}
 	}
-	if (two_lines) {
-		sub_draw_offset_x = proportional_string_width(sub_buf) / 2;
-		min_size.w = max(proportional_string_width(buf), sub_draw_offset_x * 2 + 1);
-	}
-	else {
+	if (single_line) {
 		min_size.w = proportional_string_width(buf);
 	}
-	set_size(min_size);
+	if (min_size.w > (size.w - L_CELL_PADDING * 2)) {
+		dbg->warning("values_cell_t::set_value", "Cell's text width has been changed to %i, exceeding the column width of %i.", min_size.w, size.w);
+	}
+	set_width(size.w - L_CELL_PADDING * 2); // recalc draw_offset.x
 }
 
 void values_cell_t::set_width(scr_coord_val new_width)
 {
-	const scr_coord_val row1_width = proportional_string_width(buf);
-
 	size.w = new_width + L_CELL_PADDING * 2;
-	draw_offset.x = (size.w - row1_width) / 2;
+	if (single_line) {
+		draw_offset.x = (size.w - min_size.w) / 2;
+	}
+	else {
+		draw_offset.x = (size.w - proportional_string_width(buf)) / 2;
+	}
+
 }
 
 void values_cell_t::draw(scr_coord offset)
@@ -320,6 +392,19 @@ int gui_sort_table_row_t::compare_text(const table_cell_item_t* a, const table_c
 	return STRICMP(a_text, b_text);
 }
 
+int gui_sort_table_row_t::compare_coord(const table_cell_item_t* a, const table_cell_item_t* b)
+{
+	int cmp = 0;
+	const coord_cell_t* cell_a = dynamic_cast<const coord_cell_t*>(a);
+	const coord_cell_t* cell_b = dynamic_cast<const coord_cell_t*>(b);
+	cmp = cell_a->get_coord().x - cell_b->get_coord().x;
+	if (cmp == 0) {
+		cmp = cell_a->get_coord().y - cell_b->get_coord().y;
+	}
+	return cmp;
+}
+
+
 int gui_sort_table_row_t::compare(const table_cell_item_t* a, const table_cell_item_t* b)
 {
 	sint64 cmp = 0;
@@ -335,6 +420,9 @@ int gui_sort_table_row_t::compare(const table_cell_item_t* a, const table_cell_i
 			break;
 		case table_cell_item_t::cell_text:
 			cmp = gui_sort_table_row_t::compare_text(a, b);
+			break;
+		case table_cell_item_t::cell_coord:
+			cmp = gui_sort_table_row_t::compare_coord(a, b);
 			break;
 		case table_cell_item_t::cell_no_sorting:
 		default:
