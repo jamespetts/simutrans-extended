@@ -1409,7 +1409,7 @@ void haltestelle_t::step()
 									{
 										account_convoy->book(-refund_amount, convoi_t::CONVOI_PROFIT);
 										account_convoy->book(-refund_amount, convoi_t::CONVOI_REFUNDS);
-										account_convoy->get_owner()->book_revenue(-refund_amount, get_basis_pos(), account_convoy->front()->get_waytype(), ATV_REVENUE_PASSENGER);
+										account_convoy->get_owner()->book_revenue(-refund_amount, get_basis_pos(), account_convoy->front()->get_desc()->get_waytype(), ATV_REVENUE_PASSENGER);
 									}
 									else
 									{

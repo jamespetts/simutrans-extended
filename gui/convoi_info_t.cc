@@ -150,7 +150,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 			tbl->set_alignment(ALIGN_CENTER_V);
 			tbl->set_spacing(scr_size(0,0));
 			{
-				new_component<gui_waytype_image_box_t>(cnv->front()->get_waytype());
+				new_component<gui_waytype_image_box_t>(cnv->front()->get_desc()->get_waytype());
 				input.add_listener(this);
 				input.set_size(input.get_min_size());
 				reset_cnv_name();

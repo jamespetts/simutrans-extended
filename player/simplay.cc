@@ -922,8 +922,8 @@ void player_t::rdwr(loadsave_t *file)
 		if (file->is_version_ex_less(14, 64)) {
 			for (convoihandle_t const cnv : world()->convoys()) {
 				if (cnv->get_owner() == this) {
-					book_convoi_number(1, cnv->front()->get_waytype());
-					book_vehicle_number(cnv->get_vehicle_count(), cnv->front()->get_waytype());
+					book_convoi_number(1, cnv->front()->get_desc()->get_waytype());
+					book_vehicle_number(cnv->get_vehicle_count(), cnv->front()->get_desc()->get_waytype());
 				}
 			}
 

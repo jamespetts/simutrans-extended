@@ -406,8 +406,8 @@ void replace_frame_t::set_vehicles(bool init)
 		convoy_assembler.set_vehicles(existing_vehicles);
 	}
 	for (uint8 i = vehicle_count; i-- != 0; ) {
-		world()->get_public_player()->book_vehicle_number(-1, cnv->front()->get_waytype());
-		world()->get_public_player()->book_new_vehicle(veh_tmp_list[i]->get_desc()->get_value(), koord::invalid, cnv->front()->get_waytype());
+		world()->get_public_player()->book_vehicle_number(-1, cnv->front()->get_desc()->get_waytype());
+		world()->get_public_player()->book_new_vehicle(veh_tmp_list[i]->get_desc()->get_value(), koord::invalid, cnv->front()->get_desc()->get_waytype());
 		delete veh_tmp_list[i];
 	}
 	veh_tmp_list.clear();
