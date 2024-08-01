@@ -235,6 +235,9 @@ vehicle_desc_row_t::vehicle_desc_row_t(const vehicle_desc_t* desc)
 void vehicle_desc_row_t::update_highlight()
 {
 	old_filter_flag=filter_flag;
+	if (!side_view_mode) {
+		set_highlight(VD_NAME, filter_flag & VL_FILTER_NAME);
+	}
 	set_highlight(VD_ENGINE_TYPE, filter_flag&VL_FILTER_FUEL);
 	set_highlight(VD_FREIGHT_TYPE, filter_flag&VL_FILTER_FREIGHT);
 	set_highlight(VD_STATUSBAR, filter_flag&VL_FILTER_UPGRADABLE);

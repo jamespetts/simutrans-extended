@@ -98,9 +98,10 @@ public:
 	// 1=fuel filer on, 2=freight type fiter on
 	enum {
 		VL_NO_FILTER = 0,
-		VL_FILTER_FUEL = 1 << 0,
-		VL_FILTER_FREIGHT = 1 << 1,
-		VL_FILTER_UPGRADABLE = 1 << 2
+		VL_FILTER_NAME = 1 << 0,
+		VL_FILTER_FUEL = 1 << 1,
+		VL_FILTER_FREIGHT = 1 << 2,
+		VL_FILTER_UPGRADABLE = 1 << 3
 	};
 	static uint8 filter_flag;
 	uint8 old_filter_flag=0;

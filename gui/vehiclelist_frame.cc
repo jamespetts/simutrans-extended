@@ -262,9 +262,16 @@ void vehiclelist_frame_t::fill_list()
 		vehicle_desc_row_t::filter_flag &= ~vehicle_desc_row_t::VL_FILTER_UPGRADABLE;
 	}
 
+	strcpy(last_name_filter, name_filter);
+	if (last_name_filter[0] == 0) {
+		vehicle_desc_row_t::filter_flag &= ~vehicle_desc_row_t::VL_FILTER_NAME;
+	}
+	else {
+		vehicle_desc_row_t::filter_flag |= vehicle_desc_row_t::VL_FILTER_NAME;
+	}
+
 	scrolly.clear_elements();
 
-	strcpy(last_name_filter, name_filter);
 	count = 0;
 	uint32 month = world()->get_current_month();
 	const goods_desc_t *ware = idx_to_ware[ max( 0, ware_filter.get_selection() ) ];
