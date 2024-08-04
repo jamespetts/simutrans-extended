@@ -1858,7 +1858,7 @@ Show obsolete
 Show offline
 オフラインを表示
 Show only used
-マップに存在のみ表示
+マップ内に需要がある品目のみ表示
 Show schedules
 路線経路の表示
 Show servers that are offline
@@ -2647,6 +2647,8 @@ comfort impact\nlimitations
 快適度の収入への影響
 Comfort:
 快適度:
+comfort_chart
+快適度-乗車時間グラフ
 commuting
 通勤中
 Commuting
