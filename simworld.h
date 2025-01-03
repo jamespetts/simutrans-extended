@@ -361,6 +361,9 @@ private:
 	 */
 	vector_tpl<convoihandle_t> convoi_array;
 
+	// Total number of vehicles currently listed by players
+	uint32 world_listed_vehicles[8/*simline_t::MAX_LINE_TYPE-1*/];
+
 	/**
 	 * Array containing the factories.
 	 */
@@ -2101,6 +2104,10 @@ public:
 	void add_convoi(convoihandle_t const &cnv);
 	void rem_convoi(convoihandle_t const &cnv);
 	vector_tpl<convoihandle_t> const& convoys() const { return convoi_array; }
+
+	// To access the world listed vehicle number
+	void add_listed_vehicle_count(int amount, waytype_t wt);
+	uint32 get_listed_vehicle_number(waytype_t wt) const;
 
 	/**
 	 * To access the cities array.

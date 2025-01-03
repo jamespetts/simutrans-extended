@@ -89,6 +89,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 {
 	container.set_table_layout(1,0);
 	container.set_spacing(NO_SPACING); // Spaces between components create spaces that do not accept clicks
+	container.set_margin(scr_size(D_H_SPACE, 0), scr_size(D_SCROLLBAR_HEIGHT, D_SCROLLBAR_WIDTH));
 
 	set_component(&container);
 
@@ -96,7 +97,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 	compare = cmp;
 	size = scr_size(0,0);
 	pos = scr_coord(0,0);
-	multiple_selection = false;
+	multiple_selection_mode = 0;
 	maximize = false;
 }
 
@@ -202,8 +203,8 @@ void gui_scrolled_list_t::set_size(scr_size size)
 void gui_scrolled_list_t::reset_container_size()
 {
 	// reset element positioning
-	container.set_margin( scr_size( D_H_SPACE, 0 ), scr_size( D_H_SPACE, 0 ) );
-	container.set_spacing( scr_size( D_H_SPACE, 0 ) );
+	container.set_margin( scr_size( D_H_SPACE, 0 ), scr_size( D_SCROLLBAR_HEIGHT, D_SCROLLBAR_WIDTH ) );
+	container.set_spacing( NO_SPACING ); // Spaces between components create spaces that do not accept clicks
 
 	scr_size csize = container.get_min_size();
 
@@ -232,8 +233,10 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 	// if different element is focused, calculate selection and call listeners
 	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mouse_pos))  ) {
 		calc_selection(focus, new_focus, *ev);
-		const int new_selection = get_selection();
-		call_listeners((long)new_selection);
+		if (new_focus->selected) {
+			const int new_selection = get_selection();
+			call_listeners((long)new_selection);
+		}
 		swallowed = true;
 	}
 
@@ -247,7 +250,7 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 		// do nothing.
 		return;
 	}
-	else if(  !multiple_selection  ||  ev.ev_key_mod==0  ) {
+	else if(  multiple_selection_mode==0  ||  (ev.ev_key_mod==0 && multiple_selection_mode!=2)  ) {
 		// simply select new_focus
 		for(gui_component_t* v : item_list) {
 			scrollitem_t* item = dynamic_cast<scrollitem_t*>(v);
@@ -256,9 +259,13 @@ void gui_scrolled_list_t::calc_selection(scrollitem_t* old_focus, scrollitem_t* 
 			}
 		}
 	}
-	else if(  multiple_selection  &&  IS_CONTROL_PRESSED(&ev)  ) {
+	else if(  multiple_selection_mode==2  ||  (multiple_selection_mode==1 && IS_CONTROL_PRESSED(&ev))  ) {
 		// control key is pressed. select or deselect the focused one.
 		new_focus->selected = !new_focus->selected;
+		new_focus->focused = new_focus->selected;
+		if (!get_selections().get_count()) {
+			container.set_focus(NULL);
+		}
 	}
 	else if(  IS_SHIFT_PRESSED(&ev)  ) {
 		// shift key is pressed.

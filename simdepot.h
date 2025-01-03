@@ -36,9 +36,12 @@ protected:
 	 * Vehicles are accessed by type.
 	 */
 	slist_tpl<vehicle_t *> vehicles;
+	slist_tpl<vehicle_t*> vehicles_for_sale;
 	slist_tpl<convoihandle_t> convois;
 
-	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file);
+	// Railway depots do not go through rdwr, so read the depot name with rdwr_vehicle
+	// skip_depot_name: Option to not load depot name again when loading vehicles_for_sale
+	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file, bool skip_depot_name=false);
 
 	static slist_tpl<depot_t *> all_depots;
 
@@ -52,9 +55,10 @@ public:
 	 * @param traction_types
 	 *   - 0 if we don't want to filter by traction type
 	 *   - a bitmask of possible traction types; we need only match one
+	 * @param ignore_owner -- In the case of vehicle transfer, the owner must be ignored.
 	 */
 	uint16 get_traction_types() const;
-	bool is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types = 0) const;
+	bool is_suitable_for( const vehicle_t * test_vehicle, const uint16 traction_types = 0, bool ignore_owner=false) const;
 
 	// finds the next/previous depot relative to the current position
 	static depot_t *find_depot( koord3d start, const obj_t::typ depot_type, const player_t *player, bool next);
@@ -144,6 +148,7 @@ public:
 	 */
 	unsigned vehicle_count() const { return vehicles.get_count(); }
 	slist_tpl<vehicle_t*> & get_vehicle_list() { return vehicles; }
+	slist_tpl<vehicle_t*>& get_vehicles_for_sale() { return vehicles_for_sale; }
 
 	/**
 	 * A new vehicle is bought and added to the vehicle list.
@@ -159,6 +164,15 @@ public:
 	 * Sell a vehicle from the vehicle list.
 	 */
 	void sell_vehicle(vehicle_t* veh);
+
+	// Put the vehicle up for sale
+	void set_vehicle_for_sale(vehicle_t* veh);
+	void cancel_vehicle_for_sale(vehicle_t* veh);
+
+	// Receiving a vehicle from another player
+	void takeover_vehicle(vehicle_t* veh);
+	// for takeover
+	void remove_vehicle_from_listed(vehicle_t* veh);
 
 	/**
 	 * Returns the waytype for a certain vehicle; only way to distinguish differnt depots ...
@@ -263,7 +277,13 @@ public:
 
 	simline_t::linetype get_line_type() const OVERRIDE { return simline_t::trainline; }
 
-	void rdwr_vehicles(loadsave_t *file) { depot_t::rdwr_vehicle(vehicles,file); }
+	void rdwr_vehicles(loadsave_t *file)
+	{
+		depot_t::rdwr_vehicle(vehicles,file);
+		if (file->is_version_ex_atleast(14, 67)) {
+			depot_t::rdwr_vehicle(vehicles_for_sale, file, true);
+		}
+	}
 
 	waytype_t get_wegtyp() const OVERRIDE {return track_wt;}
 #ifdef INLINE_OBJ_TYPE

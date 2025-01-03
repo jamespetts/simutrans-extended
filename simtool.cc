@@ -10298,8 +10298,11 @@ bool tool_change_line_t::init( player_t *player )
  * 'a' : appends a vehicle (+vehicle_name) uses the oldest
  * 'i' : inserts a vehicle in front (+vehicle_name) uses the oldest
  * 's' : sells a vehicle (+vehicle_name) uses the newest
+ * 'S' : Sell ​​a specific vehicle specified by its index number
  * 'r' : removes a vehicle (+number in convoi)
  * 'R' : removes all vehicles including (+number in convoi) to end
+ * 'f' : change "for_sale" state of the vehicle (vehicle name is not used)
+ * 'F' : cancel "for_sale" state of the vehicle (vehicle name is not used)
  */
 bool tool_change_depot_t::init( player_t *player )
 {
@@ -10401,6 +10404,52 @@ bool tool_change_depot_t::init( player_t *player )
 					// copy succeeded
 					player->book_convoi_number(1, cnv->front()->get_waytype());
 				}
+			}
+			break;
+		}
+		case 'S':
+		{
+			// Sell ​​a specific vehicle. Not the newest one.
+			// Use liveryscheme_index as vehicle index.
+			vehicle_t* veh = depot->get_vehicle_list().at(livery_scheme_index);
+			if (veh != NULL) {
+				depot->sell_vehicle(veh);
+			}
+			break;
+		}
+		case 'f':
+		{
+			// Use liveryscheme_index as vehicle index.
+			vehicle_t* veh = depot->get_vehicle_list().at(livery_scheme_index);
+			if (veh != NULL) {
+				depot->set_vehicle_for_sale(veh);
+				cbuffer_t buf;
+				if (welt->get_active_player_nr()==depot->get_owner_nr()) {
+					buf.printf(translator::translate("You put %s up for sale."), translator::translate(veh->get_desc()->get_name()));
+				}
+				else{
+					buf.printf(translator::translate("%s offer %s for sale."), depot->get_owner()->get_name(), translator::translate(veh->get_desc()->get_name()));
+				}
+				welt->get_message()->add_message(buf, koord::invalid, message_t::new_vehicle, color_idx_to_rgb(depot->get_owner()->get_player_color1() + env_t::gui_player_color_dark), veh->get_base_image());
+				welt->add_listed_vehicle_count(1, veh->get_waytype());
+			}
+			break;
+		}
+		case 'F':
+		{
+			// Use liveryscheme_index as vehicle index.
+			vehicle_t* veh = depot->get_vehicles_for_sale().at(livery_scheme_index);
+			if (veh != NULL) {
+				depot->cancel_vehicle_for_sale(veh);
+				cbuffer_t buf;
+				if (welt->get_active_player_nr()==depot->get_owner_nr()) {
+					buf.printf(translator::translate("You have cancelled the listing for %s."), translator::translate(veh->get_desc()->get_name()));
+				}
+				else{
+					buf.printf(translator::translate("%s cancelled the listing for %s."), depot->get_owner()->get_name(), translator::translate(veh->get_desc()->get_name()));
+				}
+				welt->get_message()->add_message(buf, koord::invalid, message_t::new_vehicle, color_idx_to_rgb(depot->get_owner()->get_player_color1() + env_t::gui_player_color_dark), veh->get_base_image());
+				welt->add_listed_vehicle_count(-1, veh->get_waytype());
 			}
 			break;
 		}
@@ -11210,6 +11259,45 @@ bool tool_reassign_signal_internal_t::init(player_t *player)
 		if (gebaeude_t* gb = gr->get_building()) {
 			if (gb->get_tile()->get_desc()->is_signalbox()) {
 				new_sb->transfer_signal(sig, (signalbox_t*)gb);
+			}
+		}
+	}
+	return false;
+}
+
+
+bool tool_transfer_vehicle_t::init(player_t* player)
+{
+	koord3d pos_from;
+	koord3d pos_to;
+	uint32 veh_index;
+
+	if (7 != sscanf(default_param, "%hi,%hi,%hhi,%hi,%hi,%hhi,%u", &pos_from.x, &pos_from.y, &pos_from.z, &pos_to.x, &pos_to.y, &pos_to.z, &veh_index))
+	{
+		dbg->error("tool_transfer_vehicle_t::init", "could not perform (%s)", default_param);
+		return false;
+	}
+
+	if (grund_t* gr = welt->lookup(pos_from)) {
+		if (depot_t* from = gr->get_depot()) {
+			if (grund_t* gr2 = welt->lookup(pos_to)) {
+				if (depot_t* to = gr2->get_depot()) {
+					vehicle_t* veh = from->get_vehicles_for_sale().at(veh_index);
+					if (veh != NULL) {
+						to->takeover_vehicle(veh);
+						player_t *buyer=to->get_owner();
+						player_t *seller=from->get_owner();
+						cbuffer_t buf;
+						if (welt->get_active_player() == buyer) {
+							buf.printf(translator::translate("You purchased %s from %s."), translator::translate(veh->get_desc()->get_name()), seller->get_name());
+						}
+						else {
+							buf.printf(translator::translate("%s purchased %s that you had listed."), buyer->get_name(), translator::translate(veh->get_desc()->get_name()));
+						}
+						welt->get_message()->add_message(buf, koord::invalid, message_t::new_vehicle, color_idx_to_rgb(buyer->get_player_color1() + env_t::gui_player_color_dark), veh->get_base_image());
+						welt->add_listed_vehicle_count(-1, veh->get_waytype());
+					}
+				}
 			}
 		}
 	}

@@ -577,6 +577,7 @@ gui_convoy_assembler_t::gui_convoy_assembler_t(depot_frame_t *frame) :
 	scrolly_waggons(&waggons)
 {
 	depot_frame = frame;
+	old_stored_vehicles = depot_frame->get_depot()->get_vehicle_list().get_count();
 	replace_frame = NULL;
 }
 
@@ -707,6 +708,7 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 						bt_class_management.set_image(skinverwaltung_t::open_window->get_image_id(0));
 						bt_class_management.set_image_position_right(true);
 					}
+					bt_class_management.set_rigid(true);
 					bt_class_management.add_listener(this);
 					add_component(&bt_class_management);
 				}
@@ -2268,6 +2270,15 @@ void gui_convoy_assembler_t::set_panel_width()
 void gui_convoy_assembler_t::draw(scr_coord offset)
 {
 	if (depot_frame==NULL && replace_frame==NULL) return;
+
+	if (depot_frame){
+		bt_class_management.set_visible(vehicles.get_count());
+
+		if( old_stored_vehicles != depot_frame->get_depot()->get_vehicle_list().get_count()) {
+			old_stored_vehicles=depot_frame->get_depot()->get_vehicle_list().get_count();
+			build_vehicle_lists();
+		}
+	}
 
 	update_vehicle_info_text(pos+offset);
 

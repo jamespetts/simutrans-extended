@@ -78,6 +78,7 @@
 #include "optionen.h"
 #include "vehicle_class_manager.h"
 #include "player_ranking_frame.h"
+#include "vehicle_manager.h"
 
 #include "../simversion.h"
 
@@ -674,6 +675,9 @@ void rdwr_all_win(loadsave_t *file)
 						else if (id >= magic_depotlist && id < magic_depotlist + MAX_PLAYER_COUNT) {
 							w = new depotlist_frame_t(wl->get_player(id - magic_depotlist));
 						}
+						//else if (id >= magic_vehicle_manager && id < magic_vehicle_manager + MAX_PLAYER_COUNT) {
+						//	w = new vehicle_manager_t(); // TODO: support_rdwr
+						//}
 						else if(  id>=magic_replace && id < magic_replace +0x10000  ) {
 							w = new replace_frame_t();
 						}

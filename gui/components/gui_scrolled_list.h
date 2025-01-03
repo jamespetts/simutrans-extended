@@ -115,7 +115,7 @@ private:
 
 	item_compare_func compare;
 
-	bool multiple_selection; // true when multiple selection is enabled.
+	uint8 multiple_selection_mode=0;
 	void calc_selection(scrollitem_t*, scrollitem_t*, event_t);
 
 protected:
@@ -149,7 +149,9 @@ public:
 	scrollitem_t* get_selected_item() const;
 	sint32 get_count() const { return item_list.get_count(); }
 
-	void enable_multiple_selection() { multiple_selection = true; }
+	// 0: disable(single), 1: work with ctrl pressed, 2: work as default
+	void enable_multiple_selection() { multiple_selection_mode = 1; } // Retained for compatibility
+	void set_multiple_selection(uint8 mode) { multiple_selection_mode = mode; }
 
 	/*  when rebuilding a list, be sure to call recalculate the slider
 	 *  with recalculate_slider() to update the scrollbar properly. */

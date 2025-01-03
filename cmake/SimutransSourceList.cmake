@@ -142,6 +142,9 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_waytype_image_box.cc
 	gui/components/gui_waytype_tab_panel.cc
 	gui/components/gui_world_view_t.cc
+	gui/components/sortable_table.cc
+	gui/components/sortable_table_header.cc
+	gui/components/sortable_table_vehicle.cc
 	gui/convoi_detail_t.cc
 	gui/convoi_filter_frame.cc
 	gui/convoi_frame.cc
@@ -229,6 +232,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/vehiclelist_frame.cc
 	gui/vehicle_class_manager.cc
 	gui/vehicle_detail.cc
+	gui/vehicle_manager.cc
 	gui/water_info.cc
 	gui/way_info.cc
 	gui/welt.cc

@@ -51,6 +51,7 @@
 
 #include "depot_frame.h"
 #include "convoi_detail_t.h"
+#include "vehicle_manager.h"
 
 
 bool depot_frame_t::compare_line(linehandle_t const& a, linehandle_t const& b)
@@ -111,7 +112,7 @@ depot_frame_t::depot_frame_t(depot_t* depot) :
 void depot_frame_t::init(depot_t *dep)
 {
 	depot = dep;
-	reset_depot_name();
+	set_name(translator::translate(depot->get_name()));
 	set_owner(depot->get_owner());
 	icnv = depot->convoi_count()-1;
 
@@ -184,21 +185,31 @@ void depot_frame_t::init_table()
 	set_margin(scr_size(0,0), scr_size(0,0));
 
 	add_table(1,0)->set_margin(scr_size(D_MARGIN_LEFT, D_MARGIN_TOP), scr_size(D_MARGIN_RIGHT, 0));
-		add_table(3,1);
+		add_table(5,1);
 		{
-			name_input.set_text(name, sizeof(name));
-			name_input.add_listener(this);
-			add_component(&name_input);
-
 			// Bolt image for electrified depots:
 			img_bolt.set_image(skinverwaltung_t::electricity->get_image_id(0), true);
 			img_bolt.set_rigid(true);
 			add_component(&img_bolt);
 			lb_traction_types.set_color(SYSCOL_TRACTION_TYPE);
 			add_component(&lb_traction_types);
+
+			new_component<gui_fill_t>();
+
+			lb_vehicle_count.init(SYSCOL_TEXT, gui_label_t::right);
+			add_component(&lb_vehicle_count);
+
+			bt_manage.init(button_t::roundbox_state | button_t::flexible, "veh_mgr");
+			if (skinverwaltung_t::open_window) {
+				bt_manage.set_image(skinverwaltung_t::open_window->get_image_id(0));
+				bt_manage.set_image_position_right(true);
+			}
+			bt_manage.add_listener(this);
+			bt_manage.set_tooltip("Open the vehicle management window");
+			add_component(&bt_manage);
 		}
 		end_table();
-		add_table(3,2);
+		add_table(2,2);
 		{
 			// text will be translated by ourselves (after update data)!
 			add_component(&lb_convois);
@@ -206,8 +217,6 @@ void depot_frame_t::init_table()
 			convoy_selector.set_highlight_color(color_idx_to_rgb(depot->get_owner()->get_player_color1() + 1));
 			convoy_selector.add_listener(this);
 			add_component(&convoy_selector);
-			lb_vehicle_count.init(SYSCOL_TEXT,gui_label_t::right);
-			add_component(&lb_vehicle_count);
 
 			/*
 			 * [SELECT ROUTE]:
@@ -228,32 +237,38 @@ void depot_frame_t::init_table()
 			}
 			end_table();
 
-			line_selector.add_listener(this);
-			line_selector.set_highlight_color( color_idx_to_rgb(depot->get_owner()->get_player_color1() + 1));
-			line_selector.set_wrapping(false);
-			line_selector.set_focusable(true);
-			add_component(&line_selector);
-
-			add_table(3,1)->set_spacing(scr_size(0,0));
+			add_table(2, 1);
 			{
-				// [freight type filter buttons]
-				filter_btn_all_pas.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-				filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
-				filter_btn_all_pas.set_tooltip("filter_pas_line");
-				filter_btn_all_pas.add_listener(this);
-				add_component(&filter_btn_all_pas);
+				line_selector.add_listener(this);
+				line_selector.set_highlight_color( color_idx_to_rgb(depot->get_owner()->get_player_color1() + 1));
+				line_selector.set_wrapping(false);
+				line_selector.set_focusable(true);
+				add_component(&line_selector);
 
-				filter_btn_all_mails.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-				filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
-				filter_btn_all_mails.set_tooltip("filter_mail_line");
-				filter_btn_all_mails.add_listener(this);
-				add_component(&filter_btn_all_mails);
+				add_table(3,1)->set_spacing(scr_size(0,0));
+				{
+					// [freight type filter buttons]
+					filter_btn_all_pas.init(button_t::imagebox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+					filter_btn_all_pas.set_image(skinverwaltung_t::passengers->get_image_id(0));
+					filter_btn_all_pas.set_tooltip(translator::translate("filter_pas_line"));
+					filter_btn_all_pas.set_no_translate(false);
+					filter_btn_all_pas.add_listener(this);
+					add_component(&filter_btn_all_pas);
 
-				filter_btn_all_freights.init(button_t::roundbox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
-				filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
-				filter_btn_all_freights.set_tooltip("filter_freight_line");
-				filter_btn_all_freights.add_listener(this);
-				add_component(&filter_btn_all_freights);
+					filter_btn_all_mails.init(button_t::imagebox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+					filter_btn_all_mails.set_image(skinverwaltung_t::mail->get_image_id(0));
+					filter_btn_all_mails.set_tooltip("filter_mail_line");
+					filter_btn_all_mails.set_no_translate(false);
+					filter_btn_all_mails.add_listener(this);
+					add_component(&filter_btn_all_mails);
+
+					filter_btn_all_freights.init(button_t::imagebox_state, NULL, scr_coord(0,0), scr_size(D_BUTTON_HEIGHT, D_BUTTON_HEIGHT));
+					filter_btn_all_freights.set_image(skinverwaltung_t::goods->get_image_id(0));
+					filter_btn_all_freights.set_tooltip("filter_freight_line");
+					filter_btn_all_freights.add_listener(this);
+					add_component(&filter_btn_all_freights);
+				}
+				end_table();
 			}
 			end_table();
 		}
@@ -476,32 +491,10 @@ void depot_frame_t::build_line_list()
 }
 
 
-void depot_frame_t::rename_depot()
-{
-	const char *t = name_input.get_text();
-	// only change if old name and current name are the same
-	// otherwise some unintended undo if renaming would occur
-	if(  t  &&  t[0]  &&  strcmp(t, depot->get_name())  &&  strcmp(old_name, depot->get_name())==0) {
-		// text changed => call tool
-		cbuffer_t buf;
-		buf.printf("d%s,%s", depot->get_pos().get_str(), t);
-		tool_t *tool = create_tool(TOOL_RENAME | SIMPLE_TOOL);
-		tool->set_default_param(buf);
-		welt->set_tool(tool, depot->get_owner());
-		// since init always returns false, it is safe to delete immediately
-		delete tool;
-		// do not trigger this command again
-		tstrncpy(old_name, depot->get_name(), sizeof(old_name));
-	}
-}
-
 void depot_frame_t::reset_depot_name()
 {
-	tstrncpy(old_name, depot->get_name(), sizeof(old_name));
-	tstrncpy(name, depot->get_name(), sizeof(name));
 	set_name(translator::translate(depot->get_name()));
 }
-
 
 
 sint64 depot_frame_t::calc_sale_value(const vehicle_desc_t *veh_type)
@@ -591,6 +584,10 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 		}
 		else if (comp == &bt_details) {
 			create_win({ 20, 20 }, new convoi_detail_t(cnv), w_info, magic_convoi_detail + cnv.get_id());
+			return true;
+		}
+		else if (comp == &bt_manage) {
+			create_win({ 20, 20 }, new vehicle_manager_t(depot), w_info, magic_vehicle_manager + depot->get_owner_nr());
 			return true;
 		}
 		else if(  comp == &bt_copy_convoi  )
@@ -689,10 +686,6 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 			build_line_list();
 			return true;
 		}
-		else if (comp == &name_input) {
-			// send rename command if necessary
-			rename_depot();
-		}
 		else {
 			return false;
 		}
@@ -787,6 +780,7 @@ void depot_frame_t::draw(scr_coord pos, scr_size size)
 	bt_start.enable( action_allowed );
 	bt_schedule.enable( action_allowed );
 	bt_sell.enable( action_allowed );
+	bt_manage.enable(action_allowed);
 
 	convoihandle_t cnv = depot->get_convoi(icnv);
 	line_button.enable( action_allowed && cnv.is_bound() && cnv->get_line().is_bound() );

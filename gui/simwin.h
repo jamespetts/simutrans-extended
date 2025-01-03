@@ -134,6 +134,7 @@ enum magic_numbers {
 	magic_pier_rotation_select,
 	magic_depot, // only used to load/save
 	magic_replace_line,
+	magic_vehicle_manager = magic_replace_line + MAX_PLAYER_COUNT,
 	magic_consist_order,
 	magic_script_error,
 	magic_max

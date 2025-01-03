@@ -645,6 +645,11 @@ void karte_t::destroy()
 
 	DBG_MESSAGE("karte_t::destroy()", "world destroyed");
 	destroying = false;
+
+	for(uint8 i=0; i< simline_t::MAX_LINE_TYPE-1; i++){
+		world_listed_vehicles[i] = 0;
+	}
+
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
 	terminating_threads = false;
@@ -664,6 +669,19 @@ void karte_t::rem_convoi(convoihandle_t const &cnv)
 	convoi_array.remove(cnv);
 }
 
+void karte_t::add_listed_vehicle_count(int amount, waytype_t wt)
+{
+	if (wt == invalid_wt) { dbg->warning("karte_t::add_listed_vehicle_count", "Invalid waytype!"); return; }
+
+	world_listed_vehicles[simline_t::waytype_to_linetype(wt)-1]+=amount;
+}
+
+uint32 karte_t::get_listed_vehicle_number(waytype_t wt) const
+{
+	if( wt==invalid_wt ){ dbg->warning("karte_t::get_listed_vehicle_number", "Invalid waytype!"); return 0; }
+
+	return world_listed_vehicles[simline_t::waytype_to_linetype(wt)-1];
+}
 
 void karte_t::add_city(stadt_t *s)
 {
@@ -1542,6 +1560,10 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	recalc_passenger_destination_weights();
 
 	pedestrian_t::check_timeline_pedestrians();
+
+	for (uint8 i = 0; i < simline_t::MAX_LINE_TYPE-1; i++) {
+		world_listed_vehicles[i] = 0;
+	}
 
 #ifdef MULTI_THREAD
 	init_threads();
@@ -8159,7 +8181,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 19))
+	if (file->is_version_ex_atleast(14,19))
 	{
 		if (file->get_extended_version() == 14 && file->get_extended_revision() < 20)
 		{
@@ -8169,7 +8191,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 20))
+	if (file->is_version_ex_atleast(14,20))
 	{
 		file->rdwr_long(weg_t::private_car_routes_currently_reading_element);
 	}
@@ -8179,7 +8201,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 		path_explorer_t::rdwr(file);
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 35))
+	if (file->is_version_ex_atleast(14,35))
 	{
 		uint32 count = cities_awaiting_private_car_route_check.get_count();
 		file->rdwr_long(count);
@@ -9563,7 +9585,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 19))
+	if (file->is_version_ex_atleast(14, 19))
 	{
 		if (file->get_extended_version() == 14 && file->get_extended_revision() < 20)
 		{
@@ -9573,7 +9595,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 20))
+	if (file->is_version_ex_atleast(14, 20))
 	{
 		file->rdwr_long(weg_t::private_car_routes_currently_reading_element);
 	}
@@ -9594,7 +9616,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	path_explorer_t::reset_must_refresh_on_loading();
 
 	cities_awaiting_private_car_route_check.clear();
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 35))
+	if (file->is_version_ex_atleast(14, 35))
 	{
 		uint32 count = 0;
 		file->rdwr_long(count);
