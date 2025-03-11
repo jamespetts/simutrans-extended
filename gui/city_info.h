@@ -112,14 +112,14 @@ public:
 	// handle clicks into minimaps
 	bool infowin_event(const event_t *ev) OVERRIDE
 	{
-		int my = ev->my;
+		int my = ev->mouse_pos.y;
 		if (my > minimaps_size.h  &&  minimap2_offset.y > 0) {
 			// Little trick to handle both maps with the same code: Just remap the y-values of the bottom map.
 			my -= minimaps_size.h + D_V_SPACE;
 		}
 
 		if (ev->ev_class != EVENT_KEYBOARD && ev->ev_code == MOUSE_LEFTBUTTON && 0 <= my && my < minimaps_size.h) {
-			int mx = ev->mx;
+			int mx = ev->mouse_pos.x;
 			if (mx > minimaps_size.w  &&  minimap2_offset.x > 0) {
 				// Little trick to handle both maps with the same code: Just remap the x-values of the right map.
 				mx -= minimaps_size.w + D_H_SPACE;
@@ -217,9 +217,9 @@ private:
 	void update_labels();
 
 	// stats table
+	gui_bandgraph_t transportation_last_year, transportation_this_year;
 	gui_aligned_container_t cont_city_stats;
 	gui_scrollpane_t scrolly_stats;
-	gui_bandgraph_t transportation_last_year, transportation_this_year;
 	int transportation_pas[6];
 	// update trigger
 	uint32 old_month = 0;

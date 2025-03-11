@@ -226,6 +226,7 @@ signalboxlist_frame_t::signalboxlist_frame_t(player_t *player) :
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 
@@ -256,7 +257,7 @@ bool signalboxlist_frame_t::action_triggered( gui_action_creator_t *comp,value_t
 void signalboxlist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
-	FOR(slist_tpl<signalbox_t*>, const sigb, signalbox_t::all_signalboxes) {
+	for(signalbox_t* const sigb : signalbox_t::all_signalboxes) {
 		if (filter_has_vacant_slot && !sigb->can_add_more_signals()) {
 			continue;
 		}

@@ -115,6 +115,8 @@ class image_t;
 #define D_H_SPACE              (gui_theme_t::gui_hspace)
 #define D_V_SPACE              (gui_theme_t::gui_vspace)
 
+#define NO_SPACING (scr_size(0,0))
+
 // bars of goods waiting in stations
 #define D_WAITINGBAR_WIDTH     (gui_theme_t::gui_waitingbar_width)
 
@@ -138,6 +140,7 @@ class image_t;
 
 #define TOOLTIP_MOUSE_OFFSET_X (16)
 #define TOOLTIP_MOUSE_OFFSET_Y (12)
+#define TOOLTIP_MOUSE_OFFSET (scr_coord{ TOOLTIP_MOUSE_OFFSET_X, TOOLTIP_MOUSE_OFFSET_Y })
 
 // these define the offset of images in their definitions
 enum {
@@ -237,6 +240,8 @@ public:
 	static PIXVAL gui_color_chart_lines_even;             //@< Color to draw in-chart vertical even lines and text
 	static PIXVAL gui_color_list_text_selected_focus;     //@< Colour to draw the selected element text in list when window has focus
 	static PIXVAL gui_color_list_text_selected_nofocus;   //@< Colour to draw the selected element text in list when window is not in focus
+	static PIXVAL gui_color_list_background_even;
+	static PIXVAL gui_color_list_background_odd;
 	static PIXVAL gui_color_list_background_selected_f;   //@< Colour to draw the selected element background in list when window has focus
 	static PIXVAL gui_color_list_background_selected_nf;  //@< Colour to draw the selected element background in list when window is not in focus
 	static PIXVAL gui_color_button_text;                  //@< Color to draw text in normal buttons
@@ -265,6 +270,8 @@ public:
 	static PIXVAL gui_color_upgradeable;                  //@< Color for vehicles with available upgrades
 	static PIXVAL gui_color_empty;                        //@< Color for empty entries
 	static PIXVAL gui_color_chat_window_network_transparency; //@< Color if chat window is transparent in network mode
+//	static PIXVAL gui_color_image_transparency;           //@< Transparency color for some icons/images **NOT USED IN EXTENDED**
+	static PIXVAL gui_color_object_highlight;             //@< Color (Red) to mark objects on the map
 	static PIXVAL gui_color_up_pointing_triangle;         //@< (EX unique) Color to draw an upward triangle indicating an increase in the number
 	static PIXVAL gui_color_down_pointing_triangle;       //@< (EX unique) Color to draw an downward triangle indicating an decrease in the number
 	/// @}
@@ -318,6 +325,8 @@ public:
 	static PIXVAL gui_color_text_head_selected;         //@< Color to draw text in table header cell at top (selected)
 	static PIXVAL gui_color_text_left_col;              //@< Color to draw text in table header cell at left
 	static PIXVAL gui_color_text_table_cell_selected;   //@< Color to draw text in table cell of selected
+
+	static PIXVAL gui_color_class_insignia_dots;
 
 	// one special entries, since there are lot of lists with files/fonts/paks/... where zero spacing could fit more entires on the screen
 	static scr_coord_val gui_filelist_vspace;

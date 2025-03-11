@@ -54,7 +54,7 @@ void gui_scrolled_list_t::const_text_scrollitem_t::draw(scr_coord pos)
 	pos += get_pos();
 	if(selected) {
 		// selected element
-		display_fillbox_wh_clip_rgb( pos.x+D_H_SPACE/2, pos.y-1, get_size().w-D_H_SPACE, get_size().h + 1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+		display_fillbox_wh_clip_rgb( pos.x-D_H_SPACE, pos.y, get_size().w+(D_H_SPACE<<1), get_size().h, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
 		display_proportional_clip_rgb( pos.x+D_H_SPACE, pos.y, get_text(), ALIGN_LEFT, (focused ? SYSCOL_LIST_TEXT_SELECTED_FOCUS : SYSCOL_LIST_TEXT_SELECTED_NOFOCUS), true);
 	}
 	else {
@@ -72,7 +72,7 @@ void gui_scrolled_list_t::img_label_scrollitem_t::draw(scr_coord pos)
 	const scr_coord_val text_offset_lef = (img == IMG_EMPTY) ? D_H_SPACE : D_H_SPACE+14;
 	if(selected) {
 		// selected element
-		display_fillbox_wh_clip_rgb( pos.x+D_H_SPACE/2, pos.y-1, get_size().w-D_H_SPACE, get_size().h + 1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+		display_fillbox_wh_clip_rgb( pos.x-D_H_SPACE, pos.y-1, get_size().w+(D_H_SPACE<<1), get_size().h + 1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
 		display_proportional_clip_rgb(pos.x + text_offset_lef, pos.y, get_text(), ALIGN_LEFT, (focused ? SYSCOL_LIST_TEXT_SELECTED_FOCUS : SYSCOL_LIST_TEXT_SELECTED_NOFOCUS), true);
 	}
 	else {
@@ -88,8 +88,7 @@ gui_scrolled_list_t::gui_scrolled_list_t(enum type type, item_compare_func cmp) 
 	item_list(container.get_components())
 {
 	container.set_table_layout(1,0);
-	container.set_margin( scr_size( D_H_SPACE, D_V_SPACE ), scr_size( D_H_SPACE, D_V_SPACE ) );
-	container.set_spacing( scr_size( D_H_SPACE, 0 ) );
+	container.set_spacing(NO_SPACING); // Spaces between components create spaces that do not accept clicks
 
 	set_component(&container);
 
@@ -185,6 +184,7 @@ void gui_scrolled_list_t::set_size(scr_size size)
 {
 	cleanup_elements();
 
+	container.set_size(size);
 	gui_scrollpane_t::set_size(size);
 
 	// set all elements in list to same width
@@ -230,9 +230,9 @@ bool gui_scrolled_list_t::infowin_event(const event_t *ev)
 	scrollitem_t* const new_focus = dynamic_cast<scrollitem_t*>( comp->get_focus() );
 
 	// if different element is focused, calculate selection and call listeners
-	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mx,ev2.my))  ) {
+	if (  focus != new_focus  ||  (new_focus  &&  IS_LEFTRELEASE(&ev2)  &&  new_focus->getroffen(ev2.mouse_pos))  ) {
 		calc_selection(focus, new_focus, *ev);
-		int new_selection = get_selection();
+		const int new_selection = get_selection();
 		call_listeners((long)new_selection);
 		swallowed = true;
 	}
@@ -328,5 +328,10 @@ void gui_scrolled_list_t::draw(scr_coord offset)
 		}
 	}
 
+	scr_size old_size = container.get_min_size();
 	gui_scrollpane_t::draw(offset);
+	scr_size new_size = container.get_min_size();
+	if (old_size.h != new_size.h) {
+		set_size(get_size());
+	}
 }

@@ -38,6 +38,7 @@ gui_chart_t::gui_chart_t() : gui_component_t()
 	ltr = 1;
 	x_elements = 0;
 	x_axis_span = 1;
+	highlight_x = -1;
 	min_size = scr_size(0,0);
 
 	// transparent by default
@@ -145,7 +146,8 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 	int tmpx, factor;
 	if(  left_to_right_graph  ) {
-		tmpx = offset.x + chart_size.w - chart_size.w % (x_elements - 1);
+		const int xoff = x_elements>1 ? chart_size.w % (x_elements - 1) : 0;
+		tmpx = offset.x + chart_size.w - xoff;
 		factor = -1;
 	}
 	else {
@@ -175,8 +177,9 @@ void gui_chart_t::draw(scr_coord offset)
 	scr_coord_val x_last = 0;  // remember last digit position to avoid overwriting by next label
 	for(  int i = 0;  i < x_elements;  i++  ) {
 		const int j = left_to_right_graph ? x_elements - 1 - i : i;
-		const scr_coord_val x0 = tmpx + factor * (chart_size.w / (x_elements - 1) ) * j;
-		const PIXVAL line_color = (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
+		const scr_coord_val x0 = x_elements>1 ? tmpx + factor * (chart_size.w / (x_elements - 1) ) * j : 0;
+		const bool highlighted = highlight_x<0 ? false : left_to_right_graph ? highlight_x==x_elements-1-i : highlight_x == i;
+		const PIXVAL line_color = highlighted ? SYSCOL_TEXT_STRONG : (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
 			// display x-axis
 			int val = (abort_display_x && left_to_right_graph) ? (abort_display_x - j - 1) * x_axis_span : seed - (j*x_axis_span);
@@ -204,7 +207,7 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 
 	// draw chart's curves
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if (c.show) {
 			double display_tmp;
 			int start = abort_display_x ? (left_to_right_graph ? c.elements - abort_display_x : 0) : 0;
@@ -224,7 +227,7 @@ void gui_chart_t::draw(scr_coord offset)
 
 				// display marker(box) for financial value
 				if (i < end) {
-					scr_coord_val x = tmpx + factor * (chart_size.w / (x_elements - 1))*(i - start) - 2;
+					scr_coord_val x = x_elements>1 ? tmpx + factor * (chart_size.w / (x_elements-1))*(i - start) - 2 : 0;
 					scr_coord_val y = (scr_coord_val)(offset.y + baseline - (long)(tmp / scale) - 2);
 					switch (c.marker_type)
 					{
@@ -268,7 +271,7 @@ void gui_chart_t::draw(scr_coord offset)
 							strcat(tooltip, c.suffix);
 						}
 					}
-					win_set_tooltip( get_mouse_x()+TOOLTIP_MOUSE_OFFSET_X, get_mouse_y()-TOOLTIP_MOUSE_OFFSET_Y, tooltip );
+					win_set_tooltip(get_mouse_pos() + TOOLTIP_MOUSE_OFFSET, tooltip );
 				}
 
 				// draw line between two financial markers; this is only possible from the second value on
@@ -317,7 +320,7 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 // 	bool convert_n_to_kn = false; // for force chart
 	bool convert_time = false; // for comfort chart. dont use this with other units
 
-	FOR(slist_tpl<curve_t>, const& c, curves) {
+	for(curve_t const& c : curves) {
 		if(  c.show  ) {
 			for(  int i=0;  i<c.elements;  i++  ) {
 				tmp = c.values[i*c.size+c.offset];
@@ -385,14 +388,13 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_chart_t::infowin_event(const event_t *ev)
 {
 	if(ev->button_state==1) {
 		// tooptip to show?
-		tooltipcoord = scr_coord(ev->mx,ev->my);
+		tooltipcoord = scr_coord(ev->mouse_pos.x,ev->mouse_pos.y);
 	}
 	else {
 		tooltipcoord = scr_coord::invalid;

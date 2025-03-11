@@ -14,6 +14,7 @@
 
 class loadsave_t;
 
+
 uint32 get_random_seed();
 
 uint32 setsimrand(uint32 seed, uint32 noise_seed);
@@ -52,7 +53,8 @@ enum {
 	STEP_RANDOM        = 1 << 1,
 	SYNC_STEP_RANDOM   = 1 << 2,
 	LOAD_RANDOM        = 1 << 3,
-	MAP_CREATE_RANDOM  = 1 << 4
+	MAP_CREATE_RANDOM  = 1 << 4,
+	MODAL_RANDOM       = 1 << 5
 };
 
 void set_random_mode( uint16 );

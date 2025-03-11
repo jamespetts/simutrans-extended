@@ -38,6 +38,7 @@
 #include "../../player/simplay.h"
 
 #include "../../utils/cbuffer_t.h"
+#include "../../unicode.h"
 #include "../../utils/for.h"
 
 #include "../../dataobj/settings.h"
@@ -616,16 +617,21 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 			// top left
 			add_table(1,3)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
 			{
-				cont_convoi.set_table_layout(2,2);
-				cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
-				cont_convoi.set_spacing(scr_size(0,0));
-				cont_convoi.add_component(&convoi);
-				lb_makeup.init("Select vehicles to make up a convoy", scr_coord(0,0), SYSCOL_TEXT_INACTIVE, gui_label_t::centered);
-				cont_convoi.add_component(&lb_makeup);
-				cont_convoi.new_component<gui_margin_t>(0,D_SCROLLBAR_HEIGHT);
-				convoi.set_max_rows(1);
-				scrollx_convoi.set_maximize(true);
-				add_component(&scrollx_convoi);
+				add_table(2,1);
+				{
+					cont_convoi.set_table_layout(2,1);
+					cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
+					cont_convoi.set_spacing(scr_size(0,0));
+					cont_convoi.add_component(&convoi);
+					lb_makeup.init("Select vehicles to make up a convoy", scr_coord(0,0), SYSCOL_TEXT_INACTIVE, gui_label_t::centered);
+					cont_convoi.add_component(&lb_makeup);
+					convoi.set_max_rows(1);
+					scrollx_convoi.set_maximize(true);
+					add_component(&scrollx_convoi);
+
+					new_component<gui_margin_t>(0, get_grid(wt).y+8);
+				}
+				end_table();
 
 				// convoy length
 				add_table(5,1);
@@ -736,7 +742,9 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 				static const char *txt_veh_action[4] = { "anhaengen", "voranstellen", "verkaufen", "Upgrade" };
 				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[0]), SYSCOL_TEXT);
 				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[1]), SYSCOL_TEXT);
-				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[2]), SYSCOL_TEXT);
+				if (depot_frame) {
+					action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[2]), SYSCOL_TEXT);
+				}
 				action_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(txt_veh_action[3]), SYSCOL_TEXT);
 				action_selector.set_selection(veh_action);
 				action_selector.add_listener(this);
@@ -854,7 +862,6 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 		scrolly_electrics.set_min_height(scr_min_h);
 		scrolly_locos.set_min_height(scr_min_h);
 		scrolly_waggons.set_min_height(scr_min_h);
-		scrollx_convoi.set_min_height(scr_min_h+D_SCROLLBAR_WIDTH);
 		set_size(get_min_size());
 		gui_image_list_t* ilists[] = { &convoi, &pas, &pas2, &electrics, &locos, &waggons };
 		for (uint32 i = 0; i < lengthof(ilists); i++) {
@@ -1078,7 +1085,7 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 			build_vehicle_lists();
 		}
 		else if(comp == &action_selector) {
-			sint32 selection = p.i;
+			sint32 selection = replace_frame&&(p.i == va_sell) ? va_upgrade : p.i;
 			if ( selection < 0 ) {
 				action_selector.set_selection(0);
 				selection=0;
@@ -1112,7 +1119,7 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 				cnv = replace_frame->get_convoy();
 			}
 			if( cnv.is_bound() ){
-				create_win(20, 20, new vehicle_class_manager_t(cnv), w_info, magic_class_manager+cnv.get_id() );
+				create_win({ 20, 20 }, new vehicle_class_manager_t(cnv), w_info, magic_class_manager + cnv.get_id());
 				return true;
 			}
 			return false;
@@ -1374,21 +1381,9 @@ void gui_convoy_assembler_t::build_vehicle_lists()
 						vector_tpl<const vehicle_desc_t*> vehicle_list;
 						upgradeable = false;
 
-						if(replace_frame == NULL)
+						FOR(vector_tpl<const vehicle_desc_t*>, vehicle, vehicles)
 						{
-							FOR(vector_tpl<const vehicle_desc_t*>, vehicle, vehicles)
-							{
-								vehicle_list.append(vehicle);
-							}
-						}
-						else
-						{
-							const convoihandle_t cnv = replace_frame->get_convoy();
-
-							for(uint8 i = 0; i < cnv->get_vehicle_count(); i ++)
-							{
-								vehicle_list.append(cnv->get_vehicle(i)->get_desc());
-							}
+							vehicle_list.append(vehicle);
 						}
 
 						if(vehicle_list.get_count() < 1)
@@ -2085,6 +2080,7 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 								return;
 							}
 						}
+						n++;
 					}
 				}
 				else
@@ -2244,7 +2240,7 @@ bool gui_convoy_assembler_t::infowin_event(const event_t *ev)
 {
 	bool swallowed = gui_aligned_container_t::infowin_event(ev);
 
-	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen(ev->cx, ev->cy-16)) {
+	//if(IS_LEFTCLICK(ev) &&  !action_selector.getroffen( ev->click_pos-16)) {
 	//	// close combo box; we must do it ourselves, since the box does not recieve outside events ...
 	//	action_selector.close_box();
 	//	return true;
@@ -2300,8 +2296,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		tab == &scrolly_electrics ? &electrics :
 		tab == &scrolly_locos     ? &locos     :
 		&waggons;
-	int x = get_mouse_x();
-	int y = get_mouse_y();
+	const scr_coord mouse_pos = get_mouse_pos();
 
 	//double resale_value = -1.0;
 	const vehicle_desc_t *veh_type = NULL;
@@ -2310,7 +2305,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 	uint16 selected_livery_index= livery_scheme_index;
 	uint32 resale_value = UINT32_MAX_VALUE;
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
-	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, x, y - tabs.get_required_size().h);
+	int sel_index = lst->index_at(pos + tabs.get_pos() - relpos, mouse_pos.x, mouse_pos.y - tabs.get_required_size().h);
 
 	int vehicle_fluctuation = 0;
 	// init convoy/station tile count
@@ -2321,7 +2316,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		tile_occupancy.set_base_convoy_length(0,0);
 	}
 
-	if(  (sel_index != -1)  &&  (tabs.getroffen(x - pos.x, y - pos.y)) ) {
+	if(  (sel_index != -1)  &&  (tabs.getroffen(get_mouse_pos() - pos)) ) {
 		// cursor over a vehicle in the selection list
 		const vector_tpl<gui_image_list_t::image_data_t*>& vec = (lst == &electrics ? electrics_vec : (lst == &pas ? pas_vec : (lst == &pas2 ? pas2_vec : (lst == &locos ? locos_vec : waggons_vec))));
 		veh_type = vehicle_builder_t::get_info(vec[sel_index]->text);
@@ -2485,7 +2480,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 		relpos = scr_coord(scrollx_convoi.get_scroll_x(), 0);
 
 		//sel_index = convoi.index_at(pos, x, y);
-		convoi_number = sel_index = convoi.index_at(pos - relpos + scrollx_convoi.get_pos(), x, y);
+		convoi_number = sel_index = convoi.index_at(pos - relpos + scrollx_convoi.get_pos(), mouse_pos.x, mouse_pos.y);
 		if(  sel_index != -1  ) {
 			if (depot_frame)
 			{

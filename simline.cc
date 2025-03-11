@@ -614,6 +614,12 @@ void simline_t::rdwr(loadsave_t *file)
 				}
 			}
 		}
+		else if( file->is_version_ex_less(14,64) ) {
+			// convert to new data (vacant_seats*km to seat-km)
+			for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+				financial_history[k][LINE_CAPACITY] += financial_history[k][LINE_PAX_DISTANCE];
+			}
+		}
 	}
 }
 
@@ -638,7 +644,7 @@ void simline_t::finish_rd()
 void simline_t::register_stops(schedule_t * schedule)
 {
 	DBG_DEBUG("simline_t::register_stops()", "%d schedule entries in schedule %p", schedule->get_count(),schedule);
-	FOR(minivec_tpl<schedule_entry_t>,const &i, schedule->entries) {
+	for(schedule_entry_t const& i : schedule->entries) {
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			//DBG_DEBUG("simline_t::register_stops()", "halt not null");
@@ -667,8 +673,7 @@ void simline_t::unregister_stops()
 
 	// It is necessary to clear all departure data,
 	// which might be out of date on a change of schedule.
-	FOR(vector_tpl<convoihandle_t>, & i, line_managed_convoys)
-	{
+	for(convoihandle_t const &i : line_managed_convoys) {
 		i->clear_departures();
 	}
 	financial_history[0][LINE_DEPARTURES_SCHEDULED] = calc_departures_scheduled();
@@ -677,7 +682,7 @@ void simline_t::unregister_stops()
 
 void simline_t::unregister_stops(schedule_t * schedule)
 {
-	FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+	for(schedule_entry_t const& i : schedule->entries) {
 		halthandle_t const halt = haltestelle_t::get_halt(i.pos, player);
 		if(halt.is_bound()) {
 			halt->remove_line(self);
@@ -722,7 +727,7 @@ void simline_t::set_line_color(uint8 color_idx, uint8 style)
 
 void simline_t::check_freight()
 {
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys) {
+	for(convoihandle_t const i : line_managed_convoys) {
 		i->check_freight();
 	}
 }
@@ -784,8 +789,7 @@ void simline_t::recalc_status()
 	{
 		const uint16 month_now = welt->get_timeline_year_month();
 
-		FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
-		{
+		for(convoihandle_t const i : line_managed_convoys) {
 			for (uint16 j = 0; j < i->get_vehicle_count(); j++)
 			{
 				vehicle_t *v = i->get_vehicle(j);
@@ -851,9 +855,11 @@ void simline_t::recalc_status()
 
 bool simline_t::has_overcrowded() const
 {
-	ITERATE(line_managed_convoys,i)
+	for (auto line_managed_convoy : line_managed_convoys)
 	{
-		if(line_managed_convoys[i]->get_overcrowded() > 0)
+		if (!line_managed_convoy->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) continue;
+
+		if(line_managed_convoy->get_overcrowded() > 0)
 		{
 			return true;
 		}
@@ -886,6 +892,28 @@ uint16 simline_t::get_min_range() const
 	return min_range == UINT16_MAX ? 0 : min_range;
 }
 
+uint16 simline_t::get_min_top_speed_kmh() const
+{
+	uint16 min_top_speed = 65535;
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		min_top_speed = min(speed_to_kmh(line_managed_convoy->get_min_top_speed()), min_top_speed);
+	}
+	return min_top_speed;
+}
+
+bool simline_t::has_reverse_scheduled_convoy() const
+{
+	if (schedule->is_mirrored()) { return true; }
+	for (auto line_managed_convoy : line_managed_convoys)
+	{
+		if (line_managed_convoy->get_reverse_schedule()) {
+			return true;
+		}
+	}
+
+	return false;
+}
 
 void simline_t::calc_classes_carried()
 {
@@ -896,8 +924,7 @@ void simline_t::calc_classes_carried()
 
 	passenger_classes_carried.clear();
 	mail_classes_carried.clear();
-	FOR(vector_tpl<convoihandle_t>, const i, line_managed_convoys)
-	{
+	for(convoihandle_t const i : line_managed_convoys) {
 		convoi_t const& cnv = *i;
 
 		if (cnv.get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS))
@@ -950,6 +977,18 @@ void simline_t::calc_classes_carried()
 
 uint16 simline_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
 {
+	if (catg == goods_manager_t::INDEX_PAS) {
+		if (g_class >= goods_manager_t::passengers->get_number_of_classes()) { return 0; }
+		if (!passenger_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (catg == goods_manager_t::INDEX_MAIL) {
+		if (g_class >= goods_manager_t::mail->get_number_of_classes()) { return 0; }
+		if (!mail_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if (g_class > 0) {
+		return 0; // freight does not have classes
+	}
+
 	uint16 capacity = 0;
 	for (uint32 i = 0; i < line_managed_convoys.get_count(); i++) {
 		convoihandle_t const convoy = line_managed_convoys[i];
@@ -977,7 +1016,7 @@ void simline_t::recalc_catg_index()
 		convoi_t const& cnv = *i;
 		withdraw &= cnv.get_withdraw();
 
-		FOR(minivec_tpl<uint8>, const catg_index, cnv.get_goods_catg_index()) {
+		for(uint8 const catg_index : cnv.get_goods_catg_index()) {
 			goods_catg_index.append_unique( catg_index );
 		}
 	}
@@ -1015,8 +1054,7 @@ void simline_t::recalc_catg_index()
 	}
 
 	// added categories : present in new category list but not in old category list
-	FOR(minivec_tpl<uint8>, const i, goods_catg_index)
-	{
+	for(uint8 const i : goods_catg_index) {
 		if (!old_goods_catg_index.is_contained(i))
 		{
 			catg_differences.append(i);
@@ -1176,6 +1214,26 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 		default: ;
 	}
 	return value;
+}
+
+uint32 simline_t::get_load_factor_pax_year() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	sint64 total_seat_km = 0;
+	sint64 total_pax_km = 0;
+	for (uint8 m = 0; m < MAX_MONTHS; m++) {
+		total_seat_km += financial_history[m][LINE_CAPACITY];
+		total_pax_km += financial_history[m][LINE_PAX_DISTANCE];
+	}
+	return total_seat_km ? (uint32)(1000 * total_pax_km / total_seat_km) : 0;
+}
+
+uint32 simline_t::get_load_factor_pax_last_month() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	return financial_history[1][LINE_CAPACITY] ? (uint32)(1000 * financial_history[1][LINE_PAX_DISTANCE] / financial_history[1][LINE_CAPACITY]) : 0;
 }
 
 sint64 simline_t::get_service_frequency()

@@ -115,8 +115,6 @@ settings_t::settings_t() :
 
 	origin_x = origin_y = 0;
 
-	electric_promille = 1000;
-
 	// town growth factors
 	passenger_multiplier = 40;
 	mail_multiplier = 20;
@@ -139,7 +137,7 @@ settings_t::settings_t() :
 
 	factory_maximum_intransit_percentage = 0;
 
-	electric_promille = 330;
+	electric_promille = 1000;
 
 #ifdef OTTD_LIKE
 	// crossconnect all factories (like OTTD and similar games)
@@ -167,6 +165,7 @@ settings_t::settings_t() :
 
 	num_city_roads = 0;
 	num_intercity_roads = 0;
+	num_industry_roads = 0;
 
 	max_route_steps = 1000000;
 	max_choose_route_steps = 200;
@@ -1576,6 +1575,12 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 		}
 
+		if (file->is_version_ex_atleast(14, 63))
+		{
+			file->rdwr_long(minimum_industry_input_storage_raw);
+			file->rdwr_long(minimum_industry_output_storage_raw);
+		}
+
 		if (  file->is_version_atleast(110, 6) && file->get_extended_version() >= 9  ) {
 			file->rdwr_byte(spacing_shift_mode);
 			file->rdwr_short(spacing_shift_divisor);
@@ -2009,12 +2014,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		int *c = contents.get_ints( str );
 		if( c[ 0 ] >= 6 ) {
 			// now update RGB values
-			for( int j = 0; j < 3; j++ ) {
-				display_day_lights[ i * 3 + j ] = c[ j + 1 ];
-			}
-			for( int j = 0; j < 3; j++ ) {
-				display_night_lights[ i * 3 + j ] = c[ j + 4 ];
-			}
+			display_day_lights[i].r = c[0];
+			display_day_lights[i].g = c[1];
+			display_day_lights[i].b = c[2];
+			display_night_lights[i].r = c[3];
+			display_night_lights[i].g = c[4];
+			display_night_lights[i].b = c[5];
 		}
 		delete[] c;
 	}
@@ -2094,7 +2099,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	env_t::show_vehicle_states       = contents.get_int( "show_vehicle_states", env_t::show_vehicle_states );
 
 	env_t::follow_convoi_underground   = contents.get_int_clamped( "follow_convoi_underground",      env_t::follow_convoi_underground, 0, 2 );
-	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, INT_MAX );
+	env_t::max_acceleration            = contents.get_int_clamped( "fast_forward",                   env_t::max_acceleration,          0, 0x7FFF );
 	env_t::fps                         = contents.get_int_clamped( "frames_per_second",              env_t::fps,                       env_t::min_fps, env_t::max_fps );
 	env_t::ff_fps                      = contents.get_int_clamped( "fast_forward_frames_per_second", env_t::ff_fps,                    env_t::min_fps, env_t::max_fps );
 	env_t::num_threads                 = contents.get_int_clamped( "threads",                        env_t::num_threads,               1, MAX_THREADS );
@@ -2394,6 +2399,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	factory_maximum_intransit_percentage = contents.get_int_clamped( "maximum_intransit_percentage", factory_maximum_intransit_percentage, 0, 0x7FFF );
 	factory_enforce_demand               = contents.get_int( "factory_enforce_demand",       factory_enforce_demand ) != 0;
 
+	// "Sanity check" overrides to deal with problem settings in individual factory buildings in paks which round down too low.
+	// Minimum storage size for industries should be set at the size of a small vehicle which is expected to
+	// be usable economically during the game.  This is always at least 1, but usually more like 5 or 7.
+	minimum_industry_input_storage_raw  = contents.get_int("minimum_industry_input_storage_raw", 1);
+	minimum_industry_output_storage_raw = contents.get_int("minimum_industry_output_storage_raw", 1);
+
 	//tourist_percentage = contents.get_int_clamped( "tourist_percentage", tourist_percentage, 0, 100 );
 
 	// .. read twice: old and right spelling
@@ -2553,7 +2564,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_factory_spacing_percentage = contents.get_int_clamped("max_factory_spacing_percentage",    max_factory_spacing_percentage, 0, 100 );
 	crossconnect_factories         = contents.get_int("crossconnect_factories", crossconnect_factories ) != 0;
 	crossconnect_factor            = contents.get_int_clamped("crossconnect_factories_percentage", crossconnect_factor,            0, 100 );
-	electric_promille              = contents.get_int_clamped("electric_promille",                 electric_promille,              0, 1000 );
+	electric_promille              = contents.get_int_clamped("electric_promille",                 electric_promille,              0, 3000 );
 
 	just_in_time = contents.get_int_clamped("just_in_time", just_in_time, 0, 4);
 
@@ -2736,7 +2747,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		char str[256];
 		sprintf(str, "waytype_color[%i]", i);
 		if (uint32 rgb = (uintptr_t)contents.get_ints(str)) {
-			waytype_color[i] = contents.get_color(str, waytype_color[i], &rgb);
+			waytype_color[i] = contents.get_color(str, waytype_color[i]);
 		}
 	}
 

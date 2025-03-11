@@ -14,6 +14,7 @@ gui_container_t::gui_container_t() : gui_component_t(), comp_focus(NULL)
 {
 	list_dirty = false;
 	inside_infowin_event = false;
+	checkered = false;
 }
 
 
@@ -90,7 +91,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				new_focus = NULL;
 				if(  IS_SHIFT_PRESSED(ev)  ) {
 					// find previous textinput field
-					FOR(vector_tpl<gui_component_t*>, const c, components) {
+					for(gui_component_t* const c : components) {
 						if (c == comp_focus) break;
 						if (c->is_focusable()) {
 							new_focus = c;
@@ -100,7 +101,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				else {
 					// or next input field
 					bool valid = comp_focus==NULL;
-					FOR(vector_tpl<gui_component_t*>, const c, components) {
+					for(gui_component_t* const c : components) {
 						if (valid && c->is_focusable()) {
 							new_focus = c;
 							break;
@@ -133,8 +134,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 	}
 	else {
 		// CASE : not a keyboard event
-		const int x = ev->ev_class==EVENT_MOVE ? ev->mx : ev->cx;
-		const int y = ev->ev_class==EVENT_MOVE ? ev->my : ev->cy;
+		const scr_coord event_pos = ev->ev_class == EVENT_MOVE ? ev->mouse_pos : ev->click_pos;
 
 		// Handle the focus!
 		if(  comp_focus  &&  comp_focus->is_visible()  ) {
@@ -145,7 +145,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 
 			// set focus for component, if component allows focus
 			gui_component_t *const focus = comp->get_focus() ? comp : NULL;
-			if(  focus  &&  IS_LEFTCLICK(ev)  &&  comp->getroffen(ev->cx, ev->cy)  ) {
+			if(  focus  &&  IS_LEFTCLICK(ev)  &&  comp->getroffen( ev->click_pos)  ) {
 				/* the focus swallow all following events;
 				 * due to the activation action
 				 */
@@ -156,7 +156,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 		if(  !swallowed  ) {
 
 			vector_tpl<gui_component_t *>handle_mouseover;
-			FOR(  vector_tpl<gui_component_t*>,  const comp,  components  ) {
+			for(gui_component_t* const comp : components ) {
 
 				if(  list_dirty  ) {
 					break;
@@ -176,7 +176,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 						comp->infowin_event(ev);
 					}
 					else if(  comp->is_visible()  ) {
-						if(  comp->getroffen(x, y)  ) {
+						if(  comp->getroffen(event_pos)  ) {
 							handle_mouseover.append( comp );
 						}
 					}
@@ -187,7 +187,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 			/* since the last drawn are overlaid over all others
 			 * the event-handling must go reverse too
 			 */
-			FOR(  vector_tpl<gui_component_t*>,  const comp,  handle_mouseover  ) {
+			for(gui_component_t* const comp : handle_mouseover ) {
 
 				if (list_dirty) {
 					break;
@@ -209,7 +209,7 @@ bool gui_container_t::infowin_event(const event_t *ev)
 				gui_component_t *focus = comp->get_focus() ? comp : NULL;
 
 				// set focus for component, if component allows focus
-				if(  focus  &&  IS_LEFTRELEASE(ev)  &&  comp->getroffen(ev->cx, ev->cy)  ) {
+				if(  focus  &&  IS_LEFTRELEASE(ev)  &&  comp->getroffen( ev->click_pos)  ) {
 					/* the focus swallow all following events;
 					 * due to the activation action
 					 */
@@ -258,19 +258,23 @@ void gui_container_t::draw(scr_coord offset)
 	clip_dimension cd = display_get_clip_wh();
 	scr_rect clip_rect(cd.x, cd.y, cd.w, cd.h);
 
-	if( show_back_ground_color ) {
-		display_fillbox_wh_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), SYSCOL_TABLE_BACKGROUND, false);
-	}
-
 	// iterate backwards
+	int checker_count = 0;
 	for(  uint32 iter = components.get_count(); iter > 0; iter--) {
 		gui_component_t*const c = components[iter-1];
 		if (c->is_visible()) {
+
+			checker_count++;
 
 			// check if component is in the drawing region
 			// also fixes integer overflow as KOORDVAL in simgraph is 16bit, while scr_coord is 32bit
 			if (!clip_rect.is_overlapping( scr_rect(screen_pos + c->get_pos(), c->get_size()) ) ) {
 				continue;
+			}
+
+			if (checkered) {
+				scr_coord c_pos = screen_pos + c->get_pos();
+				display_fillbox_wh_clip_rgb( c_pos.x, c_pos.y, c->get_size().w, c->get_size().h, (checker_count&1) ? SYSCOL_LIST_BACKGROUND_EVEN : SYSCOL_LIST_BACKGROUND_ODD, false);
 			}
 
 			if(  c == comp_focus  ) {
@@ -288,14 +292,9 @@ void gui_container_t::draw(scr_coord offset)
 		}
 	}
 	// For debug purpose, draw the container's boundary
-	PIXVAL frame_color = SYSCOL_TABLE_FRAME;
 #ifdef SHOW_BBOX
-	show_frame = true;
-	frame_color = color_idx_to_rgb(COL_RED);
+	display_ddd_box_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), color_idx_to_rgb(COL_RED), color_idx_to_rgb(COL_RED));
 #endif
-	if( show_frame ) {
-		display_ddd_box_clip_rgb(shorten(screen_pos.x), shorten(screen_pos.y), shorten(get_size().w), shorten(get_size().h), frame_color, frame_color);
-	}
 	// this allows focussed (selected) components to overlay other components; but focus may subcomponent!
 	if(  redraw_focus  ) {
 		comp_focus->draw(screen_pos);
@@ -305,7 +304,7 @@ void gui_container_t::draw(scr_coord offset)
 
 bool gui_container_t::is_focusable()
 {
-	FOR( vector_tpl<gui_component_t*>, const c, components ) {
+	for(gui_component_t* const c : components ) {
 		if(  c->is_focusable()  ) {
 			return true;
 		}

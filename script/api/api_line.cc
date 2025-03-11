@@ -17,6 +17,12 @@
 #include "../../simworld.h"
 #include "../../player/simplay.h"
 
+// for manipulation of lines
+#include "../../simmenu.h"
+#include "../../dataobj/schedule.h"
+
+// template<> schedule_t* script_api::param<schedule_t*>::get(HSQUIRRELVM, SQInteger);
+
 using namespace script_api;
 
 vector_tpl<sint64> const& get_line_stat(simline_t *line, sint32 INDEX)
@@ -25,7 +31,7 @@ vector_tpl<sint64> const& get_line_stat(simline_t *line, sint32 INDEX)
 	v.clear();
 	if (line  &&  0<=INDEX  &&  INDEX<MAX_LINE_COST) {
 		for(uint16 i = 0; i < MAX_MONTHS; i++) {
-			v.append( line->get_finance_history(i, (line_cost_t)INDEX) );
+			v.append( line->get_stat_converted(i, INDEX) );
 		}
 	}
 	return v;
@@ -50,6 +56,38 @@ waytype_t line_way_type(simline_t *line)
 	return invalid_wt;
 }
 
+call_tool_init line_change_schedule(simline_t* line, player_t *player, schedule_t *sched)
+{
+	if (sched) {
+		cbuffer_t buf;
+		// make a copy, and perform validation on it
+		schedule_t *copy = sched->copy();
+// 		copy->make_valid();
+		if (copy->get_count() >= 2) {
+			// build param string (see line_management_gui_t::apply_schedule)
+			buf.printf( "g,%i,", line->get_handle().get_id() );
+			copy->sprintf_schedule( buf );
+		}
+		else {
+			return "Invalid schedule provided: less than two entries remained after removing doubles";
+		}
+		delete copy;
+		return call_tool_init(TOOL_CHANGE_LINE | SIMPLE_TOOL, buf, 0, player);
+	}
+	return "Invalid schedule provided";
+}
+
+call_tool_init line_delete(simline_t* line, player_t *player)
+{
+	if (line->count_convoys() == 0) {
+		cbuffer_t buf;
+		buf.printf( "d,%i", line->get_handle().get_id() );
+
+		return call_tool_init(TOOL_CHANGE_LINE | SIMPLE_TOOL, buf, 0, player);
+	}
+	return "Cannot delete lines with associated convoys";
+}
+
 SQInteger line_export_convoy_list(HSQUIRRELVM vm)
 {
 	linehandle_t line = param<linehandle_t>::get(vm, 1);
@@ -58,9 +96,14 @@ SQInteger line_export_convoy_list(HSQUIRRELVM vm)
 		set_slot(vm, "line_id", line.get_id());
 		return 1;
 	}
+	sq_raise_error(vm, "Invalid line handle provided");
 	return SQ_ERROR;
 }
 
+call_tool_init line_set_name(simline_t* line, const char* name)
+{
+	return command_rename(line->get_owner(), 'l', line->get_handle().get_id(), name);
+}
 
 vector_tpl<linehandle_t> const* generic_get_line_list(HSQUIRRELVM vm, SQInteger index)
 {
@@ -99,6 +142,12 @@ SQInteger generic_get_line_by_index(HSQUIRRELVM vm)
 	return SQ_ERROR;
 }
 
+SQInteger generic_get_line_count(HSQUIRRELVM vm)
+{
+	vector_tpl<linehandle_t> const* list = generic_get_line_list(vm, 1);
+	return param<uint32>::push(vm, list ? list->get_count() : 0);
+}
+
 void export_line(HSQUIRRELVM vm)
 {
 	/**
@@ -124,18 +173,33 @@ void export_line(HSQUIRRELVM vm)
 	 * @typemask line_x()
 	 */
 	register_function(vm, generic_get_line_by_index, "_get",    2, "xi");
+	/**
+	 * Returns number of lines in the list.
+	 * @typemask integer()
+	 */
+	register_function(vm, generic_get_line_count, "get_count",  1, "x");
 	end_class(vm);
 
 	/**
 	 * Class to access lines.
 	 */
-	begin_class(vm, "line_x", "extend_get");
+	begin_class(vm, "line_x", "extend_get,ingame_object");
 
+	/**
+	 * @returns if object is still valid.
+	 */
+	export_is_valid<simline_t*>(vm); //register_function("is_valid")
 	/**
 	 * Line name.
 	 * @returns name
 	 */
 	register_method(vm, &simline_t::get_name, "get_name");
+	/**
+	 * Sets line name.
+	 * @ingroup rename_func
+	 * @typemask void(string)
+	 */
+	register_method(vm, &line_set_name, "set_name", true);
 	/**
 	 * Line owner.
 	 * @returns owner
@@ -155,11 +219,11 @@ void export_line(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_line_stat, "get_capacity",          freevariable<sint32>(LINE_CAPACITY), true);
-	/**
-	 * Get monthly statistics of number of transported goods.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_PAX_DISTANCE), true );
+// 	/**
+// 	 * Get monthly statistics of number of transported goods.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_line_stat, "get_transported_goods", freevariable<sint32>(LINE_TRANSPORTED_GOODS), true );
 	/**
 	 * Get monthly statistics of number of convoys in this line.
 	 * @returns array, index [0] corresponds to current month
@@ -200,6 +264,19 @@ void export_line(HSQUIRRELVM vm)
 	 * @return waytype of the line
 	 */
 	register_method(vm, &line_way_type, "get_waytype", true);
+
+	/**
+	 * Change schedule of line.
+	 * Schedule should not contain doubled entries and more than two entries.
+	 * @ingroup game_cmd
+	 */
+	register_method(vm, line_change_schedule, "change_schedule", true);
+
+	/**
+	 * Delete line
+	 * @ingroup game_cmd
+	 */
+	register_method(vm, line_delete, "destroy", true);
 
 	end_class(vm);
 }

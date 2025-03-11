@@ -37,7 +37,7 @@ void schedule_t::copy_from(const schedule_t *src)
 		dbg->fatal("schedule_t::copy_to()","cannot copy from NULL");
 	}
 	entries.clear();
-	FOR(minivec_tpl<schedule_entry_t>, const& i, src->entries) {
+	for(schedule_entry_t const& i : src->entries) {
 		entries.append(i);
 	}
 	set_current_stop( src->get_current_stop() );
@@ -269,6 +269,71 @@ bool schedule_t::remove()
 
 
 
+void schedule_t::remove_entry( uint8 delete_enty )
+{
+	if( current_stop > delete_enty ) {
+		current_stop--;
+	}
+	bool ok = entries.remove_at(delete_enty);
+	make_current_stop_valid();
+}
+
+
+
+void schedule_t::move_entry_forward( uint8 cur )
+{
+	if( entries.get_count() <= 2 ) {
+		return;
+	}
+	// so we have something to do
+	uint8 new_cur = (cur + entries.get_count() - 1) % entries.get_count();
+	schedule_entry_t cur_entry = entries[ cur ];
+	entries.remove_at( cur );
+	if ( cur==0 ) {
+		current_stop = (current_stop + entries.get_count() - 1) % entries.get_count();
+		entries.append( cur_entry );
+	}
+	else {
+		if( current_stop == cur ) {
+			current_stop = new_cur;
+		}
+		else if( current_stop == new_cur ) {
+			current_stop++;
+		}
+		entries.insert_at( new_cur, cur_entry );
+	}
+	make_current_stop_valid();
+}
+
+
+
+void schedule_t::move_entry_backward( uint8 cur )
+{
+	if( entries.get_count() <= 2 ) {
+		return;
+	}
+	// so we have something to do
+	uint8 new_cur = (cur + 1) % entries.get_count();
+	schedule_entry_t cur_entry = entries[ cur ];
+	entries.remove_at( cur );
+	if ( new_cur==0 ) {
+		entries.insert_at( 0, cur_entry );
+		current_stop = (current_stop + 1) % entries.get_count();
+	}
+	else {
+		if( current_stop == cur ) {
+			current_stop = new_cur;
+		}
+		else if( current_stop == new_cur ) {
+			current_stop --;
+		}
+		entries.insert_at( new_cur, cur_entry );
+	}
+	make_current_stop_valid();
+}
+
+
+
 void schedule_t::rdwr(loadsave_t *file)
 {
 	xml_tag_t f( file, "schedule_t" );
@@ -403,7 +468,7 @@ void schedule_t::rdwr(loadsave_t *file)
 void schedule_t::rotate90( sint16 y_size )
 {
 	// now we have to rotate all entries ...
-	FOR(minivec_tpl<schedule_entry_t>, & i, entries) {
+	for(schedule_entry_t & i : entries) {
 		i.pos.rotate90(y_size);
 	}
 }
@@ -721,36 +786,30 @@ void schedule_t::gimme_stop_name(cbuffer_t & buf, karte_t* welt, const player_t 
 			sprintf(modified_name, "%s", halt->get_name());
 		}
 
-		if(entry.wait_for_time)
+		if(entry.wait_for_time && !skinverwaltung_t::waiting_time)
 		{
 			buf.printf("[*] ");
 		}
-
-		if (entry.minimum_loading != 0)
+		else if (entry.minimum_loading != 0)
 		{
 			buf.printf("%d%% ", entry.minimum_loading);
 		}
-		buf.printf("%s (%s)", modified_name, entry.pos.get_str() );
+		buf.printf("%s", modified_name );
 	}
 	else {
 		const grund_t* gr = welt->lookup(entry.pos);
 		if(  gr==NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Invalid coordinate"), entry.pos.get_str() );
+			buf.printf("%s", translator::translate("Invalid coordinate") );
 		}
 		else if(  gr->get_depot() != NULL  ) {
-			buf.printf("%s (%s)", translator::translate("Depot"), entry.pos.get_str() );
+			buf.printf("%s", translator::translate("Depot") );
 		}
 		else if(  const char *label_text = gr->get_text()  ){
-			buf.printf("%s %s (%s)", translator::translate("Wegpunkt"), label_text, entry.pos.get_str() );
+			buf.printf("%s", label_text );
 		}
 		else {
-			buf.printf("%s (%s)", translator::translate("Wegpunkt"), entry.pos.get_str() );
+			buf.printf("%s", translator::translate("Wegpunkt") );
 		}
-	}
-
-	if(entry.reverse == 1)
-	{
-		buf.printf(" [<<]");
 	}
 }
 
@@ -830,8 +889,7 @@ void schedule_t::gimme_short_stop_name(cbuffer_t& buf, karte_t* welt, player_t c
 
 bool schedule_t::is_contained (koord3d pos)
 {
-	FOR(minivec_tpl<schedule_entry_t>, entry, entries)
-	{
+	for(schedule_entry_t entry : entries) {
 		if(pos == entry.pos)
 		{
 			return true;

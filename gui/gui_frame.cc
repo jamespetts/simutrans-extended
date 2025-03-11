@@ -101,8 +101,7 @@ FLAGGED_PIXVAL gui_frame_t::get_titlecolor() const
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_frame_t::infowin_event(const event_t *ev)
 {
@@ -115,8 +114,8 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 	}
 
 	if(IS_WINDOW_RESIZE(ev)) {
-		scr_coord delta (  resize_mode & horizontal_resize ? ev->mx - ev->cx : 0,
-		                   resize_mode & vertical_resize   ? ev->my - ev->cy : 0);
+		scr_coord delta (  resize_mode & horizontal_resize ? ev->mouse_pos.x - ev->click_pos.x : 0,
+		                   resize_mode & vertical_resize   ? ev->mouse_pos.y - ev->click_pos.y : 0);
 		resize(delta);
 		return true;  // don't pass to children!
 	}
@@ -143,18 +142,16 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 void gui_frame_t::resize(const scr_coord delta)
 {
 	dirty = true;
+
 	scr_size new_size = windowsize + delta;
 
 	// resize window to the minimum size
 	new_size.clip_lefttop(min_windowsize);
-
 	scr_coord size_change = new_size - windowsize;
-
 	// resize window
 	set_windowsize(new_size);
-
 	// change drag start
-	change_drag_start(size_change.x, size_change.y);
+	change_drag_start(size_change);
 }
 
 
@@ -181,7 +178,7 @@ void gui_frame_t::draw(scr_coord pos, scr_size size)
 	}
 	dirty = false;
 
-	PUSH_CLIP_FIT(pos.x+1, pos.y+titlebar_size.h, size.w-2, size.h-titlebar_size.h);
+	PUSH_CLIP_FIT(pos.x+1, pos.y+titlebar_size.h+1, size.w-2, size.h-titlebar_size.h-2);
 	gui_aligned_container_t::draw(pos);
 	POP_CLIP();
 

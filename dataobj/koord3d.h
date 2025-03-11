@@ -16,19 +16,16 @@
 /**
  * 3D Coordinates
  */
-class koord3d //: public koord
+class koord3d
 {
 public:
 	sint16 x;
 	sint16 y;
 	sint8 z;
 
-//	koord3d() : koord(0, 0), z(0) {}
 	koord3d() : x(0), y(0), z(0) {}
 
-//	koord3d(sint16 xp, sint16 yp, sint8 zp) : koord(xp, yp), z(zp) {}
 	koord3d(sint16 xp, sint16 yp, sint8 zp) : x(xp), y(yp), z(zp) {}
-//	koord3d(koord xyp, sint8 zp) : koord(xyp), z(zp) {}
 	koord3d(koord xyp, sint8 zp) : x(xyp.x), y(xyp.y), z(zp) {}
 
 	const char *get_str() const;
@@ -40,10 +37,9 @@ public:
 
 	static const koord3d invalid;
 
-//	const koord& get_2d() const { return *this; }
 	koord get_2d() const { return koord(x, y); }
 
-	inline const koord3d& operator += (const koord3d& a)
+	const koord3d& operator += (const koord3d& a)
 	{
 		x += a.x;
 		y += a.y;
@@ -51,7 +47,7 @@ public:
 		return *this;
 	}
 
-	inline const koord3d& operator -= (koord3d& a)
+	const koord3d& operator -= (koord3d& a)
 	{
 		x -= a.x;
 		y -= a.y;
@@ -59,14 +55,14 @@ public:
 		return *this;
 	}
 
-	inline const koord3d& operator += (const koord& a)
+	const koord3d& operator += (const koord& a)
 	{
 		x += a.x;
 		y += a.y;
 		return *this;
 	}
 
-	inline const koord3d& operator -= (const koord& a)
+	const koord3d& operator -= (const koord& a)
 	{
 		x -= a.x;
 		y -= a.y;

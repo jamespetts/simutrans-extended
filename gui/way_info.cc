@@ -1054,11 +1054,11 @@ void way_info_t::update()
 
 		cont.new_component<gui_label_t>("convoi passed last month:");
 		lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-		lb->buf().printf("%u", way1->get_statistics(WAY_STAT_CONVOIS));
+		lb->buf().printf("%u", way1->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS));
 		lb->update();
 		if (way2) {
 			lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-			lb->buf().printf("%u", way2->get_statistics(WAY_STAT_CONVOIS));
+			lb->buf().printf("%u", way2->get_statistics(WAY_STAT_LAST_MONTH, WAY_STAT_CONVOIS));
 			lb->update();
 		}
 		else {

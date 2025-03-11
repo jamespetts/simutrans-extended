@@ -132,7 +132,9 @@ public:
 
 	void set_cmp(item_compare_func cmp) { compare = cmp; }
 
-	gui_scrolled_list_t(enum type, item_compare_func cmp = 0);
+	bool set_checkered(bool c) { return container.set_checkered(c); }
+
+	gui_scrolled_list_t(enum type t= windowskin, item_compare_func cmp = 0);
 
 	~gui_scrolled_list_t() { clear_elements(); }
 
@@ -164,6 +166,8 @@ public:
 	void new_component(const A1& a1, const A2& a2, const A3& a3) { container.new_component<C>(a1, a2, a3)->set_focusable(true); }
 	template<class C, class A1, class A2, class A3, class A4>
 	void new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4) { container.new_component<C>(a1, a2, a3, a4)->set_focusable(true); }
+	template<class C, class A1, class A2, class A3, class A4, class A5>
+	void new_component(const A1& a1, const A2& a2, const A3& a3, const A4& a4, const A5& a5) { container.new_component<C>(a1, a2, a3, a4, a5)->set_focusable(true); }
 
 	void take_component(gui_component_t* comp) { container.take_component(comp, 1); }
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -23,6 +23,7 @@
 #include "../descriptor/vehicle_desc.h"
 
 #include "../utils/simstring.h"
+#include "../unicode.h"
 
 
 int vehiclelist_stats_t::sort_mode = vehicle_builder_t::sb_intro_date;
@@ -95,8 +96,8 @@ vehiclelist_stats_t::vehiclelist_stats_t(const vehicle_desc_t *v)
 void vehiclelist_stats_t::draw( scr_coord offset )
 {
 	// show tooltip
-	if (getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, get_mouse_y() + TOOLTIP_MOUSE_OFFSET_Y, tooltip_buf, this);
+	if (getroffen(get_mouse_pos() - offset)) {
+		win_set_tooltip(get_mouse_pos() + TOOLTIP_MOUSE_OFFSET, tooltip_buf, this);
 	}
 
 	const uint32 month = world()->get_current_month();
@@ -224,7 +225,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 							if( veh->get_capacity(a_class) ) {
 								int xoff = (vehiclelist_frame_t::cell_width[col]>>1)-(int)(a_class*3/2)-1;
 								for( uint8 n=0; n<a_class+1; ++n ){
-									display_fillbox_wh_clip_rgb(offset.x+xoff, offset.y+yoff, 2, 2, COL_CAUTION, false);
+									display_fillbox_wh_clip_rgb(offset.x+xoff, offset.y+yoff, 2, 2, SYSCOL_CLASS_INSIGNIA, false);
 									xoff += 3;
 								}
 								yoff+=3;
@@ -311,7 +312,7 @@ void vehiclelist_stats_t::draw( scr_coord offset )
 
 bool vehiclelist_stats_t::infowin_event(const event_t *ev)
 {
-	if(  IS_LEFTRELEASE(ev)  &&  getroffen(ev->mx+pos.x, ev->my+pos.y) ) {
+	if(  IS_LEFTRELEASE(ev)  &&  getroffen( ev->mouse_pos+pos )  ) {
 		vehicle_detail_t *win = dynamic_cast<vehicle_detail_t*>(win_get_magic(magic_vehicle_detail));
 		if (!win) {
 			create_win(new vehicle_detail_t(veh), w_info, magic_vehicle_detail);
@@ -684,7 +685,7 @@ void vehiclelist_frame_t::fill_list()
 				// goods category filter
 				if( ware ) {
 					const goods_desc_t *vware = veh->get_freight_type();
-					if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+					if( ( ware->get_catg_index()!=goods_manager_t::INDEX_NONE  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
 						continue;
 					}
 				}
@@ -769,7 +770,7 @@ void vehiclelist_frame_t::fill_list()
 			// goods category filter
 			if( ware ) {
 				const goods_desc_t *vware = veh->get_freight_type();
-				if( ( ware->get_catg_index()>0  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
+				if( ( ware->get_catg_index()!=goods_manager_t::INDEX_NONE  &&  vware->get_catg_index()!=ware->get_catg_index())  &&   vware->get_index()!=ware->get_index() ) {
 					continue;
 				}
 			}

@@ -137,8 +137,8 @@ bool city_location_map_t::infowin_event(const event_t *ev)
 {
 	if (ev->ev_code == MOUSE_LEFTBUTTON) {
 		const koord p = koord(
-			(ev->mx * world()->get_size().x) / (size.w),
-			(ev->my * world()->get_size().y) / (size.h));
+			(ev->mouse_pos.x * world()->get_size().x) / (size.w),
+			(ev->mouse_pos.y * world()->get_size().y) / (size.h));
 		world()->get_viewport()->change_world_position(p);
 	}
 	return false;
@@ -380,7 +380,7 @@ city_info_t::~city_info_t()
 	rename_city();
 	// save button state
 	uint32 flags = 0;
-	FOR(const vector_tpl<gui_button_to_chart_t*>, b2c, button_to_chart.list()) {
+	for(gui_button_to_chart_t* b2c : button_to_chart.list()) {
 		if (b2c->get_button()->pressed) {
 			flags |= 1 << b2c->get_curve();
 		}
@@ -514,6 +514,7 @@ void city_info_t::update_labels()
 		lb_allow_growth.set_image(skinverwaltung_t::alerts ? (city->get_citygrowth() ? IMG_EMPTY : skinverwaltung_t::alerts->get_image_id(2)) : IMG_EMPTY);
 		lb_allow_growth.update();
 	}
+	bt_city_factories.enable(city->get_city_factories().get_count());
 	resize(scr_size(0,0));
 }
 
@@ -594,7 +595,7 @@ void city_info_t::update_stats()
 		cont_city_stats.new_component<gui_table_header_t>("This Year")->set_flexible(true, false);
 		cont_city_stats.new_component<gui_table_header_t>("Last Year")->set_flexible(true, false);
 
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::passengers->get_image_id(0), 0, 0, true)->set_padding(scr_size(4,0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_pax", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 
@@ -624,7 +625,7 @@ void city_info_t::update_stats()
 		cont_city_stats.add_component(&transportation_last_year);
 
 		// mail
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::mail->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::mail->get_image_id(0), 0, 0, true)->set_padding(scr_size(4, 0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_mail", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
@@ -643,7 +644,7 @@ void city_info_t::update_stats()
 		td->update();
 
 		// goods
-		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, 0, true);
+		cont_city_stats.new_component<gui_image_t>(skinverwaltung_t::goods->get_image_id(0), 0, 0, true)->set_padding(scr_size(4, 0));
 		th = cont_city_stats.new_component<gui_table_header_t>("ratio_goods", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 		th->set_flexible(true, false);
 		td = cont_city_stats.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND, gui_label_t::centered, true);
@@ -748,7 +749,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_attractions  ) {
 		curiositylist_frame_t *win = dynamic_cast<curiositylist_frame_t*>( win_get_magic(magic_curiositylist) );
 		if (!win) {
-			create_win(-1, -1, new curiositylist_frame_t(city), w_info, magic_curiositylist);
+			create_win({ -1, -1 }, new curiositylist_frame_t(city), w_info, magic_curiositylist);
 		}
 		else {
 			win->set_cityfilter(city);
@@ -759,7 +760,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_factories  ) {
 		factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>( win_get_magic(magic_factorylist) );
 		if (!win) {
-			create_win(-1, -1, new factorylist_frame_t(city), w_info, magic_factorylist);
+			create_win({ -1, -1 }, new factorylist_frame_t(city), w_info, magic_factorylist);
 		}
 		else {
 			win->set_cityfilter(city);
@@ -770,7 +771,7 @@ bool city_info_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	if(  comp==&bt_city_stops  ) {
 		halt_list_frame_t *win = dynamic_cast<halt_list_frame_t*>( win_get_magic( magic_halt_list + 1/* public player*/ ) );
 		if (!win) {
-			create_win(-1, -1, new halt_list_frame_t(city), w_info, magic_halt_list+1/* public player*/);
+			create_win({ -1, -1 }, new halt_list_frame_t(city), w_info, magic_halt_list + 1/* public player*/);
 		}
 		else {
 			win->set_cityfilter(city);

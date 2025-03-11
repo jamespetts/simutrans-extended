@@ -7,6 +7,7 @@
 #include "../simhalt.h"
 #include "../simskin.h"
 #include "../simcolor.h"
+#include "../simtool.h"
 #include "../simcity.h"
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
@@ -34,14 +35,6 @@
 uint16 halt_list_stats_t::name_width = 0;
 
 // helper class
-void gui_capped_arrow_t::draw(scr_coord offset)
-{
-	offset += pos;
-	display_fillbox_wh_clip_rgb(offset.x,   offset.y+1, 4, 3, color_idx_to_rgb(COL_WHITE), false);
-	display_fillbox_wh_clip_rgb(offset.x+2, offset.y,   1, 5, color_idx_to_rgb(COL_WHITE), false);
-	display_fillbox_wh_clip_rgb(offset.x+4, offset.y+2, 1, 1, color_idx_to_rgb(COL_WHITE), false);
-}
-
 gui_halt_stats_t::gui_halt_stats_t(halthandle_t h)
 {
 	halt = h;
@@ -471,8 +464,7 @@ void gui_halt_stats_t::draw(scr_coord offset)
 // main class
 static karte_ptr_t welt;
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool halt_list_stats_t::infowin_event(const event_t *ev)
 {
@@ -484,7 +476,7 @@ bool halt_list_stats_t::infowin_event(const event_t *ev)
 				halt->show_detail();
 				return true;
 			}
-			if(  event_get_last_control_shift() != 2  ) {
+			if((event_get_last_control_shift() ^ tool_t::control_invert)==2) {
 				halt->show_info();
 				return true;
 			}

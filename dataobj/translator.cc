@@ -201,7 +201,7 @@ void translator::clear_custom_list(vector_tpl<vector_tpl<char *>>&name_list)
 }
 void translator::clear_custom_list(vector_tpl<char *>&name_list)
 {
-	FOR(vector_tpl<char*>, const i, name_list) {
+	for(char* const i : name_list) {
 		free(i);
 	}
 	name_list.clear();
@@ -521,6 +521,20 @@ void translator::init_custom_names(int lang)
 /* now on to the translate stuff */
 
 
+static bool is_special_format_string(const char* str)
+{
+	// %._CITY_SYLL
+	if (*str == '%'  &&  *(str+1)  &&  strcmp(str+2, "_CITY_SYLL")==0) {
+		return true;
+	}
+	// .center, .suburb, .extern
+	if (*str  &&  (strcmp(str+1, "center")==0  ||  strcmp(str+1, "suburb")==0  ||  strcmp(str+1, "extern")==0) ) {
+		return true;
+	}
+	return false;
+}
+
+
 static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*, N_BAGS_LARGE>* table, bool language_is_utf, bool file_is_utf, bool language_is_latin2 )
 {
 	char buffer1 [4096];
@@ -540,14 +554,23 @@ static void load_language_file_body(FILE* file, stringhashtable_tpl<const char*,
 				// only add line which are actually different
 				char *raw = recode(buffer1, file_is_utf, false, language_is_latin2 );
 				char *translated = recode(buffer2, false, convert_to_unicode,language_is_latin2);
-
-				if(  cbuffer_t::check_format_strings(raw, translated)  ) {
-					table->set( raw, translated );
+				char *repaired = NULL;
+				// check format strings (only for unicode, ignore special strings)
+				if(language_is_utf) {
+					if (!is_special_format_string(raw)) {
+						// check and possibly repair the format string
+						if (!cbuffer_t::check_and_repair_format_strings(raw, translated, &repaired) ) {
+							free(raw);
+							free(translated);
+							continue;
+						}
+					}
 				}
-				else {
-					free(raw);
+				if (repaired) {
 					free(translated);
+					translated = repaired;
 				}
+				table->set( raw, translated );
 			}
 		}
 	} while (!feof(file));

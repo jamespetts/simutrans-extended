@@ -122,26 +122,26 @@ uint32 socket_list_t::server_sockets;
 /**
  * book-keeping for the number of connected / playing clients
  */
-void socket_list_t::book_state_change(uint8 state, sint8 incr)
+void socket_list_t::book_state_change(socket_info_t::connection_state_t state, sint8 incr)
 {
 	switch (state) {
-		case socket_info_t::server:
-			// do not change
-			break;
 		case socket_info_t::connected:
 			connected_clients += incr;
 			break;
 		case socket_info_t::playing:
 			playing_clients += incr;
 			break;
+
+		// do not change
 		case socket_info_t::inactive:
+		case socket_info_t::server:
 		default:
 			break;
 	}
 }
 
 
-void socket_list_t::change_state(uint32 id, uint8 new_state)
+void socket_list_t::change_state(uint32 id, socket_info_t::connection_state_t new_state)
 {
 	book_state_change(list[id]->state, -1);
 	list[id]->state = new_state;
@@ -152,16 +152,12 @@ void socket_list_t::change_state(uint32 id, uint8 new_state)
 
 void socket_list_t::reset()
 {
-	FOR(vector_tpl<socket_info_t*>, const i, list) {
+	for(socket_info_t* const i : list) {
 		i->reset();
 	}
 	connected_clients = 0;
 	playing_clients = 0;
 	server_sockets = 0;
-#ifndef NETTOOL
-	// Knightly : clear the limit sets
-	nwc_routesearch_t::reset();
-#endif
 }
 
 
@@ -172,10 +168,6 @@ void socket_list_t::reset_clients()
 	}
 	connected_clients = 0;
 	playing_clients = 0;
-#ifndef NETTOOL
-	// Knightly : clear the limit sets
-	nwc_routesearch_t::reset();
-#endif
 }
 
 
@@ -257,10 +249,7 @@ bool socket_list_t::remove_client( SOCKET sock )
 				change_state(j, socket_info_t::inactive);
 			}
 			list[j]->reset();
-#ifndef NETTOOL
-			// Knightly : remove the corresponding limit set
-			nwc_routesearch_t::remove_client_entry(j);
-#endif
+
 			network_close_socket(sock);
 			return true;
 		}
@@ -321,14 +310,17 @@ void socket_list_t::unlock_player_all(uint8 player_nr, bool unlock, uint32 excep
 }
 
 
-void socket_list_t::send_all(network_command_t* nwc, bool only_playing_clients)
+void socket_list_t::send_all(network_command_t* nwc, bool only_playing_clients, uint8 player_nr)
 {
 	if (nwc == NULL) {
 		return;
 	}
 	for(uint32 i=server_sockets; i<list.get_count(); i++) {
 		if (list[i]->is_active()  &&  list[i]->socket!=INVALID_SOCKET
-			&& (!only_playing_clients || list[i]->state == socket_info_t::playing || list[i]->state == socket_info_t::connected)) {
+			&&  (!only_playing_clients  ||  list[i]->state == socket_info_t::playing  ||  list[i]->state == socket_info_t::connected)
+			&&  (player_nr >= PLAYER_UNOWNED  ||  list[i]->is_player_unlocked(player_nr))
+		) {
+
 			packet_t *p = nwc->copy_packet();
 			list[i]->send_queue_append(p);
 		}
@@ -339,7 +331,7 @@ void socket_list_t::send_all(network_command_t* nwc, bool only_playing_clients)
 SOCKET socket_list_t::fill_set(fd_set *fds)
 {
 	SOCKET s_max = 0;
-	FOR(vector_tpl<socket_info_t*>, const i, list) {
+	for(socket_info_t* const i : list) {
 		if (i->state != socket_info_t::inactive && i->socket != INVALID_SOCKET) {
 			SOCKET const s = i->socket;
 			s_max = max( s, s_max );
@@ -404,8 +396,12 @@ void socket_list_t::rdwr(packet_t *p, vector_tpl<socket_info_t*> *list)
 		if (p->is_loading()) {
 			list->append(new socket_info_t());
 		}
-		p->rdwr_byte((*list)[i]->state);
-		if ( (*list)[i]->state==socket_info_t::playing) {
+
+		uint8 s = (*list)[i]->state;
+		p->rdwr_byte(s);
+		(*list)[i]->state = socket_info_t::connection_state_t(s);
+
+		if ( s==socket_info_t::playing) {
 			(*list)[i]->rdwr(p);
 		}
 	}

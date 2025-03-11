@@ -26,12 +26,11 @@ gui_image_list_t::gui_image_list_t(vector_tpl<image_data_t*> *images) :
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_image_list_t::infowin_event(const event_t *ev)
 {
-	int sel_index = index_at(scr_coord(0,0)-pos, ev->mx, ev->my);
+	int sel_index = index_at(scr_coord(0,0)-pos, ev->mouse_pos.x, ev->mouse_pos.y);
 	if(  sel_index != -1  &&  (IS_LEFTCLICK(ev)  ||  IS_LEFTDBLCLK(ev))  ) {
 		value_t p;
 		p.i = sel_index;
@@ -69,7 +68,7 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 	const int columns = (size.w - 2 * BORDER) / grid.x;
 
 	// sel_index should come from infowin_event, but it is not sure?
-	int sel_index = index_at(parent_pos, get_mouse_x(), get_mouse_y());
+	int sel_index = index_at(parent_pos, get_mouse_pos().x, get_mouse_pos().y);
 
 	// Show available wagon types
 	int xmin = parent_pos.x + pos.x + BORDER;
@@ -84,7 +83,7 @@ void gui_image_list_t::draw(scr_coord parent_pos)
 		display_blend_wh_rgb(xpos + grid.x*focus + 1, ypos + 1, grid.x - 2, grid.y - 2, SYSCOL_UPGRADEABLE, 25);
 	}
 
-	FOR(vector_tpl<image_data_t*>, const& iptr, *images) {
+	for(image_data_t* const& iptr : *images) {
 		image_data_t const& idata = *iptr;
 		if(idata.count!=-32768) {
 
@@ -164,4 +163,10 @@ scr_size gui_image_list_t::get_max_size() const
 
 	}
 	return scr_size((images->get_count()+1)*grid.x + 2*BORDER, grid.y + 2*BORDER);
+}
+
+
+scr_size gui_image_list_t::get_min_scroll_size() const
+{
+	return scr_size(grid.x + 2*BORDER, grid.y + 2*BORDER);
 }

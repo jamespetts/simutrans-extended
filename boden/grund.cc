@@ -416,7 +416,7 @@ void grund_t::rdwr(loadsave_t *file)
 					else {
 						assert((flags&has_way2)==0); // maximum two ways on one tile ...
 						weg->set_pos(pos);
-						weg->calc_speed_limit(this); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
+						weg->calc_speed_limit(this, true); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
 						if(owner_n!=-1) {
 							weg->set_owner(welt->get_player(owner_n));
 						}
@@ -579,7 +579,7 @@ void grund_t::finish_rotate90()
 	}
 	ground_texts.clear();
 	// then transfer all rotated texts
-	FOR(text_map, const& iter, ground_texts_rotating) {
+	for(auto iter : ground_texts_rotating) {
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_rotating.clear();
@@ -591,13 +591,13 @@ void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 	typedef inthashtable_tpl<uint64, char*, N_BAGS_LARGE> text_map;
 	text_map ground_texts_enlarged;
 	// we have recalculate the keys
-	FOR(text_map, iter, ground_texts) {
+	for(auto iter : ground_texts) {
 		koord3d k = get_ground_koord3d_key( iter.key );
 		ground_texts_enlarged.put( get_ground_text_key(k), iter.value );
 	}
 	ground_texts.clear();
 	// then transfer all texts back
-	FOR(text_map, const& iter, ground_texts_enlarged) {
+	for(auto iter : ground_texts_enlarged) {
 		ground_texts.put(iter.key, iter.value);
 	}
 	ground_texts_enlarged.clear();
@@ -1839,8 +1839,8 @@ void grund_t::display_overlay(const sint16 xpos, const sint16 ypos)
 	objlist.display_obj_overlay( xpos, ypos );
 #endif
 	// marker/station text
-	if(  get_flag(has_text)  &&  env_t::show_names  ) {
-		if(  env_t::show_names&1  ) {
+	if(  get_flag(has_text)  ) {
+		if(  env_t::show_names & 1  ) {
 			const char *text = get_text();
 			const sint16 raster_tile_width = get_tile_raster_width();
 			const int width = proportional_string_width(text)+7;
@@ -2187,6 +2187,7 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 				// restore speed limit
 				weg_t* w = (weg_t*)obj_bei(0);
 				w->set_desc(w->get_desc(), true);
+				w->calc_speed_limit(this); // We need this as the above line will not set the speed limit because we call it with "true" because we do not want to overwrite the way wear data.
 				w->count_sign();
 			}
 		}
@@ -2385,7 +2386,7 @@ bool grund_t::remove_excessive_roads()
 	bool ret = remove_excessive_roads(road_tiles);
 
 	if (ret) {
-		FOR(grund_t::road_network_plan_t, i, road_tiles) {
+		for(auto i : road_tiles) {
 			koord k = i.key;
 			grund_t *gr = welt->lookup_kartenboden(k);
 			if (!i.value) {
@@ -2420,7 +2421,7 @@ int grund_t::count_neighbouring_roads(road_network_plan_t &road_tiles)
 
 bool grund_t::fixup_road_network_plan(road_network_plan_t &road_tiles)
 {
-	FOR(road_network_plan_t, i, road_tiles) {
+	for(auto i : road_tiles) {
 		if (i.value == true) {
 			grund_t *gr = welt->lookup_kartenboden(i.key);
 
@@ -2563,7 +2564,7 @@ public:
 
 	virtual ribi_t::ribi get_ribi(const grund_t* gr) const { return other->get_ribi(gr); }
 	virtual waytype_t get_waytype() const { return other->get_waytype(); }
-	virtual int get_cost(const grund_t *gr, const sint32 c, koord p) { return other->get_cost(gr,c,p); }
+	virtual int get_cost(const grund_t *gr, const sint32 c, ribi_t::ribi from) { return other->get_cost(gr,c,from); }
 	virtual bool  is_target(const grund_t *gr,const grund_t *gr2) { return other-> is_target(gr,gr2); }
 };
 
@@ -2839,8 +2840,7 @@ bool grund_t::removing_way_would_disrupt_public_right_of_way(waytype_t wt)
 			}
 		}
 
-		FOR(minivec_tpl<route_t>, const& diversionary_route, diversionary_routes)
-		{
+		for(route_t const& diversionary_route : diversionary_routes) {
 			for(uint32 n = 1; n < diversionary_route.get_count()-1; n++)
 			{
 				// All diversionary routes must themselves be set as public rights of way.

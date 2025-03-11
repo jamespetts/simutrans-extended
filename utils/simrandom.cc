@@ -52,6 +52,7 @@ static void init_genrand(uint32 s)
 	}
 }
 
+
 /* generate N words at one time */
 static void MTgenerate()
 {
@@ -89,7 +90,6 @@ uint32 get_random_seed()
 	return mersenne_twister[mersenne_twister_index];
 #endif
 }
-
 
 
 /* generates a random number on [0,0xffffffff]-interval */
@@ -294,6 +294,7 @@ uint32 setsimrand(uint32 seed,uint32 ns)
 	}
 	return old_noise_seed;
 }
+
 
 static double int_noise(const sint32 x, const sint32 y)
 {

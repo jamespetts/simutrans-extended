@@ -48,7 +48,7 @@ public:
 	void set_convoi(convoi_t *c) OVERRIDE;
 
 	// how expensive to go here (for way search)
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE;
+	int get_cost(const grund_t *, const sint32 max_speed, ribi_t::ribi from) OVERRIDE;
 
 	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 

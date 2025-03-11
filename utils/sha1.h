@@ -27,6 +27,7 @@
 
 #include "../simtypes.h"
 
+
 class SHA1
 {
 

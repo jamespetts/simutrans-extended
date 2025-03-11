@@ -117,7 +117,7 @@ void line_scrollitem_t::draw(scr_coord pos)
 	scr_coord_val left = D_H_SPACE;
 	if (selected) {
 		// selected element
-		display_fillbox_wh_clip_rgb(pos.x, pos.y - 1, get_size().w, get_size().h + 1, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
+		display_fillbox_wh_clip_rgb(pos.x - D_H_SPACE, pos.y, get_size().w+(D_H_SPACE<<1), get_size().h, (focused ? SYSCOL_LIST_BACKGROUND_SELECTED_F : SYSCOL_LIST_BACKGROUND_SELECTED_NF), true);
 	}
 
 	// line color

@@ -51,8 +51,7 @@ gui_combobox_t::gui_combobox_t(gui_scrolled_list_t::item_compare_func cmp) :
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool gui_combobox_t::infowin_event(const event_t *ev)
 {
@@ -65,32 +64,42 @@ bool gui_combobox_t::infowin_event(const event_t *ev)
 	}
 
 	if(  !droplist.is_visible()  ) {
-DBG_MESSAGE("event","%d,%d",ev->cx, ev->cy);
-		if(  bt_prev.getroffen(ev->cx, ev->cy)  ) {
+DBG_MESSAGE("event","%d,%d",ev->click_pos.x, ev->click_pos.y);
+		if(  bt_prev.getroffen( ev->click_pos)  ) {
 DBG_MESSAGE("event","HOWDY!");
 			bt_prev.pressed = IS_LEFT_BUTTON_PRESSED(ev);
 			if(IS_LEFTRELEASE(ev)) {
 				value_t p;
 				bt_prev.pressed = false;
-				set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				if (inverse_sidebutton_action) {
+					set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				}
+				else {
+					set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				}
 				p.i = droplist.get_selection();
 				call_listeners( p );
 			}
 			return true;
 		}
-		else if(  bt_next.getroffen(ev->cx, ev->cy)  ) {
+		else if(  bt_next.getroffen( ev->click_pos)  ) {
 			bt_next.pressed = IS_LEFT_BUTTON_PRESSED(ev);
 			if(IS_LEFTRELEASE(ev)) {
 				bt_next.pressed = false;
 				value_t p;
-				set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				if (inverse_sidebutton_action) {
+					set_selection( droplist.get_selection() > 0 ? droplist.get_selection() - 1 : wrapping ? droplist.get_count() - 1 : 0 );
+				}
+				else {
+					set_selection( droplist.get_selection() < droplist.get_count() - 1 ? droplist.get_selection() + 1 : wrapping ? 0 : droplist.get_count() - 1 );
+				}
 				p.i = droplist.get_selection();
 				call_listeners(p);
 			}
 			return true;
 		}
 	}
-	else if(  (IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev))  &&  droplist.getroffen(ev->mx, ev->my)  ) {
+	else if(  (IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev))  &&  droplist.getroffen(ev->mouse_pos)  ) {
 		// scroll the list
 		event_t ev2 = *ev;
 		ev2.move_origin(droplist.get_pos());
@@ -126,7 +135,7 @@ DBG_MESSAGE("event","HOWDY!");
 
 			// ignore clicks outside if closed
 			scr_rect this_comp( get_size() );
-			if(  !droplist.is_visible()  &&  !this_comp.contains(scr_coord(ev->cx,ev->cy) )  ) {
+			if(  !droplist.is_visible()  &&  !this_comp.contains(scr_coord(ev->click_pos.x,ev->click_pos.y) )  ) {
 				// not us, just in old focus from previous selection or tab
 				return false;
 			}
@@ -163,7 +172,7 @@ DBG_MESSAGE("event","HOWDY!");
 		}
 		else if (droplist.is_visible()) {
 
-			if( droplist.getroffen(ev->cx, ev->cy)  ) {
+			if( droplist.getroffen( ev->click_pos)  ) {
 				int old_selection = droplist.get_selection();
 
 				event_t ev2 = *ev;
@@ -402,7 +411,7 @@ scr_size gui_combobox_t::get_min_size() const
 		return scr_size(bl.w + ti.w + br.w + D_H_SPACE, max(max(bl.h, ti.h), br.h));
 	}
 	else {
-		return scr_size(bl.w + br.w + sl.w - D_H_SPACE, max(max(bl.h, ti.h), br.h));
+		return scr_size(bl.w + br.w + sl.w + D_H_SPACE*2 + D_SCROLLBAR_WIDTH, max(max(bl.h, ti.h), br.h));
 	}
 }
 

@@ -11,7 +11,8 @@
 
 /**
  * Registers the complete export interface.
+ * @param scenario true if exporting is for scenario scripting
  */
-void register_export_function(HSQUIRRELVM vm);
+void register_export_function(HSQUIRRELVM vm, bool scenario);
 
 #endif

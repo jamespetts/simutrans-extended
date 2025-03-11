@@ -44,6 +44,7 @@ target_sources(simutrans-extended PRIVATE
 	dataobj/scenario.cc
 	dataobj/schedule.cc
 	dataobj/settings.cc
+	dataobj/sve_cache.cc
 	dataobj/tabfile.cc
 	dataobj/translator.cc
 	descriptor/bridge_desc.cc
@@ -89,7 +90,6 @@ target_sources(simutrans-extended PRIVATE
 	display/simview.cc
 	display/viewport.cc
 	finder/placefinder.cc
-	freight_list_sorter.cc
 	gui/ai_option_t.cc
 	gui/banner.cc
 	gui/base_info.cc
@@ -113,11 +113,13 @@ target_sources(simutrans-extended PRIVATE
 	gui/components/gui_convoy_assembler.cc
 	gui/components/gui_convoy_formation.cc
 	gui/components/gui_convoy_payloadinfo.cc
+	gui/components/gui_destination_building_info.cc
 	gui/components/gui_divider.cc
 	gui/components/gui_factory_storage_info.cc
 	gui/components/gui_fixedwidth_textarea.cc
 	gui/components/gui_flowtext.cc
 	gui/components/gui_halthandled_lines.cc
+	gui/components/gui_halt_cargoinfo.cc
 	gui/components/gui_image.cc
 	gui/components/gui_image_list.cc
 	gui/components/gui_label.cc
@@ -181,6 +183,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/line_color_gui.cc
 	gui/line_item.cc
 	gui/line_management_gui.cc
+	gui/line_waiting_status.cc
 	gui/loadfont_frame.cc
 	gui/load_relief_frame.cc
 	gui/loadsave_frame.cc
@@ -199,6 +202,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/password_frame.cc
 	gui/pier_rotation_select.cc
 	gui/player_frame_t.cc
+	gui/player_ranking_frame.cc
 	gui/privatesign_info.cc
 	gui/replace_frame.cc
 	gui/savegame_frame.cc
@@ -277,6 +281,7 @@ target_sources(simutrans-extended PRIVATE
 	player/finance.cc
 	player/simplay.cc
 	script/api/api_city.cc
+	script/api/api_command.cc
 	script/api/api_const.cc
 	script/api/api_control.cc
 	script/api/api_convoy.cc
@@ -288,6 +293,7 @@ target_sources(simutrans-extended PRIVATE
 	script/api/api_map_objects.cc
 	script/api/api_obj_desc_base.cc
 	script/api/api_obj_desc.cc
+	script/api/api_pathfinding.cc
 	script/api/api_player.cc
 	script/api/api_scenario.cc
 	script/api/api_schedule.cc
@@ -303,6 +309,7 @@ target_sources(simutrans-extended PRIVATE
 	script/dynamic_string.cc
 	script/export_objs.cc
 	script/script.cc
+	script/script_loader.cc
 	simcity.cc
 	simconvoi.cc
 	simdebug.cc

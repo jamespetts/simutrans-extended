@@ -19,11 +19,6 @@
  */
 class gui_container_t : virtual public gui_component_t
 {
-	// Display the frame of the color specified by the theme
-	bool show_frame = false;
-	// Display the background color specified in the theme
-	bool show_back_ground_color = false;
-
 protected:
 	vector_tpl <gui_component_t *> components;
 
@@ -31,7 +26,10 @@ protected:
 	// focused component of this container can only be one of its immediate children
 	gui_component_t *comp_focus;
 
-	bool list_dirty:1;
+	bool list_dirty : 1;
+
+	// if true, alternate background
+	bool checkered : 1;
 
 	// true, while infowin_event is processed
 	bool inside_infowin_event:1;
@@ -42,6 +40,12 @@ public:
 
 	// needed for WIN_OPEN events
 	void clear_dirty() { list_dirty=false; }
+
+	bool set_checkered(bool c) {
+		bool old = checkered;
+		checkered = c;
+		return c;
+	}
 
 	/**
 	* Adds a Component to the Container.
@@ -78,11 +82,6 @@ public:
 	 * will have NO effect.
 	 */
 	void set_focus( gui_component_t *comp_focus );
-
-	void set_table_frame(bool show_border, bool use_background_color=false) {
-		show_frame = show_border;
-		show_back_ground_color = use_background_color;
-	}
 
 	/**
 	 * returns element that has the focus

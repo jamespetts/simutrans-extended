@@ -87,7 +87,7 @@ const groundobj_desc_t *movingobj_t::random_movingobj_for_climate(climate cl)
 
 	int weight = 0;
 
-	FOR(vector_tpl<groundobj_desc_t const*>, const i, movingobj_typen) {
+	for(groundobj_desc_t const* const i : movingobj_typen) {
 		if (i->is_allowed_climate(cl) ) {
 			weight += i->get_distribution_weight();
 		}
@@ -97,7 +97,7 @@ const groundobj_desc_t *movingobj_t::random_movingobj_for_climate(climate cl)
 	if (weight > 0) {
 		const int w=simrand(weight, "const groundobj_desc_t *movingobj_t::random_movingobj_for_climate");
 		weight = 0;
-		FOR(vector_tpl<groundobj_desc_t const*>, const i, movingobj_typen) {
+		for(groundobj_desc_t const* const i : movingobj_typen) {
 			if (i->is_allowed_climate(cl)) {
 				weight += i->get_distribution_weight();
 				if(weight>=w) {

@@ -43,6 +43,8 @@ PIXVAL gui_theme_t::gui_color_chart_lines_odd;
 PIXVAL gui_theme_t::gui_color_chart_lines_even;
 PIXVAL gui_theme_t::gui_color_list_text_selected_focus;
 PIXVAL gui_theme_t::gui_color_list_text_selected_nofocus;
+PIXVAL gui_theme_t::gui_color_list_background_even;
+PIXVAL gui_theme_t::gui_color_list_background_odd;
 PIXVAL gui_theme_t::gui_color_list_background_selected_f;
 PIXVAL gui_theme_t::gui_color_list_background_selected_nf;
 PIXVAL gui_theme_t::gui_color_button_text;
@@ -71,6 +73,8 @@ PIXVAL gui_theme_t::gui_color_traction_type;
 PIXVAL gui_theme_t::gui_color_upgradeable;
 PIXVAL gui_theme_t::gui_color_chat_window_network_transparency;
 PIXVAL gui_theme_t::gui_color_empty;
+//PIXVAL gui_theme_t::gui_color_image_transparency;
+PIXVAL gui_theme_t::gui_color_object_highlight;
 PIXVAL gui_theme_t::gui_color_up_pointing_triangle;
 PIXVAL gui_theme_t::gui_color_down_pointing_triangle;
 
@@ -90,6 +94,7 @@ PIXVAL gui_theme_t::gui_color_text_head_selected;
 PIXVAL gui_theme_t::gui_color_text_left_col;
 PIXVAL gui_theme_t::gui_color_text_table_cell_selected;
 
+PIXVAL gui_theme_t::gui_color_class_insignia_dots;
 
 /**
  * Max Kielland
@@ -192,6 +197,8 @@ void gui_theme_t::init_gui_defaults()
 
 	gui_color_list_text_selected_focus     = color_idx_to_rgb(COL_WHITE);
 	gui_color_list_text_selected_nofocus   = color_idx_to_rgb(MN_GREY3);
+	gui_color_list_background_even         = color_idx_to_rgb(MN_GREY2);
+	gui_color_list_background_odd          = color_idx_to_rgb(MN_GREY3);
 	gui_color_list_background_selected_f   = color_idx_to_rgb(COL_BLUE);
 	gui_color_list_background_selected_nf  = color_idx_to_rgb(COL_LIGHT_BLUE);
 
@@ -224,6 +231,9 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_upgradeable                  = color_idx_to_rgb(COL_PURPLE);
 	gui_color_traction_type                = color_idx_to_rgb(149);
 	gui_color_empty                        = color_idx_to_rgb(COL_WHITE);
+//	gui_color_image_transparency           = color_idx_to_rgb(COL_BLACK);
+
+	gui_color_object_highlight             = color_idx_to_rgb(COL_RED);
 
 	gui_color_up_pointing_triangle         = color_idx_to_rgb(COL_LIGHT_TURQUOISE-1);
 	gui_color_down_pointing_triangle       = color_idx_to_rgb(COL_LIGHT_ORANGE-2);
@@ -243,6 +253,8 @@ void gui_theme_t::init_gui_defaults()
 	gui_color_text_head_selected           = color_idx_to_rgb(COL_WHITE);
 	gui_color_text_left_col                = gui_color_statusbar_text;
 	gui_color_text_table_cell_selected     = gui_color_colored_button_text_selected;
+
+	gui_color_class_insignia_dots          = color_idx_to_rgb(COL_YELLOW);
 
 
 	env_t::gui_player_color_bright = 4;
@@ -612,6 +624,8 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_chart_lines_even             = (PIXVAL)contents.get_color("gui_color_chart_lines_even", SYSCOL_CHART_LINES_EVEN);
 	gui_theme_t::gui_color_list_text_selected_focus     = (PIXVAL)contents.get_color("gui_color_list_text_selected_focus", SYSCOL_LIST_TEXT_SELECTED_FOCUS);
 	gui_theme_t::gui_color_list_text_selected_nofocus   = (PIXVAL)contents.get_color("gui_color_list_text_selected_nofocus", SYSCOL_LIST_TEXT_SELECTED_NOFOCUS);
+	gui_theme_t::gui_color_list_background_even         = (PIXVAL)contents.get_color("gui_color_list_background_even", SYSCOL_LIST_BACKGROUND_EVEN);
+	gui_theme_t::gui_color_list_background_odd          = (PIXVAL)contents.get_color("gui_color_list_background_odd", SYSCOL_LIST_BACKGROUND_ODD);
 	gui_theme_t::gui_color_list_background_selected_f   = (PIXVAL)contents.get_color("gui_color_list_background_selected_focus", SYSCOL_LIST_BACKGROUND_SELECTED_F);
 	gui_theme_t::gui_color_list_background_selected_nf  = (PIXVAL)contents.get_color("gui_color_list_background_selected_nofocus", SYSCOL_LIST_BACKGROUND_SELECTED_NF);
 	gui_theme_t::gui_color_button_text                  = (PIXVAL)contents.get_color("gui_color_button_text", SYSCOL_BUTTON_TEXT);
@@ -640,6 +654,8 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_upgradeable                  = (PIXVAL)contents.get_color("gui_color_upgradeable", SYSCOL_UPGRADEABLE);
 	gui_theme_t::gui_color_empty                        = (PIXVAL)contents.get_color("gui_color_empty", SYSCOL_EMPTY);
 	gui_theme_t::gui_color_chat_window_network_transparency = (PIXVAL)contents.get_color("gui_color_chat_window_network_transparency", gui_color_chat_window_network_transparency);
+//	gui_theme_t::gui_color_image_transparency           = (PIXVAL)contents.get_color("gui_color_image_transparency", SYSCOL_IMAGE_TRANSPARENCY);
+	gui_theme_t::gui_color_object_highlight             = (PIXVAL)contents.get_color("gui_color_object_highlight", SYSCOL_OBJECT_HIGHLIGHT);
 	gui_theme_t::gui_color_up_pointing_triangle         = (PIXVAL)contents.get_color("gui_color_up_pointing_triangle", SYSCOL_UP_TRIANGLE);
 	gui_theme_t::gui_color_down_pointing_triangle       = (PIXVAL)contents.get_color("gui_color_down_pointing_triangle", SYSCOL_DOWN_TRIANGLE);
 	gui_theme_t::gui_color_table_frame                  = (PIXVAL)contents.get_color("gui_color_table_frame", SYSCOL_TABLE_FRAME);
@@ -657,6 +673,8 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 	gui_theme_t::gui_color_text_head_selected           = (PIXVAL)contents.get_color("gui_color_text_head_selected", SYSCOL_TH_TEXT_SELECTED);
 	gui_theme_t::gui_color_text_left_col                = (PIXVAL)contents.get_color("gui_color_text_left_col", SYSCOL_TH_TEXT_LEFT);
 	gui_theme_t::gui_color_text_table_cell_selected     = (PIXVAL)contents.get_color("gui_color_text_table_cell_selected", SYSCOL_TD_TEXT_SELECTED);
+
+	gui_theme_t::gui_color_class_insignia_dots          = (PIXVAL)contents.get_color("gui_color_class_insignia_dots", SYSCOL_CLASS_INSIGNIA);
 
 
 	gui_theme_t::gui_waitingbar_width = (uint32)contents.get_int("gui_waitingbar_width", gui_theme_t::gui_waitingbar_width);

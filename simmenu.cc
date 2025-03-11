@@ -47,6 +47,9 @@
 
 karte_ptr_t tool_t::welt;
 
+// emulate control key by tool
+uint8 tool_t::control_invert = 0;
+
 // for key lookup; is always sorted during the game
 vector_tpl<tool_t *>tool_t::char_to_tool(0);
 
@@ -216,6 +219,7 @@ const char *tool_t::id_to_string(uint16 id)
 		CASE_TO_STRING(DIALOG_EDIT_GROUNDOBJ);
 
 		CASE_TO_STRING(DIALOG_LIST_SIGNALBOX);
+		CASE_TO_STRING(DIALOG_PLAYER_RANKING);
 		}
 	}
 
@@ -229,9 +233,8 @@ public:
 	tool_dummy_t() : tool_t(dummy_id) {}
 
 	bool init(player_t*) OVERRIDE { return false; }
-	bool is_init_network_safe() const OVERRIDE { return true; }
-	bool is_work_network_safe() const OVERRIDE { return true; }
-	bool is_move_network_safe(player_t*) const OVERRIDE { return true; }
+	bool is_init_keeps_game_state() const OVERRIDE { return true; }
+	bool is_work_keeps_game_state() const OVERRIDE { return true; }
 };
 tool_t *tool_t::dummy = new tool_dummy_t();
 
@@ -334,6 +337,7 @@ tool_t *create_simple_tool(int toolnr)
 		case TOOL_CONVOY_NAMEPLATES:    tool = new tool_convoy_nameplate_t();     break;
 		case TOOL_CONVOY_LOADINGBAR:    tool = new tool_convoy_loadingbar_t();    break;
 		case TOOL_SHOW_FACTORY_STORAGE: tool = new tool_show_factory_storage_t(); break;
+		case TOOL_TOGGLE_CONTROL:       tool = new tool_toggle_control_t();       break;
 		case TOOL_TOOGLE_PAX:           tool = new tool_toggle_pax_station_t();   break;
 		case TOOL_TOOGLE_PEDESTRIANS:   tool = new tool_toggle_pedestrians_t();   break;
 		case TOOL_TRAFFIC_LEVEL:        tool = new tool_traffic_level_t();        break;
@@ -383,6 +387,7 @@ tool_t *create_dialog_tool(int toolnr)
 		case DIALOG_SOUND:           tool = new dialog_sound_t();           break;
 		case DIALOG_LANGUAGE:        tool = new dialog_language_t();        break;
 		case DIALOG_PLAYERCOLOR:     tool = new dialog_playercolor_t();     break;
+		case DIALOG_PLAYER_RANKING:  tool = new dialog_player_ranking_t();  break;
 		case DIALOG_JUMP:            tool = new dialog_jump_t();            break;
 		case DIALOG_LOAD:            tool = new dialog_load_t();            break;
 		case DIALOG_SAVE:            tool = new dialog_save_t();            break;
@@ -1035,7 +1040,7 @@ void tool_t::update_toolbars()
 	// iterate twice, to get correct icons if a toolbar changes between empty and non-empty
 	for(uint j=0; j<2; j++) {
 		bool change = false;
-		FOR(vector_tpl<toolbar_t*>, const i, toolbar_tool) {
+		for(toolbar_t* const i : toolbar_tool) {
 			bool old_icon_empty = i->get_icon(welt->get_active_player()) == IMG_EMPTY;
 			i->update(welt->get_active_player());
 			change |= old_icon_empty ^ (i->get_icon(welt->get_active_player()) == IMG_EMPTY);
@@ -1147,7 +1152,7 @@ void toolbar_t::update(player_t *player)
 
 	tool_selector->reset_tools();
 	// now (re)fill it
-	FOR(slist_tpl<tool_t*>, const w, tools) {
+	for(tool_t* const w : tools) {
 		// no way to call this tool? => then it is most likely a metatool
 		if(w->command_key==1  &&  w->get_icon(player)==IMG_EMPTY) {
 
@@ -1355,14 +1360,14 @@ bool two_click_tool_t::is_first_click() const
 }
 
 
-bool two_click_tool_t::is_work_here_network_safe(player_t *player, koord3d pos )
+bool two_click_tool_t::is_work_here_keeps_game_state(player_t *player, koord3d pos )
 {
 	if(  !is_first_click()  ) {
 		return false;
 	}
 	const char *error = ""; //default: nosound
 	uint8 value = is_valid_pos( player, pos, error, koord3d::invalid );
-	DBG_MESSAGE("two_click_tool_t::is_work_here_network_safe", "Position %s valid=%d", pos.get_str(), value );
+	DBG_MESSAGE("two_click_tool_t::is_work_here_keeps_game_state", "Position %s valid=%d", pos.get_str(), value );
 	if(  value == 0  ) {
 		// cannot work here at all -> safe
 		return true;

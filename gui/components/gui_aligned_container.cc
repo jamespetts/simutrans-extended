@@ -362,7 +362,7 @@ scr_size gui_aligned_container_t::get_size(const vector_tpl<scr_coord_val>& col_
 	s.w += spacing.w * max(col_w.get_count()-1, 0);
 	s.h += spacing.h * max(row_h.get_count()-1, 0);
 
-	FOR(vector_tpl<scr_coord_val>, const w, col_w) {
+	for(scr_coord_val const w : col_w) {
 		if (s.w > sinf - w) {
 			s.w = sinf;
 			break;
@@ -372,7 +372,7 @@ scr_size gui_aligned_container_t::get_size(const vector_tpl<scr_coord_val>& col_
 		}
 	}
 
-	FOR(vector_tpl<scr_coord_val>, const h, row_h) {
+	for(scr_coord_val const h : row_h) {
 		if (s.h > sinf - h) {
 			s.h = sinf;
 			break;
@@ -571,4 +571,20 @@ void gui_aligned_container_t::remove_all()
 	gui_container_t::remove_all();
 	clear_ptr_vector(owned_components);
 	child = NULL;
+}
+
+/**
+ * Draw the component
+ */
+#define shorten(d) clamp(d, 0, 0x4fff)
+void gui_aligned_container_t::draw(scr_coord offset)
+{
+	const scr_coord screen_pos = pos + offset;
+	if (show_back_ground_color) {
+		display_fillbox_wh_clip_rgb(shorten(screen_pos.x+1), shorten(screen_pos.y), shorten(get_size().w-2), shorten(get_size().h), SYSCOL_TABLE_BACKGROUND, false);
+	}
+	gui_container_t::draw(offset);
+	if (show_frame) {
+		display_ddd_box_clip_rgb(screen_pos.x, screen_pos.y, shorten(get_size().w), shorten(get_size().h), SYSCOL_TABLE_FRAME, SYSCOL_TABLE_FRAME);
+	}
 }

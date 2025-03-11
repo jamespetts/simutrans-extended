@@ -31,6 +31,7 @@
 #include "ai_passenger.h"
 #include "finance.h"
 
+
 ai_passenger_t::ai_passenger_t(uint8 nr) : ai_t( nr )
 {
 	state = NR_INIT;
@@ -199,8 +200,7 @@ bool ai_passenger_t::create_water_transport_vehicle(const stadt_t* start_stadt, 
 	halthandle_t start_connect_hub;
 	koord start_harbour = koord::invalid;
 	if(start_hub.is_bound()) {
-		if(  (start_hub->get_station_type()&haltestelle_t::dock)==0  )
-		{
+		if(  (start_hub->get_station_type()&haltestelle_t::dock)==0  ) {
 			start_connect_hub = start_hub;
 			start_hub = halthandle_t();
 
@@ -535,7 +535,7 @@ halthandle_t ai_passenger_t::build_airport(const stadt_t* city, koord pos, int r
 
 	if(rotation==-1) {
 		// if we every get here that means no connection road => remove airport
-		welt->lookup_kartenboden(center+ koord::north)->remove_everything_from_way( this, air_wt, ribi_t::none );
+		welt->lookup_kartenboden(center+koord::north)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::south)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::west)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::east)->remove_everything_from_way( this, air_wt, ribi_t::none );
@@ -551,7 +551,7 @@ halthandle_t ai_passenger_t::build_airport(const stadt_t* city, koord pos, int r
 	// get an airport name (even though the hub is the bus stop ... )
 	// now built the bus stop
 	if(!call_general_tool( TOOL_BUILD_STATION, bushalt, busstop_desc->get_name() )) {
-		welt->lookup_kartenboden(center+ koord::north)->remove_everything_from_way( this, air_wt, ribi_t::none );
+		welt->lookup_kartenboden(center+koord::north)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::south)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::west)->remove_everything_from_way( this, air_wt, ribi_t::none );
 		welt->lookup_kartenboden(center+koord::east)->remove_everything_from_way( this, air_wt, ribi_t::none );
@@ -710,18 +710,14 @@ bool ai_passenger_t::create_air_transport_vehicle(const stadt_t *start_stadt, co
 		}
 		if(!end_hub.is_bound()) {
 			end_hub = build_airport(end_stadt, end_airport, true);
-			if(!end_hub.is_bound())
-			{
-				if(start_hub->get_connexions(0, 0)->empty())
-				{
+			if(!end_hub.is_bound()) {
+				if (start_hub->get_connexions(0, 0)->empty()) {
 					// remove airport busstop
 					welt->lookup_kartenboden(start_hub->get_basis_pos())->remove_everything_from_way( this, road_wt, ribi_t::none );
 					koord center = start_hub->get_basis_pos() + koord( welt->lookup_kartenboden(start_hub->get_basis_pos())->get_weg_ribi_unmasked( air_wt ) );
 					// now the remaining taxi-/runways
-					for( sint16 y=center.y-1;  y<=center.y+1;  y++  )
-					{
-						for( sint16 x=center.x-1;  x<=center.x+1;  x++  )
-						{
+					for( sint16 y=center.y-1;  y<=center.y+1;  y++  ) {
+						for( sint16 x=center.x-1;  x<=center.x+1;  x++  ) {
 							welt->lookup_kartenboden(koord(x,y))->remove_everything_from_way( this, air_wt, ribi_t::none );
 						}
 					}
@@ -1240,8 +1236,7 @@ DBG_MESSAGE("ai_passenger_t::do_passenger_ki()","using %s on %s",road_vehicle->g
 			     !end_stadt  ||  !create_air_transport_vehicle( start_stadt, end_stadt )  ) {
 				state = NR_BAUE_CLEAN_UP;
 			}
-			else
-			{
+			else {
 				// add two intown routes
 				cover_city_with_bus_route( get_our_hub(start_stadt)->get_basis_pos(), 6);
 				cover_city_with_bus_route( get_our_hub(end_stadt)->get_basis_pos(), 6);

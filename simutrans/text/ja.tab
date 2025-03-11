@@ -39,6 +39,8 @@ cl_btn_sort_type
 タイプ
 cl_btn_sort_loading_lvl
 積載率
+L/F(passenger)
+搭乗率/乗車率
 cl_btn_sort_max_speed
 最高速度
 cl_btn_sort_value
@@ -181,6 +183,8 @@ Kann Spielstand\nnicht speichern.\n
 ゲームを保存できません。\n
 Loading a new game will end the current server session!
 新しいゲームを読み込むと、現在接続されているオンラインのゲームセッションから切断されます！
+Load '%s'
+「%s」を再開します
 Lost connection\nto server!
 サーバーへの接続が\n切断されました
 Lost synchronisation\nwith server.
@@ -233,6 +237,8 @@ Show no revenue messages
 全てのプレイヤーの収益を非表示
 Show only player's revenue
 現在のプレイヤーの収益のみ表示
+Show only cargoes waiting for this line
+この路線を待っている貨物の数量を表示します
 Terraforming not possible\nhere in underground view
 スロープツールは、\n地下では使用できません。
 This tunnel branches. You can try Control+Click to remove.
@@ -321,6 +327,18 @@ Ferry service by\n%s\nnow between\n%s \nand %s.\n
 %s社は\n現在、船便を\n%s町と\n%s町\nとの間に提供しています。\n
 Travellers now\nuse %s's\nbusses between\n%s \nand %s.\n
 旅行者は現在、\n%s社が運行している\n%s町と\n%s町を結ぶ\nバスを利用しています。
+%s has withdrawn access rights from %s
+%s は %s の乗り入れ認可を取り下げました
+%s has allowed access rights to %s
+%s は %s に乗り入れ認可を出しました
+%s allows you to access its ways and stops
+%s所有の駅の利用、及び軌道への乗り入れが認可されています
+%s does not allow you to access its ways and stops
+%s所有の駅の利用、及び軌道への乗り入れが許可されていません
+Allow %s to access your ways and stops
+%sに自社所有設備への乗り入れを認可します
+Withdraw %s's access your ways and stops
+%sに対する自社所有設備への乗り入れ認可を取り下げます
 #___________________________________menu_text___________________________________
 #___________________________________menu_text___________________________________
 EDITTOOLS
@@ -627,7 +645,7 @@ Boden
 地表
 Bonusspeed: %i km/h
 可能な最大速度：%i km/h
-Boost (%)
+Boost (%%)
 増産率 (%)
 Borderless (disabled on fullscreen)
 全画面表示 (ソフトウェアモード)
@@ -915,6 +933,8 @@ Direkt erreichbare Haltestellen
 ここから運行されている　駅・停留所・港
 disable midi
 ミュート
+Display settings
+表示設定
 Distance
 走行距離
 distributing cities
@@ -1017,6 +1037,8 @@ font size
 フォントサイズ
 Forest
 森
+For questions and support please visit:
+質問・サポートは以下のサイトへアクセスしてください：
 Found new city
 新しい街を作る
 FPS:
@@ -1025,8 +1047,8 @@ Fracht
 貨物
 Frame time:
 フレーム：
-Free Capacity
-空席
+Seat-km
+座席キロ
 freeplay mode
 フリープレイ モード
 Friction:
@@ -1048,7 +1070,7 @@ GAME PAUSED
 Game_msg
 ゲーム
 Gear:
-ギア比:
+効率:
 Gebaeude
 建築物
 General
@@ -1191,6 +1213,8 @@ increase underground view level
 ハイトカットレベルを上げる
 industrial building
 工場
+Infrastructures
+車両と設備
 Init map ...
 マップを初期化しています ...
 Input
@@ -1259,6 +1283,8 @@ Last used tools
 最後に使用したツール
 Last Year
 前年度:
+Last year's ranking
+前年度順位
 Leaving depot!
 出庫中
 leer
@@ -1345,13 +1371,13 @@ Mar.
 3月
 March
 3月
-Margin (%)
+Margin (%%)
 利益率(%)
 Marker
 マーカー
 max
 高
-Max Boost (%)
+Max Boost (%%)
 増産能力 (%)
 Max income:
 最大収益：
@@ -1517,6 +1543,8 @@ open_signalbox_info
 信号扱所情報
 open_signal_connector_gui
 信号機の接続先を操作する画面を開きます
+Open the player ranking dialog
+プレイヤーランキングを開きます
 Operation
 運行費
 Ops Profit
@@ -1557,6 +1585,8 @@ Passagierziele
 旅客/郵便物の行き先
 Passenger AI
 AI 旅客
+Passenger load factor
+搭乗率/乗車率(年間)
 Passenger Demand %d\n
 労働者/顧客需要: %d\n
 Password
@@ -1605,6 +1635,8 @@ player 8
 プレイヤー 8
 player 9
 プレイヤー 9
+Player ranking
+プレイヤーランキング
 Please choose vehicles first\n
 最初に乗り物を選んでください\n
 Post
@@ -1707,10 +1739,14 @@ Retire. date:
 引退年月:
 return ticket
 往復路線
+Return to menu
+メニューに戻る
 Revenue
-収入
+運賃収入
 Revision:
 リビジョン:
+Right-click to open the finance dialog.
+右クリックでこのプレイヤーの財務ウィンドウを開きます
 road
 道路
 road vehicle
@@ -1822,7 +1858,7 @@ Show obsolete
 Show offline
 オフラインを表示
 Show only used
-マップに存在のみ表示
+マップ内に需要がある品目のみ表示
 Show schedules
 路線経路の表示
 Show servers that are offline
@@ -1894,9 +1930,9 @@ Speichern
 Spieler
 プレイヤー
 Spieler(mz)
-ライバル会社
+プレイヤー一覧
 Spielerliste
-ライバル会社一覧
+プレイヤー切替・会社売買
 Sprache
 言語
 Sprachen
@@ -2059,6 +2095,8 @@ Vehicle %s is stucked!
 「%s」が\n立ち往生しています！
 Vehicle details
 乗り物の詳細
+Vehicle-km
+車両キロ
 Verbrauch
 消費
 Vergroessere die Karte\n
@@ -2071,10 +2109,6 @@ Verkehrsteilnehmer
 自家用車
 via
 経由地
-via %s\n
- (%s経由)\n
-via Menge
-待機数/経由地
 voranstellen
 先頭へ
 Waggon_tab
@@ -2233,6 +2267,32 @@ Zu nah am Kartenrand
 %s大通り%s
 #___________________________Simutrans Extended Texts____________________________
 #___________________________Simutrans Extended Texts____________________________
+hd_sv_mode_frequency
+運行頻度、編成数
+hd_sv_mode_catg
+取扱い貨物
+hd_sv_mode_route
+運行ルート
+distance_to_via
+次の降車駅までの距離
+distance_to_origin
+出発駅からの距離
+Show route
+予定ルートを表示
+Show transfer (in)
+乗換中/搬入中
+Show transfer (out)
+退出中/搬出中
+Shows the line or convoy where the cargo is waiting
+この駅から次の乗車・積み込み予定の路線を表示します
+Shows cargos heading to the platform to depart from this stop
+出発ホームへ移動中・搬入中の乗客・貨物を表示します
+Shows cargos leaving this stop
+駅に到着し、退出中の乗客と搬出中の貨物を表示します
+cargo_list_by_catg
+貨物種別順
+This stop
+当駅
 #_________________________________program_text__________________________________
 #_________________________________program_text__________________________________
  %1.2f$/mon
@@ -2587,6 +2647,8 @@ comfort impact\nlimitations
 快適度の収入への影響
 Comfort:
 快適度:
+comfort_chart
+快適度-乗車時間グラフ
 commuting
 通勤中
 Commuting
@@ -2667,8 +2729,6 @@ Departures to\n
 出発予想時間:\n
 Depot found but could not be inserted in schedule.  This is a bug!%s\n
 適切な車庫へのスケジュール挿入が出来ません。\n
-destination (detail)
-目的地 (詳細)
 differential
 微分値
 Direction
@@ -2997,10 +3057,6 @@ Operating revenue less operating expenditure
 収入から運行費と維持費を差し引いた利益を表します。
 origin
 出発地
-origin (amount)
-出発地 (待機数)
-origin (detail)
-出発地 (詳細)
 out of range
 航続距離オーバー
 overcrowded_capacity
@@ -3310,7 +3366,7 @@ Stops potentially within walking distance:
 That would exceed\nyour credit limit.
 借入限度額を超えるため、これ以上建設できません。
 The amount of mail transported in the region overall
-マップ全体で輸送された郵便物の総数を表します。
+マップ全域の郵便輸送達成率の推移を表示します
 The charges incurred or revenues earned by running on other players' ways
 他社の軌道や道路を通行したことによる通行料や収入の総和を表します。
 The convoy has been sent\nto its home depot.\n
@@ -3324,47 +3380,47 @@ The following %s has become obsolete:\n%s\n
 The main game window can be scrolled by right-clicking and dragging the ground.
 右ドラッグでゲーム画面の視点を移動することができます。
 The maximum amount that can be borrowed without going bankrupt
-破産することなく借入できる限度額を表します。
+破産することなく借入できる限度額を表します
 The maximum amount that can be borrowed without prohibiting further capital outlays
-維持費などの資本支出を禁止せずに借入できる限度額を表します。
+維持費などの資本支出を禁止せずに借入できる限度額を表します
 The number of convoys that have serviced this stop
-この停留所/駅に停車した編成数を表します。
+この停留所/駅に停車した編成数を表します
 The number of industries in the region
-このマップに存在する産業の総数を表します。
+マップ内の産業施設数の推移を表示します
 The number of inhabitants by which the region has increased
-マップ全体での住民の増加率を表します。
+マップ全域の人口の増加数の推移を表示します
 The number of inhabitants of the region
-マップ全体の住民の総数を表します。
+マップ全域の人口の推移を表示します
 The number of jobs in the region
-このマップ内の雇用数を表します。
+マップ全域の勤め口総数の推移を表示します
 The number of passengers who could not find a route to their destination
-目的地までの経路を見つけられなかった旅客の人数を表します。
+目的地までの経路を見つけられなかった旅客の人数を表します
 The number of passengers who decline to travel because the journey would take too long
-許容できる旅行時間よりも所要時間が長すぎるため、旅行を取り止めた旅客の人数を表します。
+許容できる旅行時間よりも所要時間が長すぎるため、旅行を取り止めた旅客の人数を表します
 The number of passengers who have travelled successfully from this stop
-この停留所/駅からの移動に成功した旅客の人数を表します。
+この停留所/駅からの移動に成功した旅客の人数を表します
 The number of passengers/units of mail/goods waiting at this stop
-駅/停留所で待機している旅客/郵便/貨物の数を表します。
+駅/停留所で待機している旅客/郵便/貨物の数を表します
 The number of private car trips in the region overall
-このマップ全体の自家用車による移動総数を表します。
+自家用車を使って目的地へ移動した人数の推移を表示します
 The number of urban areas in the region
-マップ全体の都市の数を表します。
+マップ内の街の総数の推移を表示します
 The number of visitors demanded in the region
-マップ全体での旅客の需要人数を表します。
+定期外旅客の需要の推移を表示します
 The percentage of available goods that have been transported in the region
-マップ全体で輸送が完了した貨物の割合(%)を表します。
+製品の輸送需要に対する輸送達成率の推移を表示します
 The percentage of passengers transported in the region overall
-マップ全体で移動が成功した旅客の割合(%)を表します。
+マップの住人が目的地へ移動できた割合の推移を表示します。(徒歩/自家用車での移動を含む)
 The percentage of people who have access to a private car
-自家用車を使用した人数の割合(%)を表します。
+自家用車を利用可能な人口の割合の推移を表示します
 The total amount of mail generated in the region
-このマップ全体で生成された郵便の総数を表します。
+マップ全域の郵便物の輸送需要の推移を表示します
 The total number of convoys in the region
-このマップ全体の車両の総数を表します。
+全プレイヤーが所有する編成総数の推移を表示します
 The total number of mail/passengers/goods transported in the region
-このマップ全体で輸送された旅客/郵便/貨物の総数を表します。
+マップ全域の貨物輸送量の推移を表示します
 The total number of passengers wanting to be transported in the region
-マップ全体で、駅等で待機している旅客の人数を表します。
+マップ全域の旅客需要の推移を表示します
 There is already a marker here.\n
 ここには既に他のマーカーがあります。\n
 This can only be built underground.
@@ -3436,9 +3492,7 @@ Transfer time:
 transferring
 移動中
 transfers
-移動中の旅客/貨物
-Transfers
-乗降客数
+退出中の旅客/搬出中の貨物
 Transformer only next to factory or in city!
 変電所は産業の隣接マスか市域内にのみ建設できます。
 transparent background
@@ -3537,10 +3591,6 @@ way_cannot_be_used_by_any_vehicle
 通行不能です！
 way_speed
 軌道の最高速度
-wealth (detail)
-裕福度別 (詳細)
-wealth (via)
-裕福度別 (経由地)
 wealth_of_commuters
 通勤客の裕福度
 wealth_of_visitors
@@ -3553,6 +3603,8 @@ Weight limit
 重量制限
 Welcome to Simutrans-Extended (formerly Simutrans-Experimental), a fork of Simutrans-Standard, extended and maintained by the Simutrans community.
 ようこそSimutrans-Extendedへ! Simutrans-StandardはHj. MalthanerとSimutransコミュニティによって開発されました。Simutrans-ExtendedはSimutrans-Standardを元にしてJames E. PettsとSimutransコミュニティによって開発が続けられている派生版です。
+Welcome to Simutrans-Extended (formerly Simutrans-Experimental)
+ようこそ、Simutrans-Extendedへ
 West To East
 東西方向
 When adding convoys to the line, every second convoy will follow it in the reverse direction.
@@ -3776,9 +3828,45 @@ cl_btn_formation
 available_company_takeovers:
 買収可能なプレイヤー会社：
 allow_takeover_of_your_company
-会社の買収を許可
+会社を売却申請する
+allows_other_players_to_take_over_your_company
+現在のプレイヤー会社を売りに出し、他プレイヤーによる買収を許可します。
+is_available_for_take_over_by_another_company
+の会社売却申請が出され、会社の買収が可能になりました。
+is_not_available_for_takeover_any_more
+の売却申請は取り下げられました。
 take_over
 買収
+take_over_this_company
+この会社を買収します。注意: この操作は取り消せません。
+Takeover not permitted.
+買収できない対象です。
+administration_duration
+破産手続き完了まで 残り
+cancel_the_takeover_of_your_company
+売却申請を取り消します
+has_taken_over
+は次の会社を買収しました: 
+in_administration
+破産申請中
+in_administration_warning
+あなたの会社は現在破産申請中です：
+other_player_administration_duration
+の清算手続き開始まで 残り
+other_player_liquidation_duration
+の清算手続き完了まで 残り
+other_player_in_administration
+の破産手続きが行われています：
+other_player_in_liquidation
+の清算手続きが行われています：
+in_liquidation
+清算手続き中
+in_liquidation_warning
+あなたの会社は現在清算手続き中です：
+liquidation_duration_remaining
+会社の清算完了まで 残り
+filter_by_line
+この路線を待っている貨物に絞り込む
 filter_pas_line
 旅客取扱い路線
 filter_mail_line
@@ -3845,14 +3933,10 @@ Services
 サービス
 hd_wealth
 所得層
-hd_waiting
-待機中
 hd_transfers
 乗換・移動中
 hd_category
 貨物品目分類
-hd_transship
-積替・搬出中
 Needed
 商品・資材需要
 Products
@@ -3961,6 +4045,8 @@ Divided by class
 クラス毎に分割表示
 Waiting bars are displayed separately for each class.
 待機バーを各クラス毎に分割して表示します。
+Waiting cargoes are displayed separately for each class.
+待機数を各クラス毎に分割して表示します。
 Unified
 全ての貨物をまとめて表示
 Divided by category
@@ -3993,6 +4079,8 @@ Trailers
 被牽引車
 <p>Continue by ESC, SPACE, or BACKSPACE.<br>
 <p>[ESC] [SPACE] [BACKSPACE]、いずれかのキーでゲームを開始します。<br>
+Continue Game
+前回の続き
 #fl_btn_demand
 #商品需要
 fl_btn_region
@@ -4095,6 +4183,10 @@ helptxt_acceleration_time
 平坦な直線で最高速度に到達するまでに要する時間
 helptxt_acceleration_distance
 平坦な直線で最高速度に到達するまでに要する距離
+helptxt_swap_schedule_entries
+上下の2地点の並び順を入れ替えます
+can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry
+スケジュールの行を右クリックすることでも座標へ移動できます
 Unreachable
 N/A
 %.2f sec
@@ -4265,6 +4357,10 @@ A measure of the amount of freight transported, expressed in tonne-kilometre
 貨物の輸送量を示す指標。貨物の重量と輸送距離の積。
 Transportation density
 輸送密度
+Transportation results
+輸送実績
+Monthly transportation density
+月間輸送密度
 Yearly average
 年間平均
 /mon
@@ -4425,6 +4521,8 @@ line_network
 接続路線
 #_______________________________unnecessary_text________________________________
 #_______________________________unnecessary_text________________________________
+Free Capacity
+空席
 100 km/h = %i tiles/month
 100 km/h = %i タイル/月
 Passengers %d %c, %d %c, %d no route\n\nCapacity: %i\n
@@ -4513,3 +4611,23 @@ Power: %4d kW\n
 #郵便度
 #comfort: %i
 #快適度: %i
+#via Menge
+#待機数/経由地
+#origin (amount)
+#出発地 (待機数)
+#origin (detail)
+#出発地 (詳細)
+#destination (detail)
+#目的地 (詳細)
+#wealth (detail)
+#裕福度別 (詳細)
+#wealth (via)
+#裕福度別 (経由地)
+#via %s\n
+# (%s経由)\n
+#Transfers
+#乗降客数
+#hd_waiting
+#待機中
+#hd_transship
+#積替・搬出中

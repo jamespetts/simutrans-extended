@@ -58,7 +58,7 @@ bool obj_reader_t::finish_rd()
 {
 	resolve_xrefs();
 
-	FOR(obj_map, const& i, *obj_reader) {
+	for(auto const& i : *obj_reader) {
 		DBG_MESSAGE("obj_reader_t::finish_rd()","Checking %s objects...", i.value->get_type_name());
 
 		if (!i.value->successfully_loaded()) {
@@ -100,7 +100,7 @@ bool obj_reader_t::load(const char *path, const char *message)
 				}
 
 				find.search(buf, "pak");
-				FOR(searchfolder_t, const& i, find) {
+				for(const char* const& i : find) {
 					read_file(i);
 				}
 			}
@@ -148,9 +148,9 @@ DBG_MESSAGE("obj_reader_t::load()","big logo %p", skinverwaltung_t::biglogosymbo
 DBG_MESSAGE("obj_reader_t::load()", "reading from '%s'", name.c_str());
 
 		uint n = 0;
-		FORX(searchfolder_t, const& i, find, ++n) {
+		for(char* const& i : find) {
 			read_file(i);
-			if ((n & step) == 0 && drawing) {
+			if ((n++ & step) == 0 && drawing) {
 				ls.set_progress(n);
 			}
 		}
@@ -276,7 +276,7 @@ void obj_reader_t::skip_nodes(FILE *fp,uint32 version)
 void obj_reader_t::resolve_xrefs()
 {
 	slist_tpl<obj_desc_t *> xref_nodes;
-	FOR(unresolved_map, const& u, unresolved) {
+	for(auto const& u : unresolved) {
 		for(auto const& i: u.value) {
 			obj_desc_t *obj_loaded = NULL;
 
@@ -290,7 +290,7 @@ void obj_reader_t::resolve_xrefs()
 				dbg->warning("obj_reader_t::resolve_xrefs()", "cannot resolve '%4.4s-%s'", &u.key, i.key);
 			}
 
-			FOR(slist_tpl<obj_desc_t**>, const x, i.value) {
+			for(obj_desc_t** const x : i.value) {
 				if (!obj_loaded && fatals.get(x)) {
 					dbg->fatal("obj_reader_t::resolve_xrefs()", "cannot resolve '%4.4s-%s'", &u.key, i.key);
 				}

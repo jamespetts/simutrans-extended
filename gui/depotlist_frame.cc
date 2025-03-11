@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -324,6 +324,7 @@ void depotlist_frame_t::init_table()
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 
@@ -352,7 +353,7 @@ void depotlist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
 	uint32 p_total = 0;
-	FOR(slist_tpl<depot_t*>, const depot, depot_t::get_depot_list()) {
+	for(depot_t* const depot : depot_t::get_depot_list()) {
 		if( depot->get_owner() == player ) {
 			if(  tabs.get_active_tab_index() == 0  ||  depot->get_waytype() == tabs.get_active_tab_waytype()  ) {
 				scrolly.new_component<depotlist_stats_t>(depot);
@@ -363,7 +364,7 @@ void depotlist_frame_t::fill_list()
 	lb_depot_counter.buf().printf("%u/%u", scrolly.get_count(), p_total);
 	lb_depot_counter.update();
 	scrolly.sort(0);
-	scrolly.set_size( scrolly.get_size());
+	scrolly.set_size(scr_size(get_windowsize().w, scrolly.get_size().h));
 
 	last_depot_count = depot_t::get_depot_list().get_count();
 	resize(scr_coord(0, 0));

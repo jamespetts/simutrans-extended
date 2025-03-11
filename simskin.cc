@@ -254,7 +254,7 @@ bool skinverwaltung_t::register_desc(skintyp_t type, const skin_desc_t* desc)
 // return the extra_obj with this name
 const skin_desc_t *skinverwaltung_t::get_extra( const char *str, int len )
 {
-	FOR(slist_tpl<skin_desc_t const*>, const s, skinverwaltung_t::extra_obj) {
+	for(skin_desc_t const* const s : skinverwaltung_t::extra_obj) {
 		if (strncmp(str, s->get_name(), len) == 0) {
 			return s;
 		}

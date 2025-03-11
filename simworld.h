@@ -380,7 +380,7 @@ private:
 	/**
 	 * Stores the cities.
 	 */
-	weighted_vector_tpl<stadt_t*> stadt;
+	weighted_vector_tpl<stadt_t*> cities;
 
 	sint64 last_month_bev;
 
@@ -957,13 +957,19 @@ public:
 	void inc_rands(uint8 num) { rands[num]++; }
 	inline void add_to_debug_sums(uint8 num, uint32 val) { debug_sums[num] += val; }
 
+	enum server_announce_type_t
+	{
+		SERVER_ANNOUNCE_HELLO     = 0, ///< my server is now up
+		SERVER_ANNOUNCE_HEARTBEAT = 1, ///< my server is still up
+		SERVER_ANNOUNCE_GOODBYE   = 2, ///< my server is now down
+	};
 
 	/**
 	 * Announce server and current state to listserver.
 	 * @param status Specifies what information should be announced
 	 * or offline (the latter only in cases where it is shutting down)
 	 */
-	void announce_server(int status);
+	void announce_server(server_announce_type_t status);
 
 	vector_tpl<fabrik_t*> closed_factories_this_month;
 	weighted_vector_tpl<fabrik_t*> should_close_factories_this_month;
@@ -1153,7 +1159,7 @@ public:
 	player_t* get_active_player() const { return active_player; }
 	uint8 get_active_player_nr() const { return active_player_nr; }
 	void switch_active_player(uint8 nr, bool silent);
-	const char *init_new_player( uint8 nr, uint8 type );
+	const char *init_new_player( uint8 nr, uint8 type, bool new_world=true );
 	void store_player_password_hash( uint8 player_nr, const pwd_hash_t& hash );
 	const pwd_hash_t& get_player_password_hash( uint8 player_nr ) const { return player_password_hash[player_nr]; }
 	void clear_player_password_hashes();
@@ -1797,10 +1803,12 @@ private:
 public:
 	void flood_to_depth(sint8 new_water_height, sint8 *stage);
 
+	void set_tool_api(tool_t* tool_in, player_t* player, bool& suspended);
+
 	/**
 	 * Set a new tool as current: calls local_set_tool or sends to server.
 	 */
-	void set_tool( tool_t *tool_in, player_t * player );
+	void set_tool( tool_t *tool_in, player_t * player ) { bool b; set_tool_api(tool_in, player, b); }
 
 	/**
 	 * Set a new tool on our client, calls init.
@@ -2033,6 +2041,13 @@ public:
 	inline void decrease_actual_industry_density(uint32 value) { actual_industry_density -= value; }
 	inline void increase_actual_industry_density(uint32 value) { actual_industry_density += value; }
 
+	/**
+	 * Calls the work method of the tool.
+	 * Takes network and scenarios into account.
+	 * (There is the flags for scripted calls in the tool structure, but it seems not used so far?!)
+	 */
+	const char *call_work_api(tool_t *t, player_t *pl, koord3d pos, bool &suspended, bool called_from_api);
+
 	 /**
 	  * Initialize map.
 	  * @param sets Game settings.
@@ -2093,9 +2108,9 @@ public:
 	/**
 	 * To access the cities array.
 	 */
-	const weighted_vector_tpl<stadt_t*>& get_cities() const { return stadt; }
-	stadt_t *get_town_at(const uint32 weight) { return stadt.at_weight(weight); }
-	uint32 get_town_list_weight() const { return stadt.get_sum_weight(); }
+	const weighted_vector_tpl<stadt_t*>& get_cities() const { return cities; }
+	stadt_t *get_town_at(const uint32 weight) { return cities.at_weight(weight); }
+	uint32 get_town_list_weight() const { return cities.get_sum_weight(); }
 
 	void add_city(stadt_t *s);
 
@@ -2320,7 +2335,7 @@ public:
 	/**
 	 * @return true, if square in place (i,j) with size w, h is constructible.
 	 */
-	bool square_is_free(koord k, sint16 w, sint16 h, int *last_y, climate_bits cl, uint16 regions_allowed) const;
+	bool square_is_free(koord k, sint16 w, sint16 h, int *last_y, climate_bits cl, uint16 regions_allowed, uint16 height = 65535) const;
 
 	/**
 	 * @return A list of all buildable squares with size w, h.

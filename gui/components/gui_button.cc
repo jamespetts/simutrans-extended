@@ -121,6 +121,7 @@ void button_t::set_typ(enum type t)
 			break;
 
 		case imagebox:
+			set_size( scr_size(max(get_size().w,LINESPACE), max(get_size().w,LINESPACE)) );
 			img = IMG_EMPTY;
 			break;
 
@@ -132,6 +133,7 @@ void button_t::set_typ(enum type t)
 			b_no_translate = false;
 			break;
 		}
+
 		case depot:
 		{
 			b_no_translate = false;
@@ -217,10 +219,7 @@ scr_size button_t::get_min_size() const
 		case imagebox: {
 			scr_coord_val x = 0, y = 0, w = 0, h = 0;
 			display_get_image_offset(img, &x, &y, &w, &h);
-			scr_size size(gui_theme_t::gui_pos_button_size);
-			size.w = max(size.w, w+4);
-			size.h = max(size.h, h+4);
-			return size;
+			return scr_size(max(get_size().w, w + 4), max(get_size().h, h + 4));
 		}
 
 		case sortarrow:
@@ -229,6 +228,9 @@ scr_size button_t::get_min_size() const
 			const uint8 bars_height = uint8((size.h-block_height-4)/4) * block_height*2 + block_height;
 			return scr_size( max( D_BUTTON_HEIGHT, (gui_theme_t::gui_color_button_text_offset.w+4)*2 + 6/*arrow width(5)+margin(1)*/+block_height + (bars_height-2)/2 ), max(D_BUTTON_HEIGHT, LINESPACE) );
 		}
+
+		case swap_vertical:
+			return scr_size(D_BUTTON_PADDINGS_X + 18/*arrow width(5*2)+center margin(3)+padding*/ ,D_LABEL_HEIGHT);
 
 		case depot:
 		{
@@ -269,9 +271,9 @@ void button_t::set_tooltip(const char * t)
 }
 
 
-bool button_t::getroffen(int x,int y)
+bool button_t::getroffen(scr_coord p)
 {
-	bool hit=gui_component_t::getroffen(x, y);
+	bool hit=gui_component_t::getroffen(p);
 	if(  pressed  &&  !hit  &&  ( (type & STATE_BIT) == 0)  ) {
 		// moved away
 		pressed = 0;
@@ -309,8 +311,8 @@ bool button_t::infowin_event(const event_t *ev)
 	}
 
 	// check if the initial click and the current mouse positions are within the button's boundary
-	bool const cxy_within_boundary = 0 <= ev->cx && ev->cx < get_size().w && 0 <= ev->cy && ev->cy < get_size().h;
-	bool const mxy_within_boundary = 0 <= ev->mx && ev->mx < get_size().w && 0 <= ev->my && ev->my < get_size().h;
+	bool const cxy_within_boundary = 0 <= ev->click_pos.x && ev->click_pos.x < get_size().w && 0 <= ev->click_pos.y && ev->click_pos.y < get_size().h;
+	bool const mxy_within_boundary = 0 <= ev->mouse_pos.x && ev->mouse_pos.x < get_size().w && 0 <= ev->mouse_pos.y && ev->mouse_pos.y < get_size().h;
 
 	// update the button pressed state only when mouse positions are within boundary or when it is mouse release
 	if(  (type & STATE_BIT) == 0  &&  cxy_within_boundary  &&  (  mxy_within_boundary  ||  IS_LEFTRELEASE(ev)  )  ) {
@@ -447,7 +449,7 @@ void button_t::draw(scr_coord offset)
 						area_img=area;
 					}
 					if( pressed && gui_theme_t::pressed_button_sinks ) area_img.y++;
-					display_img_aligned( img, area_img, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true );
+					display_img_aligned( img, (type&TYPE_MASK)==imagebox ? area : area_img, ALIGN_CENTER_H | ALIGN_CENTER_V | DT_CLIP, true );
 				}
 				if(  win_get_focus()==this  ) {
 					draw_focus_rect( area );
@@ -488,9 +490,29 @@ void button_t::draw(scr_coord offset)
 					tooltip = "hl_btn_sort_asc";
 				}
 
-				if(  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)  ) {
+				if(  getroffen(get_mouse_pos() - offset)  ) {
 					translated_tooltip = translator::translate(tooltip);
 				}
+			}
+			break;
+
+		case swap_vertical:
+			{
+				display_img_stretch(gui_theme_t::round_button_tiles[get_state_offset()], area);
+
+				scr_coord_val xoff = area.x + gui_theme_t::gui_button_text_offset.w + 5;
+				const scr_coord_val yoff = area.y + 2 + (pressed&&gui_theme_t::pressed_button_sinks);
+				// up arrow
+				display_fillbox_wh_clip_rgb(xoff,   yoff,   1, D_LABEL_HEIGHT-4, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-1, yoff+1, 3, 1, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-2, yoff+2, 5, 1, SYSCOL_BUTTON_TEXT, false);
+
+				// down arrow
+				xoff = area.x + size.w - gui_theme_t::gui_button_text_offset.w - 6;
+				display_fillbox_wh_clip_rgb(xoff,   yoff, 1, D_LABEL_HEIGHT-4, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-1, yoff+D_LABEL_HEIGHT-6, 3, 1, SYSCOL_BUTTON_TEXT, false);
+				display_fillbox_wh_clip_rgb(xoff-2, yoff+D_LABEL_HEIGHT-7, 5, 1, SYSCOL_BUTTON_TEXT, false);
+
 			}
 			break;
 
@@ -554,8 +576,8 @@ void button_t::draw(scr_coord offset)
 		default: ;
 	}
 
-	if(  translated_tooltip  &&  getroffen( get_mouse_x()-offset.x, get_mouse_y()-offset.y )  ) {
-		win_set_tooltip( get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, area.get_bottom() + TOOLTIP_MOUSE_OFFSET_Y, translated_tooltip, this);
+	if(  getroffen(get_mouse_pos() - offset)  ) {
+		win_set_tooltip( scr_coord{ get_mouse_pos().x, area.get_bottom() } + TOOLTIP_MOUSE_OFFSET, translated_tooltip, this);
 	}
 }
 
@@ -573,6 +595,7 @@ void button_t::update_focusability()
 		// those cannot receive focus ...
 		case imagebox:
 		case sortarrow:
+		case swap_vertical:
 		case arrowleft:
 		case repeatarrowleft:
 		case arrowright:

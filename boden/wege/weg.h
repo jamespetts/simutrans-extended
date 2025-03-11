@@ -414,7 +414,7 @@ public:
 	void set_desc(const way_desc_t *b, bool from_saved_game = false);
 	const way_desc_t *get_desc() const { return desc; }
 
-	void calc_speed_limit(grund_t* gr, const bruecke_t* bridge = nullptr, const tunnel_t* tunnel = nullptr);
+	void calc_speed_limit(grund_t* gr, bool from_saved = false, const bruecke_t* bridge = nullptr, const tunnel_t* tunnel = nullptr);
 
 	// returns a way with the matching type
 	static weg_t *alloc(waytype_t wt);
@@ -494,10 +494,9 @@ public:
 	void book(int amount, way_statistics type) { statistics[WAY_STAT_THIS_MONTH][type] += amount; }
 
 	/**
-	* return statistics value
-	* always returns last month's value
-	*/
-	int get_statistics(int type) const { return statistics[WAY_STAT_LAST_MONTH][type]; }
+	 * return statistics value
+	 */
+	int get_statistics(way_stat_months month, way_statistics type) const { return statistics[(int)month][(int)type]; }
 
 	bool is_disused() const { return statistics[WAY_STAT_LAST_MONTH][WAY_STAT_CONVOIS] == 0 && statistics[WAY_STAT_THIS_MONTH][WAY_STAT_CONVOIS] == 0; }
 

@@ -52,6 +52,7 @@ remember_window_positions = 1
 pressed_button_sinks = 1
 
 ################################# Colour settings #################################
+## theme window background color=#adbabd #RGB=(173,186,189)
 
 # color used for the default titlebars
 default_window_title_color = #D74700
@@ -83,6 +84,8 @@ gui_color_text_placeholder                  = #CCCCCC
 
 #gui_color_list_text_selected_focus         = #000000
 #gui_color_list_text_selected_nofocus       = #000000
+gui_color_list_background_even              = #BDCBD6
+gui_color_list_background_odd               = #D6E3EF
 #gui_color_list_background_selected_focus   = #000000
 #gui_color_list_background_selected_nofocus = #000000
 
@@ -143,7 +146,7 @@ gui_color_table_cell_border         = #8c9aad
 gui_color_table_background_left_col = #cedbe7
 gui_color_table_background_data_sum = #c6d3de
 gui_color_table_background_data     = #bdcbd6
-gui_color_table_background          = #adbac6
+gui_color_table_background          = #BDCBD6
 gui_color_table_background_highlight= #DEE5AD
 gui_color_text_head_row             = #ffffff
 gui_color_text_left_col             = #000000

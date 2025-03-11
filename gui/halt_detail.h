@@ -42,29 +42,8 @@ public:
 	void set_halt(halthandle_t h) { halt = h; }
 
 	void draw(scr_coord offset);
-
-	// draw pax or mail classes waiting amount information table
-	void draw_class_table(scr_coord offset, const uint8 class_name_cell_width, const goods_desc_t *warentyp);
 };
 
-// tab2 - freight
-class halt_detail_goods_t : public gui_container_t
-{
-private:
-	halthandle_t halt;
-
-	cbuffer_t goods_info;
-
-public:
-	halt_detail_goods_t(halthandle_t halt);
-	void set_halt(halthandle_t h) { halt = h; }
-
-	uint32 active_freight_catg = 0;
-
-	void recalc_size();
-
-	void draw(scr_coord offset);
-};
 
 // A display of nearby industries info for station detail
 class gui_halt_nearby_factory_info_t : public gui_world_component_t
@@ -170,7 +149,6 @@ private:
 
 	gui_halt_waiting_indicator_t *waiting_bar;
 	halt_detail_pas_t pas;
-	halt_detail_goods_t goods;
 	gui_container_t cont_goods, cont_desinations;
 	gui_aligned_container_t cont_route, cont_tab_service;
 	gui_halt_service_info_t cont_service;

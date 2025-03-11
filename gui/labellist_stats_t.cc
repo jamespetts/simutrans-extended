@@ -10,7 +10,6 @@
 #include "../simcity.h"
 #include "../player/simplay.h"
 #include "../obj/label.h"
-#include "../utils/simstring.h"
 #include "../utils/cbuffer_t.h"
 
 #include "../dataobj/environment.h"

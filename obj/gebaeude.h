@@ -227,6 +227,10 @@ public:
 
 	bool is_signalbox() const;
 
+	/// fills vector with a list of all tiles with this building
+	/// @return number of actual tiles
+	uint32 get_tile_list( vector_tpl<grund_t *>& list ) const;
+
 	/// @copydoc obj_t::info
 	void info(cbuffer_t & buf) const OVERRIDE;
 

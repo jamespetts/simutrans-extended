@@ -1,0 +1,27 @@
+<title>Company rankings help</title>
+
+<h1><strong>Company rankings</strong></h1>
+
+<p>
+The <strong>company rankings</strong> window provides an overview of the comparative performance of each company in the current game.
+</p>
+
+<p>
+Click on the company rankings button in the upper button bar in the main game window, press <a href="keys.txt">[CTRL+R]</a>, click on the company ranking button in the <a href="players.txt">Players</a> or <a href="finances.txt">finances</a> window to open the <strong>company ranking</strong> window.
+</p>
+
+<p>
+The graph on the left shows the statistics for each company for the past few years for the chosen measure, selected by the buttons on the lower part of the window.
+</p>
+
+<p>
+The buttons on the right hand side of the window show the ranks of each company at present for the chosen measure. Clicking on one of the company names highlights that company's line in the chart.
+</p>
+
+<p>
+Above the company buttons on the right hand side is a transport type chooser. Use this to see company rankings for a specific type of transport (e.g. water, air or rail). 
+</p>
+
+<p>
+For more details on the performance of individual companies, visit that company's <a href="finances.txt">finances</a> window.
+</p>

@@ -80,13 +80,13 @@ private:
 //		const bool operator < (const fabconnection_t & k) { return (abs(fab1.x)+abs(fab1.y)) - (abs(k.fab1.x)+abs(k.fab1.y)) < 0; }
 	};
 
-	slist_tpl<fabconnection_t*> forbidden_connections;
+	slist_tpl<fabconnection_t *> forbidden_connections;
 
 	// return true, if this a route to avoid (i.e. we did a construction without success here ...)
 	bool is_forbidden( fabrik_t *fab1, fabrik_t *fab2, const goods_desc_t *w ) const;
 
 	/* recursive lookup of a factory tree:
-	 * sets start and destination  to the next needed supplier
+	 * sets start and destination to the next needed supplier
 	 * start always with the first branch, if there are more goods
 	 */
 	bool get_factory_tree_lowest_missing( fabrik_t *fab );
