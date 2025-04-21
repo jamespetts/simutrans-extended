@@ -675,7 +675,10 @@ fabrik_t* factory_builder_t::build_factory(koord3d* parent, const factory_desc_t
 	fab->add_to_world_list();
 
 	// Adjust the actual industry density
-	welt->increase_actual_industry_density(100 / info->get_distribution_weight());
+	//welt->increase_actual_industry_density(100 / info->get_distribution_weight());
+	if (fab->get_desc()->is_consumer_only()) {
+		welt->increase_actual_industry_density(100 / info->get_distribution_weight());
+	}
 	if(parent) {
 		fab->add_consumer(parent->get_2d());
 	}
