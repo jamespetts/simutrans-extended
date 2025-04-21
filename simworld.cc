@@ -1456,6 +1456,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	factory_builder_t::new_world();
 
 	int consecutive_build_failures = 0;
+	int consecutive_consumer_failures = 0;
 
 	loadingscreen_t ls( translator::translate("distributing factories"), 16 + settings.get_city_count() * 4 + settings.get_factory_count(), true, true );
 
@@ -1469,9 +1470,17 @@ DBG_DEBUG("karte_t::init()","built timeline");
 		else {
 			consecutive_build_failures = 0;
 		}
+		consecutive_consumer_failures = 0;
+		while (consecutive_consumer_failures < 3) {
+			if (!factory_builder_t::increase_industry_density(false, false, false, 2)) {
+				++consecutive_consumer_failures;
+			}
+			else {
+				consecutive_consumer_failures = 0;
+			}
+		}
 		ls.set_progress( 16 + settings.get_city_count() * 4 + min(fab_list.get_count(),settings.get_factory_count()) );
 	}
-
 	settings.set_factory_count( fab_list.get_count() );
 	finance_history_year[0][WORLD_FACTORIES] = finance_history_month[0][WORLD_FACTORIES] = fab_list.get_count();
 

@@ -1478,10 +1478,23 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 
 	// Determine whether to fill in oversupplied goods with a consumer industry, or generate one entirely randomly
 	const goods_desc_t* input_for_consumer = NULL;
-	if (!oversupplied_goods.empty() && simrand(100,"factory_builder_t::increase_industry_density()") < 20)
+	if (!oversupplied_goods.empty() && oversupplied_goods.get_sum_weight() > 0 && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == 2))
 	{
-		const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density() 2");
-		input_for_consumer = oversupplied_goods.at_weight(pick);
+		int tries = 5; 
+		while(tries > 0){ //attempt to only select goods that are in 'real' oversupply (based on raw production, not contract
+			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
+			input_for_consumer = oversupplied_goods.at_weight(pick);
+			if (get_real_oversupply(input_for_consumer) > 0) {
+				break;
+			}
+			tries--;
+		}
+		
+		
+	}
+	if (force_consumer == 2 && !input_for_consumer) {
+		//if we can't pick a valid consumer input then return
+		return 0;
 	}
 
 	while(  no_electric<2  ) {
@@ -1528,7 +1541,22 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				}
 				if(welt->lookup(pos)) {
 					// Space found...
-					nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), -1, ignore_climates);
+					if (force_consumer == 2) { //special logic for filling in consumers that has to exist because at worldstart, there are no contracts yet
+						if (get_real_oversupply(input_for_consumer) > 0) { //double check that the good we have selected really is oversupplied
+
+							nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
+
+							/*cbuffer_t buf;
+							buf.printf("Checking good %s that has %ld real oversupply.\n", input_for_consumer->get_name(), total_prod - total_cons);
+							welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI);*/
+						}
+						else {
+							return 0;
+						}
+					}
+					else {
+						nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), -1, ignore_climates);
+					}
 					if(nr>0) {
 						fabrik_t *our_fab = fabrik_t::get_fab( pos.get_2d() );
 						minimap_t::get_instance()->calc_map_size();
@@ -1557,6 +1585,40 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	// we should not reach here, because it means neither land nor city industries exist ...
 	dbg->warning( "factory_builder_t::increase_industry_density()", "No suitable city industry found => pak missing something?" );
 	return 0;
+}
+
+sint32 factory_builder_t::get_real_oversupply(const goods_desc_t* good) {
+	sint32 total_prod = 0;
+	sint32 total_cons = 0;
+	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
+		for (uint32 i = 0; i < fab->get_output().get_count(); i++) {
+			const goods_desc_t* factory_good = fab->get_output()[i].get_typ();
+			if (factory_good == good) { //does this factory produce the good we want?
+				const sint64 pfactor = fab->get_desc()->get_product(i)->get_factor();
+				const sint32 monthly_prod = fab->get_monthly_production(pfactor);
+				total_prod += monthly_prod;
+
+				/*cbuffer_t buf;
+				buf.printf("Found factory producing good: %s, with %ld production.\n", fab->get_name(), monthly_prod);
+				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));*/
+			}
+		}
+
+		for (uint32 i = 0; i < fab->get_input().get_count(); i++) {
+			const goods_desc_t* factory_good = fab->get_input()[i].get_typ();
+			if (factory_good == good) {
+				const sint64 cfactor = fab->get_desc()->get_supplier(i)->get_consumption();
+				const sint32 monthly_cons = fab->get_monthly_production(cfactor);
+				total_cons += monthly_cons;
+
+				/*cbuffer_t buf;
+				buf.printf("Found factory consuming good: %s, with %ld consumption.\n", fab->get_name(), monthly_cons);
+				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));*/
+			}
+		}
+		
+	}
+	return total_prod - total_cons;
 }
 
 bool factory_builder_t::power_stations_available()

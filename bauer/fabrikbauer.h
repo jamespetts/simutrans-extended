@@ -157,6 +157,12 @@ private:
 	 * @returns true if all factories in this tree can be rotated.
 	 */
 	static bool can_factory_tree_rotate( const factory_desc_t *desc );
+
+	/**
+	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
+	 * @returns actual amount of global production minus actual amount of global consumption of the good.
+	 */
+	static sint32 get_real_oversupply(const goods_desc_t* good);
 };
 
 #endif
