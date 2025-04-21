@@ -650,7 +650,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 						add_table(2,1);
 						{
 							add_component(&speed_restricted);
-							new_component<gui_label_t>("(speed_restricted_by_city)", SYSCOL_TEXT_STRONG); 
+							new_component<gui_label_t>("(speed_restricted_by_city)", SYSCOL_TEXT_STRONG);
 						}
 						end_table();
 				}
