@@ -3273,7 +3273,7 @@ void fabrik_t::new_month()
 				   new_fab->get_building()->get_size() == desc->get_building()->get_size() &&
 				   new_fab->get_building()->get_intro_year_month() <= timeline_month &&
 				   new_fab->get_building()->get_retire_year_month() >= timeline_month &&
-					adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())))
+					(adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())) || !desc->is_consumer_only()))
 				{
 					upgrade_list.append_unique(new_fab);
 				}
