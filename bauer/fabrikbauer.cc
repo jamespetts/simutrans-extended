@@ -1483,7 +1483,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	const goods_desc_t* input_for_consumer = NULL;
 	if (!oversupplied_goods.empty() && oversupplied_goods.get_sum_weight() > 0 && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == 2))
 	{
-		int tries = 5; 
+		int tries = 5;
 		while(tries > 0){ //attempt to only select goods that are in 'real' oversupply (based on raw production, not contract
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			input_for_consumer = oversupplied_goods.at_weight(pick);
@@ -1492,8 +1492,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			}
 			tries--;
 		}
-		
-		
+
+
 	}
 	if (force_consumer == 2 && !input_for_consumer) {
 		//if we can't pick a valid consumer input then return
@@ -1619,7 +1619,7 @@ sint32 factory_builder_t::get_real_oversupply(const goods_desc_t* good) {
 				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));*/
 			}
 		}
-		
+
 	}
 	return total_prod - total_cons;
 }
