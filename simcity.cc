@@ -3873,7 +3873,7 @@ void stadt_t::check_bau_factory(bool new_town)
 						fill_missing_fails++;
 					}
 				}
-				
+
 
 			}
 		}
