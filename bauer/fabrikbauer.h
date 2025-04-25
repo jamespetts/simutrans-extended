@@ -17,6 +17,10 @@ class karte_ptr_t;
 class player_t;
 class fabrik_t;
 
+enum density_options {
+	NEUTRAL, NO_FORCE, CONSUMER_ONLY, FILL_MISSING_ONLY
+};
+
 
 /**
  * This class builds factories. Never construct factories directly
@@ -90,7 +94,9 @@ public:
 	 * @param cl allowed climates
 	 * @returns a random consumer
 	 */
-	static const factory_desc_t *get_random_consumer(bool electric, climate_bits cl, uint16 allowed_regions, uint16 timeline, const goods_desc_t* input = NULL );
+	static const factory_desc_t *get_random_consumer(bool electric, climate_bits cl, uint16 allowed_regions, uint16 timeline, const goods_desc_t* input = NULL, bool force_consumer_only = true);
+
+	static bool is_final_good(bool electric, climate_bits cl, uint16 allowed_regions, uint16 timeline, const goods_desc_t* good);
 
 	/**
 	 * Builds a single new factory.
@@ -108,9 +114,8 @@ public:
 	 * @p pos is suitable for factory construction and number of chains
 	 * is the maximum number of good types for which suppliers chains are built
 	 * (meaning there are no unfinished factory chains).
-	 * @returns number of factories built
 	 */
-	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates );
+	static int build_link(koord3d* parent, const factory_desc_t* info, sint32 initial_prod_base, int rotate, koord3d* pos, player_t* player, int number_of_chains, bool ignore_climates);
 
 	/**
 	 * Helper function for baue_hierachie(): builds the connections (chain) for one single product)
@@ -126,7 +131,7 @@ public:
 	 * Force consumer: 0 - neutral; 1 - disallow forcing; 2 - always force consumer
 	 * @returns number of factories built
 	 */
-	static int increase_industry_density(bool tell_me, bool do_not_add_beyond_target_density = false, bool power_station_only = false, uint32 force_consumer = 0 );
+	static int increase_industry_density(bool tell_me, bool do_not_add_beyond_target_density = false, bool power_station_only = false, density_options force_consumer = NEUTRAL );
 
 	static bool power_stations_available();
 
@@ -163,6 +168,11 @@ private:
 	 * @returns actual amount of global production minus actual amount of global consumption of the good.
 	 */
 	static sint32 get_real_oversupply(const goods_desc_t* good);
+
+	/**
+	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.
+	 */
+	static void find_valid_factory_pos(koord3d* pos, int* rotation, const factory_desc_t* factory_type, bool ignore_climates);
 };
 
 #endif
