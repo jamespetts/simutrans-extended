@@ -1576,6 +1576,9 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 
 					if (!consumer2) {
 						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
+						if (!consumer) {
+							continue;
+						}
 					}
 				}
 				if(do_not_add_beyond_target_density && !consumer->is_electricity_producer())
