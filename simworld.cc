@@ -1482,6 +1482,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 		}
 		ls.set_progress( 16 + settings.get_city_count() * 4 + min(fab_list.get_count(),settings.get_factory_count()) );
 	}
+	dbg->message("karte_t::init()", "Filling in missing production ...");
 	consecutive_build_failures = 0;
 	while (consecutive_build_failures < 3) {
 		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {

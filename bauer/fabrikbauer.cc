@@ -1438,7 +1438,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 		// ok, found consumer
 		if(!force_add_consumer && force_consumer != CONSUMER_ONLY && !unlinked_consumers.empty())
 		{
-
+			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "number of unlinked consumers: %d", unlinked_consumers.get_count());
 			for(auto unlinked_consumer : unlinked_consumers)
 			{
 
@@ -1447,6 +1447,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				// First: do we have to continue unfinished factory chains?
 				if(missing_goods_index < unlinked_consumer->get_desc()->get_supplier_count())
 				{
+					DBG_MESSAGE("factory_builder_t::increase_industry_density()", "processing missing_good %s for factory %s", unlinked_consumer->get_desc()->get_supplier(missing_goods_index)->get_input_type()->get_name(), unlinked_consumer->get_name());
 					int org_rotation = -1;
 					// rotate until we can save it, if one of the factory is non-rotateable ...
 					if(welt->cannot_save()  &&  !can_factory_tree_rotate(unlinked_consumer->get_desc()) )
@@ -1472,7 +1473,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					// only return, if successful
 					if(nr > 0)
 					{
-						DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "added ware %i to factory %s", missing_goods_index, unlinked_consumer->get_name() );
+						
+						DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "added ware %s to factory %s with %i factories built", unlinked_consumer->get_desc()->get_supplier(missing_goods_index)->get_input_type()->get_name(), unlinked_consumer->get_name(), nr );
 						// tell the player
 						if(tell_me) {
 							stadt_t *s = welt->find_nearest_city( unlinked_consumer->get_pos().get_2d() );
@@ -1489,6 +1491,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 		}
 	}
 	if (force_consumer == FILL_MISSING_ONLY) { //if we've gotten here with FILL_MISSING_ONLY then there are no more undersupplied factory chains to fill in
+		DBG_MESSAGE("factory_builder_t::increase_industry_density()", "FILL_MISSING_ONLY returning 0");
 		return 0;
 	}
 
