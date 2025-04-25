@@ -1313,7 +1313,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					force_add_consumer = false;
 				}
 				fab->disconnect_consumer(koord::invalid); // This does not remove anything, but checks for missing consumers
-
+				
 				sint32 available_for_consumption;
 				sint32 consumption_level;
 
@@ -1322,6 +1322,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					// Check the list of possible suppliers for this factory type.
 					const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(l);
 					const goods_desc_t* input_type = supplier_type->get_input_type();
+					
 					missing_goods.append_unique(input_type);
 					auto suppliers = fab->get_suppliers(input_type);
 
@@ -1332,6 +1333,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					if (!fab->get_desc()->is_consumer_only()) {
 						sint32 output_prod_level = 0;
 						sint32 output_consumption = 0;
+						
 						for (int i = 0; i < fab->get_desc()->get_product_count(); i++) {
 							const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
 							output_prod_level += fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor();
@@ -1355,7 +1357,9 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							}
 							
 						}
-						consumption_level = consumption_level * output_consumption / output_prod_level;
+						if (output_consumption < output_prod_level) {
+							consumption_level = consumption_level * output_consumption / output_prod_level;
+						}
 					}
 					available_for_consumption = 0;
 
@@ -1372,7 +1376,6 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						{
 							continue;
 						}
-
 						if(auto consumer_type = supplier->get_desc()->get_product(input_type))
 						{
 							// Check to see whether this existing supplier is able to supply *enough* of this product
@@ -1383,13 +1386,21 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							{
 								if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
 									if (competing_consumer != fab) {
-										const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
-										used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
+										
+										//sum up production from alternative suppliers to the competing consumer
+										sint32 alt_supplier_prod = 0;
+										for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
+											const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
+											alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
+										}
+										used_output += competing_consumer->get_base_production() * (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()) / alt_supplier_prod;
+										//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
+										//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
 									}
 								}	
 							}
 							const sint32 remaining_output = total_output_supplier - used_output;
-
+							
 							if (remaining_output > 0)
 							{
 								available_for_consumption += remaining_output;
@@ -1414,6 +1425,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					if (available_for_consumption < consumption_level) {
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
 							if(fab->get_input()[i].get_typ() == input_type){
+								
 								unlinked_consumers.append_unique(unlinked_consumer_t(fab, i));
 							}
 						}
@@ -1422,10 +1434,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				missing_goods.clear();
 			} // All industries
 		}
-
+				
 		// ok, found consumer
-		if(!force_add_consumer && !unlinked_consumers.empty())
+		if(!force_add_consumer && force_consumer != CONSUMER_ONLY && !unlinked_consumers.empty())
 		{
+			
 			for(auto unlinked_consumer : unlinked_consumers)
 			{
 				
@@ -1446,6 +1459,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						assert( !welt->cannot_save() );
 					}
 
+					const uint32 last_suppliers = unlinked_consumer->get_suppliers().get_count();
 					nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player());
 					// must rotate back?
 					if(org_rotation>=0) {
