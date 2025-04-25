@@ -1473,7 +1473,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					// only return, if successful
 					if(nr > 0)
 					{
-						
+
 						DBG_MESSAGE( "factory_builder_t::increase_industry_density()", "added ware %s to factory %s with %i factories built", unlinked_consumer->get_desc()->get_supplier(missing_goods_index)->get_input_type()->get_name(), unlinked_consumer->get_name(), nr );
 						// tell the player
 						if(tell_me) {
