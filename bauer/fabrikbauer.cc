@@ -292,6 +292,7 @@ const factory_desc_t *factory_builder_t::get_random_consumer(bool electric, clim
 		factory_desc_t const* const current = i.value;
 		// only insert end consumers, if applicable, with the requested input goods.
 		if (  (current->is_consumer_only() || !force_consumer_only ) &&
+			!current->is_producer_only() &&
 			current->get_building()->is_allowed_climate_bits(cl)  &&
 			current->get_building()->is_allowed_region_bits(allowed_regions) &&
 			(electric ^ !current->is_electricity_producer())  &&
@@ -304,7 +305,13 @@ const factory_desc_t *factory_builder_t::get_random_consumer(bool electric, clim
 	}
 	// no consumer installed?
 	if (consumer.empty()) {
-DBG_MESSAGE("factory_builder_t::get_random_consumer()","No suitable consumer found");
+		if (input != NULL) {
+			DBG_MESSAGE("factory_builder_t::get_random_consumer()", "No suitable consumer found for input %s", input->get_name());
+		}
+		else {
+			DBG_MESSAGE("factory_builder_t::get_random_consumer()", "No suitable consumer found");
+		}
+
 		return NULL;
 	}
 	// now find a random one
@@ -1568,17 +1575,19 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			else {
 				consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
 			}
-			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "chose random consumer %s", consumer->get_name());
+			
 			const factory_desc_t* consumer2 = NULL;
 			const goods_desc_t* good2 = NULL;
 			if(consumer)
 			{
+				DBG_MESSAGE("factory_builder_t::increase_industry_density()", "chose random consumer %s", consumer->get_name());
 				if (!consumer->is_consumer_only()) { //logic for making new manufacturers
 					//first we check if this consumer is making a good that is already overproduced, if so we just add a new consumer for that good (to prevent adding multiple undercapacity factories)
 					for (uint16 i = 0; i < consumer->get_product_count(); i++) {
 						const goods_desc_t* newgood = consumer->get_product(i)->get_output_type();
-						if (get_global_oversupply(newgood) > 0) {
-							consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), newgood);
+						const factory_desc_t* newconsumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), newgood);
+						if (get_global_oversupply(newgood) > 0 && newconsumer) {
+							consumer = newconsumer;
 							DBG_MESSAGE("factory_builder_t::increase_industry_density()", "manufacturer was oversupplying, changed to downstream consumer %s", consumer->get_name());
 						}
 					}
@@ -1588,7 +1597,6 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						good2 = consumer->get_product(productnum)->get_output_type();
 						consumer2 = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), good2);
 						if (!consumer2) { //catching cases where not every factory output has consumers available
-							bool found_consumer = false;
 							for (int i = 0; i < consumer->get_product_count(); i++) {
 								good2 = consumer->get_product(i)->get_output_type();
 								consumer2 = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), good2);
