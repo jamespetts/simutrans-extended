@@ -1575,7 +1575,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			else {
 				consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
 			}
-			
+
 			const factory_desc_t* consumer2 = NULL;
 			const goods_desc_t* good2 = NULL;
 			if(consumer)
