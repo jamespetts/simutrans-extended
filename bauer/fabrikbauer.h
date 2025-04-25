@@ -167,7 +167,7 @@ private:
 	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
 	 * @returns actual amount of global production minus actual amount of global consumption of the good.
 	 */
-	static sint32 get_real_oversupply(const goods_desc_t* good);
+	static sint32 get_global_oversupply(const goods_desc_t* good);
 
 	/**
 	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.

@@ -1532,7 +1532,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			const goods_desc_t* new_input = oversupplied_goods.at_weight(pick);
 
-			if (get_real_oversupply(new_input) > 0 && (tries < 3 || is_final_good(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input))) {
+			if (get_global_oversupply(new_input) > 0 && (tries < 3 || is_final_good(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input))) {
 				//first two tries, we try to find a final good (e.g. good that is not consumed by any manufacturers)
 				input_for_consumer = new_input;
 				break;
@@ -1565,19 +1565,42 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			else {
 				consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
 			}
+			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "chose random consumer %s", consumer->get_name());
 			const factory_desc_t* consumer2 = NULL;
 			const goods_desc_t* good2 = NULL;
 			if(consumer)
 			{
-				if (!consumer->is_consumer_only()) { //if we chose a consumer that is actually a manufacturer, we need a second consumer in order to properly terminate the chain
-					uint16 productnum = simrand(consumer->get_product_count(), "factory_builder_t::increase_industry_density()");
-					good2 = consumer->get_product(productnum)->get_output_type();
-					consumer2 = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), good2);
+				if (!consumer->is_consumer_only()) { //logic for making new manufacturers
+					//first we check if this consumer is making a good that is already overproduced, if so we just add a new consumer for that good (to prevent adding multiple undercapacity factories)
+					for (uint16 i = 0; i < consumer->get_product_count(); i++) {
+						const goods_desc_t* newgood = consumer->get_product(i)->get_output_type();
+						if (get_global_oversupply(newgood) > 0) {
+							consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), newgood);
+							DBG_MESSAGE("factory_builder_t::increase_industry_density()", "manufacturer was oversupplying, changed to downstream consumer %s", consumer->get_name());
+						}
+					}
+					if (!consumer->is_consumer_only()) { //if not, we have a reason to add a new manufacturer
+						//if we really are making a new manufacturer, we need a second consumer in order to properly terminate the chain
+						uint16 productnum = simrand(consumer->get_product_count(), "factory_builder_t::increase_industry_density()");
+						good2 = consumer->get_product(productnum)->get_output_type();
+						consumer2 = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), good2);
+						if (!consumer2) { //catching cases where not every factory output has consumers available
+							bool found_consumer = false;
+							for (int i = 0; i < consumer->get_product_count(); i++) {
+								good2 = consumer->get_product(i)->get_output_type();
+								consumer2 = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), good2);
+								if (consumer2) {
+									break;
+								}
+							}
+						}
 
-					if (!consumer2) {
-						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
-						if (!consumer) {
-							continue;
+						if (!consumer2) {//if there are no consumers whatsoever unlocked for a manufacturer (pakset problem), panic and try to find a consumer-only
+							dbg->warning("factory_builder_t::increase_industry_density()", "Could not find available consumer for products of %s, falling back to consumer-only", consumer->get_name());
+							consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
+							if (!consumer) {
+								continue;
+							}
 						}
 					}
 				}
@@ -1600,7 +1623,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				if(welt->lookup(pos)) {
 					// Space found...
 					if (force_consumer == CONSUMER_ONLY) { //
-						if (get_real_oversupply(input_for_consumer) > 0) { //double check that the good we have selected really is oversupplied
+						if (get_global_oversupply(input_for_consumer) > 0) { //double check that the good we have selected really is oversupplied
 
 							if (!consumer->is_consumer_only() && welt->lookup(pos2)) {
 								nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
@@ -1679,7 +1702,7 @@ void factory_builder_t::find_valid_factory_pos(koord3d *pos, int *rotation, cons
 	}
 }
 
-sint32 factory_builder_t::get_real_oversupply(const goods_desc_t* good) {
+sint32 factory_builder_t::get_global_oversupply(const goods_desc_t* good) {
 	sint32 total_prod = 0;
 	sint32 total_cons = 0;
 	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
