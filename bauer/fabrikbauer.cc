@@ -1313,7 +1313,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					force_add_consumer = false;
 				}
 				fab->disconnect_consumer(koord::invalid); // This does not remove anything, but checks for missing consumers
-				
+
 				sint32 available_for_consumption;
 				sint32 consumption_level;
 
@@ -1322,7 +1322,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					// Check the list of possible suppliers for this factory type.
 					const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(l);
 					const goods_desc_t* input_type = supplier_type->get_input_type();
-					
+
 					missing_goods.append_unique(input_type);
 					auto suppliers = fab->get_suppliers(input_type);
 
@@ -1333,7 +1333,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					if (!fab->get_desc()->is_consumer_only()) {
 						sint32 output_prod_level = 0;
 						sint32 output_consumption = 0;
-						
+
 						for (int i = 0; i < fab->get_desc()->get_product_count(); i++) {
 							const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
 							output_prod_level += fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor();
@@ -1386,7 +1386,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							{
 								if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
 									if (competing_consumer != fab) {
-										
+
 										//sum up production from alternative suppliers to the competing consumer
 										sint32 alt_supplier_prod = 0;
 										for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
@@ -1400,7 +1400,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								}
 							}
 							const sint32 remaining_output = total_output_supplier - used_output;
-							
+
 							if (remaining_output > 0)
 							{
 								available_for_consumption += remaining_output;
@@ -1425,7 +1425,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					if (available_for_consumption < consumption_level) {
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
 							if(fab->get_input()[i].get_typ() == input_type){
-								
+
 								unlinked_consumers.append_unique(unlinked_consumer_t(fab, i));
 							}
 						}
@@ -1434,11 +1434,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				missing_goods.clear();
 			} // All industries
 		}
-				
+
 		// ok, found consumer
 		if(!force_add_consumer && force_consumer != CONSUMER_ONLY && !unlinked_consumers.empty())
 		{
-			
+
 			for(auto unlinked_consumer : unlinked_consumers)
 			{
 
