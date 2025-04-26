@@ -2097,7 +2097,7 @@ public:
 
 private:
 	//count the number of consumer-only industries we have
-	int count_consumers();
+	uint32 count_consumers();
 
 public:
 
