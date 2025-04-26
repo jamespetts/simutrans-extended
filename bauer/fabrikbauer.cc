@@ -1428,7 +1428,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								uint32 old_weight = 0;
 								if (oversupplied_goods.is_contained(input_type))
 								{
-									
+
 									old_weight = oversupplied_goods.weight_at(oversupplied_goods.index_of(input_type));
 									// Avoid duplication
 									oversupplied_goods.remove(input_type);
@@ -1446,7 +1446,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 										total_consumer_weight += current->get_distribution_weight();
 									}
 								}
-								
+
 								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods [(%ld - %ld) * %ld] = %ld", input_type->get_name(), available_for_consumption, consumption_level, total_consumer_weight, (available_for_consumption - consumption_level) * total_consumer_weight);
 								//oversupplied_goods.append(input_type, old_weight + ((available_for_consumption - consumption_level) * total_consumer_weight));
 
