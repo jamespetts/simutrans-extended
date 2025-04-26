@@ -1333,6 +1333,12 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					missing_goods.append_unique(input_type);
 					auto suppliers = fab->get_suppliers(input_type);
 
+					if (suppliers.get_count() == 0) {
+						DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s", fab->get_name(), input_type->get_name());
+						unlinked_consumers.append_unique(unlinked_consumer_t(fab, l));
+						continue;
+					}
+
 					// Check how much of this product that the current factory needs
 					consumption_level = fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1);
 
@@ -1419,20 +1425,39 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							{
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
 								missing_goods.remove(input_type);
-
+								uint32 old_weight = 0;
 								if (oversupplied_goods.is_contained(input_type))
 								{
+									
+									old_weight = oversupplied_goods.weight_at(oversupplied_goods.index_of(input_type));
 									// Avoid duplication
 									oversupplied_goods.remove(input_type);
 								}
-								oversupplied_goods.append(input_type, available_for_consumption - consumption_level);
+								// Get the total distribution_weight of consumers of this product
+								uint32 total_consumer_weight = 0;
+								for (auto const& i : desc_table) {
+									factory_desc_t const* const current = i.value;
+									// Only insert end consumers, if applicable, with the requested input goods.
+									if (!current->is_electricity_producer() &&
+										current->get_building()->is_available(welt->get_timeline_year_month()) &&
+										(current->get_accepts_these_goods(input_type))
+										)
+									{
+										total_consumer_weight += current->get_distribution_weight();
+									}
+								}
+								
+								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods [(%ld - %ld) * %ld] = %ld", input_type->get_name(), available_for_consumption, consumption_level, total_consumer_weight, (available_for_consumption - consumption_level) * total_consumer_weight);
+								//oversupplied_goods.append(input_type, old_weight + ((available_for_consumption - consumption_level) * total_consumer_weight));
+
+								oversupplied_goods.append(input_type, max(old_weight, ((available_for_consumption * total_consumer_weight) / consumption_level))); // Middle ground between oversupply percentage and consumer weighting
 							}
 						}
 					} // Actual suppliers
 					if (available_for_consumption < consumption_level) {
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
 							if(fab->get_input()[i].get_typ() == input_type){
-
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with %ld/%ld production for input %s", fab->get_name(), available_for_consumption, consumption_level, input_type->get_name());
 								unlinked_consumers.append_unique(unlinked_consumer_t(fab, i));
 							}
 						}
@@ -1537,13 +1562,14 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	const goods_desc_t* input_for_consumer = NULL;
 	if (!oversupplied_goods.empty() && oversupplied_goods.get_sum_weight() > 0 && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == 2))
 	{
+		for (uint16 i = 0; i < oversupplied_goods.get_count(); i++) {
+			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "oversupplied good: %s (weight %ld)", oversupplied_goods[i]->get_name(), oversupplied_goods.weight_at(i));
+		}
 		int tries = 5;
 		while(tries > 0){ //attempt to only select goods that are in 'real' oversupply (based on actual production, not contracts/etc)
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			const goods_desc_t* new_input = oversupplied_goods.at_weight(pick);
-
-			if (get_global_oversupply(new_input) > 0 && (tries < 3 || is_final_good(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input))) {
-				//first two tries, we try to find a final good (e.g. good that is not consumed by any manufacturers)
+			if(get_global_oversupply(new_input) > 0){
 				input_for_consumer = new_input;
 				break;
 			}
