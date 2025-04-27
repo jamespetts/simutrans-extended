@@ -1457,7 +1457,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld", input_type->get_name(), oversupply);
 
 								}
-								
+
 							}
 						}
 					} // Actual suppliers
@@ -1779,7 +1779,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 			if (factory_good == good) {
 				const uint16 cfactor = fab->get_desc()->get_supplier(i)->get_consumption();
 				uint32 monthly_cons = fab->get_monthly_production(cfactor);
-				
+
 
 				if (!fab->get_desc()->is_consumer_only()) { //account for downstream consumption and adjust this factory's effective consumption accordingly
 					uint32 output_prod = 0;
@@ -1793,7 +1793,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 				total_cons += monthly_cons;
 			}
 		}
-		
+
 	}
 	return total_cons;
 }
