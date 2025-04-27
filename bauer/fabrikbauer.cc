@@ -1447,10 +1447,17 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 									}
 								}
 
-								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods [(%ld - %ld) * %ld] = %ld", input_type->get_name(), available_for_consumption, consumption_level, total_consumer_weight, (available_for_consumption - consumption_level) * total_consumer_weight);
+								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods (%ld * %ld) / %ld = %ld", input_type->get_name(), available_for_consumption, total_consumer_weight, consumption_level, (available_for_consumption - consumption_level) * total_consumer_weight);
 								//oversupplied_goods.append(input_type, old_weight + ((available_for_consumption - consumption_level) * total_consumer_weight));
 
-								oversupplied_goods.append(input_type, max(old_weight, ((available_for_consumption * total_consumer_weight) / consumption_level))); // Middle ground between oversupply percentage and consumer weighting
+								//oversupplied_goods.append(input_type, max(old_weight, ((available_for_consumption * total_consumer_weight) / consumption_level))); // Middle ground between oversupply percentage and consumer weighting
+								sint32 oversupply = get_global_oversupply(input_type);
+								if (oversupply > 0) {
+									oversupplied_goods.append(input_type, oversupply);
+									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld", input_type->get_name(), oversupply);
+
+								}
+								
 							}
 						}
 					} // Actual suppliers
@@ -1570,7 +1577,12 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			const goods_desc_t* new_input = oversupplied_goods.at_weight(pick);
 			if(get_global_oversupply(new_input) > 0){
-				input_for_consumer = new_input;
+				if (force_consumer == CONSUMER_ONLY && get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input, false)) {
+					input_for_consumer = new_input;
+				}
+				else if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(),new_input) ){
+					input_for_consumer = new_input;
+				}
 				break;
 			}
 			tries--;
@@ -1740,38 +1752,52 @@ void factory_builder_t::find_valid_factory_pos(koord3d *pos, int *rotation, cons
 }
 
 sint32 factory_builder_t::get_global_oversupply(const goods_desc_t* good) {
+	return get_global_production(good) - get_global_consumption(good);
+}
+
+sint32 factory_builder_t::get_global_production(const goods_desc_t* good) {
 	sint32 total_prod = 0;
-	sint32 total_cons = 0;
+
 	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
 		for (uint32 i = 0; i < fab->get_output().get_count(); i++) {
 			const goods_desc_t* factory_good = fab->get_output()[i].get_typ();
 			if (factory_good == good) { //does this factory produce the good we want?
-				const sint64 pfactor = fab->get_desc()->get_product(i)->get_factor();
+				const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
 				const sint32 monthly_prod = fab->get_monthly_production(pfactor);
 				total_prod += monthly_prod;
-
-				/*cbuffer_t buf;
-				buf.printf("Found factory producing good: %s, with %ld production.\n", fab->get_name(), monthly_prod);
-				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));*/
 			}
 		}
+	}
+	return total_prod;
+}
 
+sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
+	sint32 total_cons = 0;
+	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
 		for (uint32 i = 0; i < fab->get_input().get_count(); i++) {
 			const goods_desc_t* factory_good = fab->get_input()[i].get_typ();
 			if (factory_good == good) {
-				const sint64 cfactor = fab->get_desc()->get_supplier(i)->get_consumption();
-				const sint32 monthly_cons = fab->get_monthly_production(cfactor);
-				total_cons += monthly_cons;
+				const uint16 cfactor = fab->get_desc()->get_supplier(i)->get_consumption();
+				uint32 monthly_cons = fab->get_monthly_production(cfactor);
+				
 
-				/*cbuffer_t buf;
-				buf.printf("Found factory consuming good: %s, with %ld consumption.\n", fab->get_name(), monthly_cons);
-				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));*/
+				if (!fab->get_desc()->is_consumer_only()) { //account for downstream consumption and adjust this factory's effective consumption accordingly
+					uint32 output_prod = 0;
+					uint32 output_cons = 0;
+					for (auto factory_output : fab->get_output()) {
+						output_prod += get_global_production(factory_output.get_typ());
+						output_cons += get_global_consumption(factory_output.get_typ());
+					}
+					monthly_cons = (monthly_cons * output_cons) / output_prod;
+				}
+				total_cons += monthly_cons;
 			}
 		}
-
+		
 	}
-	return total_prod - total_cons;
+	return total_cons;
 }
+
 
 bool factory_builder_t::power_stations_available()
 {

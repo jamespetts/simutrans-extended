@@ -170,6 +170,18 @@ private:
 	static sint32 get_global_oversupply(const goods_desc_t* good);
 
 	/**
+	 * Counts up total production of a given good.
+	 * @returns actual amount of global production for the good
+	 */
+	static sint32 get_global_production(const goods_desc_t* good);
+
+	/**
+	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
+	 * @returns actual amount of global consumption of the good.
+	 */
+	static sint32 get_global_consumption(const goods_desc_t* good);
+
+	/**
 	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.
 	 */
 	static void find_valid_factory_pos(koord3d* pos, int* rotation, const factory_desc_t* factory_type, bool ignore_climates);
