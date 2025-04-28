@@ -1468,6 +1468,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 			}
 		}
 		else {
+			factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY);
 			consecutive_build_failures = 0;
 		}
 		consecutive_consumer_failures = 0;
