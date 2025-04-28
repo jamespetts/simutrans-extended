@@ -1443,9 +1443,9 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 										(current->get_accepts_these_goods(input_type))
 										)
 									{
-										
-										total_consumer_weight += current->get_distribution_weight();								
-										
+
+										total_consumer_weight += current->get_distribution_weight();
+
 									}
 								}
 								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods (%ld * %ld) / %ld = %ld", input_type->get_name(), available_for_consumption, total_consumer_weight, consumption_level, (available_for_consumption - consumption_level) * total_consumer_weight);
@@ -1801,7 +1801,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 							output_prod += get_global_production(factory_output.get_typ());
 							output_cons += this_cons;
 						}
-						
+
 					}
 					if (output_prod > 0) {
 						monthly_cons = (monthly_cons * output_cons) / output_prod;
@@ -1809,7 +1809,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 					else {
 						monthly_cons = 0;
 					}
-					
+
 				}
 				if (!fab->get_desc()->is_electricity_producer()) {
 					total_cons += monthly_cons;
