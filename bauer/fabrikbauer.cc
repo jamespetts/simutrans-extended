@@ -1506,11 +1506,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					}
 
 					const uint32 last_suppliers = unlinked_consumer->get_suppliers().get_count();
-					
+
 					if ((force_consumer == FILL_MISSING_ONLY && unlinked_consumer->get_desc()->get_supplier(missing_goods_index)->get_supplier_count() == 0) || force_consumer == FILL_UNDERSUPPLIED) {
 						nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player());
 					}
-					
+
 					// must rotate back?
 					if(org_rotation>=0) {
 						for (int i = 0; i < 4 && welt->get_settings().get_rotation() != org_rotation; ++i) {
