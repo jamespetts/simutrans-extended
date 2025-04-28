@@ -18,7 +18,7 @@ class player_t;
 class fabrik_t;
 
 enum density_options {
-	NEUTRAL, NO_FORCE, CONSUMER_ONLY, FILL_MISSING_ONLY
+	NEUTRAL, NO_FORCE, CONSUMER_ONLY, FILL_MISSING_ONLY, FILL_UNDERSUPPLIED
 };
 
 

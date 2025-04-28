@@ -1485,7 +1485,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	dbg->message("karte_t::init()", "Filling in missing production ...");
 	consecutive_build_failures = 0;
 	while (consecutive_build_failures < 3) {
-		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {
+		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_UNDERSUPPLIED)) {
 			consecutive_build_failures++;
 		}
 	}

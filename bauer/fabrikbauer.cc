@@ -1261,6 +1261,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	// the city growth system and taken out of this entirely. That would leave this system free to complete
 	// industry chains as needed.
 	bool force_add_consumer = force_consumer == CONSUMER_ONLY || (force_consumer == NEUTRAL && 75 > simrand(100, "factory_builder_t::increase_industry_density()"));
+	bool force_add_producer = force_consumer == FILL_MISSING_ONLY || force_consumer == FILL_UNDERSUPPLIED;
 
 	weighted_vector_tpl<const goods_desc_t*> oversupplied_goods;
 
@@ -1456,7 +1457,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								sint32 global_consumption = get_global_consumption(input_type);
 								if ((global_production - global_consumption) > 0 && global_consumption > 0) { //if global_consumption == 0, then that means the only downstream consumption of the good is from power stations and we should disregard it
 									oversupplied_goods.append_unique(input_type, (global_production * total_consumer_weight) / global_consumption);
-									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), (global_production * total_consumer_weight) / global_consumption, oversupplied_goods.get_sum_weight());
+									//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), (global_production * total_consumer_weight) / global_consumption, oversupplied_goods.get_sum_weight());
 
 								}
 								else if (global_consumption == 0) {
@@ -1480,7 +1481,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 		}
 
 		// ok, found consumer
-		if(!force_add_consumer && force_consumer == FILL_MISSING_ONLY && !unlinked_consumers.empty())
+		if(!force_add_consumer && force_add_producer && !unlinked_consumers.empty())
 		{
 			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "number of unlinked consumers: %d", unlinked_consumers.get_count());
 			for(auto unlinked_consumer : unlinked_consumers)
@@ -1505,7 +1506,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					}
 
 					const uint32 last_suppliers = unlinked_consumer->get_suppliers().get_count();
-					nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player());
+					
+					if ((force_consumer == FILL_MISSING_ONLY && unlinked_consumer->get_desc()->get_supplier(missing_goods_index)->get_supplier_count() == 0) || force_consumer == FILL_UNDERSUPPLIED) {
+						nr += build_chain_link(unlinked_consumer.fab, unlinked_consumer->get_desc(), missing_goods_index, welt->get_public_player());
+					}
+					
 					// must rotate back?
 					if(org_rotation>=0) {
 						for (int i = 0; i < 4 && welt->get_settings().get_rotation() != org_rotation; ++i) {
@@ -1534,8 +1539,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			}
 		}
 	}
-	if (force_consumer == FILL_MISSING_ONLY) { //if we've gotten here with FILL_MISSING_ONLY then there are no more undersupplied factory chains to fill in
-		DBG_MESSAGE("factory_builder_t::increase_industry_density()", "FILL_MISSING_ONLY returning 0");
+	if (force_add_producer) { //if we've gotten here with FILL_MISSING_ONLY then there are no more undersupplied factory chains to fill in
+		DBG_MESSAGE("factory_builder_t::increase_industry_density()", "Producer infill did not add any factories, returning 0");
 		return 0;
 	}
 
