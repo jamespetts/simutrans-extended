@@ -3192,7 +3192,7 @@ void fabrik_t::new_month()
 			months_missing_contracts=0;
 		}
 
-		//should close factories that were missing contracts for more than 12 months or unproductive for 60 months
+		// Should close factories that were missing contracts for more than 12 months or unproductive for 60 months (5 years)
 		if(months_unproductive>12*5 || months_missing_contracts>12){
 			welt->should_close_factories_this_month.append(this,months_unproductive+months_missing_contracts);
 		}
