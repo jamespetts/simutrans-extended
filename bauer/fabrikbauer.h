@@ -182,6 +182,13 @@ private:
 	static sint32 get_global_consumption(const goods_desc_t* good);
 
 	/**
+	 * Adjusts the consumption of a factory taking into account its downstream consumers, using the output it has the highest % consumption of.
+	 * For instance, if a factory produces 100t of good A and 80t of good B, but good A has 10t of consumption and good B has 20t, then the overall adjustment is (20/80)=25%
+	 * @returns consumption * the fraction of the factory's production that is actually used
+	 */
+	static sint32 adjust_input_consumption(const fabrik_t* factory, sint32 consumption);
+
+	/**
 	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.
 	 */
 	static void find_valid_factory_pos(koord3d* pos, int* rotation, const factory_desc_t* factory_type, bool ignore_climates);

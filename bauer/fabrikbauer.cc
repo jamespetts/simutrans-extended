@@ -974,8 +974,8 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		return 0;
 	}
 
-	// how much do we need?
-	sint32 consumption = origin_fab->get_base_production() * (supplier ? supplier->get_consumption() : 1);
+	// how much do we need? make sure to adjust for downstream consumption from our fab
+	sint32 consumption = adjust_input_consumption(origin_fab, origin_fab->get_base_production() * (supplier? supplier->get_consumption() : 1));
 
 	slist_tpl<factories_to_crossconnect_t> factories_to_correct;
 	slist_tpl<fabrik_t *> new_factories;	      // since the cross-correction must be done later
@@ -1340,41 +1340,8 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						continue;
 					}
 
-					// Check how much of this product that the current factory needs
-					consumption_level = fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1);
-
-					//adjust consumption_level for any consumers this factory is hooked up to (if applicable) since a factory with a low number of consumers won't need as many suppliers
-					if (!fab->get_desc()->is_consumer_only()) {
-						sint32 output_prod_level = 0;
-						sint32 output_consumption = 0;
-
-						for (int i = 0; i < fab->get_desc()->get_product_count(); i++) {
-							const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
-							output_prod_level += fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor();
-
-							for (auto consumer_koord : fab->get_consumers(output_type)) {
-								//for each consumer, sum up the production from competing suppliers, and add the leftover fraction to output_consumption
-								fabrik_t* consumer = fabrik_t::get_fab(consumer_koord);
-
-								if (!consumer) {
-									continue;
-								}
-								sint32 consumer_consumption = consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption();
-								sint32 competing_supplier_prod = 0;
-								for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
-									const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
-									if (competing_supplier) {
-										competing_supplier_prod += competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor();
-									}
-								}
-								output_consumption += consumer_consumption * output_prod_level / competing_supplier_prod;
-							}
-
-						}
-						if (output_consumption < output_prod_level) {
-							consumption_level = consumption_level * output_consumption / output_prod_level;
-						}
-					}
+					// Check how much of this product that the current factory needs, taking into account downstream consumers
+					consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));					
 					available_for_consumption = 0;
 
 					for(auto supplier_koord : suppliers)
@@ -1824,6 +1791,48 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 
 	}
 	return total_cons;
+}
+
+sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 consumption) {
+	//uint32 adjusted_consumption = consumption;
+
+	//adjust consumption_level for any consumers this factory is hooked up to (if applicable) since a factory with a low number of consumers won't need as many suppliers
+	if (!fab->get_desc()->is_consumer_only()) {
+		//uint32 prod = 0;
+		//uint32 cons= 0;
+		sint32 largest_adjusted = 0;
+
+		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
+			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
+			sint32 output_prod = fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor();
+			sint32 output_cons = 0;
+
+			for (auto consumer_koord : fab->get_consumers(output_type)) {
+				//for each consumer, sum up the production from competing suppliers, and add the leftover fraction to output_consumption
+				fabrik_t* consumer = fabrik_t::get_fab(consumer_koord);
+
+				if (!consumer) {
+					continue;
+				}
+				sint32 consumer_consumption = adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				sint32 competing_supplier_prod = 0;
+				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
+					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
+					if (competing_supplier) {
+						competing_supplier_prod += competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor();
+					}
+				}
+				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+			}
+			if (output_cons > output_prod) {
+				output_cons = output_prod;
+			}
+			const sint32 test_adjust = (consumption * output_cons) / output_prod;
+			largest_adjusted = max(largest_adjusted, test_adjust);
+		}
+		return largest_adjusted;	
+	}
+	return consumption;
 }
 
 
