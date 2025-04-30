@@ -1341,7 +1341,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					}
 
 					// Check how much of this product that the current factory needs, taking into account downstream consumers
-					consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));					
+					consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));
 					available_for_consumption = 0;
 
 					for(auto supplier_koord : suppliers)
@@ -1361,7 +1361,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 						{
 							// Check to see whether this existing supplier is able to supply *enough* of this product
 							const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
-							
+
 							sint64 used_output = 0;
 							for(auto competing_consumers : supplier->get_consumers(input_type))
 							{
@@ -1371,7 +1371,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 										//sum up production from alternative suppliers to the competing consumer
 										sint32 alt_supplier_prod = 0;
 										for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
-											
+
 											const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
 											alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
 										}
@@ -1835,7 +1835,7 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 			const sint32 test_adjust = (consumption * output_cons) / output_prod;
 			largest_adjusted = max(largest_adjusted, test_adjust);
 		}
-		return largest_adjusted;	
+		return largest_adjusted;
 	}
 	return consumption;
 }
