@@ -1362,7 +1362,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							// Check to see whether this existing supplier is able to supply *enough* of this product
 							const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
 
-							sint64 used_output = 0;
+							sint64 used_output = 0; //use 64 bit numbers to avoid overflow during the adjustment
 							for(auto competing_consumers : supplier->get_consumers(input_type))
 							{
 								if(const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)){
@@ -1375,10 +1375,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 											const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
 											alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
 										}
+										//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
 										used_output += ((sint64)competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()) *
 											((sint64)supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor())
 											/ (sint64)alt_supplier_prod;
-										DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
+										//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
 										//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
 										//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
 									}
@@ -1809,8 +1810,8 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 
 		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
 			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
-			sint32 output_prod = fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor();
-			sint32 output_cons = 0;
+			sint64 output_prod = (sint64)(fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor()); //use sint64 to avoid 
+			sint64 output_cons = 0;
 
 			for (auto consumer_koord : fab->get_consumers(output_type)) {
 				//for each consumer, sum up the production from competing suppliers, and add the leftover fraction to output_consumption
@@ -1819,12 +1820,12 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 				if (!consumer) {
 					continue;
 				}
-				sint32 consumer_consumption = adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
-				sint32 competing_supplier_prod = 0;
+				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				sint64 competing_supplier_prod = 0;
 				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
 					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
 					if (competing_supplier) {
-						competing_supplier_prod += competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor();
+						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor());
 					}
 				}
 				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
