@@ -57,6 +57,22 @@ public:
 	bool has_managed_lifecycle() const OVERRIDE;
 };
 
+class road_preview_t : public zeiger_t
+{
+	uint8 ribi_unmasked;
+	uint8 dir;
+	bool is_diagonal;
+	sint8 slope;
+	FLAGGED_PIXVAL outline_colour;
+
+public:
+	road_preview_t(koord3d pos, player_t* player, uint8 ribi_unmasked, uint8 dir, bool diagonal, sint8 slope, FLAGGED_PIXVAL outline_colour=0);
+
+	void display_overlay(int xpos, int ypos) const OVERRIDE;
+
+	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE { return outline_colour; }
+};
+
 #include "../gui/components/gui_schedule_item.h"
 class schedule_marker_t : public obj_no_info_t
 {
@@ -91,7 +107,7 @@ public:
 	// higilight this marker
 	void set_selected(bool yesno) { is_selected = yesno; }
 
-	void display_overlay(int xpos, int ypos) const;
+	void display_overlay(int xpos, int ypos) const OVERRIDE;
 };
 
 #endif

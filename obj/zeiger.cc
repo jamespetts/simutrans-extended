@@ -11,6 +11,7 @@
 #include "simobj.h"
 #include "../simhalt.h"
 #include "../boden/grund.h"
+#include "../boden/wege/strasse.h"
 #include "../dataobj/environment.h"
 #include "zeiger.h"
 
@@ -128,6 +129,22 @@ void zeiger_t::set_area(koord new_area, bool center, koord new_offset)
 
 bool zeiger_t::has_managed_lifecycle() const {
 	return true;
+}
+
+road_preview_t::road_preview_t(koord3d pos, player_t* player, uint8 ribi_unmasked, uint8 dir, bool diagonal, sint8 slope, FLAGGED_PIXVAL outline_colour)
+	: zeiger_t(pos, player)
+{
+	this->ribi_unmasked = ribi_unmasked;
+	this->dir = dir;
+	this->is_diagonal = diagonal;
+	this->slope= slope;
+	this->outline_colour = outline_colour;
+}
+
+void road_preview_t::display_overlay(int xpos, int ypos) const
+{
+	const int raster_width = get_current_tile_raster_width();
+	display_signal_direction_rgb(xpos + ((raster_width * 5) >> 3), ypos + ((raster_width * 5) >> 3), get_current_tile_raster_width(), ribi_unmasked, dir, 253, is_diagonal, ribi_t::all, slope);
 }
 
 
