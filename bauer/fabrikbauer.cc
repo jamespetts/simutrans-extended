@@ -1821,7 +1821,7 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 
 		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
 			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
-			sint64 output_prod = (sint64)(fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor()); //use sint64 to avoid 
+			sint64 output_prod = (sint64)(fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor()); //use sint64 to avoid
 			sint64 output_cons = 0;
 
 			for (auto consumer_koord : fab->get_consumers(output_type)) {
