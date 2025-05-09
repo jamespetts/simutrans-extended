@@ -1167,7 +1167,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 			INT_CHECK("fabrikbauer 697");
 
 			DBG_MESSAGE("factory_builder_t::build_link", "Try to built supplier %s at (%i,%i) r=%i for %s.", producer_d->get_name(), build_pos.x, build_pos.y, rotate, info->get_name());
-			new_fabs_built_count += build_link(&parent_pos, producer_d, -1 /*random prodbase */, rotate, &build_pos, player, 10000, ignore_climates);
+			new_fabs_built_count += build_link(&parent_pos, producer_d, -1 /*random prodbase */, rotate, &build_pos, player, 0, ignore_climates);
 			suppliers_found ++;
 
 			INT_CHECK( "fabrikbauer 702" );
@@ -1667,16 +1667,27 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
 								nr += build_link(&pos, consumer2, -1, rotation2, &pos2, welt->get_public_player(), 0, ignore_climates);
 
-								//cbuffer_t buf2;
-								//buf2.printf("Adding link for good2 %s with factory %s (real oversupply %ld).\n", good2->get_name(), consumer2->get_name(), get_real_oversupply(good2));
-								//welt->get_message()->add_message(buf2, pos2.get_2d(), message_t::industry, CITY_KI);
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "attempting to cross-connect consumer %s", consumer2->get_name());
+								fabrik_t* const consumer2_fab = fabrik_t::get_fab(pos2.get_2d());
+								for (int i = 0; i < consumer2->get_supplier_count(); i++) {
+									if (consumer2->get_supplier(i)->get_input_type() == good2 && nr > 0) {
+										
+										build_chain_link(consumer2_fab, consumer2_fab->get_desc(), i, welt->get_public_player(), true); //cross-connect the consumer as well
+									}
+									
+								}
 							}
-							else {
+							else if (consumer->is_consumer_only()) {
 								nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
 
-								/*cbuffer_t buf;
-								buf.printf("Adding link for good %s with factory %s (real oversupply %ld).\n", input_for_consumer->get_name(), consumer->get_name(), get_real_oversupply(input_for_consumer));
-								welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI);*/
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "attempting to cross-connect consumer %s", consumer->get_name());
+								for (int i = 0; i < consumer->get_supplier_count(); i++) {
+									if (consumer->get_supplier(i)->get_input_type() == input_for_consumer && nr > 0) {
+										fabrik_t* const consumer_fab = fabrik_t::get_fab(pos.get_2d());
+										build_chain_link(consumer_fab, consumer_fab->get_desc(), i, welt->get_public_player(), true); //cross-connect the consumer as well
+									}
+
+								}
 							}
 						}
 					}
@@ -1833,7 +1844,7 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 			if (output_cons > output_prod) {
 				output_cons = output_prod;
 			}
-			const sint32 test_adjust = (consumption * output_cons) / output_prod;
+			const sint32 test_adjust = (sint32)(((sint64)consumption * output_cons) / output_prod);
 			largest_adjusted = max(largest_adjusted, test_adjust);
 		}
 		return largest_adjusted;
