@@ -1671,10 +1671,10 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								fabrik_t* const consumer2_fab = fabrik_t::get_fab(pos2.get_2d());
 								for (int i = 0; i < consumer2->get_supplier_count(); i++) {
 									if (consumer2->get_supplier(i)->get_input_type() == good2 && nr > 0) {
-										
+
 										build_chain_link(consumer2_fab, consumer2_fab->get_desc(), i, welt->get_public_player(), true); //cross-connect the consumer as well
 									}
-									
+
 								}
 							}
 							else if (consumer->is_consumer_only()) {
