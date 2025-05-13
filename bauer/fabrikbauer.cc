@@ -1432,7 +1432,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								if ((global_production * 8) > (global_consumption * 9)) { //tolerate a little bit of oversupply
 									sint32 new_weight = max((global_production * total_consumer_weight) / max(global_consumption, 1), old_weight);
 									oversupplied_goods.append_unique(input_type, new_weight);
-									
+
 									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s (%ld/%ld ) to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), global_production, global_consumption, new_weight, oversupplied_goods.get_sum_weight());
 
 								}
