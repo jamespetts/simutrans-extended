@@ -1385,7 +1385,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 									}
 								}
 							}
-							DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
+							//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
 
 							const sint32 remaining_output = total_output_supplier - (sint32)used_output;
 
@@ -1396,7 +1396,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							else {
 								available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
 							}
-							if(available_for_consumption >= consumption_level)
+							if((available_for_consumption * 8) >= (consumption_level * 9)) //tolerate a little oversupply
 							{
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
 								missing_goods.remove(input_type);
@@ -1429,9 +1429,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								//oversupplied_goods.append(input_type, max(old_weight, ((available_for_consumption * total_consumer_weight) / consumption_level))); // Middle ground between oversupply percentage and consumer weighting
 								sint32 global_production = get_global_production(input_type);
 								sint32 global_consumption = get_global_consumption(input_type);
-								if ((global_production - global_consumption) > 0 && global_consumption > 0) { //if global_consumption == 0, then that means the only downstream consumption of the good is from power stations and we should disregard it
-									oversupplied_goods.append_unique(input_type, (global_production * total_consumer_weight) / global_consumption);
-									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), (global_production * total_consumer_weight) / global_consumption, oversupplied_goods.get_sum_weight());
+								if ((global_production * 8) > (global_consumption * 9)) { //tolerate a little bit of oversupply
+									sint32 new_weight = max((global_production * total_consumer_weight) / max(global_consumption, 1), old_weight);
+									oversupplied_goods.append_unique(input_type, new_weight);
+									
+									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s (%ld/%ld ) to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), global_production, global_consumption, new_weight, oversupplied_goods.get_sum_weight());
 
 								}
 								else if (global_consumption == 0) {
@@ -1441,7 +1443,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							}
 						}
 					} // Actual suppliers
-					if (available_for_consumption < consumption_level) {
+					if ((available_for_consumption * 9) < (consumption_level * 8)) { //tolerate a little undersupply
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
 							if(fab->get_input()[i].get_typ() == input_type){
 								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with %ld/%ld production for input %s", fab->get_name(), available_for_consumption, consumption_level, input_type->get_name());
@@ -1552,7 +1554,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	// Determine whether to fill in oversupplied goods with a consumer industry, or generate one entirely randomly
 	const goods_desc_t* input_for_consumer = NULL;
 	//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "Oversupplied goods sum weight: %ld (%s)", oversupplied_goods.get_sum_weight(), oversupplied_goods.get_sum_weight() > 0 ? "true":"false");
-	if (!oversupplied_goods.empty() && (oversupplied_goods.get_sum_weight() > 0) && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == 2))
+	if (!oversupplied_goods.empty() && (oversupplied_goods.get_sum_weight() > 0) && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == CONSUMER_ONLY))
 	{
 		for (uint16 i = 0; i < oversupplied_goods.get_count(); i++) {
 			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "oversupplied good: %s (weight %ld)", oversupplied_goods[i]->get_name(), oversupplied_goods.weight_at(i));

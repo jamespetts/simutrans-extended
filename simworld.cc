@@ -1457,6 +1457,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 
 	int consecutive_build_failures = 0;
 	int consecutive_consumer_failures = 0;
+	int consecutive_producer_failures = 0;
 
 	loadingscreen_t ls( translator::translate("distributing factories"), 16 + settings.get_city_count() * 4 + settings.get_factory_count(), true, true );
 
@@ -1467,10 +1468,16 @@ DBG_DEBUG("karte_t::init()","built timeline");
 				break;
 			}
 		}
-		else {
-			factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY);
+		else { //if we have successfully added some industry, fill in missing consumers
+			while (consecutive_consumer_failures < 3) {
+				if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {
+					consecutive_consumer_failures++;
+				}
+			}
+			consecutive_consumer_failures = 0;
 			consecutive_build_failures = 0;
 		}
+		//since we may now have new supply chains, attempt to add consumption to those
 		consecutive_consumer_failures = 0;
 		while (consecutive_consumer_failures < 3 && count_consumers() < (uint32)settings.get_factory_count()) {
 			if (!factory_builder_t::increase_industry_density(false, false, false, CONSUMER_ONLY)) {
