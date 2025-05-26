@@ -10,8 +10,17 @@
 ?-7491 -- probably; code in convoi_info.cc changed too much to tell for sure
 7492
 ||
-7501
-?-7502 -- probably superseded but need to verify
+7502
+7503 - superseded by 4dd025910bd68 (but check that that does the right thing, there are related bugs)
+7504
+||
+7514
+-- definitely not 7515.  This one is complicated.
+7516
+||
+7520
+7521 -- NO, changes to common.mk are not present (all other changes are present)
+7522 -- NO, DEFINITELY MISSING, and DEFINITELY NEEDED
 
 ***NOTES on 7494:
    -- patch for standard needed for comment in vehicle/movingobj.cc for reference to "fahrer" (now simtestdriver / testdriver_t) 
@@ -96,6 +105,7 @@
 8343
 8344 -- done by Ranran
 8345
+8351 -- committed by James in 469755fc45
 8365
 8366
 8373
@@ -276,6 +286,7 @@
 8808
 8810
 *8813 -- recheck -- reverted fef393f268edef
+8814
 8816
 ||
 8820

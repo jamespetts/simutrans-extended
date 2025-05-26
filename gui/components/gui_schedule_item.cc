@@ -89,7 +89,7 @@ void gui_colored_route_bar_t::draw(scr_coord offset)
 			}
 			break;
 		case line_style::dashed:
-			for (uint8 h=1; h+2 < size.h; h+=4) {
+			for (int h=1; h+2 < size.h; h+=4) {
 				display_fillbox_wh_clip_rgb(offset.x + offset_x+1, offset.y + h, width-2, 2, base_color, true);
 			}
 			break;

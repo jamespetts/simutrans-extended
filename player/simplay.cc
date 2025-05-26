@@ -258,6 +258,12 @@ const char* player_t::get_name() const
 
 void player_t::set_name(const char *new_name)
 {
+	if( env_t::networkmode ) {
+		cbuffer_t buf;
+		buf.printf(translator::translate("%s now known as %s."), player_name_buf, new_name);
+		welt->get_message()->add_message(buf, koord::invalid, message_t::ai, color_idx_to_rgb(player_color_1));
+	}
+
 	tstrncpy( player_name_buf, new_name, lengthof(player_name_buf) );
 
 	// update player window
@@ -592,7 +598,7 @@ void player_t::calc_assets()
 		if(  cnv->get_owner() == this  ) {
 			sint64 restwert = cnv->calc_sale_value();
 			assets[TT_ALL] += restwert;
-			assets[finance->translate_waytype_to_tt(cnv->front()->get_waytype())] += restwert;
+			assets[finance->translate_waytype_to_tt(cnv->front()->get_desc()->get_waytype())] += restwert;
 		}
 	}
 
@@ -602,7 +608,7 @@ void player_t::calc_assets()
 			for(vehicle_t* const veh : depot->get_vehicle_list()) {
 				sint64 restwert = veh->calc_sale_value();
 				assets[TT_ALL] += restwert;
-				assets[finance->translate_waytype_to_tt(veh->get_waytype())] += restwert;
+				assets[finance->translate_waytype_to_tt(veh->get_desc()->get_waytype())] += restwert;
 			}
 		}
 	}
@@ -925,8 +931,8 @@ void player_t::rdwr(loadsave_t *file)
 		if (file->is_version_ex_less(14, 64)) {
 			for (convoihandle_t const cnv : world()->convoys()) {
 				if (cnv->get_owner() == this) {
-					book_convoi_number(1, cnv->front()->get_waytype());
-					book_vehicle_number(cnv->get_vehicle_count(), cnv->front()->get_waytype());
+					book_convoi_number(1, cnv->front()->get_desc()->get_waytype());
+					book_vehicle_number(cnv->get_vehicle_count(), cnv->front()->get_desc()->get_waytype());
 				}
 			}
 

@@ -73,8 +73,12 @@
 
 uint32 weg_t::private_car_routes_currently_reading_element;
 
-// since we use 32 bit per growth steps, we use this variable to take care of the remaining sub citizen growth
-#define CITYGROWTH_PER_CITIZEN (0x0000000100000000ll)
+/**
+ * This variable is used to control the fractional precision of growth to prevent loss when quantities are small.
+ * Growth calculations use 64 bit signed integers.
+ * Although this is actually scale factor, a power of two is recommended for optimization purposes.
+ */
+static sint64 const CITYGROWTH_PER_CITIZEN = 1ll << 32; // Q31.32 fractional form.
 
 karte_ptr_t stadt_t::welt; // one is enough ...
 
@@ -1158,6 +1162,7 @@ class monument_placefinder_t : public placefinder_t {
 			}
 
 			if (gr->hat_wege() && !gr->hat_weg(road_wt)) {
+				/* Note: Standard only permits pre-existing roads on boundary tiles, Extended permits them anywhere */
 				return false;
 			}
 
@@ -1192,7 +1197,9 @@ class townhall_placefinder_t : public placefinder_t {
 		bool is_tile_ok(koord pos, koord d, climate_bits cl, uint16 allowed_regions) const OVERRIDE
 		{
 			const grund_t* gr = welt->lookup_kartenboden(pos + d);
-			if (gr == NULL  ||  gr->get_grund_hang() != slope_t::flat) return false;
+			if (gr == NULL  ||  gr->get_grund_hang() != slope_t::flat) {
+				return false;
+			}
 
 			if(  ((1 << welt->get_climate( gr->get_pos().get_2d() )) & cl) == 0  ) {
 				return false;
@@ -2123,7 +2130,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	}
 
 	// differential history
-	if (  file->is_version_less(120, 1) || (file->get_extended_version() > 0 && file->get_extended_version() < 25)) {
+	if (  file->is_version_less(120, 1) || (file->get_extended_version() > 0 && file->is_version_ex_less(14, 66))) {
 		if (file->is_loading()) {
 			// Initalize differential statistics assuming a differential of 0.
 			city_growth_get_factors(city_growth_factor_previous, 0);
@@ -2644,7 +2651,7 @@ void stadt_t::step(uint32 delta_t)
 	// is it time for the next step?
 	next_growth_step += delta_t;
 
-	while(stadt_t::city_growth_step < next_growth_step)
+	while(next_growth_step > stadt_t::city_growth_step)
 	{
 		calc_growth();
 		step_grow_city();
@@ -3858,13 +3865,10 @@ void stadt_t::check_bau_townhall(bool new_town)
 void stadt_t::check_bau_factory(bool new_town)
 {
 	uint32 const inc = welt->get_settings().get_industry_increase_every();
-	if (!new_town && inc > 0 && (uint32)bev %inc == 0)
-	{
-		uint32 div = bev / inc;
-		for (uint8 i = 0; i < 8; i++)
-		{
-			if (div == (1u<<i) && welt->get_actual_industry_density() < welt->get_target_industry_density())
-			{
+	if(  !new_town && inc > 0 && (uint32)bev % inc == 0  ) {
+		uint32 const div = bev / inc;
+		for(  uint8 i = 0; i < 8; i++  ) {
+			if(  div == (1u<<i) && welt->get_actual_industry_density() < welt->get_target_industry_density()  ) {
 				// Only add an industry if there is a need for it: if the actual industry density is less than the target density.
 				// @author: jamespetts
 				DBG_MESSAGE("stadt_t::check_bau_factory", "adding new industry at %i inhabitants.", get_einwohner());

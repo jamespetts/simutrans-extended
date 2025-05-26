@@ -78,6 +78,7 @@ _UpgradeReport_Files*
 /x64
 /zlib*
 *server*-network.sve
+makeobj/makeobj-extended*
 # Windows image file caches
 Thumbs.db
 ehthumbs.db

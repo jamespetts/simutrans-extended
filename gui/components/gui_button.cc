@@ -121,6 +121,7 @@ void button_t::set_typ(enum type t)
 			break;
 
 		case imagebox:
+			set_size( scr_size(max(get_size().w,LINESPACE), max(get_size().w,LINESPACE)) );
 			img = IMG_EMPTY;
 			break;
 
@@ -218,10 +219,7 @@ scr_size button_t::get_min_size() const
 		case imagebox: {
 			scr_coord_val x = 0, y = 0, w = 0, h = 0;
 			display_get_image_offset(img, &x, &y, &w, &h);
-			scr_size size(gui_theme_t::gui_pos_button_size);
-			size.w = max(size.w, w+4);
-			size.h = max(size.h, h+4);
-			return size;
+			return scr_size(max(get_size().w, w + 4), max(get_size().h, h + 4));
 		}
 
 		case sortarrow:

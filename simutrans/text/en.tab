@@ -6317,7 +6317,7 @@ Show route on map
 helptxt_access_minimap
 Show this line's route on the map in schematic form
 (speed_restricted_by_crossing)
-(speed restricted by a crossing)
+The speed is restricted here by a crossing, such as a ford or level crossing.
 cl_general
 General information
 pax_traffic
@@ -6778,3 +6778,19 @@ yearly_chart
 By year
 monthly_chart
 By month
+%s now known as %s.
+The board of directors of %s has passed a special resolution, changing its name to %s..
+%s founded new company %s.
+%s has incorporated a new company: %s.
+Now %s was founded.
+A new company has been incorporated: %s.
+A local entrepreneur has incorporated a new company: %s.
+A new company has been incorporated: %s.
+Now %s was founded. (Operating by Passenger-AI)
+A local entrepreneur has incorporated a new company: %s.
+(way_blocked_by_slope)
+This way is blocked by the slope (try upgrading a river to a canal or easing the slope)
+(speed_restricted_by_slope)
+The speed is restricted here by the slope
+(speed_restricted_fallback)
+The speed of this way is restricted for reasons other than the nature of the way itself; please report this as a bug

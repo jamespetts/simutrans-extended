@@ -12,9 +12,8 @@ class loadsave_t;
 
 
 /**
- * Der Blockmanager verwaltet die Blockstrecken.
- * Als singleton implementiert.
- * @see blockstrecke_t
+ * Old class to manage track reservations.
+ * Only needed to load very old savegames.
  */
 class old_blockmanager_t
 {

@@ -150,7 +150,7 @@ void convoi_info_t::init(convoihandle_t cnv)
 			tbl->set_alignment(ALIGN_CENTER_V);
 			tbl->set_spacing(scr_size(0,0));
 			{
-				new_component<gui_waytype_image_box_t>(cnv->front()->get_waytype());
+				new_component<gui_waytype_image_box_t>(cnv->front()->get_desc()->get_waytype());
 				input.add_listener(this);
 				input.set_size(input.get_min_size());
 				reset_cnv_name();
@@ -341,12 +341,16 @@ void convoi_info_t::init_cargo_info_controller()
 		cont_tab_cargo_info.add_table(2, 2)->set_spacing(scr_size(0, 0));
 		{
 			cont_tab_cargo_info.new_component_span<gui_label_t>("Sort by",2);
+			scr_coord_val min_width=D_LABEL_WIDTH;
 			for( uint8 i=0; i<gui_cargo_info_t::SORT_MODES; ++i ) {
+				min_width=max(min_width,proportional_string_width(translator::translate(sort_text[i])));
 				freight_sort_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(sort_text[i]), SYSCOL_TEXT);
 			}
 			freight_sort_selector.set_selection( env_t::default_sortmode<gui_cargo_info_t::SORT_MODES ? env_t::default_sortmode : 0 );
 			freight_sort_selector.enable(enable_cargo_detail);
 			freight_sort_selector.add_listener(this);
+			freight_sort_selector.set_width_fixed(true);
+			freight_sort_selector.set_width(min_width+D_SCROLLBAR_WIDTH+D_H_SPACE);
 			cont_tab_cargo_info.add_component(&freight_sort_selector);
 
 			sort_order.init(button_t::sortarrow_state, "");
@@ -368,6 +372,8 @@ void convoi_info_t::init_cargo_info_controller()
 			selector_ci_depth_from.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Origin stop"), SYSCOL_TEXT);
 			selector_ci_depth_from.set_selection(cargo_info_depth_from);
 			selector_ci_depth_from.add_listener(this);
+			selector_ci_depth_from.set_width_fixed(true);
+			selector_ci_depth_from.set_width(LINESPACE<<3);
 			cont_tab_cargo_info.add_component(&selector_ci_depth_from);
 
 			cont_tab_cargo_info.new_component<gui_label_t>("info_depth_to:");
@@ -377,6 +383,8 @@ void convoi_info_t::init_cargo_info_controller()
 			selector_ci_depth_to.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Destination"), SYSCOL_TEXT);
 			selector_ci_depth_to.set_selection(cargo_info_depth_to);
 			selector_ci_depth_to.add_listener(this);
+			selector_ci_depth_to.set_width_fixed(true);
+			selector_ci_depth_to.set_width(LINESPACE<<3);
 			cont_tab_cargo_info.add_component(&selector_ci_depth_to);
 		}
 		cont_tab_cargo_info.end_table();

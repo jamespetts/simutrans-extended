@@ -1,0 +1,223 @@
+# Default simutrans theme
+#
+# name of the theme (will be shown with file selector)
+name=Simutrans New (large size)
+
+# show tooltips (default 1=show)
+show_tooltips = 1
+
+# delay before showing tooltip in ms (default 500ms)
+tooltip_delay = 500
+
+# duration in ms during tooltip is visible (default 5000ms=5s)
+tooltip_duration = 5000
+
+# windows drop a little shadow (default off)
+gui_drop_shadows = 0
+
+# Color of cursor overlay, which is blended over marked ground tiles
+# The available colors and their numbers can be found on
+#    http://simutrans-germany.com/wiki/wiki/tiki-index.php?page=en_FactoryDef#mapcolor
+# Suggested values (155 is the default)
+# -- pak64, pak.german, pak128
+#cursor_overlay_color = 155
+# -- pak128.Britain
+cursor_overlay_color = 71
+
+##################################window stuff##################################
+
+# when moving, you can use windows to snap onto each other seamlessly
+# if you do not like it, set the catch radius to zero
+window_snap_distance = 12
+
+# show the windows close etc. buttons on the right (like windows 98)
+window_buttons_right = 0
+
+# closes windows/toolbar when button clicked a second time (default off=0)
+second_open_closes_win = 0
+
+# restores window position when window is reopening
+# This will be saved, but will be discarded when screen is resized
+remember_window_positions = 1
+
+# there are three different ways to indicate an active window
+
+# first: draw a frame with titlebar color around active window
+#window_frame_active = 0
+
+# second: draw the title with a dark overlay (0=none, 100=full black)
+#bottom_window_darkness = 25
+
+# The text and image of the pressed button will sink 1px down
+pressed_button_sinks = 1
+
+#################################colour stuff#################################
+
+# color used for the default titlebars
+default_window_title_color = #D74700
+
+# third (best together with 2nd):use different text color for bar
+front_window_text_color = #FFFFFF
+bottom_window_text_color = #DDDDDD
+
+# Basic text colors
+#gui_color_text           = #000000
+#gui_color_text_highlight = #005C9E
+gui_color_text_shadow    = #424952
+#gui_color_text_title     = #000000
+#gui_color_text_strong    = #000000
+#gui_color_text_minus     = #000000
+#gui_color_text_plus      = #000000
+#gui_color_text_unused    = #000000
+gui_color_empty          = #FFFFFF
+gui_color_obsolete       = #0000F8
+
+# Scroll list and edit field
+#gui_color_edit_text                        = #000000
+#gui_color_edit_text_disabled               = #000000
+#gui_color_edit_text_selected               = #000000
+#gui_color_edit_background_selected         = #000000
+# blinking cursor
+#gui_color_edit_beam                        = #000000
+
+#gui_color_list_text_selected_focus         = #000000
+#gui_color_list_text_selected_nofocus       = #000000
+gui_color_list_background_even              = #BDCBD6
+gui_color_list_background_odd               = #D6E3EF
+#gui_color_list_background_selected_focus   = #000000
+#gui_color_list_background_selected_nofocus = #000000
+
+# Button and button label
+#gui_color_button_text                  = #000000
+#gui_color_button_text_disabled         = #FAFAFA
+#gui_color_button_text_selected         = #FAFAFA
+
+#gui_color_colored_button_text          = #FAFAFA
+#gui_color_colored_button_text_selected = #FFFFFF
+
+gui_color_checkbox_text                = #000000
+gui_color_checkbox_text_disabled       = #666666
+
+# tooltip
+tooltip_background_color = #7396BD
+tooltip_text_color       = #000000
+
+# Bottom of the main window
+#gui_color_statusbar_text       = #000000
+#gui_color_statusbar_background = #72B2DD
+#gui_color_statusbar_divider    = #6095B8
+#gui_color_ticker_background    = #D6ECF7
+#gui_color_ticker_divider       = #CCCCCC
+
+# Color of load bar in loag game, load serve etc
+gui_color_loadingbar_progress = #3165BD
+#gui_color_loadingbar_inner =   #999999
+
+# indicator border color (color box, view)
+#gui_color_indicator_border_top_left     = #999999
+#gui_color_indicator_border_bottom_right = #CCCCCC
+
+# How much shade for player colors (7 brightest 0 darkest)
+gui_player_color_bright = 4
+gui_player_color_dark   = 1
+gui_titlebar_player_color_background_brightness = 1
+
+# make the chat window transparent in network games
+gui_chat_window_network_transparency = 25
+
+# if defined, use plain color for chat window in network games
+gui_color_chat_window_network_transparency = #D6ECF7
+
+# Extended unique color settings
+#gui_color_up_pointing_triangle   = #008000
+#gui_color_down_pointing_triangle = #FF0000
+#gui_color_out_of_production      = #
+# Recommended brightness: gui_color_text < gui_color_text_weak < gui_color_text_inactive   (reversed on dark themes)
+gui_color_text_inactive = #696969
+gui_color_text_weak     = #555555
+
+# Color for table
+gui_color_table_frame               = #63798c
+gui_color_table_background_head_row = #7392a5
+gui_color_table_header_border       = #63798c
+gui_color_table_cell_border         = #8c9aad
+gui_color_table_background_left_col = #cedbe7
+gui_color_table_background_data_sum = #c6d3de
+gui_color_table_background_data     = #bdcbd6
+gui_color_table_background          = #BDCBD6
+gui_color_table_background_highlight= #DEE5AD
+gui_color_text_head_row             = #ffffff
+gui_color_text_left_col             = #000000
+
+#gui_color_table_frame               = #5a829c
+#gui_color_table_background_head_row = #7392a5
+gui_color_table_background_head_selected = #73b2de
+#gui_color_table_header_border       = #5a829c
+#gui_color_table_cell_border         = #8c9aad
+#gui_color_table_background_left_col = #9cb2c6
+#gui_color_table_background_data_sum = #a5bace
+#gui_color_table_background_data     = #b1bfce
+#gui_color_table_background          = #c6d3de
+#gui_color_table_background_highlight= #DEE5AD
+gui_color_table_background_selected  = #73b2de
+#gui_color_text_head_row             = #ffffff
+#gui_color_text_left_col             = #000000
+gui_color_text_head_selected         = #ffffff
+gui_color_text_table_cell_selected   = #ffffff
+
+################################## Size settings ##################################
+# size of tools
+icon_width = 48
+
+# titlebar height
+gui_titlebar_height = 22
+#gui_gadget_width    = 22
+
+# safe margin around windows
+# gui_frame_left   = 10
+# gui_frame_top    = 10
+# gui_frame_right  = 10
+# gui_frame_bottom = 10
+
+# horizontal and vertical margins between objects
+# gui_hspace = 4
+# gui_vspace = 4
+
+# tabs must use same height from buttons
+gui_tab_header_vsize = 22
+
+# gui_label_size = 24
+
+# input boxes height
+# minimum height is the height of the position button graphic
+# gui_edit_height = 24
+
+# checkbox height, default sizes come from the checkbox graphic
+# gui_checkbox_width  = 10
+# gui_checkbox_height = 10
+
+# sum of the top and bottom margins for divider lines
+# default is twice the size of gui_vspace
+# gui_divider_vsize = 8
+
+# use the larger Button height
+gui_button_height = 22
+# for buttons with fixed widths
+#gui_button_width = 120
+
+# text offsets to move the text inside the button (left, top, right)
+gui_button_text_offset = 5,0,5
+gui_color_button_text_offset = 5,0,5
+
+# maximum size of tool bars in tools (0 = no limit)
+# if more tools than allowed by height,
+# next and prev arrows for scrolling appears
+toolbar_max_width = 0
+toolbar_max_height = 3
+
+#gui_indicator_size = (20, 8)
+
+##################################pakstuff##################################
+
+# pak with the images for this theme
+themeimages=newstandard-large.pak

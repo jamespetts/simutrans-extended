@@ -8,33 +8,38 @@
 # This file can be found in many places:
 #
 # simutrans/config/simuconf.tab (this one)
-# ~/simutrans/simuconf.tab (in the user directory, if singleuser_install == 0 or not present, first only pak-file path will be read)
-# simutrans/pakfilefolder/config/simuconf.tab
-# ~/simutrans/simuconf.tab (readed a second time, s.a.)
+# ~/simutrans/simuconf.tab (in the user directory, if not a portable (single user) installation)
+# simutrans/pakfilefolder/config/simuconf.tab (always, if present)
+# ~/simutrans/simuconf.tab (read a second time, again only if not a portable (single user) installation)
 #
-################################# Base settings ##################################
+############################### Override settings #################################
+# Use these to override the settings in a savegame with settings in your simuconf.tab file.
+#
+progdir_overrides_savegame_settings = 0
+userdir_overrides_savegame_settings = 0
+pak_overrides_savegame_settings = 0
+#
+################################ Portability settings #################################
 #
 # This simuconf.tab will be read first => we set meaningful defaults here.
 #
 # load/save the files in the users or the program directory directory? (default: 0 = user directory)
 # ATTENTION!
 # will be only used if this file is located in the program directory at config/simuconf.tab!
-singleuser_install = 0
 #
+#singleuser_install = 0
+#
+################################# Base settings ##################################
 #
 #
 # Do not delete these comment line! (Needed for installer)
 
-progdir_overrides_savegame_settings = 0
-pak_overrides_savegame_settings = 0
-userdir_overrides_savegame_settings = 0
-
-# Default pak file path
-# which graphics you want to play?
+# Default pak file path - which graphics set you want to play with?
 # Nothing means automatic selection
+#
 # ATTENTION!
-# This will be only used if this file is located in the program directory at config/simuconf.tab!
-# simutrans/simuconf.tab in the user directory
+# This value will be only used if this file is located in the data directory at config/simuconf.tab
+# and will be overwritten by the the settings from simutrans/simuconf.tab in the user directory.
 #
 #pak_file_path = pak/
 #pak_file_path = pak.german/
@@ -42,6 +47,8 @@ userdir_overrides_savegame_settings = 0
 #pak_file_path = pak.japan/
 #pak_file_path = pak.winter/
 #pak_file_path = pak.ttd/
+#
+################################# Routing settings f##################################
 
 # The maximum number of position tested during a way search
 # Consumes 16*x Bytes main memory, where x is the "max_route_steps" value.

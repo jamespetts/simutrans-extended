@@ -1296,7 +1296,7 @@ public:
 	player_t* get_active_player() const { return active_player; }
 	uint8 get_active_player_nr() const { return active_player_nr; }
 	void switch_active_player(uint8 nr, bool silent);
-	const char *init_new_player( uint8 nr, uint8 type );
+	const char *init_new_player( uint8 nr, uint8 type, bool new_world=true );
 	void store_player_password_hash( uint8 player_nr, const pwd_hash_t& hash );
 	const pwd_hash_t& get_player_password_hash( uint8 player_nr ) const { return player_password_hash[player_nr]; }
 	void clear_player_password_hashes();

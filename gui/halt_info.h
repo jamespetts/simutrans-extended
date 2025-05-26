@@ -146,11 +146,6 @@ private:
 	gui_image_t img_enable[2];
 	gui_halt_type_images_t *img_types;
 	gui_combobox_t db_mode_selector;
-	/**
-	* Buffer for freight info text string.
-	*/
-	cbuffer_t tooltip_buf;
-	gui_label_buf_t joined_buf;
 
 	// departure stuff (departure and arrival times display)
 	class dest_info_t {

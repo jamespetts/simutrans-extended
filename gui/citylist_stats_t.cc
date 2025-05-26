@@ -490,9 +490,6 @@ void citylist_stats_t::recalc_wold_max()
 	if (world_max_value<200) {
 		world_max_value = L_MAX_GRAPH_WIDTH;
 	}
-	if (display_mode == mail_traffic) {
-		dbg->warning("ranran_t::", "world mail max %u", world_max_value);
-	}
 
 	return;
 }

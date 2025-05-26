@@ -514,6 +514,7 @@ void city_info_t::update_labels()
 		lb_allow_growth.set_image(skinverwaltung_t::alerts ? (city->get_citygrowth() ? IMG_EMPTY : skinverwaltung_t::alerts->get_image_id(2)) : IMG_EMPTY);
 		lb_allow_growth.update();
 	}
+	bt_city_factories.enable(city->get_city_factories().get_count());
 	resize(scr_size(0,0));
 }
 

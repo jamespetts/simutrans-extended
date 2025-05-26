@@ -652,16 +652,21 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 			// top left
 			add_table(1,3)->set_margin(scr_size(D_MARGIN_LEFT,0), scr_size(0,0));
 			{
-				cont_convoi.set_table_layout(2,2);
-				cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
-				cont_convoi.set_spacing(scr_size(0,0));
-				cont_convoi.add_component(&convoi);
-				lb_makeup.init("Select vehicles to make up a convoy", scr_coord(0,0), SYSCOL_TEXT_INACTIVE, gui_label_t::centered);
-				cont_convoi.add_component(&lb_makeup);
-				cont_convoi.new_component<gui_margin_t>(0,D_SCROLLBAR_HEIGHT);
-				convoi.set_max_rows(1);
-				scrollx_convoi.set_maximize(true);
-				add_component(&scrollx_convoi);
+				add_table(2,1);
+				{
+					cont_convoi.set_table_layout(2,1);
+					cont_convoi.set_margin(scr_size(0,0), scr_size(get_grid(wt).x/2,0));
+					cont_convoi.set_spacing(scr_size(0,0));
+					cont_convoi.add_component(&convoi);
+					lb_makeup.init("Select vehicles to make up a convoy", scr_coord(0,0), SYSCOL_TEXT_INACTIVE, gui_label_t::centered);
+					cont_convoi.add_component(&lb_makeup);
+					convoi.set_max_rows(1);
+					scrollx_convoi.set_maximize(true);
+					add_component(&scrollx_convoi);
+
+					new_component<gui_margin_t>(0, get_grid(wt).y+8);
+				}
+				end_table();
 
 				// convoy length
 				add_table(5,1);
@@ -893,7 +898,6 @@ void gui_convoy_assembler_t::init(waytype_t wt, signed char player_nr, bool elec
 		scrolly_electrics.set_min_height(scr_min_h);
 		scrolly_locos.set_min_height(scr_min_h);
 		scrolly_waggons.set_min_height(scr_min_h);
-		scrollx_convoi.set_min_height(scr_min_h+D_SCROLLBAR_WIDTH);
 		set_size(get_min_size());
 		gui_image_list_t* ilists[] = { &convoi, &pas, &pas2, &electrics, &locos, &waggons };
 		for (uint32 i = 0; i < lengthof(ilists); i++) {

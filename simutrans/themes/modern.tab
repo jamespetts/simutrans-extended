@@ -78,9 +78,11 @@ gui_color_chart_lines_zero = #005C9E
 gui_color_chart_lines_odd = #338FCC
 gui_color_chart_lines_even = #005C9E
 
-gui_color_list_text_selected_focus = #FAFAFA
-gui_color_list_text_selected_nofocus = #FAFAFA
-gui_color_list_background_selected_focus = #72B2DD
+gui_color_list_text_selected_focus         = #FAFAFA
+gui_color_list_text_selected_nofocus       = #FAFAFA
+gui_color_list_background_even             = #B5DBEF
+gui_color_list_background_odd              = #DEF3FF
+gui_color_list_background_selected_focus   = #72B2DD
 gui_color_list_background_selected_nofocus = #72B2DD
 
 gui_color_button_text = #FAFAFA
@@ -130,16 +132,24 @@ gui_chat_window_network_transparency = 0
 gui_color_chat_window_network_transparency = #D6ECF7
 
 # Color for table
-gui_color_table_header_border       = #52799C
-gui_color_table_frame               = #6392BD
-gui_color_table_background_head_row = #6392BD
-gui_color_table_cell_border         = #8CC3E7
-gui_color_table_background_left_col = #9CCFEF
-gui_color_table_background_data_sum = #B5D7EF
-gui_color_table_background_data     = #C6E3F7
-gui_color_table_background          = #E7F3FF
-gui_color_text_head_row             = #FFFFFF
-gui_color_text_left_col             = #000000
+gui_color_table_frame                = #6392BD
+gui_color_table_background_head_row  = #6392BD
+gui_color_table_background_head_selected = #31596B
+gui_color_table_header_border        = #52799C
+gui_color_table_cell_border          = #8CC3E7
+gui_color_table_background_left_col  = #8CC3E7
+gui_color_table_background_data_sum  = #ABD3EF
+gui_color_table_background_data      = #C6E3F7
+gui_color_table_background           = #E7F3FF
+gui_color_table_background_highlight = #DEE5AD
+gui_color_table_background_selected  = #73b2de
+gui_color_text_head_row              = #FFFFFF
+gui_color_text_left_col              = #000000
+gui_color_text_head_selected         = #ffffff
+gui_color_text_table_cell_selected   = #ffffff
+
+# Chart button
+gui_color_chart_button_background = #99ddff
 
 ##################################size stuff##################################
 

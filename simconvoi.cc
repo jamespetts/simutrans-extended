@@ -899,7 +899,7 @@ void convoi_t::increment_odometer(uint32 steps)
 
 	const sint64 km = steps_since_last_odometer_increment / welt->get_settings().get_steps_per_km();
 	book( km, CONVOI_DISTANCE );
-	owner->book_convoy_distance(km, front()->get_waytype(), vehicle_count);
+	owner->book_convoy_distance(km, front()->get_desc()->get_waytype(), vehicle_count);
 	total_distance_traveled += km;
 	steps_since_last_odometer_increment -= km * steps_since_last_odometer_increment;
 	koord3d pos = koord3d::invalid;
@@ -5426,7 +5426,7 @@ void convoi_t::rdwr(loadsave_t *file)
 		checked_tile_this_step.rdwr(file);
 	}
 	if (file->is_version_ex_less(14, 64)) {
-		owner->book_convoy_distance(financial_history[0][CONVOI_DISTANCE], front()->get_waytype(), vehicle_count);
+		owner->book_convoy_distance(financial_history[0][CONVOI_DISTANCE], front()->get_desc()->get_waytype(), vehicle_count);
 	}
 
 	if (file->get_extended_version() >= 15)

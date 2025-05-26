@@ -146,7 +146,8 @@ void gui_chart_t::draw(scr_coord offset)
 	}
 	int tmpx, factor;
 	if(  left_to_right_graph  ) {
-		tmpx = offset.x + chart_size.w - chart_size.w % (x_elements - 1);
+		const int xoff = x_elements>1 ? chart_size.w % (x_elements - 1) : 0;
+		tmpx = offset.x + chart_size.w - xoff;
 		factor = -1;
 	}
 	else {
@@ -176,7 +177,7 @@ void gui_chart_t::draw(scr_coord offset)
 	scr_coord_val x_last = 0;  // remember last digit position to avoid overwriting by next label
 	for(  int i = 0;  i < x_elements;  i++  ) {
 		const int j = left_to_right_graph ? x_elements - 1 - i : i;
-		const scr_coord_val x0 = tmpx + factor * (chart_size.w / (x_elements - 1) ) * j;
+		const scr_coord_val x0 = x_elements>1 ? tmpx + factor * (chart_size.w / (x_elements - 1) ) * j : 0;
 		const bool highlighted = highlight_x<0 ? false : left_to_right_graph ? highlight_x==x_elements-1-i : highlight_x == i;
 		const PIXVAL line_color = highlighted ? SYSCOL_TEXT_STRONG : (i%2) ? SYSCOL_CHART_LINES_ODD : SYSCOL_CHART_LINES_EVEN;
 		if(  show_x_axis  ) {
@@ -226,7 +227,7 @@ void gui_chart_t::draw(scr_coord offset)
 
 				// display marker(box) for financial value
 				if (i < end) {
-					scr_coord_val x = tmpx + factor * (chart_size.w / (x_elements - 1))*(i - start) - 2;
+					scr_coord_val x = x_elements>1 ? tmpx + factor * (chart_size.w / (x_elements-1))*(i - start) - 2 : 0;
 					scr_coord_val y = (scr_coord_val)(offset.y + baseline - (long)(tmp / scale) - 2);
 					switch (c.marker_type)
 					{
