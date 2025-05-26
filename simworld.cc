@@ -1456,22 +1456,46 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	factory_builder_t::new_world();
 
 	int consecutive_build_failures = 0;
+	int consecutive_consumer_failures = 0;
+	int consecutive_producer_failures = 0;
 
 	loadingscreen_t ls( translator::translate("distributing factories"), 16 + settings.get_city_count() * 4 + settings.get_factory_count(), true, true );
 
-	while(  fab_list.get_count() < (uint32)settings.get_factory_count()  ) {
-		if(  !factory_builder_t::increase_industry_density( false, false, false, 1 )  ) {
+	while (count_consumers() < (uint32)settings.get_factory_count()) {
+		if(  !factory_builder_t::increase_industry_density( false, false, false, NO_FORCE)  ) {
 			if(  ++consecutive_build_failures > 3  ) {
 				// Industry chain building starts failing consecutively as map approaches full.
 				break;
 			}
 		}
-		else {
+		else { //if we have successfully added some industry, fill in missing consumers
+			while (consecutive_consumer_failures < 3) {
+				if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {
+					consecutive_consumer_failures++;
+				}
+			}
+			consecutive_consumer_failures = 0;
 			consecutive_build_failures = 0;
+		}
+		//since we may now have new supply chains, attempt to add consumption to those
+		consecutive_consumer_failures = 0;
+		while (consecutive_consumer_failures < 3 && count_consumers() < (uint32)settings.get_factory_count()) {
+			if (!factory_builder_t::increase_industry_density(false, false, false, CONSUMER_ONLY)) {
+				++consecutive_consumer_failures;
+			}
+			else {
+				consecutive_consumer_failures = 0;
+			}
 		}
 		ls.set_progress( 16 + settings.get_city_count() * 4 + min(fab_list.get_count(),settings.get_factory_count()) );
 	}
-
+	dbg->message("karte_t::init()", "Filling in missing production ...");
+	consecutive_build_failures = 0;
+	while (consecutive_build_failures < 3) {
+		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_UNDERSUPPLIED)) {
+			consecutive_build_failures++;
+		}
+	}
 	settings.set_factory_count( fab_list.get_count() );
 	finance_history_year[0][WORLD_FACTORIES] = finance_history_month[0][WORLD_FACTORIES] = fab_list.get_count();
 
@@ -1533,9 +1557,13 @@ DBG_DEBUG("karte_t::init()","built timeline");
 			// Power stations are excluded from the target weight:
 			// a different system is used for them.
 			weight = factory_type->get_distribution_weight();
-			actual_industry_density += (100 / weight);
+			//actual_industry_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				actual_industry_density += (100 / weight);
+			}
 		}
 	}
+	dbg->message("karte_t::init()", "Total industry density: %ld ", actual_industry_density);
 	// The population is not counted at this point, so cannot set this here.
 	industry_density_proportion = 0;
 
@@ -1548,6 +1576,15 @@ DBG_DEBUG("karte_t::init()","built timeline");
 #else
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[1];
 #endif
+}
+
+uint32 karte_t::count_consumers() {
+	uint32 count = 0;
+	for (fabrik_t* fab : fab_list) {
+		if (fab->get_desc()->is_consumer_only())
+			count++;
+	}
+	return count;
 }
 
 void karte_t::recalc_passenger_destination_weights()
@@ -4610,14 +4647,23 @@ void karte_t::new_month()
 	}
 	const uint32 target_industry_density = get_target_industry_density();
 	uint32 count = 0;
-	while(actual_industry_density < target_industry_density && count < 8)
+	DBG_MESSAGE("karte_t::new_month()", "Target industry density: %i, actual industry density: %i", target_industry_density, actual_industry_density);
+	while(actual_industry_density < target_industry_density && count < 4)
 	{
 		// Only add up to four chains per month, and randomise (with a minimum of 8% distribution_weight to ensure that any industry deficiency is, on average, remedied in about a year).
 		const uint32 percentage = max((((target_industry_density - actual_industry_density) * 100u) / target_industry_density), 8u);
 		const uint32 distribution_weight = simrand(100u, "void karte_t::new_month()");
 		if(distribution_weight < percentage)
 		{
-			factory_builder_t::increase_industry_density(true, true);
+			if (!factory_builder_t::increase_industry_density(true, true, false, CONSUMER_ONLY)) { //first try to add consumers, if it fails then add new industry chain
+				factory_builder_t::increase_industry_density(true, true, false, NEUTRAL);
+			}
+			int fill_missing_fails = 0;
+			while (fill_missing_fails < 3) {
+				if (!factory_builder_t::increase_industry_density(true, false, false, FILL_MISSING_ONLY)) {
+					fill_missing_fails++;
+				}
+			}
 		}
 		count++;
 	}
@@ -4646,7 +4692,7 @@ void karte_t::new_month()
 		// Add industries if there is a shortage of electricity - power stations will be built.
 		// Also, check whether power stations are available, or else large quantities of other industries will
 		// be built instead every month.
-		factory_builder_t::increase_industry_density(true, true, true, 1);
+		factory_builder_t::increase_industry_density(true, true, true, NO_FORCE);
 	}
 
 	INT_CHECK("simworld 3130");
@@ -9416,7 +9462,10 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 				// Power stations are excluded from the target weight:
 				// a different system is used for them.
 				weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
-				actual_industry_density += (100 / weight);
+				//actual_industry_density += (100 / weight);
+				if (factory_type->is_consumer_only()) {
+					actual_industry_density += (100 / weight);
+				}
 			}
 		}
 		industry_density_proportion = ((sint64)actual_industry_density * 10000ll) / finance_history_month[0][WORLD_CITIZENS];
