@@ -3872,7 +3872,17 @@ void stadt_t::check_bau_factory(bool new_town)
 				// Only add an industry if there is a need for it: if the actual industry density is less than the target density.
 				// @author: jamespetts
 				DBG_MESSAGE("stadt_t::check_bau_factory", "adding new industry at %i inhabitants.", get_einwohner());
-				factory_builder_t::increase_industry_density( true, true, false, 2 );
+				if (!factory_builder_t::increase_industry_density(true, true, false, CONSUMER_ONLY)) {
+					factory_builder_t::increase_industry_density(true, true, false, NEUTRAL);
+				}
+				int fill_missing_fails = 0;
+				while (fill_missing_fails < 3) {
+					if (!factory_builder_t::increase_industry_density(true, false, false, FILL_MISSING_ONLY)) {
+						fill_missing_fails++;
+					}
+				}
+
+
 			}
 		}
 	}

@@ -2233,6 +2233,10 @@ public:
 	bool can_flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false);
 	bool flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false, bool justcheck=false);
 
+private:
+	//count the number of consumer-only industries we have
+	uint32 count_consumers();
+
 public:
 
 	// the convois are also handled each step => thus we keep track of them too

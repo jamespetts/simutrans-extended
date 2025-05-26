@@ -1085,7 +1085,10 @@ fabrik_t::~fabrik_t()
 
 		if (desc != NULL)
 		{
-			welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			//welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			if (desc->is_consumer_only()) {
+				welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			}
 		}
 
 		// Disconnect this factory from all chains.
@@ -1796,7 +1799,10 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 	if(  file->is_version_less(110, 6) && file->get_extended_version() < 9  ) {
 		// Necessary to ensure that the industry density is correct after re-loading a game.
-		welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		//welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		if (desc->is_consumer_only()) {
+			welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		}
 	}
 
 	if(  file->is_version_atleast(110, 5)  ) {
@@ -3186,7 +3192,7 @@ void fabrik_t::new_month()
 			months_missing_contracts=0;
 		}
 
-		//should close factories that were missing contracts for more than 12 months or unproductive for 60 months
+		// Should close factories that were missing contracts for more than 12 months or unproductive for 60 months (5 years)
 		if(months_unproductive>12*5 || months_missing_contracts>12){
 			welt->should_close_factories_this_month.append(this,months_unproductive+months_missing_contracts);
 		}
@@ -3267,7 +3273,7 @@ void fabrik_t::new_month()
 				   new_fab->get_building()->get_size() == desc->get_building()->get_size() &&
 				   new_fab->get_building()->get_intro_year_month() <= timeline_month &&
 				   new_fab->get_building()->get_retire_year_month() >= timeline_month &&
-					adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())))
+					(adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())) || !desc->is_consumer_only()))
 				{
 					upgrade_list.append_unique(new_fab);
 				}
@@ -3313,7 +3319,10 @@ void fabrik_t::new_month()
 
 					const int old_distributionweight = desc->get_distribution_weight();
 					const factory_desc_t* new_type = upgrade_list[distribution_weight];
-					welt->decrease_actual_industry_density(100 / old_distributionweight);
+					//welt->decrease_actual_industry_density(100 / old_distributionweight);
+					if (desc->is_consumer_only()) {
+						welt->decrease_actual_industry_density(100 /desc->get_distribution_weight());
+					}
 					uint32 percentage = new_type->get_field_group() ? (new_type->get_field_group()->get_max_fields() * 100) / desc->get_field_group()->get_max_fields() : 0;
 					const uint16 adjusted_number_of_fields = percentage ? (fields.get_count() * percentage) / 100 : 0;
 					delete_all_fields();
@@ -3508,7 +3517,10 @@ void fabrik_t::new_month()
 						update_scaled_mail_demand();
 						update_prodfactor_pax();
 						update_prodfactor_mail();
-						welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						//welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						if (new_type->is_consumer_only()) {
+							welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						}
 						// Message to tell players about upgrade, preferably with city name
 						if(city) {
 							sprintf(buf, translator::translate("Industry: %s in %s has been upgraded to industry: %s."), translator::translate(old_name), city->get_name(), translator::translate(new_name));
