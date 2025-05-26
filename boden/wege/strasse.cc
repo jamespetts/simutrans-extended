@@ -231,7 +231,7 @@ void strasse_t::rotate90() {
 
 void strasse_t::display_overlay(int xpos, int ypos) const
 {
-	if (!skinverwaltung_t::ribi_arrow  &&  show_masked_ribi && overtaking_mode <= oneway_mode) {
+	if (show_masked_ribi && overtaking_mode <= oneway_mode) {
 		const int raster_width = get_current_tile_raster_width();
 		const grund_t* gr = welt->lookup(get_pos());
 		uint8 dir = get_ribi() ? ribi_t::backward(get_ribi()):0;
