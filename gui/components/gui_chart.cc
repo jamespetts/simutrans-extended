@@ -263,7 +263,7 @@ void gui_chart_t::draw(scr_coord offset)
 				// display tooltip?
 				if(i==tooltip_n  &&  abs((int)(baseline-(int)(tmp/scale)-tooltipcoord.y))<10) {
 					if (c.type == TIME) {
-						world()->sprintf_time_secs(tooltip, sizeof(tooltip), display_tmp);
+						world()->sprintf_time_secs(tooltip, sizeof(tooltip), display_tmp, env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY);
 					}
 					else {
 						number_to_string(tooltip, display_tmp, c.precision);
@@ -360,8 +360,8 @@ void gui_chart_t::calc_gui_chart_values(sint64 *baseline, double *scale, char *c
 	}
 
 	if (convert_time) {
-		world()->sprintf_time_secs(cmin, 32, (uint32)min);
-		world()->sprintf_time_secs(cmax, 32, (uint32)max);
+		world()->sprintf_time_secs(cmin, 32, (uint32)min, env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY);
+		world()->sprintf_time_secs(cmax, 32, (uint32)max, env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY);
 	}
 	else {
 		// if accel chart => Drawing accuracy hack: simspeed to integer km/h. (Do not rewrite min max for scaling)
