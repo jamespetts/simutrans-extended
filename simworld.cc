@@ -9238,6 +9238,10 @@ void karte_t::recalc_idp() {
 		}
 	}
 
+	if (industry_density_proportion = 0) {
+		industry_density_proportion = ((sint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+	}
+
 	sint32 total_prod = 0;
 	sint32 total_cons = 0;
 
