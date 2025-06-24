@@ -9209,6 +9209,88 @@ void karte_t::clear_all_checklists()
 	clear_checklist_debug_sums();
 }
 
+// Reconstruct the industry density proportion.
+// @author: jamespetts, martin509
+// Loading a game - must set this to zero here and recalculate.
+void karte_t::recalc_idp() {
+	uint32 consumer_density = 0;
+	uint32 old_density = 0;
+	uint32 weight;
+	vector_tpl<const goods_desc_t*> goods_list; //list of goods that have consumer-only industries that accept them
+
+	FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+	{
+		const factory_desc_t* factory_type = factory->get_desc();
+		if (!factory_type->is_electricity_producer())
+		{
+			// Power stations are excluded from the target weight:
+			// a different system is used for them.
+			weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
+			old_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				consumer_density += (100 / weight);
+				for (uint32 i = 0; i < factory->get_input().get_count(); i++) {
+					if (factory->get_input().get_count() > 0) {
+						goods_list.append_unique(factory->get_input()[i].get_typ());
+					}
+				}
+			}
+		}
+	}
+
+	sint32 total_prod = 0;
+	sint32 total_cons = 0;
+
+	//get the average overproduction of inputs for consumers in the world for every single 'final' good
+	for (auto const good : goods_list) {
+		sint32 global_good_prod = factory_builder_t::get_global_production(good);
+		if (global_good_prod > 0) {
+			total_prod += global_good_prod;
+			total_cons += factory_builder_t::get_global_consumption(good);
+		}
+		
+	}
+	uint32 average_overproduction = (uint32)((sint64)total_prod*100) / ((sint64)total_cons);
+
+	sint32 target_density = (consumer_density * average_overproduction) / 100;
+
+	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
+	target_density = ((industry_density_proportion - difference) * target_density) / industry_density_proportion;
+
+	industry_density_proportion = min(industry_density_proportion - difference, ((sint64) target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS]);
+	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
+	
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "actual industry density %ld / world population %ld", ((sint64)target_density * 1000000ll), finance_history_month[0][WORLD_CITIZENS]);
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "industry density proportion recalculated to be: %ld", industry_density_proportion);
+}
+
+void karte_t::recalc_actual_density() {
+
+	DBG_MESSAGE("karte_t::recalc_actual_density()", "recalculating actual industry density");
+
+	actual_industry_density = 0;
+	uint32 old_method_density = 0;
+	uint32 weight;
+
+	FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+	{
+		const factory_desc_t* factory_type = factory->get_desc();
+		if (!factory_type->is_electricity_producer())
+		{
+			// Power stations are excluded from the target weight:
+			// a different system is used for them.
+			weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
+			//actual_industry_density += (100 / weight);
+			old_method_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				actual_industry_density += (100 / weight);
+			}
+		}
+	}
+	DBG_MESSAGE("karte_t::recalc_actual_density()", "old-method industry density: %ld, new industry density: %ld", old_method_density, actual_industry_density);
+}
+
 void karte_t::load(loadsave_t *file)
 {
 	if(  env_t::networkmode  ) {
@@ -9433,11 +9515,22 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		double old_proportion = industry_density_proportion / 10000.0;
 		file->rdwr_double(old_proportion);
 		industry_density_proportion = old_proportion * 10000.0;
+		DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+		//industry_density_proportion = industry_density_proportion / 10;
+		recalc_idp();
 	}
 	else if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
-		if(file->get_extended_version() >= 11)
+		if(file->get_extended_version() >= 11 && file->get_extended_revision() >= 67)
 		{
 			file->rdwr_long(industry_density_proportion);
+			
+		}
+		else if (file->get_extended_revision() < 67) {
+
+			file->rdwr_long(industry_density_proportion);
+			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+			//industry_density_proportion = industry_density_proportion / 10;
+			recalc_idp();
 		}
 		else
 		{
@@ -9445,30 +9538,17 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			file->rdwr_long(idp);
 			idp = (idp & 0x8000) != 0 ? idp & 0x7FFF : idp * 150;
 			industry_density_proportion = idp;
+			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+			//industry_density_proportion = industry_density_proportion / 10;
+			recalc_idp();
 		}
 	}
 	else if(file->is_loading())
 	{
-		// Reconstruct the actual industry density.
-		// @author: jamespetts
-		// Loading a game - must set this to zero here and recalculate.
-		actual_industry_density = 0;
-		uint32 weight;
-		FOR(vector_tpl<fabrik_t*>, factory, fab_list)
-		{
-			const factory_desc_t* factory_type = factory->get_desc();
-			if(!factory_type->is_electricity_producer())
-			{
-				// Power stations are excluded from the target weight:
-				// a different system is used for them.
-				weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
-				//actual_industry_density += (100 / weight);
-				if (factory_type->is_consumer_only()) {
-					actual_industry_density += (100 / weight);
-				}
-			}
-		}
-		industry_density_proportion = ((sint64)actual_industry_density * 10000ll) / finance_history_month[0][WORLD_CITIZENS];
+		recalc_idp();
+	}
+	if (file->is_loading() && industry_density_proportion == 0) {
+		recalc_idp();
 	}
 
 	if(  file->get_extended_version() >=9 && file->is_version_atleast(110, 0)  ) {
@@ -9512,15 +9592,18 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			}
 		}
 		file->rdwr_long(max_road_check_depth);
-		if(file->get_extended_version() < 10)
+		if (file->get_extended_version() < 10)
 		{
 			double old_density = actual_industry_density / 100.0;
 			file->rdwr_double(old_density);
 			actual_industry_density = old_density * 100.0;
 		}
-		else
+		else 
 		{
 			file->rdwr_long(actual_industry_density);
+			if (file->get_extended_revision() < 67) {
+				recalc_actual_density();
+			}
 		}
 		if(  fab_list.empty() && file->is_version_less(111, 1)  ) {
 			// Correct some older saved games where the actual industry density was over-stated.

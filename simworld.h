@@ -676,6 +676,17 @@ private:
 	 * Internal saving method.
 	 */
 	void save(loadsave_t *file, bool silent);
+
+	/*
+	* Called by load() to recalculate industry density.
+	*/
+	void recalc_idp();
+
+	/*
+	* Called by load to recalculate actual industry density.
+	*/
+	void recalc_actual_density();
+
 public:
 	/**
 	 * Internal loading method.

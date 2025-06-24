@@ -135,6 +135,24 @@ public:
 
 	static bool power_stations_available();
 
+	/**
+	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
+	 * @returns actual amount of global production minus actual amount of global consumption of the good.
+	 */
+	static sint32 get_global_oversupply(const goods_desc_t* good);
+
+	/**
+	 * Counts up total production of a given good.
+	 * @returns actual amount of global production for the good
+	 */
+	static sint32 get_global_production(const goods_desc_t* good);
+
+	/**
+	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
+	 * @returns actual amount of global consumption of the good.
+	 */
+	static sint32 get_global_consumption(const goods_desc_t* good);
+
 private:
 	/**
 	 * Checks if the site at @p pos is suitable for construction.
@@ -162,24 +180,6 @@ private:
 	 * @returns true if all factories in this tree can be rotated.
 	 */
 	static bool can_factory_tree_rotate( const factory_desc_t *desc );
-
-	/**
-	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
-	 * @returns actual amount of global production minus actual amount of global consumption of the good.
-	 */
-	static sint32 get_global_oversupply(const goods_desc_t* good);
-
-	/**
-	 * Counts up total production of a given good.
-	 * @returns actual amount of global production for the good
-	 */
-	static sint32 get_global_production(const goods_desc_t* good);
-
-	/**
-	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
-	 * @returns actual amount of global consumption of the good.
-	 */
-	static sint32 get_global_consumption(const goods_desc_t* good);
 
 	/**
 	 * Adjusts the consumption of a factory taking into account its downstream consumers, using the output it has the highest % consumption of.
