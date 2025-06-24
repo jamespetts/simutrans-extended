@@ -1564,13 +1564,20 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			const goods_desc_t* new_input = oversupplied_goods.at_weight(pick);
 			if(get_global_oversupply(new_input) > 0){
-				if (force_consumer == CONSUMER_ONLY && get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input, false)) {
-					input_for_consumer = new_input;
+				if (force_consumer == CONSUMER_ONLY) {
+					if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input, false)){
+						input_for_consumer = new_input;
+						break;
+					}
+					else if (tries <= 3 && get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input)) {
+						input_for_consumer = new_input;
+						break;
+					}
 				}
-				else if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(),new_input) ){
+				else if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input)) {
 					input_for_consumer = new_input;
+					break;
 				}
-				break;
 			}
 			tries--;
 		}
@@ -1609,6 +1616,23 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const goods_desc_t* good2 = NULL;
 			if(consumer)
 			{
+				//when adding manufacturers, we need to avoid adding new manufacturer types when existing manufacturers are underconsumed
+				//therefore: check if this manufacturer does not already exist in-world, and if so, check if there is already a consumer for input_for_consumer that exists and is underconsumed
+				bool fabtype_exists = false;
+				for (fabrik_t* fab : welt->get_fab_list()) {
+					if (fab->get_desc() == consumer) {
+						fabtype_exists = true;
+					}
+				}
+				if (!fabtype_exists) { //retry so we get a new consumer
+					if (force_consumer == CONSUMER_ONLY) {
+						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer, false);
+					}
+					else {
+						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
+					}
+				}
+
 				DBG_MESSAGE("factory_builder_t::increase_industry_density()", "chose random consumer %s", consumer->get_name());
 				if (!consumer->is_consumer_only()) { //logic for making new manufacturers
 					//first we check if this consumer is making a good that is already overproduced, if so we just add a new consumer for that good (to prevent adding multiple undercapacity factories)
