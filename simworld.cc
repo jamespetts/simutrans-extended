@@ -9252,7 +9252,7 @@ void karte_t::recalc_idp() {
 			total_prod += global_good_prod;
 			total_cons += factory_builder_t::get_global_consumption(good);
 		}
-		
+
 	}
 	uint32 average_overproduction = (uint32)((sint64)total_prod*100) / ((sint64)total_cons);
 
@@ -9263,7 +9263,7 @@ void karte_t::recalc_idp() {
 
 	industry_density_proportion = min(industry_density_proportion - difference, ((sint64) target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS]);
 	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
-	
+
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "actual industry density %ld / world population %ld", ((sint64)target_density * 1000000ll), finance_history_month[0][WORLD_CITIZENS]);
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "industry density proportion recalculated to be: %ld", industry_density_proportion);
@@ -9527,7 +9527,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		if(file->get_extended_version() >= 11 && file->get_extended_revision() >= 67)
 		{
 			file->rdwr_long(industry_density_proportion);
-			
+
 		}
 		else if (file->get_extended_revision() < 67) {
 
@@ -9602,7 +9602,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			file->rdwr_double(old_density);
 			actual_industry_density = old_density * 100.0;
 		}
-		else 
+		else
 		{
 			file->rdwr_long(actual_industry_density);
 			if (file->get_extended_revision() < 67) {
