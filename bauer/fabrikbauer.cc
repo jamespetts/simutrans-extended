@@ -1069,7 +1069,12 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 						if(welt->get_settings().using_fab_contracts()){
 							production_left-=fab->get_output(ware)->get_total_contracts();
 						}else{
-							for(auto const & consumer_pos : fab->get_consumers()) {
+							production_left = adjust_input_consumption(fab, fab->get_base_production() * product_desc->get_factor());
+
+							//As it turns out, all of the below is redundant and drastically overestimates consumption due to not factoring in competing suppliers
+							//Thankfully, adjust_input_consumption does!
+
+							/*for (auto const& consumer_pos : fab->get_consumers()) {
 								if (production_left <= 0) break;
 								fabrik_t* const consumer = fabrik_t::get_fab(consumer_pos);
 								for(int supplier_num=0; supplier_num < consumer->get_desc()->get_supplier_count(); supplier_num++) {
@@ -1079,7 +1084,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 										break;
 									}
 								}
-							}
+							}*/
 						}
 
 						// here is actually capacity left (or sometimes just connect anyway)!
