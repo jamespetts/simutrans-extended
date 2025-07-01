@@ -9259,9 +9259,9 @@ void karte_t::recalc_idp() {
 	sint32 target_density = (consumer_density * average_overproduction) / 100;
 
 	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
-	target_density = ((industry_density_proportion - difference) * target_density) / industry_density_proportion;
+	target_density = ((old_density - difference) * target_density) / old_density;
 
-	industry_density_proportion = min(industry_density_proportion - difference, ((sint64) target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS]);
+	industry_density_proportion = min(industry_density_proportion, ((sint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS]);
 	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
 
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
@@ -9514,7 +9514,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	{
 		file->rdwr_short(base_pathing_counter);
 	}
-
+	DBG_MESSAGE("karte_t::load()", "beginning to load industry density code!");
 	if( file->get_extended_version() >= 7 && file->get_extended_version() < 9 && file->is_version_less(110, 6) ) {
 		double old_proportion = industry_density_proportion / 10000.0;
 		file->rdwr_double(old_proportion);
