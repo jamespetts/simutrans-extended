@@ -1396,7 +1396,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							else {
 								available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
 							}
-							if((available_for_consumption * 8) >= (consumption_level * 9)) //tolerate a little oversupply
+							if((available_for_consumption * 8) > (consumption_level * 9)) //tolerate a little oversupply
 							{
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
 								missing_goods.remove(input_type);
