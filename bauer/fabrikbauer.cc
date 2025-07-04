@@ -1069,7 +1069,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 						if(welt->get_settings().using_fab_contracts()){
 							production_left-=fab->get_output(ware)->get_total_contracts();
 						}else{
-							production_left = adjust_input_consumption(fab, fab->get_base_production() * product_desc->get_factor());
+							production_left = adjust_input_consumption(fab, ware);//adjust_input_consumption(fab, fab->get_base_production() * product_desc->get_factor());
 
 							//As it turns out, all of the below is redundant and drastically overestimates consumption due to not factoring in competing suppliers
 							//Thankfully, adjust_input_consumption does!
@@ -1807,9 +1807,9 @@ sint32 factory_builder_t::get_global_production(const goods_desc_t* good) {
 		for (uint32 i = 0; i < fab->get_output().get_count(); i++) {
 			const goods_desc_t* factory_good = fab->get_output()[i].get_typ();
 			if (factory_good == good) { //does this factory produce the good we want?
-				const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
-				const sint32 monthly_prod = fab->get_monthly_production(pfactor);
-				total_prod += monthly_prod;
+				//const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
+				//const sint32 monthly_prod = fab->get_monthly_production(pfactor);
+				total_prod += adjust_output_production(fab, good);
 			}
 		}
 	}
@@ -1895,6 +1895,131 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 		return largest_adjusted;
 	}
 	return consumption;
+}
+
+sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const goods_desc_t* good) {
+	if (!fab->get_desc()->is_consumer_only()) {
+		//uint32 prod = 0;
+		//uint32 cons= 0;
+		sint32 largest_adjusted = 0;
+
+		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
+
+			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
+			if (output_type != good) continue;
+
+			sint64 output_prod = (sint64)(fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor()); //use sint64 to avoid
+			sint64 output_cons = 0;
+
+			for (auto consumer_koord : fab->get_consumers(output_type)) {
+				//for each consumer, sum up the production from competing suppliers, and add the leftover fraction to output_consumption
+				fabrik_t* consumer = fabrik_t::get_fab(consumer_koord);
+
+				if (!consumer) {
+					continue;
+				}
+				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				sint64 competing_supplier_prod = 0;
+				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
+					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
+					if (competing_supplier) {
+						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor());
+					}
+				}
+				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+			}
+			output_cons = min(output_cons, output_prod);
+			largest_adjusted = output_prod - output_cons;
+			break;
+		}
+		return largest_adjusted;
+	}
+	return 0;
+}
+
+sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const goods_desc_t* good) {
+	if (fab->get_desc()->is_consumer_only()) return 0;
+	sint32 output_prod = 0;
+	for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
+		const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
+		if (output_type == good) {
+			const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
+			output_prod = fab->get_monthly_production(pfactor);
+			break;
+		}
+	}
+	if (!fab->get_desc()->is_producer_only()) {
+		sint32 lowest_prod = output_prod;
+		
+		for (uint32 i = 0; i < fab->get_input().get_count(); i++)
+		{
+			// Check the list of possible suppliers for this factory type.
+			const goods_desc_t* input_type = fab->get_input()[i].get_typ();
+			const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(input_type);
+			auto suppliers = fab->get_suppliers(input_type);
+
+			if (suppliers.get_count() == 0) {
+				return 0;
+			}
+
+			sint32 consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));
+			sint32 available_for_consumption = 0;
+
+			for (auto supplier_koord : suppliers)
+			{
+				fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
+				if (!supplier)
+				{
+					continue;
+				}
+				if (auto consumer_type = supplier->get_desc()->get_product(input_type))
+				{
+					const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
+
+					sint64 used_output = 0; //use 64 bit numbers to avoid overflow during the adjustment
+					for (auto competing_consumers : supplier->get_consumers(input_type))
+					{
+						if (const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)) {
+							if (competing_consumer != fab) {
+
+								//sum up production from alternative suppliers to the competing consumer
+								sint32 alt_supplier_prod = 0;
+								for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
+
+									const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
+									alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
+								}
+								//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
+								used_output += ((sint64)competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()) *
+									((sint64)supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor())
+									/ (sint64)alt_supplier_prod;
+								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
+								//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
+								//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
+							}
+						}
+					}
+					//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
+
+					const sint32 remaining_output = total_output_supplier - (sint32)used_output;
+					if (remaining_output > 0)
+					{
+						available_for_consumption += remaining_output;
+					}
+					else { //if remaining_output is negative, we divvy up the total supplier output based on consumption level
+						available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
+					}
+				}
+			}
+			lowest_prod = min(lowest_prod, ((sint64)lowest_prod * (sint64)available_for_consumption) / consumption_level);
+		}
+		//DBG_MESSAGE("factory_builder_t::adjust_output_production()", "adjust_output_production returning %ld (output_prod %ld) for good %s", lowest_prod, output_prod, good->get_name());
+		return lowest_prod;
+	}
+	else {
+		return output_prod;
+	}
+
 }
 
 
