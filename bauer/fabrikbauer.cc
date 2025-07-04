@@ -1950,7 +1950,7 @@ sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const go
 	}
 	if (!fab->get_desc()->is_producer_only()) {
 		sint32 lowest_prod = output_prod;
-		
+
 		for (uint32 i = 0; i < fab->get_input().get_count(); i++)
 		{
 			// Check the list of possible suppliers for this factory type.
