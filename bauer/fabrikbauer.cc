@@ -1340,7 +1340,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					auto suppliers = fab->get_suppliers(input_type);
 
 					if (suppliers.get_count() == 0) {
-						
+
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
 							if (fab->get_input()[i].get_typ() == input_type) {
 								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s (i: %d)", fab->get_name(), input_type->get_name(), i);
@@ -1415,7 +1415,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								if (oversupplied_goods.is_contained(input_type) )
 								{
 									int old_index = oversupplied_goods.index_of(input_type);
-									
+
 									if (old_index < oversupplied_goods.get_count() - 1) {
 										old_weight = oversupplied_goods.weight_at(old_index + 1) - oversupplied_goods.weight_at(old_index);
 									}
