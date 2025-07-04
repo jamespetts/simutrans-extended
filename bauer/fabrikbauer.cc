@@ -1340,8 +1340,14 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					auto suppliers = fab->get_suppliers(input_type);
 
 					if (suppliers.get_count() == 0) {
-						DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s", fab->get_name(), input_type->get_name());
-						unlinked_consumers.append_unique(unlinked_consumer_t(fab, l));
+						
+						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
+							if (fab->get_input()[i].get_typ() == input_type) {
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s (i: %d)", fab->get_name(), input_type->get_name(), i);
+								unlinked_consumers.append(unlinked_consumer_t(fab, i));
+								break;
+							}
+						}
 						continue;
 					}
 
@@ -1406,12 +1412,17 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
 								missing_goods.remove(input_type);
 								uint32 old_weight = 0;
-								if (oversupplied_goods.is_contained(input_type))
+								if (oversupplied_goods.is_contained(input_type) )
 								{
-
-									old_weight = oversupplied_goods.weight_at(oversupplied_goods.index_of(input_type));
+									int old_index = oversupplied_goods.index_of(input_type);
+									
+									if (old_index < oversupplied_goods.get_count() - 1) {
+										old_weight = oversupplied_goods.weight_at(old_index + 1) - oversupplied_goods.weight_at(old_index);
+									}
+									else {
+										old_weight = oversupplied_goods.get_sum_weight() - oversupplied_goods.weight_at(old_index);
+									}
 									// Avoid duplication
-									oversupplied_goods.remove(input_type);
 								}
 								// Get the total distribution_weight of consumers of this product
 								int total_consumer_weight = 0;
@@ -1435,10 +1446,12 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								sint32 global_production = get_global_production(input_type);
 								sint32 global_consumption = get_global_consumption(input_type);
 								if ((global_production * 8) > (global_consumption * 9)) { //tolerate a little bit of oversupply
-									sint32 new_weight = max((global_production * total_consumer_weight) / max(global_consumption, 1), old_weight);
-									oversupplied_goods.append_unique(input_type, new_weight);
+									//Weight is: total consumer weight * (production/consumption)
+									uint32 new_weight = (global_production * total_consumer_weight) / max(global_consumption, 1);
+									if(!oversupplied_goods.update(input_type, max(new_weight, old_weight)))
+										oversupplied_goods.append(input_type, new_weight);
 
-									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s (%ld/%ld ) to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), global_production, global_consumption, new_weight, oversupplied_goods.get_sum_weight());
+									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s (%ld/%ld ) to oversupplied_goods with weight %ld (new total weight: %ld, old weight: %ld, total consumer weight: %ld)", input_type->get_name(), global_production, global_consumption, new_weight, oversupplied_goods.get_sum_weight(), old_weight, total_consumer_weight);
 
 								}
 								else if (global_consumption == 0) {
@@ -1448,11 +1461,12 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							}
 						}
 					} // Actual suppliers
-					if ((available_for_consumption * 9) < (consumption_level * 8)) { //tolerate a little undersupply
+					if ((available_for_consumption * 9) < (consumption_level * 8) || available_for_consumption <= 0) { //tolerate a little undersupply
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
-							if(fab->get_input()[i].get_typ() == input_type){
+							if (fab->get_input()[i].get_typ() == input_type) {
 								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with %ld/%ld production for input %s", fab->get_name(), available_for_consumption, consumption_level, input_type->get_name());
 								unlinked_consumers.append_unique(unlinked_consumer_t(fab, i));
+								break;
 							}
 						}
 					}
@@ -1824,7 +1838,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 
 					}
 					if (output_prod > 0) {
-						monthly_cons = (monthly_cons * output_cons) / output_prod;
+						monthly_cons = (sint32)(((sint64)monthly_cons * (sint64)output_cons) / (sint64)output_prod);
 					}
 					else {
 						monthly_cons = 0;
