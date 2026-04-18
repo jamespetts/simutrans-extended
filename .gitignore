@@ -76,6 +76,7 @@ _UpgradeReport_Files*
 /x64
 /zlib*
 *server*-network.sve
+makeobj/makeobj-extended*
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -194,4 +195,3 @@ text/en/Simutrans-Extended.vcxproj.lnk
 /Simutrans-Ex/nbproject/private/
 *.cache
 configure
-

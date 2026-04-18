@@ -68,17 +68,7 @@ public:
 
 	void rotate90() OVERRIDE;
 
-	image_id get_front_image() const OVERRIDE
-	{
-		if (skinverwaltung_t::ribi_arrow && show_masked_ribi && overtaking_mode <= oneway_mode) {
-			return skinverwaltung_t::ribi_arrow->get_image_id(get_ribi());
-		}
-		else {
-			return weg_t::get_front_image();
-		}
-	}
-
-	void display_overlay(int xpos, int ypos) const;
+	void display_overlay(int xpos, int ypos) const OVERRIDE;
 
 	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE
 	{

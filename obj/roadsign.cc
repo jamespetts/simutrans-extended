@@ -778,6 +778,14 @@ void roadsign_t::display_overlay(int xpos, int ypos) const
 				ribi_t::ribi reserved_direction = sch1->get_reserved_direction();
 				display_signal_direction_rgb(xpos, ypos + raster_width / 2, raster_width, way_ribi, dir, sch1->is_reserved_directional() ? 255 : state, is_diagonal, reserved_direction, gr->get_weg_hang());
 			}
+			if (desc->is_private_way()) {
+				uint8 state_temp = state;
+				if ((1 << welt->get_active_player_nr()) & get_player_mask()) {
+					// Can pass through the gate
+					state_temp = roadsign_t::clear;
+				}
+				display_signal_direction_rgb(xpos, ypos + raster_width / 2, raster_width, way_ribi, dir, state_temp, is_diagonal, ribi_t::all, gr->get_weg_hang());
+			}
 			// TODO: Remove "ribi_arrow" from the intersection.
 			//       Next, pass the opening direction considering the one-way restriction.
 			//if (desc->is_traffic_light()) {
