@@ -990,9 +990,41 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 			}
 		}
 
-		// Use the standard naming scheme before reverting to street names:
-		// this way, the major stops in a town will be likely to be distinguished
-		// automatically from the minor stops by name automatically.
+		// If we street name are available, use them
+		if (inside || suburb) {
+			const vector_tpl<char*>& street_names(translator::get_street_name_list(welt->get_region(k)));
+			// make sure we do only ONE random call regardless of how many names are available (to avoid desyncs in network games)
+			if (const uint32 count = street_names.get_count()) {
+				uint32 idx = simrand(count, "char* haltestelle_t::create_name(koord const k, char const* const typ)");
+				static const uint32 some_primes[] = { 19, 31, 109, 199, 409, 571, 631, 829, 1489, 1999, 2341, 2971, 3529, 4621, 4789, 7039, 7669, 8779, 9721 };
+				// find prime that does not divide count
+				uint32 offset = 1;
+				for (uint8 i = 0; i<lengthof(some_primes); i++) {
+					if (count % some_primes[i] != 0) {
+						offset = some_primes[i];
+						break;
+					}
+				}
+				// as count % offset != 0 we are guaranteed to test all street names
+				for (uint32 i = 0; i<count; i++) {
+					buf.clear();
+					if (cbuffer_t::check_and_repair_format_strings("%s %s", street_names[idx])) {
+						buf.printf(street_names[idx], city_name, stop);
+						if (!all_names.get(buf).is_bound()) {
+							return strdup(buf);
+						}
+					}
+					idx = (idx + offset) % count;
+				}
+				buf.clear();
+			}
+			else {
+				/* the one random call to avoid desyncs */
+				simrand(5, "char* haltestelle_t::create_name(koord const k, char const* const typ) dummy");
+			}
+		}
+
+		// If no street names available
 
 		char numbername[10];
 		if(inside)
@@ -1108,39 +1140,7 @@ char* haltestelle_t::create_name(koord const k, char const* const typ)
 		}
 	}
 
-	// If we cannot use a standard name, use a name from the list of street names
-	if (inside || suburb) {
-		const vector_tpl<char*>& street_names(translator::get_street_name_list(welt->get_region(k)));
-		// make sure we do only ONE random call regardless of how many names are available (to avoid desyncs in network games)
-		if (const uint32 count = street_names.get_count()) {
-			uint32 idx = simrand(count, "char* haltestelle_t::create_name(koord const k, char const* const typ)");
-			static const uint32 some_primes[] = { 19, 31, 109, 199, 409, 571, 631, 829, 1489, 1999, 2341, 2971, 3529, 4621, 4789, 7039, 7669, 8779, 9721 };
-			// find prime that does not divide count
-			uint32 offset = 1;
-			for (uint8 i = 0; i<lengthof(some_primes); i++) {
-				if (count % some_primes[i] != 0) {
-					offset = some_primes[i];
-					break;
-				}
-			}
-			// as count % offset != 0 we are guaranteed to test all street names
-			for (uint32 i = 0; i<count; i++) {
-				buf.clear();
-				if (cbuffer_t::check_and_repair_format_strings("%s %s", street_names[idx])) {
-					buf.printf(street_names[idx], city_name, stop);
-					if (!all_names.get(buf).is_bound()) {
-						return strdup(buf);
-					}
-				}
-				idx = (idx + offset) % count;
-			}
-			buf.clear();
-		}
-		else {
-			/* the one random call to avoid desyncs */
-			simrand(5, "char* haltestelle_t::create_name(koord const k, char const* const typ) dummy");
-		}
-	}
+
 
 	/* so far we did not found a matching station name
 	 * as a last resort, we will try numbered names
