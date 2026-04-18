@@ -14,9 +14,13 @@
 #include "../api_function.h"
 #include "../../simhalt.h"
 
+halthandle_t get_halt_from_koord3d(koord3d pos, const player_t *player ); // api_schedule.cc, interfaces haltestelle_t::get_halt
+
+
 namespace script_api {
 
 	declare_specialized_param(haltestelle_t::tile_t, "t|x|y", "tile_x");
+// 	declare_specialized_param(haltestelle_t::connection_t, "t|x|y", "halt_x");
 
 
 	SQInteger param<haltestelle_t::tile_t>::push(HSQUIRRELVM vm, haltestelle_t::tile_t const& v)
@@ -24,7 +28,12 @@ namespace script_api {
 		return param<grund_t*>::push(vm, v.grund);
 	}
 
+// 	SQInteger param<haltestelle_t::connection_t>::push(HSQUIRRELVM vm, haltestelle_t::connection_t const& v)
+// 	{
+// 		return param<halthandle_t>::push(vm, v.halt);
+// 	}
 };
+
 
 using namespace script_api;
 
@@ -71,6 +80,14 @@ SQInteger halt_export_convoy_list(HSQUIRRELVM vm)
 }
 
 
+call_tool_init halt_set_name(halthandle_t halt, const char* name)
+{
+	if (!halt.is_bound()) {
+		return "Invalid halt provided";
+	}
+	return command_rename(halt->get_owner(), 'h', halt.get_id(), name);
+}
+
 
 SQInteger halt_export_line_list(HSQUIRRELVM vm)
 {
@@ -86,6 +103,12 @@ SQInteger halt_export_line_list(HSQUIRRELVM vm)
 	}
 }
 
+
+uint32 halt_get_capacity(const haltestelle_t *halt, const goods_desc_t *desc)
+{
+	// passenger has index 0, mail 1, everything else >=2
+	return halt  &&  desc  ?  halt->get_capacity(min( desc->get_catg_index(), 2 )) : 0;
+}
 
 // 0: not connected
 // 1: connected
@@ -104,6 +127,14 @@ SQInteger halt_compare(halthandle_t a, halthandle_t b)
 {
 	return (SQInteger)a.get_id() - (SQInteger)b.get_id();
 }
+
+
+// vector_tpl<haltestelle_t::connection_t> const& halt_get_connections(const haltestelle_t *halt, const goods_desc_t* freight)
+// {
+// 	static vector_tpl<haltestelle_t::connection_t> dummy;
+// 	dummy.clear();
+// 	return freight ? halt->get_connections(freight->get_catg_index()) : dummy;
+// }
 
 
 void export_halt(HSQUIRRELVM vm)
@@ -134,13 +165,22 @@ void export_halt(HSQUIRRELVM vm)
 	/**
 	 * Class to access halts / stations / bus stops.
 	 */
-	begin_class(vm, "halt_x", "extend_get");
+	begin_class(vm, "halt_x", "extend_get,ingame_object");
 
+	/**
+	 * @returns if object is still valid.
+	 */
+	export_is_valid<const haltestelle_t*>(vm); //register_function("is_valid")
 	/**
 	 * Station name.
 	 * @returns name
 	 */
 	register_method(vm, &haltestelle_t::get_name, "get_name");
+	/**
+	 * Sets station name.
+	 * @ingroup rename_func
+	 */
+	register_method(vm, &halt_set_name, "set_name", true);
 
 	/**
 	 * Station owner.
@@ -171,15 +211,15 @@ void export_halt(HSQUIRRELVM vm)
 	register_method<bool (haltestelle_t::*)(const goods_desc_t*) const>(vm, &haltestelle_t::is_enabled, "accepts_good", false);
 
 	/**
-	 * Get monthly statistics of number of passengers.
+	 * Get monthly statistics of number of arrived goods.
 	 * @returns array, index [0] corresponds to current month
 	 */
-	register_method_fv(vm, &get_halt_stat, "get_visitors", freevariable<sint32>(HALT_VISITORS), true);
-	/**
-	 * Get monthly statistics of number of pax transfers.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_halt_stat, "get_commuters", freevariable<sint32>(HALT_COMMUTERS), true);
+	register_method_fv(vm, &get_halt_stat, "get_arrived", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
+// 	/**
+// 	 * Get monthly statistics of number of departed goods.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_halt_stat, "get_departed", freevariable<sint32>(HALT_DEPARTED), true);
 	/**
 	 * Get monthly statistics of number of waiting goods.
 	 * @returns array, index [0] corresponds to current month
@@ -209,16 +249,11 @@ void export_halt(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_convoys", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
-	/**
-	 * Get monthly statistics of number of passengers that could walk to their destination.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_halt_stat, "get_too_slow", freevariable<sint32>(HALT_TOO_SLOW), true);
-	/**
-	 * Get monthly statistics of number of passengers that so long waiting at the station.
-	 * @returns array, index [0] corresponds to current month
-	 */
-	register_method_fv(vm, &get_halt_stat, "get_too_waiting", freevariable<sint32>(HALT_TOO_WAITING), true);
+// 	/**
+// 	 * Get monthly statistics of number of passengers that could walk to their destination.
+// 	 * @returns array, index [0] corresponds to current month
+// 	 */
+// 	register_method_fv(vm, &get_halt_stat, "get_walked", freevariable<sint32>(HALT_WALKED), true);
 	/**
 	 * Exports list of convoys that stop at this halt.
 	 * @typemask convoy_list_x()
@@ -237,6 +272,35 @@ void export_halt(HSQUIRRELVM vm)
 	 * Get list of factories connected to this station.
 	 */
 	register_method(vm, &haltestelle_t::get_fab_list, "get_factory_list");
+	/**
+	 * Returns amount of @p freight at this halt that is going to @p target
+	 * @param freight freight type
+	 * @param target coordinate of target
+	 */
+	register_method(vm, &haltestelle_t::get_ware_fuer_zielpos, "get_freight_to_dest");
+// 	/**
+// 	 * Returns amount of @p freight at this halt that scheduled to @p stop
+// 	 * @param freight freight type
+// 	 * @param stop next transfer stop
+// 	 */
+// 	register_method(vm, &haltestelle_t::get_ware_fuer_zwischenziel, "get_freight_to_halt");
+	/**
+	 * Returns capacity of this halt for the given @p freight
+	 * @param freight freight type
+	 */
+	register_method(vm, &halt_get_capacity, "get_capacity", true);
+// 	/**
+// 	 * Returns list of connected halts for the specific @p freight type.
+// 	 * @param freight freight type
+// 	 */
+// 	register_method(vm, &halt_get_connections, "get_connections", true);
+	/**
+	 * Returns halt at given position.
+	 * @param pos coordinate
+	 * @param pl player that wants to use halt here
+	 * @return halt instance
+	 */
+	STATIC register_method(vm, &get_halt_from_koord3d, "get_halt", false, true);
 
 	end_class(vm);
 }

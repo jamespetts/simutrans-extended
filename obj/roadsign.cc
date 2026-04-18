@@ -1105,7 +1105,7 @@ void roadsign_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint1
 			matching.insert_ordered( desc, compare_roadsign_desc );
 		}
 	}
-	FOR(vector_tpl<roadsign_desc_t const*>, const i, matching) {
+	for(roadsign_desc_t const* const i : matching) {
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }
@@ -1163,7 +1163,7 @@ const roadsign_desc_t* roadsign_t::find_best_upgrade(bool underground)
  void roadsign_t::set_scale(uint16 scale_factor)
 {
 	// Called from the world's set_scale method so as to avoid having to export the internal data structures of this class.
-	FOR(vector_tpl<roadsign_desc_t *>, sign, list)
+	for(roadsign_desc_t* sign : list)
 	{
 		sign->set_scale(scale_factor);
 	}

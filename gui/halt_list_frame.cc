@@ -544,7 +544,8 @@ halt_list_frame_t::halt_list_frame_t(stadt_t *city) :
 	end_table();
 
 	scrolly = new_component<gui_scrolled_halt_list_t>();
-	scrolly->set_maximize( true );
+	scrolly->set_maximize(true);
+	scrolly->set_checkered(true);
 
 	if( filter_city ) {
 		set_cityfilter( filter_city );

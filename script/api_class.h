@@ -11,6 +11,7 @@
 
 #include "../squirrel/squirrel.h"
 #include "../squirrel/sq_extensions.h"  // sq_call_restricted
+#include "../tpl/stringhashtable_tpl.h"
 
 #include <string>
 
@@ -76,74 +77,45 @@ namespace script_api {
 	 */
 	SQInteger prepare_constructor(HSQUIRRELVM vm, const char* classname);
 
+
+	template<class... As>
+	SQInteger push_instance(HSQUIRRELVM vm, const char* classname, const As &...  as)
+	{
+		// push constructor
+		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
+			return -1;
+		}
+		// push parameters
+		int nparam = push_param(vm, as...);
+		if (!SQ_SUCCEEDED(nparam)) {
+			return -1;
+		}
+		// call constructor
+		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, nparam+1, true, false));
+		sq_remove(vm, ok ? -2 : -1); /* remove closure */
+		return ok ? 1 : -1;
+	}
+
+
 	/**
-	 * Function to create & push instances of squirrel classes.
-	 * @param classname name of squirrel class
+	 * Create instance, set userpointer.
+	 * Does NOT call constructor.
 	 */
-	inline SQInteger push_instance(HSQUIRRELVM vm, const char* classname)
+	template<class C>
+	inline SQInteger push_instance_up(HSQUIRRELVM vm, const C* ptr)
 	{
-		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
+		if (!SQ_SUCCEEDED(push_class(vm, param<const C*>::squirrel_type()) )) {
 			return -1;
 		}
-		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, 1, true, false));
-		sq_remove(vm, ok ? -2 : -1); // remove closure
-		return ok ? 1 : -1;
+		sq_createinstance(vm, -1);
+		sq_setinstanceup(vm, -1, (void*)const_cast<C*>(ptr));
+		sq_remove(vm, -2); // remove class
+		return 1;
 	}
 
-	template<class A1>
-	SQInteger push_instance(HSQUIRRELVM vm, const char* classname, const A1 & a1)
-	{
-		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
-			return -1;
-		}
-		param<A1>::push(vm, a1);
-		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, 2, true, false));
-		sq_remove(vm, ok ? -2 : -1); // remove closure
-		return ok ? 1 : -1;
-	}
-
-	template<class A1, class A2>
-	SQInteger push_instance(HSQUIRRELVM vm, const char* classname, const A1 & a1, const A2 & a2)
-	{
-		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
-			return -1;
-		}
-		param<A1>::push(vm, a1);
-		param<A2>::push(vm, a2);
-		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, 3, true, false));
-		sq_remove(vm, ok ? -2 : -1); // remove closure
-		return ok ? 1 : -1;
-	}
-
-	template<class A1, class A2, class A3>
-	SQInteger push_instance(HSQUIRRELVM vm, const char* classname, const A1 & a1, const A2 & a2, const A3 & a3)
-	{
-		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
-			return -1;
-		}
-		param<A1>::push(vm, a1);
-		param<A2>::push(vm, a2);
-		param<A3>::push(vm, a3);
-		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, 4, true, false));
-		sq_remove(vm, ok ? -2 : -1); // remove closure
-		return ok ? 1 : -1;
-	}
-
-	template<class A1, class A2, class A3, class A4>
-	SQInteger push_instance(HSQUIRRELVM vm, const char* classname, const A1 & a1, const A2 & a2, const A3 & a3, const A4 & a4)
-	{
-		if (!SQ_SUCCEEDED(prepare_constructor(vm, classname)) ) {
-			return -1;
-		}
-		param<A1>::push(vm, a1);
-		param<A2>::push(vm, a2);
-		param<A3>::push(vm, a3);
-		param<A4>::push(vm, a4);
-		bool ok = SQ_SUCCEEDED(sq_call_restricted(vm, 5, true, false));
-		sq_remove(vm, ok ? -2 : -1); // remove closure
-		return ok ? 1 : -1;
-	}
-
+	/**
+	 * Implementation of quickstone_tpl specialization
+	 */
 	template<class T> struct param< quickstone_tpl<T> > {
 		/**
 		 * Assumes that constructor of corresponding squirrel class
@@ -182,5 +154,71 @@ namespace script_api {
 			return param<T*>::typemask();
 		}
 	};
+
+	/**
+	 * Implementation of stringhashtable_tpl specialization
+	 */
+	template<class T, size_t N> struct param< stringhashtable_tpl<T, N> > {
+		/**
+		 * Creates table, uses string-keys as table keys.
+		 */
+		static SQInteger push(HSQUIRRELVM vm, stringhashtable_tpl<T, N> const& v)
+		{
+			sq_newtable(vm);
+
+			for(auto const&i : v) {
+				create_slot<T>(vm, i.key, i.value);
+			}
+			return 1;
+		}
+		/// squirrel_type corresponding to the c++ type/class
+		static const char* squirrel_type()
+		{
+			static cbuffer_t buf;
+			buf.clear();
+			buf.printf("table<%s>", param<T>::squirrel_type() );
+			return buf;
+		}
+	};
+
+	// forward declaration
+	template<class C> SQInteger command_release_hook(SQUserPointer up, SQInteger);
+	/**
+	 * Stores pointer to C++ object as userpointer of squirrel class instance.
+	 * C++ object will be deleted when squirrel class instance gets released.
+	 */
+	template<class C>
+	void attach_instance(HSQUIRRELVM vm, SQInteger index, C* o)
+	{
+		// set userpointer of class instance
+		sq_setinstanceup(vm, index, o );
+		sq_setreleasehook(vm, index, command_release_hook<C>);
+	}
+
+	/**
+	 * Retrieves pointer to stored C++ object.
+	 */
+	template<class C>
+	C* get_attached_instance(HSQUIRRELVM vm, SQInteger index, SQUserPointer tag)
+	{
+		SQUserPointer up;
+		if (SQ_SUCCEEDED(sq_getinstanceup(vm, index, &up, tag))) {
+			return (C*)up;
+		}
+		return NULL;
+	}
+
+	/**
+	 * Releases memory allocated by attach_instance.
+	 * Do not call directly!
+	 */
+	template<class C>
+	SQInteger command_release_hook(SQUserPointer up, SQInteger)
+	{
+		C* p = (C *)up;
+		delete p;
+		return 1;
+	}
+
 }; // end of namespace
 #endif

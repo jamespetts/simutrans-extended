@@ -7,6 +7,9 @@
 #define SIMCOLOR_H
 
 
+#include "simtypes.h"
+
+
 #define LIGHT_COUNT         (15)
 #define SPECIAL_COLOR_COUNT (224)
 
@@ -172,6 +175,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_CHART_LINES_EVEN             gui_theme_t::gui_color_chart_lines_even
 #define SYSCOL_LIST_TEXT_SELECTED_FOCUS     gui_theme_t::gui_color_list_text_selected_focus
 #define SYSCOL_LIST_TEXT_SELECTED_NOFOCUS   gui_theme_t::gui_color_list_text_selected_nofocus
+#define SYSCOL_LIST_BACKGROUND_EVEN         gui_theme_t::gui_color_list_background_even
+#define SYSCOL_LIST_BACKGROUND_ODD          gui_theme_t::gui_color_list_background_odd
 #define SYSCOL_LIST_BACKGROUND_SELECTED_F   gui_theme_t::gui_color_list_background_selected_f
 #define SYSCOL_LIST_BACKGROUND_SELECTED_NF  gui_theme_t::gui_color_list_background_selected_nf
 #define SYSCOL_BUTTON_TEXT                  gui_theme_t::gui_color_button_text
@@ -199,6 +204,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TRACTION_TYPE                gui_theme_t::gui_color_traction_type
 #define SYSCOL_UPGRADEABLE                  gui_theme_t::gui_color_upgradeable
 #define SYSCOL_EMPTY                        gui_theme_t::gui_color_empty
+//#define SYSCOL_IMAGE_TRANSPARENCY           gui_theme_t::gui_color_image_transparency // NOT USED IN EXTENDED
+#define SYSCOL_OBJECT_HIGHLIGHT             gui_theme_t::gui_color_object_highlight
 #define SYSCOL_UP_TRIANGLE                  gui_theme_t::gui_color_up_pointing_triangle
 #define SYSCOL_DOWN_TRIANGLE                gui_theme_t::gui_color_down_pointing_triangle
 #define SYSCOL_TABLE_FRAME                  gui_theme_t::gui_color_table_frame
@@ -216,6 +223,8 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define SYSCOL_TH_TEXT_SELECTED             gui_theme_t::gui_color_text_head_selected
 #define SYSCOL_TH_TEXT_TOP                  gui_theme_t::gui_color_text_head_row
 #define SYSCOL_TH_TEXT_LEFT                 gui_theme_t::gui_color_text_left_col
+
+#define SYSCOL_CLASS_INSIGNIA               gui_theme_t::gui_color_class_insignia_dots
 
 // Customer evaluation colors
 // TODO: These colors can be changed by theme or pakset (Should be considered together with the symbol design)
@@ -236,5 +245,12 @@ typedef unsigned int FLAGGED_PIXVAL;
 #define MAP_COL_OVERCROWDED COL_PURPLE
 #define MAP_COL_NOROUTE     COL_RED+3
 #define MAP_COL_UNAVAILABLE COL_DARK_RED
+
+
+struct rgb888_t
+{
+	uint8 r, g, b;
+};
+
 
 #endif

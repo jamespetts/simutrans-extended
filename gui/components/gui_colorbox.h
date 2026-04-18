@@ -14,6 +14,9 @@
 #include "../../descriptor/vehicle_desc.h"
 #include "../../utils/cbuffer_t.h"
 
+#define HALT_WAITING_BAR_MAX_WIDTH 80
+#define L_CAPPED_ARROW_WIDTH (5)
+
 /**
  * Draws a simple colored box.
  */
@@ -26,6 +29,7 @@ protected:
 	scr_coord_val width = D_INDICATOR_WIDTH;
 	bool size_fixed = false;
 	bool show_frame = true;
+	scr_size padding = scr_size(0, 0);
 
 	scr_size max_size;
 
@@ -55,6 +59,7 @@ public:
 	void set_size(scr_size size) OVERRIDE { width = size.w; height = size.h; max_size =size; }
 	void set_size_fixed(bool yesno) { size_fixed = yesno; }
 	void set_show_frame(bool yesno) { show_frame = yesno; }
+	void set_padding(scr_size padding) { this->padding = padding; set_size(size + padding + padding); }
 
 	void set_tooltip(const char * t);
 
@@ -233,6 +238,18 @@ public:
 	void set_value(sint64 v) { value = v; }
 
 	scr_size get_min_size() const OVERRIDE { return gui_component_t::size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
+
+class gui_capped_arrow_t : public gui_component_t
+{
+	bool left;
+public:
+	gui_capped_arrow_t(bool left_arrow = false) { left = left_arrow; }
+
+	void draw(scr_coord offset) OVERRIDE;
+	scr_size get_min_size() const OVERRIDE { return scr_size(L_CAPPED_ARROW_WIDTH,5); }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 

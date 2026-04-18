@@ -9,7 +9,11 @@
 
 #include "../../simtypes.h"
 #include "gui_image.h"
-
+#include "gui_button.h"
+#include "../../descriptor/skin_desc.h"
+#include "../../simworld.h"
+#include "../../bauer/wegbauer.h"
+#include "gui_waytype_tab_panel.h"
 
 // panel that show the available waytypes
 class gui_waytype_image_box_t :
@@ -30,5 +34,28 @@ public:
 	scr_size get_min_size() const OVERRIDE;
 	scr_size get_max_size() const OVERRIDE { return flexible ? scr_size(scr_size::inf.w, get_min_size().h) : get_min_size(); }
 };
+
+/**
+ * waytype symbol button
+ */
+class gui_waytype_button_t : public button_t
+{
+	waytype_t wt;
+
+public:
+	gui_waytype_button_t(waytype_t wt_ = invalid_wt) : button_t() {
+		wt = wt_;
+		init(button_t::box_state, NULL);
+		set_waytype(wt);
+	}
+
+	void set_waytype(waytype_t wt);
+
+	bool infowin_event(event_t const*) OVERRIDE;
+
+	scr_size get_min_size() const OVERRIDE { return size; }
+	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
+};
+
 
 #endif

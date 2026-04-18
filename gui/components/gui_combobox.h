@@ -69,6 +69,9 @@ private:
 
 	bool width_fixed = false;
 
+	// Reverses the operation of the prev next button
+	bool inverse_sidebutton_action=false;
+
 public:
 	gui_combobox_t(gui_scrolled_list_t::item_compare_func cmp = 0);
 
@@ -148,6 +151,10 @@ public:
 
 	// In Extended, since often use a combo box instead of the toggle button, we need to allow the size to be fixed.
 	void set_width_fixed(bool yesno) { width_fixed = yesno; }
+
+	// Reverses the operation of the prev next button
+	// used for reversed lists of numbers.
+	void set_inverse_side_scroll(bool yesno) { inverse_sidebutton_action = yesno; }
 
 	/**
 	 * called when the focus should be released

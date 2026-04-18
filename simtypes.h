@@ -446,6 +446,13 @@ union value_t
 	long i;
 };
 
+
+// Unicode type large enough to hold every single possible Unicode code point.
+typedef uint32 utf32;
+
+typedef unsigned char  utf8;
+typedef unsigned short utf16;
+
 #define IGNORE_ZERO_WEIGHT
 
 #endif

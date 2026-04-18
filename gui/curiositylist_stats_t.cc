@@ -177,8 +177,7 @@ bool curiositylist_stats_t::is_valid() const
 
 
 /**
- * Events werden hiermit an die GUI-components
- * gemeldet
+ * Events are notified to GUI components via this method
  */
 bool curiositylist_stats_t::infowin_event(const event_t * ev)
 {

@@ -9,6 +9,7 @@
 #include "../../simevent.h"
 #include "../../display/simgraph.h"
 #include "../../utils/simstring.h"
+#include "../../unicode.h"
 #include "../gui_theme.h"
 
 #include "gui_flowtext.h"
@@ -41,7 +42,7 @@ public:
 	 * Computes and returns preferred size.
 	 * Depends on current width.
 	 */
-	scr_size get_preferred_size();
+	scr_size get_preferred_size() const;
 
 	scr_size get_text_size();
 
@@ -331,7 +332,7 @@ void gui_flowtext_intern_t::set_size(scr_size size_par)
  * get_preferred_size().w = max(width, maximal word length)
  * get_preferred_size().h = displayed height
  */
-scr_size gui_flowtext_intern_t::get_preferred_size()
+scr_size gui_flowtext_intern_t::get_preferred_size() const
 {
 	return preferred_size;
 	// cached result of output(scr_size(0, 0), false, true);
@@ -375,7 +376,7 @@ scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_
 	const int space_width = proportional_string_width(" ");
 
 	required_width = 0;
-	FOR(slist_tpl<node_t>, const& i, nodes) {
+	for(node_t const& i : nodes) {
 		switch (i.att) {
 			case ATT_NONE:
 			case ATT_NO_SPACE: {
@@ -524,10 +525,10 @@ scr_size gui_flowtext_intern_t::output(scr_coord offset, bool doit, bool return_
 
 bool gui_flowtext_intern_t::infowin_event(const event_t* ev)
 {
-	if (IS_LEFTCLICK(ev)) {
+	if (IS_LEFTRELEASE(ev)) {
 		// scan links for hit
-		scr_coord evpos = scr_coord( ev->cx, ev->cy ); // - get_pos();
-		FOR(slist_tpl<hyperlink_t>, const& link, links) {
+		scr_coord evpos = scr_coord( ev->click_pos.x, ev->click_pos.y ); // - get_pos();
+		for(hyperlink_t const& link : links) {
 			if(  link.tl.y+LINESPACE == link.br.y  ) {
 				if(  link.tl.x <= evpos.x  &&  evpos.x < link.br.x  &&  link.tl.y <= evpos.y  &&  evpos.y < link.br.y  ) {
 					call_listeners((void const*)link.param.c_str());
@@ -599,7 +600,7 @@ void gui_flowtext_t::set_size(scr_size size_par)
 }
 
 
-scr_size gui_flowtext_t::get_preferred_size()
+scr_size gui_flowtext_t::get_preferred_size() const
 {
 	return flowtext->get_preferred_size();
 }

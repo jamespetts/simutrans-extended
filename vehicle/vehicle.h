@@ -556,12 +556,6 @@ public:
 
 	const char * get_cargo_mass() const;
 
-	/**
-	* create an info text for the freight
-	* e.g. to display in a info window
-	*/
-	void get_cargo_info(cbuffer_t & buf) const;
-
 	// Check for straightness of way.
 	//@author jamespetts
 
@@ -591,10 +585,10 @@ public:
 	* every stop.
 	* @return income total for last hop
 	*/
-	//sint64  calc_gewinn(koord start, koord end, convoi_t* cnv) const;
+	//sint64 calc_revenue(const koord3d& start, const koord3d& end) const;
 
 
-	// sets or querey begin and end of convois
+	// sets or query begin and end of convois
 	void set_leading(bool value) {leading = value;}
 	bool is_leading() const {return leading;}
 

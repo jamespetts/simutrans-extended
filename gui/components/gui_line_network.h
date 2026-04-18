@@ -44,7 +44,7 @@ public:
 	};
 	void clear() { lines.clear(); };
 
-	void set_height(scr_coord_val h) { size.h = h; };
+	void set_height(scr_coord_val h) OVERRIDE { size.h = h; };
 
 	void draw(scr_coord offset) OVERRIDE;
 

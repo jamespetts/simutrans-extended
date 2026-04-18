@@ -35,7 +35,7 @@ protected:
 public:
 	gui_table_cell_t(const char *text, PIXVAL bgcolor = SYSCOL_TD_BACKGROUND, align_t align = left, bool border_br = false) : gui_label_t(text, SYSCOL_TEXT, align)
 	{
-		set_padding(scr_size(3,1));
+		set_padding(scr_size(3,2));
 		border_bottom_right = border_br;
 		this->bgcolor = bgcolor;
 	}
@@ -76,7 +76,7 @@ public:
 	{
 		set_text(text);
 		buf().append(text);
-		set_padding(scr_size(3,1));
+		set_padding(scr_size(3,2));
 		border_bottom_right = border_br;
 		this->bgcolor = bgcolor;
 		update();

@@ -26,22 +26,14 @@ class welt_gui_t  :
 	public  gui_frame_t,
 	private action_listener_t
 {
-private:
 	settings_t* sets;
 
-	/**
-	* Mini Map-Preview
-	*/
+	/// Mini Map-Preview
 	array2d_tpl<PIXVAL> map;
 	scr_size            map_size;
 
 	bool load_heightfield;
 	bool loaded_heightfield;
-	bool load;
-	bool start;
-	bool close;
-	bool scenario;
-	bool quit;
 
 	double city_density;
 	double industry_density;
@@ -79,15 +71,13 @@ private:
 		use_beginner_mode,
 		open_climate_gui,
 		open_setting_gui,
-		load_game,
-		load_scenario,
 		start_game,
-		quit_game;
+		return_menu;
 
 	/**
-	* Calculates preview from height map
-	* @param filename name of heightfield file
-	*/
+	 * Calculates preview from height map
+	 * @param filename name of heightfield file
+	 */
 	bool update_from_heightfield(const char *filename);
 
 	void resize_preview();
@@ -98,6 +88,7 @@ private:
 public:
 	welt_gui_t(settings_t*);
 
+public:
 	/**
 	 * Berechnet Preview-Karte neu. Inititialisiert RNG neu!
 	 * public, because also the climate dialog need it
@@ -116,8 +107,6 @@ public:
 
 	// does not work during new world dialog
 	bool has_sticky() const OVERRIDE { return false; }
-
-	bool infowin_event(event_t const*) OVERRIDE;
 
 	/**
 	 * Draw new component. The values to be passed refer to the window

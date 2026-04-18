@@ -1,7 +1,7 @@
 /**
  * Copyright 2013 Nathanael Nerode
  *
- * This file is licensed under the Artistic License as part of the Simutrans project. (See license.txt)
+ * This file is licensed under the Artistic License as part of the Simutrans-Extended project. (See license.txt)
  * This file is also licensed under the Artistic License 2.0 and the GNU General Public License 3.0.
  *
  * Implements a piecewise linear function

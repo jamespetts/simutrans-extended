@@ -50,7 +50,7 @@ void gui_tab_panel_t::set_size(scr_size size)
 
 	required_size = scr_size( 8, required_size.h );
 	gui_component_t *last_component = NULL;
-	FOR(slist_tpl<tab>, & i, tabs) {
+	for(tab & i : tabs) {
 		i.x_offset = required_size.w - 4;
 		if( i.title ) {
 			i.width = D_H_SPACE*2 + proportional_string_width( i.title );
@@ -85,7 +85,7 @@ scr_size gui_tab_panel_t::get_min_size() const
 	scr_size t_size(0, required_size.h);
 	scr_size c_size(0, 0);
 	gui_component_t *last_component = NULL;
-	FOR(slist_tpl<tab>, const& iter, tabs) {
+	for(tab const& iter : tabs) {
 		if (iter.title) {
 			t_size.h = max(t_size.h, LINESPACE + D_V_SPACE);
 		}
@@ -114,25 +114,25 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 {
 	if(  (required_size.w>size.w  ||  offset_tab > 0)  &&  ev->ev_class!=EVENT_KEYBOARD  &&  ev->ev_code==MOUSE_LEFTBUTTON  ) {
 		// buttons pressed
-		if(  left.getroffen(ev->cx, ev->cy)  ) {
+		if(  left.getroffen( ev->click_pos)  ) {
 			event_t ev2 = *ev;
 			ev2.move_origin(left.get_pos());
 			return left.infowin_event(&ev2);
 		}
-		else if(  right.getroffen(ev->cx, ev->cy)  ) {
+		else if(  right.getroffen( ev->click_pos)  ) {
 			event_t ev2 = *ev;
 			ev2.move_origin(right.get_pos());
 			return right.infowin_event(&ev2);
 		}
 	}
 
-	if(  IS_LEFTRELEASE(ev)  &&  (ev->my > 0  &&  ev->my < required_size.h-1)  )  {
+	if(  IS_LEFTRELEASE(ev)  &&  (ev->mouse_pos.y > 0  &&  ev->mouse_pos.y < required_size.h-1)  )  {
 		// tab selector was hit
 		int text_x = (required_size.w>size.w ? D_ARROW_LEFT_WIDTH : 0) + D_H_SPACE;
 		int k=0;
-		FORX(slist_tpl<tab>, const& i, tabs, ++k) {
+		for(tab const& i : tabs) {
 			if(  k >= offset_tab  ) {
-				if (text_x <= ev->mx && text_x + i.width > ev->mx) {
+				if (text_x <= ev->mouse_pos.x && text_x + i.width > ev->mouse_pos.x) {
 					// either tooltip or change
 					active_tab = k;
 					call_listeners((long)active_tab);
@@ -140,6 +140,7 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 				}
 				text_x += i.width;
 			}
+			k++;
 		}
 		return false;
 	}
@@ -162,7 +163,7 @@ bool gui_tab_panel_t::infowin_event(const event_t *ev)
 		}
 	}
 
-	if(  ev->ev_class == EVENT_KEYBOARD  ||  DOES_WINDOW_CHILDREN_NEED(ev)  ||  get_aktives_tab()->getroffen(ev->mx, ev->my)  ||  get_aktives_tab()->getroffen(ev->cx, ev->cy)) {
+	if(  ev->ev_class == EVENT_KEYBOARD  ||  DOES_WINDOW_CHILDREN_NEED(ev)  ||  get_aktives_tab()->getroffen(ev->mouse_pos)  ||  get_aktives_tab()->getroffen( ev->click_pos)) {
 		// active tab was hit
 		event_t ev2 = *ev;
 		ev2.move_origin(get_aktives_tab()->get_pos());
@@ -197,7 +198,7 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 	int xx = required_size.w>get_size().w ? get_size().w-(D_ARROW_LEFT_WIDTH+2+D_ARROW_RIGHT_WIDTH) : get_size().w;
 
 	int i=0;
-	FORX(slist_tpl<tab>, const& iter, tabs, ++i) {
+	for(tab const& iter : tabs) {
 
 		if(i>=offset_tab) {
 			// set clipping
@@ -250,6 +251,7 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 			// reset clipping
 			POP_CLIP();
 		}
+		i++;
 	}
 	display_fillbox_wh_clip_rgb(text_x, ypos+required_size.h-1, xpos+size.w-text_x, 1, SYSCOL_HIGHLIGHT, true);
 
@@ -258,22 +260,24 @@ void gui_tab_panel_t::draw(scr_coord parent_pos)
 	get_aktives_tab()->draw(parent_pos + pos);
 
 	// now for tooltips ...
-	int my = get_mouse_y()-parent_pos.y-pos.y-6;
+	int my = get_mouse_pos().y-parent_pos.y-pos.y-6;
 	if(my>=0  &&  my < required_size.h-1) {
 		// Reiter getroffen?
-		int mx = get_mouse_x()-parent_pos.x-pos.x;
+		int mx = get_mouse_pos().x-parent_pos.x-pos.x;
 		int text_x = D_H_SPACE;
 		int i=0;
-		FORX(slist_tpl<tab>, const& iter, tabs, ++i) {
+		for(tab const& iter : tabs) {
 			if(  i>=offset_tab  ) {
 				if(text_x <= mx && text_x+iter.width > mx  && (required_size.w<=get_size().w || mx < right.get_pos().x-12)) {
 					// tooltip or change
-					win_set_tooltip(get_mouse_x() + 16, ypos + required_size.h + 12, iter.tooltip, &iter, this);
+					const scr_coord tooltip_pos{ get_mouse_pos().x + 16, ypos + required_size.h + 12 };
+					win_set_tooltip(tooltip_pos, iter.tooltip, &iter, this);
 					break;
 				}
 
 				text_x += iter.width;
 			}
+			i++;
 		}
 	}
 }

@@ -41,6 +41,7 @@ public:
 		by_value,
 		by_age,
 		by_range,
+		by_loadfactor_pax,
 		SORT_MODES
 	};
 	static const uint8 sortmode_to_label[SORT_MODES];
@@ -107,7 +108,7 @@ public:
 	virtual ~convoi_frame_t();
 
 	/**
-	 * Events werden hiermit an die GUI-Komponenten gemeldet
+	 * Events are notified to GUI components via this method gemeldet
 	 */
 	bool infowin_event(const event_t *ev) OVERRIDE;
 

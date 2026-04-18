@@ -16,12 +16,12 @@ class cbuffer_t
 {
 private:
 
-	unsigned int capacity;
+	size_t capacity;
 
 	/**
 	* Number of characters without(!) trailing '\0'
 	*/
-	unsigned int size;
+	size_t size;
 
 	char *buf;
 
@@ -51,6 +51,8 @@ public:
 	 * Copy constructor
 	 */
 	cbuffer_t(const cbuffer_t& cbx);
+
+	cbuffer_t(const char*);
 
 	/**
 	 * Copy assignment operator
@@ -112,7 +114,7 @@ public:
 	operator const char *() const {return buf;}
 
 	/// checks whether format specifiers in @p translated match those in @p master
-	static bool check_format_strings(const char* master, const char* translated);
+	static bool check_and_repair_format_strings(const char* master, const char* translated, char **repaired = NULL);
 };
 
 #endif

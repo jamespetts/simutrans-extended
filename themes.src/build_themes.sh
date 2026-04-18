@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# This file is part of the Simutrans project under the Artistic License.
+# This file is part of the Simutrans-Extended project under the Artistic License.
 # (see LICENSE.txt)
 #
 
@@ -51,3 +51,16 @@ rm -rf *.pak
 mv *.pak ../../simutrans/themes
 cp *.tab ../../simutrans/themes
 
+cd ../silver
+rm -rf *.pak
+../../build/default/makeobj-extended/makeobj-extended pak silver.pak standard.dat
+../../build/default/makeobj-extended/makeobj-extended pak silver-large.pak standard-large.dat
+mv *.pak ../../simutrans/themes
+cp *.tab ../../simutrans/themes
+
+cd ../purple_night
+rm -rf *.pak
+../../build/default/makeobj-extended/makeobj-extended pak purple_night.pak standard.dat
+../../build/default/makeobj-extended/makeobj-extended pak purple_night-large.pak standard-large.dat
+mv *.pak ../../simutrans/themes
+cp *.tab ../../simutrans/themes

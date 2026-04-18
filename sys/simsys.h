@@ -9,6 +9,7 @@
 
 #include "../simtypes.h"
 #include "../display/scr_coord.h"
+#include "../simcolor.h"
 
 #ifndef NETTOOL
 #include <zlib.h>
@@ -23,48 +24,55 @@
 #	include <unistd.h>
 #endif
 
-/* Variable for message processing */
 
-/* Classes */
+enum sim_event_type_t : uint32
+{
+	SIM_NOEVENT         = 0,
+	SIM_MOUSE_BUTTONS   = 1,
+	SIM_KEYBOARD        = 2,
+	SIM_MOUSE_MOVE      = 3,
+	SIM_STRING          = 4,
+	SIM_SYSTEM          = 254,
+	SIM_IGNORE_EVENT    = 255
+};
 
-#define SIM_NOEVENT         0
-#define SIM_MOUSE_BUTTONS   1
-#define SIM_KEYBOARD        2
-#define SIM_MOUSE_MOVE      3
-#define SIM_STRING          4
-#define SIM_SYSTEM          254
-#define SIM_IGNORE_EVENT    255
 
-/* Actions */ /* added RIGHTUP and MIDUP */
-#define SIM_MOUSE_LEFTUP            1
-#define SIM_MOUSE_RIGHTUP           2
-#define SIM_MOUSE_MIDUP             3
-#define SIM_MOUSE_LEFTBUTTON        4
-#define SIM_MOUSE_RIGHTBUTTON       5
-#define SIM_MOUSE_MIDBUTTON         6
-#define SIM_MOUSE_MOVED             7
-#define SIM_MOUSE_WHEELUP           8
-#define SIM_MOUSE_WHEELDOWN         9
+/// Mouse actions
+enum sim_mouse_action_t : unsigned long
+{
+	SIM_MOUSE_LEFTUP      = 1,
+	SIM_MOUSE_RIGHTUP     = 2,
+	SIM_MOUSE_MIDUP       = 3,
+	SIM_MOUSE_LEFTBUTTON  = 4,
+	SIM_MOUSE_RIGHTBUTTON = 5,
+	SIM_MOUSE_MIDBUTTON   = 6,
+	SIM_MOUSE_MOVED       = 7,
+	SIM_MOUSE_WHEELUP     = 8,
+	SIM_MOUSE_WHEELDOWN   = 9
+};
 
-/* Global Variable for message processing */
 
 struct sys_event_t
 {
-	unsigned long type;
+	sim_event_type_t type;
 	union {
 		unsigned long code;
 		void *ptr;
 	};
-	sint32 mx;                  /* es sind negative Koodinaten mgl */
-	sint32 my;
-	uint16 mb;
+
+	// mouse position; negative coords are possible
+	scr_coord_val mx;
+	scr_coord_val my;
+	uint16 mb; // Combination of MOUSE_* flags from simevent.h
 
 	/// new window size for SYSTEM_RESIZE
 	scr_size new_window_size;
 
-	unsigned int key_mod; /* key mod, like ALT, CTRL, SHIFT */
+	/// pressed modifiers, combination of SIM_MOD_* flags from simevent.h
+	unsigned int key_mod;
 };
 
+/// Global Variable for message processing
 enum { WINDOWED, FULLSCREEN, BORDERLESS };
 
 extern sys_event_t sys_event;
@@ -161,7 +169,7 @@ void dr_flush();         // copy to screen (eventually multithreaded)
  * Transform a 24 bit RGB color into the system format.
  * @return converted color value
  */
-unsigned int get_system_color(unsigned int r, unsigned int g, unsigned int b);
+PIXVAL get_system_color(rgb888_t rgb);
 
 void show_pointer(int yesno);
 
@@ -169,8 +177,7 @@ void set_pointer(int loading);
 
 bool move_pointer(int x, int y);
 
-int get_mouse_x();
-int get_mouse_y();
+scr_coord get_mouse_pos();
 
 void ex_ord_update_mx_my();
 
@@ -220,7 +227,7 @@ void dr_stop_textinput();
 /**
  * Inform the IME of a ideal place to open its popup.
  */
-void dr_notify_input_pos(int x, int y);
+void dr_notify_input_pos(scr_coord pos);
 
 ///  returns current two byte languange ID
 const char* dr_get_locale();

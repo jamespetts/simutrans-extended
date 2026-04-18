@@ -1,0 +1,26 @@
+<title>Takeover Help</title>
+
+<h1><strong>Player takeovers</strong></h1>
+<p>
+Players in Simutrans-Extended can be taken over in two situations: <br>
+- <em>voluntarily</em>; or<br>
+- as a result of <a href="insolvency.txt">insolvency</a>.
+</p>
+<p>
+In either case, the player taking over pays the (notional) owners or creditors of the transport company comprising the player being taken over a sum of money representing what the player/company is worth, and immediately becomes the owner of all the assets (roads, railways, airports, ships, trains and so forth) of the player being taken over, with the exception of the headquarters of the player being taken over, which is destroyed. 
+</p>
+<p>
+Where a player has been taken over, that player ceases to exist in the Simutrans-Extended world, and the player slot that it had formerly occupied becomes free for anyone else to start a new company. The rules of some online Simutrans-Extended servers allow (human) players to found a new company as soon as their previous company has been taken over in this way.
+</p>
+<p>
+In the case of a <em>voluntary</em> takeover, the player being taken over selects the "allow takeover of this company" button in the <a href="players.txt">player list</a>. This can be cancelled at any time before a takeover has taken place by pressing the "cancel" button next to it. For as long as this button remains depressed, any player who can afford it can take over this player. A takeover is an irreversible process.
+</p>
+<p>
+In the case of <em>insolvency</em>, the insolvent player has no option as to whether to allow takeovers or not. Any player may, on paying the necessary amount to the insolvent player's creditors, take over the insolvent player. A player that is <em>in administration</em> is taken over as a going concern with all services operating as normal. A player that is <em>in liquidation</em> will have terminated all of its services and its vehicles will be left in the depots, so the taking over player will need to work to restore the networks to working order.
+</p>
+<p>
+The cost of takeover is based on the assets of the company to be taken over. Unless the company to be taken over is in liquidation, the player taking over the other player will always assume the debts of the player being taken over.
+</p>
+<p>
+To take over another company that is available for takeover, press the "take over" button next to that company's name at the bottom of the player window. If that button is greyed out, it means that you cannot afford to take over the company. The cost of taking on the company's debts is included in whehter you can afford to take it over, so, if the company is in administration, you can always check again if and when it goes into liquidation to see whehter you can afford it then.
+</p>

@@ -4,11 +4,13 @@
  */
 
 #include "gui_numberinput.h"
+
 #include "../gui_frame.h"
 #include "../simwin.h"
 #include "../../display/simgraph.h"
 #include "../../macros.h"
 #include "../../dataobj/translator.h"
+
 
 uint32 log10( uint32 ); // simrandom.h
 
@@ -42,8 +44,9 @@ gui_numberinput_t::gui_numberinput_t() :
 	set_size( scr_size( D_BUTTON_WIDTH, D_EDIT_HEIGHT ) );
 }
 
-void gui_numberinput_t::set_size(scr_size size_par) {
 
+void gui_numberinput_t::set_size(scr_size size_par)
+{
 	gui_component_t::set_size(size_par);
 
 	textinp.set_size( scr_size( size_par.w - bt_left.get_size().w - bt_right.get_size().w - D_H_SPACE, size_par.h) );
@@ -53,16 +56,19 @@ void gui_numberinput_t::set_size(scr_size size_par) {
 	bt_right.align_to( &textinp, scr_coord( D_H_SPACE / 2, 0) );
 }
 
+
 scr_size gui_numberinput_t::get_max_size() const
 {
 	return get_min_size();
 }
+
 
 scr_size gui_numberinput_t::get_min_size() const
 {
 	return scr_size(max_numbertext_width + D_ARROW_LEFT_WIDTH + D_ARROW_RIGHT_WIDTH + 2*D_H_SPACE,
 					max(LINESPACE+4, max( max(D_ARROW_LEFT_HEIGHT, D_ARROW_RIGHT_HEIGHT), D_EDIT_HEIGHT)) );
 }
+
 
 void gui_numberinput_t::set_value(sint32 new_value)
 {
@@ -96,7 +102,6 @@ sint32 gui_numberinput_t::get_value()
 }
 
 
-
 bool gui_numberinput_t::check_value(sint32 _value)
 {
 	return (_value >= min_value)  &&  (_value <= max_value);
@@ -107,10 +112,35 @@ void gui_numberinput_t::set_limits(sint32 _min, sint32 _max)
 {
 	min_value = _min;
 	max_value = _max;
-	char min_text[32], max_text[32];
-	sprintf(min_text, "%d", _min);
-	sprintf(max_text, "%d", _max);
-	max_numbertext_width = max(proportional_string_width(min_text), proportional_string_width(max_text));
+	// guess max width of numbers
+	const char* digits = "-0123456789";
+	uint8 bytes, pixel;
+	// minus sign
+	if (min_value > 0) {
+		get_next_char_with_metrics(digits, bytes, pixel);
+		max_numbertext_width = pixel;
+	}
+	else {
+		digits++;
+		max_numbertext_width = 0;
+	}
+	// count digits
+	uint32 max_abs = max_value > 0 ? max_value : -max_value;
+	if (min_value < 0  &&  (uint32) (-min_value) > max_abs) {
+		max_abs = -min_value;
+	}
+	// width of digits
+	uint8 digit_width = 0;
+	while (*digits) {
+		get_next_char_with_metrics(digits, bytes, pixel);
+		if (pixel > digit_width) {
+			digit_width =  pixel;
+		}
+	}
+	while (max_abs) {
+		max_numbertext_width += digit_width;
+		max_abs /= 10;
+	}
 }
 
 
@@ -138,7 +168,7 @@ bool gui_numberinput_t::action_triggered( gui_action_creator_t *comp, value_t /*
 }
 
 
-sint8 gui_numberinput_t::percent[7] = { 0, 1, 5, 10, 20, 50, 100 };
+static const sint8 load_percents[7] = { 0, 1, 5, 10, 20, 50, 100 };
 
 sint32 gui_numberinput_t::get_next_value()
 {
@@ -170,9 +200,9 @@ sint32 gui_numberinput_t::get_next_value()
 		case PROGRESS:
 		{
 			sint64 diff = (sint64)max_value - (sint64)min_value;
-			for( int i=0;  i<7;  i++  ) {
-				if(  value-min_value < ((diff*(sint64)percent[i])/100l)  ) {
-					return min_value+(sint32)((diff*percent[i])/100l);
+			for( size_t i=0;  i<lengthof(load_percents);  i++  ) {
+				if(  value-min_value < ((diff*(sint64)load_percents[i])/100l)  ) {
+					return min_value+(sint32)((diff*load_percents[i])/100l);
 				}
 			}
 			return max_value;
@@ -214,9 +244,9 @@ sint32 gui_numberinput_t::get_prev_value()
 		case PROGRESS:
 		{
 			sint64 diff = (sint64)max_value-(sint64)min_value;
-			for( int i=6;  i>=0;  i--  ) {
-				if(  value-min_value > ((diff*percent[i])/100l)  ) {
-					return min_value+(sint32)((diff*percent[i])/100l);
+			for( int i = (int)lengthof(load_percents)-1;  i>=0;  i--  ) {
+				if(  value-min_value > ((diff*load_percents[i])/100l)  ) {
+					return min_value+(sint32)((diff*load_percents[i])/100l);
 				}
 			}
 			return min_value;
@@ -246,12 +276,12 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 		return false;
 	}
 	// buttons pressed
-	if(  bt_left.getroffen(ev->cx, ev->cy)  &&  ev->ev_code == MOUSE_LEFTBUTTON  ) {
+	if(  bt_left.getroffen( ev->click_pos)  &&  ev->ev_code == MOUSE_LEFTBUTTON  ) {
 		event_t ev2 = *ev;
 		ev2.move_origin(bt_left.get_pos());
 		return bt_left.infowin_event(&ev2);
 	}
-	else if(  bt_right.getroffen(ev->cx, ev->cy)  &&  ev->ev_code == MOUSE_LEFTBUTTON  ) {
+	else if(  bt_right.getroffen( ev->click_pos)  &&  ev->ev_code == MOUSE_LEFTBUTTON  ) {
 		event_t ev2 = *ev;
 		ev2.move_origin(bt_right.get_pos());
 		return bt_right.infowin_event(&ev2);
@@ -269,7 +299,7 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 		sint32 new_value = value;
 
 		// mouse wheel -> fast increase / decrease
-		if (getroffen(ev->mx + pos.x, ev->my + pos.y)) {
+		if (getroffen(ev->mouse_pos + this->pos)) {
 			if(IS_WHEELUP(ev)) {
 				new_value = get_next_value();
 				result = true;
@@ -350,8 +380,9 @@ void gui_numberinput_t::draw(scr_coord offset)
 	textinp.display_with_focus( new_offset, (win_get_focus()==this) );
 	bt_right.draw(new_offset);
 
-	if(!no_tooltip  &&  getroffen( get_mouse_x()-offset.x, get_mouse_y()-offset.y )) {
+	if(!no_tooltip  &&  getroffen( get_mouse_pos() - offset )) {
 		sprintf( tooltip, translator::translate("enter a value between %i and %i"), min_value, max_value );
-		win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, new_offset.y + size.h + TOOLTIP_MOUSE_OFFSET_Y, tooltip, this);
+		const scr_coord tooltip_base_pos{ get_mouse_pos().x, new_offset.y + size.h };
+		win_set_tooltip(tooltip_base_pos + TOOLTIP_MOUSE_OFFSET, tooltip, this);
 	}
 }

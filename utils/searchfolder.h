@@ -14,7 +14,8 @@
 /**
  * Searches a disk folder for files matching certain restrictions.
  */
-class searchfolder_t {
+class searchfolder_t
+{
 public:
 	~searchfolder_t();
 	/**
@@ -60,6 +61,7 @@ private:
 	 * We store the result of the search on this list
 	 */
 	vector_tpl<char*> files;
+
 	/**
 	 * Adds one entry to the list.
 	 * @param path Qualified path to the directory of the entry.

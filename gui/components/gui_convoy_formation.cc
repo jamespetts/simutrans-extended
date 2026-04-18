@@ -144,7 +144,6 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_images) const
 {
 	scr_coord p = offset + get_pos();
-	p.y += get_size().h/2;
 	// we will use their images offsets and width to shift them to their correct position
 	// this should work with any vehicle size ...
 	scr_size s(D_H_SPACE*2, D_V_SPACE*2);
@@ -153,7 +152,7 @@ scr_size gui_convoy_formation_t::draw_vehicles(scr_coord offset, bool display_im
 		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		if (display_images) {
-			display_base_img(image, p.x + s.w - x, p.y - y - h/2, cnv->get_owner()->get_player_nr(), false, true);
+			display_base_img(image, p.x + s.w - x, p.y + get_size().h - h - y, cnv->get_owner()->get_player_nr(), false, true);
 		}
 		s.w += (w*2)/3;
 		s.h = max(s.h, h);

@@ -30,7 +30,6 @@ checklist_t::checklist_t() :
 	}
 }
 
-
 checklist_t::checklist_t(const uint32 &hash) :
 	hash(hash),
 	random_seed(0),

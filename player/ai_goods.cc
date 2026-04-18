@@ -124,7 +124,7 @@ bool ai_goods_t::set_active(bool new_state)
 
 
 /* recursive lookup of a factory tree:
- * sets start and destination  to the next needed supplier
+ * sets start and destination to the next needed supplier
  * start always with the first branch, if there are more goods
  */
 bool ai_goods_t::get_factory_tree_lowest_missing( fabrik_t *fab )
@@ -269,11 +269,11 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 				add_neighbourhood( one_more, 1 );
 				// Any halts here?
 				vector_tpl<koord> halts;
-				FOR(vector_tpl<koord>, const& j, one_more) {
+				for(koord const& j : one_more) {
 					halthandle_t const halt = get_halt(j);
 					if(  halt.is_bound()  &&  !halts.is_contained(halt->get_basis_pos())  ) {
 						bool halt_connected = halt->get_fab_list().is_contained( fab );
-						FOR(  slist_tpl<haltestelle_t::tile_t>, const& i, halt->get_tiles()  ) {
+						for(haltestelle_t::tile_t const& i : halt->get_tiles()  ) {
 							koord const pos = i.grund->get_pos().get_2d();
 							if(  halt_connected  ||  fab_tiles.is_contained(pos)  ) {
 								halts.append_unique( pos );
@@ -285,7 +285,7 @@ bool ai_goods_t::suche_platz1_platz2(fabrik_t *qfab, fabrik_t *zfab, int length 
 				vector_tpl<koord> *next = &halts;
 				for( uint8 k = 0; k < 2; k++ ) {
 					// On which tiles we can start?
-					FOR(vector_tpl<koord>, const& j, *next) {
+					for(koord const& j : *next) {
 						grund_t const* const gr = welt->lookup_kartenboden(j);
 						if(  gr  &&  gr->get_grund_hang() == slope_t::flat  &&  !gr->hat_wege()  &&  !gr->get_leitung()  ) {
 							tile_list[i].append_unique( gr->get_pos() );
@@ -520,7 +520,7 @@ void ai_goods_t::create_rail_transport_vehicle(const koord platz1, const koord p
 	// probably need to electrify the track?
 	if(  rail_engine->get_engine_type()==vehicle_desc_t::electric  ) {
 		// we need overhead wires
-		const way_obj_desc_t *e = wayobj_t::get_overhead_line(track_wt,welt->get_timeline_year_month());
+		const way_obj_desc_t *e = wayobj_t::get_overhead_line(track_wt, welt->get_timeline_year_month());
 		tool_build_wayobj_t tool;
 		tool.set_default_param(e->get_name());
 		tool.init( this );
@@ -801,9 +801,9 @@ void ai_goods_t::step()
 			if(root==NULL) {
 				// find a tree root to complete
 				weighted_vector_tpl<fabrik_t *> start_fabs(20);
-				FOR(vector_tpl<fabrik_t*>, const fab, welt->get_fab_list()) {
+				for(fabrik_t* const fab : welt->get_fab_list()  ) {
 					// consumer and not completely overcrowded
-					if(  fab->get_desc()->is_consumer_only()  &&  fab->get_status() < fabrik_t::bad  ) {
+					if(  fab->get_desc()->is_consumer_only()  &&  fab->get_status() == fabrik_t::inactive  ) {
 						int missing = get_factory_tree_missing_count( fab );
 						if(  missing>0  ) {
 							start_fabs.append( fab, 100/(missing+1)+1 );
@@ -1295,7 +1295,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 					sint64 goods=0;
 					// no goods for six months?
 					for( int i=0;  i<6;  i ++) {
-						goods += cnv->get_finance_history( i, convoi_t::CONVOI_PAX_DISTANCE );
+						goods += cnv->get_finance_history( i, convoi_t::CONVOI_PAYLOAD_DISTANCE );
 					}
 					delete_this = (goods==0);
 				}
@@ -1327,7 +1327,7 @@ DBG_MESSAGE("ai_goods_t::step()","remove already constructed rail between %i,%i 
 							vector_tpl<linehandle_t> lines;
 							koord water_stop = koord::invalid;
 							simlinemgmt.get_lines( simline_t::shipline, &lines );
-							FOR(vector_tpl<linehandle_t>, const line, lines) {
+							for(linehandle_t const line : lines) {
 								schedule_t *schedule=line->get_schedule();
 								if(schedule->get_count()>1  &&  haltestelle_t::get_halt(schedule->entries[0].pos,this)==start_halt) {
 									water_stop = koord( (start_pos.x+schedule->entries[0].pos.x)/2, (start_pos.y+schedule->entries[0].pos.y)/2 );
@@ -1500,7 +1500,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 	sint32 cnt = forbidden_connections.get_count();
 	file->rdwr_long(cnt);
 	if(file->is_saving()) {
-		FOR(slist_tpl<fabconnection_t*>, const fc, forbidden_connections) {
+		for(fabconnection_t* const fc : forbidden_connections) {
 			fc->rdwr(file);
 		}
 	}
@@ -1528,7 +1528,7 @@ void ai_goods_t::rdwr(loadsave_t *file)
 bool ai_goods_t::is_forbidden( fabrik_t *fab1, fabrik_t *fab2, const goods_desc_t *w ) const
 {
 	fabconnection_t fc(fab1, fab2, w);
-	FOR(slist_tpl<fabconnection_t*>, const test_fc, forbidden_connections) {
+	for(fabconnection_t* const test_fc : forbidden_connections) {
 		if (fc == (*test_fc)) {
 			return true;
 		}

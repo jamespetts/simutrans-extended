@@ -255,7 +255,7 @@ void gui_bandgraph_t::draw(scr_coord offset)
 {
 	offset = offset+pos+padding;
 	total = 0;
-	FOR(slist_tpl<info_t>, const& i, values) {
+	for(info_t const& i : values) {
 		total += *i.value;
 	}
 
@@ -268,7 +268,7 @@ void gui_bandgraph_t::draw(scr_coord offset)
 		offset.x += bar_width;
 		sint32 temp = 0;
 		scr_coord_val end = 0;
-		FOR(slist_tpl<info_t>, const& i, values) {
+		for(info_t const& i : values) {
 			if (*i.value>0) {
 				temp += (*i.value);
 				const scr_coord_val from = bar_width * temp / total + 0.5;

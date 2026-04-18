@@ -9,8 +9,9 @@
 #include "../../simskin.h"
 #include "../../simhalt.h"
 #include "../../simworld.h"
+#include "../../simline.h"
 
-#include "../../bauer/vehikelbauer.h"
+#include "../../bauer/wegbauer.h"
 
 #include "../../boden/wege/kanal.h"
 #include "../../boden/wege/maglev.h"
@@ -24,45 +25,19 @@
 
 #include "../../descriptor/skin_desc.h"
 
+// Control display order
+static waytype_t waytypes[simline_t::MAX_LINE_TYPE] =
+{ ignore_wt, maglev_wt, monorail_wt, track_wt, narrowgauge_wt, tram_wt, road_wt, water_wt, air_wt };
+
 
 void gui_waytype_tab_panel_t::init_tabs(gui_component_t* c)
 {
 	uint8 max_idx = 0;
-	add_tab(c, translator::translate("All"), 0, translator::translate("All"), world()->get_settings().get_waytype_color(ignore_wt));
-	tabs_to_waytype[max_idx++] = ignore_wt;
-
-	// now add all specific tabs
-	if (maglev_t::default_maglev) {
-		add_tab(c, translator::translate("Maglev"), skinverwaltung_t::maglevhaltsymbol, translator::translate("Maglev"), world()->get_settings().get_waytype_color(maglev_wt));
-		tabs_to_waytype[max_idx++] = maglev_wt;
-	}
-	if (monorail_t::default_monorail) {
-		add_tab(c, translator::translate("Monorail"), skinverwaltung_t::monorailhaltsymbol, translator::translate("Monorail"), world()->get_settings().get_waytype_color(monorail_wt));
-		tabs_to_waytype[max_idx++] = monorail_wt;
-	}
-	if (schiene_t::default_schiene) {
-		add_tab(c, translator::translate("Train"), skinverwaltung_t::zughaltsymbol, translator::translate("Train"), world()->get_settings().get_waytype_color(track_wt));
-		tabs_to_waytype[max_idx++] = track_wt;
-	}
-	if (narrowgauge_t::default_narrowgauge) {
-		add_tab(c, translator::translate("Narrowgauge"), skinverwaltung_t::narrowgaugehaltsymbol, translator::translate("Narrowgauge"), world()->get_settings().get_waytype_color(narrowgauge_wt));
-		tabs_to_waytype[max_idx++] = narrowgauge_wt;
-	}
-	if (!vehicle_builder_t::get_info(tram_wt).empty()) {
-		add_tab(c, translator::translate("Tram"), skinverwaltung_t::tramhaltsymbol, translator::translate("Tram"), world()->get_settings().get_waytype_color(tram_wt));
-		tabs_to_waytype[max_idx++] = tram_wt;
-	}
-	if (strasse_t::default_strasse) {
-		add_tab(c, translator::translate("Truck"), skinverwaltung_t::autohaltsymbol, translator::translate("Truck"), world()->get_settings().get_waytype_color(road_wt));
-		tabs_to_waytype[max_idx++] = road_wt;
-	}
-	if (!vehicle_builder_t::get_info(water_wt).empty()) {
-		add_tab(c, translator::translate("Ship"), skinverwaltung_t::schiffshaltsymbol, translator::translate("Ship"), world()->get_settings().get_waytype_color(water_wt));
-		tabs_to_waytype[max_idx++] = water_wt;
-	}
-	if (runway_t::default_runway) {
-		add_tab(c, translator::translate("Air"), skinverwaltung_t::airhaltsymbol, translator::translate("Air"), world()->get_settings().get_waytype_color(air_wt));
-		tabs_to_waytype[max_idx++] = air_wt;
+	for (uint8 i = 0; i < simline_t::MAX_LINE_TYPE; i++) {
+		if (way_builder_t::is_active_waytype(waytypes[i])) {
+			add_tab(c, get_translated_waytype_name(waytypes[i]), skinverwaltung_t::get_waytype_skin(waytypes[i]), get_translated_waytype_name(waytypes[i]), world()->get_settings().get_waytype_color(waytypes[i]));
+			tabs_to_waytype[max_idx++] = waytypes[i];
+		}
 	}
 }
 
@@ -94,4 +69,22 @@ haltestelle_t::stationtyp gui_waytype_tab_panel_t::get_active_tab_stationtype() 
 		default:             return haltestelle_t::invalid;
 
 	}
+}
+
+char const * gui_waytype_tab_panel_t::get_translated_waytype_name(waytype_t wt)
+{
+	switch (wt) {
+		case air_wt:
+		case road_wt:
+		case track_wt:
+		case water_wt:
+		case monorail_wt:
+		case maglev_wt:
+		case tram_wt:
+		case narrowgauge_wt:
+			return simline_t::get_linetype_name(simline_t::waytype_to_linetype(wt));
+		case ignore_wt:      return translator::translate("All");
+		default:             return nullptr;
+	}
+	return nullptr;
 }

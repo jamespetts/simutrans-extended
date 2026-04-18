@@ -100,7 +100,7 @@ public:
 
 	virtual ribi_t::ribi get_ribi( const grund_t* gr) const;
 
-	virtual int get_cost(const grund_t* gr, const sint32 max_speed, koord from_pos);
+	virtual int get_cost(const grund_t* gr, const sint32 max_speed, ribi_t::ribi from);
 };
 
 /**

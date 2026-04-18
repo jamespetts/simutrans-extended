@@ -757,7 +757,7 @@ void vehicle_class_manager_t::rdwr(loadsave_t *file)
 		// now we can open the window ...
 		scr_coord const& pos = win_get_pos(this);
 		vehicle_class_manager_t *w = new vehicle_class_manager_t(cnv);
-		create_win(pos.x, pos.y, w, w_info, magic_class_manager + cnv.get_id());
+		create_win(pos, w, w_info, magic_class_manager + cnv.get_id());
 		w->set_windowsize( size );
 		w->tabs.set_active_tab_index(selected_tab);
 		w->scrolly_by_vehicle.set_scroll_position( xoff, yoff );

@@ -9,6 +9,7 @@
 #include "../player/simplay.h"
 #include "../simworld.h"
 #include "../dataobj/environment.h"
+#include "../unicode.h"
 
 
 char factorylist_frame_t::name_filter[256];
@@ -65,6 +66,7 @@ factorylist_frame_t::factorylist_frame_t(stadt_t* city) :
 	filter_city(city)
 {
 	old_factories_count = 0;
+	scrolly.set_checkered(true);
 
 	set_table_layout(1,0);
 	add_table(2,3);
@@ -297,7 +299,7 @@ void factorylist_frame_t::fill_list()
 	old_factories_count = world()->get_fab_list().get_count(); // to avoid too many redraws ...
 	scrolly.clear_elements();
 	uint32 count = 0;
-	FOR(const vector_tpl<fabrik_t *>,fab,world()->get_fab_list()) {
+	for(fabrik_t* fab : world()->get_fab_list()) {
 		if (factorylist_stats_t::region_filter && (factorylist_stats_t::region_filter-1) != world()->get_region(fab->get_pos().get_2d())) {
 			continue;
 		}
@@ -337,7 +339,7 @@ void factorylist_frame_t::fill_list()
 	lb_factory_counter.buf().printf("%u/%u", count, world()->get_fab_list().get_count());
 	lb_factory_counter.update();
 	scrolly.sort(0);
-	scrolly.set_size(scrolly.get_size());
+	scrolly.set_size(scr_size(get_windowsize().w, scrolly.get_size().h));
 }
 
 void factorylist_frame_t::set_cityfilter(stadt_t *city)

@@ -5,7 +5,6 @@
 #ifndef NO_COMPILER
 #include <stdarg.h>
 #include <setjmp.h>
-#include <limits.h>
 #include "sqopcodes.h"
 #include "sqstring.h"
 #include "sqfuncproto.h"
@@ -192,7 +191,7 @@ public:
 		}
 		else {
 			if(_raiseerror && _ss(_vm)->_compilererrorhandler) {
-				_ss(_vm)->_compilererrorhandler(_vm, _compilererror, type(_sourcename) == OT_STRING?_stringval(_sourcename):_SC("unknown"),
+				_ss(_vm)->_compilererrorhandler(_vm, _compilererror, sq_type(_sourcename) == OT_STRING?_stringval(_sourcename):_SC("unknown"),
 					_lex._currentline, _lex._currentcolumn);
 			}
 			_vm->_lasterror = SQString::Create(_ss(_vm), _compilererror, -1);
@@ -444,8 +443,8 @@ public:
 			Expression();
 			SQInteger second_exp = _fs->PopTarget();
 			if(trg != second_exp) _fs->AddInstruction(_OP_MOVE, trg, second_exp);
-			_fs->SetIntructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
-			_fs->SetIntructionParam(jzpos, 1, endfirstexp - jzpos + 1);
+			_fs->SetInstructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
+			_fs->SetInstructionParam(jzpos, 1, endfirstexp - jzpos + 1);
 			_fs->SnoozeOpt();
 			}
 			break;
@@ -467,6 +466,7 @@ public:
 		INVOKE_EXP(f);
 		SQInteger op1 = _fs->PopTarget();SQInteger op2 = _fs->PopTarget();
 		_fs->AddInstruction(op, _fs->PushTarget(), op1, op2, op3);
+		_es.etype = EXPR;
 	}
 	void LogicalOrExp()
 	{
@@ -482,7 +482,8 @@ public:
 			SQInteger second_exp = _fs->PopTarget();
 			if(trg != second_exp) _fs->AddInstruction(_OP_MOVE, trg, second_exp);
 			_fs->SnoozeOpt();
-			_fs->SetIntructionParam(jpos, 1, (_fs->GetCurrentPos() - jpos));
+			_fs->SetInstructionParam(jpos, 1, (_fs->GetCurrentPos() - jpos));
+			_es.etype = EXPR;
 			break;
 		}else return;
 	}
@@ -501,7 +502,8 @@ public:
 			SQInteger second_exp = _fs->PopTarget();
 			if(trg != second_exp) _fs->AddInstruction(_OP_MOVE, trg, second_exp);
 			_fs->SnoozeOpt();
-			_fs->SetIntructionParam(jpos, 1, (_fs->GetCurrentPos() - jpos));
+			_fs->SetInstructionParam(jpos, 1, (_fs->GetCurrentPos() - jpos));
+			_es.etype = EXPR;
 			break;
 			}
 
@@ -633,7 +635,7 @@ public:
 				}
 				break;
 			case _SC('['):
-				if(_lex._prevtoken == _SC('\n')) Error(_SC("cannot brake deref/or comma needed after [exp]=exp slot declaration"));
+				if(_lex._prevtoken == _SC('\n')) Error(_SC("cannot break deref/or comma needed after [exp]=exp slot declaration"));
 				Lex(); Expression(); Expect(_SC(']'));
 				pos = -1;
 				if(_es.etype==BASE) {
@@ -763,7 +765,7 @@ public:
 					/* Handle named constant */
 					SQObjectPtr constval;
 					SQObject    constid;
-					if(type(constant) == OT_TABLE) {
+					if(sq_type(constant) == OT_TABLE) {
 						Expect('.');
 						constid = Expect(TK_IDENTIFIER);
 						if(!_table(constant)->Get(constid, constval)) {
@@ -777,7 +779,7 @@ public:
 					_es.epos = _fs->PushTarget();
 
 					/* generate direct or literal function depending on size */
-					SQObjectType ctype = type(constval);
+					SQObjectType ctype = sq_type(constval);
 					switch(ctype) {
 						case OT_INTEGER: EmitLoadConstInt(_integer(constval),_es.epos); break;
 						case OT_FLOAT: EmitLoadConstFloat(_float(constval),_es.epos); break;
@@ -832,7 +834,7 @@ public:
 					_fs->AddInstruction(_OP_APPENDARRAY, array, val, AAT_STACK);
 					key++;
 				}
-				_fs->SetIntructionParam(apos, 1, key);
+				_fs->SetInstructionParam(apos, 1, key);
 				Lex();
 			}
 			break;
@@ -860,6 +862,7 @@ public:
 		case TK_TYPEOF : Lex() ;UnaryOP(_OP_TYPEOF); break;
 		case TK_RESUME : Lex(); UnaryOP(_OP_RESUME); break;
 		case TK_CLONE : Lex(); UnaryOP(_OP_CLONE); break;
+		case TK_RAWCALL: Lex(); Expect('('); FunctionCallArgs(true); break;
 		case TK_MINUSMINUS :
 		case TK_PLUSPLUS :PrefixIncDec(_token); break;
 		case TK_DELETE : DeleteExpr(); break;
@@ -890,9 +893,7 @@ public:
 			target = _fs->PushTarget();
 		}
 		if(sizeof(SQFloat) == sizeof(SQInt32)) {
-			SQInt32 v;
-			memcpy(&v, &value, sizeof(SQInt32));
-			_fs->AddInstruction(_OP_LOADFLOAT, target, v);
+			_fs->AddInstruction(_OP_LOADFLOAT, target,*((SQInt32 *)&value));
 		}
 		else {
 			_fs->AddInstruction(_OP_LOAD, target, _fs->GetNumericConstant(value));
@@ -918,7 +919,7 @@ public:
 		}
 		return (!_es.donot_get || ( _es.donot_get && (_token == _SC('.') || _token == _SC('['))));
 	}
-	void FunctionCallArgs()
+	void FunctionCallArgs(bool rawcall = false)
 	{
 		SQInteger nargs = 1;//this
 		 while(_token != _SC(')')) {
@@ -931,10 +932,52 @@ public:
 			 }
 		 }
 		 Lex();
+		 if (rawcall) {
+			 if (nargs < 3) Error(_SC("rawcall requires at least 2 parameters (callee and this)"));
+			 nargs -= 2; //removes callee and this from count
+		 }
 		 for(SQInteger i = 0; i < (nargs - 1); i++) _fs->PopTarget();
 		 SQInteger stackbase = _fs->PopTarget();
 		 SQInteger closure = _fs->PopTarget();
 		 _fs->AddInstruction(_OP_CALL, _fs->PushTarget(), closure, stackbase, nargs);
+#if 0
+		 /*
+		  * disabled as it breaks existing scripts like
+		  *
+		  * local a = []
+		  * local b = a.len()
+		  * // open some new block
+		  * {
+		  *        local c = 0
+		  * }
+		  *
+		  * see https://github.com/albertodemichelis/squirrel/issues/177
+		  */
+		 if (_token == '{')
+		 {
+			 SQInteger retval = _fs->TopTarget();
+			 SQInteger nkeys = 0;
+			 Lex();
+			 while (_token != '}') {
+				 switch (_token) {
+				 case _SC('['):
+					 Lex(); CommaExpr(); Expect(_SC(']'));
+					 Expect(_SC('=')); Expression();
+					 break;
+				 default:
+					 _fs->AddInstruction(_OP_LOAD, _fs->PushTarget(), _fs->GetConstant(Expect(TK_IDENTIFIER)));
+					 Expect(_SC('=')); Expression();
+					 break;
+				 }
+				 if (_token == ',') Lex();
+				 nkeys++;
+				 SQInteger val = _fs->PopTarget();
+				 SQInteger key = _fs->PopTarget();
+				 _fs->AddInstruction(_OP_SET, 0xFF, retval, key, val);
+			 }
+			 Lex();
+		 }
+#endif
 	}
 	void ParseTableOrClass(SQInteger separator,SQInteger terminator)
 	{
@@ -997,7 +1040,7 @@ public:
 			}
 		}
 		if(separator == _SC(',')) //hack recognizes a table from the separator
-			_fs->SetIntructionParam(tpos, 1, nkeys);
+			_fs->SetInstructionParam(tpos, 1, nkeys);
 		Lex();
 	}
 	void LocalDeclStatement()
@@ -1047,8 +1090,10 @@ public:
 			}
 		}
 		else {
+			//BEGIN_SCOPE();
 			Statement();
 			if (_lex._prevtoken != _SC('}') && _lex._prevtoken != _SC(';')) OptionalSemicolon();
+			//END_SCOPE();
 		}
 	}
 	void IfStatement()
@@ -1059,18 +1104,35 @@ public:
 		_fs->AddInstruction(_OP_JZ, _fs->PopTarget());
 		SQInteger jnepos = _fs->GetCurrentPos();
 
+
+
 		IfBlock();
+		//
+		/*static int n = 0;
+		if (_token != _SC('}') && _token != TK_ELSE) {
+			printf("IF %d-----------------------!!!!!!!!!\n", n);
+			if (n == 5)
+			{
+				printf("asd");
+			}
+			n++;
+			//OptionalSemicolon();
+		}*/
+
 
 		SQInteger endifblock = _fs->GetCurrentPos();
 		if(_token == TK_ELSE){
 			haselse = true;
+			//BEGIN_SCOPE();
 			_fs->AddInstruction(_OP_JMP);
 			jmppos = _fs->GetCurrentPos();
 			Lex();
+			//Statement(); if(_lex._prevtoken != _SC('}')) OptionalSemicolon();
 			IfBlock();
-			_fs->SetIntructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
+			//END_SCOPE();
+			_fs->SetInstructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
 		}
-		_fs->SetIntructionParam(jnepos, 1, endifblock - jnepos + (haselse?1:0));
+		_fs->SetInstructionParam(jnepos, 1, endifblock - jnepos + (haselse?1:0));
 	}
 	void WhileStatement()
 	{
@@ -1087,7 +1149,7 @@ public:
 
 		END_SCOPE();
 		_fs->AddInstruction(_OP_JMP, 0, jmppos - _fs->GetCurrentPos() - 1);
-		_fs->SetIntructionParam(jzpos, 1, _fs->GetCurrentPos() - jzpos);
+		_fs->SetInstructionParam(jzpos, 1, _fs->GetCurrentPos() - jzpos);
 
 		END_BREAKBLE_BLOCK(jmppos);
 	}
@@ -1146,10 +1208,11 @@ public:
 				_fs->AddInstruction(exp[i]);
 		}
 		_fs->AddInstruction(_OP_JMP, 0, jmppos - _fs->GetCurrentPos() - 1, 0);
-		if(jzpos>  0) _fs->SetIntructionParam(jzpos, 1, _fs->GetCurrentPos() - jzpos);
-		END_SCOPE();
+		if(jzpos>  0) _fs->SetInstructionParam(jzpos, 1, _fs->GetCurrentPos() - jzpos);
 
 		END_BREAKBLE_BLOCK(continuetrg);
+
+		END_SCOPE();
 	}
 	void ForEachStatement()
 	{
@@ -1186,8 +1249,8 @@ public:
 		BEGIN_BREAKBLE_BLOCK()
 		Statement();
 		_fs->AddInstruction(_OP_JMP, 0, jmppos - _fs->GetCurrentPos() - 1);
-		_fs->SetIntructionParam(foreachpos, 1, _fs->GetCurrentPos() - foreachpos);
-		_fs->SetIntructionParam(foreachpos + 1, 1, _fs->GetCurrentPos() - foreachpos);
+		_fs->SetInstructionParam(foreachpos, 1, _fs->GetCurrentPos() - foreachpos);
+		_fs->SetInstructionParam(foreachpos + 1, 1, _fs->GetCurrentPos() - foreachpos);
 		END_BREAKBLE_BLOCK(foreachpos - 1);
 		//restore the local variable stack(remove index,val and ref idx)
 		_fs->PopTarget();
@@ -1207,7 +1270,7 @@ public:
 			if(!bfirst) {
 				_fs->AddInstruction(_OP_JMP, 0, 0);
 				skipcondjmp = _fs->GetCurrentPos();
-				_fs->SetIntructionParam(tonextcondjmp, 1, _fs->GetCurrentPos() - tonextcondjmp);
+				_fs->SetInstructionParam(tonextcondjmp, 1, _fs->GetCurrentPos() - tonextcondjmp);
 			}
 			//condition
 			Lex(); Expression(); Expect(_SC(':'));
@@ -1225,7 +1288,7 @@ public:
 
 			//end condition
 			if(skipcondjmp != -1) {
-				_fs->SetIntructionParam(skipcondjmp, 1, (_fs->GetCurrentPos() - skipcondjmp));
+				_fs->SetInstructionParam(skipcondjmp, 1, (_fs->GetCurrentPos() - skipcondjmp));
 			}
 			tonextcondjmp = _fs->GetCurrentPos();
 			BEGIN_SCOPE();
@@ -1234,7 +1297,7 @@ public:
 			bfirst = false;
 		}
 		if(tonextcondjmp != -1)
-			_fs->SetIntructionParam(tonextcondjmp, 1, _fs->GetCurrentPos() - tonextcondjmp);
+			_fs->SetInstructionParam(tonextcondjmp, 1, _fs->GetCurrentPos() - tonextcondjmp);
 		if(_token == TK_DEFAULT) {
 			Lex(); Expect(_SC(':'));
 			BEGIN_SCOPE();
@@ -1325,7 +1388,7 @@ public:
 				}
 				break;
 			default:
-				Error(_SC("scalar expected : integer,float or string"));
+				Error(_SC("scalar expected : integer, float, or string"));
 		}
 		Lex();
 		return val;
@@ -1378,14 +1441,14 @@ public:
 		if(_fs->_continuetargets.size()) _fs->_continuetargets.top()--;
 		_fs->AddInstruction(_OP_JMP, 0, 0);
 		SQInteger jmppos = _fs->GetCurrentPos();
-		_fs->SetIntructionParam(trappos, 1, (_fs->GetCurrentPos() - trappos));
+		_fs->SetInstructionParam(trappos, 1, (_fs->GetCurrentPos() - trappos));
 		Expect(TK_CATCH); Expect(_SC('(')); exid = Expect(TK_IDENTIFIER); Expect(_SC(')'));
 		{
 			BEGIN_SCOPE();
 			SQInteger ex_target = _fs->PushLocalVariable(exid);
-			_fs->SetIntructionParam(trappos, 0, ex_target);
+			_fs->SetInstructionParam(trappos, 0, ex_target);
 			Statement();
-			_fs->SetIntructionParams(jmppos, 0, (_fs->GetCurrentPos() - jmppos), 0);
+			_fs->SetInstructionParams(jmppos, 0, (_fs->GetCurrentPos() - jmppos), 0);
 			END_SCOPE();
 		}
 	}
@@ -1523,7 +1586,7 @@ public:
 			SQInteger pos = funcstate->_unresolvedbreaks.back();
 			funcstate->_unresolvedbreaks.pop_back();
 			//set the jmp instruction
-			funcstate->SetIntructionParams(pos, 0, funcstate->GetCurrentPos() - pos, 0);
+			funcstate->SetInstructionParams(pos, 0, funcstate->GetCurrentPos() - pos, 0);
 			ntoresolve--;
 		}
 	}
@@ -1533,7 +1596,7 @@ public:
 			SQInteger pos = funcstate->_unresolvedcontinues.back();
 			funcstate->_unresolvedcontinues.pop_back();
 			//set the jmp instruction
-			funcstate->SetIntructionParams(pos, 0, targetpos - pos, 0);
+			funcstate->SetInstructionParams(pos, 0, targetpos - pos, 0);
 			ntoresolve--;
 		}
 	}

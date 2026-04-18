@@ -595,7 +595,7 @@ void wayobj_t::fill_menu(tool_selector_t *tool_selector, waytype_t wtyp, sint16 
 	}
 	// sort the tools before adding to menu
 	std::sort(matching.begin(), matching.end(), compare_wayobj_desc);
-	FOR(vector_tpl<way_obj_desc_t const*>, const i, matching) {
+	for(way_obj_desc_t const* const i : matching) {
 		tool_selector->add_tool_selector(i->get_builder());
 	}
 }

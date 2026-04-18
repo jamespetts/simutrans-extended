@@ -132,6 +132,8 @@ Function componentsPre
   Call EnableSectionIfThere
   Push ${pak64japan}
   Call EnableSectionIfThere
+  Push ${pak64nippon}
+  Call EnableSectionIfThere
   Push ${pak64HO}
   Call EnableSectionIfThere
   Push ${pak64HAJO}
@@ -168,6 +170,10 @@ Function CheckForClosedSource
   IntCmp $R0 ${SF_SELECTED} showFW
 
   SectionGetFlags ${pak64HAJO} $R0
+  IntOp $R0 $R0 & ${SF_SELECTED}
+  IntCmp $R0 ${SF_SELECTED} showFW
+
+  SectionGetFlags ${pak64nippon} $R0
   IntOp $R0 $R0 & ${SF_SELECTED}
   IntCmp $R0 ${SF_SELECTED} showFW
 

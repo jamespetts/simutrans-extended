@@ -1,5 +1,5 @@
 /*
- * This file is part of the Simutrans project under the Artistic License.
+ * This file is part of the Simutrans-Extended project under the Artistic License.
  * (see LICENSE.txt)
  */
 
@@ -64,7 +64,7 @@ scr_size gui_building_t::get_min_size() const
 void gui_building_t::draw(scr_coord offset)
 {
 	scr_coord pos = get_pos() + offset - tl;
-	FOR(vector_tpl<gui_image_t*>, img, images) {
+	for(gui_image_t* img : images) {
 		img->draw(pos);
 	}
 }

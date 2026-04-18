@@ -155,6 +155,11 @@ public:
 	 * @param wtyp way type
 	 */
 	static void fill_menu(tool_selector_t *tool_selector, const waytype_t wtyp, sint16 sound_ok);
+
+	/**
+	 * Returns a list with available bridge types.
+	 */
+	static const vector_tpl<const bridge_desc_t *>& get_available_bridges(const waytype_t wtyp);
 };
 
 #endif

@@ -139,6 +139,12 @@ private:
 	static bool check_construction_site(koord pos, koord size, factory_desc_t::site_t site, bool is_factory, climate_bits cl, uint16 regions_allowed);
 
 	/**
+	 * Support routine to see if two water points can be connected by ocean,
+	 * for use in factory placement for water factories like fisheries
+	 */
+	static bool has_ocean_route(koord start_pos, koord end_pos);
+
+	/**
 	 * Find a random site to place a factory.
 	 * @param radius Radius of the search circle around @p pos
 	 * @param size size of the building site

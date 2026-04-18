@@ -16,6 +16,10 @@
 #include "../utils/plainstring.h"
 #include <string>
 
+class log_t;
+template<class key_t, class value_t, size_t n_bags> class inthashtable_tpl;
+void sq_setwakeupretvalue(HSQUIRRELVM v); //sq_extensions
+
 /**
  * Class providing interface to squirrel's virtual machine.
  *
@@ -24,7 +28,7 @@
  */
 class script_vm_t {
 public:
-	script_vm_t(const char* include_path_);
+	script_vm_t(const char* include_path, const char* log_name);
 	~script_vm_t();
 
 	/**
@@ -45,11 +49,18 @@ public:
 
 	const char* get_error() const { return error_msg.c_str(); }
 
+	/**
+	 * The script can only act as a certain player.
+	 * @param player_nr the number of the player (PLAYER_UNOWNED for scenarios)
+	 */
+	void set_my_player(uint8 player_nr);
+
 	/// priority of function call
 	enum call_type_t {
-		FORCE = 1, ///< function has to return, raise error if not
-		QUEUE = 2, ///< function call can be queued, return value can be propagated by call back
-		TRY   = 3  ///< function call will not be queued, if virtual machine is suspended just return
+		FORCE,   ///< function has to return, raise error if not
+		FORCEX,  ///< function has to return, raise error if not, give more opcodes
+		QUEUE,   ///< function call can be queued, return value can be propagated by call back
+		TRY      ///< function call will not be queued, if virtual machine is suspended just return
 	};
 
 	/**
@@ -58,76 +69,54 @@ public:
 	 */
 	static bool is_call_suspended(const char* err);
 
-#	define prep_function_call() \
-		HSQUIRRELVM job; \
-		const char* err = intern_prepare_call(job, ct, function); \
-		if (err) { \
-			return err; \
-		} \
-		int nparam = 1;
-
-#	define do_function_call() \
-		err = intern_finish_call(job, ct, nparam, true); \
-		if (err == NULL) { \
-			ret = script_api::param<R>::get(job, -1); \
-			sq_poptop(job); \
-		} \
-		return err;
-
 	/**
 	 * calls scripted function
 	 * @param function function name of squirrel function
 	 * @returns error msg (or NULL if succeeded)
 	 */
-	const char* call_function(call_type_t ct, const char* function) {
-		prep_function_call();
-		return intern_finish_call(job, ct, nparam, false);
+	const char* call_function(call_type_t ct, const char* function)
+	{
+		// choose correct vm, push function
+		HSQUIRRELVM job;
+		const char* err = intern_prepare_call(job, ct, function);
+		if (err) {
+			return err;
+		}
+		// now call
+		return intern_finish_call(job, ct, 1, false);
 	}
 
 	/**
 	 * calls scripted function
 	 *
 	 * @tparam R type of return value
+	 * @tparam As types of arguments
 	 * @param function function name of squirrel function
+	 * @param as any number of arguments passed to squirrel function
 	 * @param ret return value of script function is stored here
 	 * @returns error msg (or NULL if succeeded), if call was suspended ret is invalid
 	 */
-	template<class R>
-	const char* call_function(call_type_t ct, const char* function, R& ret) {
-		prep_function_call();
-		do_function_call();
-	}
-
-	/**
-	 * calls scripted function
-	 *
-	 * @tparam R type of return value
-	 * @tparam A1 type of first argument
-	 * @param function function name of squirrel function
-	 * @param arg1 first argument passed to squirrel function
-	 * @param ret return value of script function is stored here
-	 * @returns error msg (or NULL if succeeded), if call was suspended ret is invalid
-	 */
-	template<class R, class A1>
-	const char* call_function(call_type_t ct, const char* function, R& ret, A1 arg1) {
-		prep_function_call();
-		script_api::param<A1>::push(job, arg1); nparam++;
-		do_function_call();
-	}
-	template<class R, class A1, class A2>
-	const char* call_function(call_type_t ct, const char* function, R& ret, A1 arg1, A2 arg2) {
-		prep_function_call();
-		script_api::param<A1>::push(job, arg1); nparam++;
-		script_api::param<A2>::push(job, arg2); nparam++;
-		do_function_call();
-	}
-	template<class R, class A1, class A2, class A3>
-	const char* call_function(call_type_t ct, const char* function, R& ret, A1 arg1, A2 arg2, A3 arg3) {
-		prep_function_call();
-		script_api::param<A1>::push(job, arg1); nparam++;
-		script_api::param<A2>::push(job, arg2); nparam++;
-		script_api::param<A3>::push(job, arg3); nparam++;
-		do_function_call();
+	template<class R, class... As>
+	const char* call_function(call_type_t ct, const char* function, R& ret, const As &...  as)
+	{
+		// choose correct vm, push function
+		HSQUIRRELVM job;
+		const char* err = intern_prepare_call(job, ct, function);
+		if (err) {
+			return err;
+		}
+		// push parameters
+		int nparam = script_api::push_param(job, as...);
+		if (!SQ_SUCCEEDED(nparam)) {
+			return "error pushing argument";
+		}
+		// now call
+		err = intern_finish_call(job, ct, nparam+1, true);
+		if (err == NULL) {
+			ret = script_api::param<R>::get(job, -1);
+			sq_poptop(job);
+		}
+		return err;
 	}
 
 	/**
@@ -150,22 +139,13 @@ public:
 	 * @param function name of function to be called as callback
 	 * @param nret the nret-th parameter will be replaced by return value of suspended function.
 	 */
-	template<class A1, class A2>
-	void prepare_callback(const char* function, int nret, A1 arg1, A2 arg2) {
+	template<class... As>
+	void prepare_callback(const char* function, int nret, const As &...  as)
+	{
 		if (intern_prepare_pending_callback(function, nret))  {
-			script_api::param<A1>::push(vm, arg1);
-			script_api::param<A2>::push(vm, arg2);
-			intern_store_pending_callback(3);
-		}
-	}
-
-	template<class A1, class A2, class A3>
-	void prepare_callback(const char* function, int nret, A1 arg1, A2 arg2, A3 arg3) {
-		if (intern_prepare_pending_callback(function, nret))  {
-			script_api::param<A1>::push(vm, arg1);
-			script_api::param<A2>::push(vm, arg2);
-			script_api::param<A3>::push(vm, arg3);
-			intern_store_pending_callback(4);
+			int nparam = script_api::push_param(vm, as...);
+			assert(SQ_SUCCEEDED(nparam)); // FIXME
+			intern_store_pending_callback(nparam+1);
 		}
 	}
 
@@ -181,9 +161,18 @@ private:
 	/// thread in the virtual machine, used to run functions that can be suspended
 	HSQUIRRELVM thread;
 
+	/// our log file
+	log_t* log;
 
 	plainstring error_msg;
 
+	/// path to files to #include
+	plainstring include_path;
+
+public:
+	bool pause_on_error;
+
+private:
 	/// @{
 	/// @name Helper functions to call, suspend, queue calls to scripted functions
 
@@ -229,8 +218,43 @@ private:
 	/// set error message, used in errorhandlers
 	void set_error(const char* error) { error_msg = error; }
 
-	/// path to files to #include
-	plainstring include_path;
+	/// custom print handler
+	static void printfunc(HSQUIRRELVM, const SQChar *s, ...);
+};
+
+/**
+ * Class to manage all vm's that are suspended and waiting for the return of
+ * a call to a tool.
+ */
+class suspended_scripts_t {
+private:
+	static inthashtable_tpl<uint32,HSQUIRRELVM,N_BAGS_MEDIUM> suspended_scripts;
+
+	static HSQUIRRELVM remove_suspended_script(uint32 key);
+
+public:
+	// generates key from a pointer
+	static uint32 get_unique_key(void* key);
+
+	static void register_suspended_script(uint32 key, HSQUIRRELVM vm);
+
+	// remove any reference to given vm
+	static void remove_vm(HSQUIRRELVM vm);
+
+	template<class R>
+	static void tell_return_value(uint32 key, R& ret)
+	{
+		HSQUIRRELVM vm = remove_suspended_script(key);
+		if (vm) {
+			script_api::param<R>::push(vm, ret);
+			sq_setwakeupretvalue(vm);
+			// this vm can be woken up now
+			sq_pushregistrytable(vm);
+			bool wait = false;
+			script_api::create_slot(vm, "wait_external", wait);
+			sq_poptop(vm);
+		}
+	}
 };
 
 #endif

@@ -22,6 +22,7 @@
 #include "components/gui_chart.h"
 #include "components/gui_button_to_chart.h"
 #include "../convoihandle_t.h"
+#include "../vehicle/rail_vehicle.h"
 #include "simwin.h"
 
 class scr_coord;
@@ -72,47 +73,25 @@ public:
 	void draw(scr_coord offset) OVERRIDE;
 };
 
-/**
- * One element of the vehicle list display
- */
-class gui_vehicleinfo_t : public gui_container_t
-{
-private:
-	convoihandle_t cnv;
-
-	gui_combobox_t class_selector;
-
-	slist_tpl<gui_combobox_t *> class_selectors;
-
-	vector_tpl<uint16> class_indices;
-
-public:
-	gui_vehicleinfo_t(convoihandle_t cnv);
-
-	void set_cnv( convoihandle_t c ) { cnv = c; }
-
-	void draw(scr_coord offset);
-};
 
 // content of payload info tab
-class gui_convoy_payload_info_t : public gui_container_t
+class gui_convoy_payload_info_t : public gui_aligned_container_t
 {
 private:
 	convoihandle_t cnv;
-	bool show_detail = true; // Currently broken, always true
+	uint8 display_mode = 1; // by_unload_halt
 
 public:
 	gui_convoy_payload_info_t(convoihandle_t cnv);
 
 	void set_cnv(convoihandle_t c) { cnv = c; }
-	void set_show_detail(bool yesno) { show_detail = yesno; } // Currently not in use
+	void set_display_mode(uint8 mode) { display_mode = mode; update_list(); }
 
-	void draw(scr_coord offset);
-	void display_loading_bar(scr_coord_val xp, scr_coord_val yp, scr_coord_val w, scr_coord_val h, PIXVAL color, uint16 loading, uint16 capacity, uint16 overcrowd_capacity);
+	void update_list();
 };
 
 // content of maintenance info tab
-class gui_convoy_maintenance_info_t : public gui_container_t
+class gui_convoy_maintenance_info_t : public gui_aligned_container_t
 {
 private:
 	convoihandle_t cnv;
@@ -123,7 +102,100 @@ public:
 
 	void set_cnv(convoihandle_t c) { cnv = c; }
 
-	void draw(scr_coord offset);
+	void update_list();
+
+	//void draw(scr_coord offset);
+};
+
+
+class gui_convoy_spec_table_t : public gui_aligned_container_t
+{
+	convoihandle_t cnv;
+	cbuffer_t buf;
+
+	// update flag
+	uint32 update_seed=0;
+
+	void update();
+
+	// Insert rows that make up the spec table
+	void insert_spec_rows();
+	void insert_payload_rows();
+	void insert_maintenance_rows();
+	void insert_constraints_rows();
+
+public:
+
+	enum {
+		SPEC_CAR_NUMBER = 0,
+		SPEC_ROLE,
+		SPEC_FREIGHT_TYPE,
+		SPEC_ENGINE_TYPE,
+		SPEC_RANGE,
+		//SPEC_REPLENSHMENT_SEC, // ex15
+		SPEC_POWER,
+		SPEC_GEAR,
+		SPEC_TRACTIVE_FORCE,
+		//SPEC_FUEL_PER_KM, // ex15
+		SPEC_RATED_SPEED,
+		SPEC_SPEED,
+		SPEC_TARE_WEIGHT,
+		SPEC_MAX_GROSS_WIGHT,
+		SPEC_AXLE_LOAD,
+		SPEC_LENGTH,          // for debug
+		SPEC_BRAKE_FORCE,
+		// good
+		//--- maintenance values ---
+		//SPEC_INCOME
+		SPEC_AGE,
+		SPEC_CAN_UPGRADE,
+		SPEC_RUNNING_COST,
+		SPEC_FIXED_COST,
+		//SPEC_MAINTENANCE_INTERVAL, // ex15
+		//SPEC_OVERHAUL_INTERVAL, // ex15
+		//SPEC_OVERHAUL_COST, // initial cost // ex15
+		//SPEC_NEED_STAFF, // ex15
+		SPEC_VALUE,
+		//--- equipments ---
+		SPEC_IS_TALL,
+		SPEC_TILTING,
+		MAX_SPECS
+	};
+	enum {
+		SPECS_DETAIL_START = SPEC_FREIGHT_TYPE,
+		SPECS_DETAIL_END   = SPEC_BRAKE_FORCE+1,
+		SPECS_MAINTENANCE_START = SPEC_AGE,
+		SPECS_MAINTENANCE_END   = SPEC_IS_TALL,
+		SPECS_CONSTRAINTS_START = SPEC_IS_TALL
+	};
+	enum {
+		//SPEC_PAYLOADS,
+		//SPEC_COMFORT,
+		SPEC_PROHIBIT_MIXLOAD,
+		SPEC_CATERING,
+		SPEC_TPO,
+		SPEC_MIN_LOADING_TIME,
+		SPEC_MAX_LOADING_TIME,
+		MAX_PAYLOAD_ROW
+	};
+
+
+	enum { // spec table index
+		SPEC_TABLE_PHYSICS     = 0,
+		SPEC_TABLE_PAYLOAD     = 1,
+		SPEC_TABLE_MAINTENANCE = 2,
+		SPEC_TABLE_CONSTRAINTS = 3,
+		MAX_SPEC_TABLE_MODE    = 4
+	};
+
+	gui_convoy_spec_table_t(convoihandle_t cnv);
+
+	void set_cnv(convoihandle_t c) { cnv = c; }
+	void draw(scr_coord offset) OVERRIDE;
+	uint8 spec_table_mode = SPEC_TABLE_PHYSICS;
+	bool show_sideview = true;
+	using gui_aligned_container_t::get_min_size;
+	using gui_aligned_container_t::get_max_size;
 };
 
 /**
@@ -140,22 +212,29 @@ public:
 		SORT_MODES     = 4
 	};
 
+	enum { // tab index
+		CD_TAB_MAINTENANCE    = 0,
+		CD_TAB_LOADED_DETAIL  = 1,
+		CD_TAB_PHYSICS_CHARTS = 2,
+		CD_TAB_SPEC_TABLE     = 3
+	};
+
 private:
-	gui_aligned_container_t cont_maintenance, cont_payload;
+	gui_aligned_container_t cont_maintenance_tab, cont_payload_tab, cont_spec_tab;
 
 	convoihandle_t cnv;
 
-	gui_vehicleinfo_t veh_info;
 	gui_convoy_formation_t formation;
-	gui_convoy_payload_info_t payload_info;
-	gui_convoy_maintenance_info_t maintenance;
+	gui_convoy_payload_info_t cont_payload_info;
+	gui_convoy_maintenance_info_t cont_maintenance;
 	gui_aligned_container_t cont_accel, cont_force;
+	gui_convoy_spec_table_t spec_table;
 	gui_chart_t accel_chart, force_chart;
 
-	gui_scrollpane_t scrolly_formation;
-	gui_scrollpane_t scrolly;
+	gui_scrollpane_t scrollx_formation;
 	gui_scrollpane_t scrolly_payload_info;
 	gui_scrollpane_t scrolly_maintenance;
+	gui_scrollpane_t scroll_spec;
 
 	static sint16 tabstate;
 	gui_tab_panel_t switch_chart;
@@ -166,7 +245,9 @@ private:
 	button_t withdraw_button;
 	button_t retire_button;
 	button_t class_management_button;
-	button_t display_detail_button;
+	button_t bt_show_sideview;
+	uint8 spec_table_mode = gui_convoy_spec_table_t::SPEC_TABLE_PHYSICS;
+	gui_combobox_t cb_loaded_detail, cb_spec_table_mode;
 
 	gui_combobox_t overview_selector;
 	gui_label_buf_t
@@ -182,6 +263,8 @@ private:
 	sint64 accel_curves[SPEED_RECORDS][MAX_ACCEL_CURVES];
 	sint64 force_curves[SPEED_RECORDS][MAX_FORCE_CURVES];
 	uint8 te_curve_abort_x = SPEED_RECORDS;
+
+	sint64 old_seed = 0; // gui update flag
 
 	void update_labels();
 
@@ -204,6 +287,9 @@ public:
 	 * called when convoi was renamed
 	 */
 	void update_data() { set_dirty(); }
+
+	// called when fare class was changed
+	void update_cargo_info() { cont_payload_info.update_list(); }
 
 	void rdwr( loadsave_t *file ) OVERRIDE;
 

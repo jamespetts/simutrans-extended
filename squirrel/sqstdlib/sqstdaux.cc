@@ -1,14 +1,16 @@
 /* see copyright notice in squirrel.h */
 #include "../squirrel.h"
 #include "../sqstdaux.h"
+#include <stdio.h>
 #include <assert.h>
+#include <stdarg.h>
 
 void sqstd_printcallstack(HSQUIRRELVM v)
 {
 	SQPRINTFUNCTION pf = sq_geterrorfunc(v);
 	if(pf) {
 		SQStackInfos si;
-		SQInteger i = 0;
+		SQInteger i;
 		SQFloat f;
 		const SQChar *s;
 		SQInteger level=1; //1 is to skip this function that is level 0
@@ -54,10 +56,10 @@ void sqstd_printcallstack(HSQUIRRELVM v)
 					pf(v,_SC("- - - [%s] \"%s\"\n"),name,s);
 					break;
 				case OT_TABLE:
-					pf(v,_SC("- - - [%s] TABLE\n"),name);
+					pf(v,_SC("- - - [%s] TABLE (%d entries)\n"),name, sq_getsize(v, -1));
 					break;
 				case OT_ARRAY:
-					pf(v,_SC("- - - [%s] ARRAY\n"),name);
+					pf(v,_SC("- - - [%s] ARRAY (%d entries)\n"),name, sq_getsize(v, -1));
 					break;
 				case OT_CLOSURE:
 					pf(v,_SC("- - - [%s] CLOSURE\n"),name);
@@ -78,8 +80,27 @@ void sqstd_printcallstack(HSQUIRRELVM v)
 					pf(v,_SC("- - - [%s] CLASS\n"),name);
 					break;
 				case OT_INSTANCE:
+				{
+					// try to obtain class name
+					sq_getclass(v, -1);
+					sq_pushnull(v);
+					if (SQ_SUCCEEDED(sq_getattributes(v, -2))) {
+						// stack: instance, class, attributes
+						sq_pushstring(v, "classname", -1);
+						if (SQ_SUCCEEDED(sq_get(v, -2))) {
+							const char* cn;
+							if (SQ_SUCCEEDED(sq_getstring(v, -1, &cn))) {
+								pf(v,_SC("- - - [%s] INSTANCE(%s)\n"),name, cn);
+								sq_pop(v, 3);
+								break;
+							}
+						}
+						sq_poptop(v);
+					}
+					sq_poptop(v);
 					pf(v,_SC("- - - [%s] INSTANCE\n"),name);
 					break;
+				}
 				case OT_WEAKREF:
 					pf(v,_SC("- - - [%s] WEAKREF\n"),name);
 					break;
@@ -133,4 +154,23 @@ void sqstd_seterrorhandlers(HSQUIRRELVM v)
 	sq_setcompilererrorhandler(v,_sqstd_compiler_error);
 	sq_newclosure(v,_sqstd_aux_printerror,0);
 	sq_seterrorhandler(v);
+}
+
+SQRESULT sqstd_throwerrorf(HSQUIRRELVM v,const SQChar *err,...)
+{
+	SQInteger n=256;
+	va_list args;
+begin:
+	va_start(args,err);
+	SQChar *b=sq_getscratchpad(v,n);
+	SQInteger r=scvsprintf(b,n,err,args);
+	va_end(args);
+	if (r>=n) {
+		n=r+1;//required+null
+		goto begin;
+	} else if (r<0) {
+		return sq_throwerror(v,_SC("@failed to generate formatted error message"));
+	} else {
+		return sq_throwerror(v,b);
+	}
 }

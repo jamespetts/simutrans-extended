@@ -117,7 +117,7 @@ public:
 	ribi_t::ribi get_ribi(const grund_t* ) const OVERRIDE;
 
 	// how expensive to go here (for way search)
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE;
+	int get_cost(const grund_t *, const sint32 max_speed, ribi_t::ribi from) OVERRIDE;
 
 	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8) OVERRIDE;
 

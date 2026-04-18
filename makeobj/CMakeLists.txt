@@ -1,5 +1,5 @@
 #
-# This file is part of the Simutrans project under the artistic licence.
+# This file is part of the Simutrans-Extended project under the artistic licence.
 # (see licence.txt)
 #
 

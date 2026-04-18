@@ -19,7 +19,7 @@ class water_vehicle_t : public vehicle_t
 {
 protected:
 	// how expensive to go here (for way search)
-	int get_cost(const grund_t *, const sint32, koord) OVERRIDE { return 1; }
+	int get_cost(const grund_t *, const sint32, ribi_t::ribi) OVERRIDE { return 1; }
 
 	void calc_drag_coefficient(const grund_t *gr) OVERRIDE;
 

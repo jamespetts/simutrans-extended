@@ -99,8 +99,9 @@ public:
 		display_fillbox_wh_clip_rgb( pos.x+1, pos.y+D_GET_CENTER_ALIGN_OFFSET(D_INDICATOR_BOX_HEIGHT,LINESPACE), D_INDICATOR_BOX_WIDTH-2, D_INDICATOR_BOX_HEIGHT, fac_desc->get_color(), false );
 		label.draw( pos+scr_size(D_INDICATOR_BOX_WIDTH+D_H_SPACE,0) );
 
-		if (link_item  &&  getroffen(get_mouse_x() - offset.x, get_mouse_y() - offset.y)) {
-			win_set_tooltip(get_mouse_x() + TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h, translator::translate(link_item->get_name()), this);
+		if (link_item  &&  getroffen(get_mouse_pos() - offset)) {
+			const scr_coord tooltip_pos{ get_mouse_pos().x+ TOOLTIP_MOUSE_OFFSET_X, pos.y + size.h };
+			win_set_tooltip(tooltip_pos, translator::translate(link_item->get_name()), this);
 		}
 	}
 
@@ -114,7 +115,7 @@ public:
 		if (IS_RIGHTRELEASE(ev)) {
 			factorylist_frame_t *win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
 			if (!win) {
-				create_win(-1, -1, new factorylist_frame_t(), w_info, magic_factorylist);
+				create_win({ -1, -1 }, new factorylist_frame_t(), w_info, magic_factorylist);
 				win = dynamic_cast<factorylist_frame_t*>(win_get_magic(magic_factorylist));
 			}
 			win->set_text_filter( translator::translate(fac_desc->get_name()) );

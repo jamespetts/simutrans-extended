@@ -315,7 +315,7 @@ void fabrik_t::update_transit( const ware_t& ware, bool add )
 // just for simplicity ...
 void fabrik_t::update_transit_intern( const ware_t& ware, bool add )
 {
-	FOR(  array_tpl<ware_production_t>,  &w,  input ) {
+	for(ware_production_t &w : input ) {
 		if(  w.get_typ()->get_index() == ware.index  ) {
 
 			w.book_stat_no_negative(add ? (sint64)ware.menge : -(sint64)ware.menge, FAB_GOODS_TRANSIT );
@@ -584,19 +584,29 @@ void fabrik_t::recalc_storage_capacities()
 			}
 			const sint32 share = (sint32)(((sint64)field_capacities << precision_bits) / (sint64)ware_types);
 			// first, for input goods
-			FOR(array_tpl<ware_production_t>, &g, input) {
+			// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+			uint32 min_in = welt->get_settings().get_minimum_industry_input_storage_raw();
+			for(ware_production_t & g : input) {
 				if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
 					// Inputs are now normalized to factory production.
 					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
 					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((input->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
+					if (g.get_capacity(prod_factor) < min_in) {
+						g.max = (sint32)( ( (sint64)min_in << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 				}
 			}
 			// then, for output goods
-			FOR(array_tpl<ware_production_t>, &g, output) {
+			// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+			uint32 min_out = welt->get_settings().get_minimum_industry_output_storage_raw();
+			for(ware_production_t & g : output) {
 				if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
 					// Outputs are now normalized to factory production.
 					uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
 					g.max = (sint32)(welt->scale_for_distance_only((((sint64)((output->get_capacity() << precision_bits) + share) << DEFAULT_PRODUCTION_FACTOR_BITS) + (sint64)(prod_factor - 1)) / (sint64)prod_factor));
+					if (g.get_capacity(prod_factor) < min_out) {
+						g.max = (sint32)( ( (sint64)min_out << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 				}
 			}
 		}
@@ -604,19 +614,29 @@ void fabrik_t::recalc_storage_capacities()
 	else {
 		// without fields -> scaling based on prodbase
 		// first, for input goods
-		FOR(array_tpl<ware_production_t>, &g, input) {
+		// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+		uint32 min_in = welt->get_settings().get_minimum_industry_input_storage_raw();
+		for(ware_production_t & g : input) {
 			if(const factory_supplier_desc_t *const input = desc->get_supplier(g.get_typ())){
 				// Inputs are now normalized to factory production.
 				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : input->get_consumption();
 				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)input->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
+					if (g.get_capacity(prod_factor) < min_in) {
+						g.max = (sint32)( ( (sint64)min_in << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 			}
 		}
 		// then, for output goods
-		FOR(array_tpl<ware_production_t>, &g, output) {
+		// This minimum storage capacity (set in the pak's simuconf.tab) allows for loading a whole (small) truck.
+		uint32 min_out = welt->get_settings().get_minimum_industry_output_storage_raw();
+		for(ware_production_t & g : output) {
 			if(const factory_product_desc_t *const output = desc->get_product(g.get_typ())){
 				// Outputs are now normalized to factory production.
 				uint32 prod_factor = welt->get_settings().using_fab_contracts() ? 256 : output->get_factor();
 				g.max = (sint32)(welt->scale_for_distance_only(((((sint64)output->get_capacity() * (sint64)prodbase) << (precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS)) + (sint64)(prod_factor - 1)) / ((sint64)desc->get_productivity() * (sint64)prod_factor)));
+					if (g.get_capacity(prod_factor) < min_out) {
+						g.max = (sint32)( ( (sint64)min_out << precision_bits << DEFAULT_PRODUCTION_FACTOR_BITS) / (sint64)prod_factor );
+					}
 			}
 		}
 	}
@@ -955,7 +975,7 @@ fabrik_t::fabrik_t(koord3d pos_, player_t* owner, const factory_desc_t* desc, si
 
 	recalc_storage_capacities();
 	if (input.empty()) {
-		FOR(array_tpl<ware_production_t>, & g, output) {
+		for(ware_production_t & g : output) {
 			if (g.max > 0) {
 				// if source then start with full storage, so that AI will build line(s) immediately
 				g.menge = g.max - 1;
@@ -1079,7 +1099,19 @@ fabrik_t::~fabrik_t()
 		}
 
 		char buf[192];
-		sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+		// Tell the players about this, including a city name if possible
+		if(city) {
+			sprintf(buf, translator::translate("Industry: %s in %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected."), translator::translate(get_name()), city->get_name(), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+		}
+		else {
+			const stadt_t* nearby_city = welt->find_nearest_city(pos.get_2d());
+			if(nearby_city) {
+				sprintf(buf, translator::translate("Industry: %s near to %s has closed, with the loss of %d jobs.\n%d upstream suppliers and %d downstream customers are affected."), translator::translate(get_name()), nearby_city->get_name(), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+			}
+			else {
+				sprintf(buf, translator::translate("Industry:\n%s\nhas closed,\nwith the loss\nof %d jobs.\n%d upstream\nsuppliers and\n%d downstream\ncustomers\nare affected."), translator::translate(get_name()), get_base_pax_demand(), number_of_suppliers, number_of_customers);
+			}
+		}
 		welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, color_idx_to_rgb(COL_DARK_RED), skinverwaltung_t::neujahrsymbol->get_image_id(0));
 		for(auto &ware : get_output()){
 			for(sint32 i = ware.link_count() - 1; i >= 0; i --)
@@ -1920,7 +1952,7 @@ sint32 fabrik_t::get_input_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
 
-	FOR(array_tpl<ware_production_t>, const& i, input) {
+	for(ware_production_t const& i : input) {
 		if (ware == i.get_typ()) {
 			menge = i.menge >> precision_bits;
 			break;
@@ -1935,7 +1967,7 @@ sint32 fabrik_t::get_output_stock(const goods_desc_t *ware)
 {
 	sint32 menge = -1;
 
-	FOR(array_tpl<ware_production_t>, const& i, output) {
+	for(ware_production_t const& i : output) {
 		if (ware == i.get_typ()) {
 			menge = i.menge >> precision_bits;
 			break;
@@ -2120,7 +2152,7 @@ bool fabrik_t::out_of_stock_selective()
 	sint32 weight_of_all_items = 0;
 	bool all_out_of_stock = true;
 
-	FOR(array_tpl<ware_production_t>, const& i, input)
+	for(ware_production_t const& i : input)
 	{
 		if (i.menge <= 0)
 		{
@@ -2970,15 +3002,13 @@ void fabrik_t::verteile_waren(const uint32 product)
 
 	// Auswertung der Ergebnisse
 	// "Evaluation of the results" (Babelfish)
-	if(!dist_list.empty())
-	{
+	if(  !dist_list.empty()  ) {
 		distribute_ware_t *best = NULL;
 		// Assume a fixed 1km/h transshipment time of goods to industries. This gives a minimum transfer time
 		// of 15 minutes for each stop at 125m/tile.
 		const uint32 transfer_journey_time_factor = ((uint32)welt->get_settings().get_meters_per_tile() * 6u) * 10u;
 		uint32 current_journey_time;
-		FOR(vector_tpl<distribute_ware_t>, & i, dist_list)
-		{
+		for(distribute_ware_t & i : dist_list) {
 			if (!i.nearby_halt.halt.is_bound())
 			{
 				best = &i;
@@ -3472,14 +3502,27 @@ void fabrik_t::new_month()
 
 						recalc_storage_capacities();
 						adjust_production_for_fields();
-						// Re-calculate electricity conspumption, mail and passenger demand, etc.
+						// Re-calculate electricity consumption, mail and passenger demand, etc.
 						update_scaled_electric_demand();
 						update_scaled_pax_demand();
 						update_scaled_mail_demand();
 						update_prodfactor_pax();
 						update_prodfactor_mail();
 						welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
-						sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
+						// Message to tell players about upgrade, preferably with city name
+						if(city) {
+							sprintf(buf, translator::translate("Industry: %s in %s has been upgraded to industry: %s."), translator::translate(old_name), city->get_name(), translator::translate(new_name));
+						}
+						else {
+							const stadt_t* nearby_city = welt->find_nearest_city(pos.get_2d());
+							if (nearby_city) {
+								sprintf(buf, translator::translate("Industry: %s near to %s has been upgraded to industry: %s."), translator::translate(old_name), nearby_city->get_name(), translator::translate(new_name));
+							}
+							// Fallback if no cities exist
+							else {
+								sprintf(buf, translator::translate("Industry:\n%s\nhas been upgraded\nto industry:\n%s."), translator::translate(old_name), translator::translate(new_name));
+							}
+						}
 						welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI, skinverwaltung_t::neujahrsymbol->get_image_id(0));
 						return;
 					}
@@ -3671,7 +3714,7 @@ void fabrik_t::recalc_factory_status()
 	uint32 i = 0;
 	if(const uint32 input_count = input.get_count()){
 		uint32 active_input_count = 0;
-		FOR(array_tpl<ware_production_t>, const& j, input) {
+		for(ware_production_t const& j : input) {
 			if (j.menge >= j.max) {
 				status_ein |= FL_WARE_LIMIT;
 			}
@@ -4067,7 +4110,7 @@ void fabrik_t::finish_rd()
 
 	// now we have a valid storage limit
 	if(  welt->get_settings().is_crossconnect_factories()  ) {
-		FOR(  vector_tpl<fabrik_t*>,  const fab,  welt->get_fab_list()  ) {
+		for(fabrik_t* const fab : welt->get_fab_list() ) {
 			fab->add_supplier(this);
 		}
 	}
@@ -4164,7 +4207,7 @@ void fabrik_t::rotate90( const sint16 y_size )
 	for(auto i : get_suppliers()) {
 		i.rotate90(y_size);
 	}
-	FOR(vector_tpl<field_data_t>, & i, fields) {
+	for(field_data_t & i : fields) {
 		i.location.rotate90(y_size);
 	}
 
@@ -4222,7 +4265,7 @@ void fabrik_t::remove_supplier(koord supplier_pos, fabrik_t* supplier)
 
 	if(  welt->get_settings().get_factory_maximum_intransit_percentage()  ) {
 		// set to zero
-		FOR(  array_tpl<ware_production_t>,  &w,  input ) {
+		for(ware_production_t &w : input ) {
 			w.max_transit = 0;
 		}
 
@@ -4238,7 +4281,7 @@ void fabrik_t::add_all_suppliers()
 		const factory_supplier_desc_t *supplier = desc->get_supplier(i);
 		const goods_desc_t *ware = supplier->get_input_type();
 
-		FOR(vector_tpl<fabrik_t*>, const fab, welt->get_fab_list()) {
+		for(fabrik_t* const fab : welt->get_fab_list()) {
 			// connect to an existing one, if this is an producer
 			if(fab!=this  && fab->get_output_stock(ware) > -1) {
 				// add us to this factory
@@ -4265,8 +4308,22 @@ bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
 				fab->add_consumer(pos.get_2d(),product);
 				cbuffer_t buf;
 				if(product){
+					// Message if the factory is in a city
+					stadt_t* factorys_city = fab->get_city();
+					if(factorys_city) {
+						buf.printf(translator::translate("New shipping destination added to Factory %s in %s for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
+					}
+					// Message if the factory is near a city
+					else {
+						 factorys_city = welt->find_nearest_city((fab->get_pos()).get_2d());
+						if(factorys_city) {
+							buf.printf(translator::translate("New shipping destination added to Factory %s (near to %s) for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
+						}
+					// Fallback if there are no cities
 					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
+					}
 				}else{
+					// TODO: Duplicate city-specific messages if this message appears often
 					buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
 				}
 				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
@@ -4327,7 +4384,7 @@ slist_tpl<const goods_desc_t*> *fabrik_t::get_produced_goods() const
 {
 	slist_tpl<const goods_desc_t*> *goods = new slist_tpl<const goods_desc_t*>();
 
-	FOR(array_tpl<ware_production_t>, const& i, output) {
+	for(ware_production_t const& i : output ) {
 		goods->append(i.get_typ());
 	}
 
@@ -4376,8 +4433,7 @@ void fabrik_t::calc_max_intransit_percentages()
 	}
 
 	uint32 index = 0;
-	FOR(array_tpl<ware_production_t>, &w, input)
-	{
+	for(ware_production_t &w : input ) {
 		const uint32 lead_time = get_lead_time(w.get_typ());
 		if(lead_time == UINT32_MAX_VALUE)
 		{
@@ -4449,9 +4505,9 @@ sint64 fabrik_t::adjust_consumption_by_passenger_level(sint64 consumed_per_month
 
 uint32 fabrik_t::get_total_input_capacity() const
 {
-	uint32 i = 0;
 	uint32 capacity_sum = 0;
-	FORX(array_tpl<ware_production_t>, const& goods, input, i++) {
+	for(uint32 i=0; i < input.get_count(); i++) {
+		ware_production_t const& goods = input[i];
 		const sint64 pfactor =desc->get_supplier(i) ? (sint64)desc->get_supplier(i)->get_consumption() : 1ll;
 		const uint32 storage_capacity = (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
 
@@ -4463,8 +4519,8 @@ uint32 fabrik_t::get_total_input_capacity() const
 uint32 fabrik_t::get_total_output_capacity() const
 {
 	uint32 sum = 0;
-	uint32 i = 0;
-	FORX(array_tpl<ware_production_t>, const& goods, output, i++) {
+	for(uint32 i=0; i < output.get_count(); i++) {
+		ware_production_t const& goods = output[i];
 		const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();
 		sum += (uint32)((FAB_DISPLAY_UNIT_HALF + (sint64)goods.max * pfactor) >> (fabrik_t::precision_bits + DEFAULT_PRODUCTION_FACTOR_BITS));
 	}
@@ -4494,8 +4550,8 @@ void fabrik_t::display_status(sint16 xpos, sint16 ypos)
 		}
 		display_fillbox_wh_clip_rgb(xpos-1, ypos, D_WAITINGBAR_WIDTH*input.get_count()+2, 4, color_idx_to_rgb(COL_DODGER_BLUE-1), true);
 
-		int i = 0;
-		FORX(array_tpl<ware_production_t>, const& goods, input, i++) {
+		for(uint32 i=0; i < input.get_count(); i++) {
+			ware_production_t const& goods = input[i];
 			if (!desc->get_supplier(i)) {
 				continue;
 			}
@@ -4528,8 +4584,8 @@ void fabrik_t::display_status(sint16 xpos, sint16 ypos)
 		}
 		display_fillbox_wh_clip_rgb(xpos-1, ypos, D_WAITINGBAR_WIDTH*output.get_count()+2, 4, color_idx_to_rgb(COL_ORANGE), true);
 
-		int i = 0;
-		FORX(array_tpl<ware_production_t>, const& goods, output, i++) {
+		for(uint32 i=0; i < output.get_count(); i++) {
+			ware_production_t const& goods = output[i];
 			const sint64 pfactor = (sint64)desc->get_product(i)->get_factor();
 			const uint32 stock_quantity = (uint32)goods.get_storage();
 			const uint32 storage_capacity = (uint32)goods.get_capacity(pfactor);

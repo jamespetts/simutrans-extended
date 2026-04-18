@@ -326,6 +326,7 @@ void depot_t::sell_vehicle(vehicle_t* veh)
 	vehicles.remove(veh);
 	sint64 cost = veh->calc_sale_value();
 	get_owner()->book_new_vehicle(cost, get_pos().get_2d(), get_waytype() );
+	get_owner()->book_vehicle_number( -1, get_waytype() );
 	DBG_MESSAGE("depot_t::sell_vehicle()", "this=%p sells %p", this, veh);
 	veh->before_delete();
 	delete veh;

@@ -25,9 +25,9 @@ PIXVAL color_rgb_to_idx(PIXVAL color)
 }
 
 
-uint32 get_color_rgb(uint8)
+rgb888_t get_color_rgb(uint8)
 {
-	return 0;
+	return {0,0,0};
 }
 
 PIXVAL line_color_idx_to_rgb(uint8)
@@ -280,7 +280,7 @@ void display_veh_form_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, s
 {
 }
 
-void display_convoy_arrow_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool  CLIP_NUM_DEF_NOUSE)
+void display_convoy_arrow_wh_clip_rgb(scr_coord_val, scr_coord_val, scr_coord_val, scr_coord_val, PIXVAL, bool, bool  CLIP_NUM_DEF_NOUSE)
 {
 }
 
@@ -300,25 +300,7 @@ void display_filled_roundbox_clip(scr_coord_val, scr_coord_val, scr_coord_val, s
 {
 }
 
-size_t get_next_char(const char*, size_t pos)
-{
-	return pos + 1;
-}
-
-sint32 get_prev_char(const char*, sint32 pos)
-{
-	if (pos <= 0) {
-		return 0;
-	}
-	return pos - 1;
-}
-
 scr_coord_val display_get_char_width(utf32)
-{
-	return 0;
-}
-
-scr_coord_val display_get_char_max_width(const char*, size_t)
 {
 	return 0;
 }
@@ -338,7 +320,7 @@ bool has_character( utf16 )
 	return false;
 }
 
-size_t display_fit_proportional(const char *, scr_coord_val, scr_coord_val)
+size_t display_fit_proportional(const char *, scr_coord_val)
 {
 	return 0;
 }
@@ -349,7 +331,7 @@ int display_calc_proportional_string_len_width(const char*, size_t)
 }
 
 
-void display_calc_proportional_multiline_string_len_width( int &xw, int &yh, const char *, size_t )
+void display_calc_proportional_multiline_string_len_width( int &xw, int &yh, const char *)
 {
 	xw = yh = 0;
 }

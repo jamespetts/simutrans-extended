@@ -123,7 +123,7 @@ void gui_building_stats_t::init_stats_table()
 				// header
 				gui_table_header_t *th = new_component<gui_table_header_t>("");
 				th->set_flexible(false, false);
-				th->set_fixed_width(8);
+				th->set_fixed_width(GOODS_COLOR_BOX_HEIGHT);
 				th = new_component<gui_table_header_t>("");
 				th->set_flexible(true, false);
 				new_component<gui_table_header_t>("This Year")->set_flexible(true, false);
@@ -132,7 +132,9 @@ void gui_building_stats_t::init_stats_table()
 				if (building->get_tile()->get_desc()->get_type() != building_desc_t::city_res) {
 					// Buildings other than houses -> display arrival data
 					if (building->get_adjusted_visitor_demand()) {
-						new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+						gui_colorbox_t *cb_cell = new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color());
+						cb_cell->set_padding(scr_size(4, 0));
+						cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 						th = new_component<gui_table_header_t>("Visitor arrivals", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 						th->set_flexible(true, false);
 						lb_visitor_arrivals[0].set_flexible(true, false);
@@ -145,7 +147,9 @@ void gui_building_stats_t::init_stats_table()
 						add_component(&lb_visitor_arrivals[1]);
 					}
 
-					new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(GOODS_COLOR_BOX_SIZE);
+					gui_colorbox_t *cb_cell = new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER));
+					cb_cell->set_padding(scr_size(4, 0));
+					cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 					th = new_component<gui_table_header_t>("Commuter arrivals", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					th->set_flexible(true, false);
 					lb_commuter_arrivals[0].set_flexible(true, false);
@@ -158,7 +162,9 @@ void gui_building_stats_t::init_stats_table()
 					add_component(&lb_commuter_arrivals[1]);
 				}
 				if (building->get_adjusted_mail_demand()) {
-					new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+					gui_colorbox_t *cb_cell = new_component<gui_colorbox_t>(goods_manager_t::mail->get_color());
+					cb_cell->set_padding(scr_size(4, 0));
+					cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 					th = new_component<gui_table_header_t>("hd_mailing", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					th->set_flexible(true, false);
 					lb_mail_sent[0].set_flexible(true, false);
@@ -198,7 +204,9 @@ void gui_building_stats_t::init_stats_table()
 				new_component<gui_table_header_t>("Last Year")->set_flexible(true, false);
 
 				if (building->get_tile()->get_desc()->get_type() == building_desc_t::city_res) {
-					new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+					gui_colorbox_t *cb_cell = new_component<gui_colorbox_t>(goods_manager_t::passengers->get_color());
+					cb_cell->set_padding(scr_size(4, 0));
+					cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 					th = new_component<gui_table_header_t>("Visiting trip", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					th->set_flexible(true, false);
 					lb_visiting_success_rate[0].set_flexible(true, false);
@@ -210,7 +218,9 @@ void gui_building_stats_t::init_stats_table()
 					add_component(&lb_visiting_success_rate[0]);
 					add_component(&lb_visiting_success_rate[1]);
 
-					new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER))->set_size(GOODS_COLOR_BOX_SIZE);
+					cb_cell = new_component<gui_colorbox_t>(color_idx_to_rgb(COL_COMMUTER));
+					cb_cell->set_padding(scr_size(4, 0));
+					cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 					th = new_component<gui_table_header_t>("Commuting trip", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					th->set_flexible(true, false);
 					lb_commuting_success_rate[0].set_flexible(true, false);
@@ -225,7 +235,9 @@ void gui_building_stats_t::init_stats_table()
 
 				// show only if this building has mail demands
 				if(building->get_adjusted_mail_demand()) {
-					new_component<gui_colorbox_t>(goods_manager_t::mail->get_color())->set_size(GOODS_COLOR_BOX_SIZE);
+					gui_colorbox_t *cb_cell = new_component<gui_colorbox_t>(goods_manager_t::mail->get_color());
+					cb_cell->set_padding(scr_size(4, 0));
+					cb_cell->set_size(GOODS_COLOR_BOX_SIZE);
 					th = new_component<gui_table_header_t>("hd_mailing", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
 					th->set_flexible(true, false);
 					lb_mail_success_rate[0].set_flexible(true, false);

@@ -6,8 +6,10 @@
 The <strong>Stop List</strong> window lists and gives information about the individual <a href="station.txt">stops</a> in the game world.
 </p>
 <p>
-To open: click on the stop list icon in the <a href="list.txt">List Management</a> toolstrip. The <strong>stop list</strong> window has four option buttons: two are used to sort the list, and two are used to filter the list, to show only items matching certain criteria. Below the buttons is a list of the <a href="station.txt">stops</a> owned by the current player.<br>
-<em>Tip:</em> If no stops are listd, change the <em>filter</em> options, or disable the filter. If not all items in the list are visible, then <a href="mouse.txt">re-size</a> the window, or scroll the list with the slider bar.
+To open: click on the stop list icon in the <a href="list.txt">List Management</a> toolstrip.</p>
+
+<p> The <strong>stop list</strong> window has four option buttons: two are used to sort the list, and two are used to filter the list, to show only items matching certain criteria. Below the buttons is a list of the <a href="station.txt">stops</a> owned by the current player.<br>
+<em>Tip:</em> If no stops are listed, change the <em>filter</em> options, or disable the filter. If not all items in the list are visible, then <a href="mouse.txt">re-size</a> the window, or scroll the list with the slider bar.
 </p>
 <p>
 Click the buttons to cycle through the options (the button text changes to reflect the currently selected option) or, in the case of the filter settings button, open a <a href="haltlist_filter.txt">new window</a> with controls for the filter):

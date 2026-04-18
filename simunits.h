@@ -245,6 +245,10 @@ inline sint64 kmh_from_meters_and_tenths(sint64 meters, sint64 tenths) {
 	// The logic is:
 	// ( (x meters / (1000 m/km) / (y tenths) ) * 10 tenths/min * 60 min/hr
 	// The numbers are the same as tenths_from_meters_and_kmh
+	if (tenths == 0)
+	{
+		tenths = 1;
+	}
 	return (meters * 6ll + 5ll) / (tenths * 10ll);
 }
 inline sint64 minutes_from_meters_and_kmh(sint64 meters, sint64 kmh) {

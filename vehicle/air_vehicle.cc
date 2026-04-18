@@ -136,7 +136,7 @@ ribi_t::ribi air_vehicle_t::get_ribi(const grund_t *gr) const
 
 
 // how expensive to go here (for way search)
-int air_vehicle_t::get_cost(const grund_t *gr, const sint32, koord)
+int air_vehicle_t::get_cost(const grund_t *gr, const sint32, ribi_t::ribi)
 {
 	// first favor faster ways
 	const weg_t *w=gr->get_weg(air_wt);
@@ -588,40 +588,40 @@ route_t::route_result_t air_vehicle_t::calc_route_internal(
 route_t::route_result_t air_vehicle_t::reroute(const uint16 reroute_index, const koord3d &ziel)
 {
 	// new aircraft state after successful routing:
-	air_vehicle_t::flight_state xstate = state;
-	sint16 xflughoehe = flying_height;
-	sint16 xtarget_height;
-	bool xrunway_too_short;
-	bool xairport_too_close_to_the_edge;
-	uint32 xtakeoff;   // new route index to takeoff tile at departure airport
-	uint32 xtouchdown; // new scheduled route index to touchdown tile at arrival airport
-	uint32 xsuchen;    // new scheduled route index to end of (required length of) arrival runway.
-	route_t xroute;    // new scheduled route from position at reroute_index to ziel
+	air_vehicle_t::flight_state x_state = state;
+	sint16 x_flying_height = flying_height;
+	sint16 x_target_height;
+	bool x_runway_too_short;
+	bool x_airport_too_close_to_the_edge;
+	uint32 x_takeoff;   // new route index to takeoff tile at departure airport
+	uint32 x_touchdown; // new scheduled route index to touchdown tile at arrival airport
+	uint32 x_search_for_stop;    // new scheduled route index to end of (required length of) arrival runway.
+	route_t x_route;    // new scheduled route from position at reroute_index to ziel
 
 	route_t &route = *cnv->get_route();
 	route_t::route_result_t done = calc_route_internal(welt, route.at(reroute_index), ziel,
 																	speed_to_kmh(cnv->get_min_top_speed()), cnv->get_highest_axle_load(),
-																	xstate, xflughoehe, xtarget_height,
-																	xrunway_too_short, xairport_too_close_to_the_edge,
-																	xtakeoff, xtouchdown, xsuchen, xroute);
+																	x_state, x_flying_height, x_target_height,
+																	x_runway_too_short, x_airport_too_close_to_the_edge,
+																	x_takeoff, x_touchdown, x_search_for_stop, x_route);
 	if (done)
 	{
 		// convoy replaces existing route starting at reroute_index with found route.
-		cnv->update_route(reroute_index, xroute);
+		cnv->update_route(reroute_index, x_route);
 		cnv->set_next_stop_index(INVALID_INDEX);
 		if (reroute_index == route_index)
 		{
-			state = xstate;
-			flying_height = xflughoehe;
-			target_height = xtarget_height;
-			runway_too_short = xrunway_too_short;
+			state = x_state;
+			flying_height = x_flying_height;
+			target_height = x_target_height;
+			runway_too_short = x_runway_too_short;
 		}
 		if (takeoff >= reroute_index)
-			takeoff = xtakeoff != INVALID_INDEX ? reroute_index + xtakeoff : INVALID_INDEX;
+			takeoff = x_takeoff != INVALID_INDEX ? reroute_index + x_takeoff : INVALID_INDEX;
 		if (touchdown >= reroute_index)
-			touchdown = xtouchdown != INVALID_INDEX ? reroute_index + xtouchdown : INVALID_INDEX;
+			touchdown = x_touchdown != INVALID_INDEX ? reroute_index + x_touchdown : INVALID_INDEX;
 		if (search_for_stop >= reroute_index)
-			search_for_stop = xsuchen != INVALID_INDEX ? reroute_index + xsuchen : INVALID_INDEX;
+			search_for_stop = x_search_for_stop != INVALID_INDEX ? reroute_index + x_search_for_stop : INVALID_INDEX;
 	}
 	return done;
 }

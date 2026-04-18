@@ -553,7 +553,7 @@ void pumpe_t::new_world()
 
 void pumpe_t::step_all(uint32 delta_t)
 {
-	FOR(slist_tpl<pumpe_t*>, const p, pumpe_list) {
+	for(pumpe_t* const p : pumpe_list) {
 		p->step(delta_t);
 	}
 }
@@ -687,7 +687,7 @@ void senke_t::new_world()
 
 void senke_t::step_all(uint32 delta_t)
 {
-	FOR(slist_tpl<senke_t*>, const s, senke_list) {
+	for(senke_t* const s : senke_list) {
 		s->step(delta_t);
 	}
 }
@@ -751,9 +751,8 @@ senke_t::~senke_t()
 		if(city && !welt->is_destroying())
 		{
 			city->remove_substation(this);
-			FOR(vector_tpl<fabrik_t*>, factory, city->get_city_factories())
-			{
-				factory->set_transformer_connected( NULL );
+			for(fabrik_t* city_fab : city->get_city_factories()) {
+				city_fab->set_transformer_connected( NULL );
 			}
 		}
 	}
@@ -798,8 +797,7 @@ void senke_t::step(uint32 delta_t)
 
 	if(city)
 	{
-		FOR(vector_tpl<fabrik_t*>, city_fab, city->get_city_factories())
-		{
+		for(fabrik_t* city_fab : city->get_city_factories()) {
 			if(city_fab->get_desc()->is_electricity_producer())
 			{
 				continue;
@@ -824,7 +822,7 @@ void senke_t::step(uint32 delta_t)
 
 		uint64 supply;
 		vector_tpl<senke_t*> checked_substations;
-		FOR(vector_tpl<senke_t*>, substation, *city_substations)
+		for(senke_t* substation : *city_substations)
 		{
 			// Must use two passes here: first, check all those that don't have enough to supply
 			// an equal share, then check those that do.
@@ -850,16 +848,16 @@ void senke_t::step(uint32 delta_t)
 
 		uint32 demand_distribution;
 		uint8 count = 0;
-		FOR(vector_tpl<senke_t*>, sub, *city_substations)
+		for(senke_t* substation : *city_substations)
 		{
 			// Now check those that have more than enough power.
 
-			if(sub == this || checked_substations.is_contained(sub))
+			if(substation == this || checked_substations.is_contained(substation))
 			{
 				continue;
 			}
 
-			supply = sub->get_power_load();
+			supply = substation->get_power_load();
 			demand_distribution = shared_power_demand / (city_substations_number - count);
 			if(supply < demand_distribution)
 			{
@@ -926,8 +924,7 @@ void senke_t::step(uint32 delta_t)
 	if(city)
 	{
 		// Everyone else splits power on a proportional basis -- brownouts!
-		FOR(vector_tpl<fabrik_t*>, factory, city->get_city_factories())
-		{
+		for(fabrik_t* factory : city->get_city_factories()) {
 			//city_factories[i]->set_transformer_connected(this);
 			const uint32 current_factory_demand = (factory->step_power_demand() * load_proportion) / 100;
 			const uint32 current_factory_load = municipal_power_demand == 0 ? current_factory_demand :

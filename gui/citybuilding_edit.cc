@@ -187,19 +187,19 @@ void citybuilding_edit_frame_t::fill_list()
 	building_list.clear();
 
 	if(bt_res.pressed) {
-		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_res)) {
+		for(building_desc_t const* const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_res)) {
 			put_item_in_list(desc);
 		}
 	}
 
 	if(bt_com.pressed) {
-		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_com)) {
+		for(building_desc_t const* const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_com)) {
 			put_item_in_list(desc);
 		}
 	}
 
 	if(bt_ind.pressed) {
-		FOR(vector_tpl<building_desc_t const*>, const desc, *hausbauer_t::get_citybuilding_list(building_desc_t::city_ind)) {
+		for(building_desc_t const* const desc : *hausbauer_t::get_citybuilding_list(building_desc_t::city_ind)) {
 			put_item_in_list(desc);
 		}
 	}
@@ -207,7 +207,7 @@ void citybuilding_edit_frame_t::fill_list()
 	// now build scrolled list
 	scl.clear_elements();
 	scl.set_selection(-1);
-	FOR(vector_tpl<building_desc_t const*>, const i, building_list) {
+	for(building_desc_t const* const i : building_list) {
 		// color code for objects: BLACK: normal, YELLOW: consumer only, GREEN: source only
 		PIXVAL color;
 		switch (i->get_type()) {
@@ -287,11 +287,12 @@ void citybuilding_edit_frame_t::change_item_info(sint32 entry)
 				const uint16 allowed_region_bits = desc->get_allowed_region_bits();
 				if (allowed_region_bits < 65535) {
 					uint32 region_idx = 0;
-					FORX(vector_tpl<region_definition_t>, region, welt->get_settings().regions, region_idx++) {
+					for(region_definition_t region : welt->get_settings().regions) {
 						if (allowed_region_bits & (1 << region_idx))
 						{
 							buf.printf(" - %s\n", translator::translate(region.name.c_str()));
 						}
+						region_idx++;
 					}
 				}
 				else {

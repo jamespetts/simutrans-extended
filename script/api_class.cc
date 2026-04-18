@@ -4,6 +4,7 @@
  */
 
 #include "api_class.h"
+#include "api_function.h"
 
 
 /**
@@ -11,6 +12,7 @@
  */
 SQInteger script_api::create_class(HSQUIRRELVM vm, const char* classname, const char* baseclass)
 {
+	script_api::set_squirrel_type_class(classname);
 	sq_pushroottable(vm);
 	if (baseclass) {
 		sq_pushstring(vm, baseclass, -1);
@@ -34,6 +36,7 @@ SQInteger script_api::create_class(HSQUIRRELVM vm, const char* classname, const 
 
 SQInteger script_api::begin_class(HSQUIRRELVM vm, const char* classname, const char* /* baseclasses - dummy */)
 {
+	script_api::set_squirrel_type_class(classname);
 	if(!SQ_SUCCEEDED(push_class(vm, classname))) {
 		// push a dummy class on the stack to prevent failed assertions down the road
 		sq_newclass(vm, false);
@@ -45,6 +48,7 @@ SQInteger script_api::begin_class(HSQUIRRELVM vm, const char* classname, const c
 
 void script_api::end_class(HSQUIRRELVM vm)
 {
+	script_api::set_squirrel_type_class("");
 	sq_pop(vm,1);
 }
 

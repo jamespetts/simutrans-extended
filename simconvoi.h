@@ -1147,6 +1147,7 @@ public:
 	void reserve_own_tiles(bool unreserve = false);
 
 	bool has_tall_vehicles();
+	bool has_tilting_vehicles();
 
 	inline bool get_allow_clear_reservation() const { return allow_clear_reservation; }
 
@@ -1261,6 +1262,9 @@ public:
 	*/
 	inline sint64 get_finance_history(int month, convoi_cost_t cost_type) const { return financial_history[month][cost_type]; }
 	sint64 get_stat_converted(int month, convoi_cost_t cost_type) const;
+
+	// retrun yearly passenger load factor from finance history. up to 1 decimal place
+	uint32 get_load_factor_pax() const;
 
 	/**
 	* only purpose currently is to roll financial history
@@ -1411,8 +1415,12 @@ public:
 	// @author: jamespetts
 	// Returns the number of standing passengers (etc.) in this convoy.
 	uint16 get_overcrowded() const;
+	uint16 get_overcrowded(uint8 fare_class) const;
 
+	// Returns the total regardless of fare class
 	uint16 get_overcrowded_capacity() const;
+	// Returns only the overcrowded capacity for the specified fare class
+	uint16 get_overcrowded_capacity(uint8 fare_class) const;
 
 	// @author: jamespetts
 	// Returns the average comfort of this convoy,

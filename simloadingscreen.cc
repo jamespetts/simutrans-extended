@@ -115,12 +115,14 @@ void loadingscreen_t::set_progress( uint32 progress )
 		if(  ev->ev_code == SYSTEM_RESIZE  ) {
 			// main window resized
 			simgraph_resize( ev->new_window_size );
-			display_fillbox_wh_rgb( 0, 0, ev->mx, ev->my, color_idx_to_rgb(COL_BLACK), true );
+			display_fillbox_wh_rgb( 0, 0, ev->mouse_pos.x, ev->mouse_pos.y, color_idx_to_rgb(COL_BLACK), true );
 			display_logo();
 			// queue the event anyway, so the viewport is correctly updated on world resume (screen will be resized again).
 			queued_events.append(ev);
 		}
 		else if(  ev->ev_code == SYSTEM_QUIT  ) {
+			// since the world is suspended (or may not even exists) when the loading screen is active
+			// we can quit the quick way
 			env_t::quit_simutrans = true;
 			delete ev;
 		}

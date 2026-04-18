@@ -73,8 +73,12 @@
 
 uint32 weg_t::private_car_routes_currently_reading_element;
 
-// since we use 32 bit per growth steps, we use this variable to take care of the remaining sub citizen growth
-#define CITYGROWTH_PER_CITIZEN (0x0000000100000000ll)
+/**
+ * This variable is used to control the fractional precision of growth to prevent loss when quantities are small.
+ * Growth calculations use 64 bit signed integers.
+ * Although this is actually scale factor, a power of two is recommended for optimization purposes.
+ */
+static sint64 const CITYGROWTH_PER_CITIZEN = 1ll << 32; // Q31.32 fractional form.
 
 karte_ptr_t stadt_t::welt; // one is enough ...
 
@@ -661,7 +665,7 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 	//printf("Test for (%s) in rotation %d\n", pos.get_str(), rotation);
 	koord k;
 
-	FOR(vector_tpl<rule_entry_t>, const& r, regel.rule) {
+	for(rule_entry_t const& r : regel.rule) {
 		uint8 x,y;
 		switch (rotation) {
 			default:
@@ -1156,6 +1160,7 @@ class monument_placefinder_t : public placefinder_t {
 			}
 
 			if (gr->hat_wege() && !gr->hat_weg(road_wt)) {
+				/* Note: Standard only permits pre-existing roads on boundary tiles, Extended permits them anywhere */
 				return false;
 			}
 
@@ -1190,7 +1195,9 @@ class townhall_placefinder_t : public placefinder_t {
 		bool is_tile_ok(koord pos, koord d, climate_bits cl, uint16 allowed_regions) const OVERRIDE
 		{
 			const grund_t* gr = welt->lookup_kartenboden(pos + d);
-			if (gr == NULL  ||  gr->get_grund_hang() != slope_t::flat) return false;
+			if (gr == NULL  ||  gr->get_grund_hang() != slope_t::flat) {
+				return false;
+			}
 
 			if(  ((1 << welt->get_climate( gr->get_pos().get_2d() )) & cl) == 0  ) {
 				return false;
@@ -1490,7 +1497,7 @@ bool stadt_t::is_within_players_network(const player_t* player) const
 	}
 
 	// Check if these stations are in the player's network...
-	FOR(vector_tpl<halthandle_t>, const halt, halts)
+	for(halthandle_t const halt : halts)
 	{
 		if (halt->has_available_network(player))
 		{
@@ -1603,7 +1610,7 @@ stadt_t::~stadt_t()
 	welt->remove_queued_city(this);
 
 	// Remove references to this city from factories.
-	FOR(vector_tpl<fabrik_t*>, factory, city_factories)
+	for(fabrik_t* factory : city_factories)
 	{
 		factory->clear_city();
 	}
@@ -1639,13 +1646,13 @@ stadt_t::~stadt_t()
 			// avoid the bookkeeping if world geets destroyed
 		}
 		// Remove substations
-		FOR(vector_tpl<senke_t*>, sub, substations)
+		for(senke_t* sub : substations)
 		{
 			sub->city = NULL;
 		}
 
 		const weighted_vector_tpl<stadt_t*>& cities = welt->get_cities();
-		FOR(weighted_vector_tpl<stadt_t*>, const i, cities)
+		for(stadt_t* const i : cities)
 		{
 			i->remove_connected_city(this);
 		}
@@ -1661,7 +1668,7 @@ stadt_t::~stadt_t()
 
 static bool name_used(weighted_vector_tpl<stadt_t*> const& cities, char const* const name)
 {
-	FOR(weighted_vector_tpl<stadt_t*>, const i, cities) {
+	for(stadt_t* const i : cities) {
 		if (strcmp(i->get_name(), name) == 0) {
 			return true;
 		}
@@ -2121,7 +2128,7 @@ void stadt_t::rdwr(loadsave_t* file)
 	}
 
 	// differential history
-	if (  file->is_version_less(120, 1) || (file->get_extended_version() > 0 && file->get_extended_version() < 25)) {
+	if (  file->is_version_less(120, 1) || (file->get_extended_version() > 0 && file->is_version_ex_less(14, 66))) {
 		if (file->is_loading()) {
 			// Initalize differential statistics assuming a differential of 0.
 			city_growth_get_factors(city_growth_factor_previous, 0);
@@ -2641,7 +2648,7 @@ void stadt_t::step(uint32 delta_t)
 	// is it time for the next step?
 	next_growth_step += delta_t;
 
-	while(stadt_t::city_growth_step < next_growth_step)
+	while(next_growth_step > stadt_t::city_growth_step)
 	{
 		calc_growth();
 		step_grow_city();
@@ -2855,7 +2862,7 @@ void stadt_t::calc_growth()
 	// now iterate over all factories to get the ratio of producing version non-producing factories
 	// we use the incoming storage as a measure and we will only look for end consumers (power stations, markets)
 
-	FOR(const vector_tpl<fabrik_t*>, const& fab, welt->get_fab_list())
+	for(fabrik_t* const fab : welt->get_fab_list())
 	{
 		if(fab && fab->get_city() == this && fab->get_consumers().empty() && !fab->get_suppliers().empty())
 		{
@@ -2912,7 +2919,7 @@ void stadt_t::calc_growth()
 		// Now that we have the percentages, calculate how large that this city is compared to others in the game.
 		uint32 number_of_larger_cities = 0;
 		uint32 number_of_smaller_cities = 0;
-		FOR(const weighted_vector_tpl<stadt_t*>, const& city, welt->get_cities())
+		for(stadt_t* city : world()->get_cities())
 		{
 			if (city == this)
 			{
@@ -3850,13 +3857,10 @@ void stadt_t::check_bau_townhall(bool new_town)
 void stadt_t::check_bau_factory(bool new_town)
 {
 	uint32 const inc = welt->get_settings().get_industry_increase_every();
-	if (!new_town && inc > 0 && (uint32)bev %inc == 0)
-	{
-		uint32 div = bev / inc;
-		for (uint8 i = 0; i < 8; i++)
-		{
-			if (div == (1u<<i) && welt->get_actual_industry_density() < welt->get_target_industry_density())
-			{
+	if(  !new_town && inc > 0 && (uint32)bev % inc == 0  ) {
+		uint32 const div = bev / inc;
+		for(  uint8 i = 0; i < 8; i++  ) {
+			if(  div == (1u<<i) && welt->get_actual_industry_density() < welt->get_target_industry_density()  ) {
 				// Only add an industry if there is a need for it: if the actual industry density is less than the target density.
 				// @author: jamespetts
 				DBG_MESSAGE("stadt_t::check_bau_factory", "adding new industry at %i inhabitants.", get_einwohner());
@@ -4888,7 +4892,7 @@ uint32 stadt_t::get_jobs_by_class(uint8 p_class)
 			sum += building->get_adjusted_jobs_by_class(p_class);
 		}
 	}
-	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+	for(fabrik_t* factory : city_factories) {
 		sum += factory->get_building()->get_adjusted_jobs_by_class(p_class);
 	}
 	return sum;
@@ -4904,7 +4908,7 @@ uint32 stadt_t::get_visitor_demand_by_class(uint8 p_class)
 			sum += building->get_adjusted_visitor_demand_by_class(p_class);
 		}
 	}
-	FOR(vector_tpl<fabrik_t*>, factory, city_factories) {
+	for(fabrik_t* factory : city_factories) {
 		sum += factory->get_building()->get_adjusted_visitor_demand_by_class(p_class);
 	}
 	return sum;
@@ -6040,7 +6044,7 @@ bool private_car_destination_finder_t::is_target(const grund_t* gr, const grund_
 	return false;
 }
 
-int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, koord)
+int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_speed, ribi_t::ribi)
 {
 	const weg_t *w = gr->get_weg(road_wt);
 	if(!w)
@@ -6085,7 +6089,7 @@ int private_car_destination_finder_t::get_cost(const grund_t* gr, sint32 max_spe
 	// T = d / ((m / 100) * 0.167)
 	// T = (d * 100) / (m * 16.67) -- 100THS OF A MINUTE PER TILE
 
-	const int cost = mpt / ((speed * 167) / 10);
+	const int cost = mpt / std::max(1, ((speed * 167) / 10));
 
 	return cost;
 }

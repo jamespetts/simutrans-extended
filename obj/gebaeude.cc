@@ -327,7 +327,7 @@ void gebaeude_t::check_road_tiles(bool del)
 		}
 	}
 
-	FOR(vector_tpl<gebaeude_t*>, gb, building_list)
+	for(gebaeude_t* gb : building_list)
 	{
 		for (uint8 i = 0; i < 8; i++)
 		{
@@ -790,6 +790,32 @@ bool gebaeude_t::is_signalbox() const
 {
 	return tile->get_desc()->is_signalbox();
 }
+
+
+uint32 gebaeude_t::get_tile_list( vector_tpl<grund_t *> &list ) const
+{
+	koord size = get_tile()->get_desc()->get_size( get_tile()->get_layout() );
+	const koord3d pos0 = get_pos() - get_tile()->get_offset(); // get origin
+	koord k;
+
+	list.clear();
+
+	// add all tiles
+	for( k.y = 0; k.y < size.y; k.y++ ) {
+		for( k.x = 0; k.x < size.x; k.x++ ) {
+			if( grund_t* gr = welt->lookup( pos0+k ) ) {
+				if( gebaeude_t* const add_gb = gr->find<gebaeude_t>() ) {
+					if( is_same_building( add_gb ) ) {
+						list.append( gr );
+					}
+				}
+			}
+		}
+	}
+
+	return list.get_count();
+}
+
 
 
 void gebaeude_t::show_info()

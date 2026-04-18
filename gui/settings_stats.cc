@@ -55,7 +55,13 @@ static char const* const version[] =
 	"0.120.7",
 	"0.120.1.2",
 	"0.120.2.1",
-	"0.120.2.2"
+	"0.120.2.2",
+	"0.121.0",
+	"0.122.0",
+	"0.123.0",
+	"0.123.1",
+	"0.123.2",
+	"0.124.1"
 };
 
 static const char *version_ex[] =
@@ -78,7 +84,12 @@ static const char *version_ex[] =
 	".15",
 	".16",
 	".17",
-	".18"
+	".18",
+	".19",
+	".20",
+	".21",
+	".22",
+	".23"
 };
 
 static const char *revision_ex[] =
@@ -144,7 +155,13 @@ static const char *revision_ex[] =
 	"58",
 	"59",
 	"60",
-	"61"
+	"61",
+	"62",
+	"63",
+	"64",
+	"65",
+	"66",
+	"67"
 };
 
 
@@ -273,6 +290,11 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	INIT_BOOL("do_not_record_private_car_routes_to_distant_non_consumer_industries ", sets->get_do_not_record_private_car_routes_to_distant_non_consumer_industries());
 	INIT_BOOL("do_not_record_private_car_routes_to_city_buildings", sets->get_do_not_record_private_car_routes_to_city_buildings());
 
+	SEPERATOR;
+
+	INIT_NUM("minimum_industry_input_storage_raw", sets->get_minimum_industry_input_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
+	INIT_NUM("minimum_industry_output_storage_raw", sets->get_minimum_industry_output_storage_raw(), 0, 999, gui_numberinput_t::PLAIN, false);
+
 	INIT_END
 }
 
@@ -384,6 +406,9 @@ void settings_extended_general_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->private_car_route_to_industry_visitor_demand_threshold);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_distant_non_consumer_industries);
 	READ_BOOL_VALUE(sets->do_not_record_private_car_routes_to_city_buildings);
+
+	READ_NUM_VALUE(sets->minimum_industry_input_storage_raw);
+	READ_NUM_VALUE(sets->minimum_industry_output_storage_raw);
 
 	path_explorer_t::set_absolute_limits_external();
 }
@@ -717,18 +742,18 @@ void settings_display_stats_t::init(settings_t const* const)
 	SEPERATOR
 	INIT_BOOL( "window_buttons_right", env_t::window_buttons_right );
 	INIT_BOOL( "window_frame_active", env_t::window_frame_active );
-	INIT_NUM( "default_window_title_color", env_t::default_window_title_color_rgb, 0, 16777215, gui_numberinput_t::AUTOLINEAR, 0 );
-	INIT_NUM( "front_window_text_color", env_t::front_window_text_color_rgb, 0, 16777215, gui_numberinput_t::AUTOLINEAR, 0 );
-	INIT_NUM( "bottom_window_text_color", env_t::bottom_window_text_color_rgb, 0, 16777215, gui_numberinput_t::AUTOLINEAR, 0 );
+	INIT_COLOR( "default_window_title_color", env_t::default_window_title_color_rgb, gui_numberinput_t::AUTOLINEAR );
+	INIT_COLOR( "front_window_text_color", env_t::front_window_text_color_rgb, gui_numberinput_t::AUTOLINEAR );
+	INIT_COLOR( "bottom_window_text_color", env_t::bottom_window_text_color_rgb, gui_numberinput_t::AUTOLINEAR );
 	INIT_NUM( "bottom_window_darkness", env_t::bottom_window_darkness, 0, 100, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
 	INIT_BOOL( "show_tooltips", env_t::show_tooltips );
-	INIT_NUM( "tooltip_background_color", env_t::tooltip_color_rgb, 0, 16777215, 1, 0 );
-	INIT_NUM( "tooltip_text_color", env_t::tooltip_textcolor_rgb, 0, 16777215, 1, 0 );
+	INIT_COLOR( "tooltip_background_color", env_t::tooltip_color_rgb, 1 );
+	INIT_COLOR( "tooltip_text_color", env_t::tooltip_textcolor_rgb, 1 );
 	INIT_NUM( "tooltip_delay", env_t::tooltip_delay, 0, 10000, gui_numberinput_t::AUTOLINEAR, 0 );
 	INIT_NUM( "tooltip_duration", env_t::tooltip_duration, 0, 30000, gui_numberinput_t::AUTOLINEAR, 0 );
 	SEPERATOR
-	INIT_NUM( "cursor_overlay_color", env_t::cursor_overlay_color_rgb, 0, 16777215, gui_numberinput_t::AUTOLINEAR, 0 );
+	INIT_COLOR( "cursor_overlay_color", env_t::cursor_overlay_color_rgb, gui_numberinput_t::AUTOLINEAR );
 	SEPERATOR
 	INIT_BOOL( "player_finance_display_account", env_t::player_finance_display_account );
 
@@ -747,18 +772,18 @@ void settings_display_stats_t::read(settings_t* const)
 
 	READ_BOOL_VALUE( env_t::window_buttons_right );
 	READ_BOOL_VALUE( env_t::window_frame_active );
-	READ_NUM_VALUE( env_t::default_window_title_color_rgb );
-	READ_NUM_VALUE( env_t::front_window_text_color_rgb );
-	READ_NUM_VALUE( env_t::bottom_window_text_color_rgb );
+	READ_COL_VALUE( env_t::default_window_title_color_rgb );
+	READ_COL_VALUE( env_t::front_window_text_color_rgb );
+	READ_COL_VALUE( env_t::bottom_window_text_color_rgb );
 	READ_NUM_VALUE( env_t::bottom_window_darkness );
 
 	READ_BOOL_VALUE( env_t::show_tooltips );
-	READ_NUM_VALUE( env_t::tooltip_color_rgb );
-	READ_NUM_VALUE( env_t::tooltip_textcolor_rgb );
+	READ_COL_VALUE( env_t::tooltip_color_rgb );
+	READ_COL_VALUE( env_t::tooltip_textcolor_rgb );
 	READ_NUM_VALUE( env_t::tooltip_delay );
 	READ_NUM_VALUE( env_t::tooltip_duration );
 
-	READ_NUM_VALUE( env_t::cursor_overlay_color_rgb );
+	READ_COL_VALUE( env_t::cursor_overlay_color_rgb );
 
 	READ_BOOL_VALUE( env_t::player_finance_display_account );
 }
@@ -844,7 +869,7 @@ void settings_economy_stats_t::init(settings_t const* const sets)
 	INIT_NUM( "min_factory_spacing", sets->get_min_factory_spacing(), 1, 32767, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM( "max_factory_spacing_percent", sets->get_max_factory_spacing_percent(), 0, 100, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM( "max_factory_spacing", sets->get_max_factory_spacing(), 1, 65535, gui_numberinput_t::AUTOLINEAR, false );
-	INIT_NUM( "electric_promille", sets->get_electric_promille(), 0, 2000, gui_numberinput_t::AUTOLINEAR, false );
+	INIT_NUM( "electric_promille", sets->get_electric_promille(), 0, 3000, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_BOOL( "allow_underground_transformers", sets->get_allow_underground_transformers() );
 	INIT_NUM( "way_height_clearance", sets->get_way_height_clearance(), 1, 2, gui_numberinput_t::AUTOLINEAR, true );
 	SEPERATOR
@@ -1026,7 +1051,7 @@ void settings_climates_stats_t::init(settings_t* const sets)
 	INIT_NUM_NEW( "minimum length of rivers", sets->get_min_river_length(), 0, max(16,sets->get_max_river_length())-16, gui_numberinput_t::AUTOLINEAR, false );
 	INIT_NUM_NEW( "maximum length of rivers", sets->get_max_river_length(), sets->get_min_river_length()+16, 8196, gui_numberinput_t::AUTOLINEAR, false );
 	// add listener to all of them
-	FOR(slist_tpl<gui_numberinput_t*>, const n, numinp) {
+	for(gui_numberinput_t* const n : numinp) {
 		n->add_listener(this);
 	}
 	// the following are independent and thus need no listener
@@ -1089,11 +1114,12 @@ bool settings_climates_stats_t::action_triggered(gui_action_creator_t *comp, val
 	welt_gui_t *welt_gui = dynamic_cast<welt_gui_t *>(win_get_magic( magic_welt_gui_t ));
 	read( local_sets );
 	uint i = 0;
-	FORX(slist_tpl<gui_numberinput_t*>, const n, numinp, ++i) {
+	for(gui_numberinput_t* const n : numinp) {
 		if (n == comp && i < 3 && welt_gui) {
 			// update world preview
 			welt_gui->update_preview();
 		}
+		i++;
 	}
 	return true;
 }

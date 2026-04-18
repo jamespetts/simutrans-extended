@@ -1,0 +1,19 @@
+<title>Vehicle deails help</title>
+
+<h1><strong>Vehicle details</strong></h1>
+
+<p>
+The <strong>vehicle details</strong> window gives detailed information about a particular vehicle type.
+</p>
+
+<p>
+To open: click on an individual vehicle in the <a href="vehiclelist.txt">vehicle list</a> window.
+</p>
+
+<p>
+The capacity, accommodation class, <a href="comfort.txt">comfort</a>, loading time and overcrowded capacity (if applicable) are always shown.
+</p>
+
+<p>
+The <strong>vehicle details</strong> window has tabs for the specifications, price and mainenance information, and a list of selectable livery schemes.
+</p>

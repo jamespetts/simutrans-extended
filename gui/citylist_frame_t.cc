@@ -8,6 +8,7 @@
 
 
 #include "../dataobj/translator.h"
+#include "../unicode.h"
 #include "../simcolor.h"
 #include "../dataobj/environment.h"
 #include "components/gui_button_to_chart.h"
@@ -131,9 +132,9 @@ const uint8 citylist_frame_t::hist_type_type[karte_t::MAX_WORLD_COST] =
 	gui_chart_t::PERCENT,
 	gui_chart_t::STANDARD,
 	gui_chart_t::PERCENT,
-	gui_chart_t::STANDARD,
+	gui_chart_t::TON_KM,
 	gui_chart_t::PERCENT,
-	gui_chart_t::STANDARD,
+	gui_chart_t::TON_KM,
 	gui_chart_t::PERCENT
 };
 
@@ -311,6 +312,7 @@ citylist_frame_t::citylist_frame_t() :
 
 	set_resizemode(diagonal_resize);
 	scrolly.set_maximize(true);
+	scrolly.set_checkered(true);
 	reset_min_windowsize();
 }
 
@@ -322,6 +324,7 @@ void citylist_frame_t::update_label()
 	citizens.update();
 
 	fluctuation_world.set_value(world()->get_finance_history_month(1, karte_t::WORLD_GROWTH));
+	resize(scr_size(0, 0));
 
 #ifdef DEBUG
 	const sint64 world_jobs = world()->get_finance_history_month(0, karte_t::WORLD_JOBS);
@@ -348,7 +351,7 @@ void citylist_frame_t::fill_list()
 {
 	scrolly.clear_elements();
 	strcpy(last_name_filter, name_filter);
-	FOR(const weighted_vector_tpl<stadt_t *>, city, world()->get_cities()) {
+	for(stadt_t* city : world()->get_cities()) {
 		if (citylist_stats_t::region_filter && (citylist_stats_t::region_filter-1) != world()->get_region(city->get_pos())) {
 			continue;
 		}

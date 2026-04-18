@@ -32,6 +32,8 @@ clean:
 	$(Q)rm -f $(DEPS)
 	$(Q)rm -f $(PROGDIR)/$(PROG)
 	$(Q)rm -fr $(PROGDIR)/$(PROG).app
+#	$(Q)rm -fr $(BUILDDIR)
+# The above is broken as it incorrectly cleans the executable subdirectory.
 
 -include $(DEPS)
 

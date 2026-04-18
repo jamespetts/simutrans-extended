@@ -16,7 +16,9 @@
 
 
 class plainstring;
+struct rgb888_t;
 struct file_descriptors_t;
+
 
 /**
  * This class replaces the FILE when loading and saving games.
@@ -158,6 +160,7 @@ public:
 	void rdwr_longlong(sint64 &i);
 	void rdwr_bool(bool &i);
 	void rdwr_double(double &dbl);
+	void rdwr_color(rgb888_t &color);
 
 	void wr_obj_id(short id);
 	short rd_obj_id();

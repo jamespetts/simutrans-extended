@@ -270,6 +270,10 @@ public:
 	sint64 get_finance_history(int month, line_cost_t cost_type) const { return financial_history[month][cost_type]; }
 	sint64 get_stat_converted(int month, int cost_type) const;
 
+	// retrun passenger load factor from finance history. up to 1 decimal place
+	uint32 get_load_factor_pax_year() const;
+	uint32 get_load_factor_pax_last_month() const;
+
 	void book(sint64 amount, line_cost_t cost_type)
 	{
 		if(cost_type != LINE_AVERAGE_SPEED && cost_type != LINE_COMFORT)
@@ -327,7 +331,12 @@ public:
 
 	uint16 get_min_range() const;
 
+	// for UI purpose
+	uint16 get_min_top_speed_kmh() const;
+
 	inline uint32 get_travel_distance() { return schedule->get_travel_distance(); }
+
+	bool has_reverse_scheduled_convoy() const;
 
 	void set_withdraw( bool yes_no );
 

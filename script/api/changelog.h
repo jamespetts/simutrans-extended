@@ -9,6 +9,79 @@
  *
  * @section api-trunk Current trunk
  *
+ * - Added @ref change_climate_at
+ * - Added @ref convoy_x::change_schedule
+ * - Changed building_desc_x::get_available_stations to accept wt_all
+ *
+ * @section api-123 Release 123.0
+ *
+ * - Changed scripted tools: work, do_work, mark_tiles have additional parameter to send state of ctrl/shift keys
+ * - Added @ref factory_desc_x
+ * - Added @ref way_x::get_max_speed
+ * - Added @ref wayobj_desc_x, @ref wayobj_x, @ref command_x::build_wayobj to work with way-objects
+ * - Added @ref factory_x::get_raw_name
+ * - Added @ref tree_desc_x::get_price, @ref command_x::slope_get_price
+ * - Added @ref way_x::get_transported_goods, @ref way_x::get_convoys_passed
+ * - Added @ref tile_x::get_way, @ref tile_x::get_depot
+ * - Added @ref get_pakset_name, @ref player_x::get_type
+ *
+ * @section api-122 Release 122.0
+ *
+ * - Feature: scripted tools
+ * - Added @ref debug::pause, @ref debug::set_pause_on_error
+ * - Added more tool ids
+ * - Added @ref convoy_x::is_waiting, @ref convoy_x::is_loading
+ * - Added @ref rules::gui_needs_update
+ * - Added @ref convoy_x::get_tile_length
+ * - Added @ref settings::get_pay_for_total_distance_mode, @ref settings::get_drive_on_left
+ * - Added @ref halt_x::get_connections
+ * - Added @ref command_x::can_set_slope
+ * - Added @ref halt_x::get_halt
+ * - Changed possible direction parameter of @ref command_x::build_station (useful for flat docks)
+ * - Added @ref depot_x::get_depot_list
+ * - Added @ref vehicle_desc_x::needs_electrification
+ * - Added @ref command_x::build_road
+ * - Added fields: @ref field_x
+ * - Added powerlines: @ref powerline_x, @ref transformer_x, @ref factory_x::get_transformer, @ref factory_x::is_transformer_connected
+ *
+ * @section api-121 Release 121.0
+ *
+ * - Added functions to mark tiles, see @ref tile_x::mark
+ * - Added @ref convoy_x::is_schedule_editor_open
+ *
+ * @section api-120-3 Release 120.3
+ *
+ * - Changed enable scenario scripts to open info window also on clients, see @ref gui::open_info_win_client
+ * - Added sign_x::can_pass
+ * - Added methods is_valid to check whether in-game object is still present, see @ref ingame_object
+ * - Added tile_x::can_remove_all_objects
+ * - Added @ref coord_to_dir, @ref coord.to_dir, @ref dir.to_coord
+ * - Added @ref simple_heap_x, @ref way_planner_x, @ref bridge_planner_x
+ * - Added map_object_x::is_marked
+ * - Added gui::open_info_win_at
+ * - Added ::is_convoy_allowed
+ * - Added convoy_x::is_in_depot
+ * - Added scriptable hyperlinks in scenario info window
+ * - Added @ref slope
+ * - Added functions to build stuff: command_x::build_way, command_x::build_depot, command_x::build_station, command_x::build_bridge, command_x::build_bridge_at, command_x::set_slope, command_x::restore_slope
+ * - Added sign_x, sign_desc_x, command_x::build_sign_at
+ * - Added line_x::destroy
+ *
+ * @section api-120-2-2 Release 120.2.2
+ *
+ * - Added map_object_x::mark and unmark
+ *
+ * @section api-120-2 Release 120.2
+ *
+ * - Feature: scripted AI players
+ * - Feature: script calls can be suspended and waken up, less strict checks of 'script take too long'
+ * - Feature: add commands to modify game state, see @ref game_cmd
+ * - Added @ref climates, square_x::get_climate, world::get_size
+ * - Added new classes command_x, vehicle_desc_x, tunnel_desc_x, bridge_desc_x
+ * - Added tool_ids::tool_set_climate, tool_ids::tool_change_water_height
+ * - Added string::toalnum (converts strings to strings that can be used as table keys)
+ * - Changed gui::add_message to take additional player_x parameter
+ *
  * @section api-120-1-2 Release 120.1.2
  *
  * - Added label_x::get_text, tile_x::get_text

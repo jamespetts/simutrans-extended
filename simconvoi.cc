@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "macros.h" // for clamp
 #include "simdebug.h"
 #include "simunits.h"
 #include "simworld.h"
@@ -23,7 +24,6 @@
 #include "simintr.h"
 #include "simlinemgmt.h"
 #include "simline.h"
-#include "freight_list_sorter.h"
 
 #include "gui/minimap.h"
 #include "gui/convoi_info_t.h"
@@ -259,7 +259,6 @@ convoi_t::convoi_t(loadsave_t* file) :
 convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 {
 	self = convoihandle_t(this);
-	player->book_convoi_number(1);
 	init(player);
 	set_name( "Unnamed" );
 	welt->add_convoi( self );
@@ -281,8 +280,6 @@ convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 
 convoi_t::~convoi_t()
 {
-	owner->book_convoi_number( -1);
-
 	assert(self.is_bound());
 	assert(vehicle_count==0);
 
@@ -576,7 +573,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 				vector_tpl<linehandle_t> lines;
 				get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
 				new_line = linehandle_t();
-				FOR(vector_tpl<linehandle_t>, const l, lines) {
+				for(linehandle_t const l : lines) {
 					if(  schedule->matches( welt, l->get_schedule() )  ) {
 						// if a line is assigned, set line!
 						new_line = l;
@@ -614,14 +611,14 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 		}
 		else {
 			// since start may have been changed
-			const uint8 v_count = vehicle_count - 1;
-			uint16 last_route_index = vehicle[v_count]->get_route_index();
-			if(last_route_index > route.get_count() - 1 && v_count > 0)
+			const uint8 last_vehicle_index = vehicle_count - 1;
+			uint16 last_vehicle_route_index = vehicle[last_vehicle_index]->get_route_index();
+			if(  last_vehicle_route_index >= route.get_count()  &&  last_vehicle_index > 0  )
 			{
-				last_route_index = 0;
-				dbg->warning("convoi_t::finish_rd()", "Convoy %i's route index is out of range: resetting to zero", self.get_id());
+				dbg->warning("convoi_t::finish_rd()", "Convoy %i's route index is out of range: truncating to nearest", self.get_id());
 			}
-			uint16 start_index = min(max(1u, vehicle[vehicle_count - 1u]->get_route_index() - 1u), route.get_count() - 1u);
+			// This should be last_vehicle_route_index - 1u, but we have to beware of unsigned arithmetic underflow if get_route_index() returns 0
+			uint16 start_index = clamp((unsigned)last_vehicle_route_index, 1u, route.get_count()) - 1u;
 
 			uint32 train_length = move_to(start_index) + 1;
 			const koord3d last_start = front()->get_pos();
@@ -886,6 +883,7 @@ void convoi_t::increment_odometer(uint32 steps)
 
 	const sint64 km = steps_since_last_odometer_increment / welt->get_settings().get_steps_per_km();
 	book( km, CONVOI_DISTANCE );
+	owner->book_convoy_distance(km, front()->get_desc()->get_waytype(), vehicle_count);
 	total_distance_traveled += km;
 	steps_since_last_odometer_increment -= km * steps_since_last_odometer_increment;
 	koord3d pos = koord3d::invalid;
@@ -939,6 +937,18 @@ bool convoi_t::has_tall_vehicles()
 	}
 	return is_tall;
 }
+
+bool convoi_t::has_tilting_vehicles()
+{
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (get_vehicle(i)->get_desc()->get_tilting()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 
 // BG, 06.11.2011
 route_t::route_result_t convoi_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed)
@@ -1900,6 +1910,7 @@ end_loop:
 							sint64 value = vehicle[a]->calc_sale_value();
 							waytype_t wt = vehicle[a]->get_desc()->get_waytype();
 							owner->book_new_vehicle( value, dep->get_pos().get_2d(),wt );
+							owner->book_vehicle_number(-1, wt);
 							delete vehicle[a];
 							vehicle_count--;
 						}
@@ -1925,6 +1936,7 @@ end_loop:
 					{
 						set_name(front()->get_desc()->get_name());
 					}
+
 
 					clear_replace();
 
@@ -2347,10 +2359,8 @@ end_loop:
 		case LEAVING_DEPOT:
 			last_stop_was_depot = true;
 			get_owner()->simlinemgmt.get_lines(schedule->get_type(), &lines);
-			FOR(vector_tpl<linehandle_t>, const l, lines)
-			{
-				if(schedule->matches(welt, l->get_schedule()))
-				{
+			for(linehandle_t const l : lines) {
+				if(  schedule->matches( welt, l->get_schedule() )  ) {
 					// if a line is assigned, set line!
 					set_line(l);
 					line->renew_stops();
@@ -2438,6 +2448,8 @@ uint16 convoi_t::get_overcrowded() const
 	uint16 overcrowded = 0;
 	for(uint8 i = 0; i < vehicle_count; i ++)
 	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+
 		for (uint8 j = 0; j < vehicle[i]->get_desc()->get_number_of_classes(); j++)
 		{
 			overcrowded += vehicle[i]->get_overcrowding(j);
@@ -2446,15 +2458,41 @@ uint16 convoi_t::get_overcrowded() const
 	return overcrowded;
 }
 
+uint16 convoi_t::get_overcrowded(uint8 fare_class) const
+{
+	uint16 overcrowded = 0;
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+		if (!vehicle[i]->get_overcrowded_capacity(fare_class)) continue;
+
+		overcrowded += vehicle[i]->get_overcrowding(fare_class);
+	}
+	return overcrowded;
+}
+
+
 uint16 convoi_t::get_overcrowded_capacity() const
 {
 	uint16 standing_capacity = 0;
 	for (uint8 i = 0; i < vehicle_count; i++)
 	{
+		if (vehicle[i]->get_cargo_type()->get_catg_index() != goods_manager_t::INDEX_PAS) continue;
+
 		for (uint8 j = 0; j < vehicle[i]->get_desc()->get_number_of_classes(); j++)
 		{
 			standing_capacity += vehicle[i]->get_overcrowded_capacity(j);
 		}
+	}
+	return standing_capacity;
+}
+
+uint16 convoi_t::get_overcrowded_capacity(uint8 fare_class) const
+{
+	uint16 standing_capacity = 0;
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		standing_capacity += vehicle[i]->get_overcrowded_capacity(fare_class);
 	}
 	return standing_capacity;
 }
@@ -4378,6 +4416,12 @@ void convoi_t::rdwr(loadsave_t *file)
 					}
 				}
 			}
+			// convert to new data (vacant_seats*km to seat-km)
+			if(  !file->is_version_ex_less(14,57) && file->is_version_ex_less(14,64)  ) {
+				for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+					financial_history[k][CONVOI_CAPACITY] += financial_history[k][CONVOI_PAX_DISTANCE];
+				}
+			}
 		}
 	}
 
@@ -5074,16 +5118,19 @@ void convoi_t::rdwr(loadsave_t *file)
 		}
 	}
 
-	if ((file->get_extended_version() >= 13 && file->get_extended_revision() >= 5) || file->get_extended_version() >= 14)
+	if (file->is_version_ex_atleast(13, 5))
 	{
 		bool lswd = last_stop_was_depot;
 		file->rdwr_bool(lswd);
 		last_stop_was_depot = lswd;
 	}
 
-	if (file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 6))
+	if (file->is_version_ex_atleast(14, 6))
 	{
 		checked_tile_this_step.rdwr(file);
+	}
+	if (file->is_version_ex_less(14, 64)) {
+		owner->book_convoy_distance(financial_history[0][CONVOI_DISTANCE], front()->get_desc()->get_waytype(), vehicle_count);
 	}
 
 	// This must come *after* all the loading/saving.
@@ -5422,13 +5469,12 @@ void convoi_t::laden() //"load" (Babelfish)
 		}
 
 
-		// Calculate the transport distance for "vacant seats".
-		// This is used to determine utilization relative to actual passenger traffic.
+		// Available Seat-Kilometers
+		// This is used to find the Load Factor
 		for (uint8 i = 0; i < vehicle_count; i++) {
 			const vehicle_t* v = vehicle[i];
 			if (v->get_cargo_type() == goods_manager_t::passengers) {
-				// Standing passengers count as negative
-				book( (v->get_cargo_max()-v->get_total_cargo()) * journey_distance_meters/100, CONVOI_CAPACITY );
+				book( v->get_cargo_max() * journey_distance_meters/100, CONVOI_CAPACITY );
 			}
 		}
 
@@ -5668,7 +5714,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		// passenger-km(x10 for precision)
 		const sint64 pas_distance = ware.menge*revenue_distance_meters/100;
 		book(pas_distance, convoi_t::CONVOI_PAX_DISTANCE);
-		get_owner()->book_transported(pas_distance, front()->get_waytype(), 0);
+		owner->book_transported(pas_distance, front()->get_waytype(), 0);
 	}
 	else if(ware.is_mail())
 	{
@@ -5682,7 +5728,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		const sint64 mail_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters / 100;
 		book(mail_distance, convoi_t::CONVOI_MAIL_DISTANCE); // in kg-km/10
 		// tonne-kilometre(x10 for precision)
-		get_owner()->book_transported(mail_distance/10, front()->get_waytype(), 1);
+		owner->book_transported(mail_distance/10, front()->get_waytype(), 1);
 	}
 	else
 	{
@@ -5694,7 +5740,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 		// tonne-kilometre(x10 for precision)
 		const sint64 payload_distance = ware.menge*goods->get_weight_per_unit()*revenue_distance_meters/100000;
 		book(payload_distance, convoi_t::CONVOI_PAYLOAD_DISTANCE);
-		get_owner()->book_transported(payload_distance, front()->get_waytype(), 2);
+		owner->book_transported(payload_distance, front()->get_waytype(), 2);
 	}
 	// Note that fare comes out in units of 1/4096 of a simcent, for computational precision
 
@@ -5756,16 +5802,18 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		// harbour has any size
 		vehicles_loading = vehicle_count;
 	}
-	else
-	{
-		// calculate real station length
-		// and numbers of vehicles that can be (un)loaded
+	else if (vehicle_count == 1  &&  CARUNITS_PER_TILE >= vehicle[0]->get_desc()->get_length()) {
+		vehicles_loading = 1;
+		// one vehicle, which fits into one tile
+	}
+	else {
+		// difference between actual station length and vehicle lenghts
+		sint16 station_length = -vehicle[vehicles_loading]->get_desc()->get_length();
+		// iterate through tiles in straight line and look for station
 		koord zv = koord( ribi_t::backward(front()->get_direction()) );
 		koord3d pos = front()->get_pos();
 		// start on bridge?
 		pos.z += gr->get_weg_yoff() / TILE_HEIGHT_STEP;
-		// difference between actual station length and vehicle lenghts
-		sint16 station_length = -vehicle[vehicles_loading]->get_desc()->get_length();
 		do {
 			// advance one station tile
 			station_length += CARUNITS_PER_TILE;
@@ -6217,6 +6265,7 @@ void convoi_t::destroy()
 {
 	// can be only done here, with a valid convoihandle ...
 	if(front()) {
+		owner->book_convoi_number(-1, front()->get_waytype());
 		front()->set_convoi(NULL);
 	}
 
@@ -6259,6 +6308,7 @@ void convoi_t::destroy()
 
 		}
 		player_t::add_maintenance(owner, -vehicle[i]->get_desc()->get_maintenance(), vehicle[i]->get_desc()->get_waytype());
+		owner->book_vehicle_number( -1, wt );
 		vehicle[i]->discard_cargo();
 		vehicle[i]->cleanup(owner);
 		delete vehicle[i];
@@ -6598,13 +6648,10 @@ end_check:
  */
 void convoi_t::register_stops()
 {
-	if(schedule)
-	{
-		FOR(minivec_tpl<schedule_entry_t>, const &i, schedule->entries)
-		{
+	if(  schedule  ) {
+		for(schedule_entry_t const& i : schedule->entries) {
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
-			if(halt.is_bound())
-			{
+			if(  halt.is_bound()  ) {
 				halt->add_convoy(self);
 			}
 		}
@@ -6618,7 +6665,7 @@ void convoi_t::register_stops()
 void convoi_t::unregister_stops()
 {
 	if(  schedule  ) {
-		FOR(minivec_tpl<schedule_entry_t>, const& i, schedule->entries) {
+		for(schedule_entry_t const& i : schedule->entries) {
 			halthandle_t const halt = haltestelle_t::get_halt(i.pos, get_owner());
 			if(  halt.is_bound()  ) {
 				halt->remove_convoy(self);
@@ -6744,6 +6791,9 @@ void convoi_t::set_next_reservation_index(uint16 n)
 
 uint16 convoi_t::get_current_schedule_order() const
 {
+	if (schedule == NULL) {
+		return UINT16_MAX;
+	}
 	if (reverse_schedule) {
 		return (uint16)((schedule->get_count()-1)*2-schedule->get_current_stop());
 	}
@@ -6894,9 +6944,9 @@ public:
 	{
 		return master->get_ribi(gr);
 	};
-	virtual int get_cost( const grund_t* gr, const sint32, koord from_pos)
+	virtual int get_cost( const grund_t* gr, const sint32, ribi_t::ribi from)
 	{
-		return master->get_cost(gr, 0, from_pos);
+		return master->get_cost(gr, 0, from);
 	};
 };
 
@@ -8129,6 +8179,20 @@ sint64 convoi_t::get_stat_converted(int month, convoi_cost_t cost_type) const
 	return value;
 }
 
+uint32 convoi_t::get_load_factor_pax() const
+{
+	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+
+	sint64 total_seat_km=0;
+	sint64 total_pax_km=0;
+	for (uint8 m = 0; m < MAX_MONTHS; m++) {
+		total_seat_km += financial_history[m][CONVOI_CAPACITY];
+		total_pax_km += financial_history[m][CONVOI_PAX_DISTANCE];
+	}
+	return total_seat_km ? (uint32)(1000*total_pax_km / total_seat_km) : 0;
+}
+
+
 // BG, 31.12.2012: virtual methods of lazy_convoy_t:
 // Bernd Gabriel, Dec, 25 2009
 sint16 convoi_t::get_current_friction()
@@ -8361,12 +8425,15 @@ uint16 convoi_t::get_total_cargo_by_fare_class(uint8 catg, uint8 g_class) const
 
 uint16 convoi_t::get_unique_fare_capacity(uint8 catg, uint8 g_class) const
 {
-	if ((catg == goods_manager_t::INDEX_PAS && g_class >= goods_manager_t::passengers->get_number_of_classes())
-		|| (catg == goods_manager_t::INDEX_MAIL && g_class >= goods_manager_t::mail->get_number_of_classes()))
-	{
-		return 0;
+	if (catg == goods_manager_t::INDEX_PAS) {
+		if (g_class >= goods_manager_t::passengers->get_number_of_classes()) { return 0; }
+		if (!passenger_classes_carried.is_contained(g_class)) { return 0; };
 	}
-	else if(catg != goods_manager_t::INDEX_PAS && catg != goods_manager_t::INDEX_MAIL && g_class>0){
+	else if (catg == goods_manager_t::INDEX_MAIL) {
+		if (g_class >= goods_manager_t::mail->get_number_of_classes()) { return 0; }
+		if (!mail_classes_carried.is_contained(g_class)) { return 0; };
+	}
+	else if(g_class>0){
 		return 0; // freight does not have classes
 	}
 
