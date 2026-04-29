@@ -46,6 +46,7 @@ uint32 simrand_plain();
 void simrand_rdwr(loadsave_t *file);
 
 double perlin_noise_2D(const double x, const double y, const double persistence, const sint32 map_size = 512);
+double perlin_noise_2D(const double x, const double y, const double persistence, const sint32 map_size, const sint32 algo);
 
 // for network debugging, i.e. finding hidden simrands in wrong places
 enum {

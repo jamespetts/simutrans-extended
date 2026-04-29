@@ -151,7 +151,7 @@ public:
 	 * Height of a point of the map with "perlin noise".
 	 * Uses map roughness and mountain height from @p sets.
 	 */
-	static sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size, sint32 map_size_max);
+	static sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size, sint32 map_size_max, sint32 algo_type);
 	sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size);
 
 	/**

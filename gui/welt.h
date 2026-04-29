@@ -45,7 +45,7 @@ class welt_gui_t  :
 
 	gui_numberinput_t
 		inp_map_number,
-		inp_x_size, inp_y_size;
+		inp_x_size, inp_y_size, inp_algo_type;
 
 	button_t
 		random_map,
@@ -65,6 +65,7 @@ class welt_gui_t  :
 	gui_label_buf_t
 		info_x_size,
 		info_y_size,
+		info_algo_type,
 		size_label;
 	button_t
 		use_intro_dates,

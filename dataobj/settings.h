@@ -102,7 +102,7 @@ private:
 	bool userdir_overrides_savegame_settings;
 
 	sint32 size_x, size_y;
-	sint32 map_number;
+	sint32 map_number, algo_type;
 
 	/* new setting since version 0.85.01
 	 */
@@ -836,6 +836,7 @@ public:
 	void rotate_regions();
 
 	sint32 get_map_number() const {return map_number;}
+	sint32 get_algo_type() const { return algo_type; }
 
 	void set_factory_count(sint32 d) { factory_count=d; }
 	sint32 get_factory_count() const {return factory_count;}

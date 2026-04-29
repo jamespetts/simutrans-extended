@@ -132,6 +132,14 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 			size_label.update();
 			add_component( &size_label, 3 );
 
+			// Map algorithm select
+			new_component<gui_label_t>("Map Generation Type");
+			info_algo_type.init();
+			add_component(&info_algo_type);
+			inp_algo_type.init(1, 1, 5);
+			inp_algo_type.add_listener(this);
+			add_component(&inp_algo_type);
+
 		}
 		end_table();
 
@@ -406,9 +414,10 @@ void welt_gui_t::update_preview(bool load_heightfield)
 		const sint32 max_size = max(sets->get_size_x(), sets->get_size_y());
 		const int mx = sets->get_size_x()/map_size.w;
 		const int my = sets->get_size_y()/map_size.h;
+		const int alg = sets->get_algo_type();
 		for(  int y=0;  y<map_size.h;  y++  ) {
 			for(  int x=0;  x<map_size.w;  x++  ) {
-				map.at(x,y) = minimap_t::calc_height_color(karte_t::perlin_hoehe( sets, koord(x*mx,y*my), koord::invalid, max_size ), sets->get_groundwater());
+				map.at(x,y) = minimap_t::calc_height_color(karte_t::perlin_hoehe( sets, koord(x*mx,y*my), koord::invalid, max_size , alg), sets->get_groundwater());
 			}
 		}
 		sets->heightfield = "";
@@ -465,6 +474,12 @@ bool welt_gui_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		}
 		else {
 			inp_y_size.set_value(sets->get_size_y()); // can't change size with heightfield loaded
+		}
+	}
+	else if (comp==&inp_algo_type){
+		sets->algo_type = v.i;
+		if (!loaded_heightfield) {
+			update_preview();
 		}
 	}
 	else if(comp==&inp_number_of_towns) {

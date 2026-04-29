@@ -363,7 +363,7 @@ void karte_t::perlin_hoehe_loop( sint16 x_min, sint16 x_max, sint16 y_min, sint1
 }
 
 
-sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max)
+sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max, sint32 algo_type)
 {
 	// replace the fixed values with your settings. Amplitude is the top highness of the mountains,
 	// frequency is something like landscape 'roughness'; amplitude may not be greater than 160.0 !!!
@@ -385,29 +385,39 @@ sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const 
 	// This allows for different regions to have different landscapes - but
 	// the transitions between regions are too harsh and it is not easy to
 	// change this without vastly more sophisticated code.
-	/*
-	const uint8 region = get_region(k, sets);
+	
+	/*const uint8 region = get_region(k, sets);
 	if (region == 0)
 	{
-		//map_roughness -= 0.2;
-		mountain_height -= 50;
+		map_roughness -= 0.2;
+		if (map_roughness < 0) { map_roughness = 0.01; }
+		//mountain_height -= 50;
 	}
 	if (region == 3)
 	{
-		//map_roughness += 0.2;
-		mountain_height += 50;
+		map_roughness += 0.2;
+		//mountain_height += 50;
 	}
 	if (region == 2)
 	{
-		//map_roughness += 0.3;
-		mountain_height += 100;
+		map_roughness += 0.3;
+		//mountain_height += 100;
 	}*/
-	return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max)*(double)mountain_height)) / 16;
+	/*if (algo_type == 3) {
+		return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, 2) * (double)mountain_height)) / 16;
+	}*/
+	double sample = perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, algo_type);
+	//sample = (-0.5 > sample ? -0.5 : sample);
+	sample = sample - 0.25;
+	map_roughness = map_roughness + (sample / ( 6 * map_roughness));
+	map_roughness = (0.7 > map_roughness ? 0.7 : map_roughness);
+	return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, algo_type)*(double)mountain_height)) / 16;
 }
 
 sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size)
 {
-	return perlin_hoehe(sets, k, size, cached_size_max);
+	const int alg = sets->get_algo_type();
+	return perlin_hoehe(sets, k, size, cached_size_max, alg);
 }
 
 

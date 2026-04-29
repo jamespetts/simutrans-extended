@@ -443,7 +443,7 @@ static double interpolated_noise(const double x, const double y)
  * p    Persistence (was: Persistence)
  * m    Map size (longer side)
  */
-double perlin_noise_2D(const double x, const double y, const double p, const sint32 m)
+double perlin_noise_2D(const double x, const double y, const double p, const sint32 m, const sint32 algo)
 {
 /**
 * Height one point in the map with "perlin noise"
@@ -454,50 +454,93 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 	double total = 0.0;
 	int i;
 
-	static const double frequency_0[6] = {1,  2,  4,  8, 16, 32};
-	static const double amplitude_0[6] = {0,  1,  2,  3,  4,  5};
+	static const double frequency_0[6] = { 1,  2,  4,  8, 16, 32 };
+	static const double amplitude_0[6] = { 0,  1,  2,  3,  4,  5 };
 
-	static const double frequency_1[8] = {0.25, 0.5,  1,  2,  4,  8, 16, 32};
-	static const double amplitude_1[8] = {-0.5, 0,  1,  2,  2,  3,  4,  7};
+	static const double frequency_1[7] = { 0.5,  1,  2,  4,  8, 16, 32 };
+	static const double amplitude_1[7] = { 0,  1,  2,  2,  3,  4,  7 };
 
-	static const double frequency_2[16] = {0.0625, 0.125, 0.25, 0.5, 0.75, 1, 1.33, 1.66, 2, 3, 4, 6, 8, 12, 16, 32};
-	static const double amplitude_2[16] = {-0.5, -0.75, 0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 7, 9};
+	static const double frequency_2[8] = { 0.25, 0.5,  1,  2,  4,  8, 16, 32 };
+	static const double amplitude_2[8] = { -0.5, 0,  1,  2,  2,  3,  4,  7 };
+
+	static const double frequency_3[12] = { 0.015625, 0.03125, 0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32};
+	static const double amplitude_3[12] = { -0.75, -0.5, 0, 0.5,  1, 1.5, 2,  2.5,  3.5,  5,  7, 8 };
+
+	static const double frequency_4[16] = { 0.0625, 0.125, 0.25, 0.5, 0.75, 1, 1.33, 1.66, 2, 3, 4, 6, 8, 12, 16, 32 };
+	static const double amplitude_4[16] = { -0.75, -0.5, 0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 7, 9 };
+
+	
+
+	switch (algo) {
+	default:
+		for (i = 0; i < 6; i++)
+		{
+			const double frequency = frequency_0[i];
+			const double amplitude = pow(p, amplitude_0[i]);
+			total += interpolated_noise((x * frequency) / 64.0,
+				(y * frequency) / 64.0) * amplitude;
+		}
+		return total;
+		break;
+	case 2:
+		for (i = 0; i < 7; i++)
+		{
+			const double frequency = frequency_1[i];
+			const double amplitude = pow(p, amplitude_1[i]);
+			total += interpolated_noise((x * frequency) / 64.0,
+				(y * frequency) / 64.0) * amplitude;
+		}
+		return total;
+		break;
+	case 3:
+		for (i = 0; i < 8; i++)
+		{
+			const double frequency = frequency_2[i];
+			const double amplitude = pow(p, amplitude_2[i]);
+			total += interpolated_noise((x * frequency) / 64.0,
+				(y * frequency) / 64.0) * amplitude;
+		}
+		return total;
+		break;
+	case 4:
+		for (i = 0; i < 12; i++)
+		{
+			const double frequency = frequency_3[i];
+			const double amplitude = pow(p, amplitude_3[i]);
+			total += interpolated_noise((x * frequency) / 64.0,
+				(y * frequency) / 64.0) * amplitude;
+		}
+		return total;
+		break;
+
+	case 5:
+		for (i = 0; i < 16; i++)
+		{
+			const double frequency = frequency_4[i];
+			const double amplitude = pow(p, amplitude_4[i]);
+			total += interpolated_noise((x * frequency) / 64.0,
+				(y * frequency) / 64.0) * amplitude;
+		}
+		return total;
+		break;
+	}
+	
 
 	// When enabled, this gives an extremely smooth world
 	//static const double frequency_3[24] = {0.002, 0.0625, 0.125, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2.5, 3, 3.5, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32};
 	//static const double amplitude_3[24] = {-0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
-	if(m < 768)
+	/*if (m < 768)
 	{
-		for(i = 0; i < 6; i++)
-		{
-		const double frequency = frequency_0[i];
-		const double amplitude = pow(p, amplitude_0[i]);
-			total += interpolated_noise((x * frequency) / 64.0,
-			                            (y * frequency) / 64.0) * amplitude;
-		}
-		return total;
+		
 	}
 	else if(m < 2048)
 	{
-		for(i = 0; i < 8; i++)
-		{
-			const double frequency = frequency_1[i];
-			const double amplitude = pow(p, amplitude_1[i]);
-			total += interpolated_noise((x * frequency) / 64.0,
-										(y * frequency) / 64.0) * amplitude;
-		}
-		return total;
+		
 	}
-	else /*if (m < 4096)*/
+	else if (m < 4096)
 	{
-		for(i = 0; i < 16; i++)
-		{
-			const double frequency = frequency_2[i];
-			const double amplitude = pow(p, amplitude_2[i]);
-			total += interpolated_noise((x * frequency) / 64.0,
-										(y * frequency) / 64.0) * amplitude;
-		}
+		
 	}
 	/*else
 	{
@@ -511,6 +554,18 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 	}*/
 
 	return total;
+}
+
+double perlin_noise_2D(const double x, const double y, const double p, const sint32 m) {
+	if (m < 768) {
+		return perlin_noise_2D(x, y, p, m, 1);
+	}
+	else if (m < 2048) {
+		return perlin_noise_2D(x, y, p, m, 3);
+	}
+	else {
+		return perlin_noise_2D(x, y, p, m, 4);
+	}
 }
 
 

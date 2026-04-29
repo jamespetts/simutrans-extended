@@ -49,6 +49,7 @@ settings_t::settings_t() :
 	size_y = 256;
 
 	map_number = sim_async_rand(SINT32_MAX_VALUE);
+	algo_type = 1;
 
 	/* new setting since version 0.85.01
 	 */
