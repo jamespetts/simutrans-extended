@@ -469,7 +469,7 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 	static const double frequency_4[16] = { 0.0625, 0.125, 0.25, 0.5, 0.75, 1, 1.33, 1.66, 2, 3, 4, 6, 8, 12, 16, 32 };
 	static const double amplitude_4[16] = { -0.75, -0.5, 0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 7, 9 };
 
-	
+
 
 	switch (algo) {
 	default:
@@ -524,7 +524,7 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 		return total;
 		break;
 	}
-	
+
 
 	// When enabled, this gives an extremely smooth world
 	//static const double frequency_3[24] = {0.002, 0.0625, 0.125, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2.5, 3, 3.5, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32};
@@ -532,15 +532,15 @@ double perlin_noise_2D(const double x, const double y, const double p, const sin
 
 	/*if (m < 768)
 	{
-		
+
 	}
 	else if(m < 2048)
 	{
-		
+
 	}
 	else if (m < 4096)
 	{
-		
+
 	}
 	/*else
 	{

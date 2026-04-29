@@ -385,7 +385,7 @@ sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const 
 	// This allows for different regions to have different landscapes - but
 	// the transitions between regions are too harsh and it is not easy to
 	// change this without vastly more sophisticated code.
-	
+
 	/*const uint8 region = get_region(k, sets);
 	if (region == 0)
 	{
@@ -9248,7 +9248,7 @@ void karte_t::recalc_idp() {
 		}
 	}
 
-	
+
 
 	sint32 total_prod = 0;
 	sint32 total_cons = 0;
@@ -9277,7 +9277,7 @@ void karte_t::recalc_idp() {
 	else { //if IDP is already set then it is likely greater than target density, but keep it as a lower bound just in case
 		industry_density_proportion = min(industry_density_proportion, target_density);
 	}
-	
+
 	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
 
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
