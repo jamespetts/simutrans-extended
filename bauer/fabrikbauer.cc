@@ -1287,7 +1287,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 		if(welt->get_settings().using_fab_contracts()){
 			for(auto fab : welt->get_fab_list()){
 				// First, re-link industries as necessary without building new.
-				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
+				if (fab->disconnect_supplier(koord::invalid, (fabrik_t *) 0, tell_me)) // This does not remove anything, but checks for missing suppliers
 				{
 					force_add_consumer = false;
 				}
@@ -1321,7 +1321,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			for(auto fab : welt->get_fab_list())
 			{
 				// First, re-link industries as necessary without building new.
-				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
+				if (fab->disconnect_supplier(koord::invalid, (fabrik_t*) 0, tell_me)) // This does not remove anything, but checks for missing suppliers
 				{
 					force_add_consumer = false;
 				}
