@@ -6260,6 +6260,8 @@ Bridges cannot be built over large buildings.
 Bridges cannot be built over these buildings.
 Cannot build pier on large buildings
 Elevated way supports cannot be built over these buildings.
+Seat-km
+Seat km
 Pax-km
 Passenger km
 Mail-km
@@ -6268,6 +6270,8 @@ Freight-km
 Freight tonne km
 pkm
  pass. km
+skm
+ seat km
 kgkm
  kg km
 tkm
