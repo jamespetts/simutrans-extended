@@ -858,15 +858,53 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		const grund_t *gr = route_index_beyond_end_of_route ? NULL : welt->lookup(r.at(route_index));
 		const strasse_t *stre = gr ? (strasse_t *)gr->get_weg(road_wt) : NULL;
 		const ribi_t::ribi way_ribi = stre ? stre->get_ribi_unmasked() : ribi_t::none;
-		if(  stre  &&  stre->get_overtaking_mode() <= oneway_mode  &&  (way_ribi == ribi_t::all  ||  ribi_t::is_threeway(way_ribi))  ) {
-			if(  const vehicle_base_t* v = other_lane_blocked(true)  ) {
-				if(  road_vehicle_t const* const at = obj_cast<road_vehicle_t>(v)  ) {
-					if(  at->get_convoi()->get_akt_speed()!=0  &&  judge_lane_crossing(calc_direction(get_pos(),pos_next), calc_direction(pos_next,pos_next2), at->get_90direction(), cnv->is_overtaking(), false)  ) {
-						// vehicle must stop.
-						restart_speed = 0;
-						cnv->reset_waiting();
-						cnv->set_next_cross_lane(true);
-						return false;
+		if(stre && (way_ribi == ribi_t::all  ||  ribi_t::is_threeway(way_ribi))){
+
+			//Check to see if the tile after the intersection is occupied.
+			unsigned int intersection_offset = 1u;
+			const grund_t *next_gr = NULL;
+			const strasse_t *next_stre = NULL;
+			ribi_t::ribi next_way_ribi = ribi_t::none;
+			while(true){ //find the next non-intersection tile on our route (this has to account for multiple intersections in a row)
+				next_gr = route_index_beyond_end_of_route ? NULL : welt->lookup(r.at(route_index + intersection_offset));
+				if(!next_gr){ 
+					break; //if it's end of the route, stop
+				}
+				next_stre = next_gr ? (strasse_t *)next_gr->get_weg(road_wt) : NULL;
+				if(next_stre){
+					next_way_ribi = next_stre->get_ribi_unmasked();
+					if(!ribi_t::is_threeway(next_way_ribi)){ 
+						break; //we've found the next non-intersection tile on our route
+					}
+				}
+				intersection_offset++;
+			}
+
+			if(next_gr && next_stre){ //assuming we haven't reached the end of our route:
+				ribi_t::ribi next_90direction_2 = calc_direction(welt->lookup(r.at(route_index+intersection_offset - 1u))->get_pos(), next_gr->get_pos());
+
+				//get the direction the convoy will be facing at the end of the intersection(s)
+				vehicle_base_t *obj2 = get_blocking_vehicle(next_gr, cnv, curr_direction, next_direction, next_90direction_2, NULL, next_lane);
+				//check to see if there is someone blocking us at the end of the intersection(s)
+
+				if(obj2){//there is a blocking convoy!
+					//Vehicle must stop.
+					restart_speed = 0;
+					cnv->reset_waiting();
+					return false;
+				}
+				
+			}
+			if(stre->get_overtaking_mode() <= oneway_mode){
+				if(  const vehicle_base_t* v = other_lane_blocked(true)  ) {
+					if(  road_vehicle_t const* const at = obj_cast<road_vehicle_t>(v)  ) {
+						if(  at->get_convoi()->get_akt_speed()!=0  &&  judge_lane_crossing(calc_direction(get_pos(),pos_next), calc_direction(pos_next,pos_next2), at->get_90direction(), cnv->is_overtaking(), false)  ) {
+							// vehicle must stop.
+							restart_speed = 0;
+							cnv->reset_waiting();
+							cnv->set_next_cross_lane(true);
+							return false;
+						}
 					}
 				}
 			}
