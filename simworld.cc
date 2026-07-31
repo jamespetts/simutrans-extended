@@ -363,7 +363,7 @@ void karte_t::perlin_hoehe_loop( sint16 x_min, sint16 x_max, sint16 y_min, sint1
 }
 
 
-sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max)
+sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size, sint32 map_size_max, sint32 algo_type)
 {
 	// replace the fixed values with your settings. Amplitude is the top highness of the mountains,
 	// frequency is something like landscape 'roughness'; amplitude may not be greater than 160.0 !!!
@@ -385,29 +385,39 @@ sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const 
 	// This allows for different regions to have different landscapes - but
 	// the transitions between regions are too harsh and it is not easy to
 	// change this without vastly more sophisticated code.
-	/*
-	const uint8 region = get_region(k, sets);
+
+	/*const uint8 region = get_region(k, sets);
 	if (region == 0)
 	{
-		//map_roughness -= 0.2;
-		mountain_height -= 50;
+		map_roughness -= 0.2;
+		if (map_roughness < 0) { map_roughness = 0.01; }
+		//mountain_height -= 50;
 	}
 	if (region == 3)
 	{
-		//map_roughness += 0.2;
-		mountain_height += 50;
+		map_roughness += 0.2;
+		//mountain_height += 50;
 	}
 	if (region == 2)
 	{
-		//map_roughness += 0.3;
-		mountain_height += 100;
+		map_roughness += 0.3;
+		//mountain_height += 100;
 	}*/
-	return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max)*(double)mountain_height)) / 16;
+	/*if (algo_type == 3) {
+		return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, 2) * (double)mountain_height)) / 16;
+	}*/
+	double sample = perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, algo_type);
+	//sample = (-0.5 > sample ? -0.5 : sample);
+	sample = sample - 0.25;
+	map_roughness = map_roughness + (sample / ( 6 * map_roughness));
+	map_roughness = (0.7 > map_roughness ? 0.7 : map_roughness);
+	return ((int)(perlin_noise_2D(k.x, k.y, map_roughness, map_size_max, algo_type)*(double)mountain_height)) / 16;
 }
 
 sint32 karte_t::perlin_hoehe(settings_t const* const sets, koord k, koord const size)
 {
-	return perlin_hoehe(sets, k, size, cached_size_max);
+	const int alg = sets->get_algo_type();
+	return perlin_hoehe(sets, k, size, cached_size_max, alg);
 }
 
 
@@ -1456,22 +1466,46 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	factory_builder_t::new_world();
 
 	int consecutive_build_failures = 0;
+	int consecutive_consumer_failures = 0;
+	int consecutive_producer_failures = 0;
 
 	loadingscreen_t ls( translator::translate("distributing factories"), 16 + settings.get_city_count() * 4 + settings.get_factory_count(), true, true );
 
-	while(  fab_list.get_count() < (uint32)settings.get_factory_count()  ) {
-		if(  !factory_builder_t::increase_industry_density( false, false, false, 1 )  ) {
+	while (count_consumers() < (uint32)settings.get_factory_count()) {
+		if(  !factory_builder_t::increase_industry_density( false, false, false, NO_FORCE)  ) {
 			if(  ++consecutive_build_failures > 3  ) {
 				// Industry chain building starts failing consecutively as map approaches full.
 				break;
 			}
 		}
-		else {
+		else { //if we have successfully added some industry, fill in missing consumers
+			while (consecutive_consumer_failures < 3) {
+				if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {
+					consecutive_consumer_failures++;
+				}
+			}
+			consecutive_consumer_failures = 0;
 			consecutive_build_failures = 0;
+		}
+		//since we may now have new supply chains, attempt to add consumption to those
+		consecutive_consumer_failures = 0;
+		while (consecutive_consumer_failures < 3 && count_consumers() < (uint32)settings.get_factory_count()) {
+			if (!factory_builder_t::increase_industry_density(false, false, false, CONSUMER_ONLY)) {
+				++consecutive_consumer_failures;
+			}
+			else {
+				consecutive_consumer_failures = 0;
+			}
 		}
 		ls.set_progress( 16 + settings.get_city_count() * 4 + min(fab_list.get_count(),settings.get_factory_count()) );
 	}
-
+	dbg->message("karte_t::init()", "Filling in missing production ...");
+	consecutive_build_failures = 0;
+	while (consecutive_build_failures < 3) {
+		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_UNDERSUPPLIED)) {
+			consecutive_build_failures++;
+		}
+	}
 	settings.set_factory_count( fab_list.get_count() );
 	finance_history_year[0][WORLD_FACTORIES] = finance_history_month[0][WORLD_FACTORIES] = fab_list.get_count();
 
@@ -1533,9 +1567,13 @@ DBG_DEBUG("karte_t::init()","built timeline");
 			// Power stations are excluded from the target weight:
 			// a different system is used for them.
 			weight = factory_type->get_distribution_weight();
-			actual_industry_density += (100 / weight);
+			//actual_industry_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				actual_industry_density += (100 / weight);
+			}
 		}
 	}
+	dbg->message("karte_t::init()", "Total industry density: %ld ", actual_industry_density);
 	// The population is not counted at this point, so cannot set this here.
 	industry_density_proportion = 0;
 
@@ -1548,6 +1586,15 @@ DBG_DEBUG("karte_t::init()","built timeline");
 #else
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[1];
 #endif
+}
+
+uint32 karte_t::count_consumers() {
+	uint32 count = 0;
+	for (fabrik_t* fab : fab_list) {
+		if (fab->get_desc()->is_consumer_only())
+			count++;
+	}
+	return count;
 }
 
 void karte_t::recalc_passenger_destination_weights()
@@ -4610,14 +4657,23 @@ void karte_t::new_month()
 	}
 	const uint32 target_industry_density = get_target_industry_density();
 	uint32 count = 0;
-	while(actual_industry_density < target_industry_density && count < 8)
+	DBG_MESSAGE("karte_t::new_month()", "Target industry density: %i, actual industry density: %i", target_industry_density, actual_industry_density);
+	while(actual_industry_density < target_industry_density && count < 4)
 	{
 		// Only add up to four chains per month, and randomise (with a minimum of 8% distribution_weight to ensure that any industry deficiency is, on average, remedied in about a year).
 		const uint32 percentage = max((((target_industry_density - actual_industry_density) * 100u) / target_industry_density), 8u);
 		const uint32 distribution_weight = simrand(100u, "void karte_t::new_month()");
 		if(distribution_weight < percentage)
 		{
-			factory_builder_t::increase_industry_density(true, true);
+			if (!factory_builder_t::increase_industry_density(true, true, false, CONSUMER_ONLY)) { //first try to add consumers, if it fails then add new industry chain
+				factory_builder_t::increase_industry_density(true, true, false, NEUTRAL);
+			}
+			int fill_missing_fails = 0;
+			while (fill_missing_fails < 3) {
+				if (!factory_builder_t::increase_industry_density(true, false, false, FILL_MISSING_ONLY)) {
+					fill_missing_fails++;
+				}
+			}
 		}
 		count++;
 	}
@@ -4646,7 +4702,7 @@ void karte_t::new_month()
 		// Add industries if there is a shortage of electricity - power stations will be built.
 		// Also, check whether power stations are available, or else large quantities of other industries will
 		// be built instead every month.
-		factory_builder_t::increase_industry_density(true, true, true, 1);
+		factory_builder_t::increase_industry_density(true, true, true, NO_FORCE);
 	}
 
 	INT_CHECK("simworld 3130");
@@ -9163,6 +9219,98 @@ void karte_t::clear_all_checklists()
 	clear_checklist_debug_sums();
 }
 
+// Reconstruct the industry density proportion.
+// @author: jamespetts, martin509
+// Loading a game - must set this to zero here and recalculate.
+void karte_t::recalc_idp() {
+	uint32 consumer_density = 0;
+	uint32 old_density = 0;
+	uint32 weight;
+	vector_tpl<const goods_desc_t*> goods_list; //list of goods that have consumer-only industries that accept them
+
+	FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+	{
+		const factory_desc_t* factory_type = factory->get_desc();
+		if (!factory_type->is_electricity_producer())
+		{
+			// Power stations are excluded from the target weight:
+			// a different system is used for them.
+			weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
+			old_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				consumer_density += (100 / weight);
+				for (uint32 i = 0; i < factory->get_input().get_count(); i++) {
+					if (factory->get_input().get_count() > 0) {
+						goods_list.append_unique(factory->get_input()[i].get_typ());
+					}
+				}
+			}
+		}
+	}
+
+
+
+	sint32 total_prod = 0;
+	sint32 total_cons = 0;
+
+	//get the average overproduction of inputs for consumers in the world for every single 'final' good
+	for (auto const good : goods_list) {
+		sint32 global_good_prod = factory_builder_t::get_global_production(good);
+		if (global_good_prod > 0) {
+			total_prod += global_good_prod;
+			total_cons += factory_builder_t::get_global_consumption(good);
+		}
+
+	}
+	uint32 average_overproduction = (uint32)(((sint64)total_prod*100) / ((sint64)total_cons));
+
+	uint32 target_density = (consumer_density * average_overproduction) / 100;
+
+	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
+	target_density = ((old_density - difference) * target_density) / old_density;
+	target_density = ((uint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+
+	if (industry_density_proportion == 0) { //if IDP isn't set, set it to whatever current consumer density is, or target density, whichever larger (to prevent shrinkage of consumers)
+		industry_density_proportion = ((uint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+		industry_density_proportion = max(industry_density_proportion, target_density);
+	}
+	else { //if IDP is already set then it is likely greater than target density, but keep it as a lower bound just in case
+		industry_density_proportion = min(industry_density_proportion, target_density);
+	}
+
+	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
+
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "actual industry density %ld / world population %ld", ((sint64)target_density * 1000000ll), finance_history_month[0][WORLD_CITIZENS]);
+	DBG_MESSAGE("karte_t::load()::recalc_idp()", "industry density proportion recalculated to be: %ld", industry_density_proportion);
+}
+
+void karte_t::recalc_actual_density() {
+
+	DBG_MESSAGE("karte_t::recalc_actual_density()", "recalculating actual industry density");
+
+	actual_industry_density = 0;
+	uint32 old_method_density = 0;
+	uint32 weight;
+
+	FOR(vector_tpl<fabrik_t*>, factory, fab_list)
+	{
+		const factory_desc_t* factory_type = factory->get_desc();
+		if (!factory_type->is_electricity_producer())
+		{
+			// Power stations are excluded from the target weight:
+			// a different system is used for them.
+			weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
+			//actual_industry_density += (100 / weight);
+			old_method_density += (100 / weight);
+			if (factory_type->is_consumer_only()) {
+				actual_industry_density += (100 / weight);
+			}
+		}
+	}
+	DBG_MESSAGE("karte_t::recalc_actual_density()", "old-method industry density: %ld, new industry density: %ld", old_method_density, actual_industry_density);
+}
+
 void karte_t::load(loadsave_t *file)
 {
 	if(  env_t::networkmode  ) {
@@ -9382,16 +9530,27 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	{
 		file->rdwr_short(base_pathing_counter);
 	}
-
+	DBG_MESSAGE("karte_t::load()", "beginning to load industry density code!");
 	if( file->get_extended_version() >= 7 && file->get_extended_version() < 9 && file->is_version_less(110, 6) ) {
 		double old_proportion = industry_density_proportion / 10000.0;
 		file->rdwr_double(old_proportion);
 		industry_density_proportion = old_proportion * 10000.0;
+		DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+		//industry_density_proportion = industry_density_proportion / 10;
+		recalc_idp();
 	}
 	else if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
-		if(file->get_extended_version() >= 11)
+		if(file->get_extended_version() >= 11 && file->get_extended_revision() >= 67)
 		{
 			file->rdwr_long(industry_density_proportion);
+
+		}
+		else if (file->get_extended_revision() < 67) {
+
+			file->rdwr_long(industry_density_proportion);
+			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+			//industry_density_proportion = industry_density_proportion / 10;
+			recalc_idp();
 		}
 		else
 		{
@@ -9399,27 +9558,17 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			file->rdwr_long(idp);
 			idp = (idp & 0x8000) != 0 ? idp & 0x7FFF : idp * 150;
 			industry_density_proportion = idp;
+			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
+			//industry_density_proportion = industry_density_proportion / 10;
+			recalc_idp();
 		}
 	}
 	else if(file->is_loading())
 	{
-		// Reconstruct the actual industry density.
-		// @author: jamespetts
-		// Loading a game - must set this to zero here and recalculate.
-		actual_industry_density = 0;
-		uint32 weight;
-		FOR(vector_tpl<fabrik_t*>, factory, fab_list)
-		{
-			const factory_desc_t* factory_type = factory->get_desc();
-			if(!factory_type->is_electricity_producer())
-			{
-				// Power stations are excluded from the target weight:
-				// a different system is used for them.
-				weight = max(factory_type->get_distribution_weight(), 1); // To prevent divisions by zero
-				actual_industry_density += (100 / weight);
-			}
-		}
-		industry_density_proportion = ((sint64)actual_industry_density * 10000ll) / finance_history_month[0][WORLD_CITIZENS];
+		recalc_idp();
+	}
+	if (file->is_loading() && industry_density_proportion == 0) {
+		recalc_idp();
 	}
 
 	if(  file->get_extended_version() >=9 && file->is_version_atleast(110, 0)  ) {
@@ -9463,7 +9612,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			}
 		}
 		file->rdwr_long(max_road_check_depth);
-		if(file->get_extended_version() < 10)
+		if (file->get_extended_version() < 10)
 		{
 			double old_density = actual_industry_density / 100.0;
 			file->rdwr_double(old_density);
@@ -9472,6 +9621,9 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		else
 		{
 			file->rdwr_long(actual_industry_density);
+			if (file->get_extended_revision() < 67) {
+				recalc_actual_density();
+			}
 		}
 		if(  fab_list.empty() && file->is_version_less(111, 1)  ) {
 			// Correct some older saved games where the actual industry density was over-stated.

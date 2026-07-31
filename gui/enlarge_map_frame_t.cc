@@ -240,6 +240,7 @@ void enlarge_map_frame_t::update_preview()
 
 	const int mx = sets->get_size_x()/pre_x;
 	const int my = sets->get_size_y()/pre_y;
+	const int algo = sets->get_algo_type();
 	const sint32 map_size = max(sets->get_size_y(), sets->get_size_x());
 
 	for(  int j=0;  j<pre_y;  j++  ) {
@@ -259,7 +260,7 @@ void enlarge_map_frame_t::update_preview()
 			}
 			else {
 				// new part
-				const sint16 height = karte_t::perlin_hoehe(sets, pos, koord(old_x,old_y), map_size );
+				const sint16 height = karte_t::perlin_hoehe(sets, pos, koord(old_x,old_y), map_size, algo);
 				color = minimap_t::calc_height_color(height, sets->get_groundwater());
 			}
 			map.at(i,j) = color;

@@ -151,7 +151,7 @@ public:
 	 * Height of a point of the map with "perlin noise".
 	 * Uses map roughness and mountain height from @p sets.
 	 */
-	static sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size, sint32 map_size_max);
+	static sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size, sint32 map_size_max, sint32 algo_type);
 	sint32 perlin_hoehe(settings_t const *sets, koord pos, koord const size);
 
 	/**
@@ -676,6 +676,17 @@ private:
 	 * Internal saving method.
 	 */
 	void save(loadsave_t *file, bool silent);
+
+	/*
+	* Called by load() to recalculate industry density.
+	*/
+	void recalc_idp();
+
+	/*
+	* Called by load to recalculate actual industry density.
+	*/
+	void recalc_actual_density();
+
 public:
 	/**
 	 * Internal loading method.
@@ -2094,6 +2105,10 @@ public:
 	// mostly used by AI: Ask to flatten a tile
 	bool can_flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false);
 	bool flatten_tile(player_t *player, koord k, sint8 hgt, bool keep_water=false, bool make_underwater_hill=false, bool justcheck=false);
+
+private:
+	//count the number of consumer-only industries we have
+	uint32 count_consumers();
 
 public:
 

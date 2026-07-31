@@ -757,7 +757,7 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 	return false;
 }
 
-bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier) //Returns true if must be destroyed.
+bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier, bool tell_me) //Returns true if must be destroyed.
 {
 	if (supplier_pos != koord::invalid)
 	{
@@ -804,7 +804,7 @@ bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier) //Ret
 				for (uint32 j = 0; j < fab_desc->get_product_count(); j++)
 				{
 					if(unfilled_product == fab_desc->get_product(j)->get_output_type()) {
-						add_supplier(fab,unfilled_product);
+						add_supplier(fab,unfilled_product, tell_me);
 						unfulfilled_requirements.remove(unfilled_product);
 						k--;
 					}
@@ -1085,7 +1085,10 @@ fabrik_t::~fabrik_t()
 
 		if (desc != NULL)
 		{
-			welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			//welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			if (desc->is_consumer_only()) {
+				welt->decrease_actual_industry_density(100 / desc->get_distribution_weight());
+			}
 		}
 
 		// Disconnect this factory from all chains.
@@ -1796,7 +1799,10 @@ DBG_DEBUG("fabrik_t::rdwr()","loading factory '%s'",s);
 
 	if(  file->is_version_less(110, 6) && file->get_extended_version() < 9  ) {
 		// Necessary to ensure that the industry density is correct after re-loading a game.
-		welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		//welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		if (desc->is_consumer_only()) {
+			welt->increase_actual_industry_density(100 / desc->get_distribution_weight());
+		}
 	}
 
 	if(  file->is_version_atleast(110, 5)  ) {
@@ -3267,7 +3273,7 @@ void fabrik_t::new_month()
 				   new_fab->get_building()->get_size() == desc->get_building()->get_size() &&
 				   new_fab->get_building()->get_intro_year_month() <= timeline_month &&
 				   new_fab->get_building()->get_retire_year_month() >= timeline_month &&
-					adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())))
+					(adjusted_density < (max_density + (100u / new_fab->get_distribution_weight())) || !desc->is_consumer_only()))
 				{
 					upgrade_list.append_unique(new_fab);
 				}
@@ -3313,7 +3319,10 @@ void fabrik_t::new_month()
 
 					const int old_distributionweight = desc->get_distribution_weight();
 					const factory_desc_t* new_type = upgrade_list[distribution_weight];
-					welt->decrease_actual_industry_density(100 / old_distributionweight);
+					//welt->decrease_actual_industry_density(100 / old_distributionweight);
+					if (desc->is_consumer_only()) {
+						welt->decrease_actual_industry_density(100 /desc->get_distribution_weight());
+					}
 					uint32 percentage = new_type->get_field_group() ? (new_type->get_field_group()->get_max_fields() * 100) / desc->get_field_group()->get_max_fields() : 0;
 					const uint16 adjusted_number_of_fields = percentage ? (fields.get_count() * percentage) / 100 : 0;
 					delete_all_fields();
@@ -3508,7 +3517,10 @@ void fabrik_t::new_month()
 						update_scaled_mail_demand();
 						update_prodfactor_pax();
 						update_prodfactor_mail();
-						welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						//welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						if (new_type->is_consumer_only()) {
+							welt->increase_actual_industry_density(100 / new_type->get_distribution_weight());
+						}
 						// Message to tell players about upgrade, preferably with city name
 						if(city) {
 							sprintf(buf, translator::translate("Industry: %s in %s has been upgraded to industry: %s."), translator::translate(old_name), city->get_name(), translator::translate(new_name));
@@ -4296,7 +4308,7 @@ void fabrik_t::add_all_suppliers()
 /* adds a new supplier to this factory
  * fails if no matching goods are there
  */
-bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
+bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product, bool tell_me)
 {
 	for(int i=0; i < desc->get_supplier_count(); i++) {
 		const factory_supplier_desc_t *supplier = desc->get_supplier(i);
@@ -4320,13 +4332,16 @@ bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
 							buf.printf(translator::translate("New shipping destination added to Factory %s (near to %s) for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
 						}
 					// Fallback if there are no cities
+
 					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
 					}
 				}else{
 					// TODO: Duplicate city-specific messages if this message appears often
 					buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
 				}
-				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
+				if (tell_me) {
+					welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
+				}
 				return true;
 			}
 	}
