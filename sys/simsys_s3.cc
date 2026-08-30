@@ -1,0 +1,1993 @@
+/*
+ * This file is part of the Simutrans project under the Artistic License.
+ * (see LICENSE.txt)
+ */
+
+/*
+ * SDL3 platform backend.
+ *
+ * This implements the dr_* contract of simsys.h on top of SDL3, with the
+ * existing software renderer unchanged: simgraph16 still draws into a CPU
+ * framebuffer in PIXVAL format and this file only presents it. There is no
+ * SDL_GPU here and no renderer change.
+ *
+ * simsys_s2.cc (SDL2) and this file are never compiled together - the build
+ * selects exactly one platform file - so the dr_* symbols cannot collide and
+ * SDL2 and SDL3 cannot end up in the same binary.
+ *
+ * The one deliberate divergence from simsys_s2 is who owns the framebuffer:
+ *
+ *   simsys_s2  simgraph16 draws straight into the pixels of an SDL_Surface,
+ *              so SDL's pitch is also the engine's pitch.
+ *   simsys_s3  the framebuffer is a plain contiguous allocation of ours whose
+ *              pitch in pixels is exactly the width handed to simgraph16. The
+ *              streaming texture may use any pitch it likes; presentation
+ *              copies into it.
+ *
+ * That divergence is not a preference: SDL_CreateRGBSurface does not exist in
+ * SDL3, so the surface had to go anyway.
+ *
+ * Not implemented here, and deliberately so - see the SDL3 integration plan:
+ *   - IME candidate lists (SDL_EVENT_TEXT_EDITING_CANDIDATES has no SDL2
+ *     counterpart, and Simutrans has nothing to display one with)
+ *
+ * Audio is not here either, but it is not missing: sound is in
+ * sound/sdl3_sound.cc, and music comes from the same per-platform routine the
+ * sdl2 backend uses. simsys_s2.cc leaves both out for the same reason.
+ */
+
+#include <SDL3/SDL.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "simsys.h"
+
+#include "../macros.h"
+#include "../simversion.h"
+#include "../simevent.h"
+#include "../simintr.h"
+#include "../simdebug.h"
+#include "../display/simgraph.h"
+#include "../dataobj/environment.h"
+#include "../dataobj/loadsave.h"
+#include "../gui/simwin.h"
+#include "../gui/components/gui_component.h"
+#include "../gui/components/gui_textinput.h"
+#include "../music/music.h"
+#include "../unicode.h"
+#include "../simworld.h"
+
+
+static Uint8 hourglass_cursor[] = {
+	0x3F, 0xFE, //   *************
+	0x30, 0x06, //   **         **
+	0x3F, 0xFE, //   *************
+	0x10, 0x04, //    *         *
+	0x10, 0x04, //    *         *
+	0x12, 0xA4, //    *  * * *  *
+	0x11, 0x44, //    *  * * *  *
+	0x18, 0x8C, //    **   *   **
+	0x0C, 0x18, //     **     **
+	0x06, 0xB0, //      ** * **
+	0x03, 0x60, //       ** **
+	0x03, 0x60, //       **H**
+	0x06, 0x30, //      ** * **
+	0x0C, 0x98, //     **     **
+	0x18, 0x0C, //    **   *   **
+	0x10, 0x84, //    *    *    *
+	0x11, 0x44, //    *   * *   *
+	0x12, 0xA4, //    *  * * *  *
+	0x15, 0x54, //    * * * * * *
+	0x3F, 0xFE, //   *************
+	0x30, 0x06, //   **         **
+	0x3F, 0xFE  //   *************
+};
+
+static Uint8 hourglass_cursor_mask[] = {
+	0x3F, 0xFE, //   *************
+	0x3F, 0xFE, //   *************
+	0x3F, 0xFE, //   *************
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x0F, 0xF8, //     *********
+	0x07, 0xF0, //      *******
+	0x03, 0xE0, //       *****
+	0x03, 0xE0, //       **H**
+	0x07, 0xF0, //      *******
+	0x0F, 0xF8, //     *********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x1F, 0xFC, //    ***********
+	0x3F, 0xFE, //   *************
+	0x3F, 0xFE, //   *************
+	0x3F, 0xFE  //   *************
+};
+
+static Uint8 blank_cursor[] = {
+	0x0,
+	0x0,
+};
+
+
+static SDL_Window   *window    = NULL;
+static SDL_Renderer *renderer  = NULL;
+static SDL_Texture  *screen_tx = NULL;
+
+/* The framebuffer is ours: contiguous, and its pitch in pixels is fb_pitch. */
+static PIXVAL *framebuffer = NULL;
+static int     fb_pitch    = 0; // in pixels
+static int     fb_height   = 0;
+static size_t  fb_bytes    = 0;
+
+static int    sync_blit       = 0;
+static int    use_dirty_tiles = 1;
+static sint16 fullscreen      = WINDOWED;
+
+static SDL_Cursor *arrow     = NULL;
+static SDL_Cursor *hourglass = NULL;
+static SDL_Cursor *blank     = NULL;
+
+static bool has_soft_keyboard = false;
+
+// Number of fractional bits for screen scaling
+#define SCALE_SHIFT_X 5
+#define SCALE_SHIFT_Y 5
+
+#define SCALE_NEUTRAL_X (1 << SCALE_SHIFT_X)
+#define SCALE_NEUTRAL_Y (1 << SCALE_SHIFT_Y)
+
+// Multiplier when converting from texture to screen coords, fixed point format
+static sint32 x_scale = SCALE_NEUTRAL_X;
+static sint32 y_scale = SCALE_NEUTRAL_Y;
+
+/* Whether the scale above was derived from the display rather than chosen. Only
+ * an automatic scale may be recomputed behind the user's back when the display
+ * changes; a percentage someone typed has to survive it. -autodpi does not go
+ * through env_t::dpi_scale, so the caller cannot be asked - what the scale was
+ * last set from is recorded here instead. */
+static bool scale_is_automatic = false;
+
+/* When using -autodpi, attempt to scale things on screen to this DPI value.
+ * Android asks for twice the desktop figure, which is simsys_s2's value and
+ * not a preference: a phone is held at arm's length, so the same nominal DPI
+ * produces something far too large. */
+#ifdef __ANDROID__
+#define TARGET_DPI (192)
+#else
+#define TARGET_DPI (96)
+#endif
+
+/* What SDL3's content scale is measured against. SDL3 reports no DPI at all,
+ * only a unitless scale, and 1.0 does not mean the same thing everywhere: the
+ * desktop backends define it against 96 dpi, but the Android backend assigns it
+ * straight from DisplayMetrics.density, which Android defines as
+ * densityDpi/160. Treating that as 96 understates the display by exactly
+ * 160/96. */
+#ifdef __ANDROID__
+#define CONTENT_SCALE_BASE_DPI (160.0f)
+#else
+#define CONTENT_SCALE_BASE_DPI (96.0f)
+#endif
+
+// make sure we have at least so much pixel in y-direction
+#define MIN_SCALE_HEIGHT (640)
+
+// Most Android devices are underpowered to handle larger screens
+#define MAX_AUTOSCALE_WIDTH (1280)
+
+// screen -> texture coords
+#define SCREEN_TO_TEX_X(x) (((x) * SCALE_NEUTRAL_X) / x_scale)
+#define SCREEN_TO_TEX_Y(y) (((y) * SCALE_NEUTRAL_Y) / y_scale)
+
+// texture -> screen coords
+#define TEX_TO_SCREEN_X(x) (((x) * x_scale) / SCALE_NEUTRAL_X)
+#define TEX_TO_SCREEN_Y(y) (((y) * y_scale) / SCALE_NEUTRAL_Y)
+
+/* The screen unit above is the back buffer pixel, because that is what the
+ * game area is sized from: the resize handler reads the window size in pixels,
+ * and the texture is presented into the whole render target, which is measured
+ * in pixels as well.
+ *
+ * SDL3 does not report everything in that unit. Mouse positions, the text
+ * input area and SDL_DisplayMode::w/h are window coordinates, and a window
+ * coordinate is a pixel only while the pixel density is 1. It is 1 on Windows
+ * at every desktop scale, and it is not on macOS retina, on Wayland with
+ * fractional scaling, or on Android. Those are converted before SCREEN_TO_TEX
+ * and converted back on the way out, so that only one unit reaches x_scale.
+ *
+ * SDL_GetWindowPixelDensity returns 0 on failure, which would collapse every
+ * coordinate onto the origin. A window that cannot be measured keeps the 1:1
+ * it was assumed to have before. */
+static float pixel_density()
+{
+	const float density = window ? SDL_GetWindowPixelDensity( window ) : 0.0f;
+	return density > 0.0f ? density : 1.0f;
+}
+
+// window coords <-> back buffer pixels
+#define WINDOW_TO_PIXEL(v) ((int)((v) * pixel_density()))
+#define PIXEL_TO_WINDOW(v) ((float)(v) / pixel_density())
+
+
+/* Everything display-dependent has to come from the display the window is
+ * actually on, not from whichever one the system calls primary. The two agree
+ * until someone drags the window onto the second monitor, and from then on
+ * every mode limit is computed for a screen the game is no longer showing on.
+ *
+ * Before the window exists - which is where the startup queries run - the
+ * primary display is the only answer there is. SDL_GetDisplayForWindow returns
+ * 0 when it cannot tell, and 0 is not a display id, so that falls back too. */
+static SDL_DisplayID current_display()
+{
+	const SDL_DisplayID disp = window ? SDL_GetDisplayForWindow( window ) : 0;
+	return disp ? disp : SDL_GetPrimaryDisplay();
+}
+
+
+/* --------------------------------------------------------------- scaling */
+
+bool dr_set_screen_scale(sint16 scale_percent)
+{
+	const sint32 old_x_scale = x_scale;
+	const sint32 old_y_scale = y_scale;
+
+	scale_is_automatic = (scale_percent == -1);
+
+	if(  scale_percent == -1  ) {
+		/* SDL2->SDL3: SDL_GetDisplayDPI() is gone. SDL3 reports a unitless
+		 * content scale instead, measured against CONTENT_SCALE_BASE_DPI. The
+		 * arithmetic below therefore reproduces the SDL2 result rather than
+		 * introducing a different scaling policy. */
+		const SDL_DisplayID    disp  = current_display();
+		const SDL_DisplayMode *mode  = SDL_GetCurrentDisplayMode( disp );
+
+		/* Once there is a window, the scale that describes it is the one to use.
+		 * SDL_GetWindowDisplayScale combines the window's pixel density with its
+		 * display's content scale, which is what "how large should content be
+		 * drawn here" actually means; the display's content scale alone is not.
+		 * Under a Wayland compositor moved from scale 1 to scale 2 the display
+		 * still reports 1.00 while the window correctly reports 2.00, so reading
+		 * the display would recompute the very same number and change nothing.
+		 * Before the window exists - which is where -autodpi runs - there is
+		 * nothing to ask but the primary display, exactly as before. */
+		const float            scale = window ? SDL_GetWindowDisplayScale( window )
+		                                      : SDL_GetDisplayContentScale( disp );
+
+		/* The mode and the scale describe two different things and come from two
+		 * different places: the mode from whichever display SDL says the window
+		 * is on, the scale from the window itself. That is only sound while both
+		 * are talking about the same screen, and there is one case where they are
+		 * not. Leaving fullscreen on a Wayland output that is not at the desktop
+		 * origin leaves SDL reporting the window at 0,0 for a while, so
+		 * SDL_GetDisplayForWindow answers with the display that owns the origin
+		 * while the window is still being shown, at its own density, on the one
+		 * it never left. Using that pair would clamp - or fail to clamp - this
+		 * display's scale against another display's height.
+		 *
+		 * A window's pixel density is the density of the screen showing it, so a
+		 * mode whose density is not the window's is a mode for a different
+		 * screen. Dropping it leaves the scale exactly as it was, which is what
+		 * the last agreeing pair produced, and the next event where the two agree
+		 * recomputes it. That is also why this is not a Wayland special case: any
+		 * platform that reports the two out of step is wrong in the same way. */
+		const float density_gap = ( mode  &&  window )
+			? mode->pixel_density - SDL_GetWindowPixelDensity( window ) : 0.0f;
+		if(  density_gap > 0.01f  ||  density_gap < -0.01f  ) {
+			DBG_MESSAGE("dr_set_screen_scale(SDL3)",
+				"display %u is %.2fx but the window is drawn at %.2fx - not this window's display, scale kept",
+				(unsigned)disp, mode->pixel_density, SDL_GetWindowPixelDensity( window ));
+			mode = NULL;
+		}
+
+		/* SDL_DisplayMode measures w and h in window coordinates and carries the
+		 * factor to pixels separately, so the tests below convert first: the unit
+		 * SCREEN_TO_TEX works in is the pixel. A 2560x1440 panel presented as
+		 * 1280x720 at scale 2 is not a display too short to scale. */
+		const int mode_pixel_h = mode ? (int)(mode->h * mode->pixel_density) : 0;
+
+		if(  mode  &&  scale > 0.0f  &&  mode_pixel_h > 1.5 * MIN_SCALE_HEIGHT  ) {
+			/* The display's dpi is the content scale times the base it is
+			 * measured against, and simsys_s2's dpi/TARGET_DPI then becomes
+			 * this. Both factors matter: dropping the division is invisible on a
+			 * desktop and wrong by 2x on Android, and taking the base as 96
+			 * everywhere is invisible on a desktop and wrong by 160/96 on
+			 * Android. A 420 dpi phone must arrive here as 420, not as 252. */
+			x_scale = (sint32)((scale * CONTENT_SCALE_BASE_DPI * SCALE_NEUTRAL_X) / TARGET_DPI + 0.5f);
+			y_scale = (sint32)((scale * CONTENT_SCALE_BASE_DPI * SCALE_NEUTRAL_Y) / TARGET_DPI + 0.5f);
+			DBG_MESSAGE("dr_set_screen_scale(SDL3)", "content scale %.2f -> x=%i, y=%i", scale, x_scale, y_scale);
+		}
+
+#ifdef __ANDROID__
+		/* Most Android devices are underpowered to run more than 1280 pixels
+		 * across, so simsys_s2 caps the auto scale there. Without this a modern
+		 * phone asks the software renderer for its full panel width. */
+		if(  mode  ) {
+			const int    mode_pixel_w = (int)(mode->w * mode->pixel_density);
+			const sint32 current_x    = SCREEN_TO_TEX_X( mode_pixel_w );
+			if(  current_x > MAX_AUTOSCALE_WIDTH  ) {
+				const sint32 new_x_scale = (sint32)(((sint64)mode_pixel_w * SCALE_NEUTRAL_X + 1) / MAX_AUTOSCALE_WIDTH);
+				y_scale = (y_scale * new_x_scale) / x_scale;
+				x_scale = new_x_scale;
+				DBG_MESSAGE("dr_set_screen_scale(SDL3)", "capped to %d wide -> x=%i, y=%i", MAX_AUTOSCALE_WIDTH, x_scale, y_scale);
+			}
+		}
+#endif
+
+		// ensure minimum height
+		if(  mode  ) {
+			const sint32 current_y = SCREEN_TO_TEX_Y( mode_pixel_h );
+			if(  current_y < MIN_SCALE_HEIGHT  ) {
+				DBG_MESSAGE("dr_set_screen_scale(SDL3)", "virtual height=%d < %d", current_y, MIN_SCALE_HEIGHT);
+				x_scale = (x_scale * current_y) / MIN_SCALE_HEIGHT;
+				y_scale = (y_scale * current_y) / MIN_SCALE_HEIGHT;
+			}
+		}
+	}
+	else if(  scale_percent == 0  ) {
+		x_scale = SCALE_NEUTRAL_X;
+		y_scale = SCALE_NEUTRAL_Y;
+	}
+	else {
+		x_scale = (scale_percent * SCALE_NEUTRAL_X) / 100;
+		y_scale = (scale_percent * SCALE_NEUTRAL_Y) / 100;
+	}
+
+	if(  window  &&  (x_scale != old_x_scale  ||  y_scale != old_y_scale)  ) {
+		// force window resize
+		int w, h;
+		SDL_GetWindowSize( window, &w, &h );
+
+		/* SDL2->SDL3: SDL_WINDOWEVENT with a sub-event field became one event
+		 * type per window action, so the synthetic resize is pushed directly.
+		 * SDL_PushEvent returns true when the event was queued. */
+		SDL_Event ev;
+		SDL_zero( ev );
+		ev.type            = SDL_EVENT_WINDOW_RESIZED;
+		ev.window.windowID = SDL_GetWindowID( window );
+		ev.window.data1    = w;
+		ev.window.data2    = h;
+
+		return SDL_PushEvent( &ev );
+	}
+
+	return true;
+}
+
+
+sint16 dr_get_screen_scale()
+{
+	return (sint16)((x_scale * 100) / SCALE_NEUTRAL_X);
+}
+
+
+/* --------------------------------------------------- application lifecycle */
+
+/**
+ * Save the settings without any user interface, for the case where the
+ * operating system is about to suspend or kill the process.
+ */
+static void save_settings_silently()
+{
+	dr_chdir( env_t::user_dir );
+
+	loadsave_t settings_file;
+	if(  settings_file.wr_open( "settings.xml", loadsave_t::xml, 0, "settings only/", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR ) == loadsave_t::FILE_STATUS_OK  ) {
+		env_t::rdwr( &settings_file );
+		env_t::default_settings.rdwr( &settings_file );
+		settings_file.close();
+	}
+}
+
+
+/* SDL2->SDL3: an SDL_EventFilter now returns bool, and the application lifecycle
+ * events must be handled from a watch rather than from the poll loop. That is not
+ * a style preference: SDL_SendAppEvent hands SDL_EVENT_TERMINATING, LOW_MEMORY and
+ * the four background/foreground events straight to the event watchers and never
+ * queues them, so SDL_PollEvent cannot return one. Under SDL2 the same events were
+ * pushed onto the queue like any other, which is why simsys_s2 can handle the
+ * foreground case in its event loop and this file cannot.
+ *
+ * A watch cannot drop events, which is fine here: nothing else consumes these.
+ *
+ * On Windows, Linux and macOS these events do not occur. The handlers exist so that
+ * the contract of simsys_s2.cc is preserved rather than silently dropped. */
+static bool SDLCALL app_lifecycle_watch(void * /*userdata*/, SDL_Event *event)
+{
+	switch(  event->type  ) {
+		case SDL_EVENT_DID_ENTER_BACKGROUND:
+			intr_disable();
+			save_settings_silently();
+			dr_stop_midi();
+			break;
+
+		/* Coming back. The partner of the above: that one stops the interrupt,
+		 * and without this one nothing ever starts it again - the game would
+		 * return to the screen frozen. simsys_s2 handles this from its poll loop
+		 * instead, and copying that placement would have produced dead code:
+		 * SDL2 pushes application events onto the queue like any other, but
+		 * SDL_SendAppEvent in SDL3 hands the six lifecycle events to the event
+		 * watchers and deliberately never queues them, so SDL_PollEvent can
+		 * never return one.
+		 *
+		 * The watch runs on the thread that pumps events, which is this game's
+		 * main thread - Android_PumpEvents dispatches the resume - so the text
+		 * input call below is on the thread that owns it.
+		 *
+		 * dr_stop_textinput() first, as simsys_s2 does: the soft keyboard does
+		 * not survive the trip to the background, and a stale one would leave
+		 * the game accepting text nobody can see being typed. */
+		case SDL_EVENT_DID_ENTER_FOREGROUND:
+			dr_stop_textinput();
+			intr_enable();
+			break;
+		case SDL_EVENT_TERMINATING:
+			// Quitting immediately: save the game and the settings with no
+			// visual feedback, then leave the rest of the cleanup to the OS.
+			intr_disable();
+			DBG_DEBUG("app_lifecycle_watch(SDL3)", "env_t::reload_and_save_on_quit=%d", env_t::reload_and_save_on_quit);
+
+			/* EXTENDED: the autosave is written here, inline, and NOT by way of
+			 * world()->stop( true ) as simsys_s3 does in Standard.
+			 *
+			 * Both routes do write an autosave - karte_t::stop() carries the same
+			 * guard and the same filename - but they do not write it the same way.
+			 * karte_t::stop() passes silent=false and then calls destroy_all_win(),
+			 * and this path has neither a user interface left to draw a progress
+			 * bar into nor the time to do it: that is exactly why simsys_s2 passes
+			 * silent=true here. Reproducing simsys_s2 keeps the behaviour Extended
+			 * ships today, byte for byte in the saved file and step for step in
+			 * what is drawn while saving it, which is nothing. */
+			if(  env_t::reload_and_save_on_quit  &&  !env_t::networkmode  ) {
+				// save current game, if not online
+				bool old_restore_UI = env_t::restore_UI;
+				env_t::restore_UI = true;
+
+				// construct from pak name an autosave if requested
+				std::string pak_name( "autosave-" );
+				pak_name.append( env_t::objfilename );
+				pak_name.erase( pak_name.length() - 1 );
+				pak_name.append( ".sve" );
+
+				dr_chdir( env_t::user_dir );
+				world()->save( pak_name.c_str(), true, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true );
+				env_t::restore_UI = old_restore_UI;
+			}
+			save_settings_silently();
+			/* simsys_s2 ends with SDL_Quit(); dr_os_close() is this backend's own
+			 * teardown and does that plus the texture, renderer, window and
+			 * framebuffer it owns. */
+			dr_os_close();
+			exit( 0 );
+			break;
+
+		default:
+			break;
+	}
+
+	return true;
+}
+
+
+/* ------------------------------------------------------------------- init */
+
+bool dr_os_init(const int *parameter)
+{
+	/* SDL2 always sent SDL_TEXTEDITING. SDL3 only sends SDL_EVENT_TEXT_EDITING
+	 * if the application declares that it draws the composition itself: the
+	 * default for SDL_HINT_IME_IMPLEMENTED_UI is "none", and then the OS draws
+	 * the preedit and no editing event ever arrives. Simutrans does draw it -
+	 * gui_textinput_t underlines the composition and highlights the target
+	 * clause - so without this line the whole IME path below is dead code.
+	 *
+	 * Deliberately NOT "candidates": Simutrans has nothing to draw a candidate
+	 * list with, so the OS has to keep drawing that one, which is also what it
+	 * does under SDL2. The hint must be set before SDL_Init. */
+	SDL_SetHint( SDL_HINT_IME_IMPLEMENTED_UI, "composition" );
+
+	/* Touch must not also arrive as mouse input: the finger handling below
+	 * produces the clicks itself, and with both a tap would act twice. This is
+	 * simsys_s2's SDL_HINT_TOUCH_MOUSE_EVENTS, set before SDL_Init so no
+	 * subsystem can latch the default first. */
+	SDL_SetHint( SDL_HINT_TOUCH_MOUSE_EVENTS, "0" );
+
+	// SDL2->SDL3: SDL_Init returns true on success, where SDL2 returned 0.
+	if(  !SDL_Init( SDL_INIT_VIDEO )  ) {
+		dbg->error( "dr_os_init(SDL3)", "Could not initialize SDL: %s", SDL_GetError() );
+		return false;
+	}
+
+	/* Which screen orientations the game may be rotated to, on the two
+	 * platforms that have a say in it - Android and iOS. Simutrans allows all
+	 * four, and this is simsys_s2's string unchanged: it is a statement about
+	 * the game, not about SDL, so it does not become a different set under a
+	 * different backend.
+	 *
+	 * Placed here, after SDL_Init and before the window exists, because that
+	 * is where simsys_s2 sets it and because SDL3 reads it at exactly the same
+	 * moment SDL2 did: Android_CreateWindow passes SDL_GetHint(
+	 * SDL_HINT_ORIENTATIONS ) straight to Android_JNI_SetOrientation, and
+	 * SDL_uikitwindow.m reads it when the window is made. The hint
+	 * documentation says "before SDL is initialized", which is stricter than
+	 * the code needs; following the documentation instead of the code would
+	 * have moved the call for no reason and diverged from simsys_s2. */
+	SDL_SetHint( SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight Portrait PortraitUpsideDown" );
+
+	/* This backend ships as a beta while sdl2 stays the default, and the word
+	 * belongs where someone will actually read it: this line is the only place
+	 * either backend names itself, it is already in every simu.log, and a log is
+	 * what arrives attached to a bug report. Deliberately not in the title bar,
+	 * the banner or anywhere else in the interface - Simutrans has no precedent
+	 * for marking a build there, and a beta platform layer is not a different
+	 * game. */
+	dbg->message( "dr_os_init(SDL3)", "SDL %d.%d.%d (BETA backend), video driver: %s",
+		SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION, SDL_GetCurrentVideoDriver() );
+
+	/* SDL2->SDL3: SDL_EventState() became SDL_SetEventEnabled(). SDL3 has no
+	 * dollar gestures to switch off, and no multigesture either - see the
+	 * touch section further down. */
+	SDL_SetEventEnabled( SDL_EVENT_FINGER_DOWN,     true );
+	SDL_SetEventEnabled( SDL_EVENT_FINGER_UP,       true );
+	SDL_SetEventEnabled( SDL_EVENT_FINGER_MOTION,   true );
+	SDL_SetEventEnabled( SDL_EVENT_FINGER_CANCELED, true );
+	SDL_SetEventEnabled( SDL_EVENT_CLIPBOARD_UPDATE, false );
+	SDL_SetEventEnabled( SDL_EVENT_DROP_FILE,     false );
+
+	SDL_AddEventWatch( app_lifecycle_watch, NULL );
+
+	has_soft_keyboard = SDL_HasScreenKeyboardSupport();
+	if(  has_soft_keyboard  &&  !env_t::hide_keyboard  ) {
+		env_t::hide_keyboard = true;
+	}
+
+	sync_blit       = parameter[0]; // hijack SDL1 -async flag for vsync
+	use_dirty_tiles = !parameter[1]; // hijack SDL1 -use_hw flag to force full screen updates
+
+	// prepare for next event
+	sys_event.type = SIM_NOEVENT;
+	sys_event.code = 0;
+
+	return true;
+}
+
+
+resolution dr_query_screen_resolution()
+{
+	resolution res;
+
+	/* SDL2->SDL3: displays are addressed by SDL_DisplayID rather than by index,
+	 * and the mode is returned as a const pointer instead of being copied into
+	 * a caller-provided struct. */
+	const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode( current_display() );
+	if(  !mode  ) {
+		dbg->warning( "dr_query_screen_resolution(SDL3)", "no display mode: %s", SDL_GetError() );
+		res.w = 1024;
+		res.h = 768;
+		return res;
+	}
+
+	/* SDL_DisplayMode measures w and h in window coordinates and carries the
+	 * factor to pixels separately, so the mode of a dense display is not the
+	 * pixel count. The window this bounds is sized in pixels. */
+	const int pixel_w = (int)(mode->w * mode->pixel_density);
+	const int pixel_h = (int)(mode->h * mode->pixel_density);
+
+	DBG_MESSAGE("dr_query_screen_resolution(SDL3)", "screen resolution width=%d, height=%d", pixel_w, pixel_h);
+	res.w = SCREEN_TO_TEX_X( pixel_w );
+	res.h = SCREEN_TO_TEX_Y( pixel_h );
+	return res;
+}
+
+
+/* ------------------------------------------------ framebuffer and texture */
+
+static void internal_free_framebuffer()
+{
+	free( framebuffer );
+	framebuffer = NULL;
+	fb_pitch    = 0;
+	fb_height   = 0;
+	fb_bytes    = 0;
+}
+
+
+static bool internal_create_framebuffer(int pitch_pixels, int height)
+{
+	internal_free_framebuffer();
+
+	const size_t bytes = (size_t)pitch_pixels * (size_t)height * sizeof(PIXVAL);
+	framebuffer = (PIXVAL *)calloc( 1, bytes );
+	if(  !framebuffer  ) {
+		dbg->error( "internal_create_framebuffer(SDL3)", "cannot allocate %zu bytes", bytes );
+		return false;
+	}
+
+	fb_pitch  = pitch_pixels;
+	fb_height = height;
+	fb_bytes  = bytes;
+	return true;
+}
+
+
+static void internal_destroy_texture()
+{
+	if(  screen_tx  ) {
+		SDL_DestroyTexture( screen_tx );
+		screen_tx = NULL;
+	}
+}
+
+
+static bool internal_create_surfaces(int tex_width, int tex_height)
+{
+	// The pixel format needs to match the graphics code within simgraph16.cc.
+	// Note that alpha is handled by simgraph16, not by SDL.
+	const SDL_PixelFormat pixel_format = SDL_PIXELFORMAT_RGB565;
+
+	if(  !renderer  ) {
+		/* SDL2->SDL3: SDL_CreateRenderer takes a driver name instead of an
+		 * index and a flag set. The ACCELERATED/SOFTWARE flags no longer exist;
+		 * SDL3 picks the best available driver itself and falls back on its
+		 * own, so the explicit fallback of simsys_s2 has no counterpart. */
+		renderer = SDL_CreateRenderer( window, NULL );
+		if(  !renderer  ) {
+			dbg->error( "internal_create_surfaces(SDL3)", "No suitable SDL3 renderer found: %s", SDL_GetError() );
+			return false;
+		}
+
+		// SDL2->SDL3: vsync is a separate call rather than a creation flag.
+		SDL_SetRenderVSync( renderer, sync_blit ? 1 : SDL_RENDERER_VSYNC_DISABLED );
+
+		DBG_DEBUG("internal_create_surfaces(SDL3)", "Using renderer: %s, format: %s",
+			SDL_GetRendererName( renderer ), SDL_GetPixelFormatName( pixel_format ));
+	}
+
+	internal_destroy_texture();
+	screen_tx = SDL_CreateTexture( renderer, pixel_format, SDL_TEXTUREACCESS_STREAMING, tex_width, tex_height );
+	if(  !screen_tx  ) {
+		dbg->error( "internal_create_surfaces(SDL3)", "Couldn't create texture: %s", SDL_GetError() );
+		return false;
+	}
+
+	/* SDL2->SDL3: SDL_HINT_RENDER_SCALE_QUALITY was replaced by a per-texture
+	 * scale mode. Non-integer window scaling gets linear filtering, integer
+	 * scaling stays nearest so the pixels are not smeared. */
+	const bool integer_scaling = (x_scale & (SCALE_NEUTRAL_X - 1)) == 0  &&  (y_scale & (SCALE_NEUTRAL_Y - 1)) == 0;
+	SDL_SetTextureScaleMode( screen_tx, integer_scaling ? SDL_SCALEMODE_NEAREST : SDL_SCALEMODE_LINEAR );
+
+	/* The format has to be exactly COLOUR_DEPTH bits with no alpha, or the
+	 * PIXVALs written by simgraph16 mean something else on screen. Checked
+	 * rather than assumed.
+	 *
+	 * SDL2->SDL3: SDL_PixelFormatEnumToMasks was replaced by
+	 * SDL_GetPixelFormatDetails, which returns a pointer OWNED BY SDL. Unlike
+	 * SDL_AllocFormat it must not be freed. */
+	const SDL_PixelFormatDetails *details = SDL_GetPixelFormatDetails( pixel_format );
+	if(  !details  ) {
+		dbg->error( "internal_create_surfaces(SDL3)", "Pixel format error: %s", SDL_GetError() );
+		return false;
+	}
+	if(  details->bits_per_pixel != COLOUR_DEPTH  ||  details->Amask != 0  ) {
+		dbg->error( "internal_create_surfaces(SDL3)", "Pixel format error. Bpp got %d, needed %d. Amask got %u, needed 0.",
+			details->bits_per_pixel, COLOUR_DEPTH, details->Amask );
+		return false;
+	}
+
+	return true;
+}
+
+
+// open the window
+int dr_os_open(const scr_size window_size, sint16 fs)
+{
+	// scale up
+	const resolution res   = dr_query_screen_resolution();
+	const int        tex_w = clamp( res.w, 1, SCREEN_TO_TEX_X(window_size.w) );
+	const int        tex_h = clamp( res.h, 1, SCREEN_TO_TEX_Y(window_size.h) );
+
+	DBG_MESSAGE("dr_os_open(SDL3)", "Screen requested %i,%i, available max %i,%i", tex_w, tex_h, res.w, res.h);
+
+	fullscreen = fs ? BORDERLESS : WINDOWED;
+
+	// some cards need those alignments
+	// especially 64bit want a border of 8bytes
+	const int tex_pitch = max( (tex_w + 15) & 0x7FF0, 16 );
+
+	/* SDL2->SDL3: SDL_CreateWindow lost its position arguments and the flags
+	 * are 64 bit. SDL_WINDOW_FULLSCREEN without an explicit fullscreen mode is
+	 * the borderless desktop fullscreen that Simutrans expects.
+	 *
+	 * SDL_WINDOW_ALLOW_HIGHDPI did not disappear in SDL3, it was renamed to
+	 * SDL_WINDOW_HIGH_PIXEL_DENSITY, and it is still opt-in. Without it the
+	 * window is measured in logical points rather than pixels, so on a phone at
+	 * density 2.625 Simutrans is handed 411x914 for a 1080x2400 panel, draws a
+	 * texture that size, and the system stretches it back up - everything ends
+	 * up 2.6 times too large and soft. simsys_s2 asks for the same thing. */
+	SDL_WindowFlags flags = fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE;
+	flags |= SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#ifdef __ANDROID__
+	// needed for landscape apparently
+	flags |= SDL_WINDOW_RESIZABLE;
+#endif
+
+	window = SDL_CreateWindow( SIM_TITLE, window_size.w, window_size.h, flags );
+	if(  window == NULL  ) {
+		dbg->error( "dr_os_open(SDL3)", "Could not open the window: %s", SDL_GetError() );
+		return 0;
+	}
+
+	if(  !internal_create_surfaces( tex_pitch, tex_h )  ||  !internal_create_framebuffer( tex_pitch, tex_h )  ) {
+		// Every failure path releases what it has already built, in the reverse
+		// order of construction.
+		internal_free_framebuffer();
+		internal_destroy_texture();
+		if(  renderer  ) {
+			SDL_DestroyRenderer( renderer );
+			renderer = NULL;
+		}
+		SDL_DestroyWindow( window );
+		window = NULL;
+		return 0;
+	}
+
+	DBG_MESSAGE("dr_os_open(SDL3)", "SDL realized screen size width=%d, height=%d (internal w=%d, h=%d)",
+		window_size.w, window_size.h, tex_pitch, tex_h);
+
+	// SDL2->SDL3: the default cursor is owned by SDL and must not be destroyed.
+	arrow     = SDL_GetDefaultCursor();
+	hourglass = SDL_CreateCursor( hourglass_cursor, hourglass_cursor_mask, 16, 22, 8, 11 );
+	blank     = SDL_CreateCursor( blank_cursor, blank_cursor, 8, 2, 0, 0 );
+
+	if(  !env_t::hide_keyboard  ) {
+		// SDL2->SDL3: text input is started per window rather than globally.
+		SDL_StartTextInput( window );
+	}
+
+	display_set_actual_width( tex_w );
+	display_set_height( tex_h );
+	return tex_pitch;
+}
+
+
+// shut down SDL
+void dr_os_close()
+{
+	/* The destruction order matters and it is this one:
+	 *   1 stop text input  - it is attached to the window, so it goes first
+	 *   2 destroy texture  - a texture belongs to a renderer
+	 *   3 destroy renderer - a renderer belongs to a window
+	 *   4 free framebuffer - ours; nothing inside SDL points at it
+	 *   5 destroy cursors  - independent of the window, but before SDL_Quit
+	 *   6 destroy window   - now nothing refers to it
+	 *   7 SDL_Quit         - last, or the calls above have no subsystem left
+	 */
+	if(  window  ) {
+		SDL_StopTextInput( window );
+	}
+
+	internal_destroy_texture();
+
+	if(  renderer  ) {
+		SDL_DestroyRenderer( renderer );
+		renderer = NULL;
+	}
+
+	internal_free_framebuffer();
+
+	if(  blank  ) {
+		SDL_DestroyCursor( blank );
+		blank = NULL;
+	}
+	if(  hourglass  ) {
+		SDL_DestroyCursor( hourglass );
+		hourglass = NULL;
+	}
+	arrow = NULL; // owned by SDL, never created here
+
+	if(  window  ) {
+		SDL_DestroyWindow( window );
+		window = NULL;
+	}
+
+	SDL_Quit();
+}
+
+
+unsigned short *dr_textur_init()
+{
+	// Never NULL in normal operation: dr_os_open() fails outright when the
+	// allocation fails, rather than handing back a pointer nobody checks.
+	return (unsigned short *)framebuffer;
+}
+
+
+// resizes screen
+int dr_textur_resize(unsigned short **const textur, int tex_w, int const tex_h)
+{
+	// enforce multiple of 16 pixels, or there are likely mismatches
+	const int tex_pitch = max( (tex_w + 15) & 0x7FF0, 16 );
+
+	if(  tex_pitch != fb_pitch  ||  tex_h != fb_height  ) {
+		if(  !internal_create_surfaces( tex_pitch, tex_h )  ||  !internal_create_framebuffer( tex_pitch, tex_h )  ) {
+			dbg->error( "dr_textur_resize(SDL3)", "could not resize to %dx%d", tex_pitch, tex_h );
+		}
+		else {
+			DBG_MESSAGE("dr_textur_resize(SDL3)", "SDL realized screen size width=%d, height=%d (internal w=%d, h=%d)",
+				tex_w, tex_h, tex_pitch, tex_h);
+		}
+	}
+
+	// The caller must pick up the new pointer: the old one is freed above.
+	*textur = dr_textur_init();
+
+	display_set_actual_width( tex_w );
+	return tex_pitch;
+}
+
+
+/**
+ * Transform a 24 bit RGB color into the system format.
+ * @return converted color value
+ */
+PIXVAL get_system_color(rgb888_t col)
+{
+	/* SDL2->SDL3: SDL_AllocFormat/SDL_FreeFormat became
+	 * SDL_GetPixelFormatDetails, whose result belongs to SDL and must not be
+	 * freed, and SDL_MapRGB gained a palette argument. */
+	const SDL_PixelFormatDetails *details = SDL_GetPixelFormatDetails( SDL_PIXELFORMAT_RGB565 );
+	if(  !details  ) {
+		return 0;
+	}
+
+	const unsigned int ret = SDL_MapRGB( details, NULL, col.r, col.g, col.b );
+	assert( (ret & 0xFFFF0000u) == 0 );
+	return (PIXVAL)ret;
+}
+
+
+/* ----------------------------------------------------------- presentation */
+
+void dr_prepare_flush()
+{
+	return;
+}
+
+
+void dr_flush()
+{
+	display_flush_buffer();
+
+	if(  !screen_tx  ||  !framebuffer  ) {
+		return;
+	}
+
+	if(  !use_dirty_tiles  ) {
+		SDL_UpdateTexture( screen_tx, NULL, framebuffer, fb_pitch * (int)sizeof(PIXVAL) );
+	}
+
+	/* SDL2->SDL3: SDL_RenderCopy became SDL_RenderTexture and its rectangles
+	 * are floats. The source rectangle is the LOGICAL screen and not the padded
+	 * pitch, so the alignment padding never reaches the window. */
+	const scr_size screen = scr_size( display_get_width(), display_get_height() );
+	const SDL_FRect src   = { 0.0f, 0.0f, (float)min( (int)screen.w, fb_pitch ), (float)min( (int)screen.h, fb_height ) };
+
+	SDL_RenderTexture( renderer, screen_tx, &src, NULL );
+	SDL_RenderPresent( renderer );
+}
+
+
+void dr_textur(int xp, int yp, int w, int h)
+{
+	if(  !use_dirty_tiles  ||  !screen_tx  ||  !framebuffer  ) {
+		return;
+	}
+
+	SDL_Rect r;
+	r.x = xp;
+	r.y = yp;
+	r.w = xp + w > fb_pitch  ? fb_pitch  - xp : w;
+	r.h = yp + h > fb_height ? fb_height - yp : h;
+
+	if(  r.w <= 0  ||  r.h <= 0  ) {
+		return;
+	}
+
+	const int pitch_bytes = fb_pitch * (int)sizeof(PIXVAL);
+	SDL_UpdateTexture( screen_tx, &r,
+		(const Uint8 *)framebuffer + (size_t)yp * pitch_bytes + (size_t)xp * sizeof(PIXVAL),
+		pitch_bytes );
+}
+
+
+/* ------------------------------------------------------ touch and gestures */
+
+/* SDL3 removed the gesture recogniser, and with it SDL_MULTIGESTURE - the one
+ * event simsys_s2 pinch-zooms and three-finger-scrolls with. There is nothing
+ * to call in its place: SDL_EVENT_PINCH_* does not exist in SDL 3.2.0, it
+ * reports a scale ratio rather than a distance delta, and it carries neither a
+ * position nor a finger count, so it could restore neither the sensitivity nor
+ * the three finger scroll. What SDL3 does still deliver, since 3.2.0, are the
+ * raw finger events, so the information Simutrans consumes is rebuilt here.
+ *
+ * The value to rebuild is mgesture.dDist, and it is not what the name suggests.
+ * SDL2's recogniser (src/events/SDL_gesture.c) emits one gesture per FINGER
+ * MOTION, and dDist is the change of THAT finger's distance to the centroid of
+ * all fingers currently down - not the change of the distance between two
+ * fingers. With two fingers the centroid is the midpoint, so each event carries
+ * half of its step, and the running sum simsys_s2 keeps therefore telescopes to
+ * half the change of the finger separation. The halving is not incidental:
+ * dropping it would double the zoom sensitivity against the same DELTA_PINCH.
+ *
+ * The centroid is folded in and out exactly as SDL2 did. For a balanced down
+ * and up sequence that is the true centroid of the fingers, so this inherits no
+ * drift from the incremental form.
+ *
+ * Coordinates are normalized 0..1 in both SDL versions, and the arithmetic below
+ * stays in that space, as SDL2's did - moving it to pixels would make the
+ * threshold depend on the window aspect ratio. */
+
+// threshold for zooming in/out with multitouch, as in simsys_s2
+#define DELTA_PINCH (0.033)
+
+/* Enough for every hand on the glass. A device that reports more simply has the
+ * extra fingers ignored, which is safer than growing a table from a number the
+ * driver chooses. */
+#define MAX_FINGERS (16)
+
+static bool in_finger_handling = false;
+
+static struct {
+	SDL_FingerID id[MAX_FINGERS];
+	int          count;
+	float        cx, cy; // centroid of the fingers down, normalized
+} fingers;
+
+
+/* SDL2->SDL3: SDL_FingerID is 64 bit now and is a device supplied handle, not
+ * an index - it is never used to index anything here. */
+static int finger_index(SDL_FingerID id)
+{
+	for(  int i = 0;  i < fingers.count;  i++  ) {
+		if(  fingers.id[i] == id  ) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+
+static void finger_down(SDL_FingerID id, float x, float y)
+{
+	// counting one finger twice would corrupt the centroid, and every distance
+	// taken from it, for the rest of the gesture
+	if(  fingers.count >= MAX_FINGERS  ||  finger_index( id ) >= 0  ) {
+		return;
+	}
+	fingers.id[fingers.count] = id;
+	fingers.count++;
+	fingers.cx = (fingers.cx * (fingers.count - 1) + x) / fingers.count;
+	fingers.cy = (fingers.cy * (fingers.count - 1) + y) / fingers.count;
+}
+
+
+static void finger_lifted(SDL_FingerID id, float x, float y)
+{
+	const int i = finger_index( id );
+	if(  i < 0  ) {
+		return;
+	}
+	fingers.count--;
+	for(  int j = i;  j < fingers.count;  j++  ) {
+		fingers.id[j] = fingers.id[j + 1];
+	}
+	if(  fingers.count > 0  ) {
+		fingers.cx = (fingers.cx * (fingers.count + 1) - x) / fingers.count;
+		fingers.cy = (fingers.cy * (fingers.count + 1) - y) / fingers.count;
+	}
+	else {
+		// nothing is touching the screen: leave no residue for the next gesture
+		fingers.cx = 0.0f;
+		fingers.cy = 0.0f;
+	}
+}
+
+
+/* Advances the centroid and returns what SDL2 would have put in dDist for this
+ * motion. Zero below two fingers, because SDL2 emitted no gesture there. */
+static double finger_moved(const SDL_TouchFingerEvent &tf)
+{
+	if(  finger_index( tf.fingerID ) < 0  ) {
+		// a finger that never went down - SDL2 held no state for it either, and
+		// this also keeps the divisor below away from zero
+		return 0.0;
+	}
+	const float last_cx = fingers.cx;
+	const float last_cy = fingers.cy;
+	fingers.cx += tf.dx / fingers.count;
+	fingers.cy += tf.dy / fingers.count;
+
+	if(  fingers.count < 2  ) {
+		return 0.0;
+	}
+	const float lvx   = (tf.x - tf.dx) - last_cx;
+	const float lvy   = (tf.y - tf.dy) - last_cy;
+	const float ldist = (float)SDL_sqrt( lvx * lvx + lvy * lvy );
+	const float vx    = tf.x - fingers.cx;
+	const float vy    = tf.y - fingers.cy;
+	const float dist  = (float)SDL_sqrt( vx * vx + vy * vy );
+
+	/* SDL2's guard, kept for the same reason: a finger sitting exactly on the
+	 * centroid has no direction to grow along, and the step would be noise
+	 * rather than a pinch. It also keeps a zero length vector out of the sum. */
+	return ldist == 0.0f ? 0.0 : (double)(dist - ldist);
+}
+
+
+/* ----------------------------------------------------------------- cursor */
+
+// move cursor to the specified location
+bool move_pointer(int x, int y)
+{
+	/* While a finger is down the finger is the pointer: warping would fight
+	 * it, and the caller has to know the cursor did not move. simsys_s2
+	 * returns false here for the same reason. */
+	if(  in_finger_handling  ) {
+		return false;
+	}
+	// SDL2->SDL3: the warp coordinates are floats, and they are window coords.
+	SDL_WarpMouseInWindow( window, PIXEL_TO_WINDOW( TEX_TO_SCREEN_X(x) ), PIXEL_TO_WINDOW( TEX_TO_SCREEN_Y(y) ) );
+	return true;
+}
+
+
+// set the mouse cursor (pointer/load)
+void set_pointer(int loading)
+{
+	SDL_SetCursor( loading ? hourglass : arrow );
+}
+
+
+void show_pointer(int yesno)
+{
+	SDL_SetCursor( (yesno != 0) ? arrow : blank );
+}
+
+
+void ex_ord_update_mx_my()
+{
+	SDL_PumpEvents();
+}
+
+
+/* ----------------------------------------------------------------- events */
+
+static inline unsigned int ModifierKeys()
+{
+	const SDL_Keymod mod = SDL_GetModState();
+
+	return
+		  ((mod & SDL_KMOD_SHIFT) ? SIM_MOD_SHIFT : SIM_MOD_NONE)
+		| ((mod & SDL_KMOD_CTRL)  ? SIM_MOD_CTRL  : SIM_MOD_NONE)
+#ifdef __APPLE__
+		// Treat the Command key as a control key.
+		| ((mod & SDL_KMOD_GUI)   ? SIM_MOD_CTRL  : SIM_MOD_NONE)
+#endif
+		;
+}
+
+
+static uint16 conv_mouse_buttons(SDL_MouseButtonFlags state)
+{
+	return
+		(state & SDL_BUTTON_LMASK ? MOUSE_LEFTBUTTON  : 0) |
+		(state & SDL_BUTTON_MMASK ? MOUSE_MIDBUTTON   : 0) |
+		(state & SDL_BUTTON_RMASK ? MOUSE_RIGHTBUTTON : 0);
+}
+
+
+/* The display events all carry the same payload, so they share one branch
+ * below and this turns the type back into the name SDL gives it. Without it the
+ * log line reads 0x151, which is exactly the part a reader would have to go and
+ * look up. */
+static const char *display_event_name(Uint32 type)
+{
+	switch(  type  ) {
+		case SDL_EVENT_DISPLAY_ORIENTATION:           return "ORIENTATION";
+		case SDL_EVENT_DISPLAY_ADDED:                 return "ADDED";
+		case SDL_EVENT_DISPLAY_REMOVED:               return "REMOVED";
+		case SDL_EVENT_DISPLAY_MOVED:                 return "MOVED";
+		case SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED:  return "DESKTOP_MODE_CHANGED";
+		case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:  return "CURRENT_MODE_CHANGED";
+		case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED: return "CONTENT_SCALE_CHANGED";
+		case SDL_EVENT_DISPLAY_USABLE_BOUNDS_CHANGED: return "USABLE_BOUNDS_CHANGED";
+		default:                                      return "UNKNOWN";
+	}
+}
+
+
+static void internal_GetEvents()
+{
+	static char textinput[256];
+
+	/* Both of these exist in simsys_s2 for the same reasons and carry the same
+	 * meaning here.
+	 *
+	 * composition_is_underway: while an IME is composing, key presses belong to
+	 * the IME and must not reach the game. Without it a Bopomofo or Pinyin
+	 * session drives Simutrans tools with every keystroke.
+	 *
+	 * ignore_previous_number: a numpad digit produces a key event AND a text
+	 * input event, so the digit would be entered twice. */
+	static bool composition_is_underway = false;
+	static bool ignore_previous_number  = false;
+
+	/* Touch state, all of it simsys_s2's and carrying the same meaning.
+	 *
+	 * previous_multifinger_touch: 0, or the number of fingers the current
+	 * multi finger gesture is being read as - 2 pinches, 3 scrolls.
+	 * FirstFingerId: the finger that owns the single finger drag; any other
+	 * finger only ever turns the drag into a multi finger gesture.
+	 * dLastDist: the running pinch sum, and below two fingers it doubles as
+	 * the has-this-finger-moved-yet flag, exactly as in simsys_s2. */
+	static int          previous_multifinger_touch = 0;
+	static SDL_FingerID FirstFingerId = 0;
+	static double       dLastDist = 0.0;
+
+	/* A tap owes the game a press and a release, but only one sys_event fits
+	 * in a poll, so the release waits here for the next one. */
+	static bool   has_queued_finger_release = false;
+	static sint32 last_mx = 0, last_my = 0;
+
+	/* The size last reported as a SYSTEM_RESIZE, so that the two SDL3 events
+	 * that describe one resize do not become two. Zero is not a size the game
+	 * can be asked for, so the first real one always gets through. */
+	static sint32 last_reported_size_w = 0;
+	static sint32 last_reported_size_h = 0;
+
+	if(  has_queued_finger_release  ) {
+		has_queued_finger_release = false;
+		sys_event.type    = SIM_MOUSE_BUTTONS;
+		sys_event.code    = SIM_MOUSE_LEFTUP;
+		sys_event.mb      = 0;
+		sys_event.mx      = last_mx;
+		sys_event.my      = last_my;
+		sys_event.key_mod = ModifierKeys();
+		return;
+	}
+
+	SDL_Event event;
+	// SDL2->SDL3: SDL_PollEvent returns bool instead of int. Zero still means
+	// "no event", so the test itself is unchanged in meaning.
+	if(  !SDL_PollEvent( &event )  ) {
+		return;
+	}
+
+	DBG_DEBUG("SDL_EVENT", "0x%X", event.type);
+
+	switch(  event.type  ) {
+
+		/* Deliberately NOT also SDL_EVENT_WINDOW_CLOSE_REQUESTED. Closing the
+		 * last window delivers both that event and SDL_EVENT_QUIT - SDL3 posts
+		 * the quit itself, exactly as SDL2 does - so handling both turns one
+		 * close into two SYSTEM_QUIT events where simsys_s2 produces one. */
+		case SDL_EVENT_QUIT:
+			sys_event.type = SIM_SYSTEM;
+			sys_event.code = SYSTEM_QUIT;
+			break;
+
+
+		/* SDL2->SDL3: SDL_WINDOWEVENT with a sub-event field became one event
+		 * type per window action, and SDL_WINDOWEVENT_SIZE_CHANGED - the one
+		 * simsys_s2 listens for - was split in two: RESIZED reports the window
+		 * size in logical units, PIXEL_SIZE_CHANGED reports the size of the
+		 * actual back buffer.
+		 *
+		 * BOTH are needed, and the pixel one is the one that matters. The two
+		 * only coincide while the display scale is 1, and on Android they never
+		 * do: the window is created at the full surface size, so its logical
+		 * size never changes and RESIZED is never sent at all - only
+		 * PIXEL_SIZE_CHANGED arrives, carrying 1080x2400. Listening for RESIZED
+		 * alone leaves the game on the tiny start-up texture for the whole
+		 * session, stretched over the panel, which is what SDL2 avoids by
+		 * receiving SIZE_CHANGED here.
+		 *
+		 * The size is taken from the window rather than from data1/data2, so
+		 * that whichever of the two events arrives - or both - the texture is
+		 * sized from the same pixels the renderer draws into, and a duplicate
+		 * event asks for a size the game already has. */
+		case SDL_EVENT_WINDOW_RESIZED:
+		case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: {
+			int pixel_w = 0;
+			int pixel_h = 0;
+			SDL_GetWindowSizeInPixels( window, &pixel_w, &pixel_h );
+
+			const sint32 new_w = max( 1, SCREEN_TO_TEX_X( pixel_w ) );
+			const sint32 new_h = max( 1, SCREEN_TO_TEX_Y( pixel_h ) );
+
+			/* Where the two events coincide - any display whose scale is 1 -
+			 * both arrive for a single resize, and simsys_s2 produces exactly
+			 * one SYSTEM_RESIZE per size change. Report only what actually
+			 * changed, so the second event is not a second resize. */
+			if(  new_w == last_reported_size_w  &&  new_h == last_reported_size_h  ) {
+				sys_event.type = SIM_IGNORE_EVENT;
+				sys_event.code = 0;
+				break;
+			}
+			last_reported_size_w = new_w;
+			last_reported_size_h = new_h;
+
+			sys_event.type              = SIM_SYSTEM;
+			sys_event.code              = SYSTEM_RESIZE;
+			sys_event.new_window_size.w = new_w;
+			sys_event.new_window_size.h = new_h;
+			break;
+		}
+
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			// a real button press is not part of a pinch, so the sum restarts
+			dLastDist = 0.0;
+			/* Belt and braces, as in simsys_s2: the hint set at startup already
+			 * stops SDL turning a finger into a mouse, and a synthetic press must
+			 * not act as a click when the finger handling makes its own. */
+			if(  event.button.which == SDL_TOUCH_MOUSEID  ) {
+				break;
+			}
+			sys_event.type = SIM_MOUSE_BUTTONS;
+			switch(  event.button.button  ) {
+				case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTBUTTON;  break;
+				case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDBUTTON;   break;
+				case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTBUTTON; break;
+				case SDL_BUTTON_X1:     sys_event.code = SIM_MOUSE_WHEELUP;     break;
+				case SDL_BUTTON_X2:     sys_event.code = SIM_MOUSE_WHEELDOWN;   break;
+				// Any further button carries no meaning for Simutrans, but the
+				// event still refreshes the button state below, as in simsys_s2.
+				default:                sys_event.code = 0;                     break;
+			}
+			// SDL2->SDL3: the event coordinates are floats, in window coords.
+			sys_event.mx      = SCREEN_TO_TEX_X( WINDOW_TO_PIXEL( event.button.x ) );
+			sys_event.my      = SCREEN_TO_TEX_Y( WINDOW_TO_PIXEL( event.button.y ) );
+			sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState( NULL, NULL ) );
+			sys_event.key_mod = ModifierKeys();
+			break;
+
+		case SDL_EVENT_MOUSE_BUTTON_UP:
+			/* Only genuine mouse releases: during or straight after a gesture the
+			 * release belongs to the fingers, which send their own. */
+			if(  previous_multifinger_touch  ||  in_finger_handling  ) {
+				break;
+			}
+			sys_event.type = SIM_MOUSE_BUTTONS;
+			switch(  event.button.button  ) {
+				case SDL_BUTTON_LEFT:   sys_event.code = SIM_MOUSE_LEFTUP;  break;
+				case SDL_BUTTON_MIDDLE: sys_event.code = SIM_MOUSE_MIDUP;   break;
+				case SDL_BUTTON_RIGHT:  sys_event.code = SIM_MOUSE_RIGHTUP; break;
+				default:                sys_event.code = 0;                break;
+			}
+			sys_event.mx      = SCREEN_TO_TEX_X( WINDOW_TO_PIXEL( event.button.x ) );
+			sys_event.my      = SCREEN_TO_TEX_Y( WINDOW_TO_PIXEL( event.button.y ) );
+			sys_event.mb      = conv_mouse_buttons( SDL_GetMouseState( NULL, NULL ) );
+			sys_event.key_mod = ModifierKeys();
+			break;
+
+		case SDL_EVENT_MOUSE_WHEEL: {
+			/* SDL2->SDL3: wheel.y changed meaning while keeping its name. In SDL2
+			 * it held whole wheel notches and the high resolution amount was a
+			 * separate preciseY; in SDL3 y IS the high resolution amount and the
+			 * notches moved to integer_y, which SDL accumulates from the same
+			 * residual SDL2 kept in order to produce its integer y. Reading y here
+			 * therefore turned every fraction of a notch into a whole step, and a
+			 * precision touchpad sends fractions: the Windows driver hands SDL
+			 * "wheel delta / WHEEL_DELTA", so a scroll a mouse delivers as one notch
+			 * arrives as four or five events and zoomed four or five times.
+			 * integer_y is what SDL2 used to deliver.
+			 *
+			 * integer_y exists from SDL 3.2.12. Older SDL3 has only y, so there the
+			 * sign of y stands in and that build keeps the behaviour it already had.
+			 *
+			 * One step per event whatever the notch count, because that is what
+			 * simsys_s2 does - it sends a single SIM_MOUSE_WHEELUP for a wheel.y of
+			 * 2 as well - and sys_event carries one code. */
+#if SDL_VERSION_ATLEAST(3, 2, 12)
+			const sint32 wheel_y = event.wheel.integer_y;
+#else
+			const sint32 wheel_y = (event.wheel.y > 0.0f) - (event.wheel.y < 0.0f);
+#endif
+			/* An event with no whole notch is not a scroll and must not become one:
+			 * without this test it would read as WHEELDOWN. A purely horizontal
+			 * wheel lands here too and stays ignored, exactly as under sdl2. */
+			if(  wheel_y == 0  ) {
+				sys_event.type = SIM_IGNORE_EVENT;
+				break;
+			}
+
+			// The system may report the wheel reversed, in which case SDL sets
+			// the direction to FLIPPED rather than changing the sign.
+			const bool is_up = (wheel_y > 0) ^ (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED);
+
+			sys_event.type    = SIM_MOUSE_BUTTONS;
+			sys_event.code    = is_up ? SIM_MOUSE_WHEELUP : SIM_MOUSE_WHEELDOWN;
+			sys_event.key_mod = ModifierKeys();
+			break;
+		}
+
+		case SDL_EVENT_MOUSE_MOTION:
+			// a finger is driving the pointer, so the mouse must not fight it
+			if(  in_finger_handling  ) {
+				break;
+			}
+			sys_event.type    = SIM_MOUSE_MOVE;
+			sys_event.code    = SIM_MOUSE_MOVED;
+			sys_event.mx      = SCREEN_TO_TEX_X( WINDOW_TO_PIXEL( event.motion.x ) );
+			sys_event.my      = SCREEN_TO_TEX_Y( WINDOW_TO_PIXEL( event.motion.y ) );
+			sys_event.mb      = conv_mouse_buttons( event.motion.state );
+			sys_event.key_mod = ModifierKeys();
+			break;
+
+		case SDL_EVENT_FINGER_DOWN:
+			/* Nothing is reported yet: the press comes from the first motion, or
+			 * from the finger up if the finger never moved, so the coordinate is
+			 * the one the player finished on. simsys_s2 does the same. */
+			finger_down( event.tfinger.fingerID, event.tfinger.x, event.tfinger.y );
+			if(  !in_finger_handling  ) {
+				dLastDist = 0.0;
+				FirstFingerId = event.tfinger.fingerID;
+				in_finger_handling = true;
+				previous_multifinger_touch = 0;
+			}
+			else if(  FirstFingerId != event.tfinger.fingerID  ) {
+				// a second finger: this is a gesture, not a drag
+				previous_multifinger_touch = 2;
+			}
+			break;
+
+		case SDL_EVENT_FINGER_MOTION: {
+			/* Every motion feeds the reconstruction, including the ones thrown
+			 * away right after. Under SDL2 the recogniser ran inside
+			 * SDL_PumpEvents, so the multigesture events already existed when
+			 * simsys_s2 swallowed the flood of finger motions, and their dDist
+			 * still reached the sum. Coalescing before accumulating would change
+			 * the zoom sensitivity by whatever share of the motions happens to be
+			 * dropped - which varies with the frame rate. */
+			double dist = finger_moved( event.tfinger );
+
+			// swallow the millions of finger motion events
+			SDL_Event next;
+			while(  SDL_PeepEvents( &next, 1, SDL_GETEVENT, SDL_EVENT_FINGER_MOTION, SDL_EVENT_FINGER_MOTION ) == 1  ) {
+				dist += finger_moved( next.tfinger );
+				event = next;
+			}
+			dLastDist += dist;
+			in_finger_handling = true;
+
+			const scr_size screen_size = scr_size( display_get_width(), display_get_height() );
+
+			if(  fingers.count == 2  ) {
+				// any multitouch is interpreted as pinch zoom
+				if(  dLastDist < -DELTA_PINCH  ) {
+					sys_event.type    = SIM_MOUSE_BUTTONS;
+					sys_event.code    = SIM_MOUSE_WHEELDOWN;
+					sys_event.key_mod = ModifierKeys();
+					dLastDist = 0;
+				}
+				else if(  dLastDist > DELTA_PINCH  ) {
+					sys_event.type    = SIM_MOUSE_BUTTONS;
+					sys_event.code    = SIM_MOUSE_WHEELUP;
+					sys_event.key_mod = ModifierKeys();
+					dLastDist = 0;
+				}
+				previous_multifinger_touch = 2;
+			}
+			else if(  fingers.count == 3  &&  framebuffer  ) {
+				/* Any three finger touch scrolls the map, from the centroid that
+				 * SDL2 reported in mgesture.x/y.
+				 *
+				 * simsys_s2 scales that by the surface size and then applies
+				 * SCREEN_TO_TEX on top, although the surface is already texture
+				 * sized, so at a screen scale other than 100% the position ends up
+				 * scaled twice. Reproduced rather than corrected: it is the
+				 * behaviour Simutrans has today, and the two agree exactly at the
+				 * default scale. */
+				const sint32 mx = (sint32)SCREEN_TO_TEX_X( fingers.cx * screen_size.w );
+				const sint32 my = (sint32)SCREEN_TO_TEX_Y( fingers.cy * screen_size.h );
+				if(  previous_multifinger_touch != 3  ) {
+					// just started scrolling
+					set_click_xy( mx, my );
+				}
+				sys_event.type    = SIM_MOUSE_MOVE;
+				sys_event.code    = SIM_MOUSE_MOVED;
+				sys_event.mb      = MOUSE_RIGHTBUTTON;
+				sys_event.key_mod = ModifierKeys();
+				sys_event.mx      = mx;
+				sys_event.my      = my;
+				previous_multifinger_touch = 3;
+			}
+			else if(  framebuffer  &&  previous_multifinger_touch == 0  &&  FirstFingerId == event.tfinger.fingerID  ) {
+				// one finger drags, which the game reads as the left button
+				if(  dLastDist == 0.0  ) {
+					// no press was sent yet, so this motion carries it
+					dLastDist = 1e-99;
+					sys_event.type = SIM_MOUSE_BUTTONS;
+					sys_event.code = SIM_MOUSE_LEFTBUTTON;
+					previous_multifinger_touch = 0;
+				}
+				else {
+					sys_event.type = SIM_MOUSE_MOVE;
+					sys_event.code = SIM_MOUSE_MOVED;
+				}
+				sys_event.mx      = (sint32)(event.tfinger.x * screen_size.w);
+				sys_event.my      = (sint32)(event.tfinger.y * screen_size.h);
+				sys_event.mb      = MOUSE_LEFTBUTTON;
+				sys_event.key_mod = ModifierKeys();
+			}
+			break;
+		}
+
+		/* SDL_EVENT_FINGER_CANCELED has no SDL2 counterpart: the system took the
+		 * gesture away - a system edge swipe, the app sent to the background -
+		 * and that finger will never be lifted. It ends the gesture the way an up
+		 * does, but must not leave a click behind, because the player completed
+		 * none. Ignoring it would strand in_finger_handling at true and freeze
+		 * the pointer for the rest of the session. */
+		case SDL_EVENT_FINGER_UP:
+		case SDL_EVENT_FINGER_CANCELED: {
+			const bool cancelled = (event.type == SDL_EVENT_FINGER_CANCELED);
+			finger_lifted( event.tfinger.fingerID, event.tfinger.x, event.tfinger.y );
+
+			if(  framebuffer  &&  in_finger_handling  ) {
+				/* The gesture ends when the finger that owns it goes, or when the
+				 * last finger does. simsys_s2 asks SDL for the live count here; the
+				 * table above already knows it, and asking SDL3 would mean
+				 * SDL_GetTouchFingers, which allocates an array to be freed. */
+				if(  FirstFingerId == event.tfinger.fingerID  ||  fingers.count == 0  ) {
+					const scr_size screen_size = scr_size( display_get_width(), display_get_height() );
+
+					if(  !previous_multifinger_touch  &&  !cancelled  ) {
+						if(  dLastDist == 0.0  ) {
+							// a tap: the finger never moved, so press and release now
+							dLastDist = 1e-99;
+							sys_event.type    = SIM_MOUSE_BUTTONS;
+							sys_event.code    = SIM_MOUSE_LEFTBUTTON;
+							sys_event.mb      = MOUSE_LEFTBUTTON;
+							sys_event.key_mod = ModifierKeys();
+							last_mx = sys_event.mx = (sint32)(event.tfinger.x * screen_size.w);
+							last_my = sys_event.my = (sint32)(event.tfinger.y * screen_size.h);
+
+							// not moved yet, so set the click origin or the click lands
+							// wherever the pointer happened to be left
+							set_click_xy( sys_event.mx, sys_event.my );
+
+							has_queued_finger_release = true;
+						}
+						else {
+							// end of a drag
+							sys_event.type    = SIM_MOUSE_BUTTONS;
+							sys_event.code    = SIM_MOUSE_LEFTUP;
+							sys_event.mb      = 0;
+							sys_event.mx      = (sint32)((event.tfinger.x + event.tfinger.dx) * screen_size.w);
+							sys_event.my      = (sint32)((event.tfinger.y + event.tfinger.dy) * screen_size.h);
+							sys_event.key_mod = ModifierKeys();
+						}
+					}
+					previous_multifinger_touch = 0;
+					in_finger_handling = false;
+					FirstFingerId = 0;
+				}
+			}
+			break;
+		}
+
+		case SDL_EVENT_KEY_DOWN: {
+			/* While a composition is under way the keys belong to the IME, so
+			 * they are swallowed here - but only while the focused field really
+			 * holds a pending string, or cursor keys and return would stop
+			 * working after any composition has ever happened. Both conditions
+			 * are simsys_s2's, unchanged. */
+			if(  composition_is_underway  ) {
+				if(  gui_component_t *c = win_get_focus()  ) {
+					if(  gui_textinput_t *tinp = dynamic_cast<gui_textinput_t *>( c )  ) {
+						if(  tinp->get_composition()[0]  ) {
+							// pending string, handled by the IME
+							break;
+						}
+					}
+				}
+			}
+
+			bool np = false; // was it a numpad key?
+			unsigned long code;
+#ifdef _WIN32
+			// SDL does not set the numlock state correctly on startup. Revert
+			// to the win32 function as a workaround, as simsys_s2 does.
+			const bool key_numlock = ((GetKeyState( VK_NUMLOCK ) & 1) != 0);
+#else
+			const bool key_numlock = (SDL_GetModState() & SDL_KMOD_NUM) != 0;
+#endif
+			const bool numlock = key_numlock  ||  (env_t::numpad_always_moves_map  &&  !win_is_textinput());
+
+			sys_event.key_mod = ModifierKeys();
+
+			// SDL2->SDL3: event.key.keysym.sym became event.key.key.
+			const SDL_Keycode sym = event.key.key;
+
+			switch(  sym  ) {
+				case SDLK_BACKSPACE:  code = SIM_KEY_BACKSPACE;  break;
+				case SDLK_TAB:        code = SIM_KEY_TAB;        break;
+				case SDLK_RETURN:     code = SIM_KEY_ENTER;      break;
+				case SDLK_ESCAPE:     code = SIM_KEY_ESCAPE;     break;
+				case SDLK_DELETE:     code = SIM_KEY_DELETE;     break;
+				case SDLK_DOWN:       code = SIM_KEY_DOWN;       break;
+				case SDLK_END:        code = SIM_KEY_END;        break;
+				case SDLK_HOME:       code = SIM_KEY_HOME;       break;
+				case SDLK_F1:         code = SIM_KEY_F1;         break;
+				case SDLK_F2:         code = SIM_KEY_F2;         break;
+				case SDLK_F3:         code = SIM_KEY_F3;         break;
+				case SDLK_F4:         code = SIM_KEY_F4;         break;
+				case SDLK_F5:         code = SIM_KEY_F5;         break;
+				case SDLK_F6:         code = SIM_KEY_F6;         break;
+				case SDLK_F7:         code = SIM_KEY_F7;         break;
+				case SDLK_F8:         code = SIM_KEY_F8;         break;
+				case SDLK_F9:         code = SIM_KEY_F9;         break;
+				case SDLK_F10:        code = SIM_KEY_F10;        break;
+				case SDLK_F11:        code = SIM_KEY_F11;        break;
+				case SDLK_F12:        code = SIM_KEY_F12;        break;
+				case SDLK_F13:        code = SIM_KEY_F13;        break;
+				case SDLK_F14:        code = SIM_KEY_F14;        break;
+				case SDLK_F15:        code = SIM_KEY_F15;        break;
+				case SDLK_KP_0:       np = true; code = (numlock ? '0' : (unsigned long)SIM_KEY_NUMPAD_BASE); break;
+				case SDLK_KP_1:       np = true; code = (numlock ? '1' : (unsigned long)SIM_KEY_DOWNLEFT);    break;
+				case SDLK_KP_2:       np = true; code = (numlock ? '2' : (unsigned long)SIM_KEY_DOWN);        break;
+				case SDLK_KP_3:       np = true; code = (numlock ? '3' : (unsigned long)SIM_KEY_DOWNRIGHT);   break;
+				case SDLK_KP_4:       np = true; code = (numlock ? '4' : (unsigned long)SIM_KEY_LEFT);        break;
+				case SDLK_KP_5:       np = true; code = (numlock ? '5' : (unsigned long)SIM_KEY_CENTER);      break;
+				case SDLK_KP_6:       np = true; code = (numlock ? '6' : (unsigned long)SIM_KEY_RIGHT);       break;
+				case SDLK_KP_7:       np = true; code = (numlock ? '7' : (unsigned long)SIM_KEY_UPLEFT);      break;
+				case SDLK_KP_8:       np = true; code = (numlock ? '8' : (unsigned long)SIM_KEY_UP);          break;
+				case SDLK_KP_9:       np = true; code = (numlock ? '9' : (unsigned long)SIM_KEY_UPRIGHT);     break;
+				case SDLK_KP_ENTER:   code = SIM_KEY_ENTER;      break;
+				case SDLK_LEFT:       code = SIM_KEY_LEFT;       break;
+				case SDLK_PAGEDOWN:   code = '<';                    break;
+				case SDLK_PAGEUP:     code = '>';                    break;
+				case SDLK_RIGHT:      code = SIM_KEY_RIGHT;      break;
+				case SDLK_UP:         code = SIM_KEY_UP;         break;
+				case SDLK_PAUSE:      code = SIM_KEY_PAUSE;      break;
+				case SDLK_SCROLLLOCK: code = SIM_KEY_SCROLLLOCK; break;
+				default:
+					/* Ordinary characters arrive through text input, so only
+					 * CTRL-letter has to be synthesised here. SDLK_A is the
+					 * lowercase 'a' keycode in SDL3, exactly as SDLK_a was in
+					 * SDL2, so the range test is unchanged. */
+					if(  (sys_event.key_mod & SIM_MOD_CTRL)  &&  SDLK_A <= sym  &&  sym <= SDLK_Z  ) {
+						code = sym & 31;
+					}
+					else {
+						code = 0;
+					}
+					break;
+			}
+
+			ignore_previous_number = (np  &&  key_numlock);
+			sys_event.type = SIM_KEYBOARD;
+			sys_event.code = code;
+			break;
+		}
+
+		case SDL_EVENT_KEY_UP:
+			// A released key carries no code, but the event still has to be
+			// reported, exactly as simsys_s2 does: an EVENT_NONE here would end
+			// the event drain loop of simwin one iteration early.
+			sys_event.type = SIM_KEYBOARD;
+			sys_event.code = 0;
+			break;
+
+		case SDL_EVENT_TEXT_INPUT: {
+			/* SDL2->SDL3: the text is a const char* owned by SDL rather than a
+			 * fixed array inside the event, and SDL_TEXTINPUTEVENT_TEXT_SIZE no
+			 * longer exists, so the copy below is bounded explicitly. */
+			const utf8 *const in = (const utf8 *)event.text.text;
+			if(  !in  ||  !in[0]  ) {
+				sys_event.type = SIM_IGNORE_EVENT;
+				break;
+			}
+
+			size_t      in_pos = 0;
+			const utf32 uc     = utf8_decoder_t::decode( in, in_pos );
+
+			if(  in[in_pos] == 0  ) {
+				// single character
+				if(  ignore_previous_number  ) {
+					// the key event already delivered this digit
+					ignore_previous_number = false;
+					break;
+				}
+				sys_event.type = SIM_KEYBOARD;
+				sys_event.code = (unsigned long)uc;
+			}
+			else {
+				// string
+				// Not min(): it takes ints, so both size_t operands would be
+				// truncated. MSVC warns about exactly that (C4267).
+				const size_t room = lengthof( textinput ) - 1;
+				const size_t len  = strlen( (const char *)in );
+				const size_t n    = len < room ? len : room;
+				memcpy( textinput, in, n );
+				textinput[n] = 0;
+				sys_event.type = SIM_STRING;
+				sys_event.ptr  = (void *)textinput;
+			}
+
+			sys_event.key_mod = ModifierKeys();
+			// committed text ends any composition that led to it
+			composition_is_underway = false;
+			break;
+		}
+
+		case SDL_EVENT_TEXT_EDITING: {
+			/* The preedit string of an IME. It is not a Simutrans event: the
+			 * focused text field is told directly, exactly as simsys_s2 does,
+			 * and sys_event is deliberately left alone so this poll yields
+			 * EVENT_NONE - which is also what simsys_s2 produces here.
+			 *
+			 * SDL2->SDL3: event.edit.text was a fixed char[32] inside the event
+			 * and is now a const char* owned by SDL with no length limit, so the
+			 * copy has to be bounded. */
+			const char *const in = event.edit.text;
+
+			size_t len = 0;
+			if(  in  ) {
+				const size_t room = lengthof( textinput ) - 1;
+				len = strlen( in );
+				if(  len > room  ) {
+					/* Never cut a UTF-8 sequence in half: back up to the last
+					 * boundary at or before the limit. */
+					len = room;
+					while(  len > 0  &&  (((const unsigned char *)in)[len] & 0xC0) == 0x80  ) {
+						len--;
+					}
+				}
+				memcpy( textinput, in, len );
+			}
+			textinput[len] = 0;
+
+			/* SDL reports the highlighted part of the preedit in CHARACTERS,
+			 * gui_textinput_t wants BYTES. simsys_s2 walks the string to convert;
+			 * the walk is over our bounded copy rather than SDL's string, so a
+			 * truncated preedit can never produce an offset past its own end.
+			 *
+			 * SDL2->SDL3: start and length are documented as "-1 if not set",
+			 * which SDL2 never produced. Not set means no highlighted target,
+			 * which is what a zero length says. */
+			const int edit_start  = event.edit.start  < 0 ? 0 : event.edit.start;
+			const int edit_length = event.edit.length < 0 ? 0 : event.edit.length;
+
+			size_t start = 0;
+			int    i     = 0;
+			for(  ; i < edit_start  &&  textinput[start];  ++i  ) {
+				start = utf8_get_next_char( textinput, start );
+			}
+			size_t end = start;
+			for(  ; i < edit_start + edit_length  &&  textinput[end];  ++i  ) {
+				end = utf8_get_next_char( textinput, end );
+			}
+
+			if(  gui_component_t *c = win_get_focus()  ) {
+				if(  gui_textinput_t *tinp = dynamic_cast<gui_textinput_t *>( c )  ) {
+					tinp->set_composition_status( textinput, (int)start, (int)(end - start) );
+				}
+			}
+
+			/* An empty preedit means the composition is over, committed or
+			 * cancelled. simsys_s2 writes false for that case and then true
+			 * unconditionally two lines later, so its false never survives;
+			 * one assignment says the same thing without the dead store.
+			 * Observably identical either way, because the swallow above also
+			 * requires the field to still hold a pending string. */
+			composition_is_underway = (textinput[0] != 0);
+			break;
+		}
+
+		/* Display lifecycle. None of these is a Simutrans event and none of
+		 * them changes anything here: they are reported and then ignored,
+		 * which is what the default branch below already did to them. The
+		 * difference is that they now leave a trace, because the first thing a
+		 * "it broke when I unplugged the second monitor" report needs is proof
+		 * that the event reached the game at all, and simu.log is what arrives
+		 * attached to such a report.
+		 *
+		 * The whole SDL_EVENT_DISPLAY_FIRST..LAST family is listed rather than
+		 * only the four obvious ones, so a display event that a later SDL3
+		 * starts sending cannot quietly rejoin the default branch.
+		 *
+		 * The three queries are plain reads of state SDL already holds. On
+		 * REMOVED the display is gone by the time this runs, so they are
+		 * expected to fail there; the id is what identifies it in that case and
+		 * the rest is reported as unavailable rather than as zero. */
+		case SDL_EVENT_DISPLAY_ORIENTATION:
+		case SDL_EVENT_DISPLAY_ADDED:
+		case SDL_EVENT_DISPLAY_REMOVED:
+		case SDL_EVENT_DISPLAY_MOVED:
+		case SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED:
+		case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
+		case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED:
+		case SDL_EVENT_DISPLAY_USABLE_BOUNDS_CHANGED: {
+			const SDL_DisplayID id     = event.display.displayID;
+			const char *const   name   = SDL_GetDisplayName( id );
+			const float         scale  = SDL_GetDisplayContentScale( id );
+			SDL_Rect            bounds = { 0, 0, 0, 0 };
+
+			if(  SDL_GetDisplayBounds( id, &bounds )  ) {
+				DBG_MESSAGE( "internal_GetEvents(SDL3)",
+					"display %s: id=%u name=\"%s\" bounds=%dx%d+%d+%d scale=%.2f data1=%d data2=%d",
+					display_event_name( event.type ), (unsigned)id, name ? name : "?",
+					bounds.w, bounds.h, bounds.x, bounds.y, scale,
+					(int)event.display.data1, (int)event.display.data2 );
+			}
+			else {
+				DBG_MESSAGE( "internal_GetEvents(SDL3)",
+					"display %s: id=%u name=\"%s\" bounds=unavailable scale=%.2f data1=%d data2=%d",
+					display_event_name( event.type ), (unsigned)id, name ? name : "?",
+					scale, (int)event.display.data1, (int)event.display.data2 );
+			}
+
+			sys_event.type = SIM_IGNORE_EVENT;
+			sys_event.code = 0;
+			break;
+		}
+
+
+		/* The window side of the same story: which display the window is on, and
+		 * what that display says its scale is. The texture is still sized from
+		 * SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED above; what these two do is keep an
+		 * automatic scale in step with the display that is showing the game.
+		 *
+		 * Both are needed. A move makes everything the automatic scale reads off a
+		 * display stale, not only its scale but the mode it is bounded by, and the
+		 * scale event alone does not catch it: moving between two displays scaled
+		 * the same emits no scale change at all, so a move from a 2560x1440 screen
+		 * to a 1024x600 one would leave the game area below the minimum height
+		 * that limit exists to guarantee. When both events do arrive the second
+		 * recompute finds the same numbers and asks for no resize. */
+		case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+			DBG_MESSAGE( "internal_GetEvents(SDL3)",
+				"window %u moved to display %d%s",
+				(unsigned)event.window.windowID, (int)event.window.data1,
+				scale_is_automatic ? "" : " (scale is user set, kept)" );
+			if(  scale_is_automatic  &&  window  ) {
+				dr_set_screen_scale( -1 );
+			}
+			sys_event.type = SIM_IGNORE_EVENT;
+			sys_event.code = 0;
+			break;
+
+		/* The window is now being shown at a different size per unit of content -
+		 * a display setting changed, or it was dragged onto a monitor that is
+		 * scaled differently. An automatic scale is derived from exactly that
+		 * number, so it is now stale and the whole UI is drawn at the wrong
+		 * physical size until something recomputes it. dr_set_screen_scale is
+		 * that something: it already knows the arithmetic and already forces the
+		 * resize that applies a new scale.
+		 *
+		 * A scale the user chose is left alone. The point of typing 150% is that
+		 * it stays 150%. */
+		case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+			DBG_MESSAGE( "internal_GetEvents(SDL3)",
+				"window %u display scale now %.2f%s",
+				(unsigned)event.window.windowID,
+				window ? SDL_GetWindowDisplayScale( window ) : 0.0f,
+				scale_is_automatic ? "" : " (scale is user set, kept)" );
+			if(  scale_is_automatic  &&  window  ) {
+				dr_set_screen_scale( -1 );
+			}
+			sys_event.type = SIM_IGNORE_EVENT;
+			sys_event.code = 0;
+			break;
+
+
+		default:
+			sys_event.type = SIM_IGNORE_EVENT;
+			sys_event.code = 0;
+			break;
+	}
+}
+
+
+void GetEvents()
+{
+	internal_GetEvents();
+}
+
+
+/* ------------------------------------------------------------- text input */
+
+void dr_start_textinput()
+{
+	if(  env_t::hide_keyboard  &&  window  ) {
+		// SDL2->SDL3: text input is started per window.
+		SDL_StartTextInput( window );
+		DBG_MESSAGE("dr_start_textinput(SDL3)", "");
+	}
+}
+
+
+void dr_stop_textinput()
+{
+	if(  window  ) {
+		if(  env_t::hide_keyboard  ) {
+			SDL_StopTextInput( window );
+			DBG_MESSAGE("dr_stop_textinput(SDL3)", "");
+		}
+		else {
+			SDL_SetEventEnabled( SDL_EVENT_TEXT_INPUT, true );
+		}
+	}
+}
+
+
+void dr_notify_input_pos(scr_coord pos)
+{
+	/* SDL2->SDL3: SDL_SetTextInputRect became SDL_SetTextInputArea, which is
+	 * per window and takes the cursor offset within the area as well. */
+	const SDL_Rect rect = { (int)PIXEL_TO_WINDOW( TEX_TO_SCREEN_X(pos.x) ), (int)PIXEL_TO_WINDOW( TEX_TO_SCREEN_Y(pos.y + LINESPACE) ), 1, 1 };
+	if(  window  ) {
+		SDL_SetTextInputArea( window, &rect, 0 );
+	}
+}
+
+
+/* ----------------------------------------------------------------- locale */
+
+const char *dr_get_locale()
+{
+	/* SDL2->SDL3: SDL_GetPreferredLocales returns an owned array plus a count.
+	 * The array is a single allocation, so one SDL_free releases all of it. */
+	static char LanguageCode[5] = "";
+
+	int          count   = 0;
+	SDL_Locale **locales = SDL_GetPreferredLocales( &count );
+	if(  !locales  ) {
+		return NULL;
+	}
+
+	const char *result = NULL;
+	if(  count > 0  &&  locales[0]->language  ) {
+		strncpy( LanguageCode, locales[0]->language, 2 );
+		LanguageCode[2] = 0;
+		DBG_MESSAGE("dr_get_locale(SDL3)", "%2s", LanguageCode);
+		result = LanguageCode;
+	}
+
+	SDL_free( locales );
+	return result;
+}
+
+
+/* ------------------------------------------------------------- fullscreen */
+
+bool dr_has_fullscreen()
+{
+	/* SDL3 can do real exclusive fullscreen, but the contract Simutrans relies
+	 * on is the borderless one that simsys_s2 provides. Reporting false keeps
+	 * the observable behaviour identical instead of changing it here. */
+	return false;
+}
+
+
+sint16 dr_get_fullscreen()
+{
+	return fullscreen ? BORDERLESS : WINDOWED;
+}
+
+
+sint16 dr_toggle_borderless()
+{
+	/* SDL2->SDL3: SDL_SetWindowFullscreen takes a bool. Without an explicit
+	 * fullscreen mode set on the window, true means borderless desktop
+	 * fullscreen, which is what SDL_WINDOW_FULLSCREEN_DESKTOP meant in SDL2.
+	 *
+	 * Deliberately no repositioning, where simsys_s2 moves the window to 0,0
+	 * before going fullscreen and to 10,10 on the way back. SDL3 makes the
+	 * window fullscreen on the display that already holds it and restores the
+	 * windowed position itself, so the move to 0,0 only discards which display
+	 * that was - the desktop origin need not be the display the player is on -
+	 * and the move to 10,10 discards the position the player chose. */
+	if(  fullscreen  ) {
+		SDL_SetWindowFullscreen( window, false );
+		fullscreen = WINDOWED;
+	}
+	else {
+		SDL_SetWindowFullscreen( window, true );
+		fullscreen = BORDERLESS;
+	}
+	return fullscreen;
+}
+
+
+sint16 dr_suspend_fullscreen()
+{
+	const sint16 was_fullscreen = fullscreen;
+
+	if(  fullscreen  ) {
+		SDL_SetWindowFullscreen( window, false );
+		fullscreen = WINDOWED;
+	}
+	SDL_MinimizeWindow( window );
+
+	return was_fullscreen;
+}
+
+
+void dr_restore_fullscreen(sint16 was_fullscreen)
+{
+	SDL_RestoreWindow( window );
+	if(  was_fullscreen  ) {
+		SDL_SetWindowFullscreen( window, true );
+		fullscreen = BORDERLESS;
+	}
+}
+
+
+/* ----------------------------------------------------------------- timers */
+
+uint32 dr_time()
+{
+	// SDL2->SDL3: SDL_GetTicks returns 64 bits. The truncation to 32 bits is
+	// deliberate: it reproduces exactly what SDL2 returned.
+	return (uint32)SDL_GetTicks();
+}
+
+
+void dr_sleep(uint32 msec)
+{
+	SDL_Delay( msec );
+}
+
+
+/* ------------------------------------------------------------------ entry */
+
+/* Unlike SDL2, SDL3 does not redefine main: SDL_main.h is deliberately not
+ * included by SDL.h, and this file does not include it. So there is no macro to
+ * undefine here, and the entry points below are the real ones.
+ *
+ * Android is the exception, and it is not optional there. The process is started
+ * from Java, so the entry point is outside this binary: SDLActivity looks up a
+ * symbol called SDL_main in the shared library and refuses to start without it -
+ * "Couldn't find function SDL_main", then the activity closes again. SDL2 got
+ * this by accident, because its SDL.h drags in SDL_main.h, which renames main;
+ * SDL3 asks to be told. Restricted to Android on purpose: on Windows SDL3's
+ * SDL_main.h would rename main as well and take over the WinMain arrangement
+ * below, which is working and is not this cut's business. */
+#ifdef __ANDROID__
+#include <SDL3/SDL_main.h>
+#endif
+
+#ifdef _MSC_VER
+// Needed for MS Visual C++ with /SUBSYSTEM:CONSOLE to work.
+// If /SUBSYSTEM:WINDOWS this function is compiled but unreachable.
+int main()
+{
+	return WinMain( NULL, NULL, NULL, NULL );
+}
+#endif
+
+
+#ifdef _WIN32
+int CALLBACK WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+#else
+int main(int argc, char **argv)
+#endif
+{
+#ifdef _WIN32
+	int    const argc = __argc;
+	char** const argv = __argv;
+#endif
+	return sysmain( argc, argv );
+}
