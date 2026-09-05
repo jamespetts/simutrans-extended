@@ -198,8 +198,9 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   `simctrl brit restart` every minute, which brings the server back up); `rotate-backup.sh`
   (hourly: if the savegame is stale, force-sync, then `rotate.sh`); `rotate.sh` (rotates six
   generations of savegame and pwdhash backups); `showlog.sh`; `lock-public-player.sh`.
-  These scripts invoke nettool with the server admin password in plaintext — deliberately NOT
-  recorded here; treat as sensitive and consider rotation.
+  These scripts invoke nettool with the password of a lower-privilege server user (not the admin
+  password — user correction) in plaintext [RECOLLECTION:2026-09-05 user statement]; it is
+  deliberately not recorded here. Server security improvements are planned (see Open questions).
 - `restart.sh` (tracked in this repo): alternative restart flow — nettool say/force-sync/shutdown,
   savegame backup, `java -jar "Nightly Updater V2.jar" -cl`, download of the nightly
   `linux-x64/command-line-server-build/simutrans-extended`, relaunch in screen session
@@ -229,6 +230,9 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 - Provenance and maintenance status of `Nightly Updater V2.jar`, `server-hasher.jar`, `simctrl`.
 - VPS legacy-tier migration: which parts of the pipeline must be reproduced on a new machine, and
   should the scripts be brought under version control (with the password removed)?
+- Server security improvements (the user intends to address these at some point): scope not yet
+  defined — password handling and privilege levels are known concerns
+  [RECOLLECTION:2026-09-05 user statement].
 - Exact cause of the `revision.h` staleness under MSBuild (git visibility in the cscript
   environment vs. the script's update condition).
 - Local Windows recipe for running the automated tests (binary + pakset + `tests/` linked as
