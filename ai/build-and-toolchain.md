@@ -254,13 +254,14 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   appear in the Visual Studio configuration dropdown. Matches the user's report of the missing
   profiling configuration; candidate small fix (add the solution configuration mappings).
 - The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on
-  master only; ex-15 does not have it (→ [rendering](rendering.md)). It was supplied by a
+  master only; not yet merged into ex-15 (→ [rendering](rendering.md)). It was supplied by a
   contributor and integrated by the user in 2026-09, with the aim of testing it and, if it works,
   making SDL3 the standard build backend [RECOLLECTION:2026-09-05 user statement]. Build-system
-  wiring is CMake-only: master's `CMakeLists.txt` supports `SIMUTRANS_BACKEND=sdl3`
-  (`find_package(SDL3 CONFIG)` on MSVC, pkg-config elsewhere; error message advises libsdl3-dev /
-  brew / vcpkg port); the GNU Makefile `BACKENDS` list has no sdl3, and
-  `Simutrans-Extended.vcxproj` has no SDL3 configuration [CODE master @ cef3550ea].
+  wiring covers CMake, GNU make and autoconf: `CMakeLists.txt` supports `SIMUTRANS_BACKEND=sdl3`
+  (`find_package(SDL3 CONFIG)` on MSVC, pkg-config elsewhere); the Makefile's `BACKENDS` list
+  includes sdl3, found via `SDL3_CONFIG ?= pkg-config sdl3`; `configure.ac` has sdl3 plumbing.
+  Only the MSVC `Simutrans-Extended.vcxproj` has no SDL3 configuration
+  [CODE master @ cef3550ea].
 - The maintainer's Windows machine has no GNU-make toolchain (no make/mingw in PATH, no MSYS2,
   no WSL distribution; verified 2026-09-05) — makefile-route builds currently happen only on the
   BB VPS/CI. A local makefile-route build is to be set up (see Open questions).
@@ -296,8 +297,9 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   sibling dependency trees; user unsure. Related: SDL3 library provisioning for the planned
   SDL3-as-standard switch.
 - **To do (user-directed):** set up a working local build via the GNU-make route on the
-  maintainer's machine, then set up SDL3 for local testing — in master first
-  [RECOLLECTION:2026-09-05 user statement]. Route choice open (WSL Linux distribution vs
-  MinGW/MSYS2 vs CMake+vcpkg): the GNU Makefile has no sdl3 backend, so makefile-route SDL3
-  testing needs either Makefile support added or the CMake route. This doc stays `draft` until
-  the local makefile-route build works (user's review condition).
+  maintainer's machine, then test SDL3 locally — in master first
+  [RECOLLECTION:2026-09-05 user statement]. Master's Makefile already supports `BACKEND=sdl3`
+  (pkg-config based), so no build-system change is needed — only a local make toolchain and an
+  SDL3 development package that pkg-config can find. Route choice open (WSL Linux distribution vs
+  MinGW/MSYS2). This doc stays `draft` until the local makefile-route build works (user's review
+  condition).
