@@ -1,11 +1,10 @@
 # Simutrans-Extended — agent instructions
 
 C++ transport simulation game. Forked from Standard Simutrans in 2008 (as "Experimental",
-later "Extended"); fully independent since. Large, arcane legacy codebase (~350k lines).
-Handle with care.
+later "Extended"); fully independent since. Large, arcane legacy codebase. Handle with care.
 
 Two live branches with materially different code:
-- `ex-15` — the next major version (15.0, planned since 2018); the primary work target.
+- `ex-15` — the next major version (15.x, planned since 2018); the primary work target.
 - `master` — the stable/release line (14.x).
 Always identify the checked-out branch first (`git branch --show-current`).
 

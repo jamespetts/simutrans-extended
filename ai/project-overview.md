@@ -11,16 +11,15 @@ verified: none
 - Forked from Standard Simutrans in 2008 as "Simutrans-Experimental", later renamed
   "Simutrans-Extended"; independent ever since; backports from Standard are partial and
   irregular [RECOLLECTION:2026-09-05].
-- The repo contains Standard-ancestry history from 2006-08-20 (first commit `f8c312383`
-  "Import version 84.20"); ~2,070 pre-2009 commits are shared and usable for archaeology
-  [CODE master @ 3b70dd4b3].
-- ~45 git remotes are configured (Extended contributors plus individual Standard devs);
-  there is NO canonical upstream Standard remote [CODE master @ 3b70dd4b3].
+- The repo contains Standard-ancestry history from before the fork (from ~2006); the
+  shared early history is usable for archaeology [CODE].
+- Many git remotes are configured (Extended contributors plus individual Standard devs);
+  there is NO canonical upstream Standard remote [CODE].
 - Standard reference points for task-time comparison: shared in-repo history up to the
   fork point; Standard snapshot branches (`std-r10415`, `Ranran/std-r107xx-ex15`);
-  cherry-pick log `documentation/cherry-picked-commits.txt` [CODE ex-15 @ b06e8fa14].
-- License: Artistic License (file headers, LICENSE.txt) [CODE ex-15 @ b06e8fa14].
-- Version lines: master 14.x, ex-15 = 15.0 with its own savegame series →
+  cherry-pick log `documentation/cherry-picked-commits.txt` [CODE].
+- License: Artistic License (file headers, LICENSE.txt) [CODE].
+- Version lines: master 14.x, ex-15 15.x with its own savegame series →
   [savegame-versioning](savegame-versioning.md) [CODE].
 
 ## Planned sections

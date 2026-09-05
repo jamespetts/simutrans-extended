@@ -8,8 +8,8 @@ verified: none
 
 ## Seed facts
 
-- ex-15 hotspots (ex-15-only commits, whole branch history vs master): `gui/schedule_gui.cc` (102 commits), `dataobj/schedule.cc` (52), `dataobj/schedule.h` (22), `dataobj/schedule_entry.h` (16), `path_explorer.cc` (20), `simhalt.cc` (15) [CODE ex-15 @ b06e8fa14].
-- `simhalt.h` has 35 includers [CODE ex-15 @ b06e8fa14].
+- The schedule system (`dataobj/schedule.*`, `schedule_entry.h`) and its GUI (`gui/schedule_gui.cc`) are heavy ex-15 hotspots, alongside `path_explorer.cc` and `simhalt.cc` [CODE].
+- `simhalt.h` is widely included [CODE].
 - The schedule system is under heavy active revision on ex-15 → [ex-15](ex-15.md) registry.
 
 ## Planned sections

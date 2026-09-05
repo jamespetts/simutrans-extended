@@ -4,14 +4,12 @@ verified: none
 ---
 # Utilities, containers & threading
 
-**Covers:** tpl/ (24 files), utils/ (cbuffer_t, simstring, simrandom, simthread, log, sha1, float32e8_t, dr_rdpng, searchfolder, csv, fetchopt, dumb-log; vendored utils/openttd), sys/ (simsys + backends, clipboard), sound/, music/ (assets), unicode.cc/h (root) + ICU dependency. checklist → [network](network.md).
+**Covers:** tpl/, utils/ (cbuffer_t, simstring, simrandom, simthread, log, sha1, float32e8_t, dr_rdpng, searchfolder, csv, fetchopt, dumb-log; vendored utils/openttd), sys/ (simsys + backends, clipboard), sound/, music/ (assets), unicode.cc/h (root) + ICU dependency. checklist → [network](network.md).
 
 ## Seed facts
 
-- Container hubs: `tpl/vector_tpl.h` (46 includers), `tpl/stringhashtable_tpl.h` (30) [CODE ex-15 @ b06e8fa14].
-- Utils hubs: `utils/cbuffer_t.h` (95 includers), `utils/simstring.h` (71), `utils/simrandom.h` (31) [CODE ex-15 @ b06e8fa14].
-- ICU: `unicode/utypes.h` is included by 148 files, `unicode/uobject.h` 41, `unicode/unistr.h` 38 — but ICU is not a tracked top-level dir; where the headers come from per platform is unknown → [build-and-toolchain](build-and-toolchain.md) open question [CODE ex-15 @ b06e8fa14].
-- `sys/simsys.h` has 41 includers — the platform abstraction hub [CODE ex-15 @ b06e8fa14].
+- Widely-included hubs: containers `tpl/vector_tpl.h`, `tpl/stringhashtable_tpl.h`; utils `utils/cbuffer_t.h`, `utils/simstring.h`, `utils/simrandom.h`; platform `sys/simsys.h` [CODE].
+- ICU: `unicode/utypes.h` is very widely included — but ICU is not a tracked top-level dir; where the headers come from per platform is unknown → [build-and-toolchain](build-and-toolchain.md) open question [CODE].
 - SDL3 backend files exist on master only → [rendering](rendering.md) [CODE].
 
 ## Planned sections

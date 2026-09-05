@@ -4,13 +4,13 @@ verified: none
 ---
 # Economy, finance & passengers
 
-**Covers:** simfab.*, simcity.*, simware.*, player/ (10 files), bauer/fabrikbauer.*, bauer/hausbauer.* (shared with [objects](objects.md)), descriptor/factory_desc.*, descriptor/goods_desc.*, gui factory/city/money frames (→ [gui](gui.md)).
+**Covers:** simfab.*, simcity.*, simware.*, player/, bauer/fabrikbauer.*, bauer/hausbauer.* (shared with [objects](objects.md)), descriptor/factory_desc.*, descriptor/goods_desc.*, gui factory/city/money frames (→ [gui](gui.md)).
 
 ## Seed facts
 
-- `player/simplay.h` is included by 74 files — finance/player hub [CODE ex-15 @ b06e8fa14].
-- `simcity.h` has 30 includers [CODE ex-15 @ b06e8fa14].
-- `player/simplay.cc` touched in 8 ex-15-only commits (whole branch history vs master) [CODE].
+- `player/simplay.h` is very widely included — finance/player hub [CODE].
+- `simcity.h` is widely included [CODE].
+- `player/simplay.cc` receives periodic ex-15 attention [CODE].
 - Root holds local-only diagsession artefacts named "…passenger-gen-efficiency-changes-phase-1/2…" — passenger generation received performance work in the past; a lead, not a fact [local-only].
 
 ## Planned sections

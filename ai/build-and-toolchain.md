@@ -8,11 +8,11 @@ verified: none
 
 ## Seed facts
 
-- MSVC solutions at root: `Simutrans-Extended.sln` (game), `Makeobj-Extended.sln` (pak compiler), `Nettool-Extended.sln`; legacy non-Extended `.sln`/`.vcxproj` variants also present [CODE ex-15 @ b06e8fa14].
-- GNU make: `Makefile` + `common.mk`/`uncommon.mk`; autoconf route via `configure.ac` + `config.default.in` [CODE ex-15 @ b06e8fa14]. CMake: `CMakeLists.txt` + `cmake/` [CODE].
-- CI (.github/workflows/): `ci.yml`, `msvc-build.yml`, `linux-build.yml`, `nightly.yml` (deploys GitHub nightly release when master CI passes), `run-tests.yml` (ubuntu-22.04, autoconf + clang-14, ASan/UBSan, runs the Squirrel tests) [CODE master @ 3b70dd4b3].
-- Packaging: `nsis/` (Windows installer), `distribute.sh`, `play.sh`/`restart.sh`; revision stamped via `findversion.sh`/`revision.jse` → `revision.h` (gitignored) [CODE ex-15 @ b06e8fa14].
-- SDL3 backend exists on master ONLY (commits `f0638c3d7`, `3b70dd4b3`, Aug 2026: `sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`); ex-15 does not have it [CODE].
+- MSVC solutions at root: `Simutrans-Extended.sln` (game), `Makeobj-Extended.sln` (pak compiler), `Nettool-Extended.sln`; legacy non-Extended `.sln`/`.vcxproj` variants also present [CODE].
+- GNU make: `Makefile` + `common.mk`/`uncommon.mk`; autoconf route via `configure.ac` + `config.default.in` [CODE]. CMake: `CMakeLists.txt` + `cmake/` [CODE].
+- CI (.github/workflows/): `ci.yml`, `msvc-build.yml`, `linux-build.yml`, `nightly.yml` (deploys GitHub nightly release when master CI passes), `run-tests.yml` (sanitizer + Squirrel tests) [CODE].
+- Packaging: `nsis/` (Windows installer), `distribute.sh`, `play.sh`/`restart.sh`; revision stamped via `findversion.sh`/`revision.jse` → `revision.h` (gitignored) [CODE].
+- The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on master only; ex-15 does not have it [CODE].
 - `zlib-1.2.5/` is local-only (gitignored); zstd support appears optional (`0001-zstd.patch`, `zstd_enable.diff` — local artefacts) [UNVERIFIED].
 
 ## Planned sections
