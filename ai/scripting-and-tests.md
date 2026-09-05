@@ -4,14 +4,14 @@ verified: none
 ---
 # Scripting & tests
 
-**Covers:** script/ (56 files: Squirrel bindings/API), squirrel/ (vendored language source), tests/ (all_tests.nut, 25 test_*.nut, test_helpers.nut, scenario.nut, empty-16x16.sve), gui/scenario_frame/scenario_info (→ [gui](gui.md)).
+**Covers:** script/ (Squirrel bindings/API), squirrel/ (vendored language source), tests/ (all_tests.nut, test_*.nut, test_helpers.nut, scenario.nut, empty-16x16.sve), gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 
 ## Seed facts
 
-- Tests are Squirrel scripts run via an in-game scenario (`tests/scenario.nut` + `all_tests.nut`); they need a built binary and a pakset [CODE ex-15 @ b06e8fa14].
-- CI `run-tests.yml`: ubuntu-22.04, autoconf + clang-14 with ASan/UBSan (`-fno-sanitize-recover=all`), runs on push/PR [CODE master @ 3b70dd4b3].
-- `tests/empty-16x16.sve` is a minimal save used as test fixture [CODE ex-15 @ b06e8fa14].
-- Test coverage areas (from filenames): building, climate, depot, factory, good, halt, headquarters, label, player, powerline, reservation, scenario, sign, slope, terraform, trees, wayobj, way (bridge/road/runway/tram/tunnel) [CODE ex-15 @ b06e8fa14].
+- Tests are Squirrel scripts run via an in-game scenario (`tests/scenario.nut` + `all_tests.nut`); they need a built binary and a pakset [CODE].
+- CI `run-tests.yml` runs the Squirrel tests on Linux with sanitizers enabled; the workflow file is the authority for current runner/toolchain specifics [CODE].
+- `tests/empty-16x16.sve` is a minimal save used as test fixture [CODE].
+- Test coverage spans many subsystems (way, halt, factory, player, terraform, and more — enumerate from tests/ filenames) [CODE].
 
 ## Planned sections
 

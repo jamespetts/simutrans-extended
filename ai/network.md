@@ -4,14 +4,14 @@ verified: none
 ---
 # Network & multiplayer
 
-**Covers:** network/ (26 files), utils/checklist.*, nettools/, SIM_SERVER_MINOR + announce infrastructure in simversion.h (→ [savegame-versioning](savegame-versioning.md)).
+**Covers:** network/, utils/checklist.*, nettools/, SIM_SERVER_MINOR + announce infrastructure in simversion.h (→ [savegame-versioning](savegame-versioning.md)).
 
 ## Seed facts
 
-- Server announcement infrastructure: `ANNOUNCE_SERVER list.extended.simutrans.org:8080`, plus IP-query URLs, defined in simversion.h:95-111 [CODE ex-15 @ b06e8fa14].
+- Server announcement infrastructure: `ANNOUNCE_SERVER list.extended.simutrans.org:8080`, plus IP-query URLs, defined in simversion.h [CODE].
 - `utils/checklist.{cc,h}` implement the desync-detection checklist system (purpose inferred from name + local artefacts; verify) [UNVERIFIED].
 - Root holds local-only historical artefacts: "2019 server signal desync logs.txt", "Commands for debugging server.txt" — desync debugging history; leads for the gotchas section [local-only].
-- `SERVER_SAVEGAME_VER_NR` (simversion.h:79) couples network compatibility to versioning → [savegame-versioning](savegame-versioning.md) [CODE].
+- `SERVER_SAVEGAME_VER_NR` (simversion.h) couples network compatibility to versioning → [savegame-versioning](savegame-versioning.md) [CODE].
 
 ## Planned sections
 

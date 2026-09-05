@@ -4,12 +4,11 @@ verified: none
 ---
 # Objects on tiles
 
-**Covers:** obj/ (36 files); bauer/hausbauer.* (building builder, shared with [economy-and-passengers](economy-and-passengers.md)); descriptors → [data-and-pak](data-and-pak.md); signals → [signals-and-blocks](signals-and-blocks.md).
+**Covers:** obj/; bauer/hausbauer.* (building builder, shared with [economy-and-passengers](economy-and-passengers.md)); descriptors → [data-and-pak](data-and-pak.md); signals → [signals-and-blocks](signals-and-blocks.md).
 
 ## Seed facts
 
-- `obj/simobj.h` is included by 32 files — the tile-object base hub [CODE ex-15 @ b06e8fa14].
-- `obj/` is 4.1% of master→ex-15 changed files [CODE].
+- `obj/simobj.h` is the tile-object base-class hub [CODE].
 - Pier descriptors/writers exist (`descriptor/pier_desc.*`, root `pier_writer.obj` artefact) — piers appear to be an Extended-specific object family [UNVERIFIED — verify inventory].
 
 ## Planned sections
