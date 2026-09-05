@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ f4734b630
+verified: ex-15 @ 7d3f6f242
 ---
 # Build & toolchain
 
@@ -27,7 +27,9 @@ Four build paths coexist:
   "Optimised debug", server, no-randomness, single-threaded, Dr. Memory, IP-v4-only, SDL 2, legacy
   OpenGL) × Win32/x64. Some solution configurations map to differently-named project configurations.
 - Toolsets are mixed: most configurations `v140_xp` (VS2015+XP toolset); the newer ones (`Debug`,
-  `Optimised debug`, `Release|x64`, graphical/non-graphical server x64) are `v142` (VS2019).
+  `Optimised debug`, `Release|x64`, graphical/non-graphical server x64) are `v143` (VS2022;
+  updated from v142 on master, merged into ex-15 2026-09-05). VS2022 is the MSVC version to use;
+  VS2019 is deprecated in this project [RECOLLECTION:2026-09-05 user statement].
   `WindowsTargetPlatformVersion` is `10.0` (latest installed SDK). `Debug|x64` has `EnableASAN` and
   produces static-analysis warnings (C6xxx/C26xxx series) — builds are slow and warning-heavy.
 - Third-party dependencies are resolved via per-configuration global `IncludePath`/`LibraryPath`
@@ -44,8 +46,10 @@ Four build paths coexist:
   overrides names (e.g. `Simutrans-Extended-debug.exe`; `Release` → `Simutrans-Extended.exe`).
 - Pre-build event: `cscript.exe //Nologo revision.jse` writes `revision.h` (gitignored) from
   `git rev-parse --short=7 HEAD` (see Revision embedding below).
-- `Makeobj-Extended.sln` → `Makeobj-Extended.vcxproj`: v142, Win32-only configurations
-  (Debug, Debug-new, Release); output `simutrans\Makeobj-Extended.exe`.
+- `Makeobj-Extended.sln` → `Makeobj-Extended.vcxproj`: v142 (not covered by the toolset update),
+  Win32-only configurations (Debug, Debug-new, Release); output `simutrans\Makeobj-Extended.exe`.
+  VS2022 MSBuild builds it by resolving v142 from the co-installed VS2019; retargeting to v143
+  would be needed if VS2019 is removed [execution-verified 2026-09-05].
 - `Nettool-Extended.sln` → `Nettool.vcxproj`: stale — v140_xp toolset, `WindowsTargetPlatformVersion`
   7, VS2010-format solution; not buildable on the maintainer's machine.
 - Legacy Standard-era projects (`Simutrans.sln/.vcxproj`, `Makeobj.sln`, `makeobj/Makeobj*.vcxproj`)
@@ -58,15 +62,15 @@ Four build paths coexist:
   "Optimised debug" was historically used for profiling (see Known problems — it no longer appears
   in the Visual Studio configuration dropdown).
 
-**Verified by execution on the maintainer's Windows machine, 2026-09-05** (VS2019 Community MSBuild,
-because VS2022 there has only the v143 toolset):
+**Verified by execution on the maintainer's Windows machine, 2026-09-05** (VS2022 Community MSBuild,
+after the master→ex-15 merge):
 
 - Game, Debug x64:
-  `& "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe" Simutrans-Extended.vcxproj /p:Configuration=Debug /p:Platform=x64 /m`
+  `& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" Simutrans-Extended.vcxproj /p:Configuration=Debug /p:Platform=x64 /m`
   → `simutrans\Simutrans-Extended-Debug.exe`.
 - Makeobj, Release Win32: same MSBuild with
   `Makeobj-Extended.vcxproj /p:Configuration=Release /p:Platform=Win32 /m`
-  → `simutrans\Makeobj-Extended.exe`.
+  → `simutrans\Makeobj-Extended.exe` (v142 resolved from the VS2019 installation).
 - Nettool: not attempted (toolset/SDK missing).
 
 ## CMake path (CI and cross-platform)
@@ -250,11 +254,11 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 - `linux-build.yml` misnamed ("msvc-build") and clang version mismatch (installs 10, uses 14).
 - `CMakeLists.txt` references an undefined `simutrans` target (HEAVY_MODE block; test `DEPENDS`).
 - The "Optimised debug" configurations are defined in `Simutrans-Extended.vcxproj` (Win32 and x64,
-  v142) but are absent from `Simutrans-Extended.sln`'s SolutionConfigurationPlatforms — they do not
+  v143) but are absent from `Simutrans-Extended.sln`'s SolutionConfigurationPlatforms — they do not
   appear in the Visual Studio configuration dropdown. Matches the user's report of the missing
   profiling configuration; candidate small fix (add the solution configuration mappings).
-- The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on
-  master only; not yet merged into ex-15 (→ [rendering](rendering.md)). It was supplied by a
+- The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) is on both
+  branches: added on master, merged into ex-15 2026-09-05 (→ [rendering](rendering.md)). It was supplied by a
   contributor and integrated by the user in 2026-09, with the aim of testing it and, if it works,
   making SDL3 the standard build backend [RECOLLECTION:2026-09-05 user statement]. Build-system
   wiring covers CMake, GNU make and autoconf: `CMakeLists.txt` supports `SIMUTRANS_BACKEND=sdl3`
@@ -264,8 +268,8 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   [CODE master @ cef3550ea].
 - Local GNU-make-route build on the maintainer's machine (established 2026-09-05): MSYS2/MinGW64 +
   untracked root `config.msys2-sdl3` (OSTYPE=mingw64, BACKEND=sdl3, native CC/CXX,
-  WINDRES=windres); `make CFG=msys2-sdl3` from the mingw64 shell builds master's SDL3 backend;
-  binary runs. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
+  WINDRES=windres); `make CFG=msys2-sdl3` from the mingw64 shell builds the SDL3 backend
+  (verified on master and, after the merge, on ex-15); binary runs. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
   cross toolchain (`WINDRES ?= x86_64-w64-mingw32-windres`, `?=` so config-overridable), and repo
   preset `configs/config.sim-mingw-sdl2` still passes `-std=c++11` in FLAGS while the code needs
   C++14 (`std::index_sequence` in `script/api_function.h`; BB's live config uses `-std=c++14`).
@@ -303,7 +307,6 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   sibling dependency trees; user unsure. Related: SDL3 library provisioning for the planned
   SDL3-as-standard switch.
 - **To do (user-directed):** the local makefile-route build works (MSYS2/MinGW64 — see Known
-  problems) and master's SDL3 binary builds and runs. Remaining: user graphical testing of the
-  SDL3 backend; merging the SDL3 backend into ex-15; BB nightly config updates when SDL3 becomes
-  the standard backend; decide whether to add a tracked native-MSYS2 config preset and fix the
-  stale `-std=c++11` preset.
+  problems) and SDL3 binaries build and run on both branches. Remaining: user graphical testing of
+  the SDL3 backend; BB nightly config updates when SDL3 becomes the standard backend; decide
+  whether to add a tracked native-MSYS2 config preset and fix the stale `-std=c++11` preset.

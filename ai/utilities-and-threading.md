@@ -10,7 +10,7 @@ verified: none
 
 - Widely-included headers: containers `tpl/vector_tpl.h`, `tpl/stringhashtable_tpl.h`; utils `utils/cbuffer_t.h`, `utils/simstring.h`, `utils/simrandom.h`; platform `sys/simsys.h` [CODE].
 - ICU: the repo vendors ICU/OpenTTD headers under `utils/openttd/` (tracked), but no game source includes them; the game's own `unicode.h`/`unicode.cc` (widely included via relative paths) handle UTF-8 → [build-and-toolchain](build-and-toolchain.md) [CODE].
-- SDL3 backend files exist on master only → [rendering](rendering.md) [CODE].
+- SDL3 backend files exist on both branches (added on master, merged into ex-15 2026-09-05) → [rendering](rendering.md) [CODE].
 
 ## Planned sections
 
