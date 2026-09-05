@@ -18,7 +18,7 @@ verified: none
 - Full directory table: one line each + link to the domain doc.
 - Tracked vs. ignored vs. dead inventory (verify `old_blockmanager` is unreferenced before calling it dead).
 - Asset locations: `simutrans/` (runtime text/themes), `themes.src/`, `music/`, `text/` status.
-- Branch-specific files (e.g. SDL3 backend on master only → [build-and-toolchain](build-and-toolchain.md)).
+- Branch-specific files (e.g. the ex-15-only consist-order files → [ex-15](ex-15.md)).
 
 ## Open questions
 

@@ -9,7 +9,7 @@ verified: none
 ## Initial facts
 
 - Widely-included headers: `display/simimg.h`, `display/simgraph.h`, `display/viewport.h`, `simcolor.h` [CODE].
-- The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on master only; ex-15 lacks it — rendering/backend docs must state which branch they describe [CODE].
+- The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) is on both branches (added on master, merged into ex-15 2026-09-05); the MSVC project does not compile it (→ [build-and-toolchain](build-and-toolchain.md)) [CODE].
 - The root contains a local-only `simgraph.diff` artefact — historical indication [local-only].
 
 ## Planned sections
