@@ -6,7 +6,7 @@ verified: ex-15 @ 1b236a4f1
 
 Short cross-cutting notes that are easy to miss — read at the start of most tasks
 (AGENTS.md). Kept deliberately brief per [documentation-architecture](documentation-architecture.md)
-rule 3; grows via interview. Each note ≤3 lines, with tags/anchors.
+rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 
 - **No floating point in sync-critical code.** Windows and Linux clients compute different
   floating-point results; any network-synced simulation code using floats causes desyncs.

@@ -13,10 +13,10 @@ Agent hard rules: [../AGENTS.md](../AGENTS.md).
 - [project-overview](project-overview.md) — read when context is needed on what this project is, where it came from, and how it relates to Standard Simutrans.
 - [glossary](glossary.md) — read when Simutrans/Extended vocabulary is unclear in code, comments, or conversation.
 - [repo-map](repo-map.md) — read before navigating the tree; to tell real source from clutter, ignored artefacts, or dead legacy files.
-- [conventions](conventions.md) — read before interpreting claim tags/stamps, or writing/updating any doc.
+- [conventions](conventions.md) — read before interpreting claim tags/provenance records, or writing/updating any doc.
 - [project-notes](project-notes.md) — read at the start of most code tasks: short cross-cutting notes that are easy to miss (e.g. the no-floating-point rule for network-synced code).
-- [project-architecture](project-architecture.md) — read when designing new systems or making cross-cutting changes: binding architectural constraints and invariants.
-- [documentation-architecture](documentation-architecture.md) — read before authoring or restructuring any KB doc: what belongs in docs vs. code; visibility, size and canonical-home rules.
+- [project-architecture](project-architecture.md) — read when designing new systems or making cross-cutting changes: mandatory architectural constraints and invariants.
+- [documentation-architecture](documentation-architecture.md) — read before authoring or restructuring any KB doc: what belongs in docs vs. code; visibility, size and canonical-location rules.
 - [ex-15](ex-15.md) — read for ANY work on the ex-15 branch: the next major version, feature status, branch topology, contributors.
 
 ## Build, data & infrastructure
@@ -24,7 +24,7 @@ Agent hard rules: [../AGENTS.md](../AGENTS.md).
 - [build-and-toolchain](build-and-toolchain.md) — read when compiling anything, touching build files/CI, packaging releases, or dealing with backend libraries (SDL, PNG, zlib, ICU).
 - [savegame-versioning](savegame-versioning.md) — MANDATORY read before touching load/save code, simversion.h, rdwr methods, or anything version-negotiation related (AGENTS.md rule 4).
 - [data-and-pak](data-and-pak.md) — read when touching descriptors (desc classes), pak/pakset data, makeobj, settings, translation files, or the dataobj/ layer.
-- [network](network.md) — read when touching multiplayer code, the checklist/desync system, client-server behaviour, or nettools. Ring-fenced (AGENTS.md rule 4).
+- [network](network.md) — read when touching multiplayer code, the checklist/desync system, client-server behaviour, or nettools. Change-restricted (AGENTS.md rule 4).
 
 ## Simulation
 

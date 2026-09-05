@@ -4,7 +4,7 @@ verified: ex-15 @ 1b236a4f1
 ---
 # Project architectural constraints
 
-Binding, stable constraints that apply across subsystems. Violating one is a design error,
+Mandatory, stable constraints that apply across subsystems. Violating one is a design error,
 not a style choice. Short-form reminders: [project-notes](project-notes.md).
 
 ## Constraints (verified or user-sourced)
@@ -22,7 +22,7 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
    evolve by appending entries conditional on version checks →
    [savegame-versioning](savegame-versioning.md) [CODE].
 4. **Branch duality.** ex-15 and master differ materially (versions, features, files);
-   changes must target one branch deliberately, and docs stamp the branch+commit they were
+   changes must target one branch deliberately, and docs record the branch+commit they were
    verified against → [ex-15](ex-15.md) [CODE].
 
 ## Candidate constraints (verify before promoting)
@@ -31,7 +31,7 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
   checksum datum for vehicles") — mechanism to document in [network](network.md) [UNVERIFIED].
 - User-facing strings go through the translator (dataobj/translator.*) [UNVERIFIED].
 - Threading: what runs off the main thread (path explorer, save/load threads) and the lock
-  discipline → [utilities-and-threading](utilities-and-threading.md) [UNVERIFIED].
+  usage rules → [utilities-and-threading](utilities-and-threading.md) [UNVERIFIED].
 - Container/handle idioms (tpl/, *handle_t) — stable enough to document as constraints? [UNVERIFIED].
 
 ## Open questions
