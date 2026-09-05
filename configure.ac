@@ -27,6 +27,9 @@ AC_CHECK_LIB(pthreadGC2, pthread_mutex_destroy, [AC_SUBST(bundlepthread, 1)], [A
 
 # find OS and backend by libs ...
 AC_CHECK_LIB(SDL2, SDL_GetRenderDriverInfo)
+# SDL_GetDisplayContentScale exists only in SDL3, so it identifies the library
+# without matching an SDL2 install.
+AC_CHECK_LIB(SDL3, SDL_GetDisplayContentScale)
 
 AC_CHECK_HEADERS(windows.h)
 AC_CHECK_HEADERS(LocaleRoster.h)
@@ -97,6 +100,13 @@ then
 	AC_SUBST(backend, sdl2)
 	AC_SUBST(color, 16)
 	AC_MSG_WARN([Using SDL2 backend!])
+# SDL3 is probed after SDL2 on purpose: a machine with both keeps the backend it
+# already built with, so this cannot change what anyone is building today.
+elif test "$ac_cv_lib_SDL3_SDL_GetDisplayContentScale" == yes
+then
+	AC_SUBST(backend, sdl3)
+	AC_SUBST(color, 16)
+	AC_MSG_WARN([Using SDL3 backend!])
 else
 	AC_SUBST(backend, posix)
 	AC_SUBST(color, 0)

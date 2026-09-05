@@ -7,7 +7,7 @@ CFG ?= default
 -include config.$(CFG)
 
 
-BACKENDS      = gdi sdl2 mixer_sdl2 posix
+BACKENDS      = gdi sdl2 sdl3 mixer_sdl2 posix
 COLOUR_DEPTHS = 0 16
 OSTYPES       = amiga beos cygwin freebsd haiku linux mingw32 mingw64 mac openbsd
 
@@ -78,6 +78,8 @@ endif
 
 ifeq ($(BACKEND),sdl2)
   SOURCES += sys/clipboard_s2.cc
+else ifeq ($(BACKEND),sdl3)
+  SOURCES += sys/clipboard_s3.cc
 else ifeq ($(OSTYPE),mingw)
   SOURCES += sys/clipboard_w32.cc
 else
@@ -98,6 +100,7 @@ USE_FREETYPE ?= 0
 ALLEGRO_CONFIG   ?= allegro-config
 SDL2_CONFIG      ?= pkg-config sdl2
 #SDL2_CONFIG     ?= sdl2-config
+SDL3_CONFIG      ?= pkg-config sdl3
 FREETYPE_CONFIG  ?= pkg-config freetype2
 #FREETYPE_CONFIG ?= freetype-config
 
@@ -719,6 +722,40 @@ else ifeq ($(BACKEND),sdl2)
   LIBS   += $(SDL_LDFLAGS)
 
 
+
+
+else ifeq ($(BACKEND),sdl3)
+  SOURCES += sys/simsys_s3.cc
+
+  # Music is not an SDL concern for either SDL backend: it comes from the same
+  # per-platform routines sdl2 uses, so this mirrors the sdl2 arm exactly.
+  SOURCES   += sound/sdl3_sound.cc
+  ifneq ($(shell expr $(USE_FLUIDSYNTH_MIDI) \>= 1), 1)
+    ifeq ($(findstring $(OSTYPE), cygwin mingw32 mingw64),)
+      SOURCES += music/no_midi.cc
+    else
+      SOURCES += music/w32_midi.cc
+    endif
+  endif
+
+  ifeq ($(SDL3_CONFIG),)
+    $(error SDL3_CONFIG is empty: BACKEND=sdl3 needs pkg-config sdl3 to find SDL3)
+  else
+    SDL_CFLAGS  := $(shell $(SDL3_CONFIG) --cflags)
+
+    ifneq ($(STATIC),)
+      ifeq ($(shell expr $(STATIC) \>= 1), 1)
+        SDL_LDFLAGS := $(shell $(SDL3_CONFIG) --libs --static)
+      else
+        SDL_LDFLAGS := $(shell $(SDL3_CONFIG) --libs)
+      endif
+    else
+      SDL_LDFLAGS := $(shell $(SDL3_CONFIG) --libs)
+    endif
+  endif
+
+  CFLAGS += $(SDL_CFLAGS)
+  LIBS   += $(SDL_LDFLAGS)
 else ifeq ($(BACKEND),mixer_sdl2)
   SOURCES += sys/simsys_s2.cc
 

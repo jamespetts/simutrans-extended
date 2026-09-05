@@ -72,7 +72,7 @@ static const uint8 cost_type_color[BUTTON_COUNT] =
 
 static const uint8 cost_type_money[BUTTON_COUNT] =
 {
-	gui_chart_t::PAX_KM,
+	gui_chart_t::SEAT_KM,
 	gui_chart_t::PAX_KM,
 	gui_chart_t::KG_KM,
 	gui_chart_t::TON_KM,

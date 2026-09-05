@@ -52,12 +52,16 @@ find_package(MiniUPNP)
 if (MSVC)
 	find_package(ZSTD)
 	find_package(SDL2)
+	# Optional: a machine without SDL3 simply does not offer the sdl3 backend.
+	find_package(SDL3 CONFIG)
 	find_package(Freetype)
 	find_package(FluidSynth)
 else ()
 	find_package(PkgConfig MODULE REQUIRED)
 	pkg_check_modules(ZSTD IMPORTED_TARGET libzstd)
 	pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+	# Optional: a machine without SDL3 simply does not offer the sdl3 backend.
+	pkg_check_modules(SDL3 IMPORTED_TARGET sdl3)
 	pkg_check_modules(Freetype IMPORTED_TARGET freetype2)
 	pkg_check_modules(FluidSynth IMPORTED_TARGET fluidsynth>=2.1.0)
 endif ()
@@ -68,7 +72,7 @@ find_package(Threads)
 #
 # Configuration options
 #
-include(SimutransBackend) # Select backend (SDL2 / GDI)
+include(SimutransBackend) # Select backend (SDL2 / SDL3 / GDI)
 include(SimutransCompileOptions)
 
 # CMake does not fill in CMAKE_BUILD_TYPE automatically.
@@ -120,6 +124,8 @@ if (WIN32)
 else ()
 	if (SIMUTRANS_BACKEND STREQUAL "sdl2")
 		target_sources(simutrans-extended PRIVATE sys/clipboard_s2.cc)
+	elseif (SIMUTRANS_BACKEND STREQUAL "sdl3")
+		target_sources(simutrans-extended PRIVATE sys/clipboard_s3.cc)
 	else ()
 		target_sources(simutrans-extended PRIVATE sys/clipboard_internal.cc)
 	endif ()
@@ -156,6 +162,40 @@ if (SIMUTRANS_BACKEND STREQUAL "sdl2")
 		target_link_libraries(simutrans-extended PRIVATE SDL2::SDL2)
 	else ()
 		target_link_libraries(simutrans-extended PRIVATE PkgConfig::SDL2)
+	endif ()
+	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
+
+elseif (SIMUTRANS_BACKEND STREQUAL "sdl3")
+	# Asking for a backend whose library is missing has to say so. Without this
+	# the first thing that fails is "target PkgConfig::SDL3 not found", which
+	# does not tell anyone what to install.
+	if (NOT SDL3_FOUND)
+		message(FATAL_ERROR "SIMUTRANS_BACKEND=sdl3 was requested, but SDL3 was not found. "
+			"Install the SDL3 development package (libsdl3-dev, brew install sdl3, "
+			"or the sdl3 vcpkg port) and configure again.")
+	endif ()
+
+	# SDL3 as the platform layer, with the EXISTING software renderer on top:
+	# simgraph16 still draws into a CPU framebuffer, exactly as for sdl2.
+	# Sound is sdl3_sound.cc, the SDL3 counterpart of the sdl2_sound.cc the
+	# sdl2 backend uses. Music is not an SDL concern for either backend: it
+	# comes from the same per-platform routines, selected further down - which
+	# is why sdl3 has to be named in the music block as well.
+	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_s3.cc sound/sdl3_sound.cc)
+	target_include_directories(simutrans-extended PRIVATE ${SDL3_INCLUDE_DIRS})
+	if (MINGW)
+		# The static libSDL3.a pulls in a long tail of Windows libraries
+		# (winmm, setupapi, imm32, version, ...) that only pkg-config knows
+		# about, so the static library line is the one that links.
+		target_link_libraries(simutrans-extended PRIVATE ${SDL3_STATIC_LIBRARIES})
+	elseif (APPLE)
+		target_link_libraries(simutrans-extended PRIVATE ${SDL3_LIBRARIES})
+	elseif (MSVC)
+		# SDL3::SDL3 is the alias SDL3's own CMakeLists defines. SDL3 carries
+		# its own entry point, so there is no SDL3main to go with it.
+		target_link_libraries(simutrans-extended PRIVATE SDL3::SDL3)
+	else ()
+		target_link_libraries(simutrans-extended PRIVATE PkgConfig::SDL3)
 	endif ()
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
 
@@ -213,8 +253,10 @@ if (SIMUTRANS_USE_ZSTD)
 	endif ()
 endif (SIMUTRANS_USE_ZSTD)
 
-# only consider FluidSynth for SDL2 and GDI backends
-if ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
+# only consider FluidSynth for the backends that play music at all. sdl3 belongs
+# here for the same reason sdl2 does: BACKUP_MUSIC lives inside this block, so a
+# backend missing from the condition gets no music source at all.
+if ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "sdl3") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
 	if (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
 		target_sources(simutrans-extended PRIVATE music/fluidsynth.cc gui/loadsoundfont_frame.cc)
 		target_compile_definitions(simutrans-extended PRIVATE USE_FLUIDSYNTH_MIDI=1)
@@ -231,7 +273,7 @@ if ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
 	else ()
 		target_sources( simutrans-extended PRIVATE ${BACKUP_MUSIC} )
 	endif (SIMUTRANS_USE_FLUIDSYNTH_MIDI)
-endif ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
+endif ((SIMUTRANS_BACKEND STREQUAL "sdl2") OR (SIMUTRANS_BACKEND STREQUAL "sdl3") OR (SIMUTRANS_BACKEND STREQUAL "gdi"))
 
 #
 # compile options
