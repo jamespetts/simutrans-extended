@@ -100,6 +100,18 @@ UpgradeLog.htm
 *.psess
 *.vsp
 
+temp-load.sve
+motd.txt
+*.lib
+*.exp
+*.dll*
+_cached_exp.xml
+github-recovery-codes.txt
+simutrans/Simutrans-Extended
+
+nightly.sh
+rotate.sh
+
 # Folder config file
 Desktop.ini
 
