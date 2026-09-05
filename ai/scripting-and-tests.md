@@ -17,7 +17,7 @@ verified: none
 
 - Script API surface (script/ inventory; what is exposed to Squirrel).
 - Scenario binding: how a scenario loads a script; test_helpers conventions.
-- **How to run tests locally on Windows — exact recipe to be derived and verified** (→ [build-and-toolchain](build-and-toolchain.md)); how CI invokes them (to be read from run-tests.yml in full).
+- **How to run tests locally on Windows — exact recipe to be derived and verified** (→ [build-and-toolchain](build-and-toolchain.md) open questions); CI invocation mechanics are documented in [build-and-toolchain](build-and-toolchain.md).
 - Writing new tests: conventions from existing test_*.nut.
 - Coverage gaps relevant to current work (consist order? schedules? — none evident from filenames; verify).
 
