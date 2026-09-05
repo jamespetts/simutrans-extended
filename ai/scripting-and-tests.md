@@ -6,7 +6,7 @@ verified: none
 
 **Covers:** script/ (Squirrel bindings/API), squirrel/ (vendored language source), tests/ (all_tests.nut, test_*.nut, test_helpers.nut, scenario.nut, empty-16x16.sve), gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 
-## Seed facts
+## Initial facts
 
 - Tests are Squirrel scripts run via an in-game scenario (`tests/scenario.nut` + `all_tests.nut`); they need a built binary and a pakset [CODE].
 - CI `run-tests.yml` runs the Squirrel tests on Linux with sanitizers enabled; the workflow file is the authority for current runner/toolchain specifics [CODE].

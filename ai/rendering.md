@@ -6,11 +6,11 @@ verified: none
 
 **Covers:** display/ (simgraph*, simimg, viewport, etc.), simcolor.h (root), utils/dr_rdpng.* (PNG decode → [utilities-and-threading](utilities-and-threading.md)), sys/simsys.* backends (→ [utilities-and-threading](utilities-and-threading.md)), simloadingscreen.* (root → [simulation-core](simulation-core.md)), minimap (gui/minimap → [gui](gui.md)).
 
-## Seed facts
+## Initial facts
 
-- Hubs: `display/simimg.h`, `display/simgraph.h`, `display/viewport.h`, `simcolor.h` — all widely included [CODE].
+- Widely-included headers: `display/simimg.h`, `display/simgraph.h`, `display/viewport.h`, `simcolor.h` [CODE].
 - The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on master only; ex-15 lacks it — rendering/backend docs must state which branch they describe [CODE].
-- Root holds a local-only `simgraph.diff` artefact — historical lead [local-only].
+- The root contains a local-only `simgraph.diff` artefact — historical indication [local-only].
 
 ## Planned sections
 

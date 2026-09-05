@@ -8,8 +8,8 @@ verified: none
 
 ## Planned entries
 
-Each term gets a one-paragraph definition plus a `[CODE]` anchor (file:line) where the
-concept lives. Terms to define (inventory from conversation and code so far, definitions
+Each term gets a one-paragraph definition plus a `[CODE]` anchor (file + symbol) where the
+concept is implemented. Terms to define (inventory from conversation and code so far, definitions
 deliberately deferred to the breadth pass — priors are not evidence):
 
 - halt / haltestelle (stop) · convoy · consist (ex-15) · line · schedule / schedule entry

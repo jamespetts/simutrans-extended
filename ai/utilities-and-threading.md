@@ -6,16 +6,16 @@ verified: none
 
 **Covers:** tpl/, utils/ (cbuffer_t, simstring, simrandom, simthread, log, sha1, float32e8_t, dr_rdpng, searchfolder, csv, fetchopt, dumb-log; vendored utils/openttd), sys/ (simsys + backends, clipboard), sound/, music/ (assets), unicode.cc/h (root) + ICU dependency. checklist → [network](network.md).
 
-## Seed facts
+## Initial facts
 
-- Widely-included hubs: containers `tpl/vector_tpl.h`, `tpl/stringhashtable_tpl.h`; utils `utils/cbuffer_t.h`, `utils/simstring.h`, `utils/simrandom.h`; platform `sys/simsys.h` [CODE].
+- Widely-included headers: containers `tpl/vector_tpl.h`, `tpl/stringhashtable_tpl.h`; utils `utils/cbuffer_t.h`, `utils/simstring.h`, `utils/simrandom.h`; platform `sys/simsys.h` [CODE].
 - ICU: `unicode/utypes.h` is very widely included — but ICU is not a tracked top-level dir; where the headers come from per platform is unknown → [build-and-toolchain](build-and-toolchain.md) open question [CODE].
 - SDL3 backend files exist on master only → [rendering](rendering.md) [CODE].
 
 ## Planned sections
 
 - Container idioms (vector_tpl, hashtables, templates patterns; for.h).
-- Threading model: simthread; what runs off the main thread (path exploration → [routing-and-scheduling](routing-and-scheduling.md); others to verify); lock discipline; sync implications (→ [network](network.md)).
+- Threading model: simthread; what runs off the main thread (path exploration → [routing-and-scheduling](routing-and-scheduling.md); others to verify); lock usage rules; sync implications (→ [network](network.md)).
 - float32e8_t: custom fixed-point float type; role (determinism across network? verify — do not assume) [UNVERIFIED].
 - simrandom: RNG and its sync-criticality (verify) [UNVERIFIED].
 - Platform layer: sys/simsys backends inventory (per branch), clipboard, filesystem.

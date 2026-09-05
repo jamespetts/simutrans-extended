@@ -6,7 +6,7 @@ verified: none
 
 **Covers:** path_explorer.*, simhalt.* + halthandle_t.h, dataobj/schedule.*, dataobj/schedule_entry.h, gui/schedule_gui.*, gui/schedule_list.* (→ [gui](gui.md)), route-finding classes (location to verify), finder/ (→ [world-and-ground](world-and-ground.md)).
 
-## Seed facts
+## Initial facts
 
 - The schedule system (`dataobj/schedule.*`, `schedule_entry.h`) and its GUI (`gui/schedule_gui.cc`) are heavy ex-15 hotspots, alongside `path_explorer.cc` and `simhalt.cc` [CODE].
 - `simhalt.h` is widely included [CODE].
@@ -14,7 +14,7 @@ verified: none
 
 ## Planned sections
 
-- Routing pipeline: passenger & goods routing; where the route-search implementation lives (path_explorer vs. a route class — verify, do not assume).
+- Routing pipeline: passenger & goods routing; where the route-search implementation is (path_explorer vs. a route class — verify, do not assume).
 - path_explorer: role, threading model, and interaction with the main loop (→ [utilities-and-threading](utilities-and-threading.md)) [PRIOR → verify].
 - Connection scoring: Extended criteria (journey time, congestion, comfort, classes — verify which exist and where) [PRIOR → verify].
 - Halts: catchments, coverage, platform/stop mechanics (Extended-specific elements to identify).

@@ -3,23 +3,24 @@
 C++ transport simulation game. Forked from Standard Simutrans in 2008 (as "Experimental",
 later "Extended"); fully independent since. Large, arcane legacy codebase. Handle with care.
 
-Two live branches with materially different code:
+Two active branches with materially different code:
 - `ex-15` — the next major version (15.x, planned since 2018); the primary work target.
 - `master` — the stable/release line (14.x).
 Always identify the checked-out branch first (`git branch --show-current`).
 
 ## Knowledge base
 
-All AI-facing documentation lives in `ai/` — a linked hierarchy designed for lazy retrieval.
+All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for lazy retrieval.
 
 - Entry point: `ai/index.md`. Read it first; then load ONLY the docs whose read-when key
   there matches the task. Never bulk-load the folder.
 - Read `ai/project-notes.md` at the start of most code tasks: short cross-cutting notes
   that are easy to miss (e.g. the no-floating-point rule for network-synced code).
 - Docs may lag behind the code. The checked-out code is the sole authority; distrust
-  any doc claim whose provenance stamp predates the code it describes.
-- Doc conventions (claim tags, stamps, statuses): `ai/conventions.md` — read it before
-  writing or updating any doc.
+  any doc claim whose provenance record (frontmatter `verified:`) predates the code it
+  describes.
+- Doc conventions (claim tags, provenance records, statuses): `ai/conventions.md` — read it
+  before writing or updating any doc.
 
 ## Hard rules
 
@@ -32,10 +33,11 @@ All AI-facing documentation lives in `ai/` — a linked hierarchy designed for l
    every claim against the checked-out code and tag it per `ai/conventions.md`.
 4. Serialization/sync change restriction: do not change load/save behaviour, savegame or
    network version constants (`simversion.h`), or checklist/desync-relevant code without
-   first reading `ai/savegame-versioning.md` and `ai/network.md`, and surfacing the
+   first reading `ai/savegame-versioning.md` and `ai/network.md`, and presenting the
    intended change to the user before proceeding.
 5. After significant code changes, PROPOSE updates to the affected `ai/` docs; the user
-   reviews and approves all doc changes before commit. Re-stamp provenance when updating.
+   reviews and approves all doc changes before commit. Update provenance records when
+   updating docs.
 6. When unsure, write an open question into the relevant doc instead of a claim.
 7. Use precise, literal language in all output, including internal reasoning. No metaphors
    or figurative expressions.
