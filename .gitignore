@@ -39,6 +39,7 @@ ipch
 /build*
 /.ccls-cache
 /config.*
+/build-test.ps1
 /intermediates
 /makeobj/makeobj
 *.exe.*
