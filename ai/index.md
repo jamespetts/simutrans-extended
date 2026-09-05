@@ -21,7 +21,7 @@ Agent hard rules: [../AGENTS.md](../AGENTS.md).
 
 ## Build, data & infrastructure
 
-- [build-and-toolchain](build-and-toolchain.md) — read when compiling anything, touching build files/CI, packaging releases, or dealing with backend libraries (SDL, PNG, zlib, ICU).
+- [build-and-toolchain](build-and-toolchain.md) — read when compiling anything, touching build files/CI, packaging releases or nightlies, dealing with the Bridgewater-Brunel VPS/server pipeline, or dealing with backend libraries (SDL, PNG, zlib, ICU).
 - [savegame-versioning](savegame-versioning.md) — MANDATORY read before touching load/save code, simversion.h, rdwr methods, or anything version-negotiation related (AGENTS.md rule 4).
 - [data-and-pak](data-and-pak.md) — read when touching descriptors (desc classes), pak/pakset data, makeobj, settings, translation files, or the dataobj/ layer.
 - [network](network.md) — read when touching multiplayer code, the checklist/desync system, client-server behaviour, or nettools. Change-restricted (AGENTS.md rule 4).
