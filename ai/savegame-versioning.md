@@ -1,6 +1,6 @@
 ---
-status: draft
-verified: ex-15 @ 1b236a4f1
+status: reviewed
+verified: ex-15 @ be23f4203
 ---
 # Savegame & network versioning
 
@@ -41,18 +41,19 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 - Consequence: when saving, `finfo.ext_version` is set from the *target* strings — version gates control what is written as well as what is read [CODE].
 - Server-side saves use `SERVER_SAVEGAME_VER_NR` (simworld.cc, network/network_cmd_ingame.cc) [CODE].
 
-## The rdwr gating idiom (what AI-written save code must follow)
+## Rules for rdwr serialization code (what AI-written save code must follow)
 
 - Every persisted class serialises itself in a `rdwr(loadsave_t*)` method using the `rdwr_*` primitives; XML hierarchy via `xml_tag_t` [CODE].
-- Gates in use [CODE]:
+- Version conditions in use [CODE]:
   - Extended: `is_version_ex_atleast/less/equal(ex_ver, ex_revision)` or explicit `get_extended_version()/get_extended_revision()` combos — ex-15 style e.g. "atleast 15, or 14 with a minimum revision" (boden/wege/weg.cc, simworld.cc).
   - Legacy base: `is_version_atleast(major, save_minor)` (e.g. dataobj/koord3d.cc).
-- Rules when adding persisted data:
-  1. **Append only** — never reorder or remove existing rdwr entries; streams are positional.
-  2. Wrap new fields in a gate for the Extended version/revision that introduces them; default-initialise members before the gate so old saves load sanely.
-  3. Keep gates **symmetric** — the same gate governs writing (target may be an older user-selected version) and reading.
-  4. Sync-critical data has network-checksum implications → [network](network.md) (ring-fenced).
-- Version bumps are RARE and ring-fenced (AGENTS.md rule 4): `EX_SAVE_MINOR` (+ `EX_VERSION_*` for majors) in simversion.h AND the settings_stats.cc arrays must be extended together (simversion.h warning); surface to the user before proceeding.
+- Rules when adding persisted data [RECOLLECTION:2026-09-05 user interview]:
+  1. Each new datum's save and load must be conditional upon the exact same version number (Extended version/revision). The version condition determines both writing and reading, because the user may select a save target version older than the build.
+  2. Data not loaded because the file's version is too old must always be assigned a sensible default value (assign defaults to member variables before the conditional block).
+  3. Do not alter or remove existing serialization entries — saves written by existing versions must continue to load.
+  4. The position of a new entry within a block does not strictly matter provided its version condition is correct; by convention new data goes at the end of the block that writes the relevant type, because this makes the code more readable.
+  5. Do not change data affecting network sync without following AGENTS.md rule 4 → [network](network.md).
+- Version bumps are rare, and changing them is restricted by AGENTS.md rule 4: `EX_SAVE_MINOR` (+ `EX_VERSION_*` for majors) in simversion.h AND the settings_stats.cc arrays must be extended together (simversion.h warning); surface to the user before proceeding.
 
 ## Network/desync coupling
 
@@ -60,6 +61,6 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 
 ## Open questions
 
-- **Extended-series future refusal for savegames**: `rd_open` and `karte_t::load` check only the BASE series; Extended-series refusal is verified only for settings.xml (simmain.cc). Does a 14.x client gracefully refuse a 15.x savegame, or fail positionally? Risk: corruption rather than clean refusal. [UNVERIFIED — resolve before any 15.x save is exposed to 14.x clients]
-- Does the load/save UI (gui/loadsave_frame.cc, dataobj/sve_cache.cc) filter or mark version-incompatible files?
-- Is ex-15's fresh `EX_SAVE_MINOR` series intended to stay at its initial value until the 15.x release? (Ask user.)
+- **Extended-series future refusal for savegames**: `rd_open` and `karte_t::load` check only the BASE series; Extended-series refusal is verified only for settings.xml (simmain.cc). Intended behaviour: a 14.x client should refuse a 15.x savegame cleanly; if it instead fails during parsing, that is a bug [RECOLLECTION:2026-09-05]. Whether the code actually refuses cleanly is [UNVERIFIED — verify and fix if needed before any 15.x save is exposed to 14.x clients].
+- Does the load/save UI (gui/loadsave_frame.cc, dataobj/sve_cache.cc) filter or mark version-incompatible files? (Verify from code in a later pass.)
+- Is ex-15's fresh `EX_SAVE_MINOR` series intended to stay at its initial value until the 15.x release, or to increment during development? (Undecided as at 2026-09-05 — ask again later.)

@@ -16,7 +16,7 @@ All AI-facing documentation lives in `ai/` — a linked hierarchy designed for l
   there matches the task. Never bulk-load the folder.
 - Read `ai/project-notes.md` at the start of most code tasks: short cross-cutting notes
   that are easy to miss (e.g. the no-floating-point rule for network-synced code).
-- Docs are a map, not the territory. The checked-out code is the sole authority; distrust
+- Docs may lag behind the code. The checked-out code is the sole authority; distrust
   any doc claim whose provenance stamp predates the code it describes.
 - Doc conventions (claim tags, stamps, statuses): `ai/conventions.md` — read it before
   writing or updating any doc.
@@ -30,13 +30,15 @@ All AI-facing documentation lives in `ai/` — a linked hierarchy designed for l
 3. Priors are not evidence. Anything recalled from training data about Standard Simutrans
    OR Simutrans-Extended may be wrong or outdated. Use priors only as search hints; verify
    every claim against the checked-out code and tag it per `ai/conventions.md`.
-4. Serialization/sync ring-fence: do not change load/save behaviour, savegame or network
-   version constants (`simversion.h`), or checklist/desync-relevant code without first
-   reading `ai/savegame-versioning.md` and `ai/network.md`, and surfacing the intended
-   change to the user before proceeding.
+4. Serialization/sync change restriction: do not change load/save behaviour, savegame or
+   network version constants (`simversion.h`), or checklist/desync-relevant code without
+   first reading `ai/savegame-versioning.md` and `ai/network.md`, and surfacing the
+   intended change to the user before proceeding.
 5. After significant code changes, PROPOSE updates to the affected `ai/` docs; the user
    reviews and approves all doc changes before commit. Re-stamp provenance when updating.
 6. When unsure, write an open question into the relevant doc instead of a claim.
+7. Use precise, literal language in all output, including internal reasoning. No metaphors
+   or figurative expressions.
 
 ## Commit messages
 

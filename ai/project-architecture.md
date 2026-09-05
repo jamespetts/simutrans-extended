@@ -15,11 +15,12 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
    class `float32e8_t` (utils/float32e8_t.h) — e.g. convoy physics (forces, resistances,
    braking, `calc_move`) in convoy.h, speed conversions in simunits.h, vehicle resistances
    in descriptor/vehicle_desc.h [CODE ex-15 @ 1b236a4f1; rationale RECOLLECTION:2026-09-05].
-2. **Serialization ring-fence.** The savegame/network versioning system is stable and
-   rarely changed; load/save behaviour and version constants are ring-fenced (AGENTS.md
-   rule 4) → [savegame-versioning](savegame-versioning.md).
-3. **Positional persistence.** Save streams are positional; persisted classes evolve
-   append-only behind version gates → [savegame-versioning](savegame-versioning.md) [CODE].
+2. **Serialization change restriction.** The savegame/network versioning system is stable
+   and rarely changed; load/save behaviour and version constants must not be changed
+   without following AGENTS.md rule 4 → [savegame-versioning](savegame-versioning.md).
+3. **Ordered persistence.** Save data is read and written in order; persisted classes
+   evolve by appending entries conditional on version checks →
+   [savegame-versioning](savegame-versioning.md) [CODE].
 4. **Branch duality.** ex-15 and master differ materially (versions, features, files);
    changes must target one branch deliberately, and docs stamp the branch+commit they were
    verified against → [ex-15](ex-15.md) [CODE].
