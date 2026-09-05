@@ -15,6 +15,8 @@ All AI-facing documentation lives in `ai/` — a linked hierarchy designed for l
 
 - Entry point: `ai/index.md`. Read it first; then load ONLY the docs whose read-when key
   there matches the task. Never bulk-load the folder.
+- Read `ai/project-notes.md` at the start of most code tasks: short cross-cutting notes
+  that are easy to miss (e.g. the no-floating-point rule for network-synced code).
 - Docs are a map, not the territory. The checked-out code is the sole authority; distrust
   any doc claim whose provenance stamp predates the code it describes.
 - Doc conventions (claim tags, stamps, statuses): `ai/conventions.md` — read it before

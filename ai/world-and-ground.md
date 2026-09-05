@@ -9,7 +9,7 @@ verified: none
 ## Seed facts
 
 - `boden/grund.h` is included by 29 files — the tile/ground hub [CODE ex-15 @ b06e8fa14].
-- `boden/wege/weg.cc` touched in 9 ex-15 commits since 2025-05-26 [CODE ex-15 @ b06e8fa14].
+- `boden/wege/weg.cc` touched in 9 ex-15-only commits (whole branch history vs master) [CODE ex-15 @ b06e8fa14].
 - `boden/wege/` is a sizable divergence area (2.5% of master→ex-15 changed files) [CODE].
 - A contributor terraforming refactor exists as a remote branch (`Ceeac/extended-ex15-terraforming-refactor`), merge status unknown [CODE master @ 3b70dd4b3].
 

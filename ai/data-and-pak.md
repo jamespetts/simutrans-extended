@@ -9,7 +9,7 @@ verified: none
 ## Seed facts
 
 - Hubs: `dataobj/environment.h` (112 includers), `dataobj/translator.h` (103), `dataobj/loadsave.h` (55), `descriptor/objversion.h` (28) [CODE ex-15 @ b06e8fa14].
-- `dataobj/settings.cc` touched in 22 ex-15 commits since 2025-05-26; `gui/settings_stats.cc` in 11 — settings are actively changing on ex-15 [CODE].
+- `dataobj/settings.cc` touched in 22 ex-15-only commits (whole branch history vs master); `gui/settings_stats.cc` in 11 — settings are actively changing on ex-15 [CODE].
 - `loadsave.h:210` mentions a class producing a hash of `savegame_version` — couples to [savegame-versioning](savegame-versioning.md) [CODE].
 - makeobj/ contains the pak compiler source plus its own legacy project files; root also holds many `*_writer.obj` build artefacts (ignore) [CODE ex-15 @ b06e8fa14].
 

@@ -10,7 +10,7 @@ verified: none
 
 - `player/simplay.h` is included by 74 files — finance/player hub [CODE ex-15 @ b06e8fa14].
 - `simcity.h` has 30 includers [CODE ex-15 @ b06e8fa14].
-- `player/simplay.cc` touched in 8 ex-15 commits since 2025-05-26 [CODE].
+- `player/simplay.cc` touched in 8 ex-15-only commits (whole branch history vs master) [CODE].
 - Root holds local-only diagsession artefacts named "…passenger-gen-efficiency-changes-phase-1/2…" — passenger generation received performance work in the past; a lead, not a fact [local-only].
 
 ## Planned sections
