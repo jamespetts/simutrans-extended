@@ -229,6 +229,7 @@ void strasse_t::rotate90() {
 }
 
 
+#ifdef MULTI_THREAD
 void strasse_t::display_overlay(int xpos, int ypos) const
 {
 	if (show_masked_ribi && overtaking_mode <= oneway_mode) {
@@ -238,3 +239,4 @@ void strasse_t::display_overlay(int xpos, int ypos) const
 		display_signal_direction_rgb(xpos + ((raster_width*5)>>3), ypos + ((raster_width*5)>>3), get_current_tile_raster_width(), get_ribi_unmasked(), dir, 253, is_diagonal(), ribi_t::all, gr->get_weg_hang());
 	}
 }
+#endif

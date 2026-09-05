@@ -141,11 +141,13 @@ road_preview_t::road_preview_t(koord3d pos, player_t* player, uint8 ribi_unmaske
 	this->outline_colour = outline_colour;
 }
 
+#ifdef MULTI_THREAD
 void road_preview_t::display_overlay(int xpos, int ypos) const
 {
 	const int raster_width = get_current_tile_raster_width();
 	display_signal_direction_rgb(xpos + ((raster_width * 5) >> 3), ypos + ((raster_width * 5) >> 3), get_current_tile_raster_width(), ribi_unmasked, dir, 253, is_diagonal, ribi_t::all, slope);
 }
+#endif
 
 
 schedule_marker_t::schedule_marker_t(koord3d pos, player_t *player, waytype_t wt_) :
@@ -155,6 +157,7 @@ schedule_marker_t::schedule_marker_t(koord3d pos, player_t *player, waytype_t wt
 	set_owner(player);
 }
 
+#ifdef MULTI_THREAD
 void schedule_marker_t::display_overlay(int xpos, int ypos) const
 {
 	char buf[4];
@@ -216,3 +219,4 @@ void schedule_marker_t::display_overlay(int xpos, int ypos) const
 	xpos -= proportional_string_width(buf)>>1;
 	display_proportional_rgb(xpos+1, ypos+3, buf, ALIGN_TOP, text_color, false);
 }
+#endif

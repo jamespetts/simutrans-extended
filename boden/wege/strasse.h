@@ -68,7 +68,9 @@ public:
 
 	void rotate90() OVERRIDE;
 
+#ifdef MULTI_THREAD
 	void display_overlay(int xpos, int ypos) const OVERRIDE;
+#endif
 
 	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE
 	{

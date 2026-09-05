@@ -68,7 +68,9 @@ class road_preview_t : public zeiger_t
 public:
 	road_preview_t(koord3d pos, player_t* player, uint8 ribi_unmasked, uint8 dir, bool diagonal, sint8 slope, FLAGGED_PIXVAL outline_colour=0);
 
+#ifdef MULTI_THREAD
 	void display_overlay(int xpos, int ypos) const OVERRIDE;
+#endif
 
 	FLAGGED_PIXVAL get_outline_colour() const OVERRIDE { return outline_colour; }
 };
@@ -107,7 +109,9 @@ public:
 	// higilight this marker
 	void set_selected(bool yesno) { is_selected = yesno; }
 
+#ifdef MULTI_THREAD
 	void display_overlay(int xpos, int ypos) const OVERRIDE;
+#endif
 };
 
 #endif
