@@ -50,6 +50,13 @@ Four build paths coexist:
   7, VS2010-format solution; not buildable on the maintainer's machine.
 - Legacy Standard-era projects (`Simutrans.sln/.vcxproj`, `Makeobj.sln`, `makeobj/Makeobj*.vcxproj`)
   also sit at the root; do not confuse them with the Extended ones.
+- Maintainer usage [RECOLLECTION:2026-09-05 user statement]: since the Bridgewater-Brunel pipeline
+  provides automated builds, MSVC is used only for debugging and profiling, and only x64
+  configurations: `Debug|x64` (day-to-day), `Debug (graphical server)|x64` (same build as Debug,
+  distinguished only by debugger starting commands held in the untracked `.vcxproj.user`), and
+  `Debug (non-graphical server)|x64` when the code under work runs only in non-graphical mode.
+  "Optimised debug" was historically used for profiling (see Known problems — it no longer appears
+  in the Visual Studio configuration dropdown).
 
 **Verified by execution on the maintainer's Windows machine, 2026-09-05** (VS2019 Community MSBuild,
 because VS2022 there has only the v143 toolset):
@@ -118,6 +125,11 @@ The `REVISION` define must match between server and clients for network play
 - `findversion.sh` is an SVN-era legacy script (OpenTTD compile farm); obsolete.
 
 ## CI (.github/workflows, present on both branches)
+
+**Status caveat:** per the user, GitHub CI builds have never worked for Extended; the
+Bridgewater-Brunel VPS pipeline is the actual build source, and these workflows are not relied
+upon [RECOLLECTION:2026-09-05 user statement]. They are documented here as repo content and as
+the basis for a possible future migration (see Open questions).
 
 - `ci.yml` (push/PR): first job runs `cleanup_code.sh` (perl include-guard normalisation + trailing
   whitespace removal) and **auto-commits the result**; then build matrix:
@@ -190,14 +202,29 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
      server binary + nettool into `/usr/share/games/simutrans-extended`, assemble
      `packages/Simutrans-Extended-Complete.zip`, tar the pakset nightlies, then run
      `server-hasher.jar` to write `nightly.hash` (selective-download manifest).
-- `package.sh`: manual `.deb` creation (dpkg-deb; version numbers set by hand; references older
-  `simutrans-experimental` binary names — partly stale). `update-repo.sh`: regenerates apt
-  `Packages.gz`/`Sources.gz` for `/var/www/repository` (dists/stable/main, amd64+i386).
+- `package.sh`: `.deb` creation (dpkg-deb) with version numbers hardcoded in the script
+  (`simutrans-ex_14.9000.12`); references older `simutrans-experimental` binary names — partly
+  stale. `update-repo.sh`: regenerates apt `Packages.gz`/`Sources.gz` for `/var/www/repository`
+  (dists/stable/main, amd64+i386).
+- Operation verified against the public endpoint on 2026-09-05: the pipeline is live. Fresh that
+  morning (server-local timestamps 05:08–05:09): Linux client, headless server (incl.
+  `command-line-server-build/`), Linux makeobj + nettool, Windows `Simutrans-Extended.exe` +
+  `-64.exe` + `Makeobj-Extended.exe`, both pakset tarballs, themes, `nightly.hash`,
+  `Simutrans-Extended-Complete.zip`; `simutrans-ex_14.9000.12.deb` at 05:32 — so `package.sh` (or
+  a successor) runs on a schedule after `nightly.sh`, publishing a fixed version number.
+  Confirmed broken/stale: Windows nettool — no `Nettool-Extended.exe` is published at all; the
+  listing holds only a `nettool.exe` dated 2017-02-08. Discontinued leftovers: `mac/` (2018),
+  stray `linux-X64` file (2022).
 - Server operations scripts (VPS `/root`): `force-sync.sh` (nettool force-sync);
   `warn-save.sh` (nettool `say` warnings → force-sync → `simctrl brit kill`; a cron job runs
   `simctrl brit restart` every minute, which brings the server back up); `rotate-backup.sh`
   (hourly: if the savegame is stale, force-sync, then `rotate.sh`); `rotate.sh` (rotates six
   generations of savegame and pwdhash backups); `showlog.sh`; `lock-public-player.sh`.
+  `simctrl` is an older third-party script (not written by the user), not part of the build
+  process: it starts/stops/interacts with running headless servers by game tag
+  (`simctrl brit stop`, `simctrl brit restart`); multiple tagged instances are supported in
+  theory, but the VPS has never had enough memory to run more than one
+  [RECOLLECTION:2026-09-05 user statement].
   These scripts invoke nettool with the password of a lower-privilege server user (not the admin
   password — user correction) in plaintext [RECOLLECTION:2026-09-05 user statement]; it is
   deliberately not recorded here. Server security improvements are planned (see Open questions).
@@ -208,16 +235,35 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 
 ## Known problems & observations
 
-- Windows nettool cross-build reported broken by the user; `nightly.sh` copies
-  `build/mingw64/nettool/nettool` (no `.exe` suffix) to `windows/Nettool-Extended.exe`, which can
-  silently keep shipping a stale binary (the script has no `set -e`)
-  [RECOLLECTION:2026-09-05 user statement + user-supplied VPS scripts].
+- Windows nettool cross-build broken: confirmed against the public endpoint 2026-09-05 — no
+  `Nettool-Extended.exe` published; only a 2017 `nettool.exe`. `nightly.sh` copies
+  `build/mingw64/nettool/nettool` (no `.exe` suffix) to `windows/Nettool-Extended.exe`, which
+  fails silently (the script has no `set -e`). User: fair record, fix during VPS modernisation.
+- CMake `SIMUTRANS_MULTI_THREAD` defaults to OFF and no CI workflow enables it — CMake-built
+  binaries (CI artifacts, GitHub nightlies) are single-threaded, unlike the BB GNU-make builds
+  (`MULTI_THREAD = 1` in every VPS config). Latent problem for any future CMake/CI adoption;
+  previously unnoticed [RECOLLECTION:2026-09-05 user statement].
+- The published `.deb` version is hardcoded in `package.sh` (14.9000.12) and does not track the
+  actual release, despite the package being rebuilt on a schedule.
 - `revision.h` staleness after MSVC builds (see Revision embedding above).
 - `Nettool.vcxproj` stale (v140_xp, Windows SDK 7, VS2010-format solution).
 - `linux-build.yml` misnamed ("msvc-build") and clang version mismatch (installs 10, uses 14).
 - `CMakeLists.txt` references an undefined `simutrans` target (HEAVY_MODE block; test `DEPENDS`).
+- The "Optimised debug" configurations are defined in `Simutrans-Extended.vcxproj` (Win32 and x64,
+  v142) but are absent from `Simutrans-Extended.sln`'s SolutionConfigurationPlatforms — they do not
+  appear in the Visual Studio configuration dropdown. Matches the user's report of the missing
+  profiling configuration; candidate small fix (add the solution configuration mappings).
 - The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) exists on
-  master only; ex-15 does not have it (→ [rendering](rendering.md)).
+  master only; ex-15 does not have it (→ [rendering](rendering.md)). It was supplied by a
+  contributor and integrated by the user in 2026-09, with the aim of testing it and, if it works,
+  making SDL3 the standard build backend [RECOLLECTION:2026-09-05 user statement]. Build-system
+  wiring is CMake-only: master's `CMakeLists.txt` supports `SIMUTRANS_BACKEND=sdl3`
+  (`find_package(SDL3 CONFIG)` on MSVC, pkg-config elsewhere; error message advises libsdl3-dev /
+  brew / vcpkg port); the GNU Makefile `BACKENDS` list has no sdl3, and
+  `Simutrans-Extended.vcxproj` has no SDL3 configuration [CODE master @ cef3550ea].
+- The maintainer's Windows machine has no GNU-make toolchain (no make/mingw in PATH, no MSYS2,
+  no WSL distribution; verified 2026-09-05) — makefile-route builds currently happen only on the
+  BB VPS/CI. A local makefile-route build is to be set up (see Open questions).
 - ICU: the repo vendors ICU/OpenTTD headers under `utils/openttd/` (tracked), but no game source
   includes them; the game's own `unicode.h`/`unicode.cc` (included via relative paths) handles
   UTF-8. MSVC include paths also carry an ICU copy in `..\OpenTTD\shared\include`.
@@ -226,8 +272,17 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 
 ## Open questions
 
-- What cron schedule runs `nightly.sh` (and the other VPS cron jobs) exactly?
-- Provenance and maintenance status of `Nightly Updater V2.jar`, `server-hasher.jar`, `simctrl`.
+- What cron schedule runs `nightly.sh` (and the other VPS cron jobs) exactly? Partially answered
+  by endpoint observation: artifacts published ~05:08–05:09 and the .deb ~05:32 server-local
+  (2026-09-05); exact crontab entries unknown.
+- Should the build pipeline eventually move from the BB VPS to GitHub CI? The user is considering
+  it; GitHub CI builds have never worked for Extended, so this would take setting up
+  [RECOLLECTION:2026-09-05 user statement]. Related: are the `run-tests.yml` sanitizer jobs
+  functional for Extended today?
+- Helper-tool provenance [RECOLLECTION:2026-09-05 user statement]: both `.jar` tools were written
+  by a third party (name not recalled) to enable differential downloading — clients fetch binary
+  diffs of updated files instead of whole artifacts. The user cannot locate Nightly Updater V2's
+  source; server-hasher is to be supplied by the user. Maintainability therefore uncertain.
 - VPS legacy-tier migration: which parts of the pipeline must be reproduced on a new machine, and
   should the scripts be brought under version control (with the password removed)?
 - Server security improvements (the user intends to address these at some point): scope not yet
@@ -237,3 +292,12 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   environment vs. the script's update condition).
 - Local Windows recipe for running the automated tests (binary + pakset + `tests/` linked as
   `scenario/automated-tests`) → [scripting-and-tests](scripting-and-tests.md).
+- Where do the MSVC "Debug (SDL 2)" configurations get their SDL2 libraries? Not found in the
+  sibling dependency trees; user unsure. Related: SDL3 library provisioning for the planned
+  SDL3-as-standard switch.
+- **To do (user-directed):** set up a working local build via the GNU-make route on the
+  maintainer's machine, then set up SDL3 for local testing — in master first
+  [RECOLLECTION:2026-09-05 user statement]. Route choice open (WSL Linux distribution vs
+  MinGW/MSYS2 vs CMake+vcpkg): the GNU Makefile has no sdl3 backend, so makefile-route SDL3
+  testing needs either Makefile support added or the CMake route. This doc stays `draft` until
+  the local makefile-route build works (user's review condition).
