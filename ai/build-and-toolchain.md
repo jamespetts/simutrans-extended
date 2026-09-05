@@ -1,6 +1,6 @@
 ---
-status: draft
-verified: ex-15 @ b83291e56
+status: reviewed
+verified: master @ f4734b630
 ---
 # Build & toolchain
 
@@ -262,9 +262,15 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   includes sdl3, found via `SDL3_CONFIG ?= pkg-config sdl3`; `configure.ac` has sdl3 plumbing.
   Only the MSVC `Simutrans-Extended.vcxproj` has no SDL3 configuration
   [CODE master @ cef3550ea].
-- The maintainer's Windows machine has no GNU-make toolchain (no make/mingw in PATH, no MSYS2,
-  no WSL distribution; verified 2026-09-05) — makefile-route builds currently happen only on the
-  BB VPS/CI. A local makefile-route build is to be set up (see Open questions).
+- Local GNU-make-route build on the maintainer's machine (established 2026-09-05): MSYS2/MinGW64 +
+  untracked root `config.msys2-sdl3` (OSTYPE=mingw64, BACKEND=sdl3, native CC/CXX,
+  WINDRES=windres); `make CFG=msys2-sdl3` from the mingw64 shell builds master's SDL3 backend;
+  binary runs. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
+  cross toolchain (`WINDRES ?= x86_64-w64-mingw32-windres`, `?=` so config-overridable), and repo
+  preset `configs/config.sim-mingw-sdl2` still passes `-std=c++11` in FLAGS while the code needs
+  C++14 (`std::index_sequence` in `script/api_function.h`; BB's live config uses `-std=c++14`).
+  Objects do not track flag changes — `make CFG=... clean` when switching branch or flags
+  [execution-verified 2026-09-05].
 - ICU: the repo vendors ICU/OpenTTD headers under `utils/openttd/` (tracked), but no game source
   includes them; the game's own `unicode.h`/`unicode.cc` (included via relative paths) handles
   UTF-8. MSVC include paths also carry an ICU copy in `..\OpenTTD\shared\include`.
@@ -296,10 +302,8 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 - Where do the MSVC "Debug (SDL 2)" configurations get their SDL2 libraries? Not found in the
   sibling dependency trees; user unsure. Related: SDL3 library provisioning for the planned
   SDL3-as-standard switch.
-- **To do (user-directed):** set up a working local build via the GNU-make route on the
-  maintainer's machine, then test SDL3 locally — in master first
-  [RECOLLECTION:2026-09-05 user statement]. Master's Makefile already supports `BACKEND=sdl3`
-  (pkg-config based), so no build-system change is needed — only a local make toolchain and an
-  SDL3 development package that pkg-config can find. Route choice open (WSL Linux distribution vs
-  MinGW/MSYS2). This doc stays `draft` until the local makefile-route build works (user's review
-  condition).
+- **To do (user-directed):** the local makefile-route build works (MSYS2/MinGW64 — see Known
+  problems) and master's SDL3 binary builds and runs. Remaining: user graphical testing of the
+  SDL3 backend; merging the SDL3 backend into ex-15; BB nightly config updates when SDL3 becomes
+  the standard backend; decide whether to add a tracked native-MSYS2 config preset and fix the
+  stale `-std=c++11` preset.
