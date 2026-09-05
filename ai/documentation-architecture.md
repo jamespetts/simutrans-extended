@@ -32,9 +32,14 @@ lifecycle) live in [conventions](conventions.md). Read before authoring or restr
    statistics, include/file/line counts, current version values, branch-tip hashes, or
    "as of" sync claims. Record stable structure and interpretation instead; agents derive
    live numbers from git and the code at task time.
+8. **Reviews are interactive.** A doc reaches `reviewed` only after the agent has walked
+   the user through it in a structured question session (question tool), in batches:
+   presenting claims for confirmation or correction, asking the user about the doc's open
+   questions, and recording answers with `[RECOLLECTION:<date>]` tags. Agent-side checking
+   alone never sets `reviewed`.
 
 ## Inventory policy
 
 - New docs get an index key at creation; stubs start with Covers + planned sections only.
 - Stubs may contain tagged initial facts; drafts contain verified system descriptions; `reviewed`
-  means the user has checked the content.
+  means the user has checked the content in an interactive walkthrough (core rule 8).

@@ -11,7 +11,9 @@ Content-architecture rules (what belongs in docs vs. code, visibility, size):
 ## Lifecycle
 
 Frontmatter `status:` — `stub` → `draft` → `reviewed`. Stubs hold scope, retrieval key and
-planned sections only (plus tagged initial facts). `reviewed` means the user has checked the content.
+planned sections only (plus tagged initial facts). `reviewed` means the user has checked the
+content in an interactive walkthrough ([documentation-architecture](documentation-architecture.md)
+core rule 8).
 
 ## Provenance
 
