@@ -12,7 +12,7 @@ verified: none
 
 ## Planned sections
 
-- Main loop & stepping (simmain/simintr; interaction with network sync — ring-fenced, → [network](network.md)).
+- Main loop & stepping (simmain/simintr; interaction with network sync — change-restricted under AGENTS.md rule 4, → [network](network.md)).
 - World lifecycle: load/save (coordinates with [savegame-versioning](savegame-versioning.md)), world lists.
 - Tool system (simtool): how tools are dispatched and parameterised.
 - Units & numeric types (simunits; float32e8_t → [utilities-and-threading](utilities-and-threading.md)).

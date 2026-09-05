@@ -25,5 +25,5 @@ verified: none
 
 ## Open questions
 
-- Which code paths are checklist-relevant (the ring-fence list needs to be made concrete).
+- Which code paths are checklist-relevant (the change-restricted set of AGENTS.md rule 4 needs to be made concrete).
 - Is the BB server's desync tooling part of the repo or external? (Interview.)

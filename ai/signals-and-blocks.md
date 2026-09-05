@@ -17,7 +17,7 @@ verified: none
 - Signal types & block working model (verify against code; Standard priors are unreliable here).
 - Signalboxes: purpose, data model, catchment (Extended feature).
 - Reservations: who reserves what, when released; interaction with convoy movement (→ [vehicles-and-convoys](vehicles-and-convoys.md)).
-- Network-sync sensitivity: which signal/reservation state is checklist-relevant (→ [network](network.md); ring-fenced).
+- Network-sync sensitivity: which signal/reservation state is checklist-relevant (→ [network](network.md); change-restricted under AGENTS.md rule 4).
 - History: block-manager rewrite; desync incidents (interview + local artefacts).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
