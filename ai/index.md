@@ -14,6 +14,9 @@ Agent hard rules: [../AGENTS.md](../AGENTS.md).
 - [glossary](glossary.md) — read when Simutrans/Extended vocabulary is unclear in code, comments, or conversation.
 - [repo-map](repo-map.md) — read before navigating the tree; to tell real source from clutter, ignored artefacts, or dead legacy files.
 - [conventions](conventions.md) — read before interpreting claim tags/stamps, or writing/updating any doc.
+- [project-notes](project-notes.md) — read at the start of most code tasks: short cross-cutting notes that are easy to miss (e.g. the no-floating-point rule for network-synced code).
+- [project-architecture](project-architecture.md) — read when designing new systems or making cross-cutting changes: binding architectural constraints and invariants.
+- [documentation-architecture](documentation-architecture.md) — read before authoring or restructuring any KB doc: what belongs in docs vs. code; visibility, size and canonical-home rules.
 - [ex-15](ex-15.md) — read for ANY work on the ex-15 branch: the next major version, feature status, branch topology, contributors.
 
 ## Build, data & infrastructure

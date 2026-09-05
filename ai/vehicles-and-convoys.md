@@ -8,7 +8,7 @@ verified: none
 
 ## Seed facts
 
-- The most-churned area of ex-15 since 2025-05-26: `simconvoi.cc` (112 commits), `gui/consist_order_gui.cc` (92), `vehicle/vehicle.cc` (35), `descriptor/vehicle_desc.cc` (33), `gui/convoi_detail_t.cc` (33), `simdepot.cc` (20), `simline.cc` (17) [CODE ex-15 @ b06e8fa14].
+- The most-churned area of ex-15 (ex-15-only commits, whole branch history vs master): `simconvoi.cc` (112 commits), `gui/consist_order_gui.cc` (92), `vehicle/vehicle.cc` (35), `descriptor/vehicle_desc.cc` (33), `gui/convoi_detail_t.cc` (33), `simdepot.cc` (20), `simline.cc` (17) [CODE ex-15 @ b06e8fa14].
 - `dataobj/consist_order_t.{cc,h}` exists only on ex-15 (added vs. master) — consist ordering is the signature in-progress ex-15 feature here [CODE].
 - `simconvoi.h` has 30 includers [CODE ex-15 @ b06e8fa14].
 

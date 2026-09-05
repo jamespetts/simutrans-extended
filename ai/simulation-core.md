@@ -10,7 +10,7 @@ verified: none
 
 - `simworld.h` is the most-included header in the codebase (149 includers) [CODE ex-15 @ b06e8fa14].
 - `simtypes.h` (114 includers) and `simdebug.h` (100) are near-universal dependencies [CODE ex-15 @ b06e8fa14].
-- `simworld.cc` was touched in 22 ex-15 commits since 2025-05-26; `simtool.cc` in 20 [CODE ex-15 @ b06e8fa14].
+- `simworld.cc` was touched in 22 ex-15-only commits (whole branch history vs master); `simtool.cc` in 20 [CODE ex-15 @ b06e8fa14].
 
 ## Planned sections
 

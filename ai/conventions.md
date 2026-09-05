@@ -5,6 +5,8 @@ verified: none
 # Documentation conventions
 
 Rules for this knowledge base. Read before interpreting tags/stamps or writing/updating docs.
+Content-architecture rules (what belongs in docs vs. code, visibility, size):
+[documentation-architecture](documentation-architecture.md).
 
 ## Lifecycle
 
