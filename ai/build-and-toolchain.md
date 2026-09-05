@@ -269,7 +269,10 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 - Local GNU-make-route build on the maintainer's machine (established 2026-09-05): MSYS2/MinGW64 +
   untracked root `config.msys2-sdl3` (OSTYPE=mingw64, BACKEND=sdl3, native CC/CXX,
   WINDRES=windres); `make CFG=msys2-sdl3` from the mingw64 shell builds the SDL3 backend
-  (verified on master and, after the merge, on ex-15); binary runs. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
+  (verified on master and, after the merge, on ex-15); binary runs. Test builds are copied into
+  `simutrans/` — the in-repo game working directory (tracked text assets; ignored binaries, `pak*`
+  paksets, `config/`) and the standard location for running test builds
+  [RECOLLECTION:2026-09-05 user statement]. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
   cross toolchain (`WINDRES ?= x86_64-w64-mingw32-windres`, `?=` so config-overridable), and repo
   preset `configs/config.sim-mingw-sdl2` still passes `-std=c++11` in FLAGS while the code needs
   C++14 (`std::index_sequence` in `script/api_function.h`; BB's live config uses `-std=c++14`).
