@@ -271,7 +271,10 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   WINDRES=windres); `make CFG=msys2-sdl3` from the mingw64 shell builds the SDL3 backend
   (verified on master and, after the merge, on ex-15); binary runs. Test builds are copied into
   `simutrans/` — the in-repo game working directory (tracked text assets; ignored binaries, `pak*`
-  paksets, `config/`) and the standard location for running test builds
+  paksets, `config/`) and the standard location for running test builds — under uniquely named
+  files (`Simutrans-Extended-<branch>-sdl3.exe`), keeping the principal name
+  `Simutrans-Extended.exe` free for release/public-download builds; the gitignored root helper
+  `build-test.ps1` runs the make build and the copy (`-Clean` for a full rebuild)
   [RECOLLECTION:2026-09-05 user statement]. The recipe requires two overrides: the Makefile's mingw64 branch assumes a
   cross toolchain (`WINDRES ?= x86_64-w64-mingw32-windres`, `?=` so config-overridable), and repo
   preset `configs/config.sim-mingw-sdl2` still passes `-std=c++11` in FLAGS while the code needs
