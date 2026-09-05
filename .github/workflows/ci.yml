@@ -6,13 +6,15 @@ jobs:
   check-code-formatting:
     name: Code Formatting
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Code Check
         shell: bash
         run: ./cleanup_code.sh
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: run ./cleanup_code.sh
 
@@ -57,7 +59,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Get Dependencies
         run: |
           brew install cmake freetype libpng pkg-config sdl2 fluidsynth
@@ -71,7 +73,7 @@ jobs:
           make -j$(sysctl -n hw.logicalcpu) simutrans-extended
           make package
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
@@ -85,7 +87,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -96,7 +98,7 @@ jobs:
           make -j$(sysctl -n hw.logicalcpu) simutrans-extended
           make package
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended
@@ -110,7 +112,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -120,7 +122,7 @@ jobs:
           cd build
           make -j$(sysctl -n hw.logicalcpu) makeobj-extended
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/makeobj/makeobj-extended
@@ -134,7 +136,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -144,7 +146,7 @@ jobs:
           cd build
           make -j$(sysctl -n hw.logicalcpu) nettool-extended
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/nettools/nettool-extended
@@ -162,7 +164,7 @@ jobs:
       - name: Additional setup
         run: sudo dnf -y install git cmake
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -173,7 +175,7 @@ jobs:
           make -j$(nproc) simutrans-extended
           make package
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
@@ -191,7 +193,7 @@ jobs:
       - name: Additional setup
         run: sudo dnf -y install git cmake
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -202,7 +204,7 @@ jobs:
           make -j$(nproc) simutrans-extended
           make package
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
@@ -220,7 +222,7 @@ jobs:
       - name: Additional setup
         run: sudo dnf -y install git cmake
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -231,7 +233,7 @@ jobs:
           make -j$(nproc) simutrans-extended
           make package
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/simutrans/simutrans-extended.exe
@@ -249,7 +251,7 @@ jobs:
       - name: Additional setup
         run: sudo dnf -y install git cmake
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -259,7 +261,7 @@ jobs:
           cd build
           make -j$(nproc) makeobj-extended
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/makeobj/makeobj-extended.exe
@@ -277,7 +279,7 @@ jobs:
       - name: Additional setup
         run: sudo dnf -y install git cmake
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           mkdir build && cd build
@@ -287,7 +289,7 @@ jobs:
           cd build
           make -j$(nproc) nettool-extended
       - name: Upload Artifact (CI)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-nightly
           path: build/nettools/nettool-extended.exe
