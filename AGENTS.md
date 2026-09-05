@@ -37,6 +37,20 @@ All AI-facing documentation lives in `ai/` — a linked hierarchy designed for l
    reviews and approves all doc changes before commit. Re-stamp provenance when updating.
 6. When unsure, write an open question into the relevant doc instead of a claim.
 
+## Commit messages
+
+`<PREFIX>: <short message>`, where PREFIX is one of:
+- FIX — a bug fix
+- CHANGE — changes existing behaviour
+- ADD — adds a new feature
+- CODE — changes the code without changing behaviour
+- VERSION — increments the version
+- DOC — documentation (including this file and ai/)
+- BUILD — build system / CI
+
+If something is outstanding from the commit, follow with a line `NOTE: <short message>`
+or `TODO: <short message>`.
+
 ## Quick facts
 
 - Build (Windows): MSVC solutions `Simutrans-Extended.sln` (game), `Makeobj-Extended.sln`
