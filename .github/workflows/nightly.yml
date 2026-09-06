@@ -162,6 +162,7 @@ jobs:
       - name: Trigger deploy-nightly in the pakset repo and wait
         env:
           CI_TOKEN: ${{ secrets[matrix.token] }}
+          LATEST_SHA: ${{ needs.check-updates.outputs.latest_sha }}
         run: |
           if [[ -z "$CI_TOKEN" ]]; then
             echo "::error::Secret ${{ matrix.token }} is not set; cannot trigger the pakset deployment"
@@ -169,12 +170,14 @@ jobs:
           fi
           api="https://api.github.com/repos/${{ matrix.owner }}/${{ matrix.repo }}"
           ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          payload=$(jq -n --arg ref "${{ matrix.ref }}" --arg repo "${{ github.repository }}" --arg sha "$LATEST_SHA" \
+            '{ref: $ref, inputs: {simutrans_repository: $repo, simutrans_sha: $sha}}')
           curl -sf -X POST \
             -H "Authorization: Bearer $CI_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "$api/actions/workflows/${{ matrix.workflow_file_name }}/dispatches" \
-            -d '{"ref":"${{ matrix.ref }}"}'
-          echo "Dispatched ${{ matrix.workflow_file_name }} on ${{ matrix.owner }}/${{ matrix.repo }} (${{ matrix.ref }}), waiting for completion"
+            -d "$payload"
+          echo "Dispatched ${{ matrix.workflow_file_name }} on ${{ matrix.owner }}/${{ matrix.repo }} (${{ matrix.ref }}) for simutrans-extended commit $LATEST_SHA, waiting for completion"
           for i in $(seq 1 80); do
             sleep 15
             state=$(curl -sf -H "Authorization: Bearer $CI_TOKEN" \
