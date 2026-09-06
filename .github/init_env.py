@@ -12,6 +12,7 @@ class BuildTarget(Enum):
 class Backend(Enum):
     GDI = "gdi"
     SDL2 = "sdl2"
+    SDL3 = "sdl3"
     POSIX = "posix"
 
 

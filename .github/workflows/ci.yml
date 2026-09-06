@@ -28,6 +28,16 @@ jobs:
       backend: sdl2
       additional_dependencies: libsdl2-dev libfreetype6-dev libfluidsynth-dev
 
+  simutrans-linux-sdl3:
+    name: Linux (SDL3)
+    needs: check-code-formatting
+    if: always()
+    uses: ./.github/workflows/linux-build.yml
+    with:
+      backend: sdl3
+      build_sdl3: true
+      additional_dependencies: libfreetype6-dev libfluidsynth-dev
+
   sim-linux-posix:
     name: Linux (headless)
     needs: check-code-formatting
@@ -67,6 +77,34 @@ jobs:
         run: |
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: |
+          cd build
+          make -j$(sysctl -n hw.logicalcpu) simutrans-extended
+          make package
+      - name: Upload Artifact (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-nightly
+          path: build/simutrans/simutrans-extended
+          if-no-files-found: error
+
+
+  sim-mac-sdl3:
+    name: macOS (SDL3)
+    runs-on: macos-latest
+    needs: check-code-formatting
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Get Dependencies
+        run: |
+          brew install cmake freetype libpng pkg-config sdl3 fluidsynth
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DSIMUTRANS_BACKEND=sdl3
       - name: Build
         run: |
           cd build
@@ -312,6 +350,15 @@ jobs:
     with:
       backend: sdl2
       additional_dependencies: sdl2
+
+  simutrans-windows-sdl3:
+    name: Windows (MSVC, SDL3)
+    needs: check-code-formatting
+    if: always()
+    uses: ./.github/workflows/msvc-build.yml
+    with:
+      backend: sdl3
+      additional_dependencies: sdl3
 
   simutrans-windows-headless:
     name: Windows (MSVC, POSIX)
