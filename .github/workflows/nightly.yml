@@ -82,7 +82,7 @@ jobs:
       outdated: ${{ env.outdated }}
 
   deploy-bin:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     if: needs.check-updates.outputs.outdated == 'true'
     needs: check-updates
     permissions:
@@ -92,15 +92,24 @@ jobs:
       matrix:
         include:
         - os: linux
-          buildtype: linux
-          backend: sdl2
-#        - os: macos
-#          buildtype: mac
-#          backend: sdl2
+          runner: ubuntu-latest
+          game_artifact: simutrans-linux-sdl2
+          server_artifact: simutrans-linux-posix
+          makeobj_artifact: makeobj-linux
+          nettool_artifact: nettool-linux
         - os: windows
-          buildtype: windows
-          backend: sdl2
+          runner: ubuntu-latest
           suffix: .exe
+          game_artifact: simutrans-windows-sdl2
+          server_artifact: simutrans-windows-posix
+          makeobj_artifact: makeobj-windows
+          nettool_artifact: nettool-windows
+        - os: macos
+          runner: macos-latest
+          game_artifact: sim-mac-sdl2-nightly
+          server_artifact: sim-mac-posix-nightly
+          makeobj_artifact: makeobj-mac-nightly
+          nettool_artifact: nettool-mac-nightly
     steps:
       - name: Get artifacts
         env:
@@ -110,7 +119,7 @@ jobs:
           curl -sf -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
             > /tmp/artifact-list.json
-          for name in simutrans-${{ matrix.buildtype }}-${{ matrix.backend }} simutrans-${{ matrix.buildtype }}-posix makeobj-${{ matrix.buildtype }} nettool-${{ matrix.buildtype }}; do
+          for name in ${{ matrix.game_artifact }} ${{ matrix.server_artifact }} ${{ matrix.makeobj_artifact }} ${{ matrix.nettool_artifact }}; do
             artifact_id=$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .id' /tmp/artifact-list.json)
             if [[ -z "$artifact_id" || "$artifact_id" == "null" ]]; then
               echo "::error::Artifact $name not found in CI run $RUN_ID"
@@ -125,10 +134,37 @@ jobs:
       - name: Prepare Deployment
         run: |
           mkdir ./${{matrix.os}}
-          cp ./artifacts/simutrans-${{matrix.buildtype}}-${{matrix.backend}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
-          cp ./artifacts/simutrans-${{matrix.buildtype}}-posix/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
-          cp ./artifacts/makeobj-${{matrix.buildtype}}/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
-          cp ./artifacts/nettool-${{matrix.buildtype}}/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.game_artifact}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.server_artifact}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
+          cp ./artifacts/${{matrix.makeobj_artifact}}/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.nettool_artifact}}/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
+
+      # The CI macOS binaries link against Homebrew dylibs; bundle them next to the
+      # executables (@executable_path/lib) and ad-hoc re-sign, so the binaries run on
+      # machines without Homebrew. Modified arm64 Mach-Os require a valid signature.
+      - name: Bundle macOS dylibs
+        if: matrix.os == 'macos'
+        run: |
+          brew install dylibbundler
+          cd ./${{ matrix.os }}
+          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
+            dylibbundler -of -b -x "$bin" -d ./lib -p @executable_path/lib
+            codesign --force --sign - "$bin"
+          done
+          if [[ -d ./lib ]]; then
+            for dylib in ./lib/*; do
+              codesign --force --sign - "$dylib"
+            done
+          fi
+          # Verification: no binary may reference Homebrew paths any more
+          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
+            if otool -L "$bin" | grep -qE '/(opt/homebrew|usr/local)/'; then
+              echo "::error::$bin still references Homebrew library paths:"
+              otool -L "$bin"
+              exit 1
+            fi
+            otool -L "$bin"
+          done
 
       - run: zip -r ./${{matrix.os}}.zip ./${{matrix.os}}/
 
