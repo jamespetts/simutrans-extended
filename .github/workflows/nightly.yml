@@ -91,8 +91,37 @@ jobs:
     strategy:
       matrix:
         include:
+        # SDL3 is the default: these feed the canonical linux/windows/macos.zip assets
         - os: linux
           runner: ubuntu-latest
+          backend: sdl3
+          zip_name: linux.zip
+          game_artifact: simutrans-linux-sdl3
+          server_artifact: simutrans-linux-posix
+          makeobj_artifact: makeobj-linux
+          nettool_artifact: nettool-linux
+        - os: windows
+          runner: ubuntu-latest
+          suffix: .exe
+          backend: sdl3
+          zip_name: windows.zip
+          game_artifact: simutrans-windows-sdl3
+          server_artifact: simutrans-windows-posix
+          makeobj_artifact: makeobj-windows
+          nettool_artifact: nettool-windows
+        - os: macos
+          runner: macos-latest
+          backend: sdl3
+          zip_name: macos.zip
+          game_artifact: sim-mac-sdl3-nightly
+          server_artifact: sim-mac-posix-nightly
+          makeobj_artifact: makeobj-mac-nightly
+          nettool_artifact: nettool-mac-nightly
+        # SDL2 remains available under secondary asset names
+        - os: linux
+          runner: ubuntu-latest
+          backend: sdl2
+          zip_name: linux-sdl2.zip
           game_artifact: simutrans-linux-sdl2
           server_artifact: simutrans-linux-posix
           makeobj_artifact: makeobj-linux
@@ -100,12 +129,16 @@ jobs:
         - os: windows
           runner: ubuntu-latest
           suffix: .exe
+          backend: sdl2
+          zip_name: windows-sdl2.zip
           game_artifact: simutrans-windows-sdl2
           server_artifact: simutrans-windows-posix
           makeobj_artifact: makeobj-windows
           nettool_artifact: nettool-windows
         - os: macos
           runner: macos-latest
+          backend: sdl2
+          zip_name: macos-sdl2.zip
           game_artifact: sim-mac-sdl2-nightly
           server_artifact: sim-mac-posix-nightly
           makeobj_artifact: makeobj-mac-nightly
@@ -150,7 +183,7 @@ jobs:
           # The binaries reference Homebrew keg paths that only exist on the build
           # runner; install the same formulae as the CI macOS jobs (ci.yml) so the
           # dylibs can be resolved here.
-          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install freetype libpng sdl2 fluidsynth
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install freetype libpng fluidsynth ${{ matrix.backend }}
           list_rpaths() {
             otool -l "$1" | awk '/cmd LC_RPATH/{f=1; next} f && / path /{print $2; f=0}'
           }
@@ -241,13 +274,13 @@ jobs:
             otool -L "$bin"
           done
 
-      - run: zip -r ./${{matrix.os}}.zip ./${{matrix.os}}/
+      - run: zip -r ./${{ matrix.zip_name }} ./${{matrix.os}}/
 
       - name: Deploy
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./${{matrix.os}}.zip
+          file: ./${{ matrix.zip_name }}
           tag: Nightly
           overwrite: true
           file_glob: true
