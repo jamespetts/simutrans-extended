@@ -147,6 +147,9 @@ jobs:
       - name: Bundle macOS dylibs
         if: matrix.os == 'macos'
         run: |
+          # The binaries reference Homebrew keg paths that only exist on the build
+          # runner; install the same formulae here so the dylibs can be resolved.
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install sdl2-compat
           list_rpaths() {
             otool -l "$1" | awk '/cmd LC_RPATH/{f=1; next} f && / path /{print $2; f=0}'
           }
