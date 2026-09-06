@@ -7,30 +7,43 @@ on:
 jobs:
   check-updates:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
       # Determine the latest successful commit
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get all git tags
         run: git fetch --prune --unshallow --tags
       - name: Get latest successful commit hash
-        uses: nrwl/last-successful-commit-action@v1
         id: last_successful_commit
-        with:
-          branch: 'master'
-          workflow_id: 'ci.yml'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_json=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=master&status=success&per_page=1")
+          latest_sha=$(echo "$run_json" | jq -r '.workflow_runs[0].head_sha // empty')
+          run_id=$(echo "$run_json" | jq -r '.workflow_runs[0].id // empty')
+          if [[ -z "$latest_sha" ]]; then
+            echo "::error::No successful ci.yml run found on master"
+            exit 1
+          fi
+          echo "commit_hash=$latest_sha" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       # Check for updates
       - name: Get Nightly hash
+        env:
+          LATEST_SHA: ${{ steps.last_successful_commit.outputs.commit_hash }}
         run: |
-          nightly_sha=$(git rev-parse Nightly)
-          latest_sha=${{ steps.last_successful_commit.outputs.commit_hash }}
-          latest_short_sha=$(git rev-parse --short $latest_sha)
+          nightly_sha=$(git rev-parse Nightly 2>/dev/null || echo none)
+          latest_sha=$LATEST_SHA
+          latest_short_sha=$(git rev-parse --short "$latest_sha")
           outdated=$( [[ $nightly_sha != $latest_sha ]] && echo true || echo false)
 
-          echo "latest_sha=$latest_sha" >> $GITHUB_ENV
-          echo "latest_short_sha=$latest_short_sha" >> $GITHUB_ENV
-          echo "outdated=$outdated" >> $GITHUB_ENV
+          echo "latest_sha=$latest_sha" >> "$GITHUB_ENV"
+          echo "latest_short_sha=$latest_short_sha" >> "$GITHUB_ENV"
+          echo "outdated=$outdated" >> "$GITHUB_ENV"
 
           [[ $outdated == true ]] &&\
             echo "Deploy Nightly #$latest_short_sha (Commit: $latest_sha)" ||\
@@ -50,60 +63,224 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Move the Nightly tag
         if: env.outdated == 'true'
-        uses: actions/github-script@v3
+        uses: actions/github-script@v7
+        env:
+          LATEST_SHA: ${{ env.latest_sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            await github.git.updateRef({
-              ...context.repo,
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
               ref: "tags/Nightly",
-              sha: "${{ env.latest_sha }}",
+              sha: process.env.LATEST_SHA,
               force: true
             })
     outputs:
       latest_sha: ${{ env.latest_sha }}
+      run_id: ${{ steps.last_successful_commit.outputs.run_id }}
       outdated: ${{ env.outdated }}
 
   deploy-bin:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     if: needs.check-updates.outputs.outdated == 'true'
     needs: check-updates
+    permissions:
+      contents: write
+      actions: read
     strategy:
       matrix:
         include:
+        # SDL3 is the default: these feed the canonical linux/windows/macos.zip assets
         - os: linux
-          buildtype: linux
-          backend: sdl2
-#        - os: macos
-#          buildtype: mac
-#          backend: sdl2
+          runner: ubuntu-latest
+          backend: sdl3
+          zip_name: linux.zip
+          game_artifact: simutrans-linux-sdl3
+          server_artifact: simutrans-linux-posix
+          makeobj_artifact: makeobj-linux
+          nettool_artifact: nettool-linux
         - os: windows
-          buildtype: windows
-          backend: sdl2
+          runner: ubuntu-latest
           suffix: .exe
+          backend: sdl3
+          zip_name: windows.zip
+          game_artifact: simutrans-windows-sdl3
+          server_artifact: simutrans-windows-posix
+          makeobj_artifact: makeobj-windows
+          nettool_artifact: nettool-windows
+        - os: macos
+          runner: macos-latest
+          backend: sdl3
+          zip_name: macos.zip
+          game_artifact: sim-mac-sdl3-nightly
+          server_artifact: sim-mac-posix-nightly
+          makeobj_artifact: makeobj-mac-nightly
+          nettool_artifact: nettool-mac-nightly
+        # SDL2 remains available under secondary asset names
+        - os: linux
+          runner: ubuntu-latest
+          backend: sdl2
+          zip_name: linux-sdl2.zip
+          game_artifact: simutrans-linux-sdl2
+          server_artifact: simutrans-linux-posix
+          makeobj_artifact: makeobj-linux
+          nettool_artifact: nettool-linux
+        - os: windows
+          runner: ubuntu-latest
+          suffix: .exe
+          backend: sdl2
+          zip_name: windows-sdl2.zip
+          game_artifact: simutrans-windows-sdl2
+          server_artifact: simutrans-windows-posix
+          makeobj_artifact: makeobj-windows
+          nettool_artifact: nettool-windows
+        - os: macos
+          runner: macos-latest
+          backend: sdl2
+          zip_name: macos-sdl2.zip
+          game_artifact: sim-mac-sdl2-nightly
+          server_artifact: sim-mac-posix-nightly
+          makeobj_artifact: makeobj-mac-nightly
+          nettool_artifact: nettool-mac-nightly
     steps:
       - name: Get artifacts
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: ci.yml
-          commit: ${{ needs.check-updates.outputs.latest_sha }}
-          path: "./artifacts"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ needs.check-updates.outputs.run_id }}
+        run: |
+          curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts?per_page=100" \
+            > /tmp/artifact-list.json
+          for name in ${{ matrix.game_artifact }} ${{ matrix.server_artifact }} ${{ matrix.makeobj_artifact }} ${{ matrix.nettool_artifact }}; do
+            artifact_id=$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .id' /tmp/artifact-list.json)
+            if [[ -z "$artifact_id" || "$artifact_id" == "null" ]]; then
+              echo "::error::Artifact $name not found in CI run $RUN_ID"
+              exit 1
+            fi
+            mkdir -p "./artifacts/$name"
+            curl -sfL -H "Authorization: Bearer $GH_TOKEN" -o "/tmp/$name.zip" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip"
+            unzip -q "/tmp/$name.zip" -d "./artifacts/$name"
+          done
 
       - name: Prepare Deployment
         run: |
           mkdir ./${{matrix.os}}
-          cp ./artifacts/simutrans-${{matrix.buildtype}}-${{matrix.backend}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
-          cp ./artifacts/simutrans-${{matrix.buildtype}}-posix/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
-          cp ./artifacts/makeobj-${{matrix.buildtype}}/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
-          cp ./artifacts/nettool-${{matrix.buildtype}}/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.game_artifact}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.server_artifact}}/simutrans-extended${{matrix.suffix}} ./${{matrix.os}}/simutrans-extended-server${{matrix.suffix}}
+          cp ./artifacts/${{matrix.makeobj_artifact}}/makeobj-extended${{matrix.suffix}} ./${{matrix.os}}/makeobj-extended${{matrix.suffix}}
+          cp ./artifacts/${{matrix.nettool_artifact}}/nettool-extended${{matrix.suffix}} ./${{matrix.os}}/nettool-extended${{matrix.suffix}}
 
-      - run: zip -r ./${{matrix.os}}.zip ./${{matrix.os}}/
+      # The CI macOS binaries link against Homebrew dylibs; bundle them next to the
+      # executables (@executable_path/lib) and ad-hoc re-sign, so the binaries run on
+      # machines without Homebrew. Modified arm64 Mach-Os require a valid signature.
+      # Deliberately no dylibbundler: it prompts interactively for @rpath dependencies
+      # it cannot resolve and loops forever on CI.
+      - name: Bundle macOS dylibs
+        if: matrix.os == 'macos'
+        run: |
+          # The binaries reference Homebrew keg paths that only exist on the build
+          # runner; install the same formulae as the CI macOS jobs (ci.yml) so the
+          # dylibs can be resolved here.
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install freetype libpng fluidsynth ${{ matrix.backend }}
+          list_rpaths() {
+            otool -l "$1" | awk '/cmd LC_RPATH/{f=1; next} f && / path /{print $2; f=0}'
+          }
+          resolve_dep() {
+            # $1 = dependency as listed by otool -L, $2... = rpath dirs to search
+            local dep="$1"
+            local base rp
+            shift
+            case "$dep" in
+              @rpath/*)
+                base="${dep#@rpath/}"
+                for rp in "$@"; do
+                  if [[ -f "$rp/$base" ]]; then echo "$rp/$base"; return 0; fi
+                done
+                return 1
+                ;;
+              *)
+                [[ -f "$dep" ]] && { echo "$dep"; return 0; }
+                return 1
+                ;;
+            esac
+          }
+          bundle_lib() {
+            # Recursively bundle the non-system dependencies of an already-copied lib/ dylib.
+            # All variables must be local: the function recurses, and globals would be
+            # clobbered by the inner invocations (subtle mis-retargeting results).
+            local libfile="$1"
+            local bin_rpaths="$2"
+            local lrpaths ldeps ldep lreal lbase
+            lrpaths=$(list_rpaths "$libfile")
+            ldeps=$(otool -L "$libfile" | awk 'NR>1 {print $1}')
+            while read -r ldep; do
+              case "$ldep" in
+                /usr/lib/*|/System/*|@loader_path/*|@executable_path/*|"") continue ;;
+              esac
+              lreal=$(resolve_dep "$ldep" $lrpaths $bin_rpaths) || {
+                echo "::error::Cannot resolve dependency $ldep of $libfile"
+                exit 1
+              }
+              lbase=$(basename "$lreal")
+              if [[ ! -f "lib/$lbase" ]]; then
+                cp -L "$lreal" "lib/$lbase"
+                install_name_tool -id "@loader_path/$lbase" "lib/$lbase"
+                codesign --force --sign - "lib/$lbase"
+                bundle_lib "lib/$lbase" "$bin_rpaths"
+              fi
+              install_name_tool -change "$ldep" "@loader_path/$lbase" "$libfile"
+            done <<< "$ldeps"
+            codesign --force --sign - "$libfile"
+          }
+          bundle_binary() {
+            local bin="$1"
+            local rpaths deps dep real base
+            rpaths=$(list_rpaths "$bin")
+            deps=$(otool -L "$bin" | awk 'NR>1 {print $1}')
+            while read -r dep; do
+              case "$dep" in
+                /usr/lib/*|/System/*|@loader_path/*|@executable_path/*|"") continue ;;
+              esac
+              real=$(resolve_dep "$dep" $rpaths) || {
+                echo "::error::Cannot resolve dependency $dep of $bin"
+                exit 1
+              }
+              base=$(basename "$real")
+              if [[ ! -f "lib/$base" ]]; then
+                cp -L "$real" "lib/$base"
+                install_name_tool -id "@loader_path/$base" "lib/$base"
+                codesign --force --sign - "lib/$base"
+                bundle_lib "lib/$base" "$rpaths"
+              fi
+              install_name_tool -change "$dep" "@executable_path/lib/$base" "$bin"
+            done <<< "$deps"
+            codesign --force --sign - "$bin"
+          }
+          cd ./${{ matrix.os }}
+          mkdir -p lib
+          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
+            bundle_binary "$bin"
+          done
+          # Verification: no bundled file may reference Homebrew paths or unresolved @rpath entries
+          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended lib/*; do
+            [[ -f "$bin" ]] || continue
+            if otool -L "$bin" | awk 'NR>1 {print $1}' | grep -qE '^(@rpath/|/opt/homebrew/|/usr/local/)'; then
+              echo "::error::$bin still references Homebrew or unresolved @rpath library paths:"
+              otool -L "$bin"
+              exit 1
+            fi
+            otool -L "$bin"
+          done
+
+      - run: zip -r ./${{ matrix.zip_name }} ./${{matrix.os}}/
 
       - name: Deploy
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./${{matrix.os}}.zip
+          file: ./${{ matrix.zip_name }}
           tag: Nightly
           overwrite: true
           file_glob: true
@@ -114,8 +291,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - owner: simutrans
-            repo: simutrans-pak128.britain-ex
+          - owner: jamespetts
+            repo: simutrans-pak128.britain
             ref: master
             workflow_file_name: deploy-nightly.yml
             token: CI_TOKEN
@@ -126,36 +303,78 @@ jobs:
 #           github_token: ${{ secrets.CI_TOKEN }}
 
     steps:
-      - uses: convictional/trigger-workflow-and-wait@v1.3.0
-        with:
-          owner: ${{ matrix.owner }}
-          repo: ${{ matrix.repo }}
-          ref: ${{ matrix.ref }}
-          workflow_file_name: ${{ matrix.workflow_file_name }}
-          github_token: ${{ secrets[matrix.token] }}
+      - name: Trigger deploy-nightly in the pakset repo and wait
+        env:
+          CI_TOKEN: ${{ secrets[matrix.token] }}
+          LATEST_SHA: ${{ needs.check-updates.outputs.latest_sha }}
+        run: |
+          if [[ -z "$CI_TOKEN" ]]; then
+            echo "::error::Secret ${{ matrix.token }} is not set; cannot trigger the pakset deployment"
+            exit 1
+          fi
+          api="https://api.github.com/repos/${{ matrix.owner }}/${{ matrix.repo }}"
+          ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          payload=$(jq -n --arg ref "${{ matrix.ref }}" --arg repo "${{ github.repository }}" --arg sha "$LATEST_SHA" \
+            '{ref: $ref, inputs: {simutrans_repository: $repo, simutrans_sha: $sha}}')
+          curl -sf -X POST \
+            -H "Authorization: Bearer $CI_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$api/actions/workflows/${{ matrix.workflow_file_name }}/dispatches" \
+            -d "$payload"
+          echo "Dispatched ${{ matrix.workflow_file_name }} on ${{ matrix.owner }}/${{ matrix.repo }} (${{ matrix.ref }}) for simutrans-extended commit $LATEST_SHA, waiting for completion"
+          for i in $(seq 1 80); do
+            sleep 15
+            state=$(curl -sf -H "Authorization: Bearer $CI_TOKEN" \
+              "$api/actions/workflows/${{ matrix.workflow_file_name }}/runs?per_page=5" \
+              | jq -r --arg ts "$ts" '[.workflow_runs[] | select(.created_at >= $ts)][0] | "\(.status)/\(.conclusion)"')
+            case "$state" in
+              completed/success)
+                echo "Pakset deployment succeeded"
+                exit 0
+                ;;
+              completed/*)
+                echo "::error::Pakset deployment finished with: $state"
+                exit 1
+                ;;
+            esac
+          done
+          echo "::error::Timed out waiting for the pakset deployment"
+          exit 1
 
   # TODO: check for changes only deploy if simutrans binaries or at least one of the paksets has changed.
   deploy-package:
     runs-on: ubuntu-latest
-    needs: [update-paks, check-updates]
+    needs: [check-updates, deploy-bin, update-paks]
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.check-updates.outputs.latest_sha }}
-      #Get binaries
-      - name: Get Linux binaries
-        uses: dsaltares/fetch-gh-release-asset@0.06
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          file: linux.zip
-          version: tags/Nightly
-      - name: Get Windows binaries
-        uses: dsaltares/fetch-gh-release-asset@0.06
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          file: windows.zip
-          version: tags/Nightly
+
+      #Get binaries and paksets from the Nightly releases
+      - name: Fetch release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          get_asset() {
+            repo="$1"
+            name="$2"
+            out="$3"
+            asset_url=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$repo/releases/tags/Nightly" \
+              | jq -r --arg name "$name" '.assets[] | select(.name == $name) | .url')
+            if [[ -z "$asset_url" || "$asset_url" == "null" ]]; then
+              echo "::error::Asset $name not found in the Nightly release of $repo"
+              exit 1
+            fi
+            curl -sfL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" -o "$out" "$asset_url"
+          }
+          get_asset "${{ github.repository }}" "linux.zip" "linux.zip"
+          get_asset "${{ github.repository }}" "windows.zip" "windows.zip"
+          get_asset "jamespetts/simutrans-pak128.britain" "pak128.britain-ex-nightly.zip" "pak128.britain-ex-nightly.zip"
+
       - run: |
           unzip ./windows.zip -d .
           mv ./windows/* ./simutrans
@@ -165,14 +384,6 @@ jobs:
           mv ./linux/* ./simutrans
           rm -r ./linux
 
-      #Get paksets
-      - name: Get pak128.britain-ex
-        uses: dsaltares/fetch-gh-release-asset@0.06
-        with:
-          token: ${{ secrets.CI_TOKEN }}
-          repo: simutrans/simutrans-pak128.britain-ex
-          file: pak128.britain-ex-nightly.zip
-          version: tags/Nightly
       #TODO pak192.comic
       - run: unzip pak128.britain-ex-nightly.zip -d ./simutrans/
 
