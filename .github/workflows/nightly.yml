@@ -147,8 +147,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - owner: simutrans
-            repo: simutrans-pak128.britain-ex
+          - owner: jamespetts
+            repo: simutrans-pak128.britain
             ref: master
             workflow_file_name: deploy-nightly.yml
             token: CI_TOKEN
@@ -229,7 +229,7 @@ jobs:
           }
           get_asset "${{ github.repository }}" "linux.zip" "linux.zip"
           get_asset "${{ github.repository }}" "windows.zip" "windows.zip"
-          get_asset "simutrans/simutrans-pak128.britain-ex" "pak128.britain-ex-nightly.zip" "pak128.britain-ex-nightly.zip"
+          get_asset "jamespetts/simutrans-pak128.britain" "pak128.britain-ex-nightly.zip" "pak128.britain-ex-nightly.zip"
 
       - run: |
           unzip ./windows.zip -d .
