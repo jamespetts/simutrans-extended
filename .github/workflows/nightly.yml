@@ -142,24 +142,78 @@ jobs:
       # The CI macOS binaries link against Homebrew dylibs; bundle them next to the
       # executables (@executable_path/lib) and ad-hoc re-sign, so the binaries run on
       # machines without Homebrew. Modified arm64 Mach-Os require a valid signature.
+      # Deliberately no dylibbundler: it prompts interactively for @rpath dependencies
+      # it cannot resolve and loops forever on CI.
       - name: Bundle macOS dylibs
         if: matrix.os == 'macos'
         run: |
-          brew install dylibbundler
-          cd ./${{ matrix.os }}
-          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
-            dylibbundler -of -b -x "$bin" -d ./lib -p @executable_path/lib
+          list_rpaths() {
+            otool -l "$1" | awk '/cmd LC_RPATH/{f=1; next} f && / path /{print $2; f=0}'
+          }
+          resolve_dep() {
+            # $1 = dependency as listed by otool -L, $2... = rpath dirs to search
+            dep="$1"
+            shift
+            case "$dep" in
+              @rpath/*)
+                base="${dep#@rpath/}"
+                for rp in "$@"; do
+                  if [[ -f "$rp/$base" ]]; then echo "$rp/$base"; return 0; fi
+                done
+                return 1
+                ;;
+              *)
+                [[ -f "$dep" ]] && { echo "$dep"; return 0; }
+                return 1
+                ;;
+            esac
+          }
+          bundle_binary() {
+            bin="$1"
+            rpaths=$(list_rpaths "$bin")
+            deps=$(otool -L "$bin" | awk 'NR>1 {print $1}')
+            while read -r dep; do
+              case "$dep" in
+                /usr/lib/*|/System/*|"") continue ;;
+              esac
+              real=$(resolve_dep "$dep" $rpaths) || {
+                echo "::error::Cannot resolve dependency $dep of $bin"
+                exit 1
+              }
+              base=$(basename "$real")
+              if [[ ! -f "lib/$base" ]]; then
+                cp -L "$real" "lib/$base"
+                dylib_rpaths=$(list_rpaths "lib/$base")
+                ndeps=$(otool -L "lib/$base" | awk 'NR>1 {print $1}')
+                while read -r ndep; do
+                  case "$ndep" in
+                    /usr/lib/*|/System/*|"") continue ;;
+                  esac
+                  nreal=$(resolve_dep "$ndep" $dylib_rpaths $rpaths) || {
+                    echo "::error::Cannot resolve dependency $ndep of $base"
+                    exit 1
+                  }
+                  nbase=$(basename "$nreal")
+                  [[ -f "lib/$nbase" ]] || cp -L "$nreal" "lib/$nbase"
+                  install_name_tool -change "$ndep" "@loader_path/$nbase" "lib/$base"
+                done <<< "$ndeps"
+                install_name_tool -id "@loader_path/$base" "lib/$base"
+                codesign --force --sign - "lib/$base"
+              fi
+              install_name_tool -change "$dep" "@executable_path/lib/$base" "$bin"
+            done <<< "$deps"
             codesign --force --sign - "$bin"
-          done
-          if [[ -d ./lib ]]; then
-            for dylib in ./lib/*; do
-              codesign --force --sign - "$dylib"
-            done
-          fi
-          # Verification: no binary may reference Homebrew paths any more
+          }
+          cd ./${{ matrix.os }}
+          mkdir -p lib
           for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
-            if otool -L "$bin" | grep -qE '/(opt/homebrew|usr/local)/'; then
-              echo "::error::$bin still references Homebrew library paths:"
+            bundle_binary "$bin"
+          done
+          # Verification: no binary may reference Homebrew paths or unresolved @rpath entries
+          for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended lib/*; do
+            [[ -f "$bin" ]] || continue
+            if otool -L "$bin" | awk 'NR>1 {print $1}' | grep -qE '^(@rpath/|/opt/homebrew/|/usr/local/)'; then
+              echo "::error::$bin still references Homebrew or unresolved @rpath library paths:"
               otool -L "$bin"
               exit 1
             fi
