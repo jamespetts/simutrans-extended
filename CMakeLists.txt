@@ -198,6 +198,7 @@ elseif (SIMUTRANS_BACKEND STREQUAL "sdl3")
 		target_link_libraries(simutrans-extended PRIVATE PkgConfig::SDL3)
 	endif ()
 	target_compile_definitions(simutrans-extended PRIVATE COLOUR_DEPTH=16)
+	target_compile_definitions(simutrans-extended PRIVATE USE_SDL3=1)
 
 elseif (SIMUTRANS_BACKEND STREQUAL "gdi")
 	target_sources(simutrans-extended PRIVATE display/simgraph16.cc sys/simsys_w.cc ${BACKUP_SOUND} )

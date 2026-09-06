@@ -755,6 +755,7 @@ else ifeq ($(BACKEND),sdl3)
   endif
 
   CFLAGS += $(SDL_CFLAGS)
+  CFLAGS += -DUSE_SDL3=1
   LIBS   += $(SDL_LDFLAGS)
 else ifeq ($(BACKEND),mixer_sdl2)
   SOURCES += sys/simsys_s2.cc
