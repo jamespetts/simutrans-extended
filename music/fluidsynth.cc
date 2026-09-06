@@ -8,7 +8,7 @@
 #include "../utils/plainstring.h"
 #include "../dataobj/environment.h"
 #include "music.h"
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(USE_SDL3)
 	#include <SDL.h>
 #endif
 
@@ -176,22 +176,23 @@ bool dr_init_midi()
 	fluid_settings_setstr( settings, "synth.midi-bank-select", "gm" );
 
 #ifdef _WIN32
-	std::string fluidsynth_driver = "dsound";
-#else
-	std::string fluidsynth_driver = "sdl2";
-
+	if(  fluid_settings_setstr( settings, "audio.driver", "dsound" ) != FLUID_OK  ) {
+		dbg->warning("dr_init_midi()", "FluidSynth: Set MIDI driver dsound failed.");
+		return false;
+	}
+#elif !defined(USE_SDL3)
 	if(  !SDL_WasInit(SDL_INIT_AUDIO)  ) {
 		if(  SDL_InitSubSystem( SDL_INIT_AUDIO ) != 0  ) {
 			dbg->warning("dr_init_midi()", "FluidSynth: SDL_INIT_AUDIO failed.");
 			return false;
 		}
 	}
-#endif
 
-	if(  fluid_settings_setstr( settings, "audio.driver", fluidsynth_driver.c_str() ) != FLUID_OK  ) {
-		dbg->warning("dr_init_midi()", "FluidSynth: Set MIDI driver %s failed.", fluidsynth_driver.c_str());
+	if(  fluid_settings_setstr( settings, "audio.driver", "sdl2" ) != FLUID_OK  ) {
+		dbg->warning("dr_init_midi()", "FluidSynth: Set MIDI driver sdl2 failed.");
 		return false;
 	}
+#endif
 
 	if(  !(synth = new_fluid_synth( settings ))  ) {
 		dbg->warning("dr_init_midi()", "FluidSynth: Synth setup failed.");
