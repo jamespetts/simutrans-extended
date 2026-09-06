@@ -172,13 +172,38 @@ jobs:
                 ;;
             esac
           }
+          bundle_lib() {
+            # Recursively bundle the non-system dependencies of an already-copied lib/ dylib
+            libfile="$1"
+            bin_rpaths="$2"
+            lrpaths=$(list_rpaths "$libfile")
+            ldeps=$(otool -L "$libfile" | awk 'NR>1 {print $1}')
+            while read -r ldep; do
+              case "$ldep" in
+                /usr/lib/*|/System/*|@loader_path/*|@executable_path/*|"") continue ;;
+              esac
+              lreal=$(resolve_dep "$ldep" $lrpaths $bin_rpaths) || {
+                echo "::error::Cannot resolve dependency $ldep of $libfile"
+                exit 1
+              }
+              lbase=$(basename "$lreal")
+              if [[ ! -f "lib/$lbase" ]]; then
+                cp -L "$lreal" "lib/$lbase"
+                install_name_tool -id "@loader_path/$lbase" "lib/$lbase"
+                codesign --force --sign - "lib/$lbase"
+                bundle_lib "lib/$lbase" "$bin_rpaths"
+              fi
+              install_name_tool -change "$ldep" "@loader_path/$lbase" "$libfile"
+            done <<< "$ldeps"
+            codesign --force --sign - "$libfile"
+          }
           bundle_binary() {
             bin="$1"
             rpaths=$(list_rpaths "$bin")
             deps=$(otool -L "$bin" | awk 'NR>1 {print $1}')
             while read -r dep; do
               case "$dep" in
-                /usr/lib/*|/System/*|"") continue ;;
+                /usr/lib/*|/System/*|@loader_path/*|@executable_path/*|"") continue ;;
               esac
               real=$(resolve_dep "$dep" $rpaths) || {
                 echo "::error::Cannot resolve dependency $dep of $bin"
@@ -187,22 +212,9 @@ jobs:
               base=$(basename "$real")
               if [[ ! -f "lib/$base" ]]; then
                 cp -L "$real" "lib/$base"
-                dylib_rpaths=$(list_rpaths "lib/$base")
-                ndeps=$(otool -L "lib/$base" | awk 'NR>1 {print $1}')
-                while read -r ndep; do
-                  case "$ndep" in
-                    /usr/lib/*|/System/*|"") continue ;;
-                  esac
-                  nreal=$(resolve_dep "$ndep" $dylib_rpaths $rpaths) || {
-                    echo "::error::Cannot resolve dependency $ndep of $base"
-                    exit 1
-                  }
-                  nbase=$(basename "$nreal")
-                  [[ -f "lib/$nbase" ]] || cp -L "$nreal" "lib/$nbase"
-                  install_name_tool -change "$ndep" "@loader_path/$nbase" "lib/$base"
-                done <<< "$ndeps"
                 install_name_tool -id "@loader_path/$base" "lib/$base"
                 codesign --force --sign - "lib/$base"
+                bundle_lib "lib/$base" "$rpaths"
               fi
               install_name_tool -change "$dep" "@executable_path/lib/$base" "$bin"
             done <<< "$deps"
@@ -213,7 +225,7 @@ jobs:
           for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended; do
             bundle_binary "$bin"
           done
-          # Verification: no binary may reference Homebrew paths or unresolved @rpath entries
+          # Verification: no bundled file may reference Homebrew paths or unresolved @rpath entries
           for bin in simutrans-extended simutrans-extended-server makeobj-extended nettool-extended lib/*; do
             [[ -f "$bin" ]] || continue
             if otool -L "$bin" | awk 'NR>1 {print $1}' | grep -qE '^(@rpath/|/opt/homebrew/|/usr/local/)'; then
