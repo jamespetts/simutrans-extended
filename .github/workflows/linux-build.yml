@@ -48,6 +48,7 @@ jobs:
       - name: Build and install SDL3 from source
         if: inputs.build_sdl3
         run: |
+          sudo apt-get install -y --no-install-recommends libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxxf86vm-dev libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libdbus-1-dev libibus-1.0-dev
           git clone --depth 1 --branch release-3.4.16 https://github.com/libsdl-org/SDL.git /tmp/sdl3
           cmake -S /tmp/sdl3 -B /tmp/sdl3-build -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
           cmake --build /tmp/sdl3-build -j $(nproc)
