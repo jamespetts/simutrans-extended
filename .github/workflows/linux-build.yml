@@ -18,6 +18,10 @@ on:
         required: false
         type: string
         default: ""
+      build_sdl3:
+        required: false
+        type: boolean
+        default: false
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -39,6 +43,15 @@ jobs:
 
       - name: Install dependencies
         run: sudo apt-get install -y --no-install-recommends zlib1g-dev libbz2-dev ${{inputs.additional_dependencies}}
+
+      # Ubuntu 22.04/24.04 do not package SDL3 (verified 2026-09-06 via the Launchpad archive API)
+      - name: Build and install SDL3 from source
+        if: inputs.build_sdl3
+        run: |
+          git clone --depth 1 --branch release-3.4.16 https://github.com/libsdl-org/SDL.git /tmp/sdl3
+          cmake -S /tmp/sdl3 -B /tmp/sdl3-build -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+          cmake --build /tmp/sdl3-build -j $(nproc)
+          sudo cmake --install /tmp/sdl3-build
 
       - name: Create build directory
         run: mkdir build
