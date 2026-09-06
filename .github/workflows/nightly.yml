@@ -156,7 +156,8 @@ jobs:
           }
           resolve_dep() {
             # $1 = dependency as listed by otool -L, $2... = rpath dirs to search
-            dep="$1"
+            local dep="$1"
+            local base rp
             shift
             case "$dep" in
               @rpath/*)
@@ -173,9 +174,12 @@ jobs:
             esac
           }
           bundle_lib() {
-            # Recursively bundle the non-system dependencies of an already-copied lib/ dylib
-            libfile="$1"
-            bin_rpaths="$2"
+            # Recursively bundle the non-system dependencies of an already-copied lib/ dylib.
+            # All variables must be local: the function recurses, and globals would be
+            # clobbered by the inner invocations (subtle mis-retargeting results).
+            local libfile="$1"
+            local bin_rpaths="$2"
+            local lrpaths ldeps ldep lreal lbase
             lrpaths=$(list_rpaths "$libfile")
             ldeps=$(otool -L "$libfile" | awk 'NR>1 {print $1}')
             while read -r ldep; do
@@ -198,7 +202,8 @@ jobs:
             codesign --force --sign - "$libfile"
           }
           bundle_binary() {
-            bin="$1"
+            local bin="$1"
+            local rpaths deps dep real base
             rpaths=$(list_rpaths "$bin")
             deps=$(otool -L "$bin" | awk 'NR>1 {print $1}')
             while read -r dep; do
