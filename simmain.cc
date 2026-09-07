@@ -356,6 +356,9 @@ void print_help()
 		" -server [PORT]      starts program as server (for network game)\n"
 		"                     without port specified uses 13353\n"
 		" -announce           Enable server announcements\n"
+		" -fast-network-sync N\n"
+		"                     network-sync test mode: server only, N times normal base speed,\n"
+		"                     loopback listening, announcements disabled, save on -until quit\n"
 		" -autodpi            Automatic screen scaling for high DPI screens\n"
 		" -screen_scale N     Manual screen scaling to N percent (0=off)\n"
 		"                     Ignored when -autodpi is specified\n"
@@ -680,6 +683,25 @@ int simu_main(int argc, char** argv)
 			if(  pak_extension!="(unknown)"  ) {
 				env_t::objfilename = pak_extension + "/";
 			}
+		}
+	}
+
+	int fast_network_sync_factor = 0;
+	if(  args.has_arg("-fast-network-sync")  ) {
+		const char *p = args.gimme_arg("-fast-network-sync", 1);
+		const int factor = p ? atoi(p) : 0;
+		if(  factor >= 1  &&  args.has_arg("-server")  &&  !args.has_arg("-easyserver")  ) {
+			fast_network_sync_factor = clamp(factor, 1, 1000);
+			env_t::listen.clear();
+			env_t::listen.append_unique("127.0.0.1");
+			env_t::server_announce = 0;
+			env_t::easy_server = 0;
+			env_t::pause_server_no_clients = false;
+			env_t::server_save_game_on_quit = true;
+			dbg->warning("simu_main()", "Fast network sync test mode enabled at %ix normal speed; listening on 127.0.0.1 only", fast_network_sync_factor);
+		}
+		else {
+			dbg->warning("simu_main()", "-fast-network-sync requires -server and a positive integer speed factor; ignored");
 		}
 	}
 
@@ -1229,6 +1251,15 @@ int simu_main(int argc, char** argv)
 		env_t::server_runs_background_tasks_when_paused = true;
 	}
 
+	if(  fast_network_sync_factor > 0  ) {
+		if(  args.has_arg("-pause")  ) {
+			dbg->warning("simu_main()", "-pause ignored in fast network sync test mode");
+		}
+		env_t::server_announce = 0;
+		env_t::pause_server_no_clients = false;
+		env_t::server_save_game_on_quit = true;
+	}
+
 	if(  args.has_arg("-load")  ) {
 		cbuffer_t buf;
 		dr_chdir( env_t::user_dir );
@@ -1504,6 +1535,10 @@ int simu_main(int argc, char** argv)
 	}
 
 	welt->set_fast_forward(false);
+	if(  fast_network_sync_factor > 0  &&  env_t::server  ) {
+		welt->change_time_multiplier(16 * (fast_network_sync_factor - 1));
+		dbg->warning("simu_main()", "Fast network sync test mode time multiplier: %i", welt->get_time_multiplier());
+	}
 	baum_t::recalc_outline_color();
 
 	uint32 quit_month = 0x7FFFFFFFu;
@@ -1595,6 +1630,12 @@ int simu_main(int argc, char** argv)
 
 		// run the loop
 		welt->interactive(quit_month);
+
+		if(  fast_network_sync_factor > 0  &&  env_t::server  &&  quit_month != 0x7FFFFFFFu  &&  welt->get_current_month() >= quit_month  ) {
+			env_t::server_save_game_on_quit = true;
+			welt->stop(true);
+			break;
+		}
 
 		new_world = true;
 		welt->get_message()->get_message_flags(&env_t::message_flags[0], &env_t::message_flags[1], &env_t::message_flags[2], &env_t::message_flags[3]);
