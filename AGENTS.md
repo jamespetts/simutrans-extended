@@ -1,7 +1,7 @@
 # Simutrans-Extended — agent instructions
 
 C++ transport simulation game. Forked from Standard Simutrans in 2008 (as "Experimental",
-later "Extended"); fully independent since. Large, arcane legacy codebase. Handle with care.
+later "Extended"); fully independent since. Large, legacy codebase. Handle with care.
 
 Two active branches with materially different code:
 - `ex-15` — the next major version (15.x, planned since 2018); the primary work target.
@@ -15,8 +15,8 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 - Entry point: `ai/index.md`. Read it first; then load ONLY the docs whose read-when key
   there matches the task. Never bulk-load the folder.
 - Read `ai/project-notes.md` at the start of most code tasks: short cross-cutting notes
-  that are easy to miss (e.g. the no-floating-point rule for network-synced code).
-- Docs may lag behind the code. The checked-out code is the sole authority; distrust
+  that are easy to miss.
+- Docs might lag behind the code erroneously. The checked-out code is the sole authority; distrust
   any doc claim whose provenance record (frontmatter `verified:`) predates the code it
   describes.
 - Doc conventions (claim tags, provenance records, statuses): `ai/conventions.md` — read it
@@ -24,23 +24,24 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 
 ## Hard rules
 
-1. AI-facing documentation goes ONLY in `ai/` (plus this file). NEVER create documentation
+1. Use only precise, literal language, including internal reasoning. No metaphors
+   or figurative expressions.
+2. AI-facing documentation goes ONLY in `ai/` (plus this file). NEVER create documentation
    colocated with code files, and never create new .md files anywhere else in the repo.
-2. Inside `ai/`, use relative markdown links (`[text](file.md)`) — they work in both
+3. Inside `ai/`, use relative markdown links (`[text](file.md)`) — they work in both
    Obsidian and GitHub. This file uses plain paths.
-3. Priors are not evidence. Anything recalled from training data about Standard Simutrans
+4. Priors are not evidence. Anything recalled from training data about Standard Simutrans
    OR Simutrans-Extended may be wrong or outdated. Use priors only as search hints; verify
    every claim against the checked-out code and tag it per `ai/conventions.md`.
-4. Serialization/sync change restriction: do not change load/save behaviour, savegame or
+5. Serialization/sync change restriction: do not change load/save behaviour, savegame or
    network version constants (`simversion.h`), or checklist/desync-relevant code without
-   first reading `ai/savegame-versioning.md` and `ai/network.md`, and presenting the
-   intended change to the user before proceeding.
-5. After significant code changes, PROPOSE updates to the affected `ai/` docs; the user
+   first reading `ai/sync-and-determinism.md`, `ai/savegame-versioning.md` and
+   `ai/network.md`, and presenting the intended change to the user before proceeding.
+6. After significant code changes, PROPOSE updates to the affected `ai/` docs; the user
    reviews and approves all doc changes before commit. Update provenance records when
    updating docs.
-6. When unsure, write an open question into the relevant doc instead of a claim.
-7. Use precise, literal language in all output, including internal reasoning. No metaphors
-   or figurative expressions.
+7. When unsure, write an open question into the relevant doc instead of a claim.
+
 
 ## Commit messages
 
@@ -69,7 +70,7 @@ or `TODO: <short message>`.
 - The repo root contains much untracked/ignored clutter and some dead legacy files; see
   `ai/repo-map.md` before trusting anything found at the top level.
 
-## Current priorities (user-stated, 2026-09)
+## Current priorities (user-stated, September 2026)
 
-1. Completing the `ex-15` branch — see `ai/ex-15.md`.
+1. Completing the `ex-15` branch (major work) — see `ai/ex-15.md`.
 2. Bug fixes, minor features, testing and optimisation on both branches.

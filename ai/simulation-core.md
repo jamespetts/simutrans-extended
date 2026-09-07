@@ -12,11 +12,11 @@ verified: none
 
 ## Planned sections
 
-- Main loop & stepping (simmain/simintr; interaction with network sync — change-restricted under AGENTS.md rule 4, → [network](network.md)).
+- Main loop & stepping (simmain/simintr; interaction with network sync — change-restricted under AGENTS.md rule 5, → [sync-and-determinism](sync-and-determinism.md), [network](network.md)).
 - World lifecycle: load/save (coordinates with [savegame-versioning](savegame-versioning.md)), world lists.
 - Tool system (simtool): how tools are dispatched and parameterised.
-- Units & numeric types (simunits; float32e8_t → [utilities-and-threading](utilities-and-threading.md)).
-- Invariants; known problems & history (e.g. threading of world-list mutations — root has local-only diagsessions on this).
+- Units & numeric types (simunits; float32e8_t → [utilities](utilities.md)).
+- Invariants; known problems & history (e.g. threading of world-list mutations → [threading](threading.md); root has local-only diagsessions on this).
 
 ## Open questions
 

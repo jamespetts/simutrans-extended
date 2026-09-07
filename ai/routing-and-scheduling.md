@@ -15,7 +15,7 @@ verified: none
 ## Planned sections
 
 - Routing pipeline: passenger & goods routing; where the route-search implementation is (path_explorer vs. a route class — verify, do not assume).
-- path_explorer: role, threading model, and interaction with the main loop (→ [utilities-and-threading](utilities-and-threading.md)) [PRIOR → verify].
+- path_explorer: role and interaction with the main loop; threading model documented in (→ [threading](threading.md)).
 - Connection scoring: Extended criteria (journey time, congestion, comfort, classes — verify which exist and where) [PRIOR → verify].
 - Halts: catchments, coverage, platform/stop mechanics (Extended-specific elements to identify).
 - Schedule system & the ex-15 overhaul (intent + implemented state, code-first).

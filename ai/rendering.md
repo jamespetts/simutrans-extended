@@ -4,7 +4,7 @@ verified: none
 ---
 # Rendering & display
 
-**Covers:** display/ (simgraph*, simimg, viewport, etc.), simcolor.h (root), utils/dr_rdpng.* (PNG decode → [utilities-and-threading](utilities-and-threading.md)), sys/simsys.* backends (→ [utilities-and-threading](utilities-and-threading.md)), simloadingscreen.* (root → [simulation-core](simulation-core.md)), minimap (gui/minimap → [gui](gui.md)).
+**Covers:** display/ (simgraph*, simimg, viewport, etc.), simcolor.h (root), utils/dr_rdpng.* (PNG decode → [utilities](utilities.md)), sys/simsys.* backends (→ [utilities](utilities.md)), simloadingscreen.* (root → [simulation-core](simulation-core.md)), minimap (gui/minimap → [gui](gui.md)). Threaded drawing mechanics → [threading](threading.md).
 
 ## Initial facts
 

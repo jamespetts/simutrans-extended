@@ -52,13 +52,13 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
   1. Each new datum's save and load must be conditional upon the exact same version number (Extended version/revision). The version condition determines both writing and reading, because the user may select a save target version older than the build.
   2. Data not loaded because the file's version is too old must always be assigned a sensible default value (assign defaults to member variables before the conditional block).
   3. Do not alter or remove existing serialization entries — saves written by existing versions must continue to load.
-  4. The position of a new entry within a block does not strictly matter provided its version condition is correct; by convention new data goes at the end of the block that writes the relevant type, because this makes the code more readable.
-  5. Do not change data affecting network sync without following AGENTS.md rule 4 → [network](network.md).
-- Version bumps are rare, and changing them is restricted by AGENTS.md rule 4: `EX_SAVE_MINOR` (+ `EX_VERSION_*` for majors) in simversion.h AND the settings_stats.cc arrays must be extended together (simversion.h warning); present the change to the user before proceeding.
+  4. The position of a new entry within a block does not strictly matter provided its version condition is correct; the end of the block is usually best for readability, but an entry belonging to a set of data read/written together often goes (and is often put) inside that set [RECOLLECTION:2026-09-07].
+  5. Do not change data affecting network sync without following AGENTS.md rule 5 → [network](network.md).
+- Version bumps are rare, and changing them is restricted by AGENTS.md rule 5: `EX_SAVE_MINOR` (+ `EX_VERSION_*` for majors) in simversion.h AND the settings_stats.cc arrays must be extended together (simversion.h warning); present the change to the user before proceeding.
 
 ## Network/desync coupling
 
-- Hash-dump files ("hashes" extension) written with `SAVEGAME_VER_NR` (simworld.cc; network/network_cmd_ingame.cc); `stream_loadsave_t` ("produce hash of savegame_version") and `compare_loadsave_t` (dataobj/loadsave.h) support desync comparison → [network](network.md) [CODE].
+- The loadsave filetype "hashes" (`server%d-pwdhash.sve`) holds player PASSWORD hashes preserved across the network sync reload — not a desync artefact (simworld.cc; network/network_cmd_ingame.cc) [CODE master @ 78a4bb3b9]. Desync debugging uses `stream_loadsave_t`/adler32 whole-state hashing (heavy mode) and `compare_loadsave_t` (dataobj/loadsave.h) → [network](network.md) [CODE].
 
 ## Open questions
 

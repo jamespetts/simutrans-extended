@@ -1,5 +1,5 @@
 ---
-status: draft
+status: reviewed
 verified: none
 ---
 # Documentation architecture
@@ -37,9 +37,16 @@ lifecycle) live in [conventions](conventions.md). Read before authoring or restr
    presenting claims for confirmation or correction, asking the user about the doc's open
    questions, and recording answers with `[RECOLLECTION:<date>]` tags. Agent-side checking
    alone never sets `reviewed`.
+9. **Lazy elaboration.** Stubs are fleshed out only when real work needs them. Docs that
+   the current work programme makes mandatory reading are elaborated proactively; other
+   domain docs (e.g. [gui](gui.md), [rendering](rendering.md)) stay stubs until a first
+   task in that domain requires detail. Do not generate detail speculatively.
+   [RECOLLECTION:2026-09-06]
 
 ## Inventory policy
 
-- New docs get an index key at creation; stubs start with Covers + planned sections only.
+- Top-level docs get an index key at creation; nested docs get their read-when keys from their
+  parent doc, chaining up through any number of layers to the index [RECOLLECTION:2026-09-07].
+  Stubs start with Covers + planned sections only.
 - Stubs may contain tagged initial facts; drafts contain verified system descriptions; `reviewed`
   means the user has checked the content in an interactive walkthrough (core rule 8).
