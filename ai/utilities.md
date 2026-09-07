@@ -2,9 +2,9 @@
 status: stub
 verified: none
 ---
-# Utilities, containers & threading
+# Utilities & containers
 
-**Covers:** tpl/, utils/ (cbuffer_t, simstring, simrandom, simthread, log, sha1, float32e8_t, dr_rdpng, searchfolder, csv, fetchopt, dumb-log; vendored utils/openttd), sys/ (simsys + backends, clipboard), sound/, music/ (assets), unicode.cc/h (root) + ICU dependency. checklist → [network](network.md).
+**Covers:** tpl/, utils/ (cbuffer_t, simstring, simrandom, log, sha1, float32e8_t, dr_rdpng, searchfolder, csv, fetchopt, dumb-log; vendored utils/openttd), sys/ (simsys + backends, clipboard), sound/, music/ (assets), unicode.cc/h (root) + ICU dependency. checklist → [network](network.md). ALL threading (incl. utils/simthread) → [threading](threading.md).
 
 ## Initial facts
 
@@ -15,7 +15,6 @@ verified: none
 ## Planned sections
 
 - Container idioms (vector_tpl, hashtables, templates patterns; for.h).
-- Threading model: simthread; what runs off the main thread (path exploration → [routing-and-scheduling](routing-and-scheduling.md); others to verify); lock usage rules; sync implications (→ [network](network.md)).
 - float32e8_t: custom fixed-point float type; role (determinism across network? verify — do not assume) [UNVERIFIED].
 - simrandom: RNG and its sync-criticality (verify) [UNVERIFIED].
 - Platform layer: sys/simsys backends inventory (per branch), clipboard, filesystem.

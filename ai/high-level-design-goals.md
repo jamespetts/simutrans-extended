@@ -1,0 +1,29 @@
+---
+status: reviewed
+verified: none
+---
+
+# Introduciton
+This is a copy of the forum post from Janaury 2017: https://forum.simutrans.com/index.php/topic,16609.0.html . It contains the high level design goals for Simutrans-Extended (developed together with Pak128.Britain-Ex). 
+
+# Goals
+
+- What counts as a good decision in the game should be as close as possible to what would count as a good decision in an analogous real-life situation so that players can make their decisions imagining themselves to be in that real-life situation, rather than having to understand the game mechanics in detail and make a decision on the basis of those mechanics. In so far as reasonably possible, players should need to know only what aspects of reality are and are not simulated and how to work the user interface.
+- By players playing with a realistic, game-oriented goal (e.g. to maximise profits), realistic transport networks and situations should arise.
+- Within the confines of what is simulated (i.e. excluding matters such as boardroom politics, staff relations, political matters, etc. which no attempt is made to simulate), the level of challenge in achieving economic success by any means in the game should be roughly equivalent to the level of challenge of achieving that success by the same means in real life given the same starting conditions.
+- In most cases, and consistent with real transport history, players should not have to run a maximally efficient operation in order to remain solvent. However, the degree of efficiency required to remain solvent should realistically vary with era and sector (e.g., a much higher degree of efficiency should be required to remain solvent in 21st century aviation than in 19th century railway transport). Lower efficiency should, however, result in sufficiently reduced profitability such as significantly to slow a player's expansion compared with higher efficiency.
+- The game should balance well and perform acceptably on very large maps (e.g. at least the size of England at 125 meters per tile, at equivalent population density), including in networked multi-player mode.
+- There should be long-term network multi-player games on very large maps, which would have a realistic transport history as a result of realistic emergent play by the various players involved pursuing in-game goal oriented strategies with varying degrees of success.
+- The in-game assets should make the game evocative of time and place, dependent on the current era and setting of the relevant pakset. (This is in large part a pakset design goal: there is no intention to impose this on pakset authors who have different goals, e.g. comic paksets, but rather to enable this).
+- There should be a realistic degree of permanence to infrastructure and player assets such as vehicles: players should have to think carefully before investing in any given vehicle or transport route, as it should take a realistically long amount of time to amortise its cost. Players should have a strong incentive not to treat assets as disposable, but manage them efficiently, and doing so should be made easier by in-game tools (such as the tool to choose with which way to replace a way automatically when it has worn out).
+- The in-game history should be apparent from the physical and economic features of the in-game present (together with information presented to the player, e.g. about the year in which a way was first created and last renewed) in a realistic and interesting way.
+- Everything that has a cost or otherwise interacts with the economic system in the game should have a realistic economic function. In general, there should not be things that cost money that have only a cosmetic function or no function at all, nor a choice between different assets where that choice is usually economically significant in the game (e.g. between different vehicles) that in some cases is only of cosmetic importance. (Headquarters, as in Standard, is currently an exception to this rule; consideration will have to be given in the long-term as to what to do with this feature in the light of this).
+- In multi-player games, there should be a mix of co-operative and competitive play styles naturally emerging by players individually pursuing in-game goals such as profit maximisation.
+- Aside from a prohibition of malicious gameplay, harassment and other "trolling", there should need to be as few rules as possible in multi-player games restricting what players may do beyond the restrictions built into the code of the game itself in order for realistic and satisfying gameplay to emerge.
+- In large multi-player games, players ought to be able to choose how much time that they have to invest in their networks by choosing how large to make their networks: smaller networks (e.g. light railways, or specialised local road transport networks, etc.) should need less in-game time to maintain successfully than larger networks (e.g. a trans-national railway network with a full set of suburban services, connecting 'bus routes, etc.). The game should allow players in large multi-player games to play in bursts, leaving their transport networks unattended for periods without being in danger of serious problems. Automated tools should assist this process where possible.
+- Players who are able/willing only to invest enough time into a small network in a large multi-player game should nonetheless be able to enjoy and take advantage of great economic gameplay depth exploited more fully by players with larger networks.
+- Players should never, or almost never, be in a situation where they have so much money that they cease to be under any meaningful financial constraint. The only way of removing financial constraint should be the freeplay mode (in single-player games only).
+
+# Roadmap
+
+Beyond the ex-15 branch, a number of specific features are planned. This is a long list. It can be found in [project-roadmap](project-roadmap.md)
