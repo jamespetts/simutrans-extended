@@ -4707,9 +4707,11 @@ void karte_t::new_month()
 
 	// no autosave in networkmode or when the new world dialogue is shown
 	if( !env_t::networkmode && env_t::autosave>0 && last_month%env_t::autosave==0 && !win_get_magic(magic_welt_gui_t) ) {
-		char buf[128];
-		sprintf( buf, "save/autosave%02i.sve", last_month+1 );
-		save( buf, true, env_t::savegame_version_str, env_t::savegame_ex_version_str, env_t::savegame_ex_revision_str, true );
+		// Saving here, mid-frame, would lose this frame's remaining work when the game is
+		// reloaded from the autosave (loading re-initialises the frame bookkeeping). The
+		// save is therefore deferred to the end of karte_t::step(); the filename can be
+		// derived there from last_month, which cannot change before the end of the frame.
+		autosave_pending = true;
 	}
 
 	recalc_passenger_destination_weights();
@@ -5410,6 +5412,18 @@ void karte_t::step()
 	check_transferring_cargoes();
 
 	rands[25] = get_random_seed();
+
+	// Deferred monthly autosave (flag set in karte_t::new_month()). This point is the
+	// frame boundary: every worker thread started by the previous frame has already been
+	// awaited during this frame, and none has been started for the next one, so the save
+	// is race-free and await_all_threads() inside save() is a no-op. Saving at a frame
+	// boundary means that a game reloaded from the autosave reproduces this timeline exactly.
+	if( autosave_pending ) {
+		autosave_pending = false;
+		char buf[128];
+		sprintf( buf, "save/autosave%02i.sve", last_month+1 );
+		save( buf, true, env_t::savegame_version_str, env_t::savegame_ex_version_str, env_t::savegame_ex_revision_str, true );
+	}
 
 #ifdef MULTI_THREAD_PATH_EXPLORER
 	// Start the path explorer ready for the next step. This can be very
