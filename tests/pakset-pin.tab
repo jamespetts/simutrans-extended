@@ -1,0 +1,13 @@
+# Last-known-good pakset commits for the CI smoke harness, per branch of the pakset
+# repository (github.com/jamespetts/simutrans-pak128.britain).
+#
+# Consumed by .github/workflows/run-tests.yml (blocking harness: the pakset is compiled
+# from the pinned commit with makeobj built from the engine commit under test, so the
+# pak file version always matches the engine, and any run is reproducible from history).
+# Advanced ONLY by .github/workflows/pakset-pin.yml, which compiles the pakset branch
+# head and runs the full harness against it; the pin moves only on a green run
+# (last-known-good ratchet: pakset regressions can never fail push/PR CI).
+#
+# Format: <pakset repo branch> = <full commit sha>
+master = bda8bde09f1d5644cda43998a4251366d5ee9a10
+ex-15 = e0f36d66527b541c51fa70bc2b68dfcfb55d4090

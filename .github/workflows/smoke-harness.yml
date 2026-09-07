@@ -1,0 +1,131 @@
+#
+# Reusable smoke/network-determinism harness.
+#
+# Builds the engine (DEBUG + sanitizer variant: ASan+UBSan default, or TSan) and a plain
+# makeobj from the same checkout, compiles pak128.Britain-Ex from a pinned pakset commit
+# with that makeobj, and runs scripts/run-smoke-tests.sh in network mode. Called by run-tests.yml
+# (blocking ASan variant; non-blocking TSan variant while the known karte_t::load/
+# init_threads race family is open) and pakset-pin.yml (pin-candidate verification,
+# ASan variant only - the ratchet must not be gated on the knowingly-red TSan job).
+#
+name: Smoke harness
+on:
+  workflow_call:
+    inputs:
+      pakset_sha:
+        description: 'Commit of jamespetts/simutrans-pak128.britain to compile the pakset from.'
+        type: string
+        required: true
+      engine_ref:
+        description: 'Engine ref to check out. Empty: the caller run ref (github.sha).'
+        type: string
+        default: ''
+        required: false
+      label:
+        description: 'Suffix for failure artifacts (must be unique within the run).'
+        type: string
+        required: true
+      sanitizer:
+        description: 'Sanitizer variant: asan (ASan+UBSan) or tsan (ThreadSanitizer).'
+        type: string
+        default: 'asan'
+        required: false
+      runner_timeout_s:
+        description: 'Per-run watchdog seconds passed to run-smoke-tests.sh.'
+        type: number
+        default: 600
+        required: false
+      job_timeout_minutes:
+        description: 'Job-level timeout (TSan runs are several times slower).'
+        type: number
+        default: 90
+        required: false
+
+jobs:
+  smoke-harness:
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ inputs.job_timeout_minutes }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.engine_ref }}
+    - name: Resolve head sha
+      id: head
+      run: echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Install dependencies
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache:smoke-harness:${{ steps.head.outputs.head_sha }}
+        restore-keys: |
+          ccache:smoke-harness:
+    - name: Configure
+      run: |
+        autoconf
+        CC="ccache clang-14" CXX="ccache clang++-14" ./configure --enable-server
+    - name: Build makeobj (plain, before sanitizer flags)
+      run: CC="ccache clang-14" CXX="ccache clang++-14" make -j$(nproc) makeobj
+    - name: Build engine (DEBUG + sanitizers)
+      run: |
+        echo "DEBUG = 2" >> config.default
+        if [ "${{ inputs.sanitizer }}" = "tsan" ]; then
+          echo "FLAGS   += -fsanitize=thread" >> config.default
+          echo "LDFLAGS += -fsanitize=thread" >> config.default
+        else
+          echo "FLAGS += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=shift,function" >> config.default
+          echo "LDFLAGS += -fsanitize=address,undefined" >> config.default
+        fi
+        CC="ccache clang-14" CXX="ccache clang++-14" make -j$(nproc)
+    - name: Locate binaries
+      run: |
+        engine_path=$(find . -maxdepth 4 -type f -name simutrans-extended -not -path './pakset-src/*' -not -path './simutrans/*' | head -1)
+        makeobj_path=$(find . -maxdepth 4 -type f -name makeobj-extended -not -path './pakset-src/*' | head -1)
+        [ -n "$engine_path" ] || { echo "::error::engine binary not found"; exit 1; }
+        [ -n "$makeobj_path" ] || { echo "::error::makeobj binary not found"; exit 1; }
+        echo "ENGINE_BIN=$(readlink -f "$engine_path")" >> "$GITHUB_ENV"
+        echo "MAKEOBJ_BIN=$(readlink -f "$makeobj_path")" >> "$GITHUB_ENV"
+    - name: Checkout pakset sources
+      uses: actions/checkout@v4
+      with:
+        repository: jamespetts/simutrans-pak128.britain
+        ref: ${{ inputs.pakset_sha }}
+        path: pakset-src
+    - name: Cache compiled pakset
+      id: pakcache
+      uses: actions/cache@v4
+      with:
+        path: pakset-src/pak128.Britain-Ex
+        key: pakset-${{ inputs.pakset_sha }}@${{ steps.head.outputs.head_sha }}
+    - name: Compile pakset
+      if: steps.pakcache.outputs.cache-hit != 'true'
+      run: make -C pakset-src MAKEOBJ="$MAKEOBJ_BIN"
+    - name: Link pakset into simutrans/
+      run: ln -sfn ../pakset-src/pak128.Britain-Ex simutrans/pak128.Britain-Ex
+    - name: Run harness
+      run: |
+        echo "engine: $ENGINE_BIN"
+        echo "pakset: ${{ inputs.pakset_sha }}  sanitizer: ${{ inputs.sanitizer }}"
+        if [ "${{ inputs.sanitizer }}" = "tsan" ]; then
+          # Report-and-continue (no halt_on_error): all races land in the logs in one
+          # run, and the network determinism result is still produced. Detection
+          # is via the runner's log markers (ThreadSanitizer), not the exit code.
+          export TSAN_OPTIONS="print_stacktrace=1 second_deadlock_stack=1 history_size=7 verbose=2"
+          markers="FATAL ERROR|ThreadSanitizer|runtime error"
+        else
+          markers="FATAL ERROR|AddressSanitizer|runtime error"
+        fi
+        bash scripts/run-smoke-tests.sh --exe "$ENGINE_BIN" --timeout ${{ inputs.runner_timeout_s }} --markers "$markers" --mode network --fast-network-sync 100 --server-port 13353 --save-format bzip2
+    - name: Upload logs and results on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: smoke-harness-${{ inputs.label }}
+        path: |
+          ai/temp/simutest/logs
+          ai/temp/simutest/results
+        if-no-files-found: ignore
