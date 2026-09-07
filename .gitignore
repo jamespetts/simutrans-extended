@@ -132,6 +132,13 @@ $RECYCLE.BIN/
 .vs/
 .vscode/
 
+#opencode agent configuration (local, machine-specific)
+opencode.jsonc
+.opencode/
+
+#MSVC code-analysis/build output directories at the root (e.g. Simutran.0621B295/)
+/Simutran.*/
+
 # =========================
 # Operating System Files
 # =========================
