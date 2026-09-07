@@ -235,6 +235,8 @@ confirms they affect current builds in live games.
 | [Erroneous commit tag in game window](https://forum.simutrans.com/index.php/topic,21100.0.html) | 2022 | |
 | [Padded city chart numbers (jobs/visitor demand)](https://forum.simutrans.com/index.php/topic,21236.0.html) | 2022 | |
 | `state_names[]` debug array in simconvoi.cc stale (not a forum report: code inspection 2026-09-07) | — | ex-15 only: 25 names for a 30-value states enum; the 15.x convoy states (REPLENISHING/MAINTENANCE/OVERHAUL/AWAITING_TRIGGER/SHUNTING) log wrong names — misleads debugging/logging [CODE ex-15 @ 91d9b252e] |
+| Dead/broken container utilities in tpl/ (not a forum report: code inspection 2026-09-07) | — | koord_pair_hashtable_tpl: `comp()` returns bool (violates the hashtable diff contract → wrong "absent" results) and its companion iterator class cannot compile; quickstone_tpl `(T*,bool)` ctor scan loop increments instead of decrements (both unused); freelist_tpl/freelist_iter_tpl unused, iter variant uncompilable. Fix-or-delete undecided (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
+| Dead utils/ files (not a forum report: code inspection 2026-09-07) | — | notification.h (zero includes), snprintf.h (uncompilable PHP-derived stub), dbg_weightmap.* (never-defined DEBUG_WEIGHTMAPS gate, .cc unbuilt), dumb-log.cc (test-only log_t impl), omzet2.c (legacy font converter, unbuilt). User decision 2026-09-07: delete when convenient [RECOLLECTION:2026-09-07]. Note: dumb-log.cc is pulled in by tpl/test_piecewise_linear_tpl.cc (also unbuilt) — deleting it means deleting or rewiring that test (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
 
 ## Open questions
 
