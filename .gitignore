@@ -52,6 +52,9 @@ ipch
 Pak*
 pak*
 PAK*
+# ... except the deliberately tracked CI pakset pin files:
+!.github/workflows/pakset-pin.yml
+!tests/pakset-pin.tab
 settings.xml
 /simutrans-experimental
 /Debug-new
@@ -205,3 +208,6 @@ text/all-help-file-names
 /Simutrans-Ex/nbproject/private/
 *.cache
 configure
+
+# Agent scratch space (test working dirs, logs, handoff notes) — AGENTS.md rule 8
+/ai/temp/
