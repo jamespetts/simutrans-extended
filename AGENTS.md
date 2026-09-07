@@ -41,6 +41,8 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
    reviews and approves all doc changes before commit. Update provenance records when
    updating docs.
 7. When unsure, write an open question into the relevant doc instead of a claim.
+8. Do *not* write outside the project directory unless absolutely unavoidable. This 
+   requires the user's explicit permission, which wastes the user's time.
 
 
 ## Commit messages
