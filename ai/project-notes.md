@@ -21,6 +21,10 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
    
 - Saved games are fragile and versioned per datum. See [savegame-versioning](savegame-versioning.md) for details. 
 
+- (ex-15 only) No booking of cost or revenue may use base-level .dat prices, or any function of them, that
+  bypasses inflation adjustment (`karte_t::get_inflation_adjusted_price`, config/prices.tab; the API does not
+  exist on master). [RECOLLECTION:2026-09-07; mechanism CODE ex-15 @ 91d9b252e] Status/audit: [ex-15 economy registry](ex-15/economy-and-vehicles.md).
+
 - Use simrand() for a random number with a seed that can be synchronised among server/clients in a network game (i.e. for
   all RNG that needs to be deterministic among clients/server in a network game to stay in sync). Use sim_async_rand()
   for when this is definitely *not* necessary (e.g. RNG for a UI feature that does not need to be shared).

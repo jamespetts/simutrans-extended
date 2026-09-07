@@ -196,6 +196,11 @@ confirms they affect current builds in live games.
 | [Multitile signalbox refuses to be built on artificial flat slopes](https://forum.simutrans.com/index.php/topic,21429.0.html) | 2022 | |
 | [Overtaking algorithm is broken at a railroad crossing](https://forum.simutrans.com/index.php/topic,21030.0.html) | 2022 | |
 | [Choose Sign sends train to occupied platform (reproducible)](https://forum.simutrans.com/index.php/topic,21151.0.html) | 2022 | reported reproducible |
+| Wear-based running cost never reaches the finances (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `convoi_t::increment_odometer` books the descriptor-level running cost; the sigmoid wear increase (`vehicle_t::get_running_cost`) is computed and displayed but never booked, so usage-based maintenance has no financial effect. Inflation IS accounted for in this path; the defect is solely the omitted wear increase. User-confirmed bug [RECOLLECTION:2026-09-07] [CODE ex-15 @ 91d9b252e]. Detail → [ex-15 economy registry](ex-15/economy-and-vehicles.md) |
+| Sigmoid argument unsigned wrap in wear/availability curves (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `vehicle_t::get_running_cost`/`get_availability` compute `sigmoid(100000ll * (km_since_last_overhaul - max_distance_between_overhauls), ...)`, negative throughout the active branch (unsigned wrap); the aircraft counterparts subtract the decay-start value. Affects displayed costs AND real depot time (`maintain()` divides by availability) [CODE ex-15 @ 91d9b252e] |
+| `schedule_t::copy_from` leaves stale consist orders and skips table recomputation (not a forum report: code inspection 2026-09-07) | — | ex-15 only: copies `orders` without clearing pre-existing keys and without recomputing the `parse_orders`-derived carried-category/class tables; a convoy adopting a line's schedule can hold stale orders with empty derived tables (routing may treat it as carrying nothing) [CODE ex-15 @ 91d9b252e] |
+| `convoi_t::check_pending_updates` depot-entry restore passes wrong arguments (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `schedule_t::insert` is called with `removed_depot_entry.target_id_uncouple` in the target_id_couple parameter position and a bool in the target_id_uncouple position; target_id_couple, target_unique_entry_uncouple and max_speed_kmh are not restored at all — silent schedule-entry data corruption when a convoy adopts line changes [CODE ex-15 @ 91d9b252e] |
+| Post-shunting departure skips departure checks (not a forum report: code inspection 2026-09-07) | — | ex-15 only: a convoy completing a consist order transitions SHUNTING → ROUTING_1 → advance_schedule without passing `check_departure`, departing immediately after the shunting delay and ignoring minimum loading and spacing slots. User-confirmed defect [RECOLLECTION:2026-09-07] [CODE ex-15 @ 91d9b252e]. Context → [ex-15 schedule registry](ex-15/schedule-and-consists.md) |
 
 ## P3 — low
 
@@ -216,6 +221,8 @@ confirms they affect current builds in live games.
 | [Unable to compile Extended in Arch's MinGW cross-compilation toolchain](https://forum.simutrans.com/index.php/topic,21401.0.html) | 2022 | likely stale — CI MinGW builds pass; verify |
 | [The lines of the combobox collapse and overlap in one line](https://forum.simutrans.com/index.php/topic,21776.0.html) | 2022 | |
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
+| Schedule trigger flag polarity mismatch (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `convoi_t::ziel_erreicht` treats cond_trigger_is_line_or_cnv set=line/unset=convoy, the reverse of the couple/uncouple equivalents (set=convoy); the GUI stores a line ID without setting the flag. Latent until the trigger GUI is wired [CODE ex-15 @ 91d9b252e]. Context → [ex-15 schedule registry](ex-15/schedule-and-consists.md) |
+| Urgent maintenance does not force a depot visit (not a forum report: code inspection 2026-09-07) | — | ex-15 only: exceeding 1.5× maintenance_interval_km sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit wherever the convoy is; user confirms the comment reflects intent [RECOLLECTION:2026-09-07] [CODE ex-15 @ 91d9b252e] |
 
 ## P4 — very low / backlog
 
@@ -227,6 +234,7 @@ confirms they affect current builds in live games.
 | [Can break the slope (shore) texture](https://forum.simutrans.com/index.php/topic,21425.0.html) | 2022 | |
 | [Erroneous commit tag in game window](https://forum.simutrans.com/index.php/topic,21100.0.html) | 2022 | |
 | [Padded city chart numbers (jobs/visitor demand)](https://forum.simutrans.com/index.php/topic,21236.0.html) | 2022 | |
+| `state_names[]` debug array in simconvoi.cc stale (not a forum report: code inspection 2026-09-07) | — | ex-15 only: 25 names for a 30-value states enum; the 15.x convoy states (REPLENISHING/MAINTENANCE/OVERHAUL/AWAITING_TRIGGER/SHUNTING) log wrong names — misleads debugging/logging [CODE ex-15 @ 91d9b252e] |
 
 ## Open questions
 
