@@ -8,6 +8,13 @@ Two active branches with materially different code:
 - `master` — the stable/release line (14.x).
 Always identify the checked-out branch first (`git branch --show-current`).
 
+Branch selection rule (user instruction, 2026-09-08): work that is not specific to a
+development branch — CI/workflows, build system, `ai/` docs, tooling, and fixes that
+apply identically to all branches — is done on `master` first and then merged into the
+active development branch (currently `ex-15`; this rule generalises to whichever
+development branch is active after `ex-15` merges into `master`). Work specific to a
+development branch is done on that branch directly.
+
 ## Knowledge base
 
 All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for lazy retrieval.
