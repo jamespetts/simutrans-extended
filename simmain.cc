@@ -348,7 +348,7 @@ void print_help()
 		" -nomidi             turns off background music\n"
 		" -nosound            turns off ambient sounds\n"
 		" -objects DIR_NAME/  load the pakset in specified directory\n"
-		" -pause              starts game with paused after loading\n"
+		" -pause              starts the game paused after loading\n"
 		"                     a server will pause if there are no clients, even if this be not specified in simuconf.tab\n"
 		" -res N              starts in specified resolution: \n"
 		"                      1=640x480, 2=800x600, 3=1024x768, 4=1280x1024\n"
