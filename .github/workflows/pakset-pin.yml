@@ -74,11 +74,11 @@ jobs:
       runner_timeout_s: 1800
       job_timeout_minutes: 180
 
-  # Explicit conclusion check: skipped/failure of verify-master must not promote
+  # Explicit result check: skipped/failure of verify-master must not promote
   # (success() semantics for skipped needs are not to be relied on).
   promote-master:
     needs: [resolve-master, verify-master]
-    if: needs.verify-master.conclusion == 'success'
+    if: needs.verify-master.result == 'success'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -149,11 +149,11 @@ jobs:
       runner_timeout_s: 1800
       job_timeout_minutes: 180
 
-  # Explicit conclusion check: skipped/failure of verify-ex-15 must not promote
+  # Explicit result check: skipped/failure of verify-ex-15 must not promote
   # (success() semantics for skipped needs are not to be relied on).
   promote-ex-15:
     needs: [resolve-ex-15, verify-ex-15]
-    if: needs.verify-ex-15.conclusion == 'success'
+    if: needs.verify-ex-15.result == 'success'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
