@@ -40,6 +40,10 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
   (e.g. no duplicated checks) in these areas. *Always* give detailed consideration to the performance impact of *any* 
   change that runs under step() or sync_step(). 
 
+- Use the Simutrans container and utility classes (tpl/, utils/) instead of std (etc.) equivalents
+  for new code: they are profiled to be faster for this game's workloads. Inventory + gotchas:
+  [utilities](utilities.md). [RECOLLECTION:2026-09-07]
+
 - Simutrans-Extended is multi-threaded with pthreads. It has unique (i.e. not in Standard) multi-threading for simulation
   code. These are bespoke designs that can be fragile but considerably improve performance. Modify only with great care.
   Network desyncs are a huge risk with even slightly incorrect multi-threading of simulation code.

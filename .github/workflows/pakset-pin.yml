@@ -1,0 +1,179 @@
+#
+# Pakset pin updater (last-known-good ratchet).
+#
+# For each maintained branch: resolve the head of the matching branch of the pakset
+# repository (jamespetts/simutrans-pak128.britain), and if it differs from the pin in
+# tests/pakset-pin.tab, compile it and run the full smoke harness against it (via
+# smoke-harness.yml). Only on a green harness run is the pin advanced, by direct commit
+# to the branch. A red run leaves the pin at the last known good commit and serves as
+# the early-warning signal that the pakset head is incompatible; push/PR CI (which uses
+# the pin) is never failed by pakset regressions.
+#
+# Note: scheduled runs fire only on the default branch's copy of this file, so one copy
+# updates both branches via separate per-branch jobs (reusable workflows can only be
+# called at job level, and matrix job outputs come from a single leg, hence the explicit
+# job triplets). The file is identical on master and ex-15.
+#
+name: Pakset pin updater
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: pakset-pin
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-master:
+    runs-on: ubuntu-latest
+    outputs:
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      current: ${{ steps.resolve.outputs.current }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: master
+    - name: Resolve pakset head and current pin
+      id: resolve
+      run: |
+        branch="master"
+        head_sha=$(git ls-remote https://github.com/jamespetts/simutrans-pak128.britain.git "refs/heads/$branch" | cut -f1)
+        if [ -z "$head_sha" ]; then
+          echo "::error::pakset branch '$branch' not found"
+          exit 1
+        fi
+        pinned=$(awk -F' *= *' -v k="$branch" '$1 == k { print $2 }' tests/pakset-pin.tab)
+        if [ -z "$pinned" ]; then
+          echo "::error::no pakset pin for '$branch' in tests/pakset-pin.tab"
+          exit 1
+        fi
+        echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+        if [ "$head_sha" = "$pinned" ]; then
+          echo "current=true" >> "$GITHUB_OUTPUT"
+          echo "pin is current: $head_sha"
+        else
+          echo "current=false" >> "$GITHUB_OUTPUT"
+          echo "pakset head $head_sha differs from pin $pinned"
+        fi
+
+  verify-master:
+    needs: resolve-master
+    if: needs.resolve-master.outputs.current == 'false'
+    uses: ./.github/workflows/smoke-harness.yml
+    with:
+      pakset_sha: ${{ needs.resolve-master.outputs.head_sha }}
+      engine_ref: master
+      label: pin-master
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
+
+  # Explicit conclusion check: skipped/failure of verify-master must not promote
+  # (success() semantics for skipped needs are not to be relied on).
+  promote-master:
+    needs: [resolve-master, verify-master]
+    if: needs.verify-master.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: master
+        fetch-depth: 0
+    - name: Promote pin
+      run: |
+        branch="master"
+        head_sha="${{ needs.resolve-master.outputs.head_sha }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "4188903+github-actions[bot]@users.noreply.github.com"
+        sed -i "s|^$branch = .*|$branch = ${head_sha}|" tests/pakset-pin.tab
+        grep -q "^$branch = ${head_sha}$" tests/pakset-pin.tab || { echo "::error::sed did not update the pin line"; exit 1; }
+        git add tests/pakset-pin.tab
+        if git diff --cached --quiet; then
+          echo "pin unchanged; nothing to promote"
+          exit 0
+        fi
+        git commit -m "BUILD: bump CI pakset pin ($branch) to ${head_sha::7}"
+        git pull --rebase origin "$branch"
+        git push origin "HEAD:$branch"
+
+  resolve-ex-15:
+    runs-on: ubuntu-latest
+    outputs:
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      current: ${{ steps.resolve.outputs.current }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ex-15
+    - name: Resolve pakset head and current pin
+      id: resolve
+      run: |
+        branch="ex-15"
+        head_sha=$(git ls-remote https://github.com/jamespetts/simutrans-pak128.britain.git "refs/heads/$branch" | cut -f1)
+        if [ -z "$head_sha" ]; then
+          echo "::error::pakset branch '$branch' not found"
+          exit 1
+        fi
+        pinned=$(awk -F' *= *' -v k="$branch" '$1 == k { print $2 }' tests/pakset-pin.tab)
+        if [ -z "$pinned" ]; then
+          echo "::error::no pakset pin for '$branch' in tests/pakset-pin.tab"
+          exit 1
+        fi
+        echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+        if [ "$head_sha" = "$pinned" ]; then
+          echo "current=true" >> "$GITHUB_OUTPUT"
+          echo "pin is current: $head_sha"
+        else
+          echo "current=false" >> "$GITHUB_OUTPUT"
+          echo "pakset head $head_sha differs from pin $pinned"
+        fi
+
+  verify-ex-15:
+    needs: resolve-ex-15
+    if: needs.resolve-ex-15.outputs.current == 'false'
+    uses: ./.github/workflows/smoke-harness.yml
+    with:
+      pakset_sha: ${{ needs.resolve-ex-15.outputs.head_sha }}
+      engine_ref: ex-15
+      label: pin-ex-15
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
+
+  # Explicit conclusion check: skipped/failure of verify-ex-15 must not promote
+  # (success() semantics for skipped needs are not to be relied on).
+  promote-ex-15:
+    needs: [resolve-ex-15, verify-ex-15]
+    if: needs.verify-ex-15.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ex-15
+        fetch-depth: 0
+    - name: Promote pin
+      run: |
+        branch="ex-15"
+        head_sha="${{ needs.resolve-ex-15.outputs.head_sha }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "4188903+github-actions[bot]@users.noreply.github.com"
+        sed -i "s|^$branch = .*|$branch = ${head_sha}|" tests/pakset-pin.tab
+        grep -q "^$branch = ${head_sha}$" tests/pakset-pin.tab || { echo "::error::sed did not update the pin line"; exit 1; }
+        git add tests/pakset-pin.tab
+        if git diff --cached --quiet; then
+          echo "pin unchanged; nothing to promote"
+          exit 0
+        fi
+        git commit -m "BUILD: bump CI pakset pin ($branch) to ${head_sha::7}"
+        git pull --rebase origin "$branch"
+        git push origin "HEAD:$branch"

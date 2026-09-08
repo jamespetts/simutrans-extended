@@ -42,7 +42,10 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
    updating docs.
 7. When unsure, write an open question into the relevant doc instead of a claim.
 8. Do *not* write outside the project directory unless absolutely unavoidable. This 
-   requires the user's explicit permission, which wastes the user's time.
+   requires the user's explicit permission, which wastes the user's time. All temporary
+   and scratch files (test working dirs, run logs, drafts, handoff notes) go in `ai/temp/`
+   (gitignored). Clear `ai/temp/` at the end of a work session. At session start, if
+   `ai/temp/` is non-empty, read any handoff notes there first.
 
 
 ## Commit messages

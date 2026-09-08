@@ -697,6 +697,13 @@ private:
 	sint32 last_year;
 
 	/**
+	 * Transient flag: a monthly autosave is due, deferred from karte_t::new_month() to
+	 * the end of karte_t::step() so that it captures a complete frame. Never serialised:
+	 * it is set and consumed within the same frame.
+	 */
+	bool autosave_pending = false;
+
+	/**
 	 * Current season.
 	 * @note 0=winter, 1=spring, 2=summer, 3=autumn
 	 */

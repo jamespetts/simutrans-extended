@@ -99,6 +99,20 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### Intermittent network-server final-save divergence — priority 1
+
+- The network determinism harness sometimes reports non-byte-identical final
+  `server<port>-restore.sve` files from two nominally identical loopback server runs
+  (`tests/demo.sve`, `-fast-network-sync 100`, `-until 1945.6`, same port, cleared local
+  settings, announcements disabled) [CODE master @ f7fa92c88: scripts/run-smoke-tests.ps1,
+  simmain.cc; observed by local Optimised-debug Windows runs].
+- Observed differences in decompressed zipped saves cluster around byte 2,211,430; repeated
+  runs usually pass and XML-format runs have passed. The differing serialized fields are not
+  identified.
+- Network lockstep requires byte-identical gamestate, so this is a candidate desync risk.
+  Re-rank 0 if triage confirms live multiplayer impact; it may instead be non-gamestate save
+  metadata or a harness artifact [UNVERIFIED].
+
 ### MSVC "single threaded" configurations silently compile multi-threaded — priority 4
 
 - "Release (single threaded)|x64" defines `MULTI_THREAD=0` and "Debug (single threaded new)|x64"
@@ -116,6 +130,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Intermittent network-server final-save divergence (not a forum report: network test-suite observation) | — | detailed entry above |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -235,6 +250,8 @@ confirms they affect current builds in live games.
 | [Erroneous commit tag in game window](https://forum.simutrans.com/index.php/topic,21100.0.html) | 2022 | |
 | [Padded city chart numbers (jobs/visitor demand)](https://forum.simutrans.com/index.php/topic,21236.0.html) | 2022 | |
 | `state_names[]` debug array in simconvoi.cc stale (not a forum report: code inspection 2026-09-07) | — | ex-15 only: 25 names for a 30-value states enum; the 15.x convoy states (REPLENISHING/MAINTENANCE/OVERHAUL/AWAITING_TRIGGER/SHUNTING) log wrong names — misleads debugging/logging [CODE ex-15 @ 91d9b252e] |
+| Dead/broken container utilities in tpl/ (not a forum report: code inspection 2026-09-07) | — | koord_pair_hashtable_tpl: `comp()` returns bool (violates the hashtable diff contract → wrong "absent" results) and its companion iterator class cannot compile; quickstone_tpl `(T*,bool)` ctor scan loop increments instead of decrements (both unused); freelist_tpl/freelist_iter_tpl unused, iter variant uncompilable. Fix-or-delete undecided (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
+| Dead utils/ files (not a forum report: code inspection 2026-09-07) | — | notification.h (zero includes), snprintf.h (uncompilable PHP-derived stub), dbg_weightmap.* (never-defined DEBUG_WEIGHTMAPS gate, .cc unbuilt), dumb-log.cc (test-only log_t impl), omzet2.c (legacy font converter, unbuilt). User decision 2026-09-07: delete when convenient [RECOLLECTION:2026-09-07]. Note: dumb-log.cc is pulled in by tpl/test_piecewise_linear_tpl.cc (also unbuilt) — deleting it means deleting or rewiring that test (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
 
 ## Open questions
 

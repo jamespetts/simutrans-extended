@@ -1,22 +1,100 @@
 #
 # CI for running tests
 #
-
-on: [push, pull_request]
+# Blocking gate: the smoke harness (smoke + network determinism on tests/demo.sve, via
+# scripts/run-smoke-tests.sh) against the pinned pakset commit in tests/pakset-pin.tab
+# (last-known-good ratchet; the pin is advanced only on green runs by pakset-pin.yml).
+# Plus a non-blocking TSan flavour of the same harness (knowingly red from the open
+# karte_t::load/init_threads race family; see the smoke-harness-tsan job).
+#
+# Bypassed for now (user decision 2026-09-07): the legacy Squirrel scenario jobs. The
+# suite is deferred; both jobs currently hang until their 10 minute timeout (verified
+# 2026-09-07, run 34157611380), and TSan additionally reports a known race family in
+# karte_t::load/init_threads (see ai/threading.md). They never run on push/PR; the full
+# infrastructure stays wired and can be exercised on demand via "Run workflow" with the
+# squirrel_tests input ticked (results then report honestly - no continue-on-error).
+#
+on:
+  push:
+    branches: [master, ex-15]
+  pull_request:
+    branches: [master, ex-15]
+  workflow_dispatch:
+    inputs:
+      squirrel_tests:
+        description: 'Also run the deferred Squirrel scenario jobs'
+        type: boolean
+        default: false
 name: Automated Tests
 
 jobs:
+  resolve-pakset-pin:
+    runs-on: ubuntu-latest
+    outputs:
+      pakset_sha: ${{ steps.pin.outputs.pakset_sha }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Read pin
+      id: pin
+      run: |
+        branch="${{ github.base_ref || github.ref_name }}"
+        case "$branch" in
+          ex-15) key="ex-15" ;;
+          *) key="master" ;;
+        esac
+        sha=$(awk -F' *= *' -v k="$key" '$1 == k { print $2 }' tests/pakset-pin.tab)
+        if [ -z "$sha" ]; then
+          echo "::error::no pakset pin for key '$key' in tests/pakset-pin.tab"
+          exit 1
+        fi
+        echo "pakset_sha=$sha" >> "$GITHUB_OUTPUT"
+        echo "pakset pin ($key): $sha"
+
+  smoke-harness:
+    needs: resolve-pakset-pin
+    uses: ./.github/workflows/smoke-harness.yml
+    with:
+      pakset_sha: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
+      label: ${{ github.base_ref || github.ref_name }}
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
+
+  smoke-harness-tsan:
+    # Non-blocking: knowingly red today from the open karte_t::load/init_threads race
+    # family (ai/known-bugs.md, priority 2). Runs on every push deliberately - it keeps
+    # the family visible, covers races the determinism test cannot see (unsynchronised
+    # accesses that do not perturb the savegame bytes), and catches NEW races. Drop the
+    # continue-on-error once the family is fixed. TSan is several times slower than ASan,
+    # hence the enlarged timeouts (tune after the first CI runs).
+    continue-on-error: true
+    needs: resolve-pakset-pin
+    uses: ./.github/workflows/smoke-harness.yml
+    with:
+      pakset_sha: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
+      label: tsan-${{ github.base_ref || github.ref_name }}
+      sanitizer: tsan
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 3600
+      job_timeout_minutes: 300
+
   run-tests-asan-ubsan:
+    # Deferred Squirrel suite: on-demand only (workflow_dispatch with the input ticked);
+    # bypassed on push/PR. Remove the if: to reinstate permanently.
+    if: github.event_name == 'workflow_dispatch' && inputs.squirrel_tests
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get -y update
         sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.ccache
         key: ccache:${{ github.job }}:${{ github.ref }}:${{ github.sha }}
@@ -27,6 +105,7 @@ jobs:
       run: |
         autoconf
         CC="ccache clang-14" CXX="ccache clang++-14" ./configure
+        echo "DEBUG = 2" >> config.default
         echo "FLAGS += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=shift,function" >> config.default
         echo "LDFLAGS += -fsanitize=address,undefined" >> config.default
     - name: Build Simutrans
@@ -55,16 +134,20 @@ jobs:
         timeout 10m ./run-automated-tests.sh # 10 minutes ought to be enough for anybody.
 
   run-tests-tsan:
+    # Deferred Squirrel suite + known TSan race family in karte_t::load/init_threads
+    # (see ai/threading.md): on-demand only (workflow_dispatch with the input ticked);
+    # bypassed on push/PR. Remove the if: to reinstate permanently.
+    if: github.event_name == 'workflow_dispatch' && inputs.squirrel_tests
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get -y update
         sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.ccache
         key: ccache:${{ github.job }}:${{ github.ref }}:${{ github.sha }}
@@ -75,6 +158,7 @@ jobs:
       run: |
         autoconf
         CC="ccache clang-14" CXX="ccache clang++-14" ./configure
+        echo "DEBUG = 2" >> config.default
         echo "FLAGS   += -fsanitize=thread" >> config.default
         echo "LDFLAGS += -fsanitize=thread" >> config.default
     - name: Build Simutrans
