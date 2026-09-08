@@ -1,12 +1,13 @@
 <#
-Simutrans-Extended local test runner (Windows): smoke + determinism + round-trip.
+Simutrans-Extended local test runner (Windows): smoke + network determinism.
 
-Modes:
-  - singleuser: fast-forward via -until and compare monthly autosaves. This exercises the
-    single-player code path; byte-identical determinism is NOT expected there.
-  - network:    run a loopback-only server with -fast-network-sync and compare the final
-    server<port>-restore.sve written at the -until horizon. This exercises the network
-    server code path, where deterministic lockstep is expected.
+Default mode is network: run a loopback-only server with -fast-network-sync against
+tests/demo.sve and compare the final server<port>-restore.sve written at the -until
+horizon. This exercises the network server code path, where deterministic lockstep is
+expected.
+
+Optional singleuser mode fast-forwards and compares monthly autosaves. It exercises the
+single-player code path; byte-identical determinism is NOT expected there.
 
 Run via: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-smoke-tests.ps1
 All transient state lives under ai/temp/ (gitignored; AGENTS.md rule 8); -Clean removes it.
@@ -21,13 +22,13 @@ param(
   [string]$Pakset = "pak128.Britain-Ex-0.9.4",
   [string]$ObjectsName = "pak128.Britain-Ex",
   [string]$Fixture,
-  [string]$Until = "1930.12",
+  [string]$Until = "1945.6",
   [string]$RoundtripAutosave = "autosave06.sve",
   [int]$TimeoutMs = 240000,
   [string]$AutosaveFormat = "zipped",
   [string]$SaveFormat = "zipped",
-  [string]$Mode = "singleuser",
-  [int]$FastNetworkSync = 10,
+  [string]$Mode = "network",
+  [int]$FastNetworkSync = 100,
   [int]$ServerPort = 13353,
   [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "runtime error"),
   [switch]$SkipRoundtrip,
@@ -55,7 +56,7 @@ if ($Mode -eq "network" -and $FastNetworkSync -lt 1) {
 
 if (-not $Exe)     { $Exe = Join-Path $repo "simutrans\Simutrans-Extended-debug.exe" }
 if (-not $WorkDir) { $WorkDir = Join-Path $repo "ai\temp\simutest" }
-if (-not $Fixture) { $Fixture = Join-Path $repo "tests\empty-16x16.sve" }
+if (-not $Fixture) { $Fixture = Join-Path $repo "tests\demo.sve" }
 $Exe = Resolve-RepoPath $Exe
 $WorkDir = Resolve-RepoPath $WorkDir
 $Fixture = Resolve-RepoPath $Fixture

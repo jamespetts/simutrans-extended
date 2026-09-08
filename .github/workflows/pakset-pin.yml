@@ -69,6 +69,10 @@ jobs:
       pakset_sha: ${{ needs.resolve-master.outputs.head_sha }}
       engine_ref: master
       label: pin-master
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
 
   # Explicit conclusion check: skipped/failure of verify-master must not promote
   # (success() semantics for skipped needs are not to be relied on).
@@ -140,6 +144,10 @@ jobs:
       pakset_sha: ${{ needs.resolve-ex-15.outputs.head_sha }}
       engine_ref: ex-15
       label: pin-ex-15
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
 
   # Explicit conclusion check: skipped/failure of verify-ex-15 must not promote
   # (success() semantics for skipped needs are not to be relied on).

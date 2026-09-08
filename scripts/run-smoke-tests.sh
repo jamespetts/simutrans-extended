@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
-# Simutrans-Extended test runner (Linux): smoke + determinism + round-trip.
+# Simutrans-Extended test runner (Linux): smoke + network determinism.
 # Linux analogue of scripts/run-smoke-tests.ps1 with the same semantics.
 #
-# Modes:
-#   singleuser: fast-forward via -until and compare monthly autosaves. This exercises the
-#               single-player code path; byte-identical determinism is NOT expected there.
-#   network:    run a loopback-only server with -fast-network-sync and compare the final
-#               server<port>-restore.sve written at the -until horizon. This exercises the
-#               network server code path, where deterministic lockstep is expected.
+# Default mode is network: run a loopback-only server with -fast-network-sync against
+# tests/demo.sve and compare the final server<port>-restore.sve written at the -until
+# horizon. This exercises the network server code path, where deterministic lockstep is
+# expected.
+#
+# Optional singleuser mode fast-forwards and compares monthly autosaves. It exercises the
+# single-player code path; byte-identical determinism is NOT expected there.
 #
 # Requires a DEBUG or PROFILE build (-until is compiled only in those builds; in CI append
 # "DEBUG = 2" to config.default) and a pakset matching the branch's Extended object
@@ -30,12 +31,12 @@ WORKDIR=""
 PAKSET="pak128.Britain-Ex"
 OBJECTS="pak128.Britain-Ex"
 FIXTURE=""
-UNTIL="1930.12"
+UNTIL="1945.6"
 RT_AUTOSAVE="autosave06.sve"
 TIMEOUT_S=240
 SAVE_FORMAT="zipped"
-MODE="singleuser"
-FAST_NETWORK_SYNC=10
+MODE="network"
+FAST_NETWORK_SYNC=100
 SERVER_PORT=13353
 MARKERS="FATAL ERROR|AddressSanitizer|runtime error"
 SKIP_ROUNDTRIP=0
@@ -48,7 +49,7 @@ Usage: run-smoke-tests.sh [options]
   --workdir DIR              transient work directory (default: <repo>/ai/temp/simutest)
   --pakset NAME              pakset dir name under <repo>/simutrans/ (default: $PAKSET)
   --objects NAME             -objects name / pakset link name in workdir (default: $OBJECTS)
-  --fixture PATH             savegame to load (default: <repo>/tests/empty-16x16.sve)
+  --fixture PATH             savegame to load (default: <repo>/tests/demo.sve)
   --until Y.M                run horizon (default: $UNTIL; needs DEBUG/PROFILE build)
   --roundtrip-autosave NAME  run-A autosave to reload in singleuser mode (default: $RT_AUTOSAVE)
   --timeout SECONDS          watchdog per run (default: $TIMEOUT_S)
@@ -97,7 +98,7 @@ fi
 
 [[ -n "$EXE" ]]     || EXE="$repo/simutrans-extended"
 [[ -n "$WORKDIR" ]] || WORKDIR="$repo/ai/temp/simutest"
-[[ -n "$FIXTURE" ]] || FIXTURE="$repo/tests/empty-16x16.sve"
+[[ -n "$FIXTURE" ]] || FIXTURE="$repo/tests/demo.sve"
 SAVE="$WORKDIR/save"
 LOGS="$WORKDIR/logs"
 RES="$WORKDIR/results"

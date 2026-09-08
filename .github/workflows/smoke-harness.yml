@@ -40,6 +40,16 @@ on:
         type: number
         default: 90
         required: false
+      fixture:
+        description: 'Savegame fixture to load. Empty: runner default.'
+        type: string
+        default: ''
+        required: false
+      until:
+        description: 'Run horizon (YEAR.MONTH). Empty: runner default.'
+        type: string
+        default: ''
+        required: false
 
 jobs:
   smoke-harness:
@@ -107,6 +117,9 @@ jobs:
     - name: Link pakset into simutrans/
       run: ln -sfn ../pakset-src/pak128.Britain-Ex simutrans/pak128.Britain-Ex
     - name: Run harness
+      env:
+        HARNESS_FIXTURE: ${{ inputs.fixture }}
+        HARNESS_UNTIL: ${{ inputs.until }}
       run: |
         echo "engine: $ENGINE_BIN"
         echo "pakset: ${{ inputs.pakset_sha }}  sanitizer: ${{ inputs.sanitizer }}"
@@ -119,7 +132,22 @@ jobs:
         else
           markers="FATAL ERROR|AddressSanitizer|runtime error"
         fi
-        bash scripts/run-smoke-tests.sh --exe "$ENGINE_BIN" --timeout ${{ inputs.runner_timeout_s }} --markers "$markers" --mode network --fast-network-sync 100 --server-port 13353 --save-format bzip2
+        runner_args=(
+          --exe "$ENGINE_BIN"
+          --timeout "${{ inputs.runner_timeout_s }}"
+          --markers "$markers"
+          --mode network
+          --fast-network-sync 100
+          --server-port 13353
+          --save-format bzip2
+        )
+        if [ -n "$HARNESS_FIXTURE" ]; then
+          runner_args+=(--fixture "$HARNESS_FIXTURE")
+        fi
+        if [ -n "$HARNESS_UNTIL" ]; then
+          runner_args+=(--until "$HARNESS_UNTIL")
+        fi
+        bash scripts/run-smoke-tests.sh "${runner_args[@]}"
     - name: Upload logs and results on failure
       if: failure()
       uses: actions/upload-artifact@v4

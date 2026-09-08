@@ -1,7 +1,7 @@
 #
 # CI for running tests
 #
-# Blocking gate: the smoke harness (smoke + network determinism, via
+# Blocking gate: the smoke harness (smoke + network determinism on tests/demo.sve, via
 # scripts/run-smoke-tests.sh) against the pinned pakset commit in tests/pakset-pin.tab
 # (last-known-good ratchet; the pin is advanced only on green runs by pakset-pin.yml).
 # Plus a non-blocking TSan flavour of the same harness (knowingly red from the open
@@ -57,6 +57,10 @@ jobs:
     with:
       pakset_sha: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
       label: ${{ github.base_ref || github.ref_name }}
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 1800
+      job_timeout_minutes: 180
 
   smoke-harness-tsan:
     # Non-blocking: knowingly red today from the open karte_t::load/init_threads race
@@ -72,7 +76,9 @@ jobs:
       pakset_sha: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
       label: tsan-${{ github.base_ref || github.ref_name }}
       sanitizer: tsan
-      runner_timeout_s: 2400
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 3600
       job_timeout_minutes: 300
 
   run-tests-asan-ubsan:
