@@ -221,9 +221,6 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
-| [Graph labels for "Seat-km" and "Passenger km" both show as "pass. km."](https://forum.simutrans.com/index.php/topic,23885.0.html) | 2026 | |
-| [-pause lost on next save file loading](https://forum.simutrans.com/index.php/topic,23715.0.html) | 2025 | |
-| [Info window for 'rapids' has incorrect error message](https://forum.simutrans.com/index.php/topic,23448.0.html) | 2025 | |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
 | [Minimum loading percentage display in schedule UI](https://forum.simutrans.com/index.php/topic,22781.0.html) | 2024 | |
 | [Bug in Listbox when changing schedules](https://forum.simutrans.com/index.php/topic,22202.0.html) | 2023 | |
