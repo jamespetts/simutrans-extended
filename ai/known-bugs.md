@@ -143,7 +143,6 @@ confirms they affect current builds in live games.
 | [Strange behaviour possibly causing desync](https://forum.simutrans.com/index.php/topic,22405.0.html) | 2024 | desync |
 | [[734f8e3] Desync immediately first time try to join the server](https://forum.simutrans.com/index.php/topic,22203.0.html) | 2024 | desync |
 | [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family — see detailed entry above |
-| [Crash due to "Too many (%i) industry roads!" when closing the game](https://forum.simutrans.com/index.php/topic,22157.0.html) | 2024 | |
 | [Game crashes when trying to upgrade Merchant Navy class through replace function](https://forum.simutrans.com/index.php/topic,22385.0.html) | 2024 | |
 | [Listserver unavailability causes online game freezes](https://forum.simutrans.com/index.php/topic,22278.0.html) | 2023 | external-service dependency |
 | [[ex-15] Crash when loading saved game saved with ex-15 branch](https://forum.simutrans.com/index.php/topic,22201.0.html) | 2023 | ex-15 branch |
