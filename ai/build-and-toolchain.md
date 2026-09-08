@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 7d3f6f242
+verified: master @ 49fd95a32
 ---
 # Build & toolchain
 
@@ -8,7 +8,8 @@ verified: ex-15 @ 7d3f6f242
 Nettool.vcxproj, Makefile, common.mk, uncommon.mk, config.template, config.default.in, configure.ac,
 configs/, CMakeLists.txt, cmake/, makeobj/ and nettools/ build files, .github/ (workflows,
 init_env.py, toolchain_mingw.cmake), nsis/, cleanup_code.sh, distribute.sh, get_pak.sh, play.sh,
-restart.sh, findversion.sh, revision.jse, scripts/run-automated-tests.sh, OSX/osx.mk.
+restart.sh, findversion.sh, revision.jse, scripts/run-automated-tests.sh,
+scripts/run-smoke-tests.sh/.ps1, OSX/osx.mk.
 
 ## Overview
 
@@ -111,7 +112,7 @@ after the master→ex-15 merge):
   (sim-linux-{debug-sdl2,sdl2mixer,posix}, sim-mac-sdl2, sim-mingw-{gdi,sdl2,posix},
   makeobj-{linux,mac,mingw}, nettool-{linux,mac,mingw}); or generate via autoconf:
   `autoconf && ./configure` fills `config.default` from `config.default.in` + `configure.ac`
-  (detects libs/OS/backend; `--enable-server` for headless). CI's run-tests.yml uses this route.
+  (detects libs/OS/backend; `--enable-server` for headless). CI's test workflows use this route.
 - `OSX/osx.mk` adds macOS bundle rules when `OSTYPE=mac`.
 
 ## Revision embedding (network-play critical)
@@ -130,10 +131,10 @@ The `REVISION` define must match between server and clients for network play
 
 ## CI (.github/workflows, present on both branches)
 
-**Status caveat:** per the user, GitHub CI builds have never worked for Extended; the
-Bridgewater-Brunel VPS pipeline is the actual build source, and these workflows are not relied
-upon [RECOLLECTION:2026-09-05 user statement]. They are documented here as repo content and as
-the basis for a possible future migration (see Open questions).
+**Status caveat:** the Bridgewater-Brunel VPS pipeline remains the actual release build source
+[RECOLLECTION:2026-09-05 user statement]. The GitHub workflows are actively maintained: the
+`ci.yml` build matrix runs green on push, and the test workflows are under active repair
+[CODE master @ 49fd95a32: GitHub Actions run history].
 
 - `ci.yml` (push/PR): first job runs `cleanup_code.sh` (perl include-guard normalisation + trailing
   whitespace removal) and **auto-commits the result**; then build matrix:
@@ -149,14 +150,34 @@ the basis for a possible future migration (see Open questions).
     `-A x64`; builds `cmake --build . --target <target>-extended`. Note: CI's MSVC route is
     CMake+vcpkg, **not** the handwritten .sln.
   - `.github/init_env.py` computes artifact names/paths for uploads.
-- `run-tests.yml` (push/PR): two ubuntu-22.04 jobs — ASan+UBSan
-  (`-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=shift,function`) and TSan
-  (`-fsanitize=thread`). Build: autoconf/configure + clang-14 + ccache, sanitizer flags appended to
-  `config.default`. Test setup: `get_pak.sh` (fed answers `2`, `i`, `y`) installs
-  pak128.britain-ex-nightly; `tests/` symlinked to `<pakset>/scenario/automated-tests`;
-  `~/simutrans/simuconf.tab` sets fps=100; `scripts/run-automated-tests.sh` runs the binary
-  headless-ish and watches the log for "Tests completed successfully." or script-error markers,
-  10-minute timeout (→ [scripting-and-tests](scripting-and-tests.md)).
+- `run-tests.yml` (push/PR; "Automated Tests"): blocking gate — calls `smoke-harness.yml`
+  (ASan+UBSan) with the pakset pin resolved per branch from `tests/pakset-pin.tab`, fixture
+  `tests/demo.sve`, horizon 1945.6. The legacy Squirrel scenario jobs (ubuntu-22.04; ASan+UBSan
+  (`-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=shift,function`) or TSan
+  (`-fsanitize=thread`); autoconf/configure + clang-14 + ccache, sanitizer flags appended to
+  `config.default`; `get_pak.sh` fed answers `2`, `i`, `y` installs pak128.britain-ex-nightly;
+  `tests/` symlinked to `<pakset>/scenario/automated-tests`; `~/simutrans/simuconf.tab` sets
+  fps=100; `scripts/run-automated-tests.sh` runs the binary headless-ish and watches the log for
+  "Tests completed successfully." or script-error markers, 10-minute timeout) are deferred to
+  workflow_dispatch only (`squirrel_tests` input; they hang —
+  [scripting-and-tests](scripting-and-tests.md)).
+- `tsan-smoke.yml` (push/PR; "TSan smoke"): same harness call with `sanitizer: tsan`; knowingly
+  red from the open `karte_t::load`/`init_threads` race family. Separate workflow because GitHub
+  rejects `continue-on-error` on jobs calling a reusable workflow — this keeps its red run from
+  failing the "Automated Tests" gate.
+- `smoke-harness.yml` (reusable; "Smoke harness"): ubuntu-22.04; autoconf/configure
+  `--enable-server` + clang-14 + ccache; builds plain makeobj first, then engine with `DEBUG = 2`
+  + sanitizer flags appended to `config.default` (input: asan default, or tsan); compiles
+  pak128.Britain-Ex from a pinned `jamespetts/simutrans-pak128.britain` commit with that makeobj
+  (cached), symlinks it into `simutrans/`, runs `scripts/run-smoke-tests.sh --mode network`
+  (fixture/until/timeouts/failure-marker regex via inputs); uploads `ai/temp/simutest/` logs and
+  results as an artifact on failure.
+- `pakset-pin.yml` (daily 03:30 UTC + manual; "Pakset pin updater"): last-known-good ratchet for
+  the pin in `tests/pakset-pin.tab`. Per branch: resolve the pakset branch head; if it differs
+  from the pin, verify via `smoke-harness.yml`; promote the pin by direct bot commit only when
+  `needs.verify-*.result == 'success'` (the `needs` context has no `conclusion` property).
+  Scheduled runs fire only on the default branch's copy of the file, hence explicit per-branch
+  job triplets.
 - `nightly.yml` (02:00 UTC + manual): finds the last ci.yml-green commit on **master**; moves the
   `Nightly` tag and GitHub release; deploys linux.zip + windows.zip (SDL2 client, headless server as
   `simutrans-extended-server`, makeobj, nettool); triggers the `simutrans/simutrans-pak128.britain-ex`
@@ -293,9 +314,7 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   by endpoint observation: artifacts published ~05:08–05:09 and the .deb ~05:32 server-local
   (2026-09-05); exact crontab entries unknown.
 - Should the build pipeline eventually move from the BB VPS to GitHub CI? The user is considering
-  it; GitHub CI builds have never worked for Extended, so this would take setting up
-  [RECOLLECTION:2026-09-05 user statement]. Related: are the `run-tests.yml` sanitizer jobs
-  functional for Extended today?
+  it [RECOLLECTION:2026-09-05 user statement]; the `ci.yml` build matrix now runs green on push.
 - Helper-tool provenance [RECOLLECTION:2026-09-05 user statement]: both `.jar` tools were written
   by a third party (name not recalled) to enable differential downloading — clients fetch binary
   diffs of updated files instead of whole artifacts. The user cannot locate Nightly Updater V2's
