@@ -32,7 +32,8 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [build-and-toolchain](build-and-toolchain.md) — read when compiling anything, touching build files/CI, packaging releases or nightlies, dealing with the Bridgewater-Brunel VPS/server pipeline, or dealing with backend libraries (SDL, PNG, zlib, ICU).
 - [savegame-versioning](savegame-versioning.md) — MANDATORY read before touching load/save code, simversion.h, rdwr methods, or anything version-negotiation related (AGENTS.md rule 5).
-- [data-and-pak](data-and-pak.md) — read when touching descriptors (desc classes), pak/pakset data, makeobj, settings, translation files, or the dataobj/ layer.
+- [data-and-pak](data-and-pak.md) — read when touching descriptors (desc classes), pak/pakset data, makeobj, settings, or the dataobj/ layer.
+- [translations](translations.md) — read when adding, changing or debugging any user-facing text: translation keys, language (.tab) files, Simutranslator workflow, city/street name lists, in-game help pages, or pak-embedded object texts; deeper subdocs are keyed from it.
 - [network](network.md) — read when changing the networking system itself: transport/packets, command framework, connection lifecycle, frame sync & pacing, checklist mechanics, admin/nettools, announcement. Change-restricted (AGENTS.md rule 5). For ordinary simulation-code work you normally need sync-and-determinism instead.
 
 ## Simulation

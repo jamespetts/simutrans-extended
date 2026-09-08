@@ -4,7 +4,7 @@ verified: none
 ---
 # Data, descriptors & pak format
 
-**Covers:** descriptor/ (incl. reader/ and writer/), dataobj/ (environment, settings, translator, loadsave, koord/ribi — full inventory in breadth pass), makeobj/, io/, ifc/, descriptor/objversion.h, simio.* (root → [simulation-core](simulation-core.md)), text/*.dat translation files, root base_texts*.dat fragments (untracked local artefacts → [repo-map](repo-map.md)).
+**Covers:** descriptor/ (incl. reader/ and writer/), dataobj/ (environment, settings, loadsave, koord/ribi — full inventory in breadth pass; translator → [translations](translations.md)), makeobj/, io/, ifc/, descriptor/objversion.h, simio.* (root → [simulation-core](simulation-core.md)). Translations and language files (incl. simutrans/text/ and the root base_texts*.dat fragments) → [translations](translations.md).
 
 ## Initial facts
 
@@ -19,7 +19,6 @@ verified: none
 - Pak format & node structure (obj_node_info.h); makeobj usage & versioning (`MAKEOBJ_VERSION`).
 - Pak/obj version vs. savegame version distinction → [savegame-versioning](savegame-versioning.md).
 - Settings system: settings.cc/environment.h, how settings serialize (sync-critical? verify → [network](network.md)).
-- Translation pipeline: translator, text/*.dat, how base_texts fragments get applied (ask the user).
 - io/ and ifc/ purposes (small dirs; verify).
 - dataobj/ full inventory: koord, ribi, loadsave, environment, schedule (→ [routing-and-scheduling](routing-and-scheduling.md)), consist_order_t (→ [vehicles-and-convoys](vehicles-and-convoys.md)).
 

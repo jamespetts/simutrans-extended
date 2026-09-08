@@ -131,6 +131,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | Intermittent network-server final-save divergence (not a forum report: network test-suite observation) | — | detailed entry above |
+| Syllable-generated town-name lists can differ between peers, diverging the synced RNG (not a forum report: code inspection 2026-09-08) | — | `translator::init_custom_names` builds fallback town-name lists with `sim_async_rand` (probabilistic prefix/suffix inclusion), so list length can differ between peers; `stadt_t::stadt_t` (simcity.cc) then draws ONE synced `simrand(count)` at town founding — a differing count diverges the synced RNG stream → candidate checklist desync in network games without an identical citylist file. Unverified lead; Pak128.Britain-Ex relies on the syllable system (complete-name citylists deprecated there) [RECOLLECTION:2026-09-08]. Context → [translations/city-and-street-names](translations/city-and-street-names.md) [CODE master @ 84b8345a4] |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -234,6 +235,7 @@ confirms they affect current builds in live games.
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
 | Schedule trigger flag polarity mismatch (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `convoi_t::ziel_erreicht` treats cond_trigger_is_line_or_cnv set=line/unset=convoy, the reverse of the couple/uncouple equivalents (set=convoy); the GUI stores a line ID without setting the flag. Latent until the trigger GUI is wired [CODE ex-15 @ 91d9b252e]. Context → [ex-15 schedule registry](ex-15/schedule-and-consists.md) |
 | Urgent maintenance does not force a depot visit (not a forum report: code inspection 2026-09-07) | — | ex-15 only: exceeding 1.5× maintenance_interval_km sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit wherever the convoy is; user confirms the comment reflects intent [RECOLLECTION:2026-09-07] [CODE ex-15 @ 91d9b252e] |
+| Town-name suffix gate uses prefix_probability (not a forum report: code inspection 2026-09-08) | — | dataobj/translator.cc `init_custom_names`: the per-name suffix gate compares `random_percent_suffix > prefix_probability`; `suffix_probability` is defined but never used — suspected copy-paste bug gating suffix attachment by the prefix rate; needs investigation before confirmed, not investigated yet [RECOLLECTION:2026-09-08]. Context → [translations/city-and-street-names](translations/city-and-street-names.md) [CODE master @ 84b8345a4] |
 
 ## P4 — very low / backlog
 

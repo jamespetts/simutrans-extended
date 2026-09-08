@@ -52,3 +52,6 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 - The Squirrel scripting API was never fully ported from Standard and nobody uses it in Extended. Completing it is low
   priority (massive work; Extended prioritises large MP organic games over scripted scenarios).
   Details: [scripting-and-tests](scripting-and-tests.md). [RECOLLECTION:2026-09-06]
+
+- User-facing text: `translator::translate("English literal")` — the key IS the English text; missing or format-mismatched
+  translations silently fall back to it. Details: [translations](translations.md). [CODE master @ 84b8345a4]
