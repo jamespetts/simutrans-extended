@@ -1,0 +1,58 @@
+#
+# Non-blocking TSan flavour of the smoke/network-determinism harness (smoke-harness.yml:
+# scripts/run-smoke-tests.sh in network mode on tests/demo.sve against the pinned pakset
+# commit in tests/pakset-pin.tab).
+#
+# Knowingly red today from the open karte_t::load/init_threads race family
+# (ai/known-bugs.md, priority 2). Runs on every push/PR deliberately - it keeps the
+# family visible, covers races the determinism test cannot see (unsynchronised accesses
+# that do not perturb the savegame bytes), and catches NEW races. It lives in its own
+# workflow because GitHub does not allow continue-on-error on a job that calls a
+# reusable workflow: keeping it out of run-tests.yml is what stops its red run from
+# failing the blocking "Automated Tests" gate. Fold it back into run-tests.yml (or drop
+# it) once the race family is fixed. TSan is several times slower than ASan, hence the
+# enlarged timeouts (tune after the first CI runs).
+#
+name: TSan smoke
+on:
+  push:
+    branches: [master, ex-15]
+  pull_request:
+    branches: [master, ex-15]
+  workflow_dispatch:
+
+jobs:
+  resolve-pakset-pin:
+    runs-on: ubuntu-latest
+    outputs:
+      pakset_sha: ${{ steps.pin.outputs.pakset_sha }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Read pin
+      id: pin
+      run: |
+        branch="${{ github.base_ref || github.ref_name }}"
+        case "$branch" in
+          ex-15) key="ex-15" ;;
+          *) key="master" ;;
+        esac
+        sha=$(awk -F' *= *' -v k="$key" '$1 == k { print $2 }' tests/pakset-pin.tab)
+        if [ -z "$sha" ]; then
+          echo "::error::no pakset pin for key '$key' in tests/pakset-pin.tab"
+          exit 1
+        fi
+        echo "pakset_sha=$sha" >> "$GITHUB_OUTPUT"
+        echo "pakset pin ($key): $sha"
+
+  smoke-harness-tsan:
+    needs: resolve-pakset-pin
+    uses: ./.github/workflows/smoke-harness.yml
+    with:
+      pakset_sha: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
+      label: tsan-${{ github.base_ref || github.ref_name }}
+      sanitizer: tsan
+      fixture: tests/demo.sve
+      until: '1945.6'
+      runner_timeout_s: 3600
+      job_timeout_minutes: 300
