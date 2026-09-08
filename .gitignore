@@ -209,5 +209,9 @@ text/all-help-file-names
 *.cache
 configure
 
+# Root clutter patterns above (e.g. PAK*, base_texts*) must never silence ai/ files
+# (bit once: ai/translations/pak-embedded-texts.md was silently skipped by git add)
+!ai/**
+
 # Agent scratch space (test working dirs, logs, handoff notes) — AGENTS.md rule 8
 /ai/temp/
