@@ -15,16 +15,25 @@ verified: none
 - Completing/backporting the scripting interface is **low priority**: it would require massive work to
   expose Extended's feature set, and Extended's priorities are large multi-player organic games rather
   than scripted scenarios [RECOLLECTION:2026-09-06].
-- CI `run-tests.yml` is red on every push on both branches: ASan/UBSan job hangs after
-  `error [suspended] calling start` at test 1/64 (timeout, exit 124); TSan job reports data races in
-  `karte_t::load`/`init_threads`, then hangs [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: CI logs].
-  The wrapper `scripts/run-automated-tests.sh` does not recognise `[suspended]` as a failure pattern,
-  so failures surface as timeouts rather than fast failures [CODE master @ 78a4bb3b9: run-automated-tests.sh].
+- CI: the Squirrel scenario jobs in `run-tests.yml` (ASan/UBSan + TSan, via
+  `scripts/run-automated-tests.sh`) are suspended — Squirrel scripting is non-working (above) —
+  and run only on demand (workflow_dispatch, `squirrel_tests` input); the infrastructure is kept
+  wired for a possible future Squirrel port [user decision 2026-09-07]. Their last full run hung
+  until the 10-minute timeout: ASan/UBSan after `error [suspended] calling start` at test 1/64;
+  TSan additionally reported data races in `karte_t::load`/`init_threads`
+  [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: CI logs]. The wrapper does not recognise
+  `[suspended]` as a failure pattern, so failures surface as timeouts rather than fast failures
+  [CODE master @ 78a4bb3b9: run-automated-tests.sh].
+- Push/PR CI gates on the smoke harness instead (smoke + network determinism on `tests/demo.sve`
+  via `scripts/run-smoke-tests.sh`, pakset pinned in `tests/pakset-pin.tab`); the knowingly-red
+  TSan smoke flavour runs as its own workflow `tsan-smoke.yml`, independent of Squirrel
+  [CODE master @ 49fd95a32: .github/workflows]. Mechanics:
+  [build-and-toolchain](build-and-toolchain.md).
 
 ## Initial facts
 
 - Tests are Squirrel scripts run via an in-game scenario (`tests/scenario.nut` + `all_tests.nut`); they need a built binary and a pakset [CODE].
-- CI `run-tests.yml` runs the Squirrel tests on Linux with sanitizers enabled; the workflow file is the authority for current runner/toolchain specifics [CODE].
+- CI `run-tests.yml` (push/PR) gates on the smoke harness; the Squirrel suite runs only on workflow_dispatch. The workflow files are the authority for current runner/toolchain specifics [CODE].
 - `tests/empty-16x16.sve` is a minimal save used as test fixture [CODE].
 - Test coverage spans many subsystems (way, halt, factory, player, terraform, and more — enumerate from tests/ filenames) [CODE].
 
@@ -40,5 +49,3 @@ verified: none
 
 - Can the test suite run headless, or does it need a graphical backend?
 - Root cause of the `run-tests.yml` failures (`[suspended]` error + hang; TSan races) — not yet diagnosed.
-- Given scripting's low priority, should `run-tests.yml` keep running on every push (options: leave
-  red, mark non-blocking/continue-on-error, restrict to manual dispatch)? User decision pending.
