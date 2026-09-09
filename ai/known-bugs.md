@@ -66,9 +66,13 @@ Rank on discovery; re-rank on triage.
   this save [EXECUTION-VERIFIED 2026-09-09].
 - The suite first misclassified it as a load crash: the load completes, and the crash is
   log-invisible in Profile builds (DBG macros compiled out) [EXECUTION-VERIFIED 2026-09-09].
-- Scope unknown: MSVC/Windows-specific vs all headless builds (the production Bridgewater-Brunel
-  server is a GNU-make Linux build loading server-saved files nightly without such reports);
-  relation to the `karte_t::load`/`init_threads` race family (below) undiagnosed [UNVERIFIED].
+- Scope: the headless build works when compiled with GCC (production server and local GCC
+  builds), so this is presumably an MSVC/Windows-specific defect, not a code-level deterministic
+  bug on all platforms [RECOLLECTION:2026-09-09 user statement]. Candidate classes: latent
+  undefined behaviour that MSVC's runtime/heap validation surfaces, or an MSVC codegen/packing
+  difference. Mixed-CRT zstd linking is ruled out: the crashing "Debug (non-graphical server)"
+  build is /MTd, matching the zstd lib's CRT. Relation to the `karte_t::load`/`init_threads` race
+  family (below) undiagnosed [UNVERIFIED].
 - Blocks the headless capture profile of the performance suite (→ [performance](performance.md));
   workaround: server-paced capture on the graphical Profile build (display cost included).
 
