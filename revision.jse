@@ -37,9 +37,12 @@ var errormsg = !errorcode
 try {
 	var gitRevNum = shell.Exec("git rev-parse --short=7 HEAD");
 	rev           = gitRevNum.StdOut.ReadAll();
+	// strip any line ending(s); git may also emit more than 7 hex digits
+	// when the short prefix is ambiguous in this repository
+	rev           = rev.replace(/\s+/g, "");
 
-	// Check if Git output is valid
-	if (rev.length !== 9) {
+	// Check if Git output is valid (7-12 hex digits)
+	if (!/^[0-9a-f]{7,12}$/.test(rev)) {
 		WSH.Echo("git : Not a git repository warning GitNR" + errorcode + ":Git output not valid! Check if the folder is actually versioned." + errormsg);
 		rev = 0;
 	}
