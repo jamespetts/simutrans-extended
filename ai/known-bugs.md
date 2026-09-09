@@ -52,6 +52,26 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
+### Headless (COLOUR_DEPTH=0) MSVC builds crash in server-mode simulation on the gargantuan fixture — priority 1
+
+- Loading bb-10-sep-2023.sve (the performance-suite fixture) and running it as a server
+  (`-server`, loopback-only, no clients, `pause_server_no_clients = 0`) crashes with 0xC0000005,
+  faulting module ntdll.dll (heap-corruption pattern), roughly 25–30 s after load completes
+  ("Running world" reached; FIX_RATIO timers running) [EXECUTION-VERIFIED 2026-09-09].
+- Reproduced with both the "Profile (server)|x64" build and the maintainer's
+  "Debug (non-graphical server)|x64" build (rebuilt from master @ cc1c5858f) — independent of
+  the new configuration [EXECUTION-VERIFIED 2026-09-09].
+- NOT reproduced by the graphical "Profile|x64" build in the same server mode (survived 300 s+),
+  nor by client-mode fast-forward runs (120 s windows) — headless-specific, early server sim,
+  this save [EXECUTION-VERIFIED 2026-09-09].
+- The suite first misclassified it as a load crash: the load completes, and the crash is
+  log-invisible in Profile builds (DBG macros compiled out) [EXECUTION-VERIFIED 2026-09-09].
+- Scope unknown: MSVC/Windows-specific vs all headless builds (the production Bridgewater-Brunel
+  server is a GNU-make Linux build loading server-saved files nightly without such reports);
+  relation to the `karte_t::load`/`init_threads` race family (below) undiagnosed [UNVERIFIED].
+- Blocks the headless capture profile of the performance suite (→ [performance](performance.md));
+  workaround: server-paced capture on the graphical Profile build (display cost included).
+
 ### Data race between `karte_t::load` and `init_threads` — priority 2
 
 - CI TSan job (`.github/workflows/run-tests.yml`) reports data races between `karte_t::load`
@@ -131,6 +151,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | Intermittent network-server final-save divergence (not a forum report: network test-suite observation) | — | detailed entry above |
+| Headless MSVC builds crash in server-mode sim on the bb-10-sep-2023.sve fixture (not a forum report: performance-suite discovery 2026-09-09) | — | detailed entry above |
 | Syllable-generated town-name lists can differ between peers, diverging the synced RNG (not a forum report: code inspection 2026-09-08) | — | `translator::init_custom_names` builds fallback town-name lists with `sim_async_rand` (probabilistic prefix/suffix inclusion), so list length can differ between peers; `stadt_t::stadt_t` (simcity.cc) then draws ONE synced `simrand(count)` at town founding — a differing count diverges the synced RNG stream → candidate checklist desync in network games without an identical citylist file. Unverified lead; Pak128.Britain-Ex relies on the syllable system (complete-name citylists deprecated there) [RECOLLECTION:2026-09-08]. Context → [translations/city-and-street-names](translations/city-and-street-names.md) [CODE master @ 84b8345a4] |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |

@@ -6,6 +6,9 @@ verified: none
 # Claim tags (inline)
 
 - `[CODE]` — verified against the code at a stated branch+commit, e.g. `[CODE ex-15 @ b06e8fa14]`.
+- `[EXECUTION-VERIFIED:<date>]` — observed by actually building/running the software on the
+  maintainer's machine (timings, load results, link behaviour); machine-specific, so treat as a
+  dated observation, not a universal constant.
 - `[FORUM:<url>]` — from a Simutrans forum thread; cite thread and post date where possible.
 - `[RECOLLECTION:<date>]` — user statement from memory. An indication, not a verified fact:
   verify against code before relying on it (the user has been away from the code for some years).

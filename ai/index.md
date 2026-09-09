@@ -53,4 +53,5 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [gui](gui.md) — read when touching windows, frames, GUI components, themes, or any user-interface work.
 - [rendering](rendering.md) — read when touching drawing, graphics backends, images, colours, or the viewport.
 - [scripting-and-tests](scripting-and-tests.md) — read when touching the Squirrel API, scenarios, or the automated tests in tests/.
+- [performance](performance.md) — read when doing ANY performance work, profiling or benchmarking, or when a change touches code that runs under step()/sync_step(): the canonical profiling suite (gargantuan-save fixture, scripts/run-perf-suite.ps1) and the hotspot inventory.
 - [utilities](utilities.md) — read when touching tpl/ containers, utils/, sys/ platform backends, sound/music, or unicode/ICU. Threading → [threading](threading.md).
