@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ d40847e90
+verified: master @ 31ba08cb9
 ---
 # Performance & profiling
 
@@ -80,7 +80,11 @@ the AGENTS.md rule-8 session-end clearing of `ai\temp/` [RECOLLECTION:2026-09-09
 The pakset fixture is the live per-branch pakset directory in `simutrans/` — rebuilds are accepted
 as part of the fixture's evolution [RECOLLECTION:2026-09-09 user decision]. The same save fixture
 is intended for ex-15 (loaded through the 14.x savegame upgrade path, with the ex-15 pakset);
-verify a full Capture run there after merging [RECOLLECTION:2026-09-09 user decision].
+verified there 2026-09-11 (ex-15 @ 60228c088 + uncommitted haltlist guards, 120 s server-paced
+window): the fixture loads through the upgrade path and a full traced Capture passes. Note the
+ex-15 pakset lacks the `TimingPoint` building: 437 buildings are removed at load via the
+missing-desc path, so the ex-15 world state differs slightly from master's
+[EXECUTION-VERIFIED:2026-09-11].
 
 | Mode | Command line core | Measures |
 |---|---|---|
@@ -164,6 +168,14 @@ everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics
 [simulation-core](simulation-core.md), [routing-and-scheduling](routing-and-scheduling.md),
 [vehicles-and-convoys](vehicles-and-convoys.md), [threading](threading.md),
 [rendering](rendering.md).
+
+**ex-15 comparison** (first ex-15 capture, same fixture/window/threads, ex-15 @ 60228c088 with
+uncommitted haltlist guards; 358,011 samples, 47% in game module) [EXECUTION-VERIFIED:2026-09-11]:
+route-reservation clearing's share roughly DOUBLES versus master — `unreserve_route_range` 26.0%
+self (master ~12%), `unreserve_route_threaded` worker 26.8% (11.8%) — while
+`sync_list_t::sync_step` drops to 12.8% self (23.7%) and `private_car_t::sync_step` to 4.2%
+(9.0%). Single run each and the ex-15 world state differed (437 missing TimingPoint buildings
+removed at load) — repeat before acting on the deltas.
 
 1. **Synced-object stepping — `karte_t::sync_list_t::sync_step` (simworld.cc).** 23.7% self /
    67.3% incl (`karte_t::sync_step` overall 69.5% incl). The dominant single leaf cost: the
