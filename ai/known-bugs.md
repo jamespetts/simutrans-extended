@@ -123,6 +123,27 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### Unbound halt handles in planquadrat haltlists crash early simulation (ex-15) — priority 1
+
+- Loading the bb-10-sep-2023 fixture on ex-15 (pak128.Britain-Ex) crashes with 0xC0000005
+  reading 0x5F4 within ~1-2 minutes of simulation start, at haltlist consumers:
+  `haltestelle_t::get_destination_halts_of_ware` (simhalt.cc), `karte_t::get_nearby_halts_of_tiles`
+  and `karte_t::generate_passengers_or_mail` (simworld.cc) [EXECUTION-VERIFIED:2026-09-11, via the
+  crash-backtrace handler].
+- Mechanism: a `halthandle_t` (quickstone) in a tile's haltlist resolves to NULL; `enables` is at
+  offset 0x5F4 in haltestelle_t. No halt destruction occurs in failing runs (destructor
+  instrumentation never fired) and failure is non-deterministic across identical runs —
+  consistent with a load-time/threading race corrupting haltlists, likely the
+  `karte_t::load` / `init_threads` race family (see the TSan entry above). Whether this shares a
+  root with the headless MSVC server crash (ntdll heap-corruption signature differs) is
+  UNVERIFIED.
+- A guarded ex-15 build (is_bound() skip + warning at the haltlist consumer sites) survives 8+
+  minutes with zero guard hits in some runs — i.e. the corruption appears only sometimes.
+  Guards were needed for the 2026-09-11 ex-15 profiling verification; whether to commit them
+  permanently (defensive) or fix the race (root cause) is pending user decision.
+- Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
+  branch-independent, so master exposure is plausible [UNVERIFIED].
+
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
 - Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
