@@ -355,9 +355,18 @@ if ($traceOn -and (Test-Path $etlPath)) {
   $anaOut = & $analyzer $etlPath $procFilter (Join-Path $res "hotspots") 2>&1 | Out-String
   Write-Host $anaOut
   if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $res "hotspots-self.csv"))) {
-    $summary += "profile:   hotspots-self.csv / hotspots-incl.csv"
-    $top = ($anaOut -split "`r?`n") | Where-Object { $_ -match '^\s+\d+\.\d+%' } | Select-Object -First 10
-    if ($top) { $summary += "top_self:"; $summary += ($top | ForEach-Object { "  $($_.Trim())" }) }
+    $summary += "profile:   hotspots-self.csv / hotspots-incl.csv / hotspots-threads.csv"
+    $topSelf = @(); $topThreads = @(); $inThreads = $false
+    foreach ($l in ($anaOut -split "`r?`n")) {
+      if ($l -match '^top self:') { $inThreads = $false; continue }
+      if ($l -match '^top thread attribution:') { $inThreads = $true; continue }
+      if ($l -match '^\s+\d+\.\d+%') {
+        if ($inThreads) { if ($topThreads.Count -lt 8) { $topThreads += $l.Trim() } }
+        elseif ($topSelf.Count -lt 10) { $topSelf += $l.Trim() }
+      }
+    }
+    if ($topSelf) { $summary += "top_self:"; $summary += ($topSelf | ForEach-Object { "  $_" }) }
+    if ($topThreads) { $summary += "top_threads:"; $summary += ($topThreads | ForEach-Object { "  $_" }) }
     Remove-Item $etlPath -Force -ErrorAction SilentlyContinue
     Remove-Item ([System.IO.Path]::ChangeExtension($etlPath, "etlx")) -Force -ErrorAction SilentlyContinue
     Remove-Item "$etlPath.NGENPDB" -Recurse -Force -ErrorAction SilentlyContinue

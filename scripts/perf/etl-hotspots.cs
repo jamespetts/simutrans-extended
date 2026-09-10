@@ -1,6 +1,9 @@
 // etl-hotspots: automated CPU-sampling hotspot extraction from a WPR/xperf ETL.
 // Usage: etl-hotspots.exe <trace.etl|trace.etlx> <processNameFilter> <outPrefix> [topN]
-// Outputs: <outPrefix>-self.csv (leaf/self time), <outPrefix>-incl.csv (inclusive), summary on stdout.
+// Outputs: <outPrefix>-self.csv (leaf/self time), <outPrefix>-incl.csv (inclusive),
+//   <outPrefix>-threads.csv (samples attributed to each thread's root-most game-module frame,
+//   i.e. the thread entry function — attributes worker-thread time to its subsystem even when
+//   intermediate frames (e.g. PDB-less pthreadvc2.dll) do not resolve), summary on stdout.
 //   topN (optional): if > 0, limit each CSV to the top N rows.
 // Requires _NT_SYMBOL_PATH to be set (game PDB dir + MS symbol server cache) for function names.
 //
@@ -67,6 +70,15 @@ class Program
         }
     }
 
+    static bool IsGameFrame(string name, string filter)
+    {
+        // Game frames look like "simutrans-extended-profile!convoi_t::step" — module prefix
+        // equals the process filter. The "Process64 <name> (pid)" pseudo-frame has no '!'.
+        if (name == null) return false;
+        int bang = name.IndexOf('!');
+        return bang == filter.Length && name.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
+    }
+
     static int Main(string[] args)
     {
         if (args.Length < 3) { Console.WriteLine("usage: etl-hotspots <etl|etlx> <processFilter> <outPrefix> [topN]"); return 2; }
@@ -127,6 +139,7 @@ class Program
 
         var self = new Dictionary<string, double>();
         var incl = new Dictionary<string, double>();
+        var threads = new Dictionary<string, double>();
         double total = 0, matched = 0;
         src.ForEach(delegate(StackSourceSample s)
         {
@@ -150,6 +163,13 @@ class Program
             Add(self, frames[0], s.Metric);
             var seen = new HashSet<string>();
             foreach (var f in frames) if (seen.Add(f)) Add(incl, f, s.Metric);
+            // Thread attribution: frames are leaf->root, so the last game-module frame in the
+            // walk is the thread's entry function (main thread: simu_main/karte_t::interactive;
+            // workers: unreserve_route_threaded, path_explorer_threaded, ...).
+            string entry = null;
+            foreach (var f in frames) if (IsGameFrame(f, filter)) entry = f;
+            if (entry == null) entry = "<no resolved game frame>";
+            Add(threads, entry, s.Metric);
         });
 
         Console.WriteLine(string.Format("total samples: {0:F0}; matching '{1}': {2:F0} ({3:F2}%)",
@@ -158,12 +178,20 @@ class Program
         {
             WriteCsv(outPrefix + "-self.csv", self, matched, topN);
             WriteCsv(outPrefix + "-incl.csv", incl, matched, topN);
-            Console.WriteLine("wrote " + outPrefix + "-self.csv and " + outPrefix + "-incl.csv");
+            WriteCsv(outPrefix + "-threads.csv", threads, matched, topN);
+            Console.WriteLine("wrote " + outPrefix + "-self.csv, -incl.csv and -threads.csv");
             Console.WriteLine("top self:");
             int n = 0;
             foreach (var kv in Sort(self))
             {
                 if (n++ >= 25) break;
+                Console.WriteLine(string.Format("  {0,7:F2}%  {1}", 100.0 * kv.Value / matched, kv.Key));
+            }
+            Console.WriteLine("top thread attribution:");
+            n = 0;
+            foreach (var kv in Sort(threads))
+            {
+                if (n++ >= 15) break;
                 Console.WriteLine(string.Format("  {0,7:F2}%  {1}", 100.0 * kv.Value / matched, kv.Key));
             }
         }
