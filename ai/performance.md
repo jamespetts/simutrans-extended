@@ -151,6 +151,13 @@ non-interactively [EXECUTION-VERIFIED:2026-09-10]:
 
 Measured 2026-09-10 on the canonical fixture via the -Trace pipeline (server-paced Capture,
 120 s window, threads=4, master @ d40847e90; 262,784 CPU samples, 57% in the game module)
+[EXECUTION-VERIFIED:2026-09-10]. Thread attribution (`hotspots-threads.csv`, root-most game
+frame per stack; second capture, same parameters, master @ 4b2b927a7): main thread 73.9%;
+workers: `unreserve_route_threaded` 11.8%, `step_passengers_and_mail_threaded` 4.6%,
+`display_region_thread` 3.4%, `dr_flush_screen` 2.6%, `step_individual_convoy_threaded` 1.7%,
+`check_road_connexions_threaded` 1.5%; the `<no resolved game frame>` bucket (stack-truncated,
+unattributable time) is 0.001%. `pthreadvc2!?`/`msvcr100!?` frames are the nameless thread-start
+roots of pthread-win32 worker threads (no PDBs): ~24% incl but 0.13% self — inert, not lost time
 [EXECUTION-VERIFIED:2026-09-10]. Percentages below are share of matched in-game samples; "incl"
 counts a function for every stack it appears in, "self" counts only leaf frames. Treat
 everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics:
@@ -195,9 +202,9 @@ everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics
    governs how quickly in-game routes update, not framerate [RECOLLECTION:2026-09-09]. It only
    runs when something has changed since its last completed pass; on a busy server game changes
    outpace it so it is effectively always running, but it can be dormant (e.g. the small demo
-   fixture) [RECOLLECTION:2026-09-10]. Its CPU does not appear under its own symbols in the
-   measured fixture window; ~24% incl sits under unresolved `pthreadvc2!?` worker-thread frames —
-   attribution unresolved (open questions).
+   fixture) [RECOLLECTION:2026-09-10]. It was near-dormant in the measured fixture window
+   (`get_path_between` 0.5% incl, `path_explorer_threaded` 0.007%)
+   [EXECUTION-VERIFIED:2026-09-10].
 10. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
     (`main_view_t::display_region` 4.9% incl), but dominated a CaptureGui window on the small
     demo map (73% incl) — display share is workload-dependent; use CaptureGui + -Trace for
@@ -216,12 +223,6 @@ must not be perturbed without reading [threading](threading.md) and
 
 - Exact fixture map dimensions and object counts (convoys, halts, cities, ways) — worth recording
   once extracted for hotspot reasoning; not yet measured.
-- ~24% of in-game inclusive samples sit under unresolved `pthreadvc2!?` worker-thread frames
-  (2026-09-10 measurement) — which threaded subsystem (path explorer, threaded sync slices,
-  unreserve_route_threaded) owns that time is not yet attributed. The path explorer can
-  legitimately be dormant when nothing has changed since its last pass [RECOLLECTION:2026-09-10],
-  though that is unlikely on this fixture. Needs thread-start-frame-based attribution in the
-  analyzer before optimising threaded code.
 - Why is `sync_list_t::sync_step` itself (not the objects it steps) 23.7% *self*? Candidates:
   list iteration cost at this object count, cache misses on the node walk, or inlining
   attribution artefacts. Investigate before attempting optimisation.
