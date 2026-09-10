@@ -238,6 +238,7 @@ if ($Trace -and $TracePhase -eq "Load") {
 }
 
 Remove-Item $simLog -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $WorkDir "crash-backtrace.log") -Force -ErrorAction SilentlyContinue
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $p = Start-Process -FilePath $Exe -ArgumentList $argLine -WorkingDirectory $WorkDir -PassThru -WindowStyle Minimized
 [void]$p.Handle
@@ -309,6 +310,7 @@ else {
     $failed += "no clean exit within ${LoadTimeoutSec}s (+300s margin)"
     try { $p.Kill() } catch {}
   } else { $exitCode = $p.ExitCode }
+  if ($exitCode -ne $null -and $exitCode -ne 0) { $failed += "process exited with code $exitCode" }
 }
 
 $totalSec = [int]$sw.Elapsed.TotalSeconds
@@ -345,6 +347,14 @@ if (Test-Path $simLog) {
   }
 }
 else { $failed += "no simu log produced" }
+
+# Windows builds write a symbolised backtrace to crash-backtrace.log on an unhandled
+# exception (simmain.cc crash handler); collect it into the results dir.
+$crashLog = Join-Path $WorkDir "crash-backtrace.log"
+if (Test-Path $crashLog) {
+  Copy-Item $crashLog (Join-Path $res "crash-backtrace.log") -Force
+  $summary += "crashlog:  crash-backtrace.log (run crashed; see this file for the backtrace)"
+}
 
 # Hotspot extraction from the trace (TraceEvent analyzer). The raw ETL is
 # deleted after successful analysis (user decision 2026-09-10); kept on failure.
