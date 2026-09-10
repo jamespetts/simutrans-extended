@@ -545,6 +545,12 @@ haltestelle_t::~haltestelle_t()
 		dbg->error("haltestelle_t::~haltestelle_t()", "handle %i found %i times in haltlist!", self.get_id(), i );
 	}
 
+	if (!welt->is_destroying()) {
+		// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): trace halt destructions;
+		// tiles==0 at this point means the planquadrat-haltlist cleanup below can never run.
+		dbg->warning("haltestelle_t::~haltestelle_t()", "halt destroyed: %s (id %u), tiles=%u", get_name(), self.get_id(), tiles.get_count());
+	}
+
 	if(!welt->is_destroying())
 	{
 		for(auto walking_distance_halt : halts_within_walking_distance)
@@ -2131,10 +2137,16 @@ void haltestelle_t::get_destination_halts_of_ware(ware_t &ware, vector_tpl<halth
 				const uint8 haltlist_count = plan->get_haltlist_count();
 				if(haltlist_count)
 				{
-					const nearby_halt_t *haltlist = plan->get_haltlist();
-					for(int i = 0; i < haltlist_count; i++)
+				const nearby_halt_t *haltlist = plan->get_haltlist();
+				for(int i = 0; i < haltlist_count; i++)
+				{
+					if (!haltlist[i].halt.is_bound())
 					{
-						if(haltlist[i].halt->is_enabled(warentyp))
+						// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
+						dbg->warning("haltestelle_t::get_destination_halts_of_ware()", "DIAG: unbound halt in haltlist of plan %s (i=%d of %d, entry=%u)", plan->get_kartenboden()->get_pos().get_str(), i, haltlist_count, haltlist[i].halt.get_id());
+						continue;
+					}
+					if(haltlist[i].halt->is_enabled(warentyp))
 						{
 							// OK, the halt accepts the ware type.
 							// If this is passengers or mail, accept it.
@@ -2162,6 +2174,12 @@ void haltestelle_t::get_destination_halts_of_ware(ware_t &ware, vector_tpl<halth
 		for(uint16 h = 0; h < plan->get_haltlist_count(); h++)
 		{
 			halthandle_t halt = haltlist[h].halt;
+			if (!halt.is_bound())
+			{
+				// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
+				dbg->warning("haltestelle_t::get_destination_halts_of_ware()", "DIAG: unbound halt in haltlist of single-tile plan %s (h=%u of %u, entry=%u)", plan->get_kartenboden()->get_pos().get_str(), h, plan->get_haltlist_count(), halt.get_id());
+				continue;
+			}
 			if(halt->is_enabled(warentyp))
 			{
 				destination_halts_list.append(halt);
