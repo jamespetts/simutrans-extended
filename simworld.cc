@@ -5603,6 +5603,12 @@ void karte_t::get_nearby_halts_of_tiles(const minivec_tpl<const planquadrat_t*> 
 		for(int h = current_tile->get_haltlist_count() - 1; h >= 0; h--)
 		{
 			nearby_halt_t halt = halt_list[h];
+			if (!halt.halt.is_bound())
+			{
+				// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
+				dbg->warning("karte_t::get_nearby_halts_of_tiles()", "DIAG: unbound halt in haltlist of tile %s (h=%d of %d, entry=%u)", current_tile->get_kartenboden()->get_pos().get_str(), h, current_tile->get_haltlist_count(), halt.halt.get_id());
+				continue;
+			}
 			if (halt.halt->is_enabled(wtyp))
 			{
 				// Previous versions excluded overcrowded halts here, but we need to know which
@@ -6236,6 +6242,12 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				for (int h = current_tile_3->get_haltlist_count() - 1; h >= 0; h--)
 				{
 					halthandle_t halt = halt_list[h].halt;
+					if (!halt.is_bound())
+					{
+						// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
+						dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of location tile %d,%d (h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_3->get_haltlist_count());
+						continue;
+					}
 					if((trip == mail_trip && halt->get_mail_enabled()) || (trip != mail_trip && halt->get_pax_enabled()))
 					{
 						// Previous versions excluded overcrowded halts here, but we need to know which
@@ -6253,6 +6265,12 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			{
 				FOR(minivec_tpl<const planquadrat_t*>, const& current_tile_3, current_destination.building->get_tiles())
 				{
+					if (!current_tile_3)
+					{
+						// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): null tile in building list
+						dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: null tile in building->get_tiles() (dest %d,%d)", current_destination.location.x, current_destination.location.y);
+						continue;
+					}
 					const nearby_halt_t* halt_list = current_tile_3->get_haltlist();
 					if (!halt_list)
 					{
@@ -6261,6 +6279,12 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					for (int h = current_tile_3->get_haltlist_count() - 1; h >= 0; h--)
 					{
 						halthandle_t halt = halt_list[h].halt;
+						if (!halt.is_bound())
+						{
+							// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
+							dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of building tile (dest %d,%d, h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_3->get_haltlist_count());
+							continue;
+						}
 						if ((trip == mail_trip && halt->get_mail_enabled()) || (trip != mail_trip && halt->get_pax_enabled()))
 						{
 							// Previous versions excluded overcrowded halts here, but we need to know which
