@@ -73,6 +73,147 @@
 #include "sound/sound.h"
 
 #include "utils/cbuffer_t.h"
+
+#ifdef _WIN32
+// Crash backtrace support (Windows). dbghelp.dll is loaded at runtime, so no
+// build-system link changes are needed; without it the log still contains
+// module!+offset addresses. On an unhandled exception a symbolised stack trace
+// is written to crash-backtrace.log (current dir = workdir for suite runs) and
+// to stderr, then default handling (WER etc.) proceeds.
+#include <windows.h>
+#include <dbghelp.h>
+
+static void crash_log_line(FILE* f, const char* s)
+{
+	fputs(s, f); fputc('\n', f); fflush(f);
+	fputs(s, stderr); fputc('\n', stderr); fflush(stderr);
+}
+
+static LONG WINAPI crash_backtrace_filter(EXCEPTION_POINTERS* ep)
+{
+	static volatile LONG in_handler = 0;
+	if (InterlockedCompareExchange(&in_handler, 1, 0) != 0) {
+		return EXCEPTION_EXECUTE_HANDLER; // nested crash inside the handler: give up quietly
+	}
+
+	FILE* f = fopen("crash-backtrace.log", "w");
+	char line[1100];
+	const DWORD code = (ep && ep->ExceptionRecord) ? ep->ExceptionRecord->ExceptionCode : 0;
+	const char* const addr = (const char*)((ep && ep->ExceptionRecord) ? ep->ExceptionRecord->ExceptionAddress : NULL);
+	sprintf(line, "Unhandled exception 0x%08lX at %p", code, addr);
+	if (f) crash_log_line(f, line); else { fputs(line, stderr); fputc('\n', stderr); }
+	if (code == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
+		sprintf(line, "Access violation %s 0x%p", ep->ExceptionRecord->ExceptionInformation[0] ? "writing" : "reading",
+			(void*)ep->ExceptionRecord->ExceptionInformation[1]);
+		if (f) crash_log_line(f, line); else { fputs(line, stderr); fputc('\n', stderr); }
+	}
+
+	HANDLE proc = GetCurrentProcess();
+	HANDLE thr = GetCurrentThread();
+	HMODULE dbg = LoadLibraryA("dbghelp.dll");
+
+	typedef BOOL (WINAPI *SymInitialize_t)(HANDLE, PCSTR, BOOL);
+	typedef BOOL (WINAPI *SymFromAddr_t)(HANDLE, DWORD64, PDWORD64, PSYMBOL_INFO);
+	typedef BOOL (WINAPI *SymGetLine_t)(HANDLE, DWORD64, PDWORD, PIMAGEHLP_LINE64);
+	typedef BOOL (WINAPI *StackWalk64_t)(DWORD, HANDLE, HANDLE, LPSTACKFRAME64, PVOID, PREAD_PROCESS_MEMORY_ROUTINE64, PFUNCTION_TABLE_ACCESS_ROUTINE64, PGET_MODULE_BASE_ROUTINE64, PTRANSLATE_ADDRESS_ROUTINE64);
+	typedef PVOID (WINAPI *SymFunctionTableAccess64_t)(HANDLE, DWORD64);
+	typedef DWORD64 (WINAPI *SymGetModuleBase64_t)(HANDLE, DWORD64);
+	typedef DWORD (WINAPI *SymSetOptions_t)(DWORD);
+
+	if (dbg) {
+		SymSetOptions_t pSymSetOptions = (SymSetOptions_t)GetProcAddress(dbg, "SymSetOptions");
+		SymInitialize_t pSymInitialize = (SymInitialize_t)GetProcAddress(dbg, "SymInitialize");
+		SymFromAddr_t pSymFromAddr = (SymFromAddr_t)GetProcAddress(dbg, "SymFromAddr");
+		SymGetLine_t pSymGetLine = (SymGetLine_t)GetProcAddress(dbg, "SymGetLineFromAddr64");
+		StackWalk64_t pStackWalk64 = (StackWalk64_t)GetProcAddress(dbg, "StackWalk64");
+		SymFunctionTableAccess64_t pSymFunctionTableAccess64 = (SymFunctionTableAccess64_t)GetProcAddress(dbg, "SymFunctionTableAccess64");
+		SymGetModuleBase64_t pSymGetModuleBase64 = (SymGetModuleBase64_t)GetProcAddress(dbg, "SymGetModuleBase64");
+
+		if (pSymSetOptions && pSymInitialize && pStackWalk64 && pSymFunctionTableAccess64 && pSymGetModuleBase64) {
+			pSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS);
+			if (pSymInitialize(proc, NULL, TRUE)) {
+				CONTEXT ctx;
+				ZeroMemory(&ctx, sizeof(ctx));
+				if (ep && ep->ContextRecord) {
+					memcpy(&ctx, ep->ContextRecord, sizeof(CONTEXT) < sizeof(ctx) ? sizeof(CONTEXT) : sizeof(ctx));
+				}
+				else {
+					RtlCaptureContext(&ctx);
+				}
+				STACKFRAME64 sf;
+				ZeroMemory(&sf, sizeof(sf));
+#ifdef _WIN64
+				const DWORD machine = IMAGE_FILE_MACHINE_AMD64;
+				sf.AddrPC.Offset = ctx.Rip;
+				sf.AddrFrame.Offset = ctx.Rbp;
+				sf.AddrStack.Offset = ctx.Rsp;
+#else
+				const DWORD machine = IMAGE_FILE_MACHINE_I386;
+				sf.AddrPC.Offset = ctx.Eip;
+				sf.AddrFrame.Offset = ctx.Ebp;
+				sf.AddrStack.Offset = ctx.Esp;
+#endif
+				sf.AddrPC.Mode = AddrModeFlat;
+				sf.AddrFrame.Mode = AddrModeFlat;
+				sf.AddrStack.Mode = AddrModeFlat;
+
+				char symbuf[sizeof(SYMBOL_INFO) + 1024];
+				PSYMBOL_INFO sym = (PSYMBOL_INFO)symbuf;
+				sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+				sym->MaxNameLen = 1024;
+
+				for (int frame = 0; frame < 128; frame++) {
+					if (!pStackWalk64(machine, proc, thr, &sf, &ctx, NULL, pSymFunctionTableAccess64, pSymGetModuleBase64, NULL)) {
+						break;
+					}
+					if (sf.AddrPC.Offset == 0) {
+						break;
+					}
+					DWORD64 disp64 = 0;
+					const char* name = "?";
+					if (pSymFromAddr && pSymFromAddr(proc, sf.AddrPC.Offset, &disp64, sym)) {
+						name = sym->Name;
+					}
+					else {
+						// no symbols: report module!+offset so addresses stay decodable against the PDB
+						HMODULE mod = NULL;
+						if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)(size_t)sf.AddrPC.Offset, &mod) && mod) {
+							char modname[MAX_PATH];
+							GetModuleFileNameA(mod, modname, MAX_PATH);
+							const char* base = strrchr(modname, '\\');
+							sprintf(sym->Name, "%s!+0x%llx", base ? base + 1 : modname, (unsigned long long)(sf.AddrPC.Offset - (DWORD64)(size_t)mod));
+							name = sym->Name;
+						}
+					}
+					IMAGEHLP_LINE64 li;
+					li.SizeOfStruct = sizeof(li);
+					DWORD disp32 = 0;
+					if (pSymGetLine && pSymGetLine(proc, sf.AddrPC.Offset, &disp32, &li)) {
+						sprintf(line, "  #%-3d %s  (%s:%lu)", frame, name, li.FileName, li.LineNumber);
+					}
+					else {
+						sprintf(line, "  #%-3d %s", frame, name);
+					}
+					if (f) crash_log_line(f, line); else { fputs(line, stderr); fputc('\n', stderr); }
+				}
+			}
+		}
+	}
+	if (dbg) {
+		FreeLibrary(dbg);
+	}
+	if (f) {
+		fclose(f);
+	}
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static void install_crash_backtrace_handler()
+{
+	SetUnhandledExceptionFilter(crash_backtrace_filter);
+}
+#endif
+
 #include "utils/simrandom.h"
 
 #include "bauer/vehikelbauer.h"
@@ -449,6 +590,9 @@ void setup_logging(const args_t &args)
 int simu_main(int argc, char** argv)
 {
 	std::set_new_handler(sim_new_handler);
+#ifdef _WIN32
+	install_crash_backtrace_handler();
+#endif
 
 	args_t args(argc, argv);
 	env_t::init();
