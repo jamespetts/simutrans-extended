@@ -233,7 +233,9 @@ gebaeude_t::~gebaeude_t()
 		// avoid book-keeping
 	}
 
-	if (tile->get_desc()->is_signalbox())
+	// tile can be NULL when the description was not found during loading
+	// (the "will be removed" path in rdwr; objlist_t then deletes the object)
+	if (tile && tile->get_desc()->is_signalbox())
 	{
 		display_coverage_radius(false);
 	}
