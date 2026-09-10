@@ -215,3 +215,6 @@ configure
 
 # Agent scratch space (test working dirs, logs, handoff notes) — AGENTS.md rule 8
 /ai/temp/
+
+# Local agent tooling (downloaded binaries, symbol caches) — never commit
+/ai/tools/

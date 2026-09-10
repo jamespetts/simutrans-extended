@@ -20,11 +20,20 @@ bb-10-sep-2023.sve from the user's Simutrans save directory. Run modes:
   Times     - the built-in drawing micro-benchmarks (-times) after loading,
               then quit; results are parsed from the log. (graphical build)
 
-For Capture/CaptureGui, profile the window with an external tool: Visual
-Studio Performance Profiler (launch or attach; uses the Profile builds'
-PDBs), or elevated "wpr" ETW capture via -Etw. Load completion is detected
-from a working-set/read-I/O plateau, so the run stays at -debug 1 and
-logging never perturbs the profile.
+For Capture/CaptureGui, -Trace profiles the run automatically: the suite
+starts a sampled-CPU ETW capture (WPT wpr + scripts\perf\cpu-sample.wprp)
+around the measurement window, stops it, extracts function-level hotspots
+with the TraceEvent analyzer (ai\tools\perf\etl-hotspots.exe) into
+hotspots-self.csv / hotspots-incl.csv in the results dir, and deletes the
+raw ETL on success (kept on failure). ETW needs elevation: that is handled
+by the "SimPerfEtw" scheduled task (one-time elevated install:
+scripts\perf\install-perf-task.ps1), so the suite itself runs non-elevated.
+-TracePhase Window (default) traces the steady-state window after the load
+plateau + settle; -TracePhase Load traces the load phase itself.
+Load completion is detected from a working-set/read-I/O plateau, so the run
+stays at -debug 1 and logging never perturbs the profile. Without -Trace,
+an external profiler (Visual Studio Performance Profiler, attach; PDBs sit
+next to the exe) can still be used manually during the window.
 
 Fast-forward is NOT used for profiling: it distorts realistic pacing (and
 never applies to network mode); it is only a tool for reaching a point in
@@ -45,6 +54,7 @@ session-end clearing). Pakset defaults per branch:
 master -> pak128.Britain-Ex-0.9.4, ex-15 -> pak128.Britain-Ex.
 
 Run via: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-perf-suite.ps1 -Mode Capture
+Traced:  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-perf-suite.ps1 -Mode Capture -Trace
 #>
 param(
   [string]$Exe,
@@ -64,7 +74,9 @@ param(
   [int]$MinLoadSec = 75,
   [int]$ServerPort = 13353,
   [switch]$Headless,
-  [switch]$Etw,
+  [switch]$Trace,
+  [ValidateSet("Window","Load")]
+  [string]$TracePhase = "Window",
   [switch]$Clean
 )
 
@@ -79,7 +91,8 @@ function Resolve-RepoPath {
 }
 
 if (-not $Pakset) {
-  $branch = (& git rev-parse --abbrev-ref HEAD) 2>$null
+  # git -C: the suite must work from any working directory (e.g. elevated launches from System32)
+  $branch = (& git -C $repo rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
   if ($branch -eq "ex-15") { $Pakset = "pak128.Britain-Ex" } else { $Pakset = "pak128.Britain-Ex-0.9.4" }
 }
 if (-not $Exe) {
@@ -121,6 +134,43 @@ cmd /c "`"$Exe`" -h > `"$helpFile`" 2>&1" | Out-Null
 if (-not (Select-String -Path $helpFile -Pattern "-until" -Quiet)) {
   Write-Output "FAIL: $Exe has no -until option (not a DEBUG/PROFILE build); build the `"Profile`" configurations"
   exit 1
+}
+
+# -Trace preflight: WPT wpr, the SimPerfEtw elevation task, and the analyzer.
+$analyzer = Join-Path $repo "ai\tools\perf\etl-hotspots.exe"
+if ($Trace) {
+  if ($Mode -ne "Capture" -and $Mode -ne "CaptureGui") { Write-Output "FAIL: -Trace only applies to Capture/CaptureGui"; exit 1 }
+  if (-not (Test-Path "C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpr.exe")) {
+    Write-Output "FAIL: WPT wpr.exe not found"; exit 1
+  }
+  & schtasks /query /tn SimPerfEtw 2>$null | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Output "FAIL: scheduled task SimPerfEtw missing; run scripts\perf\install-perf-task.ps1 elevated once"
+    exit 1
+  }
+  if (-not (Test-Path $analyzer)) { Write-Output "FAIL: analyzer missing at $analyzer"; exit 1 }
+}
+
+function Invoke-Etw {
+  # Command/status-file protocol with the elevated SimPerfEtw task (scripts\perf\etw-ctl.ps1).
+  # Returns $null on success, an error string otherwise.
+  param([string]$Action, [string]$Etl = "")
+  $id = "$stamp-" + [guid]::NewGuid().ToString("N").Substring(0,6)
+  $lines = @("id: $id", "action: $Action")
+  if ($Etl) { $lines += "etl: $Etl" }
+  Set-Content -Path (Join-Path $WorkDir "etw-command.txt") -Value ($lines -join "`n") -Encoding utf8
+  & schtasks /run /tn SimPerfEtw | Out-Null
+  $sf = Join-Path $WorkDir "etw-status-$id.txt"
+  $waited = 0
+  while (-not (Test-Path $sf) -and $waited -lt 600) { Start-Sleep -Seconds 2; $waited += 2 }
+  if (-not (Test-Path $sf)) { return "TIMEOUT waiting for etw-status-$id.txt" }
+  $content = @(Get-Content $sf)
+  Remove-Item $sf -Force -ErrorAction SilentlyContinue
+  $exitLine = $content | Select-String -Pattern '^exit: (-?\d+)' | Select-Object -First 1
+  $code = 0
+  if ($exitLine) { $code = [int]$exitLine.Matches[0].Groups[1].Value }
+  if ($code -ne 0) { return "wpr $Action exit ${code}: $($content -join ' | ')" }
+  return $null
 }
 
 # Sandbox workdir: junctioned pakset/font/text/themes, suite simuconf, hardlinked fixture.
@@ -177,13 +227,14 @@ switch ($Mode) {
   "Times"     { $argLine = "$commonArgs -times -until 0 -debug 3" }
 }
 
-$etwOn = $false
-if ($Etw -and ($Mode -eq "Capture" -or $Mode -eq "CaptureGui")) {
-  # Requires this whole script to be run from an ELEVATED console (wpr needs it).
-  & wpr -start CPU -filemode
-  if ($LASTEXITCODE -eq 0) { $etwOn = $true } else {
-    Write-Warning "wpr start failed (ETW needs an elevated console); continuing without ETW"
-  }
+# Load-phase tracing starts before the process launches; window-phase tracing
+# starts after the load plateau + settle (see below).
+$traceOn = $false
+$failed = @()
+$etlPath = Join-Path $res "trace.etl"
+if ($Trace -and $TracePhase -eq "Load") {
+  $err = Invoke-Etw "start"
+  if ($err) { $failed += "trace start: $err" } else { $traceOn = $true }
 }
 
 Remove-Item $simLog -Force -ErrorAction SilentlyContinue
@@ -194,7 +245,6 @@ Write-Host "[$Mode] launched pid=$($p.Id): $Exe"
 
 $loadSec = $null
 $exitCode = $null
-$failed = @()
 
 if ($Mode -eq "Capture" -or $Mode -eq "CaptureGui") {
   # Load completion = working-set plateau (world memory allocated, growth quiet for
@@ -227,18 +277,30 @@ if ($Mode -eq "Capture" -or $Mode -eq "CaptureGui") {
   if ($exitCode -ne $null) { $failed += "process exited during load (code $exitCode)" }
   elseif ($null -eq $loadSec) { $failed += "load (WS/read plateau) not confirmed within ${LoadTimeoutSec}s" }
   else {
-    Write-Host "[$Mode] load plateau at ${loadSec}s; settling ${SettleSec}s, then ${WindowSec}s window (profile NOW)"
-    Start-Sleep -Seconds $SettleSec
-    $windowStart = [int]$sw.Elapsed.TotalSeconds
-    Start-Sleep -Seconds $WindowSec
-    if (-not $p.HasExited) { try { $p.Kill() } catch {}; try { $p.WaitForExit(5000) | Out-Null } catch {} }
-    else { $failed += "process exited during window (code $($p.ExitCode))" }
-    Write-Host "[$Mode] window covered seconds $windowStart..$($windowStart + $WindowSec) of the run"
-  }
-  if ($etwOn) {
-    $etl = Join-Path $res "trace.etl"
-    & wpr -stop $etl
-    if ($LASTEXITCODE -eq 0 -and (Test-Path $etl)) { Write-Host "[$Mode] ETW trace: $etl" } else { $failed += "wpr -stop did not produce $etl" }
+    if ($Trace -and $TracePhase -eq "Load") {
+      # Load-phase trace: stop at the plateau; no steady-state window.
+      $err = Invoke-Etw "stop" $etlPath
+      if ($err) { $failed += "trace stop: $err" }
+      if (-not $p.HasExited) { try { $p.Kill() } catch {}; try { $p.WaitForExit(5000) | Out-Null } catch {} }
+      Write-Host "[$Mode] load-phase trace stopped at plateau (${loadSec}s)"
+    }
+    else {
+      Write-Host "[$Mode] load plateau at ${loadSec}s; settling ${SettleSec}s, then ${WindowSec}s window"
+      Start-Sleep -Seconds $SettleSec
+      if ($Trace) {
+        $err = Invoke-Etw "start"
+        if ($err) { $failed += "trace start: $err" } else { $traceOn = $true }
+      }
+      $windowStart = [int]$sw.Elapsed.TotalSeconds
+      Start-Sleep -Seconds $WindowSec
+      if ($traceOn) {
+        $err = Invoke-Etw "stop" $etlPath
+        if ($err) { $failed += "trace stop: $err" }
+      }
+      if (-not $p.HasExited) { try { $p.Kill() } catch {}; try { $p.WaitForExit(5000) | Out-Null } catch {} }
+      else { $failed += "process exited during window (code $($p.ExitCode))" }
+      Write-Host "[$Mode] window covered seconds $windowStart..$($windowStart + $WindowSec) of the run"
+    }
   }
 }
 else {
@@ -250,8 +312,8 @@ else {
 }
 
 $totalSec = [int]$sw.Elapsed.TotalSeconds
-$branch = (& git rev-parse --abbrev-ref HEAD) 2>$null
-$head = (& git rev-parse --short=7 HEAD) 2>$null
+$branch = (& git -C $repo rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+$head = (& git -C $repo rev-parse --short=7 HEAD 2>$null | Out-String).Trim()
 $summary = @(
   "mode:      $Mode"
   "date:      $stamp"
@@ -283,6 +345,25 @@ if (Test-Path $simLog) {
   }
 }
 else { $failed += "no simu log produced" }
+
+# Hotspot extraction from the trace (TraceEvent analyzer). The raw ETL is
+# deleted after successful analysis (user decision 2026-09-10); kept on failure.
+if ($traceOn -and (Test-Path $etlPath)) {
+  $env:_NT_SYMBOL_PATH = "srv*$repo\ai\tools\symbols*https://msdl.microsoft.com/download/symbols;$(Split-Path $Exe -Parent)"
+  $procFilter = [System.IO.Path]::GetFileNameWithoutExtension($Exe)
+  Write-Host "[$Mode] analysing trace (can take several minutes)..."
+  $anaOut = & $analyzer $etlPath $procFilter (Join-Path $res "hotspots") 2>&1 | Out-String
+  Write-Host $anaOut
+  if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $res "hotspots-self.csv"))) {
+    $summary += "profile:   hotspots-self.csv / hotspots-incl.csv"
+    $top = ($anaOut -split "`r?`n") | Where-Object { $_ -match '^\s+\d+\.\d+%' } | Select-Object -First 10
+    if ($top) { $summary += "top_self:"; $summary += ($top | ForEach-Object { "  $($_.Trim())" }) }
+    Remove-Item $etlPath -Force -ErrorAction SilentlyContinue
+    Remove-Item ([System.IO.Path]::ChangeExtension($etlPath, "etlx")) -Force -ErrorAction SilentlyContinue
+    Remove-Item "$etlPath.NGENPDB" -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  else { $failed += "analyzer failed (exit $LASTEXITCODE); trace kept at $etlPath" }
+}
 
 if ($failed.Count -gt 0) { $summary += "failures:  $($failed -join ' | ')" }
 Set-Content -Path (Join-Path $res "summary.txt") -Value ($summary -join "`n")
