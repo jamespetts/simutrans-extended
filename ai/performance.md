@@ -1,13 +1,15 @@
 ---
 status: draft
-verified: master @ cc1c5858f
+verified: master @ d40847e90
 ---
 # Performance & profiling
 
-**Covers:** scripts/run-perf-suite.ps1, the profiling fixture (bb-10-sep-2023.sve + branch pakset
-binaries in simutrans/), the MSVC "Profile" configuration, the DEBUG/PROFILE-only benchmark
-command-line options (`-until`, `-times`, `-fast-network-sync` in simmain.cc), and the performance
-hotspot inventory.
+**Covers:** scripts/run-perf-suite.ps1, the automated ETW profiling pipeline in scripts/perf/
+(cpu-sample.wprp, etl-hotspots.cs, etw-ctl.ps1, install-perf-task.ps1; analyzer deployed under
+ai/tools/perf/, symbol cache ai/tools/symbols/, both gitignored), the profiling fixture
+(bb-10-sep-2023.sve + branch pakset binaries in simutrans/), the MSVC "Profile" configuration,
+the DEBUG/PROFILE-only benchmark command-line options (`-until`, `-times`, `-fast-network-sync`
+in simmain.cc), and the performance hotspot inventory.
 
 ## Why this doc
 
@@ -110,76 +112,99 @@ are compiled in and flood the log (a single post-load step produced ~155k log li
 "Optimised debug" build vs ~2.5k in the Profile build) [execution-verified 2026-09-09] — another
 reason profiling uses the Profile configuration.
 
-### Profiler workflows
+### Automated profiling pipeline (-Trace)
 
-- **Visual Studio Performance Profiler** (primary): launch `Simutrans-Extended-Profile.exe` (or
-  `-Profile-server.exe` once the headless crash is fixed) with the suite's argument line (copy it
-  from the script's `$argLine` or a previous summary; the sandbox must exist — run any suite mode
-  once to create it), CPU Usage tool; PDBs sit next to the exe. Attach-based sampling also works
-  against a Capture/CaptureGui run. VS manages its own ETW session, avoiding the wpr quirks below.
-- **ETW / WPR** (scripted): `-Etw` on the script wraps the capture run in `wpr -start CPU
-  -filemode` / `wpr -stop <results>\trace.etl`. **Requires the whole script to be run from an
-  elevated console** (non-elevated `wpr` cannot enable the policy). Caveat: orchestrated
-  `wpr -stop` from nested/elevated child processes proved unreliable on this machine (profile
-  stopped, file not written — quoting/COM-thread-mode failures) [EXECUTION-VERIFIED 2026-09-09];
-  if `-Etw` reports no trace, stop it by hand from the elevated console or prefer the VS Profiler.
+`-Mode Capture|CaptureGui -Trace [-TracePhase Window|Load]` runs a complete profile
+non-interactively [EXECUTION-VERIFIED:2026-09-10]:
+
+1. The suite starts a sampled-CPU ETW capture (WPT `wpr.exe` + the custom sampled-only profile
+   `scripts/perf/cpu-sample.wprp` — no context-switch events, ~10× smaller traces than the
+   builtin "CPU" profile). `-TracePhase Window` (default) traces the steady-state window after
+   the load plateau + settle; `-TracePhase Load` traces from process start to the plateau, for
+   load-cost work.
+2. Elevation: ETW kernel sessions need admin and the suite shell is non-elevated, so wpr
+   start/stop go through the **SimPerfEtw scheduled task** (one-time elevated install:
+   `scripts/perf/install-perf-task.ps1`; command/status-file protocol in ai/temp/perf/). Use the
+   WPT wpr.exe — the inbox wpr (System32) has a broken `-stop` (RPC_E_CHANGED_MODE) on this
+   machine [EXECUTION-VERIFIED:2026-09-10].
+3. At window end the TraceEvent analyzer (source `scripts/perf/etl-hotspots.cs`; deployed with
+   its managed + native DLLs in `ai/tools/perf/`) writes `hotspots-self.csv` /
+   `hotspots-incl.csv` (function, samples, %) into the results dir and the top-10 self list into
+   summary.txt. The raw ETL is deleted on success, kept on failure. Analyzer caveats, both
+   handled in the checked-in source: DIA-based PDB parsing needs TraceEvent's native DLLs
+   (amd64\msdia140 etc.) beside the exe, and the MS symbol servers reject .NET 4.0's default
+   TLS 1.0 (TLS 1.2 is forced).
+4. Comparing runs: diff the pct columns of two hotspots CSVs (same machine, mode, window,
+   fixture, threads). Compare function CPU share, not absolute wall time; wall-time comparisons
+   only between clean-exit modes (Load/Times).
+- gprof is unusable on this toolchain: mingw64 gcc 16.2 `-pg` emits zero instrumentation
+  (no mcount/fentry calls) [EXECUTION-VERIFIED:2026-09-10].
+- **Visual Studio Performance Profiler** remains the manual fallback for interactive drill-down
+  (launch/attach against the Profile builds; PDBs next to the exe). PerfView CLI has no analysis
+  commands (GUI-only) [EXECUTION-VERIFIED:2026-09-10].
 - **Window length:** one to two minutes of paced running on this fixture is enough to identify
   hotspots for most purposes; much longer runs are only needed to observe long-cycle behaviour
   (e.g. a complete path-explorer run), which is rare and better studied on a small map (the CI
   demo fixture) [RECOLLECTION:2026-09-09].
-- Comparing runs: same machine, same mode/parameters, same fixture and pakset; compare profiler
-  function/module CPU share rather than absolute wall time; wall-time comparisons only between
-  clean-exit modes (Load/Times).
 
 ## Hotspots
 
-Treat everything under `step()`/`sync_step()` as hot (project-notes); the entries below are the
-areas where cost concentrates and evidence exists. **These categories are coarse** — there are
-very uneven major hotspots *within* them (especially within the vehicle and city categories); the
-fine-grained picture must come from profiler data [RECOLLECTION:2026-09-09]. Magnitudes are
-machine- and game-state-specific: profile, do not assume. Domain mechanics:
+Measured 2026-09-10 on the canonical fixture via the -Trace pipeline (server-paced Capture,
+120 s window, threads=4, master @ d40847e90; 262,784 CPU samples, 57% in the game module)
+[EXECUTION-VERIFIED:2026-09-10]. Percentages below are share of matched in-game samples; "incl"
+counts a function for every stack it appears in, "self" counts only leaf frames. Treat
+everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics:
 [simulation-core](simulation-core.md), [routing-and-scheduling](routing-and-scheduling.md),
 [vehicles-and-convoys](vehicles-and-convoys.md), [threading](threading.md),
 [rendering](rendering.md).
 
-1. **Route search (A\*) — `route_t::intern_calc_route` (dataobj/route.cc).** Convoy pathfinding.
-   On the fixture, heuristic-failure diagnostics fire continuously: the printed `heur` values run
-   ~10× the achieved `cost`, i.e. searches routinely expand far more nodes than the heuristic
-   predicts [execution-verified 2026-09-09]. Probably an artefact of the heuristic interacting
-   with this map's design rather than a bug — not established either way
-   [RECOLLECTION:2026-09-09]. `max_route_steps` (simuconf, default 1.5M) bounds search memory.
-2. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, *steppable*
-   Floyd-Warshall connection search between halts for goods/passengers, budgeted per step via
-   `limit_set_t` (rebuild_connexions → filter_eligible → fill_matrix → explore_paths →
-   reroute_goods). Definitely a hotspot, but it runs **concurrently** with the rest of the
-   simulation and a complete run takes a *long* time: it governs how quickly in-game routes
-   update, not framerate or UI responsiveness [RECOLLECTION:2026-09-09].
-3. **Route reservation clearing** (signal reservations; → [signals-and-blocks](signals-and-blocks.md)).
-   A distinct, significant per-step cost when many convoys run [RECOLLECTION:2026-09-09].
-4. **Vehicle physics.** Significant per-step cost: movement physics (fixed-point arithmetic;
-   `float32e8_t` for sync-safe decimals) across all vehicles [RECOLLECTION:2026-09-09].
-5. **Convoy stepping — `convoi_t` (simconvoi.cc).** Per-convoy state machines (movement, loading,
-   readiness, schedule adherence); with thousands of convoys this is broad per-step cost.
-   Immediately after loading the fixture there is a mass reroute wave: the first step emits
-   ~10⁵ route-search log lines at `-debug ≥ 2` in DEBUG builds [execution-verified 2026-09-09].
-6. **Passenger generation — `stadt_t` (simcity.cc).** Very much a hotspot (monthly cadence);
-   **city *growth* is not** [RECOLLECTION:2026-09-09]. Building rules and electricity consumption
-   tables are per-city configuration, not per-step costs.
-7. **Map/ground iteration — `karte_t::sync_step` tile slices, plan/planquadrat_t, grund_t/obj
-   lists.** The per-frame walk over ground tiles and their object lists is the raw bandwidth cost
-   of huge maps; parts are multi-threaded — the machinery and its fragility: [threading](threading.md).
-8. **Halt (stop) processing — `haltestelle_t` (simhalt.cc), `ware_t` (simware.h).** Goods
-   boarding/transfer/rerouting at stops; `reroute_goods` is also a path-explorer phase. Not
-   recalled as a major hotspot — possibly somewhat hot; unconfirmed
-   [RECOLLECTION:2026-09-09 user uncertain]. Verify with profiler data before acting on it.
-9. **Display — simview/simgraph pipeline.** The **simulation dominates** on this fixture; display
-   is secondary at typical window sizes [RECOLLECTION:2026-09-09]. Measurable via the suite's
-   `Times` mode (display_img/view->display/fillbox/text micro-benchmarks). Details:
-   [rendering](rendering.md).
-10. **Savegame load — `karte_t::load` (simworld.cc) + loadsave/io layers.** On the order of
-    1.5 minutes for this fixture on the maintainer's machine [execution-verified 2026-09-09];
-    dominates server rotations and client joins. Profile with a `Load`-mode run (zstd caveat
-    above).
+1. **Synced-object stepping — `karte_t::sync_list_t::sync_step` (simworld.cc).** 23.7% self /
+   67.3% incl (`karte_t::sync_step` overall 69.5% incl). The dominant single leaf cost: the
+   per-step walk over the synced moving-object lists itself, before the objects' own sync_step
+   bodies — a raw iteration/memory-bandwidth cost on a map with this many moving objects.
+2. **Convoy physics & stepping — `convoi_t` (simconvoi.cc), `vehicle_base_t`/`convoy_t`.**
+   `convoi_t::sync_step` 22.4% incl; `calc_acceleration` 18.9% incl / 8.3% self;
+   `vehicle_base_t::do_drive` 10.0% incl; `convoy_t::calc_move` 6.1% incl;
+   `convoy_t::calc_min_braking_distance` 3.0% incl; the sync-safe fixed-point `float32e8_t`
+   operators ~7% self combined (`operator*` 4.9%, `operator+` 1.2%, `operator/` 0.6%).
+   Immediately after loading the fixture there is a mass reroute wave (the first step emits
+   ~10⁵ route-search log lines at -debug ≥ 2 in DEBUG builds) [EXECUTION-VERIFIED:2026-09-09].
+3. **Route reservation clearing — `convoi_t::unreserve_route_range` +
+   `unreserve_route_threaded`.** 12.8% incl / 12.4% self — a first-class hotspot with thousands
+   of convoys running (→ [signals-and-blocks](signals-and-blocks.md)).
+4. **City traffic — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
+   `pedestrian_t::sync_step` 1.2% self.** Not previously suspected at this rank.
+5. **Passenger generation — `stadt_t` (simcity.cc) / `karte_t`.**
+   `karte_t::generate_passengers_or_mail` 4.8% incl (`step_passengers_and_mail_threaded` 4.9%
+   incl), `karte_t::find_destination` 3.0% incl. Monthly cadence; city *growth* is not hot
+   [RECOLLECTION:2026-09-09, consistent with the measured absence of growth functions].
+6. **Map/ground access — `grund_t::get_weg` 3.4% self, `karte_t::lookup` 2.4% self,
+   `grund_t::get_neighbour` 2.6% incl, `planquadrat_t::get_boden_in_hoehe` 1.0% self.**
+   Raw lookup cost over huge maps; parts of the tile walk are multi-threaded — machinery and its
+   fragility: [threading](threading.md).
+7. **Halt cargo handling — `karte_t::check_transferring_cargoes` 2.6% incl / 2.6% self
+   (`haltestelle_t`, simhalt.cc).** Moderate, not dominant.
+8. **Route search (A\*) — `route_t::intern_calc_route` (dataobj/route.cc).** Minor in *steady
+   state* on this fixture: `route_t::find_route` ~1.2% self in the measured window — the
+   continuous heuristic-failure diagnostics (`heur` ~10× `cost`
+   [EXECUTION-VERIFIED:2026-09-09]) do not translate into a top steady-state cost. Concentrated
+   in the post-load reroute wave instead. `max_route_steps` (simuconf, default 1.5M) bounds
+   search memory.
+9. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, *steppable*
+   Floyd-Warshall connection search, budgeted per step via `limit_set_t`; runs concurrently and
+   governs how quickly in-game routes update, not framerate [RECOLLECTION:2026-09-09]. It only
+   runs when something has changed since its last completed pass; on a busy server game changes
+   outpace it so it is effectively always running, but it can be dormant (e.g. the small demo
+   fixture) [RECOLLECTION:2026-09-10]. Its CPU does not appear under its own symbols in the
+   measured fixture window; ~24% incl sits under unresolved `pthreadvc2!?` worker-thread frames —
+   attribution unresolved (open questions).
+10. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
+    (`main_view_t::display_region` 4.9% incl), but dominated a CaptureGui window on the small
+    demo map (73% incl) — display share is workload-dependent; use CaptureGui + -Trace for
+    graphics-code hotspots, `Times` mode for micro-benchmarks. Details: [rendering](rendering.md).
+11. **Savegame load — `karte_t::load` (simworld.cc) + loadsave/io layers.** ~78 s to the load
+    plateau for this fixture [EXECUTION-VERIFIED:2026-09-10]; dominates server rotations and
+    client joins. Profile with `-TracePhase Load` (zstd caveat above).
 
 Cross-cutting rules that protect these paths: Simutrans `tpl/`/`utils/` containers instead of std
 (profiled faster for these workloads) [project-notes](project-notes.md); plain integers over floats
@@ -191,11 +216,19 @@ must not be perturbed without reading [threading](threading.md) and
 
 - Exact fixture map dimensions and object counts (convoys, halts, cities, ways) — worth recording
   once extracted for hotspot reasoning; not yet measured.
-- Relative CPU share of the hotspot areas (and the fine-grained breakdown within the coarse
-  categories) — to be filled from the first profiler sessions rather than guessed.
-- The A\* heuristic failures on this map: artefact or improvable? Perf-relevant either way
-  (searches expand ~10× the predicted nodes); investigate with profiler data before touching the
-  heuristic.
+- ~24% of in-game inclusive samples sit under unresolved `pthreadvc2!?` worker-thread frames
+  (2026-09-10 measurement) — which threaded subsystem (path explorer, threaded sync slices,
+  unreserve_route_threaded) owns that time is not yet attributed. The path explorer can
+  legitimately be dormant when nothing has changed since its last pass [RECOLLECTION:2026-09-10],
+  though that is unlikely on this fixture. Needs thread-start-frame-based attribution in the
+  analyzer before optimising threaded code.
+- Why is `sync_list_t::sync_step` itself (not the objects it steps) 23.7% *self*? Candidates:
+  list iteration cost at this object count, cache misses on the node walk, or inlining
+  attribution artefacts. Investigate before attempting optimisation.
+- The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
+  -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
+  post-load-wave problem, not a steady-state one; investigate with a Load-phase or
+  immediate-post-load trace before touching the heuristic.
 - The ~30 startup tunnel-builder menu errors with pak128.Britain-Ex-0.9.4 on current master:
   possibly pakset/menuconf mismatch; worth investigating later
   [RECOLLECTION:2026-09-09 user: not now].

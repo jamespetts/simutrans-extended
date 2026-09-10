@@ -123,6 +123,19 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
+
+- Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
+  authenticated nettool shutdown: the shutdown is *accepted* (nettool exits 0) but the game kept
+  simulating for 34+ minutes afterwards (window live, one core pinned) until killed
+  [EXECUTION-VERIFIED:2026-09-10]. demo.sve exits cleanly in 15 s under the same procedure.
+- Hypothesis: a very long post-load server step (the mass reroute wave after loading this save —
+  see [performance](performance.md)) delays the quit check — UNVERIFIED.
+- Production relevance: shutdown/save latency on rotation of very large server saves. Also blocks
+  any clean-exit automation against this fixture; kill-based capture is unaffected.
+- nettool itself works (mingw build, auth + shutdown verified on demo.sve)
+  [EXECUTION-VERIFIED:2026-09-10].
+
 ### Intermittent network-server final-save divergence — priority 1
 
 - The network determinism harness sometimes reports non-byte-identical final
