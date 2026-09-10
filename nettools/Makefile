@@ -22,12 +22,15 @@ ifeq ($(OSTYPE),cygwin)
   STD_LIBS += -lwinmm -lcurses
 endif
 
-ifeq ($(OSTYPE),mingw32 mingw64)
+ifneq ($(findstring $(OSTYPE), mingw32 mingw64),)
   CC ?= gcc
-  OS_OPT   ?= -march=pentium
+  ifeq ($(OSTYPE),mingw32)
+    OS_OPT   ?= -march=pentium
+  endif
   # we need the libraries EXACTLY in this order to link
   STD_LIBS = -lmingw32 -lstdc++ -lwsock32 -lws2_32
-  #LDFLAGS += -static-libgcc -static-libstdc++ -Wl,--large-address-aware -static
+  # standalone binary: no MinGW runtime DLL dependencies when run outside MSYS2
+  LDFLAGS += -static-libgcc -static-libstdc++ -static
   #CFLAGS  += -_WIN32_WINNT -static
 endif
 
