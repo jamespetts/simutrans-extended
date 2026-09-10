@@ -38,7 +38,7 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
   runs under step() or sync_step() (i.e. almost all live simulation code) as performance critical unless you can prove 
   otherwise. This means:  performance can justify less readable code, or code that needs more work to get right 
   (e.g. no duplicated checks) in these areas. *Always* give detailed consideration to the performance impact of *any* 
-  change that runs under step() or sync_step(). 
+  change that runs under step() or sync_step(). How to measure this and where the hotspots are: [performance](performance.md).
 
 - Use the Simutrans container and utility classes (tpl/, utils/) instead of std (etc.) equivalents
   for new code: they are profiled to be faster for this game's workloads. Inventory + gotchas:
@@ -52,3 +52,6 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 - The Squirrel scripting API was never fully ported from Standard and nobody uses it in Extended. Completing it is low
   priority (massive work; Extended prioritises large MP organic games over scripted scenarios).
   Details: [scripting-and-tests](scripting-and-tests.md). [RECOLLECTION:2026-09-06]
+
+- User-facing text: `translator::translate("English literal")` — the key IS the English text; missing or format-mismatched
+  translations silently fall back to it. Details: [translations](translations.md). [CODE master @ 84b8345a4]

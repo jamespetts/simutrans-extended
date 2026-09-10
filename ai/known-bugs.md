@@ -52,6 +52,30 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
+### Headless (COLOUR_DEPTH=0) MSVC builds crash in server-mode simulation on the gargantuan fixture — priority 1
+
+- Loading bb-10-sep-2023.sve (the performance-suite fixture) and running it as a server
+  (`-server`, loopback-only, no clients, `pause_server_no_clients = 0`) crashes with 0xC0000005,
+  faulting module ntdll.dll (heap-corruption pattern), roughly 25–30 s after load completes
+  ("Running world" reached; FIX_RATIO timers running) [EXECUTION-VERIFIED 2026-09-09].
+- Reproduced with both the "Profile (server)|x64" build and the maintainer's
+  "Debug (non-graphical server)|x64" build (rebuilt from master @ cc1c5858f) — independent of
+  the new configuration [EXECUTION-VERIFIED 2026-09-09].
+- NOT reproduced by the graphical "Profile|x64" build in the same server mode (survived 300 s+),
+  nor by client-mode fast-forward runs (120 s windows) — headless-specific, early server sim,
+  this save [EXECUTION-VERIFIED 2026-09-09].
+- The suite first misclassified it as a load crash: the load completes, and the crash is
+  log-invisible in Profile builds (DBG macros compiled out) [EXECUTION-VERIFIED 2026-09-09].
+- Scope: the headless build works when compiled with GCC (production server and local GCC
+  builds), so this is presumably an MSVC/Windows-specific defect, not a code-level deterministic
+  bug on all platforms [RECOLLECTION:2026-09-09 user statement]. Candidate classes: latent
+  undefined behaviour that MSVC's runtime/heap validation surfaces, or an MSVC codegen/packing
+  difference. Mixed-CRT zstd linking is ruled out: the crashing "Debug (non-graphical server)"
+  build is /MTd, matching the zstd lib's CRT. Relation to the `karte_t::load`/`init_threads` race
+  family (below) undiagnosed [UNVERIFIED].
+- Blocks the headless capture profile of the performance suite (→ [performance](performance.md));
+  workaround: server-paced capture on the graphical Profile build (display cost included).
+
 ### Data race between `karte_t::load` and `init_threads` — priority 2
 
 - CI TSan job (`.github/workflows/run-tests.yml`) reports data races between `karte_t::load`
@@ -99,6 +123,19 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
+
+- Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
+  authenticated nettool shutdown: the shutdown is *accepted* (nettool exits 0) but the game kept
+  simulating for 34+ minutes afterwards (window live, one core pinned) until killed
+  [EXECUTION-VERIFIED:2026-09-10]. demo.sve exits cleanly in 15 s under the same procedure.
+- Hypothesis: a very long post-load server step (the mass reroute wave after loading this save —
+  see [performance](performance.md)) delays the quit check — UNVERIFIED.
+- Production relevance: shutdown/save latency on rotation of very large server saves. Also blocks
+  any clean-exit automation against this fixture; kill-based capture is unaffected.
+- nettool itself works (mingw build, auth + shutdown verified on demo.sve)
+  [EXECUTION-VERIFIED:2026-09-10].
+
 ### Intermittent network-server final-save divergence — priority 1
 
 - The network determinism harness sometimes reports non-byte-identical final
@@ -131,6 +168,8 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | Intermittent network-server final-save divergence (not a forum report: network test-suite observation) | — | detailed entry above |
+| Headless MSVC builds crash in server-mode sim on the bb-10-sep-2023.sve fixture (not a forum report: performance-suite discovery 2026-09-09) | — | detailed entry above |
+| Syllable-generated town-name lists can differ between peers, diverging the synced RNG (not a forum report: code inspection 2026-09-08) | — | `translator::init_custom_names` builds fallback town-name lists with `sim_async_rand` (probabilistic prefix/suffix inclusion), so list length can differ between peers; `stadt_t::stadt_t` (simcity.cc) then draws ONE synced `simrand(count)` at town founding — a differing count diverges the synced RNG stream → candidate checklist desync in network games without an identical citylist file. Unverified lead; Pak128.Britain-Ex relies on the syllable system (complete-name citylists deprecated there) [RECOLLECTION:2026-09-08]. Context → [translations/city-and-street-names](translations/city-and-street-names.md) [CODE master @ 84b8345a4] |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -143,7 +182,6 @@ confirms they affect current builds in live games.
 | [Strange behaviour possibly causing desync](https://forum.simutrans.com/index.php/topic,22405.0.html) | 2024 | desync |
 | [[734f8e3] Desync immediately first time try to join the server](https://forum.simutrans.com/index.php/topic,22203.0.html) | 2024 | desync |
 | [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family — see detailed entry above |
-| [Crash due to "Too many (%i) industry roads!" when closing the game](https://forum.simutrans.com/index.php/topic,22157.0.html) | 2024 | |
 | [Game crashes when trying to upgrade Merchant Navy class through replace function](https://forum.simutrans.com/index.php/topic,22385.0.html) | 2024 | |
 | [Listserver unavailability causes online game freezes](https://forum.simutrans.com/index.php/topic,22278.0.html) | 2023 | external-service dependency |
 | [[ex-15] Crash when loading saved game saved with ex-15 branch](https://forum.simutrans.com/index.php/topic,22201.0.html) | 2023 | ex-15 branch |
@@ -222,9 +260,6 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
-| [Graph labels for "Seat-km" and "Passenger km" both show as "pass. km."](https://forum.simutrans.com/index.php/topic,23885.0.html) | 2026 | |
-| [-pause lost on next save file loading](https://forum.simutrans.com/index.php/topic,23715.0.html) | 2025 | |
-| [Info window for 'rapids' has incorrect error message](https://forum.simutrans.com/index.php/topic,23448.0.html) | 2025 | |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
 | [Minimum loading percentage display in schedule UI](https://forum.simutrans.com/index.php/topic,22781.0.html) | 2024 | |
 | [Bug in Listbox when changing schedules](https://forum.simutrans.com/index.php/topic,22202.0.html) | 2023 | |
@@ -238,6 +273,7 @@ confirms they affect current builds in live games.
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
 | Schedule trigger flag polarity mismatch (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `convoi_t::ziel_erreicht` treats cond_trigger_is_line_or_cnv set=line/unset=convoy, the reverse of the couple/uncouple equivalents (set=convoy); the GUI stores a line ID without setting the flag. Latent until the trigger GUI is wired [CODE ex-15 @ 91d9b252e]. Context → [ex-15 schedule registry](ex-15/schedule-and-consists.md) |
 | Urgent maintenance does not force a depot visit (not a forum report: code inspection 2026-09-07) | — | ex-15 only: exceeding 1.5× maintenance_interval_km sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit wherever the convoy is; user confirms the comment reflects intent [RECOLLECTION:2026-09-07] [CODE ex-15 @ 91d9b252e] |
+| Town-name suffix gate uses prefix_probability (not a forum report: code inspection 2026-09-08) | — | dataobj/translator.cc `init_custom_names`: the per-name suffix gate compares `random_percent_suffix > prefix_probability`; `suffix_probability` is defined but never used — suspected copy-paste bug gating suffix attachment by the prefix rate; needs investigation before confirmed, not investigated yet [RECOLLECTION:2026-09-08]. Context → [translations/city-and-street-names](translations/city-and-street-names.md) [CODE master @ 84b8345a4] |
 
 ## P4 — very low / backlog
 

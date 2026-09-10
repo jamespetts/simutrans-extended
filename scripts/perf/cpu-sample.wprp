@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes'?>
+<!--
+  Sampled-CPU-only WPR profile for Simutrans-Extended profiling (see ai/performance.md).
+  Enables process/thread/loader events and CPU sampled profile events with stack
+  walking; deliberately excludes CSwitch and all manifest providers, so traces are
+  roughly an order of magnitude smaller than the builtin "CPU" profile.
+  Usage (from an elevated console):
+    wpr -start <repo>\scripts\perf\cpu-sample.wprp -filemode   (stream to disk; long runs)
+    wpr -start <repo>\scripts\perf\cpu-sample.wprp             (memory mode; short runs)
+    wpr -stop <results-dir>\trace.etl
+  A detail level can be selected explicitly, e.g.:
+    wpr -start <repo>\scripts\perf\cpu-sample.wprp!CpuSample.Light -filemode
+-->
+<WindowsPerformanceRecorder
+    Author="Simutrans-Extended"
+    Comments="Sampled CPU profiling only (no CSwitch)"
+    Version="1.0"
+    >
+  <Profiles>
+    <SystemCollector
+        Id="SystemCollector_CpuSample"
+        Name="NT Kernel Logger"
+        >
+      <BufferSize Value="128"/>
+      <Buffers Value="128"/>
+    </SystemCollector>
+    <SystemProvider Id="SystemProvider_CpuSample">
+      <Keywords>
+        <Keyword Value="ProcessThread"/>
+        <Keyword Value="Loader"/>
+        <Keyword Value="SampledProfile"/>
+      </Keywords>
+      <Stacks>
+        <Stack Value="SampledProfile"/>
+      </Stacks>
+    </SystemProvider>
+    <Profile
+        Description="Sampled CPU profiling only: process/thread/loader events and CPU samples with stacks; no CSwitch or other heavyweight providers"
+        DetailLevel="Light"
+        Id="CpuSample.Light.File"
+        LoggingMode="File"
+        Name="CpuSample"
+        >
+      <ProblemCategories>
+        <ProblemCategory Value="CPU Usage"/>
+      </ProblemCategories>
+      <Collectors>
+        <SystemCollectorId Value="SystemCollector_CpuSample">
+          <SystemProviderId Value="SystemProvider_CpuSample"/>
+        </SystemCollectorId>
+      </Collectors>
+      <TraceMergeProperties>
+        <TraceMergeProperty
+            Id="TraceMerge_CpuSample"
+            Name="TraceMerge_CpuSample"
+            >
+          <DeletePreMergedTraceFiles Value="true"/>
+          <FileCompression Value="false"/>
+          <InjectOnly Value="false"/>
+          <SkipMerge Value="false"/>
+          <CustomEvents>
+            <CustomEvent Value="ImageId"/>
+            <CustomEvent Value="BuildInfo"/>
+            <CustomEvent Value="VolumeMapping"/>
+            <CustomEvent Value="EventMetadata"/>
+            <CustomEvent Value="PerfTrackMetadata"/>
+            <CustomEvent Value="WinSAT"/>
+            <CustomEvent Value="NetworkInterface"/>
+          </CustomEvents>
+        </TraceMergeProperty>
+      </TraceMergeProperties>
+    </Profile>
+    <Profile
+        Description="Sampled CPU profiling only: process/thread/loader events and CPU samples with stacks; no CSwitch or other heavyweight providers"
+        DetailLevel="Verbose"
+        Id="CpuSample.Verbose.File"
+        LoggingMode="File"
+        Name="CpuSample"
+        >
+      <ProblemCategories>
+        <ProblemCategory Value="CPU Usage"/>
+      </ProblemCategories>
+      <Collectors>
+        <SystemCollectorId Value="SystemCollector_CpuSample">
+          <SystemProviderId Value="SystemProvider_CpuSample"/>
+        </SystemCollectorId>
+      </Collectors>
+      <TraceMergeProperties>
+        <TraceMergeProperty
+            Id="TraceMerge_CpuSample"
+            Name="TraceMerge_CpuSample"
+            >
+          <DeletePreMergedTraceFiles Value="true"/>
+          <FileCompression Value="false"/>
+          <InjectOnly Value="false"/>
+          <SkipMerge Value="false"/>
+          <CustomEvents>
+            <CustomEvent Value="ImageId"/>
+            <CustomEvent Value="BuildInfo"/>
+            <CustomEvent Value="VolumeMapping"/>
+            <CustomEvent Value="EventMetadata"/>
+            <CustomEvent Value="PerfTrackMetadata"/>
+            <CustomEvent Value="WinSAT"/>
+            <CustomEvent Value="NetworkInterface"/>
+          </CustomEvents>
+        </TraceMergeProperty>
+      </TraceMergeProperties>
+    </Profile>
+    <Profile
+        Base="CpuSample.Light.File"
+        Description="Sampled CPU profiling only: process/thread/loader events and CPU samples with stacks; no CSwitch or other heavyweight providers"
+        DetailLevel="Light"
+        Id="CpuSample.Light.Memory"
+        LoggingMode="Memory"
+        Name="CpuSample"
+        >
+      <Collectors Operation="Add">
+        <SystemCollectorId Value="SystemCollector_CpuSample">
+          <Buffers
+              PercentageOfTotalMemory="true"
+              Value="5"
+              />
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+    <Profile
+        Base="CpuSample.Verbose.File"
+        Description="Sampled CPU profiling only: process/thread/loader events and CPU samples with stacks; no CSwitch or other heavyweight providers"
+        DetailLevel="Verbose"
+        Id="CpuSample.Verbose.Memory"
+        LoggingMode="Memory"
+        Name="CpuSample"
+        >
+      <Collectors Operation="Add">
+        <SystemCollectorId Value="SystemCollector_CpuSample">
+          <Buffers
+              PercentageOfTotalMemory="true"
+              Value="5"
+              />
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

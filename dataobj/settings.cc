@@ -811,7 +811,7 @@ void settings_t::rdwr(loadsave_t *file)
 			else {
 				// several roads ...
 				file->rdwr_short(num_city_roads );
-				if(  num_city_roads>=16  ) {
+				if(  num_city_roads>16  ) {
 					dbg->fatal("settings_t::rdwr()", "Too many (%i) city roads!", num_city_roads);
 				}
 				for(  int i=0;  i<num_city_roads;  i++  ) {
@@ -821,7 +821,7 @@ void settings_t::rdwr(loadsave_t *file)
 				}
 				// several intercity roads ...
 				file->rdwr_short(num_intercity_roads );
-				if(  num_intercity_roads>=16  ) {
+				if(  num_intercity_roads>16  ) {
 					dbg->fatal("settings_t::rdwr()", "Too many (%i) intercity roads!", num_intercity_roads);
 				}
 				for(  int i=0;  i<num_intercity_roads;  i++  ) {
@@ -833,7 +833,7 @@ void settings_t::rdwr(loadsave_t *file)
 				{
 					// Industry roads are now different from inter-city roads
 					file->rdwr_short(num_industry_roads);
-					if (num_industry_roads >= 16) {
+					if (num_industry_roads > 16) {
 						dbg->fatal("settings_t::rdwr()", "Too many (%i) industry roads!", num_industry_roads);
 					}
 

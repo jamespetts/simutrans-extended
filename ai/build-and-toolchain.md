@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 49fd95a32
+verified: master @ cc1c5858f
 ---
 # Build & toolchain
 
@@ -9,7 +9,7 @@ Nettool.vcxproj, Makefile, common.mk, uncommon.mk, config.template, config.defau
 configs/, CMakeLists.txt, cmake/, makeobj/ and nettools/ build files, .github/ (workflows,
 init_env.py, toolchain_mingw.cmake), nsis/, cleanup_code.sh, distribute.sh, get_pak.sh, play.sh,
 restart.sh, findversion.sh, revision.jse, scripts/run-automated-tests.sh,
-scripts/run-smoke-tests.sh/.ps1, OSX/osx.mk.
+scripts/run-smoke-tests.sh/.ps1, scripts/run-perf-suite.ps1, OSX/osx.mk.
 
 ## Overview
 
@@ -25,12 +25,13 @@ Four build paths coexist:
 ## MSVC path (maintainer's Windows recipe)
 
 - `Simutrans-Extended.sln` → `Simutrans-Extended.vcxproj`: ~30 configurations (Debug, Release,
-  "Optimised debug", server, no-randomness, single-threaded, Dr. Memory, IP-v4-only, SDL 2, legacy
-  OpenGL) × Win32/x64. Some solution configurations map to differently-named project configurations.
+  "Optimised debug", Profile, server, no-randomness, single-threaded, Dr. Memory, IP-v4-only,
+  SDL 2, legacy OpenGL) × Win32/x64 (Profile is x64-only). Some solution configurations map to
+  differently-named project configurations.
 - Toolsets are mixed: most configurations `v140_xp` (VS2015+XP toolset); the newer ones (`Debug`,
-  `Optimised debug`, `Release|x64`, graphical/non-graphical server x64) are `v143` (VS2022;
-  updated from v142 on master, merged into ex-15 2026-09-05). VS2022 is the MSVC version to use;
-  VS2019 is deprecated in this project [RECOLLECTION:2026-09-05 user statement].
+  `Optimised debug`, `Profile`, `Release|x64`, graphical/non-graphical server x64) are `v143`
+  (VS2022; updated from v142 on master, merged into ex-15 2026-09-05). VS2022 is the MSVC version
+  to use; VS2019 is deprecated in this project [RECOLLECTION:2026-09-05 user statement].
   `WindowsTargetPlatformVersion` is `10.0` (latest installed SDK). `Debug|x64` has `EnableASAN` and
   produces static-analysis warnings (C6xxx/C26xxx series) — builds are slow and warning-heavy.
 - Third-party dependencies are resolved via per-configuration global `IncludePath`/`LibraryPath`
@@ -60,8 +61,16 @@ Four build paths coexist:
   configurations: `Debug|x64` (day-to-day), `Debug (graphical server)|x64` (same build as Debug,
   distinguished only by debugger starting commands held in the untracked `.vcxproj.user`), and
   `Debug (non-graphical server)|x64` when the code under work runs only in non-graphical mode.
-  "Optimised debug" was historically used for profiling (see Known problems — it no longer appears
-  in the Visual Studio configuration dropdown).
+- `Profile|x64` and `Profile (server)|x64` (added 2026-09-09): the profiling configurations —
+  release-like (MaxSpeed, `NDEBUG`, `MultiThreadedDLL`, no `DEBUG`/`MSG_LEVEL` so `DBG_*` macros
+  compile out) plus `PROFILE` (enables the `-until`/`-times` benchmark options) and link PDBs;
+  outputs `simutrans\Simutrans-Extended-Profile.exe` / `Simutrans-Extended-Profile-server.exe`;
+  both fully wired into the .sln. Built and verified by execution 2026-09-09. The headless
+  (server) build currently crashes on the performance fixture in server-mode simulation
+  ([known-bugs](known-bugs.md)). "Optimised debug" (fully wired into the .sln since commit
+  5dc127a85) remains the optimised-*debugging* configuration — its `DEBUG=3` define biases
+  hot-path profiling (DBG-macro calls, asserts, `DEBUG_FREELIST`). The profiling workflow:
+  [performance](performance.md).
 
 **Verified by execution on the maintainer's Windows machine, 2026-09-05** (VS2022 Community MSBuild,
 after the master→ex-15 merge):
@@ -69,6 +78,9 @@ after the master→ex-15 merge):
 - Game, Debug x64:
   `& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" Simutrans-Extended.vcxproj /p:Configuration=Debug /p:Platform=x64 /m`
   → `simutrans\Simutrans-Extended-Debug.exe`.
+- Game, Profile x64 (2026-09-09): same MSBuild with
+  `/p:Configuration=Profile /p:Platform=x64 /m` → `simutrans\Simutrans-Extended-Profile.exe`
+  (+ .pdb for profiler symbols).
 - Makeobj, Release Win32: same MSBuild with
   `Makeobj-Extended.vcxproj /p:Configuration=Release /p:Platform=Win32 /m`
   → `simutrans\Makeobj-Extended.exe` (v142 resolved from the VS2019 installation).
@@ -123,10 +135,11 @@ The `REVISION` define must match between server and clients for network play
 - GNU make: `WITH_REVISION = 1` → `-DREVISION="$(git rev-parse --short=7 HEAD)"`.
 - CMake: `SimutransCommitInfo.cmake` → `REVISION=<short-sha>` when git found.
 - MSVC: pre-build `revision.jse` writes `#define REVISION <sha>` into gitignored `revision.h`,
-  combined with the `REVISION_FROM_FILE` define. Observation (2026-09-05): after a successful
-  MSBuild run, `revision.h` still held a stale 8-character value — the script silently leaves the
-  file untouched when its `git` invocation fails (exact cause unverified); stale revisions can
-  break network compatibility, so check `revision.h` after MSVC builds.
+  combined with the `REVISION_FROM_FILE` define. Historical observation (2026-09-05): `revision.h`
+  could hold a stale value after MSBuild runs — root cause found and fixed 2026-09-09 (the script's
+  strict output-length check rejected modern git output; see Known problems). Stale revisions can
+  break network compatibility, so check `revision.h` against `git rev-parse --short HEAD` after
+  MSVC builds.
 - `findversion.sh` is an SVN-era legacy script (OpenTTD compile farm); obsolete.
 
 ## CI (.github/workflows, present on both branches)
@@ -260,6 +273,15 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 
 ## Known problems & observations
 
+- The MSVC game configurations all link the old debug-built zstd static lib
+  (`..\zstd-1.4.4\build\VS2010\bin\x64_Debug\libzstd_static.lib`). A freshly built release zstd lib
+  (v142 toolset, from `..\zstd-1.4.4\build\VS2010\zstd.sln`) cannot be linked into the v143 game
+  builds: its objects force link-time code generation, which then fails against ancient bytecode in
+  `..\bzip\lib\x64\libbz2.lib` (LNK C1047/LNK1257) — reproduced with the `Profile|x64` build
+  2026-09-09. Consequence: load-phase profiling includes debug-build (unoptimised) zstd
+  decompression; simulation profiling is unaffected. Fix options (same-toolset lib rebuild, or
+  compiling zstd sources into the project): open [execution-verified 2026-09-09].
+
 - Windows nettool cross-build broken: confirmed against the public endpoint 2026-09-05 — no
   `Nettool-Extended.exe` published; only a 2017 `nettool.exe`. `nightly.sh` copies
   `build/mingw64/nettool/nettool` (no `.exe` suffix) to `windows/Nettool-Extended.exe`, which
@@ -270,14 +292,25 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   previously unnoticed [RECOLLECTION:2026-09-05 user statement].
 - The published `.deb` version is hardcoded in `package.sh` (14.9000.12) and does not track the
   actual release, despite the package being rebuilt on a schedule.
-- `revision.h` staleness after MSVC builds (see Revision embedding above).
+- `revision.h` staleness under MSBuild (see Revision embedding above) — ROOT CAUSE FOUND AND FIXED
+  2026-09-09: `revision.jse` rejected git's `--short=7` output on a strict `length !== 9` check
+  (7 hex + LF = 8 chars), silently leaving `revision.h` untouched; the file had held a 2020
+  revision since. Fix: trim whitespace and accept 7–12 hex digits. Keep the routine caution of
+  checking `revision.h` against `git rev-parse --short HEAD` after MSVC builds
+  [execution-verified 2026-09-09: stale value reproduced; fix verified].
 - `Nettool.vcxproj` stale (v140_xp, Windows SDK 7, VS2010-format solution).
 - `linux-build.yml` misnamed ("msvc-build") and clang version mismatch (installs 10, uses 14).
 - `CMakeLists.txt` references an undefined `simutrans` target (HEAVY_MODE block; test `DEPENDS`).
 - The "Optimised debug" configurations are defined in `Simutrans-Extended.vcxproj` (Win32 and x64,
-  v143) but are absent from `Simutrans-Extended.sln`'s SolutionConfigurationPlatforms — they do not
-  appear in the Visual Studio configuration dropdown. Matches the user's report of the missing
-  profiling configuration; candidate small fix (add the solution configuration mappings).
+  v143) **and fully mapped in `Simutrans-Extended.sln`** (solution configurations + project
+  mappings, since commit 5dc127a85, 2019) [CODE master @ cc1c5858f]. An earlier claim here that they were
+  absent from the solution was wrong; if the configuration does not appear in a given Visual
+  Studio installation's dropdown, the cause lies outside the repository (e.g. VS state), not in
+  these files. Note the sln also carries dead legacy entries (solution-only configs with no
+  project backing, e.g. "Release (open GL)"; project-only configs unreachable from the sln, e.g.
+  "Debug (command-line server)") — cosmetic, no fix pending.
+- Revision-embedding observation (2026-09-05, predating the revision.jse fix): after a successful
+  MSBuild run, `revision.h` held a stale value — explained and fixed as above.
 - The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) is on both
   branches: added on master, merged into ex-15 2026-09-05 (→ [rendering](rendering.md)). It was supplied by a
   contributor and integrated by the user in 2026-09, with the aim of testing it and, if it works,
@@ -324,8 +357,6 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
 - Server security improvements (the user intends to address these at some point): scope not yet
   defined — password handling and privilege levels are known concerns
   [RECOLLECTION:2026-09-05 user statement].
-- Exact cause of the `revision.h` staleness under MSBuild (git visibility in the cscript
-  environment vs. the script's update condition).
 - Local Windows recipe for running the automated tests (binary + pakset + `tests/` linked as
   `scenario/automated-tests`) → [scripting-and-tests](scripting-and-tests.md).
 - Where do the MSVC "Debug (SDL 2)" configurations get their SDL2 libraries? Not found in the
