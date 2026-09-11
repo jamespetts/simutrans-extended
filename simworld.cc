@@ -1356,6 +1356,26 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing movingobjs");
 }
 
 
+// Seed for town/street name list generation (translator::init_custom_names).
+// Derived only from settings values that are part of the saved game state and
+// are not overridden from local simuconf.tab files after load (the post-load
+// override in karte_t::rdwr_gamestate touches none of these), so every network
+// peer computes the same seed and therefore holds identical name lists.
+// Combining several values means that re-using a map number with different map
+// settings still produces a different set of generated town names.
+static uint32 calc_name_list_seed(const settings_t &sets)
+{
+	uint32 h = (uint32)sets.get_map_number();
+	h = (h ^ (uint32)sets.get_size_x()) * 2654435761u;
+	h = (h ^ (uint32)sets.get_size_y()) * 2246822519u;
+	h = (h ^ (uint32)sets.get_city_count()) * 3266489917u;
+	h ^= h >> 15;
+	h *= 2246822519u;
+	h ^= h >> 13;
+	return h;
+}
+
+
 void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 {
 	clear_random_mode( 7 );
@@ -1390,6 +1410,11 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	// names during creation time
 	settings.set_name_language_iso(env_t::language_iso);
 	settings.set_use_timeline(settings.get_use_timeline() & 1);
+
+	// Rebuild the town/street name lists for this world before any towns are
+	// founded (distribute_cities, below). Generation is deterministic and
+	// seeded from the saved map settings, so all peers produce identical lists.
+	translator::init_custom_names(settings.get_name_language_id(), calc_name_list_seed(settings));
 
 	ticks = 0;
 	last_step_ticks = ticks;
@@ -8340,9 +8365,17 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			if (file->is_version_ex_less(14, 51)) {
 				setsimrand(settings.get_random_counter(), 0xFFFFFFFFu );
 			}
-
-			translator::init_custom_names(settings.get_name_language_id());
 		}
+
+		// Rebuild the town/street name lists from the saved name language in
+		// both single-player and network mode: the lists must follow the game's
+		// name language setting rather than each peer's UI language, and
+		// generation is deterministic and seeded from the saved map settings
+		// (calc_name_list_seed), so all peers hold identical lists. Note that
+		// the server's post-load override of the name language ("language of
+		// map becomes server language") deliberately does NOT rebuild the
+		// lists: all peers' lists must follow the loaded save's setting.
+		translator::init_custom_names(settings.get_name_language_id(), calc_name_list_seed(settings));
 
 		if(  !env_t::networkmode  ||  (env_t::server  &&  socket_list_t::get_playing_clients()==0)  ) {
 			if (settings.get_allow_player_change() && env_t::default_settings.get_use_timeline() < 2) {

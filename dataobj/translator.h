@@ -62,7 +62,15 @@ public:
 		uint8 ellipsis_width;
 	};
 
-	static void init_custom_names(int lang);
+	/**
+	 * Rebuild the city/street name lists for the given language.
+	 * World-scoped: call at world init and world load only (not on UI
+	 * language changes). name_seed must be identical on all network peers
+	 * (derive it from the saved map settings; see calc_name_list_seed in
+	 * simworld.cc): syllable-generated names are selected deterministically
+	 * from it so that all peers produce identical lists.
+	 */
+	static void init_custom_names(int lang, uint32 name_seed);
 
 	static void delete_all_lists()
 	{
