@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 8bcd648f9 + the staged (uncommitted) load-threading fix; update to the FIX commit sha
+verified: master @ aa897cefc + the staged (uncommitted) stray-unlock fix; update to the FIX commit sha
 ---
 # Threading
 
@@ -235,8 +235,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
   (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance`), `freelist_mutex`
   (dataobj/freelist.cc — every freelist alloc/free; tpl/freelist_tpl.h's own mutex code sits
-  under a never-defined `MULTI_THREADx` guard and is dead). `karte_t::unreserve_route_mutex` is
-  never locked (vestigial).
+  under a never-defined `MULTI_THREADx` guard and is dead).
 - Display/image: simgraph16 `rezoom_img_mutex[MAX_THREADS]` + `recode_img_mutex`; recursive
   `calc_image` mutexes (weg, wayobj, tunnel, bruecke, crossing, leitung2); `height_mutex`
   (simworld.cc, `plans_finish_rd`); gebaeude `sync_mutex`/`add_to_city_mutex`; label
@@ -253,9 +252,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   live path awaits the path explorer but NOT the convoy/passenger threads before reallocating
   and swapping the plan arrays; `karte_t::update_map` performs no awaits at all
   [CODE master @ 78a4bb3b9].
-- Stray `pthread_mutex_unlock` with no matching lock in `unreserve_route_threaded`
-  (`current_unreserver == 0` path); `unreserve_route_mutex` is never locked;
-  `stadt_t::private_car_route_finding_in_progress` is written by workers without a mutex,
+- `stadt_t::private_car_route_finding_in_progress` is written by workers without a mutex,
   persisted, and has no reader — dead state [CODE master @ 78a4bb3b9].
 - MSVC "single threaded" configurations compile MT code (Build configuration) — user decision
   2026-09-07: very low priority, leave for now; fix-or-delete undecided
@@ -265,9 +262,10 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Provenance
 
-Verified against master @ 8bcd648f9 plus the staged load-threading fix (workers created at the
-end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
-thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback). The load-time
+Verified against master @ aa897cefc (which includes the load-threading fix: workers created at
+the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
+thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback) plus the staged
+stray-unlock removal (vestigial `karte_t::unreserve_route_mutex` deleted). The load-time
 TSan race family recorded here before that fix is deleted per the known-bugs rule; history
 lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
 set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations

@@ -869,7 +869,6 @@ public:
 	static simthread_barrier_t step_convoys_barrier_external;
 	static simthread_barrier_t unreserve_route_barrier;
 	static simthread_barrier_t private_car_barrier;
-	static pthread_mutex_t unreserve_route_mutex;
 	static pthread_mutex_t step_passengers_and_mail_mutex;
 	static bool private_car_route_mutex_initialised;
 	static pthread_mutex_t private_car_route_mutex;

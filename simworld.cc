@@ -143,13 +143,11 @@ static pthread_mutexattr_t mutex_attributes;
 //static pthread_mutex_t private_car_route_mutex = PTHREAD_MUTEX_INITIALIZER;
 //pthread_mutex_t karte_t::step_passengers_and_mail_mutex = PTHREAD_MUTEX_INITIALIZER;
 //static pthread_mutex_t path_explorer_await_mutex = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t karte_t::unreserve_route_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t karte_t::private_car_route_mutex;
 bool karte_t::private_car_route_mutex_initialised;
 pthread_mutex_t karte_t::step_passengers_and_mail_mutex;
 static pthread_mutex_t path_explorer_await_mutex;
-pthread_mutex_t karte_t::unreserve_route_mutex;
 
 simthread_barrier_t karte_t::private_car_barrier;
 simthread_barrier_t karte_t::unreserve_route_barrier;
@@ -2049,10 +2047,6 @@ void* unreserve_route_threaded(void* args)
 		}
 		if (convoi_t::current_unreserver == 0)
 		{
-			int error = pthread_mutex_unlock(&karte_t::unreserve_route_mutex);
-			assert(error == 0);
-			(void)error;
-
 			continue;
 		}
 
@@ -2132,7 +2126,6 @@ void karte_t::init_threads()
 
 	pthread_mutex_init(&step_passengers_and_mail_mutex, &mutex_attributes);
 	pthread_mutex_init(&path_explorer_await_mutex, &mutex_attributes);
-	pthread_mutex_init(&unreserve_route_mutex, &mutex_attributes);
 
 	pthread_t thread;
 
@@ -2289,7 +2282,6 @@ void karte_t::destroy_threads()
 		private_car_route_mutex_initialised = false;
 		pthread_mutex_destroy(&step_passengers_and_mail_mutex);
 		pthread_mutex_destroy(&path_explorer_await_mutex);
-		pthread_mutex_destroy(&unreserve_route_mutex);
 
 		pthread_mutexattr_destroy(&mutex_attributes);
 	}
