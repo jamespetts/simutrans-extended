@@ -21,6 +21,14 @@ verified: none
 - Contents/purpose of the `world/` directory (only 2 files).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]: raw map/ground access is a standing per-step
+cost at large map sizes — `grund_t::get_weg` 3.4% self, `karte_t::lookup` 2.4% self,
+`grund_t::get_neighbour` 2.6% incl, `planquadrat_t::get_boden_in_hoehe` 1.0% self of in-game CPU.
+Parts of the tile walk are multi-threaded → [threading](threading.md).
+
 ## Open questions
 
 - Does `world/` duplicate or complement simworld? (Inventory pending.)

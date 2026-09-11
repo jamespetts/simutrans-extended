@@ -20,6 +20,13 @@ verified: none
 - Colour system (simcolor; palette — documentation/*.png + simutrans-palette.pal are legacy human docs).
 - Clipboards & input (sys/, siminteraction → [simulation-core](simulation-core.md)).
 
+## Performance hotspots
+
+Display cost is workload-dependent [EXECUTION-VERIFIED:2026-09-10 master @ d40847e90; method and
+full inventory: [performance](performance.md)]: ~5% incl in server-paced running on the gargantuan
+fixture, but ~73% incl in a GUI window on the small demo map (`display_img_*` dominate there).
+Profile graphics work with CaptureGui + -Trace; micro-benchmarks via the suite's Times mode.
+
 ## Open questions
 
 - What exactly the SDL3 backend changes for ex-15 merging (→ [ex-15](ex-15.md)).

@@ -20,6 +20,14 @@ verified: none
 - Extended-specific objects (piers; others TBD).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]: city traffic objects are a first-class per-step
+cost on big maps — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
+`pedestrian_t::sync_step` 1.2% self of in-game CPU. (Generation/city side:
+[economy-and-passengers](economy-and-passengers.md).)
+
 ## Open questions
 
 - Exact obj/ inventory and which families are Extended-only vs. inherited.

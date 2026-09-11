@@ -262,6 +262,15 @@ inventory and lifecycle confirmed as recorded (worker/barrier numbers could not 
 from memory — they rest on agent code verification [CODE]); rules 1–2 rewritten from a code
 inventory of non-main-thread mutations after a user correction [RECOLLECTION:2026-09-07].
 
+## Performance attribution
+
+Worker-thread CPU shares on the gargantuan fixture (root-frame attribution; method and full
+inventory: [performance](performance.md)) [EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]:
+main thread 73.9%; `unreserve_route_threaded` 11.8%; `step_passengers_and_mail_threaded` 4.6%;
+`display_region_thread` 3.4%; `dr_flush_screen` 2.6%; `step_individual_convoy_threaded` 1.7%;
+`check_road_connexions_threaded` 1.5%. On ex-15 (single run, 2026-09-11) `unreserve_route_threaded`
+rises to 26.8% and the main thread falls to 59.4% — repeat before acting on that delta.
+
 ## Open questions
 
 - Exact barrier-trip accounting for `private_car_barrier` across cycles (main thread vs po

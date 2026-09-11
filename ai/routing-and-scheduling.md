@@ -21,6 +21,17 @@ verified: none
 - Schedule system & the ex-15 overhaul (intent + implemented state, code-first).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]:
+- A* route search (`route_t::intern_calc_route`) is minor in steady state (`route_t::find_route`
+  ~1.2% self) but there is a mass reroute wave right after loading large saves; heuristic-failure
+  diagnostics (`heur` ~10x `cost`) fire continuously at -debug >= 2.
+- The path explorer runs concurrently and only when the network changed; it was dormant (0.01%)
+  in a quiet 120 s window — it governs how quickly in-game routes update, not framerate.
+- Halt cargo handling: `karte_t::check_transferring_cargoes` 2.6% self.
+
 ## Open questions
 
 - Is there a `route` class distinct from path_explorer, and who calls which?
