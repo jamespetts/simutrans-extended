@@ -384,17 +384,24 @@ void convoi_t::unreserve_route()
 {
 	// Clears all reserved tiles on the whole map belonging to this convoy.
 #ifdef MULTI_THREAD_ROUTE_UNRESERVER
+	if (karte_t::threads_initialised)
+	{
+		current_unreserver = self.get_id();
+		current_waytype = front()->get_waytype();
 
-	current_unreserver = self.get_id();
-	current_waytype = front()->get_waytype();
+		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
+		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
 
-	simthread_barrier_wait(&karte_t::unreserve_route_barrier);
-	simthread_barrier_wait(&karte_t::unreserve_route_barrier);
+		current_unreserver = 0;
+		current_waytype = invalid_wt;
 
-	current_unreserver = 0;
-	current_waytype = invalid_wt;
-
-#else
+		set_needs_full_route_flush(false);
+		return;
+	}
+	// The worker threads are not initialised (e.g. during loading, they are
+	// created only at the end of karte_t::load()), so the barrier does not
+	// exist: fall through to the single-threaded loop below.
+#endif
 	FOR(vector_tpl<weg_t*>, const way, weg_t::get_alle_wege())
 	{
 		if(way->get_waytype() == front()->get_waytype())
@@ -407,7 +414,6 @@ void convoi_t::unreserve_route()
 			}
 		}
 	}
-#endif
 
 	set_needs_full_route_flush(false);
 }

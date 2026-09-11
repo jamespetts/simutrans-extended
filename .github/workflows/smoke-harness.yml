@@ -4,9 +4,10 @@
 # Builds the engine (DEBUG + sanitizer variant: ASan+UBSan default, or TSan) and a plain
 # makeobj from the same checkout, compiles pak128.Britain-Ex from a pinned pakset commit
 # with that makeobj, and runs scripts/run-smoke-tests.sh in network mode. Called by run-tests.yml
-# (blocking ASan variant; non-blocking TSan variant while the known karte_t::load/
-# init_threads race family is open) and pakset-pin.yml (pin-candidate verification,
-# ASan variant only - the ratchet must not be gated on the knowingly-red TSan job).
+# (blocking ASan variant), tsan-smoke.yml (non-blocking TSan regression detector; the
+# karte_t::load/init_threads race family that made it knowingly red is fixed) and
+# pakset-pin.yml (pin-candidate verification,
+# ASan variant only - the ratchet must not be gated on the non-blocking TSan job).
 #
 name: Smoke harness
 on:

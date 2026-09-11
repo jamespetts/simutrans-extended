@@ -9260,8 +9260,9 @@ void karte_t::load(loadsave_t *file)
 	path_explorer_t::initialise(this);
 
 #ifdef MULTI_THREAD
-	// destroy() destroys the threads, so this must be here.
-	init_threads();
+	// The worker threads are NOT created here: they are created at the end of
+	// the loading process (below), so that no worker can read world or settings
+	// state while it is still being rewritten here.
 #endif
 
 	tile_counter = 0;
@@ -9553,13 +9554,22 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	if(file->get_extended_version() >= 12)
 	{
 #ifdef MULTI_THREAD
-		pthread_mutex_lock(&step_passengers_and_mail_mutex);
+		// The mutex exists only while the worker threads are initialised;
+		// during loading, the threads are created only at the end of this
+		// function, so there is nothing to synchronise with here.
+		if (threads_initialised)
+		{
+			pthread_mutex_lock(&step_passengers_and_mail_mutex);
+		}
 #endif
 		file->rdwr_long(next_step_passenger);
 		file->rdwr_long(next_step_mail);
 
 #ifdef MULTI_THREAD
-		pthread_mutex_unlock(&step_passengers_and_mail_mutex);
+		if (threads_initialised)
+		{
+			pthread_mutex_unlock(&step_passengers_and_mail_mutex);
+		}
 #endif
 
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 13)
@@ -9586,13 +9596,17 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 	}
 
-#ifdef MULTI_THREAD
-	destroy_threads();
-	init_threads();
-#else
+#ifndef MULTI_THREAD
 	delete[] transferring_cargoes;
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[1];
 #endif
+
+	// The transferring cargoes must be staged in a local vector here: in
+	// multi-threaded builds, the transferring_cargoes array is allocated by
+	// init_threads(), which now runs only at the end of the loading process
+	// (see below), so that no worker thread can read state that is still
+	// being rewritten here.
+	vector_tpl<transferring_cargo_t> loaded_transferring_cargoes;
 
 	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 15)
 	{
@@ -9612,7 +9626,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			tc.ware = ware;
 			// On re-loading, there is no need to distribute the
 			// cargoes about different members of this array.
-			transferring_cargoes[0].append(tc);
+			loaded_transferring_cargoes.append(tc);
 			fabrik_t* fab = fabrik_t::get_fab(tc.ware.get_zielpos());
 			if (fab)
 			{
@@ -9723,6 +9737,27 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	}
 
 	calc_max_vehicle_speeds();
+
+#ifdef MULTI_THREAD
+	// Create the worker threads only now that every piece of state that they
+	// might read has been loaded: all of the above writes then happen-before
+	// (via pthread_create) any read by any worker, so that the workers cannot
+	// race with the loading process. The private car workers are suspended
+	// first so that they cannot start processing the loaded city queue before
+	// the first step's start_private_car_threads; the single barrier wait then
+	// moves them from their suspended wait to their usual parked position.
+	route_t::suspend_private_car_routing = true;
+	init_threads();
+	simthread_barrier_wait(&private_car_barrier);
+	route_t::suspend_private_car_routing = false;
+#endif
+
+	// Move the staged transferring cargoes into the array allocated above by
+	// init_threads() (multi-threaded builds) or directly above (otherwise).
+	FOR(vector_tpl<transferring_cargo_t>, const tc, loaded_transferring_cargoes)
+	{
+		transferring_cargoes[0].append(tc);
+	}
 
 	dbg->warning("karte_t::load()","loaded savegame from %i/%i, next month=%i, ticks=%i (per month=1<<%i)",last_month,last_year,next_month_ticks,ticks,karte_t::ticks_per_world_month_shift);
 }

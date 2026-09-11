@@ -71,42 +71,11 @@ Rank on discovery; re-rank on triage.
   bug on all platforms [RECOLLECTION:2026-09-09 user statement]. Candidate classes: latent
   undefined behaviour that MSVC's runtime/heap validation surfaces, or an MSVC codegen/packing
   difference. Mixed-CRT zstd linking is ruled out: the crashing "Debug (non-graphical server)"
-  build is /MTd, matching the zstd lib's CRT. Relation to the `karte_t::load`/`init_threads` race
-  family (below) undiagnosed [UNVERIFIED].
+  build is /MTd, matching the zstd lib's CRT. The `karte_t::load`/`init_threads` race family it
+  was observed alongside has since been fixed; whether that family was the cause is untested —
+  re-run the headless capture to find out [UNVERIFIED].
 - Blocks the headless capture profile of the performance suite (→ [performance](performance.md));
   workaround: server-paced capture on the graphical Profile build (display cost included).
-
-### Data race between `karte_t::load` and `init_threads` — priority 2
-
-- CI TSan job (`.github/workflows/run-tests.yml`) reports data races between `karte_t::load`
-  and `karte_t::init_threads` (both simworld.cc) ~2 s after start, on every push, on both
-  branches [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: run-tests.yml TSan job logs, 2026-09-05 runs].
-- Root pattern [CODE]: `karte_t::load()` spawns the simulation workers early (before the
-  gamestate is read) and they stay alive/looping while the load rewrites world/settings state;
-  lifecycle → [threading](threading.md).
-- Concrete races reported (2026-09-05 run; re-pull from a fresh CI run or local TSan build to confirm current):
-  1. Worker↔worker in `setsimrand()` at `step_passengers_and_mail_threaded` startup, on global
-     `async_rand_seed` (utils/simrandom.cc, not thread_local). Feeds only `sim_async_rand()` —
-     desync impact unlikely [UNVERIFIED impact].
-  2. Main-thread `settings_t::operator=` (memcpy in `karte_t::rdwr_gamestate`) vs passenger
-     worker startup read of settings (`get_random_counter`).
-  3. Main-thread `karte_t::load` write of a karte_t member (field not identified) vs read by
-     `check_road_connexions_threaded`.
-  4. `karte_t::destroy_threads` write of a bool karte_t member (likely `terminating_threads`)
-     vs read by `check_road_connexions_threaded`.
-  5. Main-thread write of `karte_t::cities_to_process` during load WITHOUT
-     `private_car_route_mutex` vs worker read holding that mutex.
-  6. `karte_t::suspend_private_car_threads` write of `route_t::suspend_private_car_routing`
-     under the mutex vs `check_road_connexions_threaded` read WITHOUT it (else-branch of the
-     worker loop).
-- Impact unconfirmed: if any race touches sync-critical state it risks network desync — a
-  top-tier risk for large multi-player games. Re-rank after triage: candidate 1 if
-  sync-critical, 3 if a benign startup pattern [UNVERIFIED].
-- The same job hangs to timeout after reporting the races; the log shows the hang beginning at
-  the scripting-layer `[suspended]` failure (→ [scripting-and-tests](scripting-and-tests.md));
-  whether the race contributes is not diagnosed.
-- Related forum reports (threading family, listed in P1 below): "Thread deadlocks"
-  (topic 23021), "Data race in objlist_t::remove when running headless server" (topic 20994).
 
 ### Await gaps around map operations — priority 2
 
@@ -133,14 +102,16 @@ Rank on discovery; re-rank on triage.
 - Mechanism: a `halthandle_t` (quickstone) in a tile's haltlist resolves to NULL; `enables` is at
   offset 0x5F4 in haltestelle_t. No halt destruction occurs in failing runs (destructor
   instrumentation never fired) and failure is non-deterministic across identical runs —
-  consistent with a load-time/threading race corrupting haltlists, likely the
-  `karte_t::load` / `init_threads` race family (see the TSan entry above). Whether this shares a
+  consistent with a load-time/threading race corrupting haltlists, most likely the
+  `karte_t::load` / `init_threads` race family. That family is now fixed on master (workers are
+  created only at the end of `karte_t::load`); after the next master→ex-15 merge, re-test
+  whether this crash still reproduces — if it does, the cause is elsewhere. Whether this shares a
   root with the headless MSVC server crash (ntdll heap-corruption signature differs) is
   UNVERIFIED.
 - A guarded ex-15 build (is_bound() skip + warning at the haltlist consumer sites) survives 8+
   minutes with zero guard hits in some runs — i.e. the corruption appears only sometimes.
-  Guards were needed for the 2026-09-11 ex-15 profiling verification; whether to commit them
-  permanently (defensive) or fix the race (root cause) is pending user decision.
+  Guards were needed for the 2026-09-11 ex-15 profiling verification; the root-cause race fix
+  has now landed on master (pending merge), so the guards are a purely defensive layer.
 - Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
   branch-independent, so master exposure is plausible [UNVERIFIED].
 
@@ -201,7 +172,7 @@ confirms they affect current builds in live games.
 | [All industries lose connections without warning, usually a crash after](https://forum.simutrans.com/index.php/topic,22871.0.html) | 2024 | data loss + crash |
 | [Strange behaviour possibly causing desync](https://forum.simutrans.com/index.php/topic,22405.0.html) | 2024 | desync |
 | [[734f8e3] Desync immediately first time try to join the server](https://forum.simutrans.com/index.php/topic,22203.0.html) | 2024 | desync |
-| [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family — see detailed entry above |
+| [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family; one plausible mechanism (load-time races corrupting private-car barrier accounting, incl. the unlocked suspend-flag read deciding between one and two barrier waits) was eliminated with the load-race fix — if deadlocks persist on the server, next suspect is convoy threads running across sync_step |
 | [Game crashes when trying to upgrade Merchant Navy class through replace function](https://forum.simutrans.com/index.php/topic,22385.0.html) | 2024 | |
 | [Listserver unavailability causes online game freezes](https://forum.simutrans.com/index.php/topic,22278.0.html) | 2023 | external-service dependency |
 | [[ex-15] Crash when loading saved game saved with ex-15 branch](https://forum.simutrans.com/index.php/topic,22201.0.html) | 2023 | ex-15 branch |
@@ -210,7 +181,7 @@ confirms they affect current builds in live games.
 | [Crashes when deleting dead-end road](https://forum.simutrans.com/index.php/topic,22037.0.html) | 2022 | |
 | ["Wrong theme loaded" crash at startup](https://forum.simutrans.com/index.php/topic,21907.0.html) | 2022 | likely same family as 24061 |
 | [[ex-15] Hovering over the "move signals" button crashes the game](https://forum.simutrans.com/index.php/topic,21714.0.html) | 2022 | ex-15 branch |
-| [Data race in objlist_t::remove when running headless server](https://forum.simutrans.com/index.php/topic,20994.0.html) | 2022 | threading family — see detailed entry above |
+| [Data race in objlist_t::remove when running headless server](https://forum.simutrans.com/index.php/topic,20994.0.html) | 2022 | convoy threads run across the sync step (code-stated caveat, [threading](threading.md)) — NOT covered by the load-race fix |
 | [[assert] factorylist_stats_t.cc assert(max_capacity>0)](https://forum.simutrans.com/index.php/topic,21535.0.html) | 2022 | |
 | [Crashes related to road vehicle routing](https://forum.simutrans.com/index.php/topic,21491.0.html) | 2022 | |
 

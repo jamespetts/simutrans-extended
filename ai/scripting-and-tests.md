@@ -18,17 +18,19 @@ verified: none
 - CI: the Squirrel scenario jobs in `run-tests.yml` (ASan/UBSan + TSan, via
   `scripts/run-automated-tests.sh`) are suspended — Squirrel scripting is non-working (above) —
   and run only on demand (workflow_dispatch, `squirrel_tests` input); the infrastructure is kept
-  wired for a possible future Squirrel port [user decision 2026-09-07]. Their last full run hung
-  until the 10-minute timeout: ASan/UBSan after `error [suspended] calling start` at test 1/64;
-  TSan additionally reported data races in `karte_t::load`/`init_threads`
-  [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: CI logs]. The wrapper does not recognise
-  `[suspended]` as a failure pattern, so failures surface as timeouts rather than fast failures
-  [CODE master @ 78a4bb3b9: run-automated-tests.sh].
+   wired for a possible future Squirrel port [user decision 2026-09-07]. Their last full run hung
+   until the 10-minute timeout: ASan/UBSan after `error [suspended] calling start` at test 1/64
+   [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: CI logs]. The wrapper does not recognise
+   `[suspended]` as a failure pattern, so failures surface as timeouts rather than fast failures
+   [CODE master @ 78a4bb3b9: run-automated-tests.sh]. (The TSan flavour of that job additionally
+   reported the `karte_t::load`/`init_threads` race family; that family is now fixed and
+   independent of the `[suspended]` hang, which remains undiagnosed.)
 - Push/PR CI gates on the smoke harness instead (smoke + network determinism on `tests/demo.sve`
-  via `scripts/run-smoke-tests.sh`, pakset pinned in `tests/pakset-pin.tab`); the knowingly-red
-  TSan smoke flavour runs as its own workflow `tsan-smoke.yml`, independent of Squirrel
-  [CODE master @ 49fd95a32: .github/workflows]. Mechanics:
-  [build-and-toolchain](build-and-toolchain.md).
+   via `scripts/run-smoke-tests.sh`, pakset pinned in `tests/pakset-pin.tab`); the TSan smoke
+   flavour runs as its own workflow `tsan-smoke.yml` (a threading-race regression detector),
+   independent of Squirrel
+   [CODE master @ 49fd95a32: .github/workflows]. Mechanics:
+   [build-and-toolchain](build-and-toolchain.md).
 
 ## Initial facts
 
@@ -48,4 +50,6 @@ verified: none
 ## Open questions
 
 - Can the test suite run headless, or does it need a graphical backend?
-- Root cause of the `run-tests.yml` failures (`[suspended]` error + hang; TSan races) — not yet diagnosed.
+- Root cause of the `run-tests.yml` Squirrel-suite failure (`[suspended]` error + hang) — not yet
+  diagnosed. (The TSan races once reported by that job were the separate, since-fixed
+  `karte_t::load`/`init_threads` family.)

@@ -38,6 +38,7 @@
 #endif
 
 #ifdef MULTI_THREAD
+#include <atomic>
 #include "utils/simthread.h"
 #endif
 
@@ -277,8 +278,11 @@ private:
 #ifdef MULTI_THREAD
 	/**
 	* True when threads are to be terminated.
+	* Atomic because the worker threads read this outside any mutex or
+	* barrier-synchronised window (e.g. at the top of the private car
+	* worker loop) while the main thread writes it in destroy_threads().
 	*/
-	bool terminating_threads;
+	std::atomic<bool> terminating_threads;
 #endif
 
 	/**
