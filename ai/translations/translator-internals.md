@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 84b8345a4
+verified: master @ c3f98d5a0
 ---
 # Translator internals
 
@@ -49,7 +49,7 @@ Read when debugging or changing the text system itself: file discovery and load 
 - Startup (simmain.cc): `-lang <iso>` → else saved `env_t::language_iso` → else OS locale (`dr_get_locale`, `dr_get_locale_string`) → else the language dialogue.
 - Matching uses only the first two characters (iso_base): `-lang en_GB` selects `en`.
 - `set_language(const char*)`: unknown iso falls back to English if present, else language 0.
-- `set_language(int)` side effects: `env_t::language_iso`, `default_settings.set_name_language_iso`, `init_custom_names(lang)` (name lists → [city & street names](city-and-street-names.md)), `ellipsis_width`.
+- `set_language(int)` side effects: `env_t::language_iso`, `default_settings.set_name_language_iso`, `ellipsis_width`. The city/street name lists are deliberately NOT rebuilt here: they are world-scoped game state, rebuilt at world init/load only (→ [city & street names](city-and-street-names.md)).
 - In-game switch (`sprachengui_t::action_triggered`): `set_language` → `init_font_from_lang` → `destroy_all_win(true)` + `SYSTEM_RELOAD_WINDOWS` event: every window is recreated so labels re-translate. Windows must translate at build/draw time, never cache translated strings across a language switch.
 
 ## Dates
