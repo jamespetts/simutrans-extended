@@ -464,7 +464,7 @@ void translator::init_custom_names(int lang)
 							const char* s3 = translator::translate(name, lang);
 							const uint32 random_percent_suffix = sim_async_rand(100);
 
-							if (s3 == name || random_percent_suffix > prefix_probability || strcmp(s3, s2) == 0)
+							if (s3 == name || random_percent_suffix > suffix_probability || strcmp(s3, s2) == 0)
 							{
 								if (count == 0 && s3 == name)
 								{
