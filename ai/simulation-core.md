@@ -18,6 +18,18 @@ verified: none
 - Units & numeric types (simunits; float32e8_t → [utilities](utilities.md)).
 - Invariants; known problems & history (e.g. threading of world-list mutations → [threading](threading.md); root has local-only diagsessions on this).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]:
+- The per-step walk over synced moving objects is the single hottest leaf on the fixture:
+  `karte_t::sync_list_t::sync_step` 23.7% self / 67.3% incl of in-game CPU; `karte_t::sync_step`
+  overall 69.5% incl. Treat everything under `step()`/`sync_step()` as hot.
+- Other simworld.cc costs: `karte_t::lookup` 2.4% self, `karte_t::check_transferring_cargoes`
+  2.6% self, `karte_t::generate_passengers_or_mail` 4.8% incl
+  (→ [economy-and-passengers](economy-and-passengers.md)).
+- Savegame load (`karte_t::load`) ~80 s on the fixture; dominates server rotations and client joins.
+
 ## Open questions
 
 - Stepping order and which steps are network-sync-critical.

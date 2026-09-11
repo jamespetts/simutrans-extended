@@ -21,6 +21,15 @@ verified: none
 - History: block-manager rewrite; desync incidents (ask the user + local artefacts).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 / 2026-09-11]: route reservation clearing
+(`convoi_t::unreserve_route_range` + `unreserve_route_threaded`) is a first-class hotspot with
+many convoys running — 12.4% self on master, roughly 26% self on ex-15 (single run; repeat before
+acting on the delta). It runs on its own worker thread (11.8% of in-game CPU on master, 26.8% on
+ex-15) → [threading](threading.md).
+
 ## Open questions
 
 - Is old_blockmanager referenced anywhere?

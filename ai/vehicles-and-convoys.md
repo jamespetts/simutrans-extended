@@ -22,6 +22,18 @@ verified: none
 - Descriptors & makeobj side → [data-and-pak](data-and-pak.md).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]:
+- Convoy physics/stepping is a top cost: `convoi_t::sync_step` 22.4% incl; `calc_acceleration`
+  18.9% incl / 8.3% self; `vehicle_base_t::do_drive` 10.0% incl; `convoy_t::calc_move` 6.1% incl;
+  `calc_min_braking_distance` 3.0% incl; the sync-safe fixed-point `float32e8_t` operators ~7%
+  self combined.
+- Reservation clearing (`convoi_t::unreserve_route_range`) is 12.4% self on master, roughly 26%
+  on ex-15 (single run) → [signals-and-blocks](signals-and-blocks.md).
+- Loading a large save triggers a mass reroute wave in the first steps.
+
 ## Open questions
 
 - How complete is consist ordering on ex-15 (registry will answer, code-first)?

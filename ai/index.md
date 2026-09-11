@@ -8,6 +8,11 @@ Retrieval protocol: choose docs from the **read when** keys below; load only wha
 needs; never bulk-load this folder. Claim tags and doc rules: [conventions](conventions.md).
 Agent hard rules: [../AGENTS.md](../AGENTS.md).
 
+Simulation and presentation domain docs each carry a **Performance hotspots** section: the
+measured hot spots for that area in summary, so performance-aware work does not require reading
+[performance](performance.md) (which holds the full inventory, the profiling method, and the
+measured provenance) first.
+
 Note: the documents may be nested. Only top level documents are shown here.
 
 ## Orientation
@@ -53,5 +58,5 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [gui](gui.md) — read when touching windows, frames, GUI components, themes, or any user-interface work.
 - [rendering](rendering.md) — read when touching drawing, graphics backends, images, colours, or the viewport.
 - [scripting-and-tests](scripting-and-tests.md) — read when touching the Squirrel API, scenarios, or the automated tests in tests/.
-- [performance](performance.md) — read when doing ANY performance work, profiling or benchmarking, or when a change touches code that runs under step()/sync_step(): the canonical profiling suite (gargantuan-save fixture, scripts/run-perf-suite.ps1) and the hotspot inventory.
+- [performance](performance.md) — read when doing ANY performance work, profiling or benchmarking, or when a change touches code that runs under step()/sync_step(): the canonical profiling suite (gargantuan-save fixture, scripts/run-perf-suite.ps1) and the full hotspot inventory. Per-area hotspot summaries live in the domain docs themselves (see the protocol note above).
 - [utilities](utilities.md) — read when touching tpl/ containers, utils/, sys/ platform backends, sound/music, or unicode/ICU. Threading → [threading](threading.md).

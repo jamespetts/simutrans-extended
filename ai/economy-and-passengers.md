@@ -22,6 +22,14 @@ verified: none
 - Players & finance (player/): companies, public player, AI players (gui/ai_option as an indication), insolvency (local-only base-texts artefact "insolvency" as an indication).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
+## Performance hotspots
+
+Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))
+[EXECUTION-VERIFIED:2026-09-10 master @ d40847e90]: passenger generation is a moderate,
+monthly-cadence cost — `karte_t::generate_passengers_or_mail` 4.8% incl, `karte_t::find_destination`
+3.0% incl of in-game CPU. City *growth* is not hot. City traffic (private cars) is much hotter:
+[objects](objects.md).
+
 ## Open questions
 
 - Where is passenger generation implemented (simcity? simhalt? simworld?) — verify, do not assume.
