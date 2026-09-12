@@ -128,27 +128,6 @@ Rank on discovery; re-rank on triage.
 - nettool itself works (mingw build, auth + shutdown verified on demo.sve)
   [EXECUTION-VERIFIED:2026-09-10].
 
-### Intermittent network-server final-save divergence — priority 1
-
-- The network determinism harness sometimes reports non-byte-identical final
-  `server<port>-restore.sve` files from two nominally identical loopback server runs
-  (`tests/demo.sve`, `-fast-network-sync 100`, `-until 1945.6`, same port, cleared local
-  settings, announcements disabled) [CODE master @ f7fa92c88: scripts/run-smoke-tests.ps1,
-  simmain.cc; observed by local Optimised-debug Windows runs].
-- Observed differences in decompressed zipped saves cluster around byte 2,211,430; repeated
-  runs usually pass and XML-format runs have passed. The differing serialized fields are not
-  identified.
-- Reproduced twice in three consecutive runs on 2026-09-11 (Profile|x64, master @ aa897cefc,
-  which already contains the load-time threading-race fix — so this divergence is NOT caused by
-  that family). Both failures: identical file sizes, first decompressed diff at exactly byte
-  2,211,430, a single small value difference there. Less rare than previously believed.
-- Network lockstep requires byte-identical gamestate, so this is a candidate desync risk.
-  It may instead be non-gamestate save metadata or a harness artifact [UNVERIFIED].
-- User decision 2026-09-11: stays priority 1 (not 0 — live multiplayer impact unconfirmed), but
-  is the next investigation target when convenient. Next step: identify which serialized field(s)
-  sit at that offset (now confirmed three times), e.g. by instrumenting the rdwr walk or by
-  collecting more samples to test whether the offset and magnitude are stable.
-
 ### MSVC "single threaded" configurations silently compile multi-threaded — priority 4
 
 - "Release (single threaded)|x64" defines `MULTI_THREAD=0` and "Debug (single threaded new)|x64"
@@ -166,7 +145,6 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Intermittent network-server final-save divergence (not a forum report: network test-suite observation) | — | detailed entry above; next investigation target (user decision 2026-09-11) — reproduced 2 of 3 runs on 2026-09-11, diff always at byte 2,211,430 |
 | Headless MSVC builds crash in server-mode sim on the bb-10-sep-2023.sve fixture (not a forum report: performance-suite discovery 2026-09-09) | — | detailed entry above |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |

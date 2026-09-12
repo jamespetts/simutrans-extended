@@ -192,7 +192,16 @@ void player_t::book_way_renewal(const sint64 amount, const waytype_t wt)
 
 void player_t::book_way_length(const sint64 len, const waytype_t wt)
 {
+	// weg_t::finish_rd() (which calls this via add_way_length) runs on the
+	// world_xy_loop worker threads during savegame loading, so the finance
+	// writes must take the same lock as add_maintenance() above.
+#ifdef MULTI_THREAD
+	pthread_mutex_lock( &load_mutex  );
+#endif
 	finance->book_way_length(len, wt);
+#ifdef MULTI_THREAD
+	pthread_mutex_unlock( &load_mutex  );
+#endif
 }
 
 

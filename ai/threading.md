@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ aa897cefc + the staged (uncommitted) stray-unlock fix; update to the FIX commit sha
+verified: master @ ae6293989 + the staged (uncommitted) book_way_length load_mutex fix; update to the FIX commit sha
 ---
 # Threading
 
@@ -151,7 +151,7 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 - Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. Outside any mutex: `haltestelle_t::resort_freight_info` (`add_to_waiting_list`).
 - Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker).
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`).
-- Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
+- Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; player-finance way maintenance/length booking under load_mutex; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
 - Display workers (display barriers; may overlap convoy/path-explorer workers, never main-thread simulation code): simgraph16 shared image cache, `grund_t::dirty` (smart cursor), hide/pause state (hide_mutex), framebuffer.
 - Save/load threads: byte buffers + flags only — no game state.
 
@@ -233,7 +233,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
-  (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance`), `freelist_mutex`
+  (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance` and `book_way_length` — both reached from `finish_rd` during the threaded `plans_finish_rd`), `freelist_mutex`
   (dataobj/freelist.cc — every freelist alloc/free; tpl/freelist_tpl.h's own mutex code sits
   under a never-defined `MULTI_THREADx` guard and is dead).
 - Display/image: simgraph16 `rezoom_img_mutex[MAX_THREADS]` + `recode_img_mutex`; recursive
@@ -262,10 +262,10 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Provenance
 
-Verified against master @ aa897cefc (which includes the load-threading fix: workers created at
+Verified against master @ ae6293989 (which includes the load-threading fix: workers created at
 the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
-thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback) plus the staged
-stray-unlock removal (vestigial `karte_t::unreserve_route_mutex` deleted). The load-time
+thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal)
+plus the staged `book_way_length` `load_mutex` fix (update to the FIX commit sha). The load-time
 TSan race family recorded here before that fix is deleted per the known-bugs rule; history
 lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
 set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations
