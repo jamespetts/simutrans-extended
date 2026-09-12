@@ -74,14 +74,18 @@ void *freelist_t::gimme_node(size_t size)
 		return NULL;
 	}
 
-	// all sizes should be dividable by 4 and at least as large as a pointer
+	// all sizes should be dividable by the pointer size and at least as large as a pointer
 #ifdef DEBUG_FREELIST
 	size = max( min_size, size + min_size);
 #else
 	size = max( min_size, size );
 #endif
-	size = (size+3)>>2;
-	size <<= 2;
+	// Round up to a multiple of the pointer size (not just of 4): the nodes are
+	// carved from a chunk by advancing a base pointer in strides of size, and
+	// every carved node must stay aligned for nodelist_node_t (and for payloads
+	// with pointer-sized alignment). With 4-byte strides, sizes that are 4 mod 8
+	// put every second node on a 4-byte-aligned address on 64-bit systems.
+	size = (size + (min_size - 1)) & ~(min_size - 1);
 
 #ifdef MULTI_THREAD
 	int error = pthread_mutex_lock( &freelist_mutex );
@@ -176,14 +180,13 @@ void freelist_t::putback_node( size_t size, void *p )
 		return;
 	}
 
-	// all sizes should be dividable by 4
+	// all sizes should be dividable by the pointer size (see gimme_node)
 #ifdef DEBUG_FREELIST
 	size = max( min_size, size + min_size );
 #else
 	size = max( min_size, size );
 #endif
-	size = ((size+3)>>2);
-	size <<= 2;
+	size = (size + (min_size - 1)) & ~(min_size - 1);
 
 #ifdef MULTI_THREAD
 	int error = pthread_mutex_lock( &freelist_mutex );
