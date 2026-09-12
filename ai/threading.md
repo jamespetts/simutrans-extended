@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ ae6293989 + the staged (uncommitted) book_way_length load_mutex fix; update to the FIX commit sha
+verified: master @ df03b1b60
 ---
 # Threading
 
@@ -262,10 +262,10 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Provenance
 
-Verified against master @ ae6293989 (which includes the load-threading fix: workers created at
+Verified against master @ df03b1b60 (which includes the load-threading fix: workers created at
 the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
-thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal)
-plus the staged `book_way_length` `load_mutex` fix (update to the FIX commit sha). The load-time
+thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal;
+the `book_way_length` `load_mutex` fix). The load-time
 TSan race family recorded here before that fix is deleted per the known-bugs rule; history
 lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
 set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations
