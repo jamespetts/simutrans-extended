@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ df03b1b60
+verified: master @ e89843ec8
 ---
 # Threading
 
@@ -146,9 +146,9 @@ GUI/events: main thread.
 
 What non-main threads write beyond per-thread buffers (rule 1); locks → Lock inventory, windows → Worker inventory [CODE master @ 78a4bb3b9, 2026-09-07 inventory]. ✗ = unprotected (barrier discipline only).
 
-- Private-car workers: `stadt_t::connected_cities/industries/attractions` (private_car_route_mutex; via `add_road_connexion` in `route_t::find_route` checker mode); `stadt_t::private_car_route_finding_in_progress` (✗; no reader found — Known problems); `weg_t::private_car_routes` writing element + backtrace statics (route_map_mtx); `karte_t::cities_to_process`/`cities_awaiting_private_car_route_check`. `connected_*` READERS (`stadt_t::check_road_connexion_to`, called from passenger generation) hold no lock — safety rests on the await placement before passenger generation plus the mid-search suspend mechanism, not on the mutex.
+- Private-car workers: `stadt_t::connected_cities/industries/attractions` (private_car_route_mutex; via `add_road_connexion` in `route_t::find_route` checker mode); `stadt_t::private_car_route_finding_in_progress` (✗; no reader found — Known problems); `weg_t::private_car_routes` writing element + backtrace statics (route_map_mtx); `karte_t::cities_to_process`/`cities_awaiting_private_car_route_check` (the workers under the mutex; the main thread's step-head queue bookkeeping — the refresh decision and the `cities_to_process` write — takes the same mutex). `connected_*` READERS (`stadt_t::check_road_connexion_to`, called from passenger generation) hold no lock — safety rests on the await placement before passenger generation plus the mid-search suspend mechanism, not on the mutex.
 - Route-unreservation workers: `schiene_t::reserved` cleared (✗; main thread blocked on the barrier meanwhile); `obj_t::dirty` when `show_reservations`.
-- Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. Outside any mutex: `haltestelle_t::resort_freight_info` (`add_to_waiting_list`).
+- Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. `haltestelle_t::resort_freight_info` (`add_to_waiting_list`) is set from workers outside any mutex but is `std::atomic<bool>` — a result-benign latch (always set true; only ever reset by the main-thread re-sort).
 - Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker).
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`).
 - Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; player-finance way maintenance/length booking under load_mutex; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
@@ -229,7 +229,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   write in `destroy_threads()`) and `route_t::suspend_private_car_routing` (else-branch and
   mid-search-yield reads vs the under-mutex writes in `suspend_private_car_threads()`).
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
-  road connexions in route.cc), `karte_t::step_passengers_and_mail_mutex` (also
+  road connexions in route.cc, step-head city-queue bookkeeping in `karte_t::step`), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
@@ -262,10 +262,11 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Provenance
 
-Verified against master @ df03b1b60 (which includes the load-threading fix: workers created at
+Verified against master @ e89843ec8 (which includes the load-threading fix: workers created at
 the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
 thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal;
-the `book_way_length` `load_mutex` fix). The load-time
+the `book_way_length` `load_mutex` fix; the step-head city-queue mutex; atomic
+`resort_freight_info`). The load-time
 TSan race family recorded here before that fix is deleted per the known-bugs rule; history
 lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
 set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations

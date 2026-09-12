@@ -92,6 +92,33 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### Convoy workers read the map during the main-thread sync step (crash family) — priority 1
+
+- Convoy route-finding workers (`convoi_t::threaded_step`, route finding only) run from the end
+  of `karte_t::step` until `await_convoy_threads` part-way through the next step. In that window
+  the main thread mutates the data they read: vehicle hops tear tile object lists
+  (`objlist_t::add/remove/set_capacity` in `sync_step`), `karte_t::new_month` rewrites convoy
+  statistics at the top of the next step (before the await), and objects are deleted while
+  workers still hold pointers to them (freelist `putback_node` races) [CODE; TSan CI run on
+  ae6293989, artifact of run 34630028522: ~250 of 266 warnings, dominated by
+  `objlist_t::remove`/`intern_insert_at`/`objlist_t::bei`/`grund_t::set_flag`/`obj_t::set_flag`].
+- Crash mechanism: torn objlist reads by route finding. Reproduced locally on the demo fixture
+  (intermittent, ~1 in 6 network-harness runs, build of ee26ea8bf+df03b1b60): unhandled C++
+  exception from `__RTDynamicCast` under `grund_t::get_depot` ← `rail_vehicle_t::check_next_tile`
+  ← `route_t::intern_calc_route` ← `convoi_t::threaded_step` on a convoy worker; and separately
+  an access violation at `grund_t::get_weg` (grund.h:656) from the same path (MSVC Debug builds
+  have ASan enabled) [EXECUTION-VERIFIED:2026-09-12].
+- This is forum topic 20994 (2022 headless-server objlist race) and the "convoy threads run
+  across the sync step" code-stated caveat; the load-race fix did NOT cover it.
+- Working hypothesis [UNVERIFIED]: the CI TSan run's post-save SIGABRT (exit 134, zero
+  diagnostics, after a complete valid final.sve) is teardown corruption from this family;
+  re-check after the fix.
+- User decision 2026-09-12: do NOT disable MULTI_THREAD_CONVOYS (its measured share is ~1.7% of
+  frame CPU — [threading](threading.md) performance attribution — but the feature is valued);
+  the fix needs careful design and is deferred to a dedicated planning session. Options sketched:
+  await at the top of step (kills only the `new_month` overlap); harden objlist/tile reads
+  against sync_step churn (large); snapshot/quiescent-point route finding (large).
+
 ### Unbound halt handles in planquadrat haltlists crash early simulation (ex-15) — priority 1
 
 - Loading the bb-10-sep-2023 fixture on ex-15 (pak128.Britain-Ex) crashes with 0xC0000005
@@ -104,16 +131,30 @@ Rank on discovery; re-rank on triage.
   instrumentation never fired) and failure is non-deterministic across identical runs —
   consistent with a load-time/threading race corrupting haltlists, most likely the
   `karte_t::load` / `init_threads` race family. That family is now fixed on master (workers are
-  created only at the end of `karte_t::load`); after the next master→ex-15 merge, re-test
-  whether this crash still reproduces — if it does, the cause is elsewhere. Whether this shares a
-  root with the headless MSVC server crash (ntdll heap-corruption signature differs) is
-  UNVERIFIED.
+  created only at the end of `karte_t::load`); the master→ex-15 merge carrying the fix has
+  happened (ex-15 @ 9d8dde74c) — re-test whether this crash still reproduces; if it does, the
+  cause is elsewhere. Whether this shares a root with the headless MSVC server crash (ntdll
+  heap-corruption signature differs) is UNVERIFIED.
 - A guarded ex-15 build (is_bound() skip + warning at the haltlist consumer sites) survives 8+
   minutes with zero guard hits in some runs — i.e. the corruption appears only sometimes.
   Guards were needed for the 2026-09-11 ex-15 profiling verification; the root-cause race fix
   has now landed on master (pending merge), so the guards are a purely defensive layer.
 - Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
   branch-independent, so master exposure is plausible [UNVERIFIED].
+
+### Factory intransit gate reads in-flight path-explorer state — priority 2
+
+- `fabrik_t::calc_max_intransit_percentages` (simfab.cc:4418; from `fabrik_t::new_month` ←
+  `karte_t::new_month`, top of `karte_t::step`) reads
+  `path_explorer_t::get_current_compartment_category()` and then `get_paths_available(...)` —
+  the path explorer's live progress marker and compartment state — while the path explorer
+  thread is mid-step (`await_path_explorer` comes later in step) [CODE; TSan CI run on
+  ae6293989: race at path_explorer.h:538 in `get_current_compartment_category`].
+- The gate guards a saved factory parameter (`max_transit`), and its result at a month boundary
+  depends on thread scheduling — a rare desync vector, not just UB.
+- Deferred to the threading-choreography planning session (same conversation as the convoy
+  window above). Candidate fixes: await the path explorer before `new_month`; make the gate
+  timing-independent; atomic marker.
 
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
@@ -166,7 +207,7 @@ confirms they affect current builds in live games.
 | [Crashes when deleting dead-end road](https://forum.simutrans.com/index.php/topic,22037.0.html) | 2022 | |
 | ["Wrong theme loaded" crash at startup](https://forum.simutrans.com/index.php/topic,21907.0.html) | 2022 | likely same family as 24061 |
 | [[ex-15] Hovering over the "move signals" button crashes the game](https://forum.simutrans.com/index.php/topic,21714.0.html) | 2022 | ex-15 branch |
-| [Data race in objlist_t::remove when running headless server](https://forum.simutrans.com/index.php/topic,20994.0.html) | 2022 | convoy threads run across the sync step (code-stated caveat, [threading](threading.md)) — NOT covered by the load-race fix |
+| [Data race in objlist_t::remove when running headless server](https://forum.simutrans.com/index.php/topic,20994.0.html) | 2022 | convoy threads run across the sync step — detailed entry above; TSan-verified 2026-09-12; fix deferred to a planning session (user decision: keep the feature) |
 | [[assert] factorylist_stats_t.cc assert(max_capacity>0)](https://forum.simutrans.com/index.php/topic,21535.0.html) | 2022 | |
 | [Crashes related to road vehicle routing](https://forum.simutrans.com/index.php/topic,21491.0.html) | 2022 | |
 
@@ -174,6 +215,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Factory intransit gate reads in-flight path-explorer state (not a forum report: TSan CI finding 2026-09-12) | — | detailed entry above; rare desync vector; deferred to the threading-choreography planning session |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |

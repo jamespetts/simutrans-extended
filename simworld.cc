@@ -5109,7 +5109,21 @@ void karte_t::step()
 	{
 		const sint32 parallel_operations = get_parallel_operations();
 
+#ifdef MULTI_THREAD
+		// The private-car workers read cities_to_process and pop
+		// cities_awaiting_private_car_route_check under private_car_route_mutex,
+		// so the main thread's accesses of both here must take the same mutex.
+		// refresh_private_car_routes() itself suspends the workers (which needs
+		// the mutex), so it must be called with the mutex NOT held.
+		int error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
+		const bool refresh_needed = cities_awaiting_private_car_route_check.empty() && cities_to_process <= 0;
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		if (refresh_needed)
+#else
 		if (cities_awaiting_private_car_route_check.empty() && cities_to_process <= 0)
+#endif
 		{
 			refresh_private_car_routes();
 			dbg->message("karte_t::step", "Refreshed private car routes");
@@ -5125,10 +5139,15 @@ void karte_t::step()
 		// this is not deterministic.
 
 		// For this reason, multi-threading is disabled when using network mode with clients connected until the problem can be solved.
+		error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
 		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
 		{
 			cities_to_process = env_t::networkmode ? min(1, cities_awaiting_private_car_route_check.get_count()) : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		}
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
 		start_private_car_threads();
 #else
 		const sint32 cities_to_process = min(cities_awaiting_private_car_route_check.get_count(), env_t::networkmode ? 1 : parallel_operations - 1);
