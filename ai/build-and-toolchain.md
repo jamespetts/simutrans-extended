@@ -174,8 +174,10 @@ The `REVISION` define must match between server and clients for network play
   "Tests completed successfully." or script-error markers, 10-minute timeout) are deferred to
   workflow_dispatch only (`squirrel_tests` input; they hang —
   [scripting-and-tests](scripting-and-tests.md)).
-- `tsan-smoke.yml` (push/PR; "TSan smoke"): same harness call with `sanitizer: tsan`; knowingly
-  red from the open `karte_t::load`/`init_threads` race family. Separate workflow because GitHub
+- `tsan-smoke.yml` (push/PR; "TSan smoke"): same harness call with `sanitizer: tsan`; regression
+  detector for threading races (the `karte_t::load`/`init_threads` race family that made it
+  knowingly red is fixed — workers are now created only at the end of `karte_t::load`,
+  [threading](threading.md)). Separate workflow because GitHub
   rejects `continue-on-error` on jobs calling a reusable workflow — this keeps its red run from
   failing the "Automated Tests" gate.
 - `smoke-harness.yml` (reusable; "Smoke harness"): ubuntu-22.04; autoconf/configure

@@ -143,13 +143,11 @@ static pthread_mutexattr_t mutex_attributes;
 //static pthread_mutex_t private_car_route_mutex = PTHREAD_MUTEX_INITIALIZER;
 //pthread_mutex_t karte_t::step_passengers_and_mail_mutex = PTHREAD_MUTEX_INITIALIZER;
 //static pthread_mutex_t path_explorer_await_mutex = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t karte_t::unreserve_route_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t karte_t::private_car_route_mutex;
 bool karte_t::private_car_route_mutex_initialised;
 pthread_mutex_t karte_t::step_passengers_and_mail_mutex;
 static pthread_mutex_t path_explorer_await_mutex;
-pthread_mutex_t karte_t::unreserve_route_mutex;
 
 simthread_barrier_t karte_t::private_car_barrier;
 simthread_barrier_t karte_t::unreserve_route_barrier;
@@ -1358,6 +1356,26 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing movingobjs");
 }
 
 
+// Seed for town/street name list generation (translator::init_custom_names).
+// Derived only from settings values that are part of the saved game state and
+// are not overridden from local simuconf.tab files after load (the post-load
+// override in karte_t::rdwr_gamestate touches none of these), so every network
+// peer computes the same seed and therefore holds identical name lists.
+// Combining several values means that re-using a map number with different map
+// settings still produces a different set of generated town names.
+static uint32 calc_name_list_seed(const settings_t &sets)
+{
+	uint32 h = (uint32)sets.get_map_number();
+	h = (h ^ (uint32)sets.get_size_x()) * 2654435761u;
+	h = (h ^ (uint32)sets.get_size_y()) * 2246822519u;
+	h = (h ^ (uint32)sets.get_city_count()) * 3266489917u;
+	h ^= h >> 15;
+	h *= 2246822519u;
+	h ^= h >> 13;
+	return h;
+}
+
+
 void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 {
 	clear_random_mode( 7 );
@@ -1392,6 +1410,11 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	// names during creation time
 	settings.set_name_language_iso(env_t::language_iso);
 	settings.set_use_timeline(settings.get_use_timeline() & 1);
+
+	// Rebuild the town/street name lists for this world before any towns are
+	// founded (distribute_cities, below). Generation is deterministic and
+	// seeded from the saved map settings, so all peers produce identical lists.
+	translator::init_custom_names(settings.get_name_language_id(), calc_name_list_seed(settings));
 
 	ticks = 0;
 	last_step_ticks = ticks;
@@ -2026,10 +2049,6 @@ void* unreserve_route_threaded(void* args)
 		}
 		if (convoi_t::current_unreserver == 0)
 		{
-			int error = pthread_mutex_unlock(&karte_t::unreserve_route_mutex);
-			assert(error == 0);
-			(void)error;
-
 			continue;
 		}
 
@@ -2109,7 +2128,6 @@ void karte_t::init_threads()
 
 	pthread_mutex_init(&step_passengers_and_mail_mutex, &mutex_attributes);
 	pthread_mutex_init(&path_explorer_await_mutex, &mutex_attributes);
-	pthread_mutex_init(&unreserve_route_mutex, &mutex_attributes);
 
 	pthread_t thread;
 
@@ -2266,7 +2284,6 @@ void karte_t::destroy_threads()
 		private_car_route_mutex_initialised = false;
 		pthread_mutex_destroy(&step_passengers_and_mail_mutex);
 		pthread_mutex_destroy(&path_explorer_await_mutex);
-		pthread_mutex_destroy(&unreserve_route_mutex);
 
 		pthread_mutexattr_destroy(&mutex_attributes);
 	}
@@ -8373,9 +8390,17 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			if (file->is_version_ex_less(14, 51)) {
 				setsimrand(settings.get_random_counter(), 0xFFFFFFFFu );
 			}
-
-			translator::init_custom_names(settings.get_name_language_id());
 		}
+
+		// Rebuild the town/street name lists from the saved name language in
+		// both single-player and network mode: the lists must follow the game's
+		// name language setting rather than each peer's UI language, and
+		// generation is deterministic and seeded from the saved map settings
+		// (calc_name_list_seed), so all peers hold identical lists. Note that
+		// the server's post-load override of the name language ("language of
+		// map becomes server language") deliberately does NOT rebuild the
+		// lists: all peers' lists must follow the loaded save's setting.
+		translator::init_custom_names(settings.get_name_language_id(), calc_name_list_seed(settings));
 
 		if(  !env_t::networkmode  ||  (env_t::server  &&  socket_list_t::get_playing_clients()==0)  ) {
 			if (settings.get_allow_player_change() && env_t::default_settings.get_use_timeline() < 2) {
@@ -9281,8 +9306,9 @@ void karte_t::load(loadsave_t *file)
 	path_explorer_t::initialise(this);
 
 #ifdef MULTI_THREAD
-	// destroy() destroys the threads, so this must be here.
-	init_threads();
+	// The worker threads are NOT created here: they are created at the end of
+	// the loading process (below), so that no worker can read world or settings
+	// state while it is still being rewritten here.
 #endif
 
 	tile_counter = 0;
@@ -9577,13 +9603,22 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	if(file->get_extended_version() >= 12)
 	{
 #ifdef MULTI_THREAD
-		pthread_mutex_lock(&step_passengers_and_mail_mutex);
+		// The mutex exists only while the worker threads are initialised;
+		// during loading, the threads are created only at the end of this
+		// function, so there is nothing to synchronise with here.
+		if (threads_initialised)
+		{
+			pthread_mutex_lock(&step_passengers_and_mail_mutex);
+		}
 #endif
 		file->rdwr_long(next_step_passenger);
 		file->rdwr_long(next_step_mail);
 
 #ifdef MULTI_THREAD
-		pthread_mutex_unlock(&step_passengers_and_mail_mutex);
+		if (threads_initialised)
+		{
+			pthread_mutex_unlock(&step_passengers_and_mail_mutex);
+		}
 #endif
 
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 13)
@@ -9610,13 +9645,17 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 	}
 
-#ifdef MULTI_THREAD
-	destroy_threads();
-	init_threads();
-#else
+#ifndef MULTI_THREAD
 	delete[] transferring_cargoes;
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[1];
 #endif
+
+	// The transferring cargoes must be staged in a local vector here: in
+	// multi-threaded builds, the transferring_cargoes array is allocated by
+	// init_threads(), which now runs only at the end of the loading process
+	// (see below), so that no worker thread can read state that is still
+	// being rewritten here.
+	vector_tpl<transferring_cargo_t> loaded_transferring_cargoes;
 
 	if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 15)
 	{
@@ -9636,7 +9675,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			tc.ware = ware;
 			// On re-loading, there is no need to distribute the
 			// cargoes about different members of this array.
-			transferring_cargoes[0].append(tc);
+			loaded_transferring_cargoes.append(tc);
 			fabrik_t* fab = fabrik_t::get_fab(tc.ware.get_zielpos());
 			if (fab)
 			{
@@ -9747,6 +9786,27 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	}
 
 	calc_max_vehicle_speeds();
+
+#ifdef MULTI_THREAD
+	// Create the worker threads only now that every piece of state that they
+	// might read has been loaded: all of the above writes then happen-before
+	// (via pthread_create) any read by any worker, so that the workers cannot
+	// race with the loading process. The private car workers are suspended
+	// first so that they cannot start processing the loaded city queue before
+	// the first step's start_private_car_threads; the single barrier wait then
+	// moves them from their suspended wait to their usual parked position.
+	route_t::suspend_private_car_routing = true;
+	init_threads();
+	simthread_barrier_wait(&private_car_barrier);
+	route_t::suspend_private_car_routing = false;
+#endif
+
+	// Move the staged transferring cargoes into the array allocated above by
+	// init_threads() (multi-threaded builds) or directly above (otherwise).
+	FOR(vector_tpl<transferring_cargo_t>, const tc, loaded_transferring_cargoes)
+	{
+		transferring_cargoes[0].append(tc);
+	}
 
 	dbg->warning("karte_t::load()","loaded savegame from %i/%i, next month=%i, ticks=%i (per month=1<<%i)",last_month,last_year,next_month_ticks,ticks,karte_t::ticks_per_world_month_shift);
 }

@@ -43,7 +43,7 @@
 #include "../sys/simsys.h"
 #endif
 
-bool route_t::suspend_private_car_routing = false;
+std::atomic<bool> route_t::suspend_private_car_routing(false);
 
 
 void route_t::append(const route_t *r)

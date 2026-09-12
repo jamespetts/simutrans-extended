@@ -263,7 +263,11 @@ uint16 get_random_mode()
 }
 
 
-static uint32 async_rand_seed = 12345678 + (uint32)time( NULL ); // Do not use dr_time(). It returns 0 on program startup for some platforms (SDL).
+// Thread local because setsimrand() is called on worker threads (e.g. the
+// passenger generation workers seed themselves on creation), which must not
+// race with other threads' use of sim_async_rand(). This generator is never
+// synchronised between network clients, so per-thread streams are fine.
+static uint32 thread_local async_rand_seed = 12345678 + (uint32)time( NULL ); // Do not use dr_time(). It returns 0 on program startup for some platforms (SDL).
 
 /* simpler simrand for anything not game critical (like UI) */
 uint32 sim_async_rand( uint32 max )

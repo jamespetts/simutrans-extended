@@ -40,6 +40,7 @@
 #endif
 
 #ifdef MULTI_THREAD
+#include <atomic>
 #include "utils/simthread.h"
 #endif
 
@@ -379,8 +380,11 @@ private:
 #ifdef MULTI_THREAD
 	/**
 	* True when threads are to be terminated.
+	* Atomic because the worker threads read this outside any mutex or
+	* barrier-synchronised window (e.g. at the top of the private car
+	* worker loop) while the main thread writes it in destroy_threads().
 	*/
-	bool terminating_threads;
+	std::atomic<bool> terminating_threads;
 #endif
 
 	/**
@@ -967,7 +971,6 @@ public:
 	static simthread_barrier_t step_convoys_barrier_external;
 	static simthread_barrier_t unreserve_route_barrier;
 	static simthread_barrier_t private_car_barrier;
-	static pthread_mutex_t unreserve_route_mutex;
 	static pthread_mutex_t step_passengers_and_mail_mutex;
 	static bool private_car_route_mutex_initialised;
 	static pthread_mutex_t private_car_route_mutex;

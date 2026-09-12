@@ -15,6 +15,8 @@
 
 #include "../utils/simthread.h"
 
+#include <atomic>
+
 class karte_t;
 class test_driver_t;
 class grund_t;
@@ -96,7 +98,11 @@ public:
 	static void RELEASE_NODES(uint8 nodes_index);
 	static void TERM_NODES(void* args = NULL);
 
-	static bool suspend_private_car_routing;
+	// Atomic because the private car worker threads read this outside the
+	// private_car_route_mutex (the else-branch of check_road_connexions_threaded
+	// and the mid-search yield in route_t::find_route) while the main thread
+	// writes it in karte_t::suspend_private_car_threads().
+	static std::atomic<bool> suspend_private_car_routing;
 
 	const koord3d_vector_t &get_route() const { return route; }
 

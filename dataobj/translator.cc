@@ -20,7 +20,6 @@
 #include "../utils/cbuffer_t.h"
 #include "../utils/searchfolder.h"
 #include "../utils/simstring.h"
-#include "../utils/simrandom.h"
 #include "../unicode.h"
 #include "../tpl/vector_tpl.h"
 
@@ -266,16 +265,62 @@ void translator::load_custom_list( int lang, vector_tpl<char *>&name_list, const
 }
 
 
+// Deterministic replacement for random draws when selecting which of the
+// syllable-generated town names receive a prefix or a suffix. Pure unsigned
+// integer arithmetic: given the same seed (derived from the saved map
+// settings - calc_name_list_seed in simworld.cc - and therefore identical on
+// all network peers) and the same language data, every peer computes
+// identical results, so the generated name lists - and therefore the town
+// and stop names chosen from them - are identical on all peers. The random
+// number generators must not be used here: the unsynced one gives every
+// process different lists, and drawing from the synced one at load/init time
+// would diverge the synced stream between peers (e.g. a client joining
+// mid-game).
+// variant distinguishes the selection gates: 512 = the prefix/suffix gate
+// for the name pair itself, 0..255 = prefix candidate, 256..511 = suffix
+// candidate.
+static uint32 name_list_hash(uint32 seed, uint32 region, uint32 first_syllable, uint32 second_syllable, uint32 variant)
+{
+	uint32 h = seed;
+	h = (h ^ region) * 2654435761u;
+	h = (h ^ first_syllable) * 2246822519u;
+	h = (h ^ second_syllable) * 3266489917u;
+	h = (h ^ variant) * 1274126177u;
+	h ^= h >> 15;
+	h *= 2246822519u;
+	h ^= h >> 13;
+	return h;
+}
+
+
 /**
- * the city list is now reloaded after the language is changed
- * new cities will get their appropriate names
+ * Rebuild the city and street name lists for the given language.
+ *
+ * Called at world init and at world load (in both single-player and network
+ * mode) with the game's name language setting; deliberately NOT called when
+ * the UI language changes: town names are game state and must not depend on
+ * per-peer UI settings in network games.
+ *
+ * When no name list files are found, town names are generated from the
+ * syllable translation keys. Which generated names receive a prefix or
+ * suffix is selected by the deterministic name_list_hash above (seeded from
+ * the game's saved map settings), so that all network peers holding the same
+ * language data produce identical lists.
  */
-void translator::init_custom_names(int lang)
+void translator::init_custom_names(int lang, uint32 name_seed)
 {
 	// init names. There are two options:
 	//
 	// 1.) read list from file
-	// 2.) create random names (only for cities)
+	// 2.) create names from the syllable translation keys (only for cities)
+
+	// The lists are world-scoped: discard any lists from a previous world
+	// or language before rebuilding. Without this, repeated calls would
+	// append further region entries, and since only the first 16 are ever
+	// read, every rebuild after the first would be invisible while leaking
+	// the regenerated names.
+	clear_custom_list(city_name_list);
+	clear_custom_list(street_name_list);
 
 	// We have separate lists for each region
 	//@author: jamespetts, June 2020
@@ -326,23 +371,19 @@ void translator::init_custom_names(int lang)
 					sprintf(name, "%%%X_CITY_SYLL[%u]", i, count);
 				}
 				const char* s1 = translator::translate(name, lang);
+				if (s1 == name && count == 0)
+				{
+					// Try the region 0 variant of this key. The result must be
+					// assigned to s1: a local declaration here would shadow it,
+					// and s1 aliases the name buffer, which now holds the key
+					// text, so the key text would end up in the generated name.
+					sprintf(name, "%%%X_CITY_SYLL[0]", i);
+					s1 = translator::translate(name, lang);
+				}
 				if (s1 == name)
 				{
-					if (count == 0)
-					{
-						sprintf(name, "%%%X_CITY_SYLL[0]", i);
-						const char* s1 = translator::translate(name, lang);
-						if (s1 == name)
-						{
-							// name not available ...
-							continue;
-						}
-					}
-					else
-					{
-						// name not available ...
-						continue;
-					}
+					// name not available ...
+					continue;
 				}
 				// now add all second name extensions ...
 				const size_t l1 = strlen(s1);
@@ -357,23 +398,17 @@ void translator::init_custom_names(int lang)
 						sprintf(name, "&%X_CITY_SYLL[%u]", j, count);
 					}
 					const char* s2 = translator::translate(name, lang);
+					if (s2 == name && count == 0)
+					{
+						// Try the region 0 variant of this key (see s1 above:
+						// the result must be assigned to s2, not shadow it).
+						sprintf(name, "&%X_CITY_SYLL[0]", j);
+						s2 = translator::translate(name, lang);
+					}
 					if (s2 == name)
 					{
-						if (count == 0)
-						{
-							sprintf(name, "&%X_CITY_SYLL[0]", j);
-							const char* s2 = translator::translate(name, lang);
-							if (s2 == name)
-							{
-								// name not available ...
-								continue;
-							}
-						}
-						else
-						{
-							// name not available ...
-							continue;
-						}
+						// name not available ...
+						continue;
 					}
 					const size_t l2 = strlen(s2);
 					char* const c = MALLOCN(char, l1 + l2 + 1);
@@ -390,7 +425,7 @@ void translator::init_custom_names(int lang)
 					// appearing only where the town is
 					// actually by the sea).
 
-					const uint32 random_percent = sim_async_rand(100);
+					const uint32 random_percent = name_list_hash(name_seed, count, i, j, 512u) % 100;
 
 					// TODO: Have these set from simuconf.tab
 					const uint32 prefix_probability = 5;
@@ -416,25 +451,19 @@ void translator::init_custom_names(int lang)
 								sprintf(name, "&%X_CITY_PREFIX[%u]", p, count);
 							}
 							const char* s3 = translator::translate(name, lang);
-							const uint32 random_percent_prefix = sim_async_rand(100);
-
+							if (s3 == name && count == 0)
+							{
+								// Try the region 0 variant of this key (see s1
+								// above: assign to s3, do not shadow it).
+								sprintf(name, "&%X_CITY_PREFIX[0]", p);
+								s3 = translator::translate(name, lang);
+							}
+							const uint32 random_percent_prefix = name_list_hash(name_seed, count, i, j, p) % 100;
 							if (s3 == name || random_percent_prefix > prefix_probability)
 							{
-								if (count == 0 && s3 == name)
-								{
-									sprintf(name, "&%X_CITY_PREFIX[0]", p);
-									const char* s3 = translator::translate(name, lang);
-									if (s3 == name)
-									{
-										// name not available ...
-										continue;
-									}
-								}
-								else
-								{
-									// name not available ...
-									continue;
-								}
+								// Name not available, or this prefix is not among
+								// the selected subset for this name.
+								continue;
 							}
 							const size_t l3 = strlen(s3);
 							char* const c2 = MALLOCN(char, l1 + l2 + l3 + 1);
@@ -462,26 +491,21 @@ void translator::init_custom_names(int lang)
 							}
 
 							const char* s3 = translator::translate(name, lang);
-							const uint32 random_percent_suffix = sim_async_rand(100);
-
-							if (s3 == name || random_percent_suffix > prefix_probability || strcmp(s3, s2) == 0)
+							if (s3 == name && count == 0)
 							{
-								if (count == 0 && s3 == name)
-								{
-									sprintf(name, "&%X_CITY_SUFFIX[0]", p);
-									const char* s3 = translator::translate(name, lang);
-									if (s3 == name)
-									{
-										// Name not available
-										continue;
-									}
-								}
-								else
-								{
-									// Name not available or the suffix is identical to the final syllable
-									// (This should avoid names such as Tarwoodwood).
-									continue;
-								}
+								// Try the region 0 variant of this key (see s1
+								// above: assign to s3, do not shadow it).
+								sprintf(name, "&%X_CITY_SUFFIX[0]", p);
+								s3 = translator::translate(name, lang);
+							}
+							const uint32 random_percent_suffix = name_list_hash(name_seed, count, i, j, 256u + p) % 100;
+							if (s3 == name || random_percent_suffix > suffix_probability || strcmp(s3, s2) == 0)
+							{
+								// Name not available, this suffix is not among the
+								// selected subset for this name, or the suffix is
+								// identical to the final syllable (this should avoid
+								// names such as Tarwoodwood).
+								continue;
 							}
 
 							// Compare lower cases end parts without spaces with upper case end parts with spaces.
@@ -817,7 +841,11 @@ void translator::set_language(int lang)
 		current_langinfo = langs+lang;
 		env_t::language_iso = langs[lang].iso;
 		env_t::default_settings.set_name_language_iso( langs[lang].iso );
-		init_custom_names(lang);
+		// The city/street name lists are NOT rebuilt here: they are
+		// world-scoped game state, rebuilt at world init/load with the
+		// game's name language setting (see init_custom_names). Rebuilding
+		// on UI language changes would make town naming depend on per-peer
+		// UI settings, which diverges between network peers.
 		current_langinfo->ellipsis_width = proportional_string_width( translate("...") );
 		DBG_MESSAGE("translator::set_language()", "%s, unicode %d", langs[lang].name, true);
 	}

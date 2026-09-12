@@ -3,15 +3,15 @@
 # scripts/run-smoke-tests.sh in network mode on tests/demo.sve against the pinned pakset
 # commit in tests/pakset-pin.tab).
 #
-# Knowingly red today from the open karte_t::load/init_threads race family
-# (ai/known-bugs.md, priority 2). Runs on every push/PR deliberately - it keeps the
-# family visible, covers races the determinism test cannot see (unsynchronised accesses
-# that do not perturb the savegame bytes), and catches NEW races. It lives in its own
-# workflow because GitHub does not allow continue-on-error on a job that calls a
-# reusable workflow: keeping it out of run-tests.yml is what stops its red run from
-# failing the blocking "Automated Tests" gate. Fold it back into run-tests.yml (or drop
-# it) once the race family is fixed. TSan is several times slower than ASan, hence the
-# enlarged timeouts (tune after the first CI runs).
+# The karte_t::load/init_threads race family that made this job knowingly red is fixed
+# (workers are now created only at the end of karte_t::load; see ai/threading.md). The
+# job is retained as a regression detector: it covers races the determinism test cannot
+# see (unsynchronised accesses that do not perturb the savegame bytes) and catches NEW
+# races. It lives in its own workflow because GitHub does not allow continue-on-error on
+# a job that calls a reusable workflow: keeping it out of run-tests.yml is what stops a
+# red run from failing the blocking "Automated Tests" gate. If it proves durably green,
+# it can be folded back into run-tests.yml. TSan is several times slower than ASan,
+# hence the enlarged timeouts.
 #
 name: TSan smoke
 on:

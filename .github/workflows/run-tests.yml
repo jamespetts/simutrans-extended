@@ -4,15 +4,16 @@
 # Blocking gate: the smoke harness (smoke + network determinism on tests/demo.sve, via
 # scripts/run-smoke-tests.sh) against the pinned pakset commit in tests/pakset-pin.tab
 # (last-known-good ratchet; the pin is advanced only on green runs by pakset-pin.yml).
-# The knowingly-red TSan flavour of the same harness (open karte_t::load/init_threads
-# race family) runs as its own workflow (tsan-smoke.yml): GitHub does not allow
-# continue-on-error on a job that calls a reusable workflow, so keeping it in a separate
-# workflow is what stops its red run from failing this gate.
+# The TSan flavour of the same harness runs as its own workflow (tsan-smoke.yml):
+# GitHub does not allow continue-on-error on a job that calls a reusable workflow,
+# so keeping it in a separate workflow stops any TSan finding from failing this gate.
+# It was knowingly red until the karte_t::load/init_threads race family was fixed
+# (workers are now created only at the end of karte_t::load; see ai/threading.md);
+# it now serves as the regression detector for threading races.
 #
 # Bypassed for now (user decision 2026-09-07): the legacy Squirrel scenario jobs. The
 # suite is deferred; both jobs currently hang until their 10 minute timeout (verified
-# 2026-09-07, run 34157611380), and TSan additionally reports a known race family in
-# karte_t::load/init_threads (see ai/threading.md). They never run on push/PR; the full
+# 2026-09-07, run 34157611380). They never run on push/PR; the full
 # infrastructure stays wired and can be exercised on demand via "Run workflow" with the
 # squirrel_tests input ticked (results then report honestly - no continue-on-error).
 #
@@ -117,9 +118,9 @@ jobs:
         timeout 10m ./run-automated-tests.sh # 10 minutes ought to be enough for anybody.
 
   run-tests-tsan:
-    # Deferred Squirrel suite + known TSan race family in karte_t::load/init_threads
-    # (see ai/threading.md): on-demand only (workflow_dispatch with the input ticked);
-    # bypassed on push/PR. Remove the if: to reinstate permanently.
+    # Deferred Squirrel suite (see ai/scripting-and-tests.md): on-demand only
+    # (workflow_dispatch with the input ticked); bypassed on push/PR.
+    # Remove the if: to reinstate permanently.
     if: github.event_name == 'workflow_dispatch' && inputs.squirrel_tests
     runs-on: ubuntu-22.04
     steps:

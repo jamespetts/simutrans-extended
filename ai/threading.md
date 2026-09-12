@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 78a4bb3b9
+verified: master @ df03b1b60
 ---
 # Threading
 
@@ -151,7 +151,7 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 - Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. Outside any mutex: `haltestelle_t::resort_freight_info` (`add_to_waiting_list`).
 - Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker).
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`).
-- Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
+- Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; player-finance way maintenance/length booking under load_mutex; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
 - Display workers (display barriers; may overlap convoy/path-explorer workers, never main-thread simulation code): simgraph16 shared image cache, `grund_t::dirty` (smart cursor), hide/pause state (hide_mutex), framebuffer.
 - Save/load threads: byte buffers + flags only — no game state.
 
@@ -159,15 +159,26 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 
 - `karte_t::init()` (new map): `init_threads()` at the end.
 - `karte_t::load(loadsave_t*)`: `destroy()` (which begins with `suspend_private_car_threads()` +
-  `destroy_threads()`) →
-  `init_threads()` EARLY, before the gamestate is read (code comment: destroy() destroyed the
-  threads, so this must be here) → the whole load runs with workers alive → after
-  `parallel_operations` is read from the save (server writes its own `num_threads-1`; clients
-  adopt it; single-player resets to -1) → `destroy_threads()` + `init_threads()` again to resize
-  all per-thread buffers. `karte_t::load(filename)` additionally calls
-  `suspend_private_car_threads()` first ("Necessary here to prevent thread deadlocks").
-- Consequence: workers run (parked/looping, reading world and settings state) while `load`
-  rewrites that state — the TSan data-race family (→ [known-bugs](known-bugs.md)).
+  `destroy_threads()`) → the whole load runs with NO simulation workers alive (the await/suspend
+  helpers no-op on their flags; the in-load mutex users are guarded by
+  `private_car_route_mutex_initialised` / `threads_initialised`; transferring cargoes are staged
+  through a function-local vector because `transferring_cargoes` is allocated only by
+  `init_threads()`) → once all worker-visible state is final (settings incl. `parallel_operations`
+  adopted from the save by network clients, the city queue, `cities_to_process`, RNG state), the
+  workers are created ONCE at the end of load: `route_t::suspend_private_car_routing = true` →
+  `init_threads()` → one `private_car_barrier` wait → flag cleared. The pre-set suspend flag
+  closes the private-car workers' first-iteration pickup gate (they would otherwise start
+  processing the loaded city queue immediately, unpaced and racing the load tail); the single
+  barrier wait then moves them from the suspended wait to their usual parked position, so
+  processing starts at the first step's `start_private_car_threads` — the effective state the old
+  code reached only accidentally (workers were spawned before the queue was read from the save).
+  `pthread_create` orders all load-time writes before any worker read. `karte_t::load(filename)`
+  additionally calls `suspend_private_car_threads()` first ("Necessary here to prevent thread
+  deadlocks").
+- Invariant: workers are born into a fully-formed world. `karte_t::load()` must not create the
+  workers before all state they read is final, and nothing after the spawn point may write
+  worker-visible state (the transferring-cargoes copy into `transferring_cargoes[0]` is safe:
+  workers do not touch it before their first barrier release).
 - `destroy_threads()`: awaits convoy/path-explorer/passenger subsystems, sets
   `terminating_threads`, trips every barrier once to release parked workers, joins all, destroys
   barriers/mutexes, frees the per-thread buffer arrays, resets flags.
@@ -201,9 +212,10 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   exiting — done in their loops), `route_t::MAX_STEP`/`max_used_steps`; the simrandom Mersenne
   state + `random_origin` + `noise_seed` (+`thread_seed` under DEBUG_SIMRAND_CALLS);
   `path_explorer_t::allow_path_explorer_on_this_thread`.
-- NOT thread_local: `async_rand_seed` (utils/simrandom.cc global) — every passenger worker's
-  startup `setsimrand()` writes it concurrently (TSan-flagged). It feeds only `sim_async_rand()`
-  (unsynced), so no determinism impact is expected [UNVERIFIED impact].
+- `async_rand_seed` (utils/simrandom.cc) is thread_local: passenger workers' startup
+  `setsimrand()` would otherwise write the shared global concurrently (one of the TSan-flagged
+  load-time races). It feeds only `sim_async_rand()` (unsynced UI randomness), so per-thread
+  streams are semantically fine.
 - weg_t private-car route data is double-buffered: `private_car_routes[2][…]` reading/writing
   element; `swap_private_car_routes_currently_reading_element()` only from single-threaded
   context (`karte_t::refresh_private_car_routes`, after suspending the private-car threads;
@@ -211,15 +223,19 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Lock inventory (game code)
 
+- Two flags are `std::atomic<bool>` rather than mutex-protected, because workers read them
+  outside any mutex/barrier window while the main thread writes them:
+  `karte_t::terminating_threads` (top-of-loop reads in `check_road_connexions_threaded` vs the
+  write in `destroy_threads()`) and `route_t::suspend_private_car_routing` (else-branch and
+  mid-search-yield reads vs the under-mutex writes in `suspend_private_car_threads()`).
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
-  road connexions in route.cc, suspend flag), `karte_t::step_passengers_and_mail_mutex` (also
+  road connexions in route.cc), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
-  (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance`), `freelist_mutex`
+  (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance` and `book_way_length` — both reached from `finish_rd` during the threaded `plans_finish_rd`), `freelist_mutex`
   (dataobj/freelist.cc — every freelist alloc/free; tpl/freelist_tpl.h's own mutex code sits
-  under a never-defined `MULTI_THREADx` guard and is dead). `karte_t::unreserve_route_mutex` is
-  never locked (vestigial).
+  under a never-defined `MULTI_THREADx` guard and is dead).
 - Display/image: simgraph16 `rezoom_img_mutex[MAX_THREADS]` + `recode_img_mutex`; recursive
   `calc_image` mutexes (weg, wayobj, tunnel, bruecke, crossing, leitung2); `height_mutex`
   (simworld.cc, `plans_finish_rd`); gebaeude `sync_mutex`/`add_to_city_mutex`; label
@@ -229,9 +245,6 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Known problems
 
-- TSan data races between `karte_t::load` and the workers spawned by `init_threads` on every CI
-  run, both branches; threading bug family (deadlocks topic 23021, `objlist_t::remove` race
-  topic 20994): details and triage state → [known-bugs](known-bugs.md).
 - Barrier-wait multiplicity ("having two/three of these is intentional") must balance exactly
   across all participants; nothing documents the accounting; fragility evidenced by the deadlock
   family above.
@@ -239,9 +252,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   live path awaits the path explorer but NOT the convoy/passenger threads before reallocating
   and swapping the plan arrays; `karte_t::update_map` performs no awaits at all
   [CODE master @ 78a4bb3b9].
-- Stray `pthread_mutex_unlock` with no matching lock in `unreserve_route_threaded`
-  (`current_unreserver == 0` path); `unreserve_route_mutex` is never locked;
-  `stadt_t::private_car_route_finding_in_progress` is written by workers without a mutex,
+- `stadt_t::private_car_route_finding_in_progress` is written by workers without a mutex,
   persisted, and has no reader — dead state [CODE master @ 78a4bb3b9].
 - MSVC "single threaded" configurations compile MT code (Build configuration) — user decision
   2026-09-07: very low priority, leave for now; fix-or-delete undecided
@@ -251,9 +262,14 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 
 ## Provenance
 
-Verified against master @ 78a4bb3b9. Structurally identical on ex-15 @ 91d9b252e: same worker
-set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations and
-`async_rand_seed` global (ex-15's convoy/path-explorer internals differ heavily, but the
+Verified against master @ df03b1b60 (which includes the load-threading fix: workers created at
+the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
+thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal;
+the `book_way_length` `load_mutex` fix). The load-time
+TSan race family recorded here before that fix is deleted per the known-bugs rule; history
+lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
+set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations
+(ex-15's convoy/path-explorer internals differ heavily, but the
 threading model does not) — this doc applies to both branches [CODE ex-15 @ 91d9b252e].
 Simulation-worker threading is Extended-specific ([project-notes](project-notes.md));
 display/save-load/map-loop threading predates the fork [PRIOR — coarse; not verified against
