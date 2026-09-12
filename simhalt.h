@@ -35,6 +35,8 @@
 #include "tpl/binary_heap_tpl.h"
 #include "tpl/minivec_tpl.h"
 
+#include <atomic>
+
 #define MAX_HALT_COST				13 // Total number of cost items
 #define MAX_MONTHS					12 // Max history
 //#define MAX_HALT_NON_MONEY_TYPES	8 // number of non money types in HALT's financial statistic
@@ -461,7 +463,10 @@ private:
 	* sortierung is local and stores the sortorder for the individual station
 	*/
 	uint8 sortierung;
-	bool resort_freight_info;
+	// Written from the passenger/mail generation worker threads (via
+	// add_to_waiting_list) as well as the main thread, hence atomic.
+	// Never serialised; a pure runtime display/re-sort latch.
+	std::atomic<bool> resort_freight_info;
 
 	haltestelle_t(loadsave_t *file);
 	haltestelle_t(koord pos, player_t *player);
