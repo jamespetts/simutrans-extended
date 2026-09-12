@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 78a4bb3b9
+verified: master @ e89843ec8
 ---
 # Sync & determinism: rules for simulation code
 
@@ -117,7 +117,7 @@ When adding per-step diagnostic aggregates for a new subsystem, use an unused sl
 ## Known problems & caveats (code-stated)
 
 - `debug_sums[2]/[3]` reset comments in simworld.cc contradict the actual feed sites (see table); the feed-site comments in simconvoi.cc are authoritative [CODE].
-- Starting convoy threads during a sync step is "potentially a problem" but "uncertain" (code comment, simworld.cc) [UNVERIFIED whether an actual defect].
+- Convoy threads running across the sync step are a TSan-verified race family (CI TSan smoke, 2026-09-12): convoy-worker route finding reads tile object lists/convoy state while the main thread mutates them (vehicle hops, `new_month`) — an actual defect (crash + desync family), so the "uncertain" code comment in simworld.cc is superseded. Details → [known-bugs](known-bugs.md).
 - Multi-threaded private-car route checking across multiple cities is "not network safe"; cause unresolved in code — hence the one-city-per-step clamp in network mode [CODE comment].
 - `ALWAYS_CACHE_SERVICE_INTERVAL` (simhalt.h): comment says network-safe but its test was not conclusive at the time [CODE comment caveat].
 - A suspected-desync comment sits after the scenario step in `karte_t::step()` ("Loss of synchronisation suspected to be in a block of code ending here") [CODE comment]. The user could neither confirm nor disconfirm the suspicion [RECOLLECTION:2026-09-07].
@@ -131,5 +131,4 @@ Verified against master @ 78a4bb3b9. The covered files (utils/simrandom.*, utils
 ## Open questions
 
 - Is the de-facto requirement for identical `threads` settings across peers intentional (given `parallel_operations` already makes the work split identical), or should the checklist tolerate differing thread counts? (Rationale evidenced only by a commit title; user could not confirm, asked 2026-09-07.)
-- Is the convoy-threads-during-sync-step caveat an actual defect or benign? (Code comment states uncertainty; user could not confirm, asked 2026-09-07.)
 - Why is multi-city threaded private-car route checking not network safe? (Code comment: reason unclear, route-finding determinism suspected. The user spent a long time debugging this without success — a hard problem [RECOLLECTION:2026-09-07].)
