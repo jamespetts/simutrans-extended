@@ -229,7 +229,7 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   write in `destroy_threads()`) and `route_t::suspend_private_car_routing` (else-branch and
   mid-search-yield reads vs the under-mutex writes in `suspend_private_car_threads()`).
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
-  road connexions in route.cc, step-head city-queue bookkeeping in `karte_t::step`), `karte_t::step_passengers_and_mail_mutex` (also
+  road connexions in route.cc, city-queue bookkeeping in `karte_t::step`/`pause_step`), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`

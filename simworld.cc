@@ -4934,7 +4934,20 @@ void karte_t::pause_step()
 	// This is computationally intensive, but intermittently. The computational intensity increases exponentially with the size of the map.
 	const sint32 parallel_operations = get_parallel_operations();
 
-	if (!private_car_route_check_complete && cities_awaiting_private_car_route_check.empty())
+#ifdef MULTI_THREAD
+		// Same discipline as karte_t::step: the workers read cities_to_process and
+		// pop cities_awaiting_private_car_route_check under private_car_route_mutex.
+		// refresh_private_car_routes() suspends the workers itself, so it must be
+		// called with the mutex NOT held.
+		int error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
+		const bool refresh_needed = !private_car_route_check_complete && cities_awaiting_private_car_route_check.empty();
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		if (refresh_needed)
+#else
+		if (!private_car_route_check_complete && cities_awaiting_private_car_route_check.empty())
+#endif
 	{
 		refresh_private_car_routes();
 		dbg->message("karte_t::pause_step", "Refreshed private car routes");
@@ -4948,10 +4961,15 @@ void karte_t::pause_step()
 		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
 		//cities_to_process = cities.get_count() > 64 ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		//cities_to_process = 1;
+		error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
 		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
 		{
 			cities_to_process = min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
 		}
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
 		start_private_car_threads();
 #else
 		const sint32 cities_to_process = env_t::networkmode ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
