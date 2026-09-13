@@ -70,6 +70,10 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 If something is outstanding from the commit, follow with a line `NOTE: <short message>`
 or `TODO: <short message>`.
 
+Push to the `Simutrans--Experimental` remote (SSH), or the HTTPS
+`github.com/jamespetts/simutrans-extended` URL with the gh credential helper; `origin`
+uses the unauthenticated `git://` protocol and cannot accept pushes.
+
 ## Quick facts
 
 - Build (Windows): MSVC solutions `Simutrans-Extended.sln` (game), `Makeobj-Extended.sln`
