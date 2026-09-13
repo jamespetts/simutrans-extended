@@ -212,6 +212,13 @@ public:
 	const nearby_halt_t *get_haltlist() const { return halt_list; }
 	uint8 get_haltlist_count() const { return halt_list_count; }
 
+	/**
+	* removes all entries from the halt list whose handle is stale
+	* (id out of range or unbound) by array compaction
+	* @return the number of entries removed
+	*/
+	uint32 purge_unbound_from_haltlist();
+
 	void rdwr(loadsave_t *file, koord pos );
 
 	/**
