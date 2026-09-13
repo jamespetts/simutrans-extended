@@ -52,31 +52,6 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
-### Headless (COLOUR_DEPTH=0) MSVC builds crash in server-mode simulation on the gargantuan fixture — priority 1
-
-- Loading bb-10-sep-2023.sve (the performance-suite fixture) and running it as a server
-  (`-server`, loopback-only, no clients, `pause_server_no_clients = 0`) crashes with 0xC0000005,
-  faulting module ntdll.dll (heap-corruption pattern), roughly 25–30 s after load completes
-  ("Running world" reached; FIX_RATIO timers running) [EXECUTION-VERIFIED 2026-09-09].
-- Reproduced with both the "Profile (server)|x64" build and the maintainer's
-  "Debug (non-graphical server)|x64" build (rebuilt from master @ cc1c5858f) — independent of
-  the new configuration [EXECUTION-VERIFIED 2026-09-09].
-- NOT reproduced by the graphical "Profile|x64" build in the same server mode (survived 300 s+),
-  nor by client-mode fast-forward runs (120 s windows) — headless-specific, early server sim,
-  this save [EXECUTION-VERIFIED 2026-09-09].
-- The suite first misclassified it as a load crash: the load completes, and the crash is
-  log-invisible in Profile builds (DBG macros compiled out) [EXECUTION-VERIFIED 2026-09-09].
-- Scope: the headless build works when compiled with GCC (production server and local GCC
-  builds), so this is presumably an MSVC/Windows-specific defect, not a code-level deterministic
-  bug on all platforms [RECOLLECTION:2026-09-09 user statement]. Candidate classes: latent
-  undefined behaviour that MSVC's runtime/heap validation surfaces, or an MSVC codegen/packing
-  difference. Mixed-CRT zstd linking is ruled out: the crashing "Debug (non-graphical server)"
-  build is /MTd, matching the zstd lib's CRT. The `karte_t::load`/`init_threads` race family it
-  was observed alongside has since been fixed; whether that family was the cause is untested —
-  re-run the headless capture to find out [UNVERIFIED].
-- Blocks the headless capture profile of the performance suite (→ [performance](performance.md));
-  workaround: server-paced capture on the graphical Profile build (display cost included).
-
 ### Await gaps around map operations — priority 2
 
 - `karte_t::enlarge_map`'s live path (gui/enlarge_map_frame_t.cc) disables interrupts and awaits
@@ -106,8 +81,8 @@ Rank on discovery; re-rank on triage.
   `karte_t::load` / `init_threads` race family. That family is now fixed on master (workers are
   created only at the end of `karte_t::load`); the master→ex-15 merge carrying the fix has
   happened (ex-15 @ 9d8dde74c) — re-test whether this crash still reproduces; if it does, the
-  cause is elsewhere. Whether this shares a root with the headless MSVC server crash (ntdll
-  heap-corruption signature differs) is UNVERIFIED.
+  cause is elsewhere. It does not share a root with the former headless MSVC server crash —
+  that was a separate defect (uninitialised CRITICAL_SECTION in simsys_w.cc, fixed 2026-09-13).
 - A guarded ex-15 build (is_bound() skip + warning at the haltlist consumer sites) survives 8+
   minutes with zero guard hits in some runs — i.e. the corruption appears only sometimes.
   Guards were needed for the 2026-09-11 ex-15 profiling verification; the root-cause race fix
@@ -164,7 +139,6 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Headless MSVC builds crash in server-mode sim on the bb-10-sep-2023.sve fixture (not a forum report: performance-suite discovery 2026-09-09) | — | detailed entry above |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
