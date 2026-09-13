@@ -31,6 +31,11 @@ const float32e8_t BR_MAGLEV = float32e8_t(12, 10);
 const float32e8_t BR_ROAD = float32e8_t(4, 1);
 const float32e8_t BR_DEFAULT = float32e8_t(1, 1);
 
+#ifdef MULTI_THREAD
+// See convoy.h. convoi_t::threaded_step() sets this on convoy worker threads.
+thread_local bool convoy_summary_compute_thread_local = false;
+#endif
+
 // helps to calculate roots. pow fails to calculate roots of negative bases.
 inline const float32e8_t signed_power(const float32e8_t &base, const float32e8_t &expo)
 {

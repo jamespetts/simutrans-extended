@@ -115,20 +115,6 @@ Rank on discovery; re-rank on triage.
 - Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
   branch-independent, so master exposure is plausible [UNVERIFIED].
 
-### Factory intransit gate reads in-flight path-explorer state — priority 2
-
-- `fabrik_t::calc_max_intransit_percentages` (simfab.cc:4418; from `fabrik_t::new_month` ←
-  `karte_t::new_month`, top of `karte_t::step`) reads
-  `path_explorer_t::get_current_compartment_category()` and then `get_paths_available(...)` —
-  the path explorer's live progress marker and compartment state — while the path explorer
-  thread is mid-step (`await_path_explorer` comes later in step) [CODE; TSan CI run on
-  ae6293989: race at path_explorer.h:538 in `get_current_compartment_category`].
-- The gate guards a saved factory parameter (`max_transit`), and its result at a month boundary
-  depends on thread scheduling — a rare desync vector, not just UB.
-- Deferred to the threading-choreography planning session (same conversation as the convoy
-  window above). Candidate fixes: await the path explorer before `new_month`; make the gate
-  timing-independent; atomic marker.
-
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
 - Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
@@ -188,7 +174,6 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Factory intransit gate reads in-flight path-explorer state (not a forum report: TSan CI finding 2026-09-12) | — | detailed entry above; rare desync vector; deferred to the threading-choreography planning session |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |

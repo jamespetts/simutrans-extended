@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 07ad4ef13
+verified: master @ f0263252a
 ---
 # Sync & determinism: rules for simulation code
 
@@ -85,7 +85,7 @@ Network play is deterministic lockstep: server and every client independently ru
 | 5 | ticker update | 19 | passenger/mail thread await |
 | 6 | display/event/frame work, end of sync_step | 20 | factory stepping |
 | 7 | explicitly zeroed | 21 | power network stepping |
-| 8 | entry to `step()` + convoy threaded-step await (the await is at the head of step, before the month check) | 22 | player stepping |
+| 8 | entry to `step()` + the step-head awaits (convoy threaded-step await, then path-explorer await — both before the month check) | 22 | player stepping |
 | 9 | `new_month()` | 23 | `haltestelle_t::step_all()` |
 | 10 | season/snowline tile loop | 24 | periodic path-explorer category refresh |
 | 11 | private-car route-thread start | 25 | `check_transferring_cargoes()` |

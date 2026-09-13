@@ -680,7 +680,7 @@ bool objlist_t::ist_da(const obj_t* test_obj) const
 {
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		std::atomic_thread_fence(std::memory_order_acquire);
 		const uint8 t = OLIST_ATOMIC_LOAD(&top);
 		bool found = false;
@@ -708,7 +708,7 @@ obj_t *objlist_t::suche(obj_t::typ typ,uint8 start) const
 {
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		std::atomic_thread_fence(std::memory_order_acquire);
 		const uint8 t = OLIST_ATOMIC_LOAD(&top);
 		obj_t *result = NULL;
@@ -743,7 +743,7 @@ obj_t *objlist_t::get_leitung() const
 {
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		std::atomic_thread_fence(std::memory_order_acquire);
 		const uint8 t = OLIST_ATOMIC_LOAD(&top);
 		obj_t *result = NULL;
@@ -779,7 +779,7 @@ obj_t *objlist_t::get_convoi_vehicle() const
 {
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		std::atomic_thread_fence(std::memory_order_acquire);
 		const uint8 t = OLIST_ATOMIC_LOAD(&top);
 		obj_t *result = NULL;

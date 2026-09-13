@@ -101,6 +101,20 @@ extern const float32e8_t BR_MAGLEV;
 extern const float32e8_t BR_ROAD;
 extern const float32e8_t BR_DEFAULT;
 
+#ifdef MULTI_THREAD
+/**
+ * Set while a convoy worker thread runs convoi_t::threaded_step() (route
+ * finding). While set, the lazy summary getters below compute into
+ * thread_local temporaries instead of writing the convoy's shared cache (the
+ * is_valid bitmask and the summary members), which the main thread reads and
+ * writes concurrently (a data race: the main thread reads the summaries from
+ * the GUI and physics while workers recompute them during route finding).
+ * The values computed are a pure function of the convoy's vehicle set, which
+ * cannot change while the worker window is open, so the results are identical.
+ */
+extern thread_local bool convoy_summary_compute_thread_local;
+#endif
+
 /******************************************************************************/
 
 struct vehicle_summary_t
@@ -416,6 +430,14 @@ public:
 
 	// vehicle_summary needs recaching only, if it is going to be used.
 	virtual const vehicle_summary_t &get_vehicle_summary() {
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			static thread_local vehicle_summary_t thread_summary;
+			update_vehicle_summary(thread_summary);
+			return thread_summary;
+		}
+#endif
 		validate_vehicle_summary();
 		return convoy_t::get_vehicle_summary();
 	}
@@ -440,6 +462,14 @@ public:
 
 	// adverse_summary needs recaching only, if it is going to be used.
 	virtual const adverse_summary_t &get_adverse_summary() {
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			static thread_local adverse_summary_t thread_summary;
+			update_adverse_summary(thread_summary);
+			return thread_summary;
+		}
+#endif
 		validate_adverse_summary();
 		return convoy_t::get_adverse_summary();
 	}
@@ -464,6 +494,14 @@ public:
 
 	// freight_summary needs recaching only, if it is going to be used.
 	virtual const freight_summary_t &get_freight_summary() {
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			static thread_local freight_summary_t thread_summary;
+			update_freight_summary(thread_summary);
+			return thread_summary;
+		}
+#endif
 		validate_freight_summary();
 		return freight;
 	}
@@ -479,6 +517,12 @@ public:
 
 	virtual float32e8_t get_starting_force()
 	{
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			return convoy_t::get_starting_force();
+		}
+#endif
 		if (!(is_valid & cd_starting_force))
 		{
 			is_valid |= cd_starting_force;
@@ -498,6 +542,12 @@ public:
 
 	virtual float32e8_t get_braking_force()
 	{
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			return convoy_t::get_braking_force();
+		}
+#endif
 		if (!(is_valid & cd_braking_force))
 		{
 			is_valid |= cd_braking_force;
@@ -517,6 +567,12 @@ public:
 
 	virtual float32e8_t get_continuous_power()
 	{
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache (see above).
+			return convoy_t::get_continuous_power();
+		}
+#endif
 		if (!(is_valid & cd_continuous_power))
 		{
 			is_valid |= cd_continuous_power;

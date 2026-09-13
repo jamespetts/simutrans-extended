@@ -26,7 +26,9 @@
  *  - All accesses to the shared words (optr, top, array elements) go through
  *    the OLIST_ATOMIC_* accessors, so no data race can occur.
  *  - optr is a single word holding both the inline/array discriminator and the
- *    pointer, so a reader always sees a consistent pair.
+ *    pointer, so a reader always sees a consistent pair. It is also the
+ *    publication point for array contents: released on write, acquired on read
+ *    (see olist_atomic_load_word/olist_atomic_store_word).
  *  - Arrays are self-describing: element 0 holds the array capacity, so the
  *    capacity a reader uses is always the one belonging to the array it read,
  *    and speculative in-flight reads can never index out of bounds.
@@ -40,11 +42,32 @@
 #if defined(__GNUC__) || defined(__clang__)
 #	define OLIST_ATOMIC_LOAD(p) __atomic_load_n((p), __ATOMIC_RELAXED)
 #	define OLIST_ATOMIC_STORE(p, v) __atomic_store_n((p), (v), __ATOMIC_RELAXED)
+/* objlist_t is GCC_PACKED, so the compiler tracks the address of its members
+ * as alignment 1. For the 8-byte optr word that makes GCC/clang emit calls to
+ * libatomic's lock-based fallbacks (__atomic_load_8/__atomic_store_8), which
+ * both fail to link (libatomic is not linked) and would be slow. Routing the
+ * optr accesses through these helpers restores natural alignment: the atomic
+ * is emitted inside the function, where the parameter has its declared
+ * (natural) alignment, producing a plain lock-free instruction. The alignment
+ * is genuine: objlist_t is only ever instantiated as the first data member of
+ * grund_t (offset 8 after the vptr) and grund_t allocations are always at
+ * least pointer-aligned (freelist alignment), so optr is naturally aligned. */
+/* Memory order: the optr word is the PUBLICATION point for the list contents
+ * (fresh arrays are initialised with plain writes, including MEMZERON, before
+ * store_array/store_single). Release-store/acquire-load on optr itself orders
+ * those plain initialisation writes against the readers' content accesses.
+ * This must live on the atomic access, not on standalone fences: TSan does not
+ * reliably model fence-to-fence synchronisation around relaxed atomics and
+ * reported the (correctly fenced) memset-vs-content-read pairs as races. */
+static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return __atomic_load_n(p, __ATOMIC_ACQUIRE); }
+static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { __atomic_store_n(p, v, __ATOMIC_RELEASE); }
 #else
 	/* MSVC targets (x64/ARM64): naturally aligned word-sized and byte accesses
 	 * are atomic; the atomics/fences of the seqlock protocol provide ordering. */
 #	define OLIST_ATOMIC_LOAD(p) (*(p))
 #	define OLIST_ATOMIC_STORE(p, v) ((void)(*(p) = (v)))
+static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return *p; }
+static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { *p = v; }
 #endif
 
 /* Taking the address of members of this packed struct (for the atomic
@@ -136,14 +159,14 @@ private:
 	// The inline-stored object, or NULL when empty or when an array is used.
 	obj_t *read_single() const
 	{
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		return (w & INLINE_TAG) ? (obj_t *)(w & ~(uintptr_t)TAG_MASK) : NULL;
 	}
 
 	// The object array (element 0 = capacity header), or NULL when inline/empty.
 	obj_t *const *read_array() const
 	{
-		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		const uintptr_t w = olist_atomic_load_word(&optr);
 		std::atomic_thread_fence(std::memory_order_acquire);
 		return (w & INLINE_TAG) ? NULL : (obj_t *const *)w;
 	}
@@ -170,12 +193,12 @@ private:
 	void store_single(obj_t *o) // NULL = empty
 	{
 		std::atomic_thread_fence(std::memory_order_release);
-		OLIST_ATOMIC_STORE(&optr, ((uintptr_t)o) | INLINE_TAG);
+		olist_atomic_store_word(&optr, ((uintptr_t)o) | INLINE_TAG);
 	}
 	void store_array(obj_t **a) // a != NULL
 	{
 		std::atomic_thread_fence(std::memory_order_release);
-		OLIST_ATOMIC_STORE(&optr, (uintptr_t)a);
+		olist_atomic_store_word(&optr, (uintptr_t)a);
 	}
 
 	void set_capacity(uint16 new_cap);
@@ -221,7 +244,7 @@ public:
 	{
 		for(  ;;  ) {
 			const uint8 v0 = read_version_begin();
-			const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+			const uintptr_t w = olist_atomic_load_word(&optr);
 			std::atomic_thread_fence(std::memory_order_acquire);
 			const uint8 t = OLIST_ATOMIC_LOAD(&top);
 			obj_t *result = NULL;

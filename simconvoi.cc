@@ -1804,6 +1804,14 @@ void convoi_t::suche_neue_route()
  */
 void convoi_t::threaded_step()
 {
+#ifdef MULTI_THREAD
+	// Route finding runs on worker threads while the main thread continues:
+	// the lazy summary getters must not write this convoy's shared caches
+	// (is_valid, summary members) in that window, so they compute into
+	// thread_local temporaries instead (convoy.h).
+	convoy_summary_compute_thread_local = true;
+#endif
+
 	if (state == ROUTING_2)
 	{
 		// Only perform route finding in the threaded step
@@ -1814,6 +1822,10 @@ void convoi_t::threaded_step()
 
 		drive_to();
 	}
+
+#ifdef MULTI_THREAD
+	convoy_summary_compute_thread_local = false;
+#endif
 }
 
 bool convoi_t::replace_now()
