@@ -866,6 +866,27 @@ void planquadrat_t::remove_from_haltlist(halthandle_t halt)
 }
 
 
+uint32 planquadrat_t::purge_unbound_from_haltlist()
+{
+	uint32 removed = 0;
+	// Iterate downwards so that compacting the array does not disturb
+	// entries not yet tested.
+	for( int i = halt_list_count - 1;  i >= 0;  i--  ) {
+		// The id-range check must come first: is_bound() reads data[entry]
+		// without any bounds check, and halt list entries loaded from an
+		// inconsistent save (via set_id) can exceed the handle table size.
+		if(  halt_list[i].halt.get_id() >= halthandle_t::get_size()  ||  !halt_list[i].halt.is_bound()  ) {
+			for( uint8 j=i+1;  j<halt_list_count;  j++  ) {
+				halt_list[j-1] = halt_list[j];
+			}
+			halt_list_count--;
+			removed++;
+		}
+	}
+	return removed;
+}
+
+
 /**
  * true, if this halt is reachable from here
  */

@@ -4058,13 +4058,16 @@ void fabrik_t::recalc_nearby_halts()
 					if(!duplicate)
 					{
 						nearby_halts.append(new_nearby_halt);
-						if(new_nearby_halt.halt->get_pax_enabled())
+						if(new_nearby_halt.halt.is_bound())
 						{
-							nearby_passenger_halts.append(new_nearby_halt);
-						}
-						if (new_nearby_halt.halt.is_bound() && new_nearby_halt.halt->get_mail_enabled())
-						{
-							nearby_mail_halts.append(new_nearby_halt);
+							if(new_nearby_halt.halt->get_pax_enabled())
+							{
+								nearby_passenger_halts.append(new_nearby_halt);
+							}
+							if(new_nearby_halt.halt->get_mail_enabled())
+							{
+								nearby_mail_halts.append(new_nearby_halt);
+							}
 						}
 					}
 					if(!duplicate_freight)

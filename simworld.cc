@@ -5732,8 +5732,8 @@ void karte_t::get_nearby_halts_of_tiles(const minivec_tpl<const planquadrat_t*> 
 			nearby_halt_t halt = halt_list[h];
 			if (!halt.halt.is_bound())
 			{
-				// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
-				dbg->warning("karte_t::get_nearby_halts_of_tiles()", "DIAG: unbound halt in haltlist of tile %s (h=%d of %d, entry=%u)", current_tile->get_kartenboden()->get_pos().get_str(), h, current_tile->get_haltlist_count(), halt.halt.get_id());
+				// Defensive guard against unbound halt list entries (which karte_t::load purges at load).
+				DBG_MESSAGE("karte_t::get_nearby_halts_of_tiles()", "DIAG: unbound halt in haltlist of tile %s (h=%d of %d, entry=%u)", current_tile->get_kartenboden()->get_pos().get_str(), h, current_tile->get_haltlist_count(), halt.halt.get_id());
 				continue;
 			}
 			if (halt.halt->is_enabled(wtyp))
@@ -6371,8 +6371,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					halthandle_t halt = halt_list[h].halt;
 					if (!halt.is_bound())
 					{
-						// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
-						dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of location tile %d,%d (h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_3->get_haltlist_count());
+						// Defensive guard against unbound halt list entries (which karte_t::load purges at load).
+						DBG_MESSAGE("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of location tile %d,%d (h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_3->get_haltlist_count());
 						continue;
 					}
 					if((trip == mail_trip && halt->get_mail_enabled()) || (trip != mail_trip && halt->get_pax_enabled()))
@@ -6394,8 +6394,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				{
 					if (!current_tile_4)
 					{
-						// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): null tile in building list
-						dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: null tile in building->get_tiles() (dest %d,%d)", current_destination.location.x, current_destination.location.y);
+						// Defensive guard against inconsistent building tile lists.
+						DBG_MESSAGE("karte_t::generate_passengers_or_mail()", "DIAG: null tile in building->get_tiles() (dest %d,%d)", current_destination.location.x, current_destination.location.y);
 						continue;
 					}
 					const nearby_halt_t* halt_list = current_tile_4->get_haltlist();
@@ -6408,8 +6408,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 						halthandle_t halt = halt_list[h].halt;
 						if (!halt.is_bound())
 						{
-							// DIAGNOSTIC (temporary, ex-15 crash investigation 2026-09-11): stale haltlist entry
-							dbg->warning("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of building tile (dest %d,%d, h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_4->get_haltlist_count());
+							// Defensive guard against unbound halt list entries (which karte_t::load purges at load).
+							DBG_MESSAGE("karte_t::generate_passengers_or_mail()", "DIAG: unbound halt in haltlist of building tile (dest %d,%d, h=%d of %d)", current_destination.location.x, current_destination.location.y, h, current_tile_4->get_haltlist_count());
 							continue;
 						}
 						if ((trip == mail_trip && halt->get_mail_enabled()) || (trip != mail_trip && halt->get_pax_enabled()))
@@ -9484,6 +9484,27 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 		else {
 				++i;
+		}
+	}
+
+	// Repair pass for stale halt list entries. Halts destroyed above that had no
+	// tiles (e.g. dummy stops for buildings missing from the pakset) cannot clean
+	// their cached tile halt lists, as the destructor's cleanup bounding box is
+	// derived from the tiles; their unbound handles would otherwise survive into
+	// simulation and crash halt list consumers. This pass is deterministic (fixed
+	// map order, deterministic predicate), so all network peers loading the same
+	// savegame perform it identically.
+	uint32 purged_haltlist_entries = 0;
+	for(  uint32 nr = 0;  nr < (uint32)cached_grid_size.x * (uint32)cached_grid_size.y;  nr++  ) {
+		purged_haltlist_entries += plan[nr].purge_unbound_from_haltlist();
+	}
+	if(  purged_haltlist_entries > 0  ) {
+		dbg->warning("karte_t::load()", "purged %u unbound halt handle(s) from tile haltlists (halts missing from the pakset or destroyed during loading)", purged_haltlist_entries);
+		// The factories' nearby-halt lists were computed by finish_rd() BEFORE the
+		// dummy stops above were destroyed and may retain the unbound handles, so
+		// rebuild them from the now clean halt lists.
+		FOR(vector_tpl<fabrik_t*>, const f, fab_list) {
+			f->recalc_nearby_halts();
 		}
 	}
 
