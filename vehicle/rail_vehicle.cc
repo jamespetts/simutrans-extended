@@ -3570,6 +3570,13 @@ void rail_vehicle_t::rdwr_from_convoi(loadsave_t* file)
 	{
 		uint8 wm = (uint8)working_method;
 		file->rdwr_byte(wm);
+		if(  file->is_loading()  &&  wm > (uint8)time_interval_with_telegraph  ) {
+			// Out-of-range values exist in old saves (this byte was historically
+			// saved uninitialised, e.g. 0xCD from a debug heap fill). Clamp to the
+			// default: keeping an out-of-range enum is undefined behaviour on later
+			// reads (UBSan: "not a valid value for type 'working_method_t'").
+			wm = (uint8)drive_by_sight;
+		}
 		working_method = (working_method_t)wm;
 	}
 }
