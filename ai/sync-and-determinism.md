@@ -111,6 +111,7 @@ When adding per-step diagnostic aggregates for a new subsystem, use an unused sl
 
 ## When a desync happens
 
+- Log-order noise: log output from concurrent workers (e.g. `route_t::intern_calc_route` warnings at `-debug 2`) interleaves non-deterministically, so the first differing log line between two otherwise identical runs reflects the thread schedule, not the first state divergence. Localise state divergence with heavy-mode dumps/checklists or savegame comparison (`-compare`, compare_loadsave_t → [savegame-versioning](savegame-versioning.md)), not with log diffs [CODE; lesson from execution 2026-09-13].
 - Comparison points: periodic `nwc_check_t` from the server; the checklist attached to every tool command; the ready-checklist at join. Mismatch → client disconnect ("Lost synchronisation with server") or kick; details → [network](network.md).
 - Debug workflow: `-heavy 0..2` (`env_t::network_heavy_mode`): 1 = per-frame whole-game-state hash (`karte_t::get_gamestate_hash`, adler32 over the streamed save), 2 = additionally rotating savegame dumps `save/heavy/heavy-{server|client}-<sync_steps>.sve` (last 10 kept). Checklist printouts label the groups: `ssr` (rands 0–7), `str` (rands 8–23), `exr` (rands 24–31), `sums` [CODE].
 

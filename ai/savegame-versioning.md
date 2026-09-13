@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ be23f4203
+verified: ex-15 @ 6a22b7388
 ---
 # Savegame & network versioning
 
@@ -50,7 +50,7 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
   - Legacy base: `is_version_atleast(major, save_minor)` (e.g. dataobj/koord3d.cc).
 - Rules when adding persisted data [RECOLLECTION:2026-09-05 user statement]:
   1. Each new datum's save and load must be conditional upon the exact same version number (Extended version/revision). The version condition determines both writing and reading, because the user may select a save target version older than the build.
-  2. Data not loaded because the file's version is too old must always be assigned a sensible default value (assign defaults to member variables before the conditional block).
+  2. Data not loaded because the file's version is too old must always be assigned a sensible default value (assign defaults to member variables before the conditional block). Defaults must come from constructors/default construction as well as the load branch: a member initialised nowhere leaks run-dependent uninitialised memory into every save written (observed on ex-15 with `schedule_entry_t::unique_entry_id` and `vehicle_t::overhaul_time`: non-deterministic saves on the 14.x→15 upgrade path). Beware also code that derives values by scanning not-yet-loaded sibling data.
   3. Do not alter or remove existing serialization entries — saves written by existing versions must continue to load.
   4. The position of a new entry within a block does not strictly matter provided its version condition is correct; the end of the block is usually best for readability, but an entry belonging to a set of data read/written together often goes (and is often put) inside that set [RECOLLECTION:2026-09-07].
   5. Do not change data affecting network sync without following AGENTS.md rule 5 → [network](network.md).
