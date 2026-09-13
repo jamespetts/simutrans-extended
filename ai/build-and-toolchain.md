@@ -65,9 +65,7 @@ Four build paths coexist:
   release-like (MaxSpeed, `NDEBUG`, `MultiThreadedDLL`, no `DEBUG`/`MSG_LEVEL` so `DBG_*` macros
   compile out) plus `PROFILE` (enables the `-until`/`-times` benchmark options) and link PDBs;
   outputs `simutrans\Simutrans-Extended-Profile.exe` / `Simutrans-Extended-Profile-server.exe`;
-  both fully wired into the .sln. Built and verified by execution 2026-09-09. The headless
-  (server) build currently crashes on the performance fixture in server-mode simulation
-  ([known-bugs](known-bugs.md)). "Optimised debug" (fully wired into the .sln since commit
+  both fully wired into the .sln. Built and verified by execution 2026-09-09. "Optimised debug" (fully wired into the .sln since commit
   5dc127a85) remains the optimised-*debugging* configuration — its `DEBUG=3` define biases
   hot-path profiling (DBG-macro calls, asserts, `DEBUG_FREELIST`). The profiling workflow:
   [performance](performance.md).

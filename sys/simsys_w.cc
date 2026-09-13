@@ -361,16 +361,22 @@ void dr_prepare_flush()
 {
 #ifdef MULTI_THREAD
 	// now the thread is finished ...
-	EnterCriticalSection( &redraw_underway );
+	// redraw_underway is initialised only by dr_os_open; headless (COLOUR_DEPTH==0)
+	// builds never open a window, so the critical section and flush thread do not exist
+	if(  hFlushThread  ) {
+		EnterCriticalSection( &redraw_underway );
+	}
 #endif
 }
 
 void dr_flush()
 {
 #ifdef MULTI_THREAD
-	// just let the thread do its work
-	LeaveCriticalSection( &redraw_underway );
-	ResumeThread( hFlushThread );
+	if(  hFlushThread  ) {
+		// just let the thread do its work
+		LeaveCriticalSection( &redraw_underway );
+		ResumeThread( hFlushThread );
+	}
 #else
 	assert(hdc==NULL);
 	hdc = GetDC(hwnd);

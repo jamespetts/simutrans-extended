@@ -46,9 +46,7 @@ lists the known hotspots so agents know where care is needed and where to look w
   allocator instrumentation — while **`PROFILE`** is defined so `-until`/`-times` exist, and link
   PDBs are generated for profiler symbol resolution. Outputs:
   `simutrans\Simutrans-Extended-Profile.exe` / `Simutrans-Extended-Profile-server.exe` (+ .pdb).
-  Both wired into the .sln. **The headless build currently crashes on this fixture in server-mode
-  simulation — [known-bugs](known-bugs.md) — so server-paced capture runs on the graphical build
-  until that is fixed.**
+  Both wired into the .sln.
 - Profiling must run against release-like builds: debug-defined builds bias results
   [RECOLLECTION:2026-09-09]. **"Optimised debug|x64" is for optimised *debugging*, not
   profiling**: it is optimised code, but `DEBUG=3` compiles `DBG_*` macro calls into hot paths
@@ -89,7 +87,7 @@ missing-desc path, so the ex-15 world state differs slightly from master's
 | Mode | Command line core | Measures |
 |---|---|---|
 | `Load` | `-until 0 -debug 3` | Load cost: pakset + savegame load, at most one sim step, clean exit. Wall time of the whole run (zstd caveat above). (graphical build) |
-| `Capture` | `-server <port> -debug 1` | Server workload: load, then run as a server at its normal pace (FIX_RATIO; the savegame's own settings drive frame/step pacing; loopback-only, no clients) for `-WindowSec`, then kill. Default exe: graphical Profile build (headless blocked by the known crash above; `-Headless` selects the headless build). |
+| `Capture` | `-server <port> -debug 1` | Server workload: load, then run as a server at its normal pace (FIX_RATIO; the savegame's own settings drive frame/step pacing; loopback-only, no clients) for `-WindowSec`, then kill. Default exe: headless Profile (server) build (no display cost); `-Graphical` selects the graphical Profile build. |
 | `CaptureGui` | `-debug 1` | Client workload: load, then run as an offline client at normal single-player pace (display + simulation — the way players actually run) for `-WindowSec`, then kill. Use for graphics-code hotspots. (graphical build) |
 | `Times` | `-times -until 0 -debug 3` | Built-in drawing micro-benchmarks (show_times in simmain.cc) on the loaded world; results parsed into the summary. (graphical build) |
 
@@ -247,5 +245,3 @@ must not be perturbed without reading [threading](threading.md) and
   [RECOLLECTION:2026-09-09 user: not now].
 - A linkable release-build zstd static lib (same toolset as the game, or zstd sources compiled into
   the project) — would remove the debug-zstd decompression bias from load-phase measurements.
-- Fix the headless server-mode crash ([known-bugs](known-bugs.md)) so the server-paced capture can
-  run on the true headless build without display cost.

@@ -10,9 +10,8 @@ bb-10-sep-2023.sve from the user's Simutrans save directory. Run modes:
               pace (FIX_RATIO; the savegame's own settings drive frame/step
               pacing; loopback-only, no clients, no announcements) for
               -WindowSec seconds and kill the process. Default exe: the
-              graphical Profile build (headless crashes on this fixture,
-              see ai/known-bugs.md; pass -Headless to use the headless
-              "Profile (server)" build once that is fixed).
+              headless "Profile (server)" Profile build (no display cost;
+              pass -Graphical to use the graphical Profile build instead).
   CaptureGui - load, then run as an offline client at normal single-player
               pace (display + simulation, the way players actually run) for
               -WindowSec seconds and kill. Use this to profile graphics-code
@@ -73,7 +72,7 @@ param(
   [int]$WsQuietMb = 64,
   [int]$MinLoadSec = 75,
   [int]$ServerPort = 13353,
-  [switch]$Headless,
+  [switch]$Graphical,
   [switch]$Trace,
   [ValidateSet("Window","Load")]
   [string]$TracePhase = "Window",
@@ -96,7 +95,7 @@ if (-not $Pakset) {
   if ($branch -eq "ex-15") { $Pakset = "pak128.Britain-Ex" } else { $Pakset = "pak128.Britain-Ex-0.9.4" }
 }
 if (-not $Exe) {
-  if ($Mode -eq "Capture" -and $Headless) { $Exe = Join-Path $repo "simutrans\Simutrans-Extended-Profile-server.exe" }
+  if ($Mode -eq "Capture" -and -not $Graphical) { $Exe = Join-Path $repo "simutrans\Simutrans-Extended-Profile-server.exe" }
   else { $Exe = Join-Path $repo "simutrans\Simutrans-Extended-Profile.exe" }
 }
 if (-not $WorkDir) { $WorkDir = Join-Path $repo "ai\temp\perf" }
