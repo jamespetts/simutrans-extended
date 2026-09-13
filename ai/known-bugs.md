@@ -115,6 +115,23 @@ Rank on discovery; re-rank on triage.
 - Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
   branch-independent, so master exposure is plausible [UNVERIFIED].
 
+### ex-15 non-deterministic final saves on the demo fixture — priority 1
+
+- Local network smoke runs (scripts/run-smoke-tests.ps1, network mode, demo.sve, until 1945.6,
+  pak128.Britain-Ex, Profile|x64) on ex-15 produce runA/runB final.sve files that DIFFER —
+  "determinism : differing state files -> final.sve". Master passes the identical test
+  byte-identically [EXECUTION-VERIFIED:2026-09-13].
+- Pre-existing, not from the 2026-09-13 master→ex-15 merge: reproduced identically on the
+  pre-merge ex-15 tip (226e7af03) and on the merged tip (97457f297) [EXECUTION-VERIFIED:2026-09-13].
+- Was masked on ex-15 CI: the UBSan `working_method` abort killed harness runs before final.sve
+  was written ("DETERMINISM: PASS (0 state files...)"). With the clamp merged, ex-15 CI will now
+  evaluate determinism and is expected to fail there — treat that as this bug surfacing, not a
+  new regression.
+- Desync-relevant if ex-15 is ever network-played: something in ex-15's rework (schedules/
+  consists/vehicles/economy) or the 14.x→15 savegame upgrade path is non-deterministic across
+  identical runs. Uninvestigated; no narrowing yet. Note the demo fixture goes through the
+  upgrade path on ex-15 [EXECUTION-VERIFIED fixture behaviour 2026-09-11].
+
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
 - Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
@@ -146,6 +163,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | Headless MSVC builds crash in server-mode sim on the bb-10-sep-2023.sve fixture (not a forum report: performance-suite discovery 2026-09-09) | — | detailed entry above |
+| ex-15 non-deterministic final saves on the demo fixture (not a forum report: smoke-suite discovery 2026-09-13) | — | detailed entry above; ex-15 only; pre-existing, previously masked by the UBSan abort |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
