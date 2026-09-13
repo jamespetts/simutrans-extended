@@ -26,7 +26,9 @@
  *  - All accesses to the shared words (optr, top, array elements) go through
  *    the OLIST_ATOMIC_* accessors, so no data race can occur.
  *  - optr is a single word holding both the inline/array discriminator and the
- *    pointer, so a reader always sees a consistent pair.
+ *    pointer, so a reader always sees a consistent pair. It is also the
+ *    publication point for array contents: released on write, acquired on read
+ *    (see olist_atomic_load_word/olist_atomic_store_word).
  *  - Arrays are self-describing: element 0 holds the array capacity, so the
  *    capacity a reader uses is always the one belonging to the array it read,
  *    and speculative in-flight reads can never index out of bounds.
@@ -50,8 +52,15 @@
  * is genuine: objlist_t is only ever instantiated as the first data member of
  * grund_t (offset 8 after the vptr) and grund_t allocations are always at
  * least pointer-aligned (freelist alignment), so optr is naturally aligned. */
-static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return __atomic_load_n(p, __ATOMIC_RELAXED); }
-static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { __atomic_store_n(p, v, __ATOMIC_RELAXED); }
+/* Memory order: the optr word is the PUBLICATION point for the list contents
+ * (fresh arrays are initialised with plain writes, including MEMZERON, before
+ * store_array/store_single). Release-store/acquire-load on optr itself orders
+ * those plain initialisation writes against the readers' content accesses.
+ * This must live on the atomic access, not on standalone fences: TSan does not
+ * reliably model fence-to-fence synchronisation around relaxed atomics and
+ * reported the (correctly fenced) memset-vs-content-read pairs as races. */
+static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return __atomic_load_n(p, __ATOMIC_ACQUIRE); }
+static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { __atomic_store_n(p, v, __ATOMIC_RELEASE); }
 #else
 	/* MSVC targets (x64/ARM64): naturally aligned word-sized and byte accesses
 	 * are atomic; the atomics/fences of the seqlock protocol provide ordering. */

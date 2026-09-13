@@ -178,7 +178,9 @@ koord::koord(loadsave_t *file)
 // for debug messages...
 const char *koord::get_str() const
 {
-	static char pos_str[32];
+	// thread_local: called from worker threads (route finding heuristic
+	// warnings via route_t::intern_calc_route)
+	static thread_local char pos_str[32];
 	if(x==-1  &&  y==-1) {
 		return "koord invalid";
 	}
@@ -189,7 +191,8 @@ const char *koord::get_str() const
 
 const char *koord::get_fullstr() const
 {
-	static char pos_str[32];
+	// thread_local: called from worker threads (see koord::get_str)
+	static thread_local char pos_str[32];
 	if(x==-1  &&  y==-1) {
 		return "koord invalid";
 	}
