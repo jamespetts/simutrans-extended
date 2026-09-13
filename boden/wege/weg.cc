@@ -1592,6 +1592,9 @@ signal_t *weg_t::get_signal(ribi_t::ribi direction_of_travel) const
 	else return NULL;
 }
 
+// DIAGNOSTIC (private-car-mt-network branch): defining this disables destination linking in
+// private car route maps. Tested 2026-09-13: multi-city threaded route checking still produced
+// differing final saves with this defined, so link formation is not the (sole) mechanism.
 //#define NO_PRIVATE_CAR_DESTINATION_LINKING
 
 vector_tpl<ordered_vector_tpl<koord,uint32> > weg_t::private_car_route_map::route_maps[2];

@@ -745,8 +745,11 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 					weg_t::private_car_backtrace_end();
 				}
 #ifdef MULTI_THREAD
-				uint32 max_steps;
-				if (env_t::server && welt->is_paused())
+				// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+				// force no mid-search yield, to test whether the barrier-yield interplay
+				// between concurrent workers causes the run-to-run divergence.
+				uint32 max_steps = 0;
+				if (false && env_t::server && welt->is_paused())
 				{
 					max_steps = welt->get_settings().get_max_route_tiles_to_process_in_a_step_paused_background();
 				}

@@ -5186,17 +5186,24 @@ void karte_t::step()
 		// This cannot be started at the end of the step, as we will not know at that point whether we need to call this at all.
 		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
 
-		// Also, processing multiple cities when mutli-threaded is not network safe. The reasons for this are unclear, but this remains so even after
-		// the implementation of rwlocks for the private car routing data in January 2021. It is suspected that hte route finding algorithm is not
-		// deterministic for any given starting point, but investigations have so far not revealed whether this is the real problem or how or in what way(s) that
-		// this is not deterministic.
-
-		// For this reason, multi-threading is disabled when using network mode with clients connected until the problem can be solved.
+		// EXPERIMENTAL (private-car-mt-network branch): the former network-mode clamp to one city per
+		// step is removed to test empirically whether multi-city threaded private car route checking
+		// is now deterministic in network mode after the 2026 threading race fixes (ef33efe43,
+		// ac81f463c and the map-reader hardening). Historically this was "not network safe" for
+		// unknown reasons; route-map link formation order-dependence is the remaining suspect.
 		error = pthread_mutex_lock(&private_car_route_mutex);
 		assert(error == 0);
 		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
 		{
-			cities_to_process = env_t::networkmode ? min(1, cities_awaiting_private_car_route_check.get_count()) : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
+			cities_to_process = env_t::networkmode ? min(1, cities_awaiting_private_car_route_check.get_count()) : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1); // CONTROL-BUILD
+		}
+		// Temporary diagnostic (remove before merge): prove that multi-city concurrency was
+		// actually exercised in network mode, otherwise a determinism PASS is meaningless.
+		static bool multi_city_logged = false;
+		if (!multi_city_logged && env_t::networkmode && cities_to_process > 1)
+		{
+			multi_city_logged = true;
+			dbg->warning("karte_t::step", "EXPERIMENT: multi-city private car route checking engaged in network mode (%d cities this step)", cities_to_process);
 		}
 		error = pthread_mutex_unlock(&private_car_route_mutex);
 		assert(error == 0);
@@ -5270,10 +5277,11 @@ void karte_t::step()
 #ifndef CONCURRENT_ROUTE_PROCESSING
 	uint32 step_cities_count = 0;
 #endif
-	FOR(weighted_vector_tpl<stadt_t*>, const i, cities)
-	{
-		i->step(delta_t);
-	}
+	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+	// the city stepping loop is moved to AFTER await_private_car_threads() below, so that
+	// city growth (building/road construction) cannot mutate the map while private-car
+	// route searches are in flight. If the per-step route hash then agrees between
+	// independent runs, the non-determinism comes from this overlap.
 
 	rands[15] = get_random_seed();
 
@@ -5284,10 +5292,85 @@ void karte_t::step()
 	if (check_city_routes)
 	{
 		await_private_car_threads();
+		// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+		// if the await were a reliable rendezvous, cities_to_process would always be 0 here.
+		{
+			int error2 = pthread_mutex_lock(&private_car_route_mutex);
+			assert(error2 == 0);
+			if (cities_to_process != 0)
+			{
+				dbg->warning("karte_t::step", "EXPERIMENT: await released with cities_to_process=%d, queue=%u at step %u", cities_to_process, cities_awaiting_private_car_route_check.get_count(), steps);
+			}
+			error2 = pthread_mutex_unlock(&private_car_route_mutex);
+			assert(error2 == 0);
+			(void)error2;
+		}
 	}
 #endif
 
 	weg_t::apply_travel_time_updates();
+
+	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+	// semantic hash of all private car route data, independent of the internal route-map
+	// representation (idx/link_mode ordering), logged every step so that two independent
+	// runs can be compared to localise the first semantically divergent step.
+	// route_map_mtx is held so that no worker can be mid-backtrace-write during the read.
+	{
+		weg_t::private_car_route_map::route_map_lock();
+		uint32 route_hash = 2166136261u; // FNV-1a offset basis
+		for (uint8 elem = 0; elem < 2; elem++) {
+			for (weg_t* w : weg_t::get_alle_wege()) {
+				if (w->get_waytype() != road_wt) continue;
+				for (uint8 d = 0; d < 5; d++) {
+					const weg_t::private_car_route_map& m = w->private_car_routes[elem][d];
+					const uint32 n = m.get_count();
+					route_hash = (route_hash ^ n) * 16777619u;
+					for (uint32 k = 0; k < n; k++) {
+						const koord kk = m.get_by_index(k);
+						route_hash = (route_hash ^ (((uint32)(uint16)kk.x << 16) | (uint16)kk.y)) * 16777619u;
+					}
+				}
+			}
+		}
+		dbg->warning("karte_t::step", "EXPERIMENT route hash step %u: %08x", steps, route_hash);
+
+		// TEMPORARY DIAGNOSTIC (remove before merge): full semantic dump of the route data
+		// at selected steps so that two independent runs can be diffed textually to see
+		// exactly which tiles/destinations diverge. dr_time() in the filename distinguishes runs.
+		if (steps == 5 || steps == 250 || steps == 500 || steps == 750 || steps == 1000)
+		{
+			char fn[128];
+			sprintf(fn, "routes-dump-%lu-step-%u.txt", (unsigned long)dr_time(), steps);
+			if (FILE* f = fopen(fn, "w"))
+			{
+				for (uint8 elem = 0; elem < 2; elem++) {
+					for (weg_t* w : weg_t::get_alle_wege()) {
+						if (w->get_waytype() != road_wt) continue;
+						for (uint8 d = 0; d < 5; d++) {
+							const weg_t::private_car_route_map& m = w->private_car_routes[elem][d];
+							const uint32 n = m.get_count();
+							if (n == 0) continue;
+							fprintf(f, "%s e%u d%u n=%u:", w->get_pos().get_str(), elem, d, n);
+							for (uint32 k = 0; k < n; k++) {
+								const koord kk = m.get_by_index(k);
+								fprintf(f, " %d,%d", kk.x, kk.y);
+							}
+							fprintf(f, "\n");
+						}
+					}
+				}
+				fclose(f);
+			}
+		}
+		weg_t::private_car_route_map::route_map_unlock();
+	}
+
+	// TEMPORARY DIAGNOSTIC (moved from above; remove before merge): cities step here,
+	// after the private-car workers have been awaited, so growth cannot race the searches.
+	FOR(weighted_vector_tpl<stadt_t*>, const i, cities)
+	{
+		i->step(delta_t);
+	}
 
 	rands[16] = get_random_seed();
 
