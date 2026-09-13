@@ -7,6 +7,8 @@
 #define OBJ_LEITUNG2_H
 
 
+#include <atomic>
+
 #include "../ifc/sync_steppable.h"
 #include "../dataobj/koord3d.h"
 #include "../dataobj/ribi.h"
@@ -34,9 +36,14 @@ protected:
 	ribi_t::ribi ribi:4;
 
 	/**
-	* We are part of this network
+	* We are part of this network.
+	* Atomic: during the threaded map load (plans_finish_rd), map-loop workers
+	* write this (set_net, some paths under verbinde_mutex) while other workers
+	* read it (get_net) under no or different mutexes - a data race flagged by
+	* TSan. An atomic pointer makes the accessor pair race-free regardless of
+	* the surrounding lock discipline.
 	*/
-	powernet_t * net;
+	std::atomic<powernet_t*> net;
 
 	const way_desc_t *desc;
 
@@ -65,8 +72,8 @@ protected:
 	sint32 modified_production_delta_t;
 
 public:
-	powernet_t* get_net() const { return net; }
-	void set_net(powernet_t* p) { net = p; }
+	powernet_t* get_net() const { return net.load(std::memory_order_relaxed); }
+	void set_net(powernet_t* p) { net.store(p, std::memory_order_relaxed); }
 
 	const way_desc_t * get_desc() { return desc; }
 	void set_desc(const way_desc_t *new_desc) { desc = new_desc; }

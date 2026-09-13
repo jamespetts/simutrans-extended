@@ -180,7 +180,7 @@ leitung_t::~leitung_t()
 		}
 
 		if(neighbours==0) {
-			delete net;
+			delete get_net();
 		}
 		if(!gr->ist_tunnel()) {
 			player_t::add_maintenance(get_owner(), -desc->get_maintenance(), powerline_wt);
