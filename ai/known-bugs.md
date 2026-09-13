@@ -67,29 +67,6 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
-### Unbound halt handles in planquadrat haltlists crash early simulation (ex-15) — priority 1
-
-- Loading the bb-10-sep-2023 fixture on ex-15 (pak128.Britain-Ex) crashes with 0xC0000005
-  reading 0x5F4 within ~1-2 minutes of simulation start, at haltlist consumers:
-  `haltestelle_t::get_destination_halts_of_ware` (simhalt.cc), `karte_t::get_nearby_halts_of_tiles`
-  and `karte_t::generate_passengers_or_mail` (simworld.cc) [EXECUTION-VERIFIED:2026-09-11, via the
-  crash-backtrace handler].
-- Mechanism: a `halthandle_t` (quickstone) in a tile's haltlist resolves to NULL; `enables` is at
-  offset 0x5F4 in haltestelle_t. No halt destruction occurs in failing runs (destructor
-  instrumentation never fired) and failure is non-deterministic across identical runs —
-  consistent with a load-time/threading race corrupting haltlists, most likely the
-  `karte_t::load` / `init_threads` race family. That family is now fixed on master (workers are
-  created only at the end of `karte_t::load`); the master→ex-15 merge carrying the fix has
-  happened (ex-15 @ 9d8dde74c) — re-test whether this crash still reproduces; if it does, the
-  cause is elsewhere. It does not share a root with the former headless MSVC server crash —
-  that was a separate defect (uninitialised CRITICAL_SECTION in simsys_w.cc, fixed 2026-09-13).
-- A guarded ex-15 build (is_bound() skip + warning at the haltlist consumer sites) survives 8+
-  minutes with zero guard hits in some runs — i.e. the corruption appears only sometimes.
-  Guards were needed for the 2026-09-11 ex-15 profiling verification; the root-cause race fix
-  has now landed on master (pending merge), so the guards are a purely defensive layer.
-- Never reproduced on master graphical builds (windows up to 300 s+) — but the race family is
-  branch-independent, so master exposure is plausible [UNVERIFIED].
-
 ### threads = 1 crashes multi-threaded builds (divide by zero) — priority 2
 
 - With simuconf `threads = 1` on a MULTI_THREAD build, `karte_t::get_parallel_operations()`
